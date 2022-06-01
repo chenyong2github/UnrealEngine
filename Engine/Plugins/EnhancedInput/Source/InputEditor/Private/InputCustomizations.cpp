@@ -190,7 +190,7 @@ TArray<UObject*> FEnhancedInputDeveloperSettingsCustomization::GatherClassDetail
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
 	FARFilter Filter;
-	Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
 	Filter.bRecursiveClasses = true;
 	TArray<FAssetData> BlueprintAssetData;
 	AssetRegistry.GetAssets(Filter, BlueprintAssetData);
@@ -201,8 +201,7 @@ TArray<UObject*> FEnhancedInputDeveloperSettingsCustomization::GatherClassDetail
 		if (Result.IsSet() && !ExcludedAssetNames.Contains(Asset.AssetName))
 		{
 			const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(Result.GetValue());
-			const FString ClassName = FPackageName::ObjectPathToObjectName(ClassObjectPath);
-			if (UClass* ParentClass = FindObjectSafe<UClass>(ANY_PACKAGE, *ClassName, true))
+			if (UClass* ParentClass = FindObjectSafe<UClass>(nullptr, *ClassObjectPath, true))
 			{
 				if (ParentClass->IsChildOf(Class))
 				{
@@ -243,7 +242,7 @@ TArray<UObject*> FEnhancedInputDeveloperSettingsCustomization::GatherClassDetail
 void FEnhancedInputDeveloperSettingsCustomization::RebuildDetailsViewForAsset(const FAssetData& AssetData, const bool bIsAssetBeingRemoved)
 {
 	// If the asset was a blueprint...
-	if (AssetData.AssetClass == UBlueprint::StaticClass()->GetFName())
+	if (AssetData.AssetClassPath == UBlueprint::StaticClass()->GetClassPathName())
 	{
 		// With a native parent class...
 		FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag(FBlueprintTags::NativeParentClassPath);
@@ -251,8 +250,7 @@ void FEnhancedInputDeveloperSettingsCustomization::RebuildDetailsViewForAsset(co
 		{
 			// And the base class is UInputModifier or UInputTrigger, then we should rebuild the details
 			const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(Result.GetValue());
-			const FString ClassName = FPackageName::ObjectPathToObjectName(ClassObjectPath);
-			if (UClass* ParentClass = FindObjectSafe<UClass>(ANY_PACKAGE, *ClassName, true))
+			if (UClass* ParentClass = FindObjectSafe<UClass>(nullptr, *ClassObjectPath, true))
 			{
 				if (ParentClass == UInputModifier::StaticClass() || ParentClass == UInputTrigger::StaticClass())
 				{

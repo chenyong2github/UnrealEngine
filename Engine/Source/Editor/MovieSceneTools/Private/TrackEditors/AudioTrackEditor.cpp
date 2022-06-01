@@ -1293,10 +1293,10 @@ TSharedRef<SWidget> FAudioTrackEditor::BuildAudioSubMenu(FOnAssetSelected OnAsse
 	UMovieSceneSequence* Sequence = GetSequencer() ? GetSequencer()->GetFocusedMovieSceneSequence() : nullptr;
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	TArray<FName> ClassNames;
-	ClassNames.Add(USoundBase::StaticClass()->GetFName());
-	TSet<FName> DerivedClassNames;
-	AssetRegistryModule.Get().GetDerivedClassNames(ClassNames, TSet<FName>(), DerivedClassNames);
+	TArray<FTopLevelAssetPath> ClassNames;
+	ClassNames.Add(USoundBase::StaticClass()->GetClassPathName());
+	TSet<FTopLevelAssetPath> DerivedClassNames;
+	AssetRegistryModule.Get().GetDerivedClassNames(ClassNames, TSet<FTopLevelAssetPath>(), DerivedClassNames);
 
 	FMenuBuilder MenuBuilder(true, nullptr);
 
@@ -1306,9 +1306,9 @@ TSharedRef<SWidget> FAudioTrackEditor::BuildAudioSubMenu(FOnAssetSelected OnAsse
 		AssetPickerConfig.OnAssetEnterPressed = OnAssetEnterPressed;
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
-		for (auto ClassName : DerivedClassNames)
+		for (FTopLevelAssetPath ClassName : DerivedClassNames)
 		{
-			AssetPickerConfig.Filter.ClassNames.Add(ClassName);
+			AssetPickerConfig.Filter.ClassPaths.Add(ClassName);
 		}
 		AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 		AssetPickerConfig.AdditionalReferencingAssets.Add(FAssetData(Sequence));

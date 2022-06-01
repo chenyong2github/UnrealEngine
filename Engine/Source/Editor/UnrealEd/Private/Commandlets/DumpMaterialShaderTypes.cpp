@@ -565,16 +565,16 @@ int32 UDumpMaterialShaderTypesCommandlet::Main(const FString& Params)
 				FARFilter Filter;
 				Filter.PackagePaths.Add(FName(TEXT("/Game")));
 				Filter.bRecursivePaths = true;
-				Filter.ClassNames.Add(UMaterial::StaticClass()->GetFName());
+				Filter.ClassPaths.Add(UMaterial::StaticClass()->GetClassPathName());
 
 				FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 				CollectionManagerModule.Get().GetObjectsInCollection(FName(*CollectionName), ECollectionShareType::CST_All, Filter.ObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
 
 				AssetRegistry.GetAssets(Filter, MaterialList);
 
-				Filter.ClassNames.Empty();
-				Filter.ClassNames.Add(UMaterialInstance::StaticClass()->GetFName());
-				Filter.ClassNames.Add(UMaterialInstanceConstant::StaticClass()->GetFName());
+				Filter.ClassPaths.Empty();
+				Filter.ClassPaths.Add(UMaterialInstance::StaticClass()->GetClassPathName());
+				Filter.ClassPaths.Add(UMaterialInstanceConstant::StaticClass()->GetClassPathName());
 
 				AssetRegistry.GetAssets(Filter, MaterialInstanceList);
 			}
@@ -583,8 +583,8 @@ int32 UDumpMaterialShaderTypesCommandlet::Main(const FString& Params)
 		{
 			if (!AssetRegistry.IsLoadingAssets())
 			{
-				AssetRegistry.GetAssetsByClass(UMaterial::StaticClass()->GetFName(), MaterialList, true);
-				AssetRegistry.GetAssetsByClass(UMaterialInstance::StaticClass()->GetFName(), MaterialInstanceList, true);
+				AssetRegistry.GetAssetsByClass(UMaterial::StaticClass()->GetClassPathName(), MaterialList, true);
+				AssetRegistry.GetAssetsByClass(UMaterialInstance::StaticClass()->GetClassPathName(), MaterialInstanceList, true);
 			}
 		}
 	}

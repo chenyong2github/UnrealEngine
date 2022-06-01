@@ -555,8 +555,8 @@ void SMaterialAnalyzer::BuildBasicMaterialTree()
 
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-	AssetRegistry.GetAssetsByClass(UMaterial::StaticClass()->GetFName(), AssetDataArray, true);
-	AssetRegistry.GetAssetsByClass(UMaterialInstance::StaticClass()->GetFName(), AssetDataArray, true);
+	AssetRegistry.GetAssetsByClass(UMaterial::StaticClass()->GetClassPathName(), AssetDataArray, true);
+	AssetRegistry.GetAssetsByClass(UMaterialInstance::StaticClass()->GetClassPathName(), AssetDataArray, true);
 
 	if (BuildBaseMaterialTreeTask == nullptr && AssetDataArray.Num() > 0)
 	{

@@ -257,7 +257,7 @@ void WriteOutMaterialFunctions(FArchive* FileWriter, const FString& OutputFilePa
 	// See UMaterialGraphSchema::GetMaterialFunctionActions for reference
 	TArray<FAssetData> AssetDataList;
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().GetAssetsByClass(UMaterialFunction::StaticClass()->GetFName(), AssetDataList);
+	AssetRegistryModule.Get().GetAssetsByClass(UMaterialFunction::StaticClass()->GetClassPathName(), AssetDataList);
 	for (const FAssetData& AssetData : AssetDataList)
 	{
 		// If this is a function that is selected to be exposed to the library

@@ -161,7 +161,7 @@ private:
 	FGetCurrentSelectionDelegate GetCurrentSelectionDelegate;
 
 	/** Only assets of these classes will show up */
-	TArray<FName> AssetClassNames;
+	TArray<FTopLevelAssetPath> AssetClassNames;
 
 	/** Fired when assets are chosen for open. Only fired in open dialogs. */
 	FOnAssetsChosenForOpen OnAssetsChosenForOpen;

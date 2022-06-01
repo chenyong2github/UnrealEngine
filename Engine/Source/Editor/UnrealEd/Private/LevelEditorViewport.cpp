@@ -341,12 +341,13 @@ static UTexture* GetTextureWithNameVariations( const FString& BasePackageName, c
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( TEXT( "AssetRegistry" ) );
 
 	// Try all the variations of suffixes, if we find a package matching the suffix, return it.
+	const FTopLevelAssetPath Texture2DClassPath(TEXT("/Script/Engine"), TEXT("Texture2D"));
 	for ( int i = 0; i < Suffixes.Num(); i++ )
 	{
 		TArray<FAssetData> OutAssetData;
 		if ( AssetRegistryModule.Get().GetAssetsByPackageName( *( BasePackageName + Suffixes[i] ), OutAssetData ) && OutAssetData.Num() > 0 )
 		{
-			if ( OutAssetData[0].AssetClass == "Texture2D" )
+			if ( OutAssetData[0].AssetClassPath == Texture2DClassPath )
 			{
 				return Cast<UTexture>(OutAssetData[0].GetAsset());
 			}

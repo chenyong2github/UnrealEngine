@@ -64,7 +64,7 @@ FAutoConsoleCommandWithWorldAndArgs FCmdControlRigVisualGraphUtilsDumpHierarchy
 		TArray<URigHierarchy*> Hierarchies;
 		for(const FString& ObjectPathName : ObjectPathNames)
 		{
-			if(UObject* Object = FindObject<UObject>(ANY_PACKAGE, *ObjectPathName, false))
+			if(UObject* Object = FindObject<UObject>(nullptr, *ObjectPathName, false))
 			{
 				if(UControlRig* CR = Cast<UControlRig>(Object))
 				{
@@ -76,7 +76,7 @@ FAutoConsoleCommandWithWorldAndArgs FCmdControlRigVisualGraphUtilsDumpHierarchy
 				}
 				else
 				{
-					UE_LOG(LogVisualGraphUtils, Error, TEXT("Object is not a hierarchy / nor a Control Rig: '%s'"), *ObjectPathName);
+					UE_LOG(LogVisualGraphUtils, Error, TEXT("Object is not a hierarchy / nor a Control Rig / or short name was provided: '%s'"), *ObjectPathName);
 					return;
 				}
 			}

@@ -54,7 +54,7 @@ TSharedRef<SWidget> SSearchTreeRow::GenerateWidgetForColumn(const FName& ColumnN
 		{
 			TSharedPtr<FAssetObjectNode> ObjectNode = StaticCastSharedPtr<FAssetObjectNode>(BrowserObject);
 
-			if (UClass* ObjectClass = FindObject<UClass>(ANY_PACKAGE, *ObjectNode->object_native_class, true))
+			if (UClass* ObjectClass = UClass::TryFindTypeSlow<UClass>(*ObjectNode->object_native_class, EFindFirstObjectOptions::ExactClass))
 			{
 				//TSharedPtr<IAssetTypeActions> AssetActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(ObjectClass).Pin();
 
@@ -71,7 +71,7 @@ TSharedRef<SWidget> SSearchTreeRow::GenerateWidgetForColumn(const FName& ColumnN
 		{
 			TSharedPtr<FAssetNode> ObjectNode = StaticCastSharedPtr<FAssetNode>(BrowserObject);
 
-			if (UClass* ObjectClass = FindObject<UClass>(ANY_PACKAGE, *ObjectNode->AssetClass, true))
+			if (UClass* ObjectClass = UClass::TryFindTypeSlow<UClass>(ObjectNode->AssetClass, EFindFirstObjectOptions::ExactClass))
 			{
 				TSharedPtr<IAssetTypeActions> AssetActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(ObjectClass).Pin();
 

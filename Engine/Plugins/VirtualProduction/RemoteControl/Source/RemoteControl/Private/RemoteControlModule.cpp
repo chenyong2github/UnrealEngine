@@ -115,7 +115,7 @@ namespace RemoteControlUtil
 	{
 		FARFilter Filter;
 		Filter.bIncludeOnlyOnDiskAssets = false;
-		Filter.ClassNames = {URemoteControlPreset::StaticClass()->GetFName()};
+		Filter.ClassPaths = {URemoteControlPreset::StaticClass()->GetClassPathName()};
 		Filter.bRecursivePaths = true;
 
 		return Filter;
@@ -151,7 +151,7 @@ namespace RemoteControlUtil
 		IAssetRegistry& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
 		TArray<FAssetData> Assets;
-		AssetRegistry.GetAssetsByClass(URemoteControlPreset::StaticClass()->GetFName(), Assets);
+		AssetRegistry.GetAssetsByClass(URemoteControlPreset::StaticClass()->GetClassPathName(), Assets);
 
 		FAssetData* FoundAsset = Assets.FindByPredicate([&PresetName](const FAssetData& InAsset)
 		{
@@ -1597,7 +1597,7 @@ void FRemoteControlModule::CachePresets() const
 
 void FRemoteControlModule::OnAssetAdded(const FAssetData& AssetData)
 {
-	if (AssetData.AssetClass != URemoteControlPreset::StaticClass()->GetFName())
+	if (AssetData.AssetClassPath != URemoteControlPreset::StaticClass()->GetClassPathName())
 	{
 		return;
 	}
@@ -1612,7 +1612,7 @@ void FRemoteControlModule::OnAssetAdded(const FAssetData& AssetData)
 
 void FRemoteControlModule::OnAssetRemoved(const FAssetData& AssetData)
 {
-	if (AssetData.AssetClass != URemoteControlPreset::StaticClass()->GetFName())
+	if (AssetData.AssetClassPath != URemoteControlPreset::StaticClass()->GetClassPathName())
 	{
 		return;
 	}
@@ -1638,7 +1638,7 @@ void FRemoteControlModule::OnAssetRemoved(const FAssetData& AssetData)
 
 void FRemoteControlModule::OnAssetRenamed(const FAssetData& AssetData, const FString&)
 {
-	if (AssetData.AssetClass != URemoteControlPreset::StaticClass()->GetFName())
+	if (AssetData.AssetClassPath != URemoteControlPreset::StaticClass()->GetClassPathName())
 	{
 		return;
 	}

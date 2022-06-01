@@ -335,7 +335,7 @@ UObject* FCameraAnimToTemplateSequenceConverter::ConvertSingleCameraAnimToTempla
 		// that it's going to be what we want.
 		for (const FAssetData& ExistingCameraAnimSequence : ExistingCameraAnimSequences)
 		{
-			if (ExistingCameraAnimSequence.AssetClass == UCameraAnimationSequence::StaticClass()->GetFName())
+			if (ExistingCameraAnimSequence.AssetClassPath == UCameraAnimationSequence::StaticClass()->GetClassPathName())
 			{
 				ExistingAsset = ExistingCameraAnimSequence.GetAsset();
 				if (ExistingAsset != nullptr)

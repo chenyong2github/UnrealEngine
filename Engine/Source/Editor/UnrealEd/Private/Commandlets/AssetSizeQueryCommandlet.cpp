@@ -121,8 +121,8 @@ int32 UAssetSizeQueryCommandlet::Main(const FString& FullCommandLine)
 		FName ObjectPath;
 		int64 CompressedSize;
 	};
-	TMap<FName /* AssetClass */, int64> FilteredClassCompressedSizes;
-	TMap<FName /* AssetClass */, TArray<FMatchedAssetInfo>> FilteredClassMatchedAssets;
+	TMap<FTopLevelAssetPath /* AssetClass */, int64> FilteredClassCompressedSizes;
+	TMap<FTopLevelAssetPath /* AssetClass */, TArray<FMatchedAssetInfo>> FilteredClassMatchedAssets;
 	AssetRegistry.EnumerateAllAssets(TSet<FName>(), 
 		[&ImportantAssetCount,
 		 &MatchedAssetCount,
@@ -154,12 +154,12 @@ int32 UAssetSizeQueryCommandlet::Main(const FString& FullCommandLine)
 		{
 			MatchedAssetCount++;
 
-			FMatchedAssetInfo& Info = FilteredClassMatchedAssets.FindOrAdd(AssetData.AssetClass).AddDefaulted_GetRef();
+			FMatchedAssetInfo& Info = FilteredClassMatchedAssets.FindOrAdd(AssetData.AssetClassPath).AddDefaulted_GetRef();
 			Info.ObjectPath = AssetData.ObjectPath;
 			Info.CompressedSize = AssetCompressedSize;
 			
 			FilteredCompressedSize += AssetCompressedSize;
-			int64& FilteredClassCompressedSize = FilteredClassCompressedSizes.FindOrAdd(AssetData.AssetClass);
+			int64& FilteredClassCompressedSize = FilteredClassCompressedSizes.FindOrAdd(AssetData.AssetClassPath);
 			FilteredClassCompressedSize += AssetCompressedSize;
 		}
 
@@ -190,7 +190,7 @@ int32 UAssetSizeQueryCommandlet::Main(const FString& FullCommandLine)
 	{
 		UE_LOG(LogAssetSize, Display, TEXT("Filtered class sizes:                         bytes          (pct of filtered total)"));
 	}
-	for (TPair<FName, int64>& ClassSizePair : FilteredClassCompressedSizes)
+	for (TPair<FTopLevelAssetPath, int64>& ClassSizePair : FilteredClassCompressedSizes)
 	{
 		UE_LOG(LogAssetSize, Display, TEXT("    %-40s %-14s (%.1f%%)"), *ClassSizePair.Key.ToString(), *FText::AsNumber(ClassSizePair.Value).ToString(), 100.0 * ClassSizePair.Value / FilteredCompressedSize);
 		if (ShowCount)
@@ -210,7 +210,7 @@ int32 UAssetSizeQueryCommandlet::Main(const FString& FullCommandLine)
 		if (OutputCSVType == EOutputCSVType::Classes)
 		{
 			Lines.Add(TEXT("AssetClass,AssetCount,TotalCompressedSize"));
-			for (TPair<FName, int64>& ClassSizePair : FilteredClassCompressedSizes)
+			for (TPair<FTopLevelAssetPath, int64>& ClassSizePair : FilteredClassCompressedSizes)
 			{
 				// we add to both maps at the same time to we know the lookup succeeds.
 				Lines.Add(FString::Printf(TEXT("%s,%lld,%lld"), *ClassSizePair.Key.ToString(), FilteredClassMatchedAssets[ClassSizePair.Key].Num(), ClassSizePair.Value));
@@ -219,7 +219,7 @@ int32 UAssetSizeQueryCommandlet::Main(const FString& FullCommandLine)
 		else if (OutputCSVType == EOutputCSVType::Assets)
 		{
 			Lines.Add(TEXT("AssetName,AssetType,CompressedSize"));
-			for (TPair<FName, TArray<FMatchedAssetInfo>>& ClassAssetsPair : FilteredClassMatchedAssets)
+			for (TPair<FTopLevelAssetPath, TArray<FMatchedAssetInfo>>& ClassAssetsPair : FilteredClassMatchedAssets)
 			{
 				// we add to both maps at the same time to we know the lookup succeeds.
 				for (const FMatchedAssetInfo& AssetInfo : ClassAssetsPair.Value)

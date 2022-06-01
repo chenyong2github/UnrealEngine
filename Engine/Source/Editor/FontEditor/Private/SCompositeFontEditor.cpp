@@ -1075,7 +1075,7 @@ UFontFace* STypefaceEntryEditor::SaveFontFaceAsAsset(const UFontFace* InFontFace
 	FSaveAssetDialogConfig SaveAssetDialogConfig;
 	SaveAssetDialogConfig.DefaultPath = DefaultPackagePath;
 	SaveAssetDialogConfig.DefaultAssetName = DefaultFaceAssetName;
-	SaveAssetDialogConfig.AssetClassNames.Add(InFontFace->GetClass()->GetFName());
+	SaveAssetDialogConfig.AssetClassNames.Add(InFontFace->GetClass()->GetClassPathName());
 	SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 	SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SaveFontFaceDialogTitle", "Save Font Face");
 

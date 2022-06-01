@@ -13,7 +13,7 @@ class UFixupNeedsLoadForEditorGameCommandlet : public UResavePackagesCommandlet
 	GENERATED_BODY()
 
 	/** Map of class names and their default NeedsLoadForEditorGame() return values. */
-	TMap<FName, bool> ResaveClassNeedsLoadForEditorGameValues;
+	TMap<FString, bool> ResaveClassNeedsLoadForEditorGameValues;
 
 protected:
 

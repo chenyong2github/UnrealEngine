@@ -265,7 +265,7 @@ void SControlRigMappingWindow::OnAddNodeMapping()
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
 	FAssetPickerConfig AssetPickerConfig;
- 	AssetPickerConfig.Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+ 	AssetPickerConfig.Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
  	AssetPickerConfig.Filter.bRecursiveClasses = true;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SControlRigMappingWindow::OnAssetSelectedFromMeshPicker);
 	AssetPickerConfig.bAllowNullSelection = false;
@@ -318,9 +318,7 @@ bool SControlRigMappingWindow::OnShouldFilterAnimAsset(const FAssetData& AssetDa
 	{
 		if (ParentClassName.IsEmpty() == false)
 		{
-			UObject* Outer = nullptr;
-			ResolveName(Outer, ParentClassName, false, false);
-			UClass* ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+			UClass* ParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
 			while (ParentClass && ParentClass != UObject::StaticClass())
 			{
 				if (ParentClass->ImplementsInterface(UNodeMappingProviderInterface::StaticClass()))

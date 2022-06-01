@@ -40,14 +40,13 @@ namespace MovieScene
 /**
  * Returns whether the given blueprint has one of the given class names as its parent class.
  */
-bool HasAnyBlueprintParentClass(const FAssetData& AssetData, const TSet<FName>* ParentClassNames)
+bool HasAnyBlueprintParentClass(const FAssetData& AssetData, const TSet<FTopLevelAssetPath>* ParentClassNames)
 {
 	const FAssetDataTagMapSharedView::FFindTagResult FoundGeneratedClassTag = AssetData.TagsAndValues.FindTag(TEXT("GeneratedClass"));
 	if (FoundGeneratedClassTag.IsSet())
 	{
-		const FString GeneratedClassPath = FPackageName::ExportTextPathToObjectPath(FoundGeneratedClassTag.GetValue());
-		const FString GeneratedClassName = FPackageName::ObjectPathToObjectName(GeneratedClassPath);
-		if (ParentClassNames->Contains(*GeneratedClassName))
+		const FTopLevelAssetPath GeneratedClassPath(FPackageName::ExportTextPathToObjectPath(FoundGeneratedClassTag.GetValue()));
+		if (ParentClassNames->Contains(GeneratedClassPath))
 		{
 			return true;
 		}
@@ -76,7 +75,7 @@ class SMatineeCameraShakeConverterWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SMatineeCameraShakeConverterWidget) {}
-	SLATE_ARGUMENT(TSet<FName>, MatineeCameraShakeClassNames)
+	SLATE_ARGUMENT(TSet<FTopLevelAssetPath>, MatineeCameraShakeClassNames)
 	SLATE_ARGUMENT(const FMatineeConverter*, MatineeConverter)
 	SLATE_END_ARGS()
 
@@ -92,7 +91,7 @@ public:
 
 		// Setup an asset picker that lists all Blueprint assets that have a known MatineeCameraShake parent class.
 		FARFilter Filter;
-		Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+		Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
 		Filter.bRecursiveClasses = true;
 
 		FAssetPickerConfig AssetPickerConfig;
@@ -209,7 +208,7 @@ private:
 		Converter.ConvertMatineeCameraShakes(CurrentSelection);
 	}
 
-	TSet<FName> MatineeCameraShakeClassNames;
+	TSet<FTopLevelAssetPath> MatineeCameraShakeClassNames;
 	const FMatineeConverter* MatineeConverter = nullptr;
 
 	bool bFilterNonAnimCameraShakes = false;
@@ -231,9 +230,9 @@ TSharedRef<SWidget> FMatineeCameraShakeToNewCameraShakeConverter::CreateMatineeC
 
 	AssetRegistry.WaitForCompletion();
 
-	TArray<FName> ClassNames = { TEXT("CameraShake"), TEXT("MatineeCameraShake") };
-	TSet<FName> ExcludedClassNames;
-	TSet<FName> MatineeCameraShakeClassNames;
+	TArray<FTopLevelAssetPath> ClassNames = { FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("CameraShake")), FTopLevelAssetPath(TEXT("/Script/GameplayCameras"), TEXT("MatineeCameraShake")) };
+	TSet<FTopLevelAssetPath> ExcludedClassNames;
+	TSet<FTopLevelAssetPath> MatineeCameraShakeClassNames;
 	AssetRegistry.GetDerivedClassNames(ClassNames, ExcludedClassNames, MatineeCameraShakeClassNames);
 
 	return SNew(SMatineeCameraShakeConverterWidget)

@@ -46,7 +46,7 @@ inline bool _HasUnknownCameras( AMatineeActor* InMatineeActor, FbxNode* Node, co
 		}
 		
 		// Attempt to name-match the scene node for this camera with one of the actors.
-		AActor* Actor = FindObject<AActor>( ANY_PACKAGE, Name );
+		AActor* Actor = FindFirstObject<AActor>( Name, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("_HasUnknownCameras"));
 		if ( !IsValid(Actor) )
 		{
 			return true;
@@ -211,7 +211,7 @@ bool FFbxImporter::ImportMatineeSequence(AMatineeActor* InMatineeActor)
 		// Attempt to name-match the scene node with one of the actors.
 		if( Actor == NULL )
 		{
-			Actor = FindObject<AActor>( ANY_PACKAGE, UTF8_TO_TCHAR(Node->GetName()) );
+			Actor = FindFirstObject<AActor>( UTF8_TO_TCHAR(Node->GetName()), EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("ImportMatineeSequence"));
 		}
 
 		FbxCamera* CameraNode = NULL;

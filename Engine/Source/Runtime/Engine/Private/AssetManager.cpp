@@ -143,11 +143,11 @@ struct FCompiledAssetManagerSearchRules : FAssetManagerSearchRules
 		// Check class first
 		if (AssetBaseClass)
 		{
-			AssetClassNames.Add(AssetBaseClass->GetFName());
+			AssetClassNames.Add(AssetBaseClass->GetClassPathName());
 
 #if WITH_EDITOR
 			// Add any old names to the list in case things haven't been resaved
-			TArray<FName> OldNames = FLinkerLoad::FindPreviousNamesForClass(AssetBaseClass->GetPathName(), false);
+			TArray<FString> OldNames = FLinkerLoad::FindPreviousPathNamesForClass(AssetBaseClass->GetPathName(), false);
 			AssetClassNames.Append(OldNames);
 #endif
 		}
@@ -203,8 +203,8 @@ struct FCompiledAssetManagerSearchRules : FAssetManagerSearchRules
 
 	TArray<FString> IncludeWildcards;
 	TArray<FString> ExcludeWildcards;
-	TArray<FName> AssetClassNames;
-	TSet<FName> DerivedClassNames;
+	TArray<FTopLevelAssetPath> AssetClassNames;
+	TSet<FTopLevelAssetPath> DerivedClassNames;
 	bool bShouldCallDelegate;
 	bool bShouldCheckWildcards;
 };
@@ -499,25 +499,26 @@ FPrimaryAssetId UAssetManager::DeterminePrimaryAssetIdForObject(const UObject* O
 	return FPrimaryAssetId();
 }
 
-bool UAssetManager::IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, const TSet<FName>& ClassNameSet) const
+bool UAssetManager::IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, const TSet<FTopLevelAssetPath>& ClassNameSet) const
 {
 	const FString ParentClassFromData = AssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
 	if (!ParentClassFromData.IsEmpty())
 	{
-		const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(ParentClassFromData);
-		const FName ClassName = FName(*FPackageName::ObjectPathToObjectName(ClassObjectPath));
+		const FTopLevelAssetPath ClassObjectPath(FPackageName::ExportTextPathToObjectPath(ParentClassFromData));
+		const FName ClassName = ClassObjectPath.GetAssetName();
 
-		TArray<FName> ValidNames;
-		ValidNames.Add(ClassName);
+		TArray<FTopLevelAssetPath> ValidNames;
+		ValidNames.Add(ClassObjectPath);
 #if WITH_EDITOR
 		// Check for redirected name
-		FName RedirectedName = FLinkerLoad::FindNewNameForClass(ClassName, false);
-		if (RedirectedName != NAME_None && RedirectedName != ClassName)
+		FTopLevelAssetPath RedirectedName = FTopLevelAssetPath(FLinkerLoad::FindNewPathNameForClass(ClassObjectPath.ToString(), false));
+		if (!RedirectedName.IsNull())
 		{
+			// @todo: we need a full path
 			ValidNames.Add(RedirectedName);
 		}
 #endif
-		for (const FName& ValidName : ValidNames)
+		for (const FTopLevelAssetPath& ValidName : ValidNames)
 		{
 			if (ClassNameSet.Contains(ValidName))
 			{
@@ -582,7 +583,7 @@ int32 UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataLi
 		if (!Rules.bHasBlueprintClasses)
 		{
 			// Use class directly
-			ARFilter.ClassNames = CompiledRules.AssetClassNames;
+			ARFilter.ClassPaths = CompiledRules.AssetClassNames;
 			ARFilter.bRecursiveClasses = true;
 		}
 		else
@@ -592,10 +593,10 @@ int32 UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataLi
 			GetDerivedClasses(UBlueprintCore::StaticClass(), BlueprintCoreDerivedClasses);
 			for (UClass* BPCoreClass : BlueprintCoreDerivedClasses)
 			{
-				ARFilter.ClassNames.Add(BPCoreClass->GetFName());
+				ARFilter.ClassPaths.Add(BPCoreClass->GetClassPathName());
 			}
 
-			GetAssetRegistry().GetDerivedClassNames(CompiledRules.AssetClassNames, TSet<FName>(), CompiledRules.DerivedClassNames);
+			GetAssetRegistry().GetDerivedClassNames(CompiledRules.AssetClassNames, TSet<FTopLevelAssetPath>(), CompiledRules.DerivedClassNames);
 		}
 	}
 
@@ -665,11 +666,11 @@ bool UAssetManager::DoesAssetMatchSearchRules(const FAssetData& AssetData, const
 	// Check class first
 	if (Rules.AssetBaseClass)
 	{
-		GetAssetRegistry().GetDerivedClassNames(CompiledRules.AssetClassNames, TSet<FName>(), CompiledRules.DerivedClassNames);
+		GetAssetRegistry().GetDerivedClassNames(CompiledRules.AssetClassNames, TSet<FTopLevelAssetPath>(), CompiledRules.DerivedClassNames);
 
 		if (!Rules.bHasBlueprintClasses)
 		{
-			if (!CompiledRules.DerivedClassNames.Contains(AssetData.AssetClass))
+			if (!CompiledRules.DerivedClassNames.Contains(AssetData.AssetClassPath))
 			{
 				return false;
 			}
@@ -1470,7 +1471,7 @@ FPrimaryAssetId UAssetManager::ExtractPrimaryAssetIdFromData(const FAssetData& A
 {
 	FPrimaryAssetId FoundId = AssetData.GetPrimaryAssetId();
 
-	if (!FoundId.IsValid() && bShouldGuessTypeAndName && SuggestedType != NAME_None)
+	if (!FoundId.IsValid() && bShouldGuessTypeAndName && SuggestedType.IsValid())
 	{
 		const TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(SuggestedType);
 
@@ -2732,17 +2733,10 @@ bool UAssetManager::GetAssetDataForPath(const FSoftObjectPath& ObjectPath, FAsse
 	return AssetData.IsValid();
 }
 
-static bool EndsWithBlueprint(FName Name)
+static bool EndsWithBlueprint(const FTopLevelAssetPath& Name)
 {
 	// Numbered names can't end with Blueprint
-	if (Name.IsNone() || Name.GetNumber() != FName().GetNumber())
-	{
-		return false;
-	}
-
-	TCHAR Buffer[NAME_SIZE];
-	FStringView PlainName(Buffer, Name.GetPlainNameString(Buffer));
-	return PlainName.EndsWith(TEXT("Blueprint"));
+	return Name.GetAssetName().ToString().EndsWith(TEXT("Blueprint"));
 }
 
 static bool ContainsSubobjectDelimiter(FName Name)
@@ -2760,7 +2754,7 @@ bool TryToSoftObjectPath(const FAssetData& AssetData, FSoftObjectPath& OutObject
 		OutObjectPath = FSoftObjectPath();
 		return false;
 	}
-	else if (EndsWithBlueprint(AssetData.AssetClass))
+	else if (EndsWithBlueprint(AssetData.AssetClassPath))
 	{
 		TStringBuilder<256> AssetPath;
 		AssetPath << AssetData.ObjectPath << TEXT("_C");

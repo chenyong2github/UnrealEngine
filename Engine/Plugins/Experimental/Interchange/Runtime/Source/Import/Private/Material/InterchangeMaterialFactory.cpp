@@ -55,12 +55,11 @@ namespace UE
 				{
 					check(ClassName);
 
-					UObject* const ClassPackage = ANY_PACKAGE;
-					UClass* MaterialExpressionClass = FindObject<UClass>(ClassPackage, ClassName);
+					UClass* MaterialExpressionClass = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 
 					if (!MaterialExpressionClass)
 					{
-						if (UObjectRedirector* RenamedClassRedirector = FindObject<UObjectRedirector>(ClassPackage, ClassName))
+						if (UObjectRedirector* RenamedClassRedirector = FindFirstObject<UObjectRedirector>(ClassName, EFindFirstObjectOptions::EnsureIfAmbiguous))
 						{
 							MaterialExpressionClass = CastChecked<UClass>(RenamedClassRedirector->DestinationObject);
 						}

@@ -114,7 +114,7 @@ namespace BakeCustomizationLocals
 		const FString& BitmaskEnumName = Property->GetMetaData(BitmaskEnumFlagName);
 		if (!BitmaskEnumName.IsEmpty())
 		{
-			BitmaskEnum = FindObject<UEnum>(ANY_PACKAGE, *BitmaskEnumName);
+			BitmaskEnum = UClass::TryFindTypeSlow<UEnum>(BitmaskEnumName);
 		}
 		return BitmaskEnum;
 	}

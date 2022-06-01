@@ -63,7 +63,7 @@ TSharedRef<SWidget> SMessagingTypesTableRow::GenerateWidgetForColumn(const FName
 			[
 				SNew(STextBlock)
 					.HighlightText(HighlightText)
-					.Text(FText::FromName(TypeInfo->TypeName))
+					.Text(FText::FromName(TypeInfo->TypePathName.GetAssetName()))
 			];
 	}
 	else if (ColumnName == "Visibility")

@@ -953,7 +953,7 @@ UBlueprint *UReimportFbxSceneFactory::UpdateOriginalBluePrint(FString &BluePrint
 	}
 	//Load the package before searching the asset
 	PkgExist->FullyLoad();
-	UBlueprint* BluePrint = FindObjectSafe<UBlueprint>(ANY_PACKAGE, *BluePrintFullName);
+	UBlueprint* BluePrint = FindObjectSafe<UBlueprint>(nullptr, *BluePrintFullName);
 	if (BluePrint == nullptr)
 	{
 		return nullptr;
@@ -1257,7 +1257,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 	UPackage* PkgExist = MeshInfo->GetContentPackage();
 
 	FString AssetName = MeshInfo->GetFullImportName();
-	USkeletalMesh* Mesh = FindObjectSafe<USkeletalMesh>(ANY_PACKAGE, *AssetName);
+	USkeletalMesh* Mesh = FindFirstObject<USkeletalMesh>(*AssetName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("ReimportSkeletalMesh"));
 	if (Mesh == nullptr)
 	{
 		//We reimport only skeletal mesh here
@@ -1398,7 +1398,8 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 						{
 							ParentPackage->FullyLoad();
 						}
-						UObject* Object = FindObjectSafe<UObject>(ANY_PACKAGE, *SequenceName);
+
+						UObject* Object = FindFirstObject<UObject>(*SequenceName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("ReimportSkeletalMesh"));
 						if (Object != nullptr)
 						{
 							if (ParentPackage == nullptr)
@@ -1481,7 +1482,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportStaticMesh(void* VoidFbx
 	MeshInfo->GetContentPackage();
 
 	FString AssetName = MeshInfo->GetFullImportName();
-	UStaticMesh* Mesh = FindObjectSafe<UStaticMesh>(ANY_PACKAGE, *AssetName);
+	UStaticMesh* Mesh = FindFirstObject<UStaticMesh>(*AssetName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("ReimportStaticMesh"));
 	if (Mesh == nullptr)
 	{
 		//We reimport only static mesh here

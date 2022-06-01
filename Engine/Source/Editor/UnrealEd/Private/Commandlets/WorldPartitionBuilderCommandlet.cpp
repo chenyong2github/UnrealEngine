@@ -57,7 +57,7 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	}
 
 	// Find builder class
-	UClass* BuilderClass = FindObject<UClass>(ANY_PACKAGE, *BuilderClassName);
+	UClass* BuilderClass = FindFirstObject<UClass>(*BuilderClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 	if (!BuilderClass)
 	{
 		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown builder %s."), *BuilderClassName);

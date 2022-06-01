@@ -591,7 +591,7 @@ struct FRCAssetDescription
 	FRCAssetDescription() = default;
 	FRCAssetDescription(const FAssetData& InAsset)
 		: Name(InAsset.AssetName)
-		, Class(InAsset.AssetClass)
+		, Class(InAsset.AssetClassPath)
 		, Path(InAsset.ObjectPath)
 	{
 		Metadata = RemoteControlModels::SanitizeAssetMetadata(InAsset.TagsAndValues.CopyMap());
@@ -601,7 +601,7 @@ struct FRCAssetDescription
 	FName Name;
 
 	UPROPERTY()
-	FName Class;
+	FTopLevelAssetPath Class;
 
 	UPROPERTY()
 	FName Path;
@@ -641,14 +641,14 @@ struct FRCAssetFilter
 	{
 		FARFilter Filter;
 		Filter.PackageNames = PackageNames;
-		Filter.ClassNames = ClassNames;
-		Filter.RecursiveClassesExclusionSet = RecursiveClassesExclusionSet;
+		Filter.ClassPaths = ClassNames;
+		Filter.RecursiveClassPathsExclusionSet = RecursiveClassesExclusionSet;
 		Filter.bRecursiveClasses = RecursiveClasses;
 		Filter.PackagePaths = PackagePaths;
 
 		// Default to a recursive search at root if no filter is specified.
 		if (Filter.PackageNames.Num() == 0
-			&& Filter.ClassNames.Num() == 0
+			&& Filter.ClassPaths.Num() == 0
 			&& Filter.PackagePaths.Num() == 0)
 		{
 			Filter.PackagePaths = { FName("/Game") };
@@ -673,15 +673,15 @@ struct FRCAssetFilter
 
 	/** The filter component for class names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. */
 	UPROPERTY()
-	TArray<FName> ClassNames;
+	TArray<FTopLevelAssetPath> ClassNames;
 
 	/** Only if bRecursiveClasses is true, the results will exclude classes (and subclasses) in this list */
 	UPROPERTY()
-	TSet<FName> RecursiveClassesExclusionSet;
+	TSet<FTopLevelAssetPath> RecursiveClassesExclusionSet;
 
 	/** Only if EnableBlueprintNativeClassFiltering is true, resulting asset will be filtered for dependants of classes in this list. */
 	UPROPERTY()
-	TArray<FName> NativeParentClasses;
+	TArray<FTopLevelAssetPath> NativeParentClasses;
 
 	/** If true, subclasses of ClassNames will also be included and RecursiveClassesExclusionSet will be excluded. */
 	UPROPERTY()

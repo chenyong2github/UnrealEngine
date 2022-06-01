@@ -304,7 +304,7 @@ private:
 
 		FAssetPickerConfig AssetPickerConfig;
 		AssetPickerConfig.RefreshAssetViewDelegates.Add(&RefreshSkeletonViewDelegate);
-		AssetPickerConfig.Filter.ClassNames.Add(USkeleton::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(USkeleton::StaticClass()->GetClassPathName());
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SAnimBlueprintCreateDialog::OnSkeletonSelected);
 		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &SAnimBlueprintCreateDialog::FilterSkeletonBasedOnParentClass);
 		AssetPickerConfig.bAllowNullSelection = false;

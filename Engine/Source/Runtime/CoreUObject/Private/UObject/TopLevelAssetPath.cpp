@@ -11,6 +11,14 @@
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectThreadContext.h"
 
+// The reason behind HACK_HEADER_GENERATOR is that without it UHT is going to 'see' cppstructops for TopLevelAssetPath
+// and will not generate temp FTopLevelAssetPath struct for codegen purposes where it can access all of its members
+// which are public in the temp struct and private in the actual FTopLevelAssetPath.
+// If UHT compiles with IMPLEMENT_STRUCT(TopLevelAssetPath) the generated code will fail to compile trying to access private struct members
+#if !HACK_HEADER_GENERATOR
+IMPLEMENT_STRUCT(TopLevelAssetPath)
+#endif
+
 FTopLevelAssetPath::FTopLevelAssetPath(const UObject* InObject)
 {
 	if (InObject == nullptr)
@@ -89,13 +97,14 @@ bool FTopLevelAssetPath::TrySetPath(FWideStringView Path)
 	}
 	else
 	{
-		if (Path[0] != '/')
+		if (Path[0] != '/' || Path[Path.Len() - 1] == '\'')
 		{
 			// Possibly an ExportText path. Trim the ClassName.
 			Path = FPackageName::ExportTextPathToObjectPath(Path);
 
 			if (Path.IsEmpty() || Path[0] != '/')
 			{
+				checkf(false, TEXT("Short asset name used to create FTopLevelAssetPath: \"%.*s\""), Path.Len(), Path.GetData());
 				Reset();
 				return false;
 			}

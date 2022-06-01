@@ -91,7 +91,7 @@ UClass* FSwitchboardEditorModule::GetDisplayClusterRootActorClass()
 	}
 
 	// Try to find it by name.
-	DisplayClusterRootActorClass = FindObject<UClass>(ANY_PACKAGE, TEXT("DisplayClusterRootActor"));
+	DisplayClusterRootActorClass = FindObject<UClass>(nullptr, TEXT("/Script/DisplayCluster.DisplayClusterRootActor"));
 
 	return DisplayClusterRootActorClass.Get();
 }

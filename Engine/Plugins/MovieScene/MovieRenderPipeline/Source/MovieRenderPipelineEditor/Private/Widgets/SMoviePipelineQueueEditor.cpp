@@ -367,7 +367,7 @@ public:
 			AssetPickerConfig.SaveSettingsName = TEXT("MoviePipelineConfigAsset");
 
 			AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoConfigs_Warning", "No Master Configurations Found");
-			AssetPickerConfig.Filter.ClassNames.Add(InClass->GetFName());
+			AssetPickerConfig.Filter.ClassPaths.Add(InClass->GetClassPathName());
 			AssetPickerConfig.OnAssetSelected = InOnAssetSelected;
 		}
 
@@ -1130,7 +1130,7 @@ TSharedRef<SWidget> SMoviePipelineQueueEditor::OnGenerateNewJobFromAssetMenu()
 		AssetPickerConfig.SaveSettingsName = TEXT("MoviePipelineQueueJobAsset");
 
 		AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoSequences_Warning", "No Level Sequences Found");
-		AssetPickerConfig.Filter.ClassNames.Add(ULevelSequence::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(ULevelSequence::StaticClass()->GetClassPathName());
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SMoviePipelineQueueEditor::OnCreateJobFromAsset);
 	}
 

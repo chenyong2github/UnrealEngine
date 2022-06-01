@@ -52,10 +52,20 @@ static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> ParseAssetBundles(const
 }}} // end namespace UE::AssetData::Private
 
 FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
+	: FAssetData(InPackageName, InPackagePath, InAssetName, FAssetData::TryConvertShortClassNameToPathName(InAssetClass), InTags, InChunkIDs, InPackageFlags)
+{
+}
+
+FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
+	: FAssetData(InLongPackageName, InObjectPath, FAssetData::TryConvertShortClassNameToPathName(InAssetClass), InTags, InChunkIDs, InPackageFlags)
+{
+}
+
+FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FTopLevelAssetPath InAssetClassPathName, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
 	: PackageName(InPackageName)
 	, PackagePath(InPackagePath)
 	, AssetName(InAssetName)
-	, AssetClass(InAssetClass)
+	, AssetClassPath(InAssetClassPathName)
 	, PackageFlags(InPackageFlags)
 	, ChunkIDs(MoveTemp(InChunkIDs))
 {
@@ -67,10 +77,10 @@ FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetNa
 	ObjectPath = FName(FStringView(ObjectPathStr));
 }
 
-FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
+FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FTopLevelAssetPath InAssetClassPathName, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
 	: ObjectPath(*InObjectPath)
 	, PackageName(*InLongPackageName)
-	, AssetClass(InAssetClass)
+	, AssetClassPath(InAssetClassPathName)
 	, PackageFlags(InPackageFlags)
 	, ChunkIDs(MoveTemp(InChunkIDs))
 {
@@ -105,7 +115,7 @@ FAssetData::FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCrea
 		PackageName = Package->GetFName();
 		PackagePath = FName(*FPackageName::GetLongPackagePath(Package->GetName()));
 		AssetName = InAsset->GetFName();
-		AssetClass = InAsset->GetClass()->GetFName();
+		AssetClassPath = InAsset->GetClass()->GetPathName();
 		ObjectPath = FName(*InAsset->GetPathName());
 
 		if (!EnumHasAnyFlags(InCreationFlags, FAssetData::ECreationFlags::SkipAssetRegistryTagsGathering))
@@ -192,12 +202,26 @@ FPrimaryAssetId FAssetData::GetPrimaryAssetId() const
 	return FPrimaryAssetId();
 }
 
-void FAssetData::SerializeForCacheInternal(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&))
+void FAssetData::SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&))
 {
 	// Serialize out the asset info
 	Ar << ObjectPath;
 	Ar << PackagePath;
-	Ar << AssetClass;
+
+	// Serialize the asset class. Legacy path is editor only for DiffAssetRegistriesCommandlet
+#if WITH_EDITORONLY_DATA
+	if (Version < FAssetRegistryVersion::ClassPaths)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Ar << AssetClass;
+		AssetClassPath = FAssetData::TryConvertShortClassNameToPathName(AssetClass);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	else
+#endif 
+	{
+		Ar << AssetClassPath;
+	}
 
 	// These are derived from ObjectPath, we manually serialize them because they get pooled
 	Ar << PackageName;
@@ -218,6 +242,36 @@ void FAssetData::SerializeForCacheInternal(FArchive& Ar, void (*SerializeTagsAnd
 	Ar << PackageFlags;
 }
 
+FTopLevelAssetPath FAssetData::TryConvertShortClassNameToPathName(FName InClassName)
+{
+	FTopLevelAssetPath ClassPath;
+	if (!InClassName.IsNone())
+	{
+		FString ClassNameString(InClassName.ToString());
+		ClassPath = UClass::TryConvertShortTypeNameToPathName<UStruct>(ClassNameString, ELogVerbosity::Warning, TEXT("AssetRegistry trying to convert short name to path name"));
+		if (ClassPath.IsNull())
+		{
+			// In some cases the class name stored in asset registry tags have been redirected with ini class redirects
+			FString RedirectedName = FLinkerLoad::FindNewPathNameForClass(ClassNameString, false);
+			if (!FPackageName::IsShortPackageName(RedirectedName))
+			{
+				ClassPath = FTopLevelAssetPath(RedirectedName);
+			}
+			else
+			{
+				ClassPath = UClass::TryConvertShortTypeNameToPathName<UStruct>(RedirectedName, ELogVerbosity::Warning, TEXT("AssetRegistry trying to convert redirected short name to path name"));
+			}
+
+			if (ClassPath.IsNull())
+			{
+				// Fallback to a fake name but at least the class name will be preserved
+				ClassPath = FTopLevelAssetPath(TEXT("/Unknown"), InClassName);
+				UE_LOG(LogAssetData, Warning, TEXT("Failed to convert deprecated short class name \"%s\" to path name. Using \"%s\""), *InClassName.ToString(), *ClassPath.ToString());
+			}
+		}
+	}
+	return ClassPath;
+}
 
 bool FAssetRegistryVersion::SerializeVersion(FArchive& Ar, FAssetRegistryVersion::Type& Version)
 {
@@ -302,6 +356,41 @@ COREUOBJECT_API void FAssetPackageData::SerializeForCache(FArchive& Ar)
 COREUOBJECT_API void FAssetPackageData::SerializeForCacheOldVersion(FArchive& Ar, FAssetRegistryVersion::Type Version)
 {
 	SerializeForCacheInternal(Ar, *this, Version);
+}
+
+void FARFilter::PostSerialize(const FArchive& Ar)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+#if WITH_EDITORONLY_DATA
+
+	auto ConvertShortClassNameToPathName = [](FName ShortClassFName)
+	{
+		FTopLevelAssetPath ClassPathName;
+		if (ShortClassFName != NAME_None)
+		{
+			FString ShortClassName = ShortClassFName.ToString();
+			ClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(*ShortClassName, ELogVerbosity::Warning, TEXT("FARFilter::PostSerialize"));
+			UE_CLOG(ClassPathName.IsNull(), LogAssetData, Error, TEXT("Failed to convert short class name %s to class path name."), *ShortClassName);
+		}
+		return ClassPathName;
+	};
+
+	for (FName ClassFName : ClassNames)
+	{
+		FTopLevelAssetPath ClassPathName = ConvertShortClassNameToPathName(ClassFName);
+		ClassPaths.Add(ClassPathName);
+	}
+	for (FName ClassFName : RecursiveClassesExclusionSet)
+	{
+		FTopLevelAssetPath ClassPathName = ConvertShortClassNameToPathName(ClassFName);
+		RecursiveClassPathsExclusionSet.Add(ClassPathName);
+	}
+
+	ClassNames.Empty();
+	RecursiveClassPathsExclusionSet.Empty();
+
+#endif // WITH_EDITORONLY_DATA
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 namespace UE

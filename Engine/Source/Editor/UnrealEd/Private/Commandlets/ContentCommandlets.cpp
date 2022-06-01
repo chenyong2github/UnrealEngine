@@ -401,7 +401,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		TSet<FString> RedirectPackages;
 		TSet<FString> ReferencerPackages;
 
-		AssetRegistry.GetAssetsByClass(UObjectRedirector::StaticClass()->GetFName(), RedirectAssets);
+		AssetRegistry.GetAssetsByClass(UObjectRedirector::StaticClass()->GetClassPathName(), RedirectAssets);
 
 		for (const FAssetData& AssetData : RedirectAssets)
 		{
@@ -493,9 +493,18 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		{
 			TArray<FString> ClassNames;
 			ClassList.ParseIntoArray(ClassNames, TEXT(","), true);
-			for (const FString& ClassName : ClassNames)
+			for (FString& ClassName : ClassNames)
 			{
-				ResaveClasses.AddUnique(*ClassName);
+				if (FPackageName::IsShortPackageName(ClassName))
+				{
+					UE_LOG(LogContentCommandlet, Warning, TEXT("RESAVECLASS param requires class path names. Short name provided: %s."), *ClassName);
+					FTopLevelAssetPath ClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(ClassName, ELogVerbosity::Warning, TEXT("ResavePackages"));
+					if (!ClassPathName.IsNull())
+					{
+						ClassName = ClassPathName.ToString();
+					}
+				}
+				ResaveClasses.AddUnique(ClassName);
 			}
 
 			break;
@@ -520,7 +529,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		for (int32 ClassIndex = 0; ClassIndex < NumResaveClasses; ++ClassIndex)
 		{
 			// Find the class object and then all derived classes
-			UClass* ResaveClass = FindObject<UClass>(ANY_PACKAGE, *ResaveClasses[ClassIndex].ToString());
+			UClass* ResaveClass = UClass::TryFindTypeSlow<UClass>(ResaveClasses[ClassIndex]);
 			if (ResaveClass)
 			{
 				for (TObjectIterator<UClass> It; It; ++It)
@@ -528,7 +537,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 					UClass* MaybeChildClass = *It;
 					if (MaybeChildClass->IsChildOf(ResaveClass))
 					{
-						ResaveClasses.AddUnique(MaybeChildClass->GetFName());
+						ResaveClasses.AddUnique(MaybeChildClass->GetPathName());
 					}
 				}
 			}
@@ -1533,8 +1542,8 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 		bSavePackage = false;
 		for (int32 ExportIndex = 0; !bSavePackage && ExportIndex < PackageLinker->ExportMap.Num(); ExportIndex++)
 		{
-			FName ExportClassName = PackageLinker->GetExportClassName(ExportIndex);
-			if (ResaveClasses.Contains(ExportClassName))
+			FTopLevelAssetPath ExportClassPathName(PackageLinker->GetExportClassPackage(ExportIndex), PackageLinker->GetExportClassName(ExportIndex));
+			if (ResaveClasses.Contains(ExportClassPathName.ToString()))
 			{
 				bSavePackage = true;
 				break;
@@ -3282,7 +3291,7 @@ int32 UListMaterialsUsedWithMeshEmittersCommandlet::Main( const FString& Params 
 
 	// Retrieve list of all assets, used to find unreferenced ones.
 	TArray<FAssetData> AssetList;
-	AssetRegistryModule.Get().GetAssetsByClass(UParticleSystem::StaticClass()->GetFName(), AssetList, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UParticleSystem::StaticClass()->GetClassPathName(), AssetList, true);
 
 	for(int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx )
 	{
@@ -3368,7 +3377,7 @@ int32 UListStaticMeshesImportedFromSpeedTreesCommandlet::Main(const FString& Par
 
 	// Retrieve list of all assets, used to find unreferenced ones.
 	TArray<FAssetData> AssetList;
-	AssetRegistryModule.Get().GetAssetsByClass(UStaticMesh::StaticClass()->GetFName(), AssetList, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UStaticMesh::StaticClass()->GetClassPathName(), AssetList, true);
 
 	for (int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx)
 	{
@@ -3498,7 +3507,7 @@ int32 UStaticMeshMinLodCommandlet::Main(const FString& Params)
 
 	// Retrieve list of all assets, used to find unreferenced ones.
 	TArray<FAssetData> AssetList;
-	AssetRegistryModule.Get().GetAssetsByClass(UStaticMesh::StaticClass()->GetFName(), AssetList, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UStaticMesh::StaticClass()->GetClassPathName(), AssetList, true);
 	TArray<UPackage*> PackagesToSave;
 
 	// Platform (group) names

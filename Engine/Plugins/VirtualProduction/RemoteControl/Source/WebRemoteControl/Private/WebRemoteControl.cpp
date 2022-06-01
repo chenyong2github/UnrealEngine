@@ -213,9 +213,9 @@ namespace WebRemoteControl
 		{
 			TSet<UClass*> NativeClasses;
 			NativeClasses.Reserve(SearchAssetRequest.Filter.NativeParentClasses.Num());
-			for (FName NativeClass : SearchAssetRequest.Filter.NativeParentClasses)
+			for (FTopLevelAssetPath NativeClass : SearchAssetRequest.Filter.NativeParentClasses)
 			{
-				if (UClass* Class = FindObject<UClass>(ANY_PACKAGE, *NativeClass.ToString()))
+				if (UClass* Class = FindObject<UClass>(NativeClass))
 				{
 					NativeClasses.Add(Class);
 				}

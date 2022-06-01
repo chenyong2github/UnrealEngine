@@ -119,7 +119,7 @@ void FAttributePropertyDetails::OnChangeProperty(TSharedPtr<FString> ItemSelecte
 
 		FullString.Split( TEXT("."), &ClassName, &PropertyName);
 
-		UClass *FoundClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+		UClass *FoundClass = UClass::TryFindTypeSlow<UClass>(ClassName);
 		if (FoundClass)
 		{
 			FProperty *Property = FindFProperty<FProperty>(FoundClass, *PropertyName);

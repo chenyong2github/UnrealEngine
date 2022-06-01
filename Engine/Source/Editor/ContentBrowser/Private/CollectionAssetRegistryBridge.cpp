@@ -34,18 +34,18 @@ public:
 			if (!GIsSavingPackage)
 			{
 				const FString ClassPathStr = InObjectPath.ToString();
-
-				UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *ClassPathStr);
+				check(FPackageName::IsValidObjectPath(ClassPathStr));
+				UClass* FoundClass = FindObject<UClass>(nullptr, *ClassPathStr);
 				if (!FoundClass)
 				{
 					// Use the linker to search for class name redirects (from the loaded ActiveClassRedirects)
-					const FString ClassName = FPackageName::ObjectPathToObjectName(ClassPathStr);
-					const FName NewClassName = FLinkerLoad::FindNewNameForClass(*ClassName, false);
+					const FString NewClassName = FLinkerLoad::FindNewPathNameForClass(ClassPathStr, false);
 
-					if (!NewClassName.IsNone())
+					if (!NewClassName.IsEmpty())
 					{
+						check(FPackageName::IsValidObjectPath(NewClassName));
 						// Our new class name might be lacking the path, so try and find it so we can use the full path in the collection
-						FoundClass = FindObject<UClass>(ANY_PACKAGE, *NewClassName.ToString());
+						FoundClass = FindObject<UClass>(nullptr, *NewClassName);
 						if (FoundClass)
 						{
 							OutNewObjectPath = *FoundClass->GetPathName();

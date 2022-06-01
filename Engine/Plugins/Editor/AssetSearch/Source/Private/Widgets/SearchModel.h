@@ -108,7 +108,7 @@ public:
 	FAssetNode(const FSearchRecord& InResult)
 		: AssetName(InResult.AssetName)
 		, AssetPath(InResult.AssetPath)
-		, AssetClass(InResult.AssetClass)
+		, AssetClass(InResult.AssetClass.ToString())
 	{
 		Append(InResult);
 	}

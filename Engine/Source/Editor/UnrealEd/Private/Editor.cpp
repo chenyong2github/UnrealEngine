@@ -922,7 +922,7 @@ void RestoreEditorWorld( UWorld* EditorWorld )
  * Takes an FName and checks to see that it is unique among all loaded objects.
  *
  * @param	InName		The name to check
- * @param	Outer		The context for validating this object name. Should be a group/package, but could be ANY_PACKAGE if you want to check across the whole system (not recommended)
+ * @param	Outer		The context for validating this object name. Should be a group/package
  * @param	InReason	If the check fails, this string is filled in with the reason why.
  *
  * @return	1 if the name is valid, 0 if it is not
@@ -943,11 +943,26 @@ bool IsUniqueObjectName( const FName& InName, UObject* Outer, FText* InReason )
 	return true;
 }
 
+bool IsGloballyUniqueObjectName(const FName& InName, FText* InReason)
+{
+	// See if the name is already in use anywhere in the engine.
+	if (StaticFindFirstObject(UObject::StaticClass(), *InName.ToString()) != NULL)
+	{
+		if (InReason != NULL)
+		{
+			*InReason = NSLOCTEXT("UnrealEd", "NameAlreadyInUse", "Name is already in use by another object.");
+		}
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * Takes an FName and checks to see that it is unique among all loaded objects.
  *
  * @param	InName		The name to check
- * @param	Outer		The context for validating this object name. Should be a group/package, but could be ANY_PACKAGE if you want to check across the whole system (not recommended)
+ * @param	Outer		The context for validating this object name. Should be a group/package.
  * @param	InReason	If the check fails, this string is filled in with the reason why.
  *
  * @return	1 if the name is valid, 0 if it is not

@@ -420,8 +420,8 @@ TSharedRef<FExtender> FDatasmithImporterModule::OnExtendContentBrowserAssetSelec
 	bool bShouldExtendAssetActions = false;
 	for ( const FAssetData& Asset : SelectedAssets )
 	{
-		if ( Asset.AssetClass == UMaterial::StaticClass()->GetFName() || Asset.AssetClass == UMaterialInstance::StaticClass()->GetFName() ||
-			 Asset.AssetClass == UMaterialInstanceConstant::StaticClass()->GetFName() )
+		if ( Asset.AssetClassPath == UMaterial::StaticClass()->GetClassPathName() || Asset.AssetClassPath == UMaterialInstance::StaticClass()->GetClassPathName() ||
+			 Asset.AssetClassPath == UMaterialInstanceConstant::StaticClass()->GetClassPathName() )
 		{
 			UMaterialInterface* MaterialInterface = Cast< UMaterialInterface >( Asset.GetAsset() ); // Need to load the asset at this point to figure out the type of the AssetImportData
 
@@ -432,7 +432,7 @@ TSharedRef<FExtender> FDatasmithImporterModule::OnExtendContentBrowserAssetSelec
 				break;
 			}
 		}
-		else if ( Asset.AssetClass == UStaticMesh::StaticClass()->GetFName() )
+		else if ( Asset.AssetClassPath == UStaticMesh::StaticClass()->GetClassPathName() )
 		{
 			UStaticMesh* StaticMesh = Cast< UStaticMesh >( Asset.GetAsset() ); // Need to load the asset at this point to figure out the type of the AssetImportData
 
@@ -512,15 +512,15 @@ void FDatasmithImporterModule::PopulateDatasmithActionsMenu( FMenuBuilder& MenuB
 
 	for ( const FAssetData& Asset : SelectedAssets )
 	{
-		if ( Asset.AssetClass == UMaterial::StaticClass()->GetFName() || Asset.AssetClass == UMaterialInstance::StaticClass()->GetFName() ||
-			 Asset.AssetClass == UMaterialInstanceConstant::StaticClass()->GetFName() )
+		if ( Asset.AssetClassPath == UMaterial::StaticClass()->GetClassPathName() || Asset.AssetClassPath == UMaterialInstance::StaticClass()->GetClassPathName() ||
+			 Asset.AssetClassPath == UMaterialInstanceConstant::StaticClass()->GetClassPathName() )
 		{
 			bCanResetOverrides = true;
 
 			UMaterialInterface* MaterialInterface = Cast< UMaterialInterface >( Asset.GetAsset() );
 			bCanReimportMaterial = ( MaterialInterface && MaterialInterface->AssetImportData && MaterialInterface->AssetImportData->IsA< UDatasmithAssetImportData >() );
 		}
-		else if ( Asset.AssetClass == UStaticMesh::StaticClass()->GetFName() )
+		else if ( Asset.AssetClassPath == UStaticMesh::StaticClass()->GetClassPathName() )
 		{
 			bCanResetOverrides = true;
 		}
@@ -607,9 +607,9 @@ void FDatasmithImporterModule::ExecuteReimportDatasmithMaterials( TArray<FAssetD
 	{
 		for ( const FAssetData& AssetData : SelectedAssets )
 		{
-			if ( AssetData.AssetClass == UMaterial::StaticClass()->GetFName()
-			  || AssetData.AssetClass == UMaterialInstance::StaticClass()->GetFName()
-			  || AssetData.AssetClass == UMaterialInstanceConstant::StaticClass()->GetFName() )
+			if ( AssetData.AssetClassPath == UMaterial::StaticClass()->GetClassPathName()
+			  || AssetData.AssetClassPath == UMaterialInstance::StaticClass()->GetClassPathName()
+			  || AssetData.AssetClassPath == UMaterialInstanceConstant::StaticClass()->GetClassPathName() )
 			{
 				if ( UObject* AssetToReimport = AssetData.GetAsset() )
 				{

@@ -64,8 +64,8 @@ const TArray<FAssetData> UAudioWidgetSubsystem::GetBlueprintAssetData(UClass* In
 	TArray<FAssetData> AssetData;
 
 	FARFilter Filter;
-	Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
-	Filter.ClassNames.Add("WidgetBlueprint");
+	Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
+	Filter.ClassPaths.Add(FTopLevelAssetPath(TEXT("/Script/UMGEditor"), TEXT("WidgetBlueprint")));
 	Filter.TagsAndValues.Add(FBlueprintTags::ImplementedInterfaces);
 
 	AssetRegistryModule.Get().EnumerateAssets(Filter, [FoundAssets = &AssetData, InInterfaceClass](const FAssetData& InAssetData)

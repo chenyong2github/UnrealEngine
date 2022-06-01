@@ -110,7 +110,7 @@ bool SLevelsTreeWidget::GetWorldAssetsFromDrag(const FDragDropEvent& DragDropEve
 	TArray<FAssetData> AssetList = AssetUtil::ExtractAssetDataFromDrag(DragDropEvent);
 	for (const auto& AssetData : AssetList)
 	{
-		if (AssetData.AssetClass == UWorld::StaticClass()->GetFName())
+		if (AssetData.AssetClassPath == UWorld::StaticClass()->GetClassPathName())
 		{
 			OutWorldAssetList.Add(AssetData);
 		}

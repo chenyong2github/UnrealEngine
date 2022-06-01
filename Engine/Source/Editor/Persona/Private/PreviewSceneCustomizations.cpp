@@ -35,7 +35,7 @@
 #define LOCTEXT_NAMESPACE "PreviewSceneCustomizations"
 
 // static list that contains available classes, so that we can only allow these classes
-TArray<FName> FPreviewSceneDescriptionCustomization::AvailableClassNameList;
+TArray<FTopLevelAssetPath> FPreviewSceneDescriptionCustomization::AvailableClassNameList;
 
 FPreviewSceneDescriptionCustomization::FPreviewSceneDescriptionCustomization(const FString& InSkeletonName, const TSharedRef<class IPersonaToolkit>& InPersonaToolkit)
 	: SkeletonName(InSkeletonName)
@@ -54,7 +54,7 @@ FPreviewSceneDescriptionCustomization::FPreviewSceneDescriptionCustomization(con
 		{
 			if (ClassIt->IsChildOf(UDataAsset::StaticClass()) && ClassIt->ImplementsInterface(UPreviewCollectionInterface::StaticClass()))
 			{
-				AvailableClassNameList.Add(ClassIt->GetFName());
+				AvailableClassNameList.Add(ClassIt->GetClassPathName());
 			}
 		}
 	}
@@ -523,9 +523,9 @@ bool FPreviewSceneDescriptionCustomization::HandleShouldFilterAdditionalMesh(con
 	bool bValidClass = false;
 
 	// first to see if it's allowed class
-	for (FName& ClassName: AvailableClassNameList)
+	for (FTopLevelAssetPath ClassName: AvailableClassNameList)
 	{
-		if (ClassName == InAssetData.AssetClass)
+		if (ClassName == InAssetData.AssetClassPath)
 		{
 			bValidClass = true;
 			break;

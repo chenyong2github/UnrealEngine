@@ -355,6 +355,10 @@ public:
 
 	/** Get the Schema Hash for this struct - the hash of its property names and types. */
 	const FBlake3Hash& GetSchemaHash(bool bSkipEditorOnly) const;
+
+protected:
+	/** True if this struct has Asset Registry searchable properties */
+	bool bHasAssetRegistrySearchableProperties;
 #endif
 
 public:
@@ -560,6 +564,12 @@ public:
 	 * @return pointer to the UStruct that has associated metadata, nullptr if Key is not associated with any UStruct in the hierarchy
 	 */
 	const UStruct* HasMetaDataHierarchical(const FName& Key) const;
+
+	/* Returns true if this struct has Asset Registry searchable properties */
+	FORCEINLINE bool HasAssetRegistrySearchableProperties() const
+	{
+		return bHasAssetRegistrySearchableProperties;
+	}
 #endif // WITH_EDITORONLY_DATA
 
 #if HACK_HEADER_GENERATOR
@@ -2703,6 +2713,9 @@ public:
 	virtual FRestoreForUObjectOverwrite* GetRestoreForUObjectOverwrite() override;
 	virtual FString GetDesc() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+#if WITH_EDITOR
+	virtual void PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const;
+#endif // WITH_EDITOR
 	virtual bool IsAsset() const override { return false; }	
 	virtual bool IsNameStableForNetworking() const override { return true; } // For now, assume all classes have stable net names
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
@@ -2772,7 +2785,7 @@ public:
 	template <typename T>
 	static T* TryFindTypeSlowSafe(const FString& InShortNameOrPathName, EFindFirstObjectOptions InOptions = EFindFirstObjectOptions::None)
 	{
-		return (T*)TryFindTypeSafe(T::StaticClass(), InShortNameOrPathName, InOptions);
+		return (T*)TryFindTypeSlowSafe(T::StaticClass(), InShortNameOrPathName, InOptions);
 	}
 
 	/**

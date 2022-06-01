@@ -390,8 +390,7 @@ namespace LocalizationConfigurationScript
 			{
 				if (ExcludeClass.IsValid())
 				{
-					// These are expected to be the short class name (eg, Texture2D) rather than the path name (eg, /Script/Engine.Texture2D)
-					ConfigSection.Add(TEXT("ExcludeClasses"), ExcludeClass.GetAssetName());
+					ConfigSection.Add(TEXT("ExcludeClasses"), ExcludeClass.GetAssetPathString());
 				}
 			}
 			ConfigSection.Add(TEXT("ShouldExcludeDerivedClasses"), Target->Settings.GatherFromPackages.ShouldExcludeDerivedClasses ? TEXT("true") : TEXT("false"));

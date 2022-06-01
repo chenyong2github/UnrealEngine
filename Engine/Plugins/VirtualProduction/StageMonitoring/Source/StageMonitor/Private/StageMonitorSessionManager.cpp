@@ -103,7 +103,7 @@ UScriptStruct* FStageMonitorSessionManager::FindStructFromName_AnyThread(FName T
 	}
 
 	const bool bExactClass = true;
-	UScriptStruct* Struct = FindObjectSafe<UScriptStruct>(ANY_PACKAGE, *TypeName.ToString(), bExactClass);
+	UScriptStruct* Struct = FindFirstObjectSafe<UScriptStruct>(*TypeName.ToString(), bExactClass ? EFindFirstObjectOptions::ExactClass : EFindFirstObjectOptions::None);
 	if (Struct)
 	{
 		TypeCache.FindOrAdd(TypeName) = Struct;

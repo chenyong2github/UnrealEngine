@@ -1386,7 +1386,7 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 			for (FAssetData* AssetData : AssetDatas)
 			{
 				// Display the asset class and path
-				Out.Logf(ELogVerbosity::Display, TEXT("\t\t%d) %s'%s' (%d Tags)"), AssetIdx++, *AssetData->AssetClass.ToString(), *AssetData->ObjectPath.ToString(), AssetData->TagsAndValues.Num());
+				Out.Logf(ELogVerbosity::Display, TEXT("\t\t%d) %s'%s' (%d Tags)"), AssetIdx++, *AssetData->AssetClassPath.ToString(), *AssetData->ObjectPath.ToString(), AssetData->TagsAndValues.Num());
 
 				// Display all tags on the asset
 				for (const TPair<FName, FAssetTagValueRef>& Pair : AssetData->TagsAndValues)

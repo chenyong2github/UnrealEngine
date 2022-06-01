@@ -17,12 +17,12 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterInterception, Log, All);
 
 struct FInterceptedMessageDescriptor
 {
-	FInterceptedMessageDescriptor(TArray<FName>&& InMessageTypes, FName InAnnotation)
+	FInterceptedMessageDescriptor(TArray<FTopLevelAssetPath>&& InMessageTypes, FName InAnnotation)
 		: MessageTypes(MoveTemp(InMessageTypes))
 		, Annotation(InAnnotation)
 	{}
 
-	TArray<FName> MessageTypes;
+	TArray<FTopLevelAssetPath> MessageTypes;
 	FName Annotation;
 };
 

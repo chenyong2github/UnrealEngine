@@ -326,7 +326,7 @@ static const TCHAR* ImportProperties(
 			UFoliageType* SourceFoliageType;
 			FName ComponentName;
 			if (SubobjectRoot &&
-				ParseObject<UFoliageType>(Str, TEXT("FoliageType="), SourceFoliageType, ANY_PACKAGE) &&
+				ParseObject<UFoliageType>(Str, TEXT("FoliageType="), SourceFoliageType, nullptr) &&
 				FParse::Value(Str, TEXT("Component="), ComponentName) )
 			{
 				UPrimitiveComponent* ActorComponent = FindObjectFast<UPrimitiveComponent>(SubobjectRoot, ComponentName);
@@ -408,7 +408,7 @@ static const TCHAR* ImportProperties(
 			// Note: default properties subobjects have compiled class as their Outer (used for localization).
 			UClass*	TemplateClass = NULL;
 			bool bInvalidClass = false;
-			ParseObject<UClass>(Str, TEXT("Class="), TemplateClass, ANY_PACKAGE, &bInvalidClass);
+			ParseObject<UClass>(Str, TEXT("Class="), TemplateClass, nullptr, &bInvalidClass);
 			
 			if (bInvalidClass)
 			{
@@ -486,15 +486,20 @@ static const TCHAR* ImportProperties(
 						if ( FPackageName::ParseExportTextPath(ArchetypeName, &ObjectClass, &ObjectPath) )
 						{
 							// find the class
-							UClass* ArchetypeClass = (UClass*)StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *ObjectClass);
+							check(FPackageName::IsValidObjectPath(ObjectClass));
+							UClass* ArchetypeClass = (UClass*)StaticFindObject(UClass::StaticClass(), nullptr, *ObjectClass);
 							if (ArchetypeClass)
 							{
 								ObjectPath = ObjectPath.TrimQuotes();
-
-								UPackage* FindInPackage = (FPackageName::IsShortPackageName(ObjectPath) ? ANY_PACKAGE : nullptr);
-
 								// if we had the class, find the archetype
-								Archetype = StaticFindObject(ArchetypeClass, FindInPackage, *ObjectPath);
+								if (!FPackageName::IsShortPackageName(ObjectPath))
+								{
+									Archetype = StaticFindObject(ArchetypeClass, nullptr, *ObjectPath);
+								}
+								else
+								{
+									Archetype = StaticFindFirstObject(ArchetypeClass, *ObjectPath, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
+								}
 							}
 						}
 					}

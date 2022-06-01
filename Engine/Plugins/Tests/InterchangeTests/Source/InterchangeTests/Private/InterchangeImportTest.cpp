@@ -38,7 +38,7 @@ void FInterchangeImportTest::GetTests(TArray<FString>& OutBeautifiedNames, TArra
 
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FAssetData> AllTestPlans;
-	AssetRegistryModule.Get().GetAssetsByClass(UInterchangeImportTestPlan::StaticClass()->GetFName(), AllTestPlans, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UInterchangeImportTestPlan::StaticClass()->GetClassPathName(), AllTestPlans, true);
 
 	// Get a list of all paths containing InterchangeTestPlan assets
 	TSet<FName> Paths;
@@ -80,7 +80,7 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 		FName PackageName = FName(FPaths::GetBaseFilename(Path, false));
 		FName PackagePath = FName(FPaths::GetPath(Path));
 		FName AssetName = FName(FPaths::GetBaseFilename(Path, true));
-		FName ClassName = UInterchangeImportTestPlan::StaticClass()->GetFName();
+		FTopLevelAssetPath ClassName = UInterchangeImportTestPlan::StaticClass()->GetClassPathName();
 		FInterchangeImportTestData& TP = TestPlans.AddDefaulted_GetRef();
 		TP.AssetData = FAssetData(PackageName, PackagePath, AssetName, ClassName);
 		TP.TestPlan = CastChecked<UInterchangeImportTestPlan>(TP.AssetData.GetAsset());
@@ -90,7 +90,7 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 		// Run tests in parallel on all TestPlan assets in the given directory
 		FARFilter AssetRegistryFilter;
 		AssetRegistryFilter.PackagePaths.Add(FName(Path));
-		AssetRegistryFilter.ClassNames.Add(UInterchangeImportTestPlan::StaticClass()->GetFName());
+		AssetRegistryFilter.ClassPaths.Add(UInterchangeImportTestPlan::StaticClass()->GetClassPathName());
 		AssetRegistryFilter.bRecursivePaths = false;
 
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));

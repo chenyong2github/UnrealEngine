@@ -119,6 +119,7 @@ public:
 	
 #if WITH_EDITOR
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const override;
 #endif // WITH_EDITOR
 
 	//~ Begin UObject Interface.
@@ -130,7 +131,9 @@ public:
 	virtual bool NeedsLoadForClient() const override { return bStripFromClientBuilds ? false : Super::NeedsLoadForClient(); }
 	virtual bool NeedsLoadForEditorGame() const override { return bStripFromClientBuilds ? false : Super::NeedsLoadForEditorGame(); }
 #if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetRowStructPathName.")
 	ENGINE_API FName GetRowStructName() const;
+	ENGINE_API FTopLevelAssetPath GetRowStructPathName() const;
 	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	ENGINE_API virtual void PostInitProperties() override;
 	ENGINE_API virtual void PostLoad() override;
@@ -146,7 +149,11 @@ public:
 
 	/** The name of the RowStruct we were using when we were last saved */
 	UPROPERTY()
-	FName RowStructName;
+	FName RowStructName_DEPRECATED;
+
+	/** The name of the RowStruct we were using when we were last saved */
+	UPROPERTY()
+	FTopLevelAssetPath RowStructPathName;
 
 protected:
 	/** When RowStruct is being modified, row data is stored serialized with tags */

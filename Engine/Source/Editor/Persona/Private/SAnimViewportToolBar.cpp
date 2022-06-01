@@ -803,7 +803,7 @@ void SAnimViewportToolBar::FillCharacterMirrorMenu(FMenuBuilder& MenuBuilder) co
 	{
 		USkeleton* Skeleton = Mesh->GetSkeleton();
 	
-		AssetPickerConfig.Filter.ClassNames.Add(*UMirrorDataTable::StaticClass()->GetName());
+		AssetPickerConfig.Filter.ClassPaths.Add(UMirrorDataTable::StaticClass()->GetClassPathName());
 		AssetPickerConfig.Filter.bRecursiveClasses = false;
 		AssetPickerConfig.bAllowNullSelection = true;
 		AssetPickerConfig.Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(Skeleton).GetExportTextName());

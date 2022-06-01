@@ -53,7 +53,7 @@ bool UGeometryCollectionCacheFactory::ConfigureProperties()
 	
 	// Config for picker list of geometry collections
 	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassNames.Add(UGeometryCollection::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(UGeometryCollection::StaticClass()->GetClassPathName());
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateUObject(this, &UGeometryCollectionCacheFactory::OnConfigSelection);
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 

@@ -1780,7 +1780,7 @@ public:
 				FAssetData AssetData = AssetRegistryModule->Get().GetAssetByObjectPath(UncachedAssets[TickCacheIndex], bIncludeOnlyOnDiskAssets);
 				if (AssetData.IsValid())
 				{
-					const bool bIsWorldAsset = AssetData.AssetClass == UWorld::StaticClass()->GetFName();
+					const bool bIsWorldAsset = AssetData.AssetClassPath == UWorld::StaticClass()->GetClassPathName();
 
 					// Construct a full package filename with path so we can query the read only status and save to disk
 					FString FinalPackageFilename = FPackageName::LongPackageNameToFilename(AssetData.PackageName.ToString());
@@ -2068,7 +2068,7 @@ void FFindInBlueprintSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 {
 	const UClass* AssetClass = nullptr;
 	{
-		TWeakObjectPtr<const UClass> FoundClass = CachedAssetClasses.FindRef(InAssetData.AssetClass);
+		TWeakObjectPtr<const UClass> FoundClass = CachedAssetClasses.FindRef(InAssetData.AssetClassPath);
 		if (FoundClass.IsValid())
 		{
 			AssetClass = FoundClass.Get();
@@ -2078,7 +2078,7 @@ void FFindInBlueprintSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 			AssetClass = InAssetData.GetClass();
 			if (AssetClass)
 			{
-				CachedAssetClasses.Add(InAssetData.AssetClass, TWeakObjectPtr<const UClass>(AssetClass));
+				CachedAssetClasses.Add(InAssetData.AssetClassPath, TWeakObjectPtr<const UClass>(AssetClass));
 			}
 		}
 	}
@@ -2938,9 +2938,9 @@ void FFindInBlueprintSearchManager::BuildCache()
 	FARFilter ClassFilter;
 	ClassFilter.bRecursiveClasses = true;
 
-	for (FName ClassName : FBlueprintAssetHandler::Get().GetRegisteredClassNames())
+	for (FTopLevelAssetPath ClassPathName : FBlueprintAssetHandler::Get().GetRegisteredClassNames())
 	{
-		ClassFilter.ClassNames.Add(ClassName);
+		ClassFilter.ClassPaths.Add(ClassPathName);
 	}
 
 	AssetRegistryModule->Get().GetAssets(ClassFilter, BlueprintAssets);

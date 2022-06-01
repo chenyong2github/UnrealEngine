@@ -412,7 +412,7 @@ struct FSharedAssetDialogConfig
 {
 	FText DialogTitleOverride;
 	FString DefaultPath;
-	TArray<FName> AssetClassNames;
+	TArray<FTopLevelAssetPath> AssetClassNames;
 	FVector2D WindowSizeOverride;
 	FOnPathSelected OnPathSelected;
 

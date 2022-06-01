@@ -409,7 +409,7 @@ void SAnimSegmentsPanel::FillSubMenu(FMenuBuilder& MenuBuilder, int32 AnimSegmen
 			FAssetPickerConfig AssetPickerConfig;
 
 			/** The asset picker will only show skeletons */
-			AssetPickerConfig.Filter.ClassNames.Add(*OldSequenceBase->GetClass()->GetName());
+			AssetPickerConfig.Filter.ClassPaths.Add(OldSequenceBase->GetClass()->GetClassPathName());
 			AssetPickerConfig.Filter.bRecursiveClasses = false;
 			AssetPickerConfig.bAllowNullSelection = false;
 

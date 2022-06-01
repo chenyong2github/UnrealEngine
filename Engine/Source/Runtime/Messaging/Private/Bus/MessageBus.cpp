@@ -12,7 +12,7 @@
 
 
 
-
+const FTopLevelAssetPath IMessageBus::PATHNAME_All(TEXT("/Unknown"), NAME_All);
 
 /* FMessageBus structors
  *****************************************************************************/
@@ -51,7 +51,7 @@ void FMessageBus::Forward(
 		FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
 
 		UE_LOG(LogMessaging, Verbose, TEXT("Forwarding %s from %s to %s"),
-			*Context->GetMessageType().ToString(),
+			*Context->GetMessageTypePathName().ToString(),
 			*Context->GetSender().ToString(), *RecipientStr);
 	}
 
@@ -72,9 +72,9 @@ TSharedRef<IMessageTracer, ESPMode::ThreadSafe> FMessageBus::GetTracer()
 }
 
 
-void FMessageBus::Intercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType)
+void FMessageBus::Intercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FTopLevelAssetPath& MessageType)
 {
-	if (MessageType == NAME_None)
+	if (MessageType.IsNull())
 	{
 		return;
 	}
@@ -173,11 +173,11 @@ void FMessageBus::Shutdown()
 
 TSharedPtr<IMessageSubscription, ESPMode::ThreadSafe> FMessageBus::Subscribe(
 	const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber,
-	const FName& MessageType,
+	const FTopLevelAssetPath& MessageType,
 	const FMessageScopeRange& ScopeRange
 )
 {
-	if (MessageType != NAME_None)
+	if (!MessageType.IsNull())
 	{
 		if (!RecipientAuthorizer.IsValid() || RecipientAuthorizer->AuthorizeSubscription(Subscriber, MessageType))
 		{
@@ -193,9 +193,9 @@ TSharedPtr<IMessageSubscription, ESPMode::ThreadSafe> FMessageBus::Subscribe(
 }
 
 
-void FMessageBus::Unintercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType)
+void FMessageBus::Unintercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FTopLevelAssetPath& MessageType)
 {
-	if (MessageType != NAME_None)
+	if (!MessageType.IsNull())
 	{
 		UE_LOG(LogMessaging, Verbose, TEXT("Unintercepting %s"), *Interceptor->GetDebugName().ToString());
 		Router->RemoveInterceptor(Interceptor, MessageType);
@@ -214,9 +214,9 @@ void FMessageBus::Unregister(const FMessageAddress& Address)
 }
 
 
-void FMessageBus::Unsubscribe(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FName& MessageType)
+void FMessageBus::Unsubscribe(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FTopLevelAssetPath& MessageType)
 {
-	if (MessageType != NAME_None)
+	if (!MessageType.IsNull())
 	{
 		if (!RecipientAuthorizer.IsValid() || RecipientAuthorizer->AuthorizeUnsubscription(Subscriber, MessageType))
 		{

@@ -115,7 +115,7 @@ void FMaterialEditorSpawnNodeCommands::RegisterCommands()
 		}
 
 		FString CommandLabel;
-		UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *ClassName, true);
+		UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(ClassName, EFindFirstObjectOptions::ExactClass);
 		TSharedPtr< FExpressionSpawnInfo > InfoPtr;
 
 		if(FoundClass && FoundClass->IsChildOf(UMaterialExpression::StaticClass()))

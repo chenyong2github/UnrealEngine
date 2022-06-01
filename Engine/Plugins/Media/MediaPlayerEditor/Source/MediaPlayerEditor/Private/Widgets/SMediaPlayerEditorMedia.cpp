@@ -39,8 +39,8 @@ void SMediaPlayerEditorMedia::Construct(const FArguments& InArgs, UMediaPlayer& 
 	// initialize asset picker
 	FAssetPickerConfig AssetPickerConfig;
 	{
-		AssetPickerConfig.Filter.ClassNames.Add(UMediaPlaylist::StaticClass()->GetFName());
-		AssetPickerConfig.Filter.ClassNames.Add(UMediaSource::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(UMediaPlaylist::StaticClass()->GetClassPathName());
+		AssetPickerConfig.Filter.ClassPaths.Add(UMediaSource::StaticClass()->GetClassPathName());
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
 
 		AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoMediaSourcesFound", "No media sources or play lists found.");

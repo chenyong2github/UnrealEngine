@@ -59,7 +59,7 @@ public:
 					TEXT("/VirtualCamera/VCamCore/Blueprints/SimpleVirtualCamera"),
 					TEXT("/VirtualCamera/VCamCore/Blueprints"),
 					TEXT("SimpleVirtualCamera"),
-					TEXT("Blueprint")
+					FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("Blueprint"))
 				);
 
 				// register the simple virtual camera
@@ -77,7 +77,7 @@ public:
 					TEXT("/VirtualCamera/V2/VirtualCamera2Actor"),
 					TEXT("/VirtualCamera/V2"),
 					TEXT("VirtualCamera2Actor"),
-					TEXT("Blueprint")
+					FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("Blueprint"))
 				);
 
 				// register the full-fat camera

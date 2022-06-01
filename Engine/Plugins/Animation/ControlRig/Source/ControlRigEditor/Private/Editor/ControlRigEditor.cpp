@@ -604,7 +604,7 @@ void FControlRigEditor::InitFunctionReferences()
 				// find all control rigs in the project
 				TArray<FAssetData> ControlRigAssetDatas;
 				FARFilter ControlRigAssetFilter;
-				ControlRigAssetFilter.ClassNames.Add(UControlRigBlueprint::StaticClass()->GetFName());
+				ControlRigAssetFilter.ClassPaths.Add(UControlRigBlueprint::StaticClass()->GetClassPathName());
 				AssetRegistryModule.Get().GetAssets(ControlRigAssetFilter, ControlRigAssetDatas);
 
 				// loop over all control rigs in the project

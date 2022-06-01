@@ -165,7 +165,7 @@ int32 UGatherTextFromMetaDataCommandlet::Main( const FString& Params )
 				else
 				{
 					const FFieldClass* FieldClass = FFieldClass::GetNameToFieldClassMap().FindRef(*FieldTypeStr);
-					const UClass* UFieldClass = FindObject<UClass>(ANY_PACKAGE, *FieldTypeStr);
+					const UClass* UFieldClass = FindFirstObject<UClass>(*FieldTypeStr, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("Looking for field types to include or exclude in GatherTextFromMetadata commandlet"));
 					if (!FieldClass && !UFieldClass)
 					{
 						UE_LOG(LogGatherTextFromMetaDataCommandlet, Warning, TEXT("Field Type %s was not found (from %s in section %s). Did you forget a ModulesToPreload entry?"), *FieldTypeStr, InConfigKey, *SectionName);
@@ -216,7 +216,7 @@ int32 UGatherTextFromMetaDataCommandlet::Main( const FString& Params )
 				}
 				else
 				{
-					const UStruct* FieldOwnerType = FindObject<UStruct>(ANY_PACKAGE, *FieldOwnerTypeStr);
+					const UStruct* FieldOwnerType = FindFirstObject<UStruct>(*FieldOwnerTypeStr, EFindFirstObjectOptions::EnsureIfAmbiguous);
 					if (!FieldOwnerType)
 					{
 						UE_LOG(LogGatherTextFromMetaDataCommandlet, Warning, TEXT("Field Owner Type %s was not found (from %s in section %s). Did you forget a ModulesToPreload entry?"), *FieldOwnerTypeStr, InConfigKey, *SectionName);

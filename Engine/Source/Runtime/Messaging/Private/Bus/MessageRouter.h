@@ -44,7 +44,7 @@ public:
 	 * @param Interceptor The interceptor to add.
 	 * @param MessageType The type of messages to intercept.
 	 */
-	FORCEINLINE void AddInterceptor(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType)
+	FORCEINLINE void AddInterceptor(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FTopLevelAssetPath& MessageType)
 	{
 		EnqueueCommand(FSimpleDelegate::CreateRaw(this, &FMessageRouter::HandleAddInterceptor, Interceptor, MessageType));
 	}
@@ -86,7 +86,7 @@ public:
 	 * @param Interceptor The interceptor to remove.
 	 * @param MessageType The type of messages to stop intercepting.
 	 */
-	FORCEINLINE void RemoveInterceptor(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType)
+	FORCEINLINE void RemoveInterceptor(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FTopLevelAssetPath& MessageType)
 	{
 		EnqueueCommand(FSimpleDelegate::CreateRaw(this, &FMessageRouter::HandleRemoveInterceptor, Interceptor, MessageType));
 	}
@@ -107,7 +107,7 @@ public:
 	 * @param Subscriber The subscriber to stop routing messages to.
 	 * @param MessageType The type of message to unsubscribe from (NAME_None = all types).
 	 */
-	FORCEINLINE void RemoveSubscription(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FName& MessageType)
+	FORCEINLINE void RemoveSubscription(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FTopLevelAssetPath& MessageType)
 	{
 		EnqueueCommand(FSimpleDelegate::CreateRaw(this, &FMessageRouter::HandleRemoveSubscriber, TWeakPtr<IMessageReceiver, ESPMode::ThreadSafe>(Subscriber), MessageType));
 	}
@@ -267,7 +267,7 @@ private:
 private:
 
 	/** Handles adding message interceptors. */
-	void HandleAddInterceptor(TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe> Interceptor, FName MessageType);
+	void HandleAddInterceptor(TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe> Interceptor, FTopLevelAssetPath MessageType);
 
 	/** Handles adding message recipients. */
 	void HandleAddRecipient(FMessageAddress Address, TWeakPtr<IMessageReceiver, ESPMode::ThreadSafe> RecipientPtr);
@@ -276,13 +276,13 @@ private:
 	void HandleAddSubscriber(TSharedRef<IMessageSubscription, ESPMode::ThreadSafe> Subscription);
 
 	/** Handles the removal of message interceptors. */
-	void HandleRemoveInterceptor(TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe> Interceptor, FName MessageType);
+	void HandleRemoveInterceptor(TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe> Interceptor, FTopLevelAssetPath MessageType);
 
 	/** Handles the removal of message recipients. */
 	void HandleRemoveRecipient(FMessageAddress Address);
 
 	/** Handles the removal of subscribers. */
-	void HandleRemoveSubscriber(TWeakPtr<IMessageReceiver, ESPMode::ThreadSafe> SubscriberPtr, FName MessageType);
+	void HandleRemoveSubscriber(TWeakPtr<IMessageReceiver, ESPMode::ThreadSafe> SubscriberPtr, FTopLevelAssetPath MessageType);
 
 	/** Handles the routing of messages. */
 	void HandleRouteMessage(TSharedRef<IMessageContext, ESPMode::ThreadSafe> Context);
@@ -299,13 +299,13 @@ private:
 private:
 
 	/** Maps message types to interceptors. */
-	TMap<FName, TArray<TSharedPtr<IMessageInterceptor, ESPMode::ThreadSafe>>> ActiveInterceptors;
+	TMap<FTopLevelAssetPath, TArray<TSharedPtr<IMessageInterceptor, ESPMode::ThreadSafe>>> ActiveInterceptors;
 
 	/** Maps message addresses to recipients. */
 	TMap<FMessageAddress, TWeakPtr<IMessageReceiver, ESPMode::ThreadSafe>> ActiveRecipients;
 
 	/** Maps message types to subscriptions. */
-	TMap<FName, TArray<TSharedPtr<IMessageSubscription, ESPMode::ThreadSafe>>> ActiveSubscriptions;
+	TMap<FTopLevelAssetPath, TArray<TSharedPtr<IMessageSubscription, ESPMode::ThreadSafe>>> ActiveSubscriptions;
 
 	/** Array of active registration listeners. */
 	TArray<TWeakPtr<IBusListener, ESPMode::ThreadSafe>> ActiveRegistrationListeners;

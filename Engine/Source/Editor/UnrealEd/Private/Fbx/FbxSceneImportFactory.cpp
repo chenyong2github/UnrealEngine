@@ -759,7 +759,7 @@ UObject *FFbxAttributeInfo::GetContentObject()
 	{
 		ContentPackage->FullyLoad();
 	}
-	ContentObject = FindObjectSafe<UObject>(ANY_PACKAGE, *AssetName);
+	ContentObject = FindFirstObject<UObject>(*AssetName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("FFbxAttributeInfo::GetContentObject()"));
 	if (ContentObject != nullptr)
 	{
 		if (ContentObject->HasAnyFlags(RF_Transient) || !IsValid(ContentObject))

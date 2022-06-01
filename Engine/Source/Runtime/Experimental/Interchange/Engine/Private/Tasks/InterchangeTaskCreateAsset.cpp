@@ -126,8 +126,15 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 	{
 		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 		UPackage* ResultFindPackage = FindPackage(nullptr, *PackageName);
-		UObject* FindOuter = (ResultFindPackage == nullptr ? ANY_PACKAGE : ResultFindPackage);
-		UObject* ExistingObject = FindObject<UObject>(FindOuter, *AssetName);
+		UObject* ExistingObject = nullptr;
+		if (ResultFindPackage)
+		{
+			ExistingObject = FindObject<UObject>(ResultFindPackage, *AssetName);
+		}
+		else
+		{
+			ExistingObject = FindFirstObject<UObject>(*AssetName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
+		}
 
 		if (ExistingObject != AsyncHelper->TaskData.ReimportObject)
 		{
@@ -255,8 +262,14 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 		//When we re-import one particular asset, if the source file contain other assets, we want to set the node= reference UObject for those asset to the existing asset
 		//The way to discover this case is to compare the re-import asset with the node asset.
 		UPackage* ResultFindPackage = FindPackage(nullptr, *PackageName);
-		UObject* FindOuter = (ResultFindPackage == nullptr ? ANY_PACKAGE : ResultFindPackage);
-		ExistingObject = FindObject<UObject>(FindOuter, *AssetName);
+		if (ResultFindPackage)
+		{
+			ExistingObject = FindObject<UObject>(ResultFindPackage, *AssetName);
+		}
+		else
+		{
+			ExistingObject = FindFirstObject<UObject>(*AssetName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
+		}
 
 		if(ExistingObject != AsyncHelper->TaskData.ReimportObject)
 		{

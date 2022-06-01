@@ -322,7 +322,7 @@ void DumpParameterStore(const FNiagaraParameterStore& ParameterStore)
 
 void DumpRapidIterationParametersForScript(UNiagaraScript* Script, const FString& HeaderName)
 {
-	UEnum* NiagaraScriptUsageEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ENiagaraScriptUsage"), true);
+	UEnum* NiagaraScriptUsageEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Niagara.ENiagaraScriptUsage"), true);
 	FString UsageName = NiagaraScriptUsageEnum->GetNameByValue((int64)Script->GetUsage()).ToString();
 	UE_LOG(LogNiagaraEditor, Log, TEXT("%s - %s - %s"), *Script->GetPathName(), *HeaderName, *UsageName);
 	DumpParameterStore(Script->RapidIterationParameters);
@@ -454,7 +454,7 @@ void PreventAllSystemRecompiles()
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 
 	TArray<FAssetData> SystemAssets;
-	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraSystem::StaticClass()->GetFName(), SystemAssets);
+	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraSystem::StaticClass()->GetClassPathName(), SystemAssets);
 
 	TSet<FVersionedNiagaraEmitter> CompiledEmitters;
 	int32 ItemIndex = 0;
@@ -481,7 +481,7 @@ void UpgradeAllNiagaraAssets()
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 
 	TArray<FAssetData> SystemAssets;
-	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraSystem::StaticClass()->GetFName(), SystemAssets);
+	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraSystem::StaticClass()->GetClassPathName(), SystemAssets);
 
 	TArray<UNiagaraSystem*> Systems;
 	Systems.Reserve(SystemAssets.Num());
@@ -645,7 +645,7 @@ void LoadAllSystemsInFolder(const TArray<FString>& Arguments)
 		TArray<FAssetData> SystemAssetsInFolder;
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		FARFilter Filter;
-		Filter.ClassNames.Add(UNiagaraSystem::StaticClass()->GetFName());
+		Filter.ClassPaths.Add(UNiagaraSystem::StaticClass()->GetClassPathName());
 		Filter.PackagePaths.Add(*Arguments[0]);
 		Filter.bRecursivePaths = true;
 		AssetRegistryModule.Get().GetAssets(Filter, SystemAssetsInFolder);

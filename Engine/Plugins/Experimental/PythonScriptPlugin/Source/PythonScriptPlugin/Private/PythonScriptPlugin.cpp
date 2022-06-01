@@ -988,7 +988,7 @@ void FPythonScriptPlugin::InitializePython()
 
 			ContentBrowserFileData::FFileActions PyFileActions;
 			PyFileActions.TypeExtension = TEXT("py");
-			PyFileActions.TypeName = "Python";
+			PyFileActions.TypeName = FTopLevelAssetPath(TEXT("/Script/Python.Python")); // Fake path to satisfy FFileActions requirements
 			PyFileActions.TypeDisplayName = LOCTEXT("PythonTypeName", "Python");
 			PyFileActions.TypeShortDescription = LOCTEXT("PythonTypeShortDescription", "Python Script");
 			PyFileActions.TypeFullDescription = LOCTEXT("PythonTypeFullDescription", "A file used to script the editor using Python");

@@ -224,6 +224,7 @@ void UXRVisualizationFunctionLibrary::RenderHandMesh(const FXRMotionControllerDa
 					
 					ProceduralMeshComponent->CreateMeshSection_LinearColor(0, Vertices, Indices, Normals, {}, Colors, {}, false);
 
+					// RobM: I couldn't find this section in any of the ini files, does it still exist? if so can HandMeshMaterial be converted to a path name?
 					if (GConfig->DoesSectionExist(TEXT("/Script/EngineSettings.XRVisualizationSettings"), GGameIni))
 					{
 						FString MaterialAddress;
@@ -232,7 +233,7 @@ void UXRVisualizationFunctionLibrary::RenderHandMesh(const FXRMotionControllerDa
 
 						if (!MaterialAddress.IsEmpty())
 						{
-							UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(StaticFindObject(UMaterialInterface::StaticClass(), ANY_PACKAGE, *MaterialAddress));
+							UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(StaticFindFirstObject(UMaterialInterface::StaticClass(), *MaterialAddress));
 							ProceduralMeshComponent->SetMaterial(0, MaterialInterface);
 						}
 					}

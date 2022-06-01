@@ -88,7 +88,7 @@ int32 UPopulateDialogueWaveFromCharacterSheetCommandlet::Main(const FString& Par
 
 	// We only want dialogue wave assets that exist within the Game content directory.
 	TArray<FAssetData> AllDialogueWaves;
-	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, FName("/Game"), UDialogueWave::StaticClass()->GetFName(), /*bIncludeLocalizedAssets*/false, AllDialogueWaves))
+	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, FName("/Game"), UDialogueWave::StaticClass()->GetClassPathName(), /*bIncludeLocalizedAssets*/false, AllDialogueWaves))
 	{
 		UE_LOG(LogPopulateDialogueWaveFromCharacterSheetCommandlet, Error, TEXT("Unable to get dialogue wave asset data from asset registry."));
 		return -1;
@@ -96,7 +96,7 @@ int32 UPopulateDialogueWaveFromCharacterSheetCommandlet::Main(const FString& Par
 
 	// We only want sound wave assets that exist within the Game content directory.
 	TArray<FAssetData> AllSoundWaves;
-	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, FName("/Game"), USoundWave::StaticClass()->GetFName(), /*bIncludeLocalizedAssets*/false, AllSoundWaves))
+	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, FName("/Game"), USoundWave::StaticClass()->GetClassPathName(), /*bIncludeLocalizedAssets*/false, AllSoundWaves))
 	{
 		UE_LOG(LogPopulateDialogueWaveFromCharacterSheetCommandlet, Error, TEXT("Unable to get sound wave asset data from asset registry."));
 		return -1;

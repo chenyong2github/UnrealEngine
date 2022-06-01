@@ -84,7 +84,7 @@ namespace DatasmithMaterialImporterUtils
 		{
 			IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< IDatasmithMaterialExpressionGeneric* >( MaterialExpression );
 
-			UClass* ExpressionClass = FindObject< UClass >( ANY_PACKAGE, *( FString( TEXT("MaterialExpression") ) + GenericExpression->GetExpressionName() ) );
+			UClass* ExpressionClass = FindFirstObject<UClass>(*(FString(TEXT("MaterialExpression")) + GenericExpression->GetExpressionName()), EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("ComputeMaterialExpressionHash"));
 
 			UMaterialExpression* MaterialCDO = nullptr;
 

@@ -17,7 +17,7 @@ public:
 
 protected:
 	/** Gets the class name used for filtering the curve asset picker. */
-	virtual FName GetSupportedAssetClassName() const = 0;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const = 0;
 
 	/** Imports the selected curve asset into the supplied curve data interface. */
 	virtual void ImportSelectedAsset(UObject* SelectedAsset, UNiagaraDataInterfaceCurveBase* CurveDataInterface) const = 0;
@@ -36,7 +36,7 @@ class FNiagaraDataInterfaceCurveTypeEditorUtilities : public FNiagaraDataInterfa
 {
 protected:
 	//~ FNiagaraDataInterfaceCurveTypeEditorUtilitiesBase interface
-	virtual FName GetSupportedAssetClassName() const override;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const override;
 	virtual void ImportSelectedAsset(UObject* SelectedAsset, UNiagaraDataInterfaceCurveBase* CurveDataInterface) const override;
 };
 
@@ -46,7 +46,7 @@ class FNiagaraDataInterfaceVectorCurveTypeEditorUtilities : public FNiagaraDataI
 {
 protected:
 	//~ FNiagaraDataInterfaceCurveTypeEditorUtilitiesBase interface
-	virtual FName GetSupportedAssetClassName() const override;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const override;
 	virtual void ImportSelectedAsset(UObject* SelectedAsset, UNiagaraDataInterfaceCurveBase* CurveDataInterface) const override;
 };
 
@@ -56,6 +56,6 @@ class FNiagaraDataInterfaceColorCurveTypeEditorUtilities : public FNiagaraDataIn
 {
 protected:
 	//~ FNiagaraDataInterfaceCurveTypeEditorUtilitiesBase interface
-	virtual FName GetSupportedAssetClassName() const override;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const override;
 	virtual void ImportSelectedAsset(UObject* SelectedAsset, UNiagaraDataInterfaceCurveBase* CurveDataInterface) const override;
 };

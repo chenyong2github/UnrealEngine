@@ -77,7 +77,7 @@ bool UParticleSystemAuditCommandlet::ProcessParticleSystems()
 	Filter.PackagePaths = PackagePaths;
 	Filter.bRecursivePaths = true;
 
-	Filter.ClassNames.Add(UParticleSystem::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UParticleSystem::StaticClass()->GetClassPathName());
 	if (!FilterCollection.IsEmpty())
 	{
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();

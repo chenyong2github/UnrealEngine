@@ -379,7 +379,7 @@ TSharedPtr<SGraphNode> UK2Node_GetSequenceBinding::CreateVisualWidget()
 			FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
 			FAssetPickerConfig AssetPickerConfig;
-			AssetPickerConfig.Filter.ClassNames.Add(UMovieSceneSequence::StaticClass()->GetFName());
+			AssetPickerConfig.Filter.ClassPaths.Add(UMovieSceneSequence::StaticClass()->GetClassPathName());
 			AssetPickerConfig.bAllowNullSelection = true;
 			AssetPickerConfig.Filter.bRecursiveClasses = true;
 			AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SGraphNodeGetSequenceBinding::OnAssetSelectedFromPicker);

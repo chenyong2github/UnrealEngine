@@ -138,6 +138,11 @@ namespace UE::Editor::SPaletteViewModel::Private
 		{
 			return ClassPath;
 		}
+
+		virtual FTopLevelAssetPath GetClassPathName() const
+		{
+			return FTopLevelAssetPath(ClassPath.ToString());
+		}
 		// End IUnloadedBlueprintData interface
 
 	private:
@@ -465,7 +470,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 	// Locate all widget BP assets (include unloaded)
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FAssetData> AllBPsAssetData;
-	AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), AllBPsAssetData, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), AllBPsAssetData, true);
 
 	for (FAssetData& BPAssetData : AllBPsAssetData)
 	{
@@ -478,9 +483,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 		}
 		if (!ParentClassName.IsEmpty())
 		{
-			UObject* Outer = nullptr;
-			ResolveName(Outer, ParentClassName, false, false);
-			ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+			ParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
 			// UUserWidgets have their own loading section, and we don't want to process any blueprints that don't have UWidget parents
 			if (ParentClass)
 			{
@@ -512,7 +515,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 	}
 
 	TArray<FAssetData> AllWidgetBPsAssetData;
-	AssetRegistryModule.Get().GetAssetsByClass(UWidgetBlueprint::StaticClass()->GetFName(), AllWidgetBPsAssetData, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UWidgetBlueprint::StaticClass()->GetClassPathName(), AllWidgetBPsAssetData, true);
 
 	FName ActiveWidgetBlueprintName = ActiveWidgetBlueprintClass->ClassGeneratedBy->GetFName();
 	for (FAssetData& WidgetBPAssetData : AllWidgetBPsAssetData)

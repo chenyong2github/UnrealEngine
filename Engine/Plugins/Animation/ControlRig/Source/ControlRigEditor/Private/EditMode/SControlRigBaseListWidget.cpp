@@ -718,7 +718,7 @@ void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 	FAssetPickerConfig AssetPickerConfig;
 
 	//AssetPickerConfig.Filter.bRecursiveClasses = true;
-	AssetPickerConfig.Filter.ClassNames.Add(UControlRigPoseAsset::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(UControlRigPoseAsset::StaticClass()->GetClassPathName());
 
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Tile;
 	AssetPickerConfig.bAllowDragging = false;
@@ -895,7 +895,7 @@ void SControlRigBaseListWidget::UpdateInputValidity()
 	const bool bAllowExistingAsset = true;
 
 	FName AssetClassName = AssetClassNames.Num() == 1 ? AssetClassNames[0] : NAME_None;
-	UClass* AssetClass = AssetClassName != NAME_None ? FindObject<UClass>(ANY_PACKAGE, *AssetClassName.ToString(), true) : nullptr;
+	UClass* AssetClass = AssetClassName != NAME_None ? FindObject<UClass>(nullptr, *AssetClassName.ToString(), true) : nullptr;
 
 	if (!ContentBrowserUtils::IsValidObjectPathForCreate(ObjectPath, AssetClass, ErrorMessage, bAllowExistingAsset))
 	{
@@ -989,7 +989,7 @@ void SControlRigBaseListWidget::FilterChanged()
 
 	FARFilter NewFilter;
 	NewFilter.PackagePaths.Add(CurrentlySelectedVirtualPath);
-	NewFilter.ClassNames.Add(UControlRigPoseAsset::StaticClass()->GetFName());
+	NewFilter.ClassPaths.Add(UControlRigPoseAsset::StaticClass()->GetClassPathName());
 	SetFilterDelegate.ExecuteIfBound(NewFilter);
 }
 

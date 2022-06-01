@@ -33,7 +33,8 @@ int64 FNumericProperty::ReadEnumAsInt64(FStructuredArchive::FSlot Slot, UStruct*
 	UEnum* Enum = FindUField<UEnum>(dynamic_cast<UClass*>(DefaultsStruct) ? static_cast<UClass*>(DefaultsStruct) : DefaultsStruct->GetTypedOuter<UClass>(), Tag.EnumName);
 	if (!Enum)
 	{
-		Enum = FindObject<UEnum>(ANY_PACKAGE, *Tag.EnumName.ToString());
+		// Enums (at least native) are stored as short names (for now) so find the Tag enum by name
+		Enum = FindFirstObject<UEnum>(*Tag.EnumName.ToString(), EFindFirstObjectOptions::NativeFirst);
 	}
 
 	if (!Enum)

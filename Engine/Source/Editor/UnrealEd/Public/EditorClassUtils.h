@@ -153,7 +153,16 @@ namespace FEditorClassUtils
 	 * @param	InAssetData		Reference to an asset data entry.
 	 * @return					Class path or None if the asset cannot or doesn't have a class associated with it
 	 */
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetClassPathNameFromAssetTag.")
 	UNREALED_API FName GetClassPathFromAssetTag(const FAssetData& InAssetData);
+
+	/**
+	 * Gets the class path from the asset tag (i.e. GeneratedClassPath tag on blueprints)
+	 * 
+	 * @param	InAssetData		Reference to an asset data entry.
+	 * @return					Class path or None if the asset cannot or doesn't have a class associated with it
+	 */
+	UNREALED_API FTopLevelAssetPath GetClassPathNameFromAssetTag(const FAssetData& InAssetData);
 
 	/**
 	 * Gets the object path of the class associated with the specified asset 
@@ -163,7 +172,18 @@ namespace FEditorClassUtils
 	 * @param	bGenerateClassPathIfMissing	Whether to generate a class path if the class is missing (and the asset can have a class associated with it)
 	 * @return								Class path or None if the asset cannot or doesn't have a class associated with it
 	 */
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetClassPathNameFromAsset.")
 	UNREALED_API FName GetClassPathFromAsset(const FAssetData& InAssetData, bool bGenerateClassPathIfMissing = false);
+
+	/**
+	 * Gets the object path of the class associated with the specified asset 
+	 * (i.e. the BlueprintGeneratedClass of a Blueprint asset or the BlueprintGeneratedClass asset itself)
+	 * 
+	 * @param	InAssetData					Reference to an asset data entry
+	 * @param	bGenerateClassPathIfMissing	Whether to generate a class path if the class is missing (and the asset can have a class associated with it)
+	 * @return								Class path or None if the asset cannot or doesn't have a class associated with it
+	 */
+	UNREALED_API FTopLevelAssetPath GetClassPathNameFromAsset(const FAssetData& InAssetData, bool bGenerateClassPathIfMissing = false);
 
 	/**
 	 * Fetches the set of interface class object paths from an asset data entry containing the appropriate asset tag(s).

@@ -53,6 +53,7 @@
 #include "Math/InterpCurvePoint.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/TopLevelAssetPath.h"
+#include "AssetRegistry/AssetData.h"
 #include "HAL/PlatformStackWalk.h"
 
 // This flag enables some expensive class tree validation that is meant to catch mutations of 
@@ -523,14 +524,14 @@ void UField::SetMetaData(const FName& Key, const TCHAR* InValue)
 UClass* UField::GetClassMetaData(const TCHAR* Key) const
 {
 	const FString& ClassName = GetMetaData(Key);
-	UClass* const FoundObject = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+	UClass* const FoundObject = UClass::TryFindTypeSlow<UClass>(ClassName);
 	return FoundObject;
 }
 
 UClass* UField::GetClassMetaData(const FName& Key) const
 {
 	const FString& ClassName = GetMetaData(Key);
-	UClass* const FoundObject = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+	UClass* const FoundObject = UClass::TryFindTypeSlow<UClass>(ClassName);
 	return FoundObject;
 }
 
@@ -610,6 +611,7 @@ UStruct::UStruct(EStaticConstructor, int32 InSize, int32 InMinAlignment, EObject
 {
 #if WITH_EDITORONLY_DATA
 	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
+	bHasAssetRegistrySearchableProperties = false;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -631,6 +633,7 @@ UStruct::UStruct(UStruct* InSuperStruct, SIZE_T ParamsSize, SIZE_T Alignment)
 #endif
 #if WITH_EDITORONLY_DATA
 	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
+	bHasAssetRegistrySearchableProperties = false;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -652,6 +655,7 @@ UStruct::UStruct(const FObjectInitializer& ObjectInitializer, UStruct* InSuperSt
 #endif
 #if WITH_EDITORONLY_DATA
 	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
+	bHasAssetRegistrySearchableProperties = false;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -957,6 +961,12 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 			*PostConstructLinkPtr = Property;
 			PostConstructLinkPtr = &(*PostConstructLinkPtr)->PostConstructLinkNext;
 		}
+
+#if WITH_EDITORONLY_DATA
+		// Set the bHasAssetRegistrySearchableProperties flag.
+		// Note that we're also iterating over super class properties here so this flag is being automatically inherited
+		bHasAssetRegistrySearchableProperties |= Property->HasAnyPropertyFlags(CPF_AssetRegistrySearchable);
+#endif
 
 		*PropertyLinkPtr = Property;
 		PropertyLinkPtr = &(*PropertyLinkPtr)->PropertyLinkNext;
@@ -1640,6 +1650,7 @@ void UStruct::DestroyChildPropertiesAndResetPropertyLinks()
 	PostConstructLink = nullptr;
 #if WITH_EDITORONLY_DATA
 	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
+	bHasAssetRegistrySearchableProperties = false;
 #endif // WITH_EDITORONLY_DATA
 	DestroyUnversionedSchema(this);
 }
@@ -4435,7 +4446,7 @@ void UClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 #if WITH_EDITOR
 	static const FName ParentClassFName = "ParentClass";
 	const UClass* const ParentClass = GetSuperClass();
-	OutTags.Add( FAssetRegistryTag(ParentClassFName, ((ParentClass) ? ParentClass->GetFName() : NAME_None).ToString(), FAssetRegistryTag::TT_Alphabetical) );
+	OutTags.Add( FAssetRegistryTag(ParentClassFName, ((ParentClass) ? ParentClass->GetPathName() : FString()), FAssetRegistryTag::TT_Alphabetical) );
 
 	static const FName ModuleNameFName = "ModuleName";
 	const UPackage* const ClassPackage = GetOuterUPackage();
@@ -4446,6 +4457,24 @@ void UClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	OutTags.Add( FAssetRegistryTag(ModuleRelativePathFName, ClassModuleRelativeIncludePath, FAssetRegistryTag::TT_Alphabetical) );
 #endif
 }
+
+#if WITH_EDITOR
+void UClass::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const
+{
+	Super::PostLoadAssetRegistryTags(InAssetData, OutTagsAndValuesToUpdate);
+
+	static const FName ParentClassFName(TEXT("ParentClass"));
+	FString ParentClassTagValue = InAssetData.GetTagValueRef<FString>(ParentClassFName);
+	if (!ParentClassTagValue.IsEmpty() && FPackageName::IsShortPackageName(ParentClassTagValue))
+	{
+		FTopLevelAssetPath ParentClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(ParentClassTagValue, ELogVerbosity::Warning, TEXT("UClass::PostLoadAssetRegistryTags"));
+		if (!ParentClassPathName.IsNull())
+		{
+			OutTagsAndValuesToUpdate.Add(FAssetRegistryTag(ParentClassFName, ParentClassPathName.ToString(), FAssetRegistryTag::TT_Alphabetical));
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 void UClass::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
@@ -5326,6 +5355,7 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 	}
 	// Update the serial number so that FFieldPaths that point to properties of this struct know they need to resolve themselves again
 	FieldPathSerialNumber = GetNextFieldPathSerialNumber();
+	bHasAssetRegistrySearchableProperties = false;
 #else
 	{
 		// Destroy all properties owned by this struct
@@ -5986,7 +6016,7 @@ UField* UClass::TryFindTypeSlow(UClass* TypeClass, const FString& InPathNameOrSh
 			ANSICHAR Buffer[1024];			
 			uint64 StackFrames[10];
 			uint32 NumStackFrames = FPlatformStackWalk::CaptureStackBackTrace(StackFrames, UE_ARRAY_COUNT(StackFrames));
-			for (uint32 Idx = 0; Idx < NumStackFrames; Idx++)
+			for (uint32 Idx = 0; Idx < NumStackFrames && Idx < UE_ARRAY_COUNT(StackFrames); Idx++)
 			{
 				Buffer[0] = '\0';
 				FPlatformStackWalk::ProgramCounterToHumanReadableString(Idx, StackFrames[Idx], Buffer, sizeof(Buffer));
@@ -6005,7 +6035,7 @@ UField* UClass::TryFindTypeSlow(UClass* TypeClass, const FString& InPathNameOrSh
 			
 			FoundType = (UField*)StaticFindFirstObject(TypeClass, *InPathNameOrShortName, InOptions | EFindFirstObjectOptions::EnsureIfAmbiguous | EFindFirstObjectOptions::NativeFirst, ELogVerbosity::Error, TEXT("TryFindType"));
 
-			UE_LOG(LogClass, Warning, TEXT("Short type name \"%s\" provided for TryFindType. Please convert it to a path name (suggested: \"%s\"). Callstack:\r\n%s"), *InPathNameOrShortName, *GetPathNameSafe(FoundType), Callstack.GetData());
+			UE_LOG(LogClass, Warning, TEXT("Short type name \"%s\" provided for TryFindType. Please convert it to a path name (suggested: \"%s\"). Callstack:\r\n\r\n%.*s"), *InPathNameOrShortName, *GetPathNameSafe(FoundType), Callstack.Len(), Callstack.GetData());
 		}
 	}
 	return FoundType;
@@ -6565,7 +6595,7 @@ UStruct* FStructUtils::FindStructureInPackageChecked(const TCHAR* StructName, co
 	}
 	else
 	{
-		return FindObjectChecked<UStruct>(ANY_PACKAGE, StructName);
+		return CastChecked<UStruct>(UClass::TryFindTypeSlow<UStruct>(StructName));
 	}
 }
 
@@ -6616,7 +6646,7 @@ static UScriptStruct* StaticGetBaseStructureInternal(FName Name)
 {
 	static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
 
-	UScriptStruct* Result = (UScriptStruct*)StaticFindObjectFastInternal(UScriptStruct::StaticClass(), CoreUObjectPkg, Name, false, false, RF_NoFlags, EInternalObjectFlags::None);
+	UScriptStruct* Result = (UScriptStruct*)StaticFindObjectFastInternal(UScriptStruct::StaticClass(), CoreUObjectPkg, Name, false, RF_NoFlags, EInternalObjectFlags::None);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (!Result)

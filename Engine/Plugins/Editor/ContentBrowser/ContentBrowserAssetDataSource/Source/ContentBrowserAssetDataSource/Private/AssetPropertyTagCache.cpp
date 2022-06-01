@@ -13,7 +13,7 @@ FAssetPropertyTagCache& FAssetPropertyTagCache::Get()
 	return AssetPropertyTagCache;
 }
 
-const FAssetPropertyTagCache::FClassPropertyTagCache& FAssetPropertyTagCache::GetCacheForClass(const FName InClassName)
+const FAssetPropertyTagCache::FClassPropertyTagCache& FAssetPropertyTagCache::GetCacheForClass(FTopLevelAssetPath InClassName)
 {
 	TSharedPtr<FClassPropertyTagCache> ClassCache = ClassToCacheMap.FindRef(InClassName);
 	if (!ClassCache)
@@ -22,15 +22,15 @@ const FAssetPropertyTagCache::FClassPropertyTagCache& FAssetPropertyTagCache::Ge
 
 		auto GetAssetClass = [&InClassName]()
 		{
-			UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *InClassName.ToString());
+			UClass* FoundClass = FindObject<UClass>(InClassName);
 
 			if (!FoundClass)
 			{
 				// Look for class redirectors
-				FName NewPath = FLinkerLoad::FindNewNameForClass(InClassName, false);
-				if (NewPath != NAME_None)
+				FString NewPath = FLinkerLoad::FindNewPathNameForClass(InClassName.ToString(), false);
+				if (!NewPath.IsEmpty())
 				{
-					FoundClass = FindObject<UClass>(ANY_PACKAGE, *NewPath.ToString());
+					FoundClass = FindObject<UClass>(nullptr, *NewPath);
 				}
 			}
 

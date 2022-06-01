@@ -84,8 +84,8 @@ private:
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		TArray<FAssetData> BlueprintList;
 		FARFilter Filter;
-		Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
-		Filter.RecursiveClassesExclusionSet.FindOrAdd(*USkeletalMesh::StaticClass()->GetName());
+		Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
+		Filter.RecursiveClassPathsExclusionSet.FindOrAdd(USkeletalMesh::StaticClass()->GetClassPathName());
 		Filter.bRecursiveClasses = true;
 
 		AssetRegistryModule.Get().GetAssets(Filter, BlueprintList);

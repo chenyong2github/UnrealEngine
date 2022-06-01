@@ -182,7 +182,8 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, AssetRenameManager(MakeShareable(new FAssetRenameManager))
 	, AssetFixUpRedirectors(MakeShareable(new FAssetFixUpRedirectors))
-	, NextUserCategoryBit(EAssetTypeCategories::FirstUser) 
+	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
+	, AssetClassPermissionList_DEPRECATED(MakeShared<FNamePermissionList>())
 	, FolderPermissionList(MakeShared<FPathPermissionList>())
 	, WritableFolderPermissionList(MakeShared<FPathPermissionList>())
 	, CreateAssetsAsExternallyReferenceable(true)
@@ -191,7 +192,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
 	for (int32 i = 0; i < (int32)EAssetClassAction::AllAssetActions; ++i)
 	{
-		AssetClassPermissionList.Add(MakeShared<FNamePermissionList>());
+		AssetClassPermissionList.Add(MakeShared<FPathPermissionList>());
 		for (const FString& Type : SupportedTypesArray)
 		{
 			AssetClassPermissionList[i]->AddAllowListItem("AssetToolsConfigFile", *Type);
@@ -336,7 +337,7 @@ void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeAction
 	bool bSupported = false;
 	if (const UClass* SupportedClass = NewActions->GetSupportedClass())
 	{
-		bSupported = GetAssetClassPermissionList(EAssetClassAction::CreateAsset)->PassesFilter(SupportedClass->GetFName());
+		bSupported = GetAssetClassPathPermissionList(EAssetClassAction::CreateAsset)->PassesFilter(SupportedClass->GetFName());
 	}
 	else
 	{
@@ -1424,7 +1425,7 @@ bool UAssetToolsImpl::AssetUsesGenericThumbnail( const FAssetData& AssetData ) c
 		return !RenderInfo || !RenderInfo->Renderer;
 	}
 
-	if ( AssetData.AssetClass == UBlueprint::StaticClass()->GetFName() )
+	if ( AssetData.AssetClassPath == UBlueprint::StaticClass()->GetClassPathName() )
 	{
 		// Unloaded blueprint asset
 		// It would be more correct here to find the rendering info for the generated class,
@@ -1452,7 +1453,7 @@ bool UAssetToolsImpl::AssetUsesGenericThumbnail( const FAssetData& AssetData ) c
 	else
 	{
 		// Unloaded non-blueprint asset. See if the class has a rendering info.
-		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
+		UClass* Class = FindObject<UClass>(AssetData.AssetClassPath);
 
 		UObject* ClassCDO = nullptr;
 		if (Class != nullptr)
@@ -2297,7 +2298,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 
 							const FString QualifiedName = PackageName + TEXT(".") + Name;
 							FText Reason;
-							if(NumObjectsDeleted == 0 || !IsUniqueObjectName(*QualifiedName, ANY_PACKAGE, Reason))
+							if(NumObjectsDeleted == 0 || !IsGloballyUniqueObjectName(*QualifiedName, &Reason))
 							{
 								// Original object couldn't be deleted
 								const FText Message = FText::Format(LOCTEXT("ImportDeleteFailed", "Failed to delete '{0}'. The asset is referenced by other content."), FText::FromString(PackageName));
@@ -4002,17 +4003,66 @@ TArray<UFactory*> UAssetToolsImpl::GetNewAssetFactories() const
 
 TSharedRef<FNamePermissionList>& UAssetToolsImpl::GetAssetClassPermissionList()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return GetAssetClassPermissionList(EAssetClassAction::ViewAsset);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 }
 
 TSharedRef<FNamePermissionList>& UAssetToolsImpl::GetAssetClassPermissionList(EAssetClassAction AssetClassAction)
+{
+	// Convert path list to name list. Slow and unefficient but keeping it for compatibility (this function is deprecated)
+	if (AssetClassAction < EAssetClassAction::AllAssetActions)
+	{
+		TSharedRef<FPathPermissionList> List = AssetClassPermissionList[(int32)AssetClassAction];
+		TSharedRef<FNamePermissionList> Result = MakeShared<FNamePermissionList>();
+		if (List->IsDenyListAll())
+		{
+			Result->AddDenyListAll(NAME_None);
+		}
+
+		for (const TPair<FString, FPermissionListOwners>& It : List->GetDenyList())
+		{
+			for (const FName OwnerName : It.Value)
+			{
+				Result->AddDenyListItem(OwnerName, FName(*FPackageName::GetShortName(*It.Key)));
+			}
+		}
+
+		for (const TPair<FString, FPermissionListOwners>& It : List->GetAllowList())
+		{
+			FName Name = *FPackageName::GetShortName(*It.Key);
+			if (Result->PassesFilter(Name))
+			{
+				for (const FName OwnerName : It.Value)
+				{
+					Result->AddAllowListItem(OwnerName, Name);
+				}
+			}
+		}
+
+		// Block everything if none of the AllowList paths passed
+		if (Result->GetAllowList().Num() == 0)
+		{
+			Result->AddDenyListAll(NAME_None);
+		}
+
+		AssetClassPermissionList_DEPRECATED = Result;
+		return AssetClassPermissionList_DEPRECATED;
+	}
+	
+	static TSharedRef<FNamePermissionList> Empty = MakeShared<FNamePermissionList>();
+	return Empty;
+}
+
+TSharedRef<FPathPermissionList>& UAssetToolsImpl::GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction)
 {
 	if (AssetClassAction < EAssetClassAction::AllAssetActions)
 	{
 		return AssetClassPermissionList[(int32)AssetClassAction];
 	}
-	
-	static TSharedRef<FNamePermissionList> Empty = MakeShared<FNamePermissionList>();
+
+	static TSharedRef<FPathPermissionList> Empty = MakeShared<FPathPermissionList>();
 	return Empty;
 }
 
@@ -4026,7 +4076,7 @@ void UAssetToolsImpl::AssetClassPermissionListChanged(EAssetClassAction AssetCla
 			bool bSupported = false;
 			if (const UClass* SupportedClass = ActionsIt->GetSupportedClass())
 			{
-				bSupported = GetAssetClassPermissionList(AssetClassAction)->PassesFilter(SupportedClass->GetFName());
+				bSupported = GetAssetClassPathPermissionList(AssetClassAction)->PassesFilter(SupportedClass->GetPathName());
 			}
 			else
 			{

@@ -68,7 +68,7 @@ TSharedRef<SWidget> SPropertyAssetPicker::OnGenerateAssetPicker()
 	for ( auto ClassIt = AllowedClasses.CreateConstIterator(); ClassIt; ++ClassIt )
 	{
 		const UClass* Class = (*ClassIt);
-		AssetPickerConfig.Filter.ClassNames.Add( Class->GetFName() );
+		AssetPickerConfig.Filter.ClassPaths.Add( Class->GetClassPathName() );
 	}
 	// Allow child classes
 	AssetPickerConfig.Filter.bRecursiveClasses = true;

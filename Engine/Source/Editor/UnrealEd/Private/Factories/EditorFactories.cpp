@@ -842,7 +842,7 @@ UObject* ULevelFactory::FactoryCreateText
 		else if( GetBEGIN(&Str,TEXT("ACTOR")) )
 		{
 			UClass* TempClass;
-			if( ParseObject<UClass>( Str, TEXT("CLASS="), TempClass, ANY_PACKAGE ) )
+			if( ParseObject<UClass>( Str, TEXT("CLASS="), TempClass, nullptr ) )
 			{
 				// Get actor name.
 				FName ActorUniqueName(NAME_None);
@@ -880,13 +880,13 @@ UObject* ULevelFactory::FactoryCreateText
 					if ( FPackageName::ParseExportTextPath(ArchetypeName, &ObjectClass, &ObjectPath) )
 					{
 						// find the class
-						UClass* ArchetypeClass = (UClass*)StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *ObjectClass);
+						UClass* ArchetypeClass = UClass::TryFindTypeSlow<UClass>(ObjectClass, EFindFirstObjectOptions::EnsureIfAmbiguous);
 						if ( ArchetypeClass )
 						{
 							if ( ArchetypeClass->IsChildOf(AActor::StaticClass()) )
 							{
 								// if we had the class, find the archetype
-								Archetype = Cast<AActor>(StaticFindObject(ArchetypeClass, ANY_PACKAGE, *ObjectPath));
+								Archetype = Cast<AActor>(StaticFindObject(ArchetypeClass, nullptr, *ObjectPath));
 							}
 							else
 							{
@@ -1423,13 +1423,13 @@ UObject* UPackageFactory::FactoryCreateText( UClass* Class, UObject* InParent, F
 		{
 			//Begin TopLevelPackage Class=Package Name=ExportTest_ORIG Archetype=Package'Core.Default__Package'
 			UClass* TempClass;
-			if( ParseObject<UClass>( Str, TEXT("CLASS="), TempClass, ANY_PACKAGE ) )
+			if( ParseObject<UClass>( Str, TEXT("CLASS="), TempClass, nullptr ) )
 			{
 				// Get actor name.
 				FName PackageName(NAME_None);
 				FParse::Value( Str, TEXT("NAME="), PackageName );
 
-				if (FindObject<UPackage>(ANY_PACKAGE, *(PackageName.ToString())))
+				if (FindObject<UPackage>(nullptr, *(PackageName.ToString())))
 				{
 					UE_LOG(LogEditorFactories, Warning, TEXT("Package factory can only handle the map package or new packages!"));
 					return nullptr;
@@ -1451,7 +1451,7 @@ UObject* UPackageFactory::FactoryCreateText( UClass* Class, UObject* InParent, F
 			FString ParentPackageName;
 			FParse::Value(Str, TEXT("PARENTPACKAGE="), ParentPackageName);
 			UClass* PkgClass;
-			if (ParseObject<UClass>(Str, TEXT("CLASS="), PkgClass, ANY_PACKAGE))
+			if (ParseObject<UClass>(Str, TEXT("CLASS="), PkgClass, nullptr))
 			{
 				// Get the name of the object.
 				FName NewPackageName(NAME_None);
@@ -1468,13 +1468,13 @@ UObject* UPackageFactory::FactoryCreateText( UClass* Class, UObject* InParent, F
 					if ( FPackageName::ParseExportTextPath(ArchetypeName, &ObjectClass, &ObjectPath) )
 					{
 						// find the class
-						UClass* ArchetypeClass = (UClass*)StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *ObjectClass);
+						UClass* ArchetypeClass = UClass::TryFindTypeSlow<UClass>(ObjectClass, EFindFirstObjectOptions::EnsureIfAmbiguous);
 						if (ArchetypeClass)
 						{
 							if (ArchetypeClass->IsChildOf(UPackage::StaticClass()))
 							{
 								// if we had the class, find the archetype
-								Archetype = Cast<UPackage>(StaticFindObject(ArchetypeClass, ANY_PACKAGE, *ObjectPath));
+								Archetype = Cast<UPackage>(StaticFindObject(ArchetypeClass, nullptr, *ObjectPath));
 							}
 							else
 							{
@@ -1760,7 +1760,7 @@ UObject* UPolysFactory::FactoryCreateText
 			// only load the texture if it was present
 			if (FParse::Value( Str, TEXT("TEXTURE="), TextureName ))
 			{
-				Poly.Material = Cast<UMaterialInterface>(StaticFindObject( UMaterialInterface::StaticClass(), ANY_PACKAGE, *TextureName ) );
+				Poly.Material = FindFirstObject<UMaterialInterface>( *TextureName, EFindFirstObjectOptions::EnsureIfAmbiguous );
 /***
 				if (Poly.Material == nullptr)
 				{
@@ -5707,7 +5707,7 @@ void FCustomizableTextObjectFactory::ProcessBuffer(UObject* InParent, EObjectFla
 			}
 
 			UClass* ObjClass;
-			if( ParseObject<UClass>( Str, TEXT("CLASS="), ObjClass, ANY_PACKAGE ) )
+			if( ParseObject<UClass>( Str, TEXT("CLASS="), ObjClass, nullptr ) )
 			{
 				bool bOmitSubObjects = false;
 				if (!CanCreateClass(ObjClass, bOmitSubObjects))
@@ -5833,7 +5833,7 @@ bool FCustomizableTextObjectFactory::CanCreateObjectsFromText( const FString& Te
 			}
 
 			UClass* ObjClass;
-			if (ParseObject<UClass>(Str, TEXT("CLASS="), ObjClass, ANY_PACKAGE))
+			if (ParseObject<UClass>(Str, TEXT("CLASS="), ObjClass, nullptr))
 			{
 				bool bOmitSubObjects = false;;
 				if (CanCreateClass(ObjClass, bOmitSubObjects))
@@ -7655,7 +7655,7 @@ bool UBlendSpaceFactoryNew::ConfigureProperties()
 	FAssetPickerConfig AssetPickerConfig;
 
 	/** The asset picker will only show skeletal meshes */
-	AssetPickerConfig.Filter.ClassNames.Add(USkeleton::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(USkeleton::StaticClass()->GetClassPathName());
 	AssetPickerConfig.Filter.bRecursiveClasses = true;
 
 	/** The delegate that fires when an asset was selected */
@@ -7730,7 +7730,7 @@ bool UBlendSpaceFactory1D::ConfigureProperties()
 	FAssetPickerConfig AssetPickerConfig;
 
 	/** The asset picker will only show skeletal meshes */
-	AssetPickerConfig.Filter.ClassNames.Add(USkeleton::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(USkeleton::StaticClass()->GetClassPathName());
 	AssetPickerConfig.Filter.bRecursiveClasses = true;
 
 	/** The delegate that fires when an asset was selected */

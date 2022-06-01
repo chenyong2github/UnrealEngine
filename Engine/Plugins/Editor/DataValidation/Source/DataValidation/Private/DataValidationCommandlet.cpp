@@ -42,9 +42,21 @@ bool UDataValidationCommandlet::ValidateData(const FString& FullCommandLine)
 	FString AssetTypeString;
 	if (FParse::Value(*FullCommandLine, TEXT("AssetType="), AssetTypeString) && !AssetTypeString.IsEmpty())
 	{
-		const FName AssetType = *AssetTypeString;
+		if (FPackageName::IsShortPackageName(AssetTypeString))
+		{
+			UClass* Class = FindFirstObject<UClass>(*AssetTypeString, EFindFirstObjectOptions::EnsureIfAmbiguous);
+			if (Class)
+			{
+				AssetTypeString = Class->GetPathName();
+			}
+			else
+			{
+				UE_LOG(LogDataValidation, Error, TEXT("Unable to resolve class path name given short name: \"%s\""), *AssetTypeString);
+				return false;
+			}
+		}
 		const bool bSearchSubClasses = true;
-		AssetRegistryModule.Get().GetAssetsByClass(AssetType, AssetDataList, bSearchSubClasses);
+		AssetRegistryModule.Get().GetAssetsByClass(FTopLevelAssetPath(AssetTypeString), AssetDataList, bSearchSubClasses);
 	}
 	else
 	{

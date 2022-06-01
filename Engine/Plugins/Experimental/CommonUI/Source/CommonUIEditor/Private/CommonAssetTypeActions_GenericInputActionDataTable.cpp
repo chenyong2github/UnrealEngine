@@ -52,8 +52,8 @@ void FCommonAssetTypeActions_GenericInputActionDataTable::OpenAssetEditor(const 
 		DataTablesListText.Indent();
 		for (UDataTable* Table : InvalidDataTables)
 		{
-			const FName ResolvedRowStructName = Table->GetRowStructName();
-			DataTablesListText.AppendLineFormat(LOCTEXT("DataTable_MissingRowStructListEntry", "* {0} (Row Structure: {1})"), FText::FromString(Table->GetName()), FText::FromName(ResolvedRowStructName));
+			const FTopLevelAssetPath ResolvedRowStructName = Table->GetRowStructPathName();
+			DataTablesListText.AppendLineFormat(LOCTEXT("DataTable_MissingRowStructListEntry", "* {0} (Row Structure: {1})"), FText::FromString(Table->GetName()), FText::FromString(ResolvedRowStructName.ToString()));
 		}
 
 		FText Title = LOCTEXT("DataTable_MissingRowStructTitle", "Continue?");

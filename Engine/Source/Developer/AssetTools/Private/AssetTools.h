@@ -123,8 +123,11 @@ public:
 	virtual void ConvertVirtualTextures(const TArray<UTexture2D*>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial*>* RelatedMaterials = nullptr) const override;
 	virtual bool IsAssetClassSupported(const UClass* AssetClass) const override;
 	virtual TArray<UFactory*> GetNewAssetFactories() const override;
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetAssetClassPathPermissionList.")
 	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList() override;
-	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList(EAssetClassAction AssetClassAction) override;
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetAssetClassPathPermissionList.")
+	TSharedRef<FNamePermissionList>& GetAssetClassPermissionList(EAssetClassAction AssetClassAction);
+	virtual TSharedRef<FPathPermissionList>& GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) override;
 	virtual TSharedRef<FPathPermissionList>& GetFolderPermissionList() override;
 	virtual TSharedRef<FPathPermissionList>& GetWritableFolderPermissionList() override;
 	virtual bool AllPassWritableFolderFilter(const TArray<FString>& InPaths) const override;
@@ -212,8 +215,11 @@ private:
 	/** The next user category bit to allocate (set to 0 when there are no more bits left) */
 	uint32 NextUserCategoryBit;
 
-	/** Permission lists of assets by class name, one for each EAssetClassAction */
-	TArray<TSharedRef<FNamePermissionList>> AssetClassPermissionList;
+	/** This should be removed with the removal of GetAssetClassPermissionList functions */
+	TSharedRef<FNamePermissionList> AssetClassPermissionList_DEPRECATED;
+
+	/** Permission lists of assets by class path name, one for each EAssetClassAction */
+	TArray<TSharedRef<FPathPermissionList>> AssetClassPermissionList;
 
 	/** Permission list of folder paths */
 	TSharedRef<FPathPermissionList> FolderPermissionList;

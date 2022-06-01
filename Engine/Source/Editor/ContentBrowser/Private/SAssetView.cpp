@@ -334,7 +334,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	OwningContentBrowser = InArgs._OwningContentBrowser;
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList(EAssetClassAction::ViewAsset);
+	AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPathPermissionList(EAssetClassAction::ViewAsset);
 	FolderPermissionList = AssetToolsModule.Get().GetFolderPermissionList();
 	WritableFolderPermissionList = AssetToolsModule.Get().GetWritableFolderPermissionList();
 
@@ -1536,7 +1536,7 @@ static bool IsValidObjectPath(const FString& Path, FString& OutObjectClassName, 
 {
 	if (FPackageName::ParseExportTextPath(Path, &OutObjectClassName, &OutObjectPath))
 	{
-		if (UClass* ObjectClass = FindObject<UClass>(ANY_PACKAGE, *OutObjectClassName, true))
+		if (UClass* ObjectClass = UClass::TryFindTypeSlow<UClass>(OutObjectClassName, EFindFirstObjectOptions::ExactClass))
 		{
 			OutPackageName = FPackageName::ObjectPathToPackageName(OutObjectPath);
 			if (FPackageName::IsValidLongPackageName(OutPackageName))

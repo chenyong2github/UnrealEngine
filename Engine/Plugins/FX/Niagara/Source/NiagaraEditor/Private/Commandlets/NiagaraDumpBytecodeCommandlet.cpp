@@ -88,7 +88,7 @@ void UNiagaraDumpByteCodeCommandlet::ProcessNiagaraScripts()
 	Filter.PackagePaths = PackagePaths;
 	Filter.bRecursivePaths = true;
 
-	Filter.ClassNames.Add(UNiagaraSystem::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UNiagaraSystem::StaticClass()->GetClassPathName());
 	if (!FilterCollection.IsEmpty())
 	{
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();

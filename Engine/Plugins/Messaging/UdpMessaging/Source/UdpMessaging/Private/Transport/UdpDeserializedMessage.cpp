@@ -44,6 +44,7 @@ class FUdpDeserializedMessageDetails
 public:
 	static bool DeserializeV10(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
 	static bool DeserializeV11_15(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader, bool bIsLWCBackwardCompatibilityMode);
+	static bool DeserializeV16(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
 	static bool Deserialize(FUdpDeserializedMessage& DeserializedMessage, const FUdpReassembledMessage& ReassembledMessage);
 };
 
@@ -155,7 +156,7 @@ bool FUdpDeserializedMessageDetails::DeserializeV10(FUdpDeserializedMessage& Des
 		MessageReader << MessageType;
 
 		// @todo gmp: cache message types for faster lookup
-		DeserializedMessage.TypeInfo = FindObjectSafe<UScriptStruct>(ANY_PACKAGE, *MessageType.ToString());
+		DeserializedMessage.TypeInfo = UClass::TryFindTypeSlowSafe<UScriptStruct>(MessageType.ToString());
 
 		if (!DeserializedMessage.TypeInfo.IsValid(false, true))
 		{
@@ -241,7 +242,7 @@ bool FUdpDeserializedMessageDetails::DeserializeV11_15(FUdpDeserializedMessage& 
 		MessageReader << MessageType;
 
 		// @todo gmp: cache message types for faster lookup
-		DeserializedMessage.TypeInfo = FindObjectSafe<UScriptStruct>(ANY_PACKAGE, *MessageType.ToString());
+		DeserializedMessage.TypeInfo = UClass::TryFindTypeSlowSafe<UScriptStruct>(MessageType.ToString());
 
 		if (!DeserializedMessage.TypeInfo.IsValid(false, true))
 		{
@@ -362,6 +363,136 @@ bool FUdpDeserializedMessageDetails::DeserializeV11_15(FUdpDeserializedMessage& 
 	}
 }
 
+bool FUdpDeserializedMessageDetails::DeserializeV16(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader)
+{
+	// message type info
+	{
+		FTopLevelAssetPath MessageType;
+		MessageReader << MessageType;
+
+		// @todo gmp: cache message types for faster lookup
+		DeserializedMessage.TypeInfo = FindObjectSafe<UScriptStruct>(MessageType);
+
+		if (!DeserializedMessage.TypeInfo.IsValid(false, true))
+		{
+			UE_LOG(LogUdpMessaging, Verbose, TEXT("No valid type info found for message type %s"), *MessageType.ToString());
+			return false;
+		}
+	}
+
+	// sender address
+	{
+		MessageReader << DeserializedMessage.Sender;
+	}
+
+	// recipient addresses
+	{
+		int32 NumRecipients = 0;
+		MessageReader << NumRecipients;
+
+		if ((NumRecipients < 0) || (NumRecipients > UDP_MESSAGING_MAX_RECIPIENTS))
+		{
+			return false;
+		}
+
+		DeserializedMessage.Recipients.Empty(NumRecipients);
+
+		while (0 < NumRecipients--)
+		{
+			MessageReader << DeserializedMessage.Recipients.AddDefaulted_GetRef();
+		}
+	}
+
+	// message scope
+	{
+		MessageReader << DeserializedMessage.Scope;
+
+		if (DeserializedMessage.Scope > EMessageScope::All)
+		{
+			return false;
+		}
+	}
+
+	// message flags
+	{
+		MessageReader << DeserializedMessage.Flags;
+	}
+
+	// time sent & expiration
+	{
+		MessageReader << DeserializedMessage.TimeSent;
+		MessageReader << DeserializedMessage.Expiration;
+	}
+
+	// annotations
+	{
+		int32 NumAnnotations = 0;
+		MessageReader << NumAnnotations;
+
+		if (NumAnnotations > UDP_MESSAGING_MAX_ANNOTATIONS)
+		{
+			return false;
+		}
+
+		while (0 < NumAnnotations--)
+		{
+			FName Key;
+			FString Value;
+
+			MessageReader << Key;
+			MessageReader << Value;
+
+			DeserializedMessage.Annotations.Add(Key, Value);
+		}
+	}
+
+	// wire format 
+	uint8 FormatId;
+	MessageReader << FormatId;
+	EUdpMessageFormat MessageFormat = (EUdpMessageFormat)FormatId;
+	
+	// create message body
+	DeserializedMessage.MessageData = FMemory::Malloc(DeserializedMessage.TypeInfo->GetStructureSize());
+	DeserializedMessage.TypeInfo->InitializeStruct(DeserializedMessage.MessageData);
+
+	constexpr bool bIsLWCBackwardCompatibilityMode = false;
+	switch (MessageFormat)
+	{
+	case EUdpMessageFormat::Json:
+	{
+		// deserialize json
+		FJsonStructDeserializerBackend Backend(MessageReader);
+		return FStructDeserializer::Deserialize(DeserializedMessage.MessageData, *DeserializedMessage.TypeInfo, Backend);
+	}
+	break;
+	case EUdpMessageFormat::CborPlatformEndianness:
+	{
+		// deserialize cbor (using this platform endianness).
+		FCborStructDeserializerBackend Backend(MessageReader, ECborEndianness::Platform, bIsLWCBackwardCompatibilityMode);
+		return FStructDeserializer::Deserialize(DeserializedMessage.MessageData, *DeserializedMessage.TypeInfo, Backend);
+	}
+	break;
+	case EUdpMessageFormat::CborStandardEndianness:
+	{
+		// deserialize cbor (using the CBOR standard endianness - big endian).
+		FCborStructDeserializerBackend Backend(MessageReader, ECborEndianness::StandardCompliant, bIsLWCBackwardCompatibilityMode);
+		return FStructDeserializer::Deserialize(DeserializedMessage.MessageData, *DeserializedMessage.TypeInfo, Backend);
+	}
+	break;
+	case EUdpMessageFormat::TaggedProperty:
+	{
+		// deserialize message body using tagged property
+		// Hack : this binary serialization should use a more standard protocol, should use cbor
+		DeserializedMessage.TypeInfo->SerializeItem(MessageReader, DeserializedMessage.MessageData, nullptr);
+		return !MessageReader.GetError();
+	}
+	break;
+	default:
+		// Unsupported format
+		return false;
+	}
+}
+
 bool FUdpDeserializedMessageDetails::Deserialize(FUdpDeserializedMessage& DeserializedMessage, const FUdpReassembledMessage& ReassembledMessage)
 {
 	// Note that some complex values are deserialized manually here, so that we
@@ -393,6 +524,11 @@ bool FUdpDeserializedMessageDetails::Deserialize(FUdpDeserializedMessage& Deseri
 	{
 		constexpr bool bIsLWCBackwardCompatibilityMode = false;
 		return DeserializeV11_15(DeserializedMessage, MessageReader, bIsLWCBackwardCompatibilityMode);
+		break;
+	}
+	case 16:
+	{
+		return DeserializeV16(DeserializedMessage, MessageReader);
 		break;
 	}
 

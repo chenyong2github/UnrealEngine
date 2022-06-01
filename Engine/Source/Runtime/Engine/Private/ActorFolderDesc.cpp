@@ -60,7 +60,7 @@ FActorFolderDescsContext::FActorFolderDescsContext(const FActorFolderDesc& InAct
 	FARFilter Filter;
 	Filter.bRecursivePaths = true;
 	Filter.bIncludeOnlyOnDiskAssets = true;
-	Filter.ClassNames.Add(UActorFolder::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UActorFolder::StaticClass()->GetClassPathName());
 	Filter.PackagePaths.Add(*ActorFoldersRoot);
 	TArray<FAssetData> Assets;
 	AssetRegistry.GetAssets(Filter, Assets);

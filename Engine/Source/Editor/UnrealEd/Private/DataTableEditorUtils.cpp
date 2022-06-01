@@ -903,7 +903,7 @@ void FDataTableEditorUtils::GetPossibleStructAssetData(TArray<FAssetData>& Struc
 	// Now get unloaded ones
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FAssetData> AssetData;
-	AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedStruct::StaticClass()->GetFName(), AssetData);
+	AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedStruct::StaticClass()->GetClassPathName(), AssetData);
 
 	for (int32 AssetIndex = 0; AssetIndex < AssetData.Num(); ++AssetIndex)
 	{

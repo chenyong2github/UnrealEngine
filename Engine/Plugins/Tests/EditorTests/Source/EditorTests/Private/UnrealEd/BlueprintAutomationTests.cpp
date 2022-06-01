@@ -262,7 +262,7 @@ public:
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		TArray<FAssetData> ObjectList;
-		AssetRegistryModule.Get().GetAssetsByClass(Class->GetFName(), ObjectList);
+		AssetRegistryModule.Get().GetAssetsByClass(Class->GetClassPathName(), ObjectList);
 
 		for (auto ObjIter=ObjectList.CreateConstIterator(); ObjIter; ++ObjIter)
 		{
@@ -582,7 +582,7 @@ public:
 		AssetFilter.bRecursivePaths = true;
 		if (ClassType != NULL)
 		{
-			AssetFilter.ClassNames.Add(ClassType->GetFName());
+			AssetFilter.ClassPaths.Add(ClassType->GetClassPathName());
 		}
 		
 		TArray<FString> AssetPaths;
@@ -1225,7 +1225,7 @@ bool FBlueprintReparentTest::RunTest(const FString& BlueprintAssetPath)
 		// additionally gather up any blueprints that we explicitly specify though the config
 		for (FAssetData const& AssetData : Assets)
 		{
-			UClass* AssetClass = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
+			UClass* AssetClass = FindObject<UClass>(AssetData.AssetClassPath);
 			TestParentClasses.Add(AssetClass);
 		}
 
@@ -1265,7 +1265,7 @@ void FBlueprintRenameAndCloneTest::GetTests(TArray<FString>& OutBeautifiedNames,
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	
 	TArray<FAssetData> ObjectList;
-	AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), ObjectList);
+	AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), ObjectList);
 
 	for (FAssetData const& Asset : ObjectList)
 	{

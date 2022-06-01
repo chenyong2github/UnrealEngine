@@ -53,8 +53,8 @@ struct FAssetRegistrySerializationOptions
 	/** Filter out searchable names from dependency data */
 	bool bFilterSearchableNames = false;
 
-	/** The map of classname to tag set of tags that are allowed in cooked builds. This is either an allow list or deny list depending on bUseAssetRegistryTagsAllowListInsteadOfDenyList */
-	TMap<FName, TSet<FName>> CookFilterlistTagsByClass;
+	/** The map of class pathname to tag set of tags that are allowed in cooked builds. This is either an allow list or deny list depending on bUseAssetRegistryTagsAllowListInsteadOfDenyList */
+	TMap<FTopLevelAssetPath, TSet<FName>> CookFilterlistTagsByClass;
 
 	/** Tag keys whose values should be stored as FName in cooked builds */
 	TSet<FName> CookTagsAsName;
@@ -254,10 +254,19 @@ public:
 	 * @param ClassName the class name of the assets to look for
 	 * @return An array of AssetData*, empty if nothing found
 	 */
-	const TArray<const FAssetData*>& GetAssetsByClassName(const FName ClassName) const
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetAssetsByClassPathName")
+	const TArray<const FAssetData*>& GetAssetsByClassName(const FName ClassName) const;
+
+	/**
+	 * Gets the asset data for the specified asset class
+	 *
+	 * @param ClassPathName the class path name of the assets to look for
+	 * @return An array of AssetData*, empty if nothing found
+	 */
+	const TArray<const FAssetData*>& GetAssetsByClassPathName(const FTopLevelAssetPath ClassPathName) const
 	{
 		static TArray<const FAssetData*> InvalidArray;
-		const TArray<FAssetData*>* FoundAssetArray = CachedAssetsByClass.Find(ClassName);
+		const TArray<FAssetData*>* FoundAssetArray = CachedAssetsByClass.Find(ClassPathName);
 		if (FoundAssetArray)
 		{
 			return reinterpret_cast<const TArray<const FAssetData*>&>(*FoundAssetArray);
@@ -452,7 +461,7 @@ private:
 	TMap<FName, TArray<FAssetData*> > CachedAssetsByPath;
 
 	/** The map of class name to asset data for assets saved to disk */
-	TMap<FName, TArray<FAssetData*> > CachedAssetsByClass;
+	TMap<FTopLevelAssetPath, TArray<FAssetData*> > CachedAssetsByClass;
 
 	/** The map of asset tag to asset data for assets saved to disk */
 	TMap<FName, TArray<FAssetData*> > CachedAssetsByTag;

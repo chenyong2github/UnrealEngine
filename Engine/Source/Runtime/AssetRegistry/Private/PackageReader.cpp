@@ -14,6 +14,7 @@
 #include "UObject/Linker.h"
 #include "UObject/PackageTrailer.h"
 
+
 FPackageReader::FPackageReader()
 	: Loader(nullptr)
 	, PackageFileSize(0)
@@ -355,7 +356,7 @@ bool FPackageReader::ReadAssetDataFromThumbnailCache(TArray<FAssetData*>& AssetD
 		}
 
 		// Create a new FAssetData for this asset and update it with the gathered data
-		AssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), FName(*ObjectPathWithoutPackageName), FName(*AssetClassName), FAssetDataTagMap(), PackageFileSummary.ChunkIDs, PackageFileSummary.GetPackageFlags()));
+		AssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), FName(*ObjectPathWithoutPackageName), FTopLevelAssetPath(AssetClassName), FAssetDataTagMap(), PackageFileSummary.ChunkIDs, PackageFileSummary.GetPackageFlags()));
 	}
 
 	return true;
@@ -398,23 +399,28 @@ bool FPackageReader::ReadAssetRegistryDataFromCookedPackage(TArray<FAssetData*>&
 			if (Export.bIsAsset)
 			{
 				// We need to get the class name from the import/export maps
-				FName ObjectClassName;
+				FString ObjectClassName;
 				if (Export.ClassIndex.IsNull())
 				{
-					ObjectClassName = UClass::StaticClass()->GetFName();
+					ObjectClassName = UClass::StaticClass()->GetPathName();
 				}
 				else if (Export.ClassIndex.IsExport())
 				{
 					const FObjectExport& ClassExport = ExportMap[Export.ClassIndex.ToExport()];
-					ObjectClassName = ClassExport.ObjectName;
+					ObjectClassName = PackageName;
+					ObjectClassName += '.'; 
+					ClassExport.ObjectName.AppendString(ObjectClassName);
 				}
 				else if (Export.ClassIndex.IsImport())
 				{
 					const FObjectImport& ClassImport = ImportMap[Export.ClassIndex.ToImport()];
-					ObjectClassName = ClassImport.ObjectName;
+					const FObjectImport& ClassPackageImport = ImportMap[ClassImport.OuterIndex.ToImport()];
+					ClassPackageImport.ObjectName.AppendString(ObjectClassName);
+					ObjectClassName += '.';
+					ClassImport.ObjectName.AppendString(ObjectClassName);
 				}
 
-				AssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), Export.ObjectName, ObjectClassName, FAssetDataTagMap(), TArray<int32>(), GetPackageFlags()));
+				AssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), Export.ObjectName, FTopLevelAssetPath(ObjectClassName), FAssetDataTagMap(), TArray<int32>(), GetPackageFlags()));
 				bFoundAtLeastOneAsset = true;
 			}
 		}
@@ -871,6 +877,107 @@ FArchive& FPackageReader::operator<<( FName& Name )
 
 namespace UE::AssetRegistry
 {
+	class FNameMapAwareArchive : public FArchiveProxy
+	{
+		TArray<FNameEntryId>	NameMap;
+
+	public:
+
+		FNameMapAwareArchive(FArchive& Inner)
+			: FArchiveProxy(Inner)
+		{}
+
+		FORCEINLINE virtual FArchive& operator<<(FName& Name) override
+		{
+			FArchive& Ar = *this;
+			int32 NameIndex;
+			Ar << NameIndex;
+			int32 Number = 0;
+			Ar << Number;
+
+			if (NameMap.IsValidIndex(NameIndex))
+			{
+				// if the name wasn't loaded (because it wasn't valid in this context)
+				FNameEntryId MappedName = NameMap[NameIndex];
+
+				// simply create the name from the NameMap's name and the serialized instance number
+				Name = FName::CreateFromDisplayId(MappedName, Number);
+			}
+			else
+			{
+				Name = FName();
+				SetCriticalError();
+			}
+
+			return *this;
+		}
+
+		void SerializeNameMap(const FPackageFileSummary& PackageFileSummary)
+		{
+			Seek(PackageFileSummary.NameOffset);
+			NameMap.Reserve(PackageFileSummary.NameCount);
+			FNameEntrySerialized NameEntry(ENAME_LinkerConstructor);
+			for (int32 Idx = NameMap.Num(); Idx < PackageFileSummary.NameCount; ++Idx)
+			{
+				*this << NameEntry;
+				NameMap.Emplace(FName(NameEntry).GetDisplayIndex());
+			}
+		}
+	};
+	FString ReconstructFullClassPath(FArchive& BinaryArchive, const FString& PackageName, const FPackageFileSummary& PackageFileSummary, const FString& AssetClassName)
+	{
+		FLinkerTables LinkerTables;
+		FNameMapAwareArchive NameMapArchive(BinaryArchive);
+		NameMapArchive.SerializeNameMap(PackageFileSummary);
+		FName ClassFName(*AssetClassName);
+
+		// Load the linker tables
+		BinaryArchive.Seek(PackageFileSummary.ImportOffset);
+		for (int32 ImportMapIndex = 0; ImportMapIndex < PackageFileSummary.ImportCount; ++ImportMapIndex)
+		{
+			FObjectImport* Import = new(LinkerTables.ImportMap)FObjectImport;
+			NameMapArchive << *Import;
+		}
+		BinaryArchive.Seek(PackageFileSummary.ExportOffset);
+		for (int32 ExportMapIndex = 0; ExportMapIndex < PackageFileSummary.ExportCount; ++ExportMapIndex)
+		{
+			FObjectExport* Export = new(LinkerTables.ExportMap)FObjectExport;
+			NameMapArchive << *Export;
+		}
+
+		FString ClassPathName;
+
+		// Now look through the exports' classes and find the one matching the asset class
+		for (const FObjectExport& Export : LinkerTables.ExportMap)
+		{
+			if (Export.ClassIndex.IsImport())
+			{
+				if (LinkerTables.ImportMap[Export.ClassIndex.ToImport()].ObjectName == ClassFName)
+				{
+					ClassPathName = LinkerTables.GetImportPathName(Export.ClassIndex.ToImport());
+					break;
+				}					
+			}
+			else if (Export.ClassIndex.IsExport())
+			{
+				if (LinkerTables.ExportMap[Export.ClassIndex.ToExport()].ObjectName == ClassFName)
+				{
+					ClassPathName = LinkerTables.GetExportPathName(PackageName, Export.ClassIndex.ToExport());
+					break;
+				}
+			}
+		}
+		if (ClassPathName.IsEmpty())
+		{
+			UE_LOG(LogAssetRegistry, Error, TEXT("Failed to find an import or export matching asset class short name \"%s\"."), *AssetClassName);
+			// Just pass through the short class name
+			ClassPathName = AssetClassName;
+		}
+
+
+		return ClassPathName;
+	}
+
 	// See the corresponding WritePackageData defined in SavePackageUtilities.cpp in CoreUObject module
 	bool ReadPackageDataMain(FArchive& BinaryArchive, const FString& PackageName, const FPackageFileSummary& PackageFileSummary, int64& OutDependencyDataOffset, TArray<FAssetData*>& OutAssetDataList, EReadPackageDataMainErrorCode& OutError)
 	{
@@ -912,7 +1019,7 @@ namespace UE::AssetRegistry
 			if (bLegacyPackage || bNoMapAsset)
 			{
 				FString AssetName = FPackageName::GetLongPackageAssetName(PackageName);
-				OutAssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), FName(*AssetName), FName(TEXT("World")), FAssetDataTagMap(), PackageFileSummary.ChunkIDs, PackageFileSummary.GetPackageFlags()));
+				OutAssetDataList.Add(new FAssetData(FName(*PackageName), FName(*PackagePath), FName(*AssetName), FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("World")), FAssetDataTagMap(), PackageFileSummary.ChunkIDs, PackageFileSummary.GetPackageFlags()));
 			}
 		}
 
@@ -925,6 +1032,7 @@ namespace UE::AssetRegistry
 			int32 TagCount = 0;
 			BinaryArchive << ObjectPath;
 			BinaryArchive << ObjectClassName;
+			// @todo make sure this is a full path name
 			BinaryArchive << TagCount;
 			if (BinaryArchive.IsError() || TagCount < 0 || PackageFileSize < BinaryArchive.Tell() + TagCount * MinBytesPerTag)
 			{
@@ -985,7 +1093,13 @@ namespace UE::AssetRegistry
 			}
 
 			// Create a new FAssetData for this asset and update it with the gathered data
-			OutAssetDataList.Add(new FAssetData(PackageName, ObjectPath, FName(*ObjectClassName), MoveTemp(TagsAndValues), PackageFileSummary.ChunkIDs, PackageFileSummary.GetPackageFlags()));
+			if (!ObjectClassName.IsEmpty() && FPackageName::IsShortPackageName(ObjectClassName))
+			{
+				int64 CurrentPos = BinaryArchive.Tell();
+				ObjectClassName = ReconstructFullClassPath(BinaryArchive, PackageName, PackageFileSummary, ObjectClassName);
+				BinaryArchive.Seek(CurrentPos);
+			}
+			OutAssetDataList.Add(new FAssetData(PackageName, ObjectPath, FTopLevelAssetPath(ObjectClassName), MoveTemp(TagsAndValues), PackageFileSummary.ChunkIDs, PackageFileSummary.GetPackageFlags()));
 		}
 
 		return true;

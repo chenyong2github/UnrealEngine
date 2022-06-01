@@ -47,8 +47,8 @@ void FSourceFilterPresets::ListAvailablePresets()
 void FSourceFilterPresets::GetPresets(TArray<FAssetData>& InOutPresetAssetData)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	TMultiMap<FName, FString> TagValues = { { FBlueprintTags::NativeParentClassPath, FString::Printf(TEXT("%s'%s'"), *UClass::StaticClass()->GetName(), *USourceFilterCollection::StaticClass()->GetPathName()) } };
-	AssetRegistryModule.Get().GetAssetsByClass(USourceFilterCollection::StaticClass()->GetFName(), InOutPresetAssetData);
+	TMultiMap<FName, FString> TagValues = { { FBlueprintTags::NativeParentClassPath, FObjectPropertyBase::GetExportPath(USourceFilterCollection::StaticClass()) } };
+	AssetRegistryModule.Get().GetAssetsByClass(USourceFilterCollection::StaticClass()->GetClassPathName(), InOutPresetAssetData);
 }
 
 void FSourceFilterPresets::LoadPreset(const FSoftObjectPath& PresetPath)

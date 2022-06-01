@@ -15,7 +15,7 @@ class FBlutilityMenuExtensions
 {
 public:
 	/** Helper function to get all Blutility classes derived from the specified class name */
-	static void GetBlutilityClasses(TArray<FAssetData>& OutAssets, const FName& InClassName);
+	static void GetBlutilityClasses(TArray<FAssetData>& OutAssets, FTopLevelAssetPath InClassName);
 
 	/** Helper function that populates a menu based on the exposed functions in a set of Blutility objects */
 	static void CreateAssetBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<class IEditorUtilityExtension*, TSet<int32>> Utils, const TArray<FAssetData> SelectedSupportedAssets);

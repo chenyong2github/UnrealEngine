@@ -457,15 +457,15 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 	//Get the Enums
 	if (EnumReductionMethod == nullptr)
 	{
-		EnumReductionMethod = FindObject<UEnum>(ANY_PACKAGE, TEXT("SkeletalMeshOptimizationType"), true);
+		EnumReductionMethod = FindObject<UEnum>(nullptr, TEXT("/Script/Engine.SkeletalMeshOptimizationType"), true);
 	}
 	if (EnumImportance == nullptr)
 	{
-		EnumImportance = FindObject<UEnum>(ANY_PACKAGE, TEXT("SkeletalMeshOptimizationImportance"), true);
+		EnumImportance = FindObject<UEnum>(nullptr, TEXT("/Script/Engine.SkeletalMeshOptimizationImportance"), true);
 	}
 	if (EnumTerminationCriterion == nullptr)
 	{
-		EnumTerminationCriterion = FindObject<UEnum>(ANY_PACKAGE, TEXT("SkeletalMeshTerminationCriterion"), true);
+		EnumTerminationCriterion = FindObject<UEnum>(nullptr, TEXT("/Script/Engine.SkeletalMeshTerminationCriterion"), true);
 	}
 
 	bool bUseThirdPartyUI = !UseNativeReductionTool();
@@ -3374,7 +3374,7 @@ FReply FPersonaMeshDetails::OnSaveLODSettings()
 		SaveAssetDialogConfig.DefaultPath = DefaultPath;
 		SaveAssetDialogConfig.DefaultAssetName = DefaultName;
 		SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
-		SaveAssetDialogConfig.AssetClassNames.Add(USkeletalMeshLODSettings::StaticClass()->GetFName());
+		SaveAssetDialogConfig.AssetClassNames.Add(USkeletalMeshLODSettings::StaticClass()->GetClassPathName());
 
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 		FString SaveObjectPath = ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);

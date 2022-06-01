@@ -207,12 +207,12 @@ static UObject* FindQueryObjectByName(FName StatName)
 		AssetPathName.LeftInline(SepIdx);
 	}
 
-	UObject* QueryOb = FindObject<UObject>(ANY_PACKAGE, *AssetPathName);
+	UObject* QueryOb = FindFirstObject<UObject>(*AssetPathName, EFindFirstObjectOptions::NativeFirst);
 	if (QueryOb == nullptr)
 	{
 		TArray<FAssetData> Assets;
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		AssetRegistry.GetAssetsByClass(UEnvQuery::StaticClass()->GetFName(), Assets);
+		AssetRegistry.GetAssetsByClass(UEnvQuery::StaticClass()->GetClassPathName(), Assets);
 
 		const FString MatchObjectName = FString(".") + AssetPathName;
 		for (int32 Idx = 0; Idx < Assets.Num(); Idx++)

@@ -7,7 +7,7 @@
 #include "Misc/StringBuilder.h"
 #include "Templates/RefCounting.h"
 #include "Templates/TypeCompatibleBytes.h"
-
+#include "UObject/TopLevelAssetPath.h"
 
 class FAssetTagValueRef;
 class FAssetDataTagMapSharedView;
@@ -21,10 +21,19 @@ struct FAssetRegistrySerializationOptions;
  */
 struct COREUOBJECT_API FAssetRegistryExportPath
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // Compilers can complain about deprecated members in compiler generated code
 	FAssetRegistryExportPath() = default;
+	FAssetRegistryExportPath(FAssetRegistryExportPath&&) = default;
+	FAssetRegistryExportPath(const FAssetRegistryExportPath&) = default;
+	FAssetRegistryExportPath& operator=(FAssetRegistryExportPath&&) = default;
+	FAssetRegistryExportPath& operator=(const FAssetRegistryExportPath&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	explicit FAssetRegistryExportPath(FWideStringView String);
 	explicit FAssetRegistryExportPath(FAnsiStringView String);
 
+	FTopLevelAssetPath ClassPath;
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use ClassPath member")
 	FName Class;
 	FName Package;
 	FName Object;
@@ -32,8 +41,13 @@ struct COREUOBJECT_API FAssetRegistryExportPath
 	FString ToString() const;
 	FName ToName() const;
 	void ToString(FStringBuilderBase& Out) const;
-
-	bool IsEmpty() const { return Class.IsNone() & Package.IsNone() & Object.IsNone(); } //-V792
+	FString ToPath() const;
+	void ToPath(FStringBuilderBase& Out) const;
+	FTopLevelAssetPath ToTopLevelAssetPath() const
+	{
+		return FTopLevelAssetPath(Package, Object);
+	}
+	bool IsEmpty() const { return ClassPath.IsNull() & Package.IsNone() & Object.IsNone(); } //-V792
 	explicit operator bool() const { return !IsEmpty(); }
 };
 
@@ -45,7 +59,8 @@ namespace FixedTagPrivate
 	// Compact FAssetRegistryExportPath equivalent for when all FNames are numberless
 	struct FNumberlessExportPath
 	{
-		FNameEntryId Class;
+		FNameEntryId ClassPackage;
+		FNameEntryId ClassObject;
 		FNameEntryId Package;
 		FNameEntryId Object;
 

@@ -38,11 +38,28 @@ void UStateTree::ResetCompiled()
 
 void UStateTree::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
-	const FString SchemaClassName = Schema ? Schema->GetClass()->GetName() : TEXT("");
+	const FString SchemaClassName = Schema ? Schema->GetClass()->GetPathName() : TEXT("");
 	OutTags.Add(FAssetRegistryTag(UE::StateTree::SchemaTag, SchemaClassName, FAssetRegistryTag::TT_Alphabetical));
 
 	Super::GetAssetRegistryTags(OutTags);
 }
+
+void UStateTree::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const
+{
+	Super::PostLoadAssetRegistryTags(InAssetData, OutTagsAndValuesToUpdate);
+
+	static const FName SchemaTag(TEXT("Schema"));
+	FString SchemaTagValue = InAssetData.GetTagValueRef<FString>(SchemaTag);
+	if (!SchemaTagValue.IsEmpty() && FPackageName::IsShortPackageName(SchemaTagValue))
+	{
+		FTopLevelAssetPath SchemaTagClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(SchemaTagValue, ELogVerbosity::Warning, TEXT("UStateTree::PostLoadAssetRegistryTags"));
+		if (!SchemaTagClassPathName.IsNull())
+		{
+			OutTagsAndValuesToUpdate.Add(FAssetRegistryTag(SchemaTag, SchemaTagClassPathName.ToString(), FAssetRegistryTag::TT_Alphabetical));
+		}
+	}
+}
+
 #endif // WITH_EDITOR
 
 void UStateTree::PostLoad()

@@ -119,7 +119,7 @@ private:
 	TArray<TSharedPtr<FPersonaModeComboEntry>> ControllerItems;
 
 	/** This is list of class available to filter asset by. This list doesn't change once loaded, so only collect once */
-	static TArray<FName> AvailableClassNameList;
+	static TArray<FTopLevelAssetPath> AvailableClassNameList;
 
 #if CHAOS_SIMULATION_DETAIL_VIEW_FACTORY_SELECTOR
 	/** List of available cloth simulation factories. */

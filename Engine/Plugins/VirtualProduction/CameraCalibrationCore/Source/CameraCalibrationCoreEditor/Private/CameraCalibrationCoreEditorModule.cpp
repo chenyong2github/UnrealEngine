@@ -120,7 +120,7 @@ void FCameraCalibrationCoreEditorModule::RegisterPlacementModeItems()
 				TEXT("/Script/CameraCalibrationCore.CameraCalibrationCheckerboard"),
 				TEXT("/CameraCalibrationCore"),
 				TEXT("CameraCalibrationCheckerboard"),
-				TEXT("Actor")
+				FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("Actor"))
 			);
 		
 			PlaceActors.Add(IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(

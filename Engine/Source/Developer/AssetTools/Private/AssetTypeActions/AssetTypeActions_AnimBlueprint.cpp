@@ -89,7 +89,7 @@ void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjec
 					AssetPickerConfig.bAllowNullSelection = false;
 					AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 					AssetPickerConfig.Filter.bRecursiveClasses = false;
-					AssetPickerConfig.Filter.ClassNames.Add(USkeleton::StaticClass()->GetFName());
+					AssetPickerConfig.Filter.ClassPaths.Add(USkeleton::StaticClass()->GetClassPathName());
 					AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda([WeakAnimBlueprint](const FAssetData& AssetData)
 					{
 						if(UAnimBlueprint* LocalAnimBlueprint = WeakAnimBlueprint.Get())

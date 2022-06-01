@@ -91,7 +91,7 @@ UMaterialInterface* UMaterialImportHelpers::FindExistingMaterial(const FString& 
 	FARFilter Filter;
 	Filter.bRecursiveClasses = true;
 	Filter.bRecursivePaths = bRecursivePaths;
-	Filter.ClassNames.Add(UMaterialInterface::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UMaterialInterface::StaticClass()->GetClassPathName());
 	Filter.PackagePaths.Add(FName(*BasePath));
 
 	TArray<FAssetData> AssetData;

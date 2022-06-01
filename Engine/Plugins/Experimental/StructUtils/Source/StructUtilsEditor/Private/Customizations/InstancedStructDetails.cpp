@@ -327,7 +327,7 @@ void FInstancedStructDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> 
 		const FString& BaseStructName = MetaDataProperty->GetMetaData(NAME_BaseStruct);
 		if (!BaseStructName.IsEmpty())
 		{
-			BaseScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *BaseStructName);
+			BaseScriptStruct = UClass::TryFindTypeSlow<UScriptStruct>(BaseStructName);
 			if (!BaseScriptStruct)
 			{
 				BaseScriptStruct = LoadObject<UScriptStruct>(nullptr, *BaseStructName);

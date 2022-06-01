@@ -103,7 +103,7 @@ TSharedRef<SWidget> SControlRigFunctionBulkEditWidget::MakeAssetViewForReference
 	AssetPickerConfig.bShowBottomToolbar = false;
 	AssetPickerConfig.bAutohideSearchBar = true;
 	AssetPickerConfig.bPreloadAssetsForContextMenu = false;
-	AssetPickerConfig.Filter.ClassNames.Add(TEXT("InvalidClass"));
+	AssetPickerConfig.Filter.ClassPaths.Add(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("InvalidClass")));
 	AssetPickerConfig.Filter.bIncludeOnlyOnDiskAssets = false;
 	AssetPickerConfig.OnAssetsActivated = FOnAssetsActivated::CreateSP(this, &SControlRigFunctionBulkEditWidget::OnAssetsActivated);
 	AssetPickerConfig.OnGetAssetContextMenu = FOnGetAssetContextMenu::CreateSP( this, &SControlRigFunctionBulkEditWidget::OnGetAssetContextMenu );

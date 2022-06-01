@@ -600,7 +600,7 @@ void FAutomationEditorCommonUtils::CollectTestsByClass(UClass * Class, TArray<FS
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FAssetData> ObjectList;
-	AssetRegistryModule.Get().GetAssetsByClass(Class->GetFName(), ObjectList);
+	AssetRegistryModule.Get().GetAssetsByClass(Class->GetClassPathName(), ObjectList);
 
 	for (TObjectIterator<UClass> AllClassesIt; AllClassesIt; ++AllClassesIt)
 	{
@@ -638,7 +638,7 @@ void FAutomationEditorCommonUtils::CollectGameContentTestsByClass(UClass * Class
 
 	//Generating the list of assets.
 	//This list is being filtered by the game folder and class type.  The results are placed into the ObjectList variable.
-	AssetFilter.ClassNames.Add(Class->GetFName());
+	AssetFilter.ClassPaths.Add(Class->GetClassPathName());
 
 	//removed path as a filter as it causes two large lists to be sorted.  Filtering on "game" directory on iteration
 	//AssetFilter.PackagePaths.Add("/Game");
@@ -728,7 +728,7 @@ void FAutomationEditorCommonUtils::CollectGameContentTests(TArray<FString>& OutB
 				Filename = FPackageName::LongPackageNameToFilename(Filename);
 				if (FAutomationTestFramework::Get().ShouldTestContent(Filename))
 				{
-					FString BeautifiedFilename = FString::Printf(TEXT("%s.%s"), *Asset.AssetClass.ToString(), *Asset.AssetName.ToString());
+					FString BeautifiedFilename = FString::Printf(TEXT("%s.%s"), *Asset.AssetClassPath.ToString(), *Asset.AssetName.ToString());
 					OutBeautifiedNames.Add(BeautifiedFilename);
 					OutTestCommands.Add(Asset.ObjectPath.ToString());
 				}

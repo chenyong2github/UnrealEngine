@@ -81,7 +81,7 @@ void SPropertyEditorStruct::Construct(const FArguments& InArgs, const TSharedPtr
 				const FString& MetaStructName = Property->GetOwnerProperty()->GetMetaData(TEXT("MetaStruct"));
 				if (!MetaStructName.IsEmpty())
 				{
-					MetaStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *MetaStructName);
+					MetaStruct = UClass::TryFindTypeSlow<UScriptStruct>(MetaStructName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 					if (!MetaStruct)
 					{
 						MetaStruct = LoadObject<UScriptStruct>(nullptr, *MetaStructName);
@@ -222,7 +222,7 @@ void SPropertyEditorStruct::SendToObjects(const FString& NewValue)
 	}
 	else if (!NewValue.IsEmpty() && NewValue != TEXT("None"))
 	{
-		const UScriptStruct* NewStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *NewValue);
+		const UScriptStruct* NewStruct = FindObject<UScriptStruct>(nullptr, *NewValue);
 		if (!NewStruct)
 		{
 			NewStruct = LoadObject<UScriptStruct>(nullptr, *NewValue);

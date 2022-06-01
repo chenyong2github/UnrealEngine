@@ -1000,7 +1000,7 @@ bool GetFileItemAttribute(const FContentBrowserFileItemDataPayload& InFilePayloa
 	
 		if (InAttributeKey == ContentBrowserItemAttributes::ItemTypeName || InAttributeKey == NAME_Class || InAttributeKey == NAME_Type)
 		{
-			OutAttributeValue.SetValue(FileActions->TypeName);
+			OutAttributeValue.SetValue(FileActions->TypeName.ToString());
 			return true;
 		}
 	

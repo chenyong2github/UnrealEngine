@@ -36,7 +36,7 @@ FDNAAssetImportOptions* GetImportOptions(FDNAImporter * DNAImporter, UDNAAssetIm
 			// Look in the current target directory to see if we have a skeleton
 			FARFilter Filter;
 			Filter.PackagePaths.Add(*FPaths::GetPath(FullPath));
-			Filter.ClassNames.Add(USkeletalMesh::StaticClass()->GetFName());
+			Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
 
 			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 			TArray<FAssetData> SkeletalMeshAssets;

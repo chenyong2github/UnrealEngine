@@ -1374,9 +1374,9 @@ void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niaga
 void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOptions InFilter, TArray<FAssetData>& OutFilteredScriptAssets)
 {
 	FARFilter ScriptFilter;
-	ScriptFilter.ClassNames.Add(UNiagaraScript::StaticClass()->GetFName());
+	ScriptFilter.ClassPaths.Add(UNiagaraScript::StaticClass()->GetClassPathName());
 
-	const UEnum* NiagaraScriptUsageEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ENiagaraScriptUsage"), true);
+	const UEnum* NiagaraScriptUsageEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Niagara.ENiagaraScriptUsage"), true);
 	const FString QualifiedScriptUsageString = NiagaraScriptUsageEnum->GetNameStringByValue(static_cast<uint8>(InFilter.ScriptUsageToInclude));
 	int32 LastColonIndex;
 	QualifiedScriptUsageString.FindLastChar(TEXT(':'), LastColonIndex);
@@ -2706,7 +2706,7 @@ TArray<UNiagaraParameterDefinitions*> FNiagaraEditorUtilities::GetAllParameterDe
 
 	TArray<FAssetData> ParameterDefinitionsAssetData;
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	AssetRegistryModule.GetRegistry().GetAssetsByClass(UNiagaraParameterDefinitions::StaticClass()->GetFName(), ParameterDefinitionsAssetData);
+	AssetRegistryModule.GetRegistry().GetAssetsByClass(UNiagaraParameterDefinitions::StaticClass()->GetClassPathName(), ParameterDefinitionsAssetData);
 	for (const FAssetData& ParameterDefinitionsAssetDatum : ParameterDefinitionsAssetData)
 	{
 		UNiagaraParameterDefinitions* ParameterDefinitions = Cast<UNiagaraParameterDefinitions>(ParameterDefinitionsAssetDatum.GetAsset());
@@ -2726,7 +2726,7 @@ bool FNiagaraEditorUtilities::GetAvailableParameterDefinitions(const TArray<FStr
 
 	// Gather asset registry filter args
 	FARFilter ARFilter;
-	ARFilter.ClassNames.Add(UNiagaraParameterDefinitions::StaticClass()->GetFName());
+	ARFilter.ClassPaths.Add(UNiagaraParameterDefinitions::StaticClass()->GetClassPathName());
 	ARFilter.bRecursivePaths = true;
 	ARFilter.bIncludeOnlyOnDiskAssets = true;
 

@@ -5727,7 +5727,7 @@ void FBlueprintInterfaceLayout::GetManagedListItems(TArray<FManagedListItem>& Ou
 			if (const TSubclassOf<UInterface> Interface = ImplementedInterface.Interface)
 			{
 				FManagedListItem ItemDesc;
-				ItemDesc.ItemName = Interface->GetFName().ToString();
+				ItemDesc.ItemName = Interface->GetPathName();
 				ItemDesc.DisplayName = Interface->GetDisplayNameText();
 				ItemDesc.bIsRemovable = true;
 
@@ -5753,7 +5753,7 @@ void FBlueprintInterfaceLayout::GetManagedListItems(TArray<FManagedListItem>& Ou
 				if (CurrentInterface.Class)
 				{
 					FManagedListItem ItemDesc;
-					ItemDesc.ItemName = CurrentInterface.Class->GetFName().ToString();
+					ItemDesc.ItemName = CurrentInterface.Class->GetPathName();
 					ItemDesc.DisplayName = CurrentInterface.Class->GetDisplayNameText();
 					ItemDesc.bIsRemovable = false;
 
@@ -5775,7 +5775,7 @@ void FBlueprintInterfaceLayout::OnRemoveItem(const FManagedListItem& Item)
 		// We canceled!
 		return;
 	}
-	const FName InterfaceFName = FName(*Item.ItemName);
+	const FTopLevelAssetPath InterfacePathName(Item.ItemName);
 
 	UBlueprint* Blueprint = GetBlueprintObjectChecked();
 	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
@@ -5783,7 +5783,7 @@ void FBlueprintInterfaceLayout::OnRemoveItem(const FManagedListItem& Item)
 	{
 		// Close all graphs that are about to be removed
 		TArray<UEdGraph*> Graphs;
-		FBlueprintEditorUtils::GetInterfaceGraphs(Blueprint, InterfaceFName, Graphs);
+		FBlueprintEditorUtils::GetInterfaceGraphs(Blueprint, InterfacePathName, Graphs);
 		for (TArray<UEdGraph*>::TIterator GraphIt(Graphs); GraphIt; ++GraphIt)
 		{
 			BlueprintEditorPtr->CloseDocumentTab(*GraphIt);
@@ -5791,7 +5791,7 @@ void FBlueprintInterfaceLayout::OnRemoveItem(const FManagedListItem& Item)
 	}
 
 	// Do the work of actually removing the interface
-	FBlueprintEditorUtils::RemoveInterface(Blueprint, InterfaceFName, DialogReturn == EAppReturnType::Yes);
+	FBlueprintEditorUtils::RemoveInterface(Blueprint, InterfacePathName, DialogReturn == EAppReturnType::Yes);
 
 	RegenerateChildContent();
 
@@ -5809,7 +5809,7 @@ void FBlueprintInterfaceLayout::OnClassPicked(UClass* PickedClass)
 	{
 		UBlueprint* Blueprint = GetBlueprintObjectChecked();
 
-		FBlueprintEditorUtils::ImplementNewInterface(Blueprint, PickedClass->GetFName());
+		FBlueprintEditorUtils::ImplementNewInterface(Blueprint, PickedClass->GetClassPathName());
 
 		RegenerateChildContent();
 	}

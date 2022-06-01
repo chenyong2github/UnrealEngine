@@ -4784,7 +4784,7 @@ void FCascade::OnConvertToSeeded()
 		UE_LOG(LogCascade, Log, TEXT("Non-seeded module %s"), *ClassName);
 		// This only works if the seeded version is names <ClassName>_Seeded!!!!
 		FString SeededClassName = ClassName + TEXT("_Seeded");
-		UClass* SeededClass = FindObject<UClass>(ANY_PACKAGE, *SeededClassName);
+		UClass* SeededClass = UClass::TryFindTypeSlow<UClass>(SeededClassName);
 		if (SeededClass != NULL)
 		{
 			// Find the module index
@@ -4986,7 +4986,7 @@ bool FCascade::ConvertAllModulesToSeeded(UParticleSystem* ParticleSystem)
 						UE_LOG(LogCascade, Log, TEXT("Non-seeded module %s"), *ClassName);
 						// This only works if the seeded version is names <ClassName>_Seeded!!!!
 						FString SeededClassName = ClassName + TEXT("_Seeded");
-						UClass* SeededClass = FindObject<UClass>(ANY_PACKAGE, *SeededClassName);
+						UClass* SeededClass = UClass::TryFindTypeSlow<UClass>(SeededClassName);
 						if (SeededClass != NULL)
 						{
 							TArray<FParticleCurvePair> DistCurves;

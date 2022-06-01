@@ -345,5 +345,11 @@ public:
 	/**
 	 * Get the class path of this blueprint.
 	 */
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetClassPathName.")
 	virtual FName GetClassPath() const = 0;
+
+	/**
+	 * Get the class path of this blueprint.
+	 */
+	virtual FTopLevelAssetPath GetClassPathName() const = 0;
 };

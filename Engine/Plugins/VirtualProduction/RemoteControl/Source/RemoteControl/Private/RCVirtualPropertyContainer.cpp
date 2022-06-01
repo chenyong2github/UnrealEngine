@@ -181,7 +181,7 @@ FName URCVirtualPropertyContainerBase::GenerateUniquePropertyName(const FName& I
 		return FinalName;
 	};
 
-	const UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EPropertyBagPropertyType"));
+	const UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/StructUtils.EPropertyBagPropertyType"));
 	const FName DefaultName = Enum->GetValueAsName(InValueType);
 	
 	int32 Index = 0;

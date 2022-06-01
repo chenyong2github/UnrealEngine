@@ -268,7 +268,7 @@ FReply SMergeAssetPickerPanel::OnBrowseToPickedAsset()
 TSharedRef<SWidget> SMergeAssetPickerPanel::MakeAssetPickerMenu()
 {
 	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassNames.Add(AssetClass->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(AssetClass->GetClassPathName());
 	AssetPickerConfig.bAllowNullSelection = true;
 	AssetPickerConfig.Filter.bRecursiveClasses = true;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SMergeAssetPickerPanel::OnAssetSelected);

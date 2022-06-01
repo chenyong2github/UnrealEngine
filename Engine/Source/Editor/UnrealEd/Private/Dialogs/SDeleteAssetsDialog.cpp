@@ -773,7 +773,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::MakeAssetViewForReferencerAssets()
 TSharedRef<SWidget> SDeleteAssetsDialog::MakeConsolidationAssetPicker()
 {
 	FAssetPickerConfig AssetPickerConfig;
-	//AssetPickerConfig.Filter.ClassNames.Add( UStaticMesh::StaticClass()->GetFName() );
+	//AssetPickerConfig.Filter.ClassPaths.Add( UStaticMesh::StaticClass()->GetFName() );
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP( this, &SDeleteAssetsDialog::OnAssetSelectedFromConsolidationPicker );
 	AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP( this, &SDeleteAssetsDialog::OnShouldConsolidationFilterAsset );
 	AssetPickerConfig.bAllowNullSelection = false;

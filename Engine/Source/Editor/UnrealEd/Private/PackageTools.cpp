@@ -1472,7 +1472,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			if (NumberOfAssets == 1)
 			{
 				const FAssetData& AssetData = OutAssets[0];
-				if (AssetData.AssetClass != AssetClass->GetFName())
+				if (AssetData.AssetClassPath != AssetClass->GetClassPathName())
 				{
 					bShouldGenerateUniquePackageName = true;
 				}

@@ -61,9 +61,9 @@ public:
 	static FAssetPropertyTagCache& Get();
 
 	/** Get (or populate) the cache for the given asset class */
-	const FClassPropertyTagCache& GetCacheForClass(const FName InClassName);
+	const FClassPropertyTagCache& GetCacheForClass(FTopLevelAssetPath InClassName);
 
 private:
 	/** Mapping of the asset class name to its cache */
-	TMap<FName, TSharedPtr<FClassPropertyTagCache>> ClassToCacheMap;
+	TMap<FTopLevelAssetPath, TSharedPtr<FClassPropertyTagCache>> ClassToCacheMap;
 };

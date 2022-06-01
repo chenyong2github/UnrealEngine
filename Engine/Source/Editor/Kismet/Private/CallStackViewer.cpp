@@ -448,9 +448,7 @@ void SCallStackViewer::JumpToEntry(TSharedRef< FCallStackRow > Entry)
 	LastFrameNavigatedTo = Entry;
 
 	// Try to find a UClass* source:
-	bool bExactClass = false;
-	bool bAnyPackage = true;
-	UBlueprintGeneratedClass* BPGC = FindObjectFast<UBlueprintGeneratedClass>(nullptr, Entry->ScopeName, bExactClass, bAnyPackage, RF_NoFlags);
+	UBlueprintGeneratedClass* BPGC = FindFirstObject<UBlueprintGeneratedClass>(*Entry->ScopeName.ToString(), EFindFirstObjectOptions::EnsureIfAmbiguous);
 
 	if(BPGC)
 	{

@@ -438,13 +438,32 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FGameplayAbilityEndedDelegate, const FAbilit
 /** Structure that tells AbilitySystemComponent what to bind to an InputComponent (see BindAbilityActivationToInputComponent) */
 struct FGameplayAbilityInputBinds
 {
+	UE_DEPRECATED(5.1, "Enum names are now represented by path names. Please use a version of FGameplayAbilityInputBinds constructor that accepts FTopLevelAssetPath.")
 	FGameplayAbilityInputBinds(FString InConfirmTargetCommand, FString InCancelTargetCommand, FString InEnumName, int32 InConfirmTargetInputID = INDEX_NONE, int32 InCancelTargetInputID = INDEX_NONE)
 		: ConfirmTargetCommand(InConfirmTargetCommand)
 		, CancelTargetCommand(InCancelTargetCommand)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		, EnumName(InEnumName)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, ConfirmTargetInputID(InConfirmTargetInputID)
 		, CancelTargetInputID(InCancelTargetInputID)
-	{ }
+	{ 
+		TryFixShortEnumName();
+	}
+	FGameplayAbilityInputBinds(FString InConfirmTargetCommand, FString InCancelTargetCommand, FTopLevelAssetPath InEnumPathName, int32 InConfirmTargetInputID = INDEX_NONE, int32 InCancelTargetInputID = INDEX_NONE)
+		: ConfirmTargetCommand(InConfirmTargetCommand)
+		, CancelTargetCommand(InCancelTargetCommand)
+		, EnumPathName(InEnumPathName)
+		, ConfirmTargetInputID(InConfirmTargetInputID)
+		, CancelTargetInputID(InCancelTargetInputID)
+	{
+	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FGameplayAbilityInputBinds(FGameplayAbilityInputBinds&&) = default;
+	FGameplayAbilityInputBinds(const FGameplayAbilityInputBinds&) = default;
+	FGameplayAbilityInputBinds& operator=(FGameplayAbilityInputBinds&&) = default;
+	FGameplayAbilityInputBinds& operator=(const FGameplayAbilityInputBinds&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Defines command string that will be bound to Confirm Targeting */
 	FString ConfirmTargetCommand;
@@ -453,7 +472,11 @@ struct FGameplayAbilityInputBinds
 	FString CancelTargetCommand;
 
 	/** Returns enum to use for ability binds. E.g., "Ability1"-"Ability9" input commands will be bound to ability activations inside the AbiltiySystemComponent */
+	UE_DEPRECATED(5.1, "Enum names are now represented by path names. Please use EnumPathName.")
 	FString	EnumName;
+
+	/** Returns enum to use for ability binds. E.g., "Ability1"-"Ability9" input commands will be bound to ability activations inside the AbiltiySystemComponent */
+	FTopLevelAssetPath EnumPathName;
 
 	/** If >=0, Confirm is bound to an entry in the enum */
 	int32 ConfirmTargetInputID;
@@ -461,7 +484,26 @@ struct FGameplayAbilityInputBinds
 	/** If >=0, Cancel is bound to an entry in the enum */
 	int32 CancelTargetInputID;
 
-	UEnum* GetBindEnum() { return FindObject<UEnum>(ANY_PACKAGE, *EnumName); }
+	UEnum* GetBindEnum() 
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (!EnumName.IsEmpty())
+		{
+			TryFixShortEnumName();
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return FindObject<UEnum>(EnumPathName);
+	}
+
+private:
+
+	void TryFixShortEnumName()
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		EnumPathName = FTopLevelAssetPath(GetPathNameSafe(UClass::TryFindTypeSlow<UEnum>(EnumName)));
+		EnumName.Empty();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 };
 
 

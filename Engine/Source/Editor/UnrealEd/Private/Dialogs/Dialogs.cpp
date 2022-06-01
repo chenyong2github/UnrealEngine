@@ -855,8 +855,8 @@ bool PromptUserIfExistingObject(const FString& Name, const FString& Package, UPa
 	QualifiedName += Name;
 
 	// Check for an existing object
-	UObject* ExistingObject = StaticFindObject( UObject::StaticClass(), ANY_PACKAGE, *QualifiedName );
-	if( ExistingObject != NULL )
+	UObject* ExistingObject = StaticFindObject( UObject::StaticClass(), nullptr, *QualifiedName );
+	if( ExistingObject != nullptr )
 	{
 		// Object already exists in either the specified package or another package.  Check to see if the user wants
 		// to replace the object.

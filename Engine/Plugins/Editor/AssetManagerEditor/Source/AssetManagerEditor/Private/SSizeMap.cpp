@@ -507,7 +507,7 @@ void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& In
 			if (AssetPackageName != NAME_None)
 			{
 				NodeSizeMapData.AssetData.AssetName = AssetPackageName;
-				NodeSizeMapData.AssetData.AssetClass = FName(*LOCTEXT("MissingAsset", "MISSING!").ToString());
+				NodeSizeMapData.AssetData.AssetClassPath = FTopLevelAssetPath(TEXT("/None"), *LOCTEXT("MissingAsset", "MISSING!").ToString());
 
 				const FString AssetPathString = AssetPackageNameString + TEXT(".") + FPackageName::GetLongPackageAssetName(AssetPackageNameString);
 				FAssetData FoundData = CurrentRegistrySource->GetAssetByObjectPath(FName(*AssetPathString));
@@ -679,7 +679,7 @@ void SSizeMap::FinalizeNodesRecursively(TSharedPtr<FTreeMapNodeData>& Node, cons
 			// This has the side effect of not showing a class icon for assets that don't have a proper thumbnail image available
 			bool bIsClassType = false;
 			const UClass* ThumbnailClass = FClassIconFinder::GetIconClassForAssetData(NodeSizeMapData.AssetData, &bIsClassType);
-			const FName DefaultThumbnail = (bIsClassType) ? NAME_None : FName(*FString::Printf(TEXT("ClassThumbnail.%s"), *NodeSizeMapData.AssetData.AssetClass.ToString()));
+			const FName DefaultThumbnail = (bIsClassType) ? NAME_None : FName(*FString::Printf(TEXT("ClassThumbnail.%s"), *NodeSizeMapData.AssetData.AssetClassPath.GetAssetName().ToString()));
 			DefaultThumbnailSlateBrush = FClassIconFinder::FindThumbnailForClass(ThumbnailClass, DefaultThumbnail);
 
 			// @todo sizemap urgent: Actually implement rendered thumbnail support, not just class-based background images
@@ -724,7 +724,7 @@ void SSizeMap::FinalizeNodesRecursively(TSharedPtr<FTreeMapNodeData>& Node, cons
 				// "Asset name"
 				// "Asset type"
 				Node->Name = NodeSizeMapData.AssetData.AssetName.ToString();
-				Node->Name2 = NodeSizeMapData.AssetData.AssetClass.ToString();
+				Node->Name2 = NodeSizeMapData.AssetData.AssetClassPath.ToString();
 			}
 		}
 		else
@@ -743,7 +743,7 @@ void SSizeMap::FinalizeNodesRecursively(TSharedPtr<FTreeMapNodeData>& Node, cons
 				// "Asset name (asset type, size)"
 				Node->Name = FString::Printf(TEXT("%s  (%s, %s)"),
 					*NodeSizeMapData.AssetData.AssetName.ToString(),
-					*NodeSizeMapData.AssetData.AssetClass.ToString(),
+					*NodeSizeMapData.AssetData.AssetClassPath.ToString(),
 					*SizeMapInternals::MakeBestSizeString(SubtreeSize + NodeSizeMapData.AssetSize, !bAnyUnknownSizesInSubtree && NodeSizeMapData.bHasKnownSize));
 			}
 
@@ -761,7 +761,7 @@ void SSizeMap::FinalizeNodesRecursively(TSharedPtr<FTreeMapNodeData>& Node, cons
 				// "*SELF*"
 				// "Asset type"
 				ChildSelfTreeMapNode->Name = LOCTEXT("SelfNodeLabel", "*SELF*").ToString();
-				ChildSelfTreeMapNode->Name2 = NodeSizeMapData.AssetData.AssetClass.ToString();
+				ChildSelfTreeMapNode->Name2 = NodeSizeMapData.AssetData.AssetClassPath.ToString();
 
 				ChildSelfTreeMapNode->CenterText = SizeMapInternals::MakeBestSizeString(NodeSizeMapData.AssetSize, NodeSizeMapData.bHasKnownSize);
 				ChildSelfTreeMapNode->Size = NodeSizeMapData.AssetSize;

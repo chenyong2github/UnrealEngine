@@ -283,7 +283,7 @@ void UMovieSceneNiagaraEmitterTrack::CreateSections(const FFrameRate& InFrameRes
 			FString* SectionClassName = FunctionNode->GetScriptData()->ScriptMetaData.Find("NiagaraTimelineSectionClass");
 			if (SectionClassName != nullptr)
 			{
-				UClass* SectionClass = FindObject<UClass>(ANY_PACKAGE, **SectionClassName);
+				UClass* SectionClass = UClass::TryFindTypeSlow<UClass>(*SectionClassName);
 				if (SectionClass != nullptr)
 				{
 					UMovieSceneNiagaraEmitterSectionBase* EmitterSection = nullptr;

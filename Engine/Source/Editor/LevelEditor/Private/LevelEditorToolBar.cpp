@@ -1871,7 +1871,7 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 
 			// Configure filter for asset picker
 			FAssetPickerConfig Config;
-			Config.Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+			Config.Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
 			Config.InitialAssetViewType = EAssetViewType::List;
 			Config.OnAssetSelected = FOnAssetSelected::CreateStatic(&FBlueprintMenus::OnBPSelected);
 			Config.bAllowDragging = false;

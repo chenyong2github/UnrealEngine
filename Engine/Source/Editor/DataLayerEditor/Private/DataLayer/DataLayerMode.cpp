@@ -1700,7 +1700,7 @@ UDataLayerAsset* FDataLayerMode::PromptDataLayerAssetSelection()
 
 	FOpenAssetDialogConfig Config;
 	Config.bAllowMultipleSelection = false;
-	Config.AssetClassNames.Add(UDataLayerAsset::StaticClass()->GetFName());
+	Config.AssetClassNames.Add(UDataLayerAsset::StaticClass()->GetClassPathName());
 	Config.DefaultPath = PickDataLayerDialogPath;
 	Config.DialogTitleOverride = LOCTEXT("PickDataLayerAssetDialogTitle", "Pick a Data Layer Asset");
 

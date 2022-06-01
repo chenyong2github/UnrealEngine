@@ -254,7 +254,7 @@ static void ParseObjectNameArrayForClusters(TArray<int32>& OutIndexArray, const 
 {
 	for (const FString& ObjectName : InNameArray)
 	{
-		UObject* Res = StaticFindObject(UObject::StaticClass(), ANY_PACKAGE, *ObjectName);
+		UObject* Res = StaticFindFirstObject(UObject::StaticClass(), *ObjectName, EFindFirstObjectOptions::NativeFirst, ELogVerbosity::Warning, TEXT("ParseObjectNameArrayForClusters"));
 		if (Res)
 		{
 			int32 ObjectIndex = GUObjectArray.ObjectToIndex(Res);

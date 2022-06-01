@@ -692,7 +692,7 @@ void FSpriteEditorViewportClient::UpdateRelatedSpritesList()
 	if (Texture != nullptr)
 	{
 		FARFilter Filter;
-		Filter.ClassNames.Add(UPaperSprite::StaticClass()->GetFName());
+		Filter.ClassPaths.Add(UPaperSprite::StaticClass()->GetClassPathName());
 		const FName SourceTexturePropName(TEXT("SourceTexture"));
 		Filter.TagsAndValues.Add(SourceTexturePropName, TSoftObjectPtr<UTexture2D>(Texture).ToString());
 		// Legacy format for files that haven't been resaved

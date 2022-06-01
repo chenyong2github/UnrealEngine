@@ -451,7 +451,7 @@ TOptional<FString> FEditConditionContext::GetTypeName(const FString& PropertyNam
 
 TOptional<int64> FEditConditionContext::GetIntegerValueOfEnum(const FString& EnumTypeName, const FString& MemberName) const
 {
-	const UEnum* EnumType = FindObject<UEnum>((UObject*) ANY_PACKAGE, *EnumTypeName, true);
+	const UEnum* EnumType = UClass::TryFindTypeSlow<UEnum>(EnumTypeName, EFindFirstObjectOptions::ExactClass);
 	if (EnumType == nullptr)
 	{
 		return TOptional<int64>();

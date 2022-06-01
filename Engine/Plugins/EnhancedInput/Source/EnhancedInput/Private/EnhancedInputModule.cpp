@@ -117,7 +117,7 @@ public:
 			return;
 		}
 
-		UInputAction* Action = FindObjectSafe<UInputAction>(ANY_PACKAGE, *Args[0], false);
+		UInputAction* Action = FindFirstObject<UInputAction>(*Args[0], EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("EnableForcedAction"));
 		if (!Action)
 		{
 			PC->ClientMessage(TEXT("Failed to find action '%s'."), *Args[0]);
@@ -144,7 +144,7 @@ public:
 			return;
 		}
 
-		UInputAction* Action = FindObjectSafe<UInputAction>(ANY_PACKAGE, *Args[0], false);
+		UInputAction* Action = FindFirstObject<UInputAction>(*Args[0], EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("DisableForcedAction"));
 		if (!Action)
 		{
 			PC->ClientMessage(TEXT("Failed to find action '%s'."), *Args[0]);

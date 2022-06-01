@@ -1419,11 +1419,19 @@ public:
 	static FGuid FindInterfaceFunctionGuid(const UFunction* Function, const UClass* InterfaceClass);
 
 	/** Add a new interface, and member function graphs to the blueprint */
+	UE_DEPRECATED(5.1, "Short class names are no longer supported. Use a version of this function that takes FTopLevelAssetPath.")
 	static bool ImplementNewInterface(UBlueprint* Blueprint, const FName& InterfaceClassName);
 
+	/** Add a new interface, and member function graphs to the blueprint */
+	static bool ImplementNewInterface(UBlueprint* Blueprint, FTopLevelAssetPath InterfaceClassPathName);
+
 	/** Remove an implemented interface, and its associated member function graphs.  If bPreserveFunctions is true, then the interface will move its functions to be normal implemented blueprint functions */
+	UE_DEPRECATED(5.1, "Short class names are no longer supported. Use a version of this function that takes FTopLevelAssetPath.")
 	static void RemoveInterface(UBlueprint* Blueprint, const FName& InterfaceClassName, bool bPreserveFunctions = false);
 	
+	/** Remove an implemented interface, and its associated member function graphs.  If bPreserveFunctions is true, then the interface will move its functions to be normal implemented blueprint functions */
+	static void RemoveInterface(UBlueprint* Blueprint, FTopLevelAssetPath InterfaceClassPathName, bool bPreserveFunctions = false);
+
 	/**
 	* Attempt to remove a function from an interfaces list of function graphs.
 	* Note that this will NOT remove interface events (i.e. functions with no outputs)
@@ -1441,7 +1449,11 @@ public:
 	static void PromoteGraphFromInterfaceOverride(UBlueprint* InBlueprint, UEdGraph* InInterfaceGraph);
 
 	/** Gets the graphs currently in the blueprint associated with the specified interface */
+	UE_DEPRECATED(5.1, "Short class names are no longer supported. Use a version of this function that takes FTopLevelAssetPath.")
 	static void GetInterfaceGraphs(UBlueprint* Blueprint, const FName& InterfaceClassName, TArray<UEdGraph*>& ChildGraphs);
+
+	/** Gets the graphs currently in the blueprint associated with the specified interface */
+	static void GetInterfaceGraphs(UBlueprint* Blueprint, FTopLevelAssetPath InterfaceClassPathName, TArray<UEdGraph*>& ChildGraphs);
 
 	/**
 	* Checks if the given function is a part of an interface on this blueprint

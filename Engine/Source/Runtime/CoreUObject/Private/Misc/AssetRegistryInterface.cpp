@@ -28,11 +28,11 @@ namespace Private
 }
 
 #if WITH_ENGINE && WITH_EDITOR
-	TSet<FName> SkipUncookedClasses;
-	TSet<FName> SkipCookedClasses;
+	TSet<FTopLevelAssetPath> SkipUncookedClasses;
+	TSet<FTopLevelAssetPath> SkipCookedClasses;
 	bool bInitializedSkipClasses = false;
 
-	void FFiltering::SetSkipClasses(const TSet<FName>& InSkipUncookedClasses, const TSet<FName>& InSkipCookedClasses)
+	void FFiltering::SetSkipClasses(const TSet<FTopLevelAssetPath>& InSkipUncookedClasses, const TSet<FTopLevelAssetPath>& InSkipCookedClasses)
 	{
 		bInitializedSkipClasses = true;
 		SkipUncookedClasses = InSkipUncookedClasses;
@@ -44,7 +44,7 @@ namespace Private
 namespace Utils
 {
 
-	bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags, const TSet<FName>& InSkipUncookedClasses, const TSet<FName>& InSkipCookedClasses)
+	bool ShouldSkipAsset(const FTopLevelAssetPath& AssetClass, uint32 PackageFlags, const TSet<FTopLevelAssetPath>& InSkipUncookedClasses, const TSet<FTopLevelAssetPath>& InSkipCookedClasses)
 	{
 		if (PackageFlags & PKG_ContainsNoAsset)
 		{
@@ -60,7 +60,7 @@ namespace Utils
 		return false;
 	}
 
-	bool ShouldSkipAsset(const UObject* InAsset, const TSet<FName>& InSkipUncookedClasses, const TSet<FName>& InSkipCookedClasses)
+	bool ShouldSkipAsset(const UObject* InAsset, const TSet<FTopLevelAssetPath>& InSkipUncookedClasses, const TSet<FTopLevelAssetPath>& InSkipCookedClasses)
 	{
 		if (!InAsset)
 		{
@@ -71,10 +71,10 @@ namespace Utils
 		{
 			return false;
 		}
-		return ShouldSkipAsset(InAsset->GetClass()->GetFName(), Package->GetPackageFlags(), InSkipUncookedClasses, InSkipCookedClasses);
+		return ShouldSkipAsset(InAsset->GetClass()->GetClassPathName(), Package->GetPackageFlags(), InSkipUncookedClasses, InSkipCookedClasses);
 	}
 
-	void PopulateSkipClasses(TSet<FName>& OutSkipUncookedClasses, TSet<FName>& OutSkipCookedClasses)
+	void PopulateSkipClasses(TSet<FTopLevelAssetPath>& OutSkipUncookedClasses, TSet<FTopLevelAssetPath>& OutSkipCookedClasses)
 	{
 		static const FName NAME_EnginePackage("/Script/Engine");
 		UPackage* EnginePackage = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, NAME_EnginePackage));
@@ -93,12 +93,12 @@ namespace Utils
 			}
 			else
 			{
-				OutSkipUncookedClasses.Add(NAME_BlueprintGeneratedClass);
+				OutSkipUncookedClasses.Add(BlueprintGeneratedClass->GetClassPathName());
 				for (TObjectIterator<UClass> It; It; ++It)
 				{
 					if (It->IsChildOf(BlueprintGeneratedClass) && !It->HasAnyClassFlags(CLASS_Abstract))
 					{
-						OutSkipUncookedClasses.Add(It->GetFName());
+						OutSkipUncookedClasses.Add(It->GetClassPathName());
 					}
 				}
 			}
@@ -118,12 +118,12 @@ namespace Utils
 			}
 			else
 			{
-				OutSkipCookedClasses.Add(NAME_Blueprint);
+				OutSkipCookedClasses.Add(BlueprintClass->GetClassPathName());
 				for (TObjectIterator<UClass> It; It; ++It)
 				{
 					if (It->IsChildOf(BlueprintClass) && !It->HasAnyClassFlags(CLASS_Abstract))
 					{
-						OutSkipCookedClasses.Add(It->GetFName());
+						OutSkipCookedClasses.Add(It->GetClassPathName());
 					}
 				}
 			}
@@ -133,7 +133,7 @@ namespace Utils
 }
 #endif
 
-	bool FFiltering::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags)
+	bool FFiltering::ShouldSkipAsset(const FTopLevelAssetPath& AssetClass, uint32 PackageFlags)
 	{
 #if WITH_ENGINE && WITH_EDITOR
 		// We do not yet support having UBlueprintGeneratedClasses be assets when the UBlueprint is also
@@ -169,7 +169,7 @@ namespace Utils
 		{
 			return false;
 		}
-		return ShouldSkipAsset(InAsset->GetClass()->GetFName(), Package->GetPackageFlags());
+		return ShouldSkipAsset(InAsset->GetClass()->GetClassPathName(), Package->GetPackageFlags());
 	}
 
 	void FFiltering::MarkDirty()

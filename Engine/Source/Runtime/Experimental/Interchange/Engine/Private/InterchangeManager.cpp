@@ -1101,20 +1101,20 @@ void UInterchangeManager::FindPipelineCandidate(TArray<UClass*>& PipelineCandida
 	//TODO do we have an other alternative, this call is synchronous and will wait unitl the registry database have finish the initial scan. If there is a lot of asset it can take multiple second the first time we call it.
 	AssetRegistry.ScanPathsSynchronous(ContentPaths);
 
-	FName BaseClassName = UInterchangePipelineBase::StaticClass()->GetFName();
+	FTopLevelAssetPath BaseClassName = UInterchangePipelineBase::StaticClass()->GetClassPathName();
 
 	// Use the asset registry to get the set of all class names deriving from Base
-	TSet< FName > DerivedNames;
+	TSet< FTopLevelAssetPath > DerivedNames;
 	{
-		TArray< FName > BaseNames;
+		TArray< FTopLevelAssetPath > BaseNames;
 		BaseNames.Add(BaseClassName);
 
-		TSet< FName > Excluded;
+		TSet< FTopLevelAssetPath > Excluded;
 		AssetRegistry.GetDerivedClassNames(BaseNames, Excluded, DerivedNames);
 	}
 
 	FARFilter Filter;
-	Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
 	Filter.bRecursiveClasses = true;
 	Filter.bRecursivePaths = true;
 
@@ -1129,11 +1129,10 @@ void UInterchangeManager::FindPipelineCandidate(TArray<UClass*>& PipelineCandida
 		if (GeneratedClassPath.IsSet())
 		{
 			// Convert path to just the name part
-			const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(*GeneratedClassPath.GetValue());
-			const FString ClassName = FPackageName::ObjectPathToObjectName(ClassObjectPath);
+			const FTopLevelAssetPath ClassObjectPath(FPackageName::ExportTextPathToObjectPath(*GeneratedClassPath.GetValue()));
 
 			// Check if this class is in the derived set
-			if (!DerivedNames.Contains(*ClassName))
+			if (!DerivedNames.Contains(ClassObjectPath))
 			{
 				continue;
 			}

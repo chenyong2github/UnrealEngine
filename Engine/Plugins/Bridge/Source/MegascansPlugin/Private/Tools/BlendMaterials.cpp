@@ -58,7 +58,7 @@ void FMaterialBlend::BlendSelectedMaterials()
 
 	const UMaterialBlendSettings* BlendSettings = GetDefault<UMaterialBlendSettings>();
 
-	TArray<UMaterialInstanceConstant*> SelectedMaterialInstances = AssetUtils::GetSelectedAssets(TEXT("MaterialInstanceConstant"));
+	TArray<UMaterialInstanceConstant*> SelectedMaterialInstances = AssetUtils::GetSelectedAssets(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("MaterialInstanceConstant")));
 
 	if (SelectedMaterialInstances.Num() < 2)
 	{

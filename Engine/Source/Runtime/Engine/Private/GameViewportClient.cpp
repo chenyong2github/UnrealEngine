@@ -3778,7 +3778,7 @@ bool UGameViewportClient::HandleDisplayCommand( const TCHAR* Cmd, FOutputDevice&
 	if ( FParse::Token(Cmd, ObjectName, UE_ARRAY_COUNT(ObjectName), true) &&
 		FParse::Token(Cmd, PropStr, UE_ARRAY_COUNT(PropStr), true) )
 	{
-		UObject* Obj = FindObject<UObject>(ANY_PACKAGE, ObjectName);
+		UObject* Obj = FindFirstObject<UObject>(ObjectName, EFindFirstObjectOptions::NativeFirst, ELogVerbosity::Warning, TEXT("HandleDisplayCommand"));
 		if (Obj != nullptr)
 		{
 			FName PropertyName(PropStr, FNAME_Find);
@@ -3814,7 +3814,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 			if (DotIndex != INDEX_NONE)
 			{
 				// first part is within class
-				WithinClass = FindObject<UClass>(ANY_PACKAGE, *ClassStr.Left(DotIndex));
+				WithinClass = FindFirstObject<UClass>(*ClassStr.Left(DotIndex), EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("HandleDisplayAllCommand"));
 				if (WithinClass == nullptr)
 				{
 					Ar.Logf(TEXT("Within class not found"));
@@ -3830,7 +3830,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 		if (bValidClassToken)
 		{
 			FParse::Token(Cmd, PropStr, UE_ARRAY_COUNT(PropStr), true);
-			UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
+			UClass* Cls = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("HandleDisplayAllCommand"));
 			if (Cls != nullptr)
 			{
 				FName PropertyName(PropStr, FNAME_Find);
@@ -3867,7 +3867,7 @@ bool UGameViewportClient::HandleDisplayAllLocationCommand( const TCHAR* Cmd, FOu
 	TCHAR ClassName[256];
 	if (FParse::Token(Cmd, ClassName, UE_ARRAY_COUNT(ClassName), true))
 	{
-		UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
+		UClass* Cls = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("HandleDisplayAllLocationCommand"));
 		if (Cls != nullptr)
 		{
 			// add all un-GCable things immediately as that list is static
@@ -3899,7 +3899,7 @@ bool UGameViewportClient::HandleDisplayAllRotationCommand( const TCHAR* Cmd, FOu
 	TCHAR ClassName[256];
 	if (FParse::Token(Cmd, ClassName, UE_ARRAY_COUNT(ClassName), true))
 	{
-		UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
+		UClass* Cls = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("HandleDisplayAllRotationCommand"));
 		if (Cls != nullptr)
 		{
 			// add all un-GCable things immediately as that list is static
@@ -3940,7 +3940,7 @@ bool UGameViewportClient::HandleGetAllLocationCommand(const TCHAR* Cmd, FOutputD
 	UClass* Class;
 
 	if (FParse::Token(Cmd, ClassName, UE_ARRAY_COUNT(ClassName), 1) &&
-		(Class = FindObject<UClass>(ANY_PACKAGE, ClassName)) != NULL)
+		(Class = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("HandleGetAllLocationCommand"))) != nullptr)
 	{
 		bool bShowPendingKills = FParse::Command(&Cmd, TEXT("SHOWPENDINGKILLS"));
 		int32 cnt = 0;
@@ -3968,7 +3968,7 @@ bool UGameViewportClient::HandleGetAllRotationCommand(const TCHAR* Cmd, FOutputD
 	UClass* Class;
 
 	if (FParse::Token(Cmd, ClassName, UE_ARRAY_COUNT(ClassName), 1) &&
-		(Class = FindObject<UClass>(ANY_PACKAGE, ClassName)) != NULL)
+		(Class = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("HandleGetAllRotationCommand"))) != nullptr)
 	{
 		bool bShowPendingKills = FParse::Command(&Cmd, TEXT("SHOWPENDINGKILLS"));
 		int32 cnt = 0;

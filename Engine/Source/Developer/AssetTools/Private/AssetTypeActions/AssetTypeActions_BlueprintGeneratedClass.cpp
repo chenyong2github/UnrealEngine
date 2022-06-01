@@ -118,9 +118,7 @@ TWeakPtr<IClassTypeActions> FAssetTypeActions_BlueprintGeneratedClass::GetClassT
 	}
 	if (!ParentClassName.IsEmpty())
 	{
-		UObject* Outer = nullptr;
-		ResolveName(Outer, ParentClassName, false, false);
-		ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+		ParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
 	}
 
 	if (ParentClass)

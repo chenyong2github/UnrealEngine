@@ -37,8 +37,8 @@ namespace UE
 			TArray<FAssetData> ClassList;
 
 			FARFilter Filter;
-			Filter.ClassNames.Add(UMoviePipelineSetting::StaticClass()->GetFName());
-			Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+			Filter.ClassPaths.Add(UMoviePipelineSetting::StaticClass()->GetClassPathName());
+			Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
 
 			// Include any Blueprint based objects as well, this includes things like Blutilities, UMG, and GameplayAbility objects
 			Filter.bRecursiveClasses = true;
@@ -60,10 +60,7 @@ namespace UE
 
 				if (!ParentClassName.IsEmpty())
 				{
-					UObject* Outer = nullptr;
-					ResolveName(Outer, ParentClassName, false, false);
-
-					ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+					ParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
 
 					if (!ParentClass->IsChildOf(UMoviePipelineSetting::StaticClass()))
 					{

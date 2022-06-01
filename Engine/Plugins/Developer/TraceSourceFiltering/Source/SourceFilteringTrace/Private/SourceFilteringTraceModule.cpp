@@ -33,7 +33,7 @@ void FSourceFilteringTraceModule::TraceFilterClasses()
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	TArray<FAssetData> Filters;
-	TMultiMap<FName, FString> TagValues = { { FBlueprintTags::NativeParentClassPath, FString::Printf(TEXT("%s'%s'"), *UClass::StaticClass()->GetName(), *UDataSourceFilter::StaticClass()->GetPathName()) } };
+	TMultiMap<FName, FString> TagValues = { { FBlueprintTags::NativeParentClassPath, FObjectPropertyBase::GetExportPath(UDataSourceFilter::StaticClass()) } };
 	AssetRegistryModule.Get().GetAssetsByTagValues(TagValues, Filters);
 
 	for (const FAssetData& AssetData : Filters)

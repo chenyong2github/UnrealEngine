@@ -22,7 +22,7 @@ UCompileAllBlueprintsCommandlet::UCompileAllBlueprintsCommandlet(const FObjectIn
 	bCookedOnly = false;
 	bDirtyOnly = false;
 	bSimpleAssetList = false;
-	BlueprintBaseClassName = UBlueprint::StaticClass()->GetFName();
+	BlueprintBaseClassName = UBlueprint::StaticClass()->GetClassPathName();
 
 	TotalNumFailedLoads = 0;
 	TotalNumFatalIssues = 0;
@@ -84,7 +84,9 @@ void UCompileAllBlueprintsCommandlet::InitCommandLine(const FString& Params)
 
 	if (SwitchParams.Contains(TEXT("BlueprintBaseClass")))
 	{
-		BlueprintBaseClassName = *SwitchParams[TEXT("BlueprintBaseClass")];
+		FString BlueprintBaseClassParam = *SwitchParams[TEXT("BlueprintBaseClass")];
+		BlueprintBaseClassName = UClass::TryConvertShortTypeNameToPathName<UClass>(BlueprintBaseClassParam, ELogVerbosity::Warning, TEXT("UCompileAllBlueprintsCommandlet::InitCommandLine"));
+		UE_CLOG(BlueprintBaseClassName.IsNull(), LogCompileAllBlueprintsCommandlet, Error, TEXT("Failed to convert short class name -BlueprintBaseClass=\"%s\" to path name"), *BlueprintBaseClassParam);
 	}
 }
 

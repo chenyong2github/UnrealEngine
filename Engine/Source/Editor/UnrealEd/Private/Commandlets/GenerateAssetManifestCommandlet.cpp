@@ -135,7 +135,15 @@ int32 UGenerateAssetManifestCommandlet::Main(const FString& InParams)
 		Filter.bRecursivePaths = true;
 		for (const FString& IncludedClass : IncludedClasses)
 		{
-			Filter.ClassNames.AddUnique(*IncludedClass);
+			FTopLevelAssetPath IncludedClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(IncludedClass, ELogVerbosity::Error, TEXT("UGenerateAssetManifestCommandlet::Main"));
+			if (IncludedClassPathName.IsNull())
+			{
+				UE_LOG(LogGenerateAssetManifestCommandlet, Error, TEXT("Failed to convert short class name \"%s\" to path name. Please use class path names for IncludedClasses."), *IncludedClass);
+			}
+			else
+			{
+				Filter.ClassPaths.AddUnique(IncludedClassPathName);
+			}
 		}
 		TArray<FAssetData> AssetList;
 		AssetRegistryModule.Get().GetAssets(Filter, AssetList);
@@ -169,7 +177,15 @@ int32 UGenerateAssetManifestCommandlet::Main(const FString& InParams)
 		Filter.bRecursivePaths = true;
 		for (const FString& ExcludedClass : ExcludedClasses)
 		{
-			Filter.ClassNames.AddUnique(*ExcludedClass);
+			FTopLevelAssetPath ExcludedClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(ExcludedClass, ELogVerbosity::Error, TEXT("UGenerateAssetManifestCommandlet::Main"));
+			if (ExcludedClassPathName.IsNull())
+			{
+				UE_LOG(LogGenerateAssetManifestCommandlet, Error, TEXT("Failed to convert short class name \"%s\" to path name. Please use class path names for ExcludedClasses."), *ExcludedClass);
+			}
+			else
+			{
+				Filter.ClassPaths.AddUnique(ExcludedClassPathName);
+			}
 		}
 		TArray<FAssetData> AssetList;
 		AssetRegistryModule.Get().GetAssets(Filter, AssetList);

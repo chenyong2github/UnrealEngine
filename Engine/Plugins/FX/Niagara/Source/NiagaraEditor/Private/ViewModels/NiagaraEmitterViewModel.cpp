@@ -176,7 +176,7 @@ void FNiagaraEmitterViewModel::CreateNewParentWindow(TSharedRef<FNiagaraEmitterH
 	FAssetPickerConfig AssetPickerConfig;
 	AssetPickerConfig.SelectionMode = ESelectionMode::SingleToggle;
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
-	AssetPickerConfig.Filter.ClassNames.Add(UNiagaraEmitter::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(UNiagaraEmitter::StaticClass()->GetClassPathName());
 	AssetPickerConfig.OnAssetsActivated.BindSP(this, &FNiagaraEmitterViewModel::UpdateParentEmitter, EmitterHandleViewModel);
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));

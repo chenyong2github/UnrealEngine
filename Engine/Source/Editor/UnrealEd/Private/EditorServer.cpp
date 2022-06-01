@@ -363,7 +363,7 @@ bool UEditorEngine::SafeExec( UWorld* InWorld, const TCHAR* InStr, FOutputDevice
 		}
 
 		const FString ClassName     = FParse::Token(Str,0);
-		UClass* Class         = FindObject<UClass>( ANY_PACKAGE, *ClassName );
+		UClass* Class         = UClass::TryFindTypeSlow<UClass>(ClassName);
 		if( !Class )
 		{
 			UE_SUPPRESS(LogExec, Warning, Ar.Logf(TEXT("Unrecognized or missing factor class %s"), *ClassName ));
@@ -590,7 +590,7 @@ bool UEditorEngine::Exec_StaticMesh( UWorld* InWorld, const TCHAR* Str, FOutputD
 	{
 		GetSelectedObjects()->DeselectAll( UStaticMesh::StaticClass() );
 		UStaticMesh* StaticMesh = NULL;
-		bResult = ParseObject<UStaticMesh>(Str,TEXT("NAME="), StaticMesh, ANY_PACKAGE);
+		bResult = ParseObject<UStaticMesh>(Str,TEXT("NAME="), StaticMesh, nullptr);
 		if( bResult && StaticMesh)
 		{
 			GetSelectedObjects()->Select( StaticMesh );
@@ -803,13 +803,14 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 	}
 	else if (FParse::Command(&Str,TEXT("ADDVOLUME"))) // BRUSH ADDVOLUME
 	{
-		AVolume* Actor = NULL;
+		AVolume* Actor = nullptr;
 		{
 			const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "BrushAddVolume", "Brush AddVolume") );
 			FinishAllSnaps();
 
-			UClass* VolumeClass = NULL;
-			ParseObject<UClass>( Str, TEXT("CLASS="), VolumeClass, ANY_PACKAGE );
+			FString VolumeClassName;
+			FParse::Value(Str, TEXT("CLASS="), VolumeClassName);
+			UClass* VolumeClass = UClass::TryFindTypeSlow<UClass>(VolumeClassName);
 			if( !VolumeClass || !VolumeClass->IsChildOf(AVolume::StaticClass()) )
 			{
 				VolumeClass = AVolume::StaticClass();
@@ -819,7 +820,7 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 			Actor = InWorld->SpawnActor<AVolume>( VolumeClass, SpawnLoc, FRotator::ZeroRotator );
 			if( Actor )
 			{
-				Actor->PreEditChange(NULL);
+				Actor->PreEditChange(nullptr);
 
 				FBSPOps::csgCopyBrush
 				(
@@ -838,7 +839,7 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 					for( int32 poly = 0 ; poly < Actor->Brush->Polys->Element.Num() ; ++poly )
 					{
 						FPoly* Poly = &(Actor->Brush->Polys->Element[poly]);
-						Poly->Material = NULL;
+						Poly->Material = nullptr;
 					}
 				}
 				Actor->PostEditChange();
@@ -4483,7 +4484,7 @@ bool UEditorEngine::Exec_Poly( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 	else if( FParse::Command(&Str,TEXT("DEFAULT")) ) // POLY DEFAULT <variable>=<value>...
 	{
 		//CurrentMaterial=NULL;
-		//ParseObject<UMaterial>(Str,TEXT("TEXTURE="),CurrentMaterial,ANY_PACKAGE);
+		//ParseObject<UMaterial>(Str,TEXT("TEXTURE="),CurrentMaterial,nullptr);
 		return true;
 	}
 	else if( FParse::Command(&Str,TEXT("SETMATERIAL")) )
@@ -4639,15 +4640,18 @@ bool UEditorEngine::Exec_Obj( const TCHAR* Str, FOutputDevice& Ar )
 	if( FParse::Command(&Str,TEXT("EXPORT")) )//oldver
 	{
 		FName Package=NAME_None;
-		UClass* Type;
+		
 		UObject* Res;
 		FParse::Value( Str, TEXT("PACKAGE="), Package );
-
+		FString TypeName;
+		FParse::Value(Str, TEXT("TYPE="), TypeName);
+		UClass* Type = UClass::TryFindTypeSlow<UClass>(TypeName);
 		FString TempFname;
+
 		if
-		(	ParseObject<UClass>( Str, TEXT("TYPE="), Type, ANY_PACKAGE )
+		(	Type
 		&&	FParse::Value( Str, TEXT("FILE="), TempFname )
-		&&	ParseObject( Str, TEXT("NAME="), Type, Res, ANY_PACKAGE ) )
+		&&	ParseObject( Str, TEXT("NAME="), Type, Res, nullptr ) )
 		{
 			for (FThreadSafeObjectIterator It; It; ++It)
 			{
@@ -4750,7 +4754,7 @@ bool UEditorEngine::Exec_Obj( const TCHAR* Str, FOutputDevice& Ar )
 
 AActor* UEditorEngine::SelectNamedActor(const TCHAR* TargetActorName)
 {
-	AActor* Actor = FindObject<AActor>( ANY_PACKAGE, TargetActorName, false );
+	AActor* Actor = FindFirstObject<AActor>( TargetActorName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("SelectNamedActor") );
 	if( Actor && !Actor->IsA(AWorldSettings::StaticClass()) )
 	{
 		SelectActor( Actor, true, true );
@@ -5603,8 +5607,8 @@ void ListMapPackageDependencies(const TCHAR* InStr)
 				{
 					for (int32 ExportIdx = 0; ExportIdx < Linker->ExportMap.Num(); ExportIdx++)
 					{
-						FName CheckClassName = Linker->GetExportClassName(ExportIdx);
-						UClass* CheckClass = (UClass*)(StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *(CheckClassName.ToString()), true));
+						FTopLevelAssetPath CheckClassPathName(Linker->GetExportClassPackage(ExportIdx), Linker->GetExportClassName(ExportIdx));
+						UClass* CheckClass = FindObject<UClass>(CheckClassPathName, true);
 						if (
 							(CheckClass != NULL) &&
 							(CheckClass->IsChildOf(UTexture::StaticClass()) == true)
@@ -6021,7 +6025,7 @@ bool UEditorEngine::HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar 
 	{
 		UObject* Object;
 		UClass* Class = NULL;
-		if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, ANY_PACKAGE ) != false )
+		if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, nullptr ) != false )
 		{ 
 			Object = NewObject<UObject>(GetTransientPackage(), Class);
 		}
@@ -6085,7 +6089,7 @@ bool UEditorEngine::HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar 
 		StructArgs.bShowInterfaces = true;
 
 		UStruct* Struct = nullptr;
-		if (!ParseObject<UStruct>(Str, TEXT("STRUCT="), Struct, ANY_PACKAGE))
+		if (!ParseObject<UStruct>(Str, TEXT("STRUCT="), Struct, nullptr))
 		{
 			Struct = FPropertyEditorTestBasicStruct::StaticStruct();
 		}
@@ -6116,7 +6120,7 @@ bool UEditorEngine::HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar 
 	{
 		UObject* Object;
 		UClass* Class = nullptr;
-		if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, ANY_PACKAGE ) != false )
+		if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, nullptr ) != false )
 		{ 
 			Object = NewObject<UObject>(GetTransientPackage(), Class);
 		}

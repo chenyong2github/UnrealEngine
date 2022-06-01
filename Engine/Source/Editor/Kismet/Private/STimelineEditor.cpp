@@ -1344,7 +1344,7 @@ void STimelineEditor::CreateNewTrack(FTTTrackBase::ETrackType Type)
 			FTTFloatTrack NewTrack;
 			NewTrack.SetTrackName(TrackName, TimelineObj);
 			// @hack for using existing curve assets.  need something better!
-			NewTrack.CurveFloat = FindObject<UCurveFloat>(ANY_PACKAGE, *TrackName.ToString() );
+			NewTrack.CurveFloat = FindFirstObject<UCurveFloat>(*TrackName.ToString(), EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
 			if (NewTrack.CurveFloat == nullptr)
 			{
 				NewTrack.CurveFloat = NewObject<UCurveFloat>(OwnerClass, NAME_None, RF_Public);

@@ -109,7 +109,7 @@ void FCompressibleAnimData::WriteCompressionDataToJSON(TArrayView<FName> Origina
 	{
 		FString JSONString;
 		TSharedRef<TJsonStringWriter<>> Writer = TJsonStringWriter<>::Create(&JSONString);
-		const UEnum* InterpolationEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EAnimInterpolationType"), true);
+		const UEnum* InterpolationEnum = FindObject<UEnum>(nullptr, TEXT("/Script/Engine.EAnimInterpolationType"), true);
 
 		Writer->WriteObjectStart();
 		{
@@ -259,9 +259,9 @@ void FCompressibleAnimData::WriteCompressionDataToJSON(TArrayView<FName> Origina
 							
 						if(FloatCurve.FloatCurve.GetConstRefOfKeys().Num())
 						{
-							const UEnum* CurveInterpolationEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ERichCurveInterpMode"), true);
-							const UEnum* TangentModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ERichCurveTangentMode"), true);
-							const UEnum* TangentWeightModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ERichCurveTangentWeightMode"), true);
+							const UEnum* CurveInterpolationEnum = FindObject<UEnum>(nullptr, TEXT("/Script/Engine.ERichCurveInterpMode"), true);
+							const UEnum* TangentModeEnum = FindObject<UEnum>(nullptr, TEXT("/Script/Engine.ERichCurveTangentMode"), true);
+							const UEnum* TangentWeightModeEnum = FindObject<UEnum>(nullptr, TEXT("/Script/Engine.ERichCurveTangentWeightMode"), true);
 								
 							Writer->WriteArrayStart(TEXT("key_data"));
 							for (const FRichCurveKey& Key : FloatCurve.FloatCurve.GetConstRefOfKeys())

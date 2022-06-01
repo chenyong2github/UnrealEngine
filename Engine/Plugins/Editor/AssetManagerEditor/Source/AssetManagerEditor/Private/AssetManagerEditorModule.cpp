@@ -261,14 +261,17 @@ FAssetData IAssetManagerEditorModule::CreateFakeAssetDataFromPrimaryAssetId(cons
 {
 	FString PackageNameString = PrimaryAssetFakeAssetDataPackagePath.ToString() / PrimaryAssetId.PrimaryAssetType.ToString();
 
-	return FAssetData(*PackageNameString, PrimaryAssetFakeAssetDataPackagePath, PrimaryAssetId.PrimaryAssetName, PrimaryAssetId.PrimaryAssetType);
+	// Need to make sure the package part of FTopLevelAssetPath is set otherwise it's gonna be invalid
+	FTopLevelAssetPath FakeAssetClass(PrimaryAssetId.PrimaryAssetType, PrimaryAssetId.PrimaryAssetType);
+	return FAssetData(*PackageNameString, PrimaryAssetFakeAssetDataPackagePath, PrimaryAssetId.PrimaryAssetName, FakeAssetClass);
 }
 
 FPrimaryAssetId IAssetManagerEditorModule::ExtractPrimaryAssetIdFromFakeAssetData(const FAssetData& InAssetData)
 {
 	if (InAssetData.PackagePath == PrimaryAssetFakeAssetDataPackagePath)
 	{
-		return FPrimaryAssetId(InAssetData.AssetClass, InAssetData.AssetName);
+		// See how CreateFakeAssetDataFromPrimaryAssetId stores the asset type inside of FTopLevelAssetPath
+		return FPrimaryAssetId(InAssetData.AssetClassPath.GetAssetName(), InAssetData.AssetName);
 	}
 	return FPrimaryAssetId();
 }
@@ -334,10 +337,10 @@ private:
 
 	//Prints all dependency chains from the PackageName to any dependency of one of the given class names.
 	//If the package name is a path rather than a package, then it will do this for each package in the path.
-	void FindClassDependencies(FName PackagePath, const TArray<FName>& TargetClasses, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags);
+	void FindClassDependencies(FName PackagePath, const TArray<FTopLevelAssetPath>& TargetClasses, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags);
 
 	bool GetPackageDependencyChain(FName SourcePackage, FName TargetPackage, TArray<FName>& VisitedPackages, TArray<FName>& OutDependencyChain, UE::AssetRegistry::EDependencyQuery RequiredFlags);
-	void GetPackageDependenciesPerClass(FName SourcePackage, const TArray<FName>& TargetClasses, TArray<FName>& VisitedPackages, TArray<FName>& OutDependentPackages, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags);
+	void GetPackageDependenciesPerClass(FName SourcePackage, const TArray<FTopLevelAssetPath>& TargetClasses, TArray<FName>& VisitedPackages, TArray<FName>& OutDependentPackages, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags);
 
 	void LogAssetsWithMultipleLabels();
 	bool CreateOrEmptyCollection(FName CollectionName, ECollectionShareType::Type ShareType);
@@ -1905,12 +1908,19 @@ void FAssetManagerEditorModule::PerformDependencyClassConsoleCommand(const TArra
 	UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags = UE::AssetRegistry::EDependencyQuery::NoRequirements;
 
 	FName SourcePackagePath = FName(*Args[0].ToLower());
-	TArray<FName> TargetClasses;
+	TArray<FTopLevelAssetPath> TargetClasses;
 	for (int32 i = 1; i < Args.Num(); ++i)
 	{
 		if (!GetDependencyTypeArg(Args[i], RequiredDependencyFlags))
 		{
-			TargetClasses.AddUnique(FName(*Args[i]));
+			if (!FPackageName::IsShortPackageName(Args[i]))
+			{
+				TargetClasses.AddUnique(FTopLevelAssetPath(Args[i]));
+			}
+			else
+			{
+				UE_LOG(LogClass, Warning, TEXT("Short class names are not supported: %s"), *Args[i]);
+			}
 		}
 	}
 
@@ -1978,7 +1988,7 @@ bool FAssetManagerEditorModule::GetPackageDependencyChain(FName SourcePackage, F
 	return false;
 }
 
-void FAssetManagerEditorModule::GetPackageDependenciesPerClass(FName SourcePackage, const TArray<FName>& TargetClasses, TArray<FName>& VisitedPackages, TArray<FName>& OutDependentPackages, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags)
+void FAssetManagerEditorModule::GetPackageDependenciesPerClass(FName SourcePackage, const TArray<FTopLevelAssetPath>& TargetClasses, TArray<FName>& VisitedPackages, TArray<FName>& OutDependentPackages, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags)
 {
 	//avoid crashing from circular dependencies.
 	if (VisitedPackages.Contains(SourcePackage))
@@ -2003,7 +2013,7 @@ void FAssetManagerEditorModule::GetPackageDependenciesPerClass(FName SourcePacka
 
 	FARFilter Filter;
 	Filter.PackageNames.Add(SourcePackage);
-	Filter.ClassNames = TargetClasses;
+	Filter.ClassPaths = TargetClasses;
 	Filter.bIncludeOnlyOnDiskAssets = true;
 
 	TArray<FAssetData> PackageAssets;
@@ -2059,7 +2069,7 @@ void FAssetManagerEditorModule::FindReferenceChains(FName TargetPackageName, FNa
 	}
 }
 
-void FAssetManagerEditorModule::FindClassDependencies(FName SourcePackageName, const TArray<FName>& TargetClasses, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags)
+void FAssetManagerEditorModule::FindClassDependencies(FName SourcePackageName, const TArray<FTopLevelAssetPath>& TargetClasses, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags)
 {
 	TArray<FAssetData> PackageAssets;
 	if (!AssetRegistry->GetAssetsByPackageName(SourcePackageName, PackageAssets))
@@ -2091,16 +2101,16 @@ void FAssetManagerEditorModule::FindClassDependencies(FName SourcePackageName, c
 
 			FARFilter Filter;
 			Filter.PackageNames.Add(DependencyPackage);
-			Filter.ClassNames = TargetClasses;
+			Filter.ClassPaths = TargetClasses;
 			Filter.bIncludeOnlyOnDiskAssets = true;
 
 			if (AssetRegistry->GetAssets(Filter, DepAssets))
 			{
 				for (const FAssetData& DepAsset : DepAssets)
 				{
-					if (TargetClasses.Contains(DepAsset.AssetClass))
+					if (TargetClasses.Contains(DepAsset.AssetClassPath))
 					{
-						UE_LOG(LogAssetManagerEditor, Log, TEXT("Asset: %s class: %s"), *DepAsset.AssetName.ToString(), *DepAsset.AssetClass.ToString());
+						UE_LOG(LogAssetManagerEditor, Log, TEXT("Asset: %s class: %s"), *DepAsset.AssetName.ToString(), *DepAsset.AssetClassPath.ToString());
 					}
 				}
 			}

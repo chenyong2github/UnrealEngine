@@ -402,14 +402,16 @@ void SDialogueVoicePropertyEditor::OnDialogueVoicePathChanged( const FText& NewT
 			
 		if( !NewString.IsEmpty() )
 		{
-			UObject* Package = ANY_PACKAGE;
 			if( NewString.Contains( TEXT(".") ) )
 			{
 				// Formatted text string, use the exact path instead of any package
-				Package = NULL;
+				DialogueVoiceToAssign = FindObject<UDialogueVoice>(nullptr, *NewString);
 			}
-
-			DialogueVoiceToAssign = Cast<UDialogueVoice>( StaticFindObject( UDialogueVoice::StaticClass(), Package, *NewString ) );		
+			else
+			{
+				DialogueVoiceToAssign = FindFirstObject<UDialogueVoice>(*NewString, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
+			}
+	
 			if( !DialogueVoiceToAssign )
 			{
 				DialogueVoiceToAssign = Cast<UDialogueVoice>( StaticLoadObject( UDialogueVoice::StaticClass(), NULL, *NewString ) );

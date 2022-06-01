@@ -55,7 +55,7 @@ void FCustomClassFilterData::BuildBackendFilter(FARFilter &Filter)
 	// If there is no AssetTypeAction for this filter, simply add the class name to the FARFilter
 	else
 	{
-		Filter.ClassNames.Add(Class->GetFName());
+		Filter.ClassPaths.Add(Class->GetClassPathName());
 		Filter.bRecursiveClasses = true;
 	}
 }

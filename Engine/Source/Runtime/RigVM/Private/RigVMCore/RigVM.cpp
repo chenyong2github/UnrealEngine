@@ -60,7 +60,7 @@ UScriptStruct* FRigVMParameter::GetScriptStruct() const
 		if (ScriptStructPath != NAME_None)
 		{
 			FRigVMParameter* MutableThis = (FRigVMParameter*)this;
-			MutableThis->ScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *ScriptStructPath.ToString());
+			MutableThis->ScriptStruct = FindObject<UScriptStruct>(nullptr, *ScriptStructPath.ToString());
 		}
 	}
 	return ScriptStruct;

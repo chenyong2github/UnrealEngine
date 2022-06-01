@@ -1354,7 +1354,7 @@ void SSkeletonTree::FillAttachAssetSubmenu(FMenuBuilder& MenuBuilder, const TSha
 
 	for(int i = 0; i < FilterClasses.Num(); ++i)
 	{
-		AssetPickerConfig.Filter.ClassNames.Add(FilterClasses[i]->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(FilterClasses[i]->GetClassPathName());
 	}
 
 

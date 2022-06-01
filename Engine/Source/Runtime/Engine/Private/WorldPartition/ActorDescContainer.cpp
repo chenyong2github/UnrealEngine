@@ -71,7 +71,7 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 				FCoreRedirectObjectName NewClassName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, OldClassName);
 
 				bool bIsValidClass = true;
-				UClass* ActorClass = FindObject<UClass>(ANY_PACKAGE, *NewClassName.ToString(), true);
+				UClass* ActorClass = UClass::TryFindTypeSlow<UClass>(NewClassName.ToString(), EFindFirstObjectOptions::ExactClass);
 
 				if (!ActorClass)
 				{

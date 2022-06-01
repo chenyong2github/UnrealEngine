@@ -54,7 +54,7 @@ void FSearchSerializer::Initialize(const FAssetData& InAsset)
 
 	//JsonWriter->WriteValue(TEXT("AssetName"), InAsset.AssetName.ToString());
 	//JsonWriter->WriteValue(TEXT("AssetPath"), InAsset.ObjectPath.ToString());
-	//JsonWriter->WriteValue(TEXT("AssetClass"), InAsset.AssetClass.ToString());
+	//JsonWriter->WriteValue(TEXT("AssetClass"), InAsset.AssetClassPath.ToString());
 
 	JsonWriter->WriteObjectStart(TEXT("indexers"));
 }

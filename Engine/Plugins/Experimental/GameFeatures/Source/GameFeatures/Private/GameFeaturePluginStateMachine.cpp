@@ -91,7 +91,7 @@ namespace UE::GameFeatures
 		if (bIgnoreGameFeatureData)
 		{
 			FARFilter RawGameFeatureDataFilter;
-			RawGameFeatureDataFilter.ClassNames.Add(*UGameFeatureData::StaticClass()->GetName());
+			RawGameFeatureDataFilter.ClassPaths.Add(UGameFeatureData::StaticClass()->GetClassPathName());
 			RawGameFeatureDataFilter.bRecursiveClasses = true;
 
 			FARCompiledFilter GameFeatureDataFilter;

@@ -155,7 +155,7 @@ bool ExportDependencies(const TCHAR * PakFilename, const TCHAR* GameName, const 
 			}
 		}
 
-		TMap<FName,FName> PackageToClassMap;
+		TMap<FName, FTopLevelAssetPath> PackageToClassMap;
 
 		// Combine with dependency information from asset registry.
 		{
@@ -169,7 +169,7 @@ bool ExportDependencies(const TCHAR * PakFilename, const TCHAR* GameName, const 
 			for( int i=0; i<AssetData.Num(); i++ )
 			{
 				PackageNames.Add(AssetData[i].PackageName);
-				PackageToClassMap.Add(AssetData[i].PackageName,AssetData[i].AssetClass);
+				PackageToClassMap.Add(AssetData[i].PackageName,AssetData[i].AssetClassPath);
 			}
 
 			for( const auto& PackageName : PackageNames )
@@ -241,7 +241,7 @@ bool ExportDependencies(const TCHAR * PakFilename, const TCHAR* GameName, const 
 				CSVFileWriter->Logf(TEXT("class,name,inclusive,exclusive"));
 				for(auto Package : AllPackages)
 				{
-					FName ClassName = PackageToClassMap.FindRef(Package->Name);
+					FTopLevelAssetPath ClassName = PackageToClassMap.FindRef(Package->Name);
 					CSVFileWriter->Logf(TEXT("%s,%s,%i,%i"),*ClassName.ToString(),*Package->Name.ToString(),Package->InclusiveSize,Package->ExclusiveSize);
 				}
 				CSVFileWriter->Close();

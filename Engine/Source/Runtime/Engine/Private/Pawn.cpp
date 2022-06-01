@@ -57,9 +57,9 @@ APawn::APawn(const FObjectInitializer& ObjectInitializer)
 #endif
 
 		FString AIControllerClassName = GetDefault<UEngine>()->AIControllerClassName.ToString();
-
+		check(FPackageName::IsValidObjectPath(AIControllerClassName));
 		// resolve the name to a UClass
-		AIControllerClass = FindObject<UClass>(ANY_PACKAGE, *AIControllerClassName);
+		AIControllerClass = FindObject<UClass>(nullptr, *AIControllerClassName);
 
 		// if we failed to resolve, and plugins are expected to be loaded, proceed with loading it
 		if (AIControllerClass == nullptr && bLoadPluginClass)

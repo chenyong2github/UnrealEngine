@@ -47,7 +47,7 @@ int32 USwapSoundForDialogueInCuesCommandlet::Main(const FString& Params)
 
 	// We only want dialogue wave assets that exist within the Game content directory.
 	TArray<FAssetData> AssetDataArrayForDialogueWaves;
-	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, FName("/Game"), UDialogueWave::StaticClass()->GetFName(), /*bIncludeLocalizedAssets*/false, AssetDataArrayForDialogueWaves))
+	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, FName("/Game"), UDialogueWave::StaticClass()->GetClassPathName(), /*bIncludeLocalizedAssets*/false, AssetDataArrayForDialogueWaves))
 	{
 		UE_LOG(LogSwapSoundForDialogueInCuesCommandlet, Error, TEXT("Unable to get dialogue wave asset data from asset registry."));
 		return -1;
@@ -106,7 +106,7 @@ int32 USwapSoundForDialogueInCuesCommandlet::Main(const FString& Params)
 
 			// Get sound cue assets that reference the context's sound wave.
 			FARFilter Filter;
-			Filter.ClassNames.Add(USoundCue::StaticClass()->GetFName());
+			Filter.ClassPaths.Add(USoundCue::StaticClass()->GetClassPathName());
 			Filter.bRecursiveClasses = true;
 			Filter.PackageNames = SoundWaveReferencerNames;
 			TArray<FAssetData> ReferencingSoundCueAssetDataArray;

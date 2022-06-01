@@ -38,7 +38,7 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 	Identifiers = NewIdentifiers;
 	const FAssetIdentifier& First = NewIdentifiers[0];
 	FString MainAssetName = InAssetData.AssetName.ToString();
-	FString AssetTypeName = InAssetData.AssetClass.ToString();
+	FString AssetTypeName = InAssetData.AssetClassPath.ToString();
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));	
 	if (UClass* AssetClass = InAssetData.GetClass())
@@ -49,7 +49,7 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 			AssetTypeColor = AssetTypeActions.Pin()->GetTypeColor();
 		}
 	}
-	AssetBrush = FSlateIcon("EditorStyle", FName( *("ClassIcon." + InAssetData.AssetClass.ToString())));
+	AssetBrush = FSlateIcon("EditorStyle", FName( *("ClassIcon." + InAssetData.AssetClassPath.ToString())));
 
 	bIsCollapsed = false;
 	bIsPackage = true;
@@ -246,7 +246,7 @@ void UEdGraphNode_Reference::CacheAssetData(const FAssetData& AssetData)
 			{
 				if ( PackageNameStr.StartsWith(TEXT("/Script")) )
 				{
-					CachedAssetData.AssetClass = FName(TEXT("Code"));
+					CachedAssetData.AssetClassPath = FTopLevelAssetPath(TEXT("/EdGraphNode_Reference"), TEXT("Code"));
 				}
 				else
 				{
@@ -254,14 +254,14 @@ void UEdGraphNode_Reference::CacheAssetData(const FAssetData& AssetData)
 					const bool bIsMapPackage = FPlatformFileManager::Get().GetPlatformFile().FileExists(*PotentiallyMapFilename);
 					if ( bIsMapPackage )
 					{
-						CachedAssetData.AssetClass = FName(TEXT("World"));
+						CachedAssetData.AssetClassPath = TEXT("/Script/Engine.World");
 					}
 				}
 			}
 		}
 		else
 		{
-			CachedAssetData.AssetClass = FName(TEXT("Multiple Nodes"));
+			CachedAssetData.AssetClassPath = FTopLevelAssetPath(TEXT("/EdGraphNode_Reference"), TEXT("Multiple Nodes"));
 		}
 	}
 

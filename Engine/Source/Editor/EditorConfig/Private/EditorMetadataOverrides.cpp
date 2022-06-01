@@ -332,7 +332,7 @@ bool UEditorMetadataOverrides::GetClassMetadata(const FField* Field, FName Key, 
 		return false;
 	}
 
-	OutValue = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+	OutValue = UClass::TryFindTypeSlow<UClass>(ClassName);
 	return true; // we return true here even if the value is null because we did have a value, it just wasn't a valid class name
 }
 
@@ -664,7 +664,7 @@ bool UEditorMetadataOverrides::GetClassMetadata(const UStruct* Struct, FName Key
 		return false;
 	}
 
-	OutValue = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+	OutValue = UClass::TryFindTypeSlow<UClass>(ClassName);
 	return true; // we return true here even if the class is null because we did have a value, it just wasn't a valid class name
 }
 

@@ -445,14 +445,7 @@ UClass* UEditorUtilitySubsystem::FindClassByName(const FString& RawTargetName)
 	UClass* ResultClass = nullptr;
 	if (bIsValidClassName)
 	{
-		if (FPackageName::IsShortPackageName(TargetName))
-		{
-			ResultClass = FindObject<UClass>(ANY_PACKAGE, *TargetName);
-		}
-		else
-		{
-			ResultClass = FindObject<UClass>(nullptr, *TargetName);
-		}
+		ResultClass = UClass::TryFindTypeSlow<UClass>(TargetName);
 	}
 
 	// If we still haven't found anything yet, try the asset registry for blueprints that match the requirements
@@ -478,7 +471,7 @@ UClass* UEditorUtilitySubsystem::FindBlueprintClass(const FString& TargetNameRaw
 
 	FARFilter Filter;
 	Filter.bRecursiveClasses = true;
-	Filter.ClassNames.Add(UBlueprintCore::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UBlueprintCore::StaticClass()->GetClassPathName());
 
 	// We enumerate all assets to find any blueprints who inherit from native classes directly - or
 	// from other blueprints.

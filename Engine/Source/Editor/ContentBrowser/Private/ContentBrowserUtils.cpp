@@ -459,9 +459,10 @@ void ContentBrowserUtils::CountItemTypes(const TArray<FAssetData>& InItems, int3
 	OutNumAssetItems = 0;
 	OutNumClassItems = 0;
 
+	const FTopLevelAssetPath ClassPath(TEXT("/Script/CoreUObject"), TEXT("Class"));
 	for(const FAssetData& Item : InItems)
 	{
-		if(Item.AssetClass == NAME_Class)
+		if(Item.AssetClassPath == ClassPath)
 		{
 			++OutNumClassItems;
 		}
@@ -573,7 +574,7 @@ void ContentBrowserUtils::ConvertLegacySelectionToVirtualPaths(TArrayView<const 
 	ConvertLegacySelectionToVirtualPathsImpl(InAssets, InFolders, InUseFolderPaths, OutVirtualPaths);
 }
 
-void ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(const FARFilter& InAssetFilter, const TSharedPtr<FNamePermissionList>& InAssetClassPermissionList, const TSharedPtr<FPathPermissionList>& InFolderPermissionList, FContentBrowserDataFilter& OutDataFilter)
+void ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(const FARFilter& InAssetFilter, const TSharedPtr<FPathPermissionList>& InAssetClassPermissionList, const TSharedPtr<FPathPermissionList>& InFolderPermissionList, FContentBrowserDataFilter& OutDataFilter)
 {
 	if (InAssetFilter.ObjectPaths.Num() > 0 || InAssetFilter.TagsAndValues.Num() > 0 || InAssetFilter.bIncludeOnlyOnDiskAssets)
 	{
@@ -592,14 +593,20 @@ void ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(const FARFilte
 		PackageFilter.PathPermissionList = InFolderPermissionList;
 	}
 
-	if (InAssetFilter.ClassNames.Num() > 0 || (InAssetClassPermissionList && InAssetClassPermissionList->HasFiltering()))
+	if (InAssetFilter.ClassPaths.Num() > 0 || (InAssetClassPermissionList && InAssetClassPermissionList->HasFiltering()))
 	{
 		FContentBrowserDataClassFilter& ClassFilter = OutDataFilter.ExtraFilters.FindOrAddFilter<FContentBrowserDataClassFilter>();
-		ClassFilter.ClassNamesToInclude = InAssetFilter.ClassNames;
+		for (FTopLevelAssetPath ClassPathName : InAssetFilter.ClassPaths)
+		{
+			ClassFilter.ClassNamesToInclude.Add(ClassPathName.ToString());
+		}
 		ClassFilter.bRecursiveClassNamesToInclude = InAssetFilter.bRecursiveClasses;
 		if (InAssetFilter.bRecursiveClasses)
 		{
-			ClassFilter.ClassNamesToExclude = InAssetFilter.RecursiveClassesExclusionSet.Array();
+			for (FTopLevelAssetPath ClassPathName : InAssetFilter.RecursiveClassPathsExclusionSet)
+			{
+				ClassFilter.ClassNamesToExclude.Add(ClassPathName.ToString());
+			}
 			ClassFilter.bRecursiveClassNamesToExclude = false;
 		}
 		ClassFilter.ClassPermissionList = InAssetClassPermissionList;

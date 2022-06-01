@@ -325,7 +325,7 @@ void FPropertyEditor::MakeNewBlueprint()
 		{
 			if (RequiredInterface != nullptr && FKismetEditorUtilities::CanBlueprintImplementInterface(Blueprint, RequiredInterface))
 			{
-				FBlueprintEditorUtils::ImplementNewInterface(Blueprint, RequiredInterface->GetFName());
+				FBlueprintEditorUtils::ImplementNewInterface(Blueprint, RequiredInterface->GetClassPathName());
 			}
 			
 			PropertyHandle->SetValueFromFormattedString(Blueprint->GeneratedClass->GetPathName());
@@ -653,19 +653,20 @@ void FPropertyEditor::SyncToObjectsInNode( const TWeakPtr< FPropertyNode >& Weak
 		TArray<UObject*> Objects;
 		for ( int32 ObjectIndex = 0 ; ObjectIndex < ObjectNames.Num() ; ++ObjectIndex )
 		{
-
-			UObject* Package = ANY_PACKAGE;
+			UObject* Object = nullptr;
 			if( ObjectNames[ObjectIndex].Contains( TEXT(".")) )
 			{
-				// Formatted text string, use the exact path instead of any package
-				Package = NULL;
+				Object = StaticFindObject(PropertyClass, nullptr, *ObjectNames[ObjectIndex]);
+				if (!Object)
+				{
+					Object = StaticLoadObject(PropertyClass, nullptr, *ObjectNames[ObjectIndex]);
+				}
+			}
+			else
+			{
+				Object = StaticFindFirstObject(PropertyClass, *ObjectNames[ObjectIndex], EFindFirstObjectOptions::EnsureIfAmbiguous);
 			}
 
-			UObject* Object = StaticFindObject( PropertyClass, Package, *ObjectNames[ObjectIndex] );
-			if( !Object && Package != ANY_PACKAGE )
-			{
-				Object = StaticLoadObject(PropertyClass, Package, *ObjectNames[ObjectIndex]);
-			}
 			if ( Object )
 			{
 				// If the selected object is a blueprint generated class, then browsing to it in the content browser should instead point to the blueprint

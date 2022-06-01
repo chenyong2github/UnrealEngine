@@ -1516,13 +1516,13 @@ void FNiagaraDataInterfaceCurveDetailsBase::ImportSelectedAsset(UObject* Selecte
 
 TSharedRef<SWidget> FNiagaraDataInterfaceCurveDetailsBase::GetCurveToCopyMenu()
 {
-	FName ClassName = GetSupportedAssetClassName();
+	FTopLevelAssetPath ClassName = GetSupportedAssetClassName();
 	FAssetPickerConfig AssetPickerConfig;
 	{
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &FNiagaraDataInterfaceCurveDetailsBase::CurveToCopySelected);
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
-		AssetPickerConfig.Filter.ClassNames.Add(ClassName);
+		AssetPickerConfig.Filter.ClassPaths.Add(ClassName);
 	}
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
@@ -1553,9 +1553,9 @@ void FNiagaraDataInterfaceCurveDetails::GetCurveProperties(IDetailLayoutBuilder&
 	CurveProperties.Add(DetailBuilder.GetProperty(FName("Curve"), UNiagaraDataInterfaceCurve::StaticClass()));
 }
 
-FName FNiagaraDataInterfaceCurveDetails::GetSupportedAssetClassName() const
+FTopLevelAssetPath FNiagaraDataInterfaceCurveDetails::GetSupportedAssetClassName() const
 {
-	return UCurveFloat::StaticClass()->GetFName();
+	return UCurveFloat::StaticClass()->GetClassPathName();
 }
 
 void FNiagaraDataInterfaceCurveDetails::GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const
@@ -1576,9 +1576,9 @@ void FNiagaraDataInterfaceVector2DCurveDetails::GetCurveProperties(IDetailLayout
 	OutCurveProperties.Add(DetailBuilder.GetProperty(FName("YCurve"), UNiagaraDataInterfaceVector2DCurve::StaticClass()));
 }
 
-FName FNiagaraDataInterfaceVector2DCurveDetails::GetSupportedAssetClassName() const
+FTopLevelAssetPath FNiagaraDataInterfaceVector2DCurveDetails::GetSupportedAssetClassName() const
 {
-	return UCurveVector::StaticClass()->GetFName();
+	return UCurveVector::StaticClass()->GetClassPathName();
 }
 
 void FNiagaraDataInterfaceVector2DCurveDetails::GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const
@@ -1604,9 +1604,9 @@ void FNiagaraDataInterfaceVectorCurveDetails::GetCurveProperties(IDetailLayoutBu
 	OutCurveProperties.Add(DetailBuilder.GetProperty(FName("ZCurve"), UNiagaraDataInterfaceVectorCurve::StaticClass()));
 }
 
-FName FNiagaraDataInterfaceVectorCurveDetails::GetSupportedAssetClassName() const
+FTopLevelAssetPath FNiagaraDataInterfaceVectorCurveDetails::GetSupportedAssetClassName() const
 {
-	return UCurveVector::StaticClass()->GetFName();
+	return UCurveVector::StaticClass()->GetClassPathName();
 }
 
 void FNiagaraDataInterfaceVectorCurveDetails::GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const
@@ -1633,9 +1633,9 @@ void FNiagaraDataInterfaceVector4CurveDetails::GetCurveProperties(IDetailLayoutB
 	OutCurveProperties.Add(DetailBuilder.GetProperty(FName("WCurve"), UNiagaraDataInterfaceVector4Curve::StaticClass()));
 }
 
-FName FNiagaraDataInterfaceVector4CurveDetails::GetSupportedAssetClassName() const
+FTopLevelAssetPath FNiagaraDataInterfaceVector4CurveDetails::GetSupportedAssetClassName() const
 {
-	return UCurveLinearColor::StaticClass()->GetFName();
+	return UCurveLinearColor::StaticClass()->GetClassPathName();
 }
 
 void FNiagaraDataInterfaceVector4CurveDetails::GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const
@@ -1661,9 +1661,9 @@ void FNiagaraDataInterfaceColorCurveDetails::GetCurveProperties(IDetailLayoutBui
 	OutCurveProperties.Add(DetailBuilder.GetProperty(FName("AlphaCurve"), UNiagaraDataInterfaceColorCurve::StaticClass()));
 }
 
-FName FNiagaraDataInterfaceColorCurveDetails::GetSupportedAssetClassName() const
+FTopLevelAssetPath FNiagaraDataInterfaceColorCurveDetails::GetSupportedAssetClassName() const
 {
-	return UCurveLinearColor::StaticClass()->GetFName();
+	return UCurveLinearColor::StaticClass()->GetClassPathName();
 }
 
 void FNiagaraDataInterfaceColorCurveDetails::GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const

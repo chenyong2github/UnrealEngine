@@ -6183,7 +6183,7 @@ void FNativeClassHeaderGenerator::DeleteUnusedGeneratedHeaders(TSet<FString>&& P
 								FString BaseFilename = FPaths::GetBaseFilename(Filename);
 								const int32   GeneratedIndex = BaseFilename.Find(TEXT(".generated"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 								const FString ClassName = MoveTemp(BaseFilename).Mid(0, GeneratedIndex);
-								UClass* IntrinsicClass = FEngineAPI::FindObject<UClass>(ANY_PACKAGE, *ClassName);
+								UClass* IntrinsicClass = FEngineAPI::FindFirstObject<UClass>(*ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Fatal, TEXT("looking for intrinsic class"));
 								if (!IntrinsicClass || !IntrinsicClass->HasAnyClassFlags(CLASS_Intrinsic))
 								{
 									IFileManager::Get().Delete(*Fullpath);
@@ -6487,7 +6487,7 @@ void ResolveSuperClasses(FUnrealPackageDefinitionInfo& PackageDef)
 
 UPackage* GetModulePackage(FManifestModule& Module)
 {
-	UPackage* Package = FEngineAPI::FindObjectFast<UPackage>(NULL, FName(*Module.LongPackageName), false, false);
+	UPackage* Package = FEngineAPI::FindObjectFast<UPackage>(NULL, FName(*Module.LongPackageName), false);
 	if (Package == NULL)
 	{
 		Package = CreatePackage(*Module.LongPackageName);

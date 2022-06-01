@@ -236,7 +236,6 @@ COREUOBJECT_API bool SafeLoadError( UObject* Outer, uint32 LoadFlags, const TCHA
 /** Internal function used to update the suffix to be given to the next newly-created unnamed object. */
 COREUOBJECT_API int32 UpdateSuffixForNextNewObject(UObject* Parent, const UClass* Class, TFunctionRef<void(int32&)> IndexMutator);
 
-
 /**
  * Fast version of StaticFindObject that relies on the passed in FName being the object name without any group/package qualifiers.
  * This will only find top level packages or subobjects nested directly within a passed in outer.
@@ -251,7 +250,23 @@ COREUOBJECT_API int32 UpdateSuffixForNextNewObject(UObject* Parent, const UClass
  *
  * @return	Returns a pointer to the found object or null if none could be found
  */
-COREUOBJECT_API UObject* StaticFindObjectFast(UClass* Class, UObject* InOuter, FName InName, bool bExactClass = false, bool bAnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+UE_DEPRECATED(5.1, "Support for searching for objects in ANY_PACKAGE has been deprecated. Please provide the actual Outer of an object you want to find.")
+COREUOBJECT_API UObject* StaticFindObjectFast(UClass* Class, UObject* InOuter, FName InName, bool bExactClass, bool bAnyPackage, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+
+/**
+ * Fast version of StaticFindObject that relies on the passed in FName being the object name without any group/package qualifiers.
+ * This will only find top level packages or subobjects nested directly within a passed in outer.
+ *
+ * @param	Class			The to be found object's class
+ * @param	InOuter			Outer object to look inside, if null this will only look for top level packages
+ * @param	InName			Object name to look for relative to InOuter
+ * @param	bExactClass		Whether to require an exact match with the passed in class
+ * @param	ExclusiveFlags	Ignores objects that contain any of the specified exclusive flags
+ * @param	ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
+ *
+ * @return	Returns a pointer to the found object or null if none could be found
+ */
+COREUOBJECT_API UObject* StaticFindObjectFast(UClass* Class, UObject* InOuter, FName InName, bool bExactClass = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
 
 /**
  * Fast and safe version of StaticFindObject that relies on the passed in FName being the object name without any group/package qualifiers.
@@ -268,14 +283,31 @@ COREUOBJECT_API UObject* StaticFindObjectFast(UClass* Class, UObject* InOuter, F
  *
  * @return	Returns a pointer to the found object or null if none could be found
  */
-COREUOBJECT_API UObject* StaticFindObjectFastSafe(UClass* Class, UObject* InOuter, FName InName, bool bExactClass = false, bool bAnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+UE_DEPRECATED(5.1, "Support for searching for objects in ANY_PACKAGE has been deprecated. Please provide the actual Outer of an object you want to find.")
+COREUOBJECT_API UObject* StaticFindObjectFastSafe(UClass* Class, UObject* InOuter, FName InName, bool bExactClass, bool bAnyPackage, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
 
+
+/**
+ * Fast and safe version of StaticFindObject that relies on the passed in FName being the object name without any group/package qualifiers.
+ * It will not assert on GIsSavingPackage or IsGarbageCollectingAndLockingUObjectHashTables(). If called from within package saving code or GC, will return nullptr
+ * This will only find top level packages or subobjects nested directly within a passed in outer.
+ *
+ * @param	Class			The to be found object's class
+ * @param	InOuter			Outer object to look inside, if null this will only look for top level packages
+ * @param	InName			Object name to look for relative to InOuter
+ * @param	bExactClass		Whether to require an exact match with the passed in class
+ * @param	ExclusiveFlags	Ignores objects that contain any of the specified exclusive flags
+ * @param	ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
+ *
+ * @return	Returns a pointer to the found object or null if none could be found
+ */
+COREUOBJECT_API UObject* StaticFindObjectFastSafe(UClass* Class, UObject* InOuter, FName InName, bool bExactClass = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
 
 /**
  * Tries to find an object in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
  *
  * @param	Class			The to be found object's class
- * @param	InOuter			Outer object to look inside. If this is ANY_PACKAGE it will search all in memory packages, if this is null then InName should start with a package name
+ * @param	InOuter			Outer object to look inside. If this is null then InName should start with a package name
  * @param	InName			The object path to search for an object, relative to InOuter
  * @param	ExactClass		Whether to require an exact match with the passed in class
  *
@@ -381,6 +413,7 @@ ENUM_CLASS_FLAGS(EFindFirstObjectOptions);
 /**
  * Tries to find the first object matching the search paramters in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
  * If multiple objects share the same name the returned object is random and not based on its time of creation unless otherwise specified in Options (see EFindFirstObjectOptions::NativeFirst)
+ * This function is slow and should not be used in performance critical situations.
  * 
  * @param	Class						The to be found object's class
  * @param	Name						The object path to search for an object, relative to InOuter
@@ -396,6 +429,7 @@ COREUOBJECT_API UObject* StaticFindFirstObject(UClass* Class, const TCHAR* Name,
  * Tries to find the first objects matching the search paramters in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
  * This version of StaticFindFirstObject will not assert on GIsSavingPackage or IsGarbageCollecting()
  * If multiple objects share the same name the returned object is random and not based on its time of creation unless otherwise specified in Options (see EFindFirstObjectOptions::NativeFirst)
+ * This function is slow and should not be used in performance critical situations.
  * 
  * @param	Class						The to be found object's class
  * @param	Name						The object path to search for an object, relative to InOuter
@@ -714,6 +748,14 @@ COREUOBJECT_API void GatherUnreachableObjects(bool bForceSingleThreaded);
  */
 COREUOBJECT_API void IncrementalPurgeGarbage( bool bUseTimeLimit, double TimeLimit = 0.002 );
 
+
+enum class EUniqueObjectNameOptions
+{
+	None = 0,
+	GloballyUnique = 1 << 1, // Whether to make the object name unique globally (across all objects that currently exist)
+};
+ENUM_CLASS_FLAGS(EUniqueObjectNameOptions);
+
 /**
  * Create a unique name by combining a base name and an arbitrary number string.
  * The object name returned is guaranteed not to exist.
@@ -721,11 +763,12 @@ COREUOBJECT_API void IncrementalPurgeGarbage( bool bUseTimeLimit, double TimeLim
  * @param	Parent		the outer for the object that needs to be named
  * @param	Class		the class for the object
  * @param	BaseName	optional base name to use when generating the unique object name; if not specified, the class's name is used
- *
+ * @param	Options		Additional options. See EUniqueObjectNameOptions.
+ * 
  * @return	name is the form BaseName_##, where ## is the number of objects of this
  *			type that have been created since the last time the class was garbage collected.
  */
-COREUOBJECT_API FName MakeUniqueObjectName( UObject* Outer, const UClass* Class, FName BaseName=NAME_None );
+COREUOBJECT_API FName MakeUniqueObjectName( UObject* Outer, const UClass* Class, FName BaseName = NAME_None, EUniqueObjectNameOptions Options = EUniqueObjectNameOptions::None);
 
 /**
  * Given a display label string, generates an FName slug that is a valid FName for that label.
@@ -1619,9 +1662,22 @@ inline bool ParseObject( const TCHAR* Stream, const TCHAR* Match, T*& Obj, UObje
  * @see StaticFindObjectFast()
  */
 template< class T > 
-inline T* FindObjectFast( UObject* Outer, FName Name, bool ExactClass=false, bool AnyPackage=false, EObjectFlags ExclusiveFlags=RF_NoFlags )
+UE_DEPRECATED(5.1, "Support for searching for objects in ANY_PACKAGE has been deprecated. Please provide the actual Outer of an object you want to find.")
+inline T* FindObjectFast( UObject* Outer, FName Name, bool ExactClass, bool AnyPackage, EObjectFlags ExclusiveFlags=RF_NoFlags )
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return (T*)StaticFindObjectFast( T::StaticClass(), Outer, Name, ExactClass, AnyPackage, ExclusiveFlags );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+/**
+ * Find an optional object, relies on the name being unqualified
+ * @see StaticFindObjectFast()
+ */
+template< class T >
+inline T* FindObjectFast(UObject* Outer, FName Name, bool ExactClass = false, EObjectFlags ExclusiveFlags = RF_NoFlags)
+{
+	return (T*)StaticFindObjectFast(T::StaticClass(), Outer, Name, ExactClass, ExclusiveFlags);
 }
 
 /**

@@ -2655,7 +2655,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		bool bIsPossiblyCommandletName = Token.Len() && !Token.Contains(TEXT("-"));
 		if (bIsPossiblyCommandletName)
 		{
-			UClass* TempCommandletClass = FindObject<UClass>(ANY_PACKAGE, *(Token + TEXT("Commandlet")), false);
+			UClass* TempCommandletClass = FindFirstObject<UClass>(*(Token + TEXT("Commandlet")), EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("Looking for commandlet class"));
 			if (TempCommandletClass)
 			{
 				checkf(TempCommandletClass->IsChildOf(UCommandlet::StaticClass()), TEXT("It is not valid to have a class that ends with \"Commandlet\" that is not a UCommandlet subclass."));
@@ -3558,13 +3558,13 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		{
 			checkf(PRIVATE_GIsRunningCommandlet, TEXT("This should have been set in PreInitPreStartupScreen"));
 
-			CommandletClass = FindObject<UClass>(ANY_PACKAGE,*Token,false);
+			CommandletClass = Cast<UClass>(StaticFindFirstObject(UClass::StaticClass(), *Token, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("looking for commandlet")));
 			int32 PeriodIdx;
 			if (!CommandletClass && Token.FindChar('.', PeriodIdx))
 			{
 				// try to load module for commandlet specified before a period.
 				FModuleManager::Get().LoadModule(*Token.Left(PeriodIdx));
-				CommandletClass = FindObject<UClass>(ANY_PACKAGE, *Token, false);
+				CommandletClass = FindFirstObject<UClass>(*Token, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("Looking for commandlet class"));
 			}
 			if (!CommandletClass)
 			{
@@ -3822,7 +3822,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			if (bIsPossiblyUnrecognizedCommandlet)
 			{
 				// here we give people a reasonable warning if they tried to use the short name of a commandlet
-				UClass* TempCommandletClass = FindObject<UClass>(ANY_PACKAGE,*(Token+TEXT("Commandlet")),false);
+				UClass* TempCommandletClass = FindFirstObject<UClass>(*(Token + TEXT("Commandlet")), EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("Looking for commandlet class"));
 				if (TempCommandletClass)
 				{
 					UE_LOG(LogInit, Fatal, TEXT("You probably meant to call a commandlet. Please use the full name %s."), *(Token+TEXT("Commandlet")));

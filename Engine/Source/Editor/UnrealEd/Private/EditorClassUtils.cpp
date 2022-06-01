@@ -230,12 +230,20 @@ TSharedRef<SWidget> FEditorClassUtils::GetSourceLinkFormatted(const UClass* Clas
 
 UClass* FEditorClassUtils::GetClassFromString(const FString& ClassName)
 {
-	if(ClassName.IsEmpty() || ClassName == "None")
+	if(ClassName.IsEmpty() || ClassName == TEXT("None"))
 	{
 		return nullptr;
 	}
 
-	UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+	UClass* Class = nullptr;
+	if (!FPackageName::IsShortPackageName(ClassName))
+	{
+		Class = FindObject<UClass>(nullptr, *ClassName);
+	}
+	else
+	{
+		Class = FindFirstObject<UClass>(*ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("FEditorClassUtils::GetClassFromString"));
+	}
 	if(!Class)
 	{
 		Class = LoadObject<UClass>(nullptr, *ClassName);
@@ -245,20 +253,20 @@ UClass* FEditorClassUtils::GetClassFromString(const FString& ClassName)
 
 bool FEditorClassUtils::IsBlueprintAsset(const FAssetData& InAssetData, bool* bOutIsBPGC /*= nullptr*/)
 {
-	bool bIsBP = (InAssetData.AssetClass == UBlueprint::StaticClass()->GetFName());
-	bool bIsBPGC = (InAssetData.AssetClass == UBlueprintGeneratedClass::StaticClass()->GetFName());
+	bool bIsBP = (InAssetData.AssetClassPath == UBlueprint::StaticClass()->GetClassPathName());
+	bool bIsBPGC = (InAssetData.AssetClassPath == UBlueprintGeneratedClass::StaticClass()->GetClassPathName());
 
 	if (!bIsBP && !bIsBPGC)
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
-		TArray<FName> AncestorClassNames;
-		AssetRegistry.GetAncestorClassNames(InAssetData.AssetClass, AncestorClassNames);
+		TArray<FTopLevelAssetPath> AncestorClassNames;
+		AssetRegistry.GetAncestorClassNames(InAssetData.AssetClassPath, AncestorClassNames);
 
-		if (AncestorClassNames.Contains(UBlueprint::StaticClass()->GetFName()))
+		if (AncestorClassNames.Contains(UBlueprint::StaticClass()->GetClassPathName()))
 		{
 			bIsBP = true;
 		}
-		else if (AncestorClassNames.Contains(UBlueprintGeneratedClass::StaticClass()->GetFName()))
+		else if (AncestorClassNames.Contains(UBlueprintGeneratedClass::StaticClass()->GetClassPathName()))
 		{
 			bIsBPGC = true;
 		}
@@ -278,6 +286,12 @@ FName FEditorClassUtils::GetClassPathFromAssetTag(const FAssetData& InAssetData)
 	return FName(FPackageName::ExportTextPathToObjectPath(FStringView(GeneratedClassPath)));
 }
 
+FTopLevelAssetPath FEditorClassUtils::GetClassPathNameFromAssetTag(const FAssetData& InAssetData)
+{
+	const FString GeneratedClassPath = InAssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
+	return FTopLevelAssetPath(FPackageName::ExportTextPathToObjectPath(FStringView(GeneratedClassPath)));
+}
+
 FName FEditorClassUtils::GetClassPathFromAsset(const FAssetData& InAssetData, bool bGenerateClassPathIfMissing /*= false*/)
 {
 	bool bIsBPGC = false;
@@ -289,7 +303,9 @@ FName FEditorClassUtils::GetClassPathFromAsset(const FAssetData& InAssetData, bo
 	}
 	else if (bIsBP)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FName ClassPath = GetClassPathFromAssetTag(InAssetData);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (bGenerateClassPathIfMissing && ClassPath.IsNone())
 		{
 			FNameBuilder ClassPathBuilder(InAssetData.ObjectPath);
@@ -299,6 +315,29 @@ FName FEditorClassUtils::GetClassPathFromAsset(const FAssetData& InAssetData, bo
 		return ClassPath;
 	}
 	return NAME_None;
+}
+
+FTopLevelAssetPath FEditorClassUtils::GetClassPathNameFromAsset(const FAssetData& InAssetData, bool bGenerateClassPathIfMissing /*= false*/)
+{
+	bool bIsBPGC = false;
+	const bool bIsBP = IsBlueprintAsset(InAssetData, &bIsBPGC);
+
+	if (bIsBPGC)
+	{
+		return FTopLevelAssetPath(InAssetData.ObjectPath.ToString());
+	}
+	else if (bIsBP)
+	{
+		FTopLevelAssetPath ClassPath = GetClassPathNameFromAssetTag(InAssetData);
+		if (bGenerateClassPathIfMissing && ClassPath.IsNull())
+		{
+			FString ClassPathString = InAssetData.ObjectPath.ToString();
+			ClassPathString += TEXT("_C");
+			ClassPath = FTopLevelAssetPath(ClassPathString);
+		}
+		return ClassPath;
+	}
+	return FTopLevelAssetPath();
 }
 
 void FEditorClassUtils::GetImplementedInterfaceClassPathsFromAsset(const struct FAssetData& InAssetData, TArray<FString>& OutClassPaths)

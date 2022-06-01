@@ -1117,7 +1117,7 @@ void SNewClassDialog::FinishClicked()
 			// @todo show fail reason in error label
 			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("AddCodeFailed_Blueprint_NoBase", "No parent class has been specified. Failed to generate new Blueprint class."));
 		}
-		else if (FindObject<UBlueprint>(ANY_PACKAGE, *PackagePath))
+		else if (FindObject<UBlueprint>(nullptr, *PackagePath))
 		{
 			// @todo show fail reason in error label
 			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("AddCodeFailed_Blueprint_AlreadyExists", "The chosen Blueprint class already exists, please try again with a different name."));

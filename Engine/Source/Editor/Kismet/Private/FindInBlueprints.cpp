@@ -308,7 +308,7 @@ void FFindInBlueprintsGraphNode::FinalizeSearchData()
 {
 	if(!ClassName.IsEmpty())
 	{
-		Class = FindObject<UClass>(ANY_PACKAGE, *ClassName, true);
+		Class = UClass::TryFindTypeSlow<UClass>(ClassName, EFindFirstObjectOptions::ExactClass);
 		ClassName.Empty();
 	}
 }
@@ -371,7 +371,7 @@ void FFindInBlueprintsPin::FinalizeSearchData()
 {
 	if(!PinType.PinSubCategory.IsNone())
 	{
-		PinType.PinSubCategoryObject = FindObject<UClass>(ANY_PACKAGE, *PinType.PinSubCategory.ToString(), true);
+		PinType.PinSubCategoryObject = UClass::TryFindTypeSlow<UClass>(PinType.PinSubCategory.ToString(), EFindFirstObjectOptions::ExactClass);
 		if(!PinType.PinSubCategoryObject.IsValid())
 		{
 			PinType.PinSubCategoryObject = FindObject<UScriptStruct>(UObject::StaticClass(), *PinType.PinSubCategory.ToString());
@@ -385,7 +385,7 @@ void FFindInBlueprintsPin::FinalizeSearchData()
 
 	if(!SchemaName.IsEmpty())
 	{
-		UClass* SchemaClass = FindObject<UClass>(ANY_PACKAGE, *SchemaName, true);
+		UClass* SchemaClass = UClass::TryFindTypeSlow<UClass>(SchemaName, EFindFirstObjectOptions::ExactClass);
 		if(SchemaClass)
 		{
 			UEdGraphSchema* Schema = SchemaClass->GetDefaultObject<UEdGraphSchema>();
@@ -489,7 +489,7 @@ void FFindInBlueprintsProperty::FinalizeSearchData()
 {
 	if(!PinType.PinSubCategory.IsNone())
 	{
-		PinType.PinSubCategoryObject = FindObject<UClass>(ANY_PACKAGE, *PinType.PinSubCategory.ToString(), true);
+		PinType.PinSubCategoryObject = UClass::TryFindTypeSlow<UClass>(PinType.PinSubCategory.ToString(), EFindFirstObjectOptions::ExactClass);
 		if(!PinType.PinSubCategoryObject.IsValid())
 		{
 			PinType.PinSubCategoryObject = FindObject<UScriptStruct>(UObject::StaticClass(), *PinType.PinSubCategory.ToString());

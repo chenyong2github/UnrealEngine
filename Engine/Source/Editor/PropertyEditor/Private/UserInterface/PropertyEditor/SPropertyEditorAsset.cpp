@@ -129,6 +129,16 @@ void SPropertyEditorAsset::InitializeClassFilters(const FProperty* Property)
 
 	bExactClass = GetTagOrBoolMetadata(MetadataProperty, TEXT("ExactClass"), false);
 
+	auto FindClass = [](const FString& InClassName)
+	{
+		UClass* Class = UClass::TryFindTypeSlow<UClass>(InClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
+		if (!Class)
+		{
+			Class = LoadObject<UClass>(nullptr, *InClassName);
+		}
+		return Class;
+	};
+
 	const FString AllowedClassesFilterString = MetadataProperty->GetMetaData(TEXT("AllowedClasses"));
 	if (!AllowedClassesFilterString.IsEmpty())
 	{
@@ -137,11 +147,7 @@ void SPropertyEditorAsset::InitializeClassFilters(const FProperty* Property)
 
 		for (const FString& ClassName : AllowedClassFilterNames)
 		{
-			UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
-			if (!Class)
-			{
-				Class = LoadObject<UClass>(nullptr, *ClassName);
-			}
+			UClass* Class = FindClass(ClassName);
 
 			if (Class)
 			{
@@ -179,11 +185,7 @@ void SPropertyEditorAsset::InitializeClassFilters(const FProperty* Property)
 
 		for (const FString& ClassName : DisallowedClassFilterNames)
 		{
-			UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
-			if (!Class)
-			{
-				Class = LoadObject<UClass>(nullptr, *ClassName);
-			}
+			UClass* Class = FindClass(ClassName);
 
 			if (Class)
 			{

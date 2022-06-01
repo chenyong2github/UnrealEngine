@@ -4804,7 +4804,7 @@ void SAnimNotifyPanel::OnGetNotifyBlueprintData(TArray<FAssetData>& OutNotifyDat
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	// Collect a full list of assets with the specified class
-	AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), AssetDataList);
+	AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), AssetDataList);
 
 
 	int32 BeginClassCount = InOutAllowedClassNames->Num();
@@ -4880,7 +4880,7 @@ void SAnimNotifyPanel::OnGetNativeNotifyData(TArray<UClass*>& OutClasses, UClass
 		{
 			OutClasses.Add(Class);
 			// Form class name to search later
-			FString ClassName = FString::Printf(TEXT("%s'%s'"), *Class->GetClass()->GetName(), *Class->GetPathName());
+			FString ClassName = FObjectPropertyBase::GetExportPath(Class);
 			OutAllowedBlueprintClassNames->AddUnique(ClassName);
 		}
 	}

@@ -40,8 +40,8 @@ class FBlueprintAssetTypeHandler : public IBlueprintAssetHandler
 FBlueprintAssetHandler::FBlueprintAssetHandler()
 {
 	// Register default handlers
-	RegisterHandler<FLevelBlueprintAssetHandler>(UWorld::StaticClass()->GetFName());
-	RegisterHandler<FBlueprintAssetTypeHandler>(UBlueprint::StaticClass()->GetFName());
+	RegisterHandler<FLevelBlueprintAssetHandler>(UWorld::StaticClass()->GetClassPathName());
+	RegisterHandler<FBlueprintAssetTypeHandler>(UBlueprint::StaticClass()->GetClassPathName());
 }
 
 FBlueprintAssetHandler& FBlueprintAssetHandler::Get()
@@ -50,7 +50,7 @@ FBlueprintAssetHandler& FBlueprintAssetHandler::Get()
 	return Singleton;
 }
 
-void FBlueprintAssetHandler::RegisterHandler(FName EligibleClass, TUniquePtr<IBlueprintAssetHandler>&& InHandler)
+void FBlueprintAssetHandler::RegisterHandler(FTopLevelAssetPath EligibleClass, TUniquePtr<IBlueprintAssetHandler>&& InHandler)
 {
 	ClassNames.Add(EligibleClass);
 	Handlers.Add(MoveTemp(InHandler));
@@ -61,7 +61,7 @@ const IBlueprintAssetHandler* FBlueprintAssetHandler::FindHandler(const UClass* 
 	UClass* StopAtClass = UObject::StaticClass();
 	while (InClass && InClass != StopAtClass)
 	{
-		int32 Index = ClassNames.IndexOfByKey(InClass->GetFName());
+		int32 Index = ClassNames.IndexOfByKey(InClass->GetClassPathName());
 		if (Index != INDEX_NONE)
 		{
 			return Handlers[Index].Get();

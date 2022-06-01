@@ -657,7 +657,7 @@ struct COREUOBJECT_API FReferencerInformationList
 ----------------------------------------------------------------------------*/
 
 // Special canonical package for FindObject, ParseObject.
-#define ANY_PACKAGE ((UPackage*)-1)
+#define ANY_PACKAGE UE_DEPRECATED_MACRO(5.1, "ANY_PACKAGE has been deprecated. Either use full path name of objects (including classes) or provide a valid Outer for *FindObject* functions") ((UPackage*)-1)
 
 // Special prefix for default objects (the UObject in a UClass containing the default values, etc)
 #define DEFAULT_OBJECT_PREFIX TEXT("Default__")

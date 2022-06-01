@@ -51,9 +51,7 @@ FWidgetTemplateClass::FWidgetTemplateClass(const FAssetData& InWidgetAssetData, 
 			}
 			if (!ParentClassName.IsEmpty())
 			{
-				UObject* Outer = nullptr;
-				ResolveName(Outer, ParentClassName, false, false);
-				CachedParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+				CachedParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
 			}
 		}
 	}

@@ -152,7 +152,7 @@ void FFbxImporter::ShowFbxSkeletonConflictWindow(USkeletalMesh* SkeletalMesh, US
 					FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*FullAssetPathName));
 					if (AssetData.GetClass() != nullptr)
 					{
-						TSharedPtr<FString> AssetReferencing = MakeShareable(new FString(AssetData.AssetClass.ToString() + TEXT(" ") + FullAssetPathName));
+						TSharedPtr<FString> AssetReferencing = MakeShareable(new FString(AssetData.AssetClassPath.ToString() + TEXT(" ") + FullAssetPathName));
 						AssetReferencingSkeleton.Add(AssetReferencing);
 					}
 				}

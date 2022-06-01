@@ -152,7 +152,7 @@ int32 UGatherTextCommandlet::ProcessGatherConfig(const FString& GatherTextConfig
 		FString PlatformSplitModeString;
 		if (GetStringFromConfig(TEXT("CommonSettings"), TEXT("PlatformSplitMode"), PlatformSplitModeString, GatherTextConfigPath))
 		{
-			UEnum* PlatformSplitModeEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ELocTextPlatformSplitMode"));
+			UEnum* PlatformSplitModeEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Localization.ELocTextPlatformSplitMode"));
 			const int64 PlatformSplitModeInt = PlatformSplitModeEnum->GetValueByName(*PlatformSplitModeString);
 			if (PlatformSplitModeInt != INDEX_NONE)
 			{
@@ -219,7 +219,7 @@ int32 UGatherTextCommandlet::ProcessGatherConfig(const FString& GatherTextConfig
 	{
 		FString CommandletClassName = GConfig->GetStr( *StepName, TEXT("CommandletClass"), GatherTextConfigPath ) + TEXT("Commandlet");
 
-		UClass* CommandletClass = FindObject<UClass>(ANY_PACKAGE,*CommandletClassName,false);
+		UClass* CommandletClass = FindFirstObject<UClass>(*CommandletClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("UGatherTextCommandlet::ProcessGatherConfig"));
 		if (!CommandletClass)
 		{
 			UE_LOG(LogGatherTextCommandlet, Error, TEXT("The commandlet name %s in section %s is invalid."), *CommandletClassName, *StepName);

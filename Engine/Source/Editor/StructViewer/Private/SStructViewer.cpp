@@ -915,7 +915,7 @@ void FStructHierarchy::PopulateStructHierarchy()
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 		FARFilter Filter;
-		Filter.ClassNames.Add(UUserDefinedStruct::StaticClass()->GetFName());
+		Filter.ClassPaths.Add(UUserDefinedStruct::StaticClass()->GetClassPathName());
 		Filter.bRecursiveClasses = true;
 
 		TArray<FAssetData> UserDefinedStructsList;

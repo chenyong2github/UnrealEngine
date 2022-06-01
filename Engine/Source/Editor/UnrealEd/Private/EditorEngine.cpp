@@ -486,9 +486,9 @@ void UEditorEngine::GetContentBrowserSelectionClasses(TArray<UClass*>& Selection
 
 	for ( auto AssetIt = SelectedAssets.CreateConstIterator(); AssetIt; ++AssetIt )
 	{
-		UClass* AssetClass = FindObject<UClass>(ANY_PACKAGE, *(*AssetIt).AssetClass.ToString());
+		UClass* AssetClass = FindObject<UClass>((*AssetIt).AssetClassPath);
 
-		if ( AssetClass != NULL )
+		if ( AssetClass != nullptr )
 		{
 			Selection.AddUnique(AssetClass);
 		}

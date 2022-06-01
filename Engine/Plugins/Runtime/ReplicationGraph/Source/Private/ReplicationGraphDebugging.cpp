@@ -511,7 +511,7 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetClassCullDistance(TEXT("Net.Re
 			return;
 		}
 
-		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *Args[0]);
+		UClass* Class = UClass::TryFindTypeSlow<UClass>(Args[0]);
 		if (Class == nullptr)
 		{
 			UE_LOG(LogReplicationGraph, Display, TEXT("Could not find Class: %s"), *Args[0]);
@@ -572,7 +572,7 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetPeriodFrame(TEXT("Net.RepGraph
 			return;
 		}
 
-		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *Args[0]);
+		UClass* Class = UClass::TryFindTypeSlow<UClass>(Args[0]);
 		if (Class == nullptr)
 		{
 			UE_LOG(LogReplicationGraph, Display, TEXT("Could not find Class: %s"), *Args[0]);

@@ -200,7 +200,7 @@ TSharedRef<SWidget> SGraphPinObject::GenerateAssetPicker()
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
 	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassNames.Add(AllowedClass->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(AllowedClass->GetClassPathName());
 	AssetPickerConfig.bAllowNullSelection = true;
 	AssetPickerConfig.Filter.bRecursiveClasses = true;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SGraphPinObject::OnAssetSelectedFromPicker);
@@ -213,14 +213,15 @@ TSharedRef<SWidget> SGraphPinObject::GenerateAssetPicker()
 	if( !AllowedClassesFilterString.IsEmpty() )
 	{
 		// Clear out the allowed class names and have the pin's metadata override.
-		AssetPickerConfig.Filter.ClassNames.Empty();
+		AssetPickerConfig.Filter.ClassPaths.Empty();
 
 		// Parse and add the classes from the metadata
 		TArray<FString> AllowedClassesFilterNames;
 		AllowedClassesFilterString.ParseIntoArrayWS(AllowedClassesFilterNames, TEXT(","), true);
 		for(const FString& AllowedClassesFilterName : AllowedClassesFilterNames)
 		{
-			AssetPickerConfig.Filter.ClassNames.Add(FName(*AllowedClassesFilterName));
+			ensureAlwaysMsgf(!FPackageName::IsShortPackageName(AllowedClassesFilterName), TEXT("Short class names are not supported as AllowedClasses on pin \"%s\": class \"%s\""), *GraphPinObj->PinName.ToString(), *AllowedClassesFilterName);
+			AssetPickerConfig.Filter.ClassPaths.Add(FTopLevelAssetPath(AllowedClassesFilterName));
 		}
 	}
 
@@ -231,7 +232,8 @@ TSharedRef<SWidget> SGraphPinObject::GenerateAssetPicker()
 		DisallowedClassesFilterString.ParseIntoArrayWS(DisallowedClassesFilterNames, TEXT(","), true);
 		for(const FString& DisallowedClassesFilterName : DisallowedClassesFilterNames)
 		{
-			AssetPickerConfig.Filter.RecursiveClassesExclusionSet.Add(FName(*DisallowedClassesFilterName));
+			ensureAlwaysMsgf(!FPackageName::IsShortPackageName(DisallowedClassesFilterName), TEXT("Short class names are not supported as DisallowedClasses on pin \"%s\": class \"%s\""), *GraphPinObj->PinName.ToString(), *DisallowedClassesFilterName);
+			AssetPickerConfig.Filter.RecursiveClassPathsExclusionSet.Add(FTopLevelAssetPath(DisallowedClassesFilterName));
 		}
 	}
 
@@ -424,7 +426,7 @@ const FAssetData& SGraphPinObject::GetAssetData(bool bRuntimePath) const
 				FString ObjectName = FPackageName::ObjectPathToObjectName(GraphPinObj->DefaultValue);
 
 				// Fake one
-				CachedAssetData = FAssetData(FName(*PackageName), FName(*PackagePath), FName(*ObjectName), UObject::StaticClass()->GetFName());
+				CachedAssetData = FAssetData(FName(*PackageName), FName(*PackagePath), FName(*ObjectName), UObject::StaticClass()->GetClassPathName());
 			}
 		}
 	}

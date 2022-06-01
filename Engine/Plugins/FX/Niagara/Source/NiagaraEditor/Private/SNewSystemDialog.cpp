@@ -153,7 +153,7 @@ TOptional<FAssetData> SNewSystemDialog::GetSelectedSystemAsset() const
 	TArray<FAssetData> SelectedSystemAssets;
 	for (const FAssetData& SelectedAsset : AllSelectedAssets)
 	{
-		if (SelectedAsset.AssetClass == UNiagaraSystem::StaticClass()->GetFName())
+		if (SelectedAsset.AssetClassPath == UNiagaraSystem::StaticClass()->GetClassPathName())
 		{
 			SelectedSystemAssets.Add(SelectedAsset);
 		}
@@ -171,7 +171,7 @@ TArray<FAssetData> SNewSystemDialog::GetSelectedEmitterAssets() const
 	TArray<FAssetData> ConfirmedSelectedEmitterAssets;
 	for (const FAssetData& SelectedAsset : AllSelectedAssets)
 	{
-		if (SelectedAsset.AssetClass == UNiagaraEmitter::StaticClass()->GetFName())
+		if (SelectedAsset.AssetClassPath == UNiagaraEmitter::StaticClass()->GetClassPathName())
 		{
 			ConfirmedSelectedEmitterAssets.Add(SelectedAsset);
 		}

@@ -659,6 +659,7 @@ void UDataRegistrySubsystem::ApplyPreregisterMap(UDataRegistry* Registry)
 
 	if (FoundPreregister)
 	{
+		const FTopLevelAssetPath ObjectClassPath(TEXT("/Script/CoreUObject"), TEXT("Object"));
 		for (int32 i = 0; i < FoundPreregister->Num(); i++)
 		{
 			bool bRegistered = false;
@@ -671,7 +672,7 @@ void UDataRegistrySubsystem::ApplyPreregisterMap(UDataRegistry* Registry)
 			else if (Settings->CanIgnoreMissingAssetData())
 			{
 				// Construct fake asset data and register that
-				AssetData = FAssetData(AssetPath.GetLongPackageName(), AssetPath.GetAssetPathString(), NAME_Object);
+				AssetData = FAssetData(AssetPath.GetLongPackageName(), AssetPath.GetAssetPathString(), ObjectClassPath);
 				bRegistered = Registry->RegisterSpecificAsset(AssetData, (*FoundPreregister)[i].Value);
 			}
 

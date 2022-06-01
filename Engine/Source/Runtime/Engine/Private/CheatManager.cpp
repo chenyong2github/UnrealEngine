@@ -422,15 +422,7 @@ void UCheatManager::Summon( const FString& ClassName )
 	bool bSpawnedActor = false;
 	if ( bIsValidClassName )
 	{
-		UClass* NewClass = NULL;
-		if ( FPackageName::IsShortPackageName(ClassName) )
-		{
-			NewClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
-		}
-		else
-		{
-			NewClass = FindObject<UClass>(NULL, *ClassName);
-		}
+		UClass* NewClass = UClass::TryFindTypeSlow<UClass>(ClassName);
 
 		if( NewClass )
 		{
@@ -1342,19 +1334,27 @@ void UCheatManager::DestroyServerStatReplicator()
 
 void UCheatManager::ToggleServerStatReplicatorClientOverwrite()
 {
-	AServerStatReplicator* ServerStatReplicator = FindObject<AServerStatReplicator>(ANY_PACKAGE, TEXT("ServerStatReplicatorInst"));
-	if (ServerStatReplicator != nullptr)
+	APlayerController* PlayerController = GetOuterAPlayerController();
+	if (ensure(PlayerController))
 	{
-		ServerStatReplicator->bOverwriteClientStats = !ServerStatReplicator->bOverwriteClientStats;
+		AServerStatReplicator* ServerStatReplicator = FindObject<AServerStatReplicator>(PlayerController->GetLevel(), TEXT("ServerStatReplicatorInst"));
+		if (ServerStatReplicator != nullptr)
+		{
+			ServerStatReplicator->bOverwriteClientStats = !ServerStatReplicator->bOverwriteClientStats;
+		}
 	}
 }
 
 void UCheatManager::ToggleServerStatReplicatorUpdateStatNet()
 {
-	AServerStatReplicator* ServerStatReplicator = FindObject<AServerStatReplicator>(ANY_PACKAGE, TEXT("ServerStatReplicatorInst"));
-	if (ServerStatReplicator != nullptr)
+	APlayerController* PlayerController = GetOuterAPlayerController();
+	if (ensure(PlayerController))
 	{
-		ServerStatReplicator->bUpdateStatNet = !ServerStatReplicator->bUpdateStatNet;
+		AServerStatReplicator* ServerStatReplicator = FindObject<AServerStatReplicator>(PlayerController->GetLevel(), TEXT("ServerStatReplicatorInst"));
+		if (ServerStatReplicator != nullptr)
+		{
+			ServerStatReplicator->bUpdateStatNet = !ServerStatReplicator->bUpdateStatNet;
+		}
 	}
 }
 

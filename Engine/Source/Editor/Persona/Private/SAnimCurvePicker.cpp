@@ -73,7 +73,7 @@ void SAnimCurvePicker::RefreshListItems()
 
 	FARFilter Filter;
 	Filter.bRecursiveClasses = true;
-	Filter.ClassNames.Add(UAnimationAsset::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UAnimationAsset::StaticClass()->GetClassPathName());
 	Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(&EditableSkeleton.Pin()->GetSkeleton()).GetExportTextName());
 
 	TArray<FAssetData> FoundAssetData;

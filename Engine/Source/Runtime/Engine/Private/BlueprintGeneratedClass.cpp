@@ -236,7 +236,7 @@ void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& O
 
 	if (UClass* ParentClass = GetSuperClass())
 	{
-		ParentClassName = FString::Printf(TEXT("%s'%s'"), *ParentClass->GetClass()->GetName(), *ParentClass->GetPathName());
+		ParentClassName = FObjectPropertyBase::GetExportPath(ParentClass);
 
 		// Walk up until we find a native class (ie 'while they are BP classes')
 		UClass* NativeParentClass = ParentClass;
@@ -244,7 +244,7 @@ void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& O
 		{
 			NativeParentClass = NativeParentClass->GetSuperClass();
 		}
-		NativeParentClassName = FString::Printf(TEXT("%s'%s'"), *NativeParentClass->GetClass()->GetName(), *NativeParentClass->GetPathName());
+		NativeParentClassName = FObjectPropertyBase::GetExportPath(NativeParentClass);
 	}
 	else
 	{
@@ -271,6 +271,28 @@ void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& O
 	}
 #endif //#if WITH_EDITORONLY_DATA
 }
+
+#if WITH_EDITOR
+void UBlueprintGeneratedClass::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const
+{
+	Super::PostLoadAssetRegistryTags(InAssetData, OutTagsAndValuesToUpdate);
+
+	auto FixTagValueShortClassName = [&InAssetData, &OutTagsAndValuesToUpdate](FName TagName, FAssetRegistryTag::ETagType TagType)
+	{
+		FString TagValue = InAssetData.GetTagValueRef<FString>(TagName);
+		if (!TagValue.IsEmpty() && TagValue != TEXT("None"))
+		{
+			if (UClass::TryFixShortClassNameExportPath(TagValue, ELogVerbosity::Warning, TEXT("UBlueprintGeneratedClass::PostLoadAssetRegistryTags")))
+			{
+				OutTagsAndValuesToUpdate.Add(FAssetRegistryTag(TagName, TagValue, TagType));
+			}
+		}
+	};
+
+	FixTagValueShortClassName(FBlueprintTags::ParentClassPath, FAssetRegistryTag::TT_Alphabetical);
+	FixTagValueShortClassName(FBlueprintTags::NativeParentClassPath, FAssetRegistryTag::TT_Alphabetical);
+}
+#endif // WITH_EDITOR
 
 FPrimaryAssetId UBlueprintGeneratedClass::GetPrimaryAssetId() const
 {

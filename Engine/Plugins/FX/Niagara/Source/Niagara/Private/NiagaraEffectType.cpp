@@ -338,7 +338,7 @@ void UNiagaraEffectType::GeneratePerfBaselines()
 		//Load all effect types so we generate all baselines at once.
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		TArray<FAssetData> EffectTypeAssets;
-		AssetRegistryModule.Get().GetAssetsByClass(UNiagaraEffectType::StaticClass()->GetFName(), EffectTypeAssets);
+		AssetRegistryModule.Get().GetAssetsByClass(UNiagaraEffectType::StaticClass()->GetClassPathName(), EffectTypeAssets);
 
 		TArray<UNiagaraEffectType*> EffectTypesToGenerate;
 		for (FAssetData& Asset : EffectTypeAssets)

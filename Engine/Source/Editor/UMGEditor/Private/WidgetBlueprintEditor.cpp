@@ -524,7 +524,7 @@ void FWidgetBlueprintEditor::OpenCreateNativeBaseClassDialog()
 
 void FWidgetBlueprintEditor::OnCreateNativeBaseClassSuccessfully(const FString& InClassName, const FString& InClassPath, const FString& InModuleName)
 {
-	UClass* NewNativeClass = FindObject<UClass>(ANY_PACKAGE, *InClassName);
+	UClass* NewNativeClass = FindObject<UClass>(FTopLevelAssetPath(*InClassPath, *InClassName));
 	if (NewNativeClass)
 	{
 		ReparentBlueprint_NewParentChosen(NewNativeClass);

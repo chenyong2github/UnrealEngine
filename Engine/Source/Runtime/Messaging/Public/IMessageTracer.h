@@ -188,7 +188,11 @@ struct FMessageTracerTypeInfo
 	TArray<TSharedPtr<FMessageTracerMessageInfo>> Messages;
 
 	/** Holds a name of the message type. */
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use TypePathName.")
 	FName TypeName;
+
+	/** Holds a path name of the message type. */
+	FTopLevelAssetPath TypePathName;
 };
 
 

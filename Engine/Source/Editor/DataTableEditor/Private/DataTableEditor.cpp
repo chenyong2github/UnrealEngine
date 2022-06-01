@@ -966,7 +966,7 @@ void FDataTableEditor::PostRegenerateMenusAndToolbars()
 				SNew(SHyperlink)
 				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate(this, &FDataTableEditor::OnEditDataTableStructClicked)
-				.Text(FText::FromName(DataTable->GetRowStructName()))
+				.Text(FText::FromName(DataTable->GetRowStructPathName().GetAssetName()))
 				.ToolTipText(LOCTEXT("DataTableRowToolTip", "Open the struct used for each row in this data table"))
 			]
 			+ SHorizontalBox::Slot()

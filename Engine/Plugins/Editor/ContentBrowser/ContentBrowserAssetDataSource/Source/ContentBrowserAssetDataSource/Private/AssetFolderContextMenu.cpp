@@ -224,7 +224,7 @@ void FAssetFolderContextMenu::ExecuteFixUpRedirectorsInFolder()
 	for (const auto& Path : SelectedPaths)
 	{
 		Filter.PackagePaths.Emplace(*Path);
-		Filter.ClassNames.Emplace(TEXT("ObjectRedirector"));
+		Filter.ClassPaths.Emplace(FTopLevelAssetPath(TEXT("/Script/CoreUObject"), TEXT("ObjectRedirector")));
 	}
 
 	// Query for a list of assets in the selected paths

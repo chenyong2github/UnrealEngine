@@ -312,8 +312,10 @@ void FBlueprintSpawnNodeCommands::RegisterCommands()
 			continue;
 		}
 
+		UE_CLOG(FPackageName::IsShortPackageName(ClassName), LogClass, Warning, TEXT("Short class name found when parsing ini: [%s] %s"), *ConfigSection, *SettingName);
+
 		FString CommandLabel;
-		UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *ClassName, true);
+		UClass* FoundClass = FindFirstObject<UClass>(*ClassName, EFindFirstObjectOptions::ExactClass, ELogVerbosity::Warning, TEXT("looking for SpawnNodes"));
 		TSharedPtr< FNodeSpawnInfo > InfoPtr;
 
 		if(FoundClass && FoundClass->IsChildOf(UEdGraphNode::StaticClass()))
@@ -330,7 +332,7 @@ void FBlueprintSpawnNodeCommands::RegisterCommands()
 
 			InfoPtr = MakeShareable( new FEdGraphNodeSpawnInfo( FoundClass ) );
 		}
-		else if(UFunction* FoundFunction = FindObject<UFunction>(ANY_PACKAGE, *ClassName, true))
+		else if(UFunction* FoundFunction = FindFirstObject<UFunction>(*ClassName, EFindFirstObjectOptions::ExactClass, ELogVerbosity::Warning, TEXT("looking for SpawnNodes (function)")))
 		{
 			// The class name matches that of a function, so setup a spawn info that can generate function graph actions
 			InfoPtr = MakeShareable( new FFunctionNodeSpawnInfo((UFunction*)FoundFunction));

@@ -113,19 +113,19 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 		// Add filter classes - if we have a single filter class of "Object" then don't set a filter since it would always match everything (but slower!)
 		if (AllowedClasses.Num() == 1 && AllowedClasses[0] == UObject::StaticClass())
 		{
-			AssetPickerConfig.Filter.ClassNames.Reset();
+			AssetPickerConfig.Filter.ClassPaths.Reset();
 		}
 		else
 		{
 			for(int32 i = 0; i < AllowedClasses.Num(); ++i)
 			{
-				AssetPickerConfig.Filter.ClassNames.Add( AllowedClasses[i]->GetFName() );
+				AssetPickerConfig.Filter.ClassPaths.Add( AllowedClasses[i]->GetClassPathName() );
 			}
 		}
 
 		for (int32 i = 0; i < DisallowedClasses.Num(); ++i)
 		{
-			AssetPickerConfig.Filter.RecursiveClassesExclusionSet.Add(DisallowedClasses[i]->GetFName());
+			AssetPickerConfig.Filter.RecursiveClassPathsExclusionSet.Add(DisallowedClasses[i]->GetClassPathName());
 		}
 
 		// Allow child classes

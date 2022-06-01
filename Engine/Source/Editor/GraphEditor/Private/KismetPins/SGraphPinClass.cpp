@@ -130,7 +130,7 @@ TSharedRef<SWidget> SGraphPinClass::GenerateAssetPicker()
 		FString PossibleInterface = ParentNode->GetPinMetaData(GraphPinObj->PinName, TEXT("MustImplement"));
 		if (!PossibleInterface.IsEmpty())
 		{
-			Filter->RequiredInterface = FindObject<UClass>(ANY_PACKAGE, *PossibleInterface);
+			Filter->RequiredInterface = UClass::TryFindTypeSlow<UClass>(PossibleInterface);
 		}
 	}
 
@@ -222,7 +222,7 @@ const FAssetData& SGraphPinClass::GetAssetData(bool bRuntimePath) const
 				FString ObjectName = FPackageName::ObjectPathToObjectName(EditorPath);
 
 				// Fake one
-				CachedEditorAssetData = FAssetData(FName(*PackageName), FName(*PackagePath), FName(*ObjectName), UObject::StaticClass()->GetFName());
+				CachedEditorAssetData = FAssetData(FName(*PackageName), FName(*PackagePath), FName(*ObjectName), UObject::StaticClass()->GetClassPathName());
 			}
 		}
 	}

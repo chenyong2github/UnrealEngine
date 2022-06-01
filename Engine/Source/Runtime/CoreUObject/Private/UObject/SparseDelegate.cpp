@@ -396,7 +396,7 @@ void FSparseDelegateStorage::SparseDelegateReport(const TArray<FString>& Args, U
 		{
 			FString ClassName;
 			Arg.Split(TEXT("="), nullptr, &ClassName, ESearchCase::CaseSensitive);
-			ObjectType = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+			ObjectType = UClass::TryFindTypeSlow<UClass>(ClassName);
 			if (ObjectType == nullptr)
 			{
 				Ar.Logf(ELogVerbosity::Warning, TEXT("No class of specified name found."));

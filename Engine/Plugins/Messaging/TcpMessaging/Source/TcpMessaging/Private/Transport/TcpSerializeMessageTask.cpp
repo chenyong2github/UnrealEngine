@@ -20,8 +20,8 @@ void FTcpSerializeMessageTask::DoTask(ENamedThreads::Type CurrentThread, const F
 		// serialize context
 		FArchive& Archive = SerializedMessage.Get();
 		{
-			const FName& MessageType = MessageContext->GetMessageType();
-			Archive << const_cast<FName&>(MessageType);
+			const FTopLevelAssetPath& MessageType = MessageContext->GetMessageTypePathName();
+			Archive << const_cast<FTopLevelAssetPath&>(MessageType);
 
 			const FMessageAddress& Sender = MessageContext->GetSender();
 			Archive << const_cast<FMessageAddress&>(Sender);

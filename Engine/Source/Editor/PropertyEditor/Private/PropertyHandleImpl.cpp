@@ -2813,7 +2813,7 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 	else if ( Property->IsA(FStrProperty::StaticClass()) && Property->HasMetaData( TEXT("Enum") ) )
 	{
 		const FString& EnumName = Property->GetMetaData(TEXT("Enum"));
-		Enum = FindObject<UEnum>(ANY_PACKAGE, *EnumName, true);
+		Enum = UClass::TryFindTypeSlow<UEnum>(EnumName, EFindFirstObjectOptions::ExactClass);
 		check( Enum );
 	}
 
@@ -3908,7 +3908,16 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 			{
 				for (const FString& ClassName : AllowedClassNames)
 				{
-					UClass* AllowedClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+					UClass* AllowedClass = nullptr;
+					if (!FPackageName::IsShortPackageName(ClassName))
+					{
+						AllowedClass = FindObject<UClass>(nullptr, *ClassName);
+					}
+					else
+					{ 
+						AllowedClass = FindFirstObject<UClass>(*ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("FPropertyHandleObject::SetValueFromFormattedString"));
+					}
+					
 					const bool bIsInterface = AllowedClass && AllowedClass->HasAnyClassFlags(CLASS_Interface);
 				
 					// Check if the object is an allowed class type this property supports
@@ -3932,7 +3941,7 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 
 				for (const FString& DisallowedClassName : DisallowedClassNames)
 				{
-					UClass* DisallowedClass = FindObject<UClass>(ANY_PACKAGE, *DisallowedClassName);
+					UClass* DisallowedClass = UClass::TryFindTypeSlow<UClass>(DisallowedClassName);
 					const bool bIsInterface = DisallowedClass && DisallowedClass->HasAnyClassFlags(CLASS_Interface);
 
 					if ((DisallowedClass && QualifiedClass->IsChildOf(DisallowedClass)) || (bIsInterface && QualifiedObject->GetClass()->ImplementsInterface(DisallowedClass)))

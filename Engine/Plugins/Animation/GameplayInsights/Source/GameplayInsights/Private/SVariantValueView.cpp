@@ -198,7 +198,7 @@ static TSharedRef<SWidget> MakeVariantValueWidget(const TraceServices::IAnalysis
 					}
 					else // it must be a native class
 					{
-						if (UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, ClassInfo.Name))
+						if (UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(ClassInfo.Name))
 						{
 							FSourceCodeNavigation::NavigateToClass(FoundClass);
 						}

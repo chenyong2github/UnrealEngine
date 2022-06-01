@@ -105,7 +105,7 @@ public:
 
 		const FAssetData& AssetData = AssetThumbnail->GetAssetData();
 
-		UClass* Class = FindObjectSafe<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
+		UClass* Class = FindObjectSafe<UClass>(AssetData.AssetClassPath);
 		static FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 		TSharedPtr<IAssetTypeActions> AssetTypeActions;
 		if ( Class != NULL )
@@ -284,7 +284,7 @@ public:
 
 		// For non-class types, use the default based upon the actual asset class
 		// This has the side effect of not showing a class icon for assets that don't have a proper thumbnail image available
-		const FName DefaultThumbnail = (bIsClassType) ? NAME_None : FName(*FString::Printf(TEXT("ClassThumbnail.%s"), *AssetThumbnail->GetAssetData().AssetClass.ToString()));
+		const FName DefaultThumbnail = (bIsClassType) ? NAME_None : FName(*FString::Printf(TEXT("ClassThumbnail.%s"), *AssetThumbnail->GetAssetData().AssetClassPath.GetAssetName().ToString()));
 		ThumbnailBrush = FClassIconFinder::FindThumbnailForClass(ThumbnailClass.Get(), DefaultThumbnail);
 
 		ClassIconBrush = FSlateIconFinder::FindIconBrushForClass(ThumbnailClass.Get());
@@ -369,7 +369,7 @@ private:
 
 		const FAssetData& AssetData = AssetThumbnail->GetAssetData();
 
-		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
+		UClass* Class = FindObject<UClass>(AssetData.AssetClassPath);
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 		TWeakPtr<IAssetTypeActions> AssetTypeActions;
 		if ( Class != NULL )
@@ -559,11 +559,11 @@ private:
 			return !CachedThumbnail->IsEmpty();
 		}
 
-		if ( AssetData.AssetClass != UBlueprint::StaticClass()->GetFName() )
+		if ( AssetData.AssetClassPath != UBlueprint::StaticClass()->GetClassPathName() )
 		{
 			// If we are not a blueprint, see if the CDO of the asset's class has a rendering info
 			// Blueprints can't do this because the rendering info is based on the generated class
-			UClass* AssetClass = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
+			UClass* AssetClass = FindObject<UClass>(AssetData.AssetClassPath);
 
 			if ( AssetClass )
 			{
@@ -654,15 +654,15 @@ private:
 	FText GetAssetClassDisplayName() const
 	{
 		const FAssetData& AssetData = AssetThumbnail->GetAssetData();
-		FString AssetClass = AssetData.AssetClass.ToString();
-		UClass* Class = FindObjectSafe<UClass>(ANY_PACKAGE, *AssetClass);
+		FTopLevelAssetPath AssetClass = AssetData.AssetClassPath;
+		UClass* Class = FindObjectSafe<UClass>(AssetClass);
 
 		if ( Class )
 		{
 			return GetDisplayNameForClass( Class, &AssetData );
 		}
 
-		return FText::FromString(AssetClass);
+		return FText::FromString(AssetClass.ToString());
 	}
 
 	FText GetAssetDisplayName() const

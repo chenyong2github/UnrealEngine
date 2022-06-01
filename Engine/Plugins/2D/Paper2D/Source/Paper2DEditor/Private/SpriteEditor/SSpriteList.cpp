@@ -26,7 +26,7 @@ void SSpriteList::RebuildWidget(UTexture2D* NewTextureFilter)
 	FAssetPickerConfig Config;
 
 	//Config.Filter.bRecursiveClasses = true;
-	Config.Filter.ClassNames.Add(UPaperSprite::StaticClass()->GetFName());
+	Config.Filter.ClassPaths.Add(UPaperSprite::StaticClass()->GetClassPathName());
 
 	Config.InitialAssetViewType = EAssetViewType::Tile;
 	Config.SyncToAssetsDelegates.Add(&SyncToAssetsDelegate);

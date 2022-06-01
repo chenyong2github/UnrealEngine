@@ -232,7 +232,7 @@ namespace Metasound
 			{
 				using namespace Frontend;
 
-				if (!IsMetaSoundAssetClass(InAssetData.AssetClass))
+				if (!IsMetaSoundAssetClass(InAssetData.AssetClassPath))
 				{
 					return;
 				}
@@ -259,7 +259,7 @@ namespace Metasound
 			{
 				using namespace Frontend;
 
-				if (!IsMetaSoundAssetClass(InAssetData.AssetClass))
+				if (!IsMetaSoundAssetClass(InAssetData.AssetClassPath))
 				{
 					return;
 				}
@@ -299,7 +299,7 @@ namespace Metasound
 				{
 					if (UObject* Obj = Pair.Key)
 					{
-						if (IsMetaSoundAssetClass(Obj->GetClass()->GetFName()))
+						if (IsMetaSoundAssetClass(Obj->GetClass()->GetClassPathName()))
 						{
 							check(GEngine);
 							UMetaSoundAssetSubsystem* AssetSubsystem = GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
@@ -313,7 +313,7 @@ namespace Metasound
 
 					if (UObject* Obj = Pair.Value)
 					{
-						if (IsMetaSoundAssetClass(Obj->GetClass()->GetFName()))
+						if (IsMetaSoundAssetClass(Obj->GetClass()->GetClassPathName()))
 						{
 							check(GEngine);
 							UMetaSoundAssetSubsystem* AssetSubsystem = GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
@@ -348,7 +348,7 @@ namespace Metasound
 
 			void RemoveAssetFromClassRegistry(const FAssetData& InAssetData)
 			{
-				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
+				if (IsMetaSoundAssetClass(InAssetData.AssetClassPath))
 				{
 					check(GEngine);
 					UMetaSoundAssetSubsystem* AssetSubsystem = GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
@@ -365,7 +365,7 @@ namespace Metasound
 
 			void RenameAssetInClassRegistry(const FAssetData& InAssetData, const FString& InOldObjectPath)
 			{
-				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
+				if (IsMetaSoundAssetClass(InAssetData.AssetClassPath))
 				{
 					check(GEngine);
 					UMetaSoundAssetSubsystem* AssetSubsystem = GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
@@ -563,7 +563,7 @@ namespace Metasound
 					AssetPrimeStatus = EAssetPrimeStatus::InProgress;
 
 					FARFilter Filter;
-					Filter.ClassNames = MetaSoundClassNames;
+					Filter.ClassPaths = MetaSoundClassNames;
 
 					FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 					AssetRegistryModule.Get().EnumerateAssets(Filter, [this](const FAssetData& AssetData)
@@ -643,7 +643,7 @@ namespace Metasound
 				return PinTypes.Find(InDataTypeName);
 			}
 
-			virtual bool IsMetaSoundAssetClass(const FName InClassName) const override
+			virtual bool IsMetaSoundAssetClass(const FTopLevelAssetPath& InClassName) const override
 			{
 				// TODO: Move to IMetasoundUObjectRegistry (overload IsRegisteredClass to take in class name?)
 				return MetaSoundClassNames.Contains(InClassName);
@@ -721,8 +721,8 @@ namespace Metasound
 					GetMutableDefault<UMetasoundEditorSettings>()
 				);
 
-				MetaSoundClassNames.Add(UMetaSound::StaticClass()->GetFName());
-				MetaSoundClassNames.Add(UMetaSoundSource::StaticClass()->GetFName());
+				MetaSoundClassNames.Add(UMetaSound::StaticClass()->GetClassPathName());
+				MetaSoundClassNames.Add(UMetaSoundSource::StaticClass()->GetClassPathName());
 
 				FAssetTypeActions_MetaSound::RegisterMenuActions();
 				FAssetTypeActions_MetaSoundSource::RegisterMenuActions();
@@ -794,7 +794,7 @@ namespace Metasound
 				MetaSoundClassNames.Reset();
 			}
 
-			TArray<FName> MetaSoundClassNames;
+			TArray<FTopLevelAssetPath> MetaSoundClassNames;
 
 			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 			TMap<EMetasoundFrontendLiteralType, const TSubclassOf<UMetasoundEditorGraphMemberDefaultLiteral>> InputDefaultLiteralClassRegistry;

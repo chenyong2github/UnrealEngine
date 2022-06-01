@@ -196,7 +196,7 @@ namespace UE::AssetRegistry
 	{
 	public:
 		/** Return whether to filter out assets of the given class and flags from the editor's asset registry */
-		static bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags);
+		static bool ShouldSkipAsset(const FTopLevelAssetPath& AssetClass, uint32 PackageFlags);
 
 		/** Return whether to filter out the given object (assumed to be an asset) from the editor's asset registry */
 		static bool ShouldSkipAsset(const UObject* InAsset);
@@ -206,7 +206,7 @@ namespace UE::AssetRegistry
 
 #if WITH_ENGINE && WITH_EDITOR
 		/** Copy the global skip classes set from the given external sets that were already populated. */
-		static void SetSkipClasses(const TSet<FName>& InSkipUncookedClasses, const TSet<FName>& InSkipCookedClasses);
+		static void SetSkipClasses(const TSet<FTopLevelAssetPath>& InSkipUncookedClasses, const TSet<FTopLevelAssetPath>& InSkipCookedClasses);
 #endif
 	};
 
@@ -214,13 +214,13 @@ namespace UE::AssetRegistry
 namespace Utils
 {
 	/** Return whether to filter out assets of the given class and flags based on the skip classes */
-	COREUOBJECT_API bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags,
-		const TSet<FName>& InSkipUncookedClasses, const TSet<FName>& InSkipCookedClasses);
+	COREUOBJECT_API bool ShouldSkipAsset(const FTopLevelAssetPath& AssetClass, uint32 PackageFlags,
+		const TSet<FTopLevelAssetPath>& InSkipUncookedClasses, const TSet<FTopLevelAssetPath>& InSkipCookedClasses);
 	/** Return whether to filter out the given object (assumed to be an asset) based on the skip classes */
 	COREUOBJECT_API bool ShouldSkipAsset(const UObject* InAsset,
-		const TSet<FName>& InSkipUncookedClasses, const TSet<FName>& InSkipCookedClasses);
+		const TSet<FTopLevelAssetPath>& InSkipUncookedClasses, const TSet<FTopLevelAssetPath>& InSkipCookedClasses);
 	/** Run the calculation of which classes to skip and store results in the given sets. */
-	COREUOBJECT_API void PopulateSkipClasses(TSet<FName>& OutSkipUncookedClasses, TSet<FName>& OutSkipCookedClasses);
+	COREUOBJECT_API void PopulateSkipClasses(TSet<FTopLevelAssetPath>& OutSkipUncookedClasses, TSet<FTopLevelAssetPath>& OutSkipCookedClasses);
 }
 #endif
 

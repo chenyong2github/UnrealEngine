@@ -906,7 +906,7 @@ namespace Metasound
 									{
 										if (AssetClass->IsChildOf(Class))
 										{
-											Filter.ClassNames.Add(Class->GetFName());
+											Filter.ClassPaths.Add(Class->GetClassPathName());
 											OutDefaultLiteral.Set(AssetObject);
 											bObjectFound = true;
 										}

@@ -235,7 +235,7 @@ void UTemplateSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)
 
 	if (BoundActorClass.IsValid())
 	{
-		FAssetRegistryTag Tag("BoundActorClass", BoundActorClass->GetName(), FAssetRegistryTag::TT_Alphabetical);
+		FAssetRegistryTag Tag("BoundActorClass", BoundActorClass->GetPathName(), FAssetRegistryTag::TT_Alphabetical);
 		OutTags.Add(Tag);
 	}
 	else
@@ -245,6 +245,23 @@ void UTemplateSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)
 }
 
 #if WITH_EDITOR
+
+void UTemplateSequence::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const
+{
+	Super::PostLoadAssetRegistryTags(InAssetData, OutTagsAndValuesToUpdate);
+
+	static const FName BoundActorClassTagName(TEXT("BoundActorClass"));
+	FString BoundActorClassTagValue = InAssetData.GetTagValueRef<FString>(BoundActorClassTagName);
+	if (!BoundActorClassTagValue.IsEmpty() && FPackageName::IsShortPackageName(BoundActorClassTagValue))
+	{
+		FTopLevelAssetPath BoundActorClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(BoundActorClassTagValue, ELogVerbosity::Warning, TEXT("UTemplateSequence::PostLoadAssetRegistryTags"));
+		if (!BoundActorClassPathName.IsNull())
+		{
+			OutTagsAndValuesToUpdate.Add(FAssetRegistryTag(BoundActorClassTagName, BoundActorClassPathName.ToString(), FAssetRegistryTag::TT_Alphabetical));
+		}
+	}
+}
+
 FText UTemplateSequence::GetDisplayName() const
 {
 	return UMovieSceneSequence::GetDisplayName();

@@ -33,7 +33,7 @@ protected:
 	IAssetRegistry* AssetRegistry;
 
 	void RecursivelyGrabDependencies(TArray<FSortableDependencyEntry>& OutSortableDependencies,
-		const int32& DepSet, int32& DepOrder, int32 DepHierarchy, TSet<FName>& ProcessedFiles, const TSet<FName>& OriginalSet, const FName& FilePath, const FName& PackageFName, const TArray<FName>& FilterByClass);
+		const int32& DepSet, int32& DepOrder, int32 DepHierarchy, TSet<FName>& ProcessedFiles, const TSet<FName>& OriginalSet, const FName& FilePath, const FName& PackageFName, const TArray<FTopLevelAssetPath>& FilterByClass);
 
 	void ReorderOrderFile(const FString& OrderFilePath, const FString& ReorderFileOutPath);
 	// Generate a new FOO which only takes partial update from new FOO files with input of an old FOO file and a new FOO file

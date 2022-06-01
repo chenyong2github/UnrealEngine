@@ -76,7 +76,7 @@ TArray<UClass*> FindRecordingSourceClasses()
 	TArray<FAssetData> ClassList;
 
 	FARFilter Filter;
-	Filter.ClassNames.Add(UTakeRecorderSource::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UTakeRecorderSource::StaticClass()->GetClassPathName());
 
 	// Include any Blueprint based objects as well, this includes things like Blutilities, UMG, and GameplayAbility objects
 	Filter.bRecursiveClasses = true;

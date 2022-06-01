@@ -3,7 +3,7 @@
 #include "MassEntityTemplate.h"
 #include "VisualLogger/VisualLoggerTypes.h"
 
-DEFINE_ENUM_TO_STRING(EMassEntityTemplateIDType);
+DEFINE_ENUM_TO_STRING(EMassEntityTemplateIDType, "/Script/MassSpawner");
 
 //----------------------------------------------------------------------//
 //  FMassEntityTemplateID

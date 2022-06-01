@@ -4,6 +4,7 @@
 #include "IMessagingModule.h"
 #include "HAL/PlatformProcess.h"
 #include "Bus/MessageDispatchTask.h"
+#include "IMessageBus.h"
 #include "IMessageSubscription.h"
 #include "IMessageReceiver.h"
 #include "IMessageInterceptor.h"
@@ -20,7 +21,7 @@ FMessageRouter::FMessageRouter()
 	, Tracer(MakeShared<FMessageTracer, ESPMode::ThreadSafe>())
 	, bAllowDelayedMessaging(false)
 {
-	ActiveSubscriptions.FindOrAdd(NAME_All);
+	ActiveSubscriptions.FindOrAdd(IMessageBus::PATHNAME_All);
 	WorkEvent = FPlatformProcess::GetSynchEventFromPool();
 
 	GConfig->GetBool(TEXT("Messaging"), TEXT("bAllowDelayedMessaging"), bAllowDelayedMessaging, GEngineIni);
@@ -128,7 +129,7 @@ void FMessageRouter::DispatchMessage(const TSharedRef<IMessageContext, ESPMode::
 			if (UE_GET_LOG_VERBOSITY(LogMessaging) >= ELogVerbosity::Verbose)
 			{
 				FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
-				UE_LOG(LogMessaging, Verbose, TEXT("Dispatching %s from %s to %s"), *Context->GetMessageType().ToString(), *Context->GetSender().ToString(), *RecipientStr);
+				UE_LOG(LogMessaging, Verbose, TEXT("Dispatching %s from %s to %s"), *Context->GetMessageTypePathName().ToString(), *Context->GetSender().ToString(), *RecipientStr);
 			}
 
 			FilterRecipients(Context, Recipients);
@@ -141,13 +142,13 @@ void FMessageRouter::DispatchMessage(const TSharedRef<IMessageContext, ESPMode::
 		// ... or from subscriptions
 		else
 		{
-			FilterSubscriptions(ActiveSubscriptions.FindOrAdd(Context->GetMessageType()), Context, Recipients);
-			FilterSubscriptions(ActiveSubscriptions.FindOrAdd(NAME_All), Context, Recipients);
+			FilterSubscriptions(ActiveSubscriptions.FindOrAdd(Context->GetMessageTypePathName()), Context, Recipients);
+			FilterSubscriptions(ActiveSubscriptions.FindOrAdd(IMessageBus::PATHNAME_All), Context, Recipients);
 
 			if (UE_GET_LOG_VERBOSITY(LogMessaging) >= ELogVerbosity::Verbose)
 			{
 				FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
-				UE_LOG(LogMessaging, Verbose, TEXT("Dispatching %s from %s to %s subscribers"), *Context->GetMessageType().ToString(), *Context->GetSender().ToString(), *RecipientStr);
+				UE_LOG(LogMessaging, Verbose, TEXT("Dispatching %s from %s to %s subscribers"), *Context->GetMessageTypePathName().ToString(), *Context->GetSender().ToString(), *RecipientStr);
 			}
 		}
 
@@ -278,7 +279,7 @@ void FMessageRouter::Tick()
 /* FMessageRouter callbacks
  *****************************************************************************/
 
-void FMessageRouter::HandleAddInterceptor(TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe> Interceptor, FName MessageType)
+void FMessageRouter::HandleAddInterceptor(TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe> Interceptor, FTopLevelAssetPath MessageType)
 {
 	UE_LOG(LogMessaging, Verbose, TEXT("Adding %s as intereceptor for %s messages"), *Interceptor->GetDebugName().ToString(), *MessageType.ToString());
 
@@ -308,19 +309,19 @@ void FMessageRouter::HandleAddSubscriber(TSharedRef<IMessageSubscription, ESPMod
 
 	if (Subscriber.IsValid())
 	{
-		UE_LOG(LogMessaging, Verbose, TEXT("Adding %s as a subscriber for %s messages"), *Subscriber->GetDebugName().ToString(), *Subscription->GetMessageType().ToString());
+		UE_LOG(LogMessaging, Verbose, TEXT("Adding %s as a subscriber for %s messages"), *Subscriber->GetDebugName().ToString(), *Subscription->GetMessageTypePathName().ToString());
 	}
 
-	ActiveSubscriptions.FindOrAdd(Subscription->GetMessageType()).AddUnique(Subscription);
+	ActiveSubscriptions.FindOrAdd(Subscription->GetMessageTypePathName()).AddUnique(Subscription);
 	Tracer->TraceAddedSubscription(Subscription);
 }
 
 
-void FMessageRouter::HandleRemoveInterceptor(TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe> Interceptor, FName MessageType)
+void FMessageRouter::HandleRemoveInterceptor(TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe> Interceptor, FTopLevelAssetPath MessageType)
 {
 	UE_LOG(LogMessaging, Verbose, TEXT("Removing %s as intereceptor for %s messages"), *Interceptor->GetDebugName().ToString(), *MessageType.ToString());
 
-	if (MessageType == NAME_All)
+	if (MessageType == IMessageBus::PATHNAME_All)
 	{
 		for (auto& InterceptorsPair : ActiveInterceptors)
 		{
@@ -351,7 +352,7 @@ void FMessageRouter::HandleRemoveRecipient(FMessageAddress Address)
 }
 
 
-void FMessageRouter::HandleRemoveSubscriber(TWeakPtr<IMessageReceiver, ESPMode::ThreadSafe> SubscriberPtr, FName MessageType)
+void FMessageRouter::HandleRemoveSubscriber(TWeakPtr<IMessageReceiver, ESPMode::ThreadSafe> SubscriberPtr, FTopLevelAssetPath MessageType)
 {
 	auto Subscriber = SubscriberPtr.Pin();
 
@@ -362,7 +363,7 @@ void FMessageRouter::HandleRemoveSubscriber(TWeakPtr<IMessageReceiver, ESPMode::
 
 	for (auto& SubscriptionsPair : ActiveSubscriptions)
 	{
-		if ((MessageType != NAME_All) && (MessageType != SubscriptionsPair.Key))
+		if ((MessageType != IMessageBus::PATHNAME_All) && (MessageType != SubscriptionsPair.Key))
 		{
 			continue;
 		}
@@ -375,7 +376,7 @@ void FMessageRouter::HandleRemoveSubscriber(TWeakPtr<IMessageReceiver, ESPMode::
 
 			if (Subscription->GetSubscriber().Pin() == Subscriber)
 			{
-				UE_LOG(LogMessaging, Verbose, TEXT("Removing %s as a subscriber for %s messages"), *Subscriber->GetDebugName().ToString(), *Subscription->GetMessageType().ToString());
+				UE_LOG(LogMessaging, Verbose, TEXT("Removing %s as a subscriber for %s messages"), *Subscriber->GetDebugName().ToString(), *Subscription->GetMessageTypePathName().ToString());
 
 				Subscriptions.RemoveAtSwap(SubscriptionIndex);
 				Tracer->TraceRemovedSubscription(Subscription.ToSharedRef(), MessageType);
@@ -389,12 +390,12 @@ void FMessageRouter::HandleRemoveSubscriber(TWeakPtr<IMessageReceiver, ESPMode::
 
 void FMessageRouter::HandleRouteMessage(TSharedRef<IMessageContext, ESPMode::ThreadSafe> Context)
 {
-	UE_LOG(LogMessaging, Verbose, TEXT("Routing %s message from %s"), *Context->GetMessageType().ToString(), *Context->GetSender().ToString());
+	UE_LOG(LogMessaging, Verbose, TEXT("Routing %s message from %s"), *Context->GetMessageTypePathName().ToString(), *Context->GetSender().ToString());
 
 	Tracer->TraceRoutedMessage(Context);
 
 	// intercept routing
-	auto& Interceptors = ActiveInterceptors.FindOrAdd(Context->GetMessageType());
+	auto& Interceptors = ActiveInterceptors.FindOrAdd(Context->GetMessageTypePathName());
 
 	for (auto& Interceptor : Interceptors)
 	{

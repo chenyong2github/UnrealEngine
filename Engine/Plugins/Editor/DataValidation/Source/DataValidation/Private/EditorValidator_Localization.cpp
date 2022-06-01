@@ -63,9 +63,9 @@ EDataValidationResult UEditorValidator_Localization::ValidateLoadedAsset_Impleme
 				}
 
 				// Is the source asset the expected type?
-				if (SourceAssetData.AssetClass != InAsset->GetClass()->GetFName())
+				if (SourceAssetData.AssetClassPath != InAsset->GetClass()->GetClassPathName())
 				{
-					AssetFails(InAsset, FText::Format(LOCTEXT("LocalizationError_LocalizedTypeMismatchWithSourceAsset", "Localized asset is of type '{0}', but its source asset is of type '{1}'. A localized asset must have the same type as its source asset!"), FText::FromString(InAsset->GetClass()->GetName()), FText::FromName(SourceAssetData.AssetClass)), ValidationErrors);
+					AssetFails(InAsset, FText::Format(LOCTEXT("LocalizationError_LocalizedTypeMismatchWithSourceAsset", "Localized asset is of type '{0}', but its source asset is of type '{1}'. A localized asset must have the same type as its source asset!"), FText::FromString(InAsset->GetClass()->GetPathName()), FText::FromString(SourceAssetData.AssetClassPath.ToString())), ValidationErrors);
 					return EDataValidationResult::Invalid;
 				}
 			}
@@ -109,9 +109,9 @@ EDataValidationResult UEditorValidator_Localization::ValidateLoadedAsset_Impleme
 							}
 
 							// Is the localized asset the expected type?
-							if (LocalizedAssetData.AssetClass != InAsset->GetClass()->GetFName())
+							if (LocalizedAssetData.AssetClassPath != InAsset->GetClass()->GetClassPathName())
 							{
-								AssetFails(InAsset, FText::Format(LOCTEXT("LocalizationError_SourceTypeMismatchWithLocalizedAsset", "Source asset is of type '{0}', but its localized asset for '{1}' is of type '{2}'. A localized asset must have the same type as its source asset!"), FText::FromString(InAsset->GetClass()->GetName()), FText::FromString(CultureName), FText::FromName(LocalizedAssetData.AssetClass)), ValidationErrors);
+								AssetFails(InAsset, FText::Format(LOCTEXT("LocalizationError_SourceTypeMismatchWithLocalizedAsset", "Source asset is of type '{0}', but its localized asset for '{1}' is of type '{2}'. A localized asset must have the same type as its source asset!"), FText::FromString(InAsset->GetClass()->GetPathName()), FText::FromString(CultureName), FText::FromString(LocalizedAssetData.AssetClassPath.ToString())), ValidationErrors);
 								return EDataValidationResult::Invalid;
 							}
 						}

@@ -1835,7 +1835,7 @@ struct FLoadObjectsFromAssetRegistryHelper
 		const double CompileStartTime = FPlatformTime::Seconds();
 
 		TArray<FAssetData> AssetData;
-		AssetRegistryModule.Get().GetAssetsByClass(TObjectType::StaticClass()->GetFName(), AssetData);
+		AssetRegistryModule.Get().GetAssetsByClass(TObjectType::StaticClass()->GetClassPathName(), AssetData);
 
 		for (int32 AssetIndex = 0; AssetIndex < AssetData.Num(); ++AssetIndex)
 		{
@@ -1943,7 +1943,7 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 
 			// Collect a full list of assets with the specified class
 			TArray<FAssetData> AssetData;
-			AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), AssetData);
+			AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), AssetData);
 
 			GWarn->BeginSlowTask(LOCTEXT("LoadingBlueprintAssetData", "Loading Blueprint Asset Data"), true);
 

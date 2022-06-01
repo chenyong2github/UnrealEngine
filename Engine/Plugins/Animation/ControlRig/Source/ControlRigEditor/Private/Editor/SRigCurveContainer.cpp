@@ -652,8 +652,8 @@ void SRigCurveContainer::CreateImportMenu(FMenuBuilder& MenuBuilder)
 
 bool SRigCurveContainer::ShouldFilterOnImport(const FAssetData& AssetData) const
 {
-	return (AssetData.AssetClass != USkeletalMesh::StaticClass()->GetFName() &&
-		AssetData.AssetClass != USkeleton::StaticClass()->GetFName());
+	return (AssetData.AssetClassPath != USkeletalMesh::StaticClass()->GetClassPathName() &&
+		AssetData.AssetClassPath != USkeleton::StaticClass()->GetClassPathName());
 }
 
 void SRigCurveContainer::ImportCurve(const FAssetData& InAssetData)

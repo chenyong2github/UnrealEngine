@@ -120,7 +120,7 @@ TSharedRef<FExtender> FMDLImporterModule::OnExtendContentBrowserAssetSelectionMe
 	bool bShouldExtendAssetActions = false;
 	for (const FAssetData& Asset : SelectedAssets)
 	{
-		if (Asset.AssetClass == UMaterial::StaticClass()->GetFName() || Asset.AssetClass == UMaterialInstance::StaticClass()->GetFName())
+		if (Asset.AssetClassPath == UMaterial::StaticClass()->GetClassPathName() || Asset.AssetClassPath == UMaterialInstance::StaticClass()->GetClassPathName())
 		{
 			// Need to load the material at this point to figure out the type of the AssetImportData
 			UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(Asset.GetAsset());
@@ -164,7 +164,7 @@ void FMDLImporterModule::ExecuteReimportMaterials(TArray<FAssetData> SelectedAss
 {
 	for (const FAssetData& AssetData : SelectedAssets)
 	{
-		if (AssetData.AssetClass == UMaterial::StaticClass()->GetFName() || AssetData.AssetClass == UMaterialInstance::StaticClass()->GetFName())
+		if (AssetData.AssetClassPath == UMaterial::StaticClass()->GetClassPathName() || AssetData.AssetClassPath == UMaterialInstance::StaticClass()->GetClassPathName())
 		{
 			UObject* AssetToReimport = AssetData.GetAsset();
 

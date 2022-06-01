@@ -474,7 +474,7 @@ UCompositingMediaCaptureOutput* FCompElementManager::ResetMediaCapture(const FNa
 		{
 			if (ClassIt->IsChildOf(UMediaOutput::StaticClass()) && !ClassIt->HasAnyClassFlags(CLASS_Abstract))
 			{
-				SelectAssetConfig.AssetClassNames.Add(ClassIt->GetFName());
+				SelectAssetConfig.AssetClassNames.Add(ClassIt->GetClassPathName());
 			}
 		}
 

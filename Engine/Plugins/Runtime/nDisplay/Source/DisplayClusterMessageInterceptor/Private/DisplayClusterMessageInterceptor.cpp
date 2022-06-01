@@ -14,7 +14,7 @@ DEFINE_LOG_CATEGORY(LogDisplayClusterInterception);
 
 namespace DisplayClusterMessageInterceptorUtils
 {
-	static const FInterceptedMessageDescriptor MultiUserInterception(TArray<FName>({ TEXT("ConcertSession_CustomEvent") }), TEXT("ConcertMessageId"));
+	static const FInterceptedMessageDescriptor MultiUserInterception(TArray<FTopLevelAssetPath>({ FTopLevelAssetPath(TEXT("/Script/Concert"), TEXT("ConcertSession_CustomEvent"))}), TEXT("ConcertMessageId"));
 }
 
 FDisplayClusterMessageInterceptor::FDisplayClusterMessageInterceptor()
@@ -67,7 +67,7 @@ void FDisplayClusterMessageInterceptor::Start(TSharedPtr<IMessageBus, ESPMode::T
 		for (const FInterceptedMessageDescriptor& Descriptor : InterceptedMessages)
 		{
 			const FString AnnotationString = Descriptor.Annotation.ToString();
-			for (const FName& MessageType : Descriptor.MessageTypes)
+			for (const FTopLevelAssetPath& MessageType : Descriptor.MessageTypes)
 			{
 				InterceptedBus->Intercept(AsShared(), MessageType);
 				UE_LOG(LogDisplayClusterInterception, Display, TEXT("Intercepting message type: '%s' with annotation '%s'"), *MessageType.ToString(), *AnnotationString);
@@ -83,7 +83,7 @@ void FDisplayClusterMessageInterceptor::Stop()
 {
 	if (bIsIntercepting && InterceptedBus)
 	{
-		InterceptedBus->Unintercept(AsShared(), NAME_All);
+		InterceptedBus->Unintercept(AsShared(), IMessageBus::PATHNAME_All);
 		bIsIntercepting = false;
 		Purge();
 		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Stopping interception of bus messages."));
@@ -197,7 +197,7 @@ bool FDisplayClusterMessageInterceptor::InterceptMessage(const TSharedRef<IMessa
 
 	if (Context->GetForwarder() != Address)
 	{
-		const FName MessageType = Context->GetMessageType();
+		const FTopLevelAssetPath MessageType = Context->GetMessageTypePathName();
 		const FInterceptedMessageDescriptor* Descriptor = InterceptedMessages.FindByPredicate([MessageType](const FInterceptedMessageDescriptor& Other) { return Other.MessageTypes.Contains(MessageType); });
 		if (Descriptor)
 		{

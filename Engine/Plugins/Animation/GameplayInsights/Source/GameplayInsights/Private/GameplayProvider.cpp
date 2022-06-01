@@ -29,7 +29,7 @@ static UClass* FindBlueprintClass(const FString& TargetNameRaw)
 
 	FARFilter Filter;
 	Filter.bRecursiveClasses = true;
-	Filter.ClassNames.Add(UBlueprintCore::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UBlueprintCore::StaticClass()->GetClassPathName());
 
 	// We enumerate all assets to find any blueprints who inherit from native classes directly - or
 	// from other blueprints.
@@ -53,9 +53,9 @@ static UClass* FindBlueprintClass(const FString& TargetNameRaw)
 
 // This is copied from EditorUtilitySubsystem (where it is not public)
 // Should probably be somewhere shared
-static UClass* FindClassByName(const FString& RawTargetName)
+static UClass* FindClassByPathName(const FString& RawTargePathtName)
 {
-	FString TargetName = RawTargetName;
+	FString TargetName = RawTargePathtName;
 
 	// Check native classes and loaded assets first before resorting to the asset registry
 	bool bIsValidClassName = true;
@@ -90,14 +90,7 @@ static UClass* FindClassByName(const FString& RawTargetName)
 	UClass* ResultClass = nullptr;
 	if (bIsValidClassName)
 	{
-		if (FPackageName::IsShortPackageName(TargetName))
-		{
-			ResultClass = FindObject<UClass>(ANY_PACKAGE, *TargetName);
-		}
-		else
-		{
-			ResultClass = FindObject<UClass>(nullptr, *TargetName);
-		}
+		ResultClass = FindObject<UClass>(nullptr, *TargetName);
 	}
 
 	// If we still haven't found anything yet, try the asset registry for blueprints that match the requirements
@@ -228,7 +221,7 @@ const UClass* FGameplayProvider::FindClass(uint64 InClassId) const
 #if WITH_EDITOR
 	if (const FClassInfo* ClassInfo = FindClassInfo(InClassId))
 	{
-		return FindClassByName(ClassInfo->Name);
+		return FindClassByPathName(ClassInfo->PathName);
 	}
 	return nullptr;
 #else

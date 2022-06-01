@@ -135,7 +135,7 @@ UObject* ResolveByPath(UObject* InContext, const FString& InObjectPath)
 		}
 #endif
 
-		if (UObject* FoundObject = FindObject<UObject>(ANY_PACKAGE, *InObjectPath, false))
+		if (UObject* FoundObject = FindFirstObject<UObject>(*InObjectPath, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous))
 		{
 			return FoundObject;
 		}

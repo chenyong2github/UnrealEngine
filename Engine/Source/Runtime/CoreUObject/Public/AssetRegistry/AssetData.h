@@ -22,6 +22,7 @@
 #include "UObject/Package.h"
 #include "UObject/PrimaryAssetId.h"
 #include "UObject/LinkerInstancingContext.h"
+#include "UObject/TopLevelAssetPath.h"
 
 struct FCustomVersion;
 
@@ -55,8 +56,9 @@ struct COREUOBJECT_API FAssetRegistryVersion
 		WorkspaceDomain,					// Added Version information to AssetPackageData
 		PackageImportedClasses,				// Added ImportedClasses to AssetPackageData
 		PackageFileSummaryVersionChange,	// A new version number of UE5 was added to FPackageFileSummary
-		ObjectResourceOptionalVersionChange,// Change to linker export/import resource serializationn
+		ObjectResourceOptionalVersionChange,// Change to linker export/import resource serialization
 		AddedChunkHashes,					// Added FIoHash for each FIoChunkId in the package to the AssetPackageData.
+		ClassPaths,							// Classes are serialized as path names rather than short object names, e.g. /Script/Engine.StaticMesh
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -104,7 +106,10 @@ public:
 	/** The name of the asset without the package */
 	FName AssetName;
 	/** The name of the asset's class */
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use AssetClassPath.")
 	FName AssetClass;
+	/** The path of the asset's class, e.g. /Script/Engine.StaticMesh */
+	FTopLevelAssetPath AssetClassPath;
 	/** Asset package flags */
 	uint32 PackageFlags = 0;
 	/** The map of values for properties that were marked AssetRegistrySearchable or added by GetAssetRegistryTags */
@@ -120,14 +125,27 @@ public:
 	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
 	TArray<int32, TInlineAllocator<2>> ChunkIDs;
 
-public:
-	/** Default constructor */
-	FAssetData() {}
+public:	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // Compilers can complain about deprecated members in compiler generated code
+	/** Default constructors. */
+	FAssetData()
+	{
+	}
+	FAssetData(FAssetData&&) = default;
+	FAssetData(const FAssetData&) = default;
+	FAssetData& operator=(FAssetData&&) = default;
+	FAssetData& operator=(const FAssetData&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use a version of FAssetData constructor that uses FTopLevelAssetPath.")
+	COREUOBJECT_API FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClassName, FAssetDataTagMap InTags = FAssetDataTagMap(), TArrayView<const int32> InChunkIDs = TArrayView<const int32>(), uint32 InPackageFlags = 0);
+	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use a version of FAssetData constructor that uses FTopLevelAssetPath.")
+	COREUOBJECT_API FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClassName, FAssetDataTagMap InTags = FAssetDataTagMap(), TArrayView<const int32> InChunkIDs = TArrayView<const int32>(), uint32 InPackageFlags = 0);
 
 	/** Constructor building the ObjectPath in the form of InPackageName.InAssetName. does not work for object outer-ed to a different package. */
-	COREUOBJECT_API FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArrayView<const int32> InChunkIDs = TArrayView<const int32>(), uint32 InPackageFlags = 0);
+	COREUOBJECT_API FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FTopLevelAssetPath InAssetClassPathName, FAssetDataTagMap InTags = FAssetDataTagMap(), TArrayView<const int32> InChunkIDs = TArrayView<const int32>(), uint32 InPackageFlags = 0);
 	/** Constructor with a long package name and a full object path which might not be part of the package this asset is in. */
-	COREUOBJECT_API FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArrayView<const int32> InChunkIDs = TArrayView<const int32>(), uint32 InPackageFlags = 0);
+	COREUOBJECT_API FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FTopLevelAssetPath InAssetClassPathName, FAssetDataTagMap InTags = FAssetDataTagMap(), TArrayView<const int32> InChunkIDs = TArrayView<const int32>(), uint32 InPackageFlags = 0);
 
 	/** Constructor taking a UObject. By default trying to create one for a blueprint class will create one for the UBlueprint instead, but this can be overridden */
 	COREUOBJECT_API FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCreationFlags = ECreationFlags::None);
@@ -225,7 +243,7 @@ public:
 	void GetFullName(FString& OutFullName) const
 	{
 		OutFullName.Reset();
-		AssetClass.AppendString(OutFullName);
+		OutFullName += AssetClassPath.ToString();
 		OutFullName.AppendChar(TEXT(' '));
 		ObjectPath.AppendString(OutFullName);
 	}
@@ -234,7 +252,7 @@ public:
 	void GetFullName(FStringBuilderBase& OutFullNameBuilder) const
 	{
 		OutFullNameBuilder.Reset();
-		AssetClass.AppendString(OutFullNameBuilder);
+		AssetClassPath.AppendString(OutFullNameBuilder);
 		OutFullNameBuilder.AppendChar(TEXT(' '));
 		ObjectPath.AppendString(OutFullNameBuilder);
 	}
@@ -251,7 +269,7 @@ public:
 	void GetExportTextName(FString& OutExportTextName) const
 	{
 		OutExportTextName.Reset();
-		AssetClass.AppendString(OutExportTextName);
+		OutExportTextName.Append(AssetClassPath.ToString());
 		OutExportTextName.AppendChar(TEXT('\''));
 		ObjectPath.AppendString(OutExportTextName);
 		OutExportTextName.AppendChar(TEXT('\''));
@@ -261,7 +279,7 @@ public:
 	void GetExportTextName(FStringBuilderBase& OutExportTextNameBuilder) const
 	{
 		OutExportTextNameBuilder.Reset();
-		AssetClass.AppendString(OutExportTextNameBuilder);
+		AssetClassPath.AppendString(OutExportTextNameBuilder);
 		OutExportTextNameBuilder.AppendChar(TEXT('\''));
 		ObjectPath.AppendString(OutExportTextNameBuilder);
 		OutExportTextNameBuilder.AppendChar(TEXT('\''));
@@ -270,33 +288,31 @@ public:
 	/** Returns true if the this asset is a redirector. */
 	bool IsRedirector() const
 	{
-		return IsRedirectorClassName(AssetClass);
+		return IsRedirectorClassName(AssetClassPath);
 	}
 
 	static bool IsRedirector(UObject* Object)
 	{
-		return Object && IsRedirectorClassName(Object->GetClass()->GetFName());
+		return Object && IsRedirectorClassName(Object->GetClass()->GetClassPathName());
 	}
 
-	/** Returns the class UClass if it is loaded. It is not possible to load the class if it is unloaded since we only have the short name. */
+	/** Returns the class UClass if it is loaded. */
 	UClass* GetClass() const
 	{
 		if ( !IsValid() )
 		{
 			// Dont even try to find the class if the objectpath isn't set
-			return NULL;
+			return nullptr;
 		}
 
-		UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *AssetClass.ToString());
-
+		UClass* FoundClass = FindObject<UClass>(AssetClassPath);
 		if (!FoundClass)
 		{
 			// Look for class redirectors
-			FName NewPath = FLinkerLoad::FindNewNameForClass(AssetClass, false);
-
-			if (NewPath != NAME_None)
+			FString NewPath = FLinkerLoad::FindNewPathNameForClass(AssetClassPath.ToString(), false);
+			if (!NewPath.IsEmpty())
 			{
-				FoundClass = FindObject<UClass>(ANY_PACKAGE, *NewPath.ToString());
+				FoundClass = FindObject<UClass>(nullptr, *NewPath);
 			}
 		}
 		return FoundClass;
@@ -461,7 +477,7 @@ public:
 		UE_LOG(LogAssetData, Log, TEXT("        PackageName: %s"), *PackageName.ToString());
 		UE_LOG(LogAssetData, Log, TEXT("        PackagePath: %s"), *PackagePath.ToString());
 		UE_LOG(LogAssetData, Log, TEXT("        AssetName: %s"), *AssetName.ToString());
-		UE_LOG(LogAssetData, Log, TEXT("        AssetClass: %s"), *AssetClass.ToString());
+		UE_LOG(LogAssetData, Log, TEXT("        AssetClassPath: %s"), *AssetClassPath.ToString());
 		UE_LOG(LogAssetData, Log, TEXT("        TagsAndValues: %d"), TagsAndValues.Num());
 
 		for (const auto TagValue: TagsAndValues)
@@ -508,14 +524,14 @@ public:
 	 * To version this data change FAssetRegistryVersion
 	 */
 	template<class Archive>
-	void SerializeForCache(Archive&& Ar)
+	FORCEINLINE void SerializeForCache(Archive&& Ar, FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion)
 	{
-		SerializeForCacheInternal(Ar, [](FArchive& Ar, FAssetData& Ad) {
+		SerializeForCacheInternal(Ar, Version, [](FArchive& Ar, FAssetData& Ad) {
 			static_cast<Archive&>(Ar).SerializeTagsAndBundles(Ad);
 			});
 	}
 private:
-	COREUOBJECT_API void SerializeForCacheInternal(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&));
+	COREUOBJECT_API void SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&));
 
 	static bool DetectIsUAssetByNames(FStringView PackageName, FStringView ObjectPathName)
 	{
@@ -530,11 +546,15 @@ private:
 		return PackageBaseName.Equals(ObjectPathName, ESearchCase::IgnoreCase);
 	}
 
-	static bool IsRedirectorClassName(FName ClassName)
+	static bool IsRedirectorClassName(FTopLevelAssetPath ClassPathName)
 	{
-		static const FName ObjectRedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
-		return ClassName == ObjectRedirectorClassName;
+		static const FTopLevelAssetPath ObjectRedirectorClassPathName = UObjectRedirector::StaticClass()->GetClassPathName();
+		return ClassPathName == ObjectRedirectorClassPathName;
 	}
+
+public:
+	/** Helper function that tries to convert short class name to path name */
+	COREUOBJECT_API static FTopLevelAssetPath TryConvertShortClassNameToPathName(FName InClassName);
 };
 
 ENUM_CLASS_FLAGS(FAssetData::ECreationFlags);
@@ -895,7 +915,7 @@ struct FAssetIdentifier
 	/** Returns primary asset id for this identifier, if valid */
 	FPrimaryAssetId GetPrimaryAssetId() const
 	{
-		if (PrimaryAssetType != NAME_None)
+		if (PrimaryAssetType.IsValid())
 		{
 			return FPrimaryAssetId(PrimaryAssetType, ObjectName);
 		}
@@ -937,7 +957,7 @@ struct FAssetIdentifier
 	/** Appends to the given builder the string version of this identifier in Package.Object::Name format */
 	void AppendString(FStringBuilderBase& Builder) const
 	{
-		if (PrimaryAssetType != NAME_None)
+		if (PrimaryAssetType.IsValid())
 		{
 			GetPrimaryAssetId().AppendString(Builder);
 		}
@@ -1016,7 +1036,7 @@ struct FAssetIdentifier
 		if (Ar.IsSaving())
 		{
 			FieldBits |= (AssetIdentifier.PackageName != NAME_None) << 0;
-			FieldBits |= (AssetIdentifier.PrimaryAssetType != NAME_None) << 1;
+			FieldBits |= (AssetIdentifier.PrimaryAssetType.IsValid()) << 1;
 			FieldBits |= (AssetIdentifier.ObjectName != NAME_None) << 2;
 			FieldBits |= (AssetIdentifier.ValueName != NAME_None) << 3;
 		}

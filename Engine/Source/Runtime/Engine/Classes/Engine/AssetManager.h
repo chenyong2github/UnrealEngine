@@ -382,13 +382,13 @@ public:
 	// GENERAL ASSET UTILITY FUNCTIONS
 
 	/** Parses AssetData to extract the primary type/name from it. This works even if it isn't in the directory */
-	virtual FPrimaryAssetId ExtractPrimaryAssetIdFromData(const FAssetData& AssetData, FPrimaryAssetType SuggestedType = NAME_None) const;
+	virtual FPrimaryAssetId ExtractPrimaryAssetIdFromData(const FAssetData& AssetData, FPrimaryAssetType SuggestedType = FPrimaryAssetType()) const;
 
 	/** Gets the FAssetData at a specific path, handles redirectors and blueprint classes correctly. Returns true if it found a valid data */
 	virtual bool GetAssetDataForPath(const FSoftObjectPath& ObjectPath, FAssetData& AssetData) const;
 
 	/** Checks to see if the given asset data is a blueprint with a base class in the ClassNameSet. This checks the parent asset tag */
-	virtual bool IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, const TSet<FName>& ClassNameSet) const;
+	virtual bool IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, const TSet<FTopLevelAssetPath>& ClassNameSet) const;
 
 	/** Turns an FAssetData into FSoftObjectPath, handles adding _C as necessary */
 	virtual FSoftObjectPath GetAssetPathForData(const FAssetData& AssetData) const;

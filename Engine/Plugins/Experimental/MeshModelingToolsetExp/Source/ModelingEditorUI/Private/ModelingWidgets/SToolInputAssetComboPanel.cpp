@@ -124,7 +124,7 @@ void SToolInputAssetComboPanel::Construct(const FArguments& InArgs)
 		FAssetPickerConfig Config;
 		Config.SelectionMode = ESelectionMode::Single;
 		Config.Filter.bRecursiveClasses = true;
-		Config.Filter.ClassNames.Add( this->AssetClassType->GetFName() );
+		Config.Filter.ClassPaths.Add( this->AssetClassType->GetClassPathName() );
 		Config.Filter.bRecursivePaths = true;
 		//Config.Filter.bIncludeOnlyOnDiskAssets = true;
 		Config.InitialAssetViewType = EAssetViewType::Tile;

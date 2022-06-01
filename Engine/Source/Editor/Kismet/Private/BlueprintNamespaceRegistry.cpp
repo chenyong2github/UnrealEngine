@@ -250,11 +250,11 @@ void FBlueprintNamespaceRegistry::FindAndRegisterAllNamespaces()
 	}
 
 	FARFilter ClassFilter;
-	ClassFilter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
-	ClassFilter.ClassNames.Add(UBlueprintGeneratedClass::StaticClass()->GetFName());
-	ClassFilter.ClassNames.Add(UUserDefinedStruct::StaticClass()->GetFName());
-	ClassFilter.ClassNames.Add(UUserDefinedEnum::StaticClass()->GetFName());
-	ClassFilter.ClassNames.Add(UBlueprintFunctionLibrary::StaticClass()->GetFName());
+	ClassFilter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
+	ClassFilter.ClassPaths.Add(UBlueprintGeneratedClass::StaticClass()->GetClassPathName());
+	ClassFilter.ClassPaths.Add(UUserDefinedStruct::StaticClass()->GetClassPathName());
+	ClassFilter.ClassPaths.Add(UUserDefinedEnum::StaticClass()->GetClassPathName());
+	ClassFilter.ClassPaths.Add(UBlueprintFunctionLibrary::StaticClass()->GetClassPathName());
 	ClassFilter.bRecursiveClasses = true;
 
 	// Register unloaded type namespace identifiers.

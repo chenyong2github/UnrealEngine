@@ -373,7 +373,7 @@ void UContentBrowserFileDataSource::Initialize(const ContentBrowserFileData::FFi
 		AssetTypeAction->Name = InFileActions->TypeShortDescription;
 		AssetTypeAction->Description = InFileActions->TypeFullDescription;
 		AssetTypeAction->TypeColor = InFileActions->TypeColor.ToFColor(true);
-		AssetTypeAction->FilterName = *(ContentBrowserFileDataSource::GetFilterNamePrefix() + InFileActions->TypeName.ToString());
+		AssetTypeAction->FilterName = *(ContentBrowserFileDataSource::GetFilterNamePrefix() + InFileActions->TypeName.GetAssetName().ToString());
 		AssetTools.RegisterAssetTypeActions(AssetTypeAction);
 		RegisteredAssetTypeActions.Add(AssetTypeAction);
 		return true;
@@ -569,15 +569,14 @@ void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FCon
 	{
 		if (ClassFilter->ClassNamesToInclude.Num() > 0)
 		{
-			TArray<FName, TInlineAllocator<2>> ClassNamesToLookFor;
+			TArray<FString, TInlineAllocator<2>> ClassNamesToLookFor;
 			TArray<FString, TInlineAllocator<2>> ClassFileExtensions;
 
 			Config.EnumerateFileActions([&ClassNamesToLookFor, &ClassFileExtensions](TSharedRef<const ContentBrowserFileData::FFileActions> InFileActions)
 			{
 				TStringBuilder<64> ClassNameToLookFor;
 				ClassNameToLookFor.Append(ContentBrowserFileDataSource::GetFilterNamePrefix());
-				FNameBuilder TypeNameBuilder(InFileActions->TypeName);
-				ClassNameToLookFor.Append(TypeNameBuilder);
+				ClassNameToLookFor.Append(InFileActions->TypeName.ToString());
 				ClassNamesToLookFor.Add(ClassNameToLookFor.ToString());
 
 				ClassFileExtensions.Add(InFileActions->TypeExtension);
@@ -585,7 +584,7 @@ void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FCon
 			});
 
 			// Determine if any are one of this instance's file data source
-			for (const FName ClassName : ClassFilter->ClassNamesToInclude)
+			for (const FString& ClassName : ClassFilter->ClassNamesToInclude)
 			{
 				int32 FoundIndex = INDEX_NONE;
 				if (ClassNamesToLookFor.Find(ClassName, FoundIndex))
@@ -1896,7 +1895,7 @@ void UContentBrowserFileDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu)
 			{
 				if (!InFileActions->CanCreate.IsBound() || InFileActions->CanCreate.Execute(FirstSelectedPath, FirstSelectedDiskPath, nullptr))
 				{
-					const FName MenuItemName = *FString::Printf(TEXT("CreateFile_%s"), *InFileActions->TypeName.ToString());
+					const FName MenuItemName = *FString::Printf(TEXT("CreateFile_%s"), *InFileActions->TypeName.GetAssetName().ToString());
 					const FText MenuItemTitle = InFileActions->TypeShortDescription.IsEmpty()
 						? FText::Format(LOCTEXT("CreateFileWithName", "Create {0} file"), InFileActions->TypeDisplayName)
 						: FText::Format(LOCTEXT("CreateFileWithDesc", "Create {0}"), InFileActions->TypeShortDescription);
@@ -1938,7 +1937,7 @@ void UContentBrowserFileDataSource::OnNewFileRequested(const FName InDestFolderP
 
 	if (SuggestedFilename.IsEmpty())
 	{
-		SuggestedFilename = InFileActions->DefaultNewFileName.IsEmpty() ? FString::Printf(TEXT("New%sFile"), *InFileActions->TypeName.ToString()) : InFileActions->DefaultNewFileName;
+		SuggestedFilename = InFileActions->DefaultNewFileName.IsEmpty() ? FString::Printf(TEXT("New%sFile"), *InFileActions->TypeName.GetAssetName().ToString()) : InFileActions->DefaultNewFileName;
 	}
 	SuggestedFilename += TEXT(".");
 	SuggestedFilename += InFileActions->TypeExtension;

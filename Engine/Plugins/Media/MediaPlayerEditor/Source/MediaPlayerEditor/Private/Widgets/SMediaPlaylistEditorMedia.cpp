@@ -24,7 +24,7 @@ void SMediaPlaylistEditorMedia::Construct(const FArguments& InArgs, UMediaPlayli
 	// initialize asset picker
 	FAssetPickerConfig AssetPickerConfig;
 	{
-		AssetPickerConfig.Filter.ClassNames.Add(UMediaSource::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(UMediaSource::StaticClass()->GetClassPathName());
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
 		AssetPickerConfig.bAllowDragging = false;
 		AssetPickerConfig.bAutohideSearchBar = true;

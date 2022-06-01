@@ -135,7 +135,7 @@ public:
 
 		FAssetPickerConfig AssetPickerConfig;
 		/** The asset picker will only show skeletons */
-		AssetPickerConfig.Filter.ClassNames.Add(USkeleton::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(USkeleton::StaticClass()->GetClassPathName());
 		/** The delegate that fires when an asset was selected */
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(this, &SMirrorDataTableFactoryWindow::OnSkeletonSelected);
 		if (Skeleton != nullptr)

@@ -153,7 +153,7 @@ void ReattachComponents(const TArray<FString>& Args)
 	UE_LOG(LogConsoleResponse, Display, TEXT("Reattach.Components:"));
 
 	UClass* Class=NULL;
-	if( ParseObject<UClass>( *Args[0], TEXT("CLASS="), Class, ANY_PACKAGE ) &&
+	if( ParseObject<UClass>( *Args[0], TEXT("CLASS="), Class, nullptr ) &&
 		Class->IsChildOf(UActorComponent::StaticClass()) )
 	{
 		for( FThreadSafeObjectIterator It(Class); It; ++It )

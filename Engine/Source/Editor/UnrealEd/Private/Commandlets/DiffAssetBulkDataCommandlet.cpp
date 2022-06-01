@@ -204,8 +204,8 @@ int32 UDiffAssetBulkDataCommandlet::Main(const FString& FullCommandLine)
 		FString TagCurrentValue;
 	};
 
-	TMap<FName /* TagName */, TMap<FName /* AssetClass */, TArray<FDiffResult>>> Results;
-	TMap<FName /* AssetClass */, TArray<FName /* PackageName */>> NoTagPackagesByAssumedClass;
+	TMap<FName /* TagName */, TMap<FTopLevelAssetPath /* AssetClass */, TArray<FDiffResult>>> Results;
+	TMap<FTopLevelAssetPath /* AssetClass */, TArray<FName /* PackageName */>> NoTagPackagesByAssumedClass;
 	TArray<FName /* PackageName */> PackagesWithUnassignableDiffsAndUntaggedAssets;
 	TArray<FName /* PackageName */> PackagesWithUnassignableDiffs;
 	
@@ -289,11 +289,11 @@ int32 UDiffAssetBulkDataCommandlet::Main(const FString& FullCommandLine)
 			FAssetData const* RepresentativeAsset = UE::AssetRegistry::GetMostImportantAsset(CurrentAssetDatas, true);
 			if (RepresentativeAsset == nullptr)
 			{
-				NoTagPackagesByAssumedClass.FindOrAdd(NAME_None).Add(ChangedPackageName);
+				NoTagPackagesByAssumedClass.FindOrAdd(FTopLevelAssetPath()).Add(ChangedPackageName);
 			}
 			else
 			{
-				NoTagPackagesByAssumedClass.FindOrAdd(RepresentativeAsset->AssetClass).Add(ChangedPackageName);
+				NoTagPackagesByAssumedClass.FindOrAdd(RepresentativeAsset->AssetClassPath).Add(ChangedPackageName);
 			}
 			
 			continue;
@@ -311,9 +311,9 @@ int32 UDiffAssetBulkDataCommandlet::Main(const FString& FullCommandLine)
 			{
 				if (Tag.BaseValue != Tag.CurrentValue)
 				{
-					TMap<FName, TArray<FDiffResult>>& TagResults = Results.FindOrAdd(Tag.TagName);
+					TMap<FTopLevelAssetPath, TArray<FDiffResult>>& TagResults = Results.FindOrAdd(Tag.TagName);
 
-					TArray<FDiffResult>& ClassResults = TagResults.FindOrAdd(Tag.BaseAssetData->AssetClass);
+					TArray<FDiffResult>& ClassResults = TagResults.FindOrAdd(Tag.BaseAssetData->AssetClassPath);
 
 					FDiffResult& Result = ClassResults.AddDefaulted_GetRef();
 					Result.ChangedAssetObjectPath = Tag.BaseAssetData->ObjectPath.ToString();
@@ -354,14 +354,14 @@ int32 UDiffAssetBulkDataCommandlet::Main(const FString& FullCommandLine)
 		return 0;
 	}
 
-	TArray<FName>& CantDetermineAssetClassPackages = NoTagPackagesByAssumedClass.FindOrAdd(NAME_None);
+	TArray<FName>& CantDetermineAssetClassPackages = NoTagPackagesByAssumedClass.FindOrAdd(FTopLevelAssetPath());
 
 	UE_LOG(LogDiffAssetBulk, Display, TEXT("Changed package breakdown:"));
 	UE_LOG(LogDiffAssetBulk, Display, TEXT("    No blame information available:"));
 	UE_LOG(LogDiffAssetBulk, Display, TEXT("        Can't determine asset class   : %d"), CantDetermineAssetClassPackages.Num());
-	for (TPair<FName, TArray<FName>> ClassPackages : NoTagPackagesByAssumedClass)
+	for (TPair<FTopLevelAssetPath, TArray<FName>> ClassPackages : NoTagPackagesByAssumedClass)
 	{
-		if (ClassPackages.Key == NAME_None)
+		if (ClassPackages.Key == FTopLevelAssetPath())
 		{
 			continue;
 		}
@@ -406,10 +406,10 @@ int32 UDiffAssetBulkDataCommandlet::Main(const FString& FullCommandLine)
 	{
 		UE_LOG(LogDiffAssetBulk, Display, TEXT("    Summary changes by blame tag:"));
 
-		for (TPair<FName, TMap<FName, TArray<FDiffResult>>>& TagResults : Results)
+		for (TPair<FName, TMap<FTopLevelAssetPath, TArray<FDiffResult>>>& TagResults : Results)
 		{
 			uint32 TagCount = 0;
-			for (TPair<FName, TArray<FDiffResult>>& ClassResults : TagResults.Value)
+			for (TPair<FTopLevelAssetPath, TArray<FDiffResult>>& ClassResults : TagResults.Value)
 			{
 				TagCount += ClassResults.Value.Num();
 			}
@@ -427,11 +427,11 @@ int32 UDiffAssetBulkDataCommandlet::Main(const FString& FullCommandLine)
 
 		UE_LOG(LogDiffAssetBulk, Display, TEXT("    Asset changes by blame tag:"));
 
-		for (TPair<FName, TMap<FName, TArray<FDiffResult>>>& TagResults : Results)
+		for (TPair<FName, TMap<FTopLevelAssetPath, TArray<FDiffResult>>>& TagResults : Results)
 		{
 			UE_LOG(LogDiffAssetBulk, Display, TEXT("        %s"), *TagResults.Key.ToString());
 
-			for (TPair<FName, TArray<FDiffResult>>& ClassResults : TagResults.Value)
+			for (TPair<FTopLevelAssetPath, TArray<FDiffResult>>& ClassResults : TagResults.Value)
 			{
 				Algo::SortBy(ClassResults.Value, &FDiffResult::ChangedAssetObjectPath);
 				UE_LOG(LogDiffAssetBulk, Display, TEXT("            %s [%d]"), *ClassResults.Key.ToString(), ClassResults.Value.Num());

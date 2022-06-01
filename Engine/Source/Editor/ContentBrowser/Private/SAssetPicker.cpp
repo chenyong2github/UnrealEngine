@@ -218,10 +218,10 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 	{
 		// Filters
 		TArray<UClass*> FilterClassList;
-		for(auto Iter = CurrentBackendFilter.ClassNames.CreateIterator(); Iter; ++Iter)
+		for(auto Iter = CurrentBackendFilter.ClassPaths.CreateIterator(); Iter; ++Iter)
 		{
-			FName ClassName = (*Iter);
-			UClass* FilterClass = FindObject<UClass>(ANY_PACKAGE, *ClassName.ToString());
+			FTopLevelAssetPath ClassName = (*Iter);
+			UClass* FilterClass = FindObject<UClass>(ClassName);
 			if(FilterClass)
 			{
 				FilterClassList.AddUnique(FilterClass);
@@ -353,7 +353,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 	if (AssetViewPtr.IsValid() && !InArgs._AssetPickerConfig.bAutohideSearchBar)
 	{
 		TextFilter = MakeShareable(new FFrontendFilter_Text());
-		bool bClassNamesProvided = (InArgs._AssetPickerConfig.Filter.ClassNames.Num() != 1);
+		bool bClassNamesProvided = (InArgs._AssetPickerConfig.Filter.ClassPaths.Num() != 1);
 		TextFilter->SetIncludeClassName(bClassNamesProvided || AssetViewPtr->IsIncludingClassNames());
 		TextFilter->SetIncludeAssetPath(AssetViewPtr->IsIncludingAssetPaths());
 		TextFilter->SetIncludeCollectionNames(AssetViewPtr->IsIncludingCollectionNames());
@@ -494,7 +494,7 @@ void SAssetPicker::SetNewBackendFilter(const FARFilter& NewFilter)
 	// Update the Text filter too, since now class names may no longer matter
 	if (TextFilter.IsValid())
 	{
-		TextFilter->SetIncludeClassName(NewFilter.ClassNames.Num() != 1);
+		TextFilter->SetIncludeClassName(NewFilter.ClassPaths.Num() != 1);
 	}
 
 	OnFilterChanged();

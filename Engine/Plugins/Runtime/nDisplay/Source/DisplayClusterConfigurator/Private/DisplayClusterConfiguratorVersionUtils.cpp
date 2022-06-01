@@ -32,8 +32,8 @@ void FDisplayClusterConfiguratorVersionUtils::UpdateBlueprintsToNewVersion()
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry")).Get();
 
 	TArray<FAssetData> OutAssets;
-	AssetRegistry.GetAssetsByClass(UDisplayClusterBlueprint::StaticClass()->GetFName(), OutAssets, true);
-	AssetRegistry.GetAssetsByClass(UDisplayClusterConfiguratorEditorData::StaticClass()->GetFName(), OutAssets, true);
+	AssetRegistry.GetAssetsByClass(UDisplayClusterBlueprint::StaticClass()->GetClassPathName(), OutAssets, true);
+	AssetRegistry.GetAssetsByClass(UDisplayClusterConfiguratorEditorData::StaticClass()->GetClassPathName(), OutAssets, true);
 	
 	bool bIsAssetVersionNotSupported = false;
 

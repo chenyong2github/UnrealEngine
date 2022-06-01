@@ -70,7 +70,7 @@ public:
 				if (!BitmaskEnumName.IsEmpty())
 				{
 					// @TODO: Potentially replace this with a parameter passed in from a member variable on the FProperty (e.g. FByteProperty::Enum)
-					BitmaskEnum = FindObject<UEnum>(ANY_PACKAGE, *BitmaskEnumName);
+					BitmaskEnum = UClass::TryFindTypeSlow<UEnum>(BitmaskEnumName);
 				}
 
 				if (BitmaskEnum)

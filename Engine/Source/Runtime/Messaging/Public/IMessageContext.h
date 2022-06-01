@@ -335,6 +335,7 @@ public:
 	 * @return Message type name.
 	 * @see GetMessage, GetMessageTypeInfo
 	 */
+	UE_DEPRECATED(5.1, "Type names are now represented by path names. Please use GetMessageTypePathName.")
 	FName GetMessageType() const
 	{
 		if (IsValid())
@@ -344,6 +345,23 @@ public:
 		}
 		
 		return NAME_None;
+	}
+
+	/**
+	 * Gets the path name of the message type.
+	 *
+	 * @return Message type path name.
+	 * @see GetMessage, GetMessageTypeInfo
+	 */
+	FTopLevelAssetPath GetMessageTypePathName() const
+	{
+		if (IsValid())
+		{
+			UStruct* MessageTypeInfoPtr = GetMessageTypeInfo().Get();
+			return MessageTypeInfoPtr->GetStructPathName();
+		}
+
+		return FTopLevelAssetPath();
 	}
 
 	/**

@@ -895,7 +895,7 @@ void ExtractFunctionParams(const UFunction* InFunc, TArray<FGeneratedWrappedMeth
 			// If the parameter is a class then try and get the full name as the metadata might just be the short name
 			if (InParam->IsA<FClassProperty>() && !FPackageName::IsValidObjectPath(ParamDefaultValue))
 			{
-				if (const UClass* DefaultClass = FindObject<UClass>(ANY_PACKAGE, *ParamDefaultValue, true))
+				if (const UClass* DefaultClass = UClass::TryFindTypeSlow<UClass>(ParamDefaultValue, EFindFirstObjectOptions::ExactClass))
 				{
 					ParamDefaultValue = DefaultClass->GetPathName();
 				}

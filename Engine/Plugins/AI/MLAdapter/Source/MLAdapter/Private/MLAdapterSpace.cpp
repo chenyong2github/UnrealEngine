@@ -5,7 +5,7 @@
 #include "MLAdapterJson.h"
 
 
-DEFINE_ENUM_TO_STRING(EMLAdapterSpaceType);
+DEFINE_ENUM_TO_STRING(EMLAdapterSpaceType, "/Script/MLAdapter");
 
 namespace FMLAdapter
 {

@@ -109,7 +109,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 		}
 
 		// Look for native classes
-		ActorClass = FindObject<UClass>(ANY_PACKAGE, *ActorClassName);
+		ActorClass = UClass::TryFindTypeSlow<UClass>(ActorClassName);
 
 		if (!ActorClass)
 		{

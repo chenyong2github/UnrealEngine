@@ -102,7 +102,7 @@ void FFileTreeItem::RefreshAssetInformation()
 
 			TempAssetName = RetrieveAssetName(AssetData);
 			TempAssetPath = RetrieveAssetPath(AssetData);
-			TempAssetType = AssetData.AssetClass.ToString();
+			TempAssetType = AssetData.AssetClassPath.ToString();
 
 			const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 			const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetData.GetClass()).Pin();
@@ -182,7 +182,6 @@ FText FFileTreeItem::GetAssetName()
 FString FFileTreeItem::RetrieveAssetName(const FAssetData& InAssetData) const
 {
 	static const FName NAME_ActorLabel(TEXT("ActorLabel"));
-	static const FName NAME_ActorFolder(TEXT("ActorFolder"));
 
 	if (InAssetData.FindTag(NAME_ActorLabel))
 	{
@@ -191,7 +190,7 @@ FString FFileTreeItem::RetrieveAssetName(const FAssetData& InAssetData) const
 		InAssetData.GetTagValue(NAME_ActorLabel, ResultAssetName);
 		return ResultAssetName;
 	}
-	else if (InAssetData.AssetClass == NAME_ActorFolder)
+	else if (InAssetData.AssetClassPath == UActorFolder::StaticClass()->GetClassPathName())
 	{
 		FString ActorFolderPath = UActorFolder::GetAssetRegistryInfoFromPackage(InAssetData.PackageName).GetDisplayName();
 		if (!ActorFolderPath.IsEmpty())
@@ -250,7 +249,7 @@ FOfflineFileTreeItem::FOfflineFileTreeItem(const FString& InFilename)
 				AssetName = FText::FromName(AssetData.AssetName);
 			}
 
-			AssetType = FText::FromName(AssetData.AssetClass);
+			AssetType = FText::FromString(AssetData.AssetClassPath.ToString());
 
 			const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 			const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetData.GetClass()).Pin();

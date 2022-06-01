@@ -15,7 +15,7 @@ class FAssetRegistryReader : public FArchiveProxy
 {
 public:
 	/// @param NumWorkers > 0 for parallel loading
-	FAssetRegistryReader(FArchive& Inner, int32 NumWorkers = 0);
+	FAssetRegistryReader(FArchive& Inner, int32 NumWorkers = 0, FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion);
 	~FAssetRegistryReader();
 
 	virtual FArchive& operator<<(FName& Value) override;

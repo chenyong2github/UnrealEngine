@@ -69,7 +69,7 @@ UInterchangeResult* UInterchangeResult::FromJson(const FString& JsonString)
 		return nullptr;
 	}
 
-	UClass* ClassToImport = FindObject<UClass>(ANY_PACKAGE, *ClassType);	// @TODO: no idea how we should do this without ANY_PACKAGE
+	UClass* ClassToImport = UClass::TryFindTypeSlow<UClass>(ClassType);
 	UInterchangeResult* Result = NewObject<UInterchangeResult>(GetTransientPackage(), ClassToImport);
 
 	for (const TSharedPtr<FJsonValue>& Property : *Properties)

@@ -677,7 +677,7 @@ TSharedPtr<FMovieSceneImportCinematicSectionData> FMovieSceneImportData::CreateC
 
 	// Collect a full list of assets with the specified class
 	TArray<FAssetData> AssetDataArray;
-	AssetRegistryModule.Get().GetAssetsByClass(ULevelSequence::StaticClass()->GetFName(), AssetDataArray);
+	AssetRegistryModule.Get().GetAssetsByClass(ULevelSequence::StaticClass()->GetClassPathName(), AssetDataArray);
 
 	for (FAssetData AssetData : AssetDataArray)
 	{
@@ -815,7 +815,7 @@ TSharedPtr<FMovieSceneImportAudioSectionData> FMovieSceneImportData::CreateAudio
 
 	// Collect a full list of assets with the specified class
 	TArray<FAssetData> AssetDataArray;
-	AssetRegistryModule.Get().GetAssetsByClass(USoundWave::StaticClass()->GetFName(), AssetDataArray);
+	AssetRegistryModule.Get().GetAssetsByClass(USoundWave::StaticClass()->GetClassPathName(), AssetDataArray);
 
 	for (FAssetData AssetData : AssetDataArray)
 	{

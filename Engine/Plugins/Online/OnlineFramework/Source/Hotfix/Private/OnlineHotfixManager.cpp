@@ -1046,7 +1046,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 					const FString ClassName = IniData.Mid(ClassNameStart, EndIndex - ClassNameStart);
 
 					// Look up the class to search for
-					UClass* ObjectClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+					UClass* ObjectClass = UClass::TryFindTypeSlow<UClass>(ClassName);
 
 					if (ObjectClass)
 					{
@@ -1054,7 +1054,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 						const FString PerObjectName = IniData.Mid(StartIndex + 1, Count);
 
 						// Explicitly search the transient package (won't update non-transient objects)
-						UObject* PerObject = StaticFindObject(ObjectClass, ANY_PACKAGE, *PerObjectName, false);
+						UObject* PerObject = StaticFindFirstObject(ObjectClass, *PerObjectName, EFindFirstObjectOptions::NativeFirst);
 						if (PerObject != nullptr)
 						{
 							PerObjectConfigObjects.Add(PerObject);
@@ -1224,7 +1224,7 @@ bool UOnlineHotfixManager::IsMapLoaded(const FString& MapName)
 	FString MapPackageName(MapName.Left(MapName.Len() - 5));
 	MapPackageName = MapPackageName.Replace(*GameContentPath, TEXT("/Game"));
 	// If this map's UPackage exists, it is currently loaded
-	UPackage* MapPackage = FindObject<UPackage>(ANY_PACKAGE, *MapPackageName, true);
+	UPackage* MapPackage = FindObject<UPackage>(nullptr, *MapPackageName, true);
 	return MapPackage != nullptr;
 }
 

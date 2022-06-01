@@ -12,5 +12,5 @@ bool PCGEditorUtils::IsAssetPCGBlueprint(const FAssetData& InAssetData)
 	FString InNativeParentClassName = InAssetData.GetTagValueRef<FString>(FBlueprintTags::NativeParentClassPath);
 	FString TargetNativeParentClassName = UPCGBlueprintElement::GetParentClassName();
 
-	return InAssetData.AssetClass == UBlueprint::StaticClass()->GetFName() && InNativeParentClassName == TargetNativeParentClassName;
+	return InAssetData.AssetClassPath == UBlueprint::StaticClass()->GetClassPathName() && InNativeParentClassName == TargetNativeParentClassName;
 }

@@ -5437,9 +5437,10 @@ URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionRefe
 
 	// Create Function
 	URigVMLibraryNode* FunctionDefinition = nullptr;
-	if (!InExistingFunctionDefinitionPath.IsEmpty())
+	if (!InExistingFunctionDefinitionPath.IsEmpty() && 
+		ensureAlwaysMsgf(!FPackageName::IsShortPackageName(InExistingFunctionDefinitionPath), TEXT("Expected full path name for function definition path: \"%s\"), *InExistingFunctionDefinitionPath")))
 	{
-		FunctionDefinition = FindObject<URigVMLibraryNode>(ANY_PACKAGE, *InExistingFunctionDefinitionPath);
+		FunctionDefinition = FindObject<URigVMLibraryNode>(nullptr, *InExistingFunctionDefinitionPath);
 	}
 
 	if (FunctionDefinition == nullptr)
@@ -16242,7 +16243,7 @@ static UObject* FindObjectGloballyWithRedirectors(const TCHAR* InObjectName)
 {
 	// Do a global search for the CPP type. Note that searching with ANY_PACKAGE _does not_
 	// apply redirectors. So only if this fails do we apply them manually below.
-	UObject* Object = FindObject<UField>(ANY_PACKAGE, InObjectName);
+	UObject* Object = FindFirstObject<UField>(InObjectName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 	if(Object != nullptr)
 	{
 		return Object;
@@ -16274,7 +16275,7 @@ static UObject* FindObjectGloballyWithRedirectors(const TCHAR* InObjectName)
 	if (Package == nullptr || Object == nullptr)
 	{
 		// Hail Mary pass.
-		Object = FindObject<UField>(ANY_PACKAGE, *RedirectedObjectName);
+		Object = FindFirstObject<UField>(*RedirectedObjectName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 	}
 	return Object;
 }

@@ -109,7 +109,7 @@ void UPCGBlueprintElement::OnDependencyChanged(UObject* Object, FPropertyChanged
 
 FString UPCGBlueprintElement::GetParentClassName()
 {
-	return FString::Printf(TEXT("%s'%s'"), *UClass::StaticClass()->GetName(), *UPCGBlueprintElement::StaticClass()->GetPathName());
+	return FObjectPropertyBase::GetExportPath(UPCGBlueprintElement::StaticClass());
 }
 #endif // WITH_EDITOR
 

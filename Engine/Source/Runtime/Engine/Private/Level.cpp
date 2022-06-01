@@ -2282,8 +2282,8 @@ namespace LevelAssetRegistryHelper
 
 		for (const FAssetData& Asset : LevelPackageAssets)
 		{
-			static const FName NAME_World(TEXT("World"));
-			if (Asset.AssetClass == NAME_World)
+			static const FTopLevelAssetPath WorldClassPathName(TEXT("/Script/Engine"), TEXT("World"));
+			if (Asset.AssetClassPath == WorldClassPathName)
 			{
 				return Func(Asset);
 			}
@@ -3420,7 +3420,7 @@ bool ULevel::SetUseActorFolders(bool bInEnabled, bool bInInteractiveMode)
 
 	if (GetWorldPartition())
 	{
-		UClass* WorldPartitionBuilderCommandletClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionBuilderCommandlet"), true);
+		UClass* WorldPartitionBuilderCommandletClass = FindObject<UClass>(nullptr, TEXT("/Script/UnrealEd.WorldPartitionBuilderCommandlet"), true);
 		const bool bIsRunningWorldPartitionBuilderCommandlet = WorldPartitionBuilderCommandletClass && GetRunningCommandletClass() && GetRunningCommandletClass()->IsChildOf(WorldPartitionBuilderCommandletClass);
 		if (!bIsRunningWorldPartitionBuilderCommandlet)
 		{

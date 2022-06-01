@@ -100,17 +100,24 @@ public:
 	{
 		if ( Args.Num() < 1 )
 		{
-			UE_LOG(LogAssetRegistry, Log, TEXT("Usage: AssetRegistry.GetByClass Classname"));
+			UE_LOG(LogAssetRegistry, Log, TEXT("Usage: AssetRegistry.GetByClass ClassPathname"));
 			return;
 		}
 
 		TArray<FAssetData> AssetData;
-		const FString Classname = Args[0];
-		IAssetRegistry::GetChecked().GetAssetsByClass(FName(*Classname), AssetData);
-		UE_LOG(LogAssetRegistry, Log, TEXT("GetAssetsByClass for %s:"), *Classname);
-		for (int32 AssetIdx = 0; AssetIdx < AssetData.Num(); ++AssetIdx)
+		const FTopLevelAssetPath ClassPathName(Args[0]);
+		if (!ClassPathName.IsNull())
 		{
-			AssetData[AssetIdx].PrintAssetData();
+			IAssetRegistry::GetChecked().GetAssetsByClass(ClassPathName, AssetData);
+			UE_LOG(LogAssetRegistry, Log, TEXT("GetAssetsByClass for %s:"), *ClassPathName.ToString());
+			for (int32 AssetIdx = 0; AssetIdx < AssetData.Num(); ++AssetIdx)
+			{
+				AssetData[AssetIdx].PrintAssetData();
+			}
+		}
+		else
+		{
+			UE_LOG(LogAssetRegistry, Error, TEXT("\"%s\" is not a valid class path name (E.g. /Script/Engine.Actor)"));
 		}
 	}
 

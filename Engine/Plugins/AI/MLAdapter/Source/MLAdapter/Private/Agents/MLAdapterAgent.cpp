@@ -276,7 +276,7 @@ void UMLAdapterAgent::Configure(const FMLAdapterAgentConfig& NewConfig)
 
 	if (NewConfig.AvatarClassName != NAME_None)
 	{
-		AvatarClass = FindObject<UClass>(ANY_PACKAGE, *NewConfig.AvatarClassName.ToString());
+		AvatarClass = UClass::TryFindTypeSlow<UClass>(*NewConfig.AvatarClassName.ToString());
 	}
 
 	if (!AvatarClass)

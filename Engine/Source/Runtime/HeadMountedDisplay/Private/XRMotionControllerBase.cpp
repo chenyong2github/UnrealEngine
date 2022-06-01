@@ -3,8 +3,6 @@
 #include "XRMotionControllerBase.h"
 #include "UObject/UObjectGlobals.h" // for FindObject<>
 #include "UObject/Class.h" // for UEnum
-#include "UObject/ObjectMacros.h" // for ANY_PACKAGE
-#include "UObject/Package.h" // required for ANY_PACKAGE
 #include "InputCoreTypes.h" // for EControllerHand
 
 FName FXRMotionControllerBase::LeftHandSourceId(TEXT("Left"));

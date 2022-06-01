@@ -156,7 +156,7 @@ int32 UImportLocalizedDialogueCommandlet::Main(const FString& Params)
 
 	// We want all the non-localized project specific dialogue waves
 	TArray<FAssetData> AssetDataArrayForDialogueWaves;
-	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, *RootAssetPath, UDialogueWave::StaticClass()->GetFName(), /*bIncludeLocalizedAssets*/false, AssetDataArrayForDialogueWaves))
+	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, *RootAssetPath, UDialogueWave::StaticClass()->GetClassPathName(), /*bIncludeLocalizedAssets*/false, AssetDataArrayForDialogueWaves))
 	{
 		UE_LOG(LogImportLocalizedDialogueCommandlet, Error, TEXT("Unable to get dialogue wave asset data from asset registry."));
 		return -1;
@@ -193,8 +193,8 @@ int32 UImportLocalizedDialogueCommandlet::Main(const FString& Params)
 			LocalizedSoundWavePathsToSearch.Add(*CultureImportInfo.LocalizedImportedDialoguePackagePath);
 		}
 
-		FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, LocalizedDialogueWavePathsToSearch, UDialogueWave::StaticClass()->GetFName(), /*bIncludeLocalizedAssets*/true, LocalizedAssetsToPotentiallyDelete);
-		FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, LocalizedSoundWavePathsToSearch, USoundWave::StaticClass()->GetFName(), /*bIncludeLocalizedAssets*/true, LocalizedAssetsToPotentiallyDelete);
+		FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, LocalizedDialogueWavePathsToSearch, UDialogueWave::StaticClass()->GetClassPathName(), /*bIncludeLocalizedAssets*/true, LocalizedAssetsToPotentiallyDelete);
+		FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, LocalizedSoundWavePathsToSearch, USoundWave::StaticClass()->GetClassPathName(), /*bIncludeLocalizedAssets*/true, LocalizedAssetsToPotentiallyDelete);
 	}
 
 	// We're going to walk every context from every dialogue wave asset looking to see whether there's new audio to import for each culture we generate for

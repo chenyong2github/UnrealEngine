@@ -122,7 +122,7 @@ void SkeletalMeshImportUtils::ProcessImportMeshMaterials(TArray<FSkeletalMateria
 		{
 			const FString& MaterialName = ImportedMaterial.MaterialImportName;
 			MaterialNameNoSkin = MaterialName;
-			Material = FindObject<UMaterialInterface>(ANY_PACKAGE, *MaterialName);
+			Material = FindFirstObject<UMaterialInterface>(*MaterialName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("ProcessImportMeshMaterials"));
 			if (Material == nullptr)
 			{
 				SkinOffset = MaterialName.Find(TEXT("_skin"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
@@ -132,7 +132,7 @@ void SkeletalMeshImportUtils::ProcessImportMeshMaterials(TArray<FSkeletalMateria
 					if (SkinXXNumber.IsNumeric())
 					{
 						MaterialNameNoSkin = MaterialName.LeftChop(MaterialName.Len() - SkinOffset);
-						Material = FindObject<UMaterialInterface>(ANY_PACKAGE, *MaterialNameNoSkin);
+						Material = FindFirstObject<UMaterialInterface>(*MaterialNameNoSkin, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("ProcessImportMeshMaterials"));
 					}
 				}
 			}

@@ -98,7 +98,8 @@ FIniCookedEditorPackageManager::FIniCookedEditorPackageManager(bool bInIsCookedC
 	TArray<FString> DisallowedObjectClassNamesToLoad = GetConfigArray(TEXT("DisallowedObjectClassesToLoad"));;
 	for (const FString& ClassName : DisallowedObjectClassNamesToLoad)
 	{
-		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+		check(FPackageName::IsValidObjectPath(ClassName));
+		UClass* Class = FindObject<UClass>(nullptr, *ClassName);
 		check(Class);
 
 		DisallowedObjectClassesToLoad.Add(Class);
@@ -107,7 +108,8 @@ FIniCookedEditorPackageManager::FIniCookedEditorPackageManager(bool bInIsCookedC
 	TArray<FString> DisallowedAssetClassNamesToGather = GetConfigArray(TEXT("DisallowedAssetClassesToGather"));;
 	for (const FString& ClassName : DisallowedAssetClassNamesToGather)
 	{
-		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+		check(FPackageName::IsValidObjectPath(ClassName));
+		UClass* Class = FindObject<UClass>(nullptr, *ClassName);
 		check(Class);
 
 		DisallowedAssetClassesToGather.Add(Class);

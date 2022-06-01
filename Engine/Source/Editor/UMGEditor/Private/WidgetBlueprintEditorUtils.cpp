@@ -1421,9 +1421,9 @@ UWidget* FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(UWidgetBluep
 			// Only handle first valid dragged widget, multi widget drag drop is not practically useful
 			const FAssetData& AssetData = AssetDragDropOp->GetAssets()[0];
 
-			bool CodeClass = AssetData.AssetClass == "Class";
-			FName ClassName = CodeClass ? AssetData.ObjectPath : AssetData.AssetClass;
-			UClass* AssetClass = FindObjectChecked<UClass>(ANY_PACKAGE, *ClassName.ToString());
+			bool CodeClass = AssetData.AssetClassPath == FTopLevelAssetPath(TEXT("/Script/CoreUObject"), TEXT("Class"));
+			FString ClassName = CodeClass ? AssetData.ObjectPath.ToString() : AssetData.AssetClassPath.ToString();
+			UClass* AssetClass = FindObjectChecked<UClass>(nullptr, *ClassName);
 
 			if (FWidgetTemplateBlueprintClass::Supports(AssetClass))
 			{

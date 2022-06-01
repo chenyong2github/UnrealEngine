@@ -1481,7 +1481,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 		if (InFunc->HasMetaData(PyGenUtil::ScriptConstantHostMetaDataKey))
 		{
 			const FString ConstantOwnerName = InFunc->GetMetaData(PyGenUtil::ScriptConstantHostMetaDataKey);
-			HostType = FindObject<UStruct>(ANY_PACKAGE, *ConstantOwnerName);
+			HostType = UClass::TryFindTypeSlow<UStruct>(ConstantOwnerName);
 			if (HostType && !(HostType->IsA<UClass>() || HostType->IsA<UScriptStruct>()))
 			{
 				HostType = nullptr;

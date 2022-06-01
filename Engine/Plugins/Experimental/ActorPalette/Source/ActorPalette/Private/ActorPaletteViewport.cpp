@@ -351,7 +351,7 @@ TSharedRef<SWidget> SActorPaletteViewport::GenerateMapMenu() const
 							
 				// Configure filter for asset picker
 				FAssetPickerConfig Config;
-				Config.Filter.ClassNames.Add(UWorld::StaticClass()->GetFName());
+				Config.Filter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
 				Config.InitialAssetViewType = EAssetViewType::List;
 				Config.OnAssetSelected = FOnAssetSelected::CreateLambda([=](const FAssetData& AssetData)
 				{
@@ -386,7 +386,7 @@ TSharedRef<SWidget> SActorPaletteViewport::GenerateMapMenu() const
 		int32 NumLeftAllowedFromContentBrowser = 4;
 		for (FAssetData& Asset : SelectedAssets)
 		{
-			if (Asset.AssetClass == UWorld::StaticClass()->GetFName())
+			if (Asset.AssetClassPath == UWorld::StaticClass()->GetClassPathName())
 			{
 				FUIAction Action;
 				Action.ExecuteAction.BindLambda([=]()

@@ -511,7 +511,7 @@ void SFbxSceneStaticMeshReimportListView::AssignToStaticMesh()
 		SelectAssetConfig.DialogTitleOverride = LOCTEXT("FbxChooseReimportAssetContentPath", "Choose static mesh asset for reimporting the fbx scene content");
 		//SelectAssetConfig.DefaultPath = ItemPtr->OriginalImportPath;
 		SelectAssetConfig.bAllowMultipleSelection = false;
-		SelectAssetConfig.AssetClassNames.Add(UStaticMesh::StaticClass()->GetFName());
+		SelectAssetConfig.AssetClassNames.Add(UStaticMesh::StaticClass()->GetClassPathName());
 		TArray<FAssetData> AssetData = ContentBrowserModule.Get().CreateModalOpenAssetDialog(SelectAssetConfig);
 		if (AssetData.Num() == 1)
 		{

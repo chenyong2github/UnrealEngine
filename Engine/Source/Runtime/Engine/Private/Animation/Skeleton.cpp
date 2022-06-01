@@ -148,7 +148,7 @@ bool USkeleton::IsCompatibleSkeletonByAssetString(const FString& SkeletonAssetSt
 	FString CompatibleName;
 	for (const auto& CompatibleSkeleton : CompatibleSkeletons)
 	{
-		CompatibleName = FString::Printf(TEXT("%s'%s'"), *GetClass()->GetName(), *CompatibleSkeleton.ToString());
+		CompatibleName = FObjectPropertyBase::GetExportPath(CompatibleSkeleton.Get());
 		if (CompatibleName == SkeletonAssetString)
 		{
 			return true;
@@ -1516,7 +1516,7 @@ void USkeleton::CollectAnimationNotifies(TArray<FName>& OutNotifies) const
 	// meanwhile if you remove this, this will miss the links
 	//AnimationNotifies.Empty();
 	TArray<FAssetData> AssetList;
-	AssetRegistryModule.Get().GetAssetsByClass(UAnimSequenceBase::StaticClass()->GetFName(), AssetList, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UAnimSequenceBase::StaticClass()->GetClassPathName(), AssetList, true);
 
 	// do not clear AnimationNotifies. We can't remove old ones yet. 
 	FString CurrentSkeletonName = FAssetData(this).GetExportTextName();
@@ -1552,7 +1552,7 @@ void USkeleton::AddNewAnimationNotify(FName NewAnimNotifyName)
 USkeletalMesh* USkeleton::FindCompatibleMesh() const
 {
 	FARFilter Filter;
-	Filter.ClassNames.Add(USkeletalMesh::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
 
 	FString SkeletonString = FAssetData(this).GetExportTextName();
 	

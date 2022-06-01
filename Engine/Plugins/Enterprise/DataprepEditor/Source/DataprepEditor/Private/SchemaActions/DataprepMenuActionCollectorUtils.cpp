@@ -41,14 +41,14 @@ TArray<TSharedPtr<FDataprepSchemaAction>> DataprepMenuActionCollectorUtils::Gath
 	// Get the classes created by blueprints
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( "AssetRegistry" );
 
-	TArray< FName > BasesClass;
-	BasesClass.Add( Class.GetFName() );
-	TSet< FName > Excludeds;
-	TSet< FName > ChildClassNames;
+	TArray< FTopLevelAssetPath > BasesClass;
+	BasesClass.Add( Class.GetClassPathName() );
+	TSet< FTopLevelAssetPath > Excludeds;
+	TSet< FTopLevelAssetPath > ChildClassNames;
 	AssetRegistryModule.Get().GetDerivedClassNames( BasesClass, Excludeds, ChildClassNames );
 
 	TArray< FAssetData > AssetsData;
-	AssetRegistryModule.Get().GetAssetsByClass( UBlueprint::StaticClass()->GetFName(), AssetsData, true );
+	AssetRegistryModule.Get().GetAssetsByClass( UBlueprint::StaticClass()->GetClassPathName(), AssetsData, true );
 	Actions.Reserve( AssetsData.Num() );
 
 	for ( FAssetData& AssetData : AssetsData )
@@ -56,11 +56,10 @@ TArray<TSharedPtr<FDataprepSchemaAction>> DataprepMenuActionCollectorUtils::Gath
 		FAssetDataTagMapSharedView::FFindTagResult GeneratedClassPathPtr = AssetData.TagsAndValues.FindTag( TEXT("GeneratedClass") );
 		if ( GeneratedClassPathPtr.IsSet() )
 		{
-			const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath( GeneratedClassPathPtr.GetValue() );
-			const FString ClassName = FPackageName::ObjectPathToObjectName( ClassObjectPath );
-			if ( ChildClassNames.Contains( *ClassName ) )
+			const FTopLevelAssetPath ClassObjectPath(FPackageName::ExportTextPathToObjectPath( GeneratedClassPathPtr.GetValue() ));
+			if ( ChildClassNames.Contains(ClassObjectPath) )
 			{
-				UClass* ChildClass = StaticLoadClass( &Class, nullptr, *ClassObjectPath );
+				UClass* ChildClass = StaticLoadClass( &Class, nullptr, *ClassObjectPath.ToString() );
 				if ( ChildClass && !ChildClass->HasAnyClassFlags( NonDesiredClassFlags ) )
 				{
 					if ( OnValidClassFound.IsBound() )
@@ -68,7 +67,7 @@ TArray<TSharedPtr<FDataprepSchemaAction>> DataprepMenuActionCollectorUtils::Gath
 						TSharedPtr< FDataprepSchemaAction > DataprepMenuAction = OnValidClassFound.Execute( *ChildClass );
 						if ( DataprepMenuAction )
 						{
-							DataprepMenuAction->GeneratedClassObjectPath = ClassObjectPath;
+							DataprepMenuAction->GeneratedClassObjectPath = ClassObjectPath.ToString();
 							Actions.Emplace( MoveTemp( DataprepMenuAction ) );
 						}
 					}

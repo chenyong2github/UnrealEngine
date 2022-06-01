@@ -104,7 +104,7 @@ UK2Node_MakeRequestHeader::UK2Node_MakeRequestHeader(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 {
 	NumInputs = 1;
-	PresetEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ERequestPresets"));
+	PresetEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/HttpBlueprint.ERequestPresets"));
 
 	UE::HttpBlueprint::Private::MakeRequestHeaderGlobals::Presets =
 	{

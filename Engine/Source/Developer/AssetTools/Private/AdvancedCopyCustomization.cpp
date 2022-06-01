@@ -27,9 +27,9 @@ UAdvancedCopyCustomization::UAdvancedCopyCustomization(const class FObjectInitia
 
 	FilterForExcludingDependencies.bRecursivePaths = true;
 	FilterForExcludingDependencies.bRecursiveClasses = true;
-	FilterForExcludingDependencies.ClassNames.Add(UWorld::StaticClass()->GetFName());
-	FilterForExcludingDependencies.ClassNames.Add(ULevel::StaticClass()->GetFName());
-	FilterForExcludingDependencies.ClassNames.Add(UMapBuildDataRegistry::StaticClass()->GetFName());
+	FilterForExcludingDependencies.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
+	FilterForExcludingDependencies.ClassPaths.Add(ULevel::StaticClass()->GetClassPathName());
+	FilterForExcludingDependencies.ClassPaths.Add(UMapBuildDataRegistry::StaticClass()->GetClassPathName());
 
 }
 

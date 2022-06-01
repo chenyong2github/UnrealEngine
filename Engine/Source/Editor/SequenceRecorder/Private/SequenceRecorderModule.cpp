@@ -493,7 +493,7 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 				}
 				else
 				{
-					UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *SpecifierStr);
+					UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(SpecifierStr);
 					if(FoundClass != nullptr)
 					{
 						Settings->ActorFilter.ActorClassesToRecord.Empty();

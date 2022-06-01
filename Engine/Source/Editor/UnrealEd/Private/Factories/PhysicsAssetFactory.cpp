@@ -41,7 +41,7 @@ bool UPhysicsAssetFactory::ConfigureProperties()
 	AssetPickerConfig.SelectionMode = ESelectionMode::Single;
 
 	/** The asset picker will only show skeletal meshes */
-	AssetPickerConfig.Filter.ClassNames.Add(USkeletalMesh::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
 	AssetPickerConfig.Filter.bRecursiveClasses = false;
 
 	/** The delegate that fires when an asset was selected */

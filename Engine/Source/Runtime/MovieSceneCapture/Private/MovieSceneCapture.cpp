@@ -38,7 +38,7 @@ TArray<UClass*> FindAllCaptureProtocolClasses()
 	TArray<FAssetData> BlueprintList;
 
 	FARFilter Filter;
-	Filter.ClassNames.Add(UMovieSceneCaptureProtocolBase::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UMovieSceneCaptureProtocolBase::StaticClass()->GetClassPathName());
 
 	// Include any Blueprint based objects as well, this includes things like Blutilities, UMG, and GameplayAbility objects
 	Filter.bRecursiveClasses = true;

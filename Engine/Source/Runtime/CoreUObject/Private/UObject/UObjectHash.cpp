@@ -11,6 +11,7 @@
 #include "Misc/PackageName.h"
 #include "Async/ParallelFor.h"
 #include "HAL/IConsoleManager.h"
+#include "UObject/AnyPackagePrivate.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUObjectHash, Log, All);
 
@@ -697,6 +698,11 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 {
 	ExclusiveInternalFlags |= EInternalObjectFlags::Unreachable;
 
+	if (!ObjectPackage && bAnyPackage && ObjectClass && ObjectClass->IsChildOf(UClass::StaticClass()))
+	{
+		UE_LOG(LogUObjectHash, Fatal, TEXT("Looking for classes without specifying their outer is not allowed (class name: %s)"), *ObjectName.ToString());
+		return nullptr;
+	}
 	// If they specified an outer use that during the hashing
 	UObject* Result = nullptr;
 	if (ObjectPackage != nullptr)
@@ -804,10 +810,23 @@ UObject* StaticFindObjectFastInternal(const UClass* ObjectClass, const UObject* 
 {
 	INC_DWORD_STAT(STAT_FindObjectFast);
 
-	check(ObjectPackage != ANY_PACKAGE); // this could never have returned anything but nullptr
+	check(ObjectPackage != ANY_PACKAGE_DEPRECATED); // this could never have returned anything but nullptr
+
 	// If they specified an outer use that during the hashing
 	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
 	UObject* Result = StaticFindObjectFastInternalThreadSafe(ThreadHash, ObjectClass, ObjectPackage, ObjectName, bExactClass, bAnyPackage, ExcludeFlags | RF_NewerVersionExists, ExclusiveInternalFlags);
+	return Result;
+}
+
+UObject* StaticFindObjectFastInternal(const UClass* ObjectClass, const UObject* ObjectPackage, FName ObjectName, bool bExactClass, EObjectFlags ExcludeFlags, EInternalObjectFlags ExclusiveInternalFlags)
+{
+	INC_DWORD_STAT(STAT_FindObjectFast);
+
+	check(ObjectPackage != ANY_PACKAGE_DEPRECATED); // this could never have returned anything but nullptr
+
+	// If they specified an outer use that during the hashing
+	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
+	UObject* Result = StaticFindObjectFastInternalThreadSafe(ThreadHash, ObjectClass, ObjectPackage, ObjectName, bExactClass, /*bAnyPackage =*/ false, ExcludeFlags | RF_NewerVersionExists, ExclusiveInternalFlags);
 	return Result;
 }
 
@@ -1194,7 +1213,7 @@ UObjectBase* FindObjectWithOuter(const class UObjectBase* Outer, const class UCl
 
 	if( NameToLookFor != NAME_None )
 	{
-		Result = StaticFindObjectFastInternal(ClassToLookFor, static_cast<const UObject*>(Outer), NameToLookFor, false, false, RF_NoFlags, ExclusionInternalFlags);
+		Result = StaticFindObjectFastInternal(ClassToLookFor, static_cast<const UObject*>(Outer), NameToLookFor, false, RF_NoFlags, ExclusionInternalFlags);
 	}
 	else
 	{

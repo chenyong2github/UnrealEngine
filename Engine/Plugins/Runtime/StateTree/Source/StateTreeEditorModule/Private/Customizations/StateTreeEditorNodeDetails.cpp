@@ -187,10 +187,10 @@ void FStateTreeEditorNodeDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 	static const FName BaseClassMetaName(TEXT("BaseClass")); // TODO: move these names into one central place.
 	
 	const FString BaseStructName = StructProperty->GetMetaData(BaseStructMetaName);
-	BaseScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *BaseStructName);
+	BaseScriptStruct = UClass::TryFindTypeSlow<UScriptStruct>(BaseStructName);
 
 	const FString BaseClassName = StructProperty->GetMetaData(BaseClassMetaName);
-	BaseClass = FindObject<UClass>(ANY_PACKAGE, *BaseClassName);
+	BaseClass = UClass::TryFindTypeSlow<UClass>(BaseClassName);
 	
 	const FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FStateTreeEditorNodeDetails::ShouldResetToDefault);
 	const FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FStateTreeEditorNodeDetails::ResetToDefault);

@@ -33,7 +33,7 @@ struct COREUOBJECT_API FTopLevelAssetPath
 	UE_DEPRECATED(5.0, "FNames containing full asset paths have been replaced by FTopLevelAssetPath/FSoftLevelObjectPath."
 		"This function is only for temporary use interfacing with APIs that still produce an FName."
 		"Those APIS should be updated to use FTopLevelAssetPath or FSoftLevelObjectPath.")
-	FTopLevelAssetPath(FName InPath)
+	explicit FTopLevelAssetPath(FName InPath)
 	{
 		TrySetPath(InPath.ToString());
 	}

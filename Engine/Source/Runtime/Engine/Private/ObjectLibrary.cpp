@@ -344,12 +344,18 @@ int32 UObjectLibrary::LoadAssetDataFromPaths(const TArray<FString>& Paths, bool 
 	FARFilter ARFilter;
 	if ( ObjectBaseClass )
 	{
-		ARFilter.ClassNames.Add(ObjectBaseClass->GetFName());
+		ARFilter.ClassPaths.Add(ObjectBaseClass->GetClassPathName());
 
 #if WITH_EDITOR
 		// Add any old names to the list in case things haven't been resaved
-		TArray<FName> OldNames = FLinkerLoad::FindPreviousNamesForClass(ObjectBaseClass->GetPathName(), false);
-		ARFilter.ClassNames.Append(OldNames);
+		// @todo make FLinkerLoad support long class names
+		TArray<FString> OldNames = FLinkerLoad::FindPreviousPathNamesForClass(ObjectBaseClass->GetPathName(), false);
+		for (const FString& OldName : OldNames)
+		{
+			FTopLevelAssetPath OldPathName(OldName);
+			check(!OldPathName.IsNull() || OldName.IsEmpty());
+			ARFilter.ClassPaths.Add(OldPathName);
+		}
 #endif
 
 		ARFilter.bRecursiveClasses = true;
@@ -413,7 +419,7 @@ int32 UObjectLibrary::LoadBlueprintAssetDataFromPaths(const TArray<FString>& Pat
 #endif
 
 	FARFilter ARFilter;
-	ARFilter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+	ARFilter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
 	
 	for (int PathIndex = 0; PathIndex < Paths.Num(); PathIndex++)
 	{
@@ -445,10 +451,10 @@ int32 UObjectLibrary::LoadBlueprintAssetDataFromPaths(const TArray<FString>& Pat
 	// Filter out any blueprints found whose parent class is not derived from ObjectBaseClass
 	if (ObjectBaseClass)
 	{
-		TSet<FName> DerivedClassNames;
-		TArray<FName> ClassNames;
-		ClassNames.Add(ObjectBaseClass->GetFName());
-		AssetRegistry.GetDerivedClassNames(ClassNames, TSet<FName>(), DerivedClassNames);
+		TSet<FTopLevelAssetPath> DerivedClassNames;
+		TArray<FTopLevelAssetPath> ClassNames;
+		ClassNames.Add(ObjectBaseClass->GetClassPathName());
+		AssetRegistry.GetDerivedClassNames(ClassNames, TSet<FTopLevelAssetPath>(), DerivedClassNames);
 
 		for(int32 AssetIdx=AssetDataList.Num() - 1; AssetIdx >= 0; --AssetIdx)
 		{
@@ -459,8 +465,7 @@ int32 UObjectLibrary::LoadBlueprintAssetDataFromPaths(const TArray<FString>& Pat
 			if (!ParentClassFromData.IsEmpty())
 			{
 				const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(ParentClassFromData);
-				const FString ClassName = FPackageName::ObjectPathToObjectName(ClassObjectPath);
-				if (DerivedClassNames.Contains(FName(*ClassName)))
+				if (DerivedClassNames.Contains(FTopLevelAssetPath(ClassObjectPath)))
 				{
 					// This asset is derived from ObjectBaseClass. Keep it.
 					bShouldRemove = false;

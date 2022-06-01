@@ -180,7 +180,7 @@ int32 UExportDialogueScriptCommandlet::Main(const FString& Params)
 
 	// We want all the non-localized project specific dialogue waves
 	TArray<FAssetData> AssetDataArrayForDialogueWaves;
-	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, *RootAssetPath, UDialogueWave::StaticClass()->GetFName(), /*bIncludeLocalizedAssets*/false, AssetDataArrayForDialogueWaves))
+	if (!FLocalizedAssetUtil::GetAssetsByPathAndClass(AssetRegistry, *RootAssetPath, UDialogueWave::StaticClass()->GetClassPathName(), /*bIncludeLocalizedAssets*/false, AssetDataArrayForDialogueWaves))
 	{
 		UE_LOG(LogExportDialogueScriptCommandlet, Error, TEXT("Unable to get dialogue wave asset data from asset registry."));
 		return -1;

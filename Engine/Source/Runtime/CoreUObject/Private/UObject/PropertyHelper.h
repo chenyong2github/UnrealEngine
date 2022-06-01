@@ -234,7 +234,7 @@ namespace DelegatePropertyTools
 		}
 		if (Cls == nullptr)
 		{
-			Cls = FindObject<UClass>(ANY_PACKAGE,ObjName);
+			Cls = UClass::TryFindTypeSlow<UClass>(ObjName);
 			if (Cls != nullptr)
 			{
 				Object = Cls->GetDefaultObject();
@@ -251,7 +251,7 @@ namespace DelegatePropertyTools
 				
 				if (Object == nullptr)
 				{
-					Object = StaticFindObject(UObject::StaticClass(), ANY_PACKAGE, ObjName);
+					Object = StaticFindFirstObject(UObject::StaticClass(), ObjName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
 				}
 				if (Object != nullptr)
 				{

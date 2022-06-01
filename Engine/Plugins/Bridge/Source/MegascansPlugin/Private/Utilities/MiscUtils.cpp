@@ -266,8 +266,10 @@ void CopyMSPresets()
 		return AssetMetaData;
 	}
 
-	TArray<UMaterialInstanceConstant*> AssetUtils::GetSelectedAssets(const FString& AssetClass)
+	TArray<UMaterialInstanceConstant*> AssetUtils::GetSelectedAssets(const FTopLevelAssetPath& AssetClass)
 	{
+		check(!AssetClass.IsNull());
+
 		TArray<UMaterialInstanceConstant*> ObjectArray;
 
 		TArray<FAssetData> AssetDatas;
@@ -278,7 +280,7 @@ void CopyMSPresets()
 		for (FAssetData SelectedAsset : AssetDatas)
 		{
 
-			if (SelectedAsset.AssetClass == FName(*AssetClass))
+			if (SelectedAsset.AssetClassPath == AssetClass)
 			{
 				ObjectArray.Add(CastChecked<UMaterialInstanceConstant>(UEditorAssetLibrary::LoadAsset(SelectedAsset.ObjectPath.ToString())));
 			}

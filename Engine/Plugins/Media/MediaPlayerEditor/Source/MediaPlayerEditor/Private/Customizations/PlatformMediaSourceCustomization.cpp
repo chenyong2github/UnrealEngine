@@ -210,7 +210,7 @@ FString FPlatformMediaSourceCustomization::HandleMediaSourceEntryBoxObjectPath(F
 bool FPlatformMediaSourceCustomization::HandleMediaSourceEntryBoxShouldFilterAsset(const FAssetData& AssetData)
 {
 	// Don't allow nesting platform media sources.
-	UClass* AssetClass = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
+	UClass* AssetClass = FindObject<UClass>(AssetData.AssetClassPath);
 	return AssetClass->IsChildOf(UPlatformMediaSource::StaticClass());
 }
 

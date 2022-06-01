@@ -147,7 +147,7 @@ void FComponentReferenceCustomization::BuildClassFilters()
 
 			for (const FString& ClassName : ClassFilterNames)
 			{
-				UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+				UClass* Class = UClass::TryFindTypeSlow<UClass>(ClassName);
 				if (!Class)
 				{
 					Class = LoadObject<UClass>(nullptr, *ClassName);

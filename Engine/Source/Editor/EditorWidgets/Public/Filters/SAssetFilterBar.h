@@ -274,18 +274,18 @@ public:
 			for(const TSharedRef<FCustomClassFilterData> &CustomClassFilter : CustomClassFilters)
 			{
 				const UClass* TypeClass = CustomClassFilter->GetClass();
-				if (TypeClass && !CombinedFilter.ClassNames.Contains(TypeClass->GetFName()))
+				if (TypeClass && !CombinedFilter.ClassPaths.Contains(TypeClass->GetClassPathName()))
 				{
-					CombinedFilter.RecursiveClassesExclusionSet.Add(TypeClass->GetFName());
+					CombinedFilter.RecursiveClassPathsExclusionSet.Add(TypeClass->GetClassPathName());
 				}
 			}
 		}
 
 		// HACK: A blueprint can be shown as Blueprint or as BlueprintGeneratedClass, but we don't want to distinguish them while filtering.
 		// This should be removed, once all blueprints are shown as BlueprintGeneratedClass.
-		if(CombinedFilter.ClassNames.Contains(FName(TEXT("Blueprint"))))
+		if(CombinedFilter.ClassPaths.Contains(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("Blueprint"))))
 		{
-			CombinedFilter.ClassNames.AddUnique(FName(TEXT("BlueprintGeneratedClass")));
+			CombinedFilter.ClassPaths.AddUnique(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("BlueprintGeneratedClass")));
 		}
 
 		return CombinedFilter;
@@ -522,7 +522,7 @@ protected:
 		};
 		AssetTypeActionsList.Sort( FCompareIAssetTypeActions() );
 
-		const TSharedRef<FNamePermissionList>& AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList(EAssetClassAction::CreateAsset);
+		const TSharedRef<FPathPermissionList>& AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPathPermissionList(EAssetClassAction::CreateAsset);
 
 		// For every asset type, convert it to an FCustomClassFilterData and add it to the list
 		for (int32 ClassIdx = 0; ClassIdx < AssetTypeActionsList.Num(); ++ClassIdx)
@@ -534,7 +534,7 @@ protected:
 				if ( ensure(TypeActions.IsValid()) && TypeActions->CanFilter() )
 				{
 					UClass* SupportedClass = TypeActions->GetSupportedClass();
-					if ((!SupportedClass || AssetClassPermissionList->PassesFilter(SupportedClass->GetFName())))
+					if ((!SupportedClass || AssetClassPermissionList->PassesFilter(SupportedClass->GetPathName())))
 					{
 						// Convert the AssetTypeAction to an FCustomClassFilterData and add it to our list
 						TSharedRef<FCustomClassFilterData> CustomClassFilterData = MakeShared<FCustomClassFilterData>(TypeActions);

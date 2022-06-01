@@ -231,7 +231,7 @@ void FWorldPartitionEditorModule::OnConvertMap()
 	{
 		Config.DefaultPath = OutPathName;
 	}	
-	Config.AssetClassNames.Add(UWorld::StaticClass()->GetFName());
+	Config.AssetClassNames.Add(UWorld::StaticClass()->GetClassPathName());
 
 	TArray<FAssetData> Assets = ContentBrowserSingleton.CreateModalOpenAssetDialog(Config);
 	if (Assets.Num() == 1)

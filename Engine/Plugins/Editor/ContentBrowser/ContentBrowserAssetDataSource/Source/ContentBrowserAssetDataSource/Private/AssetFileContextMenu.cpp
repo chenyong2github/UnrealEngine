@@ -471,7 +471,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 		// Materials can't be bulk edited currently as they require very special handling because of their dependencies with the rendering thread, and we'd have to hack the property matrix too much.
 		for (auto& Asset : SelectedAssets)
 		{
-			if (Asset.AssetClass == UMaterial::StaticClass()->GetFName() || Asset.AssetClass == UMaterialInstanceConstant::StaticClass()->GetFName() || Asset.AssetClass == UMaterialFunction::StaticClass()->GetFName() || Asset.AssetClass == UMaterialFunctionInstance::StaticClass()->GetFName())
+			if (Asset.AssetClassPath == UMaterial::StaticClass()->GetClassPathName() || Asset.AssetClassPath == UMaterialInstanceConstant::StaticClass()->GetClassPathName() || Asset.AssetClassPath == UMaterialFunction::StaticClass()->GetClassPathName() || Asset.AssetClassPath == UMaterialFunctionInstance::StaticClass()->GetClassPathName())
 			{
 				bCanUsePropertyMatrix = false;
 				break;
@@ -1520,7 +1520,7 @@ void FAssetFileContextMenu::GetSelectedAssets(TArray<UObject*>& Assets, bool Ski
 {
 	for (int32 AssetIdx = 0; AssetIdx < SelectedAssets.Num(); ++AssetIdx)
 	{
-		if (SkipRedirectors && (SelectedAssets[AssetIdx].AssetClass == UObjectRedirector::StaticClass()->GetFName()))
+		if (SkipRedirectors && (SelectedAssets[AssetIdx].AssetClassPath == UObjectRedirector::StaticClass()->GetClassPathName()))
 		{
 			// Don't operate on Redirectors
 			continue;
@@ -1782,13 +1782,13 @@ void FAssetFileContextMenu::ExecuteReload()
 		{
 			const FAssetData& AssetData = *AssetIt;
 
-			if (AssetData.AssetClass == UObjectRedirector::StaticClass()->GetFName())
+			if (AssetData.AssetClassPath == UObjectRedirector::StaticClass()->GetClassPathName())
 			{
 				// Don't operate on Redirectors
 				continue;
 			}
 
-			if (AssetData.AssetClass == UUserDefinedStruct::StaticClass()->GetFName())
+			if (AssetData.AssetClassPath == UUserDefinedStruct::StaticClass()->GetClassPathName())
 			{
 				FNotificationInfo Notification(LOCTEXT("CannotReloadUserStruct", "User created structures cannot be safely reloaded."));
 				Notification.ExpireDuration = 3.0f;
@@ -1796,7 +1796,7 @@ void FAssetFileContextMenu::ExecuteReload()
 				continue;
 			}
 
-			if (AssetData.AssetClass == UUserDefinedEnum::StaticClass()->GetFName())
+			if (AssetData.AssetClassPath == UUserDefinedEnum::StaticClass()->GetClassPathName())
 			{
 				FNotificationInfo Notification(LOCTEXT("CannotReloadUserEnum", "User created enumerations cannot be safely reloaded."));
 				Notification.ExpireDuration = 3.0f;
@@ -2393,7 +2393,7 @@ bool FAssetFileContextMenu::CanExecuteDiffSelected() const
 		FAssetData const& FirstSelection = SelectedAssets[0];
 		FAssetData const& SecondSelection = SelectedAssets[1];
 
-		bCanDiffSelected = FirstSelection.AssetClass == SecondSelection.AssetClass;
+		bCanDiffSelected = FirstSelection.AssetClassPath == SecondSelection.AssetClassPath;
 	}
 
 	return bCanDiffSelected;
@@ -2436,7 +2436,7 @@ void FAssetFileContextMenu::CacheCanExecuteVars()
 			continue;
 		}
 
-		if ( !bAtLeastOneNonRedirectorSelected && AssetData.AssetClass != UObjectRedirector::StaticClass()->GetFName() )
+		if ( !bAtLeastOneNonRedirectorSelected && AssetData.AssetClassPath != UObjectRedirector::StaticClass()->GetClassPathName() )
 		{
 			bAtLeastOneNonRedirectorSelected = true;
 		}

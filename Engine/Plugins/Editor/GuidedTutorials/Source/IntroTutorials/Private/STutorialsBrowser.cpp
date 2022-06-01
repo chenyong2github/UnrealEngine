@@ -755,10 +755,10 @@ void STutorialsBrowser::RebuildTutorials(TSharedPtr<FTutorialListEntry_Category>
 
 	// rebuild tutorials
 	FARFilter Filter;
-	Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
 	Filter.bRecursiveClasses = true;
-	Filter.TagsAndValues.Add(FBlueprintTags::NativeParentClassPath, FString::Printf(TEXT("%s'%s'"), *UClass::StaticClass()->GetName(), *UEditorTutorial::StaticClass()->GetPathName()));
-	Filter.TagsAndValues.Add(FBlueprintTags::ParentClassPath, FString::Printf(TEXT("%s'%s'"), *UClass::StaticClass()->GetName(), *UEditorTutorial::StaticClass()->GetPathName()));
+	Filter.TagsAndValues.Add(FBlueprintTags::NativeParentClassPath, FObjectPropertyBase::GetExportPath(UEditorTutorial::StaticClass()));
+	Filter.TagsAndValues.Add(FBlueprintTags::ParentClassPath, FObjectPropertyBase::GetExportPath(UEditorTutorial::StaticClass()));
 
 	TArray<FAssetData> AssetData;
 	AssetRegistry.Get().GetAssets(Filter, AssetData);
@@ -1105,12 +1105,12 @@ void STutorialsBrowser::RebuildCrumbs()
 
 void STutorialsBrowser::HandleAssetAdded(const FAssetData& InAssetData)
 {
-	if(InAssetData.AssetClass == UBlueprint::StaticClass()->GetFName())
+	if(InAssetData.AssetClassPath == UBlueprint::StaticClass()->GetClassPathName())
 	{
 		const FString ParentClassPath = InAssetData.GetTagValueRef<FString>("ParentClass");
 		if(!ParentClassPath.IsEmpty())
 		{
-			UClass* ParentClass = FindObject<UClass>(NULL, *ParentClassPath);
+			UClass* ParentClass = FindObject<UClass>(nullptr, *ParentClassPath);
 			if(ParentClass == UEditorTutorial::StaticClass())
 			{
 				bNeedsRefresh = true;

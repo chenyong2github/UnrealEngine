@@ -181,7 +181,7 @@ void FObjectPropertyBase::AddReferencedObjects(FReferenceCollector& Collector)
 
 FString FObjectPropertyBase::GetExportPath(FTopLevelAssetPath ClassPathName, const FString& ObjectPathName)
 {
-	return FString::Printf(TEXT("%s'%s'"), *ClassPathName.GetAssetName().ToString(), *ObjectPathName);
+	return FString::Printf(TEXT("%s.%s'%s'"), *ClassPathName.GetPackageName().ToString(), *ClassPathName.GetAssetName().ToString(), *ObjectPathName);
 }
 
 FString FObjectPropertyBase::GetExportPath(const UObject* Object, const UObject* Parent /*= nullptr*/, const UObject* ExportRootScope /*= nullptr*/, const uint32 PortFlags /*= PPF_None*/)
@@ -341,7 +341,7 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 				return false;
 			}
 
-			// ignore the object class, it isn't fully qualified, and searching ANY_PACKAGE might get the wrong one!
+			// ignore the object class, it isn't fully qualified, and searching globally might get the wrong one!
 			// Try the find the object.
 			out_ResolvedValue = FObjectPropertyBase::FindImportedObject(Property, OwnerObject, ObjectClass, RequiredMetaClass, Temp.ToString(), PortFlags, InSerializeContext, bAllowAnyPackage);
 		}
@@ -485,8 +485,9 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 
 		if (Result == nullptr && bAllowAnyPackage)
 		{
+			// RobM: We should delete this path
 			// match any object of the correct class who shares the same name regardless of package path
-			Result = StaticFindObjectSafe(ObjectClass, ANY_PACKAGE, Text);
+			Result = StaticFindFirstObject(ObjectClass, Text, EFindFirstObjectOptions::EnsureIfAmbiguous);
 			// disallow class default subobjects here while importing defaults
 			if (Result != nullptr && (PortFlags & PPF_ParsingDefaultProperties) && Result->IsTemplate(RF_ClassDefaultObject))
 			{

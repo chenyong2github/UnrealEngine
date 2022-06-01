@@ -911,15 +911,15 @@ void FField::SetMetaData(const FName& Key, FString&& InValue)
 UClass* FField::GetClassMetaData(const TCHAR* Key) const
 {
 	const FString& ClassName = GetMetaData(Key);
-	UClass* const FoundObject = FindObject<UClass>(ANY_PACKAGE, *ClassName);
-	return FoundObject;
+	UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(ClassName);
+	return FoundClass;
 }
 
 UClass* FField::GetClassMetaData(const FName& Key) const
 {
 	const FString& ClassName = GetMetaData(Key);
-	UClass* const FoundObject = FindObject<UClass>(ANY_PACKAGE, *ClassName);
-	return FoundObject;
+	UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(ClassName);;
+	return FoundClass;
 }
 
 void FField::RemoveMetaData(const TCHAR* Key)
@@ -1183,7 +1183,7 @@ FField* FindFPropertyByPath(const TCHAR* InFieldPath)
 		// And the FField part
 		InFieldPath += (LastSubobjectDelimiterIndex + 1);
 
-		UStruct* Owner = FindObject<UStruct>(ANY_PACKAGE, PathBuffer);
+		UStruct* Owner = FindObject<UStruct>(nullptr, PathBuffer);
 		if (Owner)
 		{
 #if DO_CHECK

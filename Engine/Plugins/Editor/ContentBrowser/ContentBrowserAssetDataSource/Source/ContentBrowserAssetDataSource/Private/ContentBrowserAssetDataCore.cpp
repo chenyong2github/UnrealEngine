@@ -22,6 +22,8 @@
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
 
+DEFINE_LOG_CATEGORY_STATIC(LogContentBrowserAssetDataSource, Warning, Warning);
+
 namespace ContentBrowserAssetData
 {
 
@@ -363,7 +365,7 @@ bool DuplicateAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAsse
 		InAssetTools->CreateUniqueAssetName(Asset->GetOutermost()->GetPathName(), FString(), PackageNameToUse, DefaultAssetName);
 
 		OutSourceAsset = Asset;
-		OutNewAsset = FAssetData(*PackageNameToUse, *FPackageName::GetLongPackagePath(PackageNameToUse), *DefaultAssetName, Asset->GetClass()->GetFName());
+		OutNewAsset = FAssetData(*PackageNameToUse, *FPackageName::GetLongPackagePath(PackageNameToUse), *DefaultAssetName, Asset->GetClass()->GetClassPathName());
 		return true;
 	}
 
@@ -1070,7 +1072,7 @@ void GetClassItemAttribute(const FAssetData& InAssetData, const bool InIncludeMe
 {
 	check(InAssetData.IsValid());
 
-	OutAttributeValue.SetValue(InAssetData.AssetClass);
+	OutAttributeValue.SetValue(InAssetData.AssetClassPath.ToString());
 
 	if (InIncludeMetaData)
 	{
@@ -1330,7 +1332,7 @@ bool GetAssetFileItemAttribute(const FContentBrowserAssetFileItemDataPayload& In
 	// Generic attribute keys
 	{
 		const FAssetData& AssetData = InAssetPayload.GetAssetData();
-		const FAssetPropertyTagCache::FClassPropertyTagCache& ClassPropertyTagCache = FAssetPropertyTagCache::Get().GetCacheForClass(AssetData.AssetClass);
+		const FAssetPropertyTagCache::FClassPropertyTagCache& ClassPropertyTagCache = FAssetPropertyTagCache::Get().GetCacheForClass(AssetData.AssetClassPath);
 
 		FName FoundAttributeKey = InAttributeKey;
 		FAssetDataTagMapSharedView::FFindTagResult FoundValue = AssetData.TagsAndValues.FindTag(FoundAttributeKey);
@@ -1387,19 +1389,28 @@ bool GetAssetFileItemAttributes(const FContentBrowserAssetFileItemDataPayload& I
 	}
 
 	// Generic attribute keys
-	static const FName BlueprintAssetClass = FName("Blueprint");
+	static const FTopLevelAssetPath BlueprintAssetClass = FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("Blueprint"));
 	static const FName ParentClassTag = FName("ParentClass");
 	{
 		const FAssetData& AssetData = InAssetPayload.GetAssetData();
-		const FAssetPropertyTagCache::FClassPropertyTagCache& ClassPropertyTagCache = FAssetPropertyTagCache::Get().GetCacheForClass(AssetData.AssetClass);
+		const FAssetPropertyTagCache::FClassPropertyTagCache& ClassPropertyTagCache = FAssetPropertyTagCache::Get().GetCacheForClass(AssetData.AssetClassPath);
 		const FAssetPropertyTagCache::FClassPropertyTagCache* ParentClassPropertyTagCache = nullptr;
 
-		if (AssetData.AssetClass == BlueprintAssetClass)
+		if (AssetData.AssetClassPath == BlueprintAssetClass)
 		{
 			FAssetTagValueRef ParentClassRef = AssetData.TagsAndValues.FindTag(ParentClassTag);
 			if (ParentClassRef.IsSet())
 			{
-				ParentClassPropertyTagCache = &FAssetPropertyTagCache::Get().GetCacheForClass(ParentClassRef.AsName());
+				FString ParentClassName(ParentClassRef.AsString());
+				FTopLevelAssetPath ParentClassPathName = UClass::TryConvertShortTypeNameToPathName<UClass>(ParentClassName, ELogVerbosity::Warning, TEXT("GetAssetFileItemAttributes"));
+				if (!ParentClassPathName.IsNull())
+				{
+					ParentClassPropertyTagCache = &FAssetPropertyTagCache::Get().GetCacheForClass(ParentClassPathName);
+				}
+				else
+				{
+					UE_LOG(LogContentBrowserAssetDataSource, Warning, TEXT("Unable to convert short ParentClass name \"%s\" to path name"), *ParentClassName);
+				}
 			}
 		}
 

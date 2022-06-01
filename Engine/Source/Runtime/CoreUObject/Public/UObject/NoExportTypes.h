@@ -1700,11 +1700,12 @@ struct FSoftClassPath : public FSoftObjectPath
 USTRUCT(noexport, BlueprintType)
 struct FTopLevelAssetPath
 {
+private:
 	/** Name of the package containing the asset e.g. /Path/To/Package */
-	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = TopLevelAssetPath)
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = TopLevelAssetPath, meta = (AllowPrivateAccess = "true"))
 	FName PackageName;
 	/** Name of the asset within the package e.g. 'AssetName' */
-	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = TopLevelAssetPath)
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = TopLevelAssetPath, meta = (AllowPrivateAccess = "true"))
 	FName AssetName;
 };
 
@@ -2145,16 +2146,24 @@ struct FARFilter
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
 	TArray<FName> ObjectPaths;
 
-	/** The filter component for class names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. */
+	/** The filter component for class names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. Deprecated. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
 	TArray<FName> ClassNames;
+
+	/** The filter component for class path names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
+	TArray<FTopLevelAssetPath> ClassPaths;
 
 	/** The filter component for properties marked with the AssetRegistrySearchable flag */
 	TMultiMap<FName, TOptional<FString>> TagsAndValues;
 
+	/** Deprecated. Only if bRecursiveClasses is true, the results will exclude classes (and subclasses) in this list */
+	UPROPERTY()
+	TSet<FName> RecursiveClassesExclusionSet;
+
 	/** Only if bRecursiveClasses is true, the results will exclude classes (and subclasses) in this list */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
-	TSet<FName> RecursiveClassesExclusionSet;
+	TSet<FTopLevelAssetPath> RecursiveClassPathsExclusionSet;
 
 	/** If true, PackagePath components will be recursive */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
@@ -2215,16 +2224,20 @@ struct FAssetData
 	/** The name of the asset without the package */
 	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
 	FName AssetName;
-	/** The name of the asset's class */
+	/** Deprecated. The name of the asset's class */
 	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
 	FName AssetClass;
+	/** The path name of the asset's class */
+	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
+	FTopLevelAssetPath AssetClassPath;
+
+	/** Asset package flags */
+	uint32 PackageFlags = 0;
 	/** The map of values for properties that were marked AssetRegistrySearchable or added by GetAssetRegistryTags */
 	FAssetDataTagMapSharedView TagsAndValues;
 	TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> TaggedAssetBundles;
 	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
 	TArray<int32, TInlineAllocator<2>> ChunkIDs;
-	/** Asset package flags */
-	uint32 PackageFlags = 0;
 };
 
 USTRUCT(noexport, IsAlwaysAccessible, HasDefaults)

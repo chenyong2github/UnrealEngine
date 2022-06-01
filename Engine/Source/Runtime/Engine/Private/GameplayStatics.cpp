@@ -2345,7 +2345,7 @@ USaveGame* UGameplayStatics::LoadGameFromMemory(const TArray<uint8>& InSaveData)
 	SaveHeader.Read(MemoryReader);
 
 	// Try and find it, and failing that, load it
-	UClass* SaveGameClass = FindObject<UClass>(ANY_PACKAGE, *SaveHeader.SaveGameClassName);
+	UClass* SaveGameClass = UClass::TryFindTypeSlow<UClass>(SaveHeader.SaveGameClassName);
 	if (SaveGameClass == nullptr)
 	{
 		SaveGameClass = LoadObject<UClass>(nullptr, *SaveHeader.SaveGameClassName);

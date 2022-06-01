@@ -46,11 +46,11 @@ bool FTcpDeserializedMessage::Deserialize(const TSharedPtr<FArrayReader, ESPMode
 
 	// message type info
 	{
-		FName MessageType;
+		FTopLevelAssetPath MessageType;
 		MessageReader << MessageType;
 
 		// @todo gmp: cache message types for faster lookup
-		TypeInfoPtr = FindObjectSafe<UScriptStruct>(ANY_PACKAGE, *MessageType.ToString());
+		TypeInfoPtr = FindObjectSafe<UScriptStruct>(MessageType);
 
 		TypeInfo = TypeInfoPtr;
 		if (!TypeInfo.IsValid(false, true))

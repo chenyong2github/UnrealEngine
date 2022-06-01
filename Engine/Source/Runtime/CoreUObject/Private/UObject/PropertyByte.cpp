@@ -234,7 +234,7 @@ EConvertFromTypeResult FByteProperty::ConvertFromType(const FPropertyTag& Tag, F
 		// now copy the value into the object's address space
 		SetPropertyValue_InContainer(Data, PreviousValue, Tag.ArrayIndex);
 	}
-	else if (Tag.Type == NAME_EnumProperty && (Enum == nullptr || Tag.EnumName == Enum->GetFName()))
+	else if (Tag.Type == NAME_EnumProperty && (Enum == nullptr || Tag.EnumName == Enum->GetFName() || Tag.EnumName.ToString() == Enum->GetPathName()))
 	{
 		// an enum property became a byte
 		// attempt to find the old enum and get the byte value from the serialized enum name

@@ -356,7 +356,7 @@ const FSlateBrush* UOptimusEditorGraphSchema::GetIconFromPinType(
 
 	if (TypeObject)
 	{
-		UClass *VarClass = FindObject<UClass>(ANY_PACKAGE, *TypeObject->GetName());
+		UClass *VarClass = UClass::TryFindTypeSlow<UClass>(TypeObject->GetName());
 		if (VarClass)
 		{
 			IconBrush = FSlateIconFinder::FindIconBrushForClass(VarClass);

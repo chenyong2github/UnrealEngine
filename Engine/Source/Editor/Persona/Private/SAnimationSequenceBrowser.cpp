@@ -847,8 +847,8 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 
 	// Configure filter for asset picker
 	Filter.bRecursiveClasses = true;
-	Filter.ClassNames.Add(UAnimationAsset::StaticClass()->GetFName());
-	Filter.ClassNames.Add(USoundWave::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UAnimationAsset::StaticClass()->GetClassPathName());
+	Filter.ClassPaths.Add(USoundWave::StaticClass()->GetClassPathName());
 
 	FAssetPickerConfig Config;
 	Config.Filter = Filter;
@@ -1245,7 +1245,7 @@ TSharedRef<SToolTip> SAnimationSequenceBrowser::CreateCustomAssetToolTip(FAssetD
 {
 	// Make a list of tags to show
 	TArray<UObject::FAssetRegistryTag> Tags;
-	UClass* AssetClass = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
+	UClass* AssetClass = FindObject<UClass>(AssetData.AssetClassPath);
 	check(AssetClass);
 	AssetClass->GetDefaultObject()->GetAssetRegistryTags(Tags);
 
@@ -1438,7 +1438,7 @@ bool SAnimationSequenceBrowser::OnVisualizeAssetToolTip(const TSharedPtr<SWidget
 {
 	// Resolve the asset
 	USkeletalMesh* MeshToUse = nullptr;
-	UClass* AssetClass = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
+	UClass* AssetClass = FindObject<UClass>(AssetData.AssetClassPath);
 	if(AssetClass->IsChildOf(UAnimationAsset::StaticClass()) && AssetData.IsAssetLoaded() && AssetData.GetAsset())
 	{
 		// Set up the viewport to show the asset. Catching the visualize allows us to use

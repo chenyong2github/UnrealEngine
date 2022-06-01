@@ -30,4 +30,4 @@ DECLARE_LOG_CATEGORY_EXTERN(LogUdpMessaging, Log, All);
  * Defines the protocol version of the UDP message transport.
  * @note When changing the version, ensure to update the serialization/deserialization code in UdpSerializeMessageTask.cpp/UdpDeserializedMessage.cpp and the supported versions in FUdpMessageProcessor::Init().
  */
-#define UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION 15
+#define UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION 16

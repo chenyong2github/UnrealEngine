@@ -52,7 +52,7 @@ protected:
 	int32 MaxPackagesToResave;
 
 	/** allows users to save only packages with a particular class in them (useful for fixing content) */
-	TArray<FName> ResaveClasses;
+	TArray<FString> ResaveClasses;
 
 	// If non-empty, this substring has to be present in the package name for the commandlet to process it
 	FString PackageSubstring;

@@ -1862,7 +1862,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 	if( FParse::Command(&Str,TEXT("ADD")) )
 	{
 		UClass* Class;
-		if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, ANY_PACKAGE ) )
+		if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, nullptr ) )
 		{
 			int32 bSnap = 1;
 			FParse::Value(Str,TEXT("SNAP="),bSnap);
@@ -2258,7 +2258,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 			edactReplaceSelectedBrush( InWorld );
 			return true;
 		}
-		else if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, ANY_PACKAGE ) ) // ACTOR REPLACE CLASS=<class>
+		else if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, nullptr ) ) // ACTOR REPLACE CLASS=<class>
 		{
 			const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "ReplaceSelectedNonBrushActors", "Replace Selected Non-Brush Actors") );
 			edactReplaceSelectedNonBrushWithClass( Class );
@@ -2359,7 +2359,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		else if( FParse::Command(&Str,TEXT("OFCLASS")) ) // ACTOR SELECT OFCLASS CLASS=<class>
 		{
 			UClass* Class;
-			if( ParseObject<UClass>(Str,TEXT("CLASS="),Class,ANY_PACKAGE) )
+			if( ParseObject<UClass>(Str,TEXT("CLASS="),Class,nullptr) )
 			{
 				const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SelectOfClass", "Select Of Class") );
 				edactSelectOfClass( InWorld, Class );
@@ -2373,7 +2373,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		else if( FParse::Command(&Str,TEXT("OFSUBCLASS")) ) // ACTOR SELECT OFSUBCLASS CLASS=<class>
 		{
 			UClass* Class;
-			if( ParseObject<UClass>(Str,TEXT("CLASS="),Class,ANY_PACKAGE) )
+			if( ParseObject<UClass>(Str,TEXT("CLASS="),Class,nullptr) )
 			{
 				const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SelectSubclassOfClass", "Select Subclass Of Class") );
 				edactSelectSubclassOf( InWorld, Class );

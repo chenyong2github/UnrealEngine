@@ -213,7 +213,7 @@ TSharedRef<SWidget> SContentReference::MakeAssetPickerMenu()
 	UClass* FilterClass = AllowedClass.Get();
 	if (FilterClass != NULL)
 	{
-		AssetPickerConfig.Filter.ClassNames.Add(FilterClass->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(FilterClass->GetClassPathName());
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
 	}
 

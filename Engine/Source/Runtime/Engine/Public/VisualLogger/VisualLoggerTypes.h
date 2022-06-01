@@ -9,9 +9,9 @@ class AActor;
 class UCanvas;
 struct FLogEntryItem;
 
-#define DEFINE_ENUM_TO_STRING(EnumType) FString EnumToString(const EnumType Value) \
+#define DEFINE_ENUM_TO_STRING(EnumType, EnumPackage) FString EnumToString(const EnumType Value) \
 { \
-	static const UEnum* TypeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT(#EnumType)); \
+	static const UEnum* TypeEnum = FindObject<UEnum>(nullptr, TEXT(EnumPackage) TEXT(".") TEXT(#EnumType)); \
 	return TypeEnum->GetNameStringByIndex(static_cast<int32>(Value)); \
 }
 #define DECLARE_ENUM_TO_STRING(EnumType) FString EnumToString(const EnumType Value)

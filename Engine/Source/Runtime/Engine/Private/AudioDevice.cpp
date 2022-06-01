@@ -1541,7 +1541,7 @@ bool FAudioDevice::HandleSoundClassFixup(const TCHAR* Cmd, FOutputDevice& Ar)
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	TArray<FAssetData> AssetDataArray;
-	AssetRegistryModule.Get().GetAssetsByClass(USoundClass::StaticClass()->GetFName(), AssetDataArray);
+	AssetRegistryModule.Get().GetAssetsByClass(USoundClass::StaticClass()->GetClassPathName(), AssetDataArray);
 
 	static const FString EngineDir = TEXT("/Engine/");
 	FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
@@ -1681,7 +1681,7 @@ bool FAudioDevice::HandleAudioMemoryInfo(const TCHAR* Cmd, FOutputDevice& Ar)
 
 	// Get the sound wave class
 	UClass* SoundWaveClass = nullptr;
-	ParseObject<UClass>(TEXT("class=SoundWave"), TEXT("CLASS="), SoundWaveClass, ANY_PACKAGE);
+	ParseObject<UClass>(TEXT("class=SoundWave"), TEXT("CLASS="), SoundWaveClass, nullptr);
 
 	TArray<FSoundWaveInfo> SoundWaveObjects;
 	TMap<FString, FSoundWaveGroupInfo> SoundWaveGroupSizes;

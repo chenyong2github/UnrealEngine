@@ -38,7 +38,7 @@ bool UAnimStreamableFactory::ConfigureProperties()
 
 	FAssetPickerConfig AssetPickerConfig;
 	
-	AssetPickerConfig.Filter.ClassNames.Add(USkeleton::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(USkeleton::StaticClass()->GetFName());
 	AssetPickerConfig.Filter.bRecursiveClasses = true;
 
 	// The delegate that fires when an asset was selected

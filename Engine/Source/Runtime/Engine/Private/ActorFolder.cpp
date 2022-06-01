@@ -81,8 +81,8 @@ FActorFolderDesc UActorFolder::GetAssetRegistryInfoFromPackage(FName ActorFolder
 	if (Assets.Num() == 1)
 	{
 		const FAssetData& Asset = Assets[0];
-		static const FName NAME_ActorFolder(TEXT("ActorFolder"));
-		check(Asset.AssetClass == NAME_ActorFolder);
+		static const FTopLevelAssetPath NAME_ActorFolder(TEXT("/Script/Engine"), TEXT("ActorFolder"));
+		check(Asset.AssetClassPath == NAME_ActorFolder);
 		{
 			FString Value;
 			if (Asset.GetTagValue(ActorFolder::NAME_FolderGuid, Value))

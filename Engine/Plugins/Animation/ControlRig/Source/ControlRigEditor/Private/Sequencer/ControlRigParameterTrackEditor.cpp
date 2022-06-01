@@ -693,7 +693,7 @@ public:
 		const bool bMatchesFlags = !InUnloadedClassData->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract);
 		if (bChildOfObjectClass && bMatchesFlags)
 		{
-			FString GeneratedClassPathString = InUnloadedClassData->GetClassPath().ToString();
+			FString GeneratedClassPathString = InUnloadedClassData->GetClassPathName().ToString();
 			FName BlueprintPath = FName(*GeneratedClassPathString.LeftChop(2)); // Chop off _C
 			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(BlueprintPath);
 			return MatchesFilter(AssetData);
@@ -1251,7 +1251,7 @@ void FControlRigParameterTrackEditor::HandleAddControlRigSubMenu(FMenuBuilder& M
 	AssetPickerConfig.bAllowNullSelection = false;
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 	AssetPickerConfig.Filter.bRecursiveClasses = true;
-	AssetPickerConfig.Filter.ClassNames.Add(UControlRigSequence::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(UControlRigSequence::StaticClass()->GetClassPathName());
 	AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 	}
 
@@ -1310,7 +1310,7 @@ void FControlRigParameterTrackEditor::HandleAddControlRigSubMenu(FMenuBuilder& M
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateRaw(this, &FControlRigParameterTrackEditor::ShouldFilterAsset);
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
-		AssetPickerConfig.Filter.ClassNames.Add((UControlRig::StaticClass())->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add((UControlRig::StaticClass())->GetClassPathName());
 		AssetPickerConfig.Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(Skeleton).GetExportTextName());
 		AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 
@@ -1334,7 +1334,7 @@ void FControlRigParameterTrackEditor::HandleAddControlRigSubMenu(FMenuBuilder& M
 /*
 bool FControlRigParameterTrackEditor::ShouldFilterAsset(const FAssetData& AssetData)
 {
-	if (AssetData.AssetClass == UControlRig::StaticClass()->GetFName())
+	if (AssetData.AssetClassPath == UControlRig::StaticClass()->GetClassPathName())
 	{
 		return true;
 	}
@@ -3618,7 +3618,7 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 
 				// Collect a full list of assets with the specified class
 				TArray<FAssetData> AssetDataList;
-				AssetRegistryModule.Get().GetAssetsByClass(UAnimSequenceBase::StaticClass()->GetFName(), AssetDataList, true);
+				AssetRegistryModule.Get().GetAssetsByClass(UAnimSequenceBase::StaticClass()->GetClassPathName(), AssetDataList, true);
 
 				if (AssetDataList.Num())
 				{
@@ -3969,7 +3969,7 @@ void FControlRigParameterSection::AddAnimationSubMenuForFK(FMenuBuilder& MenuBui
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateRaw(this, &FControlRigParameterSection::ShouldFilterAssetForFK);
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
-		AssetPickerConfig.Filter.ClassNames.Add(UAnimSequenceBase::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(UAnimSequenceBase::StaticClass()->GetClassPathName());
 		AssetPickerConfig.Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(Skeleton).GetExportTextName());
 		AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 		AssetPickerConfig.AdditionalReferencingAssets.Add(FAssetData(Sequence));
@@ -4022,7 +4022,7 @@ bool FControlRigParameterSection::ShouldFilterAssetForFK(const FAssetData& Asset
 {
 	// we don't want 
 
-	if (AssetData.AssetClass == UAnimMontage::StaticClass()->GetFName())
+	if (AssetData.AssetClassPath == UAnimMontage::StaticClass()->GetClassPathName())
 	{
 		return true;
 	}

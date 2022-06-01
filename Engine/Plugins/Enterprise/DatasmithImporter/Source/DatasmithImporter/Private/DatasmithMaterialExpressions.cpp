@@ -103,14 +103,12 @@ namespace
 	{
 		check(ClassName);
 
-		UObject* ClassPackage = ANY_PACKAGE;
-
-		if (UClass* Result = FindObject<UClass>(ClassPackage, ClassName))
+		if (UClass* Result = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("Datasmith FindClass")))
 		{
 			return Result;
 		}
 
-		if (UObjectRedirector* RenamedClassRedirector = FindObject<UObjectRedirector>(ClassPackage, ClassName))
+		if (UObjectRedirector* RenamedClassRedirector = FindFirstObject<UObjectRedirector>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("Datasmith FindClass")))
 		{
 			return CastChecked<UClass>(RenamedClassRedirector->DestinationObject);
 		}
@@ -714,7 +712,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::Desaturate(UObject* UnrealMa
 		return ToBeConnected;
 	}
 
-	UClass* MaterialExpressionDesaturationClass = FindObject<UClass>(ANY_PACKAGE, TEXT("MaterialExpressionDesaturation"));
+	UClass* MaterialExpressionDesaturationClass = FindObject<UClass>(nullptr, TEXT("/Script/Engine.MaterialExpressionDesaturation"));
 
 	UMaterialExpression* DesaturateExp = CreateMaterialExpression(UnrealMaterial, MaterialExpressionDesaturationClass);
 
@@ -1103,7 +1101,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::AddTextureExpression(UTextur
 					UMaterialExpressionConstant* Constant1d = CreateMaterialExpression<UMaterialExpressionConstant>(UnrealMaterial);
 					Constant1d->R = UV.Rotation * 2.f * PI;
 
-					UClass* MaterialExpressionRotatorClass = FindObject<UClass>(ANY_PACKAGE, TEXT("MaterialExpressionRotator"));
+					UClass* MaterialExpressionRotatorClass = FindObject<UClass>(nullptr, TEXT("/Script/Engine.MaterialExpressionRotator"));
 
 					// This will create a rotator, but the pointer you get back is to Base class.
 					UMaterialExpression* RotatorExp = CreateMaterialExpression(UnrealMaterial, MaterialExpressionRotatorClass);
@@ -2028,7 +2026,7 @@ void FDatasmithMaterialExpressions::CreateParallaxOffset(UObject* UnrealMatOrFun
 			UMaterialExpressionConstant* Constant1d = CreateMaterialExpression<UMaterialExpressionConstant>(UnrealMatOrFunc);
 			Constant1d->R = UV.Rotation * 2.0 * PI;
 
-			UClass* MaterialExpressionRotatorClass = FindObject<UClass>(ANY_PACKAGE, TEXT("MaterialExpressionRotator"));
+			UClass* MaterialExpressionRotatorClass = FindObject<UClass>(nullptr, TEXT("/Script/Engine.MaterialExpressionRotator"));
 
 			// This will create a rotator, but the pointer you get back is to Base class.
 			UMaterialExpression* RotatorExp = CreateMaterialExpression(UnrealMatOrFunc, MaterialExpressionRotatorClass);

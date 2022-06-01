@@ -69,7 +69,7 @@ FAutoConsoleCommandWithWorldAndArgs FCmdVisualGraphUtilsLogInstancesOfClass
 		FString ClipboardContent;
 		for(const FString& ObjectPathName : InParams)
 		{
-			if(UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ObjectPathName, false))
+			if(UClass* Class = UClass::TryFindTypeSlow<UClass>(ObjectPathName))
 			{
 				ForEachObjectOfClass(Class, [&ClipboardContent](UObject* ObjectOfClass)
 				{
@@ -164,7 +164,8 @@ FAutoConsoleCommandWithWorldAndArgs FCmdVisualGraphUtilsCollectReferences
 		TArray<UObject*> OutersToUse;
 		for(const FString& ObjectPathName : ObjectPathNames)
 		{
-			if(UObject* Object = FindObject<UObject>(ANY_PACKAGE, *ObjectPathName, false))
+			UE_CLOG(FPackageName::IsShortPackageName(ObjectPathName), LogVisualGraphUtils, Warning, TEXT("Expected path name but got short name: \"%s\""), *ObjectPathName);
+			if(UObject* Object = FindObject<UObject>(nullptr, *ObjectPathName, false))
 			{
 				Objects.Add(Object);
 
@@ -184,7 +185,8 @@ FAutoConsoleCommandWithWorldAndArgs FCmdVisualGraphUtilsCollectReferences
 		TArray<UObject*> OutersToSkip;
 		for(const FString& SkipPathName : SkipPathNames)
 		{
-			if(UObject* ObjectToSkip = FindObject<UObject>(ANY_PACKAGE, *SkipPathName, false))
+			UE_CLOG(FPackageName::IsShortPackageName(SkipPathName), LogVisualGraphUtils, Warning, TEXT("Expected path name but got short name: \"%s\""), *SkipPathName);
+			if(UObject* ObjectToSkip = FindObject<UObject>(nullptr, *SkipPathName, false))
 			{
 				if(UClass* ClassToSkip = Cast<UClass>(ObjectToSkip))
 				{
@@ -252,7 +254,8 @@ FAutoConsoleCommandWithWorldAndArgs FCmdVisualGraphUtilsCollectTickables
 		TArray<UObject*> OutersToUse;
 		for(const FString& ObjectPathName : ObjectPathNames)
 		{
-			if(UObject* Object = FindObject<UObject>(ANY_PACKAGE, *ObjectPathName, false))
+			UE_CLOG(FPackageName::IsShortPackageName(ObjectPathName), LogVisualGraphUtils, Warning, TEXT("Expected path name but got short name: \"%s\""), *ObjectPathName);
+			if(UObject* Object = FindObject<UObject>(nullptr, *ObjectPathName, false))
 			{
 				Objects.Add(Object);
 			}

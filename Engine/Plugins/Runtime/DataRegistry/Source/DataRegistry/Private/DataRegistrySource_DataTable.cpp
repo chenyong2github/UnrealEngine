@@ -362,14 +362,14 @@ bool UMetaDataRegistrySource_DataTable::DoesAssetPassFilter(const FAssetData& As
 	if (AssetData.GetTagValue(RowStructureTagName, RowStructureString))
 	{
 		const UScriptStruct* ItemStruct = GetItemStruct();
-		if (RowStructureString == ItemStruct->GetName())
+		if (RowStructureString == ItemStruct->GetName() || RowStructureString == ItemStruct->GetStructPathName().ToString())
 		{
 			return true;
 		}
 		else
 		{
 			// TODO no 100% way to check for inherited row structs, but BP types can't inherit anyway
-			const UScriptStruct* RowStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *RowStructureString, true);
+			const UScriptStruct* RowStruct = UClass::TryFindTypeSlow<UScriptStruct>(RowStructureString, EFindFirstObjectOptions::ExactClass);
 
 			// Check if the row struct is a child of the item struct
 			if (RowStruct != nullptr)
@@ -382,7 +382,7 @@ bool UMetaDataRegistrySource_DataTable::DoesAssetPassFilter(const FAssetData& As
 			// Otherwise check if the row struct has been redirected to the item struct
 			else
 			{
-				FName RowStructureName = FName(RowStructureString);
+				FName RowStructureName = FName(FPackageName::ObjectPathToObjectName(RowStructureString)); // RobM this should use path names as well
 				
 				TArray<FCoreRedirectObjectName> PreviousNames;
 				FCoreRedirects::FindPreviousNames(ECoreRedirectFlags::Type_Struct, ItemStruct->GetPathName(), PreviousNames);

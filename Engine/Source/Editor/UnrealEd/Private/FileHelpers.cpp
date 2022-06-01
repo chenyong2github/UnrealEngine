@@ -1018,7 +1018,7 @@ static bool OpenSaveAsDialog(UClass* SavedClass, const FString& InDefaultPath, c
 	{
 		SaveAssetDialogConfig.DefaultPath = DefaultPath;
 		SaveAssetDialogConfig.DefaultAssetName = NewNameSuggestion;
-		SaveAssetDialogConfig.AssetClassNames.Add(SavedClass->GetFName());
+		SaveAssetDialogConfig.AssetClassNames.Add(SavedClass->GetClassPathName());
 		SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 		SaveAssetDialogConfig.DialogTitleOverride = (SavedClass == UWorld::StaticClass())
 			? LOCTEXT("SaveLevelDialogTitle", "Save Level As")
@@ -2427,7 +2427,7 @@ void FEditorFileUtils::OpenLevelPickingDialog(const FOnLevelsChosen& OnLevelsCho
 	FOpenAssetDialogConfig OpenAssetDialogConfig;
 	OpenAssetDialogConfig.DialogTitleOverride = LOCTEXT("OpenLevelDialogTitle", "Open Level");
 	OpenAssetDialogConfig.DefaultPath = DefaultPath;
-	OpenAssetDialogConfig.AssetClassNames.Add(UWorld::StaticClass()->GetFName());
+	OpenAssetDialogConfig.AssetClassNames.Add(UWorld::StaticClass()->GetClassPathName());
 	OpenAssetDialogConfig.bAllowMultipleSelection = bAllowMultipleSelection;
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");

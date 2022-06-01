@@ -287,7 +287,7 @@ public:
 		for (auto AssetIt = SelectedAssets.CreateConstIterator(); AssetIt; ++AssetIt)
 		{
 			const FAssetData& Asset = *AssetIt;
-			bAnyTextures = bAnyTextures || (Asset.AssetClass == UTexture2D::StaticClass()->GetFName());
+			bAnyTextures = bAnyTextures || (Asset.AssetClassPath == UTexture2D::StaticClass()->GetClassPathName());
 		}
 
 		if (bAnyTextures)

@@ -39,7 +39,7 @@ void CloseAllMenus()
 
 FString EnumToString(const TCHAR* EnumName, const int32 EnumValue)
 {
-	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, EnumName, true);
+	const UEnum* EnumPtr = FindObject<UEnum>(nullptr, EnumName, true);
 	
 	if (!EnumPtr)
 	{
@@ -134,7 +134,7 @@ void GetProjectSettingsArguments(const UDisplayClusterLaunchEditorProjectSetting
 			}
 			ConcatenatedLogCommands += FString::Printf(TEXT("%s %s, "),
 			                                           *LoggingConstruct.Category.ToString(),
-			                                           *EnumToString(TEXT("EDisplayClusterLaunchLogVerbosity"), (int32)LoggingConstruct.VerbosityLevel.GetValue()));
+			                                           *EnumToString(TEXT("/Script/DisplayClusterLaunchEditor.EDisplayClusterLaunchLogVerbosity"), (int32)LoggingConstruct.VerbosityLevel.GetValue()));
 		}
 		// Remove whitespace
 		ConcatenatedLogCommands.TrimStartAndEndInline();
@@ -1072,7 +1072,7 @@ void FDisplayClusterLaunchEditorModule::AddConsoleVariablesEditorAssetsToToolbar
 	IAssetRegistry* AssetRegistry, FMenuBuilder& MenuBuilder)
 {
 	TArray<FAssetData> FoundConsoleVariablesAssets;
-	AssetRegistry->GetAssetsByClass("ConsoleVariablesAsset", FoundConsoleVariablesAssets, true);
+	AssetRegistry->GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/ConsoleVariablesEditor"), TEXT("ConsoleVariablesAsset")), FoundConsoleVariablesAssets, true);
 	if (FoundConsoleVariablesAssets.Num())
 	{
 		MenuBuilder.BeginSection("DisplayClusterLaunchCvars", LOCTEXT("DisplayClusterLaunchCvars", "Console Variables"));

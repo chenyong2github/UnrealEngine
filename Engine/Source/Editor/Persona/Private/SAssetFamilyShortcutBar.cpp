@@ -279,7 +279,7 @@ public:
 				UClass* FilterClass = AssetFamily->GetAssetFamilyClass(AssetData.GetClass());
 				if (FilterClass != nullptr)
 				{
-					AssetPickerConfig.Filter.ClassNames.Add(FilterClass->GetFName());
+					AssetPickerConfig.Filter.ClassPaths.Add(FilterClass->GetClassPathName());
 					AssetPickerConfig.Filter.bRecursiveClasses = true;
 				}
 

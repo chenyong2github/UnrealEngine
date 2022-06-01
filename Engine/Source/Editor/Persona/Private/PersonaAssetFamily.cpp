@@ -63,14 +63,14 @@ static void FindAssets(const USkeleton* InSkeleton, TArray<FAssetData>& OutAsset
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	FARFilter Filter;
 	Filter.bRecursiveClasses = true;
-	Filter.ClassNames.Add(AssetType::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(AssetType::StaticClass()->GetClassPathName());
 	Filter.TagsAndValues.Add(SkeletonTag, FAssetData(InSkeleton).GetExportTextName());
 	
 	// Also include all compatible assets.
 	FString CompatibleTagValue;
 	for (const auto& CompatibleSkeleton : InSkeleton->GetCompatibleSkeletons())
 	{
-		CompatibleTagValue = FString::Format(TEXT("{0}'{1}'"), { *USkeleton::StaticClass()->GetName(), *CompatibleSkeleton.ToString() });
+		CompatibleTagValue = FString::Format(TEXT("{0}'{1}'"), { *USkeleton::StaticClass()->GetPathName(), *CompatibleSkeleton.ToString() });
 		Filter.TagsAndValues.Add(SkeletonTag, CompatibleTagValue);
 	}
 
@@ -147,7 +147,7 @@ FAssetData FPersonaAssetFamily::FindAssetOfType(UClass* InAssetClass) const
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 				FARFilter Filter;
 				Filter.bRecursiveClasses = true;
-				Filter.ClassNames.Add(UPhysicsAsset::StaticClass()->GetFName());
+				Filter.ClassPaths.Add(UPhysicsAsset::StaticClass()->GetClassPathName());
 				if(Mesh.IsValid())
 				{
 					Filter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, PreviewSkeletalMesh), FAssetData(Mesh.Get()).ObjectPath.ToString());
@@ -192,7 +192,7 @@ void FPersonaAssetFamily::FindAssetsOfType(UClass* InAssetClass, TArray<FAssetDa
 			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 			FARFilter Filter;
 			Filter.bRecursiveClasses = true;
-			Filter.ClassNames.Add(UPhysicsAsset::StaticClass()->GetFName());
+			Filter.ClassPaths.Add(UPhysicsAsset::StaticClass()->GetClassPathName());
 			if(Mesh != nullptr)
 			{
 				Filter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, PreviewSkeletalMesh), FAssetData(Mesh.Get()).ObjectPath.ToString());

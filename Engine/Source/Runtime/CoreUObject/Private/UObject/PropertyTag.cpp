@@ -21,6 +21,19 @@ FPropertyTag::FPropertyTag( FArchive& InSaveAr, FProperty* Property, int32 InInd
 	check(!InSaveAr.GetArchiveState().UseUnversionedPropertySerialization());
 	if (Property)
 	{
+		// RobM: Ugly hack so that we can avoid content changes in most of the packages
+		auto GetEnumName = [](UEnum* InEnum)
+		{
+			if (InEnum->GetPackage()->HasAnyPackageFlags(PKG_CompiledIn))
+			{				
+				return InEnum->GetFName();
+			}
+			else
+			{
+				return FName(*InEnum->GetPathName());
+			}
+		};
+
 		// Handle structs.
 		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
@@ -31,14 +44,14 @@ FPropertyTag::FPropertyTag( FArchive& InSaveAr, FProperty* Property, int32 InInd
 		{
 			if (UEnum* Enum = EnumProp->GetEnum())
 			{
-				EnumName = Enum->GetFName();
+				EnumName = GetEnumName(Enum);
 			}
 		}
 		else if (FByteProperty* ByteProp = CastField<FByteProperty>(Property))
 		{
 			if (ByteProp->Enum != nullptr)
 			{
-				EnumName = ByteProp->Enum->GetFName();
+				EnumName = GetEnumName(ByteProp->Enum);
 			}
 		}
 		else if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property))

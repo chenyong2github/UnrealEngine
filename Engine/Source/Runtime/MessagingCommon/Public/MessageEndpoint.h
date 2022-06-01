@@ -332,7 +332,19 @@ public:
 	 * @param MessageType The type name of the messages to subscribe to.
 	 * @param ScopeRange The range of message scopes to include in the subscription.
 	 */
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
 	void Subscribe(const FName& MessageType, const FMessageScopeRange& ScopeRange)
+	{
+		Subscribe(UClass::TryConvertShortTypeNameToPathName<UStruct>(MessageType.ToString()), ScopeRange);
+	}
+
+	/**
+	 * Subscribes a message handler.
+	 *
+	 * @param MessageType The type name of the messages to subscribe to.
+	 * @param ScopeRange The range of message scopes to include in the subscription.
+	 */
+	void Subscribe(const FTopLevelAssetPath& MessageType, const FMessageScopeRange& ScopeRange)
 	{
 		TSharedPtr<IMessageBus, ESPMode::ThreadSafe> Bus = GetBusIfEnabled();
 
@@ -345,16 +357,28 @@ public:
 	/**
 	 * Unsubscribes this endpoint from the specified message type.
 	 *
-	 * @param MessageType The type of message to unsubscribe (NAME_All = all types).
+	 * @param MessageType The type of message to unsubscribe (IMessageBus::PATHNAME_All = all types).
 	 * @see Subscribe
 	 */
-	void Unsubscribe(const FName& TopicPattern)
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	void Unsubscribe(const FName& MessageType)
+	{
+		Unsubscribe(UClass::TryConvertShortTypeNameToPathName<UStruct>(MessageType.ToString()));
+	}
+
+	/**
+	 * Unsubscribes this endpoint from the specified message type.
+	 *
+	 * @param MessageType The type of message to unsubscribe (IMessageBus::PATHNAME_All = all types).
+	 * @see Subscribe
+	 */
+	void Unsubscribe(const FTopLevelAssetPath& MessageType)
 	{
 		TSharedPtr<IMessageBus, ESPMode::ThreadSafe> Bus = GetBusIfEnabled();
 
 		if (Bus.IsValid())
 		{
-			Bus->Unsubscribe(AsShared(), TopicPattern);
+			Bus->Unsubscribe(AsShared(), MessageType);
 		}
 	}
 
@@ -890,7 +914,7 @@ public:
 	template<class MessageType>
 	void Subscribe()
 	{
-		Subscribe(MessageType::StaticStruct()->GetFName(), FMessageScopeRange::AtLeast(EMessageScope::Thread));
+		Subscribe(MessageType::StaticStruct()->GetStructPathName(), FMessageScopeRange::AtLeast(EMessageScope::Thread));
 	}
 
 	/**
@@ -905,7 +929,7 @@ public:
 	template<class MessageType>
 	void Subscribe(const FMessageScopeRange& ScopeRange)
 	{
-		Subscribe(MessageType::StaticStruct()->GetFName(), ScopeRange);
+		Subscribe(MessageType::StaticStruct()->GetStructPathName(), ScopeRange);
 	}
 
 	/**
@@ -915,19 +939,19 @@ public:
 	 */
 	void Unsubscribe()
 	{
-		Unsubscribe(NAME_All);
+		Unsubscribe(IMessageBus::PATHNAME_All);
 	}
 
 	/**
 	 * Template method to unsubscribe the endpoint from the specified message type.
 	 *
-	 * @param MessageType The type of message to unsubscribe (NAME_All = all types).
+	 * @param MessageType The type of message to unsubscribe (IMessageBus::PATHNAME_All = all types).
 	 * @see Subscribe
 	 */
 	template<class MessageType>
 	void Unsubscribe()
 	{
-		Unsubscribe(MessageType::StaticStruct()->GetFName());
+		Unsubscribe(MessageType::StaticStruct()->GetStructPathName());
 	}
 
 public:

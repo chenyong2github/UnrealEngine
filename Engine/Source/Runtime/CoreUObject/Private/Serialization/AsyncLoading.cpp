@@ -1626,7 +1626,7 @@ FObjectImport* FAsyncPackage::FindExistingImport(int32 LocalImportIndex)
 			FObjectImport* ImportOuter = FindExistingImport(Import->OuterIndex.ToImport());
 			if (ImportOuter->XObject)
 			{
-				Import->XObject = StaticFindObjectFast(UObject::StaticClass(), ImportOuter->XObject, Import->ObjectName, false, true);
+				Import->XObject = StaticFindObjectFast(UObject::StaticClass(), ImportOuter->XObject, Import->ObjectName, false);
 				if (Import->XObject)
 				{
 					FName NameImportClass(Import->ClassName);
@@ -1950,7 +1950,7 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 				UPackage* ImportPackage = Import.XObject ? CastChecked<UPackage>(Import.XObject) : nullptr;
 				if (!ImportPackage)
 				{
-					ImportPackage = FindObjectFast<UPackage>(NULL, Import.ObjectName, false, false);
+					ImportPackage = FindObjectFast<UPackage>(NULL, Import.ObjectName, false);
 					if (!ImportPackage)
 					{
 						Import.bImportFailed = true;
@@ -2002,7 +2002,7 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 			UPackage* ImportPackage = OuterMostImport.XObject ? OuterMostImport.XObject->GetPackage() : nullptr;
 			if (!ImportPackage)
 			{
-				ImportPackage = FindObjectFast<UPackage>(nullptr, ImportPackageName, false, false);
+				ImportPackage = FindObjectFast<UPackage>(nullptr, ImportPackageName, false);
 				if (!ImportPackage)
 				{
 					Import.bImportFailed = true;
@@ -2513,10 +2513,10 @@ void FAsyncPackage::LinkImport(int32 LocalImportIndex)
 				}
 				else
 				{
-					UPackage* ClassPackage = FindObjectFast<UPackage>(NULL, Import.ClassPackage, false, false);
+					UPackage* ClassPackage = FindObjectFast<UPackage>(NULL, Import.ClassPackage, false);
 					if (ClassPackage)
 					{
-						UClass*	FindClass = FindObjectFast<UClass>(ClassPackage, Import.ClassName, false, false);
+						UClass*	FindClass = FindObjectFast<UClass>(ClassPackage, Import.ClassName, false);
 						if (FindClass)
 						{
 							UObject* Outer = ImportPackage;

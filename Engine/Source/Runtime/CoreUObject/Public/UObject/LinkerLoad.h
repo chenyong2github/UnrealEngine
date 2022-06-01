@@ -1290,7 +1290,7 @@ private:
 	/** Finds import, tries to fall back to dynamic class if the object could not be found */
 	UObject* FindImport(UClass* ImportClass, UObject* ImportOuter, const TCHAR* Name);
 	/** Finds import, tries to fall back to dynamic class if the object could not be found */
-	static UObject* FindImportFast(UClass* ImportClass, UObject* ImportOuter, FName Name, bool bAnyPackage = false);
+	static UObject* FindImportFast(UClass* ImportClass, UObject* ImportOuter, FName Name, bool bFindObjectbyName = false);
 
 #if	USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	/** 

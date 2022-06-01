@@ -206,7 +206,7 @@ void STutorialOverlay::OpenBrowserForWidgetAnchor(UEditorTutorial* InTutorial, c
 			TArray<FString> AssetPaths;
 			AssetPaths.Add(Name);
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetPaths);
-			UObject* Blueprint = FindObject<UObject>(ANY_PACKAGE, *Name);
+			UObject* Blueprint = FindFirstObject<UObject>(*Name, EFindFirstObjectOptions::EnsureIfAmbiguous);
 
 			// If we found a blueprint
 			if(Blueprint != nullptr)
@@ -257,11 +257,11 @@ void STutorialOverlay::FocusOnAnyBlueprintNodes(const FTutorialWidgetContent &Wi
 	}
 	
 	const FString Name = WidgetContent.WidgetAnchor.OuterName;
-	const FName ObjectPath = WidgetContent.WidgetAnchor.WrapperIdentifier;
+	const FString ObjectPath = WidgetContent.WidgetAnchor.WrapperIdentifier.ToString();
 	int32 NameIndex;
 	Name.FindLastChar(TEXT('.'), NameIndex);
 	FString BlueprintName = Name.RightChop(NameIndex + 1);
-	UBlueprint* Blueprint = FindObject<UBlueprint>(ANY_PACKAGE, *BlueprintName);
+	UBlueprint* Blueprint = FindFirstObject<UBlueprint>(*BlueprintName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 	// If we find a blueprint
 	if (Blueprint != nullptr)
 	{
@@ -274,14 +274,15 @@ void STutorialOverlay::FocusOnAnyBlueprintNodes(const FTutorialWidgetContent &Wi
 			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(GraphNode, false);
 		}
 	}
-	else if ( !ObjectPath.IsNone() )
+	else if ( !ObjectPath.IsEmpty() )
 	{
 		// if we didn't have a blueprint object to focus on, try it with a regular one
-		UObject* FocusObject = FindObject<UObject>(ANY_PACKAGE, *ObjectPath.ToString());
+		UE_CLOG(FPackageName::IsShortPackageName(ObjectPath), LogClass, Warning, TEXT("FocusOnAnyBlueprintNodes expects path names for WrapperIdentifier, got short name instead: \"%s\""), *ObjectPath);
+		UObject* FocusObject = FindObject<UObject>(nullptr, *ObjectPath);
 		// If we didn't find it, maybe it just hasn't been loaded yet
 		if( FocusObject == nullptr )
 		{
-			FocusObject = LoadObject<UObject>(nullptr, *ObjectPath.ToString(),nullptr, LOAD_FindIfFail);
+			FocusObject = LoadObject<UObject>(nullptr, *ObjectPath, nullptr, LOAD_FindIfFail);
 		}
 		// If we found an asset redirector, we need to follow it
 		UObjectRedirector* Redir = dynamic_cast<UObjectRedirector*>(FocusObject);
@@ -293,11 +294,10 @@ void STutorialOverlay::FocusOnAnyBlueprintNodes(const FTutorialWidgetContent &Wi
 		// If we failed to find the object, it may be a class that has been redirected
 		if (!FocusObject)
 		{
-			const FString ObjectName = FPackageName::ObjectPathToObjectName(ObjectPath.ToString());
-			const FName RedirectedObjectName = FLinkerLoad::FindNewNameForClass(*ObjectName, false);
-			if (!RedirectedObjectName.IsNone())
+			const FString RedirectedObjectName = FLinkerLoad::FindNewPathNameForClass(ObjectPath, false);
+			if (!RedirectedObjectName.IsEmpty())
 			{
-				FocusObject = FindObject<UClass>(ANY_PACKAGE, *RedirectedObjectName.ToString());
+				FocusObject = UClass::TryFindTypeSlow<UClass>(RedirectedObjectName);
 			}
 		}
 

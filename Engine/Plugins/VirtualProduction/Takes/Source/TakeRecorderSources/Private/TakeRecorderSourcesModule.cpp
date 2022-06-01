@@ -581,7 +581,7 @@ public:
 					}
 					else
 					{
-						UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *Split);
+						UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(Split);
 						if (FoundClass != nullptr)
 						{
 							FindActorsOfClass(FoundClass, InWorld, ActorsToRecord);

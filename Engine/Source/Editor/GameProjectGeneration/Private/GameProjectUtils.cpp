@@ -1314,7 +1314,7 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 		const bool bFoundValue = GConfig->GetString(*UTemplateProjectDefs::StaticClass()->GetPathName(), TEXT("TemplateProjectDefsClass"), ClassName, TemplateDefsIniFilename);
 		if (bFoundValue && ClassName.Len() > 0)
 		{
-			UClass* OverrideClass = FindObject<UClass>(ANY_PACKAGE, *ClassName, false);
+			UClass* OverrideClass = UClass::TryFindTypeSlow<UClass>(ClassName);
 			if (nullptr != OverrideClass)
 			{
 				ClassToConstruct = OverrideClass;

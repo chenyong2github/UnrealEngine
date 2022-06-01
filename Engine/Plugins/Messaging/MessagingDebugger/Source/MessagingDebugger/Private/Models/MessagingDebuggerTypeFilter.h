@@ -35,7 +35,7 @@ public:
 		
 		if (FilterString.ParseIntoArray(FilterSubstrings, TEXT(" "), true) > 0)
 		{
-			FString TypeName = TypeInfo->TypeName.ToString();
+			FString TypeName = TypeInfo->TypePathName.ToString();
 
 			for (int32 SubstringIndex = 0; SubstringIndex < FilterSubstrings.Num(); ++SubstringIndex)
 			{

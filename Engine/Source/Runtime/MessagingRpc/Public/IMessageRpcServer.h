@@ -14,7 +14,10 @@ struct FRpcMessage;
 template<typename ResultType> class TFuture;
 
 /** Delegate type for RPC messages that have no registered handler. */
+UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use FOnMessagePathNameRpcNoHandler.")
 DECLARE_DELEGATE_OneParam(FOnMessageRpcNoHandler, const FName& /*MessageType*/)
+
+DECLARE_DELEGATE_OneParam(FOnMessagePathNameRpcNoHandler, const FTopLevelAssetPath& /*MessageType*/)
 
 /**
  * Interface for RPC servers.
@@ -98,7 +101,18 @@ public:
 	 *
 	 * @param Handler The handler to add.
 	 */
-	virtual void AddHandler(const FName& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	FORCEINLINE void AddHandler(const FName& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler)
+	{
+		AddHandler(UClass::TryConvertShortTypeNameToPathName<UStruct>(RequestMessageType.ToString()), Handler);
+	}
+
+	/**
+	 * Add an RPC request handler.
+	 *
+	 * @param Handler The handler to add.
+	 */
+	virtual void AddHandler(const FTopLevelAssetPath& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler) = 0;
 
 	/**
 	 * Gets the server's message address.
@@ -112,8 +126,17 @@ public:
 	 *
 	 * @return The delegate.
 	 */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use OnNoHandlerWithPathName.")	
 	virtual FOnMessageRpcNoHandler& OnNoHandler() = 0;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	/**
+	 * Get a delegate that is executed when a received RPC message has no registered handler.
+	 *
+	 * @return The delegate.
+	 */
+	virtual FOnMessagePathNameRpcNoHandler& OnNoHandlerWithPathName() = 0;
 
 	/** 
 	 * Set if the server sends progress updates

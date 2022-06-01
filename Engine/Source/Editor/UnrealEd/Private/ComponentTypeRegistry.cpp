@@ -228,9 +228,15 @@ namespace UE::Editor::ComponentTypeRegistry::Private
 			return ClassName;
 		}
 
-		virtual FName GetClassPath() const
+		UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetClassPathName.")
+		virtual FName GetClassPath() const override
 		{
 			return ClassPath;
+		}
+		
+		virtual FTopLevelAssetPath GetClassPathName() const override
+		{
+			return FTopLevelAssetPath(ClassPath.ToString());
 		}
 		// End IUnloadedBlueprintData interface
 
@@ -500,14 +506,14 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 	AddBasicShapeComponents(SortedClassList);
 
 	// Add loaded component classes
-	TSet<FName> InMemoryClassPaths;
+	TSet<FTopLevelAssetPath> InMemoryClassPaths;
 	for (TObjectIterator<UClass> It; It; ++It)
 	{
 		UClass* Class = *It;
 		// If this is a subclass of Actor Component, not abstract, and tagged as spawnable from Kismet
 		if (Class->IsChildOf(UActorComponent::StaticClass()))
 		{
-			InMemoryClassPaths.Add(FName(Class->GetPathName()));
+			InMemoryClassPaths.Add(Class->GetClassPathName());
 
 			const bool bOutOfDateClass = Class->HasAnyClassFlags(CLASS_NewerVersionExists);
 			const bool bBlueprintSkeletonClass = FKismetEditorUtilities::IsClassABlueprintSkeleton(Class);
@@ -552,16 +558,15 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 
 	// Add unloaded component classes
 	{
-		auto AddUnloadedComponentClass = [this, &SortedClassList](FName ClassPath, const FAssetData& AssetData)
+		auto AddUnloadedComponentClass = [this, &SortedClassList](const FTopLevelAssetPath& ClassPath, const FAssetData& AssetData)
 		{
 			// The blueprint is unloaded, so we need to work out which icon to use for it using its asset data
 			const UClass* IconClass = FClassIconFinder::GetIconClassForAssetData(AssetData);
 
-			FString ClassPathStr = ClassPath.ToString();
-			FString ClassName = FPackageName::ObjectPathToObjectName(ClassPathStr);
+			FString ClassName = ClassPath.GetAssetName().ToString();
 			ClassName.RemoveFromEnd(TEXT("_C"));
 
-			FComponentClassComboEntryPtr NewEntry(new FComponentClassComboEntry(BlueprintComponents, ClassName, ClassPath, IconClass, /*bIncludeInFilter=*/true));
+			FComponentClassComboEntryPtr NewEntry(new FComponentClassComboEntry(BlueprintComponents, ClassName, ClassPath.GetAssetName(), IconClass, /*bIncludeInFilter=*/true));
 			SortedClassList.Add(NewEntry);
 
 			// Create an unloaded blueprint data object to assist with class filtering
@@ -578,31 +583,31 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 				NewEntry->SetUnloadedBlueprintData(UnloadedBlueprintData);
 			}
 
-			FComponentTypeEntry Entry = { MoveTemp(ClassName), MoveTemp(ClassPathStr), nullptr };
+			FComponentTypeEntry Entry = { MoveTemp(ClassName), ClassPath.ToString(), nullptr };
 			ComponentTypeList.Add(MoveTemp(Entry));
 		};
 
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 
-		TSet<FName> ActorComponentDerivedClassNames;
+		TSet<FTopLevelAssetPath> ActorComponentDerivedClassNames;
 		{
-			TArray<FName> ActorComponentClassNames;
-			ActorComponentClassNames.Add(UActorComponent::StaticClass()->GetFName());
-			AssetRegistry.GetDerivedClassNames(ActorComponentClassNames, TSet<FName>(), ActorComponentDerivedClassNames);
+			TArray<FTopLevelAssetPath> ActorComponentClassNames;
+			ActorComponentClassNames.Add(UActorComponent::StaticClass()->GetClassPathName());
+			AssetRegistry.GetDerivedClassNames(ActorComponentClassNames, TSet<FTopLevelAssetPath>(), ActorComponentDerivedClassNames);
 		}
 
 		// GetAssetsByClass call is a kludge to get the full asset paths for the blueprints we care about
 		// Bob T. thinks that the Asset Registry could just keep asset paths
 		TArray<FAssetData> Assets;
 
-		AssetRegistry.GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), Assets, true);
+		AssetRegistry.GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), Assets, true);
 		for (FAssetData& BPAsset : Assets)
 		{
-			const FName ClassPath = FEditorClassUtils::GetClassPathFromAssetTag(BPAsset);
-			if (!ClassPath.IsNone())
+			const FTopLevelAssetPath ClassPath(FEditorClassUtils::GetClassPathNameFromAssetTag(BPAsset));
+			if (!ClassPath.IsNull())
 			{
 				if (!InMemoryClassPaths.Contains(ClassPath) && 
-					ActorComponentDerivedClassNames.Contains(FName(FPackageName::ObjectPathToObjectName(FStringView(FNameBuilder(ClassPath))))))
+					ActorComponentDerivedClassNames.Contains(ClassPath))
 				{
 					AddUnloadedComponentClass(ClassPath, BPAsset);
 				}
@@ -615,12 +620,13 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 		}
 
 		Assets.Reset();
-		AssetRegistry.GetAssetsByClass(UBlueprintGeneratedClass::StaticClass()->GetFName(), Assets, true);
+		AssetRegistry.GetAssetsByClass(UBlueprintGeneratedClass::StaticClass()->GetClassPathName(), Assets, true);
 		for (FAssetData& BPGCAsset : Assets)
 		{
-			if (ActorComponentDerivedClassNames.Contains(BPGCAsset.AssetName) && !InMemoryClassPaths.Contains(BPGCAsset.ObjectPath))
+			FTopLevelAssetPath BPGCAssetClassPathName(BPGCAsset.PackagePath, BPGCAsset.AssetName);
+			if (ActorComponentDerivedClassNames.Contains(BPGCAssetClassPathName) && !InMemoryClassPaths.Contains(BPGCAssetClassPathName))
 			{
-				AddUnloadedComponentClass(BPGCAsset.ObjectPath, BPGCAsset);
+				AddUnloadedComponentClass(BPGCAssetClassPathName, BPGCAsset);
 			}
 		}
 	}
@@ -675,18 +681,17 @@ void FComponentTypeRegistryData::Tick(float)
 			return;
 		}
 
-		TArray<FName> ClassNames;
-		ClassNames.Add(UActorComponent::StaticClass()->GetFName());
-		TSet<FName> DerivedClassNames;
-		AssetRegistryModule.Get().GetDerivedClassNames(ClassNames, TSet<FName>(), DerivedClassNames);
+		TArray<FTopLevelAssetPath> ClassNames;
+		ClassNames.Add(UActorComponent::StaticClass()->GetClassPathName());
+		TSet<FTopLevelAssetPath> DerivedClassNames;
+		AssetRegistryModule.Get().GetDerivedClassNames(ClassNames, TSet<FTopLevelAssetPath>(), DerivedClassNames);
 
 		for (const FAssetData& Asset : PendingAssetData)
 		{
 			const FName BPParentClassName(GET_MEMBER_NAME_CHECKED(UBlueprint, ParentClass));
 			const FString TagValue = Asset.GetTagValueRef<FString>(BPParentClassName);
-			const FString ObjectPath = FPackageName::ExportTextPathToObjectPath(TagValue);
-			FName ObjectName = FName(*FPackageName::ObjectPathToObjectName(ObjectPath));
-			if (DerivedClassNames.Contains(ObjectName))
+			const FTopLevelAssetPath ObjectPath(FPackageName::ExportTextPathToObjectPath(TagValue));
+			if (DerivedClassNames.Contains(ObjectPath))
 			{
 				bRequiresRefresh = true;
 				break;

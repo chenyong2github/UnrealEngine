@@ -72,7 +72,7 @@ private:
 
 static UClass* FindOrLoadClass(const FString& ClassName)
 {
-	UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+	UClass* Class = UClass::TryFindTypeSlow<UClass>(ClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 
 	if (!Class)
 	{

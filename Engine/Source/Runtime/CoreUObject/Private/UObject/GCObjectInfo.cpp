@@ -19,7 +19,7 @@ UObject* FGCObjectInfo::TryResolveObject()
 	if (Outer == nullptr)
 	{
 		// We are a package, those are the only objects that are allowed to have no outer
-		return StaticFindObjectFast(UObject::StaticClass(), nullptr, Name, false, false);
+		return StaticFindObjectFast(UObject::StaticClass(), nullptr, Name, false);
 	}
 
 	UClass* ResolvedClass = Cast<UClass>(Class->TryResolveObject());
@@ -30,7 +30,7 @@ UObject* FGCObjectInfo::TryResolveObject()
 	
 	if (UObject* OuterObj = Outer->TryResolveObject())
 	{
-		return StaticFindObjectFast(ResolvedClass, OuterObj, Name, true, false);
+		return StaticFindObjectFast(ResolvedClass, OuterObj, Name, true);
 	}
 	return nullptr;
 }

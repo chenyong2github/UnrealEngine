@@ -916,7 +916,7 @@ void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetSt
 							{
 								FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
 								TagsAndValues.Add(UAssetManager::GetEncryptionKeyAssetTagName(), Guid.ToString());
-								FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClass, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
+								FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClassPath, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
 								NewAssetData.TaggedAssetBundles = AssetData->TaggedAssetBundles;
 								TargetState.UpdateAssetData(AssetData, NewAssetData);
 							}
@@ -1111,7 +1111,7 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 			{
 				TagsAndValues.Add(CollectionTagName, FString(CollectionValue));
 			}
-			State.UpdateAssetData(FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClass, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags));
+			State.UpdateAssetData(FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClassPath, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags));
 		}
 	}
 }
@@ -1951,7 +1951,7 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 				TmpString = FString::Printf(TEXT("%d,%s,%s,%s,%lld,%s\n"),
 					PakchunkIndex,
 					*AssetData.PackageName.ToString(),
-					*AssetData.AssetClass.ToString(),
+					*AssetData.AssetClassPath.ToString(),
 					bHardChunk ? TEXT("Hard") : *SoftChain,
 					FileSize,
 					AssetData.ChunkIDs.Num() == 1 ? TEXT("None") : *TmpStringChunks

@@ -390,7 +390,7 @@ public:
 
 		{
 			TArray<FAssetData> AssetData;
-			AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedEnum::StaticClass()->GetFName(), AssetData);
+			AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedEnum::StaticClass()->GetClassPathName(), AssetData);
 
 			FTypesDatabase::FUnLoadedTypesList UnLoadedTypesList = MakeShareable(new TArray<FUnloadedAssetData>());
 			for (int32 AssetIndex = 0; AssetIndex < AssetData.Num(); ++AssetIndex)
@@ -409,7 +409,7 @@ public:
 		{
 			{
 				TArray<FAssetData> AssetData;
-				AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedStruct::StaticClass()->GetFName(), AssetData);
+				AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedStruct::StaticClass()->GetClassPathName(), AssetData);
 
 				FTypesDatabase::FUnLoadedTypesList UnLoadedTypesList = MakeShareable(new TArray<FUnloadedAssetData>());
 				for (int32 AssetIndex = 0; AssetIndex < AssetData.Num(); ++AssetIndex)
@@ -426,7 +426,7 @@ public:
 
 			{
 				TArray<FAssetData> AssetData;
-				AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), AssetData);
+				AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), AssetData);
 
 				const FString BPInterfaceTypeAllowed(TEXT("BPTYPE_Interface"));
 				const FString BPNormalTypeAllowed(TEXT("BPTYPE_Normal"));
@@ -3553,7 +3553,7 @@ bool UEdGraphSchema_K2::ConvertPropertyToPinType(const FProperty* Property, /*ou
 		if(!BitmaskEnumName.IsEmpty())
 		{
 			// @TODO: Potentially replace this with a serialized UEnum reference on the FProperty (e.g. FByteProperty::Enum)
-			TypeOut.PinSubCategoryObject = FindObject<UEnum>(ANY_PACKAGE, *BitmaskEnumName);
+			TypeOut.PinSubCategoryObject = UClass::TryFindTypeSlow<UEnum>(BitmaskEnumName);
 		}
 	}
 
@@ -5061,7 +5061,8 @@ bool UEdGraphSchema_K2::FindFunctionParameterDefaultValue(const UFunction* Funct
 		// If the parameter is a class then try and get the full name as the metadata might just be the short name
 		if (Param->IsA<FClassProperty>() && !FPackageName::IsValidObjectPath(OutString))
 		{
-			if (UClass* DefaultClass = FindObject<UClass>(ANY_PACKAGE, *OutString, true))
+			UE_LOG(LogBlueprint, Warning, TEXT("Short class name \"%s\" in meta data \"%s\" for function %s"), *OutString, *Param->GetName(), *Function->GetPathName());
+			if (UClass* DefaultClass = FindFirstObject<UClass>(*OutString, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("UEdGraphSchema_K2::FindFunctionParameterDefaultValue")))
 			{
 				OutString = DefaultClass->GetPathName();
 			}
@@ -6157,7 +6158,7 @@ struct FBackwardCompatibilityConversionHelper
 			, ClassPinName(FunctionRedirect.ClassParamName)
 			, FuncScope(NULL)
 		{
-			FuncScope = FindObject<UClass>(ANY_PACKAGE, *FunctionRedirect.ClassName);
+			FuncScope = FindFirstObject<UClass>(*FunctionRedirect.ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Fatal, TEXT("looking for FunctionRedirect.ClassName"));			
 		}
 
 	};

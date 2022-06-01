@@ -13,11 +13,11 @@ FClassViewerNode::FClassViewerNode(UClass* InClass)
 	Class = InClass;
 	ClassName = MakeShareable(new FString(Class->GetName()));
 	ClassDisplayName = MakeShareable(new FString(Class->GetDisplayNameText().ToString()));
-	ClassPath = FName(*Class->GetPathName());
+	ClassPath = Class->GetPathName();
 
 	if (Class->GetSuperClass())
 	{
-		ParentClassPath = FName(*Class->GetSuperClass()->GetPathName());
+		ParentClassPath = Class->GetSuperClass()->GetClassPathName();
 	}
 
 	if (Class->ClassGeneratedBy && Class->ClassGeneratedBy->IsA(UBlueprint::StaticClass()))

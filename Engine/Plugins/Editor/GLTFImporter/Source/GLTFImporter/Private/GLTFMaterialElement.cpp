@@ -67,14 +67,12 @@ namespace GLTFImporterImpl
 	{
 		check(ClassName);
 
-		UObject* ClassPackage = ANY_PACKAGE;
-
-		if (UClass* Result = FindObject<UClass>(ClassPackage, ClassName))
+		if (UClass* Result = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("GLTFImporter")))
 		{
 			return Result;
 		}
 
-		if (UObjectRedirector* RenamedClassRedirector = FindObject<UObjectRedirector>(ClassPackage, ClassName))
+		if (UObjectRedirector* RenamedClassRedirector = FindFirstObject<UObjectRedirector>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("GLTFImporter")))
 		{
 			return CastChecked<UClass>(RenamedClassRedirector->DestinationObject);
 		}

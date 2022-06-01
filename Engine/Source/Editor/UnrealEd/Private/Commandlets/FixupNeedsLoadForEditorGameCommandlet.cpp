@@ -15,16 +15,16 @@ int32 UFixupNeedsLoadForEditorGameCommandlet::InitializeResaveParameters(const T
 	// We need ResaveClasses to be specified, otherwise we won't know what to update
 	if (Result == 0 && !ResaveClasses.Num())
 	{
-		UE_LOG(LogContentCommandlet, Error, TEXT("FixupNeedsLoadForEditorGame commandlet requires at least one resave class name. Use -RESAVECLASS=ClassA,ClassB,ClassC to specify resave classes."));
+		UE_LOG(LogContentCommandlet, Error, TEXT("FixupNeedsLoadForEditorGame commandlet requires at least one resave class name. Use -RESAVECLASS=/Path/To.ClassA,/Path/To.ClassB,/Path/To.ClassC to specify resave classes."));
 		Result = 1;
 	}
 	else
 	{
-		for (FName& ClassName : ResaveClasses)
+		for (FString& ClassName : ResaveClasses)
 		{			
 			if (!ResaveClassNeedsLoadForEditorGameValues.Contains(ClassName))
 			{
-				UClass* ResaveClass = FindObject<UClass>(ANY_PACKAGE, *ClassName.ToString());
+				UClass* ResaveClass = UClass::TryFindTypeSlow<UClass>(ClassName);
 				if (ResaveClass)
 				{
 					UObject* DefaultObject = ResaveClass->GetDefaultObject();
@@ -33,7 +33,7 @@ int32 UFixupNeedsLoadForEditorGameCommandlet::InitializeResaveParameters(const T
 			}
 			else if (Verbosity != UResavePackagesCommandlet::ONLY_ERRORS)
 			{
-				UE_LOG(LogContentCommandlet, Warning, TEXT("Resave Class \"%s\" could not be found. Make sure the class name is valid and that it's a native class."), *ClassName.ToString());
+				UE_LOG(LogContentCommandlet, Warning, TEXT("Resave Class \"%s\" could not be found. Make sure the class name is valid and that it's a native class."), *ClassName);
 			}
 		}
 		if (ResaveClassNeedsLoadForEditorGameValues.Num() == 0)
@@ -55,8 +55,8 @@ void UFixupNeedsLoadForEditorGameCommandlet::PerformPreloadOperations(FLinkerLoa
 		bSavePackage = false;
 		for (int32 ExportIndex = 0; ExportIndex < PackageLinker->ExportMap.Num(); ExportIndex++)
 		{
-			FName ExportClassName = PackageLinker->GetExportClassName(ExportIndex);
-			bool* bNeedsLoadForEditorGameValuePtr = ResaveClassNeedsLoadForEditorGameValues.Find(ExportClassName);
+			FTopLevelAssetPath ExportClassPathName(PackageLinker->GetExportClassPackage(ExportIndex), PackageLinker->GetExportClassName(ExportIndex));
+			bool* bNeedsLoadForEditorGameValuePtr = ResaveClassNeedsLoadForEditorGameValues.Find(ExportClassPathName.ToString());
 			if (bNeedsLoadForEditorGameValuePtr)
 			{
 				FObjectExport& Export = PackageLinker->ExportMap[ExportIndex];

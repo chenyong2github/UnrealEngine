@@ -31,7 +31,7 @@ FMessageTracer::~FMessageTracer()
 /* FMessageTracer interface
  *****************************************************************************/
 
-void FMessageTracer::TraceAddedInterceptor(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType)
+void FMessageTracer::TraceAddedInterceptor(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FTopLevelAssetPath& MessageType)
 {
 	double Timestamp = FPlatformTime::Seconds();
 
@@ -211,7 +211,7 @@ void FMessageTracer::TraceInterceptedMessage(const TSharedRef<IMessageContext, E
 }
 
 
-void FMessageTracer::TraceRemovedInterceptor(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType)
+void FMessageTracer::TraceRemovedInterceptor(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FTopLevelAssetPath& MessageType)
 {
 	double Timestamp = FPlatformTime::Seconds();
 
@@ -252,7 +252,7 @@ void FMessageTracer::TraceRemovedRecipient(const FMessageAddress& Address)
 }
 
 
-void FMessageTracer::TraceRemovedSubscription(const TSharedRef<IMessageSubscription, ESPMode::ThreadSafe>& Subscription, const FName& MessageType)
+void FMessageTracer::TraceRemovedSubscription(const TSharedRef<IMessageSubscription, ESPMode::ThreadSafe>& Subscription, const FTopLevelAssetPath& MessageType)
 {
 	if (!Running)
 	{
@@ -324,13 +324,12 @@ void FMessageTracer::TraceSentMessage(const TSharedRef<IMessageContext, ESPMode:
 		}
 
 		// add message type
-		TSharedPtr<FMessageTracerTypeInfo>& TypeInfo = MessageTypes.FindOrAdd(Context->GetMessageType());
+		TSharedPtr<FMessageTracerTypeInfo>& TypeInfo = MessageTypes.FindOrAdd(Context->GetMessageTypePathName());
 
 		if (!TypeInfo.IsValid())
 		{
 			TypeInfo = MakeShareable(new FMessageTracerTypeInfo());
-			TypeInfo->TypeName = Context->GetMessageType();
-
+			TypeInfo->TypePathName = Context->GetMessageTypePathName();
 			TypeAddedDelegate.Broadcast(TypeInfo.ToSharedRef());
 		}
 

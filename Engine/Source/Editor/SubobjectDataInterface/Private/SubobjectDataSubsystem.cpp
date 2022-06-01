@@ -650,7 +650,7 @@ UClass* USubobjectDataSubsystem::CreateNewBPComponent(TSubclassOf<UActorComponen
 			const FString PackagePath = NewClassPath / NewClassName;
 
 			// Check for an existing object
-			if(UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), ANY_PACKAGE, *PackagePath))
+			if(UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), nullptr, *PackagePath))
 			{
 				UE_LOG(LogSubobjectSubsystem, Warning, TEXT("Failed to Create new BP Component: A class with a name '%s' already exists!"), *PackagePath);
 				return nullptr;

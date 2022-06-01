@@ -498,7 +498,7 @@ AActor* FDatasmithActorImporter::ImportEnvironment(FDatasmithImportContext& Impo
 			UMaterial* ExistingMaterial = nullptr;
 			if ( ImportContext.Options->SearchPackagePolicy == EDatasmithImportSearchPackagePolicy::All )
 			{
-				ExistingMaterial = FindObject<UMaterial>(ANY_PACKAGE, ShaderElement->GetName());
+				ExistingMaterial = FindFirstObject<UMaterial>(ShaderElement->GetName(), EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("FDatasmithActorImporter::ImportEnvironment"));
 			}
 			else
 			{

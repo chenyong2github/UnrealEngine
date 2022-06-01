@@ -34,7 +34,7 @@ TArray<FAssetData> UTakesCoreBlueprintLibrary::FindTakes(const FString& Slate, i
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 
 	FARFilter Filter;
-	Filter.ClassNames.Add(ULevelSequence::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(ULevelSequence::StaticClass()->GetClassPathName());
 	Filter.TagsAndValues.Add(UTakeMetaData::AssetRegistryTag_Slate, Slate);
 
 	TArray<FAssetData> AllAssets;

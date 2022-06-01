@@ -795,7 +795,7 @@ void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #if WITH_EDITOR
 void UDMXSubsystem::OnAssetRegistryAddedAsset(const FAssetData& Asset)
 {
-	if (Asset.AssetClass == UDMXLibrary::StaticClass()->GetFName())
+	if (Asset.AssetClassPath == UDMXLibrary::StaticClass()->GetClassPathName())
 	{
 		UObject* AssetObject = Asset.GetAsset();
 		if (UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject))
@@ -810,7 +810,7 @@ void UDMXSubsystem::OnAssetRegistryAddedAsset(const FAssetData& Asset)
 #if WITH_EDITOR
 void UDMXSubsystem::OnAssetRegistryRemovedAsset(const FAssetData& Asset)
 {
-	if (Asset.AssetClass == UDMXLibrary::StaticClass()->GetFName())
+	if (Asset.AssetClassPath == UDMXLibrary::StaticClass()->GetClassPathName())
 	{
 		UObject* AssetObject = Asset.GetAsset();
 		if (UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject))

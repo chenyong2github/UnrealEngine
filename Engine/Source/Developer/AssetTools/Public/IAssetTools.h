@@ -473,9 +473,9 @@ public:
 	/** Get asset class permission list for the ViewAsset action */
 	UE_DEPRECATED(5.1, "Pass in an EAssetClassAction instead of nothing")
 	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList() = 0;
-	
+
 	/** Get asset class permission list for content browser and other systems */
-	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList(EAssetClassAction AssetClassAction) = 0;
+	virtual TSharedRef<FPathPermissionList>& GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) = 0;
 
 	/** Get folder permission list for content browser and other systems */
 	virtual TSharedRef<FPathPermissionList>& GetFolderPermissionList() = 0;

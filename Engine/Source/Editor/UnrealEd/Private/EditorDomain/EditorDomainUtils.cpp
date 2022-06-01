@@ -464,7 +464,7 @@ private:
 
 	// Scratch variables usable during GetRecursive; they are invalidated when a recursive call is made
 	FString NameStringBuffer;
-	TArray<FName> AncestorShortNames;
+	TArray<FTopLevelAssetPath> AncestorPathNames;
 };
 
 FClassDigestData* FPrecacheClassDigest::GetRecursive(FName ClassName, bool bAllowRedirects)
@@ -544,16 +544,17 @@ FClassDigestData* FPrecacheClassDigest::GetRecursive(FName ClassName, bool bAllo
 		FStringView ClassObjectName;
 		FStringView ClassSubObjectName;
 		FPackageName::SplitFullObjectPath(NameStringBuffer, UnusedClassOfClassName, ClassPackageName, ClassObjectName, ClassSubObjectName);
-		FName ClassObjectFName(ClassObjectName);
+		FTopLevelAssetPath ClassObjectPathName = FTopLevelAssetPath(FName(ClassPackageName), FName(ClassObjectName));
+
 		// TODO_EDITORDOMAIN: If the class is not yet present in the assetregistry, or
 		// if its parent classes are not, then we will not be able to propagate information from the parent classes; wait on the class to be parsed
-		AncestorShortNames.Reset();
-		IAssetRegistry::Get()->GetAncestorClassNames(ClassObjectFName, AncestorShortNames);
-		for (FName ShortName : AncestorShortNames)
+		AncestorPathNames.Reset();
+		IAssetRegistry::Get()->GetAncestorClassNames(ClassObjectPathName, AncestorPathNames);
+		for (const FTopLevelAssetPath& PathName : AncestorPathNames)
 		{
 			// TODO_EDITORDOMAIN: For robustness and performance, we need the AssetRegistry to return FullPathNames rather than ShortNames
 			// For now, we lookup each shortname using FindObject, and do not handle propagating data from blueprint classes to child classes
-			if (UStruct* CurrentStruct = FindObjectFast<UStruct>(nullptr, ShortName, false /* ExactClass */, true /* AnyPackage */))
+			if (UStruct* CurrentStruct = FindObject<UStruct>(PathName))
 			{
 				NameStringBuffer.Reset();
 				CurrentStruct->GetPathName(nullptr, NameStringBuffer);

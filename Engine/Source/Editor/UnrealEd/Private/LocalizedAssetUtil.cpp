@@ -138,7 +138,7 @@ bool FLocalizedAssetSCCUtil::SaveFileWithSCC(const TSharedPtr<FLocalizationSCC>&
 }
 
 
-bool FLocalizedAssetUtil::GetAssetsByPathAndClass(IAssetRegistry& InAssetRegistry, const FName InPackagePath, const FName InClassName, const bool bIncludeLocalizedAssets, TArray<FAssetData>& OutAssets)
+bool FLocalizedAssetUtil::GetAssetsByPathAndClass(IAssetRegistry& InAssetRegistry, const FName InPackagePath, const FTopLevelAssetPath& InClassName, const bool bIncludeLocalizedAssets, TArray<FAssetData>& OutAssets)
 {
 	TArray<FName> PackagePaths;
 	PackagePaths.Add(InPackagePath);
@@ -146,12 +146,12 @@ bool FLocalizedAssetUtil::GetAssetsByPathAndClass(IAssetRegistry& InAssetRegistr
 	return GetAssetsByPathAndClass(InAssetRegistry, PackagePaths, InClassName, bIncludeLocalizedAssets, OutAssets);
 }
 
-bool FLocalizedAssetUtil::GetAssetsByPathAndClass(IAssetRegistry& InAssetRegistry, const TArray<FName>& InPackagePaths, const FName InClassName, const bool bIncludeLocalizedAssets, TArray<FAssetData>& OutAssets)
+bool FLocalizedAssetUtil::GetAssetsByPathAndClass(IAssetRegistry& InAssetRegistry, const TArray<FName>& InPackagePaths, const FTopLevelAssetPath& InClassName, const bool bIncludeLocalizedAssets, TArray<FAssetData>& OutAssets)
 {
 	FARFilter AssetFilter;
 	AssetFilter.PackagePaths = InPackagePaths;
 	AssetFilter.bRecursivePaths = true;
-	AssetFilter.ClassNames.Add(InClassName);
+	AssetFilter.ClassPaths.Add(InClassName);
 	AssetFilter.bRecursiveClasses = true;
 
 	if (!InAssetRegistry.GetAssets(AssetFilter, OutAssets))

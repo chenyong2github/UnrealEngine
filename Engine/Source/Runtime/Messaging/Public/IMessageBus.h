@@ -140,7 +140,20 @@ public:
 	 * @param MessageType The type of messages to intercept.
 	 * @see Unintercept
 	 */
-	virtual void Intercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual void Intercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType)
+	{
+		Intercept(Interceptor, UClass::TryConvertShortTypeNameToPathName<UStruct>(MessageType.ToString()));
+	}
+
+	/**
+	 * Adds an interceptor for messages of the specified type.
+	 *
+	 * @param Interceptor The interceptor.
+	 * @param MessageType The type of messages to intercept.
+	 * @see Unintercept
+	 */
+	virtual void Intercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FTopLevelAssetPath& MessageType) = 0;
 
 	/**
 	 * Sends a message to subscribed recipients.
@@ -206,7 +219,25 @@ public:
 	 * @return The added subscription, or nullptr if the subscription failed.
 	 * @see Unsubscribe
 	 */
-	virtual TSharedPtr<IMessageSubscription, ESPMode::ThreadSafe> Subscribe(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FName& MessageType, const TRange<EMessageScope>& ScopeRange) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual TSharedPtr<IMessageSubscription, ESPMode::ThreadSafe> Subscribe(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FName& MessageType, const TRange<EMessageScope>& ScopeRange)
+	{
+		return Subscribe(Subscriber, UClass::TryConvertShortTypeNameToPathName<UStruct>(MessageType.ToString()), ScopeRange);
+	}
+
+	/**
+	 * Adds a subscription for published messages of the specified type.
+	 *
+	 * Subscriptions allow message consumers to receive published messages from the message bus.
+	 * The returned interface can be used to query the subscription's details and its enabled state.
+	 *
+	 * @param Subscriber The subscriber wishing to receive the messages.
+	 * @param MessageType The type of messages to subscribe to (IMessageBus::PATHNAME_All = subscribe to all message types).
+	 * @param ScopeRange The range of message scopes to include in the subscription.
+	 * @return The added subscription, or nullptr if the subscription failed.
+	 * @see Unsubscribe
+	 */
+	virtual TSharedPtr<IMessageSubscription, ESPMode::ThreadSafe> Subscribe(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FTopLevelAssetPath& MessageType, const TRange<EMessageScope>& ScopeRange) = 0;
 
 	/**
 	 * Removes an interceptor for messages of the specified type.
@@ -215,7 +246,20 @@ public:
 	 * @param MessageType The type of messages to stop intercepting.
 	 * @see Intercept
 	 */
-	virtual void Unintercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual void Unintercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FName& MessageType)
+	{
+		Unintercept(Interceptor, UClass::TryConvertShortTypeNameToPathName<UStruct>(MessageType.ToString()));
+	}
+
+	/**
+	 * Removes an interceptor for messages of the specified type.
+	 *
+	 * @param Interceptor The interceptor to remove.
+	 * @param MessageType The type of messages to stop intercepting.
+	 * @see Intercept
+	 */
+	virtual void Unintercept(const TSharedRef<IMessageInterceptor, ESPMode::ThreadSafe>& Interceptor, const FTopLevelAssetPath& MessageType) = 0;
 
 	/**
 	 * Unregisters a message recipient from the message bus.
@@ -232,7 +276,20 @@ public:
 	 * @param MessageType The type of messages to unsubscribe from (NAME_All = all types).
 	 * @see Subscribe
 	 */
-	virtual void Unsubscribe(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FName& MessageType) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual void Unsubscribe(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FName& MessageType)
+	{
+		Unsubscribe(Subscriber, UClass::TryConvertShortTypeNameToPathName<UStruct>(MessageType.ToString()));
+	}
+
+	/**
+	 * Cancels the specified message subscription.
+	 *
+	 * @param Subscriber The subscriber wishing to stop receiving the messages.
+	 * @param MessageType The type of messages to unsubscribe from (IMessageBus::PATHNAME_All = all types).
+	 * @see Subscribe
+	 */
+	virtual void Unsubscribe(const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Subscriber, const FTopLevelAssetPath& MessageType) = 0;
 
 	/**
 	 * Add a listener to the bus notifications
@@ -260,6 +317,8 @@ public:
 	 * @see Shutdown
 	 */
 	virtual FOnMessageBusShutdown& OnShutdown() = 0;
+
+	MESSAGING_API static const FTopLevelAssetPath PATHNAME_All;
 
 public:
 

@@ -392,7 +392,7 @@ AActor* FSerializedRecorder::SetActorPossesableOrSpawnable(UMovieSceneSequence* 
 		}
 		if (Actor)
 		{
-			UClass* InitPossessedObjectClass = FindObject<UClass>(ANY_PACKAGE, *ActorHeader.ClassName);
+			UClass* InitPossessedObjectClass = UClass::TryFindTypeSlow<UClass>(ActorHeader.ClassName);
 			FMovieScenePossessable Possessable(ActorHeader.Label, InitPossessedObjectClass);
 
 			Possessable.SetGuid(ActorHeader.Guid);
@@ -409,7 +409,7 @@ AActor* FSerializedRecorder::SetActorPossesableOrSpawnable(UMovieSceneSequence* 
 		//by MakeSpawnableTemplateFromInstance.  
 		//CachedObjectTemplate = CastChecked<AActor>(InMovieSceneSequence->MakeSpawnableTemplateFromInstance(*ActorToRecord, Header.TemplateName));
 		//
-		UClass* SpawnableClass = FindObject<UClass>(ANY_PACKAGE, *ActorHeader.ClassName);
+		UClass* SpawnableClass = UClass::TryFindTypeSlow<UClass>(ActorHeader.ClassName);
 		UObject* NewInstance = NewObject<UObject>(MovieScene, SpawnableClass, FName(*ActorHeader.TemplateName));
 		//this is where UEngine::CopyPropertiesForUnrelatedObjects happens
 		Actor = CastChecked<AActor>(NewInstance);
@@ -515,7 +515,7 @@ void FSerializedRecorder::SetComponentPossessable(UMovieSceneSequence* InMovieSc
 		// first create a possessable for this component to be controlled by
 		UMovieScene* InMovieScene = InMovieSceneSequence->GetMovieScene();
 
-		UClass* InitPossessedObjectClass = FindObject<UClass>(ANY_PACKAGE, *ActorProperty.ClassName);
+		UClass* InitPossessedObjectClass = UClass::TryFindTypeSlow<UClass>(ActorProperty.ClassName);
 		FMovieScenePossessable ChildPossessable(ActorProperty.UObjectName, InitPossessedObjectClass);
 
 		ChildPossessable.SetGuid(ActorProperty.Guid);

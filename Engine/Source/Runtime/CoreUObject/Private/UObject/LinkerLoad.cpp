@@ -2425,6 +2425,7 @@ UObject* FLinkerLoad::FindExistingExport(int32 ExportIndex)
 			}
 			else
 			{
+				// RobM: No class package so try and find any class matching the name. Sounds sketchy and we should remove it
 				TheClass = FindFirstObject<UClass>(*ImpExp(Export.ClassIndex).ObjectName.ToString(), EFindFirstObjectOptions::None, ELogVerbosity::Fatal, TEXT("finding existing export"));
 			}
 		}
@@ -2433,7 +2434,7 @@ UObject* FLinkerLoad::FindExistingExport(int32 ExportIndex)
 		if (TheClass)
 		{
 			TheClass->GetDefaultObject(); // build the CDO if it isn't already built
-			Export.Object = StaticFindObjectFast(TheClass, OuterObject, Export.ObjectName, /*bExactClass*/true, /*bAnyPackage*/false);
+			Export.Object = StaticFindObjectFast(TheClass, OuterObject, Export.ObjectName, /*bExactClass*/true);
 			
 			// if we found an object, set it's linker to us
 			if (Export.Object)
@@ -2464,7 +2465,7 @@ UObject* FLinkerLoad::FindExistingImport(int32 ImportIndex)
 	{
 		// if the import outer is null then we have a package, resolve it, potentially remapping it
 		FName ObjectName = InstancingContextRemap(Import.ObjectName);
-		return StaticFindObjectFast(UPackage::StaticClass(), nullptr, ObjectName, /*bExactClass*/true, /*bAnyPackage*/false);
+		return StaticFindObjectFast(UPackage::StaticClass(), nullptr, ObjectName, /*bExactClass*/true);
 	}
 	// if our outer is an import, recurse to find it
 	else if (Import.OuterIndex.IsImport())
@@ -2481,20 +2482,24 @@ UObject* FLinkerLoad::FindExistingImport(int32 ImportIndex)
 	{
 		// find the class of this object
 		UClass* TheClass = nullptr;
-		if (Import.ClassName == NAME_Class || Import.ClassName.IsNone())
+		if ((Import.ClassName == NAME_Class && (Import.ClassPackage == GLongCoreUObjectPackageName || Import.ClassPackage == NAME_CoreUObject)) || Import.ClassName.IsNone())
 		{
 			TheClass = UClass::StaticClass();
 		}
 		else
 		{
 			//@todo: Could we have an import that has its class as an export?
-			TheClass = (UClass*)StaticFindObjectFast(UClass::StaticClass(), nullptr, Import.ClassName, /*bExactClass*/false, /*bAnyPackage*/true);
+			UPackage* ClassPackage = FindObject<UPackage>(nullptr, *Import.ClassPackage.ToString()); // FindObject because *theoretically* this could be an old package where ClassPackage was a short package name and FindObject handles that
+			if (ClassPackage)
+			{
+				TheClass = FindObjectFast<UClass>(ClassPackage, Import.ClassName, /*bExactClass*/false);
+			}
 		}
 
 		// if the class exists, try to find the object
 		if (TheClass)
 		{
-			return StaticFindObjectFast(UClass::StaticClass(), OuterObject, Import.ObjectName, /*bExactClass*/true, /*bAnyPackage*/false);
+			return StaticFindObjectFast(UClass::StaticClass(), OuterObject, Import.ObjectName, /*bExactClass*/true);
 		}
 	}
 	return nullptr;
@@ -3459,17 +3464,15 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		}
 	}
 
-	if( (Pkg == nullptr) && ((LoadFlags & LOAD_FindIfFail) != 0) )
-	{
-		Pkg = ANY_PACKAGE;
-	}
+	// RobM: We should remove the bFindObjectByName path
+	const bool bFindObjectByName = (Pkg == nullptr) && ((LoadFlags & LOAD_FindIfFail) != 0);
 
 	// If not found in file, see if it's a public native transient class or field.
-	if( Import.SourceIndex==INDEX_NONE && Pkg!=nullptr )
+	if( Import.SourceIndex==INDEX_NONE && (Pkg!=nullptr || bFindObjectByName))
 	{
 		TStringBuilder<256> ImportClassTemp;
 		Import.ClassPackage.ToString(ImportClassTemp);
-		UObject* ClassPackage = FindObject<UPackage>( NULL, *ImportClassTemp);
+		UObject* ClassPackage = FindObject<UPackage>( nullptr, *ImportClassTemp );
 		if( ClassPackage )
 		{
 			Import.ClassName.ToString(ImportClassTemp);
@@ -3486,27 +3489,29 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 					// otherwise, this import represents a field of an intrinsic class, and OuterImport's XObject should be non-NULL (the object
 					// that contains the field)
 					FObjectImport& OuterImport	= Imp(Import.OuterIndex);
-					if ( OuterImport.XObject != NULL )
+					if ( OuterImport.XObject != nullptr )
 					{
 						FindOuter = OuterImport.XObject;
 					}
 				}
 
-				bool bAnyPackage = FindOuter == ANY_PACKAGE;
-				UObject* FindObject = FindImportFast(FindClass, bAnyPackage ? nullptr : FindOuter, Import.ObjectName, bAnyPackage);
+				UObject* FindObject = FindImportFast(FindClass, bFindObjectByName ? nullptr : FindOuter, Import.ObjectName, bFindObjectByName);
 				// Reference to in memory-only package's object, native transient class or CDO of such a class.
-				bool bIsInMemoryOnlyOrNativeTransient = bCameFromMemoryOnlyPackage || (FindObject != NULL && ((FindObject->IsNative() && FindObject->HasAllFlags(RF_Public | RF_Transient)) || (FindObject->HasAnyFlags(RF_ClassDefaultObject) && FindObject->GetClass()->IsNative() && FindObject->GetClass()->HasAllFlags(RF_Public | RF_Transient))));
+				bool bIsInMemoryOnlyOrNativeTransient = bCameFromMemoryOnlyPackage || (FindObject != nullptr && ((FindObject->IsNative() && FindObject->HasAllFlags(RF_Public | RF_Transient)) || (FindObject->HasAnyFlags(RF_ClassDefaultObject) && FindObject->GetClass()->IsNative() && FindObject->GetClass()->HasAllFlags(RF_Public | RF_Transient))));
 				// Check for structs which have been moved to another header (within the same class package).
 				if (!FindObject && bIsInMemoryOnlyOrNativeTransient && FindClass == UScriptStruct::StaticClass())
 				{
-					FindObject = StaticFindObjectFast(FindClass, nullptr, Import.ObjectName, /*bExactClass*/true, /*bAnyPackage*/true);
+					FindObject = StaticFindFirstObject(FindClass, *Import.ObjectName.ToString(), 
+						EFindFirstObjectOptions::ExactClass | EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous,
+						ELogVerbosity::Warning, TEXT("Finding import by name"));
+
 					if (FindObject && FindOuter->GetOutermost() != FindObject->GetOutermost())
 					{
 						// Limit the results to the same package.I
-						FindObject = NULL;
+						FindObject = nullptr;
 					}
 				}
-				if (FindObject != NULL && ((LoadFlags & LOAD_FindIfFail) || bIsInMemoryOnlyOrNativeTransient))
+				if (FindObject != nullptr && ((LoadFlags & LOAD_FindIfFail) || bIsInMemoryOnlyOrNativeTransient))
 				{
 					Import.XObject = FindObject;
 					FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
@@ -4739,7 +4744,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 #if WITH_EDITOR
 		if ( GIsEditor && GIsRunning && !Export.Object )
 		{
-			UObjectRedirector* Redirector = (UObjectRedirector*)StaticFindObjectFast(UObjectRedirector::StaticClass(), ThisParent, Export.ObjectName, /*bExactClass*/true, /*bAnyPackage*/false);
+			UObjectRedirector* Redirector = (UObjectRedirector*)StaticFindObjectFast(UObjectRedirector::StaticClass(), ThisParent, Export.ObjectName, /*bExactClass*/true);
 			if (Redirector && Redirector->DestinationObject && Redirector->DestinationObject->IsA(LoadClass))
 			{
 				// A redirector has been found, replace this export with it.
@@ -5035,9 +5040,9 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 		if (!GIsEditor && !IsRunningCommandlet())
 		{
 			// Try to find existing version in memory first.
-			if( UPackage* ClassPackage = FindObjectFast<UPackage>( NULL, Import.ClassPackage, false, false ) )
+			if( UPackage* ClassPackage = FindObjectFast<UPackage>( NULL, Import.ClassPackage, false ) )
 			{
-				if( UClass*	FindClass = FindObjectFast<UClass>( ClassPackage, Import.ClassName, false, false ) ) // 
+				if( UClass*	FindClass = FindObjectFast<UClass>( ClassPackage, Import.ClassName, false ) ) // 
 				{
 					// Make sure the class has been loaded and linked before creating a CDO.
 					// This is an edge case, but can happen if a blueprint package has not finished creating exports for a class

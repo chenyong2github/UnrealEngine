@@ -118,7 +118,7 @@ void FCameraCalibrationEditorModule::RegisterPlacementModeItems()
 				TEXT("/CameraCalibration/Devices/Tracker/BP_UE_Tracker"),
 				TEXT("/CameraCalibration/Devices/Tracker"),
 				TEXT("BP_UE_Tracker"),
-				TEXT("Blueprint")
+				FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("Blueprint"))
 			);
 
 			PlaceActors.Add(IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
@@ -135,7 +135,7 @@ void FCameraCalibrationEditorModule::RegisterPlacementModeItems()
 				TEXT("/CameraCalibration/Devices/Tracker/BP_UE_Tracker3"),
 				TEXT("/CameraCalibration/Devices/Tracker"),
 				TEXT("BP_UE_Tracker3"),
-				TEXT("Blueprint")
+				FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("Blueprint"))
 			);
 
 			PlaceActors.Add(IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(

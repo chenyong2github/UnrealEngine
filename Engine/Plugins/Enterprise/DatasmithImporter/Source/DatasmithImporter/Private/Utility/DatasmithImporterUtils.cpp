@@ -575,7 +575,7 @@ UDatasmithScene* FDatasmithImporterUtils::FindDatasmithSceneForAsset( UObject* A
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
 	TArray< FAssetData > DatasmithSceneAssets;
-	AssetRegistry.GetAssetsByClass( UDatasmithScene::StaticClass()->GetFName(), DatasmithSceneAssets, true );
+	AssetRegistry.GetAssetsByClass( UDatasmithScene::StaticClass()->GetClassPathName(), DatasmithSceneAssets, true );
 
 	for ( FAssetData& DatasmithSceneAsset : DatasmithSceneAssets )
 	{

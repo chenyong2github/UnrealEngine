@@ -163,8 +163,8 @@ void FAssetTypeActions_DataTable::OpenAssetEditor( const TArray<UObject*>& InObj
 		DataTablesListText.Indent();
 		for (UDataTable* Table : InvalidDataTables)
 		{
-			const FName ResolvedRowStructName = Table->GetRowStructName();
-			DataTablesListText.AppendLineFormat(LOCTEXT("DataTable_MissingRowStructListEntry", "* {0} (Row Structure: {1})"), FText::FromString(Table->GetName()), FText::FromName(ResolvedRowStructName));
+			const FTopLevelAssetPath ResolvedRowStructName = Table->GetRowStructPathName();
+			DataTablesListText.AppendLineFormat(LOCTEXT("DataTable_MissingRowStructListEntry", "* {0} (Row Structure: {1})"), FText::FromString(Table->GetName()), FText::FromString(ResolvedRowStructName.ToString()));
 		}
 
 		FText Title = LOCTEXT("DataTable_MissingRowStructTitle", "Continue?");
@@ -238,7 +238,7 @@ FText FAssetTypeActions_DataTable::GetDisplayNameFromAssetData(const FAssetData&
 		const FAssetDataTagMapSharedView::FFindTagResult RowStructureTag = AssetData.TagsAndValues.FindTag(NAME_RowStructure);
 		if (RowStructureTag.IsSet())
 		{
-			if (UScriptStruct* FoundStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *RowStructureTag.GetValue(), true))
+			if (UScriptStruct* FoundStruct = UClass::TryFindTypeSlow<UScriptStruct>(RowStructureTag.GetValue(), EFindFirstObjectOptions::ExactClass))
 			{
 				return FText::Format(LOCTEXT("DataTableWithRowType", "Data Table ({0})"), FoundStruct->GetDisplayNameText());
 			}

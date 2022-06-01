@@ -660,7 +660,7 @@ void FRigControlSettings::Load(FArchive& Ar)
 		}
 		else
 		{			
-			ControlEnum = FindObject<UEnum>(ANY_PACKAGE, *ControlEnumPathName);
+			ControlEnum = FindObject<UEnum>(nullptr, *ControlEnumPathName);
 		}
 	}
 

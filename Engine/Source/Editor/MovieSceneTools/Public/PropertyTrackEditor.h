@@ -193,7 +193,7 @@ private:
 		const FString& MetaSequencerTrackClass = Property->GetMetaData( TEXT( "SequencerTrackClass" ) );
 		if ( !MetaSequencerTrackClass.IsEmpty() )
 		{
-			UClass* MetaClass = FindObject<UClass>( ANY_PACKAGE, *MetaSequencerTrackClass );
+			UClass* MetaClass = UClass::TryFindTypeSlow<UClass>(MetaSequencerTrackClass);
 			if ( !MetaClass )
 			{
 				MetaClass = LoadObject<UClass>( nullptr, *MetaSequencerTrackClass );

@@ -569,7 +569,7 @@ bool FClassViewerFilter::IsUnloadedClassAllowed(const FClassViewerInitialization
 	// Determine if we allow any developer folder classes, if so determine if this class is in one of the allowed developer folders.
 	static const FString DeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir());
 	static const FString UserDeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameUserDeveloperDir());
-	FString GeneratedClassPathString = InUnloadedClassData->GetClassPath().ToString();
+	FString GeneratedClassPathString = InUnloadedClassData->GetClassPathName().ToString();
 
 	bool bPassesDeveloperFilter = true;
 

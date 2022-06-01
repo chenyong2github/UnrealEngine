@@ -313,9 +313,12 @@ TFieldType* FindRemappedFieldImpl(FName FieldClassOutermostName, FName FieldClas
 				{
 					// Use package if it's there
 					ClassName = FString::Printf(TEXT("%s.%s"), *NewRedirectName.PackageName.ToString(), *NewRedirectName.OuterName.ToString());
+					SearchClass = (UClass*)StaticFindObject(UClass::StaticClass(), nullptr, *ClassName);
 				}
-
-				SearchClass = (UClass*)StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *ClassName);
+				else
+				{
+					SearchClass = FindFirstObject<UClass>(*ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Fatal, TEXT("FindRemappedFieldImpl"));
+				}				
 
 				if (!SearchClass)
 				{

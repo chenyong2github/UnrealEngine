@@ -278,7 +278,7 @@ static bool GetSavePresetPackageName(FString& OutPackageName)
 	{
 		SaveAssetDialogConfig.DefaultPath = DefaultPath;
 		SaveAssetDialogConfig.DefaultAssetName = FPaths::GetCleanFilename(UniqueAssetName);
-		SaveAssetDialogConfig.AssetClassNames.Add(USourceFilterCollection::StaticClass()->GetFName());
+		SaveAssetDialogConfig.AssetClassNames.Add(USourceFilterCollection::StaticClass()->GetClassPathName());
 		SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 		SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SaveSourceFilterPresetDialogTitle", "Save Filter Preset");
 	}
@@ -376,7 +376,7 @@ TSharedPtr<FExtender> FEditorSessionSourceFilterService::GetExtender()
 								AssetPickerConfig.bSortByPathInColumnView = false;
 
 								AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoPresets_Warning", "No Presets Found");
-								AssetPickerConfig.Filter.ClassNames.Add(USourceFilterCollection::StaticClass()->GetFName());
+								AssetPickerConfig.Filter.ClassPaths.Add(USourceFilterCollection::StaticClass()->GetClassPathName());
 								AssetPickerConfig.OnAssetDoubleClicked = FOnAssetDoubleClicked::CreateLambda([this](const FAssetData& InAssetData)
 								{
 									if (UObject* Asset = InAssetData.GetAsset())

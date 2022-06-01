@@ -240,7 +240,8 @@ void FRemoteSessionARSystemChannel::ReceiveARInit_GameThread(FString ConfigObjec
 	FARSystemProxy::Get()->SetSupportedVideoFormats(Formats);
 
 	// Load and set the config object that was passed in
-	UARSessionConfig* SessionConfig = FindObject<UARSessionConfig>(ANY_PACKAGE, *ConfigObjectPathName);
+	checkf(!FPackageName::IsShortPackageName(ConfigObjectPathName), TEXT("ReceiveARInit_GameThread expects class path name, received: \"%s\". Check SendARInitMessage()."), *ConfigObjectPathName);
+	UARSessionConfig* SessionConfig = FindObject<UARSessionConfig>(nullptr, *ConfigObjectPathName);
 	if (SessionConfig == nullptr)
 	{
 		SessionConfig = LoadObject<UARSessionConfig>(nullptr, *ConfigObjectPathName);
@@ -267,7 +268,7 @@ void FRemoteSessionARSystemChannel::ReceiveAddTrackable(IBackChannelPacket& Mess
 
 void FRemoteSessionARSystemChannel::ReceiveAddTrackable_GameThread(FString ClassPathName, TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> DataCopy)
 {
-	UClass* TrackableClass = FindObject<UClass>(ANY_PACKAGE, *ClassPathName);
+	UClass* TrackableClass = FindObject<UClass>(nullptr, *ClassPathName);
 	// We shouldn't have to load this since these are all native, but in case some AR platform has non-native classes...
 	if (TrackableClass == nullptr)
 	{

@@ -116,7 +116,15 @@ int32 UReplaceAssetsCommandlet::Main(const FString& InParams)
 		Filter.bRecursivePaths = true;
 		for (const FString& ReplacedClass : ReplacedClasses)
 		{
-			Filter.ClassNames.AddUnique(*ReplacedClass);
+			FTopLevelAssetPath ReplacedClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(ReplacedClass, ELogVerbosity::Error, TEXT("UReplaceAssetsCommandlet"));
+			if (ReplacedClassPathName.IsNull())
+			{
+				UE_LOG(LogReplaceAssetsCommandlet, Error, TEXT("Failed to convert short class name \"%s\" to path name. Please use class path names for ReplacedClasses."), *ReplacedClass);
+			}
+			else
+			{
+				Filter.ClassPaths.AddUnique(ReplacedClassPathName);
+			}
 		}
 		TArray<FAssetData> AssetList;
 		AssetRegistryModule.Get().GetAssets(Filter, AssetList);
@@ -150,7 +158,15 @@ int32 UReplaceAssetsCommandlet::Main(const FString& InParams)
 		Filter.bRecursivePaths = true;
 		for (const FString& ExcludedClass : ExcludedClasses)
 		{
-			Filter.ClassNames.AddUnique(*ExcludedClass);
+			FTopLevelAssetPath ExcludedClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(ExcludedClass, ELogVerbosity::Error, TEXT("UReplaceAssetsCommandlet"));
+			if (ExcludedClassPathName.IsNull())
+			{
+				UE_LOG(LogReplaceAssetsCommandlet, Error, TEXT("Failed to convert short class name \"%s\" to path name. Please use class path names for ExcludedClasses."), *ExcludedClass);
+			}
+			else
+			{
+				Filter.ClassPaths.AddUnique(ExcludedClassPathName);
+			}
 		}
 		TArray<FAssetData> AssetList;
 		AssetRegistryModule.Get().GetAssets(Filter, AssetList);
@@ -163,7 +179,7 @@ int32 UReplaceAssetsCommandlet::Main(const FString& InParams)
 		UE_LOG(LogReplaceAssetsCommandlet, Display, TEXT("Converting Package Names to File Paths"));
 		for (FAssetData& RemovedAsset : FinalAssetList)
 		{
-			bool bIsMap = RemovedAsset.AssetClass == UWorld::StaticClass()->GetFName();
+			bool bIsMap = RemovedAsset.AssetClassPath == UWorld::StaticClass()->GetClassPathName();
 			FinalFileList.AddUnique(FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(RemovedAsset.PackageName.ToString(), bIsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension())));
 		}
 

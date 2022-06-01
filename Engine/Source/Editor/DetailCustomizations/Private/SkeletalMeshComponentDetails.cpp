@@ -248,7 +248,7 @@ void FSkeletalMeshComponentDetails::UpdateSkeletonNameAndPickerVisibility()
 	if (Skeleton)
 	{
 		bAnimPickerEnabled = true;
-		SelectedSkeletonName = FString::Printf(TEXT("%s'%s'"), *Skeleton->GetClass()->GetName(), *Skeleton->GetPathName());
+		SelectedSkeletonName = FObjectPropertyBase::GetExportPath(Skeleton);
 	}
 	else
 	{

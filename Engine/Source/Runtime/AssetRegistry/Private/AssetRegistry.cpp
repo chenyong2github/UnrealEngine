@@ -92,6 +92,12 @@
 
 static FAssetRegistryConsoleCommands ConsoleCommands; // Registers its various console commands in the constructor
 
+namespace UE::AssetRegistry
+{
+	const FName WildcardFName(TEXT("*"));
+	const FTopLevelAssetPath WildcardPathName(TEXT("/*"), TEXT("*"));
+}
+
 namespace UE::AssetRegistry::Impl
 {
 	/** The max time to spend in UAssetRegistryImpl::Tick */
@@ -1182,24 +1188,38 @@ void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& O
 			FName TagFName = FName(*TagName);
 
 			// Include subclasses if the class is in memory at this time (native classes only)
-			UClass* FilterlistClass = Cast<UClass>(StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *ClassName));
+			UClass* FilterlistClass = Cast<UClass>(StaticFindObject(UClass::StaticClass(), nullptr, *ClassName));
 			if (FilterlistClass)
 			{
-				Options.CookFilterlistTagsByClass.FindOrAdd(FilterlistClass->GetFName()).Add(TagFName);
+				Options.CookFilterlistTagsByClass.FindOrAdd(FilterlistClass->GetClassPathName()).Add(TagFName);
 
 				TArray<UClass*> DerivedClasses;
 				GetDerivedClasses(FilterlistClass, DerivedClasses);
 				for (UClass* DerivedClass : DerivedClasses)
 				{
-					Options.CookFilterlistTagsByClass.FindOrAdd(DerivedClass->GetFName()).Add(TagFName);
+					Options.CookFilterlistTagsByClass.FindOrAdd(DerivedClass->GetClassPathName()).Add(TagFName);
 				}
 			}
 			else
 			{
+				FTopLevelAssetPath ClassPathName;
+				if (ClassName == TEXTVIEW("*"))
+				{
+					ClassPathName = UE::AssetRegistry::WildcardPathName;
+				}
+				else if (FPackageName::IsShortPackageName(ClassName))
+				{
+					ClassPathName = UClass::TryConvertShortTypeNameToPathName<UClass>(ClassName, ELogVerbosity::Warning, TEXT("Parsing [AssetRegistry] CookedTagsWhitelist or CookedTagsBlacklist"));
+					UE_CLOG(ClassPathName.IsNull(), LogAssetRegistry, Warning, TEXT("Failed to convert short class name \"%s\" when parsing ini [AssetRegistry] CookedTagsWhitelist or CookedTagsBlacklist"), *ClassName);
+				}
+				else
+				{
+					ClassPathName = FTopLevelAssetPath(ClassName);
+				}
 				// Class is not in memory yet. Just add an explicit filter.
 				// Automatically adding subclasses of non-native classes is not supported.
-				// In these cases, using Class=* is usually sufficient
-				Options.CookFilterlistTagsByClass.FindOrAdd(*ClassName).Add(TagFName);
+				// In these cases, using Class=* is usually sufficient				
+				Options.CookFilterlistTagsByClass.FindOrAdd(ClassPathName).Add(TagFName);
 			}
 		}
 	}
@@ -1217,20 +1237,21 @@ void FAssetRegistryImpl::CollectCodeGeneratorClasses()
 	ClassGeneratorNamesRegisteredClassesVersionNumber = GetRegisteredClassesVersionNumber();
 
 	// Work around the fact we don't reference Engine module directly
-	UClass* BlueprintCoreClass = Cast<UClass>(StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, TEXT("BlueprintCore")));
+	FTopLevelAssetPath BlueprintCorePathName(TEXT("/Script/Engine"), TEXT("BlueprintCore"));
+	UClass* BlueprintCoreClass = FindObject<UClass>(BlueprintCorePathName);
 	if (!BlueprintCoreClass)
 	{
 		return;
 	}
 
-	ClassGeneratorNames.Add(BlueprintCoreClass->GetFName());
+	ClassGeneratorNames.Add(BlueprintCoreClass->GetClassPathName());
 
 	TArray<UClass*> BlueprintCoreDerivedClasses;
 	GetDerivedClasses(BlueprintCoreClass, BlueprintCoreDerivedClasses);
 	for (UClass* BPCoreClass : BlueprintCoreDerivedClasses)
 	{
 		bool bAlreadyRecorded;
-		FName BPCoreClassName = BPCoreClass->GetFName();
+		FTopLevelAssetPath BPCoreClassName = BPCoreClass->GetClassPathName();
 		ClassGeneratorNames.Add(BPCoreClassName, &bAlreadyRecorded);
 		if (bAlreadyRecorded)
 		{
@@ -1241,18 +1262,18 @@ void FAssetRegistryImpl::CollectCodeGeneratorClasses()
 		// when AddAssetData is called for those instances, but when we add a new generator class we have to recheck all
 		// instances of the class since they would have failed to detect they were Blueprint classes before.
 		// This can happen if blueprints in plugin B are scanned before their blueprint class from plugin A is scanned.
-		for (const FAssetData* AssetData : State.GetAssetsByClassName(BPCoreClassName))
+		for (const FAssetData* AssetData : State.GetAssetsByClassPathName(BPCoreClassName))
 		{
 			const FString GeneratedClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
 			const FString ParentClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
 			if (!GeneratedClass.IsEmpty() && !ParentClass.IsEmpty())
 			{
-				const FName GeneratedClassFName = *Utils::ExportTextPathToObjectName(GeneratedClass);
-				const FName ParentClassFName = *Utils::ExportTextPathToObjectName(ParentClass);
+				const FTopLevelAssetPath GeneratedClassPathName(FPackageName::ExportTextPathToObjectPath(GeneratedClass));
+				const FTopLevelAssetPath ParentClassPathName(FPackageName::ExportTextPathToObjectPath(ParentClass));
 
-				if (!CachedBPInheritanceMap.Contains(GeneratedClassFName))
+				if (!CachedBPInheritanceMap.Contains(GeneratedClassPathName))
 				{
-					CachedBPInheritanceMap.Add(GeneratedClassFName, ParentClassFName);
+					CachedBPInheritanceMap.Add(GeneratedClassPathName, ParentClassPathName);
 
 					// Invalidate caching because CachedBPInheritanceMap got modified
 					TempCachedInheritanceBuffer.bDirty = true;
@@ -1617,10 +1638,28 @@ void FAssetRegistryImpl::EnumerateAssetsByPathNoTags(FName PackagePath,
 
 }
 
+static FTopLevelAssetPath TryConvertShortTypeNameToPathName(FName ClassName)
+{
+	FTopLevelAssetPath ClassPathName;
+	if (ClassName != NAME_None)
+	{
+		FString ShortClassName = ClassName.ToString();
+		ClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(*ShortClassName, ELogVerbosity::Warning, TEXT("AssetRegistry using deprecated function"));
+		UE_CLOG(ClassPathName.IsNull(), LogClass, Error, TEXT("Failed to convert short class name %s to class path name."), *ShortClassName);
+	}
+	return ClassPathName;
+}
+
 bool UAssetRegistryImpl::GetAssetsByClass(FName ClassName, TArray<FAssetData>& OutAssetData, bool bSearchSubClasses) const
 {
+	FTopLevelAssetPath ClassPathName = TryConvertShortTypeNameToPathName(ClassName);
+	return GetAssetsByClass(ClassPathName, OutAssetData, bSearchSubClasses);
+}
+
+bool UAssetRegistryImpl::GetAssetsByClass(FTopLevelAssetPath ClassPathName, TArray<FAssetData>& OutAssetData, bool bSearchSubClasses) const
+{
 	FARFilter Filter;
-	Filter.ClassNames.Add(ClassName);
+	Filter.ClassPaths.Add(ClassPathName);
 	Filter.bRecursiveClasses = bSearchSubClasses;
 	return GetAssets(Filter, OutAssetData);
 }
@@ -1807,7 +1846,7 @@ void EnumerateMemoryAssetsHelper(const FARCompiledFilter& InFilter, TSet<FName>&
 
 			// Could perhaps save some FName -> String conversions by creating this a bit earlier using the UObject constructor
 			// to get package name and path.
-			FAssetData PartialAssetData(PackageNameStr, ObjectPathStr, Obj->GetClass()->GetFName(), FAssetDataTagMap(),
+			FAssetData PartialAssetData(PackageNameStr, ObjectPathStr, Obj->GetClass()->GetClassPathName(), FAssetDataTagMap(),
 				InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags());
 
 			// All filters passed, except for AssetRegistry filter; caller must check that one
@@ -1816,12 +1855,12 @@ void EnumerateMemoryAssetsHelper(const FARCompiledFilter& InFilter, TSet<FName>&
 	};
 
 	// Iterate over all in-memory assets to find the ones that pass the filter components
-	if (InFilter.ClassNames.Num() > 0)
+	if (InFilter.ClassPaths.Num() > 0)
 	{
 		TArray<UObject*> InMemoryObjects;
-		for (FName ClassName : InFilter.ClassNames)
+		for (FTopLevelAssetPath ClassName : InFilter.ClassPaths)
 		{
-			UClass* Class = FindObjectFast<UClass>(nullptr, ClassName, false, true, RF_NoFlags);
+			UClass* Class = FindObject<UClass>(ClassName);
 			if (Class != nullptr)
 			{
 				GetObjectsOfClass(Class, InMemoryObjects, false, RF_NoFlags);
@@ -1928,7 +1967,7 @@ FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool
 		FReadScopeLock InterfaceScopeLock(InterfaceLock);
 		const FAssetRegistryState& State = GuardedData.GetState();
 		const FAssetData* FoundData = State.GetAssetByObjectPath(ObjectPath);
-		return (FoundData && !GuardedData.ShouldSkipAsset(FoundData->AssetClass, FoundData->PackageFlags)) ? *FoundData : FAssetData();
+		return (FoundData && !GuardedData.ShouldSkipAsset(FoundData->AssetClassPath, FoundData->PackageFlags)) ? *FoundData : FAssetData();
 	}
 }
 
@@ -2285,13 +2324,13 @@ bool UAssetRegistryImpl::DoesPackageExistOnDisk(FName PackageName, FString* OutC
 {
 	auto CalculateExtension = [](const FString& PackageNameStr, TConstArrayView<FAssetData> Assets) -> FString
 	{
-		FName ClassRedirector = UObjectRedirector::StaticClass()->GetFName();
+		FTopLevelAssetPath ClassRedirector = UObjectRedirector::StaticClass()->GetClassPathName();
 		bool bContainsMap = false;
 		bool bContainsRedirector = false;
 		for (const FAssetData& Asset : Assets)
 		{
 			bContainsMap |= ((Asset.PackageFlags & PKG_ContainsMap) != 0);
-			bContainsRedirector |= (Asset.AssetClass == ClassRedirector);
+			bContainsRedirector |= (Asset.AssetClassPath == ClassRedirector);
 		}
 		if (!bContainsMap && bContainsRedirector)
 		{
@@ -2461,6 +2500,18 @@ FName FAssetRegistryImpl::GetRedirectedObjectPath(const FName ObjectPath) const
 
 bool UAssetRegistryImpl::GetAncestorClassNames(FName ClassName, TArray<FName>& OutAncestorClassNames) const
 {
+	FTopLevelAssetPath ClassPathName = TryConvertShortTypeNameToPathName(ClassName);
+	TArray<FTopLevelAssetPath> OutAncestorClassPathNames;
+	bool bResult = GetAncestorClassNames(ClassPathName, OutAncestorClassPathNames);
+	for (FTopLevelAssetPath AncestorPathName : OutAncestorClassPathNames)
+	{
+		OutAncestorClassNames.Add(AncestorPathName.GetAssetName());
+	}
+	return bResult;
+}
+
+bool UAssetRegistryImpl::GetAncestorClassNames(FTopLevelAssetPath ClassName, TArray<FTopLevelAssetPath>& OutAncestorClassNames) const
+{
 	UE::AssetRegistry::Impl::FClassInheritanceContext InheritanceContext;
 	UE::AssetRegistry::Impl::FClassInheritanceBuffer InheritanceBuffer;
 	FRWScopeLock InterfaceScopeLock(InterfaceLock, SLT_ReadOnly);
@@ -2472,14 +2523,14 @@ bool UAssetRegistryImpl::GetAncestorClassNames(FName ClassName, TArray<FName>& O
 namespace UE::AssetRegistry
 {
 
-bool FAssetRegistryImpl::GetAncestorClassNames(Impl::FClassInheritanceContext& InheritanceContext, FName ClassName,
-	TArray<FName>& OutAncestorClassNames) const
+bool FAssetRegistryImpl::GetAncestorClassNames(Impl::FClassInheritanceContext& InheritanceContext, FTopLevelAssetPath ClassName,
+	TArray<FTopLevelAssetPath>& OutAncestorClassNames) const
 {
 	// Assume we found the class unless there is an error
 	bool bFoundClass = true;
 
 	InheritanceContext.ConditionalUpdate();
-	const TMap<FName, FName>& InheritanceMap = InheritanceContext.Buffer->InheritanceMap;
+	const TMap<FTopLevelAssetPath, FTopLevelAssetPath>& InheritanceMap = InheritanceContext.Buffer->InheritanceMap;
 
 	// Make sure the requested class is in the inheritance map
 	if (!InheritanceMap.Contains(ClassName))
@@ -2489,7 +2540,7 @@ bool FAssetRegistryImpl::GetAncestorClassNames(Impl::FClassInheritanceContext& I
 	else
 	{
 		// Now follow the map pairs until we cant find any more parents
-		const FName* CurrentClassName = &ClassName;
+		const FTopLevelAssetPath* CurrentClassName = &ClassName;
 		const uint32 MaxInheritanceDepth = 65536;
 		uint32 CurrentInheritanceDepth = 0;
 		while (CurrentInheritanceDepth < MaxInheritanceDepth && CurrentClassName != nullptr)
@@ -2498,7 +2549,7 @@ bool FAssetRegistryImpl::GetAncestorClassNames(Impl::FClassInheritanceContext& I
 
 			if (CurrentClassName)
 			{
-				if (*CurrentClassName == NAME_None)
+				if (CurrentClassName->IsNull())
 				{
 					// No parent, we are at the root
 					CurrentClassName = nullptr;
@@ -2525,6 +2576,27 @@ bool FAssetRegistryImpl::GetAncestorClassNames(Impl::FClassInheritanceContext& I
 
 void UAssetRegistryImpl::GetDerivedClassNames(const TArray<FName>& ClassNames, const TSet<FName>& ExcludedClassNames,
 	TSet<FName>& OutDerivedClassNames) const
+{
+	TArray<FTopLevelAssetPath> ClassPaths;
+	for (FName ClassName : ClassNames)
+	{
+		ClassPaths.Add(TryConvertShortTypeNameToPathName(ClassName));
+	}
+	TSet<FTopLevelAssetPath> ExcludedClassPathNames;
+	for (FName ExcludedClassName : ExcludedClassNames)
+	{
+		ExcludedClassPathNames.Add(TryConvertShortTypeNameToPathName(ExcludedClassName));
+	}
+	TSet<FTopLevelAssetPath> OutDerivedClassPathNames;
+	GetDerivedClassNames(ClassPaths, ExcludedClassPathNames, OutDerivedClassPathNames);
+	for (FTopLevelAssetPath DerivedClassPathName : OutDerivedClassPathNames)
+	{
+		OutDerivedClassNames.Add(DerivedClassPathName.GetAssetName());
+	}
+}
+
+void UAssetRegistryImpl::GetDerivedClassNames(const TArray<FTopLevelAssetPath>& ClassNames, const TSet<FTopLevelAssetPath>& ExcludedClassNames,
+	TSet<FTopLevelAssetPath>& OutDerivedClassNames) const
 {
 	UE::AssetRegistry::Impl::FClassInheritanceContext InheritanceContext;
 	UE::AssetRegistry::Impl::FClassInheritanceBuffer InheritanceBuffer;
@@ -2709,9 +2781,9 @@ bool RunAssetThroughFilter_Unchecked(const FAssetData& AssetData, const FARCompi
 	}
 
 	// Classes
-	if (Filter.ClassNames.Num() > 0)
+	if (Filter.ClassPaths.Num() > 0)
 	{
-		const bool bPassesClasses = Filter.ClassNames.Contains(AssetData.AssetClass);
+		const bool bPassesClasses = Filter.ClassPaths.Contains(AssetData.AssetClassPath);
 		if (bPassesClasses != bPassFilterValue)
 		{
 			return !bPassFilterValue;
@@ -2778,7 +2850,7 @@ void UAssetRegistryImpl::ExpandRecursiveFilter(const FARFilter& InFilter, FARFil
 	ExpandedFilter.PackageNames = CompiledFilter.PackageNames.Array();
 	ExpandedFilter.PackagePaths = CompiledFilter.PackagePaths.Array();
 	ExpandedFilter.ObjectPaths = CompiledFilter.ObjectPaths.Array();
-	ExpandedFilter.ClassNames = CompiledFilter.ClassNames.Array();
+	ExpandedFilter.ClassPaths = CompiledFilter.ClassPaths.Array();
 	ExpandedFilter.TagsAndValues = CompiledFilter.TagsAndValues;
 	ExpandedFilter.bIncludeOnlyOnDiskAssets = CompiledFilter.bIncludeOnlyOnDiskAssets;
 	ExpandedFilter.WithoutPackageFlags = CompiledFilter.WithoutPackageFlags;
@@ -2817,7 +2889,28 @@ void FAssetRegistryImpl::CompileFilter(Impl::FClassInheritanceContext& Inheritan
 		OutCompiledFilter.PackagePaths.Add(FPathTree::NormalizePackagePath(PackagePath));
 	}
 	OutCompiledFilter.ObjectPaths.Append(InFilter.ObjectPaths);
-	OutCompiledFilter.ClassNames.Append(InFilter.ClassNames);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!ensureAlwaysMsgf(InFilter.ClassNames.Num() == 0, TEXT("Asset Registry Filter using ClassNames instead of ClassPaths. First class name: \"%s\""), *InFilter.ClassNames[0].ToString()))
+	{
+		OutCompiledFilter.ClassPaths.Reserve(InFilter.ClassNames.Num());
+		for (FName ClassName : InFilter.ClassNames)
+		{
+			if (!ClassName.IsNone())
+			{
+				FTopLevelAssetPath ClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(ClassName.ToString(), ELogVerbosity::Warning, TEXT("Compiling Asset Registry Filter"));
+				if (!ClassPathName.IsNull())
+				{
+					OutCompiledFilter.ClassPaths.Add(ClassPathName);
+				}
+				else
+				{
+					UE_LOG(LogAssetRegistry, Error, TEXT("Failed to resolve class path for short clas name \"%s\" when compiling asset registry filter"), *ClassName.ToString());
+				}
+			}
+		}
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	OutCompiledFilter.ClassPaths.Append(InFilter.ClassPaths);
 	OutCompiledFilter.TagsAndValues = InFilter.TagsAndValues;
 	OutCompiledFilter.bIncludeOnlyOnDiskAssets = InFilter.bIncludeOnlyOnDiskAssets;
 	OutCompiledFilter.WithoutPackageFlags = InFilter.WithoutPackageFlags;
@@ -2835,16 +2928,16 @@ void FAssetRegistryImpl::CompileFilter(Impl::FClassInheritanceContext& Inheritan
 	if (InFilter.bRecursiveClasses)
 	{
 		// Add the sub-classes of all the input classes to the expanded list, excluding any that were requested
-		if (InFilter.RecursiveClassesExclusionSet.Num() > 0 && InFilter.ClassNames.Num() == 0)
+		if (InFilter.RecursiveClassPathsExclusionSet.Num() > 0 && InFilter.ClassPaths.Num() == 0)
 		{
-			TArray<FName> ClassNamesObject;
-			ClassNamesObject.Add(UObject::StaticClass()->GetFName());
+			TArray<FTopLevelAssetPath> ClassNamesObject;
+			ClassNamesObject.Add(UObject::StaticClass()->GetClassPathName());
 
-			GetSubClasses(InheritanceContext, ClassNamesObject, InFilter.RecursiveClassesExclusionSet, OutCompiledFilter.ClassNames);
+			GetSubClasses(InheritanceContext, ClassNamesObject, InFilter.RecursiveClassPathsExclusionSet, OutCompiledFilter.ClassPaths);
 		}
 		else
 		{
-			GetSubClasses(InheritanceContext, InFilter.ClassNames, InFilter.RecursiveClassesExclusionSet, OutCompiledFilter.ClassNames);
+			GetSubClasses(InheritanceContext, InFilter.ClassPaths, InFilter.RecursiveClassPathsExclusionSet, OutCompiledFilter.ClassPaths);
 		}
 	}
 }
@@ -3802,14 +3895,14 @@ void FAssetRegistryImpl::CachePathsFromState(Impl::FEventContext& EventContext, 
 			AddAssetPath(EventContext, AssetData->PackagePath);
 
 			// Populate the class map if adding blueprint
-			if (ClassGeneratorNames.Contains(AssetData->AssetClass))
+			if (ClassGeneratorNames.Contains(AssetData->AssetClassPath))
 			{
 				FAssetRegistryExportPath GeneratedClass = AssetData->GetTagValueRef<FAssetRegistryExportPath>(FBlueprintTags::GeneratedClassPath);
 				FAssetRegistryExportPath ParentClass = AssetData->GetTagValueRef<FAssetRegistryExportPath>(FBlueprintTags::ParentClassPath);
 
 				if (GeneratedClass && ParentClass)
 				{
-					CachedBPInheritanceMap.Add(GeneratedClass.Object, ParentClass.Object);
+					CachedBPInheritanceMap.Add(GeneratedClass.ToTopLevelAssetPath(), ParentClass.ToTopLevelAssetPath());
 
 					// Invalidate caching because CachedBPInheritanceMap got modified
 					TempCachedInheritanceBuffer.bDirty = true;
@@ -3868,7 +3961,7 @@ void FAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed, SIZE_T& StateSize, 
 	}
 
 	StaticSize += SerializationOptions.CookFilterlistTagsByClass.GetAllocatedSize();
-	for (const TPair<FName, TSet<FName>>& Pair : SerializationOptions.CookFilterlistTagsByClass)
+	for (const TPair<FTopLevelAssetPath, TSet<FName>>& Pair : SerializationOptions.CookFilterlistTagsByClass)
 	{
 		StaticSize += Pair.Value.GetAllocatedSize();
 	}
@@ -4184,6 +4277,51 @@ bool IsPathMounted(const FString& Path, const TSet<FString>& MountPointsNoTraili
 
 }
 
+#if WITH_EDITOR
+void FAssetRegistryImpl::PostLoadAssetRegistryTags(FAssetData* AssetData)
+{
+	check(AssetData);
+	if (AssetData->TagsAndValues.Num())
+	{
+		FTopLevelAssetPath AssetClassPath = AssetData->AssetClassPath;
+		UClass* AssetClass = FindObject<UClass>(AssetClassPath, true);
+		while (!AssetClass)
+		{
+			// this is probably a blueprint that has not yet been loaded, try to find its native base class
+			const FTopLevelAssetPath* ParentClassPath = CachedBPInheritanceMap.Find(AssetClassPath);
+			if (ParentClassPath && !ParentClassPath->IsNull())
+			{
+				AssetClassPath = *ParentClassPath;
+				AssetClass = FindObject<UClass>(AssetClassPath, true);
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		if (AssetClass)
+		{
+			if (UObject* ClassCDO = AssetClass->GetDefaultObject(false))
+			{
+				TArray<UObject::FAssetRegistryTag> TagsToModify;
+				ClassCDO->PostLoadAssetRegistryTags(*AssetData, TagsToModify);
+				if (TagsToModify.Num())
+				{
+					FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
+					for (const UObject::FAssetRegistryTag& Tag : TagsToModify)
+					{
+						TagsAndValues.Remove(Tag.Name);
+						TagsAndValues.Add(Tag.Name, Tag.Value);
+					}
+					AssetData->TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(TagsAndValues));
+				}
+			}
+		}
+	}
+}
+#endif
+
 void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventContext, const double TickStartTime, TRingBuffer<FAssetData*>& AssetResults)
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
@@ -4234,6 +4372,9 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 				if (!AssetDataObjectPathsUpdatedOnLoad.Contains(BackgroundResult->ObjectPath))
 #endif
 				{
+#if WITH_EDITOR
+					PostLoadAssetRegistryTags(BackgroundResult.Get());
+#endif
 					// The asset exists in the cache from disk and has not yet been loaded into memory, update it with the new background data
 					UpdateAssetData(EventContext, AssetData, *BackgroundResult);
 				}
@@ -4244,6 +4385,9 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 			// The asset isn't in the cache yet, add it and notify subscribers
 			if (bPathIsMounted)
 			{
+#if WITH_EDITOR
+				PostLoadAssetRegistryTags(BackgroundResult.Get());
+#endif
 				AddAssetData(EventContext, BackgroundResult.Release());
 			}
 		}
@@ -4507,36 +4651,26 @@ bool FAssetRegistryImpl::RemoveAssetPath(Impl::FEventContext& EventContext, FNam
 	return true;
 }
 
-namespace Utils
-{
-
-FString ExportTextPathToObjectName(const FString& InExportTextPath)
-{
-	const FString ObjectPath = FPackageName::ExportTextPathToObjectPath(InExportTextPath);
-	return FPackageName::ObjectPathToObjectName(ObjectPath);
-}
-
-}
-
 void FAssetRegistryImpl::AddAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData)
 {
 	State.AddAssetData(AssetData);
 
-	if (!ShouldSkipAsset(AssetData->AssetClass, AssetData->PackageFlags))
+	if (!ShouldSkipAsset(AssetData->AssetClassPath, AssetData->PackageFlags))
 	{
 		EventContext.AssetEvents.Emplace(*AssetData, Impl::FEventContext::EEvent::Added);
 	}
 
 	// Populate the class map if adding blueprint
-	if (ClassGeneratorNames.Contains(AssetData->AssetClass))
+	if (ClassGeneratorNames.Contains(AssetData->AssetClassPath))
 	{
 		const FString GeneratedClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
 		const FString ParentClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
 		if (!GeneratedClass.IsEmpty() && !ParentClass.IsEmpty())
 		{
-			const FName GeneratedClassFName = *Utils::ExportTextPathToObjectName(GeneratedClass);
-			const FName ParentClassFName = *Utils::ExportTextPathToObjectName(ParentClass);
-			CachedBPInheritanceMap.Add(GeneratedClassFName, ParentClassFName);
+			const FTopLevelAssetPath GeneratedClassPathName(GeneratedClass);
+			const FTopLevelAssetPath ParentClassPathName(ParentClass);
+			checkf(!GeneratedClassPathName.IsNull() && !ParentClassPathName.IsNull(), TEXT("Short class names used in AddAssetData: GeneratedClass=%s, ParentClass=%s. Short class names in these tags on the Blueprint class should have been converted to path names."), *GeneratedClass, *ParentClass);
+			CachedBPInheritanceMap.Add(GeneratedClassPathName, ParentClassPathName);
 			
 			// Invalidate caching because CachedBPInheritanceMap got modified
 			TempCachedInheritanceBuffer.bDirty = true;
@@ -4547,13 +4681,14 @@ void FAssetRegistryImpl::AddAssetData(Impl::FEventContext& EventContext, FAssetD
 void FAssetRegistryImpl::UpdateAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData, const FAssetData& NewAssetData)
 {
 	// Update the class map if updating a blueprint
-	if (ClassGeneratorNames.Contains(AssetData->AssetClass))
+	if (ClassGeneratorNames.Contains(AssetData->AssetClassPath))
 	{
 		const FString OldGeneratedClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
 		if (!OldGeneratedClass.IsEmpty())
 		{
-			const FName OldGeneratedClassFName = *Utils::ExportTextPathToObjectName(OldGeneratedClass);
-			CachedBPInheritanceMap.Remove(OldGeneratedClassFName);
+			const FTopLevelAssetPath OldGeneratedClassName(OldGeneratedClass);
+			checkf(!OldGeneratedClassName.IsNull(), TEXT("Short class name used: OldGeneratedClass=%s. Short class names in tags on the Blueprint class should have been converted to path names."), *OldGeneratedClass);
+			CachedBPInheritanceMap.Remove(OldGeneratedClassName);
 
 			// Invalidate caching because CachedBPInheritanceMap got modified
 			TempCachedInheritanceBuffer.bDirty = true;
@@ -4563,9 +4698,10 @@ void FAssetRegistryImpl::UpdateAssetData(Impl::FEventContext& EventContext, FAss
 		const FString NewParentClass = NewAssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
 		if (!NewGeneratedClass.IsEmpty() && !NewParentClass.IsEmpty())
 		{
-			const FName NewGeneratedClassFName = *Utils::ExportTextPathToObjectName(*NewGeneratedClass);
-			const FName NewParentClassFName = *Utils::ExportTextPathToObjectName(*NewParentClass);
-			CachedBPInheritanceMap.Add(NewGeneratedClassFName, NewParentClassFName);
+			const FTopLevelAssetPath NewGeneratedClassName(NewGeneratedClass);
+			const FTopLevelAssetPath NewParentClassName(NewParentClass);
+			checkf(!NewGeneratedClassName.IsNull() && !NewParentClassName.IsNull(), TEXT("Short class names used in AddAssetData: GeneratedClass=%s, ParentClass=%s. Short class names in these tags on the Blueprint class should have been converted to path names."), *NewGeneratedClass, *NewParentClass);
+			CachedBPInheritanceMap.Add(NewGeneratedClassName, NewParentClassName);
 
 			// Invalidate caching because CachedBPInheritanceMap got modified
 			TempCachedInheritanceBuffer.bDirty = true;
@@ -4574,7 +4710,7 @@ void FAssetRegistryImpl::UpdateAssetData(Impl::FEventContext& EventContext, FAss
 
 	State.UpdateAssetData(AssetData, NewAssetData);
 	
-	if (!ShouldSkipAsset(AssetData->AssetClass, AssetData->PackageFlags))
+	if (!ShouldSkipAsset(AssetData->AssetClassPath, AssetData->PackageFlags))
 	{
 		EventContext.AssetEvents.Emplace(*AssetData, Impl::FEventContext::EEvent::Updated);
 	}
@@ -4586,19 +4722,20 @@ bool FAssetRegistryImpl::RemoveAssetData(Impl::FEventContext& EventContext, FAss
 
 	if (ensure(AssetData))
 	{
-		if (!ShouldSkipAsset(AssetData->AssetClass, AssetData->PackageFlags))
+		if (!ShouldSkipAsset(AssetData->AssetClassPath, AssetData->PackageFlags))
 		{
 			EventContext.AssetEvents.Emplace(*AssetData, Impl::FEventContext::EEvent::Removed);
 		}
 
 		// Remove from the class map if removing a blueprint
-		if (ClassGeneratorNames.Contains(AssetData->AssetClass))
+		if (ClassGeneratorNames.Contains(AssetData->AssetClassPath))
 		{
 			const FString OldGeneratedClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
 			if (!OldGeneratedClass.IsEmpty())
 			{
-				const FName OldGeneratedClassFName = *Utils::ExportTextPathToObjectName(OldGeneratedClass);
-				CachedBPInheritanceMap.Remove(OldGeneratedClassFName);
+				const FTopLevelAssetPath OldGeneratedClassPathName(FPackageName::ExportTextPathToObjectPath(OldGeneratedClass));
+				checkf(!OldGeneratedClassPathName.IsNull(), TEXT("Short class name used: OldGeneratedClass=%s"), *OldGeneratedClass);
+				CachedBPInheritanceMap.Remove(OldGeneratedClassPathName);
 
 				// Invalidate caching because CachedBPInheritanceMap got modified
 				TempCachedInheritanceBuffer.bDirty = true;
@@ -4990,7 +5127,7 @@ void FAssetRegistryImpl::PushProcessLoadedAssetsBatch(Impl::FEventContext& Event
 void FAssetRegistryImpl::UpdateRedirectCollector()
 {
 	// Look for all redirectors in list
-	const TArray<const FAssetData*>& RedirectorAssets = State.GetAssetsByClassName(UObjectRedirector::StaticClass()->GetFName());
+	const TArray<const FAssetData*>& RedirectorAssets = State.GetAssetsByClassPathName(UObjectRedirector::StaticClass()->GetClassPathName());
 
 	for (const FAssetData* AssetData : RedirectorAssets)
 	{
@@ -5320,9 +5457,9 @@ void FAssetRegistryImpl::UpdateInheritanceBuffer(Impl::FClassInheritanceBuffer& 
 	}
 	OutBuffer.InheritanceMap.Reserve(NumNativeClasses + CachedBPInheritanceMap.Num());
 	OutBuffer.InheritanceMap = CachedBPInheritanceMap;
-	OutBuffer.InheritanceMap.Add(FName("Object"), FName());
+	OutBuffer.InheritanceMap.Add(FTopLevelAssetPath(TEXT("/Script.CoreUObject"), TEXT("Object")), FTopLevelAssetPath());
 
-	for (TPair<FName, TArray<FName>>& Pair : OutBuffer.ReverseInheritanceMap)
+	for (TPair<FTopLevelAssetPath, TArray<FTopLevelAssetPath>>& Pair : OutBuffer.ReverseInheritanceMap)
 	{
 		Pair.Value.Reset();
 	}
@@ -5330,15 +5467,15 @@ void FAssetRegistryImpl::UpdateInheritanceBuffer(Impl::FClassInheritanceBuffer& 
 
 	for (const TPair<UClass*, TSet<UClass*>>& Pair : NativeSubclasses)
 	{
-		FName SuperclassName = Pair.Key->GetFName();
+		FTopLevelAssetPath SuperclassName = Pair.Key->GetClassPathName();
 
-		TArray<FName>* OutputSubclasses = &OutBuffer.ReverseInheritanceMap.FindOrAdd(SuperclassName);
+		TArray<FTopLevelAssetPath>* OutputSubclasses = &OutBuffer.ReverseInheritanceMap.FindOrAdd(SuperclassName);
 		OutputSubclasses->Reserve(Pair.Value.Num());
 		for (UClass* Subclass : Pair.Value)
 		{
 			if (!Subclass->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists))
 			{
-				FName SubclassName = Subclass->GetFName();
+				FTopLevelAssetPath SubclassName = Subclass->GetClassPathName();
 				OutputSubclasses->Add(SubclassName);
 				OutBuffer.InheritanceMap.Add(SubclassName, SuperclassName);
 
@@ -5349,7 +5486,7 @@ void FAssetRegistryImpl::UpdateInheritanceBuffer(Impl::FClassInheritanceBuffer& 
 					{
 						if (UClass* InterfaceClass = Interface.Class) // could be nulled out by ForceDelete of a blueprint interface
 						{
-							TArray<FName>& Implementations = OutBuffer.ReverseInheritanceMap.FindOrAdd(InterfaceClass->GetFName());
+							TArray<FTopLevelAssetPath>& Implementations = OutBuffer.ReverseInheritanceMap.FindOrAdd(InterfaceClass->GetClassPathName());
 							Implementations.Add(SubclassName);
 						}
 					}
@@ -5363,12 +5500,12 @@ void FAssetRegistryImpl::UpdateInheritanceBuffer(Impl::FClassInheritanceBuffer& 
 	}
 
 	// Add non-native classes to reverse map
-	for (const TPair<FName, FName>& Kvp : CachedBPInheritanceMap)
+	for (const TPair<FTopLevelAssetPath, FTopLevelAssetPath>& Kvp : CachedBPInheritanceMap)
 	{
-		FName ParentClassName = Kvp.Value;
-		if (!ParentClassName.IsNone())
+		const FTopLevelAssetPath& ParentClassName = Kvp.Value;
+		if (!ParentClassName.IsNull())
 		{
-			TArray<FName>& ChildClasses = OutBuffer.ReverseInheritanceMap.FindOrAdd(ParentClassName);
+			TArray<FTopLevelAssetPath>& ChildClasses = OutBuffer.ReverseInheritanceMap.FindOrAdd(ParentClassName);
 			ChildClasses.Add(Kvp.Key);
 		}
 
@@ -5497,20 +5634,20 @@ void FClassInheritanceContext::ConditionalUpdate()
 }
 
 void FAssetRegistryImpl::GetSubClasses(Impl::FClassInheritanceContext& InheritanceContext,
-	const TArray<FName>& InClassNames, const TSet<FName>& ExcludedClassNames, TSet<FName>& SubClassNames) const
+	const TArray<FTopLevelAssetPath>& InClassNames, const TSet<FTopLevelAssetPath>& ExcludedClassNames, TSet<FTopLevelAssetPath>& SubClassNames) const
 {
 	InheritanceContext.ConditionalUpdate();
 
-	TSet<FName> ProcessedClassNames;
-	for (FName ClassName : InClassNames)
+	TSet<FTopLevelAssetPath> ProcessedClassNames;
+	for (const FTopLevelAssetPath& ClassName : InClassNames)
 	{
 		// Now find all subclass names
 		GetSubClasses_Recursive(InheritanceContext, ClassName, SubClassNames, ProcessedClassNames, ExcludedClassNames);
 	}
 }
 
-void FAssetRegistryImpl::GetSubClasses_Recursive(Impl::FClassInheritanceContext& InheritanceContext, FName InClassName,
-	TSet<FName>& SubClassNames, TSet<FName>& ProcessedClassNames, const TSet<FName>& ExcludedClassNames) const
+void FAssetRegistryImpl::GetSubClasses_Recursive(Impl::FClassInheritanceContext& InheritanceContext, FTopLevelAssetPath InClassName,
+	TSet<FTopLevelAssetPath>& SubClassNames, TSet<FTopLevelAssetPath>& ProcessedClassNames, const TSet<FTopLevelAssetPath>& ExcludedClassNames) const
 {
 	if (ExcludedClassNames.Contains(InClassName))
 	{
@@ -5525,10 +5662,10 @@ void FAssetRegistryImpl::GetSubClasses_Recursive(Impl::FClassInheritanceContext&
 		SubClassNames.Add(InClassName);
 		ProcessedClassNames.Add(InClassName);
 
-		const TArray<FName>* FoundSubClassNames = InheritanceContext.Buffer->ReverseInheritanceMap.Find(InClassName);
+		const TArray<FTopLevelAssetPath>* FoundSubClassNames = InheritanceContext.Buffer->ReverseInheritanceMap.Find(InClassName);
 		if (FoundSubClassNames)
 		{
-			for (FName ClassName : (*FoundSubClassNames))
+			for (FTopLevelAssetPath ClassName : (*FoundSubClassNames))
 			{
 				GetSubClasses_Recursive(InheritanceContext, ClassName, SubClassNames, ProcessedClassNames,
 					ExcludedClassNames);
@@ -5791,7 +5928,7 @@ bool FAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(Impl::FEventContext& Eve
 	TagsAndValues.Add(FPrimaryAssetId::PrimaryAssetTypeTag, PrimaryAssetId.PrimaryAssetType.ToString());
 	TagsAndValues.Add(FPrimaryAssetId::PrimaryAssetNameTag, PrimaryAssetId.PrimaryAssetName.ToString());
 
-	FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClass, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
+	FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClassPath, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
 	NewAssetData.TaggedAssetBundles = AssetData->TaggedAssetBundles;
 	UpdateAssetData(EventContext, AssetData, NewAssetData);
 
@@ -5868,7 +6005,7 @@ const TSet<FName>& FAssetRegistryImpl::GetCachedEmptyPackages() const
 	return CachedEmptyPackages;
 }
 
-bool FAssetRegistryImpl::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const
+bool FAssetRegistryImpl::ShouldSkipAsset(FTopLevelAssetPath AssetClass, uint32 PackageFlags) const
 {
 #if WITH_ENGINE && WITH_EDITOR
 	return Utils::ShouldSkipAsset(AssetClass, PackageFlags, SkipUncookedClasses, SkipCookedClasses);
@@ -6104,7 +6241,7 @@ const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> Packa
 	// both determined by class then name:
 	auto AssetDataLessThan = [](const FAssetData* LHS, const FAssetData* RHS)
 	{
-		int32 ClassCompare = LHS->AssetClass.Compare(RHS->AssetClass);
+		int32 ClassCompare = LHS->AssetClassPath.Compare(RHS->AssetClassPath);
 		if (ClassCompare == 0)
 		{
 			return LHS->AssetName.LexicalLess(RHS->AssetName);
@@ -6125,7 +6262,7 @@ const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> Packa
 			return Asset;
 		}
 		// This is after IsUAsset because Blueprints can be the UAsset but also be considered skipable.
-		if (FFiltering::ShouldSkipAsset(Asset->AssetClass, Asset->PackageFlags))
+		if (FFiltering::ShouldSkipAsset(Asset->AssetClassPath, Asset->PackageFlags))
 		{
 			continue;
 		}

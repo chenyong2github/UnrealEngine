@@ -83,9 +83,9 @@ namespace Impl
 	struct FClassInheritanceBuffer
 	{
 		/** Map from Class->SuperClass for all classes including native classes and blueprint classes. Updated on demand. */
-		TMap<FName, FName> InheritanceMap;
+		TMap<FTopLevelAssetPath, FTopLevelAssetPath> InheritanceMap;
 		/** Map from Class->(All subclasses) for all classes including native classes and blueprint classes. Updated on demand. */
-		TMap<FName, TArray<FName>> ReverseInheritanceMap;
+		TMap<FTopLevelAssetPath, TArray<FTopLevelAssetPath>> ReverseInheritanceMap;
 		/** Snapshot of GetRegisteredClassesVersionNumber() at the time of the last update, to invalidate on changes to classes. */
 		uint64 RegisteredClassesVersionNumber = MAX_uint64;
 		/** Dirty flag to invalidate on other changes requiring a recompute. */
@@ -127,8 +127,8 @@ public:
 
 	bool HasAssets(const FName PackagePath, const bool bRecursive) const;
 	FName GetRedirectedObjectPath(const FName ObjectPath) const;
-	bool GetAncestorClassNames(Impl::FClassInheritanceContext& InheritanceContext, FName ClassName,
-		TArray<FName>& OutAncestorClassNames) const;
+	bool GetAncestorClassNames(Impl::FClassInheritanceContext& InheritanceContext, FTopLevelAssetPath ClassName,
+		TArray<FTopLevelAssetPath>& OutAncestorClassNames) const;
 	void CompileFilter(Impl::FClassInheritanceContext& InheritanceContext, const FARFilter& InFilter,
 		FARCompiledFilter& OutCompiledFilter) const;
 	void SetTemporaryCachingMode(bool bEnable);
@@ -212,8 +212,8 @@ public:
 	void RemovePackageData(Impl::FEventContext& EventContext, const FName PackageName);
 
 	/** Returns the names of all subclasses of the class whose name is ClassName */
-	void GetSubClasses(Impl::FClassInheritanceContext& InheritanceContext, const TArray<FName>& InClassNames,
-		const TSet<FName>& ExcludedClassNames, TSet<FName>& SubClassNames) const;
+	void GetSubClasses(Impl::FClassInheritanceContext& InheritanceContext, const TArray<FTopLevelAssetPath>& InClassNames,
+		const TSet<FTopLevelAssetPath>& ExcludedClassNames, TSet<FTopLevelAssetPath>& SubClassNames) const;
 
 	bool IsUpdateDiskCacheAfterLoad() const { return bUpdateDiskCacheAfterLoad; }
 	bool IsInitialSearchCompleted() const { return bInitialSearchCompleted; }
@@ -233,7 +233,7 @@ public:
 	const FAssetPackageData* GetAssetPackageData(FName PackageName);
 
 	/** Same as UE::AssetRegistry::Filtering::ShouldSkipAsset, but can be read from any thread under readlock */
-	bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const;
+	bool ShouldSkipAsset(FTopLevelAssetPath AssetClass, uint32 PackageFlags) const;
 	bool ShouldSkipAsset(const UObject* InAsset) const;
 
 	/** Finds all class names of classes capable of generating new UClasses */
@@ -290,11 +290,17 @@ private:
 	bool RemoveAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData);
 
 #if WITH_EDITOR
+	/** 
+	 * Calls PostLoadAssetRegistryTags on the CDO of the asset class this data represents 
+	 * @param AssetData Existing asset data
+	 */
+	void PostLoadAssetRegistryTags(FAssetData* AssetData);
+
 	/** Update Redirect collector with redirects loaded from asset registry */
 	void UpdateRedirectCollector();
 #endif // WITH_EDITOR
-	void GetSubClasses_Recursive(Impl::FClassInheritanceContext& InheritanceContext, FName InClassName,
-		TSet<FName>& SubClassNames, TSet<FName>& ProcessedClassNames, const TSet<FName>& ExcludedClassNames) const;
+	void GetSubClasses_Recursive(Impl::FClassInheritanceContext& InheritanceContext, FTopLevelAssetPath InClassName,
+		TSet<FTopLevelAssetPath>& SubClassNames, TSet<FTopLevelAssetPath>& ProcessedClassNames, const TSet<FTopLevelAssetPath>& ExcludedClassNames) const;
 
 	/** Internal helper which processes a given state and adds its contents to the current registry */
 	void CachePathsFromState(Impl::FEventContext& EventContext, const FAssetRegistryState& InState);
@@ -321,7 +327,7 @@ private:
 	TSet<FName> CachedEmptyPackages;
 
 	/** The map of classes to their parents, only full for offline blueprints */
-	TMap<FName, FName> CachedBPInheritanceMap;
+	TMap<FTopLevelAssetPath, FTopLevelAssetPath> CachedBPInheritanceMap;
 
 	/** If true, search caching is enabled */
 	bool bIsTempCachingEnabled;
@@ -378,7 +384,7 @@ private:
 	bool bSearchAllAssets;
 
 	/** List of all class names derived from Blueprint (including Blueprint itself) */
-	TSet<FName> ClassGeneratorNames;
+	TSet<FTopLevelAssetPath> ClassGeneratorNames;
 
 	struct FAssetRegistryPackageRedirect
 	{
@@ -413,9 +419,9 @@ private:
 #endif
 #if WITH_ENGINE && WITH_EDITOR
 	/** Class names that return true for IsAsset but which should not be treated as assets in uncooked packages */
-	TSet<FName> SkipUncookedClasses;
+	TSet<FTopLevelAssetPath> SkipUncookedClasses;
 	/** Class names that return true for IsAsset but which should not be treated as assets in cooked packages */
-	TSet<FName> SkipCookedClasses;
+	TSet<FTopLevelAssetPath> SkipCookedClasses;
 #endif
 #if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR
 	UE::AssetRegistry::Premade::FAsyncConsumer AsyncConsumer;
@@ -553,9 +559,6 @@ bool ReadAssetFile(FPackageReader& PackageReader, IAssetRegistry::FLoadPackageRe
  * @param	StringBuffer		String buffer to avoid re-allocation performance hit when searching TSet
  */
 bool IsPathMounted(const FString& Path, const TSet<FString>& MountPointsNoTrailingSlashes, FString& StringBuffer);
-
-/** Helper function to return the name of an object, given the object's export text path */
-FString ExportTextPathToObjectName(const FString& InExportTextPath);
 
 /**
  * Iterate all UObjects where this->IsAsset and !ShouldSkipAsset, create an FAssetData for them and call the callback.

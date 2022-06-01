@@ -63,7 +63,7 @@ public:
 			return true;
 		}
 
-		FSoftObjectPath ClassPath(InBlueprint->GetClassPath());
+		FSoftObjectPath ClassPath(InBlueprint->GetClassPathName().ToString());
 		return CachedNamespaceHelper->IsImportedObject(ClassPath);
 	}
 

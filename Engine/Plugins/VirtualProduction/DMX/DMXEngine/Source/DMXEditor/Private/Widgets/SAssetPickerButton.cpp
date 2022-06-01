@@ -159,7 +159,7 @@ TSharedRef<SWidget> SAssetPickerButton::GenerateAssetPicker()
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
 	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassNames.Add(AllowedClass->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(AllowedClass->GetClassPathName());
 	AssetPickerConfig.bAllowNullSelection = true;
 	AssetPickerConfig.Filter.bRecursiveClasses = true;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SAssetPickerButton::OnAssetSelectedFromPicker);
@@ -170,13 +170,13 @@ TSharedRef<SWidget> SAssetPickerButton::GenerateAssetPicker()
 	if (AllowedClasses.Num() > 0)
 	{
 		// Clear out the allowed class names and have the pin's metadata override.
-		AssetPickerConfig.Filter.ClassNames.Empty();
-		AssetPickerConfig.Filter.ClassNames = AllowedClasses;
+		AssetPickerConfig.Filter.ClassPaths.Empty();
+		AssetPickerConfig.Filter.ClassPaths = AllowedClasses;
 	}
 
 	if (DisallowedClasses.Num() > 0)
 	{
-		AssetPickerConfig.Filter.RecursiveClassesExclusionSet.Append(DisallowedClasses);
+		AssetPickerConfig.Filter.RecursiveClassPathsExclusionSet.Append(DisallowedClasses);
 	}
 
 	return

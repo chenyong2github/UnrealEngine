@@ -264,7 +264,7 @@ public:
 
 private:
 	bool bAreRedirectorsInBaseFilter;
-	FName RedirectorClassName;
+	FString RedirectorClassName;
 };
 
 /** A filter that only displays assets used by loaded levels */

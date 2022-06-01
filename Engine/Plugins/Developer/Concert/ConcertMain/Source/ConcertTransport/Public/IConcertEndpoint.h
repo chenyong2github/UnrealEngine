@@ -149,7 +149,7 @@ public:
 	void RegisterRequestHandler(typename TConcertFunctionRequestHandler<ResponseType>::FFuncType Func)
 	{
 		static_assert(TIsDerivedFrom<RequestType, FConcertRequestData>::IsDerived, "RequestType need to be a UStruct deriving of FConcertRequestData.");
-		InternalAddRequestHandler(RequestType::StaticStruct()->GetFName(), MakeShared<TConcertFunctionRequestHandler<ResponseType>>(MoveTemp(Func)));
+		InternalAddRequestHandler(RequestType::StaticStruct()->GetStructPathName(), MakeShared<TConcertFunctionRequestHandler<ResponseType>>(MoveTemp(Func)));
 	}
 
 	/**
@@ -161,7 +161,7 @@ public:
 	void RegisterRequestHandler(HandlerType* Handler, typename TConcertRawRequestHandler<ResponseType, HandlerType>::FFuncType Func)
 	{
 		static_assert(TIsDerivedFrom<RequestType, FConcertRequestData>::IsDerived, "RequestType need to be a UStruct deriving of FConcertRequestData.");
-		InternalAddRequestHandler(RequestType::StaticStruct()->GetFName(), MakeShared<TConcertRawRequestHandler<ResponseType, HandlerType>>(Handler, Func));
+		InternalAddRequestHandler(RequestType::StaticStruct()->GetStructPathName(), MakeShared<TConcertRawRequestHandler<ResponseType, HandlerType>>(Handler, Func));
 	}
 
 	/**
@@ -171,7 +171,7 @@ public:
 	void UnregisterRequestHandler()
 	{
 		static_assert(TIsDerivedFrom<RequestType, FConcertRequestData>::IsDerived, "RequestType need to be a UStruct deriving of FConcertRequestData.");
-		InternalRemoveRequestHandler(RequestType::StaticStruct()->GetFName());
+		InternalRemoveRequestHandler(RequestType::StaticStruct()->GetStructPathName());
 	}
 
 	/**
@@ -182,7 +182,7 @@ public:
 	void RegisterEventHandler(typename TConcertFunctionEventHandler::FFuncType Func)
 	{
 		static_assert(TIsDerivedFrom<EventType, FConcertEventData>::IsDerived, "EventType need to be a UStruct deriving of FConcertEventData.");
-		InternalAddEventHandler(EventType::StaticStruct()->GetFName(), MakeShared<TConcertFunctionEventHandler>(MoveTemp(Func)));
+		InternalAddEventHandler(EventType::StaticStruct()->GetStructPathName(), MakeShared<TConcertFunctionEventHandler>(MoveTemp(Func)));
 	}
 
 	/**
@@ -194,7 +194,7 @@ public:
 	void RegisterEventHandler(HandlerType* Handler, typename TConcertRawEventHandler<HandlerType>::FFuncType Func)
 	{
 		static_assert(TIsDerivedFrom<EventType, FConcertEventData>::IsDerived, "EventType need to be a UStruct deriving of FConcertEventData.");
-		InternalAddEventHandler(EventType::StaticStruct()->GetFName(), MakeShared<TConcertRawEventHandler<HandlerType>>(Handler, Func));
+		InternalAddEventHandler(EventType::StaticStruct()->GetStructPathName(), MakeShared<TConcertRawEventHandler<HandlerType>>(Handler, Func));
 	}
 
 	/**
@@ -204,7 +204,7 @@ public:
 	void UnregisterEventHandler()
 	{
 		static_assert(TIsDerivedFrom<EventType, FConcertEventData>::IsDerived, "EventType need to be a UStruct deriving of FConcertEventData.");
-		InternalRemoveEventHandler(EventType::StaticStruct()->GetFName());
+		InternalRemoveEventHandler(EventType::StaticStruct()->GetStructPathName());
 	}
 
 	/**
@@ -216,8 +216,8 @@ public:
 	void SubscribeEventHandler(HandlerType* Handler, typename TConcertRawEventHandler<HandlerType>::FFuncType Func)
 	{
 		static_assert(TIsDerivedFrom<EventType, FConcertEventData>::IsDerived, "EventType need to be a UStruct deriving of FConcertEventData.");
-		InternalAddEventHandler(EventType::StaticStruct()->GetFName(), MakeShared<TConcertRawEventHandler<HandlerType>>(Handler, Func));
-		InternalSubscribeToEvent(EventType::StaticStruct()->GetFName());
+		InternalAddEventHandler(EventType::StaticStruct()->GetStructPathName(), MakeShared<TConcertRawEventHandler<HandlerType>>(Handler, Func));
+		InternalSubscribeToEvent(EventType::StaticStruct()->GetStructPathName());
 	}
 
 	// TODO TFunction EventHandler
@@ -231,7 +231,7 @@ public:
 		static_assert(TIsDerivedFrom<EventType, FConcertEventData>::IsDerived, "EventType need to be a UStruct deriving of FConcertEventData.");
 
 		// Names can be invalid if unregistering during shutdown
-		const FName EventName = EventType::StaticStruct()->GetFName();
+		const FTopLevelAssetPath EventName = EventType::StaticStruct()->GetStructPathName();
 		if (EventName.IsValid())
 		{
 			InternalRemoveEventHandler(EventName);
@@ -257,32 +257,86 @@ protected:
 	/** 
 	 * Add a Request Handler
 	 */
-	virtual void InternalAddRequestHandler(const FName& RequestMessageType, const TSharedRef<IConcertRequestHandler>& Handler) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual void InternalAddRequestHandler(const FName& RequestMessageType, const TSharedRef<IConcertRequestHandler>& Handler)
+	{
+		InternalAddRequestHandler(UClass::TryConvertShortTypeNameToPathName<UStruct>(RequestMessageType.ToString()), Handler);
+	}
+
+	/**
+	 * Add a Request Handler
+	 */
+	virtual void InternalAddRequestHandler(const FTopLevelAssetPath& RequestMessageType, const TSharedRef<IConcertRequestHandler>& Handler) = 0;
 
 	/**
 	 * Remove an Request Handler
 	 */
-	virtual void InternalRemoveRequestHandler(const FName& RequestMessageType) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual void InternalRemoveRequestHandler(const FName& RequestMessageType)
+	{
+		InternalRemoveRequestHandler(UClass::TryConvertShortTypeNameToPathName<UStruct>(RequestMessageType.ToString()));
+	}
+
+	/**
+	 * Remove an Request Handler
+	 */
+	virtual void InternalRemoveRequestHandler(const FTopLevelAssetPath& RequestMessageType) = 0;
 
 	/**
 	 * Add an Event Handler
 	 */
-	virtual void InternalAddEventHandler(const FName& EventMessageType, const TSharedRef<IConcertEventHandler>& Handler) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual void InternalAddEventHandler(const FName& EventMessageType, const TSharedRef<IConcertEventHandler>& Handler)
+	{
+		InternalAddEventHandler(UClass::TryConvertShortTypeNameToPathName<UStruct>(EventMessageType.ToString()), Handler);
+	}
+
+	/**
+	 * Add an Event Handler
+	 */
+	virtual void InternalAddEventHandler(const FTopLevelAssetPath& EventMessageType, const TSharedRef<IConcertEventHandler>& Handler) = 0;
 
 	/**
 	 * Remove an Event Handler
 	 */
-	virtual void InternalRemoveEventHandler(const FName& EventMessageType) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual void InternalRemoveEventHandler(const FName& EventMessageType)
+	{
+		InternalRemoveEventHandler(UClass::TryConvertShortTypeNameToPathName<UStruct>(EventMessageType.ToString()));
+	}
+
+	/**
+	 * Remove an Event Handler
+	 */
+	virtual void InternalRemoveEventHandler(const FTopLevelAssetPath& EventMessageType) = 0;
 
 	/**
 	 * Subscribe to an Event
 	 */
-	virtual void InternalSubscribeToEvent(const FName& EventMessageType) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual void InternalSubscribeToEvent(const FName& EventMessageType)
+	{
+		InternalSubscribeToEvent(UClass::TryConvertShortTypeNameToPathName<UStruct>(EventMessageType.ToString()));
+	}
+
+	/**
+	 * Subscribe to an Event
+	 */
+	virtual void InternalSubscribeToEvent(const FTopLevelAssetPath& EventMessageType) = 0;
 
 	/**
 	 * Unsubscribe from an Event
 	 */
-	virtual void InternalUnsubscribeFromEvent(const FName& EventMessageType) = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use a version of this function that takes an FTopLevelAssetPath as MessageType.")
+	virtual void InternalUnsubscribeFromEvent(const FName& EventMessageType)
+	{
+		InternalUnsubscribeFromEvent(UClass::TryConvertShortTypeNameToPathName<UStruct>(EventMessageType.ToString()));
+	}
+
+	/**
+	 * Unsubscribe from an Event
+	 */
+	virtual void InternalUnsubscribeFromEvent(const FTopLevelAssetPath& EventMessageType) = 0;
 
 	/**
 	 * Queue a request to be sent to a remote endpoint

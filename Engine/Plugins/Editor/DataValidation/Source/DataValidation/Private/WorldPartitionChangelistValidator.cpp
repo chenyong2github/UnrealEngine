@@ -132,7 +132,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 					FARFilter Filter;
 					Filter.bIncludeOnlyOnDiskAssets = true;
 					Filter.PackageNames = MoveTemp(ReferencerNames);
-					Filter.ClassNames.Add(AWorldDataLayers::StaticClass()->GetFName());
+					Filter.ClassPaths.Add(AWorldDataLayers::StaticClass()->GetClassPathName());
 
 					TArray<FAssetData> DataLayerReferencers;
 					AssetRegistry.GetAssets(Filter, DataLayerReferencers);

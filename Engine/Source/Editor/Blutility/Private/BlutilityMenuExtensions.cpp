@@ -172,21 +172,21 @@ class SFunctionParamDialog : public SCompoundWidget
 	bool bOKPressed;
 };
 
-void FBlutilityMenuExtensions::GetBlutilityClasses(TArray<FAssetData>& OutAssets, const FName& InClassName)
+void FBlutilityMenuExtensions::GetBlutilityClasses(TArray<FAssetData>& OutAssets, FTopLevelAssetPath InClassName)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
 	// Get class names
-	TArray<FName> BaseNames;
+	TArray<FTopLevelAssetPath> BaseNames;
 	BaseNames.Add(InClassName);
-	TSet<FName> Excluded;
-	TSet<FName> DerivedNames;
+	TSet<FTopLevelAssetPath> Excluded;
+	TSet<FTopLevelAssetPath> DerivedNames;
 	AssetRegistry.GetDerivedClassNames(BaseNames, Excluded, DerivedNames);
 
 	// Now get all UEditorUtilityBlueprint assets
 	FARFilter Filter;
-	Filter.ClassNames.Add(UEditorUtilityBlueprint::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UEditorUtilityBlueprint::StaticClass()->GetClassPathName());
 	Filter.bRecursiveClasses = true;
 	Filter.bRecursivePaths = true;
 
@@ -199,10 +199,9 @@ void FBlutilityMenuExtensions::GetBlutilityClasses(TArray<FAssetData>& OutAssets
 		FAssetDataTagMapSharedView::FFindTagResult Result = Asset.TagsAndValues.FindTag(FBlueprintTags::GeneratedClassPath);
 		if (Result.IsSet())
 		{
-			const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(Result.GetValue());
-			const FString ClassName = FPackageName::ObjectPathToObjectName(ClassObjectPath);
+			const FTopLevelAssetPath ClassObjectPath(FPackageName::ExportTextPathToObjectPath(Result.GetValue()));
 
-			if (DerivedNames.Contains(*ClassName))
+			if (DerivedNames.Contains(ClassObjectPath))
 			{
 				OutAssets.Add(Asset);
 			}

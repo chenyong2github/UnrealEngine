@@ -39,7 +39,7 @@ void ULevelSequencePlaybackController::GetLevelSequences(TArray<FLevelSequenceDa
 	if (AssetRegistryModule)
 	{
 		IAssetRegistry& AssetRegistry = AssetRegistryModule->Get();
-		if (!AssetRegistry.GetAssetsByClass("LevelSequence", LevelSequences, false))
+		if (!AssetRegistry.GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/LevelSequence"), TEXT("LevelSequence")), LevelSequences, false))
 		{
 			UE_LOG(LogActor, Error, TEXT("VirtualCamera - No Asset Registry module found!"));
 			return;

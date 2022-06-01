@@ -165,7 +165,7 @@ void UAnimGraphNode_Mirror::GetMenuActions(FBlueprintActionDatabaseRegistrar& Ac
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		// define a filter to help in pulling UMirrrorDataTable asset data from the registry
 		FARFilter Filter;
-		Filter.ClassNames.Add(UMirrorDataTable::StaticClass()->GetFName());
+		Filter.ClassPaths.Add(UMirrorDataTable::StaticClass()->GetClassPathName());
 
 		Filter.bRecursiveClasses = true;
 		// Find matching assets and add an entry for each one
@@ -209,7 +209,7 @@ void UAnimGraphNode_Mirror::GetMenuActions(FBlueprintActionDatabaseRegistrar& Ac
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		FARFilter Filter;
-		Filter.ClassNames.Add(UMirrorDataTable::StaticClass()->GetFName());
+		Filter.ClassPaths.Add(UMirrorDataTable::StaticClass()->GetClassPathName());
 		Filter.bRecursiveClasses = true;
 		// Find matching assets and add an entry for each one
 		TArray<FAssetData> MirrorDataTableList;
@@ -248,7 +248,7 @@ bool UAnimGraphNode_Mirror::HasMirrorDataTableForBlueprints(const TArray<UBluepr
 	// check to see if any mirror data table is available for the blueprint
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	FARFilter Filter;
-	Filter.ClassNames.Add(UMirrorDataTable::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UMirrorDataTable::StaticClass()->GetClassPathName());
 
 	Filter.bRecursiveClasses = true;
 	TArray<FAssetData> MirrorDataTableList;

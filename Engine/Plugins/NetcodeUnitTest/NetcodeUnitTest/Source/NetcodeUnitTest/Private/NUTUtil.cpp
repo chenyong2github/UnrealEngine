@@ -119,7 +119,7 @@ bool NUTUtil::ParseEnum(const TCHAR* Stream, const TCHAR* Match, const TCHAR* En
 
 	if (FParse::Value(Stream, Match, StrValue) && StrValue.Len() > 0)
 	{
-		UEnum* EnumObj = FindObject<UEnum>(ANY_PACKAGE, EnumName);
+		UEnum* EnumObj = UClass::TryFindTypeSlow<UEnum>(EnumName);
 
 		if (EnumObj != nullptr)
 		{

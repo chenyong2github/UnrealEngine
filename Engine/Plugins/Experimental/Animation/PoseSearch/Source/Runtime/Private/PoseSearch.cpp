@@ -5304,7 +5304,7 @@ void GetPoseSearchDatabaseAssetDataList(TArray<FAssetData>& OutPoseSearchDatabas
 		FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	FARFilter Filter;
 	Filter.bRecursiveClasses = true;
-	Filter.ClassNames.Add(UPoseSearchDatabase::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UPoseSearchDatabase::StaticClass()->GetClassPathName());
 
 	OutPoseSearchDatabaseAssetDataList.Reset();
 	AssetRegistryModule.Get().GetAssets(Filter, OutPoseSearchDatabaseAssetDataList);

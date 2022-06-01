@@ -304,7 +304,7 @@ EAbcImportError FAbcFile::Import(UAbcImportSettings* InImportSettings)
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		TArray<FAssetData> AssetData;
 		const UClass* Class = UMaterialInterface::StaticClass();
-		AssetRegistryModule.Get().GetAssetsByClass(Class->GetFName(), AssetData, true);
+		AssetRegistryModule.Get().GetAssetsByClass(Class->GetClassPathName(), AssetData, true);
 		for (FAbcPolyMesh* PolyMesh : PolyMeshes)
 		{
 			for (const FString& FaceSetName : PolyMesh->FaceSetNames)

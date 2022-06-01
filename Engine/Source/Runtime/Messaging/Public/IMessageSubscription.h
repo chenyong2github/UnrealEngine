@@ -44,7 +44,19 @@ public:
 	 * @return Message type.
 	 * @see GetScopeRange, GetSubscriber
 	 */
-	virtual FName GetMessageType() = 0;
+	UE_DEPRECATED(5.1, "Types names are now represented by path names. Please use GetMessageTypePathName.")
+	FORCEINLINE FName GetMessageType()
+	{
+		return GetMessageTypePathName().GetAssetName();
+	}
+
+	/**
+	 * Gets the type of subscribed messages.
+	 *
+	 * @return Message type.
+	 * @see GetScopeRange, GetSubscriber
+	 */
+	virtual FTopLevelAssetPath GetMessageTypePathName() = 0;
 
 	/**
 	 * Gets the range of subscribed message scopes.

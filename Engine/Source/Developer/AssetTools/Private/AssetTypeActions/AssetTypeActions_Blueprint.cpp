@@ -297,7 +297,7 @@ TWeakPtr<IClassTypeActions> FAssetTypeActions_Blueprint::GetClassTypeActions(con
 	{
 		UObject* Outer = nullptr;
 		ResolveName(Outer, ParentClassName, false, false);
-		ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+		ParentClass = FindObject<UClass>(Outer, *ParentClassName);
 	}
 
 	if(ParentClass)

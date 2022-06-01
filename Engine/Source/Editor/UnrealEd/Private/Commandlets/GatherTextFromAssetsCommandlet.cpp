@@ -526,11 +526,19 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		if (ShouldExcludeDerivedClasses)
 		{
 			FirstPassFilter.bRecursiveClasses = true;
-			FirstPassFilter.ClassNames.Add(TEXT("Object"));
+			FirstPassFilter.ClassPaths.Add(UObject::StaticClass()->GetClassPathName());
 			for (const FString& ExcludeClassName : ExcludeClassNames)
 			{
-				// Note: Can't necessarily validate these class names here, as the class may be a generated blueprint class that hasn't been loaded yet.
-				FirstPassFilter.RecursiveClassesExclusionSet.Add(*ExcludeClassName);
+				FTopLevelAssetPath ExcludedClassPathName = UClass::TryConvertShortTypeNameToPathName<UClass>(ExcludeClassName, ELogVerbosity::Warning, TEXT("GatherTextFromAssetsCommandlet"));
+				if (!ExcludedClassPathName.IsNull())
+				{
+					// Note: Can't necessarily validate these class names here, as the class may be a generated blueprint class that hasn't been loaded yet.
+					FirstPassFilter.RecursiveClassPathsExclusionSet.Add(FTopLevelAssetPath(ExcludeClassName));
+				}
+				else
+				{
+					UE_CLOG(!ExcludeClassName.IsEmpty(), LogGatherTextFromAssetsCommandlet, Error, TEXT("Unable to convert short class name \"%s\" to path name. Please use path names fo ExcludeClassNames"), *ExcludeClassName);
+				}
 			}
 		}
 
@@ -552,8 +560,17 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		ExcludeExactClassesFilter.bRecursiveClasses = false;
 		for (const FString& ExcludeClassName : ExcludeClassNames)
 		{
-			// Note: Can't necessarily validate these class names here, as the class may be a generated blueprint class that hasn't been loaded yet.
-			ExcludeExactClassesFilter.ClassNames.Add(*ExcludeClassName);
+			FTopLevelAssetPath ExcludedClassPathName = UClass::TryConvertShortTypeNameToPathName<UClass>(ExcludeClassName, ELogVerbosity::Warning, TEXT("GatherTextFromAssetsCommandlet"));
+			if (!ExcludedClassPathName.IsNull())
+			{
+				// Note: Can't necessarily validate these class names here, as the class may be a generated blueprint class that hasn't been loaded yet.
+				ExcludeExactClassesFilter.ClassPaths.Add(FTopLevelAssetPath(ExcludeClassName));
+			}
+			else
+			{
+				UE_CLOG(!ExcludeClassName.IsEmpty(), LogGatherTextFromAssetsCommandlet, Error, TEXT("Unable to convert short class name \"%s\" to path name. Please use path names fo ExcludeClassNames"), *ExcludeClassName);
+			}
+
 		}
 
 		// Reapply filter over the current set of assets.
@@ -715,7 +732,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 			AssetRegistry.GetAssetsByPackageName(PackagePendingGather.PackageName, AllAssetDataInSamePackage);
 			for (const FAssetData& AssetData : AllAssetDataInSamePackage)
 			{
-				if (AssetData.AssetClass == UDialogueWave::StaticClass()->GetFName())
+				if (AssetData.AssetClassPath == UDialogueWave::StaticClass()->GetClassPathName())
 				{
 					PackagePendingGather.PackageLocCacheState = EPackageLocCacheState::Uncached_TooOld;
 				}

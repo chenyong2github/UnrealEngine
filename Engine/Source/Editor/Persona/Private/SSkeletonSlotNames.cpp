@@ -477,7 +477,7 @@ void SSkeletonSlotNames::GetCompatibleAnimBlueprints( TArray<FAssetData>& OutAss
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	TArray<FAssetData> AssetDataList;
-	AssetRegistryModule.Get().GetAssetsByClass(UAnimBlueprint::StaticClass()->GetFName(), AssetDataList, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UAnimBlueprint::StaticClass()->GetClassPathName(), AssetDataList, true);
 
 	OutAssets.Empty(AssetDataList.Num());
 
@@ -560,7 +560,7 @@ void SSkeletonSlotNames::GetCompatibleAnimMontages(TArray<struct FAssetData>& Ou
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	TArray<FAssetData> AssetDataList;
-	AssetRegistryModule.Get().GetAssetsByClass(UAnimMontage::StaticClass()->GetFName(), AssetDataList, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UAnimMontage::StaticClass()->GetClassPathName(), AssetDataList, true);
 
 	OutAssets.Empty(AssetDataList.Num());
 

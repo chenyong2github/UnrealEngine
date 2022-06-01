@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetDataTagMap.h"
 #include "Async/Async.h"
 
@@ -9,6 +10,14 @@ struct FAssetRegistrySerializationOptions;
 
 namespace FixedTagPrivate
 {
+	// Legacy version of FAssetRegistryExportPath (before FAssetRegistryVersion::ClassPaths)
+	struct FLegacyAssetRegistryExportPath
+	{
+		FName Class;
+		FName Package;
+		FName Object;
+	};
+
 	/// Stores a fixed set of values and all the key-values maps used for lookup
 	struct FStore
 	{
@@ -134,16 +143,22 @@ namespace FixedTagPrivate
 				return HashCombineQuick(GetTypeHash(Key.GetDisplayIndex()), Key.GetNumber());
 			}
 
-			template<class ExportPathType>
-			static bool Matches(const ExportPathType& A, const ExportPathType& B)
+			static bool Matches(const FNumberlessExportPath& A, const FNumberlessExportPath& B)
 			{
-				return Matches(A.Class, B.Class) & Matches(A.Package, B.Package) & Matches(A.Object, B.Object); //-V792
+				return Matches(A.ClassPackage, B.ClassPackage) & Matches(A.ClassObject, B.ClassObject) & Matches(A.Package, B.Package) & Matches(A.Object, B.Object); //-V792
+			}
+			static bool Matches(const FAssetRegistryExportPath& A, const FAssetRegistryExportPath& B)
+			{
+				return Matches(A.ClassPath.GetPackageName(), B.ClassPath.GetPackageName()) &  Matches(A.ClassPath.GetAssetName(), B.ClassPath.GetAssetName()) & Matches(A.Package, B.Package) & Matches(A.Object, B.Object); //-V792
 			}
 
-			template<class ExportPathType>
-			static uint32 GetKeyHash(const ExportPathType& Key)
+			static uint32 GetKeyHash(const FNumberlessExportPath& Key)
 			{
-				return HashCombineQuick(GetKeyHash(Key.Class), GetKeyHash(Key.Package), GetKeyHash(Key.Object));
+				return HashCombineQuick(HashCombineQuick(GetKeyHash(Key.ClassPackage), GetKeyHash(Key.ClassObject)), GetKeyHash(Key.Package), GetKeyHash(Key.Object));
+			}
+			static uint32 GetKeyHash(const FAssetRegistryExportPath& Key)
+			{
+				return HashCombineQuick(HashCombineQuick(GetKeyHash(Key.ClassPath.GetPackageName()), GetKeyHash(Key.ClassPath.GetAssetName())), GetKeyHash(Key.Package), GetKeyHash(Key.Object));
 			}
 		};
 
@@ -179,7 +194,7 @@ namespace FixedTagPrivate
 	enum class ELoadOrder { Member, TextFirst };
 
 	COREUOBJECT_API void SaveStore(const FStoreData& Store, FArchive& Ar);
-	COREUOBJECT_API TRefCountPtr<const FStore> LoadStore(FArchive& Ar);
+	COREUOBJECT_API TRefCountPtr<const FStore> LoadStore(FArchive& Ar, FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion);
 
 	/// Loads tag store with async creation of expensive tag values
 	///

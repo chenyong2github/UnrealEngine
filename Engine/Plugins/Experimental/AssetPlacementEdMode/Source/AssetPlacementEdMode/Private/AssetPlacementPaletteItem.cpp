@@ -202,9 +202,9 @@ FText FAssetPlacementPaletteItemModel::GetSourceAssetTypeText() const
 		return AssetTypeActions.Pin()->GetName();
 	}
 
-	if (!TypeInfo->AssetData.AssetClass.IsNone())
+	if (!TypeInfo->AssetData.AssetClassPath.IsNull())
 	{
-		return FText::FromName(TypeInfo->AssetData.AssetClass);
+		return FText::FromName(TypeInfo->AssetData.AssetClassPath.GetAssetName());
 	}
 
 	return FText::FromName(TypeInfo->AssetData.AssetName);

@@ -79,7 +79,7 @@ void UBlackboardKeyType_Enum::PostEditChangeProperty(struct FPropertyChangedEven
 	if (PropertyChangedEvent.Property &&
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UBlackboardKeyType_Enum, EnumName))
 	{
-		EnumType = FindObject<UEnum>(ANY_PACKAGE, *EnumName, true);
+		EnumType = UClass::TryFindTypeSlow<UEnum>(EnumName, EFindFirstObjectOptions::ExactClass);
 	}
 
 	bIsEnumNameValid = EnumType && !EnumName.IsEmpty();

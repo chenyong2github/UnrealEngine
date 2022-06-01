@@ -150,27 +150,27 @@ FOnConcertRemoteEndpointConnectionChanged& FConcertLocalEndpoint::OnRemoteEndpoi
 	return OnRemoteEndpointConnectionChangedDelegate;
 }
 
-void FConcertLocalEndpoint::InternalAddRequestHandler(const FName& RequestMessageType, const TSharedRef<IConcertRequestHandler>& Handler)
+void FConcertLocalEndpoint::InternalAddRequestHandler(const FTopLevelAssetPath& RequestMessageType, const TSharedRef<IConcertRequestHandler>& Handler)
 {
 	RequestHandlers.Add(RequestMessageType, Handler);
 }
 
-void FConcertLocalEndpoint::InternalAddEventHandler(const FName& EventMessageType, const TSharedRef<IConcertEventHandler>& Handler)
+void FConcertLocalEndpoint::InternalAddEventHandler(const FTopLevelAssetPath& EventMessageType, const TSharedRef<IConcertEventHandler>& Handler)
 {
 	EventHandlers.Add(EventMessageType, Handler);
 }
 
-void FConcertLocalEndpoint::InternalRemoveRequestHandler(const FName& RequestMessageType)
+void FConcertLocalEndpoint::InternalRemoveRequestHandler(const FTopLevelAssetPath& RequestMessageType)
 {
 	RequestHandlers.Remove(RequestMessageType);
 }
 
-void FConcertLocalEndpoint::InternalRemoveEventHandler(const FName& EventMessageType)
+void FConcertLocalEndpoint::InternalRemoveEventHandler(const FTopLevelAssetPath& EventMessageType)
 {
 	EventHandlers.Remove(EventMessageType);
 }
 
-void FConcertLocalEndpoint::InternalSubscribeToEvent(const FName& EventMessageType)
+void FConcertLocalEndpoint::InternalSubscribeToEvent(const FTopLevelAssetPath& EventMessageType)
 {
 	if (MessageEndpoint.IsValid())
 	{
@@ -178,7 +178,7 @@ void FConcertLocalEndpoint::InternalSubscribeToEvent(const FName& EventMessageTy
 	}
 }
 
-void FConcertLocalEndpoint::InternalUnsubscribeFromEvent(const FName& EventMessageType)
+void FConcertLocalEndpoint::InternalUnsubscribeFromEvent(const FTopLevelAssetPath& EventMessageType)
 {
 	if (MessageEndpoint.IsValid())
 	{
@@ -669,7 +669,7 @@ void FConcertLocalEndpoint::HandleMessage(const FConcertMessageContext& ConcertC
 void FConcertLocalEndpoint::ProcessEvent(const FConcertMessageContext& ConcertContext)
 {
 	const FConcertEventData* Event = ConcertContext.GetMessage<FConcertEventData>();
-	const FName EventType = ConcertContext.MessageType->GetFName();
+	const FTopLevelAssetPath EventType = ConcertContext.MessageType->GetStructPathName();
 
 	Logger.LogProcessEvent(ConcertContext, EndpointContext.EndpointId);
 	TSharedPtr<IConcertEventHandler> Handler = EventHandlers.FindRef(EventType);
@@ -687,7 +687,7 @@ void FConcertLocalEndpoint::ProcessEvent(const FConcertMessageContext& ConcertCo
 void FConcertLocalEndpoint::ProcessRequest(const FConcertMessageContext& ConcertContext)
 {
 	const FConcertRequestData* Request = ConcertContext.GetMessage<FConcertRequestData>();
-	const FName RequestType = ConcertContext.MessageType->GetFName();
+	const FTopLevelAssetPath RequestType = ConcertContext.MessageType->GetStructPathName();
 
 	// The response ID should match the request message, and the response should go back to the endpoint where the request came from
 	auto DispatchResponse = [this, RequestMessageId = ConcertContext.Message->MessageId, ResponseDestinationEndpointId = Request->ConcertEndpointId](TSharedPtr<IConcertResponse> Response)

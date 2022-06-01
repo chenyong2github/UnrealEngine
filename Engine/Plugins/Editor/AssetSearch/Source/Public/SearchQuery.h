@@ -10,7 +10,7 @@ struct FSearchRecord
 {
 	FString AssetName;
 	FString AssetPath;
-	FString AssetClass;
+	FTopLevelAssetPath AssetClass;
 
 	FString object_name;
 	FString object_path;

@@ -478,7 +478,7 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 					if (!AssetRegistry.IsLoadingAssets())
 					{
 						TArray<FAssetData> MapList;
-						if (AssetRegistry.GetAssetsByClass(UWorld::StaticClass()->GetFName(), /*out*/ MapList))
+						if (AssetRegistry.GetAssetsByClass(UWorld::StaticClass()->GetClassPathName(), /*out*/ MapList))
 						{
 							FName TargetTestName(*URLStr);
 							for (const FAssetData& MapAsset : MapList)

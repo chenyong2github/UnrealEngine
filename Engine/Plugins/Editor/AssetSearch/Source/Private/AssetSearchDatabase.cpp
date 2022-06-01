@@ -177,7 +177,7 @@ public:
 	public: bool AddSearchRecord(const FAssetData& InAssetData, const FString& IndexedJson, const FString& IndexedJsonHash)
 	{
 		FString AssetObjectPath = InAssetData.ObjectPath.ToString();
-		if (Statement_AddAssetToAssetTable.BindAndExecute(InAssetData.AssetName.ToString(), InAssetData.AssetClass.ToString(), AssetObjectPath, IndexedJsonHash))
+		if (Statement_AddAssetToAssetTable.BindAndExecute(InAssetData.AssetName.ToString(), InAssetData.AssetClassPath.ToString(), AssetObjectPath, IndexedJsonHash))
 		{
 			int64 AssetId = Database.GetLastInsertRowId();
 
@@ -333,8 +333,10 @@ public:
 		return Statement_SearchAssets.BindAndExecute(Q, [QueryText, &InCallback](const FSearchAssets& InStatement)
 		{
 			FSearchRecord Result;
-			if (InStatement.GetColumnValues(Result.AssetName, Result.AssetClass, Result.AssetPath))
+			FString ResultClassPath;
+			if (InStatement.GetColumnValues(Result.AssetName, ResultClassPath, Result.AssetPath))
 			{
+				Result.AssetClass = FTopLevelAssetPath(ResultClassPath);
 				const float WorstCase = Result.AssetName.Len() + QueryText.Len();
 				Result.Score = -50.0f * (1.0f - (Algo::LevenshteinDistance(Result.AssetName.ToLower(), QueryText.ToLower()) / WorstCase));
 				
@@ -372,13 +374,15 @@ public:
 		return Statement_SearchAssetPropertiesFTS.BindAndExecute(Q, [&InCallback](const FSearchAssetPropertiesFTS& InStatement)
 		{
 			FSearchRecord Result;
+			FString ResultClassPath;
 			if (InStatement.GetColumnValues(
-				Result.AssetName, Result.AssetClass, Result.AssetPath,
+				Result.AssetName, ResultClassPath, Result.AssetPath,
 				Result.object_name, Result.object_path, Result.object_native_class,
 				Result.property_name, Result.property_field, Result.property_class,
 				Result.value_text, Result.value_hidden,
 				Result.Score))
 			{
+				Result.AssetClass = FTopLevelAssetPath(ResultClassPath);
 				return InCallback(MoveTemp(Result));
 			}
 			return ESQLitePreparedStatementExecuteRowResult::Error;

@@ -40,7 +40,7 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, ULevelSna
 		FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
 	FARFilter ARFilter;
-	ARFilter.ClassNames.Add(ULevelSnapshot::StaticClass()->GetFName());
+	ARFilter.ClassPaths.Add(ULevelSnapshot::StaticClass()->GetClassPathName());
 
 	FAssetPickerConfig AssetPickerConfig;
 	AssetPickerConfig.CustomColumns = GetCustomColumns();

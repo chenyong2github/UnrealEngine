@@ -192,13 +192,20 @@ bool UObject::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags
 			*GetClass()->ClassWithin->GetName() );
 	}
 
-	UObject* NameScopeOuter = (Flags & REN_ForceGlobalUnique) ? ANY_PACKAGE : NewOuter;
-
 	// find an object with the same name and same class in the new outer
 	bool bIsCaseOnlyChange = false;
 	if (InName)
 	{
-		UObject* ExistingObject = StaticFindObject(/*Class=*/ NULL, NameScopeOuter ? NameScopeOuter : GetOuter(), InName, true);
+		UObject* ExistingObject = nullptr;
+		
+		if (!(Flags & REN_ForceGlobalUnique))
+		{
+			ExistingObject = StaticFindObject(/*Class=*/ nullptr, NewOuter ? NewOuter : GetOuter(), InName, true);
+		}
+		else
+		{
+			ExistingObject = StaticFindFirstObject(/*Class=*/ nullptr, InName, EFindFirstObjectOptions::ExactClass);
+		}
 		if (ExistingObject == this)
 		{
 			if (ExistingObject->GetName().Equals(InName, ESearchCase::CaseSensitive))
@@ -255,7 +262,7 @@ bool UObject::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags
 			}
 			else
 			{
-				NewName = MakeUniqueObjectName(NameScopeOuter ? NameScopeOuter : GetOuter(), GetClass());
+				NewName = MakeUniqueObjectName(NewOuter ? NewOuter : GetOuter(), GetClass(), FName(), !!(Flags & REN_ForceGlobalUnique) ? EUniqueObjectNameOptions::GloballyUnique : EUniqueObjectNameOptions::None);
 			}
 		}
 		else
@@ -2038,6 +2045,48 @@ const FName& UObject::SourceFileTagName()
 }
 
 #if WITH_EDITOR
+
+static void PostLoadAssetRegistryTagProperty(FProperty* Prop, const FAssetData& AssetData, TArray<UObject::FAssetRegistryTag>& OutTagsAndValuesToUpdate)
+{	
+	UObject::FAssetRegistryTag::ETagType TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
+
+	if (Prop->HasAnyPropertyFlags(CPF_AssetRegistrySearchable))
+	{
+		if (Prop->IsA<FObjectPropertyBase>() && !Prop->IsA<FSoftObjectProperty>())
+		{
+			FObjectPropertyBase* PropertyObject = CastFieldChecked<FObjectPropertyBase>(Prop);
+			FString ExportPath = AssetData.GetTagValueRef<FString>(Prop->GetFName());
+			if (!ExportPath.IsEmpty() && ExportPath[0] != '/')
+			{
+				FString ObjectPath = FPackageName::ExportTextPathToObjectPath(ExportPath);
+				ExportPath = FObjectPropertyBase::GetExportPath(PropertyObject->PropertyClass->GetClassPathName(), ObjectPath);
+				OutTagsAndValuesToUpdate.Add(UObject::FAssetRegistryTag(Prop->GetFName(), ExportPath, TagType));
+			}
+		}
+	}
+}
+
+void UObject::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const
+{
+	if (GetClass()->HasAssetRegistrySearchableProperties())
+	{
+		for (TFieldIterator<FProperty> PropertyIt(GetClass()); PropertyIt; ++PropertyIt)
+		{
+			PostLoadAssetRegistryTagProperty(*PropertyIt, InAssetData, OutTagsAndValuesToUpdate);
+		}
+
+		UScriptStruct* SparseClassDataStruct = GetClass()->GetSparseClassDataStruct();
+		if (SparseClassDataStruct)
+		{
+			const void* SparseClassData = GetClass()->GetSparseClassData(EGetSparseClassDataMethod::ArchetypeIfNull);
+			for (TFieldIterator<FProperty> PropertyIt(SparseClassDataStruct); PropertyIt; ++PropertyIt)
+			{
+				PostLoadAssetRegistryTagProperty(*PropertyIt, InAssetData, OutTagsAndValuesToUpdate);
+			}
+		}
+	}
+}
+
 static TSet<FName> MetaDataTagsForAssetRegistry;
 
 TSet<FName>& UObject::GetMetaDataTagsForAssetRegistry()
@@ -2059,7 +2108,7 @@ void UObject::GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>
 		.SetTooltip(NSLOCTEXT("UObject", "PrimaryAssetNameTooltip", "Logical name registered with the Asset Manager system"))
 	);
 }
-#endif
+#endif // WITH_EDITOR
 
 void UObject::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
@@ -3321,7 +3370,7 @@ static void PerformSetCommand( const TCHAR* Str, FOutputDevice& Ar, bool bNotify
 	TCHAR ObjectName[256], PropertyName[256];
 	if (FParse::Token(Str, ObjectName, UE_ARRAY_COUNT(ObjectName), true) && FParse::Token(Str, PropertyName, UE_ARRAY_COUNT(PropertyName), true))
 	{
-		UClass* Class = FindObject<UClass>(ANY_PACKAGE, ObjectName);
+		UClass* Class = FindFirstObject<UClass>(ObjectName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("PerformSetCommand"));
 		if (Class != NULL)
 		{
 			FProperty* Property = FindFProperty<FProperty>(Class, PropertyName);
@@ -3340,7 +3389,7 @@ static void PerformSetCommand( const TCHAR* Str, FOutputDevice& Ar, bool bNotify
 		}
 		else
 		{
-			UObject* Object = FindObject<UObject>(ANY_PACKAGE, ObjectName);
+			UObject* Object = FindFirstObject<UObject>(ObjectName, EFindFirstObjectOptions::NativeFirst, ELogVerbosity::Warning, TEXT("PerformSetCommand"));
 			if (Object != NULL)
 			{
 				FProperty* Property = FindFProperty<FProperty>(Object->GetClass(), PropertyName);
@@ -3529,11 +3578,11 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		FProperty* Property;
 		if
 		(	FParse::Token( Str, ClassName, UE_ARRAY_COUNT(ClassName), 1 )
-		&&	(Class=FindObject<UClass>( ANY_PACKAGE, ClassName))!=NULL )
+		&&	(Class = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("StaticExec GET"))) != nullptr)
 		{
 			if
 			(	FParse::Token( Str, PropertyName, UE_ARRAY_COUNT(PropertyName), 1 )
-			&&	(Property=FindFProperty<FProperty>( Class, PropertyName))!=NULL )
+			&&	(Property=FindFProperty<FProperty>( Class, PropertyName)) != nullptr)
 			{
 				FString	Temp;
 				if( Class->GetDefaultsCount() )
@@ -3561,7 +3610,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		FString PropWildcard;
 
 		if ( FParse::Token(Str, ClassName, UE_ARRAY_COUNT(ClassName), 1) &&
-			(Class = FindObject<UClass>(ANY_PACKAGE, ClassName)) != NULL &&
+			(Class = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("StaticExec LISTPROPS"))) != nullptr &&
 			FParse::Token(Str, PropWildcard, true) )
 		{
 			// split up the search string by wildcard symbols
@@ -3690,17 +3739,17 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		FProperty* Property;
 
 		if ( FParse::Token(Str,ClassName,UE_ARRAY_COUNT(ClassName), 1) &&
-			(Class=FindObject<UClass>( ANY_PACKAGE, ClassName)) != NULL )
+			(Class = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("StaticExec GETALL"))) != nullptr )
 		{
 			FParse::Token(Str,PropertyName,UE_ARRAY_COUNT(PropertyName),1);
 			{
 				Property=FindFProperty<FProperty>(Class,PropertyName);
 				{
 					int32 cnt = 0;
-					UObject* LimitOuter = NULL;
+					UObject* LimitOuter = nullptr;
 
 					const bool bHasOuter = FCString::Strifind(Str,TEXT("OUTER=")) ? true : false;
-					ParseObject<UObject>(Str,TEXT("OUTER="),LimitOuter,ANY_PACKAGE);
+					ParseObject<UObject>(Str,TEXT("OUTER="),LimitOuter,nullptr);
 
 					// Check for a specific object name
 					TCHAR ObjNameStr[256];
@@ -3836,7 +3885,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		if (FParse::Token(Str, ClassName, UE_ARRAY_COUNT(ClassName), true))
 		{
 			//if ( (Property=FindFProperty<FProperty>(Class,PropertyName)) != NULL )
-			UClass* Class = FindObject<UClass>(ANY_PACKAGE, ClassName);
+			UClass* Class = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("StaticExec LISTFUNCS"));
 
 			if (Class != NULL)
 			{
@@ -3862,7 +3911,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		TCHAR FunctionName[256];
 		if (FParse::Token(Str, ClassName, UE_ARRAY_COUNT(ClassName), true) && FParse::Token(Str, FunctionName, UE_ARRAY_COUNT(FunctionName), true))
 		{
-			UClass* Class = FindObject<UClass>(ANY_PACKAGE, ClassName);
+			UClass* Class = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("StaticExec LISTFUNC"));
 
 			if (Class != NULL)
 			{
@@ -4151,7 +4200,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		else if( FParse::Command(&Str,TEXT("REFS")) )
 		{
 			UObject* Object;
-			if (ParseObject(Str,TEXT("NAME="),Object,ANY_PACKAGE))
+			if (ParseObject(Str,TEXT("NAME="),Object,nullptr))
 			{
 				
 				EReferenceChainSearchMode SearchModeFlags = EReferenceChainSearchMode::PrintResults;
@@ -4245,12 +4294,12 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			UClass* Class;
 			UClass* ReferencerClass = NULL;
 			FString ReferencerName;
-			if (ParseObject<UClass>(Str, TEXT("CLASS="), Class, ANY_PACKAGE) == false)
+			if (ParseObject<UClass>(Str, TEXT("CLASS="), Class, nullptr) == false)
 			{
 				Class = UObject::StaticClass();
 				bListClass = true;
 			}
-			if (ParseObject<UClass>(Str, TEXT("REFCLASS="), ReferencerClass, ANY_PACKAGE) == false)
+			if (ParseObject<UClass>(Str, TEXT("REFCLASS="), ReferencerClass, nullptr) == false)
 			{
 				ReferencerClass = NULL;
 			}
@@ -4413,8 +4462,8 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		{
 			UClass*	Class		= NULL;
 			UClass*	ListClass	= NULL;
-			ParseObject<UClass>(Str, TEXT("CLASS="		), Class,		ANY_PACKAGE );
-			ParseObject<UClass>(Str, TEXT("LISTCLASS="  ), ListClass,	ANY_PACKAGE );
+			ParseObject<UClass>(Str, TEXT("CLASS="		), Class,		nullptr );
+			ParseObject<UClass>(Str, TEXT("LISTCLASS="  ), ListClass,	nullptr );
 		
 			if( Class )
 			{
@@ -4521,7 +4570,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			UObject* Obj = NULL;
 			if ( FParse::Token(Str,ObjectName,UE_ARRAY_COUNT(ObjectName), 1) )
 			{
-				Obj = FindObject<UObject>(ANY_PACKAGE,ObjectName);
+				Obj = FindFirstObject<UObject>(ObjectName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("FLAGS command"));
 			}
 
 			if ( Obj )
@@ -4538,7 +4587,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			// Usage:  OBJ REP CLASS=PlayerController
 			UClass* Cls;
 
-			if( ParseObject<UClass>( Str, TEXT("CLASS="), Cls, ANY_PACKAGE ) )
+			if( ParseObject<UClass>( Str, TEXT("CLASS="), Cls, nullptr ) )
 			{
 				Ar.Logf(TEXT("=== Replicated properties for class: %s==="), *Cls->GetName());
 				for ( TFieldIterator<FProperty> It(Cls); It; ++It )
@@ -4574,7 +4623,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		if (FParse::Token(Str,ClassName,UE_ARRAY_COUNT(ClassName),1))
 		{
 			// Try to find a corresponding class
-			UClass* ClassToReload = FindObject<UClass>(ANY_PACKAGE,ClassName);
+			UClass* ClassToReload = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("StaticExec RELOADCONFIG"));
 			if (ClassToReload)
 			{
 				ClassToReload->ReloadConfig();
@@ -4582,7 +4631,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			else
 			{
 				// If the class is missing, search for an object with that name
-				UObject* ObjectToReload = FindObject<UObject>(ANY_PACKAGE,ClassName);
+				UObject* ObjectToReload = FindFirstObject<UObject>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("StaticExec RELOADCONFIG"));
 				if (ObjectToReload)
 				{
 					ObjectToReload->ReloadConfig();

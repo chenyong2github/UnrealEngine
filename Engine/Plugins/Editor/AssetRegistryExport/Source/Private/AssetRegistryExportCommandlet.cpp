@@ -109,7 +109,7 @@ int32 UAssetRegistryExportCommandlet::Main(const FString& CmdLineParams)
 
 	struct FClassInfo
 	{
-		FName Name;
+		FTopLevelAssetPath Name;
 		TSet<FName> Tags;
 
 		// TagName -> Name that has been sanitized for use as a column name.
@@ -121,15 +121,15 @@ int32 UAssetRegistryExportCommandlet::Main(const FString& CmdLineParams)
 		FSQLitePreparedStatement InsertStatement;
 	};
 
-	TMap<FName, FClassInfo> ClassInfos;
+	TMap<FTopLevelAssetPath, FClassInfo> ClassInfos;
 	int32 AssetCount = 0;
 
 	// Find the tags for each class. Assets might not fill all tags that might exist on a
 	// given class, so we have to get the union of all possibles.
 	AssetRegistry.EnumerateAllAssets(TSet<FName>(), [&](const FAssetData& AssetData)
 	{
-		FClassInfo& ClassInfo = ClassInfos.FindOrAdd(AssetData.AssetClass);
-		ClassInfo.Name = AssetData.AssetClass;
+		FClassInfo& ClassInfo = ClassInfos.FindOrAdd(AssetData.AssetClassPath);
+		ClassInfo.Name = AssetData.AssetClassPath;
 
 		AssetData.TagsAndValues.ForEach([&ClassInfo](TPair<FName, FAssetTagValueRef> Pair)
 		{
@@ -160,7 +160,7 @@ int32 UAssetRegistryExportCommandlet::Main(const FString& CmdLineParams)
 	//
 	// Create the tables and insert statements for each class
 	//
-	for (TPair<FName, FClassInfo>& Pair : ClassInfos)
+	for (TPair<FTopLevelAssetPath, FClassInfo>& Pair : ClassInfos)
 	{
 		FClassInfo& Class = Pair.Value;
 
@@ -239,7 +239,7 @@ int32 UAssetRegistryExportCommandlet::Main(const FString& CmdLineParams)
 			GlobalInsertStatement.ClearBindings();
 
 			GlobalInsertStatement.SetBindingValueByIndex(1, AssetData.AssetName.ToString());
-			GlobalInsertStatement.SetBindingValueByIndex(2, AssetData.AssetClass.ToString());
+			GlobalInsertStatement.SetBindingValueByIndex(2, AssetData.AssetClassPath.ToString());
 			GlobalInsertStatement.SetBindingValueByIndex(3, AssetObjectPath);
 
 			// If this assets has size information then add it to the global assets list as well.
@@ -259,12 +259,12 @@ int32 UAssetRegistryExportCommandlet::Main(const FString& CmdLineParams)
 
 		// Add to our class's table.
 		{
-			FClassInfo& Class = ClassInfos[AssetData.AssetClass];
+			FClassInfo& Class = ClassInfos[AssetData.AssetClassPath];
 
 			Class.InsertStatement.ClearBindings();
 
 			Class.InsertStatement.SetBindingValueByIndex(1, AssetData.AssetName.ToString());
-			Class.InsertStatement.SetBindingValueByIndex(2, AssetData.AssetClass.ToString());
+			Class.InsertStatement.SetBindingValueByIndex(2, AssetData.AssetClassPath.ToString());
 			Class.InsertStatement.SetBindingValueByIndex(3, AssetObjectPath);
 
 			// This will leave any tag values unset (NULL) in the insertion, which is what we want.
@@ -309,7 +309,7 @@ int32 UAssetRegistryExportCommandlet::Main(const FString& CmdLineParams)
 	GlobalInsertStatement.Destroy();
 	CommitTransactionStatement.Destroy();
 	BeginTransactionStatement.Destroy();
-	for (TPair<FName, FClassInfo>& Pair : ClassInfos)
+	for (TPair<FTopLevelAssetPath, FClassInfo>& Pair : ClassInfos)
 	{
 		Pair.Value.InsertStatement.Destroy();
 	}

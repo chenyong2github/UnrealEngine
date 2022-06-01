@@ -19,7 +19,7 @@ void FDataTableCustomizationLayout::CustomizeHeader(TSharedRef<class IPropertyHa
 	{
 		const FString& RowType = StructPropertyHandle->GetMetaData(TEXT("RowType"));
 		RowTypeFilter = FName(*RowType);
-		RowFilterStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *RowTypeFilter.ToString());
+		RowFilterStruct = UClass::TryFindTypeSlow<UScriptStruct>(RowType);
 	}
 
 	FSimpleDelegate OnDataTableChangedDelegate = FSimpleDelegate::CreateSP(this, &FDataTableCustomizationLayout::OnDataTableChanged);
@@ -191,16 +191,16 @@ bool FDataTableCustomizationLayout::ShouldFilterAsset(const struct FAssetData& A
 	if (!RowTypeFilter.IsNone())
 	{
 		static const FName RowStructureTagName("RowStructure");
-		FName RowStructure;
-		if (AssetData.GetTagValue<FName>(RowStructureTagName, RowStructure))
+		FString RowStructure;
+		if (AssetData.GetTagValue<FString>(RowStructureTagName, RowStructure))
 		{
-			if (RowStructure == RowTypeFilter)
+			if (RowStructure == RowTypeFilter.ToString())
 			{
 				return false;
 			}
 
 			// This is slow, but at the moment we don't have an alternative to the short struct name search
-			UScriptStruct* RowStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *RowStructure.ToString());
+			UScriptStruct* RowStruct = UClass::TryFindTypeSlow<UScriptStruct>(RowStructure);
 			if (RowStruct && RowFilterStruct && RowStruct->IsChildOf(RowFilterStruct))
 			{
 				return false;

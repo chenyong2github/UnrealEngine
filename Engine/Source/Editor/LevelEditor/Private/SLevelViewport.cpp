@@ -1330,34 +1330,41 @@ void SLevelViewport::BindOptionCommands( FUICommandList& OutCommandList )
 		);
 
 	IAssetRegistry & AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
-	TArray<FName> ClassNames;
-	TSet<FName> DerivedClassNames;
-	ClassNames.Add(ACameraActor::StaticClass()->GetFName());
-	AssetRegistry.GetDerivedClassNames(ClassNames, TSet<FName>(), DerivedClassNames);
+	TArray<FTopLevelAssetPath> ClassNames;
+	TSet<FTopLevelAssetPath> DerivedClassNames;
+	ClassNames.Add(ACameraActor::StaticClass()->GetClassPathName());
+	AssetRegistry.GetDerivedClassNames(ClassNames, TSet<FTopLevelAssetPath>(), DerivedClassNames);
 
-	for (FName Name : DerivedClassNames)
+	for (FTopLevelAssetPath ClassPathName : DerivedClassNames)
 	{
+		FString Name = ClassPathName.ToString();
 		// Ignore generated types that cannot be spawned
-		if (Name.ToString().StartsWith("SKEL_") || Name.ToString().StartsWith("REINST_"))
+		if (Name.Contains("SKEL_") || Name.Contains("REINST_"))
 		{
 			continue;
 		}
 		
 		// Remove _C from display names for blueprint classes
-		FName DisplayName = Name;
-		if (Name.ToString().EndsWith("_C"))
+		FString DisplayName = Name;
+		if (Name.EndsWith("_C"))
 		{
-			DisplayName = FName(*DisplayName.ToString().LeftChop(2));
+			DisplayName = DisplayName.LeftChop(2);
 		}
 
-		UClass* CameraClass = FindObject<UClass>(ANY_PACKAGE, *Name.ToString());
+		UClass* CameraClass = FindObject<UClass>(ClassPathName);
 		if (!CameraClass || CameraClass->HasAllClassFlags(CLASS_Abstract))
 		{
 			continue;
 		}
 		
 		// Look for existing UI Command info so one isn't created for every viewport
-		TSharedPtr<FUICommandInfo> * FoundCamera = FLevelViewportCommands::Get().CreateCameras.FindByPredicate([Name](TSharedPtr<FUICommandInfo> Camera) { return Camera->GetCommandName() == Name; });
+		FName CommandName;
+		{
+			int32 DotIndex = -1;
+			Name.FindLastChar('.', DotIndex);
+			CommandName = *Name.Mid(DotIndex + 1);
+		}
+		TSharedPtr<FUICommandInfo> * FoundCamera = FLevelViewportCommands::Get().CreateCameras.FindByPredicate([CommandName](TSharedPtr<FUICommandInfo> Camera) { return Camera->GetCommandName() == CommandName; });
 		
 		if (FoundCamera)
 		{
@@ -1369,7 +1376,7 @@ void SLevelViewport::BindOptionCommands( FUICommandList& OutCommandList )
 		else
 		{
 			// If command info isn't found, create a new one
-			TSharedRef<FUICommandInfo> NewCamera = FUICommandInfoDecl(FLevelViewportCommands::Get().AsShared(), Name, FText::FromName(DisplayName), FText::Format(LOCTEXT("SpawnCamerasTooltip", "Spawn Camera here of type {0}"), FText::FromName(Name))).UserInterfaceType(EUserInterfaceActionType::Button).DefaultChord(FInputChord());
+			TSharedRef<FUICommandInfo> NewCamera = FUICommandInfoDecl(FLevelViewportCommands::Get().AsShared(), CommandName, FText::FromString(DisplayName), FText::Format(LOCTEXT("SpawnCamerasTooltip", "Spawn Camera here of type {0}"), FText::FromString(Name))).UserInterfaceType(EUserInterfaceActionType::Button).DefaultChord(FInputChord());
 			
 			OutCommandList.MapAction(
 				NewCamera,

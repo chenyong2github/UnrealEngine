@@ -856,7 +856,7 @@ public:
 	 * @param InFuncName	The name of the function
 	 */
 	FFuncReflection(const TCHAR* InClassName, const TCHAR* InFuncName)
-		: FFuncReflection(FindUField<UFunction>(FindObject<UClass>(ANY_PACKAGE, InClassName), InFuncName), InFuncName)
+		: FFuncReflection(FindUField<UFunction>(UClass::TryFindTypeSlow<UClass>(InClassName), InFuncName), InFuncName)
 	{
 	}
 

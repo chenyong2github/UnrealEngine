@@ -264,10 +264,7 @@ static void GetContentBrowserSelectionFactoryMenuEntries( FAssetData& TargetAsse
 		if ( TargetAssetData.GetTagValue( FBlueprintTags::NativeParentClassPath, TagValue ) && !TagValue.IsEmpty() )
 		{
 			// If the native parent class can't be placed, neither can the blueprint
-
-			UObject* Outer = nullptr;
-			ResolveName( Outer, TagValue, false, false );
-			UClass* NativeParentClass = FindObject<UClass>( ANY_PACKAGE, *TagValue );
+			UClass* NativeParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(TagValue));
 
 			bPlaceable = AssetSelectionUtils::IsChildBlueprintPlaceable( NativeParentClass );
 		}

@@ -550,7 +550,7 @@ static const TArray< TSubclassOf<UEdGraphNode> >& BlueprintActionFilterImpl::Get
 		HiddenNodeTypes.Reserve(HiddenClassNames.Num());
 		for (FString const& ClassName : HiddenClassNames)
 		{
-			if (UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *ClassName))
+			if (UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(ClassName))
 			{
 				HiddenNodeTypes.Add(FoundClass);
 			}

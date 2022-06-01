@@ -245,7 +245,7 @@ private:
 		{
 			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 			TArray<FAssetData> AssetData;
-			AssetRegistryModule.GetRegistry().GetAssetsByClass(AssetType::StaticClass()->GetFName(), AssetData);
+			AssetRegistryModule.GetRegistry().GetAssetsByClass(AssetType::StaticClass()->GetClassPathName(), AssetData);
 
 			CachedAssets.Reset(AssetData.Num());
 			for (const FAssetData& AssetDatum : AssetData)

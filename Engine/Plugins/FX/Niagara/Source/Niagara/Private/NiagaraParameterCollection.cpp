@@ -528,7 +528,7 @@ void UNiagaraParameterCollection::MakeNamespaceNameUnique()
 {
  	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
  	TArray<FAssetData> CollectionAssets;
- 	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraParameterCollection::StaticClass()->GetFName(), CollectionAssets);
+ 	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraParameterCollection::StaticClass()->GetClassPathName(), CollectionAssets);
 	TArray<FName> ExistingNames;
  	for (FAssetData& CollectionAsset : CollectionAssets)
  	{

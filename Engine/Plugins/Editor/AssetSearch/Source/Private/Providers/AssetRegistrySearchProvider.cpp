@@ -19,7 +19,7 @@ public:
 	/** Get the source tag for the given asset data and alias, or none if there is no match */
 	FName GetSourceTagFromAlias(const FAssetData& InAssetData, const FName InAlias)
 	{
-		TSharedPtr<TMap<FName, FName>>& AliasToSourceTagMapping = ClassToAliasTagsMapping.FindOrAdd(InAssetData.AssetClass);
+		TSharedPtr<TMap<FName, FName>>& AliasToSourceTagMapping = ClassToAliasTagsMapping.FindOrAdd(InAssetData.AssetClassPath);
 
 		if (!AliasToSourceTagMapping.IsValid())
 		{
@@ -61,7 +61,7 @@ public:
 
 private:
 	/** Mapping from class name -> (alias -> source) */
-	TMap<FName, TSharedPtr<TMap<FName, FName>>> ClassToAliasTagsMapping;
+	TMap<FTopLevelAssetPath, TSharedPtr<TMap<FName, FName>>> ClassToAliasTagsMapping;
 };
 
 /** Expression context to test the given asset data against the current text filter */
@@ -168,7 +168,7 @@ public:
 
 		if (bIncludeClassName)
 		{
-			if (InValue.CompareName(AssetPtr->AssetClass, InTextComparisonMode))
+			if (InValue.CompareFString(AssetPtr->AssetClassPath.ToString(), InTextComparisonMode))
 			{
 				return true;
 			}
@@ -245,7 +245,7 @@ public:
 				return false;
 			}
 
-			const bool bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->AssetClass, InValue, InTextComparisonMode);
+			const bool bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->AssetClassPath.ToString(), InValue, InTextComparisonMode);
 			return (InComparisonOperation == ETextFilterComparisonOperation::Equal) ? bIsMatch : !bIsMatch;
 		}
 
@@ -365,7 +365,7 @@ void FAssetRegistrySearchProvider::Search(FSearchQueryPtr SearchQuery)
 			FSearchRecord Record;
 			Record.AssetPath = Asset.ObjectPath.ToString();
 			Record.AssetName = Asset.AssetName.ToString();
-			Record.AssetClass = Asset.AssetClass.ToString();
+			Record.AssetClass = Asset.AssetClassPath;
 
 			const float WorstCase = Record.AssetName.Len() + SearchQuery->QueryText.Len();
 			Record.Score = -50.0f * (1.0f - (Algo::LevenshteinDistance(Record.AssetName.ToLower(), SearchQuery->QueryText.ToLower()) / WorstCase));

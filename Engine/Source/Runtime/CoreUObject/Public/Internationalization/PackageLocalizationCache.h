@@ -10,6 +10,7 @@
 #include "Templates/SharedPointer.h"
 #include "Templates/Tuple.h"
 #include "UObject/NameTypes.h"
+#include "UObject/Class.h"
 
 class FPackageLocalizationCache;
 
@@ -131,7 +132,7 @@ protected:
 	 * @param InAssetGroupName	The name of the asset group packages of this type belong to.
 	 * @param InAssetClassName	The name of a class used by this asset group.
 	 */
-	virtual void FindAssetGroupPackages(const FName InAssetGroupName, const FName InAssetClassName) = 0;
+	virtual void FindAssetGroupPackages(const FName InAssetGroupName, const FTopLevelAssetPath& InAssetClassName) = 0;
 
 	/**
 	 * Try and find an existing cache for the given culture name, and create an entry for one if no such cache currently exists.
@@ -179,7 +180,7 @@ protected:
 	TArray<TTuple<FString, TSharedPtr<FPackageLocalizationCultureCache>>> AllCultureCaches;
 
 	/** Mapping between a class name, and the asset group the class belongs to (for class specific package localization). */
-	TArray<TTuple<FName, FName>> AssetClassesToAssetGroups;
+	TArray<TTuple<FTopLevelAssetPath, FName>> AssetClassesToAssetGroups;
 
 	/** Mapping between a package name, and the asset group it belongs to. */
 	TMap<FName, FName> PackageNameToAssetGroup;

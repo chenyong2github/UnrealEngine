@@ -2126,7 +2126,7 @@ void FUnrealClassDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineT
 		FString ClassNameStripped = GetClassNameWithPrefixRemoved(*ClassName);
 
 		// See if we have an existing engine object we should use
-		UClass* Class = FEngineAPI::FindObject<UClass>(ANY_PACKAGE, *ClassNameStripped);
+		UClass* Class = FEngineAPI::FindFirstObject<UClass>(*ClassNameStripped, EFindFirstObjectOptions::EnsureIfAmbiguous);
 
 		if (Class == nullptr)
 		{
@@ -2301,7 +2301,7 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 		}
 
 		// See if we have an existing engine object we should use
-		if (UClass* Class = FEngineAPI::FindObject<UClass>(ANY_PACKAGE, *GetFName().ToString()))
+		if (UClass* Class = FEngineAPI::FindFirstObject<UClass>(*GetFName().ToString(), EFindFirstObjectOptions::EnsureIfAmbiguous))
 		{
 
 			// Check for differences in ClassFlags

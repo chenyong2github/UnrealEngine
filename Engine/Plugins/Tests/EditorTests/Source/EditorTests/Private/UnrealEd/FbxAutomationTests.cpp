@@ -699,7 +699,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 				int32 MaterialNumber = 0;
 				for (FAssetData AssetData : CreatedAssets)
 				{
-					if (AssetData.AssetClass == UMaterial::StaticClass()->GetFName() || AssetData.AssetClass == UMaterialInstanceConstant::StaticClass()->GetFName())
+					if (AssetData.AssetClassPath == UMaterial::StaticClass()->GetClassPathName() || AssetData.AssetClassPath == UMaterialInstanceConstant::StaticClass()->GetClassPathName())
 					{
 						MaterialNumber++;
 					}

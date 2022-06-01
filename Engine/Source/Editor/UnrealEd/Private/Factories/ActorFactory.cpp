@@ -1639,12 +1639,12 @@ bool UActorFactoryBlueprint::CanCreateActorFrom( const FAssetData& AssetData, FT
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-		const FStringView ObjectPath = FPackageName::ExportTextPathToObjectPath(FStringView(ParentClassPath));
-		const FName ParentClassPathFName = FName( FPackageName::ObjectPathToObjectName(ObjectPath) );
-		TArray<FName> AncestorClassNames;
-		AssetRegistry.GetAncestorClassNames(ParentClassPathFName, AncestorClassNames);
+		const FTopLevelAssetPath ObjectPath(FPackageName::ExportTextPathToObjectPath(ParentClassPath));
+		const FName ParentClassPathFName = ObjectPath.GetAssetName();
+		TArray<FTopLevelAssetPath> AncestorClassNames;
+		AssetRegistry.GetAncestorClassNames(ObjectPath, AncestorClassNames);
 
-		bIsActorBased = AncestorClassNames.Contains(AActor::StaticClass()->GetFName());
+		bIsActorBased = AncestorClassNames.Contains(AActor::StaticClass()->GetClassPathName());
 	}
 
 	if ( !bIsActorBased )

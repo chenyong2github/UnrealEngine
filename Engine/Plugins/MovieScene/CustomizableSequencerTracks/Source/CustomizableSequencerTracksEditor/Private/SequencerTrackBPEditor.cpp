@@ -31,7 +31,7 @@ namespace
 
 		TArray<FAssetData> ValidClasses;
 		{
-			FString DesiredClassName = FString::Printf(TEXT("Class'%s'"), *USequencerTrackBP::StaticClass()->GetPathName());
+			FString DesiredClassName = FString::Printf(TEXT("/Script/CoreUObject.Class'%s'"), *USequencerTrackBP::StaticClass()->GetPathName());
 
 			FARFilter Filter;
 			Filter.TagsAndValues.Add(FBlueprintTags::NativeParentClassPath, MoveTemp(DesiredClassName));

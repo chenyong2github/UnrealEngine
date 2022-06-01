@@ -25,7 +25,7 @@ protected:
 	virtual bool GetIsColorCurve() const { return false; }
 	virtual float GetDefaultHeight() const { return 150; }
 	
-	virtual FName GetSupportedAssetClassName() const = 0;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const = 0;
 	virtual void ImportSelectedAsset(UObject* SelectedAsset);
 	virtual void GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const = 0;
 	
@@ -52,7 +52,7 @@ public:
 protected:
 	virtual void GetCurveProperties(IDetailLayoutBuilder& DetailBuilder, TArray<TSharedRef<IPropertyHandle>>& OutCurveProperties) const override;
 	virtual float GetDefaultHeight() const override { return 130; }
-	virtual FName GetSupportedAssetClassName() const override;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const override;
 	virtual void GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const override;
 };
 
@@ -65,7 +65,7 @@ public:
 
 protected:
 	virtual void GetCurveProperties(IDetailLayoutBuilder& DetailBuilder, TArray<TSharedRef<IPropertyHandle>>& OutCurveProperties) const override;
-	virtual FName GetSupportedAssetClassName() const override;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const override;
 	virtual void GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const override;
 };
 
@@ -77,7 +77,7 @@ public:
 
 protected:
 	virtual void GetCurveProperties(IDetailLayoutBuilder& DetailBuilder, TArray<TSharedRef<IPropertyHandle>>& OutCurveProperties) const override;
-	virtual FName GetSupportedAssetClassName() const override;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const override;
 	virtual void GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const override;
 };
 
@@ -89,7 +89,7 @@ public:
 
 protected:
 	virtual void GetCurveProperties(IDetailLayoutBuilder& DetailBuilder, TArray<TSharedRef<IPropertyHandle>>& OutCurveProperties) const override;
-	virtual FName GetSupportedAssetClassName() const override;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const override;
 	virtual void GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const override;
 };
 
@@ -102,6 +102,6 @@ public:
 protected:
 	virtual void GetCurveProperties(IDetailLayoutBuilder& DetailBuilder, TArray<TSharedRef<IPropertyHandle>>& OutCurveProperties) const override;
 	virtual bool GetIsColorCurve() const override { return true; }
-	virtual FName GetSupportedAssetClassName() const override;
+	virtual FTopLevelAssetPath GetSupportedAssetClassName() const override;
 	virtual void GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const override;
 };

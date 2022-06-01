@@ -525,10 +525,10 @@ FName UDiffAssetRegistriesCommandlet::GetClassName(FAssetRegistryState& InRegist
 	{
 		TArrayView<FAssetData const * const> Assets = InRegistryState.GetAssetsByPackageName(InAssetPath);
 
-		FName NewName = NAME_None;
+		FName NewName;
 		if (Assets.Num() > 0)
 		{
-			NewName = Assets[0]->AssetClass;
+			NewName = Assets[0]->AssetClassPath.GetAssetName();
 		}
 		else
 		{

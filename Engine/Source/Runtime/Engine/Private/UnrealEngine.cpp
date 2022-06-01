@@ -5781,7 +5781,7 @@ bool UEngine::HandleKismetEventCommand(UWorld* InWorld, const TCHAR* Cmd, FOutpu
 	}
 	else
 	{
-		UObject* ObjectToMatch = FindObject<UObject>(ANY_PACKAGE, *ObjectName);
+		UObject* ObjectToMatch = FindFirstObject<UObject>(*ObjectName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("HandleKismetEventCommand"));
 
 		if (ObjectToMatch == nullptr)
 		{
@@ -8068,7 +8068,7 @@ static void HandlePropAnalysisCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	int32 MaxPercentToCheck = 25;
 
 	// get command parameters
-	ParseObject<UClass>(Cmd, TEXT("CLASS="), AnalyzedClass, ANY_PACKAGE);
+	ParseObject<UClass>(Cmd, TEXT("CLASS="), AnalyzedClass, nullptr);
 	if (AnalyzedClass == nullptr)
 	{
 		Ar.Log(TEXT("Usage: PROPANALYSIS CLASS=<class> [MIN=<minpercentdiff> MAX=<maxpercentdiff>]"));
@@ -8353,7 +8353,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 	else if (FParse::Command(&Cmd,TEXT("LIST2")))
 	{			
 		UClass* ClassToCheck = NULL;
-		ParseObject<UClass>(Cmd, TEXT("CLASS="  ), ClassToCheck, ANY_PACKAGE );
+		ParseObject<UClass>(Cmd, TEXT("CLASS="  ), ClassToCheck, nullptr);
 
 		if (ClassToCheck == NULL)
 		{
@@ -8395,7 +8395,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		Limit *= 1024;
 
 		UClass* ClassToCheck = NULL;
-		ParseObject<UClass>(Cmd, TEXT("CLASS="  ), ClassToCheck, ANY_PACKAGE );
+		ParseObject<UClass>(Cmd, TEXT("CLASS="  ), ClassToCheck, nullptr);
 		if (ClassToCheck == NULL)
 		{
 			ClassToCheck = UObject::StaticClass();
@@ -8523,7 +8523,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		Limit *= 1024;
 
 		UClass* ClassToCheck = NULL;
-		ParseObject<UClass>(Cmd, TEXT("CLASS="  ), ClassToCheck, ANY_PACKAGE );
+		ParseObject<UClass>(Cmd, TEXT("CLASS="  ), ClassToCheck, nullptr);
 
 		if (ClassToCheck == NULL)
 		{
@@ -8603,8 +8603,8 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		UPackage* InsidePackage = nullptr;
 		UObject* InsideObject = nullptr;
 		UClass* InsideClass = nullptr;
-		ParseObject<UClass>(Cmd, TEXT("CLASS="  ), CheckType, ANY_PACKAGE );
-		ParseObject<UObject>(Cmd, TEXT("OUTER="), CheckOuter, ANY_PACKAGE);
+		ParseObject<UClass>(Cmd, TEXT("CLASS="  ), CheckType, nullptr);
+		ParseObject<UObject>(Cmd, TEXT("OUTER="), CheckOuter, nullptr);
 
 		ParseObject<UPackage>(Cmd, TEXT("PACKAGE="), InsidePackage, nullptr);
 		if (InsidePackage == nullptr)
@@ -8613,7 +8613,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		}
 		if (InsidePackage == nullptr && InsideObject == nullptr)
 		{
-			ParseObject<UClass>(Cmd, TEXT("INSIDECLASS="), InsideClass, ANY_PACKAGE);
+			ParseObject<UClass>(Cmd, TEXT("INSIDECLASS="), InsideClass, nullptr);
 		}
 		int32 Depth = -1;
 		FParse::Value(Cmd, TEXT("DEPTH="), Depth);
@@ -8631,7 +8631,9 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		// support specifying metaclasses when listing class objects
 		if ( CheckType && CheckType->IsChildOf(UClass::StaticClass()) )
 		{
-			ParseObject<UClass>  ( Cmd, TEXT("TYPE="   ), MetaClass,     ANY_PACKAGE );
+			FString ClassName;
+			FParse::Value(Cmd, TEXT("TYPE="), ClassName);
+			MetaClass = FindFirstObject<UClass>(*ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("LIST command"));
 		}
 
 		const bool bAll				= FParse::Param( Cmd, TEXT("ALL") );
@@ -9099,7 +9101,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 		if ( FParse::Token(Cmd,ObjectName,true) )
 		{
-			Obj = FindObject<UObject>(ANY_PACKAGE,*ObjectName);
+			Obj = FindFirstObject<UObject>(*ObjectName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("OBJ COMPONENTS"));
 
 			if ( Obj != NULL )
 			{
@@ -9132,11 +9134,11 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 		TArray<FString> HiddenCategories, ShowingCategories;
 
-		if ( !ParseObject<UClass>( Cmd, TEXT("CLASS="), Cls, ANY_PACKAGE ) || !ParseObject(Cmd,TEXT("NAME="), Cls, Obj, ANY_PACKAGE) )
+		if ( !ParseObject<UClass>( Cmd, TEXT("CLASS="), Cls, nullptr) || !ParseObject(Cmd,TEXT("NAME="), Cls, Obj, nullptr) )
 		{
 			if ( FParse::Token(Cmd,ObjectName,UE_ARRAY_COUNT(ObjectName), 1) )
 			{
-				Obj = FindObject<UObject>(ANY_PACKAGE,ObjectName);
+				Obj = FindFirstObject<UObject>(ObjectName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("DUMP"));
 			}
 		}
 

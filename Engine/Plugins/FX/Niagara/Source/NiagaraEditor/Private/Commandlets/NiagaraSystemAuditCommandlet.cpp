@@ -52,7 +52,7 @@ int32 UNiagaraSystemAuditCommandlet::Main(const FString& Params)
 			UserDataInterfacesToFindString.ParseIntoArray(DataInterfaceNames, TEXT(","));
 			for (const FString& DIName : DataInterfaceNames)
 			{
-				if (UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *DIName, true))
+				if (UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(DIName, EFindFirstObjectOptions::ExactClass))
 				{
 					UserDataInterfacesToFind.Add(FoundClass);
 				}
@@ -122,7 +122,7 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 	Filter.PackagePaths = PackagePaths;
 	Filter.bRecursivePaths = true;
 
-	Filter.ClassNames.Add(UNiagaraSystem::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(UNiagaraSystem::StaticClass()->GetClassPathName());
 	if (!FilterCollection.IsEmpty())
 	{
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();

@@ -631,19 +631,29 @@ TCHAR* SetFVECTOR( TCHAR* Dest, const FVector* Value );
  * Takes an FName and checks to see that it is unique among all loaded objects.
  *
  * @param	InName		The name to check
- * @param	Outer		The context for validating this object name. Should be a group/package, but could be ANY_PACKAGE if you want to check across the whole system (not recommended)
+ * @param	Outer		The context for validating this object name. Should be a group/package
  * @param	InReason	If the check fails, this string is filled in with the reason why.
  *
  * @return	true if the name is valid
  */
 
-UNREALED_API bool IsUniqueObjectName( const FName& InName, UObject* Outer, FText* InReason=NULL );
+UNREALED_API bool IsUniqueObjectName( const FName& InName, UObject* Outer, FText* InReason = nullptr );
+
+/**
+ * Takes an FName and checks to see that it is unique among all loaded objects in all packages.
+ *
+ * @param	InName		The name to check
+ * @param	InReason	If the check fails, this string is filled in with the reason why.
+ *
+ * @return	true if the name is valid
+ */
+UNREALED_API bool IsGloballyUniqueObjectName(const FName& InName, FText* InReason = nullptr);
 
 /**
  * Takes an FName and checks to see that it is unique among all loaded objects.
  *
  * @param	InName		The name to check
- * @param	Outer		The context for validating this object name. Should be a group/package, but could be ANY_PACKAGE if you want to check across the whole system (not recommended)
+ * @param	Outer		The context for validating this object name. Should be a group/package.
  * @param	InReason	If the check fails, this string is filled in with the reason why.
  *
  * @return	true if the name is valid

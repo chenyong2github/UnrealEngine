@@ -844,6 +844,17 @@ public:
 	static const FName& SourceFileTagName();
 
 #if WITH_EDITOR
+
+	/**
+	 * Performs fixup on loaded asset registry data. 
+	 * This function is called from inside the AssetRegistry CriticalSection. DO NOT CALL ASSETREGISTRY FUNCTIONS FROM THIS FUNCTION, IT WILL DEADLOCK.
+	 * Note that this function is only called on Class Default Objects where the actual object instance data used to generate 
+	 * the asset data is not available.
+	 * @param InAssetData Asset data loaded from the AssetRegistry
+	 * @return Pointer to new asset data after fixup or nullptr if no fixup was required
+	 */
+	virtual void PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const;
+
 	/**
 	 * Additional data pertaining to asset registry tags used by the editor
 	 */

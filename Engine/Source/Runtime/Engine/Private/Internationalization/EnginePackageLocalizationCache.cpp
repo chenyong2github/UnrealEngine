@@ -84,7 +84,7 @@ void FEnginePackageLocalizationCache::FindLocalizedPackages(const TMap<FString, 
 	}
 }
 
-void FEnginePackageLocalizationCache::FindAssetGroupPackages(const FName InAssetGroupName, const FName InAssetClassName)
+void FEnginePackageLocalizationCache::FindAssetGroupPackages(const FName InAssetGroupName, const FTopLevelAssetPath& InAssetClassName)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
@@ -113,7 +113,7 @@ void FEnginePackageLocalizationCache::FindAssetGroupPackages(const FName InAsset
 		Filter.PackagePaths.Add(*LocalizedRootPath);
 	}
 	Filter.bIncludeOnlyOnDiskAssets = false;
-	Filter.ClassNames.Add(InAssetClassName);
+	Filter.ClassPaths.Add(InAssetClassName);
 	Filter.bRecursiveClasses = false;
 
 	TArray<FAssetData> LocalizedAssetsOfClass;

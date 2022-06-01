@@ -19,7 +19,7 @@ bool FMeshHierarchyCmd::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		Ar.Log(TEXT("Starting Mesh Test"));
 		FARFilter Filter;
-		Filter.ClassNames.Add(USkeletalMesh::StaticClass()->GetFName());
+		Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
 
 		TArray<FAssetData> SkeletalMeshes;
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));

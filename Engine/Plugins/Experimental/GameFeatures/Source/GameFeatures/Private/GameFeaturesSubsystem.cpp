@@ -256,7 +256,7 @@ TSharedPtr<FStreamableHandle> UGameFeaturesSubsystem::LoadGameFeatureData(const 
 	{
 		FARFilter ArFilter;
 		ArFilter.ObjectPaths.Add(FName(*GameFeatureToLoad));
-		ArFilter.ClassNames.Add(UGameFeatureData::StaticClass()->GetFName());
+		ArFilter.ClassPaths.Add(UGameFeatureData::StaticClass()->GetClassPathName());
 		ArFilter.bRecursiveClasses = true;
 #if !WITH_EDITOR
 		ArFilter.bIncludeOnlyOnDiskAssets = true;

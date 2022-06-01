@@ -30,7 +30,7 @@ namespace HttpRequestLiterals
 
 UK2Node_HttpRequest::UK2Node_HttpRequest(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, VerbEnum(FindObject<UEnum>(ANY_PACKAGE, TEXT("EHttpVerbs")))
+	, VerbEnum(FindObject<UEnum>(nullptr, TEXT("/Script/HttpBlueprint.EHttpVerbs")))
 {
 }
 
@@ -367,7 +367,7 @@ void UK2Node_HttpRequest::HandleBodyInputPin()
 
 UEnum* UK2Node_HttpRequest::GetVerbEnum() const
 {
-	return VerbEnum ? VerbEnum.Get() : FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EHttpVerbs"));
+	return VerbEnum ? VerbEnum.Get() : FindObjectChecked<UEnum>(nullptr, TEXT("/Script/HttpBlueprint.EHttpVerbs"));
 }
 
 void UK2Node_HttpRequest::SyncBodyPinType(UEdGraphPin* const Pin) const

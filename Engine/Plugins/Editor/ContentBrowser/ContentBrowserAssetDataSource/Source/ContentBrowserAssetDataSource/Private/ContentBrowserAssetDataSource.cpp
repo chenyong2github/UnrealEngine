@@ -439,7 +439,7 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			}
 			if (Params.ClassFilter)
 			{
-				InclusiveFilter.ClassNames.Append(Params.ClassFilter->ClassNamesToInclude);
+				InclusiveFilter.ClassPaths.Append(Params.ClassFilter->ClassNamesToInclude);
 				InclusiveFilter.bRecursiveClasses |= Params.ClassFilter->bRecursiveClassNamesToInclude;
 			}
 			if (Params.CollectionFilter)
@@ -551,18 +551,18 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 				FARFilter AllowListClassFilter;
 				for (const auto& AllowListPair : Params.ClassPermissionList->GetAllowList())
 				{
-					AllowListClassFilter.ClassNames.Add(AllowListPair.Key);
+					AllowListClassFilter.ClassPaths.Add(FTopLevelAssetPath(AllowListPair.Key));
 				}
 				AllowListClassFilter.bRecursiveClasses = true;
 				Params.AssetRegistry->CompileFilter(AllowListClassFilter, CompiledClassFilterAllowList);
 			}
 
-			if (CompiledInclusiveFilter.ClassNames.Num() > 0)
+			if (CompiledInclusiveFilter.ClassPaths.Num() > 0)
 			{
 				// Explicit classes given - remove anything not in the allow list class set
 				// If the classes resolve as empty then the combined filter will return nothing and can be skipped
-				CompiledInclusiveFilter.ClassNames = CompiledInclusiveFilter.ClassNames.Intersect(CompiledClassFilterAllowList.ClassNames);
-				if (CompiledInclusiveFilter.ClassNames.Num() == 0)
+				CompiledInclusiveFilter.ClassPaths = CompiledInclusiveFilter.ClassPaths.Intersect(CompiledClassFilterAllowList.ClassPaths);
+				if (CompiledInclusiveFilter.ClassPaths.Num() == 0)
 				{
 					return false;
 				}
@@ -570,7 +570,7 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			else
 			{
 				// No explicit classes given - just use the allow list class set
-				CompiledInclusiveFilter.ClassNames = MoveTemp(CompiledClassFilterAllowList.ClassNames);
+				CompiledInclusiveFilter.ClassPaths = MoveTemp(CompiledClassFilterAllowList.ClassPaths);
 			}
 		}
 	}
@@ -595,7 +595,7 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			}
 			if (Params.ClassFilter)
 			{
-				ExclusiveFilter.ClassNames.Append(Params.ClassFilter->ClassNamesToExclude);
+				ExclusiveFilter.ClassPaths.Append(Params.ClassFilter->ClassNamesToExclude);
 				ExclusiveFilter.bRecursiveClasses |= Params.ClassFilter->bRecursiveClassNamesToExclude;
 			}
 			CreateCompiledFilter(ExclusiveFilter, CompiledExclusiveFilter);
@@ -626,13 +626,13 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 				FARFilter ClassFilter;
 				for (const auto& FilterPair : Params.ClassPermissionList->GetDenyList())
 				{
-					ClassFilter.ClassNames.Add(FilterPair.Key);
+					ClassFilter.ClassPaths.Add(FTopLevelAssetPath(FilterPair.Key));
 				}
 				ClassFilter.bRecursiveClasses = true;
 				Params.AssetRegistry->CompileFilter(ClassFilter, CompiledClassFilter);
 			}
 
-			CompiledExclusiveFilter.ClassNames.Append(CompiledClassFilter.ClassNames);
+			CompiledExclusiveFilter.ClassPaths.Append(CompiledClassFilter.ClassPaths);
 		}
 	}
 
@@ -666,14 +666,14 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			}
 			CompiledExclusiveFilter.ObjectPaths.Reset();
 		}
-		if (CompiledInclusiveFilter.ClassNames.Num() > 0 && CompiledExclusiveFilter.ClassNames.Num() > 0)
+		if (CompiledInclusiveFilter.ClassPaths.Num() > 0 && CompiledExclusiveFilter.ClassPaths.Num() > 0)
 		{
-			CompiledInclusiveFilter.ClassNames = CompiledInclusiveFilter.ClassNames.Difference(CompiledExclusiveFilter.ClassNames);
-			if (CompiledInclusiveFilter.ClassNames.Num() == 0)
+			CompiledInclusiveFilter.ClassPaths = CompiledInclusiveFilter.ClassPaths.Difference(CompiledExclusiveFilter.ClassPaths);
+			if (CompiledInclusiveFilter.ClassPaths.Num() == 0)
 			{
 				return false;
 			}
-			CompiledExclusiveFilter.ClassNames.Reset();
+			CompiledExclusiveFilter.ClassPaths.Reset();
 		}
 	}
 
@@ -739,7 +739,7 @@ void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FCo
 						CustomSourceAssetsFilter.PackageNames = Params.AssetDataFilter->InclusiveFilter.PackageNames.Array();
 						CustomSourceAssetsFilter.PackagePaths = Params.AssetDataFilter->InclusiveFilter.PackagePaths.Array();
 						CustomSourceAssetsFilter.ObjectPaths = Params.AssetDataFilter->InclusiveFilter.ObjectPaths.Array();
-						CustomSourceAssetsFilter.ClassNames = Params.AssetDataFilter->InclusiveFilter.ClassNames.Array();
+						CustomSourceAssetsFilter.ClassPaths = Params.AssetDataFilter->InclusiveFilter.ClassPaths.Array();
 						CustomSourceAssetsFilter.TagsAndValues = Params.AssetDataFilter->InclusiveFilter.TagsAndValues;
 						CustomSourceAssetsFilter.bIncludeOnlyOnDiskAssets = Params.AssetDataFilter->InclusiveFilter.bIncludeOnlyOnDiskAssets;
 
@@ -1594,7 +1594,7 @@ bool UContentBrowserAssetDataSource::Legacy_TryConvertPackagePathToVirtualPath(c
 
 bool UContentBrowserAssetDataSource::Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath)
 {
-	return InAssetData.AssetClass != NAME_Class // Ignore legacy class items
+	return InAssetData.AssetClassPath != FTopLevelAssetPath(TEXT("/Script/CoreUObject"), TEXT("Class")) // Ignore legacy class items
 		&& TryConvertInternalPathToVirtual(InUseFolderPaths ? InAssetData.PackagePath : InAssetData.ObjectPath, OutPath);
 }
 
@@ -2089,7 +2089,7 @@ void UContentBrowserAssetDataSource::OnBeginCreateAsset(const FName InDefaultAss
 	}
 	else
 	{
-		FAssetData NewAssetData(*(InPackagePath.ToString() / InDefaultAssetName.ToString()), InPackagePath, InDefaultAssetName, ClassToUse->GetFName());
+		FAssetData NewAssetData(*(InPackagePath.ToString() / InDefaultAssetName.ToString()), InPackagePath, InDefaultAssetName, ClassToUse->GetClassPathName());
 
 		FName VirtualizedPath;
 		TryConvertInternalPathToVirtual(NewAssetData.ObjectPath, VirtualizedPath);

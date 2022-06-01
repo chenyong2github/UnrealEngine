@@ -263,11 +263,11 @@ struct CONTENTBROWSERDATA_API FContentBrowserDataClassFilter
 public:
 	/** Array of class names that should be included in this query */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
-	TArray<FName> ClassNamesToInclude;
+	TArray<FString> ClassNamesToInclude;
 
 	/** Array of class names that should be excluded from this query */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
-	TArray<FName> ClassNamesToExclude;
+	TArray<FString> ClassNamesToExclude;
 
 	/** Whether we should include inclusive sub-classes in this query */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ContentBrowser")
@@ -278,7 +278,7 @@ public:
 	bool bRecursiveClassNamesToExclude = false;
 
 	/** Optional set of additional class filtering */
-	TSharedPtr<FNamePermissionList> ClassPermissionList;
+	TSharedPtr<FPathPermissionList> ClassPermissionList;
 };
 
 /**

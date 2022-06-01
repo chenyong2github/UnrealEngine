@@ -135,27 +135,27 @@ public:
 	 *
 	 *	@return The parent node.
 	 */
-	TSharedPtr< FClassViewerNode > FindParent(const TSharedPtr< FClassViewerNode >& InRootNode, FName InParentClassname, const UClass* InParentClass);
+	TSharedPtr< FClassViewerNode > FindParent(const TSharedPtr< FClassViewerNode >& InRootNode, FTopLevelAssetPath InParentClassname, const UClass* InParentClass);
 
 	/** Updates the Class of a node. Uses the generated class package name to find the node.
 	 *	@param InGeneratedClassPath		The path of the generated class to find the node for.
 	 *	@param InNewClass				The class to update the node with.
 	*/
-	void UpdateClassInNode(FName InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint );
+	void UpdateClassInNode(FTopLevelAssetPath InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint );
 
 	/** Finds the node, recursively going deeper into the hierarchy. Does so by comparing generated class package names.
 	 *	@param InGeneratedClassPath		The path of the generated class to find the node for.
 	 *
 	 *	@return The node.
 	 */
-	TSharedPtr< FClassViewerNode > FindNodeByGeneratedClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FName InGeneratedClassPath);
+	TSharedPtr< FClassViewerNode > FindNodeByGeneratedClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FTopLevelAssetPath InGeneratedClassPath);
 
 private:
 	/** Adds UClass information to The node in InOutClassPathToNode for every loaded class, creating the node if it does not exist. Does not filter classes.
 	 *	@param OutRootNode						Out parameter that receives the node pointer for the root UClass.
 	 *  @param InOutClassPathToNode				Map containing all nodes.
 	 */	
-	void CreateNodesForLoadedClasses( TSharedPtr<FClassViewerNode>& OutRootNode, TMap<FName, TSharedPtr< FClassViewerNode >>& InOutClassPathToNode );
+	void CreateNodesForLoadedClasses( TSharedPtr<FClassViewerNode>& OutRootNode, TMap<FTopLevelAssetPath, TSharedPtr< FClassViewerNode >>& InOutClassPathToNode );
 
 	/** Called when reload has finished */
 	void OnReloadComplete( EReloadCompleteReason Reason );
@@ -167,7 +167,7 @@ private:
 	 * @param InAssetData				The asset data to pull the tags from.
 	 * @parma InClassPath				The class path
 	 */
-	void CreateOrUpdateUnloadedClassNode(TSharedPtr<FClassViewerNode>& InOutClassViewerNode, const FAssetData& InAssetData, FName InClassPath);
+	void CreateOrUpdateUnloadedClassNode(TSharedPtr<FClassViewerNode>& InOutClassViewerNode, const FAssetData& InAssetData, FTopLevelAssetPath InClassPath);
 
 	/**
 	 * Finds the UClass and UBlueprint for the passed in node, utilizing unloaded data to find it.
@@ -187,7 +187,7 @@ private:
 	 *
 	 * @return Returns true if the asset was found and deleted successfully.
 	 */
-	bool FindAndRemoveNodeByClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FName InClassPath);
+	bool FindAndRemoveNodeByClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FTopLevelAssetPath InClassPath);
 
 	/** Callback registered to the Asset Registry to be notified when an asset is added. */
 	void AddAsset(const FAssetData& InAddedAssetData);
@@ -221,7 +221,7 @@ namespace ClassViewer
 
 		// Pre-declare these functions.
 		static UBlueprint* GetBlueprint( UClass* InClass );
-		static void UpdateClassInNode(FName InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint );
+		static void UpdateClassInNode(FTopLevelAssetPath InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint );
 
 		/** Util class to checks if a particular class can be made into a Blueprint, ignores deprecation
 		 *
@@ -627,7 +627,7 @@ namespace ClassViewer
 			{
 				FMessageLog EditorErrors("EditorErrors");
 				FFormatNamedArguments Arguments;
-				Arguments.Add(TEXT("ObjectName"), FText::FromName(InOutClassNode->ClassPath));
+				Arguments.Add(TEXT("ObjectName"), FText::FromString(InOutClassNode->ClassPath.ToString()));
 				EditorErrors.Error(FText::Format(LOCTEXT("PackageLoadFail", "Failed to load class {ObjectName}"), Arguments));
 			}
 		}
@@ -683,7 +683,7 @@ namespace ClassViewer
 		*	@param InGeneratedClassPath			The name of the generated class to find the node for.
 		*	@param InNewClass					The class to update the node with.
 		*/
-		static void UpdateClassInNode(FName InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint )
+		static void UpdateClassInNode(FTopLevelAssetPath InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint )
 		{
 			ClassHierarchy->UpdateClassInNode(InGeneratedClassPath, InNewClass, InNewBluePrint );
 		}
@@ -829,9 +829,9 @@ public:
 					UPackage*  Package  = Class->GetOutermost();
 					ToolTip = FEditorClassUtils::GetTooltip(Class);
 				}
-				else if (AssociatedNode->ClassPath != NAME_None)
+				else if (!AssociatedNode->ClassPath.IsNull())
 				{
-					ToolTip = SNew(SToolTip).Text(FText::FromName(AssociatedNode->ClassPath));
+					ToolTip = SNew(SToolTip).Text(FText::FromString(AssociatedNode->ClassPath.ToString()));
 				}
 
 				return ToolTip;
@@ -1054,7 +1054,7 @@ void FClassHierarchy::OnReloadComplete(EReloadCompleteReason Reason)
 	ClassViewer::Helpers::RequestPopulateClassHierarchy();
 }
 
-void FClassHierarchy::CreateNodesForLoadedClasses(TSharedPtr<FClassViewerNode>& OutRootNode, TMap<FName, TSharedPtr< FClassViewerNode >>& InOutClassPathToNode)
+void FClassHierarchy::CreateNodesForLoadedClasses(TSharedPtr<FClassViewerNode>& OutRootNode, TMap<FTopLevelAssetPath, TSharedPtr< FClassViewerNode >>& InOutClassPathToNode)
 {
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
@@ -1065,19 +1065,19 @@ void FClassHierarchy::CreateNodesForLoadedClasses(TSharedPtr<FClassViewerNode>& 
 		{
 			continue;
 		}
-		TSharedPtr<FClassViewerNode>& Node = InOutClassPathToNode.FindOrAdd(FName(*CurrentClass->GetPathName()));
+		TSharedPtr<FClassViewerNode>& Node = InOutClassPathToNode.FindOrAdd(CurrentClass->GetClassPathName());
 		if (!Node)
 		{
 			Node = MakeShared<FClassViewerNode>(CurrentClass->GetName(), CurrentClass->GetDisplayNameText().ToString());
 		}
 		SetClassFields(Node, *CurrentClass);
 	}
-	TSharedPtr<FClassViewerNode>* ExistingRoot = InOutClassPathToNode.Find(FName(*UObject::StaticClass()->GetPathName()));
+	TSharedPtr<FClassViewerNode>* ExistingRoot = InOutClassPathToNode.Find(UObject::StaticClass()->GetClassPathName());
 	check(ExistingRoot && ExistingRoot->IsValid());
 	OutRootNode = *ExistingRoot;
 }
 
-TSharedPtr< FClassViewerNode > FClassHierarchy::FindParent(const TSharedPtr< FClassViewerNode >& InRootNode, FName InParentClassname, const UClass* InParentClass)
+TSharedPtr< FClassViewerNode > FClassHierarchy::FindParent(const TSharedPtr< FClassViewerNode >& InRootNode, FTopLevelAssetPath InParentClassname, const UClass* InParentClass)
 {
 	// Check if the current node is the parent classname that is being searched for.
 	if(InRootNode->ClassPath == InParentClassname)
@@ -1117,7 +1117,7 @@ TSharedPtr< FClassViewerNode > FClassHierarchy::FindParent(const TSharedPtr< FCl
 	return ReturnNode;
 }
 
-TSharedPtr< FClassViewerNode > FClassHierarchy::FindNodeByGeneratedClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FName InGeneratedClassPath)
+TSharedPtr< FClassViewerNode > FClassHierarchy::FindNodeByGeneratedClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FTopLevelAssetPath InGeneratedClassPath)
 {
 	if(InRootNode->ClassPath == InGeneratedClassPath)
 	{
@@ -1141,7 +1141,7 @@ TSharedPtr< FClassViewerNode > FClassHierarchy::FindNodeByGeneratedClassPath(con
 	return ReturnNode;
 }
 
-void FClassHierarchy::UpdateClassInNode(FName InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint )
+void FClassHierarchy::UpdateClassInNode(FTopLevelAssetPath InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint )
 {
 	TSharedPtr< FClassViewerNode > Node = FindNodeByGeneratedClassPath(ObjectClassRoot, InGeneratedClassPath);
 
@@ -1152,7 +1152,7 @@ void FClassHierarchy::UpdateClassInNode(FName InGeneratedClassPath, UClass* InNe
 	}
 }
 
-bool FClassHierarchy::FindAndRemoveNodeByClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FName InClassPath)
+bool FClassHierarchy::FindAndRemoveNodeByClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FTopLevelAssetPath InClassPath)
 {
 	bool bReturnValue = false;
 
@@ -1180,9 +1180,9 @@ void FClassHierarchy::RemoveAsset(const FAssetData& InRemovedAssetData)
 	// BPGCs can be missing if it was already deleted prior to the notification being sent. 
 	// Let's try to reconstruct the generated class path from the BP object path.
 	bool bGenerateClassPathIfMissing = true;
-	const FName ClassPath = FEditorClassUtils::GetClassPathFromAsset(InRemovedAssetData, bGenerateClassPathIfMissing);
+	const FTopLevelAssetPath ClassPath = FEditorClassUtils::GetClassPathNameFromAsset(InRemovedAssetData, bGenerateClassPathIfMissing);
 
-	if (!ClassPath.IsNone() && FindAndRemoveNodeByClassPath(ObjectClassRoot, ClassPath))
+	if (!ClassPath.IsNull() && FindAndRemoveNodeByClassPath(ObjectClassRoot, ClassPath))
 	{
 		// All viewers must refresh.
 		ClassViewer::Helpers::RefreshAll();
@@ -1197,10 +1197,10 @@ void FClassHierarchy::AddAsset(const FAssetData& InAddedAssetData)
 		return;
 	}
 
-	const FName ClassPath = FEditorClassUtils::GetClassPathFromAsset(InAddedAssetData);
+	const FTopLevelAssetPath ClassPath = FEditorClassUtils::GetClassPathNameFromAsset(InAddedAssetData);
 
 	// Make sure that the node does not already exist. There is a bit of double adding going on at times and this prevents it.
-	if (!ClassPath.IsNone() && !FindNodeByGeneratedClassPath(ObjectClassRoot, ClassPath).IsValid())
+	if (!ClassPath.IsNull() && !FindNodeByGeneratedClassPath(ObjectClassRoot, ClassPath).IsValid())
 	{
 		TSharedPtr<FClassViewerNode> NewNode;
 		CreateOrUpdateUnloadedClassNode(NewNode, InAddedAssetData, ClassPath);
@@ -1257,15 +1257,15 @@ void FClassHierarchy::SetClassFields(TSharedPtr<FClassViewerNode>& InOutClassNod
 	}
 
 	// Fields that can als be set from FAssetData
-	if (InOutClassNode->ClassPath.IsNone())
+	if (InOutClassNode->ClassPath.IsNull())
 	{
-		InOutClassNode->ClassPath = FName(*Class.GetPathName());
+		InOutClassNode->ClassPath = Class.GetClassPathName();
 	}
-	if (InOutClassNode->ParentClassPath.IsNone())
+	if (InOutClassNode->ParentClassPath.IsNull())
 	{
 		if (Class.GetSuperClass())
 		{
-			InOutClassNode->ParentClassPath = FName(*Class.GetSuperClass()->GetPathName());
+			InOutClassNode->ParentClassPath = Class.GetSuperClass()->GetClassPathName();
 		}
 	}
 
@@ -1274,7 +1274,7 @@ void FClassHierarchy::SetClassFields(TSharedPtr<FClassViewerNode>& InOutClassNod
 	InOutClassNode->Class = &Class;
 }
 
-void FClassHierarchy::CreateOrUpdateUnloadedClassNode(TSharedPtr<FClassViewerNode>& InOutClassViewerNode, const FAssetData& InAssetData, FName InClassPath)
+void FClassHierarchy::CreateOrUpdateUnloadedClassNode(TSharedPtr<FClassViewerNode>& InOutClassViewerNode, const FAssetData& InAssetData, FTopLevelAssetPath InClassPath)
 {
 	if (!InOutClassViewerNode)
 	{
@@ -1297,12 +1297,12 @@ void FClassHierarchy::CreateOrUpdateUnloadedClassNode(TSharedPtr<FClassViewerNod
 
 	InOutClassViewerNode->ClassPath = InClassPath;
 
-	if (InOutClassViewerNode->ParentClassPath.IsNone())
+	if (InOutClassViewerNode->ParentClassPath.IsNull())
 	{
 		FString ParentClassPathString;
 		if (InAssetData.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassPathString))
 		{
-			InOutClassViewerNode->ParentClassPath = FName(*FPackageName::ExportTextPathToObjectPath(ParentClassPathString));
+			InOutClassViewerNode->ParentClassPath = FTopLevelAssetPath(*FPackageName::ExportTextPathToObjectPath(ParentClassPathString));
 		}
 	}
 
@@ -1335,7 +1335,7 @@ void FClassHierarchy::PopulateClassHierarchy()
 	// Fetch all classes from AssetRegistry blueprint data (which covers unloaded classes), and in-memory UClasses.
 	// Create a node for each one with unioned data from the AssetRegistry or UClass for that class.
 	// Set parent/child pointers to create a tree, and store this tree in this->ObjectClassRoot
-	TMap<FName, TSharedPtr<FClassViewerNode>> ClassPathToNode;
+	TMap<FTopLevelAssetPath, TSharedPtr<FClassViewerNode>> ClassPathToNode;
 
 	// Create a node for every Blueprint class listed in the AssetRegistry and set the Blueprint fields
 	// Retrieve all blueprint classes 
@@ -1344,12 +1344,12 @@ void FClassHierarchy::PopulateClassHierarchy()
 		FString ClassPathString;
 
 		TArray<FAssetData> Assets;
-		AssetRegistry.GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), Assets, /*bSearchSubClasses=*/true);
+		AssetRegistry.GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
 
 		for (const FAssetData& AssetData : Assets)
 		{
-			const FName ClassPath = FEditorClassUtils::GetClassPathFromAssetTag(AssetData);
-			if (!ClassPath.IsNone())
+			const FTopLevelAssetPath ClassPath = FEditorClassUtils::GetClassPathNameFromAssetTag(AssetData);
+			if (!ClassPath.IsNull())
 			{
 				TSharedPtr<FClassViewerNode>& Node = ClassPathToNode.FindOrAdd(ClassPath);
 				CreateOrUpdateUnloadedClassNode(Node, AssetData, ClassPath);
@@ -1362,12 +1362,13 @@ void FClassHierarchy::PopulateClassHierarchy()
 		}
 
 		Assets.Reset();
-		AssetRegistry.GetAssetsByClass(UBlueprintGeneratedClass::StaticClass()->GetFName(), Assets, /*bSearchSubClasses=*/true);
+		AssetRegistry.GetAssetsByClass(UBlueprintGeneratedClass::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
 
 		for (const FAssetData& AssetData : Assets)
 		{
-			TSharedPtr<FClassViewerNode>& Node = ClassPathToNode.FindOrAdd(AssetData.ObjectPath);
-			CreateOrUpdateUnloadedClassNode(Node, AssetData, AssetData.ObjectPath);
+			FTopLevelAssetPath ClassPathNameFromAssetPath(AssetData.ObjectPath.ToString());
+			TSharedPtr<FClassViewerNode>& Node = ClassPathToNode.FindOrAdd(ClassPathNameFromAssetPath);
+			CreateOrUpdateUnloadedClassNode(Node, AssetData, ClassPathNameFromAssetPath);
 		}
 	}
 
@@ -1375,7 +1376,7 @@ void FClassHierarchy::PopulateClassHierarchy()
 	CreateNodesForLoadedClasses(ObjectClassRoot, ClassPathToNode);
 
 	// Set the parent and child pointers
-	for (TPair<FName, TSharedPtr<FClassViewerNode>>& KVPair : ClassPathToNode)
+	for (TPair<FTopLevelAssetPath, TSharedPtr<FClassViewerNode>>& KVPair : ClassPathToNode)
 	{
 		TSharedPtr<FClassViewerNode>& Node = KVPair.Value;
 		if (Node == ObjectClassRoot)
@@ -1384,7 +1385,7 @@ void FClassHierarchy::PopulateClassHierarchy()
 			continue;
 		}
 		TSharedPtr<FClassViewerNode>* ParentNodePtr = nullptr;
-		if (!Node->ParentClassPath.IsNone())
+		if (!Node->ParentClassPath.IsNull())
 		{
 			ParentNodePtr = ClassPathToNode.Find(Node->ParentClassPath);
 		}
@@ -2328,7 +2329,7 @@ int32 SClassViewer::CountTreeItems(FClassViewerNode* Node)
 
 void SClassViewer::Populate()
 {
-	TArray<FName> PreviousSelection;
+	TArray<FTopLevelAssetPath> PreviousSelection;
 	{
 		TArray<TSharedPtr<FClassViewerNode>> SelectedItems = GetSelectedItems();
 		if (SelectedItems.Num() > 0)
@@ -2381,7 +2382,7 @@ void SClassViewer::Populate()
 		// Take the package names for the internal only classes and convert them into their UClass
 		for (int i = 0; i < InternalClassNames.Num(); i++)
 		{
-			FName PackageClassName = *InternalClassNames[i].ToString();
+			FTopLevelAssetPath PackageClassName(InternalClassNames[i].ToString());
 			const TSharedPtr<FClassViewerNode> ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByGeneratedClassPath(ClassViewer::Helpers::ClassHierarchy->GetObjectRootNode(), PackageClassName);
 
 			if (ClassNode.IsValid())

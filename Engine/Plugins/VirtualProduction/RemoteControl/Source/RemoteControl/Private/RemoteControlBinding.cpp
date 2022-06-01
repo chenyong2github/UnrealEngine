@@ -63,7 +63,7 @@ namespace
 	{
 		if (Args.Num())
 		{
-			if (URemoteControlPreset* Preset = FindObject<URemoteControlPreset>(ANY_PACKAGE, *Args[0]))
+			if (URemoteControlPreset* Preset = FindFirstObject<URemoteControlPreset>(*Args[0], EFindFirstObjectOptions::EnsureIfAmbiguous))
 			{
 				TStringBuilder<1000> Output;
 				for (URemoteControlBinding* Binding : Preset->Bindings)

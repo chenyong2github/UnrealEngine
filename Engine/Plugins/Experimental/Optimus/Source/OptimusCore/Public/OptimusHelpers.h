@@ -21,7 +21,7 @@ namespace Optimus
 	template<typename T>
 	T* FindObjectInPackageOrGlobal(const FString& InObjectPath)
 	{
-		UPackage* Package = ANY_PACKAGE;
+		UPackage* Package = nullptr;
 		FString PackageName;
 		FString PackageObjectName = InObjectPath;
 		if (InObjectPath.Split(TEXT("."), &PackageName, &PackageObjectName))
@@ -34,7 +34,7 @@ namespace Optimus
 		// If not found in a specific, search everywhere.
 		if (FoundObject == nullptr)
 		{
-			FoundObject = FindObject<T>(ANY_PACKAGE, *InObjectPath);
+			FoundObject = FindFirstObject<T>(*InObjectPath, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("Optimus::FindObjectInPackageOrGlobal"));
 		}
 
 		return FoundObject;

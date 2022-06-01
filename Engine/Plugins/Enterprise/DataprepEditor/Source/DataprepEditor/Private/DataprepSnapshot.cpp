@@ -347,7 +347,7 @@ namespace DataprepSnapshotUtil
 
 			UClass* SubObjectClass = SubObject->GetClass();
 
-			FString ClassName = SubObjectClass->GetName();
+			FString ClassName = SubObjectClass->GetPathName();
 			MemAr << ClassName;
 
 			int32 ObjectFlags = SubObject->GetFlags();
@@ -416,7 +416,7 @@ namespace DataprepSnapshotUtil
 			FString ClassName;
 			MemAr << ClassName;
 
-			UClass* SubObjectClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+			UClass* SubObjectClass = UClass::TryFindTypeSlow<UClass>(ClassName);
 			check( SubObjectClass );
 
 			int32 ObjectFlags;

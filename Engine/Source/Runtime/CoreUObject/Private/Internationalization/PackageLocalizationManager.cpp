@@ -18,7 +18,7 @@ public:
 protected:
 	//~ FPackageLocalizationCache interface
 	virtual void FindLocalizedPackages(const TMap<FString, TArray<FString>>& NewSourceToLocalizedPaths, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages) override;
-	virtual void FindAssetGroupPackages(const FName InAssetGroupName, const FName InAssetClassName) override;
+	virtual void FindAssetGroupPackages(const FName InAssetGroupName, const FTopLevelAssetPath& InAssetClassName) override;
 };
 
 void FDefaultPackageLocalizationCache::FindLocalizedPackages(const TMap<FString, TArray<FString>>& NewSourceToLocalizedPaths, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages)
@@ -50,7 +50,7 @@ void FDefaultPackageLocalizationCache::FindLocalizedPackages(const TMap<FString,
 	}
 }
 
-void FDefaultPackageLocalizationCache::FindAssetGroupPackages(const FName InAssetGroupName, const FName InAssetClassName)
+void FDefaultPackageLocalizationCache::FindAssetGroupPackages(const FName InAssetGroupName, const FTopLevelAssetPath& InAssetClassName)
 {
 	// Not supported without the asset registry
 }

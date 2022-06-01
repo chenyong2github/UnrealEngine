@@ -307,7 +307,7 @@ bool FindFunctionParameterDefaultValue(const UFunction* Function, const FPropert
 		// If the parameter is a class then try and get the full name as the metadata might just be the short name
 		if (Param->IsA<FClassProperty>() && !FPackageName::IsValidObjectPath(OutString))
 		{
-			if (UClass* DefaultClass = FindObject<UClass>(ANY_PACKAGE, *OutString, true))
+			if (UClass* DefaultClass = UClass::TryFindTypeSlow<UClass>(OutString, EFindFirstObjectOptions::ExactClass))
 			{
 				OutString = DefaultClass->GetPathName();
 			}

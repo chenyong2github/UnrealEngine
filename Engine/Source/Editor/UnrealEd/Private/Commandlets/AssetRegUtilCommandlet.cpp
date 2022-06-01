@@ -32,7 +32,7 @@ const static FName NAME_uptnl(TEXT("uptnl"));
 
 struct FSortableDependencyEntry
 {
-	FSortableDependencyEntry(const FName& InLongPackageName, const FName& InFilePath, const FName& InExtension, const int32 InDepSet, const int32 InDepHierarchy, const int32 InDepOrder, bool InHasDependencies, TSet<FName> &&InClasses)
+	FSortableDependencyEntry(const FName& InLongPackageName, const FName& InFilePath, const FName& InExtension, const int32 InDepSet, const int32 InDepHierarchy, const int32 InDepOrder, bool InHasDependencies, TSet<FTopLevelAssetPath> &&InClasses)
 		: LongPackageName(InLongPackageName)
 		, FilePath(InFilePath)
 		, Extension(InExtension)
@@ -59,7 +59,7 @@ struct FSortableDependencyEntry
 	FName LongPackageName;
 	FName FilePath;
 	FName Extension;
-	TSet<FName> Classes;
+	TSet<FTopLevelAssetPath> Classes;
 	int32 DepSet;
 	int32 DepHierarchy;
 	int32 DepOrder;
@@ -100,7 +100,7 @@ struct FSortableDependencySortForExports
 
 struct FSortableDependencySort
 {
-	FSortableDependencySort(const TArray<FName>& InGroupExtensions, const TArray<FName>& InGroupClasses, const TMap<FName, int32> InExtensionPriority)
+	FSortableDependencySort(const TArray<FName>& InGroupExtensions, const TArray<FTopLevelAssetPath>& InGroupClasses, const TMap<FName, int32> InExtensionPriority)
 		: GroupExtensions(InGroupExtensions)
 		, GroupClasses(InGroupClasses)
 		, ExtensionPriority(InExtensionPriority)
@@ -109,7 +109,7 @@ struct FSortableDependencySort
 	}
 
 	const TArray<FName>& GroupExtensions;
-	const TArray<FName>& GroupClasses;
+	const TArray<FTopLevelAssetPath>& GroupClasses;
 	const TMap<FName, int32> ExtensionPriority;
 
 	bool operator()(const FSortableDependencyEntry& A, const FSortableDependencyEntry& B) const
@@ -127,9 +127,9 @@ struct FSortableDependencySort
 
 		bool bIsAClassGrouped = false;
 		bool bIsBClassGrouped = false;
-		FName AClass = NAME_None;
-		FName BClass = NAME_None;
-		for (const FName& Class : GroupClasses)
+		FTopLevelAssetPath AClass;
+		FTopLevelAssetPath BClass;
+		for (const FTopLevelAssetPath& Class : GroupClasses)
 		{
 			if (A.Classes.Contains(Class))
 			{
@@ -149,7 +149,7 @@ struct FSortableDependencySort
 
 		if ((AClass != BClass) && bIsAClassGrouped && bIsBClassGrouped)
 		{
-			return BClass.LexicalLess(AClass);
+			return BClass.Compare(AClass) < 0;
 		}
 
 		if (A.DepSet != B.DepSet)
@@ -201,7 +201,7 @@ UAssetRegUtilCommandlet::UAssetRegUtilCommandlet(const FObjectInitializer& Objec
 }
 
 void UAssetRegUtilCommandlet::RecursivelyGrabDependencies(TArray<FSortableDependencyEntry>& OutSortableDependencies,
-                                                          const int32& DepSet, int32& DepOrder, int32 DepHierarchy, TSet<FName>& ProcessedFiles, const TSet<FName>& OriginalSet, const FName& FilePath, const FName& PackageFName, const TArray<FName>& FilterByClasses )
+                                                          const int32& DepSet, int32& DepOrder, int32 DepHierarchy, TSet<FName>& ProcessedFiles, const TSet<FName>& OriginalSet, const FName& FilePath, const FName& PackageFName, const TArray<FTopLevelAssetPath>& FilterByClasses )
 {
 	bool bHasDependencies = false;
 	//now walk the dependency tree for everything under this package
@@ -210,17 +210,17 @@ void UAssetRegUtilCommandlet::RecursivelyGrabDependencies(TArray<FSortableDepend
 
 	TArray<FAssetData> AssetsData;
 	AssetRegistry->GetAssetsByPackageName(PackageFName, AssetsData, true);
-	TSet<FName> Classes;
+	TSet<FTopLevelAssetPath> Classes;
 	Classes.Reserve(AssetsData.Num());
 	for (const FAssetData& AssetData : AssetsData)
 	{
-		Classes.Add(AssetData.AssetClass);
-		TArray<FName> AncestorClasses;
-		AssetRegistry->GetAncestorClassNames(AssetData.AssetClass, AncestorClasses);
+		Classes.Add(AssetData.AssetClassPath);
+		TArray<FTopLevelAssetPath> AncestorClasses;
+		AssetRegistry->GetAncestorClassNames(AssetData.AssetClassPath, AncestorClasses);
 		Classes.Append(AncestorClasses);
 	}
-	TSet<FName> FilteredClasses;
-	for (const FName& FilterClass : FilterByClasses)
+	TSet<FTopLevelAssetPath> FilteredClasses;
+	for (const FTopLevelAssetPath& FilterClass : FilterByClasses)
 	{
 		if (Classes.Contains(FilterClass))
 		{
@@ -279,13 +279,13 @@ void UAssetRegUtilCommandlet::ReorderOrderFile(const FString& OrderFilePath, con
 	ExtraAssetExtensions.Add(NAME_ubulk);
 	ExtraAssetExtensions.Add(NAME_uptnl);
 
-	TArray<FName> FilterByClasses;
-	FilterByClasses.Add(FName(TEXT("Material")));
-	FilterByClasses.Add(FName(TEXT("MaterialFunction")));
-	FilterByClasses.Add(FName(TEXT("MaterialInstance")));
-	FilterByClasses.Add(FName(TEXT("BlueprintCore")));
-	FilterByClasses.Add(FName(TEXT("ParticleEmitter")));
-	FilterByClasses.Add(FName(TEXT("ParticleModule")));
+	TArray<FTopLevelAssetPath> FilterByClasses;
+	FilterByClasses.Add(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("Material")));
+	FilterByClasses.Add(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("MaterialFunction")));
+	FilterByClasses.Add(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("MaterialInstance")));
+	FilterByClasses.Add(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("BlueprintCore")));
+	FilterByClasses.Add(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("ParticleEmitter")));
+	FilterByClasses.Add(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("ParticleModule")));
 
 
 	int32 DepSet = 0; // this is the root set for the dependency (i.e files with a number probably came from the same core dependency)
@@ -309,7 +309,7 @@ void UAssetRegUtilCommandlet::ReorderOrderFile(const FString& OrderFilePath, con
 				{
 					//special case for packages outside of our mounted paths, pick up the header and the export without any dependency-gathering.
 					ProcessedFiles.Add(FilePath);
-					UnsortedEntries.Add(FSortableDependencyEntry(NAME_UnresolvedPackageName, FilePath, FNameExtension, DepSet, 0, 0, false, TSet<FName>()));
+					UnsortedEntries.Add(FSortableDependencyEntry(NAME_UnresolvedPackageName, FilePath, FNameExtension, DepSet, 0, 0, false, TSet<FTopLevelAssetPath>()));
 				}
 			}
 			else if ( ExtraAssetExtensions.Contains(FNameExtension) == false )
@@ -336,7 +336,7 @@ void UAssetRegUtilCommandlet::ReorderOrderFile(const FString& OrderFilePath, con
 				{
 					check(!ProcessedFiles.Contains(ExtraAssetPathFName));
 					ProcessedFiles.Add(ExtraAssetPathFName);
-					TSet<FName> Classes = DependencyEntry.Classes;
+					TSet<FTopLevelAssetPath> Classes = DependencyEntry.Classes;
 					UnsortedEntries.Add(FSortableDependencyEntry(DependencyEntry.LongPackageName, ExtraAssetPathFName, ExtraAssetExtension, DependencyEntry.DepSet, DependencyEntry.DepHierarchy, DependencyEntry.DepOrder, DependencyEntry.bHasDependencies, MoveTemp(Classes)));
 				}
 			}

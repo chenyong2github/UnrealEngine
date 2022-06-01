@@ -1132,7 +1132,7 @@ FFrontendFilter_ShowRedirectors::FFrontendFilter_ShowRedirectors(TSharedPtr<FFro
 	: FFrontendFilter(InCategory)
 {
 	bAreRedirectorsInBaseFilter = false;
-	RedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
+	RedirectorClassName = UObjectRedirector::StaticClass()->GetPathName();
 }
 
 void FFrontendFilter_ShowRedirectors::SetCurrentFilter(TArrayView<const FName> InSourcePaths, const FContentBrowserDataFilter& InBaseFilter)
@@ -1147,7 +1147,7 @@ bool FFrontendFilter_ShowRedirectors::PassesFilter(FAssetFilterType InItem) cons
 	if ( !bAreRedirectorsInBaseFilter )
 	{
 		const FContentBrowserItemDataAttributeValue ClassValue = InItem.GetItemAttribute(NAME_Class);
-		return !ClassValue.IsValid() || ClassValue.GetValue<FName>() != RedirectorClassName;
+		return !ClassValue.IsValid() || ClassValue.GetValue<FString>() != RedirectorClassName;
 	}
 
 	return true;
@@ -1339,8 +1339,8 @@ void FFrontendFilter_UsedInAnyLevel::ActiveStateChanged(bool bActive)
 	{
 		// Find all the levels & external actors
 		FARFilter Filter;
-		Filter.ClassNames.Add(UWorld::StaticClass()->GetFName());
-		Filter.ClassNames.Add(AActor::StaticClass()->GetFName());
+		Filter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
+		Filter.ClassPaths.Add(AActor::StaticClass()->GetClassPathName());
 		Filter.bRecursiveClasses = true;
 		FrontendFilterHelper::GetDependencies(Filter, *AssetRegistry, LevelsDependencies);
 	}
@@ -1383,8 +1383,8 @@ void FFrontendFilter_NotUsedInAnyLevel::ActiveStateChanged(bool bActive)
 	{
 		// Find all the levels & external actors
 		FARFilter Filter;
-		Filter.ClassNames.Add(UWorld::StaticClass()->GetFName());
-		Filter.ClassNames.Add(AActor::StaticClass()->GetFName());
+		Filter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
+		Filter.ClassPaths.Add(AActor::StaticClass()->GetClassPathName());
 		Filter.bRecursiveClasses = true;
 		FrontendFilterHelper::GetDependencies(Filter, *AssetRegistry, LevelsDependencies);
 	}

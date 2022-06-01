@@ -9,7 +9,7 @@
 
 UScriptStruct* FRigVMActionKey::GetScriptStruct() const
 {
-	return FindObjectChecked<UScriptStruct>(ANY_PACKAGE, *ScriptStructPath);		
+	return FindObjectChecked<UScriptStruct>(nullptr, *ScriptStructPath);		
 }
 
 TSharedPtr<FStructOnScope> FRigVMActionKey::GetAction() const

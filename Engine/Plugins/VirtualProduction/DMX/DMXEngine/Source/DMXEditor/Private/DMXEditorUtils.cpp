@@ -884,7 +884,7 @@ void FDMXEditorUtils::GetAllAssetsOfClass(UClass* Class, TArray<UObject*>& OutOb
 
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry")).Get();
 	TArray<FAssetData> OutAssets;
-	AssetRegistry.GetAssetsByClass(Class->GetFName(), OutAssets, true);
+	AssetRegistry.GetAssetsByClass(Class->GetClassPathName(), OutAssets, true);
 
 	for (const FAssetData& Asset : OutAssets)
 	{

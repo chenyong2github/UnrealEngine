@@ -190,7 +190,7 @@ public:
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 		TArray<FAssetData> AssetDatas;
-		AssetRegistryModule.Get().GetAssetsByClass("MediaBundle", AssetDatas, true);
+		AssetRegistryModule.Get().GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/MediaFrameworkUtilities"), TEXT("MediaBundle")), AssetDatas, true);
 		PlacementList.Reset(AssetDatas.Num());
 
 		for (const FAssetData& AssetData : AssetDatas)

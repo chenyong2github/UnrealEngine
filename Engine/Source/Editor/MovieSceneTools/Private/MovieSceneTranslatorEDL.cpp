@@ -404,7 +404,7 @@ bool MovieSceneTranslatorEDL::ImportEDL(UMovieScene* InMovieScene, FFrameRate In
 
 				// Collect a full list of assets with the specified class
 				TArray<FAssetData> AssetDataArray;
-				AssetRegistryModule.Get().GetAssetsByClass(ULevelSequence::StaticClass()->GetFName(), AssetDataArray);
+				AssetRegistryModule.Get().GetAssetsByClass(ULevelSequence::StaticClass()->GetClassPathName(), AssetDataArray);
 
 				for (FAssetData AssetData : AssetDataArray)
 				{

@@ -375,7 +375,7 @@ void FEditableSkeleton::GetAssetsContainingCurves(const FName& InContainerName, 
 	const FString CurrentSkeletonName = SkeletonData.GetExportTextName();
 
 	FAssetRegistryModule& AssetModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetModule.Get().GetAssetsByClass(UAnimationAsset::StaticClass()->GetFName(), OutAssets, true);
+	AssetModule.Get().GetAssetsByClass(UAnimationAsset::StaticClass()->GetClassPathName(), OutAssets, true);
 
 	GWarn->BeginSlowTask(LOCTEXT("CollectAnimationsTaskDesc", "Collecting assets..."), true);
 
@@ -455,16 +455,16 @@ void FEditableSkeleton::RemoveSmartnamesAndFixupAnimations(const FName& InContai
 
 		AnimationAssets.Sort([&](const FAssetData& A, const FAssetData& B)
 		{ 
-			if (A.AssetClass == B.AssetClass)
+			if (A.AssetClassPath == B.AssetClassPath)
 			{
 				return A.AssetName.LexicalLess(B.AssetName);
 			}
-			return A.AssetClass.LexicalLess(B.AssetClass);
+			return A.AssetClassPath.Compare(B.AssetClassPath) < 0;
 		});
 
 		for (FAssetData& Data : AnimationAssets)
 		{
-			AssetMessage += Data.AssetName.ToString() + " (" + Data.AssetClass.ToString() + ")\n";
+			AssetMessage += Data.AssetName.ToString() + " (" + Data.AssetClassPath.ToString() + ")\n";
 		}
 
 		FText AssetTitleText = LOCTEXT("DeleteCurveDialogTitle", "Confirm Deletion");
@@ -1230,7 +1230,7 @@ void FEditableSkeleton::GetCompatibleAnimSequences(TArray<struct FAssetData>& Ou
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	TArray<FAssetData> AssetDataList;
-	AssetRegistryModule.Get().GetAssetsByClass(UAnimSequenceBase::StaticClass()->GetFName(), AssetDataList, true);
+	AssetRegistryModule.Get().GetAssetsByClass(UAnimSequenceBase::StaticClass()->GetClassPathName(), AssetDataList, true);
 
 	OutAssets.Empty(AssetDataList.Num());
 
@@ -1550,7 +1550,7 @@ void FEditableSkeleton::RemoveUnusedBones()
 	}
 
 	FARFilter Filter;
-	Filter.ClassNames.Add(USkeletalMesh::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
 
 	FString SkeletonString = FAssetData(Skeleton).GetExportTextName();
 	Filter.TagsAndValues.Add(USkeletalMesh::GetSkeletonMemberName(), SkeletonString);

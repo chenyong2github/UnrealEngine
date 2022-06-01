@@ -3241,7 +3241,7 @@ static UObject* GFindExistingScriptImport(FPackageObjectIndex GlobalImportIndex,
 			Object = &ScriptObjects.FindChecked(GlobalImportIndex);
 			if (Outer)
 			{
-				*Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false, true);
+				*Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false);
 			}
 		}
 	}

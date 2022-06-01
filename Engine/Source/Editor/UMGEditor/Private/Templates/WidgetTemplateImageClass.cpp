@@ -18,11 +18,11 @@ UWidget* FWidgetTemplateImageClass::Create(UWidgetTree* WidgetTree)
 {
 	UWidget* Widget = FWidgetTemplateClass::Create(WidgetTree);
 
-	if (Cast<UImage>(Widget) != nullptr && Supports(FindObject<UClass>(ANY_PACKAGE, *WidgetAssetData.AssetClass.ToString())) )
+	if (Cast<UImage>(Widget) != nullptr && Supports(FindObject<UClass>(WidgetAssetData.AssetClassPath)) )
 	{
 		UImage* ImageWidget = Cast<UImage>(Widget);
 
-		UObject* ImageResource = FindObject<UObject>(ANY_PACKAGE, *WidgetAssetData.ObjectPath.ToString());
+		UObject* ImageResource = FindObject<UObject>(nullptr, *WidgetAssetData.ObjectPath.ToString());
 		ImageWidget->Brush.SetResourceObject(ImageResource);
 	}
 
@@ -31,7 +31,7 @@ UWidget* FWidgetTemplateImageClass::Create(UWidgetTree* WidgetTree)
 
 bool FWidgetTemplateImageClass::Supports(UClass* InClass)
 {
-	static const UClass* SlateTextureAtlasInterface = FindObject<UClass>(ANY_PACKAGE, TEXT("SlateTextureAtlasInterface"));
+	static const UClass* SlateTextureAtlasInterface = FindObject<UClass>(nullptr, TEXT("/Script/Engine.SlateTextureAtlasInterface"));
 
 	return InClass != nullptr && ( InClass->IsChildOf(UTexture::StaticClass())
 		|| InClass->IsChildOf(UMaterialInterface::StaticClass())

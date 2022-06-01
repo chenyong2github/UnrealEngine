@@ -39,7 +39,7 @@ namespace WorldHierarchy
 		
 		for (const FAssetData& Asset : AssetList)
 		{
-			if (Asset.AssetClass == UWorld::StaticClass()->GetFName())
+			if (Asset.AssetClassPath == UWorld::StaticClass()->GetClassPathName())
 			{
 				OutWorlds.Add(Asset);
 			}

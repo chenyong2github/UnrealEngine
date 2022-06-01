@@ -7,7 +7,7 @@
 #include "Engine/Engine.h"
 #include "StructTypeBitSet.h"
 
-DEFINE_ENUM_TO_STRING(EMassProcessingPhase);
+DEFINE_ENUM_TO_STRING(EMassProcessingPhase, "/Script/MassEntity");
 
 namespace UE::Mass::Debug
 {

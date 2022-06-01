@@ -50,7 +50,7 @@ public:
 
 		FAssetPickerConfig AssetPickerConfig;
 		/** The asset picker will only show sequences */
-		AssetPickerConfig.Filter.ClassNames.Add(UAnimSequence::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(UAnimSequence::StaticClass()->GetClassPathName());
 		/** The delegate that fires when an asset was selected */
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(this, &SPoseConfigureWindow::OnSourceAnimationSelected);
 		if (SourceSequence != nullptr)

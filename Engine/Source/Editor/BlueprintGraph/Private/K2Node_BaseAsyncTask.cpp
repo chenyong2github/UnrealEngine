@@ -653,7 +653,7 @@ UK2Node::ERedirectType UK2Node_BaseAsyncTask::DoPinsMatchForReconstruction(const
 					FParse::Value(*It.Value().GetValue(), TEXT("OldPinName="), OldPinString);
 					FParse::Value(*It.Value().GetValue(), TEXT("NewPinName="), NewPinString);
 
-					UClass* RedirectProxyClass = FindObject<UClass>(ANY_PACKAGE, *ProxyClassString);
+					UClass* RedirectProxyClass = UClass::TryFindTypeSlow<UClass>(ProxyClassString);
 					if (RedirectProxyClass)
 					{
 						FAsyncTaskPinRedirectMapInfo& PinRedirectInfo = AsyncTaskPinRedirectMap.FindOrAdd(*OldPinString);

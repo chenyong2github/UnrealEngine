@@ -39,9 +39,12 @@ public:
 
 	//~ IMessageRpcServer interface
 
-	virtual void AddHandler(const FName& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler) override;
+	virtual void AddHandler(const FTopLevelAssetPath& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler) override;
 	virtual const FMessageAddress& GetAddress() const override;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual FOnMessageRpcNoHandler& OnNoHandler() override;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	virtual FOnMessagePathNameRpcNoHandler& OnNoHandlerWithPathName() override;
 	virtual void SetSendProgressUpdate(bool InSendProgress) override;
 protected:
 	explicit FMessageRpcServer(FMessageEndpointBuilder&& InEndpointBuilder);
@@ -85,10 +88,15 @@ private:
 private:
 
 	/** Registered request message handlers. */
-	TMap<FName, TSharedPtr<IMessageRpcHandler>> Handlers;
+	TMap<FTopLevelAssetPath, TSharedPtr<IMessageRpcHandler>> Handlers;
 
 	/* Delegate that is executed when a received RPC message has no registered handler. */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnMessageRpcNoHandler NoHandlerDelegate;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/* Delegate that is executed when a received RPC message has no registered handler. */
+	FOnMessagePathNameRpcNoHandler NoHandlerDelegateWithPathName;
 
 	/** Collection of pending RPC returns. */
 	TMap<FGuid, FReturnInfo> Returns;

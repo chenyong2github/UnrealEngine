@@ -112,7 +112,7 @@ TArray<FAssetData> SNiagaraAssetPickerList::GetAssetDataForSelector(UClass* Asse
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FAssetData> EmitterAssets;
-	AssetRegistryModule.Get().GetAssetsByClass(AssetClass->GetFName(), EmitterAssets);
+	AssetRegistryModule.Get().GetAssetsByClass(AssetClass->GetClassPathName(), EmitterAssets);
 
 	TArray<FAssetData> EmittersToShow;
 	if (TabOptions.GetOnlyShowTemplates())

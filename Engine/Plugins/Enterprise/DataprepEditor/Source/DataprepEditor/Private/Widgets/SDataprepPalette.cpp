@@ -534,18 +534,17 @@ void SDataprepPalette::RefreshAssetInRegistry(const FAssetData& InAssetData)
 	FAssetDataTagMapSharedView::FFindTagResult GeneratedClassPathPtr = InAssetData.TagsAndValues.FindTag( TEXT("GeneratedClass") );
 	if (GeneratedClassPathPtr.IsSet())
 	{
-		const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath( GeneratedClassPathPtr.GetValue() );
-		const FString ClassName = FPackageName::ObjectPathToObjectName( ClassObjectPath );
+		const FTopLevelAssetPath ClassObjectPath(FPackageName::ExportTextPathToObjectPath( GeneratedClassPathPtr.GetValue() ));
 
-		TArray<FName> OutAncestorClassNames;
+		TArray<FTopLevelAssetPath> OutAncestorClassNames;
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked< FAssetRegistryModule >( TEXT("AssetRegistry") );
-		AssetRegistryModule.Get().GetAncestorClassNames( FName( *ClassName ) , OutAncestorClassNames );
+		AssetRegistryModule.Get().GetAncestorClassNames(ClassObjectPath, OutAncestorClassNames);
 		
 		bool bIsTrackedClass = false;
-		for ( FName Ancestor : OutAncestorClassNames )
+		for ( FTopLevelAssetPath Ancestor : OutAncestorClassNames )
 		{
-			if ( Ancestor == UDataprepOperation::StaticClass()->GetFName() )
+			if ( Ancestor == UDataprepOperation::StaticClass()->GetClassPathName() )
 			{
 				bIsTrackedClass = true;
 				break;

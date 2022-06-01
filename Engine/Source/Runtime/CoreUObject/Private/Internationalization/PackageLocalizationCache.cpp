@@ -184,16 +184,16 @@ FPackageLocalizationCache::FPackageLocalizationCache()
 				for (const auto& SectionEntryPair : *AssetGroupClassesSection)
 				{
 					const FName GroupName = SectionEntryPair.Key;
-					const FName ClassName = *SectionEntryPair.Value.GetValue();
-
-					const auto* AssetClassGroupPair = AssetClassesToAssetGroups.FindByPredicate([&](const TTuple<FName, FName>& InAssetClassToAssetGroup)
+					const FTopLevelAssetPath ClassName = UClass::TryConvertShortTypeNameToPathName<UStruct>(SectionEntryPair.Value.GetValue(), ELogVerbosity::Fatal, TEXT("ReadAssetGroupClassSettings"));
+					
+					const auto* AssetClassGroupPair = AssetClassesToAssetGroups.FindByPredicate([&](const TTuple<FTopLevelAssetPath, FName>& InAssetClassToAssetGroup)
 					{
 						return InAssetClassToAssetGroup.Key == ClassName;
 					});
 
 					if (AssetClassGroupPair)
 					{
-						UE_CLOG(AssetClassGroupPair->Value != ClassName, LogPackageLocalizationCache, Warning, TEXT("Class '%s' was already assigned to asset group '%s', ignoring request to assign it to '%s' from the %s configuration."), *ClassName.ToString(), *AssetClassGroupPair->Value.ToString(), *GroupName.ToString(), InConfigLogName);
+						UE_CLOG(AssetClassGroupPair->Value != ClassName.GetAssetName(), LogPackageLocalizationCache, Warning, TEXT("Class '%s' was already assigned to asset group '%s', ignoring request to assign it to '%s' from the %s configuration."), *ClassName.ToString(), *AssetClassGroupPair->Value.ToString(), *GroupName.ToString(), InConfigLogName);
 					}
 					else
 					{

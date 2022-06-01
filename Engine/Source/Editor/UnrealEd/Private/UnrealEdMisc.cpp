@@ -824,26 +824,26 @@ void FUnrealEdMisc::TickAssetAnalytics()
 			TArray< FAnalyticsEventAttribute > AssetAttributes;
 			int32 NumMapFiles = 0;
 			TSet< FName > PackageNames;
-			TMap< FName, int32 > ClassInstanceCounts;
+			TMap< FTopLevelAssetPath, int32 > ClassInstanceCounts;
 
 			for( auto AssetIter = AssetData.CreateConstIterator(); AssetIter; ++AssetIter )
 			{
 				PackageNames.Add( AssetIter->PackageName );
-				if( AssetIter->AssetClass == UWorld::StaticClass()->GetFName()  )
+				if( AssetIter->AssetClassPath == UWorld::StaticClass()->GetClassPathName()  )
 				{
 					NumMapFiles++;
 				}
 
-				if( AssetIter->AssetClass != NAME_None )
+				if (!AssetIter->AssetClassPath.IsNull())
 				{
-					int32* ExistingClassCount = ClassInstanceCounts.Find( AssetIter->AssetClass );
+					int32* ExistingClassCount = ClassInstanceCounts.Find( AssetIter->AssetClassPath);
 					if( ExistingClassCount )
 					{
 						++(*ExistingClassCount);
 					}
 					else
 					{
-						ClassInstanceCounts.Add( AssetIter->AssetClass, 1 );
+						ClassInstanceCounts.Add( AssetIter->AssetClassPath, 1 );
 					}
 				}
 			}

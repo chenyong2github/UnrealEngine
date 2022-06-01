@@ -33,7 +33,7 @@ namespace AssetUtils {	//template<typename T>
 	void DeleteDirectory(FString TargetDirectory);
 	bool DeleteAsset(const FString& AssetPath);
 	FUAssetMeta GetAssetMetaData(const FString& JsonPath);
-	TArray<UMaterialInstanceConstant*> GetSelectedAssets(const FString& AssetClass);
+	TArray<UMaterialInstanceConstant*> GetSelectedAssets(const FTopLevelAssetPath& AssetClass);
 	void AddFoliageTypesToLevel(TArray<FString> FoliageTypePaths);
 
 	//To manage import settings like Auto-Populate Foliage types etc.

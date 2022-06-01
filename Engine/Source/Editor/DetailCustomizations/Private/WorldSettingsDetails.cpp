@@ -402,7 +402,7 @@ TSharedRef<SWidget> FLightmapCustomNodeBuilder::MakeLightMapList(TSharedPtr<FLig
 					// Class
 					SNew(STextBlock)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.Text(FText::FromName(LightMapAssetData.AssetClass))
+					.Text(FText::FromString(LightMapAssetData.AssetClassPath.ToString()))
 				]
 			]
 		];

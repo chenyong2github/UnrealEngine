@@ -140,11 +140,11 @@ public:
 
 		// We will be looking for any template sequence whose root bound object is compatible with the current object binding.
 		// That means any template sequence bound to something of the same class, or a parent class.
-		TSet<FName> BaseClassNames;
+		TSet<FString> BaseClassNames;
 		const UClass* CurBaseClass = InBaseClass;
 		while (CurBaseClass)
 		{
-			BaseClassNames.Add(CurBaseClass->GetFName());
+			BaseClassNames.Add(CurBaseClass->GetPathName());
 			CurBaseClass = CurBaseClass->GetSuperClass();
 		}
 
@@ -159,24 +159,25 @@ public:
 			AssetPickerConfig.bAllowNullSelection = false;
 			AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 			AssetPickerConfig.Filter.bRecursiveClasses = true;
-			AssetPickerConfig.Filter.ClassNames.Add(UTemplateSequence::StaticClass()->GetFName());
+			AssetPickerConfig.Filter.ClassPaths.Add(UTemplateSequence::StaticClass()->GetClassPathName());
 			AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 			AssetPickerConfig.AdditionalReferencingAssets.Add(FAssetData(Sequence));
 			if (LegacyBaseClass != nullptr)
 			{
-				AssetPickerConfig.Filter.ClassNames.Add(LegacyBaseClass->GetFName());
+				AssetPickerConfig.Filter.ClassPaths.Add(LegacyBaseClass->GetClassPathName());
 			}
 
 			AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda(
 				[this, BaseClassNames](const FAssetData& AssetData) -> bool
 				{
-					if (LegacyBaseClass == nullptr || AssetData.AssetClass != LegacyBaseClass->GetFName())
+					if (LegacyBaseClass == nullptr || AssetData.AssetClassPath != LegacyBaseClass->GetClassPathName())
 					{
 						const FAssetDataTagMapSharedView::FFindTagResult FoundBoundActorClass = AssetData.TagsAndValues.FindTag("BoundActorClass");
 						if (FoundBoundActorClass.IsSet())
 						{
 							// Filter this out if it's got an incompatible bound actor class.
-							const FName FoundBoundActorClassName(*FoundBoundActorClass.GetValue());
+							const FString FoundBoundActorClassName(FoundBoundActorClass.GetValue());
+							ensureAlwaysMsgf(!FPackageName::IsShortPackageName(FoundBoundActorClassName), TEXT("BoundActorClass tag contains short name \"%s\". Path name expected. See UTemplateSequence::GetAssetRegistryTags."), *FoundBoundActorClassName);
 							return !BaseClassNames.Contains(FoundBoundActorClassName);
 						}
 						else

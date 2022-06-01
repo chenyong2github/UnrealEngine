@@ -59,7 +59,7 @@ namespace ContentBrowserFileData
 	{
 		FString TypeExtension;
 
-		FName TypeName;
+		FTopLevelAssetPath TypeName;
 
 		FText TypeDisplayName;
 

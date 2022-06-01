@@ -1319,7 +1319,7 @@ bool FUDNParser::ParseAssetLink(FString &InternalLink)
 		FString Action = Token[0];
 		FString AssetName = Token[1];
 
-		UObject* RequiredObject = FindObject<UObject>(ANY_PACKAGE, *AssetName);
+		UObject* RequiredObject = FindFirstObject<UObject>(*AssetName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
 		if (RequiredObject != nullptr)
 		{
 			if (Action == TEXT("EDIT"))

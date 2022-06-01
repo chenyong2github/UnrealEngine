@@ -798,17 +798,17 @@ void SAssetAuditBrowser::AddAssetsOfClass(UClass* AssetClass)
 	{
 		TArray<FAssetData> FoundData;
 		FARFilter AssetFilter;
-		TSet<FName> DerivedClassNames;
+		TSet<FTopLevelAssetPath> DerivedClassNames;
 		bool bAssetClassIsBlueprint = AssetClass->IsChildOf(UBlueprintCore::StaticClass());
 
-		AssetFilter.ClassNames.Add(AssetClass->GetFName());
+		AssetFilter.ClassPaths.Add(AssetClass->GetClassPathName());
 		AssetFilter.bRecursiveClasses = true;
 
 		if (!bAssetClassIsBlueprint)
 		{
 			// If we didn't search specifically for a Blueprint class, find the derived class and look for all blueprints of those derived classes
-			AssetRegistry->GetDerivedClassNames(AssetFilter.ClassNames, TSet<FName>(), DerivedClassNames);
-			AssetFilter.ClassNames.Add(UBlueprintCore::StaticClass()->GetFName());
+			AssetRegistry->GetDerivedClassNames(AssetFilter.ClassPaths, TSet<FTopLevelAssetPath>(), DerivedClassNames);
+			AssetFilter.ClassPaths.Add(UBlueprintCore::StaticClass()->GetClassPathName());
 		}
 		
 		if (AssetRegistry->GetAssets(AssetFilter, FoundData) && FoundData.Num() > 0)
@@ -817,7 +817,7 @@ void SAssetAuditBrowser::AddAssetsOfClass(UClass* AssetClass)
 
 			for (FAssetData& AssetData : FoundData)
 			{
-				if (!bAssetClassIsBlueprint && AssetData.AssetClass.ToString().EndsWith(TEXT("Blueprint")))
+				if (!bAssetClassIsBlueprint && AssetData.AssetClassPath.GetAssetName().ToString().EndsWith(TEXT("Blueprint")))
 				{
 					// This is a blueprint but the filter type wasn't, check the derived class list
 					if (!AssetManager->IsAssetDataBlueprintOfClassSet(AssetData, DerivedClassNames))

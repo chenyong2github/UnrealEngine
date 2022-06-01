@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/StateTreeCompileAllCommandlet.h"
 #include "StateTree.h"
@@ -42,7 +42,7 @@ int32 UStateTreeCompileAllCommandlet::Main(const FString& Params)
 	
 	UE_LOG(LogStateTreeCompile, Display, TEXT("Gathering All StateTrees From Asset Registry..."));
 	TArray<FAssetData> StateTreeAssetList;
-	AssetRegistryModule.Get().GetAssetsByClass(UStateTree::StaticClass()->GetFName(), StateTreeAssetList, /*bSearchSubClasses*/false);
+	AssetRegistryModule.Get().GetAssetsByClass(UStateTree::StaticClass()->GetClassPathName(), StateTreeAssetList, /*bSearchSubClasses*/false);
 
 	int32 Counter = 0;
 	for (const FAssetData& Asset : StateTreeAssetList)

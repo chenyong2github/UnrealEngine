@@ -96,7 +96,7 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 	}
 
 	TargetSkeleton = AnimGraphNode->GetAnimBlueprint()->TargetSkeleton;
-	TargetSkeletonName = TargetSkeleton ? FString::Printf(TEXT("%s'%s'"), *TargetSkeleton->GetClass()->GetName(), *TargetSkeleton->GetPathName()) : FString(TEXT(""));
+	TargetSkeletonName = TargetSkeleton ? FObjectPropertyBase::GetExportPath(TargetSkeleton) : FString(TEXT(""));
 
 	// Get the node property
 	const FStructProperty* NodeProperty = AnimGraphNode->GetFNodeProperty();

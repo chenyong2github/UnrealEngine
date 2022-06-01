@@ -118,7 +118,7 @@ void FCameraAnimTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuild
 
 		// Collect a full list of assets with the specified class
 		TArray<FAssetData> AssetDataList;
-		AssetRegistryModule.Get().GetAssetsByClass(UCameraAnim::StaticClass()->GetFName(), AssetDataList);
+		AssetRegistryModule.Get().GetAssetsByClass(UCameraAnim::StaticClass()->GetClassPathName(), AssetDataList);
 
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("AddCameraAnim", "Camera Anim"), NSLOCTEXT("Sequencer", "AddCameraAnimTooltip", "Adds an additive camera animation track."),
@@ -150,7 +150,7 @@ void FCameraAnimTrackEditor::AddCameraAnimSubMenu(FMenuBuilder& MenuBuilder, TAr
 		AssetPickerConfig.OnAssetEnterPressed = FOnAssetEnterPressed::CreateRaw(this, &FCameraAnimTrackEditor::OnCameraAnimAssetEnterPressed, ObjectBinding);
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
-		AssetPickerConfig.Filter.ClassNames.Add(UCameraAnim::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassPaths.Add(UCameraAnim::StaticClass()->GetClassPathName());
 		AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 		AssetPickerConfig.AdditionalReferencingAssets.Add(FAssetData(Sequence));
 	}

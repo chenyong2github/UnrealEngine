@@ -317,7 +317,7 @@ bool SAnimationCompressionSelectionDialog::IsConfirmButtonEnabled() const
 void SAnimationCompressionSelectionDialog::Construct(const FArguments& InArgs, const FAnimationCompressionSelectionDialogConfig& InConfig)
 {
 	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassNames.Push(UAnimBoneCompressionSettings::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Push(UAnimBoneCompressionSettings::StaticClass()->GetClassPathName());
 	AssetPickerConfig.Filter.bRecursiveClasses = true;
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SAnimationCompressionSelectionDialog::OnAssetSelected);

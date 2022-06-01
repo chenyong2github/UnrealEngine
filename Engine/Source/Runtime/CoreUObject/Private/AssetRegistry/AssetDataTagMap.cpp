@@ -25,7 +25,7 @@ FAssetRegistryExportPath ParseExportPath(T ExportPath)
 	{
 		T ClassName;
 		verify(FPackageName::ParseExportTextPath(ExportPath, &ClassName, &ObjectPath));
-		Out.Class = FName(ClassName);
+		Out.ClassPath = FTopLevelAssetPath(ClassName);
 	}
 	else
 	{
@@ -60,7 +60,7 @@ FString FAssetRegistryExportPath::ToString() const
 
 FName FAssetRegistryExportPath::ToName() const
 {
-	if (Class.IsNone() && Object.IsNone())
+	if (ClassPath.IsNull() && Object.IsNone())
 	{
 		return Package;
 	}
@@ -72,18 +72,34 @@ FName FAssetRegistryExportPath::ToName() const
 
 void FAssetRegistryExportPath::ToString(FStringBuilderBase& Out) const
 {
-	if (!Class.IsNone())
+	if (!ClassPath.IsNull())
 	{
-		Out << Class << '\'';
+		Out << ClassPath << '\'';
 	}
 	Out << Package;
 	if (!Object.IsNone())
 	{
 		Out << '.' << Object;
 	}
-	if (!Class.IsNone())
+	if (!ClassPath.IsNull())
 	{
 		Out << '\'';
+	}
+}
+
+FString FAssetRegistryExportPath::ToPath() const
+{
+	TStringBuilder<256> Path;
+	ToPath(Path);
+	return FString(Path);
+}
+
+void FAssetRegistryExportPath::ToPath(FStringBuilderBase& Out) const
+{
+	Out << Package;
+	if (!Object.IsNone())
+	{
+		Out << '.' << Object;
 	}
 }
 
@@ -103,17 +119,17 @@ static FAssetRegistryExportPath MakeNumberedPath(FName Name)
 
 static FArchive& operator<<(FArchive& Ar, FAssetRegistryExportPath& Path)
 {
-	return Ar << Path.Class << Path.Object << Path.Package;
+	return Ar << Path.ClassPath << Path.Object << Path.Package;
 }
 
 bool operator==(const FAssetRegistryExportPath& A, const FAssetRegistryExportPath& B)
 {
-	return A.Class == B.Class & A.Package == B.Package & A.Object == B.Object;
+	return A.ClassPath == B.ClassPath & A.Package == B.Package & A.Object == B.Object;
 }
 
 uint32 GetTypeHash(const FAssetRegistryExportPath& Path)
 {
-	return FixedTagPrivate::HashCombineQuick(GetTypeHash(Path.Class), GetTypeHash(Path.Package), GetTypeHash(Path.Object));
+	return FixedTagPrivate::HashCombineQuick(GetTypeHash(Path.ClassPath), GetTypeHash(Path.Package), GetTypeHash(Path.Object));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -148,6 +164,11 @@ static FString LocalizeIfComplexString(const FString& Value)
 
 namespace FixedTagPrivate
 {
+	FArchive& operator<<(FArchive& Ar, FLegacyAssetRegistryExportPath& Path)
+	{
+		return Ar << Path.Class << Path.Object << Path.Package;
+	}
+
 	uint32 HashCaseSensitive(const TCHAR* Str, int32 Len)		
 	{
 		return CityHash64(reinterpret_cast<const char*>(Str), sizeof(TCHAR) * Len);
@@ -200,7 +221,8 @@ namespace FixedTagPrivate
 	
 	static bool EqualsInsensitive(const FNumberlessExportPath& A, const FNumberlessExportPath& B)
 	{
-		return	EqualsInsensitive(A.Class, B.Class) &		//-V792
+		return	EqualsInsensitive(A.ClassPackage, B.ClassPackage) &		//-V792
+				EqualsInsensitive(A.ClassObject, B.ClassObject) &		//-V792
 				EqualsInsensitive(A.Package, B.Package) &	//-V792
 				EqualsInsensitive(A.Object, B.Object);		//-V792
 	}
@@ -228,27 +250,37 @@ namespace FixedTagPrivate
 
 	static bool IsNumberless(FAssetRegistryExportPath Path)
 	{
-		return IsNumberless(Path.Class) & IsNumberless(Path.Object) & IsNumberless(Path.Package); //-V792
+		return IsNumberless(Path.ClassPath.GetAssetName()) & IsNumberless(Path.Object) & IsNumberless(Path.Package); //-V792
 	}
 
 	static FAssetRegistryExportPath MakeNumberedPath(const FNumberlessExportPath& Path)
 	{
 		FAssetRegistryExportPath Out;
-		Out.Class	= MakeNumberedName(Path.Class);
-		Out.Object	= MakeNumberedName(Path.Object);
-		Out.Package	= MakeNumberedName(Path.Package);
+		Out.ClassPath = FTopLevelAssetPath(MakeNumberedName(Path.ClassPackage), MakeNumberedName(Path.ClassObject));
+		Out.Object	  = MakeNumberedName(Path.Object);
+		Out.Package	  = MakeNumberedName(Path.Package);
 		return Out;
 	}
 	
 	static FNumberlessExportPath MakeNumberlessPath(const FAssetRegistryExportPath& Path)
 	{
 		FNumberlessExportPath Out;
-		Out.Class	= MakeNumberlessDisplayName(Path.Class);
-		Out.Object	= MakeNumberlessDisplayName(Path.Object);
-		Out.Package	= MakeNumberlessDisplayName(Path.Package);
+		Out.ClassPackage = MakeNumberlessDisplayName(Path.ClassPath.GetPackageName());
+		Out.ClassObject  = MakeNumberlessDisplayName(Path.ClassPath.GetAssetName());
+		Out.Object	     = MakeNumberlessDisplayName(Path.Object);
+		Out.Package	     = MakeNumberlessDisplayName(Path.Package);
 		return Out;
 	}
 	
+	static FAssetRegistryExportPath ConvertLegacyPath(const FLegacyAssetRegistryExportPath& Path)
+	{
+		FAssetRegistryExportPath Out;
+		Out.ClassPath = FAssetData::TryConvertShortClassNameToPathName(Path.Class);
+		Out.Object = Path.Object;
+		Out.Package = Path.Package;
+		return Out;
+	}
+
 	FString FNumberlessExportPath::ToString() const
 	{
 		return MakeNumberedPath(*this).ToString();
@@ -903,7 +935,8 @@ namespace FixedTagPrivate
 		View = MakeArrayView(reinterpret_cast<T*>(Data), View.Num());
 	}
 
-	class FSerializer
+	template <FAssetRegistryVersion::Type Version>
+	class TSerializer
 	{
 		template<class T>
 		void SaveItem(T Item)
@@ -932,6 +965,20 @@ namespace FixedTagPrivate
 		void SaveItem(FNumberlessExportPath Path)
 		{
 			SaveItem(MakeNumberedPath(Path));
+		}
+
+		template<> FAssetRegistryExportPath LoadItem()
+		{
+			if (Version >= FAssetRegistryVersion::ClassPaths)
+			{
+				FAssetRegistryExportPath ExportPath;
+				Ar << ExportPath;
+				return ExportPath;
+			}
+			else
+			{
+				return ConvertLegacyPath(LoadItem<FLegacyAssetRegistryExportPath>());
+			}
 		}
 
 		template<> FNumberlessExportPath LoadItem()
@@ -1042,12 +1089,15 @@ namespace FixedTagPrivate
 		static constexpr uint32 EndMagic		= 0x87654321;
 		static constexpr uint32 MaxViewAlignment = 16;
 	public:
-		FSerializer(FArchive& InAr) : Ar(InAr) {}
+		TSerializer(FArchive& InAr) // , FAssetRegistryVersion::Type InVersion = FAssetRegistryVersion::LatestVersion
+			: Ar(InAr)
+		{
+		}
 
 		void SaveTextData(TArrayView<const FText> Texts)
 		{
 			FArrayWriter Data;
-			FSerializer(Data).SaveViewData(Texts);
+			TSerializer<Version>(Data).SaveViewData(Texts);
 			SaveItem(Data.Num());
 			Ar.Serialize(Data.GetData(), Data.Num());
 		}
@@ -1171,10 +1221,10 @@ namespace FixedTagPrivate
 
 	void SaveStore(const FStoreData& Store, FArchive& Ar)
 	{
-		FSerializer(Ar).Save(Store);
+		TSerializer<FAssetRegistryVersion::LatestVersion>(Ar).Save(Store);
 	}
 
-	TRefCountPtr<const FStore> LoadStore(FArchive& Ar)
+	TRefCountPtr<const FStore> LoadStore(FArchive& Ar, FAssetRegistryVersion::Type Version /*= FAssetRegistryVersion::LatestVersion*/)
 	{
 		if (Ar.IsError())
 		{
@@ -1182,7 +1232,24 @@ namespace FixedTagPrivate
 		}
 
 		FStore* Store = GStores.CreateAndRegister();
-		FSerializer(Ar).Load(*Store);
+
+		// Versioning support inside of TSerializer was added with FAssetRegistryVersion::ClassPaths so everything before can just be
+		// serialized with FAssetRegistryVersion::ClassPaths - 1 = FAssetRegistryVersion::AddedChunkHashes.
+		// The main purpose of hardcoding version value and passing it as template argument is to eliminate
+		// branches in performance critical serialization code.
+		// Note that we branch in this function only because it's the only fucntion used to load legacy 
+		// asset registries in DiffAssetRegistries commandlet hence it's editor only code too
+#if WITH_EDITORONLY_DATA
+		if (Version < FAssetRegistryVersion::ClassPaths)
+		{
+			TSerializer<FAssetRegistryVersion::ObjectResourceOptionalVersionChange>(Ar).Load(*Store);
+		}
+		else // Add more branches should serialization format change
+#endif // WITH_EDITORONLY_DATA
+		{			
+			TSerializer<FAssetRegistryVersion::LatestVersion>(Ar).Load(*Store);
+		}
+		
 		return TRefCountPtr<const FStore>(Store);
 	}
 
@@ -1192,18 +1259,18 @@ namespace FixedTagPrivate
 
 	TFuture<void> FAsyncStoreLoader::ReadInitialDataAndKickLoad(FArchive& Ar, uint32 MaxWorkerTasks)
 	{
-		Order = FSerializer(Ar).LoadHeader(*Store);
+		Order = TSerializer<FAssetRegistryVersion::LatestVersion>(Ar).LoadHeader(*Store);
 
 		if (Order == ELoadOrder::TextFirst)
 		{
-			TArray<uint8> TextData = FSerializer(Ar).ReadTextData();
+			TArray<uint8> TextData = TSerializer<FAssetRegistryVersion::LatestVersion>(Ar).ReadTextData();
 
 			if (TextData.Num())
 			{
 				return Async(EAsyncExecution::TaskGraph, [Data = MoveTemp(TextData), OutStore = Store]()
 				{
 					FMemoryReader Reader(Data);
-					FSerializer(Reader).LoadTextData(*OutStore);
+					TSerializer<FAssetRegistryVersion::LatestVersion>(Reader).LoadTextData(*OutStore);
 				});
 			}
 		}
@@ -1215,7 +1282,7 @@ namespace FixedTagPrivate
 	{
 		if (Order.IsSet())
 		{
-			FSerializer(Ar).LoadFinalData(/* Out */ *Store, Order.GetValue());
+			TSerializer<FAssetRegistryVersion::LatestVersion>(Ar).LoadFinalData(/* Out */ *Store, Order.GetValue());
 
 			return TRefCountPtr<const FStore>(Store);
 		}
@@ -1455,13 +1522,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAssetRegistryExportPathTest, "Engine.AssetRegi
 
 bool FAssetRegistryExportPathTest::RunTest(const FString& Parameters)
 {
-	TestEqual("Full numbered path",	FAssetRegistryExportPath("C_1\'P_2.O_3\'").ToString(),	"C_1\'P_2.O_3\'");
-	TestEqual("Full path",			FAssetRegistryExportPath("C\'P.O\'").ToString(),		"C\'P.O\'");
-	TestEqual("Package path",		FAssetRegistryExportPath("P.O").ToString(),				"P.O");
-	TestEqual("Object only path",	FAssetRegistryExportPath("O").ToString(),				"O");
-	TestEqual("Class parse",		FAssetRegistryExportPath("C\'P.O\'").Class,		FName("C"));
-	TestEqual("Package parse",		FAssetRegistryExportPath("C\'P.O\'").Package,	FName("P"));
-	TestEqual("Object parse",		FAssetRegistryExportPath("C\'P.O\'").Object,	FName("O"));
+	TestEqual("Full numbered path",	FAssetRegistryExportPath("/S/P.C_1\'P_2.O_3\'").ToString(),	"/S/P.C_1\'P_2.O_3\'");
+	TestEqual("Full path",			FAssetRegistryExportPath("/S/P.C\'P.O\'").ToString(),		"/S/P.C\'P.O\'");
+	TestEqual("Package path",		FAssetRegistryExportPath("P.O").ToString(),					"P.O");
+	TestEqual("Object only path",	FAssetRegistryExportPath("O").ToString(),					"O");
+	TestEqual("Class parse",		FAssetRegistryExportPath("/S/P.C\'P.O\'").ClassPath.ToString(),	"/S/P.C");
+	TestEqual("Package parse",		FAssetRegistryExportPath("/S/P.C\'P.O\'").Package,			FName("P"));
+	TestEqual("Object parse",		FAssetRegistryExportPath("/S/P.C\'P.O\'").Object,			FName("O"));
 
 	return true;
 }
@@ -1473,7 +1540,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompactExportPathTest, "Engine.AssetRegistry.F
 
 bool FCompactExportPathTest::RunTest(const FString& Parameters)
 {
-	const FAssetRegistryExportPath FullPath = FAssetRegistryExportPath("C\'P.O\'");
+	const FAssetRegistryExportPath FullPath = FAssetRegistryExportPath("/S/P.C\'P.O\'");
 
 	TestTrue("Roundtrip",	FullPath == MakeNumberedPath(MakeNumberlessPath(FullPath)));
 
@@ -1555,16 +1622,16 @@ bool FStoreTest::RunTest(const FString& Parameters)
 								{"Key_0",		"StringValue_0"}}));
 	LooseMaps.Add(MakeLooseMap({{"Name",		"NameValue"}, 
 								{"Name_0",		"NameValue_0"}}));
-	LooseMaps.Add(MakeLooseMap({{"FullPath",	"C\'P.O\'"}, 
+	LooseMaps.Add(MakeLooseMap({{"FullPath",	"/S/P.C\'P.O\'"}, 
 								{"PkgPath",		"P.O"},
 								{"ObjPath",		"O"}}));
-	LooseMaps.Add(MakeLooseMap({{"NumPath_0",	"C\'P.O_0\'"}, 
-								{"NumPath_1",	"C\'P_0.O\'"},
-								{"NumPath_2",	"C_0\'P.O\'"},
-								{"NumPath_3",	"C\'P_0.O_0\'"},
-								{"NumPath_4",	"C_0\'P_0.O\'"},
-								{"NumPath_5",	"C_0\'P.O_0\'"},
-								{"NumPath_6",	"C_0\'P_0.O_0\'"}}));
+	LooseMaps.Add(MakeLooseMap({{"NumPath_0",	"/S/P.C\'P.O_0\'"}, 
+								{"NumPath_1",	"/S/P.C\'P_0.O\'"},
+								{"NumPath_2",	"/S/P.C_0\'P.O\'"},
+								{"NumPath_3",	"/S/P.C\'P_0.O_0\'"},
+								{"NumPath_4",	"/S/P.C_0\'P_0.O\'"},
+								{"NumPath_5",	"/S/P.C_0\'P.O_0\'"},
+								{"NumPath_6",	"/S/P.C_0\'P_0.O_0\'"}}));
 	LooseMaps.Add(MakeLooseMap({{"SameSame",	"SameSame"}, 
 								{"AlsoSame",	"SameSame"}}));
 	LooseMaps.Add(MakeLooseMap({{"FilterKey1",	"FilterValue1"}, 

@@ -104,7 +104,7 @@ TSharedRef<SWidget> SMessagingHistoryTableRow::GenerateWidgetForColumn(const FNa
 				SNew(STextBlock)
 					.ColorAndOpacity(this, &SMessagingHistoryTableRow::HandleTextColorAndOpacity)
 					.HighlightText(HighlightText)
-					.Text(FText::FromName(MessageInfo->Context->GetMessageType()))
+					.Text(FText::FromName(MessageInfo->Context->GetMessageTypePathName().GetAssetName()))
 			];
 	}
 	else if (ColumnName == "Recipients")

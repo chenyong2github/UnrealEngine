@@ -299,11 +299,11 @@ void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(
 		FARFilter Filter;
 		for(const TSubclassOf<UObject>& AssetType : InAssetTypes)
 		{
-			Filter.ClassNames.Add(AssetType.Get()->GetFName());
+			Filter.ClassPaths.Add(AssetType.Get()->GetClassPathName());
 		}
 		for(const TSubclassOf<UObject>& ExcludedAssetType : InExcludedAssetTypes)
 		{
-			Filter.RecursiveClassesExclusionSet.Add(ExcludedAssetType.Get()->GetFName());
+			Filter.RecursiveClassPathsExclusionSet.Add(ExcludedAssetType.Get()->GetClassPathName());
 		}	
 		Filter.bRecursiveClasses = true;
 		

@@ -717,7 +717,7 @@ namespace
 				Obj->RemoveField(ObjectClassNameKey);
 				if (!ClassString.IsEmpty())
 				{
-					UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *ClassString);
+					UClass* FoundClass = UClass::TryFindTypeSlow<UClass>(ClassString);
 					if (FoundClass)
 					{
 						PropertyClass = FoundClass;

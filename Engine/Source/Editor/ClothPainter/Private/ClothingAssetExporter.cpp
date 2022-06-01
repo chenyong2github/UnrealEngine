@@ -48,7 +48,7 @@ void ExportClothingAsset(const UClothingAssetBase* ClothingAsset, UClass* Export
 		const FString PackageName = ClothingAsset->GetOutermost()->GetName();
 		ExportClothingAssetDialogConfig.DefaultPath = FPackageName::GetLongPackagePath(PackageName);
 		ExportClothingAssetDialogConfig.DefaultAssetName = ClothingAsset->GetName();
-		ExportClothingAssetDialogConfig.AssetClassNames.Add(ExportedType->GetFName());
+		ExportClothingAssetDialogConfig.AssetClassNames.Add(ExportedType->GetClassPathName());
 		ExportClothingAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 		ExportClothingAssetDialogConfig.DialogTitleOverride = LOCTEXT("ExportClothingAssetDialogTitle", "Export Clothing Asset As");
 	}

@@ -86,7 +86,7 @@ void UEditorValidatorSubsystem::RegisterBlueprintValidators()
 		// Locate all validators (include unloaded)
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		TArray<FAssetData> AllBPsAssetData;
-		AssetRegistryModule.Get().GetAssetsByClass(UEditorUtilityBlueprint::StaticClass()->GetFName(), AllBPsAssetData, true);
+		AssetRegistryModule.Get().GetAssetsByClass(UEditorUtilityBlueprint::StaticClass()->GetClassPathName(), AllBPsAssetData, true);
 
 		for (FAssetData& BPAssetData : AllBPsAssetData)
 		{
@@ -101,7 +101,7 @@ void UEditorValidatorSubsystem::RegisterBlueprintValidators()
 			{
 				UObject* Outer = nullptr;
 				ResolveName(Outer, ParentClassName, false, false);
-				ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+				ParentClass = FindObject<UClass>(Outer, *ParentClassName);
 				if (!ParentClass->IsChildOf(UEditorValidatorBase::StaticClass()))
 				{
 					continue;

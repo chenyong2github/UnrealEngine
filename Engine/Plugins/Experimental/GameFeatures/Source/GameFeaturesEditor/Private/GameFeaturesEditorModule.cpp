@@ -88,7 +88,7 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		TArray<FAssetData> ObjectList;
 		FARFilter AssetFilter;
-		AssetFilter.ClassNames.Add(UGameFeatureData::StaticClass()->GetFName());
+		AssetFilter.ClassPaths.Add(UGameFeatureData::StaticClass()->GetClassPathName());
 		AssetFilter.PackagePaths.Add(FName(NewPlugin->GetMountedAssetPath()));
 		AssetFilter.bRecursiveClasses = true;
 		AssetFilter.bRecursivePaths = true;

@@ -2375,9 +2375,18 @@ UObject* FLinkerLoad::FindImport(UClass* ImportClass, UObject* ImportOuter, cons
 	return Result;
 }
 
-UObject* FLinkerLoad::FindImportFast(UClass* ImportClass, UObject* ImportOuter, FName Name, bool bAnyPackage)
+UObject* FLinkerLoad::FindImportFast(UClass* ImportClass, UObject* ImportOuter, FName Name, bool bFindObjectbyName)
 {
-	UObject* Result = StaticFindObjectFast(ImportClass, ImportOuter, Name, false/*ExactClass*/, bAnyPackage);
+	UObject* Result = nullptr;
+	if (!bFindObjectbyName)
+	{
+		Result = StaticFindObjectFast(ImportClass, ImportOuter, Name, false/*ExactClass*/);
+	}
+	else
+	{
+		Result = StaticFindFirstObject(ImportClass, *Name.ToString(), EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous, ELogVerbosity::Warning, TEXT("FindImportFast"));
+	}
+
 	return Result;
 }
 

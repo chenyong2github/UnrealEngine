@@ -87,7 +87,7 @@ protected:
 	TArray<FString> FileAllowList;
 	TArray<TPair<FString, TArray<FString>>> RequireAssetTags;
 	TArray<TPair<FString, TArray<FString>>> ExcludeAssetTags;
-	FName BlueprintBaseClassName;
+	FTopLevelAssetPath BlueprintBaseClassName;
 
 	//Variables to store overall results
 	int TotalNumFailedLoads;

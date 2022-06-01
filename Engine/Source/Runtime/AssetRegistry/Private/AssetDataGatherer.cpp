@@ -3381,8 +3381,8 @@ bool FAssetDataGatherer::ReadAssetFile(FPackageReader& PackageReader, TArray<FAs
 			// to save them as in-game imports by adding HasNonEditorOnlyReferences; the next version bump after that
 			// fix was VER_UE4_CORRECT_LICENSEE_FLAG. Mark all dependencies in the affected version as used in game
 			// if the package has a UObjectRedirector object.
-			FName RedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
-			if (Algo::AnyOf(AssetDataList, [RedirectorClassName](FAssetData* AssetData) { return AssetData->AssetClass == RedirectorClassName; }))
+			FTopLevelAssetPath RedirectorClassPathName = UObjectRedirector::StaticClass()->GetClassPathName();
+			if (Algo::AnyOf(AssetDataList, [RedirectorClassPathName](FAssetData* AssetData) { return AssetData->AssetClassPath == RedirectorClassPathName; }))
 			{
 				for (FPackageDependencyData::FPackageDependency& Dependency : DependencyData.PackageDependencies)
 				{

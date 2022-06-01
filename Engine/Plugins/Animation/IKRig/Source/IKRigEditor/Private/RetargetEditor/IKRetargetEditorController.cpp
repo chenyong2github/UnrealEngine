@@ -536,7 +536,7 @@ void FIKRetargetEditorController::HandleImportPose()
 
 	// the asset picker will only show animation sequences
 	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassNames.Add(URetargetPose::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(URetargetPose::StaticClass()->GetClassPathName());
 	AssetPickerConfig.Filter.bRecursiveClasses = true;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &FIKRetargetEditorController::OnRetargetPoseSelected);
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Tile;
@@ -644,9 +644,9 @@ void FIKRetargetEditorController::HandleImportPoseFromSequence()
 
 	// the asset picker will only show animation sequences compatible with the preview mesh
 	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassNames.Add(UAnimSequence::StaticClass()->GetFName());
-	AssetPickerConfig.Filter.ClassNames.Add(UAnimMontage::StaticClass()->GetFName());
-	AssetPickerConfig.Filter.ClassNames.Add(UPoseAsset::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.ClassPaths.Add(UAnimSequence::StaticClass()->GetClassPathName());
+	AssetPickerConfig.Filter.ClassPaths.Add(UAnimMontage::StaticClass()->GetClassPathName());
+	AssetPickerConfig.Filter.ClassPaths.Add(UPoseAsset::StaticClass()->GetClassPathName());
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Column;
 	AssetPickerConfig.bAddFilterUI = true;
 	AssetPickerConfig.bShowPathInColumnView = true;
@@ -928,7 +928,7 @@ void FIKRetargetEditorController::HandleExportPose()
 	FSaveAssetDialogConfig SaveAssetDialogConfig;
 	SaveAssetDialogConfig.DefaultPath = AssetController->GetAsset()->GetPackage()->GetPathName();
 	SaveAssetDialogConfig.DefaultAssetName = GetCurrentPoseName().ToString();
-	SaveAssetDialogConfig.AssetClassNames.Add(URetargetPose::StaticClass()->GetFName());
+	SaveAssetDialogConfig.AssetClassNames.Add(URetargetPose::StaticClass()->GetClassPathName());
 	SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 	SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("ExportRetargetPoseDialogTitle", "Export Retarget Pose");
 

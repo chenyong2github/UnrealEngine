@@ -321,7 +321,7 @@ void FDisplayClusterConfiguratorModule::RegisterPlacementModeItems()
 			TEXT("/nDisplay/LightCard/LightCard"),
 			TEXT("/nDisplay/LightCard"),
 			TEXT("LightCard"),
-			TEXT("Blueprint")
+			FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("Blueprint"))
 		);
 		check (LightCardAssetData.IsValid());
 	

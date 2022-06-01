@@ -1010,7 +1010,7 @@ UObject* URigVMPin::FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
 
 	// we do this to avoid ambiguous searches for 
 	// common names such as "transform" or "vector"
-	UPackage* Package = ANY_PACKAGE;
+	UPackage* Package = nullptr;
 	FString PackageName;
 	FString CPPTypeObjectName = InObjectPath;
 	if (InObjectPath.Split(TEXT("."), &PackageName, &CPPTypeObjectName))
@@ -1023,7 +1023,7 @@ UObject* URigVMPin::FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
 		return ObjectWithinPackage;
 	}
 
-	return FindObject<UObject>(ANY_PACKAGE, *InObjectPath);
+	return FindFirstObject<UObject>(*InObjectPath, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
 }
 
 URigVMVariableNode* URigVMPin::GetBoundVariableNode() const

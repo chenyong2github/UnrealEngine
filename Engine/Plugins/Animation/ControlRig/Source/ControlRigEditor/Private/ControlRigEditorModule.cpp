@@ -542,7 +542,7 @@ TSharedRef< SWidget > FControlRigEditorModule::GenerateAnimationMenu(TWeakPtr<IA
 										const bool bMatchesFlags = !InUnloadedClassData->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract);
 										if (bChildOfObjectClass && bMatchesFlags)
 										{
-											FString GeneratedClassPathString = InUnloadedClassData->GetClassPath().ToString();
+											FString GeneratedClassPathString = InUnloadedClassData->GetClassPathName().ToString();
 											FName BlueprintPath = FName(*GeneratedClassPathString.LeftChop(2)); // Chop off _C
 											FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(BlueprintPath);
 											return MatchesFilter(AssetData);
@@ -1128,7 +1128,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		// find all control rigs in the project
 		TArray<FAssetData> ControlRigAssetDatas;
 		FARFilter ControlRigAssetFilter;
-		ControlRigAssetFilter.ClassNames.Add(UControlRigBlueprint::StaticClass()->GetFName());
+		ControlRigAssetFilter.ClassPaths.Add(UControlRigBlueprint::StaticClass()->GetClassPathName());
 		AssetRegistryModule.Get().GetAssets(ControlRigAssetFilter, ControlRigAssetDatas);
 
 		// loop over all control rigs in the project

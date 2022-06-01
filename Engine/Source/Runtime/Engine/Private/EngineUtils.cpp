@@ -86,13 +86,13 @@ bool FContentComparisonHelper::CompareClasses(const FString& InBaseClassName, co
 {
 	TMap<FString,TArray<FContentComparisonAssetInfo> > ClassToAssetsMap;
 
-	UClass* TheClass = (UClass*)StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *InBaseClassName, true);
+	UClass* TheClass = FindFirstObject<UClass>(*InBaseClassName, EFindFirstObjectOptions::ExactClass, ELogVerbosity::Warning, TEXT("FContentComparisonHelper::CompareClasses"));
 	if (TheClass != NULL)
 	{
 		TArray<UClass*> IgnoreBaseClasses;
 		for (int32 IgnoreIdx = 0; IgnoreIdx < InBaseClassesToIgnore.Num(); IgnoreIdx++)
 		{
-			UClass* IgnoreClass = (UClass*)StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *(InBaseClassesToIgnore[IgnoreIdx]), true);
+			UClass* IgnoreClass = FindFirstObject<UClass>(*(InBaseClassesToIgnore[IgnoreIdx]), EFindFirstObjectOptions::ExactClass, ELogVerbosity::Warning, TEXT("FContentComparisonHelper::CompareClasses"));
 			if (IgnoreClass != NULL)
 			{
 				IgnoreBaseClasses.Add(IgnoreClass);

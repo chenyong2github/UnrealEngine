@@ -47,7 +47,7 @@ TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> FMessageRpcServer::GetEndpoint
 	return MessageEndpoint;
 }
 
-void FMessageRpcServer::AddHandler(const FName& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler)
+void FMessageRpcServer::AddHandler(const FTopLevelAssetPath& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler)
 {
 	Handlers.Add(RequestMessageType, Handler);
 }
@@ -59,11 +59,17 @@ const FMessageAddress& FMessageRpcServer::GetAddress() const
 }
 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOnMessageRpcNoHandler& FMessageRpcServer::OnNoHandler()
 {
 	return NoHandlerDelegate;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+FOnMessagePathNameRpcNoHandler& FMessageRpcServer::OnNoHandlerWithPathName()
+{
+	return NoHandlerDelegateWithPathName;
+}
 
 void FMessageRpcServer::SetSendProgressUpdate(bool InSendProgress)
 {
@@ -87,16 +93,20 @@ void FMessageRpcServer::ProcessCancelation(const FMessageRpcCancel& Message, con
 void FMessageRpcServer::ProcessRequest(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	auto Message = (FRpcMessage*)Context->GetMessage();
-	const FName MessageType = Context->GetMessageType();
+	const FTopLevelAssetPath MessageType = Context->GetMessageTypePathName();
 
 	if (!Handlers.Contains(MessageType))
 	{
-		if (!NoHandlerDelegate.IsBound())
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// Keeping checking and executing NoHandlerDelegate for backwards compatibility 
+		if (!NoHandlerDelegateWithPathName.IsBound() && !NoHandlerDelegate.IsBound())
 		{
 			return;
 		}
 
-		NoHandlerDelegate.Execute(MessageType);
+		NoHandlerDelegateWithPathName.ExecuteIfBound(MessageType);
+		NoHandlerDelegate.ExecuteIfBound(MessageType.GetAssetName());
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 
 	auto Handler = Handlers.FindRef(MessageType);

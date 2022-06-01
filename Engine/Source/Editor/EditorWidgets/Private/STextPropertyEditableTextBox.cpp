@@ -375,7 +375,7 @@ void STextPropertyEditableStringTableReference::UpdateStringTableComboOptions()
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName);
 
 		TArray<FAssetData> StringTableAssets;
-		AssetRegistryModule.Get().GetAssetsByClass(UStringTable::StaticClass()->GetFName(), StringTableAssets);
+		AssetRegistryModule.Get().GetAssetsByClass(UStringTable::StaticClass()->GetClassPathName(), StringTableAssets);
 
 		for (const FAssetData& StringTableAsset : StringTableAssets)
 		{

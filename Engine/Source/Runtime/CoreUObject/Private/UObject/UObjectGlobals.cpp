@@ -65,6 +65,7 @@
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTracking.h"
 #include "UObject/PropertyWithSetterAndGetter.h"
+#include "UObject/AnyPackagePrivate.h"
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
@@ -311,7 +312,30 @@ UObject* StaticFindObjectFast(UClass* ObjectClass, UObject* ObjectPackage, FName
 
 	// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
 	ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UObject* FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, bExactClass, bAnyPackage, ExclusiveFlags, ExclusiveInternalFlags);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (!FoundObject)
+	{
+		FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, bExactClass);
+	}
+
+	return FoundObject;
+}
+
+//
+// Find an object, path must unqualified
+//
+UObject* StaticFindObjectFast(UClass* ObjectClass, UObject* ObjectPackage, FName ObjectName, bool bExactClass, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
+{
+	if (UE::IsSavingPackage(nullptr) || IsGarbageCollectingAndLockingUObjectHashTables())
+	{
+		UE_LOG(LogUObjectGlobals, Fatal, TEXT("Illegal call to StaticFindObjectFast() while serializing object data or garbage collecting!"));
+	}
+
+	// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
+	ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;
+	UObject* FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, bExactClass, ExclusiveFlags, ExclusiveInternalFlags);
 
 	if (!FoundObject)
 	{
@@ -329,7 +353,27 @@ UObject* StaticFindObjectFastSafe(UClass* ObjectClass, UObject* ObjectPackage, F
 	{
 		// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
 		ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, bExactClass, bAnyPackage, ExclusiveFlags, ExclusiveInternalFlags);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		if (!FoundObject)
+		{
+			FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, bExactClass);
+		}
+	}
+
+	return FoundObject;
+}
+
+UObject* StaticFindObjectFastSafe(UClass* ObjectClass, UObject* ObjectPackage, FName ObjectName, bool bExactClass, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
+{
+	UObject* FoundObject = nullptr;
+
+	if (!UE::IsSavingPackage(nullptr) && !IsGarbageCollectingAndLockingUObjectHashTables())
+	{
+		// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
+		ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;
+		FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, bExactClass, ExclusiveFlags, ExclusiveInternalFlags);
 		if (!FoundObject)
 		{
 			FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, bExactClass);
@@ -368,7 +412,7 @@ UObject* StaticFindObject( UClass* ObjectClass, UObject* InObjectPackage, const 
 	INC_DWORD_STAT(STAT_FindObject);
 
 	// Resolve the object and package name.
-	const bool bAnyPackage = InObjectPackage==ANY_PACKAGE;
+	const bool bAnyPackage = InObjectPackage == ANY_PACKAGE_DEPRECATED;
 	UObject* ObjectPackage = bAnyPackage ? nullptr : InObjectPackage;
 
 	UObject* MatchingObject = nullptr;
@@ -403,8 +447,9 @@ UObject* StaticFindObject( UClass* ObjectClass, UObject* InObjectPackage, const 
 
 		ObjectName = FName(*InName, FNAME_Add);
 	}
-
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return StaticFindObjectFast(ObjectClass, ObjectPackage, ObjectName, bExactClass, bAnyPackage);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 //
@@ -446,7 +491,7 @@ UObject* StaticFindObjectChecked( UClass* ObjectClass, UObject* ObjectParent, co
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if( !Result )
 	{
-		UE_LOG(LogUObjectGlobals, Fatal, TEXT("Failed to find object '%s %s.%s'"), *ObjectClass->GetName(), ObjectParent==ANY_PACKAGE ? TEXT("Any") : ObjectParent ? *ObjectParent->GetName() : TEXT("None"), InName);
+		UE_LOG(LogUObjectGlobals, Fatal, TEXT("Failed to find object '%s %s.%s'"), *ObjectClass->GetName(), ObjectParent == ANY_PACKAGE_DEPRECATED ? TEXT("Any") : ObjectParent ? *ObjectParent->GetName() : TEXT("None"), InName);
 	}
 #endif
 	return Result;
@@ -979,7 +1024,14 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 			UObject* NewPackage = FindObject<UPackage>( InPackage, *PartialName );
 			if( !NewPackage )
 			{
-				NewPackage = FindObject<UObject>( InPackage == NULL ? ANY_PACKAGE : InPackage, *PartialName );
+				if (InPackage)
+				{
+					NewPackage = FindObject<UObject>(InPackage, *PartialName);
+				}
+				else
+				{
+					NewPackage = FindFirstObject<UObject>(*PartialName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
+				}
 				if( !NewPackage )
 				{
 					return bSubobjectPath;
@@ -1021,22 +1073,30 @@ bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClass* Class, UObjec
 	else if( FCString::Stricmp(TempStr,TEXT("NONE"))==0 )
 	{
 		// Match found, object explicit set to be None
-		DestRes = NULL;
+		DestRes = nullptr;
 		return 1;
 	}
 	else
 	{
+		UObject* Res = nullptr;
 		// Look this object up.
-		UObject* Res = StaticFindObject( Class, InParent, TempStr );
+		if ((!InParent || InParent == ANY_PACKAGE_DEPRECATED) && !FPackageName::IsValidObjectPath(TempStr))
+		{
+			// Try to find first object matching the provided name
+			Res = StaticFindFirstObject(Class, TempStr, EFindFirstObjectOptions::EnsureIfAmbiguous);
+		}
+		else
+		{
+			Res = StaticFindObject(Class, InParent, TempStr);
+		}
 		if( !Res )
 		{
 			if (Class->IsChildOf<UClass>())
 			{
-				const FString ObjectName = FPackageName::ObjectPathToObjectName(FString(TempStr));
-				const FName RedirectedObjectName = FLinkerLoad::FindNewNameForClass(*ObjectName, false);
-				if (!RedirectedObjectName.IsNone())
+				FString RedirectedObjectName = FLinkerLoad::FindNewPathNameForClass(TempStr, false);
+				if (!RedirectedObjectName.IsEmpty())
 				{
-					Res = StaticFindObject(Class, InParent, *RedirectedObjectName.ToString());
+					Res = StaticFindObject(Class, InParent, *RedirectedObjectName);
 				}
 			}
 
@@ -2368,7 +2428,7 @@ namespace NameReuse
 
 	static FNameRangeCache GNameRangeCache;
 
-	FName MakeUniqueObjectNameReusingNumber(UObject* Parent, FName BaseName)
+	FName MakeUniqueObjectNameReusingNumber(UObject* Parent, FName BaseName, EUniqueObjectNameOptions Options)
 	{
 		if (!GTryReuseNames)
 		{
@@ -2376,7 +2436,7 @@ namespace NameReuse
 		}
 
 		static const FName NamePackage(NAME_Package);
-		if (!Parent || Parent == ANY_PACKAGE || BaseName == NamePackage || FPlatformProperties::HasEditorOnlyData() || !GFastPathUniqueNameGeneration)
+		if (!Parent || Parent == ANY_PACKAGE_DEPRECATED || !!(Options & EUniqueObjectNameOptions::GloballyUnique) || BaseName == NamePackage || FPlatformProperties::HasEditorOnlyData() || !GFastPathUniqueNameGeneration)
 		{
 			return FName();
 		}
@@ -2402,7 +2462,7 @@ namespace NameReuse
 }
 #endif
 
-FName MakeUniqueObjectName( UObject* Parent, const UClass* Class, FName InBaseName/*=NAME_None*/ )
+FName MakeUniqueObjectName(UObject* Parent, const UClass* Class, FName InBaseName/*=NAME_None*/, EUniqueObjectNameOptions Options /*= EUniqueObjectNameOptions::None*/)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MakeUniqueObjectName);
 
@@ -2411,7 +2471,7 @@ FName MakeUniqueObjectName( UObject* Parent, const UClass* Class, FName InBaseNa
 	const FName BaseName = InBaseName.IsNone() ? Class->GetFName() : InBaseName;
 
 #if TRY_REUSE_NAMES
-	if (FName Result = NameReuse::MakeUniqueObjectNameReusingNumber(Parent, BaseName); !Result.IsNone())
+	if (FName Result = NameReuse::MakeUniqueObjectNameReusingNumber(Parent, BaseName, Options); !Result.IsNone())
 	{
 		return Result;
 	}
@@ -2443,7 +2503,7 @@ FName MakeUniqueObjectName( UObject* Parent, const UClass* Class, FName InBaseNa
 			else
 			{
 				int32 NameNumber = 0;
-				if (Parent && (Parent != ANY_PACKAGE))
+				if (Parent && (Parent != ANY_PACKAGE_DEPRECATED) && !(Options & EUniqueObjectNameOptions::GloballyUnique))
 				{
 					if (!FPlatformProperties::HasEditorOnlyData() && GFastPathUniqueNameGeneration)
 					{
@@ -2477,13 +2537,13 @@ FName MakeUniqueObjectName( UObject* Parent, const UClass* Class, FName InBaseNa
 				TestName = FName(BaseName, NameNumber);
 			}
 
-			if (Parent == ANY_PACKAGE)
+			if (Parent == ANY_PACKAGE_DEPRECATED || !!(Options & EUniqueObjectNameOptions::GloballyUnique))
 			{
-				ExistingObject = StaticFindObject(NULL, ANY_PACKAGE, *TestName.ToString());
+				ExistingObject = StaticFindFirstObject(nullptr, *TestName.ToString());
 			}
 			else
 			{
-				ExistingObject = StaticFindObjectFastInternal(NULL, Parent, TestName);
+				ExistingObject = StaticFindObjectFastInternal(nullptr, Parent, TestName);
 			}
 		} while (ExistingObject);
 	// InBaseName can be a name of an object from a different hierarchy (so it's still unique within given parents scope), we don't want to return the same name.
@@ -4157,7 +4217,7 @@ void ConstructorHelpers::FailedToFind(const TCHAR* ObjectToFind)
 
 void ConstructorHelpers::CheckFoundViaRedirect(UObject *Object, const FString& PathName, const TCHAR* ObjectToFind)
 {
-	UObjectRedirector* Redir = FindObject<UObjectRedirector>(ANY_PACKAGE, *PathName);
+	UObjectRedirector* Redir = FindObject<UObjectRedirector>(nullptr, *PathName);
 	if (Redir && Redir->DestinationObject == Object)
 	{
 		FString NewString = Object->GetFullName();
@@ -4799,7 +4859,7 @@ COREUOBJECT_API UFunction* FindDelegateSignature(FName DelegateSignatureName)
 
 	if (StringName.EndsWith(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX))
 	{
-		return FindObject<UFunction>(ANY_PACKAGE, *StringName);
+		return FindFirstObject<UFunction>(*StringName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
 	}
 
 	return nullptr;
@@ -5330,7 +5390,7 @@ namespace UECodeGen_Private
 			return;
 		}
 
-		UObject* FoundPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, FName(UTF8_TO_TCHAR(Params.NameUTF8)), false, false);
+		UObject* FoundPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, FName(UTF8_TO_TCHAR(Params.NameUTF8)), false);
 
 #if USE_PER_MODULE_UOBJECT_BOOTSTRAP
 		if (!FoundPackage)

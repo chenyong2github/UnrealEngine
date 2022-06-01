@@ -905,7 +905,7 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	FString GeneratedClassVal;
 	if (GeneratedClass)
 	{
-		GeneratedClassVal = FString::Printf(TEXT("%s'%s'"), *GeneratedClass->GetClass()->GetName(), *GeneratedClass->GetPathName());
+		GeneratedClassVal = FObjectPropertyBase::GetExportPath(GeneratedClass);
 	}
 	else
 	{
@@ -915,7 +915,7 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	FString NativeParentClassName, ParentClassName;
 	if ( ParentClass )
 	{
-		ParentClassName = FString::Printf(TEXT("%s'%s'"), *ParentClass->GetClass()->GetName(), *ParentClass->GetPathName());
+		ParentClassName = FObjectPropertyBase::GetExportPath(ParentClass);
 
 		// Walk up until we find a native class (ie 'while they are BP classes')
 		UClass* NativeParentClass = ParentClass;
@@ -923,7 +923,7 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		{
 			NativeParentClass = NativeParentClass->GetSuperClass();
 		}
-		NativeParentClassName = FString::Printf(TEXT("%s'%s'"), *NativeParentClass->GetClass()->GetName(), *NativeParentClass->GetPathName());
+		NativeParentClassName = FObjectPropertyBase::GetExportPath(NativeParentClass);
 	}
 	else
 	{
@@ -1010,6 +1010,27 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		}
 		OutTags.Add(FAssetRegistryTag(FBlueprintTags::NumBlueprintComponents, FString::FromInt(NumAddedComponents), UObject::FAssetRegistryTag::TT_Numerical));
 	}
+}
+
+void UBlueprint::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const
+{
+	Super::PostLoadAssetRegistryTags(InAssetData, OutTagsAndValuesToUpdate);
+
+	auto FixTagValueShortClassName = [&InAssetData, &OutTagsAndValuesToUpdate](FName TagName, FAssetRegistryTag::ETagType TagType)
+	{
+		FString TagValue = InAssetData.GetTagValueRef<FString>(TagName);
+		if (!TagValue.IsEmpty() && TagValue != TEXT("None"))
+		{
+			if (UClass::TryFixShortClassNameExportPath(TagValue, ELogVerbosity::Warning, TEXT("UBlueprint::PostLoadAssetRegistryTags")))
+			{
+				OutTagsAndValuesToUpdate.Add(FAssetRegistryTag(TagName, TagValue, TagType));
+			}
+		}
+	};
+
+	FixTagValueShortClassName(FBlueprintTags::GeneratedClassPath, FAssetRegistryTag::TT_Hidden);
+	FixTagValueShortClassName(FBlueprintTags::ParentClassPath, FAssetRegistryTag::TT_Alphabetical);
+	FixTagValueShortClassName(FBlueprintTags::NativeParentClassPath, FAssetRegistryTag::TT_Alphabetical);
 }
 
 FPrimaryAssetId UBlueprint::GetPrimaryAssetId() const

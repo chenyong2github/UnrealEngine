@@ -131,10 +131,20 @@ FName FUnloadedBlueprintData::GetClassPath() const
 {
 	if (ClassViewerNode.IsValid())
 	{
-		return ClassViewerNode.Pin()->ClassPath;
+		return FName(*ClassViewerNode.Pin()->ClassPath.ToString());
 	}
 
 	return FName();
+}
+
+FTopLevelAssetPath FUnloadedBlueprintData::GetClassPathName() const
+{
+	if (ClassViewerNode.IsValid())
+	{
+		return ClassViewerNode.Pin()->ClassPath;
+	}
+
+	return FTopLevelAssetPath();
 }
 
 const TWeakPtr<FClassViewerNode>& FUnloadedBlueprintData::GetClassViewerNode() const

@@ -2266,7 +2266,7 @@ namespace AssetRegistry
 
 			// Exclude the package name in the object path, we just need to know the path relative to the package we are saving
 			FString ObjectPath = Object->GetPathName(Package);
-			FString ObjectClassName = Object->GetClass()->GetName();
+			FString ObjectClassName = Object->GetClass()->GetPathName();
 
 			TArray<UObject::FAssetRegistryTag> SourceTags;
 			Object->GetAssetRegistryTags(SourceTags);

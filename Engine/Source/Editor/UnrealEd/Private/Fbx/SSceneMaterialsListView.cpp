@@ -335,7 +335,7 @@ TSharedPtr<SWidget> SFbxSceneMaterialsListView::OnOpenContextMenu()
 			// Configure filter for asset picker
 			FAssetPickerConfig Config;
 			Config.Filter.bRecursiveClasses = true;
-			Config.Filter.ClassNames.Add(UMaterialInterface::StaticClass()->GetFName());
+			Config.Filter.ClassPaths.Add(UMaterialInterface::StaticClass()->GetClassPathName());
 			Config.InitialAssetViewType = EAssetViewType::List;
 			Config.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SFbxSceneMaterialsListView::AssignMaterialAssetData);
 			Config.bAllowNullSelection = false;
@@ -440,7 +440,7 @@ void SFbxSceneMaterialsListView::AssignMaterialToExisting()
 		SelectAssetConfig.DialogTitleOverride = LOCTEXT("FbxChooseMaterialAssetContentPath", "Choose a material asset");
 		//SelectAssetConfig.DefaultPath = ItemPtr->OriginalImportPath;
 		SelectAssetConfig.bAllowMultipleSelection = false;
-		SelectAssetConfig.AssetClassNames.Add(UMaterial::StaticClass()->GetFName());
+		SelectAssetConfig.AssetClassNames.Add(UMaterial::StaticClass()->GetClassPathName());
 		TArray<FAssetData> AssetData = ContentBrowserModule.Get().CreateModalOpenAssetDialog(SelectAssetConfig);
 		if (AssetData.Num() == 1)
 		{

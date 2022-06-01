@@ -512,12 +512,12 @@ void FPersonaModule::ImportNewAsset(USkeleton* InSkeleton, EFBXImportType Defaul
 	}
 }
 
-void PopulateWithAssets(FName ClassName, FName SkeletonMemberName, const FString& SkeletonString, TArray<FAssetData>& OutAssets)
+void PopulateWithAssets(const FTopLevelAssetPath& ClassName, FName SkeletonMemberName, const FString& SkeletonString, TArray<FAssetData>& OutAssets)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	FARFilter Filter;
-	Filter.ClassNames.Add(ClassName);
+	Filter.ClassPaths.Add(ClassName);
 	Filter.TagsAndValues.Add(SkeletonMemberName, SkeletonString);
 
 	AssetRegistryModule.Get().GetAssets(Filter, OutAssets);
@@ -532,9 +532,9 @@ void FPersonaModule::TestSkeletonCurveNamesForUse(const TSharedRef<IEditableSkel
 		const FString SkeletonString = FAssetData(&Skeleton).GetExportTextName();
 
 		TArray<FAssetData> SkeletalMeshes;
-		PopulateWithAssets(USkeletalMesh::StaticClass()->GetFName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, SkeletalMeshes);
+		PopulateWithAssets(USkeletalMesh::StaticClass()->GetClassPathName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, SkeletalMeshes);
 		TArray<FAssetData> Animations;
-		PopulateWithAssets(UAnimSequence::StaticClass()->GetFName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, Animations);
+		PopulateWithAssets(UAnimSequence::StaticClass()->GetClassPathName(), USkeletalMesh::GetSkeletonMemberName(), SkeletonString, Animations);
 
 		FText TimeTakenMessage = FText::Format(LOCTEXT("TimeTakenWarning", "In order to verify curve usage all Skeletal Meshes and Animations that use this skeleton will be loaded, this may take some time.\n\nProceed?\n\nNumber of Meshes: {0}\nNumber of Animations: {1}"), FText::AsNumber(SkeletalMeshes.Num()), FText::AsNumber(Animations.Num()));
 
@@ -945,7 +945,7 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 				AssetPickerConfig.bAllowNullSelection = false;
 				AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 				AssetPickerConfig.Filter.bRecursiveClasses = false;
-				AssetPickerConfig.Filter.ClassNames.Add(USkeletalMesh::StaticClass()->GetFName());
+				AssetPickerConfig.Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
 				AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda([WeakPersonaToolkit](const FAssetData& AssetData)
 				{
 					if (WeakPersonaToolkit.IsValid())
@@ -1022,7 +1022,7 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 				AssetPickerConfig.bAllowNullSelection = false;
 				AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 				AssetPickerConfig.Filter.bRecursiveClasses = true;
-				AssetPickerConfig.Filter.ClassNames.Add(UAnimationAsset::StaticClass()->GetFName());
+				AssetPickerConfig.Filter.ClassPaths.Add(UAnimationAsset::StaticClass()->GetClassPathName());
 				AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda([WeakPersonaToolkit](const FAssetData& AssetData)
 				{
 					if (WeakPersonaToolkit.IsValid())
@@ -1307,7 +1307,7 @@ void FPersonaModule::FillInsertPoseMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPer
 	USkeleton* Skeleton = PersonaToolkit->GetSkeleton();
 
 	/** The asset picker will only show skeletons */
-	AssetPickerConfig.Filter.ClassNames.Add(*UPoseAsset::StaticClass()->GetName());
+	AssetPickerConfig.Filter.ClassPaths.Add(UPoseAsset::StaticClass()->GetClassPathName());
 	AssetPickerConfig.Filter.bRecursiveClasses = false;
 	AssetPickerConfig.bAllowNullSelection = false;
 	AssetPickerConfig.Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(Skeleton).GetExportTextName());

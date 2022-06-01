@@ -366,7 +366,7 @@ bool FAssetDeleteModel::CanReplaceReferencesWith( const FAssetData& InAssetData 
 
 		if (!NativeClassName.IsEmpty())
 		{
-			UClass* NativeParentClassToTest = FindObject<UClass>(ANY_PACKAGE, *NativeClassName);
+			UClass* NativeParentClassToTest = UClass::TryFindTypeSlow<UClass>(NativeClassName);
 			UClass* NativeParentClassToReplace = FBlueprintEditorUtils::FindFirstNativeClass(OriginalBPParentClass);
 
 			if (!NativeParentClassToTest || !NativeParentClassToTest->IsChildOf(NativeParentClassToReplace))

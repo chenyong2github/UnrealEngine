@@ -352,7 +352,7 @@ TValueOrError<TSharedPtr<FVMReflection>, FExpressionError> FVMReflectionParser::
 						// Remove the FindObject tokens
 						Tokens.RemoveAt(0, FindTokenCount);
 
-						UClass* FindClass = ClassStr.Len() > 0 ? FindObject<UClass>(ANY_PACKAGE, *ClassStr) : UObject::StaticClass();
+						UClass* FindClass = ClassStr.Len() > 0 ? UClass::TryFindTypeSlow<UClass>(ClassStr) : UObject::StaticClass();
 						UObject* BestMatch = nullptr;
 
 						if (FindClass != nullptr)

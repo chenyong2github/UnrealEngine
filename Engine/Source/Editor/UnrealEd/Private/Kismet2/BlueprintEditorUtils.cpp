@@ -6225,7 +6225,7 @@ void FBlueprintEditorUtils::FixupVariableDescription(UBlueprint* Blueprint, FBPV
 		FString BitmaskEnumTypeName = VarDesc.GetMetaData(FBlueprintMetadata::MD_BitmaskEnum);
 		if (!BitmaskEnumTypeName.IsEmpty())
 		{
-			UEnum* BitflagsEnum = FindObject<UEnum>(ANY_PACKAGE, *BitmaskEnumTypeName);
+			UEnum* BitflagsEnum = UClass::TryFindTypeSlow<UEnum>(BitmaskEnumTypeName);
 			if (BitflagsEnum == nullptr || !BitflagsEnum->HasMetaData(*FBlueprintMetadata::MD_Bitflags.ToString()))
 			{
 				VarDesc.RemoveMetaData(FBlueprintMetadata::MD_BitmaskEnum);
@@ -6437,12 +6437,12 @@ FGuid FBlueprintEditorUtils::FindInterfaceFunctionGuid(const UFunction* Function
 }
 
 // Add a new interface, and member function graphs to the blueprint
-bool FBlueprintEditorUtils::ImplementNewInterface(UBlueprint* Blueprint, const FName& InterfaceClassName)
+bool FBlueprintEditorUtils::ImplementNewInterface(UBlueprint* Blueprint, FTopLevelAssetPath InterfaceClassPathName)
 {
-	check(InterfaceClassName != NAME_None);
+	check(!InterfaceClassPathName.IsNull());
 
 	// Attempt to find the class we want to implement
-	UClass* InterfaceClass = (UClass*)StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *InterfaceClassName.ToString());
+	UClass* InterfaceClass = FindObject<UClass>(InterfaceClassPathName);
 
 	// Make sure the class is found, and isn't native (since Blueprints don't necessarily generate native classes.
 	check(InterfaceClass);
@@ -6456,7 +6456,7 @@ bool FBlueprintEditorUtils::ImplementNewInterface(UBlueprint* Blueprint, const F
 				FText::Format(
 					LOCTEXT("InterfaceAlreadyImplementedFmt", "Blueprint '{0}' already implements the interface '{1}'"),
 					FText::FromString(Blueprint->GetName()),
-					FText::FromString(InterfaceClassName.ToString())
+					FText::FromString(InterfaceClassPathName.ToString())
 				),
 				EMessageSeverity::Warning
 			);
@@ -6489,7 +6489,7 @@ bool FBlueprintEditorUtils::ImplementNewInterface(UBlueprint* Blueprint, const F
 						LOCTEXT("InterfaceFunctionConflictsFmt", "Blueprint '{0}' has a function or graph which conflicts with function '{1}' in interface '{2}'"),
 						FText::FromString(Blueprint->GetName()),
 						FText::FromName(FunctionName),
-						FText::FromName(InterfaceClassName)
+						FText::FromString(InterfaceClassPathName.ToString())
 					),
 					EMessageSeverity::Error
 				);
@@ -6522,12 +6522,18 @@ bool FBlueprintEditorUtils::ImplementNewInterface(UBlueprint* Blueprint, const F
 	return bAllFunctionsAdded;
 }
 
+bool FBlueprintEditorUtils::ImplementNewInterface(UBlueprint* Blueprint, const FName& InterfaceClassName)
+{
+	FTopLevelAssetPath InterfaceClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(InterfaceClassName.ToString(), ELogVerbosity::Warning, TEXT("FBlueprintEditorUtils::ImplementNewInterface"));
+	return ImplementNewInterface(Blueprint, InterfaceClassPathName);
+}
+
 // Gets the graphs currently in the blueprint associated with the specified interface
-void FBlueprintEditorUtils::GetInterfaceGraphs(UBlueprint* Blueprint, const FName& InterfaceClassName, TArray<UEdGraph*>& ChildGraphs)
+void FBlueprintEditorUtils::GetInterfaceGraphs(UBlueprint* Blueprint, FTopLevelAssetPath InterfaceClassPathName, TArray<UEdGraph*>& ChildGraphs)
 {
 	ChildGraphs.Empty();
 
-	if( InterfaceClassName == NAME_None )
+	if (InterfaceClassPathName.IsNull())
 	{
 		return;
 	}
@@ -6535,12 +6541,18 @@ void FBlueprintEditorUtils::GetInterfaceGraphs(UBlueprint* Blueprint, const FNam
 	// Find the implemented interface
 	for( int32 i = 0; i < Blueprint->ImplementedInterfaces.Num(); i++ )
 	{
-		if( Blueprint->ImplementedInterfaces[i].Interface->GetFName() == InterfaceClassName )
+		if( Blueprint->ImplementedInterfaces[i].Interface->GetClassPathName() == InterfaceClassPathName)
 		{
 			ChildGraphs = Blueprint->ImplementedInterfaces[i].Graphs;
 			return;			
 		}
 	}
+}
+
+void FBlueprintEditorUtils::GetInterfaceGraphs(UBlueprint* Blueprint, const FName& InterfaceClassName, TArray<UEdGraph*>& ChildGraphs)
+{
+	FTopLevelAssetPath InterfaceClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(InterfaceClassName.ToString(), ELogVerbosity::Warning, TEXT("FBlueprintEditorUtils::GetInterfaceGraphs"));
+	GetInterfaceGraphs(Blueprint, InterfaceClassPathName, ChildGraphs);
 }
 
 UFunction* FBlueprintEditorUtils::GetInterfaceFunction(UBlueprint* Blueprint, const FName FuncName)
@@ -6592,9 +6604,9 @@ bool FBlueprintEditorUtils::IsInterfaceFunction(UBlueprint* Blueprint, UFunction
 }
 
 // Remove an implemented interface, and its associated member function graphs
-void FBlueprintEditorUtils::RemoveInterface(UBlueprint* Blueprint, const FName& InterfaceClassName, bool bPreserveFunctions /*= false*/)
+void FBlueprintEditorUtils::RemoveInterface(UBlueprint* Blueprint, FTopLevelAssetPath InterfaceClassPathName, bool bPreserveFunctions /*= false*/)
 {
-	if( InterfaceClassName == NAME_None )
+	if (InterfaceClassPathName.IsNull())
 	{
 		return;
 	}
@@ -6603,7 +6615,7 @@ void FBlueprintEditorUtils::RemoveInterface(UBlueprint* Blueprint, const FName& 
 	int32 Idx = INDEX_NONE;
 	for( int32 i = 0; i < Blueprint->ImplementedInterfaces.Num(); i++ )
 	{
-		if( Blueprint->ImplementedInterfaces[i].Interface->GetFName() == InterfaceClassName )
+		if( Blueprint->ImplementedInterfaces[i].Interface->GetClassPathName() == InterfaceClassPathName)
 		{
 			Idx = i;
 			break;
@@ -6677,6 +6689,12 @@ void FBlueprintEditorUtils::RemoveInterface(UBlueprint* Blueprint, const FName& 
 		// Mark Child Blueprints as modified to fixup references to the Interface
 		MarkBlueprintChildrenAsModified(Blueprint);
 	}
+}
+
+void FBlueprintEditorUtils::RemoveInterface(UBlueprint* Blueprint, const FName& InterfaceClassName, bool bPreserveFunctions /*= false*/)
+{
+	FTopLevelAssetPath InterfaceClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(InterfaceClassName.ToString(), ELogVerbosity::Warning, TEXT("FBlueprintEditorUtils::RemoveInterface"));
+	return RemoveInterface(Blueprint, InterfaceClassPathName, bPreserveFunctions);
 }
 
 bool FBlueprintEditorUtils::RemoveInterfaceFunction(UBlueprint* Blueprint, FBPInterfaceDescription& Interface, UFunction* Function, bool bPreserveFunction)
@@ -8503,7 +8521,7 @@ bool FBlueprintEditorUtils::KismetDiagnosticExec(const TCHAR* InStream, FOutputD
 	}
 	else if (FParse::Command(&Str, TEXT("RepairBlueprint")))
 	{
-		if (UBlueprint* Blueprint = FindObject<UBlueprint>(ANY_PACKAGE, Str))
+		if (UBlueprint* Blueprint = FindFirstObject<UBlueprint>(Str, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("RepairBlueprint")))
 		{
 			IKismetCompilerInterface& Compiler = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>(KISMET_COMPILER_MODULENAME);
 			Compiler.RecoverCorruptedBlueprint(Blueprint);
@@ -8831,7 +8849,7 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintInterfaceClassPicke
 			{
 				ProhibitedInterfaceNames[ExclusionIndex].TrimStartInline();
 				FString const& ProhibitedInterfaceName = ProhibitedInterfaceNames[ExclusionIndex].RightChop(1);
-				UClass* ProhibitedInterface = (UClass*)StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, *ProhibitedInterfaceName);
+				UClass* ProhibitedInterface = UClass::TryFindTypeSlow<UClass>(ProhibitedInterfaceName);
 				if(ProhibitedInterface)
 				{
 					Filter->DisallowedClasses.Add(ProhibitedInterface);
@@ -9876,7 +9894,7 @@ const FSlateBrush* FBlueprintEditorUtils::GetIconFromPin( const FEdGraphPinType&
 	}
 	else if( PinSubObject )
 	{
-		UClass* VarClass = FindObject<UClass>(ANY_PACKAGE, *PinSubObject->GetName());
+		UClass* VarClass = FindObject<UClass>(nullptr, *PinSubObject->GetFullName());
 		if( VarClass )
 		{
 			IconBrush = FSlateIconFinder::FindIconBrushForClass( VarClass );

@@ -532,7 +532,7 @@ namespace PropertyEditorHelpers
 				{
 
 					const FString& EnumName = Property->GetMetaData(TEXT("Enum"));
-					Enum = FindObject<UEnum>(ANY_PACKAGE, *EnumName, true);
+					Enum = UClass::TryFindTypeSlow<UEnum>(EnumName, EFindFirstObjectOptions::ExactClass);
 				}
 
 				if(Enum)

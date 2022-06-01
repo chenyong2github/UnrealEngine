@@ -78,7 +78,7 @@ public:
 		const FContentBrowserDataCollectionFilter* CollectionFilter = nullptr;
 
 		const FPathPermissionList* PathPermissionList = nullptr;
-		const FNamePermissionList* ClassPermissionList = nullptr;
+		const FPathPermissionList* ClassPermissionList = nullptr;
 
 		FContentBrowserDataFilterList* FilterList = nullptr;
 		FContentBrowserCompiledAssetDataFilter* AssetDataFilter = nullptr;

@@ -96,7 +96,7 @@ const UClass* FClassIconFinder::GetIconClassForAssetData(const FAssetData& InAss
 		*bOutIsClassType = false;
 	}
 
-	UClass* AssetClass = FindObjectSafe<UClass>(ANY_PACKAGE, *InAssetData.AssetClass.ToString());
+	UClass* AssetClass = FindObjectSafe<UClass>(InAssetData.AssetClassPath);
 	if ( !AssetClass )
 	{
 		return nullptr;
@@ -109,7 +109,7 @@ const UClass* FClassIconFinder::GetIconClassForAssetData(const FAssetData& InAss
 			*bOutIsClassType = true;
 		}
 
-		return FindObject<UClass>(ANY_PACKAGE, *InAssetData.AssetName.ToString());
+		return FindObject<UClass>(nullptr, *InAssetData.ObjectPath.ToString());
 	}
 	
 	static const FName IgnoreClassThumbnail(TEXT("IgnoreClassThumbnail"));
@@ -131,7 +131,7 @@ const UClass* FClassIconFinder::GetIconClassForAssetData(const FAssetData& InAss
 		{
 			UObject* Outer = nullptr;
 			ResolveName(Outer, ParentClassName, false, false);
-			return FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+			return FindObject<UClass>(Outer, *ParentClassName);
 		}
 	}
 

@@ -69,7 +69,7 @@ public:
 	/**
 	 * Get all the currently registered class names
 	 */
-	TArrayView<const FName> GetRegisteredClassNames() const
+	TArrayView<const FTopLevelAssetPath> GetRegisteredClassNames() const
 	{
 		return ClassNames;
 	}
@@ -82,9 +82,9 @@ public:
 	 * @param ClassName      The name of the class this handler relates to.
 	 */
 	template<typename HandlerType>
-	void RegisterHandler(FName ClassName)
+	void RegisterHandler(FTopLevelAssetPath ClassPathName)
 	{
-		RegisterHandler(ClassName, MakeUnique<HandlerType>());
+		RegisterHandler(ClassPathName, MakeUnique<HandlerType>());
 	}
 
 
@@ -92,10 +92,10 @@ public:
 	 * Register an asset for the specified class name
 	 * @note: Any assets whose class is a child of the specified class will use this handler (unless there is a more specific handler registered)
 	 *
-	 * @param ClassName      The name of the class this handler relates to.
+	 * @param ClassPathName  The path name of the class this handler relates to.
 	 * @param InHandler      The implementation of the handler to use
 	 */
-	KISMET_API void RegisterHandler(FName ClassName, TUniquePtr<IBlueprintAssetHandler>&& InHandler);
+	KISMET_API void RegisterHandler(FTopLevelAssetPath ClassPathName, TUniquePtr<IBlueprintAssetHandler>&& InHandler);
 
 
 	/**
@@ -113,7 +113,7 @@ private:
 	FBlueprintAssetHandler();
 
 	/** Unsorted array of class names, one per-handler below */
-	TArray<FName> ClassNames;
+	TArray<FTopLevelAssetPath> ClassNames;
 
 	/** Array of handlers that relate to the class names above */
 	TArray<TUniquePtr<IBlueprintAssetHandler>> Handlers;
