@@ -45,10 +45,6 @@ namespace UnrealBuildTool
 			bool bForceUseSystemCompiler = PlatformSDK.ForceUseSystemCompiler();
 			bool bHasValidCompiler = false;
 
-			// these are supplied by the engine and do not change depending on the circumstances
-			DumpSymsPath = Path.Combine(Unreal.EngineDirectory.FullName, "Binaries", "Linux", "dump_syms");
-			BreakpadEncoderPath = Path.Combine(Unreal.EngineDirectory.FullName, "Binaries", "Linux", "BreakpadSymbolEncoder");
-
 			if (bForceUseSystemCompiler)
 			{
 				// Validate the system toolchain.
@@ -59,11 +55,8 @@ namespace UnrealBuildTool
 
 				// use native linux toolchain
 				ClangPath = LinuxCommon.WhichClang(Logger);
-				ArPath = LinuxCommon.Which("ar", Logger);
 				LlvmArPath = LinuxCommon.Which("llvm-ar", Logger);
-				RanlibPath = LinuxCommon.Which("ranlib", Logger);
-				StripPath = LinuxCommon.Which("strip", Logger);
-				ObjcopyPath = LinuxCommon.Which("objcopy", Logger);
+				ObjcopyPath = LinuxCommon.Which("llvm-objcopy", Logger);
 
 				// When compiling on Linux, use a faster way to relink circularly dependent libraries.
 				// Race condition between actions linking to the .so and action overwriting it is avoided thanks to inodes
@@ -90,11 +83,8 @@ namespace UnrealBuildTool
 
 				// set up the path to our toolchain
 				ClangPath = Path.Combine(BaseLinuxPath, @"bin", "clang++" + BuildHostPlatform.Current.BinarySuffix);
-				ArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ar" + BuildHostPlatform.Current.BinarySuffix)));
 				LlvmArPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}", "llvm-ar" + BuildHostPlatform.Current.BinarySuffix)));
-				RanlibPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}-{1}", Architecture, "ranlib" + BuildHostPlatform.Current.BinarySuffix)));
 				ObjcopyPath = Path.Combine(Path.Combine(BaseLinuxPath, String.Format("bin/{0}", "llvm-objcopy" + BuildHostPlatform.Current.BinarySuffix)));
-				StripPath = ObjcopyPath;
 
 				// When cross-compiling on Windows, use old FixDeps. It is slow, but it does not have timing issues
 				bUseFixdeps = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64;
@@ -133,6 +123,10 @@ namespace UnrealBuildTool
 		{
 			Architecture = InArchitecture;
 			PlatformSDK = InSDK;
+
+			// these are supplied by the engine and do not change depending on the circumstances
+			DumpSymsPath = Path.Combine(Unreal.EngineDirectory.FullName, "Binaries", "Linux", "dump_syms" + BuildHostPlatform.Current.BinarySuffix);
+			BreakpadEncoderPath = Path.Combine(Unreal.EngineDirectory.FullName, "Binaries", "Linux", "BreakpadSymbolEncoder" + BuildHostPlatform.Current.BinarySuffix);
 		}
 
 		public override void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)
@@ -212,21 +206,21 @@ namespace UnrealBuildTool
 
 				// objcopy stripped file
 				Out.WriteLine("\"{0}\" --strip-all \"{1}\" \"{2}\"",
-					GetObjcopyPath(LinkEnvironment.Architecture),
+					ObjcopyPath!,
 					OutputFile.AbsolutePath,
 					StrippedFile.AbsolutePath
 				);
 
 				// objcopy debug file
 				Out.WriteLine("\"{0}\" --only-keep-debug \"{1}\" \"{2}\"",
-					GetObjcopyPath(LinkEnvironment.Architecture),
+					ObjcopyPath!,
 					OutputFile.AbsolutePath,
 					DebugFile.AbsolutePath
 				);
 
 				// objcopy link debug file to final so
 				Out.WriteLine("\"{0}\" --add-gnu-debuglink=\"{1}\" \"{2}\" \"{3}.temp\"",
-					GetObjcopyPath(LinkEnvironment.Architecture),
+					ObjcopyPath!,
 					DebugFile.AbsolutePath,
 					StrippedFile.AbsolutePath,
 					OutputFile.AbsolutePath
@@ -397,38 +391,6 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		/// <summary>
-		/// Gets architecture-specific ar paths
-		/// </summary>
-		protected virtual string GetArPath(string Architecture)
-		{
-			return ArPath!;
-		}
-
-		/// <summary>
-		/// Gets architecture-specific ranlib paths
-		/// </summary>
-		protected virtual string GetRanlibPath(string Architecture)
-		{
-			return RanlibPath!;
-		}
-
-		/// <summary>
-		/// Gets architecture-specific strip path
-		/// </summary>
-		protected virtual string GetStripPath(string Architecture)
-		{
-			return StripPath!;
-		}
-
-		/// <summary>
-		/// Gets architecture-specific objcopy path
-		/// </summary>
-		protected virtual string GetObjcopyPath(string Architecture)
-		{
-			return ObjcopyPath!;
-		}
-
 		private static bool ShouldUseLibcxx(string Architecture)
 		{
 			// set UE_LINUX_USE_LIBCXX to either 0 or 1. If unset, defaults to 1.
@@ -519,19 +481,6 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add("-fvisibility-ms-compat");
 				Arguments.Add("-fvisibility-inlines-hidden");
-			}
-
-			// Clang only options
-			if (CrossCompiling())
-			{
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
-				{
-					Arguments.Add("-fdiagnostics-format=msvc");     // make diagnostics compatible with MSVC when cross-compiling
-				}
-				else if (Log.ColorConsoleOutput)
-				{
-					Arguments.Add("-fcolor-diagnostics");
-				}
 			}
 
 			// Profile Guided Optimization (PGO) and Link Time Optimization (LTO)
@@ -710,10 +659,7 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 
-			if (UsingLld(LinkEnvironment.Architecture) && (!LinkEnvironment.bIsBuildingDLL || (ClangVersionMajor >= 9)))
-			{
-				Result += (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? " -fuse-ld=lld.exe" : " -fuse-ld=lld";
-			}
+			Result += (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? " -fuse-ld=lld.exe" : " -fuse-ld=lld";
 
 			// debugging symbols
 			// Applying to all configurations @FIXME: temporary hack for FN to enable callstack in Shipping builds (proper resolution: UEPLAT-205)
@@ -767,7 +713,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (UsingLld(Architecture) && LinkEnvironment.bCreateDebugInfo && bGdbIndexSection)
+			if (LinkEnvironment.bCreateDebugInfo && bGdbIndexSection)
 			{
 				// Generate .gdb_index section. On my machine, this cuts symbol loading time (breaking at main) from 45
 				// seconds to 17 seconds (with gdb v8.3.1).
@@ -878,10 +824,7 @@ namespace UnrealBuildTool
 		protected bool bIsCrossCompiling;
 		protected string? BaseLinuxPath;
 		protected string? ClangPath;
-		protected string? ArPath;
 		protected string? LlvmArPath;
-		protected string? RanlibPath;
-		protected string? StripPath;
 		protected string? ObjcopyPath;
 		protected string? DumpSymsPath;
 		protected string? BreakpadEncoderPath;
@@ -908,37 +851,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		private bool bHasPrintedBuildDetails = false;
 
-		/// <summary>
-		/// Checks if we actually can use LTO/PGO with this set of tools
-		/// </summary>
-		protected virtual bool CanUseAdvancedLinkerFeatures(string Architecture)
-		{
-			return UsingLld(Architecture) && !String.IsNullOrEmpty(LlvmArPath);
-		}
-
-		/// <summary>
-		/// Returns a helpful string for the user
-		/// </summary>
-		protected string ExplainWhyCannotUseAdvancedLinkerFeatures(string Architecture)
-		{
-			string Explanation = "Cannot use LTO/PGO on this toolchain:";
-			int NumProblems = 0;
-			if (!UsingLld(Architecture))
-			{
-				Explanation += " not using lld";
-				++NumProblems;
-			}
-			if (String.IsNullOrEmpty(LlvmArPath))
-			{
-				if (NumProblems > 0)
-				{
-					Explanation += " and";
-				}
-				Explanation += " llvm-ar was not found";
-			}
-			return Explanation;
-		}
-
 		protected void PrintBuildDetails(CppCompileEnvironment CompileEnvironment, ILogger Logger)
 		{
 			Logger.LogInformation("------- Build details --------");
@@ -948,8 +860,8 @@ namespace UnrealBuildTool
 
 			// inform the user which C++ library the engine is going to be compiled against - important for compatibility with third party code that uses STL
 			Logger.LogInformation("Using {Lib} standard C++ library.", ShouldUseLibcxx(CompileEnvironment.Architecture) ? "bundled libc++" : "compiler default (most likely libstdc++)");
-			Logger.LogInformation("Using {Linker}", UsingLld(CompileEnvironment.Architecture) ? "lld linker" : "default linker (ld)");
-			Logger.LogInformation("Using {LlvmAr}", !String.IsNullOrEmpty(LlvmArPath) ? String.Format("llvm-ar : {0}", LlvmArPath) : String.Format("ar and ranlib: {0}, {1}", GetArPath(CompileEnvironment.Architecture), GetRanlibPath(CompileEnvironment.Architecture)));
+			Logger.LogInformation("Using lld linker");
+			Logger.LogInformation("Using llvm-ar ({LlvmAr})", LlvmArPath);
 
 			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ||
 				Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ||
@@ -1014,11 +926,6 @@ namespace UnrealBuildTool
 				PrintBuildDetails(CompileEnvironment, Logger);
 
 				bHasPrintedBuildDetails = true;
-			}
-
-			if ((CompileEnvironment.bAllowLTCG || CompileEnvironment.bPGOOptimize || CompileEnvironment.bPGOProfile) && !CanUseAdvancedLinkerFeatures(CompileEnvironment.Architecture))
-			{
-				throw new BuildException(ExplainWhyCannotUseAdvancedLinkerFeatures(CompileEnvironment.Architecture));
 			}
 
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
@@ -1200,29 +1107,16 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		protected virtual bool UsingLld(string Architecture)
-		{
-			return true;
-		}
-
 		/// <summary>
 		/// Creates an action to archive all the .o files into single .a file
 		/// </summary>
 		public FileItem CreateArchiveAndIndex(LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph, ILogger Logger)
 		{
+			Debugger.Launch();
 			// Create an archive action
 			Action ArchiveAction = Graph.CreateAction(ActionType.Link);
 			ArchiveAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-			ArchiveAction.CommandPath = BuildHostPlatform.Current.Shell;
-
-			if (BuildHostPlatform.Current.ShellType == ShellType.Sh)
-			{
-				ArchiveAction.CommandArguments = "-c '";
-			}
-			else
-			{
-				ArchiveAction.CommandArguments = "/c \"";
-			}
+			ArchiveAction.CommandPath = new FileReference(LlvmArPath!);
 
 			// this will produce a final library
 			ArchiveAction.bProducesImportLibrary = true;
@@ -1232,7 +1126,7 @@ namespace UnrealBuildTool
 			ArchiveAction.ProducedItems.Add(OutputFile);
 			ArchiveAction.CommandDescription = "Archive";
 			ArchiveAction.StatusDescription = Path.GetFileName(OutputFile.AbsolutePath);
-			ArchiveAction.CommandArguments += string.Format("\"{0}\" {1} \"{2}\"", GetArPath(LinkEnvironment.Architecture), GetArchiveArguments(LinkEnvironment), OutputFile.AbsolutePath);
+			ArchiveAction.CommandArguments += string.Format("{1} \"{2}\"", GetArchiveArguments(LinkEnvironment), OutputFile.AbsolutePath);
 
 			// Add the input files to a response file, and pass the response file on the command-line.
 			List<string> InputFileNames = new List<string>();
@@ -1251,12 +1145,6 @@ namespace UnrealBuildTool
 				ArchiveAction.PrerequisiteItems.Add(ResponseFileItem);
 			}
 			ArchiveAction.CommandArguments += string.Format(" @\"{0}\"", ResponsePath.FullName);
-
-			// add ranlib if not using llvm-ar
-			if (String.IsNullOrEmpty(LlvmArPath))
-			{
-				ArchiveAction.CommandArguments += string.Format(" && \"{0}\" \"{1}\"", GetRanlibPath(LinkEnvironment.Architecture), OutputFile.AbsolutePath);
-			}
 
 			// Add the additional arguments specified by the environment.
 			ArchiveAction.CommandArguments += LinkEnvironment.AdditionalArguments;
@@ -1345,11 +1233,6 @@ namespace UnrealBuildTool
 		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			Debug.Assert(!bBuildImportLibraryOnly);
-
-			if ((LinkEnvironment.bAllowLTCG || LinkEnvironment.bPGOOptimize || LinkEnvironment.bPGOProfile) && !CanUseAdvancedLinkerFeatures(LinkEnvironment.Architecture))
-			{
-				throw new BuildException(ExplainWhyCannotUseAdvancedLinkerFeatures(LinkEnvironment.Architecture));
-			}
 
 			List<string> RPaths = new List<string>();
 
@@ -1936,7 +1819,7 @@ namespace UnrealBuildTool
 			}
 
 			ProcessStartInfo StartInfo = new ProcessStartInfo();
-			StartInfo.FileName = GetStripPath(Architecture);
+			StartInfo.FileName = ObjcopyPath!;
 			StartInfo.Arguments = "--strip-debug \"" + TargetFile.FullName + "\"";
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;

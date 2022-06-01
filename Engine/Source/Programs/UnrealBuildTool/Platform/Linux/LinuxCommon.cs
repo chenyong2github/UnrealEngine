@@ -18,7 +18,7 @@ namespace UnrealBuildTool
 		{
 			Process proc = new Process();
 			proc.StartInfo.FileName = "/bin/sh";
-			proc.StartInfo.Arguments = String.Format("-c 'which {0}'", name);
+			proc.StartInfo.Arguments = string.Format("-c 'which {0}'", name);
 			proc.StartInfo.UseShellExecute = false;
 			proc.StartInfo.CreateNoWindow = true;
 			proc.StartInfo.RedirectStandardOutput = true;
@@ -30,7 +30,7 @@ namespace UnrealBuildTool
 			string? path = proc.StandardOutput.ReadLine();
 			Logger.LogDebug("which {Name} result: ({ExitCode}) {Path}", name, proc.ExitCode, path);
 
-			if (proc.ExitCode == 0 && String.IsNullOrEmpty(proc.StandardError.ReadToEnd()))
+			if (proc.ExitCode == 0 && string.IsNullOrEmpty(proc.StandardError.ReadToEnd()))
 			{
 				return path;
 			}
@@ -40,23 +40,12 @@ namespace UnrealBuildTool
 		public static string? WhichClang(ILogger Logger)
 		{
 			string? InternalSDKPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)?.GetInternalSDKPath();
-			if (!String.IsNullOrEmpty(InternalSDKPath))
+			if (!string.IsNullOrEmpty(InternalSDKPath))
 			{
 				return Path.Combine(InternalSDKPath, "bin", "clang++");
 			}
 
-			string[] ClangNames = { "clang++", "clang++-7.0", "clang++-6.0" };
-			string? ClangPath;
-			foreach (string ClangName in ClangNames)
-			{
-				ClangPath = Which(ClangName, Logger);
-				if (!String.IsNullOrEmpty(ClangPath))
-				{
-					return ClangPath;
-				}
-			}
-
-			return null;
+			return Which("clang++", Logger);
 		}
 	}
 }
