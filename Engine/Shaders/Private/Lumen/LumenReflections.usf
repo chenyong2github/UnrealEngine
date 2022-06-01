@@ -989,7 +989,10 @@ void ReflectionTemporalReprojectionCS(
 	HistorySpecularIndirect = clamp(HistorySpecularIndirect, HistoryClampMin, HistoryClampMax);
 
 	float4 NumFramesAccumulatedNeighborhood = HistoryNumFramesAccumulated.GatherRed(GlobalPointClampedSampler, HistoryGatherUV).wzxy * MaxFramesAccumulated;
-	NumFramesAccumulatedNeighborhood = min(NumFramesAccumulatedNeighborhood + 1.0f, MaxFramesAccumulated);
+	// Allow more aliasing through as we approach mirror to reduce the temporal reprojection diffusion error
+	float MaxFrames = lerp(2, MaxFramesAccumulated, saturate(Material.TopLayerRoughness / .05f));
+
+	NumFramesAccumulatedNeighborhood = min(NumFramesAccumulatedNeighborhood + 1.0f, MaxFrames);
 	float NumFramesAccumulated = WeightedAverage(NumFramesAccumulatedNeighborhood, FinalWeights);
 
 	float NewNumFramesAccumulated = NumFramesAccumulated;
