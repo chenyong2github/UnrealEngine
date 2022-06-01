@@ -1718,17 +1718,21 @@ public:
 
 			if (NodeTracker->HasConverted())
 			{
+				// Not all nodes are converted to Datasmith actors(e.g. hidden nodes are omitted from Datasmith scene)
+				// Transform animation is exported relative to parent actor's so we need node with actual datasmith actor to compute relative transform.
+				FNodeTracker* ParentNodeTracker = GetAncestorNodeTrackerWithDatasmithActor(*NodeTracker);
+				INode* ParentNode = ParentNodeTracker ? ParentNodeTracker->Node : nullptr;
 
 				if (NodeTracker->GetConverterType() == FNodeConverter::LightNode)
 				{
 					const TSharedPtr<IDatasmithLightActorElement> LightElement = StaticCastSharedPtr< IDatasmithLightActorElement >(NodeTracker->GetConverted().DatasmithActorElement);
 					const FMaxLightCoordinateConversionParams LightParams(NodeTracker->Node,
 						LightElement->IsA(EDatasmithElementType::AreaLight) ? StaticCastSharedPtr<IDatasmithAreaLightElement>(LightElement)->GetLightShape() : EDatasmithLightShape::None);
-					FDatasmithMaxSceneExporter::ExportAnimation(LevelSequence, NodeTracker->Node, NodeTracker->GetConverted().DatasmithActorElement->GetName(), Converter.UnitToCentimeter, LightParams);
+					FDatasmithMaxSceneExporter::ExportAnimation(LevelSequence, ParentNode, NodeTracker->Node, NodeTracker->GetConverted().DatasmithActorElement->GetName(), Converter.UnitToCentimeter, LightParams);
 				}
 				else
 				{
-					FDatasmithMaxSceneExporter::ExportAnimation(LevelSequence, NodeTracker->Node, NodeTracker->GetConverted().DatasmithActorElement->GetName(), Converter.UnitToCentimeter);
+					FDatasmithMaxSceneExporter::ExportAnimation(LevelSequence, ParentNode, NodeTracker->Node, NodeTracker->GetConverted().DatasmithActorElement->GetName(), Converter.UnitToCentimeter);
 				}
 			}
 		}

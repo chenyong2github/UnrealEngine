@@ -267,11 +267,11 @@ FTransform FDatasmithMaxSceneExporter::GetPivotTransform( INode* Node, float Uni
 	return Pivot;
 }
 
-void FDatasmithMaxSceneExporter::ExportAnimation( TSharedRef< IDatasmithLevelSequenceElement > LevelSequence, INode* Node, const TCHAR* Name, float UnitMultiplier, const FMaxLightCoordinateConversionParams& LightParams)
+void FDatasmithMaxSceneExporter::ExportAnimation( TSharedRef< IDatasmithLevelSequenceElement > LevelSequence, INode* ParentNode, INode* Node, const TCHAR* Name, float UnitMultiplier, const FMaxLightCoordinateConversionParams& LightParams)
 {
 	TSharedRef< IDatasmithTransformAnimationElement > Animation = FDatasmithSceneFactory::CreateTransformAnimation( Name );
 
-	if ( ParseTransformAnimation( Node, Animation, UnitMultiplier, LightParams) )
+	if ( ParseTransformAnimation( ParentNode, Node, Animation, UnitMultiplier, LightParams) )
 	{
 		LevelSequence->AddAnimation( Animation );
 	}
@@ -821,7 +821,7 @@ bool FDatasmithMaxSceneExporter::ParseActor(INode* Node, TSharedRef< IDatasmithA
 	return true;
 }
 
-bool FDatasmithMaxSceneExporter::ParseTransformAnimation(INode* Node, TSharedRef< IDatasmithTransformAnimationElement > AnimationElement, float UnitMultiplier, const FMaxLightCoordinateConversionParams& LightParams)
+bool FDatasmithMaxSceneExporter::ParseTransformAnimation(INode* ParentNode, INode* Node, TSharedRef< IDatasmithTransformAnimationElement > AnimationElement, float UnitMultiplier, const FMaxLightCoordinateConversionParams& LightParams)
 {
 	if (Node == nullptr)
 	{
@@ -838,13 +838,12 @@ bool FDatasmithMaxSceneExporter::ParseTransformAnimation(INode* Node, TSharedRef
 	// Query the node transform in local space at -infinity to determine if it has any animation
 	Interval ValidInterval = FOREVER;
 	Matrix3 NodeTransform = Node->GetNodeTM(TIME_NegInfinity, &ValidInterval);
-	INode* Parent = Node->GetParentNode();
 
 // Matrix3::Matrix3(BOOL) is deprecated in 3ds max 2022 SDK
 #if MAX_PRODUCT_YEAR_NUMBER < 2022
-	Matrix3 ParentTransform = Parent ? Parent->GetNodeTM(TIME_NegInfinity, &ValidInterval) : Matrix3(true);
+	Matrix3 ParentTransform = ParentNode ? ParentNode->GetNodeTM(TIME_NegInfinity, &ValidInterval) : Matrix3(true);
 #else
-	Matrix3 ParentTransform = Parent ? Parent->GetNodeTM(TIME_NegInfinity, &ValidInterval) : Matrix3();
+	Matrix3 ParentTransform = ParentNode ? ParentNode->GetNodeTM(TIME_NegInfinity, &ValidInterval) : Matrix3();
 #endif
 	Matrix3 LocalTransform;
 
@@ -866,12 +865,12 @@ bool FDatasmithMaxSceneExporter::ParseTransformAnimation(INode* Node, TSharedRef
 
 		// The parent node could change at each frame because of the Link Constraint
 		NodeTransform = Node->GetNodeTM(CurrentTime, &ValidInterval);
-		Parent = Node->GetParentNode();
+		
 // Matrix3::Matrix3(BOOL) is deprecated in 3ds max 2022 SDK
 #if MAX_PRODUCT_YEAR_NUMBER < 2022
-		ParentTransform = Parent ? Parent->GetNodeTM(CurrentTime, &ValidInterval) : Matrix3(true);
+		ParentTransform = ParentNode ? ParentNode->GetNodeTM(CurrentTime, &ValidInterval) : Matrix3(true);
 #else
-		ParentTransform = Parent ? Parent->GetNodeTM(CurrentTime, &ValidInterval) : Matrix3();
+		ParentTransform = ParentNode ? ParentNode->GetNodeTM(CurrentTime, &ValidInterval) : Matrix3();
 #endif
 
 		Matrix3 InvParentTransform = Inverse(ParentTransform);
