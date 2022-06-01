@@ -116,9 +116,12 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 		return true;
 	}
 
-	if (bIsSceneCapture && bHiddenInSceneCapture)
+	if (bIsSceneCapture)
 	{
-		return false;
+		if (bHiddenInSceneCapture)
+		{
+			return false;
+		}
 	}
 	else if (bVisibleInSceneCaptureOnly)
 	{
