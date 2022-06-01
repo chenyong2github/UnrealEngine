@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HAL/IConsoleManager.h"
+
+class FAutoConsoleCommand;
 
 /**
  * Editor only console commands.

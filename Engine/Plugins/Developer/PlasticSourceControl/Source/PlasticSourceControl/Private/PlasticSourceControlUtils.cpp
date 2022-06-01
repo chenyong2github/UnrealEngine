@@ -1536,7 +1536,11 @@ bool RunGetHistory(const bool bInUpdateHistory, TArray<FPlasticSourceControlStat
 	FString Results;
 	FString Errors;
 	TArray<FString> Parameters;
-	Parameters.Add(TEXT("--moveddeleted"));
+	// Detecting move and deletion is costly as it is implemented as two extra queries to the server; do it only when getting the history of the current branch
+	if (bInUpdateHistory)
+	{
+		Parameters.Add(TEXT("--moveddeleted"));
+	}
 	Parameters.Add(TEXT("--xml"));
 	Parameters.Add(TEXT("--encoding=\"utf-8\""));
 
@@ -1556,7 +1560,6 @@ bool RunGetHistory(const bool bInUpdateHistory, TArray<FPlasticSourceControlStat
 	if (Files.Num() > 0)
 	{
 		bResult = RunCommandInternal(TEXT("history"), Parameters, Files, EConcurrency::Synchronous, Results, Errors);
-		OutErrorMessages.Add(MoveTemp(Errors));
 		if (bResult)
 		{
 			FXmlFile XmlFile;
@@ -1565,6 +1568,10 @@ bool RunGetHistory(const bool bInUpdateHistory, TArray<FPlasticSourceControlStat
 			{
 				bResult = ParseHistoryResults(bInUpdateHistory, XmlFile, InOutStates);
 			}
+		}
+		if (!Errors.IsEmpty())
+		{
+			OutErrorMessages.Add(MoveTemp(Errors));
 		}
 	}
 

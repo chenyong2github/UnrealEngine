@@ -1,27 +1,1 @@
-{
-	"FileVersion": 3,
-	"Version": 50,
-	"VersionName": "1.5.0",
-	"FriendlyName": "Plastic SCM",
-	"Description": "Plastic source control management",
-	"Category": "Source Control",
-	"CreatedBy": "SRombauts for Codice Software.",
-	"CreatedByURL": "http://srombauts.github.com",
-	"DocsURL": "https://github.com/PlasticSCM/UE4PlasticPlugin",
-	"MarketplaceURL": "",
-	"SupportURL": "https://www.plasticscm.com/support",
-	"EnabledByDefault": true,
-	"CanContainContent": false,
-	"IsBetaVersion": false,
-	"Installed": false,
-	"Modules": [
-		{
-			"Name": "PlasticSourceControl",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [
-				"Win64"
-			]
-		}
-	]
-}
+{	"FileVersion": 3,	"Version": 51,	"VersionName": "1.5.1",	"FriendlyName": "Plastic SCM",	"Description": "Plastic source control management",	"Category": "Source Control",	"CreatedBy": "SRombauts for Codice Software.",	"CreatedByURL": "http://srombauts.github.com",	"DocsURL": "https://github.com/PlasticSCM/UE4PlasticPlugin",	"MarketplaceURL": "",	"SupportURL": "https://www.plasticscm.com/support",	"EnabledByDefault": true,	"CanContainContent": false,	"IsBetaVersion": false,	"Installed": false,	"Modules": [		{			"Name": "PlasticSourceControl",			"Type": "Editor",			"LoadingPhase": "Default",			"PlatformAllowList": [				"Win64"			]		}	]}
