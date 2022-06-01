@@ -59,6 +59,7 @@
 #include "LevelEditor.h"
 #include "InteractiveToolManager.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "Editor/EditorPerProjectUserSettings.h"
 
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
@@ -2994,6 +2995,12 @@ void FControlRigEditMode::CreateShapeActors(UControlRig* ControlRig)
 	// create gizmo actors
 	FActorSpawnParameters ActorSpawnParameters;
 	ActorSpawnParameters.bTemporaryEditorActor = true;
+
+	if(bShowControlsAsOverlay)
+	{
+		// enable translucent selection
+		GetMutableDefault<UEditorPerProjectUserSettings>()->bAllowSelectTranslucent = true;
+	}
 
 	TArray<FRigControlElement*> Controls = ControlRig->AvailableControls();
 	const TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries = ControlRig->GetShapeLibraries();
