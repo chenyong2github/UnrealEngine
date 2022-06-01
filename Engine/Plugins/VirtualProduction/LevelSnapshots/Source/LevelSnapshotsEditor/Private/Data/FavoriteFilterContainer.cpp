@@ -83,7 +83,7 @@ namespace
 		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 		
 		TArray<FAssetData> BlueprintList;
-		AssetRegistry.GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), BlueprintList);
+		AssetRegistry.GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), BlueprintList);
 
 		// Returns = 
 		TArray<TSubclassOf<ULevelSnapshotBlueprintFilter>> Result;

@@ -7,6 +7,7 @@
 #include "Containers/ContainersFwd.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/TopLevelAssetPath.h"
 
 namespace EAssetRegistryDependencyType
 {
