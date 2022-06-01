@@ -562,7 +562,7 @@ protected:
 
 	void UpdateResolutionQuality();
 
-	void EnableHDRDisplayOutputInternal(bool bEnable, int32 DisplayNits, bool FromUserSettings);
+	void EnableHDRDisplayOutputInternal(bool bEnable, int32 DisplayNits, bool bFromUserSettings);
 
 private:
 
