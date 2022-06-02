@@ -295,6 +295,7 @@ void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double Seco
 		}
 
 #if UE_WITH_ZEN
+		if (UE::Zen::IsDefaultServicePresent())
 		{
 			// Grab the Zen summary stats
 			UE::Zen::FZenStats ZenStats;
