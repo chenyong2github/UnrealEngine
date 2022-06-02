@@ -9,6 +9,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(GetCollectionAssetNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(ExampleCollectionEditNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(SetCollectionAssetNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(ResetGeometryCollection);
 	}
 }
 
