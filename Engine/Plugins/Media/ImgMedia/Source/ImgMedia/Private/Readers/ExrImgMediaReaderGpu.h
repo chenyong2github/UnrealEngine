@@ -10,6 +10,7 @@
 #include "IMediaTextureSampleConverter.h"
 
 class FExrImgMediaReaderGpu;
+class FExrMediaTextureSampleConverter;
 
 struct FStructuredBufferPoolItem
 {
@@ -89,8 +90,8 @@ protected:
 	/**
 	* Creates Sample converter to be used by Media Texture Resource.
 	*/
-	static TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> CreateSampleConverter
-		(TArray<FStructuredBufferPoolItemSharedPtr>&& BufferDataArray, TSharedPtr<FSampleConverterParameters> ConverterParams);
+	static void CreateSampleConverterCallback
+		(FExrMediaTextureSampleConverter* SampleConverter, TSharedPtr<FSampleConverterParameters> ConverterParams);
 
 public:
 
@@ -127,7 +128,7 @@ private:
 	bool bFallBackToCPU;
 };
 
-FUNC_DECLARE_DELEGATE(FExrConvertBufferCallback, bool, FRHICommandListImmediate& /*RHICmdList*/, FTexture2DRHIRef /*RenderTargetTextureRHI*/)
+FUNC_DECLARE_DELEGATE(FExrConvertBufferCallback, bool, FRHICommandListImmediate& /*RHICmdList*/, FTexture2DRHIRef /*RenderTargetTextureRHI*/, TMap<int32, FStructuredBufferPoolItemSharedPtr>& /*MipBuffers*/ )
 
 class FExrMediaTextureSampleConverter: public IMediaTextureSampleConverter
 {
@@ -135,9 +136,36 @@ class FExrMediaTextureSampleConverter: public IMediaTextureSampleConverter
 public:
 	virtual bool Convert(FTexture2DRHIRef& InDstTexture, const FConversionHints& Hints) override;
 	virtual ~FExrMediaTextureSampleConverter() {};
+	
+	void AddCallback(FExrConvertBufferCallback&& Callback) 
+	{
+		FScopeLock ScopeLock(&ConverterCallbacksCriticalSection);
+		ConvertExrBufferCallback = Callback;
+	};
 
-public:
+	FStructuredBufferPoolItemSharedPtr GetMipLevelBuffer(int32 RequestedMipLevel)
+	{
+		FScopeLock ScopeLock(&ConverterCallbacksCriticalSection);
+		if (MipBuffers.Contains(RequestedMipLevel))
+		{
+			return *MipBuffers.Find(RequestedMipLevel);
+		}
+		return nullptr;
+	}
+
+	void SetMipLevelBuffer(int32 RequestedMipLevel, FStructuredBufferPoolItemSharedPtr Buffer)
+	{
+		FScopeLock ScopeLock(&ConverterCallbacksCriticalSection);
+		check(!MipBuffers.Contains(RequestedMipLevel));
+		MipBuffers.Add(RequestedMipLevel, Buffer);
+	}
+
+private:
+	FCriticalSection ConverterCallbacksCriticalSection;
 	FExrConvertBufferCallback ConvertExrBufferCallback;
+
+	/** An array of structured buffers that are big enough to fully contain corresponding mip levels. */
+	TMap<int32,FStructuredBufferPoolItemSharedPtr> MipBuffers;
 };
 
 #endif //defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS

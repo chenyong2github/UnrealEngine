@@ -112,11 +112,12 @@ struct FImgMediaTileSelection
 	TArray<FIntPoint> GetVisibleCoordinates() const;
 
 	/**
-	 * Returns a calculated list of contiguous visible tile regions.
+	 * Returns a calculated list of contiguous visible tile regions. Only provides regions for the missing tiles if
+	 * CurrentTileSelection is specified.
 	 *
-	 * @return Visible tile regions array.
+	 * @return Visible tile regions array. 
 	 */
-	TArray<FIntRect> GetVisibleRegions() const;
+	TArray<FIntRect> GetVisibleRegions(const FImgMediaTileSelection* CurrentTileSelection = nullptr) const;
 
 	/**
 	 * Return the rectangular region bounding the visible tiles.

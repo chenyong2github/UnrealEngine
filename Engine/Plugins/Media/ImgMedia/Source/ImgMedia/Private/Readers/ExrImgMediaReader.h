@@ -63,8 +63,8 @@ protected:
 		/** Dimension of the tile including the overscan borders. */
 		FIntPoint TileDimWithBorders;
 
-		/** Used for rendering tiles in bulk regions. */
-		TMap<int32, FIntRect> Viewports;
+		/** Used for rendering tiles in bulk regions per mip level. */
+		TMap<int32, TArray<FIntRect>> Viewports;
 
 #if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
 		/** Contain information about individual tiles. Used to convert buffer data into a 2D Texture. */
@@ -97,7 +97,7 @@ protected:
 	 * Reads tiles from exr files in tile rows based on Tile region. If frame is pending for cancelation
 	 * stops reading tiles at the current tile row.
 	*/
-	EReadResult ReadTilesCustom(uint16* Buffer, int64 BufferSize, const FString& ImagePath, int32 FrameId, const FIntRect& TileRegion, TSharedPtr<FSampleConverterParameters> ConverterParams, const int32 CurrentMipLevel);
+	EReadResult ReadTilesCustom(uint16* Buffer, int64 BufferSize, const FString& ImagePath, int32 FrameId, const TArray<FIntRect>& TileRegions, TSharedPtr<FSampleConverterParameters> ConverterParams, const int32 CurrentMipLevel);
 
 	/**
 	 * Sets parameters of our custom format images.

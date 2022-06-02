@@ -110,7 +110,7 @@ TArray<FIntPoint> FImgMediaTileSelection::GetVisibleCoordinates() const
 	return OutCoordinates;
 }
 
-TArray<FIntRect> FImgMediaTileSelection::GetVisibleRegions() const
+TArray<FIntRect> FImgMediaTileSelection::GetVisibleRegions(const FImgMediaTileSelection* CurrentTileSelection) const
 {
 	/**
 	 * This is a two-pass algorithm to batch tiles into contiguous regions, with a bias for row groupings.
@@ -123,14 +123,21 @@ TArray<FIntRect> FImgMediaTileSelection::GetVisibleRegions() const
 	for (int32 CoordY = 0; CoordY < Dimensions.Y; ++CoordY)
 	{
 		TArray<FIntRect> RegionsPerRow;
-
+		TBitArray<> PreviousVisibleTiles(0, Dimensions.X);
 		for (int32 CoordX = 0; CoordX < Dimensions.X; ++CoordX)
 		{
-			if (Tiles[ToIndex(CoordX, CoordY, Dimensions)])
+			int32 TileIndex = ToIndex(CoordX, CoordY, Dimensions);
+
+			bool bOnlyIncludeMissingTiles = CurrentTileSelection != nullptr;
+
+			// Interpretation: If cached selection doesn't have a tile and CurrentTileSelection (latest) does, then we need to count it as a missing tile.
+			bool bIsThisTileMissing = bOnlyIncludeMissingTiles ? (!Tiles[TileIndex] && CurrentTileSelection->Tiles[TileIndex]) : (Tiles[TileIndex]);
+			if (bIsThisTileMissing)
 			{
 				FIntPoint TileCoord(CoordX, CoordY);
+				PreviousVisibleTiles[CoordX] = true;
+				bool bIsPreviousRowTileVisible = (CoordX > 0) ? PreviousVisibleTiles[CoordX - 1] : false;
 
-				bool bIsPreviousRowTileVisible = (CoordX > 0) ? Tiles[ToIndex(CoordX - 1, CoordY, Dimensions)] : false;
 				if (bIsPreviousRowTileVisible)
 				{
 					RegionsPerRow.Last().Include(TileCoord + 1);
