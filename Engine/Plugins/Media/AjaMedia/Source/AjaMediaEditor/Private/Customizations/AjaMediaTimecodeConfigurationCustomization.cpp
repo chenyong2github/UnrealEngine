@@ -16,6 +16,7 @@
 #include "Widgets/SMediaPermutationsSelector.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWindow.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "AjaMediaTimecodeConfigurationCustomization"
 
