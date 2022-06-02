@@ -409,8 +409,8 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 				MenuBuilder.AddMenuEntry
 				(
 					LOCTEXT("ContextMenu_RemoveFromGraphTrack", "Remove series from graph track"),
-					LOCTEXT("ContextMenu_RemoveFromGraphTrack_Desc", "Remove the series containing event instances of the selected counter from the timing graph track."),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ToggleShowGraphSeries"),
+					LOCTEXT("ContextMenu_RemoveFromGraphTrack_Desc", "Removes the series containing event instances of the selected counter from the Main Graph track."),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.RemoveGraphSeries"),
 					Action_ToggleCounterInGraphTrack,
 					NAME_None,
 					EUserInterfaceActionType::Button
@@ -421,8 +421,8 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 				MenuBuilder.AddMenuEntry
 				(
 					LOCTEXT("ContextMenu_AddToGraphTrack", "Add series to graph track"),
-					LOCTEXT("ContextMenu_AddToGraphTrack_Desc", "Add a series containing event instances of the selected counter to the timing graph track."),
-					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ToggleShowGraphSeries"),
+					LOCTEXT("ContextMenu_AddToGraphTrack_Desc", "Adds a series containing event instances of the selected counter to the Main Graph track."),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.AddGraphSeries"),
 					Action_ToggleCounterInGraphTrack,
 					NAME_None,
 					EUserInterfaceActionType::Button
