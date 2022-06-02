@@ -152,7 +152,7 @@ public sealed class BuildCMakeLib : BuildCommand
 		}
 
 		protected DirectoryReference GetProjectsDirectory(TargetLib TargetLib, string TargetConfiguration) =>
-			DirectoryReference.Combine(GetTargetLibRootDirectory(TargetLib), "Build",
+			DirectoryReference.Combine(GetTargetLibRootDirectory(TargetLib), "Intermediate",
 				IsPlatformExtension ? "" : PlatformOrGroupName,
 				VariantDirectory ?? "",
 				SeparateProjectPerConfig ? TargetLib.BuildMap[TargetConfiguration] : "");
@@ -375,7 +375,7 @@ public sealed class BuildCMakeLib : BuildCommand
 		{
 			if (string.IsNullOrEmpty(TargetConfiguration))
 			{
-				InternalUtils.SafeDeleteDirectory(DirectoryReference.Combine(GetTargetLibRootDirectory(TargetLib), "Build").FullName);
+				InternalUtils.SafeDeleteDirectory(DirectoryReference.Combine(GetTargetLibRootDirectory(TargetLib), "Intermediate").FullName);
 			}
 			else
 			{
