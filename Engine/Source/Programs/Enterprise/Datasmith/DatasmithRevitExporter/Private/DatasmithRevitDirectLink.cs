@@ -335,6 +335,11 @@ namespace DatasmithRevitExporter
 				#error This version of Revit is not supported yet.
 #endif
 
+				if (UIApp == null)
+				{
+					UIApp = new UIApplication(SyncView.Document.Application);
+				}
+
 				RevitCommandId CmdId = RevitCommandId.LookupCommandId(CmdGUID.ToLower());
 				if (CmdId != null)
 				{
