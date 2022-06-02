@@ -41,14 +41,17 @@ void			Writer_SendData(uint32, uint8* __restrict, uint32);
 void			Writer_InitializeTail(int32);
 void			Writer_ShutdownTail();
 void			Writer_TailOnConnect();
+void			Writer_TailPause(bool);	
 void			Writer_InitializeSharedBuffers();
 void			Writer_ShutdownSharedBuffers();
 void			Writer_UpdateSharedBuffers();
 void			Writer_InitializeCache();
 void			Writer_ShutdownCache();
 void			Writer_CacheOnConnect();
+void			Writer_CallbackOnConnect();
 void			Writer_InitializePool();
 void			Writer_ShutdownPool();
+bool			Writer_DrainLocalBuffer(uint32);
 void			Writer_DrainBuffers();
 void			Writer_EndThreadBuffer();
 uint32			Writer_GetControlPort();
@@ -58,6 +61,7 @@ void			Writer_ShutdownControl();
 bool			Writer_IsTracing();
 bool			Writer_IsTailing();
 static bool		Writer_SessionPrologue();
+void			Writer_FreeBlockListToPool(FWriteBuffer*, FWriteBuffer*);
 
 
 
@@ -391,6 +395,7 @@ static void Writer_DescribeAnnounce()
 ////////////////////////////////////////////////////////////////////////////////
 static int8			GSyncPacketCountdown;	// = 0
 static const int8	GNumSyncPackets			= 3;
+static OnConnectFunc*	GOnConnection = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_SendSync()
@@ -474,8 +479,12 @@ static bool Writer_UpdateConnection()
 	FEventNode::OnConnect();
 	Writer_DescribeEvents(FEventNode::ReadNew());
 
-	// Send cached events (i.e. importants) and the tail of recent events
+	// Send cached events (i.e. importants) 
 	Writer_CacheOnConnect();
+	// Issue on connection callback. This allows writing events that are
+	// not cached but important for the cache
+	Writer_CallbackOnConnect();
+	// Finally write the events in the tail buffer
 	Writer_TailOnConnect();
 
 	// See Writer_SendSync() for details.
@@ -533,12 +542,28 @@ static bool Writer_SessionPrologue()
 	return true;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+void Writer_CallbackOnConnect()
+{
+	if (!GOnConnection)
+	{
+		return;
+	}
+	
+	Writer_TailPause(true);
+	// Issue callback. We assume any events emitted here are not marked as
+	// important and emitted on this thread.
+	GOnConnection();
+	// Drain only the events for this thread passing tail as you go.
+	Writer_DrainLocalBuffer(ETransportTid::Bias);
+	Writer_TailPause(false);
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
 static UPTRINT			GWorkerThread;		// = 0;
 static volatile bool	GWorkerThreadQuit;	// = false;
-static volatile unsigned int	GUpdateInProgress = 1;	// Don't allow updates until initalized
+static volatile unsigned int	GUpdateInProgress = 1;	// Don't allow updates until initialized
 
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_WorkerUpdateInternal()
@@ -713,6 +738,9 @@ void Writer_Initialize(const FInitializeDesc& Desc)
 	{
 		Writer_WorkerCreate();
 	}
+
+	// Store callback on connection
+	GOnConnection = Desc.OnConnectionFunc;
 
 	// Allow the worker thread to start updating 
 	GUpdateInProgress = 0;

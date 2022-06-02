@@ -18,6 +18,11 @@ public:
 	typedef FLogCategoryBase FLogCategoryAlias;
 #endif
 
+	/**
+	 * Callback type when a new connection is established.
+	 */
+	DECLARE_MULTICAST_DELEGATE(FOnConnection);
+
 	enum class EConnectionType
 	{
 		/**
@@ -123,5 +128,18 @@ public:
 	static void	GetActiveChannelsString(FStringBuilderBase& String);
 
 
+	/**
+	 * Delegate that triggers when a connection is established. Gives subscribers a chance to trace events that appear
+	 * after important events but before regular events (including tail). The following restrictions apply:
+	 *  * Only NoSync event types can be emitted.
+	 *  * Important events should not be emitted. They will appear after the events in the tail.
+	 *  * Callback is issued from a worker thread. User is responsible to synchronize shared resources.
+	 * 
+	 * @note This is an advanced feature to avoid using important events in cases where event data can be
+	 *		 recalled easily.
+	 *		 
+	 * @param Callback Delegate to call on new connections.
+	 */
+	static FOnConnection OnConnection;
 	
 };

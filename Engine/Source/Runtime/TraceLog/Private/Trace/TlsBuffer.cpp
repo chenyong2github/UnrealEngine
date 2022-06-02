@@ -219,6 +219,12 @@ void Writer_DrainBuffers()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool Writer_DrainLocalBuffer(uint32 ThreadId)
+{
+	return Writer_DrainBuffer(ThreadId, GTlsWriteBuffer);
+}
+	
+////////////////////////////////////////////////////////////////////////////////
 void Writer_EndThreadBuffer()
 {
 	if (GTlsWriteBuffer == &GNullWriteBuffer)

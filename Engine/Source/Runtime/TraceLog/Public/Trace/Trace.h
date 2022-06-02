@@ -77,11 +77,14 @@ TEventRef<IdType> MakeEventRef(IdType InId, uint32 InTypeId)
 	return TEventRef<IdType>(InId, InTypeId);
 }
 
+using OnConnectFunc = void(void);
+
 struct FInitializeDesc
 {
 	uint32			TailSizeBytes		= 4 << 20;
 	bool			bUseWorkerThread	= true;
 	bool			bUseImportantCache	= true;
+	OnConnectFunc*	OnConnectionFunc	= nullptr;
 };
 
 typedef void*		AllocFunc(SIZE_T, uint32);

@@ -40,6 +40,7 @@ public:
 	void			Initialize(uint32 InSize);
 	void			Shutdown();
 	void			Reset();
+	void			Pause(bool bInPause) { bPaused = bInPause; };
 	uint32			GetSize() const;
 	bool			IsActive() const;
 	FRange			GetBackPackets() const;
@@ -57,6 +58,7 @@ private:
 	uint32			Cursor;
 	uint32			Left;
 	uint32			Right;
+	bool			bPaused;
 };
 
 // TraceLog must be ready after value-init so that it can be used before
@@ -68,6 +70,7 @@ void FPacketRing::Initialize(uint32 InSize)
 {
 	Data = (uint8*)Writer_MemoryAllocate(InSize, 16);
 	Size = InSize;
+	bPaused = false;
 	Reset();
 }
 
@@ -94,7 +97,7 @@ uint32 FPacketRing::GetSize() const
 ////////////////////////////////////////////////////////////////////////////////
 bool FPacketRing::IsActive() const
 {
-	return Data != nullptr;
+	return Data != nullptr && !bPaused;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -199,6 +202,11 @@ FTidPacketBase* FPacketRing::AppendImpl(uint32 InSize)
 static FPacketRing GPacketRing; // = {};
 
 
+////////////////////////////////////////////////////////////////////////////////
+void Writer_TailPause(bool bPause)
+{
+	GPacketRing.Pause(bPause);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_TailAppend(uint32 ThreadId, uint8* __restrict Data, uint32 Size, bool bPartial)

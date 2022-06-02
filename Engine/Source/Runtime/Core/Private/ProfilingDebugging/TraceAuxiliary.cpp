@@ -79,7 +79,7 @@ public:
 	void					GetActiveChannelsString(FStringBuilderBase& String) const;
 	void					AddCommandlineChannels(const TCHAR* ChannelList);
 	void					ResetCommandlineChannels();
-	bool					HasCommandlineChannels() const { return !CommandlineChannels.IsEmpty(); };
+	bool					HasCommandlineChannels() const { return !CommandlineChannels.IsEmpty(); }
 	void					EnableChannels(const TCHAR* ChannelList);
 	void					DisableChannels(const TCHAR* ChannelList);
 	bool					Connect(ETraceConnectType Type, const TCHAR* Parameter, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
@@ -596,6 +596,11 @@ void FTraceAuxiliaryImpl::StartEndFramePump()
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+void OnConnectionCallback()
+{
+	FTraceAuxiliary::OnConnection.Broadcast();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 static void TraceAuxiliaryConnectEpilogue()
@@ -1153,6 +1158,9 @@ static bool StartFromCommandlineArguments(const TCHAR* CommandLine)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+FTraceAuxiliary::FOnConnection FTraceAuxiliary::OnConnection;
+
+////////////////////////////////////////////////////////////////////////////////
 bool FTraceAuxiliary::Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, Options* Options, const FLogCategoryAlias& LogCategory)
 {
 #if UE_TRACE_ENABLED
@@ -1296,6 +1304,7 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	UE::Trace::FInitializeDesc Desc;
 	Desc.bUseWorkerThread = false;
 	Desc.bUseImportantCache = (FParse::Param(CommandLine, TEXT("tracenocache")) == false);
+	Desc.OnConnectionFunc = &OnConnectionCallback; 
 	if (FParse::Value(CommandLine, TEXT("-tracetailmb="), Desc.TailSizeBytes))
 	{
 		Desc.TailSizeBytes <<= 20;
