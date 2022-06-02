@@ -556,6 +556,14 @@ public:
 									  dtPolyRef* neiRefs, int* neiCount, const int maxNei,
 									  dtReal* resultWalls, dtPolyRef* resultRefs, int* resultCount, const int maxResult) const;
 
+
+	/// [UE] Finds the wall segments that overlap the polygon shape.
+	dtStatus findWallsOverlappingShape(dtPolyRef startRef, const dtReal* verts, const int nverts,
+									   const dtQueryFilter* filter, 
+									   dtPolyRef* neiRefs, int* neiCount, const int maxNei,
+									   dtReal* resultWalls, dtPolyRef* resultRefs, int* resultCount, const int maxResult) const;
+
+	
 	/// Moves from the start to the end position constrained to the navigation mesh.
 	///  @param[in]		startRef		The reference id of the start polygon.
 	///  @param[in]		startPos		A position of the mover within the start polygon. [(x, y, x)]

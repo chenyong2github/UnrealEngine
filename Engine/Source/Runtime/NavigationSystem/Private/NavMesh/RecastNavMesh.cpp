@@ -1329,6 +1329,58 @@ bool ARecastNavMesh::FindMoveAlongSurface(const FNavLocation& StartLocation, con
 	return bSuccess;
 }
 
+bool ARecastNavMesh::FindOverlappingEdges(const FNavLocation& StartLocation, TConstArrayView<FVector> ConvexPolygon, TArray<FVector>& OutEdges, FSharedConstNavQueryFilter Filter, const UObject* Querier) const
+{
+	if (RecastNavMeshImpl == NULL || RecastNavMeshImpl->DetourNavMesh == NULL)
+	{
+		return false;
+	}
+
+	const FNavigationQueryFilter& FilterToUse = GetRightFilterRef(Filter);
+
+	FRecastSpeciaLinkFilter LinkFilter(FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()), Querier);
+	INITIALIZE_NAVQUERY_WLINKFILTER(NavQuery, FilterToUse.GetMaxSearchNodes(), LinkFilter);
+	const dtQueryFilter* QueryFilter = static_cast<const FRecastQueryFilter*>(FilterToUse.GetImplementation())->GetAsDetourQueryFilter();
+
+	const int32 MaxWalls = 64;
+	int32 NumWalls = 0;
+	FVector::FReal WallSegments[MaxWalls * 3 * 2] = { 0 };
+	dtPolyRef WallPolys[MaxWalls * 2] = { 0 };
+
+	const int32 MaxNeis = 64;
+	int32 NumNeis = 0;
+	dtPolyRef NeiPolys[MaxNeis] = { 0 };
+
+	const int32 MaxConvexPolygonPoints = 8;
+	int32 NumConvexPolygonPoints = FMath::Min(ConvexPolygon.Num(), MaxConvexPolygonPoints);
+	FVector::FReal RcConvexPolygon[MaxConvexPolygonPoints * 3] = { 0 };
+
+	for (int32 i  = 0; i < NumConvexPolygonPoints; i++)
+	{
+		const FVector RcPoint = Unreal2RecastPoint(ConvexPolygon[i]);
+		RcConvexPolygon[i*3+0] = RcPoint.X;
+		RcConvexPolygon[i*3+1] = RcPoint.Y;
+		RcConvexPolygon[i*3+2] = RcPoint.Z;
+	}
+
+	dtStatus Status = NavQuery.findWallsOverlappingShape(StartLocation.NodeRef, RcConvexPolygon, NumConvexPolygonPoints, QueryFilter,
+		NeiPolys, &NumNeis, MaxNeis, WallSegments, WallPolys, &NumWalls, MaxWalls);
+
+	if (dtStatusSucceed(Status))
+	{
+		OutEdges.Reset(NumWalls*2);
+		for (int32 Idx = 0; Idx < NumWalls; Idx++)
+		{
+			OutEdges.Add(Recast2UnrealPoint(&WallSegments[Idx * 6]));
+			OutEdges.Add(Recast2UnrealPoint(&WallSegments[Idx * 6 + 3]));
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 bool ARecastNavMesh::ProjectPoint(const FVector& Point, FNavLocation& OutLocation, const FVector& Extent, FSharedConstNavQueryFilter Filter, const UObject* QueryOwner) const
 {
 	bool bSuccess = false;
