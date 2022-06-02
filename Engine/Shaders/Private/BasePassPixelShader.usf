@@ -1071,6 +1071,10 @@ void FPixelShaderInOut_MainPS(
 	if (ShadingModel == SHADINGMODELID_SUBSURFACE || ShadingModel == SHADINGMODELID_PREINTEGRATED_SKIN || ShadingModel == SHADINGMODELID_SUBSURFACE_PROFILE || ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE || ShadingModel == SHADINGMODELID_CLOTH || ShadingModel == SHADINGMODELID_EYE)
 	{
 		float4 SubsurfaceData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+		
+		// If the subsurface feature is disabled, the subsurface color should be black
+		// This will also ensure that the subsurface profile does not contribute when subsurface scattering is disabled
+		SubsurfaceData *= View.bSubsurfacePostprocessEnabled;
 
 		if (false) // Dummy if to make the ifdef logic play nicely
 		{

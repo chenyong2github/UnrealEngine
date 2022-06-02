@@ -289,6 +289,10 @@ void Main(
 
 #if (MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE) && MOBILE_SHADINGMODEL_SUPPORT
 	half4 SubsurfaceData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+	
+	// If the subsurface feature is disabled, the subsurface color should be black
+	// This will also ensure that the subsurface profile does not contribute when subsurface scattering is disabled
+	SubsurfaceData *= View.bSubsurfacePostprocessEnabled;
 
 	SubsurfaceColor = SubsurfaceData.rgb * ResolvedView.DiffuseOverrideParameter.w + ResolvedView.DiffuseOverrideParameter.xyz;
 
