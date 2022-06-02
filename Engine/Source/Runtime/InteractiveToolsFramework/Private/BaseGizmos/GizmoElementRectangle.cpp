@@ -6,6 +6,7 @@
 #include "InputState.h"
 #include "Materials/MaterialInterface.h"
 #include "SceneManagement.h"
+#include "Math/UnrealMathUtility.h"
 
 void UGizmoElementRectangle::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
@@ -74,7 +75,48 @@ FInputRayHit UGizmoElementRectangle::LineTrace(const FVector RayOrigin, const FV
 {
 	if (IsHittableInView())
 	{
-		// @todo - implement ray-circle intersection
+		if (bHitMesh)
+		{
+			const FVector UpAxis = CachedLocalToWorldTransform.TransformVectorNoScale(UpDirection);
+			const FVector SideAxis = CachedLocalToWorldTransform.TransformVectorNoScale(SideDirection);
+			const FVector Normal = FVector::CrossProduct(UpAxis, SideAxis);
+			const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(Center);
+			const double Scale = CachedLocalToWorldTransform.GetScale3D().X;
+			const double WorldHeight = Scale * Height;
+			const double WorldWidth = Scale * Width;
+			const FVector Base = WorldCenter - UpAxis * WorldHeight * 0.5 - SideAxis * WorldWidth * 0.5;
+
+			// if ray is parallel to rectangle, no hit
+			if (FMath::IsNearlyZero(FVector::DotProduct(Normal, RayDirection)))
+			{
+				return FInputRayHit();
+			}
+
+			FPlane Plane(Base, Normal);
+			double HitDepth = FMath::RayPlaneIntersectionParam(RayOrigin, RayDirection, Plane);
+			if (HitDepth < 0)
+			{
+				return FInputRayHit();
+			}
+
+			FVector HitPoint = RayOrigin + RayDirection * HitDepth;
+			FVector HitOffset = HitPoint - Base;
+			double HdU = FVector::DotProduct(HitOffset, UpAxis);
+			double HdS = FVector::DotProduct(HitOffset, SideAxis);
+
+			// clip to rectangle dimensions
+			if (HdU >= 0.0 && HdU <= WorldHeight && HdS >= 0.0 && HdS <= WorldWidth)
+			{
+				FInputRayHit RayHit(HitDepth);
+				RayHit.SetHitObject(this);
+				RayHit.HitIdentifier = PartIdentifier;
+				return RayHit;
+			}
+		}
+		else if (bHitLine)
+		{
+			// @todo - add hit testing for line-drawn rectangle, requires storing PixelToWorld scale factor
+		}
 	}
 	return FInputRayHit();
 }
@@ -98,7 +140,6 @@ FVector UGizmoElementRectangle::GetCenter() const
 void UGizmoElementRectangle::SetWidth(float InWidth)
 {
 	Width = InWidth;
-	
 }
 
 float UGizmoElementRectangle::GetWidth() const

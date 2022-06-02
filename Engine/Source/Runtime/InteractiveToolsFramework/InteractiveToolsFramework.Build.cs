@@ -40,6 +40,7 @@ public class InteractiveToolsFramework : ModuleRules
 			{
 				"Engine",
                 "RHI",
+				"GeometryCore"
 				//"Slate",
 				//"SlateCore",
 				// ... add private dependencies that you statically link with here ...	

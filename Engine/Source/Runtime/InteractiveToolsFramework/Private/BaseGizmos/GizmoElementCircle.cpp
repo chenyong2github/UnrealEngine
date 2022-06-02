@@ -4,6 +4,7 @@
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "BaseGizmos/GizmoMath.h"
 #include "InputState.h"
+#include "Intersection/IntersectionUtil.h"
 #include "Materials/MaterialInterface.h"
 #include "SceneManagement.h"
 
@@ -73,7 +74,30 @@ FInputRayHit UGizmoElementCircle::LineTrace(const FVector RayOrigin, const FVect
 {
 	if (IsHittableInView())
 	{
-		// @todo - implement ray-circle intersection 
+		if (bHitMesh)
+		{
+			bool bIntersects = false;
+			double Param = 0.0;
+
+			const FVector WorldNormal = CachedLocalToWorldTransform.TransformVectorNoScale(Normal);
+			const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(Center);
+			const double WorldRadius = CachedLocalToWorldTransform.GetScale3D().X * Radius;
+
+			UE::Geometry::FLinearIntersection Result;
+			IntersectionUtil::RayCircleIntersection(RayOrigin, RayDirection, WorldCenter, WorldRadius, WorldNormal, Result);
+			
+			if (Result.intersects)
+			{
+				FInputRayHit RayHit(Result.parameter.Min);
+				RayHit.SetHitObject(this);
+				RayHit.HitIdentifier = PartIdentifier;
+				return RayHit;
+			}
+		}
+		else if (bHitLine)
+		{
+			// @todo - add hit testing for line-drawn circle, requires storing PixelToWorld scale factor
+		}
 	}
 	return FInputRayHit();
 }

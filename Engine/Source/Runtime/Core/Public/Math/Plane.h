@@ -638,6 +638,15 @@ inline UE::Math::TVector<T> FMath::RayPlaneIntersection(const UE::Math::TVector<
 	return RayOrigin + RayDirection * Distance;
 }
 
+template<typename T>
+inline T FMath::RayPlaneIntersectionParam(const UE::Math::TVector<T>& RayOrigin, const UE::Math::TVector<T>& RayDirection, const UE::Math::TPlane<T>& Plane)
+{
+	using TVector = UE::Math::TVector<T>;
+	const TVector PlaneNormal = TVector(Plane.X, Plane.Y, Plane.Z);
+	const TVector PlaneOrigin = PlaneNormal * Plane.W;
+
+	return TVector::DotProduct((PlaneOrigin - RayOrigin), PlaneNormal) / TVector::DotProduct(RayDirection, PlaneNormal);
+}
 
 template<typename T>
 inline UE::Math::TVector<T> FMath::LinePlaneIntersection

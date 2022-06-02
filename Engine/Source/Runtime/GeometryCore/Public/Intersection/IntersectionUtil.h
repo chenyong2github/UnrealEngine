@@ -271,7 +271,54 @@ namespace IntersectionUtil
 		return result;
 	}
 
+	 /**
+	  * Intersect ray with circle and return intersection info (# hits, ray parameters)
+	  * @return true if ray intersects circle
+	  */
+	template <typename RealType>
+	bool RayCircleIntersection(
+		const TVector<RealType>& RayOrigin,
+		const TVector<RealType>& RayDirection,
+		const TVector<RealType>& CircleCenter,
+		RealType CircleRadius,
+		const TVector<RealType>& CircleNormal,
+		FLinearIntersection& Result)
+	{
+
+		// if ray is parallel to circle, no hit
+		if (FMath::IsNearlyZero(TVector<RealType>::DotProduct(CircleNormal, RayDirection)))
+		{
+			Result.intersects = false;
+			Result.numIntersections = 0;
+			return false;
+		}
+
+		TPlane<RealType> Plane(CircleCenter, CircleNormal);
+		RealType Param = FMath::RayPlaneIntersectionParam(RayOrigin, RayDirection, Plane);
+
+		if (Param < 0)
+		{
+			Result.intersects = false;
+			Result.numIntersections = 0;
+			return false;
+		}
+
+		TVector<RealType> HitPoint = RayOrigin + RayDirection * Param;
+		TVector<RealType> Offset = HitPoint - CircleCenter;
+		const RealType CircleRadiusSquared = CircleRadius * CircleRadius;
+
+		if (Offset.SizeSquared() <= CircleRadiusSquared)
+		{
+			Result.intersects = true;
+			Result.numIntersections = 1;
+			Result.parameter.Min = Result.parameter.Max = Param;
+		}
+		else
+		{
+			Result.intersects = false;
+			Result.numIntersections = 0;
+		}
+
+		return Result.intersects;
+	}
 };
-
-
-
