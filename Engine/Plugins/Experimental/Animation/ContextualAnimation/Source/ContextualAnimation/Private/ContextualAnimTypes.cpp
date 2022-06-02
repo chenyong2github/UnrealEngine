@@ -366,3 +366,43 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 	// Success if all the roles were filled
 	return (OutBindings.Num() == SceneAsset.GetNumRoles());
 }
+
+void FContextualAnimSceneBindings::CalculateAnimSetPivots(TArray<FContextualAnimSetPivot>& OutScenePivots) const
+{
+	if (const UContextualAnimSceneAsset* SceneAsset = GetSceneAsset())
+	{
+		const int32 SectionIdx = GetSectionIdx();
+		for (const FContextualAnimSetPivotDefinition& Def : SceneAsset->GetAnimSetPivotDefinitionsInSection(SectionIdx))
+		{
+			FContextualAnimSetPivot& ScenePivotRuntime = OutScenePivots.AddDefaulted_GetRef();
+			CalculateAnimSetPivot(Def, ScenePivotRuntime);
+		}
+	}
+}
+
+bool FContextualAnimSceneBindings::CalculateAnimSetPivot(const FContextualAnimSetPivotDefinition& AnimSetPivotDef, FContextualAnimSetPivot& OutScenePivot) const
+{
+	if (const FContextualAnimSceneBinding* Binding = FindBindingByRole(AnimSetPivotDef.Origin))
+	{
+		OutScenePivot.Name = AnimSetPivotDef.Name;
+		if (AnimSetPivotDef.bAlongClosestDistance)
+		{
+			if (const FContextualAnimSceneBinding* OtherBinding = FindBindingByRole(AnimSetPivotDef.OtherRole))
+			{
+				const FTransform T1 = Binding->GetTransform();
+				const FTransform T2 = OtherBinding->GetTransform();
+
+				OutScenePivot.Transform.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), AnimSetPivotDef.Weight));
+				OutScenePivot.Transform.SetRotation((T2.GetLocation() - T1.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
+				return true;
+			}
+		}
+		else
+		{
+			OutScenePivot.Transform = Binding->GetTransform();
+			return true;
+		}
+	}
+
+	return false;
+}

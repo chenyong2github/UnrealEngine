@@ -240,6 +240,25 @@ struct FContextualAnimSetPivotDefinition
 	float Weight = 0.f;
 };
 
+// FContextualAnimSetPivot
+///////////////////////////////////////////////////////////////////////
+
+/** Pivot for a AnimSet */
+USTRUCT(BlueprintType)
+struct FContextualAnimSetPivot
+{
+	GENERATED_BODY()
+
+	FContextualAnimSetPivot() = default;
+	FContextualAnimSetPivot(const FName InName, const FTransform& InTransform) : Name(InName), Transform(InTransform) {}
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FName Name = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FTransform Transform;
+};
+
 // FContextualAnimSceneBindingContext
 ///////////////////////////////////////////////////////////////////////
 
@@ -374,6 +393,9 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 
 	static bool TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, int32 AnimSetIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings);
 
+	void CalculateAnimSetPivots(TArray<FContextualAnimSetPivot>& OutScenePivots) const;
+	bool CalculateAnimSetPivot(const FContextualAnimSetPivotDefinition& AnimSetPivotDef, FContextualAnimSetPivot& OutScenePivot) const;
+
 private:
 
 	/** List of actors bound to each role in the SceneAsset */
@@ -382,7 +404,7 @@ private:
 };
 
 USTRUCT(BlueprintType)
-struct FContextualAnimStartSceneParams
+struct CONTEXTUALANIMATION_API FContextualAnimStartSceneParams
 {
 	GENERATED_BODY()
 
@@ -390,14 +412,27 @@ struct FContextualAnimStartSceneParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	TMap<FName, FContextualAnimSceneBindingContext> RoleToActorMap;
 
-	/** Desired set. If INDEX_NONE the Manager will attempt to find the best set to use (in the first section) by running the selection criteria */
+	/** Desired section. If INDEX_NONE the Manager will use or find best set in the first section. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	int32 SectionIdx = INDEX_NONE;
+
+	/** Desired set. If INDEX_NONE the Manager will attempt to find the best set to use by running the selection criteria.
+	 * The selection will be performed in the section specified by SectionIdx or in the first section if SectionIdx == INDEX_NONE.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	int32 AnimSetIdx = INDEX_NONE;
+
+	/** Precomputed pivots that could be provided when starting a scene.
+	 * When not provided, the pivots will be automatically computed using local context information.
+	 */
+	TArray<FContextualAnimSetPivot> Pivots;
 
 	void Reset()
 	{
 		RoleToActorMap.Reset();
+		SectionIdx = INDEX_NONE;
 		AnimSetIdx = INDEX_NONE;
+		Pivots.Reset();
 	}
 };
 

@@ -192,6 +192,7 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 
 	StartSceneParams.Reset();
+	StartSceneParams.SectionIdx = 0;
 	StartSceneParams.AnimSetIdx = 0;
 
 	TArray<FName> Roles = SceneAsset->GetRoles();

@@ -511,6 +511,11 @@ const FContextualAnimSceneSection* UContextualAnimSceneAsset::GetSection(const F
 	return Sections.FindByPredicate([&SectionName](const FContextualAnimSceneSection& Section) { return Section.Name == SectionName; });
 }
 
+int32 UContextualAnimSceneAsset::GetSectionIndex(const FName& SectionName) const
+{
+	return Sections.IndexOfByPredicate([&SectionName](const FContextualAnimSceneSection& Section) { return Section.Name == SectionName; });
+}
+
 const FContextualAnimTrack* UContextualAnimSceneAsset::GetAnimTrack(int32 SectionIdx, int32 AnimSetIdx, const FName& Role) const
 {
 	return (Sections.IsValidIndex(SectionIdx)) ? Sections[SectionIdx].GetAnimTrack(AnimSetIdx, Role) : nullptr;

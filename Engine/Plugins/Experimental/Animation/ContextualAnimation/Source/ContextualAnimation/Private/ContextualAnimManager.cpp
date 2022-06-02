@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimManager.h"
-#include "ContextualAnimActorInterface.h"
 #include "ContextualAnimSceneInstance.h"
-#include "DrawDebugHelpers.h"
 #include "ContextualAnimSceneAsset.h"
 #include "ContextualAnimation.h"
 #include "ContextualAnimSceneActorComponent.h"
+#include "ContextualAnimUtilities.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
@@ -60,7 +59,9 @@ void UContextualAnimManager::UnregisterSceneActorComponent(UContextualAnimSceneA
 
 void UContextualAnimManager::Tick(float DeltaTime)
 {
-	for (UContextualAnimSceneInstance* SceneInstance : Instances)
+	// Keep local copy since an instance might get unregistered by its tick
+	TArray<UContextualAnimSceneInstance*> InstancesToTick = Instances;
+	for (UContextualAnimSceneInstance* SceneInstance : InstancesToTick)
 	{
 		SceneInstance->Tick(DeltaTime);
 	}
@@ -70,7 +71,7 @@ bool UContextualAnimManager::IsActorInAnyScene(AActor* Actor) const
 {
 	if (Actor)
 	{
-		for (UContextualAnimSceneInstance* SceneInstance : Instances)
+		for (const UContextualAnimSceneInstance* SceneInstance : Instances)
 		{
 			if (SceneInstance->IsActorInThisScene(Actor))
 			{
@@ -106,12 +107,13 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 		return nullptr;
 	}
 
+	const int32 SectionIdx = Params.SectionIdx;
 	FContextualAnimSceneBindings Bindings;
 	for (const auto& Pair : Params.RoleToActorMap)
 	{
 		FName RoleToBind = Pair.Key;
 
-		AActor* ActorToBind = Pair.Value.GetActor();
+		const AActor* ActorToBind = Pair.Value.GetActor();
 		if (ActorToBind == nullptr)
 		{
 			UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::ForceStartScene. Can't start scene. Reason: Trying to bind Invalid Actor. SceneAsset: %s Role: %s"),
@@ -120,7 +122,6 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 			return nullptr;
 		}
 
-		const int32 SectionIdx = 0; // Always start from the first section
 		const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, Params.AnimSetIdx, RoleToBind);
 		if (AnimTrack == nullptr)
 		{
@@ -133,10 +134,18 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 		Bindings.Add(FContextualAnimSceneBinding(Pair.Value, SceneAsset, *AnimTrack));
 	}
 
-	UClass* Class = SceneAsset.GetSceneInstanceClass();
+	const UClass* Class = SceneAsset.GetSceneInstanceClass();
 	UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 	NewInstance->SceneAsset = &SceneAsset;
 	NewInstance->Bindings = MoveTemp(Bindings);
+	if (Params.Pivots.IsEmpty())
+	{
+		Bindings.CalculateAnimSetPivots(NewInstance->GetMutablePivots());
+	}
+	else
+	{
+		NewInstance->SetPivots(Params.Pivots);
+	}
 	NewInstance->Start();
 	NewInstance->OnSceneEnded.AddDynamic(this, &UContextualAnimManager::OnSceneInstanceEnded);
 
@@ -158,7 +167,7 @@ UContextualAnimSceneInstance* UContextualAnimManager::BP_TryStartScene(const UCo
 
 UContextualAnimSceneInstance* UContextualAnimManager::TryStartScene(const UContextualAnimSceneAsset& SceneAsset, const FContextualAnimStartSceneParams& Params)
 {
-	const int32 SectionIdx = 0; // Always start from the first section
+	const int32 SectionIdx = Params.SectionIdx;
 	FContextualAnimSceneBindings Bindings;
 
 	bool bSuccess = false;
@@ -181,10 +190,18 @@ UContextualAnimSceneInstance* UContextualAnimManager::TryStartScene(const UConte
 
 	if (bSuccess)
 	{
-		UClass* Class = SceneAsset.GetSceneInstanceClass();
+		const UClass* Class = SceneAsset.GetSceneInstanceClass();
 		UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 		NewInstance->SceneAsset = &SceneAsset;
 		NewInstance->Bindings = MoveTemp(Bindings);
+		if (Params.Pivots.IsEmpty())
+		{
+			Bindings.CalculateAnimSetPivots(NewInstance->GetMutablePivots());
+		}
+		else
+		{
+			NewInstance->SetPivots(Params.Pivots);
+		}
 		NewInstance->Start();
 		NewInstance->OnSceneEnded.AddDynamic(this, &UContextualAnimManager::OnSceneInstanceEnded);
 

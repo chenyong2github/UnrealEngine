@@ -141,6 +141,8 @@ public:
 
 	const FContextualAnimSceneSection* GetSection(const FName& SectionName) const;
 
+	int32 GetSectionIndex(const FName& SectionName) const;
+	
  	const FContextualAnimTrack* GetAnimTrack(int32 SectionIdx, int32 AnimSetIdx, const FName& Role) const;
  
  	const FContextualAnimTrack* GetAnimTrack(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx) const;

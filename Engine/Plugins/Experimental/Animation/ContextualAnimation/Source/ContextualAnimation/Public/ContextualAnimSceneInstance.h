@@ -42,6 +42,20 @@ public:
 	friend class UContextualAnimManager;
 	friend class FContextualAnimViewModel;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FGenericSceneMulticastDelegate, UContextualAnimSceneInstance*);
+
+	/**
+	 * Delegate to notify after all montages played by the scene section blended out.
+	 * Will not be broadcasted if one or more montages have 'bEnableAutoBlendOut' set to 'false'.
+	 */
+	FGenericSceneMulticastDelegate OnSectionDonePlaying;
+
+	/**
+	 * Delegate to notify once the scene play time reaches the duration defined by the longest played montage of the selected section.
+	 * This delegate should be used if one or more montages have 'bEnableAutoBlendOut' set to 'false'.
+	 */
+	FGenericSceneMulticastDelegate OnSectionEndTimeReached;
+
 	/** Delegate to notify external objects when this is scene is completed */
 	UPROPERTY(BlueprintAssignable)
 	FOnContextualAnimSceneEnded OnSceneEnded;
@@ -78,8 +92,8 @@ public:
 	bool IsActorInThisScene(const AActor* Actor) const;
 
 	const UContextualAnimSceneAsset& GetSceneAsset() const { return *SceneAsset; }
-	const FContextualAnimSceneBindings& GetBindings() const { return Bindings; };
-	FContextualAnimSceneBindings& GetBindings() { return Bindings; };
+	const FContextualAnimSceneBindings& GetBindings() const { return Bindings; }
+	FContextualAnimSceneBindings& GetBindings() { return Bindings; }
 	const FContextualAnimSceneBinding* FindBindingByActor(const AActor* Actor) const { return Bindings.FindBindingByActor(Actor); }
 	const FContextualAnimSceneBinding* FindBindingByRole(const FName& Role) const { return Bindings.FindBindingByRole(Role); }
 
@@ -88,13 +102,19 @@ public:
 
 protected:
 
-	/** Tells the scene actor to join the scene (play animation) */
-	void Join(FContextualAnimSceneBinding& Binding);
+	/**
+	 * Tells the scene actor to join the scene (play animation)
+	 * @return Duration of the playing animation, or MIN_flt if not playing one.
+	 */
+	float Join(FContextualAnimSceneBinding& Binding);
 
 	/** Tells the scene actor to leave the scene (stop animation) */
 	void Leave(FContextualAnimSceneBinding& Binding);
 
 	bool TransitionTo(FContextualAnimSceneBinding& Binding, const FContextualAnimTrack& AnimTrack);
+
+	TArray<FContextualAnimSetPivot>& GetMutablePivots() { return AlignmentSectionToScenePivotList; }
+	void SetPivots(const TArray<FContextualAnimSetPivot>& Pivots) { AlignmentSectionToScenePivotList = Pivots; }
 
 	/** Helper function to set ignore collision between the supplied actor and all the other actors in this scene */
 	void SetIgnoreCollisionWithOtherActors(AActor* Actor, bool bValue) const;
@@ -117,7 +137,13 @@ private:
 	UPROPERTY()
 	FContextualAnimSceneBindings Bindings;
 
-	TArray<TTuple<FName, FTransform>> AlignmentSectionToScenePivotList;
+	TArray<FContextualAnimSetPivot> AlignmentSectionToScenePivotList;
+
+	/**
+	 * Remaining scene section duration initially computed based on the longest animation duration from all actors that joined the scene.
+	 * Delegate 'OnSectionEndTimeReached' is broadcasted once value reaches 0.
+	 */
+	float RemainingDuration;
 
 	/** Helper to play an AnimSequenceBase as montage. If Animation is not a montage it plays it as dynamic montage  */
 	UAnimMontage* PlayAnimation(UAnimInstance& AnimInstance, UAnimSequenceBase& Animation);

@@ -7,12 +7,9 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
-#include "ContextualAnimActorInterface.h"
 #include "ContextualAnimSceneAsset.h"
 #include "ContextualAnimSceneActorComponent.h"
-#include "ContextualAnimUtilities.h"
 #include "Engine/World.h"
-#include "DrawDebugHelpers.h"
 
 // UContextualAnimSceneInstance
 //================================================================================================================
@@ -28,8 +25,14 @@ UWorld* UContextualAnimSceneInstance::GetWorld()const
 	return GetOuter() ? GetOuter()->GetWorld() : nullptr;
 }
 
-void UContextualAnimSceneInstance::Tick(float DeltaTime)
+void UContextualAnimSceneInstance::Tick(const float DeltaTime)
 {
+	RemainingDuration -= DeltaTime;
+	if (RemainingDuration <= 0.f)
+	{
+		OnSectionEndTimeReached.Broadcast(this);
+		RemainingDuration = MAX_flt;
+	}
 }
 
 bool UContextualAnimSceneInstance::IsActorInThisScene(const AActor* Actor) const
@@ -64,23 +67,36 @@ UAnimMontage* UContextualAnimSceneInstance::PlayAnimation(UAnimInstance& AnimIns
 	}
 }
 
-void UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
+float UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 {
+	float Duration = MIN_flt;
+
 	AActor* Actor = Binding.GetActor();
 	if (Actor == nullptr)
 	{
-		return;
+		return Duration;
 	}
 
 	if (UAnimSequenceBase* Animation = Binding.GetAnimTrack().Animation)
 	{
 		if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 		{
-			if(UAnimMontage* Montage = PlayAnimation(*AnimInstance, *Animation))
+			if (const UAnimMontage* Montage = PlayAnimation(*AnimInstance, *Animation))
 			{
 				AnimInstance->OnPlayMontageNotifyBegin.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyBeginReceived);
 				AnimInstance->OnPlayMontageNotifyEnd.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyEndReceived);
 				AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
+
+				const float AdjustedPlayRate = AnimInstance->Montage_GetPlayRate(Montage) * Montage->RateScale;				
+				if (AdjustedPlayRate > 0.f)
+				{
+					Duration = (Montage->GetPlayLength() / AdjustedPlayRate);	
+				}
+				else
+				{
+					UE_LOG(LogContextualAnim, Warning, TEXT("Undesired playrate %.3f, using montage play length instead."), AdjustedPlayRate);
+					Duration = Montage->GetPlayLength();
+				}
 			}
 		}
 
@@ -96,37 +112,37 @@ void UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 
 	if (UMotionWarpingComponent* MotionWarpComp = Actor->FindComponentByClass<UMotionWarpingComponent>())
 	{
-		for (const auto& Pair : AlignmentSectionToScenePivotList)
+		for (const FContextualAnimSetPivot& Pivot : AlignmentSectionToScenePivotList)
 		{
-			const FName WarpTargetName = Pair.Key;
-			const FTransform ScenePivotRuntime = Pair.Value;
-			const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(WarpTargetName);
-			const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(WarpTargetName, Time);
-			const FTransform WarpTarget = TransformRelativeToScenePivot * ScenePivotRuntime;
-			MotionWarpComp->AddOrUpdateWarpTargetFromTransform(WarpTargetName, WarpTarget);
+			const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(Pivot.Name);
+			const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(Pivot.Name, Time);
+			const FTransform WarpTarget = TransformRelativeToScenePivot * Pivot.Transform;
+			MotionWarpComp->AddOrUpdateWarpTargetFromTransform(Pivot.Name, WarpTarget);
 		}
 	}
 
-	if(SceneAsset->GetDisableCollisionBetweenActors())
+	if (SceneAsset->GetDisableCollisionBetweenActors())
 	{
 		SetIgnoreCollisionWithOtherActors(Actor, true);
 	}
 
 	Binding.SceneInstancePtr = this;
 
-	if(UContextualAnimSceneActorComponent* SceneActorComp = Binding.GetSceneActorComponent())
+	if (UContextualAnimSceneActorComponent* SceneActorComp = Binding.GetSceneActorComponent())
 	{
 		SceneActorComp->OnJoinedScene(&Binding);
 	}
 
 	OnActorJoined.Broadcast(this, Actor);
+
+	return Duration;
 }
 
 void UContextualAnimSceneInstance::Leave(FContextualAnimSceneBinding& Binding)
 {
 	if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 	{
-		if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
+		if (const UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
 		{
 			AnimInstance->Montage_Stop(CurrentMontage->BlendOut.GetBlendTime(), CurrentMontage);
 		}
@@ -158,17 +174,12 @@ bool UContextualAnimSceneInstance::TransitionTo(FContextualAnimSceneBinding& Bin
 
 void UContextualAnimSceneInstance::Start()
 {
-	const int32 SectionIdx = 0; // Always start from the first section
-	for (const FContextualAnimSetPivotDefinition& Def : SceneAsset->GetAnimSetPivotDefinitionsInSection(SectionIdx))
-	{
-		FTransform ScenePivotRuntime = FTransform::Identity;
-		UContextualAnimUtilities::CalculateAnimSetPivot(Def, Bindings, ScenePivotRuntime);
-		AlignmentSectionToScenePivotList.Add(MakeTuple(Def.Name, ScenePivotRuntime));
-	}
+	RemainingDuration = 0.f;
 
 	for (auto& Binding : Bindings)
 	{
-		Join(Binding);
+		const float TrackDuration = Join(Binding);
+		RemainingDuration = FMath::Max(RemainingDuration, TrackDuration);
 	}
 }
 
@@ -226,7 +237,7 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 		if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 		{
 			// Keep montage support for now but might go away soon
-			if (UAnimMontage* AnimMontage = Cast<UAnimMontage>(Binding.GetAnimTrack().Animation))
+			if (const UAnimMontage* AnimMontage = Cast<UAnimMontage>(Binding.GetAnimTrack().Animation))
 			{
 				if (AnimInstance->Montage_IsPlaying(AnimMontage))
 				{
@@ -255,9 +266,10 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 		}
 	}
 
-	if(bShouldEnd)
+	if (bShouldEnd)
 	{
 		OnSceneEnded.Broadcast(this);
+		OnSectionDonePlaying.Broadcast(this);
 	}
 }
 
