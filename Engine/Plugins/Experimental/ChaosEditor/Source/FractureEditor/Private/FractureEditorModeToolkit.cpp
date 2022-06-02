@@ -877,7 +877,17 @@ void FFractureEditorModeToolkit::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.CancelTool,
-		FExecuteAction::CreateLambda([=]() { this->SetActiveTool(nullptr); })
+		FExecuteAction::CreateLambda([=]()
+		{
+			if (GetActiveTool())
+			{
+				this->SetActiveTool(nullptr);
+			}
+			else
+			{
+				GEditor->SelectNone(true, true, false);
+			}
+		})
 	);
 
 	// Map actions of all the Fracture Tools
