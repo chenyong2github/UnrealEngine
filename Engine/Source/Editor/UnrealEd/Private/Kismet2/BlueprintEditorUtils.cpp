@@ -411,7 +411,7 @@ void FBasePinChangeHelper::Broadcast(UBlueprint* InBlueprint, UK2Node_EditablePi
 						const bool bClassMatchesEasy = (MemberParentClass != nullptr)
 							&& ((SignatureClass != nullptr && MemberParentClass->IsChildOf(SignatureClass)) || MemberParentClass->IsChildOf(InBlueprint->GeneratedClass));
 						const bool bClassMatchesHard = !bClassMatchesEasy && CallSite->FunctionReference.IsSelfContext() && (SignatureClass == nullptr)
-							&& (CallSiteBlueprint == InBlueprint || CallSiteBlueprint->SkeletonGeneratedClass->IsChildOf(InBlueprint->SkeletonGeneratedClass));
+							&& (CallSiteBlueprint == InBlueprint || (CallSiteBlueprint->SkeletonGeneratedClass && CallSiteBlueprint->SkeletonGeneratedClass->IsChildOf(InBlueprint->SkeletonGeneratedClass)));
 
 						if (bClassMatchesEasy || bClassMatchesHard)
 						{
@@ -3001,10 +3001,13 @@ UK2Node_Event* FBlueprintEditorUtils::FindOverrideForFunction(const UBlueprint* 
 		UK2Node_Event* EventNode = AllEvents[i];
 		check(EventNode);
 		if(	EventNode->bOverrideFunction == true &&
-			EventNode->EventReference.GetMemberParentClass(EventNode->GetBlueprintClassFromNode())->IsChildOf(SignatureClass) &&
 			EventNode->EventReference.GetMemberName() == SignatureName )
 		{
-			return EventNode;
+			const UClass* MemberParentClass = EventNode->EventReference.GetMemberParentClass(EventNode->GetBlueprintClassFromNode());
+			if(MemberParentClass && MemberParentClass->IsChildOf(SignatureClass))
+			{
+				return EventNode;
+			}
 		}
 	}
 
@@ -8635,10 +8638,10 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintParentClassPicker( 
 	for( auto BlueprintIter = Blueprints.CreateConstIterator(); (!bIsActor && !bIsAnimBlueprint) && BlueprintIter; ++BlueprintIter )
 	{
 		const UBlueprint* Blueprint = *BlueprintIter;
-		bIsActor |= Blueprint->ParentClass->IsChildOf( AActor::StaticClass() );
+		bIsActor |= Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf( AActor::StaticClass() );
 		bIsAnimBlueprint |= Blueprint->IsA(UAnimBlueprint::StaticClass());
-		bIsLevelScriptActor |= Blueprint->ParentClass->IsChildOf( ALevelScriptActor::StaticClass() );
-		bIsComponentBlueprint |= Blueprint->ParentClass->IsChildOf( UActorComponent::StaticClass() );
+		bIsLevelScriptActor |= Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf( ALevelScriptActor::StaticClass() );
+		bIsComponentBlueprint |= Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf( UActorComponent::StaticClass() );
 		bIsEditorOnlyBlueprint |= IsEditorUtilityBlueprint(Blueprint);
 		bIsWidgetBlueprint = Blueprint->IsA(UBaseWidgetBlueprint::StaticClass());
 		if(Blueprint->GeneratedClass)

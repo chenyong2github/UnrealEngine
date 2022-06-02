@@ -1175,7 +1175,7 @@ void UK2Node_CallFunction::PostReconstructNode()
 		if (UBlueprint* BP = GetBlueprint())
 		{
 			UClass* FunctionOwnerClass = Function->GetOuterUClass();
-			if (!BP->SkeletonGeneratedClass->IsChildOf(FunctionOwnerClass))
+			if (!BP->SkeletonGeneratedClass || !BP->SkeletonGeneratedClass->IsChildOf(FunctionOwnerClass))
 			{
 				SelfPin->DefaultObject = FunctionOwnerClass->GetAuthoritativeClass()->GetDefaultObject();
 			}
@@ -2132,7 +2132,7 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 			const bool bCanTreatAsError = Blueprint->GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::EnforceBlueprintFunctionVisibility;
 
 			const bool bIsProtected = (Function->FunctionFlags & FUNC_Protected) != 0;
-			const bool bFuncBelongsToSubClass = Blueprint->SkeletonGeneratedClass->IsChildOf(Function->GetOuterUClass());
+			const bool bFuncBelongsToSubClass = Blueprint->SkeletonGeneratedClass && Blueprint->SkeletonGeneratedClass->IsChildOf(Function->GetOuterUClass());
 			if (bIsProtected && !bFuncBelongsToSubClass)
 			{
 				if(bCanTreatAsError)

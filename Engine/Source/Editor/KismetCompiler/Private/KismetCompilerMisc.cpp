@@ -108,7 +108,7 @@ static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinTy
 				InputClass = InputClass->GetAuthoritativeClass();
 
 				// It matches if it's an exact match or if the output class is more derived than the input class
-				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass->IsChildOf(InputClass)));
+				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass && OutputClass->IsChildOf(InputClass)));
 
 				if ((PinCategory == UEdGraphSchema_K2::PC_SoftClass) && (!TestProperty->IsA<FSoftClassProperty>()))
 				{
@@ -222,7 +222,7 @@ static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinTy
 				OutputClass = OutputClass->GetAuthoritativeClass();
 
 				// It matches if it's an exact match or if the output class is more derived than the input class
-				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass->IsChildOf(InputClass)));
+				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass && OutputClass->IsChildOf(InputClass)));
 
 				if ((PinCategory == UEdGraphSchema_K2::PC_SoftObject) && (!TestProperty->IsA<FSoftObjectProperty>()))
 				{
@@ -2152,7 +2152,7 @@ void FNodeHandlingFunctor::ResolveAndRegisterScopedTerm(FKismetFunctionContext& 
 		{
 			Term->SetVarTypeLocal(true);
 		}
-		else if (BoundProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly) || (Context.IsConstFunction() && Context.NewClass->IsChildOf(SearchScope)))
+		else if (BoundProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly) || (Context.IsConstFunction() && Context.NewClass && Context.NewClass->IsChildOf(SearchScope)))
 		{
 			// Read-only variables and variables in const classes are both const
 			Term->bIsConst = true;

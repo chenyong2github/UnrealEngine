@@ -376,7 +376,7 @@ FBlueprintActionUiSpec UBlueprintFunctionNodeSpawner::GetUiSpec(FBlueprintAction
 		checkSlow(WrappedFunction != nullptr);
 		UClass* FunctionClass = WrappedFunction->GetOwnerClass()->GetAuthoritativeClass();
 
-		if (!TargetClass->IsChildOf(FunctionClass))
+		if (!TargetClass || !TargetClass->IsChildOf(FunctionClass))
 		{
 			// When there are no bindings set, functions need to be categorized into a category "Class" to help reduce clutter in the tree root
 			if(Bindings.Num() == 0)
@@ -487,7 +487,7 @@ bool UBlueprintFunctionNodeSpawner::IsBindingCompatible(FBindingObject BindingCa
 	UClass* BindingClass = FBlueprintNodeSpawnerUtils::GetBindingClass(BindingCandidate)->GetAuthoritativeClass();
 	if (UClass const* FuncOwner = Function->GetOwnerClass()->GetAuthoritativeClass())
 	{
-		bClassOwnerMatches = BindingClass->IsChildOf(FuncOwner);
+		bClassOwnerMatches = BindingClass && BindingClass->IsChildOf(FuncOwner);
 	}
 
 	return bNodeTypeMatches && bClassOwnerMatches && !FObjectEditorUtils::IsFunctionHiddenFromClass(Function, BindingClass);

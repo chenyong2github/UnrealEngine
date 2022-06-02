@@ -65,7 +65,8 @@ FReply FKismetDelegateDragDropAction::DroppedOnPanel(const TSharedRef< SWidget >
 		const UBlueprint* DropOnBlueprint = FBlueprintEditorUtils::FindBlueprintForGraph(&Graph);
 		NewNodeParams.Graph = &Graph;
 		NewNodeParams.GraphPosition = GraphPosition;
-		NewNodeParams.bSelfContext = VariableSourceClass == NULL || DropOnBlueprint->SkeletonGeneratedClass->IsChildOf(VariableSourceClass);;
+		NewNodeParams.bSelfContext = VariableSourceClass == NULL ||
+			(DropOnBlueprint->SkeletonGeneratedClass && DropOnBlueprint->SkeletonGeneratedClass->IsChildOf(VariableSourceClass));
 		NewNodeParams.AnalyticCallback = AnalyticCallback;
 
 		FMenuBuilder MenuBuilder(true, NULL);

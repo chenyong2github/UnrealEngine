@@ -102,7 +102,7 @@ void UK2Node_ComponentBoundEvent::RegisterDynamicBinding(UDynamicBlueprintBindin
 
 void UK2Node_ComponentBoundEvent::HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName)
 {	
-	if (InVariableClass->IsChildOf(InBlueprint->GeneratedClass))
+	if (InVariableClass && InVariableClass->IsChildOf(InBlueprint->GeneratedClass))
 	{
 		// This could be the case if the component that this was originally bound to was removed, and a new one was 
 		// added in it's place. @see UE-88511

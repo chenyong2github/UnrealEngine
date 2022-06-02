@@ -239,7 +239,8 @@ void UK2Node_BaseMCDelegate::AutowireNewNode(UEdGraphPin* FromPin)
 				if (DelegateProperty)
 				{
 					UClass* DelegateOwner = DelegateProperty->GetOwnerClass();
-					if (FromPin->PinType.PinSubCategoryObject == DelegateOwner || dynamic_cast<UClass*>(FromPin->PinType.PinSubCategoryObject.Get())->IsChildOf(DelegateOwner))
+					const UClass* PinSubCategoryObject = dynamic_cast<UClass*>(FromPin->PinType.PinSubCategoryObject.Get());
+					if (FromPin->PinType.PinSubCategoryObject == DelegateOwner || (PinSubCategoryObject && PinSubCategoryObject->IsChildOf(DelegateOwner)))
 					{
 						// If we get here, then the property delegate is also available on the FromPin's class.
 						// Fix up the type by propagating it from the FromPin to our target pin

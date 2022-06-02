@@ -319,7 +319,8 @@ int32 FBlueprintActionDatabaseRegistrar::RegisterClassFactoryActions(const UClas
 			{
 				FObjectProperty* ReturnProperty = CastField<FObjectProperty>(Function->GetReturnProperty());
 				// see if the function is a static factory method
-				bool const bIsFactoryMethod = (ReturnProperty != nullptr) && ReturnProperty->PropertyClass->IsChildOf(InTargetType);
+				bool const bIsFactoryMethod = (ReturnProperty != nullptr) && (ReturnProperty->PropertyClass != nullptr) &&
+					ReturnProperty->PropertyClass->IsChildOf(InTargetType);
 
 				return bIsFactoryMethod;
 			}

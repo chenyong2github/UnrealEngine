@@ -550,7 +550,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprint(UClass* ParentClass, UObject
 		for (TMultiMap<void*, FKismetEditorUtilities::FOnBlueprintCreatedData>::TIterator DataIt(OnBlueprintCreatedCallbacks); DataIt; ++DataIt)
 		{
 			FOnBlueprintCreatedData Data = DataIt.Value();
-			if (NewBP->GeneratedClass->IsChildOf(Data.TargetClass))
+			if (NewBP->GeneratedClass && NewBP->GeneratedClass->IsChildOf(Data.TargetClass))
 			{
 				FKismetEditorUtilities::FOnBlueprintCreated BlueprintCreatedDelegate = Data.OnBlueprintCreated;
 				BlueprintCreatedDelegate.Execute(NewBP);

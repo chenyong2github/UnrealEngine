@@ -102,12 +102,12 @@ protected:
 	virtual bool CanCreateClass(UClass* ObjectClass, bool& bOmitSubObjs) const override
 	{
 		// Allow actor component types to be created
-		bool bCanCreate = ObjectClass->IsChildOf(UActorComponent::StaticClass());
+		bool bCanCreate = ObjectClass && ObjectClass->IsChildOf(UActorComponent::StaticClass());
 
 		if (!bCanCreate)
 		{
 			// Also allow Blueprint-able actor types to pass, in order to enable proper creation of actor component types as subobjects. The actor instance will be discarded after processing.
-			bCanCreate = ObjectClass->IsChildOf(AActor::StaticClass()) && FKismetEditorUtilities::CanCreateBlueprintOfClass(ObjectClass);
+			bCanCreate = ObjectClass && ObjectClass->IsChildOf(AActor::StaticClass()) && FKismetEditorUtilities::CanCreateBlueprintOfClass(ObjectClass);
 		}
 		else
 		{

@@ -1527,7 +1527,8 @@ void FBlueprintVarActionDetails::PopulateCategories(SMyBlueprint* MyBlueprint, T
 	CategorySource.Add(MakeShared<FText>(UEdGraphSchema_K2::VR_DefaultCategory));
 	for (const FAdditionalBlueprintCategory& AdditionalBlueprintCategory : GetDefault<UBlueprintEditorSettings>()->AdditionalBlueprintCategories)
 	{
-		if (!AdditionalBlueprintCategory.Name.IsEmpty() && (AdditionalBlueprintCategory.ClassFilter.IsNull() || Blueprint->ParentClass->IsChildOf(AdditionalBlueprintCategory.ClassFilter.TryLoadClass<UObject>())))
+		if (!AdditionalBlueprintCategory.Name.IsEmpty() && (AdditionalBlueprintCategory.ClassFilter.IsNull() ||
+			(Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(AdditionalBlueprintCategory.ClassFilter.TryLoadClass<UObject>()))))
 		{
 			CategorySource.Add(MakeShared<FText>(AdditionalBlueprintCategory.Name));
 		}
@@ -1965,11 +1966,15 @@ EVisibility FBlueprintVarActionDetails::ExposeToCinematicsVisibility() const
 		const bool bIsFloat = VariableProperty->IsA(FFloatProperty::StaticClass());
 		const bool bIsBool = VariableProperty->IsA(FBoolProperty::StaticClass());
 		const bool bIsStr = VariableProperty->IsA(FStrProperty::StaticClass());
-		const bool bIsVectorStruct = VariableProperty->IsA(FStructProperty::StaticClass()) && CastField<FStructProperty>(VariableProperty)->Struct->GetFName() == NAME_Vector;
-		const bool bIsTransformStruct = VariableProperty->IsA(FStructProperty::StaticClass()) && CastField<FStructProperty>(VariableProperty)->Struct->GetFName() == NAME_Transform;
-		const bool bIsColorStruct = VariableProperty->IsA(FStructProperty::StaticClass()) && CastField<FStructProperty>(VariableProperty)->Struct->GetFName() == NAME_Color;
-		const bool bIsLinearColorStruct = VariableProperty->IsA(FStructProperty::StaticClass()) && CastField<FStructProperty>(VariableProperty)->Struct->GetFName() == NAME_LinearColor;
-		const bool bIsActorProperty = VariableProperty->IsA(FObjectProperty::StaticClass()) && CastField<FObjectProperty>(VariableProperty)->PropertyClass->IsChildOf(AActor::StaticClass());
+		
+		const FStructProperty* AsStructProperty = CastField<FStructProperty>(VariableProperty);
+		const bool bIsVectorStruct = AsStructProperty != nullptr && AsStructProperty->Struct->GetFName() == NAME_Vector;
+		const bool bIsTransformStruct = AsStructProperty != nullptr && AsStructProperty->Struct->GetFName() == NAME_Transform;
+		const bool bIsColorStruct = AsStructProperty != nullptr && AsStructProperty->Struct->GetFName() == NAME_Color;
+		const bool bIsLinearColorStruct = AsStructProperty != nullptr && AsStructProperty->Struct->GetFName() == NAME_LinearColor;
+		
+		const FObjectProperty* AsObjectProperty = CastField<FObjectProperty>(VariableProperty);
+		const bool bIsActorProperty = AsObjectProperty != nullptr && AsObjectProperty->PropertyClass && AsObjectProperty->PropertyClass->IsChildOf(AActor::StaticClass());
 
 		if (bIsInteger || bIsByte || bIsEnum || bIsFloat || bIsBool || bIsStr || bIsVectorStruct || bIsTransformStruct || bIsColorStruct || bIsLinearColorStruct || bIsActorProperty)
 		{
@@ -2798,7 +2803,8 @@ bool FBlueprintVarActionDetails::IsVariableInheritedByBlueprint() const
 	{
 		PropertyOwnerClass = CachedVariableProperty->GetOwnerClass();
 	}
-	return GetBlueprintObj()->SkeletonGeneratedClass->IsChildOf(PropertyOwnerClass);
+	const UClass* SkeletonGeneratedClass = GetBlueprintObj()->SkeletonGeneratedClass;
+	return SkeletonGeneratedClass && SkeletonGeneratedClass->IsChildOf(PropertyOwnerClass);
 }
 
 bool FBlueprintVarActionDetails::IsVariableDeprecated() const

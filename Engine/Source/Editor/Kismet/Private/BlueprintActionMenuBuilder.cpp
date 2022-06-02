@@ -152,7 +152,7 @@ TSharedPtr<FBlueprintDragDropMenuItem> FBlueprintActionMenuItemFactory::MakeDrag
 
 			UClass const* PropertyClass = SampleProperty->GetOwnerClass();
 			checkSlow(PropertyClass != nullptr);
-			bool const bIsMemberProperty = BlueprintClass->IsChildOf(PropertyClass);
+			bool const bIsMemberProperty = BlueprintClass && BlueprintClass->IsChildOf(PropertyClass);
 
 			FText TextCategory;
 			if (Category.IsEmpty())

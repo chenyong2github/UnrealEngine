@@ -1658,7 +1658,7 @@ void FKismetCompilerContext::CopyTermDefaultsToDefaultObject(UObject* DefaultObj
 						UClass* RealClass = Result->GetClass()->GetAuthoritativeClass();
 
 						// If object is compatible, write it into cdo:
-						if( RealClass->IsChildOf(AsObjectProperty->PropertyClass) )
+						if( RealClass && RealClass->IsChildOf(AsObjectProperty->PropertyClass) )
 						{
 							AsObjectProperty->SetObjectPropertyValue( AsObjectProperty->ContainerPtrToValuePtr<uint8>(DefaultObject), Result );
 							continue;

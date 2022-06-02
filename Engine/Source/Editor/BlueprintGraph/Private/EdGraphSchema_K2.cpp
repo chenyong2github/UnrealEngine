@@ -795,7 +795,7 @@ bool UEdGraphSchema_K2::CanFunctionBeUsedInGraph(const UClass* InClass, const UF
 			// Blueprint functions visibility flags can be enforced in blueprints - native functions
 			// are often using these flags to only hide functionality from other native functions:
 			const bool bIsProtected = (InFunction->FunctionFlags & FUNC_Protected) != 0;
-			const bool bFuncBelongsToSubClass = InClass->IsChildOf(InFunction->GetOuterUClass()->GetSuperStruct());
+			const bool bFuncBelongsToSubClass = InClass && InClass->IsChildOf(InFunction->GetOuterUClass()->GetSuperStruct());
 			if (bIsProtected)
 			{
 				const bool bAllowProtectedFuncs = (InAllowedFunctionTypes & FT_Protected) != 0;
@@ -2613,7 +2613,7 @@ bool UEdGraphSchema_K2::FindSpecializedConversionNode(const UEdGraphPin* OutputP
 			{
 				FObjectProperty* ObjProp = *PropIt;
 				// .. if we have a blueprint visible var, and is of the type which contains this function..
-				if(ObjProp->HasAllPropertyFlags(CPF_BlueprintVisible) && ObjProp->PropertyClass->IsChildOf(FunctionClass))
+				if(ObjProp->HasAllPropertyFlags(CPF_BlueprintVisible) && ObjProp->PropertyClass && ObjProp->PropertyClass->IsChildOf(FunctionClass))
 				{
 					// say we can convert
 					bCanConvert = true;
@@ -4066,7 +4066,7 @@ namespace
 		// We have a native (C++) class, do a normal IsChildOf check
 		if (!bIsNonNativeClass)
 		{
-			bResult = InSourceStruct->IsChildOf(InTargetStruct);
+			bResult = InSourceStruct && InSourceStruct->IsChildOf(InTargetStruct);
 		}
 
 		return bResult;
@@ -4074,7 +4074,7 @@ namespace
 
 	static bool ExtendedIsChildOf(const UClass* Child, const UClass* Parent)
 	{
-		if (Child->IsChildOf(Parent))
+		if (Child && Child->IsChildOf(Parent))
 		{
 			return true;
 		}
@@ -4086,7 +4086,7 @@ namespace
 		}
 
 		const UClass* OriginalParent = GetOriginalClassToFixCompatibilit(Parent);
-		if (OriginalParent && Child->IsChildOf(OriginalParent))
+		if (OriginalParent && Child && Child->IsChildOf(OriginalParent))
 		{
 			return true;
 		}
@@ -4261,12 +4261,16 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 		{
 			ObjectClass = ObjectClass->GetAuthoritativeClass();
 		}
-		if (NewDefaultObject != nullptr && ObjectClass != nullptr && !NewDefaultObject->GetClass()->GetAuthoritativeClass()->IsChildOf(ObjectClass))
+		if (NewDefaultObject != nullptr && ObjectClass != nullptr)
 		{
-			// Not a type of object, but is it an object implementing an interface?
-			if(PinCategory != PC_Interface || !NewDefaultObject->GetClass()->ImplementsInterface(ObjectClass))
+			const UClass* AuthoritativeClass = NewDefaultObject->GetClass()->GetAuthoritativeClass();
+			if (!AuthoritativeClass || !AuthoritativeClass->IsChildOf(ObjectClass))
 			{
-				DVSV_RETURN_MSG(FString::Printf(TEXT("%s isn't a %s (specified on pin %s)"), *NewDefaultObject->GetPathName(), *ObjectClass->GetName(), *PinName.ToString()));
+				// Not a type of object, but is it an object implementing an interface?
+                if(PinCategory != PC_Interface || !NewDefaultObject->GetClass()->ImplementsInterface(ObjectClass))
+                {
+                	DVSV_RETURN_MSG(FString::Printf(TEXT("%s isn't a %s (specified on pin %s)"), *NewDefaultObject->GetPathName(), *ObjectClass->GetName(), *PinName.ToString()));
+                }
 			}
 		}
 	}
@@ -5738,7 +5742,7 @@ void UEdGraphSchema_K2::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, c
 			}
 
 			TSubclassOf<UActorComponent> DestinationComponentType;
-			if (AssetClass->IsChildOf(UActorComponent::StaticClass()) && IsAllowableBlueprintVariableType(AssetClass))
+			if (AssetClass && AssetClass->IsChildOf(UActorComponent::StaticClass()) && IsAllowableBlueprintVariableType(AssetClass))
 			{
 				// If it's an actor component subclass that is a BlueprintableComponent, we're good to go
 				DestinationComponentType = AssetClass;
@@ -5747,7 +5751,7 @@ void UEdGraphSchema_K2::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, c
 			{
 				// Otherwise see if we can factory a component from the asset
 				DestinationComponentType = FComponentAssetBrokerage::GetPrimaryComponentForAsset(AssetClass);
-				if ((DestinationComponentType == nullptr) && AssetClass->IsChildOf(AActor::StaticClass()))
+				if ((DestinationComponentType == nullptr) && AssetClass && AssetClass->IsChildOf(AActor::StaticClass()))
 				{
 					DestinationComponentType = UChildActorComponent::StaticClass();
 				}
@@ -5845,7 +5849,7 @@ void UEdGraphSchema_K2::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Ass
 				}
 
 				TSubclassOf<UActorComponent> DestinationComponentType;
-				if (AssetClass->IsChildOf(UActorComponent::StaticClass()) && IsAllowableBlueprintVariableType(AssetClass))
+				if (AssetClass && AssetClass->IsChildOf(UActorComponent::StaticClass()) && IsAllowableBlueprintVariableType(AssetClass))
 				{
 					// If it's an actor component subclass that is a BlueprintableComponent, we're good to go
 					DestinationComponentType = AssetClass;
@@ -5854,7 +5858,7 @@ void UEdGraphSchema_K2::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Ass
 				{
 					// Otherwise, see if we have a way to make a component out of the specified asset
 					DestinationComponentType = FComponentAssetBrokerage::GetPrimaryComponentForAsset(AssetClass);
-					if ((DestinationComponentType == nullptr) && AssetClass->IsChildOf(AActor::StaticClass()))
+					if ((DestinationComponentType == nullptr) && AssetClass && AssetClass->IsChildOf(AActor::StaticClass()))
 					{
 						DestinationComponentType = UChildActorComponent::StaticClass();
 					}
@@ -7344,7 +7348,7 @@ void UEdGraphSchema_K2::OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphP
 void UEdGraphSchema_K2::ConfigureVarNode(UK2Node_Variable* InVarNode, FName InVariableName, UStruct* InVariableSource, UBlueprint* InTargetBlueprint)
 {
 	// See if this is a 'self context' (ie. blueprint class is owner (or child of owner) of dropped var class)
-	if ((InVariableSource == NULL) || InTargetBlueprint->SkeletonGeneratedClass->IsChildOf(InVariableSource))
+	if ((InVariableSource == NULL) || (InTargetBlueprint->SkeletonGeneratedClass && InTargetBlueprint->SkeletonGeneratedClass->IsChildOf(InVariableSource)))
 	{
 		FGuid Guid = FBlueprintEditorUtils::FindMemberVariableGuidByName(InTargetBlueprint, InVariableName);
 		InVarNode->VariableReference.SetSelfMember(InVariableName, Guid);

@@ -71,7 +71,8 @@ static void ResolveAndRegisterScopedStructTerm(FCompilerResultsLog& MessageLog, 
 		Term->Context = ContextTerm;
 
 		// Read-only variables and variables in const classes are both const
-		if (BoundProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly) || (Context.IsConstFunction() && Context.NewClass->IsChildOf(StructType)))
+		if (BoundProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly) || (Context.IsConstFunction() &&
+			Context.NewClass && Context.NewClass->IsChildOf(StructType)))
 		{
 			Term->bIsConst = true;
 		}

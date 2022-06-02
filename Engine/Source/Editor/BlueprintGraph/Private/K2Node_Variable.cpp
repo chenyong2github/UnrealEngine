@@ -982,7 +982,7 @@ bool UK2Node_Variable::CanPasteHere(const UEdGraph* TargetGraph) const
 		{
 			const UClass* CurrentClass = GetBlueprint()->SkeletonGeneratedClass->GetAuthoritativeClass();
 			const UClass* PropertyClass = Property->GetOwnerClass()->GetAuthoritativeClass();
-			const bool bIsChildOf = CurrentClass->IsChildOf(PropertyClass);
+			const bool bIsChildOf = CurrentClass && CurrentClass->IsChildOf(PropertyClass);
 			return bIsChildOf;
 		}
 		return false;

@@ -308,7 +308,7 @@ void UK2Node_Switch::CreateFunctionPin()
 		if (UBlueprint* BP = GetBlueprint())
 		{
 			UClass* FunctionOwnerClass = Function->GetOuterUClass();
-			if (!BP->SkeletonGeneratedClass->IsChildOf(FunctionOwnerClass))
+			if (!BP->SkeletonGeneratedClass || !BP->SkeletonGeneratedClass->IsChildOf(FunctionOwnerClass))
 			{
 				FunctionPin->DefaultObject = FunctionOwnerClass->GetDefaultObject();
 			}

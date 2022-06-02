@@ -42,15 +42,18 @@ UBlueprintVariableNodeSpawner* UBlueprintVariableNodeSpawner::CreateFromMemberOr
 
 	FText const VarName = NodeSpawner->GetVariableName();
 	// @TODO: NodeClass could be modified post Create()
-	if (NodeClass->IsChildOf(UK2Node_VariableGet::StaticClass()))
+	if (NodeClass != nullptr)
 	{
-		MenuSignature.MenuName = FText::Format(LOCTEXT("GetterMenuName", "Get {0}"), VarName);
-		MenuSignature.Tooltip  = UK2Node_VariableGet::GetPropertyTooltip(VarProperty);
-	}
-	else if (NodeClass->IsChildOf(UK2Node_VariableSet::StaticClass()))
-	{
-		MenuSignature.MenuName = FText::Format(LOCTEXT("SetterMenuName", "Set {0}"), VarName);
-		MenuSignature.Tooltip  = UK2Node_VariableSet::GetPropertyTooltip(VarProperty);
+		if (NodeClass->IsChildOf(UK2Node_VariableGet::StaticClass()))
+		{
+			MenuSignature.MenuName = FText::Format(LOCTEXT("GetterMenuName", "Get {0}"), VarName);
+			MenuSignature.Tooltip  = UK2Node_VariableGet::GetPropertyTooltip(VarProperty);
+		}
+		else if (NodeClass->IsChildOf(UK2Node_VariableSet::StaticClass()))
+		{
+			MenuSignature.MenuName = FText::Format(LOCTEXT("SetterMenuName", "Set {0}"), VarName);
+			MenuSignature.Tooltip  = UK2Node_VariableSet::GetPropertyTooltip(VarProperty);
+		}
 	}
 	// add at least one character, so that PrimeDefaultUiSpec() doesn't 
 	// attempt to query the template node
@@ -117,15 +120,18 @@ UBlueprintVariableNodeSpawner* UBlueprintVariableNodeSpawner::CreateFromLocal(TS
 
 	FText const VarName = NodeSpawner->GetVariableName();
 	// @TODO: NodeClass could be modified post Create()
-	if (NodeClass->IsChildOf(UK2Node_VariableGet::StaticClass()))
+	if (NodeClass != nullptr)
 	{
-		MenuSignature.MenuName = FText::Format(LOCTEXT("LocalGetterMenuName", "Get {0}"), VarName);
-		MenuSignature.Tooltip  = UK2Node_VariableGet::GetBlueprintVarTooltip(VarDesc);
-	}
-	else if (NodeClass->IsChildOf(UK2Node_VariableSet::StaticClass()))
-	{
-		MenuSignature.MenuName = FText::Format(LOCTEXT("LocalSetterMenuName", "Set {0}"), VarName);
-		MenuSignature.Tooltip  = UK2Node_VariableSet::GetBlueprintVarTooltip(VarDesc);
+		if (NodeClass->IsChildOf(UK2Node_VariableGet::StaticClass()))
+		{
+			MenuSignature.MenuName = FText::Format(LOCTEXT("LocalGetterMenuName", "Get {0}"), VarName);
+			MenuSignature.Tooltip  = UK2Node_VariableGet::GetBlueprintVarTooltip(VarDesc);
+		}
+		else if (NodeClass->IsChildOf(UK2Node_VariableSet::StaticClass()))
+		{
+			MenuSignature.MenuName = FText::Format(LOCTEXT("LocalSetterMenuName", "Set {0}"), VarName);
+			MenuSignature.Tooltip  = UK2Node_VariableSet::GetBlueprintVarTooltip(VarDesc);
+		}
 	}
 	// add at least one character, so that PrimeDefaultUiSpec() doesn't 
 	// attempt to query the template node
@@ -192,7 +198,7 @@ FBlueprintActionUiSpec UBlueprintVariableNodeSpawner::GetUiSpec(FBlueprintAction
 		EffectiveOwnerClass = EffectiveOwnerClass ? EffectiveOwnerClass : ToRawPtr(OwnerClass);
 		const bool bIsOwningClassValid = EffectiveOwnerClass && (!Cast<const UBlueprintGeneratedClass>(EffectiveOwnerClass) || EffectiveOwnerClass->ClassGeneratedBy); //todo: more general validation
 		UClass const* VariableClass = bIsOwningClassValid ? EffectiveOwnerClass->GetAuthoritativeClass() : nullptr;
-		if (VariableClass && !TargetClass->IsChildOf(VariableClass))
+		if (VariableClass && (!TargetClass || !TargetClass->IsChildOf(VariableClass)))
 		{
 			MenuSignature.Category = FEditorCategoryUtils::BuildCategoryString(FCommonEditorCategory::Class,
 				FText::FromString(VariableClass->GetDisplayNameText().ToString()));
