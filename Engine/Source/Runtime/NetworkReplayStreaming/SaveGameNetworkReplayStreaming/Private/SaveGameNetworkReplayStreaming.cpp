@@ -1453,6 +1453,12 @@ void FSaveGameNetworkReplayStreamer::RequestEventData_Internal(const FString& Re
 				break;
 			}
 		}
+
+		// we didn't find the event
+		if (Result.Result != EStreamingOperationResult::Success)
+		{
+			Result.Result = EStreamingOperationResult::EventNotFound;
+		}
 	}
 }
 
@@ -1547,6 +1553,12 @@ void FSaveGameNetworkReplayStreamer::RequestEventGroupData_Internal(const FStrin
 				EventDataResult.Result = EStreamingOperationResult::Success;
 				EventDataResult.ReplayEventListItem = MoveTemp(MetaData.VersionedInfo.EventData[i]);
 			}
+		}
+
+		// we didn't find the event group
+		if (Result.Result != EStreamingOperationResult::Success)
+		{
+			Result.Result = EStreamingOperationResult::EventNotFound;
 		}
 	}
 }

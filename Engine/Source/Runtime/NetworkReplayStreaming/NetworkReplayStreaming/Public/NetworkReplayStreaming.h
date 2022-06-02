@@ -185,6 +185,8 @@ enum class EStreamingOperationResult
 	NotEnoughSlots,	//! The operation failed due to reaching a predefined replay limit.
 	Unspecified,	//! The operation failed for unspecified reasons.
 	UnfinishedTask, //! The operation failed due to an outstanding task.
+	EventNotFound,	//! The operation failed because the event could not be found.
+	DecryptFailure,	//! The operation failed because decryption failed.
 };
 
 /**
