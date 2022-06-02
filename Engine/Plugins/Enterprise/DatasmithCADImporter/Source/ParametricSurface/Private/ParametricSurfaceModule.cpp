@@ -2,7 +2,6 @@
 
 #include "ParametricSurfaceModule.h"
 
-#include "CoreTech/CoreTechSurfaceData.h"
 #include "TechSoft/TechSoftParametricSurface.h"
 
 #include "Modules/ModuleInterface.h"
@@ -34,19 +33,9 @@ bool FParametricSurfaceModule::IsAvailable()
 	return FModuleManager::Get().IsModuleLoaded(PARAMETRICSURFACE_MODULE_NAME);
 }
 
-UParametricSurfaceData* FParametricSurfaceModule::CreateParametricSurface(const TCHAR* CADLibraryName)
+UParametricSurfaceData* FParametricSurfaceModule::CreateParametricSurface()
 {
-	if (!FCString::Strcmp(TEXT("TechSoft"), CADLibraryName))
-	{
-		return Datasmith::MakeAdditionalData<UTechSoftParametricSurfaceData>();
-	}
-
-	if (!FCString::Strcmp(TEXT("KernelIO"), CADLibraryName))
-	{
-		return Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
-	}
-
-	return nullptr;
+	return Datasmith::MakeAdditionalData<UTechSoftParametricSurfaceData>();
 }
 
 IMPLEMENT_MODULE(FParametricSurfaceModule, ParametricSurface)

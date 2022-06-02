@@ -113,24 +113,3 @@ protected:
 	TArray<uint8> RawData;
 };
 
-//void AddSurfaceDataForMesh(const TCHAR* InFilePath, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, , FDatasmithMeshElementPayload& OutMeshPayload)
-//{
-//	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Available)
-//	{
-//		if (FPaths::FileExists(InFilePath))
-//		{
-//			TArray<uint8> ByteArray;
-//			if (FFileHelper::LoadFileToArray(ByteArray, InFilePath))
-//			{
-//				UCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
-//				CoreTechData->SourceFile = InFilePath;
-//				CoreTechData->RawData = MoveTemp(ByteArray);
-
-
-//				CoreTechData->
-//				OutMeshPayload.AdditionalData.Add(CoreTechData);
-//			}
-//		}
-//	}
-//}
-

@@ -40,7 +40,7 @@ bool ParametricSurfaceUtils::AddSurfaceData(const TCHAR* MeshFilePath, const CAD
 {
 	if (MeshFilePath && IFileManager::Get().FileExists(MeshFilePath))
 	{
-		UParametricSurfaceData* ParametricSurfaceData = FParametricSurfaceModule::CreateParametricSurface(*CADLibrary::FImportParameters::GCADLibrary);
+		UParametricSurfaceData* ParametricSurfaceData = FParametricSurfaceModule::CreateParametricSurface();
 
 		if (!ParametricSurfaceData || !ParametricSurfaceData->SetFile(MeshFilePath))
 		{

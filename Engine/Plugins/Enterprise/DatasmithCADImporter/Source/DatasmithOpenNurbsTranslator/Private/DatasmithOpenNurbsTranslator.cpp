@@ -9,8 +9,6 @@
 #include "CADKernelSurfaceExtension.h"
 #include "CADModelConverter.h"
 #include "CADOptions.h"
-#include "CoreTechSurfaceExtension.h"
-#include "CoreTechSurfaceHelper.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithMaterialsUtils.h"
@@ -20,7 +18,6 @@
 #include "DatasmithUtils.h"
 #include "OpenNurbsBRepConverter.h"
 #include "OpenNurbsBRepToCADKernelConverter.h"
-#include "OpenNurbsBRepToCoretechConverter.h" // requires CoreTech as public dependency
 #include "OpenNurbsBRepToTechSoftConverter.h" // requires Techsoft as public dependency
 #include "Utility/DatasmithMeshHelper.h"
 
@@ -653,18 +650,9 @@ public:
 
 		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
-			if (CADLibrary::FImportParameters::GCADLibrary == TEXT("TechSoft"))
-			{
-				TSharedRef<FOpenNurbsBRepToTechSoftConverter> OpenNurbsBRepToCoretechConverter = MakeShared<FOpenNurbsBRepToTechSoftConverter>(ImportParameters);
-				CADModelConverter = OpenNurbsBRepToCoretechConverter;
-				OpenNurbsBRepConverter = OpenNurbsBRepToCoretechConverter;
-			}
-			else if (CADLibrary::FImportParameters::GCADLibrary == TEXT("KernelIO"))
-			{
-				TSharedRef<FOpenNurbsBRepToCoretechConverter> OpenNurbsBRepToCoretechConverter = MakeShared<FOpenNurbsBRepToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
-				CADModelConverter = OpenNurbsBRepToCoretechConverter;
-				OpenNurbsBRepConverter = OpenNurbsBRepToCoretechConverter;
-			}
+			TSharedRef<FOpenNurbsBRepToTechSoftConverter> OpenNurbsBRepToTechSoftConverter = MakeShared<FOpenNurbsBRepToTechSoftConverter>(ImportParameters);
+			CADModelConverter = OpenNurbsBRepToTechSoftConverter;
+			OpenNurbsBRepConverter = OpenNurbsBRepToTechSoftConverter;
 		}
 		else
 		{
@@ -3281,7 +3269,7 @@ bool FDatasmithOpenNurbsTranslator::LoadScene(TSharedRef<IDatasmithScene> OutSce
 		}
 		else if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
-			TesselationLibrary = *CADLibrary::FImportParameters::GCADLibrary;
+			TesselationLibrary = TEXT("TechSoft");
 		}
 		else
 		{

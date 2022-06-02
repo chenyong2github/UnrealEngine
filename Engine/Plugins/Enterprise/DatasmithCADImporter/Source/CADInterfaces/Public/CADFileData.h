@@ -28,7 +28,6 @@ public:
 		if (!SceneFileHash)
 		{
 			SceneFileHash = HashCombine(FileDescription.GetDescriptorHash(), ::GetTypeHash(ImportParameters.GetStitchingTechnique()));
-			SceneFileHash = HashCombine(SceneFileHash, ::GetTypeHash(CADLibrary::FImportParameters::GCADLibrary));
 		}
 		return SceneFileHash;
 	}

@@ -5,8 +5,6 @@
 
 #include "CADData.h"
 #include "CADSceneGraph.h"
-#include "CoreTechTypes.h"
-#include "CTSession.h"
 #include "DatasmithImportOptions.h"
 #include "MeshDescriptionHelper.h"
 

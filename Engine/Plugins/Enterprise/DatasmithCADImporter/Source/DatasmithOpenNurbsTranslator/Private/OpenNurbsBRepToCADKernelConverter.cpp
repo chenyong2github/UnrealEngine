@@ -3,7 +3,6 @@
 #include "OpenNurbsBRepToCADKernelConverter.h"
 
 #ifdef USE_OPENNURBS
-#include "CoreTechSurfaceHelper.h"
 
 #pragma warning(push)
 #pragma warning(disable:4265)

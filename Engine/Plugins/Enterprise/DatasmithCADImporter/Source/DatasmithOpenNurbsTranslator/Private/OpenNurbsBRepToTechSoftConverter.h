@@ -8,7 +8,6 @@
 
 #include "OpenNurbsBRepConverter.h"
 #include "CADModelToTechSoftConverterBase.h"
-#include "CTSession.h"
 
 #ifdef USE_TECHSOFT_SDK
 #include "TechSoftInterface.h"

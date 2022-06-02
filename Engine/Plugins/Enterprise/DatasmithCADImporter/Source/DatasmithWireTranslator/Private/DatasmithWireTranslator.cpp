@@ -8,12 +8,13 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
-#include "HAL/ConsoleManager.h"
 #include "DatasmithWireTranslatorModule.h"
+#include "HAL/ConsoleManager.h"
 #include "IDatasmithSceneElements.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "OpenModelUtils.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
@@ -28,11 +29,8 @@
 
 #include "AliasBrepConverter.h"
 #include "AliasModelToCADKernelConverter.h"
-#include "AliasModelToCoretechConverter.h" // requires CoreTech as public dependency
 #include "AliasModelToTechSoftConverter.h" // requires Techsoft as public dependency
 #include "CADInterfacesModule.h"
-#include "CoreTechSurfaceExtension.h"
-#include "CoreTechSurfaceHelper.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -312,18 +310,9 @@ public:
 		CADLibrary::FImportParameters ImportParameters(MetricUnit, ScaleFactor);
 		if(CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
-			if (CADLibrary::FImportParameters::GCADLibrary == TEXT("KernelIO"))
-			{
-				TSharedRef<FAliasModelToCoretechConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
-				CADModelConverter = AliasToCoretechConverter;
-				AliasBRepConverter = AliasToCoretechConverter;
-			}
-			else if (CADLibrary::FImportParameters::GCADLibrary == TEXT("TechSoft"))
-			{
-				TSharedRef<FAliasModelToTechSoftConverter> AliasToTechSoftConverter = MakeShared<FAliasModelToTechSoftConverter>(ImportParameters);
-				CADModelConverter = AliasToTechSoftConverter;
-				AliasBRepConverter = AliasToTechSoftConverter;
-			}
+			TSharedRef<FAliasModelToTechSoftConverter> AliasToTechSoftConverter = MakeShared<FAliasModelToTechSoftConverter>(ImportParameters);
+			CADModelConverter = AliasToTechSoftConverter;
+			AliasBRepConverter = AliasToTechSoftConverter;
 		}
 		else
 		{
@@ -2317,7 +2306,7 @@ bool FDatasmithWireTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 
 	UE_LOG(LogDatasmithWireTranslator, Display, TEXT("CAD translation [%s]."), *Filename);
 	UE_LOG(LogDatasmithWireTranslator, Display, TEXT(" - Parsing Library:      %s"), TEXT("Alias"));
-	UE_LOG(LogDatasmithWireTranslator, Display, TEXT(" - Tessellation Library: %s") , CADLibrary::FImportParameters::bGDisableCADKernelTessellation ? *CADLibrary::FImportParameters::GCADLibrary : TEXT("CADKernel"));
+	UE_LOG(LogDatasmithWireTranslator, Display, TEXT(" - Tessellation Library: %s") , CADLibrary::FImportParameters::bGDisableCADKernelTessellation ? TEXT("TechSoft") : TEXT("CADKernel"));
 
 	FString OutputPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FDatasmithWireTranslatorModule::Get().GetTempDir(), TEXT("Cache"), GetSource().GetSceneName()));
 	IFileManager::Get().MakeDirectory(*OutputPath, true);

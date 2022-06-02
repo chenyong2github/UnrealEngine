@@ -7,10 +7,6 @@
 #include "HAL/FileManager.h"
 #include "Templates/TypeHash.h"
 
-#ifdef USE_KERNEL_IO_SDK
-#include "CoreTechFileParser.h"
-#endif
-
 #ifdef USE_TECHSOFT_SDK
 #include "TechSoftFileParser.h"
 #include "TechSoftFileParserCADKernelTessellator.h"
@@ -21,26 +17,14 @@ namespace CADLibrary
 	FCADFileReader::FCADFileReader(const FImportParameters& ImportParams, FFileDescriptor& InFile, const FString& EnginePluginsPath, const FString& InCachePath)
 		: CADFileData(ImportParams, InFile, InCachePath)
 	{
-#ifdef USE_KERNEL_IO_SDK
-		if (FImportParameters::GCADLibrary == TEXT("KernelIO"))
-		{
-			CADParser = MakeUnique<FCoreTechFileParser>(CADFileData, EnginePluginsPath);
-		}
-#endif
-#if defined(USE_KERNEL_IO_SDK) && defined(USE_TECHSOFT_SDK)
-		else
-#endif
 #ifdef USE_TECHSOFT_SDK
-		if (FImportParameters::GCADLibrary == TEXT("TechSoft"))
+		if (FImportParameters::bGDisableCADKernelTessellation)
 		{
-			if (FImportParameters::bGDisableCADKernelTessellation)
-			{
-				CADParser = MakeUnique<FTechSoftFileParser>(CADFileData, EnginePluginsPath);
-			}
-			else
-			{
-				CADParser = MakeUnique<FTechSoftFileParserCADKernelTessellator>(CADFileData, EnginePluginsPath);
-			}
+			CADParser = MakeUnique<FTechSoftFileParser>(CADFileData, EnginePluginsPath);
+		}
+		else
+		{
+			CADParser = MakeUnique<FTechSoftFileParserCADKernelTessellator>(CADFileData, EnginePluginsPath);
 		}
 #endif
 	}

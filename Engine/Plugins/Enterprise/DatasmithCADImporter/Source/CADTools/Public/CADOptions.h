@@ -55,7 +55,6 @@ namespace CADLibrary
 		CADTOOLS_API static bool bGOverwriteCache;
 		CADTOOLS_API static bool bGPreferJtFileEmbeddedTessellation;
 		CADTOOLS_API static float GStitchingTolerance;
-		CADTOOLS_API static FString GCADLibrary;
 
 	public:
 		FImportParameters(double InMetricUnit = 0.001, double InScaleFactor = 1., FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
@@ -130,7 +129,6 @@ namespace CADLibrary
 			Ar << ImportParameters.bGEnableCADCache;
 			Ar << ImportParameters.bGPreferJtFileEmbeddedTessellation;
 			Ar << ImportParameters.GStitchingTolerance;
-			Ar << ImportParameters.GCADLibrary;
 			return Ar;
 		}
 
@@ -215,7 +213,7 @@ namespace CADLibrary
 
 		if (FImportParameters::bGDisableCADKernelTessellation)
 		{
-			OutFileName += FImportParameters::GCADLibrary.Equals("TechSoft") ? TEXT(".prc") : TEXT(".ct");
+			OutFileName += TEXT(".prc");
 		}
 		else
 		{

@@ -4,16 +4,6 @@
 namespace CADLibrary
 {
 
-FString FImportParameters::GCADLibrary = TEXT("TechSoft");
-
-#ifdef USE_KERNEL_IO_SDK 
-FAutoConsoleVariableRef GCADTranslatorLibrary(
-	TEXT("ds.CADTranslator.CADLibrary"),
-	FImportParameters::GCADLibrary,
-	TEXT("Define the used library to import CAD file i.e. \"TechSoft\" or \"KernelIO\".\n"),
-	ECVF_Default);
-#endif
-
 int32 GMaxImportThreads = 0;
 FAutoConsoleVariableRef GCADTranslatorMaxImportThreads(
 	TEXT("ds.CADTranslator.MaxImportThreads"),
@@ -83,7 +73,6 @@ ECVF_Default);
 uint32 GetTypeHash(const FImportParameters& ImportParameters)
 {
 	uint32 ParametersHash = ::GetTypeHash(ImportParameters.bGDisableCADKernelTessellation);
-	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.GCADLibrary));
 	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.ChordTolerance));
 	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.MaxEdgeLength));
 	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.MaxNormalAngle));

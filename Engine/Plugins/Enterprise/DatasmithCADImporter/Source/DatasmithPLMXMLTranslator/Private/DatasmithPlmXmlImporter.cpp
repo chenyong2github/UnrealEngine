@@ -20,8 +20,6 @@
 #include "CADData.h"
 #include "CADToolsModule.h"
 #include "CADKernelSurfaceExtension.h"
-#include "CoreTechSurfaceExtension.h"
-#include "CoreTechSurfaceHelper.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithDispatcher.h"
 #include "DatasmithMeshBuilder.h"

@@ -13,7 +13,7 @@
 #include "UObject/StrongObjectPtr.h"
 
 
-#define LOCTEXT_NAMESPACE "CoreTechExtensionModule"
+#define LOCTEXT_NAMESPACE "ParametricSurfaceExtensionModule"
 
 
 /** UI extension that displays a Retessellate action in the StaticMeshEditor */
@@ -98,5 +98,5 @@ void FParametricSurfaceExtensionModule::StartupModule()
 
 IMPLEMENT_MODULE(FParametricSurfaceExtensionModule, ParametricSurfaceExtension);
 
-#undef LOCTEXT_NAMESPACE // "DatasmithCoreTechExtensionModule"
+#undef LOCTEXT_NAMESPACE // "ParametricSurfaceExtensionModule"
 
