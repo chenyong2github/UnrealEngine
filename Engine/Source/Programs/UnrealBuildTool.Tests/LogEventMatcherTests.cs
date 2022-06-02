@@ -216,6 +216,32 @@ namespace UnrealBuildToolTests
 		}
 
 		[TestMethod]
+		public void ClangEventMatcher3()
+		{
+			string[] lines =
+			{
+				@"In file included from ../Intermediate/Build/Windows/UnrealGame/Development/Launch/Module.Launch.cpp:2:",
+				@"Engine/Platforms/Windows/Source/Runtime/Launch/Private/LaunchWindows.cpp(95,15): error: member access into incomplete type 'FConfigCacheIni'",
+				@"                        if (GConfig->GetBool(TEXT(""/Script/WindowsRuntimeSettings.WindowsRuntimeSettings""), TEXT(""bRouteGameUserSettingsToSaveGame""), bUseSaveForGameUserSettings, GEngineIni) && bUseSaveForGameUserSettings)",
+				@"                                   ^",
+				@"Engine/Source/Runtime/Core/Public/CoreGlobals.h(16,7): note: forward declaration of 'FConfigCacheIni'",
+				@"class FConfigCacheIni;",
+				@"      ^",
+			};
+
+			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+			CheckEventGroup(logEvents, 0, 7, LogLevel.Error, KnownLogEvents.Compiler);
+
+			LogValue fileProperty = (LogValue)logEvents[1].GetProperty("file");
+			Assert.AreEqual(@"Engine/Platforms/Windows/Source/Runtime/Launch/Private/LaunchWindows.cpp", fileProperty.Text);
+			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
+
+			LogValue noteProperty1 = logEvents[4].GetProperty<LogValue>("file");
+			Assert.AreEqual(@"Engine/Source/Runtime/Core/Public/CoreGlobals.h", noteProperty1.Text);
+			Assert.AreEqual(LogValueType.SourceFile, noteProperty1.Type);
+		}
+
+		[TestMethod]
 		public void IOSCompileErrorMatcher()
 		{
 			string[] lines =
@@ -231,7 +257,7 @@ namespace UnrealBuildToolTests
 			};
 
 			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
-			CheckEventGroup(logEvents, 1, 1, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents, 1, 7, LogLevel.Error, KnownLogEvents.Compiler);
 
 			LogEvent logEvent = logEvents[0];
 			Assert.AreEqual("7", logEvent.GetProperty("line").ToString());
@@ -351,6 +377,23 @@ namespace UnrealBuildToolTests
 
 			LogValue symbolProperty = (LogValue)logEvents[0].GetProperty("symbol");
 			Assert.AreEqual("USkeleton::GetBlendProfile", symbolProperty.Properties!["identifier"].ToString());
+		}
+
+		[TestMethod]
+		public void LinkEventMatcher4()
+		{
+			string[] lines =
+			{
+				@"Engine/Source/Module.DataInterface.cpp : error: L0019: symbol `IMPLEMENT_MODULE_DataInterface' multiply defined",
+				@"Engine/Source/Module.DataInterface.cpp : error:  ...first in ""D:\build\U5M+Inc\Sync\EngineTest\Intermediate\Build\PS4\EngineTest\Development\DataInterfaceGraph\Module.DataInterfaceGraph.cpp.o""",
+				@"Engine/Source/Module.DataInterface.cpp : error:  ...now in ""D:\build\U5M+Inc\Sync\EngineTest\Intermediate\Build\PS4\EngineTest\Development\DataInterface\Module.DataInterface.cpp.o"".",
+			};
+
+			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+			CheckEventGroup(logEvents, 0, 3, LogLevel.Error, KnownLogEvents.Linker_DuplicateSymbol);
+
+			LogValue symbolProperty = (LogValue)logEvents[0].GetProperty("symbol");
+			Assert.AreEqual("IMPLEMENT_MODULE_DataInterface", symbolProperty.Properties!["identifier"].ToString());
 		}
 
 		[TestMethod]

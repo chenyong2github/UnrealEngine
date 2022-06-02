@@ -49,7 +49,7 @@ namespace UnrealBuildTool.Matchers
 		static readonly Regex s_errorWarningPattern = new Regex("error|warning");
 		static readonly Regex s_clangDiagnosticPattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:");
 		static readonly Regex s_clangNotePattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*note:");
-		static readonly Regex s_clangMarkerPattern = new Regex(@"^\s*\^$");
+		static readonly Regex s_clangMarkerPattern = new Regex(@"^(\s*)\^~*$");
 
 		static readonly string[] s_invalidExtensions =
 		{
@@ -121,10 +121,7 @@ namespace UnrealBuildTool.Matchers
 
 					for (; ; )
 					{
-						if (builder.Current.IsMatch(2, s_clangMarkerPattern))
-						{
-							builder.MoveNext(2);
-						}
+						SkipClangMarker(builder);
 
 						if(!builder.Next.TryMatch(s_clangNotePattern, out match))
 						{
@@ -206,12 +203,20 @@ namespace UnrealBuildTool.Matchers
 
 			for(; ;)
 			{
+				while (builder.Current.StartsWith(1, nextIndent))
+				{
+					builder.MoveNext();
+				}
+
+				// Clang-as-MSVC outputs warnings using its own marker syntax
+				SkipClangMarker(builder);
+
 				int offset = 1;
-				while (builder.Current.IsMatch(offset, s_blankLinePattern) || builder.Current.StartsWith(offset, nextIndent))
+				while (builder.Current.IsMatch(offset, s_blankLinePattern))
 				{
 					offset++;
 				}
-				if (!builder.Current.StartsWith(offset, indent) || !builder.Current.TryMatch(offset, s_msvcNotePattern, out match))
+				if (!builder.Current.TryMatch(offset, s_msvcNotePattern, out match))
 				{
 					break;
 				}
@@ -226,14 +231,24 @@ namespace UnrealBuildTool.Matchers
 				}
 			}
 
-			Regex pattern = new Regex($"^{indent} |: note:");
-			while (builder.Current.IsMatch(1, pattern))
-			{
-				builder.MoveNext();
-			}
-
 			outEvent = builder.ToMatch(LogEventPriority.High, level, KnownLogEvents.Compiler);
 			return true;
+		}
+
+		void SkipClangMarker(LogEventBuilder builder)
+		{
+			Match? match;
+			if (builder.Current.TryMatch(2, s_clangMarkerPattern, out match))
+			{
+				string indent = match.Groups[1].Value;
+
+				int length = 2;
+				if (builder.Current.TryGetLine(3, out string? suggestLine) && suggestLine.Length > indent.Length && suggestLine.StartsWith(indent) && !Char.IsWhiteSpace(suggestLine[indent.Length]))
+				{
+					length++;
+				}
+				builder.MoveNext(length);
+			}
 		}
 
 		static string? GetPlatformAgnosticDirectoryName(string fileName)

@@ -21,6 +21,12 @@ namespace UnrealBuildTool.Matchers
 		static readonly Regex s_ldClangPattern = new Regex(
 			@"^\s*(ld|clang):");
 
+		static readonly Regex s_ldMultiplyDefinedPattern = new Regex(
+			@"(?<severity>error): L\d+: symbol `(?<symbol>[^`]+)' multiply defined$");
+
+		static readonly Regex s_ldMultiplyDefinedInfoPattern = new Regex(
+			@"error:  \.\.\.");
+
 		static readonly Regex s_microsoftErrorPattern = new Regex(
 			@"error (?<code>LNK\d+):");
 
@@ -122,6 +128,19 @@ namespace UnrealBuildTool.Matchers
 				{
 					return builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Linker);
 				}
+			}
+			if (cursor.TryMatch(s_ldMultiplyDefinedPattern, out match))
+			{
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
+				builder.AnnotateSymbol(match.Groups["symbol"]);
+
+				while (builder.Current.IsMatch(1, s_ldMultiplyDefinedInfoPattern))
+				{
+					builder.MoveNext();
+				}
+
+				return builder.ToMatch(LogEventPriority.Highest, LogLevel.Error, KnownLogEvents.Linker_DuplicateSymbol);
 			}
 
 			return null;
