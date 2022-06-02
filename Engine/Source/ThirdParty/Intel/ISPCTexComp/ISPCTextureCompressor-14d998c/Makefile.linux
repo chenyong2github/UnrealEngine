@@ -1,4 +1,4 @@
-uname_P := $(shell sh -c 'uname -p 2>/dev/null || echo not')
+uname_P ?= $(shell sh -c 'uname -p 2>/dev/null || echo not')
 
 CXX ?= g++
 ISPC ?= ISPC/linux/ispc
