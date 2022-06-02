@@ -119,6 +119,16 @@ namespace DatasmithRevitExporter
 				{
 					DecalQuad.Add(QuadLine);
 				}
+				else if (GeomObj is Arc QuadArc)
+				{
+					try
+					{
+						XYZ StartPoint = QuadArc.GetEndPoint(0);
+						XYZ EndPoint = QuadArc.GetEndPoint(1);
+						DecalQuad.Add(Line.CreateBound(StartPoint, EndPoint));
+					}
+					catch {}
+				}
 			}
 
 			if (DecalQuad.Count != 4)

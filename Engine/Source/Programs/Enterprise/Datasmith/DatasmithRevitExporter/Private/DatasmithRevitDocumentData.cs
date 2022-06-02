@@ -2113,6 +2113,11 @@ namespace DatasmithRevitExporter
 				XYZ DecalDimensions = null;
 				FUtils.GetDecalSpatialParams(DecalElement.CurrentElement, ref DecalTransform, ref DecalDimensions);
 
+				if (DecalTransform == null || DecalDimensions == null)
+				{
+					continue;
+				}
+
 				FDatasmithFacadeActorDecal DecalActor = DecalElement.ElementActor as FDatasmithFacadeActorDecal;
 				DecalActor.SetDimensions(DecalDimensions.Z, DecalDimensions.X, DecalDimensions.Y);
 				DecalActor.SetDecalMaterialPathName(DatasmithMaterial.GetName());
