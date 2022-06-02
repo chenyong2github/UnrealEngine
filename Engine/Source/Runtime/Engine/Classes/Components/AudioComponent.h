@@ -748,6 +748,7 @@ public:
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface.
 
+	// QuartzTodo: delete this after fix-up
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 	{
 		CastChecked<UAudioComponent>(InThis)->QuartzAddReferencedObjects(Collector);

@@ -10,27 +10,97 @@ namespace Audio
 {
 	// forwards
 	class FMixerDevice;
+	class FQuartzClock;
 	class FMixerSourceManager;
 	class FQuartzClockManager;
 
-	// Contains the pending command and the number of frames it has to wait to fire
-	struct PendingCommand
+	template<class ListenerType>
+	class TQuartzShareableCommandQueue;
+
+	using FQuartzClockCommandQueuePtr = TSharedPtr<TQuartzShareableCommandQueue<FQuartzClock>, ESPMode::ThreadSafe>;
+	using FQuartzClockCommandQueueWeakPtr = TWeakPtr<TQuartzShareableCommandQueue<FQuartzClock>, ESPMode::ThreadSafe>;
+
+	
+	/**
+	 *	FQuartzClockProxy:
+	 *
+	 *		This class is a C++ handle to the underlying clock.
+	 *		
+	 *		It is mostly a wrapper around a TWeakPtr<FQuartzClock> and
+	 *		TSharedPtr<TQuartzShareableCommandQueue<FQuartzClock>.
+	 *		
+	 *		The getters query the underlying FQuartzClock directly,
+	 *		which returns values updated during the last audio-engine tick
+	 *
+	 *		If you need to add more getters, add copies of the members in question to
+	 *		FQuartzClock::FQuartzClockState and update FQuartzClock::UpdateCachedState()
+	 *		for thread-safe access (or manually protect access w/ CachedClockStateCritSec)
+	 *
+	 *		SendCommandToClock() can be used to execute lambdas at the beginning
+	 *		of the next clock tick.  These lambdas can call FQuartzClock's public methods safely.
+	 *
+	 *		Your lambda will take an FQuartzClock* as an argument, which will be passed in by the
+	 *		FQuartzClock itself when it pumps the command queue.
+	 *
+	 */
+	class AUDIOMIXER_API FQuartzClockProxy
 	{
+	public:
 		// ctor
-		PendingCommand(TSharedPtr<IQuartzQuantizedCommand> InCommand, int32 InNumFramesUntilExec)
-		: Command(InCommand)
-		, NumFramesUntilExec(InNumFramesUntilExec)
-		{
-		}
+		FQuartzClockProxy() {}
+		FQuartzClockProxy(const FName& Name) : ClockId(Name){ } // conv ctor from FName
+		FQuartzClockProxy(TSharedPtr<FQuartzClock, ESPMode::ThreadSafe> InClock);
 
-		// Quantized Command Object
-		TSharedPtr<IQuartzQuantizedCommand> Command;
+		FName GetClockName() const { return ClockId; }
 
-		// Countdown to execution
-		int32 NumFramesUntilExec{ 0 };
-	}; // struct PendingCommand
+		bool IsValid() const;
+		operator bool() const { return IsValid(); }
 
-	// Class that encapsulates sample-accurate timing logic, as well as firing QuantizedAudioCommands
+		bool operator==(const FName& Name) const { return ClockId == Name; }
+
+		bool DoesClockExist() const;
+
+		bool IsClockRunning() const;
+
+		Audio::FQuartzClockTickRate GetTickRate() const;
+
+		float GetEstimatedClockRunTimeSeconds() const;
+
+		FQuartzTransportTimeStamp GetCurrentClockTimestamp() const;
+
+		float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier) const;
+
+		// returns false if the clock is not valid or has shut down
+		bool SendCommandToClock(TFunction<void(FQuartzClock*)> InCommand);
+
+		// implicit cast to underlying ID (FName)
+		operator const FName&() const { return ClockId; }
+
+	private:
+		FName ClockId;
+
+		FQuartzClockCommandQueueWeakPtr SharedQueue;
+
+	protected:
+		TWeakPtr<FQuartzClock, ESPMode::ThreadSafe> ClockWeakPtr;
+
+	}; // class FQuartzClockProxy
+
+
+	
+	/**
+	 *	FQuartzClock:
+	 *
+	 *		This class receives, schedules, and fires quantized commands. 
+	 *		The underlying FQuartzMetronome handles all counting / timing logic.
+	 *
+	 *		This class gets ticked externally (i.e. by some Clock Manager)
+	 *		and counts down the time-to-fire the commands in audio frames.
+	 *
+	 *
+	 *		UpdateCachedState() updates a game-thread copy of data accessed via FQuartzClockProxy
+	 *		(see FQuartzClockState)
+	 */
 	class AUDIOMIXER_API FQuartzClock
 	{
 	public:
@@ -41,79 +111,51 @@ namespace Audio
 		// dtor
 		~FQuartzClock();
 
+		// Transport Control:
 		// alter the tick rate (take by-value to make sample-rate adjustments in-place)
 		void ChangeTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft = 0);
 
-		// alter the time signature
 		void ChangeTimeSignature(const FQuartzTimeSignature& InNewTimeSignature);
 
-		// start ticking the clock
 		void Resume();
 
-		// stop ticking and reset the clock
-		void Stop(bool CancelPendingEvents);
-
-		// stop ticking the clock
 		void Pause();
 
-		// reset the metronome
 		void Restart(bool bPause = true);
 
-		// shutdown
-		void Shutdown();
+		void Stop(bool CancelPendingEvents); // Pause + Restart
 
-		// low-resolution clock update
-		// (not sample-accurate!, useful when running without an Audio Device)
-		void LowResolutionTick(float InDeltaTimeSeconds);
-
-		// sample accurate clock update
-		void Tick(int32 InNumFramesUntilNextTick);
-
-		// Set the sample rate of the clock
 		void SetSampleRate(float InNewSampleRate);
 
-		// get the tick rate
-		FQuartzClockTickRate GetTickRate() const { return Metronome.GetTickRate(); }
+		void ResetTransport();
 
-		// get the identifier of the clock
-		FName GetName() const { return Name; }
+		// (used for StartOtherClock command to handle the sub-tick as the target clock)
+		void AddToTickDelay(int32 NumFramesOfDelayToAdd);
 
-		// clock will persist across level changes
-		bool IgnoresFlush();
+		// (used for StartOtherClock command to handle the sub-tick as the target clock)
+		void SetTickDelay(int32 NumFramesOfDelay);
 
-		// Does this clock match the provided settings
+		void Shutdown();
+
+		// Getters:
+		FQuartzClockTickRate GetTickRate();
+
+		FName GetName() const;
+
+		bool IgnoresFlush() const;
+
 		bool DoesMatchSettings(const FQuartzClockSettings& InClockSettings) const;
 
-		void SubscribeToTimeDivision(MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary);
-
-		void SubscribeToAllTimeDivisions(MetronomeCommandQueuePtr InListenerQueue);
-
-		void UnsubscribeFromTimeDivision(MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary);
-
-		void UnsubscribeFromAllTimeDivisions(MetronomeCommandQueuePtr InListenerQueue);
-
-		// Add a new event to be triggered by this clock
-		// TODO: return a handle to this event so "looping" events can be canceled
-		void AddQuantizedCommand(FQuartzQuantizationBoundary InQuantizationBondary, TSharedPtr<IQuartzQuantizedCommand> InNewEvent);
-
-		// Cancel pending command
-		bool CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr);
-
-		// does the clock have any pending events
 		bool HasPendingEvents() const;
 
 		int32 NumPendingEvents() const;
 
-		// is the clock currently ticking?
-		bool IsRunning();
+		bool IsRunning() const;
 
-		// Returns the duration in seconds of the given Quantization Type
 		float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier);
 
-		// Returns the current location of the clock in the transport
 		FQuartzTransportTimeStamp GetCurrentTimestamp();
 
-		// Returns the amount of time, in seconds, the clock has been running. Caution: due to latency, this will not be perfectly accurate
 		float GetEstimatedRunTime();
 
 		FMixerDevice* GetMixerDevice();
@@ -122,19 +164,61 @@ namespace Audio
 
 		FQuartzClockManager* GetClockManager();
 
-		void ResetTransport();
+		FQuartzClockCommandQueueWeakPtr GetCommandQueue() const;
 
-		void AddToTickDelay(int32 NumFramesOfDelayToAdd)
-		{
-			TickDelayLengthInFrames += NumFramesOfDelayToAdd;
-		}
+		// Metronome Event Subscription:
+		void SubscribeToTimeDivision(FQuartzGameThreadSubscriber InSubscriber, EQuartzCommandQuantization InQuantizationBoundary);
 
-		void SetTickDelay(int32 NumFramesOfDelay)
-		{
-			TickDelayLengthInFrames = NumFramesOfDelay;
-		}
+		void SubscribeToAllTimeDivisions(FQuartzGameThreadSubscriber InSubscriber);
+
+		void UnsubscribeFromTimeDivision(FQuartzGameThreadSubscriber InSubscriber, EQuartzCommandQuantization InQuantizationBoundary);
+
+		void UnsubscribeFromAllTimeDivisions(FQuartzGameThreadSubscriber InSubscriber);
+
+		// Quantized Command Management:
+		void AddQuantizedCommand(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo);
+
+		void AddQuantizedCommand(FQuartzQuantizationBoundary InQuantizationBondary, TSharedPtr<IQuartzQuantizedCommand> InNewEvent);
+
+		bool CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr);
+		
+		// low-resolution clock update
+		// (not sample-accurate!, useful when running without an Audio Device)
+		void LowResolutionTick(float InDeltaTimeSeconds);
+
+		// sample accurate clock update
+		void Tick(int32 InNumFramesUntilNextTick);
 
 	private:
+		// Contains the pending command and the number of frames it has to wait to fire
+		struct PendingCommand
+		{
+			// ctor
+			PendingCommand(TSharedPtr<IQuartzQuantizedCommand> InCommand, int32 InNumFramesUntilExec)
+				: Command(InCommand)
+				, NumFramesUntilExec(InNumFramesUntilExec)
+			{
+			}
+
+			// Quantized Command Object
+			TSharedPtr<IQuartzQuantizedCommand> Command;
+
+			// Countdown to execution
+			int32 NumFramesUntilExec{ 0 };
+		}; // struct PendingCommand
+
+		// mutex-protected update at the end of Tick()
+		FCriticalSection CachedClockStateCritSec;
+		void UpdateCachedState();
+
+		// data is cached when an FQuartzClock is ticked
+		struct FQuartzClockState
+		{
+			FQuartzClockTickRate TickRate;
+			FQuartzTransportTimeStamp TimeStamp;
+			float RunTimeInSeconds;
+		} CachedClockState;
+
 		void TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency = 0, int32 FramesOfDelay = 0);
 
 		bool CancelQuantizedCommandInternal(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr, TArray<PendingCommand>& CommandsToTick);
@@ -149,8 +233,10 @@ namespace Audio
 
 		FName Name;
 
-		// TODO: Make this configurable
 		float ThreadLatencyInMilliseconds{ 40.f };
+
+		// Command queue handed out to GameThread objects to queue commands. These get executed at the top of Tick()
+		mutable FQuartzClockCommandQueuePtr PreTickCommands; // (mutable for lazy init in GetQuartzSubscriber())
 
 		// Container of external commands to be executed (TUniquePointer<QuantizedAudioCommand>)
 		TArray<PendingCommand> ClockAlteringPendingCommands;

@@ -43,7 +43,7 @@ FAutoConsoleVariableRef CVarTimeToTakeUpVoiceSlot(
 
 
 //CVar to disable the gamethread-side caching of play requests to minimize time spent rendering a silent voice before the Quartz Deadline
-static int32 bAlwaysTakeVoiceSlotCVar = 0;
+static int32 bAlwaysTakeVoiceSlotCVar = 1;
 FAutoConsoleVariableRef bCVarAlwaysTakeVoiceSlot(
 	TEXT("au.Quartz.bAlwaysTakeVoiceSlot"),
 	bAlwaysTakeVoiceSlotCVar,
@@ -284,13 +284,11 @@ void UAudioComponent::OnUnregister()
 	{
 		Stop();
 	}
-	Shutdown();
 }
 
 void UAudioComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	Shutdown();
 }
 
 const UObject* UAudioComponent::AdditionalStatObject() const
@@ -448,13 +446,7 @@ void UAudioComponent::ProcessCommand(const Audio::FQuartzQuantizedCommandDelegat
 
 void UAudioComponent::ProcessCommand(const Audio::FQuartzQueueCommandData& InQueueCommandData)
 {
-	if (UQuartzSubsystem* QuartzSubsystem = GetQuartzSubsystem())
-	{
-		QuartzSubsystem->PushLatencyTrackerResult(InQueueCommandData.RequestRecieved());
-
-		//Queue the sound
-		PlayQueuedQuantizedInternal(GetWorld(), InQueueCommandData.AudioComponentCommandInfo);
-	}
+	PlayQueuedQuantizedInternal(GetWorld(), InQueueCommandData.AudioComponentCommandInfo);
 }
 
 void UAudioComponent::PlayQuantized(
@@ -472,15 +464,15 @@ void UAudioComponent::PlayQuantized(
 	{
 		Init(GetWorld());
 	}
-	check(FQuartzTickableObject::IsInitialized() && CommandQueuePtr.IsValid());
+	check(FQuartzTickableObject::IsInitialized());
 
 	int32 TimeCVarVal = FMath::Clamp(CVarTimeToTakeUpVoiceSlot->GetInt(), 0, (int32)EQuartzCommandQuantization::Count - 1);
 	EQuartzCommandQuantization MinimumQuantization = EQuartzCommandQuantization(TimeCVarVal);
 
-	// Make an anticapatory quantization boundary to try to avoid taking up a whole voice slot while waiting for a queued event
+	// Make an anticipatory quantization boundary to try to avoid taking up a whole voice slot while waiting for a queued event
 	FQuartzQuantizationBoundary AnticipationQuantizationBoundary = FQuartzQuantizationBoundary(MinimumQuantization, 1.0f, EQuarztQuantizationReference::CurrentTimeRelative, true);
 
-	FAudioComponentCommandInfo NewComponentCommandInfo(CommandQueuePtr, AnticipationQuantizationBoundary);
+	FAudioComponentCommandInfo NewComponentCommandInfo(FQuartzTickableObject::GetQuartzSubscriber(), AnticipationQuantizationBoundary);
 
 	// And a new pending quartz command data
 	FAudioComponentPendingQuartzCommandData AudioComponentQuartzCommandData
@@ -534,12 +526,8 @@ void UAudioComponent::PlayQuantized(
 
 void UAudioComponent::PlayQueuedQuantizedInternal(const UObject* WorldContextObject, FAudioComponentCommandInfo InCommandInfo)
 {
-	//Initialize the tickable object portion of the Audio Component, if it hasn't been initialized already
-	if (!FQuartzTickableObject::IsInitialized())
-	{
-		Init(GetWorld());
-	}
-	check(FQuartzTickableObject::IsInitialized() && CommandQueuePtr.IsValid());
+	// confirm the FQuartzTickableObject has been initialized.
+	ensure(FQuartzTickableObject::IsInitialized());
 
 	bool bFoundQuantizedCommand = false;
 	bool bIsValidCommand = true;
@@ -569,7 +557,7 @@ void UAudioComponent::PlayQueuedQuantizedInternal(const UObject* WorldContextObj
 				// confirm a valid handle
 				if (Handle != nullptr)
 				{
-					InternalRequestData.QuantizedRequestData = Handle->GetQuartzSubsystem()->CreateDataDataForSchedulePlaySound(Handle, PendingData.Delegate, PendingData.AnticapatoryBoundary);
+					InternalRequestData.QuantizedRequestData = UQuartzSubsystem::CreateRequestDataForSchedulePlaySound(Handle, PendingData.Delegate, PendingData.AnticapatoryBoundary);
 					UGameplayStatics::PrimeSound(Sound);
 				}
 
@@ -596,17 +584,17 @@ void UAudioComponent::PlayQueuedQuantizedInternal(const UObject* WorldContextObj
 
 				if (bIsValidCommand)
 				{
-					InternalRequestData.QuantizedRequestData.GameThreadSubscribers.Add(CommandQueuePtr);
+					InternalRequestData.QuantizedRequestData.GameThreadSubscribers.Add(GetQuartzSubscriber());
 
 					// Now play the quartz command
 					PlayInternal(InternalRequestData);
+					UE_LOG(LogAudioQuartz, Warning, TEXT("AudioComponent::PlayQueueQUantizedInternal()->PlayInternal()"));
 				} 
 			}
 			else // this component does not have a Sound to play
 			{
 				UE_LOG(LogAudioQuartz, Warning, TEXT("Attempting to play Quantized Sound without supplying a valid Sound to play"));
 			}
-			
 
 
 
@@ -838,10 +826,6 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 		TArray<FAudioParameter> ActorParams;
 		UActorSoundParameterInterface::Fill(Owner, ActorParams);
 		FAudioParameter::Merge(MoveTemp(ActorParams), SoundParams);
-	}
-	else
-	{
-		UE_LOG(LogAudio, VeryVerbose, TEXT("AudioComponent : '%s' playing sound '%s' has no owner"), *GetFullName(), *Sound->GetName());
 	}
 
 	TArray<FAudioParameter> InstanceParamsCopy = InstanceParameters;

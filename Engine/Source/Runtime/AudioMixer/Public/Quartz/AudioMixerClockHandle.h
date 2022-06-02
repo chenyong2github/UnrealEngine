@@ -8,85 +8,22 @@
 #include "Sound/QuartzSubscription.h"
 #include "Quartz/QuartzSubsystem.h"
 #include "Quartz/QuartzMetronome.h"
-#include "UObject/GCObject.h"
 
 #include "AudioMixerClockHandle.generated.h"
 
 
-class UAudioComponent;
 
-// Children of this class MUST be UObjects and they must call QuartzAddReferencedObjects from their own override of AddReferencedObjects.
-// TODO: Ideally this should use CRTP to put the fields on the child or something to avoid the possibility of not calling it.
-class AUDIOMIXER_API FQuartzTickableObject
-{
-	struct AUDIOMIXER_API FQuartzTickableObjectGCObjectMembers
-	{
-	public:
-		UQuartzSubsystem* QuartzSubsystem;
-		UWorld* WorldPtr{ nullptr };
 
-		void AddReferencedObjects(FReferenceCollector& Collector);
-	};
-
-	public:
-		FQuartzTickableObject() {}
-		virtual ~FQuartzTickableObject();
-
-		FQuartzTickableObject* Init(UWorld* InWorldPtr);
-
-		// called by the associated QuartzSubsystem
-		void QuartzTick(float DeltaTime);
-		bool QuartzIsTickable() const;
-		UWorld* QuartzGetWorld() const { return GCObjectMembers.WorldPtr; }
-
-		bool IsInitialized() const { return bHasBeenInitialized; }
-
-		// access to the associated QuartzSubsystem
-		UQuartzSubsystem* GetQuartzSubsystem() const { return GCObjectMembers.QuartzSubsystem; }
-
-		TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> GetCommandQueue();
-
-		int32 AddCommandDelegate(const FOnQuartzCommandEventBP& InDelegate, TArray<TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe>>& TargetSubscriberArray);
-
-		// virtual interface
-		virtual void ProcessCommand(const Audio::FQuartzQuantizedCommandDelegateData& Data) {};
-
-		virtual void ProcessCommand(const Audio::FQuartzMetronomeDelegateData& Data) {};
-
-		virtual void ProcessCommand(const Audio::FQuartzQueueCommandData& Data) {};
-
-		void Shutdown();
-
-		void QuartzAddReferencedObjects(FReferenceCollector& Collector)
-		{
-			GCObjectMembers.AddReferencedObjects(Collector);
-		}
-
-	protected:
-		struct CommandDelegateGameThreadData
-		{
-			FOnQuartzCommandEvent MulticastDelegate;
-			FThreadSafeCounter RefCount;
-		};
-
-		struct MetronomeDelegateGameThreadData
-		{
-			FOnQuartzMetronomeEvent MulticastDelegate;
-		};
-	
-		void PumpCommandQueue();
-
-		TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> CommandQueuePtr;
-		TArray<TFunction<void(FQuartzTickableObject*)>> TempCommandQueue;
-
-		TArray<CommandDelegateGameThreadData> QuantizedCommandDelegates;
-		MetronomeDelegateGameThreadData MetronomeDelegates[static_cast<int32>(EQuartzCommandQuantization::Count)];
-
-	private:
-		FQuartzTickableObjectGCObjectMembers GCObjectMembers;
-		bool bHasBeenInitialized = false;
-};
-
+/**
+ *  This class is a BP / Game thread wrapper around FQuartzClockProxy
+ *	(to talk to the underlying clock)
+ 
+ *  ...and inherits from FQuartzTickableObject
+ *	(to listen to the underlying clock)
+ *  
+ *  It can subscribe to Quantized Event & Metronome delegates to synchronize
+ *  gameplay & VFX to Quartz events fired from the Audio Engine
+ */
 UCLASS(BlueprintType, Blueprintable, Transient, ClassGroup = Quartz, meta = (BlueprintSpawnableComponent))
 class AUDIOMIXER_API UQuartzClockHandle : public UObject, public FQuartzTickableObject
 {
@@ -102,7 +39,6 @@ public:
 	// begin UObject interface
 	void BeginDestroy() override;
 	// end UObject interface
-
 
 // Begin Blueprint Interface
 
@@ -178,7 +114,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "QuantizationBoundary, Delegate", AutoCreateRefTerm = "QuantizationBoundary, Delegate", Keywords = "BPM, Tempo"))
 	void SetBeatsPerMinute(const UObject* WorldContextObject, UPARAM(ref) const FQuartzQuantizationBoundary& QuantizationBoundary, const FOnQuartzCommandEventBP& Delegate, UQuartzClockHandle*& ClockHandle, float BeatsPerMinute = 60.f);
 
-
 	// Metronome getters
 	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "BPM, Tempo"))
 	float GetMillisecondsPerTick(const UObject* WorldContextObject) const;
@@ -195,42 +130,41 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "BPM, Tempo"))
 	float GetBeatsPerMinute(const UObject* WorldContextObject) const;
 
+	// todo: un-comment when metronome events support the offset
+	// Set how early we would like to receive Metronome (not yet supported) and "About To Start" Delegates. (all other command delegates will execute as normal)
+	// UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "BPM, Tempo"))
+	// void SetNotificationAnticipationAmountInMilliseconds(const UObject* WorldContextObject, UQuartzClockHandle*& ClockHandle, const double Milliseconds = 0.0);
+
+	// // Set how early we would like to receive Metronome (not yet supported) and "About To Start" Delegates. (all other command delegates will execute as normal)
+	// UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", Keywords = "BPM, Tempo"))
+	// void SetNotificationAnticipationAmountAsMusicalDuration(const UObject* WorldContextObject, UQuartzClockHandle*& ClockHandle, const EQuartzCommandQuantization MusicalDuration = EQuartzCommandQuantization::QuarterNote, const double Multiplier = 1.0);
+
 // End Blueprint Interface
 	void QueueQuantizedSound(const UObject* WorldContextObject, UQuartzClockHandle*& ClockHandle, const FAudioComponentCommandInfo& AudioComponentData, const FOnQuartzCommandEventBP& InDelegate, const FQuartzQuantizationBoundary& InTargetBoundary);
 
-	UQuartzClockHandle* SubscribeToClock(const UObject* WorldContextObject, FName ClockName);
+	UQuartzClockHandle* SubscribeToClock(const UObject* WorldContextObject, FName ClockName, Audio::FQuartzClockProxy const* InHandlePtr = nullptr);
 
 	FName GetClockName() const { return CurrentClockId; }
 
-	FName GetHandleName() const { return ClockHandleId; }
-	
 	bool DoesClockExist(const UObject* WorldContextObject) const
 	{
-		if (UQuartzSubsystem* QuartzSubsystem = GetQuartzSubsystem())
-		{
-			return QuartzSubsystem->DoesClockExist(WorldContextObject, CurrentClockId);
-		}
-
-		return false;
+		check(RawHandle);
+		return RawHandle.DoesClockExist();
 	}
 
-	virtual void ProcessCommand(const Audio::FQuartzQuantizedCommandDelegateData& Data) override;
+	UE_DEPRECATED(5.1, "This function should not be called directly, and the original functionality has been moved into FQuartzTickable")
+	virtual void ProcessCommand(const Audio::FQuartzQuantizedCommandDelegateData& Data) override {}
 
-	virtual void ProcessCommand(const Audio::FQuartzMetronomeDelegateData& Data) override;
+	UE_DEPRECATED(5.1, "This function should not be called directly, and the original functionality has been moved into FQuartzTickable")
+	virtual void ProcessCommand(const Audio::FQuartzMetronomeDelegateData& Data) override {};
 
 	bool GetCurrentTickRate(const UObject* WorldContextObject, Audio::FQuartzClockTickRate& OutTickRate) const;
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector) 
-	{
-		CastChecked<UQuartzClockHandle>(InThis)->QuartzAddReferencedObjects(Collector);
-	}
-
 private:
-	
+	void SetTickRateInternal(const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, const Audio::FQuartzClockTickRate& NewTickRate);
+
+	Audio::FQuartzClockProxy RawHandle;
+
 	FName CurrentClockId;
-
-	FName ClockHandleId;
-
-	bool bConnectedToClock{ false };
 
 }; // class UQuartzClockHandle

@@ -9,6 +9,7 @@ namespace Audio
 {
 	// forwards
 	class FMixerDevice;
+	class FQuartzClock;
 
 	// Class that owns, updates, and provides access to all active clocks
 	// All methods are thread-safe. The method locks if it returns a value, and stages a command if it returns void
@@ -34,8 +35,8 @@ namespace Audio
 
 		// add (and take ownership of) a new clock
 		// safe to call from AudioThread (uses critical section)
-		TSharedPtr<FQuartzClock> GetOrCreateClock(const FName& InClockName, const FQuartzClockSettings& InClockSettings, bool bOverrideTickRateIfClockExists = false);
-
+		FQuartzClockProxy GetOrCreateClock(const FName& InClockName, const FQuartzClockSettings& InClockSettings, bool bOverrideTickRateIfClockExists = false);
+		FQuartzClockProxy GetClock(const FName& InClockName);
 
 		// returns true if a clock with the given name already exists.
 		bool DoesClockExist(const FName& InClockName);
@@ -85,6 +86,8 @@ namespace Audio
 		FQuartzQuantizedCommandHandle AddCommandToClock(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo);
 
 		// subscribe to a specific time division on a clock
+		// TODO: update the metronome subscription functions to take an FQuartzGameThreadSubscriber instead of the Command queue ptr
+		// (to support metronome event offset)
 		void SubscribeToTimeDivision(FName InClockName, MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary);
 
 		// subscribe to all time divisions on a clock
@@ -101,7 +104,7 @@ namespace Audio
 
 		bool HasClockBeenTickedThisUpdate(FName InClockName);
 
-		int32 GetLastUpdateSizeInFrames() { return LastUpdateSizeInFrames; }
+		int32 GetLastUpdateSizeInFrames() const { return LastUpdateSizeInFrames; }
 
 		// get access to the owning FMixerDevice
 		FMixerDevice* GetMixerDevice() const;
@@ -124,5 +127,8 @@ namespace Audio
 
 		FThreadSafeCounter LastClockTickedIndex{ 0 };
 		int32 LastUpdateSizeInFrames{ 0 };
+
+		// allow a clock that is queuing a command directly use FindClock() to retrieve the TSharedPtr<FQuartzClock>
+		friend void FQuartzClock::AddQuantizedCommand(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo);
 	};
 } // namespace Audio

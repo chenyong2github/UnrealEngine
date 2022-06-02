@@ -12,6 +12,7 @@
 
 #include "QuartzQuantizationUtilities.generated.h"
 
+class FQuartzTickableObject;
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioQuartz, Log, All);
 
 // forwards
@@ -29,14 +30,17 @@ namespace Audio
 	class FQuartzClock;
 	class FShareableQuartzCommandQueue;
 
+	template<typename T>
+	class TQuartzShareableCommandQueue;
+
 	class FMixerDevice;
 
 	struct FQuartzQuantizedCommandDelegateData;
 	struct FQuartzMetronomeDelegateData;
+	struct FQuartzQueueCommandData;
 	struct FQuartzQuantizedCommandInitInfo;
 } // namespace Audio
 
-// UOBJECT LAYER:
 
 // An enumeration for specifying quantization for Quartz commands
 UENUM(BlueprintType)
@@ -218,55 +222,6 @@ DECLARE_DYNAMIC_DELEGATE_FiveParams(FOnQuartzMetronomeEventBP, FName, ClockName,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnQuartzCommandEvent, EQuartzCommandDelegateSubType, EventType, FName, Name);
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnQuartzCommandEventBP, EQuartzCommandDelegateSubType, EventType, FName, Name);
 
-// struct used to specify the quantization boundary of an event
-USTRUCT(BlueprintType)
-struct ENGINE_API FQuartzQuantizationBoundary
-{
-	GENERATED_BODY()
-
-	// resolution we are interested in
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
-	EQuartzCommandQuantization Quantization{ EQuartzCommandQuantization::None };
-
-	// how many "Resolutions" to wait before the onset we care about
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings", meta = (ClampMin = "1.0"))
-	float Multiplier{ 1.0f };
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
-	EQuarztQuantizationReference CountingReferencePoint{ EQuarztQuantizationReference::BarRelative };
-
-	// If this is true and the Clock hasn't started yet, the event will fire immediately when the Clock starts
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Quantized Audio Clock Settings")
-	bool bFireOnClockStart{ true };
-
-	// If this is true, this command will be canceled if the Clock is stopped or otherwise not running
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Quantized Audio Clock Settings")
-	bool bCancelCommandIfClockIsNotRunning{ false };
-
-	// If this is true, queueing the sound will also call a Reset Clock command
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Quantized Audio Clock Settings")
-	bool bResetClockOnQueued{ false };
-
-	// If this is true, queueing the sound will also call a Resume Clock command
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Quantized Audio Clock Settings")
-	bool bResumeClockOnQueued{ false };
-
-	// Game thread subscribers that will be passed to command init data (for C++ implementations)
-	TArray<TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe>> GameThreadSubscribers;
-
-	// ctor
-	FQuartzQuantizationBoundary(
-		EQuartzCommandQuantization InQuantization = EQuartzCommandQuantization::None, 
-		float InMultiplier = 1.0f, 
-		EQuarztQuantizationReference InReferencePoint = EQuarztQuantizationReference::BarRelative, 
-		bool bInFireOnClockStart = true)
-		: Quantization(InQuantization)
-		, Multiplier(InMultiplier)
-		, CountingReferencePoint(InReferencePoint)
-		, bFireOnClockStart(bInFireOnClockStart)
-	{}
-}; // struct FQuartzQuantizationBoundary
-
 // UStruct version of settings struct used to initialized a clock
 USTRUCT(BlueprintType)
 struct ENGINE_API FQuartzClockSettings
@@ -322,8 +277,8 @@ namespace Audio
 	class FAudioMixer;
 
 	// Utility class to set/get/convert tick rate
-// In this context "Tick Rate" refers to the duration of smallest temporal resolution we may care about
-// in musical time, this is locked to a 1/32nd note
+	// In this context "Tick Rate" refers to the duration of smallest temporal resolution we may care about
+	// in musical time, this is locked to a 1/32nd note
 
 	struct ENGINE_API FQuartzClockTickRate
 	{
@@ -440,18 +395,152 @@ namespace Audio
 		mutable FQuartzLatencyTimer Timer;
 	};
 
+	struct ENGINE_API FQuartzOffset
+	{
+	public:
+		// ctor
+		FQuartzOffset(double InOffsetInMilliseconds = 0.0);
+		FQuartzOffset(EQuartzCommandQuantization InDuration, double InMultiplier);
 
+		// offset get/set
+		void SetOffsetInMilliseconds(double InMilliseconds);
+
+		void SetOffsetMusical(EQuartzCommandQuantization Duration, double Multiplier);
+
+		bool IsSet() const { return IsSetAsMilliseconds() || IsSetAsMusicalDuration(); }
+
+		bool IsSetAsMilliseconds() const;
+
+		bool IsSetAsMusicalDuration() const;
+
+		int32 GetOffsetInAudioFrames(const FQuartzClockTickRate& InTickRate);
+
+		bool operator==(const FQuartzOffset& Other) const;
+
+	private:
+		// only one of these optionals will be valid at a time
+		// (depending on which setter is called)
+		TOptional<double> OffsetInMilliseconds;
+		TOptional<TPair<EQuartzCommandQuantization, double>> OffsetAsDuration;
+
+	};
+
+
+	using FQuartzGameThreadCommandQueue = Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>;
+	using FQuartzGameThreadCommandQueuePtr = TSharedPtr<FQuartzGameThreadCommandQueue, ESPMode::ThreadSafe>;
+
+	struct ENGINE_API FQuartzGameThreadSubscriber
+	{
+		FQuartzGameThreadSubscriber() = default;
+
+		// this is only for back-compat until metronomes support FQuartzGameThreadSubscribers instead of raw queue ptrs
+		// (for Metronome event offsets)
+		FQuartzGameThreadSubscriber(const FQuartzGameThreadCommandQueuePtr& InQueuePtr)
+		: Queue(InQueuePtr)
+		{ }
+
+
+		// copy ctor
+		FQuartzGameThreadSubscriber(const FQuartzGameThreadCommandQueuePtr& InQueuePtr, FQuartzOffset InOffset)
+		: Offset(InOffset)
+		, Queue(InQueuePtr)
+		{ }
+
+		// change offset
+		void SetOffset(FQuartzOffset InOffset) { Offset = MoveTemp(InOffset); }
+
+		bool HasBeenNotifiedOfAboutToStart() const { return bHasBeenNotifiedOfAboutToStart; }
+
+		// comparison
+		bool operator==(const FQuartzGameThreadSubscriber& Other) const;
+
+		// todo: templatize to match teh underlying TQUartzShareableCommandQueue
+		// notify
+		void PushEvent(const FQuartzQuantizedCommandDelegateData& Data);
+		void PushEvent(const FQuartzMetronomeDelegateData& Data);
+		void PushEvent(const FQuartzQueueCommandData& Data);
+
+		// allow implicit casting to the underlying queue
+		operator FQuartzGameThreadCommandQueuePtr() const { return Queue; }
+
+		// positive: anticipatory amount, negative:
+		int32 FinalizeOffset(const FQuartzClockTickRate& TickRate);
+		int32 GetOffsetAsAudioFrames() const;
+
+
+
+	private:
+		FQuartzOffset Offset;
+		FQuartzGameThreadCommandQueuePtr Queue;
+		bool bOffsetConvertedToFrames = false;
+		bool bHasBeenNotifiedOfAboutToStart = false;
+		int32 OffsetInAudioFrames = 0;
+	};
+} // namespace Audio
+
+
+// struct used to specify the quantization boundary of an event
+USTRUCT(BlueprintType)
+struct ENGINE_API FQuartzQuantizationBoundary
+{
+	GENERATED_BODY()
+
+	// resolution we are interested in
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
+	EQuartzCommandQuantization Quantization{ EQuartzCommandQuantization::None };
+
+	// how many "Resolutions" to wait before the onset we care about
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings", meta = (ClampMin = "1.0"))
+	float Multiplier{ 1.0f };
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
+	EQuarztQuantizationReference CountingReferencePoint{ EQuarztQuantizationReference::BarRelative };
+
+	// If this is true and the Clock hasn't started yet, the event will fire immediately when the Clock starts
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Quantized Audio Clock Settings")
+	bool bFireOnClockStart{ true };
+
+	// If this is true, this command will be canceled if the Clock is stopped or otherwise not running
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Quantized Audio Clock Settings")
+	bool bCancelCommandIfClockIsNotRunning{ false };
+
+	// If this is true, queueing the sound will also call a Reset Clock command
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Quantized Audio Clock Settings")
+	bool bResetClockOnQueued{ false };
+
+	// If this is true, queueing the sound will also call a Resume Clock command
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Quantized Audio Clock Settings")
+	bool bResumeClockOnQueued{ false };
+
+	// Game thread subscribers that will be passed to command init data (for C++ implementations)
+	TArray<Audio::FQuartzGameThreadSubscriber> GameThreadSubscribers;
+
+	// ctor
+	FQuartzQuantizationBoundary(
+		EQuartzCommandQuantization InQuantization = EQuartzCommandQuantization::None,
+		float InMultiplier = 1.0f,
+		EQuarztQuantizationReference InReferencePoint = EQuarztQuantizationReference::BarRelative,
+		bool bInFireOnClockStart = true)
+		: Quantization(InQuantization)
+		, Multiplier(InMultiplier)
+		, CountingReferencePoint(InReferencePoint)
+		, bFireOnClockStart(bInFireOnClockStart)
+	{}
+}; // struct FQuartzQuantizationBoundary
+
+
+namespace Audio
+{
 	// data that is gathered by the AudioThread to get passed from FActiveSound->FMixerSourceVoice
 	// eventually converted to IQuartzQuantizedCommand for the Quantized Command itself
 	struct ENGINE_API FQuartzQuantizedRequestData
 	{
 		// shared with FQuartzQuantizedCommandInitInfo:
 		FName ClockName;
-		FName ClockHandleName;
 		FName OtherClockName;
 		TSharedPtr<IQuartzQuantizedCommand> QuantizedCommandPtr;
 		FQuartzQuantizationBoundary QuantizationBoundary{ EQuartzCommandQuantization::Tick, 1.f, EQuarztQuantizationReference::BarRelative, true };
-		TArray<TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe>> GameThreadSubscribers;
+		TArray<FQuartzGameThreadSubscriber> GameThreadSubscribers;
 		int32 GameThreadDelegateID{ -1 };
 	};
 
@@ -468,15 +557,15 @@ namespace Audio
 		void SetOwningClockPtr(TSharedPtr<Audio::FQuartzClock> InClockPointer)
 		{
 			OwningClockPointer = InClockPointer;
+			ensure(OwningClockPointer);
 		}
 
 		// shared with FQuartzQuantizedRequestData
 		FName ClockName;
-		FName ClockHandleName;
 		FName OtherClockName;
 		TSharedPtr<IQuartzQuantizedCommand> QuantizedCommandPtr{ nullptr };
 		FQuartzQuantizationBoundary QuantizationBoundary;
-		TArray<TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe>> GameThreadSubscribers;
+		TArray<FQuartzGameThreadSubscriber> GameThreadSubscribers;
 		int32 GameThreadDelegateID{ -1 };
 
 		// Audio Render thread-specific data:
@@ -501,10 +590,17 @@ namespace Audio
 		// allocate a copy of the derived class
 		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const;
 
-		void AddSubscriber(TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> InSubscriber);
+		void AddSubscriber(FQuartzGameThreadSubscriber InSubscriber);
 
 		// Command has reached the AudioRenderThread
 		void OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo);
+
+		// scheduled (finalize subscriber offsets) - called by FQuartzClock
+		void OnScheduled(const FQuartzClockTickRate& InTickRate);
+
+		// called during FQuartzClock::Tick() to let us call AboutToStart
+		// at different times for different subscribers
+		void Update(int32 NumFramesUntilDeadline);
 
 		// Perhaps the associated sound failed concurrency and will not be playing
 		void FailedToQueue(FQuartzQuantizedRequestData& InGameThreadData);
@@ -530,16 +626,16 @@ namespace Audio
 		virtual int32 OverrideFramesUntilExec(int32 NumFramesUntilExec) { return NumFramesUntilExec; }
 
 
-		virtual bool IsLooping() { return false; }
 		virtual bool IsClockAltering() { return false; }
+		virtual bool ShouldDeadlineIgnoresBpmChanges() { return false; }
 		virtual bool RequiresAudioDevice() const { return false; }
 
 		virtual FName GetCommandName() const = 0;
 		virtual EQuartzCommandType GetCommandType() const = 0;
 
 
-	protected:
-		// base classes can override these to add extra functionality
+	private:
+		// derived classes can override these to add extra functionality
 		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) {}
 		virtual void FailedToQueueCustom() {}
 		virtual void AboutToStartCustom() {}
@@ -548,11 +644,9 @@ namespace Audio
 		virtual void OnClockStartedCustom() {}
 		virtual void CancelCustom() {}
 
-		TArray<TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe>> GameThreadSubscribers;
+		TArray<FQuartzGameThreadSubscriber> GameThreadSubscribers;
 
-	private:
 		int32 GameThreadDelegateID{ -1 };
-		bool bAboutToStartHasBeenCalled{ false };
 	}; // class IAudioMixerQuantizedCommandBase
 
 	// Audio Render Thread Handle to a queued command
@@ -576,20 +670,20 @@ struct ENGINE_API FAudioComponentCommandInfo
 	FAudioComponentCommandInfo() {}
 
 	FAudioComponentCommandInfo(const FAudioComponentCommandInfo& Other)
-		: ComponentCommandPtr(Other.ComponentCommandPtr)
+		: Subscriber(Other.Subscriber)
 		, AnticapatoryBoundary(Other.AnticapatoryBoundary)
 		, CommandID(Other.CommandID)
 	{}
 
- 	FAudioComponentCommandInfo(TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> InComponentCommandPtr, FQuartzQuantizationBoundary InAnticaptoryBoundary)
-		: ComponentCommandPtr(InComponentCommandPtr)
+ 	FAudioComponentCommandInfo(Audio::FQuartzGameThreadSubscriber InSubscriber, FQuartzQuantizationBoundary InAnticaptoryBoundary)
+		: Subscriber(InSubscriber)
 		, AnticapatoryBoundary(InAnticaptoryBoundary)
 	{
 		static uint32 CommandIDs = 0;
 		CommandID = CommandIDs++;
 	}
 
-	TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> ComponentCommandPtr;
+	Audio::FQuartzGameThreadSubscriber Subscriber;
 	FQuartzQuantizationBoundary AnticapatoryBoundary;
 	uint32 CommandID{ (uint32)INDEX_NONE };
 };

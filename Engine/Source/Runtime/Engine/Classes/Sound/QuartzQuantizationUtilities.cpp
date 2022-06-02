@@ -9,7 +9,6 @@
 
 #define INVALID_DURATION -1
 
-
 DEFINE_LOG_CATEGORY(LogAudioQuartz);
 
 EQuartzCommandQuantization TimeSignatureQuantizationToCommandQuantization(const EQuartzTimeSignatureQuantization& BeatType)
@@ -18,23 +17,18 @@ EQuartzCommandQuantization TimeSignatureQuantizationToCommandQuantization(const 
 	{
 		case EQuartzTimeSignatureQuantization::HalfNote :
 			return EQuartzCommandQuantization::HalfNote;
-			break;
 
 		case EQuartzTimeSignatureQuantization::QuarterNote :
 			return EQuartzCommandQuantization::QuarterNote;
-			break;
 
 		case EQuartzTimeSignatureQuantization::EighthNote :
 			return EQuartzCommandQuantization::EighthNote;
-			break;
 
 		case EQuartzTimeSignatureQuantization::SixteenthNote :
 			return EQuartzCommandQuantization::SixteenthNote;
-			break;
 
 		case EQuartzTimeSignatureQuantization::ThirtySecondNote :
 			return EQuartzCommandQuantization::ThirtySecondNote;
-			break;
 
 		default:
 			return EQuartzCommandQuantization::Count;
@@ -73,7 +67,7 @@ bool FQuartzTimeSignature::operator==(const FQuartzTimeSignature& Other) const
 			const bool NumPulsesMatch = (OptionalPulseOverride[i].NumberOfPulses == Other.OptionalPulseOverride[i].NumberOfPulses);
 			const bool DurationsMatch = (OptionalPulseOverride[i].PulseDuration == Other.OptionalPulseOverride[i].PulseDuration);
 
-			if (!(NumPulseEntries && DurationsMatch))
+			if (!(NumPulsesMatch && DurationsMatch))
 			{
 				Result = false;
 				break;
@@ -386,8 +380,6 @@ namespace Audio
 		, int32 InSourceID
 	)
 		: ClockName(RHS.ClockName)
-		, ClockHandleName(RHS.ClockHandleName)
-		, OtherClockName(RHS.OtherClockName)
 		, QuantizedCommandPtr(RHS.QuantizedCommandPtr)
 		, QuantizationBoundary(RHS.QuantizationBoundary)
 		, GameThreadSubscribers(RHS.GameThreadSubscribers)
@@ -404,7 +396,7 @@ namespace Audio
 		return nullptr;
 	}
 
-	void IQuartzQuantizedCommand::AddSubscriber(TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> InSubscriber)
+	void IQuartzQuantizedCommand::AddSubscriber(FQuartzGameThreadSubscriber InSubscriber)
 	{
 		GameThreadSubscribers.AddUnique(InSubscriber);
 	}
@@ -412,8 +404,8 @@ namespace Audio
 	void IQuartzQuantizedCommand::OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzQuantizedCommand::OnQueued);
-		Audio::FMixerDevice* MixerDevice = InCommandInitInfo.OwningClockPointer->GetMixerDevice();
-		if (MixerDevice)
+
+		if (Audio::FMixerDevice* MixerDevice = InCommandInitInfo.OwningClockPointer->GetMixerDevice())
 		{
 			MixerDevice->QuantizedEventClockManager.PushLatencyTrackerResult(FQuartzCrossThreadMessage::RequestRecieved());
 		}
@@ -429,18 +421,43 @@ namespace Audio
 			Data.DelegateSubType = EQuartzCommandDelegateSubType::CommandOnQueued;
 			Data.DelegateID = GameThreadDelegateID;
 
-
-			for (auto& SubscriberQueue : GameThreadSubscribers)
+			for (auto& Subscriber : GameThreadSubscribers)
 			{
-				if (SubscriberQueue.IsValid())
-				{
-					SubscriberQueue->PushEvent(Data);
-				}
+				Subscriber.PushEvent(Data);
 			}
 		}
 
 		UE_LOG(LogAudioQuartz, Verbose, TEXT("OnQueued() called for quantized event type: [%s]"), *GetCommandName().ToString());
 		OnQueuedCustom(InCommandInitInfo);
+	}
+
+	void IQuartzQuantizedCommand::OnScheduled(const FQuartzClockTickRate& InTickRate)
+	{
+		for(auto& Subscriber : GameThreadSubscribers)
+		{
+			Subscriber.FinalizeOffset(InTickRate);
+		}
+	}
+
+	void IQuartzQuantizedCommand::Update(int32 NumFramesUntilDeadline)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzQuantizedCommand::Countdown);
+
+		FQuartzQuantizedCommandDelegateData Data;
+		Data.CommandType = GetCommandType();
+		Data.DelegateSubType = EQuartzCommandDelegateSubType::CommandOnAboutToStart;
+		Data.DelegateID = GameThreadDelegateID;
+
+		for(auto& Subscriber : GameThreadSubscribers)
+		{
+			// we only want to send this notification to the subscriber once
+			const int32 NumFramesOfAnticipation = Subscriber.GetOffsetAsAudioFrames();
+			if(!Subscriber.HasBeenNotifiedOfAboutToStart()
+				&&  (NumFramesOfAnticipation >= NumFramesUntilDeadline))
+			{
+				Subscriber.PushEvent(Data);
+			}
+		}
 	}
 
 	void IQuartzQuantizedCommand::FailedToQueue(FQuartzQuantizedRequestData& InGameThreadData)
@@ -457,13 +474,9 @@ namespace Audio
 			Data.DelegateSubType = EQuartzCommandDelegateSubType::CommandOnFailedToQueue;
 			Data.DelegateID = GameThreadDelegateID;
 
-
-			for (auto& SubscriberQueue : GameThreadSubscribers)
+			for (auto& Subscriber : GameThreadSubscribers)
 			{
-				if (SubscriberQueue.IsValid())
-				{
-					SubscriberQueue->PushEvent(Data);
-				}
+				Subscriber.PushEvent(Data);
 			}
 		}
 
@@ -474,29 +487,18 @@ namespace Audio
 	void IQuartzQuantizedCommand::AboutToStart()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzQuantizedCommand::AboutToStart);
-		// only call once for the lifespan of this event
-		if (bAboutToStartHasBeenCalled)
+
+		FQuartzQuantizedCommandDelegateData Data;
+		Data.CommandType = GetCommandType();
+		Data.DelegateSubType = EQuartzCommandDelegateSubType::CommandOnAboutToStart;
+		Data.DelegateID = GameThreadDelegateID;
+
+		for(auto& Subscriber : GameThreadSubscribers)
 		{
-			return;
-		}
-
-		bAboutToStartHasBeenCalled = true;
-
-
-		if (GameThreadSubscribers.Num())
-		{
-			FQuartzQuantizedCommandDelegateData Data;
-
-			Data.CommandType = GetCommandType();
-			Data.DelegateSubType = EQuartzCommandDelegateSubType::CommandOnAboutToStart;
-			Data.DelegateID = GameThreadDelegateID;
-
-			for (auto& SubscriberQueue : GameThreadSubscribers)
+			// we only want to send this notification to the subscriber once
+			if(!Subscriber.HasBeenNotifiedOfAboutToStart())
 			{
-				if (SubscriberQueue.IsValid())
-				{
-					SubscriberQueue->PushEvent(Data);
-				}
+				Subscriber.PushEvent(Data);
 			}
 		}
 
@@ -517,10 +519,7 @@ namespace Audio
 
 			for (auto& Subscriber : GameThreadSubscribers)
 			{
-				if (Subscriber.IsValid())
-				{
-					Subscriber->PushEvent(OnStartedData);
-				}
+				Subscriber.PushEvent(OnStartedData);
 			}
 		}
 
@@ -551,19 +550,14 @@ namespace Audio
 		Data.DelegateSubType = EQuartzCommandDelegateSubType::CommandOnCanceled;
 		Data.DelegateID = GameThreadDelegateID;
 
-
-		for (auto& SubscriberQueue : GameThreadSubscribers)
+		for (auto& Subscriber : GameThreadSubscribers)
 		{
-			if (SubscriberQueue.IsValid())
-			{
-				SubscriberQueue->PushEvent(Data);
-			}
+			Subscriber.PushEvent(Data);
 		}
 
 		UE_LOG(LogAudioQuartz, Verbose, TEXT("Cancel() called for quantized event type: [%s]"), *GetCommandName().ToString());
 		CancelCustom();
 	}
-
 
 
 	bool FQuartzQuantizedCommandHandle::Cancel()
@@ -679,7 +673,59 @@ namespace Audio
 		return Timer.GetCurrentTimePassedMs();
 	}
 
+	bool FQuartzOffset::operator==(const FQuartzOffset& Other) const
+	{
+		return OffsetInMilliseconds == Other.OffsetInMilliseconds
+			&& OffsetAsDuration == Other.OffsetAsDuration;
+	}
 
+	bool FQuartzGameThreadSubscriber::operator==(const FQuartzGameThreadSubscriber& Other) const
+	{
+		return Offset == Other.Offset
+			&& Queue == Other.Queue;
+	}
+
+	void FQuartzGameThreadSubscriber::PushEvent(const FQuartzQuantizedCommandDelegateData& Data)
+	{
+		if(ensure(Queue.IsValid()))
+		{
+			Queue->PushEvent(Data);
+
+			// raise the flag if this was a CommandOnAboutToStart notification
+			if(!bHasBeenNotifiedOfAboutToStart)
+			{
+				bHasBeenNotifiedOfAboutToStart = (Data.DelegateSubType == EQuartzCommandDelegateSubType::CommandOnAboutToStart);
+			}
+		}
+	}
+
+	void FQuartzGameThreadSubscriber::PushEvent(const FQuartzMetronomeDelegateData& Data)
+	{
+		if(ensure(Queue.IsValid()))
+		{
+			Queue->PushEvent(Data);
+		}
+	}
+
+	void FQuartzGameThreadSubscriber::PushEvent(const FQuartzQueueCommandData& Data)
+	{
+		if(ensure(Queue.IsValid()))
+		{
+			Queue->PushEvent(Data);
+		}
+	}
+
+	int32 FQuartzGameThreadSubscriber::FinalizeOffset(const FQuartzClockTickRate& TickRate)
+	{
+		bOffsetConvertedToFrames = true;
+		return OffsetInAudioFrames = Offset.GetOffsetInAudioFrames(TickRate);
+	}
+
+	int32 FQuartzGameThreadSubscriber::GetOffsetAsAudioFrames() const
+	{
+		ensureAlwaysMsgf(bOffsetConvertedToFrames, TEXT("FinalizeOffset must be called before calling GetOffsetAsAudioFrames()"));
+		return OffsetInAudioFrames;
+	}
 } // namespace Audio
 
 bool FQuartzTransportTimeStamp::IsZero() const

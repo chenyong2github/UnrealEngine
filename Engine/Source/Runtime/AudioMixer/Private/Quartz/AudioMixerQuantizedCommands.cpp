@@ -132,12 +132,12 @@ namespace Audio
 
 	void FQuantizedQueueCommand::OnFinalCallbackCustom(int32 InNumFramesLeft)
 	{
-		if (OwningClockPtr && AudioComponentData.ComponentCommandPtr.IsValid())
+		if (OwningClockPtr)
 		{
 			FName ClockName = OwningClockPtr->GetName();
 			Audio::FQuartzQueueCommandData CommandData(AudioComponentData, ClockName);
 
-			AudioComponentData.ComponentCommandPtr->PushEvent(CommandData);
+			AudioComponentData.Subscriber.PushEvent(CommandData);
 		}
 	}
 
