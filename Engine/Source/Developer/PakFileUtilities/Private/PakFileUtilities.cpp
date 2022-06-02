@@ -2108,7 +2108,9 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 	const bool bRunAsync = CmdLineParameters.bAsyncCompression;
 
+#if USE_DDC_FOR_COMPRESSED_FILES
 	GetDerivedDataCacheRef();
+#endif
 	
 	TArray<FFileRegion> AllFileRegions;
 	
@@ -5528,9 +5530,9 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 			IFileManager::Get().DeleteDirectory(*OutputPath, false, true);
 		}
 
+#if USE_DDC_FOR_COMPRESSED_FILES
 		GetDerivedDataCacheRef().WaitForQuiescence(true);
-
-		
+#endif
 
 		return bResult;
 	}

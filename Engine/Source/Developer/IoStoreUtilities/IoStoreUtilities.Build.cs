@@ -15,7 +15,6 @@ public class IoStoreUtilities : ModuleRules
             "CoreUObject",
             "AssetRegistry",
 			"Zen",
-			"DerivedDataCache",
 			"RenderCore",
 			"libcurl",
         });
