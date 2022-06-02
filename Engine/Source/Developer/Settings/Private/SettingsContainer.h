@@ -104,6 +104,9 @@ public:
 		return SectionRemovedDelegate;
 	}
 
+	virtual void SetCategorySortPriority(FName CategoryName, float Priority) override;
+	virtual void ResetCategorySortPriority(FName CategoryName) override;
+
 private:
 
 	/** Holds the collection of setting categories. */
@@ -120,6 +123,9 @@ private:
 
 	/** Holds the container's name. */
 	FName Name;
+
+	/** Category sort priorities */
+	TMap<FName, float> CategorySortPriorities;
 
 private:
 

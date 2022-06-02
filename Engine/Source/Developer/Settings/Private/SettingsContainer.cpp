@@ -3,6 +3,7 @@
 #include "SettingsContainer.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/App.h"
+#include "Algo/Transform.h"
 
 /* FSettingsContainer structors
  *****************************************************************************/
@@ -94,41 +95,45 @@ void FSettingsContainer::DescribeCategory( const FName& CategoryName, const FTex
 int32 FSettingsContainer::GetCategories( TArray<ISettingsCategoryPtr>& OutCategories ) const
 {
 	OutCategories.Empty(Categories.Num());
+	Algo::Transform(Categories, OutCategories, [](const TPair<FName, TSharedPtr<FSettingsCategory>>& Iter) { return Iter.Value; });
 
-	static const FName AdvancedCategoryName("Advanced");
-	const FName GameSpecificCategoryName = FApp::GetProjectName();
-	TSharedPtr<FSettingsCategory> AdvancedCategory;
-	TSharedPtr<FSettingsCategory> GameSpecificCategory;
-
-	for (TMap<FName, TSharedPtr<FSettingsCategory> >::TConstIterator It(Categories); It; ++It)
+	OutCategories.Sort([this](const ISettingsCategoryPtr& CatetoryA, const ISettingsCategoryPtr& CategoryB)
 	{
-		TSharedPtr<FSettingsCategory> Category = It.Value();
-		if(Category->GetName() == AdvancedCategoryName)
+		auto GetCategoryPriority = [this](const ISettingsCategoryPtr& Category)
 		{
-			// Store off the advanced category, we'll add it to the bottom of all categories
-			AdvancedCategory = Category;
-		}
-		else if (Category->GetName() == GameSpecificCategoryName)
-		{
-			GameSpecificCategory = Category;
-		}
-		else
-		{
-			OutCategories.Add(It.Value());
-		}
-	}
+			static const FName AdvancedCategoryName("Advanced");
+			const FName GameSpecificCategoryName = FApp::GetProjectName();
 
-	// Always show the game specific category first
-	if (GameSpecificCategory.IsValid())
-	{
-		OutCategories.Insert(GameSpecificCategory, 0);
-	}
+			if (const float* Priority = CategorySortPriorities.Find(Category->GetName()))
+			{
+				return *Priority;
+			}
+			else if (Category->GetName() == GameSpecificCategoryName)
+			{
+				return -1.f;
+			}
+			else if (Category->GetName() == AdvancedCategoryName)
+			{
+				return 1.f;
+			}
+			else
+			{
+				return 0.f;
+			}
+		};
 
-	// always show the advanced category last
-	if (AdvancedCategory.IsValid())
-	{
-		OutCategories.Add(AdvancedCategory);
-	}
+		return GetCategoryPriority(CatetoryA) < GetCategoryPriority(CategoryB);
+	});
 
 	return OutCategories.Num();
+}
+
+void FSettingsContainer::SetCategorySortPriority(FName CategoryName, float Priority)
+{
+	CategorySortPriorities.Add(CategoryName, Priority);
+}
+
+void FSettingsContainer::ResetCategorySortPriority(FName CategoryName)
+{
+	CategorySortPriorities.Remove(CategoryName);
 }

@@ -79,6 +79,26 @@ public:
 	 */
 	virtual const FName& GetName() const = 0;
 
+	/**
+	 * Sets the sort priority of a category
+	 * A lower priority value means the category is listed first
+	 * Categories with the same priority are alphanumerically sorted
+	 * The priority value is 0 by default
+	 * @note A category named after FApp::GetProjectName() has a priority of -1.0 by default
+	 * @note A category named "Advanced" has a priority of 1.0 by default
+	 * @param ContainerName Settings container name
+	 * @param CategoryName Name of category to set the priority on
+	 * @param Priority Priority value
+	 */
+	virtual void SetCategorySortPriority(FName CategoryName, float Priority) = 0;
+
+	/**
+	 * Resets the sort priority of a category to its default value
+	 * @note Sort priority
+	 * @param CategoryName Name of category to set the priority on
+	 */
+	virtual void ResetCategorySortPriority(FName CategoryName) = 0;
+
 public:
 
 	/**
