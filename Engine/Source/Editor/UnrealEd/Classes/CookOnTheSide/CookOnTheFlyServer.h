@@ -175,9 +175,6 @@ private:
 		 */
 		void RunNow(UCookOnTheFlyServer& COTFS);
 
-		/** Run the pollable's callback function, from PumpPollables. Calculate the new time and store it in the output. */
-		void RunDuringPump(UE::Cook::FTickStackData& StackData, double& OutNewCurrentTime, double& OutNextTimeSeconds);
-
 	public:
 		const TCHAR* DebugName = TEXT("");
 		FPollFunction PollFunction;
@@ -185,6 +182,14 @@ private:
 		double NextTimeIdleSeconds = 0.;
 		float PeriodSeconds = 60.f;
 		float PeriodIdleSeconds = 5.f;
+
+	public: // To be called only by PumpPollables
+		/** Run the pollable's callback function, from PumpPollables. Calculate the new time and store it in the output. */
+		void RunDuringPump(UE::Cook::FTickStackData& StackData, double& OutNewCurrentTime, double& OutNextTimeSeconds);
+		/** Update the position of this in the Pollables queue, called from Trigger or for a deferred Trigger. */
+		void TriggerInternal(UCookOnTheFlyServer& COTFS);
+		/** Update the position of this in the Pollables queue, called from RunNow or for a deferred RunNow. */
+		void RunNowInternal(UCookOnTheFlyServer& COTFS, double LastTimeRun);
 	};
 	/** A key/value pair for storing Pollables in a priority queue, keyed by next call time. */
 	struct FPollableQueueKey
@@ -360,7 +365,14 @@ private:
 	void TickCookStatus(UE::Cook::FTickStackData& StackData);
 	void SetSaveBusy(bool bInSaveBusy);
 	void SetLoadBusy(bool bInLoadBusy);
-	void UpdateDisplay(ECookTickFlags CookFlags, bool bForceDisplay);
+	enum class EIdleStatus
+	{
+		Active,
+		Idle,
+		Done
+	};
+	void SetIdleStatus(UE::Cook::FTickStackData& StackData, EIdleStatus InStatus);
+	void UpdateDisplay(UE::Cook::FTickStackData& StackData, bool bForceDisplay);
 	enum class ECookAction
 	{
 		Done,			// The cook is complete; no requests remain in any non-idle state
@@ -373,7 +385,6 @@ private:
 		PollIdle,		// Execute pollables which have exceeded their idle period
 		WaitForAsync,	// Sleep for a time slice while we wait for async tasks to complete
 		YieldTick,		// Progress is blocked by an async result. Temporarily exit TickMainCookLoop.
-		Cancel,			// Cancel the current CookByTheBook
 	};
 	/** Inspect all tasks the scheduler could do and return which one it should do. */
 	ECookAction DecideNextCookAction(UE::Cook::FTickStackData& StackData);
@@ -430,8 +441,10 @@ private:
 	void PollFlushRenderingCommands();
 	TRefCountPtr<FPollable> CreatePollableLLM();
 	TRefCountPtr<FPollable> CreatePollableTriggerGC();
-	void PollPackagesPerGC(UE::Cook::FTickStackData& StackData);
+	void PollTimeForGC(UE::Cook::FTickStackData& StackData);
+	void PollQueuedCancel(UE::Cook::FTickStackData& StackData);
 	void WaitForAsync(UE::Cook::FTickStackData& StackData);
+	void TickRecompileShaderRequestsPrivate();
 
 public:
 
@@ -446,6 +459,8 @@ public:
 		COSR_MarkedUpKeepPackages	= 0x00000040,
 		COSR_RequiresGC_OOM			= 0x00000080,
 		COSR_RequiresGC_PackageCount= 0x00000100,
+		COSR_RequiresGC_IdleTimer	= 0x00000200,
+		COSR_YieldTick				= 0x00000400,
 	};
 
 	struct FCookByTheBookStartupOptions
@@ -562,9 +577,9 @@ public:
 	void PostLoadPackageFixup(UE::Cook::FPackageData& PackageData, UPackage* Package);
 
 	/** Tick CBTB until it finishes or needs to yield. Should only be called when in CookByTheBook Mode. */
-	uint32 TickCookByTheBook(const float TimeSlice, uint32& CookedPackageCount, ECookTickFlags TickFlags = ECookTickFlags::None, int32 InMaxNumPackagesToSave = 50);
+	uint32 TickCookByTheBook(const float TimeSlice, ECookTickFlags TickFlags = ECookTickFlags::None);
 	/** Tick COTF until it finishes or needs to yield. Should only be called when in CookOnTheFly Mode. */
-	uint32 TickCookOnTheFly(const float TimeSlice, uint32& CookedPackageCount, ECookTickFlags TickFlags = ECookTickFlags::None, int32 InMaxNumPackagesToSave = 50);
+	uint32 TickCookOnTheFly(const float TimeSlice, ECookTickFlags TickFlags = ECookTickFlags::None);
 
 	/**
 	 * Execute CookByTheBook as a load of all packages followed by a save of all packages. This mode is sometimes faster than normal CBTB.
@@ -636,8 +651,10 @@ public:
 	/** 
 	* Process any shader recompile requests
 	*/
-	void TickRecompileShaderRequests();
+	UE_DEPRECATED(5.1, "Ticking RecompileShaderRequests is now handled by the Tick function")
+	void TickRecompileShaderRequests() {}
 
+	UE_DEPRECATED(5.1, "Ticking RecompileShaderRequests is now handled by the Tick function")
 	bool HasRecompileShaderRequests() const;
 
 	/** Return whether the tick needs to take any action for the current session. If not, the session is done. Used for external managers of the cooker to know when to tick it. */
@@ -1210,12 +1227,12 @@ private:
 	bool bFirstCookInThisProcessInitialized = false;
 	bool bFirstCookInThisProcess = true;
 	bool bImportBehaviorCallbackInstalled = false;
-	/** Cancel has been queued and will be processed next tick */
-	bool bCancelSession = false;
 	/** True if a session is started for any mode. If the session is started, then we have at least one TargetPlatform specified. */
 	bool bSessionRunning = false;
 	/** Whether we're using ZenStore for storage of cook results. If false, we are using LooseCookedPackageWriter. */
 	bool bZenStore = false;
+	/** Multithreaded synchronization of Pollables, accessible only inside PollablesLock. */
+	bool bPollablesInTick = false;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	double SaveBusyRetryTimeSeconds = MAX_flt;
@@ -1238,12 +1255,28 @@ private:
 	/** Helper struct for running cooking in diagnostic modes */
 	TUniquePtr<FDiffModeCookServerUtils> DiffModeHelper;
 
+	/**
+	 * Heap of Pollables to tick, ordered by NextTimeSeconds.
+	 * Only accessible by PumpPollables when bPollablesInTick==true, can be accessed outside of PollablesLock.
+	 * or elsewhere when bPollablesInTick==false, must be accessed inside PollablesLock.
+	 */
 	TArray<FPollableQueueKey> Pollables;
+	/**
+	 * List of pollables that were triggered during PumpPollables and need to be updated when the Pump is done.
+	 * Accessible only inside PollablesLock.
+	 */
+	TArray<FPollableQueueKey> PollablesDeferredTriggers;
+	/** Together with bPollablesInTick, provides a lock around Pollables. */
 	FCriticalSection PollablesLock;
+	TRefCountPtr<FPollable> RecompileRequestsPollable;
+	TRefCountPtr<FPollable> QueuedCancelPollable;
 	double PollNextTimeSeconds = 0.;
 	double PollNextTimeIdleSeconds = 0.;
+	double IdleStatusStartTime = 0.0;
 	uint32 CookedPackageCountSinceLastGC = 0;
 	float WaitForAsyncSleepSeconds = 0.0f;
+	EIdleStatus IdleStatus = EIdleStatus::Done;
+
 	friend UE::Cook::FPackageData;
 	friend UE::Cook::FPendingCookedPlatformData;
 	friend UE::Cook::FPlatformManager;

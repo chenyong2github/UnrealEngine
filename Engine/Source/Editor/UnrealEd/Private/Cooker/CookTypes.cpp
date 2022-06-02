@@ -10,19 +10,18 @@
 namespace UE::Cook
 {
 
-FCookerTimer::FCookerTimer(const float& InTimeSlice, bool bInIsRealtimeMode, int InMaxNumPackagesToSave)
-	: bIsRealtimeMode(bInIsRealtimeMode), StartTime(FPlatformTime::Seconds()), TimeSlice(InTimeSlice)
-	, MaxNumPackagesToSave(InMaxNumPackagesToSave), NumPackagesSaved(0)
+FCookerTimer::FCookerTimer(float InTimeSlice)
+	: StartTime(FPlatformTime::Seconds()), TimeSlice(InTimeSlice)
 {
 }
 
 FCookerTimer::FCookerTimer(EForever)
-	:bIsRealtimeMode(false), StartTime(FPlatformTime::Seconds()), TimeSlice(ForeverTimeSlice), MaxNumPackagesToSave(TNumericLimits<int>::Max()), NumPackagesSaved(0)
+	: FCookerTimer(MAX_flt)
 {
 }
 
 FCookerTimer::FCookerTimer(ENoWait)
-	:bIsRealtimeMode(false), StartTime(FPlatformTime::Seconds()), TimeSlice(ZeroTimeSlice), MaxNumPackagesToSave(TNumericLimits<int>::Max()), NumPackagesSaved(0)
+	: FCookerTimer(0.0f)
 {
 }
 
@@ -33,7 +32,7 @@ double FCookerTimer::GetTimeTillNow() const
 
 double FCookerTimer::GetEndTimeSeconds() const
 {
-	return bIsRealtimeMode ? StartTime + TimeSlice : MAX_flt;
+	return FMath::Min(StartTime + TimeSlice,  MAX_flt);
 }
 
 bool FCookerTimer::IsTimeUp() const
@@ -43,32 +42,13 @@ bool FCookerTimer::IsTimeUp() const
 
 bool FCookerTimer::IsTimeUp(double CurrentTimeSeconds) const
 {
-	if (bIsRealtimeMode)
-	{
-		if ((CurrentTimeSeconds - StartTime) > TimeSlice)
-		{
-			return true;
-		}
-	}
-	if (NumPackagesSaved >= MaxNumPackagesToSave)
-	{
-		return true;
-	}
-	return false;
-}
-
-void FCookerTimer::SavedPackage()
-{
-	++NumPackagesSaved;
+	return CurrentTimeSeconds - StartTime > TimeSlice;
 }
 
 double FCookerTimer::GetTimeRemain() const
 {
 	return TimeSlice - (FPlatformTime::Seconds() - StartTime);
 }
-
-float FCookerTimer::ZeroTimeSlice = 0.0f;
-float FCookerTimer::ForeverTimeSlice = TNumericLimits<float>::Max();
 
 static uint32 SchedulerThreadTlsSlot = 0;
 void InitializeTls()

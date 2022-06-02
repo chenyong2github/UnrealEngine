@@ -463,125 +463,17 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 		GShaderCompilingManager->SkipShaderCompilation(true);
 	}
 
-	// Garbage collection should happen when either
-	//	1. We have cooked a map (configurable asset type)
-	//	2. We have cooked non-map packages and...
-	//		a. we have accumulated 50 (configurable) of these since the last GC.
-	//		b. we have been idle for 20 (configurable) seconds.
-	struct FCookOnTheFlyGCController
-	{
-	public:
-		FCookOnTheFlyGCController(const UCookOnTheFlyServer* COtFServer)
-			: PackagesPerGC(COtFServer->GetPackagesPerGC())
-			, IdleTimeToGC(COtFServer->GetIdleTimeToGC())
-			, bShouldGC(true)
-			, PackagesCookedSinceLastGC(0)
-			, LastCookActionTime(FPlatformTime::Seconds())
-		{}
-
-		/** Intended to be called with stats from the COTF tick loop. Determines if we should be calling GC after TickCookOnTheFly(). */
-		void Update(uint32 CookedCount, UCookOnTheFlyServer::ECookOnTheSideResult ResultFlags)
-		{
-			if (ResultFlags & (UCookOnTheFlyServer::COSR_CookedMap | UCookOnTheFlyServer::COSR_CookedPackage | UCookOnTheFlyServer::COSR_WaitingOnCache))
-			{
-				LastCookActionTime = FPlatformTime::Seconds();
-			}
-			
-			if (ResultFlags & UCookOnTheFlyServer::COSR_RequiresGC)
-			{
-				UE_LOG(LogCookCommandlet, Display, TEXT("Cooker cooked a map since last gc... collecting garbage"));
-				bShouldGC |= true;
-			}
-
-			PackagesCookedSinceLastGC += CookedCount;
-			if ((PackagesPerGC > 0) && (PackagesCookedSinceLastGC > PackagesPerGC))
-			{
-				UE_LOG(LogCookCommandlet, Display, TEXT("Cooker has exceeded max number of non map packages since last gc"));
-				bShouldGC |= true;
-			}
-
-			// we don't want to gc if we are waiting on cache of objects. this could clean up objects which we will need to reload next frame
-			bPostponeGC = (ResultFlags & UCookOnTheFlyServer::COSR_WaitingOnCache) != 0;
-		}
-
-		/** Runs GC if Update() determined it should happen. Also checks the idle time against the limit, and runs GC then if packages have been loaded. */
-		void ConditionallyCollectGarbage(const UCookOnTheFlyServer* COtFServer)
-		{
-			if (!bShouldGC)
-			{
-				if (PackagesCookedSinceLastGC > 0 && IdleTimeToGC > 0)
-				{
-					double IdleTime = FPlatformTime::Seconds() - LastCookActionTime;
-					if (IdleTime >= IdleTimeToGC)
-					{
-						UE_LOG(LogCookCommandlet, Display, TEXT("Cooker has been idle for long time gc"));
-						bShouldGC |= true;
-					}
-				}
-
-				if (!bShouldGC && COtFServer->HasExceededMaxMemory())
-				{
-					UE_LOG(LogCookCommandlet, Display, TEXT("Cooker has exceeded max memory usage collecting garbage"));
-					bShouldGC |= true;
-				}
-			}
-
-			if (bShouldGC && !bPostponeGC)
-			{	
-				Reset();
-				UE_LOG(LogCookCommandlet, Display, TEXT("GC..."));
-				CollectGarbage(RF_NoFlags);
-			}
-		}
-
-	private:
-		/** Resets counters and flags used to determine when we should GC. */
-		void Reset()
-		{
-			bShouldGC = false;
-			PackagesCookedSinceLastGC = 0;
-		}
-
-	private:
-		const uint32 PackagesPerGC;
-		const double IdleTimeToGC;
-
-		bool   bShouldGC;
-		uint32 PackagesCookedSinceLastGC;
-		double LastCookActionTime;
-		bool   bPostponeGC;
-
-	} CookOnTheFlyGCController(CookOnTheFlyServer);
-
 	FDateTime LastConnectionTime = FDateTime::UtcNow();
 	bool bHadConnection = false;
 
 	while (!IsEngineExitRequested())
 	{
-		uint32 CookedPkgCount = 0;
-		uint32 TickResults = CookOnTheFlyServer->TickCookOnTheFly(/*TimeSlice =*/10.f, CookedPkgCount, ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay);
+		uint32 TickResults = CookOnTheFlyServer->TickCookOnTheFly(/*TimeSlice =*/MAX_flt,
+			ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay);
+		ConditionalCollectGarbage(TickResults, *CookOnTheFlyServer);
 
-		// Flush the asset registry before GC
-		FAssetRegistryModule::TickAssetRegistry(-1.0f);
-
-		CookOnTheFlyGCController.Update(CookedPkgCount, (UCookOnTheFlyServer::ECookOnTheSideResult)TickResults);
-		CookOnTheFlyGCController.ConditionallyCollectGarbage(CookOnTheFlyServer);
-
-		// force at least a tick shader compilation even if we are requesting stuff
-		CookOnTheFlyServer->TickRecompileShaderRequests();
-		GShaderCompilingManager->ProcessAsyncResults(true, false);
-
-		while ( (CookOnTheFlyServer->HasRemainingWork() == false) && !IsEngineExitRequested())
+		if (!CookOnTheFlyServer->HasRemainingWork() && !IsEngineExitRequested())
 		{
-			CookOnTheFlyServer->TickRequestManager();
-
-			CookOnTheFlyServer->TickRecompileShaderRequests();
-
-			// Shaders need to be updated
-			GShaderCompilingManager->ProcessAsyncResults(true, false);
-
-			ProcessDeferredCommands();
-
 			// handle server timeout
 			if (InstanceId.IsValid() || bForceClose)
 			{
@@ -608,14 +500,6 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 				{
 					RequestEngineExit(TEXT("Cook file server lost last connection"));
 				}
-			}
-
-			CookOnTheFlyGCController.ConditionallyCollectGarbage(CookOnTheFlyServer);
-
-			{
-				// Flush rendering commands to release any RHI resources (shaders and shader maps).
-				// Delete any FPendingCleanupObjects (shader maps).
-				FlushRenderingCommands();
 			}
 
 			CookOnTheFlyServer->WaitForRequests(100 /* timeoutMs */);
@@ -1004,86 +888,9 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 				uint32 TickResults = 0;
 				uint32 UnusedVariable = 0;
 
-				TickResults = CookOnTheFlyServer->TickCookByTheBook(MAX_flt, UnusedVariable,
-					ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay, MAX_int32);
-
-				if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC) != 0)
-				{
-					FString GCReason;
-					if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC_PackageCount) != 0)
-					{
-						GCReason = TEXT("Exceeded packages per GC");
-					}
-					else if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC_OOM) != 0)
-					{
-						// this can cause thrashing if the cooker loads the same stuff into memory next tick
-						GCReason = TEXT("Exceeded Max Memory");
-
-						int32 JobsToLogAt = GShaderCompilingManager->GetNumRemainingJobs();
-
-						UE_SCOPED_COOKTIMER(CookByTheBook_ShaderJobFlush);
-						UE_LOG(LogCookCommandlet, Display, TEXT("Detected max mem exceeded - forcing shader compilation flush"));
-						while (true)
-						{
-							int32 NumRemainingJobs = GShaderCompilingManager->GetNumRemainingJobs();
-							if (NumRemainingJobs < 1000)
-							{
-								UE_LOG(LogCookCommandlet, Display, TEXT("Finished flushing shader jobs at %d"), NumRemainingJobs);
-								break;
-							}
-
-							if (NumRemainingJobs < JobsToLogAt)
-							{
-								UE_LOG(LogCookCommandlet, Display, TEXT("Flushing shader jobs, remaining jobs %d"), NumRemainingJobs);
-							}
-
-							GShaderCompilingManager->ProcessAsyncResults(false, false);
-
-							FPlatformProcess::Sleep(0.05);
-
-							// GShaderCompilingManager->FinishAllCompilation();
-						}
-					}
-					else
-					{
-						// cooker loaded some object which needs to be cleaned up before the cooker can proceed so force gc
-						GCReason = TEXT("COSR_RequiresGC");
-					}
-
-					// Flush the asset registry before GC
-					{
-						UE_SCOPED_COOKTIMER(CookByTheBook_TickAssetRegistry);
-						FAssetRegistryModule::TickAssetRegistry(-1.0f);
-					}
-					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_GC, DetailedCookStats::TickLoopGCTimeSec);
-
-					int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-					int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-					UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC ? TEXT(" partial gc") : TEXT("")), *GCReason);
-
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
-					FLowLevelMemTracker::Get().UpdateStatsPerFrame();
-#endif
-					auto DumpMemStats = []()
-					{
-						FGenericMemoryStats MemStats;
-						GMalloc->GetAllocatorStats(MemStats);
-						for (const auto& Item : MemStats.Data)
-						{
-							UE_LOG(LogCookCommandlet, Display, TEXT("Item %s = %d"), *Item.Key, Item.Value);
-						}
-					};
-
-					DumpMemStats();
-
-					CollectGarbage(RF_NoFlags);
-
-					int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-					int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-					UE_LOG(LogCookCommandlet, Display, TEXT("%s GC before %d available %d after %d available %d"), (bPartialGC ? TEXT("Partial") : TEXT("Full")), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
-
-					DumpMemStats();
-				}
+				TickResults = CookOnTheFlyServer->TickCookByTheBook(MAX_flt,
+					ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay);
+				ConditionalCollectGarbage(TickResults, *CookOnTheFlyServer);
 			}
 		}
 	} while (bTestCook);
@@ -1101,21 +908,102 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	return true;
 }
 
-void UCookCommandlet::ProcessDeferredCommands()
+void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFlyServer& COTFS)
 {
-#if PLATFORM_MAC
-	// On Mac we need to process Cocoa events so that the console window for CookOnTheFlyServer is interactive
-	FPlatformApplicationMisc::PumpMessages(true);
-#endif
-
-	// update task graph
-	FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-
-	// execute deferred commands
-	for (int32 DeferredCommandsIndex = 0; DeferredCommandsIndex<GEngine->DeferredCommands.Num(); ++DeferredCommandsIndex)
+	if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC) == 0)
 	{
-		GEngine->Exec( GWorld, *GEngine->DeferredCommands[DeferredCommandsIndex], *GLog);
+		return;
 	}
 
-	GEngine->DeferredCommands.Empty();
+	FString GCReason;
+	if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC_PackageCount) != 0)
+	{
+		GCReason = TEXT("Exceeded packages per GC");
+	}
+	else if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC_OOM) != 0)
+	{
+		// this can cause thrashing if the cooker loads the same stuff into memory next tick
+		GCReason = TEXT("Exceeded Max Memory");
+
+		int32 JobsToLogAt = GShaderCompilingManager->GetNumRemainingJobs();
+
+		UE_SCOPED_COOKTIMER(CookByTheBook_ShaderJobFlush);
+		UE_LOG(LogCookCommandlet, Display, TEXT("Detected max mem exceeded - forcing shader compilation flush"));
+		while (true)
+		{
+			int32 NumRemainingJobs = GShaderCompilingManager->GetNumRemainingJobs();
+			if (NumRemainingJobs < 1000)
+			{
+				UE_LOG(LogCookCommandlet, Display, TEXT("Finished flushing shader jobs at %d"), NumRemainingJobs);
+				break;
+			}
+
+			if (NumRemainingJobs < JobsToLogAt)
+			{
+				UE_LOG(LogCookCommandlet, Display, TEXT("Flushing shader jobs, remaining jobs %d"), NumRemainingJobs);
+			}
+
+			GShaderCompilingManager->ProcessAsyncResults(false, false);
+
+			FPlatformProcess::Sleep(0.05);
+
+			// GShaderCompilingManager->FinishAllCompilation();
+		}
+	}
+	else if (TickResults & UCookOnTheFlyServer::COSR_RequiresGC_IdleTimer)
+	{
+		GCReason = TEXT("Cooker has been idle for long time gc");
+	}
+	else
+	{
+		// cooker loaded some object which needs to be cleaned up before the cooker can proceed so force gc
+		GCReason = TEXT("COSR_RequiresGC");
+	}
+
+	// Flush the asset registry before GC
+	{
+		UE_SCOPED_COOKTIMER(CookByTheBook_TickAssetRegistry);
+		FAssetRegistryModule::TickAssetRegistry(-1.0f);
+	}
+#if OUTPUT_COOKTIMING
+	TOptional<FScopedDurationTimer> CBTBScopedDurationTimer;
+	if (COTFS.IsCookByTheBookMode())
+	{
+		CBTBScopedDurationTimer.Emplace(DetailedCookStats::TickLoopGCTimeSec);
+	}
+#endif
+	UE_SCOPED_COOKTIMER(CookCommandlet_GC);
+
+	int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
+	int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
+	UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC ? TEXT(" partial gc") : TEXT("")), *GCReason);
+
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+	FLowLevelMemTracker::Get().UpdateStatsPerFrame();
+#endif
+	auto DumpMemStats = []()
+	{
+		FGenericMemoryStats MemStats;
+		GMalloc->GetAllocatorStats(MemStats);
+		for (const auto& Item : MemStats.Data)
+		{
+			UE_LOG(LogCookCommandlet, Display, TEXT("Item %s = %d"), *Item.Key, Item.Value);
+		}
+	};
+
+	if (COTFS.IsCookByTheBookMode())
+	{
+		DumpMemStats();
+	}
+
+	CollectGarbage(RF_NoFlags);
+
+	int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
+	int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
+	if (COTFS.IsCookByTheBookMode())
+	{
+		UE_LOG(LogCookCommandlet, Display, TEXT("%s GC before %d available %d after %d available %d"),
+			(bPartialGC ? TEXT("Partial") : TEXT("Full")), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
+		DumpMemStats();
+	}
 }

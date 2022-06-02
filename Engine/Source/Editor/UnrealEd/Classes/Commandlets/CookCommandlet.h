@@ -18,6 +18,7 @@
 
 class FSandboxPlatformFile;
 class ITargetPlatform;
+class UCookOnTheFlyServer;
 
 UCLASS(config=Editor)
 class UCookCommandlet
@@ -83,8 +84,8 @@ class UCookCommandlet
 	/** Cooks for specified targets */
 	bool CookByTheBook(const TArray<ITargetPlatform*>& Platforms);
 
-	/**	Process deferred commands */
-	void ProcessDeferredCommands();
+	/** Collect garbage if the cooker's TickResults requested it */
+	void ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFlyServer& COTFS);
 
 public:
 

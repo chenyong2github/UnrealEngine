@@ -134,7 +134,7 @@ namespace UE::Cook
 			NoWait
 		};
 
-		FCookerTimer(const float& InTimeSlice, bool bInIsRealtimeMode, int InMaxNumPackagesToSave = 50);
+		FCookerTimer(float InTimeSlice);
 		FCookerTimer(EForever);
 		FCookerTimer(ENoWait);
 
@@ -142,28 +142,20 @@ namespace UE::Cook
 		double GetEndTimeSeconds() const;
 		bool IsTimeUp() const;
 		bool IsTimeUp(double CurrentTimeSeconds) const;
-		void SavedPackage();
 		double GetTimeRemain() const;
 
 	public:
-		const bool bIsRealtimeMode;
 		const double StartTime;
-		const float& TimeSlice;
-		const int MaxNumPackagesToSave; // maximum packages to save before exiting tick (this should never really hit unless we are not using realtime mode)
-		int NumPackagesSaved;
-
-	private:
-		static float ZeroTimeSlice;
-		static float ForeverTimeSlice;
+		const float TimeSlice;
 	};
 
 	/** Temporary-lifetime data about the current tick of the cooker. */
 	struct FTickStackData
 	{
+		/** Time at which the current iteration of the DecideCookAction loop started. */
+		double LoopStartTime = 0.;
 		/** A bitmask of flags of type enum ECookOnTheSideResult that were set during the tick. */
 		uint32 ResultFlags = 0;
-		/** The number of packages that have been cooked in the current tick. It is used for e.g. decisions about when to collect garbage. */
-		uint32 CookedPackageCount = 0;
 		/** The CookerTimer for the current tick. Used by slow reentrant operations that need to check whether they have timed out. */
 		FCookerTimer Timer;
 		/** CookFlags describing details of the caller's desired behavior for the current tick. */
@@ -172,8 +164,8 @@ namespace UE::Cook
 		bool bCookComplete = false;
 		bool bCookCancelled = false;
 
-		explicit FTickStackData(const float& TimeSlice, const bool bIsRealtimeMode, ECookTickFlags InTickFlags, int32 InMaxNumPackagesToSave)
-			:Timer(TimeSlice, bIsRealtimeMode, InMaxNumPackagesToSave), TickFlags(InTickFlags)
+		explicit FTickStackData(float TimeSlice, ECookTickFlags InTickFlags)
+			:Timer(TimeSlice), TickFlags(InTickFlags)
 		{
 		}
 	};
