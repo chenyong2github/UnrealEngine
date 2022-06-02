@@ -370,6 +370,7 @@ namespace DatasmithRevitExporter
 			InApp.DocumentChanged -= DocumentChangedHandler;
 			DocumentChangedHandler = null;
 
+			DatasmithDirectLink?.CloseCurrentSource();
 			DatasmithDirectLink = null;
 			DatasmithScene = null;
 			RootCache = null;
