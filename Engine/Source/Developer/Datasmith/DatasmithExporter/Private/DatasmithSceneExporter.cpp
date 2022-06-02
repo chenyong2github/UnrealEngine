@@ -95,7 +95,10 @@ void FDatasmithSceneExporterImpl::UpdateTextureElements( TSharedRef< IDatasmithS
 			NewFilename = FPaths::Combine(AssetsOutputPath, UniqueFileName + FileExtension);
 
 			// Copy image file to new location
-			PlatformFile.CopyFile(*NewFilename, *TextureFileName);
+			if (!FPaths::IsSamePath(*NewFilename, *TextureFileName))
+			{
+				PlatformFile.CopyFile(*NewFilename, *TextureFileName);
+			}
 		}
 
 		// Update texture element

@@ -21,6 +21,8 @@
 #include "IDatasmithExporterUIModule.h"
 #include "IDirectLinkUI.h"
 
+#include "DatasmithExportOptions.h"
+
 #include "DatasmithSketchUpSDKBegins.h"
 #include <SketchUpAPI/sketchup.h>
 // SketchUp prior to 2020.2 doesn't have api to convert SU entities between Ruby and C 
@@ -634,6 +636,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene(VALUE s
 	// Done converting args
 
 	ptr->ExportCurrentDatasmithScene();
+
 	return Qtrue;
 }
 
@@ -811,6 +814,10 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_style_changed(VALUE self)
 VALUE on_load(VALUE self, VALUE enable_ui, VALUE engine_path) {
 	// Converting args
 	Check_Type(engine_path, T_STRING);
+
+	// We always write textures during export and write them directly where they need to be
+	// This options prevents extra copying of texture files (and copying a file was causing empty file on Mac)
+	FDatasmithExportOptions::PathTexturesMode = EDSResizedTexturesPath::OriginalFolder;
 
 	bool bEnableUI = RTEST(enable_ui);
 	FString EnginePathUnreal = RubyStringToUnreal(engine_path);
