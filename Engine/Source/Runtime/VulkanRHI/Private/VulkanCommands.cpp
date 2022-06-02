@@ -713,6 +713,7 @@ bool FVulkanDynamicRHI::RHIIsRenderingSuspended()
 
 void FVulkanDynamicRHI::RHIBlockUntilGPUIdle()
 {
+	Device->SubmitCommandsAndFlushGPU();
 	Device->WaitUntilIdle();
 }
 
