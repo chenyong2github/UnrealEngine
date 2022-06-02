@@ -312,9 +312,9 @@ private:
 
 #if !UE_BUILD_SHIPPING
 	void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
-
-	class AWorldPartitionReplay* Replay;
 #endif
+	class AWorldPartitionReplay* Replay;
+
 	friend class AWorldPartitionReplay;
 	friend class UWorldPartitionStreamingPolicy;
 };
