@@ -115,6 +115,63 @@ EPushResult FDDCBackend::PushData(const FIoHash& Id, const FCompressedBuffer& Pa
 	}
 }
 
+bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PushData);
+
+	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
+
+	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Normal);
+
+	bool bWasSuccess = true;
+
+	// TODO: We tend not to memory bloat too much on large batches as the requests complete quite quickly
+	// however we might want to consider adding better control on how much total memory we can dedicate to
+	// loading payloads before we wait for requests to complete?
+	for (FPushRequest& Request : Requests)
+	{
+		if (DoesPayloadExist(Request.GetIdentifier()))
+		{
+			Request.SetStatus(FPushRequest::EStatus::Success);
+		}
+		else
+		{
+			UE::DerivedData::FRequestBarrier Barrier(Owner);
+
+			UE::DerivedData::FCacheKey Key;
+			Key.Bucket = Bucket;
+			Key.Hash = Request.GetIdentifier();
+
+			UE::DerivedData::FValue DerivedDataValue(Request.GetPayload());
+			check(DerivedDataValue.GetRawHash() == Request.GetIdentifier());
+
+			UE::DerivedData::FCacheRecordBuilder RecordBuilder(Key);
+			RecordBuilder.AddValue(ToDerivedDataValueId(Request.GetIdentifier()), DerivedDataValue);
+
+			UE::DerivedData::FCachePutResponse Result;
+			auto Callback = [&Request, &bWasSuccess](UE::DerivedData::FCachePutResponse&& Response)
+			{
+				if (Response.Status == UE::DerivedData::EStatus::Ok)
+				{
+					Request.SetStatus(FPushRequest::EStatus::Success);
+				}
+				else
+				{
+					Request.SetStatus(FPushRequest::EStatus::Failed);
+					bWasSuccess = false;
+				}
+			};
+
+			// TODO: Improve the name when we start passing more context to this function
+			Cache.Put({ {{TEXT("Mirage")}, RecordBuilder.Build(), TransferPolicy} }, Owner, MoveTemp(Callback));
+		}
+	}
+
+	Owner.Wait();
+
+	return bWasSuccess;
+}
+
 FCompressedBuffer FDDCBackend::PullData(const FIoHash& Id)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PullData);
