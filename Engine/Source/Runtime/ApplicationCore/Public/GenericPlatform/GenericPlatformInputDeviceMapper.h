@@ -208,6 +208,13 @@ protected:
 	virtual bool IsUsingControllerIdAsUserId() const = 0;
 
 	/**
+	 * If true, then when we remap the platform's raw int32 ControllerId to its FInputDeviceId
+	 * and owning FPlatformUserId we should create a new platform user id if this controller id is
+	 * not already mapped. 
+	 */
+	virtual bool ShouldCreateUniqueUserForEachDevice() const;
+
+	/**
 	 * If true, than this device mapper will broadcast the older 
 	 * CoreDelegates as well as the new delegates. Set this to
 	 * true if your platform needs calls from OnControllerConnectionChange or

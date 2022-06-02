@@ -251,6 +251,12 @@ void IPlatformInputDeviceMapper::UnbindCoreDelegates()
 	FCoreDelegates::OnUserLoginChangedEvent.RemoveAll(this);
 }
 
+bool IPlatformInputDeviceMapper::ShouldCreateUniqueUserForEachDevice() const
+{
+	// TODO: Get this from some settings you can toggle per platform in the editor
+	return true;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // FGenericPlatformInputDeviceMapper
 
@@ -304,8 +310,36 @@ bool FGenericPlatformInputDeviceMapper::RemapControllerIdToPlatformUserAndDevice
 		else if (ControllerId >= 0)
 		{
 			// Just use controller id, and copy over device
-			InOutUserId = FPlatformUserId::CreateFromInternalId(ControllerId);
 			OutInputDeviceId = FInputDeviceId::CreateFromInternalId(ControllerId);
+			// If we were already given a valid platform user then we can just stop now.
+			// This will be the case on platforms with an existing concept of "User Logins" from platform itself
+			if (InOutUserId.IsValid())
+			{
+				return true;
+			}
+
+			// If it wasn't valid, then check for a valid known existing user to use
+			FPlatformUserId ExistingUser = GetUserForInputDevice(OutInputDeviceId);
+			if (ExistingUser.IsValid())
+			{
+				InOutUserId = ExistingUser;
+				return true;
+			}
+
+			// Otherwise this is a fresh input device, and we need to create a new PlatformUserId for it.
+			// Some platforms do not have the concept of "User ID"s (i.e. platforms that don't allow having multiple users logged in at once)
+			// For those platforms, they may want to create a new platform user ID for each additional input device that is connected. This would
+			// allow them to create the facade that there is a separation between the connected input devices and their platform users, allowing
+			// gameplay code to differentiate between platform users in a consistent manner.
+			if (ShouldCreateUniqueUserForEachDevice())
+			{
+				InOutUserId = AllocateNewUserId();
+			}
+			else
+			{
+				// Otherwise just have a 1:1 mapping of input device to user id's
+				InOutUserId = FPlatformUserId::CreateFromInternalId(ControllerId);
+			}
 			return true;
 		}
 		else if (InOutUserId.GetInternalId() >= 0)
