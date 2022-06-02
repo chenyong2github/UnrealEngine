@@ -15,7 +15,7 @@ namespace UnrealBuildTool.Matchers
 	class CompileEventMatcher : ILogEventMatcher
 	{
 		const string FilePattern =
-			@"(?<file>" +
+			@"(?:(?<file>" +
 				// optional drive letter
 				@"(?:[a-zA-Z]:)?" +
 				// any non-colon character
@@ -24,7 +24,8 @@ namespace UnrealBuildTool.Matchers
 				@"[^:<>*?""]+" +
 				// valid source file extension
 				@"\.(?:(?i)(?:h|c|cc|cpp|inc|inl|cs|targets))" +
-			@")";
+				// or the string "<scratch space>"
+			@")|<scratch space>)";
 
 		const string VisualCppLocationPattern =
 			@"\(" +
@@ -243,7 +244,7 @@ namespace UnrealBuildTool.Matchers
 				string indent = match.Groups[1].Value;
 
 				int length = 2;
-				if (builder.Current.TryGetLine(3, out string? suggestLine) && suggestLine.Length > indent.Length && suggestLine.StartsWith(indent) && !Char.IsWhiteSpace(suggestLine[indent.Length]))
+				if (indent.Length > 0 && builder.Current.TryGetLine(3, out string? suggestLine) && suggestLine.Length > indent.Length && suggestLine.StartsWith(indent) && !Char.IsWhiteSpace(suggestLine[indent.Length]))
 				{
 					length++;
 				}
