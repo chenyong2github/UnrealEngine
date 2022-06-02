@@ -40,7 +40,7 @@ export class AgentStore {
     async update(slim = false): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             const promises: any[] = [];
-            promises.push(backend.getAgents(this.modifiedAfterDate));
+            promises.push(backend.getAgents({modifiedAfter: this.modifiedAfterDate?.toISOString()}));
             if(!slim) {
                 promises.push(backend.getPools());
             }

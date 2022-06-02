@@ -260,7 +260,7 @@ export const getElapsedString = (start: Moment, end: Moment, includeSeconds:bool
         duration += `${d.minutes()}m `;
     }
 
-    if (includeSeconds) {
+    if (includeSeconds || !duration) {
         if (d.seconds()) {
             duration += `${d.seconds()}s `;
         }    
@@ -313,7 +313,7 @@ export const getStepElapsed = (step: StepData | BatchData | undefined): string =
         end = moment(step.finishTime);
     }
 
-    return getElapsedString(start, end);
+    return getElapsedString(start, end, false);
 
 };
 
@@ -330,7 +330,7 @@ export const getLeaseElapsed = (lease: GetAgentLeaseResponse | undefined): strin
         end = moment(lease.finishTime);
     }
 
-    return getElapsedString(start, end);
+    return getElapsedString(start, end, false);
 
 };
 
