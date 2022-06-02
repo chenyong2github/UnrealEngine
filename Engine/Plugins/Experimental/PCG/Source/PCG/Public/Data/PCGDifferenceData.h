@@ -17,6 +17,14 @@ enum class EPCGDifferenceDensityFunction : uint8
 	Binary
 };
 
+UENUM()
+enum class EPCGDifferenceMode : uint8
+{
+	Inferred,
+	Continuous,
+	Discrete
+};
+
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGDifferenceData : public UPCGSpatialDataWithPointCache
 {

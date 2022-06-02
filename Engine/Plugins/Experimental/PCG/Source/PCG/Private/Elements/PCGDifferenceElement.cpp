@@ -3,6 +3,7 @@
 #include "Elements/PCGDifferenceElement.h"
 
 #include "PCGCommon.h"
+#include "Data/PCGPointData.h"
 #include "Data/PCGUnionData.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
@@ -49,6 +50,9 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 	UPCGUnionData* UnionData = nullptr;
 	int32 DifferenceTaggedDataIndex = -1;
 
+	bool bHasPointsInSource = false;
+	bool bHasPointsInDifferences = false;
+
 	// Start by either selecting a source or building a union
 	for (FPCGTaggedData& Source : Sources)
 	{
@@ -58,8 +62,12 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 		if (!SpatialData)
 		{
 			Outputs.Add(Source);
+			continue;
 		}
-		else if (!FirstSpatialData)
+
+		bHasPointsInSource |= (Cast<UPCGPointData>(SpatialData) != nullptr);
+
+		if (!FirstSpatialData)
 		{
 			FirstSpatialData = SpatialData;
 			DifferenceTaggedDataIndex = Outputs.Num();
@@ -93,6 +101,8 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 
 			if (SpatialData)
 			{
+				bHasPointsInDifferences |= (Cast<UPCGPointData>(SpatialData) != nullptr);
+
 				if (!DifferenceData)
 				{
 					DifferenceData = (UnionData ? UnionData : FirstSpatialData)->Subtract(SpatialData);
@@ -112,6 +122,14 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 			{
 				// We are not propagating data from the differences if they don't contribute
 			}
+		}
+
+		// Finally, apply any discretization based on the mode
+		if (DifferenceData && 
+			(Settings->Mode == EPCGDifferenceMode::Discrete || 
+			(Settings->Mode == EPCGDifferenceMode::Inferred && bHasPointsInSource && bHasPointsInDifferences)))
+		{
+			Outputs[DifferenceTaggedDataIndex].Data = DifferenceData->ToPointData(Context);
 		}
 	}
 
