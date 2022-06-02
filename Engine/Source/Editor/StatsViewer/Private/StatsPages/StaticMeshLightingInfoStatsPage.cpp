@@ -137,10 +137,14 @@ struct StaticMeshLightingInfoStatsGenerator
 			if (InComponent->LODData.Num())
 			{
 				const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(InComponent->LODData[0]);
-				if (MeshMapBuildData)
+				if (MeshMapBuildData && MeshMapBuildData->LightMap)
 				{
 					TArray<UTexture2D*> Textures;
-					MeshMapBuildData->LightMap->GetLightMap2D()->GetReferencedTextures(Textures);
+					FLightMap2D* LightMap2D = MeshMapBuildData->LightMap->GetLightMap2D();
+					if (LightMap2D)
+					{
+						LightMap2D->GetReferencedTextures(Textures);
+					}
 					for (UTexture2D* Texture : Textures)
 					{
 						Entry->LightmapTextureNames.Add(Texture->GetName());
