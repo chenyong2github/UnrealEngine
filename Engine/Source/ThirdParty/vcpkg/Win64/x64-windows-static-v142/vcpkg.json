@@ -4,7 +4,6 @@
   "description": "Unreal Engine 5 dependencies installed with vcpkg",
   "dependencies": [
     "cli11",
-    "fmt",
     "http-parser",
     "libressl",
     "protobuf",
