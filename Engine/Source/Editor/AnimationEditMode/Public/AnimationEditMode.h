@@ -36,9 +36,14 @@ private:
 class ANIMATIONEDITMODE_API FAnimationEditMode : public FEdMode, public IAnimationEditContext
 {
 public:
+	FAnimationEditMode();
+
+	FAnimationEditMode(const FAnimationEditMode&) = delete;
+	FAnimationEditMode& operator=(const FAnimationEditMode&) = delete;
+
 	virtual void Enter() override;
 	virtual void Exit() override;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 private:
-	TObjectPtr<UAnimationEditModeContext> AnimationEditModeContext{UAnimationEditModeContext::CreateFor(this)};
+	TObjectPtr<UAnimationEditModeContext> AnimationEditModeContext;
 };

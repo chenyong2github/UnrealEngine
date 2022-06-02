@@ -24,6 +24,11 @@ void UAnimationEditModeContext::GetOnScreenDebugInfo(TArray<FText>& OutDebugInfo
 	return EditMode->GetOnScreenDebugInfo(OutDebugInfo);
 };
 
+FAnimationEditMode::FAnimationEditMode()
+	: AnimationEditModeContext(UAnimationEditModeContext::CreateFor(this))
+{
+}
+
 void FAnimationEditMode::Enter()
 {
 	FEdMode::Enter();
