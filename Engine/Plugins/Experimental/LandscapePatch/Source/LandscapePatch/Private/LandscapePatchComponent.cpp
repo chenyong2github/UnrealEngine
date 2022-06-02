@@ -36,7 +36,9 @@ namespace LandscapePatchComponentLocals
 		return PatchManager;
 	}
 }
+#endif
 
+// Note that this is not allowed to be editor-only
 ULandscapePatchComponent::ULandscapePatchComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -47,6 +49,7 @@ ULandscapePatchComponent::ULandscapePatchComponent(const FObjectInitializer& Obj
 	bWantsOnUpdateTransform = true;
 }
 
+#if WITH_EDITOR
 void ULandscapePatchComponent::OnComponentCreated()
 {
 	using namespace LandscapePatchComponentLocals;

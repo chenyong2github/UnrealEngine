@@ -151,7 +151,6 @@ void ULandscapeTextureHeightPatch::ExportCustomProperties(FOutputDevice& Out, ui
 	}
 }
 
-#if WITH_EDITOR
 void ULandscapeTextureHeightPatch::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.Property)
@@ -175,7 +174,6 @@ void ULandscapeTextureHeightPatch::PostInitProperties()
 
 	Super::PostInitProperties();
 }
-#endif
 
 void ULandscapeTextureHeightPatch::OnComponentCreated()
 {

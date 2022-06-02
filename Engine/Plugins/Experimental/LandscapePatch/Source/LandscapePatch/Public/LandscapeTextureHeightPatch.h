@@ -67,6 +67,8 @@ class LANDSCAPEPATCH_API ULandscapeTextureHeightPatch : public ULandscapeTexture
 
 public:
 
+	// For now the patch is largely editor-only
+#if WITH_EDITOR
 	virtual UTextureRenderTarget2D* Render_Native(bool InIsHeightmap,
 		UTextureRenderTarget2D* InCombinedResult,
 		const FName& InWeightmapLayerName) override;
@@ -75,8 +77,6 @@ public:
 	virtual bool SetTextureResolution(FVector2D ResolutionIn) override;
 	virtual bool SetSourceMode(ELandscapeTexturePatchSourceMode NewMode, bool bDeleteUnusedInternalTextures = true) override;
 
-	// For now the patch is largely editor-only
-#if WITH_EDITOR
 	// UActorComponent
 	virtual void OnComponentCreated() override;
 
