@@ -1627,6 +1627,8 @@ void FPixelShaderInOut_MainPS(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			DirectionalLightShadow,
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, // Scene depth texture
+			OpaqueBasePass.SceneWithoutSingleLayerWaterTextureSize,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterInvTextureSize,
 			Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility, EyeIndex,
@@ -1644,6 +1646,8 @@ void FPixelShaderInOut_MainPS(
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
 			OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.xy,
 			OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.zw,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterTextureSize,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterInvTextureSize,
 			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility, EyeIndex,

@@ -11,10 +11,7 @@
 #include "ShadingModels.ush"
 #include "SceneTextureParameters.ush"
 #include "LightGridCommon.ush"
-
-// Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
-// Must match FDeferredShadingSceneRenderer::RenderUnderWaterFog
-#define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
+#include "SingleLayerWaterCommon.ush"
 
 #define ENABLE_SKY_LIGHT 1
 
@@ -32,6 +29,8 @@ SamplerState SceneNoWaterDepthSampler;
 Texture2D<float4> SeparatedMainDirLightTexture;
 
 float4 SceneNoWaterMinMaxUV;
+float2 SceneNoWaterTextureSize;
+float2 SceneNoWaterInvTextureSize;
 float UseSeparatedMainDirLightTexture;
 
 struct SingleLayerWaterCompositeOutput
@@ -68,7 +67,14 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 		const float2 SceneNoWaterUV = clamp(BufferUV, SceneNoWaterMinMaxUV.xy, SceneNoWaterMinMaxUV.zw);
 
-		float OpaqueDepth = SceneNoWaterDepthTexture.SampleLevel(SceneNoWaterDepthSampler, SceneNoWaterUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float OpaqueDepth = WaterSampleSceneDepthWithoutWater(
+			SceneNoWaterDepthTexture,
+			SceneNoWaterDepthSampler,
+			SceneNoWaterUV,
+			SceneNoWaterTextureSize,
+			SceneNoWaterInvTextureSize)
+			* SINGLE_LAYER_WATER_DEPTH_SCALE;
+
 		float WaterDepth = SceneDepth;
 
 		float DeltaDepth = CameraIsUnderWater ? WaterDepth : OpaqueDepth - WaterDepth;	// Inverted depth
@@ -150,7 +156,14 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 	{
 		const float2 SceneNoWaterUV = clamp(BufferUV, SceneNoWaterMinMaxUV.xy, SceneNoWaterMinMaxUV.zw);
 
-		float OpaqueDepth = SceneNoWaterDepthTexture.SampleLevel(SceneNoWaterDepthSampler, SceneNoWaterUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float OpaqueDepth = WaterSampleSceneDepthWithoutWater(
+			SceneNoWaterDepthTexture,
+			SceneNoWaterDepthSampler,
+			SceneNoWaterUV,
+			SceneNoWaterTextureSize,
+			SceneNoWaterInvTextureSize)
+			* SINGLE_LAYER_WATER_DEPTH_SCALE;
+
 		float WaterDepth = GBuffer.Depth;
 
 		float DeltaDepth = CameraIsUnderWater ? WaterDepth : OpaqueDepth - WaterDepth;	// Inverted depth

@@ -27,12 +27,16 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	float DirectionalLightShadow,
 #if SINGLE_LAYER_WATER_SIMPLE_FORWARD
 	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
+	float2 SceneDepthWithoutSingleLayerWaterTextureSize,
+	float2 SceneDepthWithoutSingleLayerWaterTextureInvSize,
 #endif
 #if !SIMPLE_SINGLE_LAYER_WATER
 	Texture2D SceneColorWithoutSingleLayerWaterTexture, SamplerState SceneColorWithoutSingleLayerWaterSampler,
 	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
 	float2 SceneWithoutSingleLayerWaterMinUV,
 	float2 SceneWithoutSingleLayerWaterMaxUV,
+	float2 SceneDepthWithoutSingleLayerWaterTextureSize,
+	float2 SceneDepthWithoutSingleLayerWaterTextureInvSize,
 #endif // SIMPLE_SINGLE_LAYER_WATER
 	float Specular, const float4 DistortionParams,
 	float3 SunIlluminance, float3 AmbiantIlluminance, float3 EnvBrdf,
@@ -52,7 +56,15 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 #if SIMPLE_SINGLE_LAYER_WATER
 
 #if SINGLE_LAYER_WATER_SIMPLE_FORWARD 
-		float PixelSceneDepth = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, ViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+
+		float PixelSceneDepth = WaterSampleSceneDepthWithoutWater(
+			SceneDepthWithoutSingleLayerWaterTexture,
+			SceneDepthWithoutSingleLayerWaterSampler,
+			ViewportUV,
+			SceneDepthWithoutSingleLayerWaterTextureSize,
+			SceneDepthWithoutSingleLayerWaterTextureInvSize)
+			* SINGLE_LAYER_WATER_DEPTH_SCALE;
+
 		float PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
 #else
 		float PixelSceneDeviceZ = LookupDeviceZ(ViewportUV);
@@ -69,7 +81,13 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 		ViewportUV = clamp(ViewportUV, SceneWithoutSingleLayerWaterMinUV, SceneWithoutSingleLayerWaterMaxUV);
 
-		float PixelSceneDepth = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, ViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float PixelSceneDepth = WaterSampleSceneDepthWithoutWater(
+			SceneDepthWithoutSingleLayerWaterTexture, 
+			SceneDepthWithoutSingleLayerWaterSampler, 
+			ViewportUV, 
+			SceneDepthWithoutSingleLayerWaterTextureSize, 
+			SceneDepthWithoutSingleLayerWaterTextureInvSize) 
+			* SINGLE_LAYER_WATER_DEPTH_SCALE;
 		
 		float2 Refraction = GetMaterialRefraction(PixelMaterialInputs); // X = IOR, Y = Refraction Bias
 		float2 BufferUVDistortion = ComputeBufferUVDistortion(
@@ -93,8 +111,8 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		}
 		else
 		{
-			// Pick the depth furthest away to make sure we pick a depth sample under water
-			SceneDepth = max(max(SceneDepth4.x, SceneDepth4.y), max(SceneDepth4.z, SceneDepth4.w));
+			// We can use bilinear interpolation here because all depth samples are guaranteed to be farther away than the water surface depth.
+			SceneDepth = GetBilinearInterpolation(GetBilinearSampleLevelInfos(DistortedUV, SceneDepthWithoutSingleLayerWaterTextureSize, SceneDepthWithoutSingleLayerWaterTextureInvSize), SceneDepth4.wzxy);
 			ViewportUV = DistortedUV;
 		}
 

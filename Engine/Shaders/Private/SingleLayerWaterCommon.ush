@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "TextureSampling.ush" // GetBilinearSampleLevelInfos() and GetBilinearInterpolation()
 
 // Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
+// Must match FDeferredShadingSceneRenderer::RenderUnderWaterFog
 #define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
 
 #ifndef SIMPLE_SINGLE_LAYER_WATER
@@ -11,7 +13,11 @@
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 	#define SingleLayerWaterSceneColorSampler View.SharedBilinearClampedSampler
+#if METAL_PROFILE
 	#define SingleLayerWaterSceneDepthSampler View.SharedPointClampedSampler
+#else // TODO: Dynamically use a point sampler instead if the depth texture was not downsampled.
+	#define SingleLayerWaterSceneDepthSampler View.SharedBilinearClampedSampler
+#endif // METAL_PROFILE
 #else
 	#define SingleLayerWaterSceneColorSampler OpaqueBasePass.SceneColorWithoutSingleLayerWaterSampler
 	#define SingleLayerWaterSceneDepthSampler OpaqueBasePass.SceneDepthWithoutSingleLayerWaterSampler
@@ -32,4 +38,17 @@ bool WaterRefract(float3 V, float3 N, float Eta, out float3 R)
 	const float CosThetaT = -(CosThetaI >= 0.0f ? 1.0f : -1.0f) * sqrt(CosThetaT2);
 	R = (Eta * CosThetaI + CosThetaT) * N - Eta * V;
 	return true;
+}
+
+float WaterSampleSceneDepthWithoutWater(Texture2D SceneDepthWithoutWaterTexture, SamplerState SceneDepthWithoutWaterSampler, float2 UV, float2 SceneDepthWithoutWaterTextureSize, float2 SceneDepthWithoutWaterTextureInvSize)
+{
+#if METAL_PROFILE
+	// On Metal we cannot do hardware bilinear sampling of float32 textures, so we need to do it manually.
+	FBilinearSampleInfos SampleInfos = GetBilinearSampleLevelInfos(UV, SceneDepthWithoutWaterTextureSize, SceneDepthWithoutWaterTextureInvSize);
+	float4 PixelSceneDepth4 = SceneDepthWithoutWaterTexture.Gather(SceneDepthWithoutWaterSampler, UV).wzxy;
+	return GetBilinearInterpolation(SampleInfos, PixelSceneDepth4);
+#else
+	// A linear sampler should be passed in here if downsampling was used.
+	return SceneDepthWithoutWaterTexture.SampleLevel(SceneDepthWithoutWaterSampler, UV, 0).x;
+#endif // METAL_PROFILE
 }

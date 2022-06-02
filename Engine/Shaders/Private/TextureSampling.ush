@@ -85,6 +85,18 @@ uint2 GetSamplePixelCoord(FBilinearSampleInfos SampleInfos, const uint SampleId)
 	return uint2(int2(SampleInfos.TopLeftPixelCoord)) + BilinearSamplingOffsets2x2[SampleId];
 }
 
+/** Bilinearly interpolates the four given samples. */
+float GetBilinearInterpolation(FBilinearSampleInfos SampleInfos, float4 Samples)
+{
+	float4 BilinearSampleWeights;
+	BilinearSampleWeights[0] = (1 - SampleInfos.BilinearInterp.x) * (1 - SampleInfos.BilinearInterp.y);
+	BilinearSampleWeights[1] = (SampleInfos.BilinearInterp.x) * (1 - SampleInfos.BilinearInterp.y);
+	BilinearSampleWeights[2] = (1 - SampleInfos.BilinearInterp.x) * (SampleInfos.BilinearInterp.y);
+	BilinearSampleWeights[3] = (SampleInfos.BilinearInterp.x) * (SampleInfos.BilinearInterp.y);
+
+	return dot(Samples, BilinearSampleWeights);
+}
+
 
 void Bicubic2DCatmullRom(in float2 UV, in float2 Size, in float2 InvSize, out float2 Sample[3], out half2 Weight[3])
 {
