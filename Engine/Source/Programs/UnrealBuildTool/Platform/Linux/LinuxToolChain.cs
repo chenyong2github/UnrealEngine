@@ -414,6 +414,105 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
+		protected override void GetCompileArguments_Optimizations(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Optimizations(CompileEnvironment, Arguments);
+
+			// Unlike on other platforms, allow LTO be specified independently of PGO
+			if (CompileEnvironment.bAllowLTCG)
+			{
+				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
+				{
+					Arguments.Add("-flto=thin");
+				}
+				else
+				{
+					Arguments.Add("-flto");
+				}
+			}
+
+			// optimization level
+			if (!CompileEnvironment.bOptimizeCode)
+			{
+				Arguments.Add("-O0");
+			}
+			else
+			{
+				// Don't over optimise if using Address/MemorySanitizer or you'll get false positive errors due to erroneous optimisation of necessary Address/MemorySanitizer instrumentation.
+				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
+				{
+					Arguments.Add("-O1 -g");
+
+					// This enables __asan_default_options() in UnixCommonStartup.h which disables the leak detector
+					Arguments.Add("-DDISABLE_ASAN_LEAK_DETECTOR=1");
+				}
+				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
+				{
+					Arguments.Add("-O1 -g");
+				}
+				else
+				{
+					Arguments.Add("-O3");
+				}
+			}
+
+			bool bRetainFramePointers = CompileEnvironment.bRetainFramePointers
+				|| Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer)
+				|| CompileEnvironment.Configuration == CppConfiguration.Debug;
+
+			if (CompileEnvironment.Configuration == CppConfiguration.Shipping)
+			{
+				if (!bRetainFramePointers)
+				{
+					Arguments.Add("-fomit-frame-pointer");
+				}
+			}
+			// switches to help debugging
+			else if (CompileEnvironment.Configuration == CppConfiguration.Debug)
+			{
+				Arguments.Add("-fno-inline");                   // disable inlining for better debuggability (e.g. callstacks, "skip file" in gdb)
+				Arguments.Add("-fstack-protector");             // detect stack smashing
+			}
+
+			if (bRetainFramePointers)
+			{
+				Arguments.Add("-fno-optimize-sibling-calls");
+				Arguments.Add("-fno-omit-frame-pointer");
+			}
+		}
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_Debugging(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Debugging(CompileEnvironment, Arguments);
+
+			// debug info
+			// bCreateDebugInfo is normally set for all configurations, including Shipping - this is needed to enable callstack in Shipping builds (proper resolution: UEPLAT-205, separate files with debug info)
+			if (CompileEnvironment.bCreateDebugInfo)
+			{
+				Arguments.Add("-gdwarf-4");
+
+				if (bGdbIndexSection)
+				{
+					// Generate .debug_pubnames and .debug_pubtypes sections in a format suitable for conversion into a
+					// GDB index. This option is only useful with a linker that can produce GDB index version 7.
+					Arguments.Add("-ggnu-pubnames");
+				}
+
+				if (Options.HasFlag(ClangToolChainOptions.TuneDebugInfoForLLDB))
+				{
+					Arguments.Add("-glldb");
+				}
+			}
+
+			if (CompileEnvironment.bHideSymbolsByDefault)
+			{
+				Arguments.Add("-fvisibility-ms-compat");
+				Arguments.Add("-fvisibility-inlines-hidden");
+			}
+		}
+
+		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
@@ -477,113 +576,7 @@ namespace UnrealBuildTool
 				Arguments.Add("-mssse3"); // enable ssse3 by default for x86. This is default on for MSVC so lets reflect that here
 			}
 
-			if (CompileEnvironment.bHideSymbolsByDefault)
-			{
-				Arguments.Add("-fvisibility-ms-compat");
-				Arguments.Add("-fvisibility-inlines-hidden");
-			}
-
-			// Profile Guided Optimization (PGO) and Link Time Optimization (LTO)
-			// Whether we actually can enable that is checked in CanUseAdvancedLinkerFeatures() earlier
-			if (CompileEnvironment.bPGOOptimize)
-			{
-				Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
-				Arguments.Add(string.Format(" -fprofile-instr-use=\"{0}\"", Path.Combine(CompileEnvironment.PGODirectory!, CompileEnvironment.PGOFilenamePrefix!)));
-			}
-			else if (CompileEnvironment.bPGOProfile)
-			{
-				Log.TraceInformationOnce("Enabling Profile Guided Instrumentation (PGI). Linking will take a while.");
-				Arguments.Add("-fprofile-generate");
-			}
-
-			// Unlike on other platforms, allow LTO be specified independently of PGO
-			// Whether we actually can enable that is checked in CanUseAdvancedLinkerFeatures() earlier
-			if (CompileEnvironment.bAllowLTCG)
-			{
-				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
-				{
-					Arguments.Add("-flto=thin");
-				}
-				else
-				{
-					Arguments.Add("-flto");
-				}
-			}
-
 			//Arguments.Add("-DOPERATOR_NEW_INLINE=FORCENOINLINE");
-
-			bool bRetainFramePointers = CompileEnvironment.bRetainFramePointers
-				|| Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer)
-				|| CompileEnvironment.Configuration == CppConfiguration.Debug;
-
-			if (CompileEnvironment.Configuration == CppConfiguration.Shipping)
-			{
-				if (!bRetainFramePointers)
-				{
-					Arguments.Add("-fomit-frame-pointer");
-				}
-			}
-			// switches to help debugging
-			else if (CompileEnvironment.Configuration == CppConfiguration.Debug)
-			{
-				Arguments.Add("-fno-inline");                   // disable inlining for better debuggability (e.g. callstacks, "skip file" in gdb)
-				Arguments.Add("-fstack-protector");             // detect stack smashing
-																//Arguments.Add("-fsanitize=address");            // detect address based errors (support properly and link to libasan)
-			}
-
-			if (bRetainFramePointers)
-			{
-				Arguments.Add("-fno-optimize-sibling-calls -fno-omit-frame-pointer");
-			}
-
-			// debug info
-			// bCreateDebugInfo is normally set for all configurations, including Shipping - this is needed to enable callstack in Shipping builds (proper resolution: UEPLAT-205, separate files with debug info)
-			if (CompileEnvironment.bCreateDebugInfo)
-			{
-				Arguments.Add("-gdwarf-4");
-
-				if (bGdbIndexSection)
-				{
-					// Generate .debug_pubnames and .debug_pubtypes sections in a format suitable for conversion into a
-					// GDB index. This option is only useful with a linker that can produce GDB index version 7.
-					Arguments.Add("-ggnu-pubnames");
-				}
-
-				if (Options.HasFlag(ClangToolChainOptions.TuneDebugInfoForLLDB))
-				{
-					Arguments.Add("-glldb");
-				}
-			}
-
-			// optimization level
-			if (!CompileEnvironment.bOptimizeCode)
-			{
-				Arguments.Add("-O0");
-			}
-			else
-			{
-				// Don't over optimise if using Address/MemorySanitizer or you'll get false positive errors due to erroneous optimisation of necessary Address/MemorySanitizer instrumentation.
-				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
-				{
-					Arguments.Add("-O1 -g");
-
-					// This enables __asan_default_options() in UnixCommonStartup.h which disables the leak detector
-					Arguments.Add("-DDISABLE_ASAN_LEAK_DETECTOR=1");
-				}
-				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
-				{
-					Arguments.Add("-O1 -g");
-				}
-				else
-				{
-					Arguments.Add("-O3");
-				}
-			}
-
-			if (!CompileEnvironment.bUseInlining)
-			{
-				Arguments.Add("-fno-inline-functions");
-			}
 
 			if (CompileEnvironment.bIsBuildingDLL)
 			{
@@ -596,17 +589,6 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add("-ffunction-sections");
 				Arguments.Add("-fdata-sections");
-			}
-
-			if (CompileEnvironment.bEnableExceptions)
-			{
-				Arguments.Add("-fexceptions");
-				Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=0");
-			}
-			else
-			{
-				Arguments.Add("-fno-exceptions");               // no exceptions
-				Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=1");
 			}
 
 			if (bSuppressPIE && !CompileEnvironment.bIsBuildingDLL)

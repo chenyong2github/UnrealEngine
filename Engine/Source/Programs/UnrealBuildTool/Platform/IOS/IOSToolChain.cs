@@ -210,21 +210,35 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
+		protected override void GetCompileArguments_Optimizations(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Optimizations(CompileEnvironment, Arguments);
+
+			if (GetClangVersion().Major >= 12)
+			{
+				// We have 'this' vs nullptr comparisons that get optimized away for newer versions of Clang, which is undesirable until we refactor these checks.
+				Arguments.Add("-fno-delete-null-pointer-checks");
+			}
+
+			// use LTO if desired (like VCToolchain does)
+			if (CompileEnvironment.bAllowLTCG)
+			{
+				Arguments.Add("-flto");
+			}
+		}
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_Debugging(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Debugging(CompileEnvironment, Arguments);
+
+			Arguments.Add("-fvisibility=hidden"); // hides the linker warnings with PhysX
+		}
+
+		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
-
-			// Optionally enable exception handling (off by default since it generates extra code needed to propagate exceptions)
-			if (CompileEnvironment.bEnableExceptions)
-			{
-				Arguments.Add("-fexceptions");
-				Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=0");
-			}
-			else
-			{
-				Arguments.Add("-fno-exceptions");
-				Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=1");
-			}
 
 			string? SanitizerMode = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
 			if ((SanitizerMode != null && SanitizerMode == "YES") || (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer)))
@@ -244,19 +258,6 @@ namespace UnrealBuildTool
 			}
 
 			Arguments.Add(GetRTTIFlag(CompileEnvironment));
-			Arguments.Add("-fvisibility=hidden"); // hides the linker warnings with PhysX
-
-			// use LTO if desired (like VCToolchain does)
-			if (CompileEnvironment.bAllowLTCG)
-			{
-				Arguments.Add("-flto");
-			}
-
-			if (GetClangVersion().Major >= 12)
-			{
-				// We have 'this' vs nullptr comparisons that get optimized away for newer versions of Clang, which is undesirable until we refactor these checks.
-				Arguments.Add("-fno-delete-null-pointer-checks");
-			}
 
 			if (IsBitcodeCompilingEnabled(CompileEnvironment.Configuration))
 			{
@@ -269,41 +270,6 @@ namespace UnrealBuildTool
 			Arguments.Add(string.Format(" -isysroot \"{0}\"", Settings.Value.GetSDKPath(CompileEnvironment.Architecture)));
 
 			Arguments.Add("-m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion);
-
-			bool bStaticAnalysis = false;
-			string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
-			if (StaticAnalysisMode != null && StaticAnalysisMode != "")
-			{
-				bStaticAnalysis = true;
-			}
-
-			// Optimize non- debug builds.
-			if (CompileEnvironment.bOptimizeCode && !bStaticAnalysis)
-			{
-				if (CompileEnvironment.bOptimizeForSize)
-				{
-					Arguments.Add("-Oz");
-				}
-				else
-				{
-					Arguments.Add("-O3");
-				}
-			}
-			else
-			{
-				Arguments.Add("-O0");
-			}
-
-			if (!CompileEnvironment.bUseInlining)
-			{
-				Arguments.Add("-fno-inline-functions");
-			}
-
-			// Create DWARF format debug info if wanted,
-			if (CompileEnvironment.bCreateDebugInfo)
-			{
-				Arguments.Add("-gdwarf-2");
-			}
 
 			// Add additional frameworks so that their headers can be found
 			foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)

@@ -164,20 +164,33 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		protected override void GetCompileArguments_Debugging(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
+			base.GetCompileArguments_Debugging(CompileEnvironment, Arguments);
 
+			// TODO: Mac always enables exceptions, is this correct?
+			if (!CompileEnvironment.bEnableExceptions)
+			{
+				Arguments.Remove("-fno-exceptions");
+				Arguments.Remove("-DPLATFORM_EXCEPTIONS_DISABLED=1");
+			}
 			Arguments.Add("-fexceptions");
 			Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=0");
 
-			Arguments.Add("-fasm-blocks");
-
-			if(CompileEnvironment.bHideSymbolsByDefault)
+			if (CompileEnvironment.bHideSymbolsByDefault)
 			{
 				Arguments.Add("-fvisibility-ms-compat");
 				Arguments.Add("-fvisibility-inlines-hidden");
 			}
+		}
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
+
+			Arguments.Add("-fasm-blocks");
+
 			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
 			{
 				Arguments.Add("-fsanitize=address");
@@ -189,7 +202,7 @@ namespace UnrealBuildTool
 			if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
 				Arguments.Add("-fsanitize=undefined");
-			}					
+			}
 
 			if (CompileEnvironment.bEnableOSX109Support)
 			{
@@ -200,50 +213,6 @@ namespace UnrealBuildTool
 			Arguments.Add("" + FormatArchitectureArg(CompileEnvironment.Architecture));
 			Arguments.Add(string.Format(" -isysroot \"{0}\"", SDKPath));
 			Arguments.Add("-mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion));
-
-			bool bStaticAnalysis = false;
-			string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
-			if(StaticAnalysisMode != null && StaticAnalysisMode != "")
-			{
-				bStaticAnalysis = true;
-			}
-
-			// Optimize non- debug builds.
-			if (CompileEnvironment.bOptimizeCode && !bStaticAnalysis)
-			{
-				// Don't over optimise if using AddressSanitizer or you'll get false positive errors due to erroneous optimisation of necessary AddressSanitizer instrumentation.
-				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
-				{
-					Arguments.Add("-O1 -g -fno-optimize-sibling-calls -fno-omit-frame-pointer");
-				}
-				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
-				{
-					Arguments.Add("-O1 -g");
-				}
-				else if (CompileEnvironment.bOptimizeForSize)
-				{
-					Arguments.Add("-Oz");
-				}
-				else
-				{
-					Arguments.Add("-O3");
-				}
-			}
-			else
-			{
-				Arguments.Add("-O0");
-			}
-
-			if (!CompileEnvironment.bUseInlining)
-			{
-				Arguments.Add("-fno-inline-functions");
-			}
-
-			// Create DWARF format debug info if wanted,
-			if (CompileEnvironment.bCreateDebugInfo)
-			{
-				Arguments.Add("-gdwarf-2");
-			}
 		}
 		
 		string AddFrameworkToLinkCommand(string FrameworkName, string Arg = "-framework")

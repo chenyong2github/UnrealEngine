@@ -272,6 +272,62 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
+		protected override void GetCompileArguments_Optimizations(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Optimizations(CompileEnvironment, Arguments);
+
+			bool bStaticAnalysis = false;
+			string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
+			if (!string.IsNullOrEmpty(StaticAnalysisMode))
+			{
+				bStaticAnalysis = true;
+			}
+
+			// Optimize non- debug builds.
+			if (CompileEnvironment.bOptimizeCode && !bStaticAnalysis)
+			{
+				// Don't over optimise if using AddressSanitizer or you'll get false positive errors due to erroneous optimisation of necessary AddressSanitizer instrumentation.
+				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
+				{
+					Arguments.Add("-O1");
+					Arguments.Add("-g");
+					Arguments.Add("-fno-optimize-sibling-calls");
+					Arguments.Add("-fno-omit-frame-pointer");
+				}
+				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
+				{
+					Arguments.Add("-O1");
+					Arguments.Add("-g");
+				}
+				else if (CompileEnvironment.bOptimizeForSize)
+				{
+					Arguments.Add("-Oz");
+				}
+				else
+				{
+					Arguments.Add("-O3");
+				}
+			}
+			else
+			{
+				Arguments.Add("-O0");
+			}
+		}
+
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_Debugging(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Debugging(CompileEnvironment, Arguments);
+
+			// Create DWARF format debug info if wanted,
+			if (CompileEnvironment.bCreateDebugInfo)
+			{
+				Arguments.Add("-gdwarf-2");
+			}
+		}
+
+		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			// Ensure Clang version is set for base.GetCompileArguments_Global()

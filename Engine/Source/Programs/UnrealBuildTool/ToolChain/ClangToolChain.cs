@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.IO;
 
 namespace UnrealBuildTool
 {
@@ -113,7 +114,7 @@ namespace UnrealBuildTool
 
 		protected ClangToolChainOptions Options;
 
-		public ClangToolChain(ClangToolChainOptions InOptions, ILogger InLogger) 
+		public ClangToolChain(ClangToolChainOptions InOptions, ILogger InLogger)
 			: base(InLogger)
 		{
 			Options = InOptions;
@@ -357,7 +358,7 @@ namespace UnrealBuildTool
 			// always use absolute paths for errors, this can help IDEs go to the error properly
 			Arguments.Add("-fdiagnostics-absolute-paths");  // https://clang.llvm.org/docs/ClangCommandLineReference.html#cmdoption-clang-fdiagnostics-absolute-paths
 
-			// https://clang.llvm.org/docs/ClangCommandLineReference.html#cmdoption-clang-fcolor-diagnostics
+			// https://clang.llvm.org/docs/ClangCommandLineReference.html#cmdoption-cla-fcolor-diagnostics
 			if (Log.ColorConsoleOutput)
 			{
 				Arguments.Add("-fdiagnostics-color");
@@ -367,6 +368,52 @@ namespace UnrealBuildTool
 			if (RuntimePlatform.IsWindows)
 			{
 				Arguments.Add("-fdiagnostics-format=msvc");
+			}
+		}
+
+		/// <summary>
+		/// Compile arguments for optimization settings, such as profile guided optimization and link time optimization
+		/// </summary>
+		/// <param name="CompileEnvironment"></param>
+		/// <param name="Arguments"></param>
+		protected virtual void GetCompileArguments_Optimizations(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			// Profile Guided Optimization (PGO) and Link Time Optimization (LTO)
+			if (CompileEnvironment.bPGOOptimize)
+			{
+				Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
+				Arguments.Add(string.Format("-fprofile-instr-use=\"{0}\"", Path.Combine(CompileEnvironment.PGODirectory!, CompileEnvironment.PGOFilenamePrefix!)));
+			}
+			else if (CompileEnvironment.bPGOProfile)
+			{
+				// Always enable LTO when generating PGO profile data.
+				Log.TraceInformationOnce("Enabling Profile Guided Instrumentation (PGI). Linking will take a while.");
+				Arguments.Add("-fprofile-instr-generate");
+			}
+
+			if (!CompileEnvironment.bUseInlining)
+			{
+				Arguments.Add("-fno-inline-functions");
+			}
+		}
+
+		/// <summary>
+		/// Compile arguments for debug settings
+		/// </summary>
+		/// <param name="CompileEnvironment"></param>
+		/// <param name="Arguments"></param>
+		protected virtual void GetCompileArguments_Debugging(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			// Optionally enable exception handling (off by default since it generates extra code needed to propagate exceptions)
+			if (CompileEnvironment.bEnableExceptions)
+			{
+				Arguments.Add("-fexceptions");
+				Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=0");
+			}
+			else
+			{
+				Arguments.Add("-fno-exceptions");
+				Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=1");
 			}
 		}
 
@@ -391,6 +438,12 @@ namespace UnrealBuildTool
 
 			// Add warning and error flags to the argument list.
 			GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
+
+			// Add optimization flags to the argument list.
+			GetCompileArguments_Optimizations(CompileEnvironment, Arguments);
+
+			// Add debugging flags to the argument list.
+			GetCompileArguments_Debugging(CompileEnvironment, Arguments);
 		}
 	}
 }
