@@ -112,6 +112,9 @@ public:
 	 */
 	void RegisterChunkDataGenerator(TSharedRef<IChunkDataGenerator> InChunkDataGenerator);
 
+	/** Called before PreSave; copy AssetData changes from the global AssetRegistry that were made during the cook. */
+	void UpdateAssetDatas(bool bForceNoFilter);
+
 	/**
 	* PreSave
 	* Notify generator that we are about to save the registry and chunk manifests

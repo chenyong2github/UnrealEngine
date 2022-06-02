@@ -4347,7 +4347,7 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 		CA_ASSUME(BackgroundResult.Get() != nullptr);
 
 		// Try to update any asset data that may already exist
-		FAssetData* AssetData = State.CachedAssetsByObjectPath.FindRef(BackgroundResult->ObjectPath);
+		FAssetData* ExistingAssetData = State.CachedAssetsByObjectPath.FindRef(BackgroundResult->ObjectPath);
 
 		const FName PackagePath = BackgroundResult->PackagePath;
 
@@ -4362,10 +4362,10 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 			}
 		}
 
-		if (AssetData)
+		if (ExistingAssetData)
 		{
 			// If this ensure fires then we've somehow processed the same result more than once, and that should never happen
-			if (ensure(AssetData != BackgroundResult.Get()))
+			if (ensure(ExistingAssetData != BackgroundResult.Get()))
 			{
 				// If the current AssetData came from a loaded asset, don't overwrite it with the new one from disk; loaded asset is more authoritative because it has run the postload steps
 #if WITH_EDITOR
@@ -4376,7 +4376,7 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 					PostLoadAssetRegistryTags(BackgroundResult.Get());
 #endif
 					// The asset exists in the cache from disk and has not yet been loaded into memory, update it with the new background data
-					UpdateAssetData(EventContext, AssetData, *BackgroundResult);
+					UpdateAssetData(EventContext, ExistingAssetData, MoveTemp(*BackgroundResult));
 				}
 			}
 		}
@@ -4680,43 +4680,48 @@ void FAssetRegistryImpl::AddAssetData(Impl::FEventContext& EventContext, FAssetD
 	}
 }
 
-void FAssetRegistryImpl::UpdateAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData, const FAssetData& NewAssetData)
+void FAssetRegistryImpl::UpdateAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData, FAssetData&& NewAssetData)
 {
 	// Update the class map if updating a blueprint
 	if (ClassGeneratorNames.Contains(AssetData->AssetClassPath))
 	{
 		const FString OldGeneratedClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
-		if (!OldGeneratedClass.IsEmpty() && OldGeneratedClass != TEXTVIEW("None"))
+		const FString OldParentClass = AssetData->GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
+		const FString NewGeneratedClass = NewAssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
+		const FString NewParentClass = NewAssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
+		if (OldGeneratedClass != NewGeneratedClass || OldParentClass != NewParentClass)
 		{
-			const FTopLevelAssetPath OldGeneratedClassName(OldGeneratedClass);
-			if (ensureAlwaysMsgf(!OldGeneratedClassName.IsNull(), TEXT("Short class name used: OldGeneratedClass=%s. Short class names in tags on the Blueprint class should have been converted to path names."), *OldGeneratedClass))
+			if (!OldGeneratedClass.IsEmpty() && OldGeneratedClass != TEXTVIEW("None"))
 			{
-				CachedBPInheritanceMap.Remove(OldGeneratedClassName);
+				const FTopLevelAssetPath OldGeneratedClassName(OldGeneratedClass);
+				if (ensureAlwaysMsgf(!OldGeneratedClassName.IsNull(), TEXT("Short class name used: OldGeneratedClass=%s. Short class names in tags on the Blueprint class should have been converted to path names."), *OldGeneratedClass))
+				{
+					CachedBPInheritanceMap.Remove(OldGeneratedClassName);
+
+					// Invalidate caching because CachedBPInheritanceMap got modified
+					TempCachedInheritanceBuffer.bDirty = true;
+				}
+			}
+
+			if (!NewGeneratedClass.IsEmpty() && !NewParentClass.IsEmpty() && NewGeneratedClass != TEXTVIEW("None") && NewParentClass != TEXTVIEW("None"))
+			{
+				const FTopLevelAssetPath NewGeneratedClassName(NewGeneratedClass);
+				const FTopLevelAssetPath NewParentClassName(NewParentClass);
+				if (ensureAlwaysMsgf(!NewGeneratedClassName.IsNull() && !NewParentClassName.IsNull(), TEXT("Short class names used in AddAssetData: GeneratedClass=%s, ParentClass=%s. Short class names in these tags on the Blueprint class should have been converted to path names."), *NewGeneratedClass, *NewParentClass))
+				{
+					CachedBPInheritanceMap.Add(NewGeneratedClassName, NewParentClassName);
+				}
 
 				// Invalidate caching because CachedBPInheritanceMap got modified
 				TempCachedInheritanceBuffer.bDirty = true;
 			}
 		}
-
-		const FString NewGeneratedClass = NewAssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
-		const FString NewParentClass = NewAssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
-		if (!NewGeneratedClass.IsEmpty() && !NewParentClass.IsEmpty() && NewGeneratedClass != TEXTVIEW("None") && NewParentClass != TEXTVIEW("None"))
-		{
-			const FTopLevelAssetPath NewGeneratedClassName(NewGeneratedClass);
-			const FTopLevelAssetPath NewParentClassName(NewParentClass);
-			if (ensureAlwaysMsgf(!NewGeneratedClassName.IsNull() && !NewParentClassName.IsNull(), TEXT("Short class names used in AddAssetData: GeneratedClass=%s, ParentClass=%s. Short class names in these tags on the Blueprint class should have been converted to path names."), *NewGeneratedClass, *NewParentClass))
-			{
-				CachedBPInheritanceMap.Add(NewGeneratedClassName, NewParentClassName);
-			}
-
-			// Invalidate caching because CachedBPInheritanceMap got modified
-			TempCachedInheritanceBuffer.bDirty = true;
-		}
 	}
 
-	State.UpdateAssetData(AssetData, NewAssetData);
+	bool bModified;
+	State.UpdateAssetData(AssetData, MoveTemp(NewAssetData), &bModified);
 	
-	if (!ShouldSkipAsset(AssetData->AssetClassPath, AssetData->PackageFlags))
+	if (bModified && !ShouldSkipAsset(AssetData->AssetClassPath, AssetData->PackageFlags))
 	{
 		EventContext.AssetEvents.Emplace(*AssetData, Impl::FEventContext::EEvent::Updated);
 	}
@@ -5111,16 +5116,7 @@ void FAssetRegistryImpl::PushProcessLoadedAssetsBatch(Impl::FEventContext& Event
 		}
 		else
 		{
-			if (NewAssetData.TagsAndValues != (*DataFromGather)->TagsAndValues)
-			{
-				// We need to actually update disk cache
-				UpdateAssetData(EventContext, *DataFromGather, NewAssetData);
-			}
-			else
-			{
-				// Bundle tags might have changed but CachedAssetsByTag is up to date
-				(*DataFromGather)->TaggedAssetBundles = NewAssetData.TaggedAssetBundles;
-			}
+			UpdateAssetData(EventContext, *DataFromGather, MoveTemp(NewAssetData));
 		}
 	}
 
@@ -5961,9 +5957,9 @@ bool FAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(Impl::FEventContext& Eve
 	TagsAndValues.Add(FPrimaryAssetId::PrimaryAssetTypeTag, PrimaryAssetId.PrimaryAssetType.ToString());
 	TagsAndValues.Add(FPrimaryAssetId::PrimaryAssetNameTag, PrimaryAssetId.PrimaryAssetName.ToString());
 
-	FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClassPath, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
-	NewAssetData.TaggedAssetBundles = AssetData->TaggedAssetBundles;
-	UpdateAssetData(EventContext, AssetData, NewAssetData);
+	FAssetData NewAssetData(*AssetData);
+	NewAssetData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(TagsAndValues));
+	UpdateAssetData(EventContext, AssetData, MoveTemp(NewAssetData));
 
 	return true;
 }

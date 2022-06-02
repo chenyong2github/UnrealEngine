@@ -284,7 +284,7 @@ private:
 	void AddAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData);
 
 	/** Updates an existing asset data with the new value and updates lookup maps */
-	void UpdateAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData, const FAssetData& NewAssetData);
+	void UpdateAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData, FAssetData&& NewAssetData);
 
 	/** Removes the asset data from the lookup maps */
 	bool RemoveAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData);

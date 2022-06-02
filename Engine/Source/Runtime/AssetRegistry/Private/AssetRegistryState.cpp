@@ -26,7 +26,6 @@
 #include "UObject/NameBatchSerialization.h"
 #include "UObject/PrimaryAssetId.h"
 
-
 FAssetRegistryState& FAssetRegistryState::operator=(FAssetRegistryState&& Rhs)
 {
 	Reset();
@@ -360,23 +359,14 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 		
 		if (ExistingData)
 		{
-			// Bundle tags might have changed even if other tags haven't
-			ExistingData->TaggedAssetBundles = AssetData.TaggedAssetBundles;
-
-			// If tags have changed we need to update CachedAssetsByTag
-			if (LocalTagsAndValues != ExistingData->TagsAndValues)
-			{
-				FAssetData TempData = *ExistingData;
-				TempData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(LocalTagsAndValues));
-				UpdateAssetData(ExistingData, TempData);
-			}
+			FAssetData NewData(AssetData);
+			NewData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(LocalTagsAndValues));
+			UpdateAssetData(ExistingData, MoveTemp(NewData));
 		}
 		else
 		{
-			FAssetData* NewData = new FAssetData(AssetData.PackageName, AssetData.PackagePath, AssetData.AssetName,
-				AssetData.AssetClassPath, LocalTagsAndValues, AssetData.ChunkIDs, AssetData.PackageFlags);
-			NewData->TaggedAssetBundles = AssetData.TaggedAssetBundles;
-
+			FAssetData* NewData = new FAssetData(AssetData);
+			NewData->TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(LocalTagsAndValues));
 			AddAssetData(NewData);
 		}
 	}
@@ -1713,27 +1703,19 @@ void FAssetRegistryState::UpdateAssetData(const FAssetData& NewAssetData)
 	}
 }
 
-void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetData& NewAssetData)
+void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetData& NewAssetData, bool* bOutModified)
 {
-	// Determine if tags need to be remapped
-	bool bTagsChanged = AssetData->TagsAndValues.Num() != NewAssetData.TagsAndValues.Num();
+	UpdateAssetData(AssetData, FAssetData(NewAssetData), bOutModified);
+}
 
-	// If the old and new asset data has the same number of tags, see if any are different (its ok if values are different)
-	if (!bTagsChanged)
-	{
-		for (auto TagIt = AssetData->TagsAndValues.CreateConstIterator(); TagIt; ++TagIt)
-		{
-			if (!NewAssetData.TagsAndValues.Contains(TagIt.Key()))
-			{
-				bTagsChanged = true;
-				break;
-			}
-		}
-	}
+void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, FAssetData&& NewAssetData, bool* bOutModified)
+{
+	bool bKeyFieldIsModified = false;
 
 	// Update ObjectPath
 	if (AssetData->ObjectPath != NewAssetData.ObjectPath)
 	{
+		bKeyFieldIsModified = true;
 		int32 NumRemoved = CachedAssetsByObjectPath.Remove(AssetData->ObjectPath);
 		check(NumRemoved <= 1);
 		if (NumRemoved == 0)
@@ -1759,6 +1741,7 @@ void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetDat
 	// Update PackageName
 	if (AssetData->PackageName != NewAssetData.PackageName)
 	{
+		bKeyFieldIsModified = true;
 		TArray<FAssetData*, TInlineAllocator<1>>& NewPackageAssets = CachedAssetsByPackageName.FindOrAdd(NewAssetData.PackageName);
 		TArray<FAssetData*, TInlineAllocator<1>>* OldPackageAssets = CachedAssetsByPackageName.Find(AssetData->PackageName);
 
@@ -1769,6 +1752,7 @@ void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetDat
 	// Update PackagePath
 	if (AssetData->PackagePath != NewAssetData.PackagePath)
 	{
+		bKeyFieldIsModified = true;
 		TArray<FAssetData*>& NewPathAssets = CachedAssetsByPath.FindOrAdd(NewAssetData.PackagePath);
 		TArray<FAssetData*>* OldPathAssets = CachedAssetsByPath.Find(AssetData->PackagePath);
 
@@ -1776,9 +1760,12 @@ void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetDat
 		NewPathAssets.Add(AssetData);
 	}
 
+	// AssetName is not a keyfield; compared below
+
 	// Update AssetClass
 	if (AssetData->AssetClassPath != NewAssetData.AssetClassPath)
 	{
+		bKeyFieldIsModified = true;
 		TArray<FAssetData*>& NewClassAssets = CachedAssetsByClass.FindOrAdd(NewAssetData.AssetClassPath);
 		TArray<FAssetData*>* OldClassAssets = CachedAssetsByClass.Find(AssetData->AssetClassPath);
 
@@ -1786,9 +1773,12 @@ void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetDat
 		NewClassAssets.Add(AssetData);
 	}
 
+	// PackageFlags is not a keyfield; compared below
+
 	// Update Tags
-	if (bTagsChanged)
-	{
+	if (AssetData->TagsAndValues != NewAssetData.TagsAndValues)
+	{ 
+		bKeyFieldIsModified = true;
 		for (auto TagIt = AssetData->TagsAndValues.CreateConstIterator(); TagIt; ++TagIt)
 		{
 			const FName FNameKey = TagIt.Key();
@@ -1812,8 +1802,29 @@ void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetDat
 		}
 	}
 
+	// TaggedAssetBundles is not a keyfield; compared below
+
+	// ChunkIds is not a keyfield; compared below
+
+	if (bOutModified)
+	{
+		// Computing equality is expensive; if the caller needs to know it, do cheap compares first 
+		// so we can skip the more expensive compares if the inequality is already known
+		// This is not possible for keyfields - we have to take action on those even if inequality is already known -
+		// so we start with whether bKeyFieldIsModified
+		*bOutModified = bKeyFieldIsModified ||
+			AssetData->AssetName != NewAssetData.AssetName ||
+			AssetData->PackageFlags != NewAssetData.PackageFlags ||
+			AssetData->ChunkIDs != NewAssetData.ChunkIDs ||
+			(AssetData->TaggedAssetBundles.IsValid() != NewAssetData.TaggedAssetBundles.IsValid() ||
+				(AssetData->TaggedAssetBundles.IsValid() &&
+					AssetData->TaggedAssetBundles.Get() != NewAssetData.TaggedAssetBundles.Get() && // First check whether the pointers are the same
+					*AssetData->TaggedAssetBundles != *NewAssetData.TaggedAssetBundles // If the pointers differ, check whether the contents differ
+					));
+	}
+
 	// Copy in new values
-	*AssetData = NewAssetData;
+	*AssetData = MoveTemp(NewAssetData);
 }
 
 bool FAssetRegistryState::UpdateAssetDataPackageFlags(FName PackageName, uint32 PackageFlags)

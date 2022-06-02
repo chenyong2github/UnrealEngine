@@ -7323,6 +7323,9 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(SavingAssetRegistry);
 			SCOPED_BOOT_TIMING("SavingAssetRegistry");
 
+			// Flush the asset registry to get any remaining updates from late loads
+			AssetRegistry->Tick(-1.0f);
+
 			RegisterLocalizationChunkDataGenerator();
 			RegisterShaderChunkDataGenerator();
 
@@ -7405,6 +7408,9 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					}
 				}
 				
+				// Sync the Generator's AssetRegistryState with any changes to AssetDatas made during the cook
+				Generator.UpdateAssetDatas(bForceNoFilterAssetsFromAssetRegistry);
+
 				// Add the package hashes to the relevant AssetPackageDatas.
 				// PackageHashes are gated by requiring UPackage::WaitForAsyncFileWrites(), which is called above.
 				FCookSavePackageContext& SaveContext = FindOrCreateSaveContext(TargetPlatform);

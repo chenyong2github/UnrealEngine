@@ -459,7 +459,7 @@ namespace FixedTagPrivate
 	{
 		TCHAR Buffer[FName::StringBufferSize];
 		uint32 Len = B.ToString(Buffer);
-		return Len == A.Len() && FPlatformString::Strnicmp(A.GetData(), Buffer, Len);
+		return Len == A.Len() && FPlatformString::Strnicmp(A.GetData(), Buffer, Len) == 0;
 	}
 
 	static bool EqualsInsensitive(const FStringView& Str, const FNumberlessExportPath& Path)
@@ -480,7 +480,12 @@ namespace FixedTagPrivate
 		case EValueType::Name:					return EqualsInsensitive(Str, Store.Names[Index]);
 		case EValueType::NumberlessExportPath:	return EqualsInsensitive(Str, Store.NumberlessExportPaths[Index]);
 		case EValueType::ExportPath:			return EqualsInsensitive(Str, Store.ExportPaths[Index]);
-		case EValueType::LocalizedText:			return EqualsInsensitive(Str, *Store.Texts[Index].ToString());
+		case EValueType::LocalizedText:
+		{
+			FText StrAsText;
+			FromComplexString(FString(Str), StrAsText);
+			return EqualsInsensitive(StrAsText, Store.Texts[Index]);
+		}
 		}
 
 		check(false);
@@ -612,7 +617,6 @@ namespace FixedTagPrivate
 
 		if ((A.Num == B.Num) & (A.HasNumberlessKeys == B.HasNumberlessKeys))
 		{
-			check(A.StoreIndex != B.StoreIndex);
 			const FStore& StoreA = GStores[A.StoreIndex];
 			const FStore& StoreB = GStores[B.StoreIndex];
 
@@ -1463,8 +1467,32 @@ bool operator==(const FAssetDataTagMapSharedView& A, const FAssetDataTagMapShare
 	}
 	else if (A.IsFixed() != B.IsFixed())
 	{
-		// This is very wasteful but currently only used by unit tests
-		return A.IsFixed() ? *B.Loose == A.CopyMap() : *A.Loose == B.CopyMap();
+		FixedTagPrivate::FMapHandle Fixed;
+		FAssetDataTagMap* Loose;
+		if (A.IsFixed())
+		{
+			Fixed = A.Fixed;
+			Loose = B.Loose;
+		}
+		else
+		{
+			Fixed = B.Fixed;
+			Loose = A.Loose;
+		}
+		// Since the num is the same and these are unique maps, we only have to test whether all keys in Fixed exist with equal value in Loose
+		// Once we've done that, we don't have to test whether any keys in Loose are missing from Fixed.
+		bool bEqual = true;
+		Fixed.ForEachPair([&](FixedTagPrivate::FNumberedPair FixedPair)
+			{
+				FString* LooseValue = Loose->Find(FixedPair.Key);
+				if (!LooseValue)
+				{
+					bEqual = false;
+					return;
+				}
+				bEqual &= (FAssetTagValueRef(Fixed.StoreIndex, FixedPair.Value) == *LooseValue);
+			});
+		return bEqual;
 	}
 	else if (A.IsFixed())
 	{

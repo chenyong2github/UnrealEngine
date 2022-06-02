@@ -40,7 +40,6 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
-
 DEFINE_LOG_CATEGORY_STATIC(LogAssetRegistryGenerator, Log, All);
 
 #define LOCTEXT_NAMESPACE "AssetRegistryGenerator"
@@ -933,7 +932,7 @@ void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetSt
 								TagsAndValues.Add(UAssetManager::GetEncryptionKeyAssetTagName(), Guid.ToString());
 								FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClassPath, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
 								NewAssetData.TaggedAssetBundles = AssetData->TaggedAssetBundles;
-								TargetState.UpdateAssetData(AssetData, NewAssetData);
+								TargetState.UpdateAssetData(AssetData, MoveTemp(NewAssetData));
 							}
 						}
 					}
@@ -1126,7 +1125,9 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 			{
 				TagsAndValues.Add(CollectionTagName, FString(CollectionValue));
 			}
-			State.UpdateAssetData(FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClassPath, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags));
+			FAssetData NewAssetData(*AssetData);
+			NewAssetData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(TagsAndValues));
+			State.UpdateAssetData(const_cast<FAssetData*>(AssetData), MoveTemp(NewAssetData));
 		}
 	}
 }
@@ -1448,6 +1449,17 @@ void FAssetRegistryGenerator::AddAssetToFileOrderRecursive(const FName& InPackag
 	}
 }
 
+void FAssetRegistryGenerator::UpdateAssetDatas(bool bForceNoFilter)
+{
+	FAssetRegistrySerializationOptions SaveOptions;
+	AssetRegistry.InitializeSerializationOptions(SaveOptions, TargetPlatform->IniPlatformName());
+	if (bForceNoFilter)
+	{
+		SaveOptions.DisableFilters();
+	}
+	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions, true);
+}
+
 bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool bSerializeDevelopmentAssetRegistry, bool bForceNoFilter)
 {
 	UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Saving asset registry v%d."), FAssetRegistryVersion::Type::LatestVersion);
@@ -1469,9 +1481,6 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 		SaveOptions.DisableFilters();
 	}
 
-	// First flush the asset registry and make sure the asset data is in sync, as it may have been updated during cook
-	AssetRegistry.Tick(-1.0f);
-	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions, true);
 	// Then possibly apply previous AssetData and AssetPackageData for packages kept from a previous cook
 	UpdateKeptPackages();
 	UpdateCollectionAssetData();

@@ -343,7 +343,8 @@ public:
 	void UpdateAssetData(const FAssetData& NewAssetData);
 
 	/** Updates an existing asset data with the new value and updates lookup maps */
-	void UpdateAssetData(FAssetData* AssetData, const FAssetData& NewAssetData);
+	void UpdateAssetData(FAssetData* AssetData, const FAssetData& NewAssetData, bool* bOutModified = nullptr);
+	void UpdateAssetData(FAssetData* AssetData, FAssetData&& NewAssetData, bool* bOutModified = nullptr);
 
 	/**
 	 * Updates all asset data package flags in the specified package
