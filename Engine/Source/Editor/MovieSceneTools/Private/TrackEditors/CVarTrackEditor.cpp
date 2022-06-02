@@ -34,7 +34,7 @@ void FCVarTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddCVarTrack", "Console Variable Track"),
 		LOCTEXT("AddCVarTooltip", "Adds a new Console Variable track which will allow you to change console variables while a sequence plays."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "DebugConsole.Icon"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.CVar"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FCVarTrackEditor::HandleAddCVarTrackMenuEntryExecute)
 		)
@@ -84,7 +84,7 @@ bool FCVarTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const
 
 const FSlateBrush* FCVarTrackEditor::GetIconBrush() const
 {
-	return FAppStyle::GetBrush("DebugConsole.Icon");
+	return FAppStyle::GetBrush("Sequencer.Tracks.CVar");
 }
 // ~SequencerTrackEditor interface
 
