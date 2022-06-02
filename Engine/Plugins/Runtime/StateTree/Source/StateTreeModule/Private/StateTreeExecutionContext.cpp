@@ -866,7 +866,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeInstanceData
 		const FStateTreeStateHandle CurrentHandle = Exec.ActiveStates[Index];
 		const FCompactStateTreeState& State = StateTree->States[CurrentHandle.Index];
 
-		STATETREE_CLOG(State.TasksNum > 0, Verbose, TEXT("%*sTicking Tasks of state '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Exec.ActiveStates, Index));
+		STATETREE_CLOG(State.TasksNum > 0, VeryVerbose, TEXT("%*sTicking Tasks of state '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Exec.ActiveStates, Index));
 
 		if (State.Type == EStateTreeStateType::Linked)
 		{
@@ -898,7 +898,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeInstanceData
 			{
 				StateTree->PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, DataViews[Task.DataViewIndex.Get()]);
 			}
-			STATETREE_LOG(Verbose, TEXT("%*s  Tick: '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+			STATETREE_LOG(VeryVerbose, TEXT("%*s  Tick: '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
 			
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_Tick);
