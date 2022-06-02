@@ -86,14 +86,14 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio")
 	bool bStopWhenComponentIsDestroyed = true;
 
+	/** Playing looping sounds as persistent audio is not a problem, as the sound is stopped when a particle dies, but one-shot audio outlives the niagara system and can never be stopped. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio")
+	bool bAllowLoopingOneShotSounds = false;
+
 #if WITH_EDITORONLY_DATA
 	/** If true then this data interface only processes sounds during active gameplay. This is useful when you are working in the preview window and the sounds annoy you. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio")
 	bool bOnlyActiveDuringGameplay = false;
-
-	/** Playing looping sounds as persistent audio is not a problem, as the sound is stopped when a particle dies, but one-shot audio outlives the niagara system and can never be stopped. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio")
-	bool bAllowLoopingOneShotSounds = false;
 
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
