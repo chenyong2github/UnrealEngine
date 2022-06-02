@@ -219,6 +219,8 @@ static void Tessellate(
 	TArray< int32 >&					MaterialIndexes,
 	float DiceRate )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Tessellate);
+
 	uint32 NumTris = Indexes.Num() / 3;
 
 	Nanite::FTessellationTable& TessellationTable = Nanite::GetTessellationTable();
@@ -420,6 +422,8 @@ bool DisplaceNaniteMesh(
 	TArray< int32 >& MaterialIndexes
 )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DisplaceNaniteMesh);
+
 	// TODO: Make the mesh prepare and displacement logic extensible, and not hardcoded within this plugin
 
 	// START - MESH PREPARE

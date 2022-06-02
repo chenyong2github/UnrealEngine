@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteDisplacedMesh.h"
+#include "NaniteDisplacedMeshLog.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/StaticMesh.h"
 #if WITH_EDITOR
@@ -17,11 +18,43 @@
 #include "MeshDescriptionHelper.h"
 #include "NaniteBuilder.h"
 #include "NaniteDisplacedMeshAlgo.h"
+#include "NaniteDisplacedMeshCompiler.h"
 #endif
 
-DEFINE_LOG_CATEGORY_STATIC(LogNaniteDisplacedMesh, Log, All);
+DEFINE_LOG_CATEGORY(LogNaniteDisplacedMesh);
 
 #if WITH_EDITOR
+
+class FNaniteDisplacedMeshAsyncBuildWorker : public FNonAbandonableTask
+{
+	FNaniteBuildAsyncCacheTask* Owner;
+	FIoHash IoHash;
+public:
+	FNaniteDisplacedMeshAsyncBuildWorker(
+		FNaniteBuildAsyncCacheTask* InOwner,
+		const FIoHash& InIoHash)
+		: Owner(InOwner)
+		, IoHash(InIoHash)
+	{
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FNaniteDisplacedMeshAsyncBuildWorker, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+	void DoWork();
+};
+
+struct FNaniteDisplacedMeshAsyncBuildTask : public FAsyncTask<FNaniteDisplacedMeshAsyncBuildWorker>
+{
+	FNaniteDisplacedMeshAsyncBuildTask(
+		FNaniteBuildAsyncCacheTask* InOwner,
+		const FIoHash& InIoHash)
+		: FAsyncTask<FNaniteDisplacedMeshAsyncBuildWorker>(InOwner, InIoHash)
+	{
+	}
+};
 
 class FNaniteBuildAsyncCacheTask
 {
@@ -33,16 +66,47 @@ public:
 		const ITargetPlatform* TargetPlatform
 	);
 
-	inline void Wait() { Owner.Wait(); }
-	inline bool Poll() const { return Owner.Poll(); }
+	inline void Wait()
+	{
+		if (BuildTask != nullptr)
+		{
+			BuildTask->EnsureCompletion();
+		}
+
+		Owner.Wait();
+	}
+
+	inline bool Poll() const
+	{
+		if (BuildTask && !BuildTask->IsWorkDone())
+		{
+			return false;
+		}
+
+		return Owner.Poll();
+	}
+
+	inline void Cancel()
+	{ 
+		if (BuildTask)
+		{
+			BuildTask->Cancel();
+		}
+
+		Owner.Cancel();
+	}
+
+	void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
 
 private:
-	void BeginCache(const FIoHash& KeyHash, const UNaniteDisplacedMesh& DisplacedMesh);
+	void BeginCache(const FIoHash& KeyHash);
 	void EndCache(UE::DerivedData::FCacheGetValueResponse&& Response);
 	bool BuildData(const UE::DerivedData::FSharedString& Name, const UE::DerivedData::FCacheKey& Key);
 	void InitResources();
 
 private:
+	friend class FNaniteDisplacedMeshAsyncBuildWorker;
+	TUniquePtr<FNaniteDisplacedMeshAsyncBuildTask> BuildTask;
 	FNaniteData* Data;
 	TWeakObjectPtr<UNaniteDisplacedMesh> WeakDisplacedMesh;
 	UE::DerivedData::FRequestOwner Owner;
@@ -56,17 +120,42 @@ FNaniteBuildAsyncCacheTask::FNaniteBuildAsyncCacheTask(
 )
 	: Data(InData)
 	, WeakDisplacedMesh(&InDisplacedMesh)
-	, Owner(UE::DerivedData::EPriority::Normal)
+	// Once we pass the BeginCache throttling gate, we want to finish as fast as possible
+	// to avoid holding on to memory for a long time. We use the highest priority for all
+	// subsequent task.
+	, Owner(UE::DerivedData::EPriority::Highest)
 {
-	BeginCache(InKeyHash, InDisplacedMesh);
+	BeginCache(InKeyHash);
 }
 
-void FNaniteBuildAsyncCacheTask::BeginCache(const FIoHash& KeyHash, const UNaniteDisplacedMesh& DisplacedMesh)
+void FNaniteDisplacedMeshAsyncBuildWorker::DoWork()
 {
 	using namespace UE::DerivedData;
-	static const FCacheBucket Bucket("NaniteDisplacedMesh");
-	GetCache().GetValue({{{DisplacedMesh.GetPathName()}, {Bucket, KeyHash}}}, Owner,
-		[this](FCacheGetValueResponse&& Response) { EndCache(MoveTemp(Response)); });
+	if (UNaniteDisplacedMesh* DisplacedMesh = Owner->WeakDisplacedMesh.Get())
+	{
+		static const FCacheBucket Bucket("NaniteDisplacedMesh");
+		GetCache().GetValue({ {{DisplacedMesh->GetPathName()}, {Bucket, IoHash}} }, Owner->Owner,
+			  [Task = Owner](FCacheGetValueResponse&& Response) { Task->EndCache(MoveTemp(Response)); });
+	}
+}
+
+void FNaniteBuildAsyncCacheTask::BeginCache(const FIoHash& KeyHash)
+{
+	using namespace UE::DerivedData;
+
+	if (UNaniteDisplacedMesh* DisplacedMesh = WeakDisplacedMesh.Get())
+	{
+		// Queue this launch through the thread pool so that we benefit from fair scheduling and memory throttling
+		FQueuedThreadPool* ThreadPool = FNaniteDisplacedMeshCompilingManager::Get().GetThreadPool();
+		EQueuedWorkPriority BasePriority = FNaniteDisplacedMeshCompilingManager::Get().GetBasePriority(DisplacedMesh);
+
+		// TODO DC Use the default for now but provide a better estimate for memory usage of displacement build.
+		int64 RequiredMemory = -1;
+
+		check(BuildTask == nullptr);
+		BuildTask = MakeUnique<FNaniteDisplacedMeshAsyncBuildTask>(this, KeyHash);
+		BuildTask->StartBackgroundTask(ThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, RequiredMemory);
+	}
 }
 
 void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueResponse&& Response)
@@ -126,6 +215,8 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	{
 		return false;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FNaniteBuildAsyncCacheTask::BuildData);
 
 	Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
 
@@ -289,6 +380,14 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	return true;
 }
 
+void FNaniteBuildAsyncCacheTask::Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority)
+{
+	if (BuildTask)
+	{
+		BuildTask->Reschedule(InThreadPool, InPriority);
+	}
+}
+
 void FNaniteBuildAsyncCacheTask::InitResources()
 {
 	Async(EAsyncExecution::TaskGraphMainThread, [this]
@@ -360,8 +459,7 @@ void UNaniteDisplacedMesh::BeginDestroy()
 	ReleaseResources();
 
 #if WITH_EDITOR
-	// Cancel any async cache and build tasks.
-	CacheTasksByKeyHash.Empty();
+	TryCancelAsyncTasks();
 #endif
 }
 
@@ -382,11 +480,12 @@ void UNaniteDisplacedMesh::InitResources()
 		return;
 	}
 
-	check(!bIsInitialized);
+	if (!bIsInitialized)
+	{
+		Data.Resources.InitResources(this);
 
-	Data.Resources.InitResources(this);
-
-	bIsInitialized = true;
+		bIsInitialized = true;
+	}
 }
 
 void UNaniteDisplacedMesh::ReleaseResources()
@@ -539,7 +638,56 @@ FIoHash UNaniteDisplacedMesh::BeginCacheDerivedData(const ITargetPlatform* Targe
 	}
 
 	CacheTasksByKeyHash.Emplace(KeyHash, MakePimpl<FNaniteBuildAsyncCacheTask>(KeyHash, TargetData, *this, TargetPlatform));
+
+	// The compiling manager provides throttling, notification manager, etc... for the asset being built.
+	FNaniteDisplacedMeshCompilingManager::Get().AddNaniteDisplacedMeshes({this});
+
 	return KeyHash;
+}
+
+void UNaniteDisplacedMesh::FinishAsyncTasks()
+{
+	for (auto It = CacheTasksByKeyHash.CreateIterator(); It; ++It)
+	{
+		It->Value->Wait();
+		It.RemoveCurrent();
+	}
+}
+
+bool UNaniteDisplacedMesh::IsCompiling() const
+{
+	return CacheTasksByKeyHash.Num() > 0;
+}
+
+bool UNaniteDisplacedMesh::TryCancelAsyncTasks()
+{
+	for (auto& Pair : CacheTasksByKeyHash)
+	{
+		Pair.Value->Cancel();
+	}
+	
+	return true;
+}
+
+bool UNaniteDisplacedMesh::IsAsyncTaskComplete() const
+{
+	for (auto& Pair : CacheTasksByKeyHash)
+	{
+		if (!Pair.Value->Poll())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void UNaniteDisplacedMesh::Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority)
+{
+	for (auto& Pair : CacheTasksByKeyHash)
+	{
+		Pair.Value->Reschedule(InThreadPool, InPriority);
+	}
 }
 
 bool UNaniteDisplacedMesh::PollCacheDerivedData(const FIoHash& KeyHash) const

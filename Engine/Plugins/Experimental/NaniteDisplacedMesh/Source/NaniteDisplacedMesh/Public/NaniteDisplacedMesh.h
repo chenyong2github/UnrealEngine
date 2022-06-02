@@ -116,7 +116,7 @@ struct FNaniteData
 };
 
 UCLASS()
-class NANITEDISPLACEDMESH_API UNaniteDisplacedMesh : public UObject
+class NANITEDISPLACEDMESH_API UNaniteDisplacedMesh : public UObject, public IInterface_AsyncCompilation
 {
 	GENERATED_BODY()
 
@@ -156,6 +156,24 @@ public:
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 	virtual void ClearAllCachedCookedPlatformData() override;
+
+	/** Returns whether or not the asset is currently being compiled */
+	bool IsCompiling() const override;
+
+	/** Try to cancel any pending async tasks.
+	 *  Returns true if there is no more async tasks pending, false otherwise.
+	 */
+	bool TryCancelAsyncTasks();
+
+	/** Returns false if there is currently an async task running */
+	bool IsAsyncTaskComplete() const;
+
+	/** Make sure all async tasks are completed before returning */
+	void FinishAsyncTasks();
+
+private:
+	friend class FNaniteDisplacedMeshCompilingManager;
+	void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
 #endif
 
 public:

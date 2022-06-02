@@ -10,7 +10,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAsyncCompilation, Log, All);
 
-class FAsyncCompilationNotification
+class ENGINE_API FAsyncCompilationNotification
 {
 public:
 	FAsyncCompilationNotification(FTextFormat InAssetNameFormat)
@@ -32,7 +32,7 @@ class FQueuedThreadPoolWrapper;
 
 namespace AsyncCompilationHelpers
 {
-	class FAsyncCompilationStandardCVars
+	class ENGINE_API FAsyncCompilationStandardCVars
 	{
 	public:
 		TAutoConsoleVariable<int32> AsyncCompilation;
@@ -73,7 +73,7 @@ namespace AsyncCompilationHelpers
 			}
 		}
 		
-		bool WaitCompletionWithTimeout(float TimeLimitSeconds)
+		bool WaitCompletionWithTimeout(float TimeLimitSeconds) override
 		{
 			if (AsyncTaskType* AsyncTask = GetAsyncTask())
 			{
@@ -83,7 +83,7 @@ namespace AsyncCompilationHelpers
 		}
 	};
 
-	void FinishCompilation(
+	ENGINE_API void FinishCompilation(
 		TFunctionRef<ICompilable& (int32 Index)> Getter,
 		int32 Num,
 		const FText& AssetType,
@@ -91,13 +91,13 @@ namespace AsyncCompilationHelpers
 		TFunctionRef<void(ICompilable*)> PostCompileSingle
 	);
 
-	void EnsureInitializedCVars(
+	ENGINE_API void EnsureInitializedCVars(
 		const TCHAR* InName,
 		TAutoConsoleVariable<int32>& InCVarAsyncCompilation,
 		TAutoConsoleVariable<int32>& InCVarAsyncCompilationMaxConcurrency,
 		FName ExperimentalSettingsName = NAME_None);
 
-	void BindThreadPoolToCVar(
+	ENGINE_API void BindThreadPoolToCVar(
 		FQueuedThreadPoolWrapper* InThreadPoolWrapper,
 		TAutoConsoleVariable<int32>& InCVarAsyncCompilation,
 		TAutoConsoleVariable<int32>& InCVarAsyncCompilationResume,
