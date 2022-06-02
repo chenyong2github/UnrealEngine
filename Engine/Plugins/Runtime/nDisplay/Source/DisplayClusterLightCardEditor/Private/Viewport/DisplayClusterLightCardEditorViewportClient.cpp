@@ -5,6 +5,7 @@
 #include "DisplayClusterLightcardEditorViewport.h"
 #include "DisplayClusterLightCardEditorWidget.h"
 
+#include "Blueprints/DisplayClusterBlueprintLib.h"
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
@@ -30,6 +31,7 @@
 #include "EngineModule.h"
 #include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "IDisplayClusterScenePreview.h"
 #include "ImageUtils.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -321,10 +323,17 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	
 	LightCardEditorPtr = InEditorViewportWidget.Pin()->GetLightCardEditor();
 	check(LightCardEditorPtr.IsValid())
-	
-	MeshProjectionRenderer = MakeShared<FDisplayClusterMeshProjectionRenderer>();
-	MeshProjectionRenderer->ActorSelectedDelegate = FDisplayClusterMeshProjectionRenderer::FSelection::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected);
-	MeshProjectionRenderer->RenderSimpleElementsDelegate = FDisplayClusterMeshProjectionRenderer::FSimpleElementPass::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::Draw);
+
+	IDisplayClusterScenePreview& PreviewModule = IDisplayClusterScenePreview::Get();
+	PreviewRendererId = PreviewModule.CreateRenderer();
+	PreviewModule.SetRendererActorSelectedDelegate(
+		PreviewRendererId,
+		FDisplayClusterMeshProjectionRenderer::FSelection::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected)
+	);
+	PreviewModule.SetRendererRenderSimpleElementsDelegate(
+		PreviewRendererId,
+		FDisplayClusterMeshProjectionRenderer::FSimpleElementPass::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::Draw)
+	);
 
 	InputMode = EInputMode::Idle;
 	DragWidgetOffset = FVector::ZeroVector;
@@ -361,6 +370,8 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 
 FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorViewportClient()
 {
+	IDisplayClusterScenePreview::Get().DestroyRenderer(PreviewRendererId);
+
 	EndTransaction();
 	if (RootActorLevelInstance.IsValid())
 	{
@@ -557,10 +568,13 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 
 	Canvas->Clear(FLinearColor::Black);
 
-	FSceneViewInitOptions ViewInitOptions;
-	GetSceneViewInitOptions(ViewInitOptions);
+	FDisplayClusterScenePreviewRenderSettings RenderSettings;
+	RenderSettings.RenderType = FDisplayClusterScenePreviewRenderSettings::ERenderType::Color;
+	RenderSettings.EngineShowFlags = EngineShowFlags;
+	RenderSettings.ProjectionType = ProjectionMode;
+	GetSceneViewInitOptions(RenderSettings.ViewInitOptions);
 
-	MeshProjectionRenderer->Render(Canvas, GetScene(), ViewInitOptions, EngineShowFlags, ProjectionMode);
+	IDisplayClusterScenePreview::Get().Render(PreviewRendererId, RenderSettings, *Canvas);
 
 	if (View)
 	{
@@ -1305,22 +1319,19 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 			}
 
 			// Filter out any primitives hidden in game except screen components
-			MeshProjectionRenderer->AddActor(RootActorProxy.Get(), [](const UPrimitiveComponent* PrimitiveComponent)
-			{
-				return !PrimitiveComponent->bHiddenInGame || PrimitiveComponent->IsA<UDisplayClusterScreenComponent>();
-			});
+			IDisplayClusterScenePreview::Get().SetRendererRootActor(PreviewRendererId, RootActorProxy.Get());
 
 			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
 				ProxyType == EDisplayClusterLightCardEditorProxyType::LightCards)
 			{
-				TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> LightCards;
-				FindLightCardsForRootActor(RootActor, LightCards);
+				TSet<ADisplayClusterLightCardActor*> LightCards;
+				UDisplayClusterBlueprintLib::FindLightCardsForRootActor(RootActor, LightCards);
 
 				SelectLightCard(nullptr);
 				
-				for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : LightCards)
+				for (ADisplayClusterLightCardActor* LightCard : LightCards)
 				{
-					FObjectDuplicationParameters DupeActorParameters(LightCard.Get(), PreviewWorld->GetCurrentLevel());
+					FObjectDuplicationParameters DupeActorParameters(LightCard, PreviewWorld->GetCurrentLevel());
 					DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional);
 					DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
 				
@@ -1350,7 +1361,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 						}
 					}
 
-					LightCardProxies.Add(FLightCardProxy(LightCard.Get(), LightCardProxy));
+					LightCardProxies.Add(FLightCardProxy(LightCard, LightCardProxy));
 				}
 
 				// Update the selected light card proxies to match the currently selected light cards in the light card list
@@ -1365,7 +1376,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 
 			for (const FLightCardProxy& LightCardProxy : LightCardProxies)
 			{
-				MeshProjectionRenderer->AddActor(LightCardProxy.Proxy.Get());
+				IDisplayClusterScenePreview::Get().AddActorToRenderer(PreviewRendererId, LightCardProxy.Proxy.Get());
 			}
 
 			Finalize();
@@ -1398,7 +1409,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms()
 void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 EDisplayClusterLightCardEditorProxyType ProxyType)
 {
-	MeshProjectionRenderer->ClearScene();
+	IDisplayClusterScenePreview::Get().ClearRendererScene(PreviewRendererId);
 
 	UWorld* PreviewWorld = PreviewScene->GetWorld();
 	check(PreviewWorld);
@@ -1862,46 +1873,6 @@ USceneComponent* FDisplayClusterLightCardEditorViewportClient::FindProjectionOri
 	}
 
 	return InRootActor->GetRootComponent();
-}
-
-void FDisplayClusterLightCardEditorViewportClient::FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& OutLightCards)
-{
-	if (RootActor)
-	{
-		FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = RootActor->GetConfigData()->StageSettings.Lightcard.ShowOnlyList;
-
-		for (const TSoftObjectPtr<AActor>& LightCardActor : RootActorLightCards.Actors)
-		{
-			if (LightCardActor.IsValid() && LightCardActor->IsA<ADisplayClusterLightCardActor>())
-			{
-				OutLightCards.Add(Cast<ADisplayClusterLightCardActor>(LightCardActor.Get()));
-			}
-		}
-
-		// If there are any layers that are specified as light card layers, iterate over all actors in the world and 
-		// add any that are members of any of the light card layers to the list. Only add an actor once, even if it is
-		// in multiple layers
-		if (RootActorLightCards.ActorLayers.Num())
-		{
-			if (UWorld* World = RootActor->GetWorld())
-			{
-				for (const TWeakObjectPtr<AActor> WeakActor : FActorRange(World))
-				{
-					if (WeakActor.IsValid() && WeakActor->IsA<ADisplayClusterLightCardActor>())
-					{
-						for (const FActorLayer& ActorLayer : RootActorLightCards.ActorLayers)
-						{
-							if (WeakActor->Layers.Contains(ActorLayer.Name))
-							{
-								OutLightCards.Add(Cast<ADisplayClusterLightCardActor>(WeakActor));
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 bool FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected(const AActor* Actor)
@@ -2620,11 +2591,6 @@ bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTr
 
 void FDisplayClusterLightCardEditorViewportClient::RenderNormalMap(FNormalMap& NormalMap, const FVector& NormalMapDirection)
 {
-	FSceneViewInitOptions ViewInitOptions;
-	GetNormalMapSceneViewInitOptions(FIntPoint(FNormalMap::NormalMapSize), FNormalMap::NormalMapFOV, NormalMapDirection, ViewInitOptions);
-
-	NormalMap.Init(ViewInitOptions);
-
 	// Only render primitive components from the stage actor for the normal map
 	FDisplayClusterMeshProjectionPrimitiveFilter PrimitiveFilter;
 	PrimitiveFilter.PrimitiveFilterDelegate = FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateLambda([this](const UPrimitiveComponent* PrimitiveComponent)
@@ -2632,11 +2598,22 @@ void FDisplayClusterLightCardEditorViewportClient::RenderNormalMap(FNormalMap& N
 		return PrimitiveComponent->GetOwner() == RootActorProxy;
 	});
 
+	FDisplayClusterScenePreviewRenderSettings RenderSettings;
+	RenderSettings.RenderType = FDisplayClusterScenePreviewRenderSettings::ERenderType::Normals;
+	RenderSettings.EngineShowFlags = EngineShowFlags;
+	RenderSettings.ProjectionType = EDisplayClusterMeshProjectionType::Azimuthal;
+	RenderSettings.PrimitiveFilter = PrimitiveFilter;
+	
+	FSceneViewInitOptions ViewInitOptions;
+	GetNormalMapSceneViewInitOptions(FIntPoint(FNormalMap::NormalMapSize), FNormalMap::NormalMapFOV, NormalMapDirection, RenderSettings.ViewInitOptions);
+
+	NormalMap.Init(RenderSettings.ViewInitOptions);
+
 	FCanvas Canvas(&NormalMap, nullptr, GetWorld(), GetScene()->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
 	{
 		Canvas.Clear(FLinearColor::Black);
 
-		MeshProjectionRenderer->RenderNormals(&Canvas, GetScene(), ViewInitOptions, EngineShowFlags, EDisplayClusterMeshProjectionType::Azimuthal, &PrimitiveFilter);
+		IDisplayClusterScenePreview::Get().Render(PreviewRendererId, RenderSettings, Canvas);
 	}
 	Canvas.Flush_GameThread();
 

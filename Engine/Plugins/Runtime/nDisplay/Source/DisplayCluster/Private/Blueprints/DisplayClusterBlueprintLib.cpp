@@ -69,4 +69,52 @@ ADisplayClusterLightCardActor* UDisplayClusterBlueprintLib::CreateLightCard(ADis
 	return NewActor;
 }
 
+void UDisplayClusterBlueprintLib::FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TSet<ADisplayClusterLightCardActor*>& OutLightCards)
+{
+	if (!RootActor)
+	{
+		return;
+	}
+
+	FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = RootActor->GetConfigData()->StageSettings.Lightcard.ShowOnlyList;
+
+	for (const TSoftObjectPtr<AActor>& LightCardActor : RootActorLightCards.Actors)
+	{
+		if (!LightCardActor.IsValid() || !LightCardActor->IsA<ADisplayClusterLightCardActor>())
+		{
+			continue;
+		}
+
+		OutLightCards.Add(Cast<ADisplayClusterLightCardActor>(LightCardActor.Get()));
+	}
+
+	// If there are any layers that are specified as light card layers, iterate over all actors in the world and 
+	// add any that are members of any of the light card layers to the list. Only add an actor once, even if it is
+	// in multiple layers
+	if (RootActorLightCards.ActorLayers.IsEmpty())
+	{
+		return;
+	}
+
+	if (UWorld* World = RootActor->GetWorld())
+	{
+		for (TActorIterator<ADisplayClusterLightCardActor> ActorIt(World); ActorIt; ++ActorIt)
+		{
+			if (!IsValid(*ActorIt))
+			{
+				continue;
+			}
+
+			for (const FActorLayer& ActorLayer : RootActorLightCards.ActorLayers)
+			{
+				if (ActorIt->Layers.Contains(ActorLayer.Name))
+				{
+					OutLightCards.Add(*ActorIt);
+					break;
+				}
+			}
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

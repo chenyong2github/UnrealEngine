@@ -226,9 +226,6 @@ private:
 	/** Finds a suitable primitive component on the stage actor to use as a projection origin */
 	USceneComponent* FindProjectionOriginComponent(const ADisplayClusterRootActor* InRootActor) const;
 
-	/** Gets a list of all light card actors on the level linked to the specified root actor */
-	void FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& OutLightCards);
-
 	/** Callback to check if an light card actor is among the list of selected light card actors */
 	bool IsLightCardSelected(const AActor* Actor);
 
@@ -336,8 +333,8 @@ private:
 	TArray<FLightCardProxy> LightCardProxies;
 	TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> SelectedLightCards;
 	
-	/** The renderer for the viewport, which can render the meshes with a variety of projection types */
-	TSharedPtr<FDisplayClusterMeshProjectionRenderer> MeshProjectionRenderer;
+	/** The index of the scene preview renderer returned from IDisplayClusterScenePreview */
+	int32 PreviewRendererId = -1;
 	
 	/** The LC editor widget used to manipulate light cards */
 	TSharedPtr<FDisplayClusterLightCardEditorWidget> EditorWidget;
