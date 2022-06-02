@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DerivedDataLegacyCacheStore.h"
+#include "Templates/Tuple.h"
 
 #if WITH_HTTP_DDC_BACKEND
 
