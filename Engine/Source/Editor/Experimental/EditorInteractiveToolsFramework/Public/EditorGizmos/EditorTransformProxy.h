@@ -23,14 +23,25 @@ class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformProxy : public UTransf
 public:
 
 	/**
-	 * @return the shared transform for all the sub-objects
+	 * @return the stored transform for currently selected objects.
 	 */
 	virtual FTransform GetTransform() const override;
 
 	/**
-	 * Update the main transform and then update the sub-objects based on their relative transformations
+	 * Unimplemented - all updates to the Editor transform proxy MUST be made by calling the Input delta methods.
 	 */
-	virtual void SetTransform(const FTransform& Transform) override;
+	virtual void SetTransform(const FTransform& Transform) override 
+	{
+		check(false);
+	}
 
+	/** Input translate delta to be applied in world space of the current transform. */
+	virtual void InputTranslateDelta(const FVector& InDeltaTranslate, EAxisList::Type InAxisList);
+
+	/** Input rotation delta to be applied in local space of the current transform. */
+	virtual void InputRotateDelta(const FRotator& InDeltaRotate, EAxisList::Type InAxisList);
+
+	/** Input scale delta to be applied in local space of the current transform. */
+	virtual void InputScaleDelta(const FVector& InDeltaScale, EAxisList::Type InAxisList);
 };
 

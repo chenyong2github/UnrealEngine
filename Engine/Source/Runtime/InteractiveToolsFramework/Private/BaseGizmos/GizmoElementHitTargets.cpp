@@ -64,37 +64,43 @@ FInputRayHit UGizmoElementHitMultiTarget::IsHit(const FInputDeviceRay& ClickPos)
 	return FInputRayHit();
 }
 
-void UGizmoElementHitMultiTarget::UpdateHoverState(bool bHovering, uint32 PartIdentifier)
+void UGizmoElementHitMultiTarget::UpdateHoverState(bool bInHovering, uint32 PartIdentifier)
 {
 	if (!GizmoElement)
 	{
 		return;
 	}
 
-	if (bHovering)
+	if (bInHovering && !bHovering)
 	{
 		GizmoElement->UpdatePartInteractionState(EGizmoElementInteractionState::Hovering, PartIdentifier);
+		bHovering = true;
+		bInteracting = false;
 	}
-	else
+	else if (!bInHovering && bHovering)
 	{
 		GizmoElement->UpdatePartInteractionState(EGizmoElementInteractionState::None, PartIdentifier);
+		bHovering = false;
 	}
 }
 
-void UGizmoElementHitMultiTarget::UpdateInteractingState(bool bInteracting, uint32 PartIdentifier)
+void UGizmoElementHitMultiTarget::UpdateInteractingState(bool bInInteracting, uint32 PartIdentifier)
 {
 	if (!GizmoElement)
 	{
 		return;
 	}
 
-	if (bInteracting)
+	if (bInInteracting && !bInteracting)
 	{
 		GizmoElement->UpdatePartInteractionState(EGizmoElementInteractionState::Interacting, PartIdentifier);
+		bInteracting = true;
+		bHovering = false;
 	}
-	else
+	else if (!bInInteracting && bInteracting)
 	{
 		GizmoElement->UpdatePartInteractionState(EGizmoElementInteractionState::None, PartIdentifier);
+		bInteracting = false;
 	}
 }
 

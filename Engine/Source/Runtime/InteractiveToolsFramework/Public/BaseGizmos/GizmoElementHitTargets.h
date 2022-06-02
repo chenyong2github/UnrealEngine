@@ -87,6 +87,14 @@ public:
 
 	virtual void UpdateHittableState(bool bHittable, uint32 PartIdentifier);
 
+protected:
+
+	UPROPERTY()
+	bool bHovering = false;
+
+	UPROPERTY()
+	bool bInteracting = false;
+
 public:
 	static UGizmoElementHitMultiTarget* Construct(
 		UGizmoElementBase* InGizmoElement,

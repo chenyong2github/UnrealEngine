@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorGizmos/TransformGizmo.h"
+#include "BaseBehaviors/ClickDragBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseGizmos/AxisSources.h"
 #include "BaseGizmos/GizmoElementGroup.h"
 #include "BaseGizmos/GizmoElementShapes.h"
+#include "BaseGizmos/GizmoMath.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
-#include "BaseGizmos/TransformSources.h"
-#include "EditorGizmos/EditorAxisSources.h"
-#include "EditorGizmos/EditorTransformGizmoSource.h"
-#include "EditorGizmos/EditorTransformProxy.h"
-#include "EditorGizmos/EditorParameterToTransformAdapters.h"
+#include "BaseGizmos/ParameterSourcesFloat.h"
+#include "BaseGizmos/StateTargets.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "Engine/CollisionProfile.h"
@@ -33,17 +32,36 @@ void UTransformGizmo::Setup()
 {
 	UInteractiveGizmo::Setup();
 
+	SetupBehaviors();
+	SetupMaterials();
+
+	// @todo: Gizmo element construction will be moved to the UEditorTransformGizmoBuilder to decouple
+	// the rendered elements from the transform gizmo.
+	GizmoElementRoot = NewObject<UGizmoElementGroup>();
+	GizmoElementRoot->SetConstantScale(true);
+	GizmoElementRoot->SetHoverMaterial(CurrentAxisMaterial);
+	GizmoElementRoot->SetInteractMaterial(CurrentAxisMaterial);
+
+	bInInteraction = false;
+}
+
+void UTransformGizmo::SetupBehaviors()
+{
 	// Add default mouse hover behavior
 	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>();
 	HoverBehavior->Initialize(this);
 	HoverBehavior->SetDefaultPriority(FInputCapturePriority(FInputCapturePriority::DEFAULT_GIZMO_PRIORITY));
 	AddInputBehavior(HoverBehavior);
-	
-	// @todo: Gizmo element construction will be moved to the UEditorTransformGizmoBuilder to decouple
-	// the rendered elements from the transform gizmo.
-	GizmoElementRoot = NewObject<UGizmoElementGroup>();
-	GizmoElementRoot->SetConstantScale(true);
 
+	// Add default mouse input behavior
+	MouseBehavior = NewObject<UClickDragInputBehavior>();
+	MouseBehavior->Initialize(this);
+	MouseBehavior->SetDefaultPriority(FInputCapturePriority(FInputCapturePriority::DEFAULT_GIZMO_PRIORITY));
+	AddInputBehavior(MouseBehavior);
+}
+
+void UTransformGizmo::SetupMaterials()
+{
 	UMaterial* AxisMaterialBase = GEngine->ArrowMaterial;
 
 	AxisMaterialX = UMaterialInstanceDynamic::Create(AxisMaterialBase, NULL);
@@ -79,39 +97,36 @@ void UTransformGizmo::Setup()
 	{
 		GridMaterial = TransparentVertexColorMaterial;
 	}
-
-	GizmoElementRoot->SetHoverMaterial(CurrentAxisMaterial);
-	GizmoElementRoot->SetInteractMaterial(CurrentAxisMaterial);
 }
-
 
 void UTransformGizmo::Shutdown()
 {
 	ClearActiveTarget();
 }
 
+FTransform UTransformGizmo::GetGizmoTransform() const
+{
+	float Scale = 1.0f;
+
+	if (TransformGizmoSource)
+	{
+		Scale = TransformGizmoSource->GetGizmoScale();
+	}
+
+	FTransform GizmoLocalToWorldTransform = CurrentTransform;
+	GizmoLocalToWorldTransform.SetScale3D(FVector(Scale, Scale, Scale));
+
+	return GizmoLocalToWorldTransform;
+}
+
 void UTransformGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	if (bVisible && GizmoElementRoot && RenderAPI)
 	{
-		EToolContextCoordinateSystem Space = EToolContextCoordinateSystem::World;
-		float Scale = 1.0f;
-
-		if (TransformSource)
-		{
-			Space = TransformSource->GetGizmoCoordSystemSpace();
-			Scale = TransformSource->GetGizmoScale();
-		}
-
-		FTransform LocalToWorldTransform = ActiveTarget->GetTransform();
-		if (Space == EToolContextCoordinateSystem::World)
-		{
-			LocalToWorldTransform.SetRotation(FQuat::Identity);
-		}
-		LocalToWorldTransform.SetScale3D(FVector(Scale, Scale, Scale));
+		CurrentTransform = ActiveTarget->GetTransform();
 
 		UGizmoElementBase::FRenderTraversalState RenderState;
-		RenderState.LocalToWorldTransform = LocalToWorldTransform;
+		RenderState.LocalToWorldTransform = GetGizmoTransform();
 
 		GizmoElementRoot->Render(RenderAPI, RenderState);
 	}
@@ -119,7 +134,7 @@ void UTransformGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 
 FInputRayHit UTransformGizmo::BeginHoverSequenceHitTest(const FInputDeviceRay& DevicePos)
 {
-	return UpdateHoverHitSubElement(DevicePos);
+	return UpdateHoveredPart(DevicePos);
 }
 
 void UTransformGizmo::OnBeginHover(const FInputDeviceRay& DevicePos)
@@ -128,7 +143,7 @@ void UTransformGizmo::OnBeginHover(const FInputDeviceRay& DevicePos)
 
 bool UTransformGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
-	FInputRayHit RayHit = UpdateHoverHitSubElement(DevicePos);
+	FInputRayHit RayHit = UpdateHoveredPart(DevicePos);
 	return RayHit.bHit;
 }
 
@@ -136,12 +151,11 @@ void UTransformGizmo::OnEndHover()
 {
 	if (HitTarget && LastHitPart != ETransformGizmoPartIdentifier::Default)
 	{
-		HitTarget->UpdateHoverState(false, (static_cast<uint64>(1) << static_cast<uint8>(LastHitPart)));
-		LastHitPart = ETransformGizmoPartIdentifier::Default;
+		HitTarget->UpdateHoverState(false, static_cast<uint32>(LastHitPart));
 	}
 }
 
-FInputRayHit UTransformGizmo::UpdateHoverHitSubElement(const FInputDeviceRay& PressPos)
+FInputRayHit UTransformGizmo::UpdateHoveredPart(const FInputDeviceRay& PressPos)
 {
 	if (!HitTarget)
 	{
@@ -178,24 +192,157 @@ FInputRayHit UTransformGizmo::UpdateHoverHitSubElement(const FInputDeviceRay& Pr
 	return RayHit;
 }
 
-bool UTransformGizmo::VerifyPartIdentifier(uint32 InPartIdentifier)
+uint32 UTransformGizmo::GetMaxPartIdentifier() const
 {
-	if (InPartIdentifier >= static_cast<uint32>(ETransformGizmoPartIdentifier::Max))
+	return static_cast<uint32>(ETransformGizmoPartIdentifier::Max);
+}
+
+bool UTransformGizmo::VerifyPartIdentifier(uint32 InPartIdentifier) const
+{
+	if (InPartIdentifier >= GetMaxPartIdentifier())
 	{
 		UE_LOG(LogTransformGizmo, Warning, TEXT("Unrecognized transform gizmo part identifier %d, valid identifiers are between 0-%d."), 
-			InPartIdentifier, static_cast<uint32>(ETransformGizmoPartIdentifier::Max));
+			InPartIdentifier, GetMaxPartIdentifier());
 		return false;
 	}
 
 	return true;
 }
 
+
+
+FInputRayHit UTransformGizmo::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+{
+	FInputRayHit RayHit;
+
+	if (HitTarget)
+	{
+		RayHit = HitTarget->IsHit(PressPos);
+		ETransformGizmoPartIdentifier HitPart;
+		if (RayHit.bHit && VerifyPartIdentifier(RayHit.HitIdentifier))
+		{
+			HitPart = static_cast<ETransformGizmoPartIdentifier>(RayHit.HitIdentifier);
+		}
+		else
+		{
+			HitPart = ETransformGizmoPartIdentifier::Default;
+		}
+
+		if (HitPart != ETransformGizmoPartIdentifier::Default)
+		{
+			LastHitPart = static_cast<ETransformGizmoPartIdentifier>(RayHit.HitIdentifier);
+		}
+	}
+
+	return RayHit;
+}
+
+void UTransformGizmo::OnClickPress(const FInputDeviceRay& PressPos)
+{
+	if (LastHitPart == ETransformGizmoPartIdentifier::TranslateXAxis)
+	{
+		InteractionAxisOrigin = CurrentTransform.GetLocation();
+		InteractionAxis = GetWorldAxis(FVector::XAxisVector);
+		InteractionAxisType = EAxisList::X;
+		OnClickPressTranslate(PressPos);
+	}
+	else if (LastHitPart == ETransformGizmoPartIdentifier::TranslateYAxis)
+	{
+		InteractionAxisOrigin = CurrentTransform.GetLocation();
+		InteractionAxis = GetWorldAxis(FVector::YAxisVector);
+		InteractionAxisType = EAxisList::Y;
+		OnClickPressTranslate(PressPos);
+	}
+	else if (LastHitPart == ETransformGizmoPartIdentifier::TranslateZAxis)
+	{
+		InteractionAxisOrigin = CurrentTransform.GetLocation();
+		InteractionAxis = GetWorldAxis(FVector::ZAxisVector);
+		InteractionAxisType = EAxisList::Z;
+		OnClickPressTranslate(PressPos);
+	}
+
+	if (bInInteraction)
+	{
+		if (HitTarget&& LastHitPart != ETransformGizmoPartIdentifier::Default)
+		{
+			HitTarget->UpdateInteractingState(true, static_cast<uint32>(LastHitPart));
+		}
+
+		if (StateTarget)
+		{
+			StateTarget->BeginUpdate();
+		}
+	}
+}
+
+void UTransformGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
+{
+	if (!bInInteraction)
+	{
+		return;
+	}
+
+	if (LastHitPart == ETransformGizmoPartIdentifier::TranslateXAxis ||
+		LastHitPart == ETransformGizmoPartIdentifier::TranslateYAxis ||
+		LastHitPart == ETransformGizmoPartIdentifier::TranslateZAxis)
+	{
+		OnClickDragTranslate(DragPos);
+	}
+}
+
+void UTransformGizmo::OnClickRelease(const FInputDeviceRay& ReleasePos)
+{
+	if (!bInInteraction)
+	{
+		return;
+	}
+
+	if (LastHitPart == ETransformGizmoPartIdentifier::TranslateXAxis ||
+		LastHitPart == ETransformGizmoPartIdentifier::TranslateYAxis ||
+		LastHitPart == ETransformGizmoPartIdentifier::TranslateZAxis)
+	{
+		OnClickReleaseTranslate(ReleasePos);
+	}
+
+	if (StateTarget)
+	{
+		StateTarget->EndUpdate();
+	}
+
+	bInInteraction = false;
+
+	if (HitTarget && LastHitPart != ETransformGizmoPartIdentifier::Default)
+	{
+		HitTarget->UpdateInteractingState(false, static_cast<uint32>(LastHitPart));
+	}
+}
+
+
+void UTransformGizmo::OnTerminateDragSequence()
+{
+	if (!bInInteraction)
+	{
+		return;
+	}
+
+	if (StateTarget)
+	{
+		StateTarget->EndUpdate();
+	}
+	bInInteraction = false;
+
+	if (HitTarget && LastHitPart != ETransformGizmoPartIdentifier::Default)
+	{
+		HitTarget->UpdateInteractingState(false, static_cast<uint32>(LastHitPart));
+	}
+}
+
 void UTransformGizmo::UpdateMode()
 {
-	if (TransformSource && TransformSource->GetVisible())
+	if (TransformGizmoSource && TransformGizmoSource->GetVisible())
 	{
-		EGizmoTransformMode NewMode = TransformSource->GetGizmoMode();
-		EAxisList::Type NewAxisToDraw = TransformSource->GetGizmoAxisToDraw(NewMode);
+		EGizmoTransformMode NewMode = TransformGizmoSource->GetGizmoMode();
+		EAxisList::Type NewAxisToDraw = TransformGizmoSource->GetGizmoAxisToDraw(NewMode);
 
 		if (NewMode != CurrentMode)
 		{
@@ -529,34 +676,22 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 	{
 		TransactionProvider = GetGizmoManager();
 	}
+	
+	/* @todo - Add state target 
+	
+	// This state target emits an explicit FChange that moves the GizmoActor root component during undo/redo.
+	// It also opens/closes the Transaction that saves/restores the target object locations.
+	if (TransactionProvider == nullptr)
+	{
+		TransactionProvider = GetGizmoManager();
+	}
+	StateTarget = UGizmoTransformChangeStateTarget::Construct(GizmoElementRoot,
+		LOCTEXT("UCombinedTransformGizmoTransaction", "Transform"), TransactionProvider, this);
+	StateTarget->DependentChangeSources.Add(MakeUnique<FTransformProxyChangeSource>(Target));
+	*/
 
 	CameraAxisSource = NewObject<UGizmoConstantFrameAxisSource>(this);
 }
-
-
-void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform)
-{
-	// @todo update gizmo objects here?
-
-	// The underlying proxy has an existing way to reinitialize its transform without callbacks.
-	TGuardValue<bool>(ActiveTarget->bSetPivotMode, true);
-	ActiveTarget->SetTransform(NewTransform);
-}
-
-
-void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform)
-{
-	// @todo update gizmo objects here?
-
-	check(ActiveTarget != nullptr);
-
-	StateTarget->BeginUpdate();
-
-	ActiveTarget->SetTransform(NewTransform);
-
-	StateTarget->EndUpdate();
-}
-
 
 // @todo: This should either be named to "SetScale" or removed, since it can be done with ReinitializeGizmoTransform
 void UTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
@@ -784,5 +919,56 @@ FQuat UTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
 #endif	
 	return SnappedDeltaRotation;
 }
+
+FVector UTransformGizmo::GetWorldAxis(const FVector& InAxis)
+{
+	if (TransformGizmoSource->GetGizmoCoordSystemSpace() == EToolContextCoordinateSystem::Local)
+	{
+		return CurrentTransform.GetRotation().RotateVector(InAxis);
+	}
+	
+	return InAxis;
+}
+
+void UTransformGizmo::OnClickPressTranslate(const FInputDeviceRay& InPressPos)
+{
+	// Find interaction start point and parameter.
+	FVector NearestPt; 
+	float RayNearestParam, LineNearestParam;
+	GizmoMath::NearestPointOnLineToRay(InteractionAxisOrigin, InteractionAxis,
+		InPressPos.WorldRay.Origin, InPressPos.WorldRay.Direction,
+		InteractionStartPoint, LineNearestParam,
+		NearestPt, RayNearestParam);
+
+	InteractionCurrPoint = InteractionStartPoint;
+	bInInteraction = true;
+}
+
+void UTransformGizmo::OnClickDragTranslate(const FInputDeviceRay& InDragPos)
+{
+	float RayNearestParam, AxisNearestParam;
+	FVector RayNearestPt, AxisNearestPoint;
+	GizmoMath::NearestPointOnLineToRay(InteractionAxisOrigin, InteractionAxis,
+		InDragPos.WorldRay.Origin, InDragPos.WorldRay.Direction,
+		AxisNearestPoint, AxisNearestParam,
+		RayNearestPt, RayNearestParam);
+
+	FVector TranslateDelta = AxisNearestPoint - InteractionCurrPoint;
+	InteractionCurrPoint = AxisNearestPoint;
+
+	Translate(TranslateDelta);
+}
+
+void UTransformGizmo::OnClickReleaseTranslate(const FInputDeviceRay& InReleasePos)
+{
+	bInInteraction = false;
+}
+
+void UTransformGizmo::Translate(const FVector& InTranslateDelta)
+{
+	CurrentTransform.AddToTranslation(InTranslateDelta);
+	ActiveTarget->SetTransform(CurrentTransform);
+}
+
 
 #undef LOCTEXT_NAMESPACE

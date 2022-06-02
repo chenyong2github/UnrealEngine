@@ -7,7 +7,6 @@
 #include "BaseGizmos/GizmoElementHitTargets.h"
 #include "BaseGizmos/GizmoElementStateTargets.h"
 #include "BaseGizmos/TransformProxy.h"
-#include "EditorGizmos/EditorAxisSources.h"
 #include "EditorGizmos/TransformGizmoInterfaces.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveToolObjects.h"
@@ -20,9 +19,8 @@ class UInteractiveGizmoManager;
 class IGizmoAxisSource;
 class IGizmoTransformSource;
 class IGizmoStateTarget;
-class FEditorTransformGizmoTransformChange;
+class UClickDragInputBehavior;
 class UGizmoConstantFrameAxisSource;
-class UGizmoTransformChangeStateTarget;
 class UGizmoElementArrow;
 class UGizmoElementBase;
 class UGizmoElementBox;
@@ -81,7 +79,7 @@ enum class ETransformGizmoPartIdentifier
  * a standard XYZ translate/rotate Gizmo (axis and plane translation).
  */
 UCLASS()
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UTransformGizmo : public UInteractiveGizmo, public IHoverBehaviorTarget
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UTransformGizmo : public UInteractiveGizmo, public IHoverBehaviorTarget, public IClickDragBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -158,6 +156,13 @@ public:
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 	virtual void OnEndHover() override;
 
+	// IClickDragBehaviorTarget implementation
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
+	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
+	virtual void OnTerminateDragSequence() override;
+
 	/**
 	 * Set the active target object for the Gizmo
 	 * @param Target active target
@@ -170,27 +175,6 @@ public:
 	 */
 	virtual void ClearActiveTarget();
 
-	/** The active target object for the Gizmo */
-	UPROPERTY()
-	TObjectPtr<UTransformProxy> ActiveTarget;
-
-	/** The hit target object */
-	UPROPERTY()
-	TObjectPtr< UGizmoElementHitMultiTarget> HitTarget;
-
-	/**
-	 * Repositions the gizmo without issuing undo/redo changes, triggering callbacks, 
-	 * or moving any components. Useful for resetting the gizmo to a new location without
-	 * it being viewed as a gizmo manipulation.
-	 */
-	void ReinitializeGizmoTransform(const FTransform& NewTransform);
-
-	/**
-	 * Set a new position for the Gizmo. This is done via the same mechanisms as the sub-gizmos,
-	 * so it generates the same Change/Modify() events, and hence works with Undo/Redo
-	 */
-	virtual void SetNewGizmoTransform(const FTransform& NewTransform);
-
 	/**
 	 * Explicitly set the child scale. Mainly useful to "reset" the child scale to (1,1,1) when re-using Gizmo across multiple transform actions.
 	 * @warning does not generate change/modify events!!
@@ -202,15 +186,37 @@ public:
 	 */
 	virtual void SetVisibility(bool bVisible);
 
-	/**
-	 * Whether gizmo is visible.
-	 */
+public:
+
+	/** The active target object for the Gizmo */
+	UPROPERTY()
+	TObjectPtr<UTransformProxy> ActiveTarget;
+
+	/** The hit target object */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementHitMultiTarget> HitTarget;
+
+	/** The mouse click behavior of the gizmo is accessible so that it can be modified to use different mouse keys. */
+	UPROPERTY()
+	TObjectPtr<UClickDragInputBehavior> MouseBehavior;
+
+	/** Transform Gizmo Source */
+	UPROPERTY()
+	TScriptInterface<ITransformGizmoSource> TransformGizmoSource;
+
+	/** Root of renderable gizmo elements */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementGroup> GizmoElementRoot;
+
+	/** Whether gizmo is visible. */
 	UPROPERTY()
 	bool bVisible = false;
 
-	/**
-	 * If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in PositionSnapFunction)
-	 */
+	/** Whether gizmo is interacting. */
+	UPROPERTY()
+	bool bInInteraction = false;
+
+	/** If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in PositionSnapFunction) */
 	UPROPERTY()
 	bool bSnapToWorldGrid = false;
 
@@ -235,17 +241,6 @@ public:
 	 */
 	UPROPERTY()
 	bool bSnapToWorldRotGrid = false;
-
-	//
-	// Transform Source
-	//
-	UPROPERTY()
-	TScriptInterface<ITransformGizmoSource> TransformSource;
-
-
-	/** Root of renderable gizmo elements */
-	UPROPERTY()
-	TObjectPtr<UGizmoElementGroup> GizmoElementRoot;
 
 protected:
 
@@ -325,9 +320,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UGizmoElementBox> ScaleUniformElement;
 
-	//
-	// Axis Sources
-	//
 	/** Axis that points towards camera, X/Y plane tangents aligned to right/up. Shared across Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
 	TObjectPtr<UGizmoConstantFrameAxisSource> CameraAxisSource;
@@ -335,13 +327,9 @@ protected:
 	// internal function that updates CameraAxisSource by getting current view state from GizmoManager
 	void UpdateCameraAxisSource();
 
-	/** 
-	 * State target is shared across gizmos, and created internally during SetActiveTarget(). 
-	 * Several FChange providers are registered with this StateTarget, including the UTransformGizmo
-	 * itself (IToolCommandChangeSource implementation above is called)
-	 */
+	/** The state target is created internally during SetActiveTarget() */
 	UPROPERTY()
-	TObjectPtr<UGizmoDependentTransformChangeStateTarget> StateTarget;
+	TObjectPtr<IGizmoStateTarget> StateTarget;
 
 	/**
 	 * These are used to let the translation subgizmos use raycasts into the scene to align the gizmo with scene geometry.
@@ -351,25 +339,32 @@ protected:
 	TUniqueFunction<bool(const FRay&, FVector&)> DestinationAlignmentRayCaster = [](const FRay&, FVector&) {return false; };
 
 	bool bDisallowNegativeScaling = false;
+
 protected:
 
+	/** Setup behaviors */
+	virtual void SetupBehaviors();
+
+	/** Setup materials */
+	virtual void SetupMaterials();
+
 	/** Update current gizmo mode based on transform source */
-	void UpdateMode();
+	virtual void UpdateMode();
 
 	/** Enable the given mode with the specified axes, EAxisList::Type::None will hide objects associated with mode */
-	void EnableMode(EGizmoTransformMode InGizmoMode, EAxisList::Type InAxisListToDraw);
+	virtual void EnableMode(EGizmoTransformMode InGizmoMode, EAxisList::Type InAxisListToDraw);
 
 	/** Enable translate using specified axis list */
-	void EnableTranslate(EAxisList::Type InAxisListToDraw);
+	virtual void EnableTranslate(EAxisList::Type InAxisListToDraw);
 
 	/** Enable rotate using specified axis list */
-	void EnableRotate(EAxisList::Type InAxisListToDraw);
+	virtual void EnableRotate(EAxisList::Type InAxisListToDraw);
 
 	/** Enable scale using specified axis list */
-	void EnableScale(EAxisList::Type InAxisListToDraw);
+	virtual void EnableScale(EAxisList::Type InAxisListToDraw);
 
 	/** Enable planar handles used by translate and scale */
-	void EnablePlanarObjects(bool bTranslate, bool bEnableX, bool bEnableY, bool bEnableZ);
+	virtual void EnablePlanarObjects(bool bTranslate, bool bEnableX, bool bEnableY, bool bEnableZ);
 
 	/** Construct translate axis handle */
 	virtual UGizmoElementArrow* MakeTranslateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial);
@@ -394,27 +389,39 @@ protected:
 	/** Construct rotate screen space handle */
 	virtual UGizmoElementCircle* MakeRotateCircleHandle(ETransformGizmoPartIdentifier InPartId, float InRadius, const FLinearColor& InColor, float bFill);
 
-	// Update hover for hit part based on input device pos
-	FInputRayHit UpdateHoverHitSubElement(const FInputDeviceRay& DevicePos);
+	/** Get gizmo transform based on cached current transform. */
+	virtual FTransform GetGizmoTransform() const;
+
+	/** Determine hit part and update hover state based on current input ray */
+	virtual FInputRayHit UpdateHoveredPart(const FInputDeviceRay& DevicePos);
+
+	/** Get current interaction axis */
+	virtual FVector GetWorldAxis(const FVector& InAxis);
+
+	/** Update current gizmo mode based on transform source */
+	virtual void OnClickPressTranslate(const FInputDeviceRay& InPressPos);
+
+	/** Update current gizmo mode based on transform source */
+	virtual void OnClickDragTranslate(const FInputDeviceRay& PressPos);
+
+	/** Update current gizmo mode based on transform source */
+	virtual void OnClickReleaseTranslate(const FInputDeviceRay& PressPos);
+
+	/** Update current gizmo mode based on transform source */
+	virtual void Translate(const FVector& InTranslateDelta);
+
 
 	// Axis and Plane TransformSources use this function to execute worldgrid snap queries
 	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const;
 	FQuat RotationSnapFunction(const FQuat& DeltaRotation) const;
 
+	// Get max part identifier.
+	virtual uint32 GetMaxPartIdentifier() const;
+
 	// Verify part identifier is within recognized range of transform gizmo part ids
-	bool VerifyPartIdentifier(uint32 InPartIdentifier);
+	virtual bool VerifyPartIdentifier(uint32 InPartIdentifier) const;
 
-	// Currently rendered transform mode
-	UPROPERTY()
-	EGizmoTransformMode CurrentMode = EGizmoTransformMode::None;
-
-	// Currently rendered axis list
-	UPROPERTY()
-	TEnumAsByte<EAxisList::Type> CurrentAxisToDraw = EAxisList::None;
-
-	// Last hit part
-	UPROPERTY()
-	ETransformGizmoPartIdentifier LastHitPart = ETransformGizmoPartIdentifier::Default;
+protected:
 
 	/** Materials and colors to be used when drawing the items for each axis */
 	UPROPERTY()
@@ -435,4 +442,45 @@ protected:
 	TObjectPtr<UMaterialInstanceDynamic> WhiteMaterial;
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> OpaquePlaneMaterialXY;
+
+	/** Current transform */
+	UPROPERTY()
+	FTransform CurrentTransform = FTransform::Identity;
+
+	/** Currently rendered transform mode */
+	UPROPERTY()
+	EGizmoTransformMode CurrentMode = EGizmoTransformMode::None;
+
+	/** Currently rendered axis list */
+	UPROPERTY()
+	TEnumAsByte<EAxisList::Type> CurrentAxisToDraw = EAxisList::None;
+
+	/** Last hit part */
+	UPROPERTY()
+	ETransformGizmoPartIdentifier LastHitPart = ETransformGizmoPartIdentifier::Default;
+
+	//
+	// The values below are used in the context of a single click-drag interaction, ie if bInInteraction = true
+	// They otherwise should be considered uninitialized
+	//
+
+	/** Active world space axis origin (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector InteractionAxisOrigin;
+
+	/** Active world space axis (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector InteractionAxis;
+
+	/** Active axis type (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	TEnumAsByte<EAxisList::Type> InteractionAxisType;
+
+	/** Active interaction start point (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector InteractionStartPoint;
+
+	/** Active interaction current point (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector InteractionCurrPoint;
 };

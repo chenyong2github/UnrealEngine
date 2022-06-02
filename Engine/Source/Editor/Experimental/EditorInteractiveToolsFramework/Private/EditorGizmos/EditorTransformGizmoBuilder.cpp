@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorGizmos/EditorTransformGizmoBuilder.h"
+#include "EditorGizmos/EditorTransformGizmo.h"
 #include "EditorGizmos/EditorTransformGizmoSource.h"
 #include "EditorGizmos/EditorTransformProxy.h"
-#include "EditorGizmos/TransformGizmo.h"
 #include "BaseGizmos/GizmoElementGroup.h"
 
 UInteractiveGizmo* UEditorTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
-	UTransformGizmo* TransformGizmo = NewObject<UTransformGizmo>(SceneState.GizmoManager);
+	UEditorTransformGizmo* TransformGizmo = NewObject<UEditorTransformGizmo>(SceneState.GizmoManager);
 	TransformGizmo->Setup();
-	TransformGizmo->TransformSource = UEditorTransformGizmoSource::Construct(TransformGizmo);
+	TransformGizmo->TransformGizmoSource = UEditorTransformGizmoSource::Construct(TransformGizmo);
 
 	// @todo: Gizmo element construction to be moved here from UTransformGizmo.
 	// A UGizmoElementRenderMultiTarget will be constructed and both the

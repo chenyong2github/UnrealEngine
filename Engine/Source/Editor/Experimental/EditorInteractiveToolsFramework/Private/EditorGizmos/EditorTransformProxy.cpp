@@ -15,14 +15,46 @@ FTransform UEditorTransformProxy::GetTransform() const
 		FMatrix RotMatrix = ViewportClient->GetWidgetCoordSystem();
 		return FTransform(FQuat(RotMatrix), Location, FVector::OneVector);
 	}
-	
-	return FTransform::Identity;
+	else
+	{
+		return FTransform::Identity;
+	}
 }
 
-void UEditorTransformProxy::SetTransform(const FTransform& Transform)
+void UEditorTransformProxy::InputTranslateDelta(const FVector& InDeltaTranslate, EAxisList::Type InAxisList)
 {
-	// @todo: use ViewportClient->HandleWidgetDelta();
-	// @todo: handle Pivots, need to look at how this is currently handled for component visualizers, for example.
+	if (FEditorViewportClient* ViewportClient = GLevelEditorModeTools().GetFocusedViewportClient())
+	{
+		FVector Translate = InDeltaTranslate;
+		FRotator Rot = FRotator::ZeroRotator;
+		FVector Scale = FVector::ZeroVector;
+
+		ViewportClient->InputWidgetDelta(ViewportClient->Viewport, InAxisList, Translate, Rot, Scale);
+	}
+}
+
+void UEditorTransformProxy::InputScaleDelta(const FVector& InDeltaScale, EAxisList::Type InAxisList)
+{
+	if (FEditorViewportClient* ViewportClient = GLevelEditorModeTools().GetFocusedViewportClient())
+	{
+		FVector Translate = FVector::ZeroVector;
+		FRotator Rot = FRotator::ZeroRotator;
+		FVector Scale = InDeltaScale;
+
+		ViewportClient->InputWidgetDelta(ViewportClient->Viewport, InAxisList, Translate, Rot, Scale);
+	}
+}
+
+void UEditorTransformProxy::InputRotateDelta(const FRotator& InDeltaRotate, EAxisList::Type InAxisList)
+{
+	if (FEditorViewportClient* ViewportClient = GLevelEditorModeTools().GetFocusedViewportClient())
+	{
+		FVector Translate = FVector::ZeroVector;
+		FRotator Rot = InDeltaRotate;
+		FVector Scale = FVector::ZeroVector;
+
+		ViewportClient->InputWidgetDelta(ViewportClient->Viewport, InAxisList, Translate, Rot, Scale);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

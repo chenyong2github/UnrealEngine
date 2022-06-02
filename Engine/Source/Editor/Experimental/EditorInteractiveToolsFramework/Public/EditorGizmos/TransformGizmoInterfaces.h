@@ -20,16 +20,6 @@ enum class EGizmoTransformMode : uint8
 	Max
 };
 
-
-namespace FTransformGizmoUtil
-{
-	/** Convert UE::Widget::EWidgetMode to ETransformGizmoMode*/
-	EGizmoTransformMode GetGizmoMode(UE::Widget::EWidgetMode InWidgetMode);
-
-	/** Convert EEditorGizmoMode to UE::Widget::EWidgetMode*/
-	UE::Widget::EWidgetMode GetWidgetMode(EGizmoTransformMode InGizmoMode);
-};
-
 UINTERFACE()
 class EDITORINTERACTIVETOOLSFRAMEWORK_API UTransformGizmoSource : public UInterface
 {

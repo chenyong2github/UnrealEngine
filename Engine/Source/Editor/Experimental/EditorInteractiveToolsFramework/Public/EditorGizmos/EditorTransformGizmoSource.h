@@ -10,6 +10,15 @@ class FEditorViewportClient;
 class FSceneView;
 class FEditorModeTools;
 
+namespace FEditorTransformGizmoUtil
+{
+	/** Convert UE::Widget::EWidgetMode to ETransformGizmoMode*/
+	EGizmoTransformMode GetGizmoMode(UE::Widget::EWidgetMode InWidgetMode);
+
+	/** Convert EEditorGizmoMode to UE::Widget::EWidgetMode*/
+	UE::Widget::EWidgetMode GetWidgetMode(EGizmoTransformMode InGizmoMode);
+};
+
 /**
  * UEditorTransformGizmoSource is an ITransformGizmoSource implementation that provides
  * current state information used to configure the Editor transform gizmo.

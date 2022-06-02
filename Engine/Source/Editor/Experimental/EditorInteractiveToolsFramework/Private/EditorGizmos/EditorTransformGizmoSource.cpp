@@ -4,12 +4,34 @@
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
 
+EGizmoTransformMode FEditorTransformGizmoUtil::GetGizmoMode(UE::Widget::EWidgetMode InWidgetMode)
+{
+	switch (InWidgetMode)
+	{
+		case UE::Widget::EWidgetMode::WM_Translate: return EGizmoTransformMode::Translate;
+		case UE::Widget::EWidgetMode::WM_Rotate: return EGizmoTransformMode::Rotate;
+		case UE::Widget::EWidgetMode::WM_Scale: return EGizmoTransformMode::Scale;
+	}
+	return EGizmoTransformMode::None;
+}
+
+UE::Widget::EWidgetMode FEditorTransformGizmoUtil::GetWidgetMode(EGizmoTransformMode InGizmoMode)
+{
+	switch (InGizmoMode)
+	{
+		case EGizmoTransformMode::Translate: return UE::Widget::EWidgetMode::WM_Translate;
+		case EGizmoTransformMode::Rotate: return UE::Widget::EWidgetMode::WM_Rotate;
+		case EGizmoTransformMode::Scale: return UE::Widget::EWidgetMode::WM_Scale;
+	}
+	return UE::Widget::EWidgetMode::WM_None;
+}
+
 EGizmoTransformMode UEditorTransformGizmoSource::GetGizmoMode() const
 {
 	if (FEditorViewportClient* ViewportClient = GetViewportClient())
 	{
 		UE::Widget::EWidgetMode WidgetMode = ViewportClient->GetWidgetMode();
-		return FTransformGizmoUtil::GetGizmoMode(WidgetMode);
+		return FEditorTransformGizmoUtil::GetGizmoMode(WidgetMode);
 	}
 	return EGizmoTransformMode::None;
 }
