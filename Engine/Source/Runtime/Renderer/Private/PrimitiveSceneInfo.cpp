@@ -607,6 +607,8 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 					FNaniteRasterPipeline RasterPipeline{};
 					RasterPipeline.RasterMaterial	=   MaterialSection.RasterMaterialProxy;
 					RasterPipeline.bIsTwoSided		= !!MaterialSection.MaterialRelevance.bTwoSided;
+					// TODO: test PDO when supported
+					RasterPipeline.bPerPixelEval = MaterialSection.MaterialRelevance.bMasked;
 
 					DrawListContext.DeferredPipelines[MeshPass].Add(
 						FNaniteDrawListContext::FDeferredPipeline{

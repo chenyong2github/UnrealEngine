@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "/Engine/Public/WaveBroadcastIntrinsics.ush"
 #include "NaniteDataDecode.ush"
 
 struct FNaniteAttributeData
@@ -27,6 +28,19 @@ struct FNaniteRawAttributeData
 	float4 Color;
 	float2 TexCoords[NANITE_MAX_UVS];
 };
+
+FNaniteRawAttributeData WaveReadLaneAtVarying(FNaniteRawAttributeData In, uint SrcIndex)
+{
+	FNaniteRawAttributeData Out;
+	Out.TangentZ = WaveReadLaneAtVarying(In.TangentZ, SrcIndex);
+	Out.Color = WaveReadLaneAtVarying(In.Color, SrcIndex);
+	UNROLL
+	for (uint i = 0; i < NANITE_MAX_UVS; ++i)
+	{
+		Out.TexCoords[i] = WaveReadLaneAtVarying(In.TexCoords[i], SrcIndex);
+	}
+	return Out;
+}
 
 #define SIZEOF_UV_RANGE	32
 struct FUVRange
@@ -231,10 +245,12 @@ uint GetMaterialShadingSlotFromIndex(
 uint GetMaterialRasterSlotFromIndex(
 	uint InRelativeMaterialIndex,
 	uint InPrimitiveIndex,
+	uint InRegularSlotCount,
 	ByteAddressBuffer InMaterialSlotTable)
 {
 	const uint MaterialSlot = RemapMaterialIndexToId(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
-	return (MaterialSlot & 0xFFFFu);
+	const uint RasterSlot = MaterialSlot & 0xFFFFu;
+	return RasterSlot < InRegularSlotCount ? RasterSlot : 0xffff - RasterSlot + InRegularSlotCount;
 }
 
 uint GetMaterialShadingSlot(
@@ -251,10 +267,11 @@ uint GetMaterialRasterSlot(
 	FCluster InCluster,
 	uint InPrimitiveIndex,
 	uint InTriIndex,
+	uint InRegularSlotCount,
 	ByteAddressBuffer InMaterialSlotTable)
 {
 	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
-	return GetMaterialRasterSlotFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InMaterialSlotTable);
+	return GetMaterialRasterSlotFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InRegularSlotCount, InMaterialSlotTable);
 }
 
 uint GetMaterialDepthId(

@@ -1567,42 +1567,56 @@ void FNaniteMaterialCommands::Finish(FRDGBuilder& GraphBuilder, FRDGExternalAcce
 FNaniteRasterPipelines::FNaniteRasterPipelines()
 {
 	PipelineBins.Reserve(256);
+	PerPixelEvalPipelineBins.Reserve(256);
 	PipelineMap.Reserve(256);
 }
 
 FNaniteRasterPipelines::~FNaniteRasterPipelines()
 {
 	PipelineBins.Reset();
+	PerPixelEvalPipelineBins.Reset();
 	PipelineMap.Empty();
 }
 
-uint16 FNaniteRasterPipelines::AllocateBin()
+uint16 FNaniteRasterPipelines::AllocateBin(bool bPerPixelEval)
 {
-	int32 BinIndex = PipelineBins.FindAndSetFirstZeroBit();
+	TBitArray<>& BinUsageMask = bPerPixelEval ? PerPixelEvalPipelineBins : PipelineBins;
+	int32 BinIndex = BinUsageMask.FindAndSetFirstZeroBit();
 	if (BinIndex == INDEX_NONE)
 	{
-		BinIndex = PipelineBins.Add(true);
+		BinIndex = BinUsageMask.Add(true);
 	}
 
-	check(int32(uint16(BinIndex)) == BinIndex);
-	return uint16(BinIndex);
+	check(int32(uint16(BinIndex)) == BinIndex && PipelineBins.Num() + PerPixelEvalPipelineBins.Num() <= int32(MAX_uint16));
+	return bPerPixelEval ? RevertBinIndex(BinIndex) : uint16(BinIndex);
 }
 
 void FNaniteRasterPipelines::ReleaseBin(uint16 BinIndex)
 {
 	check(IsBinAllocated(BinIndex));
-	PipelineBins[BinIndex] = false;
+	if (BinIndex < PipelineBins.Num())
+	{
+		PipelineBins[BinIndex] = false;
+	}
+	else
+	{
+		PerPixelEvalPipelineBins[RevertBinIndex(BinIndex)] = false;
+	}
 }
 
 bool FNaniteRasterPipelines::IsBinAllocated(uint16 BinIndex) const
 {
-	check(BinIndex < PipelineBins.Num());
-	return !!PipelineBins[BinIndex];
+	return BinIndex < PipelineBins.Num() ? PipelineBins[BinIndex] : PerPixelEvalPipelineBins[RevertBinIndex(BinIndex)];
+}
+
+uint32 FNaniteRasterPipelines::GetRegularBinCount() const
+{
+	return PipelineBins.FindLast(true) + 1;
 }
 
 uint32 FNaniteRasterPipelines::GetBinCount() const
 {
-	return PipelineBins.FindLast(true) + 1;
+	return GetRegularBinCount() + PerPixelEvalPipelineBins.FindLast(true) + 1;
 }
 
 FNaniteRasterBin FNaniteRasterPipelines::Register(const FNaniteRasterPipeline& InRasterPipeline)
@@ -1618,7 +1632,7 @@ FNaniteRasterBin FNaniteRasterPipelines::Register(const FNaniteRasterPipeline& I
 	{
 		// First reference
 		RasterEntry.RasterPipeline = InRasterPipeline;
-		RasterEntry.BinIndex = AllocateBin();
+		RasterEntry.BinIndex = AllocateBin(InRasterPipeline.bPerPixelEval);
 	}
 
 	++RasterEntry.ReferenceCount;

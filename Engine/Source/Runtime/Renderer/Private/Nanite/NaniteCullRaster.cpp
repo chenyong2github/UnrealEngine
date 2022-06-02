@@ -686,6 +686,8 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
+		SHADER_PARAMETER(uint32, RegularMaterialRasterSlotCount)
+		SHADER_PARAMETER(uint32, bEnableVertReuseBatch)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1979,6 +1981,7 @@ static void AddPass_Binning(
 	const FGPUSceneParameters& GPUSceneParameters,
 	bool bMainPass,
 	bool bVirtualTextureTarget,
+	bool bEnableVertReuseBatch,
 	FBinningData& BinningData
 )
 {
@@ -2018,6 +2021,8 @@ static void AddPass_Binning(
 	PassParameters->PageConstants = PageConstants;
 	PassParameters->RenderFlags = RenderFlags;
 	PassParameters->MaxVisibleClusters = MaxVisibleClusters;
+	PassParameters->RegularMaterialRasterSlotCount = Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
+	PassParameters->bEnableVertReuseBatch = bEnableVertReuseBatch;
 
 	// Classify SW & HW Clusters
 	{
@@ -2134,6 +2139,10 @@ void AddPass_Rasterize(
 		TotalPrevDrawClustersBuffer = DummyBuffer8;
 	}
 
+	const bool bUseMeshShader = UseMeshShader(ShaderPlatform, SharedContext.Pipeline);
+
+	const bool bUsePrimitiveShader = UsePrimitiveShader() && !bUseMeshShader;
+
 	// Rasterizer Binning
 	FBinningData BinningData = {};
 	AddPass_Binning(
@@ -2150,6 +2159,7 @@ void AddPass_Rasterize(
 		GPUSceneParameters,
 		bMainPass,
 		VirtualShadowMapArray != nullptr,
+		bUsePrimitiveShader,
 		BinningData
 	);
 
@@ -2206,10 +2216,6 @@ void AddPass_Rasterize(
 
 	FRHIRenderPassInfo RPInfo;
 	RPInfo.ResolveRect = FResolveRect(ViewRect);
-
-	const bool bUseMeshShader = UseMeshShader(ShaderPlatform, SharedContext.Pipeline);
-
-	const bool bUsePrimitiveShader = UsePrimitiveShader() && !bUseMeshShader;
 
 	const bool bUseAutoCullingShader =
 		GRHISupportsPrimitiveShaders &&
@@ -2277,6 +2283,7 @@ void AddPass_Rasterize(
 	if (bProgrammableRaster)
 	{
 		const auto& Pipelines = RasterPipelines.GetRasterPipelineMap();
+		const uint32 RegularBinCount = RasterPipelines.GetRegularBinCount();
 
 		RasterizerPasses.Reserve(Pipelines.Num());
 		for (auto RasterBinIter = Pipelines.begin(); RasterBinIter != Pipelines.end(); ++RasterBinIter)
@@ -2285,7 +2292,7 @@ void AddPass_Rasterize(
 			const FNaniteRasterEntry& RasterEntry = RasterBin.Value;
 
 			FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
-			RasterizerPass.RasterizerBin = uint32(RasterEntry.BinIndex);
+			RasterizerPass.RasterizerBin = uint32(FNaniteRasterPipelines::TranslateBinIndex(RasterEntry.BinIndex, RegularBinCount));
 			RasterizerPass.RasterPipeline = RasterEntry.RasterPipeline;
 
 			RasterizerPass.VertexMaterialProxy	= FixedMaterialProxy;

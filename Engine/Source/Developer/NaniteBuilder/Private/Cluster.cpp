@@ -656,6 +656,7 @@ FArchive& operator<<(FArchive& Ar, FMaterialRange& Range)
 	Ar << Range.RangeStart;
 	Ar << Range.RangeLength;
 	Ar << Range.MaterialIndex;
+	Ar << Range.BatchTriCounts;
 	return Ar;
 }
 

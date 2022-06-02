@@ -352,6 +352,7 @@ struct FNaniteRasterPipeline
 {
 	const FMaterialRenderProxy* RasterMaterial = nullptr;
 	bool bIsTwoSided = false;
+	bool bPerPixelEval = false;
 
 	inline uint32 GetPipelineHash() const
 	{
@@ -423,11 +424,12 @@ public:
 	FNaniteRasterPipelines();
 	~FNaniteRasterPipelines();
 
-	uint16 AllocateBin();
+	uint16 AllocateBin(bool bPerPixelEval);
 	void ReleaseBin(uint16 BinIndex);
 
 	bool IsBinAllocated(uint16 BinIndex) const;
 
+	uint32 GetRegularBinCount() const;
 	uint32 GetBinCount() const;
 
 	FNaniteRasterBin Register(const FNaniteRasterPipeline& InRasterPipeline);
@@ -439,8 +441,19 @@ public:
 		return PipelineMap;
 	}
 
+	static uint16 TranslateBinIndex(uint16 BinIndex, uint32 RegularBinCount)
+	{
+		return BinIndex < RegularBinCount ? BinIndex : RevertBinIndex(BinIndex) + RegularBinCount;
+	}
+
 private:
+	static uint16 RevertBinIndex(uint16 BinIndex)
+	{
+		return MAX_uint16 - BinIndex;
+	}
+
 	TBitArray<> PipelineBins;
+	TBitArray<> PerPixelEvalPipelineBins;
 	FNaniteRasterPipelineMap PipelineMap;
 };
 

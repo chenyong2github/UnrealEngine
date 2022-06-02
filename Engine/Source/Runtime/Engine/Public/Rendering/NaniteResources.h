@@ -107,6 +107,8 @@ struct FPackedCluster
 	uint32		UV_Prec;									// U0:4, V0:4, U1:4, V1:4, U2:4, V2:4, U3:4, V3:4
 	uint32		PackedMaterialInfo;
 
+	uint32		VertReuseBatchInfo[4];
+
 	uint32		GetNumVerts() const						{ return GetBits(NumVerts_PositionOffset, 9, 0); }
 	uint32		GetPositionOffset() const				{ return GetBits(NumVerts_PositionOffset, 23, 9); }
 
@@ -147,6 +149,22 @@ struct FPackedCluster
 	void		SetColorBitsA(uint32 NumBits)			{ SetBits(ColorBits_GroupIndex, NumBits, 4, 12); }
 
 	void		SetGroupIndex(uint32 GroupIndex)		{ SetBits(ColorBits_GroupIndex, GroupIndex & 0xFFFFu, 16, 16); }
+
+	void SetVertResourceBatchInfo(TArray<uint32>& BatchInfo, uint32 GpuPageOffset, uint32 NumMaterialRanges)
+	{
+		FMemory::Memzero(VertReuseBatchInfo, sizeof(VertReuseBatchInfo));
+		if (NumMaterialRanges <= 3)
+		{
+			check(BatchInfo.Num() <= 4);
+			FMemory::Memcpy(VertReuseBatchInfo, BatchInfo.GetData(), BatchInfo.Num() * sizeof(uint32));
+		}
+		else
+		{
+			check((GpuPageOffset & 0x3) == 0);
+			VertReuseBatchInfo[0] = GpuPageOffset >> 2;
+			VertReuseBatchInfo[1] = NumMaterialRanges;
+		}
+	}
 };
 
 struct FPageStreamingState

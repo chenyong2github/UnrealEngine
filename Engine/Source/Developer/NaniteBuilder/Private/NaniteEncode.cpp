@@ -9,6 +9,7 @@
 #include "ClusterDAG.h"
 #include "Async/ParallelFor.h"
 #include "Misc/Compression.h"
+#include "Containers/StaticBitArray.h"
 
 #define CONSTRAINED_CLUSTER_CACHE_SIZE				32
 #define MIN_PAGE_DISTANCE_FOR_RELATIVE_ENCODING		4		// Don't use relative encoding near root to avoid small dependent batches for little compression win.
@@ -36,35 +37,40 @@ struct FClusterGroupPart					// Whole group or a part of a group that has been s
 
 struct FPageSections
 {
-	uint32 Cluster			= 0;
-	uint32 MaterialTable	= 0;
-	uint32 DecodeInfo		= 0;
-	uint32 Index			= 0;
-	uint32 Position			= 0;
-	uint32 Attribute		= 0;
+	uint32 Cluster				= 0;
+	uint32 MaterialTable		= 0;
+	uint32 VertReuseBatchInfo	= 0;
+	uint32 DecodeInfo			= 0;
+	uint32 Index				= 0;
+	uint32 Position				= 0;
+	uint32 Attribute			= 0;
 
-	uint32 GetMaterialTableSize() const		{ return Align(MaterialTable, 16); }
-	uint32 GetClusterOffset() const			{ return NANITE_GPU_PAGE_HEADER_SIZE; }
-	uint32 GetMaterialTableOffset() const	{ return GetClusterOffset() + Cluster; }
-	uint32 GetDecodeInfoOffset() const		{ return GetMaterialTableOffset() + GetMaterialTableSize(); }
-	uint32 GetIndexOffset() const			{ return GetDecodeInfoOffset() + DecodeInfo; }
-	uint32 GetPositionOffset() const		{ return GetIndexOffset() + Index; }
-	uint32 GetAttributeOffset() const		{ return GetPositionOffset() + Position; }
-	uint32 GetTotal() const					{ return GetAttributeOffset() + Attribute; }
+	uint32 GetMaterialTableSize() const			{ return Align(MaterialTable, 16); }
+	uint32 GetVertReuseBatchInfoSize() const	{ return Align(VertReuseBatchInfo, 16); }
+
+	uint32 GetClusterOffset() const				{ return NANITE_GPU_PAGE_HEADER_SIZE; }
+	uint32 GetMaterialTableOffset() const		{ return GetClusterOffset() + Cluster; }
+	uint32 GetVertReuseBatchInfoOffset() const	{ return GetMaterialTableOffset() + GetMaterialTableSize(); }
+	uint32 GetDecodeInfoOffset() const			{ return GetVertReuseBatchInfoOffset() + GetVertReuseBatchInfoSize(); }
+	uint32 GetIndexOffset() const				{ return GetDecodeInfoOffset() + DecodeInfo; }
+	uint32 GetPositionOffset() const			{ return GetIndexOffset() + Index; }
+	uint32 GetAttributeOffset() const			{ return GetPositionOffset() + Position; }
+	uint32 GetTotal() const						{ return GetAttributeOffset() + Attribute; }
 
 	FPageSections GetOffsets() const
 	{
-		return FPageSections{ GetClusterOffset(), GetMaterialTableOffset(), GetDecodeInfoOffset(), GetIndexOffset(), GetPositionOffset(), GetAttributeOffset() };
+		return FPageSections{ GetClusterOffset(), GetMaterialTableOffset(), GetVertReuseBatchInfoOffset(), GetDecodeInfoOffset(), GetIndexOffset(), GetPositionOffset(), GetAttributeOffset() };
 	}
 
 	void operator+=(const FPageSections& Other)
 	{
-		Cluster			+=	Other.Cluster;
-		MaterialTable	+=	Other.MaterialTable;
-		DecodeInfo		+=	Other.DecodeInfo;
-		Index			+=	Other.Index;
-		Position		+=	Other.Position;
-		Attribute		+=	Other.Attribute;
+		Cluster				+=	Other.Cluster;
+		MaterialTable		+=	Other.MaterialTable;
+		VertReuseBatchInfo	+=	Other.VertReuseBatchInfo;
+		DecodeInfo			+=	Other.DecodeInfo;
+		Index				+=	Other.Index;
+		Position			+=	Other.Position;
+		Attribute			+=	Other.Attribute;
 	}
 };
 
@@ -471,7 +477,80 @@ static uint32 CalcMaterialTableSize( const Nanite::FCluster& InCluster )
 	return NumMaterials > 3 ? NumMaterials : 0;
 }
 
-static uint32 PackMaterialInfo(const Nanite::FCluster& InCluster, TArray<uint32>& OutMaterialTable, uint32 MaterialTableStartOffset)
+static uint32 CalcVertReuseBatchInfoSize(const TArrayView<const FMaterialRange>& MaterialRanges)
+{
+	constexpr int32 NumBatchCountBits = 4;
+	constexpr int32 NumTriCountBits = 5;
+	constexpr int32 WorstCaseFullBatchTriCount = 10;
+
+	int32 TotalNumBatches = 0;
+	int32 NumBitsNeeded = 0;
+
+	for (const FMaterialRange& MaterialRange : MaterialRanges)
+	{
+		const int32 NumBatches = MaterialRange.BatchTriCounts.Num();
+		check(NumBatches > 0 && NumBatches < (1 << NumBatchCountBits));
+		TotalNumBatches += NumBatches;
+		NumBitsNeeded += NumBatchCountBits + NumBatches * NumTriCountBits;
+	}
+	NumBitsNeeded += FMath::Max(NumBatchCountBits * (3 - MaterialRanges.Num()), 0);
+	check(TotalNumBatches < FMath::DivideAndRoundUp(NANITE_MAX_CLUSTER_TRIANGLES, WorstCaseFullBatchTriCount) + MaterialRanges.Num() - 1);
+
+	return FMath::DivideAndRoundUp(NumBitsNeeded, 32);
+}
+
+static void PackVertReuseBatchInfo(const TArrayView<const FMaterialRange>& MaterialRanges, TArray<uint32>& OutVertReuseBatchInfo)
+{
+	constexpr int32 NumBatchCountBits = 4;
+	constexpr int32 NumTriCountBits = 5;
+
+	auto AppendBits = [](uint32*& DwordPtr, uint32& BitOffset, uint32 Bits, uint32 NumBits)
+	{
+		uint32 BitsConsumed = FMath::Min(NumBits, 32u - BitOffset);
+		SetBits(*DwordPtr, (Bits & ((1 << BitsConsumed) - 1)), BitsConsumed, BitOffset);
+		BitOffset += BitsConsumed;
+		if (BitOffset >= 32u)
+		{
+			check(BitOffset == 32u);
+			++DwordPtr;
+			BitOffset -= 32u;
+		}
+		if (BitsConsumed < NumBits)
+		{
+			Bits >>= BitsConsumed;
+			BitsConsumed = NumBits - BitsConsumed;
+			SetBits(*DwordPtr, Bits, BitsConsumed, BitOffset);
+			BitOffset += BitsConsumed;
+			check(BitOffset < 32u);
+		}
+	};
+
+	const uint32 NumDwordsNeeded = CalcVertReuseBatchInfoSize(MaterialRanges);
+	OutVertReuseBatchInfo.Empty(NumDwordsNeeded);
+	OutVertReuseBatchInfo.AddZeroed(NumDwordsNeeded);
+
+	uint32* NumArrayDwordPtr = &OutVertReuseBatchInfo[0];
+	uint32 NumArrayBitOffset = 0;
+	const uint32 NumArrayBits = FMath::Max(MaterialRanges.Num(), 3) * NumBatchCountBits;
+	uint32* TriCountDwordPtr = &OutVertReuseBatchInfo[NumArrayBits >> 5];
+	uint32 TriCountBitOffset = NumArrayBits & 0x1f;
+
+	for (const FMaterialRange& MaterialRange : MaterialRanges)
+	{
+		const uint32 NumBatches = MaterialRange.BatchTriCounts.Num();
+		check(NumBatches > 0);
+		AppendBits(NumArrayDwordPtr, NumArrayBitOffset, NumBatches, NumBatchCountBits);
+
+		for (int32 BatchIndex = 0; BatchIndex < MaterialRange.BatchTriCounts.Num(); ++BatchIndex)
+		{
+			const uint32 BatchTriCount = MaterialRange.BatchTriCounts[BatchIndex];
+			check(BatchTriCount > 0 && BatchTriCount - 1 < (1 << NumTriCountBits));
+			AppendBits(TriCountDwordPtr, TriCountBitOffset, BatchTriCount - 1, NumTriCountBits);
+		}
+	}
+}
+
+static uint32 PackMaterialInfo(const Nanite::FCluster& InCluster, TArray<uint32>& OutMaterialTable, TArray<uint32>& OutVertReuseBatchInfo, uint32 MaterialTableStartOffset)
 {
 	// Encode material ranges
 	uint32 NumMaterialTriangles = 0;
@@ -538,6 +617,8 @@ static uint32 PackMaterialInfo(const Nanite::FCluster& InCluster, TArray<uint32>
 
 		PackedMaterialInfo = PackMaterialSlowPath(MaterialTableOffset, MaterialTableLength);
 	}
+
+	PackVertReuseBatchInfo(MakeArrayView(InCluster.MaterialRanges), OutVertReuseBatchInfo);
 
 	return PackedMaterialInfo;
 }
@@ -797,6 +878,7 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 	FPageSections& GpuSizes = Info.GpuSizes;
 	GpuSizes.Cluster = sizeof(FPackedCluster);
 	GpuSizes.MaterialTable = CalcMaterialTableSize(Cluster) * sizeof(uint32);
+	GpuSizes.VertReuseBatchInfo = Cluster.MaterialRanges.Num() > 3 ? CalcVertReuseBatchInfoSize(Cluster.MaterialRanges) * sizeof(uint32) : 0;
 	GpuSizes.DecodeInfo = NumTexCoords * sizeof(FUVRange);
 	GpuSizes.Index = (NumClusterTris * BitsPerTriangle + 31) / 32 * 4;
 
@@ -1683,6 +1765,7 @@ static void WritePages(	FResources& Resources,
 		TArray<uint8>				CombinedPositionData;
 		TArray<uint8>				CombinedAttributeData;
 		TArray<uint32>				MaterialRangeData;
+		TArray<uint32>				VertReuseBatchInfo;
 		TArray<uint16>				CodedVerticesPerCluster;
 		TArray<uint32>				NumPositionBytesPerCluster;
 		TArray<uint32>				NumPageClusterPairsPerCluster;
@@ -1712,7 +1795,8 @@ static void WritePages(	FResources& Resources,
 				FPackedCluster& PackedCluster = PackedClusters[LocalClusterIndex];
 				PackCluster(PackedCluster, Cluster, EncodingInfos[ClusterIndex], NumTexCoords);
 
-				PackedCluster.PackedMaterialInfo = PackMaterialInfo(Cluster, MaterialRangeData, MaterialTableStartOffsetInDwords);
+				TArray<uint32> LocalVertReuseBatchInfo;
+				PackedCluster.PackedMaterialInfo = PackMaterialInfo(Cluster, MaterialRangeData, LocalVertReuseBatchInfo, MaterialTableStartOffsetInDwords);
 				check((GpuSectionOffsets.Index & 3) == 0);
 				check((GpuSectionOffsets.Position & 3) == 0);
 				check((GpuSectionOffsets.Attribute & 3) == 0);
@@ -1720,6 +1804,12 @@ static void WritePages(	FResources& Resources,
 				PackedCluster.SetPositionOffset(GpuSectionOffsets.Position);
 				PackedCluster.SetAttributeOffset(GpuSectionOffsets.Attribute);
 				PackedCluster.SetDecodeInfoOffset(GpuSectionOffsets.DecodeInfo);
+
+				PackedCluster.SetVertResourceBatchInfo(LocalVertReuseBatchInfo, GpuSectionOffsets.VertReuseBatchInfo, Cluster.MaterialRanges.Num());
+				if (Cluster.MaterialRanges.Num() > 3)
+				{
+					VertReuseBatchInfo.Append(MoveTemp(LocalVertReuseBatchInfo));
+				}
 				
 				GpuSectionOffsets += EncodingInfo.GpuSizes;
 
@@ -1740,12 +1830,13 @@ static void WritePages(	FResources& Resources,
 				CodedVerticesPerCluster[LocalClusterIndex] = NumCodedVertices;
 			}
 		}
-		check(GpuSectionOffsets.Cluster						== Page.GpuSizes.GetMaterialTableOffset());
-		check(Align(GpuSectionOffsets.MaterialTable, 16)	== Page.GpuSizes.GetDecodeInfoOffset());
-		check(GpuSectionOffsets.DecodeInfo					== Page.GpuSizes.GetIndexOffset());
-		check(GpuSectionOffsets.Index						== Page.GpuSizes.GetPositionOffset());
-		check(GpuSectionOffsets.Position					== Page.GpuSizes.GetAttributeOffset());
-		check(GpuSectionOffsets.Attribute					== Page.GpuSizes.GetTotal());
+		check(GpuSectionOffsets.Cluster							== Page.GpuSizes.GetMaterialTableOffset());
+		check(Align(GpuSectionOffsets.MaterialTable, 16)		== Page.GpuSizes.GetVertReuseBatchInfoOffset());
+		check(Align(GpuSectionOffsets.VertReuseBatchInfo, 16)	== Page.GpuSizes.GetDecodeInfoOffset());
+		check(GpuSectionOffsets.DecodeInfo						== Page.GpuSizes.GetIndexOffset());
+		check(GpuSectionOffsets.Index							== Page.GpuSizes.GetPositionOffset());
+		check(GpuSectionOffsets.Position						== Page.GpuSizes.GetAttributeOffset());
+		check(GpuSectionOffsets.Attribute						== Page.GpuSizes.GetTotal());
 
 		// Dword align index data
 		CombinedIndexData.SetNumZeroed((CombinedIndexData.Num() + 3) & -4);
@@ -1785,13 +1876,14 @@ static void WritePages(	FResources& Resources,
 
 		// 16-byte align material range data to make it easy to copy during GPU transcoding
 		MaterialRangeData.SetNum(Align(MaterialRangeData.Num(), 4));
+		VertReuseBatchInfo.SetNum(Align(VertReuseBatchInfo.Num(), 4));
 
 		static_assert(sizeof(FPageGPUHeader) % 16 == 0, "sizeof(FGPUPageHeader) must be a multiple of 16");
 		static_assert(sizeof(FUVRange) % 16 == 0, "sizeof(FUVRange) must be a multiple of 16");
 		static_assert(sizeof(FPackedCluster) % 16 == 0, "sizeof(FPackedCluster) must be a multiple of 16");
 		PageDiskHeader->NumClusters = Page.NumClusters;
 		PageDiskHeader->GpuSize = Page.GpuSizes.GetTotal();
-		PageDiskHeader->NumRawFloat4s = sizeof(FPageGPUHeader) / 16 + Page.NumClusters * (sizeof(FPackedCluster) + NumTexCoords * sizeof(FUVRange)) / 16 +  MaterialRangeData.Num() / 4;
+		PageDiskHeader->NumRawFloat4s = sizeof(FPageGPUHeader) / 16 + Page.NumClusters * (sizeof(FPackedCluster) + NumTexCoords * sizeof(FUVRange)) / 16 +  MaterialRangeData.Num() / 4 + VertReuseBatchInfo.Num() / 4;
 		PageDiskHeader->NumTexCoords = NumTexCoords;
 
 		// Cluster headers
@@ -1820,6 +1912,12 @@ static void WritePages(	FResources& Resources,
 		uint8* MaterialTable = PagePointer.Advance<uint8>(MaterialTableSize);
 		FMemory::Memcpy(MaterialTable, MaterialRangeData.GetData(), MaterialTableSize);
 		check(MaterialTableSize == Page.GpuSizes.GetMaterialTableSize());
+
+		// Vert reuse batch info
+		const uint32 VertReuseBatchInfoSize = VertReuseBatchInfo.Num() * VertReuseBatchInfo.GetTypeSize();
+		uint8* VertReuseBatchInfoData = PagePointer.Advance<uint8>(VertReuseBatchInfoSize);
+		FMemory::Memcpy(VertReuseBatchInfoData, VertReuseBatchInfo.GetData(), VertReuseBatchInfoSize);
+		check(VertReuseBatchInfoSize == Page.GpuSizes.GetVertReuseBatchInfoSize());
 
 		// Decode information
 		PageDiskHeader->DecodeInfoOffset = PagePointer.Offset();
@@ -4012,6 +4110,73 @@ static uint32 CalculateMaxRootPages(uint32 TargetResidencyInKB)
 	return (uint32)FMath::Clamp((SizeInBytes + NANITE_ROOT_PAGE_GPU_SIZE - 1u) >> NANITE_ROOT_PAGE_GPU_SIZE_BITS, 1llu, (uint64)MAX_uint32);
 }
 
+static void BuildVertReuseBatches(FCluster& Cluster)
+{
+	for (FMaterialRange& MaterialRange : Cluster.MaterialRanges)
+	{
+		TStaticBitArray<NANITE_MAX_CLUSTER_VERTICES> UsedVertMask;
+		uint32 NumUniqueVerts = 0;
+		uint32 NumTris = 0;
+		const uint32 MaxBatchVerts = 32;
+		const uint32 MaxBatchTris = 32;
+		const uint32 TriIndexEnd = MaterialRange.RangeStart + MaterialRange.RangeLength;
+
+		MaterialRange.BatchTriCounts.Reset();
+
+		for (uint32 TriIndex = MaterialRange.RangeStart; TriIndex < TriIndexEnd; ++TriIndex)
+		{
+			const uint32 VertIndex0 = Cluster.Indexes[TriIndex * 3 + 0];
+			const uint32 VertIndex1 = Cluster.Indexes[TriIndex * 3 + 1];
+			const uint32 VertIndex2 = Cluster.Indexes[TriIndex * 3 + 2];
+
+			auto Bit0 = UsedVertMask[VertIndex0];
+			auto Bit1 = UsedVertMask[VertIndex1];
+			auto Bit2 = UsedVertMask[VertIndex2];
+
+			// If adding this tri to the current batch will result in too many unique verts, start a new batch
+			const uint32 NumNewUniqueVerts = uint32(!Bit0) + uint32(!Bit1) + uint32(!Bit2);
+			if (NumUniqueVerts + NumNewUniqueVerts > MaxBatchVerts)
+			{
+				check(NumTris > 0);
+				MaterialRange.BatchTriCounts.Add(uint8(NumTris));
+				NumUniqueVerts = 0;
+				NumTris = 0;
+				UsedVertMask = TStaticBitArray<NANITE_MAX_CLUSTER_VERTICES>();
+				--TriIndex;
+				continue;
+			}
+
+			Bit0 = true;
+			Bit1 = true;
+			Bit2 = true;
+			NumUniqueVerts += NumNewUniqueVerts;
+			++NumTris;
+
+			if (NumTris == MaxBatchTris)
+			{
+				MaterialRange.BatchTriCounts.Add(uint8(NumTris));
+				NumUniqueVerts = 0;
+				NumTris = 0;
+				UsedVertMask = TStaticBitArray<NANITE_MAX_CLUSTER_VERTICES>();
+			}
+		}
+
+		if (NumTris > 0)
+		{
+			MaterialRange.BatchTriCounts.Add(uint8(NumTris));
+		}
+	}
+}
+
+static void BuildVertReuseBatches(TArray<FCluster>& Clusters)
+{
+	ParallelFor(TEXT("NaniteEncode.BuildVertReuseBatches.PF"), Clusters.Num(), 256,
+		[&Clusters](uint32 ClusterIndex)
+		{
+			BuildVertReuseBatches(Clusters[ClusterIndex]);
+		});
+}
+
 void Encode(
 	FResources& Resources,
 	const FMeshNaniteSettings& Settings,
@@ -4046,6 +4211,11 @@ void Encode(
 	}
 #endif
 #endif
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::BuildVertReuseBatches);
+		BuildVertReuseBatches(Clusters);
+	}
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::CalculateQuantizedPositions);

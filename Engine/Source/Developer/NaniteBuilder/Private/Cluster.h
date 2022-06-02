@@ -26,6 +26,7 @@ struct FMaterialRange
 	uint32 RangeStart;
 	uint32 RangeLength;
 	uint32 MaterialIndex;
+	TArray<uint8, TInlineAllocator<12>> BatchTriCounts;
 
 	friend FArchive& operator<<(FArchive& Ar, FMaterialRange& Range);
 };

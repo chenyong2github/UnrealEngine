@@ -95,12 +95,17 @@ struct FCluster
 	uint	MaterialTableOffset;
 	uint	MaterialTableLength;
 
+	uint	VertReuseBatchCountTableOffset;	// dword offset from page base
+	uint	VertReuseBatchCountTableSize;	// number of entries, each 4-bit
+
 	// Material Fast path
 	uint	Material0Length;
 	uint	Material0Index;
 	uint 	Material1Length;
 	uint	Material1Index;
 	uint	Material2Index;
+
+	uint4	VertReuseBatchInfo;
 };
 
 struct FHierarchyNodeSlice
@@ -388,6 +393,10 @@ FCluster UnpackCluster(uint4 ClusterData[NANITE_NUM_PACKED_CLUSTER_FLOAT4S])
 		Cluster.Material2Index		= BitFieldExtractU32(MaterialEncoding, 6, 12);
 		Cluster.Material0Length		= BitFieldExtractU32(MaterialEncoding, 7, 18) + 1;
 		Cluster.Material1Length		= BitFieldExtractU32(MaterialEncoding, 7, 25);
+
+		Cluster.VertReuseBatchCountTableOffset = 0;
+		Cluster.VertReuseBatchCountTableSize = 0;
+		Cluster.VertReuseBatchInfo	= ClusterData[6];
 	}
 	else
 	{
@@ -399,6 +408,10 @@ FCluster UnpackCluster(uint4 ClusterData[NANITE_NUM_PACKED_CLUSTER_FLOAT4S])
 		Cluster.Material2Index		= 0;
 		Cluster.Material0Length		= 0;
 		Cluster.Material1Length		= 0;
+
+		Cluster.VertReuseBatchCountTableOffset = ClusterData[6].x;
+		Cluster.VertReuseBatchCountTableSize = ClusterData[6].y;
+		Cluster.VertReuseBatchInfo = 0;
 	}
 
 	return Cluster;

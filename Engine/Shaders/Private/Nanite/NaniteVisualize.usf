@@ -23,6 +23,7 @@ ByteAddressBuffer		MaterialHitProxyTable;
 
 int4					VisualizeConfig;
 int4					VisualizeScales;
+uint					RegularMaterialRasterSlotCount;
 
 // TODO: Try N.V to improve shading look
 float3 ApplySobelFilter(uint2 PixelPosXY, uint DepthInt, float3 Color, float3 OutlineColor, bool bDarkOutline)
@@ -220,7 +221,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_RASTER_BINS)
 		{
-			const uint RasterSlot = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			const uint RasterSlot = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterSlotCount, MaterialSlotTable);
 			Result = IntToColor(RasterSlot);
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_OVERDRAW)

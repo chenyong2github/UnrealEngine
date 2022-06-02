@@ -95,6 +95,7 @@ class FNaniteVisualizeCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RenderFlags)
+		SHADER_PARAMETER(uint32, RegularMaterialRasterSlotCount)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
@@ -340,6 +341,7 @@ void AddVisualizationPasses(
 				PassParameters->PageConstants = Data.PageConstants;
 				PassParameters->MaxVisibleClusters = Data.MaxVisibleClusters;
 				PassParameters->RenderFlags = Data.RenderFlags;
+				PassParameters->RegularMaterialRasterSlotCount = Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
 				PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 				PassParameters->VisBuffer64 = VisBuffer64;
 				PassParameters->DbgBuffer64 = DbgBuffer64;
