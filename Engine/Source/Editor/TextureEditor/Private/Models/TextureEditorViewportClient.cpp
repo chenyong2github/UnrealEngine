@@ -177,7 +177,8 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		}
 	}
 
-	float Exposure = Texture->GetRunningPlatformData() && IsHDR((*Texture->GetRunningPlatformData())->PixelFormat) ? FMath::Pow(2.0f, (float)TextureEditorPinned->GetExposureBias()) : 1.0f;
+	FTexturePlatformData** RunningPlatformDataPtr = Texture->GetRunningPlatformData();
+	float Exposure = RunningPlatformDataPtr && *RunningPlatformDataPtr && IsHDR((*RunningPlatformDataPtr)->PixelFormat) ? FMath::Pow(2.0f, (float)TextureEditorPinned->GetExposureBias()) : 1.0f;
 
 	if ( Texture->GetResource() != nullptr )
 	{

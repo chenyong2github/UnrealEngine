@@ -2295,11 +2295,14 @@ bool FTextureEditorToolkit::HandleTextureBorderActionIsChecked( ) const
 
 EVisibility FTextureEditorToolkit::HandleExposureBiasWidgetVisibility() const
 {
-	if (Texture && Texture->GetRunningPlatformData() && IsHDR((*Texture->GetRunningPlatformData())->PixelFormat))
+	if (Texture)
 	{
-		return EVisibility::Visible;
+		FTexturePlatformData** RunningPlatformDataPtr = Texture->GetRunningPlatformData();
+		if (RunningPlatformDataPtr && *RunningPlatformDataPtr && IsHDR((*RunningPlatformDataPtr)->PixelFormat))
+		{
+			return EVisibility::Visible;
+		}
 	}
-
 	return EVisibility::Collapsed;
 }
 
