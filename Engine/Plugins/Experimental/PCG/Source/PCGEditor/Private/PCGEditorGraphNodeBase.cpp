@@ -31,6 +31,23 @@ void UPCGEditorGraphNodeBase::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UPCGEditorGraphNodeBase::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	Super::PostTransacted(TransactionEvent);
+
+	TArray<FName> PropertiesChanged = TransactionEvent.GetChangedProperties();
+
+	if (PropertiesChanged.Contains(TEXT("bCommentBubblePinned")))
+	{
+		UpdateCommentBubblePinned();
+	}
+
+	if (PropertiesChanged.Contains(TEXT("NodePosX")) || PropertiesChanged.Contains(TEXT("NodePosY")))
+	{
+		UpdatePosition();
+	}
+}
+
 void UPCGEditorGraphNodeBase::Construct(UPCGNode* InPCGNode, EPCGEditorGraphNodeType InNodeType)
 {
 	check(InPCGNode);
@@ -39,6 +56,9 @@ void UPCGEditorGraphNodeBase::Construct(UPCGNode* InPCGNode, EPCGEditorGraphNode
 
 	NodePosX = InPCGNode->PositionX;
 	NodePosY = InPCGNode->PositionY;
+	NodeComment = InPCGNode->NodeComment;
+	bCommentBubblePinned = InPCGNode->bCommentBubblePinned;
+	bCommentBubbleVisible = InPCGNode->bCommentBubbleVisible;
 	
 	NodeType = InNodeType;
 
@@ -417,6 +437,47 @@ UObject* UPCGEditorGraphNodeBase::GetJumpTargetForDoubleClick() const
 	}
 
 	return nullptr;
+}
+
+void UPCGEditorGraphNodeBase::OnUpdateCommentText(const FString& NewComment)
+{
+	Super::OnUpdateCommentText(NewComment);
+
+	if (PCGNode && PCGNode->NodeComment != NewComment)
+	{
+		PCGNode->Modify();
+		PCGNode->NodeComment = NewComment;
+	}
+}
+
+void UPCGEditorGraphNodeBase::OnCommentBubbleToggled(bool bInCommentBubbleVisible)
+{
+	Super::OnCommentBubbleToggled(bInCommentBubbleVisible);
+
+	if (PCGNode && PCGNode->bCommentBubbleVisible != bInCommentBubbleVisible)
+	{
+		PCGNode->Modify();
+		PCGNode->bCommentBubbleVisible = bInCommentBubbleVisible;
+	}
+}
+
+void UPCGEditorGraphNodeBase::UpdateCommentBubblePinned()
+{
+	if (PCGNode)
+	{
+		PCGNode->Modify();
+		PCGNode->bCommentBubblePinned = bCommentBubblePinned;
+	}
+}
+
+void UPCGEditorGraphNodeBase::UpdatePosition()
+{
+	if (PCGNode)
+	{
+		PCGNode->Modify();
+		PCGNode->PositionX = NodePosX;
+		PCGNode->PositionY = NodePosY;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

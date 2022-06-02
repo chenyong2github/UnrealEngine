@@ -35,6 +35,8 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Preferences/UnrealEdOptions.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "PCGEditorGraphSchemaActions.h"
+#include "GraphEditAction.h"
 
 #define LOCTEXT_NAMESPACE "PCGGraphEditor"
 
@@ -274,18 +276,28 @@ void FPCGEditor::DeleteSelectedNodes()
 
 			for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 			{
-				UPCGEditorGraphNodeBase* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNodeBase>(Object);
-
-				if (PCGEditorGraphNode->CanUserDeleteNode())
+				if (UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
 				{
-					UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
-					check(PCGNode);
+					if (PCGEditorGraphNode->CanUserDeleteNode())
+					{
+						UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
+						check(PCGNode);
 
-					PCGGraph->RemoveNode(PCGNode);
-					PCGEditorGraphNode->DestroyNode();
-					bChanged = true;
+						PCGGraph->RemoveNode(PCGNode);
+						PCGEditorGraphNode->DestroyNode();
+						bChanged = true;
+					}
+				}
+				else if (UEdGraphNode* GraphNode = Cast<UEdGraphNode>(Object))
+				{
+					if (GraphNode->CanUserDeleteNode())
+					{
+						GraphNode->DestroyNode();
+						bChanged = true;
+					}
 				}
 			}
+
 			PCGEditorGraph->Modify();
 		}
 
@@ -304,9 +316,9 @@ bool FPCGEditor::CanDeleteSelectedNodes() const
 	{
 		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 		{
-			UPCGEditorGraphNodeBase* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNodeBase>(Object);
+			UEdGraphNode* GraphNode = CastChecked<UEdGraphNode>(Object);
 
-			if (PCGEditorGraphNode->CanUserDeleteNode())
+			if (GraphNode->CanUserDeleteNode())
 			{
 				return true;
 			}
@@ -335,8 +347,10 @@ void FPCGEditor::CopySelectedNodes()
 
 		for (UObject* SelectedNode : SelectedNodes)
 		{
-			UPCGEditorGraphNodeBase* PCGGraphNode = CastChecked<UPCGEditorGraphNodeBase>(SelectedNode);
-			PCGGraphNode->PostCopy();
+			if (UPCGEditorGraphNodeBase* PCGGraphNode = Cast<UPCGEditorGraphNodeBase>(SelectedNode))
+			{
+				PCGGraphNode->PostCopy();
+			}
 		}
 	}
 }
@@ -347,9 +361,9 @@ bool FPCGEditor::CanCopySelectedNodes() const
 	{
 		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 		{
-			if (UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
+			if (UEdGraphNode* GraphNode = CastChecked<UEdGraphNode>(Object))
 			{
-				if (PCGEditorGraphNode->CanDuplicateNode())
+				if (GraphNode->CanDuplicateNode())
 				{
 					return true;
 				}
@@ -539,6 +553,23 @@ void FPCGEditor::OnDistributeNodesV()
 	}
 }
 
+void FPCGEditor::OnCreateComment()
+{
+	if (PCGEditorGraph)
+	{
+		FPCGEditorGraphSchemaAction_NewComment CommentAction;
+
+		TSharedPtr<SGraphEditor> GraphEditorPtr = SGraphEditor::FindGraphEditorForGraph(PCGEditorGraph);
+		FVector2D Location;
+		if (GraphEditorPtr)
+		{
+			Location = GraphEditorPtr->GetPasteLocation();
+		}
+
+		CommentAction.PerformAction(PCGEditorGraph, nullptr, Location);
+	}
+}
+
 TSharedRef<SGraphEditor> FPCGEditor::CreateGraphEditorWidget()
 {
 	GraphEditorCommands = MakeShareable(new FUICommandList);
@@ -597,6 +628,10 @@ TSharedRef<SGraphEditor> FPCGEditor::CreateGraphEditorWidget()
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnStraightenConnections)
 	);
 
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnCreateComment)
+	);
+
 	// Distribution Commands
 	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesHorizontally,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnDistributeNodesH)
@@ -623,6 +658,44 @@ TSharedRef<SGraphEditor> FPCGEditor::CreateGraphEditorWidget()
 		.ShowGraphStateOverlay(false);
 }
 
+void FPCGEditor::ReplicateExtraNodes() const
+{
+	if (PCGEditorGraph)
+	{
+		if (UPCGGraph* PCGGraph = PCGEditorGraph->GetPCGGraph())
+		{
+			TArray<TObjectPtr<const UObject>> ExtraNodes;
+			for (const UEdGraphNode* GraphNode : PCGEditorGraph->Nodes)
+			{
+				check(GraphNode);
+				if (!GraphNode->IsA<UPCGEditorGraphNodeBase>())
+				{
+					ExtraNodes.Add(GraphNode);
+				}
+
+			}
+
+			PCGGraph->SetExtraEditorNodes(ExtraNodes);
+		}
+	}
+}
+
+void FPCGEditor::SaveAsset_Execute()
+{
+	// Extra nodes are replicated on asset save, to be saved in the underlying PCGGraph
+	ReplicateExtraNodes();
+
+	FAssetEditorToolkit::SaveAsset_Execute();
+}
+
+void FPCGEditor::OnClose()
+{
+	// Extra nodes are replicated on editor close, to be saved in the underlying PCGGraph
+	ReplicateExtraNodes();
+
+	FAssetEditorToolkit::OnClose();
+}
+
 TSharedRef<SPCGEditorGraphNodePalette> FPCGEditor::CreatePaletteWidget()
 {
 	return SNew(SPCGEditorGraphNodePalette);
@@ -645,12 +718,16 @@ void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 	{
 		for (UObject* Object : NewSelection)
 		{
-			if (UPCGEditorGraphNodeBase* GraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
+			if (UPCGEditorGraphNodeBase* PCGGraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
 			{
-				if (UPCGNode* PCGNode = GraphNode->GetPCGNode())
+				if (UPCGNode* PCGNode = PCGGraphNode->GetPCGNode())
 				{
 					SelectedObjects.Add(PCGNode->DefaultSettings);
 				}
+			}
+			else if (UEdGraphNode* GraphNode = Cast<UEdGraphNode>(Object))
+			{
+				SelectedObjects.Add(GraphNode);
 			}
 		}
 	}

@@ -78,6 +78,9 @@ public:
 	void EnableNotificationsForEditor();
 	void PreNodeUndo(UPCGNode* InPCGNode);
 	void PostNodeUndo(UPCGNode* InPCGNode);
+
+	const TArray<TObjectPtr<UObject>>& GetExtraEditorNodes() const { return ExtraEditorNodes; }
+	void SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InNodes);
 #endif
 
 #if WITH_EDITOR
@@ -101,6 +104,12 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Graph)
 	TObjectPtr<UPCGNode> OutputNode;
+
+#if WITH_EDITORONLY_DATA
+	// Extra data to hold information that is useful only in editor (like comments)
+	UPROPERTY()
+	TArray<TObjectPtr<UObject>> ExtraEditorNodes;
+#endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 private:

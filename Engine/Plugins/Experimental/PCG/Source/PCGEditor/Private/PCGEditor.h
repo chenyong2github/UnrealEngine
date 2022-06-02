@@ -41,6 +41,13 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
+	virtual void OnClose() override;
+	// ~End FAssetEditorToolkit interface
+
+protected:
+	// ~Begin FAssetEditorToolkit interface
+	/** Called when "Save" is clicked for this asset */
+	virtual void SaveAsset_Execute() override;
 	// ~End FAssetEditorToolkit interface
 
 private:
@@ -91,6 +98,7 @@ private:
 	void OnStraightenConnections();
 	void OnDistributeNodesH();
 	void OnDistributeNodesV();
+	void OnCreateComment();
 
 	/** Create new graph editor widget */
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
@@ -120,6 +128,9 @@ private:
 	 * @param Class - The Class to jump to
 	 */
 	void JumpToDefinition(const UClass* Class) const;
+
+	/** To be called everytime we need to replicate our extra nodes to the underlying PCGGraph */
+	void ReplicateExtraNodes() const;
 
 	TSharedRef<SDockTab> SpawnTab_GraphEditor(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PropertyDetails(const FSpawnTabArgs& Args);

@@ -102,6 +102,15 @@ public:
 
 	UPROPERTY()
 	int32 PositionY;
+
+	UPROPERTY()
+	FString NodeComment;
+
+	UPROPERTY()
+	uint8 bCommentBubblePinned : 1;
+
+	UPROPERTY()
+	uint8 bCommentBubbleVisible : 1;
 #endif // WITH_EDITORONLY_DATA
 
 protected:

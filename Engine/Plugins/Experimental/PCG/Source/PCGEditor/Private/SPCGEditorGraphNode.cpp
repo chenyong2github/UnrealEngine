@@ -21,19 +21,6 @@ void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNod
 	UpdateGraphNode();
 }
 
-void SPCGEditorGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty /*= true*/)
-{
-	SGraphNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
-
-	check(PCGEditorGraphNode);
-	if (UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode())
-	{
-		PCGNode->Modify();
-		PCGNode->PositionX = PCGEditorGraphNode->NodePosX;
-		PCGNode->PositionY = PCGEditorGraphNode->NodePosY;
-	}
-}
-
 void SPCGEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 {
 	check(PCGEditorGraphNode);

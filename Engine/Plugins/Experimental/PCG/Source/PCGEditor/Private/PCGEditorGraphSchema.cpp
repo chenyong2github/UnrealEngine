@@ -25,6 +25,7 @@ void UPCGEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMen
 	GetNativeElementActions(ActionMenuBuilder);
 	GetSubgraphElementActions(ActionMenuBuilder);
 	GetBlueprintElementActions(ActionMenuBuilder);
+	GetExtraElementActions(ActionMenuBuilder);
 }
 
 void UPCGEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
@@ -34,6 +35,7 @@ void UPCGEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Con
 	GetNativeElementActions(ContextMenuBuilder);
 	GetSubgraphElementActions(ContextMenuBuilder);
 	GetBlueprintElementActions(ContextMenuBuilder);
+	GetExtraElementActions(ContextMenuBuilder);
 }
 
 FLinearColor UPCGEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
@@ -264,6 +266,17 @@ void UPCGEditorGraphSchema::GetSubgraphElementActions(FGraphActionMenuBuilder& A
 			ActionMenuBuilder.AddAction(NewSubgraphAction);
 		}
 	}
+}
+
+void UPCGEditorGraphSchema::GetExtraElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
+{
+	// Comment action
+	const FText MenuDesc = LOCTEXT("PCGAddComment", "Add Comment...");
+	const FText Category;
+	const FText Description = LOCTEXT("PCGAddCommentTooltip", "Create a resizable comment box.");
+
+	TSharedPtr<FPCGEditorGraphSchemaAction_NewComment> NewCommentAction(new FPCGEditorGraphSchemaAction_NewComment(Category, MenuDesc, Description, 0));
+	ActionMenuBuilder.AddAction(NewCommentAction);
 }
 
 void UPCGEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const

@@ -32,7 +32,8 @@ public:
 	void Construct(UPCGNode* InPCGNode, EPCGEditorGraphNodeType InNodeType);
 
 	// ~Begin UObject interface
-	void BeginDestroy() override;
+	virtual void BeginDestroy() override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	// ~End UObject interface
 
 	// ~Begin UEdGraphNode interface
@@ -46,6 +47,8 @@ public:
 	virtual FText GetTooltipText() const override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
+	virtual void OnUpdateCommentText(const FString& NewComment);
+	virtual void OnCommentBubbleToggled(bool bInCommentBubbleVisible) override;
 	// ~End UEdGraphNode interface
 
 	UPCGNode* GetPCGNode() { return PCGNode; }
@@ -64,6 +67,8 @@ protected:
 	void OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType);
 	void OnPickColor();
 	void OnColorPicked(FLinearColor NewColor);
+	void UpdateCommentBubblePinned();
+	void UpdatePosition();
 
 	UPROPERTY()
 	TObjectPtr<UPCGNode> PCGNode = nullptr;

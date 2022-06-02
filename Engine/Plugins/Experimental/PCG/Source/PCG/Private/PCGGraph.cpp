@@ -85,6 +85,12 @@ void UPCGGraph::PostLoad()
 		Node->ConditionalPostLoad();
 	}
 	
+	// Also do this for ExtraNodes
+	for (UObject* ExtraNode : ExtraEditorNodes)
+	{
+		ExtraNode->ConditionalPostLoad();
+	}
+
 	// Update pins on all nodes
 	InputNode->UpdatePins();
 	OutputNode->UpdatePins();
@@ -102,9 +108,7 @@ void UPCGGraph::PostLoad()
 	{
 		Node->ApplyDeprecation();
 	}
-#endif
 
-#if WITH_EDITOR
 	InputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
 	OutputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
 
@@ -464,9 +468,17 @@ void UPCGGraph::EnableNotificationsForEditor()
 		bDelayedChangeNotificationStructural = false;
 	}
 }
-#endif
 
-#if WITH_EDITOR
+void UPCGGraph::SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InNodes)
+{
+	ExtraEditorNodes.Empty();
+
+	for (const UObject* Node : InNodes)
+	{
+		ExtraEditorNodes.Add(DuplicateObject(Node, this));
+	}
+}
+
 FPCGTagToSettingsMap UPCGGraph::GetTrackedTagsToSettings() const
 {
 	FPCGTagToSettingsMap TagsToSettings;

@@ -47,6 +47,16 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 		UPCGEditorGraphNodeBase* GraphNode = NodeLookupIt.Value;
 		CreateLinks(GraphNode, /*bCreateInbound=*/false, /*bCreateOutbound=*/true, NodeLookup);
 	}
+
+	for (const UObject* ExtraNode : PCGGraph->GetExtraEditorNodes())
+	{
+		if (const UEdGraphNode* ExtraGraphNode = Cast<UEdGraphNode>(ExtraNode))
+		{
+			UEdGraphNode* NewNode = DuplicateObject(ExtraGraphNode, /*Outer=*/this);
+			const bool bIsUserAction = false;
+			AddNode(NewNode, bIsUserAction, bSelectNewNode);
+		}
+	}
 }
 
 void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCreateInbound, bool bCreateOutbound)
