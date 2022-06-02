@@ -739,7 +739,7 @@ namespace FDatasmithImporterUtilsHelper
 		}
 		else if(LightActor->IsA<ARectLight>())
 		{
-			// Rect light is not yet supported
+			UE_LOG(LogDatasmithImport, Warning, TEXT("Import of RectLight is not yet supported"));
 			return TSharedPtr< IDatasmithLightActorElement >();
 		}
 		else

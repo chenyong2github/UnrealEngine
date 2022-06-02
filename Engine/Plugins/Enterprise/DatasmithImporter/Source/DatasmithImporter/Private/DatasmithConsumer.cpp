@@ -1570,6 +1570,10 @@ namespace DatasmithConsumerUtils
 			// Skip non-imported actors
 			if( Actor == RootSceneActor || Actor == nullptr || Actor->GetRootComponent() == nullptr || Actor->IsA<AWorldSettings>() || Actor->IsA<APhysicsVolume>() || Actor->IsA<ABrush>() || Actor->IsA<ARectLight>())
 			{
+				if (Actor != nullptr && Actor->IsA<ARectLight>())
+				{
+					UE_LOG(LogDatasmithImport, Warning, TEXT("Import of RectLight is not yet supported"));
+				}
 				return false;
 			}
 
