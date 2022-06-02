@@ -7,6 +7,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Styling/CoreStyle.h"
 #include "Input/DragAndDrop.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
 
 class SRCPanelGroup;
 class FExposedEntityDragDrop;
