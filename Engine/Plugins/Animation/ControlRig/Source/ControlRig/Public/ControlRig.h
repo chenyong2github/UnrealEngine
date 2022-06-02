@@ -282,6 +282,18 @@ public:
 	/** ExecuteUnits */
 	virtual void ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName);
 
+	/** Returns true if this rig contains a given event */
+	UFUNCTION(BlueprintPure, Category = "Control Rig")
+	bool ContainsEvent(const FName& InEventName) const;
+
+	/** Returns the user defined events */
+	UFUNCTION(BlueprintPure, Category = "Control Rig")
+	TArray<FName> GetEvents() const;
+
+	/** Execute a user defined event */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	bool ExecuteEvent(const FName& InEventName);
+
 	/** Requests to perform an init during the next execution */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void RequestInit();

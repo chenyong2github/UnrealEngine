@@ -1008,7 +1008,11 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	}
 	else if (InState == EControlRigState::Update)
 	{
-		DeltaTime = 0.f;
+		if(InEventName == GetEventQueue().Last() ||
+			!GetEventQueue().Contains(InEventName))
+		{
+			DeltaTime = 0.f;
+		}
 
 		if (ExecutedEvent.IsBound())
 		{
@@ -1399,6 +1403,35 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 #endif
 
 	}
+}
+
+bool UControlRig::ContainsEvent(const FName& InEventName) const
+{
+	if(VM)
+	{
+		return VM->ContainsEntry(InEventName);
+	}
+	return false;
+}
+
+TArray<FName> UControlRig::GetEvents() const
+{
+	if(VM)
+	{
+		return VM->GetEntryNames();
+	}
+	return TArray<FName>();
+}
+
+bool UControlRig::ExecuteEvent(const FName& InEventName)
+{
+	if(ContainsEvent(InEventName))
+	{
+		TGuardValue<TArray<FName>> EventQueueGuard(EventQueue, {InEventName});
+		Evaluate_AnyThread();
+		return true;
+	}
+	return false;
 }
 
 void UControlRig::RequestInit()
