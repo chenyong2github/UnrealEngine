@@ -17,6 +17,12 @@ static FAutoConsoleVariableRef CVarUseReplayStreamingSources(
 	GUseReplayStreamingSources,
 	TEXT("Set to 1 to use the recorded streaming sources when playing replay."));
 
+static int32 GRecordReplayStreamingSources = 1;
+static FAutoConsoleVariableRef CVarRecordReplayStreamingSources(
+	TEXT("wp.Runtime.RecordReplayStreamingSources"),
+	GRecordReplayStreamingSources,
+	TEXT("Set to 1 to record streaming sources when recording replay."));
+
 FArchive& operator<<(FArchive& Ar, FWorldPartitionReplayStreamingSource& StreamingSource)
 {
 	Ar << StreamingSource.Location;
@@ -93,7 +99,6 @@ void AWorldPartitionReplay::RewindForReplay()
 
 void AWorldPartitionReplay::Initialize(UWorld* World)
 {
-#if !UE_BUILD_SHIPPING
 	if (World->IsGameWorld())
 	{
 		UWorldPartition* WorldPartition = World->GetWorldPartition();
@@ -103,39 +108,39 @@ void AWorldPartitionReplay::Initialize(UWorld* World)
 		SpawnParams.Name = AWorldPartitionReplay::StaticClass()->GetFName();
 		WorldPartition->Replay = World->SpawnActor<AWorldPartitionReplay>(SpawnParams);
 	}
-#endif
 }
 
-bool AWorldPartitionReplay::IsEnabled(UWorld* World)
+bool AWorldPartitionReplay::IsPlaybackEnabled(UWorld* World)
 {
-#if !UE_BUILD_SHIPPING
-	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+	if (GUseReplayStreamingSources && World->IsPlayingReplay())
 	{
-		return WorldPartition->Replay && WorldPartition->Replay->IsEnabled();
+		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+		{
+			return !!WorldPartition->Replay;
+		}
 	}
-#endif
-
+	
 	return false;
 }
 
-void AWorldPartitionReplay::BeginPlay()
+bool AWorldPartitionReplay::IsRecordingEnabled(UWorld* World)
 {
-	Super::BeginPlay();
-	
-	UWorld* World = GetWorld();
-	check(World->IsGameWorld());
-	check(World->IsPartitionedWorld());
-	ENetMode NetMode = World->GetNetMode();
-	
-	// Recording will happen only in NM_Standalone/NM_Client. Replay can happen on any net mode.
-	bEnabled = (NetMode == NM_Standalone || NetMode == NM_Client || World->IsPlayingReplay());
+	if (GRecordReplayStreamingSources && World->IsRecordingReplay())
+	{
+		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+		{
+			return !!WorldPartition->Replay;
+		}
+	}
+		
+	return false;
 }
 
 void AWorldPartitionReplay::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AWorldPartitionReplay, StreamingSourceNames);
+	DOREPLIFETIME_CONDITION(AWorldPartitionReplay, StreamingSourceNames, COND_ReplayOnly);
 }
 
 void AWorldPartitionReplay::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
@@ -162,12 +167,9 @@ void AWorldPartitionReplay::PreReplication(IRepChangedPropertyTracker& ChangedPr
 
 bool AWorldPartitionReplay::GetReplayStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources)
 {
-	if (!GUseReplayStreamingSources)
-	{
-		return false;
-	}
-
 	UWorld* World = GetWorld();
+	verify(IsPlaybackEnabled(World));
+
 	UDemoNetDriver* DemoNetDriver = World->GetDemoNetDriver();
 	if (DemoNetDriver && DemoNetDriver->IsPlaying())
 	{

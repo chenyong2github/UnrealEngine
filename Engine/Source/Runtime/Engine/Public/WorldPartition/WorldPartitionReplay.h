@@ -51,13 +51,12 @@ class ENGINE_API AWorldPartitionReplay : public AActor
 
 public:
 	static void Initialize(UWorld* World);
-	static bool IsEnabled(UWorld* World);
+	static bool IsPlaybackEnabled(UWorld* World);
+	static bool IsRecordingEnabled(UWorld* World);
 
-	virtual void BeginPlay() override;
 	virtual void RewindForReplay() override;
 	virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 		
-	bool IsEnabled() const { return bEnabled; }
 	bool GetReplayStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources);
 		
 private:
@@ -69,6 +68,5 @@ private:
 	TArray<FName> StreamingSourceNames;
 
 	TArray<FWorldPartitionReplaySample> ReplaySamples;
-	bool bEnabled = false;
 };
 
