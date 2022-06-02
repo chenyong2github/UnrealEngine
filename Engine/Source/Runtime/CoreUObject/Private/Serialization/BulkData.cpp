@@ -27,9 +27,6 @@
 // the new loader to keep the results consistent.
 #define UE_KEEP_INLINE_RELOADING_CONSISTENT 0
 
-// Implemented in AsyncLoading2.cpp
-bool IsPackageLoadingFromIoDispatcher(const UPackage* Package, const FArchive& Ar);
-
 //////////////////////////////////////////////////////////////////////////////
 
 const FIoFilenameHash FALLBACK_IO_FILENAME_HASH = INVALID_IO_FILENAME_HASH - 1;
@@ -80,24 +77,21 @@ FIoFilenameHash MakeIoFilenameHash(const FIoChunkId& ChunkID)
 namespace UE::BulkData::Private
 {
 
-/** Returns an I/O chunk ID to be used when loading from I/O store. */
-FIoChunkId CreateBulkDataIoChunkId(const FPackageId& PackageId, EBulkDataFlags BulkDataFlags);
-
 /** Open the bulk data chunk fo reading. */
 bool OpenReadBulkData(
+	const FBulkMetaData& BulkMeta,
 	const FBulkDataChunkId& BulkChunkId,
-	EBulkDataFlags BulkDataFlags,
 	int64 Offset,
 	int64 Size,
 	TFunction<void(FArchive& Ar)>&& Read);
 
 /** Open async read file handle for the specified bulk data chunk ID. */
-TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkDataChunkId& BulkChunkId, EBulkDataFlags BulkDataFlags);
+TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkMetaData& BulkMeta, const FBulkDataChunkId& BulkChunkId);
 
 /** Create bulk data streaming request. */
 TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
+	const FBulkMetaData& BulkMeta,
 	const FBulkDataChunkId& BulkChunkId,
-	EBulkDataFlags BulkDataFlags,
 	int64 Offset,
 	int64 Size,
 	EAsyncIOPriorityAndFlags Priority,
@@ -105,12 +99,12 @@ TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 	uint8* UserSuppliedMemory);
 
 /** Returns whether the bulk data chunk exist or not. */
-bool DoesBulkDataExist(const FBulkDataChunkId& BulkChunkId, EBulkDataFlags BulkDataFlags);
+bool DoesBulkDataExist(const FBulkMetaData& BulkMeta, const FBulkDataChunkId& BulkChunkId);
 
 /** Try memory map the chunk specified by the bulk data ID. */
 bool TryMemoryMapBulkData(
+	const FBulkMetaData& BulkMeta,
 	const FBulkDataChunkId& BulkChunkId,
-	EBulkDataFlags BulkDataFlags,
 	int64 Offset,
 	int64 Size,
 	FIoMappedRegion& OutRegion);
@@ -118,8 +112,8 @@ bool TryMemoryMapBulkData(
 /** Start load the internal bulk data payload. */ 
 bool StartAsyncLoad(
 	FBulkData* Owner,
+	const FBulkMetaData& BulkMeta,
 	const FBulkDataChunkId& BulkChunkId,
-	EBulkDataFlags BulkDataFlags,
 	int64 Offset,
 	int64 Size, 
 	TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback);
@@ -304,7 +298,7 @@ FIoFilenameHash FBulkDataChunkId::GetIoFilenameHash(EBulkDataFlags BulkDataFlags
 	{
 		if (const FPackageId* Id = ImplPtr->PathOrId.TryGet<FPackageId>())
 		{
-			return MakeIoFilenameHash(CreateBulkDataIoChunkId(*Id, BulkDataFlags));
+			return MakeIoFilenameHash(CreateBulkDataIoChunkId(UE::BulkData::Private::FBulkMetaData(BulkDataFlags), *Id));
 		}
 
 		if (const FPackagePath* PackagePath = ImplPtr->PathOrId.TryGet<FPackagePath>())
@@ -627,7 +621,7 @@ FBulkData& FBulkData::operator=( const FBulkData& Other )
 	else
 	{
 		FIoMappedRegion MappedRegion;
-		if (UE::BulkData::Private::TryMemoryMapBulkData(BulkChunkId, BulkMeta.GetFlags(), BulkMeta.GetOffset(), BulkMeta.GetSize(), MappedRegion))
+		if (UE::BulkData::Private::TryMemoryMapBulkData(BulkMeta, BulkChunkId, BulkMeta.GetOffset(), BulkMeta.GetSize(), MappedRegion))
 		{
 			DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);
 		}
@@ -798,7 +792,7 @@ bool FBulkData::DoesExist() const
 	}
 #endif
 
-	return UE::BulkData::Private::DoesBulkDataExist(BulkChunkId, BulkMeta.GetFlags());
+	return UE::BulkData::Private::DoesBulkDataExist(BulkMeta, BulkChunkId);
 }
 
 /**
@@ -1085,8 +1079,8 @@ bool FBulkData::LoadBulkDataWithFileReader()
 		const int64 BulkDataSizeOnDisk = GetBulkDataSizeOnDisk();
 
 		const bool bOk = UE::BulkData::Private::OpenReadBulkData(
+			BulkMeta,
 			BulkChunkId,
-			BulkMeta.GetFlags(),
 			BulkDataOffset,
 			BulkDataSizeOnDisk,
 			[this](FArchive& Ar)
@@ -1160,8 +1154,8 @@ bool FBulkData::StartAsyncLoading()
 
 	return UE::BulkData::Private::StartAsyncLoad(
 		this,
+		BulkMeta,
 		BulkChunkId,
-		BulkMeta.GetFlags(),
 		BulkMeta.GetOffset(), 
 		BulkMeta.GetSize(),
 		[this](TIoStatusOr<FIoBuffer> Result)
@@ -1240,7 +1234,7 @@ void FBulkData::ClearBulkDataFlags( uint32 BulkDataFlagsToClear )
 
 FIoChunkId FBulkData::CreateChunkId() const
 {
-	return UE::BulkData::Private::CreateBulkDataIoChunkId(BulkChunkId.GetPackageId(), BulkMeta.GetFlags());
+	return UE::BulkData::Private::CreateBulkDataIoChunkId(BulkMeta, BulkChunkId.GetPackageId());
 }
 
 /*-----------------------------------------------------------------------------
@@ -1352,12 +1346,18 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 			UPackage* Package					= Owner ? Owner->GetPackage() : nullptr;
 			FArchive* CacheableAr				= Ar.GetCacheableArchive();
 			const bool bCanLazyLoad				= CacheableAr != nullptr && Ar.IsAllowingLazyLoading();
-			const bool bIsUsingIoDispatcher		= IsPackageLoadingFromIoDispatcher(Package, Ar);
 			FLinkerLoad* LinkerLoad				= nullptr;
 
 			FBulkMetaResource MetaResource;
 			Ar << MetaResource;
 			BulkMeta = FBulkMetaData::FromSerialized(MetaResource, ElementSize);
+
+			bool bIsUsingIoDispatcher = false;
+			if (Ar.IsLoadingFromCookedPackage())
+			{
+				BulkMeta.SetMetaFlags(FBulkMetaData::EMetaFlags::CookedPackage);
+				bIsUsingIoDispatcher = Package && Package->GetPackageId().IsValid();
+			}
 
 			check(MetaResource.ElementCount <= 0 || BulkMeta.GetSize() == MetaResource.ElementCount * ElementSize);
 #if !USE_RUNTIME_BULKDATA
@@ -1431,7 +1431,7 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 
 					if (IsDuplicateNonOptional())
 					{
-						const bool bOptionalDataExist = DoesBulkDataExist(BulkChunkId, BULKDATA_OptionalPayload);
+						const bool bOptionalDataExist = DoesBulkDataExist(FBulkMetaData(BULKDATA_OptionalPayload), BulkChunkId);
 
 						if (bOptionalDataExist)
 						{
@@ -1457,7 +1457,7 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 					if (bAttemptFileMapping && (bCanLazyLoad || bIsUsingIoDispatcher))
 					{
 						FIoMappedRegion MappedRegion;
-						if (TryMemoryMapBulkData(BulkChunkId, BulkMeta.GetFlags(), BulkMeta.GetOffset(), BulkMeta.GetSize(), MappedRegion))
+						if (TryMemoryMapBulkData(BulkMeta, BulkChunkId, BulkMeta.GetOffset(), BulkMeta.GetSize(), MappedRegion))
 						{
 							DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);
 						}
@@ -1837,7 +1837,7 @@ void FBulkData::SerializeBulkData(FArchive& Ar, void* Data, int64 DataSize, EBul
 
 IAsyncReadFileHandle* FBulkData::OpenAsyncReadHandle() const
 {
-	return UE::BulkData::Private::OpenAsyncReadBulkData(BulkChunkId, BulkMeta.GetFlags()).Release();
+	return UE::BulkData::Private::OpenAsyncReadBulkData(BulkMeta, BulkChunkId).Release();
 }
 
 IBulkDataIORequest* FBulkData::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
@@ -1850,8 +1850,8 @@ IBulkDataIORequest* FBulkData::CreateStreamingRequest(EAsyncIOPriorityAndFlags P
 IBulkDataIORequest* FBulkData::CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	return UE::BulkData::Private::CreateStreamingRequest(
+		BulkMeta,
 		BulkChunkId,
-		BulkMeta.GetFlags(),
 		BulkMeta.GetOffset() + OffsetInBulkData,
 		BytesToRead,
 		Priority,
@@ -1881,8 +1881,8 @@ IBulkDataIORequest* FBulkData::CreateStreamingRequestForRange(const BulkDataRang
 		*Start.BulkChunkId.ToDebugString(), *End.BulkChunkId.ToDebugString());
 
 	return UE::BulkData::Private::CreateStreamingRequest(
+		Start.BulkMeta,
 		Start.BulkChunkId,
-		Start.BulkMeta.GetFlags(),
 		ReadOffset,
 		ReadSize,
 		Priority,
@@ -1977,8 +1977,8 @@ bool FBulkData::TryLoadDataIntoMemory(FIoBuffer Dest)
 	}
 
 	const bool bOk = UE::BulkData::Private::OpenReadBulkData(
+		BulkMeta,
 		BulkChunkId,
-		BulkMeta.GetFlags(),
 		BulkDataOffset,
 		BulkDataSizeOnDisk,
 		[this, BulkDataSize, &Dest](FArchive& Ar)

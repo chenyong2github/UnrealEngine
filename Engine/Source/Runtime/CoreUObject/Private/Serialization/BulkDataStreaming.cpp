@@ -87,12 +87,14 @@ namespace UE::BulkData::Private
 
 //////////////////////////////////////////////////////////////////////////////
 
-FIoChunkId CreateBulkDataIoChunkId(const FPackageId& PackageId, EBulkDataFlags BulkDataFlags)
+FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, const FPackageId& PackageId)
 {
 	if (PackageId.IsValid() == false)
 	{
 		return FIoChunkId();
 	}
+
+	const EBulkDataFlags BulkDataFlags = BulkMeta.GetFlags();
 
 	const EIoChunkType ChunkType = BulkDataFlags & BULKDATA_OptionalPayload
 		? EIoChunkType::OptionalBulkData
@@ -100,25 +102,28 @@ FIoChunkId CreateBulkDataIoChunkId(const FPackageId& PackageId, EBulkDataFlags B
 			? EIoChunkType::MemoryMappedBulkData
 			: EIoChunkType::BulkData;
 
-	return CreateIoChunkId(PackageId.Value(), 0, ChunkType);
+	const uint16 ChunkIndex = EnumHasAnyFlags(BulkMeta.GetMetaFlags(), FBulkMetaData::EMetaFlags::OptionalPackage) ? 1 : 0;
+	return CreateIoChunkId(PackageId.Value(), ChunkIndex, ChunkType);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-EPackageSegment GetPackageSegmentFromFlags(EBulkDataFlags BulkDataFlags)
+EPackageSegment GetPackageSegmentFromFlags(const FBulkMetaData& BulkMeta)
 {
+	const EBulkDataFlags BulkDataFlags = BulkMeta.GetFlags();
+
 	if ((BulkDataFlags & BULKDATA_PayloadInSeperateFile) == 0)
 	{
-		if (GEventDrivenLoaderEnabled)
+		const bool bLoadingFromCookedPackage = EnumHasAnyFlags(BulkMeta.GetMetaFlags(), FBulkMetaData::EMetaFlags::CookedPackage);
+		if (bLoadingFromCookedPackage)
 		{
-			// With EDL data, packages are split into EPackageSegment::Header (summary and linker tables) and
+			// Cooked packages are split into EPackageSegment::Header (summary and linker tables) and
 			// EPackageSegment::Exports (serialized UObject bytes and the bulk data section)
 			// Inline and end-of-file bulk data is in the Exports section
 			return EPackageSegment::Exports;
 		}
 		else
 		{
-			// Without EDL, there is only a single combined file for Summary,linkertables,exports,and end-of-file bulk data
 			return EPackageSegment::Header;
 		}
 	}
@@ -449,8 +454,8 @@ TUniquePtr<IBulkDataIORequest> CreateBulkDataIoDispatcherRequest(
 //////////////////////////////////////////////////////////////////////////////
 
 bool OpenReadBulkData(
+	const FBulkMetaData& BulkMeta,
 	const FBulkDataChunkId& BulkChunkId,
-	EBulkDataFlags BulkDataFlags,
 	int64 Offset,
 	int64 Size,
 	TFunction<void(FArchive& Ar)>&& Read)
@@ -462,7 +467,7 @@ bool OpenReadBulkData(
 
 	if (FPackageId PackageId = BulkChunkId.GetPackageId(); PackageId.IsValid())
 	{
-		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(PackageId, BulkDataFlags);
+		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, PackageId);
 		FIoBatch Batch = FIoDispatcher::Get().NewBatch();
 
 		FIoRequest Request = Batch.Read(ChunkId, FIoReadOptions(Offset, Size), IoDispatcherPriority_Medium);
@@ -482,11 +487,8 @@ bool OpenReadBulkData(
 	{
 		IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
 		
-		constexpr EBulkDataFlags ExternalResourceFlags = static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload);
-		const bool bExternalResource = (BulkDataFlags & ExternalResourceFlags) == ExternalResourceFlags;
-
+		const bool bExternalResource = BulkMeta.HasAllFlags(static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload));
 		const FPackagePath& Path = BulkChunkId.GetPackagePath();
-		const EPackageSegment Segment = GetPackageSegmentFromFlags(BulkDataFlags);
 
 		TUniquePtr<FArchive> Ar;
 		if (bExternalResource)
@@ -495,6 +497,7 @@ bool OpenReadBulkData(
 		}
 		else
 		{
+			const EPackageSegment Segment = GetPackageSegmentFromFlags(BulkMeta);
 			Ar = ResourceMgr.OpenReadPackage(Path, Segment).Archive;
 		}
 
@@ -512,7 +515,7 @@ bool OpenReadBulkData(
 
 //////////////////////////////////////////////////////////////////////////////
 
-TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkDataChunkId& BulkChunkId, EBulkDataFlags BulkDataFlags)
+TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkMetaData& BulkMeta, const FBulkDataChunkId& BulkChunkId)
 {
 	if (BulkChunkId.IsValid() == false)
 	{
@@ -521,17 +524,14 @@ TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkDataChunkId& B
 
 	if (FPackageId PackageId = BulkChunkId.GetPackageId(); PackageId.IsValid())
 	{
-		return MakeUnique<FChunkReadFileHandle>(CreateBulkDataIoChunkId(PackageId, BulkDataFlags));
+		return MakeUnique<FChunkReadFileHandle>(CreateBulkDataIoChunkId(BulkMeta, PackageId));
 	}
 	else
 	{
 		IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
 		
-		constexpr EBulkDataFlags ExternalResourceFlags = static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload);
-		const bool bExternalResource = (BulkDataFlags & ExternalResourceFlags) == ExternalResourceFlags;
-
+		const bool bExternalResource = BulkMeta.HasAllFlags(static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload));
 		const FPackagePath& Path = BulkChunkId.GetPackagePath();
-		const EPackageSegment Segment = GetPackageSegmentFromFlags(BulkDataFlags);
 
 		if (bExternalResource)
 		{
@@ -539,6 +539,7 @@ TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkDataChunkId& B
 		}
 		else
 		{
+			const EPackageSegment Segment = GetPackageSegmentFromFlags(BulkMeta);
 			return ResourceMgr.OpenAsyncReadPackage(Path, Segment).Handle;
 		}
 	}
@@ -547,8 +548,8 @@ TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkDataChunkId& B
 //////////////////////////////////////////////////////////////////////////////
 
 TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
+	const FBulkMetaData& BulkMeta,
 	const FBulkDataChunkId& BulkChunkId,
-	EBulkDataFlags BulkDataFlags,
 	int64 Offset,
 	int64 Size,
 	EAsyncIOPriorityAndFlags Priority,
@@ -563,14 +564,14 @@ TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 	if (FPackageId PackageId = BulkChunkId.GetPackageId(); PackageId.IsValid())
 	{
 		FIoBuffer Buffer = UserSuppliedMemory ? FIoBuffer(FIoBuffer::Wrap, UserSuppliedMemory, Size) : FIoBuffer(Size);
-		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(PackageId, BulkDataFlags);
+		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, PackageId);
 
 		FChunkBulkDataRequest* Request = new FChunkBulkDataRequest(Callback, MoveTemp(Buffer));
 		Request->Issue(ChunkId, FIoReadOptions(Offset, Size), Priority);
 		
 		return TUniquePtr<IBulkDataIORequest>(Request);
 	}
-	else if (TUniquePtr<IAsyncReadFileHandle> FileHandle = OpenAsyncReadBulkData(BulkChunkId, BulkDataFlags); FileHandle.IsValid())
+	else if (TUniquePtr<IAsyncReadFileHandle> FileHandle = OpenAsyncReadBulkData(BulkMeta, BulkChunkId); FileHandle.IsValid())
 	{
 		TUniquePtr<FBulkDataIORequest> Request = MakeUnique<FBulkDataIORequest>(FileHandle.Release());
 
@@ -585,7 +586,7 @@ TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 
 //////////////////////////////////////////////////////////////////////////////
 
-bool DoesBulkDataExist(const FBulkDataChunkId& BulkChunkId, EBulkDataFlags BulkDataFlags)
+bool DoesBulkDataExist(const FBulkMetaData& BulkMeta, const FBulkDataChunkId& BulkChunkId)
 {
 	if (BulkChunkId.IsValid() == false)
 	{
@@ -594,17 +595,14 @@ bool DoesBulkDataExist(const FBulkDataChunkId& BulkChunkId, EBulkDataFlags BulkD
 
 	if (FPackageId Id = BulkChunkId.GetPackageId(); Id.IsValid())
 	{
-		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(Id, BulkDataFlags);
+		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, Id);
 		return FIoDispatcher::Get().DoesChunkExist(ChunkId);
 	}
 	else
 	{
 		IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
 		const FPackagePath& PackagePath = BulkChunkId.GetPackagePath();
-		const EPackageSegment PackageSegment = GetPackageSegmentFromFlags(BulkDataFlags);
-
-		constexpr EBulkDataFlags ExternalResourceFlags = static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload);
-		const bool bExternalResource = (BulkDataFlags & ExternalResourceFlags) == ExternalResourceFlags;
+		const bool bExternalResource = BulkMeta.HasAllFlags(static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload));
 
 		if (bExternalResource)
 		{
@@ -612,6 +610,7 @@ bool DoesBulkDataExist(const FBulkDataChunkId& BulkChunkId, EBulkDataFlags BulkD
 				EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
 		}
 
+		const EPackageSegment PackageSegment = GetPackageSegmentFromFlags(BulkMeta);
 		return ResourceMgr.DoesPackageExist(PackagePath, PackageSegment);
 	}
 }
@@ -619,15 +618,15 @@ bool DoesBulkDataExist(const FBulkDataChunkId& BulkChunkId, EBulkDataFlags BulkD
 //////////////////////////////////////////////////////////////////////////////
 
 bool TryMemoryMapBulkData(
+	const FBulkMetaData& BulkMeta,
 	const FBulkDataChunkId& BulkChunkId,
-	EBulkDataFlags BulkDataFlags,
 	int64 Offset,
 	int64 Size,
 	FIoMappedRegion& OutRegion)
 {
 	if (FPackageId Id = BulkChunkId.GetPackageId(); Id.IsValid())
 	{
-		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(Id, BulkDataFlags);
+		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, Id);
 		TIoStatusOr<FIoMappedRegion> Status = FIoDispatcher::Get().OpenMapped(ChunkId, FIoReadOptions(Offset, Size));
 
 		if (Status.IsOk())
@@ -709,13 +708,13 @@ private:
 
 bool StartAsyncLoad(
 	FBulkData* Owner,
+	const FBulkMetaData& BulkMeta,
 	const FBulkDataChunkId& BulkChunkId,
-	EBulkDataFlags BulkDataFlags,
 	int64 Offset,
 	int64 Size,
 	TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
 {
-	if (TUniquePtr<IAsyncReadFileHandle> FileHandle = OpenAsyncReadBulkData(BulkChunkId, BulkDataFlags))
+	if (TUniquePtr<IAsyncReadFileHandle> FileHandle = OpenAsyncReadBulkData(BulkMeta, BulkChunkId))
 	{
 		FAsyncFileCallBack FileReadCallback = [Callback = MoveTemp(Callback), Size = Size]
 			(bool bCanceled, IAsyncReadRequest* Request)

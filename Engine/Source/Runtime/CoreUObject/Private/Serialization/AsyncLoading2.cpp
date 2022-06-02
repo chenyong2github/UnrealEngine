@@ -6372,11 +6372,6 @@ IAsyncPackageLoader* MakeAsyncPackageLoader2(FIoDispatcher& InIoDispatcher, IAsy
 
 #endif //WITH_ASYNCLOADING2
 
-bool IsPackageLoadingFromIoDispatcher(const UPackage* Package, const FArchive& Ar)
-{
-	return Package && Package->GetPackageId().IsValid() && Ar.IsLoadingFromCookedPackage();
-}
-
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 PRAGMA_ENABLE_OPTIMIZATION
 #endif

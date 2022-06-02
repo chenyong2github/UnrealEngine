@@ -279,8 +279,6 @@ private:
 namespace UE::BulkData::Private
 {
 
-COREUOBJECT_API EPackageSegment GetPackageSegmentFromFlags(EBulkDataFlags BulkDataFlags);
-
 /**
  * Serialized bulk meta data.
  */
@@ -315,11 +313,22 @@ struct FBulkMetaResource
  *
  * Uses 5 bytes for size and offset.
  * [0 - 4][5 - 9][  10	][    11	][12    -   15]([16   -  23])
- * [Size][Offset][Unused][LockFlags][BulkDataFlags]([SizeOnDisk])
+ * [Size][Offset][MetaFlags][LockFlags][BulkDataFlags]([SizeOnDisk])
  */
 class FBulkMetaData
 {
 public:
+	enum class EMetaFlags : uint8
+	{
+		/** No additional bulk data flags. */
+		None				= 0,
+		/** Loading from a cooked package. */
+		CookedPackage		= (1 << 0),
+		/** Loading optional package data. */
+		OptionalPackage		= (1 << 1)
+	};
+	FRIEND_ENUM_CLASS_FLAGS(EMetaFlags);
+
 	/** 40 bits for max bulk data size. */
 	static constexpr int64 MaxSize = 0xFFffFFffFF;
 	/** 39 bits for max bulk data offset and 1 bit to indicate INDEX_NONE. */
@@ -331,6 +340,12 @@ public:
 #if !USE_RUNTIME_BULKDATA
 		SetSizeOnDisk(-1);
 #endif
+	}
+
+	explicit FBulkMetaData(EBulkDataFlags Flags)
+		: FBulkMetaData()
+	{
+		SetFlags(Flags);
 	}
 
 	inline int64 GetSize() const
@@ -401,6 +416,21 @@ public:
 	inline bool HasAnyFlags(EBulkDataFlags Flags) const
 	{
 		return (GetFlags() & Flags) != 0;
+	}
+
+	inline bool HasAllFlags(EBulkDataFlags Flags) const
+	{
+		return (GetFlags() & Flags) == Flags;
+	}
+
+	void SetMetaFlags(EMetaFlags MetaFlags)
+	{
+		Data[10] = static_cast<uint8>(MetaFlags);
+	}
+	
+	EMetaFlags GetMetaFlags() const
+	{
+		return static_cast<EMetaFlags>(Data[10]);
 	}
 	
 	static FBulkMetaData FromSerialized(const FBulkMetaResource& MetaResource, int64 ElementSize)
@@ -476,6 +506,12 @@ private:
 
 	TUniquePtr<FImpl> ImplPtr;
 };
+
+/** Returns an I/O chunk ID to be used when loading from I/O store. */
+FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, const FPackageId& PackageId);
+
+/** Returns the package segment when loading from the package resource manager. */
+COREUOBJECT_API EPackageSegment GetPackageSegmentFromFlags(const FBulkMetaData& BulkMeta);
 
 } // namespace UE::BulkData::Private
 
@@ -757,7 +793,7 @@ public:
 	const FPackagePath& GetPackagePath() const { return BulkChunkId.GetPackagePath(); }
 
 	/** Returns which segment of its PackagePath this bulkdata resides in */
-	EPackageSegment GetPackageSegment() const { return UE::BulkData::Private::GetPackageSegmentFromFlags(BulkMeta.GetFlags()); }
+	EPackageSegment GetPackageSegment() const { return UE::BulkData::Private::GetPackageSegmentFromFlags(BulkMeta); }
 
 	/** 
 	 * Returns the io filename hash associated with this bulk data.
