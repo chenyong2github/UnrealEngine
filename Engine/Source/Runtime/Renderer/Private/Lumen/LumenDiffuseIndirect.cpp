@@ -267,9 +267,11 @@ void SetupLumenDiffuseTracingParametersForProbe(const FViewInfo& View, FLumenInd
 	}
 }
 
-void GetCardGridZParams(float NearPlane, float FarPlane, FVector& OutZParams, int32& OutGridSizeZ)
+void GetCardGridZParams(float InNearPlane, float InFarPlane, FVector& OutZParams, int32& OutGridSizeZ)
 {
-	OutGridSizeZ = FMath::TruncToInt(FMath::Log2((FarPlane - NearPlane) * GCardGridDistributionLogZScale) * GCardGridDistributionZScale) + 1;
+	float NearPlane = FMath::Min(InFarPlane, InNearPlane);
+	float FarPlane = FMath::Max(InFarPlane, InNearPlane);
+	OutGridSizeZ = FMath::Max(FMath::TruncToInt(FMath::Log2((FarPlane - NearPlane) * GCardGridDistributionLogZScale) * GCardGridDistributionZScale), 0) + 1;
 	OutZParams = FVector(GCardGridDistributionLogZScale, GCardGridDistributionLogZOffset, GCardGridDistributionZScale);
 }
 
