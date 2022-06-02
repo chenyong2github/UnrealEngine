@@ -812,7 +812,7 @@ FCharacterList::FCharacterListEntry* FCharacterList::CacheCharacter(TCHAR Charac
 			}
 
 			FCharacterListEntry NewInternalEntry;
-			NewInternalEntry.ShapedGlyphEntry.FontFaceData = MakeShared<FShapedGlyphFaceData>(FaceGlyphData.FaceAndMemory, GlyphFlags, FontInfo.Size, FinalFontScale, FontInfo.SkewAmount);
+			NewInternalEntry.ShapedGlyphEntry.FontFaceData = MakeShared<FShapedGlyphFaceData>(FaceGlyphData.FaceAndMemory, GlyphFlags, FontInfo.Size, FinalFontScale, FontInfo.GetClampSkew());
 			NewInternalEntry.ShapedGlyphEntry.GlyphIndex = GlyphIndex;
 			NewInternalEntry.ShapedGlyphEntry.XAdvance = XAdvance;
 			NewInternalEntry.ShapedGlyphEntry.bIsVisible = !bIsWhitespace;

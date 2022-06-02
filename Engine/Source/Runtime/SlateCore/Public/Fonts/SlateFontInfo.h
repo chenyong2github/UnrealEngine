@@ -165,7 +165,7 @@ struct SLATECORE_API FSlateFontInfo
 	int32 LetterSpacing = 0;
 
 	/** A skew amount to apply to the text. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(ClampMin=-5, ClampMax=5))
 	float SkewAmount = 0.0f;
 
 	/** The font fallback level. Runtime only, don't set on shared FSlateFontInfo, as it may change the font elsewhere (make a copy). */
@@ -284,6 +284,9 @@ public:
 
 	/** Get the font size clamp for the font renderer (on 16bits) */
 	uint16 GetClampSize() const;
+
+	/** Get the skew amount clamp for the text shaper */
+	float GetClampSkew() const;
 
 	/**
 	 * Calculates a type hash value for a font info.

@@ -228,3 +228,8 @@ uint16 FSlateFontInfo::GetClampSize() const
 {
 	return (uint16)FMath::Clamp<int32>(Size, 0, std::numeric_limits<uint16>::max());
 }
+
+float FSlateFontInfo::GetClampSkew() const
+{
+	return FMath::Clamp(SkewAmount, -5.f, 5.f);
+}
