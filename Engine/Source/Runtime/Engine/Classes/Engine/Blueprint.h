@@ -621,8 +621,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TObjectPtr<class UInheritableComponentHandler> InheritableComponentHandler;
 
 #if WITH_EDITORONLY_DATA
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnExtensionAdded, TObjectPtr<UBlueprintExtension>);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnExtensionRemoved, TObjectPtr<UBlueprintExtension>);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnExtensionAdded, UBlueprintExtension*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnExtensionRemoved, UBlueprintExtension*);
 
 	/** Array of new variables to be added to generated class */
 	UPROPERTY()

@@ -51,7 +51,7 @@ private:
 	TSharedRef<SWidget> CreateDrawerDockButton();
 	FReply CreateDrawerDockButtonClicked();
 
-	void HandleExtensionAdded(TObjectPtr<UBlueprintExtension> NewExtension);
+	void HandleExtensionAdded(UBlueprintExtension* NewExtension);
 
 private:
 	TWeakPtr<FWidgetBlueprintEditor> WeakBlueprintEditor;

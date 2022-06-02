@@ -271,7 +271,7 @@ FReply SMVVMViewBindingPanel::CreateDrawerDockButtonClicked()
 	return FReply::Handled();
 }
 
-void SMVVMViewBindingPanel::HandleExtensionAdded(TObjectPtr<UBlueprintExtension> NewExtension)
+void SMVVMViewBindingPanel::HandleExtensionAdded(UBlueprintExtension* NewExtension)
 {
 	if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = Cast<UMVVMWidgetBlueprintExtension_View>(NewExtension))
 	{
