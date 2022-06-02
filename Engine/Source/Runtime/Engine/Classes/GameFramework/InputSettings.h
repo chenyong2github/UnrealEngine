@@ -66,6 +66,13 @@ class ENGINE_API UInputSettings
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	uint8 bEnableMotionControls:1;
+
+	/**
+	 * If true, then the PlayerController::InputKey function will only process an input event if it
+	 * came from an input device that is owned by the PlayerController's Platform User.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Input")
+	uint8 bFilterInputByPlatformUser:1;
 	
 	/** Should the touch input interface be shown always, or only when the platform has a touch screen? */
 	UPROPERTY(config, EditAnywhere, Category="Mobile")

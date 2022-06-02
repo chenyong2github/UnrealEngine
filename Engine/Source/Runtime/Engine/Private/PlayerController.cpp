@@ -70,6 +70,7 @@
 #include "LevelUtils.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "Physics/AsyncPhysicsInputComponent.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 DEFINE_LOG_CATEGORY(LogPlayerController);
 
@@ -2335,6 +2336,13 @@ bool APlayerController::InputKey(const FInputKeyParams& Params)
 	// Any analog values can simply be passed to the UPlayerInput
 	if(Params.Key.IsAnalog())
 	{
+		// Only process the given input if it came from an input device that is owned by our owning local player
+		if (GetDefault<UInputSettings>()->bFilterInputByPlatformUser &&
+			IPlatformInputDeviceMapper::Get().GetUserForInputDevice(Params.InputDevice) != GetPlatformUserId())
+		{
+			return false;
+		}
+		
 		if(PlayerInput)
 		{
 			bResult = PlayerInput->InputKey(Params);
