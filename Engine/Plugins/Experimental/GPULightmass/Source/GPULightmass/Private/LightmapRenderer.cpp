@@ -683,7 +683,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 				for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 				{
 					FFullyCachedRayTracingMeshCommandContext CommandContext(MeshCommandStorage, VisibleRayTracingMeshCommandsPerLOD[LODIndex], SegmentIndex, InstanceIndex);
-					FMeshPassProcessorRenderState PassDrawRenderState(CachedViewUniformBuffer, CachedViewUniformBuffer);
+					FMeshPassProcessorRenderState PassDrawRenderState;
 					FLightmapRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, PassDrawRenderState);
 
 					RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
@@ -753,7 +753,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 				for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 				{
 					FFullyCachedRayTracingMeshCommandContext CommandContext(MeshCommandStorage, VisibleRayTracingMeshCommandsPerLOD[LODIndex], SegmentIndex, InstanceIndex);
-					FMeshPassProcessorRenderState PassDrawRenderState(CachedViewUniformBuffer, CachedViewUniformBuffer);
+					FMeshPassProcessorRenderState PassDrawRenderState;
 					FLightmapRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, PassDrawRenderState);
 
 					RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
@@ -1023,7 +1023,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 						for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 						{
 							FDynamicRayTracingMeshCommandContext CommandContext(DynamicRayTracingMeshCommandStorage, VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
-							FMeshPassProcessorRenderState PassDrawRenderState(View.ViewUniformBuffer, View.ViewUniformBuffer);
+							FMeshPassProcessorRenderState PassDrawRenderState;
 							FLightmapRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, PassDrawRenderState);
 
 							RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
@@ -1219,13 +1219,15 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				{
 					const FRayTracingMeshCommand& MeshCommand = *VisibleMeshCommand.RayTracingMeshCommand;
 
-					MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
+					MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
+						View.ViewUniformBuffer,
 						VisibleMeshCommand.InstanceIndex,
 						MeshCommand.GeometrySegmentIndex,
 						MeshCommand.MaterialShaderIndex,
 						RAY_TRACING_SHADER_SLOT_MATERIAL);
 
-					MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
+					MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
+						View.ViewUniformBuffer,
 						VisibleMeshCommand.InstanceIndex,
 						MeshCommand.GeometrySegmentIndex,
 						MeshCommand.MaterialShaderIndex,
@@ -1236,13 +1238,15 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				{
 					const FRayTracingMeshCommand& MeshCommand = *VisibleMeshCommand.RayTracingMeshCommand;
 
-					MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
+					MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
+						View.ViewUniformBuffer,
 						VisibleMeshCommand.InstanceIndex,
 						MeshCommand.GeometrySegmentIndex,
 						MeshCommand.MaterialShaderIndex,
 						RAY_TRACING_SHADER_SLOT_MATERIAL);
 
-					MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
+					MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter.Get(),
+						View.ViewUniformBuffer,
 						VisibleMeshCommand.InstanceIndex,
 						MeshCommand.GeometrySegmentIndex,
 						MeshCommand.MaterialShaderIndex,
@@ -1321,6 +1325,7 @@ void FSceneRenderState::CalculateDistributionPrefixSumForAllLightmaps()
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightmapGBufferPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLightmapGBufferParams, PassUniformBuffer)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -2144,6 +2149,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 							RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::FromIndex(GPUIndex));
 
 							auto* PassParameters = GraphBuilder.AllocParameters<FLightmapGBufferPassParameters>();
+							PassParameters->View = Scene->ReferenceView->ViewUniformBuffer;
 							PassParameters->PassUniformBuffer = PassUniformBuffer;
 							PassParameters->InstanceCulling = InstanceCullingUniformBuffer;
 
@@ -2602,6 +2608,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					// Render GBuffer
 					{
 						auto* PassParameters = GraphBuilder.AllocParameters<FLightmapGBufferPassParameters>();
+						PassParameters->View = Scene->ReferenceView->ViewUniformBuffer;
 						PassParameters->PassUniformBuffer = PassUniformBuffer;
 						PassParameters->InstanceCulling = InstanceCullingUniformBuffer;
 

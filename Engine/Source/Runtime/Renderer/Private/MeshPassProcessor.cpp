@@ -217,7 +217,10 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		FShaderParameterInfo Parameter = UniformBufferParameters[UniformBufferIndex];
 		FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
 
-		RHICmdList.SetShaderUniformBuffer(Shader, Parameter.BaseIndex, UniformBuffer);
+		if (UniformBuffer)
+		{
+			RHICmdList.SetShaderUniformBuffer(Shader, Parameter.BaseIndex, UniformBuffer);
+		}
 	}
 
 	FRHISamplerState* const* RESTRICT SamplerBindings = SingleShaderBindings.GetSamplerStart();
@@ -277,7 +280,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 
 #if RHI_RAYTRACING
 
-void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
+FRayTracingLocalShaderBindings* FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 	FRayTracingLocalShaderBindingWriter* BindingWriter,
 	uint32 InstanceIndex, 
 	uint32 SegmentIndex,
@@ -354,9 +357,11 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 			LooseDataOffset += LooseParameter.Size;
 		}
 	}
+
+	return &Bindings;
 }
 
-void FMeshDrawShaderBindings::SetRayTracingShaderBindings(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 ShaderIndexInPipeline, uint32 ShaderSlot) const
+FRayTracingLocalShaderBindings* FMeshDrawShaderBindings::SetRayTracingShaderBindings(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 ShaderIndexInPipeline, uint32 ShaderSlot) const
 {
 	check(ShaderLayouts.Num() == 1);
 	return SetRayTracingShaderBindingsForHitGroup(BindingWriter, 0, 0, ShaderIndexInPipeline, ShaderSlot);
@@ -775,12 +780,48 @@ void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, cons
 }
 
 #if RHI_RAYTRACING
+
+void FRayTracingMeshCommand::SetRayTracingShaderBindingsForHitGroup(
+	FRayTracingLocalShaderBindingWriter* BindingWriter,
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	uint32 InstanceIndex,
+	uint32 SegmentIndex,
+	uint32 HitGroupIndexInPipeline,
+	uint32 ShaderSlot) const
+{
+	check(ViewUniformBuffer);
+
+	FRayTracingLocalShaderBindings* Bindings = ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter, InstanceIndex, SegmentIndex, HitGroupIndexInPipeline, ShaderSlot);
+
+	if (ViewUniformBufferParameter.IsBound())
+	{
+		Bindings->UniformBuffers[ViewUniformBufferParameter.GetBaseIndex()] = ViewUniformBuffer;
+	}
+}
+
 void FRayTracingMeshCommand::SetShaders(const FMeshProcessorShaders& Shaders)
 {
 	check(Shaders.RayTracingShader.IsValid())
 	MaterialShaderIndex = Shaders.RayTracingShader.GetRayTracingHitGroupLibraryIndex();
 	MaterialShader = Shaders.RayTracingShader.GetRayTracingShader();
+	ViewUniformBufferParameter = Shaders.RayTracingShader->GetUniformBufferParameter<FViewUniformShaderParameters>();
 	ShaderBindings.Initialize(Shaders);
+}
+
+void FRayTracingShaderCommand::SetRayTracingShaderBindings(
+	FRayTracingLocalShaderBindingWriter* BindingWriter,
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	uint32 ShaderIndexInPipeline,
+	uint32 ShaderSlot) const
+{
+	check(ViewUniformBuffer);
+
+	FRayTracingLocalShaderBindings* Bindings = ShaderBindings.SetRayTracingShaderBindings(BindingWriter, ShaderIndexInPipeline, ShaderSlot);
+
+	if (ViewUniformBufferParameter.IsBound())
+	{
+		Bindings->UniformBuffers[ViewUniformBufferParameter.GetBaseIndex()] = ViewUniformBuffer;
+	}
 }
 
 void FRayTracingShaderCommand::SetShader(const TShaderRef<FShader>& InShader)
@@ -788,6 +829,7 @@ void FRayTracingShaderCommand::SetShader(const TShaderRef<FShader>& InShader)
 	check(InShader->GetFrequency() == SF_RayCallable || InShader->GetFrequency() == SF_RayMiss);
 	ShaderIndex = InShader.GetRayTracingCallableShaderLibraryIndex();
 	Shader = InShader.GetRayTracingShader();
+	ViewUniformBufferParameter = InShader->GetUniformBufferParameter<FViewUniformShaderParameters>();
 
 	FMeshProcessorShaders Shaders;
 	Shaders.RayTracingShader = InShader;

@@ -94,7 +94,6 @@ class FLightCardEditorMeshPassProcessor : public FMeshPassProcessor
 public:
 	FLightCardEditorMeshPassProcessor(const FScene* InScene, const FSceneView* InView, FMeshPassDrawListContext* InDrawListContext, bool bIsTranslucencyPass = false)
 		: FMeshPassProcessor(InScene, GMaxRHIFeatureLevel, InView, InDrawListContext)
-		, DrawRenderState(*InView)
 		, bTranslucencyPass(bIsTranslucencyPass)
 		, bIgnoreTranslucency(false)
 	{
@@ -297,7 +296,6 @@ class FLightCardEditorHitProxyMeshPassProcessor : public FMeshPassProcessor
 public:
 	FLightCardEditorHitProxyMeshPassProcessor(const FScene* InScene, const FSceneView* InView, FMeshPassDrawListContext* InDrawListContext)
 		: FMeshPassProcessor(InScene, GMaxRHIFeatureLevel, InView, InDrawListContext)
-		, DrawRenderState(*InView)
 	{
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 		DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
@@ -531,7 +529,6 @@ class FLightCardEditorSelectionPassProcessor : public FMeshPassProcessor
 public:
 	FLightCardEditorSelectionPassProcessor(const FScene* InScene, const FSceneView* InView, FMeshPassDrawListContext* InDrawListContext)
 		: FMeshPassProcessor(InScene, GMaxRHIFeatureLevel, InView, InDrawListContext)
-		, DrawRenderState(*InView)
 		, StencilValue(1)
 	{
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI());
@@ -1415,7 +1412,7 @@ void FDisplayClusterMeshProjectionRenderer::AddSimpleElementPass(FRDGBuilder& Gr
 			FIntRect ViewRect = View->UnscaledViewRect;
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
-			FMeshPassProcessorRenderState DrawRenderState(*View);
+			FMeshPassProcessorRenderState DrawRenderState;
 			DrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilWrite);
 			DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA, CW_RGBA, CW_RGBA, CW_RGBA>::GetRHI());
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());

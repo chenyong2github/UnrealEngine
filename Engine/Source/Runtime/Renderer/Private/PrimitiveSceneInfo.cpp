@@ -761,7 +761,6 @@ class FCacheRayTracingPrimitivesContext
 public:
 	FCacheRayTracingPrimitivesContext(FScene* Scene)
 		: CommandContext(Commands)
-		, PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer)
 		, RayTracingMeshProcessor(&CommandContext, Scene, nullptr, PassDrawRenderState, Scene->CachedRayTracingMeshCommandsMode)
 	{ }
 
@@ -929,7 +928,7 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayV
 		else
 		{
 			FCachedRayTracingMeshCommandContext CommandContext(CachedRayTracingMeshCommands);
-			FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
+			FMeshPassProcessorRenderState PassDrawRenderState;
 			FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr, PassDrawRenderState, Scene->CachedRayTracingMeshCommandsMode);
 
 			for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)

@@ -2596,7 +2596,6 @@ public:
 	void Initialize();
 	void Clear();
 
-	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 	TUniformBufferRef<FNaniteUniformParameters> NaniteUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> LumenCardCaptureViewUniformBuffer;
 

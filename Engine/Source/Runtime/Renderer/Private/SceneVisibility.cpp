@@ -4978,9 +4978,6 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 			UpdateHairResources(GraphBuilder, View);
 			View.InitRHIResources();
 		}
-
-		// This is done for raytracing hit groups.
-		Scene->UniformBuffers.ViewUniformBuffer.UpdateUniformBufferImmediate(*Views[0].CachedViewUniformShaderParameters);
 	}
 
 	SetupVolumetricFog();

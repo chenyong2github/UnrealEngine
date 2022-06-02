@@ -824,8 +824,8 @@ public:
 	RENDERER_API void SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader, class FShaderBindingState* StateCacheShaderBindings = nullptr) const;
 
 #if RHI_RAYTRACING
-	RENDERER_API void SetRayTracingShaderBindingsForHitGroup(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 InstanceIndex, uint32 SegmentIndex, uint32 HitGroupIndexInPipeline, uint32 ShaderSlot) const;
-	RENDERER_API void SetRayTracingShaderBindings(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 ShaderIndexInPipeline, uint32 ShaderSlot) const;
+	RENDERER_API FRayTracingLocalShaderBindings* SetRayTracingShaderBindingsForHitGroup(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 InstanceIndex, uint32 SegmentIndex, uint32 HitGroupIndexInPipeline, uint32 ShaderSlot) const;
+	RENDERER_API FRayTracingLocalShaderBindings* SetRayTracingShaderBindings(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 ShaderIndexInPipeline, uint32 ShaderSlot) const;
 #endif // RHI_RAYTRACING
 
 	/** Returns whether this set of shader bindings can be merged into an instanced draw call with another. */
@@ -1744,6 +1744,7 @@ struct FMeshPassProcessorRenderState
 
 	~FMeshPassProcessorRenderState() = default;
 
+	UE_DEPRECATED(5.1, "FMeshPassProcessorRenderState with pass / view uniform buffers is deprecated.")
 	FMeshPassProcessorRenderState(
 		const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer, 
 		FRHIUniformBuffer* InPassUniformBuffer = nullptr
@@ -1753,11 +1754,14 @@ struct FMeshPassProcessorRenderState
 	{
 	}
 
+	UE_DEPRECATED(5.1, "FMeshPassProcessorRenderState with pass / view uniform buffers is deprecated.")
 	FMeshPassProcessorRenderState(
 		const FSceneView& SceneView, 
 		FRHIUniformBuffer* InPassUniformBuffer = nullptr
 		)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FMeshPassProcessorRenderState(SceneView.ViewUniformBuffer, InPassUniformBuffer)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
 
@@ -1798,11 +1802,13 @@ public:
 		return DepthStencilAccess;
 	}
 
+	UE_DEPRECATED(5.1, "SetViewUniformBuffer is deprecated. Use View.ViewUniformBuffer and bind on an RDG pass instead.")
 	FORCEINLINE_DEBUGGABLE void SetViewUniformBuffer(const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer)
 	{
 		ViewUniformBuffer = InViewUniformBuffer;
 	}
 
+	UE_DEPRECATED(5.1, "GetViewUniformBuffer is deprecated. Use View.ViewUniformBuffer and bind on an RDG pass instead.")
 	FORCEINLINE_DEBUGGABLE const FRHIUniformBuffer* GetViewUniformBuffer() const
 	{
 		return ViewUniformBuffer;
@@ -2063,8 +2069,8 @@ public:
 
 	FRHIRayTracingShader* MaterialShader = nullptr;
 	uint32 MaterialShaderIndex = UINT_MAX;
-
 	uint32 GeometrySegmentIndex = UINT_MAX;
+	FShaderUniformBufferParameter ViewUniformBufferParameter;
 	uint8 InstanceMask = 0xFF;
 
 	bool bCastRayTracedShadows = true;
@@ -2073,6 +2079,14 @@ public:
 	bool bIsSky = false;
 	bool bIsTranslucent = false;
 	bool bTwoSided = false;
+
+	RENDERER_API void SetRayTracingShaderBindingsForHitGroup(
+		FRayTracingLocalShaderBindingWriter* BindingWriter,
+		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+		uint32 InstanceIndex,
+		uint32 SegmentIndex,
+		uint32 HitGroupIndexInPipeline,
+		uint32 ShaderSlot) const;
 
 	/** Sets ray hit group shaders on the mesh command and allocates room for the shader bindings. */
 	RENDERER_API void SetShaders(const FMeshProcessorShaders& Shaders);
@@ -2178,8 +2192,14 @@ public:
 
 	FRHIRayTracingShader* Shader = nullptr;
 	uint32 ShaderIndex = UINT_MAX;
-
 	uint32 SlotInScene = UINT_MAX;
+	FShaderUniformBufferParameter ViewUniformBufferParameter;
+
+	RENDERER_API void SetRayTracingShaderBindings(
+		FRayTracingLocalShaderBindingWriter* BindingWriter,
+		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+		uint32 ShaderIndexInPipeline,
+		uint32 ShaderSlot) const;
 
 	/** Sets ray tracing shader on the command and allocates room for the shader bindings. */
 	RENDERER_API void SetShader(const TShaderRef<FShader>& Shader);

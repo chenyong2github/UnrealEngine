@@ -2459,7 +2459,7 @@ void AddPass_Rasterize(
 		RasterPassParameters->RenderFlags |= NANITE_RENDER_FLAG_REVERSE_CULLING;
 	}
 
-	RasterPassParameters->View = Scene.UniformBuffers.ViewUniformBuffer;
+	RasterPassParameters->View = SceneView.ViewUniformBuffer;
 	RasterPassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 	RasterPassParameters->GPUSceneParameters = GPUSceneParameters;
 	RasterPassParameters->RasterParameters = RasterParameters;

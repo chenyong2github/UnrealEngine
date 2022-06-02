@@ -491,10 +491,6 @@ void FMeshMaterialShader::GetShaderBindings(
 	FMeshDrawSingleShaderBindings& ShaderBindings) const
 {
 	FMaterialShader::GetShaderBindings(Scene, FeatureLevel, MaterialRenderProxy, Material, ShaderBindings);
-	if (DrawRenderState.GetViewUniformBuffer())
-	{
-		ShaderBindings.Add(GetUniformBufferParameter<FViewUniformShaderParameters>(), DrawRenderState.GetViewUniformBuffer());
-	}
 	ShaderBindings.Add(GetUniformBufferParameter<FDistanceCullFadeUniformShaderParameters>(), ShaderElementData.FadeUniformBuffer);
 	ShaderBindings.Add(GetUniformBufferParameter<FDitherUniformShaderParameters>(), ShaderElementData.DitherUniformBuffer);
 	ShaderBindings.Add(GetUniformBufferParameter<FNaniteUniformParameters>(), DrawRenderState.GetNaniteUniformBuffer());

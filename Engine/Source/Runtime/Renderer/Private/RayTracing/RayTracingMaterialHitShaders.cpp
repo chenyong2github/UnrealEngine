@@ -724,7 +724,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 			View.RayTracingMaterialBindings[TaskIndex] = BindingWriter;
 
 			TaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
-				[PipelineState, BindingWriter, MeshCommands, NumCommands, bEnableMaterials, bEnableShadowMaterials,
+				[&View, PipelineState, BindingWriter, MeshCommands, NumCommands, bEnableMaterials, bEnableShadowMaterials,
 				DefaultClosestHitMaterialIndex, OpaqueShadowMaterialIndex, HiddenMaterialIndex, TaskIndex]()
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(BindRayTracingMaterialPipelineTask);
@@ -752,7 +752,8 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 						// Bind primary material shader
 
 						{
-							MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
+							MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
+								View.ViewUniformBuffer,
 								VisibleMeshCommand.InstanceIndex,
 								MeshCommand.GeometrySegmentIndex,
 								HitGroupIndex,
@@ -775,7 +776,8 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 							{
 								// Masked materials require full material evaluation with any-hit shader.
 								// Full CHS is bound, however material evaluation is skipped for shadow rays using a dynamic branch on a ray payload flag.
-								MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
+								MeshCommand.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
+									View.ViewUniformBuffer,
 									VisibleMeshCommand.InstanceIndex,
 									MeshCommand.GeometrySegmentIndex,
 									HitGroupIndex,
@@ -822,7 +824,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 			View.RayTracingCallableBindings[TaskIndex] = BindingWriter;
 
 			TaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
-				[PipelineState, BindingWriter, TaskCallableCommands, NumCommands, bEnableMaterials, DefaultCallableShaderIndex, TaskIndex]()
+				[&View, PipelineState, BindingWriter, TaskCallableCommands, NumCommands, bEnableMaterials, DefaultCallableShaderIndex, TaskIndex]()
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(BindRayTracingMaterialPipelineTask);
 
@@ -841,7 +843,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 							}
 						}
 
-						CallableCommand.ShaderBindings.SetRayTracingShaderBindings(BindingWriter, CallableShaderIndex, CallableCommand.SlotInScene);
+						CallableCommand.SetRayTracingShaderBindings(BindingWriter, View.ViewUniformBuffer, CallableShaderIndex, CallableCommand.SlotInScene);
 					}
 				},
 				TStatId(), nullptr, ENamedThreads::AnyThread));

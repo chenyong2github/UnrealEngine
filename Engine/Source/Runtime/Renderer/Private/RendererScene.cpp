@@ -1138,7 +1138,6 @@ FORCEINLINE static void VerifyProperPIEScene(UPrimitiveComponent* Component, UWo
 
 void FPersistentUniformBuffers::Clear()
 {
-	ViewUniformBuffer.SafeRelease();
 	for (auto& UniformBuffer : MobileDirectionalLightUniformBuffers)
 	{
 		UniformBuffer.SafeRelease();
@@ -1151,7 +1150,6 @@ void FPersistentUniformBuffers::Clear()
 void FPersistentUniformBuffers::Initialize()
 {
 	FViewUniformShaderParameters ViewUniformBufferParameters;
-	ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
 	FNaniteUniformParameters NaniteUniformBufferParameters;
 	NaniteUniformBuffer = TUniformBufferRef<FNaniteUniformParameters>::CreateUniformBufferImmediate(NaniteUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);

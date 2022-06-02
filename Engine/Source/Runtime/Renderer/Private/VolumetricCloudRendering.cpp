@@ -692,6 +692,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudRenderViewParametersPS, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRenderVolumetricCloudGlobalParameters, VolumetricCloudRenderViewParamsUB)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudShadowTexture0)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudShadowTexture1)
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -803,6 +804,7 @@ class FRenderVolumetricCloudRenderViewCS : public FMeshMaterialShader
 		SHADER_PARAMETER(int32, bBlendCloudColor)
 		SHADER_PARAMETER(int32, TargetCubeFace)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRenderVolumetricCloudGlobalParameters, VolumetricCloudRenderViewParamsUB)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
 		SHADER_PARAMETER(int32, VirtualShadowMapId0)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudColor)
@@ -968,7 +970,7 @@ class FVolumetricCloudRenderViewMeshProcessor : public FMeshPassProcessor
 {
 public:
 	FVolumetricCloudRenderViewMeshProcessor(const FScene* Scene, const FViewInfo* InViewIfDynamicMeshCommand,
-		TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer, bool bShouldViewRenderVolumetricRenderTarget, bool bSkipAtmosphericLightShadowmap, bool bSecondAtmosphereLightEnabled,
+		bool bShouldViewRenderVolumetricRenderTarget, bool bSkipAtmosphericLightShadowmap, bool bSecondAtmosphereLightEnabled,
 		bool bInVisualizeConservativeDensity, FMeshPassDrawListContext* InDrawListContext)
 		: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 		, bVolumetricCloudPerSampleAtmosphereTransmittance(ShouldUsePerSampleAtmosphereTransmittance(Scene, InViewIfDynamicMeshCommand))
@@ -977,7 +979,6 @@ public:
 		, bVisualizeConservativeDensityOrDebugSampleCount(bInVisualizeConservativeDensity)
 	{
 		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-		PassDrawRenderState.SetViewUniformBuffer(ViewUniformBuffer);
 
 		if (bShouldViewRenderVolumetricRenderTarget || bVisualizeConservativeDensityOrDebugSampleCount)
 		{
@@ -2092,6 +2093,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		PassParameters->bBlendCloudColor = !bShouldViewRenderVolumetricRenderTarget && !bVisualizeConservativeDensityOrDebugSampleCount;
 		PassParameters->TargetCubeFace = CloudRC.RenderTargets.Output[0].GetArraySlice();
 		PassParameters->VolumetricCloudRenderViewParamsUB = CloudPassUniformBuffer;
+		PassParameters->View = ViewUniformBuffer;
 		PassParameters->VirtualShadowMap = ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 		PassParameters->OutCloudColor = GraphBuilder.CreateUAV(CloudColorTexture);
 		PassParameters->OutCloudDepth = GraphBuilder.CreateUAV(CloudDepthTexture);
@@ -2121,7 +2123,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 			RDG_EVENT_NAME("CloudView (CS) %dx%d", Desc.Extent.X, Desc.Extent.Y),
 			PassParameters,
 			CloudRC.bAsyncCompute ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute,
-			[LocalScene = Scene, MaterialRenderProxy, MaterialResource, ViewUniformBuffer, PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
+			[LocalScene = Scene, MaterialRenderProxy, MaterialResource, PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
 			{
 				if (MaterialResource->GetMaterialDomain() != MD_Volume)
 				{
@@ -2129,7 +2131,6 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 				}
 
 				FMeshPassProcessorRenderState DrawRenderState;
-				DrawRenderState.SetViewUniformBuffer(ViewUniformBuffer);
 
 				FMeshMaterialShaderElementData ShaderElementData;
 				ShaderElementData.FadeUniformBuffer = GDistanceCullFadedInUniformBuffer.GetUniformBufferRHI();
@@ -2163,6 +2164,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		RenderViewPassParameters->VolumetricCloudRenderViewParamsUB = CloudPassUniformBuffer;
 		RenderViewPassParameters->CloudShadowTexture0 = CloudRC.VolumetricCloudShadowTexture[0];
 		RenderViewPassParameters->CloudShadowTexture1 = CloudRC.VolumetricCloudShadowTexture[1];
+		RenderViewPassParameters->View = ViewUniformBuffer;
 		RenderViewPassParameters->VirtualShadowMap = ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 		RenderViewPassParameters->InstanceCulling = InstanceCullingManager.GetDummyInstanceCullingUniformBuffer();
 		RenderViewPassParameters->RenderTargets = CloudRC.RenderTargets;
@@ -2171,15 +2173,15 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 			RDG_EVENT_NAME("CloudView (PS) %dx%d", Desc.Extent.X, Desc.Extent.Y),
 			RenderViewPassParameters,
 			ERDGPassFlags::Raster,
-			[RenderViewPassParameters, Scene = Scene, &MainView, ViewUniformBuffer, bVisualizeConservativeDensityOrDebugSampleCount,
+			[RenderViewPassParameters, Scene = Scene, &MainView, bVisualizeConservativeDensityOrDebugSampleCount,
 			bShouldViewRenderVolumetricRenderTarget, CloudVolumeMaterialProxy, bSkipAtmosphericLightShadowmap, bSecondAtmosphereLightEnabled](FRHICommandListImmediate& RHICmdList)
 			{
 				DrawDynamicMeshPass(MainView, RHICmdList,
-					[&MainView, ViewUniformBuffer, bShouldViewRenderVolumetricRenderTarget, bSkipAtmosphericLightShadowmap, bSecondAtmosphereLightEnabled,
+					[&MainView, bShouldViewRenderVolumetricRenderTarget, bSkipAtmosphericLightShadowmap, bSecondAtmosphereLightEnabled,
 					bVisualizeConservativeDensityOrDebugSampleCount, CloudVolumeMaterialProxy](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 					{
 						FVolumetricCloudRenderViewMeshProcessor PassMeshProcessor(
-							MainView.Family->Scene->GetRenderScene(), &MainView, ViewUniformBuffer, bShouldViewRenderVolumetricRenderTarget,
+							MainView.Family->Scene->GetRenderScene(), &MainView, bShouldViewRenderVolumetricRenderTarget,
 							bSkipAtmosphericLightShadowmap, bSecondAtmosphereLightEnabled, bVisualizeConservativeDensityOrDebugSampleCount, DynamicMeshPassContext);
 
 						FMeshBatch LocalSingleTriangleMesh;

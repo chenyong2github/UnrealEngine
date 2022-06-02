@@ -52,7 +52,7 @@ bool FMeshMaterialRenderItem::Render_RenderThread(FCanvasRenderContext& RenderCo
 
 	if (Vertices.Num() && Indices.Num())
 	{
-		FMeshPassProcessorRenderState LocalDrawRenderState(View);
+		FMeshPassProcessorRenderState LocalDrawRenderState;
 
 		// disable depth test & writes
 		LocalDrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA>::GetRHI());

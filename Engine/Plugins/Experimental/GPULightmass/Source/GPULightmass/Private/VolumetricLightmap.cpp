@@ -99,6 +99,7 @@ FPrecomputedVolumetricLightmap* FVolumetricLightmapRenderer::GetPrecomputedVolum
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVoxelizeMeshPassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVLMVoxelizationParams, PassUniformBuffer)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -247,6 +248,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 		}
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FVoxelizeMeshPassParameters>();
+		PassParameters->View = Scene->ReferenceView->ViewUniformBuffer;
 		PassParameters->PassUniformBuffer = GraphBuilder.CreateUniformBuffer(VLMVoxelizationParams);
 		PassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 

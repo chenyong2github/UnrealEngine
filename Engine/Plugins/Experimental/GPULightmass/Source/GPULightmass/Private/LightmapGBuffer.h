@@ -171,7 +171,6 @@ public:
 		FIntPoint ScratchTilePoolOffset
 	)
 		: FMeshPassProcessor(InScene, InView->GetFeatureLevel(), InView, InDrawListContext)
-		, DrawRenderState(*InView)
 		, VirtualTexturePhysicalTileCoordinateScaleAndBias(VirtualTexturePhysicalTileCoordinateScaleAndBias)
 		, RenderPassIndex(RenderPassIndex)
 		, ScratchTilePoolOffset(ScratchTilePoolOffset)
