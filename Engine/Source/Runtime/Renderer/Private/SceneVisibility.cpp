@@ -3346,7 +3346,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 			BatchAndProxy = MeshBatch;
 		}
 
-		if (HairStrands::IsHairCardsVF(MeshBatch.Mesh))
+		if (HairStrands::IsHairCardsVF(MeshBatch.Mesh) && ViewRelevance.bRenderInMainPass)
 		{
 			View.HairCardsMeshElements.AddUninitialized(1);
 			FMeshBatchAndRelevance& BatchAndProxy = View.HairCardsMeshElements.Last();
