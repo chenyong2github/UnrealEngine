@@ -105,11 +105,13 @@ export void ApplyXPBDSpringConstraintsWithWeightMaps(uniform FVector4f PandInvM[
 
 		const float CombinedInvMass = InvM2 + InvM1;
 
-		const varying float DLambda = (Offset - Alpha * Lambda) / (CombinedInvMass + Alpha);
+		const varying float ComputedDLambda = (Offset - Alpha * Lambda) / (CombinedInvMass + Alpha);
+		const varying float DLambda = select(Stiffness < MinStiffness, 0.f, ComputedDLambda);
 
 		const FVector3f ComputedDelta = DLambda * Direction;
 
-		const FVector3f Delta = VectorSelect(Stiffness < MinStiffness || (InvM2 == FLOAT_ZERO && InvM1 == FLOAT_ZERO), FloatZeroVector, ComputedDelta);
+		const FVector3f Delta = VectorSelect((InvM2 == FLOAT_ZERO && InvM1 == FLOAT_ZERO), FloatZeroVector, ComputedDelta);
+		Lambdas[i] = Lambda + DLambda;
 
 		if (InvM1 > FLOAT_ZERO)
 		{
