@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 using System;
@@ -134,7 +134,6 @@ namespace UnrealBuildTool
 			if (bCompilingForArm)
 			{
 				Target.bCompileISPC = false;
-				Target.bCompileCEF3 = false;
 				Target.DisablePlugins.AddRange(new string[]
 				{
 					// onnx:
