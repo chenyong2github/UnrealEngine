@@ -245,7 +245,15 @@ namespace P4VUtils
 				{
 					ToolsChecked++;
 					XmlElement? CommandElement = ChildElement.SelectSingleNode("Definition/Command") as XmlElement;
-					if (CommandElement != null && new FileReference(CommandElement.InnerText) == DotNetLocation)
+
+
+					// In a recent change we started to output the Command element as a quoted argument if the path contains spaces.
+					// FileReference does not resolve quoted string properly which was causing the comparisons here to fail.
+					// We can strip the quotes before creating a FileReference to compare with DotNetLocation to ensure that the comparsion
+					// is correct.
+					String CommandPath = (CommandElement?.InnerText ?? String.Empty).StripQuoteArgument();
+
+					if (new FileReference(CommandPath) == DotNetLocation)
 					{
 						XmlElement? ArgumentsElement = ChildElement.SelectSingleNode("Definition/Arguments") as XmlElement;
 						if (ArgumentsElement != null)
