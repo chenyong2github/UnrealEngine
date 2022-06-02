@@ -22,10 +22,14 @@ struct ENGINE_API FLevelInstanceActorGuid
 	void AssignIfInvalid();
 #endif
 
+	bool IsValid() const;
 	const FGuid& GetGuid() const;
 
 	TObjectPtr<AActor> Actor = nullptr;
 	FGuid ActorGuid;
 
 	ENGINE_API friend FArchive& operator<<(FArchive& Ar, FLevelInstanceActorGuid& LevelInstanceActorGuid);
+
+private:
+	const FGuid& GetGuid_Internal() const;
 };

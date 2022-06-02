@@ -13,15 +13,26 @@ void FLevelInstanceActorGuid::AssignIfInvalid()
 }
 #endif
 
+bool FLevelInstanceActorGuid::IsValid() const
+{
+	return GetGuid_Internal().IsValid();
+}
+
 const FGuid& FLevelInstanceActorGuid::GetGuid() const
+{
+	const FGuid& Guid = GetGuid_Internal();
+	check(Actor->IsTemplate() || Guid.IsValid());
+	return Guid;
+}
+
+const FGuid& FLevelInstanceActorGuid::GetGuid_Internal() const
 {
 	check(Actor);
 #if WITH_EDITOR
-	const FGuid& Guid = Actor->GetActorGuid();
+	const FGuid& Guid = Actor->GetLocalRole() == ENetRole::ROLE_Authority ? Actor->GetActorGuid() : ActorGuid;
 #else
 	const FGuid& Guid = ActorGuid;
 #endif
-	check(Actor->IsTemplate() || Guid.IsValid());
 	return Guid;
 }
 

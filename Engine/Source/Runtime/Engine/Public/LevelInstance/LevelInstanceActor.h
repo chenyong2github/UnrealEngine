@@ -31,6 +31,9 @@ protected:
 	UPROPERTY()
 	TSoftObjectPtr<UWorld> CookedWorldAsset;
 
+	UPROPERTY(Transient, ReplicatedUsing=OnRep_LevelInstanceSpawnGuid)
+	FGuid LevelInstanceSpawnGuid;
+
 private:
 	FLevelInstanceActorGuid LevelInstanceActorGuid;
 	FLevelInstanceActorImpl LevelInstanceActorImpl;
@@ -54,7 +57,11 @@ public:
 	virtual void PostRegisterAllComponents() override;
 	virtual void PostUnregisterAllComponents() override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 		
+	UFUNCTION()
+	void OnRep_LevelInstanceSpawnGuid();
+
 #if WITH_EDITOR
 	// Begin ILevelInstanceInterface
 	virtual ULevelInstanceComponent* GetLevelInstanceComponent() const override;

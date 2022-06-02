@@ -8,6 +8,7 @@
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "LevelInstancePrivate.h"
+#include "Net/UnrealNetwork.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorDesc.h"
@@ -46,16 +47,41 @@ void ALevelInstance::Serialize(FArchive& Ar)
 #endif
 }
 
+void ALevelInstance::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	FDoRepLifetimeParams Params;
+	Params.Condition = COND_InitialOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ALevelInstance, LevelInstanceSpawnGuid, Params);
+}
+
+void ALevelInstance::OnRep_LevelInstanceSpawnGuid()
+{
+	if (GetLocalRole() != ENetRole::ROLE_Authority && !LevelInstanceActorGuid.IsValid())
+	{
+		check(LevelInstanceSpawnGuid.IsValid());
+		LevelInstanceActorGuid.ActorGuid = LevelInstanceSpawnGuid;
+		LevelInstanceActorImpl.RegisterLevelInstance();
+	}
+}
+
 void ALevelInstance::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
-
+	
+	if (GetLocalRole() == ENetRole::ROLE_Authority)
+	{
 #if !WITH_EDITOR
-	// If the level instance was spawned, not loaded
-	LevelInstanceActorGuid.AssignIfInvalid();
+		// If the level instance was spawned, not loaded
+		LevelInstanceActorGuid.AssignIfInvalid();
 #endif
+		LevelInstanceSpawnGuid = LevelInstanceActorGuid.GetGuid();
+	}
 
-	LevelInstanceActorImpl.RegisterLevelInstance();
+	if (LevelInstanceActorGuid.IsValid())
+	{
+		LevelInstanceActorImpl.RegisterLevelInstance();
+	}
 }
 
 void ALevelInstance::PostUnregisterAllComponents()
