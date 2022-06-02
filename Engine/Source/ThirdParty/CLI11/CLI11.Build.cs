@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class CLI11 : ModuleRules
 {
+	protected readonly string Version = "2.2.0";
+
 	public CLI11(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		if (!IsVcPackageSupported)
-		{
-			return;
-		}
+		string VersionPath = Path.Combine(ModuleDirectory, Version);
 
-		AddVcPackage("cli11", true, new string[] {});
+		PublicSystemIncludePaths.Add(Path.Combine(VersionPath, "include"));
 	}
 }
