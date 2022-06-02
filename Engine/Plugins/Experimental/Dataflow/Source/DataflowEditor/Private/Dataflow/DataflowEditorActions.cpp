@@ -115,6 +115,7 @@ void FDataflowEditorCommands::OnSelectedNodesChanged(TSharedPtr<IDetailsView> Pr
 							const FName NodeName = MakeUniqueObjectName(Graph, UDataflow::StaticClass(), DataflowNode->GetName());
 							UDataflowSEditorObject* Object = NewObject<UDataflowSEditorObject>(Asset, NodeName);
 							Object->Node = DataflowNode;
+							Object->Graph = Graph;
 							Objects.Add(Object);
 						}
 					}

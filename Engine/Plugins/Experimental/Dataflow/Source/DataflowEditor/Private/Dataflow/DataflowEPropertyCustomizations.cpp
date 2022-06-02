@@ -34,35 +34,38 @@ void FDataflowSEditorCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 		{
 			if (TSharedPtr<Dataflow::FNode> Node = DataflowSObj->Node)
 			{
-				for (Dataflow::FProperty* Property : Node->GetProperties())
+				if (UDataflow* Graph = DataflowSObj->Graph)
 				{
-					IDetailPropertyRow& PropertyRow = Category.AddProperty(FName("CustomProperty"));
-					TSharedPtr<IPropertyHandle> PropertyHandle = PropertyRow.GetPropertyHandle();
-
-					switch (Property->GetType())
+					for (Dataflow::FProperty* Property : Node->GetProperties())
 					{
-					case Dataflow::FProperty::EType::BOOL:
-						Dataflow::PropertyWidgetFactory<bool>(DetailBuilder, PropertyHandle, Node, (Dataflow::TProperty<bool>*)Property);
-						break;
-					case Dataflow::FProperty::EType::INT:
-						Dataflow::PropertyWidgetFactory<int>(DetailBuilder, PropertyHandle, Node, (Dataflow::TProperty<int>*)Property);
-						break;
-					case Dataflow::FProperty::EType::FLOAT:
-						Dataflow::PropertyWidgetFactory<float>(DetailBuilder, PropertyHandle, Node, (Dataflow::TProperty<float>*)Property);
-						break;
-					case Dataflow::FProperty::EType::DOUBLE:
-						Dataflow::PropertyWidgetFactory<double>(DetailBuilder, PropertyHandle, Node, (Dataflow::TProperty<double>*)Property);
-						break;
-					case Dataflow::FProperty::EType::STRING:
-						Dataflow::PropertyWidgetFactory<FString>(DetailBuilder, PropertyHandle, Node, (Dataflow::TProperty<FString>*)Property);
-						break;
-					case Dataflow::FProperty::EType::NAME:
-						Dataflow::PropertyWidgetFactory<FName>(DetailBuilder, PropertyHandle, Node, (Dataflow::TProperty<FName>*)Property);
-						break;
-					default:
-						ensureMsgf(true,TEXT("Missing slate property convert."));
+						IDetailPropertyRow& PropertyRow = Category.AddProperty(FName("CustomProperty"));
+						TSharedPtr<IPropertyHandle> PropertyHandle = PropertyRow.GetPropertyHandle();
+
+						switch (Property->GetType())
+						{
+						case Dataflow::FProperty::EType::BOOL:
+							Dataflow::PropertyWidgetFactory<bool>(DetailBuilder, PropertyHandle, Graph, Node, (Dataflow::TProperty<bool>*)Property);
+							break;
+						case Dataflow::FProperty::EType::INT:
+							Dataflow::PropertyWidgetFactory<int>(DetailBuilder, PropertyHandle, Graph, Node, (Dataflow::TProperty<int>*)Property);
+							break;
+						case Dataflow::FProperty::EType::FLOAT:
+							Dataflow::PropertyWidgetFactory<float>(DetailBuilder, PropertyHandle, Graph, Node, (Dataflow::TProperty<float>*)Property);
+							break;
+						case Dataflow::FProperty::EType::DOUBLE:
+							Dataflow::PropertyWidgetFactory<double>(DetailBuilder, PropertyHandle, Graph, Node, (Dataflow::TProperty<double>*)Property);
+							break;
+						case Dataflow::FProperty::EType::STRING:
+							Dataflow::PropertyWidgetFactory<FString>(DetailBuilder, PropertyHandle, Graph, Node, (Dataflow::TProperty<FString>*)Property);
+							break;
+						case Dataflow::FProperty::EType::NAME:
+							Dataflow::PropertyWidgetFactory<FName>(DetailBuilder, PropertyHandle, Graph, Node, (Dataflow::TProperty<FName>*)Property);
+							break;
+						default:
+							ensureMsgf(true, TEXT("Missing slate property convert."));
+						}
+						UE_LOG(LogCDataflowEProprtyCustomizations, Verbose, TEXT("FFloatObjectDetails::CustomizeDetails"));
 					}
-					UE_LOG(LogCDataflowEProprtyCustomizations, Verbose, TEXT("FFloatObjectDetails::CustomizeDetails"));
 				}
 			}
 		}

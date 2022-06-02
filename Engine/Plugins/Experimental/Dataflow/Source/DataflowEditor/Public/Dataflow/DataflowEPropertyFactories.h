@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowProperty.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -24,6 +25,7 @@ namespace Dataflow
 	template<class T> DATAFLOWEDITOR_API void PropertyWidgetFactory(
 		IDetailLayoutBuilder& InDetailBuilder,
 		TSharedPtr<IPropertyHandle> PropertyHandle,
+		UDataflow* Graph,
 		TSharedPtr<Dataflow::FNode> InNode,
 		TProperty<T>* InProperty) 
 	{
@@ -42,8 +44,9 @@ namespace Dataflow
 						{
 							return InProperty->GetValue();
 						})
-					.OnValueCommitted_Lambda([InNode, InProperty](T NewValue, ETextCommit::Type CommitType)
+					.OnValueCommitted_Lambda([InNode, InProperty, Graph](T NewValue, ETextCommit::Type CommitType)
 						{
+							Graph->Modify();
 							InProperty->SetValue(NewValue);
 						})
 			];
@@ -57,6 +60,7 @@ namespace Dataflow
 		void PropertyWidgetFactory<bool>(
 			IDetailLayoutBuilder& InDetailBuilder,
 			TSharedPtr<IPropertyHandle> PropertyHandle,
+			UDataflow* Graph,
 			TSharedPtr<Dataflow::FNode> InNode,
 			TProperty<bool>* InProperty)
 	{
@@ -70,8 +74,9 @@ namespace Dataflow
 						{
 							return InProperty->GetValue()?ECheckBoxState::Checked:ECheckBoxState::Unchecked;
 						})
-					.OnCheckStateChanged_Lambda([InNode, InProperty](ECheckBoxState NewState)
+					.OnCheckStateChanged_Lambda([InNode, InProperty, Graph](ECheckBoxState NewState)
 						{
+							Graph->Modify();
 							InProperty->SetValue(NewState == ECheckBoxState::Checked);
 						})
 
@@ -85,6 +90,7 @@ namespace Dataflow
 	void PropertyWidgetFactory<FString>(
 		IDetailLayoutBuilder& InDetailBuilder,
 		TSharedPtr<IPropertyHandle> PropertyHandle,
+		UDataflow* Graph,
 		TSharedPtr<Dataflow::FNode> InNode,
 		TProperty<FString>* InProperty)
 	{
@@ -99,8 +105,9 @@ namespace Dataflow
 						{
 							return FText::FromString(InProperty->GetValue());
 						})
-					.OnTextCommitted_Lambda([InNode, InProperty](const FText& InText, ETextCommit::Type TextCommitType)
+					.OnTextCommitted_Lambda([InNode, InProperty, Graph](const FText& InText, ETextCommit::Type TextCommitType)
 						{
+							Graph->Modify();
 							InProperty->SetValue(InText.ToString());
 						})
 
@@ -114,6 +121,7 @@ namespace Dataflow
 		void PropertyWidgetFactory<FName>(
 			IDetailLayoutBuilder& InDetailBuilder,
 			TSharedPtr<IPropertyHandle> PropertyHandle,
+			UDataflow* Graph,
 			TSharedPtr<Dataflow::FNode> InNode,
 			TProperty<FName>* InProperty)
 	{
@@ -128,8 +136,9 @@ namespace Dataflow
 						{
 							return FText::FromString(InProperty->GetValue().ToString());
 						})
-					.OnTextCommitted_Lambda([InNode, InProperty](const FText& InText, ETextCommit::Type TextCommitType)
+					.OnTextCommitted_Lambda([InNode, InProperty, Graph](const FText& InText, ETextCommit::Type TextCommitType)
 						{
+							Graph->Modify();
 							InProperty->SetValue(FName(InText.ToString()));
 						})
 

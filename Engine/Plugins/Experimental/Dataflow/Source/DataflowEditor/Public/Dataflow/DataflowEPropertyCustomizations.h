@@ -12,7 +12,7 @@
 namespace Dataflow {
 	class FNode;
 }
-
+class UDataflow;
 
 UCLASS()
 class DATAFLOWEDITOR_API UDataflowSEditorObject : public UObject
@@ -20,6 +20,7 @@ class DATAFLOWEDITOR_API UDataflowSEditorObject : public UObject
 	GENERATED_BODY()
 public:
 	TSharedPtr<Dataflow::FNode> Node = nullptr;
+	UDataflow* Graph = nullptr;
 
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 };
