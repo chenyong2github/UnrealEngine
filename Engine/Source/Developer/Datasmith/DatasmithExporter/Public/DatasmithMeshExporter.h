@@ -10,7 +10,8 @@ class IDatasmithMeshElement;
 class DATASMITHEXPORTER_API FDatasmithMeshExporter
 {
 public:
-	FDatasmithMeshExporter();
+	FDatasmithMeshExporter(bool bAllowOldSerialization);
+	FDatasmithMeshExporter() : FDatasmithMeshExporter(false) {}
 	virtual ~FDatasmithMeshExporter();
 
 	/**
@@ -47,4 +48,5 @@ public:
 private:
 	TUniquePtr<class FDatasmithMeshExporterLegacyImpl> LegacyImpl;
 	TUniquePtr<class FDatasmithMeshExporterImpl> Impl;
+	bool bAllowOldSerialization = false;
 };
