@@ -136,16 +136,16 @@ namespace UE
 							EventAttributes.Emplace( TEXT( "BakedProperties" ), BakedPropertiesString );
 							EventAttributes.Emplace( TEXT( "DefaultTextureSize" ), Options->LevelExportOptions.AssetOptions.MaterialBakingOptions.DefaultTextureSize.ToString() );
 						}
-					}
 
-					IUsdClassesModule::SendAnalytics(
-						MoveTemp( EventAttributes ),
-						FString::Printf( TEXT( "Export.%s" ), *ClassName ),
-						bAutomated,
-						ElapsedSeconds,
-						( Options->EndFrame - Options->StartFrame ),
-						Extension
-					);
+						IUsdClassesModule::SendAnalytics(
+							MoveTemp( EventAttributes ),
+							FString::Printf( TEXT( "Export.%s" ), *ClassName ),
+							bAutomated,
+							ElapsedSeconds,
+							( Options->EndFrame - Options->StartFrame ),
+							Extension
+						);
+					}
 				}
 			}
 
