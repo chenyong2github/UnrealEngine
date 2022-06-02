@@ -298,7 +298,7 @@ bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 
 	if (OutMetadata)
 	{
-		UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, OutMetadata, *MaxContributor, Metadata);
+		UPCGMetadataAccessorHelpers::InitializeMetadataWithParent(OutPoint, OutMetadata, *MaxContributor, Metadata);
 		OutMetadata->ResetPointWeightedAttributes(OutPoint);
 
 		for (const TPair<const FPCGPoint*, float> Contribution : Contributions)

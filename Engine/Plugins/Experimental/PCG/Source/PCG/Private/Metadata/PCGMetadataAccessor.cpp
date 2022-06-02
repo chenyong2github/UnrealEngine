@@ -166,14 +166,9 @@ void UPCGMetadataAccessorHelpers::CopyPoint(const FPCGPoint& InPoint, FPCGPoint&
 	OutPoint = InPoint;
 
 	// If we want to copy the metadata, then at least the out metadata must not be null.
-	if (bCopyMetadata && OutMetadata)
+	if (bCopyMetadata)
 	{
-		// If we have an input metadata, then we can copy values as needed,
-		// Otherwise, we will assume that the point is parented
-		if (InMetadata)
-		{
-			OutMetadata->SetPointAttributes(InPoint, InMetadata, OutPoint);
-		}
+		InitializeMetadata(OutPoint, OutMetadata, InPoint, InMetadata);
 	}
 	else
 	{
@@ -186,12 +181,29 @@ void UPCGMetadataAccessorHelpers::InitializeMetadata(FPCGPoint& Point, UPCGMetad
 	Point.MetadataEntry = Metadata ? Metadata->AddEntry() : PCGInvalidEntryKey;
 }
 
-void UPCGMetadataAccessorHelpers::InitializeMetadata(FPCGPoint& Point, UPCGMetadata* Metadata, const FPCGPoint& ParentPoint)
+void UPCGMetadataAccessorHelpers::InitializeMetadata(FPCGPoint& Point, UPCGMetadata* Metadata, const FPCGPoint& ParentPoint, const UPCGMetadata* ParentMetadata)
 {
-	Point.MetadataEntry = Metadata ? Metadata->AddEntry(ParentPoint.MetadataEntry) : PCGInvalidEntryKey;
+	if (Metadata)
+	{
+		// If we're not given the parent metadata, we'll assume it is the current metadata's parent
+		if (!ParentMetadata || ParentMetadata->HasParent(ParentMetadata))
+		{
+			Metadata->AddEntry(ParentPoint.MetadataEntry);
+		}
+		else
+		{
+			// Conceptual parent isn't in the metadata hierarchy, therefore we must set attributes if any
+			Point.MetadataEntry = Metadata->AddEntry();
+			Metadata->SetPointAttributes(ParentPoint, ParentMetadata, Point);
+		}
+	}
+	else
+	{
+		Point.MetadataEntry = PCGInvalidEntryKey;
+	}
 }
 
-void UPCGMetadataAccessorHelpers::InitializeMetadata(FPCGPoint& Point, UPCGMetadata* Metadata, const FPCGPoint& ParentPoint, const UPCGMetadata* ParentMetadata)
+void UPCGMetadataAccessorHelpers::InitializeMetadataWithParent(FPCGPoint& Point, UPCGMetadata* Metadata, const FPCGPoint& ParentPoint, const UPCGMetadata* ParentMetadata)
 {
 	Point.MetadataEntry = Metadata ? (Metadata->HasParent(ParentMetadata) ? Metadata->AddEntry(ParentPoint.MetadataEntry) : Metadata->AddEntry()) : PCGInvalidEntryKey;
 }

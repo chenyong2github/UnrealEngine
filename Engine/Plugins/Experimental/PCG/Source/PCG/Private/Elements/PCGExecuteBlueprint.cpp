@@ -503,8 +503,15 @@ void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointD
 		return;
 	}
 
-	OutData = OptionalOutData ? OptionalOutData : NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InData));
-	OutData->InitializeFromData(InData);
+	if (OptionalOutData)
+	{
+		OutData = OptionalOutData;
+	}
+	else
+	{
+		OutData = NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InData));
+		OutData->InitializeFromData(InData);
+	}
 
 	const TArray<FPCGPoint>& InPoints = InData->GetPoints();
 	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
@@ -523,8 +530,15 @@ void UPCGBlueprintElement::MultiLoopOnPoints(FPCGContext& InContext, const UPCGP
 		return;
 	}
 
-	OutData = OptionalOutData ? OptionalOutData : NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InData));
-	OutData->InitializeFromData(InData);
+	if (OptionalOutData)
+	{
+		OutData = OptionalOutData;
+	}
+	else
+	{
+		OutData = NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InData));
+		OutData->InitializeFromData(InData);
+	}
 
 	const TArray<FPCGPoint>& InPoints = InData->GetPoints();
 	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
@@ -543,8 +557,16 @@ void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPo
 		return;
 	}
 
-	OutData = OptionalOutData ? OptionalOutData : NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InA));
-	OutData->InitializeFromData(InA); //METADATA TODO should we remove the parenting here?
+	if (OptionalOutData)
+	{
+		OutData = OptionalOutData;
+	}
+	else
+	{
+		OutData = NewObject<UPCGPointData>(const_cast<UPCGPointData*>(InA));
+		OutData->InitializeFromData(InA);
+		OutData->Metadata->AddAttributes(InB->Metadata);
+	}
 
 	const TArray<FPCGPoint>& InPointsA = InA->GetPoints();
 	const TArray<FPCGPoint>& InPointsB = InB->GetPoints();
@@ -564,17 +586,19 @@ void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIteration
 		return;
 	}
 
-	const UPCGSpatialData* Owner = (InA ? InA : InB);
-	OutData = OptionalOutData;
-
-	if (!OutData)
+	if (OptionalOutData)
 	{
-		OutData = Owner ? NewObject<UPCGPointData>(const_cast<UPCGSpatialData*>(Owner)) : NewObject<UPCGPointData>();
+		OutData = OptionalOutData;
 	}
-
-	if (Owner)
+	else
 	{
-		OutData->InitializeFromData(Owner);
+		const UPCGSpatialData* Owner = (InA ? InA : InB);
+		OutData = Owner ? NewObject<UPCGPointData>(const_cast<UPCGSpatialData*>(Owner)) : NewObject<UPCGPointData>();
+
+		if (Owner)
+		{
+			OutData->InitializeFromData(Owner);
+		}
 	}
 
 	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
