@@ -465,6 +465,23 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Removes the quotes from the beginning and end of a string (if any), can be used to reverse String.QuoteArgument
+		/// </summary>
+		/// <param name="str">The string to remove the quotes from</param>
+		/// <returns>A string without surrounding quotes</returns>
+		public static string StripQuoteArgument(this string str)
+		{
+			if (str.StartsWith('\"') && str.EndsWith('\"'))
+			{
+				return str.Substring(1, str.Length - 2);
+			}
+			else
+			{
+				return str;
+			}
+		}
+
+		/// <summary>
 		/// Formats bytes into a human readable string
 		/// </summary>
 		/// <param name="bytes">The total number of bytes</param>
