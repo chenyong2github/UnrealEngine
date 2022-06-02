@@ -2,7 +2,7 @@
 
 #include "GeometryCollection/AssetTypeActions_GeometryCollection.h"
 
-#include "GeometryCollection/Dataflow/GeometryCollectionEditorToolkit.h"
+#include "GeometryCollection/GeometryCollectionEditorToolkit.h"
 #include "GeometryCollection/GeometryCollectionEditorPlugin.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "GeometryCollection/GeometryCollectionObject.h"

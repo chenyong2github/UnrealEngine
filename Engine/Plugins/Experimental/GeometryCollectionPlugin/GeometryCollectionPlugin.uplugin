@@ -14,23 +14,28 @@
     "CanContainContent" : true,
     "IsBetaVersion" : true,
     "Installed" : false,
-    "Modules": [
-    {
-      "Name": "GeometryCollectionEditor",
-      "Type": "Editor",
-      "LoadingPhase": "Default"
-    },
-	{
-      "Name": "GeometryCollectionTracks",
-      "Type": "Runtime",
-      "LoadingPhase": "Default"
-    },
-    {
-      "Name": "GeometryCollectionSequencer",
-      "Type": "Editor",
-      "LoadingPhase": "Default"
-    },
-    ],
+	"Modules": [
+		{
+			"Name": "GeometryCollectionEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GeometryCollectionTracks",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GeometryCollectionSequencer",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GeometryCollectionNodes",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
 	"Plugins": [
 		{
 			"Name": "ProceduralMeshComponent",

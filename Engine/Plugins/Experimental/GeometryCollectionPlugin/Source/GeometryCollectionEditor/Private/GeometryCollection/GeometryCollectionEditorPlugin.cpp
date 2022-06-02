@@ -5,11 +5,11 @@
 
 #include "AssetToolsModule.h"
 #include "CoreMinimal.h"
-#include "Dataflow/GeometryCollectionNodes.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "GeometryCollection/GeometryCollectionConversion.h"
 #include "GeometryCollection/GeometryCollectionCommands.h"
 #include "GeometryCollection/AssetTypeActions_GeometryCollection.h"
 #include "GeometryCollection/AssetTypeActions_GeometryCollectionCache.h"
@@ -19,7 +19,8 @@
 #include "GeometryCollection/GeometryCollectionThumbnailRenderer.h"
 #include "GeometryCollection/GeometryCollectionSelectRigidBodyEdMode.h"
 #include "GeometryCollection/GeometryCollectionSelectionCommands.h"
-#include "GeometryCollection/Dataflow/GeometryCollectionEditorToolkit.h"
+#include "GeometryCollection/GeometryCollectionEditorToolkit.h"
+#include "GeometryCollection/GeometryCollectionFactory.h"
 #include "HAL/ConsoleManager.h"
 #include "Features/IModularFeatures.h"
 #include "GeometryCollection/DetailCustomizations/GeomComponentCacheCustomization.h"
@@ -261,10 +262,6 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 	// Register tool menus - delayed until ToolMenus module is loaded
 	UToolMenus::RegisterStartupCallback(
 		FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &IGeometryCollectionEditorPlugin::RegisterMenus));
-
-	// Dataflow 
-	Dataflow::GeometryCollectionEngineAssetNodes();
-
 }
 
 

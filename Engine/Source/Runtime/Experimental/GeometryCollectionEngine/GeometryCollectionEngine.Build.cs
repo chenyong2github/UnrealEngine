@@ -25,7 +25,9 @@ namespace UnrealBuildTool.Rules
 					"NetCore",
 					"IntelISPC",
 					"DataflowCore",
-					"DataflowEngine"
+					"DataflowEngine",
+					"MeshDescription",
+					"StaticMeshDescription",
 				}
 				);
 

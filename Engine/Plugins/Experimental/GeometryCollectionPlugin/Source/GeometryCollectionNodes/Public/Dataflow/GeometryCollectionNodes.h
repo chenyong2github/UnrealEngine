@@ -5,7 +5,6 @@
 #include "GeometryCollectionNodeConnectionTypes.h"
 
 #include "CoreMinimal.h"
-#include "GeometryCollection/Dataflow/GeometryCollectionEditorToolkit.h"
 #include "Dataflow/DataflowObjectInterface.h"
 #include "Dataflow/DataflowEngine.h"
 #include "Dataflow/DataflowProperty.h"
@@ -112,6 +111,7 @@ namespace Dataflow
 					{
 						TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> NewCollection(Collection->NewCopy<FGeometryCollection>());
 						CollectionAsset->SetGeometryCollection(NewCollection);
+						CollectionAsset->InvalidateCollection();
 					}
 				}
 			}

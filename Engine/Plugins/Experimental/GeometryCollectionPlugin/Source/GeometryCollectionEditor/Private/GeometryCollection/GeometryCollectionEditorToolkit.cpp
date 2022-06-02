@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GeometryCollection/Dataflow/GeometryCollectionEditorToolkit.h"
+#include "GeometryCollection/GeometryCollectionEditorToolkit.h"
 
 #include "Dataflow/DataflowEditorActions.h"
 #include "Dataflow/DataflowEditorPlugin.h"

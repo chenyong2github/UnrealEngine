@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GeometryCollectionNodes.h"
+#include "Dataflow/GeometryCollectionNodes.h"
 
 namespace Dataflow
 {
