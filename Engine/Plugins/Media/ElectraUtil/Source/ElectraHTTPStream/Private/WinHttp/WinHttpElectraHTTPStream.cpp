@@ -1127,10 +1127,27 @@ bool FElectraHTTPStreamWinHttp::Initialize(const Electra::FParamDict& InOptions)
 #else
 	DWORD SecureProtocols = 0;
 	#ifdef WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_1
-		SecureProtocols |= WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_1;
+		#if PLATFORM_WINDOWS
+			const bool bIsWindows7OrGreater = FPlatformMisc::VerifyWindowsVersion(6, 1);
+			if (bIsWindows7OrGreater)
+			{
+				SecureProtocols |= WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_1;
+			}
+		#else
+			SecureProtocols |= WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_1;
+		#endif
 	#endif
+	
 	#ifdef WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2
-		SecureProtocols |= WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+		#if PLATFORM_WINDOWS
+			const bool bIsWindows8Point1OrGreater = FPlatformMisc::VerifyWindowsVersion(6, 3);
+			if (bIsWindows8Point1OrGreater)
+			{
+				SecureProtocols |= WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+			}
+		#else
+			SecureProtocols |= WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+		#endif
 	#endif
 /*
 Removed for the time being since this is not supported on all versions of Windows 10 yet.

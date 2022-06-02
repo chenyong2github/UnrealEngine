@@ -341,7 +341,7 @@ namespace Electra
 		void HandleHTTPResponses(const FTimeValue& Now);
 		void RemoveAllRequests();
 
-		void StartHTTPManager();
+		bool StartHTTPManager();
 		void StopHTTPManager();
 		void ProcessHTTPManager();
 
@@ -426,13 +426,38 @@ namespace Electra
 	void FElectraHttpManager::Initialize()
 	{
 		ProgressInterval.SetFromMilliseconds(100);
-		StartHTTPManager();
-		bManagerStarted = true;
+		bManagerStarted = StartHTTPManager();
 	}
 
 	void FElectraHttpManager::AddRequest(TSharedPtrTS<FRequest> Request, bool bAutoRemoveWhenComplete)
 	{
 		FScopeLock lock(&Lock);
+		if (!HTTPStreamHandler.IsValid())
+		{
+			Request->ConnectionInfo.EffectiveURL = Request->Parameters.URL;
+			Request->ConnectionInfo.StatusInfo.ErrorCode = ERRCODE_HTTPMODULE_FAILURE;
+			Request->ConnectionInfo.StatusInfo.ErrorDetail.
+				SetError(UEMEDIA_ERROR_NOT_SUPPORTED).
+				SetFacility(Facility::EFacility::HTTPReader).
+				SetCode(ERRCODE_HTTPMODULE_FAILURE).
+				SetMessage(FString::Printf(TEXT("FElectraHttpManager did not initialize")));
+			Request->ConnectionInfo.RequestEndTime = MEDIAutcTime::Current();
+			Request->ConnectionInfo.bHasFinished = true;
+			TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
+			if (ReceiveBuffer.IsValid())
+			{
+				ReceiveBuffer->Buffer.SetEOD();
+			}
+			TSharedPtrTS<FProgressListener> ProgressListener = Request->ProgressListener.Pin();
+			if (ProgressListener.IsValid())
+			{
+				if (ProgressListener->CompletionDelegate.IsBound())
+				{
+					ProgressListener->CallCompletionDelegate(Request.Get());
+				}
+			}
+			return;
+		}
 		if (!bTerminate)
 		{
 			// Not currently supported. Reserved for future use.
@@ -445,6 +470,10 @@ namespace Electra
 
 	void FElectraHttpManager::RemoveRequest(TSharedPtrTS<FRequest> Request, bool bDoNotWaitForRemoval)
 	{
+		if (!HTTPStreamHandler.IsValid())
+		{
+			return;
+		}
 		if (bDoNotWaitForRemoval)
 		{
 			Request->ReceiveBuffer.Reset();
@@ -519,8 +548,14 @@ namespace Electra
 		Handle->ActiveResponse.NumSubRangeRequest = 0;
 		Handle->ActiveResponse.OriginalRange = Request->Parameters.Range;
 
-		PrepareHTTPHandle(Now, Handle.Get(), Request, true);
-		return Handle.Release();
+		if (PrepareHTTPHandle(Now, Handle.Get(), Request, true))
+		{
+			return Handle.Release();
+		}
+		else
+		{
+			return nullptr;
+		}
 	}
 
 
@@ -624,9 +659,13 @@ namespace Electra
 			}
 
 			Handle->HttpRequest->NotificationDelegate().BindThreadSafeSP(Handle->HttpsRequestCallbackWrapper.ToSharedRef(), &FHTTPCallbackWrapper::ReportRequestNotification);
+			return true;
 		}
-
-		return true;
+		else
+		{
+			UE_LOG(LogElectraHTTPManager, Error, TEXT("FElectraHttpManager is not available, cannot create request."));
+			return false;
+		}
 	}
 
 
@@ -889,7 +928,7 @@ namespace Electra
 	}
 
 
-	void FElectraHttpManager::StartHTTPManager()
+	bool FElectraHttpManager::StartHTTPManager()
 	{
 		LLM_SCOPE(ELLMTag::ElectraPlayer);
 
@@ -898,7 +937,16 @@ namespace Electra
 			HttpOptions.Set(FString(TEXT("proxy")), FVariantValue(FString(ELECTRA_HTTPMANAGER_DEBUG_PROXY_ADDRESS)));
 		#endif
 		HTTPStreamHandler = IElectraHTTPStream::Create(HttpOptions);
-		HTTPStreamHandler->ThreadHandlerDelegate().BindThreadSafeSP(AsShared(), &FElectraHttpManager::ProcessHTTPManager);
+		if (HTTPStreamHandler.IsValid())
+		{
+			HTTPStreamHandler->ThreadHandlerDelegate().BindThreadSafeSP(AsShared(), &FElectraHttpManager::ProcessHTTPManager);
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogElectraHTTPManager, Error, TEXT("Failed to create an FElectraHttpManager instance."));
+			return false;
+		}
 	}
 	
 	void FElectraHttpManager::StopHTTPManager()
