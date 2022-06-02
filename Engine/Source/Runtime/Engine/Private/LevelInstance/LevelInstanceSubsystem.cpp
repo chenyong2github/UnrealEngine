@@ -1978,10 +1978,10 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 	// Notify (Actor might get destroyed by this call if its a packed bp)
 	LevelInstance->OnCommit(bChangesCommitted);
 
-	ActorDescContainerInstanceManager.OnLevelInstanceActorCommitted(LevelInstance);
-
 	// Update pointer since BP Compilation might have invalidated LevelInstance
 	LevelInstance = GetLevelInstance(LevelInstanceID);
+
+	ActorDescContainerInstanceManager.OnLevelInstanceActorCommitted(LevelInstance);
 
 	TArray<TPair<ULevelInstanceSubsystem*, FLevelInstanceID>> LevelInstancesToUpdate;
 	// Gather list to update
