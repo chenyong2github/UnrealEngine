@@ -28,4 +28,6 @@ public:
 	{
 		return FGlobalEditorCommonCommands::Get().OpenConsoleCommandBox->GetActiveChord(EMultipleKeyBindingIndex::Primary).Get();
 	}
+private:
+	bool ExecInternal(const TCHAR*) const;
 };

@@ -65,6 +65,23 @@ bool FConsoleCommandExecutor::Exec(const TCHAR* Input)
 {
 	IConsoleManager::Get().AddConsoleHistoryEntry(TEXT(""), Input);
 
+	int32 Len = FCString::Strlen(Input);
+	TArray<TCHAR> Buffer;
+	Buffer.AddZeroed(Len+1);
+
+	bool bHandled = false;
+	const TCHAR* ParseCursor = Input;
+	while (FParse::Line(&ParseCursor, Buffer.GetData(), Buffer.Num()))
+	{
+		bHandled = ExecInternal(Buffer.GetData()) || bHandled;
+	}
+
+	// return true if we successfully executed any of the commands 
+	return bHandled;
+}
+
+bool FConsoleCommandExecutor::ExecInternal(const TCHAR* Input) const
+{
 	bool bWasHandled = false;
 	UWorld* World = nullptr;
 	UWorld* OldWorld = nullptr;
@@ -136,7 +153,7 @@ bool FConsoleCommandExecutor::AllowHotKeyClose() const
 
 bool FConsoleCommandExecutor::AllowMultiLine() const
 {
-	return false;
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE
