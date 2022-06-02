@@ -29,6 +29,7 @@ struct FNaniteRawAttributeData
 	float2 TexCoords[NANITE_MAX_UVS];
 };
 
+#if COMPILER_SUPPORTS_WAVE_PERMUTE
 FNaniteRawAttributeData WaveReadLaneAtVarying(FNaniteRawAttributeData In, uint SrcIndex)
 {
 	FNaniteRawAttributeData Out;
@@ -41,6 +42,7 @@ FNaniteRawAttributeData WaveReadLaneAtVarying(FNaniteRawAttributeData In, uint S
 	}
 	return Out;
 }
+#endif
 
 #define SIZEOF_UV_RANGE	32
 struct FUVRange
