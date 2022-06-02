@@ -263,6 +263,20 @@ struct CORE_API FScopedScriptExceptionHandler
 	~FScopedScriptExceptionHandler();
 };
 
+/**
+ * Enables named events when profiling.
+ * Increments/decrements GCycleStatsShouldEmitNamedEvents based on bIsProfiling.
+ * Functionality is controlled by stats.AutoEnableNamedEventsWhenProfiling.
+ */
+class FAutoNamedEventsToggler
+{
+public:
+	CORE_API void Update(bool bIsProfiling);
+
+private:
+	bool bSetNamedEventsEnabled = false;
+};
+
 /** 
  * This define enables the blueprint runaway and exception stack trace checks
  * If this is true, it will create a FBlueprintContextTracker (previously FBlueprintExceptionTracker) which is defined in Script.h

@@ -22,6 +22,7 @@
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/ConfigUtilities.h"
 #include "Misc/OutputDeviceHelper.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -5067,7 +5068,10 @@ void FEngineLoop::Tick()
 	TCHAR IndexedFrameString[32] = { 0 };
 	const TCHAR* FrameString = nullptr;
 #if CPUPROFILERTRACE_ENABLED
-	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+	const bool bTraceCpuChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel);
+	static FAutoNamedEventsToggler TraceNamedEventsToggler;
+	TraceNamedEventsToggler.Update(bTraceCpuChannelEnabled && UE::Trace::IsTracing());
+	if (bTraceCpuChannelEnabled)
 	{
 		FrameString = TEXT("FEngineLoop");
 	}

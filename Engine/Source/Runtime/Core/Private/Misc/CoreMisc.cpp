@@ -493,3 +493,25 @@ namespace UEAsserts_Private
 	}
 }
 #endif
+
+static bool GAutoEnableNamedEventsWhenProfiling = false;
+static FAutoConsoleVariableRef GCVarAutoEnableNamedEventsWhenProfiling(
+	TEXT("stats.AutoEnableNamedEventsWhenProfiling"),
+	GAutoEnableNamedEventsWhenProfiling,
+	TEXT("If 1, toggles named events on when a profiler is detected and capturing. Toggles named events off if 0 or when profiling stops."),
+	ECVF_Default
+);
+
+void FAutoNamedEventsToggler::Update(bool bIsProfiling)
+{
+	if (bIsProfiling && !bSetNamedEventsEnabled && GAutoEnableNamedEventsWhenProfiling)
+	{
+		++GCycleStatsShouldEmitNamedEvents;
+		bSetNamedEventsEnabled = true;
+	}
+	else if (!bIsProfiling && bSetNamedEventsEnabled)
+	{
+		GCycleStatsShouldEmitNamedEvents = FMath::Max(0, GCycleStatsShouldEmitNamedEvents - 1);
+		bSetNamedEventsEnabled = false;
+	}
+}
