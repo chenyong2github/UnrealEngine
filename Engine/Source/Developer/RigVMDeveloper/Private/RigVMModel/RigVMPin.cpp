@@ -704,10 +704,10 @@ FString URigVMPin::GetDefaultValue(const URigVMPin::FPinOverride& InOverride) co
 		if (SubPins.Num() > 0)
 		{
 			TArray<FString> MemberDefaultValues;
-			for (URigVMPin* SubPin : SubPins)
+			for (const URigVMPin* SubPin : SubPins)
 			{
 				FString MemberDefaultValue = SubPin->GetDefaultValue(InOverride);
-				if (SubPin->IsStringType())
+				if (SubPin->IsStringType() && !MemberDefaultValue.IsEmpty())
 				{
 					MemberDefaultValue = TEXT("\"") + MemberDefaultValue + TEXT("\"");
 				}
