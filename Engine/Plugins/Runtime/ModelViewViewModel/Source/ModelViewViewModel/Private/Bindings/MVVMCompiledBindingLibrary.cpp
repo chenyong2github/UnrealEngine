@@ -205,11 +205,11 @@ TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMC
 	check(!Destination.GetObjectVariant().IsNull());
 	check(!Source.GetFieldVariant().IsEmpty());
 	check(!Destination.GetFieldVariant().IsEmpty());
-	if (Source.GetObjectVariant().GetOwner()->IsChildOf(Source.GetFieldVariant().GetOwner()))
+	if (!Source.GetObjectVariant().GetOwner()->IsChildOf(Source.GetFieldVariant().GetOwner()))
 	{
 		return MakeError(EExecutionFailingReason::InvalidCast);
 	}
-	if (Destination.GetObjectVariant().GetOwner()->IsChildOf(Destination.GetFieldVariant().GetOwner()))
+	if (!Destination.GetObjectVariant().GetOwner()->IsChildOf(Destination.GetFieldVariant().GetOwner()))
 	{
 		return MakeError(EExecutionFailingReason::InvalidCast);
 	}
