@@ -196,6 +196,11 @@ namespace EpicGames.Core
 		public static EventId Systemic_MissingXgeControlWorker { get; } = new EventId(761);
 
 		/// <summary>
+		/// Log parser is taking a significant amount of time; may be bottleneck.
+		/// </summary>
+		public static EventId Systemic_LogParserBottleneck { get; } = new EventId(762);
+
+		/// <summary>
 		/// Maximum code for systemic events. Add new events in the 700-799 range.
 		/// </summary>
 		public static EventId Systemic_Max { get; } = new EventId(799);
