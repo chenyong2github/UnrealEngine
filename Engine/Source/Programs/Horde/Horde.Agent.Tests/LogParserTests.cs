@@ -154,6 +154,21 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
+		public void ExitCodeEventMatcher2()
+		{
+			string[] lines =
+			{
+				@"1 error generated.",
+				@"",
+				@"Error executing d:\build\AutoSDK\Sync\HostWin64\Android\-24\ndk\21.4.7075529\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe (tool returned code: 1)",
+				@"AnimNode_BlendListByInt.gen.cpp [arm64] (0:22.43 at +2:47)",
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			CheckEventGroup(logEvents, 1, 5, LogLevel.Error, KnownLogEvents.ExitCode);
+		}
+
+		[TestMethod]
 		public void CrashEventMatcher()
 		{
 			string[] lines =

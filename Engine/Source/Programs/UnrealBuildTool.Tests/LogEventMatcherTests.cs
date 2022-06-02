@@ -309,6 +309,28 @@ namespace UnrealBuildToolTests
 		}
 
 		[TestMethod]
+		public void ClangEventMatcher5()
+		{
+			string[] lines =
+			{
+				@"Module.StateTreeModule.cpp (0:25.07 at +6:14)",
+				@"In file included from ..\Plugins\Runtime\StateTree\Intermediate\Build\Win64\UnrealEditor\Debug\StateTreeModule\Module.StateTreeModule.cpp:10:",
+				@"In file included from .\../Plugins/Runtime/StateTree/Source/StateTreeModule/Private/StateTree.cpp:8:",
+				@"Engine/Source/Runtime/AssetRegistry/Public/AssetData.h(6,9): warning: Runtime\AssetRegistry\Public\AssetData.h(6): warning: #include AssetRegistry/AssetData.h instead of AssetData.h [-W#pragma-messages]",
+				@"#pragma message (__FILE__""(6): warning: #include AssetRegistry/AssetData.h instead of AssetData.h"")",
+				@"        ^",
+				@"1 warning generated."
+			};
+
+			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+			CheckEventGroup(logEvents, 1, 5, LogLevel.Warning, KnownLogEvents.Compiler);
+
+			LogValue fileProperty = (LogValue)logEvents[2].GetProperty("file");
+			Assert.AreEqual(@"Engine/Source/Runtime/AssetRegistry/Public/AssetData.h", fileProperty.Text);
+			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
+		}
+
+		[TestMethod]
 		public void IOSCompileErrorMatcher()
 		{
 			string[] lines =
