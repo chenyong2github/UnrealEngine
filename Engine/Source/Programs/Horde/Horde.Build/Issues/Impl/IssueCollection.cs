@@ -904,6 +904,11 @@ namespace Horde.Build.Collections.Impl
 			{
 				updates.Add(Builders<Issue>.Update.Set(x => x.ManuallyPromoted, newManuallyPromoted.Value));
 			}
+			if (newResolvedById != null)
+			{
+				newOwnerId ??= newResolvedById;
+				newAcknowledged ??= true;
+			}
 			if (newOwnerId != null)
 			{
 				if (newOwnerId.Value == UserId.Empty)
