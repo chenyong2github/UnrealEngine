@@ -20,58 +20,32 @@ FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner, const
 	AddressU = InOwner->AddressX == TA_Wrap ? AM_Wrap : (InOwner->AddressX == TA_Clamp ? AM_Clamp : AM_Mirror);
 	AddressV = InOwner->AddressY == TA_Wrap ? AM_Wrap : (InOwner->AddressY == TA_Clamp ? AM_Clamp : AM_Mirror);
 	AddressW = InOwner->AddressZ == TA_Wrap ? AM_Wrap : (InOwner->AddressZ == TA_Clamp ? AM_Clamp : AM_Mirror);
-
-	const int32 MaxLoadableMipIndex = State.MaxNumLODs - FMath::Max(1, PlatformData->GetNumMipsInTail()) + 1;
-
-	TArray<uint64> MipOffsets;
-	MipOffsets.AddZeroed(State.MaxNumLODs);
-
-	uint64 InitialMipDataSize = 0;
-	TArrayView<const FTexture2DMipMap*> MipsView = GetPlatformMipsView();
-	for (int32 MipIdx = State.RequestedFirstLODIdx(); MipIdx < MaxLoadableMipIndex; ++MipIdx)
+	
+	//
+	// All resource requests assume LOD bias is baked in - however GetMipData doesn't, and we don't want to grab
+	// that data if we don't have to. LODCountToAssetFirstLODIdx() is the index with LODBias, and RequestedFirstLODIdx()
+	// isn't. (LODCountToAssetFirstLODIdx = RequestedFirstLODIdx + AssetLODBias).
+	//
+	if (InOwner->GetMipData(State.LODCountToAssetFirstLODIdx(State.NumRequestedLODs), AllMipsData) == false)
 	{
-		const FTexture2DMipMap& Mip = *MipsView[MipIdx];
-		MipOffsets[MipIdx] = InitialMipDataSize;
-		InitialMipDataSize += Mip.BulkData.GetBulkDataSize();
+		// This is fatal as we will crash trying to upload the data below, this way we crash at the cause.
+		UE_LOG(LogTexture, Fatal, TEXT("Corrupt texture [%s]! Unable to load mips (bulk data missing)"), *TextureName.ToString());
+		return;
 	}
-	InitialMipData.Reset(new uint8[InitialMipDataSize]);
-
-	// Resize each structure correctly per slice, since we access it per mip after.
-	SliceMipDataViews.AddDefaulted(SizeZ);
-	for (uint32 SliceIdx = 0; SliceIdx < SizeZ; ++SliceIdx)
+	
+	// AllMipsData has NumRequestedLODs - (GetNumMipsInTail() - 1)
 	{
-		SliceMipDataViews[SliceIdx].AddDefaulted(MaxLoadableMipIndex);
-	}
-
-	for (int32 MipIdx = State.RequestedFirstLODIdx(); MipIdx < MaxLoadableMipIndex; ++MipIdx)
-	{
-		FTexture2DMipMap& Mip = const_cast<FTexture2DMipMap&>(*MipsView[MipIdx]);
-		if (Mip.BulkData.GetBulkDataSize() > 0)
-		{
-			const uint64 SliceMipDataSize = Mip.BulkData.GetBulkDataSize() / SizeZ;
-			const uint8* SrcData = (const uint8*)Mip.BulkData.Lock(LOCK_READ_ONLY);
-
-			for (uint32 SliceIdx = 0; SliceIdx < SizeZ; ++SliceIdx)
-			{
-				TArrayView<uint8>& SliceMipDataView = SliceMipDataViews[SliceIdx][MipIdx];
-				SliceMipDataView = TArrayView<uint8>(InitialMipData.Get() + MipOffsets[MipIdx] + SliceIdx * SliceMipDataSize, SliceMipDataSize);
-				FMemory::Memcpy(SliceMipDataView.GetData(), SrcData + SliceIdx * SliceMipDataSize, SliceMipDataSize);
-			}
-
-			Mip.BulkData.Unlock();
-		}
-		else
-		{
-			UE_LOG(LogTexture, Error, TEXT("Corrupt texture [%s]! Missing bulk data for MipIndex=%d"), *TextureName.ToString(), MipIdx);
-		}
+		// If zero, then it's unpacked which means there's 1 mip in the tail.
+		const int32 MipsInTail = PlatformData->GetNumMipsInTail() ? PlatformData->GetNumMipsInTail() : 1;
+		const int32 MipCountLostDueToPacking = MipsInTail - 1;
+		check(AllMipsData.Num() == State.NumRequestedLODs - MipCountLostDueToPacking);
 	}
 }
 
 void FTexture2DArrayResource::CreateTexture()
 {
-	const int32 RequestedFirstLODIdx = State.RequestedFirstLODIdx();
-	TArrayView<const FTexture2DMipMap*> MipsView = GetPlatformMipsView();
-	const FTexture2DMipMap& FirstMip = *MipsView[RequestedFirstLODIdx];
+	TArrayView<const FTexture2DMipMap*> MipsViewPostLODBias = GetPlatformMipsView();
+	const FTexture2DMipMap& FirstMip = *MipsViewPostLODBias[State.RequestedFirstLODIdx()];
 
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create2DArray(TEXT("FTexture2DArrayResource"), FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, PixelFormat)
@@ -81,25 +55,26 @@ void FTexture2DArrayResource::CreateTexture()
 
 	TextureRHI = RHICreateTexture(Desc);
 
-	// Read the initial cached mip levels into the RHI texture.
-	const int32 NumLoadableMips = State.NumRequestedLODs - FMath::Max(1, PlatformData->GetNumMipsInTail()) + 1;
-	for (int32 RHIMipIdx = 0; RHIMipIdx < NumLoadableMips; ++RHIMipIdx)
-	{
-		const int32 MipIdx = RHIMipIdx + RequestedFirstLODIdx;
-		for (uint32 SliceIdx = 0; SliceIdx < SizeZ; ++SliceIdx)
+	// Copy the mip data in to the texture.
+	for (int32 MipIndex = 0; MipIndex < AllMipsData.Num(); MipIndex++)
+	{		
+		for (uint32 ArrayIndex = 0; ArrayIndex < SizeZ; ++ArrayIndex)
 		{
 			uint32 DestStride = 0;
-			void* DestData = RHILockTexture2DArray(TextureRHI, SliceIdx, RHIMipIdx, RLM_WriteOnly, DestStride, false);
+			void* DestData = RHILockTexture2DArray(TextureRHI, ArrayIndex, MipIndex, RLM_WriteOnly, DestStride, false);
 			if (DestData)
 			{
-				GetData(SliceIdx, MipIdx, DestData, DestStride);
+				GetData(FirstMip.SizeX, FirstMip.SizeY, ArrayIndex, MipIndex, DestData, DestStride);
 			}
-			RHIUnlockTexture2DArray(TextureRHI, SliceIdx, RHIMipIdx, false);
+			else
+			{
+				UE_LOG(LogTexture, Warning, TEXT("Failed to lock texture 2d array mip/slice %d / %d (%s)"), MipIndex, ArrayIndex, *TextureName.ToString());
+			}
+			RHIUnlockTexture2DArray(TextureRHI, ArrayIndex, MipIndex, false);
 		}
 	}
-		
-	SliceMipDataViews.Empty();
-	InitialMipData.Reset();
+
+	AllMipsData.Empty();
 }
 
 void FTexture2DArrayResource::CreatePartiallyResidentTexture()
@@ -122,15 +97,22 @@ uint64 FTexture2DArrayResource::GetPlatformMipsSize(uint32 NumMips) const
 	}
 }
 
-void FTexture2DArrayResource::GetData(uint32 SliceIndex, uint32 MipIndex, void* Dest, uint32 DestPitch)
+void FTexture2DArrayResource::GetData(int32 BaseRHIMipSizeX, int32 BaseRHIMipSizeY, uint32 ArrayIndex, uint32 MipIndex, void* Dest, uint32 DestPitch) const
 {
-	const TArrayView<uint8>& SliceMipDataView = SliceMipDataViews[SliceIndex][MipIndex];
+	const uint32 ArrayCount = SizeZ;
+	const FMemoryView MipView = AllMipsData[MipIndex].GetView();
+	const uint64 ArraySliceDataSize = MipView.GetSize() / ArrayCount;
+	const FMemoryView& SliceMipDataView = MipView.Mid(ArrayIndex * ArraySliceDataSize, ArraySliceDataSize);
+
+	
+	// This check works for normal mips but not packed mips.
+	//check(ArraySliceDataSize == CalcTextureMipMapSize(BaseRHIMipSizeX, BaseRHIMipSizeX, PixelFormat, MipIndex));
 
 	// for platforms that returned 0 pitch from Lock, we need to just use the bulk data directly, never do 
 	// runtime block size checking, conversion, or the like
 	if (DestPitch == 0)
 	{
-		FMemory::Memcpy(Dest, SliceMipDataView.GetData(), SliceMipDataView.Num());
+		FMemory::Memcpy(Dest, SliceMipDataView.GetData(), SliceMipDataView.GetSize());
 	}
 	else
 	{
@@ -138,8 +120,8 @@ void FTexture2DArrayResource::GetData(uint32 SliceIndex, uint32 MipIndex, void* 
 		const int32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;
 		const int32 BlockBytes = GPixelFormats[PixelFormat].BlockBytes;
 
-		const uint32 MipSizeX = FMath::Max<int32>(SizeX >> MipIndex, 1);
-		const uint32 MipSizeY = FMath::Max<int32>(SizeY >> MipIndex, 1);
+		const uint32 MipSizeX = FMath::Max<int32>(BaseRHIMipSizeX >> MipIndex, 1);
+		const uint32 MipSizeY = FMath::Max<int32>(BaseRHIMipSizeY >> MipIndex, 1);
 
 		uint32 NumColumns = FMath::DivideAndRoundUp<int32>(MipSizeX, BlockSizeX);
 		uint32 NumRows = FMath::DivideAndRoundUp<int32>(MipSizeY, BlockSizeY);

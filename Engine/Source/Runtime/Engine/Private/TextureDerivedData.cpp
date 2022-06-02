@@ -2575,6 +2575,44 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 	Texture derived data interface.
 ------------------------------------------------------------------------------*/
 
+bool UTexture2DArray::GetMipData(int32 InFirstMipToLoad, TArray<FUniqueBuffer, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>>& OutMipData)
+{
+	FTexturePlatformData* LocalPlatformData = GetPlatformDataOrWait();
+	const int32 ReadableMipCount = LocalPlatformData->Mips.Num() - (LocalPlatformData->GetNumMipsInTail() > 0 ? LocalPlatformData->GetNumMipsInTail() - 1 : 0);
+
+	int32 OutputMipCount = ReadableMipCount - InFirstMipToLoad;
+
+	check(OutputMipCount <= MAX_TEXTURE_MIP_COUNT);
+
+	void* MipData[MAX_TEXTURE_MIP_COUNT] = {};
+	int64 MipSizes[MAX_TEXTURE_MIP_COUNT];
+	if (LocalPlatformData->TryLoadMipsWithSizes(InFirstMipToLoad, MipData, MipSizes, GetPathName()) == false)
+	{
+		// Unable to load mips from the cache. Rebuild the texture and try again.
+		UE_LOG(LogTexture, Warning, TEXT("GetMipData failed for %s (%s)"),
+			*GetPathName(), GPixelFormats[GetPixelFormat()].Name);
+#if WITH_EDITOR
+		if (!GetOutermost()->bIsCookedForEditor)
+		{
+			ForceRebuildPlatformData();
+			if (LocalPlatformData->TryLoadMipsWithSizes(InFirstMipToLoad, MipData, MipSizes, GetPathName()) == false)
+			{
+				UE_LOG(LogTexture, Error, TEXT("TryLoadMipsWithSizes still failed after ForceRebuildPlatformData %s."), *GetPathName());
+				return false;
+			}
+		}
+#else // #if WITH_EDITOR
+		return false;
+#endif // WITH_EDITOR
+	}
+
+	for (int32 MipIndex = 0; MipIndex < OutputMipCount; MipIndex++)
+	{
+		OutMipData.Emplace(FUniqueBuffer::TakeOwnership(MipData[MipIndex], MipSizes[MipIndex], [](void* Ptr) {FMemory::Free(Ptr);} ));
+	}
+	return true;
+}
+
 void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 {
 	if (GetPlatformData()->TryLoadMips(FirstMipToLoad, OutMipData, GetPathName()) == false)

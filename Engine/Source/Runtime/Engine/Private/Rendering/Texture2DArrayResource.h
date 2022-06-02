@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Rendering/StreamableTextureResource.h"
 #include "Containers/ResourceArray.h"
+#include "Memory/SharedBuffer.h"
 
 class UTexture2DArray;
 
@@ -31,12 +32,8 @@ protected:
 	void CreateTexture() final override;
 	void CreatePartiallyResidentTexture() final override;
 
-	void GetData(uint32 SliceIndex, uint32 MipIndex, void* Dest, uint32 DestPitch);
+	void GetData(int32 BaseRHIMipSizeX, int32 BaseRHIMipSizeY, uint32 ArrayIndex, uint32 MipIndex, void* Dest, uint32 DestPitch) const;
 
-	/** The initial data for all mips of a single slice. */
-	typedef TArray<TArrayView<uint8>, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > FSingleSliceMipDataView;
-	/** All slices initial data. */
-	TArray<FSingleSliceMipDataView> SliceMipDataViews;
-	/** The single allocation holding initial data. */
-	TUniquePtr<uint8[]> InitialMipData;
+	// Each mip has all array slices. This will be [State.NumRequestedLODs] long, less any packed mips.
+	TArray<FUniqueBuffer, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>> AllMipsData;
 };
