@@ -13,7 +13,7 @@
                     "ArPackageResolver": {}
                 }
             },
-            "LibraryPath": "../../../../../../../../Binaries/Win64/ar.dll", 
+            "LibraryPath": "../../../../../../../../Binaries/Win64/usd_ar.dll", 
             "Name": "ar", 
             "ResourcePath": "resources", 
             "Root": "..", 

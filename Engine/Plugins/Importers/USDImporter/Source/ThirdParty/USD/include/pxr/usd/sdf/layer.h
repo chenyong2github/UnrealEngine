@@ -43,6 +43,7 @@
 #include "pxr/usd/ar/resolvedPath.h"
 #include "pxr/base/tf/declarePtrs.h"
 #include "pxr/base/vt/value.h"
+#include "pxr/base/work/dispatcher.h"
 
 #include <boost/optional.hpp>
 
@@ -394,20 +395,39 @@ public:
     /// \name External references
     /// @{
 
-    /// Return paths of all external references of layer.
+    /// \deprecated 
+    /// Use GetCompositionAssetDependencies instead.
     SDF_API
     std::set<std::string> GetExternalReferences() const;
 
-    /// Updates the external references of the layer.
-    ///
-    /// If only the old asset path is given, this update works as delete, 
-    /// removing any sublayers or prims referencing the pathtype using the
-    /// old asset path as reference.
-    /// 
-    /// If new asset path is supplied, the update works as "rename", updating
-    /// any occurrence of the old reference to the new reference.
+    /// \deprecated 
+    /// Use UpdateCompositionAssetDependency instead.
     SDF_API
     bool UpdateExternalReference(
+        const std::string &oldAssetPath,
+        const std::string &newAssetPath=std::string());
+
+    /// Return paths of all assets this layer depends on due to composition 
+    /// fields.
+    ///
+    /// This includes the paths of all layers referred to by reference, 
+    /// payload, and sublayer fields in this layer. This function only returns 
+    /// direct composition dependencies of this layer, i.e. it does not recurse 
+    /// to find composition dependencies from its dependent layer assets.
+    SDF_API
+    std::set<std::string> GetCompositionAssetDependencies() const;
+
+    /// Updates the asset path of a composation dependency in this layer.
+    /// 
+    /// If \p newAssetPath is supplied, the update works as "rename", updating
+    /// any occurrence of \p oldAssetPath to \p newAssetPath in all reference,
+    /// payload, and sublayer fields.
+    ///
+    /// If \p newAssetPath is not given, this update behaves as a "delete", 
+    /// removing all occurrences of \p oldAssetPath from all reference, payload,
+    /// and sublayer fields.
+    SDF_API
+    bool UpdateCompositionAssetDependency(
         const std::string &oldAssetPath,
         const std::string &newAssetPath=std::string());
 
@@ -432,7 +452,7 @@ public:
     /// 
     /// For example: 
     ///     FindOrOpen('foo.sdf', args={'a':'b', 'c':'d'}).identifier
-    ///         => "foo.sdf?sdf_args:a=b&c=d"
+    ///         => "foo.sdf:SDF_FORMAT_ARGS:a=b&c=d"
     ///
     /// Note that this means the identifier may in general not be a path.
     ///
@@ -1447,13 +1467,13 @@ private:
 
     // Finish initializing this layer (which may have succeeded or not)
     // and publish the results to other threads by unlocking the mutex.
-    // Sets _initializationWasSuccessful and unlocks _initializationMutex.
+    // Sets _initializationWasSuccessful.
     void _FinishInitialization(bool success);
 
     // Layers retrieved from the layer registry may still be in the
     // process of having their contents initialized.  Other threads
     // retrieving layers from the registry must wait until initialization
-    // is complete, using this method.  See _initializationMutex.
+    // is complete, using this method.
     // Returns _initializationWasSuccessful.
     //
     // Callers *must* be holding an SdfLayerRefPtr to this layer to
@@ -1582,10 +1602,11 @@ private:
     std::string _GetMutedPath() const;
 
     // If old and new asset path is given, rename all external prim
-    // references referring to the old path.
-    void _UpdateReferencePaths(const SdfPrimSpecHandle &parent,
-                               const std::string &oldLayerPath,
-                               const std::string &newLayerPath);
+    // composition dependency referring to the old path.
+    void _UpdatePrimCompositionDependencyPaths(
+        const SdfPrimSpecHandle &parent,
+        const std::string &oldLayerPath,
+        const std::string &newLayerPath);
 
     // Set the clean state to the current state.
     void _MarkCurrentStateAsClean() const;
@@ -1746,6 +1767,11 @@ private:
     SdfFileFormatConstPtr _fileFormat;
     FileFormatArguments _fileFormatArgs;
 
+    // Cached reference to the _fileFormat's schema -- we need access to this to
+    // be as fast as possible since we look at it on every SetField(), for
+    // example.
+    const SdfSchemaBase &_schema;
+
     // Registry of Sdf Identities
     mutable Sdf_IdentityRegistry _idRegistry;
 
@@ -1755,6 +1781,10 @@ private:
     // The state delegate for this layer.
     SdfLayerStateDelegateBaseRefPtr _stateDelegate;
 
+    // Dispatcher used in layer initialization, letting waiters participate in
+    // loading instead of just busy-waiting.
+    WorkDispatcher _initDispatcher;
+    
     // Atomic variable protecting layer initialization -- the interval between
     // adding a layer to the layer registry and finishing the process of
     // initializing its contents, at which point we can truly publish the layer
@@ -1764,8 +1794,7 @@ private:
     std::atomic<bool> _initializationComplete;
 
     // This is an optional<bool> that is only set once initialization
-    // is complete, while _initializationMutex is locked.  If the
-    // optional<bool> is unset, initialization is still underway.
+    // is complete, before _initializationComplete is set.
     boost::optional<bool> _initializationWasSuccessful;
 
     // remembers the last 'IsDirty' state.

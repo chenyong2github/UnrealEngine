@@ -2,17 +2,17 @@
 
 set -e
 
-USD_VERSION=21.08
+USD_VERSION=22.03
 
 # This path may be adjusted to point to wherever the USD source is located.
 # It is typically obtained by either downloading a zip/tarball of the source
 # code, or more commonly by cloning the GitHub repository, e.g. for the
 # current engine USD version:
-#     git clone --branch v21.08 https://github.com/PixarAnimationStudios/USD.git USD_src
+#     git clone --branch v22.03 https://github.com/PixarAnimationStudios/USD.git USD_src
 # Specifically for Linux when building with clang, an additional patch is
 # needed to ensure that type comparisons work correctly across shared library
 # boundaries:
-#     git apply USD_v2108_Linux_clang_TfSafeTypeCompare.patch
+#     git apply USD_v2203_Linux_clang_TfSafeTypeCompare.patch
 # Note also that this path may be emitted as part of USD error messages, so
 # it is suggested that it not reveal any sensitive information.
 SOURCE_LOCATION="/tmp/USD_src"

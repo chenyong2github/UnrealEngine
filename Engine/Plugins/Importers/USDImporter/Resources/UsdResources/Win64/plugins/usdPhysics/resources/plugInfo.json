@@ -5,6 +5,16 @@
     "Plugins": [
         {
             "Info": {
+                "SdfMetadata": {
+                    "kilogramsPerUnit": {
+                        "appliesTo": [
+                            "layers"
+                        ], 
+                        "default": 1.0, 
+                        "displayGroup": "Stage", 
+                        "type": "double"
+                    }
+                }, 
                 "Types": {
                     "UsdPhysicsArticulationRootAPI": {
                         "alias": {
@@ -178,7 +188,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Win64/usdPhysics.dll", 
+            "LibraryPath": "../../../../../../../../Binaries/Win64/usd_usdPhysics.dll", 
             "Name": "usdPhysics", 
             "ResourcePath": "resources", 
             "Root": "..", 

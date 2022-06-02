@@ -5,6 +5,16 @@
     "Plugins": [
         {
             "Info": {
+                "SdfMetadata": {
+                    "kilogramsPerUnit": {
+                        "appliesTo": [
+                            "layers"
+                        ], 
+                        "default": 1.0, 
+                        "displayGroup": "Stage", 
+                        "type": "double"
+                    }
+                }, 
                 "Types": {
                     "UsdPhysicsArticulationRootAPI": {
                         "alias": {
@@ -178,7 +188,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusdPhysics.so", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusd_usdPhysics.so", 
             "Name": "usdPhysics", 
             "ResourcePath": "resources", 
             "Root": "..", 

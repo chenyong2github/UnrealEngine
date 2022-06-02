@@ -75,7 +75,7 @@
                         "bases": [
                             "UsdShadeNodeGraph"
                         ], 
-                        "implementsUsdShadeConnectableAPIBehavior": true, 
+                        "providesUsdShadeConnectableAPIBehavior": true, 
                         "schemaKind": "concreteTyped"
                     }, 
                     "UsdShadeMaterialBindingAPI": {
@@ -106,7 +106,7 @@
                         "bases": [
                             "UsdTyped"
                         ], 
-                        "implementsUsdShadeConnectableAPIBehavior": true, 
+                        "providesUsdShadeConnectableAPIBehavior": true, 
                         "schemaKind": "concreteTyped"
                     }, 
                     "UsdShadeShader": {
@@ -117,7 +117,7 @@
                         "bases": [
                             "UsdTyped"
                         ], 
-                        "implementsUsdShadeConnectableAPIBehavior": true, 
+                        "providesUsdShadeConnectableAPIBehavior": true, 
                         "schemaKind": "concreteTyped"
                     }, 
                     "UsdShadeShaderDefParserPlugin": {
@@ -128,7 +128,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdShade.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusd_usdShade.dylib", 
             "Name": "usdShade", 
             "ResourcePath": "resources", 
             "Root": "..", 

@@ -38,7 +38,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdUI.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusd_usdUI.dylib", 
             "Name": "usdUI", 
             "ResourcePath": "resources", 
             "Root": "..", 

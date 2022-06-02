@@ -131,7 +131,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusd.so", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusd_usd.so", 
             "Name": "usd", 
             "ResourcePath": "resources", 
             "Root": "..", 

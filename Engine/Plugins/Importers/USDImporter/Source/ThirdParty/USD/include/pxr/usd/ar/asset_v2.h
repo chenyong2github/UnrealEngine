@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Pixar
+// Copyright 2018 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -25,10 +25,10 @@
 #error This file should not be included directly. Include asset.h instead.
 #endif
 
-#ifndef PXR_USD_AR_ASSET_V1_H
-#define PXR_USD_AR_ASSET_V1_H
+#ifndef PXR_USD_AR_ASSET_V2_H
+#define PXR_USD_AR_ASSET_V2_H
 
-/// \file ar/asset_v1.h
+/// \file ar/asset_v2.h
 
 #include "pxr/pxr.h"
 #include "pxr/usd/ar/api.h"
@@ -50,12 +50,11 @@ public:
     virtual ~ArAsset();
 
     ArAsset(const ArAsset&) = delete;
-
     ArAsset& operator=(const ArAsset&) = delete;
 
     /// Returns size of the asset.
     AR_API
-    virtual size_t GetSize() = 0;
+    virtual size_t GetSize() const = 0;
 
     /// Returns a pointer to a buffer with the contents of the asset,
     /// with size given by GetSize(). Returns an invalid std::shared_ptr 
@@ -66,7 +65,7 @@ public:
     /// deleter stored in the std::shared_ptr may contain additional data 
     /// needed to maintain the buffer's validity.
     AR_API
-    virtual std::shared_ptr<const char> GetBuffer() = 0;
+    virtual std::shared_ptr<const char> GetBuffer() const = 0;
 
     /// Read \p count bytes at \p offset from the beginning of the asset
     /// into \p buffer. Returns number of bytes read, or 0 on error.
@@ -74,7 +73,7 @@ public:
     /// Implementers should range-check calls and return zero for out-of-bounds
     /// reads.
     AR_API
-    virtual size_t Read(void* buffer, size_t count, size_t offset) = 0;
+    virtual size_t Read(void* buffer, size_t count, size_t offset) const = 0;
         
     /// Returns a read-only FILE* handle and offset for this asset if
     /// available, or (nullptr, 0) otherwise.
@@ -94,7 +93,7 @@ public:
     /// fread, fseek, etc. See ArchPRead for a function that can be used
     /// to read data from this handle safely.
     AR_API
-    virtual std::pair<FILE*, size_t> GetFileUnsafe() = 0;
+    virtual std::pair<FILE*, size_t> GetFileUnsafe() const = 0;
 
 protected:
     AR_API
@@ -103,4 +102,4 @@ protected:
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
-#endif // PXR_USD_AR_ASSET_V1_H
+#endif // PXR_USD_AR_ASSET_V2_H

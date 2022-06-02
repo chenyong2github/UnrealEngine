@@ -21,17 +21,17 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDRI_GENERATED_LIGHTPORTALAPI_H
-#define USDRI_GENERATED_LIGHTPORTALAPI_H
+#ifndef USDLUX_GENERATED_VOLUMELIGHTAPI_H
+#define USDLUX_GENERATED_VOLUMELIGHTAPI_H
 
-/// \file usdRi/lightPortalAPI.h
+/// \file usdLux/volumeLightAPI.h
 
 #include "pxr/pxr.h"
-#include "pxr/usd/usdRi/api.h"
+#include "pxr/usd/usdLux/api.h"
 #include "pxr/usd/usd/apiSchemaBase.h"
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/stage.h"
-#include "pxr/usd/usdRi/tokens.h"
+#include "pxr/usd/usdLux/tokens.h"
 
 #include "pxr/base/vt/value.h"
 
@@ -47,18 +47,28 @@ PXR_NAMESPACE_OPEN_SCOPE
 class SdfAssetPath;
 
 // -------------------------------------------------------------------------- //
-// RILIGHTPORTALAPI                                                           //
+// VOLUMELIGHTAPI                                                             //
 // -------------------------------------------------------------------------- //
 
-/// \class UsdRiLightPortalAPI
+/// \class UsdLuxVolumeLightAPI
 ///
+/// This is the preferred API schema to apply to 
+/// \ref UsdVolVolume "Volume" type prims when adding light behaviors to a 
+/// volume. At its base, this API schema has the built-in behavior of applying 
+/// LightAPI to the volume and overriding the default materialSyncMode to allow 
+/// the emission/glow of the bound material to affect the color of the light. 
+/// But, it additionally serves as a hook for plugins to attach additional 
+/// properties to "volume lights" through the creation of API schemas which are 
+/// authored to auto-apply to VolumeLightAPI.
+/// \see \ref Usd_AutoAppliedAPISchemas
 /// 
-/// \deprecated RenderMan-specific light portal settings will move to a
-/// new schema in a future release.
-/// 
-/// Renderman-specific attributes for light portals.
 ///
-class UsdRiLightPortalAPI : public UsdAPISchemaBase
+/// For any described attribute \em Fallback \em Value or \em Allowed \em Values below
+/// that are text/tokens, the actual token is published and defined in \ref UsdLuxTokens.
+/// So to set an attribute to the value "rightHanded", use UsdLuxTokens->rightHanded
+/// as the value.
+///
+class UsdLuxVolumeLightAPI : public UsdAPISchemaBase
 {
 public:
     /// Compile time constant representing what kind of schema this class is.
@@ -66,45 +76,45 @@ public:
     /// \sa UsdSchemaKind
     static const UsdSchemaKind schemaKind = UsdSchemaKind::SingleApplyAPI;
 
-    /// Construct a UsdRiLightPortalAPI on UsdPrim \p prim .
-    /// Equivalent to UsdRiLightPortalAPI::Get(prim.GetStage(), prim.GetPath())
+    /// Construct a UsdLuxVolumeLightAPI on UsdPrim \p prim .
+    /// Equivalent to UsdLuxVolumeLightAPI::Get(prim.GetStage(), prim.GetPath())
     /// for a \em valid \p prim, but will not immediately throw an error for
     /// an invalid \p prim
-    explicit UsdRiLightPortalAPI(const UsdPrim& prim=UsdPrim())
+    explicit UsdLuxVolumeLightAPI(const UsdPrim& prim=UsdPrim())
         : UsdAPISchemaBase(prim)
     {
     }
 
-    /// Construct a UsdRiLightPortalAPI on the prim held by \p schemaObj .
-    /// Should be preferred over UsdRiLightPortalAPI(schemaObj.GetPrim()),
+    /// Construct a UsdLuxVolumeLightAPI on the prim held by \p schemaObj .
+    /// Should be preferred over UsdLuxVolumeLightAPI(schemaObj.GetPrim()),
     /// as it preserves SchemaBase state.
-    explicit UsdRiLightPortalAPI(const UsdSchemaBase& schemaObj)
+    explicit UsdLuxVolumeLightAPI(const UsdSchemaBase& schemaObj)
         : UsdAPISchemaBase(schemaObj)
     {
     }
 
     /// Destructor.
-    USDRI_API
-    virtual ~UsdRiLightPortalAPI();
+    USDLUX_API
+    virtual ~UsdLuxVolumeLightAPI();
 
     /// Return a vector of names of all pre-declared attributes for this schema
     /// class and all its ancestor classes.  Does not include attributes that
     /// may be authored by custom/extended methods of the schemas involved.
-    USDRI_API
+    USDLUX_API
     static const TfTokenVector &
     GetSchemaAttributeNames(bool includeInherited=true);
 
-    /// Return a UsdRiLightPortalAPI holding the prim adhering to this
+    /// Return a UsdLuxVolumeLightAPI holding the prim adhering to this
     /// schema at \p path on \p stage.  If no prim exists at \p path on
     /// \p stage, or if the prim at that path does not adhere to this schema,
     /// return an invalid schema object.  This is shorthand for the following:
     ///
     /// \code
-    /// UsdRiLightPortalAPI(stage->GetPrimAtPath(path));
+    /// UsdLuxVolumeLightAPI(stage->GetPrimAtPath(path));
     /// \endcode
     ///
-    USDRI_API
-    static UsdRiLightPortalAPI
+    USDLUX_API
+    static UsdLuxVolumeLightAPI
     Get(const UsdStagePtr &stage, const SdfPath &path);
 
 
@@ -124,16 +134,16 @@ public:
     /// \sa UsdPrim::ApplyAPI()
     /// \sa UsdPrim::RemoveAPI()
     ///
-    USDRI_API
+    USDLUX_API
     static bool 
     CanApply(const UsdPrim &prim, std::string *whyNot=nullptr);
 
     /// Applies this <b>single-apply</b> API schema to the given \p prim.
-    /// This information is stored by adding "RiLightPortalAPI" to the 
+    /// This information is stored by adding "VolumeLightAPI" to the 
     /// token-valued, listOp metadata \em apiSchemas on the prim.
     /// 
-    /// \return A valid UsdRiLightPortalAPI object is returned upon success. 
-    /// An invalid (or empty) UsdRiLightPortalAPI object is returned upon 
+    /// \return A valid UsdLuxVolumeLightAPI object is returned upon success. 
+    /// An invalid (or empty) UsdLuxVolumeLightAPI object is returned upon 
     /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
     /// resulting in failure. 
     /// 
@@ -143,73 +153,28 @@ public:
     /// \sa UsdPrim::ApplyAPI()
     /// \sa UsdPrim::RemoveAPI()
     ///
-    USDRI_API
-    static UsdRiLightPortalAPI 
+    USDLUX_API
+    static UsdLuxVolumeLightAPI 
     Apply(const UsdPrim &prim);
 
 protected:
     /// Returns the kind of schema this class belongs to.
     ///
     /// \sa UsdSchemaKind
-    USDRI_API
+    USDLUX_API
     UsdSchemaKind _GetSchemaKind() const override;
 
 private:
     // needs to invoke _GetStaticTfType.
     friend class UsdSchemaRegistry;
-    USDRI_API
+    USDLUX_API
     static const TfType &_GetStaticTfType();
 
     static bool _IsTypedSchema();
 
     // override SchemaBase virtuals.
-    USDRI_API
+    USDLUX_API
     const TfType &_GetTfType() const override;
-
-public:
-    // --------------------------------------------------------------------- //
-    // RIPORTALINTENSITY 
-    // --------------------------------------------------------------------- //
-    /// Intensity adjustment relative to the light intensity.
-    /// This gets multiplied by the light's intensity and power
-    ///
-    /// | ||
-    /// | -- | -- |
-    /// | Declaration | `float ri:portal:intensity` |
-    /// | C++ Type | float |
-    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Float |
-    USDRI_API
-    UsdAttribute GetRiPortalIntensityAttr() const;
-
-    /// See GetRiPortalIntensityAttr(), and also 
-    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
-    /// If specified, author \p defaultValue as the attribute's default,
-    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
-    /// the default for \p writeSparsely is \c false.
-    USDRI_API
-    UsdAttribute CreateRiPortalIntensityAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
-
-public:
-    // --------------------------------------------------------------------- //
-    // RIPORTALTINT 
-    // --------------------------------------------------------------------- //
-    /// tint: This parameter tints the color from the dome texture.
-    ///
-    /// | ||
-    /// | -- | -- |
-    /// | Declaration | `color3f ri:portal:tint` |
-    /// | C++ Type | GfVec3f |
-    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Color3f |
-    USDRI_API
-    UsdAttribute GetRiPortalTintAttr() const;
-
-    /// See GetRiPortalTintAttr(), and also 
-    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
-    /// If specified, author \p defaultValue as the attribute's default,
-    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
-    /// the default for \p writeSparsely is \c false.
-    USDRI_API
-    UsdAttribute CreateRiPortalTintAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
 
 public:
     // ===================================================================== //

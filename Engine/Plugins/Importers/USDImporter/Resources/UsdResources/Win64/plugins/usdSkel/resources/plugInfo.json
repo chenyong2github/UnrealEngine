@@ -81,7 +81,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Win64/usdSkel.dll", 
+            "LibraryPath": "../../../../../../../../Binaries/Win64/usd_usdSkel.dll", 
             "Name": "usdSkel", 
             "ResourcePath": "resources", 
             "Root": "..", 

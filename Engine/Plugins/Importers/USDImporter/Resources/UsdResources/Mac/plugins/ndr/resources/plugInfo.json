@@ -11,7 +11,7 @@
                     "NdrParserPlugin": {}
                 }
             },
-            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libndr.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusd_ndr.dylib", 
             "Name": "ndr", 
             "ResourcePath": "resources", 
             "Root": "..", 

@@ -18,7 +18,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Win64/usdMedia.dll", 
+            "LibraryPath": "../../../../../../../../Binaries/Win64/usd_usdMedia.dll", 
             "Name": "usdMedia", 
             "ResourcePath": "resources", 
             "Root": "..", 

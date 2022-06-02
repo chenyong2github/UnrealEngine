@@ -18,7 +18,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusdMedia.so", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusd_usdMedia.so", 
             "Name": "usdMedia", 
             "ResourcePath": "resources", 
             "Root": "..", 

@@ -1,16 +1,16 @@
 @echo off
 setlocal
 
-set USD_VERSION=21.08
+set USD_VERSION=22.03
 
 rem This path may be adjusted to point to wherever the USD source is located.
 rem It is typically obtained by either downloading a zip/tarball of the source
 rem code, or more commonly by cloning the GitHub repository, e.g. for the
 rem current engine USD version:
-rem     git clone --branch v21.08 https://github.com/PixarAnimationStudios/USD.git USD_src
+rem     git clone --branch v22.03 https://github.com/PixarAnimationStudios/USD.git USD_src
 rem Note that a small patch to the USD CMake build is currently necessary for
 rem the usdAbc plugin to require and link against Imath instead of OpenEXR:
-rem     git apply USD_v2108_usdAbc_Imath.patch
+rem     git apply USD_v2203_usdAbc_Imath.patch
 rem Note also that this path may be emitted as part of USD error messages, so
 rem it is suggested that it not reveal any sensitive information.
 set USD_SOURCE_LOCATION=C:\USD_src

@@ -21,14 +21,14 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDLUX_GENERATED_LIGHT_H
-#define USDLUX_GENERATED_LIGHT_H
+#ifndef USDLUX_GENERATED_LIGHTAPI_H
+#define USDLUX_GENERATED_LIGHTAPI_H
 
-/// \file usdLux/light.h
+/// \file usdLux/lightAPI.h
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usdLux/api.h"
-#include "pxr/usd/usdGeom/xformable.h"
+#include "pxr/usd/usd/apiSchemaBase.h"
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usdLux/tokens.h"
@@ -51,12 +51,17 @@ PXR_NAMESPACE_OPEN_SCOPE
 class SdfAssetPath;
 
 // -------------------------------------------------------------------------- //
-// LIGHT                                                                      //
+// LIGHTAPI                                                                   //
 // -------------------------------------------------------------------------- //
 
-/// \class UsdLuxLight
+/// \class UsdLuxLightAPI
 ///
-/// Base class for all lights.
+/// API schema that imparts the quality of being a light onto a prim. 
+/// 
+/// A light is any prim that has this schema applied to it.  This is true 
+/// regardless of whether LightAPI is included as a built-in API of the prim 
+/// type (e.g. RectLight or DistantLight) or is applied directly to a Gprim 
+/// that should be treated as a light.
 /// 
 /// <b>Linking</b>
 /// 
@@ -76,34 +81,39 @@ class SdfAssetPath;
 /// to best express the intent of the light setup.
 /// 
 ///
-class UsdLuxLight : public UsdGeomXformable
+/// For any described attribute \em Fallback \em Value or \em Allowed \em Values below
+/// that are text/tokens, the actual token is published and defined in \ref UsdLuxTokens.
+/// So to set an attribute to the value "rightHanded", use UsdLuxTokens->rightHanded
+/// as the value.
+///
+class UsdLuxLightAPI : public UsdAPISchemaBase
 {
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
     /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::AbstractTyped;
+    static const UsdSchemaKind schemaKind = UsdSchemaKind::SingleApplyAPI;
 
-    /// Construct a UsdLuxLight on UsdPrim \p prim .
-    /// Equivalent to UsdLuxLight::Get(prim.GetStage(), prim.GetPath())
+    /// Construct a UsdLuxLightAPI on UsdPrim \p prim .
+    /// Equivalent to UsdLuxLightAPI::Get(prim.GetStage(), prim.GetPath())
     /// for a \em valid \p prim, but will not immediately throw an error for
     /// an invalid \p prim
-    explicit UsdLuxLight(const UsdPrim& prim=UsdPrim())
-        : UsdGeomXformable(prim)
+    explicit UsdLuxLightAPI(const UsdPrim& prim=UsdPrim())
+        : UsdAPISchemaBase(prim)
     {
     }
 
-    /// Construct a UsdLuxLight on the prim held by \p schemaObj .
-    /// Should be preferred over UsdLuxLight(schemaObj.GetPrim()),
+    /// Construct a UsdLuxLightAPI on the prim held by \p schemaObj .
+    /// Should be preferred over UsdLuxLightAPI(schemaObj.GetPrim()),
     /// as it preserves SchemaBase state.
-    explicit UsdLuxLight(const UsdSchemaBase& schemaObj)
-        : UsdGeomXformable(schemaObj)
+    explicit UsdLuxLightAPI(const UsdSchemaBase& schemaObj)
+        : UsdAPISchemaBase(schemaObj)
     {
     }
 
     /// Destructor.
     USDLUX_API
-    virtual ~UsdLuxLight();
+    virtual ~UsdLuxLightAPI();
 
     /// Return a vector of names of all pre-declared attributes for this schema
     /// class and all its ancestor classes.  Does not include attributes that
@@ -112,19 +122,58 @@ public:
     static const TfTokenVector &
     GetSchemaAttributeNames(bool includeInherited=true);
 
-    /// Return a UsdLuxLight holding the prim adhering to this
+    /// Return a UsdLuxLightAPI holding the prim adhering to this
     /// schema at \p path on \p stage.  If no prim exists at \p path on
     /// \p stage, or if the prim at that path does not adhere to this schema,
     /// return an invalid schema object.  This is shorthand for the following:
     ///
     /// \code
-    /// UsdLuxLight(stage->GetPrimAtPath(path));
+    /// UsdLuxLightAPI(stage->GetPrimAtPath(path));
     /// \endcode
     ///
     USDLUX_API
-    static UsdLuxLight
+    static UsdLuxLightAPI
     Get(const UsdStagePtr &stage, const SdfPath &path);
 
+
+    /// Returns true if this <b>single-apply</b> API schema can be applied to 
+    /// the given \p prim. If this schema can not be a applied to the prim, 
+    /// this returns false and, if provided, populates \p whyNot with the 
+    /// reason it can not be applied.
+    /// 
+    /// Note that if CanApply returns false, that does not necessarily imply
+    /// that calling Apply will fail. Callers are expected to call CanApply
+    /// before calling Apply if they want to ensure that it is valid to 
+    /// apply a schema.
+    /// 
+    /// \sa UsdPrim::GetAppliedSchemas()
+    /// \sa UsdPrim::HasAPI()
+    /// \sa UsdPrim::CanApplyAPI()
+    /// \sa UsdPrim::ApplyAPI()
+    /// \sa UsdPrim::RemoveAPI()
+    ///
+    USDLUX_API
+    static bool 
+    CanApply(const UsdPrim &prim, std::string *whyNot=nullptr);
+
+    /// Applies this <b>single-apply</b> API schema to the given \p prim.
+    /// This information is stored by adding "LightAPI" to the 
+    /// token-valued, listOp metadata \em apiSchemas on the prim.
+    /// 
+    /// \return A valid UsdLuxLightAPI object is returned upon success. 
+    /// An invalid (or empty) UsdLuxLightAPI object is returned upon 
+    /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
+    /// resulting in failure. 
+    /// 
+    /// \sa UsdPrim::GetAppliedSchemas()
+    /// \sa UsdPrim::HasAPI()
+    /// \sa UsdPrim::CanApplyAPI()
+    /// \sa UsdPrim::ApplyAPI()
+    /// \sa UsdPrim::RemoveAPI()
+    ///
+    USDLUX_API
+    static UsdLuxLightAPI 
+    Apply(const UsdPrim &prim);
 
 protected:
     /// Returns the kind of schema this class belongs to.
@@ -144,6 +193,92 @@ private:
     // override SchemaBase virtuals.
     USDLUX_API
     const TfType &_GetTfType() const override;
+
+public:
+    // --------------------------------------------------------------------- //
+    // SHADERID 
+    // --------------------------------------------------------------------- //
+    /// Default ID for the light's shader. 
+    /// This defines the shader ID for this light when a render context specific
+    /// shader ID is not available. 
+    /// 
+    /// The default shaderId for the intrinsic UsdLux lights (RectLight, 
+    /// DistantLight, etc.) are set to default to the light's type name. For 
+    /// each intrinsic UsdLux light, we will always register an SdrShaderNode in
+    /// the SdrRegistry, with the identifier matching the type name and the 
+    /// source type "USD", that corresponds to the light's inputs.
+    /// \see GetShaderId
+    /// \see GetShaderIdAttrForRenderContext
+    /// \see SdrRegistry::GetShaderNodeByIdentifier
+    /// \see SdrRegistry::GetShaderNodeByIdentifierAndType
+    /// 
+    ///
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform token light:shaderId = ""` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
+    USDLUX_API
+    UsdAttribute GetShaderIdAttr() const;
+
+    /// See GetShaderIdAttr(), and also 
+    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
+    /// If specified, author \p defaultValue as the attribute's default,
+    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
+    /// the default for \p writeSparsely is \c false.
+    USDLUX_API
+    UsdAttribute CreateShaderIdAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
+
+public:
+    // --------------------------------------------------------------------- //
+    // MATERIALSYNCMODE 
+    // --------------------------------------------------------------------- //
+    /// For a LightAPI applied to geometry that has a bound Material, 
+    /// which is entirely or partly emissive, this specifies the relationship 
+    /// of the Material response to the lighting response.
+    /// Valid values are:
+    /// - materialGlowTintsLight: All primary and secondary rays see the 
+    /// emissive/glow response as dictated by the bound Material while the 
+    /// base color seen by light rays (which is then modulated by all of the 
+    /// other LightAPI controls) is the multiplication of the color feeding 
+    /// the emission/glow input of the Material (i.e. its surface or volume 
+    /// shader) with the scalar or pattern input to *inputs:color*.
+    /// This allows the light's color to tint the geometry's glow color while 
+    /// preserving access to intensity and other light controls as ways to 
+    /// further modulate the illumination.
+    /// - independent: All primary and secondary rays see the emissive/glow 
+    /// response as dictated by the bound Material, while the base color seen 
+    /// by light rays is determined solely by *inputs:color*. Note that for 
+    /// partially emissive geometry (in which some parts are reflective 
+    /// rather than emissive), a suitable pattern must be connected to the 
+    /// light's color input, or else the light will radiate uniformly from 
+    /// the geometry.
+    /// - noMaterialResponse: The geometry behaves as if there is no Material
+    /// bound at all, i.e. there is no diffuse, specular, or transmissive 
+    /// response. The base color of light rays is entirely controlled by the
+    /// *inputs:color*. This is the standard mode for "canonical" lights in 
+    /// UsdLux and indicates to renderers that a Material will either never 
+    /// be bound or can always be ignored.
+    /// 
+    ///
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `uniform token light:materialSyncMode = "noMaterialResponse"` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
+    /// | \ref SdfVariability "Variability" | SdfVariabilityUniform |
+    /// | \ref UsdLuxTokens "Allowed Values" | materialGlowTintsLight, independent, noMaterialResponse |
+    USDLUX_API
+    UsdAttribute GetMaterialSyncModeAttr() const;
+
+    /// See GetMaterialSyncModeAttr(), and also 
+    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
+    /// If specified, author \p defaultValue as the attribute's default,
+    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
+    /// the default for \p writeSparsely is \c false.
+    USDLUX_API
+    UsdAttribute CreateMaterialSyncModeAttr(VtValue const &defaultValue = VtValue(), bool writeSparsely=false) const;
 
 public:
     // --------------------------------------------------------------------- //
@@ -366,16 +501,16 @@ public:
     /// @{
 
     /// Constructor that takes a ConnectableAPI object.
-    /// Allow implicit conversion of a UsdShadeConnectableAPI to UsdLuxLight
+    /// Allow implicit conversion of a UsdShadeConnectableAPI to UsdLuxLightAPI
     USDLUX_API
-    UsdLuxLight(const UsdShadeConnectableAPI &connectable);
+    UsdLuxLightAPI(const UsdShadeConnectableAPI &connectable);
 
     /// Contructs and returns a UsdShadeConnectableAPI object with this light.
     ///
     /// Note that most tasks can be accomplished without explicitly constructing 
     /// a UsdShadeConnectable API, since connection-related API such as
     /// UsdShadeConnectableAPI::ConnectToSource() are static methods, and 
-    /// UsdLuxLight will auto-convert to a UsdShadeConnectableAPI when 
+    /// UsdLuxLightAPI will auto-convert to a UsdShadeConnectableAPI when 
     /// passed to functions that want to act generically on a connectable
     /// UsdShadeConnectableAPI object.
     USDLUX_API
@@ -446,25 +581,6 @@ public:
 
     /// @}
 
-    /// Computes the base emission (aka radiant flux density, aka energy
-    /// per unit area), incorporating the parameters for intensity,
-    /// exposure, color, and colorTemperature attributes.
-    ///
-    /// This "base" emission method exists solely as a reference example
-    /// implementation of how to interpret these parameters.  It is
-    /// expected that most rendering backends will consume the parameter
-    /// values directly rather than call this method.
-    ///
-    /// The base emission is only one step in the process of sampling
-    /// light radiance. It does not incorporate effects from:
-    ///
-    /// - textural/procedural modifications
-    /// - normalization by area
-    /// - specular/diffuse multipliers
-    ///
-    USDLUX_API
-    GfVec3f ComputeBaseEmission() const;
-
     /// Return the UsdCollectionAPI interface used for examining and
     /// modifying the light-linking of this light.  Light-linking
     /// controls which geometry this light illuminates.
@@ -476,6 +592,55 @@ public:
     /// controls which geometry casts shadows from this light.
     USDLUX_API
     UsdCollectionAPI GetShadowLinkCollectionAPI() const;
+
+    /// Returns the shader ID attribute for the given \p renderContext.
+    ///
+    /// If \p renderContext is non-empty, this will try to return an attribute
+    /// named _light:shaderId_ with the namespace prefix \p renderContext. For 
+    /// example, if the passed in render context is "ri" then the attribute 
+    /// returned by this function would have the following signature:
+    /// | ||
+    /// | -- | -- |
+    /// | Declaration | `token ri:light:shaderId` |
+    /// | C++ Type | TfToken |
+    /// | \ref Usd_Datatypes "Usd Type" | SdfValueTypeNames->Token |
+    /// 
+    /// If the render context is empty, this will return the default shader ID 
+    /// attribute as returned by GetShaderIdAttr().
+    USDLUX_API
+    UsdAttribute GetShaderIdAttrForRenderContext(
+        const TfToken &renderContext) const;
+
+    /// Creates the shader ID attribute for the given \p renderContext.
+    ///
+    /// See GetShaderIdAttrForRenderContext(), and also 
+    /// \ref Usd_Create_Or_Get_Property for when to use Get vs Create.
+    /// If specified, author \p defaultValue as the attribute's default,
+    /// sparsely (when it makes sense to do so) if \p writeSparsely is \c true -
+    /// the default for \p writeSparsely is \c false.
+    USDLUX_API
+    UsdAttribute CreateShaderIdAttrForRenderContext(
+        const TfToken &renderContext,
+        VtValue const &defaultValue = VtValue(), 
+        bool writeSparsely=false) const;
+
+    /// Return the light's shader ID for the given list of available 
+    /// \p renderContexts.
+    ///
+    /// The shader ID returned by this function is the identifier to use when 
+    /// looking up the shader definition for this light in the 
+    /// \ref SdrRegistry "shader registry".
+    /// 
+    /// The render contexts are expected to be listed in priority order, so
+    /// for each render context provided, this will try to find the shader ID 
+    /// attribute specific to that render context (see 
+    /// GetShaderIdAttrForRenderContext()) and will return the 
+    /// value of the first one found that has a non-empty value. If no shader ID
+    /// value can be found for any of the given render contexts or 
+    /// \p renderContexts is empty, then this will return the value of the 
+    /// default shader ID attribute (see GetShaderIdAttr()).
+    USDLUX_API
+    TfToken GetShaderId(const TfTokenVector &renderContexts) const;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

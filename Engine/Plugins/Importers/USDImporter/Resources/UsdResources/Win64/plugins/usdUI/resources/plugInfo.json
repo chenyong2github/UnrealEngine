@@ -38,7 +38,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Win64/usdUI.dll", 
+            "LibraryPath": "../../../../../../../../Binaries/Win64/usd_usdUI.dll", 
             "Name": "usdUI", 
             "ResourcePath": "resources", 
             "Root": "..", 

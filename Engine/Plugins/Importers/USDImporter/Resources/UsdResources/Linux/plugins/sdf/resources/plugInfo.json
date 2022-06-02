@@ -26,7 +26,7 @@
                     }
                 }
             },
-            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libsdf.so",
+            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusd_sdf.so",
             "Name": "sdf",
             "ResourcePath": "resources",
             "Root": "..",

@@ -81,7 +81,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusdSkel.so", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusd_usdSkel.so", 
             "Name": "usdSkel", 
             "ResourcePath": "resources", 
             "Root": "..", 

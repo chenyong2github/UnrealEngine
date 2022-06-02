@@ -131,7 +131,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Win64/usd.dll", 
+            "LibraryPath": "../../../../../../../../Binaries/Win64/usd_usd.dll", 
             "Name": "usd", 
             "ResourcePath": "resources", 
             "Root": "..", 

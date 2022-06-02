@@ -38,7 +38,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusdUI.so", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusd_usdUI.so", 
             "Name": "usdUI", 
             "ResourcePath": "resources", 
             "Root": "..", 

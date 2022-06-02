@@ -13,7 +13,7 @@
                     "ArPackageResolver": {}
                 }
             },
-            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libar.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusd_ar.dylib", 
             "Name": "ar", 
             "ResourcePath": "resources", 
             "Root": "..", 

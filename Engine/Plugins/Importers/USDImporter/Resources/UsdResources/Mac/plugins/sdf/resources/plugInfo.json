@@ -26,7 +26,7 @@
                     }
                 }
             },
-            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libsdf.dylib",
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusd_sdf.dylib",
             "Name": "sdf",
             "ResourcePath": "resources",
             "Root": "..",

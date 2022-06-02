@@ -26,7 +26,7 @@
                     }
                 }
             },
-            "LibraryPath": "../../../../../../../../Binaries/Win64/sdf.dll",
+            "LibraryPath": "../../../../../../../../Binaries/Win64/usd_sdf.dll",
             "Name": "sdf",
             "ResourcePath": "resources",
             "Root": "..",

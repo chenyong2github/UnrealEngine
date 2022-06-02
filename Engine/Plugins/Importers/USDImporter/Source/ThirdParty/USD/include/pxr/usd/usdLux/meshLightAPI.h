@@ -21,16 +21,17 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef USDLUX_GENERATED_LIGHTPORTAL_H
-#define USDLUX_GENERATED_LIGHTPORTAL_H
+#ifndef USDLUX_GENERATED_MESHLIGHTAPI_H
+#define USDLUX_GENERATED_MESHLIGHTAPI_H
 
-/// \file usdLux/lightPortal.h
+/// \file usdLux/meshLightAPI.h
 
 #include "pxr/pxr.h"
 #include "pxr/usd/usdLux/api.h"
-#include "pxr/usd/usdLux/portalLight.h"
+#include "pxr/usd/usd/apiSchemaBase.h"
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/stage.h"
+#include "pxr/usd/usdLux/tokens.h"
 
 #include "pxr/base/vt/value.h"
 
@@ -46,47 +47,55 @@ PXR_NAMESPACE_OPEN_SCOPE
 class SdfAssetPath;
 
 // -------------------------------------------------------------------------- //
-// LIGHTPORTAL                                                                //
+// MESHLIGHTAPI                                                               //
 // -------------------------------------------------------------------------- //
 
-/// \class UsdLuxLightPortal
+/// \class UsdLuxMeshLightAPI
 ///
+/// This is the preferred API schema to apply to 
+/// \ref UsdGeomMesh "Mesh" type prims when adding light behaviors to a mesh. 
+/// At its base, this API schema has the built-in behavior of applying LightAPI 
+/// to the mesh and overriding the default materialSyncMode to allow the 
+/// emission/glow of the bound material to affect the color of the light. 
+/// But, it additionally serves as a hook for plugins to attach additional 
+/// properties to "mesh lights" through the creation of API schemas which are 
+/// authored to auto-apply to MeshLightAPI.
+/// \see \ref Usd_AutoAppliedAPISchemas
 /// 
-/// \deprecated This remains for backward compatability for now but is 
-/// identical to PortalLight which should be used instead.
-/// 
-/// A rectangular portal in the local XY plane that guides sampling
-/// of a dome light.  Transmits light in the -Z direction.
-/// The rectangle is 1 unit in length.
 ///
-class UsdLuxLightPortal : public UsdLuxPortalLight
+/// For any described attribute \em Fallback \em Value or \em Allowed \em Values below
+/// that are text/tokens, the actual token is published and defined in \ref UsdLuxTokens.
+/// So to set an attribute to the value "rightHanded", use UsdLuxTokens->rightHanded
+/// as the value.
+///
+class UsdLuxMeshLightAPI : public UsdAPISchemaBase
 {
 public:
     /// Compile time constant representing what kind of schema this class is.
     ///
     /// \sa UsdSchemaKind
-    static const UsdSchemaKind schemaKind = UsdSchemaKind::ConcreteTyped;
+    static const UsdSchemaKind schemaKind = UsdSchemaKind::SingleApplyAPI;
 
-    /// Construct a UsdLuxLightPortal on UsdPrim \p prim .
-    /// Equivalent to UsdLuxLightPortal::Get(prim.GetStage(), prim.GetPath())
+    /// Construct a UsdLuxMeshLightAPI on UsdPrim \p prim .
+    /// Equivalent to UsdLuxMeshLightAPI::Get(prim.GetStage(), prim.GetPath())
     /// for a \em valid \p prim, but will not immediately throw an error for
     /// an invalid \p prim
-    explicit UsdLuxLightPortal(const UsdPrim& prim=UsdPrim())
-        : UsdLuxPortalLight(prim)
+    explicit UsdLuxMeshLightAPI(const UsdPrim& prim=UsdPrim())
+        : UsdAPISchemaBase(prim)
     {
     }
 
-    /// Construct a UsdLuxLightPortal on the prim held by \p schemaObj .
-    /// Should be preferred over UsdLuxLightPortal(schemaObj.GetPrim()),
+    /// Construct a UsdLuxMeshLightAPI on the prim held by \p schemaObj .
+    /// Should be preferred over UsdLuxMeshLightAPI(schemaObj.GetPrim()),
     /// as it preserves SchemaBase state.
-    explicit UsdLuxLightPortal(const UsdSchemaBase& schemaObj)
-        : UsdLuxPortalLight(schemaObj)
+    explicit UsdLuxMeshLightAPI(const UsdSchemaBase& schemaObj)
+        : UsdAPISchemaBase(schemaObj)
     {
     }
 
     /// Destructor.
     USDLUX_API
-    virtual ~UsdLuxLightPortal();
+    virtual ~UsdLuxMeshLightAPI();
 
     /// Return a vector of names of all pre-declared attributes for this schema
     /// class and all its ancestor classes.  Does not include attributes that
@@ -95,44 +104,58 @@ public:
     static const TfTokenVector &
     GetSchemaAttributeNames(bool includeInherited=true);
 
-    /// Return a UsdLuxLightPortal holding the prim adhering to this
+    /// Return a UsdLuxMeshLightAPI holding the prim adhering to this
     /// schema at \p path on \p stage.  If no prim exists at \p path on
     /// \p stage, or if the prim at that path does not adhere to this schema,
     /// return an invalid schema object.  This is shorthand for the following:
     ///
     /// \code
-    /// UsdLuxLightPortal(stage->GetPrimAtPath(path));
+    /// UsdLuxMeshLightAPI(stage->GetPrimAtPath(path));
     /// \endcode
     ///
     USDLUX_API
-    static UsdLuxLightPortal
+    static UsdLuxMeshLightAPI
     Get(const UsdStagePtr &stage, const SdfPath &path);
 
-    /// Attempt to ensure a \a UsdPrim adhering to this schema at \p path
-    /// is defined (according to UsdPrim::IsDefined()) on this stage.
-    ///
-    /// If a prim adhering to this schema at \p path is already defined on this
-    /// stage, return that prim.  Otherwise author an \a SdfPrimSpec with
-    /// \a specifier == \a SdfSpecifierDef and this schema's prim type name for
-    /// the prim at \p path at the current EditTarget.  Author \a SdfPrimSpec s
-    /// with \p specifier == \a SdfSpecifierDef and empty typeName at the
-    /// current EditTarget for any nonexistent, or existing but not \a Defined
-    /// ancestors.
-    ///
-    /// The given \a path must be an absolute prim path that does not contain
-    /// any variant selections.
-    ///
-    /// If it is impossible to author any of the necessary PrimSpecs, (for
-    /// example, in case \a path cannot map to the current UsdEditTarget's
-    /// namespace) issue an error and return an invalid \a UsdPrim.
-    ///
-    /// Note that this method may return a defined prim whose typeName does not
-    /// specify this schema class, in case a stronger typeName opinion overrides
-    /// the opinion at the current EditTarget.
+
+    /// Returns true if this <b>single-apply</b> API schema can be applied to 
+    /// the given \p prim. If this schema can not be a applied to the prim, 
+    /// this returns false and, if provided, populates \p whyNot with the 
+    /// reason it can not be applied.
+    /// 
+    /// Note that if CanApply returns false, that does not necessarily imply
+    /// that calling Apply will fail. Callers are expected to call CanApply
+    /// before calling Apply if they want to ensure that it is valid to 
+    /// apply a schema.
+    /// 
+    /// \sa UsdPrim::GetAppliedSchemas()
+    /// \sa UsdPrim::HasAPI()
+    /// \sa UsdPrim::CanApplyAPI()
+    /// \sa UsdPrim::ApplyAPI()
+    /// \sa UsdPrim::RemoveAPI()
     ///
     USDLUX_API
-    static UsdLuxLightPortal
-    Define(const UsdStagePtr &stage, const SdfPath &path);
+    static bool 
+    CanApply(const UsdPrim &prim, std::string *whyNot=nullptr);
+
+    /// Applies this <b>single-apply</b> API schema to the given \p prim.
+    /// This information is stored by adding "MeshLightAPI" to the 
+    /// token-valued, listOp metadata \em apiSchemas on the prim.
+    /// 
+    /// \return A valid UsdLuxMeshLightAPI object is returned upon success. 
+    /// An invalid (or empty) UsdLuxMeshLightAPI object is returned upon 
+    /// failure. See \ref UsdPrim::ApplyAPI() for conditions 
+    /// resulting in failure. 
+    /// 
+    /// \sa UsdPrim::GetAppliedSchemas()
+    /// \sa UsdPrim::HasAPI()
+    /// \sa UsdPrim::CanApplyAPI()
+    /// \sa UsdPrim::ApplyAPI()
+    /// \sa UsdPrim::RemoveAPI()
+    ///
+    USDLUX_API
+    static UsdLuxMeshLightAPI 
+    Apply(const UsdPrim &prim);
 
 protected:
     /// Returns the kind of schema this class belongs to.
