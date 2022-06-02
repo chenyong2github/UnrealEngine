@@ -76,11 +76,7 @@ extern UNREALED_API UEditorEngine* GEditor;
 #define LOCTEXT_NAMESPACE "DatasmithImporter"
 
 
-namespace DatasmithImporter
-{
-namespace Private
-{
-namespace DatasmithImporterImpl
+namespace UE::DatasmithImporterImpl::Private
 {
 	class FDatasmithWriter final : public FObjectWriter
 	{
@@ -113,9 +109,7 @@ namespace DatasmithImporterImpl
 			Object.Serialize(*this);
 		}
 	};
-}
-}
-}
+} // namespace UE::DatasmithImporterImpl::Private
 
 void FDatasmithImporterImpl::ReportProgress(FScopedSlowTask* SlowTask, const float ExpectedWorkThisFrame, const FText& Text)
 {
@@ -744,7 +738,7 @@ void FDatasmithImporterImpl::CopyObject(UObject& Source, UObject& Destination, T
 {
 	// Keep the previous allocation
 	TempBuffer.Reset();
-	using namespace DatasmithImporter::Private::DatasmithImporterImpl;
+	using namespace UE::DatasmithImporterImpl::Private;
 	FDatasmithWriter DatasmithWriter( Source, TempBuffer );
 	FDatasmithReader DatasmithReader( Destination, TempBuffer );
 }
