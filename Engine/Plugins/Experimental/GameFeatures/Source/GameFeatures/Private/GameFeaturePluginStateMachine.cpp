@@ -1833,12 +1833,12 @@ void UGameFeaturePluginStateMachine::RemovePendingCancelCallback(void* DelegateO
 	StateProperties.OnTransitionCanceled.RemoveAll(DelegateObject);
 }
 
-FString UGameFeaturePluginStateMachine::GetGameFeatureName() const
+const FString& UGameFeaturePluginStateMachine::GetGameFeatureName() const
 {
 	FString PluginFilename;
-	if (GetPluginFilename(PluginFilename))
+	if (!StateProperties.PluginName.IsEmpty())
 	{
-		return FPaths::GetBaseFilename(PluginFilename);
+		return StateProperties.PluginName;
 	}
 	else
 	{
@@ -1846,12 +1846,12 @@ FString UGameFeaturePluginStateMachine::GetGameFeatureName() const
 	}
 }
 
-FString UGameFeaturePluginStateMachine::GetPluginURL() const
+const FString& UGameFeaturePluginStateMachine::GetPluginURL() const
 {
 	return StateProperties.PluginURL;
 }
 
-FString UGameFeaturePluginStateMachine::GetPluginName() const
+const FString& UGameFeaturePluginStateMachine::GetPluginName() const
 {
 	return StateProperties.PluginName;
 }

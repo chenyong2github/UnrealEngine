@@ -391,6 +391,22 @@ private:
 	/** Handle 'ListGameFeaturePlugins' console command */
 	void ListGameFeaturePlugins(const TArray<FString>& Args, UWorld* InWorld, FOutputDevice& Ar);
 
+	enum class EObserverCallback
+	{
+		CheckingStatus,
+		Terminating,
+		Registering,
+		Unregistering,
+		Loading,
+		Activating,
+		Deactivating
+	};
+
+	void CallbackObservers(EObserverCallback CallbackType, const FString& PluginURL, 
+		const FString* PluginName = nullptr, 
+		const UGameFeatureData* GameFeatureData = nullptr, 
+		FGameFeatureDeactivatingContext* DeactivatingContext = nullptr);
+
 private:
 	/** The list of all game feature plugin state machine objects */
 	UPROPERTY(Transient)

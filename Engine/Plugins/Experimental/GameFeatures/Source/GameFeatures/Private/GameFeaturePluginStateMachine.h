@@ -422,13 +422,13 @@ public:
 	void RemovePendingCancelCallback(void* DelegateObject);
 
 	/** Returns the name of the game feature. Before StatusKnown, this returns the URL. */
-	FString GetGameFeatureName() const;
+	const FString& GetGameFeatureName() const;
 
 	/** Returns the URL */
-	FString GetPluginURL() const;
+	const FString& GetPluginURL() const;
 
 	/** Returns the plugin name if known (plugin must have been registered to know the name). */
-	FString GetPluginName() const;
+	const FString& GetPluginName() const;
 
 	/** Returns the uplugin filename of the game feature. Before StatusKnown, this returns false. */
 	bool GetPluginFilename(FString& OutPluginFilename) const;
