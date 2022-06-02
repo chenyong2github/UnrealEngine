@@ -124,7 +124,8 @@ private:
 	/* Delegate to handle sequencer changes for auto baking of anim sequences*/
 	FDelegateHandle SequencerSavedHandle;
 	void OnSequencerSaved(ISequencer& InSequence);
-
+	FDelegateHandle SequencerChangedHandle;
+	void OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType);
 	void OnPostPropertyChanged(UObject* InObject, struct FPropertyChangedEvent& InPropertyChangedEvent);
 };
 

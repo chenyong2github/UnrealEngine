@@ -1098,7 +1098,7 @@ FSkeletalAnimationTrackEditor::FSkeletalAnimationTrackEditor( TSharedRef<ISequen
 	AnimSeqExportOption = NewObject<UAnimSeqExportOption>();
 
 	SequencerSavedHandle = InSequencer->OnPostSave().AddRaw(this, &FSkeletalAnimationTrackEditor::OnSequencerSaved);
-
+	SequencerChangedHandle = InSequencer->OnMovieSceneDataChanged().AddRaw(this, &FSkeletalAnimationTrackEditor::OnSequencerDataChanged);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FSkeletalAnimationTrackEditor::OnPostPropertyChanged);
 }
 
@@ -1124,9 +1124,18 @@ void FSkeletalAnimationTrackEditor::OnRelease()
 
 	--FSkeletalAnimationTrackEditor::NumberActive;
 
-	if (GetSequencer().IsValid() && SequencerSavedHandle.IsValid())
+	if (GetSequencer().IsValid())
 	{
-		GetSequencer()->OnPostSave().Remove(SequencerSavedHandle);
+		if (SequencerSavedHandle.IsValid())
+		{
+			GetSequencer()->OnPostSave().Remove(SequencerSavedHandle);
+			SequencerSavedHandle.Reset();
+		}
+		if (SequencerChangedHandle.IsValid())
+		{
+			GetSequencer()->OnMovieSceneDataChanged().Remove(SequencerChangedHandle);
+			SequencerChangedHandle.Reset();
+		}
 	}
 	if (FSkeletalAnimationTrackEditor::NumberActive == 0)
 	{
@@ -1270,6 +1279,36 @@ void FSkeletalAnimationTrackEditor::OnSequencerSaved(ISequencer& )
 						SaveArgs.TopLevelFlags = RF_Standalone;
 						SaveArgs.SaveFlags = SAVE_NoError;
 						UPackage::SavePackage(Package, NULL, *PackageFileName, SaveArgs);
+					}
+				}
+			}
+		}
+	}
+}
+
+//dirty anim sequence when the sequencer changes, to make sure it get's checked out etc..
+void FSkeletalAnimationTrackEditor::OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType)
+{
+	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+	if (!SequencerPtr.IsValid())
+	{
+		return;
+	}
+	ULevelSequence* LevelSequence = Cast<ULevelSequence>(SequencerPtr->GetFocusedMovieSceneSequence());
+	if (LevelSequence && LevelSequence->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()))
+	{
+		if (IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >(LevelSequence))
+		{
+			ULevelSequenceAnimSequenceLink* LevelAnimLink = AssetUserDataInterface->GetAssetUserData< ULevelSequenceAnimSequenceLink >();
+			if (LevelAnimLink)
+			{
+				for (int32 Index = LevelAnimLink->AnimSequenceLinks.Num() - 1; Index >= 0; --Index)
+				{
+					FLevelSequenceAnimSequenceLinkItem& Item = LevelAnimLink->AnimSequenceLinks[Index];
+					UAnimSequence* AnimSequence = Item.ResolveAnimSequence();
+					if (AnimSequence)
+					{
+						AnimSequence->Modify();
 					}
 				}
 			}
