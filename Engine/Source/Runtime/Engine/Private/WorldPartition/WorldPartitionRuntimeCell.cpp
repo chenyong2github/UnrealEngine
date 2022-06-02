@@ -103,9 +103,21 @@ bool UWorldPartitionRuntimeCell::CacheStreamingSourceInfo(const UWorldPartitionR
 int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* Other) const
 {
 	// Source priority (lower value is higher prio)
-	const int32 Comparison = (int32)CachedMinSourcePriority - (int32)Other->CachedMinSourcePriority;
+	int32 Comparison = (int32)CachedMinSourcePriority - (int32)Other->CachedMinSourcePriority;
+	
 	// Cell priority (lower value is higher prio)
-	return (Comparison != 0) ? Comparison : (Priority - Other->Priority);
+	if (Comparison == 0)
+	{
+		Comparison = Priority - Other->Priority;
+	}
+
+	// Data Layer priority (the more data layer a cell has, the later it should be streamed.)
+	if (Comparison == 0)
+	{
+		Comparison = DataLayers.Num() - Other->DataLayers.Num();
+	}
+
+	return Comparison;
 }
 
 bool UWorldPartitionRuntimeCell::IsDebugShown() const
