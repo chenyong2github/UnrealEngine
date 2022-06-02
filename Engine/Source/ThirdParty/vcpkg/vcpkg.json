@@ -3,7 +3,6 @@
   "version-string": "0.0.0",
   "description": "Unreal Engine 5 dependencies installed with vcpkg",
   "dependencies": [
-    "http-parser",
     "libressl",
     "protobuf",
     "re2",
