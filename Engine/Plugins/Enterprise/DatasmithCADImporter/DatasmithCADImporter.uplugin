@@ -145,14 +145,6 @@
 			]
 		},
 		{
-			"Name": "CoreTechSurface",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [
-				"Win64"
-			]
-		},
-		{
 			"Name": "DatasmithPLMXMLTranslator",
 			"Type": "Editor",
 			"LoadingPhase": "Default",

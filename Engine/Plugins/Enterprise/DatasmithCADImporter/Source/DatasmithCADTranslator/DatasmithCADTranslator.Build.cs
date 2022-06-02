@@ -23,7 +23,6 @@ namespace UnrealBuildTool.Rules
 					"CADInterfaces",
 					"CADLibrary",
 					"CADTools",
-					"CoreTechSurface",
 					"DatasmithCore",
 					"DatasmithContent",
 					"DatasmithDispatcher",
@@ -34,11 +33,6 @@ namespace UnrealBuildTool.Rules
 					"Sockets",
 				}
 			);
-
-			if (System.Type.GetType("CoreTech") != null)
-			{
-				PublicDependencyModuleNames.Add("CoreTech");
-			}
 		}
 	}
 }

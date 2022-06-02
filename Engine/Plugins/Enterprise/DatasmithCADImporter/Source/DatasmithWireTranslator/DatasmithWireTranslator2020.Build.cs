@@ -26,7 +26,6 @@ public abstract class DatasmithWireTranslatorBase : ModuleRules
 				"CADKernelSurface",
 				"CADLibrary",
 				"CADTools",
-				"CoreTechSurface",
 				"DatasmithContent",
 				"DatasmithCore",
 				"DatasmithTranslator",
@@ -55,11 +54,6 @@ public abstract class DatasmithWireTranslatorBase : ModuleRules
 		if (System.Type.GetType(GetAliasVersion()) != null)
 		{
 			PrivateDependencyModuleNames.Add(GetAliasVersion());
-		}
-
-		if (System.Type.GetType("CoreTech") != null)
-		{
-			PrivateDependencyModuleNames.Add("CoreTech");
 		}
 	}
 

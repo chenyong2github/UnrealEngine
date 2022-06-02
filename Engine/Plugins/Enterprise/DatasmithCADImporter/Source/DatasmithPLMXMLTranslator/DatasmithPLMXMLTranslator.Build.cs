@@ -25,7 +25,6 @@ namespace UnrealBuildTool.Rules
 					"CADKernelSurface",
 					"CADLibrary",
 					"CADTools",
-					"CoreTechSurface",
 					"DatasmithCADTranslator", // for DatasmithMeshBuilder
 					"DatasmithContent",
 					"DatasmithCore",
@@ -48,11 +47,6 @@ namespace UnrealBuildTool.Rules
 	 					"UnrealEd",
 					}
 				);
-			}
-
-			if (System.Type.GetType("CoreTech") != null)
-			{
-				PrivateDependencyModuleNames.Add("CoreTech");
 			}
 		}
 	}

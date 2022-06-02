@@ -23,11 +23,6 @@ namespace UnrealBuildTool.Rules
 				{
                 }
 			);
-
-            if (System.Type.GetType("CoreTech") != null)
-            {
-                PublicDependencyModuleNames.Add("CoreTech");
-            }
         }
     }
 }

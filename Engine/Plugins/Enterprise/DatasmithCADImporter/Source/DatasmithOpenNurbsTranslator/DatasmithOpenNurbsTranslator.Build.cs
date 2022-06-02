@@ -25,7 +25,6 @@ namespace UnrealBuildTool.Rules
 					"CADKernelSurface",
 					"CADLibrary",
 					"CADTools",
-					"CoreTechSurface",
 					"DatasmithCore",
 					"DatasmithContent",
 					"DatasmithTranslator",
@@ -40,11 +39,6 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateDependencyModuleNames.Add("OpenNurbs6");
 			}
-
-            if (System.Type.GetType("CoreTech") != null)
-            {
-				PrivateDependencyModuleNames.Add("CoreTech");
-            }
 
             if (Target.Type == TargetType.Editor)
             {

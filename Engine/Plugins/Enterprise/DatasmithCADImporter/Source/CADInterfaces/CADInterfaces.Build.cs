@@ -23,14 +23,8 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			// CAD library is only available if CoreTech is available too
-			bool bHasCoretech = System.Type.GetType("CoreTech") != null;
+			// CAD library is only available if TechSoft is available too
 			bool bHasTechSoft = System.Type.GetType("TechSoft") != null;
-
-			if (Target.Platform == UnrealTargetPlatform.Win64 && bHasCoretech)
-			{
-				PublicDependencyModuleNames.Add("CoreTech");
-			}
 
 			if ((Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux) && bHasTechSoft)
 			{
