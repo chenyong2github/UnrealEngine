@@ -326,7 +326,13 @@ FSceneView* UMoviePipelinePanoramicPass::GetSceneViewForSampleState(FSceneViewFa
 
 	// Calculate a Projection Matrix
 	{
-		const float MinZ = GNearClippingPlane;
+		float MinZ = GNearClippingPlane;
+		if (LocalPlayerController->PlayerCameraManager)
+		{
+			float NearClipPlane = LocalPlayerController->PlayerCameraManager->GetCameraCacheView().PerspectiveNearClipPlane;
+			MinZ = NearClipPlane > 0 ? NearClipPlane : MinZ;
+		}
+		PanoPane->NearClippingPlane = MinZ;
 		const float MaxZ = MinZ;
 		// Avoid zero ViewFOV's which cause divide by zero's in projection matrix
 		const float MatrixFOV = FMath::Max(0.001f, ViewFOV) * (float)PI / 360.0f;

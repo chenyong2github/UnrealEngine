@@ -68,6 +68,9 @@ UCineCameraComponent::UCineCameraComponent()
 	static ConstructorHelpers::FObjectFinder<UMaterial> PlaneMat(TEXT("/Engine/EngineDebugMaterials/M_SimpleUnlitTranslucent.M_SimpleUnlitTranslucent"));
 	FocusPlaneVisualizationMaterial = PlaneMat.Object;
 #endif
+
+	CustomNearClippingPlane = GNearClippingPlane;
+	bOverride_CustomNearClippingPlane = false;
 }
 
 void UCineCameraComponent::Serialize(FArchive& Ar)
@@ -454,6 +457,8 @@ void UCineCameraComponent::GetCameraView(float DeltaTime, FMinimalViewInfo& Desi
 	Super::GetCameraView(DeltaTime, DesiredView);
 
 	UpdateCameraLens(DeltaTime, DesiredView);
+
+	DesiredView.PerspectiveNearClipPlane = bOverride_CustomNearClippingPlane ? CustomNearClippingPlane : -1.0f;
 
 	bResetInterpolation = false;
 }

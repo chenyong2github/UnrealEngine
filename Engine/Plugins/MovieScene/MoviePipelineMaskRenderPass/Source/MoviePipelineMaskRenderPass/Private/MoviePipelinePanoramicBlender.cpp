@@ -123,7 +123,7 @@ void FMoviePipelinePanoramicBlender::OnCompleteRenderPassDataAvailable_AnyThread
 	const FVector SampleDirectionOnPhi = FVector(FMath::Cos(SamplePitchRad), 0.f, FMath::Sin(SamplePitchRad));
 
 	// Now construct a projection matrix representing the sample matching the original perspective it was taken from.
-	const FMatrix SampleProjectionMatrix = FReversedZPerspectiveMatrix(FMath::DegreesToRadians(SampleHalfHorizontalFoVDegrees), SampleSize.X, SampleSize.Y, GNearClippingPlane);
+	const FMatrix SampleProjectionMatrix = FReversedZPerspectiveMatrix(FMath::DegreesToRadians(SampleHalfHorizontalFoVDegrees), SampleSize.X, SampleSize.Y, DataPayload->Pane.NearClippingPlane);
 
 	// For our given output size, figure out how many degrees each pixel represents.
 	const float EquiRectMapThetaStep = 360.f / (float)OutputEquirectangularMapSize.X;

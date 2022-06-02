@@ -21,6 +21,8 @@ struct FPanoPane : public UMoviePipelineImagePassBase::IViewCalcPayload
 	FRotator OriginalCameraRotation;
 	// The camera rotation last frame, used to ensure camera motion vectors are right.
 	FRotator PrevOriginalCameraRotation;
+	// The near clip plane distance from the camera.
+	float NearClippingPlane;
 
 	// How far apart are the eyes (total) for stereo?
 	float EyeSeparation;
