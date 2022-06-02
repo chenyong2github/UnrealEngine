@@ -7,7 +7,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorTransformGizmo, Log, All);
 
-void UEditorTransformGizmo::Translate(const FVector& InTranslateDelta)
+void UEditorTransformGizmo::ApplyTranslateDelta(const FVector& InTranslateDelta)
 {
 	check(ActiveTarget);
 
@@ -20,7 +20,27 @@ void UEditorTransformGizmo::Translate(const FVector& InTranslateDelta)
 	}
 	else
 	{
-		Super::Translate(InTranslateDelta);
+		Super::ApplyTranslateDelta(InTranslateDelta);
+	}
+}
+
+void UEditorTransformGizmo::ApplyScaleDelta(const FVector& InScaleDelta)
+{
+	check(ActiveTarget);
+
+	if (UEditorTransformProxy* EditorTransformProxy = Cast<UEditorTransformProxy>(ActiveTarget))
+	{
+		FVector StartScale = CurrentTransform.GetScale3D();
+
+		EditorTransformProxy->InputScaleDelta(InScaleDelta, InteractionAxisType);
+
+		// Update the cached current transform
+		FVector NewScale = StartScale + InScaleDelta * InteractionAxis;
+		CurrentTransform.SetScale3D(NewScale);
+	}
+	else
+	{
+		Super::ApplyScaleDelta(InScaleDelta);
 	}
 }
 

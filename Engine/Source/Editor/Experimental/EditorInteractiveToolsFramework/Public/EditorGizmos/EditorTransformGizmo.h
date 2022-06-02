@@ -17,6 +17,9 @@ class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmo : public UTransf
 
 protected:
 
-	/** Update current gizmo mode based on transform source */
-	virtual void Translate(const FVector& InTranslateDelta) override;
+	/** Apply translate delta to transform proxy */
+	virtual void ApplyTranslateDelta(const FVector& InTranslateDelta);
+
+	/** Apply scale delta to transform proxy */
+	virtual void ApplyScaleDelta(const FVector& InScaleDelta);
 };

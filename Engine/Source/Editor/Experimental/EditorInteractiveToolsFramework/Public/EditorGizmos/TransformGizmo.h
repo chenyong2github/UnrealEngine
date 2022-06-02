@@ -264,17 +264,17 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UGizmoElementRectangle> TranslateScreenSpaceElement;
 
-	/** Planar XY handle */
+	/** Translate planar XY handle */
 	UPROPERTY()
-	TObjectPtr<UGizmoElementRectangle> PlanarXYElement;
+	TObjectPtr<UGizmoElementRectangle> TranslatePlanarXYElement;
 
-	/** Planar YZ handle */
+	/** Translate planar YZ handle */
 	UPROPERTY()
-	TObjectPtr<UGizmoElementRectangle> PlanarYZElement;
+	TObjectPtr<UGizmoElementRectangle> TranslatePlanarYZElement;
 
-	/** Planar XZ handle */
+	/** Translate planar XZ handle */
 	UPROPERTY()
-	TObjectPtr<UGizmoElementRectangle> PlanarXZElement;
+	TObjectPtr<UGizmoElementRectangle> TranslatePlanarXZElement;
 
 	/** Rotate X Axis */
 	UPROPERTY()
@@ -315,6 +315,18 @@ protected:
 	/** Scale Z Axis object */
 	UPROPERTY()
 	TObjectPtr<UGizmoElementArrow> ScaleZAxisElement;
+
+	/** Scale planar XY handle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementRectangle> ScalePlanarXYElement;
+
+	/** Scale planar YZ handle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementRectangle> ScalePlanarYZElement;
+
+	/** Scale planar XZ handle */
+	UPROPERTY()
+	TObjectPtr<UGizmoElementRectangle> ScalePlanarXZElement;
 
 	/** Uniform scale object */
 	UPROPERTY()
@@ -398,18 +410,29 @@ protected:
 	/** Get current interaction axis */
 	virtual FVector GetWorldAxis(const FVector& InAxis);
 
-	/** Update current gizmo mode based on transform source */
-	virtual void OnClickPressTranslate(const FInputDeviceRay& InPressPos);
+	/** Handle click press for translate and scale axes */
+	virtual void OnClickPressAxis(const FInputDeviceRay& InPressPos);
 
-	/** Update current gizmo mode based on transform source */
-	virtual void OnClickDragTranslate(const FInputDeviceRay& PressPos);
+	/** Handle click drag for translate and scale axes */
+	virtual void OnClickDragAxis(const FInputDeviceRay& PressPos);
 
-	/** Update current gizmo mode based on transform source */
-	virtual void OnClickReleaseTranslate(const FInputDeviceRay& PressPos);
+	/** Handle click release for translate and scale axes */
+	virtual void OnClickReleaseAxis(const FInputDeviceRay& PressPos);
 
-	/** Update current gizmo mode based on transform source */
-	virtual void Translate(const FVector& InTranslateDelta);
+	/** Handle click press for translate and scale planar */
+	virtual void OnClickPressPlanar(const FInputDeviceRay& InPressPos);
 
+	/** Handle click drag for translate and scale planar */
+	virtual void OnClickDragPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click release for translate and scale planar */
+	virtual void OnClickReleasePlanar(const FInputDeviceRay& PressPos);
+
+	/** Apply translate delta to transform proxy */
+	virtual void ApplyTranslateDelta(const FVector& InTranslateDelta);
+
+	/** Apply scale delta to transform proxy */
+	virtual void ApplyScaleDelta(const FVector& InScaleDelta);
 
 	// Axis and Plane TransformSources use this function to execute worldgrid snap queries
 	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const;
@@ -443,6 +466,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> OpaquePlaneMaterialXY;
 
+	/** Scale delta is multiplied by this amount */
+	UPROPERTY()
+	double ScaleMultiplier = 0.05;
+
 	/** Current transform */
 	UPROPERTY()
 	FTransform CurrentTransform = FTransform::Identity;
@@ -472,6 +499,18 @@ protected:
 	UPROPERTY()
 	FVector InteractionAxis;
 
+	/** Active world space normal used for planar (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector InteractionNormal;
+
+	/** Active world space axis X used for planar (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector InteractionAxisX;
+
+	/** Active world space axis Y used for planar (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector InteractionAxisY;
+
 	/** Active axis type (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
 	TEnumAsByte<EAxisList::Type> InteractionAxisType;
@@ -483,4 +522,12 @@ protected:
 	/** Active interaction current point (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
 	FVector InteractionCurrPoint;
+
+	/** Active interaction start point planar (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector2D InteractionStartPoint2D;
+
+	/** Active interaction current point planar (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector2D InteractionCurrPoint2D;
 };
