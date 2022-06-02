@@ -1159,7 +1159,11 @@ namespace UnrealGameSyncCmd
 		{
 			public override Task ExecuteAsync(CommandContext Context)
 			{
-				Console.WriteLine("UnrealGameSync {0}", Assembly.GetExecutingAssembly().GetName().Version?.ToString());
+				ILogger Logger = Context.Logger;
+ 
+				AssemblyInformationalVersionAttribute? Version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+				Logger.LogInformation("UnrealGameSync {Version}", Version?.InformationalVersion ?? "Unknown");
+
 				return Task.CompletedTask;
 			}
 		}
