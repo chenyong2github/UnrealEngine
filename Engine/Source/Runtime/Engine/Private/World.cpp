@@ -3585,7 +3585,8 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 
 	UWorld::WorldTypePreLoadMap.FindOrAdd(PrefixedLevelFName) = EWorldType::PIE;
 	UPackage* PIELevelPackage = CreatePackage(*PrefixedLevelName);
-	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
+	// Add PKG_NewlyCreated flag to this package so we don't try to resolve its linker as it is unsaved duplicated world package
+	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor | PKG_NewlyCreated);
 	PIELevelPackage->SetPIEInstanceID(PIEInstanceID);
 	PIELevelPackage->SetLoadedPath(EditorLevelPackage->GetLoadedPath());
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
