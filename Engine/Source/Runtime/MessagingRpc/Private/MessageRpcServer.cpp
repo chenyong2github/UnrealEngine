@@ -106,7 +106,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 		NoHandlerDelegateWithPathName.ExecuteIfBound(MessageType);
 		NoHandlerDelegate.ExecuteIfBound(MessageType.GetAssetName());
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	auto Handler = Handlers.FindRef(MessageType);
