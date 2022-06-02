@@ -49,7 +49,7 @@ namespace Catch {
 			ELogVerbosity::Type DesiredLogVerbosity = ELogVerbosity::Warning;
 			if (bGDebug)
 			{
-				DesiredLogVerbosity = ELogVerbosity::Log; // Probably ELogVerbosity::Type::Verbose/VeryVerbose is too noisy
+				DesiredLogVerbosity = ELogVerbosity::VeryVerbose;
 			}
 
 			// TODO It might be nicer to increase the desired logging verbosity using the "-v high"/"--verbosity high"
@@ -66,6 +66,11 @@ namespace Catch {
 		}
 
 		virtual bool CanBeUsedOnMultipleThreads() const
+		{
+			return true;
+		}
+
+		virtual bool CanBeUsedOnPanicThread() const
 		{
 			return true;
 		}
