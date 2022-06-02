@@ -33,6 +33,10 @@ class PCG_API UPCGManagedActors : public UPCGManagedResource
 	GENERATED_BODY()
 
 public:
+	//~Begin UObject interface
+	virtual void PostEditImport() override;
+	//~End UObject interface
+
 	//~Begin UPCGManagedResource interface
 	virtual bool Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
 	virtual bool ReleaseIfUnused() override;
@@ -48,6 +52,10 @@ class PCG_API UPCGManagedComponent : public UPCGManagedResource
 	GENERATED_BODY()
 
 public:
+	//~Begin UObject interface
+	virtual void PostEditImport() override;
+	//~End UObject interface
+
 	//~Begin UPCGManagedResource interface
 	virtual bool Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
 	virtual bool ReleaseIfUnused() override;
