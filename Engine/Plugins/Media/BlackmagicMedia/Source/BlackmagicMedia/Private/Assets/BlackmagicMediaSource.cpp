@@ -9,8 +9,7 @@
 #include "MediaIOCorePlayerBase.h"
 
 UBlackmagicMediaSource::UBlackmagicMediaSource()
-	: TimecodeFormat(EMediaIOTimecodeFormat::None)
-	, bCaptureAudio(false)
+	: bCaptureAudio(false)
 	, AudioChannels(EBlackmagicMediaAudioChannel::Stereo2)
 	, MaxNumAudioFrameBuffer(8)
 	, bCaptureVideo(true)
@@ -46,7 +45,7 @@ int64 UBlackmagicMediaSource::GetMediaOption(const FName& Key, int64 DefaultValu
 	if (Key == FMediaIOCoreMediaOption::ResolutionHeight) { return MediaConfiguration.MediaMode.Resolution.Y; }
 
 	if (Key == BlackmagicMediaOption::DeviceIndex) { return MediaConfiguration.MediaConnection.Device.DeviceIdentifier; }
-	if (Key == BlackmagicMediaOption::TimecodeFormat) { return (int64)TimecodeFormat; }
+	if (Key == BlackmagicMediaOption::TimecodeFormat) { return (int64)AutoDetectableTimecodeFormat; }
 	if (Key == BlackmagicMediaOption::AudioChannelOption) { return (int64)AudioChannels; }
 	if (Key == BlackmagicMediaOption::MaxAudioFrameBuffer) { return MaxNumAudioFrameBuffer; }
 	if (Key == BlackmagicMediaOption::BlackmagicVideoFormat) { return MediaConfiguration.MediaMode.DeviceModeIdentifier; }
@@ -143,7 +142,7 @@ bool UBlackmagicMediaSource::Validate() const
 		return false;
 	}
 
-	if (bUseTimeSynchronization && TimecodeFormat == EMediaIOTimecodeFormat::None)
+	if (bUseTimeSynchronization && AutoDetectableTimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::None)
 	{
 		UE_LOG(LogBlackmagicMedia, Warning, TEXT("The MediaSource '%s' use time synchronization but doesn't enabled the timecode."), *GetName());
 		return false;
@@ -162,22 +161,46 @@ bool UBlackmagicMediaSource::CanEditChange(const FProperty* InProperty) const
 
 	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UBlackmagicMediaSource, bEncodeTimecodeInTexel))
 	{
-		return TimecodeFormat != EMediaIOTimecodeFormat::None && bCaptureVideo;
+		return AutoDetectableTimecodeFormat != EMediaIOAutoDetectableTimecodeFormat::None && bCaptureVideo;
 	}
 
 	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UTimeSynchronizableMediaSource, bUseTimeSynchronization))
 	{
-		return TimecodeFormat != EMediaIOTimecodeFormat::None;
+		return AutoDetectableTimecodeFormat != EMediaIOAutoDetectableTimecodeFormat::None;
 	}
 
 	return true;
 }
 
+void UBlackmagicMediaSource::PostLoad()
+{
+	Super::PostLoad();
+#if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (TimecodeFormat_DEPRECATED != EMediaIOTimecodeFormat::None)
+	{
+		switch (TimecodeFormat_DEPRECATED)
+		{
+		case EMediaIOTimecodeFormat::LTC:
+			AutoDetectableTimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::LTC;
+			break;
+		case EMediaIOTimecodeFormat::VITC:
+			AutoDetectableTimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::VITC;
+			break;
+		default:
+			break;
+		}
+		TimecodeFormat_DEPRECATED = EMediaIOTimecodeFormat::None;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+}
+
 void UBlackmagicMediaSource::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& InPropertyChangedEvent)
 {
-	if (InPropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UBlackmagicMediaSource, TimecodeFormat))
+	if (InPropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UBlackmagicMediaSource, AutoDetectableTimecodeFormat))
 	{
-		if (TimecodeFormat == EMediaIOTimecodeFormat::None)
+		if (AutoDetectableTimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::None)
 		{
 			bUseTimeSynchronization = false;
 			bEncodeTimecodeInTexel = false;

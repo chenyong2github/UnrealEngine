@@ -115,6 +115,7 @@ namespace BlackmagicDesign
 		TCF_None,
 		TCF_LTC,
 		TCF_VITC1,
+		TCF_Auto
 	};
 
 	enum struct ELinkConfiguration
@@ -182,6 +183,7 @@ namespace BlackmagicDesign
 
 		bool bUseTheDedicatedLTCInput;
 		bool bAutoDetect;
+		bool bAutoDetectTimecode;
 	};
 
 	/* FOutputChannelOptions definition

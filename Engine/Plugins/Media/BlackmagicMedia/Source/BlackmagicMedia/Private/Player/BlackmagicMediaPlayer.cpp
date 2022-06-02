@@ -393,7 +393,11 @@ namespace BlackmagicMediaPlayerHelpers
 
 		virtual void OnFrameFormatChanged(const BlackmagicDesign::FFormatInfo& NewFormat) override
 		{
-			if (!MediaPlayer->bAutoDetect)
+			if (MediaPlayer->bAutoDetect)
+			{
+				MediaPlayer->VideoFrameRate = FFrameRate(NewFormat.FrameRateNumerator, NewFormat.FrameRateDenominator);
+			}
+			else
 			{
 				UE_LOG(LogBlackmagicMedia, Error, TEXT("The video format changed for '%s'."), MediaPlayer ? *MediaPlayer->GetUrl() : TEXT("<Invalid>"));
 				MediaState = EMediaState::Error;
@@ -509,7 +513,10 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	{
 		return false;
 	}
-
+	
+	const EMediaIOAutoDetectableTimecodeFormat TimecodeFormat = (EMediaIOAutoDetectableTimecodeFormat)(Options->GetMediaOption(BlackmagicMediaOption::TimecodeFormat, (int64)EMediaIOAutoDetectableTimecodeFormat::None));
+	const bool bAutoDetectTimecode = TimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::Auto;
+	
 	BlackmagicDesign::FChannelInfo ChannelInfo;
 	ChannelInfo.DeviceIndex = Options->GetMediaOption(BlackmagicMediaOption::DeviceIndex, (int64)0);
 
@@ -518,6 +525,7 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 
 	BlackmagicDesign::FInputChannelOptions ChannelOptions;
 	ChannelOptions.bAutoDetect = bAutoDetect;
+	ChannelOptions.bAutoDetectTimecode = bAutoDetectTimecode;
 	ChannelOptions.CallbackPriority = 10;
 	ChannelOptions.bReadVideo = Options->GetMediaOption(BlackmagicMediaOption::CaptureVideo, true);
 	ChannelOptions.FormatInfo.DisplayMode = Options->GetMediaOption(BlackmagicMediaOption::BlackmagicVideoFormat, (int64)BlackmagicMediaOption::DefaultVideoFormat);
@@ -526,16 +534,18 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	ChannelOptions.PixelFormat = BlackmagicColorFormat == EBlackmagicMediaSourceColorFormat::YUV8 ? BlackmagicDesign::EPixelFormat::pf_8Bits : BlackmagicDesign::EPixelFormat::pf_10Bits;
 	const bool bIsSRGBInput = Options->GetMediaOption(BlackmagicMediaOption::SRGBInput, true);
 
-	const EMediaIOTimecodeFormat TimecodeFormat = (EMediaIOTimecodeFormat)(Options->GetMediaOption(BlackmagicMediaOption::TimecodeFormat, (int64)EMediaIOTimecodeFormat::None));
 	switch (TimecodeFormat)
 	{
-	case EMediaIOTimecodeFormat::LTC:
+	case EMediaIOAutoDetectableTimecodeFormat::Auto:
+		ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_Auto;
+		break;
+	case EMediaIOAutoDetectableTimecodeFormat::LTC:
 		ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_LTC;
 		break;
-	case EMediaIOTimecodeFormat::VITC:
+	case EMediaIOAutoDetectableTimecodeFormat::VITC:
 		ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_VITC1;
 		break;
-	case EMediaIOTimecodeFormat::None:
+	case EMediaIOAutoDetectableTimecodeFormat::None:
 	default:
 		ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_None;
 		break;
@@ -554,7 +564,7 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	Samples->EnableTimedDataChannels(this, SupportedSampleTypes);
 
 	bVerifyFrameDropCount = Options->GetMediaOption(BlackmagicMediaOption::LogDropFrame, false);
-	const bool bEncodeTimecodeInTexel = TimecodeFormat != EMediaIOTimecodeFormat::None && Options->GetMediaOption(BlackmagicMediaOption::EncodeTimecodeInTexel, false);
+	const bool bEncodeTimecodeInTexel = TimecodeFormat != EMediaIOAutoDetectableTimecodeFormat::None && Options->GetMediaOption(BlackmagicMediaOption::EncodeTimecodeInTexel, false);
 	MaxNumAudioFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxAudioFrameBuffer, (int64)8);
 	MaxNumVideoFrameBuffer = Options->GetMediaOption(BlackmagicMediaOption::MaxVideoFrameBuffer, (int64)8);
 
