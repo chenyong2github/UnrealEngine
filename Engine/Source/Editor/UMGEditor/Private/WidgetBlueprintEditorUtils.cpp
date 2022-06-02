@@ -1603,9 +1603,14 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 			// If the widget isn't a panel or we just really want it to be a sibling (ie. when duplicating), we'll try it's parent to see if the pasted widget can be a sibling (and get its index to insert at)
 			if ( bForceSibling || !ParentWidget )
 			{
-				UWidget* WidgetTemplate = ParentWidgetRef.GetTemplate();
-				ParentWidget = WidgetTemplate->GetParent();
-				IndexToInsert = ParentWidget->GetChildIndex(WidgetTemplate) + 1;
+				if (UWidget* WidgetTemplate = ParentWidgetRef.GetTemplate())
+				{
+					ParentWidget = WidgetTemplate->GetParent();
+					if (ParentWidget)
+					{
+						IndexToInsert = ParentWidget->GetChildIndex(WidgetTemplate) + 1;
+					}
+				}
 			}
 		}
 
