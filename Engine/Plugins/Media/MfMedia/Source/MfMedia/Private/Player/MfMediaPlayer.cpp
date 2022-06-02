@@ -57,6 +57,13 @@ void FMfMediaPlayer::Close()
 		return;
 	}
 
+	if (SourceReader)
+	{
+		SourceReader->Flush(MF_SOURCE_READER_ALL_STREAMS);
+		SourceReader.Reset();
+	}
+	SourceReaderCallback.Reset();
+
 	// reset player
 	if (MediaSource != NULL)
 	{
@@ -69,13 +76,6 @@ void FMfMediaPlayer::Close()
 	PresentationDescriptor.Reset();
 	RateControl.Reset();
 	RateSupport.Reset();
-
-	if (SourceReader)
-	{
-		SourceReader->Flush(MF_SOURCE_READER_ALL_STREAMS);
-		SourceReader.Reset();
-	}
-	SourceReaderCallback.Reset();
 
 	Characteristics = 0;
 	CurrentDuration = FTimespan::Zero();
