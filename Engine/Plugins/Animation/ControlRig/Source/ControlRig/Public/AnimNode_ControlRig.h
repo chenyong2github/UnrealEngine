@@ -19,7 +19,8 @@ struct CONTROLRIG_API FAnimNode_ControlRig : public FAnimNode_ControlRigBase
 
 	FAnimNode_ControlRig();
 
-	UControlRig* GetControlRig() const { return ControlRig; }
+	virtual UControlRig* GetControlRig() const override { return ControlRig; }
+	virtual TSubclassOf<UControlRig> GetControlRigClass() const override { return ControlRigClass; }
 
 	// FAnimNode_Base interface
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;

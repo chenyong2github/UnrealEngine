@@ -7,6 +7,7 @@
 #include "Animation/NodeMappingContainer.h"
 #include "AnimationRuntime.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
+#include "Algo/Transform.h"
 
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<int32> CVarAnimNodeControlRigDebug(TEXT("a.AnimNode.ControlRig.Debug"), 0, TEXT("Set to 1 to turn on debug drawing for AnimNode_ControlRigBase"));
@@ -504,7 +505,22 @@ void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
 			}
 #endif
 
-			// first evaluate control rig
+			// pick the event to run
+			if(EventQueue.IsEmpty())
+			{
+				ControlRig->SetEventQueue({FRigUnit_BeginExecution::EventName});
+			}
+			else
+			{
+				TArray<FName> EventNames;
+				Algo::Transform(EventQueue, EventNames, [](const FControlRigAnimNodeEventName& InEventName) 
+				{
+					return InEventName.EventName;
+				});
+				ControlRig->SetEventQueue(EventNames);
+			}
+			
+			// evaluate control rig
 			ControlRig->Evaluate_AnyThread();
 
 #if ENABLE_ANIM_DEBUG 

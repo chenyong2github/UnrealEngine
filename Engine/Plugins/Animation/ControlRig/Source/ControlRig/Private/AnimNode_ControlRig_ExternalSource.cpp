@@ -18,3 +18,12 @@ UControlRig* FAnimNode_ControlRig_ExternalSource::GetControlRig() const
 	return (ControlRig.IsValid()? ControlRig.Get() : nullptr);
 }
 
+TSubclassOf<UControlRig> FAnimNode_ControlRig_ExternalSource::GetControlRigClass() const
+{
+	if(UControlRig* CR = GetControlRig())
+	{
+		return CR->GetClass();
+	}
+	return nullptr;
+}
+

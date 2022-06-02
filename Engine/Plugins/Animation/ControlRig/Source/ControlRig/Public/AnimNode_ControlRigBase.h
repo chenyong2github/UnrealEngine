@@ -38,6 +38,19 @@ struct CONTROLRIG_API FControlRigIOSettings
 	bool bUpdateCurves;
 };
 
+USTRUCT()
+struct CONTROLRIG_API FControlRigAnimNodeEventName
+{
+	GENERATED_BODY()
+
+	FControlRigAnimNodeEventName()
+	: EventName(NAME_None)
+	{}
+
+	UPROPERTY(EditAnywhere, Category = Links)
+	FName EventName;	
+};
+
 /**
  * Animation node that allows animation ControlRig output to be used in an animation graph
  */
@@ -50,7 +63,8 @@ struct CONTROLRIG_API FAnimNode_ControlRigBase : public FAnimNode_CustomProperty
 
 	/* return Control Rig of current object */
 	virtual UControlRig* GetControlRig() const PURE_VIRTUAL(FAnimNode_ControlRigBase::GetControlRig, return nullptr; );
-
+	virtual TSubclassOf<UControlRig> GetControlRigClass() const PURE_VIRTUAL(FAnimNode_ControlRigBase::GetControlRigClass, return nullptr; );
+	
 	// FAnimNode_Base interface
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
@@ -136,6 +150,10 @@ protected:
 
 	// The below is alpha value support for control rig
 	float InternalBlendAlpha;
+
+	// The customized event queue to run
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Settings)
+	TArray<FControlRigAnimNodeEventName> EventQueue;
 
 	virtual bool CanExecute();
 	// update input/output to control rig

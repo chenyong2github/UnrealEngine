@@ -16,7 +16,8 @@ struct CONTROLRIG_API FAnimNode_ControlRig_ExternalSource : public FAnimNode_Con
 	FAnimNode_ControlRig_ExternalSource();
 
 	void SetControlRig(UControlRig* InControlRig);
-	virtual UControlRig* GetControlRig() const;
+	virtual UControlRig* GetControlRig() const override;
+	virtual TSubclassOf<UControlRig> GetControlRigClass() const override;
 
 private:
 	UPROPERTY(transient)
