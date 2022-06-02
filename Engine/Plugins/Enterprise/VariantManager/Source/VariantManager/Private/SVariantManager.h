@@ -238,6 +238,10 @@ private:
 	TSharedRef<SWidget> GenerateRightTreeDependenciesRowContent();
 	TSharedRef<ITableRow> GenerateDependencyRow( FVariantDependencyModelPtr Dependency, const TSharedRef<STableViewBase>& OwnerTable, bool bInteractionEnabled );
 
+	// Set thumbnail of variant set, if it does not have one, to be the same as first found
+	// variant thumbnail
+	void UpdateVariantSetThumbnail(UVariantSet* InVariantSet);
+
 private:
 	TWeakPtr<FVariantManager> VariantManagerPtr;
 

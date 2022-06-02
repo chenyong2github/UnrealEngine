@@ -106,7 +106,7 @@ public:
 	static TSharedRef<SDockTab> HandleTabManagerSpawnTab(const FSpawnTabArgs& Args)
 	{
 		return SNew(SDockTab)
-			.Label(LOCTEXT("VariantManagerMainTitle", "VariantManager"))
+			.Label(LOCTEXT("VariantManagerMainTitle", "Variant Manager"))
 			.TabColorScale( FLevelVariantSetsEditorToolkit::GetWorldCentricTabColorScaleStatic() )
 			.ContentPadding(FMargin(0))
 			.TabRole(ETabRole::PanelTab);

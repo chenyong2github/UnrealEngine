@@ -74,7 +74,7 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetCustomOutlinerContent(TShared
 
 	return
 	SNew(SBox)
-	.HeightOverride(78)
+	.HeightOverride(40)
 	[
 		SNew(SBorder)
 		.VAlign(VAlign_Center)
@@ -105,7 +105,7 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetCustomOutlinerContent(TShared
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			.FillWidth(1.0f)
-			.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
+			.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
 			[
 				EditableLabel.ToSharedRef()
 			]
@@ -510,8 +510,8 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetThumbnailWidget()
 	}
 
 	return SNew(SBox)
-		.WidthOverride(64)
-		.HeightOverride(64)
+		.WidthOverride(32)
+		.HeightOverride(32)
 		[
 			ThumbnailWidget.IsValid() ? ThumbnailWidget.ToSharedRef() : SNullWidget::NullWidget
 		];

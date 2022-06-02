@@ -284,7 +284,7 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 				.VAlign(VAlign_Center)
 				[
 					SNew(SSearchBox)
-					.HintText(LOCTEXT("VariantManagerFilterText", "Filter variants"))
+					.HintText(LOCTEXT("VariantManagerFilterText", "Search Variant"))
 					.OnTextChanged(this, &SVariantManager::OnOutlinerSearchChanged)
 					.MinDesiredWidth(200)
 				]
@@ -1184,6 +1184,11 @@ void SVariantManager::CreateThumbnail()
 	for (UVariant* Var : Vars)
 	{
 		Var->SetThumbnailFromEditorViewport();
+
+		if (UVariantSet* VarSet = Var->GetParent())
+		{
+			UpdateVariantSetThumbnail(VarSet);
+		}
 	}
 	for (UVariantSet* VarSet : VarSets)
 	{
@@ -1236,6 +1241,11 @@ void SVariantManager::LoadThumbnail()
 	for (UVariant* Var : Vars)
 	{
 		Var->SetThumbnailFromFile(SourceImagePath);
+
+		if (UVariantSet* VarSet = Var->GetParent())
+		{
+			UpdateVariantSetThumbnail(VarSet);
+		}
 	}
 	for (UVariantSet* VarSet : VarSets)
 	{
@@ -1268,6 +1278,23 @@ void SVariantManager::ClearThumbnail()
 	for (UVariantSet* VariantSet : SelectedVariantSets)
 	{
 		VariantSet->SetThumbnailFromTexture(nullptr);
+	}
+}
+
+void SVariantManager::UpdateVariantSetThumbnail(UVariantSet* InVariantSet)
+{
+	if (nullptr == InVariantSet || InVariantSet->GetThumbnail())
+	{
+		return; // VariantSet is null or already has a thumbnail
+	}
+
+	for (UVariant* Variant : InVariantSet->GetVariants())
+	{
+		if (UTexture2D* Thumbnail = Variant->GetThumbnail())
+		{
+			InVariantSet->SetThumbnailFromTexture(Thumbnail);
+			break;
+		}
 	}
 }
 
