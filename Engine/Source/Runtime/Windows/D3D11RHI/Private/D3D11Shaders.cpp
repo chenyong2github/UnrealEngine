@@ -6,6 +6,7 @@
 
 #include "D3D11RHIPrivate.h"
 #include "Serialization/MemoryReader.h"
+#include "RHICoreShader.h"
 
 #if !PLATFORM_HOLOLENS
 #include "nvapi.h"
@@ -114,25 +115,6 @@ static void ResetVendorExtensions(ID3D11Device* Direct3DDevice)
 #endif
 }
 
-static void InitUniformBufferStaticSlots(FD3D11ShaderData* Shader)
-{
-	const FBaseShaderResourceTable& SRT = Shader->ShaderResourceTable;
-
-	Shader->StaticSlots.Reserve(SRT.ResourceTableLayoutHashes.Num());
-
-	for (uint32 LayoutHash : SRT.ResourceTableLayoutHashes)
-	{
-		if (const FShaderParametersMetadata* Metadata = FindUniformBufferStructByLayoutHash(LayoutHash))
-		{
-			Shader->StaticSlots.Add(Metadata->GetLayout().StaticSlot);
-		}
-		else
-		{
-			Shader->StaticSlots.Add(MAX_UNIFORM_BUFFER_STATIC_SLOTS);
-		}
-	}
-}
-
 FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
@@ -154,7 +136,7 @@ FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(TArrayView<const uin
 		{
 			ResetVendorExtensions(Direct3DDevice);
 		}
-		InitUniformBufferStaticSlots(Shader);
+		UE::RHICore::InitStaticUniformBufferSlots(Shader->StaticSlots, Shader->ShaderResourceTable);
 	}
 	
 	// TEMP
@@ -192,7 +174,7 @@ FGeometryShaderRHIRef FD3D11DynamicRHI::RHICreateGeometryShader(TArrayView<const
 		{
 			ResetVendorExtensions(Direct3DDevice);
 		}
-		InitUniformBufferStaticSlots(Shader);
+		UE::RHICore::InitStaticUniformBufferSlots(Shader->StaticSlots, Shader->ShaderResourceTable);
 	}
 
 	return Shader;
@@ -226,7 +208,7 @@ FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(TArrayView<const uint8
 		{
 			ResetVendorExtensions(Direct3DDevice);
 		}
-		InitUniformBufferStaticSlots(Shader);
+		UE::RHICore::InitStaticUniformBufferSlots(Shader->StaticSlots, Shader->ShaderResourceTable);
 	}
 
 	return Shader;
@@ -260,7 +242,7 @@ FComputeShaderRHIRef FD3D11DynamicRHI::RHICreateComputeShader(TArrayView<const u
 		{
 			ResetVendorExtensions(Direct3DDevice);
 		}
-		InitUniformBufferStaticSlots(Shader);
+		UE::RHICore::InitStaticUniformBufferSlots(Shader->StaticSlots, Shader->ShaderResourceTable);
 	}
 
 	return Shader;

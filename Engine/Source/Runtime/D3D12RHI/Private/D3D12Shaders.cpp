@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "RHICoreShader.h"
 
 template <typename TShaderType>
 static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShaderType& OutShader)
@@ -107,23 +108,7 @@ TShaderType* CreateStandardShader(TArrayView<const uint8> InCode)
 		return nullptr;
 	}
 
-	// InitUniformBufferStaticSlots
-
-	const FBaseShaderResourceTable& SRT = Shader->ShaderResourceTable;
-	Shader->StaticSlots.Reserve(SRT.ResourceTableLayoutHashes.Num());
-
-	for (uint32 LayoutHash : SRT.ResourceTableLayoutHashes)
-	{
-		if (const FShaderParametersMetadata* Metadata = FindUniformBufferStructByLayoutHash(LayoutHash))
-		{
-			Shader->StaticSlots.Add(Metadata->GetLayout().StaticSlot);
-		}
-		else
-		{
-			Shader->StaticSlots.Add(MAX_UNIFORM_BUFFER_STATIC_SLOTS);
-		}
-	}
-
+	UE::RHICore::InitStaticUniformBufferSlots(Shader->StaticSlots, Shader->ShaderResourceTable);
 	return Shader;
 }
 
@@ -202,6 +187,8 @@ FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<c
 		delete Shader;
 		return nullptr;
 	}
+
+	UE::RHICore::InitStaticUniformBufferSlots(Shader->StaticSlots, Shader->ShaderResourceTable);
 
 	FD3D12Adapter& Adapter = GetAdapter();
 

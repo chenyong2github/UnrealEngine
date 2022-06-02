@@ -13,6 +13,23 @@ namespace RHICore
 /** Validates that the uniform buffer at the requested static slot. */
 extern RHICORE_API void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBufferStaticSlot Slot, uint32 ExpectedHash);
 
+inline void InitStaticUniformBufferSlots(TArray<FUniformBufferStaticSlot>& StaticSlots, const FBaseShaderResourceTable& ShaderResourceTable)
+{
+	StaticSlots.Reserve(ShaderResourceTable.ResourceTableLayoutHashes.Num());
+
+	for (uint32 LayoutHash : ShaderResourceTable.ResourceTableLayoutHashes)
+	{
+		if (const FShaderParametersMetadata* Metadata = FindUniformBufferStructByLayoutHash(LayoutHash))
+		{
+			StaticSlots.Add(Metadata->GetLayout().StaticSlot);
+		}
+		else
+		{
+			StaticSlots.Add(MAX_UNIFORM_BUFFER_STATIC_SLOTS);
+		}
+	}
+}
+
 template <typename TRHIContext, typename TRHIShader>
 void ApplyStaticUniformBuffers(
 	TRHIContext* CommandContext,
