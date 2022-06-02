@@ -82,7 +82,6 @@ public:
 	/**
 	 * Sets the sort priority of a category
 	 * A lower priority value means the category is listed first
-	 * Categories with the same priority are alphanumerically sorted
 	 * The priority value is 0 by default
 	 * @note A category named after FApp::GetProjectName() has a priority of -1.0 by default
 	 * @note A category named "Advanced" has a priority of 1.0 by default

@@ -97,7 +97,7 @@ int32 FSettingsContainer::GetCategories( TArray<ISettingsCategoryPtr>& OutCatego
 	OutCategories.Empty(Categories.Num());
 	Algo::Transform(Categories, OutCategories, [](const TPair<FName, TSharedPtr<FSettingsCategory>>& Iter) { return Iter.Value; });
 
-	OutCategories.Sort([this](const ISettingsCategoryPtr& CatetoryA, const ISettingsCategoryPtr& CategoryB)
+	OutCategories.StableSort([this](const ISettingsCategoryPtr& CatetoryA, const ISettingsCategoryPtr& CategoryB)
 	{
 		auto GetCategoryPriority = [this](const ISettingsCategoryPtr& Category)
 		{
