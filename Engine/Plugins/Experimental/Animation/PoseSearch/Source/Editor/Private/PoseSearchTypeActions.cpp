@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchTypeActions.h"
-#include "PoseSearchDatabaseEditorToolkit.h"
+#include "PoseSearchDatabaseEditor.h"
 #include "PoseSearch/PoseSearch.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchTypeActions"

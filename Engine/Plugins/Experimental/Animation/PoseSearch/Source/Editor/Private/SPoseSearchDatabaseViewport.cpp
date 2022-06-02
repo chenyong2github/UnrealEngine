@@ -3,7 +3,7 @@
 #include "SPoseSearchDatabaseViewport.h"
 #include "PoseSearchDatabaseViewportClient.h"
 #include "PoseSearchDatabaseViewModel.h"
-#include "PoseSearchDatabaseEditorToolkit.h"
+#include "PoseSearchDatabaseEditor.h"
 #include "SPoseSearchDatabaseViewportToolbar.h"
 #include "PoseSearchDatabaseEditorCommands.h"
 

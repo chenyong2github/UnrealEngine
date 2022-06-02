@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PoseSearchDatabaseEditorToolkit.h"
+#include "PoseSearchDatabaseEditor.h"
 #include "SPoseSearchDatabaseViewport.h"
 #include "SPoseSearchDatabaseAssetList.h"
 #include "PoseSearchDatabasePreviewScene.h"
@@ -19,7 +19,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Styling/AppStyle.h"
 
-#define LOCTEXT_NAMESPACE "PoseSearchDatabaseEditorToolkit"
+#define LOCTEXT_NAMESPACE "PoseSearchDatabaseEditor"
 
 namespace UE::PoseSearch
 {

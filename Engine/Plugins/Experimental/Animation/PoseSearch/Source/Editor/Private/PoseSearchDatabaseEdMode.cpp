@@ -2,7 +2,7 @@
 
 #include "PoseSearchDatabaseEdMode.h"
 #include "PoseSearchDatabaseViewportClient.h"
-#include "PoseSearchDatabaseEditorToolkit.h"
+#include "PoseSearchDatabaseEditor.h"
 #include "PoseSearchDatabaseViewModel.h"
 #include "PoseSearch/PoseSearch.h"
 

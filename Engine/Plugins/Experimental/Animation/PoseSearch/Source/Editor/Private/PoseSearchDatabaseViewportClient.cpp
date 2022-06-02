@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchDatabaseViewportClient.h"
-#include "PoseSearchDatabaseEditorToolkit.h"
+#include "PoseSearchDatabaseEditor.h"
 #include "PoseSearchDatabasePreviewScene.h"
 #include "SPoseSearchDatabaseViewport.h"
 #include "AssetEditorModeManager.h"
