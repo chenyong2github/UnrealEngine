@@ -62,7 +62,7 @@ namespace UE
 				{
 					ParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
 
-					if (!ParentClass->IsChildOf(UMoviePipelineSetting::StaticClass()))
+					if (ParentClass == nullptr || !ParentClass->IsChildOf(UMoviePipelineSetting::StaticClass()))
 					{
 						continue;
 					}
