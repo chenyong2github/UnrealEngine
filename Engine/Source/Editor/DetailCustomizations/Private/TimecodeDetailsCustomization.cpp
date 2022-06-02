@@ -31,6 +31,7 @@ void FTimecodeDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle
 			.SelectAllTextWhenFocused(true)
 			.RevertTextOnEscape(true)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.IsReadOnly(!PropertyHandle->IsEditable())
 		];
 }
 
