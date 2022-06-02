@@ -1415,3 +1415,5 @@ public:
 		return bDidEdit;
 	}
 };
+
+METASOUNDFRONTEND_API const TCHAR* LexToString(EMetasoundFrontendVertexAccessType InVertexAccess);

@@ -94,7 +94,6 @@ namespace Metasound
 		  * when querying if a node's class has been updated */
 		struct FClassInterfaceUpdates
 		{
-
 			TArray<const FMetasoundFrontendClassInput*> AddedInputs;
 			TArray<const FMetasoundFrontendClassOutput*> AddedOutputs;
 			TArray<const FMetasoundFrontendClassInput*> RemovedInputs;
@@ -177,6 +176,9 @@ namespace Metasound
 			
 			/** Returns the name associated with this output. */
 			virtual const FVertexName& GetName() const = 0;
+
+			/** Returns the vertex access type. */
+			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const = 0;
 			
 #if WITH_EDITOR
 			/** Returns the human readable name associated with this output. */
@@ -328,6 +330,9 @@ namespace Metasound
 
 			/** Returns the data type name associated with this input. */
 			virtual const FVertexName& GetName() const = 0;
+
+			/** Returns the vertex access type. */
+			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const = 0;
 
 #if WITH_EDITOR
 			/** Returns the data type name associated with this input. */
@@ -813,6 +818,8 @@ namespace Metasound
 			 * @return On success, a valid input node handle. On failure, an invalid node handle.
 			 */
 			virtual FNodeHandle AddInputVertex(const FMetasoundFrontendClassInput& InDescription) = 0;
+
+			UE_DEPRECATED(5.1, "Use AddInputVertex method which specifies EMetasoundFrontendVertexAccessType")
 			virtual FNodeHandle AddInputVertex(const FVertexName& InName, const FName InTypeName, const FMetasoundFrontendLiteral* InDefaultValue) = 0;
 
 			/** Remove the input with the given name. Returns true if successfully removed, false otherwise. */

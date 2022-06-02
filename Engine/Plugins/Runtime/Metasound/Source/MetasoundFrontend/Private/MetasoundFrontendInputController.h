@@ -39,6 +39,7 @@ namespace Metasound
 			virtual FGuid GetID() const override;
 			virtual const FName& GetDataType() const override;
 			virtual const FVertexName& GetName() const override;
+			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override;
 			virtual bool ClearLiteral() override;
 			virtual const FMetasoundFrontendLiteral* GetLiteral() const override;
 			virtual void SetLiteral(const FMetasoundFrontendLiteral& InLiteral) override;
@@ -79,6 +80,7 @@ namespace Metasound
 
 		protected:
 
+
 			virtual FDocumentAccess ShareAccess() override;
 			virtual FConstDocumentAccess ShareAccess() const override;
 
@@ -90,6 +92,11 @@ namespace Metasound
 			FConstClassInputAccessPtr ClassInputPtr;
 			FGraphAccessPtr GraphPtr;
 			FNodeHandle OwningNode;
+
+		private:
+
+			bool IsCompatibleAccessType(const IOutputController& InOutputController) const;
+
 		};
 
 		/** FOutputNodeInputController represents the input vertex of an output 

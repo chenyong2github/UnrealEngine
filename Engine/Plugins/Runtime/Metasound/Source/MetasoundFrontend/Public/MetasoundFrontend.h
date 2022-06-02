@@ -91,7 +91,8 @@ namespace Metasound
 			{
 				None,
 				IncompatibleDataTypes,
-				CausesLoop
+				CausesLoop,
+				IncompatibleAccessTypes
 			};
 
 			EConnectable Connectable = EConnectable::No;

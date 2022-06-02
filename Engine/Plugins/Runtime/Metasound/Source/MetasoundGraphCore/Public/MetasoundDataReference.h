@@ -219,6 +219,10 @@ namespace Metasound
 	template <typename DataType>
 	class TDataReadReference;
 
+	// Forward declare
+	template <typename DataType>
+	class TDataWriteReference;
+
 	/** TDataValueReference represents a constant value and provides read only access. 
 	 * A TDataValueReference can never change value. */
 	template<typename DataType>
@@ -227,12 +231,23 @@ namespace Metasound
 		// Construct operator with no arguments if the DataType has a default constructor.
 		template <typename... ArgTypes>
 		TDataValueReference(EDataRefShouldConstruct InToken, ArgTypes&&... Args)
-			: FDataReference(InToken, Forward<ArgTypes>(Args)...)
+			: TDataReference<DataType>(InToken, Forward<ArgTypes>(Args)...)
 		{
 		}
 
+		// Constructor taking data reference. Used for casting
+		TDataValueReference(const TDataReference<DataType>& InRef)
+		: TDataReference<DataType>(InRef)
+		{
+		}
+
+		template<typename T>
+		friend TDataValueReference<T> ValueCast(const TDataReadReference<T>& InRef);
+
+		template<typename T>
+		friend TDataValueReference<T> ValueCast(const TDataWriteReference<T>& InRef);
+
 	public:
-		typedef TDataReference<DataType> FDataReference;
 
 		/** This should be used to construct a new DataType object and return this TDataValueReference as a wrapper around it. */
 		template <typename... ArgTypes>
@@ -286,6 +301,32 @@ namespace Metasound
 		}
 	};
 
+	/** Cast a TDataReadReference to a TDataValueReference. 
+	 *
+	 * In general TDataReadReferences should not be converted into TDataValueReferences unless the caller
+	 * can be certain that no other TDataWriteReference exists for the underlying parameter. Having a 
+	 * TDataWriteReferences to an existing TDataValueReference can cause confusing behavior as values
+	 * references are not expected to change value.
+	 */
+	template<typename T>
+	TDataValueReference<T> ValueCast(const TDataReadReference<T>& InRef)
+	{
+		return TDataValueReference<T>(InRef);
+	}
+
+	/** Cast a TDataWriteReference to a TDataValueReference. 
+	 *
+	 * In general TDataWriteReferences should never beconverted into TDataValueReferences unless the caller
+	 * can be certain that no other TDataWriteReference exists for the underlying parameter. Having a 
+	 * TDataWriteReferences to an existing TDataValueReference can cause confusing behavior as values
+	 * references are not expected to change value.
+	 */
+	template<typename T>
+	TDataValueReference<T> ValueCast(const TDataWriteReference<T>& InRef)
+	{
+		return TDataValueReference<T>(InRef);
+	}
+
 	/** TDataWriteReference provides write access to a shared parameter reference. */
 	template <typename DataType>
 	class TDataWriteReference : public TDataReference<DataType>
@@ -293,84 +334,79 @@ namespace Metasound
 		// Construct operator with no arguments if the DataType has a default constructor.
 		template <typename... ArgTypes>
 		TDataWriteReference(EDataRefShouldConstruct InToken, ArgTypes&&... Args)
-			: FDataReference(InToken, Forward<ArgTypes>(Args)...)
+		: TDataReference<DataType>(InToken, Forward<ArgTypes>(Args)...)
 		{
 		}
 
-		public:
-			typedef TDataReference<DataType> FDataReference;
+		/** Create a writable ref from a blank parameter ref. Should be done with care and understanding
+		 * of side-effects of converting a ref to a writable ref. 
+		 */
+		TDataWriteReference<DataType>(const TDataReference<DataType>& InDataReference)
+		: TDataReference<DataType>(InDataReference)
+		{
+		}
 
-			/** This should be used to construct a new DataType object and return this TDataWriteReference as a wrapper around it. */
-			template <typename... ArgTypes>
-			static TDataWriteReference<DataType> CreateNew(ArgTypes&&... Args)
-			{
-				static_assert(std::is_constructible<DataType, ArgTypes...>::value, "TDataWriteReference::CreateNew underlying type is not constructible with provided arguments.");
-				return TDataWriteReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
-			}
+		// Friend because it calls protected constructor
+		template <typename T>
+		friend TDataWriteReference<T> WriteCast(const TDataReadReference<T>& InReadableRef);
 
-			/** Enable copy constructor */
-			TDataWriteReference(const TDataWriteReference<DataType>& Other) = default;
+	public:
+		/** This should be used to construct a new DataType object and return this TDataWriteReference as a wrapper around it. */
+		template <typename... ArgTypes>
+		static TDataWriteReference<DataType> CreateNew(ArgTypes&&... Args)
+		{
+			static_assert(std::is_constructible<DataType, ArgTypes...>::value, "TDataWriteReference::CreateNew underlying type is not constructible with provided arguments.");
+			return TDataWriteReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
+		}
 
-			/** Enable move constructor */
-			TDataWriteReference(TDataWriteReference<DataType>&& Other) = default;
+		/** Enable copy constructor */
+		TDataWriteReference(const TDataWriteReference<DataType>& Other) = default;
 
-			/** Enable assignment operator. */
-			TDataWriteReference<DataType>& operator=(const TDataWriteReference<DataType>& Other) = default;
+		/** Enable move constructor */
+		TDataWriteReference(TDataWriteReference<DataType>&& Other) = default;
 
-			/** Enable move operator. */
-			TDataWriteReference<DataType>& operator=(TDataWriteReference<DataType>&& Other) = default;
+		/** Enable assignment operator. */
+		TDataWriteReference<DataType>& operator=(const TDataWriteReference<DataType>& Other) = default;
 
-			/** Implicit conversion to a readable parameter. */
-			operator TDataReadReference<DataType>() const
-			{
-				return TDataReadReference<DataType>(*this);
-			}
+		/** Enable move operator. */
+		TDataWriteReference<DataType>& operator=(TDataWriteReference<DataType>&& Other) = default;
 
-			/** Non-const access to the underlying parameter object. */
-			FORCEINLINE DataType& operator*() const
-			{
-				return *TDataReference<DataType>::ObjectReference;
-			}
+		/** Implicit conversion to a readable parameter. */
+		operator TDataReadReference<DataType>() const
+		{
+			return TDataReadReference<DataType>(*this);
+		}
 
-			/** Non-const access to the underlying parameter object. */
-			FORCEINLINE DataType* operator->() const
-			{
-				return TDataReference<DataType>::ObjectReference.operator->();
-			}
+		/** Non-const access to the underlying parameter object. */
+		FORCEINLINE DataType& operator*() const
+		{
+			return *TDataReference<DataType>::ObjectReference;
+		}
 
-			/** Non-const access to the underlying parameter object. */
-			FORCEINLINE DataType* Get() const
-			{
-				return TDataReference<DataType>::ObjectReference.operator->();
-			}
+		/** Non-const access to the underlying parameter object. */
+		FORCEINLINE DataType* operator->() const
+		{
+			return TDataReference<DataType>::ObjectReference.operator->();
+		}
 
-			/** Create a clone of this parameter reference. */
-			virtual TUniquePtr<IDataReference> Clone() const override
-			{
-				typedef TDataWriteReference<DataType> FDataWriteReference;
+		/** Non-const access to the underlying parameter object. */
+		FORCEINLINE DataType* Get() const
+		{
+			return TDataReference<DataType>::ObjectReference.operator->();
+		}
 
-				return MakeUnique< FDataWriteReference >(*this);
-			}
+		/** Create a clone of this parameter reference. */
+		virtual TUniquePtr<IDataReference> Clone() const override
+		{
+			typedef TDataWriteReference<DataType> FDataWriteReference;
 
-			// Provide access to ObjectReference when converting from Write to Read.
-			friend class TDataReadReference<DataType>;
+			return MakeUnique< FDataWriteReference >(*this);
+		}
 
-			// Friend because it calls protected constructor
-			template <typename T>
-			friend TDataWriteReference<T> WriteCast(const TDataReadReference<T>& InReadableRef);
+		// Provide access to ObjectReference when converting from Write to Read.
+		friend class TDataReadReference<DataType>;
 
-		protected:
-
-			/** Create a writable ref from a blank parameter ref. Should be done with care and understanding
-			 * of side-effects of converting a readable ref to a writable ref. 
-			 */
-			TDataWriteReference<DataType>(const FDataReference& InDataReference)
-			:	FDataReference(InDataReference)
-			{
-			}
 	};
-
-
 
 	/** Cast a TDataReadReference to a TDataWriteReference. 
 	 *
@@ -395,12 +431,11 @@ namespace Metasound
 		// Construct operator with no arguments if the DataType has a default constructor.
 		template <typename... ArgTypes>
 		TDataReadReference(EDataRefShouldConstruct InToken, ArgTypes&&... Args)
-			: FDataReference(InToken, Forward<ArgTypes>(Args)...)
+		: TDataReference<DataType>(InToken, Forward<ArgTypes>(Args)...)
 		{
 		}
 
 	public:
-		typedef TDataReference<DataType> FDataReference;
 
 		// This should be used to construct a new DataType object and return this TDataReadReference as a wrapper around it.
 		template <typename... ArgTypes>
@@ -414,13 +449,13 @@ namespace Metasound
 
 		/** Construct a readable parameter ref from a writable parameter ref. */
 		explicit TDataReadReference(const TDataWriteReference<DataType>& WritableRef)
-		:	FDataReference(WritableRef)
+		: TDataReference<DataType>(WritableRef)
 		{
 		}
 
 		/** Construct a readable reference from a value reference. */
 		explicit TDataReadReference(const TDataValueReference<DataType>& ValueRef)
-		:	FDataReference(ValueRef)
+		: TDataReference<DataType>(ValueRef)
 		{
 		}
 
@@ -596,6 +631,46 @@ namespace Metasound
 				}
 			}
 			return nullptr;
+		}
+
+		/** Get access to a TDataValueReference. 
+		 *
+		 * This method will return a valid TDataValueReference of the templated data
+		 * type. The returned object is only valid if:
+		 *     1. The template parameter DataType matches that of the underlying data reference.
+		 *     2. The underlying data reference is has Value access.
+		 *
+		 * If this method's behavior is undefined and will assert if it is called 
+		 * with a mismatched data type or unsupported access type.
+		 */
+		template<typename DataType>
+		TDataValueReference<DataType> GetDataValueReference() const
+		{
+			check(DataRefPtr.IsValid());
+			check(IsDataReferenceOfType<DataType>(*DataRefPtr));
+
+			switch (AccessType)
+			{
+				case EDataReferenceAccessType::Value:
+				{
+					return *static_cast<const TDataValueReference<DataType>*>(DataRefPtr.Get());
+				}
+				case EDataReferenceAccessType::Write:
+				{
+					checkf(false, TEXT("Retrieving a value reference from a write reference is not supported."));
+					return ValueCast<DataType>(*static_cast<const TDataWriteReference<DataType>*>(DataRefPtr.Get()));
+				}
+				case EDataReferenceAccessType::Read:
+				{
+					checkf(false, TEXT("Retrieving a value reference from a read reference is not supported."));
+					return ValueCast<DataType>(*static_cast<const TDataReadReference<DataType>*>(DataRefPtr.Get()));
+				}
+				default:
+				{
+					checkf(false, TEXT("Unknown data reference access type."));
+					return *static_cast<const TDataValueReference<DataType>*>(DataRefPtr.Get());
+				}
+			}
 		}
 
 		/** Get access to a TDataReadReference. 

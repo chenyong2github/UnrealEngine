@@ -57,6 +57,16 @@ namespace Metasound
 			return Invalid::GetInvalidName();
 		}
 
+		EMetasoundFrontendVertexAccessType FBaseInputController::GetVertexAccessType() const 
+		{
+			if (const FMetasoundFrontendClassVertex* ClassInput = ClassInputPtr.Get())
+			{
+				return ClassInput->AccessType;
+			}
+			
+			return EMetasoundFrontendVertexAccessType::Reference;
+		}
+
 #if WITH_EDITOR
 		FText FBaseInputController::GetDisplayName() const
 		{
@@ -193,6 +203,11 @@ namespace Metasound
 				OutConnectability.Connectable = FConnectability::EConnectable::No;
 				OutConnectability.Reason = FConnectability::EReason::IncompatibleDataTypes;
 			}
+			else if (!IsCompatibleAccessType(InController))
+			{
+				OutConnectability.Connectable = FConnectability::EConnectable::No;
+				OutConnectability.Reason = FConnectability::EReason::IncompatibleAccessTypes;
+			}
 			else if (OtherDataType == DataType)
 			{
 				// If data types are equal, connection can happen.
@@ -233,25 +248,37 @@ namespace Metasound
 			{
 				return false;
 			}
+			
 
 			if (FMetasoundFrontendGraph* Graph = GraphPtr.Get())
 			{
-				if (ensureAlwaysMsgf(OtherDataType == DataType, TEXT("Cannot connect incompatible types.")))
+				if (OtherDataType == DataType)
 				{
-					// Overwrite an existing connection if it exists.
-					FMetasoundFrontendEdge* Edge = FindEdge();
-
-					if (!Edge)
+					if (IsCompatibleAccessType(InController))
 					{
-						Edge = &Graph->Edges.AddDefaulted_GetRef();
-						Edge->ToNodeID = GetOwningNodeID();
-						Edge->ToVertexID = GetID();
+						// Overwrite an existing connection if it exists.
+						FMetasoundFrontendEdge* Edge = FindEdge();
+
+						if (!Edge)
+						{
+							Edge = &Graph->Edges.AddDefaulted_GetRef();
+							Edge->ToNodeID = GetOwningNodeID();
+							Edge->ToVertexID = GetID();
+						}
+
+						Edge->FromNodeID = InController.GetOwningNodeID();
+						Edge->FromVertexID = InController.GetID();
+
+						return true;
 					}
-
-					Edge->FromNodeID = InController.GetOwningNodeID();
-					Edge->FromVertexID = InController.GetID();
-
-					return true;
+					else
+					{
+						UE_LOG(LogMetaSound, Error, TEXT("Cannot connect incompatible vertex access types (Input)%s and (Output)%s."), *LexToString(GetVertexAccessType()), *LexToString(InController.GetVertexAccessType()));
+					}
+				}
+				else
+				{
+					UE_LOG(LogMetaSound, Error, TEXT("Cannot connect incompatible data types %s and %s."), *DataType.ToString(), *OtherDataType.ToString());
 				}
 			}
 
@@ -336,6 +363,19 @@ namespace Metasound
 			}
 
 			return false;
+		}
+
+		bool FBaseInputController::IsCompatibleAccessType(const IOutputController& InOutputController) const
+		{
+			if (EMetasoundFrontendVertexAccessType::Value == GetVertexAccessType())
+			{
+				// If the input vertex accesses by "Value" then the output vertex 
+				// must also access by "Value" to enforce unexpected consequences 
+				// of connecting data which varies over time to an input which only
+				// evaluates the data during operator initialization.
+				return (EMetasoundFrontendVertexAccessType::Value == InOutputController.GetVertexAccessType());
+			}
+			return true;
 		}
 
 		const FMetasoundFrontendEdge* FBaseInputController::FindEdge() const

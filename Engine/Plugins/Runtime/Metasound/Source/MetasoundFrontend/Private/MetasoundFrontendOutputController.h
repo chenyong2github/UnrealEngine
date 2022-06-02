@@ -43,6 +43,7 @@ namespace Metasound
 			virtual FGuid GetID() const override;
 			virtual const FName& GetDataType() const override;
 			virtual const FVertexName& GetName() const override;
+			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override;
 
 #if WITH_EDITOR
 			virtual FText GetDisplayName() const override;

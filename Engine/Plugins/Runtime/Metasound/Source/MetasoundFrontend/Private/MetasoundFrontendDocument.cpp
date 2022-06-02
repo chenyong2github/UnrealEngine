@@ -556,3 +556,16 @@ FMetasoundFrontendDocument::FMetasoundFrontendDocument()
 	RootGraph.Metadata.SetType(EMetasoundFrontendClassType::Graph);
 	ArchetypeVersion = FMetasoundFrontendVersion::GetInvalid();
 }
+
+const TCHAR* LexToString(EMetasoundFrontendVertexAccessType InVertexAccess)
+{
+	switch (InVertexAccess)
+	{
+		case EMetasoundFrontendVertexAccessType::Value:
+			return TEXT("Value");
+			
+		case EMetasoundFrontendVertexAccessType::Reference:
+		default:
+			return TEXT("Reference");
+	}
+}

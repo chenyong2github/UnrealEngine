@@ -67,6 +67,10 @@ namespace Metasound
 	 */
 	struct METASOUNDGRAPHCORE_API FLiteral
 	{
+	private:
+		// Forward declare
+		template<typename U>
+		struct TIsSupportedLiteralType;
 	public:
 		struct FInvalid {};
 
@@ -82,25 +86,22 @@ namespace Metasound
 			FInvalid
 		>;
 
+
 		/** Construct a literal param with a single argument. */
 		template<
-			typename... ArgTypes,
-			typename std::enable_if<1 == sizeof...(ArgTypes), int>::type = 0
+			typename ArgType,
+			typename std::enable_if<TIsSupportedLiteralType<ArgType>::Value, int>::type = 0
 			>
-		FLiteral(ArgTypes&&... Args)
+		FLiteral(ArgType&& Arg)
 		{
-			Value.Set<typename std::decay<ArgTypes...>::type>(Forward<ArgTypes>(Args)...);
+			Value.Set<typename std::decay<ArgType>::type>(Forward<ArgType>(Arg));
 #if METASOUND_DEBUG_LITERALS
 			InitDebugString();
 #endif
 		}
 
 		/** Construct a literal param with no arguments. */
-		template<
-			typename... ArgTypes,
-			typename std::enable_if<0 == sizeof...(ArgTypes), int>::type = 0
-			>
-		FLiteral(ArgTypes&&... Args)
+		FLiteral()
 		{
 			Value.Set<FNone>(FNone());
 #if METASOUND_DEBUG_LITERALS
@@ -130,14 +131,35 @@ namespace Metasound
 #endif
 		}
 
-#if METASOUND_DEBUG_LITERALS
 	private:
+#if METASOUND_DEBUG_LITERALS
 
 		FString DebugString;
 
 		void InitDebugString() const;
 
 #endif // METAOUND_DEBUG_LITERALS
+		
+		// Helper function to determine if type "U" can be stored in this FLiteral.
+		template<typename U, typename ... Ts>
+		struct TIsSupportedLiteralTypeHelper
+		{
+			static constexpr bool Value = UE::Core::Private::TParameterPackTypeIndex<U, Ts...>::Value != (SIZE_T)-1;
+		};
+
+		// Helper function to determine if type "U" can be stored in this FLiteral.
+		template<typename U, typename T, typename ... Ts>
+		struct TIsSupportedLiteralTypeHelper<U, TVariant<T, Ts...>>
+		{
+			static constexpr bool Value = TIsSupportedLiteralTypeHelper<U, T, Ts...>::Value;
+		};
+
+		// Determine if type "U" can be stored in this FLiteral.
+		template<typename U>
+		struct TIsSupportedLiteralType
+		{
+			static constexpr bool Value = TIsSupportedLiteralTypeHelper<typename std::decay<U>::type, FVariantType>::Value;
+		};
 	};
 
 	namespace MetasoundLiteralIntrinsics

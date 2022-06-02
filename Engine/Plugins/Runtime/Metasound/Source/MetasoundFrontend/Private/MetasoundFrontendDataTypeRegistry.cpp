@@ -191,6 +191,40 @@ namespace Metasound
 				TSharedRef<IDataTypeRegistryEntry, ESPMode::ThreadSafe> DataTypeEntry;
 			};
 
+			// Node registry entry for constructor input nodes created from a data type registry entry.
+			class FConstructorInputNodeRegistryEntry : public FDataTypeNodeRegistryEntry
+			{
+			public:
+				FConstructorInputNodeRegistryEntry() = delete;
+
+				FConstructorInputNodeRegistryEntry(const TSharedRef<IDataTypeRegistryEntry, ESPMode::ThreadSafe>& InDataTypeEntry)
+				: DataTypeEntry(InDataTypeEntry)
+				{
+					UpdateNodeClassInfo(DataTypeEntry->GetFrontendConstructorInputClass());
+				}
+
+				virtual ~FConstructorInputNodeRegistryEntry() = default;
+
+				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
+				{
+					return DataTypeEntry->GetFrontendConstructorInputClass();
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexWithLiteralNodeConstructorParams&& InParams) const override
+				{
+					return DataTypeEntry->CreateConstructorInputNode(MoveTemp(InParams));
+				}
+
+				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+				{
+					return MakeUnique<FConstructorInputNodeRegistryEntry>(DataTypeEntry);
+				}
+
+			private:
+				
+				TSharedRef<IDataTypeRegistryEntry, ESPMode::ThreadSafe> DataTypeEntry;
+			};
+
 			// Node registry entry for output nodes created from a data type registry entry.
 			class FOutputNodeRegistryEntry : public FDataTypeNodeRegistryEntry
 			{
@@ -224,6 +258,41 @@ namespace Metasound
 				
 				TSharedRef<IDataTypeRegistryEntry, ESPMode::ThreadSafe> DataTypeEntry;
 			};
+
+			// Node registry entry for constructor output nodes created from a data type registry entry.
+			class FConstructorOutputNodeRegistryEntry : public FDataTypeNodeRegistryEntry
+			{
+			public:
+				FConstructorOutputNodeRegistryEntry() = delete;
+
+				FConstructorOutputNodeRegistryEntry(const TSharedRef<IDataTypeRegistryEntry, ESPMode::ThreadSafe>& InDataTypeEntry)
+				: DataTypeEntry(InDataTypeEntry)
+				{
+					UpdateNodeClassInfo(DataTypeEntry->GetFrontendConstructorOutputClass());
+				}
+
+				virtual ~FConstructorOutputNodeRegistryEntry() = default;
+
+				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
+				{
+					return DataTypeEntry->GetFrontendConstructorOutputClass();
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexNodeConstructorParams&& InParams) const override
+				{
+					return DataTypeEntry->CreateConstructorOutputNode(MoveTemp(InParams));
+				}
+
+				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+				{
+					return MakeUnique<FConstructorOutputNodeRegistryEntry>(DataTypeEntry);
+				}
+
+			private:
+				
+				TSharedRef<IDataTypeRegistryEntry, ESPMode::ThreadSafe> DataTypeEntry;
+			};
+
 
 			// Node registry entry for literal nodes created from a data type registry entry.
 			class FLiteralNodeRegistryEntry : public FDataTypeNodeRegistryEntry
@@ -439,8 +508,10 @@ namespace Metasound
 				virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const override;
 
 				virtual bool GetFrontendInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
+				virtual bool GetFrontendConstructorInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendLiteralClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendOutputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
+				virtual bool GetFrontendConstructorOutputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendVariableMutatorClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendVariableAccessorClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
@@ -448,8 +519,10 @@ namespace Metasound
 
 				// Create a new instance of a C++ implemented node from the registry.
 				virtual TUniquePtr<INode> CreateInputNode(const FName& InInputType, FInputNodeConstructorParams&& InParams) const override;
+				virtual TUniquePtr<INode> CreateConstructorInputNode(const FName& InInputType, FInputNodeConstructorParams&& InParams) const override;
 				virtual TUniquePtr<INode> CreateLiteralNode(const FName& InLiteralType, FLiteralNodeConstructorParams&& InParams) const override;
 				virtual TUniquePtr<INode> CreateOutputNode(const FName& InOutputType, FOutputNodeConstructorParams&& InParams) const override;
+				virtual TUniquePtr<INode> CreateConstructorOutputNode(const FName& InOutputType, FOutputNodeConstructorParams&& InParams) const override;
 				virtual TUniquePtr<INode> CreateReceiveNode(const FName& InOutputType, const FNodeInitData& InParams) const override;
 				virtual TUniquePtr<INode> CreateVariableNode(const FName& InDataType, FVariableNodeConstructorParams&&) const override;
 				virtual TUniquePtr<INode> CreateVariableMutatorNode(const FName& InDataType, const FNodeInitData&) const override;
@@ -491,12 +564,20 @@ namespace Metasound
 						if (Entry->GetDataTypeInfo().bIsParsable)
 						{
 							NodeRegistry->RegisterNode(MakeUnique<FInputNodeRegistryEntry>(Entry));
+							
 							NodeRegistry->RegisterNode(MakeUnique<FOutputNodeRegistryEntry>(Entry));
+							
 							NodeRegistry->RegisterNode(MakeUnique<FLiteralNodeRegistryEntry>(Entry));
 							NodeRegistry->RegisterNode(MakeUnique<FVariableNodeRegistryEntry>(Entry));
 							NodeRegistry->RegisterNode(MakeUnique<FVariableMutatorNodeRegistryEntry>(Entry));
 							NodeRegistry->RegisterNode(MakeUnique<FVariableAccessorNodeRegistryEntry>(Entry));
 							NodeRegistry->RegisterNode(MakeUnique<FVariableDeferredAccessorNodeRegistryEntry>(Entry));
+
+							if (Entry->GetDataTypeInfo().bIsConstructorType)
+							{
+								NodeRegistry->RegisterNode(MakeUnique<FConstructorInputNodeRegistryEntry>(Entry));
+								NodeRegistry->RegisterNode(MakeUnique<FConstructorOutputNodeRegistryEntry>(Entry));
+							}
 						}
 					}
 
@@ -772,6 +853,16 @@ namespace Metasound
 				return false;
 			}
 
+			bool FDataTypeRegistry::GetFrontendConstructorInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					OutClass = Entry->GetFrontendConstructorInputClass();
+					return true;
+				}
+				return false;
+			}
+
 			bool FDataTypeRegistry::GetFrontendLiteralClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
@@ -787,6 +878,16 @@ namespace Metasound
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
 					OutClass = Entry->GetFrontendOutputClass();
+					return true;
+				}
+				return false;
+			}
+
+			bool FDataTypeRegistry::GetFrontendConstructorOutputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					OutClass = Entry->GetFrontendConstructorOutputClass();
 					return true;
 				}
 				return false;
@@ -844,6 +945,15 @@ namespace Metasound
 				return nullptr;
 			}
 
+			TUniquePtr<INode> FDataTypeRegistry::CreateConstructorInputNode(const FName& InDataType, FInputNodeConstructorParams&& InParams) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					return Entry->CreateConstructorInputNode(MoveTemp(InParams));
+				}
+				return nullptr;
+			}
+
 			TUniquePtr<INode> FDataTypeRegistry::CreateLiteralNode(const FName& InDataType, FLiteralNodeConstructorParams&& InParams) const 
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
@@ -858,6 +968,15 @@ namespace Metasound
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
 					return Entry->CreateOutputNode(MoveTemp(InParams));
+				}
+				return nullptr;
+			}
+
+			TUniquePtr<INode> FDataTypeRegistry::CreateConstructorOutputNode(const FName& InDataType, FOutputNodeConstructorParams&& InParams) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					return Entry->CreateConstructorOutputNode(MoveTemp(InParams));
 				}
 				return nullptr;
 			}
@@ -925,7 +1044,6 @@ namespace Metasound
 			static MetasoundFrontendDataTypeRegistryPrivate::FDataTypeRegistry Registry;
 			return Registry;
 		}
-
 	}
 }
 

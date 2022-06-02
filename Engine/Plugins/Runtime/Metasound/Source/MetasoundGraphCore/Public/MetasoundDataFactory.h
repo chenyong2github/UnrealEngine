@@ -934,6 +934,19 @@ namespace Metasound
 	{
 	};
 
+	/** TDataValueReferenceFactory creates TDataValueReferences for the given DataType.
+	 *
+	 * TDataValueReferenceFactory provides several factory methods for forwarding 
+	 * arguments from the factory method to the DataType constructor.  See TDataFactory
+	 * for more information on the provided factory methods.
+	 *
+	 * @tparam DataType - The Metasound DataType of the TDataValueReference.
+	 */
+	template<typename DataType>
+	struct TDataValueReferenceFactory : TDataFactory<DataType, TDataValueReference<DataType>>
+	{
+	};
+
 	/** TDataReadReferenceFactory creates TDataReadReferences for the given DataType.
 	 *
 	 * TDataReadReferenceFactory provides several factory methods for forwarding 
@@ -1076,6 +1089,19 @@ namespace Metasound
 	 */
 	template<typename DataType>
 	struct TDataTypeLiteralFactory : TDataLiteralFactory<DataType, DataFactoryPrivate::TDataTypeCreator<DataType>>
+	{
+	};
+
+	/** TDataValueReferenceLiteralFactory creates TDataValueReferences for the given DataType.
+	 *
+	 * TDataValueReferenceLiteralFactory provides several factory methods for forwarding 
+	 * arguments from the factory method to the DataType constructor.  See TDataFactory
+	 * for more information on the provided factory methods.
+	 *
+	 * @tparam DataType - The Metasound DataType of the TDataValueReference.
+	 */
+	template<typename DataType>
+	struct TDataValueReferenceLiteralFactory : TDataLiteralFactory<DataType, TDataValueReference<DataType>>
 	{
 	};
 

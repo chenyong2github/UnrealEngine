@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 #include "MetasoundBuildError.h"
 #include "MetasoundBuilderInterface.h"
+#include "MetasoundFrontendDataTypeTraits.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundNode.h"
 #include "MetasoundVertex.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphCore"
 
@@ -30,73 +34,83 @@ namespace Metasound
 		}
 
 		virtual ~FMissingOutputNodeInputReferenceError() = default;
-
 	};
 
-	template<typename DataType>
-	class TOutputNode : public FNode
+	namespace OutputNodePrivate
 	{
-		class FOutputOperator : public IOperator
+		class METASOUNDFRONTEND_API FOutputOperator : public IOperator
 		{
 			public:
-				using FDataReadReference = TDataReadReference<DataType>;
+				FOutputOperator(const FVertexName& InVertexName, const FAnyDataReference& InDataReference);
 
-				FOutputOperator(const FVertexName& InDataReferenceName, FDataReadReference InDataReference)
-				{
-					Outputs.AddDataReadReference<DataType>(InDataReferenceName, InDataReference);
-				}
+				virtual ~FOutputOperator() = default;
 
-				virtual ~FOutputOperator() {}
-
-				virtual FDataReferenceCollection GetInputs() const override
-				{
-					return {};
-				}
-
-				virtual FDataReferenceCollection GetOutputs() const override
-				{
-					return Outputs;
-				}
-
-				virtual FExecuteFunction GetExecuteFunction() override
-				{
-					return nullptr;
-				}
+				virtual FDataReferenceCollection GetInputs() const override;
+				virtual FDataReferenceCollection GetOutputs() const override;
+				virtual void Bind(FVertexInterfaceData& InVertexData) const;
+				virtual FExecuteFunction GetExecuteFunction() override;
 
 			private:
-				FDataReferenceCollection Outputs;
+				FVertexName VertexName;
+				FAnyDataReference DataReference;
 		};
+	}
+
+	template<typename DataType, EVertexAccessType VertexAccess=EVertexAccessType::Reference>
+	class TOutputNode : public FNode
+	{
+	private:
+		static FName GetVariantName()
+		{
+			if constexpr (EVertexAccessType::Value == VertexAccess)
+			{
+				return FName("Constructor");
+			}
+			else
+			{
+				return FName();
+			}
+		}
 
 		class FOutputOperatorFactory : public IOperatorFactory
 		{
-			public:
-				FOutputOperatorFactory(const FVertexName& InDataReferenceName)
-				:	DataReferenceName(InDataReferenceName)
+		public:
+			FOutputOperatorFactory(const FVertexName& InDataReferenceName)
+			:	DataReferenceName(InDataReferenceName)
+			{
+			}
+
+			virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
+			{
+				using namespace OutputNodePrivate;
+
+				if (const FAnyDataReference* Ref = InParams.InputData.FindDataReference(DataReferenceName))
 				{
+					return MakeUnique<FOutputOperator>(DataReferenceName, *Ref);
 				}
 
-				virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
+				// Only construct default if default construction is supported
+				if constexpr (TIsParsable<DataType>::Value)
 				{
-					const bool bContainsRef = InParams.InputData.IsVertexBound(DataReferenceName);
-					if (bContainsRef)
+					if constexpr (TIsConstructorVertexSupported<DataType>::Value)
 					{
-						TDataReadReference<DataType> InputReadRef = InParams.InputData.GetDataReadReference<DataType>(DataReferenceName);
-						return MakeUnique<FOutputOperator>(DataReferenceName, InputReadRef);
+						// Prefer to make a constant value
+						TDataValueReference<DataType> DefaultValueRef = TDataValueReferenceFactory<DataType>::CreateAny(InParams.OperatorSettings);
+						return MakeUnique<FOutputOperator>(DataReferenceName, DefaultValueRef);
 					}
-
-					// Only construct default if default construction is supported
-					if constexpr (TIsParsable<DataType>::Value)
+					else
 					{
 						TDataReadReference<DataType> DefaultReadRef = TDataReadReferenceFactory<DataType>::CreateAny(InParams.OperatorSettings);
 						return MakeUnique<FOutputOperator>(DataReferenceName, DefaultReadRef);
 					}
-
-					OutResults.Errors.Emplace(MakeUnique<FMissingOutputNodeInputReferenceError>(InParams.Node, GetMetasoundDataTypeDisplayText<DataType>()));
-					return TUniquePtr<IOperator>(nullptr);
 				}
 
-			private:
-				FVertexName DataReferenceName;
+				OutResults.Errors.Emplace(MakeUnique<FMissingOutputNodeInputReferenceError>(InParams.Node, GetMetasoundDataTypeDisplayText<DataType>()));
+				return TUniquePtr<IOperator>(nullptr);
+			}
+
+		private:
+			FVertexName DataReferenceName;
 		};
 
 		static FVertexInterface GetVertexInterface(const FVertexName& InVertexName)
@@ -105,10 +119,10 @@ namespace Metasound
 
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertex<DataType>(InVertexName, FDataVertexMetadata{VertexDescription})
+					FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), FDataVertexMetadata{VertexDescription}, VertexAccess)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertex<DataType>(InVertexName, FDataVertexMetadata{VertexDescription})
+					FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), FDataVertexMetadata{VertexDescription}, VertexAccess)
 				)
 			);
 		}
@@ -117,7 +131,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = { "Output", GetMetasoundDataTypeName<DataType>(), FName() };
+			Info.ClassName = { "Output", GetMetasoundDataTypeName<DataType>(), GetVariantName() };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.Description = METASOUND_LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph.");
@@ -127,8 +141,6 @@ namespace Metasound
 
 			return Info;
 		};
-
-
 
 		public:
 			TOutputNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FVertexName& InVertexName)

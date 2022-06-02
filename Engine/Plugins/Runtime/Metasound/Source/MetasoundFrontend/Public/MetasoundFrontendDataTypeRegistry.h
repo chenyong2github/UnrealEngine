@@ -137,11 +137,17 @@ namespace Metasound
 			/** Return an FMetasoundFrontendClass representing an input node of the data type. */
 			virtual const FMetasoundFrontendClass& GetFrontendInputClass() const = 0;
 
+			/** Return an FMetasoundFrontendClass representing an input node of the data type. */
+			virtual const FMetasoundFrontendClass& GetFrontendConstructorInputClass() const = 0;
+
 			/** Return an FMetasoundFrontendClass representing a variable node of the data type. */
 			virtual const FMetasoundFrontendClass& GetFrontendLiteralClass() const = 0;
 
 			/** Return an FMetasoundFrontendClass representing an output node of the data type. */
 			virtual const FMetasoundFrontendClass& GetFrontendOutputClass() const = 0;
+
+			/** Return an FMetasoundFrontendClass representing an input node of the data type. */
+			virtual const FMetasoundFrontendClass& GetFrontendConstructorOutputClass() const = 0;
 
 			/** Return an FMetasoundFrontendClass representing an init variable node of the data type. */
 			virtual const FMetasoundFrontendClass& GetFrontendVariableClass() const = 0;
@@ -158,8 +164,14 @@ namespace Metasound
 			/** Create an input node */
 			virtual TUniquePtr<INode> CreateInputNode(FInputNodeConstructorParams&&) const = 0;
 
+			/** Create an input node */
+			virtual TUniquePtr<INode> CreateConstructorInputNode(FInputNodeConstructorParams&&) const = 0;
+
 			/** Create an output node */
 			virtual TUniquePtr<INode> CreateOutputNode(FOutputNodeConstructorParams&&) const = 0;
+
+			/** Create an output node */
+			virtual TUniquePtr<INode> CreateConstructorOutputNode(FOutputNodeConstructorParams&&) const = 0;
 			
 			/** Create a variable node */
 			virtual TUniquePtr<INode> CreateLiteralNode(FLiteralNodeConstructorParams&&) const = 0;
@@ -245,11 +257,17 @@ namespace Metasound
 			/** Return an FMetasoundFrontendClass representing an input node of the data type. */
 			virtual bool GetFrontendInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
 
+			/** Return an FMetasoundFrontendClass representing an input node of the data type. */
+			virtual bool GetFrontendConstructorInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
+
 			/** Return an FMetasoundFrontendClass representing a variable node of the data type. */
 			virtual bool GetFrontendLiteralClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
 
 			/** Return an FMetasoundFrontendClass representing an output node of the data type. */
 			virtual bool GetFrontendOutputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
+
+			/** Return an FMetasoundFrontendClass representing an output node of the data type. */
+			virtual bool GetFrontendConstructorOutputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
 
 			/** Return an FMetasoundFrontendClass representing an init variable node of the data type. */
 			virtual bool GetFrontendVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
@@ -265,8 +283,10 @@ namespace Metasound
 
 			// Create a new instance of a C++ implemented node from the registry.
 			virtual TUniquePtr<INode> CreateInputNode(const FName& InInputType, FInputNodeConstructorParams&& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateConstructorInputNode(const FName& InInputType, FInputNodeConstructorParams&& InParams) const = 0;
 			virtual TUniquePtr<INode> CreateLiteralNode(const FName& InLiteralType, FLiteralNodeConstructorParams&& InParams) const = 0;
 			virtual TUniquePtr<INode> CreateOutputNode(const FName& InOutputType, FOutputNodeConstructorParams&& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateConstructorOutputNode(const FName& InOutputType, FOutputNodeConstructorParams&& InParams) const = 0;
 			virtual TUniquePtr<INode> CreateReceiveNode(const FName& InDataType, const FNodeInitData&) const = 0;
 			virtual TUniquePtr<INode> CreateVariableNode(const FName& InDataType, FVariableNodeConstructorParams&& InParams) const = 0;
 			virtual TUniquePtr<INode> CreateVariableMutatorNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;

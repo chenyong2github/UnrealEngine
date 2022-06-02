@@ -49,6 +49,15 @@ namespace Metasound
 			return Invalid::GetInvalidName();
 		}
 
+		EMetasoundFrontendVertexAccessType FBaseOutputController::GetVertexAccessType() const 
+		{
+			if (const FMetasoundFrontendClassVertex* ClassOutput = ClassOutputPtr.Get())
+			{
+				return ClassOutput->AccessType;
+			}
+			return EMetasoundFrontendVertexAccessType::Reference;
+		}
+
 		FGuid FBaseOutputController::GetOwningNodeID() const
 		{
 			return OwningNode->GetID();
