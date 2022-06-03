@@ -21,6 +21,14 @@ const FMVVMBlueprintViewModelContext* UMVVMBlueprintView::FindViewModel(FGuid Vi
 	return const_cast<UMVVMBlueprintView*>(this)->FindViewModel(ViewModelId);
 }
 
+const FMVVMBlueprintViewModelContext* UMVVMBlueprintView::FindViewModel(FName ViewModel) const
+{
+	return AvailableViewModels.FindByPredicate([ViewModel](const FMVVMBlueprintViewModelContext& Other)
+		{
+			return Other.GetViewModelName() == ViewModel;
+		});
+}
+
 void UMVVMBlueprintView::AddViewModel(const FMVVMBlueprintViewModelContext& NewContext)
 {
 	AvailableViewModels.Add(NewContext);
@@ -29,7 +37,7 @@ void UMVVMBlueprintView::AddViewModel(const FMVVMBlueprintViewModelContext& NewC
 }
 
 
-void UMVVMBlueprintView::RemoveViewModel(FGuid ViewModelId)
+bool UMVVMBlueprintView::RemoveViewModel(FGuid ViewModelId)
 {
 	int32 Count = AvailableViewModels.RemoveAll([ViewModelId](const FMVVMBlueprintViewModelContext& VM)
 		{
@@ -41,9 +49,10 @@ void UMVVMBlueprintView::RemoveViewModel(FGuid ViewModelId)
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint());
 		OnViewModelsUpdated.Broadcast();
 	}
+	return Count > 0;
 }
 
-void UMVVMBlueprintView::RemoveViewModels(const TArrayView<FGuid> ViewModelIds)
+int32 UMVVMBlueprintView::RemoveViewModels(const TArrayView<FGuid> ViewModelIds)
 {
 	int32 Count = 0;
 	for (const FGuid& ViewModelId : ViewModelIds)
@@ -59,6 +68,26 @@ void UMVVMBlueprintView::RemoveViewModels(const TArrayView<FGuid> ViewModelIds)
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint());
 		OnViewModelsUpdated.Broadcast();
 	}
+	return Count;
+}
+
+bool UMVVMBlueprintView::RenameViewModel(FName OldViewModelName, FName NewViewModelName)
+{
+	FMVVMBlueprintViewModelContext* ViewModelContext = AvailableViewModels.FindByPredicate([OldViewModelName](const FMVVMBlueprintViewModelContext& Other)
+			{
+				return Other.GetViewModelName() == OldViewModelName;
+			});
+	if (ViewModelContext)
+	{
+		ViewModelContext->OverrideDisplayName = FText::FromName(NewViewModelName);
+
+		FBlueprintEditorUtils::ReplaceVariableReferences(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint(), OldViewModelName, NewViewModelName);
+		FBlueprintEditorUtils::ValidateBlueprintChildVariables(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint(), NewViewModelName);
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint());
+
+		OnViewModelsUpdated.Broadcast();
+	}
+	return ViewModelContext != nullptr;
 }
 
 void UMVVMBlueprintView::SetViewModels(const TArray<FMVVMBlueprintViewModelContext>& ViewModelContexts)

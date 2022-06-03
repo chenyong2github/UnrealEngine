@@ -8,7 +8,10 @@
 #include "Engine/Engine.h"
 #include "MVVMSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
+#include "ScopedTransaction.h"
 #include "WidgetBlueprint.h"
+
+#define LOCTEXT_NAMESPACE "UMVVMEditorSubsystem"
 
 UMVVMBlueprintView* UMVVMEditorSubsystem::RequestView(UWidgetBlueprint* WidgetBlueprint) const
 {
@@ -24,20 +27,43 @@ UMVVMBlueprintView* UMVVMEditorSubsystem::GetView(UWidgetBlueprint* WidgetBluepr
 	return nullptr;
 }
 
-TArray<UE::MVVM::FMVVMConstFieldVariant> UMVVMEditorSubsystem::GetChildViewModels(TSubclassOf<UMVVMViewModelBase> Class)
+TArray<UE::MVVM::FMVVMConstFieldVariant> UMVVMEditorSubsystem::GetChildViewModels(UClass* Class)
 {
-	TArray<UE::MVVM::FMVVMConstFieldVariant> Result;
 
+	auto IsValidObjectProperty = [](const FProperty* Property)
+	{
+		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
+		{
+			return ObjectProperty->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass());
+		}
+		return false;
+	};
+
+
+	TArray<UE::MVVM::FMVVMConstFieldVariant> Result;
 	for (TFieldIterator<const FProperty> PropertyIt(Class, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
 		const FProperty* Property = *PropertyIt;
-		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
+		if (IsValidObjectProperty(Property) && UE::MVVM::BindingHelper::IsValidForSourceBinding(Property))
 		{
-			if (ObjectProperty->PropertyClass->IsChildOf(UMVVMViewModelBase::StaticClass()))
+			Result.Add(UE::MVVM::FMVVMConstFieldVariant(Property));
+		}
+	}
+
+	for (TFieldIterator<const UFunction> FunctionItt(Class, EFieldIteratorFlags::IncludeSuper); FunctionItt; ++FunctionItt)
+	{
+		const UFunction* Function = *FunctionItt;
+		check(Function);
+		if (!Function->HasAnyFunctionFlags(FUNC_Private | FUNC_Protected))
+		{
+			if (UE::MVVM::BindingHelper::IsValidForSourceBinding(Function))
 			{
-				if (UE::MVVM::BindingHelper::IsValidForSourceBinding(Property))
+				if (const FProperty* ReturnValue = UE::MVVM::BindingHelper::GetReturnProperty(Function))
 				{
-					Result.Add(UE::MVVM::FMVVMConstFieldVariant(Property));
+					if (IsValidObjectProperty(ReturnValue))
+					{
+						Result.Add(UE::MVVM::FMVVMConstFieldVariant(Function));
+					}
 				}
 			}
 		}
@@ -46,12 +72,52 @@ TArray<UE::MVVM::FMVVMConstFieldVariant> UMVVMEditorSubsystem::GetChildViewModel
 	return Result;
 }
 
-void UMVVMEditorSubsystem::RemoveViewModel(UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewModelContext& ViewModel)
+void UMVVMEditorSubsystem::RemoveViewModel(UWidgetBlueprint* WidgetBlueprint, FName ViewModel)
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
 	{
-		View->RemoveViewModel(ViewModel.GetViewModelId());
+		if (const FMVVMBlueprintViewModelContext* ViewModelContext = View->FindViewModel(ViewModel))
+		{
+			View->RemoveViewModel(ViewModelContext->GetViewModelId());
+		}
 	}
+}
+
+bool UMVVMEditorSubsystem::VerifyViewModelRename(UWidgetBlueprint* WidgetBlueprint, FName ViewModel, FName NewViewModel, FText& OutError)
+{
+	FKismetNameValidator Validator(WidgetBlueprint);
+	EValidatorResult ValidatorResult = Validator.IsValid(NewViewModel);
+	if (ValidatorResult != EValidatorResult::Ok)
+	{
+		if (ViewModel == NewViewModel && (ValidatorResult == EValidatorResult::AlreadyInUse || ValidatorResult == EValidatorResult::ExistingName))
+		{
+			// Continue successfully
+		}
+		else
+		{
+			OutError = INameValidatorInterface::GetErrorText(NewViewModel.ToString(), ValidatorResult);
+			return false;
+		}
+	}
+	return true;
+}
+
+bool UMVVMEditorSubsystem::RenameViewModel(UWidgetBlueprint* WidgetBlueprint, FName ViewModel, FName NewViewModel, FText& OutError)
+{
+	if (!VerifyViewModelRename(WidgetBlueprint, ViewModel, NewViewModel, OutError))
+	{
+		return false;
+	}
+
+	UMVVMBlueprintView* View = GetView(WidgetBlueprint);
+	if (View == nullptr)
+	{
+		return false;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("RenameViewModel", "Rename viewmodel"));
+	View->Modify();
+	return View->RenameViewModel(ViewModel, NewViewModel);
 }
 
 FMVVMBlueprintViewBinding& UMVVMEditorSubsystem::AddBinding(UWidgetBlueprint* WidgetBlueprint)
@@ -128,3 +194,5 @@ TArray<const UFunction*> UMVVMEditorSubsystem::GetAvailableConversionFunctions(c
 		});
 	return ConversionFunctions;
 }
+
+#undef LOCTEXT_NAMESPACE

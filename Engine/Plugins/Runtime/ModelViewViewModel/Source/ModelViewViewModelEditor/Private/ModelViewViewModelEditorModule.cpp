@@ -25,6 +25,7 @@
 #include "Styling/SlateColor.h"
 #include "Styling/StyleColors.h"
 #include "Tabs/MVVMBindingSummoner.h"
+#include "Tabs/MVVMViewModelSummoner.h"
 #include "UMGEditorModule.h"
 #include "ViewModel/AssetTypeActions_ViewModelBlueprint.h"
 #include "WidgetBlueprint.h"
@@ -114,6 +115,7 @@ void FModelViewViewModelEditorModule::HandleRegisterBlueprintEditorTab(const FWi
 	if (ApplicationMode.GetModeName() == FWidgetBlueprintApplicationModes::DesignerMode)
 	{
 		TabFactories.RegisterFactory(MakeShared<FMVVMBindingSummoner>(ApplicationMode.GetBlueprintEditor()));
+		TabFactories.RegisterFactory(MakeShared<UE::MVVM::FViewModelSummoner>(ApplicationMode.GetBlueprintEditor()));
 
 		if (ApplicationMode.LayoutExtender)
 		{

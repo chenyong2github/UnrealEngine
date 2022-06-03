@@ -13,7 +13,6 @@ class ITableRow;
 template<typename T>
 class SListView;
 class SMVVMViewModelContextListWidget;
-class SMVVMViewModelBindingListWidget;
 template<typename T>
 class STreeView;
 class STableViewBase;
@@ -24,6 +23,7 @@ class UWidgetBlueprint;
 namespace UE::MVVM
 {
 	struct FMVVMFieldVariant;
+	class SViewModelBindingListWidget;
 
 	namespace Private
 	{
@@ -108,7 +108,7 @@ private:
 
 	TWeakPtr<SWindow> WeakParentWindow;
 
-	TSharedPtr<SMVVMViewModelBindingListWidget> ViewModelBindingListWidget;
+	TSharedPtr<UE::MVVM::SViewModelBindingListWidget> ViewModelBindingListWidget;
 
 	bool bSearchStringIsEmpty = true;
 	UUserWidget* OuterWidget = nullptr;

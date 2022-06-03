@@ -23,10 +23,12 @@ class MODELVIEWVIEWMODELBLUEPRINT_API UMVVMBlueprintView : public UObject
 public:
 	FMVVMBlueprintViewModelContext* FindViewModel(FGuid ViewModelId);
 	const FMVVMBlueprintViewModelContext* FindViewModel(FGuid ViewModelId) const;
+	const FMVVMBlueprintViewModelContext* FindViewModel(FName ViewModelName) const;
 
 	void AddViewModel(const FMVVMBlueprintViewModelContext& NewContext);
-	void RemoveViewModel(FGuid ViewModelId);
-	void RemoveViewModels(const TArrayView<FGuid> ViewModelIds);
+	bool RemoveViewModel(FGuid ViewModelId);
+	int32 RemoveViewModels(const TArrayView<FGuid> ViewModelIds);
+	bool RenameViewModel(FName OldViewModelName, FName NewViewModelName);
 	void SetViewModels(const TArray<FMVVMBlueprintViewModelContext>& ViewModelContexts);
 
 	const TArrayView<const FMVVMBlueprintViewModelContext> GetViewModels() const
