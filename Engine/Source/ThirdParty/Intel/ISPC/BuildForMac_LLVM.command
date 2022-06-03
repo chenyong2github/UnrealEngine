@@ -2,7 +2,7 @@
 
 set -e
 
-LLVM_VERSION=12.0.1
+LLVM_VERSION=13.0.1
 
 UE_THIRD_PARTY_LOCATION=`cd $(pwd)/..; pwd`
 
