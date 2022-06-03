@@ -27,8 +27,8 @@ namespace AutomationUtils.Matchers
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor input)
 		{
-			Match? match = s_pattern.Match(input.CurrentLine!);
-			if (match.Success)
+			Match? match;
+			if (input.TryMatch(s_pattern, out match))
 			{
 				LogEventBuilder builder = new LogEventBuilder(input.Hanging());
 				builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
