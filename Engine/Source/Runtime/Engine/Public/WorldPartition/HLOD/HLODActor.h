@@ -90,8 +90,6 @@ protected:
 #endif
 	//~ End AActor Interface.
 
-	UPrimitiveComponent* GetHLODComponent();
-
 private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

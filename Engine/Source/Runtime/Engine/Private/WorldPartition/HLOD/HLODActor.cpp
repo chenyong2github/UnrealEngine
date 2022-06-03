@@ -41,11 +41,6 @@ AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitial
 #endif
 }
 
-UPrimitiveComponent* AWorldPartitionHLOD::GetHLODComponent()
-{
-	return Cast<UPrimitiveComponent>(RootComponent);
-}
-
 void AWorldPartitionHLOD::SetVisibility(bool bInVisible)
 {
 	// When propagating visibility state to children, SetVisibility dirties all attached components.
@@ -110,6 +105,8 @@ void AWorldPartitionHLOD::SetHLODComponents(const TArray<UActorComponent*>& InHL
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::SetHLODComponents);
 
+	Modify();
+
 	TArray<UActorComponent*> ComponentsToRemove;
 	GetComponents(ComponentsToRemove);
 	for (UActorComponent* ComponentToRemove : ComponentsToRemove)
@@ -130,7 +127,8 @@ void AWorldPartitionHLOD::SetHLODComponents(const TArray<UActorComponent*>& InHL
 			}
 			else
 			{
-				HLODSceneComponent->SetupAttachment(RootComponent);
+				// Attach to root component, but don't mess world tranform
+				HLODSceneComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
 			}
 		}
 	

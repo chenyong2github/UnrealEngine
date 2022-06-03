@@ -149,6 +149,12 @@ namespace
 			// We'll always want to spawn ISMC, even if our source components are all SMC
 			ComponentClass = UInstancedStaticMeshComponent::StaticClass();
 
+			// Stationnary can be considered as static for the purpose of HLODs
+			if (Mobility == EComponentMobility::Stationary)
+			{
+				Mobility = EComponentMobility::Static;
+			}
+
 			ComputeHash();
 		}
 	};

@@ -381,26 +381,28 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 				UE_LOG(LogHLODBuilder, Warning, TEXT("HLOD generation created no component for %s"), *InHLODActor->GetActorLabel());
 			}
 
-			InHLODActor->Modify();
-			InHLODActor->SetHLODComponents(HLODComponents);
-
 			// Ideally, this should be performed elsewhere, to allow more flexibility in the HLOD generation
 			for (UActorComponent* HLODComponent : HLODComponents)
 			{
-				if (UPrimitiveComponent* HLODPrimitive = Cast<UPrimitiveComponent>(HLODComponent))
+				HLODComponent->SetCanEverAffectNavigation(false);
+
+				if (USceneComponent* SceneComponent = Cast<USceneComponent>(HLODComponent))
+				{
+					// Change Mobility to be Static
+					SceneComponent->SetMobility(EComponentMobility::Static);
+
+					// Enable bounds optimizations
+					SceneComponent->bComputeFastLocalBounds = true;
+					SceneComponent->bComputeBoundsOnceForGame = true;
+				}
+
+				if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(HLODComponent))
 				{
 					// Disable collisions
-					HLODPrimitive->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-					HLODPrimitive->SetGenerateOverlapEvents(false);
-					HLODPrimitive->SetCanEverAffectNavigation(false);
-					HLODPrimitive->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
-					HLODPrimitive->SetCanEverAffectNavigation(false);
-					HLODPrimitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-					HLODPrimitive->SetMobility(EComponentMobility::Static);
-
-					// Enable optimizations
-					HLODPrimitive->bComputeFastLocalBounds = true;
-					HLODPrimitive->bComputeBoundsOnceForGame = true;
+					PrimitiveComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+					PrimitiveComponent->SetGenerateOverlapEvents(false);
+					PrimitiveComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+					PrimitiveComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 				}
 
 				if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(HLODComponent))
@@ -408,10 +410,13 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 					if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
 					{
 						// If the HLOD process did create this static mesh
-						if (StaticMeshComponent->GetPackage() == StaticMesh->GetPackage())
+						if (StaticMesh->GetPackage() == HLODBuildContext.AssetsOuter)
 						{
 							// Set up ray tracing far fields for always loaded HLODs
-							StaticMeshComponent->bRayTracingFarField = !HLODLayer->IsSpatiallyLoaded() && StaticMesh->bSupportRayTracing;
+							if (!HLODLayer->IsSpatiallyLoaded() && StaticMesh->bSupportRayTracing)
+							{
+								StaticMeshComponent->bRayTracingFarField = true;
+							}
 
 							// Disable collisions
 							if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
@@ -426,6 +431,8 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 					}
 				}
 			}
+
+			InHLODActor->SetHLODComponents(HLODComponents);
 		}
 	}
 
