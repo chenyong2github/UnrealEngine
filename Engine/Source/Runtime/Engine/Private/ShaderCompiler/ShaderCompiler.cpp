@@ -4434,7 +4434,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 							*LegacyShaderPlatformToShaderFormat(ShaderMapToUseForRendering->GetShaderPlatform()).ToString());
 						for (int32 ErrorIndex = 0; ErrorIndex < Errors.Num(); ErrorIndex++)
 						{
-							UE_LOG(LogShaders, Warning, TEXT("	%s"), *Errors[ErrorIndex]);
+							UE_LOG(LogShaders, Warning, TEXT("  %s"), *Errors[ErrorIndex]);
 						}
 					}
 				}
@@ -4460,7 +4460,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 						// Log the errors unsuppressed before the fatal error, so it's always obvious from the log what the compile error was
 						for (int32 ErrorIndex = 0; ErrorIndex < Errors.Num(); ErrorIndex++)
 						{
-							ErrorString += FString::Printf(TEXT("	%s\n"), *Errors[ErrorIndex]);
+							ErrorString += FString::Printf(TEXT("  %s\n"), *Errors[ErrorIndex]);
 						}
 
 						ErrorString += FString::Printf(TEXT("Failed to compile default material %s!"), *Material->GetBaseMaterialPathName());
@@ -4478,7 +4478,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 						FString ErrorMessage = Errors[ErrorIndex];
 						// Work around build machine string matching heuristics that will cause a cook to fail
 						ErrorMessage.ReplaceInline(TEXT("error "), TEXT("err0r "), ESearchCase::CaseSensitive);
-						ErrorString += FString::Printf(TEXT("%s\n"), *ErrorMessage);
+						ErrorString += FString::Printf(TEXT("  %s\n"), *ErrorMessage);
 					}
 
 					UE_LOG(LogShaderCompilers, Warning, TEXT("%s"), *ErrorString);
