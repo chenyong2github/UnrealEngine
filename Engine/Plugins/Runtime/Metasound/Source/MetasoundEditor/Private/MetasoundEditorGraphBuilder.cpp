@@ -1048,13 +1048,21 @@ namespace Metasound
 		{
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
+			const FGuid VertexID = FGuid::NewGuid();
 
 			FMetasoundFrontendClassInput ClassInput;
 			ClassInput.Name = GenerateUniqueNameByClassType(InMetaSound, EMetasoundFrontendClassType::Input, InNameBase ? InNameBase->ToString() : TEXT("Input"));
 			ClassInput.TypeName = InTypeName;
+			ClassInput.VertexID = VertexID;
+
 			if (nullptr != InDefaultValue)
 			{
 				ClassInput.DefaultLiteral = *InDefaultValue;
+			}
+			else
+			{
+				Metasound::FLiteral Literal = Frontend::IDataTypeRegistry::Get().CreateDefaultLiteral(InTypeName);
+				ClassInput.DefaultLiteral.SetFromLiteral(Literal);
 			}
 
 			return MetaSoundAsset->GetRootGraphHandle()->AddInputVertex(ClassInput);
