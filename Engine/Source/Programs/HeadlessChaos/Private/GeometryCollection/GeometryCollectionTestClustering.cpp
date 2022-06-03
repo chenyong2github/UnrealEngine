@@ -307,8 +307,8 @@ namespace GeometryCollectionTest
 
 			if (Frame == 2)
 			{
-				TMap<FGeometryParticleHandle*, FReal> ExternalStrains = { {ParticleHandles[0], 50.0f} };
-				Clustering.BreakingModel(&ExternalStrains);
+				ParticleHandles[0].AddExternalStrain(50.0f);
+				Clustering.BreakingModel();
 			}
 
 			DisabledFlags.Reset();

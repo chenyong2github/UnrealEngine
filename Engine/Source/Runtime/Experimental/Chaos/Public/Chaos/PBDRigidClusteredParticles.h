@@ -87,7 +87,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	, MCollisionImpulses(MoveTemp(Other.MCollisionImpulses))
 	, MStrains(MoveTemp(Other.MStrains))
 	, MConnectivityEdges(MoveTemp(Other.MConnectivityEdges))
-
+	, MExternalStrains(MoveTemp(Other.MExternalStrains))
 	{
 		InitHelper();
 	}
@@ -115,6 +115,10 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	auto& CollisionImpulses(int32 Idx) { return MCollisionImpulses[Idx]; }
 	auto& CollisionImpulsesArray() { return MCollisionImpulses; }
 
+	const auto& ExternalStrains(int32 Idx) const { return MExternalStrains[Idx]; }
+	auto& ExternalStrains(int32 Idx) { return MExternalStrains[Idx]; }
+	auto& ExternalStrainsArray() { return MExternalStrains; }
+	
 	const auto& Strains(int32 Idx) const { return MStrains[Idx]; }
 	auto& Strains(int32 Idx) { return MStrains[Idx]; }
 
@@ -159,6 +163,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 		  TArrayCollection::AddArray(&MCollisionImpulses);
 		  TArrayCollection::AddArray(&MStrains);
 		  TArrayCollection::AddArray(&MConnectivityEdges);
+	  	  TArrayCollection::AddArray(&MExternalStrains);
 	  }
 
 	  TArrayCollectionArray<ClusterId> MClusterIds;
@@ -172,6 +177,10 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 
 	  // Collision Impulses
 	  TArrayCollectionArray<T> MCollisionImpulses;
+
+	  // external strains ( use by fields )
+	  // @todo(chaos) we should eventually merge MCollisionImpulses into MExternalStrains when CLustering code has been updated to not clear the impulses just before processing them 
+	  TArrayCollectionArray<T> MExternalStrains; 
 
 	  // User set parameters
 	  TArrayCollectionArray<T> MStrains;

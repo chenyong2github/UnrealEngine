@@ -307,7 +307,7 @@ namespace Chaos
 							{
 								// First disable breaking data generation - this is not a break we're just reclustering under a dynamic parent.
 								TGuardValue<bool> BreakFlagGuard(DoGenerateBreakingData, false);
-								Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
+								Children = ReleaseClusterParticles(ActiveCluster, true);
 							}
 
 							NewClusterGroups[ClusterGroupID].Bodies.Append(Children.Array());
@@ -543,18 +543,16 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseClusterParticles(STRAIN)"), STAT_ReleaseClusterParticles_STRAIN, STATGROUP_Chaos);
 	TSet<FPBDRigidParticleHandle*> FRigidClustering::ReleaseClusterParticles(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle,
-		const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap,
 		bool bForceRelease)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticles_STRAIN);
 
-		return ReleaseClusterParticlesImpl(ClusteredParticle, ExternalStrainMap, bForceRelease, true /*bCreateNewClusters*/);
+		return ReleaseClusterParticlesImpl(ClusteredParticle, bForceRelease, true /*bCreateNewClusters*/);
 	}
 	
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseClusterParticlesNoInternalCluster"), STAT_ReleaseClusterParticlesNoInternalCluster, STATGROUP_Chaos);
 	TSet<FPBDRigidParticleHandle*> FRigidClustering::ReleaseClusterParticlesNoInternalCluster(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle,
-		const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap,
 		bool bForceRelease)
 	{
 		/* This is a near duplicate of the ReleaseClusterParticles() method with the internal cluster creation removed.
@@ -564,16 +562,21 @@ namespace Chaos
 		
 		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticlesNoInternalCluster);
 
-		return ReleaseClusterParticlesImpl(ClusteredParticle, ExternalStrainMap, bForceRelease, false /*bCreateNewClusters*/);
+		return ReleaseClusterParticlesImpl(ClusteredParticle, bForceRelease, false /*bCreateNewClusters*/);
 	}
 	
 	TSet<FPBDRigidParticleHandle*> FRigidClustering::ReleaseClusterParticlesImpl(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle,
-		const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap,
 		bool bForceRelease,
 		bool bCreateNewClusters)
 	{	
 		TSet<FPBDRigidParticleHandle*> ActivatedChildren;
+
+		if (!ensureMsgf((ClusteredParticle->Parent()==nullptr), TEXT("Removing a cluster that still has a parent")))
+		{
+			return ActivatedChildren;;
+		};
+
 		if (!ensureMsgf(MChildren.Contains(ClusteredParticle), TEXT("Removing Cluster that does not exist!")))
 		{
 			return ActivatedChildren;
@@ -589,18 +592,7 @@ namespace Chaos
 				continue;
 			}
 
-			FReal ChildStrain = 0.0;
-
-			if(ExternalStrainMap)
-			{
-				const FReal* MapStrain = ExternalStrainMap->Find(Child);
-				ChildStrain = MapStrain ? *MapStrain : Child->CollisionImpulses();
-			}
-			else
-			{
-				ChildStrain = Child->CollisionImpulses();
-			}
-
+			const FReal ChildStrain = Child->CollisionImpulses() + Child->GetExternalStrains();
 			if (ChildStrain >= Child->Strain() || bForceRelease)
 			{
 				//UE_LOG(LogTemp, Warning, TEXT("Releasing child %d from parent %p due to strain %.5f Exceeding internal strain %.5f (Source: %s)"), ChildIdx, ClusteredParticle, ChildStrain, Child->Strain(), bForceRelease ? TEXT("Forced by caller") : ExternalStrainMap ? TEXT("External") : TEXT("Collision"));
@@ -647,6 +639,10 @@ namespace Chaos
 					SendBreakingEvent(Child);
 				}
 			}
+
+			// no need anymore of the external strain let's clear it
+			// @todo(chaos) impulse collision are right now cleared somewhere else, but we should consolidate that eventually
+			Child->ClearExternalStrains();
 		}
 
 		if (ActivatedChildren.Num() > 0)
@@ -725,7 +721,8 @@ namespace Chaos
 					{
 						if (ensure(!ClusterHandle || ClusteredChildHandle->ClusterIds().Id == ClusterHandle))
 						{
-							FakeStrain.Add(ClusteredChildHandle, TNumericLimits<FReal>::Max());
+							ClusteredChildHandle->ClearExternalStrains();
+							ClusteredChildHandle->AddExternalStrain(TNumericLimits<FReal>::Max());
 							ClusterHandle = ClusteredChildHandle->ClusterIds().Id;
 						}
 						else
@@ -737,7 +734,7 @@ namespace Chaos
 			}
 			if (ClusterHandle)
 			{
-				ActivatedBodies = ReleaseClusterParticles(ClusterHandle->CastToClustered(), &FakeStrain);
+				ActivatedBodies = ReleaseClusterParticles(ClusterHandle->CastToClustered());
 			}
 			DoGenerateBreakingData = bPreDoGenerateData;
 		}
@@ -793,6 +790,7 @@ namespace Chaos
 			//  Monitor the MStrain array for 0 or less values.
 			//  That will trigger a break too.
 			//
+			bool bPotentialBreak = false;
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateDirtyImpulses);
 				for (const auto& ActiveCluster : GetTopLevelClusterParents())
@@ -811,6 +809,10 @@ namespace Chaos
 										ClusteredChild->CollisionImpulse() = FLT_MAX;
 										MCollisionImpulseArrayDirty = true;
 									}
+									else if (!bPotentialBreak && ClusteredChild->GetExternalStrains() > 0)
+									{
+										bPotentialBreak = true;
+									}
 								}
 							}
 						}
@@ -818,11 +820,10 @@ namespace Chaos
 				}
 			}
 
-			if (MCollisionImpulseArrayDirty)
+			if (MCollisionImpulseArrayDirty || bPotentialBreak)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateDirtyImpulses);
-				TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> ClusterToActivatedChildren = 
-					BreakingModel();
+				BreakingModel();
 			} // end if MCollisionImpulseArrayDirty
 
 		} // end if MParticles.Size()
@@ -831,9 +832,7 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::BreakingModel()"), STAT_BreakingModel, STATGROUP_Chaos);
-	TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> 
-	FRigidClustering::BreakingModel(
-		TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap)
+	void FRigidClustering::BreakingModel()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BreakingModel);
 
@@ -844,15 +843,11 @@ namespace Chaos
 			ClusteredParticlesToProcess.Add(Particle.Handle()->CastToClustered());
 		}
 
-		TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> AllActivatedChildren;
-
 		for (FPBDRigidClusteredParticleHandle* ClusteredParticle : ClusteredParticlesToProcess)
 		{
 			if (ClusteredParticle->ClusterIds().NumChildren)
 			{
-				AllActivatedChildren.Add(
-					ClusteredParticle,
-					ReleaseClusterParticles(ClusteredParticle, ExternalStrainMap));
+				ReleaseClusterParticles(ClusteredParticle);
 			}
 			else
 			{
@@ -866,8 +861,6 @@ namespace Chaos
 				}
 			}
 		}
-
-		return AllActivatedChildren;
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FRigidClustering::Visitor"), STAT_ClusterVisitor, STATGROUP_Chaos);

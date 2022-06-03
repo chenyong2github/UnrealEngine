@@ -1552,7 +1552,7 @@ void FGeometryCollectionPhysicsProxy::BreakInternalClusterParent(TArray<int32>&&
 					Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
 					if (!ClusteredParent->Disabled() && Clustering.GetChildrenMap().Contains(ClusteredParent))
 					{
-						Clustering.ReleaseClusterParticles(ClusteredParent, nullptr, true /* bForceRelease */);
+						Clustering.ReleaseClusterParticles(ClusteredParent, true /* bForceRelease */);
 					}
 				}
 			}

@@ -121,12 +121,10 @@ public:
 	*/
 	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticles(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle, 
-		const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap = nullptr,
 		bool bForceRelease = false);
 
 	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticlesNoInternalCluster(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle,
-		const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap = nullptr,
 		bool bForceRelease = false);
 
 	/*
@@ -168,9 +166,7 @@ public:
 	*    encoded strain. The remainder strains are propagated back down to
 	*    the children clusters.
 	*/
-	TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> BreakingModel(
-		TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap = nullptr);
-
+	void BreakingModel();
 
 	//
 	// Access
@@ -305,7 +301,6 @@ public:
 
 	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticlesImpl(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle, 
-		const TMap<FGeometryParticleHandle*, FReal>* ExternalStrainMap,
 		bool bForceRelease,
 		bool bCreateNewClusters);
 	

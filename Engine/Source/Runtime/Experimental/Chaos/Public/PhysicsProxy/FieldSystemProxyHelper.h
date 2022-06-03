@@ -292,34 +292,6 @@ namespace Chaos
 	}
 
 	/**
-	 * Update the solver breaking model based on external strain
-	 * @param    Rigidsolver Rigid solver owning the breaking model
-	 * @param    ExternalStrain Strain to be used to update the breaking model
-	 */
-	static void UpdateSolverBreakingModel(Chaos::FPBDRigidsSolver* RigidSolver, TMap<Chaos::FGeometryParticleHandle*, Chaos::FReal>& ExternalStrain)
-	{
-		// Capture the results from the breaking model to post-process
-		TMap<Chaos::FPBDRigidClusteredParticleHandle*, TSet<Chaos::FPBDRigidParticleHandle*>> BreakResults =
-			RigidSolver->GetEvolution()->GetRigidClustering().BreakingModel(&ExternalStrain);
-
-		// If clusters broke apart then we'll have activated new particles that have no relationship to the proxy that now owns them
-		// Here we attach each new particle to the proxy of the parent particle that owns it.
-		for (const TPair<Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>*, TSet<Chaos::FPBDRigidParticleHandle*>> & Iter : BreakResults)
-		{
-			const TSet<Chaos::FPBDRigidParticleHandle*>& Activated = Iter.Value;
-
-			for (Chaos::FPBDRigidParticleHandle* Handle : Activated)
-			{
-				if (Handle->PhysicsProxy() == nullptr)
-				{
-					IPhysicsProxyBase* ParentProxy = Iter.Key->PhysicsProxy();
-					Handle->SetPhysicsProxy(ParentProxy);
-				}
-			}
-		}
-	}
-
-	/**
 	 * Update the handle sleeping linear and angular theshold
 	 * @param    Rigidsolver Rigid solver owning the particle handle
 	 * @param    RigidHandle Particle handle on which the threshold will be updated
@@ -514,17 +486,18 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ExternalClusterStrain);
 			{
-				TMap<Chaos::FGeometryParticleHandle*, Chaos::FReal> ExternalStrain;
-
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					if (ResultsView[Index.Result] > 0)
+					const float ExternalStrainValue = ResultsView[Index.Result];
+					if (ExternalStrainValue > 0)
 					{
-						ExternalStrain.Add(ParticleHandles[Index.Sample], ResultsView[Index.Result]);
+						if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredParticle = ParticleHandles[Index.Sample]->CastToClustered())
+						{
+							ClusteredParticle->AddExternalStrain(ExternalStrainValue);
+						}
 					}
 				}
-				UpdateSolverBreakingModel(RigidSolver, ExternalStrain);
 			}
 		}
 		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_Kill)
