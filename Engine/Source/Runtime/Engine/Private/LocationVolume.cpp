@@ -66,6 +66,7 @@ IWorldPartitionActorLoaderInterface::ILoaderAdapter* ALocationVolume::GetLoaderA
 {
 	return WorldPartitionActorLoader;
 }
+#endif
 
 void ALocationVolume::Load()
 {
@@ -98,5 +99,3 @@ bool ALocationVolume::IsLoaded() const
 
 	return false;
 }
-
-#endif

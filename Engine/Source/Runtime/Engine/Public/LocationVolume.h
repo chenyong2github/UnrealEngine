@@ -31,11 +31,11 @@ public:
 	virtual void PostRegisterAllComponents();
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	//~ End AActor Interface
-#endif
 
 	//~ Begin IWorldPartitionActorLoaderInterface interface
 	virtual ILoaderAdapter* GetLoaderAdapter() override;
 	//~ End IWorldPartitionActorLoaderInterface interface
+#endif
 
 	/** Load this location volume */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category=WorldPartition)
