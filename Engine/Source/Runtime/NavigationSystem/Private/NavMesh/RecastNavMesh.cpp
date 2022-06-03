@@ -2891,7 +2891,7 @@ FRecastNavMeshGenerator* ARecastNavMesh::CreateGeneratorInstance()
 
 bool ARecastNavMesh::IsUsingActiveTilesGeneration(const UNavigationSystemV1& NavSys) const
 {
-	return NavSys.IsActiveTilesGenerationEnabled() || bIsWorldPartitioned;
+	return SupportsRuntimeGeneration() && (NavSys.IsActiveTilesGenerationEnabled() || bIsWorldPartitioned);
 }
 
 void ARecastNavMesh::ConditionalConstructGenerator()
