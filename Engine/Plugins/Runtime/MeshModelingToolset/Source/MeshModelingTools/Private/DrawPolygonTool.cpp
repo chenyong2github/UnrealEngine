@@ -35,6 +35,8 @@
 #include "Selection/ToolSelectionUtil.h"
 #include "ModelingObjectsCreationAPI.h"
 
+#include "Mechanics/DragAlignmentMechanic.h"
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDrawPolygonTool"
@@ -130,6 +132,10 @@ void UDrawPolygonTool::Setup()
 	// listen for changes to the proxy and update the plane when that happens
 	PlaneTransformProxy->OnTransformChanged.AddUObject(this, &UDrawPolygonTool::PlaneTransformChanged);
 
+	DragAlignmentMechanic = NewObject<UDragAlignmentMechanic>(this);
+	DragAlignmentMechanic->Setup(this);
+	DragAlignmentMechanic->AddToGizmo(PlaneTransformGizmo);
+
 	// initialize material properties for new objects
 	MaterialProperties = NewObject<UNewMeshMaterialProperties>(this);
 	MaterialProperties->RestoreProperties(this);
@@ -190,6 +196,8 @@ void UDrawPolygonTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		delete SetPointInWorldConnector;
 	}
+
+	DragAlignmentMechanic->Shutdown();
 
 	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 
