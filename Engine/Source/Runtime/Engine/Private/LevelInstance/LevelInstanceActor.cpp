@@ -69,7 +69,7 @@ void ALevelInstance::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 	
-	if (GetLocalRole() == ENetRole::ROLE_Authority)
+	if (GetLocalRole() == ENetRole::ROLE_Authority && GetWorld()->IsGameWorld())
 	{
 #if !WITH_EDITOR
 		// If the level instance was spawned, not loaded

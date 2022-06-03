@@ -29,7 +29,7 @@ const FGuid& FLevelInstanceActorGuid::GetGuid_Internal() const
 {
 	check(Actor);
 #if WITH_EDITOR
-	const FGuid& Guid = Actor->GetLocalRole() == ENetRole::ROLE_Authority ? Actor->GetActorGuid() : ActorGuid;
+	const FGuid& Guid = (!Actor->GetWorld()->IsGameWorld() || Actor->GetLocalRole() == ENetRole::ROLE_Authority) ? Actor->GetActorGuid() : ActorGuid;
 #else
 	const FGuid& Guid = ActorGuid;
 #endif
