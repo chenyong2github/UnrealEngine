@@ -109,10 +109,19 @@ protected:
 	bool bSuppressOnFilterChanged = false;
 };
 
+enum class EPathPermissionListType
+{
+	Default,	// Default path permission list
+	ClassPaths	// Class permission list
+};
+
 class CORE_API FPathPermissionList : public TSharedFromThis<FPathPermissionList>
 {
 public:
-	FPathPermissionList() {}
+	FPathPermissionList(EPathPermissionListType InType = EPathPermissionListType::Default) 
+		: ListType(InType)
+	{
+	}
 	virtual ~FPathPermissionList() {}
 	
 	/** Returns true if passes filter restrictions using exact match */
@@ -263,6 +272,12 @@ public:
 
 protected:
 
+	/**
+	 * Checks if an item is of a valid format for this list
+	 * @return True if the item passes list type test.
+	 */
+	void VerifyItemMatchesListType(const FStringView Item) const;
+
 	/** List if items to filter out */
 	TMap<FString, FPermissionListOwners> DenyList;
 
@@ -277,4 +292,7 @@ protected:
 
 	/** Temporarily prevent delegate from being triggered */
 	bool bSuppressOnFilterChanged = false;
+
+	/** Type of paths this list represent */
+	EPathPermissionListType ListType;
 };

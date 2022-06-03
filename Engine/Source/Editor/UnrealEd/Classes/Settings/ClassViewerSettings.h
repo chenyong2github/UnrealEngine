@@ -61,7 +61,10 @@ protected:
 
 	// UObject overrides
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 
+	void FixupShortNames();
 
 	// Holds an event delegate that is executed when a setting has changed.
 	static FSettingChangedEvent SettingChangedEvent;

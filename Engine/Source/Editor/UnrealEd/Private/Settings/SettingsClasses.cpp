@@ -44,6 +44,8 @@
 
 #define LOCTEXT_NAMESPACE "SettingsClasses"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSettingsClasses, Log, All);
+
 /* UContentBrowserSettings interface
  *****************************************************************************/
 
@@ -90,12 +92,49 @@ void UClassViewerSettings::PostEditChangeProperty(struct FPropertyChangedEvent& 
 		? PropertyChangedEvent.Property->GetFName()
 		: NAME_None;
 
+	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UClassViewerSettings, AllowedClasses))
+	{
+		FixupShortNames();
+	}
+
 	if (!FUnrealEdMisc::Get().IsDeletePreferences())
 	{
 		SaveConfig();
 	}
 
 	SettingChangedEvent.Broadcast(Name);
+}
+
+void UClassViewerSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+	FixupShortNames();
+}
+
+void UClassViewerSettings::PostLoad()
+{
+	Super::PostLoad();
+	FixupShortNames();
+}
+
+void UClassViewerSettings::FixupShortNames()
+{
+	for (FString& ClassName : AllowedClasses)
+	{
+		// Empty string may represent a new entry that's just been added in the editor
+		if (ClassName.Len() && FPackageName::IsShortPackageName(ClassName))
+		{
+			FTopLevelAssetPath ClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(ClassName, ELogVerbosity::Warning, TEXT("ClassViewerSettings"));
+			if (!ClassPathName.IsNull())
+			{
+				ClassName = ClassPathName.ToString();
+			}
+			else
+			{
+				UE_LOG(LogSettingsClasses, Warning, TEXT("Unable to convert short class name \"%s\" to path names for %s.AllowedClasses. Please update it manually"), *ClassName, *GetPathName());
+			}
+		}
+	}
 }
 
 /* UStructViewerSettings interface

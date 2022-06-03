@@ -301,7 +301,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 			for (UClass* ChildClassObject : ChildClassObjects)
 			{
 				const bool bPassesInclusiveFilter = ClassPathsToInclude.Num() == 0 || ClassPathsToInclude.Contains(*ChildClassObject->GetPathName());
-				const bool bPassesPermissionCheck = !ClassPermissionList || ClassPermissionList->PassesFilter(ChildClassObject->GetFName());
+				const bool bPassesPermissionCheck = !ClassPermissionList || ClassPermissionList->PassesFilter(ChildClassObject->GetClassPathName().ToString());
 
 				if (bPassesInclusiveFilter && bPassesPermissionCheck)
 				{

@@ -12,6 +12,8 @@ bool FPathPermissionList::PassesFilter(const FStringView Item) const
 		return false;
 	}
 
+	VerifyItemMatchesListType(Item);
+
 	if (AllowList.Num() > 0 || DenyList.Num() > 0)
 	{
 		const uint32 ItemHash = GetTypeHash(Item);
@@ -42,6 +44,8 @@ bool FPathPermissionList::PassesFilter(const TCHAR* Item) const
 
 bool FPathPermissionList::PassesStartsWithFilter(const FStringView Item, const bool bAllowParentPaths) const
 {
+	VerifyItemMatchesListType(Item);
+
 	if (AllowList.Num() > 0)
 	{
 		bool bPassedAllowList = false;
@@ -101,6 +105,8 @@ bool FPathPermissionList::PassesStartsWithFilter(const TCHAR* Item, const bool b
 
 bool FPathPermissionList::AddDenyListItem(const FName OwnerName, const FStringView Item)
 {
+	VerifyItemMatchesListType(Item);
+
 	const uint32 ItemHash = GetTypeHash(Item);
 
 	FPermissionListOwners* Owners = DenyList.FindByHash(ItemHash, Item);
@@ -164,6 +170,8 @@ bool FPathPermissionList::RemoveDenyListItem(const FName OwnerName, const TCHAR*
 
 bool FPathPermissionList::AddAllowListItem(const FName OwnerName, const FStringView Item)
 {
+	VerifyItemMatchesListType(Item);
+
 	const uint32 ItemHash = GetTypeHash(Item);
 
 	FPermissionListOwners* Owners = AllowList.FindByHash(ItemHash, Item);
@@ -328,6 +336,8 @@ bool FPathPermissionList::UnregisterOwners(const TArray<FName>& OwnerNames)
 
 bool FPathPermissionList::Append(const FPathPermissionList& Other)
 {
+	ensureAlwaysMsgf(ListType == Other.ListType, TEXT("Trying to combine PathPermissionLists of different types"));
+
 	bool bFilterChanged = false;
 	{
 		TGuardValue<bool> Guard(bSuppressOnFilterChanged, true);
@@ -439,4 +449,19 @@ bool FPathPermissionList::UnregisterOwnersAndAppend(const TArray<FName>& OwnerNa
 	}
 
 	return bFilterChanged;
+}
+
+// Extracted the ensure condition into a separate function so that logs are easier to read
+FORCEINLINE static bool IsClassPathNameOrNone(const FStringView Item)
+{
+	return !Item.Len() || Item[0] == '/' || Item == TEXTVIEW("None");
+}
+
+void FPathPermissionList::VerifyItemMatchesListType(const FStringView Item) const
+{
+	if (ListType == EPathPermissionListType::ClassPaths)
+	{
+		// Long names always have / as first character
+		ensureAlwaysMsgf(IsClassPathNameOrNone(Item), TEXT("Short class name \"%.*s\" provided for PathPermissionList representing class paths"), Item.Len(), Item.GetData());
+	}
 }

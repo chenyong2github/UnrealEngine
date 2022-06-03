@@ -192,10 +192,22 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
 	for (int32 i = 0; i < (int32)EAssetClassAction::AllAssetActions; ++i)
 	{
-		AssetClassPermissionList.Add(MakeShared<FPathPermissionList>());
-		for (const FString& Type : SupportedTypesArray)
+		AssetClassPermissionList.Add(MakeShared<FPathPermissionList>(EPathPermissionListType::ClassPaths));
+		for (FString& Type : SupportedTypesArray)
 		{
-			AssetClassPermissionList[i]->AddAllowListItem("AssetToolsConfigFile", *Type);
+			if (FPackageName::IsShortPackageName(Type))
+			{
+				FTopLevelAssetPath TypePath = UClass::TryConvertShortTypeNameToPathName<UStruct>(Type, ELogVerbosity::Warning, TEXT("AssetToolsImpl"));
+				if (TypePath.IsNull())
+				{
+					UE_LOG(LogAssetTools, Warning, TEXT("Failed to convert short type name \"%s\" to path name. Please update SupportedAssetTypes entries in [AssetTools] ini section"), *Type);
+				}
+				else
+				{
+					Type = TypePath.ToString();
+				}
+			}
+			AssetClassPermissionList[i]->AddAllowListItem("AssetToolsConfigFile", Type);
 		}
 		AssetClassPermissionList[i]->OnFilterChanged().AddUObject(this, &UAssetToolsImpl::AssetClassPermissionListChanged, (EAssetClassAction)i);
 	}
@@ -337,7 +349,7 @@ void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeAction
 	bool bSupported = false;
 	if (const UClass* SupportedClass = NewActions->GetSupportedClass())
 	{
-		bSupported = GetAssetClassPathPermissionList(EAssetClassAction::CreateAsset)->PassesFilter(SupportedClass->GetFName());
+		bSupported = GetAssetClassPathPermissionList(EAssetClassAction::CreateAsset)->PassesFilter(SupportedClass->GetClassPathName().ToString());
 	}
 	else
 	{
