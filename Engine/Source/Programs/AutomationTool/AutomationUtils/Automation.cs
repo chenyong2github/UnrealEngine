@@ -104,13 +104,8 @@ namespace AutomationTool
 				CommandUtils.InitCommandEnvironment();
 
 				// Create the log file, and flush the startup listener to it
-				TraceListener LogTraceListener = LogUtils.AddLogFileListener(CommandUtils.CmdEnv.LogFolder,
-					CommandUtils.CmdEnv.FinalLogFolder);
-				StartupListener.CopyTo(LogTraceListener);
-				Trace.Listeners.Remove(StartupListener);
-				
-				Log.TraceInformation($"Log location: {LogUtils.LogFileName}");
-				if (!String.Equals(LogUtils.FinalLogFileName, LogUtils.LogFileName))
+				LogUtils.AddLogFileListener(new DirectoryReference(CommandUtils.CmdEnv.LogFolder), new DirectoryReference(CommandUtils.CmdEnv.FinalLogFolder));
+				if (LogUtils.FinalLogFileName != LogUtils.LogFileName)
 				{
 					Log.TraceInformation($"Final log location: {LogUtils.FinalLogFileName}");	
 				}

@@ -204,8 +204,6 @@ namespace EpicGames.Core
 
 		/// <summary>
 		/// Adds a trace listener that writes to a log file.
-		/// If Log.DuplicateLogFiles is true, two files will be created - one with the requested name,
-		/// another with a timestamp appended before any extension.
 		/// If a StartupTraceListener was in use, this function will copy its captured data to the log file(s)
 		/// and remove the startup listener from the list of registered listeners.
 		/// </summary>
@@ -240,9 +238,9 @@ namespace EpicGames.Core
 				// Ensure that the backup gets a unique name, in the extremely unlikely case that UBT was run twice during
 				// the same second.
 				DateTime fileTime = File.GetCreationTimeUtc(outputFile.FullName);
-					
+
 				FileReference backupFile;
-				for (;;)
+				for (; ; )
 				{
 					string timestamp = $"{fileTime:yyyy.MM.dd-HH.mm.ss}";
 					backupFile = FileReference.Combine(outputFile.Directory,
@@ -257,7 +255,19 @@ namespace EpicGames.Core
 
 				FileReference.Move(outputFile, backupFile);
 			}
-			
+
+			AddFileWriterWithoutBackup(name, outputFile);
+		}
+
+		/// <summary>
+		/// Adds a trace listener that writes to a log file.
+		/// If a StartupTraceListener was in use, this function will copy its captured data to the log file(s)
+		/// and remove the startup listener from the list of registered listeners.
+		/// </summary>
+		/// <param name="outputFile">The file to write to</param>
+		/// <returns>The created trace listener</returns>
+		public static void AddFileWriterWithoutBackup(string name, FileReference outputFile)
+		{
 			TextWriterTraceListener firstTextWriter = DefaultLogger.AddFileWriter(name, outputFile);
 			
 			// find the StartupTraceListener in the listeners that was added early on
@@ -461,7 +471,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="ex">The exception to display</param>
 		/// <param name="logFileName">The log filename to display, if any</param>
-		public static void WriteException(Exception ex, string? logFileName)
+		public static void WriteException(Exception ex, FileReference? logFileName)
 		{
 			string logSuffix = (logFileName == null) ? "" : String.Format("\n(see {0} for full exception trace)", logFileName);
 			TraceLog("==============================================================================");
@@ -1170,6 +1180,9 @@ namespace EpicGames.Core
 					}
 				}
 
+				JsonLogEvent jsonLogEvent = JsonLogEvent.FromLoggerState(logLevel, eventId, state, exception, formatter);
+				_eventChannel.Writer.TryWrite(jsonLogEvent);
+
 				// Handle the console output separately; we format things differently
 				if (logLevel >= LogLevel.Information)
 				{
@@ -1191,9 +1204,6 @@ namespace EpicGames.Core
 					}
 					try
 					{
-						JsonLogEvent jsonLogEvent = JsonLogEvent.FromLoggerState(logLevel, eventId, state, exception, formatter);
-						_eventChannel.Writer.TryWrite(jsonLogEvent);
-
 						if (WriteJsonToStdOut)
 						{
 							Console.WriteLine(Encoding.UTF8.GetString(jsonLogEvent.Data.Span));
