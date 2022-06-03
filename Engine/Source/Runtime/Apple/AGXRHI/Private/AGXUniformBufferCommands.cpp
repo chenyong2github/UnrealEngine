@@ -14,7 +14,7 @@ static void DoUpdateUniformBuffer(FAGXUniformBuffer* UB, const void* Contents)
 
 	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
 
-	UB->CopyResourceTable_RenderThread(Contents, ResourceTable);
+	UB->CopyResourceTable(Contents, ResourceTable);
 
     if(bUpdateImmediately)
     {
@@ -37,14 +37,12 @@ static void DoUpdateUniformBuffer(FAGXUniformBuffer* UB, const void* Contents)
 
 FUniformBufferRHIRef FAGXDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
-    FAGXDeviceContext& DeviceContext = (FAGXDeviceContext&)GetAGXDeviceContext();
-    FAGXFrameAllocator* UniformAllocator = DeviceContext.GetUniformAllocator();
-    
-    FAGXUniformBuffer* UB = new FAGXUniformBuffer(Layout, Usage, Validation);
-    
-    DoUpdateUniformBuffer(UB, Contents);
-    
-    return UB;
+	FAGXUniformBuffer* UB = new FAGXUniformBuffer(Layout, Usage, Validation);
+
+	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
+	UB->CopyResourceTable(Contents, ResourceTable);
+	UB->Update(Contents, ResourceTable);
+	return UB;
 }
 
 void FAGXDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)

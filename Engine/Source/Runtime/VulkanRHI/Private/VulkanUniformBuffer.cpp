@@ -121,14 +121,17 @@ FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& Device, const FRHIUnif
 
 	if (InLayout->ConstantBufferSize > 0)
 	{
-		if (UseRingBuffer(InUsage))
+		const bool bInRenderingThread = IsInRenderingThread();
+		const bool bInRHIThread = IsInRHIThread();
+
+		if (UseRingBuffer(InUsage) && (bInRenderingThread || bInRHIThread))
 		{
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 			FVulkanUniformBuffer* UniformBuffer = this;
 			int32 DataSize = InLayout->ConstantBufferSize;
 			
 			// make sure we allocate from RingBuffer on RHIT
-			const bool bCanAllocOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && IsInRenderingThread()) || IsInRHIThread();
+			const bool bCanAllocOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && bInRenderingThread) || bInRHIThread;
 			if (bCanAllocOnThisThread)
 			{
 				FVulkanCommandListContextImmediate& Context = Device.GetImmediateContext();

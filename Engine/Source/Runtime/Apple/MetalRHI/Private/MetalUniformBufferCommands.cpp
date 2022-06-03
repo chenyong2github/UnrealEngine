@@ -14,7 +14,7 @@ static void DoUpdateUniformBuffer(FMetalUniformBuffer* UB, const void* Contents)
 
 	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
 
-	UB->CopyResourceTable_RenderThread(Contents, ResourceTable);
+	UB->CopyResourceTable(Contents, ResourceTable);
 
     if(bUpdateImmediately)
     {
@@ -37,14 +37,12 @@ static void DoUpdateUniformBuffer(FMetalUniformBuffer* UB, const void* Contents)
 
 FUniformBufferRHIRef FMetalDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
-    FMetalDeviceContext& DeviceContext = (FMetalDeviceContext&)GetMetalDeviceContext();
-    FMetalFrameAllocator* UniformAllocator = DeviceContext.GetUniformAllocator();
-    
-    FMetalUniformBuffer* UB = new FMetalUniformBuffer(Layout, Usage, Validation);
-    
-    DoUpdateUniformBuffer(UB, Contents);
-    
-    return UB;
+	FMetalUniformBuffer* UB = new FMetalUniformBuffer(Layout, Usage, Validation);
+
+	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
+	UB->CopyResourceTable(Contents, ResourceTable);
+	UB->Update(Contents, ResourceTable);
+	return UB;
 }
 
 void FMetalDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)

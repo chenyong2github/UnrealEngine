@@ -365,7 +365,8 @@ public:
 		// RHICreateUniformBuffer can be called from the RenderThread (normal use case) or the RHI Thread (FLocalUniformBuffer)
 		check(Layout->Resources.Num() > 0 || Layout->ConstantBufferSize > 0);
 		FUniformBufferRHIRef UniformBuffer = RHI->RHICreateUniformBuffer(Contents, Layout, Usage, Validation);
-		UniformBuffer->InitLifetimeTracking(IsInRenderingThread() ? RenderThreadFrameID : RHIThreadFrameID, Usage);
+		// Use the render thread frame ID for any non RHI thread allocations.
+		UniformBuffer->InitLifetimeTracking(IsInRHIThread() ? RHIThreadFrameID : RenderThreadFrameID, Usage);
 		return UniformBuffer;
 	}
 

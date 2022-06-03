@@ -378,12 +378,13 @@ public:
 private:
 
 	// Buddy allocator used for all 'small' allocation - fast but aligns to power of 2
-	FD3D12MultiBuddyAllocator SmallBlockAllocator;
+	FD3D12MultiBuddyAllocator	SmallBlockAllocator;
 	// Pool allocator for all bigger allocations - less fast but less alignment waste
-	FD3D12PoolAllocator		  BigBlockAllocator;
+	FCriticalSection			BigBlockCS;
+	FD3D12PoolAllocator			BigBlockAllocator;
 	// Seperate buddy allocator used for the fast constant allocator pages which get always freed within the same frame by default
 	// (different allocator to avoid fragmentation with the other pools - always the same size allocations)
-	FD3D12MultiBuddyAllocator FastConstantPageAllocator;
+	FD3D12MultiBuddyAllocator	FastConstantPageAllocator;
 };
 
 //-----------------------------------------------------------------------------

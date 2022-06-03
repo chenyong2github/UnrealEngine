@@ -50,7 +50,7 @@ public:
     void PrepareToBind();
 
 	// Copies the RDG resources to a resource table for a deferred update on the RHI thread.
-	void CopyResourceTable_RenderThread(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable);
+	void CopyResourceTable(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable) const;
 
 private:
     

@@ -62,8 +62,6 @@ void FMetalSuballocatedUniformBuffer::Update(const void* Contents, TArray<TRefCo
 // The amount of data read from Contents is given by the Layout
 void FMetalSuballocatedUniformBuffer::PushToGPUBacking(const void* Contents)
 {
-    check(IsInRenderingThread() ^ IsRunningRHIInSeparateThread());
-    
     FMetalDeviceContext& DeviceContext = GetMetalDeviceContext();
     
     FMetalFrameAllocator* Allocator = DeviceContext.GetUniformAllocator();
@@ -88,7 +86,7 @@ void FMetalSuballocatedUniformBuffer::PrepareToBind()
     }
 }
 
-void FMetalSuballocatedUniformBuffer::CopyResourceTable_RenderThread(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable)
+void FMetalSuballocatedUniformBuffer::CopyResourceTable(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable) const
 {
 #if METAL_UNIFORM_BUFFER_VALIDATION
 	if (Validation == EUniformBufferValidation::ValidateResources)

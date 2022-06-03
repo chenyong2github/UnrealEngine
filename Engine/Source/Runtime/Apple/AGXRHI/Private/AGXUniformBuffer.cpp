@@ -62,8 +62,6 @@ void FAGXSuballocatedUniformBuffer::Update(const void* Contents, TArray<TRefCoun
 // The amount of data read from Contents is given by the Layout
 void FAGXSuballocatedUniformBuffer::PushToGPUBacking(const void* Contents)
 {
-    check(IsInRenderingThread() ^ IsRunningRHIInSeparateThread());
-    
     FAGXDeviceContext& DeviceContext = GetAGXDeviceContext();
     
     FAGXFrameAllocator* Allocator = DeviceContext.GetUniformAllocator();
@@ -88,7 +86,7 @@ void FAGXSuballocatedUniformBuffer::PrepareToBind()
     }
 }
 
-void FAGXSuballocatedUniformBuffer::CopyResourceTable_RenderThread(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable)
+void FAGXSuballocatedUniformBuffer::CopyResourceTable(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable) const
 {
 #if METAL_UNIFORM_BUFFER_VALIDATION
 	if (Validation == EUniformBufferValidation::ValidateResources)

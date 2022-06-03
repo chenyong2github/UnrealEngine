@@ -166,8 +166,6 @@ static TRefCountPtr<ID3D11Buffer> CreateAndUpdatePooledUniformBuffer(
 
 FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
-	check(IsInRenderingThread() || IsInRHIThread());
-
 	if (Validation == EUniformBufferValidation::ValidateResources)
 	{
 		ValidateShaderParameterResourcesRHI(Contents, *Layout);
@@ -185,7 +183,7 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 
 		SCOPE_CYCLE_COUNTER(STAT_D3D11UpdateUniformBufferTime);
 
-		if (IsPoolingEnabled())
+		if (IsPoolingEnabled() && (IsInRenderingThread() || IsInRHIThread()))
 		{
 			if (ShouldNotEnqueueRHICommand())
 			{

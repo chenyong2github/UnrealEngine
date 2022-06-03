@@ -1077,6 +1077,8 @@ void* FD3D12UploadHeapAllocator::AllocUploadResource(uint32 InSize, uint32 InAli
 	}
 	else
 	{
+		FD3D12ScopeLock Lock(&BigBlockCS);
+
 		// Forward to the big block allocator
 		const D3D12_RESOURCE_DESC ResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(InSize, D3D12_RESOURCE_FLAG_NONE);
 		BigBlockAllocator.AllocateResource(GetParentDevice()->GetGPUIndex(), D3D12_HEAP_TYPE_UPLOAD, ResourceDesc, InSize, InAlignment, ED3D12ResourceStateMode::SingleState, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, nullptr, ResourceLocation);
@@ -1101,7 +1103,10 @@ void* FD3D12UploadHeapAllocator::AllocFastConstantAllocationPage(uint32 InSize, 
 void FD3D12UploadHeapAllocator::CleanUpAllocations(uint64 InFrameLag)
 {
 	SmallBlockAllocator.CleanUpAllocations(InFrameLag);
-	BigBlockAllocator.CleanUpAllocations(InFrameLag);
+	{
+		FD3D12ScopeLock Lock(&BigBlockCS);
+		BigBlockAllocator.CleanUpAllocations(InFrameLag);
+	}
 	FastConstantPageAllocator.CleanUpAllocations(InFrameLag);
 }
 
@@ -1118,7 +1123,10 @@ void FD3D12UploadHeapAllocator::UpdateMemoryStats()
 
 #if defined(D3D12RHI_TRACK_DETAILED_STATS)
 	SmallBlockAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
-	BigBlockAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, EndFreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
+	{
+		FD3D12ScopeLock Lock(&BigBlockCS);
+		BigBlockAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, EndFreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
+	}
 	FastConstantPageAllocator.UpdateMemoryStats(MemoryAllocated, MemoryUsed, FreeMemory, AlignmentWaste, AllocatedPageCount, FullPageCount);
 #endif
 
