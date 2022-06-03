@@ -11,7 +11,10 @@ void FLoaderAdapterList::ForEachActor(TFunctionRef<void(const FWorldPartitionHan
 {
 	for (const FWorldPartitionHandle& Actor : Actors)
 	{
-		InOperation(Actor);
+		if (Actor.IsValid())
+		{
+			InOperation(Actor);
+		}
 	}
 }
 #endif
