@@ -661,14 +661,14 @@ UObject* StaticFindFirstObject(UClass* Class, const TCHAR* Name, EFindFirstObjec
 					}
 					if (AmbiguousMessageVerbosity == ELogVerbosity::Fatal)
 					{
-						UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s"), *Message.ToString());
+						UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s"), Message.ToString());
 					}
 					else if (AmbiguousMessageVerbosity != ELogVerbosity::NoLogging)
 					{
-						GLog->CategorizedLogf(TEXT("LogUObjectGlobals"), AmbiguousMessageVerbosity, TEXT("%.*s"), Message.Len(), Message.GetData());
+						GLog->CategorizedLogf(TEXT("LogUObjectGlobals"), AmbiguousMessageVerbosity, TEXT("%s"), Message.ToString());
 					}
 
-					ensureAlwaysMsgf(!(Options & EFindFirstObjectOptions::EnsureIfAmbiguous), TEXT("%.*s"), Message.Len(), Message.GetData());
+					ensureAlwaysMsgf(!(Options & EFindFirstObjectOptions::EnsureIfAmbiguous), TEXT("%s"), Message.ToString());
 				}
 			}
 			else
