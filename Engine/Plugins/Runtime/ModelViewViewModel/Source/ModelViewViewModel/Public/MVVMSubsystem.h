@@ -49,13 +49,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	bool DoesWidgetTreeContainedWidget(const UWidgetTree* WidgetTree, const UWidget* ViewWidget) const;
 
-	/** Returns the list of all the binding that are available for the ViewModel. */
+	/** Returns the list of all the bindings that are available for the ViewModel. */
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	TArray<FMVVMAvailableBinding> GetViewModelAvailableBindings(TSubclassOf<UMVVMViewModelBase> ViewModelClass) const;
 
-	/** Returns the list of all the binding that are available for the Widget. */
+	/** Returns the list of all the bindings that are available for the Widget. */
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	TArray<FMVVMAvailableBinding> GetWidgetAvailableBindings(TSubclassOf<UWidget> WidgetClass) const;
+
+	/**
+	 * Returns the list of all the bindings that are available for the Class.
+	 * The class must implement the UNotifyFieldValueChanged interface.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	TArray<FMVVMAvailableBinding> GetAvailableBindings(TSubclassOf<UObject> Class) const;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "MVVM")

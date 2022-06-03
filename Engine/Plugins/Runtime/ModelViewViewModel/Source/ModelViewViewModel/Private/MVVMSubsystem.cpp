@@ -191,15 +191,16 @@ namespace UE::MVVM::Private
 		return Result;
 	}
 
-	template<typename TClassType>
-	TArray<FMVVMAvailableBinding> GetAvailableBindings(TSubclassOf<TClassType> InSubClass)
+	TArray<FMVVMAvailableBinding> GetAvailableBindings(TSubclassOf<UObject> InSubClass)
 	{
-		if (InSubClass.Get() == nullptr)
+		if (InSubClass.Get() && InSubClass.Get()->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
 		{
-			return TArray<FMVVMAvailableBinding>();
+			TScriptInterface<INotifyFieldValueChanged> DefaultObject = InSubClass.GetDefaultObject();
+			const UE::FieldNotification::IClassDescriptor& ClassDescriptor = DefaultObject->GetFieldNotificationDescriptor();
+			return GetAvailableBindings(InSubClass.Get(), ClassDescriptor);
 		}
-		const UE::FieldNotification::IClassDescriptor& ClassDescriptor = InSubClass.GetDefaultObject()->GetFieldNotificationDescriptor();
-		return GetAvailableBindings(InSubClass.Get(), ClassDescriptor);
+
+		return TArray<FMVVMAvailableBinding>();
 	}
 } //namespace
 
@@ -213,6 +214,12 @@ TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetViewModelAvailableBindings(TSub
 TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetWidgetAvailableBindings(TSubclassOf<UWidget> WidgetClass) const
 {
 	return UE::MVVM::Private::GetAvailableBindings(WidgetClass);
+}
+
+
+TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetAvailableBindings(TSubclassOf<UObject> Class) const
+{
+	return UE::MVVM::Private::GetAvailableBindings(Class);
 }
 
 
