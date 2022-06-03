@@ -94,6 +94,17 @@ namespace Horde.Build.Models
 		/// Gets all the metadata values with a given key
 		/// </summary>
 		/// <param name="fingerprint">Fingerprint to find values for</param>
+		/// <param name="value">Key name to search for</param>
+		/// <returns>All values with the given key</returns>
+		public static bool HasMetadataValue(this IIssueFingerprint fingerprint, string value)
+		{
+			return fingerprint.Metadata != null && fingerprint.Metadata.Contains(value);
+		}
+
+		/// <summary>
+		/// Gets all the metadata values with a given key
+		/// </summary>
+		/// <param name="fingerprint">Fingerprint to find values for</param>
 		/// <param name="key">Key name to search for</param>
 		/// <returns>All values with the given key</returns>
 		public static IEnumerable<string> GetMetadataValues(this IIssueFingerprint fingerprint, string key)

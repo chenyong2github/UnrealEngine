@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text;
 using EpicGames.Core;
 using Horde.Build.Collections;
 using Horde.Build.Models;
@@ -17,6 +18,11 @@ namespace Horde.Build.IssueHandlers.Impl
 	/// </summary>
 	class SymbolIssueHandler : IIssueHandler
 	{
+		const string NodeName = "Node";
+		const string EventIdName = "EventId";
+
+		static readonly string DuplicateEventIdMetadata = $"{EventIdName}={KnownLogEvents.Linker_DuplicateSymbol.Id}";
+
 		/// <inheritdoc/>
 		public string Type => "Symbol";
 
@@ -73,13 +79,30 @@ namespace Horde.Build.IssueHandlers.Impl
 		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
 			HashSet<string> symbols = fingerprint.Keys;
-			if (symbols.Count == 1)
+			if (symbols.Count == 0)
 			{
-				return $"Undefined symbol '{symbols.First()}'";
+				string[] nodes = fingerprint.GetMetadataValues(NodeName).ToArray();
+
+				StringBuilder summary = new StringBuilder("Linker ");
+				summary.Append((severity == IssueSeverity.Warning) ? "warnings" : "errors");
+				if (nodes.Length > 0)
+				{
+					summary.Append($" in {StringUtils.FormatList(nodes, 2)}");
+				}
+
+				return summary.ToString();
 			}
 			else
 			{
-				return $"Undefined symbols: {StringUtils.FormatList(symbols.ToArray(), 3)}";
+				string problemType = fingerprint.HasMetadataValue(DuplicateEventIdMetadata) ? "Duplicate" : "Undefined";
+				if (symbols.Count == 1)
+				{
+					return $"{problemType} symbol '{symbols.First()}'";
+				}
+				else
+				{
+					return $"{problemType} symbols: {StringUtils.FormatList(symbols.ToArray(), 3)}";
+				}
 			}
 		}
 
@@ -94,7 +117,14 @@ namespace Horde.Build.IssueHandlers.Impl
 			SortedSet<string> symbolNames = new SortedSet<string>();
 			GetSymbolNames(eventData, symbolNames);
 
-			fingerprint = new NewIssueFingerprint(Type, symbolNames, null, null);
+			List<string> metadata = new List<string>();
+			metadata.Add($"{NodeName}={node.Name}");
+			if (eventData.EventId != null)
+			{
+				metadata.Add($"{EventIdName}={eventData.EventId.Value.Id}");
+			}
+
+			fingerprint = new NewIssueFingerprint(Type, symbolNames, null, metadata);
 			return true;
 		}
 	}

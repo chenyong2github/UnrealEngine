@@ -1090,6 +1090,26 @@ namespace Horde.Build.Tests
 		}
 
 		[TestMethod]
+		public async Task LinkerIssueTest2()
+		{
+			string[] lines =
+			{
+				@"..\Intermediate\Build\Win64\UnrealEditor\Development\AdvancedPreviewScene\Default.rc2.res : fatal error LNK1123: failure during conversion to COFF: file invalid or corrupt"
+			};
+
+			IJob job = CreateJob(_mainStreamId, 120, "Linker Test", _graph);
+			await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
+			await ParseEventsAsync(job, 0, 0, lines);
+			await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+			List<IIssue> issues = await IssueService.FindIssuesAsync();
+			Assert.AreEqual(1, issues.Count);
+
+			IIssue issue = issues[0];
+			Assert.AreEqual("Linker errors in Update Version Files", issue.Summary);
+		}
+
+		[TestMethod]
 		public async Task MaskIssueTest()
 		{
 			// #1
