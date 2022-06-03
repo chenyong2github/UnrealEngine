@@ -43,6 +43,7 @@ public:
 	virtual ~FSlateUser();
 
 	FORCEINLINE int32 GetUserIndex() const { return UserIndex; }
+	FORCEINLINE FPlatformUserId GetPlatformUserId() const { return PlatformUser; }
 	FORCEINLINE bool IsVirtualUser() const { return !Cursor.IsValid(); }
 
 	TSharedPtr<SWidget> GetFocusedWidget() const;
@@ -125,6 +126,7 @@ public:
 
 SLATE_SCOPE:
 	static TSharedRef<FSlateUser> Create(int32 InUserIndex, TSharedPtr<ICursor> InCursor);
+	static TSharedRef<FSlateUser> Create(FPlatformUserId InPlatformUserId, TSharedPtr<ICursor> InCursor);
 	
 	FORCEINLINE bool HasValidFocusPath() const { return WeakFocusPath.IsValid(); }
 	FORCEINLINE const FWeakWidgetPath& GetWeakFocusPath() const { return WeakFocusPath; }
@@ -191,12 +193,17 @@ SLATE_SCOPE:
 
 private:
 	FSlateUser(int32 InUserIndex, TSharedPtr<ICursor> InCursor);
+	
+	FSlateUser(FPlatformUserId InPlatformUser, TSharedPtr<ICursor> InCursor);
 	void UpdatePointerPosition(uint32 PointerIndex, const FVector2D& Position);
 	void LockCursorInternal(const FWidgetPath& WidgetPath);
 	TSharedRef<SWindow> GetOrCreateTooltipWindow();
 
 	/** The index the user was assigned. */
 	int32 UserIndex = INDEX_NONE;
+
+	/** The owning platform user of this slate user. */
+	FPlatformUserId PlatformUser = PLATFORMUSERID_NONE;
 
 	/** The cursor this user is in control of. Guaranteed to be valid for all real users, absence implies this is a virtual user. */
 	TSharedPtr<ICursor> Cursor;

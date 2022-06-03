@@ -521,6 +521,9 @@ public:
 	const static uint32 CursorPointerIndex;
 	const static uint32 CursorUserIndex;
 
+	/** The primary platform user for this application. They will own the mouse and cursor by default. Default ID is 0 */
+	const static FPlatformUserId SlateAppPrimaryPlatformUser;
+
 	/**
 	 * Returns the current instance of the application. The application should have been initialized before
 	 * this method is called

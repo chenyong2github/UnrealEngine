@@ -26,6 +26,8 @@
 #include "Input/Events.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+
 #if WITH_ACCESSIBILITY
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
 #endif
@@ -809,7 +811,9 @@ FSlateApplication::FSlateApplication()
 	NormalExecutionGetter.BindRaw( this, &FSlateApplication::IsNormalExecution );
 
 	// Add the standard 'default' user (there's always guaranteed to be at least one)
-	RegisterNewUser(CursorUserIndex);
+	// The default cursor platform user id the primary platform user
+	ensure(SlateAppPrimaryPlatformUser.IsValid() && SlateAppPrimaryPlatformUser == IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser());
+	RegisterNewUser(SlateAppPrimaryPlatformUser);
 
 	NavigationConfig->OnRegister();
 #if WITH_EDITOR
