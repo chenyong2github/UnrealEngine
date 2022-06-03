@@ -1035,6 +1035,10 @@ bool SMyBlueprint::CanRequestRenameOnActionNode(TWeakPtr<FGraphActionNode> InSel
 	{
 		check( InSelectedNode.Pin()->Actions.Num() > 0 && InSelectedNode.Pin()->Actions[0].IsValid() );
 		bIsReadOnly = FBlueprintEditorUtils::IsPaletteActionReadOnly(InSelectedNode.Pin()->Actions[0], BlueprintEditorPtr.Pin());
+		if(!bIsReadOnly)
+		{
+			bIsReadOnly = !InSelectedNode.Pin()->Actions[0]->CanBeRenamed();
+		}
 	}
 
 	return IsEditingMode() && !bIsReadOnly;
@@ -1113,6 +1117,20 @@ void SMyBlueprint::GetChildEvents(UEdGraph const* InEdGraph, int32 const Section
 	if (!ensure(InEdGraph != NULL))
 	{
 		return;
+	}
+
+	// ask the schema first to provide the child events
+	if (UEdGraphSchema const* Schema = InEdGraph->GetSchema())
+	{
+		TArray<TSharedPtr<FEdGraphSchemaAction>> ActionsFromSchema;
+		if(Schema->TryToGetChildEvents(InEdGraph, SectionId, ActionsFromSchema, ParentCategory))
+		{
+			for(TSharedPtr<FEdGraphSchemaAction> ActionFromSchema : ActionsFromSchema)
+			{
+				SortList.AddAction(ActionFromSchema);
+			}
+			return;
+		}
 	}
 
 	// grab the parent graph's name
@@ -2145,6 +2163,10 @@ void SMyBlueprint::ExecuteAction(TSharedPtr<FEdGraphSchemaAction> InAction)
 			FEdGraphSchemaAction_K2TargetNode* TargetNodeAction = (FEdGraphSchemaAction_K2TargetNode*)InAction.Get();
 			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(TargetNodeAction->NodeTemplate);
 		}
+		else
+		{
+			InAction->OnDoubleClick(Blueprint);
+		}
 	}
 }
 
@@ -3170,6 +3192,11 @@ bool SMyBlueprint::CanDeleteEntry() const
 			return true;
 		}
 	}
+	else if (FEdGraphSchemaAction* Action = SelectionAsType<FEdGraphSchemaAction>(GraphActionMenu))
+	{
+		return Action->CanBeDeleted();
+	}
+
 	return false;
 }
 

@@ -189,6 +189,9 @@ public:
 		return NewNode;
 	}
 
+	/** Performs a double click on the action */
+	virtual FReply OnDoubleClick(UBlueprint* InBlueprint) { return FReply::Unhandled(); }
+
 	// Updates the category of the *action* and refreshes the search text; does not change the persistent backing item
 	// (e.g., it will not actually move a user added variable or function to a new category)
 	void CosmeticUpdateCategory(FText NewCategory);
@@ -300,6 +303,18 @@ public:
 
 	// Returns true if the action refers to a member or local variable
 	virtual bool IsAVariable() const { return false; }
+
+	// Returns true if the action can be renamed
+	virtual bool CanBeRenamed() const { return true; }
+
+	// Returns true if the action can be deleted
+	virtual bool CanBeDeleted() const { return false; }
+
+	// Can be used to override the icon of the action in the palette
+	virtual FSlateBrush const* GetPaletteIcon() const { return nullptr; }
+
+	// Can be used to override the tooltip shown in the palette
+	virtual FText GetPaletteToolTip() const { return FText(); }
 
 private:
 	void UpdateSearchText();
@@ -1030,6 +1045,11 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * Try to rename a graph through the schema, return true if successful
 	 */
 	virtual bool TryRenameGraph(UEdGraph* GraphToRename, const FName& InNewName) const { return false; }
+
+	/*
+	 * Try to retrieve the event child actions for a given graph
+	 */
+	virtual bool TryToGetChildEvents(const UEdGraph* Graph, const int32 SectionId, TArray<TSharedPtr<FEdGraphSchemaAction>>& Actions, const FText& ParentCategory) const { return false; }
 
 	/**
 	 * Can TestNode be encapsulated into a child graph?

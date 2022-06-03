@@ -386,6 +386,34 @@ UEdGraphNode* FControlRigGraphSchemaAction_PromoteToVariable::PerformAction(UEdG
 	return nullptr;
 }
 
+FControlRigGraphSchemaAction_Event::FControlRigGraphSchemaAction_Event(const FName& InEventName, const FString& InNodePath, const FText& InNodeCategory)
+: FEdGraphSchemaAction(	InNodeCategory, 
+						FText::FromName(InEventName),
+						FText(),
+						1)
+, NodePath(InNodePath)
+{
+}
+
+FReply FControlRigGraphSchemaAction_Event::OnDoubleClick(UBlueprint* InBlueprint)
+{
+	if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(InBlueprint))
+	{
+		if(const URigVMNode* ModelNode = Blueprint->GetRigVMClient()->FindNode(NodePath))
+		{
+			Blueprint->OnRequestJumpToHyperlink().Execute(ModelNode);
+			return FReply::Handled();
+		}
+	}
+	return FReply::Unhandled();;
+}
+
+FSlateBrush const* FControlRigGraphSchemaAction_Event::GetPaletteIcon() const
+{
+	static FSlateIcon EventIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
+	return EventIcon.GetIcon();
+}
+
 FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
 {
 	// For local variables
@@ -1510,6 +1538,62 @@ bool UControlRigGraphSchema::TryRenameGraph(UEdGraph* GraphToRename, const FName
 			}
 		}
 	}
+	return false;
+}
+
+bool UControlRigGraphSchema::TryToGetChildEvents(const UEdGraph* Graph, const int32 SectionId,
+	TArray<TSharedPtr<FEdGraphSchemaAction>>& Actions, const FText& ParentCategory) const
+{
+	check(Graph);
+
+	if(const UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
+	{
+		if(URigVMGraph* Model = RigGraph->GetModel())
+		{
+			TArray<FName> EventNames;
+			TMap<FName, const URigVMNode*> EventNameToNode;
+			for(const URigVMNode* Node : Model->GetNodes())
+			{
+				if(Node->IsEvent())
+				{
+					if(!EventNames.Contains(Node->GetEventName()))
+					{
+						EventNames.Add(Node->GetEventName());
+						EventNameToNode.Add(Node->GetEventName(), Node);
+					}
+				}
+			}
+
+			if(!EventNames.IsEmpty())
+			{
+				FGraphDisplayInfo EdGraphDisplayInfo;
+				GetGraphDisplayInformation(*Graph, EdGraphDisplayInfo);
+
+				FText EdGraphDisplayName = EdGraphDisplayInfo.DisplayName;
+				FText ActionCategory;
+				if (!ParentCategory.IsEmpty())
+				{
+					ActionCategory = FText::Format(FText::FromString(TEXT("{0}|{1}")), ParentCategory, EdGraphDisplayName);
+				}
+				else
+				{
+					ActionCategory = MoveTemp(EdGraphDisplayName);
+				}
+
+				for(const FName& EventName : EventNames)
+				{
+					const URigVMNode* Node = EventNameToNode.FindChecked(EventName);
+					TSharedPtr<FEdGraphSchemaAction> Action = MakeShareable(
+						new FControlRigGraphSchemaAction_Event(EventName, Node->GetNodePath(true), ActionCategory)
+					);
+					Action->SectionID = SectionId;
+					Actions.Add(Action);
+				}
+			}
+			return true;
+		}
+	}
+
 	return false;
 }
 

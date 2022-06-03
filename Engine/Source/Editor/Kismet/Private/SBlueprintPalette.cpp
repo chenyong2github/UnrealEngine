@@ -413,6 +413,15 @@ static void GetPaletteItemIcon(TSharedPtr<FEdGraphSchemaAction> ActionIn, UBluep
 		BrushOut = FAppStyle::GetBrush(TEXT("GraphEditor.StructGlyph"));
 		ToolTipOut = LOCTEXT("Struct_Tooltip", "Struct Asset");
 	}
+	else
+	{
+		BrushOut = ActionIn->GetPaletteIcon();
+		const FText ActionToolTip = ActionIn->GetPaletteToolTip();
+		if(!ActionToolTip.IsEmpty())
+		{
+			ToolTipOut = ActionToolTip;
+		}
+	}
 }
 
 /**
