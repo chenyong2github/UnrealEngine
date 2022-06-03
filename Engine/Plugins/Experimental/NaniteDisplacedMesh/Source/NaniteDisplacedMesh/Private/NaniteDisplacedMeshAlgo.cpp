@@ -77,7 +77,7 @@ public:
 		x += x < 0 ? SizeX : 0;
 		y += y < 0 ? SizeY : 0;
 
-		const uint8* PixelPtr = &SourceData[ int64( x + y * SizeX ) * BytesPerPixel ];
+		const uint8* PixelPtr = &SourceData[ int64( x + (int64)y * SizeX ) * BytesPerPixel ];
 
 		float Displacement = 0.0f;
 		if( SourceFormat == TSF_BGRA8 )
