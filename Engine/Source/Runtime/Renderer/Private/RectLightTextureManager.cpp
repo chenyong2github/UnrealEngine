@@ -265,7 +265,8 @@ static FRDGTextureRef AddRectLightDebugInfoPass(
 	const FViewInfo& View,
 	const FRDGTextureDesc& OutputDesc)
 {
-	if (!ShaderPrint::IsEnabled(View)) { ShaderPrint::SetEnabled(true); }
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
 
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(OutputDesc.Extent, OutputDesc.Format, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource), TEXT("RectLight.DebugTexture"));
 

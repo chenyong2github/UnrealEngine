@@ -46,7 +46,7 @@ void NaniteStatsFilterExec(const TCHAR* Cmd, FOutputDevice& Ar)
 
 	// Convenience, force on Nanite debug/stats and also shader printing.
 	GNaniteShowStats = 1;
-	ShaderPrint::CVarEnable->Set(true);
+	ShaderPrint::SetEnabled(true);
 
 	// parse parameters
 	for (;;)

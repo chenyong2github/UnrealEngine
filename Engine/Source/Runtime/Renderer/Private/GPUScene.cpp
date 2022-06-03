@@ -1684,11 +1684,11 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 	int32 DebugMode = CVarGPUSceneDebugMode.GetValueOnRenderThread();
 	if (DebugMode > 0)
 	{
-		ShaderPrint::SetEnabled(true);
-		if (!ShaderPrint::IsEnabled(View)) { ShaderPrint::SetEnabled(true); }
+		// Force ShaderPrint on.
+		ShaderPrint::SetEnabled(true); 
 
 		int32 NumInstances = InstanceSceneDataAllocator.GetMaxSize();
-		if (ShaderPrint::IsEnabled(View) && NumInstances > 0)
+		if (ShaderPrint::IsEnabled(View.ShaderPrintData) && NumInstances > 0)
 		{
 			// This lags by one frame, so may miss some in one frame, also overallocates since we will cull a lot.
 			ShaderPrint::RequestSpaceForLines(NumInstances * 12);

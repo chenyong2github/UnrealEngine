@@ -202,7 +202,8 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 	FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
 	if (View.Family->EngineShowFlags.VisualizeStrataMaterial)
 	{
-		if (!ShaderPrint::IsEnabled(View)) { ShaderPrint::SetEnabled(true); }
+		// Force ShaderPrint on.
+		ShaderPrint::SetEnabled(true);
 		ShaderPrint::RequestSpaceForLines(1024);
 		ShaderPrint::RequestSpaceForCharacters(1024);
 

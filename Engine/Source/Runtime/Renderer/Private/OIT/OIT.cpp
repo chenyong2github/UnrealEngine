@@ -135,10 +135,8 @@ static void AddOITPixelDebugPass(
 		!OITData.SampleCountTexture)
 		return;
 
-	if (!ShaderPrint::IsEnabled(View))
-	{
-		ShaderPrint::SetEnabled(true);
-	}
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
 	ShaderPrint::RequestSpaceForCharacters(512);
 
 	FOITPixelDebugCS::FParameters* Parameters = GraphBuilder.AllocParameters<FOITPixelDebugCS::FParameters>();
@@ -681,7 +679,7 @@ static void AddOITSortTriangleIndexPass(
 			Parameters->WorldBound_Max	= (FVector3f)Bounds.GetBox().Max;
 			Parameters->ViewBound_Min	= (FVector3f)ViewBounds.GetBox().Min;
 			Parameters->ViewBound_Max	= (FVector3f)ViewBounds.GetBox().Max;
-			if (ShaderPrint::IsEnabled(View))
+			if (ShaderPrint::IsValid(View.ShaderPrintData))
 			{
 				ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 			}
@@ -776,10 +774,8 @@ static void AddOITTriangleDebugPass(
 		return;
 	}
 
-	if (ShaderPrint::IsEnabled(View))
-	{
-		ShaderPrint::SetEnabled(true);
-	}
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
 	ShaderPrint::RequestSpaceForCharacters(512);
 
 	FOITSortTriangleIndex_Debug::FParameters* Parameters = GraphBuilder.AllocParameters<FOITSortTriangleIndex_Debug::FParameters>();

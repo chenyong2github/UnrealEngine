@@ -45,24 +45,33 @@ namespace ShaderPrint
 	END_SHADER_PARAMETER_STRUCT()
 
 	// Does the platform support the ShaderPrint system?
-	RENDERER_API bool IsSupported(const EShaderPlatform Platform);
+	// Use this to create debug shader permutations only for supported platforms.
+	RENDERER_API bool IsSupported(EShaderPlatform Platform);
 
 	// Have we enabled the ShaderPrint system?
+	// Note that even when the ShaderPrint system is enabled, it may be disabled on any view due to platform support or view flags.
 	RENDERER_API bool IsEnabled();
 
-	// Call this to know if a view can render this debug information.
-	// This should be checked before using a permutation that requires the shader draw parameters.
-	RENDERER_API bool IsEnabled(const FSceneView& View);
-
-	// Returns true if the default view exists and has shader debug rendering enabled.
-	// This should be checked before using a permutation that requires the shader draw parameters.
-	RENDERER_API bool IsDefaultViewEnabled();
-
-	// Enable/disable shader print.
+	// Force enable/disable the ShaderPrint system.
 	RENDERER_API void SetEnabled(bool bInEnabled);
 
-	// Set characters font size.
-	RENDERER_API void SetFontSize(int32 InFontSize);
+	// Returns true if the shader print data is valid for binding.
+	// This should be checked before using with any ShaderPrint shader permutation.
+	RENDERER_API bool IsValid(FShaderPrintData const& InShaderPrintData);
+
+	// Returns true if the shader print data is enabled.
+	// When the shader print data is valid but disabled then it can be used with any ShaderPrint shader permutation, but no data will be captured.
+	// This can be checked to early out on any work that is only generating ShaderPrint data.
+	RENDERER_API bool IsEnabled(FShaderPrintData const& InShaderPrintData);
+
+	// Returns true if the default view exists and has valid shader print data.
+	// This should be checked before using with any ShaderPrint shader permutation.
+	RENDERER_API bool IsDefaultViewValid();
+
+	// Returns true if the default view exists and shader print data that is enabled.
+	// When the shader print data is valid but disabled then it can be used with any ShaderPrint shader permutation, but no data will be captured.
+	// This can be checked to early out on any work that is only generating ShaderPrint data.
+	RENDERER_API bool IsDefaultViewEnabled();
 
 	/**
 	 * Call to ensure enough space for some number of characters/lines, is added cumulatively each frame, to make 

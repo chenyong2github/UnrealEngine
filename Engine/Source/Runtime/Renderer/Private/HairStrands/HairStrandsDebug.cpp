@@ -72,19 +72,13 @@ static FAutoConsoleVariableRef CVarHairVirtualVoxel_DebugTraversalType(TEXT("r.H
 
 static bool TryEnableShaderDrawAndShaderPrint(const FViewInfo& View, uint32 ResquestedShaderDrawElements, uint32 RequestedShaderPrintElements)
 {
-	const EShaderPlatform Platform = View.Family->GetShaderPlatform();
-	if (!ShaderPrint::IsSupported(Platform))
-	{
-		return false;
-	}
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
 
-	if (!ShaderPrint::IsEnabled(View))
-	{
-		ShaderPrint::SetEnabled(true);
-	}
 	ShaderPrint::RequestSpaceForCharacters(RequestedShaderPrintElements);
 	ShaderPrint::RequestSpaceForLines(ResquestedShaderDrawElements);
-	return true;
+
+	return ShaderPrint::IsEnabled(View.ShaderPrintData);
 }
 
 bool IsHairStrandsClusterDebugEnable()
@@ -265,15 +259,13 @@ static void AddPrintLODInfoPass(
 	const FViewInfo& View,
 	const FHairGroupPublicData* Data)
 {
-	if (!ShaderPrint::IsSupported(View.Family->GetShaderPlatform()))
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
+	ShaderPrint::RequestSpaceForCharacters(2000);
+
+	if (!ShaderPrint::IsEnabled(View.ShaderPrintData))
 	{
 		return;
-	}
-
-	if (!ShaderPrint::IsEnabled(View))
-	{
-		ShaderPrint::SetEnabled(true);
-		ShaderPrint::RequestSpaceForCharacters(2000);
 	}
 
 	const uint32 GroupIndex = Data->GetGroupIndex();
@@ -1145,7 +1137,7 @@ static void AddDrawDebugClusterPass(
 				if (PrimitiveInfo.PublicDataPtr != HairGroupClusters.HairGroupPublicPtr)
 					continue;
 
-				if (ShaderPrint::IsEnabled(View) && HairGroupClusters.CulledClusterCountBuffer)
+				if (ShaderPrint::IsEnabled(View.ShaderPrintData) && HairGroupClusters.CulledClusterCountBuffer)
 				{
 					FRDGExternalBuffer& DrawIndirectBuffer = HairGroupClusters.HairGroupPublicPtr->GetDrawIndirectBuffer();
 
@@ -1376,11 +1368,8 @@ static void InternalRenderHairStrandsDebugInfo(
 	{
 		if (HairData.DebugData.IsPPLLDataValid()) // Check if PPLL rendering is used and its debug view is enabled.
 		{
-			if (!ShaderPrint::IsEnabled(View))
-			{
-				ShaderPrint::SetEnabled(true);
-			}
-
+			// Force ShaderPrint on.
+			ShaderPrint::SetEnabled(true);
 			ShaderPrint::RequestSpaceForCharacters(256);
 
 			const FIntPoint PPLLResolution = HairData.DebugData.PPLLNodeIndexTexture->Desc.Extent;

@@ -2259,11 +2259,8 @@ void FScene::ShowPhysicsField()
 	// physics field visualisation has been enabled
 	if (PhysicsField && PhysicsField->FieldResource && PhysicsField->FieldResource->FieldInfos.bShowFields)
 	{
-		if (!ShaderPrint::IsEnabled())
-		{
-			ShaderPrint::SetEnabled(true);
-			ShaderPrint::SetFontSize(8);
-		}
+		// Force ShaderPrint on.
+		ShaderPrint::SetEnabled(true);
 		ShaderPrint::RequestSpaceForLines(128000);
 	}
 }

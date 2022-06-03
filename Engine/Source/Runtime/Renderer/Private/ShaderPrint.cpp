@@ -20,9 +20,10 @@ namespace ShaderPrint
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	// Console variables
 
-	TAutoConsoleVariable<int32> CVarEnable(
+	static int32 GEnabled = false;
+	static FAutoConsoleVariableRef CVarEnable(
 		TEXT("r.ShaderPrint"),
-		0,
+		GEnabled,
 		TEXT("ShaderPrint debugging toggle.\n"),
 		ECVF_Cheat | ECVF_RenderThreadSafe);
 
@@ -81,7 +82,6 @@ namespace ShaderPrint
 	static uint32 GCharacterRequestCount = 0;
 	static uint32 GLineRequestCount = 0;
 	static uint32 GTriangleRequestCount = 0;
-	static bool GShaderPrintEnableOverride = false;
 	static FViewInfo* GDefaultView = nullptr;
 	static TArray<FFrozenShaderPrintData> GShaderPrintDataToRender;
 
@@ -90,26 +90,22 @@ namespace ShaderPrint
 
 	static uint32 GetMaxValueCount()
 	{
-		uint32 MaxValueCount = FMath::Max(CVarMaxCharacterCount.GetValueOnAnyThread() + int32(GCharacterRequestCount), 0);
-		return IsEnabled() ? MaxValueCount : 0;
+		return FMath::Max(CVarMaxCharacterCount.GetValueOnAnyThread() + int32(GCharacterRequestCount), 0);
 	}
 
 	static uint32 GetMaxWidgetCount()
 	{
-		uint32 MaxValueCount = FMath::Max(CVarMaxWidgetCount.GetValueOnAnyThread() + int32(GWidgetRequestCount), 0);
-		return IsEnabled() ? MaxValueCount : 0;
+		return FMath::Max(CVarMaxWidgetCount.GetValueOnAnyThread() + int32(GWidgetRequestCount), 0);
 	}
 
 	static uint32 GetMaxLineCount()
 	{
-		uint32 MaxValueCount = FMath::Max(CVarMaxLineCount.GetValueOnAnyThread() + int32(GLineRequestCount), 0);
-		return IsEnabled() ? MaxValueCount : 0;
+		return FMath::Max(CVarMaxLineCount.GetValueOnAnyThread() + int32(GLineRequestCount), 0);
 	}
 
 	static uint32 GetMaxTriangleCount()
 	{
-		uint32 MaxValueCount = FMath::Max(CVarMaxTriangleCount.GetValueOnAnyThread() + int32(GTriangleRequestCount), 0);
-		return IsEnabled() ? MaxValueCount : 0;
+		return FMath::Max(CVarMaxTriangleCount.GetValueOnAnyThread() + int32(GTriangleRequestCount), 0);
 	}
 
 	// Returns the number of uints used for counters, a line element, and a triangle elements
@@ -123,11 +119,6 @@ namespace ShaderPrint
 	static uint32 GetMaxSymbolCountFromValueCount(uint32 MaxValueCount)
 	{
 		return MaxValueCount * 12u;
-	}
-
-	static uint32 GetMaxSymbolCount()
-	{
-		return GetMaxSymbolCountFromValueCount(GetMaxValueCount());
 	}
 
 	static bool IsDrawLocked()
@@ -199,33 +190,45 @@ namespace ShaderPrint
 		}
 	}
 
-	// Fill the FShaderParameters parameters
 	void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo & View, FShaderParameters& OutParameters)
 	{
 		SetParameters(GraphBuilder, View.ShaderPrintData, OutParameters);
 	}
 
-	// Supported platforms
 	bool IsSupported(EShaderPlatform InShaderPlatform)
 	{
 		return RHISupportsComputeShaders(InShaderPlatform) && !IsHlslccShaderPlatform(InShaderPlatform);
 	}
 
-	void SetEnabled(bool bInEnabled)
+	bool IsEnabled()
 	{
-		if (IsInGameThread())
-		{
-			CVarEnable->Set(bInEnabled);
-		}
-		else
-		{
-			GShaderPrintEnableOverride = bInEnabled;
-		}
+		return GEnabled != 0;
 	}
 
-	void SetFontSize(int32 InFontSize)
+	void SetEnabled(bool bInEnabled)
 	{
-		CVarFontSize->Set(FMath::Clamp(InFontSize, 6, 128));
+		GEnabled = bInEnabled ? 1 : 0;
+	}
+
+	bool IsValid(FShaderPrintData const& InShaderPrintData)
+	{
+		// Assume that if UniformBuffer is valid then all other buffers are.
+		return InShaderPrintData.UniformBuffer.IsValid();
+	}
+
+	bool IsEnabled(FShaderPrintData const& InShaderPrintData)
+	{
+		return InShaderPrintData.Setup.bEnabled;
+	}
+
+	bool IsDefaultViewValid()
+	{
+		return GDefaultView != nullptr && IsValid(GDefaultView->ShaderPrintData);
+	}
+
+	bool IsDefaultViewEnabled()
+	{
+		return GDefaultView != nullptr && IsEnabled(GDefaultView->ShaderPrintData);
 	}
 
 	void RequestSpaceForCharacters(uint32 InCount)
@@ -241,22 +244,6 @@ namespace ShaderPrint
 	void RequestSpaceForTriangles(uint32 InCount)
 	{
 		GTriangleRequestCount += InCount;
-	}
-
-	bool IsEnabled()
-	{
-		return CVarEnable.GetValueOnAnyThread() != 0 || GShaderPrintEnableOverride;
-	}
-
-	bool IsEnabled(const FSceneView& View)
-	{
-		return IsEnabled() && View.Family->EngineShowFlags.ShaderPrint && IsSupported(View.GetShaderPlatform());
-	}
-
-	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)
-	bool IsDefaultViewEnabled()
-	{
-		return GDefaultView != nullptr && IsEnabled(*GDefaultView);
 	}
 
 	void SubmitShaderPrintData(FFrozenShaderPrintData& InData)
@@ -559,15 +546,15 @@ namespace ShaderPrint
 
 		FontSize = FIntPoint(FMath::Max(CVarFontSize.GetValueOnAnyThread(), 1), FMath::Max(CVarFontSize.GetValueOnAnyThread(), 1));
 		FontSpacing = FIntPoint(FMath::Max(CVarFontSpacingX.GetValueOnAnyThread(), 1), FMath::Max(CVarFontSpacingY.GetValueOnAnyThread(), 1));
-		MaxValueCount = GetMaxValueCount();
-		MaxStateCount = GetMaxWidgetCount();
-		MaxLineCount = GetMaxLineCount();
-		MaxTriangleCount = GetMaxTriangleCount();
+		MaxValueCount = bEnabled ? GetMaxValueCount() : 0;
+		MaxStateCount = bEnabled ? GetMaxWidgetCount() : 0;
+		MaxLineCount = bEnabled ? GetMaxLineCount() : 0;
+		MaxTriangleCount = bEnabled ? GetMaxTriangleCount(): 0;
 	}
 
 	FShaderPrintSetup::FShaderPrintSetup(FSceneView const& View)
 	{
-		bEnabled = IsEnabled() && IsSupported(View.GetShaderPlatform());
+		bEnabled = IsEnabled() && IsSupported(View.GetShaderPlatform()) && View.Family->EngineShowFlags.ShaderPrint;
 
 		ViewRect = View.UnconstrainedViewRect;
 		CursorCoord = View.CursorPos;
@@ -576,10 +563,10 @@ namespace ShaderPrint
 
 		FontSize = FIntPoint(FMath::Max(CVarFontSize.GetValueOnAnyThread(), 1), FMath::Max(CVarFontSize.GetValueOnAnyThread(), 1));
 		FontSpacing = FIntPoint(FMath::Max(CVarFontSpacingX.GetValueOnAnyThread(), 1), FMath::Max(CVarFontSpacingY.GetValueOnAnyThread(), 1));
-		MaxValueCount = GetMaxValueCount();
-		MaxStateCount = GetMaxWidgetCount();
-		MaxLineCount = GetMaxLineCount();
-		MaxTriangleCount = GetMaxTriangleCount();
+		MaxValueCount = bEnabled ? GetMaxValueCount() : 0;
+		MaxStateCount = bEnabled ? GetMaxWidgetCount() : 0;
+		MaxLineCount = bEnabled ? GetMaxLineCount() : 0;
+		MaxTriangleCount = bEnabled ? GetMaxTriangleCount() : 0;
 	}
 
 	FShaderPrintData CreateShaderPrintData(FRDGBuilder& GraphBuilder, FShaderPrintSetup const& InSetup, FSceneViewState* InViewState)
@@ -760,7 +747,7 @@ namespace ShaderPrint
 		FScreenPassTexture OutputTexture)
 	{
 		// Initialize graph managed resources
-		const uint32 UintElementCount = GetCountersUintSize() + GetPackedSymbolUintSize() * GetMaxSymbolCount();
+		const uint32 UintElementCount = GetCountersUintSize() + GetPackedSymbolUintSize() * GetMaxSymbolCountFromValueCount(ShaderPrintData.Setup.MaxValueCount);
 		FRDGBufferRef SymbolBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, UintElementCount), TEXT("ShaderPrint.SymbolBuffer"));
 		FRDGBufferRef IndirectDispatchArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("ShaderPrint.IndirectDispatchArgs"));
 		FRDGBufferRef IndirectDrawArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("ShaderPrint.IndirectDrawArgs"));

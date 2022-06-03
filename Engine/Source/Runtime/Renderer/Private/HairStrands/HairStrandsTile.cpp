@@ -355,7 +355,7 @@ void AddHairStrandsDebugTilePass(
 	DrawDebugTile(FHairStrandsTiles::ETileType::HairPartial);
 	DrawDebugTile(FHairStrandsTiles::ETileType::Other);
 
-	if (View.HairStrandsViewData.UniformBuffer || ShaderPrint::IsEnabled(View))
+	if (View.HairStrandsViewData.UniformBuffer || ShaderPrint::IsEnabled(View.ShaderPrintData))
 	{
 		static FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::HairAll;
 

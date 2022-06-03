@@ -318,7 +318,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 			PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 			PassParameters->VirtualVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 
-			if (ShaderPrint::IsEnabled(View))
+			if (ShaderPrint::IsValid(View.ShaderPrintData))
 			{
 				ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 			}

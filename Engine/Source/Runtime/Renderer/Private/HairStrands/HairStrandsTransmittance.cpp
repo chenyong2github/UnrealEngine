@@ -679,7 +679,7 @@ static void AddHairStrandsDeepShadowMaskPass(
 	Parameters->DeepShadow_TranslatedWorldToLightTransformBuffer = Params.DeepShadow_TranslatedWorldToLightTransformBuffer;
 	Parameters->DeepShadow_bIsGPUDriven = Params.DeepShadow_bIsGPUDriven ? 1 : 0;;
 	Parameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
-	if (ShaderPrint::IsEnabled(View))
+	if (ShaderPrint::IsValid(View.ShaderPrintData))
 	{
 		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 	}

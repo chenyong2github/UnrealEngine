@@ -172,7 +172,7 @@ static void AddHairStrandsEnvironmentAOPass(
 		ViewRect = View.ViewRect;
 	}
 
-	if (ShaderPrint::IsEnabled(View))
+	if (ShaderPrint::IsValid(View.ShaderPrintData))
 	{
 		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 	}
@@ -399,7 +399,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	ParametersPS->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 	ParametersPS->OutLightingBuffer = nullptr;
 
-	if (ShaderPrint::IsEnabled(View))
+	if (ShaderPrint::IsValid(View.ShaderPrintData))
 	{
 		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, ParametersPS->ShaderPrintParameters);
 	}

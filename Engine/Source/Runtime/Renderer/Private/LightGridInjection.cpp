@@ -984,7 +984,9 @@ FScreenPassTexture AddVisualizeLightGridPass(FRDGBuilder& GraphBuilder, const FV
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLightGrid");
 
-	if (!ShaderPrint::IsEnabled(View)) { ShaderPrint::SetEnabled(true); }
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
+
 	ShaderPrint::RequestSpaceForLines(128);
 	ShaderPrint::RequestSpaceForCharacters(128);
 

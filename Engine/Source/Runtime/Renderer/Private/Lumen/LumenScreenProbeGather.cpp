@@ -1092,10 +1092,8 @@ void AddLumenScreenProbeDebugPass(
 	FRDGBufferRef IntegrateTileData,
 	FRDGBufferRef IntegrateIndirectArgs)
 {
-	if (!ShaderPrint::IsEnabled(View))
-	{
-		ShaderPrint::SetEnabled(true);
-	}
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
 
 	ShaderPrint::RequestSpaceForCharacters(1024);
 	ShaderPrint::RequestSpaceForLines(1024);

@@ -1384,7 +1384,7 @@ void AddPostProcessingPasses(
 			RectLightAtlas::AddRectLightAtlasDebugPass(GraphBuilder, View, SceneColor.Texture);
 		}
 
-		if (ShaderPrint::IsEnabled(View))
+		if (ShaderPrint::IsEnabled(View.ShaderPrintData))
 		{
 			ShaderPrint::DrawView(GraphBuilder, View, SceneColor, SceneDepth);
 		}

@@ -426,11 +426,11 @@ void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 #if STRATA_ROUGH_REFRACTION_RND
 	if (IsStrataEnabled() && ShouldRenderStrataRoughRefractionRnD())
 	{
-		if (!ShaderPrint::IsSupported(View.GetShaderPlatform()))
+		if (!ShaderPrint::IsValid(View.ShaderPrintData))
 		{
 			return;
 		}
-		check(ShaderPrint::IsEnabled(View));	// One must enable ShaderPrint beforehand using r.ShaderPrint=1
+		check(ShaderPrint::IsEnabled(View.ShaderPrintData));	// One must enable ShaderPrint beforehand using r.ShaderPrint=1
 
 		//////////////////////////////////////////////////////////////////////////
 		// Create resources

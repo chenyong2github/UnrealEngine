@@ -533,7 +533,7 @@ static void AddVoxelPlainRaymarchingPass(
 	const FHairStrandClusterData::FHairGroup& HairGroupClusters = HairClusterData.HairGroups[DataIndex];
 
 	FViewInfo& View = Views[ViewIndex];
-	if (ShaderPrint::IsEnabled(View))
+	if (ShaderPrint::IsEnabled(View.ShaderPrintData))
 	{
 		if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Cards)
 			return;
@@ -767,21 +767,18 @@ static void AddDrawDebugCardsGuidesPass(
 	const bool bDeformed, 
 	const bool bRen)
 {
-	if (!ShaderPrint::IsSupported(View.GetShaderPlatform()))
-	{
-		return;
-	}
-
-	// Force shader debug to be enabled
-	if (!ShaderPrint::IsEnabled())
-	{
-		ShaderPrint::SetEnabled(true);
-	}
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
 
 	const uint32 MaxCount = 128000;
 	ShaderPrint::RequestSpaceForLines(MaxCount);
 
-	if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Cards || ShaderPrintData == nullptr)
+	if (ShaderPrintData == nullptr || !ShaderPrint::IsEnabled(*ShaderPrintData))
+	{
+		return;
+	}
+
+	if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Cards)
 	{
 		return;
 	}
@@ -962,8 +959,9 @@ static void AddHairDebugPrintInstancePass(
 {
 	const uint32 InstanceCount = Instances.Num();
 
-	// Request more drawing primitives & characters for printing if needed	
+	// Force ShaderPrint on.
 	ShaderPrint::SetEnabled(true);
+	// Request more drawing primitives & characters for printing if needed	
 	ShaderPrint::RequestSpaceForLines(InstanceCount * 16u);
 	ShaderPrint::RequestSpaceForCharacters(InstanceCount * 256 + 512);
 

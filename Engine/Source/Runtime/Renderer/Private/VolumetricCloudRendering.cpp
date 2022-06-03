@@ -2486,7 +2486,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 
 					auto DebugCloudTexture = [&](FDrawDebugCloudShadowCS::FParameters* Parameters)
 					{
-						if (ShaderPrint::IsEnabled(ViewInfo))
+						if (ShaderPrint::IsEnabled(ViewInfo.ShaderPrintData))
 						{
 							FDrawDebugCloudShadowCS::FPermutationDomain Permutation;
 							TShaderMapRef<FDrawDebugCloudShadowCS> ComputeShader(GetGlobalShaderMap(ViewInfo.GetFeatureLevel()), Permutation);
