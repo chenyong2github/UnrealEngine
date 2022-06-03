@@ -86,7 +86,8 @@ namespace Horde.Storage.Implementation
 
                     bool found = false;
                     NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(@namespace);
-                    
+
+                    List<Task> referenceChecks = new List<Task>();
                     List<NamespaceId> namespacesThatSharePool = namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool).ToList();
                     // check all other namespaces that share the same storage pool for presence of the blob
                     foreach (NamespaceId blobNamespace in namespacesThatSharePool)
@@ -103,29 +104,34 @@ namespace Horde.Storage.Implementation
                             continue;
                         }
 
-                        foreach ((BucketId bucket, IoHashKey key) in blobIndex.References)
-                        {
-                            if (cancellationToken.IsCancellationRequested)
+                        Task referenceCheckTask = Parallel.ForEachAsync(blobIndex.References, cancellationToken,
+                            async (tuple, token) =>
                             {
-                                break;
-                            }
+                                (BucketId bucket, IoHashKey key) = tuple;
+                                if (token.IsCancellationRequested)
+                                {
+                                    return;
+                                }
 
-                            try
-                            {
-                                (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace, bucket, key, new string[] {"name"});
-                                found = true;
-                            }
-                            catch (ObjectNotFoundException)
-                            {
-                                // this is not a valid reference so we should delete
-                            }
-                            catch (MissingBlobsException)
-                            {
-                                // we do not care if there are missing blobs, as long as the record is valid we keep this blob around
-                                found = true;
-                            }
-                        }
+                                try
+                                {
+                                    (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace, bucket, key, new string[] {"name"});
+                                    found = true;
+                                }
+                                catch (ObjectNotFoundException)
+                                {
+                                    // this is not a valid reference so we should delete
+                                }
+                                catch (MissingBlobsException)
+                                {
+                                    // we do not care if there are missing blobs, as long as the record is valid we keep this blob around
+                                    found = true;
+                                }
+                            });
+                        referenceChecks.Add(referenceCheckTask);
                     }
+
+                    await Task.WhenAll(referenceChecks);
 
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -136,10 +142,10 @@ namespace Horde.Storage.Implementation
 
                     if (!found)
                     {
-                        foreach (NamespaceId namespaceToDeleteFrom in namespacesThatSharePool)
+                        await Parallel.ForEachAsync(namespacesThatSharePool, cancellationToken, async (ns, _) =>
                         {
-                            await RemoveBlob(namespaceToDeleteFrom, blob);
-                        }
+                            await RemoveBlob(ns, blob);
+                        });
                         ++countOfBlobsRemoved;
                     }
                 }
