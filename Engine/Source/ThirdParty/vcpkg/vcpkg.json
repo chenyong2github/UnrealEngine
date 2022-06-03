@@ -5,7 +5,6 @@
   "dependencies": [
     "libressl",
     "protobuf",
-    "rpclib",
     "zstd"
   ]
 }
