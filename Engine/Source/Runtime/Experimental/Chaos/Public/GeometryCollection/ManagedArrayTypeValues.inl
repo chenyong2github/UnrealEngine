@@ -44,6 +44,9 @@ MANAGED_ARRAY_TYPE(TArray<FVector2f>, Vector2DArray)
 MANAGED_ARRAY_TYPE(double, Double)
 MANAGED_ARRAY_TYPE(FIntVector4, IntVector4)
 MANAGED_ARRAY_TYPE(FVector3d, Vector3d)
+MANAGED_ARRAY_TYPE(FIntVector2, IntVector2)
+MANAGED_ARRAY_TYPE(TArray<FIntVector2>, IntVector2Array)
+
 
 // NOTE: new types must be added at the bottom to keep serialization from breaking
 
