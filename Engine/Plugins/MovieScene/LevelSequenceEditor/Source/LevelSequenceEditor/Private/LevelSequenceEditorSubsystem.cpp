@@ -801,7 +801,7 @@ void ULevelSequenceEditorSubsystem::FixActorReferences()
 	TMap<FGuid, FGuid> OldGuidToNewGuidMap;
 	for (const FMovieScenePossessable& ActorPossessableToFix : ActorsPossessablesToFix)
 	{
-		AActor* ActorPtr = *ActorNameToActorMap.Find(ActorPossessableToFix.GetName());
+		AActor* ActorPtr = ActorNameToActorMap.FindRef(ActorPossessableToFix.GetName());
 		if (ActorPtr != nullptr)
 		{
 			FGuid OldGuid = ActorPossessableToFix.GetGuid();
