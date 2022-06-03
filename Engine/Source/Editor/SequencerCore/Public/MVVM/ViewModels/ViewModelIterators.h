@@ -73,6 +73,29 @@ struct FViewModelSubListIterator
 	FORCEINLINE FViewModelSubListIterator begin() const { return *this; }
 	FORCEINLINE FViewModelSubListIterator end() const   { return FViewModelSubListIterator{ nullptr }; }
 
+	/**
+	 * Populate the specified array with the remaining items in this iterator
+	 * The state of this iterator remains unchanged
+	 */
+	void ToArray(TArray<FViewModelPtr>& OutArray) const
+	{
+		for (FViewModelSubListIterator Temp = *this; Temp; ++Temp)
+		{
+			OutArray.Add(*Temp);
+		}
+	}
+
+	/**
+	 * Return the remaining items in this iterator as an array
+	 * The state of this iterator remains unchanged
+	 */
+	TArray<FViewModelPtr> ToArray() const
+	{
+		TArray<FViewModelPtr> Temp;
+		ToArray(Temp);
+		return Temp;
+	}
+
 private:
 
 	/** The pointed-to data model */

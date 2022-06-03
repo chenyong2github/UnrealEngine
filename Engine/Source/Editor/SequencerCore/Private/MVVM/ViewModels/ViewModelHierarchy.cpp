@@ -346,7 +346,7 @@ void FViewModelChildren::Empty()
 	{
 		FViewModelHierarchyOperation Operation(Owner);
 
-		for (const FViewModelPtr& Child : IterateSubList())
+		for (const FViewModelPtr& Child : IterateSubList().ToArray())
 		{
 			Child->SetParentOnly(nullptr);
 		}
