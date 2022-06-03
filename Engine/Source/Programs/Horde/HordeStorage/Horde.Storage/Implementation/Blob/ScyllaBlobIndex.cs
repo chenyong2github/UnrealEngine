@@ -15,12 +15,14 @@ namespace Horde.Storage.Implementation.Blob;
 
 public class ScyllaBlobIndex : IBlobIndex
 {
+    private readonly IScyllaSessionManager _scyllaSessionManager;
     private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
     private readonly ISession _session;
     private readonly Mapper _mapper;
 
     public ScyllaBlobIndex(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<JupiterSettings> jupiterSettings)
     {
+        _scyllaSessionManager = scyllaSessionManager;
         _jupiterSettings = jupiterSettings;
         _session = scyllaSessionManager.GetSessionForReplicatedKeyspace();
         _mapper = new Mapper(_session);
@@ -112,7 +114,8 @@ public class ScyllaBlobIndex : IBlobIndex
     {
         using IScope _ = Tracer.Instance.StartActive("scylla.get_all_blobs");
 
-        foreach (ScyllaBlobIndexTable blobIndex in await _mapper.FetchAsync<ScyllaBlobIndexTable>("BYPASS CACHE"))
+        string cqlOptions = _scyllaSessionManager.IsScylla ? "BYPASS CACHE" : "";
+        foreach (ScyllaBlobIndexTable blobIndex in await _mapper.FetchAsync<ScyllaBlobIndexTable>(cqlOptions))
         {
             yield return blobIndex.ToBlobInfo();
         }

@@ -469,7 +469,8 @@ namespace Horde.Storage
             localSession.Execute(new SimpleStatement("CREATE TYPE IF NOT EXISTS blob_identifier (hash blob)"));
             localSession.UserDefinedTypes.Define(UdtMap.For<ScyllaBlobIdentifier>("blob_identifier", localKeyspaceName));
 
-            return new ScyllaSessionManager(replicatedSession, localSession);
+            bool isScylla = !settings.UseAzureCosmosDB;
+            return new ScyllaSessionManager(replicatedSession, localSession, isScylla, !isScylla);
         }
 
         private IReferencesStore ObjectStoreFactory(IServiceProvider provider)
