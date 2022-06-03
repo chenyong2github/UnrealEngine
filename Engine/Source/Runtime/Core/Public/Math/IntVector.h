@@ -597,6 +597,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		return X!=Other.X || Y!=Other.Y;
 	}
+
+	/**
+	 * Serializes the Vector2.
+	 *
+	 * @param Ar The archive to serialize into.
+	 * @param Vector The vector to serialize.
+	 * @return Reference to the Archive after serialization.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, TIntVector2& Vector)
+	{
+		return Ar << Vector.X << Vector.Y;
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
