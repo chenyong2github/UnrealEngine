@@ -658,6 +658,8 @@ void FGeometryCollection::Empty()
 	{
 		EmptyGroup(GroupName);
 	}
+	// re-initialize the interface to its default initial state
+	FGeometryCollectionConvexPropertiesInterface::InitializeInterface();
 }
 
 void FGeometryCollection::ReorderElements(FName Group, const TArray<int32>& NewOrder)
