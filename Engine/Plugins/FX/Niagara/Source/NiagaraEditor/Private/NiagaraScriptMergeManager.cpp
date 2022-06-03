@@ -81,7 +81,27 @@ FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverri
 
 		if (OverridePin->LinkedTo[0]->GetOwningNode()->IsA<UNiagaraNodeParameterMapGet>())
 		{
-			LinkedValueHandle = FNiagaraParameterHandle(OverridePin->LinkedTo[0]->PinName);
+			LinkedValueData = FNiagaraStackLinkedValueData();
+			LinkedValueData->LinkedValueHandle = FNiagaraParameterHandle(OverridePin->LinkedTo[0]->PinName);
+			if (LinkedValueData->LinkedValueHandle.IsOutputHandle() ||
+				LinkedValueData->LinkedValueHandle.IsStackContextHandle() ||
+				LinkedValueData->LinkedValueHandle.IsEmitterHandle() ||
+				LinkedValueData->LinkedValueHandle.IsParticleAttributeHandle())
+			{
+				// If the linked handle is a module output or module data set attribute, record the node id so that we can check for renamed nodes
+				// when applying the diff.
+				TArray<FName> HandleParts = LinkedValueData->LinkedValueHandle.GetHandleParts();
+				if (HandleParts.Num() > 2)
+				{
+					FString FunctionName = HandleParts[1].ToString();
+					TObjectPtr<UEdGraphNode>* ReferencedFunctionCallNodePtr = OwningFunctionCallNode->GetGraph()->Nodes.FindByPredicate(
+						[FunctionName](UEdGraphNode* Node) { return Node->IsA<UNiagaraNodeFunctionCall>() && CastChecked<UNiagaraNodeFunctionCall>(Node)->GetFunctionName() == FunctionName; });
+					if (ReferencedFunctionCallNodePtr != nullptr)
+					{
+						LinkedValueData->LinkedFunctionNodeId = (*ReferencedFunctionCallNodePtr)->NodeGuid;
+					}
+				}
+			}
 		}
 		else if (OverridePin->LinkedTo[0]->GetOwningNode()->IsA<UNiagaraNodeInput>())
 		{
@@ -177,9 +197,9 @@ TOptional<FNiagaraVariable> FNiagaraStackFunctionInputOverrideMergeAdapter::GetL
 	return LocalValueRapidIterationParameter;
 }
 
-TOptional<FNiagaraParameterHandle> FNiagaraStackFunctionInputOverrideMergeAdapter::GetLinkedValueHandle() const
+TOptional<FNiagaraStackLinkedValueData> FNiagaraStackFunctionInputOverrideMergeAdapter::GetLinkedValueData() const
 {
-	return LinkedValueHandle;
+	return LinkedValueData;
 }
 
 TOptional<FName> FNiagaraStackFunctionInputOverrideMergeAdapter::GetDataValueInputName() const
@@ -2585,15 +2605,15 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 	}
 
 	// Linked value
-	if ((BaseFunctionInputAdapter->GetLinkedValueHandle().IsSet() && OtherFunctionInputAdapter->GetLinkedValueHandle().IsSet() == false) ||
-		(BaseFunctionInputAdapter->GetLinkedValueHandle().IsSet() == false && OtherFunctionInputAdapter->GetLinkedValueHandle().IsSet()))
+	if ((BaseFunctionInputAdapter->GetLinkedValueData().IsSet() && OtherFunctionInputAdapter->GetLinkedValueData().IsSet() == false) ||
+		(BaseFunctionInputAdapter->GetLinkedValueData().IsSet() == false && OtherFunctionInputAdapter->GetLinkedValueData().IsSet()))
 	{
 		return false;
 	}
 
-	if (BaseFunctionInputAdapter->GetLinkedValueHandle().IsSet() && OtherFunctionInputAdapter->GetLinkedValueHandle().IsSet())
+	if (BaseFunctionInputAdapter->GetLinkedValueData().IsSet() && OtherFunctionInputAdapter->GetLinkedValueData().IsSet())
 	{
-		return BaseFunctionInputAdapter->GetLinkedValueHandle().GetValue() == OtherFunctionInputAdapter->GetLinkedValueHandle().GetValue();
+		return BaseFunctionInputAdapter->GetLinkedValueData().GetValue() == OtherFunctionInputAdapter->GetLinkedValueData().GetValue();
 	}
 
 	// Data value
@@ -2861,23 +2881,61 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 				InputOverridePin.DefaultValue = OverrideToAdd->GetLocalValueString().GetValue();
 				Results.bSucceeded = true;
 			}
-			else if (OverrideToAdd->GetLinkedValueHandle().IsSet())
+			else if (OverrideToAdd->GetLinkedValueData().IsSet())
 			{
 				check(OverrideToAdd->GetOverrideNode() && OverrideToAdd->GetOverrideNode()->GetNiagaraGraph());
-				FNiagaraVariable Parameter = FNiagaraVariable(InputType, OverrideToAdd->GetLinkedValueHandle().GetValue().GetParameterHandleString());
-				UNiagaraScriptVariable* ScriptVar = OverrideToAdd->GetOverrideNode()->GetNiagaraGraph()->GetScriptVariable(Parameter);
+				FNiagaraParameterHandle OldLinkedValueHandle = OverrideToAdd->GetLinkedValueData()->LinkedValueHandle;
+				FGuid LinkedFunctionCallNodeId = OverrideToAdd->GetLinkedValueData()->LinkedFunctionNodeId;
+				FNiagaraVariable OldLinkedValueVariable = FNiagaraVariable(InputType, OldLinkedValueHandle.GetParameterHandleString());
+				UNiagaraScriptVariable* ScriptVar = OverrideToAdd->GetOverrideNode()->GetNiagaraGraph()->GetScriptVariable(OldLinkedValueVariable);
 				ENiagaraDefaultMode DesiredMode = ENiagaraDefaultMode::Value;
 				if (ScriptVar)
 					DesiredMode = ScriptVar->DefaultMode;
 				if (GNiagaraForceFailIfPreviouslyNotSetOnMerge > 0)
 					DesiredMode = ENiagaraDefaultMode::FailIfPreviouslyNotSet;
-				TSet KnownParameters = { Parameter };
-				FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(InputOverridePin, OverrideToAdd->GetLinkedValueHandle().GetValue(), KnownParameters, DesiredMode, OverrideToAdd->GetOverrideNodeId());
-				FGuid LinkedOutputId = FNiagaraStackGraphUtilities::GetScriptVariableIdForLinkedOutputHandle(
-					OverrideToAdd->GetLinkedValueHandle().GetValue(), OverrideToAdd->GetType(), *TargetFunctionCall.GetNiagaraGraph());
+
+				// If the linked value handle has a valid function call node id, then we need to check to see if that function call node has been
+				// renamed due to the merge, and if so we need to update the handle.
+				FNiagaraParameterHandle NewLinkedValueHandle;
+				if (LinkedFunctionCallNodeId.IsValid() &&
+					(OldLinkedValueHandle.IsOutputHandle() || OldLinkedValueHandle.IsStackContextHandle() ||
+						OldLinkedValueHandle.IsEmitterHandle() || OldLinkedValueHandle.IsParticleAttributeHandle()) &&
+					OldLinkedValueHandle.GetHandleParts().Num() > 2)
+				{
+					TObjectPtr<UEdGraphNode>* ReferencedFunctionCallNodePtr = TargetFunctionCall.GetGraph()->Nodes.FindByPredicate(
+						[&LinkedFunctionCallNodeId](UEdGraphNode* Node) { return Node->IsA<UNiagaraNodeFunctionCall>() && Node->NodeGuid == LinkedFunctionCallNodeId; });
+					if (ReferencedFunctionCallNodePtr != nullptr)
+					{
+						UNiagaraNodeFunctionCall* ReferencedFunctionCallNode = CastChecked<UNiagaraNodeFunctionCall>(*ReferencedFunctionCallNodePtr);
+						FString FunctionName = OldLinkedValueHandle.GetHandleParts()[1].ToString();
+						if (ReferencedFunctionCallNode->GetFunctionName() != FunctionName)
+						{
+							// The function node has been renamed so we need to update the handle.  The handle is in the format [Namespace].[Function Call Name].[NameParts]
+							TArray<FName> OldHandleParts = OldLinkedValueHandle.GetHandleParts();
+							TArray<FString> NewHandleNameParts;
+							NewHandleNameParts.Add(OldHandleParts[0].ToString());
+							NewHandleNameParts.Add(ReferencedFunctionCallNode->GetFunctionName());
+							for (int32 i = 2; i < OldHandleParts.Num(); i++)
+							{
+								NewHandleNameParts.Add(OldHandleParts[i].ToString());
+							}
+							NewLinkedValueHandle = FNiagaraParameterHandle(*FString::Join(NewHandleNameParts, TEXT(".")));
+						}
+					}
+				}
+				else
+				{
+					NewLinkedValueHandle = OldLinkedValueHandle;
+				}
+
+				FNiagaraVariable NewLinkedValueVariable = FNiagaraVariable(OverrideToAdd->GetType(), NewLinkedValueHandle.GetParameterHandleString());
+				TSet KnownParameters = { NewLinkedValueVariable };
+				FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(InputOverridePin, NewLinkedValueHandle, KnownParameters, DesiredMode, OverrideToAdd->GetOverrideNodeId());
+				FGuid LinkedOutputId = FNiagaraStackGraphUtilities::GetScriptVariableIdForLinkedModuleParameterHandle(
+					OldLinkedValueHandle, OverrideToAdd->GetType(), *TargetFunctionCall.GetNiagaraGraph());
 				if (LinkedOutputId.IsValid())
 				{
-					TargetFunctionCall.UpdateInputNameBinding(LinkedOutputId, OverrideToAdd->GetLinkedValueHandle()->GetName());
+					TargetFunctionCall.UpdateInputNameBinding(LinkedOutputId, NewLinkedValueHandle.GetParameterHandleString());
 				}
 				Results.bSucceeded = true;
 			}

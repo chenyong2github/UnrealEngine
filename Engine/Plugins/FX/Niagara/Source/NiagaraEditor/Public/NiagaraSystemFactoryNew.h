@@ -26,7 +26,7 @@ class UNiagaraSystemFactoryNew : public UFactory
 	//~ Begin UFactory Interface	
 
 public:
-	static void InitializeSystem(UNiagaraSystem* System, bool bCreateDefaultNodes);
+	NIAGARAEDITOR_API static void InitializeSystem(UNiagaraSystem* System, bool bCreateDefaultNodes);
 };
 
 

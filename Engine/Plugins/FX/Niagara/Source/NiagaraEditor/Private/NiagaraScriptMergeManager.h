@@ -32,6 +32,17 @@ class UNiagaraRendererProperties;
 
 class FNiagaraStackFunctionMergeAdapter;
 
+struct FNiagaraStackLinkedValueData
+{
+	FNiagaraParameterHandle LinkedValueHandle;
+	FGuid LinkedFunctionNodeId;
+
+	bool operator==(const FNiagaraStackLinkedValueData& Other) const
+	{
+		return LinkedValueHandle == Other.LinkedValueHandle && LinkedFunctionNodeId == Other.LinkedFunctionNodeId;
+	}
+};
+
 class FNiagaraStackFunctionInputOverrideMergeAdapter
 {
 public:
@@ -59,7 +70,7 @@ public:
 
 	TOptional<FString> GetLocalValueString() const;
 	TOptional<FNiagaraVariable> GetLocalValueRapidIterationParameter() const;
-	TOptional<FNiagaraParameterHandle> GetLinkedValueHandle() const;
+	TOptional<FNiagaraStackLinkedValueData> GetLinkedValueData() const;
 	TOptional<FName> GetDataValueInputName() const;
 	UNiagaraDataInterface* GetDataValueObject() const;
 	TSharedPtr<FNiagaraStackFunctionMergeAdapter> GetDynamicValueFunction() const;
@@ -76,7 +87,7 @@ private:
 
 	TOptional<FString> LocalValueString;
 	TOptional<FNiagaraVariable> LocalValueRapidIterationParameter;
-	TOptional<FNiagaraParameterHandle> LinkedValueHandle;
+	TOptional<FNiagaraStackLinkedValueData> LinkedValueData;
 	TOptional<FName> DataValueInputName;
 	UNiagaraDataInterface* DataValueObject;
 	TSharedPtr<FNiagaraStackFunctionMergeAdapter> DynamicValueFunction;

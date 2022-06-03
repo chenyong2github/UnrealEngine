@@ -94,7 +94,7 @@ void UNiagaraNodeFunctionCall::PostLoad()
 			UpdateStaticSwitchPinsWithPersistentGuids();
 		}
 
-		if (NiagaraCustomVersion < FNiagaraCustomVersion::PopulateFunctionCallNodePinNameBindings)
+		if (NiagaraCustomVersion < FNiagaraCustomVersion::RepopulateFunctionCallNodePinNameBindings)
 		{
 			FNiagaraStackGraphUtilities::PopulateFunctionCallNameBindings(*this);
 		}

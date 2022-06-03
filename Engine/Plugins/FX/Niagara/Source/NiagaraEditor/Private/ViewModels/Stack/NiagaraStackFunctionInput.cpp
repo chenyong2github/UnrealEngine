@@ -1252,10 +1252,10 @@ void UNiagaraStackFunctionInput::SetLinkedValueHandle(const FNiagaraParameterHan
 		UEdGraphPin& OverridePin = GetOrCreateOverridePin();
 		TSet<FNiagaraVariable> KnownParameters = FNiagaraStackGraphUtilities::GetParametersForContext(OverridePin.GetOwningNode()->GetGraph(), GetSystemViewModel()->GetSystem());
 		FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(OverridePin, InParameterHandle, KnownParameters);
-		FGuid LinkedOutputId = FNiagaraStackGraphUtilities::GetScriptVariableIdForLinkedOutputHandle(InParameterHandle, InputType, *OwningFunctionCallNode->GetNiagaraGraph());
+		FGuid LinkedOutputId = FNiagaraStackGraphUtilities::GetScriptVariableIdForLinkedModuleParameterHandle(InParameterHandle, InputType, *OwningFunctionCallNode->GetNiagaraGraph());
 		if (LinkedOutputId.IsValid())
 		{
-			OwningFunctionCallNode->UpdateInputNameBinding(LinkedOutputId, InParameterHandle.GetName());
+			OwningFunctionCallNode->UpdateInputNameBinding(LinkedOutputId, InParameterHandle.GetParameterHandleString());
 		}
 	}
 
