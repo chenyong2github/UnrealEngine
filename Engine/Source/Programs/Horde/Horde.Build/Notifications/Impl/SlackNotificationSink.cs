@@ -826,9 +826,18 @@ namespace Horde.Build.Notifications.Impl
 				{
 					await AddReactionAsync(state.Channel, state.Ts, "eyes");
 				}
+				else
+				{
+					await RemoveReactionAsync(state.Channel, state.Ts, "eyes");
+				}
+
 				if (issue.ResolvedAt != null)
 				{
 					await AddReactionAsync(state.Channel, state.Ts, "tick");
+				}
+				else
+				{
+					await RemoveReactionAsync(state.Channel, state.Ts, "tick");
 				}
 
 				if (issue.FixChange != null)
