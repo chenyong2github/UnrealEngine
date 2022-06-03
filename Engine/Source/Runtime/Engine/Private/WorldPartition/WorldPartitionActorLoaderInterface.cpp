@@ -35,7 +35,7 @@ IWorldPartitionActorLoaderInterface::ILoaderAdapter::~ILoaderAdapter()
 	UnregisterDelegates();
 }
 
-bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Load()
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::Load()
 {
 	if (!bLoaded)
 	{
@@ -43,11 +43,9 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Load()
 		RefreshLoadedState();
 		RegisterDelegates();
 	}
-
-	return true;
 }
 
-bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 {
 	if (bLoaded && !IsEngineExitRequested())
 	{
@@ -75,8 +73,6 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 			PostLoadedStateChanged(true);
 		}
 	}
-
-	return true;
 }
 
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::IsLoaded() const

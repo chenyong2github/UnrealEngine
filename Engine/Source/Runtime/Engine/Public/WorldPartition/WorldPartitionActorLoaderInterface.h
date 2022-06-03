@@ -27,8 +27,8 @@ public:
 		ILoaderAdapter(UWorld* InWorld);
 		virtual ~ILoaderAdapter();
 
-		bool Load();
-		bool Unload();
+		void Load();
+		void Unload();
 		bool IsLoaded() const;
 
 		UWorld* GetWorld() const { return World; }

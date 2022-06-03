@@ -318,7 +318,9 @@ void SWorldPartitionEditorGrid2D::UnloadSelectedRegions()
 
 	ForEachSelectedLoaderAdapters(WorldPartition, SelectBox, [&LoaderAdaptersToRelease, &RegisteredLoaderAdapters](IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter)
 	{
-		if (LoaderAdapter->Unload() && RegisteredLoaderAdapters.Contains(LoaderAdapter))
+		LoaderAdapter->Unload();
+
+		if (RegisteredLoaderAdapters.Contains(LoaderAdapter))
 		{
 			LoaderAdaptersToRelease.Add(LoaderAdapter);
 		}

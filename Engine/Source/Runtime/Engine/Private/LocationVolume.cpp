@@ -66,4 +66,37 @@ IWorldPartitionActorLoaderInterface::ILoaderAdapter* ALocationVolume::GetLoaderA
 {
 	return WorldPartitionActorLoader;
 }
+
+void ALocationVolume::Load()
+{
+#if WITH_EDITOR
+	if (WorldPartitionActorLoader)
+	{
+		WorldPartitionActorLoader->Load();
+	}
+#endif
+}
+
+void ALocationVolume::Unload()
+{
+#if WITH_EDITOR
+	if (WorldPartitionActorLoader)
+	{
+		WorldPartitionActorLoader->Unload();
+	}
+#endif
+}
+
+bool ALocationVolume::IsLoaded() const
+{
+#if WITH_EDITOR
+	if (WorldPartitionActorLoader)
+	{
+		return WorldPartitionActorLoader->IsLoaded();
+	}
+#endif
+
+	return false;
+}
+
 #endif
