@@ -493,7 +493,7 @@ void FContextualAnimViewModel::SequencerTimeChanged()
 			{
 				bShouldTransition = FocusedAnimAsMontage != MontageInstance->Montage;
 			}
-			else if(FocusedAnim)
+			else
 			{
 				bShouldTransition = FocusedAnim != MontageInstance->Montage->SlotAnimTracks[0].AnimTrack.AnimSegments[0].GetAnimReference();
 			}
