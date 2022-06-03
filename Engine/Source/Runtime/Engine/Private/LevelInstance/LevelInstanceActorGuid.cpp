@@ -2,6 +2,7 @@
 
 #include "LevelInstance/LevelInstanceActorGuid.h"
 #include "GameFramework/Actor.h"
+#include "Engine/World.h"
 
 #if !WITH_EDITOR
 void FLevelInstanceActorGuid::AssignIfInvalid()
