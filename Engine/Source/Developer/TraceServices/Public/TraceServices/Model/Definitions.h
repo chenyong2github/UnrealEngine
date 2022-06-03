@@ -75,7 +75,7 @@ protected:
 };
 
 IDefinitionProvider* GetDefinitionProvider(IAnalysisSession& Session);
-const IDefinitionProvider* ReadDefinitionProvider(IAnalysisSession& Session);
+const IDefinitionProvider* ReadDefinitionProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices
 

@@ -2,11 +2,12 @@
 #pragma once
 
 #include "Common/PagedArray.h"
-#include "Templates/UniquePtr.h"
-#include "TraceServices/Model/Definitions.h"
-#include "Trace/Analyzer.h"
+#include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeRWLock.h"
+#include "Templates/UniquePtr.h"
+#include "Trace/Analyzer.h"
+#include "TraceServices/Model/Definitions.h"
 
 namespace TraceServices
 {

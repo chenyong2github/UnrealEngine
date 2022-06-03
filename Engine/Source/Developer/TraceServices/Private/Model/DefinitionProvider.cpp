@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #include "DefinitionProvider.h"
 #include "HAL/UnrealMemory.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -52,7 +53,7 @@ IDefinitionProvider* GetDefinitionProvider(IAnalysisSession& Session)
 	return Session.EditProvider<IDefinitionProvider>("DefinitionProvider");
 }
 //////////////////////////////////////////////////////////////////////////////////////////
-const IDefinitionProvider* ReadDefinitionProvider(IAnalysisSession& Session)
+const IDefinitionProvider* ReadDefinitionProvider(const IAnalysisSession& Session)
 {
 	return Session.ReadProvider<IDefinitionProvider>("DefinitionProvider");
 }
