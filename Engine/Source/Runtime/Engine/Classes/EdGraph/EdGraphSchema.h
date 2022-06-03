@@ -16,6 +16,7 @@
 #include "EdGraphSchema.generated.h"
 
 class FSlateRect;
+struct FSlateBrush;
 class UEdGraph;
 struct FBPVariableDescription;
 
