@@ -1267,7 +1267,7 @@ int32 UTransBuffer::End()
 	// So, the active count could be 0, but the code path may still call end.
 	if (ActiveCount >= 1)
 	{
-		if (ActiveCount == 1)
+		if (ActiveCount == 1 && GUndo != nullptr)
 		{
 			TransactionStateChangedDelegate.Broadcast(GUndo->GetContext(), ETransactionStateEventType::PreTransactionFinalized);
 		}
