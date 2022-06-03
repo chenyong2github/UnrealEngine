@@ -34,8 +34,8 @@ public class Perforce : ModuleRules
 		}
 		else
 		{
-			string LibFolder = "lib/";
-			string IncludeName = "include";
+			string LibFolder = "Lib/";
+			string IncludeName = "Include";
 			string IncludeSuffix = "";
 			string LibPrefix = "";
 			string LibPostfixAndExt = ".";
@@ -43,16 +43,13 @@ public class Perforce : ModuleRules
 
 			if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
-				// SDK downloaded at http://ftp.perforce.com/perforce/r21.2/bin.macosx1015x86_64/p4api-openssl1.1.1.tgz
-				P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2021.2/";
-				LibFolder += "mac";
+				// the Mac libs are universal libs built from source
+				P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2022.1/";
+				LibFolder += "Mac";
 				IncludeSuffix += "/Mac";
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
 			{
-				// Linux has upper case Lib/Include vs mac's 2021.2 version
-				LibFolder = "Lib/";
-				IncludeName = "Include";
 				P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2018.1/";
 				LibFolder += "Linux";
 				IncludeSuffix += "/Linux";

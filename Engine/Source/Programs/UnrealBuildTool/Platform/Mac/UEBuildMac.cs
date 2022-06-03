@@ -145,10 +145,7 @@ namespace UnrealBuildTool
 					"MetaHumanAnimator",
 					"MetaHumans",
 
-					// perforce:
-					"PerforceSourceControl",
-
-					// ???
+					// MDL
 					"MDLImporter",
 					"USDImporter",
 					"USDMultiUser",
