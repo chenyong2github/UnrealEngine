@@ -330,15 +330,12 @@ FFolder::FRootObject FActorMode::GetPasteTargetRootObject() const
 
 bool FActorMode::IsActorDisplayable(const SSceneOutliner* SceneOutliner, const AActor* Actor)
 {
-	static const FName SequencerActorTag(TEXT("SequencerActor"));
-
 	return Actor &&
 		!SceneOutliner->GetSharedData().bOnlyShowFolders && 									// Don't show actors if we're only showing folders
 		Actor->IsEditable() &&																	// Only show actors that are allowed to be selected and drawn in editor
 		Actor->IsListedInSceneOutliner() &&
 		(((Actor->GetWorld() && Actor->GetWorld()->IsPlayInEditor()) || !Actor->HasAnyFlags(RF_Transient)) ||
-		(SceneOutliner->GetSharedData().bShowTransient && Actor->HasAnyFlags(RF_Transient)) ||	// Don't show transient actors in non-play worlds
-		(Actor->ActorHasTag(SequencerActorTag))) &&
+		(SceneOutliner->GetSharedData().bShowTransient && Actor->HasAnyFlags(RF_Transient))) &&	// Don't show transient actors in non-play worlds
 		!Actor->IsTemplate() &&																	// Should never happen, but we never want CDOs displayed
 		!FActorEditorUtils::IsABuilderBrush(Actor) &&											// Don't show the builder brush
 		!Actor->IsA(AWorldSettings::StaticClass()) &&											// Don't show the WorldSettings actor, even though it is technically editable
