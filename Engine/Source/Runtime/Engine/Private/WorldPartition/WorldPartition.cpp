@@ -51,6 +51,7 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "Modules/ModuleManager.h"
 #include "GameDelegates.h"
+#include "IDocumentation.h"
 
 static int32 GLoadingRangeBugItGo = 12800;
 static FAutoConsoleVariableRef CVarLoadingRangeBugItGo(
@@ -1153,7 +1154,10 @@ void UWorldPartition::Tick(float DeltaSeconds)
 						{
 							SetEnableStreaming(true);
 							bStreamingWasEnabled = true;
-							FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to https://docs.unrealengine.com/5.0/en-US/world-partition-in-unreal-engine/ for how to set up streaming."));			
+							if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionEnableStreamingDialolg", "Please refer to our documentation for how to set up streaming.\n\nWould you like to open it now? ")) == EAppReturnType::Yes)
+							{
+								IDocumentation::Get()->Open(TEXT("world-partition-in-unreal-engine"), FDocumentationSourceInfo(TEXT("worldpartition")));
+							}
 						}
 
 						break;
