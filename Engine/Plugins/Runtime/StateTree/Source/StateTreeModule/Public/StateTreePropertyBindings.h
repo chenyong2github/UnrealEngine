@@ -268,6 +268,9 @@ struct STATETREEMODULE_API FStateTreePropertySegment
 {
 	GENERATED_BODY()
 
+	/** @return true if the segment is empty. */
+	bool IsEmpty() const { return Name.IsNone(); }
+	
 	/** Property name. */
 	UPROPERTY()
 	FName Name;

@@ -76,7 +76,7 @@ bool FStateTreePropertyBindings::ResolvePath(const UStruct* Struct, const FState
 	TArray<FStateTreePropertyIndirection, TInlineAllocator<16>> TempIndirections;
 	const FStateTreePropertySegment* Segment = &FirstPathSegment;
 
-	while (Segment != nullptr)
+	while (Segment != nullptr && !Segment->IsEmpty())
 	{
 		FStateTreePropertyIndirection& Indirection = TempIndirections.AddDefaulted_GetRef();
 
@@ -152,33 +152,42 @@ bool FStateTreePropertyBindings::ResolvePath(const UStruct* Struct, const FState
 		Segment = Segment->NextIndex.IsValid() ? &PropertySegments[Segment->NextIndex.Get()] : nullptr;
 	}
 
-	// Collapse adjacent offset indirections
-	for (int32 Index = 0; Index < TempIndirections.Num(); Index++)
+	if (TempIndirections.Num() > 0)
 	{
-		FStateTreePropertyIndirection& Indirection = TempIndirections[Index];
-		if (Indirection.Type == EStateTreePropertyAccessType::Offset && (Index + 1) < TempIndirections.Num())
+		// Collapse adjacent offset indirections
+		for (int32 Index = 0; Index < TempIndirections.Num(); Index++)
 		{
-			const FStateTreePropertyIndirection& NextIndirection = TempIndirections[Index + 1];
-			if (NextIndirection.Type == EStateTreePropertyAccessType::Offset)
+			FStateTreePropertyIndirection& Indirection = TempIndirections[Index];
+			if (Indirection.Type == EStateTreePropertyAccessType::Offset && (Index + 1) < TempIndirections.Num())
 			{
-				Indirection.Offset += NextIndirection.Offset;
-				TempIndirections.RemoveAt(Index + 1);
-				Index--;
+				const FStateTreePropertyIndirection& NextIndirection = TempIndirections[Index + 1];
+				if (NextIndirection.Type == EStateTreePropertyAccessType::Offset)
+				{
+					Indirection.Offset += NextIndirection.Offset;
+					TempIndirections.RemoveAt(Index + 1);
+					Index--;
+				}
 			}
 		}
+
+
+		// Store indirections
+		OutFirstIndirection = TempIndirections[0];
+		FStateTreePropertyIndirection* PrevIndirection = &OutFirstIndirection;
+		for (int32 Index = 1; Index < TempIndirections.Num(); Index++)
+		{
+			const int32 IndirectionIndex = PropertyIndirections.Num();
+			FStateTreePropertyIndirection& NewIndirection = PropertyIndirections.Add_GetRef(TempIndirections[Index]);
+			PrevIndirection->NextIndex = FStateTreeIndex16(IndirectionIndex);
+			PrevIndirection = &NewIndirection;
+		}
 	}
-
-	check(TempIndirections.Num() > 0);
-
-	// Store indirections
-	OutFirstIndirection = TempIndirections[0];
-	FStateTreePropertyIndirection* PrevIndirection = &OutFirstIndirection;
-	for (int32 Index = 1; Index < TempIndirections.Num(); Index++)
+	else
 	{
-		const int32 IndirectionIndex = PropertyIndirections.Num();
-		FStateTreePropertyIndirection& NewIndirection = PropertyIndirections.Add_GetRef(TempIndirections[Index]);
-		PrevIndirection->NextIndex = FStateTreeIndex16(IndirectionIndex);
-		PrevIndirection = &NewIndirection;
+		// Indirections can be empty in case we're directly binding to source structs.
+		// Zero offset will return the struct itself.
+		OutFirstIndirection.Offset = 0;
+		OutFirstIndirection.Type = EStateTreePropertyAccessType::Offset;
 	}
 	
 	OutLeafProperty = LeafProperty;

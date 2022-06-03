@@ -77,7 +77,12 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 
 		auto StorePropertyPath = [this, &TargetStruct](FStateTreePropertySegment& FirstPathSegment, TArray<FStateTreePropertySegment>& Segments) -> bool
 		{
-			check(Segments.Num() > 0);
+			// The path is empty when directly bound to the target struct.
+			if (Segments.IsEmpty())
+			{
+				return true;
+			}
+			
 			FirstPathSegment = Segments[0];
 			FStateTreePropertySegment* PrevSegment = &FirstPathSegment; 
 			for (int32 Index = 1; Index < Segments.Num(); Index++)
