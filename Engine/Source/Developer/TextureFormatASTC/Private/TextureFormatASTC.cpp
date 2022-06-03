@@ -48,7 +48,7 @@ static FAutoConsoleVariableRef CVarASTCCompressor(
 #endif
 
 // increment this if you change anything that will affect compression in this file
-#define BASE_ASTC_FORMAT_VERSION 41
+#define BASE_ASTC_FORMAT_VERSION 42
 
 #define MAX_QUALITY_BY_SIZE 4
 #define MAX_QUALITY_BY_SPEED 3

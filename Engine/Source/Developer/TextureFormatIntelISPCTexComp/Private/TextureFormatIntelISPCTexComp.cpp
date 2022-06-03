@@ -42,7 +42,7 @@ class FIntelISPCTexCompTextureBuildFunction final : public FTextureBuildFunction
 };
 
 // increment this if you change anything that will affect compression in this file
-#define BASE_ISPC_DX11_FORMAT_VERSION 5
+#define BASE_ISPC_DX11_FORMAT_VERSION 7
 
 // For debugging intermediate image results by saving them out as files.
 #define DEBUG_SAVE_INTERMEDIATE_IMAGES 0
@@ -645,11 +645,7 @@ public:
 
 		FString DLLPath;
 #if PLATFORM_WINDOWS
-#if PLATFORM_64BITS
 		DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Win64-Release/ispc_texcomp.dll");
-#else	//32-bit platform
-		DLLPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Win32-Release/ispc_texcomp.dll");
-#endif
 #elif PLATFORM_MAC
 		DLLPath = TEXT("libispc_texcomp.dylib");
 #elif PLATFORM_LINUX

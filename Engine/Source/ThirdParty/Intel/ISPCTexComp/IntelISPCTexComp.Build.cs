@@ -8,21 +8,21 @@ public class IntelISPCTexComp : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string LibraryPath = Target.UEThirdPartySourceDirectory + "Intel/ISPCTexComp/ispc_texcomp/";
+        string SourcePath = Target.UEThirdPartySourceDirectory + "Intel/ISPCTexComp/ISPCTextureCompressor-14d998c/";
+        string IncludesPath = SourcePath + "ispc_texcomp/";
         string BinaryFolder = Target.UEThirdPartyBinariesDirectory + "Intel/ISPCTexComp/";
-		PublicIncludePaths.Add(LibraryPath);
+		PublicIncludePaths.Add(IncludesPath);
 
         //NOTE: If you change bUseDebugBuild, you must also change FTextureFormatIntelISPCTexCompModule.GetTextureFormat() to load the corresponding DLL
         bool bUseDebugBuild = false;
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-            string platformName = "Win64";
-			string configName = bUseDebugBuild ? "Debug" : "Release";
-            string LibFolder = LibraryPath + "lib/" + platformName + "-" + configName + "/";
-            string DLLFolder = BinaryFolder + platformName + "-" + configName;
+            string configName = bUseDebugBuild ? "Debug" : "Release";
+    		string LibraryPath = SourcePath + "ISPC Texture Compressor/x64/" + configName + "/";
+            string DLLFolder = BinaryFolder + "Win64-" + configName;
             string DLLFilePath = DLLFolder + "/ispc_texcomp.dll";
-            PublicAdditionalLibraries.Add(LibFolder + "ispc_texcomp.lib");
+            PublicAdditionalLibraries.Add(LibraryPath + "ispc_texcomp.lib");
 			PublicDelayLoadDLLs.Add("ispc_texcomp.dll");
             RuntimeDependencies.Add(DLLFilePath);
 		}
