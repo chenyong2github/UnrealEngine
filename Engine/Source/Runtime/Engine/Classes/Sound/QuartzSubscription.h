@@ -150,14 +150,8 @@ public:
 
 	bool QuartzIsTickable() const;
 
-	// QuartzTodo: uncomment post-cleanup
-	// UE_DEPRECATED(5.1, "Derived classes should have access to their own UWorld, this function will always return null")
+	UE_DEPRECATED(5.1, "Derived classes should have access to their own UWorld, this function will always return null")
 	UWorld* QuartzGetWorld() const { return nullptr; }
-
-	// QuartzTodo: delete this static function post-cleanup
-	void QuartzAddReferencedObjects(FReferenceCollector& Collector)
-	{
-	}
 
 	void AddMetronomeBpDelegate(EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent);
 
@@ -171,9 +165,7 @@ public:
 	UE_DEPRECATED(5.1, "use FQuartzTickableObject::AddCommandDelegate(const FOnQuartzCommandEventBP& InDelegate) insead")
 	int32 AddCommandDelegate(const FOnQuartzCommandEventBP& InDelegate, TArray<FQuartzGameThreadCommandQueuePtr>& TargetSubscriberArray){ return -1; }
 
-
-	// QuartzTodo: uncomment  after fix-up
-	// UE_DEPRECATED(5.1, "This object no longer holds any UObject references. Caller should have their own UWorld* and use static 'UQuartzSubsystem::Get()' instead.")
+	UE_DEPRECATED(5.1, "This object no longer holds any UObject references. Caller should have their own UWorld* and use static 'UQuartzSubsystem::Get()' instead.")
 	UQuartzSubsystem* GetQuartzSubsystem() const;
 
 	// required by TQuartzShareableCommandQueue template
@@ -212,8 +204,7 @@ private:
 
 public:
 	// deprecate public access
-	// QuartzTodo: uncomment after fix-up
-	// UE_DEPRECATED(5.1, "FQuartzTickableObject::CommandQueuePtr should no longer be accessed directly. (This member will be private in a future engine version).  Use GetQuartzSubscriber() instead")
+	UE_DEPRECATED(5.1, "FQuartzTickableObject::CommandQueuePtr should no longer be accessed directly. (This member will be private in a future engine version).  Use GetQuartzSubscriber() instead")
 	TSharedPtr<Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>, ESPMode::ThreadSafe> CommandQueuePtr;
 
 private:
