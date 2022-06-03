@@ -106,7 +106,7 @@ namespace Horde.Agent.Tests
 			};
 
 			List<LogEvent> logEvents = Parse(lines);
-			CheckEventGroup(logEvents, 1, 5, LogLevel.Error, KnownLogEvents.ExitCode);
+			CheckEventGroup(logEvents, 2, 1, LogLevel.Error, KnownLogEvents.ExitCode);
 		}
 
 		[TestMethod]
