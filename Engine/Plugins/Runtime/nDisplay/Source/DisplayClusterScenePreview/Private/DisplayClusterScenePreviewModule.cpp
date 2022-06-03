@@ -358,6 +358,9 @@ bool FDisplayClusterScenePreviewModule::OnTick(float DeltaTime)
 			{
 				// Resize to match the new size
 				RenderTarget->ResizeTarget(Job.Size.X, Job.Size.Y);
+				
+				// Flush commands so target is immediately ready to render at the new size
+				FlushRenderingCommands();
 			}
 
 			FTextureRenderTargetResource* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();

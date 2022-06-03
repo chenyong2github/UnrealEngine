@@ -63,6 +63,9 @@ private:
 class DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionRenderer
 {
 public:
+	/** Clean up any references to the renderer. */
+	~FDisplayClusterMeshProjectionRenderer();
+
 	/** Projects a position in view coordinates into the projected view space of the specified projection type */
 	static FVector ProjectViewPosition(const FVector& ViewPosition, EDisplayClusterMeshProjectionType  ProjectionType);
 

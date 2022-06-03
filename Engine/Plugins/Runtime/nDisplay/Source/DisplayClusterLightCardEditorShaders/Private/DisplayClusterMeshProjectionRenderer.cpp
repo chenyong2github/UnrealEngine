@@ -717,6 +717,22 @@ FVector FDisplayClusterMeshProjectionTransform::UnprojectPosition(const FVector&
 	return ProjectedPosition;
 }
 
+FDisplayClusterMeshProjectionRenderer::~FDisplayClusterMeshProjectionRenderer()
+{
+#if WITH_EDITOR
+	for (TWeakObjectPtr<UPrimitiveComponent> PrimitiveComponent : PrimitiveComponents)
+	{
+		if (!PrimitiveComponent.IsValid())
+		{
+			continue;
+		}
+
+		// Unbind this since it will still have a raw pointer to this renderer
+		PrimitiveComponent->SelectionOverrideDelegate.Unbind();
+	}
+#endif
+}
+
 FVector FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(const FVector& ViewPosition, EDisplayClusterMeshProjectionType  ProjectionType)
 {
 	FVector ProjectedViewPosition(ViewPosition);
