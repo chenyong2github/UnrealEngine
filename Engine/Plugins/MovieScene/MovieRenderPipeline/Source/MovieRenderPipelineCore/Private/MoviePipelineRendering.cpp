@@ -182,14 +182,22 @@ void UMoviePipeline::RenderFrame()
 	{
 		return;
 	}
+	
+	{
+		// Sidecar Cameras get updated below after rendering, they're still separate for backwards compat reasons
+		FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
+		FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
 
-	FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
-	FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
+		// Update the Sidecar Cameras
+		FrameInfo.PrevSidecarViewLocations = FrameInfo.CurrSidecarViewLocations;
+		FrameInfo.PrevSidecarViewRotations = FrameInfo.CurrSidecarViewRotations;
+
+		// Update our current view location
+		LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
+		GetSidecarCameraViewPoints(ActiveShotList[CurrentShotIndex], FrameInfo.CurrSidecarViewLocations, FrameInfo.CurrSidecarViewRotations);
+	}
 
 	bool bWriteAllSamples = DebugSettings ? DebugSettings->bWriteAllSamples : false;
-
-	// Update our current view location
-	LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
 
 	// Add appropriate metadata here that is shared by all passes.
 	{
@@ -205,20 +213,12 @@ void UMoviePipeline::RenderFrame()
 
 		UE::MoviePipeline::GetHardwareUsageMetadata(CachedOutputState.FileMetadata, ResolvedOutputDirectory);
 
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/x"), FString::SanitizeFloat(FrameInfo.CurrViewLocation.X));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/y"), FString::SanitizeFloat(FrameInfo.CurrViewLocation.Y));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/z"), FString::SanitizeFloat(FrameInfo.CurrViewLocation.Z));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/pitch"), FString::SanitizeFloat(FrameInfo.CurrViewRotation.Pitch));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/yaw"), FString::SanitizeFloat(FrameInfo.CurrViewRotation.Yaw));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/roll"), FString::SanitizeFloat(FrameInfo.CurrViewRotation.Roll));
 
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/x"), FString::SanitizeFloat(FrameInfo.PrevViewLocation.X));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/y"), FString::SanitizeFloat(FrameInfo.PrevViewLocation.Y));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/z"), FString::SanitizeFloat(FrameInfo.PrevViewLocation.Z));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/pitch"), FString::SanitizeFloat(FrameInfo.PrevViewRotation.Pitch));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/yaw"), FString::SanitizeFloat(FrameInfo.PrevViewRotation.Yaw));
-		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/roll"), FString::SanitizeFloat(FrameInfo.PrevViewRotation.Roll));
+		// We'll leave these in for legacy, when this tracks the 'Main' camera (of the player), render passes that support
+		// multiple cameras will have to write each camera name into their metadata.
+		UE::MoviePipeline::GetMetadataFromCameraLocRot(TEXT("camera"), TEXT(""), FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation, FrameInfo.PrevViewLocation, FrameInfo.PrevViewRotation, CachedOutputState.FileMetadata);
 
+		// This is still global regardless, individual cameras don't get their own motion blur amount because the engine tick is tied to it.
 		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/shutterAngle"), FString::SanitizeFloat(CachedOutputState.TimeData.MotionBlurFraction * 360.0f));
 	}
 
@@ -227,10 +227,6 @@ void UMoviePipeline::RenderFrame()
 		// We can optimize some of the settings for 'special' frames we may be rendering, ie: we render once for motion vectors, but
 		// we don't need that per-tile so we can set the tile count to 1, and spatial sample count to 1 for that particular frame.
 		{
-			// Tiling is only needed when actually producing frames.
-			TileCount.X = 1;
-			TileCount.Y = 1;
-
 			// Spatial Samples aren't needed when not producing frames (caveat: Render Warmup Frame, handled below)
 			NumSpatialSamples = 1;
 		}
@@ -269,6 +265,7 @@ void UMoviePipeline::RenderFrame()
 		TimeStats.StartTime = FDateTime::UtcNow();
 	}
 
+	// Support for RenderDoc captures of just the MRQ work
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
 	TUniquePtr<RenderCaptureInterface::FScopedCapture> ScopedGPUCapture;
 	if (CachedOutputState.bCaptureRendering)
@@ -378,6 +375,7 @@ void UMoviePipeline::RenderFrame()
 				SampleState.AntiAliasingMethod = AntiAliasingMethod;
 				SampleState.SceneCaptureSource = (ColorSettings && ColorSettings->bDisableToneCurve) ? ESceneCaptureSource::SCS_FinalColorHDR : ESceneCaptureSource::SCS_FinalToneCurveHDR;
 				SampleState.OutputState = CachedOutputState;
+				SampleState.OutputState.CameraIndex = 0; // Initialize to a sane default for non multi-cam passes.
 				SampleState.ProjectionMatrixJitterAmount = FVector2D((float)(SpatialShiftX) * 2.0f / BackbufferResolution.X, (float)SpatialShiftY * -2.0f / BackbufferResolution.Y);
 				SampleState.TileIndexes = FIntPoint(TileX, TileY);
 				SampleState.TileCounts = TileCount;
@@ -472,8 +470,11 @@ void UMoviePipeline::ProcessOutstandingFinishedFrames()
 	}
 }
 
+
 void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample)
 {
+	// This function handles the "Write all Samples" feature which lets you inspect data
+	// pre-accumulation.
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
@@ -504,7 +505,7 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 	if (Shot)
 	{
 		FormatOverrides.Add(TEXT("shot_name"), Shot->OuterName);
-		FormatOverrides.Add(TEXT("camera_name"), Shot->InnerName);
+		FormatOverrides.Add(TEXT("camera_name"), Shot->GetCameraName(InFrameData->SampleState.OutputState.CameraIndex));
 	}
 	FMoviePipelineFormatArgs FinalFormatArgs;
 

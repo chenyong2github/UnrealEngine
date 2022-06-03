@@ -22,6 +22,7 @@
 #include "FinalPostProcessSettings.h"
 #include "Materials/Material.h"
 #include "MoviePipelineCameraSetting.h"
+#include "MoviePipelineHighResSetting.h"
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineAntiAliasingSetting.h"
 #include "MoviePipelineOutputSetting.h"
@@ -30,10 +31,16 @@
 #include "Components/PrimitiveComponent.h"
 #include "EngineUtils.h"
 #include "Engine/RendererSettings.h"
+#include "Camera/CameraComponent.h"
+#include "CineCameraComponent.h"
+#include "Interfaces/Interface_PostProcessVolume.h"
+#include "MoviePipelineUtils.h"
 
 FString UMoviePipelineDeferredPassBase::StencilLayerMaterialAsset = TEXT("/MovieRenderPipeline/Materials/MoviePipeline_StencilCutout.MoviePipeline_StencilCutout");
 FString UMoviePipelineDeferredPassBase::DefaultDepthAsset = TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_WorldDepth.MovieRenderQueue_WorldDepth");
 FString UMoviePipelineDeferredPassBase::DefaultMotionVectorsAsset = TEXT("/MovieRenderPipeline/Materials/MovieRenderQueue_MotionVectors.MovieRenderQueue_MotionVectors");
+
+PRAGMA_DISABLE_OPTIMIZATION
 
 UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase() 
 	: UMoviePipelineImagePassBase()
@@ -51,8 +58,8 @@ UMoviePipelineDeferredPassBase::UMoviePipelineDeferredPassBase()
 		NewPass.Material = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(MaterialPath));
 		NewPass.bEnabled = false;
 	}
+	bRenderMainPass = true;
 	bUse32BitPostProcessMaterials = false;
-	CurrentLayerIndex = INDEX_NONE;
 }
 
 void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag)
@@ -105,7 +112,7 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to load Stencil Mask material, stencil layers will be incorrect. Path: %s"), *StencilMatRef.ToString());
 		}
 	}
-
+	
 	for (FMoviePipelinePostProcessPass& AdditionalPass : AdditionalPostProcessMaterials)
 	{
 		if (AdditionalPass.bEnabled)
@@ -120,27 +127,74 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
 
-	// Each stencil layer uses its own view state to keep TAA history etc separate
-	if (bAddDefaultLayer)
+	// Create a view state. Each individual camera, tile, and stencil layer need their own unique state as this includes visual history for anti-aliasing, etc. 
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
+	UMoviePipelineHighResSetting* HighResSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineHighResSetting>(CurrentShot);
+	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
+
+	int32 TotalNumberOfAccumulators = 0;
+	for (int32 CamIndex = 0; CamIndex < NumCameras; CamIndex++)
 	{
-		StencilLayerViewStates.AddDefaulted();
+		FMultiCameraViewStateData& CameraData = CameraViewStateData.AddDefaulted_GetRef();
+
+		// We don't always want to allocate a unique history per tile as very large resolutions can OOM the GPU in backbuffer images alone.
+		// But we do need the history for some features (like Lumen) to work, so it's optional.
+		int32 NumHighResTiles = HighResSettings->bAllocateHistoryPerTile ? (HighResSettings->TileCount * HighResSettings->TileCount) : 1;
+		for (int32 TileIndexX = 0; TileIndexX < NumHighResTiles; TileIndexX++)
+		{
+			for (int32 TileIndexY = 0; TileIndexY < NumHighResTiles; TileIndexY++)
+			{
+				FMultiCameraViewStateData::FPerTile& PerTile = CameraData.TileData.FindOrAdd(FIntPoint(TileIndexX, TileIndexY));
+				// If they want to render the main pass (most likely) add a view state for it
+				if (bRenderMainPass)
+				{
+					PerTile.SceneViewStates.AddDefaulted();
+				}
+
+				// If they want to render a "default" stencil layer (that has everything not in another layer) add that...
+				if (StencilLayers.Num() > 0 && bAddDefaultLayer)
+				{
+					PerTile.SceneViewStates.AddDefaulted();
+				}
+
+				// Finally all of the other stencil layers
+				for (int32 Index = 0; Index < StencilLayers.Num(); Index++)
+				{
+					PerTile.SceneViewStates.AddDefaulted();
+				}
+			}
+		}
+
+		// We have to add up the number of accumulators needed separately, because we don't make
+		// one accumulator per high-res tile.
+		if (bRenderMainPass)
+		{
+			TotalNumberOfAccumulators++;
+		}
+		if (StencilLayers.Num() > 0 && bAddDefaultLayer)
+		{
+			TotalNumberOfAccumulators++;
+		}
+		for (int32 Index = 0; Index < StencilLayers.Num(); Index++)
+		{
+			TotalNumberOfAccumulators++;
+		}
+
+		// Now that we have an array of view states, allocate each one.
+		for (TPair<FIntPoint, FMultiCameraViewStateData::FPerTile>& Pair : CameraData.TileData)
+		{
+			for (int32 Index = 0; Index < Pair.Value.SceneViewStates.Num(); Index++)
+			{
+				Pair.Value.SceneViewStates[Index].Allocate(InPassInitSettings.FeatureLevel);
+			}
+		}
 	}
 
-	for (int32 Index = 0; Index < StencilLayers.Num(); Index++)
-	{
-		StencilLayerViewStates.AddDefaulted();
-	}
-
-	for (int32 Index = 0; Index < StencilLayerViewStates.Num(); Index++)
-	{
-		StencilLayerViewStates[Index].Allocate(InPassInitSettings.FeatureLevel);
-	}
-
-
-	// We must have at least enough accumulators to render all of the requested post process materials, because work doesn't begin
-	// until they're actually submitted to the render thread (which happens all at once) but we tie up an accumulator as we get ready to submit.
-	// If there aren't enough accumulators then we block until one is free but since submission hasn't gone through they'll never be free.
-	int32 PoolSize = (StencilLayerViewStates.Num() + ActivePostProcessMaterials.Num() + 1) * 3;
+	// We must allocate one accumulator per output, because when we submit a sample we tie up an accumulator, but because of temporal sampling
+	// the accumulators can be tied up for multiple game frames, thus we must have at least one per output and we can only reuse them between
+	// actual output frames (not engine frames). This doesn't allocate memory until they're actually used so it's ok to over-allocate.
+	int32 PoolSize = (TotalNumberOfAccumulators + (ActivePostProcessMaterials.Num()*NumCameras) + 1) * 3;
 	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
 	
 	PreviousCustomDepthValue.Reset();
@@ -151,7 +205,8 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	// One Extension per sequence, since each sequence has its own OCIO settings.
 	OCIOSceneViewExtension = FSceneViewExtensions::NewExtension<FOpenColorIODisplayExtension>();
 
-	if (StencilLayerViewStates.Num() > 0)
+	const bool bEnableStencilPass = bAddDefaultLayer || StencilLayers.Num() > 0;
+	if (bEnableStencilPass)
 	{
 		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CustomDepth"));
 		if (CVar)
@@ -203,17 +258,22 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 
 	ActivePostProcessMaterials.Reset();
 
-	for (int32 Index = 0; Index < StencilLayerViewStates.Num(); Index++)
+	for (FMultiCameraViewStateData& CameraData : CameraViewStateData)
 	{
-		FSceneViewStateInterface* Ref = StencilLayerViewStates[Index].GetReference();
-		if (Ref)
+		for (TPair<FIntPoint, FMultiCameraViewStateData::FPerTile>& Pair : CameraData.TileData)
 		{
-			Ref->ClearMIDPool();
+			for (int32 Index = 0; Index < Pair.Value.SceneViewStates.Num(); Index++)
+			{
+				FSceneViewStateInterface* Ref = Pair.Value.SceneViewStates[Index].GetReference();
+				if (Ref)
+				{
+					Ref->ClearMIDPool();
+				}
+				Pair.Value.SceneViewStates[Index].Destroy();
+			}
 		}
-		StencilLayerViewStates[Index].Destroy();
 	}
-	StencilLayerViewStates.Reset();
-	CurrentLayerIndex = INDEX_NONE;
+	CameraViewStateData.Reset();
 	TileRenderTargets.Reset();
 	
 	OCIOSceneViewExtension.Reset();
@@ -256,68 +316,114 @@ void UMoviePipelineDeferredPassBase::AddReferencedObjects(UObject* InThis, FRefe
 	Super::AddReferencedObjects(InThis, Collector);
 
 	UMoviePipelineDeferredPassBase& This = *CastChecked<UMoviePipelineDeferredPassBase>(InThis);
-	for (int32 Index = 0; Index < This.StencilLayerViewStates.Num(); Index++)
+
+	for (FMultiCameraViewStateData& CameraData : This.CameraViewStateData)
 	{
-		FSceneViewStateInterface* Ref = This.StencilLayerViewStates[Index].GetReference();
-		if (Ref)
+		for (TPair<FIntPoint, FMultiCameraViewStateData::FPerTile>& Pair : CameraData.TileData)
 		{
-			Ref->AddReferencedObjects(Collector);
+			for (int32 Index = 0; Index < Pair.Value.SceneViewStates.Num(); Index++)
+			{
+				FSceneViewStateInterface* Ref = Pair.Value.SceneViewStates[Index].GetReference();
+				if (Ref)
+				{
+					Ref->AddReferencedObjects(Collector);
+				}
+			}
 		}
 	}
 }
 
+namespace UE
+{
+namespace MoviePipeline
+{
+struct FDeferredPassRenderStatePayload : public UMoviePipelineImagePassBase::IViewCalcPayload
+{
+	int32 CameraIndex;
+	FIntPoint TileIndex; // Will always be 1,1 if no history-per-tile is enabled
+	int32 SceneViewIndex;
+};
+}
+}
+
+
 FSceneViewStateInterface* UMoviePipelineDeferredPassBase::GetSceneViewStateInterface(IViewCalcPayload* OptPayload)
 {
-	if (CurrentLayerIndex == INDEX_NONE)
+	UE::MoviePipeline::FDeferredPassRenderStatePayload* Payload = (UE::MoviePipeline::FDeferredPassRenderStatePayload*)OptPayload;
+	check(Payload);
+
+	FMultiCameraViewStateData& CameraData = CameraViewStateData[Payload->CameraIndex];
+	if (FMultiCameraViewStateData::FPerTile* TileData = CameraData.TileData.Find(Payload->TileIndex))
 	{
-		return Super::GetSceneViewStateInterface();
+		return TileData->SceneViewStates[Payload->SceneViewIndex].GetReference();
 	}
-	else
-	{
-		return StencilLayerViewStates[CurrentLayerIndex].GetReference();
-	}
+
+	return nullptr;
 }
 
 UTextureRenderTarget2D* UMoviePipelineDeferredPassBase::GetViewRenderTarget(IViewCalcPayload* OptPayload) const
 {
-	if (CurrentLayerIndex == INDEX_NONE)
-	{
-		return TileRenderTargets[0];
-	}
-	else
-	{
-		return TileRenderTargets[CurrentLayerIndex + 1];
-	}
-}
+	return TileRenderTargets[0];
+	UE::MoviePipeline::FDeferredPassRenderStatePayload* Payload = (UE::MoviePipeline::FDeferredPassRenderStatePayload*)OptPayload;
+	check(Payload);
 
+	// ToDo: Is it really necessary to have a unique RT for each render? Only the last one gets shown (right now)
+	// if (CurrentLayerIndex == INDEX_NONE)
+	// {
+	// 	return TileRenderTargets[0];
+	// }
+	// else
+	// {
+	// 	return TileRenderTargets[CurrentLayerIndex + 1];
+	// }
+}
 
 void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
-	// Add the default backbuffer
-	Super::GatherOutputPassesImpl(ExpectedRenderPasses);
+	// No super call here because multiple cameras makes this all complicated
+	// Super::GatherOutputPassesImpl(ExpectedRenderPasses);
 
-	TArray<FString> RenderPasses;
-	for (UMaterialInterface* Material : ActivePostProcessMaterials)
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
+	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
+
+	for (int32 CameraIndex = 0; CameraIndex < NumCameras; CameraIndex++)
 	{
-		if (Material)
+		FMoviePipelinePassIdentifier PassIdentifierForCurrentCamera;
+		PassIdentifierForCurrentCamera.Name = PassIdentifier.Name;
+		PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(CameraIndex);
+
+		// Add the default backbuffer
+		if (bRenderMainPass)
 		{
-			RenderPasses.Add(Material->GetName());
+			ExpectedRenderPasses.Add(PassIdentifierForCurrentCamera);
 		}
-	}
 
-	for (const FString& Pass : RenderPasses)
-	{
-		ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifier.Name + Pass));
-	}
+		// Each camera will render everything in the Post Process Material stack.
+		TArray<FString> RenderPasses;
+		for (UMaterialInterface* Material : ActivePostProcessMaterials)
+		{
+			if (Material)
+			{
+				RenderPasses.Add(Material->GetName());
+			}
+		}
 
-	if (bAddDefaultLayer)
-	{
-		ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifier.Name + TEXT("DefaultLayer")));
-	}
+		for (const FString& Pass : RenderPasses)
+		{
+			ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifierForCurrentCamera.Name + Pass, PassIdentifierForCurrentCamera.CameraName));
+		}
 
-	for (const FActorLayer& Layer : StencilLayers)
-	{
-		ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifier.Name + Layer.Name.ToString()));
+		// Stencil Layer Time!
+		if (StencilLayers.Num() > 0 && bAddDefaultLayer)
+		{
+			ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifierForCurrentCamera.Name + TEXT("DefaultLayer"), PassIdentifierForCurrentCamera.CameraName));
+		}
+
+		for (const FActorLayer& Layer : StencilLayers)
+		{
+			ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(PassIdentifierForCurrentCamera.Name + Layer.Name.ToString(), PassIdentifierForCurrentCamera.CameraName));
+		}
 	}
 }
 
@@ -349,183 +455,210 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		SurfaceQueue->BlockUntilAnyAvailable();
 	}
 
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
+	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
 
-	// Main Render Pass
+	for (int32 CameraIndex = 0; CameraIndex < NumCameras; CameraIndex++)
 	{
-		FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+		FMoviePipelinePassIdentifier PassIdentifierForCurrentCamera;
+		PassIdentifierForCurrentCamera.Name = PassIdentifier.Name;
+		PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(CameraIndex);
 
-		CurrentLayerIndex = INDEX_NONE;
-		TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState);
-
-		// Add post-processing materials if needed
-		FSceneView* View = const_cast<FSceneView*>(ViewFamily->Views[0]);
-		View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Empty();
-		View->FinalPostProcessSettings.BufferVisualizationPipes.Empty();
-
-		for (UMaterialInterface* Material : ActivePostProcessMaterials)
+		// Main Render Pass
+		if (bRenderMainPass)
 		{
-			if (Material)
+			FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+			// InOutSampleState.OutputState.CameraCount = NumCameras;
+			InOutSampleState.OutputState.CameraIndex = CameraIndex;
+
+			UE::MoviePipeline::FDeferredPassRenderStatePayload Payload;
+			Payload.CameraIndex = CameraIndex;
+			Payload.TileIndex = InOutSampleState.TileIndexes;
+
+			// Main renders use index 0.
+			Payload.SceneViewIndex = 0;
+
+			TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState, &Payload);
+
+			// Add post-processing materials if needed
+			FSceneView* View = const_cast<FSceneView*>(ViewFamily->Views[0]);
+			View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Empty();
+			View->FinalPostProcessSettings.BufferVisualizationPipes.Empty();
+
+			for (UMaterialInterface* Material : ActivePostProcessMaterials)
 			{
-				View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(Material);
-			}
-		}
-
-		for (UMaterialInterface* VisMaterial : View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials)
-		{
-			// If this was just to contribute to the history buffer, no need to go any further.
-			if (InOutSampleState.bDiscardResult)
-			{
-				continue;
-			}
-			FMoviePipelinePassIdentifier LayerPassIdentifier = FMoviePipelinePassIdentifier(PassIdentifier.Name + VisMaterial->GetName());
-
-			auto BufferPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
-			BufferPipe->AddEndpoint(MakeForwardingEndpoint(LayerPassIdentifier, InSampleState));
-
-			View->FinalPostProcessSettings.BufferVisualizationPipes.Add(VisMaterial->GetFName(), BufferPipe);
-		}
-
-
-		int32 NumValidMaterials = View->FinalPostProcessSettings.BufferVisualizationPipes.Num();
-		View->FinalPostProcessSettings.bBufferVisualizationDumpRequired = NumValidMaterials > 0;
-
-		// Submit to be rendered. Main render pass always uses target 0.
-		FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
-		FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), View->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
-		GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
-
-		// Readback + Accumulate.
-		PostRendererSubmission(InOutSampleState, PassIdentifier, GetOutputFileSortingOrder(), Canvas);
-	}
-
-	// Now submit stencil layers if needed
-	{
-		FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
-
-		struct FStencilValues
-		{
-			FStencilValues()
-				: bRenderCustomDepth(false)
-				, StencilMask(ERendererStencilMask::ERSM_Default)
-				, CustomStencil(0)
-			{
-			}
-
-			bool bRenderCustomDepth;
-			ERendererStencilMask StencilMask;
-			int32 CustomStencil;
-		};
-
-		// If we're going to be using stencil layers, we need to cache all of the users
-		// custom stencil/depth settings since we're changing them to do the mask.
-		TMap<UPrimitiveComponent*, FStencilValues> PreviousValues;
-		if (StencilLayers.Num() > 0)
-		{
-			for (TActorIterator<AActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
-			{
-				AActor* Actor = *ActorItr;
-				if (Actor)
+				if (Material)
 				{
-					for (UActorComponent* Component : Actor->GetComponents())
-					{
-						if (Component && Component->IsA<UPrimitiveComponent>())
-						{
-							UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
-							FStencilValues& Values = PreviousValues.Add(PrimitiveComponent);
-							Values.StencilMask = PrimitiveComponent->CustomDepthStencilWriteMask;
-							Values.CustomStencil = PrimitiveComponent->CustomDepthStencilValue;
-							Values.bRenderCustomDepth = PrimitiveComponent->bRenderCustomDepth;
-						}
-					}
+					View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials.Add(Material);
 				}
 			}
-		}
 
-		// Now for each stencil layer we reconfigure all the actors custom depth/stencil 
-		TArray<FActorLayer> AllStencilLayers = StencilLayers;
-		if (bAddDefaultLayer)
-		{
-			FActorLayer& DefaultLayer = AllStencilLayers.AddDefaulted_GetRef();
-			DefaultLayer.Name = FName("DefaultLayer");
-		}
-
-		CurrentLayerIndex = 0;
-		for (const FActorLayer& Layer : AllStencilLayers)
-		{
-			FMoviePipelinePassIdentifier LayerPassIdentifier = FMoviePipelinePassIdentifier(PassIdentifier.Name + Layer.Name.ToString());
-
-			for (TActorIterator<AActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+			for (UMaterialInterface* VisMaterial : View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials)
 			{
-				AActor* Actor = *ActorItr;
-				if (Actor)
+				// If this was just to contribute to the history buffer, no need to go any further.
+				if (InOutSampleState.bDiscardResult)
 				{
-					// The way stencil masking works is that we draw the actors on the given layer to the stencil buffer.
-					// Then we apply a post-processing material which colors pixels outside those actors black, before
-					// post processing. Then, TAA, Motion Blur, etc. is applied to all pixels. An alpha channel can preserve
-					// which pixels were the geometry and which are dead space which lets you apply that as a mask later.
-					bool bInLayer = true;
-					if (bAddDefaultLayer && Layer.Name == FName("DefaultLayer"))
+					continue;
+				}
+				FMoviePipelinePassIdentifier LayerPassIdentifier = FMoviePipelinePassIdentifier(PassIdentifier.Name + VisMaterial->GetName(), PassIdentifierForCurrentCamera.CameraName);
+
+				auto BufferPipe = MakeShared<FImagePixelPipe, ESPMode::ThreadSafe>();
+				BufferPipe->AddEndpoint(MakeForwardingEndpoint(LayerPassIdentifier, InOutSampleState));
+
+				View->FinalPostProcessSettings.BufferVisualizationPipes.Add(VisMaterial->GetFName(), BufferPipe);
+			}
+
+
+			int32 NumValidMaterials = View->FinalPostProcessSettings.BufferVisualizationPipes.Num();
+			View->FinalPostProcessSettings.bBufferVisualizationDumpRequired = NumValidMaterials > 0;
+
+			// Submit to be rendered. Main render pass always uses target 0.
+			FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
+			FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), View->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
+			GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
+
+			// Readback + Accumulate.
+			PostRendererSubmission(InOutSampleState, PassIdentifierForCurrentCamera, GetOutputFileSortingOrder(), Canvas);
+		}
+
+
+		// Now do the stencil layer submission (which doesn't support additional post processing materials)
+		{
+			FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+			InOutSampleState.OutputState.CameraIndex = CameraIndex;
+
+			struct FStencilValues
+			{
+				FStencilValues()
+					: bRenderCustomDepth(false)
+					, StencilMask(ERendererStencilMask::ERSM_Default)
+					, CustomStencil(0)
+				{
+				}
+
+				bool bRenderCustomDepth;
+				ERendererStencilMask StencilMask;
+				int32 CustomStencil;
+			};
+
+			// Now for each stencil layer we reconfigure all the actors custom depth/stencil 
+			TArray<FActorLayer> AllStencilLayers = StencilLayers;
+			if (bAddDefaultLayer)
+			{
+				FActorLayer& DefaultLayer = AllStencilLayers.AddDefaulted_GetRef();
+				DefaultLayer.Name = FName("DefaultLayer");
+			}
+
+			// If we're going to be using stencil layers, we need to cache all of the users
+			// custom stencil/depth settings since we're changing them to do the mask.
+			TMap<UPrimitiveComponent*, FStencilValues> PreviousValues;
+			if (AllStencilLayers.Num() > 0)
+			{
+				for (TActorIterator<AActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+				{
+					AActor* Actor = *ActorItr;
+					if (Actor)
 					{
-						// If we're trying to render the default layer, the logic is different - we only add objects who
-						// aren't in any of the stencil layers.
-						for (const FActorLayer& AllLayer : StencilLayers)
+						for (UActorComponent* Component : Actor->GetComponents())
 						{
-							bInLayer = !Actor->Layers.Contains(AllLayer.Name);
-							if (!bInLayer)
+							if (Component && Component->IsA<UPrimitiveComponent>())
 							{
-								break;
+								UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
+								FStencilValues& Values = PreviousValues.Add(PrimitiveComponent);
+								Values.StencilMask = PrimitiveComponent->CustomDepthStencilWriteMask;
+								Values.CustomStencil = PrimitiveComponent->CustomDepthStencilValue;
+								Values.bRenderCustomDepth = PrimitiveComponent->bRenderCustomDepth;
 							}
 						}
 					}
-					else
-					{
-						// If this a normal layer, we only add the actor if it exists on this layer.
-						bInLayer = Actor->Layers.Contains(Layer.Name);
-					}
+				}
+			}
 
-					for (UActorComponent* Component : Actor->GetComponents())
+
+			for (int32 StencilLayerIndex = 0; StencilLayerIndex < AllStencilLayers.Num(); StencilLayerIndex++)
+			{
+				const FActorLayer& Layer = AllStencilLayers[StencilLayerIndex];
+				FMoviePipelinePassIdentifier LayerPassIdentifier = FMoviePipelinePassIdentifier(PassIdentifierForCurrentCamera.Name + Layer.Name.ToString());
+				LayerPassIdentifier.CameraName = PassIdentifierForCurrentCamera.CameraName;
+
+				// Modify all of the actors in this world so they have the right stencil settings (so we can use the stencil buffer as a mask later)
+				for (TActorIterator<AActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+				{
+					AActor* Actor = *ActorItr;
+					if (Actor)
 					{
-						if (Component && Component->IsA<UPrimitiveComponent>())
+						// The way stencil masking works is that we draw the actors on the given layer to the stencil buffer.
+						// Then we apply a post-processing material which colors pixels outside those actors black, before
+						// post processing. Then, TAA, Motion Blur, etc. is applied to all pixels. An alpha channel can preserve
+						// which pixels were the geometry and which are dead space which lets you apply that as a mask later.
+						bool bInLayer = true;
+						if (bAddDefaultLayer && Layer.Name == FName("DefaultLayer"))
 						{
-							UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
-							// We want to render all objects not on the layer to stencil too so that foreground objects mask.
-							PrimitiveComponent->SetCustomDepthStencilValue(bInLayer ? 1 : 0);
-							PrimitiveComponent->SetCustomDepthStencilWriteMask(ERendererStencilMask::ERSM_Default);
-							PrimitiveComponent->SetRenderCustomDepth(true);
+							// If we're trying to render the default layer, the logic is different - we only add objects who
+							// aren't in any of the stencil layers.
+							for (const FActorLayer& AllLayer : StencilLayers)
+							{
+								bInLayer = !Actor->Layers.Contains(AllLayer.Name);
+								if (!bInLayer)
+								{
+									break;
+								}
+							}
+						}
+						else
+						{
+							// If this a normal layer, we only add the actor if it exists on this layer.
+							bInLayer = Actor->Layers.Contains(Layer.Name);
+						}
+
+						for (UActorComponent* Component : Actor->GetComponents())
+						{
+							if (Component && Component->IsA<UPrimitiveComponent>())
+							{
+								UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
+								// We want to render all objects not on the layer to stencil too so that foreground objects mask.
+								PrimitiveComponent->SetCustomDepthStencilValue(bInLayer ? 1 : 0);
+								PrimitiveComponent->SetCustomDepthStencilWriteMask(ERendererStencilMask::ERSM_Default);
+								PrimitiveComponent->SetRenderCustomDepth(true);
+							}
 						}
 					}
 				}
-			}
 
-			if (StencilLayerMaterial)
-			{
-				TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState);
-				FSceneView* View = const_cast<FSceneView*>(ViewFamily->Views[0]);
-
-				// Now that we've modified all of the stencil values, we can submit them to be rendered.
-				View->FinalPostProcessSettings.AddBlendable(StencilLayerMaterial, 1.0f);
-				IBlendableInterface* BlendableInterface = Cast<IBlendableInterface>(StencilLayerMaterial);
-				BlendableInterface->OverrideBlendableSettings(*View, 1.f);
-
+				// Submit the actual render now
+				if (StencilLayerMaterial)
 				{
-					FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
-					FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
-					GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
+					UE::MoviePipeline::FDeferredPassRenderStatePayload Payload;
+					Payload.CameraIndex = CameraIndex;
+					Payload.TileIndex = InOutSampleState.TileIndexes;
+					Payload.SceneViewIndex = StencilLayerIndex + (bRenderMainPass ? 1 : 0);
+					TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState, &Payload);
+					FSceneView* View = const_cast<FSceneView*>(ViewFamily->Views[0]);
 
-					// Readback + Accumulate.
-					PostRendererSubmission(InSampleState, LayerPassIdentifier, GetOutputFileSortingOrder() + 1, Canvas);
+					// Now that we've modified all of the stencil values, we can submit them to be rendered.
+					View->FinalPostProcessSettings.AddBlendable(StencilLayerMaterial, 1.0f);
+					IBlendableInterface* BlendableInterface = Cast<IBlendableInterface>(StencilLayerMaterial);
+					BlendableInterface->OverrideBlendableSettings(*View, 1.f);
+
+					{
+						FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
+						FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), View->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
+						GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
+
+						// Readback + Accumulate.
+						PostRendererSubmission(InOutSampleState, LayerPassIdentifier, GetOutputFileSortingOrder() + 1, Canvas);
+					}
 				}
 			}
 
-			CurrentLayerIndex++;
-		}
-
-		// Now we can restore the custom depth/stencil/etc. values so that the main render pass acts as the user expects next time.
-		for (TPair<UPrimitiveComponent*, FStencilValues>& KVP : PreviousValues)
-		{
-			KVP.Key->SetCustomDepthStencilValue(KVP.Value.CustomStencil);
-			KVP.Key->SetCustomDepthStencilWriteMask(KVP.Value.StencilMask);
-			KVP.Key->SetRenderCustomDepth(KVP.Value.bRenderCustomDepth);
+			// Now that all stencil layers have been rendered, we can restore the custom depth/stencil/etc. values so that the main render pass acts as the user expects next time.
+			for (TPair<UPrimitiveComponent*, FStencilValues>& KVP : PreviousValues)
+			{
+				KVP.Key->SetCustomDepthStencilValue(KVP.Value.CustomStencil);
+				KVP.Key->SetCustomDepthStencilWriteMask(KVP.Value.StencilMask);
+				KVP.Key->SetRenderCustomDepth(KVP.Value.bRenderCustomDepth);
+			}
 		}
 	}
 }
@@ -607,6 +740,112 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 
 	return Callback;
 }
+
+UE::MoviePipeline::FImagePassCameraViewData UMoviePipelineDeferredPassBase::GetCameraInfo(FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload) const
+{
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
+	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
+	
+	if (NumCameras == 1)
+	{
+		// If there's only one camera being used we can use the parent class which assumes the camera comes from the PlayerCameraManager
+		return Super::GetCameraInfo(InOutSampleState, OptPayload);
+	}
+	else
+	{
+		UE::MoviePipeline::FImagePassCameraViewData OutCameraData;
+
+		// Here's where it gets a lot more complicated. There's a number of properties we need to fetch from a camera manually to fill out the minimal view info.
+		UCameraComponent* OutCamera = nullptr;
+
+		GetPipeline()->GetSidecarCameraData(CurrentShot, InOutSampleState.OutputState.CameraIndex, OutCameraData.ViewInfo, &OutCamera);
+		if (OutCamera)
+		{
+			// This has to come from the main camera for consistency's sake, and it's not a per-camera setting in the editor.
+			OutCameraData.ViewActor = GetPipeline()->GetWorld()->GetFirstPlayerController()->GetViewTarget();
+
+			// Try adding cine-camera specific metadata (not all animated cameras are cine cameras though)
+			UCineCameraComponent* CineCameraComponent = Cast<UCineCameraComponent>(OutCamera);
+			if (CineCameraComponent)
+			{
+				// ToDo: This is still wrong, PassIdentifier.CameraName needs to come in from the InOutSampleState somewhere.
+				UE::MoviePipeline::GetMetadataFromCineCamera(CineCameraComponent, PassIdentifier.CameraName, PassIdentifier.Name, OutCameraData.FileMetadata);
+
+				// We only do this in the multi-camera case because the single camera case is covered by the main Rendering loop.
+				UE::MoviePipeline::GetMetadataFromCameraLocRot(PassIdentifier.CameraName, PassIdentifier.Name, OutCameraData.ViewInfo.Location, OutCameraData.ViewInfo.Rotation, OutCameraData.ViewInfo.PreviousViewTransform->GetLocation(), FRotator(OutCameraData.ViewInfo.PreviousViewTransform->GetRotation()), OutCameraData.FileMetadata);
+			}
+		}
+		else
+		{
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to find Camera Component for Shot: %d CameraIndex: %d"), GetPipeline()->GetCurrentShotIndex(), InOutSampleState.OutputState.CameraIndex);
+		}
+
+		return OutCameraData;
+	}
+}
+
+void UMoviePipelineDeferredPassBase::BlendPostProcessSettings(FSceneView* InView, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload)
+{
+	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
+	UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
+	int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
+
+	UCameraComponent* OutCamera = nullptr;
+	FMinimalViewInfo OutViewInfo;
+
+	GetPipeline()->GetSidecarCameraData(CurrentShot, InOutSampleState.OutputState.CameraIndex, OutViewInfo, &OutCamera);
+	if (!OutCamera)
+	{
+		// GetCameraInfo will have already printed a warning
+		return;
+	}
+
+	// The primary camera should still respect the world post processing volumes and should already be the viewtarget.
+	if (NumCameras == 1)
+	{
+		// If there's only one camera being used we can use the parent class which assumes the camera comes from the PlayerCameraManager
+		Super::GetCameraInfo(InOutSampleState, OptPayload);
+	}
+	else
+	{
+		// For sidecar cameras we need to do the blending of PP volumes
+		FVector ViewLocation = OutCamera->GetComponentLocation();
+		for (IInterface_PostProcessVolume* PPVolume : GetWorld()->PostProcessVolumes)
+		{
+			const FPostProcessVolumeProperties VolumeProperties = PPVolume->GetProperties();
+
+			// Skip any volumes which are disabled
+			if (!VolumeProperties.bIsEnabled)
+			{
+				continue;
+			}
+
+			float LocalWeight = FMath::Clamp(VolumeProperties.BlendWeight, 0.0f, 1.0f);
+
+			if (!VolumeProperties.bIsUnbound)
+			{
+				float DistanceToPoint = 0.0f;
+				PPVolume->EncompassesPoint(ViewLocation, 0.0f, &DistanceToPoint);
+
+				if (DistanceToPoint >= 0 && DistanceToPoint < VolumeProperties.BlendRadius)
+				{
+					LocalWeight *= FMath::Clamp(1.0f - DistanceToPoint / VolumeProperties.BlendRadius, 0.0f, 1.0f);
+				}
+				else
+				{
+					LocalWeight = 0.0f;
+				}
+			}
+
+			InView->OverridePostProcessSettings(*VolumeProperties.Settings, LocalWeight);
+		}
+
+		// After blending all post processing volumes, blend the camera's post process settings too
+		InView->OverridePostProcessSettings(OutCamera->PostProcessSettings, OutCamera->PostProcessBlendWeight);
+	}
+}
+
 
 void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, const int32 InSortingOrder, FCanvas& InCanvas)
 {
@@ -793,3 +1032,5 @@ void UMoviePipelineDeferredPass_PathTracer::SetupImpl(const MoviePipeline::FMovi
 
 	Super::SetupImpl(InPassInitSettings);
 }
+
+PRAGMA_ENABLE_OPTIMIZATION

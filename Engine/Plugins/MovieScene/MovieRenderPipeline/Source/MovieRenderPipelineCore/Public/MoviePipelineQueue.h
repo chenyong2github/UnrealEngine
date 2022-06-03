@@ -7,12 +7,34 @@
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineConfigBase.h"
+#include "MovieSceneSequenceID.h"
 
 #include "MoviePipelineQueue.generated.h"
 
 class UMoviePipelineMasterConfig;
 class ULevel;
 class ULevelSequence;
+
+USTRUCT(BlueprintType)
+struct MOVIERENDERPIPELINECORE_API FMoviePipelineSidecarCamera
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
+	FGuid BindingId;
+
+	// FMovieSceneSequenceID isn't exposed to Blueprints and we need the full support
+	// of a FMovieSceneSequenceID so we can't just store a USequence* like the scripting
+	// layer does - we need to be able to handle the same sequence being in a sequence
+	// multiple times (which scripting does not). This data structure gets regenerated
+	// each time a render starts, so the property should be valid when we want to use
+	// it, even if it's not exposed to scripting.
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
+	FMovieSceneSequenceID SequenceId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
+	FString Name;
+};
 
 /**
 * This class represents a segment of work within the Executor Job. This should be owned
@@ -116,6 +138,15 @@ public:
 		return bEnabled;
 	}
 
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	FString GetCameraName(int32 InCameraIndex) const
+	{
+		if (InCameraIndex >= 0 && InCameraIndex < SidecarCameras.Num())
+		{
+			return SidecarCameras[InCameraIndex].Name;
+		}
+		return InnerName;
+	}
 protected:
 	// UMoviePipipelineExecutorShot Interface
 	virtual void SetStatusMessage_Implementation(const FString& InMessage) { StatusMessage = InMessage; }
@@ -137,10 +168,13 @@ public:
 	/** The name of the camera cut section that this shot represents. Can be empty. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	FString InnerName;
+
+	/** List of cameras to render for this shot. Only used if the setting flag is set in the Camera setting. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
+	TArray<FMoviePipelineSidecarCamera> SidecarCameras;
 public:
 	/** Transient information used by the active Movie Pipeline working on this shot. */
 	FMoviePipelineCameraCutInfo ShotInfo;
-
 
 protected:
 	UPROPERTY(Transient)

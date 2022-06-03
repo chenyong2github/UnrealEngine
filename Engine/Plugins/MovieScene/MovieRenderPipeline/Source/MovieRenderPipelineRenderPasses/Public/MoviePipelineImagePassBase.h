@@ -24,6 +24,23 @@ class FSceneViewFamily;
 class FSceneView;
 struct FAccumulatorPool;
 
+namespace UE
+{
+	namespace MoviePipeline
+	{
+		struct FImagePassCameraViewData
+		{
+			FImagePassCameraViewData()
+				: ViewActor(nullptr)
+			{}
+			
+			FMinimalViewInfo ViewInfo;
+			TMap<FString, FString> FileMetadata;
+			AActor* ViewActor;
+		};
+	}
+}
+
 class FMoviePipelineBackgroundAccumulateTask
 {
 public:
@@ -96,7 +113,9 @@ protected:
 protected:
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;
 	virtual TSharedPtr<FSceneViewFamilyContext> CalculateViewFamily(FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr);
-	virtual void BlendPostProcessSettings(FSceneView* InView);
+	UE_DEPRECATED(5.1, "Use the overload that provides the InOutSampleState and IViewCalcPayload instead.")
+	virtual void BlendPostProcessSettings(FSceneView* InView) {}
+	virtual void BlendPostProcessSettings(FSceneView* InView, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr);
 	virtual void SetupViewForViewModeOverride(FSceneView* View);
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) {}
 	virtual bool IsScreenPercentageSupported() const { return true; }	
@@ -107,6 +126,7 @@ protected:
 	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) { }
 	virtual bool IsAutoExposureAllowed(const FMoviePipelineRenderPassMetrics& InSampleState) const { return true; }
 	virtual FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr);
+	virtual UE::MoviePipeline::FImagePassCameraViewData GetCameraInfo(FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr) const;
 public:
 	
 

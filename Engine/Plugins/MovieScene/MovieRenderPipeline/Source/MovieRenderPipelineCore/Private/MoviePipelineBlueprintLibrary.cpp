@@ -40,6 +40,8 @@
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 EMovieRenderPipelineState UMoviePipelineBlueprintLibrary::GetPipelineState(const UMoviePipeline* InPipeline)
 {
 	if (InPipeline)
@@ -457,6 +459,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			TRange<FFrameNumber> Range;
 			UMovieSceneCameraCutSection* CameraCut;
 			FMovieSceneSequenceID SequenceID;
+			TArray<FMoviePipelineSidecarCamera> SidecarCameras;
 
 			// These are only updated after the final linearized entities are chosen
 			TTuple<FString, FString> Name;
@@ -537,6 +540,72 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			// This can be null in the fallback case where no camera cuts were detected
 			LeafNode->CameraCutSection = Entity.CameraCut;
 			MoviePipeline::BuildSectionHierarchyRecursive(SequenceHierarchyCache, InSequence, Entity.SequenceID, MovieSceneSequenceID::Invalid, LeafNode);
+
+			// If we did find a camera cut section, we're going to look for any object bindings in the same sequence that contain
+			// camera components and track them as sidecar cameras. We do this even if sidecar data isn't being used.
+			if (LeafNode->CameraCutSection.IsValid() && LeafNode->MovieScene.IsValid())
+			{
+				int32 MainCameraIndex = INDEX_NONE;
+				FMovieSceneObjectBindingID MainBinding = LeafNode->CameraCutSection->GetCameraBindingID();
+
+				for (int32 Index = 0; Index < LeafNode->MovieScene->GetPossessableCount(); Index++)
+				{
+					FMovieScenePossessable& Possessable = LeafNode->MovieScene->GetPossessable(Index);
+					FGuid ValidBinding = FGuid();
+
+#if WITH_EDITOR
+					// This is only available in the editor, so in the editor we'll auto-detect the class
+					// but in runtime builds they'll have to manually tag it with "Camera" :(
+					const UClass* PossessedClass = Possessable.GetPossessedObjectClass();
+					if (PossessedClass->IsChildOf<UCameraComponent>())
+					{
+						ValidBinding = Possessable.GetGuid();
+					}
+#endif
+					if (Possessable.Tags.Contains(TEXT("Camera")))
+					{
+						// Don't duplicate them up, but also run this name check in the editor
+						ValidBinding = Possessable.GetGuid();
+					}
+
+					if (ValidBinding.IsValid())
+					{
+						FMoviePipelineSidecarCamera& SidecarCamera = Entity.SidecarCameras.AddDefaulted_GetRef();
+						SidecarCamera.BindingId = ValidBinding;
+						SidecarCamera.SequenceId = Entity.SequenceID;
+						
+						FGuid ParentGuid = Possessable.GetParent();
+						while (ParentGuid.IsValid())
+						{
+							// This comparison doesn't support cross-sequence references, technically we should create a 
+							// FMovieSceneObjectBindingID etc, but because we only support finding sidecar cameras in the
+							// same sequence as the main camera cut track, this is fine for now.
+							if (ParentGuid == MainBinding.GetGuid())
+							{
+								// We want to know which sidecar camera this is, not the possessable index.
+								MainCameraIndex = Entity.SidecarCameras.Num() - 1;
+							}
+
+							if (FMovieScenePossessable* ParentAsPossessable = LeafNode->MovieScene->FindPossessable(ParentGuid))
+							{
+								ParentGuid = ParentAsPossessable->GetParent();
+								SidecarCamera.Name = ParentAsPossessable->GetName();
+							}
+							else if (FMovieSceneSpawnable* ParentAsSpawnable = LeafNode->MovieScene->FindSpawnable(ParentGuid))
+							{
+								// Spawnables will never have a parent
+								ParentGuid.Invalidate(); 
+								SidecarCamera.Name = ParentAsSpawnable->GetName();
+							}
+						}
+					}
+				}
+
+				// Ensure the "main" camera (specified by the Camera Cut Track) is always index 0, so that it's rendered
+				// first, and the stable sort (on output files) still tries to keep it as the primary layer.
+				ensureAlwaysMsgf(MainCameraIndex != INDEX_NONE, TEXT("Main Camera Binding not found in camera array!"));
+				Entity.SidecarCameras.Swap(MainCameraIndex, 0);
+			}
 
 			FMovieSceneTimeTransform InnerToOuterTransform = FMovieSceneTimeTransform();
 			FMovieSceneSubSequenceData* SubSequenceData = SequenceHierarchyCache.FindSubData(Entity.SequenceID);
@@ -645,6 +714,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			NewShot->ShotInfo.TotalOutputRangeMaster = Entity.Range;
 			NewShot->ShotInfo.WarmupRangeMaster = Entity.CameraCutWarmUpRange;
 			NewShot->ShotInfo.OuterToInnerTransform = Entity.InnerToOuterTransform.Inverse();
+			NewShot->SidecarCameras = Entity.SidecarCameras;
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Registering range: %s (InnerName: %s OuterName: %s)"), *LexToString(NewShot->ShotInfo.TotalOutputRangeMaster), *NewShot->InnerName, *NewShot->OuterName);
 		}
 
@@ -849,7 +919,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 			FrameNumber = FrameNumberRel;
 			FrameNumberShot = FrameNumberShotRel;
 		}
-		FString CameraName = InParams.ShotOverride ? InParams.ShotOverride->InnerName : FString();
+		FString CameraName = InParams.ShotOverride ? InParams.ShotOverride->GetCameraName(InParams.CameraIndex) : FString();
 		CameraName = CameraName.Len() > 0 ? CameraName : TEXT("NoCamera");
 		if(InParams.CameraNameOverride.Len() > 0)
 		{
@@ -865,6 +935,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 
 		MoviePipeline::GetOutputStateFormatArgs(OutMergedFormatArgs, FrameNumber, FrameNumberShot, FrameNumberRel, FrameNumberShotRel, CameraName, ShotName);
 	}
+
 
 	// And from ourself
 	{
@@ -998,3 +1069,4 @@ FText UMoviePipelineBlueprintLibrary::GetMoviePipelineEngineChangelistLabel(cons
 
 	return FText();
 }
+PRAGMA_ENABLE_OPTIMIZATION

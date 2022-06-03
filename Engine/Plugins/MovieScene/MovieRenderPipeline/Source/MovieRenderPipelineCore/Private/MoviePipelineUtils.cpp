@@ -25,6 +25,7 @@
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "RHI.h"
+#include "CineCameraComponent.h"
 
 namespace UE
 {
@@ -657,7 +658,7 @@ namespace UE
 		DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_HardwareMetadata"), STAT_HardwareMetadata, STATGROUP_MoviePipeline);
 
 
-		void ValidateOutputFormatString(FString& InOutFilenameFormatString, const bool bTestRenderPass, const bool bTestFrameNumber)
+		void ValidateOutputFormatString(FString& InOutFilenameFormatString, const bool bTestRenderPass, const bool bTestFrameNumber, const bool bTestCameraName)
 		{
 			const FString FrameNumberIdentifiers[] = { TEXT("{frame_number}"), TEXT("{frame_number_shot}"), TEXT("{frame_number_rel}"), TEXT("{frame_number_shot_rel}") };
 
@@ -689,6 +690,38 @@ namespace UE
 						// If a frame number is found, we need to insert render_pass first before it, so various editing
 						// software will still be able to identify if this is an image sequence
 						InOutFilenameFormatString.InsertAt(FrameNumberIndex, TEXT("{render_pass}."));
+					}
+				}
+			}
+
+			// Could be more than one camera being written to, make sure there's {camera_name} so it doesn't stomp over each other.
+			if (bTestCameraName)
+			{
+				if (!InOutFilenameFormatString.Contains(TEXT("{camera_name}"), ESearchCase::IgnoreCase))
+				{
+					UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Multiple cameras exported but no {camera_name} format found. Automatically adding!"));
+
+					// Search for a frame number in the output string
+					int32 FrameNumberIndex = INDEX_NONE;
+					for (const FString& Identifier : FrameNumberIdentifiers)
+					{
+						FrameNumberIndex = InOutFilenameFormatString.Find(Identifier, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+						if (FrameNumberIndex != INDEX_NONE)
+						{
+							break;
+						}
+					}
+
+					if (FrameNumberIndex == INDEX_NONE)
+					{
+						// No frame number found, so just append render_pass
+						InOutFilenameFormatString += TEXT("{camera_name}");
+					}
+					else
+					{
+						// If a frame number is found, we need to insert render_pass first before it, so various editing
+						// software will still be able to identify if this is an image sequence
+						InOutFilenameFormatString.InsertAt(FrameNumberIndex, TEXT("{camera_name}."));
 					}
 				}
 			}
@@ -843,5 +876,46 @@ namespace UE
 			InFileMetadata.Add(TEXT("unreal/stats/memory/peakUsedPhysicalMB"), LexToString(MemoryStats.PeakUsedPhysical / MBDivider));
 			InFileMetadata.Add(TEXT("unreal/stats/memory/peakUsedVirtualMB"), LexToString(MemoryStats.PeakUsedVirtual / MBDivider));
 		}
+		
+		void GetMetadataFromCineCamera(UCineCameraComponent* InComponent, const FString& InCameraName, const FString& InRenderPassName, TMap<FString, FString>& InOutMetadata)
+		{
+			if (InComponent)
+			{
+				InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/%s/sensorWidth"), *InCameraName, *InRenderPassName), FString::SanitizeFloat(InComponent->Filmback.SensorWidth));
+				InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/%s/sensorHeight"), *InCameraName, *InRenderPassName), FString::SanitizeFloat(InComponent->Filmback.SensorHeight));
+				InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/%s/sensorAspectRatio"), *InCameraName, *InRenderPassName), FString::SanitizeFloat(InComponent->Filmback.SensorAspectRatio));
+				InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/%s/minFocalLength"), *InCameraName, *InRenderPassName), FString::SanitizeFloat(InComponent->LensSettings.MinFocalLength));
+				InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/%s/maxFocalLength"), *InCameraName, *InRenderPassName), FString::SanitizeFloat(InComponent->LensSettings.MaxFocalLength));
+				InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/%s/minFStop"), *InCameraName, *InRenderPassName), FString::SanitizeFloat(InComponent->LensSettings.MinFStop));
+				InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/%s/maxFStop"), *InCameraName, *InRenderPassName), FString::SanitizeFloat(InComponent->LensSettings.MaxFStop));
+				InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/%s/dofDiaphragmBladeCount"), *InCameraName, *InRenderPassName), FString::FromInt(InComponent->LensSettings.DiaphragmBladeCount));
+				InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/%s/focalLength"), *InCameraName, *InRenderPassName), FString::SanitizeFloat(InComponent->CurrentFocalLength));
+			}
+		}
+		
+		void GetMetadataFromCameraLocRot(const FString& InCameraName, const FString& InRenderPassName, const FVector& InCurLoc, const FRotator& InCurRot, const FVector& InPrevLoc, const FRotator& InPrevRot, TMap<FString, FString>& InOutMetadata)
+		{
+			// InRenderPassName could be empty (for global camera stuff), and to support proper backwards compat metadata
+			// we need to not end up with an extra "/" in it, so we pre-format it.
+			FString CamName = FString::Printf(TEXT("%s/%s"), *InCameraName, *InRenderPassName);
+			if (InRenderPassName.IsEmpty())
+			{
+				CamName = InCameraName;
+			}
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/curPos/x"), *CamName), FString::SanitizeFloat(InCurLoc.X));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/curPos/y"), *CamName), FString::SanitizeFloat(InCurLoc.Y));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/curPos/z"), *CamName), FString::SanitizeFloat(InCurLoc.Z));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/curRot/pitch"), *CamName),  FString::SanitizeFloat(InCurRot.Pitch));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/curRot/yaw"), *CamName), FString::SanitizeFloat(InCurRot.Yaw));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/curRot/roll"), *CamName), FString::SanitizeFloat(InCurRot.Roll));
+
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevPos/x"), *CamName), FString::SanitizeFloat(InPrevLoc.X));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevPos/y"), *CamName), FString::SanitizeFloat(InPrevLoc.Y));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevPos/z"), *CamName), FString::SanitizeFloat(InPrevLoc.Z));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevRot/pitch"), *CamName), FString::SanitizeFloat(InPrevRot.Pitch));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevRot/yaw"), *CamName), FString::SanitizeFloat(InPrevRot.Yaw));
+			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevRot/roll"), *CamName), FString::SanitizeFloat(InPrevRot.Roll));
+		}
+
 	}
 }

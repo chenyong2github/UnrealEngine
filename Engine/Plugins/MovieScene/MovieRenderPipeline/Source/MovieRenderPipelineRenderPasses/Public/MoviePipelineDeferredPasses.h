@@ -55,6 +55,8 @@ protected:
 	virtual UTextureRenderTarget2D* GetViewRenderTarget(IViewCalcPayload* OptPayload = nullptr) const override;
 	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) override;
 	virtual bool IsAutoExposureAllowed(const FMoviePipelineRenderPassMetrics& InSampleState) const override;
+	virtual void BlendPostProcessSettings(FSceneView* InView, FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr);
+	virtual UE::MoviePipeline::FImagePassCameraViewData GetCameraInfo(FMoviePipelineRenderPassMetrics& InOutSampleState, IViewCalcPayload* OptPayload = nullptr) const;
 	// ~UMoviePipelineRenderPass
 
 	// FGCObject Interface
@@ -97,6 +99,12 @@ public:
 	TArray<FMoviePipelinePostProcessPass> AdditionalPostProcessMaterials;
 
 	/**
+	* This can be turned off if you're only doing a stencil-layer based render and don't need the main non-stencil approach.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stencil Clip Layers")
+	bool bRenderMainPass;
+
+	/**
 	* If true, an additional stencil layer will be rendered which contains all objects which do not belong to layers
 	* specified in the Stencil Layers. This is useful for wanting to isolate one or two layers but still have everything
 	* else to composite them over without having to remember to add all objects to a default layer.
@@ -124,23 +132,28 @@ protected:
 	UPROPERTY(Transient, DuplicateTransient)
 	TArray<UTextureRenderTarget2D*> TileRenderTargets;
 
+	struct FMultiCameraViewStateData
+	{
+		struct FPerTile
+		{
+			TArray<FSceneViewStateReference> SceneViewStates;
+		};
 
-	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
+		TMap<FIntPoint, FPerTile> TileData;
+	};
 
-	int32 CurrentLayerIndex;
-	TArray<FSceneViewStateReference> StencilLayerViewStates;
-
-	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
-	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
+	TArray<FMultiCameraViewStateData> CameraViewStateData;
 
 	// Cache the custom stencil value. Only has meaning if they have stencil layers.
 	TOptional<int32> PreviousCustomDepthValue;
-	
 	/** Cache the previous dump frames as HDR value. Only used if using 32-bit post processing. */
 	TOptional<int32> PreviousDumpFramesValue;
 	/** Cache the previous color format value. Only used if using 32-bit post processing. */
 	TOptional<int32> PreviousColorFormatValue;
 
+	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
+	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
+	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
 public:
 	static FString StencilLayerMaterialAsset;
 	static FString DefaultDepthAsset;

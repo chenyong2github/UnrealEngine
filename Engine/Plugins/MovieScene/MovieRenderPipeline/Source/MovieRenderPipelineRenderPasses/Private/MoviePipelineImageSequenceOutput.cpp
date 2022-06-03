@@ -24,7 +24,6 @@
 #include "Misc/Paths.h"
 
 DECLARE_CYCLE_STAT(TEXT("ImgSeqOutput_RecieveImageData"), STAT_ImgSeqRecieveImageData, STATGROUP_MoviePipeline);
-
 struct FAsyncImageQuantization
 {
 	FAsyncImageQuantization(FImageWriteTask* InWriteTask, const bool bInApplysRGB)
@@ -155,9 +154,11 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 			// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
 			// overwrite the same file multiple times. Burn In overlays don't count if they are getting composited on top of an existing file.
 			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() - CompositedPasses.Num() > 1;
+			const bool bIncludeCameraName = InMergedOutputFrame->HasDataFromMultipleCameras();
 			const bool bTestFrameNumber = true;
 
-			UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
+			// ToDo: This validation may need to include the OutputDirectory, because they could have put {camera_name} in the output folder
+			UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber, bIncludeCameraName);
 
 			// Create specific data that needs to override 
 			TMap<FString, FString> FormatOverrides;
@@ -167,13 +168,13 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 
 			// Resolve for XMLs
 			{
-				GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, XMLData.ImageSequenceFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState, -InMergedOutputFrame->FrameOutputState.ShotOutputFrameNumber);
+				GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, XMLData.ImageSequenceFileName, FinalFormatArgs, &Payload->SampleState.OutputState, -Payload->SampleState.OutputState.ShotOutputFrameNumber);
 			}
 			
 			// Resolve the final absolute file path to write this to
 			{
 				FString FormatString = OutputDirectory / FileNameFormatString;
-				GetPipeline()->ResolveFilenameFormatArguments(FormatString, FormatOverrides, OutputData.FilePath, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
+				GetPipeline()->ResolveFilenameFormatArguments(FormatString, FormatOverrides, OutputData.FilePath, FinalFormatArgs, &Payload->SampleState.OutputState);
 
 				if (FPaths::IsRelative(OutputData.FilePath))
 				{
@@ -184,7 +185,7 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 			// More XML resolving. Create a deterministic clipname by removing frame numbers, file extension, and any trailing .'s
 			{
 				UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
-				GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, XMLData.ClipName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
+				GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, XMLData.ClipName, FinalFormatArgs, &Payload->SampleState.OutputState);
 				XMLData.ClipName.RemoveFromEnd(Extension);
 				XMLData.ClipName.RemoveFromEnd(".");
 			}
@@ -263,7 +264,7 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 		TileImageTask->PixelData = MoveTemp(QuantizedPixelData);
 		
 #if WITH_EDITOR
-		GetPipeline()->AddFrameToOutputMetadata(XMLData.ClipName, XMLData.ImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, Payload->bRequireTransparentOutput);
+		GetPipeline()->AddFrameToOutputMetadata(XMLData.ClipName, XMLData.ImageSequenceFileName, Payload->SampleState.OutputState, Extension, Payload->bRequireTransparentOutput);
 #endif
 
 		GetPipeline()->AddOutputFuture(ImageWriteQueue->Enqueue(MoveTemp(TileImageTask)), OutputData);

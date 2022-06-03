@@ -54,4 +54,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"), Category = "Camera Settings")
 	float OverscanPercentage;
 	
+	/**
+	* If true, when a Camera Cut section is found we will also render any other cameras within the same sequence (not parent, nor child sequences though).
+	* These cameras are rendered at the same time as the primary camera meaning all cameras capture the same world state. Do note that this multiplies
+	* render times and memory requirements!
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Settings")
+	bool bRenderAllCameras;
 };

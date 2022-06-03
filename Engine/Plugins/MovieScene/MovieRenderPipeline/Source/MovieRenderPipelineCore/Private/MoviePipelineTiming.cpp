@@ -205,6 +205,11 @@ void UMoviePipeline::TickProducingFrames()
 			
 			FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
 			FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
+
+			// Cache data for all the sidecar cameras too.
+			GetSidecarCameraViewPoints(CurrentCameraCut, FrameInfo.CurrSidecarViewLocations, FrameInfo.CurrSidecarViewRotations);
+			FrameInfo.PrevSidecarViewLocations = FrameInfo.CurrSidecarViewLocations;
+			FrameInfo.PrevSidecarViewRotations = FrameInfo.CurrSidecarViewRotations;
 		}
 
 		// We can safely fall through to the below states as they're OK to process the same frame we set up.
@@ -753,5 +758,7 @@ void UMoviePipeline::CalculateFrameNumbersForOutputState(const MoviePipeline::FF
 	}
 
 	InOutOutputState.ShotName = InCameraCut->OuterName;
+
+	// Continue to use the InnerName (which is the master camera for the shot), individual render passes can override it later if rendering more than one camera.
 	InOutOutputState.CameraName = InCameraCut->InnerName;
 }

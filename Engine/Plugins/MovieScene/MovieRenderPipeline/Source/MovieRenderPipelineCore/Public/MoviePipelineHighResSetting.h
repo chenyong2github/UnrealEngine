@@ -20,6 +20,7 @@ public:
 		, OverlapRatio(0.f)
 		, bOverrideSubSurfaceScattering(false)
 		, BurleySampleCount(64)
+		, bAllocateHistoryPerTile(true)
 	{
 	}
 	
@@ -192,7 +193,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "64", ClampMin = "0", UIMax = "1024", EditCondition="bOverrideSubSurfaceScattering"), Category = "Render Settings")
 	int32 BurleySampleCount;
 	
-
+	/*
+	* If true, allocate a unique history for each tile. This is needed to make some render features work, but should be disabled
+	* when dealing with extremely large resolutions as you will spend all of your GPU memory on history buffers.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Render Settings")
+	bool bAllocateHistoryPerTile;
 
 
 private:

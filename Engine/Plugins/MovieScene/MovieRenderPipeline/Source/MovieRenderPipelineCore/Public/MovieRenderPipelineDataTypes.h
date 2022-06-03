@@ -96,14 +96,16 @@ struct FMoviePipelinePassIdentifier
 	FMoviePipelinePassIdentifier()
 	{}
 
-	FMoviePipelinePassIdentifier(const FString& InPassName)
+	// Name defaults to "camera" for backwards compatiblity with non-multicam metadata
+	FMoviePipelinePassIdentifier(const FString& InPassName, const FString& InCameraName = TEXT("camera"))
 		: Name(InPassName)
+		, CameraName(InCameraName)
 	{
 	}
 
 	bool operator == (const FMoviePipelinePassIdentifier& InRHS) const
 	{
-		return Name == InRHS.Name;
+		return Name == InRHS.Name && CameraName == InRHS.CameraName;
 	}
 
 	bool operator != (const FMoviePipelinePassIdentifier& InRHS) const
@@ -113,12 +115,18 @@ struct FMoviePipelinePassIdentifier
 
 	friend uint32 GetTypeHash(FMoviePipelinePassIdentifier OutputState)
 	{
-		return GetTypeHash(OutputState.Name);
+		return HashCombine(GetTypeHash(OutputState.Name), GetTypeHash(OutputState.CameraName));
 	}
 
 public:
+	// The name of the pass such as "FinalImage" or "ObjectId", etc.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
 	FString Name;
+
+	// The name of the camera that this pass is for. Stored here so we can differentiate between 
+	// multiple cameras within a single pass.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
+	FString CameraName;
 };
 
 namespace MoviePipeline
@@ -148,6 +156,11 @@ namespace MoviePipeline
 
 		/** Previous frame camera view rotation **/
 		FRotator PrevViewRotation;
+
+		TArray<FVector> CurrSidecarViewLocations;
+		TArray<FRotator> CurrSidecarViewRotations;
+		TArray<FVector> PrevSidecarViewLocations;
+		TArray<FRotator> PrevSidecarViewRotations;
 	};
 
 	/**
@@ -710,6 +723,7 @@ public:
 	
 	FTimecode CurrentShotSourceTimeCode;
 
+	int32 CameraIndex;
 
 
 	bool operator == (const FMoviePipelineFrameOutputState& InRHS) const
@@ -778,6 +792,7 @@ struct FMoviePipelineFilenameResolveParams
 		, InitializationTime(0)
 		, InitializationVersion(0)
 		, Job(nullptr)
+		, CameraIndex(-1)
 		, ShotOverride(nullptr)
 		, AdditionalFrameNumberOffset(0)
 	{
@@ -837,6 +852,9 @@ struct FMoviePipelineFilenameResolveParams
 	/** Required. This is the job all of the settings should be pulled from.*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	UMoviePipelineExecutorJob* Job;
+
+	/** If this shot has multiple cameras in the sidecar array, which camera is this for? -1 will return the InnerName/Main camera for the shot. */
+	int32 CameraIndex;
 
 	/** Optional. If specified, settings will be pulled from this shot (if overriden by the shot). If null, always use the master configuration in the job. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
@@ -1084,6 +1102,19 @@ public:
 		, ExpectedRenderPasses(InOther.ExpectedRenderPasses)
 		, ImageOutputData(MoveTemp(InOther.ImageOutputData))
 	{
+	}
+
+	bool HasDataFromMultipleCameras() const
+	{
+		TMap<FString, int32> CameraNameUseCounts;
+		for(const FMoviePipelinePassIdentifier& PassIdentifier : ExpectedRenderPasses)
+		{
+			CameraNameUseCounts.FindOrAdd(PassIdentifier.CameraName) += 1;
+		}
+
+		// ToDo: This logic might get more complicated because of burn ins, etc. that don't have camera names, 
+		// need to check.
+		return CameraNameUseCounts.Num() > 1;
 	}
 
 private:

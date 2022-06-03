@@ -392,7 +392,7 @@ FSceneView* UMoviePipelinePanoramicPass::GetSceneViewForSampleState(FSceneViewFa
 	View->PreviousViewTransform = FTransform(PanoPane->PrevCameraRotation, PanoPane->PrevCameraLocation);
 
 	View->StartFinalPostprocessSettings(View->ViewLocation);
-	BlendPostProcessSettings(View);
+	BlendPostProcessSettings(View, InOutSampleState, OptPayload);
 
 	// Scaling sensor size inversely with the the projection matrix [0][0] should physically
 	// cause the circle of confusion to be unchanged.
