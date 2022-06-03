@@ -14,6 +14,7 @@
 #include "Engine/Blueprint.h"
 #include "ScopedTransaction.h"
 #include "EdGraphNode_Comment.h"
+#include "GraphEditor.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphSchemaActions"
 
