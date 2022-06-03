@@ -1012,6 +1012,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 		{
 			Id.AdditionalDefines.Add(TEXT("Emitter.InterpolatedSpawn"));
 		}
+		if (EmitterData->bInterpolatedSpawning == false && EmitterData->bGpuAlwaysRunParticleUpdateScript == true)
+		{
+			Id.AdditionalDefines.Add(TEXT("GpuAlwaysRunParticleUpdateScript"));
+		}
 		if (IsParticleScript(Usage) || IsParticleStageScript(Usage))
 		{
 			SimTargetToBuild = EmitterData->SimTarget;

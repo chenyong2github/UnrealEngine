@@ -3066,8 +3066,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 	//////////////////////
 	// TransferAttibutes()
-
-	
 	HlslOutput += TEXT("void TransferAttributes(inout FSimulationContext Context)\n{\n");
 	{
 		FExpressionPermutationContext PermutationContext(HlslOutput);
@@ -3085,6 +3083,10 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					if (TranslationStages[i - 1].bWritesAlive)
 					{
 						HlslOutput += TEXT("\t\tContext.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance = Context.") + TranslationStages[i - 1].PassNamespace + TEXT(".DataInstance;\n");
+					}
+					else if ( TranslationStages[i].bWritesAlive )
+					{
+						HlslOutput += TEXT("\t\tContext.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance.Alive = true;\n");
 					}
 				}
 				
@@ -3115,7 +3117,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	
 	/////////////////////////
 	// StoreUpdateVariables()
-
 	HlslOutput += TEXT("void StoreUpdateVariables(in FSimulationContext Context, bool bIsValidInstance)\n{\n");
 	{
 		FExpressionPermutationContext PermutationContext(HlslOutput);
@@ -3218,22 +3219,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	HlslOutput += TEXT("\n}\n\n");
 
 	/////////////////////////
-	// SimulateDoWork()
-
-	//HlslOutput += TEXT("void SimulateDoWork(in FSimulationContext Context)\n{\n");
-	FString SimDoWorkString;// = TEXT("\t{ \n");
-	{
-		FExpressionPermutationContext PermutationContext(SimDoWorkString);
-		int32 StartIdx = 1;
-		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
-		{
-			PermutationContext.AddBranch(*this, TranslationStages[i]);
-			SimDoWorkString += TEXT("\t\tSimulate") + TranslationStages[i].PassNamespace + TEXT("(Context); \n");
-		}
-		//SimDoWorkString += TEXT("\t}\n");
-	}
-
-	/////////////////////////
 	// CopyInstance()
 	HlslOutput += TEXT("void CopyInstance(in int InstanceIdx)\n{\n");
 	{
@@ -3266,124 +3251,10 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	}
 	HlslOutput += TEXT("}\n");
 
-	FString SpawnLogicString;
-	
-	{
-		FExpressionPermutationContext PermutationContext(SpawnLogicString);
-		
-		if (TranslationStages.Num() > 1)
-		{
-			PermutationContext.AddBranch(*this, TranslationStages[0]);
-		}
-
-		SpawnLogicString += TEXT(
-				"		Context.MapSpawn.Particles.UniqueID = Engine_Emitter_TotalSpawnedParticles + ExecIndex(); \n"
-				"		ConditionalInterpolateParameters(Context); \n"
-				"		SimulateMapSpawn(Context); \n"
-				"		\n");
-	}
-	
 	//////////////////////////////////////////////////////////////////////////
-	// Generate per translation stage logic parts
-	// i.e. ones who vary based upon what we iterate over
-	FString SimRunSpawnUpdateLogicString;
-	FString SimSetupSpawnExecIndexLogicString;
-	for (int32 i=1; i < TranslationStages.Num(); i++)
-	{
-		const FHlslNiagaraTranslationStage& TranslationStage = TranslationStages[i];
-		const TCHAR* IfOrElifText = (i == 1) ? TEXT("#if") : TEXT("#elif");
-
-		SimRunSpawnUpdateLogicString.Appendf(TEXT("%s SimulationStageIndex == %d	// %s\n"), IfOrElifText, TranslationStage.SimulationStageIndex, *TranslationStage.PassNamespace);
-		SimSetupSpawnExecIndexLogicString.Appendf(TEXT("%s SimulationStageIndex == %d	// %s\n"), IfOrElifText, TranslationStage.SimulationStageIndex, *TranslationStage.PassNamespace);
-
-		// Particle iteration stage
-		if ( TranslationStage.IterationSource.IsNone() )
-		{
-			// Do we have particle state iteration enable
-			SimRunSpawnUpdateLogicString += TEXT("	bool bRunSpawnUpdateLogic = true;\n");
-			if ( TranslationStage.bParticleIterationStateEnabled && TranslationStage.bWritesParticles )
-			{
-				if ( TranslationStage.bPartialParticleUpdate == false )
-				{
-					FName StageName;
-					if (CompilationOutput.ScriptData.SimulationStageMetaData.IsValidIndex(TranslationStage.SimulationStageIndex))
-					{
-						StageName = CompilationOutput.ScriptData.SimulationStageMetaData[TranslationStage.SimulationStageIndex].SimulationStageName;
-					}
-
-					Error(FText::Format(LOCTEXT("ParticleIterationState_Invalid", "Simulation stage '{0}' is incompatible with particle state iteration due to killing particles or disabling particle updates."), FText::FromName(StageName)), nullptr, nullptr);
-				}
-				SimRunSpawnUpdateLogicString += TEXT(
-					"	if ( ParticleIterationStateInfo.x != -1 )\n"
-					"	{\n"
-					"		int ParticleStateValue = InputDataInt(0, uint(ParticleIterationStateInfo.x), GLinearThreadId);\n"
-					"		bRunSpawnUpdateLogic = (ParticleStateValue >= ParticleIterationStateInfo.y) && (ParticleStateValue <= ParticleIterationStateInfo.z);\n"
-					"	}\n"
-				);
-			}
-
-			// We combine the update & spawn scripts together on GPU so we only need to check for spawning on the first translation stage
-			// Note: Depending on how spawning inside stages works we may need to enable the spawn logic for those stages *only*			
-			const bool bParticleSpawnStage = i == 1;
-			if (bParticleSpawnStage)
-			{
-				SimRunSpawnUpdateLogicString += TEXT(
-					"	if (ReadInstanceCountOffset == 0xFFFFFFFF)\n"
-					"	{\n"
-					"		GSpawnStartInstance = 0;\n"
-					"	}\n"
-					"	else\n"
-					"	{\n"
-					"		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
-					"	}\n"
-					"	const uint MaxInstances = GSpawnStartInstance + NumSpawnedInstances;\n"
-					"	const bool bRunUpdateLogic = bRunSpawnUpdateLogic && GLinearThreadId < GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
-					"	const bool bRunSpawnLogic = bRunSpawnUpdateLogic && GLinearThreadId >= GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
-				);
-			}
-			else
-			{
-				SimRunSpawnUpdateLogicString += TEXT(
-					"	GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
-					"	const bool bRunUpdateLogic = bRunSpawnUpdateLogic && GLinearThreadId < GSpawnStartInstance;\n"
-					"	const bool bRunSpawnLogic = false;\n"
-				);
-			}
-
-			SimSetupSpawnExecIndexLogicString += TEXT("		SetupExecIndexAndSpawnInfoForGPU();\n");
-		}
-		// Iteration interface stage
-		else
-		{
-			//	if (const FNiagaraVariable* IterationSourceVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == SimulationStageMetaData.IterationSource; }))
-			//	{
-			//		if (UNiagaraDataInterface* IteratinoSourceCDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar->GetType().GetClass()))
-			//		{
-			//			SimulationStageMetaData.GpuDispatchType = IteratinoSourceCDO->GetGpuDispatchType();
-			//			SimulationStageMetaData.GpuDispatchNumThreads = IteratinoSourceCDO->GetGpuDispatchNumThreads();
-			//		}
-			//	}
-
-			//-TODO: We can simplify the logic here with SimulationStage_GetInstanceCount() as only things that can provide an instance count offset
-			//		 can really be variable, everything else is driven from CPU code.
-			SimRunSpawnUpdateLogicString += TEXT(
-				"	const uint MaxInstances = SimulationStage_GetInstanceCount();\n"
-				"	GLinearThreadId = all(DispatchThreadId < DispatchThreadIdBounds) ? GLinearThreadId : MaxInstances;\n"
-				"	GSpawnStartInstance = MaxInstances;\n"
-				"	const bool bRunUpdateLogic = (GLinearThreadId < GSpawnStartInstance) && (SimStart != 1);\n"
-				"	const bool bRunSpawnLogic = (GLinearThreadId < GSpawnStartInstance) && (SimStart == 1);\n"
-			);
-
-			SimSetupSpawnExecIndexLogicString += TEXT("		SetupExecIndexForGPU();\n");
-		}
-	}
-	SimRunSpawnUpdateLogicString.Append(TEXT("#endif\n"));
-	SimSetupSpawnExecIndexLogicString.Append(TEXT("#endif\n"));
-
-	//////////////////////////////////////////////////////////////////////////
-	// Generate main body
-	HlslOutput +=
-		TEXT("\n\n/*\n"
+	// Generate common main body
+	HlslOutput += TEXT(
+			"\n\n/*\n"
 			"*	CS wrapper for our generated code; calls spawn and update functions on the corresponding instances in the buffer\n"
 			" */\n"
 			"\n"
@@ -3401,43 +3272,167 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	GEmitterTickCounter = EmitterTickCounter;\n"
 			"	GRandomSeedOffset = 0;\n"
 			"\n"
-			) + SimRunSpawnUpdateLogicString + TEXT(
+		);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Generate each translation stages body
+	for (int32 i=1; i < TranslationStages.Num(); i++)
+	{
+		const FHlslNiagaraTranslationStage& TranslationStage = TranslationStages[i];
+		const bool bInterpolatedSpawning = CompileOptions.AdditionalDefines.Contains(TEXT("InterpolatedSpawn")) || i != 1;
+		const bool bAlwaysRunUpdateScript = CompileOptions.AdditionalDefines.Contains(TEXT("GpuAlwaysRunParticleUpdateScript"));
+		const bool bParticleIterationStage = TranslationStage.IterationSource.IsNone();
+		const bool bParticleSpawnStage = i == 1;
+
+		HlslOutput.Appendf(
+			TEXT("%s SimulationStageIndex == %d // %s\n"),
+			(i == 1) ? TEXT("#if") : TEXT("#elif"),
+			TranslationStage.SimulationStageIndex,
+			*TranslationStage.PassNamespace
+		);
+
+		// Particle iteration stage
+		if (bParticleIterationStage)
+		{
+			// Do we have particle state iteration enable
+			HlslOutput.Append(TEXT("	bool bRunSpawnUpdateLogic = true;\n"));
+			if (TranslationStage.bParticleIterationStateEnabled && TranslationStage.bWritesParticles)
+			{
+				if (TranslationStage.bPartialParticleUpdate == false)
+				{
+					FName StageName;
+					if (CompilationOutput.ScriptData.SimulationStageMetaData.IsValidIndex(TranslationStage.SimulationStageIndex))
+					{
+						StageName = CompilationOutput.ScriptData.SimulationStageMetaData[TranslationStage.SimulationStageIndex].SimulationStageName;
+					}
+
+					Error(FText::Format(LOCTEXT("ParticleIterationState_Invalid", "Simulation stage '{0}' is incompatible with particle state iteration due to killing particles or disabling particle updates."), FText::FromName(StageName)), nullptr, nullptr);
+				}
+				HlslOutput += TEXT(
+					"	if ( ParticleIterationStateInfo.x != -1 )\n"
+					"	{\n"
+					"		int ParticleStateValue = InputDataInt(0, uint(ParticleIterationStateInfo.x), GLinearThreadId);\n"
+					"		bRunSpawnUpdateLogic = (ParticleStateValue >= ParticleIterationStateInfo.y) && (ParticleStateValue <= ParticleIterationStateInfo.z);\n"
+					"	}\n"
+				);
+			}
+
+			// We combine the update & spawn scripts together on GPU so we only need to check for spawning on the first translation stage
+			// Note: Depending on how spawning inside stages works we may need to enable the spawn logic for those stages *only*			
+			if (bParticleSpawnStage)
+			{
+				HlslOutput += TEXT(
+					"	if (ReadInstanceCountOffset == 0xFFFFFFFF)\n"
+					"	{\n"
+					"		GSpawnStartInstance = 0;\n"
+					"	}\n"
+					"	else\n"
+					"	{\n"
+					"		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
+					"	}\n"
+					"	const uint MaxInstances = GSpawnStartInstance + NumSpawnedInstances;\n"
+					"	const bool bRunUpdateLogic = bRunSpawnUpdateLogic && GLinearThreadId < GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
+					"	const bool bRunSpawnLogic = bRunSpawnUpdateLogic && GLinearThreadId >= GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
+				);
+			}
+			else
+			{
+				HlslOutput += TEXT(
+					"	GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
+					"	const bool bRunUpdateLogic = bRunSpawnUpdateLogic && GLinearThreadId < GSpawnStartInstance;\n"
+					"	const bool bRunSpawnLogic = false;\n"
+				);
+			}
+		}
+		// Iteration interface stage
+		else
+		{
+			//	if (const FNiagaraVariable* IterationSourceVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == SimulationStageMetaData.IterationSource; }))
+			//	{
+			//		if (UNiagaraDataInterface* IteratinoSourceCDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar->GetType().GetClass()))
+			//		{
+			//			SimulationStageMetaData.GpuDispatchType = IteratinoSourceCDO->GetGpuDispatchType();
+			//			SimulationStageMetaData.GpuDispatchNumThreads = IteratinoSourceCDO->GetGpuDispatchNumThreads();
+			//		}
+			//	}
+
+			//-TODO: We can simplify the logic here with SimulationStage_GetInstanceCount() as only things that can provide an instance count offset
+			//		 can really be variable, everything else is driven from CPU code.
+			HlslOutput += TEXT(
+				"	const uint MaxInstances = SimulationStage_GetInstanceCount();\n"
+				"	GLinearThreadId = all(DispatchThreadId < DispatchThreadIdBounds) ? GLinearThreadId : MaxInstances;\n"
+				"	GSpawnStartInstance = MaxInstances;\n"
+				"	const bool bRunUpdateLogic = (GLinearThreadId < GSpawnStartInstance) && (SimStart != 1);\n"
+				"	const bool bRunSpawnLogic = (GLinearThreadId < GSpawnStartInstance) && (SimStart == 1);\n"
+			);
+		}
+
+		HlslOutput += TEXT(
 			"	\n"
 			"	const float RandomSeedInitialisation = NiagaraInternalNoise(GLinearThreadId * 16384, 0 * 8196, (bRunUpdateLogic ? 4096 : 0) + EmitterTickCounter);	// initialise the random state seed\n"
 			"	\n"
 			"	FSimulationContext Context = (FSimulationContext)0;\n"
-			"	\n"
-			"	BRANCH\n"
-			"	if (bRunUpdateLogic)\n"
-			"	{\n"
-			"		SetupExecIndexForGPU();\n"
-			"		InitConstants(Context);\n"
-			"		LoadUpdateVariables(Context, GLinearThreadId);\n"
-			"		ReadDataSets(Context);\n"
-			"	}\n"
-			"	else if (bRunSpawnLogic)\n"
-			"	{\n"
-		) + SimSetupSpawnExecIndexLogicString + TEXT(
-			"		InitConstants(Context);\n"
-			"		InitSpawnVariables(Context);\n"
-			"		ReadDataSets(Context);\n"
-			"		\n") + SpawnLogicString
-			+ TEXT(
-			"		\n"
-			"		TransferAttributes(Context);\n"
-			"		\n"
-			"	}\n"
-			"\n"
-			"	if (bRunUpdateLogic || bRunSpawnLogic)\n"
-			"	{\n"
-		) + SimDoWorkString + TEXT(
-			"		WriteDataSets(Context);\n"
-			"	}\n"
-			"	\n"
-			"	StoreUpdateVariables(Context, bRunUpdateLogic || bRunSpawnLogic);\n\n"
 		);
 
-	HlslOutput += TEXT("}\n");
+		// Add Update Logic
+		HlslOutput.Append(TEXT("	BRANCH\n"));
+		HlslOutput.Append(TEXT("	if (bRunUpdateLogic)\n"));
+		HlslOutput.Append(TEXT("	{\n"));
+		HlslOutput.Append(TEXT("		SetupExecIndexForGPU();\n"));
+		HlslOutput.Append(TEXT("		InitConstants(Context);\n"));
+		HlslOutput.Append(TEXT("		LoadUpdateVariables(Context, GLinearThreadId);\n"));
+		HlslOutput.Append(TEXT("		ReadDataSets(Context);\n"));
+		if (bInterpolatedSpawning == false && bAlwaysRunUpdateScript == false)
+		{
+			HlslOutput.Appendf(TEXT("		Simulate%s(Context);\n"), *TranslationStages[i].PassNamespace);
+			HlslOutput.Append(TEXT("		WriteDataSets(Context);\n"));
+		}
+		HlslOutput.Append(TEXT("	}\n"));
+
+		// Add Spawn Logic
+		HlslOutput.Append(TEXT("	else if (bRunSpawnLogic)\n"));
+		HlslOutput.Append(TEXT("	{\n"));
+		if (bParticleIterationStage)
+		{
+			HlslOutput.Append(TEXT("		SetupExecIndexAndSpawnInfoForGPU();\n"));
+		}
+		else
+		{
+			HlslOutput.Append(TEXT("		SetupExecIndexForGPU();\n"));
+		}
+		HlslOutput.Append(TEXT("		InitConstants(Context);\n"));
+		HlslOutput.Append(TEXT("		InitSpawnVariables(Context);\n"));
+		HlslOutput.Append(TEXT("		ReadDataSets(Context);\n"));
+		if (bParticleSpawnStage == true)
+		{
+			HlslOutput.Append(TEXT("		Context.MapSpawn.Particles.UniqueID = Engine_Emitter_TotalSpawnedParticles + ExecIndex();\n"));
+			HlslOutput.Append(TEXT("		ConditionalInterpolateParameters(Context);\n"));
+			HlslOutput.Append(TEXT("		SimulateMapSpawn(Context);\n"));
+		}
+		HlslOutput.Append(TEXT("		TransferAttributes(Context);\n"));
+		if (bInterpolatedSpawning == false && bAlwaysRunUpdateScript == false)
+		{
+			HlslOutput.Append(TEXT("		WriteDataSets(Context);\n"));
+		}
+		HlslOutput.Append(TEXT("	}\n\n"));
+
+		// Interpolated spawning must also run the update logic if we have spawned
+		if (bInterpolatedSpawning == true || bAlwaysRunUpdateScript == true)
+		{
+			HlslOutput.Append(TEXT("	if (bRunUpdateLogic || bRunSpawnLogic)\n"));
+			HlslOutput.Append(TEXT("	{\n"));
+			HlslOutput.Appendf(TEXT("		Simulate%s(Context);\n"), *TranslationStages[i].PassNamespace);
+			HlslOutput.Append(TEXT("		WriteDataSets(Context);\n"));
+			HlslOutput.Append(TEXT("	}\n\n"));
+		}
+
+		// Store Data
+		HlslOutput.Append(TEXT("	StoreUpdateVariables(Context, bRunUpdateLogic || bRunSpawnLogic);\n\n"));
+	}
+
+	// End of logic
+	HlslOutput.Append(TEXT("#endif\n"));
+	HlslOutput.Append(TEXT("}\n"));
 }
 
 void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,

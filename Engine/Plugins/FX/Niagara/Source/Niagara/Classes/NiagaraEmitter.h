@@ -266,6 +266,15 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Emitter")
 	uint32 bInterpolatedSpawning : 1;
 
+#if WITH_EDITORONLY_DATA
+	/**
+	GPU scripts were incorrectly running both particle spawn & update, CPU only runs spawn when interpolated spawning is disabled.
+	This flag allows backwards compatability so content does not change post the fix.
+	*/
+	UPROPERTY()
+	uint32 bGpuAlwaysRunParticleUpdateScript : 1;
+#endif
+
 	/** An emitter-based seed for the deterministic random number generator. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Emitter", meta = (EditCondition = "bDeterminism"))
 	int32 RandomSeed = 0;

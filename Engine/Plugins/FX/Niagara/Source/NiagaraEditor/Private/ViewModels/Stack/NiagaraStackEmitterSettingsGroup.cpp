@@ -160,6 +160,44 @@ void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewI
 
 				NewIssues.Add(MissingRequiredFixedBoundsModuleError);
 			}
+
+			FStackIssue MissingRequiredFixedBoundsModuleError(
+				EStackIssueSeverity::Warning,
+				LOCTEXT("RequiredFixedBoundsWarningFormat", "The emitter is GPU and is using dynamic bounds mode.\r\nPlease update the Emitter or System properties otherwise bounds may be incorrect."),
+				LOCTEXT("MissingFixedBounds", "Missing fixed bounds."),
+				GetStackEditorDataKey(),
+				false);
+		}
+
+		if ( ActualEmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && ActualEmitterData->bGpuAlwaysRunParticleUpdateScript )
+		{
+			const FText FixGpuInterpolatedDisabledText = LOCTEXT("FixGpuInterpolatedDisabled", "Fix GPU emitter to not run particle update script on particle spawn");
+			FVersionedNiagaraEmitterWeakPtr WeakEmitter = GetEmitterViewModel()->GetEmitter().ToWeakPtr();
+
+			NewIssues.Emplace(
+				EStackIssueSeverity::Warning,
+				LOCTEXT("GpuNoInterpolatedIncorrect", "GPU is incorrectly running particle update script on particle spawn."),
+				LOCTEXT("GpuNoInterpolatedIncorrectLong", "Due to a previous GPU codegen issue both particle spawn & update scripts were running on particle spawn when interpolated spawning is disabled.  This is now fixed for new content to match CPU behavior where only particle spawn will run when interpolated spawning is disabled."),
+				GetStackEditorDataKey(),
+				true,
+				FStackIssueFix(
+					FixGpuInterpolatedDisabledText,
+					FStackIssueFixDelegate::CreateLambda(
+						[WeakEmitter, FixGpuInterpolatedDisabledText]()
+						{
+							FVersionedNiagaraEmitter PinnedEmitter = WeakEmitter.ResolveWeakPtr();
+							if (PinnedEmitter.Emitter)
+							{
+								FScopedTransaction ScopedTransaction(FixGpuInterpolatedDisabledText);
+
+								PinnedEmitter.Emitter->Modify();
+								PinnedEmitter.GetEmitterData()->bGpuAlwaysRunParticleUpdateScript = false;
+								UNiagaraSystem::RequestCompileForEmitter(PinnedEmitter);
+							}
+						}
+					)
+				)
+			);
 		}
 
 		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();

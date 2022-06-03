@@ -5,6 +5,7 @@
 
 #include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraCustomVersionUEMain.h"
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraModule.h"
 #include "NiagaraRenderer.h"
@@ -517,6 +518,7 @@ void UNiagaraEmitter::Serialize(FArchive& Ar)
 #endif
 
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	Ar.UsingCustomVersion(FNiagaraCustomVersionUEMain::GUID);
 }
 
 void FVersionedNiagaraEmitterData::EnsureScriptsPostLoaded()
@@ -615,8 +617,9 @@ void UNiagaraEmitter::PostLoad()
 	{
 		LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
 	}
-
 #endif
+
+	const int32 NiagaraVerUE5Main = GetLinkerCustomVersion(FNiagaraCustomVersionUEMain::GUID);
 
 	for (FVersionedNiagaraEmitterData& Data : VersionData)
 	{
@@ -624,6 +627,17 @@ void UNiagaraEmitter::PostLoad()
 		Data.PostLoad(*this, IsCooked);
 		Data.GPUComputeScript->OnGPUScriptCompiled().RemoveAll(this);
 		Data.GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
+		if (NiagaraVerUE5Main < FNiagaraCustomVersionUEMain::FixGpuAlwaysRunningUpdateScriptNoneInterpolated)
+		{
+			if ( Data.SimTarget == ENiagaraSimTarget::GPUComputeSim )
+			{
+				Data.bGpuAlwaysRunParticleUpdateScript = Data.bInterpolatedSpawning ? false : true;
+			}
+			else
+			{
+				Data.bGpuAlwaysRunParticleUpdateScript = false;
+			}
+		}
 #else
 		Data.PostLoad(*this, true);
 #endif
@@ -1109,6 +1123,18 @@ void UNiagaraEmitter::PostEditChangeVersionedProperty(FPropertyChangedEvent& Pro
 			if (EmitterData->GraphSource != nullptr)
 			{
 				EmitterData->GraphSource->MarkNotSynchronized(TEXT("Emitter interpolated spawn changed"));
+			}
+			bNeedsRecompile = true;
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FVersionedNiagaraEmitterData, bGpuAlwaysRunParticleUpdateScript))
+	{
+		const bool bActualInterpolatedSpawning = EmitterData->SpawnScriptProps.Script->IsInterpolatedParticleSpawnScript();
+		if ((bActualInterpolatedSpawning == false) && (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim))
+		{
+			if (EmitterData->GraphSource != nullptr)
+			{
+				EmitterData->GraphSource->MarkNotSynchronized(TEXT("Emitter GPU interpolated spawn changed"));
 			}
 			bNeedsRecompile = true;
 		}
@@ -2546,10 +2572,19 @@ void UNiagaraEmitter::CheckVersionDataAvailable()
 
 #endif
 
-FVersionedNiagaraEmitterData::FVersionedNiagaraEmitterData() :
-	bInterpolatedSpawning(false), bRequiresPersistentIDs(false), bCombineEventSpawn(false), bLimitDeltaTime(true), MaxGPUParticlesSpawnPerFrame(0), bRequiresViewUniformBuffer(false)
+FVersionedNiagaraEmitterData::FVersionedNiagaraEmitterData()
+	: bInterpolatedSpawning(false)
 #if WITH_EDITORONLY_DATA
-	, EditorData(nullptr), EditorParameters(nullptr)
+	, bGpuAlwaysRunParticleUpdateScript(false)
+#endif
+	, bRequiresPersistentIDs(false)
+	, bCombineEventSpawn(false)
+	, bLimitDeltaTime(true)
+	, MaxGPUParticlesSpawnPerFrame(0)
+	, bRequiresViewUniformBuffer(false)
+#if WITH_EDITORONLY_DATA
+	, EditorData(nullptr)
+	, EditorParameters(nullptr)
 #endif
 {
 	FixedBounds = GetDefaultFixedBounds();
