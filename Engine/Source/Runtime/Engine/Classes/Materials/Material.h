@@ -1694,7 +1694,8 @@ protected:
 		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num,
 		EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num,
 		ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num,
-		EShaderFrequency InShaderFrequency = SF_NumFrequencies);
+		EShaderFrequency InShaderFrequency = SF_NumFrequencies, 
+		EMaterialProperty InProperty = MP_MAX);
 
 	/**
 	*	Recursively update the bRealtimePreview for each expression based on whether it is connected to something that is time-varying.

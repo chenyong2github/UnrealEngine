@@ -6555,6 +6555,42 @@ UMaterialExpressionMakeMaterialAttributes::UMaterialExpressionMakeMaterialAttrib
 #endif
 }
 
+FExpressionInput* UMaterialExpressionMakeMaterialAttributes::GetExpressionInput(EMaterialProperty InProperty)
+{
+	switch (InProperty)
+	{
+	case MP_BaseColor: return &BaseColor;
+	case MP_Specular: return &Specular;
+	case MP_Normal: return &Normal;
+	case MP_Tangent: return &Tangent;
+	case MP_Metallic: return &Metallic;
+	case MP_Roughness: return &Roughness;
+	case MP_Anisotropy: return &Anisotropy;
+	case MP_AmbientOcclusion: return &AmbientOcclusion;
+	case MP_EmissiveColor: return &EmissiveColor;
+	case MP_Opacity: return &Opacity;
+	case MP_OpacityMask: return &OpacityMask;
+	case MP_SubsurfaceColor: return &SubsurfaceColor;
+	case MP_WorldPositionOffset: return &WorldPositionOffset;
+	case MP_ShadingModel: return &ShadingModel;
+	case MP_Refraction: return &Refraction;
+	case MP_PixelDepthOffset: return &PixelDepthOffset;
+	case MP_CustomizedUVs0: return &CustomizedUVs[0];
+	case MP_CustomizedUVs1: return &CustomizedUVs[1];
+	case MP_CustomizedUVs2: return &CustomizedUVs[2];
+	case MP_CustomizedUVs3: return &CustomizedUVs[3];
+	case MP_CustomizedUVs4: return &CustomizedUVs[4];
+	case MP_CustomizedUVs5: return &CustomizedUVs[5];
+	case MP_CustomizedUVs6: return &CustomizedUVs[6];
+	case MP_CustomizedUVs7: return &CustomizedUVs[7];
+	case MP_CustomData0: return &ClearCoat;
+	case MP_CustomData1: return &ClearCoatRoughness;
+	default: break; // We don't support this property.
+	}
+
+	return nullptr;
+}
+
 void UMaterialExpressionMakeMaterialAttributes::Serialize(FStructuredArchive::FRecord Record)
 {
 	Super::Serialize(Record);

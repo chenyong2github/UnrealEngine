@@ -71,6 +71,9 @@ class UMaterialExpressionMakeMaterialAttributes : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput ShadingModel;
 
+	/** Get the input for a material property. Returns nullptr if the property isn't supported. */
+	FExpressionInput* GetExpressionInput(EMaterialProperty InProperty);
+
 	//~ Begin UObject Interface
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	//~ End UObject Interface
