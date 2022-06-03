@@ -868,6 +868,8 @@ void UAssetRegistryImpl::InitializeEvents(UE::AssetRegistry::Impl::FInitializeCo
 	}
 #endif // WITH_EDITOR
 
+	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UAssetRegistryImpl::OnEnginePreExit);
+
 	// Listen for new content paths being added or removed at runtime.  These are usually plugin-specific asset paths that
 	// will be loaded a bit later on.
 	FPackageName::OnContentPathMounted().AddUObject(this, &UAssetRegistryImpl::OnContentPathMounted);
@@ -1305,6 +1307,12 @@ void FAssetRegistryImpl::RefreshNativeClasses()
 
 }
 
+void UAssetRegistryImpl::OnEnginePreExit()
+{
+	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
+	GuardedData.OnEnginePreExit();
+}
+
 UAssetRegistryImpl::~UAssetRegistryImpl()
 {
 	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
@@ -1313,6 +1321,7 @@ UAssetRegistryImpl::~UAssetRegistryImpl()
 	FPackageName::OnContentPathMounted().RemoveAll(this);
 	FPackageName::OnContentPathDismounted().RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
 	IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
 
 #if WITH_EDITOR
@@ -1378,6 +1387,12 @@ UAssetRegistryImpl& UAssetRegistryImpl::Get()
 
 namespace UE::AssetRegistry
 {
+
+void FAssetRegistryImpl::OnEnginePreExit()
+{
+	// Shut down the GlobalGatherer's gather threads, before we start tearing down the engine
+	GlobalGatherer.Reset();
+}
 
 void FAssetRegistryImpl::ConstructGatherer()
 {

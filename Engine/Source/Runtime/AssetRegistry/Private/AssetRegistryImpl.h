@@ -120,7 +120,7 @@ public:
 	FAssetRegistryImpl();
 	/** Construct the AssetRegistryImpl, including initial scans if applicable. */
 	void Initialize(Impl::FInitializeContext& Context);
-
+	void OnEnginePreExit();
 
 	// Helpers for functions of the same name from UAssetRegistryImpl
 
