@@ -54,14 +54,14 @@ void FMediaPlateCustomizationMesh::SetSphereMesh(UMediaPlateComponent* MediaPlat
 	if (StaticMeshComponent != nullptr)
 	{
 		// Do we already have this mesh?
-		FString AssetPath = GetAssetPath();
+		FString AssetPath = GetAssetPath(MediaPlate);
 		UStaticMesh* StaticMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL,
 			*AssetPath));
 		if (StaticMesh == nullptr)
 		{
 			// Create mesh.
 			FDynamicMesh3 NewMesh;
-			GenerateSphereMesh(&NewMesh);
+			GenerateSphereMesh(&NewMesh, MediaPlate);
 
 			// Create asset.
 			StaticMesh = CreateStaticMeshAsset(&NewMesh, AssetPath);
@@ -93,10 +93,12 @@ void FMediaPlateCustomizationMesh::SetMesh(UStaticMeshComponent* StaticMeshCompo
 	}
 }
 
-void FMediaPlateCustomizationMesh::GenerateSphereMesh(FDynamicMesh3* OutMesh)
+void FMediaPlateCustomizationMesh::GenerateSphereMesh(FDynamicMesh3* OutMesh,
+	UMediaPlateComponent* MediaPlate)
 {
 	FMediaPlateSphereGenerator SphereGen;
 	SphereGen.Radius = 50.0f;
+	SphereGen.ThetaRange = FMath::DegreesToRadians(MediaPlate->MeshHorizontalRange);
 	SphereGen.NumTheta = 17;
 	SphereGen.NumPhi = 17;
 	SphereGen.bPolygroupPerQuad = false;
@@ -137,10 +139,14 @@ UStaticMesh* FMediaPlateCustomizationMesh::CreateStaticMeshAsset(FDynamicMesh3* 
 	return NewStaticMesh;
 }
 
-FString FMediaPlateCustomizationMesh::GetAssetPath()
+FString FMediaPlateCustomizationMesh::GetAssetPath(UMediaPlateComponent* MediaPlate)
 {
-	FString AssetPath = "/Game/_MediaPlate/Sphere";
-	
+	// Add the horizontal range.
+	FString ID = FString::SanitizeFloat(MediaPlate->MeshHorizontalRange);
+	ID.ReplaceCharInline(TCHAR('.'), TCHAR('_'));
+
+	FString AssetPath = FString::Printf(TEXT("/Game/_MediaPlate/Sphere_%s"), *ID);
+
 	return AssetPath;
 }
 

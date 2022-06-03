@@ -373,6 +373,7 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 
 	// Visibility attributes.
 	TAttribute<EVisibility> MeshPlaneVisibility(this, &FMediaPlateCustomization::ShouldShowMeshPlaneWidgets);
+	TAttribute<EVisibility> MeshSphereVisibility(this, &FMediaPlateCustomization::ShouldShowMeshSphereWidgets);
 
 	// Add aspect ratio.
 	DetailGroup.AddWidgetRow()
@@ -414,11 +415,35 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 						.OnValueChanged(this, &FMediaPlateCustomization::SetAspectRatio)
 				]
 		];
+
+	// Add sphere horizontal arc.
+	DetailGroup.AddWidgetRow()
+		.Visibility(MeshSphereVisibility)
+		.NameContent()
+		[
+			SNew(STextBlock)
+				.Text(LOCTEXT("HorizontalArc", "Horizontal Arc"))
+				.ToolTipText(LOCTEXT("HorizontalArc_ToolTip",
+				"Sets the horizontal arc size of the sphere in degrees.\nFor example 360 for a full circle, 180 for a half circle."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SNumericEntryBox<float>)
+				.Value(this, &FMediaPlateCustomization::GetMeshHorizontalRange)
+				.OnValueChanged(this, &FMediaPlateCustomization::SetMeshHorizontalRange)
+		];
+	
 }
 
 EVisibility FMediaPlateCustomization::ShouldShowMeshPlaneWidgets() const
 {
 	return (MeshMode == EMediaTextureVisibleMipsTiles::Plane) ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+EVisibility FMediaPlateCustomization::ShouldShowMeshSphereWidgets() const
+{
+	return (MeshMode == EMediaTextureVisibleMipsTiles::Sphere) ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 void FMediaPlateCustomization::SetMeshMode(EMediaTextureVisibleMipsTiles InMode)
@@ -442,11 +467,16 @@ void FMediaPlateCustomization::SetMeshMode(EMediaTextureVisibleMipsTiles InMode)
 				}
 				else if (MeshMode == EMediaTextureVisibleMipsTiles::Sphere)
 				{
-					MeshCustomization.SetSphereMesh(MediaPlate);
+					SetSphereMesh(MediaPlate);
 				}
 			}
 		}
 	}
+}
+
+void FMediaPlateCustomization::SetSphereMesh(UMediaPlateComponent* MediaPlate)
+{
+	MeshCustomization.SetSphereMesh(MediaPlate);
 }
 
 TSharedRef<SWidget> FMediaPlateCustomization::OnGetAspectRatios()
@@ -535,6 +565,40 @@ TOptional<float> FMediaPlateCustomization::GetAspectRatio() const
 				}
 			}
 			break;
+		}
+	}
+
+	return TOptional<float>();
+}
+
+void FMediaPlateCustomization::SetMeshHorizontalRange(float HorizontalRange)
+{
+	HorizontalRange = FMath::Clamp(HorizontalRange, 0.0f, 360.0f);
+
+	// Loop through all our objects.
+	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			if (MediaPlate->MeshHorizontalRange != HorizontalRange)
+			{
+				MediaPlate->MeshHorizontalRange = HorizontalRange;
+				SetSphereMesh(MediaPlate);
+			}
+		}
+	}
+}
+
+TOptional<float> FMediaPlateCustomization::GetMeshHorizontalRange() const
+{
+	// Loop through our objects.
+	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			return MediaPlate->MeshHorizontalRange;
 		}
 	}
 

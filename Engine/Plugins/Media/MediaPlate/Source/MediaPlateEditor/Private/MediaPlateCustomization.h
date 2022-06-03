@@ -61,9 +61,19 @@ private:
 	EVisibility ShouldShowMeshPlaneWidgets() const;
 
 	/**
+	 * Controls visibility for widgets for sphere meshes.
+	 */
+	EVisibility ShouldShowMeshSphereWidgets() const;
+
+	/**
 	 * Call this to switch between planes, spheres, etc.
 	 */
 	void SetMeshMode(EMediaTextureVisibleMipsTiles InMode);
+
+	/**
+	 * Call this to apply a sphere mesh to an object.
+	 */
+	void SetSphereMesh(UMediaPlateComponent* MediaPlate);
 
 	/**
 	 * Returns menu options for all aspect ratio presets.
@@ -79,6 +89,16 @@ private:
 	 * Call this to get the aspect ratio.
 	 */
 	TOptional<float> GetAspectRatio() const;
+
+	/**
+	 * Call this to set the horizontal range of the mesh.
+	 */
+	void SetMeshHorizontalRange(float HorizontalRange);
+
+	/**
+	 * Call this to get the horizontal range of the mesh.
+	 */
+	TOptional<float> GetMeshHorizontalRange() const;
 
 	/**
 	 * Gets the object path for the media source object.

@@ -14,6 +14,8 @@ class FMediaPlateSphereGenerator : public UE::Geometry::FMeshShapeGenerator
 public:
 	/** Radius */
 	double Radius = 1;
+	/** Range for the horizontal arc. 360 degrees for a sphere, etc... */
+	double ThetaRange = FMathd::TwoPi;
 
 	int NumPhi = 3; // number of vertices along vertical extent from north pole to south pole
 	int NumTheta = 3; // number of vertices around circles
@@ -22,6 +24,9 @@ public:
 	bool bPolygroupPerQuad = false;
 
 private:
+	/** True if this is a closed mesh, e.g. a sphere. */
+	bool bIsClosed = false;
+
 	static FVector3d SphericalToCartesian(double r, double theta, double phi)
 	{
 		double Sphi = sin(phi);
@@ -42,8 +47,9 @@ private:
 			NormalParentVertex[VtxIdx] = VtxIdx;
 		};
 		{
+			int32 ThetaDivide = bIsClosed ? NumTheta : NumTheta -1;
 			const double Dphi = FMathd::Pi / double(NumPhi - 1);
-			const double Dtheta = FMathd::TwoPi / double(NumTheta);
+			const double Dtheta = ThetaRange / double(ThetaDivide);
 
 			int32 p,t;
 			double Phi, Theta;
@@ -68,8 +74,9 @@ private:
 	void GenerateUVVertices()
 	{
 		// generate the UV's
+		int32 ThetaDivide = bIsClosed ? NumTheta : NumTheta - 1;
 		const float DUVphi = 1.0 / float(NumPhi - 1);
-		const float DUVtheta = -1.0 / float(NumTheta);
+		const float DUVtheta = -1.0 / float(ThetaDivide);
 
 		int32 UVIdx = 0;
 		int32 p,t;
@@ -133,12 +140,16 @@ private:
 					PolyIdx++;
 				}
 			}
-			OutputTriangle(TriIdx++, PolyIdx,
-						   {Corners[0], Corners[1] - NumTheta, Corners[2] - NumTheta},
-						   {UVCorners[0]         , UVCorners[1],            UVCorners[2] });
-			OutputTriangle(TriIdx++, PolyIdx,
-						   {Corners[2] - NumTheta, Corners[3],   Corners[0]},
-						   {UVCorners[2],          UVCorners[3],            UVCorners[0]});
+			// Close up this mesh if required.
+			if (bIsClosed)
+			{
+				OutputTriangle(TriIdx++, PolyIdx,
+					{Corners[0], Corners[1] - NumTheta, Corners[2] - NumTheta},
+					{UVCorners[0]         , UVCorners[1],            UVCorners[2]});
+				OutputTriangle(TriIdx++, PolyIdx,
+					{Corners[2] - NumTheta, Corners[3],   Corners[0]},
+					{UVCorners[2],          UVCorners[3],            UVCorners[0]});
+			}
 			for (auto& i : Corners) ++i; 
 			for (auto& i : UVCorners) i += 2;
 			if (bPolygroupPerQuad)
@@ -155,6 +166,11 @@ private:
 		const int32 NorthPoleVtxIdx = NumEquatorialVtx;
 		const int32 SouthPoleVtxIdx = NumEquatorialVtx + 1;
 		int32 PolyIdx = NumTheta  * (NumPhi - 3);
+		// If the mesh is not closed then we have less tris.
+		if (bIsClosed == false)
+		{
+			PolyIdx -= (NumPhi - 3);
+		}
 		int32 TriIdx = PolyIdx * 2;
 		if (bPolygroupPerQuad == false)
 		{
@@ -162,7 +178,8 @@ private:
 		}
 
 		// Triangles that connect to north pole
-		for (int32 t = 0; t < NumTheta; ++t)
+		int32 NumTris = bIsClosed ? NumTheta : NumTheta - 1;
+		for (int32 t = 0; t < NumTris; ++t)
 		{
 			OutputTriangle(TriIdx++, PolyIdx,
 						   {t, NorthPoleVtxIdx,       (t + 1) % NumTheta},
@@ -176,7 +193,7 @@ private:
 		// Triangles that connect to South pole
 		const int32 Offset   = NumEquatorialVtx - NumTheta;
 		const int32 OffsetUV = NumEquatorialUVVtx - (NumTheta + 1);
-		for (int32 t = 0; t < NumTheta; ++t)
+		for (int32 t = 0; t < NumTris; ++t)
 		{
 			OutputTriangle(TriIdx++, PolyIdx,
 						   {t + Offset,   ((t + 1) % NumTheta) + Offset, SouthPoleVtxIdx},
@@ -191,12 +208,19 @@ public:
 	/** Generate the mesh */
 	FMediaPlateSphereGenerator& Generate() override
 	{
+		// Is this a closed sphere?
+		bIsClosed = ThetaRange >= FMath::DegreesToRadians(359.9f);
+		if (bIsClosed)
+		{
+			ThetaRange = FMathd::TwoPi;
+		}
+		
 		// enforce sane values for vertex counts
 		NumPhi = FMath::Max(NumPhi, 3);
 		NumTheta = FMath::Max(NumTheta, 3);
 		const int32 NumVertices = (NumPhi - 2) * NumTheta + 2;
 		const int32 NumUVs = (NumPhi - 2) * (NumTheta + 1) + (2 * NumTheta);
-		const int32 NumTris = (NumPhi - 2) * NumTheta * 2;
+		const int32 NumTris = (NumPhi - 2) * (bIsClosed ? NumTheta : (NumTheta - 1)) * 2;
 		SetBufferSizes(NumVertices, NumTris, NumUVs, NumVertices);
 
 		GenerateVertices();

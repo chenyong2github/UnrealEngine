@@ -36,7 +36,7 @@ private:
 	/**
 	 * Creates a sphere mesh.
 	 */
-	void GenerateSphereMesh(FDynamicMesh3* OutMesh);
+	void GenerateSphereMesh(FDynamicMesh3* OutMesh, UMediaPlateComponent* MediaPlate);
 
 	/**
 	 * Call this to create a static mesh asset for a mesh.
@@ -46,6 +46,6 @@ private:
 	/**
 	 * Gets the path for the mesh asset.
 	 */
-	FString GetAssetPath();
+	FString GetAssetPath(UMediaPlateComponent* MediaPlate);
 };
 

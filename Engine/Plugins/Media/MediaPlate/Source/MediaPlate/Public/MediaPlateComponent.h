@@ -105,6 +105,13 @@ public:
 	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
 
 	/**
+	 * Horizontal size of the mesh used for visible mips and tiles calculations.
+	 * For a sphere, this is the horizontal arc size in degrees.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
+	float MeshHorizontalRange = 360.0f;
+
+	/**
 	 * Adds our media texture to the media texture tracker.
 	 */
 	void RegisterWithMediaTextureTracker();
