@@ -342,16 +342,30 @@ namespace Horde.Agent.Parser
 		public static int WriteEvent(JsonLogEvent jsonLogEvent, IBufferWriter<byte> writer)
 		{
 			ReadOnlySpan<byte> span = jsonLogEvent.Data.Span;
-			if (jsonLogEvent.LineCount > 1 || span.IndexOf(s_escapedNewline) == -1)
+			if (jsonLogEvent.LineCount == 1 && span.IndexOf(s_escapedNewline) != -1)
 			{
-				writer.Write(span);
-				writer.Write(s_newline);
-				return 1;
+				JsonObject obj = (JsonObject)JsonNode.Parse(span)!;
+
+				JsonValue? formatValue = obj["format"] as JsonValue;
+				if (formatValue != null && formatValue.TryGetValue(out string? format))
+				{
+					return WriteEventWithFormat(obj, format, writer);
+				}
+
+				JsonValue? messageValue = obj["message"] as JsonValue;
+				if (messageValue != null && messageValue.TryGetValue(out string? message))
+				{
+					return WriteEventWithMessage(obj, message, writer);
+				}
 			}
 
-			JsonObject obj = (JsonObject)JsonNode.Parse(span)!;
+			writer.Write(span);
+			writer.Write(s_newline);
+			return 1;
+		}
 
-			string format = (obj["format"] as JsonValue)?.ToString() ?? String.Empty;
+		static int WriteEventWithFormat(JsonObject obj, string format, IBufferWriter<byte> writer)
+		{
 			IEnumerable<KeyValuePair<string, object?>> propertyValueList = Enumerable.Empty<KeyValuePair<string, object?>>();
 
 			// Split all the multi-line properties into separate properties
@@ -433,19 +447,41 @@ namespace Horde.Agent.Parser
 			string[] lines = format.Split('\n');
 			for (int idx = 0; idx < lines.Length; idx++)
 			{
-				obj[s_messagePropertyName] = MessageTemplate.Render(lines[idx], propertyValueList);
-				obj[s_formatPropertyName] = lines[idx];
-				obj[s_linePropertyName] = idx;
-				obj[s_lineCountPropertyName] = lines.Length;
-
-				using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(writer))
-				{
-					obj.WriteTo(jsonWriter);
-				}
-
-				writer.Write(s_newline.Span);
+				string message = MessageTemplate.Render(lines[idx], propertyValueList);
+				WriteSingleEvent(obj, message, lines[idx], idx, lines.Length, writer);
 			}
 			return lines.Length;
+		}
+
+		static int WriteEventWithMessage(JsonObject obj, string message, IBufferWriter<byte> writer)
+		{
+			string[] lines = message.Split('\n');
+			for (int idx = 0; idx < lines.Length; idx++)
+			{
+				WriteSingleEvent(obj, lines[idx], null, idx, lines.Length, writer);
+			}
+			return lines.Length;
+		}
+
+		static void WriteSingleEvent(JsonObject obj, string message, string? format, int line, int lineCount, IBufferWriter<byte> writer)
+		{
+			obj[s_messagePropertyName] = message;
+			if (format != null)
+			{
+				obj[s_formatPropertyName] = format;
+			}
+			if (lineCount > 1)
+			{
+				obj[s_linePropertyName] = line;
+				obj[s_lineCountPropertyName] = lineCount;
+			}
+
+			using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(writer))
+			{
+				obj.WriteTo(jsonWriter);
+			}
+
+			writer.Write(s_newline.Span);
 		}
 
 		void AddEvent(ReadOnlySpan<byte> span, int lineIndex, int lineCount, EventSeverity severity, List<CreateEventRequest> events)
