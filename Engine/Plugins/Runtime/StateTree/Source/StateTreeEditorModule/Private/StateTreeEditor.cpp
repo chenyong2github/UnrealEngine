@@ -816,13 +816,13 @@ FSlateIcon FStateTreeEditor::GetCompileStatusImage() const
 	static const FName CompileStatusGood("Blueprint.CompileStatus.Overlay.Good");
 	static const FName CompileStatusWarning("Blueprint.CompileStatus.Overlay.Warning");
 
-	const bool bCompiledDataResetDuringLoad = StateTree->LastCompiledEditorDataHash == EditorDataHash && !StateTree->IsReadyToRun(); 
-	
 	if (StateTree == nullptr)
 	{
 		return FSlateIcon(FAppStyle::GetAppStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
 	}
 	
+	const bool bCompiledDataResetDuringLoad = StateTree->LastCompiledEditorDataHash == EditorDataHash && !StateTree->IsReadyToRun();
+
 	if (!bLastCompileSucceeded || bCompiledDataResetDuringLoad)
 	{
 		return FSlateIcon(FAppStyle::GetAppStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusError);
