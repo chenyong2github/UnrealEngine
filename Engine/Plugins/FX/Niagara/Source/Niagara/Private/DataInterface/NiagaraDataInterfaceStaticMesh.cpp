@@ -274,7 +274,7 @@ namespace NDIStaticMeshLocal
 	{
 		struct FRenderProxy*				RenderProxy = nullptr;
 		FNiagaraSystemInstanceID			SystemInstanceID;
-		const FStaticMeshLODResources*		LODResource = nullptr;
+		TRefCountPtr<const FStaticMeshLODResources>		LODResource = nullptr;
 
 		int32								NumFilteredTriangles = 0;
 		int32								NumUnfilteredTriangles = 0;
