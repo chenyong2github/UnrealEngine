@@ -22,34 +22,50 @@ class UMG_API UUniformGridSlot : public UPanelSlot
 public:
 
 	/** The alignment of the object horizontally. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Uniform Grid Slot")
+	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetHorizontalAlignment", Category="Layout|Uniform Grid Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
 	/** The alignment of the object vertically. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Uniform Grid Slot")
+	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetVerticalAlignment", Category="Layout|Uniform Grid Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 	
 	/** The row index of the cell this slot is in */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=( UIMin = "0" ), Category="Layout|Uniform Grid Slot")
+	UE_DEPRECATED(5.1, "Direct access to Row is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetRow", meta=( UIMin = "0" ), Category="Layout|Uniform Grid Slot")
 	int32 Row;
 	
 	/** The column index of the cell this slot is in */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=( UIMin = "0" ), Category="Layout|Uniform Grid Slot")
+	UE_DEPRECATED(5.1, "Direct access to Column is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetColumn", meta=( UIMin = "0" ), Category="Layout|Uniform Grid Slot")
 	int32 Column;
 
 public:
 
+	/** Gets the row index of the slot */
+	int32 GetRow() const;
+
 	/** Sets the row index of the slot, this determines what cell the slot is in the panel */
 	UFUNCTION(BlueprintCallable, Category="Layout|Uniform Grid Slot")
 	void SetRow(int32 InRow);
+
+	/** Gets the column index of the slot. */
+	int32 GetColumn() const;
 
 	/** Sets the column index of the slot, this determines what cell the slot is in the panel */
 	UFUNCTION(BlueprintCallable, Category="Layout|Uniform Grid Slot")
 	void SetColumn(int32 InColumn);
 
 	/**  */
+	EHorizontalAlignment GetHorizontalAlignment() const;
+
+	/**  */
 	UFUNCTION(BlueprintCallable, Category="Layout|Uniform Grid Slot")
 	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	/**  */
+	EVerticalAlignment GetVerticalAlignment() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Layout|Uniform Grid Slot")
@@ -57,9 +73,9 @@ public:
 
 public:
 
-	// UPanelSlot interface
+	//~ UPanelSlot interface
 	virtual void SynchronizeProperties() override;
-	// End of UPanelSlot interface
+	//~ End of UPanelSlot interface
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
 	void BuildSlot(TSharedRef<SUniformGridPanel> GridPanel);
@@ -72,8 +88,6 @@ public:
 #endif //WITH_EDITOR
 
 private:
-	//TODO UMG Slots should hold weak or shared refs to slots.
-
 	/** A raw pointer to the slot to allow us to adjust the size, padding...etc at runtime. */
 	SUniformGridPanel::FSlot* Slot;
 };

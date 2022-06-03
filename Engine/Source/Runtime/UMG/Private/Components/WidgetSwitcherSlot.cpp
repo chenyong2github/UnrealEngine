@@ -11,8 +11,10 @@ UWidgetSwitcherSlot::UWidgetSwitcherSlot(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 	, Slot(nullptr)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	HorizontalAlignment = HAlign_Fill;
 	VerticalAlignment = VAlign_Fill;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UWidgetSwitcherSlot::ReleaseSlateResources(bool bReleaseChildren)
@@ -24,6 +26,7 @@ void UWidgetSwitcherSlot::ReleaseSlateResources(bool bReleaseChildren)
 
 void UWidgetSwitcherSlot::BuildSlot(TSharedRef<SWidgetSwitcher> WidgetSwitcher)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	WidgetSwitcher->AddSlot()
 		.Expose(Slot)
 		.Padding(Padding)
@@ -32,6 +35,7 @@ void UWidgetSwitcherSlot::BuildSlot(TSharedRef<SWidgetSwitcher> WidgetSwitcher)
 		[
 			Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UWidgetSwitcherSlot::SetContent(UWidget* NewContent)
@@ -43,6 +47,12 @@ void UWidgetSwitcherSlot::SetContent(UWidget* NewContent)
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FMargin UWidgetSwitcherSlot::GetPadding() const
+{
+	return Padding;
+}
+
 void UWidgetSwitcherSlot::SetPadding(FMargin InPadding)
 {
 	Padding = InPadding;
@@ -50,6 +60,11 @@ void UWidgetSwitcherSlot::SetPadding(FMargin InPadding)
 	{
 		Slot->SetPadding(InPadding);
 	}
+}
+
+EHorizontalAlignment UWidgetSwitcherSlot::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
 }
 
 void UWidgetSwitcherSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
@@ -61,6 +76,11 @@ void UWidgetSwitcherSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizont
 	}
 }
 
+EVerticalAlignment UWidgetSwitcherSlot::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
+}
+
 void UWidgetSwitcherSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 {
 	VerticalAlignment = InVerticalAlignment;
@@ -69,10 +89,13 @@ void UWidgetSwitcherSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlig
 		Slot->SetVerticalAlignment(InVerticalAlignment);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UWidgetSwitcherSlot::SynchronizeProperties()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetPadding(Padding);
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

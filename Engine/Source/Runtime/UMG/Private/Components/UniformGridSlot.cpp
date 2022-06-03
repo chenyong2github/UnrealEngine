@@ -10,8 +10,10 @@ UUniformGridSlot::UUniformGridSlot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Slot(nullptr)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	HorizontalAlignment = HAlign_Left;
 	VerticalAlignment = VAlign_Top;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UUniformGridSlot::ReleaseSlateResources(bool bReleaseChildren)
@@ -23,6 +25,7 @@ void UUniformGridSlot::ReleaseSlateResources(bool bReleaseChildren)
 
 void UUniformGridSlot::BuildSlot(TSharedRef<SUniformGridPanel> GridPanel)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GridPanel->AddSlot(Column, Row)
 		.Expose(Slot)
 		.HAlign(HorizontalAlignment)
@@ -30,6 +33,13 @@ void UUniformGridSlot::BuildSlot(TSharedRef<SUniformGridPanel> GridPanel)
 		[
 			Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+int32 UUniformGridSlot::GetRow() const
+{
+	return Row;
 }
 
 void UUniformGridSlot::SetRow(int32 InRow)
@@ -41,6 +51,11 @@ void UUniformGridSlot::SetRow(int32 InRow)
 	}
 }
 
+int32 UUniformGridSlot::GetColumn() const
+{
+	return Column;
+}
+
 void UUniformGridSlot::SetColumn(int32 InColumn)
 {
 	Column = InColumn;
@@ -48,6 +63,11 @@ void UUniformGridSlot::SetColumn(int32 InColumn)
 	{
 		Slot->SetColumn(InColumn);
 	}
+}
+
+EHorizontalAlignment UUniformGridSlot::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
 }
 
 void UUniformGridSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
@@ -59,6 +79,11 @@ void UUniformGridSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalA
 	}
 }
 
+EVerticalAlignment UUniformGridSlot::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
+}
+
 void UUniformGridSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 {
 	VerticalAlignment = InVerticalAlignment;
@@ -67,13 +92,16 @@ void UUniformGridSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignme
 		Slot->SetVerticalAlignment(InVerticalAlignment);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UUniformGridSlot::SynchronizeProperties()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetRow(Row);
 	SetColumn(Column);
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #if WITH_EDITOR
@@ -81,10 +109,10 @@ void UUniformGridSlot::SynchronizeProperties()
 bool UUniformGridSlot::NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize)
 {
 	const FVector2D ClampedDirection = NudgeDirection.ClampAxes(-1.0f, 1.0f);
-	const int32 NewColumn = Column + ClampedDirection.X;
-	const int32 NewRow = Row + ClampedDirection.Y;
+	const int32 NewColumn = GetColumn() + ClampedDirection.X;
+	const int32 NewRow = GetRow() + ClampedDirection.Y;
 
-	if (NewColumn < 0 || NewRow < 0 || (NewColumn == Column && NewRow == Row))
+	if (NewColumn < 0 || NewRow < 0 || (NewColumn == GetColumn() && NewRow == GetRow()))
 	{
 		return false;
 	}
@@ -100,8 +128,8 @@ bool UUniformGridSlot::NudgeByDesigner(const FVector2D& NudgeDirection, const TO
 void UUniformGridSlot::SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot)
 {
 	const ThisClass* const TemplateUniformGridSlot = CastChecked<ThisClass>(TemplateSlot);
-	SetRow(TemplateUniformGridSlot->Row);
-	SetColumn(TemplateUniformGridSlot->Column);
+	SetRow(TemplateUniformGridSlot->GetRow());
+	SetColumn(TemplateUniformGridSlot->GetColumn());
 }
 
 #endif

@@ -9,11 +9,13 @@
 
 UHorizontalBoxSlot::UHorizontalBoxSlot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, Slot(nullptr)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	HorizontalAlignment = HAlign_Fill;
 	VerticalAlignment = VAlign_Fill;
-	Slot = nullptr;
 	Size = FSlateChildSize(ESlateSizeRule::Automatic);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UHorizontalBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
@@ -24,7 +26,8 @@ void UHorizontalBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
 }
 
 void UHorizontalBoxSlot::BuildSlot(TSharedRef<SHorizontalBox> HorizontalBox)
-{ 
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	HorizontalBox->AddSlot()
 		.Expose(Slot)
 		.HAlign(HorizontalAlignment)
@@ -34,6 +37,13 @@ void UHorizontalBoxSlot::BuildSlot(TSharedRef<SHorizontalBox> HorizontalBox)
 		[
 			Content == NULL ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FMargin UHorizontalBoxSlot::GetPadding() const
+{
+	return Padding;
 }
 
 void UHorizontalBoxSlot::SetPadding(FMargin InPadding)
@@ -45,6 +55,11 @@ void UHorizontalBoxSlot::SetPadding(FMargin InPadding)
 	}
 }
 
+FSlateChildSize UHorizontalBoxSlot::GetSize() const
+{
+	return Size;
+}
+
 void UHorizontalBoxSlot::SetSize(FSlateChildSize InSize)
 {
 	Size = InSize;
@@ -52,6 +67,11 @@ void UHorizontalBoxSlot::SetSize(FSlateChildSize InSize)
 	{
 		Slot->SetSizeParam(UWidget::ConvertSerializedSizeParamToRuntime(InSize));
 	}
+}
+
+EHorizontalAlignment UHorizontalBoxSlot::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
 }
 
 void UHorizontalBoxSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
@@ -63,6 +83,11 @@ void UHorizontalBoxSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizonta
 	}
 }
 
+EVerticalAlignment UHorizontalBoxSlot::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
+}
+
 void UHorizontalBoxSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 {
 	VerticalAlignment = InVerticalAlignment;
@@ -71,13 +96,16 @@ void UHorizontalBoxSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlign
 		Slot->SetVerticalAlignment(InVerticalAlignment);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UHorizontalBoxSlot::SynchronizeProperties()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetPadding(Padding);
 	SetSize(Size);
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #if WITH_EDITOR

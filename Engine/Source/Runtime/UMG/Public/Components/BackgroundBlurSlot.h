@@ -22,33 +22,42 @@ class UMG_API UBackgroundBlurSlot : public UPanelSlot
 
 public:
 
+	FMargin GetPadding() const;
+
 	UFUNCTION(BlueprintCallable, Category="Layout|Background Blur Slot")
 	void SetPadding(FMargin InPadding);
 
+	EHorizontalAlignment GetHorizontalAlignment() const;
+
 	UFUNCTION(BlueprintCallable, Category="Layout|Background Blur Slot")
 	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	EVerticalAlignment GetVerticalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Background Blur Slot")
 	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 protected:
 	/** The padding area between the slot and the content it contains. */
-	UPROPERTY(EditAnywhere, Category="Layout|Background Blur Slot")
+	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetPadding", Category="Layout|Background Blur Slot")
 	FMargin Padding;
 
 	/** The alignment of the object horizontally. */
-	UPROPERTY(EditAnywhere, Category="Layout|Background Blur Slot")
+	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetHorizontalAlignment", Category="Layout|Background Blur Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
 	/** The alignment of the object vertically. */
-	UPROPERTY(EditAnywhere, Category="Layout|Background Blur Slot")
+	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetVerticalAlignment", Category="Layout|Background Blur Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 
 public:
 
-	// UPanelSlot interface
+	//~ Begin UPanelSlot interface
 	virtual void SynchronizeProperties() override;
-	// End of UPanelSlot interface
+	//~ End of UPanelSlot interface
 
 	/** Builds the underlying slot for the slate BackgroundBlur. */
 	void BuildSlot(TSharedRef<SBackgroundBlur> InBackgroundBlur);
@@ -59,9 +68,9 @@ public:
 
 #if WITH_EDITOR
 
-	// UObject interface
+	//~ Begin UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	// End of UObject interface
+	//~ End of UObject interface
 
 #endif
 

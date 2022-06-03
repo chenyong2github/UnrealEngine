@@ -73,9 +73,9 @@ void UBackgroundBlur::SynchronizeProperties()
 void UBackgroundBlur::OnSlotAdded(UPanelSlot* InSlot)
 {
 	UBackgroundBlurSlot* BackgroundBlurSlot = CastChecked<UBackgroundBlurSlot>(InSlot);
-	BackgroundBlurSlot->Padding = Padding;
-	BackgroundBlurSlot->HorizontalAlignment = HorizontalAlignment;
-	BackgroundBlurSlot->VerticalAlignment = VerticalAlignment;
+	BackgroundBlurSlot->SetPadding(Padding);
+	BackgroundBlurSlot->SetHorizontalAlignment(HorizontalAlignment);
+	BackgroundBlurSlot->SetVerticalAlignment(VerticalAlignment);
 
 	// Add the child to the live slot if it already exists
 	if (MyBackgroundBlur.IsValid())

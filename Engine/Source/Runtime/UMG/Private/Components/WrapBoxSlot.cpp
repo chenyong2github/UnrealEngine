@@ -10,12 +10,14 @@ UWrapBoxSlot::UWrapBoxSlot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Slot(nullptr)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	HorizontalAlignment = HAlign_Fill;
 	VerticalAlignment = VAlign_Fill;
 
 	bFillEmptySpace = false;
 	FillSpanWhenLessThan = 0;
 	bForceNewLine = false;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UWrapBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
@@ -27,8 +29,8 @@ void UWrapBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
 
 void UWrapBoxSlot::BuildSlot(TSharedRef<SWrapBox> WrapBox)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	WrapBox->AddSlot()
-		.Expose(Slot)
 		.Padding(Padding)
 		.HAlign(HorizontalAlignment)
 		.VAlign(VerticalAlignment)
@@ -39,6 +41,13 @@ void UWrapBoxSlot::BuildSlot(TSharedRef<SWrapBox> WrapBox)
 		[
 			Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FMargin UWrapBoxSlot::GetPadding() const
+{
+	return Padding;
 }
 
 void UWrapBoxSlot::SetPadding(FMargin InPadding)
@@ -50,6 +59,11 @@ void UWrapBoxSlot::SetPadding(FMargin InPadding)
 	}
 }
 
+bool UWrapBoxSlot::DoesFillEmptySpace() const
+{
+	return bFillEmptySpace;
+}
+
 void UWrapBoxSlot::SetFillEmptySpace(bool InbFillEmptySpace)
 {
 	bFillEmptySpace = InbFillEmptySpace;
@@ -57,6 +71,11 @@ void UWrapBoxSlot::SetFillEmptySpace(bool InbFillEmptySpace)
 	{
 		Slot->SetFillEmptySpace(InbFillEmptySpace);
 	}
+}
+
+float UWrapBoxSlot::GetFillSpanWhenLessThan() const
+{
+	return FillSpanWhenLessThan;
 }
 
 void UWrapBoxSlot::SetFillSpanWhenLessThan(float InFillSpanWhenLessThan)
@@ -68,6 +87,11 @@ void UWrapBoxSlot::SetFillSpanWhenLessThan(float InFillSpanWhenLessThan)
 	}
 }
 
+EHorizontalAlignment UWrapBoxSlot::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
+}
+
 void UWrapBoxSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
 {
 	HorizontalAlignment = InHorizontalAlignment;
@@ -75,6 +99,11 @@ void UWrapBoxSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlign
 	{
 		Slot->SetHorizontalAlignment(InHorizontalAlignment);
 	}
+}
+
+EVerticalAlignment UWrapBoxSlot::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
 }
 
 void UWrapBoxSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
@@ -86,6 +115,11 @@ void UWrapBoxSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 	}
 }
 
+bool UWrapBoxSlot::DoesForceNewLine() const
+{
+	return bForceNewLine;
+}
+
 void UWrapBoxSlot::SetNewLine(bool InForceNewLine)
 {
 	bForceNewLine = InForceNewLine;
@@ -94,13 +128,16 @@ void UWrapBoxSlot::SetNewLine(bool InForceNewLine)
 		Slot->SetForceNewLine(InForceNewLine);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UWrapBoxSlot::SynchronizeProperties()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetPadding(Padding);
 	SetFillEmptySpace(bFillEmptySpace);
 	SetFillSpanWhenLessThan(FillSpanWhenLessThan);
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
 	SetNewLine(bForceNewLine);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

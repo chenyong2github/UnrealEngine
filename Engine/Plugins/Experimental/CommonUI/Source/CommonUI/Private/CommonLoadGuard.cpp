@@ -339,9 +339,9 @@ void UCommonLoadGuard::PostLoad()
 			// Copy properties from the old SizeBoxSlot
 			if (USizeBoxSlot* AsSizeBoxSlot = Cast<USizeBoxSlot>(PanelSlot))
 			{
-				LoadGuardSlot->SetPadding(AsSizeBoxSlot->Padding);
-				LoadGuardSlot->SetHorizontalAlignment(AsSizeBoxSlot->HorizontalAlignment);
-				LoadGuardSlot->SetVerticalAlignment(AsSizeBoxSlot->VerticalAlignment);
+				LoadGuardSlot->SetPadding(AsSizeBoxSlot->GetPadding());
+				LoadGuardSlot->SetHorizontalAlignment(AsSizeBoxSlot->GetHorizontalAlignment());
+				LoadGuardSlot->SetVerticalAlignment(AsSizeBoxSlot->GetVerticalAlignment());
 			}
 			Slots[0] = LoadGuardSlot;
 		}
