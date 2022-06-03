@@ -48,7 +48,7 @@ FCellInfo::FCellInfo()
 UWorldPartitionBuilder::UWorldPartitionBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bSubmit = FParse::Param(FCommandLine::Get(), TEXT("Submit"));
+	bAutoSubmit = FParse::Param(FCommandLine::Get(), TEXT("AutoSubmit"));
 }
 
 bool UWorldPartitionBuilder::RunBuilder(UWorld* World)

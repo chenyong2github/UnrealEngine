@@ -7,6 +7,12 @@ using System.Threading;
 
 namespace AutomationScripts.Automation
 {
+	[Help("Execute a World Partition builder")]
+	[Help("Builder=<Name>", "Name of the builder to run")]
+	[Help("CommandletArgs=<value>", "Arguments to provide to the builder commandlet")]
+	[Help("Submit", "If the files modified by the builder should be submitted at the end of the process")]
+	[Help("ShelveUser=<Name>", "If provided (along with -ShelveWorkspace, modified files will be shelved for the P4 User in the specified Workspace.")]
+	[Help("ShelveWorkspace=<Name>", "If provided (along with -ShelveUser, modified files will be shelved for the P4 User in the specified Workspace.")]
 	public class WorldPartitionBuilder : BuildCommand
 	{
 		public override void ExecuteBuild()
@@ -14,13 +20,13 @@ namespace AutomationScripts.Automation
 			string Builder = ParseRequiredStringParam("Builder");
 			string CommandletArgs = ParseOptionalStringParam("CommandletArgs");
 
-			bool bSubmit = ParseParam("Submit");
+			bool bSubmitResult = ParseParam("Submit");
 
 			string ShelveUser = ParseOptionalStringParam("ShelveUser");
 			string ShelveWorkspace = ParseOptionalStringParam("ShelveWorkspace");
 			bool bShelveResult = !String.IsNullOrEmpty(ShelveUser) && !String.IsNullOrEmpty(ShelveWorkspace);
 
-			if (!P4Enabled && (bSubmit || bShelveResult))
+			if (!P4Enabled && (bSubmitResult || bShelveResult))
 			{
 				LogError("P4 required to submit or shelve build results");
 				return;
@@ -28,15 +34,17 @@ namespace AutomationScripts.Automation
 
 			CommandletArgs = "-Builder=" + Builder + " " + CommandletArgs;
 
-			if (bSubmit)
+			if (bSubmitResult)
 			{
-				CommandletArgs += " -Submit";
+				CommandletArgs += " -AutoSubmit";
 			}
 
 			string EditorExe = "UnrealEditor-Cmd.exe";
 			EditorExe = AutomationTool.HostPlatform.Current.GetUnrealExePath(EditorExe);
 
 			FileReference ProjectPath = ParseProjectParam();
+
+			// Execute the commandlet - Will throw an exception on failures
 			RunCommandlet(ProjectPath, EditorExe, "WorldPartitionBuilderCommandlet", CommandletArgs);
 			
 			if (bShelveResult)

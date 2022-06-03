@@ -43,5 +43,4 @@ private:
 	TObjectPtr<AWorldPartitionMiniMap> WorldMiniMap;
 
 	FBox EditorBounds;
-	bool bAutoSubmit;
 };

@@ -88,5 +88,5 @@ protected:
 	bool bLoadNonDynamicDataLayers = true;
 	bool bLoadInitiallyActiveDataLayers = true;
 
-	bool bSubmit = true;
+	bool bAutoSubmit = false;
 };
