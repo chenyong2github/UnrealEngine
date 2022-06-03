@@ -70,7 +70,7 @@ public class Steamworks : ModuleRules
 		{
 			LibraryPath += "osx/";
 			SteamBinariesDir += "Mac/";
-			PublicDelayLoadDLLs.Add(SteamBinariesDir + "libsteam_api.dylib");
+			PublicAdditionalLibraries.Add(LibraryPath + "libsteam_api.dylib");
 			// since Steam SDK 1.51, the dylib needs to be in the same directory the binary otherwise it crashes
 			RuntimeDependencies.Add("$(BinaryOutputDir)/libsteam_api.dylib", LibraryPath + "libsteam_api.dylib");
 		}
