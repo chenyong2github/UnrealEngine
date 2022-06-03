@@ -2,17 +2,17 @@
 
 set -e
 
-USD_VERSION=22.03
+USD_VERSION=22.05a
 
 # This path may be adjusted to point to wherever the USD source is located.
 # It is typically obtained by either downloading a zip/tarball of the source
 # code, or more commonly by cloning the GitHub repository, e.g. for the
 # current engine USD version:
-#     git clone --branch v22.03 https://github.com/PixarAnimationStudios/USD.git USD_src
+#     git clone --branch v22.05a https://github.com/PixarAnimationStudios/USD.git USD_src
 # Specifically for Linux when building with clang, an additional patch is
 # needed to ensure that type comparisons work correctly across shared library
 # boundaries:
-#     git apply USD_v2203_Linux_clang_TfSafeTypeCompare.patch
+#     git apply USD_v2205a_Linux_clang_TfSafeTypeCompare.patch
 # Note also that this path may be emitted as part of USD error messages, so
 # it is suggested that it not reveal any sensitive information.
 SOURCE_LOCATION="/tmp/USD_src"
@@ -52,7 +52,7 @@ pushd $BUILD_LOCATION > /dev/null
 
 # Run Engine/Build/BatchFiles/Linux/SetupToolchain.sh first to ensure
 # that the toolchain is setup and verify that this name matches.
-TOOLCHAIN_NAME=v19_clang-11.0.1-centos7
+TOOLCHAIN_NAME=v20_clang-13.0.1-centos7
 
 UE_TOOLCHAIN_LOCATION="$UE_ENGINE_LOCATION/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64/$TOOLCHAIN_NAME/$ARCH_NAME"
 
