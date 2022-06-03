@@ -25,6 +25,7 @@ protected:
 	// ~UMovieRenderPipelineOutputContainer interface
 
 	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
+	virtual bool IsAlphaAllowed() const { return false; }
 protected:
 	/** The format of the image to write out */
 	EImageFormat OutputFormat;
@@ -60,11 +61,17 @@ public:
 #if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ImgSequencePNGSettingDisplayName", ".png Sequence [8bit]"); }
 #endif
+	virtual bool IsAlphaAllowed() const override { return bWriteAlpha; }
+
 public:
 	UMoviePipelineImageSequenceOutput_PNG()
 	{
 		OutputFormat = EImageFormat::PNG;
+		bWriteAlpha = true;
 	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PNG")
+	bool bWriteAlpha;
 };
 
 UCLASS()
