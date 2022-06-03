@@ -279,6 +279,10 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 
 				// Fall back to CPU.
 				bFallBackToCPU = true;
+
+				// To make sure that Media Texture doesn't call the converter if this frame is invalid.
+				OutFrame->SampleConverter.Reset();
+
 				return FExrImgMediaReader::ReadFrame(FrameId, InMipTiles, OutFrame);
 			}
 		}
@@ -350,7 +354,7 @@ FExrImgMediaReaderGpu::EReadResult FExrImgMediaReaderGpu::ReadInChunks(uint16* B
 			FScopeLock RegionScopeLock(&CanceledFramesCriticalSection);
 			if (CanceledFrames.Remove(FrameId) > 0)
 			{
-				UE_LOG(LogImgMedia, Warning, TEXT("Reader %p: Canceling Frame %i At chunk # %i"), this, FrameId, Row);
+				UE_LOG(LogImgMedia, Verbose, TEXT("Reader %p: Canceling Frame %i At chunk # %i"), this, FrameId, Row);
 				bResult = Cancelled;
 				break;
 			}
@@ -622,7 +626,11 @@ void FExrImgMediaReaderGpu::TransferFromStagingBuffer()
 bool FExrMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDstTexture, const FConversionHints& Hints)
 {
 	FScopeLock ScopeLock(&ConverterCallbacksCriticalSection);
-	bool bExecutionSuccessful = ConvertExrBufferCallback.Execute(FRHICommandListExecutor::GetImmediateCommandList(), InDstTexture, MipBuffers);
+	bool bExecutionSuccessful = false;
+	if (ConvertExrBufferCallback.IsBound())
+	{
+		bExecutionSuccessful = ConvertExrBufferCallback.Execute(FRHICommandListExecutor::GetImmediateCommandList(), InDstTexture, MipBuffers);
+	}
 	return bExecutionSuccessful;
 }
 

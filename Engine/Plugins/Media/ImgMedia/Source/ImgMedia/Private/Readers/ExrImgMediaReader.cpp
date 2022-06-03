@@ -71,21 +71,21 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 	FExrReader ChunkReader;
 	int MipLevelDiv = 1 << CurrentMipLevel;
 
+	FIntPoint MipResolution = ConverterParams->FullResolution / MipLevelDiv;
+
 	FIntPoint DimensionInTiles
-	(FMath::CeilToInt(float(ConverterParams->FrameInfo.NumTiles.X) / MipLevelDiv)
-		, FMath::CeilToInt(float(ConverterParams->FrameInfo.NumTiles.Y) / MipLevelDiv));
+		( FMath::CeilToInt(float(MipResolution.X) / ConverterParams->TileDimWithBorders.X)
+		, FMath::CeilToInt(float(MipResolution.Y) / ConverterParams->TileDimWithBorders.Y));
 
 	TArray<int32> NumTilesPerLevel;
 	TArray<TArray<int64>> CustomOffsets;
 	int32 NumMipLevels = ConverterParams->bMipsInSeparateFiles ? 1 : ConverterParams->NumMipLevels;
-	bool bHasPartialTiles = false;
 
 	FExrReader::CalculateTileOffsets(
 		NumTilesPerLevel,
 		CustomOffsets,
 		ConverterParams->TileInfoPerMipLevel,
 		ConverterParams->FullResolution,
-		ConverterParams->FrameInfo.NumTiles,
 		ConverterParams->TileDimWithBorders,
 		NumMipLevels,
 		ConverterParams->PixelSize,
@@ -404,7 +404,9 @@ bool FExrImgMediaReader::GetInfo(const FString& FilePath, FImgMediaFrameInfo& Ou
 
 	if (OutInfo.bHasTiles)
 	{
-		OutInfo.NumTiles = FIntPoint(OutInfo.Dim.X / (OutInfo.TileDimensions.X + OutInfo.TileBorder * 2), OutInfo.Dim.Y / (OutInfo.TileDimensions.Y + OutInfo.TileBorder * 2));
+		OutInfo.NumTiles =
+		{FMath::CeilToInt(float(OutInfo.Dim.X) / (OutInfo.TileDimensions.X + OutInfo.TileBorder * 2))
+		, FMath::CeilToInt(float(OutInfo.Dim.Y) / (OutInfo.TileDimensions.Y + OutInfo.TileBorder * 2))};
 		if (HeaderReader.ContainsMips())
 		{
 			OutInfo.NumMipLevels = HeaderReader.CalculateNumMipLevels(OutInfo.NumTiles);

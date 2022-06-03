@@ -83,7 +83,6 @@ public:
 		, TArray<TArray<int64>>& OutCustomOffsets
 		, TArray<TArray<FTileDesc>>& OutPartialTileInfo
 		, const FIntPoint& FullTextureResolution
-		, const FIntPoint& FullResolutionInTiles
 		, const FIntPoint& TileDimWithBorders
 		, int32 NumMipLevels
 		, int64 PixelSize

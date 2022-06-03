@@ -264,7 +264,6 @@ void FExrReader::CalculateTileOffsets
 	, TArray<TArray<int64>>& OutCustomOffsets
 	, TArray<TArray<FTileDesc>>& OutPartialTileInfo
 	, const FIntPoint& FullTextureResolution
-	, const FIntPoint& FullResolutionInTiles
 	, const FIntPoint& TileDimWithBorders
 	, int32 NumMipLevels
 	, int64 PixelSize
@@ -280,15 +279,20 @@ void FExrReader::CalculateTileOffsets
 		{
 			int32 MipDiv = 1 << MipLevel;
 
+			// Resolution of the texture in pixels for this mip level.
+			FIntPoint MipResolution = FullTextureResolution / MipDiv;
+
 			// Dimension of the texture in tiles including partial tiles
+			float TileResFractionX = float(MipResolution.X) / TileDimWithBorders.X;
+			float TileResFractionY = float(MipResolution.Y) / TileDimWithBorders.Y;
 			FIntPoint DimensionInTiles_PartialTiles
-				( FMath::CeilToInt(float(FullResolutionInTiles.X) / MipDiv)
-				, FMath::CeilToInt(float(FullResolutionInTiles.Y) / MipDiv));
+				( FMath::CeilToInt(TileResFractionX)
+				, FMath::CeilToInt(TileResFractionY));
 
 			// Dimension of the texture in tiles excluding partial tiles.
 			FIntPoint DimensionInTiles_CompleteTiles
-				( FMath::FloorToInt(float(FullResolutionInTiles.X) / MipDiv)
-				, FMath::FloorToInt(float(FullResolutionInTiles.Y) / MipDiv));
+				( FMath::FloorToInt(TileResFractionX)
+				, FMath::FloorToInt(TileResFractionY));
 
 			// Total number of tiles for this mip level.
 			int32 NumActualTiles = DimensionInTiles_PartialTiles.X * DimensionInTiles_PartialTiles.Y;
@@ -313,8 +317,6 @@ void FExrReader::CalculateTileOffsets
 				continue;
 			}
 
-			// Resolution of the texture in pixels for this mip level.
-			FIntPoint MipResolution = FullTextureResolution / MipDiv;
 
 			// Resolution of the partial tile in the bottom right corner.
 			FIntPoint PartialTileResolution = FIntPoint(MipResolution.X % TileDimWithBorders.X, MipResolution.Y % TileDimWithBorders.Y);
