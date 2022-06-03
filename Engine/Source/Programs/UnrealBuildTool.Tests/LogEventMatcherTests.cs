@@ -201,17 +201,17 @@ namespace UnrealBuildToolTests
 			};
 
 			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
-			CheckEventGroup(logEvents, 1, 9, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents, 0, 10, LogLevel.Error, KnownLogEvents.Compiler);
 
-			LogValue fileProperty = (LogValue)logEvents[0].GetProperty("file");
+			LogValue fileProperty = (LogValue)logEvents[1].GetProperty("file");
 			Assert.AreEqual(@"/mnt/horde/U5+RES+Inc+Min/Sync/Samples/Showcases/CitySample/Source/CitySampleEditor/Commandlets/NaniteMeshLodGroupUpdateCommandlet.cpp", fileProperty.Text);
 			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
 
-			LogValue noteProperty1 = logEvents[3].GetProperty<LogValue>("file");
+			LogValue noteProperty1 = logEvents[4].GetProperty<LogValue>("file");
 			Assert.AreEqual(@"/mnt/horde/U5+RES+Inc+Min/Sync/Engine/Source/Runtime/CoreUObject/Public/AssetRegistry/ARFilter.h", noteProperty1.Text);
 			Assert.AreEqual(LogValueType.SourceFile, noteProperty1.Type);
 
-			LogValue noteProperty2 = logEvents[6].GetProperty<LogValue>("file");
+			LogValue noteProperty2 = logEvents[7].GetProperty<LogValue>("file");
 			Assert.AreEqual(@"/mnt/horde/U5+RES+Inc+Min/Sync/Engine/Source/Runtime/Core/Public/Misc/CoreMiscDefines.h", noteProperty2.Text);
 		}
 
@@ -346,9 +346,9 @@ namespace UnrealBuildToolTests
 			};
 
 			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
-			CheckEventGroup(logEvents, 1, 7, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents, 0, 8, LogLevel.Error, KnownLogEvents.Compiler);
 
-			LogEvent logEvent = logEvents[0];
+			LogEvent logEvent = logEvents[1];
 			Assert.AreEqual("7", logEvent.GetProperty("line").ToString());
 			Assert.AreEqual("48", logEvent.GetProperty("column").ToString());
 
