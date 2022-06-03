@@ -6170,6 +6170,8 @@ void FSlateApplication::ProcessMotionDetectedEvent( const FMotionEvent& MotionEv
 
 bool FSlateApplication::OnSizeChanged( const TSharedRef< FGenericWindow >& PlatformWindow, const int32 Width, const int32 Height, bool bWasMinimized )
 {
+	LLM_SCOPE(ELLMTag::UI);
+
 	TSharedPtr< SWindow > Window = FSlateWindowHelper::FindWindowByPlatformWindow( SlateWindows, PlatformWindow );
 
 	if ( Window.IsValid() )
