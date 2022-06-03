@@ -354,7 +354,15 @@ namespace EpicGames.Core
 			LogEventMatch? currentMatch = null;
 			foreach (ILogEventMatcher matcher in Matchers)
 			{
-				LogEventMatch? match = matcher.Match(_buffer);
+				LogEventMatch? match = null;
+				try
+				{
+					match = matcher.Match(_buffer);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogWarning(KnownLogEvents.Systemic_LogEventMatcher, ex, "Exception while parsing log events with {Type}. Buffer size {Length}.", matcher.GetType().Name, _buffer.Length);
+				}
 				if(match != null)
 				{
 					if (currentMatch == null || match.Priority > currentMatch.Priority)

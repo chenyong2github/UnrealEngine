@@ -201,6 +201,11 @@ namespace EpicGames.Core
 		public static EventId Systemic_LogParserBottleneck { get; } = new EventId(762);
 
 		/// <summary>
+		/// Exception parsing a log event.
+		/// </summary>
+		public static EventId Systemic_LogEventMatcher { get; } = new EventId(763);
+
+		/// <summary>
 		/// Maximum code for systemic events. Add new events in the 700-799 range.
 		/// </summary>
 		public static EventId Systemic_Max { get; } = new EventId(799);
