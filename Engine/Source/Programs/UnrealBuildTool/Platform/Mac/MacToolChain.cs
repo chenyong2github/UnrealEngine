@@ -88,7 +88,7 @@ namespace UnrealBuildTool
 
 		public static string SDKPath
 		{
-			get { return Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk"; }
+			get { return Settings.BaseSDKDir + "/MacOSX.sdk"; }
 		}
 
 		/// <summary>
