@@ -193,7 +193,7 @@ ECheckBoxState SNiagaraScalabilityPreviewSettings::IsQLChecked(int32 QualityLeve
 
 void SNiagaraScalabilityPreviewSettings::QLCheckStateChanged(ECheckBoxState CheckState, int32 QualityLevel)
 {
-	ScalabilityViewModel->UpdatePreviewQualityLevel(QualityLevel, CheckState == ECheckBoxState::Checked);
+	ScalabilityViewModel->UpdatePreviewQualityLevel(QualityLevel);
 }
 
 FSlateColor SNiagaraScalabilityPreviewSettings::GetQualityLevelButtonTextColor(int32 QualityLevel) const

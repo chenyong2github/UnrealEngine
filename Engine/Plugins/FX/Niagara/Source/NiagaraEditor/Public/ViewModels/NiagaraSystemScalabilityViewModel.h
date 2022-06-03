@@ -48,7 +48,9 @@ public:
 	bool IsViewModeQualityEnabled(int32 QualityLevel) const { return PreviewPlatforms->IsEffectQualityEnabled(QualityLevel); }
 	
 	void UpdatePreviewDeviceProfile(UDeviceProfile* DeviceProfile);
-	void UpdatePreviewQualityLevel(int32 QualityLevel, bool bEnabled);
+	void UpdatePreviewQualityLevel(int32 QualityLevel);
+
+	bool IsPlatformActive(const FNiagaraPlatformSet& PlatformSet);
 
 	//void NavigateToScalabilityProperty(UObject* Object, FName PropertyName);
 	

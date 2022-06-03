@@ -7,6 +7,7 @@
 #include "ISequencerModule.h"
 #include "NiagaraSystemToolkit.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 #include "Modules/ModuleManager.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 
@@ -49,13 +50,21 @@ void UNiagaraSystemScalabilityViewModel::UpdatePreviewDeviceProfile(UDeviceProfi
 	GetSystemViewModel().Pin()->GetSystem().UpdateScalability();
 }
 
-void UNiagaraSystemScalabilityViewModel::UpdatePreviewQualityLevel(int32 QualityLevel, bool bEnabled)
+void UNiagaraSystemScalabilityViewModel::UpdatePreviewQualityLevel(int32 QualityLevel)
 {
 	PreviewPlatforms->QualityLevelMask = 0;
-	PreviewPlatforms->SetEnabledForEffectQuality(QualityLevel, bEnabled);
+	PreviewPlatforms->SetEnabledForEffectQuality(QualityLevel, true);
 
 	FNiagaraPlatformSet::InvalidateCachedData();
 	GetSystemViewModel().Pin()->GetSystem().UpdateScalability();
+}
+
+bool UNiagaraSystemScalabilityViewModel::IsPlatformActive(const FNiagaraPlatformSet& PlatformSet)
+{
+	TOptional<TObjectPtr<UDeviceProfile>> DeviceProfile = GetPreviewDeviceProfile();
+	UDeviceProfileManager& DeviceProfileManager = UDeviceProfileManager::Get();
+	int32 PreviewQualityLevel = FNiagaraPlatformSet::QualityLevelFromMask(PreviewPlatforms->QualityLevelMask);
+	return PlatformSet.IsEnabled(DeviceProfile.Get(DeviceProfileManager.GetActiveProfile()), PreviewQualityLevel, true).bIsActive;
 }
 
 // void UNiagaraSystemScalabilityViewModel::NavigateToScalabilityProperty(UObject* Object, FName PropertyName)

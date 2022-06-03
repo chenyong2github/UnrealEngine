@@ -180,7 +180,7 @@ struct FNiagaraSystemVisibilityCullingSettings
 
 /** Scalability settings for Niagara Systems for a particular platform set (unless overridden). */
 USTRUCT()
-struct FNiagaraSystemScalabilitySettings
+struct NIAGARA_API FNiagaraSystemScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -254,7 +254,7 @@ struct FNiagaraSystemScalabilitySettings
 
 /** Container struct for an array of system scalability settings. Enables details customization and data validation. */
 USTRUCT()
-struct FNiagaraSystemScalabilitySettingsArray
+struct NIAGARA_API FNiagaraSystemScalabilitySettingsArray
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -263,7 +263,7 @@ struct FNiagaraSystemScalabilitySettingsArray
 };
 
 USTRUCT()
-struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySettings
+struct NIAGARA_API FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -291,7 +291,7 @@ struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySetti
 
 /** Container struct for an array of system scalability overrides. Enables details customization and data validation. */
 USTRUCT()
-struct FNiagaraSystemScalabilityOverrides
+struct NIAGARA_API FNiagaraSystemScalabilityOverrides
 {
 	GENERATED_USTRUCT_BODY()
 	
@@ -301,7 +301,7 @@ struct FNiagaraSystemScalabilityOverrides
 
 /** Scalability settings for Niagara Emitters on a particular platform set. */
 USTRUCT()
-struct FNiagaraEmitterScalabilitySettings
+struct NIAGARA_API FNiagaraEmitterScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -323,7 +323,7 @@ struct FNiagaraEmitterScalabilitySettings
 
 /** Container struct for an array of emitter scalability settings. Enables details customization and data validation. */
 USTRUCT()
-struct FNiagaraEmitterScalabilitySettingsArray
+struct NIAGARA_API FNiagaraEmitterScalabilitySettingsArray
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -332,7 +332,7 @@ struct FNiagaraEmitterScalabilitySettingsArray
 };
 
 USTRUCT()
-struct FNiagaraEmitterScalabilityOverride : public FNiagaraEmitterScalabilitySettings
+struct NIAGARA_API FNiagaraEmitterScalabilityOverride : public FNiagaraEmitterScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -345,7 +345,7 @@ struct FNiagaraEmitterScalabilityOverride : public FNiagaraEmitterScalabilitySet
 
 /** Container struct for an array of emitter scalability overrides. Enables details customization and data validation. */
 USTRUCT()
-struct FNiagaraEmitterScalabilityOverrides
+struct NIAGARA_API FNiagaraEmitterScalabilityOverrides
 {
 	GENERATED_USTRUCT_BODY()
 
