@@ -34,26 +34,25 @@ private:
 #if METAL_UNIFORM_BUFFER_VALIDATION
     EUniformBufferValidation Validation;
 #endif
-    
+
 public:
     // Creates a uniform buffer.
     // If Usage is SingleDraw or MultiFrame we will keep a copy of the data
-    FMetalSuballocatedUniformBuffer(const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
+    FMetalSuballocatedUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
     ~FMetalSuballocatedUniformBuffer();
-    
-	void Update(const void* Contents, TArray<TRefCountPtr<FRHIResource> > const& InResourceTable);
-    
+
+	void Update(const void* Contents);
+
     // Prepares this uniform buffer for binding.
     // You MUST call this before binding it.
     // If this is a UB that was created before the current frame the data on the GPU will
     // not be correct until this function returns.
     void PrepareToBind();
 
+private:
 	// Copies the RDG resources to a resource table for a deferred update on the RHI thread.
 	void CopyResourceTable(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable) const;
 
-private:
-    
     // Pushes the data in Contents to the gpu.
     // Updates the frame counter to FrameNumber.
     // (this is to support the case where we create buffer and reuse it many frames later).
@@ -61,8 +60,6 @@ private:
     // and copies Contents into that backing.
     // The amount of data is determined by the Layout
     void PushToGPUBacking(const void* Contents);
-    
-    bool HasShadow();
 };
 
 typedef FMetalSuballocatedUniformBuffer FMetalUniformBuffer;

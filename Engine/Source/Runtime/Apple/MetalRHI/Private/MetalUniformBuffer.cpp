@@ -11,49 +11,33 @@
 
 #pragma mark Suballocated Uniform Buffer Implementation
 
-FMetalSuballocatedUniformBuffer::FMetalSuballocatedUniformBuffer(const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation InValidation)
+FMetalSuballocatedUniformBuffer::FMetalSuballocatedUniformBuffer(const void *Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation InValidation)
     : FRHIUniformBuffer(Layout)
     , LastFrameUpdated(0)
     , Offset(0)
     , Backing(nil)
-    , Shadow(nullptr)
+    , Shadow(FMemory::Malloc(GetSize()))
     , ResourceTable()
 #if METAL_UNIFORM_BUFFER_VALIDATION
     , Validation(InValidation)
 #endif // METAL_UNIFORM_BUFFER_VALIDATION
 {
-    // Slate can create SingleDraw uniform buffers and use them several frames later. So it must be included.
-    if (Usage == UniformBuffer_SingleDraw || Usage == UniformBuffer_MultiFrame)
-    {
-        Shadow = FMemory::Malloc(GetSize());
-    }
+	FMemory::Memcpy(Shadow, Contents, GetSize());
+	CopyResourceTable(Contents, ResourceTable);
 }
 
 FMetalSuballocatedUniformBuffer::~FMetalSuballocatedUniformBuffer()
 {
-    if (HasShadow())
-    {
-        FMemory::Free(Shadow);
-    }
+	FMemory::Free(Shadow);
 
     // Note: this object does NOT own a reference
     // to the uniform buffer backing store
 }
 
-bool FMetalSuballocatedUniformBuffer::HasShadow()
+void FMetalSuballocatedUniformBuffer::Update(const void* Contents)
 {
-    return Shadow != nullptr;
-}
-
-void FMetalSuballocatedUniformBuffer::Update(const void* Contents, TArray<TRefCountPtr<FRHIResource> > const& InResourceTable)
-{
-    if (HasShadow())
-    {
-        FMemory::Memcpy(Shadow, Contents, GetSize());
-    }
-
-	ResourceTable = InResourceTable;
-
+	FMemory::Memcpy(Shadow, Contents, GetSize());
+	CopyResourceTable(Contents, ResourceTable);
 	PushToGPUBacking(Contents);
 }
 
