@@ -83,31 +83,32 @@ namespace ShaderPrint
 	static uint32 GTriangleRequestCount = 0;
 	static bool GShaderPrintEnableOverride = false;
 	static FViewInfo* GDefaultView = nullptr;
+	static TArray<FFrozenShaderPrintData> GShaderPrintDataToRender;
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	// Struct & Functions
 
 	static uint32 GetMaxValueCount()
 	{
-		uint32 MaxValueCount = FMath::Max(CVarMaxCharacterCount.GetValueOnRenderThread() + int32(GCharacterRequestCount), 0);
+		uint32 MaxValueCount = FMath::Max(CVarMaxCharacterCount.GetValueOnAnyThread() + int32(GCharacterRequestCount), 0);
 		return IsEnabled() ? MaxValueCount : 0;
 	}
 
 	static uint32 GetMaxWidgetCount()
 	{
-		uint32 MaxValueCount = FMath::Max(CVarMaxWidgetCount.GetValueOnRenderThread() + int32(GWidgetRequestCount), 0);
+		uint32 MaxValueCount = FMath::Max(CVarMaxWidgetCount.GetValueOnAnyThread() + int32(GWidgetRequestCount), 0);
 		return IsEnabled() ? MaxValueCount : 0;
 	}
 
 	static uint32 GetMaxLineCount()
 	{
-		uint32 MaxValueCount = FMath::Max(CVarMaxLineCount.GetValueOnRenderThread() + int32(GLineRequestCount), 0);
+		uint32 MaxValueCount = FMath::Max(CVarMaxLineCount.GetValueOnAnyThread() + int32(GLineRequestCount), 0);
 		return IsEnabled() ? MaxValueCount : 0;
 	}
 
 	static uint32 GetMaxTriangleCount()
 	{
-		uint32 MaxValueCount = FMath::Max(CVarMaxTriangleCount.GetValueOnRenderThread() + int32(GTriangleRequestCount), 0);
+		uint32 MaxValueCount = FMath::Max(CVarMaxTriangleCount.GetValueOnAnyThread() + int32(GTriangleRequestCount), 0);
 		return IsEnabled() ? MaxValueCount : 0;
 	}
 
@@ -182,12 +183,12 @@ namespace ShaderPrint
 	// Accessors
 
 	// Fill the FShaderParameters parameters
-	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters)
+	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& InData, FShaderParameters& OutParameters)
 	{
-		OutParameters.Common = Data.UniformBuffer;
-		OutParameters.ShaderPrint_StateBuffer = GraphBuilder.CreateSRV(Data.ShaderPrintStateBuffer);
-		OutParameters.ShaderPrint_RWValuesBuffer = GraphBuilder.CreateUAV(Data.ShaderPrintValueBuffer);
-		OutParameters.ShaderPrint_RWPrimitivesBuffer = GraphBuilder.CreateUAV(Data.ShaderPrintPrimitiveBuffer);
+		OutParameters.Common = InData.UniformBuffer;
+		OutParameters.ShaderPrint_StateBuffer = GraphBuilder.CreateSRV(InData.ShaderPrintStateBuffer);
+		OutParameters.ShaderPrint_RWValuesBuffer = GraphBuilder.CreateUAV(InData.ShaderPrintValueBuffer);
+		OutParameters.ShaderPrint_RWPrimitivesBuffer = GraphBuilder.CreateUAV(InData.ShaderPrintPrimitiveBuffer);
 	}
 
 	void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters)
@@ -256,6 +257,11 @@ namespace ShaderPrint
 	bool IsDefaultViewEnabled()
 	{
 		return GDefaultView != nullptr && IsEnabled(*GDefaultView);
+	}
+
+	void SubmitShaderPrintData(FFrozenShaderPrintData& InData)
+	{
+		GShaderPrintDataToRender.Add(InData);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -547,13 +553,12 @@ namespace ShaderPrint
 
 	FShaderPrintSetup::FShaderPrintSetup(FIntRect InViewRect)
 	{
-		ViewRect = InViewRect;
-		CursorCoord = FIntPoint(-1, -1);
-		PreViewTranslation = FVector::ZeroVector;
-		DPIScale = 1.f;
+		bEnabled = IsEnabled();
 
-		FontSize = FIntPoint(FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1), FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1));
-		FontSpacing = FIntPoint(FMath::Max(CVarFontSpacingX.GetValueOnRenderThread(), 1), FMath::Max(CVarFontSpacingY.GetValueOnRenderThread(), 1));
+		ViewRect = InViewRect;
+
+		FontSize = FIntPoint(FMath::Max(CVarFontSize.GetValueOnAnyThread(), 1), FMath::Max(CVarFontSize.GetValueOnAnyThread(), 1));
+		FontSpacing = FIntPoint(FMath::Max(CVarFontSpacingX.GetValueOnAnyThread(), 1), FMath::Max(CVarFontSpacingY.GetValueOnAnyThread(), 1));
 		MaxValueCount = GetMaxValueCount();
 		MaxStateCount = GetMaxWidgetCount();
 		MaxLineCount = GetMaxLineCount();
@@ -562,13 +567,15 @@ namespace ShaderPrint
 
 	FShaderPrintSetup::FShaderPrintSetup(FSceneView const& View)
 	{
+		bEnabled = IsEnabled() && IsSupported(View.GetShaderPlatform());
+
 		ViewRect = View.UnconstrainedViewRect;
 		CursorCoord = View.CursorPos;
 		PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
 		DPIScale = View.Family->DebugDPIScale;
 
-		FontSize = FIntPoint(FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1), FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1));
-		FontSpacing = FIntPoint(FMath::Max(CVarFontSpacingX.GetValueOnRenderThread(), 1), FMath::Max(CVarFontSpacingY.GetValueOnRenderThread(), 1));
+		FontSize = FIntPoint(FMath::Max(CVarFontSize.GetValueOnAnyThread(), 1), FMath::Max(CVarFontSize.GetValueOnAnyThread(), 1));
+		FontSpacing = FIntPoint(FMath::Max(CVarFontSpacingX.GetValueOnAnyThread(), 1), FMath::Max(CVarFontSpacingY.GetValueOnAnyThread(), 1));
 		MaxValueCount = GetMaxValueCount();
 		MaxStateCount = GetMaxWidgetCount();
 		MaxLineCount = GetMaxLineCount();
@@ -580,12 +587,13 @@ namespace ShaderPrint
 		FShaderPrintData ShaderPrintData;
 
 		// Common uniform buffer
+		ShaderPrintData.Setup = InSetup;
 		ShaderPrintData.UniformBuffer = CreateUniformBuffer(InSetup);
 
 		// Early out if system is disabled.
 		// Note that we still bind dummy buffers.
 		// This is in case some debug shader code is still active and accessing the buffer.
-		if (!IsEnabled())
+		if (!InSetup.bEnabled)
 		{
 			ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
@@ -680,10 +688,37 @@ namespace ShaderPrint
 
 		return ShaderPrintData;
 	}
-	\
+
 	FShaderPrintData CreateShaderPrintData(FRDGBuilder& GraphBuilder, FShaderPrintSetup const& InSetup)
 	{
 		return CreateShaderPrintData(GraphBuilder, InSetup, nullptr);
+	}
+
+	FFrozenShaderPrintData FreezeShaderPrintData(FRDGBuilder& GraphBuilder, FShaderPrintData& ShaderPrintData)
+	{
+		FFrozenShaderPrintData Out;
+
+		Out.Setup = ShaderPrintData.Setup;
+
+		Out.ShaderPrintValueBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintValueBuffer);
+		Out.ShaderPrintStateBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintStateBuffer);
+		Out.ShaderPrintPrimitiveBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintPrimitiveBuffer);
+
+		return Out;
+	}
+
+	FShaderPrintData UnFreezeShaderPrintData(FRDGBuilder& GraphBuilder, FFrozenShaderPrintData& FrozenShaderPrintData)
+	{
+		FShaderPrintData Out;
+
+		Out.Setup = FrozenShaderPrintData.Setup;
+		Out.UniformBuffer = CreateUniformBuffer(Out.Setup);
+
+		Out.ShaderPrintValueBuffer = GraphBuilder.RegisterExternalBuffer(FrozenShaderPrintData.ShaderPrintValueBuffer);
+		Out.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(FrozenShaderPrintData.ShaderPrintStateBuffer);
+		Out.ShaderPrintPrimitiveBuffer = GraphBuilder.RegisterExternalBuffer(FrozenShaderPrintData.ShaderPrintPrimitiveBuffer);
+
+		return Out;
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -693,9 +728,9 @@ namespace ShaderPrint
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ShaderPrint::BeginView);
 
-		View.ShaderPrintData = FShaderPrintData();
 		if (!IsSupported(View.GetShaderPlatform()))
 		{
+			View.ShaderPrintData = FShaderPrintData();
 			return;
 		}
 
@@ -942,40 +977,57 @@ namespace ShaderPrint
 			});
 	}
 
-	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassTexture& OutputTexture, const FScreenPassTexture& DepthTexture)
+	void InternalDrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FShaderPrintData& ShaderPrintData, const FScreenPassTexture& OutputTexture, const FScreenPassTexture& DepthTexture)
 	{
-		check(OutputTexture.IsValid());
+		if (!ensure(OutputTexture.IsValid()))
+		{
+			return;
+		}
 
 		RDG_EVENT_SCOPE(GraphBuilder, "ShaderPrint::DrawView");
 
 		const FIntRect SourceViewRect = View.ViewRect;
 		const FIntRect OutputViewRect = OutputTexture.ViewRect;
-		
+		const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation() - ShaderPrintData.Setup.PreViewTranslation;
+
 		// Lines
 		{
-			FRDGBufferRef DataBuffer = View.ShaderPrintData.ShaderPrintPrimitiveBuffer;
-			InternalDrawView_Primitives(GraphBuilder, View.ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), FVector::ZeroVector, true /*bLines*/, false /*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
+			FRDGBufferRef DataBuffer = ShaderPrintData.ShaderPrintPrimitiveBuffer;
+			InternalDrawView_Primitives(GraphBuilder, ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), PreViewTranslation, true /*bLines*/, false /*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
 		}
 
 		// Triangles
 		{
-			FRDGBufferRef DataBuffer = View.ShaderPrintData.ShaderPrintPrimitiveBuffer;
-			InternalDrawView_Primitives(GraphBuilder, View.ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), FVector::ZeroVector, false /*bLines*/, false /*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
+			FRDGBufferRef DataBuffer = ShaderPrintData.ShaderPrintPrimitiveBuffer;
+			InternalDrawView_Primitives(GraphBuilder, ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), PreViewTranslation, false /*bLines*/, false /*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
 		}
 
 		// Locked Lines/Triangles
 		if (View.ViewState && View.ViewState->ShaderPrintStateData.bIsLocked)
 		{
-			const FVector LockedToCurrentTranslatedOffset = View.ViewMatrices.GetPreViewTranslation() - View.ViewState->ShaderPrintStateData.PreViewTranslation;
+			const FVector LockedPreViewTranslation = View.ViewMatrices.GetPreViewTranslation() - View.ViewState->ShaderPrintStateData.PreViewTranslation;
 			FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(View.ViewState->ShaderPrintStateData.PrimitiveBuffer);
-			InternalDrawView_Primitives(GraphBuilder, View.ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), LockedToCurrentTranslatedOffset, true  /*bLines*/, true/*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
-			InternalDrawView_Primitives(GraphBuilder, View.ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), LockedToCurrentTranslatedOffset, false /*bLines*/, true/*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
+			InternalDrawView_Primitives(GraphBuilder, ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), LockedPreViewTranslation, true  /*bLines*/, true/*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
+			InternalDrawView_Primitives(GraphBuilder, ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), LockedPreViewTranslation, false /*bLines*/, true/*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
 		}
 
 		// Characters
 		{
 			const int32 FrameNumber = View.Family ? View.Family->FrameNumber : 0u;
-			InternalDrawView_Characters(GraphBuilder, View.ShaderPrintData, OutputViewRect, FrameNumber, OutputTexture);
+			InternalDrawView_Characters(GraphBuilder, ShaderPrintData, OutputViewRect, FrameNumber, OutputTexture);
+		}
+	}
+
+	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassTexture& OutputTexture, const FScreenPassTexture& DepthTexture)
+	{
+		// Draw the shader print data for the view.
+		InternalDrawView(GraphBuilder, View, View.ShaderPrintData, OutputTexture, DepthTexture);
+
+		// Draw any externally enqueued shader print data.
+		for (FFrozenShaderPrintData& ShaderPrintDataToRender : GShaderPrintDataToRender)
+		{
+			FShaderPrintData ShaderPrintData = UnFreezeShaderPrintData(GraphBuilder, ShaderPrintDataToRender);
+			InternalDrawView(GraphBuilder, View, ShaderPrintData, OutputTexture, DepthTexture);
 		}
 	}
 
@@ -983,5 +1035,6 @@ namespace ShaderPrint
 	{
 		View.ShaderPrintData = FShaderPrintData();
 		GDefaultView = nullptr;
+		GShaderPrintDataToRender.Reset();
 	}
 }

@@ -14,6 +14,7 @@
 #include "ShaderParameterMacros.h"
 #include "ShaderParameters.h"
 
+struct FFrozenShaderPrintData;
 class FSceneView;
 struct FShaderPrintData;
 class FRDGBuilder;
@@ -76,38 +77,50 @@ namespace ShaderPrint
 	/** Structure containing setup for shader print capturing. */
 	struct RENDERER_API FShaderPrintSetup
 	{
+		/** Construct with shader print disabled setup. */
+		FShaderPrintSetup() = default;
 		/** Construct with view and system defaults. */
 		FShaderPrintSetup(FSceneView const& InView);
 		/** Construct with view rectangle and system defaults. */
 		FShaderPrintSetup(FIntRect InViewRect);
 
+		/** The shader print system's enabled state. This is set in the constructor and should't be overriden. */
+		bool bEnabled = false;
 		/** Expected viewport rectangle. */
-		FIntRect ViewRect;
+		FIntRect ViewRect = FIntRect(0, 0, 1, 1);
 		/** Cursor pixel position within viewport. Can be used for isolating a pixel to debug. */
-		FIntPoint CursorCoord;
+		FIntPoint CursorCoord = FIntPoint(-1, -1);
 		/** PreView translation used for storing line positions in translated world space. */
-		FVector PreViewTranslation;
+		FVector PreViewTranslation = FVector::ZeroVector;
 		/** DPI scale to take into account when drawing font. */
-		float DPIScale;
+		float DPIScale = 1.f;
 		/** Font size in pixels. */
-		FIntPoint FontSize;
+		FIntPoint FontSize = 1;
 		/** Font spacing in pixels (not including font size). */
-		FIntPoint FontSpacing;
+		FIntPoint FontSpacing = 1;
 		/** Initial size of character buffer. Will also be increased by RequestSpaceForCharacters(). */
-		uint32 MaxValueCount;
+		uint32 MaxValueCount = 0;
 		/** Initial size of widget buffer. */
-		uint32 MaxStateCount;
+		uint32 MaxStateCount = 0;
 		/** Initial size of line buffer. Will also be increased by RequestSpaceForLines(). */
-		uint32 MaxLineCount;
+		uint32 MaxLineCount = 0;
 		/** Initial size of triangle buffer. Will also be increased by RequestSpaceForLines(). */
-		uint32 MaxTriangleCount;
+		uint32 MaxTriangleCount = 0;
 	};
 
 	/** Create the shader print render data. This allocates and clears the render buffers. */
 	RENDERER_API FShaderPrintData CreateShaderPrintData(FRDGBuilder& GraphBuilder, FShaderPrintSetup const& InSetup);
+	
+	/** Make the buffers in a FShaderPrintData object external to an RDG builder. Do this for later reuse, or when submiting for later rendering. */
+	RENDERER_API FFrozenShaderPrintData FreezeShaderPrintData(FRDGBuilder& GraphBuilder, FShaderPrintData& ShaderPrintData);
+	/** Import the shader print buffers into an RDG builder and recreate the FShaderPrintData object. */
+	RENDERER_API FShaderPrintData UnFreezeShaderPrintData(FRDGBuilder& GraphBuilder, FFrozenShaderPrintData& FrozenShaderPrintData);
+
+	/** Submit shader print data for display in the next rendered frame. */
+	RENDERER_API void SubmitShaderPrintData(FFrozenShaderPrintData& InData);
 
 	/** Fill the FShaderParameters with an explicit FShaderPrintData managed by the calling code. */
-	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters);
+	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, FShaderPrintData const& InData, FShaderParameters& OutParameters);
 	/** Fill the FShaderParameters with the opaque FShaderPrintData from the current default view. */
 	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters);
 	
@@ -119,13 +132,31 @@ namespace ShaderPrint
  * Structure containing shader print render data.
  * This is automatically created, setup and rendered for each view.
  * Also it is possible for client code to create and own this. 
- * If this is client managed then the client also needs to send to the shader print renderer.
+ * If this is client managed then the client can queue for rendering by calling:
+ * (i) FreezeShaderPrintData() to "freeze" the data which exports it from the current RDG builder context.
+ * (ii) SubmitShaderPrintData() to submit the frozen data for later thawing and rendering.
  */
 struct RENDERER_API FShaderPrintData
 {
+	ShaderPrint::FShaderPrintSetup Setup;
 	TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> UniformBuffer;
 
 	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
 	FRDGBufferRef ShaderPrintStateBuffer = nullptr;
 	FRDGBufferRef ShaderPrintPrimitiveBuffer = nullptr;
+};
+
+/**
+ * Structure containing "frozen" shader print render data.
+ * This is in a state so that it:
+ * (i) Can be thawed by the client for continued gathering of shader print glyphs, or
+ * (ii) Can be submitted for later rendering using SubmitShaderPrintData().
+ */
+struct RENDERER_API FFrozenShaderPrintData
+{
+	ShaderPrint::FShaderPrintSetup Setup;
+
+	TRefCountPtr<FRDGPooledBuffer> ShaderPrintValueBuffer;
+	TRefCountPtr<FRDGPooledBuffer> ShaderPrintStateBuffer;
+	TRefCountPtr<FRDGPooledBuffer> ShaderPrintPrimitiveBuffer;
 };
