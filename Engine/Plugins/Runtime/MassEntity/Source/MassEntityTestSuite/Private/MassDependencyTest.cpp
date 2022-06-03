@@ -40,6 +40,28 @@ struct FDependencySolverBase : FAITestBase
 
 struct FTrivialDependency : FDependencySolverBase
 {
+	UMassTestProcessorBase* Proc = nullptr;
+
+	virtual bool SetUp() override
+	{
+		Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_A>());
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+		Solve();
+
+		AITEST_EQUAL("The results should contain only a single processor", Result.Num(), 1);
+		AITEST_EQUAL("The sole processor should be the one we've added", Result[0].Processor, Proc);
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FTrivialDependency, "System.Mass.Dependencies.Trivial");
+
+struct FSimpleDependency : FDependencySolverBase
+{
 	virtual bool SetUp() override
 	{
 		{
@@ -68,7 +90,43 @@ struct FTrivialDependency : FDependencySolverBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FTrivialDependency, "System.Mass.Dependencies.Trivial");
+IMPLEMENT_AI_INSTANT_TEST(FSimpleDependency, "System.Mass.Dependencies.Simple");
+
+struct FMissingDependency : FDependencySolverBase
+{
+	virtual bool SetUp() override
+	{
+		{
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_A>());
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(TEXT("NonExistingDependency"));
+		}
+		{
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_B>());
+			Proc->GetMutableExecutionOrder().ExecuteBefore.Add(TEXT("NonExistingDependency2"));
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_C>());
+			Proc->GetMutableExecutionOrder().ExecuteBefore.Add(GetProcessorName<UMassTestProcessor_A>());
+		}
+		{
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_C>());
+		}
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+		// we're expecting two occurrences, for NonExistingDependency and NonExistingDependency2
+		GetTestRunner().AddExpectedError(TEXT("Unable to find dependency"), EAutomationExpectedErrorFlags::Contains, 2);
+
+		Solve();
+
+		AITEST_TRUE("C is expected to be the first one", Result[0].Name == GetProcessorName<UMassTestProcessor_C>());
+		AITEST_TRUE("Then B", Result[1].Name == GetProcessorName<UMassTestProcessor_B>());
+		AITEST_TRUE("With A being last", Result[2].Name == GetProcessorName<UMassTestProcessor_A>());
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FMissingDependency, "System.Mass.Dependencies.MissingDependencies");
 
 
 struct FDeepGroup : FDependencySolverBase
@@ -271,13 +329,55 @@ struct FGroupNamesGeneration : FAITestBase
 		return true;
 	}
 };
-
 IMPLEMENT_AI_INSTANT_TEST(FGroupNamesGeneration, "System.Mass.Dependencies.SubgroupNames");
 
-// tests to add:
-// * handling missing dependencies
-// * single non-null processor
-// * circular dependencies  
+struct FCircularDependency : FDependencySolverBase
+{
+	virtual bool SetUp() override
+	{
+		{
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_A>());
+			Proc->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_D>());
+		}
+		{
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_B>());
+			Proc->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_A>());
+		}
+		{
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_C>());
+			Proc->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_B>());
+		}
+		{
+			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_D>());
+			Proc->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
+			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_C>());
+		}
+
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+		GetTestRunner().AddExpectedError(TEXT("Detected processing dependency cycle"), EAutomationExpectedErrorFlags::Contains, 1);
+
+		Solve();
+
+		// every subsequent processor is expected to depend only on the previous one since all the processors use exactly the same resources
+		AITEST_TRUE("The first processor has no dependencies", Result[0].Dependencies.IsEmpty());
+		for (int i = 1; i < Result.Num(); ++i)
+		{
+			const auto& ResultNode = Result[i];
+			AITEST_EQUAL("The subsequent processors has only one dependency", ResultNode.Dependencies.Num(), 1);
+			AITEST_EQUAL("The subsequent processors depend only on the previous one", ResultNode.Dependencies[0], Result[i - 1].Name);
+		}
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FCircularDependency, "System.Mass.Dependencies.Circular");
 
 } // FMassDependencySolverTest
 

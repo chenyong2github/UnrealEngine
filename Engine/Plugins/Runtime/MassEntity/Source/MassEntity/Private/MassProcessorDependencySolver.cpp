@@ -28,6 +28,22 @@ namespace UE::Mass::Private
 }
 
 //----------------------------------------------------------------------//
+//  FMassExecutionRequirements
+//----------------------------------------------------------------------//
+void FMassExecutionRequirements::CountResourcesUsed()
+{
+	ResourcesUsedCount = 0;
+
+	for (int i = 0; i < EMassAccessOperation::MAX; ++i)
+	{
+		ResourcesUsedCount += Fragments[i].CountStoredTypes();
+		ResourcesUsedCount += ChunkFragments[i].CountStoredTypes();
+		ResourcesUsedCount += SharedFragments[i].CountStoredTypes();
+		ResourcesUsedCount += RequiredSubsystems[i].CountStoredTypes();
+	}
+}
+
+//----------------------------------------------------------------------//
 //  FProcessorDependencySolver::FResourceUsage
 //----------------------------------------------------------------------//
 FProcessorDependencySolver::FResourceUsage::FResourceUsage()
@@ -260,6 +276,7 @@ void FProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
 	ProcessorNode.ExecuteAfter.Append(ExecutionOrder.ExecuteAfter);
 	ProcessorNode.ExecuteBefore.Append(ExecutionOrder.ExecuteBefore);
 	Processor.ExportRequirements(ProcessorNode.Requirements);
+	ProcessorNode.Requirements.CountResourcesUsed();
 
 	if (ParentGroupNodeIndex > 0)
 	{
@@ -276,14 +293,14 @@ void FProcessorDependencySolver::BuildDependencies()
 		for (const FName& BeforeDependencyName : Node.ExecuteBefore)
 		{
 			int32* DependentNodeIndex = NodeIndexMap.Find(BeforeDependencyName);
-			if (ensure(DependentNodeIndex))
+			if (DependentNodeIndex != nullptr)
 			{
 				check(AllNodes.IsValidIndex(*DependentNodeIndex));
 				AllNodes[*DependentNodeIndex].ExecuteAfter.Add(Node.Name);
 			}
 			else
 			{
-				UE_LOG(LogMass, Log, TEXT("Unable to find dependency \"%s\" declared by %s"), *BeforeDependencyName.ToString()
+				UE_LOG(LogMass, Error, TEXT("Unable to find dependency \"%s\" declared by %s"), *BeforeDependencyName.ToString()
 					, *Node.Name.ToString());
 			}
 		}
@@ -306,7 +323,7 @@ void FProcessorDependencySolver::BuildDependencies()
 		{
 			const FName& AfterDependencyName = Node.ExecuteAfter[i];
 			int32* PrerequisiteNodeIndex = NodeIndexMap.Find(AfterDependencyName);
-			if (ensure(PrerequisiteNodeIndex))
+			if (PrerequisiteNodeIndex != nullptr)
 			{
 				const FNode& PrerequisiteNode = AllNodes[*PrerequisiteNodeIndex];
 
@@ -324,7 +341,7 @@ void FProcessorDependencySolver::BuildDependencies()
 			}
 			else
 			{
-				UE_LOG(LogMass, Log, TEXT("Unable to find dependency \"%s\" declared by %s"), *AfterDependencyName.ToString()
+				UE_LOG(LogMass, Error, TEXT("Unable to find dependency \"%s\" declared by %s"), *AfterDependencyName.ToString()
 					, *Node.Name.ToString());
 			}
 		}
@@ -780,9 +797,9 @@ void FProcessorDependencySolver::Solve(TArray<FProcessorDependencySolver::FOrder
 		return;
 	}
 
-	for (FNode& SubNode : AllNodes)
+	for (FNode& Node : AllNodes)
 	{
-		SubNode.TransientDependencies = SubNode.OriginalDependencies;
+		Node.TransientDependencies = Node.OriginalDependencies;
 	}
 
 	TArray<int32> IndicesRemaining;
@@ -795,6 +812,12 @@ void FProcessorDependencySolver::Solve(TArray<FProcessorDependencySolver::FOrder
 			IndicesRemaining.Add(i);
 		}
 	}
+	// order the indices to process according to calculated resource hunger
+	IndicesRemaining.Sort([this](const int32 IndexA, const int32 IndexB){
+		return AllNodes[IndexA].Requirements.ResourcesUsedCount < AllNodes[IndexB].Requirements.ResourcesUsedCount;
+	});
+
+	// this is where we'll be tracking what's being accessed by whom
 	FResourceUsage ResourceUsage;
 
 	TArray<int32> SortedNodeIndices;
@@ -814,7 +837,7 @@ void FProcessorDependencySolver::Solve(TArray<FProcessorDependencySolver::FOrder
 				UMassProcessor* Processor = AllNodes[Index].Processor;
 				if (Processor)
 				{
-					UE_LOG(LogMass, Error, TEXT("\t%s, group: %s, before: %s, after %s")
+					UE_LOG(LogMass, Warning, TEXT("\t%s, group: %s, before: %s, after %s")
 						, *Processor->GetName()
 						, *Processor->GetExecutionOrder().ExecuteInGroup.ToString()
 						, *NameViewToString(Processor->GetExecutionOrder().ExecuteBefore)
@@ -823,14 +846,17 @@ void FProcessorDependencySolver::Solve(TArray<FProcessorDependencySolver::FOrder
 				else
 				{
 					// group
-					UE_LOG(LogMass, Error, TEXT("\tGroup %s"), *AllNodes[Index].Name.ToString());
+					UE_LOG(LogMass, Warning, TEXT("\tGroup %s"), *AllNodes[Index].Name.ToString());
 				}
 			}
-			UE_LOG(LogMass, Error, TEXT("Cutting the chain at an arbitrary location."));
+			UE_LOG(LogMass, Warning, TEXT("Cutting the chain at an arbitrary location."));
 
 			// remove first dependency
 			// note that if we're in a cycle handling scenario every node does have some dependencies left
-			AllNodes[IndicesRemaining[0]].TransientDependencies.Pop(/*bAllowShrinking=*/false);
+			const int32 DependencyNodeIndex = AllNodes[IndicesRemaining[0]].TransientDependencies.Pop(/*bAllowShrinking=*/false);
+			// we need to remove this dependency from original dependencies as well, otherwise we'll still have the cycle
+			// in the data being produces as a result of the whole algorithm
+			AllNodes[IndicesRemaining[0]].OriginalDependencies.Remove(DependencyNodeIndex);
 		}
 	}
 

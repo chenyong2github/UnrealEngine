@@ -57,10 +57,13 @@ struct MASSENTITY_API FMassExecutionRequirements
 		return *this;
 	}
 
+	void CountResourcesUsed();
+
 	TMassExecutionAccess<FMassFragmentBitSet> Fragments;
 	TMassExecutionAccess<FMassChunkFragmentBitSet> ChunkFragments;
 	TMassExecutionAccess<FMassSharedFragmentBitSet> SharedFragments;
 	TMassExecutionAccess<FMassExternalSubystemBitSet> RequiredSubsystems;
+	int32 ResourcesUsedCount = INDEX_NONE;
 };
 
 struct FProcessorDependencySolver
