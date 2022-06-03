@@ -67,6 +67,21 @@ UE_TRACE_EVENT_BEGIN(NetTrace, ConnectionClosedEvent)
 	UE_TRACE_EVENT_FIELD(uint8, GameInstanceId)
 UE_TRACE_EVENT_END()
 
+// StatsCounterEvent
+UE_TRACE_EVENT_BEGIN(NetTrace, PacketStatsCounterEvent)
+	UE_TRACE_EVENT_FIELD(uint32, StatsValue)
+	UE_TRACE_EVENT_FIELD(uint16, NameId)
+	UE_TRACE_EVENT_FIELD(uint16, ConnectionId)
+	UE_TRACE_EVENT_FIELD(uint8, GameInstanceId)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(NetTrace, FrameStatsCounterEvent)
+	UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+	UE_TRACE_EVENT_FIELD(uint32, StatsValue)
+	UE_TRACE_EVENT_FIELD(uint16, NameId)
+	UE_TRACE_EVENT_FIELD(uint8, GameInstanceId)
+UE_TRACE_EVENT_END()
+
 // Provides additional information about game instance
 UE_TRACE_EVENT_BEGIN(NetTrace, InstanceUpdatedEvent)
 	UE_TRACE_EVENT_FIELD(uint8, GameInstanceId)
@@ -285,6 +300,24 @@ void FNetTraceReporter::ReportConnectionClosed(uint32 GameInstanceId, uint32 Con
 	UE_TRACE_LOG(NetTrace, ConnectionClosedEvent, NetChannel)
 		<< ConnectionClosedEvent.ConnectionId(ConnectionId)
 		<< ConnectionClosedEvent.GameInstanceId(GameInstanceId);
+}
+
+void FNetTraceReporter::ReportPacketStatsCounter(uint32 GameInstanceId, uint32 ConnectionId, FNetDebugNameId CounterNameId, uint32 StatValue)
+{
+	UE_TRACE_LOG(NetTrace, PacketStatsCounterEvent, NetChannel)
+		<< PacketStatsCounterEvent.StatsValue(StatValue)
+		<< PacketStatsCounterEvent.NameId(CounterNameId)
+		<< PacketStatsCounterEvent.ConnectionId(ConnectionId)
+		<< PacketStatsCounterEvent.GameInstanceId(GameInstanceId);
+}
+
+void FNetTraceReporter::ReportFrameStatsCounter(uint32 GameInstanceId, FNetDebugNameId CounterNameId, uint32 StatValue)
+{
+	UE_TRACE_LOG(NetTrace, FrameStatsCounterEvent, NetChannel)
+		<< FrameStatsCounterEvent.Timestamp(FPlatformTime::Cycles64())
+		<< FrameStatsCounterEvent.StatsValue(StatValue)
+		<< FrameStatsCounterEvent.NameId(CounterNameId)
+		<< FrameStatsCounterEvent.GameInstanceId(GameInstanceId);
 }
 
 void FNetTraceReporter::ReportObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, FNetDebugNameId NameId, uint64 TypeIdentifier, uint32 OwnerId)

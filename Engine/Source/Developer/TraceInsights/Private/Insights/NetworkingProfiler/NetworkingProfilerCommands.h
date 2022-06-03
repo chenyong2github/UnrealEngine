@@ -37,6 +37,9 @@ public:
 
 	/** Toggles visibility for the Net Stats view. Per profiler window, custom command. */
 	TSharedPtr<FUICommandInfo> ToggleNetStatsViewVisibility;
+
+	/** Toggles visibility for the Net Stats Counters view. Per profiler window, custom command. */
+	TSharedPtr<FUICommandInfo> ToggleNetStatsCountersViewVisibility;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

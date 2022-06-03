@@ -14,6 +14,7 @@
 class SPacketView;
 class SPacketContentView;
 class SNetStatsView;
+class SNetStatsCountersView;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -23,6 +24,7 @@ struct FNetworkingProfilerTabs
 	static const FName PacketViewID;
 	static const FName PacketContentViewID;
 	static const FName NetStatsViewID;
+	static const FName NetStatsCountersViewID;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,6 +108,10 @@ public:
 	const bool IsNetStatsViewVisible() const { return NetStatsView.IsValid(); }
 	void ShowOrHideNetStatsView(const bool bVisibleState) { ShowHideTab(FNetworkingProfilerTabs::NetStatsViewID, bVisibleState); }
 
+	TSharedPtr<SNetStatsCountersView> GetNetStatsCountersView() const { return NetStatsCountersView; }
+	const bool IsNetStatsCountersViewVisible() const { return NetStatsCountersView.IsValid(); }
+	void ShowOrHideNetStatsCountersView(const bool bVisibleState) { ShowHideTab(FNetworkingProfilerTabs::NetStatsCountersViewID, bVisibleState); }
+
 	const TraceServices::FNetProfilerGameInstance* GetSelectedGameInstance() const { return SelectedGameInstance ? &SelectedGameInstance->GameInstance : nullptr; }
 	uint32 GetSelectedGameInstanceIndex() const { return SelectedGameInstance ? SelectedGameInstance->GetIndex() : 0; }
 	const TraceServices::FNetProfilerConnection* GetSelectedConnection() const { return SelectedConnection ? &SelectedConnection->Connection : nullptr; }
@@ -137,6 +143,9 @@ private:
 	TSharedRef<SDockTab> SpawnTab_NetStatsView(const FSpawnTabArgs& Args);
 	void OnNetStatsViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
+	TSharedRef<SDockTab> SpawnTab_NetStatsCountersView(const FSpawnTabArgs& Args);
+	void OnNetStatsCountersViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
 	//////////////////////////////////////////////////
 
 	void BindCommands();
@@ -156,6 +165,7 @@ private:\
 	DECLARE_TOGGLE_COMMAND(TogglePacketViewVisibility)
 	DECLARE_TOGGLE_COMMAND(TogglePacketContentViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleNetStatsViewVisibility)
+	DECLARE_TOGGLE_COMMAND(ToggleNetStatsCountersViewVisibility)
 #undef DECLARE_TOGGLE_COMMAND
 
 	//////////////////////////////////////////////////
@@ -206,6 +216,9 @@ private:
 	/** The Net Stats widget */
 	TSharedPtr<SNetStatsView> NetStatsView;
 
+	/** The NetStatsCounters widget */
+	TSharedPtr<SNetStatsCountersView> NetStatsCountersView;
+	
 	TSharedPtr<SComboBox<TSharedPtr<FGameInstanceItem>>> GameInstanceComboBox;
 	TArray<TSharedPtr<FGameInstanceItem>> AvailableGameInstances;
 	TSharedPtr<FGameInstanceItem> SelectedGameInstance;
@@ -231,4 +244,7 @@ private:
 
 	static const uint32 InvalidEventTypeIndex = uint32(-1);
 	uint32 SelectedEventTypeIndex;
+
+	uint32 OldGameInstanceChangeCount;
+	uint32 OldConnectionChangeCount;
 };

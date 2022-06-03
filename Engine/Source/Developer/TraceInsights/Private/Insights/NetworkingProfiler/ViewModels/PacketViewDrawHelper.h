@@ -83,6 +83,8 @@ struct FNetworkPacketAggregatedSample
 
 	bool bAtLeastOnePacketMatchesFilter;
 
+	uint32 FilterMatchHighlightSizeInBits;
+
 	FNetworkPacketAggregatedSample()
 		: NumPackets(0)
 		, StartTime(DBL_MAX)
@@ -90,6 +92,7 @@ struct FNetworkPacketAggregatedSample
 		, AggregatedStatus(TraceServices::ENetProfilerDeliveryStatus::Unknown)
 		, LargestPacket()
 		, bAtLeastOnePacketMatchesFilter(true)
+		, FilterMatchHighlightSizeInBits(0)
 	{}
 
 	FNetworkPacketAggregatedSample(const FNetworkPacketAggregatedSample&) = default;
@@ -123,9 +126,12 @@ struct FNetworkPacketSeries
 
 	TArray<FNetworkPacketAggregatedSample> Samples;
 
+	int32 HighlightEventTypeIndex;
+
 	FNetworkPacketSeries()
 		: NumAggregatedPackets(0)
 		, Samples()
+		, HighlightEventTypeIndex(-1)
 	{
 	}
 
@@ -133,6 +139,7 @@ struct FNetworkPacketSeries
 	{
 		NumAggregatedPackets = 0;
 		Samples.Reset();
+		HighlightEventTypeIndex = -1;
 	}
 };
 
@@ -152,6 +159,8 @@ public:
 	FNetworkPacketAggregatedSample* AddPacket(int32 PacketIndex, const TraceServices::FNetProfilerPacket& Packet);
 
 	int32 GetNumAddedPackets() const { return NumAddedPackets; }
+
+	void SetHighlightEventTypeIndex(int32 EventTypeIndex);
 
 private:
 	FNetworkPacketSeries& Series; // series to update

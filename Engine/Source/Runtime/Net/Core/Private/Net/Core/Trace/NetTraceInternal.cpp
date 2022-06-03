@@ -490,6 +490,22 @@ void FNetTrace::TraceConnectionClosed(uint32 GameInstanceId, uint32 ConnectionId
 	}
 }
 
+void FNetTrace::TracePacketStatsCounter(uint32 GameInstanceId, uint32 ConnectionId, FNetDebugNameId CounterNameId, uint32 StatValue)
+{
+	if (GNetTraceRuntimeVerbosity)
+	{
+		FNetTraceInternal::Reporter::ReportPacketStatsCounter(GameInstanceId, ConnectionId, CounterNameId, StatValue);
+	}
+}
+
+void FNetTrace::TraceFrameStatsCounter(uint32 GameInstanceId, FNetDebugNameId CounterNameId, uint32 StatValue)
+{
+	if (GNetTraceRuntimeVerbosity)
+	{
+		FNetTraceInternal::Reporter::ReportFrameStatsCounter(GameInstanceId, CounterNameId, StatValue);
+	}
+}
+
 FNetDebugNameId FNetTrace::TraceName(const TCHAR* Name)
 {
 	if ((GNetTraceRuntimeVerbosity == 0U) | (Name == nullptr))

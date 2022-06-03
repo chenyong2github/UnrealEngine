@@ -68,6 +68,12 @@ void FNetworkingProfilerCommands::RegisterCommands()
 		"Toggles the visibility of the Net Stats view.",
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord());
+
+	UI_COMMAND(ToggleNetStatsCountersViewVisibility,
+		"Net Stats Counters",
+		"Toggles the visibility of the Net Stats view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
 }
 PRAGMA_ENABLE_OPTIMIZATION
 

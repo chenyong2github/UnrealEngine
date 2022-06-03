@@ -144,7 +144,7 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateLevelColumn
 	Column.SetDescription(LOCTEXT("Level_ColumnDesc", "Level of net event instances"));
 
 	Column.SetFlags(ETableColumnFlags::CanBeHidden |
-					ETableColumnFlags::ShouldBeVisible |
+					//ETableColumnFlags::ShouldBeVisible |
 					ETableColumnFlags::CanBeFiltered);
 
 	Column.SetHorizontalAlignment(HAlign_Right);
@@ -286,7 +286,7 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateMaxInclusiv
 	Column.SetDescription(LOCTEXT("MaxInclusive_ColumnDesc", "Maximum inclusive size (bits) of selected net event instances"));
 
 	Column.SetFlags(ETableColumnFlags::CanBeHidden |
-					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::ShouldBeVisible |
 					ETableColumnFlags::CanBeFiltered);
 
 	Column.SetHorizontalAlignment(HAlign_Right);
@@ -332,7 +332,7 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateAverageIncl
 	Column.SetDescription(LOCTEXT("AvgInclusive_ColumnDesc", "Average inclusive size (bits) of selected net event instances"));
 
 	Column.SetFlags(ETableColumnFlags::CanBeHidden |
-					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::ShouldBeVisible |
 					ETableColumnFlags::CanBeFiltered);
 
 	Column.SetHorizontalAlignment(HAlign_Right);
@@ -428,7 +428,7 @@ TSharedRef<Insights::FTableColumn> FNetStatsViewColumnFactory::CreateMaxExclusiv
 	Column.SetDescription(LOCTEXT("MaxExclusive_ColumnDesc", "Maximum exclusive size (bits) of selected net event instances"));
 
 	Column.SetFlags(ETableColumnFlags::CanBeHidden |
-					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::ShouldBeVisible |
 					ETableColumnFlags::CanBeFiltered);
 
 	Column.SetHorizontalAlignment(HAlign_Right);

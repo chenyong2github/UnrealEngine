@@ -99,6 +99,12 @@
 /** Trace additional information about the given connection */
 #define UE_NET_TRACE_CONNECTION_UPDATED(...) UE_NET_TRACE_INTERNAL_CONNECTION_UPDATED(__VA_ARGS__)
 
+/** Trace StatsCounter associated with next reported packet */
+#define UE_NET_TRACE_PACKET_STATSCOUNTER(GameInstanceId, ConnectionId, Name, StatValue, Verbosity) UE_NET_TRACE_INTERNAL_PACKET_STATSCOUNTER(GameInstanceId, ConnectionId, Name, StatValue, Verbosity)
+
+/** Trace StatsCounter associated with current frame */
+#define UE_NET_TRACE_FRAME_STATSCOUNTER(GameInstanceId, Name, StatValue, Verbosity) UE_NET_TRACE_INTERNAL_FRAME_STATSCOUNTER(GameInstanceId, Name, StatValue, Verbosity)
+
 /** That that a connection has been closed */
 #define UE_NET_TRACE_CONNECTION_CLOSED(...) UE_NET_TRACE_INTERNAL_CONNECTION_CLOSED(__VA_ARGS__)
 
@@ -150,6 +156,9 @@
 #define UE_NET_TRACE_PACKET_DROPPED(...)
 #define UE_NET_TRACE_NAMED_OBJECT_SCOPE(...)
 #define UE_NET_TRACE_NAMED_DYNAMIC_NAME_SCOPE(...)
+
+#define UE_NET_TRACE_PACKET_STATSCOUNTER(...)
+#define UE_NET_TRACE_FRAME_STATSCOUNTER(...)
 
 #define UE_NET_TRACE_PACKET_DROPPED(...)
 #define UE_NET_TRACE_PACKET_SEND(...)

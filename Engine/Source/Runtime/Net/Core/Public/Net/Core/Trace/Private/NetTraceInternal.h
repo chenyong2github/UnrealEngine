@@ -12,13 +12,8 @@
 #include "Templates/ChooseClass.h"
 
 // $TODO: Implement pooling of TraceCollectors
-// $TODO: Add name to game instance
-// $TODO: Add name/ip to connections
-// $TODO: Add state to connection
 // $TODO: Add disconnect reason to connection
-// $TODO: Add frame concept to understand grouping of packets
 // $TODO: Add reporting of final packet sizes after packethandlers
-// $TODO: Add explicit events for Bunch/BunchHeader including
 
 extern NETCORE_API uint32 GNetTraceRuntimeVerbosity;
 
@@ -34,6 +29,12 @@ enum class ENetTracePacketType : uint8
 {
 	Outgoing = 0,
 	Incoming,
+};
+
+enum class ENetTraceStatsCounterType : uint8
+{
+	Packet = 0,
+	Frame = 1,
 };
 
 struct FNetTracePacketInfo
@@ -229,6 +230,10 @@ struct FNetTrace
 
 	/** Trace that we have removed a connection for the given GameInstanceId */
 	NETCORE_API static void TraceConnectionClosed(uint32 GameInstanceId, uint32 ConnectionId);
+
+	/** Trace stats counters for networking */
+	NETCORE_API static void TracePacketStatsCounter(uint32 GameInstanceId, uint32 ConnectionId, FNetDebugNameId CounterNameId, uint32 StatValue);
+	NETCORE_API static void TraceFrameStatsCounter(uint32 GameInstanceId, FNetDebugNameId CounterNameId,  uint32 StatValue);
 
 	/** Trace the name */
 	NETCORE_API static FNetDebugNameId TraceName(const TCHAR* Name);
@@ -561,6 +566,18 @@ void FNetTraceCollector::Reset()
 #define UE_NET_TRACE_INTERNAL_PACKET_DROPPED(...) UE_NET_TRACE_DO_IF(GNetTraceRuntimeVerbosity, FNetTrace::TracePacketDropped(__VA_ARGS__))
 #define UE_NET_TRACE_INTERNAL_PACKET_SEND(...) UE_NET_TRACE_DO_IF(GNetTraceRuntimeVerbosity, FNetTrace::TracePacket(__VA_ARGS__, ENetTracePacketType::Outgoing))
 #define UE_NET_TRACE_INTERNAL_PACKET_RECV(...) UE_NET_TRACE_DO_IF(GNetTraceRuntimeVerbosity, FNetTrace::TracePacket(__VA_ARGS__, ENetTracePacketType::Incoming))
+
+#define UE_NET_TRACE_INTERNAL_PACKET_STATSCOUNTER(GameInstanceId, ConnectionId, Name, StatValue, Verbosity) \
+	do { if (FNetTrace::GetNetTraceVerbosityEnabled(Verbosity)) { \
+			static uint16 PREPROCESSOR_JOIN(NetTraceNameId_, __LINE__) = FNetTrace::TraceName(TEXT(#Name)); \
+			FNetTrace::TracePacketStatsCounter(GameInstanceId, ConnectionId, PREPROCESSOR_JOIN(NetTraceNameId_, __LINE__), StatValue); \
+	} } while (0)
+
+#define UE_NET_TRACE_INTERNAL_FRAME_STATSCOUNTER(GameInstanceId, Name, StatValue, Verbosity) \
+	do { if (FNetTrace::GetNetTraceVerbosityEnabled(Verbosity)) { \
+			static uint16 PREPROCESSOR_JOIN(NetTraceNameId_, __LINE__) = FNetTrace::TraceName(TEXT(#Name)); \
+			FNetTrace::TraceFrameStatsCounter(GameInstanceId, PREPROCESSOR_JOIN(NetTraceNameId_, __LINE__), StatValue); \
+	} } while (0)
 
 #define UE_NET_TRACE_INTERNAL_END_SESSION(GameInstanceId) FNetTrace::TraceEndSession(GameInstanceId);
 #define UE_NET_TRACE_INTERNAL_UPDATE_INSTANCE(...) FNetTrace::TraceInstanceUpdated(__VA_ARGS__)

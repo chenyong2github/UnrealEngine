@@ -16,6 +16,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SScrollBar.h"
+#include "SlateOptMacros.h"
+#include "Templates/SharedPointer.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -37,6 +39,8 @@ SPacketContentView::SPacketContentView()
 	: ProfilerWindowWeakPtr()
 	, DrawState(MakeShared<FPacketContentViewDrawState>())
 	, FilteredDrawState(MakeShared<FPacketContentViewDrawState>())
+	, AvailableAggregationModes()
+	, SelectedAggregationMode(nullptr)
 {
 	Reset();
 }
@@ -107,9 +111,107 @@ void SPacketContentView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SWidget> SPacketContentView::AggregationMode_OnGenerateWidget(TSharedPtr<FAggregationModeItem> InAggregationMode) const
+{
+	return SNew(STextBlock)
+		.Text(InAggregationMode->GetText())
+		.ToolTipText(InAggregationMode->GetTooltipText());
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketContentView::AggregationMode_OnSelectionChanged(TSharedPtr<FAggregationModeItem> NewAggregationMode, ESelectInfo::Type SelectInfo)
+{
+	const bool bSameValue = (!SelectedAggregationMode.IsValid() && !NewAggregationMode.IsValid()) ||
+		(SelectedAggregationMode.IsValid() && NewAggregationMode.IsValid() &&
+			SelectedAggregationMode->Mode == NewAggregationMode->Mode);
+
+	SelectedAggregationMode = NewAggregationMode;
+
+	// Need to refresh selection
+	if (!bSameValue)
+	{
+		TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+		if (ProfilerWindow.IsValid())
+		{
+			const TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+			if (PacketView.IsValid())
+			{
+				PacketView->InvalidateState();			
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SPacketContentView::AggregationMode_GetSelectedText() const
+{
+	return SelectedAggregationMode.IsValid() ? SelectedAggregationMode->GetText() : LOCTEXT("NoAggregationModeText", "None");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SPacketContentView::AggregationMode_GetSelectedTooltipText() const
+{
+	return SelectedAggregationMode.IsValid() ? SelectedAggregationMode->GetTooltipText() : FText();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SPacketContentView::FAggregationModeItem::GetText() const
+{
+	switch (Mode)
+	{
+	case TraceServices::ENetProfilerAggregationMode::Aggregate:
+		return LOCTEXT("AggregationMode_Aggregate", "Aggregate");
+
+	case TraceServices::ENetProfilerAggregationMode::InstanceMax:
+		return LOCTEXT("AggregationMode_InstanceMax", "InstanceMax");
+
+	default:
+		return LOCTEXT("AggregationMode_None", "None");
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SPacketContentView::FAggregationModeItem::GetTooltipText() const
+{
+	return GetText();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SWidget> SPacketContentView::CreateAggregationModeComboBox()
+{
+	AggregationModeComboBox = SNew(SComboBox<TSharedPtr<FAggregationModeItem>>)
+		.ToolTipText(this, &SPacketContentView::AggregationMode_GetSelectedTooltipText)
+		.OptionsSource(&AvailableAggregationModes)
+		.OnSelectionChanged(this, &SPacketContentView::AggregationMode_OnSelectionChanged)
+		.OnGenerateWidget(this, &SPacketContentView::AggregationMode_OnGenerateWidget)
+		[
+			SNew(STextBlock)
+			.Text(this, &SPacketContentView::AggregationMode_GetSelectedText)
+		];
+
+	return AggregationModeComboBox.ToSharedRef();
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
 void SPacketContentView::Construct(const FArguments& InArgs, TSharedRef<SNetworkingProfilerWindow> InProfilerWindow)
 {
 	ProfilerWindowWeakPtr = InProfilerWindow;
+
+	AvailableAggregationModes.Add(MakeShared<FAggregationModeItem>(TraceServices::ENetProfilerAggregationMode::None));
+	AvailableAggregationModes.Add(MakeShared<FAggregationModeItem>(TraceServices::ENetProfilerAggregationMode::Aggregate));
+	AvailableAggregationModes.Add(MakeShared<FAggregationModeItem>(TraceServices::ENetProfilerAggregationMode::InstanceMax));
+	SelectedAggregationMode = AvailableAggregationModes[1];
+
+	TSharedRef<SWidget> AggregationModeWidget = CreateAggregationModeComboBox();
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
 	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "SecondaryToolbar2");
@@ -303,6 +405,17 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedRef<SNetwork
 						.Text(LOCTEXT("HighlightFilteredEvents_Text", "Highlight"))
 					]
 				]
+			]
+		);
+	}
+	ToolbarBuilder.EndSection();
+	ToolbarBuilder.BeginSection("AggregationType");
+	{
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(FMargin(12.0f, 0.0f, 0.0f, 0.0f))
+			[
+				AggregationModeWidget
 			]
 		);
 	}
@@ -1027,7 +1140,7 @@ void SPacketContentView::UpdateHoveredEvent()
 		if (Event.ObjectInstanceIndex != 0)
 		{
 			Tooltip.AddNameValueTextLine(TEXT("Net Id:"), FText::AsNumber(ObjectInstance.NetId).ToString());
-			Tooltip.AddNameValueTextLine(TEXT("Type Id:"), FString::Printf(TEXT("0x%016X"), ObjectInstance.TypeId));
+			Tooltip.AddNameValueTextLine(TEXT("Type Id:"), FString::Printf(TEXT("0x%016" UINT64_x_FMT), ObjectInstance.TypeId));
 			Tooltip.AddNameValueTextLine(TEXT("Obj. LifeTime:"), FString::Format(TEXT("from {0} to {1}"),
 				{ TimeUtils::FormatTimeAuto(ObjectInstance.LifeTime.Begin), TimeUtils::FormatTimeAuto(ObjectInstance.LifeTime.End) }));
 		}

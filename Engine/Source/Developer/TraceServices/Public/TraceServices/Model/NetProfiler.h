@@ -11,6 +11,13 @@
 namespace TraceServices
 {
 
+enum class ENetProfilerAggregationMode : uint32
+{
+	None,
+	Aggregate,
+	InstanceMax,
+};
+
 enum class ENetProfilerDeliveryStatus : uint8
 {
 	Unknown,
@@ -117,14 +124,34 @@ struct FNetProfilerContentEvent
 {
 	uint64 StartPos : 24;		// Inclusive start position in the packet
 	uint64 EndPos : 24;			// Exclusive end position in the packet; BitSize = EndPos - StartPos
-	uint64 Level : 4;			// Level
-	uint64 Padding : 12;		// Padding
+	uint64 Level : 8;			// Level
+	uint64 Padding : 8;		// Padding
 
 	FNetProfilerBunchInfo BunchInfo;	
 
 	uint32 EventTypeIndex;		// Will replace name index
 	uint32 NameIndex;			// Identify the name / type, should we store the actual Name as well
 	uint32 ObjectInstanceIndex;	// Object instance, Non zero if this is a NetObject, we can then look up data by indexing into ObjectInstances
+};
+
+// This must be kept in sync with ENetTraceStatsCounterType in NetTrace.h
+enum class ENetProfilerStatsCounterType : uint8
+{
+	Packet = 0,
+	Frame = 1,
+};
+
+struct FNetProfilerStatsCounterType
+{
+	uint32 StatsCounterTypeIndex;
+	uint32 NameIndex;
+	ENetProfilerStatsCounterType Type;
+};
+
+struct FNetProfilerStats
+{
+	uint32 StatsCounterTypeIndex;
+	uint32 StatsValue;
 };
 
 struct FNetProfilerPacket
@@ -138,8 +165,22 @@ struct FNetProfilerPacket
 	uint32 StartEventIndex;
 	uint32 EventCount;
 
+	uint32 StartStatsIndex;
+	uint32 StatsCount;
+
+	// Index into network profiler frames
+	uint32 NetProfilerFrameIndex;
+
 	ENetProfilerDeliveryStatus DeliveryStatus;		// Indicates if the packet was delivered or not, updated as soon as we know
 	ENetProfilerConnectionState ConnectionState;
+};
+
+struct FNetProfilerFrame
+{
+	FNetProfilerTimeStamp TimeStamp;
+	uint64 EngineFrameNumber = 0;
+	uint32 StartStatsIndex = 0;
+	uint32 StatsCount = 0;
 };
 
 struct FNetProfilerConnection
@@ -160,10 +201,10 @@ struct FNetProfilerGameInstance
 	uint32 GameInstanceIndex;
 	uint32 GameInstanceId;
 	const TCHAR* InstanceName = nullptr;
-	bool bIsServer;
+	bool bIsUsingIrisReplication = false;
+	bool bIsServer = false;
 };
 
-// What do we need?
 struct FNetProfilerAggregatedStats
 {
 	uint32 EventTypeIndex;
@@ -173,6 +214,25 @@ struct FNetProfilerAggregatedStats
 	uint32 AverageInclusive = 0U;
 	uint32 TotalExclusive = 0U;
 	uint32 MaxExclusive = 0U;
+};
+
+struct FNetProfilerAggregatedStatsCounterStats
+{
+	uint32 StatsCounterTypeIndex;
+	uint32 Sum;
+	uint32 Min;
+	uint32 Max;
+	uint32 Average;
+	uint32 Count;
+
+	void Reset()
+	{
+		Sum = 0;
+		Min = 0;
+		Max = 0;
+		Average = 0;
+		Count = 0;
+	}
 };
 
 // What queries do we need?
@@ -198,6 +258,7 @@ public:
 	// Access GameInstances
 	virtual uint32 GetGameInstanceCount() const = 0;
 	virtual void ReadGameInstances(TFunctionRef<void(const FNetProfilerGameInstance&)> Callback) const = 0;
+	virtual uint32 GetGameInstanceChangeCount() const = 0;
 
 	// Access Connections
 	virtual uint32 GetConnectionCount(uint32 GameInstanceIndex) const = 0;
@@ -229,10 +290,20 @@ public:
 	// Returns a change number incremented each time a change occurs in the packet content events for the specified connection and connection mode. */
 	virtual uint32 GetPacketContentEventChangeCount(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode) const = 0;
 
+	// Access StatsCounterTypes
+	virtual uint32 GetNetStatsCounterTypesCount() const = 0;
+	virtual void ReadNetStatsCounterTypes(TFunctionRef<void(const FNetProfilerStatsCounterType*, uint64)> Callback) const = 0;
+	virtual void ReadNetStatsCounterType(uint32 TypeIndex, TFunctionRef<void(const FNetProfilerStatsCounterType&)> Callback) const = 0;
+
+
 	// Computes aggregated stats for a packet interval or for a range of content events in a single packet.
 	// [PacketIndexIntervalStart, PacketIndexIntervalEnd] is the inclusive packet interval.
 	// [StartPosition, EndPosition) is the exclusive bit range interval; only used when PacketIndexIntervalStart == PacketIndexIntervalEnd.
 	virtual ITable<FNetProfilerAggregatedStats>* CreateAggregation(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd, uint32 StartPosition, uint32 EndPosition) const = 0;
+	
+	// Computes aggregated statscounters for a packet interval
+	// [PacketIndexIntervalStart, PacketIndexIntervalEnd] is the inclusive packet interval.
+	virtual ITable<FNetProfilerAggregatedStatsCounterStats>* CreateStatsCountersAggregation(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd) const = 0;
 };
 
 TRACESERVICES_API FName GetNetProfilerProviderName();

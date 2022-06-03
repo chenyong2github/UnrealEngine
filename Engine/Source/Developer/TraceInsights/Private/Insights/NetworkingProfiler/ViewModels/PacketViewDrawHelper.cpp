@@ -10,6 +10,7 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/ViewModels/PacketViewport.h"
+#include "Insights/NetworkingProfiler/ViewModels/PacketContentViewDrawHelper.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 
 #include <limits>
@@ -100,6 +101,11 @@ FNetworkPacketAggregatedSample* FNetworkPacketSeriesBuilder::AddPacket(const int
 	return nullptr;
 }
 
+void FNetworkPacketSeriesBuilder::SetHighlightEventTypeIndex(int32 EventTypeIndex)
+{
+	Series.HighlightEventTypeIndex = EventTypeIndex;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FPacketViewDrawHelper
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -174,6 +180,8 @@ void FPacketViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) const
 	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
 	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
 
+	const FLinearColor ColorFilterMatch = FPacketContentViewDrawHelper::GetColorByType(Series.HighlightEventTypeIndex);
+
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
 		const FNetworkPacketAggregatedSample& Sample = Series.Samples[SampleIndex];
@@ -189,6 +197,10 @@ void FPacketViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) const
 		//const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.ContentSizeInBits)));
 		const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.TotalSizeInBytes * 8)));
 
+		const float FilterMatchContentValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.FilterMatchHighlightSizeInBits)));
+		const float FilterMatchContentH = FilterMatchContentValueY - BaselineY;
+		const float FilterMatchContentY = ViewHeight - FilterMatchContentH;
+
 		const float H = ValueY - BaselineY;
 		const float Y = ViewHeight - H;
 
@@ -203,6 +215,11 @@ void FPacketViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) const
 		{
 			DrawContext.DrawBox(X + 1.0f, Y + 1.0f, SampleW - 2.0f, H - 2.0f, WhiteBrush, ColorFill);
 
+			if (Sample.FilterMatchHighlightSizeInBits > 0U)
+			{
+				DrawContext.DrawBox(X + 1.0f, FilterMatchContentY + 1.0f, SampleW - 2.0f, FilterMatchContentH - 2.0f, WhiteBrush, ColorFilterMatch);
+			}
+
 			// Draw border.
 			DrawContext.DrawBox(X, Y, 1.0, H, WhiteBrush, ColorBorder);
 			DrawContext.DrawBox(X + SampleW - 1.0f, Y, 1.0, H, WhiteBrush, ColorBorder);
@@ -212,6 +229,12 @@ void FPacketViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) const
 		else
 		{
 			DrawContext.DrawBox(X, Y, SampleW, H, WhiteBrush, ColorBorder);
+
+			if (Sample.FilterMatchHighlightSizeInBits > 0U)
+			{
+				DrawContext.DrawBox(X, FilterMatchContentY, SampleW, FilterMatchContentH, WhiteBrush, ColorFilterMatch);
+			}
+
 		}
 	}
 

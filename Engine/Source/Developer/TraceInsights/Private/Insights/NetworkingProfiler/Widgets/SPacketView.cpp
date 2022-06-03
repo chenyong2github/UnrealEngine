@@ -281,6 +281,7 @@ void SPacketView::UpdateState()
 		uint32 NetId = 0;
 		bool bByEventType = false;
 		uint32 EventTypeIndex = 0;
+		TraceServices::ENetProfilerAggregationMode AggregationMode = TraceServices::ENetProfilerAggregationMode::None;
 	};
 
 	FPacketFilter Filter;
@@ -296,6 +297,7 @@ void SPacketView::UpdateState()
 
 			Filter.bByEventType = PacketContentView->IsFilterByEventTypeEnabled();
 			Filter.EventTypeIndex = PacketContentView->GetFilterEventTypeIndex();
+			Filter.AggregationMode = PacketContentView->GetSelectedFilterEventAggregationMode();
 		}
 	}
 
@@ -334,7 +336,8 @@ void SPacketView::UpdateState()
 				if (PacketStartIndex <= PacketEndIndex)
 				{
 					int32 PacketIndex = PacketStartIndex;
-					NetProfilerProvider->EnumeratePackets(ConnectionIndex, ConnectionMode, PacketStartIndex, PacketEndIndex, [this, &Builder, &PacketIndex, &Filter, NetProfilerProvider](const TraceServices::FNetProfilerPacket& Packet)
+					int32 FilterMatchEventTypeIndex = -1;
+					NetProfilerProvider->EnumeratePackets(ConnectionIndex, ConnectionMode, PacketStartIndex, PacketEndIndex, [this, &Builder, &PacketIndex, &Filter, NetProfilerProvider, &FilterMatchEventTypeIndex](const TraceServices::FNetProfilerPacket& Packet)
 					{
 						FNetworkPacketAggregatedSample* SamplePtr = Builder.AddPacket(PacketIndex++, Packet);
 
@@ -345,17 +348,19 @@ void SPacketView::UpdateState()
 								SamplePtr->bAtLeastOnePacketMatchesFilter = !Filter.bByNetId && !Filter.bByEventType;
 							}
 
-							if (!SamplePtr->bAtLeastOnePacketMatchesFilter && (Filter.bByNetId || Filter.bByEventType))
+							if ((!SamplePtr->bAtLeastOnePacketMatchesFilter || Filter.AggregationMode != TraceServices::ENetProfilerAggregationMode::None) && (Filter.bByNetId || Filter.bByEventType))
 							{
 								bool bFilterMatch = false;
+								uint32 FilterMatchAggregatedEventSizeInBits = 0U;
+								uint32 FilterMatchMaxEventSizeBits = 0U;
 
 								const uint32 StartPos = 0;
 								const uint32 EndPos = Packet.ContentSizeInBits;
-								NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex - 1, StartPos, EndPos, [this, &bFilterMatch, &Filter, NetProfilerProvider](const TraceServices::FNetProfilerContentEvent& Event)
+								NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex - 1, StartPos, EndPos, [this, &bFilterMatch, &Filter, NetProfilerProvider, &FilterMatchAggregatedEventSizeInBits,&FilterMatchMaxEventSizeBits,  &FilterMatchEventTypeIndex](const TraceServices::FNetProfilerContentEvent& Event)
 								{
-									if (!bFilterMatch)
+									bool bEventMatchesFilter = true;
+									if (!bFilterMatch || (Filter.AggregationMode != TraceServices::ENetProfilerAggregationMode::None))
 									{
-										bool bEventMatchesFilter = true;
 										if (Filter.bByEventType && Filter.EventTypeIndex != Event.EventTypeIndex)
 										{
 											bEventMatchesFilter = false;
@@ -375,20 +380,41 @@ void SPacketView::UpdateState()
 												bEventMatchesFilter = false;
 											}
 										}
+
 										if (bEventMatchesFilter)
 										{
-											bFilterMatch = true;
+											const uint32 EventSize = Event.EndPos - Event.StartPos;
+											FilterMatchAggregatedEventSizeInBits += EventSize;
+											FilterMatchMaxEventSizeBits = FMath::Max(FilterMatchMaxEventSizeBits, EventSize);
+
+											if (!bFilterMatch)
+											{
+												FilterMatchEventTypeIndex = Event.NameIndex;
+												bFilterMatch = true;
+											}
 										}
 									}
+
 								});
 
 								if (bFilterMatch)
 								{
+									if (Filter.AggregationMode == TraceServices::ENetProfilerAggregationMode::Aggregate)
+									{
+										SamplePtr->FilterMatchHighlightSizeInBits = FMath::Max(SamplePtr->FilterMatchHighlightSizeInBits, FilterMatchAggregatedEventSizeInBits);
+									}
+									else if (Filter.AggregationMode == TraceServices::ENetProfilerAggregationMode::InstanceMax)
+									{
+										SamplePtr->FilterMatchHighlightSizeInBits = FMath::Max(SamplePtr->FilterMatchHighlightSizeInBits, FilterMatchMaxEventSizeBits);
+									}
+									
 									SamplePtr->bAtLeastOnePacketMatchesFilter = true;
 								}
 							}
 						}
 					});
+
+					Builder.SetHighlightEventTypeIndex(FilterMatchEventTypeIndex);
 				}
 			}
 		}
@@ -725,17 +751,15 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			}
 			if (HoveredSample.Sample->NumPackets == 1)
 			{
-				NumLines = 8;
-				Text = FString::Format(TEXT("Packet Index: {0}\n"
-											"Sequence Number: {1}\n"
-											"Content Size: {2} bits\n"
-											"Total Size: {3} bytes ({4} unused bits)\n"
-											"Timestamp: {5}\n"
-											"Status: {6}\n"
-											"Connection State: {7}\n"
-											"Engine Frame Number: {8}"),
-					{
-						FText::AsNumber(HoveredSample.Sample->LargestPacket.Index).ToString(),
+				NumLines = 7;
+				Text = FString::Format(TEXT("Sequence Number: {0}\n"
+											"Content Size: {1} bits\n"
+											"Total Size: {2} bytes ({3} unused bits)\n"
+											"Timestamp: {4}\n"
+											"Status: {5}\n"
+											"Connection State: {6}\n"
+											"Engine Frame Number: {7}"),
+					{						
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.SequenceNumber).ToString(),
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.ContentSizeInBits).ToString(),
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.TotalSizeInBytes).ToString(),
@@ -750,22 +774,20 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			}
 			else
 			{
-				NumLines = 11;
+				NumLines = 10;
 				Text = FString::Format(TEXT("{0} network packets\n"
 											"({1})\n"
 											"Largest Packet\n"
-											"    Index: {2}\n"
-											"    Sequence Number: {3}\n"
-											"    Content Size: {4} bits\n"
-											"    Total Size: {5} bytes ({6} unused bits)\n"
-											"    Timestamp: {7}\n"
-											"    Status: {8}\n"
-											"    Connection State: {9}\n"
-											"    Engine Frame Number: {10}"),
+											"    Sequance Number: {2}\n"
+											"    Content Size: {3} bits\n"
+											"    Total Size: {4} bytes ({5} unused bits)\n"
+											"    Timestamp: {6}\n"
+											"    Status: {7}\n"
+											"    Connection State: {8}\n"
+											"    Engine Frame Number: {9}"),
 					{
 						HoveredSample.Sample->NumPackets,
 						::AggregatedStatusToString(HoveredSample.Sample->AggregatedStatus),
-						FText::AsNumber(HoveredSample.Sample->LargestPacket.Index).ToString(),
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.SequenceNumber).ToString(),
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.ContentSizeInBits).ToString(),
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.TotalSizeInBytes).ToString(),

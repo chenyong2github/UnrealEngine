@@ -51,9 +51,10 @@ const TCHAR* LexToString(const ENetProfilerConnectionState Value)
 
 FNetProfilerProvider::FNetProfilerProvider(IAnalysisSession& InSession)
 	: Session(InSession)
-	, NetTraceVersion(0U)
 	, Connections(InSession.GetLinearAllocator(), 4096)
+	, NetTraceVersion(0U)
 	, ConnectionChangeCount(0u)
+	, GameInstanceChangeCount(0u)
 {
 	// Use name index 0 to indicate that we do not know the name
 	AddNetProfilerName(TEXT("N/A"));
@@ -118,6 +119,23 @@ const FNetProfilerEventType* FNetProfilerProvider::GetNetProfilerEventType(uint3
 	return EventTypeIndex < (uint32)EventTypes.Num() ? &EventTypes[EventTypeIndex] : nullptr;
 }
 
+uint32 FNetProfilerProvider::AddNetProfilerStatsCounterType(uint32 NameIndex, ENetProfilerStatsCounterType Type)
+{
+	Session.WriteAccessCheck();
+
+	FNetProfilerStatsCounterType& NewStatsCounterType = StatsCounterTypes.AddDefaulted_GetRef();
+	NewStatsCounterType.StatsCounterTypeIndex = StatsCounterTypes.Num() - 1;
+	NewStatsCounterType.NameIndex = NameIndex;
+	NewStatsCounterType.Type = Type;
+
+	return NewStatsCounterType.StatsCounterTypeIndex;
+}
+
+const FNetProfilerStatsCounterType* FNetProfilerProvider::GetNetProfilerStatsCounterType(uint32 StatsCounterTypeIndex) const
+{
+	return StatsCounterTypeIndex < (uint32)StatsCounterTypes.Num() ? &StatsCounterTypes[StatsCounterTypeIndex] : nullptr;
+}
+
 FNetProfilerGameInstanceInternal& FNetProfilerProvider::CreateGameInstance()
 {
 	Session.WriteAccessCheck();
@@ -129,8 +147,17 @@ FNetProfilerGameInstanceInternal& FNetProfilerProvider::CreateGameInstance()
 	new (GameInstance.Objects) TPagedArray<FNetProfilerObjectInstance>(Session.GetLinearAllocator(), 4096);
 	GameInstance.ObjectsChangeCount = 0u;
 
+	GameInstance.Frames = (TPagedArray<FNetProfilerFrame>*)Session.GetLinearAllocator().Allocate(sizeof(TPagedArray<FNetProfilerFrame>));
+	new (GameInstance.Frames) TPagedArray<FNetProfilerFrame>(Session.GetLinearAllocator(), 4096);
+	GameInstance.FramesChangeCount = 0u;
+
+	GameInstance.FrameStats = (TPagedArray<FNetProfilerStats>*)Session.GetLinearAllocator().Allocate(sizeof(TPagedArray<FNetProfilerStats>));
+	new (GameInstance.FrameStats) TPagedArray<FNetProfilerStats>(Session.GetLinearAllocator(), 4096);
+
 	// We reserve object index 0 as an invalid object
 	CreateObject(GameInstance.Instance.GameInstanceIndex);
+
+	MarkGameInstancesDirty();
 
 	return GameInstance;
 }
@@ -147,6 +174,12 @@ FNetProfilerGameInstanceInternal* FNetProfilerProvider::EditGameInstance(uint32 
 	{
 		return nullptr;
 	}
+}
+
+void FNetProfilerProvider::MarkGameInstancesDirty()
+{
+	Session.WriteAccessCheck();
+	++GameInstanceChangeCount;
 }
 
 FNetProfilerConnectionInternal& FNetProfilerProvider::CreateConnection(uint32 GameInstanceIndex)
@@ -295,6 +328,21 @@ void FNetProfilerProvider::ReadEventType(uint32 EventTypeIndex, TFunctionRef<voi
 	check(EventTypeIndex < (uint32)EventTypes.Num());
 
 	Callback(*GetNetProfilerEventType(EventTypeIndex));
+}
+
+void FNetProfilerProvider::ReadNetStatsCounterTypes(TFunctionRef<void(const FNetProfilerStatsCounterType*, uint64)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	Callback(StatsCounterTypes.GetData(), StatsCounterTypes.Num());
+}
+
+void FNetProfilerProvider::ReadNetStatsCounterType(uint32 TypeIndex, TFunctionRef<void(const FNetProfilerStatsCounterType&)> Callback) const
+{
+	Session.ReadAccessCheck();
+	check(TypeIndex < (uint32)StatsCounterTypes.Num());
+
+	Callback(*GetNetProfilerStatsCounterType(TypeIndex));
 }
 
 void FNetProfilerProvider::ReadGameInstances(TFunctionRef<void(const FNetProfilerGameInstance&)> Callback) const
@@ -687,6 +735,90 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 
 		// Finalize StatsEntry
 		Row.AverageInclusive = (uint64)((double)KV.Value.TotalInclusive / KV.Value.InstanceCount);
+	}
+	return Table;
+}
+
+ITable<FNetProfilerAggregatedStatsCounterStats>* FNetProfilerProvider::CreateStatsCountersAggregation(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd) const
+{
+	Session.ReadAccessCheck();
+
+	if (!ensure(ConnectionIndex < Connections.Num()))
+	{
+		return nullptr;
+	}
+
+	// [PacketIndexIntervalStart, PacketIndexIntervalEnd] is an inclusive interval.
+	if (!ensure(PacketIndexIntervalStart <= PacketIndexIntervalEnd))
+	{
+		return nullptr;
+	}
+
+	const FNetProfilerConnectionData* ConnectionData = Connections[ConnectionIndex].Data[Mode];
+	const auto& Packets = ConnectionData->Packets;
+
+	const uint32 PacketCount = Packets.Num();
+
+	if (!ensure(PacketCount > 0))
+	{
+		return nullptr;
+	}
+
+	TMap<uint32, FNetProfilerAggregatedStatsCounterStats> AggregatedStatsMap;
+	AggregatedStatsMap.Reserve(StatsCounterTypes.Num());
+
+	auto AccumulateStatsFunction = [&AggregatedStatsMap, this](const FNetProfilerStats& StatsCounter)
+	{
+		FNetProfilerAggregatedStatsCounterStats* StatsEntry = AggregatedStatsMap.Find(StatsCounter.StatsCounterTypeIndex);
+		if (!StatsEntry)
+		{
+			StatsEntry = &AggregatedStatsMap.Add(StatsCounter.StatsCounterTypeIndex);
+			StatsEntry->StatsCounterTypeIndex = StatsCounter.StatsCounterTypeIndex;
+		}
+		const uint32 StatsValue = StatsCounter.StatsValue;
+		StatsEntry->Sum += StatsValue;
+		StatsEntry->Max = FMath::Max(StatsValue, StatsEntry->Max);
+		++StatsEntry->Count;
+	};
+
+	const FNetProfilerGameInstanceInternal& GameInstance = GameInstances[Connections[ConnectionIndex].Connection.GameInstanceIndex];
+	const auto& PacketStatsCounters = ConnectionData->PacketStats;
+	const auto& FrameStatsCounters = *GameInstance.FrameStats;
+	const auto& Frames = *GameInstance.Frames;
+
+	// Iterate over packets
+	for (uint32 PacketIt = PacketIndexIntervalStart, PacketEndIt = FMath::Min(PacketIndexIntervalEnd, PacketCount - 1u); PacketIt <= PacketEndIt; ++PacketIt)
+	{
+		const FNetProfilerPacket& Packet = Packets[PacketIt];
+		const uint32 StatsCounterCount = PacketStatsCounters.Num();
+
+		// Iterate over all StatsCounters stored for the Packet
+		for (uint32 StatsCounterIt = 0; StatsCounterIt < Packet.StatsCount; ++StatsCounterIt)
+		{
+			AccumulateStatsFunction(PacketStatsCounters[Packet.StartStatsIndex + StatsCounterIt]);
+		}
+
+		// Include frame stats as well
+		const uint32 NetProfilerFrameIndex = Packet.NetProfilerFrameIndex;
+		if (NetProfilerFrameIndex < Frames.Num())
+		{
+			const FNetProfilerFrame& Frame = Frames[Packet.NetProfilerFrameIndex];
+			for (uint32 StatsCounterIt = 0; StatsCounterIt < Frame.StatsCount; ++StatsCounterIt)
+			{
+				AccumulateStatsFunction(FrameStatsCounters[Frame.StartStatsIndex + StatsCounterIt]);
+			}
+		}
+	}
+
+	// Calculate averages and populate table
+	TTable<FNetProfilerAggregatedStatsCounterStats>* Table = new TTable<FNetProfilerAggregatedStatsCounterStats>(AggregatedStatsCounterStatsTableLayout);
+	for (const auto& KV : AggregatedStatsMap)
+	{
+		FNetProfilerAggregatedStatsCounterStats& Row = Table->AddRow();
+		Row = KV.Value;
+
+		// Finalize StatsEntry
+		Row.Average = (uint64)((double)KV.Value.Sum / KV.Value.Count);
 	}
 	return Table;
 }

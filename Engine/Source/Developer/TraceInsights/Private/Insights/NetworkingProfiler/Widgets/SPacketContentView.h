@@ -11,6 +11,7 @@
 #include "TraceServices/Model/NetProfiler.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SComboBox.h"
 
 // Insights
 #include "Insights/Common/FixedCircularBuffer.h"
@@ -86,6 +87,20 @@ struct FNetworkPacketEventRef
  */
 class SPacketContentView : public SCompoundWidget
 {
+private:
+	struct FAggregationModeItem
+	{
+		/** Conversion constructor. */
+		FAggregationModeItem(const TraceServices::ENetProfilerAggregationMode& InMode)
+			: Mode(InMode)
+		{}
+
+		FText GetText() const;
+		FText GetTooltipText() const;
+
+		TraceServices::ENetProfilerAggregationMode Mode;
+	};
+
 public:
 	/** Number of pixels. */
 	static constexpr float MOUSE_SNAP_DISTANCE = 2.0f;
@@ -152,6 +167,8 @@ public:
 	void EnableFilterEventType(const uint32 InEventTypeIndex);
 	void DisableFilterEventType();
 
+	TraceServices::ENetProfilerAggregationMode GetSelectedFilterEventAggregationMode() const { return SelectedAggregationMode ? SelectedAggregationMode->Mode : TraceServices::ENetProfilerAggregationMode::Aggregate; }
+
 	void FindFirstEvent();
 	void FindPreviousEvent(EEventNavigationType NavigationType);
 	void FindNextEvent(EEventNavigationType NavigationType);
@@ -210,6 +227,12 @@ private:
 
 	void AdjustForSplitContent();
 
+	TSharedRef<SWidget> CreateAggregationModeComboBox();
+	TSharedRef<SWidget> AggregationMode_OnGenerateWidget(TSharedPtr<FAggregationModeItem> InAggregationMode) const;
+	void AggregationMode_OnSelectionChanged(TSharedPtr<FAggregationModeItem> NewAggregationMode, ESelectInfo::Type SelectInfo);
+	FText AggregationMode_GetSelectedText() const;
+	FText AggregationMode_GetSelectedTooltipText() const;
+
 private:
 	TWeakPtr<SNetworkingProfilerWindow> ProfilerWindowWeakPtr;
 
@@ -241,6 +264,10 @@ private:
 	//////////////////////////////////////////////////
 
 	TSharedPtr<SScrollBar> HorizontalScrollBar;
+
+	TSharedPtr<SComboBox<TSharedPtr<FAggregationModeItem>>> AggregationModeComboBox;
+	TArray<TSharedPtr<FAggregationModeItem>> AvailableAggregationModes;
+	TSharedPtr<FAggregationModeItem> SelectedAggregationMode;
 
 	//////////////////////////////////////////////////
 	// Panning and Zooming behaviors
