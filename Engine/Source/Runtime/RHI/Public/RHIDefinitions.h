@@ -2602,6 +2602,15 @@ inline ERHIResourceType GetRHIResourceType(ETextureDimension Dimension)
 	return ERHIResourceType::RRT_None;
 }
 
+enum class ERHIBindlessConfiguration
+{
+	Disabled,
+	AllShaders,
+	RayTracingShaders,
+};
+
+RHI_API ERHIBindlessConfiguration RHIGetBindlessResourcesConfiguration(EShaderPlatform Platform);
+RHI_API ERHIBindlessConfiguration RHIGetBindlessSamplersConfiguration(EShaderPlatform Platform);
 
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)

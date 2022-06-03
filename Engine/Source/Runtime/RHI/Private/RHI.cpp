@@ -1300,6 +1300,43 @@ static FAutoConsoleVariableRef CVarEnableAttachmentVariableRateShading(
 	TEXT("Toggle to enable image-based Variable Rate Shading."),
 	ECVF_RenderThreadSafe);
 
+
+int32 GRHIBindlessResourceConfiguration = 0;
+static FAutoConsoleVariableRef CVarEnableBindlessResources(
+	TEXT("rhi.Bindless.Resources"),
+	GRHIBindlessResourceConfiguration,
+	TEXT("Set to 1 to enable for all shader types. Set to 2 to restrict to Raytracing shaders."),
+	ECVF_ReadOnly
+);
+
+int32 GRHIBindlessSamplerConfiguration = 0;
+static FAutoConsoleVariableRef CVarEnableBindlessSamplers(
+	TEXT("rhi.Bindless.Samplers"),
+	GRHIBindlessSamplerConfiguration,
+	TEXT("Set to 1 to enable for all shader types. Set to 2 to restrict to Raytracing shaders."),
+	ECVF_ReadOnly
+);
+
+static ERHIBindlessConfiguration DetermineBindlessConfiguration(EShaderPlatform Platform, int32 BindlessConfigSetting)
+{
+	if (!RHISupportsBindless(Platform) || BindlessConfigSetting == 0)
+	{
+		return ERHIBindlessConfiguration::Disabled;
+	}
+
+	return BindlessConfigSetting == 2 ? ERHIBindlessConfiguration::RayTracingShaders : ERHIBindlessConfiguration::AllShaders;
+}
+
+ERHIBindlessConfiguration RHIGetBindlessResourcesConfiguration(EShaderPlatform Platform)
+{
+	return DetermineBindlessConfiguration(Platform, GRHIBindlessResourceConfiguration);
+}
+
+ERHIBindlessConfiguration RHIGetBindlessSamplersConfiguration(EShaderPlatform Platform)
+{
+	return DetermineBindlessConfiguration(Platform, GRHIBindlessSamplerConfiguration);
+}
+
 namespace RHIConfig
 {
 	bool ShouldSaveScreenshotAfterProfilingGPU()

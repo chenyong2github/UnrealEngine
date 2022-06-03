@@ -344,7 +344,13 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	check(GBindlessSamplerDescriptorHeapSize <= GGlobalSamplerDescriptorHeapSize);
 
 	DescriptorHeapManager.Init(GGlobalResourceDescriptorHeapSize, GGlobalSamplerDescriptorHeapSize);
-	BindlessDescriptorManager.Init(GBindlessResourceDescriptorHeapSize, GBindlessSamplerDescriptorHeapSize);
+
+	const bool bBindlessResources = RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;
+	const bool bBindlessSamplers = RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;
+	if (bBindlessResources || bBindlessSamplers)
+	{
+		BindlessDescriptorManager.Init(bBindlessResources ? GBindlessResourceDescriptorHeapSize : 0, bBindlessSamplers ? GBindlessSamplerDescriptorHeapSize : 0);
+	}
 
 	// Init offline descriptor managers
 	for (uint32 Index = 0; Index < static_cast<uint32>(ERHIDescriptorHeapType::count); Index++)
@@ -352,7 +358,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 		OfflineDescriptorManagers[Index].Init(static_cast<ERHIDescriptorHeapType>(Index));
 	}
 
-	GlobalSamplerHeap.Init(GGlobalSamplerHeapSize - GBindlessSamplerDescriptorHeapSize);
+	GlobalSamplerHeap.Init(GGlobalSamplerHeapSize);
 
 	OnlineDescriptorManager.Init(GOnlineDescriptorHeapSize, GOnlineDescriptorHeapBlockSize);
 

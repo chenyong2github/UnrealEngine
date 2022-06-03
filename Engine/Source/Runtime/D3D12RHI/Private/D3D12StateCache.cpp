@@ -29,7 +29,7 @@ static FAutoConsoleVariableRef CVarGlobalSamplerDescriptorHeapSize(
 	ECVF_ReadOnly
 );
 
-int32 GBindlessResourceDescriptorHeapSize = 0;
+int32 GBindlessResourceDescriptorHeapSize = 1000 * 1000;
 static FAutoConsoleVariableRef CVarBindlessResourceDescriptorHeapSize(
 	TEXT("D3D12.Bindless.ResourceDescriptorHeapSize"),
 	GBindlessResourceDescriptorHeapSize,
@@ -37,7 +37,7 @@ static FAutoConsoleVariableRef CVarBindlessResourceDescriptorHeapSize(
 	ECVF_ReadOnly
 );
 
-int32 GBindlessSamplerDescriptorHeapSize = 0;
+int32 GBindlessSamplerDescriptorHeapSize = 2048;
 static FAutoConsoleVariableRef CVarBindlessSamplerDescriptorHeapSize(
 	TEXT("D3D12.Bindless.SamplerDescriptorHeapSize"),
 	GBindlessSamplerDescriptorHeapSize,

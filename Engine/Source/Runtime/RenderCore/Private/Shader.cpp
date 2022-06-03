@@ -1925,6 +1925,19 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	if (RHISupportsBindless(Platform))
 	{
 		KeyString += TEXT("_BNDLS");
+
+		const ERHIBindlessConfiguration ResourcesConfig = RHIGetBindlessResourcesConfiguration(Platform);
+		const ERHIBindlessConfiguration SamplersConfig = RHIGetBindlessSamplersConfiguration(Platform);
+
+		if (ResourcesConfig != ERHIBindlessConfiguration::Disabled)
+		{
+			KeyString += ResourcesConfig == ERHIBindlessConfiguration::RayTracingShaders ? TEXT("_RTRES") : TEXT("ALLRES");
+		}
+
+		if (SamplersConfig != ERHIBindlessConfiguration::Disabled)
+		{
+			KeyString += SamplersConfig == ERHIBindlessConfiguration::RayTracingShaders ? TEXT("_RTSAM") : TEXT("ALLSAM");
+		}
 	}
 
 	if (ShouldCompileRayTracingShadersForProject(Platform))
