@@ -251,8 +251,13 @@ namespace Nanite
 			return;
 		}
 		UStaticMesh* StaticMesh = ((UStaticMeshComponent*)Primitive)->GetStaticMesh();
+		if (StaticMesh == nullptr || !StaticMesh->HasValidNaniteData())
+		{
+			return;
+		}
+
 		const FStreamableRenderResourceState& ResourceState = StaticMesh->GetStreamableResourceState();
-		if (StaticMesh == nullptr || !StaticMesh->HasValidNaniteData() || !ResourceState.bSupportsStreaming)
+		if (!ResourceState.bSupportsStreaming)
 		{
 			return;
 		}
@@ -310,9 +315,15 @@ namespace Nanite
 		{
 			return;
 		}
+		
 		UStaticMesh* StaticMesh = ((UStaticMeshComponent*)Primitive)->GetStaticMesh();
+		if (StaticMesh == nullptr || !StaticMesh->HasValidNaniteData())
+		{
+			return;
+		}
+
 		const FStreamableRenderResourceState& ResourceState = StaticMesh->GetStreamableResourceState();
-		if (StaticMesh == nullptr || !StaticMesh->HasValidNaniteData() || !ResourceState.bSupportsStreaming)
+		if (!ResourceState.bSupportsStreaming)
 		{
 			return;
 		}
