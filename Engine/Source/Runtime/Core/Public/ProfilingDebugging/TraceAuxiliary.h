@@ -5,6 +5,7 @@
 #include "CoreGlobals.h"
 #include "HAL/Platform.h"
 #include "Logging/LogMacros.h"
+#include "Delegates/Delegate.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 class CORE_API FTraceAuxiliary
