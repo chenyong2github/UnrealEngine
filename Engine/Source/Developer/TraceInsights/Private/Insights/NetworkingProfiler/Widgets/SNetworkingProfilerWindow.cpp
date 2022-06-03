@@ -584,12 +584,12 @@ FText SNetworkingProfilerWindow::FGameInstanceItem::GetTooltipText() const
 {
 	if (IsInstanceNameSet())
 	{
-		return FText::Format(LOCTEXT("GameInstanceItemFmt0", "{0} Game Instance {1} [{2}]"), FText::FromString(GetInstanceName()), FText::AsNumber(GetIndex()),
+		return FText::Format(LOCTEXT("GameInstanceItemTooltipFmt0", "{0} Game Instance {1} [{2}]"), FText::FromString(GetInstanceName()), FText::AsNumber(GetIndex()),
 			IsServer() ? FText::FromString("Server") : FText::FromString("Client"));
 	}
 	else
 	{
-		return FText::Format(LOCTEXT("GameInstanceItemFmt1", "Game Instance {0}"), FText::AsNumber(GetIndex()));
+		return FText::Format(LOCTEXT("GameInstanceItemTooltipFmt1", "Game Instance {0}"), FText::AsNumber(GetIndex()));
 	}
 }
 
