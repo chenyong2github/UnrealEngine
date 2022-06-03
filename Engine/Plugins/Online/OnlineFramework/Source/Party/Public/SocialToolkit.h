@@ -142,7 +142,13 @@ public:
 	virtual void NotifyPartyInviteReceived(USocialUser& SocialUser, const IOnlinePartyJoinInfo& Invite);
 	virtual void NotifyPartyInviteRemoved(USocialUser& SocialUser, const IOnlinePartyJoinInfo& Invite);
 
-	void RequestToJoinParty(USocialUser& SocialUser);
+	/**
+	 * Can we automatically re-create a persistent party, for example on party join failure or on party kick?
+	 * Typically you will want to, so the user always has a party, but there may be scenarios where you want to delay
+	 * creating a new party until the client is in a better state.
+	 * @return true if we can automatically recreate a persistent party
+	 */
+	virtual bool CanAutoRecreatePersistentParty() const { return IsOwnerLoggedIn(); }
 
 #if WITH_EDITOR
 	bool Debug_IsRandomlyChangingPresence() const { return bDebug_IsRandomlyChangingUserPresence; }

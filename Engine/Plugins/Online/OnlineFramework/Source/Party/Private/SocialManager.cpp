@@ -859,6 +859,8 @@ void USocialManager::FinishJoinPartyAttempt(FJoinPartyAttempt& JoinAttemptToDest
 	if (bWasPersistentPartyJoinAttempt && !JoinResult.WasSuccessful() && !GetPersistentParty())
 	{
 		// Something goofed when trying to join a new persistent party, so create a replacement immediately
+		// TODO:  See if the below warning happens, and if so, flesh out this flow
+		UE_CLOG(!GetFirstLocalUserToolkit()->CanAutoRecreatePersistentParty(), LogParty, Warning, TEXT("FinishJoinPartyAttempt creating a persistent party when we shouldn't!"));
 		CreatePersistentParty();
 	}
 }
@@ -1324,7 +1326,7 @@ void USocialManager::HandlePartyLeft(EMemberExitedReason Reason, USocialParty* L
 			}
 		}
 
-		if (LeftParty->IsPersistentParty() && GetFirstLocalUserToolkit()->IsOwnerLoggedIn())
+		if (LeftParty->IsPersistentParty() && GetFirstLocalUserToolkit()->CanAutoRecreatePersistentParty())
 		{
 			UE_LOG(LogParty, Verbose, TEXT("Finished leaving persistent party without a join/rejoin target. Creating a new persistent party now."));
 
@@ -1338,7 +1340,7 @@ void USocialManager::HandleLeavePartyForMissingJoinAttempt(const FUniqueNetId& L
 {
 	ABORT_DURING_SHUTDOWN();
 
-	if (PartyTypeId == IOnlinePartySystem::GetPrimaryPartyTypeId() && GetFirstLocalUserToolkit()->IsOwnerLoggedIn() && !GetPersistentPartyInternal(true))
+	if (PartyTypeId == IOnlinePartySystem::GetPrimaryPartyTypeId() && GetFirstLocalUserToolkit()->CanAutoRecreatePersistentParty() && !GetPersistentPartyInternal(true))
 	{
 		// We just had to bail on the persistent party due to unforeseen shenanigans, so try to correct things and set another one back up
 		CreatePersistentParty();
