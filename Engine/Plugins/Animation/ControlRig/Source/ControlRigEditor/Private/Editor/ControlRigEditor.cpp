@@ -98,6 +98,7 @@
 #include "ToolMenus.h"
 #include "Styling/AppStyle.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_InteractionExecution.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -203,6 +204,11 @@ struct FControlRigZoomLevelsContainer : public FZoomLevelsContainer
 	TArray<FControlRigZoomLevelEntry> ZoomLevels;
 };
 
+const TArray<FName> FControlRigEditor::ForwardsSolveEventQueue = {FRigUnit_BeginExecution::EventName};
+const TArray<FName> FControlRigEditor::BackwardsSolveEventQueue = {FRigUnit_InverseExecution::EventName};
+const TArray<FName> FControlRigEditor::SetupEventQueue = {FRigUnit_PrepareForExecution::EventName};
+const TArray<FName> FControlRigEditor::BackwardsAndForwardsSolveEventQueue = {FRigUnit_InverseExecution::EventName, FRigUnit_BeginExecution::EventName};
+
 FControlRigEditor::FControlRigEditor()
 	: ControlRig(nullptr)
 	, ActiveController(nullptr)
@@ -212,7 +218,7 @@ FControlRigEditor::FControlRigEditor()
 	, bSetupModeEnabled(false)
 	, bIsCompilingThroughUI(false)
 	, bAnyErrorsLeft(false)
-	, LastEventQueue(EControlRigEditorEventQueue::Setup)
+	, LastEventQueue(SetupEventQueue)
 	, ExecutionMode(EControlRigExecutionModeType::EControlRigExecutionModeType_Release)
 	, LastDebuggedRig()
 	, RigHierarchyTabCount(0)
@@ -657,22 +663,22 @@ void FControlRigEditor::BindCommands()
 
 	GetToolkitCommands()->MapAction(
 		FControlRigBlueprintCommands::Get().SetupEvent,
-		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, EControlRigEditorEventQueue::Setup),
+		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, TArray<FName>(SetupEventQueue)),
 		FCanExecuteAction());
 
 	GetToolkitCommands()->MapAction(
 		FControlRigBlueprintCommands::Get().ForwardsSolveEvent,
-		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, EControlRigEditorEventQueue::ForwardsSolve),
+		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, TArray<FName>(ForwardsSolveEventQueue)),
 		FCanExecuteAction());
 
 	GetToolkitCommands()->MapAction(
 		FControlRigBlueprintCommands::Get().BackwardsSolveEvent,
-		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, EControlRigEditorEventQueue::BackwardsSolve),
+		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, TArray<FName>(BackwardsSolveEventQueue)),
 		FCanExecuteAction());
 
 	GetToolkitCommands()->MapAction(
 		FControlRigBlueprintCommands::Get().BackwardsAndForwardsSolveEvent,
-		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, EControlRigEditorEventQueue::BackwardsAndForwardsSolve),
+		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, TArray<FName>(BackwardsAndForwardsSolveEventQueue)),
 		FCanExecuteAction());
 
 	GetToolkitCommands()->MapAction(
@@ -777,14 +783,49 @@ TSharedRef<SWidget> FControlRigEditor::GenerateEventQueueMenuContent()
 	FMenuBuilder MenuBuilder(true, GetToolkitCommands());
 
 	MenuBuilder.BeginSection(TEXT("Events"));
-	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().SetupEvent, TEXT("Setup"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(EControlRigEditorEventQueue::Setup));
-	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().ForwardsSolveEvent, TEXT("Forwards Solve"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(EControlRigEditorEventQueue::ForwardsSolve));
-	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().BackwardsSolveEvent, TEXT("Backwards Solve"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(EControlRigEditorEventQueue::BackwardsSolve));
+	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().SetupEvent, TEXT("Setup"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(SetupEventQueue));
+	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().ForwardsSolveEvent, TEXT("Forwards Solve"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(ForwardsSolveEventQueue));
+	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().BackwardsSolveEvent, TEXT("Backwards Solve"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(BackwardsSolveEventQueue));
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection(TEXT("Validation"));
-	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().BackwardsAndForwardsSolveEvent, TEXT("BackwardsAndForwards"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(EControlRigEditorEventQueue::BackwardsAndForwardsSolve));
+	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().BackwardsAndForwardsSolveEvent, TEXT("BackwardsAndForwards"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(BackwardsAndForwardsSolveEventQueue));
 	MenuBuilder.EndSection();
+
+	if (const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
+	{
+		bool bFoundUserDefinedEvent = false;
+		const TArray<FName> EntryNames = RigBlueprint->GetRigVMClient()->GetEntryNames();
+		for(const FName& EntryName : EntryNames)
+		{
+			if(UControlRigGraphSchema::IsControlRigDefaultEvent(EntryName))
+			{
+				continue;
+			}
+
+			if(!bFoundUserDefinedEvent)
+			{
+				MenuBuilder.AddSeparator();
+				bFoundUserDefinedEvent = true;
+			}
+
+			FString EventNameStr = EntryName.ToString();
+			if(!EventNameStr.EndsWith(TEXT("Event")))
+			{
+				EventNameStr += TEXT(" Event");
+			}
+
+			MenuBuilder.AddMenuEntry(
+				FText::FromString(EventNameStr),
+				FText::FromString(FString::Printf(TEXT("Runs the user defined %s"), *EventNameStr)),
+				GetEventQueueIcon({EntryName}),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, TArray<FName>({EntryName})),
+					FCanExecuteAction()
+				)
+			);
+		}
+	}
 
 	return MenuBuilder.MakeWidget();
 }
@@ -910,45 +951,22 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	ToolbarBuilder.EndSection();
 }
 
-EControlRigEditorEventQueue FControlRigEditor::GetEventQueue() const
+TArray<FName> FControlRigEditor::GetEventQueue() const
 {
 	if (ControlRig)
 	{
 		if (bSetupModeEnabled)
 		{
-			return EControlRigEditorEventQueue::Setup;
+			return SetupEventQueue;
 		}
 
-		TArray<FName> EventQueue = ControlRig->EventQueue;
-		if (EventQueue.Num() == 1)
-		{
-			if (EventQueue[0] == FRigUnit_PrepareForExecution::EventName)
-			{
-				return EControlRigEditorEventQueue::Setup;
-			}
-			else if (EventQueue[0] == FRigUnit_BeginExecution::EventName)
-			{
-				return EControlRigEditorEventQueue::ForwardsSolve;
-			}
-			else if (EventQueue[0] == FRigUnit_InverseExecution::EventName)
-			{
-				return EControlRigEditorEventQueue::BackwardsSolve;
-			}
-		}
-		else if (EventQueue.Num() == 2)
-		{
-			if (EventQueue[0] == FRigUnit_InverseExecution::EventName &&
-				EventQueue[1] == FRigUnit_BeginExecution::EventName)
-			{
-				return EControlRigEditorEventQueue::BackwardsAndForwardsSolve;
-			}
-		}
+		return ControlRig->GetEventQueue();
 	}
 
-	return EControlRigEditorEventQueue::ForwardsSolve;
+	return ForwardsSolveEventQueue;
 }
 
-void FControlRigEditor::SetEventQueue(EControlRigEditorEventQueue InEventQueue)
+void FControlRigEditor::SetEventQueue(TArray<FName> InEventQueue)
 {
 	if (GetEventQueue() == InEventQueue)
 	{
@@ -961,10 +979,9 @@ void FControlRigEditor::SetEventQueue(EControlRigEditorEventQueue InEventQueue)
 
 	if (ControlRig)
 	{
-		TArray<FName> EventNames;
-		switch (InEventQueue)
+		if (InEventQueue.Num() > 0)
 		{
-			case EControlRigEditorEventQueue::Setup:
+			if(InEventQueue == SetupEventQueue)
 			{
 				if (!bSetupModeEnabled)
 				{
@@ -972,27 +989,8 @@ void FControlRigEditor::SetEventQueue(EControlRigEditorEventQueue InEventQueue)
 				}
 				return;
 			}
-			case EControlRigEditorEventQueue::ForwardsSolve:
-			{
-				EventNames.Add(FRigUnit_BeginExecution::EventName);
-				break;
-			}
-			case EControlRigEditorEventQueue::BackwardsSolve:
-			{
-				EventNames.Add(FRigUnit_InverseExecution::EventName);
-				break;
-			}
-			case EControlRigEditorEventQueue::BackwardsAndForwardsSolve:
-			{
-				EventNames.Add(FRigUnit_InverseExecution::EventName);
-				EventNames.Add(FRigUnit_BeginExecution::EventName);
-				break;
-			}
-		}
-
-		if (EventNames.Num() > 0)
-		{
-			ControlRig->SetEventQueue(EventNames);
+			
+			ControlRig->SetEventQueue(InEventQueue);
 
 			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 			{
@@ -1006,8 +1004,8 @@ void FControlRigEditor::SetEventQueue(EControlRigEditorEventQueue InEventQueue)
 		}
 
 		// Reset transforms only for setup and forward solve to not inturrupt any animation that might be playing
-		if (InEventQueue == EControlRigEditorEventQueue::Setup ||
-			InEventQueue == EControlRigEditorEventQueue::ForwardsSolve)
+		if (InEventQueue.Contains(FRigUnit_PrepareForExecution::EventName) ||
+			InEventQueue.Contains(FRigUnit_BeginExecution::EventName))
 		{
 			ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
 		}
@@ -1016,59 +1014,81 @@ void FControlRigEditor::SetEventQueue(EControlRigEditorEventQueue InEventQueue)
 
 int32 FControlRigEditor::GetEventQueueComboValue() const
 {
-	return (int32)GetEventQueue();
+	const TArray<FName> EventQueue = GetEventQueue();
+	if(EventQueue == ForwardsSolveEventQueue)
+	{
+		return 0;
+	}
+	if(EventQueue == SetupEventQueue)
+	{
+		return 1;
+	}
+	if(EventQueue == BackwardsSolveEventQueue)
+	{
+		return 2;
+	}
+	if(EventQueue == BackwardsAndForwardsSolveEventQueue)
+	{
+		return 3;
+	}
+	return INDEX_NONE;
 }
 
 FText FControlRigEditor::GetEventQueueLabel() const
 {
-	EControlRigEditorEventQueue EventQueue = GetEventQueue();
-	switch (EventQueue)
+	TArray<FName> EventQueue = GetEventQueue();
+
+	if(EventQueue == SetupEventQueue)
 	{
-		case EControlRigEditorEventQueue::Setup:
-		{
-			return FRigUnit_PrepareForExecution::StaticStruct()->GetDisplayNameText();
-		}
-		case EControlRigEditorEventQueue::ForwardsSolve:
-		{
-			return FRigUnit_BeginExecution::StaticStruct()->GetDisplayNameText();
-		}
-		case EControlRigEditorEventQueue::BackwardsSolve:
-		{
-			return FRigUnit_InverseExecution::StaticStruct()->GetDisplayNameText();
-		}
-		case EControlRigEditorEventQueue::BackwardsAndForwardsSolve:
-		{
-			return FText::FromString(FString::Printf(TEXT("%s and %s"),
-				*FRigUnit_InverseExecution::StaticStruct()->GetDisplayNameText().ToString(),
-				*FRigUnit_BeginExecution::StaticStruct()->GetDisplayNameText().ToString()));
-		}
+		return FRigUnit_PrepareForExecution::StaticStruct()->GetDisplayNameText();
 	}
-	return StaticEnum<EControlRigEditorEventQueue>()->GetDisplayNameTextByValue((int64)EventQueue);
+	if(EventQueue == ForwardsSolveEventQueue)
+	{
+		return FRigUnit_BeginExecution::StaticStruct()->GetDisplayNameText();
+	}
+	if(EventQueue == BackwardsSolveEventQueue)
+	{
+		return FRigUnit_InverseExecution::StaticStruct()->GetDisplayNameText();
+	}
+	if(EventQueue == BackwardsAndForwardsSolveEventQueue)
+	{
+		return FText::FromString(FString::Printf(TEXT("%s and %s"),
+			*FRigUnit_InverseExecution::StaticStruct()->GetDisplayNameText().ToString(),
+			*FRigUnit_BeginExecution::StaticStruct()->GetDisplayNameText().ToString()));
+	}
+
+	if(EventQueue.Num() == 1)
+	{
+		FString EventName = EventQueue[0].ToString();
+		if(!EventName.EndsWith(TEXT("Event")))
+		{
+			EventName += TEXT(" Event");
+		}
+		return FText::FromString(EventName);
+	}
+	return LOCTEXT("CustomEventQueue", "Custom Event Queue");
 }
 
-FSlateIcon FControlRigEditor::GetEventQueueIcon(EControlRigEditorEventQueue InEventQueue)
+FSlateIcon FControlRigEditor::GetEventQueueIcon(const TArray<FName>& InEventQueue)
 {
-	switch (InEventQueue)
+	if(InEventQueue == SetupEventQueue)
 	{
-		case EControlRigEditorEventQueue::Setup:
-		{
-			return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.SetupMode");
-		}
-		case EControlRigEditorEventQueue::ForwardsSolve:
-		{
-			return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ForwardsSolveEvent");
-		}
-		case EControlRigEditorEventQueue::BackwardsSolve:
-		{
-			return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.BackwardsSolveEvent");
-		}
-		case EControlRigEditorEventQueue::BackwardsAndForwardsSolve:
-		{
-			return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.BackwardsAndForwardsSolveEvent");
-		}
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.SetupMode");
+	}
+	if(InEventQueue == ForwardsSolveEventQueue)
+	{
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ForwardsSolveEvent");
+	}
+	if(InEventQueue == BackwardsSolveEventQueue)
+	{
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.BackwardsSolveEvent");
+	}
+	if(InEventQueue == BackwardsAndForwardsSolveEventQueue)
+	{
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.BackwardsAndForwardsSolveEvent");
 	}
 
-	return FSlateIcon();
+	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
 }
 
 FSlateIcon FControlRigEditor::GetEventQueueIcon() const
@@ -3691,20 +3711,18 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 	auto GetBorderColorAndOpacity = [this]()
 	{
 		FLinearColor Color = FLinearColor::Transparent;
-		switch (GetEventQueue())
+		const TArray<FName> EventQueue = GetEventQueue();
+		if(EventQueue == SetupEventQueue)
 		{
-			case EControlRigEditorEventQueue::Setup:
-				Color = UControlRigEditorSettings::Get()->SetupEventBorderColor;
-				break;
-			case EControlRigEditorEventQueue::BackwardsSolve:
-				Color = UControlRigEditorSettings::Get()->BackwardsSolveBorderColor;
-				break;
-			case EControlRigEditorEventQueue::BackwardsAndForwardsSolve:
-				Color = UControlRigEditorSettings::Get()->BackwardsAndForwardsBorderColor;
-				break;
-			default:
-				Color = FLinearColor::Transparent;
-				break;
+			Color = UControlRigEditorSettings::Get()->SetupEventBorderColor;
+		}
+		if(EventQueue == BackwardsSolveEventQueue)
+		{
+			Color = UControlRigEditorSettings::Get()->BackwardsSolveBorderColor;
+		}
+		if(EventQueue == BackwardsAndForwardsSolveEventQueue)
+		{
+			Color = UControlRigEditorSettings::Get()->BackwardsAndForwardsBorderColor;
 		}
 		return Color;
 	};
@@ -3712,7 +3730,7 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 	auto GetBorderVisibility = [this]()
 	{
 		EVisibility Visibility = EVisibility::Collapsed;
-		if (GetEventQueue() != EControlRigEditorEventQueue::ForwardsSolve)
+		if (GetEventQueueComboValue() != 0)
 		{
 			Visibility = EVisibility::HitTestInvisible;
 		}

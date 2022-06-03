@@ -591,7 +591,7 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ES
 		{
 			if (ControlRigEditor.IsValid())
 			{
-				if (ControlRigEditor.Pin()->GetEventQueue() == EControlRigEditorEventQueue::Setup)
+				if (ControlRigEditor.Pin()->GetEventQueueComboValue() == 1)
 				{
 					HandleControlBoneOrSpaceTransform();
 				}
@@ -740,7 +740,7 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 
 						if (ControlRigEditor.IsValid() && !GIsTransacting)
 						{
-							if (ControlRigEditor.Pin()->GetEventQueue() == EControlRigEditorEventQueue::Setup)
+							if (ControlRigEditor.Pin()->GetEventQueueComboValue() == 1)
 							{
 								TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 								HandleControlBoneOrSpaceTransform();

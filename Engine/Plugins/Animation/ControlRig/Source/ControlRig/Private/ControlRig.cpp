@@ -275,22 +275,26 @@ void UControlRig::Evaluate_AnyThread()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Evaluate);
 
-	TGuardValue<TArray<FName>> EventQueueGuard(EventQueue, EventQueue);
+	// create a copy since we need to change it here temporarily,
+	// and UI / the rig may change the event queue while it is running
+	TArray<FName> EventQueueToRun = EventQueue;
+	
 	if(InteractionType != (uint8)EControlRigInteractionType::None)
 	{
-		if(EventQueue.IsEmpty())
+		if(EventQueueToRun.IsEmpty())
 		{
-			EventQueue.Add(FRigUnit_InteractionExecution::EventName);
+			EventQueueToRun.Add(FRigUnit_InteractionExecution::EventName);
 		}
 		else
 		{
 			// insert just before the last event so the interaction runs prior to
 			// forward solve or backwards solve.
-			EventQueue.Insert(FRigUnit_InteractionExecution::EventName, EventQueue.Num() - 1);
+			EventQueueToRun.Insert(FRigUnit_InteractionExecution::EventName, EventQueueToRun.Num() - 1);
 		}
 	}
 
-	for (const FName& EventName : EventQueue)
+	
+	for (const FName& EventName : EventQueueToRun)
 	{
 		Execute(EControlRigState::Update, EventName);
 

@@ -508,7 +508,11 @@ void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
 			// pick the event to run
 			if(EventQueue.IsEmpty())
 			{
-				ControlRig->SetEventQueue({FRigUnit_BeginExecution::EventName});
+				if(bClearEventQueueRequired)
+				{
+					ControlRig->SetEventQueue({FRigUnit_BeginExecution::EventName});
+					bClearEventQueueRequired = false;
+				}
 			}
 			else
 			{
@@ -518,6 +522,7 @@ void FAnimNode_ControlRigBase::ExecuteControlRig(FPoseContext& InOutput)
 					return InEventName.EventName;
 				});
 				ControlRig->SetEventQueue(EventNames);
+				bClearEventQueueRequired = true;
 			}
 			
 			// evaluate control rig

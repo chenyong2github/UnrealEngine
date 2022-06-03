@@ -2079,6 +2079,58 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 				{
 					if (URigVMNode* ModelNode = RigNode->GetModelNode())
 					{
+						if(ModelNode->IsEvent())
+						{
+							const FName& EventName = ModelNode->GetEventName();
+							const bool bCanRunOnce = !UControlRigGraphSchema::IsControlRigDefaultEvent(EventName);
+
+							FToolMenuSection& EventsSection = Menu->AddSection("EdGraphSchemaEvents", LOCTEXT("EventsHeader", "Events"));
+
+							EventsSection.AddMenuEntry(
+								"Switch to Event",
+								LOCTEXT("SwitchToEvent", "Switch to Event"),
+								LOCTEXT("SwitchToEvent_Tooltip", "Switches the Control Rig Editor to run this event permanently."),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([RigBlueprint, EventName]()
+								{
+									if(UControlRig* ControlRig = Cast<UControlRig>(RigBlueprint->GetObjectBeingDebugged()))
+									{
+										ControlRig->SetEventQueue({EventName});
+									}
+								}))
+							);
+
+							EventsSection.AddMenuEntry(
+								"Run Event Once",
+								LOCTEXT("RuntEventOnce", "Run Event Once"),
+								LOCTEXT("RuntEventOnce_Tooltip", "Runs the event once (for testing)"),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([RigBlueprint, EventName]()
+								{
+									if(UControlRig* ControlRig = Cast<UControlRig>(RigBlueprint->GetObjectBeingDebugged()))
+									{
+										const TArray<FName> PreviousEventQueue = ControlRig->GetEventQueue();
+										TArray<FName> NewEventQueue = PreviousEventQueue;
+										NewEventQueue.Add(EventName);
+										ControlRig->SetEventQueue(NewEventQueue);
+
+										TSharedPtr<FDelegateHandle> RunOnceHandle = MakeShareable(new FDelegateHandle);
+										*(RunOnceHandle.Get()) = ControlRig->OnExecuted_AnyThread().AddLambda(
+											[RunOnceHandle, EventName, PreviousEventQueue](UControlRig* InRig, const EControlRigState InState, const FName& InEventName)
+											{
+												if(InEventName == EventName)
+												{
+													InRig->SetEventQueue(PreviousEventQueue);
+													InRig->OnExecuted_AnyThread().Remove(*RunOnceHandle.Get());
+												}
+											}
+										);
+									}
+								}),
+								FCanExecuteAction::CreateLambda([bCanRunOnce](){ return bCanRunOnce; }))
+							);
+						}
+						
 						const TArray<FRigVMUserWorkflow> Workflows = ModelNode->GetSupportedWorkflows(ERigVMUserWorkflowType::NodeContext, ModelNode);
 						if(!Workflows.IsEmpty())
 						{

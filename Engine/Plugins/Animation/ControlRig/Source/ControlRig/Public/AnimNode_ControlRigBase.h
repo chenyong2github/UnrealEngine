@@ -155,6 +155,8 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Settings)
 	TArray<FControlRigAnimNodeEventName> EventQueue;
 
+	bool bClearEventQueueRequired = false;
+
 	virtual bool CanExecute();
 	// update input/output to control rig
 	virtual void UpdateInput(UControlRig* ControlRig, const FPoseContext& InOutput);

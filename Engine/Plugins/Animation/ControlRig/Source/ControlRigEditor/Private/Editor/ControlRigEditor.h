@@ -33,25 +33,6 @@ class FControlRigEditor;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FControlRigEditorClosed, const FControlRigEditor*, UControlRigBlueprint*);
 
-UENUM()
-enum class EControlRigEditorEventQueue : uint8
-{
-	/** Setup Event */
-	Setup,
-
-	/** Forwards Solve Event */
-	ForwardsSolve,
-
-	/** Backwards Solve Event */
-	BackwardsSolve,
-
-	/** Backwards Solve Event -> Forwards Solve Event */
-	BackwardsAndForwardsSolve,
-
-	/** MAX - invalid */
-	Max UMETA(Hidden),
-};
-
 struct FControlRigEditorModes
 {
 	// Mode constants
@@ -284,11 +265,11 @@ private:
 	/** Fill the toolbar with content */
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
-	EControlRigEditorEventQueue GetEventQueue() const;
-	void SetEventQueue(EControlRigEditorEventQueue InEventQueue);
+	TArray<FName> GetEventQueue() const;
+	void SetEventQueue(TArray<FName> InEventQueue);
 	int32 GetEventQueueComboValue() const;
 	FText GetEventQueueLabel() const;
-	static FSlateIcon GetEventQueueIcon(EControlRigEditorEventQueue InEventQueue);
+	static FSlateIcon GetEventQueueIcon(const TArray<FName>& InEventQueue);
 	FSlateIcon GetEventQueueIcon() const;
 
 	enum EControlRigExecutionModeType
@@ -491,7 +472,7 @@ protected:
 
 	bool bAnyErrorsLeft;
 
-	EControlRigEditorEventQueue LastEventQueue;
+	TArray<FName> LastEventQueue;
 	EControlRigExecutionModeType ExecutionMode;
 	FString LastDebuggedRig;
 	int32 RigHierarchyTabCount;
@@ -505,7 +486,12 @@ protected:
 	TWeakObjectPtr<AStaticMeshActor> WeakGroundActorPtr;
 
 	FDelegateHandle PropertyChangedHandle;
-	
+
+	static const TArray<FName> ForwardsSolveEventQueue;
+	static const TArray<FName> BackwardsSolveEventQueue;
+	static const TArray<FName> SetupEventQueue;
+	static const TArray<FName> BackwardsAndForwardsSolveEventQueue;
+
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;
 	friend class SRigHierarchy;

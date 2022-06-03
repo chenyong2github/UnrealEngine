@@ -28,6 +28,10 @@
 #include "RigVMCore/RigVMUnknownType.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Algo/Count.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_PrepareForExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_InteractionExecution.h"
 
 #if WITH_EDITOR
 #include "ControlRigEditor/Private/Editor/SControlRigFunctionLocalizationWidget.h"
@@ -2062,6 +2066,14 @@ void UControlRigGraphSchema::HandleModifiedEvent(ERigVMGraphNotifType InNotifTyp
 			break;
 		}
 	}
+}
+
+bool UControlRigGraphSchema::IsControlRigDefaultEvent(const FName& InEventName)
+{
+	return InEventName == FRigUnit_BeginExecution::EventName ||
+		InEventName == FRigUnit_InverseExecution::EventName ||
+		InEventName == FRigUnit_PrepareForExecution::EventName ||
+		InEventName == FRigUnit_InteractionExecution::EventName;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -13011,7 +13011,7 @@ bool URigVMController::CanAddEventNode(UScriptStruct* InScriptStruct, const bool
 	}
 
 	TObjectPtr<URigVMNode> EventNode = FindEventNode(InScriptStruct);
-	const bool bHasEventNode = EventNode != nullptr;
+	const bool bHasEventNode = (EventNode != nullptr) && EventNode->CanOnlyExistOnce();
 	if (bHasEventNode && bReportErrors)
 	{
 		const FString ErrorMessage = FString::Printf(TEXT("Rig Graph can only contain one single %s node."),

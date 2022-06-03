@@ -266,6 +266,8 @@ public:
 	// Allow derived classes to spawn derived node classes
 	virtual TSubclassOf<UControlRigGraphNode> GetGraphNodeClass() const { return UControlRigGraphNode::StaticClass(); }
 
+	static bool IsControlRigDefaultEvent(const FName& InEventName);
+
 private:
 
 	const UEdGraphPin* LastPinForCompatibleCheck = nullptr;
