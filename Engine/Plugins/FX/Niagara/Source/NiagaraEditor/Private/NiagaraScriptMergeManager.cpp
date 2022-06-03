@@ -2923,7 +2923,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 						}
 					}
 				}
-				else
+				if (NewLinkedValueHandle.IsValid() == false)
 				{
 					NewLinkedValueHandle = OldLinkedValueHandle;
 				}
