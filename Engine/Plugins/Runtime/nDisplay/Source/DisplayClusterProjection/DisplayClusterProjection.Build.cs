@@ -10,11 +10,12 @@ public class DisplayClusterProjection : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"DisplayClusterConfiguration",
-				"DisplayClusterShaders",
+				"DisplayClusterShaders"
 			});
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
+				"CinematicCamera",
 				"Core",
 				"CoreUObject",
 				"DisplayCluster",
@@ -29,7 +30,7 @@ public class DisplayClusterProjection : ModuleRules
 				"ProceduralMeshComponent",
 				"Projects",
 				"RenderCore",
-				"RHI",
+				"RHI"
 			});
 
 		if (Target.bBuildEditor == true)

@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/CameraComponent.h"
+#include "CineCameraComponent.h"
 #include "ComposurePostMoves.h"
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
@@ -83,14 +84,23 @@ bool FDisplayClusterProjectionCameraPolicy::CalculateView(IDisplayClusterViewpor
 
 	InOutViewLocation = FVector::ZeroVector;
 	InOutViewRotation = FRotator::ZeroRotator;
-
+	
 	// Save Z values
 	ZNear = NCP;
 	ZFar  = FCP;
-	
-	// Use transform of an assigned camera
+
+	// Use assigned camera
 	if (UCameraComponent* CameraComponent = GetCameraComponent())
 	{
+		if (UCineCameraComponent* CineCameraComponent = Cast<UCineCameraComponent>(CameraComponent))
+		{
+			if (CineCameraComponent->bOverride_CustomNearClippingPlane)
+			{
+				ZNear = CineCameraComponent->CustomNearClippingPlane;
+				ZFar = ZNear;
+			}
+		}
+
 		InOutViewLocation = CameraComponent->GetComponentLocation();
 		InOutViewRotation = CameraComponent->GetComponentRotation();
 	}
