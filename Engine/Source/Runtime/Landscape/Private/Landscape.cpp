@@ -25,6 +25,7 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeInfoMap.h"
 #include "EditorSupportDelegates.h"
 #include "LandscapeMeshProxyComponent.h"
+#include "LandscapeNaniteComponent.h"
 #include "LandscapeRender.h"
 #include "LandscapeRenderMobile.h"
 #include "Logging/TokenizedMessage.h"
@@ -135,9 +136,6 @@ namespace LandscapeCookStats
 	});
 }
 #endif
-
-// Set this to 0 to disable landscape cooking and thus disable it on device.
-#define ENABLE_LANDSCAPE_COOKING 1
 
 static bool UseMobileLandscapeMesh(const ITargetPlatform* TargetPlatform)
 {
@@ -266,30 +264,134 @@ UMaterialInstanceDynamic* ULandscapeComponent::GetMaterialInstanceDynamic(int32 
 	return nullptr;
 }
 
-
 #if WITH_EDITOR
+
 void ULandscapeComponent::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
 
-	if (UseMobileLandscapeMesh(TargetPlatform) && !HasAnyFlags(RF_ClassDefaultObject))
+	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		CheckGenerateLandscapePlatformData(true, TargetPlatform);
+		if (UseMobileLandscapeMesh(TargetPlatform))
+		{
+			CheckGenerateMobilePlatformData(/*bIsCooking = */ true, TargetPlatform);
+		}
 	}
 }
 
+// Deprecated, use CheckGenerateMobilePlatformData
 void ALandscapeProxy::CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
+{
+	return CheckGenerateMobilePlatformData(bIsCooking, TargetPlatform);
+}
+
+void ALandscapeProxy::CheckGenerateMobilePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
 {
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		Component->CheckGenerateLandscapePlatformData(bIsCooking, TargetPlatform);
+		Component->CheckGenerateMobilePlatformData(bIsCooking, TargetPlatform);
 	}
 }
 
-void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
+void ALandscapeProxy::CheckGenerateNanitePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
 {
-#if ENABLE_LANDSCAPE_COOKING
+	if (IsNaniteEnabled())
+	{
+		FGuid NaniteContentId = GetNaniteContentId();
+		if (NaniteComponent == nullptr)
+		{
+			NaniteComponent = NewObject<ULandscapeNaniteComponent>(this);
 
+			NaniteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+			NaniteComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			NaniteComponent->SetMobility(EComponentMobility::Static);
+			NaniteComponent->SetGenerateOverlapEvents(false);
+			NaniteComponent->SetCanEverAffectNavigation(false);
+			NaniteComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+			NaniteComponent->bSelectable = false;
+			NaniteComponent->DepthPriorityGroup = SDPG_World;
+			NaniteComponent->RegisterComponent();
+		}
+
+		if (NaniteComponent->GetProxyContentId() != NaniteContentId)
+		{
+			NaniteComponent->InitializeForLandscape(this, NaniteContentId);
+		}
+	}
+	else if (NaniteComponent != nullptr)
+	{
+		NaniteComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+		NaniteComponent->DestroyComponent();
+		NaniteComponent = nullptr;
+	}
+}
+
+FGuid ALandscapeProxy::GetNaniteContentId() const
+{
+	if (!IsNaniteEnabled())
+	{
+		return FGuid();
+	}
+
+	FBufferArchive ContentStateAr;
+
+	struct FCompareULandscapeComponentBySectionBase
+	{
+		FORCEINLINE bool operator()(const ULandscapeComponent& A, const ULandscapeComponent& B) const
+		{
+			// Sort components based on their SectionBase (i.e. 2D index relative to the entire landscape) to ensure stable ID generation
+			return (A.GetSectionBase().X == B.GetSectionBase().X) ? (A.GetSectionBase().Y < B.GetSectionBase().Y) : (A.GetSectionBase().X < B.GetSectionBase().X);
+		}
+	};
+	TArray<ULandscapeComponent*> StableOrderComponents(LandscapeComponents);
+	StableOrderComponents.Sort(FCompareULandscapeComponentBySectionBase());
+
+	for (ULandscapeComponent* Component : StableOrderComponents)
+	{
+		if (Component == nullptr)
+		{
+			continue;
+		}
+
+		FGuid HeightmapGuid = Component->GetHeightmap()->Source.GetId();
+		ContentStateAr << HeightmapGuid;
+
+		// Take into account the Heightmap offset per component
+		ContentStateAr << Component->HeightmapScaleBias.Z;
+		ContentStateAr << Component->HeightmapScaleBias.W;
+
+		if (Component->ComponentHasVisibilityPainted())
+		{
+			const TArray<UTexture2D*>& WeightmapTextures = Component->GetWeightmapTextures();
+			const TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations();
+			for (const FWeightmapLayerAllocationInfo& AllocInfo : AllocInfos)
+			{
+				if (AllocInfo.IsAllocated() && AllocInfo.LayerInfo == ALandscapeProxy::VisibilityLayer)
+				{
+					UTexture2D* VisibilityWeightmap = WeightmapTextures[AllocInfo.WeightmapTextureIndex];
+					check(VisibilityWeightmap != nullptr);
+
+					FGuid VisibilityWeightmapGuid = VisibilityWeightmap->Source.GetId();
+					ContentStateAr << VisibilityWeightmapGuid;
+				}
+			}
+		}
+
+		// Nanite only cares about LOD0 data
+		if (UMaterialInterface* LandscapeLOD0Material = Component->GetLandscapeMaterial(/*InLODIndex = */ 0))
+		{
+			FGuid LocalStateId = LandscapeLOD0Material->GetMaterial_Concurrent()->StateId;
+			ContentStateAr << LocalStateId;
+		}
+	}
+
+	uint32 Hash[5];
+	FSHA1::HashBuffer(ContentStateAr.GetData(), ContentStateAr.Num(), (uint8*)Hash);
+	return FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
+}
+
+void ULandscapeComponent::CheckGenerateMobilePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
+{
 	// Regenerate platform data only when it's missing or there is a valid hash-mismatch.
 
 	FBufferArchive ComponentStateAr;
@@ -308,8 +410,8 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 	}
 
 	// Serialize the version guid as part of the hash so we can invalidate DDC data if needed
-	FString Version = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().LANDSCAPE_MOBILE_COOK_VERSION).ToString();
-	ComponentStateAr << Version;
+	FString MobileVersion = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().LANDSCAPE_MOBILE_COOK_VERSION).ToString();
+	ComponentStateAr << MobileVersion;
 
 	uint32 Hash[5];
 	FSHA1::HashBuffer(ComponentStateAr.GetData(), ComponentStateAr.Num(), (uint8*)Hash);
@@ -335,7 +437,7 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 // 			}
 // 			else
 			{
-				GeneratePlatformVertexData(TargetPlatform);
+				GenerateMobilePlatformVertexData(TargetPlatform);
 // 				PlatformData.SaveToDDC(NewSourceHash, this);
 				COOK_STAT(Timer.AddMiss(PlatformData.GetPlatformDataSize()));
 			}
@@ -345,7 +447,7 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 			// When not cooking (e.g. mobile preview) DDC data isn't sufficient to 
 			// display correctly, so the platform vertex data must be regenerated.
 
-			GeneratePlatformVertexData(TargetPlatform);
+			GenerateMobilePlatformVertexData(TargetPlatform);
 		}
 	}
 
@@ -353,14 +455,13 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 
 	if (bRegeneratePixelData)
 	{
-		GeneratePlatformPixelData(bIsCooking, TargetPlatform);
+		GenerateMobilePlatformPixelData(bIsCooking, TargetPlatform);
 	}
 
 	MobileDataSourceHash = NewSourceHash;
-
-#endif
 }
-#endif
+
+#endif // WITH_EDITOR
 
 void ULandscapeComponent::SetForcedLOD(int32 InForcedLOD)
 {
@@ -435,12 +536,15 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 
 #if WITH_EDITOR
-	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && UseMobileLandscapeMesh(Ar.CookingTarget()))
+	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
 	{
-		// for -oldcook:
-		// the old cooker calls BeginCacheForCookedPlatformData after the package export set is tagged, so the mobile material doesn't get saved, so we have to do CheckGenerateLandscapePlatformData in serialize
-		// the new cooker clears the texture source data before calling serialize, causing GeneratePlatformVertexData to crash, so we have to do CheckGenerateLandscapePlatformData in BeginCacheForCookedPlatformData
-		CheckGenerateLandscapePlatformData(true, Ar.CookingTarget());
+		if (UseMobileLandscapeMesh(Ar.CookingTarget()))
+		{
+			// for -oldcook:
+			// the old cooker calls BeginCacheForCookedPlatformData after the package export set is tagged, so the mobile material doesn't get saved, so we have to do CheckGenerateMobilePlatformData in serialize
+			// the new cooker clears the texture source data before calling serialize, causing GeneratePlatformVertexData to crash, so we have to do CheckGenerateMobilePlatformData in BeginCacheForCookedPlatformData
+			CheckGenerateMobilePlatformData(/*bIsCooking = */ true, Ar.CookingTarget());
+		}
 	}
 
 	// Avoid the archiver in the PIE duplicate writer case because we want to share landscape textures & materials
@@ -631,7 +735,6 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		UE_LOG(LogLandscape, Fatal, TEXT("This platform requires cooked packages, and this landscape does not contain cooked data %s."), *GetName());
 	}
 
-#if ENABLE_LANDSCAPE_COOKING
 	if (bCooked)
 	{
 		bool bCookedMobileData = Ar.IsCooking() && UseMobileLandscapeMesh(Ar.CookingTarget());
@@ -647,7 +750,6 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 			PlatformData.Serialize(Ar, this);
 		}
 	}
-#endif
 
 #if WITH_EDITOR
 	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
@@ -1089,11 +1191,11 @@ void ULandscapeComponent::PostLoad()
 		UWorld* World = GetWorld();
 		ERHIFeatureLevel::Type FeatureLevel = ((GEngine->GetDefaultWorldFeatureLevel() == ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1))) 
 			? ERHIFeatureLevel::ES3_1 : GMaxRHIFeatureLevel;
-				
+
 		// If we're loading on a platform that doesn't require cooked data, but defaults to a mobile feature level, generate or preload data from the DDC
 		if (!FPlatformProperties::RequiresCookedData() && UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[FeatureLevel]))
 		{
-			CheckGenerateLandscapePlatformData(false, nullptr);
+			CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 		}
 	}
 
@@ -2651,6 +2753,7 @@ void ALandscape::RenderHeightmap(const FTransform& InRenderAreaWorldTransform, c
 }
 
 #if WITH_EDITOR
+
 FBox ALandscape::GetCompleteBounds() const
 {
 	if (ensure(GetLandscapeInfo()))
@@ -2661,6 +2764,11 @@ FBox ALandscape::GetCompleteBounds() const
 	{
 		return FBox(EForceInit::ForceInit);
 	}
+}
+
+bool ALandscape::IsNaniteEnabled() const
+{
+	return bEnableNanite;
 }
 
 void ALandscapeProxy::OnFeatureLevelChanged(ERHIFeatureLevel::Type NewFeatureLevel)
@@ -2675,7 +2783,7 @@ void ALandscapeProxy::OnFeatureLevelChanged(ERHIFeatureLevel::Type NewFeatureLev
 		{
 			if (Component != nullptr)
 			{
-				Component->CheckGenerateLandscapePlatformData(false, nullptr);
+				Component->CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 			}
 		}
 	}
@@ -2753,7 +2861,17 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 			}
 		}
 	}
-#endif // WITH_EDITORONLY_DATA
+#endif
+
+#if WITH_EDITOR
+	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		//if (UseNaniteLandscapeMesh(Ar.CookingTarget())) // TODO: WIP
+		{
+			CheckGenerateNanitePlatformData(/*bIsCooking = */ true, Ar.CookingTarget());
+		}
+	}
+#endif
 }
 
 void ALandscapeProxy::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -3153,13 +3271,24 @@ void ALandscapeProxy::PostLoad()
 			->AddToken(FMapErrorToken::Create(FMapErrors::FixedUpInvalidLandscapeMaterialInstances));
 	}
 
+	UWorld* World = GetWorld();
+
 	// track feature level change to flush grass cache
-	if (GetWorld())
+	if (World)
 	{
 		FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateUObject(this, &ALandscapeProxy::OnFeatureLevelChanged);
-		FeatureLevelChangedDelegateHandle = GetWorld()->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
+		FeatureLevelChangedDelegateHandle = World->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
 	}
 	RepairInvalidTextures();
+
+	if (World && !HasAnyFlags(RF_ClassDefaultObject) && !FPlatformProperties::RequiresCookedData())
+	{
+		// If we're loading on a platform that doesn't require cooked data, but defaults to a Nanite feature level, generate or preload data from the DDC
+		if (UseNaniteLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel.GetValue()]))
+		{
+			CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+		}
+	}
 #endif // WITH_EDITOR
 }
 
@@ -3454,6 +3583,16 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
 		return Landscape->GetLandscapeHoleMaterial();
 	}
 	return nullptr;
+}
+
+bool ALandscapeStreamingProxy::IsNaniteEnabled() const
+{
+	if (const ALandscape* Landscape = GetLandscapeActor())
+	{
+		return Landscape->IsNaniteEnabled();
+	}
+	
+	return false;
 }
 
 void ALandscape::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -4485,6 +4624,9 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 		Ar << WeightmapGuid;
 	}
 
+	bool bEnableNanite = GetLandscapeProxy()->IsNaniteEnabled();
+	Ar << bEnableNanite;
+
 	bool bMeshHoles = GetLandscapeProxy()->bMeshHoles;
 	uint8 MeshHolesMaxLod = GetLandscapeProxy()->MeshHolesMaxLod;
 	Ar << bMeshHoles << MeshHolesMaxLod;
@@ -4939,6 +5081,7 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeCo
 	for (auto Iter = ByProxy.CreateConstIterator(); Iter; ++Iter)
 	{
 		Iter.Key()->FlushGrassComponents(&Iter.Value());
+		Iter.Key()->CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 
 #if WITH_EDITOR
 		FLandscapeProxyComponentDataChangedParams ChangeParams(Iter.Value());

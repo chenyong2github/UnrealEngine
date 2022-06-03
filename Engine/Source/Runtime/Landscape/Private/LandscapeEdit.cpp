@@ -47,7 +47,14 @@ LandscapeEdit.cpp: Landscape editing
 #include "Engine/World.h"
 #include "LandscapeSubsystem.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshDescription.h"
+#include "StaticMeshOperations.h"
 #include "MeshUtilitiesCommon.h"
+#include "OverlappingCorners.h"
+#include "MeshBuild.h"
+#include "StaticMeshBuilder.h"
+#include "NaniteBuilder.h"
+#include "Rendering/NaniteResources.h"
 #include "Misc/ScopedSlowTask.h"
 
 #include "EngineModule.h"
@@ -632,7 +639,7 @@ void ULandscapeComponent::PreFeatureLevelChange(ERHIFeatureLevel::Type PendingFe
 	if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[PendingFeatureLevel]))
 	{
 		// See if we need to cook platform data for mobile preview in editor
-		CheckGenerateLandscapePlatformData(false, nullptr);
+		CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 	}
 }
 
@@ -3329,7 +3336,22 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 {
 	TInlineComponentArray<ULandscapeComponent*> RegisteredLandscapeComponents;
 	GetComponents<ULandscapeComponent>(RegisteredLandscapeComponents);
+	return ExportToRawMesh(
+		MakeArrayView(RegisteredLandscapeComponents.GetData(), RegisteredLandscapeComponents.Num()),
+		InExportLOD,
+		OutRawMesh,
+		InBounds,
+		bIgnoreBounds
+	);
+}
 
+bool ALandscapeProxy::ExportToRawMesh(
+	const TArrayView<ULandscapeComponent*>& RegisteredLandscapeComponents,
+	int32 InExportLOD,
+	FMeshDescription& OutRawMesh,
+	const FBoxSphereBounds& InBounds,
+	bool bIgnoreBounds /*= false*/) const
+{
 	const FIntRect LandscapeSectionRect = GetBoundingRect();
 	const FVector2f LandscapeUVScale = FVector2f(1.0f, 1.0f) / FVector2f(LandscapeSectionRect.Size());
 
@@ -3356,10 +3378,8 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 	}
 
 	// Export data for each component
-	for (auto It = RegisteredLandscapeComponents.CreateConstIterator(); It; ++It)
+	for (ULandscapeComponent* Component : RegisteredLandscapeComponents)
 	{
-		ULandscapeComponent* Component = (*It);
-
 		// Early out if the Landscape bounds and given bounds do not overlap at all
 		if (!bIgnoreBounds && !FBoxSphereBounds::SpheresIntersect(Component->Bounds, InBounds))
 		{
@@ -5072,7 +5092,12 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	else if (GIsEditor && 
 		(PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bMeshHoles) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MeshHolesMaxLod)))
 	{
-		CheckGenerateLandscapePlatformData(false, nullptr);
+		CheckGenerateMobilePlatformData(false, nullptr);
+		MarkComponentsRenderStateDirty();
+	}
+	if (GIsEditor && PropertyName == FName(TEXT("bEnableNanite")))
+	{
+		CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 		MarkComponentsRenderStateDirty();
 	}
 	else if (PropertyName == FName(TEXT("bUseDynamicMaterialInstance")))
@@ -5173,14 +5198,22 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 			UWorld* World = GetWorld();
 
-			if (World != nullptr && UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+			if (World != nullptr)
 			{
-				for (ULandscapeComponent * Component : LandscapeComponents)
+				if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
 				{
-					if (Component != nullptr)
+					for (ULandscapeComponent* Component : LandscapeComponents)
 					{
-						Component->CheckGenerateLandscapePlatformData(false, nullptr);
+						if (Component != nullptr)
+						{
+							Component->CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+						}
 					}
+				}
+
+				if (UseNaniteLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+				{
+					CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 				}
 			}
 		}
@@ -5406,6 +5439,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	bool bNeedsRecalcBoundingBox = false;
 	bool bChangedLighting = false;
 	bool bPropagateToProxies = false;
+	bool bNaniteToggled = false;
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
@@ -5543,11 +5577,20 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	{
 		ExportLOD = FMath::Clamp<int32>(ExportLOD, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 	}
+	else if (GIsEditor && (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscape, bEnableNanite)))
+	{
+		bNaniteToggled = true;
+
+		// Generate Nanite data for a landscape with components on it, and recreate render state
+		// Streaming proxies won't be built here, but the bPropagateToProxies path will.
+		CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+		MarkComponentsRenderStateDirty();
+	}
 
 	// Must do this *after* clamping values
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	bPropagateToProxies = bPropagateToProxies || bNeedsRecalcBoundingBox || bChangedLighting;
+	bPropagateToProxies = bPropagateToProxies || bNeedsRecalcBoundingBox || bChangedLighting || bNaniteToggled;
 
 	if (Info != nullptr)
 	{
@@ -5598,14 +5641,22 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 				UWorld* World = GetWorld();
 
-				if (World != nullptr && UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+				if (World != nullptr)
 				{
-					for (ULandscapeComponent * Component : LandscapeComponents)
+					if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
 					{
-						if (Component != nullptr)
+						for (ULandscapeComponent* Component : LandscapeComponents)
 						{
-							Component->CheckGenerateLandscapePlatformData(false, nullptr);
+							if (Component != nullptr)
+							{
+								Component->CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+							}
 						}
+					}
+
+					if (UseNaniteLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+					{
+						CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 					}
 				}
 			}
@@ -5689,9 +5740,12 @@ void ULandscapeComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 
 			UWorld* World = GetWorld();
 
-			if (World != nullptr && UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+			if (World != nullptr)
 			{
-				CheckGenerateLandscapePlatformData(false, nullptr);
+				if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+				{
+					CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+				}
 			}
 		}
 	}
@@ -6478,7 +6532,7 @@ void ULandscapeComponent::GenerateMobileWeightmapLayerAllocations()
 	}));
 }
 
-void ULandscapeComponent::GeneratePlatformPixelData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
+void ULandscapeComponent::GenerateMobilePlatformPixelData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
 {
 	check(!IsTemplate());
 
@@ -6993,7 +7047,7 @@ void BuildHoleRenderData(int32 InNumSubsections, int32 InSubsectionSizeVerts, TA
 
 // Generates vertex and index buffer data from the component's height map and visibility textures.
 // For use on mobile platforms that don't use vertex texture fetch for height or alpha testing for visibility.
-void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* TargetPlatform)
+void ULandscapeComponent::GenerateMobilePlatformVertexData(const ITargetPlatform* TargetPlatform)
 {
 	if (IsTemplate())
 	{

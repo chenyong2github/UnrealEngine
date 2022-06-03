@@ -1762,6 +1762,11 @@ RENDERCORE_API bool UseMobileLandscapeMesh(EShaderPlatform ShaderPlatform)
 	return false;
 }
 
+RENDERCORE_API bool UseNaniteLandscapeMesh(EShaderPlatform ShaderPlatform)
+{
+	return DoesPlatformSupportNanite(ShaderPlatform);
+}
+
 RENDERCORE_API bool ExcludeNonPipelinedShaderTypes(EShaderPlatform ShaderPlatform)
 {
 	if (RHISupportsShaderPipelines(ShaderPlatform))

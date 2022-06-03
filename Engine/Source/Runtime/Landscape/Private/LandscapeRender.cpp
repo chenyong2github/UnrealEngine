@@ -10,6 +10,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "LandscapeLayerInfoObject.h"
 #include "LandscapePrivate.h"
 #include "LandscapeMeshProxyComponent.h"
+#include "LandscapeNaniteComponent.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionLandscapeLayerCoords.h"
@@ -41,6 +42,8 @@ LandscapeRender.cpp: New terrain rendering
 #include "VT/RuntimeVirtualTexture.h"
 #include "RayTracingInstance.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "StaticMeshResources.h"
+#include "NaniteSceneProxy.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, "LandscapeFixedGrid");
@@ -4240,3 +4243,20 @@ FPrimitiveSceneProxy* ULandscapeMeshProxyComponent::CreateSceneProxy()
 
 	return new FLandscapeMeshProxySceneProxy(this, LandscapeGuid, ProxyComponentBases, ProxyLOD);
 }
+
+FPrimitiveSceneProxy* ULandscapeNaniteComponent::CreateSceneProxy()
+{
+	// TODO: WIP
+	/*if (GetStaticMesh() == nullptr
+		|| GetStaticMesh()->IsCompiling()
+		|| GetStaticMesh()->GetRenderData() == nullptr
+		|| GetStaticMesh()->GetRenderData()->LODResources.Num() == 0
+		|| GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
+	{
+		return nullptr;
+	}
+
+	return new FLandscapeNaniteSceneProxy(this, LandscapeGuid, ProxyComponentBases, ProxyLOD);*/
+	return Super::CreateSceneProxy();
+}
+

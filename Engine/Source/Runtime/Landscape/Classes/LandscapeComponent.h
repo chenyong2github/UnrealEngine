@@ -890,11 +890,11 @@ public:
 
 	// Generates mobile platform data for this component
 	void GenerateMobileWeightmapLayerAllocations();
-	void GeneratePlatformVertexData(const ITargetPlatform* TargetPlatform);
-	void GeneratePlatformPixelData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
+	void GenerateMobilePlatformVertexData(const ITargetPlatform* TargetPlatform);
+	void GenerateMobilePlatformPixelData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 
 	/** Generate mobile data if it's missing or outdated */
-	void CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
+	void CheckGenerateMobilePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 
 	virtual TSubclassOf<class UHLODBuilder> GetCustomHLODBuilderClass() const override;
 #endif

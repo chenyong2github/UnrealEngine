@@ -268,6 +268,7 @@ public:
 	bool IsValidRenderTargetFormatHeightmap(EPixelFormat InRenderTargetFormat, bool& bOutCompressHeight);
 
 #if WITH_EDITOR
+	LANDSCAPE_API virtual bool IsNaniteEnabled() const override;
 	/** Computes & returns bounds containing all landscape proxies (if any) or this landscape's bounds otherwise. Note that in non-WP worlds this will call GetLoadedBounds(). */
 	LANDSCAPE_API FBox GetCompleteBounds() const;
 	LANDSCAPE_API void RegisterLandscapeEdMode(ILandscapeEdModeInterface* InLandscapeEdMode) { LandscapeEdMode = InLandscapeEdMode; }
@@ -442,6 +443,10 @@ private:
 public:
 
 #if WITH_EDITORONLY_DATA
+	/** Use Nanite to render landscape as a mesh on supported platforms. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Nanite, meta = (DisplayName = "Enable Nanite"))
+	bool bEnableNanite = false;
+
 	/** Landscape actor has authority on default streaming behavior for new actors : LandscapeStreamingProxies & LandscapeSplineActors */
 	UPROPERTY(EditAnywhere, Category = WorldPartition)
 	bool bAreNewLandscapeActorsSpatiallyLoaded = true;

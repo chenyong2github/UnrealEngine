@@ -63,9 +63,16 @@ public class Landscape : ModuleRules
 					"MaterialUtilities",
 					"SlateCore",
 					"Slate",
-					"GeometryCore"
+					"GeometryCore",
+					"MeshUtilities",
+					"MeshUtilitiesCommon",
+					"MeshBuilderCommon",
+					"MeshBuilder",
 				}
 			);
+
+			DynamicallyLoadedModuleNames.Add("NaniteBuilder");
+			PrivateIncludePathModuleNames.Add("NaniteBuilder");
 
 			CircularlyReferencedDependentModules.AddRange(
 				new string[] {

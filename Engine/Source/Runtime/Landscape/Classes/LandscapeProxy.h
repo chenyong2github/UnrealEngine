@@ -13,6 +13,7 @@
 #include "Engine/Texture.h"
 #include "PerPlatformProperties.h"
 #include "LandscapeComponent.h"
+#include "LandscapeNaniteComponent.h"
 #include "LandscapeWeightmapUsage.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "ActorPartition/PartitionActor.h"
@@ -27,6 +28,7 @@
 class ALandscape;
 class ALandscapeProxy;
 class UHierarchicalInstancedStaticMeshComponent;
+class ULandscapeNaniteComponent;
 class ULandscapeComponent;
 class ULandscapeGrassType;
 class ULandscapeHeightfieldCollisionComponent;
@@ -549,6 +551,9 @@ public:
 	UPROPERTY(transient, duplicatetransient)
 	TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> FoliageComponents;
 
+	UPROPERTY()
+	TObjectPtr<ULandscapeNaniteComponent> NaniteComponent;
+
 	/** A transient data structure for tracking the grass */
 	FCachedLandscapeFoliage FoliageCache;
 	/** A transient data structure for tracking the grass tasks*/
@@ -823,6 +828,7 @@ public:
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	virtual bool EditorCanAttachTo(const AActor* InParent, FText& OutReason) const override { return false; }
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+	virtual bool IsNaniteEnabled() const PURE_VIRTUAL(IsNaniteEnabled, return false;)
 #endif	//WITH_EDITOR
 
 	virtual FGuid GetLandscapeGuid() const override { return LandscapeGuid; }
@@ -920,6 +926,8 @@ public:
 
 	/** Handle so we can unregister the delegate */
 	FDelegateHandle FeatureLevelChangedDelegateHandle;
+
+	FGuid GetNaniteContentId() const;
 #endif
 
 	//~ Begin UObject Interface.
@@ -1058,19 +1066,37 @@ public:
 	 */
 	LANDSCAPE_API bool ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRawMesh) const;
 
-
 	/**
 	* Exports landscape geometry contained within InBounds into a raw mesh
 	*
-	* @param InExportLOD Landscape LOD level to use while exporting, INDEX_NONE will use ALanscapeProxy::ExportLOD settings
+	* @param InExportLOD - Landscape LOD level to use while exporting, INDEX_NONE will use ALanscapeProxy::ExportLOD settings
 	* @param OutRawMesh - Resulting raw mesh
 	* @param InBounds - Box/Sphere bounds which limit the geometry exported out into OutRawMesh
+	* @param bIgnoreBounds - If false, InBounds will be ignored during export
 	* @return true if successful
 	*/
 	LANDSCAPE_API bool ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRawMesh, const FBoxSphereBounds& InBounds, bool bIgnoreBounds = false) const;
 
-	/** Generate platform data if it's missing or outdated */
+	/**
+	* Exports landscape geometry contained within InBounds into a raw mesh
+	*
+	* @param InComponents - Specific landscape component(s) to export
+	* @param InExportLOD - Landscape LOD level to use while exporting, INDEX_NONE will use ALanscapeProxy::ExportLOD settings
+	* @param OutRawMesh - Resulting raw mesh
+	* @param InBounds - Box/Sphere bounds which limit the geometry exported out into OutRawMesh
+	* @param bIgnoreBounds - If false, InBounds will be ignored during export
+	* @return true if successful
+	*/
+	LANDSCAPE_API bool ExportToRawMesh(const TArrayView<ULandscapeComponent*>& InComponents, int32 InExportLOD, FMeshDescription& OutRawMesh, const FBoxSphereBounds& InBounds, bool bIgnoreBounds = false) const;
+
+	UE_DEPRECATED(5.1, "CheckGenerateLandscapePlatformData has been deprecated, please use CheckGenerateMobilePlatformData instead.")
 	LANDSCAPE_API void CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
+
+	/** Generate mobile platform data if it's missing or outdated */
+	LANDSCAPE_API void CheckGenerateMobilePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
+
+	/** Generate Nanite platform data if it's missing or outdated */
+	LANDSCAPE_API void CheckGenerateNanitePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 	
 	/** @return Current size of bounding rectangle in quads space */
 	LANDSCAPE_API FIntRect GetBoundingRect() const;

@@ -805,6 +805,11 @@ RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatur
 RENDERCORE_API bool UseMobileLandscapeMesh(EShaderPlatform ShaderPlatform);
 
 /**
+*	Checks if platform uses a Nanite landscape mesh
+*/
+RENDERCORE_API bool UseNaniteLandscapeMesh(EShaderPlatform ShaderPlatform);
+
+/**
  *  Checks if the non-pipeline shaders will not be compild and ones from FShaderPipeline used instead.
  */
 RENDERCORE_API bool ExcludeNonPipelinedShaderTypes(EShaderPlatform ShaderPlatform);
