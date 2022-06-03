@@ -5081,12 +5081,13 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeCo
 	for (auto Iter = ByProxy.CreateConstIterator(); Iter; ++Iter)
 	{
 		Iter.Key()->FlushGrassComponents(&Iter.Value());
+
+	#if WITH_EDITOR
 		Iter.Key()->CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 
-#if WITH_EDITOR
 		FLandscapeProxyComponentDataChangedParams ChangeParams(Iter.Value());
 		Iter.Key()->OnComponentDataChanged.Broadcast(Iter.Key(), ChangeParams);
-#endif
+	#endif
 	}
 }
 
