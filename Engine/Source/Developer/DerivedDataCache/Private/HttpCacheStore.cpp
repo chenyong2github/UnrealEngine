@@ -1375,7 +1375,7 @@ bool FHttpCacheStore::AcquireAccessToken()
 					{
 						Access = MakeUnique<FHttpAccessToken>();
 					}
-					Access->SetHeader(*AccessTokenString);
+					Access->SetToken(AccessTokenString);
 					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Logged in to HTTP DDC services. Expires in %d seconds."), *Request.GetName(), ExpiryTimeSeconds);
 
 					//Schedule a refresh of the token ahead of expiry time (this will not work in commandlets)

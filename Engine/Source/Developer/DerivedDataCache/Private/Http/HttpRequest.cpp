@@ -2,10 +2,12 @@
 
 #include "HttpClient.h"
 
-#if UE_WITH_HTTP_CLIENT
 #include "DerivedDataLegacyCacheStore.h"
+#include "DerivedDataRequest.h"
+#include "DerivedDataRequestOwner.h"
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
+#include "Misc/AsciiSet.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -24,7 +26,7 @@
 #include PLATFORM_CURL_INCLUDE
 #else
 #include "curl/curl.h"
-#endif //defined(PLATFORM_CURL_INCLUDE)
+#endif // defined(PLATFORM_CURL_INCLUDE)
 
 #if PLATFORM_MICROSOFT
 #include "Microsoft/HideMicrosoftPlatformTypes.h"
@@ -37,7 +39,7 @@ static bool bHttpEnableAsync = true;
 static FAutoConsoleVariableRef CVarHttpEnableAsync(
 	TEXT("DDC.Http.EnableAsync"),
 	bHttpEnableAsync,
-	TEXT("If true, async operations are permitted, otherwise all operations are forced to be synchronous."),
+	TEXT("If true, asynchronous operations are permitted, otherwise all operations are forced to be synchronous."),
 	ECVF_Default);
 
 namespace Http::Private
@@ -45,32 +47,39 @@ namespace Http::Private
 
 static constexpr bool RequestDebugEnabled = false;
 static constexpr bool RequestTimeoutEnabled = true;
-static constexpr long RequestTimeoutSeconds = 30L;
-static constexpr size_t RequestMaxBufferReserve = 104857600u;
+static constexpr long RequestTimeoutSeconds = 30;
+static constexpr size_t RequestMaxBufferReserve = 100 * 1024 * 1024; // 100 MiB
+
+struct FCurlStringListDeleter
+{
+	void operator()(curl_slist* List) const
+	{
+		if (List)
+		{
+			curl_slist_free_all(List);
+		}
+	}
+};
 
 struct FAsyncRequestData final : public DerivedData::FRequestBase
 {
-	UE::DerivedData::IRequestOwner* Owner = nullptr;
-	UE::FHttpRequestPool* Pool = nullptr;
-	curl_slist* CurlHeaders = nullptr;
+	DerivedData::IRequestOwner* Owner = nullptr;
+	FHttpRequestPool* Pool = nullptr;
+	FCurlStringList CurlHeaders;
 	FString Uri;
-	UE::FHttpRequest::ERequestVerb Verb;
+	FHttpRequest::ERequestVerb Verb;
 	TArray<long, TInlineAllocator<4>> ExpectedErrorCodes;
-	UE::FHttpRequest::FOnHttpRequestComplete OnComplete;
-	UE::FLazyEvent Event {EEventMode::ManualReset};
+	FHttpRequest::FOnHttpRequestComplete OnComplete;
+	FLazyEvent Event {EEventMode::ManualReset};
 
 	void Reset()
 	{
-		if (CurlHeaders)
-		{
-			curl_slist_free_all(CurlHeaders);
-			CurlHeaders = nullptr;
-		}
+		CurlHeaders.Reset();
 		Uri.Empty();
 		ExpectedErrorCodes.Empty();
 	}
 
-	void SetPriority(UE::DerivedData::EPriority Priority) final {}
+	void SetPriority(DerivedData::EPriority Priority) final {}
 
 	void Cancel() final
 	{
@@ -112,7 +121,7 @@ struct FHttpRequestStatics
 		return PreverifyOk;
 	}
 
-	static UE::FHttpRequest::FResultCode StaticSSLCTXFn(CURL* curl, void* sslctx, void* parm)
+	static FHttpRequest::FResultCode StaticSSLCTXFn(CURL* Handle, void* sslctx, void* parm)
 	{
 		SSL_CTX* Context = static_cast<SSL_CTX*>(sslctx);
 		const ISslCertificateManager& CertificateManager = FSslModule::Get().GetCertificateManager();
@@ -126,7 +135,7 @@ struct FHttpRequestStatics
 	}
 	#endif //#if WITH_SSL
 
-	static size_t StaticDebugCallback(CURL * Handle, curl_infotype DebugInfoType, char * DebugInfo, size_t DebugInfoSize, void* UserData)
+	static size_t StaticDebugCallback(CURL* Handle, curl_infotype DebugInfoType, char* DebugInfo, size_t DebugInfoSize, void* UserData)
 	{
 		FHttpRequest* Request = static_cast<FHttpRequest*>(UserData);
 
@@ -142,13 +151,12 @@ struct FHttpRequestStatics
 			char* FoundNulPtr = (char*)memchr(DebugInfo, 0, DebugInfoSize);
 			int CalculatedSize = FoundNulPtr != nullptr ? FoundNulPtr - DebugInfo : DebugInfoSize;
 
-			auto ConvertedString = StringCast<TCHAR>(static_cast<const ANSICHAR*>(DebugInfo), CalculatedSize);
-			FString DebugText(ConvertedString.Length(), ConvertedString.Get());
+			FString DebugText(CalculatedSize, static_cast<const ANSICHAR*>(DebugInfo));
 			DebugText.ReplaceInline(TEXT("\n"), TEXT(""), ESearchCase::CaseSensitive);
 			DebugText.ReplaceInline(TEXT("\r"), TEXT(""), ESearchCase::CaseSensitive);
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: %p: '%s'"), *Request->GetName(), Request, *DebugText);
+			break;
 		}
-		break;
 
 		case CURLINFO_HEADER_IN:
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: %p: Received header (%d bytes)"), *Request->GetName(), Request, DebugInfoSize);
@@ -264,9 +272,14 @@ struct FHttpRequestStatics
 	}
 };
 
-}
+} // Http::Private
 
-FHttpRequest::FHttpRequest(FStringView InDomain, FStringView InEffectiveDomain, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, bool bInLogErrors)
+FHttpRequest::FHttpRequest(
+	const FStringView InDomain,
+	const FStringView InEffectiveDomain,
+	const FHttpAccessToken* const InAuthorizationToken,
+	FHttpSharedData* const InSharedData,
+	const bool bInLogErrors)
 	: SharedData(InSharedData)
 	, AsyncData(nullptr)
 	, bLogErrors(bInLogErrors)
@@ -298,12 +311,12 @@ void FHttpRequest::Reset()
 	Attempts = 0;
 	ResultCode = CURL_LAST;
 
-	CURL* LocalCurl = static_cast<CURL*>(Curl);
+	CURL* const LocalCurl = static_cast<CURL*>(Curl);
 	curl_easy_reset(LocalCurl);
 	check(!AsyncData);
 
 	// Options that are always set for all connections.
-	if constexpr(Http::Private::RequestTimeoutEnabled)
+	if constexpr (Http::Private::RequestTimeoutEnabled)
 	{
 		curl_easy_setopt(LocalCurl, CURLOPT_CONNECTTIMEOUT, Http::Private::RequestTimeoutSeconds);
 	}
@@ -355,54 +368,53 @@ void FHttpRequest::PrepareToRetry()
 	++Attempts;
 }
 
-FHttpRequest::EResult FHttpRequest::PerformBlockingDownload(FStringView Uri,
-	TArray64<uint8>* Buffer,
-	EHttpContentType AcceptType,
-	TConstArrayView<long> ExpectedErrorCodes)
+FHttpRequest::EResult FHttpRequest::PerformBlockingDownload(
+	const FStringView Uri,
+	TArray64<uint8>* const Buffer,
+	const EHttpContentType AcceptType,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_HTTPGET, 1L);
 	WriteDataBufferPtr = Buffer;
-		
+
 	AddContentTypeHeader(TEXTVIEW("Accept"), AcceptType);
 
 	return PerformBlocking(Uri, ERequestVerb::Get, 0u, ExpectedErrorCodes);
 }
 
-void FHttpRequest::EnqueueAsyncDownload(UE::DerivedData::IRequestOwner& Owner,
-	FHttpRequestPool* Pool,
-	FStringView Uri,
+void FHttpRequest::EnqueueAsyncDownload(
+	DerivedData::IRequestOwner& Owner,
+	FHttpRequestPool* const Pool,
+	const FStringView Uri,
 	FOnHttpRequestComplete&& OnComplete,
-	EHttpContentType AcceptType,
-	TConstArrayView<long> ExpectedErrorCodes)
+	const EHttpContentType AcceptType,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_HTTPGET, 1L);
 
 	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Get, 0u, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
-void FHttpRequest::AddHeader(FStringView Header, FStringView Value)
+void FHttpRequest::AddHeader(const FStringView Header, const FStringView Value)
 {
 	check(ResultCode == CURL_LAST); // Cannot set header after request is sent
-	TStringBuilder<128> Sb;
-	Sb << Header << TEXTVIEW(": ") << Value;
-	Headers.Emplace(Sb);
+
+	Headers.Emplace(WriteToString<128>(Header, TEXTVIEW(": "), Value));
 }
 
-bool FHttpRequest::GetHeader(const ANSICHAR* Header, FString& OutValue) const
+bool FHttpRequest::GetHeader(const FAnsiStringView Header, FString& OutValue) const
 {
-	check(ResultCode != CURL_LAST);  // Cannot query headers before request is sent
+	check(ResultCode != CURL_LAST); // Cannot query headers before request is sent
 
-	const ANSICHAR* HeadersBuffer = (const ANSICHAR*) ResponseHeader.GetData();
-	size_t HeaderLen = strlen(Header);
-
-	// Find the header key in the (ANSI) response buffer. If not found we can exist immediately
-	if (const ANSICHAR* Found = FCStringAnsi::Stristr(HeadersBuffer, Header))
+	// Find the header key in the (UTF-8) response buffer. If not found we can exit immediately.
+	const FUtf8StringView LocalHeaders((const UTF8CHAR*)ResponseHeader.GetData(), ResponseHeader.Num());
+	if (const int32 HeaderIndex = String::FindFirst(LocalHeaders, Header, ESearchCase::IgnoreCase); HeaderIndex != INDEX_NONE)
 	{
-		const ANSICHAR* Linebreak = strchr(Found, '\r');
-		const ANSICHAR* ValueStart = Found + HeaderLen + 2; //colon and space
-		const size_t ValueSize = Linebreak - ValueStart;
-		FUTF8ToTCHAR TCHARData(ValueStart, ValueSize);
-		OutValue = FString(TCHARData.Length(), TCHARData.Get());
+		const FUtf8StringView HeaderToEnd = LocalHeaders.RightChop(HeaderIndex);
+		const int32 LineBreakIndex = String::FindFirstChar(HeaderToEnd, '\r');
+		const int32 ValueIndex = Header.Len() + 2; // colon and space
+		const FUtf8StringView Value = HeaderToEnd.Mid(ValueIndex, LineBreakIndex - ValueIndex);
+		OutValue = FString(Value);
 		return true;
 	}
 	return false;
@@ -414,11 +426,7 @@ TSharedPtr<FJsonObject> FHttpRequest::GetResponseAsJsonObject() const
 
 	TSharedPtr<FJsonObject> JsonObject;
 	TSharedRef<TJsonReader<> > JsonReader = TJsonReaderFactory<>::Create(Response);
-	if (!FJsonSerializer::Deserialize(JsonReader, JsonObject) || !JsonObject.IsValid())
-	{
-		return TSharedPtr<FJsonObject>(nullptr);
-	}
-
+	FJsonSerializer::Deserialize(JsonReader, JsonObject);
 	return JsonObject;
 }
 
@@ -446,14 +454,12 @@ void FHttpRequest::CompleteAsync(FResultCode Result)
 {
 	ResultCode = Result;
 
-	// Get response code
 	curl_easy_getinfo(static_cast<CURL*>(Curl), CURLINFO_RESPONSE_CODE, &ResponseCode);
 
 	LogResult(Result, *AsyncData->Uri, AsyncData->Verb, AsyncData->ExpectedErrorCodes);
 
 	ECompletionBehavior Behavior;
 	{
-		UE::DerivedData::FRequestBarrier Barrier(*AsyncData->Owner, UE::DerivedData::ERequestBarrierFlags::Priority);
 		FHttpRequest::EResult HttpResult;
 		switch (ResultCode)
 		{
@@ -467,29 +473,27 @@ void FHttpRequest::CompleteAsync(FResultCode Result)
 			HttpResult = EResult::Failed;
 			break;
 		}
+		DerivedData::FRequestBarrier Barrier(*AsyncData->Owner, DerivedData::ERequestBarrierFlags::Priority);
 		Behavior = AsyncData->OnComplete(HttpResult, this);
 	}
 
-	if (Behavior == ECompletionBehavior::Retry)
+	if (Behavior == ECompletionBehavior::Retry && !AsyncData->Owner->IsCanceled())
 	{
 		PrepareToRetry();
 		SharedData->AddRequest(Curl);
 	}
 	else
 	{
-		// Clean up
-		curl_slist_free_all(AsyncData->CurlHeaders);
-
 		AsyncData->Owner->End(AsyncData, [this, Behavior]
+		{
+			AsyncData->Event.Trigger();
+			FHttpRequestPool* Pool = AsyncData->Pool;
+			AsyncData = nullptr;
+			if (Pool)
 			{
-				AsyncData->Event.Trigger();
-				FHttpRequestPool* Pool = AsyncData->Pool;
-				AsyncData = nullptr;
-				if (Pool)
-				{
-					Pool->ReleaseRequestToPool(this);
-				}
-			});
+				Pool->ReleaseRequestToPool(this);
+			}
+		});
 	}
 }
 
@@ -509,94 +513,89 @@ static const char* GetSessionIdHeader()
 	{
 		static TAnsiStringBuilder<64> SessionIdHeader;
 		SessionIdHeader << "UE-Session: " << SessionId;
-		return SessionIdHeader.GetData(); 
+		return SessionIdHeader.GetData();
 	}();
 
 	return HeaderString;
 }
 
-static std::atomic<int> GRequestId{1};
+static std::atomic<int> GRequestId = 1;
 
-curl_slist* FHttpRequest::PrepareToIssueRequest(FStringView Uri, ERequestVerb Verb, uint64 ContentLength)
+Http::Private::FCurlStringList FHttpRequest::PrepareToIssueRequest(FStringView Uri, ERequestVerb Verb, uint64 ContentLength)
 {
-	// Strip any leading slashes because we compose the prefix and the suffix with a separating slash below
-	while (Uri.StartsWith(TEXT('/')))
-	{
-		Uri.RightChopInline(1);
-	}
-
-	TAnsiStringBuilder<32> RequestIdHeader;
-	RequestIdHeader << "UE-Request: " << GRequestId.fetch_add(1, std::memory_order_relaxed);
-
-	const char* CommonHeaders[] =
-	{
-		GetSessionIdHeader(),
-		RequestIdHeader.GetData(),
-		"User-Agent: Unreal Engine",
-		// Strip any Expect: 100-Continue header since this just introduces latency
-		"Expect:",	
-		nullptr
-	};
-
-	// Setup request options
+	// Strip leading slashes because the separating slash is added below.
+	Uri = FAsciiSet::TrimPrefixWith(Uri, "/");
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_URL, *WriteToUtf8String<512>(EffectiveDomain, '/', Uri));
 
-	// Setup response header buffer. If caller has not setup a response data buffer, use internal.
+	// Set up response header buffer.
 	WriteHeaderBufferPtr = &ResponseHeader;
+
+	// Use internal response data buffer if not provided by the caller.
 	if (WriteDataBufferPtr == nullptr)
 	{
 		WriteDataBufferPtr = &ResponseBuffer;
 	}
 
-	if ((Verb != ERequestVerb::Delete) && (Verb != ERequestVerb::Get))
-	{
-		Headers.Add(FString::Printf(TEXT("Content-Length: %d"), ContentLength));
-	}
-
-	// And auth token if it's set
-	if (AuthorizationToken)
-	{
-		Headers.Add(AuthorizationToken->GetHeader());
-	}
-
-	// Build headers list
+	// Set up headers.
 	curl_slist* CurlHeaders = nullptr;
-	// Add common headers
-	for (uint8 i = 0; CommonHeaders[i] != nullptr; ++i)
+	const auto AddHeader = [&CurlHeaders](const ANSICHAR* Header)
 	{
-		CurlHeaders = curl_slist_append(CurlHeaders, CommonHeaders[i]);
-	}
-	// Setup added headers
+		CurlHeaders = curl_slist_append(CurlHeaders, Header);
+	};
+
+	AddHeader(GetSessionIdHeader());
+	AddHeader(*WriteToAnsiString<32>(ANSITEXTVIEW("UE-Request: "), GRequestId.fetch_add(1, std::memory_order_relaxed)));
+	AddHeader("User-Agent: Unreal Engine");
+
+	// Strip any Expect: 100-Continue header since this just introduces latency.
+	AddHeader("Expect:");
+
 	for (const FString& Header : Headers)
 	{
-		CurlHeaders = curl_slist_append(CurlHeaders, TCHAR_TO_ANSI(*Header));
+		AddHeader(TCHAR_TO_ANSI(*Header));
 	}
+
+	if ((Verb != ERequestVerb::Get) && (Verb != ERequestVerb::Delete))
+	{
+		AddHeader(*WriteToAnsiString<32>(ANSITEXTVIEW("Content-Length: "), ContentLength));
+	}
+
+	if (AuthorizationToken)
+	{
+		AddHeader(*WriteToAnsiString<1024>(*AuthorizationToken));
+	}
+
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_HTTPHEADER, CurlHeaders);
-	return CurlHeaders;
+	return Http::Private::FCurlStringList(CurlHeaders);
 }
 
-FHttpRequest::EResult FHttpRequest::PerformBlocking(FStringView Uri, ERequestVerb Verb, uint64 ContentLength, TConstArrayView<long> ExpectedErrorCodes)
+FHttpRequest::EResult FHttpRequest::PerformBlocking(
+	const FStringView Uri,
+	const ERequestVerb Verb,
+	const uint64 ContentLength,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_CurlPerform);
 
-	// Build headers list
-	curl_slist* CurlHeaders = PrepareToIssueRequest(Uri, Verb, ContentLength);
+	Http::Private::FCurlStringList CurlHeaders = PrepareToIssueRequest(Uri, Verb, ContentLength);
 
-	// Shots fired!
 	ResultCode = curl_easy_perform(static_cast<CURL*>(Curl));
 
-	// Get response code
 	curl_easy_getinfo(static_cast<CURL*>(Curl), CURLINFO_RESPONSE_CODE, &ResponseCode);
 
 	LogResult(ResultCode, Uri, Verb, ExpectedErrorCodes);
 
-	// Clean up
-	curl_slist_free_all(CurlHeaders);
-
 	return ResultCode == CURLE_OK ? EResult::Success : EResult::Failed;
 }
 
-void FHttpRequest::EnqueueAsync(UE::DerivedData::IRequestOwner& Owner, FHttpRequestPool* Pool, FStringView Uri, ERequestVerb Verb, uint64 ContentLength, FOnHttpRequestComplete&& OnComplete, TConstArrayView<long> ExpectedErrorCodes)
+void FHttpRequest::EnqueueAsync(
+	DerivedData::IRequestOwner& Owner,
+	FHttpRequestPool* const Pool,
+	const FStringView Uri,
+	const ERequestVerb Verb,
+	const uint64 ContentLength,
+	FOnHttpRequestComplete&& OnComplete,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	if (!AllowAsync())
 	{
@@ -625,109 +624,86 @@ void FHttpRequest::EnqueueAsync(UE::DerivedData::IRequestOwner& Owner, FHttpRequ
 	SharedData->AddRequest(Curl);
 }
 
-void FHttpRequest::LogResult(FResultCode Result, FStringView Uri, ERequestVerb Verb, TConstArrayView<long> ExpectedErrorCodes) const
+void FHttpRequest::LogResult(
+	const FResultCode Result,
+	const FStringView Uri,
+	const ERequestVerb Verb,
+	const TConstArrayView<long> ExpectedErrorCodes) const
 {
 	if (Result == CURLE_OK)
 	{
-		bool bSuccess = false;
+		const bool bSuccess = (IsSuccessResponse(ResponseCode) || ExpectedErrorCodes.Contains(ResponseCode));
 		const TCHAR* VerbStr = nullptr;
-		FString AdditionalInfo;
+		TStringBuilder<32> AdditionalInfo;
 
 		switch (Verb)
 		{
 		case ERequestVerb::Head:
-			bSuccess = (ExpectedErrorCodes.Contains(ResponseCode) || IsSuccessResponse(ResponseCode));
 			VerbStr = TEXT("querying");
 			break;
 		case ERequestVerb::Get:
-			bSuccess = (ExpectedErrorCodes.Contains(ResponseCode) || IsSuccessResponse(ResponseCode));
 			VerbStr = TEXT("fetching");
-			AdditionalInfo = FString::Printf(TEXT("Received: %d bytes."), BytesReceived);
+			AdditionalInfo << TEXTVIEW("Received: ") << uint64(BytesReceived) << TEXTVIEW(" bytes.");
 			break;
 		case ERequestVerb::Put:
-			bSuccess = (ExpectedErrorCodes.Contains(ResponseCode) || IsSuccessResponse(ResponseCode));
 			VerbStr = TEXT("updating");
-			AdditionalInfo = FString::Printf(TEXT("Sent: %d bytes."), BytesSent);
+			AdditionalInfo << TEXTVIEW("Sent: ") << uint64(BytesSent) << TEXTVIEW(" bytes.");
 			break;
 		case ERequestVerb::Post:
-			bSuccess = (ExpectedErrorCodes.Contains(ResponseCode) || IsSuccessResponse(ResponseCode));
 			VerbStr = TEXT("posting");
 			break;
 		case ERequestVerb::Delete:
-			bSuccess = (ExpectedErrorCodes.Contains(ResponseCode) || IsSuccessResponse(ResponseCode));
 			VerbStr = TEXT("deleting");
+			break;
+		default:
+			checkNoEntry();
 			break;
 		}
 
 		if (bSuccess)
 		{
-			UE_LOG(
-				LogDerivedDataCache, 
-				Verbose, 
-				TEXT("%s: Finished %s HTTP cache entry (response %d) from %.*s. %s"), 
-				*GetName(),
-				VerbStr,
-				ResponseCode, 
-				Uri.Len(), Uri.GetData(),
-				*AdditionalInfo
-			);
+			UE_LOG(LogDerivedDataCache, Verbose,
+				TEXT("%s: Finished %s HTTP cache entry (response %d) from %.*s. %s"),
+				*GetName(), VerbStr, ResponseCode, Uri.Len(), Uri.GetData(), *AdditionalInfo);
 		}
-		else if(bLogErrors)
+		else if (bLogErrors)
 		{
 			// Print the response body if we got one, otherwise print header.
 			FString Response = GetAnsiBufferAsString(ResponseBuffer.Num() > 0 ? ResponseBuffer : ResponseHeader);
 			Response.ReplaceCharInline(TEXT('\n'), TEXT(' '));
 			Response.ReplaceCharInline(TEXT('\r'), TEXT(' '));
-			// Dont log access denied as error, since tokens can expire mid session
+			// Don't log access denied as error, since tokens can expire mid-session.
 			if (ResponseCode == 401)
 			{
-				UE_LOG(
-					LogDerivedDataCache,
-					Verbose,
+				UE_LOG(LogDerivedDataCache, Verbose,
 					TEXT("%s: Failed %s HTTP cache entry (response %d) from %.*s. Response: %s"),
-					*GetName(),
-					VerbStr,
-					ResponseCode,
-					Uri.Len(), Uri.GetData(),
-					*Response
-				);
+					*GetName(), VerbStr, ResponseCode, Uri.Len(), Uri.GetData(), *Response);
 			}
 			else
-			{ 
-				UE_LOG(
-					LogDerivedDataCache,
-					Display,
+			{
+				UE_LOG(LogDerivedDataCache, Display,
 					TEXT("%s: Failed %s HTTP cache entry (response %d) from %.*s. Response: %s"),
-					*GetName(),
-					VerbStr,
-					ResponseCode,
-					Uri.Len(), Uri.GetData(),
-					*Response
-				);
+					*GetName(), VerbStr, ResponseCode, Uri.Len(), Uri.GetData(), *Response);
 			}
 		}
 	}
-	else if(bLogErrors)
+	else if (bLogErrors)
 	{
-		UE_LOG(
-			LogDerivedDataCache, 
-			Display, 
-			TEXT("%s: Error while connecting to %s: %s"), 
-			*GetName(),
-			*EffectiveDomain,
-			ANSI_TO_TCHAR(curl_easy_strerror(static_cast<CURLcode>(Result)))
-		);
+		UE_LOG(LogDerivedDataCache, Display,
+			TEXT("%s: Error while connecting to %s: %s"),
+			*GetName(), *EffectiveDomain, ANSI_TO_TCHAR(curl_easy_strerror(static_cast<CURLcode>(Result))));
 	}
 }
 
-FHttpRequest::EResult FHttpRequest::PerformBlockingPut(FStringView Uri,
-	FCompositeBuffer Buffer,
-	EHttpContentType ContentType,
-	TConstArrayView<long> ExpectedErrorCodes)
+FHttpRequest::EResult FHttpRequest::PerformBlockingPut(
+	const FStringView Uri,
+	const FCompositeBuffer& Buffer,
+	const EHttpContentType ContentType,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	uint64 ContentLength = 0u;
 
-	CURL* LocalCurl = static_cast<CURL*>(Curl);
+	CURL* const LocalCurl = static_cast<CURL*>(Curl);
 	curl_easy_setopt(LocalCurl, CURLOPT_UPLOAD, 1L);
 	curl_easy_setopt(LocalCurl, CURLOPT_INFILESIZE, Buffer.GetSize());
 	curl_easy_setopt(LocalCurl, CURLOPT_READDATA, this);
@@ -739,15 +715,16 @@ FHttpRequest::EResult FHttpRequest::PerformBlockingPut(FStringView Uri,
 	return PerformBlocking(Uri, ERequestVerb::Put, ContentLength, ExpectedErrorCodes);
 }
 
-FHttpRequest::EResult FHttpRequest::PerformBlockingPost(FStringView Uri,
-	FCompositeBuffer Buffer,
-	EHttpContentType ContentType,
-	EHttpContentType AcceptType,
-	TConstArrayView<long> ExpectedErrorCodes)
+FHttpRequest::EResult FHttpRequest::PerformBlockingPost(
+	const FStringView Uri,
+	const FCompositeBuffer& Buffer,
+	const EHttpContentType ContentType,
+	const EHttpContentType AcceptType,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
-	uint64 ContentLength = 0u;
+	uint64 ContentLength = 0;
 
-	CURL* LocalCurl = static_cast<CURL*>(Curl);
+	CURL* const LocalCurl = static_cast<CURL*>(Curl);
 	curl_easy_setopt(LocalCurl, CURLOPT_POST, 1L);
 	curl_easy_setopt(LocalCurl, CURLOPT_POSTFIELDSIZE, Buffer.GetSize());
 	curl_easy_setopt(LocalCurl, CURLOPT_READDATA, this);
@@ -760,17 +737,18 @@ FHttpRequest::EResult FHttpRequest::PerformBlockingPost(FStringView Uri,
 	return PerformBlocking(Uri, ERequestVerb::Post, ContentLength, ExpectedErrorCodes);
 }
 
-void FHttpRequest::EnqueueAsyncPut(UE::DerivedData::IRequestOwner& Owner,
-	FHttpRequestPool* Pool,
-	FStringView Uri,
-	FCompositeBuffer Buffer,
+void FHttpRequest::EnqueueAsyncPut(
+	DerivedData::IRequestOwner& Owner,
+	FHttpRequestPool* const Pool,
+	const FStringView Uri,
+	const FCompositeBuffer& Buffer,
 	FOnHttpRequestComplete&& OnComplete,
-	EHttpContentType ContentType,
-	TConstArrayView<long> ExpectedErrorCodes)
+	const EHttpContentType ContentType,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
-	uint64 ContentLength = 0u;
+	uint64 ContentLength = 0;
 
-	CURL* LocalCurl = static_cast<CURL*>(Curl);
+	CURL* const LocalCurl = static_cast<CURL*>(Curl);
 	curl_easy_setopt(LocalCurl, CURLOPT_UPLOAD, 1L);
 	curl_easy_setopt(LocalCurl, CURLOPT_INFILESIZE, Buffer.GetSize());
 	curl_easy_setopt(LocalCurl, CURLOPT_READDATA, this);
@@ -782,18 +760,19 @@ void FHttpRequest::EnqueueAsyncPut(UE::DerivedData::IRequestOwner& Owner,
 	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Put, ContentLength, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
-void FHttpRequest::EnqueueAsyncPost(UE::DerivedData::IRequestOwner& Owner,
-	FHttpRequestPool* Pool,
-	FStringView Uri,
-	FCompositeBuffer Buffer,
+void FHttpRequest::EnqueueAsyncPost(
+	DerivedData::IRequestOwner& Owner,
+	FHttpRequestPool* const Pool,
+	const FStringView Uri,
+	const FCompositeBuffer& Buffer,
 	FOnHttpRequestComplete&& OnComplete,
-	EHttpContentType ContentType,
-	EHttpContentType AcceptType,
-	TConstArrayView<long> ExpectedErrorCodes)
+	const EHttpContentType ContentType,
+	const EHttpContentType AcceptType,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
-	uint64 ContentLength = 0u;
+	uint64 ContentLength = 0;
 
-	CURL* LocalCurl = static_cast<CURL*>(Curl);
+	CURL* const LocalCurl = static_cast<CURL*>(Curl);
 	curl_easy_setopt(LocalCurl, CURLOPT_POST, 1L);
 	curl_easy_setopt(LocalCurl, CURLOPT_INFILESIZE, Buffer.GetSize());
 	curl_easy_setopt(LocalCurl, CURLOPT_READDATA, this);
@@ -806,44 +785,46 @@ void FHttpRequest::EnqueueAsyncPost(UE::DerivedData::IRequestOwner& Owner,
 	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Post, ContentLength, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
-FHttpRequest::EResult FHttpRequest::PerformBlockingHead(FStringView Uri,
-	EHttpContentType AcceptType,
-	TConstArrayView<long> ExpectedErrorCodes)
+FHttpRequest::EResult FHttpRequest::PerformBlockingHead(
+	const FStringView Uri,
+	const EHttpContentType AcceptType,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_NOBODY, 1L);
 	AddContentTypeHeader(TEXTVIEW("Accept"), AcceptType);
-	return PerformBlocking(Uri, ERequestVerb::Head, 0u, ExpectedErrorCodes);
+	return PerformBlocking(Uri, ERequestVerb::Head, 0, ExpectedErrorCodes);
 }
 
-FHttpRequest::EResult FHttpRequest::PerformBlockingDelete(FStringView Uri,
-															TConstArrayView<long> ExpectedErrorCodes)
+FHttpRequest::EResult FHttpRequest::PerformBlockingDelete(
+	const FStringView Uri,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_CUSTOMREQUEST, "DELETE");
-	return PerformBlocking(Uri, ERequestVerb::Delete, 0u, ExpectedErrorCodes);
+	return PerformBlocking(Uri, ERequestVerb::Delete, 0, ExpectedErrorCodes);
 }
 
-void FHttpRequest::EnqueueAsyncHead(UE::DerivedData::IRequestOwner& Owner,
-	FHttpRequestPool* Pool,
-	FStringView Uri,
+void FHttpRequest::EnqueueAsyncHead(
+	DerivedData::IRequestOwner& Owner,
+	FHttpRequestPool* const Pool,
+	const FStringView Uri,
 	FOnHttpRequestComplete&& OnComplete,
-	EHttpContentType AcceptType,
-	TConstArrayView<long> ExpectedErrorCodes)
+	const EHttpContentType AcceptType,
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_NOBODY, 1L);
 	AddContentTypeHeader(TEXTVIEW("Accept"), AcceptType);
-	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Head, 0u, MoveTemp(OnComplete), ExpectedErrorCodes);
+	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Head, 0, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
-void FHttpRequest::EnqueueAsyncDelete(UE::DerivedData::IRequestOwner& Owner,
-	FHttpRequestPool* Pool,
-	FStringView Uri,
+void FHttpRequest::EnqueueAsyncDelete(
+	DerivedData::IRequestOwner& Owner,
+	FHttpRequestPool* const Pool,
+	const FStringView Uri,
 	FOnHttpRequestComplete&& OnComplete,
-	TConstArrayView<long> ExpectedErrorCodes)
+	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_CUSTOMREQUEST, "DELETE");
-	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Delete, 0u, MoveTemp(OnComplete), ExpectedErrorCodes);
+	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Delete, 0, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
 } // UE
-
-#endif // UE_WITH_HTTP_CLIENT

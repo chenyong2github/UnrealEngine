@@ -2,18 +2,12 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
-#define UE_WITH_HTTP_CLIENT PLATFORM_DESKTOP
-
-#if UE_WITH_HTTP_CLIENT
 #include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/DepletableMpscQueue.h"
+#include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "DerivedDataRequest.h"
-#include "DerivedDataRequestOwner.h"
-#include "DerivedDataRequestTypes.h"
 #include "Dom/JsonObject.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "Experimental/Containers/FAAArrayQueue.h"
@@ -23,15 +17,20 @@
 #include "Memory/CompositeBuffer.h"
 #include "Memory/MemoryView.h"
 #include "Templates/PimplPtr.h"
+#include "Templates/RefCounting.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 #include <atomic>
 
-
 struct curl_slist;
+namespace UE { class FHttpRequest; }
+namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::Http::Private { struct FAsyncRequestData; }
+namespace UE::Http::Private { struct FCurlStringListDeleter; }
 namespace UE::Http::Private { struct FHttpRequestStatics; }
 namespace UE::Http::Private { struct FHttpSharedDataInternals; }
 namespace UE::Http::Private { struct FHttpSharedDataStatics; }
+namespace UE::Http::Private { using FCurlStringList = TUniquePtr<curl_slist, FCurlStringListDeleter>; }
 
 namespace UE
 {
@@ -93,14 +92,14 @@ inline FStringView GetHttpMimeType(EHttpContentType Type)
 class FHttpAccessToken
 {
 public:
-	FHttpAccessToken() = default;
-	FString GetHeader();
-	void SetHeader(const TCHAR*);
-	uint32 GetSerial() const;
+	void SetToken(FStringView Token);
+	inline uint32 GetSerial() const { return Serial.load(std::memory_order_relaxed); }
+	friend FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FHttpAccessToken& Token);
+
 private:
-	FRWLock Lock;
-	FString Token;
-	uint32 Serial;
+	mutable FRWLock Lock;
+	TArray<ANSICHAR> Header;
+	std::atomic<uint32> Serial;
 };
 
 class FHttpSharedData
@@ -108,20 +107,21 @@ class FHttpSharedData
 public:
 	FHttpSharedData();
 	~FHttpSharedData();
-private:
-	friend class FHttpRequest;
-	friend struct Http::Private::FHttpSharedDataStatics;
 
-	UE::FLazyEvent PendingRequestEvent;
+private:
+	void ProcessAsyncRequests();
+	void AddRequest(void* Curl);
+	void* GetCurlShare() const;
+
+	friend FHttpRequest;
+	friend Http::Private::FHttpSharedDataStatics;
+
+	FLazyEvent PendingRequestEvent;
 	FThread AsyncServiceThread;
 	std::atomic<bool> bAsyncThreadStarting = false;
 	std::atomic<bool> bAsyncThreadShutdownRequested = false;
 
 	TPimplPtr<Http::Private::FHttpSharedDataInternals> Internals;
-
-	void ProcessAsyncRequests();
-	void AddRequest(void* Curl);
-	void* GetCurlShare() const;
 };
 
 
@@ -168,7 +168,12 @@ public:
 
 	using FOnHttpRequestComplete = TUniqueFunction<ECompletionBehavior(EResult HttpResult, FHttpRequest* Request)>;
 
-	FHttpRequest(FStringView InDomain, FStringView InEffectiveDomain, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, bool bInLogErrors);
+	FHttpRequest(
+		FStringView InDomain,
+		FStringView InEffectiveDomain,
+		const FHttpAccessToken* InAuthorizationToken,
+		FHttpSharedData* InSharedData,
+		bool bInLogErrors);
 	~FHttpRequest();
 
 	/**
@@ -226,26 +231,29 @@ public:
 	 * @param Buffer Data to upload
 	 * @return Result of the request
 	 */
-	EResult PerformBlockingPut(FStringView Uri,
-		FCompositeBuffer Buffer,
+	EResult PerformBlockingPut(
+		FStringView Uri,
+		const FCompositeBuffer& Buffer,
 		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {});
 	EResult PerformBlockingPost(FStringView Uri,
-		FCompositeBuffer Buffer,
+		const FCompositeBuffer& Buffer,
 		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
 		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {});
-	void EnqueueAsyncPut(UE::DerivedData::IRequestOwner& Owner,
+	void EnqueueAsyncPut(
+		DerivedData::IRequestOwner& Owner,
 		FHttpRequestPool* Pool,
 		FStringView Uri,
-		FCompositeBuffer Buffer,
+		const FCompositeBuffer& Buffer,
 		FOnHttpRequestComplete&& OnComplete,
 		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {});
-	void EnqueueAsyncPost(UE::DerivedData::IRequestOwner& Owner,
+	void EnqueueAsyncPost(
+		DerivedData::IRequestOwner& Owner,
 		FHttpRequestPool* Pool,
 		FStringView Uri,
-		FCompositeBuffer Buffer,
+		const FCompositeBuffer& Buffer,
 		FOnHttpRequestComplete&& OnComplete,
 		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
 		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
@@ -258,11 +266,13 @@ public:
 	 * be stored in an internal buffer and accessed GetResponse* methods.
 	 * @return Result of the request
 	 */
-	EResult PerformBlockingDownload(FStringView Uri,
+	EResult PerformBlockingDownload(
+		FStringView Uri,
 		TArray64<uint8>* Buffer,
 		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {400});
-	void EnqueueAsyncDownload(UE::DerivedData::IRequestOwner& Owner,
+	void EnqueueAsyncDownload(
+		DerivedData::IRequestOwner& Owner,
 		FHttpRequestPool* Pool,
 		FStringView Uri,
 		FOnHttpRequestComplete&& OnComplete,
@@ -274,18 +284,22 @@ public:
 	 * @param Uri Url to use.
 	 * @return Result of the request
 	 */
-	EResult PerformBlockingHead(FStringView Uri,
+	EResult PerformBlockingHead(
+		FStringView Uri,
 		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {400});
-	EResult PerformBlockingDelete(FStringView Uri,
+	EResult PerformBlockingDelete(
+		FStringView Uri,
 		TConstArrayView<long> ExpectedErrorCodes = {400});
-	void EnqueueAsyncHead(UE::DerivedData::IRequestOwner& Owner,
+	void EnqueueAsyncHead(
+		DerivedData::IRequestOwner& Owner,
 		FHttpRequestPool* Pool,
 		FStringView Uri,
 		FOnHttpRequestComplete&& OnComplete,
 		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {400});
-	void EnqueueAsyncDelete(UE::DerivedData::IRequestOwner& Owner,
+	void EnqueueAsyncDelete(
+		DerivedData::IRequestOwner& Owner,
 		FHttpRequestPool* Pool,
 		FStringView Uri,
 		FOnHttpRequestComplete&& OnComplete,
@@ -299,7 +313,7 @@ public:
 	/**
 	 * Attempts to find the header from the response. Returns false if header is not present.
 	 */
-	bool GetHeader(const ANSICHAR* Header, FString& OutValue) const;
+	bool GetHeader(FAnsiStringView Header, FString& OutValue) const;
 
 	/**
 	 * Returns the response buffer. Note that is the request is performed
@@ -378,10 +392,10 @@ private:
 	TArray<FString> Headers;
 	FString Domain;
 	FString EffectiveDomain;
-	FHttpAccessToken* AuthorizationToken;
+	const FHttpAccessToken* AuthorizationToken;
 
 	void AddContentTypeHeader(FStringView Header, EHttpContentType Type);
-	curl_slist* PrepareToIssueRequest(FStringView Uri, ERequestVerb Verb, uint64 ContentLength);
+	Http::Private::FCurlStringList PrepareToIssueRequest(FStringView Uri, ERequestVerb Verb, uint64 ContentLength);
 
 	/**
 	 * Performs the request, blocking until finished.
@@ -393,19 +407,24 @@ private:
 	 */
 	EResult PerformBlocking(FStringView Uri, ERequestVerb Verb, uint64 ContentLength, TConstArrayView<long> ExpectedErrorCodes);
 
-	void EnqueueAsync(UE::DerivedData::IRequestOwner& Owner, FHttpRequestPool* Pool, FStringView Uri, ERequestVerb Verb, uint64 ContentLength, FOnHttpRequestComplete&& OnComplete, TConstArrayView<long> ExpectedErrorCodes);
+	void EnqueueAsync(
+		DerivedData::IRequestOwner& Owner,
+		FHttpRequestPool* Pool,
+		FStringView Uri,
+		ERequestVerb Verb,
+		uint64 ContentLength,
+		FOnHttpRequestComplete&& OnComplete,
+		TConstArrayView<long> ExpectedErrorCodes);
 
 	void LogResult(FResultCode EResult, FStringView Uri, ERequestVerb Verb, TConstArrayView<long> ExpectedErrorCodes) const;
 
-	FString GetAnsiBufferAsString(const TArray64<uint8>& Buffer) const
+	static FString GetAnsiBufferAsString(TConstArrayView64<uint8> Buffer)
 	{
 		// Content is NOT null-terminated; we need to specify lengths here
-		FUTF8ToTCHAR TCHARData(reinterpret_cast<const ANSICHAR*>(Buffer.GetData()), Buffer.Num());
-		return FString(TCHARData.Length(), TCHARData.Get());
+		static_assert(sizeof(UTF8CHAR) == sizeof(uint8));
+		return FString(Buffer.Num(), reinterpret_cast<const UTF8CHAR*>(Buffer.GetData()));
 	}
-
 };
-
 
 /**
  * Pool that manages a fixed set of requests. Users are required to release requests that have been 
@@ -414,7 +433,13 @@ private:
 class FHttpRequestPool
 {
 public:
-	FHttpRequestPool(FStringView InServiceUrl, FStringView InEffectiveServiceUrl, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, uint32 PoolSize, uint32 InOverflowLimit = 0);
+	FHttpRequestPool(
+		FStringView InServiceUrl,
+		FStringView InEffectiveServiceUrl,
+		const FHttpAccessToken* InAuthorizationToken,
+		FHttpSharedData* InSharedData,
+		uint32 PoolSize,
+		uint32 InOverflowLimit = 0);
 	~FHttpRequestPool();
 
 	/**
@@ -427,7 +452,7 @@ public:
 	class FWaiter : public FThreadSafeRefCountedObject
 	{
 	public:
-		std::atomic<FHttpRequest*> Request{ nullptr };
+		std::atomic<FHttpRequest*> Request = nullptr;
 
 		FWaiter(FHttpRequestPool* InPool)
 			: Event(FPlatformProcess::GetSynchEventFromPool(true))
@@ -444,6 +469,7 @@ public:
 		{
 			Event->Trigger();
 		}
+
 	private:
 		~FWaiter()
 		{
@@ -485,29 +511,32 @@ private:
 		FHttpRequest* Request;
 	};
 
-	TArray<FEntry> Pool;
-	TArray<FHttpRequest> Requests;
-	FAAArrayQueue<FWaiter> Waiters;
-	std::atomic<uint32> ActiveOverflowRequests;
 	struct FInitData
 	{
 		FString ServiceUrl;
 		FString EffectiveServiceUrl;
-		FHttpAccessToken* AccessToken;
+		const FHttpAccessToken* AccessToken;
 		FHttpSharedData* SharedData;
 
-		FInitData(FStringView InServiceUrl, FStringView InEffectiveServiceUrl, FHttpAccessToken* InAccessToken, FHttpSharedData* InSharedData)
-		: ServiceUrl(InServiceUrl)
-		, EffectiveServiceUrl(InEffectiveServiceUrl)
-		, AccessToken(InAccessToken)
-		, SharedData(InSharedData)
+		FInitData(
+			FStringView InServiceUrl,
+			FStringView InEffectiveServiceUrl,
+			const FHttpAccessToken* InAccessToken,
+			FHttpSharedData* InSharedData)
+			: ServiceUrl(InServiceUrl)
+			, EffectiveServiceUrl(InEffectiveServiceUrl)
+			, AccessToken(InAccessToken)
+			, SharedData(InSharedData)
 		{
 		}
 	};
+
+	TArray<FEntry> Pool;
+	TArray<FHttpRequest> Requests;
+	FAAArrayQueue<FWaiter> Waiters;
+	std::atomic<uint32> ActiveOverflowRequests;
 	TUniquePtr<const FInitData> InitData;
 	const uint32 OverflowLimit;
-
-	FHttpRequestPool() = delete;
 };
 
 /**
@@ -529,7 +558,7 @@ public:
 		Pool->ReleaseRequestToPool(Request);
 	}
 
-	bool IsValid() const 
+	bool IsValid() const
 	{
 		return Request != nullptr;
 	}
@@ -554,5 +583,3 @@ private:
 };
 
 } // UE
-
-#endif // UE_WITH_HTTP_CLIENT

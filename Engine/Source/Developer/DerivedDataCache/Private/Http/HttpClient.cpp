@@ -2,7 +2,8 @@
 
 #include "HttpClient.h"
 
-#if UE_WITH_HTTP_CLIENT
+#include "Misc/AsciiSet.h"
+#include "Misc/ScopeRWLock.h"
 #include "Tasks/Task.h"
 
 #define CURL_NO_OLDIES
@@ -14,12 +15,11 @@
 #include PLATFORM_CURL_INCLUDE
 #else
 #include "curl/curl.h"
-#endif //defined(PLATFORM_CURL_INCLUDE)
+#endif // defined(PLATFORM_CURL_INCLUDE)
 
 #if PLATFORM_MICROSOFT
 #include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
-
 
 namespace UE
 {
@@ -27,13 +27,13 @@ namespace UE
 namespace Http::Private
 {
 
-static constexpr uint32 WaitIntervalMs = ((uint32)(0.01f*1000));
+static constexpr uint32 WaitIntervalMs = 10;
 
 struct FHttpSharedDataInternals
 {
 	CURLSH* CurlShare;
 	CURLM* CurlMulti;
-	UE::TDepletableMpscQueue<CURL*> PendingRequestAdditions;
+	TDepletableMpscQueue<CURL*> PendingRequestAdditions;
 	FRWLock Locks[CURL_LOCK_DATA_LAST];
 	bool WriteLocked[CURL_LOCK_DATA_LAST]{};
 };
@@ -69,32 +69,28 @@ struct FHttpSharedDataStatics
 	}
 };
 
+} // Http::Private
+
+void FHttpAccessToken::SetToken(const FStringView Token)
+{
+	FWriteScopeLock WriteLock(Lock);
+	const FAnsiStringView Prefix = ANSITEXTVIEW("Authorization: Bearer ");
+	const int32 TokenLen = FPlatformString::ConvertedLength<ANSICHAR>(Token.GetData(), Token.Len());
+	Header.Empty(Prefix.Len() + TokenLen);
+	Header.Append(Prefix.GetData(), Prefix.Len());
+	const int32 TokenIndex = Header.AddUninitialized(TokenLen);
+	FPlatformString::Convert(Header.GetData() + TokenIndex, TokenLen, Token.GetData(), Token.Len());
+	Serial.fetch_add(1, std::memory_order_relaxed);
 }
 
-
-FString FHttpAccessToken::GetHeader()
+FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FHttpAccessToken& Token)
 {
-	Lock.ReadLock();
-	FString Header = FString::Printf(TEXT("Authorization: Bearer %s"), *Token);
-	Lock.ReadUnlock();
-	return Header;
-}
-
-void FHttpAccessToken::SetHeader(const TCHAR* InToken)
-{
-	Lock.WriteLock();
-	Token = InToken;
-	Serial++;
-	Lock.WriteUnlock();
-}
-
-uint32 FHttpAccessToken::GetSerial() const
-{
-	return Serial;
+	FReadScopeLock ReadLock(Token.Lock);
+	return Builder.Append(Token.Header);
 }
 
 FHttpSharedData::FHttpSharedData()
-: PendingRequestEvent(EEventMode::AutoReset)
+	: PendingRequestEvent(EEventMode::AutoReset)
 {
 	Internals = MakePimpl<Http::Private::FHttpSharedDataInternals>();
 	Internals->CurlShare = curl_share_init();
@@ -141,17 +137,17 @@ void FHttpSharedData::ProcessAsyncRequests()
 {
 	int ActiveTransfers = 0;
 
-	auto ProcessPendingRequests = [this, &ActiveTransfers]()
+	auto ProcessPendingRequests = [this, &ActiveTransfers]
 	{
 		int CurrentActiveTransfers = -1;
 
 		do
 		{
 			Internals->PendingRequestAdditions.Deplete([this, &ActiveTransfers](CURL* Curl)
-				{
-					curl_multi_add_handle(Internals->CurlMulti, Curl);
-					++ActiveTransfers;
-				});
+			{
+				curl_multi_add_handle(Internals->CurlMulti, Curl);
+				++ActiveTransfers;
+			});
 
 			curl_multi_perform(Internals->CurlMulti, &CurrentActiveTransfers);
 
@@ -159,7 +155,7 @@ void FHttpSharedData::ProcessAsyncRequests()
 			{
 				for (;;)
 				{
-					int MsgsStillInQueue = 0;	// may use that to impose some upper limit we may spend in that loop
+					int MsgsStillInQueue = 0; // may use that to impose some upper limit we may spend in that loop
 					CURLMsg* Message = curl_multi_info_read(Internals->CurlMulti, &MsgsStillInQueue);
 
 					if (!Message)
@@ -182,7 +178,7 @@ void FHttpSharedData::ProcessAsyncRequests()
 							// It is important that the CompleteAsync call doesn't happen on this thread as it is possible it will block waiting
 							// for a free HTTP request, and if that happens on this thread, we can deadlock as no HTTP requests will become 
 							// available while this thread is blocked.
-							UE::Tasks::Launch(TEXT("FHttpRequest::CompleteAsync"), [CompletedRequest, Result = Message->data.result]() mutable
+							Tasks::Launch(TEXT("FHttpRequest::CompleteAsync"), [CompletedRequest, Result = Message->data.result]() mutable
 							{
 								CompletedRequest->CompleteAsync(Result);
 							});
@@ -211,22 +207,24 @@ void FHttpSharedData::ProcessAsyncRequests()
 	ProcessPendingRequests();
 }
 
-FHttpRequestPool::FHttpRequestPool(FStringView InServiceUrl, FStringView InEffectiveServiceUrl, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, uint32 PoolSize, uint32 InOverflowLimit)
-: ActiveOverflowRequests(0)
-, OverflowLimit(InOverflowLimit)
+FHttpRequestPool::FHttpRequestPool(
+	const FStringView InServiceUrl,
+	FStringView InEffectiveServiceUrl,
+	const FHttpAccessToken* const InAuthorizationToken,
+	FHttpSharedData* const InSharedData,
+	const uint32 PoolSize,
+	const uint32 InOverflowLimit)
+	: ActiveOverflowRequests(0)
+	, OverflowLimit(InOverflowLimit)
 {
-	int32 LastSlash = 0;
-	while (InEffectiveServiceUrl.FindLastChar(TEXT('/'), /* out */ LastSlash) && (LastSlash == (InEffectiveServiceUrl.Len() - 1)))
-	{
-		InEffectiveServiceUrl.LeftChopInline(1);
-	}
-	
+	InEffectiveServiceUrl = FAsciiSet::TrimSuffixWith(InEffectiveServiceUrl, "/");
+
 	Pool.AddUninitialized(PoolSize);
 	Requests.AddUninitialized(PoolSize);
-	for (uint8 i = 0; i < Pool.Num(); ++i)
+	for (int32 Index = 0; Index < Pool.Num(); ++Index)
 	{
-		Pool[i].Usage = 0u;
-		Pool[i].Request = new(&Requests[i]) FHttpRequest(InServiceUrl, InEffectiveServiceUrl, InAuthorizationToken, InSharedData, true);
+		Pool[Index].Usage = 0u;
+		Pool[Index].Request = new(&Requests[Index]) FHttpRequest(InServiceUrl, InEffectiveServiceUrl, InAuthorizationToken, InSharedData, /*bLogErrors*/ true);
 	}
 
 	InitData = MakeUnique<FInitData>(InServiceUrl, InEffectiveServiceUrl, InAuthorizationToken, InSharedData);
@@ -235,24 +233,24 @@ FHttpRequestPool::FHttpRequestPool(FStringView InServiceUrl, FStringView InEffec
 FHttpRequestPool::~FHttpRequestPool()
 {
 	check(ActiveOverflowRequests.load() == 0);
-	for (uint8 i = 0; i < Pool.Num(); ++i)
+	for (const FEntry& Entry : Pool)
 	{
 		// No requests should be in use by now.
-		check(Pool[i].Usage.load(std::memory_order_acquire) == 0u);
+		check(Entry.Usage.load(std::memory_order_acquire) == 0u);
 	}
 }
 
 FHttpRequest* FHttpRequestPool::GetFreeRequest(bool bUnboundedOverflow)
 {
-	for (uint8 i = 0; i < Pool.Num(); ++i)
+	for (FEntry& Entry : Pool)
 	{
-		if (!Pool[i].Usage.load(std::memory_order_relaxed))
+		if (!Entry.Usage.load(std::memory_order_relaxed))
 		{
 			uint8 Expected = 0u;
-			if (Pool[i].Usage.compare_exchange_strong(Expected, 1u))
+			if (Entry.Usage.compare_exchange_strong(Expected, 1u))
 			{
-				Pool[i].Request->Reset();
-				return Pool[i].Request;
+				Entry.Request->Reset();
+				return Entry.Request;
 			}
 		}
 	}
@@ -264,7 +262,7 @@ FHttpRequest* FHttpRequestPool::GetFreeRequest(bool bUnboundedOverflow)
 		{
 			// Create an overflow request (outside of the pre-allocated range of requests)
 			ActiveOverflowRequests.fetch_add(1, std::memory_order_relaxed);
-			return new FHttpRequest(*InitData->ServiceUrl, *InitData->EffectiveServiceUrl, InitData->AccessToken, InitData->SharedData, true);
+			return new FHttpRequest(InitData->ServiceUrl, InitData->EffectiveServiceUrl, InitData->AccessToken, InitData->SharedData, true);
 		}
 	}
 	return nullptr;
@@ -316,13 +314,13 @@ void FHttpRequestPool::ReleaseRequestToPool(FHttpRequest* Request)
 		return;
 	}
 
-	for (uint8 i = 0; i < Pool.Num(); ++i)
+	for (FEntry& Entry : Pool)
 	{
-		if (Pool[i].Request == Request)
+		if (Entry.Request == Request)
 		{
 			// If only 1 user is remaining, we can give it to a waiter
 			// instead of releasing it back to the pool.
-			if (Pool[i].Usage == 1u)
+			if (Entry.Usage == 1u)
 			{
 				if (FWaiter* Waiter = Waiters.dequeue())
 				{
@@ -333,33 +331,30 @@ void FHttpRequestPool::ReleaseRequestToPool(FHttpRequest* Request)
 				}
 			}
 			
-			Pool[i].Usage--;
+			Entry.Usage--;
 			return;
 		}
 	}
-	check(false);
+
+	checkNoEntry();
 }
 
 void FHttpRequestPool::MakeRequestShared(FHttpRequest* Request, uint8 Users)
 {
-	if ((Request < Requests.GetData()) || (Request >= (Requests.GetData() + Requests.Num())))
-	{
-		// Overflow requests (outside of the pre-allocated range of requests), cannot be made shared
-		check(false);
-	}
+	// Overflow requests (outside of the pre-allocated range of requests), cannot be made shared
+	check((Request >= Requests.GetData()) && (Request < (Requests.GetData() + Requests.Num())));
 
 	check(Users != 0);
-	for (uint8 i = 0; i < Pool.Num(); ++i)
+	for (FEntry& Entry : Pool)
 	{
-		if (Pool[i].Request == Request)
+		if (Entry.Request == Request)
 		{
-			Pool[i].Usage = Users;
+			Entry.Usage = Users;
 			return;
 		}
 	}
-	check(false);
+
+	checkNoEntry();
 }
 
 } // UE
-
-#endif // UE_WITH_HTTP_CLIENT
