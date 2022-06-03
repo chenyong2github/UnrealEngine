@@ -45,27 +45,33 @@ namespace Horde.Storage.Implementation
                 blobStoreExistsTask = _blobStore.Exists(ns, contentIdBlob);
             }
 
-            // lower content_weight means its a better candidate to resolve to
-            foreach (ScyllaContentId? resolvedContentId in await _mapper.FetchAsync<ScyllaContentId>("WHERE content_id = ? ORDER BY content_weight DESC", new ScyllaBlobIdentifier(contentId)))
             {
-                if (resolvedContentId == null)
+                using IScope contentIdFetchScope = Tracer.Instance.StartActive("ScyllaContentIdStore.FetchContentId");
+                scope.Span.ResourceName = contentId.ToString();
+
+                // lower content_weight means its a better candidate to resolve to
+                foreach (ScyllaContentId? resolvedContentId in await _mapper.FetchAsync<ScyllaContentId>("WHERE content_id = ? ORDER BY content_weight DESC", new ScyllaBlobIdentifier(contentId)))
                 {
-                    throw new InvalidContentIdException(contentId);
-                }
-
-                BlobIdentifier[] blobs = resolvedContentId.Chunks.Select(b => b.AsBlobIdentifier()).ToArray();
-
-                {
-                    using IScope _ = Tracer.Instance.StartActive("ScyllaContentIdStore.FindMissingBlobs");
-
-                    BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
-                    if (missingBlobs.Length == 0)
+                    if (resolvedContentId == null)
                     {
-                        return blobs;
+                        throw new InvalidContentIdException(contentId);
                     }
+
+                    BlobIdentifier[] blobs = resolvedContentId.Chunks.Select(b => b.AsBlobIdentifier()).ToArray();
+
+                    {
+                        using IScope _ = Tracer.Instance.StartActive("ScyllaContentIdStore.FindMissingBlobs");
+
+                        BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
+                        if (missingBlobs.Length == 0)
+                        {
+                            return blobs;
+                        }
+                    }
+                    // blobs are missing continue testing with the next content id in the weighted list as that might exist
                 }
-                // blobs are missing continue testing with the next content id in the weighted list as that might exist
             }
+            
 
             if (!mustBeContentId)
             {
