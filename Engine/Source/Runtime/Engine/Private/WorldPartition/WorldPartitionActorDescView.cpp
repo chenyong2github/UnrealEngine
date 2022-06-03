@@ -6,7 +6,6 @@
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/ActorDescContainer.h"
-#include "WorldPartition/DataLayer/DataLayerUtils.h"
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView()
 	: FWorldPartitionActorDescView(nullptr)
@@ -18,16 +17,6 @@ FWorldPartitionActorDescView::FWorldPartitionActorDescView(const FWorldPartition
 	, bInvalidDataLayers(false)
 	, bInvalidRuntimeGrid(false)
 {}
-
-void FWorldPartitionActorDescView::ResolveRuntimeDataLayers(const UActorDescContainer* InContainer)
-{
-	bool bSuccess = true;
-	RuntimeDataLayers = FDataLayerUtils::ResolveRuntimeDataLayerInstanceNames(ActorDesc, InContainer, &bSuccess);
-	if (!bSuccess)
-	{
-		RuntimeDataLayers.Reset();
-	}
-}
 
 const FGuid& FWorldPartitionActorDescView::GetGuid() const
 {
@@ -95,10 +84,19 @@ const TArray<FName>& FWorldPartitionActorDescView::GetDataLayers() const
 	return bInvalidDataLayers ? EmptyDataLayers : ActorDesc->GetDataLayerInstanceNames();
 }
 
+const TArray<FName>& FWorldPartitionActorDescView::GetDataLayerInstanceNames() const
+{
+	return ActorDesc->GetDataLayerInstanceNames();
+}
 const TArray<FName>& FWorldPartitionActorDescView::GetRuntimeDataLayers() const
 {
 	static TArray<FName> EmptyDataLayers;
 	return (bInvalidDataLayers || !RuntimeDataLayers.IsSet()) ? EmptyDataLayers : RuntimeDataLayers.GetValue();
+}
+
+const TArray<FName>& FWorldPartitionActorDescView::GetTags() const
+{
+	return ActorDesc->GetTags();
 }
 
 FName FWorldPartitionActorDescView::GetActorPackage() const
@@ -180,27 +178,18 @@ void FWorldPartitionActorDescView::SetInvalidDataLayers()
 	}
 }
 
+void FWorldPartitionActorDescView::SetRuntimeDataLayers(TArray<FName>& InRuntimeDataLayers)
+{
+	RuntimeDataLayers = InRuntimeDataLayers;
+}
+
+void FWorldPartitionActorDescView::SetRuntimeReferences(TArray<FGuid>& InRuntimeReferences)
+{
+	RuntimeReferences = InRuntimeReferences;
+}
+
 bool FWorldPartitionActorDescView::IsResaveNeeded() const
 {
 	return ActorDesc->IsResaveNeeded();
-}
-
-void FWorldPartitionActorDescView::ResolveRuntimeReferences(const UActorDescContainer* InContainer)
-{
-	RuntimeReferences.Emplace();
-	for (const FGuid& ReferenceGuid : ActorDesc->GetReferences())
-	{
-		if (const FWorldPartitionActorDesc* ReferenceDesc = InContainer->GetActorDesc(ReferenceGuid))
-		{
-			if (ReferenceDesc->IsLoaded() ? !ReferenceDesc->GetActor()->IsEditorOnly() : !ReferenceDesc->GetActorIsEditorOnly())
-			{
-				RuntimeReferences->Add(ReferenceGuid);
-			}
-			else
-			{
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Actor reference '%s' from '%s' filtered-out (editor-only)"), *ReferenceDesc->GetActorLabelOrName().ToString(), *GetActorLabelOrName().ToString());
-			}
-		}
-	}
 }
 #endif

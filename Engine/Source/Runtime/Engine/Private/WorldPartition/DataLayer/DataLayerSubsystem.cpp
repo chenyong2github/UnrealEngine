@@ -2,6 +2,7 @@
 
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -640,7 +641,26 @@ void UDataLayerSubsystem::OnActorDescContainerInitialized(UActorDescContainer* I
 
 	UE_SCOPED_TIMER(*FString::Printf(TEXT("Resolving Data Layer Instance Names for %s"), *InActorDescContainer->GetContainerPackage().ToString()), LogWorldPartition, Display);
 
-	const FWorldDataLayersActorDesc* WorldDataLayersActorDesc = FDataLayerUtils::GetWorldDataLayersActorDesc(InActorDescContainer);
+	auto GetWorldDataLayersActorDesc = [](const UActorDescContainer* InContainer) -> FWorldDataLayersActorDesc*
+	{
+		if (InContainer)
+		{
+			for (FActorDescList::TIterator<AWorldDataLayers> Iterator(const_cast<UActorDescContainer*>(InContainer)); Iterator; ++Iterator)
+			{
+				// IsValid will return false for maps that don't have a valid WorldDataLayers actors
+				if (Iterator->IsValid())
+				{
+					FWorldDataLayersActorDesc* WorldDataLayersActorDesc = *Iterator;
+					return WorldDataLayersActorDesc;
+				}
+				// No need to iterate (we assume that there's only 1 AWorldDataLayer for now)
+				return nullptr;
+			}
+		}
+		return nullptr;
+	};
+
+	const FWorldDataLayersActorDesc* WorldDataLayersActorDesc = GetWorldDataLayersActorDesc(InActorDescContainer);
 	for (FActorDescList::TIterator<> Iterator(InActorDescContainer); Iterator; ++Iterator)
 	{
 		FWorldPartitionActorDesc* ActorDesc = *Iterator;

@@ -3,6 +3,7 @@
 #include "WorldPartition/WorldPartition.h"
 
 #if WITH_EDITOR
+#include "Editor.h"
 #include "Engine/World.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "ActorReferencesUtils.h"
@@ -10,6 +11,7 @@
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionActorCluster.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationNullErrorHandler.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationLogErrorHandler.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationMapCheckErrorHandler.h"
@@ -17,6 +19,22 @@
 #include "HAL/FileManager.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
+
+static FAutoConsoleCommand DumpStreamingGenerationLog(
+	TEXT("wp.Editor.DumpStreamingGenerationLog"),
+	TEXT("Dump the streaming generation log."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		if (UWorld* World = GEditor->GetEditorWorldContext().World(); World && !World->IsGameWorld())
+		{
+			if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+			{
+				WorldPartition->GenerateStreaming();
+				WorldPartition->FlushStreaming();
+			}
+		}
+	})
+);
 
 /*
 	Preparation Phase
@@ -36,6 +54,37 @@
 
 class FWorldPartitionStreamingGenerator
 {
+	void ResolveRuntimeDataLayers(FWorldPartitionActorDescView& ActorDescView, const TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViews)
+	{
+		TArray<FName> RuntimeDataLayerInstanceNames;
+		RuntimeDataLayerInstanceNames.Reserve(ActorDescView.GetDataLayers().Num());
+
+		if (FDataLayerUtils::ResolveRuntimeDataLayerInstanceNames(ActorDescView, ActorDescViews, RuntimeDataLayerInstanceNames))
+		{
+			ActorDescView.SetRuntimeDataLayers(RuntimeDataLayerInstanceNames);
+		}
+	}
+
+	void ResolveRuntimeReferences(FWorldPartitionActorDescView& ActorDescView, const TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViews)
+	{
+		TArray<FGuid> RuntimeReferences;
+		RuntimeReferences.Reserve(ActorDescView.GetReferences().Num());
+
+		for (const FGuid& ReferenceGuid : ActorDescView.GetReferences())
+		{
+			if (const FWorldPartitionActorDescView* ReferenceDescView = ActorDescViews.Find(ReferenceGuid))
+			{
+				check(!ReferenceDescView->GetActorIsEditorOnly());
+				RuntimeReferences.Add(ReferenceGuid);
+			}
+		}
+
+		if (RuntimeReferences.Num() != ActorDescView.GetReferences().Num())
+		{
+			ActorDescView.SetRuntimeReferences(RuntimeReferences);
+		}
+	}
+
 	void CreateActorDescViewMap(const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap, const FActorContainerID& InContainerID)
 	{
 		// should we handle unsaved or newly created actors?
@@ -45,30 +94,38 @@ class FWorldPartitionStreamingGenerator
 		const bool bIsTempContainerPackage = FPackageName::IsTempPackage(InContainer->GetPackage()->GetName());
 		
 		// Test whether an actor is editor only. Will fallback to the actor descriptor only if the actor is not loaded
-		auto IsActorEditorOnly = [](const FWorldPartitionActorDesc* ActorDesc) { return ActorDesc->IsLoaded() ? ActorDesc->GetActor()->IsEditorOnly() : ActorDesc->GetActorIsEditorOnly(); };
+		auto IsActorEditorOnly = [](const FWorldPartitionActorDesc* ActorDesc, const FActorContainerID& ContainerID)
+		{
+			if (ActorDesc->IsRuntimeRelevant(ContainerID))
+			{
+				if (ActorDesc->IsLoaded())
+				{
+					return ActorDesc->GetActor()->IsEditorOnly();
+				}
+				else
+				{
+					return ActorDesc->GetActorIsEditorOnly();
+				}
+			}
+			return false;
+		};
 
 		// Create an actor descriptor view for the specified actor (modified or unsaved actors)
-		auto GetModifiedActorDesc = [this](AActor* InActor) { return ModifiedActorsDescList->AddActor(InActor); };
+		auto GetModifiedActorDesc = [this](AActor* InActor)
+		{
+			return ModifiedActorsDescList->AddActor(InActor);
+		};
 
 		// Adjust and register the actor descriptor view
 		auto RegisterActorDescView = [this, InContainer, &OutActorDescViewMap](const FGuid& ActorGuid, FWorldPartitionActorDescView& ActorDescView)
 		{
-			if (!bEnableStreaming)
-			{
-				ActorDescView.SetForcedNonSpatiallyLoaded();
-			}
-
-			ActorDescView.ResolveRuntimeDataLayers(InContainer);
-
-			ActorDescView.ResolveRuntimeReferences(InContainer);
-
 			OutActorDescViewMap.Emplace(ActorGuid, ActorDescView);
 		};
 		
 		TMap<FGuid, FGuid> ContainerGuidsRemap;
 		for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
 		{
-			if (!IsActorEditorOnly(*ActorDescIt) && ActorDescIt->IsRuntimeRelevant(InContainerID))
+			if (!IsActorEditorOnly(*ActorDescIt, InContainerID))
 			{
 				// Handle unsaved actors
 				if (AActor* Actor = ActorDescIt->GetActor())
@@ -171,6 +228,26 @@ class FWorldPartitionStreamingGenerator
 	void CreateActorDescriptorViews(const UActorDescContainer* InContainer)
 	{
 		CreateActorDescriptorViewsRecursive(InContainer, FTransform::Identity, TSet<FName>(), FActorContainerID(), FActorContainerID(), EContainerClusterMode::Partitioned, TEXT("MainContainer"));
+
+		// Once all views are created
+		for (auto It = ContainerDescriptorsMap.CreateIterator(); It; ++It)
+		{
+			const FActorContainerID& ContainerID = It.Key();
+			FContainerDescriptor& ContainerDescriptor = It.Value();
+
+			for (auto ActorDescIt = ContainerDescriptor.ActorDescViewMap.CreateIterator(); ActorDescIt; ++ActorDescIt)
+			{
+				FWorldPartitionActorDescView& ActorDescView = ActorDescIt.Value();
+
+				if (!bEnableStreaming)
+				{
+					ActorDescView.SetForcedNonSpatiallyLoaded();
+				}
+
+				ResolveRuntimeDataLayers(ActorDescView, ContainerDescriptor.ActorDescViewMap);
+				ResolveRuntimeReferences(ActorDescView, ContainerDescriptor.ActorDescViewMap);
+			}
+		}
 	}
 
 	/** 
@@ -615,7 +692,7 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 	}
 
 	// Dump state log
-	const TCHAR* StateLogSuffix = bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : TEXT("Unknown")));
+	const TCHAR* StateLogSuffix = bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : TEXT("Manual")));
 	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(StateLogSuffix);
 	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
 
@@ -649,6 +726,12 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 	}
 
 	return false;
+}
+
+void UWorldPartition::FlushStreaming()
+{
+	RuntimeHash->FlushStreaming();
+	StreamingPolicy = nullptr;
 }
 
 void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)

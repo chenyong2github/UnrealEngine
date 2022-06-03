@@ -371,10 +371,8 @@ void UWorldPartition::OnCancelPIE()
 
 void UWorldPartition::OnEndPlay()
 {
-	RuntimeHash->FlushStreaming();
+	FlushStreaming();
 	RuntimeHash->OnEndPlay();
-
-	StreamingPolicy = nullptr;
 }
 
 FName UWorldPartition::GetWorldPartitionEditorName() const

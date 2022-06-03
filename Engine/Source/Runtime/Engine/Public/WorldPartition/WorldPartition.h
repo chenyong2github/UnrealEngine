@@ -115,7 +115,7 @@ private:
 	void OnGCPostReachabilityAnalysis();
 	void OnPackageDirtyStateChanged(UPackage* Package);
 
-	// PIE/Game Methods
+	// PIE/Game
 	void OnPreBeginPIE(bool bStartSimulate);
 	void OnPrePIEEnded(bool bWasSimulatingInEditor);
 	void OnCancelPIE();
@@ -145,11 +145,13 @@ public:
 #if WITH_EDITOR
 	FName GetWorldPartitionEditorName() const;
 
-	// PIE/Game/Cook Methods
+	// Streaming generation
 	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr);
+	void FlushStreaming();
+
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 
-	// Cook Methods
+	// Cooking
 	bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath);
 	bool FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages);
 
@@ -160,7 +162,7 @@ public:
 	void SetDefaultHLODLayer(UHLODLayer* InDefaultHLODLayer) { DefaultHLODLayer = InDefaultHLODLayer; }
 	void GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly);
 
-	// Debugging Methods
+	// Debugging
 	void DrawRuntimeHashPreview();
 	void DumpActorDescs(const FString& Path);
 
@@ -195,7 +197,7 @@ public:
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
 
-	// Debugging Methods
+	// Debugging
 	bool CanDrawRuntimeHash() const;
 	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
 	void DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset);

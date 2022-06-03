@@ -34,7 +34,9 @@ public:
 	bool GetActorIsHLODRelevant() const;
 	FName GetHLODLayer() const;
 	const TArray<FName>& GetDataLayers() const;
+	const TArray<FName>& GetDataLayerInstanceNames() const;
 	const TArray<FName>& GetRuntimeDataLayers() const;
+	const TArray<FName>& GetTags() const;
 	FName GetActorPackage() const;
 	FName GetActorPath() const;
 	FName GetActorLabel() const;
@@ -50,15 +52,14 @@ public:
 	FName GetActorLabelOrName() const;
 
 	void SetForcedNonSpatiallyLoaded();
-
 	void SetInvalidRuntimeGrid();
-
 	void SetInvalidDataLayers();
+	void SetRuntimeDataLayers(TArray<FName>& InRuntimeDataLayers);
+	void SetRuntimeReferences(TArray<FGuid>& InRuntimeReferences);
 
 	bool IsResaveNeeded() const;
 
 	void ResolveRuntimeDataLayers(const UActorDescContainer* InContainer);
-	void ResolveRuntimeReferences(const UActorDescContainer* InContainer);
 
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{
@@ -69,6 +70,8 @@ public:
 	{
 		return GetTypeHash(Key.GetGuid());
 	}
+
+	const FWorldPartitionActorDesc* GetActorDesc() const { return ActorDesc; }
 
 protected:
 	const FWorldPartitionActorDesc* ActorDesc;
