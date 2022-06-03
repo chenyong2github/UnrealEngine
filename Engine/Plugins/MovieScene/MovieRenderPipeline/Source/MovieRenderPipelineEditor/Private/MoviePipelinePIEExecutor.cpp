@@ -191,7 +191,6 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 
 	// This Pipeline belongs to the world being created so that they have context for things they execute.
 	ActiveMoviePipeline = NewObject<UMoviePipeline>(ExecutingWorld, PipelineClass);
-	ActiveMoviePipeline->DebugWidgetClass = DebugWidgetClass;
 	
 	// We allow users to set a multi-frame delay before we actually run the Initialization function and start thinking.
 	// This solves cases where there are engine systems that need to finish loading before we do anything.
@@ -203,6 +202,7 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	// Listen for when the pipeline thinks it has finished.
 	ActiveMoviePipeline->OnMoviePipelineWorkFinished().AddUObject(this, &UMoviePipelinePIEExecutor::OnPIEMoviePipelineFinished);
 	ActiveMoviePipeline->OnMoviePipelineShotWorkFinished().AddUObject(this, &UMoviePipelinePIEExecutor::OnJobShotFinished);
+	ActiveMoviePipeline->SetViewportInitArgs(ViewportInitArgs);
 	
 	if (ExecutorSettings->InitialDelayFrameCount == 0)
 	{

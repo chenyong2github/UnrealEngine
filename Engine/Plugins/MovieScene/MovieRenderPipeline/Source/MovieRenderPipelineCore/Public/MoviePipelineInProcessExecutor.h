@@ -2,6 +2,7 @@
 #pragma once
 
 #include "MoviePipelineLinearExecutor.h"
+#include "MoviePipeline.h"
 #include "MoviePipelineInProcessExecutor.generated.h"
 
 class UWorld;
@@ -30,9 +31,15 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
 	bool bUseCurrentLevel;
 
+	FMoviePipelineWorkFinishedNative& OnIndividualJobFinished()
+	{
+		return OnIndividualJobFinishedDelegateNative;
+	}
+
 protected:
 	virtual void Start(const UMoviePipelineExecutorJob* InJob) override;
-
+	virtual void CancelAllJobs_Implementation() override;
+	virtual void CancelCurrentJob_Implementation() override;
 private:
 	void OnMapLoadFinished(UWorld* NewWorld);
 	void OnMoviePipelineFinished(FMoviePipelineOutputData InOutputData);
@@ -62,4 +69,5 @@ private:
 	};
 
 	FSavedState SavedState;
+	FMoviePipelineWorkFinishedNative OnIndividualJobFinishedDelegateNative;
 };

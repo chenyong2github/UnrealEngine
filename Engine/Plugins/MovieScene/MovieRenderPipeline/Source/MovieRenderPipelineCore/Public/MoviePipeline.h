@@ -237,6 +237,12 @@ public:
 	*/
 	void ResolveFilenameFormatArguments(const FString& InFormatString, const TMap<FString, FString>& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs, const FMoviePipelineFrameOutputState* InOutputState=nullptr, const int32 InFrameNumberOffset=0) const;
 
+	/**
+	* Allows initialization of some viewport-related arguments that aren't related to the job. Needs to
+	* be called before the Initialize function. Optional.
+	*/
+	void SetViewportInitArgs(const UE::MoviePipeline::FViewportArgs& InArgs) { ViewportInitArgs = InArgs; }
+
 protected:
 	/**
 	* This function should be called by the Executor when execution has finished (this should still be called in the event of an error)
@@ -462,6 +468,7 @@ public:
 	IImageWriteQueue* ImageWriteQueue;
 
 	/** Optional widget for feedback during render */
+	UE_DEPRECATED(5.1, "Use SetViewportInitArgs instead.")
 	UPROPERTY(Transient)
 	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClass;
 
@@ -479,6 +486,8 @@ private:
 
 	/** Files that we've requested be written to disk but have not yet finished writing. */
 	TArray<FMoviePipelineOutputFuture> OutputFutures;
+
+	UE::MoviePipeline::FViewportArgs ViewportInitArgs;
 
 	TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> CachedSequenceHierarchyRoot;
 

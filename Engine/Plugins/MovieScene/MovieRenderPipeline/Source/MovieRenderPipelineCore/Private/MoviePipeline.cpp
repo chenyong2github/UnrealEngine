@@ -288,7 +288,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	
 	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
 	{
-		Viewport->bDisableWorldRendering = true;
+		Viewport->bDisableWorldRendering = !ViewportInitArgs.bRenderViewport;
 	}
 
 	for (ULevelStreaming* Level : GetWorld()->GetStreamingLevels())
@@ -1279,7 +1279,7 @@ bool UMoviePipeline::DebugFrameStepPreTick()
 
 void UMoviePipeline::LoadDebugWidget()
 {
-	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClassToUse = DebugWidgetClass;
+	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClassToUse = ViewportInitArgs.DebugWidgetClass;
 	if (DebugWidgetClassToUse.Get() == nullptr)
 	{
 		DebugWidgetClassToUse = LoadClass<UMovieRenderDebugWidget>(nullptr, *DefaultDebugWidgetAsset, nullptr, LOAD_None, nullptr);

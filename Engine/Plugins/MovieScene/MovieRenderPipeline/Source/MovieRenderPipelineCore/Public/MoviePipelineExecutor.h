@@ -7,6 +7,7 @@
 #include "Http.h"
 #include "Misc/CoreDelegates.h"
 #include "Serialization/ArrayReader.h"
+#include "MovieRenderDebugWidget.h"
 #include "MoviePipelineExecutor.generated.h"
 
 class UMoviePipelineMasterConfig;
@@ -14,7 +15,6 @@ class UMoviePipelineExecutorBase;
 class UMoviePipelineExecutorJob;
 class UMoviePipeline;
 class UMoviePipelineQueue;
-class UMovieRenderDebugWidget;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMoviePipelineExecutorFinishedNative, UMoviePipelineExecutorBase* /*PipelineExecutor*/, bool /*bSuccess*/);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMoviePipelineExecutorFinished, UMoviePipelineExecutorBase*, PipelineExecutor, bool, bSuccess);
@@ -339,8 +339,15 @@ private:
 
 public:
 	/** Optional widget for feedback during render */
+	UE_DEPRECATED(5.1, "Use SetViewportInitArgs instead.")
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClass;
+
+	void SetViewportInitArgs(const UE::MoviePipeline::FViewportArgs& InArgs) { ViewportInitArgs = InArgs; }
+	/**
+	* Some global initialization args that get passed to the UMoviePipeline before the call to ::Initialize()
+	*/
+	UE::MoviePipeline::FViewportArgs ViewportInitArgs;
 
 	/**
 	* Arbitrary data that can be associated with the executor. Not used by default implementations, nor read.

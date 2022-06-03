@@ -122,7 +122,7 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	}
 
 	ActiveMoviePipeline = NewObject<UMoviePipeline>(NewWorld, MoviePipelineClass);
-	ActiveMoviePipeline->DebugWidgetClass = DebugWidgetClass;
+	ActiveMoviePipeline->SetViewportInitArgs(ViewportInitArgs);
 
 	// We allow users to set a multi-frame delay before we actually run the Initialization function and start thinking.
 	// This solves cases where there are engine systems that need to finish loading before we do anything.
@@ -186,6 +186,8 @@ void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(FMoviePipelineOutp
 {
 	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 	UMoviePipeline* MoviePipeline = ActiveMoviePipeline;
+	
+	OnIndividualJobFinishedDelegateNative.Broadcast(InOutputData);
 
 	if (ActiveMoviePipeline)
 	{
@@ -280,5 +282,22 @@ void UMoviePipelineInProcessExecutor::RestoreState()
 		}
 	}
 }
+void UMoviePipelineInProcessExecutor::CancelAllJobs_Implementation()
+{
+	// Setting this flag will make the completion of the current job skip the remaining jobs
+	bIsCanceling = true;
+	CancelCurrentJob();
+}
 
+void UMoviePipelineInProcessExecutor::CancelCurrentJob_Implementation()
+{
+	if (ActiveMoviePipeline && ActiveMoviePipeline->GetPipelineState() != EMovieRenderPipelineState::Finished)
+	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineInProcessExecutor: Application quit while Movie Pipeline was still active. Stalling to do full shutdown."));
+
+		// This will flush any outstanding work on the movie pipeline (file writes) immediately
+		ActiveMoviePipeline->RequestShutdown(); // Set the Shutdown Requested flag.
+		ActiveMoviePipeline->Shutdown(); // Flush the shutdown.
+	}
+}
 #undef LOCTEXT_NAMESPACE // "MoviePipelineInProcessExecutor"
