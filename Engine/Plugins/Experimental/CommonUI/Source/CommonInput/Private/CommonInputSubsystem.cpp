@@ -719,18 +719,14 @@ bool UCommonInputSubsystem::PlatformSupportsInputType(ECommonInputType InInputTy
 	{
 		case ECommonInputType::MouseAndKeyboard:
 		{
-#if PLATFORM_SWITCH
+#if UE_COMMONINPUT_PLATFORM_KBM_REQUIRES_ATTACHED_MOUSE
 			bPlatformSupportsInput &= FSlateApplication::Get().IsMouseAttached();
 #endif
 		}
 		break;
 		case ECommonInputType::Touch:
 		{
-#if PLATFORM_SWITCH
-			bPlatformSupportsInput &= SUPPORT_SWITCH_TOUCHSCREEN;
-#elif PLATFORM_DESKTOP && !UE_BUILD_SHIPPING
-			bPlatformSupportsInput = true; // Support touch testing until touch is supported on desktop
-#endif
+			bPlatformSupportsInput &= UE_COMMONINPUT_PLATFORM_SUPPORTS_TOUCH != 0;
 		}
 		break;
 		case ECommonInputType::Gamepad:

@@ -51,6 +51,9 @@ public class CommonInput : ModuleRules
 		}
 
 		PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
+
+		PrivateDefinitions.Add("UE_COMMONINPUT_PLATFORM_KBM_REQUIRES_ATTACHED_MOUSE=" + (bPlatformKBMRequiresAttachedMouse ? "1" : "0"));
+		PrivateDefinitions.Add("UE_COMMONINPUT_PLATFORM_SUPPORTS_TOUCH=" + (bPlatformSupportsTouch ? "1" : "0"));
 	}
 
 	static public string ToCommonUIPlatform(UnrealTargetPlatform TargetPlatform)
@@ -77,5 +80,15 @@ public class CommonInput : ModuleRules
 		}
 
 		return string.Empty;
+	}
+
+	protected virtual bool bPlatformKBMRequiresAttachedMouse { get { return false; } }
+	protected virtual bool bPlatformSupportsTouch
+	{
+		get
+		{
+			// Support touch testing until touch is supported on desktop
+			return Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) && Target.Configuration != UnrealTargetConfiguration.Shipping;
+		}
 	}
 }

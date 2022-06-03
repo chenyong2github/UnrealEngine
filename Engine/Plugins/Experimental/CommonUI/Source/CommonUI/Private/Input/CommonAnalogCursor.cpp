@@ -333,9 +333,8 @@ bool FCommonAnalogCursor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp
 {
 	if (FAnalogCursor::IsRelevantInput(PointerEvent))
 	{
-#if PLATFORM_SWITCH	
-		//@todo DanH: Is it intentional or a bug that Switch doesn't swap to Touch input type when the user touches?
-		// Switch doesn't register as switching its input type, so detect touch input here to hide the cursor.
+#if UE_COMMONUI_PLATFORM_SUPPORTS_TOUCH	
+		// Some platforms don't register as switching its input type, so detect touch input here to hide the cursor.
 		if (PointerEvent.IsTouchEvent())
 		{
 			//ClearCenterWidget();
