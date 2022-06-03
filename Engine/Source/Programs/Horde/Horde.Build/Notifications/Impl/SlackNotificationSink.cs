@@ -864,6 +864,11 @@ namespace Horde.Build.Notifications.Impl
 					{
 						string fixFailedEventId = $"issue_{issue.Id}_fixfailed_{issue.FixChange}";
 						string fixFailedMessage = $"Issue not fixed by {FormatChange(issue.FixChange.Value)}; see {FormatJobStep(fixFailedSpan.LastFailure, fixFailedSpan.NodeName)} in {fixFailedSpan.StreamName}.";
+						if (issue.OwnerId.HasValue)
+						{
+							string mention = await FormatMentionAsync(issue.OwnerId.Value, workflow.AllowMentions);
+							fixFailedMessage += $" ({mention})";
+						}
 						await PostSingleMessageToThreadAsync(triageChannel, state.Ts, fixFailedEventId, fixFailedMessage);
 					}
 
