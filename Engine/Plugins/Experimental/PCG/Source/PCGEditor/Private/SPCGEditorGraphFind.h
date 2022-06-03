@@ -36,6 +36,9 @@ struct FPCGEditorGraphFindResult
 	/** Get Category for this search result */
 	FText GetCategory() const;
 
+	/** Get Comment for this search result */
+	FText GetComment() const;
+
 	/** Create an icon to represent the result */
 	TSharedRef<SWidget> CreateIcon() const;
 
