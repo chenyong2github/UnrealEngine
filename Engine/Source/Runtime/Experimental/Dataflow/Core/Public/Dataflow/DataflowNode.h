@@ -58,6 +58,9 @@ namespace Dataflow
 		const TArray< FProperty* >& GetProperties() const { return Properties; }
 		TArray< FProperty* >& GetProperties() { return Properties; }
 
+		const TMap<FName, const FProperty*> GetPropertyMap() const;
+ 		TMap<FName, FProperty*> GetPropertyMap();
+
 		void AddInput(FConnection* InPtr);
 		const TArray< FConnection* >& GetInputs() const { return Inputs; }
 		TArray< FConnection* >& GetInputs() { return Inputs; }

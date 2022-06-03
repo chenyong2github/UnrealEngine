@@ -36,23 +36,26 @@ namespace Dataflow
 		};
 
 
-		FProperty(EType InType, FName InName, FNode* Node)
+		FProperty(EType InType, FName InName, FNode* Node = nullptr)
 			: Type(InType)
 			, Name(InName)
 			, Category("")
 		{
-			BindProperty(Node, this);
+			BindProperty(Node);
 		}
 		virtual ~FProperty() {}
 
+		static FProperty* NewProperty(EType InType,FName InName = FName(""), FNode* InNode = nullptr);
 
 		const FName& GetName() const { return Name; }
 		const EType GetType() const { return Type; }
 
+		virtual SIZE_T SizeOf() const { return 0; }
+
 		void GetCategory(const FName& InName) { Name = InName; }
 		const FName& GetCategory() const { return Category; }
 
-		void BindProperty(FNode* InNode, FProperty* That);
+		void BindProperty(FNode* InNode);
 
 		virtual void Serialize(FArchive& Ar) {}
 
@@ -77,11 +80,12 @@ namespace Dataflow
 		{}
 
 		static FProperty::EType StaticType();
+		virtual SIZE_T SizeOf() const override final;
 
 		const T& GetValue() const { return Value; }
 		void SetValue(const T& InValue) { Value = InValue; }
 
-		virtual void Serialize(FArchive& Ar) override
+		virtual void Serialize(FArchive& Ar) override final
 		{
 			Ar << Value;
 		}
@@ -90,17 +94,16 @@ namespace Dataflow
 
 } // Dataflow
 
-#define DATAFLOW_PROPERTY(DECL, TYPE,ETYPE)																			\
+#define DATAFLOW_PROPERTY(DECL, TYPE,ETYPE, SIZEOF)																	\
 	template<> inline Dataflow::FProperty::EType Dataflow::TProperty<TYPE>::StaticType() { return EType::ETYPE; }	\
+	template<> inline SIZE_T Dataflow::TProperty<TYPE>::SizeOf() const {return SIZEOF;}								\
 	template struct DECL Dataflow::TPropertyParameters<TYPE>;														\
 	template class Dataflow::TProperty<TYPE>;
 
-DATAFLOW_PROPERTY(DATAFLOWCORE_API, bool, BOOL)
-DATAFLOW_PROPERTY(DATAFLOWCORE_API, int, INT)
-DATAFLOW_PROPERTY(DATAFLOWCORE_API, float, FLOAT)
-DATAFLOW_PROPERTY(DATAFLOWCORE_API, double, DOUBLE)
-DATAFLOW_PROPERTY(DATAFLOWCORE_API, FString, STRING)
-DATAFLOW_PROPERTY(DATAFLOWCORE_API, FName, NAME)
-//DATAFLOW_PROPERTY(DATAFLOWCORE_API, Dataflow::FFilename, FILE)
-
+DATAFLOW_PROPERTY(DATAFLOWCORE_API, bool, BOOL, sizeof(bool))
+DATAFLOW_PROPERTY(DATAFLOWCORE_API, int32, INT, sizeof(int32))
+DATAFLOW_PROPERTY(DATAFLOWCORE_API, float, FLOAT, sizeof(float))
+DATAFLOW_PROPERTY(DATAFLOWCORE_API, double, DOUBLE, sizeof(double))
+DATAFLOW_PROPERTY(DATAFLOWCORE_API, FString, STRING, Value.GetAllocatedSize())
+DATAFLOW_PROPERTY(DATAFLOWCORE_API, FName, NAME, Value.ToString().GetAllocatedSize())
 
