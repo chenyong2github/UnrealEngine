@@ -136,7 +136,14 @@ FResizeSection::FResizeSection( FSequencer& InSequencer, const TSet<TWeakObjectP
 		UMovieSceneSection* Section = WeakSection.Get();
 		if (Section)
 		{
-			Sections.Add(Section);
+			if (bDraggingByEnd && Section->HasEndFrame())
+			{
+				Sections.Add(Section);
+			}
+			else if (!bDraggingByEnd && Section->HasStartFrame())
+			{
+				Sections.Add(Section);
+			}
 		}
 	}
 }
