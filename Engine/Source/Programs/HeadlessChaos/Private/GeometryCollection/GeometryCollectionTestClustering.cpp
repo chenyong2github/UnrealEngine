@@ -307,7 +307,7 @@ namespace GeometryCollectionTest
 
 			if (Frame == 2)
 			{
-				ParticleHandles[0].AddExternalStrain(50.0f);
+				ParticleHandles[0]->AddExternalStrain(50.0f);
 				Clustering.BreakingModel();
 			}
 
@@ -2086,7 +2086,7 @@ namespace GeometryCollectionTest
 
 			if (Frame == 5)
 			{
-				UnitTest.Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticles(ParticleHandles[4]->CastToClustered(), nullptr, true);
+				UnitTest.Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticles(ParticleHandles[4]->CastToClustered(), true);
 			}
 			
 			if (Frame < 5)

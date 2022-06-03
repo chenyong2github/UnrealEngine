@@ -338,7 +338,7 @@ namespace Chaos
 					}
 					if (ClusterHandle)
 					{
-						Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticlesNoInternalCluster(ClusterHandle->CastToClustered(), nullptr, true);
+						Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticlesNoInternalCluster(ClusterHandle->CastToClustered(), true);
 					}
 				}
 			}
