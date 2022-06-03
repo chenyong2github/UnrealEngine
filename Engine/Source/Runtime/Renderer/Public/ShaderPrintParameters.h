@@ -111,7 +111,7 @@ namespace ShaderPrint
 	/** Fill the FShaderParameters with the opaque FShaderPrintData from the current default view. */
 	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters);
 	
-	/** Fill the FShaderParameters with opaque FShaderPrintData already bound to the specified view. FViewInfo implies this is private for renderer. */
+	UE_DEPRECATED(5.1, "Use one of the other implementations of SetParameters()")
 	void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FShaderParameters& OutParameters);
 }
 

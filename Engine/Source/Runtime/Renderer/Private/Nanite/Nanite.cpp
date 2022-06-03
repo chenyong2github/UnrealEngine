@@ -535,7 +535,7 @@ void PrintStats(
 		{
 			FPrintStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPrintStatsCS::FParameters>();
 
-			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintStruct);
+			ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintStruct);
 			PassParameters->PackedClusterSize = sizeof(Nanite::FPackedCluster);
 
 			PassParameters->RenderFlags = Nanite::GGlobalResources.StatsRenderFlags;

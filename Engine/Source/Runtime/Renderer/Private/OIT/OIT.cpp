@@ -153,7 +153,7 @@ static void AddOITPixelDebugPass(
 	Parameters->SampleTransTexture = OITData.SampleTransTexture;
 	Parameters->SampleDepthTexture = OITData.SampleDepthTexture;
 	Parameters->SampleCountTexture = OITData.SampleCountTexture;
-	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintUniformBuffer);
+	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
 
 	FOITPixelDebugCS::FPermutationDomain PermutationVector;
 	TShaderMapRef<FOITPixelDebugCS> ComputeShader(View.ShaderMap, PermutationVector);
@@ -683,7 +683,7 @@ static void AddOITSortTriangleIndexPass(
 			Parameters->ViewBound_Max	= (FVector3f)ViewBounds.GetBox().Max;
 			if (ShaderPrint::IsEnabled(View))
 			{
-				ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
+				ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 			}
 
 			check(DebugData.Buffer);
@@ -792,7 +792,7 @@ static void AddOITTriangleDebugPass(
 	Parameters->AllocatedIndexSizeInBytes = DebugData.AllocatedIndexSizeInBytes;
 	Parameters->TotalEntries = DebugData.TotalEntries;
 	Parameters->DebugData = GraphBuilder.CreateSRV(DebugData.Buffer, FOITDebugData::Format);
-	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
+	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 
 	TShaderMapRef<FOITSortTriangleIndex_Debug> ComputeShader(View.ShaderMap);
 	FComputeShaderUtils::AddPass(

@@ -314,7 +314,7 @@ static FRDGTextureRef AddRectLightDebugInfoPass(
 	Parameters->FreeBuffer = GraphBuilder.CreateSRV(FreeBuffer, PF_R16G16B16A16_UINT);
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->AtlasMIPIndex = FMath::Clamp(CVarRectLighTextureDebugMipLevel.GetValueOnRenderThread(), 0u, Parameters->AtlasMaxMipLevel-1);
-	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
+	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 	Parameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
 
 	TShaderMapRef<FRectLightAtlasDebugInfoCS> ComputeShader(ShaderMap);

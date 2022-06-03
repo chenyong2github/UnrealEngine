@@ -1107,7 +1107,7 @@ void AddLumenScreenProbeDebugPass(
 	PassParameters->ViewportIntegrateTileDimensions = ViewportIntegrateTileDimensions;
 	PassParameters->IntegrateTileData = GraphBuilder.CreateSRV(IntegrateTileData);
 	PassParameters->IntegrateIndirectArgs = GraphBuilder.CreateSRV(IntegrateIndirectArgs, PF_R32_UINT);
-	ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrint);
+	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrint);
 
 	FLumenScreenProbeStrataDebugPass::FPermutationDomain PermutationVector;
 	auto ComputeShader = View.ShaderMap->GetShader<FLumenScreenProbeStrataDebugPass>(PermutationVector);

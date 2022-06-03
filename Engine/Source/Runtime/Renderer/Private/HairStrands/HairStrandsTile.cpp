@@ -368,7 +368,7 @@ void AddHairStrandsDebugTilePass(
 		Parameters->TileCountXY = TileData.TileCountXY;
 		Parameters->bRectPrimitive = TileData.bRectPrimitive ? 1u : 0u;
 		Parameters->HairStrands = View.HairStrandsViewData.UniformBuffer;
-		ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintUniformBuffer);
+		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
 
 		TShaderMapRef<FHairStrandsTileDebugPrintPassCS> ComputeShader(View.ShaderMap);
 		ClearUnusedGraphResources(ComputeShader, Parameters);

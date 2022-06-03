@@ -1660,7 +1660,7 @@ void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewIn
 		{
 			FVirtualSmPrintStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmPrintStatsCS::FParameters>();
 
-			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintStruct);
+			ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintStruct);
 			PassParameters->InStatsBuffer = GraphBuilder.CreateSRV(StatsBufferRDG);
 			PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
 			PassParameters->ShowStatsValue = ShowStatsValue;
@@ -2507,7 +2507,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 
 			FVirtualSmPrintClipmapStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmPrintClipmapStatsCS::FParameters>();
 
-			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintStruct);
+			ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintStruct);
 			//PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
 			PassParameters->ShadowMapIdRangeStart = Clipmap->GetVirtualShadowMap(0)->ID;
 			// Note: assumes range!

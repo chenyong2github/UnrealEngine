@@ -74,7 +74,7 @@ namespace RaytracingTraversalStatistics
 		if (IsEnabled() && TraversalData.TraversalStatisticsBuffer)
 		{
 			FTraceRayInlinePrintStatisticsCS::FParameters* Parameters = GraphBuilder.AllocParameters<FTraceRayInlinePrintStatisticsCS::FParameters>();
-			ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintStruct);
+			ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintStruct);
 			Parameters->TraversalStatistics = GraphBuilder.CreateSRV(TraversalData.TraversalStatisticsBuffer);
 			TShaderRef<FTraceRayInlinePrintStatisticsCS> ComputeShader = View.ShaderMap->GetShader<FTraceRayInlinePrintStatisticsCS>();
 			FComputeShaderUtils::AddPass(

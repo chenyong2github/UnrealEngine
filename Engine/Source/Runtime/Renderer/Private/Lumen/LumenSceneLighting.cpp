@@ -709,7 +709,7 @@ void Lumen::BuildCardUpdateContext(
 	if (GLumenLightingStats != 0)
 	{
 		FLumenSceneLightingStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenSceneLightingStatsCS::FParameters>();
-		ShaderPrint::SetParameters(GraphBuilder, Views[0], PassParameters->ShaderPrintUniformBuffer);
+		ShaderPrint::SetParameters(GraphBuilder, Views[0].ShaderPrintData, PassParameters->ShaderPrintUniformBuffer);
 		PassParameters->LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 		PassParameters->DirectLightingCardPageIndexAllocator = DirectCardPageIndexAllocatorSRV;
 		PassParameters->IndirectLightingCardPageIndexAllocator = IndirectCardPageIndexAllocatorSRV;

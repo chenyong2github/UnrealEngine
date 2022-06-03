@@ -100,7 +100,7 @@ static FPhysicsFieldRayMarchingCS::FParameters* CreateShaderParameters(FRDGBuild
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->SceneTextures = SceneTextures;
 
-	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
+	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 
 	Parameters->BoundsMin = PhysicsFieldResource->BoundsMin.SRV;
 	Parameters->BoundsMax = PhysicsFieldResource->BoundsMax.SRV;

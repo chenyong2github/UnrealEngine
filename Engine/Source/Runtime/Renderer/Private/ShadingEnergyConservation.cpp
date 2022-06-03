@@ -148,7 +148,7 @@ static void AddShadingFurnacePass(
 		Parameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	}
 
-	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintUniformBuffer);
+	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
 
 	FPixelShaderUtils::AddFullscreenPass<FShadingFurnaceTestPassPS>(
 		GraphBuilder,

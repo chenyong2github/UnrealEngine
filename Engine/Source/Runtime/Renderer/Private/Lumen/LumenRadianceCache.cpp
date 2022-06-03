@@ -2159,7 +2159,7 @@ void UpdateRadianceCaches(
 				const int32 MaxNumProbes = RadianceCacheInputs.ProbeAtlasResolutionInProbes.X * RadianceCacheInputs.ProbeAtlasResolutionInProbes.Y;
 
 				FRadianceCacheUpdateStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRadianceCacheUpdateStatsCS::FParameters>();
-				ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);
+				ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintUniformBuffer);
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->PriorityHistogram = GraphBuilder.CreateSRV(PriorityHistogram[RadianceCacheIndex]);
 				PassParameters->MaxUpdateBucket = GraphBuilder.CreateSRV(MaxUpdateBucket[RadianceCacheIndex]);
