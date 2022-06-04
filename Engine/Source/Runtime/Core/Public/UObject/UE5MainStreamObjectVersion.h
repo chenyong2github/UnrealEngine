@@ -230,6 +230,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Moving all nodal offset handling to Lens Component
 		LensComponentNodalOffset,
 
+		// GPU none interpolated spawning no longer calls the update script
+		FixGpuAlwaysRunningUpdateScriptNoneInterpolated,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

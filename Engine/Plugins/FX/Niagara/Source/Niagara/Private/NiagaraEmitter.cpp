@@ -5,7 +5,7 @@
 
 #include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraCustomVersion.h"
-#include "NiagaraCustomVersionUEMain.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraModule.h"
 #include "NiagaraRenderer.h"
@@ -518,7 +518,7 @@ void UNiagaraEmitter::Serialize(FArchive& Ar)
 #endif
 
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
-	Ar.UsingCustomVersion(FNiagaraCustomVersionUEMain::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 }
 
 void FVersionedNiagaraEmitterData::EnsureScriptsPostLoaded()
@@ -619,7 +619,7 @@ void UNiagaraEmitter::PostLoad()
 	}
 #endif
 
-	const int32 NiagaraVerUE5Main = GetLinkerCustomVersion(FNiagaraCustomVersionUEMain::GUID);
+	const int32 UE5MainVer = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	for (FVersionedNiagaraEmitterData& Data : VersionData)
 	{
@@ -627,7 +627,7 @@ void UNiagaraEmitter::PostLoad()
 		Data.PostLoad(*this, IsCooked);
 		Data.GPUComputeScript->OnGPUScriptCompiled().RemoveAll(this);
 		Data.GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
-		if (NiagaraVerUE5Main < FNiagaraCustomVersionUEMain::FixGpuAlwaysRunningUpdateScriptNoneInterpolated)
+		if (UE5MainVer < FUE5MainStreamObjectVersion::FixGpuAlwaysRunningUpdateScriptNoneInterpolated)
 		{
 			if ( Data.SimTarget == ENiagaraSimTarget::GPUComputeSim )
 			{
