@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
@@ -450,7 +451,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ArgumentsArray">Command line arguments</param>
 		/// <returns>Zero on success, non-zero on error</returns>
-		private static int Main(string[] ArgumentsArray)
+		private static async Task<int> Main(string[] ArgumentsArray)
 		{
 			FileReference? RunFile = null;
 			SingleInstanceMutex? Mutex = null;
@@ -504,6 +505,9 @@ namespace UnrealBuildTool
 
 				// Add all the default event matchers from the UBT assembly
 				Log.EventParser.AddMatchersFromAssembly(Assembly.GetExecutingAssembly());
+
+				// Read all the ignore patterns
+				await Log.EventParser.ReadIgnorePatternsAsync(Unreal.EngineDirectory);
 
 				// Configure the progress writer
 				ProgressWriter.bWriteMarkup = Options.bWriteProgressMarkup;

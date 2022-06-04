@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
@@ -143,6 +144,84 @@ namespace EpicGames.Core
 					_logger.LogDebug("Adding event matcher: {Type}", type.Name);
 					ILogEventMatcher matcher = (ILogEventMatcher)Activator.CreateInstance(type)!;
 					Matchers.Add(matcher);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Read ignore patterns from the given root directory
+		/// </summary>
+		/// <param name="rootDir"></param>
+		/// <returns></returns>
+		public async Task ReadIgnorePatternsAsync(DirectoryReference rootDir)
+		{
+			Stopwatch timer = Stopwatch.StartNew();
+
+			List<DirectoryReference> baseDirs = new List<DirectoryReference>();
+			baseDirs.Add(rootDir);
+			AddRestrictedDirs(baseDirs, "Restricted");
+			AddRestrictedDirs(baseDirs, "Platforms");
+
+			List<(FileReference, Task)> tasks = new List<(FileReference, Task)>();
+			foreach (DirectoryReference baseDir in baseDirs)
+			{
+				FileReference ignorePatternFile = FileReference.Combine(baseDir, "Build", "Horde", "IgnorePatterns.txt");
+				if (FileReference.Exists(ignorePatternFile))
+				{
+					_logger.LogDebug("Reading ignore patterns from {File}...", ignorePatternFile);
+					tasks.Add((ignorePatternFile, ReadIgnorePatternsAsync(ignorePatternFile)));
+				}
+			}
+
+			foreach ((FileReference file, Task task) in tasks)
+			{
+				try
+				{
+					await task;
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Exception reading patterns from {File}: {Message}", file, ex.Message);
+				}
+			}
+
+			_logger.LogDebug("Took {TimeMs}ms to read ignore patterns", timer.ElapsedMilliseconds);
+		}
+
+		/// <summary>
+		/// Read ignore patterns from a single file
+		/// </summary>
+		/// <param name="ignorePatternFile"></param>
+		/// <returns></returns>
+		public async Task ReadIgnorePatternsAsync(FileReference ignorePatternFile)
+		{
+			string[] lines = await FileReference.ReadAllLinesAsync(ignorePatternFile);
+
+			List<Regex> patterns = new List<Regex>();
+			foreach (string line in lines)
+			{
+				string trimLine = line.Trim();
+				if (trimLine.Length > 0 && trimLine[0] != '#')
+				{
+					patterns.Add(new Regex(trimLine));
+				}
+			}
+
+			lock (IgnorePatterns)
+			{
+				IgnorePatterns.AddRange(patterns);
+			}
+		}
+
+		static void AddRestrictedDirs(List<DirectoryReference> directories, string subFolder)
+		{
+			int numDirs = directories.Count;
+			for (int idx = 0; idx < numDirs; idx++)
+			{
+				DirectoryReference subDir = DirectoryReference.Combine(directories[idx], subFolder);
+				if (DirectoryReference.Exists(subDir))
+				{
+					directories.AddRange(DirectoryReference.EnumerateDirectories(subDir));
 				}
 			}
 		}
