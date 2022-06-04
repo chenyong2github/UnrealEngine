@@ -71,7 +71,6 @@ void SReferenceNode::UpdateGraphNode()
 		IconBrush = GraphNode->GetIconAndTint(IconColor).GetOptionalIcon();
 	}
 
-
 	TSharedRef<SWidget> ThumbnailWidget = SNullWidget::NullWidget;
 	UEdGraphNode_Reference* RefGraphNode = CastChecked<UEdGraphNode_Reference>(GraphNode);
 	bool bIsADuplicate = RefGraphNode->IsADuplicate();
@@ -84,6 +83,7 @@ void SReferenceNode::UpdateGraphNode()
 		FAssetThumbnailConfig ThumbnailConfig;
 		ThumbnailConfig.bAllowFadeIn = RefGraphNode->UsesThumbnail();
 		ThumbnailConfig.bForceGenericThumbnail = !RefGraphNode->UsesThumbnail();
+		ThumbnailConfig.AssetTypeColorOverride = FLinearColor::Transparent;
 
 		ThumbnailWidget =
 			SNew(SBox)

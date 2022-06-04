@@ -55,20 +55,29 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 	bIsPackage = true;
 	bAllowThumbnail = bInAllowThumbnail;
 	bIsADuplicate = bInIsADuplicate;
-	
+
 	FPrimaryAssetId PrimaryAssetID = NewIdentifiers[0].GetPrimaryAssetId();
-	if (PrimaryAssetID.IsValid())
+	if (PrimaryAssetID.IsValid())  // Management References (PrimaryAssetIDs)
 	{
 		MainAssetName = PrimaryAssetID.PrimaryAssetName.ToString();
 		AssetTypeName = PrimaryAssetID.PrimaryAssetType.ToString();
 		bIsPackage = false;
 		bIsPrimaryAsset = true;
 	}
-	else if (NewIdentifiers[0].IsValue())
+	else if (First.IsValue()) // Searchable Names (GamePlay Tags)
 	{
 		MainAssetName = First.ValueName.ToString();
 		AssetTypeName = First.ObjectName.ToString();
 		bIsPackage = false;
+	}
+	else if (First.IsPackage() && !InAssetData.IsValid()) 
+	{
+		const FString PackageNameStr = Identifiers[0].PackageName.ToString();
+		if ( PackageNameStr.StartsWith(TEXT("/Script")) )// Native Packages (/Script Code)
+		{
+			MainAssetName = PackageNameStr.RightChop(8);
+			AssetTypeName = TEXT("Script");
+		}
 	}
 
 	if (NewIdentifiers.Num() == 1 )
@@ -246,6 +255,7 @@ void UEdGraphNode_Reference::CacheAssetData(const FAssetData& AssetData)
 			{
 				if ( PackageNameStr.StartsWith(TEXT("/Script")) )
 				{
+					// Used Only in the UI for the Thumbnail
 					CachedAssetData.AssetClassPath = FTopLevelAssetPath(TEXT("/EdGraphNode_Reference"), TEXT("Code"));
 				}
 				else
@@ -254,6 +264,7 @@ void UEdGraphNode_Reference::CacheAssetData(const FAssetData& AssetData)
 					const bool bIsMapPackage = FPlatformFileManager::Get().GetPlatformFile().FileExists(*PotentiallyMapFilename);
 					if ( bIsMapPackage )
 					{
+						// Used Only in the UI for the Thumbnail
 						CachedAssetData.AssetClassPath = TEXT("/Script/Engine.World");
 					}
 				}

@@ -662,7 +662,7 @@ private:
 			return GetDisplayNameForClass( Class, &AssetData );
 		}
 
-		return FText::FromString(AssetClass.ToString());
+		return FText::FromString(AssetClass.GetAssetName().ToString());
 	}
 
 	FText GetAssetDisplayName() const
