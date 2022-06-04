@@ -1962,15 +1962,17 @@ void UGeometryCollectionComponent::OnRegister()
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::OnRegister()[%p]"), this,RestCollection );
 	ResetDynamicCollection();
-	
-	if (ensureMsgf(ClusterGroupIndex != 0, TEXT("Replication with cluster groups is not supported - disabling replication")))
+
+	bool bIsReplicated = false;
+	const bool bHasClusterGroup = (ClusterGroupIndex != 0);
+	if (bEnableReplication)
 	{
-		SetIsReplicated(false);	
+		if (ensureMsgf(!bHasClusterGroup, TEXT("Replication with cluster groups is not supported - disabling replication")))
+		{
+			bIsReplicated = true; 
+		}
 	}
-	else
-	{
-		SetIsReplicated(bEnableReplication);	
-	}
+	SetIsReplicated(bIsReplicated);
 
 	InitializeEmbeddedGeometry();
 
