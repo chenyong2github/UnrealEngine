@@ -103,6 +103,19 @@ void UInputComponent::OnInputOwnerEndPlayed(AActor* InOwner, EEndPlayReason::Typ
 	}
 }
 
+void UInputComponent::ClearBindingsForObject(UObject* InOwner)
+{
+	for (int32 Index = CachedKeyToActionInfo.Num() - 1; Index >= 0; --Index)
+	{
+		FCachedKeyToActionInfo& CachedInfo = CachedKeyToActionInfo[Index];
+		const UPlayerInput* CachedInput = CachedInfo.PlayerInput.Get();
+		if (CachedInput && CachedInput->GetTypedOuter<UObject>() == InOwner)
+		{
+			CachedKeyToActionInfo.RemoveAtSwap(Index, 1, false);
+		}
+	}
+}
+
 void UInputComponent::GetActionsBoundToKey(UPlayerInput* PlayerInput, const FKey Key, TArray<TSharedPtr<FInputActionBinding>>& Actions) const
 {
 	for (const FCachedKeyToActionInfo& CachedInfo : CachedKeyToActionInfo)
