@@ -125,8 +125,6 @@ protected:
 
 	void SetActiveCommandExecutor(const FName InExecName);
 
-	void MakeNextCommandExecutorActive();
-
 	FText GetActiveCommandExecutorDisplayName() const;
 
 	FText GetActiveCommandExecutorHintText() const;

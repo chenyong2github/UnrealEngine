@@ -28,7 +28,6 @@
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "OutputLogModule.h"
-#include "Toolkits/GlobalEditorCommonCommands.h"
 #include "Widgets/Text/SlateEditableTextTypes.h"
 #include "OutputLogSettings.h"
 #include "OutputLogStyle.h"
@@ -460,9 +459,6 @@ FReply SConsoleInputBox::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKe
 	}
 	else
 	{
-		const TSharedRef<const FInputChord> SelectNextExecutorChord = FGlobalEditorCommonCommands::Get().SelectNextConsoleExecutor->GetActiveChord(EMultipleKeyBindingIndex::Primary);
-		EModifierKey::Type SelectNextExecutorModiferKey = EModifierKey::FromBools(SelectNextExecutorChord->bCtrl, SelectNextExecutorChord->bAlt, SelectNextExecutorChord->bShift, SelectNextExecutorChord->bCmd);
-
 		if(KeyEvent.GetKey() == EKeys::Up)
 		{
 			// If the command field isn't empty we need you to have pressed Control+Up to summon the history (to make sure you're not just using caret navigation)
@@ -510,11 +506,6 @@ FReply SConsoleInputBox::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKe
 				ClearSuggestions();
 			}
 
-			return FReply::Handled();
-		}
-		else if (KeyEvent.GetKey() == SelectNextExecutorChord->Key && KeyEvent.GetModifierKeys().AreModifersDown(SelectNextExecutorModiferKey))
-		{
-			MakeNextCommandExecutorActive();
 			return FReply::Handled();
 		}
 	}
@@ -667,28 +658,6 @@ bool SConsoleInputBox::GetActiveCommandExecutorAllowMultiLine() const
 bool SConsoleInputBox::IsCommandExecutorMenuEnabled() const
 {
 	return !ConsoleCommandCustomExec.IsBound(); // custom execs always show the default executor in the UI (which has the selector disabled)
-}
-
-void SConsoleInputBox::MakeNextCommandExecutorActive()
-{
-	// Sorted so the iteration order matches the displayed order.
-	TArray<IConsoleCommandExecutor*> CommandExecutors = IModularFeatures::Get().GetModularFeatureImplementations<IConsoleCommandExecutor>(IConsoleCommandExecutor::ModularFeatureName());
-	CommandExecutors.Sort([](IConsoleCommandExecutor& LHS, IConsoleCommandExecutor& RHS)
-		{
-			return LHS.GetDisplayName().CompareTo(RHS.GetDisplayName()) < 0;
-		});
-
-	int32 CurrentIndex = CommandExecutors.IndexOfByKey(ActiveCommandExecutor);
-	if (CurrentIndex >= 0)
-	{
-		CurrentIndex++;
-		if (CurrentIndex >= CommandExecutors.Num())
-		{
-			CurrentIndex = 0;
-		}
-
-		SetActiveCommandExecutor(CommandExecutors[CurrentIndex]->GetName());
-	}
 }
 
 TSharedRef<SWidget> SConsoleInputBox::GetCommandExecutorMenuContent()
