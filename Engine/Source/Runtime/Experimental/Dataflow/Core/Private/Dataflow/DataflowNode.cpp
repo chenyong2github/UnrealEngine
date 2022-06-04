@@ -4,6 +4,7 @@
 
 #include "Dataflow/DataflowNode.h"
 #include "Dataflow/DataflowProperty.h"
+#include "Dataflow/DataflowArchive.h"
 
 namespace Dataflow
 {
@@ -118,38 +119,23 @@ namespace Dataflow
 				Type = (uint8)Prop->GetType();
 				StrName = Prop->GetName().ToString();
 				PropertySizeOf = Prop->SizeOf();
-				Ar << Type << StrName << PropertySizeOf;
+				Ar << Type << StrName;
 
-				// The following code serializes the size of the PropertyData to serialize so that when loading,
-				// we can skip over it if the function could not be loaded.
-				// Serialize a temporary value for the delta in order to end up with an archive of the right size.
-				// Then serialize the PropertyData in order to get its size.
-				const int64 PropertyDataSizePos = Ar.Tell();
-				PropertyDataSize = 0;
-				Ar << PropertyDataSize;
-
-				const int64 PropBegin = Ar.Tell();
-				Prop->Serialize(Ar);
-
-				// Only go back and serialize the number of argument bytes if there is actually an underlying buffer to seek to.
-				// Come back to the temporary value we wrote and overwrite it with the PropertyData size we just calculated.
-				// And finally seek back to the end.
-				if (PropertyDataSizePos != INDEX_NONE)
+				DATAFLOW_OPTIONAL_BLOCK_WRITE_BEGIN()
 				{
-					const int64 PropEnd = Ar.Tell();
-					PropertyDataSize = (PropEnd - PropBegin);
-					Ar.Seek(PropertyDataSizePos);
-					Ar << PropertyDataSize;
-					Ar.Seek(PropEnd);
+					Prop->Serialize(Ar);
 				}
+				DATAFLOW_OPTIONAL_BLOCK_WRITE_END()
+
 			}
 			else if (Ar.IsLoading())
 			{
 
-				Ar << Type << StrName << PropertySizeOf << PropertyDataSize;
+				Ar << Type << StrName;
 				FName PropName(StrName);
 
-				if (FProperty* NewProperty = FProperty::NewProperty((FProperty::EType)Type, PropName))
+				FProperty* NewProperty = FProperty::NewProperty((FProperty::EType)Type, PropName);
+				DATAFLOW_OPTIONAL_BLOCK_READ_BEGIN(NewProperty != nullptr)
 				{
 					if (Map.Contains(PropName) && Map[PropName]->GetType() == (FProperty::EType)Type)
 					{
@@ -170,10 +156,11 @@ namespace Dataflow
 						}
 					}
 				}
-				else
+				DATAFLOW_OPTIONAL_BLOCK_READ_ELSE()
 				{
-					Ar.Seek(Ar.Tell() + PropertyDataSize);
+					// Silently skip
 				}
+				DATAFLOW_OPTIONAL_BLOCK_READ_END()
 			}
 		}
 	}
