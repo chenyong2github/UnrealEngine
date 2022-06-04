@@ -205,8 +205,9 @@ class AddnDisplayDialog(AddDeviceDialog):
             ''' Returns the asset if it is an nDisplay config '''
             with open(asset['path'], 'rb') as file:
                 aparser = UassetParser(file, allowUnversioned=True)
+                validConfigClassNames = ('DisplayClusterBlueprint','/Script/DisplayCluster.DisplayClusterBlueprint')
                 for assetdata in aparser.aregdata:
-                    if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
+                    if assetdata.ObjectClassName in validConfigClassNames:
                         return asset
             raise ValueError
 
