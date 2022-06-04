@@ -353,8 +353,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = PreviewSettings)
 	FVector SourceMeshOffset;
 
-	/** The visual size of the bones in the viewport when editing the retarget pose.*/
-	UPROPERTY(EditAnywhere, Category = PreviewSettings, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
+	/** The visual size of the bones in the viewport (saved between sessions). This is set from the viewport Character>Bones menu*/
+	UPROPERTY()
 	float BoneDrawSize = 8.0f;
 	
 private:

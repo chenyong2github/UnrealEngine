@@ -162,6 +162,45 @@ protected:
 	TWeakPtr<SAnimationEditorViewportTabBody> AnimViewportPtr;
 };
 
+//Class definition which represents widget to modify Bone Draw Size in viewport
+class SBoneDrawSizeSetting : public SCompoundWidget
+{
+	
+public:
+
+	SLATE_BEGIN_ARGS(SBoneDrawSizeSetting) {}
+	SLATE_ARGUMENT(TWeakPtr<SAnimationEditorViewportTabBody>, AnimEditorViewport)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs )
+	{
+		AnimViewportPtr = InArgs._AnimEditorViewport;
+
+		this->ChildSlot
+		[
+			SNew(SBox)
+			.HAlign(HAlign_Right)
+			[
+				SNew(SBox)
+				.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+				.WidthOverride(100.0f)
+				[
+					SNew(SSpinBox<float>)
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.ToolTipText(LOCTEXT("BoneDrawSize_ToolTip", "Change bone size in viewport."))
+					.MinValue(0)
+					.MaxValue(10)
+					.Value(AnimViewportPtr.Pin().ToSharedRef(), &SAnimationEditorViewportTabBody::GetBoneDrawSize)
+					.OnValueChanged(SSpinBox<float>::FOnValueChanged::CreateSP(AnimViewportPtr.Pin().ToSharedRef(), &SAnimationEditorViewportTabBody::SetBoneDrawSize))
+				]
+			]
+		];
+	}
+
+protected:
+	TWeakPtr<SAnimationEditorViewportTabBody> AnimViewportPtr;
+};
+
 ///////////////////////////////////////////////////////////
 // SAnimViewportToolBar
 
@@ -694,7 +733,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 			InMenuBuilder.AddSubMenu(
 				LOCTEXT("CharacterMenu_BoneDrawSubMenu", "Bones"),
 				LOCTEXT("CharacterMenu_BoneDrawSubMenuToolTip", "Bone Drawing Options"),
-				FNewMenuDelegate::CreateLambda([](FMenuBuilder& SubMenuBuilder)
+				FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
 				{
 					SubMenuBuilder.BeginSection("BonesAndSockets", LOCTEXT("CharacterMenu_BonesAndSocketsLabel", "Show"));
 					{
@@ -706,6 +745,8 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 
 					SubMenuBuilder.BeginSection("AnimViewportPreviewHierarchyBoneDraw", LOCTEXT("CharacterMenu_Actions_BoneDrawing", "Bone Drawing"));
 					{
+						TSharedPtr<SWidget> BoneSizeWidget = SNew(SBoneDrawSizeSetting).AnimEditorViewport(Viewport);
+						SubMenuBuilder.AddWidget(BoneSizeWidget.ToSharedRef(), LOCTEXT("CharacterMenu_Actions_BoneDrawSize", "Bone Draw Size:"));
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBoneDrawAll);
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBoneDrawSelected);
 						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ShowBoneDrawSelectedAndParents);

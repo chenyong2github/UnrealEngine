@@ -7,9 +7,11 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "Input/Reply.h"
+#include "Retargeter/IKRetargetProcessor.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SWindow.h"
 
+class SIKRetargetHierarchy;
 class SIKRigOutputLog;
 class UIKRetargetProcessor;
 class SIKRetargetChainMapList;
@@ -17,6 +19,28 @@ class UIKRetargetAnimInstance;
 class FIKRetargetEditor;
 class UDebugSkelMeshComponent;
 class UIKRigDefinition;
+
+// which skeleton are we editing/viewing?
+enum class EIKRetargetSkeletonMode : uint8
+{
+	/** Editing / viewing the SOURCE skeleton (copy FROM) */
+	Source,
+
+	/** Editing / viewing the TARGET skeleton (copy TO) */
+	Target,
+};
+
+enum class EBoneSelectionEdit : uint8
+{
+	/** add to selection set */
+	Add,
+
+	/** remove from selection */
+	Remove,
+
+	/** replace selection entirely*/
+	Replace
+};
 
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */
 class FIKRetargetEditorController : public TSharedFromThis<FIKRetargetEditorController>
@@ -34,7 +58,7 @@ public:
 	/** callback when IK Rig asset's retarget chain has been removed */
 	void OnRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const;
 	/** callback when IK Retargeter asset requires reinitialization */
-	void OnRetargeterNeedsInitialized(const UIKRetargeter* Retargeter) const;
+	void OnRetargeterNeedsInitialized(UIKRetargeter* Retargeter) const;
 	
 	/** all modifications to the data model should go through this controller */
 	UIKRetargeterController* AssetController;
@@ -55,8 +79,6 @@ public:
 	UPROPERTY(transient, NonTransactional)
 	TWeakObjectPtr<class UIKRetargetAnimInstance> TargetAnimInstance;
 
-	void AddOffsetAndUpdatePreviewMeshPosition(const FVector& Offset, USceneComponent* Component) const;
-
 	/** asset properties tab */
 	TSharedPtr<IDetailsView> DetailsView;
 	/** chain list view */
@@ -65,6 +87,8 @@ public:
 	TSharedPtr<SIKRetargetAssetBrowser> AssetBrowserView;
 	/** output log view */
 	TSharedPtr<SIKRigOutputLog> OutputLogView;
+	/** hierarchy view */
+	TSharedPtr<SIKRetargetHierarchy> HierarchyView;
 	/** clear the output log */
 	void ClearOutputLog() const;
 	/** force refresh all views in the editor */
@@ -78,19 +102,26 @@ public:
 	const USkeleton* GetSourceSkeleton() const;
 	/** get the target skeleton asset */
 	const USkeleton* GetTargetSkeleton() const;
-
-	/** get list of currently selected bones */
-	const TArray<FName>& GetSelectedBones() const;
+	/** get currently edited debug skeletal mesh */
+	UDebugSkelMeshComponent* GetEditedSkeletalMesh() const;
 	
-	/** get current chain pose */
-	FTransform GetTargetBoneGlobalTransform(const UIKRetargetProcessor* RetargetProcessor, const int32& TargetBoneIndex) const;
+	/** get world space pose of a bone (with component scale / offset applied) */
+	FTransform GetGlobalRetargetPoseOfBone(
+		const FRetargetSkeleton& Skeleton,
+		const int32& BoneIndex,
+		const float& Scale,
+		const FVector& Offset) const;
+
 	FTransform GetTargetBoneLocalTransform(const UIKRetargetProcessor* RetargetProcessor, const int32& TargetBoneIndex) const;
-	/** get the line segments to draw from this bone to each child */
-	bool GetTargetBoneLineSegments(
-		const UIKRetargetProcessor* RetargetProcessor,
-		const int32& TargetBoneIndex,
-		FVector& OutStart,
-		TArray<FVector>& OutChildren) const;
+	
+	/** get world space positions of all immediate children of bone (with component scale / offset applied) */
+	static void GetGlobalRetargetPoseOfImmediateChildren(
+		const FRetargetSkeleton& RetargetSkeleton,
+		const int32& BoneIndex,
+		const float& Scale,
+		const FVector& Offset,
+		TArray<int32>& OutChildrenIndices,
+		TArray<FVector>& OutChildrenPositions);
 
 	/** get the retargeter that is running in the viewport (which is a duplicate of the source asset) */
 	UIKRetargetProcessor* GetRetargetProcessor() const;
@@ -106,6 +137,22 @@ public:
 	UAnimationAsset* AnimThatWasPlaying = nullptr;
 	bool bWasPlayingAnim = false;
 	/** END viewport / editor tool mode */
+	
+	/** general editor mode can be either viewing/editing source or target */
+	EIKRetargetSkeletonMode GetSkeletonMode() const { return SkeletonMode; };
+	void SetSkeletonMode(EIKRetargetSkeletonMode Mode);
+
+	/** bone selection management (viewport or hierarchy view) */
+	void EditBoneSelection(
+		const TArray<FName>& InBoneNames,
+		EBoneSelectionEdit EditMode,
+		const bool bFromHierarchyView);
+	void ClearSelection();
+	const TArray<FName>& GetSelectedBones() const {return SelectedBones; };
+	/** mesh selection management (viewport view) */
+	void SetSelectedMesh(UPrimitiveComponent* InComponent);
+	UPrimitiveComponent* GetSelectedMesh();
+	void AddOffsetToMeshComponent(const FVector& Offset, USceneComponent* MeshComponent) const;
 
 	/* START RETARGET POSES */
 	
@@ -172,4 +219,15 @@ public:
 	TSharedPtr<SEditableTextBox> NewNameEditableText;
 	
 	/* END RETARGET POSES */
+
+private:
+	
+	/** which skeleton are we editing / viewing? */
+	EIKRetargetSkeletonMode SkeletonMode;
+
+	/** current selection set */
+	TArray<FName> SelectedBones;
+
+	/** currently selected mesh */
+	UPrimitiveComponent* SelectedMesh;
 };

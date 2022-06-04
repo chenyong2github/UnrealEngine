@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IKRetargetEditorController.h"
 
 #include "Retargeter/IKRetargeter.h"
 #include "IPersonaEditMode.h"
@@ -54,11 +55,13 @@ public:
 	/** END FEdMode interface */
 
 private:
-
-	TObjectPtr<UPrimitiveComponent> SelectedComponent;
+	
 	bool ComponentSelectionOverride(const UPrimitiveComponent* InComponent) const;
-	void SetSelectedComponent(UPrimitiveComponent* InComponent);
 	static void ApplyOffsetToMeshTransform(const FVector& Offset, USceneComponent* Component);
+
+	// the skeleton currently being edited
+	UDebugSkelMeshComponent* GetCurrentlyEditedMesh() const;
+	EIKRetargetSkeletonMode SkeletonMode;
 	
 	/** The hosting app */
 	TWeakPtr<FIKRetargetEditorController> EditorController;
@@ -68,3 +71,4 @@ private:
 
 	bool bIsInitialized = false;
 };
+

@@ -22,8 +22,6 @@ public:
 
 	UIKRetargetProcessor* GetRetargetProcessor() const;
 
-	void SetProcessorNeedsInitialized();
-
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 

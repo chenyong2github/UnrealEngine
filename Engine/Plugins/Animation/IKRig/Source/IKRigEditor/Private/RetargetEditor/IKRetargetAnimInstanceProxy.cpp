@@ -51,6 +51,9 @@ void FIKRetargetAnimInstanceProxy::SetRetargetAssetAndSourceComponent(
 	IKRetargetNode->bUseAttachedParent = false;
 	IKRetargetNode->SourceMeshComponent = InSourceMeshComponent;
 	IKRetargetNode->bDriveWithAsset = true;
-	IKRetargetNode->SetProcessorNeedsInitialized();
+	if (UIKRetargetProcessor* Processor = IKRetargetNode->GetRetargetProcessor())
+	{
+		Processor->SetNeedsInitialized();
+	}
 }
 

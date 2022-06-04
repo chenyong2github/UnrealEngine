@@ -28,6 +28,7 @@ FIKRigMode::FIKRigMode(
 	ViewportArgs.bShowStats = false;
 	ViewportArgs.bShowTurnTable = false;
 	ViewportArgs.ContextName = TEXT("IKRigEditor.Viewport");
+	ViewportArgs.OnViewportCreated = FOnViewportCreated::CreateSP(IKRigEditor, &FIKRigEditorToolkit::HandleViewportCreated);
 
 	// register Persona tabs
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");

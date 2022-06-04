@@ -2,6 +2,7 @@
 
 #include "RetargetEditor/IKRetargetEditor.h"
 
+#include "Persona/Private/AnimationEditorViewportClient.h"
 #include "AnimationEditorPreviewActor.h"
 #include "EditorModeManager.h"
 #include "GameFramework/WorldSettings.h"
@@ -12,6 +13,7 @@
 #include "ISkeletonEditorModule.h"
 #include "Preferences/PersonaOptions.h"
 #include "AnimCustomInstanceHelper.h"
+#include "IPersonaViewport.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -255,8 +257,8 @@ void FIKRetargetEditor::AddReferencedObjects(FReferenceCollector& Collector)
 void FIKRetargetEditor::Tick(float DeltaTime)
 {
 	// update with latest offsets
-	EditorController->AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, EditorController->SourceSkelMeshComponent);
-	EditorController->AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, EditorController->TargetSkelMeshComponent);
+	EditorController->AddOffsetToMeshComponent(FVector::ZeroVector, EditorController->SourceSkelMeshComponent);
+	EditorController->AddOffsetToMeshComponent(FVector::ZeroVector, EditorController->TargetSkelMeshComponent);
 
 	// retargeter IK planting must be reset when time is reversed or playback jumps ahead 
 	const float CurrentTime = EditorController->SourceAnimInstance->GetCurrentTime();
@@ -281,6 +283,33 @@ void FIKRetargetEditor::PostUndo(bool bSuccess)
 void FIKRetargetEditor::PostRedo(bool bSuccess)
 {
 	EditorController->OnRetargeterNeedsInitialized(EditorController->AssetController->GetAsset());
+}
+
+void FIKRetargetEditor::HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport)
+{
+	// register callbacks to allow the asset to store the Bone Size viewport setting
+	FEditorViewportClient& ViewportClient = InViewport->GetViewportClient();
+	if (FAnimationViewportClient* AnimViewportClient = static_cast<FAnimationViewportClient*>(&ViewportClient))
+	{
+		AnimViewportClient->OnSetBoneSize.BindLambda([this](float InBoneSize)
+		{
+			if (UIKRetargeter* Asset = EditorController->AssetController->GetAsset())
+			{
+				Asset->Modify();
+				Asset->BoneDrawSize = InBoneSize;
+			}
+		});
+		
+		AnimViewportClient->OnGetBoneSize.BindLambda([this]() -> float
+		{
+			if (const UIKRetargeter* Asset = EditorController->AssetController->GetAsset())
+			{
+				return Asset->BoneDrawSize;
+			}
+
+			return 1.0f;
+		});
+	}
 }
 
 void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)

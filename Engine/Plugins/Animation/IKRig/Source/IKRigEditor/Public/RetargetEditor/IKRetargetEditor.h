@@ -88,6 +88,7 @@ private:
 	/** END toolbar */
 	
 	/** preview scene setup */
+	void HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport);
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
 	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView);
 	void OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent);

@@ -786,7 +786,7 @@ TObjectPtr<UIKRigBoneDetails> FIKRigEditorController::CreateBoneDetails(const TS
 	}
 	
 	// create and store a new one
-	UIKRigBoneDetails* NewBoneDetails = NewObject<UIKRigBoneDetails>();
+	UIKRigBoneDetails* NewBoneDetails = NewObject<UIKRigBoneDetails>(AssetController->GetAsset(), FName(InBoneItem->BoneName), RF_Standalone | RF_Transient );
 	NewBoneDetails->SelectedBone = InBoneItem->BoneName;
 	NewBoneDetails->AnimInstancePtr = AnimInstance;
 	NewBoneDetails->AssetPtr = AssetController->GetAsset();

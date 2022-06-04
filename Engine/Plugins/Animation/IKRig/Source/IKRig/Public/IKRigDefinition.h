@@ -189,13 +189,9 @@ public:
 	TSoftObjectPtr<USkeletalMesh> PreviewSkeletalMesh;
 
 #if WITH_EDITORONLY_DATA
-
-	/**Draw bones in the viewport.*/
-	UPROPERTY(EditAnywhere, Category = "Viewport Bone Settings")
-	bool DrawBones = true;
 	
-	/**The size of the Bones in the editor viewport.*/
-	UPROPERTY(EditAnywhere, Category = "Viewport Bone Settings", meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "100.0"))
+	/**The size of the Bones in the editor viewport. This is set by callbacks from the viewport Character>Bones menu*/
+	UPROPERTY()
 	float BoneSize = 2.0f;
 
 	/**Draw bones in the viewport.*/

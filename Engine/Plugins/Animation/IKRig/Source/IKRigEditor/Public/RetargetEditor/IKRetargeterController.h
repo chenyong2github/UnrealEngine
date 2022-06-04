@@ -44,6 +44,10 @@ public:
 	USkeletalMesh* GetSourcePreviewMesh() const;
 	/** Get target skeletal mesh */
 	USkeletalMesh* GetTargetPreviewMesh() const;
+	/** Get source IK Rig asset */
+	const UIKRigDefinition* GetSourceIKRig() const;
+	/** Get source IK Rig asset */
+	const UIKRigDefinition* GetTargetIKRig() const;
 
 	/** Get name of the Root bone used for retargeting the Source skeleton. */
 	FName GetSourceRootBone() const;
@@ -106,7 +110,7 @@ public:
 private:
 	
 	/** Called whenever the retargeter is modified in such a way that would require re-initialization by dependent systems.*/
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRetargeterNeedsInitialized, const UIKRetargeter*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRetargeterNeedsInitialized, UIKRetargeter*);
 	FOnRetargeterNeedsInitialized RetargeterNeedsInitialized;
 	
 public:

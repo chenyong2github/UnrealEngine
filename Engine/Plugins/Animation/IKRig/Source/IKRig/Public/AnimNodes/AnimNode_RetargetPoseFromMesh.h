@@ -51,11 +51,6 @@ struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_Base interface
 
-#if WITH_EDITOR
-	/** Force reinitialization. */
-	void SetProcessorNeedsInitialized();
-#endif
-
 	/** Access to the runtime processor */
 	UIKRetargetProcessor* GetRetargetProcessor() const;
 

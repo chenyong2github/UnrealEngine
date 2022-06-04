@@ -126,6 +126,23 @@ FAnimationEditorPreviewScene::~FAnimationEditorPreviewScene()
 	}
 }
 
+TArray<UDebugSkelMeshComponent*> FAnimationEditorPreviewScene::GetAllPreviewMeshComponents() const
+{
+	TArray<UDebugSkelMeshComponent*> PreviewMeshComponents;
+	GetActor()->GetComponents(PreviewMeshComponents, true);
+	return PreviewMeshComponents;
+}
+
+void FAnimationEditorPreviewScene::ForEachPreviewMesh(TFunction<void (UDebugSkelMeshComponent*)> PerMeshFunction)
+{
+	TArray<UDebugSkelMeshComponent*> PreviewMeshComponents;
+	GetActor()->GetComponents(PreviewMeshComponents, true);
+	for (UDebugSkelMeshComponent* PreviewMesh : PreviewMeshComponents)
+	{
+		PerMeshFunction(PreviewMesh);
+	}
+}
+
 void FAnimationEditorPreviewScene::SetPreviewMeshComponent(UDebugSkelMeshComponent* InSkeletalMeshComponent) 
 {
 	SkeletalMeshComponent = InSkeletalMeshComponent; 

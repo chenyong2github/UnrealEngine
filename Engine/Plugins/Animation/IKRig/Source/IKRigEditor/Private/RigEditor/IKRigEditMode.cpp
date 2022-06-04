@@ -107,15 +107,16 @@ void FIKRigEditMode::RenderGoals(FPrimitiveDrawInterface* PDI)
 	{
 		return;
 	}
-	
+
 	TArray<UIKRigEffectorGoal*> Goals = AssetController->GetAllGoals();
 	for (const UIKRigEffectorGoal* Goal : Goals)
 	{
 		const bool bIsSelected = Controller->IsGoalSelected(Goal->GoalName);
 		const float Size = IKRigAsset->GoalSize * Goal->SizeMultiplier;
 		const float Thickness = IKRigAsset->GoalThickness * Goal->ThicknessMultiplier;
+		const FLinearColor Color = bIsSelected ? FLinearColor::Green : FLinearColor::Yellow;
 		PDI->SetHitProxy(new HIKRigEditorGoalProxy(Goal->GoalName));
-		IKRigDebugRendering::DrawGoal(PDI, Goal, bIsSelected, Size, Thickness);
+		IKRigDebugRendering::DrawWireCube(PDI, Goal->CurrentTransform, Color, Size, Thickness);
 		PDI->SetHitProxy(NULL);
 	}
 }
@@ -127,13 +128,6 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 	if (!Controller.IsValid())
 	{
 		return; 
-	}
-
-	const UIKRigController* AssetController = Controller->AssetController;
-	const UIKRigDefinition* IKRigAsset = AssetController->GetAsset();
-	if (!IKRigAsset->DrawBones)
-	{
-		return;
 	}
 
 	// anim instance initialized?
@@ -153,29 +147,28 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 		return;
 	}
 
+	// determine size to draw bones from preference stored on the asset
+	const float BoneRadius = FMath::Max(0.01f, Controller->AssetController->GetAsset()->BoneSize);
+
 	// get affected / selected bones
 	TSet<int32> OutAffectedBones;
 	TSet<int32> OutSelectedBones;
 	GetAffectedBones(Controller.Get(), CurrentProcessor,OutAffectedBones,OutSelectedBones);
 
-	// draw affected bones
+	// draw bones
 	TArray<int32> ChildrenIndices;
 	const FIKRigSkeleton& Skeleton = CurrentProcessor->GetSkeleton();
 	const TArray<FTransform>& BoneTransforms = Skeleton.CurrentPoseGlobal;
-	const float MaxDrawRadius = Controller->SkelMeshComponent->Bounds.SphereRadius * 0.01f;
 	for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
 	{
 		// selected bones are drawn with different color
 		const bool bIsSelected = OutSelectedBones.Contains(BoneIndex);
 		const bool bIsAffected = OutAffectedBones.Contains(BoneIndex);
-		FLinearColor LineColor = bIsAffected ? IKRigDebugRendering::AFFECTED_BONE_COLOR : IKRigDebugRendering::DESELECTED_BONE_COLOR;
-		LineColor = bIsSelected ? IKRigDebugRendering::SELECTED_BONE_COLOR : LineColor;
+		FLinearColor LineColor = bIsAffected ? SkeletalDebugRendering::AFFECTED_BONE_COLOR : SkeletalDebugRendering::DEFAULT_BONE_COLOR;
+		LineColor = bIsSelected ? SkeletalDebugRendering::SELECTED_BONE_COLOR : LineColor;
 
 		// only draw axes on affected/selected bones
 		const bool bDrawAxes = bIsSelected || bIsAffected;
-		
-		const float BoneRadiusSetting = IKRigAsset->BoneSize;
-		const float BoneRadius = FMath::Min(1.0f, MaxDrawRadius) * BoneRadiusSetting;
 		
 		// draw line from bone to each child
 		FTransform BoneTransform = BoneTransforms[BoneIndex];
@@ -186,11 +179,24 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 			ChildPoints.Add(BoneTransforms[ChildIndex].GetLocation());
 		}
 
+		// draw cone to parent with different color if child is selected
+		TArray<FLinearColor> ChildColors;
+		for (int32 ChildIndex : ChildrenIndices)
+		{
+			FLinearColor ChildLineColor = LineColor;
+			if (!bIsSelected && OutSelectedBones.Contains(ChildIndex))
+			{
+				ChildLineColor = SkeletalDebugRendering::PARENT_OF_SELECTED_BONE_COLOR;
+			}
+			ChildColors.Add(ChildLineColor);
+		}
+
 		PDI->SetHitProxy(new HIKRigEditorBoneProxy(Skeleton.BoneNames[BoneIndex]));
-		IKRigDebugRendering::DrawWireBone(
+		SkeletalDebugRendering::DrawWireBoneAdvanced(
 			PDI,
 			BoneTransform,
 			ChildPoints,
+			ChildColors,
 			LineColor,
 			SDPG_Foreground,
 			BoneRadius,

@@ -80,10 +80,6 @@ void FIKRetargeterDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			MakeToolbar(Commands)
 		]
 	];
-
-	// add the bone size slider
-	TSharedRef<IPropertyHandle> BoneSizeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UIKRetargeter, BoneDrawSize));
-	EditPoseCategoryBuilder.AddProperty(BoneSizeHandle);
 }
 
 TSharedRef<SWidget>  FIKRetargeterDetails::MakeToolbar(TSharedPtr<FUICommandList> Commands)

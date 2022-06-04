@@ -10,6 +10,7 @@
 
 #include "RetargetEditor/IKRetargetChainTabSummoner.h"
 #include "RetargetEditor/IKRetargetEditor.h"
+#include "RetargetEditor/IKRetargetHierarchyTabSummoner.h"
 #include "RetargetEditor/IKRetargetOutputLogTabSummoner.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargetMode"
@@ -28,6 +29,7 @@ FIKRetargetApplicationMode::FIKRetargetApplicationMode(
 	ViewportArgs.bShowStats = false;
 	ViewportArgs.bShowTurnTable = false;
 	ViewportArgs.ContextName = TEXT("IKRetargetEditor.Viewport");
+	ViewportArgs.OnViewportCreated = FOnViewportCreated::CreateSP(IKRetargetEditor, &FIKRetargetEditor::HandleViewportCreated);
 
 	// register Persona tabs
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
@@ -38,9 +40,10 @@ FIKRetargetApplicationMode::FIKRetargetApplicationMode(
 	TabFactories.RegisterFactory(MakeShared<FIKRetargetChainTabSummoner>(IKRetargetEditor));
 	TabFactories.RegisterFactory(MakeShared<FIKRetargetAssetBrowserTabSummoner>(IKRetargetEditor));
 	TabFactories.RegisterFactory(MakeShared<FIKRetargetOutputLogTabSummoner>(IKRetargetEditor));
+	TabFactories.RegisterFactory(MakeShared<FIKRetargetHierarchyTabSummoner>(IKRetargetEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.012")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.014")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -53,14 +56,27 @@ FIKRetargetApplicationMode::FIKRetargetApplicationMode(
 				->Split
 				(
 					FTabManager::NewSplitter()
-					->SetSizeCoefficient(0.9f)
+					->SetSizeCoefficient(0.8f)
 					->SetOrientation(Orient_Vertical)
 					->Split
 					(
+					FTabManager::NewSplitter()
+						//->SetSizeCoefficient(0.8f)
+						->SetOrientation(Orient_Horizontal)
+						->Split
+						(
+							FTabManager::NewStack()
+							->SetSizeCoefficient(0.2f)
+							->SetHideTabWell(true)
+							->AddTab(FIKRetargetHierarchyTabSummoner::TabID, ETabState::OpenedTab)
+						)
+						->Split
+						(
 						FTabManager::NewStack()
-						->SetSizeCoefficient(0.8f)
-						->SetHideTabWell(true)
-						->AddTab(FPersonaTabs::PreviewViewportID, ETabState::OpenedTab)
+							->SetSizeCoefficient(0.8f)
+							->SetHideTabWell(true)
+							->AddTab(FPersonaTabs::PreviewViewportID, ETabState::OpenedTab)
+						)
 					)
 					->Split
 					(

@@ -83,6 +83,12 @@ public:
 	/** Get the skeletal mesh component we are using for preview, if any. */
 	virtual UDebugSkelMeshComponent* GetPreviewMeshComponent() const = 0;
 
+	/** Get array of all skeletal mesh components in the preview scene. */
+	virtual TArray<UDebugSkelMeshComponent*> GetAllPreviewMeshComponents() const = 0;
+
+	/** Run a lambda function on each preview mesh in the scene */
+	virtual void ForEachPreviewMesh(TFunction<void (UDebugSkelMeshComponent*)> PerMeshFunction) = 0;
+
 	/** Set the skeletal mesh component we are going to preview. */
 	virtual void SetPreviewMeshComponent(UDebugSkelMeshComponent* InSkeletalMeshComponent) = 0;
 

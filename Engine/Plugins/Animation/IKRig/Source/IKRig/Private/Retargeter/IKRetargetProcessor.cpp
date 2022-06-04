@@ -11,7 +11,12 @@
 
 #define LOCTEXT_NAMESPACE "IKRetargetProcessor"
 
-void FRetargetSkeleton::Initialize(USkeletalMesh* InSkeletalMesh)
+// This is the default end of branch index value, meaning we haven't cached it yet
+#define RETARGETSKELETON_INVALID_BRANCH_INDEX -2
+
+void FRetargetSkeleton::Initialize(
+	USkeletalMesh* InSkeletalMesh,
+	const TArray<FBoneChain>& BoneChains)
 {	
 	// record which skeletal mesh this is running on
 	SkeletalMesh = InSkeletalMesh;
@@ -24,8 +29,26 @@ void FRetargetSkeleton::Initialize(USkeletalMesh* InSkeletalMesh)
 		ParentIndices.Add(RefSkeleton.GetParentIndex(BoneIndex));	
 	}
 
+	// determine set of bones referenced by one of the retarget bone chains
+	// this is the set of bones that will be affected by the retarget pose
+	IsBoneInAnyChain.Init(false, BoneNames.Num());
+	for (const FBoneChain& BoneChain : BoneChains)
+	{
+		TArray<int32> BonesInChain;
+		if (FResolvedBoneChain(BoneChain, *this, BonesInChain).IsValid())
+		{
+			for (const int32 BoneInChain : BonesInChain)
+			{
+				IsBoneInAnyChain[BoneInChain] = true;
+			}
+		}
+	}
+
 	// update retarget pose to reflect custom offsets
 	GenerateRetargetPose();
+
+	// initialize branch caching
+	CachedEndOfBranchIndices.Init(RETARGETSKELETON_INVALID_BRANCH_INDEX, ParentIndices.Num());
 }
 
 void FRetargetSkeleton::Reset()
@@ -129,11 +152,58 @@ FTransform FRetargetSkeleton::GetGlobalRefPoseOfSingleBone(
 	return ChildLocalTransform * ParentGlobalTransform;
 }
 
+int32 FRetargetSkeleton::GetCachedEndOfBranchIndex(const int32 InBoneIndex) const
+{
+	if (!CachedEndOfBranchIndices.IsValidIndex(InBoneIndex))
+	{
+		return INDEX_NONE;
+	}
+
+	// already cached
+	if (CachedEndOfBranchIndices[InBoneIndex] != RETARGETSKELETON_INVALID_BRANCH_INDEX)
+	{
+		return CachedEndOfBranchIndices[InBoneIndex];
+	}
+
+	const int32 NumBones = BoneNames.Num();
+	
+	// if we're asking for root's branch, get the last bone  
+	if (InBoneIndex == 0)
+	{
+		CachedEndOfBranchIndices[InBoneIndex] = NumBones-1;
+		return CachedEndOfBranchIndices[InBoneIndex];
+	}
+
+	CachedEndOfBranchIndices[InBoneIndex] = INDEX_NONE;
+	const int32 StartParentIndex = GetParentIndex(InBoneIndex);
+	int32 BoneIndex = InBoneIndex + 1;
+	int32 ParentIndex = GetParentIndex(BoneIndex);
+
+	// if next child bone's parent is less than or equal to StartParentIndex,
+	// we are leaving the branch so no need to go further
+	while (ParentIndex > StartParentIndex && BoneIndex < NumBones)
+	{
+		CachedEndOfBranchIndices[InBoneIndex] = BoneIndex;
+				
+		BoneIndex++;
+		ParentIndex = GetParentIndex(BoneIndex);
+	}
+
+	return CachedEndOfBranchIndices[InBoneIndex];
+}
+
 void FRetargetSkeleton::GetChildrenIndices(const int32 BoneIndex, TArray<int32>& OutChildren) const
 {
-	for (int32 ChildBoneIndex=0; ChildBoneIndex<ParentIndices.Num(); ++ChildBoneIndex)
+	const int32 LastBranchIndex = GetCachedEndOfBranchIndex(BoneIndex);
+	if (LastBranchIndex == INDEX_NONE)
 	{
-		if (ParentIndices[ChildBoneIndex] == BoneIndex)
+		// no children (leaf bone)
+		return;
+	}
+	
+	for (int32 ChildBoneIndex = BoneIndex + 1; ChildBoneIndex <= LastBranchIndex; ChildBoneIndex++)
+	{
+		if (GetParentIndex(ChildBoneIndex) == BoneIndex)
 		{
 			OutChildren.Add(ChildBoneIndex);
 		}
@@ -142,13 +212,16 @@ void FRetargetSkeleton::GetChildrenIndices(const int32 BoneIndex, TArray<int32>&
 
 void FRetargetSkeleton::GetChildrenIndicesRecursive(const int32 BoneIndex, TArray<int32>& OutChildren) const
 {
-	const int32 NumBones = BoneNames.Num();
-	for (int32 ChildIndex=BoneIndex+1; ChildIndex<NumBones; ++ChildIndex)
+	const int32 LastBranchIndex = GetCachedEndOfBranchIndex(BoneIndex);
+	if (LastBranchIndex == INDEX_NONE)
 	{
-		if (!OutChildren.Contains(ChildIndex) && IsParentOfChild(BoneIndex, ChildIndex))
-		{
-			OutChildren.Add(ChildIndex);
-		}
+		// no children (leaf bone)
+		return;
+	}
+	
+	for (int32 ChildBoneIndex = BoneIndex + 1; ChildBoneIndex <= LastBranchIndex; ChildBoneIndex++)
+	{
+		OutChildren.Add(ChildBoneIndex);
 	}
 }
 
@@ -170,7 +243,7 @@ bool FRetargetSkeleton::IsParentOfChild(const int32 PotentialParentIndex, const 
 
 int32 FRetargetSkeleton::GetParentIndex(const int32 BoneIndex) const
 {
-	if (BoneIndex < 0 || BoneIndex>ParentIndices.Num() || BoneIndex == INDEX_NONE)
+	if (BoneIndex < 0 || BoneIndex>=ParentIndices.Num() || BoneIndex == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
@@ -184,33 +257,18 @@ void FTargetSkeleton::Initialize(
 	const FName& RetargetRootBone,
 	const TArray<FBoneChain>& TargetChains)
 {
-	FRetargetSkeleton::Initialize(InSkeletalMesh);
-
-	// initialize storage for output pose (the result of the retargeting)
-	OutputGlobalPose = RetargetGlobalPose;
+	FRetargetSkeleton::Initialize(InSkeletalMesh, TargetChains);
 
 	// make storage for per-bone "Is Retargeted" flag (used for hierarchy updates)
 	// these are bones that are in a target chain that is mapped to a source chain (ie, will actually be retargeted)
 	// these flags are actually set later in init phase when bone chains are mapped together
-	IsBoneRetargeted.Init(false, OutputGlobalPose.Num());
+	IsBoneRetargeted.Init(false, BoneNames.Num());
 
-	// determine set of bones referenced by one of the target bone chains to be retargeted
-	// this is the set of bones that will be affected by the retarget pose
-	IsBoneInAnyTargetChain.Init(false, OutputGlobalPose.Num());
-	for (const FBoneChain& TargetChain : TargetChains)
-	{
-		TArray<int32> BonesInChain;
-		if (FResolvedBoneChain(TargetChain, *this, BonesInChain).IsValid())
-		{
-			for (int32 BoneInChain : BonesInChain)
-			{
-				IsBoneInAnyTargetChain[BoneInChain] = true;
-			}
-		}
-	}
+	// initialize storage for output pose (the result of the retargeting)
+	OutputGlobalPose = RetargetGlobalPose;
 
 	// generate the retarget pose (applies stored offsets)
-	// NOTE: this must be done AFTER generating IsBoneInAnyTargetChain array above
+	// NOTE: this must be done AFTER generating IsBoneInAnyTargetChain array above (FRetargetSkeleton::Initialize)
 	GenerateRetargetPose(RetargetPose, RetargetRootBone);
 }
 
@@ -248,7 +306,7 @@ void FTargetSkeleton::GenerateRetargetPose(const FIKRetargetPose* InRetargetPose
 			continue;
 		}
 
-		if (!IsBoneInAnyTargetChain[BoneIndex] && BoneIndex!=RootBoneIndex)
+		if (!IsBoneInAnyChain[BoneIndex] && BoneIndex!=RootBoneIndex)
 		{
 			// this can happen if a retarget pose includes bone edits from a bone chain that was subsequently removed,
 			// and the asset has not run through the "CleanChainMapping" operation yet (happens on load)
@@ -1245,7 +1303,7 @@ void UIKRetargetProcessor::Initialize(
 	}
 	
 	// initialize skeleton data for source and target
-	SourceSkeleton.Initialize(SourceSkeletalMesh);
+	SourceSkeleton.Initialize(SourceSkeletalMesh, RetargeterAsset->GetSourceIKRig()->GetRetargetChains());
 	TargetSkeleton.Initialize(
 		TargetSkeletalMesh,
 		RetargeterAsset->GetCurrentRetargetPose(),
@@ -1571,14 +1629,6 @@ void UIKRetargetProcessor::ResetPlanting()
 	{
 		ChainPair.IKChainRetargeter.ResetThisTick = true;
 	}
-}
-
-FTransform UIKRetargetProcessor::GetTargetBoneRetargetPoseGlobalTransform(const int32& TargetBoneIndex) const
-{
-	check(TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
-
-	// get the current retarget pose
-	return TargetSkeleton.RetargetGlobalPose[TargetBoneIndex];
 }
 
 FTransform UIKRetargetProcessor::GetTargetBoneRetargetPoseLocalTransform(const int32& TargetBoneIndex) const

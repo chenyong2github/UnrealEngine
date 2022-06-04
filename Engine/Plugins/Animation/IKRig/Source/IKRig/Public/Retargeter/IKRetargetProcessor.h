@@ -30,7 +30,14 @@ struct IKRIG_API FRetargetSkeleton
 	
 	USkeletalMesh* SkeletalMesh;
 
-	void Initialize(USkeletalMesh* InSkeletalMesh);
+	// true for bones that are in a retarget bone chain and thus are posed by a retarget pose
+	// the application of a retarget pose to a bone happens regardless of whether the chain is mapped or not
+	// (this must happen or else child chains may not end up in the correct retarget pose)
+	TArray<bool> IsBoneInAnyChain;
+
+	void Initialize(
+		USkeletalMesh* InSkeletalMesh,
+		const TArray<FBoneChain>& BoneChains);
 
 	void Reset();
 
@@ -64,11 +71,19 @@ struct IKRIG_API FRetargetSkeleton
 		const int32 BoneIndex,
 		const TArray<FTransform>& InGlobalPose) const;
 
+	int32 GetCachedEndOfBranchIndex(const int32 InBoneIndex) const;
+
 	void GetChildrenIndices(const int32 BoneIndex, TArray<int32>& OutChildren) const;
 
 	void GetChildrenIndicesRecursive(const int32 BoneIndex, TArray<int32>& OutChildren) const;
 	
 	bool IsParentOfChild(const int32 PotentialParentIndex, const int32 ChildBoneIndex) const;
+
+private:
+	
+	/** One index per-bone. Lazy-filled on request. Stores the last element of the branch below the bone.
+	 * You can iterate between in the indices stored here and the bone in question to iterate over all children recursively */
+	mutable TArray<int32> CachedEndOfBranchIndices;
 };
 
 struct FTargetSkeleton : public FRetargetSkeleton
@@ -77,9 +92,6 @@ struct FTargetSkeleton : public FRetargetSkeleton
 	// true for bones that are in a target chain that is ALSO mapped to a source chain
 	// ie, bones that are actually posed based on a mapped source chain
 	TArray<bool> IsBoneRetargeted;
-	// true for bones that are in a target chain and thus are posed by a retarget pose
-	// the application of a retarget pose to a bone happens regardless of whether they are mapped to a source chain or not
-	TArray<bool> IsBoneInAnyTargetChain;
 
 	void Initialize(
 		USkeletalMesh* InSkeletalMesh, 
@@ -483,24 +495,20 @@ public:
 	*/
 	TArray<FTransform>& RunRetargeter(const TArray<FTransform>& InSourceGlobalPose, const TMap<FName, float>& SpeedValuesFromCurves, const float DeltaTime);
 
-	/**
-	* Get the Global transform, in the currently used retarget pose, for a bone in the target skeletal mesh
-	* @param TargetBoneIndex - The index of a bone in the target skeleton.
-	* @return The Global space transform for the bone or Identity if bone not found.
-	* @warning This function is only valid to call after the retargeter has been initialized (which generates global retarget pose)
-	*/
-	FTransform GetTargetBoneRetargetPoseGlobalTransform(const int32& TargetBoneIndex) const;
-
+	
 	FTransform GetTargetBoneRetargetPoseLocalTransform(const int32& TargetBoneIndex) const;
 
 	/** Get read-only access to the target skeleton. */
 	const FTargetSkeleton& GetTargetSkeleton() const { return TargetSkeleton; };
 
-	/** Get index of the root bone of the target skeleton. */
-	const int32 GetTargetSkeletonRootBone() const { return RootRetargeter.Target.BoneIndex; };
-
 	/** Get read-only access to the source skeleton. */
 	const FRetargetSkeleton& GetSourceSkeleton() const { return SourceSkeleton; };
+
+	/** Get index of the root bone of the source skeleton. */
+	const int32 GetSourceRetargetRoot() const { return RootRetargeter.Source.BoneIndex; };
+
+	/** Get index of the root bone of the target skeleton. */
+	const int32 GetTargetRetargetRoot() const { return RootRetargeter.Target.BoneIndex; };
 	
 	/** Get whether this processor is ready to call RunRetargeter() and generate new poses. */
 	bool IsInitialized() const { return bIsInitialized; };

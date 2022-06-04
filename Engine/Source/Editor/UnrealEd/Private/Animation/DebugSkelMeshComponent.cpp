@@ -30,7 +30,6 @@
 UDebugSkelMeshComponent::UDebugSkelMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bDrawMesh = true;
 	PreviewInstance = NULL;
 	bDisplayRawAnimation = false;
 	bDisplayNonRetargetedPose = false;
@@ -45,8 +44,6 @@ UDebugSkelMeshComponent::UDebugSkelMeshComponent(const FObjectInitializer& Objec
 	bPerformSingleClothingTick = false;
 
 	bTrackAttachedInstanceLOD = false;
-
-	BoneRadiusMultiplier = 1.f;
 
 	WireframeMeshOverlayColor = FLinearColor(0.4f, 0.8f, 0.66f);
 	
@@ -1287,8 +1284,7 @@ void FDebugSkelMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 }
 
 FDebugSkelMeshDynamicData::FDebugSkelMeshDynamicData(UDebugSkelMeshComponent* InComponent)
-	: bDrawMesh(InComponent->bDrawMesh)
-	, bDrawNormals(InComponent->bDrawNormals)
+	: bDrawNormals(InComponent->bDrawNormals)
 	, bDrawTangents(InComponent->bDrawTangents)
 	, bDrawBinormals(InComponent->bDrawBinormals)
 	, bDrawClothPaintPreview(InComponent->bShowClothData)

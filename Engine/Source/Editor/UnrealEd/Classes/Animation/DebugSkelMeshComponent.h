@@ -145,21 +145,28 @@ private:
 	bool bSelectable;
 };
 
+/** Generic modes used to render debug skeletons depending on editor-specific context */
+UENUM()
+enum class ESkeletonDrawMode : uint8
+{
+	/** Bones are visible and selectable */
+	Default,
+
+	/** Bones are completely hidden */
+	Hidden,
+
+	/** Bones are visible but non-selectable */
+	GreyedOut
+};
+
 UCLASS(transient)
 class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 {
 	GENERATED_UCLASS_BODY()
-
-	/** If true, render a wireframe skeleton of the mesh animated with the raw (uncompressed) animation data. */
-	UPROPERTY()
-	uint32 bRenderRawSkeleton:1;
-
-	/** Holds onto the bone color that will be used to render the bones of its skeletal mesh */
-	//var Color		BoneColor;
 	
-	/** If true then the skeletal mesh associated with the component is drawn. */
+	/** Global drawing mode for this skeleton. Depends on context of specific editor using the component. */
 	UPROPERTY()
-	uint32 bDrawMesh:1;
+	ESkeletonDrawMode SkeletonDrawMode = ESkeletonDrawMode::Default;
 
 	/** If true then the bone names associated with the skeletal mesh are displayed */
 	UPROPERTY()

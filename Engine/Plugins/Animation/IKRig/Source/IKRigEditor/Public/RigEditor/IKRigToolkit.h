@@ -66,9 +66,10 @@ public:
 
 	TSharedRef<FIKRigEditorController> GetController() const {return EditorController;};
 
-	/** preview scene setup */
+	/** tab creation callbacks */
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
 	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView) const;
+	void HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport);
 	/** END preview scene setup */
 
 private:

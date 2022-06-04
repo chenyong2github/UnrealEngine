@@ -2,6 +2,7 @@
 
 #include "RigEditor/IKRigToolkit.h"
 
+#include "Persona/Private/AnimationEditorViewportClient.h"
 #include "AnimationEditorPreviewActor.h"
 #include "EditorModeManager.h"
 #include "GameFramework/WorldSettings.h"
@@ -16,6 +17,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "IKRigDefinition.h"
+#include "IPersonaViewport.h"
 #include "RigEditor/IKRigAnimInstance.h"
 #include "RigEditor/IKRigCommands.h"
 #include "RigEditor/IKRigEditMode.h"
@@ -192,6 +194,8 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	
 	// create the preview skeletal mesh component
 	EditorController->SkelMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
+	// turn off default bone rendering (we do our own in the IK Rig editor)
+	EditorController->SkelMeshComponent->SkeletonDrawMode = ESkeletonDrawMode::Hidden;
 
 	// setup an apply an anim instance to the skeletal mesh component
 	UIKRigAnimInstance* AnimInstance = NewObject<UIKRigAnimInstance>(EditorController->SkelMeshComponent, TEXT("IKRigAnimScriptInstance"));
@@ -218,6 +222,33 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 void FIKRigEditorToolkit::HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView) const
 {
 	EditorController->SetDetailsView(InDetailsView);
+}
+
+void FIKRigEditorToolkit::HandleViewportCreated(const TSharedRef<IPersonaViewport>& InViewport)
+{
+	// register callbacks to allow the asset to store the Bone Size viewport setting
+	FEditorViewportClient& ViewportClient = InViewport->GetViewportClient();
+	if (FAnimationViewportClient* AnimViewportClient = static_cast<FAnimationViewportClient*>(&ViewportClient))
+	{
+		AnimViewportClient->OnSetBoneSize.BindLambda([this](float InBoneSize)
+		{
+			if (UIKRigDefinition* Asset = EditorController->AssetController->GetAsset())
+			{
+				Asset->Modify();
+				Asset->BoneSize = InBoneSize;
+			}
+		});
+		
+		AnimViewportClient->OnGetBoneSize.BindLambda([this]() -> float
+		{
+			if (const UIKRigDefinition* Asset = EditorController->AssetController->GetAsset())
+			{
+				return Asset->BoneSize;
+			}
+
+			return 1.0f;
+		});
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

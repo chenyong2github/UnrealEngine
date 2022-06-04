@@ -20,6 +20,9 @@ class USkeletalMeshSocket;
 struct FCompactHeapPose;
 struct FSkelMeshRenderSection;
 
+DECLARE_DELEGATE_OneParam(FOnBoneSizeSet, float);
+DECLARE_DELEGATE_RetVal(float, FOnGetBoneSize)
+
 //////////////////////////////////////////////////////////////////////////
 // ELocalAxesMode
 
@@ -86,15 +89,15 @@ namespace EAnimationPlaybackSpeeds
 /////////////////////////////////////////////////////////////////////////
 // FAnimationViewportClient
 
-class FAnimationViewportClient : public FEditorViewportClient
+class PERSONA_API FAnimationViewportClient : public FEditorViewportClient
 {
 protected:
 
 	/** Function to display bone names*/
-	void ShowBoneNames(FCanvas* Canvas, FSceneView* View);
+	void ShowBoneNames(FCanvas* Canvas, FSceneView* View, UDebugSkelMeshComponent* MeshComponent);
 
 	/** Function to display transform attribute names*/
-	void ShowAttributeNames(FCanvas* Canvas, FSceneView* View);
+	void ShowAttributeNames(FCanvas* Canvas, FSceneView* View, UDebugSkelMeshComponent* MeshComponent) const;
 
 	/** Function to display debug lines generated from skeletal controls in animBP mode */
 	void DrawNodeDebugLines(TArray<FText>& Lines, FCanvas* Canvas, FSceneView* View);
@@ -130,7 +133,7 @@ public:
 	// End of FEditorViewportClient interface
 
 	/** Draw call to render UV overlay */
-	void DrawUVsForMesh(FViewport* InViewport, FCanvas* InCanvas, int32 InTextYPos);
+	void DrawUVsForMesh(FViewport* InViewport, FCanvas* InCanvas, int32 InTextYPos, UDebugSkelMeshComponent* MeshComponent);
 
 	/** Set the camera follow mode */
 	void SetCameraFollowMode(EAnimationViewportCameraFollowMode Mode, FName InBoneName = NAME_None);
@@ -160,7 +163,7 @@ public:
 	void HandleSkeletalMeshChanged(class USkeletalMesh* OldSkeletalMesh, class USkeletalMesh* NewSkeletalMesh);
 
 	/** Function to display bone names*/
-	void ShowBoneNames(FViewport* Viewport, FCanvas* Canvas);
+	void ShowBoneNames(FViewport* Viewport, FCanvas* Canvas, UDebugSkelMeshComponent* MeshComponent);
 
 	/** Function to enable/disable floor auto align */
 	void OnToggleAutoAlignFloor();
@@ -198,6 +201,10 @@ public:
 	/** Get the Bone local axis mode */
 	ELocalAxesMode::Type GetLocalAxesMode() const;
 
+	/** Access Bone Draw size config option*/
+	void SetBoneDrawSize(const float InBoneDrawSize);
+	float GetBoneDrawSize() const;
+	
 	/** Function to set Bone Draw  mode for the EBoneDrawType */
 	void SetBoneDrawMode(EBoneDrawMode::Type AxesMode);
 
@@ -317,6 +324,10 @@ public:
 	/** persona config options **/
 	UPersonaOptions* ConfigOption;
 
+	/** allow client code to store/serialize bone size if desired */
+	FOnBoneSizeSet OnSetBoneSize;
+	FOnGetBoneSize OnGetBoneSize;
+
 private:
 	/** Weak pointer back to the preview scene we are viewing */
 	TWeakPtr<class IPersonaPreviewScene> PreviewScenePtr;
@@ -393,7 +404,16 @@ private:
 	/** Draw Bones for non retargeted animation. */
 	void DrawMeshBonesBakedAnimation(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI) const;
 	/** Draws Bones for RequiredBones with WorldTransform **/
-	void DrawBones(const TArray<FBoneIndexType> & RequiredBones, const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> & WorldTransforms, const TArray<int32>& InSelectedBones, FPrimitiveDrawInterface* PDI, const TArray<FLinearColor>& BoneColours, float BoundRadius, float LineThickness = 0.f, bool bForceDraw = false, float InBoneRadius = 1.f) const;
+	void DrawBones(
+		const FVector& ComponentOrigin,
+		const TArray<FBoneIndexType>& RequiredBones,
+		const FReferenceSkeleton& RefSkeleton,
+		const TArray<FTransform>& WorldTransforms,
+		const TArray<int32>& InSelectedBones,
+		const TArray<FLinearColor>& BoneColors,
+		FPrimitiveDrawInterface* PDI,
+		bool bForceDraw,
+		bool bAddHitProxy) const;
 	/** Draw Sub set of Bones **/
 	void DrawMeshSubsetBones(const UDebugSkelMeshComponent* MeshComponent, const TArray<int32>& BonesOfInterest, FPrimitiveDrawInterface* PDI) const;
 
@@ -437,6 +457,9 @@ private:
 	void HandlePreviewScenePostTick();
 
 private:
+	/** Size to draw bones in the viewport. Transient setting. */
+	float BoneDrawSize=1.0f;
+	
 	/** Allow mesh stats to be disabled for specific viewport instances */
 	bool bShowMeshStats;
 

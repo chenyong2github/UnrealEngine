@@ -28,7 +28,4 @@ public:
 
 	/** Drawing options */
 	UPersonaOptions* ConfigOption = nullptr;
-
-	/** Flag to know if a bone is visible or not */
-	TArray<bool> BoneHasSelectedChild;
 };

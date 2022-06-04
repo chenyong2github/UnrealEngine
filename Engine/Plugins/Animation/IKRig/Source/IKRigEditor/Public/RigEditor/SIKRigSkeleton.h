@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorUndoClient.h"
+#include "SBaseHierarchyTreeView.h"
 #include "SIKRigRetargetChainList.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Widgets/SCompoundWidget.h"
@@ -100,90 +101,7 @@ public:
 	TWeakPtr<FIKRigTreeElement> Element;
 };
 
-class SIKRigSkeletonTreeView : public STreeView<TSharedPtr<FIKRigTreeElement>>
-{
-public:
-
-	virtual ~SIKRigSkeletonTreeView() {}
-
-	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override
-	{
-		FReply Reply = STreeView<TSharedPtr<FIKRigTreeElement>>::OnFocusReceived(MyGeometry, InFocusEvent);
-		LastClickCycles = FPlatformTime::Cycles();
-		return Reply;
-	}
-
-	/** Save a snapshot of items expansion and selection state */
-	void SaveAndClearState()
-	{
-		SaveAndClearSparseItemInfos();
-		SaveAndClearSelection();
-	}
-	
-	/** Restore items expansion and selection state from the saved snapshot after tree reconstruction */
-	void RestoreState(const TSharedPtr<FIKRigTreeElement>& ItemPtr)
-	{
-		RestoreSparseItemInfos(ItemPtr);
-		RestoreSelection(ItemPtr);
-	}
-
-	/** slow double-click rename state*/
-	uint32 LastClickCycles = 0;
-	TWeakPtr<FIKRigTreeElement> LastSelected;
-
-private:
-
-	/** Save a snapshot of the internal map that tracks item expansion before tree reconstruction */
-	void SaveAndClearSparseItemInfos()
-	{
-		OldSparseItemInfos = SparseItemInfos;
-		ClearExpandedItems();
-	}
-
-	/** Restore the expansion infos map from the saved snapshot after tree reconstruction */
-	void RestoreSparseItemInfos(const TSharedPtr<FIKRigTreeElement>& ItemPtr)
-	{
-		for (const TTuple<TSharedPtr<FIKRigTreeElement>, FSparseItemInfo>& Pair : OldSparseItemInfos)
-		{
-			if (Pair.Key->Key.EqualTo(ItemPtr->Key))
-			{
-				// the SparseItemInfos now reference the new element, but keep the same expansion state
-				SparseItemInfos.Add(ItemPtr, Pair.Value);
-				return;
-			}
-		}
-
-		// set default state as expanded if not found
-		SparseItemInfos.Add(ItemPtr, FSparseItemInfo(true, false));
-	}
-	
-	/** Save a snapshot of the internal set that tracks item selection before tree reconstruction */
-	void SaveAndClearSelection()
-	{
-		OldSelectedItems = SelectedItems;
-		ClearSelection();
-	}
-	
-	/** Restore the selection from the saved snapshot after tree reconstruction */
-	void RestoreSelection(const TSharedPtr<FIKRigTreeElement>& ItemPtr)
-	{
-		for (const TSharedPtr<FIKRigTreeElement>& OldItem : OldSelectedItems)
-		{
-			if (OldItem->Key.EqualTo(ItemPtr->Key))
-			{
-				// select the new element
-				SetItemSelection(ItemPtr, true, ESelectInfo::Direct);
-				return;
-			}
-		}
-	}
-	
-	/** A temporary snapshot of the SparseItemInfos in STreeView, used during SIKRigSkeleton::RefreshTreeView() */
-	TSparseItemMap OldSparseItemInfos;
-
-	/** A temporary snapshot of the SelectedItems in SListView, used during SIKRigSkeleton::RefreshTreeView() */
-	TItemSet OldSelectedItems;
-};
+typedef SBaseHierarchyTreeView<FIKRigTreeElement> SIKRigSkeletonTreeView;
 
 class SIKRigSkeleton : public SCompoundWidget, public FEditorUndoClient
 {

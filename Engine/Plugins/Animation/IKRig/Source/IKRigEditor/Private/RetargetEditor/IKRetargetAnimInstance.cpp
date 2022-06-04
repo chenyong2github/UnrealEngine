@@ -22,11 +22,6 @@ UIKRetargetProcessor* UIKRetargetAnimInstance::GetRetargetProcessor() const
 	return IKRetargeterNode.GetRetargetProcessor();
 }
 
-void UIKRetargetAnimInstance::SetProcessorNeedsInitialized()
-{
-	IKRetargeterNode.SetProcessorNeedsInitialized();
-}
-
 FAnimInstanceProxy* UIKRetargetAnimInstance::CreateAnimInstanceProxy()
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/IKRig"));

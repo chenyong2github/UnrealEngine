@@ -547,8 +547,6 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 			Compile();
 		}
 	}
-	
-	OnToolbarBoneRadiusChanged(InControlRigBlueprint->DebugBoneRadius);
 
 	FFunctionGraphTask::CreateAndDispatchWhenReady([this]()
 	{
@@ -1347,11 +1345,6 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 		bool bShouldExecute = (!bIsExternalControlRig) && bExecutionControlRig;
 		DebuggedControlRig->ControlRigLog = &ControlRigLog;
 		DebuggedControlRig->DynamicHierarchy->HierarchyForSelectionPtr = GetControlRigBlueprint()->Hierarchy;
-
-		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
-		{
-			DebuggedControlRig->DebugBoneRadiusMultiplier = RigBlueprint->DebugBoneRadius;
-		}
 
 		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
 		if (EditorSkelComp)
@@ -3646,27 +3639,6 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 					LOCTEXT("ControlRigAxesScale", "Axes Scale")
 				);
 
-				InMenuBuilder.AddWidget(
-					SNew(SBox)
-					.HAlign(HAlign_Right)
-					[
-						SNew(SBox)
-						.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-						.WidthOverride(100.0f)
-						[
-							SNew(SNumericEntryBox<float>)
-							.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
-							.AllowSpin(true)
-							.MinSliderValue(0.0f)
-							.MaxSliderValue(10.0f)
-							.Value(this, &FControlRigEditor::GetToolbarBoneRadius)
-							.OnValueChanged(this, &FControlRigEditor::OnToolbarBoneRadiusChanged)
-							.ToolTipText(LOCTEXT("ControlRigBoneRadiusToolTip", "The radius of the bones drawn for selected rig elements"))
-						]
-					], 
-					LOCTEXT("ControlRigBoneRadius", "Bone Radius")
-				);
-
 				if (UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj()))
 				{
 					for (UEdGraph* Graph : ControlRigBlueprint->UbergraphPages)
@@ -3753,6 +3725,30 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 		}
 		return FReply::Unhandled();
 	});
+
+	// register callbacks to allow control rig asset to store the Bone Size viewport setting
+	FEditorViewportClient& ViewportClient = InViewport->GetViewportClient();
+	if (FAnimationViewportClient* AnimViewportClient = static_cast<FAnimationViewportClient*>(&ViewportClient))
+	{
+		AnimViewportClient->OnSetBoneSize.BindLambda([this](float InBoneSize)
+		{
+			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
+			{
+				RigBlueprint->Modify();
+				RigBlueprint->DebugBoneRadius = InBoneSize;
+			}
+		});
+		
+		AnimViewportClient->OnGetBoneSize.BindLambda([this]() -> float
+		{
+			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
+			{
+				return RigBlueprint->DebugBoneRadius;
+			}
+
+			return 1.0f;
+		});
+	}
 }
 
 TOptional<float> FControlRigEditor::GetToolbarAxesScale() const
@@ -3769,35 +3765,6 @@ void FControlRigEditor::OnToolbarAxesScaleChanged(float InValue)
 	if (UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>())
 	{
 		Settings->AxisScale = InValue;
-	}
-}
-
-TOptional<float> FControlRigEditor::GetToolbarBoneRadius() const
-{
-	if (UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj()))
-	{
-		return ControlRigBlueprint->DebugBoneRadius;
-	}
-	return 0.f;
-}
-
-void FControlRigEditor::OnToolbarBoneRadiusChanged(float InValue)
-{
-	if (UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj()))
-	{
-		if(!FMath::IsNearlyEqual(ControlRigBlueprint->DebugBoneRadius, InValue))
-		{
-			ControlRigBlueprint->Modify();
-			ControlRigBlueprint->DebugBoneRadius = InValue;
-		}
-	}
-	if (UDebugSkelMeshComponent* MeshComponent = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent())
-	{
-		MeshComponent->BoneRadiusMultiplier = InValue;
-	}
-	if(UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
-	{
-		DebuggedControlRig->DebugBoneRadiusMultiplier = InValue;
 	}
 }
 
@@ -4044,15 +4011,6 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 			GEditor->UnregisterForUndo(AnimationEditorPreviewScene);
 		}
 	}
-
-	if(HasEditingObject())
-	{
-		if(UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
-		{
-			OnToolbarBoneRadiusChanged(Blueprint->DebugBoneRadius);
-		}
-	}
-
 }
 
 void FControlRigEditor::UpdateControlRig()

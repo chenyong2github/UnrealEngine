@@ -91,6 +91,16 @@ USkeletalMesh* UIKRetargeterController::GetTargetPreviewMesh() const
 	return Asset->GetTargetIKRig()->GetPreviewMesh();
 }
 
+const UIKRigDefinition* UIKRetargeterController::GetSourceIKRig() const
+{
+	return Asset->GetSourceIKRig();
+}
+
+const UIKRigDefinition* UIKRetargeterController::GetTargetIKRig() const
+{
+	return Asset->GetTargetIKRig();
+}
+
 FName UIKRetargeterController::GetSourceRootBone() const
 {
 	const UIKRigDefinition* SourceIKRig = Asset->GetSourceIKRig();

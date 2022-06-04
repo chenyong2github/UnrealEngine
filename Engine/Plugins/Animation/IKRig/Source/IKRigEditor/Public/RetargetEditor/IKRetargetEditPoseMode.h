@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IKRetargetEditorController.h"
 
 #include "Retargeter/IKRetargeter.h"
 #include "IPersonaEditMode.h"
+#include "Retargeter/IKRetargetProcessor.h"
 
 class UIKRigProcessor;
 class FIKRetargetEditorController;
@@ -29,7 +31,11 @@ struct BoneEdit
 	FQuat AccumulatedGlobalOffset;		// the accumulated offset from rotation gizmo
 	
 	TArray<FQuat> PrevLocalOffsets;		// the prev stored local offsets of all selected bones
-	TArray<FName> SelectedBones;		// the currently selected bones in the viewport
+
+	void Reset()
+	{
+		*this = BoneEdit();
+	}
 };
 
 class FIKRetargetEditPoseMode : public IPersonaEditMode
@@ -67,15 +73,24 @@ public:
 	virtual void Enter() override;
 	virtual void Exit() override;
 	/** END FEdMode interface */
-
-	// get a list of the names of the currently selected bones (empty if non selected)
-	const TArray<FName>& GetSelectedBones() const;
 	
 private:
 
-	void GetAffectedBones(
-		FIKRetargetEditorController* Controller,
-		UIKRigProcessor* Processor,
+	// get the scale and offset associated with the currently edited skeletal mesh component
+	void GetEditedComponentScaleAndOffset(float& OutScale, FVector& OutOffset) const;
+
+	// get the scale and offset associated with the currently edited skeletal mesh component
+	int32 GetEditedRetargetRootBoneIndex(const UIKRetargetProcessor& Processor) const;
+
+	// render skeleton in viewport
+	void RenderSkeleton(
+		FPrimitiveDrawInterface* PDI,
+		const FIKRetargetEditorController* Controller,
+		const UIKRetargetProcessor* Processor);
+
+	void GetSelectedAndAffectedBones(
+		const FIKRetargetEditorController* Controller,
+		const FRetargetSkeleton& Skeleton,
 		TSet<int32>& OutAffectedBones,
 		TSet<int32>& OutSelectedBones) const;
 
@@ -83,11 +98,14 @@ private:
 
 	bool IsRootSelected() const;
 	bool IsOnlyRootSelected() const;
-	bool IsBoneSelected(const FName& BoneName) const;
-
-	BoneEdit BoneEdit;
 	void UpdateWidgetTransform();
-	void HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace);
+
+	// the bone(s) currently being edited
+	BoneEdit BoneEdit;
+
+	// the skeleton currently being edited
+	const FRetargetSkeleton& GetCurrentlyEditedSkeleton(const UIKRetargetProcessor& Processor) const;
+	EIKRetargetSkeletonMode SkeletonMode;
 	
 	/** The hosting app */
 	TWeakPtr<FIKRetargetEditorController> EditorController;

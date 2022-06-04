@@ -289,6 +289,10 @@ public:
 	void SetGravityScale( float SliderPos );
 	float GetGravityScaleSliderValue() const;
 
+	/** Adjustable bone draw size */
+	void SetBoneDrawSize(float BoneDrawSize);
+	float GetBoneDrawSize() const;
+
 	/** Function to set LOD model selection*/
 	void OnSetLODModel(int32 LODSelectionType);
 	void OnSetLODTrackDebuggedInstance();
@@ -311,7 +315,7 @@ private:
 	 * Binds our UI commands to delegates
 	 */ 
 	void BindCommands();
-
+	
 	/** Show Morphtarget of SkeletalMesh **/
 	void OnShowMorphTargets();
 
@@ -373,7 +377,7 @@ private:
 
 	/** Function to check whether morphtarget overlay is displayed or not*/
 	bool IsShowingOverlayMorphTargetVerts() const;
-
+	
 	/** Function to set Local axes mode of the specificed type */
 	void OnSetBoneDrawMode(int32 BoneDrawMode);
 
@@ -421,6 +425,20 @@ private:
 	void ToggleShowPreviewMesh();
 	bool CanShowPreviewMesh() const;
 	bool IsShowPreviewMeshEnabled() const;
+
+	/** Run a lambda function on each preview mesh in the scene */
+	FORCEINLINE_DEBUGGABLE void SetViewportSettingForEachDebugMesh(TFunction<void (UDebugSkelMeshComponent*)> PerMeshFunction)
+	{
+		TArray<UDebugSkelMeshComponent*> PreviewMeshComponents;
+		GetPreviewScene()->GetActor()->GetComponents(PreviewMeshComponents, true);
+		for (UDebugSkelMeshComponent* PreviewMesh : PreviewMeshComponents)
+		{
+			PerMeshFunction(PreviewMesh);
+			PreviewMesh->MarkRenderStateDirty();
+		}
+		
+		RefreshViewport();
+	}
 
 	/** Called to toggle using in-game bound on current preview mesh */
 	void UseInGameBound();

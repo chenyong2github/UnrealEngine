@@ -194,16 +194,6 @@ void FAnimNode_RetargetPoseFromMesh::UpdateSpeedValuesFromCurves()
 	}
 }
 
-#if WITH_EDITOR
-void FAnimNode_RetargetPoseFromMesh::SetProcessorNeedsInitialized()
-{
-	if (Processor)
-	{
-		Processor->SetNeedsInitialized();
-	}
-}
-#endif
-
 UIKRetargetProcessor* FAnimNode_RetargetPoseFromMesh::GetRetargetProcessor() const
 {
 	return Processor;
