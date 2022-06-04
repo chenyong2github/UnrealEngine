@@ -50,12 +50,19 @@ void UDataflow::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCha
 void UDataflow::PostLoad()
 {
 #if WITH_EDITOR
+	const TSet<FName>& DisabledNodes = Dataflow->GetDisabledNodes();
+
 	for (UEdGraphNode* EdNode : Nodes)
 	{
 		UDataflowEdNode* DataflowEdNode = Cast<UDataflowEdNode>(EdNode);
 		if(ensure(DataflowEdNode))
 		{
 			DataflowEdNode->SetDataflowGraph(Dataflow);
+		}
+
+		if (DisabledNodes.Contains(FName(EdNode->GetName())))
+		{
+			EdNode->SetEnabledState(ENodeEnabledState::Disabled);
 		}
 	}
 #endif

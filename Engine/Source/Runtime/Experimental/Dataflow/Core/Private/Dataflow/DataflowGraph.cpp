@@ -79,7 +79,9 @@ namespace Dataflow
 		{
 			Input->AddConnection(Output);
 			Output->AddConnection(Input);
-			Connections.Add(FLink(Input->GetGuid(), Output->GetGuid()));
+			Connections.Add(FLink(
+				Input->GetOwningNode()->GetGuid(), Input->GetGuid(), 
+				Output->GetOwningNode()->GetGuid(), Output->GetGuid()));
 		}
 	}
 
@@ -87,7 +89,10 @@ namespace Dataflow
 	{
 		Input->RemoveConnection(Output);
 		Output->RemoveConnection(Input);
-		Connections.RemoveSwap(FLink(Input->GetGuid(), Output->GetGuid()));
+		Connections.RemoveSwap(FLink(
+			Input->GetOwningNode()->GetGuid(), Input->GetGuid(),
+			Output->GetOwningNode()->GetGuid(), Output->GetGuid()));
+
 	}
 
 	void FGraph::Serialize(FArchive& Ar)
@@ -98,6 +103,7 @@ namespace Dataflow
 			FGuid ArGuid;
 			FName ArType, ArName;
 			int32 ArNum = Nodes.Num();
+
 			Ar << ArNum;
 			for (TSharedPtr<FNode> Node : Nodes)
 			{
@@ -106,19 +112,37 @@ namespace Dataflow
 				ArName = Node->GetName();
 				Ar << ArGuid << ArType << ArName;
 
-
-				TArray< FConnection* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
-				ArNum = IO.Num();
-				Ar << ArNum;
-				for (FConnection* Conn : IO)
+				// Data Jump Serialization (on Node and connections)
 				{
-					ArGuid = Conn->GetGuid();
-					ArType = Conn->GetType();
-					ArName = Conn->GetName();
-					Ar << ArGuid << ArType << ArName;
-				}
+					const int64 NodeDataSizePos = Ar.Tell();
+					int64 NodeDataSize = 0;
+					Ar << NodeDataSize;
 
-				Node->SerializeInternal(Ar);
+					const int64 NodeBegin = Ar.Tell();
+					{ // Data we can jump past on load
+						TArray< FConnection* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
+						ArNum = IO.Num();
+						Ar << ArNum;
+						for (FConnection* Conn : IO)
+						{
+							ArGuid = Conn->GetGuid();
+							ArType = Conn->GetType();
+							ArName = Conn->GetName();
+							Ar << ArGuid << ArType << ArName;
+						}
+
+						Node->SerializeInternal(Ar);
+					}
+
+					if (NodeDataSizePos != INDEX_NONE)
+					{
+						const int64 NodeEnd = Ar.Tell();
+						NodeDataSize = (NodeEnd - NodeBegin);
+						Ar.Seek(NodeDataSizePos);
+						Ar << NodeDataSize;
+						Ar.Seek(NodeEnd);
+					}
+				}
 			}
 
 			Ar << Connections;
@@ -129,15 +153,22 @@ namespace Dataflow
 			FGuid ArGuid;
 			FName ArType, ArName;
 			int32 ArNum = 0;
+			int64 NodeDataSize = 0;
 
+			TMap<FGuid, TSharedPtr<FNode> > NodeGuidMap;
 			TMap<FGuid, FConnection* > ConnectionGuidMap;
 
 			Ar << ArNum;
 			for (int32 Ndx = ArNum; Ndx > 0; Ndx--)
 			{
-				Ar << ArGuid << ArType << ArName;
+				Ar << ArGuid << ArType << ArName << NodeDataSize;
+
 				if (TSharedPtr<FNode> Node = FNodeFactory::GetInstance()->NewNodeFromRegisteredType(*this, { ArGuid,ArType,ArName }))
 				{
+					ensure(!NodeGuidMap.Contains(ArGuid));
+					NodeGuidMap.Add(ArGuid,Node);
+
+
 					int ArNumInner;
 					Ar << ArNumInner;
 					TArray< FConnection* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
@@ -164,7 +195,11 @@ namespace Dataflow
 				}
 				else
 				{
-					ensureMsgf(false, TEXT("Warning: Missing registered node type on load. Graph will fail to evaluate (%s %s)"), *ArType.ToString(), *ArName.ToString());
+					Ar.Seek(Ar.Tell() + NodeDataSize); // Data Jump Serialization (on mising Node)
+					DisabledNodes.Add(ArName);
+					ensureMsgf(false, 
+						TEXT("Error: Missing registered node type (%s) will be removed from graph on load. Graph will fail to evaluate due to missing node (%s).")
+						, *ArType.ToString(), *ArName.ToString());
 				}
 				
 			}
@@ -173,11 +208,14 @@ namespace Dataflow
 			Ar << LocalConnections;
 			for (const FLink& Con : LocalConnections)
 			{
-				if (ensure(ConnectionGuidMap.Contains(Con.Input) && ConnectionGuidMap.Contains(Con.Output)))
+				if (ensure(NodeGuidMap.Contains(Con.InputNode) && NodeGuidMap.Contains(Con.OutputNode)))
 				{
-					if (ensure(ConnectionGuidMap[Con.Input]->GetType() == ConnectionGuidMap[Con.Output]->GetType()))
+					if (ensure(ConnectionGuidMap.Contains(Con.Input) && ConnectionGuidMap.Contains(Con.Output)))
 					{
-						Connect(ConnectionGuidMap[Con.Input], ConnectionGuidMap[Con.Output]);
+						if (ensure(ConnectionGuidMap[Con.Input]->GetType() == ConnectionGuidMap[Con.Output]->GetType()))
+						{
+							Connect(ConnectionGuidMap[Con.Input], ConnectionGuidMap[Con.Output]);
+						}
 					}
 				}
 			}
