@@ -33,7 +33,7 @@ public:
 	virtual void FocusViews() override;
 	virtual UDebugSkelMeshComponent* GetPreviewMeshComponent() const override { return SkeletalMeshComponent; }
 	virtual TArray<UDebugSkelMeshComponent*> GetAllPreviewMeshComponents() const override;
-	virtual FORCEINLINE_DEBUGGABLE void ForEachPreviewMesh(TFunction<void (UDebugSkelMeshComponent*)> PerMeshFunction) override;
+	virtual void ForEachPreviewMesh(TFunction<void (UDebugSkelMeshComponent*)> PerMeshFunction) override;
 	virtual void SetPreviewMeshComponent(UDebugSkelMeshComponent* InSkeletalMeshComponent) override;
 	virtual void SetAdditionalMeshes(class UDataAsset* InAdditionalMeshes) override;
 	virtual void SetAdditionalMeshesSelectable(bool bSelectable) override;
