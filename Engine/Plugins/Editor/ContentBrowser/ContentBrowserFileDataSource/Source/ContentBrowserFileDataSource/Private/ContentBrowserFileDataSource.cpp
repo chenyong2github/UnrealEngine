@@ -391,6 +391,16 @@ void UContentBrowserFileDataSource::Shutdown()
 		}
 	}
 
+	{
+		if (UToolMenus* ToolMenus = UToolMenus::Get())
+		{
+			if (UToolMenu* Menu = ToolMenus->ExtendMenu("ContentBrowser.AddNewContextMenu"))
+			{
+				Menu->RemoveSection(*FString::Printf(TEXT("DynamicSection_DataSource_%s"), *GetName()));
+			}
+		}
+	}
+
 	if (BackgroundDiscovery)
 	{
 		BackgroundDiscovery->EnsureCompletion();
