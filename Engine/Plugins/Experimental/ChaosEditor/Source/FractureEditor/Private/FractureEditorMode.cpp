@@ -493,7 +493,7 @@ void UFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSel
 	// reset state for components no longer selected
 	for (UGeometryCollectionComponent* ExistingSelection : SelectedGeometryComponents)
 	{
-		if (ExistingSelection && ExistingSelection->IsRegistered() && !NewGeomSelection.Contains(ExistingSelection))
+		if (ExistingSelection && ExistingSelection->IsRegistered() && !ExistingSelection->IsBeingDestroyed() && !NewGeomSelection.Contains(ExistingSelection))
 		{
 			// This component is no longer selected, clear any modified state
 
