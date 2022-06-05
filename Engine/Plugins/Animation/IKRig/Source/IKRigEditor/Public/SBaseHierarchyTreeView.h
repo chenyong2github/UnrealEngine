@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Widgets/Views/STreeView.h"
+
 template<class ItemType>
 class SBaseHierarchyTreeView : public STreeView<TSharedPtr<ItemType>>
 {
