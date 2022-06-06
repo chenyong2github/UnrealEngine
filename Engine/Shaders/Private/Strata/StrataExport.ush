@@ -46,7 +46,8 @@ float3 StrataGetBSDFPrecomputedLighting(
 	in FVertexFactoryInterpolantsVSToPS Interpolants,
 	in FBasePassInterpolantsVSToPS BasePassInterpolants,
 	in VTPageTableResult LightmapVTPageTableResult,
-	in float3 VolumetricLightmapBrickTextureUVs)
+	in float3 VolumetricLightmapBrickTextureUVs,
+	inout float2 SpecMultiBounceAO_IndirectIrradiance)
 {
 	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;
 	FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V);
@@ -75,14 +76,17 @@ float3 StrataGetBSDFPrecomputedLighting(
 	// Fetch precomputed lighting
 	float3 DiffuseLighting = 0.0f;
 	float3 SubsurfaceLighting = 0.0f;
-	float  IndirectIrrad1iance = 0.0f;
+	float  IndirectIrradiance = 0.0f;
 	const bool bEvaluateBackface = any(StrataEnvLight.DiffuseBackFaceWeight > 0.0);	// With Strata we have no other way to know if backface lighting will be needed
 	GetPrecomputedIndirectLightingAndSkyLight(MaterialParameters, Interpolants, BasePassInterpolants, LightmapVTPageTableResult, bEvaluateBackface, StrataEnvLight.DiffuseNormal, VolumetricLightmapBrickTextureUVs,
-		DiffuseLighting, SubsurfaceLighting, IndirectIrrad1iance);
+		DiffuseLighting, SubsurfaceLighting, IndirectIrradiance);
 
-	// Evaluate precomputed lighting according to material parameters
-	float3 OutLuminance = (DiffuseLighting * StrataEnvLight.DiffuseWeight + SubsurfaceLighting * StrataEnvLight.DiffuseBackFaceWeight) * LuminanceWeightFinal
-		* AOMultiBounce(StrataEnvLight.DiffuseColor, ShadingOcclusion.DiffOcclusion); // STRATA_TODO This should only be applied on the aggregated diffuse colors, not each contribution independently. But we also need to account for DiffOcclusion which looks normal dependent
+	const float3 DiffMultiBounceAO = AOMultiBounce(StrataEnvLight.DiffuseColor, ShadingOcclusion.DiffOcclusion);
+	SpecMultiBounceAO_IndirectIrradiance.x = AOMultiBounce(Luminance(StrataEnvLight.SpecularColor), ShadingOcclusion.SpecOcclusion).g;
+	SpecMultiBounceAO_IndirectIrradiance.y = IndirectIrradiance;
+
+	// Evaluate precomputed lighting according to material parameters matching environment lighting.
+	float3 OutLuminance = (DiffuseLighting * StrataEnvLight.DiffuseWeight + SubsurfaceLighting * StrataEnvLight.DiffuseBackFaceWeight) * LuminanceWeightFinal * DiffMultiBounceAO;
 
 	return OutLuminance;
 }
@@ -267,11 +271,6 @@ void PackStrataOut(
 		AndIsSimpleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
 		AndIsSingleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
 
-		// Store irradiance and AO into the state bits of the header so that they can be written later as part of the common header state bits.
-	#if STRATA_INLINE_SHADING
-		HEADER_SETIRRADIANCE_AO(StrataPixelHeader.State, StrataPackIrradianceAndOcclusion(StrataPixelHeader.IrradianceAO, 0));
-	#endif
-
 		// Now write out Strata data
 
 		///////////////////////////////////////////////////////////////////////////
@@ -306,6 +305,57 @@ void PackStrataOut(
 			}
 		#endif
 		}
+
+		// Now evaluate Specular Occlusion and Indirect Irradiance.
+		{
+			float BSDFCount = 0;
+			float2 SpecMultiBounceAO_IndirectIrradiance_Acc = 0.0f;
+			STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
+			for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
+			{
+			#define BSDF StrataTree.BSDFs[BSDFIdx]
+
+				const bool bIsVisible = StrataIsBSDFVisible(BSDF);
+
+				// Only write visible BSDF
+				BRANCH
+				if (bIsVisible)
+				{
+					// Convert BSDF to data ready to evaluate precomputed lighting
+					#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
+					float2 SpecMultiBounceAO_IndirectIrradiance = 0.0f;
+					EmissiveColor += StrataGetBSDFPrecomputedLighting(
+						Settings,
+						StrataPixelHeader,
+						BSDF,
+						V,
+						WorldBentNormal0,
+						MaterialParameters,
+						Interpolants,
+						BasePassInterpolants,
+						LightmapVTPageTableResult,
+						VolumetricLightmapBrickTextureUVs,
+						SpecMultiBounceAO_IndirectIrradiance);
+					SpecMultiBounceAO_IndirectIrradiance_Acc += SpecMultiBounceAO_IndirectIrradiance;
+					#endif
+
+					// Stop writing if above budget.
+					BSDFCount++;
+				}
+
+			#undef BSDF
+			}
+
+			// Write the combined SpecMultiBounceAO for all BSDFs as a single AO value. This is a trade off to have a mix of all the interactions, and it is correct for a single BSDF.
+			float2 SpecMultiBounceAO_IndirectIrradiance = SpecMultiBounceAO_IndirectIrradiance_Acc * rcp(max(1.0f, BSDFCount));
+			StrataPixelHeader.IrradianceAO.MaterialAO			= SpecMultiBounceAO_IndirectIrradiance.x;
+			StrataPixelHeader.IrradianceAO.IndirectIrradiance	= SpecMultiBounceAO_IndirectIrradiance.y;
+		}
+		
+		// Store irradiance and AO into the state bits of the header so that they can be written later as part of the common header state bits.
+	#if STRATA_INLINE_SHADING
+		HEADER_SETIRRADIANCE_AO(StrataPixelHeader.State, StrataPackIrradianceAndOcclusion(StrataPixelHeader.IrradianceAO, 0));
+	#endif
 
 		{
 			int BSDFCount = 0;
@@ -482,22 +532,6 @@ void PackStrataOut(
 						break;
 						}
 					}
-
-					// Convert BSDF to data ready to evaluate precomputed lighting
-					#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
-					EmissiveColor += StrataGetBSDFPrecomputedLighting(
-						Settings,
-						StrataPixelHeader,
-						BSDF,
-						V,
-						WorldBentNormal0,
-						MaterialParameters,
-						Interpolants,
-						BasePassInterpolants,
-						LightmapVTPageTableResult,
-						VolumetricLightmapBrickTextureUVs);
-					#endif
-
 
 					// Stop writing if above budget.
 					BSDFCount++;

@@ -147,6 +147,8 @@ void StrataEnvLightingCommon(
 	inout float3 DiffuseLighting,
 	inout float3 SpecularLighting)
 {
+	FStrataIrradianceAndOcclusion StrataIrradianceAndOcclusion = StrataGetIrradianceAndAO(StrataPixelHeader);
+
 	// Diffuse component
 	DiffuseLighting = 0;
 #if ENABLE_DYNAMIC_SKY_LIGHT
@@ -155,7 +157,7 @@ void StrataEnvLightingCommon(
 	if (bProcessFrontFaceDiffuse || bProcessBackFaceDiffuse)
 	{
 		// Compute the common sky visibility factors
-		FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, StrataGetAO(StrataPixelHeader), ScreenAmbientOcclusion, BentNormal);
+		FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, StrataIrradianceAndOcclusion.MaterialAO, ScreenAmbientOcclusion, BentNormal);
 
 		if (bProcessFrontFaceDiffuse)
 		{
@@ -184,7 +186,7 @@ void StrataEnvLightingCommon(
 	SpecularLighting = 0;
 	if (any(StrataEnvLight.SpecularWeight > 0.0f))
 	{
-		float IndirectIrradiance = 0.0;						// STRATA_TODO GBuffer.IndirectIrradiance, that will likely have to take 8 mnore bits on the header
+		float IndirectIrradiance = StrataIrradianceAndOcclusion.IndirectIrradiance;
 	#if ENABLE_SKY_LIGHT && ALLOW_STATIC_LIGHTING
 		BRANCH
 		// Add in diffuse contribution from dynamic skylights so reflection captures will have something to mix with

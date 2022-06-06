@@ -174,7 +174,7 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 			float3 SkyLighting = GetSkyLightReflection(RayDirection, Roughness, SkyAverageBrightness);
 		#endif
 
-		// Normalize for static skylight types which mix with lightmaps
+		// Normalize for static skylight types which mix with lightmaps, material ambient occlusion as well as diffuse/specular occlusion.
 		bool bNormalize = ReflectionStruct.SkyLightParameters.z < 1 && ALLOW_STATIC_LIGHTING;
 
 		FLATTEN

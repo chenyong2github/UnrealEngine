@@ -1711,8 +1711,8 @@ void FPixelShaderInOut_MainPS(
 	// const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), GBuffer.Roughness, MaterialAO);
 	{
 		StrataPixelHeader.IrradianceAO									= InitIrradianceAndOcclusion();
-		StrataPixelHeader.IrradianceAO.MaterialAO						= MaterialAO;			// STRATA_TODO: AOMultiBounce(Luminance(GBuffer.SpecularColor), ShadingOcclusion.SpecOcclusion).g; // FIXME: ALLOW_STATIC_LIGHTING == 0 expects this to be AO
-		StrataPixelHeader.IrradianceAO.IndirectIrradiance				= IndirectIrradiance;	// STRATA_TODO
+		StrataPixelHeader.IrradianceAO.MaterialAO						= MaterialAO;			// This is the material AO, it will be converted to multibounce AO using ShadingOcclusion.SpecOcclusion in the PackStrataOut function.
+		StrataPixelHeader.IrradianceAO.IndirectIrradiance				= IndirectIrradiance;
 		StrataPixelHeader.IrradianceAO.DiffuseIndirectSampleOcclusion	= GetDiffuseIndirectSampleOcclusion(StrataPixelHeader.SharedLocalBases, MaterialParameters.CameraVector, In.SvPosition.xy, StrataPixelHeader.IrradianceAO.MaterialAO);
 	}
 
@@ -1995,9 +1995,9 @@ void FPixelShaderInOut_MainPS(
 				GBuffer.GenericAO = float(GBuffer.DiffuseIndirectSampleOcclusion) * rcp(255) + (0.5 / 255.0);
 			#elif ALLOW_STATIC_LIGHTING
 				// No space for AO. Multiply IndirectIrradiance by AO instead of storing.
-				GBuffer.GenericAO = EncodeIndirectIrradiance(GBuffer.IndirectIrradiance * GBuffer.GBufferAO) + QuantizationBias * (1.0 / 255.0);
+				GBuffer.GenericAO = EncodeIndirectIrradiance(GBuffer.IndirectIrradiance * GBuffer.GBufferAO) + QuantizationBias * (1.0 / 255.0);	// Stationary sky light path
 			#else
-				GBuffer.GenericAO = GBuffer.GBufferAO;
+				GBuffer.GenericAO = GBuffer.GBufferAO;	// Movable sky light path
 			#endif
 
 			EncodeGBufferToMRT(Out, GBuffer, QuantizationBias);
