@@ -110,7 +110,7 @@ struct FHttpCacheStoreParams
 	FString OAuthClientId;
 	FString OAuthSecret;
 	FString OAuthScope;
-	bool bResolveHostCanonicalName = false;
+	bool bResolveHostCanonicalName = true;
 	bool bReadOnly = false;
 
 	void Parse(const TCHAR* NodeName, const TCHAR* Config);
