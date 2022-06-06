@@ -27,6 +27,7 @@ namespace UE
 namespace Http::Private
 {
 
+static constexpr uint32 MaxTotalConnections = 32;
 static constexpr uint32 WaitIntervalMs = 10;
 
 struct FHttpSharedDataInternals
@@ -100,6 +101,7 @@ FHttpSharedData::FHttpSharedData()
 	curl_share_setopt(Internals->CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
 	curl_share_setopt(Internals->CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
 	Internals->CurlMulti = curl_multi_init();
+	curl_multi_setopt(Internals->CurlMulti, CURLMOPT_MAX_TOTAL_CONNECTIONS, Http::Private::MaxTotalConnections);
 	curl_multi_setopt(Internals->CurlMulti, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
 }
 
