@@ -17,6 +17,7 @@
 #include "StaticMeshBuilder.h"
 #include "NaniteBuilder.h"
 #include "Rendering/NaniteResources.h"
+#include "PhysicsEngine/BodySetup.h"
 #endif
 
 ULandscapeNaniteComponent::ULandscapeNaniteComponent(const FObjectInitializer& ObjectInitializer)
