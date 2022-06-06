@@ -128,7 +128,7 @@
 						WheelInstance.RotOffset.Yaw = VehicleWheel->GetSteerAngle();
 						WheelInstance.RotOffset.Roll = 0.f;
 
-						WheelInstance.LocOffset = VehicleWheel->GetSuspensionAxis() * VehicleWheel->GetSuspensionOffset();
+						WheelInstance.LocOffset = -VehicleWheel->GetSuspensionAxis() * VehicleWheel->GetSuspensionOffset();
 					}
 				}
 			}
