@@ -294,8 +294,6 @@ bool FNiagaraOverviewGraphViewModel::CanCopyNodes() const
 	// We don't store enough information on the node to find the emitter asset in question, so adding the emitter with the correct hierarchy would require a larger refactor to properly support.
 	if (GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::EmitterAsset)
 	{		
-		// Instead direct the user to add the emitter through the right-click menu, where the behavior is well defined.
-		FNiagaraEditorUtilities::InfoWithToastAndLog(LOCTEXT("CopyFromEmitterAsset", "Cannot copy emitters from emitter assets. Please use Add Emitter from the right click menu instead."));
 		return false;
 	}
 
@@ -374,7 +372,6 @@ bool FNiagaraOverviewGraphViewModel::CanPasteNodes() const
 	// Cannot paste into emitter asset
 	if (GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::EmitterAsset)
 	{
-		FNiagaraEditorUtilities::InfoWithToastAndLog(LOCTEXT("PasteToEmitterAsset", "Cannot paste nodes into emitter assets."));
 		return false;
 	}
 
