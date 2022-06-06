@@ -433,6 +433,15 @@ bool FSubTrackEditor::CanAddSubSequence(const UMovieSceneSequence& Sequence) con
 	return FSubTrackEditorUtil::CanAddSubSequence(FocusedSequence, Sequence);
 }
 
+UMovieSceneSubTrack* FSubTrackEditor::CreateNewTrack(UMovieScene* MovieScene) const
+{
+	return MovieScene->AddMasterTrack<UMovieSceneSubTrack>();
+}
+
+void FSubTrackEditor::GetSupportedSequenceClassPaths(TArray<FTopLevelAssetPath>& ClassPaths) const
+{
+	ClassPaths.Add(FTopLevelAssetPath(TEXT("/Script/LevelSequence"), TEXT("LevelSequence")));
+}
 
 /* FSubTrackEditor callbacks
  *****************************************************************************/
@@ -454,7 +463,7 @@ void FSubTrackEditor::HandleAddSubTrackMenuEntryExecute()
 	const FScopedTransaction Transaction(LOCTEXT("AddSubTrack_Transaction", "Add Sub Track"));
 	FocusedMovieScene->Modify();
 
-	auto NewTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneSubTrack>();
+	UMovieSceneSubTrack* NewTrack = CreateNewTrack(FocusedMovieScene);
 	ensure(NewTrack);
 
 	if (GetSequencer().IsValid())
@@ -495,7 +504,7 @@ TSharedRef<SWidget> FSubTrackEditor::HandleAddSubSequenceComboButtonGetMenuConte
 			AssetPickerConfig.OnAssetEnterPressed = FOnAssetEnterPressed::CreateRaw( this, &FSubTrackEditor::HandleAddSubSequenceComboButtonMenuEntryEnterPressed, InTrack);
 			AssetPickerConfig.bAllowNullSelection = false;
 			AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
-			AssetPickerConfig.Filter.ClassPaths.Add(FTopLevelAssetPath(TEXT("/Script/LevelSequence"), TEXT("LevelSequence")));
+			GetSupportedSequenceClassPaths(AssetPickerConfig.Filter.ClassPaths);
 			AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 			AssetPickerConfig.AdditionalReferencingAssets.Add(FAssetData(Sequence));
 		}
