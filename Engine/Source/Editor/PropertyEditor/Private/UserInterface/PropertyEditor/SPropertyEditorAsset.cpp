@@ -1187,10 +1187,17 @@ void SPropertyEditorAsset::OnBrowse()
 	FObjectOrAssetData Value;
 	GetValue( Value );
 
-	if(PropertyEditor.IsValid() && Value.Object)
+	if (bIsActor)
 	{
-		// This code only works on loaded objects
-		FPropertyEditor::SyncToObjectsInNode(PropertyEditor->GetPropertyNode());		
+		TSharedPtr<IPropertyHandle> PropertyHandleToUse = GetMostSpecificPropertyHandle();
+		if (PropertyHandleToUse && Value.Object)
+		{
+			// This code only works on loaded objects
+			if (TSharedPtr<FPropertyNode> PropertyNodeToSync = PropertyHandleToUse->GetPropertyNode())
+			{
+				FPropertyEditor::SyncToObjectsInNode(PropertyNodeToSync);
+			}
+		}
 	}
 	else
 	{
@@ -1211,7 +1218,7 @@ FText SPropertyEditorAsset::GetOnBrowseToolTip() const
 		Args.Add(TEXT("Asset"), FText::AsCultureInvariant(Value.Object->GetName()));
 		if (bIsActor)
 		{
-			return FText::Format(LOCTEXT( "BrowseToAssetInViewport", "Select '{Asset}' in the viewport"), Args);
+			return FText::Format(LOCTEXT( "SelectSpecificActorInViewport", "Select '{Asset}' in the viewport"), Args);
 		}
 		else
 		{
@@ -1219,7 +1226,14 @@ FText SPropertyEditorAsset::GetOnBrowseToolTip() const
 		}
 	}
 	
-	return LOCTEXT( "BrowseToAssetInContentBrowser", "Browse to Asset in Content Browser");
+	if (bIsActor)
+	{
+		return LOCTEXT("SelectActorInViewport", "Select Actor in the viewport");
+	}
+	else
+	{
+		return LOCTEXT("BrowseToAssetInContentBrowser", "Browse to Asset in Content Browser");
+	}
 }
 
 void SPropertyEditorAsset::OnUse()
