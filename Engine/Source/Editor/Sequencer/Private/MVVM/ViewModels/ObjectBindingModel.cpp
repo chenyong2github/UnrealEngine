@@ -26,6 +26,7 @@
 #include "SObjectBindingTag.h"
 #include "Containers/ArrayBuilder.h"
 #include "ObjectBindingTagCache.h"
+#include "ObjectEditorUtils.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
@@ -723,7 +724,7 @@ void FObjectBindingModel::HandleAddTrackSubMenuNew(FMenuBuilder& AddTrackMenuBui
 			}
 			else
 			{
-				//KeyableMenuData.MenuName = FObjectEditorUtils::GetCategoryFName(Property).ToString();
+				KeyableMenuData.MenuName = FObjectEditorUtils::GetCategoryFName(Property).ToString();
 			}
 
 			PropertiesTraversed.Add(Property);
