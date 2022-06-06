@@ -59,7 +59,7 @@ UConcertServerConfig::UConcertServerConfig()
 	: bCleanWorkingDir(false)
 	, NumSessionsToKeep(-1)
 {
-	DefaultVersionInfo.Initialize();
+	DefaultVersionInfo.Initialize(false /* bSupportMixedBuildTypes */);
 }
 
 UConcertClientConfig::UConcertClientConfig()

@@ -1174,7 +1174,7 @@ TFuture<EConcertResponseCode> FConcertClient::InternalCreateSession(const FGuid&
 		FConcertAdmin_CreateSessionRequest CreateSessionRequest;
 		CreateSessionRequest.SessionName = CreateSessionArgs.SessionName;
 		CreateSessionRequest.OwnerClientInfo = ClientInfo;
-		CreateSessionRequest.VersionInfo.Initialize();
+		CreateSessionRequest.VersionInfo.Initialize(GetConfiguration()->ClientSettings.bSupportMixedBuildTypes);
 	
 		// Session settings
 		CreateSessionRequest.SessionSettings.Initialize();
@@ -1220,7 +1220,7 @@ TFuture<EConcertResponseCode> FConcertClient::InternalJoinSession(const FGuid& S
 		FConcertAdmin_FindSessionRequest FindSessionRequest;
 		FindSessionRequest.SessionId = SessionId;
 		FindSessionRequest.OwnerClientInfo = ClientInfo;
-		FindSessionRequest.VersionInfo.Initialize();
+		FindSessionRequest.VersionInfo.Initialize(GetConfiguration()->ClientSettings.bSupportMixedBuildTypes);
 
 		// Session settings
 		FindSessionRequest.SessionSettings.Initialize();
@@ -1249,7 +1249,7 @@ TFuture<EConcertResponseCode> FConcertClient::InternalCopySession(const FGuid& S
 	CopySessionRequest.SessionFilter = CopySessionArgs.SessionFilter;
 	CopySessionRequest.bRestoreOnly = bRestoreOnlyConstraint;
 	CopySessionRequest.OwnerClientInfo = ClientInfo;
-	CopySessionRequest.VersionInfo.Initialize();
+	CopySessionRequest.VersionInfo.Initialize(GetConfiguration()->ClientSettings.bSupportMixedBuildTypes);
 
 	// Session settings
 	CopySessionRequest.SessionSettings.Initialize();

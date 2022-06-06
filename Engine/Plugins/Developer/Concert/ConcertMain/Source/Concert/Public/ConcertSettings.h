@@ -250,6 +250,15 @@ struct FConcertClientSettings
 	UPROPERTY(config, EditAnywhere, DisplayName="Reflect Level Visibility to Game", AdvancedDisplay, Category="Client Settings")
 	bool bReflectLevelEditorInGame = false;
 
+	/**
+	 * Enable extended version support when using Multi-user with precompiled and source builds.  When using Unreal Game
+	 * Sync, it is possible to have the same engine CL but different engine version due to content changes.	 This setting
+	 * enables reading engine version CL from the Build.version file produced by UGS to determine engine version
+	 * information when joining a session.	This only applies when you intend to mix precompiled with source builds.
+	*/
+	UPROPERTY(config, EditAnywhere, DisplayName="Support Mixed Build Types", AdvancedDisplay, Category="Client Settings")
+	bool bSupportMixedBuildTypes = false;
+
 	/** Array of tags that can be used for grouping and categorizing. */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Client Settings")
 	TArray<FName> Tags;

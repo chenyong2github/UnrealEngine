@@ -111,7 +111,7 @@ void FConcertServerSessionBrowserController::CreateSession(const FGuid& ServerAd
 		SessionInfo.Settings.ProjectName = ProjectName;
 	}
 	FConcertSessionVersionInfo VersionInfo;
-	VersionInfo.Initialize();
+	VersionInfo.Initialize(false /* bSupportMixedBuildTypes */ );
 	SessionInfo.VersionInfos.Emplace(VersionInfo);
 
 	FAsyncTaskNotification Notification(

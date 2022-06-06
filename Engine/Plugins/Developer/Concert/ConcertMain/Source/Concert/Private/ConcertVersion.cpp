@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertVersion.h"
+#include "ConcertSettings.h"
+
 #include "Misc/EngineVersion.h"
 #include "Modules/BuildVersion.h"
 #include "Serialization/CustomVersion.h"
 
 #define LOCTEXT_NAMESPACE "ConcertVersion"
-
-
 
 namespace ConcertVersionUtil
 {
@@ -95,29 +95,31 @@ bool FConcertCustomVersionInfo::Validate(const FConcertCustomVersionInfo& InOthe
 	return ConcertVersionUtil::ValidateVersion(Version, InOther.Version, FText::AsCultureInvariant(FriendlyName.IsNone() ? Key.ToString() : FriendlyName.ToString()), InValidationMode, OutFailureReason);
 }
 
-
-void FConcertSessionVersionInfo::Initialize()
+void FConcertSessionVersionInfo::Initialize(bool bSupportMixedBuildTypes)
 {
 	FileVersion.Initialize();
 	EngineVersion.Initialize(FEngineVersion::Current());
 
-	// For builds synced via UGS, we override the changelist of the engine version with the current build version changelist
-	// as this helps to keep the changelists of programmers and artists/designers in-sync when creating and joining sessions
-	//	eg) CL# 1 is a code change, and CL# 2 is a content change:
-	//	 - A programmer syncing CL# 2 would have an engine version with a CL# of 2 (from building their own editor), and a build version CL# of 2 (from UGS).
-	//	 - An artist/designer syncing CL# 2 would have an engine version with a CL# of 1 (from the pre-built editor), but a build version CL# of 2 (from UGS).
+	if (bSupportMixedBuildTypes)
 	{
-		// Read the default data (rather than the executable specific data), as the default data 
-		// is updated when syncing, but the executable data is only updated when compiling
-		FBuildVersion BuildVersion;
-		if (FBuildVersion::TryRead(FBuildVersion::GetDefaultFileName(), BuildVersion))
+		// For builds synced via UGS, we override the changelist of the engine version with the current build version changelist
+		// as this helps to keep the changelists of programmers and artists/designers in-sync when creating and joining sessions
+		//	eg) CL# 1 is a code change, and CL# 2 is a content change:
+		//	 - A programmer syncing CL# 2 would have an engine version with a CL# of 2 (from building their own editor), and a build version CL# of 2 (from UGS).
+		//	 - An artist/designer syncing CL# 2 would have an engine version with a CL# of 1 (from the pre-built editor), but a build version CL# of 2 (from UGS).
 		{
-			// Only apply the build version if our engine changelist is compatible with the synced build
-			// If this check fails then it likely means that a programmer synced (updating the build version) 
-			// without also compiling their binaries (to update the engine version)
-			if (EngineVersion.Changelist >= (uint32)BuildVersion.CompatibleChangelist)
+			// Read the default data (rather than the executable specific data), as the default data 
+			// is updated when syncing, but the executable data is only updated when compiling
+			FBuildVersion BuildVersion;
+			if (FBuildVersion::TryRead(FBuildVersion::GetDefaultFileName(), BuildVersion))
 			{
-				EngineVersion.Changelist = BuildVersion.Changelist;
+				// Only apply the build version if our engine changelist is compatible with the synced build
+				// If this check fails then it likely means that a programmer synced (updating the build version) 
+				// without also compiling their binaries (to update the engine version)
+				if (EngineVersion.Changelist >= (uint32)BuildVersion.CompatibleChangelist)
+				{
+					EngineVersion.Changelist = BuildVersion.Changelist;
+				}
 			}
 		}
 	}
