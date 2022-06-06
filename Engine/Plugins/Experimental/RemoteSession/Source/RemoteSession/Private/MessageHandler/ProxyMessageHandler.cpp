@@ -358,7 +358,7 @@ void FProxyMessageHandler::OnMovedWindow(const TSharedRef< FGenericWindow >& Win
 {
 	if (TargetHandler.IsValid())
 	{
-		return TargetHandler->HandleDPIScaleChanged(Window);
+		return TargetHandler->OnMovedWindow(Window, X, Y);
 	}
 }
 
