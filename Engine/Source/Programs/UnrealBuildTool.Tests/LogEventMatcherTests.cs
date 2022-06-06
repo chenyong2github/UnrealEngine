@@ -188,6 +188,7 @@ namespace UnrealBuildToolTests
 			string[] lines =
 			{
 				@"[1/7] Compile NaniteMeshLodGroupUpdateCommandlet.cpp",
+				@"[2/7] Compile NaniteMeshLodGroupUpdateCommandlet.cpp",
 				@"/mnt/horde/U5+RES+Inc+Min/Sync/Samples/Showcases/CitySample/Source/CitySampleEditor/Commandlets/NaniteMeshLodGroupUpdateCommandlet.cpp:33:9: error: 'ClassNames' is deprecated: Class names are now represented by path names. Please use ClassPaths. Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile. [-Werror,-Wdeprecated-declarations]",
 				@"        Filter.ClassNames.Add(FName(TEXT(""StaticMesh""))); ",
 				@"               ^",
@@ -201,7 +202,7 @@ namespace UnrealBuildToolTests
 			};
 
 			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
-			CheckEventGroup(logEvents, 0, 10, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents, 1, 10, LogLevel.Error, KnownLogEvents.Compiler);
 
 			LogValue fileProperty = (LogValue)logEvents[1].GetProperty("file");
 			Assert.AreEqual(@"/mnt/horde/U5+RES+Inc+Min/Sync/Samples/Showcases/CitySample/Source/CitySampleEditor/Commandlets/NaniteMeshLodGroupUpdateCommandlet.cpp", fileProperty.Text);

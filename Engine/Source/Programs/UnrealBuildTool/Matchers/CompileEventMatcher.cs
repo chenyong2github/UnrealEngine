@@ -45,7 +45,8 @@ namespace UnrealBuildTool.Matchers
 		const string ClangSeverity =
 			@"(?<severity>error|warning)";
 
-		static readonly Regex s_preludePattern = new Regex(@"^\s*(?:In (member )?function|In file included from|\[[\d/]+\] Compile |[^/\ :]+\\.cpp\s*(?:\([^\)]*\))?$)");
+		static readonly Regex s_baseFilePattern = new Regex(@"^\s*(?:\[[\d/]+\] Compile |[^/\ :]+\\.cpp\s*(?:\([^\)]*\))?$)");
+		static readonly Regex s_preludePattern = new Regex(@"^\s*(?:In (member )?function|In file included from)");
 		static readonly Regex s_blankLinePattern = new Regex(@"^\s*$");
 		static readonly Regex s_errorWarningPattern = new Regex("error|warning");
 		static readonly Regex s_clangDiagnosticPattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:");
@@ -66,6 +67,10 @@ namespace UnrealBuildTool.Matchers
 		{
 			// Match the prelude to any error
 			int maxOffset = 0;
+			if (input.IsMatch(maxOffset, s_baseFilePattern))
+			{
+				maxOffset++;
+			}
 			while (input.IsMatch(maxOffset, s_preludePattern))
 			{
 				maxOffset++;
