@@ -4704,14 +4704,6 @@ UReplicationGraphNode_DormancyNode* UReplicationGraphNode_GridCell::GetDormancyN
 void UReplicationGraphNode_GridCell::GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const
 {
 	Super::GetAllActorsInNode_Debugging(OutArray);
-	if (DynamicNode)
-	{
-		DynamicNode->GetAllActorsInNode_Debugging(OutArray);
-	}
-	if (DormancyNode)
-	{
-		DormancyNode->GetAllActorsInNode_Debugging(OutArray);
-	}
 }
 
 int32 CVar_RepGraph_DebugNextNewActor = 0;
