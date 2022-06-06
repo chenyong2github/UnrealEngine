@@ -1568,7 +1568,7 @@ void FEOSVoiceChatUser::ClearLoginSession()
 {
 	for (TPair<FString, FChannelSession> Pair : LoginSession.ChannelSessions)
 	{
-		RemoveChannelSession(Pair.Key);
+		UnbindChannelCallbacks(Pair.Value);
 	}
 	LoginSession = FLoginSession();
 }
