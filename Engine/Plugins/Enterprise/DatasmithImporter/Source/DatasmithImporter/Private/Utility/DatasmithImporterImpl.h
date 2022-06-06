@@ -4,16 +4,14 @@
 
 #include "CoreMinimal.h"
 
-#include "Serialization/ObjectReader.h"
-#include "Serialization/ObjectWriter.h"
 #include "UObject/StrongObjectPtr.h"
 
 class AActor;
 class FFeedbackContext;
+class FMaterialUpdateContext;
 class IDatasmithBaseMaterialElement;
 class UActorComponent;
 class UDatasmithObjectTemplate;
-class FMaterialUpdateContext;
 class UMaterial;
 class UMaterialInterface;
 class USceneComponent;
@@ -27,8 +25,6 @@ class FDatasmithImporterImpl
 {
 public:
 	static void ReportProgress(FScopedSlowTask* SlowTask, const float ExpectedWorkThisFrame, const FText& Text);
-
-	static void ReportProgress(FScopedSlowTask* SlowTask, const float ExpectedWorkThisFrame, FText&& Text);
 
 	static bool HasUserCancelledTask(FFeedbackContext* FeedbackContext);
 
