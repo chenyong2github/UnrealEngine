@@ -5,7 +5,6 @@
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
 #include "PixelShaderUtils.h"
-#include "ShaderPrint.h"
 #include "ShaderPrintParameters.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
@@ -28,11 +27,6 @@ FAutoConsoleVariableRef CVarNaniteStatsFilter(
 );
 
 extern TAutoConsoleVariable<int32> CVarNaniteShadows;
-
-namespace ShaderPrint
-{
-	extern TAutoConsoleVariable<int32> CVarEnable;
-}
 
 bool bNaniteListStatFilters = false;
 
