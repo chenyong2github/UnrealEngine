@@ -49,7 +49,8 @@ public:
 	TSharedPtr<FUICommandInfo> PasteFunction;
 	TSharedPtr<FUICommandInfo> PasteMacro;
 	TSharedPtr<FUICommandInfo> GotoNativeVarDefinition;
-	TSharedPtr<FUICommandInfo> MoveToParent;
+	TSharedPtr<FUICommandInfo> MoveVariableToParent;
+	TSharedPtr<FUICommandInfo> MoveFunctionToParent;
 	// Add New Item
 	/** Initialize commands */
 	virtual void RegisterCommands() override;
@@ -254,7 +255,8 @@ private:
 	void GotoNativeCodeVarDefinition();
 	bool IsNativeVariable() const;
 	void OnMoveToParent();
-	bool CanMoveToParent() const;
+	bool CanMoveVariableToParent() const;
+	bool CanMoveFunctionToParent() const;
 	void OnCopy();
 	bool CanCopy() const;
 	void OnCut();
