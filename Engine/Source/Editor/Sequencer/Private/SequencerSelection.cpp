@@ -2,6 +2,7 @@
 
 #include "SequencerSelection.h"
 #include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
 #include "SequencerCommonHelpers.h"
 
 #include "MVVM/SharedViewModelData.h"
@@ -578,6 +579,21 @@ void FSequencerSelection::EmptySelectedOutlinerNodesWithoutSections(const TArray
 
 		bool bFoundMatch = false;
 
+		if (TSharedPtr<FTrackModel> TrackModel = SelectedModel->FindAncestorOfType<FTrackModel>())
+		{
+			if (UMovieSceneTrack* Track = TrackModel->GetTrack())
+			{
+				for (int32 SectionIndex = 0; SectionIndex < Track->GetAllSections().Num() && !bFoundMatch; ++SectionIndex)
+				{
+					if (Sections.Contains(Track->GetAllSections()[SectionIndex]))
+					{
+						bFoundMatch = true;
+						break;
+					}
+				}
+			}
+		}
+			
 		for (TSharedPtr<FSectionModel> SectionModel : SelectedModel->GetDescendantsOfType<FSectionModel>())
 		{
 			if (Sections.Contains(SectionModel->GetSection()))
