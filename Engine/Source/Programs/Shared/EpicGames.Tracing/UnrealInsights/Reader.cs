@@ -8,7 +8,8 @@ using EpicGames.Tracing.UnrealInsights.Events;
 
 namespace EpicGames.Tracing.UnrealInsights
 {
-	public class PredefinedEventUid
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:Identifiers should not contain underscores")]
+	public static class PredefinedEventUid
 	{
 		public const ushort NewEvent = 0;
 		public const ushort AuxData = 1;
@@ -31,8 +32,8 @@ namespace EpicGames.Tracing.UnrealInsights
 	
 	public class UnrealInsightsReader
 	{
-		public readonly Dictionary<ushort, EventType> EventTypes = new Dictionary<ushort, EventType>();
-		public readonly Dictionary<ushort, List<ITraceEvent>> EventsPerThread = new Dictionary<ushort, List<ITraceEvent>>();
+		public Dictionary<ushort, EventType> EventTypes { get; } = new Dictionary<ushort, EventType>();
+		public Dictionary<ushort, List<ITraceEvent>> EventsPerThread { get; } = new Dictionary<ushort, List<ITraceEvent>>();
 
 		internal int NumTransportPacketsRead { get; private set; } = 0;
 
@@ -93,7 +94,7 @@ namespace EpicGames.Tracing.UnrealInsights
 					ThreadStreams[Packet.GetThreadId()] = ThreadStream;
 				}
 
-				ThreadStream.Write(Packet.Data);
+				ThreadStream.Write(Packet.GetData());
 				NumTransportPacketsRead++;
 			}
 			Reader.EnsureEntireStreamIsConsumed();

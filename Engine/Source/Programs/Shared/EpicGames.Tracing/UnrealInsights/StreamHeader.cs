@@ -10,13 +10,13 @@ namespace EpicGames.Tracing.UnrealInsights
 		public const uint MagicTrc = 1414677317; // TRCE
 		public const uint MagicTrc2 = 1414677298; // TRC2
 
-		public uint MagicFourCc;
-		public ushort MetadataSize;
-		public ushort MetadataField0;
-		public ushort ControlPort;
+		uint MagicFourCc;
+		ushort MetadataSize;
+		ushort MetadataField0;
+		ushort ControlPort;
 
-		public byte TransportVersion;
-		public byte ProtocolVersion;
+		byte TransportVersion;
+		byte ProtocolVersion;
 
 		private StreamHeader()
 		{

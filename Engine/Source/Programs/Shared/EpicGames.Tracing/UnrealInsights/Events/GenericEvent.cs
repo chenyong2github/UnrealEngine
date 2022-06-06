@@ -6,38 +6,43 @@ using System.Text;
 
 namespace EpicGames.Tracing.UnrealInsights.Events
 {
+	public class Field
+	{
+		public bool? Bool { get; }
+		public int? Int { get; }
+		public long? Long { get; }
+		public double? Float { get; }
+		public string? String { get; }
+		readonly byte[]? Array;
+		public byte[]? GetArray()
+		{
+			return Array;
+		}
+
+		private Field(bool Value) { Bool = Value; }
+		private Field(int Value) { Int = Value; }
+		private Field(long Value) { Long = Value; }
+		private Field(float Value) { Float = Value; }
+		private Field(double Value) { Float = Value; }
+		private Field(string Value) { String = Value; }
+		private Field(byte[] Value) { Array = Value; }
+		public static Field FromBool(bool Value) => new Field(Value);
+		public static Field FromInt(int Value) => new Field(Value);
+		public static Field FromLong(long Value) => new Field(Value);
+		public static Field FromFloat(float Value) => new Field(Value);
+		public static Field FromDouble(double Value) => new Field(Value);
+		public static Field FromString(string Value) => new Field(Value);
+		public static Field FromArray(byte[] Value) => new Field(Value);
+	}
+
 	/// <summary>
 	/// Represents a generic event in the stream with fields stored dynamically
 	/// </summary>
 	public class GenericEvent : ITraceEvent
 	{
-		public class Field
-		{
-			public readonly bool? Bool;
-			public readonly int? Int;
-			public readonly long? Long;
-			public readonly double? Float;
-			public readonly string? String;
-			public readonly byte[]? Array;
-
-			private Field(bool Value) { Bool = Value; }
-			private Field(int Value) { Int = Value; }
-			private Field(long Value) { Long = Value; }
-			private Field(float Value) { Float = Value; }
-			private Field(double Value) { Float = Value; }
-			private Field(string Value) { String = Value; }
-			private Field(byte[] Value) { Array = Value; }
-			public static Field FromBool(bool Value) => new Field(Value);
-			public static Field FromInt(int Value) => new Field(Value);
-			public static Field FromLong(long Value) => new Field(Value);
-			public static Field FromFloat(float Value) => new Field(Value);
-			public static Field FromDouble(double Value) => new Field(Value);
-			public static Field FromString(string Value) => new Field(Value);
-			public static Field FromArray(byte[] Value) => new Field(Value);
-		}
-
-		public readonly uint Serial;
-		public readonly Field[] Fields;
+		public uint Serial { get; }
+		readonly Field[] Fields;
+		public Field[] GetFields() => Fields;
 		public EventType Type => EventType;
 		private EventType EventType;
 
@@ -74,7 +79,7 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 						}
 						else
 						{
-							AuxDataSize = (ushort) Fields[i].Array!.Length;
+							AuxDataSize = (ushort) Fields[i].GetArray()!.Length;
 						}
 
 						TotalSize += sizeof(uint); // AuxHeader
@@ -141,7 +146,7 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 					}
 					else
 					{
-						Data = Fields[i].Array!;
+						Data = Fields[i].GetArray()!;
 					}
 
 					uint AuxHeader = 0;

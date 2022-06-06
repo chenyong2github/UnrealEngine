@@ -1,12 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
 using System.IO;
 
 namespace EpicGames.Tracing.UnrealInsights.Events
 {
 	public class TraceNewTraceEvent : ITraceEvent
 	{
-		public static readonly EventType EventType;
+		public static readonly EventType EventType = new EventType(0, "$Trace", "NewTrace", EventType.FlagImportant | EventType.FlagNoSync,
+			new List<EventTypeField>() {
+				new EventTypeField(0, 8, EventTypeField.TypeInt64, "StartCycle"),
+				new EventTypeField(8, 8, EventTypeField.TypeInt64, "CycleFrequency"),
+				new EventTypeField(16, 2, EventTypeField.TypeInt16, "Endian"),
+				new EventTypeField(18, 1, EventTypeField.TypeInt8, "PointerSize")
+			});
 		
 		public ulong StartCycle { get; private set; }
 		public ulong CycleFrequency { get; private set; }
@@ -24,15 +31,6 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 			this.PointerSize = PointerSize;
 		}
 		
-		static TraceNewTraceEvent()
-		{
-			EventType = new EventType("$Trace", "NewTrace", EventType.FlagImportant | EventType.FlagNoSync);
-			EventType.AddEventType(0, 8, EventTypeField.TypeInt64, "StartCycle");
-			EventType.AddEventType(8, 8, EventTypeField.TypeInt64, "CycleFrequency");
-			EventType.AddEventType(16, 2, EventTypeField.TypeInt16, "Endian");
-			EventType.AddEventType(18, 1, EventTypeField.TypeInt8, "PointerSize");
-		}
-
 		public void Serialize(ushort Uid, BinaryWriter Writer)
 		{
 			new TraceImportantEventHeader(Uid, EventType.GetEventSize()).Serialize(Writer);
@@ -51,10 +49,17 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 			return new TraceNewTraceEvent(StartCycle, CycleFrequency, Endian, PointerSize);
 		}
 	}
-	
+
 	public class TraceThreadInfoEvent : ITraceEvent
 	{
-		public static readonly EventType EventType;
+		public static readonly EventType EventType = new EventType(0, "$Trace", "ThreadInfo", EventType.FlagImportant | EventType.FlagMaybeHasAux | EventType.FlagNoSync,
+			new List<EventTypeField>() {
+				new EventTypeField(0, 4, EventTypeField.TypeInt32, "ThreadId"),
+				new EventTypeField(4, 4, EventTypeField.TypeInt32, "SystemId"),
+				new EventTypeField(8, 4, EventTypeField.TypeInt32, "SortHint"),
+				new EventTypeField(12, 0, EventTypeField.TypeAnsiString, "Name")
+			});
+			
 
 		public ushort Size => (ushort) (GenericEvent.Size + TraceImportantEventHeader.HeaderSize);
 		public EventType Type => EventType;
@@ -62,24 +67,15 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 		
 		public TraceThreadInfoEvent(int ThreadId, int SystemId, int SortHint, string Name)
 		{
-			GenericEvent.Field[] Fields =
+			Field[] Fields =
 			{
-				GenericEvent.Field.FromInt((int) ThreadId),
-				GenericEvent.Field.FromInt((int) SystemId),
-				GenericEvent.Field.FromInt((int) SortHint),
-				GenericEvent.Field.FromString(Name),
+				Field.FromInt((int) ThreadId),
+				Field.FromInt((int) SystemId),
+				Field.FromInt((int) SortHint),
+				Field.FromString(Name),
 			};
 
 			GenericEvent = new GenericEvent(0, Fields, EventType);
-		}
-
-		static TraceThreadInfoEvent()
-		{
-			EventType = new EventType("$Trace", "ThreadInfo", EventType.FlagImportant | EventType.FlagMaybeHasAux | EventType.FlagNoSync);
-			EventType.AddEventType(0, 4, EventTypeField.TypeInt32, "ThreadId");
-			EventType.AddEventType(4, 4, EventTypeField.TypeInt32, "SystemId");
-			EventType.AddEventType(8, 4, EventTypeField.TypeInt32, "SortHint");
-			EventType.AddEventType(12, 0, EventTypeField.TypeAnsiString, "Name");
 		}
 
 		public void Serialize(ushort Uid, BinaryWriter Writer)

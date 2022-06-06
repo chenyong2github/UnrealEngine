@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
 using System.IO;
 
 namespace EpicGames.Tracing.UnrealInsights.Events
 {
 	public class DiagnosticsSession2Event : ITraceEvent
 	{
-		public static readonly EventType EventType;
+		public static readonly EventType EventType = new EventType(0, "Diagnostics", "Session2", EventType.FlagImportant | EventType.FlagMaybeHasAux | EventType.FlagNoSync,
+			new List<EventTypeField>() {
+				new EventTypeField(0, 0, EventTypeField.TypeAnsiString, "Platform"),
+				new EventTypeField(0, 0, EventTypeField.TypeAnsiString, "AppName"),
+				new EventTypeField(0, 0, EventTypeField.TypeWideString, "CommandLine"),
+				new EventTypeField(0, 0, EventTypeField.TypeWideString, "Branch"),
+				new EventTypeField(0, 0, EventTypeField.TypeWideString, "BuildVersion"),
+				new EventTypeField(0, 4, EventTypeField.TypeInt32, "Changelist"),
+				new EventTypeField(4, 1, EventTypeField.TypeInt8, "ConfigurationType"),
+				new EventTypeField(5, 1, EventTypeField.TypeInt8, "TargetType"),
+			});
 		
 		public ushort Size => (ushort) (GenericEvent.Size + TraceImportantEventHeader.HeaderSize);
 		public EventType Type => EventType;
@@ -14,34 +25,21 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 
 		public DiagnosticsSession2Event(string Platform, string AppName, string CommandLine, string Branch, string BuildVersion, int ChangeList, int ConfigurationType, int TargetType)
 		{
-			GenericEvent.Field[] Fields =
+			Field[] Fields =
 			{
-				GenericEvent.Field.FromString(Platform),
-				GenericEvent.Field.FromString(AppName),
-				GenericEvent.Field.FromString(CommandLine),
-				GenericEvent.Field.FromString(Branch),
-				GenericEvent.Field.FromString(BuildVersion),
-				GenericEvent.Field.FromInt(ChangeList),
-				GenericEvent.Field.FromInt(ConfigurationType),
-				GenericEvent.Field.FromInt(TargetType),
+				Field.FromString(Platform),
+				Field.FromString(AppName),
+				Field.FromString(CommandLine),
+				Field.FromString(Branch),
+				Field.FromString(BuildVersion),
+				Field.FromInt(ChangeList),
+				Field.FromInt(ConfigurationType),
+				Field.FromInt(TargetType),
 			};
 
 			GenericEvent = new GenericEvent(0, Fields, EventType);
 		}
 		
-		static DiagnosticsSession2Event()
-		{
-			EventType = new EventType("Diagnostics", "Session2", EventType.FlagImportant | EventType.FlagMaybeHasAux | EventType.FlagNoSync);
-			EventType.AddEventType(0, 0, EventTypeField.TypeAnsiString, "Platform");
-			EventType.AddEventType(0, 0, EventTypeField.TypeAnsiString, "AppName");
-			EventType.AddEventType(0, 0, EventTypeField.TypeWideString, "CommandLine");
-			EventType.AddEventType(0, 0, EventTypeField.TypeWideString, "Branch");
-			EventType.AddEventType(0, 0, EventTypeField.TypeWideString, "BuildVersion");
-			EventType.AddEventType(0, 4, EventTypeField.TypeInt32, "Changelist");
-			EventType.AddEventType(4, 1, EventTypeField.TypeInt8, "ConfigurationType");
-			EventType.AddEventType(5, 1, EventTypeField.TypeInt8, "TargetType");
-		}
-
 		public void Serialize(ushort Uid, BinaryWriter Writer)
 		{
 			new TraceImportantEventHeader(Uid, GenericEvent.Size).Serialize(Writer);

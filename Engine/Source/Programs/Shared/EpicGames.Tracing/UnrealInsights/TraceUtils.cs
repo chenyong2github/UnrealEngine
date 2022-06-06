@@ -4,7 +4,7 @@ using System.IO;
 
 namespace EpicGames.Tracing.UnrealInsights
 {
-	public class TraceUtils
+	public static class TraceUtils
 	{
 		public static ulong Read7BitUint(BinaryReader Reader)
 		{

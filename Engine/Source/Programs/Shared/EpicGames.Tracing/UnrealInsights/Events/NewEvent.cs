@@ -8,6 +8,7 @@ using System.Text;
 
 namespace EpicGames.Tracing.UnrealInsights.Events
 {
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1823:Avoid unused private fields")]
 	public class EventTypeField
 	{
 		public ushort Offset { get; private set; }
@@ -16,7 +17,6 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 		public byte NameSize { get; private set; }
 		public string Name { get; private set; } = "<unknown>";
 		public const ushort StructSize = 2 + 2 + 1 + 1;
-
 		private static readonly byte Field_CategoryMask = ToOctalByte("300");
 		private static readonly byte Field_Integer = ToOctalByte("000");
 		private static readonly byte Field_Float = ToOctalByte("100");

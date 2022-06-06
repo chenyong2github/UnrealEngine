@@ -10,9 +10,9 @@ namespace EpicGames.Tracing.UnrealInsights
 {
 	public class UnrealInsightsWriter
 	{
-		public readonly Dictionary<EventType, ushort> EventTypeToUids = new Dictionary<EventType, ushort>();
-		public readonly Dictionary<ushort, EventType> UidToEventTypes = new Dictionary<ushort, EventType>();
-		public readonly Dictionary<ushort, List<ITraceEvent>> ThreadToEvents = new Dictionary<ushort, List<ITraceEvent>>();
+		readonly Dictionary<EventType, ushort> EventTypeToUids = new Dictionary<EventType, ushort>();
+		readonly Dictionary<ushort, EventType> UidToEventTypes = new Dictionary<ushort, EventType>();
+		readonly Dictionary<ushort, List<ITraceEvent>> ThreadToEvents = new Dictionary<ushort, List<ITraceEvent>>();
 		
 		private ushort UidCounter = PredefinedEventUid._WellKnownNum; // IDs below 16 are reserved for well-known events
 		private object Lock = new object();

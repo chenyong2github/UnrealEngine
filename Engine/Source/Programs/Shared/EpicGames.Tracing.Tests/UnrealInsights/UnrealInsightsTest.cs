@@ -13,8 +13,8 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 {
 	public class StubTraceEvent : ITraceEvent
 	{
-		public readonly uint Val1;
-		public readonly byte Val2;
+		readonly uint Val1;
+		readonly byte Val2;
 
 		public StubTraceEvent(uint Val1, byte Val2)
 		{
@@ -56,7 +56,7 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 			Writer.Write(Test3);
 			
 			Ms.Position = 0;
-			BinaryReader Reader = new BinaryReader(Ms);
+			using BinaryReader Reader = new BinaryReader(Ms);
 			TraceImportantEventHeader EventHeader = TraceImportantEventHeader.Deserialize(Reader);
 			Assert.AreEqual(1000, EventHeader.Uid);
 			Assert.AreEqual(EventSize, EventHeader.EventSize);
@@ -100,29 +100,33 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 			
 			{
 				GenericEvent Event = (GenericEvent) Reader.EventsPerThread[1][0];
-				Assert.AreEqual(1001, Event.Fields[0].Long!.Value);
-				Assert.AreEqual(2001, Event.Fields[1].Long!.Value);
-				Assert.AreEqual(31, Event.Fields[2].Int!.Value);
-				Assert.AreEqual(8, Event.Fields[3].Int!.Value);
+				Field[] Fields = Event.GetFields();
+				Assert.AreEqual(1001, Fields[0].Long!.Value);
+				Assert.AreEqual(2001, Fields[1].Long!.Value);
+				Assert.AreEqual(31, Fields[2].Int!.Value);
+				Assert.AreEqual(8, Fields[3].Int!.Value);
 			}
 			{
 				GenericEvent Event = (GenericEvent) Reader.EventsPerThread[1][1];
-				Assert.AreEqual(1002, Event.Fields[0].Long!.Value);
-				Assert.AreEqual(2002, Event.Fields[1].Long!.Value);
-				Assert.AreEqual(32, Event.Fields[2].Int!.Value);
-				Assert.AreEqual(8, Event.Fields[3].Int!.Value);
+				Field[] Fields = Event.GetFields();
+				Assert.AreEqual(1002, Fields[0].Long!.Value);
+				Assert.AreEqual(2002, Fields[1].Long!.Value);
+				Assert.AreEqual(32, Fields[2].Int!.Value);
+				Assert.AreEqual(8, Fields[3].Int!.Value);
 			}
 			{
 				GenericEvent Event = (GenericEvent) Reader.EventsPerThread[1][2];
-				Assert.AreEqual(1003, Event.Fields[0].Long!.Value);
-				Assert.AreEqual(2003, Event.Fields[1].Long!.Value);
-				Assert.AreEqual(33, Event.Fields[2].Int!.Value);
-				Assert.AreEqual(8, Event.Fields[3].Int!.Value);
+				Field[] Fields = Event.GetFields();
+				Assert.AreEqual(1003, Fields[0].Long!.Value);
+				Assert.AreEqual(2003, Fields[1].Long!.Value);
+				Assert.AreEqual(33, Fields[2].Int!.Value);
+				Assert.AreEqual(8, Fields[3].Int!.Value);
 			}
 			{
 				GenericEvent Event = (GenericEvent) Reader.EventsPerThread[1][3];
-				Assert.AreEqual(400, Event.Fields[0].Int!.Value);
-				Assert.AreEqual("MyCpuEventSpecEvent1", Event.Fields[1].String!);
+				Field[] Fields = Event.GetFields();
+				Assert.AreEqual(400, Fields[0].Int!.Value);
+				Assert.AreEqual("MyCpuEventSpecEvent1", Fields[1].String!);
 			}
 		}
 		
@@ -185,7 +189,8 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 			Fs.Close();
 
 			UnrealInsightsReader Reader = new UnrealInsightsReader();
-			Reader.Read(File.Open(FileName, FileMode.Open));
+			using FileStream Stream = File.Open(FileName, FileMode.Open);
+			Reader.Read(Stream);
 			Reader.PrintEventSummary();
 
 			Assert.AreEqual(0, Reader.EventsPerThread[TransportPacket.ThreadIdEvents].Count);
@@ -197,7 +202,8 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 			string ExampleDecompTrace = "UnrealInsights/example_trace.decomp.utrace";
 
 			UnrealInsightsReader Reader = new UnrealInsightsReader();
-			Reader.Read(File.Open(ExampleDecompTrace, FileMode.Open));
+			using FileStream Stream = File.Open(ExampleDecompTrace, FileMode.Open);
+			Reader.Read(Stream);
 			Reader.PrintEventSummary();
 			
 			Assert.AreEqual(6281, Reader.NumTransportPacketsRead);

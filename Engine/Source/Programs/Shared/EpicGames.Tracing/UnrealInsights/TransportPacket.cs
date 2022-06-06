@@ -19,9 +19,13 @@ namespace EpicGames.Tracing.UnrealInsights
 		private const ushort ThreadIdMask = PartialMarker - 1;
 		
 		public ushort PacketSize { get; private set; }
-		public ushort ThreadId { get; private set; }
+		public ushort ThreadIdAndMarkers { get; private set; }
 		public ushort DecodedSize { get; private set; }
-		public byte[] Data { get; private set; } = Array.Empty<byte>();
+		byte[] Data = Array.Empty<byte>();
+		public byte[] GetData()
+		{
+			return Data;
+		}
 	
 		private TransportPacket()
 		{
@@ -29,17 +33,17 @@ namespace EpicGames.Tracing.UnrealInsights
 		
 		public bool IsEncoded()
 		{
-			return (ThreadId & EncodedMarker) != 0;
+			return (ThreadIdAndMarkers & EncodedMarker) != 0;
 		}
 		
 		public bool IsPartial()
 		{
-			return (ThreadId & PartialMarker) != 0;
+			return (ThreadIdAndMarkers & PartialMarker) != 0;
 		}
 		
 		public ushort GetThreadId()
 		{
-			return (ushort) (ThreadId & ThreadIdMask);
+			return (ushort) (ThreadIdAndMarkers & ThreadIdMask);
 		}
 		
 		public static bool IsNormalThread(ushort ThreadId)
@@ -60,7 +64,7 @@ namespace EpicGames.Tracing.UnrealInsights
 			TotalSize += 4; // The two uint16 writes below are included
 			
 			Writer.Write(TotalSize);
-			Writer.Write(ThreadId);
+			Writer.Write(ThreadIdAndMarkers);
 
 			foreach ((ushort Uid, ITraceEvent Event) in Events)
 			{
@@ -77,7 +81,7 @@ namespace EpicGames.Tracing.UnrealInsights
 		{
 			TransportPacket Packet = new TransportPacket();
 			Packet.PacketSize = PacketSize;
-			Packet.ThreadId = ThreadId;
+			Packet.ThreadIdAndMarkers = ThreadId;
 			return Packet;
 		}
 
@@ -85,7 +89,7 @@ namespace EpicGames.Tracing.UnrealInsights
 		{
 			TransportPacket Packet = new TransportPacket();
 			Packet.PacketSize = Reader.ReadUInt16();
-			Packet.ThreadId = Reader.ReadUInt16();
+			Packet.ThreadIdAndMarkers = Reader.ReadUInt16();
 
 			int HeaderSize = sizeof(ushort) + sizeof(ushort); // PacketSize + ThreadId
 			if (Packet.IsEncoded())

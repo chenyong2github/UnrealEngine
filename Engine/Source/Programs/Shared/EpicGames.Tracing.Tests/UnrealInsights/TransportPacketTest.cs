@@ -88,7 +88,7 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 		{
 			void Assert7Bit(ulong ExpectedValue, string ActualBytesHex)
 			{
-				byte[] ActualBytes = GenericEventTest.StringToByteArray(ActualBytesHex.Replace(" ", ""));
+				byte[] ActualBytes = GenericEventTest.StringToByteArray(ActualBytesHex.Replace(" ", "", StringComparison.Ordinal));
 				using MemoryStream Ms = new MemoryStream(ActualBytes);
 				using BinaryReader Reader = new BinaryReader(Ms);
 				Assert.AreEqual(ExpectedValue, TraceUtils.Read7BitUint(Reader));
@@ -126,7 +126,7 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 		{
 			void Assert7Bit(ulong Value, string ExpectedBytesHex)
 			{
-				byte[] ExpectedBytes = GenericEventTest.StringToByteArray(ExpectedBytesHex.Replace(" ", ""));
+				byte[] ExpectedBytes = GenericEventTest.StringToByteArray(ExpectedBytesHex.Replace(" ", "", StringComparison.Ordinal));
 				using MemoryStream Ms = new MemoryStream();
 				using BinaryWriter Writer = new BinaryWriter(Ms);
 
@@ -183,8 +183,8 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 				using BinaryReader Reader = new BinaryReader(Ms);
 
 				TransportPacket DeserializedPacket = TransportPacket.Deserialize(Reader);
-				Assert.AreEqual(0, DeserializedPacket.ThreadId);
-				Assert.AreEqual(Event1.Size + Event2.Size, DeserializedPacket.Data.Length);
+				Assert.AreEqual(0, DeserializedPacket.ThreadIdAndMarkers);
+				Assert.AreEqual(Event1.Size + Event2.Size, DeserializedPacket.GetData().Length);
 			}
 			
 			{
@@ -197,8 +197,8 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 				using BinaryReader Reader = new BinaryReader(Ms);
 
 				TransportPacket DeserializedPacket = TransportPacket.Deserialize(Reader);
-				Assert.AreEqual(1, DeserializedPacket.ThreadId);
-				Assert.AreEqual(0, DeserializedPacket.Data.Length);
+				Assert.AreEqual(1, DeserializedPacket.ThreadIdAndMarkers);
+				Assert.AreEqual(0, DeserializedPacket.GetData().Length);
 			}
 			
 			{
@@ -211,8 +211,8 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 				using BinaryReader Reader = new BinaryReader(Ms);
 
 				TransportPacket DeserializedPacket = TransportPacket.Deserialize(Reader);
-				Assert.AreEqual(12345, DeserializedPacket.ThreadId);
-				Assert.AreEqual(0, DeserializedPacket.Data.Length);
+				Assert.AreEqual(12345, DeserializedPacket.ThreadIdAndMarkers);
+				Assert.AreEqual(0, DeserializedPacket.GetData().Length);
 			}
 		}
 		
@@ -237,8 +237,8 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 				using BinaryReader Reader = new BinaryReader(Ms);
 
 				TransportPacket DeserializedPacket = TransportPacket.Deserialize(Reader);
-				Assert.AreEqual(0, DeserializedPacket.ThreadId);
-				Assert.AreEqual(Event1.Size + Event2.Size, DeserializedPacket.Data.Length);
+				Assert.AreEqual(0, DeserializedPacket.ThreadIdAndMarkers);
+				Assert.AreEqual(Event1.Size + Event2.Size, DeserializedPacket.GetData().Length);
 				Reader.EnsureEntireStreamIsConsumed();
 			}
 			
@@ -257,8 +257,8 @@ namespace EpicGames.Tracing.Tests.UnrealInsights
 				using BinaryReader Reader = new BinaryReader(Ms);
 
 				TransportPacket DeserializedPacket = TransportPacket.Deserialize(Reader);
-				Assert.AreEqual(0, DeserializedPacket.ThreadId);
-				Assert.AreEqual(Event1.Type.Size + Event2.Type.Size + Event3.Type.Size, DeserializedPacket.Data.Length);
+				Assert.AreEqual(0, DeserializedPacket.ThreadIdAndMarkers);
+				Assert.AreEqual(Event1.Type.Size + Event2.Type.Size + Event3.Type.Size, DeserializedPacket.GetData().Length);
 				Reader.EnsureEntireStreamIsConsumed();
 			}
 		}

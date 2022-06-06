@@ -159,7 +159,7 @@ namespace EpicGames.Tracing.UnrealInsights
 	{
 		public ushort Size => 7;
 		public EventType Type => EventType.WellKnown(PredefinedEventUid.EnterScope_T, "EnterScopeTimestamp");
-		public readonly ulong Timestamp;
+		public ulong Timestamp { get; }
 
 		public EnterScopeEventTimestamp(ulong Timestamp)
 		{
@@ -187,7 +187,7 @@ namespace EpicGames.Tracing.UnrealInsights
 	{
 		public ushort Size => 7;
 		public EventType Type => EventType.WellKnown(PredefinedEventUid.EnterScope_T, "LeaveScopeTimestamp");
-		public readonly ulong Timestamp;
+		readonly ulong Timestamp;
 
 		public LeaveScopeEventTimestamp(ulong Timestamp)
 		{
@@ -213,14 +213,16 @@ namespace EpicGames.Tracing.UnrealInsights
 
 	public class TraceImportantEventHeader
 	{
-		public readonly ushort Uid;
-		public readonly ushort EventSize;
+		public ushort Uid { get; }
+		public ushort EventSize { get; }
 
 		public const ushort HeaderSize = sizeof(ushort) + sizeof(ushort); 
 
 		public TraceImportantEventHeader(ushort Uid, ushort EventSize)
 		{
+#pragma warning disable CA1508 // Avoid dead conditional code
 			Debug.Assert(HeaderSize == 4);
+#pragma warning restore CA1508 // Avoid dead conditional code
 			this.Uid = Uid;
 			this.EventSize = EventSize;
 		}

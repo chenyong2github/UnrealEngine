@@ -8,13 +8,17 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 {
 	public class CpuProfilerEventSpecEvent : ITraceEvent
 	{
-		public static readonly EventType EventType;
+		public static readonly EventType EventType = new EventType(0, "CpuProfiler", "EventSpec", EventType.FlagImportant | EventType.FlagMaybeHasAux | EventType.FlagNoSync,
+			new List<EventTypeField>() {
+				new EventTypeField(0, 4, EventTypeField.TypeInt32, "Id"),
+				new EventTypeField(4, 0, EventTypeField.TypeAnsiString, "Name")
+			});
 		
 		public ushort Size => (ushort) (GenericEvent.Size + TraceImportantEventHeader.HeaderSize);
 		public EventType Type => EventType;
 
-		public readonly uint Id;
-		public readonly string Name;
+		public uint Id { get; }
+		readonly string Name;
 
 		private readonly GenericEvent GenericEvent;
 
@@ -23,20 +27,13 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 			this.Id = Id;
 			this.Name = Name;
 			
-			GenericEvent.Field[] Fields =
+			Field[] Fields =
 			{
-				GenericEvent.Field.FromInt((int) Id),
-				GenericEvent.Field.FromString(Name),
+				Field.FromInt((int) Id),
+				Field.FromString(Name),
 			};
 			
 			GenericEvent = new GenericEvent(0, Fields, EventType);
-		}
-
-		static CpuProfilerEventSpecEvent()
-		{
-			EventType = new EventType("CpuProfiler", "EventSpec", EventType.FlagImportant | EventType.FlagMaybeHasAux | EventType.FlagNoSync);
-			EventType.AddEventType(0, 4, EventTypeField.TypeInt32, "Id");
-			EventType.AddEventType(4, 0, EventTypeField.TypeAnsiString, "Name");
 		}
 
 		public void Serialize(ushort Uid, BinaryWriter Writer)
@@ -48,25 +45,20 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 	
 	public class CpuProfilerEventBatchEvent : ITraceEvent
 	{
-		public static readonly EventType EventType;
+		public static readonly EventType EventType = new EventType(0, "CpuProfiler", "EventBatch", EventType.FlagMaybeHasAux | EventType.FlagNoSync,
+			new List<EventTypeField>() { new EventTypeField(0, 0, EventTypeField.TypeArray, "Data") });
 		
 		public ushort Size => (ushort) (GenericEvent.Size + sizeof(ushort));
 		public EventType Type => EventType;
 
-		public readonly GenericEvent GenericEvent;
+		readonly GenericEvent GenericEvent;
 
 		public CpuProfilerEventBatchEvent(byte[] Data)
 		{
-			GenericEvent.Field[] Fields = {GenericEvent.Field.FromArray(Data)};
+			Field[] Fields = {Field.FromArray(Data)};
 			GenericEvent = new GenericEvent(0, Fields, EventType);
 		}
 		
-		static CpuProfilerEventBatchEvent()
-		{
-			EventType = new EventType("CpuProfiler", "EventBatch", EventType.FlagMaybeHasAux | EventType.FlagNoSync);
-			EventType.AddEventType(0, 0, EventTypeField.TypeArray, "Data");
-		}
-
 		public void Serialize(ushort Uid, BinaryWriter Writer)
 		{
 			Writer.WritePackedUid(Uid);
@@ -76,9 +68,9 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 	
 	public class CpuProfilerScopeEvent
 	{
-		public readonly ulong Timestamp;
-		public readonly bool IsEnterScope;
-		public readonly uint? SpecId;
+		public ulong Timestamp { get; }
+		public bool IsEnterScope { get; }
+		public uint? SpecId { get; }
 
 		public CpuProfilerScopeEvent(ulong Timestamp, bool IsEnterScope, uint? SpecId)
 		{
@@ -100,7 +92,7 @@ namespace EpicGames.Tracing.UnrealInsights.Events
 	public class CpuProfilerSerializer
 	{
 		private readonly ulong CycleFrequency;
-		public readonly List<CpuProfilerScopeEvent> ScopeEvents = new List<CpuProfilerScopeEvent>();
+		public List<CpuProfilerScopeEvent> ScopeEvents { get; } = new List<CpuProfilerScopeEvent>();
 
 		public CpuProfilerSerializer(ulong CycleFrequency)
 		{
