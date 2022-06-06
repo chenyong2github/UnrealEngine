@@ -10,7 +10,7 @@
 #include "GLTFImportOptions.generated.h"
 
 UCLASS(config = EditorPerProjectUserSettings, HideCategories = (DebugProperty))
-class UGLTFImportOptions : public UObject
+class GLTFIMPORTER_API UGLTFImportOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
