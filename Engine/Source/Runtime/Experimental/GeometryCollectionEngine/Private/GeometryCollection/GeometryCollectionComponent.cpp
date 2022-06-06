@@ -242,6 +242,10 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, bNotifyRemovals(false)
 	, bStoreVelocities(false)
 	, bShowBoneColors(false)
+#if WITH_EDITORONLY_DATA 
+	, bEnableRunTimeDataCollection(false)
+	, RunTimeDataCollectionGuid(FGuid::NewGuid())
+#endif
 	, bEnableReplication(false)
 	, bEnableAbandonAfterLevel(true)
 	, ReplicationAbandonClusterLevel(0)
@@ -2219,13 +2223,32 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		GetInitializationCommands(SimulationParameters.InitializationCommands);
 	}
 
-	PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialSimFilter, InitialQueryFilter);
+	FGuid CollectorGuid = FGuid::NewGuid();
+#if WITH_EDITORONLY_DATA
+	CollectorGuid = RunTimeDataCollectionGuid;
+	if (bEnableRunTimeDataCollection && RestCollection)
+	{
+		FCollisionImpulseWatcher::GetInstance().AddCollector(CollectorGuid, RestCollection->NumElements(FGeometryCollection::TransformGroup));
+	}
+	else
+	{
+		FCollisionImpulseWatcher::GetInstance().RemoveCollector(CollectorGuid);
+	}
+#endif
+	PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialSimFilter, InitialQueryFilter, CollectorGuid);
 	FPhysScene_Chaos* Scene = GetInnerChaosScene();
 	Scene->AddObject(this, PhysicsProxy);
 
 	RegisterForEvents();
 	SetAsyncPhysicsTickEnabled(GetIsReplicated());
 }
+
+#if WITH_EDITORONLY_DATA
+const FCollisionImpulseCollector* UGeometryCollectionComponent::GetRunTimeDataCollector() const
+{
+	return FCollisionImpulseWatcher::GetInstance().Find(RunTimeDataCollectionGuid);
+}
+#endif
 
 void UGeometryCollectionComponent::OnDestroyPhysicsState()
 {

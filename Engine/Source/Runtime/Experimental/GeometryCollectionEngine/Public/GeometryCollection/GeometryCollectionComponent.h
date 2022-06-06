@@ -35,6 +35,7 @@ class UChaosPhysicalMaterial;
 class AChaosSolverActor;
 struct FGeometryCollectionEmbeddedExemplar;
 class UInstancedStaticMeshComponent;
+struct FCollisionImpulseCollector;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FChaosBreakEvent&, BreakEvent);
 
@@ -708,6 +709,9 @@ public:
 	int32 EmbeddedIndexToTransformIndex(const UInstancedStaticMeshComponent* ISMComponent, int32 InstanceIndex) const;
 #endif
 
+#if WITH_EDITORONLY_DATA
+	const FCollisionImpulseCollector* GetRunTimeDataCollector() const;
+#endif
 	
 	// #todo should this only be available in editor?
 	void SetRestState(TArray<FTransform>&& InRestTransforms);
@@ -761,6 +765,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
 	bool bShowBoneColors;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|General")
+	bool bEnableRunTimeDataCollection;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "ChaosPhysics|General")
+	FGuid RunTimeDataCollectionGuid;
+#endif
+	
 	/** Populate the static geometry structures for the render thread. */
 	void InitConstantData(FGeometryCollectionConstantData* ConstantData) const;
 
@@ -895,5 +907,4 @@ private:
 
 	/** True if GeometryCollection transforms have changed from previous tick. */
 	bool bIsMoving;
-
 };

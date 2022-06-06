@@ -161,6 +161,9 @@ public:
 		
 		Transforms.SetNumUninitialized(NumTransforms);
 		Parent.SetNumUninitialized(NumTransforms);
+#if WITH_EDITORONLY_DATA
+		CollisionImpulses.SetNumUninitialized(NumTransforms);
+#endif		
 	}
 
 	struct FState
@@ -182,6 +185,11 @@ public:
 
 	TArray<FTransform> Transforms;
 	TArray<int32> Parent;
+
+#if WITH_EDITORONLY_DATA
+	// use to display impulse statistics in editor
+	TArray<float> CollisionImpulses;
+#endif
 	
 	bool IsObjectDynamic;
 	bool IsObjectLoading;

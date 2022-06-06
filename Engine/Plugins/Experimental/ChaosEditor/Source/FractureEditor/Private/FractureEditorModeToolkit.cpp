@@ -690,12 +690,18 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ItemText))
 		{
-			UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
 			OutlinerView->RegenerateItems();
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ColorByLevel))
 		{
-			UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
+			OutlinerView->RegenerateItems();
+			FGeometryCollectionStatistics Stats;
+			GetStatisticsSummary(Stats);
+			StatisticsView->SetStatistics(Stats);
+		}
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, DisplayColumn))
+		{
+			OutlinerView->UpdateDisplayColumn();
 			OutlinerView->RegenerateItems();
 			FGeometryCollectionStatistics Stats;
 			GetStatisticsSummary(Stats);

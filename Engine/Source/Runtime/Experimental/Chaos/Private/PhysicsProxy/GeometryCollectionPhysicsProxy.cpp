@@ -358,6 +358,7 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	const FSimulationParameters& SimulationParameters,
 	FCollisionFilterData InSimFilter,
 	FCollisionFilterData InQueryFilter,
+	FGuid InCollectorGuid,
 	const Chaos::EMultiBufferMode BufferMode)
 	: Base(InOwner)
 	, Parameters(SimulationParameters)
@@ -377,6 +378,7 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 	, GameThreadCollection(GameThreadCollectionIn)
 	, bIsPhysicsThreadWorldTransformDirty(false)
 	, bIsCollisionFilterDataDirty(false)
+	, CollectorGuid(InCollectorGuid)
 {
 	// We rely on a guarded buffer.
 	check(BufferMode == Chaos::EMultiBufferMode::TripleGuarded);
@@ -2103,6 +2105,10 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDR
 			}    // end if
 
 			PhysicsThreadCollection.Active[TransformGroupIndex] = !TargetResults.States[TransformGroupIndex].DisabledState;
+
+#if WITH_EDITORONLY_DATA
+			TargetResults.CollisionImpulses[TransformGroupIndex] = static_cast<float>(Handle->CollisionImpulse());
+#endif			
 		}    // end for
 	}        // STAT_CalcParticleToWorld scope
 	
@@ -2176,10 +2182,20 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 				{
 					Parenttype = (TargetResults.States[TransformGroupIndex].DynamicInternalClusterParent != 0)? Chaos::EInternalClusterType::Dynamic: Chaos::EInternalClusterType::KinematicOrStatic; 
 				}
-				(*InternalClusterParentTypeArray)[TransformGroupIndex] =static_cast<uint8>(Parenttype); 
+				(*InternalClusterParentTypeArray)[TransformGroupIndex] =static_cast<uint8>(Parenttype);
 			}
 		}
 
+#if WITH_EDITORONLY_DATA
+		if (FCollisionImpulseCollector* Collector = FCollisionImpulseWatcher::GetInstance().Find(CollectorGuid))
+		{
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+			{
+				Collector->SampleImpulse(TransformGroupIndex, TargetResults.CollisionImpulses[TransformGroupIndex]);
+			}
+		}
+#endif
+		
 		// second : interpolate-able ones
 		const bool bNeedInterpolation = (NextPullData!= nullptr);
 		if (bNeedInterpolation)
@@ -3479,4 +3495,50 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPBDRigid
 			Commands.RemoveAt(CommandsToRemove[Index]);
 		}
 	}
+}
+
+
+void FCollisionImpulseCollector::Reset(int32 NumTransforms)
+{
+	ImpulseData.Reset();
+	ImpulseData.SetNum(NumTransforms);
+}
+
+void FCollisionImpulseCollector::SampleImpulse(int32 TransformIndex, float Value)
+{
+	if (ImpulseData.IsValidIndex(TransformIndex))
+	{
+		FImpulseData& Data = ImpulseData[TransformIndex];
+		Data.Min = FMath::Min(Data.Min, Value);
+		Data.Max = FMath::Max(Data.Max, Value);
+		Data.Count++;
+	}
+}
+
+FCollisionImpulseWatcher& FCollisionImpulseWatcher::GetInstance()
+{
+	static FCollisionImpulseWatcher Instance;
+	return Instance;
+}
+
+void FCollisionImpulseWatcher::Clear()
+{
+	Collectors.Reset();
+}
+
+FCollisionImpulseCollector* FCollisionImpulseWatcher::Find(const FGuid& Guid)
+{
+	return Collectors.Find(Guid);
+}
+
+void FCollisionImpulseWatcher::AddCollector(const FGuid& Guid, int32 TransformNum)
+{
+	FCollisionImpulseCollector& Collector = Collectors.FindOrAdd(Guid);
+	Collector.Reset(TransformNum);
+}
+
+void FCollisionImpulseWatcher::RemoveCollector(const FGuid& Guid)
+{
+	Collectors.Remove(Guid);
+	
 }

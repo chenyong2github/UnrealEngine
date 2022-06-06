@@ -79,6 +79,7 @@ public:
 		const FSimulationParameters& SimulationParameters,
 		FCollisionFilterData InSimFilter,
 		FCollisionFilterData InQueryFilter,
+		FGuid InCollectorGuid,
 		const Chaos::EMultiBufferMode BufferMode=Chaos::EMultiBufferMode::TripleGuarded);
 	virtual ~FGeometryCollectionPhysicsProxy();
 
@@ -377,7 +378,49 @@ private:
 	// paradigm, at least for this component of the handshake.
 	Chaos::FGuardedTripleBuffer<FGeometryCollectionResults> PhysToGameInterchange;
 
-	FProxyInterpolationData InterpolationData; 
+	FProxyInterpolationData InterpolationData;
+
+	// this is used as a unique ID when collecting data from runtime
+	FGuid CollectorGuid;
+};
+
+/**
+ * the collision impulse watcher collects runtime data about
+ * collision impulses on each piece of the geometry collection 
+ */
+struct CHAOS_API FCollisionImpulseCollector
+{
+public:
+	struct FImpulseData
+	{
+		float Min = TNumericLimits<float>::Max();
+		float Max = 0;
+		int32 Count = 0;
+	};
+
+	void Reset(int32 NumTransforms);
+	int32 Num() const { return ImpulseData.Num(); }
+	const FImpulseData& operator[](int32 TransformIndex) const { return ImpulseData[TransformIndex]; }
+	void SampleImpulse(int32 TransformIndex, float Value);
+	
+private:
+	TArray<FImpulseData> ImpulseData;
+};
+
+struct CHAOS_API FCollisionImpulseWatcher
+{
+public:
+	void Clear();
+	void AddCollector(const FGuid& Guid, int32 TransformNum);
+	void RemoveCollector(const FGuid& Guid);
+
+	FCollisionImpulseCollector* Find(const FGuid& Guid);
+
+	static FCollisionImpulseWatcher& GetInstance();
+	
+private:
+	// collectors by geometry collection Guids
+	TMap<FGuid,FCollisionImpulseCollector> Collectors;
 };
 
 CHAOS_API TUniquePtr<Chaos::FTriangleMesh> CreateTriangleMesh(const int32 FaceStart,const int32 FaceCount,const TManagedArray<bool>& Visible,const TManagedArray<FIntVector>& Indices, bool bRotateWinding = true);

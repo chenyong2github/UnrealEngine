@@ -17,9 +17,9 @@
 #include "FractureSettings.h"
 #include "GeometryCollectionOutlinerDragDrop.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 
 #define LOCTEXT_NAMESPACE "ChaosEditor"
-
 
 static FText GettextFromInitialDynamicState(int32 InitialDynamicState)
 {
@@ -132,7 +132,7 @@ FReply FGeometryCollectionTreeItemBone::OnDragDetected(const FGeometry& MyGeomet
 FReply FGeometryCollectionTreeItemBone::OnDrop(const FDragDropEvent& DragDropEvent)
 {
 	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
-	if (!Operation.IsValid())
+	if (!Operation.IsValid()) 
 	{
 		return FReply::Unhandled();
 	}
@@ -163,6 +163,7 @@ UOutlinerSettings::UOutlinerSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, ItemText(EOutlinerItemNameEnum::BoneIndex)
 	, ColorByLevel(false)
+	, DisplayColumn(EOutlinerDisplayColumn::InitialState)
 {}
 
 TSharedRef<SWidget> SGeometryCollectionOutlinerRow::GenerateWidgetForColumn(const FName& ColumnName)
@@ -184,17 +185,20 @@ TSharedRef<SWidget> SGeometryCollectionOutlinerRow::GenerateWidgetForColumn(cons
 					NameWidget.ToSharedRef()
 				];
 	}
-	if (ColumnName == SGeometryCollectionOutlinerColumnID::RelativeSize)
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::Custom)
 	{
-		return Item->MakeRelativeSizeColumnWidget();
-	}
-	if (ColumnName == SGeometryCollectionOutlinerColumnID::DamageThreshold)
-	{
-		return Item->MakeDamageThresholdColumnWidget();
-	}
-	if (ColumnName == SGeometryCollectionOutlinerColumnID::InitialState)
-	{
-		return Item->MakeInitialStateColumnWidget();
+		UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
+		switch (OutlinerSettings->DisplayColumn)
+		{
+		case EOutlinerDisplayColumn::InitialState:
+			return Item->MakeInitialStateColumnWidget();
+		case EOutlinerDisplayColumn::RelativeSize:
+			return Item->MakeRelativeSizeColumnWidget();
+		case EOutlinerDisplayColumn::Damages:
+			return Item->MakeDamagesColumnWidget();
+		default:
+			return Item->MakeEmptyColumnWidget();
+		}
 	}
 	return SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot()
@@ -216,24 +220,13 @@ void SGeometryCollectionOutliner::Construct(const FArguments& InArgs)
 		.DefaultLabel(LOCTEXT("GCOutliner_Column_Bone", "Bone"))
 		.FillWidth(2.0f)
 	);
-	HeaderRowWidget->AddColumn(
-		SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::RelativeSize)
-		.DefaultLabel(LOCTEXT("GCOutliner_Column_RelativeSize", "Relative Size"))
-		.HAlignHeader(EHorizontalAlignment::HAlign_Right)
-		.FillWidth(1.0f)
-	);
 	// HeaderRowWidget->AddColumn(
-	// 	SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::DamageThreshold)
-	// 	.DefaultLabel(LOCTEXT("GCOutliner_Column_DamageThreshold", "Damage Threshold"))
-	// 	.HAlignHeader(EHorizontalAlignment::HAlign_Right)
-	// 	.FillWidth(1.0f)
-	// 	.Visibility(EVisibility::Collapsed)
+	//  	SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Custom)
+	//  	.DefaultLabel(LOCTEXT("GCOutliner_Column_Custom", "-"))
+	//  	.HAlignHeader(EHorizontalAlignment::HAlign_Right)
+	//  	.FillWidth(1.0f)
 	// );
-	HeaderRowWidget->AddColumn(
-		SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::InitialState)
-		.DefaultLabel(LOCTEXT("GCOutliner_Column_InitialState", "Initial State"))
-		.FillWidth(1.0f)
-	);
+	UpdateDisplayColumn();
 	
 	ChildSlot
 	[
@@ -250,6 +243,54 @@ void SGeometryCollectionOutliner::Construct(const FArguments& InArgs)
 		.OnSetExpansionRecursive(this, &SGeometryCollectionOutliner::ExpandRecursive)
 		.HeaderRow(HeaderRowWidget)
 	];
+}
+
+void SGeometryCollectionOutliner::UpdateDisplayColumn()
+{
+	constexpr int32 CustomColumnIndex = 1;
+	constexpr int32 CustomFillWidth = 2.0f;
+	// first remove custom columns
+	HeaderRowWidget->RemoveColumn(SGeometryCollectionOutlinerColumnID::Custom);
+
+	// then add the right customn one based on the selection
+	UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
+	switch (OutlinerSettings->DisplayColumn)
+	{
+	case EOutlinerDisplayColumn::InitialState:
+		HeaderRowWidget->InsertColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Custom)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_InitialState", "Initial State"))
+				.FillWidth(CustomFillWidth),
+			CustomColumnIndex
+		);
+		break;
+	case EOutlinerDisplayColumn::RelativeSize:
+		HeaderRowWidget->InsertColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Custom)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_RelativeSize", "Relative Size"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Right)
+				.FillWidth(CustomFillWidth),
+			CustomColumnIndex
+		);
+		break;
+	case EOutlinerDisplayColumn::Damages:
+		HeaderRowWidget->InsertColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Custom)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_Damages", "Damages"))
+	 			.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+	 			.FillWidth(CustomFillWidth),
+			CustomColumnIndex
+		);
+		break;
+	default:
+		HeaderRowWidget->InsertColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Custom)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_Custom", "-"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Right)
+				.FillWidth(CustomFillWidth),
+			CustomColumnIndex
+		);
+	}
 }
 
 void SGeometryCollectionOutliner::RegenerateItems()
@@ -702,7 +743,9 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 	}
 
 	// Set color according to simulation type
-	const UGeometryCollection* RestCollection = ParentComponentItem->GetComponent()->GetRestCollection();
+	const UGeometryCollectionComponent* Component = ParentComponentItem->GetComponent();
+	const FCollisionImpulseCollector* Collector = Component->GetRunTimeDataCollector();
+	const UGeometryCollection* RestCollection = Component->GetRestCollection();
 	if (RestCollection && IsValidChecked(RestCollection))
 	{
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = RestCollection->GetGeometryCollection();
@@ -751,6 +794,8 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 			{
 				RelativeSize = (*RelativeSizes)[ItemBoneIndex];
 			}
+
+			Damages = Collector? (*Collector)[ItemBoneIndex].Max : 0;  
 		}
 	}
 }
@@ -806,6 +851,23 @@ TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeRelativeSizeColumnWidge
 			];
 }
 
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeDamagesColumnWidget() const
+{
+	static const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
+			.SetMinimumFractionalDigits(1)
+			.SetMaximumFractionalDigits(1);
+	
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			.Padding(12.f, 0.f)
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				.Text(FText::AsNumber(Damages, &FormatOptions))
+				.ColorAndOpacity(ItemColor)
+			];
+}
+
 TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeDamageThresholdColumnWidget() const
 {
 	return SNew(SHorizontalBox)
@@ -827,6 +889,17 @@ TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeInitialStateColumnWidge
 			[
 				SNew(STextBlock)
 				.Text(GettextFromInitialDynamicState(InitialState))
+				.ColorAndOpacity(ItemColor)
+			];
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeEmptyColumnWidget() const
+{
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			.Padding(12.f, 0.f)
+			[
+				SNew(STextBlock)
 				.ColorAndOpacity(ItemColor)
 			];
 }
