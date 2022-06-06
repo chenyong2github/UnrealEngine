@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"Foliage",
 					"GeometryCache", // Just so that we can fetch its AssetImportData
+					"HairStrandsCore",
 					"IntelTBB",
 					"Landscape", // So that GetSchemaNameForComponent knows what to do with landscape proxies
 					"LiveLinkComponents", // For converting LiveLinkComponentController properties to USD

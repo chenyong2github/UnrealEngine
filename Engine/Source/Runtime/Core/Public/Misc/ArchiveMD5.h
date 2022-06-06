@@ -8,7 +8,7 @@
 /**
  * FArchive adapter for FMD5
  */
-class FArchiveMD5 : public FArchive
+class CORE_API FArchiveMD5 : public FArchive
 {
 public:
 	inline FArchiveMD5()
@@ -18,10 +18,7 @@ public:
 		SetIsPersistent(false);
 	}
 
-	virtual FString GetArchiveName() const
-	{
-		return TEXT("FArchiveMD5");
-	}
+	virtual FString GetArchiveName() const;
 
 	void Serialize(void* Data, int64 Num) override
 	{

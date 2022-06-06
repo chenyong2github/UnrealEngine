@@ -375,14 +375,17 @@ namespace UsdStageImporterImpl
 		FString AssetSuffix;
 		FString AssetPath = Asset->GetName();
 
+		if (UUsdAssetImportData* AssetImportData = UsdUtils::GetAssetImportData(Asset))
+		{
+			AssetPath = AssetImportData->PrimPath;
+		}
+
 		if (UStaticMesh* Mesh = Cast<UStaticMesh>(Asset))
 		{
 			AssetPrefix = TEXT("SM_");
 
 			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(Mesh->AssetImportData))
 			{
-				AssetPath = AssetImportData->PrimPath;
-
 				// If we have multiple LODs here we must have parsed the LOD variant set pattern. If our prims were named with the LOD
 				// pattern, go from e.g. '/Root/MyMesh/LOD0' to '/Root/MyMesh', or else every single LOD mesh will be named "SM_LOD0_X".
 				// We'll actually check though because if the user set a custom name for his prim other than LOD0 then we'll keep that
@@ -403,33 +406,16 @@ namespace UsdStageImporterImpl
 		{
 			AssetPrefix = TEXT("SK_");
 
-			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(SkMesh->GetAssetImportData()))
-			{
-				AssetPath = AssetImportData->PrimPath;
-			}
 		}
 		else if (USkeleton* Skeleton = Cast<USkeleton>(Asset))
 		{
 			AssetSuffix = TEXT("_Skeleton");
 
-			// We always set the corresponding mesh as preview mesh on import. Fetching the name here is really important
-			// as it can determine the destination path and how the asset conflicts are resolved
-			if (USkeletalMesh* SkeletalMesh = Skeleton->GetPreviewMesh())
-			{
-				if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(SkeletalMesh->GetAssetImportData()))
-				{
-					AssetPath = AssetImportData->PrimPath;
-				}
-			}
+			// Note that UsdUtils::GetAssetImportData fetches the AssetImportData of the PreviewMesh
 		}
 		else if ( UAnimSequence* AnimSequence = Cast<UAnimSequence>( Asset ) )
 		{
 			AssetPrefix = TEXT( "Anim_" );
-
-			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(AnimSequence->AssetImportData))
-			{
-				AssetPath = AssetImportData->PrimPath;
-			}
 		}
 		else if (UMaterialInterface* Material = Cast<UMaterialInterface>(Asset))
 		{
@@ -444,11 +430,6 @@ namespace UsdStageImporterImpl
 		else if (UTexture* Texture = Cast<UTexture>(Asset))
 		{
 			AssetPrefix = TEXT("T_");
-
-			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(Texture->AssetImportData))
-			{
-				AssetPath = AssetImportData->GetFirstFilename();
-			}
 		}
 
 		FString FinalName = FPaths::GetBaseFilename(AssetPath);
@@ -1509,6 +1490,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	TranslationContext->MaterialToPrimvarToUVIndex = &ImportContext.MaterialToPrimvarToUVIndex;
 	TranslationContext->InfoCache = ImportContext.InfoCache;
 	TranslationContext->BlendShapesByPath = &BlendShapesByPath;
+	TranslationContext->GroomInterpolationSettings = ImportContext.ImportOptions->GroomInterpolationSettings;
 	{
 		UsdStageImporterImpl::CacheCollapsingState( TranslationContext.Get() );
 		UsdStageImporterImpl::ImportMaterials( ImportContext, TranslationContext.Get() );

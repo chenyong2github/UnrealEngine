@@ -35,6 +35,13 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"HairStrandsCore",
+				}
+			);
+
 			if (Target.bBuildEditor)
 			{
 				PrivateDependencyModuleNames.AddRange(
@@ -42,6 +49,7 @@ namespace UnrealBuildTool.Rules
 					{
 						"BlueprintGraph",
 						"GeometryCacheUSD",
+						"HairStrandsEditor",
 						"Kismet",
 						"LiveLinkGraphNode",
 						"MaterialEditor",

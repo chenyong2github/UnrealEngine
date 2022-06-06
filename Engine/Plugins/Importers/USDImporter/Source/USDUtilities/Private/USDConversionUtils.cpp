@@ -36,6 +36,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 #include "GeometryCache.h"
+#include "GroomAsset.h"
 #include "InstancedFoliageActor.h"
 #include "LandscapeProxy.h"
 
@@ -1086,6 +1087,11 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 	{
 		ImportData = Cast<UUsdAssetImportData>( GeometryCache->AssetImportData );
 	}
+	else if ( UGroomAsset* Groom = Cast<UGroomAsset>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( Groom->AssetImportData );
+	}
+
 #endif
 	return ImportData;
 }

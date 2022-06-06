@@ -36,6 +36,13 @@ namespace UnrealBuildTool.Rules
 					"USDUtilities",
 				}
 			);
+
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"HairStrandsCore",
+				}
+			);
 		}
 	}
 }

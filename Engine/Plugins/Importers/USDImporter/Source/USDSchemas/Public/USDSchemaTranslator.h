@@ -16,6 +16,7 @@
 #include "UsdWrappers/UsdTyped.h"
 
 #include "Async/Future.h"
+#include "GroomAssetInterpolation.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Misc/Optional.h"
 #include "Templates/SubclassOf.h"
@@ -193,6 +194,9 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 
 	/** If true, we will also try creating UAnimSequence skeletal animation assets when parsing SkelRoot prims */
 	bool bAllowParsingSkeletalAnimations = true;
+
+	/** Groom group interpolation settings */
+	TArray<FHairGroupsInterpolation> GroomInterpolationSettings;
 
 	bool IsValid() const
 	{

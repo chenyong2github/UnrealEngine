@@ -15,6 +15,7 @@
 #include "USDGeomMeshTranslator.h"
 #include "USDGeomPointInstancerTranslator.h"
 #include "USDGeomXformableTranslator.h"
+#include "USDGroomTranslator.h"
 #include "USDLuxLightTranslator.h"
 #include "USDMemory.h"
 #include "USDShadeMaterialTranslator.h"
@@ -48,6 +49,7 @@ public:
 		if ( GIsEditor )
 		{
 			UsdSkelRootTranslatorHandle = GetTranslatorRegistry().Register< FUsdSkelRootTranslator >( TEXT("UsdSkelRoot") );
+			//UsdGroomTranslatorHandle = GetTranslatorRegistry().Register< FUsdGroomTranslator >( TEXT("UsdGeomXformable") ); // #ueent_todo: Enable it when the groom schema is implemented
 
 			if ( IMDLImporterModule* MDLImporterModule = FModuleManager::Get().LoadModulePtr< IMDLImporterModule >( TEXT("MDLImporter") ) )
 			{
@@ -70,6 +72,7 @@ public:
 		if ( GIsEditor )
 		{
 			GetTranslatorRegistry().Unregister( UsdSkelRootTranslatorHandle );
+			GetTranslatorRegistry().Unregister( UsdGroomTranslatorHandle );
 
 			GetTranslatorRegistry().Unregister( MdlUsdShadeMaterialTranslatorHandle );
 			GetRenderContextRegistry().Unregister( FMdlUsdShadeMaterialTranslator::MdlRenderContext );
@@ -108,6 +111,7 @@ protected:
 	FRegisteredSchemaTranslatorHandle UsdSkelRootTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdGeomXformableTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdShadeMaterialTranslatorHandle;
+	FRegisteredSchemaTranslatorHandle UsdGroomTranslatorHandle;
 
 #if defined(HAS_USDLUX_LIGHTAPI)
 	FRegisteredSchemaTranslatorHandle UsdLuxBoundableLightBaseTranslatorHandle;

@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Factories/MaterialImportHelpers.h"
+#include "GroomAssetInterpolation.h"
 #include "UObject/ObjectMacros.h"
 
 #include "USDStageImportOptions.generated.h"
@@ -86,6 +87,9 @@ public:
 	FUsdStageOptions StageOptions;
 
 
+	/** Groom group interpolation settings */
+	UPROPERTY(EditAnywhere, config, BlueprintReadWrite, Category = "Groom")
+	TArray<FHairGroupsInterpolation> GroomInterpolationSettings;
 
 	/**
 	 * If enabled, whenever two different prims import into identical assets, only one of those assets will be kept and reused.
