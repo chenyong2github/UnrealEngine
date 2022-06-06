@@ -810,6 +810,7 @@ void FMemAllocTable::AddDefaultColumns()
 								TEXTVIEW("FMallocPoisonProxy::"),
 								TEXTVIEW("Malloc"),
 								TEXTVIEW("Realloc"),
+								TEXTVIEW("MemoryTrace_"),
 							};
 							for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFunctionName); ++StringIndex)
 							{
