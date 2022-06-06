@@ -117,9 +117,9 @@ namespace UE::RivermaxCore::Private
 			const rmax_in_stream_type StreamType = RMAX_RAW_PACKET;
 			sockaddr_in RivermaxInterface;
 			memset(&RivermaxInterface, 0, sizeof(RivermaxInterface));
-			if (inet_pton(AF_INET, StringCast<ANSICHAR>(*Options.SourceAddress).Get(), &RivermaxInterface.sin_addr) != 1)
+			if (inet_pton(AF_INET, StringCast<ANSICHAR>(*Options.InterfaceAddress).Get(), &RivermaxInterface.sin_addr) != 1)
 			{
-				UE_LOG(LogRivermax, Warning, TEXT("inet_pton failed to %s"), *Options.SourceAddress);
+				UE_LOG(LogRivermax, Warning, TEXT("inet_pton failed to %s"), *Options.InterfaceAddress);
 			}
 			else
 			{
@@ -129,9 +129,9 @@ namespace UE::RivermaxCore::Private
 				memset(&FlowAttribute, 0, sizeof(FlowAttribute));
 				FlowAttribute.local_addr.sin_family = AF_INET;
 				FlowAttribute.flow_id = FlowId;
-				if (inet_pton(AF_INET, StringCast<ANSICHAR>(*Options.DestinationAddress).Get(), &FlowAttribute.local_addr.sin_addr) != 1)
+				if (inet_pton(AF_INET, StringCast<ANSICHAR>(*Options.StreamAddress).Get(), &FlowAttribute.local_addr.sin_addr) != 1)
 				{
-					UE_LOG(LogRivermax, Warning, TEXT("inet_pton failed to %s"), *Options.DestinationAddress);
+					UE_LOG(LogRivermax, Warning, TEXT("inet_pton failed to %s"), *Options.StreamAddress);
 				}
 				else
 				{
@@ -379,7 +379,7 @@ namespace UE::RivermaxCore::Private
 									FRivermaxInputVideoFrameDescriptor Descriptor;
 									Descriptor.Width = Options.Resolution.X;
 									Descriptor.Height = Options.Resolution.Y;
-									Descriptor.Stride = Options.Resolution.X * 2;//todo stride. Bytes per row
+									Descriptor.Stride = Options.Stride;
 									FRivermaxInputVideoFrameReception NewFrame;
 									NewFrame.VideoBuffer = StreamData.CurrentFrame;
 									Listener->OnVideoFrameReceived(Descriptor, NewFrame);//todo stride
@@ -426,9 +426,7 @@ namespace UE::RivermaxCore::Private
 
 		FRivermaxInputVideoFrameDescriptor Descriptor;
 		FRivermaxInputVideoFrameRequest Request;
-		const uint32 Groups = Options.Resolution.X / PixelsPerGroup_422_8b;
-		const uint32 BytesPerLine = Groups * BytesPerGroup_422_8b;
-		Descriptor.VideoBufferSize = Options.Resolution.Y * BytesPerLine;
+		Descriptor.VideoBufferSize = Options.Resolution.Y * Options.Stride;
 		Listener->OnVideoFrameRequested(Descriptor, Request);
 		StreamData.CurrentFrame = Request.VideoBuffer;
 		StreamData.WritingOffset = 0;

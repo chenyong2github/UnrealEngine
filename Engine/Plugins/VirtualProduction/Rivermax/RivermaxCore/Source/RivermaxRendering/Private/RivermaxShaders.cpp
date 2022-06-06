@@ -41,6 +41,22 @@ namespace UE::RivermaxShaders
 		return Parameters;
 	}
 
+	/* FRGB8BitToRGBA8CS shader
+	 *****************************************************************************/
+
+	IMPLEMENT_GLOBAL_SHADER(FRGB8BitToRGBA8CS, "/Plugin/RivermaxCore/Private/RivermaxShaders.usf", "RGB8BitToRGBA8CS", SF_Compute);
+
+	FRGB8BitToRGBA8CS::FParameters* FRGB8BitToRGBA8CS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow)
+	{
+		FRGB8BitToRGBA8CS::FParameters* Parameters = GraphBuilder.AllocParameters<FRGB8BitToRGBA8CS::FParameters>();
+
+		Parameters->InputRGB8Buffer = GraphBuilder.CreateSRV(RGBBuffer);
+		Parameters->HorizontalElementCount = BufferElementsPerRow;
+		Parameters->OutTexture = GraphBuilder.CreateUAV(OutputTexture, ERDGUnorderedAccessViewFlags::None);
+
+		return Parameters;
+	}
+
 	/* FRGBToRGB8BitCS shader
 	 *****************************************************************************/
 
@@ -67,6 +83,23 @@ namespace UE::RivermaxShaders
 		Parameters->InputTexturePixelsPerThread = InputTextureSizeX / OutputSize.X;
 
 		Parameters->OutRGB8Buffer = GraphBuilder.CreateUAV(OutputBuffer);
+
+		return Parameters;
+	}
+
+	/* FRGB10BitToRGBA10CS shader
+	 *****************************************************************************/
+
+	IMPLEMENT_GLOBAL_SHADER(FRGB10BitToRGBA10CS, "/Plugin/RivermaxCore/Private/RivermaxShaders.usf", "RGB10BitToRGBACS", SF_Compute);
+
+
+	FRGB10BitToRGBA10CS::FParameters* FRGB10BitToRGBA10CS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow)
+	{
+		FRGB10BitToRGBA10CS::FParameters* Parameters = GraphBuilder.AllocParameters<FRGB10BitToRGBA10CS::FParameters>();
+
+		Parameters->InputBuffer = GraphBuilder.CreateSRV(RGBBuffer);
+		Parameters->HorizontalElementCount = BufferElementsPerRow;
+		Parameters->OutTexture = GraphBuilder.CreateUAV(OutputTexture, ERDGUnorderedAccessViewFlags::None);
 
 		return Parameters;
 	}

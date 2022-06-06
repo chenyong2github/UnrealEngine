@@ -35,7 +35,7 @@ namespace UE::RivermaxMedia
 		, MaxNumVideoFrameBuffer(8)
 		, RivermaxThreadNewState(EMediaState::Closed)
 		, EventSink(InEventSink)
-		, bIsSRGBInput(true)
+		, bIsSRGBInput(false)
 		, bUseVideo(false)
 		, SupportedSampleTypes(EMediaIOSampleType::None)
 		, bPauseRequested(false)
@@ -63,18 +63,12 @@ namespace UE::RivermaxMedia
 			return false;
 		}
 
+		//Video related options
 		{
-			StreamOptions.SourceAddress = Options->GetMediaOption(RivermaxMediaOption::SourceAddress, FString());
-			StreamOptions.DestinationAddress = Options->GetMediaOption(RivermaxMediaOption::DestinationAddress, FString());
-			StreamOptions.Port = Options->GetMediaOption(RivermaxMediaOption::Port, (int64)0);
-
-			ERivermaxMediaOutputPixelFormat DesiredFormat = ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV;
-			DesiredFormat = (ERivermaxMediaOutputPixelFormat)Options->GetMediaOption(RivermaxMediaOption::PixelFormat, (int64)DesiredFormat);
-			StreamOptions.PixelFormat = DesiredFormat == ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV ? ERivermaxOutputPixelFormat::RMAX_8BIT_YCBCR : ERivermaxOutputPixelFormat::RMAX_8BIT_YCBCR;
-			StreamOptions.Resolution = VideoTrackFormat.Dim;
-			StreamOptions.FrameRate = VideoFrameRate;
-
+			bIsSRGBInput = Options->GetMediaOption(RivermaxMediaOption::SRGBInput, bIsSRGBInput);
+			DesiredPixelFormat = (ERivermaxMediaSourePixelFormat)Options->GetMediaOption(RivermaxMediaOption::PixelFormat, (int64)ERivermaxMediaSourePixelFormat::RGB_8bit);
 		}
+
 		{
 			//Adjust supported sample types based on what's being captured
 			SupportedSampleTypes = EMediaIOSampleType::Video;
@@ -85,7 +79,7 @@ namespace UE::RivermaxMedia
 		bUseVideo = true;
 
 		IRivermaxCoreModule* Module = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore");
-		if (Module)
+		if (Module && ConfigureStream(Options))
 		{
 			InputStream = Module->CreateInputStream();
 		}
@@ -187,10 +181,9 @@ namespace UE::RivermaxMedia
 
 		if (bUseVideo && ReceivedVideoFrame.VideoBuffer)
 		{
-			const EMediaTextureSampleFormat VideoSampleFormat = EMediaTextureSampleFormat::CharUYVY;
 			if (RivermaxThreadCurrentTextureSample.IsValid())
 			{
-				if (RivermaxThreadCurrentTextureSample->SetProperties(FrameInfo.Stride, FrameInfo.Width, FrameInfo.Height, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bIsSRGBInput))
+				if (RivermaxThreadCurrentTextureSample->ConfigureSample(FrameInfo.Width, FrameInfo.Height, FrameInfo.Stride, DesiredPixelFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bIsSRGBInput))
 				{
 					Samples->AddVideo(RivermaxThreadCurrentTextureSample.ToSharedRef());
 				}
@@ -281,6 +274,45 @@ namespace UE::RivermaxMedia
 	{
 		RivermaxThreadNewState = bHasSucceed ? EMediaState::Playing : EMediaState::Error;
 	}
+
+	bool FRivermaxMediaPlayer::ConfigureStream(const IMediaOptions* Options)
+	{
+		StreamOptions.InterfaceAddress = Options->GetMediaOption(RivermaxMediaOption::InterfaceAddress, FString());
+		StreamOptions.StreamAddress = Options->GetMediaOption(RivermaxMediaOption::StreamAddress, FString());
+		StreamOptions.Port = Options->GetMediaOption(RivermaxMediaOption::Port, (int64)0);
+		StreamOptions.Resolution = VideoTrackFormat.Dim;
+		StreamOptions.FrameRate = VideoFrameRate;
+
+		switch (DesiredPixelFormat)
+		{
+		case ERivermaxMediaSourePixelFormat::YUV422_8bit:
+		{
+			StreamOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_8BIT_YCBCR;
+			StreamOptions.Stride = StreamOptions.Resolution.X / 2 * 4; // 4 bytes for a group of 2 pixels
+			break;
+		}
+		case ERivermaxMediaSourePixelFormat::RGB_8bit:
+		{
+			StreamOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_8BIT_RGB;
+			StreamOptions.Stride = StreamOptions.Resolution.X * 3; //3 bytes per pixel
+			break;
+		}
+		case ERivermaxMediaSourePixelFormat::RGB_10bit:
+		{
+			StreamOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_10BIT_RGB;
+			StreamOptions.Stride = StreamOptions.Resolution.X / 4 * 15; //15 bytes for a group of 4 pixels (4 * 30bits / 8 = 15)
+			break;
+		}
+		default:
+		{
+			UE_LOG(LogRivermaxMedia, Error, TEXT("Desired pixel format (%s) is not a valid Rivermax pixel format"), *StaticEnum<ERivermaxMediaSourePixelFormat>()->GetValueAsString(DesiredPixelFormat));
+			return false;
+		}
+		}
+
+		return true;
+	}
+
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -12,6 +12,10 @@
 
 bool URivermaxMediaSource::GetMediaOption(const FName& Key, bool DefaultValue) const
 {
+	if (Key == RivermaxMediaOption::SRGBInput)
+	{
+		return bIsSRGBInput;
+	}
 	return Super::GetMediaOption(Key, DefaultValue);
 }
 
@@ -50,23 +54,24 @@ FString URivermaxMediaSource::GetMediaOption(const FName& Key, const FString& De
 	{
 		return FString::Printf(TEXT("FormatDescriptorTodo"));
 	}
-	else if (Key == RivermaxMediaOption::SourceAddress)
+	else if (Key == RivermaxMediaOption::InterfaceAddress)
 	{
-		return SourceAddress;
+		return InterfaceAddress;
 	}
-	else if (Key == RivermaxMediaOption::DestinationAddress)
+	else if (Key == RivermaxMediaOption::StreamAddress)
 	{
-		return DestinationAddress;
+		return StreamAddress;
 	}
 	return Super::GetMediaOption(Key, DefaultValue);
 }
 
 bool URivermaxMediaSource::HasMediaOption(const FName& Key) const
 {
-	if ((Key == RivermaxMediaOption::SourceAddress) ||
-		(Key == RivermaxMediaOption::DestinationAddress) ||
+	if ((Key == RivermaxMediaOption::InterfaceAddress) ||
+		(Key == RivermaxMediaOption::StreamAddress) ||
 		(Key == RivermaxMediaOption::Port) ||
 		(Key == RivermaxMediaOption::PixelFormat) ||
+		(Key == RivermaxMediaOption::SRGBInput) ||
 		(Key == FMediaIOCoreMediaOption::FrameRateNumerator) ||
 		(Key == FMediaIOCoreMediaOption::FrameRateDenominator) ||
 		(Key == FMediaIOCoreMediaOption::ResolutionWidth) ||

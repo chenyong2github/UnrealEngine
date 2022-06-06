@@ -7,8 +7,9 @@
 
 namespace RivermaxMediaOption
 {
-	static const FName SourceAddress("SourceAddress");
-	static const FName DestinationAddress("DestinationAddress");
+	static const FName InterfaceAddress("InterfaceAddress");
+	static const FName StreamAddress("StreamAddress");
 	static const FName Port("Port");
 	static const FName PixelFormat("PixelFormat");
+	static const FName SRGBInput("SRGBInput");
 }

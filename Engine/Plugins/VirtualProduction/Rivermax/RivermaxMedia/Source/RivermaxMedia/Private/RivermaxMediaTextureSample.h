@@ -3,52 +3,37 @@
 #pragma once
 
 #include "MediaIOCoreTextureSampleBase.h"
+
 #include "MediaShaders.h"
+#include "RivermaxMediaSource.h"
+#include "Templates/SharedPointer.h"
+
+class FRivermaxMediaTextureSampleConverter;
 
 /**
  * Implements a media texture sample for RivermaxMedia.
  */
-class FRivermaxMediaTextureSample
-	: public FMediaIOCoreTextureSampleBase
+class FRivermaxMediaTextureSample : public FMediaIOCoreTextureSampleBase, public TSharedFromThis<FRivermaxMediaTextureSample>
 {
 	using Super = FMediaIOCoreTextureSampleBase;
 
 public:
 
-	/**
-	 * Initialize the sample.
-	 *
-	 * @param InVideoData The video frame data.
-	 * @param InSampleFormat The sample format.
-	 * @param InTime The sample time (in the player's own clock).
-	 * @param InFrameRate The framerate of the media that produce the sample.
-	 * @param InTimecode The sample timecode if available.
-	 * @param bInIsSRGB Whether the sample is in sRGB space.
-	 */
-	bool InitializeProgressive(void* InVideoBuffer, uint32 InWidth, uint32 InHeight, uint32 InVideoBufferSize, uint32 InStride, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGB)
-	{
-		return Super::Initialize(InVideoBuffer
-			, InVideoBufferSize
-			, InStride
-			, InWidth
-			, InHeight
-			, InSampleFormat
-			, InTime
-			, InFrameRate
-			, InTimecode
-			, bInIsSRGB);
-	}
+	FRivermaxMediaTextureSample();
 
-	/**
-	 * Get YUV to RGB conversion matrix
-	 *
-	 * @return MediaIOCore Yuv To Rgb matrix
-	 */
-	virtual const FMatrix& GetYUVToRGBMatrix() const override
-	{
-		return MediaShaders::YuvToRgbRec709Scaled;
-	}
 
+	//~ Begin IMediaTextureSample interface
+	virtual const FMatrix& GetYUVToRGBMatrix() const override;
+	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override;
+	virtual bool IsOutputSrgb() const override;
+	//~ End IMediaTextureSample interface
+
+	bool ConfigureSample(uint32 InWidth, uint32 InHeight, uint32 InStride, ERivermaxMediaSourePixelFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
+
+private:
+
+	/** Texture converted used to handle incoming 2110 formats and convert them to RGB textures the engine handles */
+	TUniquePtr<FRivermaxMediaTextureSampleConverter> TextureConverter;
 };
 
 /*

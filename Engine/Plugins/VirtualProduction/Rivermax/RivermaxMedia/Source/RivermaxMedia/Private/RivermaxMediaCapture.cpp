@@ -202,8 +202,8 @@ bool URivermaxMediaCapture::ConfigureStream(URivermaxMediaOutput* InMediaOutput,
 {
 	using namespace UE::RivermaxCore;
 
-	OutOptions.DestinationAddress = InMediaOutput->DestinationAddress;
-	OutOptions.SourceAddress = InMediaOutput->SourceAddress;
+	OutOptions.StreamAddress = InMediaOutput->StreamAddress;
+	OutOptions.InterfaceAddress = InMediaOutput->InterfaceAddress;
 	OutOptions.Port = InMediaOutput->Port;
 	OutOptions.Resolution = InMediaOutput->Resolution;
 	OutOptions.FrameRate = InMediaOutput->FrameRate;
@@ -263,7 +263,10 @@ void URivermaxMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseDa
 	NewFrame.Stride = BytesPerRow;
 	NewFrame.VideoBuffer = InBuffer;
 	NewFrame.FrameIdentifier = InBaseData.SourceFrameNumber;
-	RivermaxStream->PushVideoFrame(NewFrame);
+	if (RivermaxStream->PushVideoFrame(NewFrame) == false)
+	{
+		UE_LOG(LogRivermaxMedia, Warning, TEXT("Failed to pushed captured frame"));
+	}
 }
 
 void URivermaxMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData,	TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)

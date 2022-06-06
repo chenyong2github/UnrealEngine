@@ -68,8 +68,8 @@ namespace UE::RivermaxCore::Private::Utils
 		OutSDPDescription.Appendf("v=0\n");
 		OutSDPDescription.Appendf("s=SMPTE ST2110 20 streams\n");
 		OutSDPDescription.Appendf("m=video %d RTP/AVP 96\n", Options.Port);
-		OutSDPDescription.Appendf("c=IN IP4 %S/64\n", *Options.DestinationAddress);
-		OutSDPDescription.Appendf("a=source-filter: incl IN IP4 %S %S\n", *Options.DestinationAddress, *Options.SourceAddress);
+		OutSDPDescription.Appendf("c=IN IP4 %S/64\n", *Options.StreamAddress);
+		OutSDPDescription.Appendf("a=source-filter: incl IN IP4 %S %S\n", *Options.StreamAddress, *Options.InterfaceAddress);
 		OutSDPDescription.Appendf("a=rtpmap:96 raw/90000\n");
 		OutSDPDescription.Appendf("a=fmtp: 96 sampling=%S; width=%d; height=%d; exactframerate=%S; depth=%S; TCS=SDR; colorimetry=BT709; PM=2110GPM; SSN=ST2110-20:2017; TP=2110TPN;\n"
 			, *PixelFormatToSamplingDesc(Options.PixelFormat)

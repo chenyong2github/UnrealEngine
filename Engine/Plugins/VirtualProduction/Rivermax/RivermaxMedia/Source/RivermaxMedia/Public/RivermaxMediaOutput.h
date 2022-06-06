@@ -60,10 +60,10 @@ public:
 	ERivermaxMediaOutputPixelFormat PixelFormat = ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
-	FString SourceAddress;
+	FString InterfaceAddress;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
-	FString DestinationAddress;
+	FString StreamAddress;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
 	int32 Port = 50000;

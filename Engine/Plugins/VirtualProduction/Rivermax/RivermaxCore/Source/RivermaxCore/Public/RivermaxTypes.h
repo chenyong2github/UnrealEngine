@@ -25,11 +25,11 @@ namespace UE::RivermaxCore
 		/** Stream FrameRate */
 		FFrameRate FrameRate = { 24,1 };
 
-		/** Source IP to bind to */
-		FString SourceAddress;
+		/** Interface IP to bind to */
+		FString InterfaceAddress;
 
-		/** Destination IP to send to. Defaults to multicast group IP. */
-		FString DestinationAddress = TEXT("224.1.1.1");
+		/** IP of the stream. Defaults to multicast group IP. */
+		FString StreamAddress = TEXT("224.1.1.1");
 
 		/** Port to be used by stream */
 		uint32 Port = 50000;

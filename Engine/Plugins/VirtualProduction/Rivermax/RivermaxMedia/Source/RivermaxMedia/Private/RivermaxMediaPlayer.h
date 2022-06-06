@@ -82,6 +82,9 @@ namespace  UE::RivermaxMedia
 		//~ End FMediaIOCorePlayerBase interface
 
 	private:
+		bool ConfigureStream(const IMediaOptions* Options);
+
+	private:
 
 		/** Audio, MetaData, Texture  sample object pool. */
 		TUniquePtr<FRivermaxMediaTextureSamplePool> TextureSamplePool;
@@ -114,6 +117,9 @@ namespace  UE::RivermaxMedia
 
 		/** Flag to indicate that pause is being requested */
 		std::atomic<bool> bPauseRequested;
+
+		/** Pixel format provided by media source */
+		ERivermaxMediaSourePixelFormat DesiredPixelFormat = ERivermaxMediaSourePixelFormat::RGB_10bit;
 	};
 }
 

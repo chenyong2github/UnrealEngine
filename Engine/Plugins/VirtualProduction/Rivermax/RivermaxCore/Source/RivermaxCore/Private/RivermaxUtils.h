@@ -14,8 +14,6 @@ namespace UE::RivermaxCore::Private::Utils
 	/** Various constants used for stream initialization */
 	static constexpr uint32 BytesPerHeader = 20;
 	static constexpr uint32 BytesPerPacket = 1200;
-	static constexpr uint32 PixelsPerGroup_422_8b = 2;
-	static constexpr uint32 BytesPerGroup_422_8b = 4;
 	static constexpr uint32 FullHDHeight = 1080;
 	static constexpr uint32 FullHDWidth = 1920;
 	static constexpr uint32 MaxPayloadSize = 1280;

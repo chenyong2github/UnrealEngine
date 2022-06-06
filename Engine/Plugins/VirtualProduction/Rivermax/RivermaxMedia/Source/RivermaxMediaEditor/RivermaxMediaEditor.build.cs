@@ -16,13 +16,16 @@ public class RivermaxMediaEditor : ModuleRules
 				"AssetTools",
 				"Core",
 				"CoreUObject",
+				"EditorStyle",
 				"Engine",
+				"InputCore",
 				"MediaAssets",
 				"MediaIOCore",
 				"MediaIOEditor",
 				"RivermaxMedia",
+				"Slate",
+				"SlateCore",
 				"UnrealEd"
-
 			}
 		);
 	}

@@ -58,6 +58,46 @@ namespace UE::RivermaxShaders
 	};
 
 	/**
+	 * Compute shader to convert packed 8 bits RGB to RGBA 8bits
+	 */
+	class RIVERMAXRENDERING_API FRGB8BitToRGBA8CS : public FGlobalShader
+	{
+	public:
+
+		// Structure definition to match StructuredBuffer in RivermaxShaders.usf
+		// For 8bit output, it's 3 bytes per pixels. To align with 4 bytes (32bit) we use 12 bytes (4 pixels) per output
+		struct FRGB8BitBuffer
+		{
+			uint32 DWord0;
+			uint32 DWord1;
+			uint32 DWord2;
+		};
+
+		DECLARE_GLOBAL_SHADER(FRGB8BitToRGBA8CS);
+		SHADER_USE_PARAMETER_STRUCT(FRGB8BitToRGBA8CS, FGlobalShader);
+
+		class FSRGBToLinear : SHADER_PERMUTATION_BOOL("DO_SRGB_TO_LINEAR");
+		using FPermutationDomain = TShaderPermutationDomain<FSRGBToLinear>;
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FRGB8BitBuffer>, InputRGB8Buffer)
+			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
+		END_SHADER_PARAMETER_STRUCT()
+
+	public:
+
+		// Called by the engine to determine which permutations to compile for this shader
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+
+		/** Allocates and setup shader parameter in the incoming graph builder */
+		FRGB8BitToRGBA8CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow);
+	};
+
+	/**
 	 * Compute shader to convert RGBA to packed 8 bits RGB
 	 */
 	class RIVERMAXRENDERING_API FRGBToRGB8BitCS : public FGlobalShader
@@ -130,7 +170,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
 			SHADER_PARAMETER(uint32, InputTexturePixelsPerThread)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRGB10BitBuffer>, OutRGB10Buffer)
-		END_SHADER_PARAMETER_STRUCT()
+			END_SHADER_PARAMETER_STRUCT()
 
 	public:
 
@@ -142,6 +182,45 @@ namespace UE::RivermaxShaders
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
 		FRGBToRGB10BitCS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, const FIntPoint& SourceSize, const FIntRect& SourceViewRect, const FIntPoint& OutputSize, FRDGBufferRef OutputBuffer);
+	};
+
+	/**
+	 * Compute shader to convert packed 10 bits RGB to RGBA
+	 */
+	class RIVERMAXRENDERING_API FRGB10BitToRGBA10CS : public FGlobalShader
+	{
+	public:
+
+		// Structure definition to match StructuredBuffer in RivermaxShaders.usf
+		// 10 bits per channel, 30 bits per pixel. Aligns on 15 32bits -> 480bits -> 16RGB10 pixels
+		// 2110-20 says it's 4 pixels per pgroup. 
+		struct FRGB10BitBuffer
+		{
+			uint32 DWords[15];
+		};
+
+		DECLARE_GLOBAL_SHADER(FRGB10BitToRGBA10CS);
+		SHADER_USE_PARAMETER_STRUCT(FRGB10BitToRGBA10CS, FGlobalShader);
+		
+		class FSRGBToLinear : SHADER_PERMUTATION_BOOL("DO_SRGB_TO_LINEAR");
+		using FPermutationDomain = TShaderPermutationDomain<FSRGBToLinear>;
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FRGB10BitBuffer>, InputBuffer)
+			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
+		END_SHADER_PARAMETER_STRUCT()
+
+	public:
+
+		// Called by the engine to determine which permutations to compile for this shader
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+
+		/** Allocates and setup shader parameter in the incoming graph builder */
+		FRGB10BitToRGBA10CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow);
 	};
 
 	/**

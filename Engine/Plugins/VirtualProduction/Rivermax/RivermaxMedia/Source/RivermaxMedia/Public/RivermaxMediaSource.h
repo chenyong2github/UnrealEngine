@@ -12,10 +12,12 @@
  * Native data format.
  */
 UENUM()
-enum class ERivermaxMediaSourceColorFormat : uint8
+enum class ERivermaxMediaSourePixelFormat : uint8
 {
-	YUV2_8bit UMETA(DisplayName = "8bit YUV"),
-	//Todo Add support for 10bit YUV and 8/10 bit RGB
+	YUV422_8bit UMETA(DisplayName = "8bit YUV422"),
+	RGB_8bit UMETA(DisplayName = "8bit RGB"),
+	RGB_10bit UMETA(DisplayName = "10bit RGB"),
+	//Todo Add support for 10bit YUV and float16 rgb
 };
 
 /**
@@ -28,8 +30,6 @@ class RIVERMAXMEDIA_API URivermaxMediaSource : public UTimeSynchronizableMediaSo
 
 public:
 
-	//todo proper device configuration like Aja and Blackmagic
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Format")
 	FIntPoint Resolution = {1920, 1080};
 	
@@ -37,16 +37,22 @@ public:
 	FFrameRate FrameRate = {24,1};
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
-	ERivermaxMediaSourceColorFormat PixelFormat = ERivermaxMediaSourceColorFormat::YUV2_8bit;
+	ERivermaxMediaSourePixelFormat PixelFormat = ERivermaxMediaSourePixelFormat::YUV422_8bit;
 
+	/** Network card interface to use to receive data */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
-	FString SourceAddress;
+	FString InterfaceAddress;
 
+	/** IP address where incoming stream is coming from.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
-	FString DestinationAddress;
+	FString StreamAddress;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
 	int32 Port = 50000;
+
+	/** Whether the video input is in sRGB color space.If true, sRGBToLinear will be done on incoming pixels before writing to media texture */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Video")
+	bool bIsSRGBInput = false;
 
 public:
 	//~ Begin IMediaOptions interface
