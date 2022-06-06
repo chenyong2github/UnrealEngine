@@ -121,12 +121,12 @@ namespace UnrealGameSync
 		public static T LoadJson<T>(FileReference File)
 		{
 			byte[] Data = FileReference.ReadAllBytes(File);
-			return JsonSerializer.Deserialize<T>(Data, DefaultJsonSerializerOptions);
+			return JsonSerializer.Deserialize<T>(Data, DefaultJsonSerializerOptions)!;
 		}
 
 		public static void SaveJson<T>(FileReference File, T Object)
 		{
-			JsonSerializerOptions Options = new JsonSerializerOptions { IgnoreNullValues = true, WriteIndented = true };
+			JsonSerializerOptions Options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = true };
 			Options.Converters.Add(new JsonStringEnumConverter());
 
 			using (Stream Stream = FileReference.Open(File, FileMode.Create, FileAccess.Write, FileShare.Read))
@@ -140,7 +140,7 @@ namespace UnrealGameSync
 
 		public static string GetPathWithCorrectCase(FileInfo Info)
 		{
-			DirectoryInfo ParentInfo = Info.Directory;
+			DirectoryInfo ParentInfo = Info.Directory!;
 			if(Info.Exists)
 			{
 				return Path.Combine(GetPathWithCorrectCase(ParentInfo), ParentInfo.GetFiles(Info.Name)[0].Name); 
@@ -153,7 +153,7 @@ namespace UnrealGameSync
 
 		public static string GetPathWithCorrectCase(DirectoryInfo Info)
 		{
-			DirectoryInfo ParentInfo = Info.Parent;
+			DirectoryInfo ParentInfo = Info.Parent!;
 			if(ParentInfo == null)
 			{
 				return Info.FullName.ToUpperInvariant();
@@ -316,7 +316,7 @@ namespace UnrealGameSync
 				Options.PropertyNameCaseInsensitive = true;
 				Options.Converters.Add(new JsonStringEnumConverter());
 
-				ProjectJson Project = JsonSerializer.Deserialize<ProjectJson>(Text, Options);
+				ProjectJson Project = JsonSerializer.Deserialize<ProjectJson>(Text, Options)!;
 
 				return Project.Enterprise;
 			}
@@ -382,7 +382,7 @@ namespace UnrealGameSync
 
 			if (ProjectFile.Name.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
 			{
-				AddLocalConfigPaths_WithExtensionDirs(ProjectFile.Directory, "Build", "UnrealGameSync.ini", SearchPaths);
+				AddLocalConfigPaths_WithExtensionDirs(ProjectFile.Directory!, "Build", "UnrealGameSync.ini", SearchPaths);
 			}
 			else
 			{
@@ -606,7 +606,7 @@ namespace UnrealGameSync
 			ProcessStartInfo StartInfo = new ProcessStartInfo();
 			StartInfo.FileName = Url;
 			StartInfo.UseShellExecute = true;
-			using Process _ = Process.Start(StartInfo);
+			using Process? _ = Process.Start(StartInfo);
 		}
 	}
 }

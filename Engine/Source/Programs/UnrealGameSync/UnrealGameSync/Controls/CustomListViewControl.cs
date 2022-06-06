@@ -400,7 +400,7 @@ namespace UnrealGameSync
 
 		public void DrawNormalSubItem(DrawListViewSubItemEventArgs e)
 		{
-			DrawText(e.Graphics, e.SubItem.Bounds, Columns[e.ColumnIndex].TextAlign, SystemColors.WindowText, e.SubItem.Text);
+			DrawText(e.Graphics, e.SubItem!.Bounds, Columns[e.ColumnIndex].TextAlign, SystemColors.WindowText, e.SubItem.Text);
 		}
 
 		public void DrawCustomSubItem(Graphics Graphics, ListViewItem.ListViewSubItem SubItem)

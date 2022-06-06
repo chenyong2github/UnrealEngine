@@ -333,7 +333,7 @@ namespace UnrealGameSyncCmd
 			Dictionary<Guid, WorkspaceSyncCategory> SyncCategories = ConfigUtils.GetSyncCategories(ProjectConfig);
 			string[] CombinedSyncFilter = GlobalSettingsFile.GetCombinedSyncFilter(SyncCategories, UserSettings.Global.Filter, WorkspaceSettings.Filter);
 
-			ConfigSection PerforceSection = ProjectConfig.FindSection("Perforce");
+			ConfigSection? PerforceSection = ProjectConfig.FindSection("Perforce");
 			if (PerforceSection != null)
 			{
 				IEnumerable<string> AdditionalPaths = PerforceSection.GetValues("AdditionalPathsToSync", new string[0]);

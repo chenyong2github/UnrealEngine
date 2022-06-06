@@ -427,7 +427,7 @@ namespace UnrealGameSync
 						{
 							NewIssue.bIsWarning = !Builds.Any(x => x.Outcome != IssueBuildOutcome.Warning);
 
-							IssueBuildData LastBuild = Builds.OrderByDescending(x => x.Change).FirstOrDefault();
+							IssueBuildData? LastBuild = Builds.OrderByDescending(x => x.Change).FirstOrDefault();
 							if (LastBuild != null && !String.IsNullOrEmpty(LastBuild.ErrorUrl))
 							{
 								NewIssue.BuildUrl = LastBuild.ErrorUrl;

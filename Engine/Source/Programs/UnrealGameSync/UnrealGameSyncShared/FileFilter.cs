@@ -266,7 +266,7 @@ namespace UnrealGameSync
 			FileFilterNode LastNode = RootNode;
 			foreach (string BranchPattern in BranchPatterns)
 			{
-				FileFilterNode NextNode = LastNode.Branches.FirstOrDefault(x => x.Pattern == BranchPattern);
+				FileFilterNode? NextNode = LastNode.Branches.FirstOrDefault(x => x.Pattern == BranchPattern);
 				if (NextNode == null)
 				{
 					NextNode = new FileFilterNode(LastNode, BranchPattern);

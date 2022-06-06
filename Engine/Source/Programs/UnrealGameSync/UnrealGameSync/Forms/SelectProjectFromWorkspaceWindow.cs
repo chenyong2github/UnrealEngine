@@ -225,7 +225,7 @@ namespace UnrealGameSync
 
 		private void ProjectTreeView_AfterSelect(object sender, TreeViewEventArgs e)
 		{
-			OkBtn.Enabled = (e.Node.Tag != null);
+			OkBtn.Enabled = (e.Node!.Tag != null);
 		}
 
 		private void OkBtn_Click(object sender, EventArgs e)

@@ -262,7 +262,7 @@ namespace UnrealGameSync
 
 		public static void Show(Form Owner, IssueMonitor IssueMonitor, IPerforceSettings PerforceSettings, TimeSpan? ServerTimeOffset, IServiceProvider ServiceProvider, string? CurrentStream, Dictionary<string, Func<IssueData, bool>> CustomFilters, string? DefaultFilter)
 		{
-			IssueBrowserWindow Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor);
+			IssueBrowserWindow? Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor);
 			if(Window == null)
 			{
 				Window = new IssueBrowserWindow(IssueMonitor, PerforceSettings, ServerTimeOffset, ServiceProvider, CurrentStream, CustomFilters, DefaultFilter);
@@ -403,7 +403,7 @@ namespace UnrealGameSync
 
 		private void IssueListView_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
 		{
-			IssueData Issue = (IssueData)e.Item.Tag;
+			IssueData Issue = (IssueData)e.Item!.Tag;
 			if (e.ColumnIndex == IconHeader.Index)
 			{
 				if(!Issue.ResolvedAt.HasValue && Issue.FixChange == 0)

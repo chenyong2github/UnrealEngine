@@ -180,7 +180,7 @@ namespace UnrealGameSync
 				catch (WebException Ex)
 				{
 					// Handle errors. Any non-200 responses automatically generate a WebException.
-					HttpWebResponse Response = (HttpWebResponse)Ex.Response;
+					HttpWebResponse? Response = (HttpWebResponse?)Ex.Response;
 					if (Response == null)
 					{
 						Logger.LogError(Ex, "Exception while attempting to send event");

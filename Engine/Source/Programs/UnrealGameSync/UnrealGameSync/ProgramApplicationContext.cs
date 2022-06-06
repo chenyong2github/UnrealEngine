@@ -260,7 +260,7 @@ namespace UnrealGameSync
 			MainWindowInstance.FormClosed += MainWindowInstance_FormClosed;
 		}
 
-		private void MainWindowInstance_FormClosed(object sender, FormClosedEventArgs e)
+		private void MainWindowInstance_FormClosed(object? sender, FormClosedEventArgs e)
 		{
 			ExitThread();
 		}
@@ -345,7 +345,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void NotifyIcon_MouseDown(object sender, MouseEventArgs e)
+		private void NotifyIcon_MouseDown(object? sender, MouseEventArgs e)
 		{
 			// Have to set up this stuff here, because the menu is laid out before Opening() is called on it after mouse-up.
 			bool bCanSyncNow = MainWindowInstance != null && MainWindowInstance.CanSyncNow();

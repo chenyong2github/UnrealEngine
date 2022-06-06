@@ -230,7 +230,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void OnClosedVariablesWindow(object sender, EventArgs e)
+		private void OnClosedVariablesWindow(object? sender, EventArgs e)
 		{
 			VariablesWindow = null;
 		}

@@ -57,7 +57,7 @@ namespace UnrealGameSync
 
 		public BuildListControl()
 		{
-			Font = SystemFonts.IconTitleFont;
+			Font = SystemFonts.IconTitleFont!;
 		}
 
 		public int GetFirstVisibleIndex()

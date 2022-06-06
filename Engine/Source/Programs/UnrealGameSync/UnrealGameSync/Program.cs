@@ -65,6 +65,7 @@ namespace UnrealGameSync
 				{
 					Application.EnableVisualStyles();
 					Application.SetCompatibleTextRenderingDefault(false);
+					Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 				}
 
 				using (EventWaitHandle ActivateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "ActivateUnrealGameSync"))
@@ -120,7 +121,7 @@ namespace UnrealGameSync
 			// Set the current working directory to the update directory to prevent child-process file handles from disrupting auto-updates
 			if (UpdateSpawn != null)
 			{
-				Directory.SetCurrentDirectory(Path.GetDirectoryName(UpdateSpawn));
+				Directory.SetCurrentDirectory(Path.GetDirectoryName(UpdateSpawn)!);
 			}
 
 			string SyncVersionFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location!)!, "SyncVersion.txt");
