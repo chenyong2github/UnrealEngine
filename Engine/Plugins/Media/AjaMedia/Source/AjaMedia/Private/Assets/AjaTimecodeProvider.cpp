@@ -95,7 +95,7 @@ bool UAjaTimecodeProvider::Initialize(class UEngine* InEngine)
 		return false;
 	}
 
-	if (bAutoDetectTimecode)
+	if (bAutoDetectTimecode && !bUseDedicatedPin && !bUseReferenceIn)
 	{
 		DeviceProvider->AutoDetectConfiguration(FAjaDeviceProvider::FOnConfigurationAutoDetected::CreateUObject(this, &UAjaTimecodeProvider::OnConfigurationAutoDetected, InEngine));
 		return true;
