@@ -277,7 +277,7 @@ private:
 				return FStyleColors::AccentGreen;
 			}
 
-			return FStyleColors::Warning;
+			return FStyleColors::AccentGray;
 		}
 
 		return FStyleColors::Error;
