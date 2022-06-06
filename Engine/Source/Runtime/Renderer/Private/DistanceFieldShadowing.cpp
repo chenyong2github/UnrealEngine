@@ -71,7 +71,7 @@ FAutoConsoleVariableRef CVarShadowCullTileWorldSize(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GDFShadowTwoSidedMeshDistanceBiasScale = 0.25f;
+float GDFShadowTwoSidedMeshDistanceBiasScale = 1.0f;
 FAutoConsoleVariableRef CVarShadowTwoSidedMeshDistanceBiasScale(
 	TEXT("r.DFShadow.TwoSidedMeshDistanceBiasScale"),
 	GDFShadowTwoSidedMeshDistanceBiasScale,
