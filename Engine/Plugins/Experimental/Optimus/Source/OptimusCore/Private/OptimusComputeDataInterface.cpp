@@ -85,3 +85,15 @@ TSet<TArray<FName>> UOptimusComputeDataInterface::GetUniqueAllNestedContexts()
 	}
 	return UniqueNestedContextNames;
 }
+
+void UOptimusComputeDataInterface::RegisterAllTypes()
+{
+	for (const TSubclassOf<UOptimusComputeDataInterface> DataInterfaceClass : GetAllComputeDataInterfaceClasses())
+	{
+		UOptimusComputeDataInterface* DataInterface = Cast<UOptimusComputeDataInterface>(DataInterfaceClass->GetDefaultObject());
+		if (DataInterface != nullptr)
+		{
+			DataInterface->RegisterTypes();
+		}
+	}
+}

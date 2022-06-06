@@ -3,6 +3,7 @@
 #include "OptimusCoreModule.h"
 
 #include "Interfaces/IPluginManager.h"
+#include "OptimusComputeDataInterface.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusObjectVersion.h"
 #include "Misc/Paths.h"
@@ -21,7 +22,8 @@ void FOptimusCoreModule::StartupModule()
 	AddShaderSourceDirectoryMapping(TEXT("/Plugin/Optimus"), PluginShaderDir);
 
 	// Make sure all our types are known at startup.
-	FOptimusDataTypeRegistry::RegisterBuiltinTypes();
+	FOptimusDataTypeRegistry::RegisterBuiltinTypes(); 
+	UOptimusComputeDataInterface::RegisterAllTypes();
 }
 
 void FOptimusCoreModule::ShutdownModule()

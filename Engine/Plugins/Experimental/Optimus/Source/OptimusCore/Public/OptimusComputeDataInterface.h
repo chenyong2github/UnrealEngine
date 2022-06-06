@@ -114,6 +114,9 @@ public:
 	/// Returns the list of pins that will map to the shader functions provided by this data interface.
 	virtual TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const PURE_VIRTUAL(UOptimusComputeDataInterface::GetDisplayName, return {};)
 
+	// Registers any types from 
+	virtual void RegisterTypes() const {};
+
 	/// Returns the list of top-level contexts from this data interface. These can be used to
 	/// define driver contexts and resource contexts on a kernel. Each nested context will be
 	/// non-empty.
@@ -134,4 +137,7 @@ public:
 	/// Returns the list of all nested contexts from all known data interfaces. These can be 
 	/// used to define input/output pin contexts on a kernel.
 	static TSet<TArray<FName>> GetUniqueAllNestedContexts();
+
+	// Registers types for all known data interfaces.
+	static void RegisterAllTypes();
 };
