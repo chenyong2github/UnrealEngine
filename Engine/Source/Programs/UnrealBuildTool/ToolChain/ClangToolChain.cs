@@ -418,6 +418,38 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Compile arguments for sanitizers
+		/// </summary>
+		/// <param name="CompileEnvironment"></param>
+		/// <param name="Arguments"></param>
+		protected virtual void GetCompilerArguments_Sanitizers(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			// ASan
+			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
+			{
+				Arguments.Add("-fsanitize=address");
+			}
+
+			// TSan
+			if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
+			{
+				Arguments.Add("-fsanitize=thread");
+			}
+
+			// UBSan
+			if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			{
+				Arguments.Add("-fsanitize=undefined");
+			}
+
+			// MSan
+			if (Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
+			{
+				Arguments.Add("-fsanitize=memory");
+			}
+		}
+
+		/// <summary>
 		/// Common compile arguments for all files in a module.
 		/// Override and call base.GetCompileArguments_Global() in derived classes.
 		/// </summary>
@@ -444,6 +476,9 @@ namespace UnrealBuildTool
 
 			// Add debugging flags to the argument list.
 			GetCompileArguments_Debugging(CompileEnvironment, Arguments);
+
+			// Add sanitizer flags to the argument list
+			GetCompilerArguments_Sanitizers(CompileEnvironment, Arguments);
 		}
 	}
 }

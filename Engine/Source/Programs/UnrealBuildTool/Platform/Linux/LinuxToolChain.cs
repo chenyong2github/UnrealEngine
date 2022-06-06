@@ -513,6 +513,42 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
+		protected override void GetCompilerArguments_Sanitizers(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompilerArguments_Sanitizers(CompileEnvironment, Arguments);
+
+			// ASan
+			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
+			{
+				// Force using the ANSI allocator if ASan is enabled
+				Arguments.Add("-DFORCE_ANSI_ALLOCATOR=1");
+			}
+
+			// TSan
+			if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
+			{
+				// Force using the ANSI allocator if TSan is enabled
+				Arguments.Add("-DFORCE_ANSI_ALLOCATOR=1");
+			}
+
+			// UBSan
+			if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			{
+				Arguments.Add("-fno-sanitize=vptr");
+			}
+
+			// MSan
+			if (Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
+			{
+				// Force using the ANSI allocator if MSan is enabled
+				// -fsanitize-memory-track-origins adds a 1.5x-2.5x slow down ontop of MSan normal amount of overhead
+				// -fsanitize-memory-track-origins=1 is faster but collects only allocation points but not intermediate stores
+				Arguments.Add("-fsanitize-memory-track-origins");
+				Arguments.Add("-DFORCE_ANSI_ALLOCATOR=1");
+			}
+		}
+
+		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
@@ -524,35 +560,6 @@ namespace UnrealBuildTool
 				Arguments.Add("-nostdinc++");
 				Arguments.Add("-I" + "ThirdParty/Unix/LibCxx/include/");
 				Arguments.Add("-I" + "ThirdParty/Unix/LibCxx/include/c++/v1");
-			}
-
-			// ASan
-			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
-			{
-				// Force using the ANSI allocator if ASan is enabled
-				Arguments.Add("-fsanitize=address -DFORCE_ANSI_ALLOCATOR=1");
-			}
-
-			// TSan
-			if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
-			{
-				// Force using the ANSI allocator if TSan is enabled
-				Arguments.Add("-fsanitize=thread -DFORCE_ANSI_ALLOCATOR=1");
-			}
-
-			// UBSan
-			if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
-			{
-				Arguments.Add("-fsanitize=undefined -fno-sanitize=vptr");
-			}
-
-			// MSan
-			if (Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
-			{
-				// Force using the ANSI allocator if MSan is enabled
-				// -fsanitize-memory-track-origins adds a 1.5x-2.5x slow down ontop of MSan normal amount of overhead
-				// -fsanitize-memory-track-origins=1 is faster but collects only allocation points but not intermediate stores
-				Arguments.Add("-fsanitize=memory -fsanitize-memory-track-origins -DFORCE_ANSI_ALLOCATOR=1");
 			}
 
 			if (CompilerVersionGreaterOrEqual(12, 0, 0))

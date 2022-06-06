@@ -236,9 +236,10 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		protected override void GetCompilerArguments_Sanitizers(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
+			// TODO: Reconcile with base
+			//base.GetCompilerArguments_Sanitizers(CompileEnvironment, Arguments);
 
 			string? SanitizerMode = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
 			if ((SanitizerMode != null && SanitizerMode == "YES") || (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer)))
@@ -256,6 +257,17 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add("-fsanitize=thread");
 			}
+
+			if (Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
+			{
+				Arguments.Add("-fsanitize=memory");
+			}
+		}
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
 
 			Arguments.Add(GetRTTIFlag(CompileEnvironment));
 

@@ -191,19 +191,6 @@ namespace UnrealBuildTool
 
 			Arguments.Add("-fasm-blocks");
 
-			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
-			{
-				Arguments.Add("-fsanitize=address");
-			}
-			if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
-			{
-				Arguments.Add("-fsanitize=thread");
-			}
-			if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
-			{
-				Arguments.Add("-fsanitize=undefined");
-			}
-
 			if (CompileEnvironment.bEnableOSX109Support)
 			{
 				Arguments.Add("-faligned-new"); // aligned operator new is supported only on macOS 10.14 and above
