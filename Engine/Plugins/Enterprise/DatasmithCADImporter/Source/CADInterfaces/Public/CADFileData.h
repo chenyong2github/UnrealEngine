@@ -114,28 +114,28 @@ public:
 		SceneGraphArchive.SerializeMockUp(*SceneGraphFilePath);
 	}
 
-	bool HasComponentOfId(FCadId ComponentId) const
+	bool HasReferenceOfId(FCadId ReferenceId) const
 	{
-		return SceneGraphArchive.CADIdToComponentIndex.Find(ComponentId) != nullptr;
+		return SceneGraphArchive.CADIdToReferenceIndex.Find(ReferenceId) != nullptr;
 	}
 
-	int32 ComponentCount()
+	int32 ReferenceCount()
 	{
-		return SceneGraphArchive.Components.Num();
+		return SceneGraphArchive.References.Num();
 	}
 
-	int32 AddComponent(FCadId ComponentId)
+	int32 AddReference(FCadId ReferenceId)
 	{
-		ensure(SceneGraphArchive.Components.Num() < SceneGraphArchive.Components.Max());
+		ensure(SceneGraphArchive.References.Num() < SceneGraphArchive.References.Max());
 
-		int32 Index = SceneGraphArchive.Components.Emplace(ComponentId);
-		SceneGraphArchive.CADIdToComponentIndex.Add(ComponentId, Index);
+		int32 Index = SceneGraphArchive.References.Emplace(ReferenceId);
+		SceneGraphArchive.CADIdToReferenceIndex.Add(ReferenceId, Index);
 		return Index;
 	}
 
-	FArchiveComponent& GetComponentAt(int32 Index)
+	FArchiveReference& GetReferenceAt(int32 Index)
 	{
-		return SceneGraphArchive.Components[Index];
+		return SceneGraphArchive.References[Index];
 	}
 
 
@@ -186,43 +186,43 @@ public:
 	}
 
 
-	int32* FindUnloadedComponentOfId(FCadId ComponentId)
+	int32* FindUnloadedReferenceOfId(FCadId ReferenceId)
 	{
-		return SceneGraphArchive.CADIdToUnloadedComponentIndex.Find(ComponentId);
+		return SceneGraphArchive.CADIdToUnloadedReferenceIndex.Find(ReferenceId);
 	}
 
-	bool HasUnloadedComponentOfId(FCadId ComponentId)
+	bool HasUnloadedReferenceOfId(FCadId ReferenceId)
 	{
-		return FindUnloadedComponentOfId(ComponentId) != nullptr;
+		return FindUnloadedReferenceOfId(ReferenceId) != nullptr;
 	}
 
-	int32 AddUnloadedComponent(FCadId ComponentId)
+	int32 AddUnloadedReference(FCadId ReferenceId)
 	{
-		ensure(SceneGraphArchive.UnloadedComponents.Num() < SceneGraphArchive.UnloadedComponents.Max());
+		ensure(SceneGraphArchive.UnloadedReferences.Num() < SceneGraphArchive.UnloadedReferences.Max());
 
-		int32 Index = SceneGraphArchive.UnloadedComponents.Emplace(ComponentId);
-		SceneGraphArchive.CADIdToUnloadedComponentIndex.Add(ComponentId, Index);
+		int32 Index = SceneGraphArchive.UnloadedReferences.Emplace(ReferenceId);
+		SceneGraphArchive.CADIdToUnloadedReferenceIndex.Add(ReferenceId, Index);
 		return Index;
 	}
 
-	FArchiveUnloadedComponent& GetUnloadedComponentAt(int32 Index)
+	FArchiveUnloadedReference& GetUnloadedReferenceAt(int32 Index)
 	{
-		return SceneGraphArchive.UnloadedComponents[Index];
+		return SceneGraphArchive.UnloadedReferences[Index];
 	}
 
 	FFileDescriptor& GetExternalReferences(int32 Index)
 	{
-		return SceneGraphArchive.ExternalReferences[Index];
+		return SceneGraphArchive.ExternalReferenceFiles[Index];
 	}
 
 	FFileDescriptor& AddExternalRef(const TCHAR* InFilePath, const TCHAR* InConfiguration, const TCHAR* InRootFilePath)
 	{
-		return SceneGraphArchive.ExternalReferences.Emplace_GetRef(InFilePath, InConfiguration, InRootFilePath);
+		return SceneGraphArchive.ExternalReferenceFiles.Emplace_GetRef(InFilePath, InConfiguration, InRootFilePath);
 	}
 
 	FFileDescriptor& AddExternalRef(const FFileDescriptor& InFileDescription)
 	{
-		return SceneGraphArchive.ExternalReferences.Emplace_GetRef(InFileDescription);
+		return SceneGraphArchive.ExternalReferenceFiles.Emplace_GetRef(InFileDescription);
 	}
 
 	/** return a unique value that will be used to define the static mesh name */
@@ -247,7 +247,7 @@ public:
 
 	const TArray<FFileDescriptor>& GetExternalRefSet() const
 	{
-		return SceneGraphArchive.ExternalReferences;
+		return SceneGraphArchive.ExternalReferenceFiles;
 	}
 
 	const FString& GetSceneGraphFileName() const

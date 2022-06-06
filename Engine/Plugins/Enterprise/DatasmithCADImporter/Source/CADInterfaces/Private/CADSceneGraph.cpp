@@ -9,9 +9,9 @@
 namespace CADLibrary
 {
 
-FArchive& operator<<(FArchive& Ar, FCADArchiveObject& Object)
+FArchive& operator<<(FArchive& Ar, FArchiveCADObject& Object)
 {
-	Ar << Object.ObjectId;
+	Ar << Object.Id;
 	Ar << Object.MetaData;
 	Ar << Object.TransformMatrix;
 	return Ar;
@@ -19,29 +19,29 @@ FArchive& operator<<(FArchive& Ar, FCADArchiveObject& Object)
 
 FArchive& operator<<(FArchive& Ar, FArchiveInstance& Instance) 
 {
-	Ar << (FCADArchiveObject&) Instance;
+	Ar << (FArchiveCADObject&) Instance;
 	Ar << Instance.ReferenceNodeId;
 	Ar << Instance.bIsExternalReference;
 	Ar << Instance.ExternalReference;
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FArchiveComponent& Component)
+FArchive& operator<<(FArchive& Ar, FArchiveReference& Component)
 {
-	Ar << (FCADArchiveObject&) Component;
+	Ar << (FArchiveCADObject&) Component;
 	Ar << Component.Children;
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FArchiveUnloadedComponent& Unloaded) 
+FArchive& operator<<(FArchive& Ar, FArchiveUnloadedReference& Unloaded) 
 {
-	Ar << (FArchiveComponent&) Unloaded;
+	Ar << (FArchiveReference&) Unloaded;
 	return Ar;
 }
 
 FArchive& operator<<(FArchive& Ar, FArchiveBody& Body) 
 {
-	Ar << (FCADArchiveObject&) Body;
+	Ar << (FArchiveCADObject&) Body;
 	Ar << Body.MaterialFaceSet;
 	Ar << Body.ColorFaceSet;
 	Ar << Body.ParentId;
@@ -53,17 +53,17 @@ FArchive& operator<<(FArchive& Ar, FArchiveBody& Body)
 
 FArchive& operator<<(FArchive& Ar, FArchiveColor& Color) 
 {
-	Ar << Color.ObjectId;
+	Ar << Color.Id;
 	Ar << Color.Color;
-	Ar << Color.UEMaterialName;
+	Ar << Color.UEMaterialUId;
 	return Ar;
 }
 
 FArchive& operator<<(FArchive& Ar, FArchiveMaterial& Material)
 {
-	Ar << Material.ObjectId;
+	Ar << Material.Id;
 	Ar << Material.Material;
-	Ar << Material.UEMaterialName;
+	Ar << Material.UEMaterialUId;
 	return Ar;
 }
 
@@ -72,19 +72,19 @@ FArchive& operator<<(FArchive& Ar, FArchiveSceneGraph& SceneGraph)
 	Ar << SceneGraph.CADFileName;
 	Ar << SceneGraph.ArchiveFileName;
 	Ar << SceneGraph.FullPath;
-	Ar << SceneGraph.ExternalReferences;
+	Ar << SceneGraph.ExternalReferenceFiles;
 
 	Ar << SceneGraph.ColorHIdToColor;
 	Ar << SceneGraph.MaterialHIdToMaterial;
 
 	Ar << SceneGraph.Instances;
-	Ar << SceneGraph.Components;
-	Ar << SceneGraph.UnloadedComponents;
+	Ar << SceneGraph.References;
+	Ar << SceneGraph.UnloadedReferences;
 	Ar << SceneGraph.Bodies;
 
 	Ar << SceneGraph.CADIdToInstanceIndex;
-	Ar << SceneGraph.CADIdToComponentIndex;
-	Ar << SceneGraph.CADIdToUnloadedComponentIndex;
+	Ar << SceneGraph.CADIdToReferenceIndex;
+	Ar << SceneGraph.CADIdToUnloadedReferenceIndex;
 	Ar << SceneGraph.CADIdToBodyIndex;
 
 	return Ar;

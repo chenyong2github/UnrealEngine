@@ -14,11 +14,11 @@ namespace CADLibrary
 {
 
 class FArchiveBody;
-class FArchiveComponent;
 class FArchiveColor;
 class FArchiveInstance;
 class FArchiveMaterial;
-class FArchiveUnloadedComponent;
+class FArchiveReference;
+class FArchiveUnloadedReference;
 class FCADFileData;
 
 struct FEntityMetaData;
@@ -27,7 +27,7 @@ enum EComponentType : uint32
 {
 	Reference = 0,
 	Occurrence,
-	UnloadedComponent,
+	UnloadedReference,
 	Body,
 	Undefined,
 	LastType
@@ -108,7 +108,7 @@ private:
 	void TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSet, double ParentUnit);
 	FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence, const FString& DefaultOccurrenceName, double ParentUnit);
 	void ProcessPrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, A3DMiscTransformation** OutLocation);
-	void TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition, FArchiveComponent& Component, double ParentUnit);
+	void TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition, FArchiveReference& Reference, double ParentUnit);
 	FCadId TraverseRepresentationSet(const A3DRiSet* pSet, const FEntityMetaData& PartMetaData, double ParentUnit);
 	FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit, int32 ItemIndex);
 	FCadId TraverseBRepModel(A3DRiBrepModel* BrepModel, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit, int32 ItemIndex);
@@ -119,7 +119,7 @@ private:
 
 	void BuildInstanceName(FEntityMetaData& MetaData, const FString& DefaultInstanceName);
 	void BuildReferenceName(FEntityMetaData& MetaData);
-	void BuildPartName(FEntityMetaData& MetaData, const FArchiveComponent& Component);
+	void BuildPartName(FEntityMetaData& MetaData, const FArchiveReference& Reference);
 	void BuildBodyName(FEntityMetaData& MetaData, const FEntityMetaData& PartMetaData, int32 ItemIndex, bool bIsSolid);
 
 	// Graphic properties
@@ -151,10 +151,10 @@ private:
 
 	// Archive methods
 	FArchiveInstance& AddInstance(FEntityMetaData& InstanceMetaData);
-	FArchiveComponent& AddComponent(FEntityMetaData& ComponentMetaData, FArchiveInstance& Instance);
-	FArchiveUnloadedComponent& AddUnloadedComponent(FEntityMetaData& ComponentMetaData, FArchiveInstance& Instance);
-	FArchiveComponent& AddOccurence(FEntityMetaData& InstanceMetaData, FEntityMetaData& ReferenceMetaData, FCadId& OutComponentId);
-	FArchiveComponent& AddOccurence(FEntityMetaData& InstanceMetaData, FCadId& OutComponentId);
+	FArchiveReference& AddReference(FEntityMetaData& ReferenceMetaData, FArchiveInstance& Instance);
+	FArchiveUnloadedReference& AddUnloadedReference(FEntityMetaData& ReferenceMetaData, FArchiveInstance& Instance);
+	FArchiveReference& AddOccurence(FEntityMetaData& InstanceMetaData, FEntityMetaData& ReferenceMetaData, FCadId& OutReferenceId);
+	FArchiveReference& AddOccurence(FEntityMetaData& InstanceMetaData, FCadId& OutReferenceId);
 	int32 AddBody(FEntityMetaData& BodyMetaData, const FMatrix& Matrix, const FCadId ParentId, double BodyUnit);
 #endif
 
@@ -175,7 +175,7 @@ protected:
 
 	FCadId LastEntityId = 1;
 
-	TMap<A3DRiRepresentationItem*, int32> RepresentationItemsCache;
+	TMap<A3DRiRepresentationItem*, FCadId> RepresentationItemsCache;
 };
 
 } // ns CADLibrary

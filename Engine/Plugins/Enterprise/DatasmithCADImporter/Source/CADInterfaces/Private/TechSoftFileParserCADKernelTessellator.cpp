@@ -49,7 +49,7 @@ void FTechSoftFileParserCADKernelTessellator::SewAndGenerateBodyMeshes()
 {
 	int32 RepresentationCount = RepresentationItemsCache.Num();
 	TMap<FCadId, TArray<A3DRiRepresentationItem*>> OccurenceIdToRepresentations;
-	for (TPair<A3DRiRepresentationItem*, int32>& Entry : RepresentationItemsCache)
+	for (TPair<A3DRiRepresentationItem*, FCadId>& Entry : RepresentationItemsCache)
 	{
 		A3DRiRepresentationItem* RepresentationItemPtr = Entry.Key;
 		FArchiveBody& Body = CADFileData.GetBodyAt(Entry.Value);
@@ -83,7 +83,7 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 
 	for (A3DRiRepresentationItem* Representation : Representations)
 	{
-		int32* BodyIndex = RepresentationItemsCache.Find(Representation);
+		FCadId* BodyIndex = RepresentationItemsCache.Find(Representation);
 		if (BodyIndex == nullptr)
 		{
 			continue;
@@ -141,7 +141,7 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 		CADKernel::FBody* Body = TechSoftBridge.GetBody(Representation);
 		if (Body == nullptr)
 		{
-			int32* ArchiveBodyIndex = RepresentationItemsCache.Find(Representation);
+			FCadId* ArchiveBodyIndex = RepresentationItemsCache.Find(Representation);
 			if (ArchiveBodyIndex == nullptr)
 			{
 				continue; // should not append
@@ -155,7 +155,7 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 	{
 		const A3DRiRepresentationItem* Representation = TechSoftBridge.GetA3DBody(Body);
 
-		int32* ArchiveBodyIndex = RepresentationItemsCache.Find(Representation);
+		FCadId* ArchiveBodyIndex = RepresentationItemsCache.Find(Representation);
 		if (ArchiveBodyIndex == nullptr)
 		{
 			continue; // should not append
@@ -211,7 +211,7 @@ void FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh(A3DRiRepresentati
 
 void FTechSoftFileParserCADKernelTessellator::MeshAndGetTessellation(CADKernel::FSession& CADKernelSession, FArchiveBody& ArchiveBody, CADKernel::FBody& CADKernelBody)
 {
-	FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(ArchiveBody.ObjectId, ArchiveBody);
+	FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(ArchiveBody.Id, ArchiveBody);
 	ArchiveBody.ColorFaceSet = BodyMesh.ColorSet;
 	ArchiveBody.MaterialFaceSet = BodyMesh.MaterialSet;
 
