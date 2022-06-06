@@ -433,7 +433,8 @@ void AFunctionalTest::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	// If end play occurs and we're still running, notify that the testing has stopped.
 	if (bIsRunning)
 	{
-		TestFinishedObserver.ExecuteIfBound(this);
+		// Tell the test he is being aborted
+		FinishTest(EFunctionalTestResult::Invalid, TEXT("Test was aborted"));
 	}
 
 	TestFinishedObserver.Unbind();

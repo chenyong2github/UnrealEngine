@@ -375,6 +375,14 @@ void FAutomationControllerManager::StopTests()
 	}
 
 	TestRunningArray.Empty();
+
+	// Close play window
+#if WITH_EDITOR
+	if (GUnrealEd)
+	{
+		GUnrealEd->RequestEndPlayMap();
+	}
+#endif
 }
 
 void FAutomationControllerManager::Init()
