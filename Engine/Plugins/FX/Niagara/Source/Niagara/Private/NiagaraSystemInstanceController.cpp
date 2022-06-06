@@ -426,6 +426,15 @@ void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FQuat4f
 	}
 }
 
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, const FMatrix44f& InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetMatrix4Def(), InVariableName);
+		OverrideParameters->SetParameterValue(InValue, VariableDesc, true);
+	}
+}
+
 void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, TWeakObjectPtr<UObject> InValue)
 {
 	if (OverrideParameters)

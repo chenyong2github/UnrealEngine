@@ -409,7 +409,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Vector4)"))
 	void SetVariableVec4(FName InVariableName, const FVector4& InValue);
 
-
 	/** Sets a Niagara Vector3 parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Quaternion)"))
 	void SetNiagaraVariableQuat(const FString& InVariableName, const FQuat& InValue);
@@ -417,6 +416,14 @@ public:
 	/** Sets a Niagara Vector3 parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Quaternion)"))
 	void SetVariableQuat(FName InVariableName, const FQuat& InValue);
+
+	/** Sets a Niagara Vector3 parameter by name, overriding locally if necessary.*/
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Matrix)"))
+	void SetNiagaraVariableMatrix(const FString& InVariableName, const FMatrix& InValue);
+
+	/** Sets a Niagara Vector3 parameter by name, overriding locally if necessary.*/
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Matrix)"))
+	void SetVariableMatrix(FName InVariableName, const FMatrix& InValue);
 
 	/** Sets a Niagara Vector3 parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Vector3)"))

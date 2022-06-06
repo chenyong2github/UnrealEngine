@@ -2136,6 +2136,28 @@ void UNiagaraComponent::SetNiagaraVariableQuat(const FString& InVariableName, co
 	SetVariableQuat(FName(*InVariableName), InValue);
 }
 
+void UNiagaraComponent::SetNiagaraVariableMatrix(const FString& InVariableName, const FMatrix& InValue)
+{
+	SetVariableMatrix(FName(*InVariableName), InValue);
+}
+
+void UNiagaraComponent::SetVariableMatrix(FName InVariableName, const FMatrix& InValue)
+{
+	FMatrix44f AsFloat = (FMatrix44f)InValue;	//-TODO: LWC Precision loss
+	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetMatrix4Def(), InVariableName);
+	if (SystemInstanceController.IsValid())
+	{
+		SystemInstanceController->SetVariable_Deferred(InVariableName, AsFloat);
+	}
+	else
+	{
+		OverrideParameters.SetParameterValue(AsFloat, VariableDesc, true);
+	}
+#if WITH_EDITOR
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&AsFloat, sizeof(FMatrix44f)));
+#endif
+}
+
 void UNiagaraComponent::SetVariableVec4(FName InVariableName, const FVector4& InValue)
 {
 	FVector4f AsFloat = (FVector4f)InValue;
