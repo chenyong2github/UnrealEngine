@@ -824,6 +824,12 @@ void STabSidebar::CloseDrawerInternal(TSharedRef<SDockTab> ForTab)
 	if (TSharedPtr<STabDrawer> OpenedDrawer = FindOpenedDrawer(ForTab))
 	{
 		OpenedDrawer->Close();
+		TSharedRef<STabDrawer> OpenedDrawerRef = OpenedDrawer.ToSharedRef();
+
+		bool bRemoveSuccessful = DrawersOverlay->RemoveSlot(OpenedDrawerRef);
+		ensure(bRemoveSuccessful);
+
+		OpenedDrawers.Remove(OpenedDrawerRef);
 	}
 
 	SummonPinnedTabIfNothingOpened();
