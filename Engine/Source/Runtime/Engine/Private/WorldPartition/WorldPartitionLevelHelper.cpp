@@ -278,38 +278,6 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorldP
 	return NewLevel;
 }
 
-void FWorldPartitionLevelHelper::DuplicateActorFolderToRuntimeCell(ULevel* CellLevel, ULevel* SrcLevel, const FGuid& ActorFolderGuid)
-{
-	check(SrcLevel->IsUsingActorFolders() && CellLevel->IsUsingActorFolders());
-		
-	FGuid CurrentGuid = ActorFolderGuid;
-	while (CurrentGuid.IsValid() && !CellLevel->GetActorFolder(CurrentGuid))
-	{
-		const bool bSkipDeleted = false;
-		UActorFolder* ActorFolder = SrcLevel->GetActorFolder(CurrentGuid, bSkipDeleted);
-		CurrentGuid.Invalidate();
-		if (ActorFolder)
-		{
-			CurrentGuid.Invalidate();
-			FObjectDuplicationParameters DupParams = InitStaticDuplicateObjectParams(ActorFolder, CellLevel);
-			DupParams.ApplyFlags |= RF_Transient;
-			DupParams.FlagMask &= ~RF_Transactional;
-			DupParams.bAssignExternalPackages = false;
-			UActorFolder* DuplicatedFolder = Cast<UActorFolder>(StaticDuplicateObjectEx(DupParams));
-
-			const bool bShouldDirtyLevel = false;
-			const bool bShouldBroadcast = false;
-			FLevelActorFoldersHelper::AddActorFolder(CellLevel, DuplicatedFolder, bShouldDirtyLevel, bShouldBroadcast);
-
-			// Continue to parent
-			if (UActorFolder* ParentFolder = ActorFolder->GetParent(bSkipDeleted))
-			{
-				CurrentGuid = ParentFolder->GetGuid();
-			}
-		}
-	}
-}
-
 bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDestLevel, TArrayView<FWorldPartitionRuntimeCellObjectMapping> InActorPackages, FWorldPartitionLevelHelper::FPackageReferencer& InPackageReferencer, TFunction<void(bool)> InCompletionCallback, bool bInLoadAsync, FLinkerInstancingContext InstancingContext)
 {
 	UPackage* DestPackage = InDestLevel ? InDestLevel->GetPackage() : nullptr;
@@ -378,20 +346,25 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 			{
 				const UWorld* ContainerWorld = PackageObjectMapping->ContainerID.IsMainContainer() ? InOwningWorld : Actor->GetTypedOuter<UWorld>();
 				
-				// Duplicate Folder if needed (this will recreate a transient folder structure in InDestLevel if it doesn't exist (only used in PIE)
-				if (FGuid ActorFolderGuid = Actor->GetFolderGuid(); InDestLevel && ActorFolderGuid.IsValid())
-				{
-					check(InDestLevel->IsUsingActorFolders());
-					InDestLevel->bFixupActorFoldersAtLoad = false;
+				TOptional<FName> SrcActorFolderPath;
 
-					// Make sure Source level actor folder fixup was called
+				// Make sure Source level actor folder fixup was called
+				if (ContainerWorld->PersistentLevel->IsUsingActorFolders())
+				{ 
 					if (!ContainerWorld->PersistentLevel->LoadedExternalActorFolders.IsEmpty())
 					{
 						ContainerWorld->PersistentLevel->bFixupActorFoldersAtLoad = false;
 						ContainerWorld->PersistentLevel->FixupActorFolders();
 					}
-					
-					FWorldPartitionLevelHelper::DuplicateActorFolderToRuntimeCell(InDestLevel, ContainerWorld->PersistentLevel, ActorFolderGuid);
+				
+					// Since actor's level doesn't necessarily uses actor folders, access Folder Guid directly
+					const bool bDirectAccess = true;
+					const FGuid ActorFolderGuid = Actor->GetFolderGuid(bDirectAccess);
+					// Resolve folder guid from source container level and resolve/backup the folder path
+					if (UActorFolder* SrcFolder = ContainerWorld->PersistentLevel->GetActorFolder(ActorFolderGuid))
+					{
+						SrcActorFolderPath = SrcFolder->GetPath();
+					}
 				}
 
 				if (!PackageObjectMapping->ContainerID.IsMainContainer())
@@ -427,6 +400,13 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 
 				if (InDestLevel)
 				{
+					// Propagate resolved actor folder path
+					check(!InDestLevel->IsUsingActorFolders());
+					if (SrcActorFolderPath.IsSet())
+					{
+						Actor->SetFolderPath(*SrcActorFolderPath);
+					}
+
 					check(Actor->IsPackageExternal());
 					InDestLevel->Actors.Add(Actor);
 					checkf(Actor->GetLevel() == InDestLevel, TEXT("Levels mismatch, got : %s, expected: %s\nActor: %s\nActorFullName: %s\nActorPackage: %s"), *InDestLevel->GetFullName(), *Actor->GetLevel()->GetFullName(), *Actor->GetActorNameOrLabel(), *Actor->GetFullName(), *Actor->GetPackage()->GetFullName());

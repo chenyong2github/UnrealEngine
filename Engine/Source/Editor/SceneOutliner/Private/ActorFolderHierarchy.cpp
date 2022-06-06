@@ -8,6 +8,7 @@
 #include "ActorFolderTreeItem.h"
 #include "EditorActorFolders.h"
 #include "EditorFolderUtils.h"
+#include "ActorMode.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 
 FActorFolderHierarchy::FActorFolderHierarchy(ISceneOutlinerMode* InMode, const TWeakObjectPtr<UWorld>& World, const FFolder::FRootObject& InRootObject)
@@ -102,8 +103,7 @@ void FActorFolderHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutl
 		}
 		else if (ULevel* RootLevel = Cast<ULevel>(RootObjectPtr))
 		{
-			// Don't create a LevelTreeItems for the PersistentLevel
-			if (!RootLevel->IsPersistentLevel())
+			if (FActorMode::IsActorLevelDisplayable(RootLevel))
 			{
 				if (FSceneOutlinerTreeItemPtr ActorItem = Mode->CreateItemFor<FLevelTreeItem>(RootLevel, true))
 				{

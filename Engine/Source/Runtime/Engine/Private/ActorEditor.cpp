@@ -1114,9 +1114,9 @@ void AActor::FixupActorFolder()
 	}
 }
 
-FGuid AActor::GetFolderGuid() const
+FGuid AActor::GetFolderGuid(bool bDirectAccess) const
 {
-	return IsUsingActorFolders(this) ? FolderGuid : FGuid();
+	return bDirectAccess || IsUsingActorFolders(this) ? FolderGuid : FGuid();
 }
 
 FName AActor::GetFolderPath() const

@@ -25,6 +25,7 @@
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "ActorFolder.h"
+#include "ActorMode.h"
 
 TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World)
 {
@@ -204,7 +205,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 			// Parent Level Using Actor Folders
 			ULevel* OwningLevel = Cast<ULevel>(Folder.GetRootObjectPtr());
 			// For the persistent level, fallback on the world
-			if (OwningLevel && !OwningLevel->IsPersistentLevel())
+			if (FActorMode::IsActorLevelDisplayable(OwningLevel))
 			{
 				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(OwningLevel))
 				{
@@ -255,8 +256,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 		// Parent Level Using Actor Folders
 		else if (ULevel* OwningLevel = Cast<ULevel>(ParentPath.GetRootObjectPtr()))
 		{
-			// For the persistent level, fallback on the world
-			if (!OwningLevel->IsPersistentLevel())
+			if (FActorMode::IsActorLevelDisplayable(OwningLevel))
 			{
 				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(OwningLevel))
 				{

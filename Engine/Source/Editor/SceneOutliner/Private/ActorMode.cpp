@@ -343,6 +343,12 @@ bool FActorMode::IsActorDisplayable(const SSceneOutliner* SceneOutliner, const A
 		FLevelUtils::IsLevelVisible(Actor->GetLevel());											// Only show Actors whose level is visible
 }
 
+bool FActorMode::IsActorLevelDisplayable(ULevel* InLevel)
+{
+	// Don't show level tree item for the persistent level
+	return (InLevel && !InLevel->IsPersistentLevel());
+}
+
 void FActorMode::OnFilterTextChanged(const FText& InFilterText)
 {
 	// Scroll last item (if it passes the filter) into view - this means if we are multi-selecting, we show newest selection that passes the filter

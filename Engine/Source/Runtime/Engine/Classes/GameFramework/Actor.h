@@ -2410,8 +2410,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
 	FName GetFolderPath() const;
 
-	/** Returns actor folder guid. If level is not using actor folder objects, returns an invalid guid. */
-	FGuid GetFolderGuid() const;
+	/*
+	 * Returns actor folder guid. If level is not using actor folder objects, returns an invalid guid. 
+	 * @param bDirectAccess If true, returns the raw value without testing if level uses Actor Folders.
+	 */
+	FGuid GetFolderGuid(bool bDirectAccess = false) const;
 
 	/** Returns the actor's folder root object. Null, is interpreted as the actor's world. */
 	FFolder::FRootObject GetFolderRootObject() const;
