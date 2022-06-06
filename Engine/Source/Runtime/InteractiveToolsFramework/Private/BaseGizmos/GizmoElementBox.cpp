@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
 #include "BaseGizmos/GizmoElementBox.h"
-#include "BaseGizmos/GizmoMath.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "Materials/MaterialInterface.h"
 #include "InputState.h"
+#include "Intersection/IntrRay3OrientedBox3.h"
 #include "SceneManagement.h"
 
 void UGizmoElementBox::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
@@ -42,39 +42,37 @@ void UGizmoElementBox::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTr
 
 			FQuat Rotation = FRotationMatrix::MakeFromYZ(AdjustedSideDir, AdjustedUpDir).ToQuat();
 			FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-			LocalToWorldTransform = FTransform(Rotation, Center) * LocalToWorldTransform;
+			FTransform DrawTransform = FTransform(Rotation, Center) * LocalToWorldTransform;
 			const FVector HalfDimensions = Dimensions * 0.5;
-			DrawBox(PDI, LocalToWorldTransform.ToMatrixWithScale(), HalfDimensions, UseMaterial->GetRenderProxy(), SDPG_Foreground);
+			DrawBox(PDI, DrawTransform.ToMatrixWithScale(), HalfDimensions, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 		}
 	}
 
 	CacheRenderState(LocalToWorldTransform, bVisibleViewDependent);
 }
 
-
-
-FInputRayHit UGizmoElementBox::LineTrace(const FVector RayCenter, const FVector RayDirection)
+FInputRayHit UGizmoElementBox::LineTrace(const FVector RayOrigin, const FVector RayDirection)
 {
 	if (IsHittableInView())
 	{
-		// @todo - modify ray-box intersection to work with updated properties
+		const FVector YAxis = CachedLocalToWorldTransform.TransformVectorNoScale(SideDirection);
+		const FVector ZAxis = CachedLocalToWorldTransform.TransformVectorNoScale(UpDirection);
+		const FVector XAxis = FVector::CrossProduct(YAxis, ZAxis);
+		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(Center);
+		const double Scale = CachedLocalToWorldTransform.GetScale3D().X;
+		const FVector WorldExtent = Dimensions * Scale * 0.5;
 
-#if 0
-		bool bIntersects = false;
-		float RayParam = 0.0f;
-
-
-		const FVector BoxOrigin = Origin + Offset;
-		GizmoMath::RayBoxIntersection(
-			BoxOrigin, CubeObject->Axis, CubeObject->Radius, CubeObject->Height,
-			ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction,
-			bIntersects, RayParam);
-
-		if (bIntersects)
+		double HitDepth = 0.0;
+		UE::Geometry::TRay<double> Ray(RayOrigin, RayDirection);
+		UE::Geometry::TFrame3<double> Frame(WorldCenter, XAxis, YAxis, ZAxis);
+		UE::Geometry::TOrientedBox3<double> Box(Frame, WorldExtent);
+		if (UE::Geometry::TIntrRay3OrientedBox3<double>::FindIntersection(Ray, Box, HitDepth))
 		{
-			return FInputRayHit(RayParam);
+			FInputRayHit RayHit(HitDepth);
+			RayHit.SetHitObject(this);
+			RayHit.HitIdentifier = PartIdentifier;
+			return RayHit;
 		}
-#endif
 	}
 
 	return FInputRayHit();
