@@ -1394,24 +1394,24 @@ void FAnimationViewportClient::DrawBonesFromCompactPose(
 	const FCompactHeapPose& Pose,
 	UDebugSkelMeshComponent* MeshComponent,
 	FPrimitiveDrawInterface* PDI,
-	const FLinearColor& DrawColour) const
+	const FLinearColor& DrawColor) const
 {
 	if (Pose.GetNumBones() == 0 ||
 		!MeshComponent ||
 		!MeshComponent->SkeletalMesh ||
-		MeshComponent->SkeletonDrawMode != ESkeletonDrawMode::Hidden)
+		MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::Hidden)
 	{
 		return;
 	}
 
 	// optionally override draw color
-	const FLinearColor BoneColor = MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::GreyedOut ? SkeletalDebugRendering::DISABLED_BONE_COLOR : DrawColour;
+	const FLinearColor BoneColor = MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::GreyedOut ? SkeletalDebugRendering::DISABLED_BONE_COLOR : DrawColor;
 	
 	TArray<FTransform> WorldTransforms;
 	WorldTransforms.AddUninitialized(Pose.GetBoneContainer().GetNumBones());
 
-	TArray<FLinearColor> BoneColours;
-	BoneColours.AddUninitialized(Pose.GetBoneContainer().GetNumBones());
+	TArray<FLinearColor> BoneColors;
+	BoneColors.AddUninitialized(Pose.GetBoneContainer().GetNumBones());
 
 	// we could cache parent bones as we calculate, but right now I'm not worried about perf issue of this
 	for (FCompactPoseBoneIndex BoneIndex : Pose.ForEachBoneIndex())
@@ -1428,7 +1428,7 @@ void FAnimationViewportClient::DrawBonesFromCompactPose(
 		{
 			WorldTransforms[MeshBoneIndex.GetInt()] = Pose[BoneIndex] * WorldTransforms[ParentIndex];
 		}
-		BoneColours[MeshBoneIndex.GetInt()] = BoneColor;
+		BoneColors[MeshBoneIndex.GetInt()] = BoneColor;
 	}
 
 	constexpr bool bForceDraw = true;
@@ -1440,7 +1440,7 @@ void FAnimationViewportClient::DrawBonesFromCompactPose(
 		MeshComponent->GetReferenceSkeleton(),
 		WorldTransforms,
 		MeshComponent->BonesOfInterest,
-		BoneColours,
+		BoneColors,
 		PDI,
 		bForceDraw,
 		bAddHitProxy);

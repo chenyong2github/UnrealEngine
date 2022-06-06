@@ -197,7 +197,7 @@ void SIKRetargetHierarchy::RefreshTreeView(bool IsInitialSetup)
 
 	// validate we have a skeleton to load
 	const UIKRetargetProcessor* Processor = Controller->GetRetargetProcessor();
-	if (!Processor && Processor->IsInitialized())
+	if (!(Processor && Processor->IsInitialized()))
 	{
 		TreeView->RequestTreeRefresh();
 		return;
