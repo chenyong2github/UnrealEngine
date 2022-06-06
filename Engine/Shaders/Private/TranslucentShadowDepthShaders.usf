@@ -4,6 +4,12 @@
 
 #define SCENE_TEXTURES_DISABLED 1
 
+// Enable Strata only when a material is specifying a strata material is specified.
+#if !MATERIAL_IS_STRATA && STRATA_ENABLED
+#undef STRATA_ENABLED
+#define STRATA_ENABLED 0
+#endif
+
 #include "Common.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"

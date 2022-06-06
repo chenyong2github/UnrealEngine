@@ -327,6 +327,7 @@ public:
 	{
 		FTranslucencyShadowDepthPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("PERSPECTIVE_CORRECT_DEPTH"), (uint32)(ShaderMode == TranslucencyShadowDepth_PerspectiveCorrect ? 1 : 0));
+		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
 	}
 
 	TTranslucencyShadowDepthPS() = default;
