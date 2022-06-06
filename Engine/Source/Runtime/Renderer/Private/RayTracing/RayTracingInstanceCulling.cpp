@@ -226,18 +226,16 @@ void FRayTracingCullPrimitiveInstancesClosure::operator()() const
 {
 	FMemory::Memset(OutInstanceActivationMask.GetData(), 0xFF, OutInstanceActivationMask.Num() * 4);
 
-	const Experimental::FHashElementId GroupId = Scene->PrimitiveRayTracingGroupIds[PrimitiveIndex];
-	const bool bUseGroupBounds = CullingParameters->bCullUsingGroupIds && GroupId.IsValid();
-	const FBoxSphereBounds* const GroupBounds = (bUseGroupBounds) ? &Scene->PrimitiveRayTracingGroups.GetByElementId(GroupId).Value.Bounds : nullptr;
-	const FBoxSphereBounds& PrimitiveBounds = (GroupBounds) ? *GroupBounds : Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds;
-	const float MinDrawDistance = GroupBounds ? Scene->PrimitiveRayTracingGroups.GetByElementId(GroupId).Value.MinDrawDistance : Scene->PrimitiveBounds[PrimitiveIndex].MinDrawDistance;
+	checkf(!CullingParameters->bCullUsingGroupIds || !Scene->PrimitiveRayTracingGroupIds[PrimitiveIndex].IsValid(), TEXT("Shouldn't do instance level culling of primitives in raytracing groups."));
 
-	if (!RayTracing::ShouldSkipPerInstanceCullingForPrimitive(*CullingParameters, PrimitiveBounds, SceneInfo->CachedRayTracingInstanceWorldBounds[SceneInfo->SmallestRayTracingInstanceWorldBoundsIndex], bIsFarFieldPrimitive))
+	const FPrimitiveBounds& PrimitiveBounds = Scene->PrimitiveBounds[PrimitiveIndex];
+
+	if (!RayTracing::ShouldSkipPerInstanceCullingForPrimitive(*CullingParameters, PrimitiveBounds.BoxSphereBounds, SceneInfo->CachedRayTracingInstanceWorldBounds[SceneInfo->SmallestRayTracingInstanceWorldBoundsIndex], bIsFarFieldPrimitive))
 	{
 		for (int32 InstanceIndex = 0; InstanceIndex < SceneInfo->CachedRayTracingInstanceWorldBounds.Num(); InstanceIndex++)
 		{
-			const FBoxSphereBounds& InstanceBounds = (GroupBounds) ? *GroupBounds : SceneInfo->CachedRayTracingInstanceWorldBounds[InstanceIndex];
-			if (RayTracing::ShouldCullBounds(*CullingParameters, InstanceBounds, MinDrawDistance, bIsFarFieldPrimitive))
+			const FBoxSphereBounds& InstanceBounds = SceneInfo->CachedRayTracingInstanceWorldBounds[InstanceIndex];
+			if (RayTracing::ShouldCullBounds(*CullingParameters, InstanceBounds, PrimitiveBounds.MinDrawDistance, bIsFarFieldPrimitive))
 			{
 				OutInstanceActivationMask[InstanceIndex / 32] &= ~(1 << (InstanceIndex % 32));
 			}

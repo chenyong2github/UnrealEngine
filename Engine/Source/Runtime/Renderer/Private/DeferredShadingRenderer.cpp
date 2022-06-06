@@ -1250,7 +1250,10 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 				checkf(SceneInfo->CachedRayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
 				RayTracingScene.Instances.Add(SceneInfo->CachedRayTracingInstance);
 
-				if (View.RayTracingCullingParameters.CullInRayTracing > 0 && GetRayTracingCullingPerInstance() && SceneInfo->CachedRayTracingInstance.NumTransforms > 1)
+				const Experimental::FHashElementId GroupId = Scene->PrimitiveRayTracingGroupIds[PrimitiveIndex];
+				const bool bUseGroupBounds = View.RayTracingCullingParameters.bCullUsingGroupIds && GroupId.IsValid();
+
+				if (View.RayTracingCullingParameters.CullInRayTracing > 0 && GetRayTracingCullingPerInstance() && SceneInfo->CachedRayTracingInstance.NumTransforms > 1 && !bUseGroupBounds)
 				{
 					FRayTracingGeometryInstance& NewInstance = RayTracingScene.Instances.Last();
 
