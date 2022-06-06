@@ -2548,17 +2548,17 @@ void FNiagaraSystemInstance::OnSimulationDestroyed()
 
 void FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded)
 {
-	// Ensure concurrent work is complete and clear the finalize ref
-	check(ConcurrentTickGraphEvent == nullptr || ConcurrentTickGraphEvent->IsComplete());
-	ConcurrentTickGraphEvent = nullptr;
-	FinalizeRef.ConditionalClear();
-
 	FNiagaraCrashReporterScope CRScope(this);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_FinalizeGT);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
+
+	// Ensure concurrent work is complete and clear the finalize ref
+	check(ConcurrentTickGraphEvent == nullptr || ConcurrentTickGraphEvent->IsComplete());
+	ConcurrentTickGraphEvent = nullptr;
+	FinalizeRef.ConditionalClear();
 
 	//Temporarily force FX to update their own LODDistance on frames where it is not provided by the scalability manager.
 	//TODO: Lots of FX wont need an accurate per frame value so implement a good way for FX to opt into this. FORT-248457

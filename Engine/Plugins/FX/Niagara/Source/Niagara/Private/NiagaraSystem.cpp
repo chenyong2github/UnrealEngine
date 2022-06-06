@@ -87,6 +87,38 @@ static FAutoConsoleVariableRef CVarNiagaraCompileWaitLoggingTerminationCap(
 
 //////////////////////////////////////////////////////////////////////////
 
+class FNiagaraOptimizeCompleteTask
+{
+public:
+	FNiagaraOptimizeCompleteTask(UNiagaraSystem* Owner, FGraphEventRef* InRefToClear)
+		: WeakOwner(Owner)
+		, RefToClear(InRefToClear)
+		, ReferenceValue(InRefToClear != nullptr ? InRefToClear->GetReference() : nullptr)
+	{
+	}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraOptimizeCompleteTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		if (UNiagaraSystem* Owner = WeakOwner.Get())
+		{
+			if (RefToClear && (RefToClear->GetReference() == ReferenceValue) )
+			{
+				*RefToClear = nullptr;
+			}
+		}
+	}
+
+	TWeakObjectPtr<UNiagaraSystem> WeakOwner;
+	FGraphEventRef* RefToClear = nullptr;
+	FGraphEvent* ReferenceValue = nullptr;
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -3332,6 +3364,10 @@ void UNiagaraSystem::AsyncOptimizeAllScripts()
 	{
 		DECLARE_CYCLE_STAT(TEXT("FNullGraphTask.NiagaraScriptOptimizationCompletion"), STAT_FNullGraphTask_NiagaraScriptOptimizationCompletion, STATGROUP_TaskGraphTasks);
 		ScriptOptimizationCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(GET_STATID(STAT_FNullGraphTask_NiagaraScriptOptimizationCompletion), ENamedThreads::AnyThread);
+
+		// Inject task to clear out the reference to the graph task
+		FGraphEventArray CompleteTaskPrereqs({ ScriptOptimizationCompletionEvent });
+		TGraphTask<FNiagaraOptimizeCompleteTask>::CreateTask(&CompleteTaskPrereqs, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, &ScriptOptimizationCompletionEvent);
 	}
 
 	bNeedsAsyncOptimize = false;

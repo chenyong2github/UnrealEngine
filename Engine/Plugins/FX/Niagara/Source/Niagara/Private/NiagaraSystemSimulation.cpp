@@ -417,6 +417,7 @@ struct FNiagaraSystemSimulationSpawnConcurrentTask
 
 		Context.BeforeInstancesTickGraphEvents.Add(MyCompletionGraphEvent);
 		Context.Owner->Spawn_Concurrent(Context);
+		Context.BeforeInstancesTickGraphEvents.Empty();
 		CompletionTask->Unlock();
 	}
 
@@ -1577,7 +1578,7 @@ void FNiagaraSystemSimulation::DumpStalledInfo()
 {
 	TStringBuilder<128> Builder;
 	Builder.Appendf(TEXT("ConcurrentTickGraphEvent Complete (%d)\n"), ConcurrentTickGraphEvent ? ConcurrentTickGraphEvent->IsComplete() : true);
-	Builder.Appendf(TEXT("AllWorkCompleteGraphEvent Complete (%d)\n"), AllWorkCompleteGraphEvent ? ConcurrentTickGraphEvent->IsComplete() : true);
+	Builder.Appendf(TEXT("AllWorkCompleteGraphEvent Complete (%d)\n"), AllWorkCompleteGraphEvent ? AllWorkCompleteGraphEvent->IsComplete() : true);
 	Builder.Appendf(TEXT("SystemTickGroup (%d)\n"), SystemTickGroup);
 	Builder.Appendf(TEXT("bInSpawnPhase (%d)\n"), bInSpawnPhase);
 	Builder.Appendf(TEXT("bIsSolo (%d)\n"), bIsSolo);
@@ -1649,6 +1650,8 @@ void FNiagaraSystemSimulation::WaitForInstancesTickComplete(bool bEnsureComplete
 			}
 		}
 	}
+
+	ConcurrentTickGraphEvent = nullptr;
 	AllWorkCompleteGraphEvent = nullptr;
 }
 
@@ -2097,6 +2100,7 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 	}
 
 	// We did not finalize and will not so clear the reference
+	Instance->ConcurrentTickGraphEvent = nullptr;
 	Instance->FinalizeRef.ConditionalClear();
 
 	// Remove the instance if it is still valid
