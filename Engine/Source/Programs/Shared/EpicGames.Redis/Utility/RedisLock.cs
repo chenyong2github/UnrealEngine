@@ -76,7 +76,7 @@ namespace EpicGames.Redis.Utility
 			Stopwatch timer = Stopwatch.StartNew();
 			for (; ; )
 			{
-				await Task.Delay(duration / 2, cancellationToken).ContinueWith(x => { }); // Do not throw
+				await Task.Delay(duration / 2, cancellationToken).ContinueWith(x => { }, cancellationToken); // Do not throw
 				if (cancellationToken.IsCancellationRequested)
 				{
 					timer.Stop();

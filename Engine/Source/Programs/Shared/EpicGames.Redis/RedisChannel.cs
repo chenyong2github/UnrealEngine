@@ -45,7 +45,7 @@ namespace EpicGames.Redis
 	/// Subscription to a <see cref="RedisChannel{Task}"/>
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
-	public class RedisChannelSubscription<T> : IDisposable, IAsyncDisposable
+	public sealed class RedisChannelSubscription<T> : IDisposable, IAsyncDisposable
 	{
 		/// <summary>
 		/// The subscriber to register with
@@ -105,7 +105,7 @@ namespace EpicGames.Redis
 		/// <param name="message"></param>
 		void UntypedHandler(RedisChannel _, RedisValue message)
 		{
-			_handler(Channel, RedisSerializer.Deserialize<T>(message));
+			_handler(Channel, RedisSerializer.Deserialize<T>(message)!);
 		}
 
 		/// <inheritdoc/>
