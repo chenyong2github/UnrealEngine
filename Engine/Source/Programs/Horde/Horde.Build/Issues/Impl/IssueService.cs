@@ -1048,6 +1048,7 @@ namespace Horde.Build.Services.Impl
 						{
 							if (span.NextSuccess == null)
 							{
+								newVerifiedAt = null;
 								break;
 							}
 							else if (newVerifiedAt == null || span.NextSuccess.StepTime < newVerifiedAt.Value)
