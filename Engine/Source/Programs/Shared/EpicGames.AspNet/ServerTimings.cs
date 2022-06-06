@@ -45,7 +45,7 @@ namespace EpicGames.AspNet
             {
                 sb.Append(";desc=\"");
                 sb.Append(_description);
-                sb.Append("\"");
+                sb.Append('"');
             }
 
             _serverTimingMetric = sb.ToString();
@@ -62,7 +62,7 @@ namespace EpicGames.AspNet
         public IReadOnlyCollection<ServerTimingMetric> Metrics { get; }
     }
 
-    public class ServerTimingMetricScoped : IDisposable
+    public sealed class ServerTimingMetricScoped : IDisposable
     {
         private readonly IServerTiming _timingManager;
         private readonly string _metricName;

@@ -52,7 +52,7 @@ namespace EpicGames.AspNet
             writer.WriteField(name, ToCbObject(problemDetails).AsField());
         }
 
-        private CbObject ToCbObject(ProblemDetails problemDetails)
+        private static CbObject ToCbObject(ProblemDetails problemDetails)
         {
             CbWriter objectWriter = new CbWriter();
             objectWriter.BeginObject();
