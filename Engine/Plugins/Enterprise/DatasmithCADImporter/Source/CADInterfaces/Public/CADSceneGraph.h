@@ -81,18 +81,18 @@ public:
 
 public:
 	FCadId ParentId = 0;
-	FCADUUID MeshActorName = 0;
+	FCadUuid MeshActorUId = 0;
 	double BodyUnit = 1.;
 
-	TSet<FMaterialId> MaterialFaceSet;
-	TSet<FColorId> ColorFaceSet;
+	TSet<FMaterialUId> MaterialFaceSet;
+	TSet<FMaterialUId> ColorFaceSet;
 
 };
 
 class CADINTERFACES_API FArchiveColor
 {
 public:
-	FArchiveColor(FColorId Id = 0)
+	FArchiveColor(FMaterialUId Id = 0)
 		: ObjectId(Id)
 	{
 	}
@@ -100,15 +100,15 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveColor& C);
 
 public:
-	FColorId ObjectId;
+	FMaterialUId ObjectId;
 	FColor Color;
-	FCADUUID UEMaterialName;
+	FCadUuid UEMaterialName;
 };
 
 class CADINTERFACES_API FArchiveMaterial
 {
 public:
-	FArchiveMaterial(FMaterialId Id = 0)
+	FArchiveMaterial(FMaterialUId Id = 0)
 		: ObjectId(Id)
 	{
 	}
@@ -116,8 +116,8 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveMaterial& C);
 
 public:
-	FMaterialId ObjectId;
-	FCADUUID UEMaterialName;
+	FMaterialUId ObjectId;
+	FCadUuid UEMaterialName;
 	FCADMaterial Material;
 };
 
@@ -134,8 +134,8 @@ public:
 	FString ArchiveFileName;
 	FString FullPath;
 
-	TMap<FColorId, FArchiveColor> ColorHIdToColor;
-	TMap<FMaterialId, FArchiveMaterial> MaterialHIdToMaterial;
+	TMap<FMaterialUId, FArchiveColor> ColorHIdToColor;
+	TMap<FMaterialUId, FArchiveMaterial> MaterialHIdToMaterial;
 
 	TArray<FArchiveBody> Bodies;
 	TArray<FArchiveComponent> Components;

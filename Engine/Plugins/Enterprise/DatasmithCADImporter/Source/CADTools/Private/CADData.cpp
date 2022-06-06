@@ -12,48 +12,43 @@ uint32 MeshArchiveMagic = 345612;
 namespace CADLibrary
 {
 
-uint32 BuildColorId(uint32 ColorId, uint8 Alpha)
+FMaterialUId BuildColorFastUId(uint32 ColorId, uint8 Alpha)
 {
 	if (Alpha == 0)
 	{
 		Alpha = 1;
 	}
-	return ColorId | Alpha << 24;
+	uint32 FastColorId =  ColorId | Alpha << 24;
+	return FMath::Abs((int32)GetTypeHash(FastColorId));
 }
 
-void GetCTColorIdAlpha(FColorId ColorId, uint32& CTColorId, uint8& Alpha)
-{
-	CTColorId = ColorId & 0x00ffffff;
-	Alpha = (uint8)((ColorId & 0xff000000) >> 24);
-}
-
-int32 BuildColorName(const FColor& Color)
+FMaterialUId BuildColorUId(const FColor& Color)
 {
 	return FMath::Abs((int32)GetTypeHash(Color));
 }
 
-int32 BuildMaterialName(const FCADMaterial& Material)
+FMaterialUId BuildMaterialUId(const FCADMaterial& Material)
 {
 	using ::GetTypeHash;
 
-	uint32 MaterialName = 0;
+	uint32 MaterialUId = 0;
 	if (!Material.MaterialName.IsEmpty())
 	{
-		MaterialName = GetTypeHash(*Material.MaterialName); // we add material name because it could be used by the end user so two material with same parameters but different name are different.
+		MaterialUId = GetTypeHash(*Material.MaterialName); // we add material name because it could be used by the end user so two material with same parameters but different name are different.
 	}
 
-	MaterialName = HashCombine(MaterialName, GetTypeHash(Material.Diffuse));
-	MaterialName = HashCombine(MaterialName, GetTypeHash(Material.Ambient));
-	MaterialName = HashCombine(MaterialName, GetTypeHash(Material.Specular));
-	MaterialName = HashCombine(MaterialName, GetTypeHash((int)(Material.Shininess * 255.0)));
-	MaterialName = HashCombine(MaterialName, GetTypeHash((int)(Material.Transparency * 255.0)));
-	MaterialName = HashCombine(MaterialName, GetTypeHash((int)(Material.Reflexion * 255.0)));
+	MaterialUId = HashCombine(MaterialUId, GetTypeHash(Material.Diffuse));
+	MaterialUId = HashCombine(MaterialUId, GetTypeHash(Material.Ambient));
+	MaterialUId = HashCombine(MaterialUId, GetTypeHash(Material.Specular));
+	MaterialUId = HashCombine(MaterialUId, GetTypeHash((int)(Material.Shininess * 255.0)));
+	MaterialUId = HashCombine(MaterialUId, GetTypeHash((int)(Material.Transparency * 255.0)));
+	MaterialUId = HashCombine(MaterialUId, GetTypeHash((int)(Material.Reflexion * 255.0)));
 
 	if (!Material.TextureName.IsEmpty())
 	{
-		MaterialName = HashCombine(MaterialName, GetTypeHash(*Material.TextureName));
+		MaterialUId = HashCombine(MaterialUId, GetTypeHash(*Material.TextureName));
 	}
-	return FMath::Abs((int32) MaterialName);
+	return FMath::Abs((int32)MaterialUId);
 }
 
 FArchive& operator<<(FArchive& Ar, FCADMaterial& Material)
@@ -90,8 +85,8 @@ FArchive& operator<<(FArchive& Ar, FTessellationData& TessellationData)
 	Ar << TessellationData.NormalArray;
 	Ar << TessellationData.TexCoordArray;
 
-	Ar << TessellationData.ColorName;
-	Ar << TessellationData.MaterialName;
+	Ar << TessellationData.ColorUId;
+	Ar << TessellationData.MaterialUId;
 
 	Ar << TessellationData.PatchId;
 
@@ -106,7 +101,7 @@ FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh)
 
 	Ar << BodyMesh.TriangleCount;
 	Ar << BodyMesh.BodyID;
-	Ar << BodyMesh.MeshActorName;
+	Ar << BodyMesh.MeshActorUId;
 
 	Ar << BodyMesh.MaterialSet;
 	Ar << BodyMesh.ColorSet;

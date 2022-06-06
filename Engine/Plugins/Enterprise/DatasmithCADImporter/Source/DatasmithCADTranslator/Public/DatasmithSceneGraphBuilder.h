@@ -40,10 +40,10 @@ public:
 	const TCHAR* Uuid;
 
 	CADLibrary::FCADMaterial Material;
-	uint32 MaterialUuid;
+	FMaterialUId MaterialUuid;
 
 	FColor Color;
-	uint32 ColorUuid;
+	FMaterialUId ColorUuid;
 };
 
 
@@ -93,16 +93,15 @@ protected:
 	TArray<CADLibrary::FArchiveSceneGraph> ArchiveMockUps;
 	TMap<uint32, CADLibrary::FArchiveSceneGraph*> CADFileToSceneGraphArchive;
 
-	TMap< FCADUUID, TSharedPtr< IDatasmithMeshElement > > BodyUuidToMeshElement;
+	TMap<FCadUuid, TSharedPtr< IDatasmithMeshElement>> BodyUuidToMeshElement;
 
-	TMap< FCADUUID, TSharedPtr< IDatasmithUEPbrMaterialElement > > MaterialUuidMap;
-	TSharedPtr<IDatasmithUEPbrMaterialElement > DefaultMaterial;
+	TMap<FMaterialUId, TSharedPtr< IDatasmithUEPbrMaterialElement>> MaterialUuidMap;
+	TSharedPtr<IDatasmithUEPbrMaterialElement> DefaultMaterial;
 
-	TMap<FCADUUID, CADLibrary::FArchiveColor> ColorNameToColorArchive; 
-	TMap<FCADUUID, CADLibrary::FArchiveMaterial> MaterialNameToMaterialArchive; 
+	TMap<FMaterialUId, CADLibrary::FArchiveColor> ColorUIdToColorArchive; 
+	TMap<FMaterialUId, CADLibrary::FArchiveMaterial> MaterialUIdToMaterialArchive; 
 
 	TArray<uint32> AncestorSceneGraphHash;
-
 
 	bool bPreferMaterial;
 	bool bMaterialPropagationIsTopDown;

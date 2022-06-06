@@ -453,38 +453,38 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 		// the mesh of the body is empty, the body is deleted.
 		// Todo (jira UETOOL-5148): add a boolean in Body to flag that the body should not be build
 		Body.ParentId = 0;
-		Body.MeshActorName = 0;
+		Body.MeshActorUId = 0;
 	}
 
 	// Convert material
-	FCADUUID DefaultColorName = Body.ColorFaceSet.Num() > 0 ? *Body.ColorFaceSet.begin() : 0;
-	FCADUUID DefaultMaterialName = Body.MaterialFaceSet.Num() > 0 ? *Body.MaterialFaceSet.begin() : 0;
+	FCadUuid DefaultColorUId = Body.ColorFaceSet.Num() > 0 ? *Body.ColorFaceSet.begin() : 0;
+	FCadUuid DefaultMaterialUId = Body.MaterialFaceSet.Num() > 0 ? *Body.MaterialFaceSet.begin() : 0;
 
 	for (FTessellationData& Tessellation : BodyMesh.Faces)
 	{
-		FCADUUID ColorName = DefaultColorName;
-		FCADUUID MaterialName = DefaultMaterialName;
+		FCadUuid ColorUId = DefaultColorUId;
+		FCadUuid MaterialUId = DefaultMaterialUId;
 
 		// Extract proper color or material based on style index
-		uint32 CachedStyleIndex = Tessellation.MaterialName;
-		Tessellation.MaterialName = 0;
+		uint32 CachedStyleIndex = Tessellation.MaterialUId;
+		Tessellation.MaterialUId = 0;
 
 		constexpr uint32 GraphStyleDataDefaultValue =  65535;
 		if (CachedStyleIndex != GraphStyleDataDefaultValue)
 		{
-			ExtractGraphStyleProperties(CachedStyleIndex, ColorName, MaterialName);
+			ExtractGraphStyleProperties(CachedStyleIndex, ColorUId, MaterialUId);
 		}
 
-		if (ColorName)
+		if (ColorUId)
 		{
-			Tessellation.ColorName = ColorName;
-			BodyMesh.ColorSet.Add(ColorName);
+			Tessellation.ColorUId = ColorUId;
+			BodyMesh.ColorSet.Add(ColorUId);
 		}
 
-		if (MaterialName)
+		if (MaterialUId)
 		{
-			Tessellation.MaterialName = MaterialName;
-			BodyMesh.MaterialSet.Add(MaterialName);
+			Tessellation.MaterialUId = MaterialUId;
+			BodyMesh.MaterialSet.Add(MaterialUId);
 		}
 	}
 
@@ -497,7 +497,7 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 
 	if (Type == kA3DTypeRiBrepModel)
 	{
-		FString FilePath = CADFileData.GetBodyCachePath(Body.MeshActorName);
+		FString FilePath = CADFileData.GetBodyCachePath(Body.MeshActorUId);
 		if (!FilePath.IsEmpty())
 		{
 			TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
@@ -505,8 +505,8 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 			// Save body unit and default color and material attributes in a json string
 			// This will be used when the file is reloaded
 			JsonObject->SetNumberField(JSON_ENTRY_BODY_UNIT, Body.BodyUnit);
-			JsonObject->SetNumberField(JSON_ENTRY_COLOR_NAME, DefaultColorName);
-			JsonObject->SetNumberField(JSON_ENTRY_MATERIAL_NAME, DefaultMaterialName);
+			JsonObject->SetNumberField(JSON_ENTRY_COLOR_NAME, DefaultColorUId);
+			JsonObject->SetNumberField(JSON_ENTRY_MATERIAL_NAME, DefaultMaterialUId);
 
 			FString JsonString;
 			TSharedRef< TJsonWriter< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > > JsonWriter = TJsonWriterFactory< TCHAR, TPrettyJsonPrintPolicy<TCHAR> >::Create(&JsonString);
@@ -1753,7 +1753,7 @@ void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence*
 
 FArchiveColor& FTechSoftFileParser::FindOrAddColor(uint32 ColorIndex, uint8 Alpha)
 {
-	uint32 ColorHId = BuildColorId(ColorIndex, Alpha);
+	FMaterialUId ColorHId = BuildColorFastUId(ColorIndex, Alpha);
 	if (FArchiveColor* Color = CADFileData.FindColor(ColorHId))
 	{
 		return *Color;
@@ -1763,7 +1763,7 @@ FArchiveColor& FTechSoftFileParser::FindOrAddColor(uint32 ColorIndex, uint8 Alph
 	NewColor.Color = TechSoftUtils::GetColorAt(ColorIndex);
 	NewColor.Color.A = Alpha;
 	
-	NewColor.UEMaterialName = BuildColorName(NewColor.Color);
+	NewColor.UEMaterialName = BuildColorUId(NewColor.Color);
 	return NewColor;
 }
 
@@ -1787,7 +1787,7 @@ FArchiveMaterial& FTechSoftFileParser::AddMaterialAt(uint32 MaterialIndexToSave,
 		// Material.Emissive = GetColor(MaterialData->m_uiEmissive);
 		// Material.Reflexion;
 	}
-	NewMaterial.UEMaterialName = BuildMaterialName(Material);
+	NewMaterial.UEMaterialName = BuildMaterialUId(Material);
 	return NewMaterial;
 }
 
@@ -1850,8 +1850,8 @@ void FTechSoftFileParser::ExtractGraphicProperties(const A3DGraphics* Graphics, 
 		return;
 	}
 
-	FCADUUID& ColorName = OutMetaData.ColorName;
-	FCADUUID& MaterialName = OutMetaData.MaterialName;
+	FCadUuid& ColorName = OutMetaData.ColorName;
+	FCadUuid& MaterialName = OutMetaData.MaterialName;
 
 	ExtractGraphStyleProperties(GraphicsData->m_uiStyleIndex, ColorName, MaterialName);
 
@@ -1877,7 +1877,7 @@ void FTechSoftFileParser::ExtractGraphicProperties(const A3DGraphics* Graphics, 
 
 // Please review TechSoftUtils::GetMaterialValues if anything changes
 // in this method or the methods it calls
-void FTechSoftFileParser::ExtractGraphStyleProperties(uint32 StyleIndex, FCADUUID& OutColorName, FCADUUID& OutMaterialName)
+void FTechSoftFileParser::ExtractGraphStyleProperties(uint32 StyleIndex, FCadUuid& OutColorName, FCadUuid& OutMaterialName)
 {
 	TUniqueTSObjFromIndex<A3DGraphStyleData> GraphStyleData(StyleIndex);
 

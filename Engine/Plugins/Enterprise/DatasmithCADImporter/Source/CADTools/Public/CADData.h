@@ -10,10 +10,8 @@
 class FArchive;
 
 using FCadId = uint32; // Identifier defined in the input CAD file
-using FColorId = uint32; // Identifier defined in the input CAD file
-using FMaterialId = uint32; // Identifier defined in the input CAD file
-using FCADUUID = uint32;  // Universal unique identifier that be used for the unreal asset name (Actor, Material)
-
+using FMaterialUId = int32; // Material of Color unique Identifier defined based on the material or color properties
+using FCadUuid = uint32;  // Unique identifier that be used for the unreal asset name (Actor, Material)
 
 namespace CADLibrary
 {
@@ -78,9 +76,9 @@ public:
 
 struct CADTOOLS_API FObjectDisplayDataId
 {
-	FCADUUID DefaultMaterialName = 0;
-	FMaterialId Material = 0;
-	FColorId Color = 0; // => FastHash == ColorId+Transparency
+	FMaterialUId DefaultMaterialUId = 0;
+	FMaterialUId MaterialUId = 0;
+	FMaterialUId ColorUId = 0;
 };
 
 class CADTOOLS_API FFileDescriptor
@@ -223,7 +221,7 @@ struct CADTOOLS_API FTessellationData
 	/** Index of each vertex in FBody::VertexArray. Empty with CoreTech and filled by FillKioVertexPosition */
 	TArray<int32> PositionIndices;
 
-	/** Index of Vertices of each face in the local Vertices set (i.e. VerticesBodyIndex for CADKernel, VertexArray for Coretech) */
+	/** Index of Vertices of each face in the local Vertices set (i.e. VerticesBodyIndex for CADKernel) */
 	TArray<int32> VertexIndices;
 
 	/** Normal of each vertex */
@@ -232,8 +230,8 @@ struct CADTOOLS_API FTessellationData
 	/** UV coordinates of each vertex */
 	TArray<FVector2D> TexCoordArray;
 
-	FCADUUID ColorName = 0;
-	FCADUUID MaterialName = 0;
+	FMaterialUId ColorUId = 0;
+	FMaterialUId MaterialUId = 0;
 
 	int32 PatchId;
 };
@@ -255,20 +253,19 @@ public:
 
 	uint32 TriangleCount = 0;
 	FCadId BodyID = 0;
-	FCADUUID MeshActorName = 0;
+	FCadUuid MeshActorUId = 0;
 
 	TArray<int32> VertexIds;  // StaticMesh FVertexID NO Serialize, filled by FillKioVertexPosition or FillVertexPosition
 	TArray<int32> SymmetricVertexIds; // StaticMesh FVertexID for sym part NO Serialize, filled by FillKioVertexPosition or FillVertexPosition
 
-	TSet<uint32> MaterialSet;
-	TSet<uint32> ColorSet;
+	TSet<FMaterialUId> MaterialSet;
+	TSet<FMaterialUId> ColorSet;
 };
 
-CADTOOLS_API uint32 BuildColorId(uint32 ColorId, uint8 Alpha);
-CADTOOLS_API void GetCTColorIdAlpha(uint32 ColorHash, uint32& OutColorId, uint8& OutAlpha);
+CADTOOLS_API FMaterialUId BuildColorFastUId(uint32 ColorId, uint8 Alpha);
 
-CADTOOLS_API int32 BuildColorName(const FColor& Color);
-CADTOOLS_API int32 BuildMaterialName(const FCADMaterial& Material);
+CADTOOLS_API FMaterialUId BuildColorUId(const FColor& Color);
+CADTOOLS_API FMaterialUId BuildMaterialUId(const FCADMaterial& Material);
 
 CADTOOLS_API void SerializeBodyMeshSet(const TCHAR* Filename, TArray<FBodyMesh>& InBodySet);
 CADTOOLS_API void DeserializeBodyMeshFile(const TCHAR* Filename, TArray<FBodyMesh>& OutBodySet);

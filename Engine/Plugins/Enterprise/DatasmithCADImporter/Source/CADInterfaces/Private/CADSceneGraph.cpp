@@ -45,7 +45,7 @@ FArchive& operator<<(FArchive& Ar, FArchiveBody& Body)
 	Ar << Body.MaterialFaceSet;
 	Ar << Body.ColorFaceSet;
 	Ar << Body.ParentId;
-	Ar << Body.MeshActorName;
+	Ar << Body.MeshActorUId;
 	Ar << Body.BodyUnit;
 
 	return Ar;

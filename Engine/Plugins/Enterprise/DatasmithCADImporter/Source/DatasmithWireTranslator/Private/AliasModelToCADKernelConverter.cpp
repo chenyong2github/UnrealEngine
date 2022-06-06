@@ -282,7 +282,7 @@ bool FAliasModelToCADKernelConverter::AddBRep(AlDagNode& DagNode, const FColor& 
 
 	TSharedRef<CADKernel::FBody> CADKernelBody = CADKernel::FEntity::MakeShared<CADKernel::FBody>();
 	TSharedRef<CADKernel::FShell> CADKernelShell = CADKernel::FEntity::MakeShared<CADKernel::FShell>();
-	uint32 ColorId = (uint32) CADLibrary::BuildColorName(Color);
+	uint32 ColorId = (uint32) CADLibrary::BuildColorUId(Color);
 	CADKernelShell->SetColorId(ColorId);
 	CADKernelBody->AddShell(CADKernelShell);
 

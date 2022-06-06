@@ -169,11 +169,11 @@ private:
 			// there is a bijection between A3DTess3DData->m_psFaceTessData and A3DTopoShellData->m_ppFaces
 			Tessellation.PatchId = Index;
 
-			Tessellation.MaterialName = FTechSoftInterface::InvalidScriptIndex;
+			Tessellation.MaterialUId = FTechSoftInterface::InvalidScriptIndex;
 			if (FaceTessData.m_uiStyleIndexesSize > 0)
 			{
 				// Store the StyleIndex on the MaterialName. It will be processed after tessellation
-				Tessellation.MaterialName = FaceTessData.m_puiStyleIndexes[0];
+				Tessellation.MaterialUId = FaceTessData.m_puiStyleIndexes[0];
 			}
 
 			// Pre-allocate memory for triangles' data

@@ -24,7 +24,7 @@ public:
 
 		for (CADLibrary::FBodyMesh& Body : BodyMeshSet)
 		{
-			MeshActorNameToBodyMesh.Emplace(Body.MeshActorName, &Body);
+			MeshActorNameToBodyMesh.Emplace(Body.MeshActorUId, &Body);
 		}
 	}
 
@@ -36,7 +36,7 @@ protected:
 	void LoadMeshFiles(TMap<uint32, FString>& CADFileToMeshFile);
 
 	TArray<TArray<CADLibrary::FBodyMesh>> BodyMeshes;
-	TMap<FCADUUID, CADLibrary::FBodyMesh*> MeshActorNameToBodyMesh;
+	TMap<FCadUuid, CADLibrary::FBodyMesh*> MeshActorNameToBodyMesh;
 
 	CADLibrary::FImportParameters ImportParameters;
 };

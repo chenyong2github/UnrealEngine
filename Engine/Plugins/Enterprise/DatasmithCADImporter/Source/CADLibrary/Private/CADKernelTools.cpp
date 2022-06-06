@@ -315,16 +315,16 @@ namespace CADLibrary
 		Tessellation.NormalArray = MoveTemp(FaceMesh.Normals);
 		Tessellation.TexCoordArray = MoveTemp(FaceMesh.UVMap);
 
-		if (FaceMaterial.Color)
+		if (FaceMaterial.ColorUId)
 		{
-			Tessellation.ColorName = FaceMaterial.Color;
-			OutBodyMesh.ColorSet.Add(FaceMaterial.Color);
+			Tessellation.ColorUId = FaceMaterial.ColorUId;
+			OutBodyMesh.ColorSet.Add(FaceMaterial.ColorUId);
 		}
 
-		if (FaceMaterial.Material)
+		if (FaceMaterial.MaterialUId)
 		{
-			Tessellation.MaterialName = FaceMaterial.Material;
-			OutBodyMesh.MaterialSet.Add(FaceMaterial.Material);
+			Tessellation.MaterialUId = FaceMaterial.MaterialUId;
+			OutBodyMesh.MaterialSet.Add(FaceMaterial.MaterialUId);
 		}
 
 		return Tessellation.VertexIndices.Num() / 3;
@@ -334,11 +334,11 @@ namespace CADLibrary
 	{
 		if (ShapeEntity.GetColorId() != 0)
 		{
-			DisplayDataId.Color = ShapeEntity.GetColorId();
+			DisplayDataId.ColorUId = ShapeEntity.GetColorId();
 		}
 		if (ShapeEntity.GetMaterialId() != 0)
 		{
-			DisplayDataId.Material = ShapeEntity.GetMaterialId();
+			DisplayDataId.MaterialUId = ShapeEntity.GetMaterialId();
 		}
 	}
 
@@ -361,7 +361,7 @@ namespace CADLibrary
 		FObjectDisplayDataId BodyMaterial;
 
 		GetDisplayDataIds(Body, BodyMaterial);
-		BodyMaterial.DefaultMaterialName = BodyMaterial.Material != 0 ? BodyMaterial.Material : BodyMaterial.Color;
+		BodyMaterial.DefaultMaterialUId = BodyMaterial.MaterialUId != 0 ? BodyMaterial.MaterialUId : BodyMaterial.ColorUId;
 
 		// Loop through the face of bodies and collect all tessellation data
 		for (const TSharedPtr<CADKernel::FShell>& Shell : Body.GetShells())

@@ -181,7 +181,7 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 		FArchiveBody& ArchiveBody = CADFileData.GetBodyAt(ArchiveBodyIndex);
 		ArchiveBody.MetaData.Empty();
 		ArchiveBody.ParentId = 0;
-		ArchiveBody.MeshActorName = 0;
+		ArchiveBody.MeshActorUId = 0;
 	}
 }
 
@@ -218,7 +218,7 @@ void FTechSoftFileParserCADKernelTessellator::MeshAndGetTessellation(CADKernel::
 	// Save Body in CADKernelArchive file for re-tessellation
 	if (CADFileData.IsCacheDefined())
 	{
-		FString BodyFilePath = CADFileData.GetBodyCachePath(ArchiveBody.MeshActorName);
+		FString BodyFilePath = CADFileData.GetBodyCachePath(ArchiveBody.MeshActorUId);
 		CADKernelSession.SaveDatabase(*BodyFilePath);
 	}
 

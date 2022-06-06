@@ -115,12 +115,12 @@ void FDatasmithSceneGraphBuilder::LoadSceneGraphDescriptionFiles()
 
 		for(const auto& ColorPair : MockUpDescription.ColorHIdToColor)
 		{
-			ColorNameToColorArchive.Emplace(ColorPair.Value.UEMaterialName, ColorPair.Value);
+			ColorUIdToColorArchive.Emplace(ColorPair.Value.UEMaterialName, ColorPair.Value);
 		}
 
 		for (const auto& MaterialPair : MockUpDescription.MaterialHIdToMaterial)
 		{
-			MaterialNameToMaterialArchive.Emplace(MaterialPair.Value.UEMaterialName, MaterialPair.Value);
+			MaterialUIdToMaterialArchive.Emplace(MaterialPair.Value.UEMaterialName, MaterialPair.Value);
 		}
 
 	}
@@ -178,16 +178,16 @@ FDatasmithSceneBaseGraphBuilder::FDatasmithSceneBaseGraphBuilder(CADLibrary::FAr
 {
 	if (InSceneGraph)
 	{
-		ColorNameToColorArchive.Reserve(SceneGraph->ColorHIdToColor.Num());
+		ColorUIdToColorArchive.Reserve(SceneGraph->ColorHIdToColor.Num());
 		for(const auto& ColorPair : SceneGraph->ColorHIdToColor)
 		{
-			ColorNameToColorArchive.Emplace(ColorPair.Value.UEMaterialName, ColorPair.Value);
+			ColorUIdToColorArchive.Emplace(ColorPair.Value.UEMaterialName, ColorPair.Value);
 		}
 
-		MaterialNameToMaterialArchive.Reserve(SceneGraph->MaterialHIdToMaterial.Num());
+		MaterialUIdToMaterialArchive.Reserve(SceneGraph->MaterialHIdToMaterial.Num());
 		for (const auto& MaterialPair : SceneGraph->MaterialHIdToMaterial)
 		{
-			MaterialNameToMaterialArchive.Emplace(MaterialPair.Value.UEMaterialName, MaterialPair.Value);
+			MaterialUIdToMaterialArchive.Emplace(MaterialPair.Value.UEMaterialName, MaterialPair.Value);
 		}
 	}
 }
@@ -419,7 +419,7 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 		OutName = "NoName";
 	}
 
-	FCADUUID UEUUID = HashCombine(GetTypeHash(InParentUEUUID), GetTypeHash(InComponentIndex));
+	FCadUuid UEUUID = HashCombine(GetTypeHash(InParentUEUUID), GetTypeHash(InComponentIndex));
 
 	if (InstanceUUID)
 	{
@@ -482,7 +482,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(in
 
 	CADLibrary::FArchiveBody& Body = SceneGraph->Bodies[BodyIndex];
 
-	if (Body.ParentId == 0 || Body.MeshActorName == 0)
+	if (Body.ParentId == 0 || Body.MeshActorUId == 0)
 	{
 		return TSharedPtr<IDatasmithActorElement>();
 	}
@@ -535,10 +535,10 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(in
 
 TSharedPtr< IDatasmithMeshElement > FDatasmithSceneBaseGraphBuilder::FindOrAddMeshElement(CADLibrary::FArchiveBody& Body, FString& BodyName)
 {
-	FString ShellUuidName = FString::Printf(TEXT("0x%012u"), Body.MeshActorName);
+	FString ShellUuidName = FString::Printf(TEXT("0x%012u"), Body.MeshActorUId);
 
 	// Look if geometry has not been already processed, return it if found
-	TSharedPtr< IDatasmithMeshElement >* MeshElementPtr = BodyUuidToMeshElement.Find(Body.MeshActorName);
+	TSharedPtr< IDatasmithMeshElement >* MeshElementPtr = BodyUuidToMeshElement.Find(Body.MeshActorUId);
 	if (MeshElementPtr != nullptr)
 	{
 		return *MeshElementPtr;
@@ -554,15 +554,15 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithSceneBaseGraphBuilder::FindOrAddMe
 	// the scene graph archive name that is define by the name and the stat of the file (creation date, size)
 	MD5.Update(reinterpret_cast<const uint8*>(SceneGraph->ArchiveFileName.GetCharArray().GetData()), SceneGraph->ArchiveFileName.GetCharArray().Num());
 	// MeshActorName
-	MD5.Update(reinterpret_cast<const uint8*>(&Body.MeshActorName), sizeof Body.MeshActorName);
+	MD5.Update(reinterpret_cast<const uint8*>(&Body.MeshActorUId), sizeof Body.MeshActorUId);
 
 	FMD5Hash Hash;
 	Hash.Set(MD5);
 	MeshElement->SetFileHash(Hash);
 
-	TFunction<void(TSet<uint32>&)> SetMaterialToDatasmithMeshElement = [&](TSet<uint32>& MaterialSet)
+	TFunction<void(TSet<FMaterialUId>&)> SetMaterialToDatasmithMeshElement = [&](TSet<FMaterialUId>& MaterialSet)
 	{
-		for (uint32 MaterialSlotId : MaterialSet)
+		for (FMaterialUId MaterialSlotId : MaterialSet)
 		{
 			TSharedPtr< IDatasmithMaterialIDElement > PartMaterialIDElement;
 			PartMaterialIDElement = FindOrAddMaterial(MaterialSlotId);
@@ -575,9 +575,9 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithSceneBaseGraphBuilder::FindOrAddMe
 
 	DatasmithScene->AddMesh(MeshElement);
 
-	BodyUuidToMeshElement.Add(Body.MeshActorName, MeshElement);
+	BodyUuidToMeshElement.Add(Body.MeshActorUId, MeshElement);
 
-	FString BodyCachePath = CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), Body.MeshActorName);
+	FString BodyCachePath = CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), Body.MeshActorUId);
 	MeshElement->SetFile(*BodyCachePath);
 
 	return MeshElement;
@@ -605,11 +605,11 @@ TSharedPtr<IDatasmithMaterialIDElement> FDatasmithSceneBaseGraphBuilder::FindOrA
 	}
 	else if (MaterialUuid > 0)
 	{
-		if (CADLibrary::FArchiveColor* Color = ColorNameToColorArchive.Find(MaterialUuid))
+		if (CADLibrary::FArchiveColor* Color = ColorUIdToColorArchive.Find(MaterialUuid))
 		{
 			MaterialElement = CADLibrary::CreateUEPbrMaterialFromColor(Color->Color);
 		}
-		else if (CADLibrary::FArchiveMaterial* Material = MaterialNameToMaterialArchive.Find(MaterialUuid))
+		else if (CADLibrary::FArchiveMaterial* Material = MaterialUIdToMaterialArchive.Find(MaterialUuid))
 		{
 			MaterialElement = CADLibrary::CreateUEPbrMaterialFromMaterial(Material->Material, DatasmithScene);
 		}

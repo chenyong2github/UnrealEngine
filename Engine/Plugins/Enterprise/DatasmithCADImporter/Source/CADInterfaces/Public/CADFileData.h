@@ -234,8 +234,8 @@ public:
 	FBodyMesh& AddBodyMesh(FCadId BodyId, FArchiveBody& Body)
 	{
 		FBodyMesh& BodyMesh = BodyMeshes.Emplace_GetRef(BodyId);
-		BodyMesh.MeshActorName = GetStaticMeshHash(BodyId);
-		Body.MeshActorName = BodyMesh.MeshActorName;
+		BodyMesh.MeshActorUId = GetStaticMeshHash(BodyId);
+		Body.MeshActorUId = BodyMesh.MeshActorUId;
 		return BodyMesh;
 	}
 
@@ -275,22 +275,22 @@ public:
 		return SceneGraphArchive;
 	}
 
-	FArchiveMaterial* FindMaterial(uint32 MaterialId)
+	FArchiveMaterial* FindMaterial(FMaterialUId MaterialId)
 	{
 		return SceneGraphArchive.MaterialHIdToMaterial.Find(MaterialId);
 	}
 
-	FArchiveMaterial& AddMaterial(uint32 MaterialId)
+	FArchiveMaterial& AddMaterial(FMaterialUId MaterialId)
 	{
 		return SceneGraphArchive.MaterialHIdToMaterial.Emplace(MaterialId, MaterialId);
 	}
 
-	FArchiveColor* FindColor(uint32 ColorId)
+	FArchiveColor* FindColor(FMaterialUId ColorId)
 	{
 		return SceneGraphArchive.ColorHIdToColor.Find(ColorId);
 	}
 
-	FArchiveColor& AddColor(uint32 ColorId)
+	FArchiveColor& AddColor(FMaterialUId ColorId)
 	{
 		return SceneGraphArchive.ColorHIdToColor.Emplace(ColorId, ColorId);
 	}

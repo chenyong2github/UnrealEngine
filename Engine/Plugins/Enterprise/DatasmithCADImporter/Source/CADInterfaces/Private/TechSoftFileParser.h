@@ -129,7 +129,7 @@ private:
 	 * ColorName and MaterialName have to be initialized before.
 	 * This method update the value ColorName or MaterialName accordingly of the GraphStyleData type (material or color)
 	 */
-	void ExtractGraphStyleProperties(uint32 StyleIndex, FCADUUID& ColorName, FCADUUID& MaterialName);
+	void ExtractGraphStyleProperties(uint32 StyleIndex, FCadUuid& ColorName, FCadUuid& MaterialName);
 	FArchiveColor& FindOrAddColor(uint32 ColorIndex, uint8 Alpha);
 	FArchiveMaterial& FindOrAddMaterial(uint32 MaterialId, const A3DGraphStyleData& GraphStyleData);
 

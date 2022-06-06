@@ -36,8 +36,8 @@ struct FEntityMetaData
 	bool bRemoved = false;
 	bool bShow = true;
 	bool bUnloaded = false;
-	FCADUUID ColorName = 0;
-	FCADUUID MaterialName = 0;
+	FCadUuid ColorName = 0;
+	FCadUuid MaterialName = 0;
 	FFileDescriptor ExternalFile;
 };
 

@@ -422,7 +422,7 @@ namespace CADLibrary
 		for (const FTessellationData& FaceTessellation : BodyTessellation.Faces)
 		{
 			// material is preferred over color
-			MaterialToPolygonGroupMapping.Add(FaceTessellation.MaterialName ? FaceTessellation.MaterialName : FaceTessellation.ColorName, INDEX_NONE);
+			MaterialToPolygonGroupMapping.Add(FaceTessellation.MaterialUId ? FaceTessellation.MaterialUId : FaceTessellation.ColorUId, INDEX_NONE);
 		}
 
 		// Add to the mesh, a polygon groups per material
@@ -467,7 +467,7 @@ namespace CADLibrary
 				}
 
 				// Get the polygonGroup (material is preferred over color)
-				FCADUUID GraphicName = Tessellation.MaterialName ? Tessellation.MaterialName : Tessellation.ColorName;
+				FCadUuid GraphicName = Tessellation.MaterialUId ? Tessellation.MaterialUId : Tessellation.ColorUId;
 				const FPolygonGroupID* PolygonGroupID = MaterialToPolygonGroupMapping.Find(GraphicName);
 				if (PolygonGroupID == nullptr)
 				{
@@ -643,7 +643,7 @@ namespace CADLibrary
 
 	TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromColor(const FColor& InColor)
 	{
-		FString Name = FString::FromInt(BuildColorName(InColor));
+		FString Name = FString::FromInt(BuildColorUId(InColor));
 		FString Label = FString::Printf(TEXT("color_%02x%02x%02x%02x"), InColor.R, InColor.G, InColor.B, InColor.A);
 
 		// Take the Material diffuse color and connect it to the BaseColor of a UEPbrMaterial
@@ -679,7 +679,7 @@ namespace CADLibrary
 
 	TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromMaterial(FCADMaterial& InMaterial, TSharedRef<IDatasmithScene> Scene)
 	{
-		FString Name = FString::FromInt(BuildMaterialName(InMaterial));
+		FString Name = FString::FromInt(BuildMaterialUId(InMaterial));
 
 		// Take the Material diffuse color and connect it to the BaseColor of a UEPbrMaterial
 		TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(*Name);

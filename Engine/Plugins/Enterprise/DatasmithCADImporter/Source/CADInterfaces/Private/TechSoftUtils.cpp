@@ -262,7 +262,7 @@ void BuildCADMaterial(uint32 MaterialIndex, const A3DGraphStyleData& GraphStyleD
 #endif
 
 // Replicates the logic in FTechSoftFileParser::ExtractGraphStyleProperties
-void GetMaterialValues(uint32 StyleIndex, FCADUUID& OutColorName, FCADUUID& OutMaterialName)
+void GetMaterialValues(uint32 StyleIndex, FCadUuid& OutColorName, FCadUuid& OutMaterialName)
 {
 #if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	TUniqueTSObjFromIndex<A3DGraphStyleData> GraphStyleData(StyleIndex);
@@ -275,7 +275,7 @@ void GetMaterialValues(uint32 StyleIndex, FCADUUID& OutColorName, FCADUUID& OutM
 
 			BuildCADMaterial(GraphStyleData->m_uiRgbColorIndex, *GraphStyleData, Material);
 
-			OutMaterialName = BuildMaterialName(Material);
+			OutMaterialName = BuildMaterialUId(Material);
 		}
 		else
 		{
@@ -286,7 +286,7 @@ void GetMaterialValues(uint32 StyleIndex, FCADUUID& OutColorName, FCADUUID& OutM
 				const uint8 Alpha = GraphStyleData->m_bIsTransparencyDefined ? (255 - GraphStyleData->m_ucTransparency) : 255;
 				const FColor ColorValue((uint8)(ColorData->m_dRed * 255), (uint8)(ColorData->m_dGreen * 255), (uint8)(ColorData->m_dBlue * 255), Alpha);
 
-				OutColorName = BuildColorName(ColorValue);
+				OutColorName = BuildColorUId(ColorValue);
 			}
 		}
 	}
@@ -295,8 +295,8 @@ void GetMaterialValues(uint32 StyleIndex, FCADUUID& OutColorName, FCADUUID& OutM
 
 void RestoreMaterials(const TSharedPtr<FJsonObject>& DefaultValues, FBodyMesh& BodyMesh)
 {
-	FCADUUID DefaultColorName = 0;
-	FCADUUID DefaultMaterialName = 0;
+	FCadUuid DefaultColorName = 0;
+	FCadUuid DefaultMaterialName = 0;
 
 	DefaultValues->TryGetNumberField(JSON_ENTRY_COLOR_NAME, DefaultColorName);
 	DefaultValues->TryGetNumberField(JSON_ENTRY_MATERIAL_NAME, DefaultMaterialName);
@@ -307,23 +307,23 @@ void RestoreMaterials(const TSharedPtr<FJsonObject>& DefaultValues, FBodyMesh& B
 	for (FTessellationData& Tessellation : BodyMesh.Faces)
 	{
 		// Extract proper color or material based on style index
-		uint32 CachedStyleIndex = Tessellation.MaterialName;
-		Tessellation.MaterialName = 0;
+		uint32 CachedStyleIndex = Tessellation.MaterialUId;
+		Tessellation.MaterialUId = 0;
 
-		FCADUUID ColorName = DefaultColorName;
-		FCADUUID MaterialName = DefaultMaterialName;
+		FCadUuid ColorName = DefaultColorName;
+		FCadUuid MaterialName = DefaultMaterialName;
 
 		GetMaterialValues(CachedStyleIndex, ColorName, MaterialName);
 
 		if (ColorName)
 		{
-			Tessellation.ColorName = ColorName;
+			Tessellation.ColorUId = ColorName;
 			BodyMesh.ColorSet.Add(ColorName);
 		}
 
 		if (MaterialName)
 		{
-			Tessellation.MaterialName = MaterialName;
+			Tessellation.MaterialUId = MaterialName;
 			BodyMesh.MaterialSet.Add(MaterialName);
 		}
 	}
