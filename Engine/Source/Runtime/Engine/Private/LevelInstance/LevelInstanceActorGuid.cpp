@@ -41,10 +41,25 @@ FArchive& operator<<(FArchive& Ar, FLevelInstanceActorGuid& LevelInstanceActorGu
 {
 	check(LevelInstanceActorGuid.Actor);
 #if WITH_EDITOR
-	if (Ar.IsSaving() && Ar.IsCooking() && !LevelInstanceActorGuid.Actor->IsTemplate())
+	if (!LevelInstanceActorGuid.Actor->IsTemplate())
 	{
-		FGuid Guid = LevelInstanceActorGuid.GetGuid();
-		Ar << Guid;
+		if (Ar.IsSaving() && Ar.IsCooking())
+		{
+			FGuid Guid = LevelInstanceActorGuid.GetGuid();
+			Ar << Guid;
+		}
+		else if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
+		{
+			if (Ar.IsLoading())
+			{
+				Ar << LevelInstanceActorGuid.ActorGuid;
+			}
+			else if (Ar.IsSaving())
+			{
+				FGuid Guid = LevelInstanceActorGuid.GetGuid();
+				Ar << Guid;
+			}
+		}
 	}
 #else
 	if (Ar.IsLoading())
