@@ -1149,6 +1149,10 @@ public:
 	/** If enabled, the texture's alpha channel will be forced to opaque for any compressed texture output format.  Does not apply if output format is uncompressed RGBA. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta=(DisplayName="Compress Without Alpha"))
 	uint32 CompressionNoAlpha:1;
+	
+	/** If true, force alpha channel in output format when possible, eg. for AutoDXT BC1/BC3 choice **/
+	UPROPERTY()
+	uint32 CompressionForceAlpha:1;
 
 	/** If true, force the texture to be uncompressed no matter the format. */
 	UPROPERTY()
