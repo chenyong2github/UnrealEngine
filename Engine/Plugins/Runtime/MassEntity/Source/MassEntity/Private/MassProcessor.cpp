@@ -309,8 +309,13 @@ void UMassCompositeProcessor::CopyAndSort(const FMassProcessingPhaseConfig& Phas
 	FMassRuntimePipeline TmpPipeline;
 	TmpPipeline.CreateFromArray(PhaseConfig.ProcessorCDOs, *GetOuter());
 
+	SetProcessors(TmpPipeline.Processors, DependencyGraphFileName);
+}
+
+void UMassCompositeProcessor::SetProcessors(TArrayView<UMassProcessor*> InProcessorInstances, const FString& DependencyGraphFileName)
+{
 	// figure out dependencies
-	FProcessorDependencySolver Solver(TmpPipeline.Processors, GroupName, DependencyGraphFileName);
+	FProcessorDependencySolver Solver(InProcessorInstances, GroupName, DependencyGraphFileName);
 	TArray<FProcessorDependencySolver::FOrderInfo> SortedProcessorsAndGroups;
 	Solver.ResolveDependencies(SortedProcessorsAndGroups);
 
