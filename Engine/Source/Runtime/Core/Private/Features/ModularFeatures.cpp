@@ -13,25 +13,23 @@ IModularFeatures& IModularFeatures::Get()
 void FModularFeatures::LockModularFeatureList()
 {
 	ModularFeaturesMapCriticalSection.Lock();
-	bModularFeatureListLocked = true;
 }
 
 void FModularFeatures::UnlockModularFeatureList()
 {
-	bModularFeatureListLocked = false;
 	ModularFeaturesMapCriticalSection.Unlock();
 }
 
 int32 FModularFeatures::GetModularFeatureImplementationCount( const FName Type )
 {
-	ensureMsgf(IsInGameThread() || bModularFeatureListLocked, TEXT("IModularFeature counting is not thread-safe unless wrapped with LockModularFeatureList/UnlockModularFeatureList"));
+	// IModularFeature counting is not thread-safe unless wrapped with LockModularFeatureList/UnlockModularFeatureList if you are crashing here
 
 	return ModularFeaturesMap.Num( Type );
 }
 
 IModularFeature* FModularFeatures::GetModularFeatureImplementation( const FName Type, const int32 Index )
 {
-	ensureMsgf(IsInGameThread() || bModularFeatureListLocked, TEXT("IModularFeature fetching is not thread-safe unless wrapped with LockModularFeatureList/UnlockModularFeatureList"));
+	// IModularFeature fetching is not thread-safe unless wrapped with LockModularFeatureList/UnlockModularFeatureList if you are crashing here
 
 	IModularFeature* ModularFeature = nullptr;
 

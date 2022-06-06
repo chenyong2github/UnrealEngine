@@ -37,10 +37,7 @@ private:
 	/** Maps each feature type to a list of known providers of that feature */
 	TMultiMap< FName, class IModularFeature* > ModularFeaturesMap;
 
-	/** Used to fire ensure when ModularFeaturesMap is inspected cross-thread without being locked properly */
-	std::atomic<bool> bModularFeatureListLocked = false;
-
-	/** Lock modular features map so it can be used across threads */
+	/** Lock modular features map so it can be used across threads, this could be a RW lock instead of a crit sec */
 	FCriticalSection ModularFeaturesMapCriticalSection;
 
 	/** Event used to inform clients that a modular feature has been registered */
