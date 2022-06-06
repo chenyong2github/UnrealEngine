@@ -15304,9 +15304,14 @@ void UEngine::VerifyLoadMapWorldCleanup()
 	}
 }
 
-static bool PrintStaleReferenceChainsAndFindReferencingObjects(UObject* ObjectToFindReferencesTo, FReferenceChainSearch& RefChainSearch, FGCObjectInfo*& OutGarbageObject, FGCObjectInfo*& OutReferencingObject)
+static bool PrintStaleReferenceChainsAndFindReferencingObjects(UObject* ObjectToFindReferencesTo, FReferenceChainSearch& RefChainSearch, FGCObjectInfo*& OutGarbageObject, FGCObjectInfo*& OutReferencingObject, ELogVerbosity::Type Verbosity)
 {
-	UE_LOG(LogLoad, Error, TEXT("Printing reference chains leading to %s: "), *ObjectToFindReferencesTo->GetFullName());
+#if !NO_LOGGING
+	if (Verbosity != ELogVerbosity::NoLogging)
+	{
+		FMsg::Logf(__FILE__, __LINE__, LogLoad.GetCategoryName(), Verbosity, TEXT("Printing reference chains leading to %s: "), *ObjectToFindReferencesTo->GetFullName());
+	}
+#endif
 	return RefChainSearch.PrintResults([&ObjectToFindReferencesTo, &OutGarbageObject, &OutReferencingObject](FReferenceChainSearch::FCallbackParams& Params)
 		{
 			check(Params.Object);
@@ -15419,7 +15424,7 @@ TArray<FString> UEngine::FindAndPrintStaleReferencesToObjects(TConstArrayView<UO
 		FGCObjectInfo* OutGarbageObject = nullptr;
 		FGCObjectInfo* OutReferencingObject = nullptr;
 
-		bool bReferenceChainFound = PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, RefChainSearch, OutGarbageObject, OutReferencingObject);
+		bool bReferenceChainFound = PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, RefChainSearch, OutGarbageObject, OutReferencingObject, Verbosity);
 
 		FString PathToCulprit;
 		FString GarbageErrorMessage;
@@ -15442,7 +15447,7 @@ TArray<FString> UEngine::FindAndPrintStaleReferencesToObjects(TConstArrayView<UO
 
 				OutGarbageObject = nullptr;
 				OutReferencingObject = nullptr;
-				bReferenceChainFound = PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, HistorySearch, OutGarbageObject, OutReferencingObject);
+				bReferenceChainFound = PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, HistorySearch, OutGarbageObject, OutReferencingObject, Verbosity);
 				if (bReferenceChainFound)
 				{
 					bReferenceChainFound = true;

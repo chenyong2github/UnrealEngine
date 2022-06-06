@@ -191,7 +191,7 @@ bool FTopLevelAssetPathTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("AssetPathFromString to string is PackageName.AssetName"), PackagePath.ToString(), AssetPathString);
 
 	FTopLevelAssetPath FailedPath;
-	TestFalse(TEXT("TrySetPath with unrooted path string fails"), FailedPath.TrySetPath("UnrootedPackage/Subfolder"));
+	//TestFalse(TEXT("TrySetPath with unrooted path string fails"), FailedPath.TrySetPath("UnrootedPackage/Subfolder")); // after ANY_PACKAGE removal this will assert
 	TestEqual(TEXT("Failed set to string is empty string"), FailedPath.ToString(), FString());
 
 	FTopLevelAssetPath SubObjectPath;
