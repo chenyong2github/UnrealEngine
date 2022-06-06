@@ -1025,7 +1025,7 @@ FReply UCommonButtonBase::HandleButtonDoubleClicked()
 
 void UCommonButtonBase::HandleFocusReceived()
 {
-	if (bShouldSelectUponReceivingFocus && !IsSelected())
+	if (bShouldSelectUponReceivingFocus && !GetSelected())
 	{
 		SetIsSelected(true, false);
 	}
