@@ -20,4 +20,8 @@ public:
 	virtual void BeginDestroy() override;
 	virtual bool NeedsLoadForServer() const override;
 	//~ End UObject Interface
+
+private:
+	// Hide this to avoid confusion with UI selection state
+	using UObject::IsSelected;
 };
