@@ -36,8 +36,8 @@ public:
 	virtual bool Fill3DTexture_RenderThread(int frame, FTextureRHIRef TextureToFill, FRHICommandListImmediate& RHICmdList);
 	
 private:
-	TMap<int32, Vec4SGrid::Ptr> OpenVDBGrids;
-	openvdb::tools::Dense<openvdb::Vec4s, openvdb::tools::MemoryLayout::LayoutXYZ>::Ptr DenseGridPtr;
+	TMap<int32, Vec4Grid::Ptr> OpenVDBGrids;
+	Vec4Dense::Ptr DenseGridPtr;
 };
 #endif
 
@@ -251,8 +251,14 @@ bool FOpenVDBCacheData::Fill3DTexture_RenderThread(int frame, FTextureRHIRef Tex
 		}
 		else
 		{
-			FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, DenseResolution.X, DenseResolution.Y, DenseResolution.Z);			
-			RHICmdList.UpdateTexture3D(TextureToFill, 0, UpdateRegion, FormatSize * DenseResolution.X, FormatSize * DenseResolution.X * DenseResolution.Y, DataPtr);			
+			const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, DenseResolution.X, DenseResolution.Y, DenseResolution.Z);			
+			const SIZE_T MemorySize = static_cast<SIZE_T>(UpdateRegion.Width * UpdateRegion.Height * UpdateRegion.Depth * FormatSize);
+
+			FUpdateTexture3DData TheData = RHICmdList.BeginUpdateTexture3D(TextureToFill, 0, UpdateRegion);
+			
+			FMemory::Memcpy(TheData.Data, DataPtr, MemorySize);
+
+			RHICmdList.EndUpdateTexture3D(TheData);						
 		}
 
 		return true;

@@ -292,7 +292,8 @@ bool UNiagaraDataInterfaceVolumeCache::PerInstanceTick(void* PerInstanceData, FN
 	{
 		FNiagaraDataInterfaceVolumeCacheProxy* TextureProxy = GetProxyAs<FNiagaraDataInterfaceVolumeCacheProxy>();
 
-		EPixelFormat Format = PF_A32B32G32R32F;
+		//EPixelFormat Format = PF_A32B32G32R32F;
+		EPixelFormat Format = PF_FloatRGBA;
 		const int32 FormatSize = GPixelFormats[Format].BlockBytes;
 
 		// cannot read from cache...spew errors or let it go?

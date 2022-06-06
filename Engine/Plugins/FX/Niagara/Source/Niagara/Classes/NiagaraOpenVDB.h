@@ -47,10 +47,10 @@ using Vec4HTree = openvdb::tree::Tree4<Vec4h, 5, 4, 3>::Type;
 using Vec4HGrid = openvdb::Grid<Vec4HTree>;
 using Vec4HDense = openvdb::tools::Dense<Vec4h, openvdb::tools::MemoryLayout::LayoutXYZ>;
 
-using Vec4 = Vec4s;
-using Vec4Tree = Vec4STree;
-using Vec4Grid = Vec4SGrid;
-using Vec4Dense = Vec4SDense;
+using Vec4 = Vec4h;
+using Vec4Tree = openvdb::tree::Tree4<Vec4, 5, 4, 3>::Type;
+using Vec4Grid = openvdb::Grid<Vec4Tree>;
+using Vec4Dense = openvdb::tools::Dense<Vec4, openvdb::tools::MemoryLayout::LayoutXYZ>;
 using Vec4GridPtr = Vec4Grid::Ptr;
 using Vec4DensePtr = Vec4Dense::Ptr;
 
