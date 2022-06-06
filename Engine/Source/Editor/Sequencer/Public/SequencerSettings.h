@@ -377,11 +377,10 @@ public:
 	/** Sets the movie renderer to use */
 	void SetMovieRendererName(const FString& InMovieRendererName);
 
-	
 	/** Gets whether or not to expand the outliner tree view when a child element is selected (from outside of the tree view). */
-	bool GetAutoExpandTreeView() const { return bAutoExpandOutlinerTreeOnChildSelection; }
+	bool GetAutoExpandNodesOnSelection() const { return bAutoExpandNodesOnSelection; }
 	/** Sets whether or not to expand the outliner tree view when a child element is selected (from outside of the tree view). */
-	void SetAutoExpandTreeView(bool bInAutoExpandOutlinerTree);
+	void SetAutoExpandNodesOnSelection(bool bInAutoExpandNodesOnSelection);
 
 protected:
 
@@ -605,7 +604,7 @@ protected:
 
 	/** Whether to expand the sequencer tree view when a child element is selected (from outside of the tree view). */
 	UPROPERTY(config, EditAnywhere, Category= General)
-	bool bAutoExpandOutlinerTreeOnChildSelection;
+	bool bAutoExpandNodesOnSelection;
 
 	FOnEvaluateSubSequencesInIsolationChanged OnEvaluateSubSequencesInIsolationChangedEvent;
 	FOnShowSelectedNodesOnlyChanged OnShowSelectedNodesOnlyChangedEvent;

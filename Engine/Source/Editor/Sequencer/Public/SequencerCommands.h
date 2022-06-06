@@ -136,6 +136,9 @@ public:
 	/** Toggle constraining the playback range to the section bounds */
 	TSharedPtr< FUICommandInfo > ToggleKeepPlaybackRangeInSectionBounds;
 
+	/** Toggle auto expand outliner tree on child selection */
+	TSharedPtr< FUICommandInfo > ToggleAutoExpandNodesOnSelection;
+
 	/** Expand/collapse nodes */
 	TSharedPtr< FUICommandInfo > ToggleExpandCollapseNodes;
 

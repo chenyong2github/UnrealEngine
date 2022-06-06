@@ -1315,7 +1315,7 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 				SequencerSelectionCurveEditorFilter = MakeShared<FSequencerSelectionCurveFilter>();
 			}
 
-			SequencerSelectionCurveEditorFilter->Update(Sequencer->GetSelection().GetSelectedOutlinerItems(), SequencerSettings->GetAutoExpandTreeView());
+			SequencerSelectionCurveEditorFilter->Update(Sequencer->GetSelection().GetSelectedOutlinerItems(), SequencerSettings->GetAutoExpandNodesOnSelection());
 
 			CurveEditor->GetTree()->AddFilter(SequencerSelectionCurveEditorFilter);
 		}
@@ -2355,6 +2355,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 
 	MenuBuilder.BeginSection("OrganizeAndSort", LOCTEXT("OrganizeAndSortHeader", "Organize and Sort"));
 	{
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleAutoExpandNodesOnSelection);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleExpandCollapseNodes);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleExpandCollapseNodesAndDescendants);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ExpandAllNodes);

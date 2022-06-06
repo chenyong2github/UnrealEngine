@@ -7170,7 +7170,7 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 	}
 	if (bSelect)
 	{
-		if (Settings->GetAutoExpandTreeView())
+		if (Settings->GetAutoExpandNodesOnSelection())
 		{
 			for (const TSharedRef<FViewModel>& DisplayNode : NodesToSelect)
 			{
@@ -7315,7 +7315,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 	{
 		for (const TSharedRef<FViewModel>& DisplayNode : Nodes)
 		{
-			if (Settings->GetAutoExpandTreeView())
+			if (Settings->GetAutoExpandNodesOnSelection())
 			{
 				if (DisplayNode->GetParent().IsValid() && DisplayNode->GetParent()->IsA<ITrackExtension>() && !DisplayNode->GetParent()->CastThisChecked<IOutlinerExtension>()->IsExpanded())
 				{
@@ -12509,6 +12509,12 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.SortAllNodesAndDescendants,
 		FExecuteAction::CreateSP(this, &FSequencer::SortAllNodesAndDescendants));
+
+	SequencerCommandBindings->MapAction(
+		Commands.ToggleAutoExpandNodesOnSelection,
+		FExecuteAction::CreateLambda([this] { Settings->SetAutoExpandNodesOnSelection(!Settings->GetAutoExpandNodesOnSelection()); }),
+		FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateLambda([this] { return Settings->GetAutoExpandNodesOnSelection(); }) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleExpandCollapseNodes,
