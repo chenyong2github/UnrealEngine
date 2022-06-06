@@ -150,4 +150,9 @@ public:
 
 	/** Is this asset type supported in the current session? */
 	virtual bool IsSupported() const = 0;
+
+	/**
+	 * Returns class path name as a package + class FName pair
+	 */
+	virtual FTopLevelAssetPath GetClassPathName() const = 0;
 };

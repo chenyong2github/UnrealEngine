@@ -158,9 +158,7 @@ public:
 	virtual void BuildBackendFilter(FARFilter& InFilter) override
 	{
 		// Add the supported class for this type to a filter
-		FString FilterString(GetFilterName().ToString());
-		checkf(!FPackageName::IsShortPackageName(FilterString), TEXT("Short class names are not supported: %s"), *FilterString);
-		InFilter.ClassPaths.Add(FTopLevelAssetPath(FilterString));
+		InFilter.ClassPaths.Add(GetClassPathName());
 		InFilter.bRecursiveClasses = true;
 	}
 	
@@ -182,6 +180,11 @@ public:
 	virtual FName GetFilterName() const override
 	{
 		return FName(*GetSupportedClass()->GetPathName());
+	}
+
+	virtual FTopLevelAssetPath GetClassPathName() const override
+	{
+		return GetSupportedClass()->GetClassPathName();
 	}
 
 protected:

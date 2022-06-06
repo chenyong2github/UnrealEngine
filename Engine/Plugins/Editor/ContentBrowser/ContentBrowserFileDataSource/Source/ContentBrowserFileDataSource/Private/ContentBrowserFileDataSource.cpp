@@ -56,12 +56,14 @@ public:
 	virtual UClass* GetSupportedClass() const override;
 	virtual FColor GetTypeColor() const override;
 	virtual FName GetFilterName() const override;
+	virtual FTopLevelAssetPath GetClassPathName() const override;
 	// End IAssetTypeActions interface
 
 	FName FilterName;
 	FText Name;
 	FText Description;
 	FColor TypeColor;
+	FTopLevelAssetPath ClassPathName;
 };
 
 FText FAssetTypeActions_FileDataSource::GetAssetDescription(const struct FAssetData& AssetData) const
@@ -87,6 +89,11 @@ FColor FAssetTypeActions_FileDataSource::GetTypeColor() const
 FName FAssetTypeActions_FileDataSource::GetFilterName() const
 {
 	return FilterName;
+}
+
+FTopLevelAssetPath FAssetTypeActions_FileDataSource::GetClassPathName() const
+{
+	return ClassPathName;
 }
 
 class FContentBrowserFileDataDiscovery : public FRunnable
@@ -374,6 +381,7 @@ void UContentBrowserFileDataSource::Initialize(const ContentBrowserFileData::FFi
 		AssetTypeAction->Description = InFileActions->TypeFullDescription;
 		AssetTypeAction->TypeColor = InFileActions->TypeColor.ToFColor(true);
 		AssetTypeAction->FilterName = *(ContentBrowserFileDataSource::GetFilterNamePrefix() + InFileActions->TypeName.GetAssetName().ToString());
+		AssetTypeAction->ClassPathName = InFileActions->TypeName;
 		AssetTools.RegisterAssetTypeActions(AssetTypeAction);
 		RegisteredAssetTypeActions.Add(AssetTypeAction);
 		return true;
