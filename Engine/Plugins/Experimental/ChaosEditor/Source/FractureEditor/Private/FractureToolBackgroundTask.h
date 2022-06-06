@@ -48,12 +48,13 @@ public:
 template<class GeometryCollectionOpType>
 int RunCancellableGeometryCollectionOp(FGeometryCollection& ToUpdate, TUniquePtr<GeometryCollectionOpType>&& NewOp, FText DefaultMessage, float DialogDelay = .5)
 {
-	FScopedSlowTask SlowTask(1, DefaultMessage);
-	SlowTask.MakeDialogDelayed(DialogDelay, true);
 	using FGeometryCollectionTask = UE::Geometry::TModelingOpTask<GeometryCollectionOpType>;
-	using FExecuter = UE::Geometry::FAsyncTaskExecuterWithAbort<FGeometryCollectionTask>;
+	using FExecuter = UE::Geometry::FAsyncTaskExecuterWithProgressCancel<FGeometryCollectionTask>;
 	TUniquePtr<FExecuter> BackgroundTask = MakeUnique<FExecuter>(MoveTemp(NewOp));
 	BackgroundTask->StartBackgroundTask();
+
+	FScopedSlowTask SlowTask(1, DefaultMessage);
+	SlowTask.MakeDialogDelayed(DialogDelay, true);
 
 	bool bSuccess = false;
 	while (true)
@@ -70,8 +71,19 @@ int RunCancellableGeometryCollectionOp(FGeometryCollection& ToUpdate, TUniquePtr
 			break;
 		}
 		FPlatformProcess::Sleep(.2); // SlowTask::ShouldCancel will throttle any updates faster than .2 seconds
-		SlowTask.TickProgress(); // Note: EnterProgressFrame will also call this, but we aren't getting progress updates here yet
-		// TODO: Connect up a way to get progress updates from the task back to SlowTask
+		float ProgressFrac;
+		FText ProgressMessage;
+		bool bMadeProgress = BackgroundTask->PollProgress(ProgressFrac, ProgressMessage);
+		if (bMadeProgress)
+		{
+			// SlowTask expects progress to be reported before it happens; we work around this by directly updating the progress amount
+			SlowTask.CompletedWork = ProgressFrac;
+			SlowTask.EnterProgressFrame(0, ProgressMessage);
+		}
+		else
+		{
+			SlowTask.TickProgress(); // Still tick the UI when we don't get new progress frames
+		}
 	}
 
 	if (bSuccess)

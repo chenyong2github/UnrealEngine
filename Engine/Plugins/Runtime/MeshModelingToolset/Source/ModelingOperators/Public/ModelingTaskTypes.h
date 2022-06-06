@@ -95,6 +95,61 @@ public:
 	}
 };
 
+// An extension of FAsyncTaskExecuterWithAbort that requires the task have a GetProgress() function
+// Intended to be used with FAbortableBackgroundTask
+// Provides a PollProgress method to report out task progress
+template<typename TTask>
+class FAsyncTaskExecuterWithProgressCancel : public FAsyncTaskExecuterWithAbort<TTask>
+{
+protected:
+	FProgressCancel* Progress = nullptr;
+	float LastProgressFrac;
+	FText LastProgressMessage;
+
+public:
+	using FAsyncTaskExecuterWithAbort<TTask>::bAbort;
+
+	template <typename Arg0Type, typename... ArgTypes>
+	FAsyncTaskExecuterWithProgressCancel(Arg0Type&& Arg0, ArgTypes&&... Args)
+		: FAsyncTaskExecuterWithAbort<TTask>(Forward<Arg0Type>(Arg0), Forward<ArgTypes>(Args)...)
+
+	{
+		FAsyncTask<TTask>::GetTask().SetAbortSource(&bAbort);
+		Progress = FAsyncTask<TTask>::GetTask().GetProgress();
+	}
+
+	bool PollProgress(float& OutProgressFrac, FText& OutProgressMessage)
+	{
+		if (!Progress)
+		{
+			return false;
+		}
+		OutProgressFrac = Progress->GetProgress();
+		bool bNewProgress = false;
+		if (OutProgressFrac != LastProgressFrac)
+		{
+			OutProgressMessage = Progress->GetProgressMessage();
+			LastProgressMessage = OutProgressMessage;
+			LastProgressFrac = OutProgressFrac;
+			return true;
+		}
+		else if (OutProgressFrac == 0.0f)
+		{
+			// at progress == 0, allow message to update w/out progress advancing
+			// Note: Not polling the message at progress > 0 allows us to take the message lock less frequently,
+			// but does mean we could miss messages that happen w/out a corresponding progress change.
+			// Because these messages should be short-lived, this trade-off seems ok, but we can revisit this
+			// if the missed progress messages become a problem.
+			OutProgressMessage = Progress->GetProgressMessage();
+			if (!OutProgressMessage.IdenticalTo(LastProgressMessage))
+			{
+				LastProgressMessage = OutProgressMessage;
+				return true;
+			}
+		}
+		return false;
+	}
+};
 
 
 /**

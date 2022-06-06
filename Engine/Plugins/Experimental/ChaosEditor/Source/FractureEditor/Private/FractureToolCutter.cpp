@@ -374,6 +374,10 @@ public:
 	// TGenericDataOperator interface:
 	virtual void CalculateResult(FProgressCancel* Progress) override
 	{
+		// Assume Voronoi diagram only takes ~1% of the total time to compute
+		FProgressCancel::FProgressScope VoronoiDiagramProgress =
+			FProgressCancel::CreateScopeTo(Progress, .01, LOCTEXT("ComputingVoronoiDiagramMessage", "Computing Voronoi Diagram"));
+
 		FVoronoiDiagram Voronoi(Sites, Bounds, .1f);
 
 		FPlanarCells VoronoiPlanarCells = FPlanarCells(Sites, Voronoi);
@@ -384,7 +388,13 @@ public:
 			return;
 		}
 
-		// TODO: Pass the ProgressCancel down so the computation can be cancelled
+		VoronoiDiagramProgress.Done();
+
+		// All remaining work is assigned to the mesh fracture
+		FProgressCancel::FProgressScope FractureMeshProgress =
+			FProgressCancel::CreateScopeTo(Progress, 1, LOCTEXT("FractureMeshMessage", "Fracturing Mesh"));
+
+		// TODO: Pass the ProgressCancel down so the computation can be tracked and cancelled
 		ResultGeometryIndex = CutMultipleWithPlanarCells(VoronoiPlanarCells, *CollectionCopy, Selection, Grout, PointSpacing, Seed, Transform);
 		
 		SetResult(MoveTemp(CollectionCopy));

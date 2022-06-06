@@ -8,7 +8,10 @@
 #include "Containers/Array.h"
 #include "Internationalization/Text.h"
 #include "Misc/DateTime.h"
+#include "Misc/ScopeLock.h"
+#include "MathUtil.h"
 
+#include <atomic>
 
 class FProgressCancel;
 
@@ -172,18 +175,64 @@ struct FGeometryResult
 
 
 /**
- * FProgressCancel is an obejct that is intended to be passed to long-running
+ * FProgressCancel is intended to be passed to long-running
  * computes to do two things:
- * 1) provide progress info back to caller (not implemented yet)
+ * 1) provide progress info back to caller
  * 2) allow caller to cancel the computation
  */
-class FProgressCancel
+class GEOMETRYCORE_API FProgressCancel
 {
 private:
 	bool WasCancelled = false;  // will be set to true if CancelF() ever returns true
 
+	// Progress tracking data
+	struct FProgressData
+	{
+		// Active range of progress tracking -- progress should not go out of this range
+		float CurrentMin = 0;
+		float CurrentMax = 1;
+		// Number of nested scopes currently affecting the active range
+		int ScopeDepth = 0;
+		// Message describing the current work being done
+		FText Message;
+
+		float Range() const
+		{
+			return CurrentMax - CurrentMin;
+		}
+
+		// Advance progress without going beyond the current range
+		float SafeAdvance(float CurrentFraction, float AdvanceAmount) const
+		{
+			return FMathf::Min(CurrentMax, CurrentFraction + Range() * AdvanceAmount);
+		}
+	};
+	FProgressData Progress;
+	FText ProgressMessage;
+	int MaxMessageDepth = -1; // If set to a positive value, message will not be updated by scopes below this depth
+
+	// Current total progress, in range [0, 1]
+	std::atomic<float> ProgressFraction = 0;
+
+	// critical section for accesses to the Progress Message
+	mutable FCriticalSection MessageCS;
+
+	void StartWorkScope(FProgressData& SaveProgressFrameOut, float StepSize, const FText& Message);
+
+	void EndWorkScope(const FProgressData& SavedProgressFrame);
+
 public:
 	TFunction<bool()> CancelF = []() { return false; };
+
+	void SetMaxMessageDepth(int32 ScopeDepth)
+	{
+		MaxMessageDepth = ScopeDepth;
+	}
+
+	void ClearMaxMessageDepth()
+	{
+		MaxMessageDepth = -1;
+	}
 
 	/**
 	 * @return true if client would like to cancel operation
@@ -198,6 +247,184 @@ public:
 		return WasCancelled;
 	}
 
+	friend class FProgressScope;
+
+	// Simple helper to track progress in a local scope on an optional FProgressCancel
+	// Will still work if the ProgressCancel is null (just does nothing in that case)
+	class GEOMETRYCORE_API FProgressScope
+	{
+		FProgressCancel* ProgressCancel;
+		FProgressData SavedProgressData;
+		bool bEnded = false;
+
+	public:
+
+		/**
+		 * @param ProgressCancel		Progress will be tracked on this. If null, the FProgressScope will do nothing.
+		 * @param ProgressAmount		Amount to increase progress w/in this scope (as a fraction of the current outer-scope active progress range)
+		 */
+		FProgressScope(FProgressCancel* ProgressCancel, float ProgressAmount, const FText& Message = FText());
+
+		/**
+		 * Create a dummy/inactive FProgressScope
+		 */
+		FProgressScope() : ProgressCancel(nullptr)
+		{}
+
+		~FProgressScope()
+		{
+			if (!bEnded)
+			{
+				Done();
+			}
+		}
+
+		/**
+		 * Advance to the end of the scope's progress range and close the scope
+		 */
+		void Done();
+
+		/**
+		 * @param Amount	Amount to increase the progress fraction, as a fraction of the current active progress range
+		 */
+		inline void AdvanceProgressBy(float Amount)
+		{
+			if (ProgressCancel)
+			{
+				ProgressCancel->AdvanceCurrentScopeProgressBy(Amount);
+			}
+		}
+
+		/**
+		 * Advance current progress a fraction of the way toward a target value
+		 * For example: if progress is .5, AdvanceProgressToward(1, .5) will take a half step to 1 and set progress to .75
+		 * As with all public progress function, progress is expressed relative to the current active progress range and cannot go backward.
+		 */
+		inline void AdvanceProgressToward(float TargetProgressFrac, float FractionToward)
+		{
+			if (ProgressCancel)
+			{
+				ProgressCancel->AdvanceCurrentScopeProgressToward(TargetProgressFrac, FractionToward);
+			}
+		}
+
+		/**
+		 * @return Amount to progress in the current scope to reach the target (scope-relative) progress value
+		 */
+		inline float GetDistanceTo(float TargetProgressFrac)
+		{
+			if (ProgressCancel)
+			{
+				return ProgressCancel->GetCurrentScopeDistanceTo(TargetProgressFrac);
+			}
+
+			return 0;
+		}
+
+		/**
+		 * @return Progress in the current scope
+		 */
+		inline float GetProgress()
+		{
+			if (ProgressCancel)
+			{
+				return ProgressCancel->GetCurrentScopeProgress();
+			}
+
+			return 1;
+		}
+
+		/**
+		 * Note: This function will leave the current progress unchanged if the target value is less than the current progress --
+		 *  it will not allow the progress value to go backward.
+		 *
+		 * @param ProgressFrac	Value to set current progress to, as a fraction of the current active progress range
+		 */
+		inline void SetProgressTo(float NewProgressFrac)
+		{
+			if (ProgressCancel)
+			{
+				ProgressCancel->SetCurrentScopeProgressTo(NewProgressFrac);
+			}
+		}
+	};
+
+	/**
+	 * @param ProgressCancel		Progress will be tracked on this. If null, the FProgressScope will do nothing.
+	 * @param ProgressTo			Target value to increase progress to w/in this scope (as a fraction of the current outer-scope active progress range)
+	 * @param Message				Optional message describing the work to be done
+	 * @return						A new FProgressScope that covers work from the current progress to the target progress value (relative to the current scope)
+	 */
+	static FProgressScope CreateScopeTo(FProgressCancel* ProgressCancel, float ProgressTo, const FText& Message = FText());
+
+	float GetProgress() const
+	{
+		return FMathf::Clamp(ProgressFraction, 0, 1);
+	}
+
+	FText GetProgressMessage() const
+	{
+		FScopeLock MessageLock(&MessageCS);
+		return ProgressMessage;
+	}
+
+	void SetProgressMessage(const FText& Message)
+	{
+		if (MaxMessageDepth == -1 || Progress.ScopeDepth < MaxMessageDepth)
+		{
+			Progress.Message = Message;
+			FScopeLock MessageLock(&MessageCS);
+			ProgressMessage = Message;
+		}
+	}
+
+	/**
+	 * @param Amount	Amount to increase the progress fraction, as a fraction of the current active progress range
+	 */
+	void AdvanceCurrentScopeProgressBy(float Amount)
+	{
+		ProgressFraction = Progress.SafeAdvance(ProgressFraction, Amount);
+	}
+
+	/**
+	 * Advance current progress a fraction of the way toward a target value
+	 * For example: if progress is .5, AdvanceProgressToward(1, .5) will take a half step to 1 and set progress to .75
+	 * As with all public progress function, progress is expressed relative to the current active progress range and cannot go backward.
+	 */
+	void AdvanceCurrentScopeProgressToward(float TargetProgressFrac, float FractionToward)
+	{
+		float TargetProgressFraction = FMathf::Max(ProgressFraction, Progress.CurrentMin + Progress.Range() * TargetProgressFrac);
+		ProgressFraction = Progress.SafeAdvance(ProgressFraction, FMathf::Lerp(ProgressFraction, TargetProgressFraction, FractionToward));
+	}
+
+	/**
+	 * @return Progress as a fraction of the current scope's active progress range
+	 */
+	float GetCurrentScopeProgress()
+	{
+		float Range = Progress.Range();
+		return Range > 0 ? (ProgressFraction - Progress.CurrentMin) / Range : 1;
+	}
+
+	/**
+	 * @param TargetProgressFrac	Target progress value as a fraction of the current scope's active progress range
+	 * @return Amount to progress in the current scope to reach the target progress value
+	 */
+	float GetCurrentScopeDistanceTo(float TargetProgressFrac)
+	{
+		return TargetProgressFrac - GetCurrentScopeProgress();
+	}
+
+	/**
+	 * Note: This function will leave the current progress unchanged if the target value is less than the current progress --
+	 *  it will not allow the progress value to go backward.
+	 * 
+	 * @param ProgressFrac	Value to set current progress to, as a fraction of the current active progress range
+	 */
+	void SetCurrentScopeProgressTo(float NewProgressFrac)
+	{
+		ProgressFraction = FMathf::Clamp(Progress.CurrentMin + Progress.Range() * NewProgressFrac, ProgressFraction, Progress.CurrentMax);
+	}
 
 public:
 
