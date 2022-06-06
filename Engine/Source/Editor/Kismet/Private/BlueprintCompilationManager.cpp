@@ -1941,6 +1941,7 @@ void FBlueprintCompilationManagerImpl::ReparentHierarchies(const TMap<UClass*, U
 			UClass* const* NewParent = OldToNewClasses.Find(ClassToReinstance->GetSuperClass());
 			if(NewParent)
 			{
+				ClassToReinstance->ClearSparseClassDataStruct(false);
 				ClassToReinstance->SetSuperStruct(*NewParent);
 			}
 
