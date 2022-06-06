@@ -664,7 +664,6 @@ struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_K2Graph : public FEdGraphSchemaAc
 	virtual FEdGraphSchemaActionDefiningObject GetPersistentItemDefiningObject() const override;
 	// End of FEdGraphSchemaAction interface
 
-protected:
 	UFunction* GetFunction() const;
 	UBlueprint* GetSourceBlueprint() const;
 };

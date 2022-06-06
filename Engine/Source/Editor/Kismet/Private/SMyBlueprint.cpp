@@ -972,6 +972,18 @@ void SMyBlueprint::BuildOverridableFunctionsMenu(FMenuBuilder& MenuBuilder)
 	{
 		for (TSharedPtr<FEdGraphSchemaAction_K2Graph>& OverrideAction : OverridableFunctionActions)
 		{
+			// Check if function data is valid and skip this entry if it's a private function
+			if (OverrideAction->FuncName != NAME_None)
+			{
+				if (const UFunction* OverrideActionFunction = FindUField<UFunction>(Blueprint->SkeletonGeneratedClass, OverrideAction->FuncName))
+				{
+					if (OverrideActionFunction->HasAnyFunctionFlags(FUNC_Private))
+					{
+						continue;
+					}
+				}
+			}
+			
 			UClass* const OverrideFuncClass = FBlueprintEditorUtils::GetOverrideFunctionClass(GetBlueprintObj(), OverrideAction->FuncName);
 			
 			// Add the function name and tooltip 
