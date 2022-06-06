@@ -22,7 +22,7 @@
 
 DEFINE_LOG_CATEGORY(SubSequenceSerialization);
 
-TArray<TPair<FQualifiedFrameTime, FTimecode> > UTakeRecorderSources::RecordedTimes;
+TArray<TPair<FQualifiedFrameTime, FQualifiedFrameTime> > UTakeRecorderSources::RecordedTimes;
 
 UTakeRecorderSources::UTakeRecorderSources(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -365,8 +365,9 @@ FFrameTime UTakeRecorderSources::TickRecording(class ULevelSequence* InSequence,
 		}
 	}
 
+	if (FApp::GetCurrentFrameTime().IsSet())
 	{
-		RecordedTimes.Add(TPair<FQualifiedFrameTime, FTimecode>(CurrentFrameTime, Timecode));
+		RecordedTimes.Add(TPair<FQualifiedFrameTime, FQualifiedFrameTime>(CurrentFrameTime, FApp::GetCurrentFrameTime().GetValue() ));
 	}
 
 	// If we're recording into sub-sections we want to update their range every frame so they appear to

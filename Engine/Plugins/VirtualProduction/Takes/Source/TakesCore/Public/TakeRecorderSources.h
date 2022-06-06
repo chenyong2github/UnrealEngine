@@ -171,7 +171,7 @@ public:
 	/**
 	 * Array of pairs - key time and the corresponding timecode
 	 */
-	static TArray<TPair<FQualifiedFrameTime, FTimecode> > RecordedTimes;
+	static TArray<TPair<FQualifiedFrameTime, FQualifiedFrameTime> > RecordedTimes;
 
 	FQualifiedFrameTime GetCachedFrameTime() const { return CachedFrameTime; }
 

@@ -685,7 +685,7 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 		TArray<FMovieSceneFloatValue> SubFrames;
 		TArray<FFrameNumber> Times;
 
-		const TArray<TPair<FQualifiedFrameTime, FTimecode>>& RecordedTimes = UTakeRecorderSources::RecordedTimes;
+		const TArray<TPair<FQualifiedFrameTime, FQualifiedFrameTime>>& RecordedTimes = UTakeRecorderSources::RecordedTimes;
 
 		Hours.Reserve(RecordedTimes.Num());
 		Minutes.Reserve(RecordedTimes.Num());
@@ -697,7 +697,7 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 		FFrameRate TickResolution = MovieScene->GetTickResolution();
 		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
-		for (const TPair<FQualifiedFrameTime, FTimecode>& RecordedTimePair : RecordedTimes)
+		for (const TPair<FQualifiedFrameTime, FQualifiedFrameTime>& RecordedTimePair : RecordedTimes)
 		{
 			FFrameNumber FrameNumber = RecordedTimePair.Key.Time.FrameNumber;
 			if (!FrameRange.GetValue().Contains(FrameNumber))
@@ -707,7 +707,7 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 
 			FFrameTime FrameTime = FFrameRate::TransformTime(RecordedTimePair.Key.Time, TickResolution, DisplayRate);
 
-			FTimecode Timecode = RecordedTimePair.Value;
+			FTimecode Timecode = RecordedTimePair.Value.ToTimecode();
 		
 			Hours.Add(Timecode.Hours);
 			Minutes.Add(Timecode.Minutes);
@@ -715,7 +715,7 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 			Frames.Add(Timecode.Frames);
 
 			FMovieSceneFloatValue SubFrame;
-			SubFrame.Value = FrameTime.GetSubFrame();
+			SubFrame.Value = RecordedTimePair.Value.Time.GetSubFrame();
 			SubFrame.InterpMode = ERichCurveInterpMode::RCIM_Linear;
 			SubFrames.Add(SubFrame);
 
