@@ -3216,16 +3216,10 @@ void FSequencer::SetGlobalTime(FFrameTime NewTime, bool bEvaluate)
 		NewTime = NewTime.FloorToFrame();
 	}
 
-	// Don't update the sequence if the time hasn't changed as this will cause duplicate events and the like to fire.
-	// If we need to reevaluate the sequence at the same time for whetever reason, we should call ForceEvaluate()
-	TOptional<FFrameTime> CurrentPosition = PlayPosition.GetCurrentPosition();
-	if (PlayPosition.GetCurrentPosition() != NewTime)
+	FMovieSceneEvaluationRange EvalRange = PlayPosition.JumpTo(NewTime);
+	if (bEvaluate)
 	{
-		FMovieSceneEvaluationRange EvalRange = PlayPosition.JumpTo(NewTime);
-		if (bEvaluate)
-		{
-			EvaluateInternal(EvalRange);
-		}
+		EvaluateInternal(EvalRange);
 	}
 
 	if (AutoScrubTarget.IsSet())
