@@ -321,7 +321,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray);
 
 #if PLATFORM_SUPPORTS_CALLABLE_SHADERS
-		if (EnableDecals)
+		if (EnableDecals && HitPayload.IsDecalReceiver())
 		{
 			float3 TranslatedWorldPos = HitPayload.TranslatedWorldPos;
 			float3 WorldNormal = HitPayload.WorldNormal;
