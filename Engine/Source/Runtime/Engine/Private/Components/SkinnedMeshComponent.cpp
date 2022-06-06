@@ -1109,13 +1109,13 @@ bool USkinnedMeshComponent::GetMaterialStreamingData(int32 MaterialIndex, FPrimi
 
 void USkinnedMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
-	GetStreamingTextureInfoInner(LevelContext, nullptr, GetComponentTransform().GetMaximumAxisScale() * StreamingDistanceMultiplier, OutStreamingRenderAssets);
+	GetStreamingTextureInfoInner(LevelContext, nullptr, StreamingDistanceMultiplier, OutStreamingRenderAssets);
 
 	if (SkeletalMesh && SkeletalMesh->IsStreamable())
 	{
 		const int32 LocalForcedLodModel = GetForcedLOD();
 		const float TexelFactor = LocalForcedLodModel > 0 ? -(SkeletalMesh->GetLODNum() - LocalForcedLodModel + 1) : Bounds.SphereRadius * 2.f;
-		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(SkeletalMesh, Bounds, TexelFactor, PackedRelativeBox_Identity);
+		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(SkeletalMesh, Bounds, TexelFactor, PackedRelativeBox_Identity, false, false);
 	}
 }
 

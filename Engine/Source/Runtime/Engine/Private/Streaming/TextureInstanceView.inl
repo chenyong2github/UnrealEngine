@@ -16,7 +16,7 @@ FRenderAssetInstanceView::FBounds4::FBounds4()
 ,	ExtentX( 0, 0, 0, 0 )
 ,	ExtentY( 0, 0, 0, 0 )
 ,	ExtentZ( 0, 0, 0, 0 )
-,	Radius( 0, 0, 0, 0 )
+,	RadiusOrComponentScale( 0, 0, 0, 0 )
 ,	PackedRelativeBox(0, 0, 0, 0)
 ,	MinDistanceSq( 0, 0, 0, 0 )
 ,	MinRangeSq( 0, 0, 0, 0 )
@@ -38,7 +38,7 @@ void FRenderAssetInstanceView::FBounds4::Clear(int32 Index)
 	ExtentX.Component(Index) = 0;
 	ExtentY.Component(Index) = 0;
 	ExtentZ.Component(Index) = 0;
-	Radius.Component(Index) = 0;
+	RadiusOrComponentScale.Component(Index) = 0;
 	PackedRelativeBox[Index] = 0;
 	MinDistanceSq.Component(Index) = 0; 
 	MinRangeSq.Component(Index) = 0;

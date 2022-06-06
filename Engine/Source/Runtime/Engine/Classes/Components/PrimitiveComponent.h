@@ -1790,6 +1790,8 @@ public:
 	/** Return true if primitive can skip getting texture streaming render asset info. */
 	bool CanSkipGetTextureStreamingRenderAssetInfo() const;
 
+	virtual float GetStreamingScale() const { return 1.f; }
+
 	/** Returns true if the component is static and has the right static mesh setup to support lightmaps. */
 	virtual bool HasValidSettingsForStaticLighting(bool bOverlookInvalidComponents) const 
 	{

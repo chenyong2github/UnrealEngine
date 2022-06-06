@@ -14,9 +14,19 @@
 #include "UObject/UObjectHash.h"
 #include "Templates/RefCounting.h"
 
+FRenderAssetInstanceState::FRenderAssetInstanceState(bool bForDynamicInstances)
+#if DO_CHECK
+	: bIsDynamicInstanceState(bForDynamicInstances)
+#endif
+{
+}
+
 int32 FRenderAssetInstanceState::AddBounds(const UPrimitiveComponent* Component)
 {
-	return AddBounds(Component->Bounds, PackedRelativeBox_Identity, Component, Component->GetLastRenderTimeOnScreen(), Component->Bounds.Origin, 0, 0, FLT_MAX);
+	checkf(bIsDynamicInstanceState, TEXT("This version of AddBounds should only be called by the dynamic instance manager."));
+	FBoxSphereBounds Bounds = Component->Bounds;
+	Bounds.SphereRadius = Component->GetStreamingScale();
+	return AddBounds(Bounds, PackedRelativeBox_Identity, Component, Component->GetLastRenderTimeOnScreen(), Component->Bounds.Origin, 0, 0, FLT_MAX);
 }
 
 int32 FRenderAssetInstanceState::AddBounds(const FBoxSphereBounds& Bounds, uint32 PackedRelativeBox, const UPrimitiveComponent* InComponent, float LastRenderTime, const FVector4& RangeOrigin, float MinDistanceSq, float MinRangeSq, float MaxRangeSq)
@@ -295,9 +305,20 @@ void FRenderAssetInstanceState::AddRenderAssetElements(const UPrimitiveComponent
 EAddComponentResult FRenderAssetInstanceState::AddComponent(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext, float MaxAllowedUIDensity)
 {
 	check(Component);
+	checkf(!bIsDynamicInstanceState, TEXT("Error: trying to add component to dynamic instance manager as static"));
 
 	TArray<FStreamingRenderAssetPrimitiveInfo> RenderAssetInstanceInfos;
 	Component->GetStreamingRenderAssetInfoWithNULLRemoval(LevelContext, RenderAssetInstanceInfos);
+
+	const float ComponentScale = Component->GetStreamingScale();
+	if (ComponentScale != 1.f)
+	{
+		for (FStreamingRenderAssetPrimitiveInfo& Info : RenderAssetInstanceInfos)
+		{
+			Info.TexelFactor *= Info.bAffectedByComponentScale ? ComponentScale : 1.f;
+		}
+	}
+
 	// Texture entries are guarantied to be relevant here, except for bounds if the component is not registered.
 	if (!RenderAssetInstanceInfos.Num())
 	{
@@ -410,6 +431,7 @@ EAddComponentResult FRenderAssetInstanceState::AddComponent(const UPrimitiveComp
 EAddComponentResult FRenderAssetInstanceState::AddComponentIgnoreBounds(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext)
 {
 	check(Component->IsRegistered()); // Must be registered otherwise bounds are invalid.
+	checkf(bIsDynamicInstanceState, TEXT("Error: trying to add component to static instance manager as dynamic"));
 
 	TArray<FStreamingRenderAssetPrimitiveInfo> RenderAssetInstanceInfos;
 	Component->GetStreamingRenderAssetInfoWithNULLRemoval(LevelContext, RenderAssetInstanceInfos);
@@ -507,16 +529,20 @@ void FRenderAssetInstanceState::GetReferencedComponents(TArray<const UPrimitiveC
 
 void FRenderAssetInstanceState::UpdateBounds(const UPrimitiveComponent* Component)
 {
+	checkf(bIsDynamicInstanceState, TEXT("Bounds shouldn't be updated after creation unless the instances are dynamic"));
+
 	int32* ComponentLink = ComponentMap.Find(Component);
 	if (ComponentLink)
 	{
+		FBoxSphereBounds Bounds = Component->Bounds;
+		Bounds.SphereRadius = Component->GetStreamingScale();
 		int32 ElementIndex = *ComponentLink;
 		while (ElementIndex != INDEX_NONE)
 		{
 			const FElement& Element = Elements[ElementIndex];
 			if (Element.BoundsIndex != INDEX_NONE)
 			{
-				Bounds4[Element.BoundsIndex / 4].FullUpdate(Element.BoundsIndex % 4, Component->Bounds, Component->GetLastRenderTimeOnScreen());
+				Bounds4[Element.BoundsIndex / 4].FullUpdate(Element.BoundsIndex % 4, Bounds, Component->GetLastRenderTimeOnScreen());
 			}
 			ElementIndex = Element.NextComponentLink;
 		}
@@ -525,10 +551,14 @@ void FRenderAssetInstanceState::UpdateBounds(const UPrimitiveComponent* Componen
 
 bool FRenderAssetInstanceState::UpdateBounds(int32 BoundIndex)
 {
+	checkf(bIsDynamicInstanceState, TEXT("Bounds shouldn't be updated after creation unless the instances are dynamic"));
+
 	const UPrimitiveComponent* Component = ensure(Bounds4Components.IsValidIndex(BoundIndex)) ? Bounds4Components[BoundIndex] : nullptr;
 	if (Component)
 	{
-		Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Component->Bounds, Component->GetLastRenderTimeOnScreen());
+		FBoxSphereBounds Bounds = Component->Bounds;
+		Bounds.SphereRadius = Component->GetStreamingScale();
+		Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Bounds, Component->GetLastRenderTimeOnScreen());
 		return true;
 	}
 	else
@@ -539,12 +569,14 @@ bool FRenderAssetInstanceState::UpdateBounds(int32 BoundIndex)
 
 bool FRenderAssetInstanceState::ConditionalUpdateBounds(int32 BoundIndex)
 {
+	checkf(bIsDynamicInstanceState, TEXT("Bounds shouldn't be updated after creation unless the instances are dynamic"));
+
 	const UPrimitiveComponent* Component = ensure(Bounds4Components.IsValidIndex(BoundIndex)) ? Bounds4Components[BoundIndex] : nullptr;
 	if (Component)
 	{
 		if (Component->Mobility != EComponentMobility::Static)
 		{
-			const FBoxSphereBounds Bounds = Component->Bounds;
+			FBoxSphereBounds Bounds = Component->Bounds;
 
 			// Check if the bound is coherent as it could be updated while we read it (from async task).
 			// We don't have to check the position, as if it was partially updated, this should be ok (interp)
@@ -555,13 +587,16 @@ bool FRenderAssetInstanceState::ConditionalUpdateBounds(int32 BoundIndex)
 
 			if (0.5f * FMath::Min3<float>(XSquared, YSquared, ZSquared) <= RadiusSquared && RadiusSquared <= 2.f * (XSquared + YSquared + ZSquared))
 			{
+				Bounds.SphereRadius = Component->GetStreamingScale();
 				Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Bounds, Component->GetLastRenderTimeOnScreen());
 				return true;
 			}
 		}
 		else // Otherwise we assume it is guarantied to be good.
 		{
-			Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Component->Bounds, Component->GetLastRenderTimeOnScreen());
+			FBoxSphereBounds Bounds = Component->Bounds;
+			Bounds.SphereRadius = Component->GetStreamingScale();
+			Bounds4[BoundIndex / 4].FullUpdate(BoundIndex % 4, Bounds, Component->GetLastRenderTimeOnScreen());
 			return true;
 		}
 	}

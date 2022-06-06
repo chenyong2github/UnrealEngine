@@ -27,7 +27,7 @@ enum class EAddComponentResult : uint8
 class FRenderAssetInstanceState : public FRenderAssetInstanceView
 {
 public:
-
+	FRenderAssetInstanceState(bool bForDynamicInstances);
 
 	// Will also remove bounds
 	EAddComponentResult AddComponent(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext, float MaxAllowedUIDensity);
@@ -92,6 +92,10 @@ private:
 
 	TMap<const UPrimitiveComponent*, int32> ComponentMap;
 
+#if DO_CHECK
+	bool bIsDynamicInstanceState;
+#endif
+
 	friend class FRenderAssetLinkIterator;
 	friend class FRenderAssetIterator;
 };
@@ -101,7 +105,7 @@ class FRenderAssetInstanceStateTaskSync
 {
 public:
 
-	FRenderAssetInstanceStateTaskSync() : State(new FRenderAssetInstanceState()) {}
+	FRenderAssetInstanceStateTaskSync(bool bForDynamicInstances) : State(new FRenderAssetInstanceState(bForDynamicInstances)) {}
 
 	FORCEINLINE void Sync()
 	{

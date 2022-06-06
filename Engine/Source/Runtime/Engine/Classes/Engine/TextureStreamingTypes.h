@@ -65,12 +65,17 @@ struct FStreamingRenderAssetPrimitiveInfo
 	UPROPERTY(Transient)
 	uint32 bAllowInvalidTexelFactorWhenUnregistered : 1;
 
+	/** Mesh texel factors aren't uv density and shouldn't be affected by component scales */
+	UPROPERTY(Transient)
+	uint32 bAffectedByComponentScale : 1;
+
 	FStreamingRenderAssetPrimitiveInfo() : 
 		RenderAsset(nullptr),
 		Bounds(ForceInit), 
 		TexelFactor(1.0f),
 		PackedRelativeBox(0),
-		bAllowInvalidTexelFactorWhenUnregistered(false)
+		bAllowInvalidTexelFactorWhenUnregistered(false),
+		bAffectedByComponentScale(true)
 	{
 	}
 
@@ -79,12 +84,14 @@ struct FStreamingRenderAssetPrimitiveInfo
 		const FBoxSphereBounds& InBounds,
 		float InTexelFactor,
 		uint32 InPackedRelativeBox = 0,
-		bool bInAllowInvalidTexelFactorWhenUnregistered = false) :
+		bool bInAllowInvalidTexelFactorWhenUnregistered = false,
+		bool bInAffectedByComponentScale = true) :
 		RenderAsset(InAsset),
 		Bounds(InBounds), 
 		TexelFactor(InTexelFactor),
 		PackedRelativeBox(InPackedRelativeBox),
-		bAllowInvalidTexelFactorWhenUnregistered(bInAllowInvalidTexelFactorWhenUnregistered)
+		bAllowInvalidTexelFactorWhenUnregistered(bInAllowInvalidTexelFactorWhenUnregistered),
+		bAffectedByComponentScale(bInAffectedByComponentScale)
 	{
 	}
 

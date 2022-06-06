@@ -1059,7 +1059,7 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 	
 	if (!CanSkipGetTextureStreamingRenderAssetInfo())
 	{
-		GetStreamingTextureInfoInner(LevelContext, Mobility == EComponentMobility::Static ? &StreamingTextureData : nullptr, GetTransformScale() * StreamingDistanceMultiplier, OutStreamingRenderAssets);
+		GetStreamingTextureInfoInner(LevelContext, Mobility == EComponentMobility::Static ? &StreamingTextureData : nullptr, StreamingDistanceMultiplier, OutStreamingRenderAssets);
 	}
 
 	// Process the lightmaps and shadowmaps entries.
@@ -1074,7 +1074,7 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 			const FVector2D& Scale = Lightmap->GetCoordinateScale();
 			if (Scale.X > UE_SMALL_NUMBER && Scale.Y > UE_SMALL_NUMBER)
 			{
-				const float TexelFactor = GetStaticMesh()->GetLightmapUVDensity() * GetTransformScale() / FMath::Min(Scale.X, Scale.Y);
+				const float TexelFactor = GetStaticMesh()->GetLightmapUVDensity() / FMath::Min(Scale.X, Scale.Y);
 				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetTexture(LightmapIndex), Bounds, TexelFactor, PackedRelativeBox_Identity);
 				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetAOMaterialMaskTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);
 				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetSkyOcclusionTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);
@@ -1087,7 +1087,7 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 			const FVector2D& Scale = Shadowmap->GetCoordinateScale();
 			if (Scale.X > UE_SMALL_NUMBER && Scale.Y > UE_SMALL_NUMBER)
 			{
-				const float TexelFactor = GetStaticMesh()->GetLightmapUVDensity() * GetTransformScale() / FMath::Min(Scale.X, Scale.Y);
+				const float TexelFactor = GetStaticMesh()->GetLightmapUVDensity() / FMath::Min(Scale.X, Scale.Y);
 				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Shadowmap->GetTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);
 			}
 		}
@@ -1098,7 +1098,7 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 		const float TexelFactor = ForcedLodModel > 0 ?
 			-(GetStaticMesh()->GetRenderData()->LODResources.Num() - ForcedLodModel + 1) :
 			(IsRegistered() ? Bounds.SphereRadius * 2.f : 0.f);
-		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(GetStaticMesh(), Bounds, TexelFactor, PackedRelativeBox_Identity, true);
+		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(GetStaticMesh(), Bounds, TexelFactor, PackedRelativeBox_Identity, true, false);
 	}
 }
 

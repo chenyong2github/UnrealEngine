@@ -604,6 +604,7 @@ public:
 	virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
 	virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
 #endif
+	virtual float GetStreamingScale() const override { return GetComponentTransform().GetMaximumAxisScale(); }
 	//~ End UPrimitiveComponent Interface.
 
 	//~ Begin INavRelevantInterface Interface.

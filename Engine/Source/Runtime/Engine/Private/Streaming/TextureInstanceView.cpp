@@ -24,7 +24,7 @@ void FRenderAssetInstanceView::FBounds4::Set(int32 Index, const FBoxSphereBounds
 	ExtentX.Component(Index) = Bounds.BoxExtent.X;
 	ExtentY.Component(Index) = Bounds.BoxExtent.Y;
 	ExtentZ.Component(Index) = Bounds.BoxExtent.Z;
-	Radius.Component(Index) = Bounds.SphereRadius;
+	RadiusOrComponentScale.Component(Index) = Bounds.SphereRadius;
 	PackedRelativeBox[Index] = InPackedRelativeBox;
 	MinDistanceSq.Component(Index) = InMinDistanceSq;
 	MinRangeSq.Component(Index) = InMinRangeSq;
@@ -55,7 +55,7 @@ void FRenderAssetInstanceView::FBounds4::UnpackBounds(int32 Index, const UPrimit
 		ExtentX.Component(Index) = SubBounds.BoxExtent.X;
 		ExtentY.Component(Index) = SubBounds.BoxExtent.Y;
 		ExtentZ.Component(Index) = SubBounds.BoxExtent.Z;
-		Radius.Component(Index) = SubBounds.SphereRadius;
+		RadiusOrComponentScale.Component(Index) = SubBounds.SphereRadius;
 		PackedRelativeBox[Index] = PackedRelativeBox_Identity;
 		MinDistanceSq.Component(Index) = MinDistance2;
 		MinRangeSq.Component(Index) = MinRange2;
@@ -77,7 +77,7 @@ void FRenderAssetInstanceView::FBounds4::FullUpdate(int32 Index, const FBoxSpher
 	ExtentX.Component(Index) = Bounds.BoxExtent.X;
 	ExtentY.Component(Index) = Bounds.BoxExtent.Y;
 	ExtentZ.Component(Index) = Bounds.BoxExtent.Z;
-	Radius.Component(Index) = Bounds.SphereRadius;
+	RadiusOrComponentScale.Component(Index) = Bounds.SphereRadius;
 	PackedRelativeBox[Index] = PackedRelativeBox_Identity;
 	MinDistanceSq.Component(Index) = 0;
 	MinRangeSq.Component(Index) = 0;
@@ -114,7 +114,7 @@ FBoxSphereBounds FRenderAssetInstanceView::FRenderAssetLinkConstIterator::GetBou
 		Bounds.BoxExtent.Y = TheBounds4.ExtentY[Index];
 		Bounds.BoxExtent.Z = TheBounds4.ExtentZ[Index];
 
-		Bounds.SphereRadius = TheBounds4.Radius[Index];
+		Bounds.SphereRadius = Bounds.BoxExtent.Length();
 	}
 	return Bounds;
 }
@@ -368,7 +368,7 @@ void FRenderAssetInstanceAsyncView::UpdateBoundSizes_Async(
 		const VectorRegister ExtentX = VectorLoadAligned( &CurrentBounds4.ExtentX );
 		const VectorRegister ExtentY = VectorLoadAligned( &CurrentBounds4.ExtentY );
 		const VectorRegister ExtentZ = VectorLoadAligned( &CurrentBounds4.ExtentZ );
-		const VectorRegister Radius = VectorLoadAligned( &CurrentBounds4.Radius );
+		const VectorRegister ComponentScale = VectorLoadAligned( &CurrentBounds4.RadiusOrComponentScale );
 		const VectorRegister PackedRelativeBox = VectorLoadAligned( reinterpret_cast<const FVector4f*>(&CurrentBounds4.PackedRelativeBox) );
 		const VectorRegister MinDistanceSq = VectorLoadAligned( &CurrentBounds4.MinDistanceSq );
 		const VectorRegister MinRangeSq = VectorLoadAligned( &CurrentBounds4.MinRangeSq );
@@ -420,7 +420,9 @@ void FRenderAssetInstanceAsyncView::UpdateBoundSizes_Async(
 				Temp = VectorSubtract( ViewOriginZ, OriginZ );
 				DistSq = VectorMultiplyAdd( Temp, Temp, DistSq );
 
-				DistSqMinusRadiusSq = VectorNegateMultiplyAdd( Radius, Radius, DistSq );
+				DistSqMinusRadiusSq = VectorNegateMultiplyAdd( ExtentX, ExtentX, DistSq );
+				DistSqMinusRadiusSq = VectorNegateMultiplyAdd( ExtentY, ExtentY, DistSq );
+				DistSqMinusRadiusSq = VectorNegateMultiplyAdd( ExtentZ, ExtentZ, DistSq );
 				// This can be negative here!!!
 			}
 
@@ -466,10 +468,13 @@ void FRenderAssetInstanceAsyncView::UpdateBoundSizes_Async(
 		VectorStoreAligned(MaxNormalizedSize, MaxNormalizedSizeScalar);
 		MS_ALIGN(16) float MaxNormalizedSize_VisibleOnlyScalar[4] GCC_ALIGN(16);
 		VectorStoreAligned(MaxNormalizedSize_VisibleOnly, MaxNormalizedSize_VisibleOnlyScalar);
+		MS_ALIGN(16) float ComponentScaleScalar[4] GCC_ALIGN(16);
+		VectorStoreAligned(ComponentScale, ComponentScaleScalar);
 		for (int32 SubIndex = 0; SubIndex < 4; ++SubIndex)
 		{
 			BoundsVieWInfo[SubIndex].MaxNormalizedSize = MaxNormalizedSizeScalar[SubIndex];
 			BoundsVieWInfo[SubIndex].MaxNormalizedSize_VisibleOnly = MaxNormalizedSize_VisibleOnlyScalar[SubIndex];
+			BoundsVieWInfo[SubIndex].ComponentScale = ComponentScaleScalar[SubIndex];
 		}
 	}
 
@@ -572,7 +577,7 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 							&& ensure(CompiledElement.BoundsIndex < View->NumBounds4() * 4))
 						{
 							FRenderAssetInstanceView::FCompiledElement* MutableCompiledElement = const_cast<FRenderAssetInstanceView::FCompiledElement*>(&CompiledElement);
-							MutableCompiledElement->TexelFactor = View->GetBounds4(CompiledElement.BoundsIndex / 4).Radius.Component(CompiledElement.BoundsIndex % 4) * 2.f;
+							MutableCompiledElement->TexelFactor = View->GetBounds4(CompiledElement.BoundsIndex / 4).RadiusOrComponentScale.Component(CompiledElement.BoundsIndex % 4) * 2.f;
 						}
 
 						ProcessElement(
@@ -605,7 +610,7 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 				if (ensure(BoundsViewInfo.IsValidIndex(It.GetBoundsIndex())))
 				{
 					const FBoundsViewInfo& BoundsVieWInfo = BoundsViewInfo[It.GetBoundsIndex()];
-					ProcessElement(AssetType, BoundsVieWInfo, It.GetTexelFactor(), It.GetForceLoad(), MaxSize, MaxSize_VisibleOnly, MaxNumForcedLODs);
+					ProcessElement(AssetType, BoundsVieWInfo, AssetType != EStreamableRenderAssetType::Texture ? It.GetTexelFactor() : It.GetTexelFactor() * BoundsVieWInfo.ComponentScale, It.GetForceLoad(), MaxSize, MaxSize_VisibleOnly, MaxNumForcedLODs);
 					if (LogPrefix)
 					{
 						It.OutputToLog(BoundsVieWInfo.MaxNormalizedSize, BoundsVieWInfo.MaxNormalizedSize_VisibleOnly, LogPrefix);

@@ -18,7 +18,8 @@ void FStaticRenderAssetInstanceManager::FTasks::SyncResults()
 }
 
 FStaticRenderAssetInstanceManager::FStaticRenderAssetInstanceManager(RenderAssetInstanceTask::FDoWorkTask& AsyncTask)
-	: DirtyIndex(0)
+	: StateSync(false)
+	, DirtyIndex(0)
 {
 	FTasks& Tasks = StateSync.GetTasks();
 

@@ -896,6 +896,7 @@ public:
 	virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const override;
 	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual int32 GetNumMaterials() const override;
+	virtual float GetStreamingScale() const override { return GetComponentTransform().GetMaximumAxisScale(); }
 	//~ End UPrimitiveComponent Interface
 
 	//~ Begin UMeshComponent Interface

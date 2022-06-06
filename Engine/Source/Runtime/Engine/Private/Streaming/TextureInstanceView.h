@@ -53,8 +53,8 @@ public:
 		/** Z size of the bounds box extent of 4 texture/mesh instances */
 		FVector4f ExtentZ;
 
-		/** Sphere radii for the bounding sphere of 4 texture/mesh instances */
-		FVector4f Radius;
+		/** Sphere radii for the bounding sphere of 4 texture/mesh static instances or component scale for dynamic instances */
+		FVector4f RadiusOrComponentScale;
 
 		/** The relative box the bound was computed with. Aligned to be interpreted as FVector4  */
 		MS_ALIGN(16) FUintVector4 PackedRelativeBox;
@@ -311,6 +311,8 @@ private:
 		 * Visible instances are the one that are in range and also that have been seen recently.
 		 */
 		float MaxNormalizedSize_VisibleOnly;
+		/** A custom per component scale applied to the texel factor. */
+		float ComponentScale;
 	};
 
 	// Normalized Texel Factors for each bounds and view. This is the data built by ComputeBoundsViewInfos

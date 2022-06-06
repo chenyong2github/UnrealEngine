@@ -18,7 +18,8 @@ void FDynamicRenderAssetInstanceManager::FTasks::SyncResults()
 }
 
 FDynamicRenderAssetInstanceManager::FDynamicRenderAssetInstanceManager()
-	: DirtyIndex(0)
+	: StateSync(true)
+	, DirtyIndex(0)
 	, PendingDefragSrcBoundIndex(INDEX_NONE)
 	, PendingDefragDstBoundIndex(INDEX_NONE)
 {
