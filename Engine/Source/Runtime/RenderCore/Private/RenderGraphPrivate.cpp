@@ -515,7 +515,7 @@ void InitRenderGraph()
 	}
 
 	int32 ParallelExecuteValue = 0;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgparallelxecute="), ParallelExecuteValue))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgparallelexecute="), ParallelExecuteValue))
 	{
 		GRDGParallelExecute = ParallelExecuteValue;
 	}
