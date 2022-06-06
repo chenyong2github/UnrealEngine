@@ -119,7 +119,7 @@ private:
 	/** Actor Added Delegate*/
 	void HandleActorAdded(AActor* Actor, FGuid TargetObjectGuid);
 	/** Add Control Rig Tracks For Skelmesh Components*/
-	void AddTrackForComponent(USceneComponent* Component);
+	void AddTrackForComponent(USceneComponent* Component, FGuid Binding);
 
 	/** Control Rig Delegates*/
 	void HandleControlModified(UControlRig* Subject, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context);
