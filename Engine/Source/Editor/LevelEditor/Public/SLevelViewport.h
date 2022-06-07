@@ -612,6 +612,14 @@ private:
 	 */
 	bool HandlePlaceDraggedObjects(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, bool bCreateDropPreview);
 
+	/**
+	 * Tries to get assets from a drag and drop event.
+	 * 
+	 * @param DragDropEvent		Event to get assets from.
+	 * @param AssetDataArray	Asets will be added here.
+	 */
+	void GetAssetsFromDrag(const FDragDropEvent& DragDropEvent, TArray<FAssetData>& AssetDataArray);
+
 	/** SWidget Interface */
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 	virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;

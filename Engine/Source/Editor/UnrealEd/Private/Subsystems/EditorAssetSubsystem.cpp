@@ -340,6 +340,16 @@ UEditorAssetSubsystem::UEditorAssetSubsystem()
 {
 }
 
+void UEditorAssetSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	OnExtractAssetFromFile.AddUObject(this, &UEditorAssetSubsystem::CallOnExtractAssetFromFileDynamicArray);
+}
+
+void UEditorAssetSubsystem::Deinitialize()
+{
+	OnExtractAssetFromFile.RemoveAll(this);
+}
+
 // Load operations
 
 // A wrapper around
@@ -1543,4 +1553,27 @@ void UEditorAssetSubsystem::RemoveMetadataTag(UObject* Object, FName Tag)
 	Object->Modify();
 	Object->GetPackage()->GetMetaData()->RemoveValue(Object, Tag);
 #endif // WITH_EDITORONLY_DATA
+}
+
+
+void UEditorAssetSubsystem::AddOnExtractAssetFromFile(FOnExtractAssetFromFileDynamic Delegate)
+{
+	OnExtractAssetFromFileDynamicArray.Add(Delegate);
+}
+
+void UEditorAssetSubsystem::RemoveOnExtractAssetFromFile(FOnExtractAssetFromFileDynamic Delegate)
+{
+	OnExtractAssetFromFileDynamicArray.Remove(Delegate);
+}
+
+void UEditorAssetSubsystem::CallOnExtractAssetFromFileDynamicArray(const TArray<FString>& Files,
+	TArray<FAssetData>& OutAssetDataArray)
+{
+	TArray<FAssetData> LocalArray;
+	for (FOnExtractAssetFromFileDynamic& Delegate : OnExtractAssetFromFileDynamicArray)
+	{
+		Delegate.ExecuteIfBound(Files, LocalArray);
+		OutAssetDataArray += LocalArray;
+		LocalArray.Reset();
+	}
 }

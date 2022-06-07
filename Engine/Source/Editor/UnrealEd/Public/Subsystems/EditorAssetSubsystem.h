@@ -28,6 +28,8 @@ class UNREALED_API UEditorAssetSubsystem : public UEditorSubsystem
 public:
 
 	UEditorAssetSubsystem();
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	
 	/**
 	 * Load an asset. It will verify if the object is already loaded and only load it if it's necessary.
@@ -365,4 +367,54 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Metadata")
     void RemoveMetadataTag(UObject* Object, FName Tag);
+
+	/**
+	 * Delegate for extracting an asset from a file, for example from a drag and drop operation.
+	 *
+	 * @param Files				List of files.
+	 * @param AssetDataArray	Add extracted assets here.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExtractAssetFromFile, const TArray<FString>& Files, TArray<FAssetData>& AssetDataArray);
+
+	/**
+	 * Dynamic version of FOnExtractAssetFromFile.
+	 */
+	DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnExtractAssetFromFileDynamic, const TArray<FString>&, Files, TArray<FAssetData>&, AssetDataArray);
+
+	/**
+	 * Call this to add a callback to extract an asset from a file,
+	 * for example from a drag and drop operation.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
+		void AddOnExtractAssetFromFile(FOnExtractAssetFromFileDynamic Delegate);
+
+	/**
+	 * Call this to remove a callback added with AddOnExtractAssetFromFile.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
+		void RemoveOnExtractAssetFromFile(FOnExtractAssetFromFileDynamic Delegate);
+
+	/**
+	 * Get the delegate for extracting an asset from a file,
+	 * for example from a drag and drop operation.
+	 * Add to this so you can do your own extraction.
+	 *
+	 * Broadcasting this will also call anything added with AddOnExtractAssetFromFile.
+	 */
+	FOnExtractAssetFromFile& GetOnExtractAssetFromFile() { return OnExtractAssetFromFile; }
+
+private:
+
+	/**
+	 * Calls all the delegates in OnExtractAssetFromFileDynamicArray when OnExtractAssetFromFile
+	 * is broadcast.
+	 */
+	void CallOnExtractAssetFromFileDynamicArray(const TArray<FString>& Files,
+		TArray<FAssetData>& InAssetDataArray);
+
+	/** Delegate for extracting an asset from a file, for example from a drag and drop operation. */
+	FOnExtractAssetFromFile OnExtractAssetFromFile;
+	/** Array of dynamic delegates for extracting an asset from a file. */
+	TArray<FOnExtractAssetFromFileDynamic> OnExtractAssetFromFileDynamicArray;
+
 };

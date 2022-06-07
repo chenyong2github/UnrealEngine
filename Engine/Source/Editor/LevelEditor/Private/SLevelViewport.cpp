@@ -5,6 +5,7 @@
 #include "Engine/Selection.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Subsystems/EditorAssetSubsystem.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -707,7 +708,7 @@ bool SLevelViewport::HandleDragObjects(const FGeometry& MyGeometry, const FDragD
 	}
 	else
 	{
-		SelectedAssetDatas = AssetUtil::ExtractAssetDataFromDrag( DragDropEvent );
+		GetAssetsFromDrag(DragDropEvent, SelectedAssetDatas);
 
 		if ( SelectedAssetDatas.Num() > 0 )
 		{
@@ -862,7 +863,8 @@ bool SLevelViewport::HandlePlaceDraggedObjects(const FGeometry& MyGeometry, cons
 		bValidDrop = true;
 		DroppedObjects.Empty();
 
-		TArray<FAssetData> DroppedAssetDatas = AssetUtil::ExtractAssetDataFromDrag(DragDropEvent);
+		TArray<FAssetData> DroppedAssetDatas;
+		GetAssetsFromDrag(DragDropEvent, DroppedAssetDatas);
 
 		bAllAssetWereLoaded = true;
 		for (int32 AssetIdx = 0; AssetIdx < DroppedAssetDatas.Num(); ++AssetIdx)
@@ -957,6 +959,38 @@ bool SLevelViewport::HandlePlaceDraggedObjects(const FGeometry& MyGeometry, cons
 	}
 	
 	return false;
+}
+
+void SLevelViewport::GetAssetsFromDrag(const FDragDropEvent& DragDropEvent, TArray<FAssetData>& AssetDataArray)
+{
+	AssetDataArray = AssetUtil::ExtractAssetDataFromDrag(DragDropEvent);
+
+	// Did we get anything?
+	if (AssetDataArray.Num() == 0)
+	{
+		// Get files from the drag/drop.
+		const TSharedPtr<FDragDropOperation>& Operation = DragDropEvent.GetOperation();
+		if (Operation.IsValid())
+		{
+			if (Operation->IsOfType<FExternalDragOperation>())
+			{
+				TSharedPtr<FExternalDragOperation> DragDropOp = StaticCastSharedPtr<FExternalDragOperation>(Operation);
+				if (DragDropOp->HasFiles())
+				{
+					const TArray<FString>& Files = DragDropOp->GetFiles();
+					if (Files.Num() > 0)
+					{
+						// See if anyone else can get us an asset.
+						UEditorAssetSubsystem* EditorAssetSubsystem = GEditor->GetEditorSubsystem<UEditorAssetSubsystem>();
+						if (EditorAssetSubsystem != nullptr)
+						{
+							EditorAssetSubsystem->GetOnExtractAssetFromFile().Broadcast(Files, AssetDataArray);
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 FReply SLevelViewport::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
