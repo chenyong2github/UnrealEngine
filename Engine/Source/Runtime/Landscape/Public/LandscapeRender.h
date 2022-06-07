@@ -678,6 +678,8 @@ protected:
 	// Storage for static draw list batch params
 	TArray<FLandscapeBatchElementParams> StaticBatchParamArray;
 
+	bool bNaniteActive;
+
 
 #if WITH_EDITOR
 	// Precomputed grass rendering MeshBatch and per-LOD params

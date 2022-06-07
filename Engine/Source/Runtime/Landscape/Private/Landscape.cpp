@@ -175,6 +175,7 @@ static FAutoConsoleVariableRef CVarRenderCaptureNextHeightmapRenders(
 
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bNaniteActive(false)
 #if WITH_EDITORONLY_DATA
 	, CachedEditingLayerData(nullptr)
 	, LayerUpdateFlagPerMode(0)
@@ -323,6 +324,17 @@ void ALandscapeProxy::CheckGenerateNanitePlatformData(bool bIsCooking, const ITa
 		NaniteComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 		NaniteComponent->DestroyComponent();
 		NaniteComponent = nullptr;
+	}
+
+	if (!bIsCooking)
+	{
+		for (ULandscapeComponent* Component : LandscapeComponents)
+		{
+			if (Component)
+			{
+				Component->SetNaniteActive(IsNaniteEnabled());
+			}
+		}
 	}
 }
 
@@ -526,6 +538,15 @@ void ULandscapeComponent::SetLOD(bool bForcedLODChanged, int32 InLODValue)
 		}
 	}
 #endif // WITH_EDITOR
+}
+
+void ULandscapeComponent::SetNaniteActive(bool bValue)
+{
+	if (bNaniteActive != bValue)
+	{
+		bNaniteActive = bValue;
+		MarkRenderStateDirty();
+	}
 }
 
 void ULandscapeComponent::Serialize(FArchive& Ar)

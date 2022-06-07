@@ -545,6 +545,9 @@ class ULandscapeComponent : public UPrimitiveComponent
 	TLazyObjectPtr<ULandscapeHeightfieldCollisionComponent> CollisionComponent;
 
 private:
+	UPROPERTY(Transient)
+	bool bNaniteActive;
+
 #if WITH_EDITORONLY_DATA
 	/** Unique ID for this component, used for caching during distributed lighting */
 	UPROPERTY()
@@ -1158,6 +1161,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "LandscapeComponent")
 	LANDSCAPE_API void SetLODBias(int32 InLODBias);
+
+	void SetNaniteActive(bool bValue);
+
+	inline bool IsNaniteActive() const
+	{
+		return bNaniteActive;
+	}
 
 protected:
 

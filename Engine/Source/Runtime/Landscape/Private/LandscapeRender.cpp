@@ -1118,6 +1118,8 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		bShouldNotifyOnWorldAddRemove = true;
 	}
 
+	bNaniteActive = InComponent->IsNaniteActive();
+
 	EnableGPUSceneSupportFlags();
 
 	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
@@ -1718,6 +1720,15 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 		Result.bDynamicRelevance = true;
 	}
 #endif // !UE_BUILD_SHIPPING
+
+	if (bNaniteActive)
+	{
+		Result.bShadowRelevance = false;
+		Result.bVelocityRelevance = false;
+		Result.bRenderInMainPass = false;
+		Result.bRenderCustomDepth = false;
+		Result.bTranslucentSelfShadow = false;
+	}
 
 	return Result;
 }
