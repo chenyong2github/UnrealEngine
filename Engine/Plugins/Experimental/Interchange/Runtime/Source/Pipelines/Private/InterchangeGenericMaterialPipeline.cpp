@@ -476,15 +476,32 @@ bool UInterchangeGenericMaterialPipeline::HandleStandardSurfaceModel(const UInte
 		};
 
 		using ArgumentsType = TTuple<FString, bool, bool>;
-		// TODO: We need to support all standard surface inputs
+		
 		static ArgumentsType ArgumentsPerInputs[]
 		{
-			ArgumentsType{StandardSurface::Parameters::Base.ToString(), false, false},				// BaseWeight
+			ArgumentsType{StandardSurface::Parameters::Base.ToString(), true, false},				// Base
 			ArgumentsType{StandardSurface::Parameters::BaseColor.ToString(), false, false},			// BaseColor
-			ArgumentsType{StandardSurface::Parameters::Metalness.ToString(), true, false},			// Metallic
-			ArgumentsType{StandardSurface::Parameters::Specular.ToString(), true, false},			// SpecularWeight
+			ArgumentsType{StandardSurface::Parameters::DiffuseRoughness.ToString(), false, false},	// DiffuseRoughness
+			ArgumentsType{StandardSurface::Parameters::Metalness.ToString(), true, false},			// Metalness
+			ArgumentsType{StandardSurface::Parameters::Specular.ToString(), true, false},			// Specular
 			ArgumentsType{StandardSurface::Parameters::SpecularRoughness.ToString(), true, false},	// SpecularRoughness
-			ArgumentsType{StandardSurface::Parameters::Normal.ToString(), false, true}				// Normal
+			ArgumentsType{StandardSurface::Parameters::SpecularIOR.ToString(), true, false},        // SpecularIOR
+			ArgumentsType{StandardSurface::Parameters::SpecularAnisotropy.ToString(), true, false},	// SpecularAnisotropy
+			ArgumentsType{StandardSurface::Parameters::SpecularRotation.ToString(), true, false},	// SpecularRotation
+			ArgumentsType{StandardSurface::Parameters::Subsurface.ToString(), true, false},			// Subsurface
+			ArgumentsType{StandardSurface::Parameters::SubsurfaceColor.ToString(), true, false},	// SubsurfaceColor
+			ArgumentsType{StandardSurface::Parameters::SubsurfaceRadius.ToString(), true, false},	// SubsurfaceRadius
+			ArgumentsType{StandardSurface::Parameters::SubsurfaceScale.ToString(), true, false},	// SubsurfaceScale
+			ArgumentsType{StandardSurface::Parameters::Sheen.ToString(), true, false},				// Sheen
+			ArgumentsType{StandardSurface::Parameters::SheenColor.ToString(), true, false},			// SheenColor
+			ArgumentsType{StandardSurface::Parameters::SheenRoughness.ToString(), true, false},		// SheenRoughness
+			ArgumentsType{StandardSurface::Parameters::Coat.ToString(), true, false},				// Coat
+			ArgumentsType{StandardSurface::Parameters::CoatRoughness.ToString(), true, false},		// CoatRoughness
+			ArgumentsType{StandardSurface::Parameters::ThinFilmThickness.ToString(), true, false},	// ThinFilmThickness
+			ArgumentsType{StandardSurface::Parameters::Emission.ToString(), true, false},			// Emission
+			ArgumentsType{StandardSurface::Parameters::EmissionColor.ToString(), false, false},		// EmissionColor
+			ArgumentsType{StandardSurface::Parameters::Normal.ToString(), false, true},				// Normal
+			ArgumentsType{StandardSurface::Parameters::Tangent.ToString(), false, true}				// Tangent
 		};
 
 		for(const ArgumentsType & Arguments : ArgumentsPerInputs)
@@ -494,24 +511,35 @@ bool UInterchangeGenericMaterialPipeline::HandleStandardSurfaceModel(const UInte
 			bool bNormalParsingValue = Arguments.Get<2>();
 			ConnectMaterialExpressionOutputToInput(InputName, bLinearParsingValue, bNormalParsingValue);
 		}
-
-		MaterialFactoryNode->ConnectOutputToBaseColor(FunctionCallExpressionUid, PBR::Parameters::BaseColor.ToString());
+		
+		MaterialFactoryNode->ConnectOutputToBaseColor(FunctionCallExpressionUid,  PBR::Parameters::BaseColor.ToString());
 		MaterialFactoryNode->ConnectOutputToMetallic(FunctionCallExpressionUid, PBR::Parameters::Metallic.ToString());
-		MaterialFactoryNode->ConnectOutputToRoughness(FunctionCallExpressionUid, PBR::Parameters::Roughness.ToString());
 		MaterialFactoryNode->ConnectOutputToSpecular(FunctionCallExpressionUid, PBR::Parameters::Specular.ToString());
+		MaterialFactoryNode->ConnectOutputToRoughness(FunctionCallExpressionUid, PBR::Parameters::Roughness.ToString());
+		MaterialFactoryNode->ConnectOutputToEmissiveColor(FunctionCallExpressionUid, PBR::Parameters::EmissiveColor.ToString());
+		MaterialFactoryNode->ConnectOutputToAnisotropy(FunctionCallExpressionUid, PBR::Parameters::Anisotropy.ToString());
 		MaterialFactoryNode->ConnectOutputToNormal(FunctionCallExpressionUid, PBR::Parameters::Normal.ToString());
+		MaterialFactoryNode->ConnectOutputToTangent(FunctionCallExpressionUid, PBR::Parameters::Tangent.ToString());
+		MaterialFactoryNode->ConnectOutputToOpacity(FunctionCallExpressionUid, PBR::Parameters::Opacity.ToString());
+		
 
 		// We can't have all shading models at once, so we have to make a choice here
 		if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, StandardSurface::Parameters::Sheen))
 		{
+			MaterialFactoryNode->ConnectOutputToFuzzColor(FunctionCallExpressionUid, Sheen::Parameters::SheenColor.ToString());
+			MaterialFactoryNode->ConnectOutputToCloth(FunctionCallExpressionUid, Sheen::Parameters::SheenRoughness.ToString());
 			MaterialFactoryNode->SetCustomShadingModel(MSM_Cloth);
 		}
 		else if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, StandardSurface::Parameters::Coat))
 		{
+			MaterialFactoryNode->ConnectOutputToClearCoat(FunctionCallExpressionUid, ClearCoat::Parameters::ClearCoat.ToString());
+			MaterialFactoryNode->ConnectOutputToClearCoatRoughness(FunctionCallExpressionUid, ClearCoat::Parameters::ClearCoatRoughness.ToString());
+			MaterialFactoryNode->ConnectOutputToClearCoatNormal(FunctionCallExpressionUid, ClearCoat::Parameters::ClearCoatNormal.ToString());
 			MaterialFactoryNode->SetCustomShadingModel(MSM_ClearCoat);
 		}
 		else if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, StandardSurface::Parameters::Subsurface))
 		{
+			MaterialFactoryNode->ConnectOutputToSubsurface(FunctionCallExpressionUid, Subsurface::Parameters::SubsurfaceColor.ToString());
 			MaterialFactoryNode->SetCustomShadingModel(MSM_Subsurface);
 		}
 		else

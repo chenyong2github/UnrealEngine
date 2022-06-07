@@ -50,6 +50,55 @@ namespace MaterialX
 			static constexpr const char* Normal = "normal";
 			static constexpr const char* Tangent = "tangent";
 		}
+
+		namespace DefaultValue
+		{
+			namespace Float
+			{
+				static float Base = 0.8f;
+				static float DiffuseRoughness = 0.f;
+				static float Metalness = 0.f;
+				static float Specular = 1.f;
+				static float SpecularRoughness = 0.2f;
+				static float SpecularIOR = 1.5f;
+				static float SpecularAnisotropy = 0.f;
+				static float SpecularRotation = 0.f;
+				static float Transmission = 0.f;
+				static float TransmissionDepth = 0.f;
+				static float TransmissionScatterAnisotropy = 0.f;
+				static float TransmissionDispersion = 0.f;
+				static float TransmissionExtraRoughness = 0.f;
+				static float Subsurface = 0.f;
+				static float SubsurfaceScale = 1.f;
+				static float SubsurfaceAnisotropy = 0.f;
+				static float Sheen = 0.f;
+				static float SheenRoughness = 0.3f;
+				static float Coat = 0.f;
+				static float CoatRoughness = 0.1f;
+				static float CoatAnisotropy = 0.f;
+				static float CoatRotation = 0.f;
+				static float CoatIOR = 1.5f;
+				static float CoatAffectColor = 0.f;
+				static float CoatAffectRoughness = 0.f;
+				static float ThinFilmThickness = 0.f;
+				static float ThinFilmIOR = 1.5f;
+				static float Emission = 0.f;
+			}
+
+			namespace Color3
+			{
+				constexpr FLinearColor BaseColor{ 1.0, 1.0, 1.0 };
+				constexpr FLinearColor SpecularColor{ 1, 1, 1 };
+				constexpr FLinearColor TransmissionColor{ 1, 1, 1 };
+				constexpr FLinearColor TransmissionScatter{ 0, 0, 0 };
+				constexpr FLinearColor SubsurfaceColor{ 1, 1, 1 };
+				constexpr FLinearColor SubsurfaceRadius{ 1, 1, 1 };
+				constexpr FLinearColor SheenColor{ 1, 1, 1 };
+				constexpr FLinearColor CoatColor{ 1, 1, 1 };
+				constexpr FLinearColor EmissionColor{ 1, 1, 1 };
+				constexpr FLinearColor Opacity{ 1, 1, 1 };
+			}
+		}
 	}
 
 	namespace Attributes
@@ -80,6 +129,9 @@ namespace MaterialX
 		static constexpr const char* NormalMap = "normalmap";
 		static constexpr const char* Extract = "extract";
 		static constexpr const char* TexCoord = "texcoord";
+		static constexpr const char* PointLight = "point_light";
+		static constexpr const char* DirectionalLight = "directional_light";
+		static constexpr const char* SpotLight = "spot_light";
 	}
 
 	namespace NodeDefinition
@@ -92,5 +144,6 @@ namespace MaterialX
 		static constexpr const char* Std = "stdlib";
 		static constexpr const char* Pbr= "pbrlib";
 		static constexpr const char* Bxdf = "bxdf";
+		static constexpr const char* Lights = "lights";
 	}
 }
