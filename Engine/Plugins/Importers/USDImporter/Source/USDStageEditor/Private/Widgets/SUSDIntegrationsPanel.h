@@ -24,7 +24,7 @@ public:
 
 	// Ideally this would be an FSoftObjectPath, but FPropertyEditorModule doesn't support generating
 	// widgets for those properties yet
-	UPROPERTY(EditAnywhere, Transient, Category=Dummy, meta=(AllowedClasses="AnimBlueprint"))
+	UPROPERTY(EditAnywhere, Transient, Category=Dummy, meta=(AllowedClasses="/Script/Engine.AnimBlueprint" ))
 	UObject* AnimBPProperty;
 };
 
