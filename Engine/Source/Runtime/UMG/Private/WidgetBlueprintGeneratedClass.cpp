@@ -17,6 +17,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 
 #if WITH_EDITOR
