@@ -68,17 +68,8 @@ bool FHLODActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
 	if (FWorldPartitionActorDesc::Equals(Other))
 	{
 		const FHLODActorDesc* HLODActorDesc = (FHLODActorDesc*)Other;
-
-		if (CellHash == HLODActorDesc->CellHash && HLODSubActors.Num() == HLODActorDesc->HLODSubActors.Num())
-		{
-			TArray<FHLODSubActorDesc> SortedSubActors(HLODSubActors);
-			TArray<FHLODSubActorDesc> SortedSubActorsOther(HLODActorDesc->HLODSubActors);
-			SortedSubActors.Sort();
-			SortedSubActorsOther.Sort();
-			return SortedSubActors == SortedSubActorsOther;
-		}
+		return (CellHash == HLODActorDesc->CellHash) && CompareUnsortedArrays(HLODSubActors, HLODActorDesc->HLODSubActors);
 	}
-
 	return false;
 }
 

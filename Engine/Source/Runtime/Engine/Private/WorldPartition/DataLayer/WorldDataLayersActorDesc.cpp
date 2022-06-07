@@ -152,14 +152,7 @@ bool FWorldDataLayersActorDesc::Equals(const FWorldPartitionActorDesc* Other) co
 	if (FWorldPartitionActorDesc::Equals(Other))
 	{
 		const FWorldDataLayersActorDesc* OtherDesc = (FWorldDataLayersActorDesc*)Other;
-		if (DataLayerInstances.Num() == OtherDesc->DataLayerInstances.Num())
-		{
-			TArray<FDataLayerInstanceDesc> SortedDataLayerInstances(DataLayerInstances);
-			TArray<FDataLayerInstanceDesc> SortedDataLayerInstancesOther(OtherDesc->DataLayerInstances);
-			SortedDataLayerInstances.Sort([](const FDataLayerInstanceDesc& LHS, const FDataLayerInstanceDesc& RHS) { return LHS < RHS; });
-			SortedDataLayerInstancesOther.Sort([](const FDataLayerInstanceDesc& LHS, const FDataLayerInstanceDesc& RHS) { return LHS < RHS; });
-			return SortedDataLayerInstances == SortedDataLayerInstancesOther;
-		}
+		return CompareUnsortedArrays(DataLayerInstances, OtherDesc->DataLayerInstances);
 	}
 	return false;
 }

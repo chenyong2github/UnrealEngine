@@ -150,7 +150,8 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 
 bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
 {
-	if (Guid == Other->Guid && 
+	return 
+		Guid == Other->Guid && 
 		BaseClass == Other->BaseClass && 
 		NativeClass == Other->NativeClass && 
 		ActorPackage == Other->ActorPackage && 
@@ -167,34 +168,9 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		FolderPath == Other->FolderPath &&
 		FolderGuid == Other->FolderGuid &&
 		ParentActor == Other->ParentActor &&
-		DataLayers.Num() == Other->DataLayers.Num() &&
-		References.Num() == Other->References.Num())
-	{
-		TArray<FName> SortedDataLayers(DataLayers);
-		TArray<FName> SortedDataLayersOther(Other->DataLayers);
-		SortedDataLayers.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
-		SortedDataLayersOther.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
-
-		if (SortedDataLayers == SortedDataLayersOther)
-		{
-			TArray<FGuid> SortedReferences(References);
-			TArray<FGuid> SortedReferencesOther(Other->References);
-			SortedReferences.Sort();
-			SortedReferencesOther.Sort();
-
-			if (SortedReferences == SortedReferencesOther)
-			{
-				TArray<FName> SortedTags(Tags);
-				TArray<FName> SortedTagsOther(Other->Tags);
-				SortedTags.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
-				SortedTagsOther.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
-
-				return SortedTags == SortedTagsOther;
-			}
-		}
-	}
-
-	return false;
+		CompareUnsortedArrays(DataLayers, Other->DataLayers) &&
+		CompareUnsortedArrays(References, Other->References) &&
+		CompareUnsortedArrays(Tags, Other->Tags);
 }
 
 void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)

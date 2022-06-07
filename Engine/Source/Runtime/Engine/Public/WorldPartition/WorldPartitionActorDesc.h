@@ -26,6 +26,32 @@ enum class EContainerClusterMode : uint8
 {
 	Partitioned, // Per Actor Partitioning
 };
+
+template <typename T, class F>
+inline bool CompareUnsortedArrays(const TArray<T>& Array1, const TArray<T>& Array2, F Func)
+{
+	if (Array1.Num() == Array2.Num())
+	{
+		TArray<T> SortedArray1(Array1);
+		TArray<T> SortedArray2(Array2);
+		SortedArray1.Sort(Func);
+		SortedArray2.Sort(Func);
+		return SortedArray1 == SortedArray2;
+	}
+	return false;
+}
+
+template <typename T>
+inline bool CompareUnsortedArrays(const TArray<T>& Array1, const TArray<T>& Array2)
+{
+	return CompareUnsortedArrays(Array1, Array2, [](const T& A, const T& B) { return A < B; });
+}
+
+template <>
+inline bool CompareUnsortedArrays(const TArray<FName>& Array1, const TArray<FName>& Array2)
+{
+	return CompareUnsortedArrays(Array1, Array2, [](const FName& A, const FName& B) { return A.LexicalLess(B); });
+}
 #endif
 
 /**
