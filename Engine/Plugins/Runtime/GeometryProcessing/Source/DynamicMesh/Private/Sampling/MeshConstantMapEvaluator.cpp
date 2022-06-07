@@ -18,7 +18,13 @@ void FMeshConstantMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Overwrite;
-	Context.DataLayout = { EComponents::Float1 };
+	Context.DataLayout = DataLayout();
+}
+
+const TArray<FMeshMapEvaluator::EComponents>& FMeshConstantMapEvaluator::DataLayout() const
+{
+	static const TArray<EComponents> Layout{ EComponents::Float1 };
+	return Layout;
 }
 
 void FMeshConstantMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)

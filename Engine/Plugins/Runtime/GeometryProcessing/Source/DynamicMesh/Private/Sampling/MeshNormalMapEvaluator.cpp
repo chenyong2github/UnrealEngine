@@ -36,7 +36,13 @@ void FMeshNormalMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCont
 	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
-	Context.DataLayout = { EComponents::Float3 };
+	Context.DataLayout = DataLayout();
+}
+
+const TArray<FMeshMapEvaluator::EComponents>& FMeshNormalMapEvaluator::DataLayout() const
+{
+	static const TArray<EComponents> Layout{ EComponents::Float3 };
+	return Layout;
 }
 
 template <bool bUseDetailNormalMap>

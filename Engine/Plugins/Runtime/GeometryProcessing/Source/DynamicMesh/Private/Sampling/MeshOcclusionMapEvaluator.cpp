@@ -23,6 +23,8 @@ const FVector3d FMeshOcclusionMapEvaluator::DefaultObjectNormal = FVector3d::Zer
 
 void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
+	Context.DataLayout = DataLayout();
+
 	if (WANT_ALL(OcclusionType))
 	{
 		if (NormalSpace == ESpace::Tangent)
@@ -39,7 +41,6 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 		}
 		Context.EvalData = this;
 		Context.AccumulateMode = EAccumulateMode::Add;
-		Context.DataLayout = { EComponents::Float1, EComponents::Float3 };
 	}
 	else if (WANT_AMBIENT_OCCLUSION(OcclusionType))
 	{
@@ -48,7 +49,6 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 		Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::AmbientOcclusion, ESpace::Tangent>;
 		Context.EvalData = this;
 		Context.AccumulateMode = EAccumulateMode::Add;
-		Context.DataLayout = { EComponents::Float1 };
 	}
 	else if (WANT_BENT_NORMAL(OcclusionType))
 	{
@@ -66,7 +66,6 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 		}
 		Context.EvalData = this;
 		Context.AccumulateMode = EAccumulateMode::Add;
-		Context.DataLayout = { EComponents::Float3 };
 	}
 	else
 	{
@@ -117,6 +116,33 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 		FQuaterniond Rotation(RayCross, RotationAngle, true);
 		RayDir = Rotation * RayDir;
 	}
+}
+
+const TArray<FMeshMapEvaluator::EComponents>& FMeshOcclusionMapEvaluator::DataLayout() const
+{
+	if (WANT_ALL(OcclusionType))
+	{
+		static const TArray<EComponents> Layout{ EComponents::Float1, EComponents::Float3 };
+		return Layout;
+	}
+
+	if (WANT_AMBIENT_OCCLUSION(OcclusionType))
+	{
+		static const TArray<EComponents> Layout{ EComponents::Float1 };
+		return Layout;
+	}
+
+	if (WANT_BENT_NORMAL(OcclusionType))
+	{
+		static const TArray<EComponents> Layout{ EComponents::Float3 };
+		return Layout;
+	}
+
+	// TODO: Support error case in the baker to skip over invalid eval configs?
+	checkSlow(false);
+
+	static const TArray<EComponents> Layout{ EComponents::Float1 };
+	return Layout;
 }
 
 template <EMeshOcclusionMapType ComputeType, FMeshOcclusionMapEvaluator::ESpace ComputeSpace>

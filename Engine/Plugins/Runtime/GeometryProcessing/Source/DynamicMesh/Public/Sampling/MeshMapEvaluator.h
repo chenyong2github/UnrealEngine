@@ -146,6 +146,9 @@ public:
 	 */
 	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) = 0;
 
+	/** @return the data layout of the evaluator */
+	virtual const TArray<EComponents>& DataLayout() const = 0;
+
 	/** @return the type of evaluator. */
 	virtual EMeshMapEvaluatorType Type() const = 0;
 

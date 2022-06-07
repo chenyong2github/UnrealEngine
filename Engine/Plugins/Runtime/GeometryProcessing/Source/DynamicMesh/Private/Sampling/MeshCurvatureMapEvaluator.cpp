@@ -27,7 +27,7 @@ void FMeshCurvatureMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
-	Context.DataLayout = { EComponents::Float1 };
+	Context.DataLayout = DataLayout();
 
 	// Cache data from the baker
 	DetailSampler = Baker.GetDetailSampler();
@@ -72,6 +72,12 @@ void FMeshCurvatureMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 	ClampRange = FInterval1d(MinClamp, ClampMax);
 
 	GetColorMapRange(NegativeColor, ZeroColor, PositiveColor);
+}
+
+const TArray<FMeshMapEvaluator::EComponents>& FMeshCurvatureMapEvaluator::DataLayout() const
+{
+	static const TArray<EComponents> Layout{ EComponents::Float1 };
+	return Layout;
 }
 
 void FMeshCurvatureMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)

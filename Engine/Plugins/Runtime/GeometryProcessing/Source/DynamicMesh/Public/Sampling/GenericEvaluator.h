@@ -32,7 +32,13 @@ public:
 		Context.EvaluateColor = &EvaluateColor;
 		Context.EvalData = this;
 		Context.AccumulateMode = Mode;
-		Context.DataLayout = { NumComponents };
+		Context.DataLayout = DataLayout();
+	}
+
+	virtual const TArray<EComponents>& DataLayout() const override
+	{
+		static const TArray<EComponents> Layout{ NumComponents };
+		return Layout;
 	}
 
 	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::Generic; }

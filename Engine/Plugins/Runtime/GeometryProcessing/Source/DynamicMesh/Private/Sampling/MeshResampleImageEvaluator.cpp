@@ -16,10 +16,16 @@ void FMeshResampleImageEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluation
 	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
-	Context.DataLayout = { EComponents::Float4 };
+	Context.DataLayout = DataLayout();
 
 	// Cache data from the baker
 	DetailSampler = Baker.GetDetailSampler();
+}
+
+const TArray<FMeshMapEvaluator::EComponents>& FMeshResampleImageEvaluator::DataLayout() const
+{
+	static const TArray<FMeshMapEvaluator::EComponents> Layout{ EComponents::Float4 };
+	return Layout;
 }
 
 void FMeshResampleImageEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
@@ -73,7 +79,7 @@ void FMeshMultiResampleImageEvaluator::Setup(const FMeshBaseBaker& Baker, FEvalu
 	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
-	Context.DataLayout = { EComponents::Float4 };
+	Context.DataLayout = DataLayout();
 
 	// Cache data from baker
 	DetailSampler = Baker.GetDetailSampler();

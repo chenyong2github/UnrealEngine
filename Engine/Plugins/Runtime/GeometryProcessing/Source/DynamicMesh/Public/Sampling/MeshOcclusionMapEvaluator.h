@@ -59,6 +59,8 @@ public:
 	// Begin FMeshMapEvaluator interface
 	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) override;
 
+	virtual const TArray<EComponents>& DataLayout() const override;
+
 	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::Occlusion; }
 	// End FMeshMapEvaluator interface
 

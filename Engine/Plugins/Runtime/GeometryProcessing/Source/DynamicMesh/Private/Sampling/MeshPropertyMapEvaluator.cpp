@@ -34,7 +34,7 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
-	Context.DataLayout = { EComponents::Float3 };
+	Context.DataLayout = DataLayout();
 
 	Bounds = DetailSampler->GetBounds();
 	for (int32 j = 0; j < 3; ++j)
@@ -69,6 +69,12 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 		DefaultValue = FVector3f::One();
 		break;
 	}
+}
+
+const TArray<FMeshMapEvaluator::EComponents>& FMeshPropertyMapEvaluator::DataLayout() const
+{
+	static const TArray<EComponents> Layout{ EComponents::Float3 };
+	return Layout;
 }
 
 template <bool bUseDetailNormalMap>
