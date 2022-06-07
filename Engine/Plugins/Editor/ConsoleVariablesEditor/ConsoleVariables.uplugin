@@ -39,6 +39,11 @@
 			"Name": "ConsoleVariablesEditor",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ConsoleVariablesEditorRuntime",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
