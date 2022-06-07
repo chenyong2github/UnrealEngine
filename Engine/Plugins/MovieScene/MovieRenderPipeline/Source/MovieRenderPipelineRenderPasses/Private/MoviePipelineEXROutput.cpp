@@ -10,6 +10,7 @@
 #include "Math/Float16.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineCameraSetting.h"
 #include "ImageWriteQueue.h"
 #include "MoviePipeline.h"
 #include "MoviePipelineImageQuantization.h"
@@ -498,22 +499,36 @@ void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelin
 
 			// No quantization required, just copy the data as we will move it into the image write task.
 			TUniquePtr<FImagePixelData> PixelData = RenderPassData.Value->CopyImageData();
+			FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
+			ShotIndex = Payload->SampleState.OutputState.ShotIndex;
 
 			// If there is more than one layer, then we will prefix the layer. The first layer is not prefixed (and gets inserted as RGBA)
 			// as most programs that handle EXRs expect the main image data to be in an unnamed layer.
 			if (LayerIndex == 0)
 			{
 				// Only check the main image pass for transparent output since that's generally considered the 'preview'.
-				FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
 				bRequiresTransparentOutput = Payload->bRequireTransparentOutput;
-				ShotIndex = Payload->SampleState.OutputState.ShotIndex;
 				MultiLayerImageTask->OverscanPercentage = Payload->SampleState.OverscanPercentage;
 			}
 			else
 			{
 				// If there is more than one layer, then we will prefix the layer. The first layer is not prefixed (and gets inserted as RGBA)
-				// as most programs that handle EXRs expect the main image data to be in an unnamed layer.
-				MultiLayerImageTask->LayerNames.FindOrAdd(PixelData.Get(), RenderPassData.Key.Name);
+				// as most programs that handle EXRs expect the main image data to be in an unnamed layer. We only postfix with cameraname
+				// if there's multiple cameras, as pipelines may be already be built around the generic "one camera" support.
+				UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[ShotIndex];
+				UMoviePipelineCameraSetting* CameraSettings = GetPipeline()->FindOrAddSettingForShot<UMoviePipelineCameraSetting>(CurrentShot);
+				int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
+				
+				FString CombinedName;
+				if (NumCameras == 1)
+				{
+					CombinedName = RenderPassData.Key.Name;
+				}
+				else
+				{
+					CombinedName = FString::Printf(TEXT("%s_%s"), *RenderPassData.Key.Name, *RenderPassData.Key.CameraName);
+				}
+				MultiLayerImageTask->LayerNames.FindOrAdd(PixelData.Get(), CombinedName);
 			}
 
 			MultiLayerImageTask->Width = Resolutions[Index].X;

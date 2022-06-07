@@ -1691,24 +1691,41 @@ void UMoviePipeline::GetSidecarCameraData(UMoviePipelineExecutorShot* InShot, in
 		return;
 	}
 
-	const FGuid CameraBindingRef = InShot->SidecarCameras[InCameraIndex].BindingId;
-	const FMovieSceneSequenceID CameraSequenceRef = InShot->SidecarCameras[InCameraIndex].SequenceId;
+	UObject* PrimaryViewTarget = nullptr;
+	// Sequences don't always have a camera cut track, at which point we fall back to the regular player controller.
+	if (InCameraIndex >= InShot->SidecarCameras.Num())
 	{
-		TArrayView<TWeakObjectPtr<UObject>> BoundCameras = LevelSequenceActor->GetSequencePlayer()->FindBoundObjects(CameraBindingRef, CameraSequenceRef);
-		if (BoundCameras.Num() > 0)
+		if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
 		{
-			UCameraComponent* BoundCamera = Cast<UCameraComponent>(BoundCameras[0].Get());
-			if (BoundCamera)
+			if (APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager)
 			{
-				*OutCameraComponent = BoundCamera;
-				BoundCamera->GetCameraView(GetWorld()->GetDeltaSeconds(), OutViewInfo);
-				
-				// We override the current/previous transform based on cached data though to ensure we accurately handle cur/next frame positions
-				OutViewInfo.Location = FrameInfo.CurrSidecarViewLocations[InCameraIndex];
-				OutViewInfo.Rotation = FrameInfo.CurrSidecarViewRotations[InCameraIndex];
-				OutViewInfo.PreviousViewTransform = FTransform(FrameInfo.PrevSidecarViewRotations[InCameraIndex], FrameInfo.PrevSidecarViewLocations[InCameraIndex]);
+				PrimaryViewTarget = PlayerCameraManager->GetViewTarget();
 			}
 		}
+	}
+	else
+	{
+		const FGuid CameraBindingRef = InShot->SidecarCameras[InCameraIndex].BindingId;
+		const FMovieSceneSequenceID CameraSequenceRef = InShot->SidecarCameras[InCameraIndex].SequenceId;
+		{
+			TArrayView<TWeakObjectPtr<UObject>> BoundCameras = LevelSequenceActor->GetSequencePlayer()->FindBoundObjects(CameraBindingRef, CameraSequenceRef);
+			if (BoundCameras.Num() > 0)
+			{
+				PrimaryViewTarget = BoundCameras[0].Get();
+			}
+		}
+	}
+
+	UCameraComponent* BoundCamera = Cast<UCameraComponent>(PrimaryViewTarget);
+	if (BoundCamera)
+	{
+		*OutCameraComponent = BoundCamera;
+		BoundCamera->GetCameraView(GetWorld()->GetDeltaSeconds(), OutViewInfo);
+				
+		// We override the current/previous transform based on cached data though to ensure we accurately handle cur/next frame positions
+		OutViewInfo.Location = FrameInfo.CurrSidecarViewLocations[InCameraIndex];
+		OutViewInfo.Rotation = FrameInfo.CurrSidecarViewRotations[InCameraIndex];
+		OutViewInfo.PreviousViewTransform = FTransform(FrameInfo.PrevSidecarViewRotations[InCameraIndex], FrameInfo.PrevSidecarViewLocations[InCameraIndex]);
 	}
 }
 

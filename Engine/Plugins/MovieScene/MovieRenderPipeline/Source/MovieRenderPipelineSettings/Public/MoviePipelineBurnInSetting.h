@@ -57,7 +57,7 @@ private:
 	UTextureRenderTarget2D* RenderTarget;
 
 	UPROPERTY(Transient)
-	UMoviePipelineBurnInWidget* BurnInWidgetInstance;
+	TArray<UMoviePipelineBurnInWidget*> BurnInWidgetInstances;
 public:
 	static FString DefaultBurnInWidgetAsset;
 };
