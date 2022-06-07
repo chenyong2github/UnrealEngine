@@ -42,6 +42,15 @@ inline const TCHAR* QueryResultToString(ESymbolQueryResult Result)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+enum class EResolvedSymbolFilterStatus : uint8
+{
+	Unknown = 0,
+	Filtered,
+	NotFiltered,
+};
+
+////////////////////////////////////////////////////////////////////////////////
 /**
   * Represent a resolved symbol. The resolve status and string values may change
   * over time, but string pointers returned from the methods are guaranteed to live
@@ -49,24 +58,33 @@ inline const TCHAR* QueryResultToString(ESymbolQueryResult Result)
   */
 struct FResolvedSymbol
 {
-	std::atomic<ESymbolQueryResult> Result;
 	const TCHAR* Module;
 	const TCHAR* Name;
 	const TCHAR* File;
 	uint16 Line;
+	std::atomic<ESymbolQueryResult> Result;
+	std::atomic<EResolvedSymbolFilterStatus> FilterStatus;
 
 	inline ESymbolQueryResult GetResult() const
 	{
 		return Result.load(std::memory_order_acquire);
 	}
 
-	FResolvedSymbol(ESymbolQueryResult InResult, const TCHAR* InModule, const TCHAR* InName, const TCHAR* InFile, uint16 InLine)
-		: Result(InResult)
-		, Module(InModule)
+	FResolvedSymbol(ESymbolQueryResult InResult, const TCHAR* InModule, const TCHAR* InName, const TCHAR* InFile, uint16 InLine, EResolvedSymbolFilterStatus InFilterStatus)
+		: Module(InModule)
 		, Name(InName)
 		, File(InFile)
 		, Line(InLine)
+		, Result(InResult)
+		, FilterStatus(InFilterStatus)
 	{}
+};
+
+////////////////////////////////////////////////////////////////////////////////
+class IResolvedSymbolFilter
+{
+public:
+	virtual void Update(FResolvedSymbol& InSymbol) const = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

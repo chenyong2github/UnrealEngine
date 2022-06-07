@@ -25,7 +25,7 @@ public:
 	typedef TArray<TTuple<uint64, FResolvedSymbol*>> SymbolArray;
 
 	void Start();
-	FDbgHelpResolver(IAnalysisSession& InSession);
+	FDbgHelpResolver(IAnalysisSession& InSession, IResolvedSymbolFilter& InSymbolFilter);
 	~FDbgHelpResolver();
 	void QueueModuleLoad(const uint8* ImageId, uint32 ImageIdSize, FModule* Module);
 	void QueueModuleReload(const FModule* Module, const TCHAR* InPath, TFunction<void(SymbolArray&)> ResolveOnSuccess);
@@ -66,9 +66,9 @@ private:
 	void FreeSyms() const;
 	virtual uint32 Run() override;
 	virtual void Stop() override;
-	static void UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line);
+	static void UpdateResolvedSymbol(FResolvedSymbol& Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line);
 
-	void ResolveSymbol(uint64 Address, FResolvedSymbol* Target);
+	void ResolveSymbol(uint64 Address, FResolvedSymbol& Target);
 	void LoadModuleSymbols(const FModule* Module, const TCHAR* Path, const TArrayView<const uint8> ImageId);
 	const FModuleEntry* GetModuleForAddress(uint64 Address) const;
 
@@ -87,6 +87,7 @@ private:
 	bool bDrainThenStop;
 	UPTRINT Handle;
 	IAnalysisSession& Session;
+	IResolvedSymbolFilter& SymbolFilter;
 	FRunnableThread* Thread;
 };
 

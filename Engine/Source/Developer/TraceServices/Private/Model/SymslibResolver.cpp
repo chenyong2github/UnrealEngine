@@ -475,10 +475,11 @@ private:
 };
 
 /////////////////////////////////////////////////////////////////////
-FSymslibResolver::FSymslibResolver(IAnalysisSession& InSession)
+FSymslibResolver::FSymslibResolver(IAnalysisSession& InSession, IResolvedSymbolFilter& InSymbolFilter)
 	: Modules(InSession.GetLinearAllocator(), 128)
 	, CancelTasks(false)
 	, Session(InSession)
+	, SymbolFilter(InSymbolFilter)
 {
 	// Setup search paths. The SearchPaths array is a priority stack, which
 	// means paths are searched in reversed order.
@@ -653,7 +654,7 @@ void FSymslibResolver::QueueModuleReload(const FModule* Module, const TCHAR* InP
 					ResolveOnSuccess(SymbolsToResolve);
 					for (TTuple<uint64, FResolvedSymbol*> Pair : SymbolsToResolve)
 					{
-						ResolveSymbolTracked(Pair.Get<0>(), Pair.Get<1>(), StringAllocator);
+						ResolveSymbolTracked(Pair.Get<0>(), *Pair.Get<1>(), StringAllocator);
 					}
 				}
 
@@ -785,7 +786,7 @@ void FSymslibResolver::ResolveSymbols(TArrayView<FQueuedAddress>& QueuedWork)
 		{
 			break;
 		}
-		ResolveSymbolTracked(ToResolve.Address, ToResolve.Target, StringAllocator);
+		ResolveSymbolTracked(ToResolve.Address, *ToResolve.Target, StringAllocator);
 	}
 	UE_LOG(LogSymslib, VeryVerbose, TEXT("String allocator used: %.02f kb, wasted: %.02f kb using %d blocks"),
 		((StringAllocator.BlockUsed * StringAllocator.BlockSize - StringAllocator.BlockRemaining) * sizeof(TCHAR)) / 1024.0f,
@@ -806,13 +807,13 @@ FSymslibResolver::FModuleEntry* FSymslibResolver::GetModuleForAddress(uint64 Add
 	return SortedModules[EntryIdx];
 }
 
-void FSymslibResolver::UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line)
+void FSymslibResolver::UpdateResolvedSymbol(FResolvedSymbol& Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line)
 {
-	Symbol->Module = Module;
-	Symbol->Name = Name;
-	Symbol->File = File;
-	Symbol->Line = Line;
-	Symbol->Result.store(Result, std::memory_order_release);
+	Symbol.Module = Module;
+	Symbol.Name = Name;
+	Symbol.File = File;
+	Symbol.Line = Line;
+	Symbol.Result.store(Result, std::memory_order_release);
 }
 
 void FSymslibResolver::LoadModuleTracked(FModuleEntry* Entry, FStringView OverrideSearchPath)
@@ -1031,9 +1032,9 @@ EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Entry, FStringView Sear
 	return EModuleStatus::Loaded;
 }
 
-void FSymslibResolver::ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Target, FSymbolStringAllocator& StringAllocator)
+void FSymslibResolver::ResolveSymbolTracked(uint64 Address, FResolvedSymbol& Target, FSymbolStringAllocator& StringAllocator)
 {
-	const ESymbolQueryResult PreviousResult = Target->Result.load();
+	const ESymbolQueryResult PreviousResult = Target.Result.load();
 	if (PreviousResult == ESymbolQueryResult::OK)
 	{
 		return;
@@ -1043,7 +1044,13 @@ void FSymslibResolver::ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Tar
 	if (!Entry)
 	{
 		UE_LOG(LogSymslib, Warning, TEXT("No module mapped to address 0x%016llx."), Address);
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
+		UpdateResolvedSymbol(Target,
+			ESymbolQueryResult::NotLoaded,
+			GUnknownModuleTextSymsLib,
+			GUnknownModuleTextSymsLib,
+			GUnknownModuleTextSymsLib,
+			0);
+		SymbolFilter.Update(Target);
 		return;
 	}
 
@@ -1059,7 +1066,7 @@ void FSymslibResolver::ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Tar
 	}
 }
 
-bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FSymbolStringAllocator& StringAllocator, FModuleEntry* Entry) const
+bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol& Target, FSymbolStringAllocator& StringAllocator, FModuleEntry* Entry) const
 {
 	EModuleStatus Status = Entry->Module->Status.load();
 	while ((Status == EModuleStatus::Pending || Status == EModuleStatus::Discovered) && !CancelTasks.load())
@@ -1071,11 +1078,25 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	switch (Status)
 	{
 	case EModuleStatus::Failed:
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, Entry->Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
+		UpdateResolvedSymbol(Target,
+			ESymbolQueryResult::NotLoaded,
+			Entry->Module->Name,
+			GUnknownModuleTextSymsLib,
+			GUnknownModuleTextSymsLib,
+			0);
+		SymbolFilter.Update(Target);
 		return false;
+
 	case EModuleStatus::VersionMismatch:
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::Mismatch, Entry->Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
+		UpdateResolvedSymbol(Target,
+			ESymbolQueryResult::Mismatch,
+			Entry->Module->Name,
+			GUnknownModuleTextSymsLib,
+			GUnknownModuleTextSymsLib,
+			0);
+		SymbolFilter.Update(Target);
 		return false;
+
 	default:
 		break;
 	}
@@ -1136,7 +1157,13 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	// this includes skipping symbols without name (empty string)
 	if (!SymsSymbol || !SourceFilePersistent || SymsSymbol && SymsSymbol->Name[0] == 0)
 	{
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, Entry->Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
+		UpdateResolvedSymbol(Target,
+			ESymbolQueryResult::NotFound,
+			Entry->Module->Name,
+			GUnknownModuleTextSymsLib,
+			GUnknownModuleTextSymsLib,
+			0);
+		SymbolFilter.Update(Target);
 		return false;
 	}
 
@@ -1146,14 +1173,13 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	const TCHAR* SymbolNamePersistent =  StringAllocator.Store(ANSI_TO_TCHAR(SymbolName));
 
 	// Store the strings and update the target data
-	UpdateResolvedSymbol(
-		Target,
+	UpdateResolvedSymbol(Target,
 		ESymbolQueryResult::OK,
 		Entry->Module->Name,
 		SymbolNamePersistent,
 		SourceFilePersistent,
-		SourceFileLine
-	);
+		SourceFileLine);
+	SymbolFilter.Update(Target);
 
 	return true;
 }

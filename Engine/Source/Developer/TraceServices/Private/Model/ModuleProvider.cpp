@@ -9,8 +9,10 @@
 #include "Common/CachedStringStore.h"
 #include "Common/Utils.h"
 #include "Containers/Map.h"
+#include "Containers/StringView.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
+#include "Internationalization/Regex.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "TraceServices/Model/AnalysisCache.h"
@@ -30,6 +32,13 @@
 #endif
 
 namespace TraceServices {
+
+/////////////////////////////////////////////////////////////////////
+class FResolvedSymbolFilter : public IResolvedSymbolFilter
+{
+public:
+	virtual void Update(FResolvedSymbol& InSymbol) const override;
+};
 
 /////////////////////////////////////////////////////////////////////
 template<typename SymbolResolverType>
@@ -86,6 +95,8 @@ private:
 	TUniquePtr<SymbolResolverType>	Resolver;
 	FGraphEventRef				LoadSymbolsTask;
 	bool						LoadSymbolsAbort = false;
+
+	FResolvedSymbolFilter		SymbolFilter;
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -97,7 +108,7 @@ TModuleProvider<SymbolResolverType>::TModuleProvider(IAnalysisSession& Session)
 	, NumCachedSymbols(0)
 	, Session(Session)
 {
-	Resolver = TUniquePtr<SymbolResolverType>(new SymbolResolverType(Session));
+	Resolver = TUniquePtr<SymbolResolverType>(new SymbolResolverType(Session, SymbolFilter));
 	LoadSymbolsFromCache(Session.GetCache());
 }
 
@@ -140,7 +151,7 @@ const FResolvedSymbol* TModuleProvider<SymbolResolverType>::GetSymbol(uint64 Add
 		}
 
 		// Add a pending entry to our cache.
-		ResolvedSymbol = &SymbolCache.EmplaceBack(ESymbolQueryResult::Pending, nullptr, nullptr, nullptr, 0);
+		ResolvedSymbol = &SymbolCache.EmplaceBack(ESymbolQueryResult::Pending, nullptr, nullptr, nullptr, 0, EResolvedSymbolFilterStatus::Unknown);
 		SymbolCacheLookup.Add(Address, ResolvedSymbol);
 		++SymbolsDiscovered;
 	}
@@ -355,7 +366,8 @@ void TModuleProvider<SymbolResolverType>::LoadSymbolsFromCache(IAnalysisCache& C
 			UE_LOG(LogTraceServices, Warning, TEXT("Found cached symbol (adress %llx) which referenced unknown string."), Symbol.Address);
 			continue;
 		}
-		FResolvedSymbol& Resolved = SymbolCache.EmplaceBack(ESymbolQueryResult::OK, Module, Name, File, Symbol.Line);
+		FResolvedSymbol& Resolved = SymbolCache.EmplaceBack(ESymbolQueryResult::OK, Module, Name, File, Symbol.Line, EResolvedSymbolFilterStatus::Unknown);
+		SymbolFilter.Update(Resolved);
 		SymbolCacheLookup.Add(Symbol.Address, &Resolved);
 	}
 	NumCachedSymbols = SymbolCacheLookup.Num();
@@ -379,6 +391,60 @@ uint32 TModuleProvider<SymbolResolverType>::GetNumCachedSymbolsFromModule(uint64
 		}
 	}
 	return Count;
+}
+
+/////////////////////////////////////////////////////////////////////
+void FResolvedSymbolFilter::Update(FResolvedSymbol& InSymbol) const
+{
+	bool bIsFiltered = false;
+
+	if (!bIsFiltered && InSymbol.Name)
+	{
+		// Ignore symbols by function name prefix.
+		FStringView IgnoreSymbolsByFunctionName[] =
+		{
+			TEXTVIEW("FMemory::"),
+			TEXTVIEW("FMallocWrapper::"),
+			TEXTVIEW("FMallocPoisonProxy::"),
+			TEXTVIEW("Malloc"),
+			TEXTVIEW("Realloc"),
+			TEXTVIEW("MemoryTrace_"),
+			TEXTVIEW("operator new"),
+		};
+		for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFunctionName); ++StringIndex)
+		{
+			if (FCString::Strnicmp(InSymbol.Name, IgnoreSymbolsByFunctionName[StringIndex].GetData(), IgnoreSymbolsByFunctionName[StringIndex].Len()) == 0)
+			{
+				bIsFiltered = true;
+				break;
+			}
+		}
+	}
+
+	if (!bIsFiltered && InSymbol.File)
+	{
+		// Ignore symbols by file path, specified as RegexPattern strings.
+		FStringView IgnoreSymbolsByFilePath[] =
+		{
+			TEXTVIEW(".*/Containers/.*"),
+		};
+		for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFilePath); ++StringIndex)
+		{
+			const FString Pattern(IgnoreSymbolsByFilePath[StringIndex]);
+			const FRegexPattern RegexPattern(Pattern);
+			FString File(InSymbol.File);
+			File.ReplaceCharInline(TEXT('\\'), TEXT('/'), ESearchCase::CaseSensitive);
+			FRegexMatcher RegexMatcher(RegexPattern, File);
+			if (RegexMatcher.FindNext())
+			{
+				bIsFiltered = true;
+				break;
+			}
+		}
+	}
+
+	EResolvedSymbolFilterStatus FilterStatus = bIsFiltered ? TraceServices::EResolvedSymbolFilterStatus::Filtered : TraceServices::EResolvedSymbolFilterStatus::NotFiltered;
+	InSymbol.FilterStatus.store(FilterStatus, std::memory_order_release);
 }
 
 /////////////////////////////////////////////////////////////////////

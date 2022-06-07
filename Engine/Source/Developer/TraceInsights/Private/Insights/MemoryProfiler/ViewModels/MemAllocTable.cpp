@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemAllocTable.h"
-#include "Containers/StringView.h"
-#include "Internationalization/Regex.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
@@ -785,75 +783,17 @@ void FMemAllocTable::AddDefaultColumns()
 						}
 
 						const TraceServices::FStackFrame* Frame = nullptr;
-						const TraceServices::FStackFrame* FirstUnknownSymbol = nullptr;
 						for (uint32 FrameIndex = 0; FrameIndex < Callstack->Num(); ++FrameIndex)
 						{
 							Frame = Callstack->Frame(FrameIndex);
 							check(Frame != nullptr);
 
-							if (!Frame->Symbol || !Frame->Symbol->Name)
-							{
-								if (FirstUnknownSymbol == nullptr)
-								{
-									FirstUnknownSymbol = Frame;
-								}
-								continue;
-							}
-
-							bool bIgnoreSymbol = false;
-
-							// Ignore symbols by function prefix.
-							FStringView IgnoreSymbolsByFunctionName[] =
-							{
-								TEXTVIEW("FMemory::"),
-								TEXTVIEW("FMallocWrapper::"),
-								TEXTVIEW("FMallocPoisonProxy::"),
-								TEXTVIEW("Malloc"),
-								TEXTVIEW("Realloc"),
-								TEXTVIEW("MemoryTrace_"),
-							};
-							for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFunctionName); ++StringIndex)
-							{
-								if (FCString::Strnicmp(Frame->Symbol->Name, IgnoreSymbolsByFunctionName[StringIndex].GetData(), IgnoreSymbolsByFunctionName[StringIndex].Len()) == 0)
-								{
-									bIgnoreSymbol = true;
-									break;
-								}
-							}
-
-#if 1 // TODO: check perf impact
-							if (!bIgnoreSymbol && Frame->Symbol->File)
-							{
-								// Ignore symbols by file, specified as RegexPattern strings.
-								FStringView IgnoreSymbolsByFilePath[] =
-								{
-									TEXTVIEW(".*/Containers/.*"),
-								};
-								for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFilePath); ++StringIndex)
-								{
-									const FString Pattern(IgnoreSymbolsByFilePath[StringIndex]);
-									const FRegexPattern RegexPattern(Pattern);
-									FString File(Frame->Symbol->File);
-									File.ReplaceCharInline(TEXT('\\'), TEXT('/'), ESearchCase::CaseSensitive);
-									FRegexMatcher RegexMatcher(RegexPattern, File);
-									if (RegexMatcher.FindNext())
-									{
-										bIgnoreSymbol = true;
-										break;
-									}
-								}
-							}
-#endif
-
-							if (!bIgnoreSymbol)
+							if (Frame->Symbol &&
+								Frame->Symbol->Name &&
+								Frame->Symbol->FilterStatus != TraceServices::EResolvedSymbolFilterStatus::Filtered)
 							{
 								break;
 							}
-						}
-						if (!Frame)
-						{
-							check(FirstUnknownSymbol != nullptr);
-							Frame = FirstUnknownSymbol;
 						}
 
 						TStringBuilder<1024> Str;
