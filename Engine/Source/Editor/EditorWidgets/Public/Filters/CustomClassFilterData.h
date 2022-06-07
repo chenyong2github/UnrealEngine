@@ -57,6 +57,11 @@ public:
 	/** Get the display name of this filter class */
 	FString GetFilterName() const;
 
+	/**
+	 * Returns class path name as a package + class FName pair
+	 */
+	FTopLevelAssetPath GetClassPathName() const;
+
 private:
 
 	/** The Class the filter is associated with (if it does not have an AssetTypeAction) */

@@ -16,17 +16,17 @@ struct FilterState
 	GENERATED_BODY();
 
 	FilterState()
-	: FilterName(NAME_None)
+	: FilterPath()
 	, bIsEnabled(false)
 	{}
 
-	FilterState(FName InFilterName, bool InState)
-	: FilterName(InFilterName)
+	FilterState(FTopLevelAssetPath InFilterPath, bool InState)
+	: FilterPath(InFilterPath)
 	, bIsEnabled(InState)
 	{}
 
 	UPROPERTY()
-	FName FilterName;
+	FTopLevelAssetPath FilterPath;
 
 	UPROPERTY()
 	bool bIsEnabled;

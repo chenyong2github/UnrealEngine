@@ -80,3 +80,12 @@ FString FCustomClassFilterData::GetFilterName() const
 	return Class->GetFName().ToString();
 }
 
+FTopLevelAssetPath FCustomClassFilterData::GetClassPathName() const
+{
+	if(TSharedPtr<IAssetTypeActions> AssetTypeActionsPin = AssetTypeActions.Pin())
+	{
+		return AssetTypeActionsPin->GetClassPathName();
+	}
+
+	return Class->GetClassPathName();
+}

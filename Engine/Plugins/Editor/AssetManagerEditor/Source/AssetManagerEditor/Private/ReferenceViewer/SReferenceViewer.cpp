@@ -735,11 +735,9 @@ void SReferenceViewer::OnUpdateFilterBar()
 			FilterWidget->RemoveAllFilters();
 			for (const FTopLevelAssetPath& AssetClassPath : AllClasses)
 			{
-				// @todo make DoesAssetTypeFilterExist/SetAssetTypeFilterCheckState use FTopLevelAssetPath
-				const FName AssetClass = FName(*AssetClassPath.ToString());
-				if (FilterWidget->DoesAssetTypeFilterExist(AssetClass))
+				if (FilterWidget->DoesAssetTypeFilterExist(AssetClassPath))
 				{
-					FilterWidget->SetAssetTypeFilterCheckState(AssetClass, ECheckBoxState::Checked);
+					FilterWidget->SetAssetTypeFilterCheckState(AssetClassPath, ECheckBoxState::Checked);
 				}
 			}
 

@@ -14,8 +14,8 @@ void SReferenceViewerFilterBar::SaveSettings(const FString& IniFilename, const F
 		{
 			for (TSharedRef<SAssetFilter> CurrentAssetFilter : AssetFilters)
 			{
-				FName AssetFilterName = FName(CurrentAssetFilter->GetCustomClassFilterData()->GetFilterName());
-				SaveFilters.Add(FilterState(AssetFilterName, CurrentAssetFilter->IsEnabled()));
+				FTopLevelAssetPath AssetFilterPath = CurrentAssetFilter->GetCustomClassFilterData()->GetClassPathName();
+				SaveFilters.Add(FilterState(AssetFilterPath, CurrentAssetFilter->IsEnabled()));
 			}
 			Settings->SetUserFilters(SaveFilters);
 		}
@@ -33,10 +33,10 @@ void SReferenceViewerFilterBar::LoadSettings(const FString& IniFilename, const F
 			RemoveAllFilters();
 			for (FilterState& State : SavedFilters)
 			{
-				if (DoesAssetTypeFilterExist(State.FilterName))
+				if (DoesAssetTypeFilterExist(State.FilterPath))
 				{
-					SetAssetTypeFilterCheckState(State.FilterName, ECheckBoxState::Checked);
-					ToggleAssetTypeFilterEnabled(State.FilterName, State.bIsEnabled);
+					SetAssetTypeFilterCheckState(State.FilterPath, ECheckBoxState::Checked);
+					ToggleAssetTypeFilterEnabled(State.FilterPath, State.bIsEnabled);
 				}
 			}
 		}
