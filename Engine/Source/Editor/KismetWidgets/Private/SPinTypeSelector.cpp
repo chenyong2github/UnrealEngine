@@ -1403,7 +1403,7 @@ FText SPinTypeSelector::GetToolTipForComboBoxSecondaryType() const
 		EditText = LOCTEXT("PinTypeSelector_ValueDisabled", "Cannot edit map value type when they are inherited from parent.");
 	}
 
-	return FText::Format(LOCTEXT("SecondaryTypeTwoLines", "{0}\nValue Type: {1}"), EditText, GetSecondaryTypeDescription());
+	return FText::Format(LOCTEXT("SecondaryTypeTwoLines", "{0}\nValue Type: {1}"), EditText, GetSecondaryTypeDescription(true));
 }
 
 FText SPinTypeSelector::GetToolTipForArrayWidget() const
