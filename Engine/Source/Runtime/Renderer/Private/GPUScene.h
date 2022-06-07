@@ -311,7 +311,7 @@ public:
 	/**
 	 * Executes GPUScene writes that were deferred until a later point in scene rendering
 	 **/
-	bool ExecuteDeferredGPUWritePass(FRDGBuilder& GraphBuilder, const TArrayView<FViewInfo>& Views, EGPUSceneGPUWritePass Pass);
+	bool ExecuteDeferredGPUWritePass(FRDGBuilder& GraphBuilder, TArray<FViewInfo>& Views, EGPUSceneGPUWritePass Pass);
 
 	/** Returns whether or not a GPU Write is pending for the specified primitive */
 	bool HasPendingGPUWrite(uint32 PrimitiveId) const;

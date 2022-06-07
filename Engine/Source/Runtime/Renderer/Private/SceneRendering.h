@@ -1851,7 +1851,7 @@ struct FOcclusionSubmittedFenceState
 };
 
 /**
- * View family plus auxiliary data used during scene rendering.
+ * View family plus associated transient scene textures.
  */
 class FViewFamilyInfo : public FSceneViewFamily
 {
@@ -1859,44 +1859,7 @@ public:
 	FViewFamilyInfo(const FSceneViewFamily& InViewFamily);
 	virtual ~FViewFamilyInfo();
 
-	/** All the dynamic scaling informations */
-	DynamicRenderScaling::TMap<float> DynamicResolutionFractions;
-	DynamicRenderScaling::TMap<float> DynamicResolutionUpperBounds;
-
-	FMeshElementCollector MeshCollector;
-
-	FMeshElementCollector RayTracingCollector;
-
-	/** Information about the visible lights. */
-	TArray<FVisibleLightInfo,SceneRenderingAllocator> VisibleLightInfos;
-
-	/** Array of dispatched parallel shadow depth passes. */
-	TArray<FParallelMeshDrawCommandPass*, SceneRenderingAllocator> DispatchedShadowDepthPasses;
-
-	FSortedShadowMaps SortedShadowsForShadowDepthPass;
-
-	FVirtualShadowMapArray VirtualShadowMapArray;
-
-	/** If a freeze request has been made */
-	bool bHasRequestedToggleFreeze;
-
-	/** True if precomputed visibility was used when rendering the scene. */
-	bool bUsedPrecomputedVisibility;
-
-	bool bShadowDepthRenderCompleted;
-
-	/** Lights added if wholescenepointlight shadow would have been rendered (ignoring r.SupportPointLightWholeSceneShadows). Used for warning about unsupported features. */	
-	TArray<FString, SceneRenderingAllocator> UsedWholeScenePointLightNames;
-
-	/** Size of the family. */
-	FIntPoint FamilySize;
-
 	FSceneTexturesConfig SceneTexturesConfig;
-
-#if WITH_MGPU
-	/** Fences for cross GPU transfers */
-	TArray<FTransferResourceFenceData*> CrossGPUTransferFences;
-#endif
 
 	/** Get scene textures associated with this view family -- asserts or checks that they have been initialized */
 	inline FSceneTextures& GetSceneTextures()
@@ -1905,7 +1868,18 @@ public:
 		return SceneTextures;
 	}
 
+	inline const FSceneTextures& GetSceneTextures() const
+	{
+		checkf(bIsSceneTexturesInitialized, TEXT("FSceneTextures was not initialized. Call FSceneTextures::InitializeViewFamily() first."));
+		return SceneTextures;
+	}
+
 	inline FSceneTextures* GetSceneTexturesChecked()
+	{
+		return bIsSceneTexturesInitialized ? &SceneTextures : nullptr;
+	}
+
+	inline const FSceneTextures* GetSceneTexturesChecked() const
 	{
 		return bIsSceneTexturesInitialized ? &SceneTextures : nullptr;
 	}
@@ -1929,30 +1903,64 @@ public:
 	/** The scene being rendered. */
 	FScene* Scene;
 
-	/** The view families being rendered.  This references the AllFamilyViews array. */
-	TArray<FViewFamilyInfo> ViewFamilies;
+	/** The view family being rendered.  This references the Views array. */
+	FViewFamilyInfo ViewFamily;
 
-	/** The views being rendered, across all view families */
-	TArray<FViewInfo> AllFamilyViews;
+	/** The views being rendered. */
+	TArray<FViewInfo> Views;
 
-	/** Active view family.  References ViewFamilies array. */
-	FViewFamilyInfo* ActiveViewFamily;
+	/** Views across all view families (may contain additional views if rendering multiple families together). */
+	TArray<const FSceneView*> AllFamilyViews;
 
-	/** Views for active view family.  References SceneViews array. */
-	TArrayView<FViewInfo> Views;
+	/** All the dynamic scaling informations */
+	DynamicRenderScaling::TMap<float> DynamicResolutionFractions;
+	DynamicRenderScaling::TMap<float> DynamicResolutionUpperBounds;
+
+	FMeshElementCollector MeshCollector;
+
+	FMeshElementCollector RayTracingCollector;
+
+	/** Information about the visible lights. */
+	TArray<FVisibleLightInfo, SceneRenderingAllocator> VisibleLightInfos;
+
+	/** Array of dispatched parallel shadow depth passes. */
+	TArray<FParallelMeshDrawCommandPass*, SceneRenderingAllocator> DispatchedShadowDepthPasses;
+
+	FSortedShadowMaps SortedShadowsForShadowDepthPass;
+
+	FVirtualShadowMapArray VirtualShadowMapArray;
+
+	/** If a freeze request has been made */
+	bool bHasRequestedToggleFreeze;
+
+	/** True if precomputed visibility was used when rendering the scene. */
+	bool bUsedPrecomputedVisibility;
+
+	/** Lights added if wholescenepointlight shadow would have been rendered (ignoring r.SupportPointLightWholeSceneShadows). Used for warning about unsupported features. */
+	TArray<FString, SceneRenderingAllocator> UsedWholeScenePointLightNames;
 
 	/** Feature level being rendered */
 	ERHIFeatureLevel::Type FeatureLevel;
 	EShaderPlatform ShaderPlatform;
 
+	bool bGPUMasksComputed;
+	FRHIGPUMask RenderTargetGPUMask;
+
+	/** Whether the given scene renderer is the first or last in a group being rendered. */
+	bool bIsFirstSceneRenderer;
+	bool bIsLastSceneRenderer;
+
 public:
 
-	FSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer);
+	FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
 	virtual ~FSceneRenderer();
 
 	// Initializes the scene renderer on the render thread.
 	RENDERER_API void RenderThreadBegin(FRHICommandListImmediate& RHICmdList);
 	RENDERER_API void RenderThreadEnd(FRHICommandListImmediate& RHICmdList);
+
+	RENDERER_API static void RenderThreadBegin(FRHICommandListImmediate& RHICmdList, const TArray<FSceneRenderer*>& SceneRenderers);
+	RENDERER_API static void RenderThreadEnd(FRHICommandListImmediate& RHICmdList, const TArray<FSceneRenderer*>& SceneRenderers);
 
 	// FSceneRenderer interface
 
@@ -1964,18 +1972,22 @@ public:
 
 	/** Creates a scene renderer based on the current feature level. */
 	RENDERER_API static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
-	RENDERER_API static FSceneRenderer* CreateSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer);
 
 	/** Setups FViewInfo::ViewRect according to ViewFamilly's ScreenPercentageInterface. */
 	void PrepareViewRectsForRendering(FRHICommandListImmediate& RHICmdList);
 
 #if WITH_MGPU
-	/** Assigns the view GPU masks and returns the render target GPU mask. */
-	FRHIGPUMask ComputeGPUMasks(FRHICommandListImmediate& RHICmdList);
+	/**
+	  * Assigns the view GPU masks and initializes RenderTargetGPUMask.  RHICmdList is only required if alternate frame rendering
+	  * is active, and must be called in the render thread in that case, otherwise it can be called earlier.  Computing the masks
+	  * early is used to optimize handling of cross GPU fences (see PreallocateCrossGPUFences).
+	  */
+	void ComputeGPUMasks(FRHICommandListImmediate* RHICmdList);
 #endif
 
-	/** Update the rendertarget with each view results.*/
-	void DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask RenderTargetGPUMask, FRDGTextureRef ViewFamilyTexture);
+	/** Logic to update render targets across all GPUs */
+	static void PreallocateCrossGPUFences(TArray<FSceneRenderer*> SceneRenderers);
+	void DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRDGTextureRef ViewFamilyTexture);
 	void FlushCrossGPUFences(FRDGBuilder& GraphBuilder);
 
 	bool DoOcclusionQueries() const;
@@ -1988,14 +2000,6 @@ public:
 	static FOcclusionSubmittedFenceState OcclusionSubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
 
 	bool ShouldDumpMeshDrawCommandInstancingStats() const { return bDumpMeshDrawCommandInstancingStats; }
-
-	/**
-	  * Returns whether the active view family is the first being rendered in a given scene render call.  This is different from the
-	  * user facing bIsFirstViewInMultipleViewFamily flag, which defines whether it's the first view family rendered in the entire frame.
-	  * It's possible to call the scene renderer multiple times in a frame with individual view families, or pass in several view families
-	  * at once, and some code paths need to know the difference.
-	  */
-	bool IsFirstViewFamily() const { return ActiveViewFamily == ViewFamilies.GetData(); }
 
 	/** bound shader state for occlusion test prims */
 	static FGlobalBoundShaderState OcclusionTestBoundShaderState;
@@ -2016,8 +2020,8 @@ public:
 	*/
 	static void RENDERER_API ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer);
 
-	/** the last thing we do with a scene renderer, lots of cleanup related to the threading **/
-	void WaitForTasksAndClearSnapshots(FParallelMeshDrawCommandPass::EWaitThread WaitThread);
+	/** the last thing we do with scene renderers, lots of cleanup related to the threading. **/
+	static void WaitForTasksAndClearSnapshots(const TArray<FSceneRenderer*>& SceneRenderers, FParallelMeshDrawCommandPass::EWaitThread WaitThread);
 
 	/** Called to release any deallocations that were deferred until the next render. */
 	static void CleanUp(FRHICommandListImmediate& RHICmdList);
@@ -2089,14 +2093,27 @@ public:
 			: ERDGBuilderFlags::AllowParallelExecute;
 	}
 
-	void SetActiveViewFamily(FViewFamilyInfo& ViewFamily);
+	FORCEINLINE FSceneTextures& GetActiveSceneTextures() { return ViewFamily.GetSceneTextures(); }
+	FORCEINLINE FSceneTexturesConfig& GetActiveSceneTexturesConfig() { return ViewFamily.SceneTexturesConfig; }
 
-	FORCEINLINE FSceneTextures& GetActiveSceneTextures() const { return ActiveViewFamily->GetSceneTextures(); }
-	FORCEINLINE FSceneTexturesConfig& GetActiveSceneTexturesConfig() const { return ActiveViewFamily->SceneTexturesConfig; }
+	FORCEINLINE const FSceneTextures& GetActiveSceneTextures() const { return ViewFamily.GetSceneTextures(); }
+	FORCEINLINE const FSceneTexturesConfig& GetActiveSceneTexturesConfig() const { return ViewFamily.SceneTexturesConfig; }
 
 protected:
 
+	/** Size of the family. */
+	FIntPoint FamilySize;
+
 #if WITH_MGPU
+	/**
+	 * Fences for cross GPU render target transfers.  We defer the wait on cross GPU fences until the last scene renderer,
+	 * to avoid needless stalls in the middle of the frame, improving performance.  The "Defer" array holds fences issued
+	 * by each prior scene renderer, while the "Wait" array holds fences to be waited on in the last scene renderer.
+	 * The function "PreallocateCrossGPUFences" initializes these arrays.
+	 */
+	TArray<FTransferResourceFenceData*> CrossGPUTransferFencesDefer;
+	TArray<FTransferResourceFenceData*> CrossGPUTransferFencesWait;
+
 	FRHIGPUMask AllViewsGPUMask;
 	bool IsShadowCached(FProjectedShadowInfo* ProjectedShadowInfo) const;
 	FRHIGPUMask GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedShadowInfo) const;
@@ -2209,7 +2226,7 @@ protected:
 	void UpdatePreshadowCache();
 
 	/** Gathers simple lights from visible primtives in the passed in views. */
-	static void GatherSimpleLights(const FSceneViewFamily& ViewFamily, const TArrayView<FViewInfo>& Views, FSimpleLightArray& SimpleLights);
+	static void GatherSimpleLights(const FSceneViewFamily& ViewFamily, const TArray<FViewInfo>& Views, FSimpleLightArray& SimpleLights);
 
 	/** Calculates projected shadow visibility. */
 	void InitProjectedShadowVisibility();
@@ -2228,7 +2245,7 @@ protected:
 	void PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTaskData);
 
 	void GatherDynamicMeshElements(
-		TArrayView<FViewInfo>& InViews, 
+		TArray<FViewInfo>& InViews, 
 		const FScene* InScene, 
 		const FSceneViewFamily& InViewFamily, 
 		FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
@@ -2317,7 +2334,7 @@ protected:
 
 	void CheckShadowDepthRenderCompleted() const
 	{
-		checkf(ActiveViewFamily->bShadowDepthRenderCompleted, TEXT("Shadow depth rendering was not done before shadow projections, this will cause severe shadow artifacts and indicates an engine bug (pass ordering)"));
+		checkf(bShadowDepthRenderCompleted, TEXT("Shadow depth rendering was not done before shadow projections, this will cause severe shadow artifacts and indicates an engine bug (pass ordering)"));
 	}
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FSceneOnScreenMessagesDelegate, FScreenMessageWriter&);
@@ -2330,7 +2347,8 @@ private:
 	/** Dump all UPrimitiveComponents in the Scene to a CSV file */
 	void DumpPrimitives(const FViewCommands& ViewCommands);
 #endif
-	
+	bool bShadowDepthRenderCompleted;
+
 	/** Distance field shadows to project. Used to avoid iterating through the scene lights array. */
 	TArray<FProjectedShadowInfo*, TInlineAllocator<2, SceneRenderingAllocator>> ProjectedDistanceFieldShadows;
 
@@ -2342,6 +2360,8 @@ private:
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> MemStackProjectedShadows;
 
 	FMemMark* MemStackMark = nullptr;
+
+	friend class FRendererModule;
 };
 
 struct FForwardScreenSpaceShadowMaskTextureMobileOutputs
@@ -2368,7 +2388,7 @@ class FMobileSceneRenderer : public FSceneRenderer
 {
 public:
 
-	FMobileSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer);
+	FMobileSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
 
 	// FSceneRenderer interface
 
@@ -2676,18 +2696,30 @@ inline const FSceneTextures* FViewInfo::GetSceneTexturesChecked() const
 
 /**
   * Returns a family from an array of views, with the assumption that all point to the same view family, which will be
-  * true for the "Views" array in the scene renderer, initialized by SetActiveViewFamily.  There are some utility functions
-  * that receive the Views array, rather than the renderer itself, and this avoids confusing code that accesses Views[0],
-  * in addition to validating the assumption that all Views have the same Family.
+  * true for the "Views" array in the scene renderer.  There are some utility functions that receive the Views array,
+  * rather than the renderer itself, and this avoids confusing code that accesses Views[0], in addition to validating
+  * the assumption that all Views have the same Family.  FViewFamilyInfo is used to access FSceneTextures|Config.
   */
-inline FViewFamilyInfo& GetViewFamily(const TArrayView<FViewInfo>& Views)
+inline FViewFamilyInfo& GetViewFamilyInfo(const TArray<FViewInfo>& Views)
 {
 	check(Views.Num() == 1 || Views[0].Family == Views.Last().Family);
 	return *(FViewFamilyInfo*)Views[0].Family;
 }
 
-inline FViewFamilyInfo& GetViewFamily(const TArrayView<const FViewInfo>& Views)
+inline const FViewFamilyInfo& GetViewFamilyInfo(const TArray<const FViewInfo>& Views)
+{
+	check(Views.Num() == 1 || Views[0].Family == Views.Last().Family);
+	return *(const FViewFamilyInfo*)Views[0].Family;
+}
+
+inline FViewFamilyInfo& GetViewFamilyInfo(const TArrayView<FViewInfo>& Views)
 {
 	check(Views.Num() == 1 || Views[0].Family == Views.Last().Family);
 	return *(FViewFamilyInfo*)Views[0].Family;
+}
+
+inline const FViewFamilyInfo& GetViewFamilyInfo(const TArrayView<const FViewInfo>& Views)
+{
+	check(Views.Num() == 1 || Views[0].Family == Views.Last().Family);
+	return *(const FViewFamilyInfo*)Views[0].Family;
 }

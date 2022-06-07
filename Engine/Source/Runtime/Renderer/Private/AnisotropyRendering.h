@@ -51,4 +51,4 @@ protected:
 };
 
 bool ShouldRenderAnisotropyPass(const FViewInfo& Views);
-bool ShouldRenderAnisotropyPass(const TArrayView<FViewInfo>& Views);
+bool ShouldRenderAnisotropyPass(const TArray<FViewInfo>& Views);

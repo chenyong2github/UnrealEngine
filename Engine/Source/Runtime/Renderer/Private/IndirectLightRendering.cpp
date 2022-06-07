@@ -1506,10 +1506,10 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	FRDGTextureRef DynamicBentNormalAOTexture)
 {
 	extern int32 GLumenVisualizeIndirectDiffuse;
-	if (ActiveViewFamily->EngineShowFlags.VisualizeLightCulling 
-		|| ActiveViewFamily->EngineShowFlags.RayTracingDebug
-		|| ActiveViewFamily->EngineShowFlags.PathTracing
-		|| !ActiveViewFamily->EngineShowFlags.Lighting
+	if (ViewFamily.EngineShowFlags.VisualizeLightCulling 
+		|| ViewFamily.EngineShowFlags.RayTracingDebug
+		|| ViewFamily.EngineShowFlags.PathTracing
+		|| !ViewFamily.EngineShowFlags.Lighting
 		|| GLumenVisualizeIndirectDiffuse != 0)
 	{
 		return;
@@ -1527,7 +1527,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		&& (Scene->SkyLight->ProcessedTexture || Scene->SkyLight->bRealTimeCaptureEnabled)
 		&& !Scene->SkyLight->bHasStaticLighting;
 
-	bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, *ActiveViewFamily) && AnyViewHasGIMethodSupportingDFAO();
+	bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily) && AnyViewHasGIMethodSupportingDFAO();
 	bool bApplySkyShadowing = false;
 	if (bDynamicSkyLight)
 	{
@@ -1539,7 +1539,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 			&& !GDistanceFieldAOApplyToStaticIndirect
 			&& ShouldRenderDistanceFieldAO()
 			&& ShouldRenderDistanceFieldLighting()
-			&& ActiveViewFamily->EngineShowFlags.AmbientOcclusion
+			&& ViewFamily.EngineShowFlags.AmbientOcclusion
 			&& !bReflectionCapture)
 		{
 			bApplySkyShadowing = true;
@@ -1550,7 +1550,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ReflectionIndirect");
 
-	const bool bReflectionEnv = ShouldDoReflectionEnvironment(Scene, *ActiveViewFamily);
+	const bool bReflectionEnv = ShouldDoReflectionEnvironment(Scene, ViewFamily);
 
 	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 	const auto& SceneColorTexture = SceneTextures.Color;
@@ -1788,7 +1788,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(FRDGBuilder& GraphBuilder)
 {
-	if (ActiveViewFamily->EngineShowFlags.VisualizeLightCulling || !ActiveViewFamily->EngineShowFlags.Lighting)
+	if (ViewFamily.EngineShowFlags.VisualizeLightCulling || !ViewFamily.EngineShowFlags.Lighting)
 	{
 		return;
 	}

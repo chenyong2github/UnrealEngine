@@ -227,7 +227,7 @@ public:
 	void BuildPageAllocations(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
-		const TArrayView<FViewInfo> &Views, 
+		const TArray<FViewInfo> &Views, 
 		const FEngineShowFlags& EngineShowFlags,
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 

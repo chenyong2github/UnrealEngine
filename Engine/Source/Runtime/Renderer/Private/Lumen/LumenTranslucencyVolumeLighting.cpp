@@ -744,7 +744,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			FRDGTextureRef VolumeTraceRadiance = GraphBuilder.CreateTexture(VolumeTraceRadianceDesc, TEXT("Lumen.TranslucencyVolume.VolumeTraceRadiance"));
 			FRDGTextureRef VolumeTraceHitDistance = GraphBuilder.CreateTexture(VolumeTraceHitDistanceDesc, TEXT("Lumen.TranslucencyVolume.VolumeTraceHitDistance"));
 
-			if (Lumen::UseHardwareRayTracedTranslucencyVolume(*ActiveViewFamily) && GLumenTranslucencyVolumeTraceFromVolume != 0)
+			if (Lumen::UseHardwareRayTracedTranslucencyVolume(ViewFamily) && GLumenTranslucencyVolumeTraceFromVolume != 0)
 			{
 				HardwareRayTraceTranslucencyVolume(
 					GraphBuilder,
@@ -758,7 +758,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			}
 			else
 			{
-				const bool bDynamicSkyLight = Lumen::ShouldHandleSkyLight(Scene, *ActiveViewFamily);
+				const bool bDynamicSkyLight = Lumen::ShouldHandleSkyLight(Scene, ViewFamily);
 				TraceVoxelsTranslucencyVolume(GraphBuilder, View, bDynamicSkyLight, TracingInputs, RadianceCacheParameters, VolumeParameters, TraceSetupParameters, VolumeTraceRadiance, VolumeTraceHitDistance);
 			}
 
@@ -834,7 +834,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 					&& View.ViewState
 					&& !View.bCameraCut
 					&& !View.bPrevTransformsReset
-					&& ActiveViewFamily->bRealtimeUpdate
+					&& ViewFamily.bRealtimeUpdate
 					&& TranslucencyGIVolumeHistory0
 					&& TranslucencyGIVolumeHistory0->Desc == LumenTranslucencyGIDesc0;
 

@@ -23,7 +23,7 @@ struct FHairStrandsTransmittanceMaskData
 /// Write opaque hair shadow onto screen shadow mask to have fine hair details cast onto opaque geometries
 void RenderHairStrandsShadowMask(
 	FRDGBuilder& GraphBuilder,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	const FLightSceneInfo* LightSceneInfo,
 	const bool bProjectingForForwardShading,
 	FRDGTextureRef ScreenShadowMaskTexture); 
@@ -31,7 +31,7 @@ void RenderHairStrandsShadowMask(
 /// Write opaque hair shadow onto screen shadow mask to have fine hair details cast onto opaque geometries (deep shadow caster only)
 void RenderHairStrandsDeepShadowMask(
 	FRDGBuilder& GraphBuilder,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	const FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef OutShadowMask);
 

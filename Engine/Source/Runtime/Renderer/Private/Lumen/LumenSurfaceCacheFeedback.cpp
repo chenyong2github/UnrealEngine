@@ -527,13 +527,13 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 		const bool bVisualizeUsesFeedback = GLumenVisualizeIndirectDiffuse != 0 && GVisualizeLumenSceneSurfaceCacheFeedback != 0;
 
 		extern int32 GLumenReflectionsSurfaceCacheFeedback;
-		const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections(*ActiveViewFamily) && GLumenReflectionsSurfaceCacheFeedback != 0;
+		const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections(ViewFamily) && GLumenReflectionsSurfaceCacheFeedback != 0;
 
 		if (!Lumen::IsSurfaceCacheFrozen() && (bReflectionsUseFeedback || bVisualizeUsesFeedback))
 		{
 			ensure(FrameTemporaries.SurfaceCacheFeedbackResources.BufferUAV == nullptr);
 
-			LumenSceneData.SurfaceCacheFeedback.AllocateFeedbackResources(GraphBuilder, FrameTemporaries.SurfaceCacheFeedbackResources, *ActiveViewFamily);
+			LumenSceneData.SurfaceCacheFeedback.AllocateFeedbackResources(GraphBuilder, FrameTemporaries.SurfaceCacheFeedbackResources, ViewFamily);
 		}
 
 		if (LumenSceneData.CardPageLastUsedBuffer && LumenSceneData.CardPageHighResLastUsedBuffer)

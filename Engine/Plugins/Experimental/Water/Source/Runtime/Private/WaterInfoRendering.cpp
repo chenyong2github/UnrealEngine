@@ -439,7 +439,7 @@ static void UpdateWaterInfoRendering_RenderThread(
 				GraphBuilder,
 				SceneTextures,
 				ShaderResourceTexture,
-				*DepthRenderer->ActiveViewFamily,
+				DepthRenderer->ViewFamily,
 				DepthRenderer->Views,
 				bNeedsFlippedRenderTarget);
 		}
@@ -491,16 +491,16 @@ static void UpdateWaterInfoRendering_RenderThread(
 				GraphBuilder,
 				SceneTextures,
 				ColorTexture,
-				*ColorRenderer->ActiveViewFamily,
+				ColorRenderer->ViewFamily,
 				ColorRenderer->Views,
 				bNeedsFlippedRenderTarget);
 		}
 
 		FRDGTextureRef MergeTargetTexture = GraphBuilder.CreateTexture(ColorTextureDesc, TEXT("WaterInfoMerged"));
-		MergeWaterInfoAndDepth(GraphBuilder, SceneTextures, *ColorRenderer->ActiveViewFamily, ColorRenderer->Views[0], MergeTargetTexture, DepthTexture, ColorTexture, Params);
+		MergeWaterInfoAndDepth(GraphBuilder, SceneTextures, ColorRenderer->ViewFamily, ColorRenderer->Views[0], MergeTargetTexture, DepthTexture, ColorTexture, Params);
 
 		FRDGTextureRef FinalizedTexture = GraphBuilder.CreateTexture(TargetTexture->Desc, TEXT("WaterInfoFinalized"));
-		FinalizeWaterInfo(GraphBuilder, SceneTextures, *ColorRenderer->ActiveViewFamily, ColorRenderer->Views[0], MergeTargetTexture, FinalizedTexture, Params);
+		FinalizeWaterInfo(GraphBuilder, SceneTextures, ColorRenderer->ViewFamily, ColorRenderer->Views[0], MergeTargetTexture, FinalizedTexture, Params);
 		
 		FRDGTextureRef ShaderResourceTexture = RegisterExternalTexture(GraphBuilder, OutputTexture->TextureRHI, TEXT("WaterInfoResolve"));
 		AddCopyTexturePass(GraphBuilder, FinalizedTexture, ShaderResourceTexture);

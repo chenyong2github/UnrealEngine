@@ -395,7 +395,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 	RayGenParameters->TimingScale = CVarRayTracingDebugTimingScale.GetValueOnAnyThread() / 25000.0f;
 	RayGenParameters->OpaqueOnly = CVarRayTracingDebugModeOpaqueOnly.GetValueOnRenderThread();
 	
-	if (Lumen::UseFarField(*ActiveViewFamily))
+	if (Lumen::UseFarField(ViewFamily))
 	{
 		RayGenParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 		RayGenParameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();

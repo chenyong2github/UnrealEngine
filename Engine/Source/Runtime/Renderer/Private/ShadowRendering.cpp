@@ -1932,7 +1932,7 @@ bool FSceneRenderer::CheckForProjectedShadows( const FLightSceneInfo* LightScene
 		return true;
 
 	// Find the projected shadows cast by this light.
-	const FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
+	const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 	for( int32 ShadowIndex=0; ShadowIndex < VisibleLightInfo.AllProjectedShadows.Num(); ShadowIndex++ )
 	{
 		const FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.AllProjectedShadows[ShadowIndex];
@@ -2039,7 +2039,7 @@ void FSceneRenderer::RenderShadowProjections(
 {
 	CheckShadowDepthRenderCompleted();
 
-	const FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
+	const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 	const FLightSceneProxy* LightSceneProxy = LightSceneInfo->Proxy;
 
 	// Allocate arrays using the graph allocator so we can safely reference them in passes.
@@ -2106,7 +2106,7 @@ void FSceneRenderer::RenderShadowProjections(
 	{
 		check(!bProjectingForForwardShading);		// Not yet implemented/tested
 
-		if (ActiveViewFamily->VirtualShadowMapArray.HasAnyShadowData())
+		if (VirtualShadowMapArray.HasAnyShadowData())
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "Virtual Shadow Maps" );
 
@@ -2132,7 +2132,7 @@ void FSceneRenderer::RenderShadowProjections(
 							GraphBuilder,
 							SceneTextures,
 							View, ViewIndex,
-							ActiveViewFamily->VirtualShadowMapArray,
+							VirtualShadowMapArray,
 							ScissorRect,
 							EVirtualShadowMapProjectionInputType::GBuffer,
 							VisibleLightInfo.FindShadowClipmapForView(&View),
@@ -2145,7 +2145,7 @@ void FSceneRenderer::RenderShadowProjections(
 							GraphBuilder,
 							SceneTextures,
 							View, ViewIndex,
-							ActiveViewFamily->VirtualShadowMapArray,
+							VirtualShadowMapArray,
 							ScissorRect,
 							EVirtualShadowMapProjectionInputType::GBuffer,
 							VirtualShadowMaps[0],
@@ -2161,7 +2161,7 @@ void FSceneRenderer::RenderShadowProjections(
 								GraphBuilder,
 								SceneTextures,
 								View, ViewIndex,
-								ActiveViewFamily->VirtualShadowMapArray,
+								VirtualShadowMapArray,
 								ScissorRect,
 								EVirtualShadowMapProjectionInputType::HairStrands,
 								VisibleLightInfo.FindShadowClipmapForView(&View),
@@ -2174,7 +2174,7 @@ void FSceneRenderer::RenderShadowProjections(
 								GraphBuilder,
 								SceneTextures,
 								View, ViewIndex,
-								ActiveViewFamily->VirtualShadowMapArray,
+								VirtualShadowMapArray,
 								ScissorRect,
 								EVirtualShadowMapProjectionInputType::HairStrands,
 								VirtualShadowMaps[0],
@@ -2229,7 +2229,7 @@ void FSceneRenderer::BeginAsyncDistanceFieldShadowProjections(FRDGBuilder& Graph
 {
 	extern int32 GDFShadowAsyncCompute;
 
-	if (!!GDFShadowAsyncCompute && ActiveViewFamily->EngineShowFlags.DynamicShadows && GetShadowQuality() > 0 && ProjectedDistanceFieldShadows.Num() > 0)
+	if (!!GDFShadowAsyncCompute && ViewFamily.EngineShowFlags.DynamicShadows && GetShadowQuality() > 0 && ProjectedDistanceFieldShadows.Num() > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DistanceFieldShadows");
 
@@ -2278,14 +2278,14 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	RDG_EVENT_SCOPE(GraphBuilder, "ShadowProjectionOnOpaque");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowProjection);
 
-	const FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
+	const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 	
 	const bool bProjectingForForwardShading = false;
 	RenderShadowProjections(GraphBuilder, SceneTextures, ScreenShadowMaskTexture, ScreenShadowMaskSubPixelTexture, LightSceneInfo, bProjectingForForwardShading);
 
 	// Perform injection on translucent lighting volume
 	// Translucent volume is only used for direct lighting, so don't inject the lights if that is disabled
-	if (ActiveViewFamily->EngineShowFlags.DirectLighting)
+	if (ViewFamily.EngineShowFlags.DirectLighting)
 	{
 		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& ShadowMaps = VisibleLightInfo.ShadowsToProject;
 	
@@ -2319,7 +2319,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 					}
 
 					RDG_GPU_MASK_SCOPE(GraphBuilder, ProjectedShadowInfo->DependentView->GPUMask);
-					InjectTranslucencyLightingVolume(GraphBuilder, *ProjectedShadowInfo->DependentView, ViewIndex, Scene, *this, TranslucencyLightingVolumeTextures, ActiveViewFamily->VisibleLightInfos, *LightSceneInfo, ProjectedShadowInfo);
+					InjectTranslucencyLightingVolume(GraphBuilder, *ProjectedShadowInfo->DependentView, ViewIndex, Scene, *this, TranslucencyLightingVolumeTextures, VisibleLightInfos, *LightSceneInfo, ProjectedShadowInfo);
 				}
 				else
 				{
@@ -2327,7 +2327,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 					{
 						FViewInfo& View = Views[ViewIndex];
 						RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-						InjectTranslucencyLightingVolume(GraphBuilder, View, ViewIndex, Scene, *this, TranslucencyLightingVolumeTextures, ActiveViewFamily->VisibleLightInfos, *LightSceneInfo, ProjectedShadowInfo);
+						InjectTranslucencyLightingVolume(GraphBuilder, View, ViewIndex, Scene, *this, TranslucencyLightingVolumeTextures, VisibleLightInfos, *LightSceneInfo, ProjectedShadowInfo);
 					}
 				}
 			}
@@ -2371,7 +2371,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 
 void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View)
 {
-	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ActiveViewFamily->EngineShowFlags.DynamicShadows || View.bIsPlanarReflection || bRequiresShadowProjections)
+	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows || View.bIsPlanarReflection || bRequiresShadowProjections)
 	{
 		return;
 	}
@@ -2391,7 +2391,7 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 
 		if(LightSceneInfo->ShouldRenderLightViewIndependent() && LightSceneProxy && LightSceneProxy->CastsModulatedShadows())
 		{
-			const FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
+			const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 
 			if (VisibleLightInfo.ShadowsToProject.Num() > 0)
 			{			
@@ -2446,7 +2446,7 @@ void FMobileSceneRenderer::RenderMobileShadowProjections(
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
 
-		const FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
+		const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 		const FLightSceneProxy* LightSceneProxy = LightSceneInfo->Proxy;
 
 		// Local light shadows don't render to shadow mask texture on mobile deferred

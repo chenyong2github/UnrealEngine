@@ -353,7 +353,7 @@ void FMobileSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdLi
 		{
 			const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 			FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
-			FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
+			FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 			// Mobile renderer only projects modulated shadows.
 			bModulatedShadowsInUse = VisibleLightInfo.ShadowsToProject.Num() > 0;
 		}
@@ -418,14 +418,14 @@ void FMobileSceneRenderer::BuildCSMVisibilityState(FLightSceneInfo* LightSceneIn
 			FViewInfo& View = Views[ViewIndex];
 
 			FProjectedShadowInfo SingleCascadeInfo;
-			if (BuildSingleCascadeShadowInfo(View, ActiveViewFamily->VisibleLightInfos, LightSceneInfo, SingleCascadeInfo) == false)
+			if (BuildSingleCascadeShadowInfo(View, VisibleLightInfos, LightSceneInfo, SingleCascadeInfo) == false)
 			{
 				continue;
 			}
 
 			FProjectedShadowInfo* ProjectedShadowInfo = &SingleCascadeInfo;
 
-			if (ActiveViewFamily->EngineShowFlags.ShadowFrustums)
+			if (ViewFamily.EngineShowFlags.ShadowFrustums)
 			{
 				FViewElementPDI ShadowFrustumPDI(&View, nullptr, nullptr);
 				

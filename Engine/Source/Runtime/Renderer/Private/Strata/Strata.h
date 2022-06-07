@@ -152,9 +152,9 @@ void AppendStrataMRTs(const FSceneRenderer& SceneRenderer, uint32& BasePassTextu
 void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment);
 
 
-void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const TArrayView<FViewInfo>& Views);
+void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const TArray<FViewInfo>& Views);
 
-void AddStrataStencilPass(FRDGBuilder& GraphBuilder, const TArrayView<FViewInfo>& Views, const FMinimalSceneTextures& SceneTextures);
+void AddStrataStencilPass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, const FMinimalSceneTextures& SceneTextures);
 
 bool IsStrataOpaqueMaterialRoughRefractionEnabled();
 void AddStrataOpaqueRoughRefractionPasses(

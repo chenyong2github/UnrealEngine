@@ -1150,7 +1150,7 @@ void FSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(const DistanceField::
 	SceneData.PendingHeightFieldUpdateOps.Empty();
 }
 
-void DistanceField::BuildUpdateTrackingBounds(const TArrayView<FViewInfo>& Views, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds)
+void DistanceField::BuildUpdateTrackingBounds(const TArray<FViewInfo>& Views, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds)
 {
 	// Global Distance Field
 	{

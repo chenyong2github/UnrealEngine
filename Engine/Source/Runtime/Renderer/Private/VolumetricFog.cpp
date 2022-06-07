@@ -464,8 +464,8 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
 
-		bool bIsShadowed = LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(View, LightSceneInfo, ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id]);
-		bool bUsesLightFunction = ActiveViewFamily->EngineShowFlags.LightFunctions 
+		bool bIsShadowed = LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(View, LightSceneInfo, VisibleLightInfos[LightSceneInfo->Id]);
+		bool bUsesLightFunction = ViewFamily.EngineShowFlags.LightFunctions 
 			&& CheckForLightFunction(LightSceneInfo) && LightNeedsSeparateInjectionIntoVolumetricFogForLightFunction(LightSceneInfo);
 
 		if (LightSceneInfo->ShouldRenderLightViewIndependent()
@@ -491,18 +491,18 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 		for (int32 LightIndex = 0; LightIndex < LightsToInject.Num(); LightIndex++)
 		{
 			const FLightSceneInfo* LightSceneInfo = LightsToInject[LightIndex];
-			const FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
+			const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 
 			const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
 			const FIntPoint VolumeZBounds = CalculateVolumetricFogBoundsForLight(LightBounds, View, VolumetricFogGridSize, GridZParams);
 			if (VolumeZBounds.X < VolumeZBounds.Y)
 			{
 				bool bIsShadowed = LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(View, LightSceneInfo, VisibleLightInfo);
-				bool bUsesLightFunction = ActiveViewFamily->EngineShowFlags.LightFunctions
+				bool bUsesLightFunction = ViewFamily.EngineShowFlags.LightFunctions
 					&& CheckForLightFunction(LightSceneInfo) && LightNeedsSeparateInjectionIntoVolumetricFogForLightFunction(LightSceneInfo);
 
 				int32 VirtualShadowMapId = VisibleLightInfo.GetVirtualShadowMapId(&View);
-				const bool bUseVSM = bIsShadowed && ActiveViewFamily->VirtualShadowMapArray.IsAllocated() && VirtualShadowMapId != INDEX_NONE;
+				const bool bUseVSM = bIsShadowed && VirtualShadowMapArray.IsAllocated() && VirtualShadowMapId != INDEX_NONE;
 
 				FInjectShadowedLocalLightPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInjectShadowedLocalLightPS::FParameters>();
 
@@ -532,7 +532,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(OutLocalShadowedLightScattering, bClearExecuted ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear);
 				bClearExecuted = true;
-				PassParameters->VirtualShadowMapSamplingParameters = ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+				PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 				PassParameters->ConservativeDepthTexture = ConservativeDepthTexture;
 				PassParameters->LightFunctionAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 				// We also bind the default light function texture because when we are out of atlas tile, we fallback to use a white light function so we need the RHI to be created
@@ -884,7 +884,7 @@ void FViewInfo::SetupVolumetricFogUniformBufferParameters(FViewUniformShaderPara
 
 bool FDeferredShadingSceneRenderer::ShouldRenderVolumetricFog() const
 {
-	return ::ShouldRenderVolumetricFog(Scene, *ActiveViewFamily);
+	return ::ShouldRenderVolumetricFog(Scene, ViewFamily);
 }
 
 void FDeferredShadingSceneRenderer::SetupVolumetricFog()
@@ -961,7 +961,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			bUseTemporalReprojection
 			&& !View.bCameraCut
 			&& !View.bPrevTransformsReset
-			&& ActiveViewFamily->bRealtimeUpdate
+			&& ViewFamily.bRealtimeUpdate
 			&& View.ViewState->LightScatteringHistory;
 
 		FMatrix44f DirectionalLightFunctionTranslatedWorldToShadow;
@@ -1136,7 +1136,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			LumenUniforms->Parameters = GetLumenTranslucencyLightingParameters(GraphBuilder, View.LumenTranslucencyGIVolume, View.LumenFrontLayerTranslucency);
 			PassParameters->LumenGIVolumeStruct = GraphBuilder.CreateUniformBuffer(LumenUniforms);
 			PassParameters->RWLightScattering = IntegrationData.LightScatteringUAV;
-			PassParameters->VirtualShadowMapSamplingParameters = ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+			PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 
 			FDistanceFieldAOParameters AOParameterData(Scene->DefaultMaxDistanceFieldOcclusionDistance);
 			if (Scene->SkyLight
@@ -1218,7 +1218,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			const bool bUseGlobalDistanceField = UseGlobalDistanceField() && Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
 
 			const bool bUseDistanceFieldSkyOcclusion =
-				ActiveViewFamily->EngineShowFlags.AmbientOcclusion
+				ViewFamily.EngineShowFlags.AmbientOcclusion
 				&& !bUseLumenGI
 				&& Scene->SkyLight
 				&& Scene->SkyLight->bCastShadows
@@ -1236,7 +1236,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			PermutationVector.Set< FVolumetricFogLightScatteringCS::FDistanceFieldSkyOcclusion >(bUseDistanceFieldSkyOcclusion);
 			PermutationVector.Set< FVolumetricFogLightScatteringCS::FSuperSampleCount >(SuperSampleCount);
 			PermutationVector.Set< FVolumetricFogLightScatteringCS::FLumenGI >(bUseLumenGI);
-			PermutationVector.Set< FVolumetricFogLightScatteringCS::FVirtualShadowMap >(ActiveViewFamily->VirtualShadowMapArray.IsAllocated() );
+			PermutationVector.Set< FVolumetricFogLightScatteringCS::FVirtualShadowMap >(VirtualShadowMapArray.IsAllocated() );
 			PermutationVector.Set< FVolumetricFogLightScatteringCS::FCloudTransmittance >(AtmosphericDirectionalLightIndex >= 0);
 
 			auto ComputeShader = View.ShaderMap->GetShader< FVolumetricFogLightScatteringCS >(PermutationVector);

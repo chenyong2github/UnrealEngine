@@ -15,5 +15,5 @@ RENDERER_API void CopySceneCaptureComponentToTarget(
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ViewFamilyTexture,
 	const FSceneViewFamily& ViewFamily,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	bool bNeedsFlippedRenderTarget = false);

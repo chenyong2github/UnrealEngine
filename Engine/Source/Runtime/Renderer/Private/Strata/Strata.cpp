@@ -923,7 +923,7 @@ void AddStrataInternalClassificationTilePass(
 
 void AddStrataStencilPass(
 	FRDGBuilder& GraphBuilder,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	const FMinimalSceneTextures& SceneTextures)
 {
 	for (int32 i = 0; i < Views.Num(); ++i)
@@ -985,7 +985,7 @@ void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, FShader
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const TArrayView<FViewInfo>& Views)
+void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const TArray<FViewInfo>& Views)
 {
 	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, IsStrataEnabled() && Views.Num() > 0, "Strata::MaterialClassification");
 	if (!IsStrataEnabled())

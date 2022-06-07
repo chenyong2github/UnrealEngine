@@ -429,7 +429,6 @@ namespace HairStrands
 
 	bool HasViewHairStrandsData(const FViewInfo& View);
 	bool HasViewHairStrandsData(const TArray<FViewInfo>& Views);
-	bool HasViewHairStrandsData(const TArrayView<FViewInfo>& Views);
 	bool HasViewHairStrandsVoxelData(const FViewInfo& View);
 
 	bool HasPositionsChanged(FRDGBuilder& GraphBuilder, const FViewInfo& View);
@@ -445,9 +444,9 @@ namespace HairStrands
 
 	// Hair helpers
 	bool HasHairInstanceInScene(const FScene& Scene);
-	bool HasHairCardsVisible(const TArrayView<FViewInfo>& Views);
-	bool HasHairStrandsVisible(const TArrayView<FViewInfo>& Views);
+	bool HasHairCardsVisible(const TArray<FViewInfo>& Views);
+	bool HasHairStrandsVisible(const TArray<FViewInfo>& Views);
 
-	void AddVisibleShadowCastingLight(const FScene& Scene, TArrayView<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo);
-	void AddVisibleShadowCastingLight(const FScene& Scene, TArrayView<FViewInfo>& Views, const FSphere& Bounds);
+	void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo);
+	void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FSphere& Bounds);
 }

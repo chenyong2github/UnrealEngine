@@ -33,7 +33,7 @@
 
 void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {	
-	const bool bShouldRenderTranslucency = ShouldRenderTranslucency(StandardTranslucencyPass) && ActiveViewFamily->EngineShowFlags.Translucency && !ActiveViewFamily->UseDebugViewPS();
+	const bool bShouldRenderTranslucency = ShouldRenderTranslucency(StandardTranslucencyPass) && ViewFamily.EngineShowFlags.Translucency && !ViewFamily.UseDebugViewPS();
 	if (bShouldRenderTranslucency)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderTranslucency);

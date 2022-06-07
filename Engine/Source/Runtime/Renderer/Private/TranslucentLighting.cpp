@@ -1098,10 +1098,10 @@ static void InjectTranslucentLightArray(
 		{
 			const FTranslucentLightInjectionData& InjectionData = LightInjectionData[LightIndex];
 			const FLightSceneInfo* const LightSceneInfo = InjectionData.LightSceneInfo;
-			const FVisibleLightInfo& VisibleLightInfo = Renderer.ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
+			const FVisibleLightInfo& VisibleLightInfo = Renderer.VisibleLightInfos[LightSceneInfo->Id];
 			const bool bInverseSquared = LightSceneInfo->Proxy->IsInverseSquared();
 			const bool bDirectionalLight = LightSceneInfo->Proxy->GetLightType() == LightType_Directional;
-			const bool bUseVSM = Renderer.ActiveViewFamily->VirtualShadowMapArray.IsAllocated();
+			const bool bUseVSM = Renderer.VirtualShadowMapArray.IsAllocated();
 
 			const FVolumeBounds VolumeBounds = CalculateLightVolumeBounds(LightSceneInfo->Proxy->GetBoundingSphere(), View, VolumeCascadeIndex, bDirectionalLight);
 			if (VolumeBounds.IsValid())
@@ -1120,7 +1120,7 @@ static void InjectTranslucentLightArray(
 				PassParameters->TransmittanceLutTexture = TransmittanceLutTexture;
 				PassParameters->ShadowDepthTexture = ShadowDepthTexture;
 				PassParameters->CloudShadowAO = CloudShadowAOParameters;
-				PassParameters->PS.VirtualShadowMapSamplingParameters = Renderer.ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+				PassParameters->PS.VirtualShadowMapSamplingParameters = Renderer.VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(VolumeAmbientTexture, ERenderTargetLoadAction::ELoad);
 				PassParameters->RenderTargets[1] = FRenderTargetBinding(VolumeDirectionalTexture, ERenderTargetLoadAction::ELoad);
 
@@ -1132,7 +1132,7 @@ static void InjectTranslucentLightArray(
 
 				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, InjectionData.ProjectedShadowInfo, PassParameters->PS.VolumeShadowingParameters);
 
-				PassParameters->PS.VirtualShadowMapId = Renderer.ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&View);
+				PassParameters->PS.VirtualShadowMapId = Renderer.VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&View);
 				PassParameters->PS.LightFunctionParameters = FLightFunctionSharedParameters::GetLightFunctionSharedParameters(LightSceneInfo, 1.0f);
 				PassParameters->PS.VolumeCascadeIndex = VolumeCascadeIndex;
 

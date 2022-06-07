@@ -26,14 +26,14 @@
 void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
-	TArrayView<FViewInfo>& Views,
+	TArray<FViewInfo>& Views,
 	FInstanceCullingManager& InstanceCullingManager);
 
 void RenderHairBasePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	const FSceneTextures& SceneTextures,
-	TArrayView<FViewInfo>& Views,
+	TArray<FViewInfo>& Views,
 	FInstanceCullingManager& InstanceCullingManager);
 
 void RunHairStrandsBookmark(
@@ -46,4 +46,4 @@ void RunHairStrandsBookmark(
 	FHairStrandsBookmarkParameters& Parameters);
 
 FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, FViewInfo& View);
-FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, TArrayView<FViewInfo> View);
+FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, TArray<FViewInfo>& Views, TArray<const FSceneView*>& AllFamilyViews);

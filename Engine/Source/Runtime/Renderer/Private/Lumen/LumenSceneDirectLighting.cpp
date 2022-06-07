@@ -1342,7 +1342,7 @@ struct FLightTileCullContext
 
 // Build list of surface cache tiles per light for future processing
 void CullDirectLightingTiles(
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	FRDGBuilder& GraphBuilder,
 	const FLumenCardUpdateContext& CardUpdateContext,
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
@@ -1594,7 +1594,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 		// 1 uint per packed shadow trace
 		FRDGBufferRef ShadowTraceAllocator = nullptr;
 		FRDGBufferRef ShadowTraces = nullptr;
-		if (Lumen::UseHardwareRayTracedDirectLighting(*ActiveViewFamily))
+		if (Lumen::UseHardwareRayTracedDirectLighting(ViewFamily))
 		{
 			const uint32 MaxShadowTraces = FMath::Max(Lumen::CardTileSize * Lumen::CardTileSize * CullContext.MaxCulledCardTiles, 1024u);
 
@@ -1626,8 +1626,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 							Scene,
 							View,
 							LumenCardSceneUniformBuffer,
-							ActiveViewFamily->VisibleLightInfos,
-							ActiveViewFamily->VirtualShadowMapArray,
+							VisibleLightInfos,
+							VirtualShadowMapArray,
 							GatheredLight,
 							CullContext.LightTileScatterParameters,
 							ViewIndex,
@@ -1675,7 +1675,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			{
 				const FViewInfo& View = Views[ViewIndex];
 
-				if (Lumen::UseHardwareRayTracedDirectLighting(*ActiveViewFamily))
+				if (Lumen::UseHardwareRayTracedDirectLighting(ViewFamily))
 				{
 					TraceLumenHardwareRayTracedDirectLightingShadows(
 						GraphBuilder,
@@ -1731,7 +1731,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						Scene,
 						View,
 						TracingInputs,
-						ActiveViewFamily->EngineShowFlags,
+						ViewFamily.EngineShowFlags,
 						LumenCardSceneUniformBuffer,
 						GatheredLights[LightIndex],
 						CullContext.LightTileScatterParameters,

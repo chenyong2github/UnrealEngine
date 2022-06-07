@@ -227,27 +227,27 @@ static bool ShouldRenderTranslucencyScreenSpaceReflections(const FViewInfo& View
 	return true;
 }
 
-FSeparateTranslucencyDimensions UpdateSeparateTranslucencyDimensions(const FViewFamilyInfo& ActiveViewFamily)
+FSeparateTranslucencyDimensions UpdateSeparateTranslucencyDimensions(const FSceneRenderer& SceneRenderer)
 {
 	float TranslucencyResolutionFraction = FMath::Clamp(CVarSeparateTranslucencyScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.0f, 1.0f);
 	float MaxTranslucencyResolutionFraction	= TranslucencyResolutionFraction;
 
 	if (GDynamicTranslucencyResolution.GetSettings().IsEnabled())
 	{
-		TranslucencyResolutionFraction = ActiveViewFamily.DynamicResolutionFractions[GDynamicTranslucencyResolution];
-		MaxTranslucencyResolutionFraction = ActiveViewFamily.DynamicResolutionUpperBounds[GDynamicTranslucencyResolution];
+		TranslucencyResolutionFraction = SceneRenderer.DynamicResolutionFractions[GDynamicTranslucencyResolution];
+		MaxTranslucencyResolutionFraction = SceneRenderer.DynamicResolutionUpperBounds[GDynamicTranslucencyResolution];
 	}
 
 	if (CVarTranslucencyScreenPercentageBasis.GetValueOnRenderThread() == 1)
 	{
-		TranslucencyResolutionFraction /= ActiveViewFamily.DynamicResolutionFractions[GDynamicPrimaryResolutionFraction];
-		MaxTranslucencyResolutionFraction /= ActiveViewFamily.DynamicResolutionUpperBounds[GDynamicPrimaryResolutionFraction];
+		TranslucencyResolutionFraction /= SceneRenderer.DynamicResolutionFractions[GDynamicPrimaryResolutionFraction];
+		MaxTranslucencyResolutionFraction /= SceneRenderer.DynamicResolutionUpperBounds[GDynamicPrimaryResolutionFraction];
 	}
 
 	FSeparateTranslucencyDimensions Dimensions;
 	// TODO: this should be MaxTranslucencyResolutionFraction instead of TranslucencyResolutionFraction to keep the size of render target stable, but the SvPositionToBuffer() is broken in material.
-	Dimensions.Extent = GetScaledExtent(ActiveViewFamily.SceneTexturesConfig.Extent, TranslucencyResolutionFraction);
-	Dimensions.NumSamples = ActiveViewFamily.SceneTexturesConfig.NumSamples;
+	Dimensions.Extent = GetScaledExtent(SceneRenderer.ViewFamily.SceneTexturesConfig.Extent, TranslucencyResolutionFraction);
+	Dimensions.NumSamples = SceneRenderer.ViewFamily.SceneTexturesConfig.NumSamples;
 	Dimensions.Scale = TranslucencyResolutionFraction;
 	return Dimensions;
 }
@@ -642,9 +642,9 @@ static void AddUpsampleResponsiveAAPass(
 
 bool FSceneRenderer::ShouldRenderTranslucency() const
 {
-	return  ActiveViewFamily->EngineShowFlags.Translucency
-		&& !ActiveViewFamily->EngineShowFlags.VisualizeLightCulling
-		&& !ActiveViewFamily->UseDebugViewPS();
+	return  ViewFamily.EngineShowFlags.Translucency
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS();
 }
 
 bool FSceneRenderer::ShouldRenderTranslucency(ETranslucencyPass::Type TranslucencyPass) const
@@ -1158,13 +1158,13 @@ static void RenderTranslucencyViewInner(
 	PassParameters->View = GetSeparateTranslucencyViewParameters(View, Viewport.Extent, ViewportScale, TranslucencyPass);
 	PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 	PassParameters->BasePass = BasePassParameters;
-	PassParameters->VirtualShadowMapSamplingParameters = SceneRenderer.ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+	PassParameters->VirtualShadowMapSamplingParameters = SceneRenderer.VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
 	if (TranslucencyPass != ETranslucencyPass::TPT_TranslucencyAfterMotionBlur)
 	{
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 	}
-	PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, *SceneRenderer.ActiveViewFamily, nullptr);
+	PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, SceneRenderer.ViewFamily, nullptr);
 	PassParameters->RenderTargets.ResolveRect = FResolveRect(Viewport.Rect);
 
 	const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);
@@ -1468,7 +1468,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 		SharedDepthTexture = SceneTextures.Depth;
 	}
 
-	if (ActiveViewFamily->AllowTranslucencyAfterDOF())
+	if (ViewFamily.AllowTranslucencyAfterDOF())
 	{
 		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutTranslucencyResourceMap, SharedDepthTexture, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_StandardTranslucency, InstanceCullingManager);
 		if (GetHairStrandsComposition() == EHairStrandsCompositionType::AfterTranslucentBeforeTranslucentAfterDOF)

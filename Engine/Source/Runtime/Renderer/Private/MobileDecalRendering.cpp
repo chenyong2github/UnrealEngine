@@ -21,7 +21,7 @@ extern void RenderDeferredDecalsMobile(FRHICommandListImmediate& RHICmdList, con
 
 void FMobileSceneRenderer::RenderDecals(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
-	if (!IsMobileHDR() || !ActiveViewFamily->EngineShowFlags.Decals || View.bIsPlanarReflection)
+	if (!IsMobileHDR() || !ViewFamily.EngineShowFlags.Decals || View.bIsPlanarReflection)
 	{
 		return;
 	}

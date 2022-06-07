@@ -1311,7 +1311,7 @@ static void SetupSkyAtmosphereInternalCommonParameters(
 
 void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 {
-	check(ShouldRenderSkyAtmosphere(Scene, ActiveViewFamily->EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
+	check(ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
 	RDG_EVENT_SCOPE(GraphBuilder, "SkyAtmosphereLUTs");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SkyAtmosphereLUTs);
@@ -1326,7 +1326,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 
 	// Initialise common internal parameters on the sky info for this frame
 	FSkyAtmosphereInternalCommonParameters InternalCommonParameters;
-	SetupSkyAtmosphereInternalCommonParameters(InternalCommonParameters, *Scene, *ActiveViewFamily, SkyInfo);
+	SetupSkyAtmosphereInternalCommonParameters(InternalCommonParameters, *Scene, ViewFamily, SkyInfo);
 	SkyInfo.GetInternalCommonParametersUniformBuffer() = TUniformBufferRef<FSkyAtmosphereInternalCommonParameters>::CreateUniformBufferImmediate(InternalCommonParameters, UniformBuffer_SingleFrame);
 
 	FRDGTextureRef TransmittanceLut = GraphBuilder.RegisterExternalTexture(SkyInfo.GetTransmittanceLutTexture());
@@ -1425,7 +1425,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 	}
 
 	SkyAtmosphereLightShadowData LightShadowData;
-	const bool bShouldSampleOpaqueShadow = ShouldSkySampleAtmosphereLightsOpaqueShadow(*Scene, ActiveViewFamily->VisibleLightInfos, LightShadowData);
+	const bool bShouldSampleOpaqueShadow = ShouldSkySampleAtmosphereLightsOpaqueShadow(*Scene, VisibleLightInfos, LightShadowData);
 
 	FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
 	FLightSceneProxy* AtmosphereLight1Proxy = Scene->AtmosphereLights[1] ? Scene->AtmosphereLights[1]->Proxy : nullptr;
@@ -1636,7 +1636,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			PassParameters->SkyViewLutUAV = SkyAtmosphereViewLutTextureUAV;
 			PassParameters->Light0Shadow = LightShadowShaderParams0UniformBuffer;
 			PassParameters->Light1Shadow = LightShadowShaderParams1UniformBuffer;
-			PassParameters->VirtualShadowMap = ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+			PassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 			PassParameters->VirtualShadowMapId0 = LightShadowData.VirtualShadowMapId0;
 			PassParameters->VirtualShadowMapId1 = LightShadowData.VirtualShadowMapId1;
 			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
@@ -1681,7 +1681,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			PassParameters->RealTimeReflection360Mode = 0.0f;
 			PassParameters->Light0Shadow = LightShadowShaderParams0UniformBuffer;
 			PassParameters->Light1Shadow = LightShadowShaderParams1UniformBuffer;
-			PassParameters->VirtualShadowMap = ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+			PassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 			PassParameters->VirtualShadowMapId0 = LightShadowData.VirtualShadowMapId0;
 			PassParameters->VirtualShadowMapId1 = LightShadowData.VirtualShadowMapId1;
 			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
@@ -1804,7 +1804,7 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 		PsPassParameters->Light0Shadow = SkyRC.LightShadowShaderParams0UniformBuffer;
 		PsPassParameters->Light1Shadow = SkyRC.LightShadowShaderParams1UniformBuffer;
 
-		PsPassParameters->VirtualShadowMap = ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+		PsPassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 		PsPassParameters->VirtualShadowMapId0 = SkyRC.VirtualShadowMapId0;
 		PsPassParameters->VirtualShadowMapId1 = SkyRC.VirtualShadowMapId1;
 
@@ -1887,7 +1887,7 @@ void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinim
 {
 	check(!IsMobilePlatform(Scene->GetShaderPlatform()));
 
-	check(ShouldRenderSkyAtmosphere(Scene, ActiveViewFamily->EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
+	check(ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
 	RDG_EVENT_SCOPE(GraphBuilder, "SkyAtmosphere");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SkyAtmosphere);
@@ -1906,7 +1906,7 @@ void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinim
 	SkyRC.bSecondAtmosphereLightEnabled = Scene->IsSecondAtmosphereLightEnabled();
 
 	SkyAtmosphereLightShadowData LightShadowData;
-	SkyRC.bShouldSampleOpaqueShadow = ShouldSkySampleAtmosphereLightsOpaqueShadow(*Scene, ActiveViewFamily->VisibleLightInfos, LightShadowData);
+	SkyRC.bShouldSampleOpaqueShadow = ShouldSkySampleAtmosphereLightsOpaqueShadow(*Scene, VisibleLightInfos, LightShadowData);
 	SkyRC.bUseDepthBoundTestIfPossible = true;
 	SkyRC.bForceRayMarching = false;
 	SkyRC.bDepthReadDisabled = false;

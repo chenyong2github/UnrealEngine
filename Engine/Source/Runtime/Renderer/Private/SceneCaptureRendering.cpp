@@ -175,7 +175,7 @@ void CopySceneCaptureComponentToTarget(
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ViewFamilyTexture,
 	const FSceneViewFamily& ViewFamily,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	bool bNeedsFlippedRenderTarget)
 {
 	ESceneCaptureSource SceneCaptureSource = ViewFamily.SceneCaptureSource;
@@ -380,8 +380,8 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 
 	// update any resources that needed a deferred update
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
-	bool bUseSceneTextures = SceneRenderer->ActiveViewFamily->SceneCaptureSource != SCS_FinalColorLDR &&
-		SceneRenderer->ActiveViewFamily->SceneCaptureSource != SCS_FinalColorHDR;
+	bool bUseSceneTextures = SceneRenderer->ViewFamily.SceneCaptureSource != SCS_FinalColorLDR &&
+		SceneRenderer->ViewFamily.SceneCaptureSource != SCS_FinalColorHDR;
 
 	{
 #if WANTS_DRAW_MESH_EVENTS
@@ -406,7 +406,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 		// Intermediate render target that will need to be flipped (needed on !IsMobileHDR())
 		FRDGTextureRef FlippedOutputTexture{};
 
-		const FRenderTarget* Target = SceneRenderer->ActiveViewFamily->RenderTarget;
+		const FRenderTarget* Target = SceneRenderer->ViewFamily.RenderTarget;
 		if (bNeedsFlippedFinalColor)
 		{
 			// We need to use an intermediate render target since the result will be flipped
@@ -496,7 +496,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 
 				// Hijack the render target
 				FRHITexture2D* FlippedOutputTextureRHI = GraphBuilder.ConvertToExternalTexture(FlippedOutputTexture)->GetRHI()->GetTexture2D();
-				SceneRenderer->ActiveViewFamily->RenderTarget = GraphBuilder.AllocObject<FRenderTargetOverride>(Target, FlippedOutputTextureRHI); //-V506
+				SceneRenderer->ViewFamily.RenderTarget = GraphBuilder.AllocObject<FRenderTargetOverride>(Target, FlippedOutputTextureRHI); //-V506
 			}
 
 			SceneRenderer->Render(GraphBuilder);
@@ -504,7 +504,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 			if (bNeedsFlippedFinalColor)
 			{
 				// And restore it
-				SceneRenderer->ActiveViewFamily->RenderTarget = Target;
+				SceneRenderer->ViewFamily.RenderTarget = Target;
 			}
 		}
 
@@ -519,7 +519,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 				GraphBuilder,
 				SceneTextures,
 				OutputTexture,
-				*SceneRenderer->ActiveViewFamily,
+				SceneRenderer->ViewFamily,
 				SceneRenderer->Views,
 				bNeedsFlippedFinalColor);
 		}
@@ -993,8 +993,8 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 
 		SceneRenderer->Views[0].bFogOnlyOnRenderedOpaque = CaptureComponent->bConsiderUnrenderedOpaquePixelAsFullyTranslucent;
 
-		SceneRenderer->ActiveViewFamily->SceneCaptureSource = CaptureComponent->CaptureSource;
-		SceneRenderer->ActiveViewFamily->SceneCaptureCompositeMode = CaptureComponent->CompositeMode;
+		SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;
+		SceneRenderer->ViewFamily.SceneCaptureCompositeMode = CaptureComponent->CompositeMode;
 
 		// Ensure that the views for this scene capture reflect any simulated camera motion for this frame
 		TOptional<FTransform> PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(CaptureComponent);
@@ -1010,7 +1010,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 				{
 					if (Extension->IsActiveThisFrame(ViewExtensionContext))
 					{
-						SceneRenderer->ActiveViewFamily->ViewExtensions.Add(Extension.ToSharedRef());
+						SceneRenderer->ViewFamily.ViewExtensions.Add(Extension.ToSharedRef());
 					}
 				}
 				else
@@ -1020,9 +1020,9 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 				}
 			}
 
-			for (const TSharedRef<ISceneViewExtension, ESPMode::ThreadSafe>& Extension : SceneRenderer->ActiveViewFamily->ViewExtensions)
+			for (const TSharedRef<ISceneViewExtension, ESPMode::ThreadSafe>& Extension : SceneRenderer->ViewFamily.ViewExtensions)
 			{
-				Extension->SetupViewFamily(*SceneRenderer->ActiveViewFamily);
+				Extension->SetupViewFamily(SceneRenderer->ViewFamily);
 			}
 		}
 
@@ -1045,9 +1045,9 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 					View.bAllowTemporalJitter = false;
 				}
 
-				for (const FSceneViewExtensionRef& Extension : SceneRenderer->ActiveViewFamily->ViewExtensions)
+				for (const FSceneViewExtensionRef& Extension : SceneRenderer->ViewFamily.ViewExtensions)
 				{
-					Extension->SetupView(*SceneRenderer->ActiveViewFamily, View);
+					Extension->SetupView(SceneRenderer->ViewFamily, View);
 				}
 			}
 		}
@@ -1238,7 +1238,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 					Location, ProjectionMatrix, false, CaptureComponent->MaxViewDistanceOverride,
 					bCaptureSceneColor, &PostProcessSettings, 0, CaptureComponent->GetViewOwner(), StereoIPD);
 
-				SceneRenderer->ActiveViewFamily->SceneCaptureSource = CaptureComponent->CaptureSource;
+				SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;
 
 				FTextureRenderTargetCubeResource* TextureRenderTarget = static_cast<FTextureRenderTargetCubeResource*>(TextureTarget->GameThread_GetRenderTargetResource());
 				FString EventName;

@@ -633,7 +633,7 @@ void FDeferredShadingSceneRenderer::RenderLumenMiscVisualizations(FRDGBuilder& G
 
 		RenderVisualizeTraces(GraphBuilder, View, SceneTextures);
 
-		if (Lumen::ShouldVisualizeHardwareRayTracing(*ActiveViewFamily) || Lumen::IsSoftwareRayTracingSupported())
+		if (Lumen::ShouldVisualizeHardwareRayTracing(ViewFamily) || Lumen::IsSoftwareRayTracingSupported())
 		{
 			FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 

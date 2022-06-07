@@ -503,7 +503,7 @@ IMPLEMENT_GLOBAL_SHADER(FLumenSceneLightingStatsCS, "/Engine/Private/Lumen/Lumen
 void Lumen::BuildCardUpdateContext(
 	FRDGBuilder& GraphBuilder,
 	const FLumenSceneData& LumenSceneData,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FLumenCardUpdateContext& DirectLightingCardUpdateContext,
 	FLumenCardUpdateContext& IndirectLightingCardUpdateContext)

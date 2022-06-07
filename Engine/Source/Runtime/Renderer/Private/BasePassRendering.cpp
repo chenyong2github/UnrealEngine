@@ -756,7 +756,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	{
 		int32 ClearMethod = ClearMethodCVar->GetValueOnRenderThread();
 
-		if (ClearMethod == 0 && !ActiveViewFamily->EngineShowFlags.Game)
+		if (ClearMethod == 0 && !ViewFamily.EngineShowFlags.Game)
 		{
 			// Do not clear the scene only if the view family is in game mode.
 			ClearMethod = 1;
@@ -782,26 +782,26 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	}
 
 	// Always perform a full buffer clear for wireframe, shader complexity view mode, and stationary light overlap viewmode.
-	if (ActiveViewFamily->EngineShowFlags.Wireframe || ActiveViewFamily->EngineShowFlags.ShaderComplexity || ActiveViewFamily->EngineShowFlags.StationaryLightOverlap)
+	if (ViewFamily.EngineShowFlags.Wireframe || ViewFamily.EngineShowFlags.ShaderComplexity || ViewFamily.EngineShowFlags.StationaryLightOverlap)
 	{
 		bRequiresRHIClear = true;
 		bRequiresFarZQuadClear = false;
 	}
 
-	const bool bIsWireframeRenderpass = ActiveViewFamily->EngineShowFlags.Wireframe && FSceneRenderer::ShouldCompositeEditorPrimitives(Views[0]);
-	const bool bDebugViewMode = ActiveViewFamily->UseDebugViewPS();
-	const bool bRenderLightmapDensity = ActiveViewFamily->EngineShowFlags.LightMapDensity && AllowDebugViewmodes();
+	const bool bIsWireframeRenderpass = ViewFamily.EngineShowFlags.Wireframe && FSceneRenderer::ShouldCompositeEditorPrimitives(Views[0]);
+	const bool bDebugViewMode = ViewFamily.UseDebugViewPS();
+	const bool bRenderLightmapDensity = ViewFamily.EngineShowFlags.LightMapDensity && AllowDebugViewmodes();
 	const bool bRenderSkyAtmosphereEditorNotifications = ShouldRenderSkyAtmosphereEditorNotifications();
 	const bool bDoParallelBasePass = bEnableParallelBasePasses && !bDebugViewMode && !bRenderLightmapDensity; // DebugView and LightmapDensity are non-parallel substitutions inside BasePass
 	const bool bNeedsBeginRender = AllowDebugViewmodes() &&
-		(ActiveViewFamily->EngineShowFlags.RequiredTextureResolution ||
-			ActiveViewFamily->EngineShowFlags.VirtualTexturePendingMips ||
-			ActiveViewFamily->EngineShowFlags.MaterialTextureScaleAccuracy ||
-			ActiveViewFamily->EngineShowFlags.MeshUVDensityAccuracy ||
-			ActiveViewFamily->EngineShowFlags.PrimitiveDistanceAccuracy ||
-			ActiveViewFamily->EngineShowFlags.ShaderComplexity ||
-			ActiveViewFamily->EngineShowFlags.LODColoration ||
-			ActiveViewFamily->EngineShowFlags.HLODColoration);
+		(ViewFamily.EngineShowFlags.RequiredTextureResolution ||
+			ViewFamily.EngineShowFlags.VirtualTexturePendingMips ||
+			ViewFamily.EngineShowFlags.MaterialTextureScaleAccuracy ||
+			ViewFamily.EngineShowFlags.MeshUVDensityAccuracy ||
+			ViewFamily.EngineShowFlags.PrimitiveDistanceAccuracy ||
+			ViewFamily.EngineShowFlags.ShaderComplexity ||
+			ViewFamily.EngineShowFlags.LODColoration ||
+			ViewFamily.EngineShowFlags.HLODColoration);
 
 	const bool bForwardShadingEnabled = IsForwardShadingEnabled(SceneTextures.Config.ShaderPlatform);
 
@@ -816,12 +816,12 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 	if (bRequiresRHIClear)
 	{
-		if (ActiveViewFamily->EngineShowFlags.ShaderComplexity && SceneTextures.QuadOverdraw)
+		if (ViewFamily.EngineShowFlags.ShaderComplexity && SceneTextures.QuadOverdraw)
 		{
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(SceneTextures.QuadOverdraw), FUintVector4(0, 0, 0, 0));
 		}
 
-		if (ActiveViewFamily->EngineShowFlags.ShaderComplexity || ActiveViewFamily->EngineShowFlags.StationaryLightOverlap)
+		if (ViewFamily.EngineShowFlags.ShaderComplexity || ViewFamily.EngineShowFlags.StationaryLightOverlap)
 		{
 			SceneColorClearValue = FLinearColor(0, 0, 0, kSceneColorClearAlpha);
 		}
@@ -882,7 +882,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	}
 
 #if WITH_EDITOR
-	if (ActiveViewFamily->EngineShowFlags.Wireframe)
+	if (ViewFamily.EngineShowFlags.Wireframe)
 	{
 		checkf(ExclusiveDepthStencil.IsDepthWrite(), TEXT("Wireframe base pass requires depth-write, but it is set to read-only."));
 
@@ -903,7 +903,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	// Render targets bindings should remain constant at this point.
 	FRenderTargetBindingSlots BasePassRenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
 	BasePassRenderTargets.DepthStencil = FDepthStencilBinding(BasePassDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, ExclusiveDepthStencil);
-	BasePassRenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, *ActiveViewFamily, nullptr, EVRSType::None);
+	BasePassRenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, ViewFamily, nullptr, EVRSType::None);
 	
 	FForwardBasePassTextures ForwardBasePassTextures{};
 
@@ -924,7 +924,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	RenderBasePassInternal(GraphBuilder, SceneTextures, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, bDoParallelBasePass, bRenderLightmapDensity, InstanceCullingManager, bNaniteEnabled, NaniteRasterResults);
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterBasePass));
 
-	if (ActiveViewFamily->ViewExtensions.Num() > 0)
+	if (ViewFamily.ViewExtensions.Num() > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_ViewExtensionPostRenderBasePass);
 		RDG_EVENT_SCOPE(GraphBuilder, "BasePass_ViewExtensions");
@@ -938,7 +938,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 			ERDGPassFlags::Raster,
 			[this](FRHICommandListImmediate& RHICmdList)
 		{
-			for (auto& ViewExtension : ActiveViewFamily->ViewExtensions)
+			for (auto& ViewExtension : ViewFamily.ViewExtensions)
 			{
 				for (FViewInfo& View : Views)
 				{
@@ -1115,7 +1115,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 
 #if WITH_DEBUG_VIEW_MODES
 	Nanite::EDebugViewMode NaniteDebugViewMode = Nanite::EDebugViewMode::None;
-	if (ActiveViewFamily->EngineShowFlags.Wireframe)
+	if (ViewFamily.EngineShowFlags.Wireframe)
 	{
 		NaniteDebugViewMode = Nanite::EDebugViewMode::Wireframe;
 	}
@@ -1123,9 +1123,9 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 	{
 		NaniteDebugViewMode = Nanite::EDebugViewMode::LightmapDensity;
 	}
-	else if (ActiveViewFamily->UseDebugViewPS())
+	else if (ViewFamily.UseDebugViewPS())
 	{
-	    switch (ActiveViewFamily->GetDebugViewShaderMode())
+	    switch (ViewFamily.GetDebugViewShaderMode())
 	    {
 	    case DVSM_ShaderComplexity:							// Default shader complexity viewmode
 	    case DVSM_ShaderComplexityContainedQuadOverhead:	// Show shader complexity with quad overdraw scaling the PS instruction count.
@@ -1191,7 +1191,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				NaniteDebugViewMode,
 				*Scene,
 				View,
-				*ActiveViewFamily,
+				ViewFamily,
 				RasterResults,
 				NaniteColorTarget,
 				NaniteDepthTarget,
@@ -1214,14 +1214,14 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 		}
 	};
 
-    if (bRenderLightmapDensity || ActiveViewFamily->UseDebugViewPS())
+    if (bRenderLightmapDensity || ViewFamily.UseDebugViewPS())
 	{
 		if (bRenderLightmapDensity)
 		{
 			// Override the base pass with the lightmap density pass if the viewmode is enabled.
 			RenderLightMapDensities(GraphBuilder, Views, BasePassRenderTargets);
 		}
-		else if (ActiveViewFamily->UseDebugViewPS())
+		else if (ViewFamily.UseDebugViewPS())
 		{
 			// Override the base pass with one of the debug view shader mode (see EDebugViewShaderMode) if required.
 			RenderDebugViewMode(GraphBuilder, Views, SceneTextures.QuadOverdraw, BasePassRenderTargets);
@@ -1263,7 +1263,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				const bool bLumenGIEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 
 				FMeshPassProcessorRenderState DrawRenderState;
-				SetupBasePassState(BasePassDepthStencilAccess, ActiveViewFamily->EngineShowFlags.ShaderComplexity, DrawRenderState);
+				SetupBasePassState(BasePassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
 
 				FOpaqueBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
 				PassParameters->View = View.GetShaderParameters();
@@ -1329,7 +1329,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				const bool bLumenGIEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 
 				FMeshPassProcessorRenderState DrawRenderState;
-				SetupBasePassState(BasePassDepthStencilAccess, ActiveViewFamily->EngineShowFlags.ShaderComplexity, DrawRenderState);
+				SetupBasePassState(BasePassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
 
 				FOpaqueBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
 				PassParameters->View = View.GetShaderParameters();

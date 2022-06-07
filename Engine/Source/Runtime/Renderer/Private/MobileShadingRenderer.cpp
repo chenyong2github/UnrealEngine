@@ -235,8 +235,8 @@ static void SetupGBufferFlags(FSceneTexturesConfig& SceneTexturesConfig, bool bR
 	SceneTexturesConfig.GBufferE.Flags &= (~TexCreate_SRGB);
 }
 
-FMobileSceneRenderer::FMobileSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer)
-	: FSceneRenderer(InViewFamilies, HitProxyConsumer)
+FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer)
+	: FSceneRenderer(InViewFamily, HitProxyConsumer)
 	, bGammaSpace(!IsMobileHDR())
 	, bDeferredShading(IsMobileDeferredShadingEnabled(ShaderPlatform))
 	, bUseVirtualTexturing(UseVirtualTexturing(FeatureLevel))
@@ -255,11 +255,11 @@ FMobileSceneRenderer::FMobileSceneRenderer(TArrayView<const FSceneViewFamily*> I
 	bEnableClusteredLocalLights = bDeferredShading || MobileForwardEnableLocalLights(ShaderPlatform);
 	bEnableClusteredReflections = MobileEnableClusteredReflections(ShaderPlatform);
 	
-	StandardTranslucencyPass = ActiveViewFamily->AllowTranslucencyAfterDOF() ? ETranslucencyPass::TPT_StandardTranslucency : ETranslucencyPass::TPT_AllTranslucency;
+	StandardTranslucencyPass = ViewFamily.AllowTranslucencyAfterDOF() ? ETranslucencyPass::TPT_StandardTranslucency : ETranslucencyPass::TPT_AllTranslucency;
 	StandardTranslucencyMeshPass = TranslucencyPassToMeshPass(StandardTranslucencyPass);
 
 	// Don't do occlusion queries when doing scene captures
-	for (FViewInfo& View : AllFamilyViews)
+	for (FViewInfo& View : Views)
 	{
 		if (View.bIsSceneCapture)
 		{
@@ -418,17 +418,17 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		// This is to init the ViewUniformBuffer before rendering for the Niagara compute shader.
 		// This needs to run before ComputeViewVisibility() is called, but the views normally initialize the ViewUniformBuffer after that (at the end of this method).
 		Views[0].InitRHIResources();
-		FXSystem->PostInitViews(GraphBuilder, Views, !ActiveViewFamily->EngineShowFlags.HitProxies);
+		FXSystem->PostInitViews(GraphBuilder, Views, !ViewFamily.EngineShowFlags.HitProxies);
 	}
 	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager);
 	PostVisibilityFrameSetup(ILCTaskData);
 
-	const FIntPoint RenderTargetSize = (ActiveViewFamily->RenderTarget->GetRenderTargetTexture().IsValid()) ? ActiveViewFamily->RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ActiveViewFamily->RenderTarget->GetSizeXY();
-	const bool bRequiresUpscale = ((int32)RenderTargetSize.X > ActiveViewFamily->FamilySize.X || (int32)RenderTargetSize.Y > ActiveViewFamily->FamilySize.Y) || IsMobilePropagateAlphaEnabled(ActiveViewFamily->GetShaderPlatform());
+	const FIntPoint RenderTargetSize = (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid()) ? ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ViewFamily.RenderTarget->GetSizeXY();
+	const bool bRequiresUpscale = ((int32)RenderTargetSize.X > FamilySize.X || (int32)RenderTargetSize.Y > FamilySize.Y) || IsMobilePropagateAlphaEnabled(ViewFamily.GetShaderPlatform());
 	// ES requires that the back buffer and depth match dimensions.
 	// For the most part this is not the case when using scene captures. Thus scene captures always render to scene color target.
 	const bool bShouldCompositeEditorPrimitives = FSceneRenderer::ShouldCompositeEditorPrimitives(Views[0]);
-	const bool bStereoRenderingAndHMD = ActiveViewFamily->EngineShowFlags.StereoRendering && ActiveViewFamily->EngineShowFlags.HMDDistortion;
+	const bool bStereoRenderingAndHMD = ViewFamily.EngineShowFlags.StereoRendering && ViewFamily.EngineShowFlags.HMDDistortion;
 	bRenderToSceneColor = !bGammaSpace || bStereoRenderingAndHMD || bRequiresUpscale || bShouldCompositeEditorPrimitives || Views[0].bIsSceneCapture || Views[0].bIsReflectionCapture;
 	const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 
@@ -436,30 +436,30 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		&& PlanarReflectionSceneProxy != nullptr
 		&& PlanarReflectionSceneProxy->RenderTarget != nullptr
 		&& !Views[0].bIsReflectionCapture
-		&& !ActiveViewFamily->EngineShowFlags.HitProxies
-		&& ActiveViewFamily->EngineShowFlags.Lighting
-		&& !ActiveViewFamily->EngineShowFlags.VisualizeLightCulling
-		&& !ActiveViewFamily->UseDebugViewPS();
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS();
 
 	bRequiresAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
 		&& (Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f || (Scene && Scene->SkyLight && Scene->SkyLight->ProcessedTexture && Views[0].Family->EngineShowFlags.SkyLighting))
-		&& ActiveViewFamily->EngineShowFlags.Lighting
+		&& ViewFamily.EngineShowFlags.Lighting
 		&& !Views[0].bIsReflectionCapture
 		&& !Views[0].bIsPlanarReflection
-		&& !ActiveViewFamily->EngineShowFlags.HitProxies
-		&& !ActiveViewFamily->EngineShowFlags.VisualizeLightCulling
-		&& !ActiveViewFamily->UseDebugViewPS();
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS();
 
 	bShouldRenderVelocities = ShouldRenderVelocities();
 
 	bRequiresDistanceField = IsMobileDistanceFieldEnabled(ShaderPlatform)
-		&& ActiveViewFamily->EngineShowFlags.Lighting
+		&& ViewFamily.EngineShowFlags.Lighting
 		&& !Views[0].bIsReflectionCapture
 		&& !Views[0].bIsPlanarReflection
-		&& !ActiveViewFamily->EngineShowFlags.HitProxies
-		&& !ActiveViewFamily->EngineShowFlags.VisualizeLightCulling
-		&& !ActiveViewFamily->UseDebugViewPS();
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS();
 
 	bRequiresShadowProjections = MobileUsesShadowMaskTexture(ShaderPlatform);
 
@@ -517,9 +517,9 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	}
 
 	// When we capturing scene depth, use a more precise format for SceneDepthAux as it will be used as a source DepthTexture
-	if (ActiveViewFamily->SceneCaptureSource == SCS_SceneColorSceneDepth ||
-		ActiveViewFamily->SceneCaptureSource == SCS_SceneDepth ||
-		ActiveViewFamily->SceneCaptureSource == SCS_DeviceDepth)
+	if (ViewFamily.SceneCaptureSource == SCS_SceneColorSceneDepth ||
+		ViewFamily.SceneCaptureSource == SCS_SceneDepth ||
+		ViewFamily.SceneCaptureSource == SCS_DeviceDepth)
 	{
 		SceneTexturesConfig.bPreciseDepthAux = true;
 	}
@@ -541,7 +541,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
 	// Initialise Sky/View resources before the view global uniform buffer is built.
-	if (ShouldRenderSkyAtmosphere(Scene, ActiveViewFamily->EngineShowFlags))
+	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
 		InitSkyAtmosphereForViews(RHICmdList);
 	}
@@ -555,7 +555,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		ReleaseMobileShadowProjectionOutputs();
 	}
 	
-	const bool bDynamicShadows = ActiveViewFamily->EngineShowFlags.DynamicShadows;
+	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 	
 	if (bDynamicShadows && !IsSimpleForwardShadingEnabled(ShaderPlatform))
 	{
@@ -729,7 +729,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
-	if (ShouldRenderSkyAtmosphere(Scene, ActiveViewFamily->EngineShowFlags))
+	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
 		for (int32 LightIndex = 0; LightIndex < NUM_ATMOSPHERE_LIGHTS; ++LightIndex)
 		{
@@ -747,7 +747,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMobileSceneRenderer_Render);
 
-	if (!ActiveViewFamily->EngineShowFlags.Rendering)
+	if (!ViewFamily.EngineShowFlags.Rendering)
 	{
 		return;
 	}
@@ -756,7 +756,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	GraphBuilder.RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-	FSceneTexturesConfig::InitializeViewFamily(*ActiveViewFamily);
+	FSceneTexturesConfig::InitializeViewFamily(ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
@@ -776,7 +776,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
 	// NOTE: Must be done after  system texture initialization
 	// TODO: This doesn't take into account the potential for split screen views with separate shadow caches
-	ActiveViewFamily->VirtualShadowMapArray.Initialize(GraphBuilder, Scene->GetVirtualShadowMapCache(Views[0]), UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
+	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->GetVirtualShadowMapCache(Views[0]), UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
 
 	// Find the visible primitives and prepare targets and buffers for rendering
 	InitViews(GraphBuilder, SceneTexturesConfig, InstanceCullingManager);
@@ -800,7 +800,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_SceneSim));
 
-	FSceneTextures::InitializeViewFamily(GraphBuilder, *ActiveViewFamily);
+	FSceneTextures::InitializeViewFamily(GraphBuilder, ViewFamily);
 	FSceneTextures& SceneTextures = GetActiveSceneTextures();
 
 	if (bUseVirtualTexturing)
@@ -826,14 +826,14 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	// Generate the Sky/Atmosphere look up tables
-	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ActiveViewFamily->EngineShowFlags);
+	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
 	if (bShouldRenderSkyAtmosphere)
 	{
 		RenderSkyAtmosphereLookUpTables(GraphBuilder);
 	}
 
 	// Notify the FX system that the scene is about to be rendered.
-	if (FXSystem && ActiveViewFamily->EngineShowFlags.Particles)
+	if (FXSystem && ViewFamily.EngineShowFlags.Particles)
 	{
 		FXSystem->PreRender(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
 		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
@@ -868,7 +868,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel));
 	}
 
-	FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, *ActiveViewFamily);
+	FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, ViewFamily);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 	
@@ -949,7 +949,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		VirtualTextureFeedbackEnd(GraphBuilder);
 	}
 	
-	if (ActiveViewFamily->bResolveScene)
+	if (ViewFamily.bResolveScene)
 	{
 		if (!bGammaSpace || bRenderToSceneColor)
 		{
@@ -1043,7 +1043,7 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, FRDGTextureR
 		SceneDepth = SceneTextures.Depth.Target;
 	}
 
-	TRefCountPtr<IPooledRenderTarget> ShadingRateTarget = GVRSImageManager.GetMobileVariableRateShadingImage(*ActiveViewFamily);
+	TRefCountPtr<IPooledRenderTarget> ShadingRateTarget = GVRSImageManager.GetMobileVariableRateShadingImage(ViewFamily);
 
 	FRenderTargetBindingSlots BasePassRenderTargets;
 	BasePassRenderTargets[0] = FRenderTargetBinding(SceneColor, SceneColorResolve, ERenderTargetLoadAction::EClear);
@@ -1440,7 +1440,7 @@ void FMobileSceneRenderer::RenderDeferredSinglePass(FRDGBuilder& GraphBuilder, c
 		RenderDecals(RHICmdList, View);
 		// SceneColor write, SceneDepth is read only
 		RHICmdList.NextSubpass();
-		MobileDeferredShadingPass(RHICmdList, ViewIndex, NumViews, View, *Scene, SortedLightSet, ActiveViewFamily->VisibleLightInfos);
+		MobileDeferredShadingPass(RHICmdList, ViewIndex, NumViews, View, *Scene, SortedLightSet, VisibleLightInfos);
 
 		if (bUsingPixelLocalStorage)
 		{
@@ -1527,7 +1527,7 @@ void FMobileSceneRenderer::RenderDeferredMultiPass(FRDGBuilder& GraphBuilder, cl
 		[this, ThirdPassParameters, ViewIndex, NumViews, &View, &SceneTextures, &SortedLightSet](FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.NextSubpass();
-		MobileDeferredShadingPass(RHICmdList, ViewIndex, NumViews, View, *Scene, SortedLightSet, ActiveViewFamily->VisibleLightInfos);
+		MobileDeferredShadingPass(RHICmdList, ViewIndex, NumViews, View, *Scene, SortedLightSet, VisibleLightInfos);
 		RenderFog(RHICmdList, View);
 		// Draw translucency.
 		RenderTranslucency(RHICmdList, View);
@@ -1536,13 +1536,13 @@ void FMobileSceneRenderer::RenderDeferredMultiPass(FRDGBuilder& GraphBuilder, cl
 
 void FMobileSceneRenderer::PostRenderBasePass(FRHICommandListImmediate& RHICmdList, FViewInfo& View)
 {
-	if (ActiveViewFamily->ViewExtensions.Num() > 1)
+	if (ViewFamily.ViewExtensions.Num() > 1)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ViewExtensionPostRenderBasePass);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMobileSceneRenderer_ViewExtensionPostRenderBasePass);
-		for (int32 ViewExt = 0; ViewExt < ActiveViewFamily->ViewExtensions.Num(); ++ViewExt)
+		for (int32 ViewExt = 0; ViewExt < ViewFamily.ViewExtensions.Num(); ++ViewExt)
 		{
-			ActiveViewFamily->ViewExtensions[ViewExt]->PostRenderBasePass_RenderThread(RHICmdList, View);
+			ViewFamily.ViewExtensions[ViewExt]->PostRenderBasePass_RenderThread(RHICmdList, View);
 		}
 	}
 }
@@ -1550,7 +1550,7 @@ void FMobileSceneRenderer::PostRenderBasePass(FRHICommandListImmediate& RHICmdLi
 void FMobileSceneRenderer::RenderMobileDebugView(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 #if WITH_DEBUG_VIEW_MODES
-	if (ActiveViewFamily->UseDebugViewPS())
+	if (ViewFamily.UseDebugViewPS())
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDebugView);
 		SCOPED_DRAW_EVENT(RHICmdList, MobileDebugView);
@@ -1637,12 +1637,12 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRDGBuilder& Gra
 
 	AddPass(GraphBuilder, RDG_EVENT_NAME("UpdateDirectionalLightUniformBuffers"), [this, ViewIndex, &View](FRHICommandListImmediate&)
 	{
-		const bool bDynamicShadows = ActiveViewFamily->EngineShowFlags.DynamicShadows;
+		const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 		// Fill in the other entries based on the lights
 		for (int32 ChannelIdx = 0; ChannelIdx < UE_ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
 		{
 			FMobileDirectionalLightShaderParameters Params;
-			SetupMobileDirectionalLightUniformParameters(*Scene, ViewIndex, View, ActiveViewFamily->VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
+			SetupMobileDirectionalLightUniformParameters(*Scene, ViewIndex, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
 			Scene->UniformBuffers.MobileDirectionalLightUniformBuffers[ChannelIdx + 1].UpdateUniformBufferImmediate(Params);
 		}
 	});
@@ -1688,8 +1688,8 @@ IMPLEMENT_SHADER_TYPE(, FPreTonemapMSAA_Mobile,TEXT("/Engine/Private/PostProcess
 void FMobileSceneRenderer::PreTonemapMSAA(FRHICommandListImmediate& RHICmdList, const FMinimalSceneTextures& SceneTextures)
 {
 	// iOS only
-	bool bOnChipPP = GSupportsRenderTargetFormat_PF_FloatRGBA && GSupportsShaderFramebufferFetch &&	ActiveViewFamily->EngineShowFlags.PostProcessing;
-	bool bOnChipPreTonemapMSAA = bOnChipPP && IsMetalMobilePlatform(ActiveViewFamily->GetShaderPlatform()) && (NumMSAASamples > 1);
+	bool bOnChipPP = GSupportsRenderTargetFormat_PF_FloatRGBA && GSupportsShaderFramebufferFetch &&	ViewFamily.EngineShowFlags.PostProcessing;
+	bool bOnChipPreTonemapMSAA = bOnChipPP && IsMetalMobilePlatform(ViewFamily.GetShaderPlatform()) && (NumMSAASamples > 1);
 	if (!bOnChipPreTonemapMSAA || bGammaSpace)
 	{
 		return;

@@ -98,7 +98,7 @@ void AddMeshDrawTransitionPass(
 void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
-	TArrayView<FViewInfo>& Views,
+	TArray<FViewInfo>& Views,
 	FInstanceCullingManager& InstanceCullingManager)
 {
 	for (FViewInfo& View : Views)
@@ -147,7 +147,7 @@ void RenderHairBasePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	const FSceneTextures& SceneTextures,
-	TArrayView<FViewInfo>& Views,
+	TArray<FViewInfo>& Views,
 	FInstanceCullingManager& InstanceCullingManager)
 {
 	for (FViewInfo& View : Views)
@@ -288,19 +288,7 @@ bool HasViewHairStrandsData(const TArray<FViewInfo>& Views)
 	return false;
 }
 
-bool HasViewHairStrandsData(const TArrayView<FViewInfo>& Views)
-{
-	for (const FViewInfo& View : Views)
-	{
-		if (View.HairStrandsViewData.bIsValid)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-bool HasHairStrandsVisible(const TArrayView<FViewInfo>& Views)
+bool HasHairStrandsVisible(const TArray<FViewInfo>& Views)
 {
 	for (const FViewInfo& View : Views)
 	{
@@ -312,7 +300,7 @@ bool HasHairStrandsVisible(const TArrayView<FViewInfo>& Views)
 	return false;
 }
 
-bool HasHairCardsVisible(const TArrayView<FViewInfo>& Views)
+bool HasHairCardsVisible(const TArray<FViewInfo>& Views)
 {
 	for (const FViewInfo& View : Views)
 	{

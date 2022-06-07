@@ -385,8 +385,8 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 		// Virtual shadow maps
 		if (bListShadows)
 		{
-			const auto& VirtualShadowMaps = SceneRenderer->ActiveViewFamily->SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
-			const auto& VirtualShadowClipmaps = SceneRenderer->ActiveViewFamily->SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps;
+			const auto& VirtualShadowMaps = SceneRenderer->SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
+			const auto& VirtualShadowClipmaps = SceneRenderer->SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps;
 
 			if (VirtualShadowClipmaps.Num() > 0)
 			{
@@ -402,7 +402,7 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 		// Shadow map atlases
 		if (bListShadows)
 		{
-			const auto& ShadowMapAtlases = SceneRenderer->ActiveViewFamily->SortedShadowsForShadowDepthPass.ShadowMapAtlases;
+			const auto& ShadowMapAtlases = SceneRenderer->SortedShadowsForShadowDepthPass.ShadowMapAtlases;
 			for (int32 AtlasIndex = 0; AtlasIndex < ShadowMapAtlases.Num(); AtlasIndex++)
 			{
 				UE_LOG(LogNanite, Warning, TEXT("ShadowAtlas%d"), AtlasIndex);
@@ -412,7 +412,7 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 		// Shadow cube maps
 		if (bListShadows)
 		{
-			const auto& ShadowCubeMaps = SceneRenderer->ActiveViewFamily->SortedShadowsForShadowDepthPass.ShadowMapCubemaps;
+			const auto& ShadowCubeMaps = SceneRenderer->SortedShadowsForShadowDepthPass.ShadowMapCubemaps;
 			for (int32 CubemapIndex = 0; CubemapIndex < ShadowCubeMaps.Num(); CubemapIndex++)
 			{
 				const FSortedShadowMapAtlas& ShadowMap = ShadowCubeMaps[CubemapIndex];

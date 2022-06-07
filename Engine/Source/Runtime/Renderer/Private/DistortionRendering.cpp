@@ -223,7 +223,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderDistortion() const
 	static const auto DisableDistortionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DisableDistortion"));
 	const bool bAllowDistortion = DisableDistortionCVar->GetValueOnAnyThread() != 1;
 
-	if (GetRefractionQuality(*ActiveViewFamily) <= 0 || !bAllowDistortion)
+	if (GetRefractionQuality(ViewFamily) <= 0 || !bAllowDistortion)
 	{
 		return false;
 	}

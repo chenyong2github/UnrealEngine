@@ -490,7 +490,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 
 	if (!SupportsCapsuleDirectShadows(ShaderPlatform)
 		|| CapsuleShadows.Num() == 0
-		|| !ActiveViewFamily->EngineShowFlags.CapsuleShadows
+		|| !ViewFamily.EngineShowFlags.CapsuleShadows
 		|| !bAllViewsHaveViewState)
 	{
 		return false;
@@ -956,8 +956,8 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures) const
 {
 	if (!SupportsCapsuleIndirectShadows(ShaderPlatform)
-		|| !ActiveViewFamily->EngineShowFlags.DynamicShadows
-		|| !ActiveViewFamily->EngineShowFlags.CapsuleShadows)
+		|| !ViewFamily.EngineShowFlags.DynamicShadows
+		|| !ViewFamily.EngineShowFlags.CapsuleShadows)
 	{
 		return;
 	}
@@ -1205,7 +1205,7 @@ bool FSceneRenderer::ShouldPrepareForDFInsetIndirectShadow() const
 		}
 	}
 
-	return bSceneHasInsetDFPrimitives && SupportsCapsuleIndirectShadows(ShaderPlatform) && ActiveViewFamily->EngineShowFlags.CapsuleShadows;
+	return bSceneHasInsetDFPrimitives && SupportsCapsuleIndirectShadows(ShaderPlatform) && ViewFamily.EngineShowFlags.CapsuleShadows;
 }
 
 void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(
@@ -1214,7 +1214,7 @@ void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(
 	FRDGTextureRef& BentNormalOutput) const
 {
 	if (SupportsCapsuleIndirectShadows(ShaderPlatform)
-		&& ActiveViewFamily->EngineShowFlags.CapsuleShadows)
+		&& ViewFamily.EngineShowFlags.CapsuleShadows)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderCapsuleShadowsSkylight);
 

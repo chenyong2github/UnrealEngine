@@ -2007,7 +2007,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 	LumenCardRenderer.Reset();
 
 	if (bAnyLumenActive
-		&& !ActiveViewFamily->EngineShowFlags.HitProxies)
+		&& !ViewFamily.EngineShowFlags.HitProxies)
 	{
 		SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_BeginUpdateLumenSceneTasks, FColor::Emerald);
 		QUICK_SCOPE_CYCLE_COUNTER(BeginUpdateLumenSceneTasks);
@@ -2018,7 +2018,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 		// Surface cache reset for debugging
 		if ((GLumenSceneSurfaceCacheReset != 0)
-			|| (GLumenSceneSurfaceCacheResetEveryNthFrame > 0 && (ActiveViewFamily->FrameNumber % (uint32)GLumenSceneSurfaceCacheResetEveryNthFrame == 0)))
+			|| (GLumenSceneSurfaceCacheResetEveryNthFrame > 0 && (ViewFamily.FrameNumber % (uint32)GLumenSceneSurfaceCacheResetEveryNthFrame == 0)))
 		{
 			LumenSceneData.bDebugClearAllCachedState = true;
 			GLumenSceneSurfaceCacheReset = 0;
@@ -2049,7 +2049,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		for (const FViewInfo& View : Views)
 		{
 			LumenSceneCameraOrigins.Add(GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps(View.FinalPostProcessSettings.LumenSceneViewDistance) - 1));
-			MaxCardUpdateDistanceFromCamera = FMath::Max(MaxCardUpdateDistanceFromCamera, ComputeMaxCardUpdateDistanceFromCamera(View.FinalPostProcessSettings.LumenSceneViewDistance, *ActiveViewFamily));
+			MaxCardUpdateDistanceFromCamera = FMath::Max(MaxCardUpdateDistanceFromCamera, ComputeMaxCardUpdateDistanceFromCamera(View.FinalPostProcessSettings.LumenSceneViewDistance, ViewFamily));
 			LumenSceneDetail = FMath::Max(LumenSceneDetail, FMath::Clamp<float>(View.FinalPostProcessSettings.LumenSceneDetail, .125f, 8.0f));
 		}
 
@@ -2074,7 +2074,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 				LumenSceneDetail,
 				MaxCardUpdateDistanceFromCamera,
 				SurfaceCacheRequests,
-				*ActiveViewFamily);
+				ViewFamily);
 
 			LumenSceneData.ProcessLumenSurfaceCacheRequests(
 				Views[0],
@@ -2473,7 +2473,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 
 		LumenCardRenderer.bPropagateGlobalLightingChange = UpdateGlobalLightingState(Scene, Views[0], LumenSceneData);
 
-		Lumen::UpdateCardSceneBuffer(GraphBuilder, FrameTemporaries, *ActiveViewFamily, Scene);
+		Lumen::UpdateCardSceneBuffer(GraphBuilder, FrameTemporaries, ViewFamily, Scene);
 
 		// Init transient render targets for capturing cards
 		FCardCaptureAtlas CardCaptureAtlas;
@@ -2687,7 +2687,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				}
 			}
 
-			if (UseNanite(ShaderPlatform) && ActiveViewFamily->EngineShowFlags.NaniteMeshes && bAnyNaniteMeshes)
+			if (UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes && bAnyNaniteMeshes)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(NaniteMeshPass);
 				QUICK_SCOPE_CYCLE_COUNTER(NaniteMeshPass);

@@ -1028,7 +1028,7 @@ static uint32 GetShadowMapsToAllocate(uint32 NumShadowMaps)
 void FVirtualShadowMapArray::BuildPageAllocations(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	const FEngineShowFlags& EngineShowFlags,
 	const FSortedLightSetSceneInfo& SortedLightsInfo,
 	const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
@@ -2339,7 +2339,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	FRDGBufferRef VirtualShadowViewsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VirtualShadowViews"), VirtualShadowViews);
 
 	// Helper function to create raster pass UB - only really need two of these ever
-	const FSceneTextures* SceneTextures = &GetViewFamily(Views).GetSceneTextures();
+	const FSceneTextures* SceneTextures = &GetViewFamilyInfo(Views).GetSceneTextures();
 	auto CreateShadowDepthPassUniformBuffer = [this, &VirtualShadowViewsRDG, &GraphBuilder, SceneTextures](bool bClampToNearPlane)
 	{
 		FShadowDepthPassUniformParameters* ShadowDepthPassParameters = GraphBuilder.AllocParameters<FShadowDepthPassUniformParameters>();

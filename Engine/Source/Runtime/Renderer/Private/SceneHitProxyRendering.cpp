@@ -179,9 +179,9 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyPS,TEXT("/Engine/Private/HitProxyPixelS
 
 #if WITH_EDITOR
 
-void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRenderer, FRDGTextureRef& OutHitProxyTexture, FRDGTextureRef& OutHitProxyDepthTexture)
+void InitHitProxyRender(FRDGBuilder& GraphBuilder, FSceneRenderer* SceneRenderer, FRDGTextureRef& OutHitProxyTexture, FRDGTextureRef& OutHitProxyDepthTexture)
 {
-	auto& ViewFamily = *SceneRenderer->ActiveViewFamily;
+	auto& ViewFamily = SceneRenderer->ViewFamily;
 	auto FeatureLevel = ViewFamily.Scene->GetFeatureLevel();
 
 	// Ensure VirtualTexture resources are allocated
@@ -199,7 +199,7 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRe
 
 	const FSceneTexturesConfig& SceneTexturesConfig = ViewFamily.SceneTexturesConfig;
 
-	FMinimalSceneTextures::InitializeViewFamily(GraphBuilder, ViewFamily);
+	FMinimalSceneTextures::InitializeViewFamily(GraphBuilder, SceneRenderer->ViewFamily);
 	const FMinimalSceneTextures& SceneTextures = ViewFamily.GetSceneTextures();
 
 	// Create a texture to store the resolved light attenuation values, and a render-targetable surface to hold the unresolved light attenuation values.
@@ -265,7 +265,7 @@ static void DoRenderHitProxies(
 	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults,
 	FInstanceCullingManager& InstanceCullingManager)
 {
-	auto& ViewFamily = *SceneRenderer->ActiveViewFamily;
+	auto& ViewFamily = SceneRenderer->ViewFamily;
 	auto& Views = SceneRenderer->Views;
 	const auto FeatureLevel = SceneRenderer->FeatureLevel;
 	const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[FeatureLevel]);
@@ -573,7 +573,7 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 #if WITH_EDITOR
-	FSceneTexturesConfig::InitializeViewFamily(*ActiveViewFamily);
+	FSceneTexturesConfig::InitializeViewFamily(ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
@@ -615,7 +615,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 #if WITH_EDITOR
-	FSceneTexturesConfig::InitializeViewFamily(*ActiveViewFamily);
+	FSceneTexturesConfig::InitializeViewFamily(ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 

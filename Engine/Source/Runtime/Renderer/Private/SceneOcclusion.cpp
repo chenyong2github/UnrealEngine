@@ -1380,7 +1380,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 		}
 
 		// Issue occlusion queries. This is done after the downsampled depth buffer is created so that it can be used for issuing queries.
-		FViewOcclusionQueriesPerView QueriesPerView = AllocateOcclusionTests(Scene, ActiveViewFamily->VisibleLightInfos, Views);
+		FViewOcclusionQueriesPerView QueriesPerView = AllocateOcclusionTests(Scene, VisibleLightInfos, Views);
 
 		if (QueriesPerView.Num())
 		{
@@ -1449,7 +1449,7 @@ void FMobileSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList,
 
 	{
 		SCOPED_NAMED_EVENT(FMobileSceneRenderer_BeginOcclusionTests, FColor::Emerald);
-		const FViewOcclusionQueriesPerView QueriesPerView = AllocateOcclusionTests(Scene, ActiveViewFamily->VisibleLightInfos, Views);
+		const FViewOcclusionQueriesPerView QueriesPerView = AllocateOcclusionTests(Scene, VisibleLightInfos, Views);
 
 		if (QueriesPerView.Num())
 		{
@@ -1475,7 +1475,7 @@ void FSceneRenderer::FenceOcclusionTestsInternal(FRHICommandListImmediate& RHICm
 {
 	SCOPE_CYCLE_COUNTER(STAT_OcclusionSubmittedFence_Dispatch);
 
-	if (ActiveViewFamily->bIsMultipleViewFamily)
+	if (ViewFamily.bIsMultipleViewFamily)
 	{
 		// If there are multiple view families, we implement a queue of buffered fences, so we can avoid waiting on queries for
 		// another view family that's rendering in the same frame.  Here we push a new fence into the queue of buffered fences.
@@ -1524,7 +1524,7 @@ void FSceneRenderer::WaitOcclusionTests(FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_OcclusionSubmittedFence_Wait);
 
-		if (ActiveViewFamily->bIsMultipleViewFamily)
+		if (ViewFamily.bIsMultipleViewFamily)
 		{
 			// Count the number of fences in the queue for the view in question
 			const uint32 ViewStateUniqueID = GetViewStateUniqueID(this);

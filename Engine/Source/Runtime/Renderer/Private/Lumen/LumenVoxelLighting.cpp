@@ -1338,7 +1338,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	if (!Lumen::UseVoxelLighting(*ActiveViewFamily))
+	if (!Lumen::UseVoxelLighting(ViewFamily))
 	{
 		// No need for voxel lighting, skip update and release resources
 		View.ViewState->Lumen.VoxelVisBuffer = nullptr;

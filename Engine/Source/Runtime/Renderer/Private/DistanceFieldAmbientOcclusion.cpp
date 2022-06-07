@@ -358,7 +358,7 @@ IMPLEMENT_GLOBAL_SHADER(FComputeDistanceFieldNormalCS, "/Engine/Private/Distance
 
 void ComputeDistanceFieldNormal(
 	FRDGBuilder& GraphBuilder,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	FRDGTextureRef DistanceFieldNormal,
 	const FDistanceFieldAOParameters& Parameters)
@@ -693,11 +693,11 @@ bool FSceneRenderer::ShouldPrepareForDistanceFieldAO() const
 	bool bAnyViewHasGIMethodSupportingDFAO = AnyViewHasGIMethodSupportingDFAO();
 
 	return SupportsDistanceFieldAO(Scene->GetFeatureLevel(), Scene->GetShaderPlatform())
-		&& ((ShouldRenderDeferredDynamicSkyLight(Scene, *ActiveViewFamily) && bAnyViewHasGIMethodSupportingDFAO && Scene->SkyLight->bCastShadows && ActiveViewFamily->EngineShowFlags.DistanceFieldAO)
-			|| ActiveViewFamily->EngineShowFlags.VisualizeMeshDistanceFields
-			|| ActiveViewFamily->EngineShowFlags.VisualizeGlobalDistanceField
-			|| ActiveViewFamily->EngineShowFlags.VisualizeDistanceFieldAO
-			|| (GDistanceFieldAOApplyToStaticIndirect && bAnyViewHasGIMethodSupportingDFAO && ActiveViewFamily->EngineShowFlags.DistanceFieldAO));
+		&& ((ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily) && bAnyViewHasGIMethodSupportingDFAO && Scene->SkyLight->bCastShadows && ViewFamily.EngineShowFlags.DistanceFieldAO)
+			|| ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields
+			|| ViewFamily.EngineShowFlags.VisualizeGlobalDistanceField
+			|| ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO
+			|| (GDistanceFieldAOApplyToStaticIndirect && bAnyViewHasGIMethodSupportingDFAO && ViewFamily.EngineShowFlags.DistanceFieldAO));
 }
 
 bool FSceneRenderer::ShouldPrepareDistanceFieldScene() const
@@ -876,9 +876,9 @@ bool FDeferredShadingSceneRenderer::ShouldRenderDistanceFieldAO() const
 		bShouldRenderRTAO = bShouldRenderRTAO || ShouldRenderRayTracingAmbientOcclusion(Views[ViewIndex]);
 	}
 
-	return ActiveViewFamily->EngineShowFlags.DistanceFieldAO
+	return ViewFamily.EngineShowFlags.DistanceFieldAO
 		&& !bShouldRenderRTAO
-		&& !ActiveViewFamily->EngineShowFlags.VisualizeDistanceFieldAO
-		&& !ActiveViewFamily->EngineShowFlags.VisualizeMeshDistanceFields
-		&& !ActiveViewFamily->EngineShowFlags.VisualizeGlobalDistanceField;
+		&& !ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO
+		&& !ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields
+		&& !ViewFamily.EngineShowFlags.VisualizeGlobalDistanceField;
 }

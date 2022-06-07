@@ -269,8 +269,6 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 {
 	check(GUseClusteredDeferredShading);
 
-	auto& VirtualShadowMapArray = ActiveViewFamily->VirtualShadowMapArray;
-
 	const int32 NumLightsToRender = SortedLightsSet.ClusteredSupportedEnd;
 
 	if (NumLightsToRender > 0)

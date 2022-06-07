@@ -704,7 +704,7 @@ bool FSceneRenderer::ShouldPrepareForDistanceFieldShadows() const
 
 		if (LightSceneInfo->ShouldRenderLightViewIndependent())
 		{
-			const FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
+			const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 
 			for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.AllProjectedShadows.Num(); ShadowIndex++)
 			{
@@ -719,7 +719,7 @@ bool FSceneRenderer::ShouldPrepareForDistanceFieldShadows() const
 		}
 	}
 
-	return ActiveViewFamily->EngineShowFlags.DynamicShadows 
+	return ViewFamily.EngineShowFlags.DynamicShadows 
 		&& bSceneHasRayTracedDFShadows
 		&& SupportsDistanceFieldShadows(Scene->GetFeatureLevel(), Scene->GetShaderPlatform());
 }
@@ -727,7 +727,7 @@ bool FSceneRenderer::ShouldPrepareForDistanceFieldShadows() const
 bool FSceneRenderer::ShouldPrepareHeightFieldScene() const
 {
 	return Scene
-		&& ActiveViewFamily->EngineShowFlags.DynamicShadows
+		&& ViewFamily.EngineShowFlags.DynamicShadows
 		&& SupportsHeightFieldShadows(Scene->GetFeatureLevel(), Scene->GetShaderPlatform());
 }
 

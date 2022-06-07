@@ -583,7 +583,7 @@ void FIndirectLightingCache::FinalizeUpdateInternal_RenderThread(FScene* Scene, 
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_UpdateIndirectLightingCacheTransitions);
-			UpdateTransitionsOverTime(TransitionsOverTimeToUpdate, Renderer.ActiveViewFamily->Time.GetDeltaWorldTimeSeconds());
+			UpdateTransitionsOverTime(TransitionsOverTimeToUpdate, Renderer.ViewFamily.Time.GetDeltaWorldTimeSeconds());
 		}
 
 		for (int32 PrimitiveIndex = 0; PrimitiveIndex < PrimitivesToUpdateStaticMeshes.Num(); ++PrimitiveIndex)
@@ -592,7 +592,7 @@ void FIndirectLightingCache::FinalizeUpdateInternal_RenderThread(FScene* Scene, 
 		}
 	}	
 
-	if (GCacheDrawLightingSamples || Renderer.ActiveViewFamily->EngineShowFlags.VolumeLightingSamples || GCacheDrawDirectionalShadowing)
+	if (GCacheDrawLightingSamples || Renderer.ViewFamily.EngineShowFlags.VolumeLightingSamples || GCacheDrawDirectionalShadowing)
 	{
 		FViewElementPDI DebugPDI(&Renderer.Views[0], nullptr, &Renderer.Views[0].DynamicPrimitiveCollector);
 

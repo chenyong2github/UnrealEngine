@@ -343,7 +343,7 @@ FIntPoint GetTileListGroupSizeForView(const FViewInfo& View)
 void BuildTileObjectLists(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
-	TArrayView<FViewInfo>& Views,
+	TArray<FViewInfo>& Views,
 	FRDGBufferRef ObjectIndirectArguments,
 	const FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
 	FTileIntersectionParameters TileIntersectionParameters,
@@ -354,7 +354,7 @@ void BuildTileObjectLists(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "BuildTileList");
 
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer = GetViewFamily(Views).GetSceneTextures().UniformBuffer;
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer = GetViewFamilyInfo(Views).GetSceneTextures().UniformBuffer;
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

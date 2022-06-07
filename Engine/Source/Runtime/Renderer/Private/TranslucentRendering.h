@@ -135,7 +135,7 @@ ETranslucencyView GetTranslucencyView(const FViewInfo& View);
 ETranslucencyView GetTranslucencyViews(TArrayView<const FViewInfo> Views);
 
 /** Computes the translucency dimensions. */
-FSeparateTranslucencyDimensions UpdateSeparateTranslucencyDimensions(const FViewFamilyInfo& ActiveViewFamily);
+FSeparateTranslucencyDimensions UpdateSeparateTranslucencyDimensions(const FSceneRenderer& SceneRenderer);
 
 /** Returns whether the view family is requesting to render translucency. */
 bool ShouldRenderTranslucency(const FSceneViewFamily& ViewFamily);

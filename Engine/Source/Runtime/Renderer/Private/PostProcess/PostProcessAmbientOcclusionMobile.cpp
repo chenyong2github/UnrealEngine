@@ -451,7 +451,7 @@ FRDGTextureRef CreateMobileScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, const
 		TEXT("ScreenSpaceAO"));
 }
 
-static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture, const TArrayView<FViewInfo>& Views)
+static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture, const TArray<FViewInfo>& Views)
 {
 	static const auto GTAOThicknessBlendCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.GTAO.ThicknessBlend"));
 	static const auto GTAOFalloffStartRatioCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.GTAO.FalloffStartRatio"));
@@ -957,10 +957,10 @@ static void AddMobileAmbientOcclusionPass(
 		});	
 }
 
-static void RenderSSAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture, const TArrayView<FViewInfo>& Views)
+static void RenderSSAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture, const TArray<FViewInfo>& Views)
 {
 	
-	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBufferRDG = CreateMobileSceneTextureUniformBuffer(GraphBuilder, GetViewFamily(Views).GetSceneTexturesChecked(), EMobileSceneTextureSetupMode::SceneDepth);
+	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBufferRDG = CreateMobileSceneTextureUniformBuffer(GraphBuilder, GetViewFamilyInfo(Views).GetSceneTexturesChecked(), EMobileSceneTextureSetupMode::SceneDepth);
 	
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

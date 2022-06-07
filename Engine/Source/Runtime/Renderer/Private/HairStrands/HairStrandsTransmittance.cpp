@@ -996,7 +996,7 @@ static void InternalRenderHairStrandsShadowMask(
 
 void RenderHairStrandsShadowMask(
 	FRDGBuilder& GraphBuilder,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	const FLightSceneInfo* LightSceneInfo,
 	const bool bProjectingForForwardShading,
 	FRDGTextureRef OutShadowMask)
@@ -1027,7 +1027,7 @@ void RenderHairStrandsShadowMask(
 
 void RenderHairStrandsDeepShadowMask(
 	FRDGBuilder& GraphBuilder,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	const FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef OutShadowMask)
 {

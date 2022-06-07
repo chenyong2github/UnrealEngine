@@ -347,7 +347,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			const bool bLastLevel = (HierarchyLevelId + 1) == HierarchyParameters.HierarchyDepth;
 
 			FLumenVoxelTraceProbeCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenVoxelTraceProbeCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, *ActiveViewFamily) && bLastLevel);
+			PermutationVector.Set<FLumenVoxelTraceProbeCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, ViewFamily) && bLastLevel);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceMeshSDFs>(bTraceMeshSDFs);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 			PermutationVector.Set<LumenProbeHierarchy::FProbeTracingPermutationDim>(
@@ -405,7 +405,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 			FIntVector(ProbeOcclusionParameters.DispatchCount, 1, 1));
 	}
 
-	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(*ActiveViewFamily);
+	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(ViewFamily);
 
 	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
 	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);

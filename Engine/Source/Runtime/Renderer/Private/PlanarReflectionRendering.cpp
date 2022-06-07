@@ -288,9 +288,9 @@ static void UpdatePlanarReflectionContents_RenderThread(
 	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	// Make sure we render to the same set of GPUs as the main scene renderer.
-	if (MainSceneRenderer->ActiveViewFamily->RenderTarget != nullptr)
+	if (MainSceneRenderer->ViewFamily.RenderTarget != nullptr)
 	{
-		RenderTarget->SetActiveGPUMask(MainSceneRenderer->ActiveViewFamily->RenderTarget->GetGPUMask(RHICmdList));
+		RenderTarget->SetActiveGPUMask(MainSceneRenderer->ViewFamily.RenderTarget->GetGPUMask(RHICmdList));
 	}
 	else
 	{
@@ -512,7 +512,7 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 	check(CaptureComponent);
 
 	{
-		FIntPoint DesiredBufferSize = FSceneRenderer::GetDesiredInternalBufferSize(*MainSceneRenderer.ActiveViewFamily);
+		FIntPoint DesiredBufferSize = FSceneRenderer::GetDesiredInternalBufferSize(MainSceneRenderer.ViewFamily);
 		FVector2D DesiredPlanarReflectionTextureSizeFloat = FVector2D(DesiredBufferSize.X, DesiredBufferSize.Y) * FMath::Clamp(CaptureComponent->ScreenPercentage / 100.f, 0.25f, 1.f);
 		FIntPoint DesiredPlanarReflectionTextureSize;
 		DesiredPlanarReflectionTextureSize.X = FMath::Clamp(FMath::CeilToInt32(DesiredPlanarReflectionTextureSizeFloat.X), 1, static_cast<int32>(DesiredBufferSize.X));
@@ -624,7 +624,7 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 			.SetRealtimeUpdate(true));
 
 		// Uses the exact same secondary view fraction on the planar reflection as the main viewport.
-		ViewFamily.SecondaryViewFraction = MainSceneRenderer.ActiveViewFamily->SecondaryViewFraction;
+		ViewFamily.SecondaryViewFraction = MainSceneRenderer.ViewFamily.SecondaryViewFraction;
 
 		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(this));
 
@@ -637,14 +637,14 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 			/*ViewActor =*/ nullptr);
 
 		// Fork main renderer's screen percentage interface to have exactly same settings.
-		ViewFamily.EngineShowFlags.ScreenPercentage = MainSceneRenderer.ActiveViewFamily->EngineShowFlags.ScreenPercentage;
+		ViewFamily.EngineShowFlags.ScreenPercentage = MainSceneRenderer.ViewFamily.EngineShowFlags.ScreenPercentage;
 		ViewFamily.SetScreenPercentageInterface(FSceneRenderer::ForkScreenPercentageInterface(
-			MainSceneRenderer.ActiveViewFamily->GetScreenPercentageInterface(), ViewFamily));
+			MainSceneRenderer.ViewFamily.GetScreenPercentageInterface(), ViewFamily));
 
 		FSceneRenderer* SceneRenderer = FSceneRenderer::CreateSceneRenderer(&ViewFamily, nullptr);
 
 		// Disable screen percentage on planar reflection renderer if main one has screen percentage disabled.
-		SceneRenderer->ActiveViewFamily->EngineShowFlags.ScreenPercentage = MainSceneRenderer.ActiveViewFamily->EngineShowFlags.ScreenPercentage;
+		SceneRenderer->ViewFamily.EngineShowFlags.ScreenPercentage = MainSceneRenderer.ViewFamily.EngineShowFlags.ScreenPercentage;
 
 		for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
 		{
@@ -785,7 +785,7 @@ bool FDeferredShadingSceneRenderer::HasDeferredPlanarReflections(const FViewInfo
 	{
 		int32 ViewIndex = INDEX_NONE;
 
-		ActiveViewFamily->Views.Find(&View, ViewIndex);
+		ViewFamily.Views.Find(&View, ViewIndex);
 
 		if (ViewIndex >= GMaxPlanarReflectionViews)
 		{

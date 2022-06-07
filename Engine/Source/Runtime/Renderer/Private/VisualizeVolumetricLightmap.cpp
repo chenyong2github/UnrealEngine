@@ -96,7 +96,7 @@ void FDeferredShadingSceneRenderer::VisualizeVolumetricLightmap(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures)
 {
-	if (!ActiveViewFamily->EngineShowFlags.VisualizeVolumetricLightmap)
+	if (!ViewFamily.EngineShowFlags.VisualizeVolumetricLightmap)
 	{
 		return;
 	}
@@ -135,7 +135,7 @@ void FDeferredShadingSceneRenderer::VisualizeVolumetricLightmap(
 
 		{
 			FVector3f DiffuseColorValue(.18f, .18f, .18f);
-			if (!ActiveViewFamily->EngineShowFlags.Materials)
+			if (!ViewFamily.EngineShowFlags.Materials)
 			{
 				DiffuseColorValue = FVector3f(GEngine->LightingOnlyBrightness);
 			}

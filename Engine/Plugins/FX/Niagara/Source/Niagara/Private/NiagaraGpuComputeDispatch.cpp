@@ -1695,7 +1695,7 @@ void FNiagaraGpuComputeDispatch::PostInitViews(FRDGBuilder& GraphBuilder, TArray
 	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		FNiagaraComputePassParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraComputePassParameters>();
-		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, GetViewFamily(Views).GetSceneTexturesChecked(), PassParameters->SceneTextures);
+		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, GetViewFamilyInfo(Views).GetSceneTexturesChecked(), PassParameters->SceneTextures);
 		PassParameters->View = GetReferenceViewUniformBuffer(Views);
 
 		GraphBuilder.AddPass(
@@ -1732,7 +1732,7 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 		FNiagaraComputePassParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraComputePassParameters>();
 		// TODO: This will cause a fragment->compute barrier on a scene textures which could be costly especially on mobile GPUs
 		// Will be nice to avoid executing this if we know that there are no simulations that require access to a scene textures
-		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, GetViewFamily(Views).GetSceneTexturesChecked(), PassParameters->SceneTextures);
+		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, GetViewFamilyInfo(Views).GetSceneTexturesChecked(), PassParameters->SceneTextures);
 		PassParameters->View = GetReferenceViewUniformBuffer(Views);
 
  		GraphBuilder.AddPass(

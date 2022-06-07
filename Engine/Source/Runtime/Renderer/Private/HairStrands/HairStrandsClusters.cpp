@@ -547,7 +547,7 @@ static void AddClusterResetLod0(
 void ComputeHairStrandsClustersCulling(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap& ShaderMap,
-	const TArrayView<FViewInfo>& Views,
+	const TArray<FViewInfo>& Views,
 	const FHairCullingParams& CullingParameters,
 	FHairStrandClusterData& ClusterDatas)
 {
