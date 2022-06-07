@@ -134,7 +134,7 @@ namespace Horde.Build.Tests
 			// create a new job
 			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), Stream.Id,
 				fixture.TemplateRefId1, fixture.Template.Id, graph, "Test Paused Step Job",
-				1000, 1000, null, null, null, Priority.Highest, null, null, null, null, false,
+				1000, 1000, null, null, null, null, Priority.Highest, null, null, null, null, false,
 				false, null, null, new List<string> { "-Target=" + "Step That Depends on Paused Step;Step That Depends on Update Version Files" });
 
 			// validate
