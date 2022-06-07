@@ -673,7 +673,7 @@ namespace UnrealBuildTool
 
 			if (IsTestTarget)
 			{
-				Rules = new TestTargetRules(Rules, TargetInfo);
+				Rules = TestTargetRules.Create(Rules, TargetInfo);
 			}
 
 			return Rules;

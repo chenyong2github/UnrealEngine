@@ -3888,6 +3888,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.Definitions.Add("WITH_PERF_AUTOMATION_TESTS=" + (bCompilePerfTests ? "1" : "0"));
 
 			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_LOW_LEVEL_TESTS={0}", Rules.WithLowLevelTests ? "1" : "0"));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_TESTS={0}", Rules.WithLowLevelTests || bCompileDevTests || bCompilePerfTests ? "1" : "0"));
 
 			GlobalCompileEnvironment.Definitions.Add("UNICODE");
 			GlobalCompileEnvironment.Definitions.Add("_UNICODE");

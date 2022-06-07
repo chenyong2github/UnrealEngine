@@ -18,6 +18,38 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 
+CORE_API const TMap<FString, EAutomationTestFlags::Type>& EAutomationTestFlags::GetTestFlagsMap()
+{
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest"));
+	/** String to EAutomationTestFlags map */
+	static const TMap<FString, Type> FlagsMap = {
+		{ TEXT("EditorContext"), Type::EditorContext},
+		{ TEXT("ClientContext"), Type::ClientContext},
+		{ TEXT("ServerContext"), Type::ServerContext},
+		{ TEXT("CommandletContext"), Type::CommandletContext},
+		{ TEXT("ApplicationContextMask"), Type::ApplicationContextMask},
+		{ TEXT("NonNullRHI"), Type::NonNullRHI},
+		{ TEXT("RequiresUser"), Type::RequiresUser},
+		{ TEXT("FeatureMask"), Type::FeatureMask},
+		{ TEXT("Disabled"), Type::Disabled},
+		{ TEXT("CriticalPriority"), Type::CriticalPriority},
+		{ TEXT("HighPriority"), Type::HighPriority},
+		{ TEXT("HighPriorityAndAbove"), Type::HighPriorityAndAbove},
+		{ TEXT("MediumPriority"), Type::MediumPriority},
+		{ TEXT("MediumPriorityAndAbove"), Type::MediumPriorityAndAbove},
+		{ TEXT("LowPriority"), Type::LowPriority},
+		{ TEXT("PriorityMask"), Type::PriorityMask},
+		{ TEXT("SmokeFilter"), Type::SmokeFilter},
+		{ TEXT("EngineFilter"), Type::EngineFilter},
+		{ TEXT("ProductFilter"), Type::ProductFilter},
+		{ TEXT("PerfFilter"), Type::PerfFilter},
+		{ TEXT("StressFilter"), Type::StressFilter},
+		{ TEXT("NegativeFilter"), Type::NegativeFilter},
+		{ TEXT("FilterMask"), Type::FilterMask}
+	};
+	return FlagsMap;
+};
+
 /*
 	Determine the level that a log item should be written to the automation log based on the properties of the current test. 
 	only Display/Warning/Error are supported in the automation log so anything with NoLogging/Log will not be shown

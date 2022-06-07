@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using System;
 using System.IO;
+using System.Reflection;
+using System.Runtime.Serialization;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -98,6 +101,35 @@ namespace UnrealBuildTool
 				bBuildInSolutionByDefault = true;
 				SolutionDirectory = "Programs/LowLevelTests";
 			}
+		}
+
+		/// <summary>
+		/// Constructs a valid TestTargetRules instance from an existent TargetRules instance.
+		/// </summary>
+		public static TestTargetRules Create(TargetRules Rules, TargetInfo TargetInfo)
+		{
+			Type TestTargetRulesType = typeof(TestTargetRules);
+			TestTargetRules TestRules = (TestTargetRules)FormatterServices.GetUninitializedObject(TestTargetRulesType);
+
+			// Initialize the logger before calling the constructor
+			TestRules.Logger = Rules.Logger;
+
+			ConstructorInfo? Constructor = TestTargetRulesType.GetConstructor(new Type[] { typeof(TargetRules), typeof(TargetInfo) });
+			if (Constructor == null)
+			{
+				throw new BuildException("No constructor found on {0} which takes first argument of type TargetRules and second of type TargetInfo.", TestTargetRulesType.Name);
+			}
+
+			try
+			{
+				Constructor.Invoke(TestRules, new object[] { Rules, TargetInfo });
+			}
+			catch (Exception Ex)
+			{
+				throw new BuildException(Ex, "Unable to instantiate instance of '{0}' object type from compiled assembly '{1}'.  Unreal Build Tool creates an instance of your module's 'Rules' object in order to find out about your module's requirements.  The CLR exception details may provide more information:  {2}", TestTargetRulesType.Name, Path.GetFileNameWithoutExtension(TestTargetRulesType.Assembly?.Location), Ex.ToString());
+			}
+
+			return TestRules;
 		}
 
 		/// <summary>

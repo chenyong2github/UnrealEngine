@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Containers/Deque.h"
 #include "CoreMinimal.h"
 #include "TokenTest.h"
 #include "TestUtils.h"
-#include "TestHarness.h"
+
+#include "Tests/TestHarness.h"
 
 namespace Deque
 { 
@@ -85,7 +86,7 @@ bool Test::EmplaceFirstPopLast(TDeque<int32Token>& Deque, int32 Count)
 // Unit tests
 //---------------------------------------------------------------------------------------------------------------------
 
-TEST_CASE("Core::Containers::TDeque::Reserve without data", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Reserve without data", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	TDeque<int32Token> Deque;
@@ -99,7 +100,7 @@ TEST_CASE("Core::Containers::TDeque::Reserve without data", "[Core][Containers][
 	CHECK(int32Token::EvenConstructionDestructionCalls(0));
 }
 
-TEST_CASE("Core::Containers::TDeque::Reserve EmplaceLast single element", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Reserve EmplaceLast single element", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -118,7 +119,7 @@ TEST_CASE("Core::Containers::TDeque::Reserve EmplaceLast single element", "[Core
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE("Core::Containers::TDeque::Reset", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Reset", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -139,7 +140,7 @@ TEST_CASE("Core::Containers::TDeque::Reset", "[Core][Containers][Deque]")
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE("Core::Containers::TDeque::Empty", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Empty", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -152,7 +153,7 @@ TEST_CASE("Core::Containers::TDeque::Empty", "[Core][Containers][Deque]")
 	CHECK(int32Token::EvenConstructionDestructionCalls(0));
 }
 
-TEST_CASE("Core::Containers::TDeque::Empty after single element EmplaceLast", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Empty after single element EmplaceLast", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -169,7 +170,7 @@ TEST_CASE("Core::Containers::TDeque::Empty after single element EmplaceLast", "[
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceLast single element", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceLast single element", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -185,7 +186,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceLast single element", "[Core][Contai
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceLast range to capacity", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceLast range to capacity", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -204,7 +205,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceLast range to capacity", "[Core][Con
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * 10));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceLast range past capacity", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceLast range past capacity", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -226,7 +227,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceLast range past capacity", "[Core][C
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity + 1));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceFirst single element", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceFirst single element", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -242,7 +243,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceFirst single element", "[Core][Conta
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceFirst range to capacity", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceFirst range to capacity", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -261,7 +262,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceFirst range to capacity", "[Core][Co
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * 10));
 }
 
-TEST_CASE("Core::Containers::TDeque::PushLast single element (implicit move)", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::PushLast single element (implicit move)", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -280,7 +281,7 @@ TEST_CASE("Core::Containers::TDeque::PushLast single element (implicit move)", "
 	CHECK(int32Token::NumMoveConstructorCalls() == 1);
 }
 
-TEST_CASE("Core::Containers::TDeque::PushLast single element from move", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::PushLast single element from move", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -300,7 +301,7 @@ TEST_CASE("Core::Containers::TDeque::PushLast single element from move", "[Core]
 	CHECK(int32Token::NumMoveConstructorCalls() == 1);
 }
 
-TEST_CASE("Core::Containers::TDeque::PushLast single element from copy", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::PushLast single element from copy", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -320,7 +321,7 @@ TEST_CASE("Core::Containers::TDeque::PushLast single element from copy", "[Core]
 	CHECK(int32Token::NumMoveConstructorCalls() == 0);
 }
 
-TEST_CASE("Core::Containers::TDeque::PushFirst single element (implicit move)", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::PushFirst single element (implicit move)", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -339,7 +340,7 @@ TEST_CASE("Core::Containers::TDeque::PushFirst single element (implicit move)", 
 	CHECK(int32Token::NumMoveConstructorCalls() == 1);
 }
 
-TEST_CASE("Core::Containers::TDeque::PushFirst single element from move", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::PushFirst single element from move", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -359,7 +360,7 @@ TEST_CASE("Core::Containers::TDeque::PushFirst single element from move", "[Core
 	CHECK(int32Token::NumMoveConstructorCalls() == 1);
 }
 
-TEST_CASE("Core::Containers::TDeque::PushFirst single element from copy", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::PushFirst single element from copy", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -384,7 +385,7 @@ void PopOne(TDeque<int32Token>& Deque)
 	Deque.PopFirst();
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst single element", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceLast/PopFirst single element", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -404,7 +405,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst single element", "[Cor
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst single element multiple times causing head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceLast/PopFirst single element multiple times causing head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -420,7 +421,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst single element multipl
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * 2));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst range without head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceLast/PopFirst range without head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -432,7 +433,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst range without head/tai
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst range with reallocation without head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceLast/PopFirst range with reallocation without head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -445,7 +446,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst range with reallocatio
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity + 1));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst range with head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceLast/PopFirst range with head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -460,7 +461,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceLast/PopFirst range with head/tail w
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * (Test::DefaultCapacity - 1)));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceFirst/PopLast single element", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceFirst/PopLast single element", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -480,7 +481,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceFirst/PopLast single element", "[Cor
 	CHECK(int32Token::EvenConstructionDestructionCalls(1));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceFirst/PopLast range", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceFirst/PopLast range", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -492,7 +493,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceFirst/PopLast range", "[Core][Contai
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity));
 }
 
-TEST_CASE("Core::Containers::TDeque::EmplaceFirst/PopLast range with reallocation", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::EmplaceFirst/PopLast range with reallocation", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -505,7 +506,7 @@ TEST_CASE("Core::Containers::TDeque::EmplaceFirst/PopLast range with reallocatio
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity + 1));
 }
 
-TEST_CASE("Core::Containers::TDeque::TryPopFirst", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::TryPopFirst", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -528,7 +529,7 @@ TEST_CASE("Core::Containers::TDeque::TryPopFirst", "[Core][Containers][Deque]")
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity + 1));  // + 1 for Result
 }
 
-TEST_CASE("Core::Containers::TDeque::TryPopFirst with reallocation", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::TryPopFirst with reallocation", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -554,7 +555,7 @@ TEST_CASE("Core::Containers::TDeque::TryPopFirst with reallocation", "[Core][Con
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity + 2));
 }
 
-TEST_CASE("Core::Containers::TDeque::TryPopLast", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::TryPopLast", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -577,7 +578,7 @@ TEST_CASE("Core::Containers::TDeque::TryPopLast", "[Core][Containers][Deque]")
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity + 1));  // + 1 for Result
 }
 
-TEST_CASE("Core::Containers::TDeque::TryPopLast with reallocation", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::TryPopLast with reallocation", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -603,7 +604,7 @@ TEST_CASE("Core::Containers::TDeque::TryPopLast with reallocation", "[Core][Cont
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity + 2));
 }
 
-TEST_CASE("Core::Containers::TDeque::Comparison simple", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Comparison simple", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -622,7 +623,7 @@ TEST_CASE("Core::Containers::TDeque::Comparison simple", "[Core][Containers][Deq
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * 2));
 }
 
-TEST_CASE("Core::Containers::TDeque::Comparison with head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Comparison with head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -650,7 +651,7 @@ TEST_CASE("Core::Containers::TDeque::Comparison with head/tail wrap around", "[C
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * 6));
 }
 
-TEST_CASE("Core::Containers::TDeque::Copy simple", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Copy simple", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -668,7 +669,7 @@ TEST_CASE("Core::Containers::TDeque::Copy simple", "[Core][Containers][Deque]")
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * 2));
 }
 
-TEST_CASE("Core::Containers::TDeque::Copy with head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Copy with head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -691,7 +692,7 @@ TEST_CASE("Core::Containers::TDeque::Copy with head/tail wrap around", "[Core][C
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * 9));
 }
 
-TEST_CASE("Core::Containers::TDeque::Copy variable size with head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Copy variable size with head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -719,7 +720,7 @@ TEST_CASE("Core::Containers::TDeque::Copy variable size with head/tail wrap arou
 	CHECK(int32Token::EvenConstructionDestructionCalls());
 }
 
-TEST_CASE("Core::Containers::TDeque::Move simple", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Move simple", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -743,7 +744,7 @@ TEST_CASE("Core::Containers::TDeque::Move simple", "[Core][Containers][Deque]")
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity + 1));
 }
 
-TEST_CASE("Core::Containers::TDeque::Move with head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Move with head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -771,7 +772,7 @@ TEST_CASE("Core::Containers::TDeque::Move with head/tail wrap around", "[Core][C
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * 6));
 }
 
-TEST_CASE("Core::Containers::TDeque::Move variable size with head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Move variable size with head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -803,7 +804,7 @@ TEST_CASE("Core::Containers::TDeque::Move variable size with head/tail wrap arou
 	CHECK(int32Token::EvenConstructionDestructionCalls());
 }
 
-TEST_CASE("Core::Containers::TDeque::Iteration without head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Iteration without head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -828,7 +829,7 @@ TEST_CASE("Core::Containers::TDeque::Iteration without head/tail wrap around", "
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity));
 }
 
-TEST_CASE("Core::Containers::TDeque::Iteration with head/tail wrap around", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Iteration with head/tail wrap around", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -858,7 +859,7 @@ TEST_CASE("Core::Containers::TDeque::Iteration with head/tail wrap around", "[Co
 	CHECK(int32Token::EvenConstructionDestructionCalls(Test::DefaultCapacity * (Test::DefaultCapacity + 1)));
 }
 
-TEST_CASE("Core::Containers::TDeque::Iterator arithmetic", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Iterator arithmetic", "[SmokeFilter][Core][Containers][Deque]")
 {
 	TDeque<int32Token> Deque;
 	Deque.Reserve(Test::DefaultCapacity);
@@ -885,7 +886,7 @@ TEST_CASE("Core::Containers::TDeque::Iterator arithmetic", "[Core][Containers][D
 	}
 }
 
-TEST_CASE("Core::Containers::TDeque::Construct from std initializer_list", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Construct from std initializer_list", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -901,7 +902,7 @@ TEST_CASE("Core::Containers::TDeque::Construct from std initializer_list", "[Cor
 	CHECK(int32Token::EvenConstructionDestructionCalls(6 * 2 + 1));
 }
 
-TEST_CASE("Core::Containers::TDeque::Construct from empty std initializer_list", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Construct from empty std initializer_list", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{
@@ -911,7 +912,7 @@ TEST_CASE("Core::Containers::TDeque::Construct from empty std initializer_list",
 	CHECK(int32Token::EvenConstructionDestructionCalls(0));
 }
 
-TEST_CASE("Core::Containers::TDeque::Assign from std initializer_list", "[Core][Containers][Deque]")
+TEST_CASE("System::Core::Containers::TDeque::Assign from std initializer_list", "[SmokeFilter][Core][Containers][Deque]")
 {
 	int32Token::Reset();
 	{

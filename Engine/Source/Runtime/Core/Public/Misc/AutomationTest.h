@@ -109,38 +109,7 @@ struct EAutomationTestFlags
 		FilterMask = SmokeFilter | EngineFilter | ProductFilter | PerfFilter | StressFilter | NegativeFilter
 	};
 
-	static const TMap<FString, Type>& GetTestFlagsMap()
-	{
-		LLM_SCOPE_BYNAME(TEXT("AutomationTest"));
-		/** String to EAutomationTestFlags map */
-		static const TMap<FString, Type> FlagsMap = {
-			{ TEXT("EditorContext"), Type::EditorContext},
-			{ TEXT("ClientContext"), Type::ClientContext},
-			{ TEXT("ServerContext"), Type::ServerContext},
-			{ TEXT("CommandletContext"), Type::CommandletContext},
-			{ TEXT("ApplicationContextMask"), Type::ApplicationContextMask},
-			{ TEXT("NonNullRHI"), Type::NonNullRHI},
-			{ TEXT("RequiresUser"), Type::RequiresUser},
-			{ TEXT("FeatureMask"), Type::FeatureMask},
-			{ TEXT("Disabled"), Type::Disabled},
-			{ TEXT("CriticalPriority"), Type::CriticalPriority},
-			{ TEXT("HighPriority"), Type::HighPriority},
-			{ TEXT("HighPriorityAndAbove"), Type::HighPriorityAndAbove},
-			{ TEXT("MediumPriority"), Type::MediumPriority},
-			{ TEXT("MediumPriorityAndAbove"), Type::MediumPriorityAndAbove},
-			{ TEXT("LowPriority"), Type::LowPriority},
-			{ TEXT("PriorityMask"), Type::PriorityMask},
-			{ TEXT("SmokeFilter"), Type::SmokeFilter},
-			{ TEXT("EngineFilter"), Type::EngineFilter},
-			{ TEXT("ProductFilter"), Type::ProductFilter},
-			{ TEXT("PerfFilter"), Type::PerfFilter},
-			{ TEXT("SmokeFilter"), Type::SmokeFilter},
-			{ TEXT("StressFilter"), Type::StressFilter},
-			{ TEXT("NegativeFilter"), Type::NegativeFilter},
-			{ TEXT("FilterMask"), Type::FilterMask}
-		};
-		return FlagsMap;
-	}
+	static CORE_API const TMap<FString, Type>& GetTestFlagsMap();
 
 	static const Type FromString(FString Name)
 	{
@@ -3136,48 +3105,6 @@ public: \
 		virtual FString GetBeautifiedTestName() const override { return PrettyName; } \
 	};
 
-/**
-* This macro works the same way IMPLEMENT_SIMPLE_AUTOMATION_TEST_PRIVATE does with the following specifications:
-*	- TFalgs is expected to be declared as a string and it can include extra test tags along with EAutomationTestFlags flags
-		e.g. "[Flag_1]...[Flag_n][Tag_1][Tag_2]...[Tag_m]". The flags will be converted to an appropriate combined EAutomationTestFlags value
-*	- PrettyName is declared using double column notation "Namespace_1::Namespace_2:: ... ::Namespace_n::TestName"
-*		and it is converted to its dot notation "Namespace_1.Namespace_2. ... .Namespace_n.TestName"
-*	- It is mainly used when declaring tests that can run both as Low Level Tests with Catch2 or Functional Tests with FAutomationTestFramework
-*/
-#define IMPLEMENT_SIMPLE_AUTOMATION_TEST_PRIVATE_LLT( TClass, TBaseClass, PrettyName, TFlags, FileName, LineNumber ) \
-	class TClass : public TBaseClass \
-	{ \
-	public: \
-		TClass( const FString& InName ) \
-		:TBaseClass( InName, false ) {\
-			TestFlags = ExtractAutomationTestFlags(TFlags);\
-			PrettyNameDotNotation = PrettyName.Replace(TEXT("::"), TEXT("."));\
-			assert(TestFlags & EAutomationTestFlags::ApplicationContextMask, "AutomationTest has no application flag.  It shouldn't run.  See AutomationTest.h."); \
-			assert(	((TestFlags & EAutomationTestFlags::FilterMask) == EAutomationTestFlags::SmokeFilter) || \
-					((TestFlags & EAutomationTestFlags::FilterMask) == EAutomationTestFlags::EngineFilter) || \
-					((TestFlags & EAutomationTestFlags::FilterMask) == EAutomationTestFlags::ProductFilter) || \
-					((TestFlags & EAutomationTestFlags::FilterMask) == EAutomationTestFlags::PerfFilter) || \
-					((TestFlags & EAutomationTestFlags::FilterMask) == EAutomationTestFlags::StressFilter) || \
-					((TestFlags & EAutomationTestFlags::FilterMask) == EAutomationTestFlags::NegativeFilter), \
-					"All AutomationTests must have exactly 1 filter type specified.  See AutomationTest.h."); \
-		} \
-		virtual uint32 GetTestFlags() const override { return TestFlags; } \
-		virtual bool IsStressTest() const { return false; } \
-		virtual uint32 GetRequiredDeviceNum() const override { return 1; } \
-		virtual FString GetTestSourceFileName() const override { return FileName; } \
-		virtual int32 GetTestSourceFileLine() const override { return LineNumber; } \
-	protected: \
-		virtual void GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const override \
-		{ \
-			OutBeautifiedNames.Add(PrettyNameDotNotation)); \
-			OutTestCommands.Add(FString()); \
-		} \
-		virtual bool RunTest(const FString& Parameters) override; \
-		virtual FString GetBeautifiedTestName() const override { return PrettyNameDotNotation; } \
-	private: \
-		uint32 TestFlags;\
-		FString PrettyNameDotNotation;\
-	};
 
 
 #define IMPLEMENT_COMPLEX_AUTOMATION_TEST_PRIVATE( TClass, TBaseClass, PrettyName, TFlags, FileName, LineNumber ) \
