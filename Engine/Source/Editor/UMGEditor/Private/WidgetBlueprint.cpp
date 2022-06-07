@@ -657,12 +657,29 @@ void UWidgetBlueprint::ReplaceDeprecatedNodes()
 												return bHasMatch;
 											};
 
+											bool bFoundMatchingParam = false;
 											for (TFieldIterator<FFloatProperty> It(DelegateFunction); It; ++It)
 											{
 												if (OutputParameterMatchesPin(*It))
 												{
 													Pin->PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+													bFoundMatchingParam = true;
 													break;
+												}
+											}
+
+											if (bFoundMatchingParam)
+											{
+												UK2Node_FunctionResult* FunctionResultNode = CastChecked<UK2Node_FunctionResult>(Node);
+												for (TSharedPtr<FUserPinInfo>& UserPin : FunctionResultNode->UserDefinedPins)
+												{
+													check(UserPin);
+													if (UserPin->PinName == PinName)
+													{
+														check(UserPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Real);
+														UserPin->PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+														break;
+													}
 												}
 											}
 
