@@ -243,11 +243,26 @@ void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channe
 	//       of channels. We have to be careful to ensure that we reuse existing items that may have been added
 	//       to the outliner from a previously built section.
 
-	TSharedPtr<FChannelGroupModel> OutlinerModel = OutlinerList.FindItem<FChannelGroupModel>(ChannelNamePredicate);
+	TSharedPtr<FChannelGroupModel> OutlinerModel;
+	if (bIsTopLevel)
+	{
+		OutlinerModel = OutlinerList.FindItem<FChannelGroupModel>(ChannelNamePredicate);
+	}
+	else
+	{
+		OutlinerModel = OutlinerList.FindItem<FChannelGroupOutlinerModel>(ChannelNamePredicate);
+	}
+
 	if (!OutlinerModel)
 	{
-		OutlinerModel = MakeShared<FChannelGroupModel>(ChannelName, MetaData->DisplayText);
-		OutlinerModel->SetForceFilteredOut(bIsTopLevel);
+		if (bIsTopLevel)
+		{
+			OutlinerModel = MakeShared<FChannelGroupModel>(ChannelName, MetaData->DisplayText);
+		}
+		else
+		{
+			OutlinerModel = MakeShared<FChannelGroupOutlinerModel>(ChannelName, MetaData->DisplayText);
+		}
 	}
 
 	OutlinerList.Link(OutlinerModel);

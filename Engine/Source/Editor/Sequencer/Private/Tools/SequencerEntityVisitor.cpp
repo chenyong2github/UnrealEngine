@@ -166,7 +166,7 @@ void FSequencerEntityWalker::VisitAnyChannels(const ISequencerEntityVisitor& Vis
 	if (ChannelGroup)
 	{
 		const IOutlinerExtension* OutlinerItem = ChannelGroup->CastThis<IOutlinerExtension>();
-		if (OutlinerItem->IsFilteredOut() == false)
+		if (!OutlinerItem || OutlinerItem->IsFilteredOut() == false)
 		{
 			for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : ChannelGroup->GetChannels())
 			{

@@ -25,9 +25,8 @@ namespace Sequencer
 
 class FSequencerEditorViewModel;
 
-class SEQUENCER_API FOutlinerItemModel
-	: public FViewModel
-	, public FOutlinerExtensionShim
+class SEQUENCER_API FOutlinerItemModelMixin
+	: public FOutlinerExtensionShim
 	, public FGeometryExtensionShim
 	, public FPinnableExtensionShim
 	, public FHoveredExtensionShim
@@ -39,9 +38,9 @@ class SEQUENCER_API FOutlinerItemModel
 {
 public:
 
-	UE_SEQUENCER_DECLARE_CASTABLE(FOutlinerItemModel, FViewModel, IOutlinerExtension, IGeometryExtension, IPinnableExtension, IHoveredExtension, IDimmableExtension, IMutableExtension, ISoloableExtension, ICurveEditorTreeItemExtension);
+	using Implements = TImplements<IOutlinerExtension, IGeometryExtension, IPinnableExtension, IHoveredExtension, IDimmableExtension, IMutableExtension, ISoloableExtension, ICurveEditorTreeItemExtension>;
 
-	FOutlinerItemModel();
+	FOutlinerItemModelMixin();
 
 	TSharedPtr<FSequencerEditorViewModel> GetEditor() const;
 
@@ -91,8 +90,14 @@ protected:
 	/** Set expansion state without saving it in the movie-scene data */
 	void SetExpansionWithoutSaving(bool bInIsExpanded);
 
+private:
+
+	virtual FViewModel* AsViewModel() = 0;
+	virtual const FViewModel* AsViewModel() const = 0;
+
 protected:
 	FViewModelListHead OutlinerChildList;
+
 private:
 
 	bool IsRootModelPinned() const;
@@ -106,11 +111,44 @@ private:
 
 private:
 
+	ICastable* CastableThis;
 	FName TreeItemIdentifier;
 	FCurveEditorTreeItemID CurveEditorItemID;
 	mutable bool bInitializedExpansion;
 	mutable bool bInitializedPinnedState;
 	bool bIsForcedFilteredOut;
+};
+
+template<typename BaseType>
+class TOutlinerModelMixin : public BaseType, public FOutlinerItemModelMixin
+{
+public:
+	TOutlinerModelMixin()
+	{
+		this->RegisterChildList(&this->OutlinerChildList);
+	}
+
+	template<typename... ArgTypes>
+	TOutlinerModelMixin(ArgTypes&&... InArgs)
+		: BaseType(Forward<ArgTypes>(InArgs)...)
+	{
+		this->RegisterChildList(&this->OutlinerChildList);
+	}
+
+	TOutlinerModelMixin(const TOutlinerModelMixin<BaseType>&) = delete;
+	TOutlinerModelMixin<BaseType> operator=(const TOutlinerModelMixin<BaseType>&) = delete;
+
+	TOutlinerModelMixin(TOutlinerModelMixin<BaseType>&&) = delete;
+	TOutlinerModelMixin<BaseType> operator=(TOutlinerModelMixin<BaseType>&&) = delete;
+
+	virtual FViewModel* AsViewModel() { return this; }
+	virtual const FViewModel* AsViewModel() const { return this; }
+};
+
+class SEQUENCER_API FOutlinerItemModel : public TOutlinerModelMixin<FViewModel>
+{
+public:
+	UE_SEQUENCER_DECLARE_CASTABLE(FOutlinerItemModel, FOutlinerItemModelMixin);
 };
 
 } // namespace Sequencer

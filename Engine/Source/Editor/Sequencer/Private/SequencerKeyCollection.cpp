@@ -17,7 +17,8 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodes(con
 	{
 		for (TViewModelPtr<const FChannelGroupModel> ChannelGroupModel : Node->GetChildrenOfType<FChannelGroupModel>())
 		{
-			if (ChannelGroupModel->IsFilteredOut() == false)
+			const IOutlinerExtension* OutlinerExtension = ChannelGroupModel->CastThis<IOutlinerExtension>();
+			if (!OutlinerExtension || OutlinerExtension->IsFilteredOut() == false)
 			{
 				for (const TSharedRef<IKeyArea>& KeyArea : ChannelGroupModel->GetAllKeyAreas())
 				{
@@ -45,7 +46,8 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodesRecu
 		const bool bIncludeThis = true;
 		for (const TViewModelPtr<FChannelGroupModel>& KeyAreaNode : Node->GetDescendantsOfType<FChannelGroupModel>(bIncludeThis))
 		{
-			if (KeyAreaNode->IsFilteredOut() == false)
+			IOutlinerExtension* OutlinerExtension = KeyAreaNode->CastThis<IOutlinerExtension>();
+			if (!OutlinerExtension || OutlinerExtension->IsFilteredOut() == false)
 			{
 				AllKeyAreaNodes.Add(KeyAreaNode);
 			}
@@ -75,7 +77,8 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodeRecur
 	AllKeyAreaNodes.Reserve(36);
 	for (TSharedPtr<FChannelGroupModel> KeyAreaNode : InNode->GetDescendantsOfType<FChannelGroupModel>(true))
 	{
-		if (KeyAreaNode->IsFilteredOut() == false)
+		IOutlinerExtension* OutlinerExtension = KeyAreaNode->CastThis<IOutlinerExtension>();
+		if (!OutlinerExtension || OutlinerExtension->IsFilteredOut() == false)
 		{
 			AllKeyAreaNodes.Add(KeyAreaNode);
 		}

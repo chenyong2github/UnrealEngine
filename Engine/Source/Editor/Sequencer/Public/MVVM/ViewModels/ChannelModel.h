@@ -81,14 +81,12 @@ private:
  * For instance, this represents the "Location.X" entry in the Sequencer outliner.
  */
 class FChannelGroupModel
-	: public FOutlinerItemModel
+	: public FViewModel
 	, public ITrackAreaExtension
-	, public ICompoundOutlinerExtension
-	, public IDeletableExtension
 {
 public:
 
-	UE_SEQUENCER_DECLARE_CASTABLE(FChannelGroupModel, FOutlinerItemModel, ITrackAreaExtension, ICompoundOutlinerExtension, IDeletableExtension);
+	UE_SEQUENCER_DECLARE_CASTABLE(FChannelGroupModel, FViewModel, ITrackAreaExtension);
 
 	FChannelGroupModel(FName InChannelName, const FText& InDisplayText);
 	~FChannelGroupModel();
@@ -124,6 +122,39 @@ public:
 
 public:
 
+	/*~ ITrackAreaExtension */
+	FTrackAreaParameters GetTrackAreaParameters() const override;
+	FViewModelVariantIterator GetTrackAreaModelList() const override;
+
+	void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels);
+	bool HasCurves() const;
+
+protected:
+
+	TArray<TWeakViewModelPtr<FChannelModel>> Channels;
+	FName ChannelName;
+	FText DisplayText;
+};
+
+
+/**
+ * Model for the outliner entry associated with all sections' channels of a given common name.
+ * For instance, this represents the "Location.X" entry in the Sequencer outliner.
+ */
+class FChannelGroupOutlinerModel
+	: public TOutlinerModelMixin<FChannelGroupModel>
+	, public ICompoundOutlinerExtension
+	, public IDeletableExtension
+{
+public:
+
+	UE_SEQUENCER_DECLARE_CASTABLE(FChannelGroupOutlinerModel, FChannelGroupModel, FOutlinerItemModelMixin, ICompoundOutlinerExtension, IDeletableExtension);
+
+	FChannelGroupOutlinerModel(FName InChannelName, const FText& InDisplayText);
+	~FChannelGroupOutlinerModel();
+
+public:
+
 	/*~ ICompoundOutlinerExtension */
 	FOutlinerSizing RecomputeSizing() override;
 
@@ -133,10 +164,6 @@ public:
 	FSlateFontInfo GetLabelFont() const override;
 	TSharedRef<SWidget> CreateOutlinerView(const FCreateOutlinerViewParams& InParams) override;
 
-	/*~ ITrackAreaExtension */
-	FTrackAreaParameters GetTrackAreaParameters() const override;
-	FViewModelVariantIterator GetTrackAreaModelList() const override;
-
 	/*~ ICurveEditorTreeItem */
 	void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels) override;
 
@@ -144,16 +171,12 @@ public:
 	bool CanDelete(FText* OutErrorMessage) const override;
 	void Delete() override;
 
-	/*~ FOutlinerItemModel */
+	/*~ ICurveEditorTreeItemExtension */
 	bool HasCurves() const override;
 
 private:
 
 	EVisibility GetKeyEditorVisibility() const;
-
-	TArray<TWeakViewModelPtr<FChannelModel>> Channels;
-	FName ChannelName;
-	FText DisplayText;
 	FOutlinerSizing ComputedSizing;
 };
 

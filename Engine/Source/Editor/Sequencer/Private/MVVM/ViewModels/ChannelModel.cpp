@@ -76,7 +76,6 @@ FChannelGroupModel::FChannelGroupModel(FName InChannelName, const FText& InDispl
 	: ChannelName(InChannelName)
 	, DisplayText(InDisplayText)
 {
-	SetIdentifier(InChannelName);
 }
 
 FChannelGroupModel::~FChannelGroupModel()
@@ -159,40 +158,6 @@ TArray<TSharedRef<IKeyArea>> FChannelGroupModel::GetAllKeyAreas() const
 	return KeyAreas;
 }
 
-FOutlinerSizing FChannelGroupModel::RecomputeSizing()
-{
-	FOutlinerSizing MaxSizing;
-
-	for (TWeakViewModelPtr<FChannelModel> WeakChannel : Channels)
-	{
-		if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
-		{
-			FOutlinerSizing Desired = Channel->GetDesiredSizing();
-
-			MaxSizing.Height = FMath::Max(MaxSizing.Height, Desired.Height);
-			MaxSizing.PaddingTop = FMath::Max(MaxSizing.PaddingTop, Desired.PaddingTop);
-			MaxSizing.PaddingBottom = FMath::Max(MaxSizing.PaddingBottom, Desired.PaddingBottom);
-		}
-	}
-
-	ComputedSizing = MaxSizing;
-
-	for (TWeakViewModelPtr<FChannelModel> WeakChannel : Channels)
-	{
-		if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
-		{
-			Channel->SetComputedSizing(MaxSizing);
-		}
-	}
-
-	return MaxSizing;
-}
-
-FOutlinerSizing FChannelGroupModel::GetOutlinerSizing() const
-{
-	return ComputedSizing;
-}
-
 FTrackAreaParameters FChannelGroupModel::GetTrackAreaParameters() const
 {
 	FTrackAreaParameters Parameters;
@@ -203,64 +168,6 @@ FTrackAreaParameters FChannelGroupModel::GetTrackAreaParameters() const
 FViewModelVariantIterator FChannelGroupModel::GetTrackAreaModelList() const
 {
 	return &Channels;
-}
-
-TSharedRef<SWidget> FChannelGroupModel::CreateOutlinerView(const FCreateOutlinerViewParams& InParams)
-{
-	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
-
-	return SNew(SOutlinerItemViewBase, SharedThis(this), InParams.Editor, InParams.TreeViewRow)
-	.CustomContent()
-	[
-		// Even if this key area node doesn't have any key areas right now, it may in the future
-		// so we always create the switcher, and just hide it if it is not relevant
-		SNew(SHorizontalBox)
-		.Visibility(this, &FChannelGroupModel::GetKeyEditorVisibility)
-
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SKeyAreaEditorSwitcher, SharedThis(this), EditorViewModel->GetSequencer())
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SSequencerKeyNavigationButtons, SharedThis(this), EditorViewModel->GetSequencer())
-		]
-	];
-}
-
-EVisibility FChannelGroupModel::GetKeyEditorVisibility() const
-{
-	return GetChannels().Num() == 0 ? EVisibility::Collapsed : EVisibility::Visible;
-}
-
-FText FChannelGroupModel::GetLabel() const
-{
-	return GetDisplayText();
-}
-
-FSlateFontInfo FChannelGroupModel::GetLabelFont() const
-{
-	return IsAnimated()
-		? FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont")
-		: FOutlinerItemModel::GetLabelFont();
-}
-
-bool FChannelGroupModel::HasCurves() const
-{
-	for (const TSharedRef<IKeyArea>& KeyArea : GetAllKeyAreas())
-	{
-		const ISequencerChannelInterface* EditorInterface = KeyArea->FindChannelEditorInterface();
-		if (EditorInterface && EditorInterface->SupportsCurveEditorModels_Raw(KeyArea->GetChannel()))
-		{
-			return true;
-		}
-	}
-	return false;
 }
 
 void FChannelGroupModel::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)
@@ -290,12 +197,118 @@ void FChannelGroupModel::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutC
 	}
 }
 
-bool FChannelGroupModel::CanDelete(FText* OutErrorMessage) const
+bool FChannelGroupModel::HasCurves() const
+{
+	for (const TSharedRef<IKeyArea>& KeyArea : GetAllKeyAreas())
+	{
+		const ISequencerChannelInterface* EditorInterface = KeyArea->FindChannelEditorInterface();
+		if (EditorInterface && EditorInterface->SupportsCurveEditorModels_Raw(KeyArea->GetChannel()))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+FChannelGroupOutlinerModel::FChannelGroupOutlinerModel(FName InChannelName, const FText& InDisplayText)
+	: TOutlinerModelMixin<FChannelGroupModel>(InChannelName, InDisplayText)
+{
+	SetIdentifier(InChannelName);
+}
+
+FChannelGroupOutlinerModel::~FChannelGroupOutlinerModel()
+{}
+
+FOutlinerSizing FChannelGroupOutlinerModel::RecomputeSizing()
+{
+	FOutlinerSizing MaxSizing;
+
+	for (TWeakViewModelPtr<FChannelModel> WeakChannel : Channels)
+	{
+		if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
+		{
+			FOutlinerSizing Desired = Channel->GetDesiredSizing();
+
+			MaxSizing.Height = FMath::Max(MaxSizing.Height, Desired.Height);
+			MaxSizing.PaddingTop = FMath::Max(MaxSizing.PaddingTop, Desired.PaddingTop);
+			MaxSizing.PaddingBottom = FMath::Max(MaxSizing.PaddingBottom, Desired.PaddingBottom);
+		}
+	}
+
+	ComputedSizing = MaxSizing;
+
+	for (TWeakViewModelPtr<FChannelModel> WeakChannel : Channels)
+	{
+		if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
+		{
+			Channel->SetComputedSizing(MaxSizing);
+		}
+	}
+
+	return MaxSizing;
+}
+
+FOutlinerSizing FChannelGroupOutlinerModel::GetOutlinerSizing() const
+{
+	return ComputedSizing;
+}
+
+TSharedRef<SWidget> FChannelGroupOutlinerModel::CreateOutlinerView(const FCreateOutlinerViewParams& InParams)
+{
+	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
+
+	return SNew(SOutlinerItemViewBase, SharedThis(this), InParams.Editor, InParams.TreeViewRow)
+	.CustomContent()
+	[
+		// Even if this key area node doesn't have any key areas right now, it may in the future
+		// so we always create the switcher, and just hide it if it is not relevant
+		SNew(SHorizontalBox)
+		.Visibility(this, &FChannelGroupOutlinerModel::GetKeyEditorVisibility)
+
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SKeyAreaEditorSwitcher, SharedThis(this), EditorViewModel->GetSequencer())
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SSequencerKeyNavigationButtons, SharedThis(this), EditorViewModel->GetSequencer())
+		]
+	];
+}
+
+EVisibility FChannelGroupOutlinerModel::GetKeyEditorVisibility() const
+{
+	return GetChannels().Num() == 0 ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+FText FChannelGroupOutlinerModel::GetLabel() const
+{
+	return GetDisplayText();
+}
+
+FSlateFontInfo FChannelGroupOutlinerModel::GetLabelFont() const
+{
+	return IsAnimated()
+		? FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont")
+		: FOutlinerItemModelMixin::GetLabelFont();
+}
+
+bool FChannelGroupOutlinerModel::HasCurves() const
+{
+	return FChannelGroupModel::HasCurves();
+}
+
+bool FChannelGroupOutlinerModel::CanDelete(FText* OutErrorMessage) const
 {
 	return true;
 }
 
-void FChannelGroupModel::Delete()
+void FChannelGroupOutlinerModel::Delete()
 {
 	TArray<FName> PathFromTrack;
 	TViewModelPtr<ITrackExtension> Track = GetParentTrackNodeAndNamePath(this, PathFromTrack);
@@ -309,6 +322,11 @@ void FChannelGroupModel::Delete()
 			Section->GetSectionInterface()->RequestDeleteCategory(PathFromTrack);
 		}
 	}
+}
+
+void FChannelGroupOutlinerModel::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)
+{
+	FChannelGroupModel::CreateCurveModels(OutCurveModels);
 }
 
 } // namespace Sequencer

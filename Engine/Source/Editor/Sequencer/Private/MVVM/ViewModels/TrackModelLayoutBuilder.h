@@ -35,14 +35,14 @@ struct FHierarchicalModelListRefresher
 	void Pop();
 
 	template<typename ModelType, typename Predicate>
-	TViewModelPtr<ModelType> FindItem(Predicate&& InPredicate) const
+	TSharedPtr<ModelType> FindItem(Predicate&& InPredicate) const
 	{
 		TViewModelPtr<ModelType> Model = FindExistingItem<ModelType>(InPredicate);
 		return Model ? Model : FindRecycledItem<ModelType>(InPredicate);
 	}
 
 	template<typename ModelType, typename Predicate>
-	TViewModelPtr<ModelType> FindExistingItem(Predicate&& InPredicate) const
+	TSharedPtr<ModelType> FindExistingItem(Predicate&& InPredicate) const
 	{
 		// Look for existing children
 		for (const TViewModelPtr<ModelType>& Item : ListData.Last().Children.IterateSubList<ModelType>())

@@ -126,42 +126,41 @@ void AddDisplayOptionsPropertyMenuItem(FMenuBuilder& MenuBuilder, FCanExecuteAct
 	);
 }
 
-FOutlinerItemModel::FOutlinerItemModel()
+FOutlinerItemModelMixin::FOutlinerItemModelMixin()
 	: OutlinerChildList(EViewModelListType::Outliner)
 	, bInitializedExpansion(false)
 	, bInitializedPinnedState(false)
 	, bIsForcedFilteredOut(false)
 {
-	RegisterChildList(&OutlinerChildList);
 }
 
-TSharedPtr<FSequencerEditorViewModel> FOutlinerItemModel::GetEditor() const
+TSharedPtr<FSequencerEditorViewModel> FOutlinerItemModelMixin::GetEditor() const
 {
-	TSharedPtr<FSequenceModel> SequenceModel = FindAncestorOfType<FSequenceModel>();
+	TSharedPtr<FSequenceModel> SequenceModel = AsViewModel()->FindAncestorOfType<FSequenceModel>();
 	return SequenceModel ? SequenceModel->GetEditor() : nullptr;
 }
 
-bool FOutlinerItemModel::IsForceFilteredOut() const
+bool FOutlinerItemModelMixin::IsForceFilteredOut() const
 {
 	return bIsForcedFilteredOut;
 }
 
-void FOutlinerItemModel::SetForceFilteredOut(bool bInIsForcedFilteredOut)
+void FOutlinerItemModelMixin::SetForceFilteredOut(bool bInIsForcedFilteredOut)
 {
 	bIsForcedFilteredOut = bInIsForcedFilteredOut;
 }
 
-FName FOutlinerItemModel::GetIdentifier() const
+FName FOutlinerItemModelMixin::GetIdentifier() const
 {
 	return TreeItemIdentifier;
 }
 
-void FOutlinerItemModel::SetIdentifier(FName InNewIdentifier)
+void FOutlinerItemModelMixin::SetIdentifier(FName InNewIdentifier)
 {
 	TreeItemIdentifier = InNewIdentifier;
 }
 
-bool FOutlinerItemModel::IsExpanded() const
+bool FOutlinerItemModelMixin::IsExpanded() const
 {
 	if (bInitializedExpansion)
 	{
@@ -171,9 +170,9 @@ bool FOutlinerItemModel::IsExpanded() const
 	bInitializedExpansion = true;
 
 	TStringBuilder<256> StringBuilder;
-	IOutlinerExtension::GetPathName(*this, StringBuilder);
+	IOutlinerExtension::GetPathName(*AsViewModel(), StringBuilder);
 
-	TSharedPtr<FSequenceModel> SequenceModel = FindAncestorOfType<FSequenceModel>();
+	TSharedPtr<FSequenceModel> SequenceModel = AsViewModel()->FindAncestorOfType<FSequenceModel>();
 	UMovieSceneSequence*       Sequence      = SequenceModel ? SequenceModel->GetSequence() : nullptr;
 
 	if (Sequence)
@@ -183,39 +182,40 @@ bool FOutlinerItemModel::IsExpanded() const
 		FMovieSceneEditorData& EditorData = MovieScene->GetEditorData();
 		if (const FMovieSceneExpansionState* Expansion = EditorData.ExpansionStates.FindByHash(GetTypeHash(StringView), StringView))
 		{
-			const_cast<FOutlinerItemModel*>(this)->bIsExpanded = Expansion->bExpanded;
+			const_cast<FOutlinerItemModelMixin*>(this)->bIsExpanded = Expansion->bExpanded;
 		}
 		else
 		{
-			const_cast<FOutlinerItemModel*>(this)->bIsExpanded = GetDefaultExpansionState();
+			const_cast<FOutlinerItemModelMixin*>(this)->bIsExpanded = GetDefaultExpansionState();
 		}
 	}
 
 	return bIsExpanded;
 }
 
-bool FOutlinerItemModel::GetDefaultExpansionState() const
+bool FOutlinerItemModelMixin::GetDefaultExpansionState() const
 {
 	return false;
 }
 
-void FOutlinerItemModel::SetExpansion(bool bInIsExpanded)
+void FOutlinerItemModelMixin::SetExpansion(bool bInIsExpanded)
 {
 	SetExpansionWithoutSaving(bInIsExpanded);
 
-	if (GetParent())
+	FViewModel* ViewModel = AsViewModel();
+	if (ViewModel->GetParent())
 	{
 		// Expansion state has changed, save it to the movie scene now
-		TSharedPtr<FSequenceModel> SequenceModel = FindAncestorOfType<FSequenceModel>();
+		TSharedPtr<FSequenceModel> SequenceModel = ViewModel->FindAncestorOfType<FSequenceModel>();
 		if (SequenceModel)
 		{
 			TSharedPtr<FSequencer> Sequencer = SequenceModel->GetSequencerImpl();
-			Sequencer->GetNodeTree()->SaveExpansionState(*this, bInIsExpanded);
+			Sequencer->GetNodeTree()->SaveExpansionState(*ViewModel, bInIsExpanded);
 		}
 	}
 }
 
-void FOutlinerItemModel::SetExpansionWithoutSaving(bool bInIsExpanded)
+void FOutlinerItemModelMixin::SetExpansionWithoutSaving(bool bInIsExpanded)
 {
 	FOutlinerExtensionShim::SetExpansion(bInIsExpanded);
 
@@ -224,12 +224,12 @@ void FOutlinerItemModel::SetExpansionWithoutSaving(bool bInIsExpanded)
 	bInitializedExpansion = true;
 }
 
-bool FOutlinerItemModel::IsFilteredOut() const
+bool FOutlinerItemModelMixin::IsFilteredOut() const
 {
 	return bIsFilteredOut || bIsForcedFilteredOut;
 }
 
-bool FOutlinerItemModel::IsPinned() const
+bool FOutlinerItemModelMixin::IsPinned() const
 {
 	if (bInitializedPinnedState)
 	{
@@ -240,25 +240,25 @@ bool FOutlinerItemModel::IsPinned() const
 
 	// Initialize expansion states for tree items
 	// Assign the saved expansion state when this node is initialized for the first time
-	const bool bIsRootModel = (GetHierarchicalDepth() == 1);
+	const bool bIsRootModel = (AsViewModel()->GetHierarchicalDepth() == 1);
 	if (bIsRootModel)
 	{
-		TSharedPtr<FSequenceModel> SequenceModel = FindAncestorOfType<FSequenceModel>();
+		TSharedPtr<FSequenceModel> SequenceModel = AsViewModel()->FindAncestorOfType<FSequenceModel>();
 		TSharedPtr<FSequencer> Sequencer = SequenceModel->GetSequencerImpl();
-		const bool bWasPinned = Sequencer->GetNodeTree()->GetSavedPinnedState(*this);
-		const_cast<FOutlinerItemModel*>(this)->FPinnableExtensionShim::SetPinned(bWasPinned);
+		const bool bWasPinned = Sequencer->GetNodeTree()->GetSavedPinnedState(*AsViewModel());
+		const_cast<FOutlinerItemModelMixin*>(this)->FPinnableExtensionShim::SetPinned(bWasPinned);
 	}
 
 	return FPinnableExtensionShim::IsPinned();
 }
 
-bool FOutlinerItemModel::IsDimmed() const
+bool FOutlinerItemModelMixin::IsDimmed() const
 {
 	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
 	if (Sequencer)
 	{
-		TSharedPtr<FViewModel> ThisShared(const_cast<FOutlinerItemModel*>(this)->AsShared());
+		TSharedPtr<FViewModel> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared());
 		FSequencerNodeTree& ParentTree = Sequencer->GetNodeTree().Get();
 		if (ParentTree.IsNodeMute(ThisShared) || (ParentTree.HasSoloNodes() && !ParentTree.IsNodeSolo(ThisShared)))
 		{
@@ -268,40 +268,40 @@ bool FOutlinerItemModel::IsDimmed() const
 	return false;
 }
 
-bool FOutlinerItemModel::IsSolo() const
+bool FOutlinerItemModelMixin::IsSolo() const
 {
 	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
 	if (Sequencer)
 	{
-		TSharedPtr<FViewModel> ThisShared(const_cast<FOutlinerItemModel*>(this)->AsShared());
+		TSharedPtr<FViewModel> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared());
 		return Sequencer->GetNodeTree()->IsNodeSolo(ThisShared);
 	}
 	return false;
 }
 
-bool FOutlinerItemModel::IsMuted() const
+bool FOutlinerItemModelMixin::IsMuted() const
 {
 	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
 	if (Sequencer)
 	{
-		TSharedPtr<FViewModel> ThisShared(const_cast<FOutlinerItemModel*>(this)->AsShared());
+		TSharedPtr<FViewModel> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared());
 		return Sequencer->GetNodeTree()->IsNodeMute(ThisShared);
 	}
 	return false;
 }
 
-bool FOutlinerItemModel::IsRootModelPinned() const
+bool FOutlinerItemModelMixin::IsRootModelPinned() const
 {
-	TSharedPtr<IPinnableExtension> PinnableParent = FindAncestorOfType<IPinnableExtension>(true);
+	TSharedPtr<IPinnableExtension> PinnableParent = AsViewModel()->FindAncestorOfType<IPinnableExtension>(true);
 	return PinnableParent && PinnableParent->IsPinned();
 }
 
-void FOutlinerItemModel::ToggleRootModelPinned()
+void FOutlinerItemModelMixin::ToggleRootModelPinned()
 {
-	FSequenceModel* RootModel = GetRoot()->CastThis<FSequenceModel>();
-	TSharedPtr<IPinnableExtension> PinnableParent = FindAncestorOfType<IPinnableExtension>(true);
+	FSequenceModel* RootModel = AsViewModel()->GetRoot()->CastThis<FSequenceModel>();
+	TSharedPtr<IPinnableExtension> PinnableParent = AsViewModel()->FindAncestorOfType<IPinnableExtension>(true);
 	if (RootModel && PinnableParent)
 	{
 		TSharedPtr<FOutlinerViewModel> Outliner = RootModel->GetEditor()->GetOutliner();
@@ -311,12 +311,12 @@ void FOutlinerItemModel::ToggleRootModelPinned()
 		PinnableParent->SetPinned(bShouldPin);
 
 		TSharedPtr<FSequencer> Sequencer = RootModel->GetSequencerImpl();
-		Sequencer->GetNodeTree()->SavePinnedState(*this, bShouldPin);
+		Sequencer->GetNodeTree()->SavePinnedState(*AsViewModel(), bShouldPin);
 		Sequencer->RefreshTree();
 	}
 }
 
-bool FOutlinerItemModel::IsSelectedModelsSolo() const
+bool FOutlinerItemModelMixin::IsSelectedModelsSolo() const
 {
 	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
@@ -327,7 +327,7 @@ bool FOutlinerItemModel::IsSelectedModelsSolo() const
 	return false;
 }
 
-void FOutlinerItemModel::ToggleSelectedModelsSolo()
+void FOutlinerItemModelMixin::ToggleSelectedModelsSolo()
 {
 	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
@@ -337,7 +337,7 @@ void FOutlinerItemModel::ToggleSelectedModelsSolo()
 	}
 }
 
-bool FOutlinerItemModel::IsSelectedModelsMuted() const
+bool FOutlinerItemModelMixin::IsSelectedModelsMuted() const
 {
 	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
@@ -348,7 +348,7 @@ bool FOutlinerItemModel::IsSelectedModelsMuted() const
 	return false;
 }
 
-void FOutlinerItemModel::ToggleSelectedModelsMuted()
+void FOutlinerItemModelMixin::ToggleSelectedModelsMuted()
 {
 	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
@@ -358,7 +358,7 @@ void FOutlinerItemModel::ToggleSelectedModelsMuted()
 	}
 }
 
-TSharedPtr<SWidget> FOutlinerItemModel::CreateContextMenuWidget(const FCreateOutlinerContextMenuWidgetParams& InParams)
+TSharedPtr<SWidget> FOutlinerItemModelMixin::CreateContextMenuWidget(const FCreateOutlinerContextMenuWidgetParams& InParams)
 {
 	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
 	TSharedPtr<ISequencer> Sequencer = EditorViewModel->GetSequencer();
@@ -376,7 +376,7 @@ TSharedPtr<SWidget> FOutlinerItemModel::CreateContextMenuWidget(const FCreateOut
 	return nullptr;
 }
 
-void FOutlinerItemModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
+void FOutlinerItemModelMixin::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	TSharedPtr<FSequencer> Sequencer = StaticCastSharedPtr<FSequencer>(GetEditor()->GetSequencer());
 
@@ -384,6 +384,8 @@ void FOutlinerItemModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	{
 		return;
 	}
+
+	TSharedRef<FOutlinerItemModelMixin> SharedThis(AsViewModel()->AsShared(), this);
 
 	const bool bIsReadOnly = Sequencer->IsReadOnly();
 	FCanExecuteAction CanExecute = FCanExecuteAction::CreateLambda([bIsReadOnly]{ return !bIsReadOnly; });
@@ -404,7 +406,7 @@ void FOutlinerItemModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		);
 
 		// Only support pinning root nodes
-		const bool bIsRootModel = (GetHierarchicalDepth() == 1);
+		const bool bIsRootModel = (AsViewModel()->GetHierarchicalDepth() == 1);
 		if (bIsRootModel)
 		{
 			MenuBuilder.AddMenuEntry(
@@ -412,9 +414,9 @@ void FOutlinerItemModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				LOCTEXT("ToggleNodePinTooltip", "Pin or unpin this node or selected tracks"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &FOutlinerItemModel::ToggleRootModelPinned),
+					FExecuteAction::CreateSP(SharedThis, &FOutlinerItemModelMixin::ToggleRootModelPinned),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &FOutlinerItemModel::IsRootModelPinned)
+					FIsActionChecked::CreateSP(SharedThis, &FOutlinerItemModelMixin::IsRootModelPinned)
 				),
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
@@ -427,9 +429,9 @@ void FOutlinerItemModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("ToggleNodeSoloTooltip", "Solo or unsolo this node or selected tracks"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &FOutlinerItemModel::ToggleSelectedModelsSolo),
+				FExecuteAction::CreateSP(SharedThis, &FOutlinerItemModelMixin::ToggleSelectedModelsSolo),
 				CanExecute,
-				FIsActionChecked::CreateSP(this, &FOutlinerItemModel::IsSelectedModelsSolo)
+				FIsActionChecked::CreateSP(SharedThis, &FOutlinerItemModelMixin::IsSelectedModelsSolo)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -440,9 +442,9 @@ void FOutlinerItemModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("ToggleNodeMuteTooltip", "Mute or unmute this node or selected tracks"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &FOutlinerItemModel::ToggleSelectedModelsMuted),
+				FExecuteAction::CreateSP(SharedThis, &FOutlinerItemModelMixin::ToggleSelectedModelsMuted),
 				CanExecute,
-				FIsActionChecked::CreateSP(this, &FOutlinerItemModel::IsSelectedModelsMuted)
+				FIsActionChecked::CreateSP(SharedThis, &FOutlinerItemModelMixin::IsSelectedModelsMuted)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -457,7 +459,7 @@ void FOutlinerItemModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
 		
-		TSharedRef<FViewModel> ThisNode = AsShared();
+		TSharedRef<FViewModel> ThisNode = AsViewModel()->AsShared();
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("DeleteNode", "Delete"),
@@ -466,7 +468,7 @@ void FOutlinerItemModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(FExecuteAction::CreateSP(Sequencer.Get(), &FSequencer::DeleteNode, ThisNode, false), CanExecute)
 		);
 
-		if (IsA<IObjectBindingExtension>())
+		if (ThisNode->IsA<IObjectBindingExtension>())
 		{
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("DeleteNodeAndKeepState", "Delete and Keep State"),
@@ -539,12 +541,12 @@ void FOutlinerItemModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	}
 }
 
-void FOutlinerItemModel::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder)
+void FOutlinerItemModelMixin::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder)
 {
-	TSharedRef<FViewModel> ThisNode = SharedThis(this);
+	TSharedRef<FViewModel> ThisNode = AsViewModel()->AsShared();
 	TSharedPtr<FSequencer> Sequencer = GetEditor()->GetSequencerImpl();
 
-	const bool bFilterableNode = (IsA<ITrackExtension>() || IsA<IObjectBindingExtension>() || IsA<FFolderModel>());
+	const bool bFilterableNode = (ThisNode->IsA<ITrackExtension>() || ThisNode->IsA<IObjectBindingExtension>() || ThisNode->IsA<FFolderModel>());
 	const bool bIsReadOnly = Sequencer->IsReadOnly();
 	
 	TArray<UMovieSceneTrack*> AllTracks;
@@ -597,19 +599,22 @@ void FOutlinerItemModel::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder)
 	}
 }
 
-bool FOutlinerItemModel::HasCurves() const
+bool FOutlinerItemModelMixin::HasCurves() const
 {
 	return false;
 }
 
-TSharedPtr<ICurveEditorTreeItem> FOutlinerItemModel::GetCurveEditorTreeItem() const
+TSharedPtr<ICurveEditorTreeItem> FOutlinerItemModelMixin::GetCurveEditorTreeItem() const
 {
-	return StaticCastSharedRef<ICurveEditorTreeItem>(SharedThis(const_cast<FOutlinerItemModel*>(this)));
+	TSharedRef<FViewModel> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared());
+	return TSharedPtr<ICurveEditorTreeItem>(ThisShared, const_cast<FOutlinerItemModelMixin*>(this));
 }
 
-TSharedPtr<SWidget> FOutlinerItemModel::GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& TableRow)
+TSharedPtr<SWidget> FOutlinerItemModelMixin::GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& TableRow)
 {
 	using namespace UE::Sequencer;
+
+	TSharedRef<FOutlinerItemModelMixin> SharedThis(AsViewModel()->AsShared(), this);
 
 	auto GetCurveEditorHighlightText = [](TWeakPtr<FCurveEditor> InCurveEditor) -> FText 
 	{
@@ -642,8 +647,8 @@ TSharedPtr<SWidget> FOutlinerItemModel::GenerateCurveEditorTreeWidget(const FNam
 				+ SOverlay::Slot()
 				[
 					SNew(SImage)
-					.Image(this, &FOutlinerItemModel::GetIconBrush)
-					.ColorAndOpacity(this, &FOutlinerItemModel::GetIconTint)
+					.Image(SharedThis, &FOutlinerItemModelMixin::GetIconBrush)
+					.ColorAndOpacity(SharedThis, &FOutlinerItemModelMixin::GetIconTint)
 				]
 
 				+ SOverlay::Slot()
@@ -651,14 +656,14 @@ TSharedPtr<SWidget> FOutlinerItemModel::GenerateCurveEditorTreeWidget(const FNam
 				.HAlign(HAlign_Right)
 				[
 					SNew(SImage)
-					.Image(this, &FOutlinerItemModel::GetIconOverlayBrush)
+					.Image(SharedThis, &FOutlinerItemModelMixin::GetIconOverlayBrush)
 				]
 
 				+ SOverlay::Slot()
 				[
 					SNew(SSpacer)
 					.Visibility(EVisibility::Visible)
-					.ToolTipText(this, &FOutlinerItemModel::GetIconToolTipText)
+					.ToolTipText(SharedThis, &FOutlinerItemModelMixin::GetIconToolTipText)
 				]
 			]
 
@@ -667,10 +672,10 @@ TSharedPtr<SWidget> FOutlinerItemModel::GenerateCurveEditorTreeWidget(const FNam
 			.Padding(FMargin(0.f, 4.f, 0.f, 4.f))
 			[
 				SNew(STextBlock)
-				.Text(this, &FOutlinerItemModel::GetLabel)
-				.Font(this, &FOutlinerItemModel::GetLabelFont)
+				.Text(SharedThis, &FOutlinerItemModelMixin::GetLabel)
+				.Font(SharedThis, &FOutlinerItemModelMixin::GetLabelFont)
 				.HighlightText_Static(GetCurveEditorHighlightText, InCurveEditor)
-				.ToolTipText(this, &FOutlinerItemModel::GetLabelToolTipText)
+				.ToolTipText(SharedThis, &FOutlinerItemModelMixin::GetLabelToolTipText)
 			];
 	}
 	else if (InColumnName == ColumnNames.SelectHeader)
@@ -685,17 +690,17 @@ TSharedPtr<SWidget> FOutlinerItemModel::GenerateCurveEditorTreeWidget(const FNam
 	return nullptr;
 }
 
-void FOutlinerItemModel::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)
+void FOutlinerItemModelMixin::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)
 {
 }
 
-bool FOutlinerItemModel::PassesFilter(const FCurveEditorTreeFilter* InFilter) const
+bool FOutlinerItemModelMixin::PassesFilter(const FCurveEditorTreeFilter* InFilter) const
 {
 	if (InFilter->GetType() == ECurveEditorTreeFilterType::Text)
 	{
 		const FCurveEditorTreeTextFilter* Filter = static_cast<const FCurveEditorTreeTextFilter*>(InFilter);
 
-		TSharedPtr<const IOutlinerExtension> This = CastThisShared<IOutlinerExtension>();
+		TSharedPtr<const IOutlinerExtension> This = AsViewModel()->CastThisShared<IOutlinerExtension>();
 		for (const FCurveEditorTreeTextFilterTerm& Term : Filter->GetTerms())
 		{
 			if (NodeMatchesTextFilterTerm(This, Term))
@@ -709,7 +714,7 @@ bool FOutlinerItemModel::PassesFilter(const FCurveEditorTreeFilter* InFilter) co
 	else if (InFilter->GetType() == ISequencerModule::GetSequencerSelectionFilterType())
 	{
 		const FSequencerSelectionCurveFilter* Filter = static_cast<const FSequencerSelectionCurveFilter*>(InFilter);
-		return Filter->Match(AsShared());
+		return Filter->Match(AsViewModel()->AsShared());
 	}
 	return false;
 }

@@ -114,7 +114,9 @@ bool FAddKeyOperation::ProcessKeyArea(TSharedPtr<ITrackExtension> InTrackModel, 
 {
 	bool bKeyedAnything = false;
 	ISequencerTrackEditor* TrackEditor = InTrackModel->GetTrackEditor().Get();
-	if (InChannelGroupModel->IsFilteredOut() == false)
+
+	IOutlinerExtension* OutlinerExtension = InChannelGroupModel->CastThis<IOutlinerExtension>();
+	if (!OutlinerExtension || OutlinerExtension->IsFilteredOut() == false)
 	{
 		constexpr bool bIncludeThis = true;
 		for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : InChannelGroupModel->GetChannels())
