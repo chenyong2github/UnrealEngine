@@ -63,10 +63,12 @@ namespace EpicGames.Jupiter
 	{
 		public static byte[] GetSHA1(byte[] payload)
 		{
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
 			using (SHA1 sha1 = SHA1.Create())
 			{
 				return sha1.ComputeHash(payload);
 			}
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
 		}
 
 		public static string GetSHA1AsString(byte[] payload)
