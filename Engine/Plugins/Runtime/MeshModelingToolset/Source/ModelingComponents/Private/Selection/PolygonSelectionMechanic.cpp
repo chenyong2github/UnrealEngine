@@ -86,14 +86,16 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	// set up visualizers
 	PolyEdgesRenderer.LineColor = FLinearColor::Red;
 	PolyEdgesRenderer.LineThickness = 2.0;
+	PolyEdgesRenderer.PointColor = FLinearColor::Red;
+	PolyEdgesRenderer.PointSize = 10.0f;
 	HilightRenderer.LineColor = FLinearColor::Green;
 	HilightRenderer.LineThickness = 4.0f;
 	HilightRenderer.PointColor = FLinearColor::Green;
-	HilightRenderer.PointSize = 5.0f;
+	HilightRenderer.PointSize = 10.0f;
 	SelectionRenderer.LineColor = LinearColors::Gold3f();
 	SelectionRenderer.LineThickness = 4.0f;
 	SelectionRenderer.PointColor = LinearColors::Gold3f();
-	SelectionRenderer.PointSize = 5.0f;
+	SelectionRenderer.PointSize = 10.0f;
 
 	float HighlightedFacePercentDepthOffset = 0.5f;
 	HighlightedFaceMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor::Green, ParentToolIn->GetToolManager(), HighlightedFacePercentDepthOffset);
@@ -248,6 +250,14 @@ void UPolygonSelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 		{
 			TargetMesh->GetEdgeV(eid, A, B);
 			PolyEdgesRenderer.DrawLine(A, B);
+		}
+	}
+	if (bShowSelectableCorners)
+	{
+		for (const FGroupTopology::FCorner& Corner : Topology->Corners)
+		{
+			FVector3d A = TargetMesh->GetVertex(Corner.VertexID);
+			PolyEdgesRenderer.DrawPoint(A);
 		}
 	}
 	PolyEdgesRenderer.EndFrame();
@@ -875,6 +885,11 @@ FAxisAlignedBox3d UPolygonSelectionMechanic::GetSelectionBounds(bool bWorld) con
 			return Mesh->GetBounds();
 		}
 	}
+}
+
+void UPolygonSelectionMechanic::SetShowSelectableCorners(bool bShowCorners)
+{
+	bShowSelectableCorners = bShowCorners;
 }
 
 

@@ -348,6 +348,7 @@ void UEditMeshPolygonsTool::Setup()
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
 	SelectionMechanic->bAddSelectionFilterPropertiesToParentTool = false; // We'll do this ourselves later
 	SelectionMechanic->Setup(this);
+	SelectionMechanic->SetShowSelectableCorners(CommonProps->bShowSelectableCorners);
 	SelectionMechanic->Properties->RestoreProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UEditMeshPolygonsTool::OnSelectionModifiedEvent);
 	SelectionMechanic->OnFaceSelectionPreviewChanged.AddWeakLambda(this, [this]() {
@@ -1184,7 +1185,13 @@ void UEditMeshPolygonsTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* Ren
 	SelectionMechanic->DrawHUD(Canvas, RenderAPI);
 }
 
-
+void UEditMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
+{
+	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPolyEditCommonProperties, bShowSelectableCorners)))
+	{
+		SelectionMechanic->SetShowSelectableCorners(CommonProps->bShowSelectableCorners);
+	}
+}
 
 
 //

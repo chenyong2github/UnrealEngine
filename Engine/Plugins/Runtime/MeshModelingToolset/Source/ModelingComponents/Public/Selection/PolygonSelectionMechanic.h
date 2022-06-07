@@ -299,6 +299,8 @@ public:
 	 */
 	FAxisAlignedBox3d GetSelectionBounds(bool bWorld) const;
 
+	void SetShowSelectableCorners(bool bShowCorners);
+
 	//
 	// Change Tracking
 	//
@@ -439,6 +441,8 @@ protected:
 	bool bCtrlToggle = false;
 	static const int32 ShiftModifierID = 1;
 	static const int32 CtrlModifierID = 2;
+
+	bool bShowSelectableCorners = true;
 public:
 	FToolDataVisualizer PolyEdgesRenderer;
 	FToolDataVisualizer HilightRenderer;
