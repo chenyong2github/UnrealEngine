@@ -24,6 +24,9 @@
 #define SLICEVERTEXDATA_TEXTUREV_OFFSET 4
 #define SLICEVERTEXDATA_STRIDE 5
 
+#define INDIRECTDRAWARGS_INTERPCOUNT_OFFSET 10
+#define INDIRECTDRAWARGS_ONEOVERINTERPCOUNT_OFFSET 11
+
 uint UnpackParticleId(uint InterpIdx)
 {
 	return (InterpIdx >> NiagaraRibbonVF.ParticleIdShift) & NiagaraRibbonVF.ParticleIdMask;
@@ -93,14 +96,14 @@ float3 CubicInterp(float3 P0, float3 T0, float3 P1, float3 T1, float A, float TS
  *							Particle specific
  *********************************************************************************/
  
-Buffer<int> SortedIndices;
-uint SortedIndicesOffset;
+Buffer<uint> SortedIndices;
 
-Buffer<float4> TangentsAndDistances;
+Buffer<float> TangentsAndDistances;
 Buffer<uint> MultiRibbonIndices;
-Buffer<float> PackedPerRibbonDataByIndex;
+Buffer<uint> PackedPerRibbonDataByIndex;
 
 uint FacingMode;
+
 
 // Naming convention :
 // RawParticleId : Used to access per particle data stored in the VF. Actual particle data needs to be indirected through SortedIndices.
@@ -140,6 +143,7 @@ struct FSegmentData
 	float U0DistributionScaler;
 	float U1DistributionScaler;
 	uint StartParticleId;
+	uint LastParticleId;
 };
 
 struct FRibbonPositionIntermediates
@@ -284,15 +288,33 @@ void SetUV(inout FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex, flo
 
 int GetParticleIdByInterpVtxId(uint InterpVtxId)
 {
-	uint ParticleId = UnpackParticleId(InterpVtxId);
+	return NiagaraRibbonVFLooseParameters.SortedIndices[UnpackParticleId(InterpVtxId)];
+}
 
-	FLATTEN
-	if(NiagaraRibbonVFLooseParameters.SortedIndicesOffset != 0xFFFFFFFF)
+uint GetInterpCount()
+{
+	BRANCH
+	if (NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset != -1)
 	{
-		ParticleId = NiagaraRibbonVFLooseParameters.SortedIndices[NiagaraRibbonVFLooseParameters.SortedIndicesOffset + ParticleId];
+		return NiagaraRibbonVFLooseParameters.IndirectDrawOutput[NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset + INDIRECTDRAWARGS_INTERPCOUNT_OFFSET];
 	}
+	else
+	{
+		return NiagaraRibbonVF.InterpCount;
+	}
+}
 
-	return ParticleId;
+float GetOneOverInterpCount()
+{
+	BRANCH
+	if (NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset != -1)
+	{
+		return asfloat(NiagaraRibbonVFLooseParameters.IndirectDrawOutput[NiagaraRibbonVFLooseParameters.IndirectDrawOutputOffset + INDIRECTDRAWARGS_ONEOVERINTERPCOUNT_OFFSET]);
+	}
+	else
+	{
+		return NiagaraRibbonVF.OneOverInterpCount;
+	}
 }
 
 FInterpVtxData GetInterpVtxData(FVertexFactoryInput Input)
@@ -302,20 +324,12 @@ FInterpVtxData GetInterpVtxData(FVertexFactoryInput Input)
 	InterpVtxData.RawParticleId0 = UnpackParticleId(Input.InterpVtxId);
 	InterpVtxData.RawParticleId1 = InterpVtxData.RawParticleId0 + 1;
 
-	if (NiagaraRibbonVFLooseParameters.SortedIndicesOffset != 0xFFFFFFFF)
-	{
-		InterpVtxData.ParticleId0 = NiagaraRibbonVFLooseParameters.SortedIndices[NiagaraRibbonVFLooseParameters.SortedIndicesOffset + InterpVtxData.RawParticleId0];
-		InterpVtxData.ParticleId1 = NiagaraRibbonVFLooseParameters.SortedIndices[NiagaraRibbonVFLooseParameters.SortedIndicesOffset + InterpVtxData.RawParticleId1];
-	}
-	else
-	{
-		InterpVtxData.ParticleId0 = InterpVtxData.RawParticleId0;
-		InterpVtxData.ParticleId1 = InterpVtxData.RawParticleId1;
-	}
+	InterpVtxData.ParticleId0 = NiagaraRibbonVFLooseParameters.SortedIndices[InterpVtxData.RawParticleId0];
+	InterpVtxData.ParticleId1 = NiagaraRibbonVFLooseParameters.SortedIndices[InterpVtxData.RawParticleId1];
 
 #if USE_PARTICLE_INTERPOLATION
 	{
-		InterpVtxData.Alpha = float(UnpackInterpSlice(Input.InterpVtxId)) * NiagaraRibbonVF.OneOverInterpCount;
+		InterpVtxData.Alpha = float(UnpackInterpSlice(Input.InterpVtxId)) * GetOneOverInterpCount();
 	}
 #else
 	InterpVtxData.Alpha = 0;
@@ -327,17 +341,18 @@ FInterpVtxData GetInterpVtxData(FVertexFactoryInput Input)
 FSegmentData UnpackPerRibbonDataByIndex(int RibbonIndex)
 {
 	FSegmentData SegmentData = (FSegmentData)0;
-	const int Index = RibbonIndex * 7;
+	const int Index = RibbonIndex * 8;
 
-	SegmentData.UV0Scale = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index], NiagaraRibbonVF.PackedVData.x);
-	SegmentData.UV0Offset = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 1], NiagaraRibbonVF.PackedVData.y);
-	SegmentData.U0DistributionScaler = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 2];
+	SegmentData.UV0Scale = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 0]), NiagaraRibbonVF.PackedVData.x);
+	SegmentData.UV0Offset = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 1]), NiagaraRibbonVF.PackedVData.y);
+	SegmentData.U0DistributionScaler = asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 2]);
 	
-	SegmentData.UV1Scale = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 3], NiagaraRibbonVF.PackedVData.z);
-	SegmentData.UV1Offset = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 4], NiagaraRibbonVF.PackedVData.w);
-	SegmentData.U1DistributionScaler = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 5];
+	SegmentData.UV1Scale = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 3]), NiagaraRibbonVF.PackedVData.z);
+	SegmentData.UV1Offset = float2(asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 4]), NiagaraRibbonVF.PackedVData.w);
+	SegmentData.U1DistributionScaler = asfloat(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 5]);
 
-	SegmentData.StartParticleId = asuint(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 6]);
+	SegmentData.StartParticleId = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 6];
+	SegmentData.LastParticleId = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 7];
 
 	return SegmentData;
 }
@@ -493,6 +508,11 @@ float3x3 CalcTangentBasis(FVertexFactoryInput Input, FVertexFactoryIntermediates
 	return float3x3(Intermediates.Current.TangentX, Intermediates.Current.TangentY, Intermediates.Current.TangentZ);
 }
 
+float GetTangentAndDistanceComponent(int RawParticleID, int ElementIndex)
+{
+	return NiagaraRibbonVFLooseParameters.TangentsAndDistances[RawParticleID * 4 + ElementIndex];
+}
+
 // known limitations:
 // -TangentsAndDistances is from the current frame and if we're generating intermediates for the previous frame for velocity
 // rendering we won't get the exact same results.  Issues around trying to supply a previous version of the TangentsAndDistances
@@ -515,8 +535,16 @@ FRibbonPositionIntermediates GetRibbonPositionIntermediates(
 	{
 		const float3 Pos0 = GetVec3(PositionDataOffset, InterpVtxData.ParticleId0);
 		const float3 Pos1 = GetVec3(PositionDataOffset, InterpVtxData.ParticleId1);
-		const float4 TangentAndDist0 = NiagaraRibbonVFLooseParameters.TangentsAndDistances[InterpVtxData.RawParticleId0];
-		const float4 TangentAndDist1 = NiagaraRibbonVFLooseParameters.TangentsAndDistances[InterpVtxData.RawParticleId1];
+		const float4 TangentAndDist0 = float4(
+			GetTangentAndDistanceComponent(InterpVtxData.RawParticleId0, 0),
+			GetTangentAndDistanceComponent(InterpVtxData.RawParticleId0, 1), 
+			GetTangentAndDistanceComponent(InterpVtxData.RawParticleId0, 2),
+			GetTangentAndDistanceComponent(InterpVtxData.RawParticleId0, 3));
+		const float4 TangentAndDist1 = float4(
+			GetTangentAndDistanceComponent(InterpVtxData.RawParticleId1, 0),
+			GetTangentAndDistanceComponent(InterpVtxData.RawParticleId1, 1), 
+			GetTangentAndDistanceComponent(InterpVtxData.RawParticleId1, 2),
+			GetTangentAndDistanceComponent(InterpVtxData.RawParticleId1, 3));
 		
 		Intermediates.Position = TransformPosition(LocalToWorld, CubicInterp(Pos0, TangentAndDist0.xyz, Pos1, TangentAndDist1.xyz, InterpVtxData.Alpha, TangentAndDist1.w - TangentAndDist0.w));
 		Intermediates.Direction = normalize(TransformVector(LocalToWorld, InvScale, lerp(TangentAndDist0.xyz, TangentAndDist1.xyz, InterpVtxData.Alpha)));
@@ -599,7 +627,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	
 	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	
-	uint RibbonIndex = NiagaraRibbonVFLooseParameters.MultiRibbonIndices[InterpVtxData.RawParticleId0];
+	uint RibbonIndex = NiagaraRibbonVF.ShouldUseMultiRibbon == 1? NiagaraRibbonVFLooseParameters.MultiRibbonIndices[InterpVtxData.RawParticleId0] : 0;
 	FSegmentData SegmentData = UnpackPerRibbonDataByIndex(RibbonIndex);
 
 	const float2 SliceVertexNormals = UnpackParticleVertexNormal(Input.InterpVtxId);

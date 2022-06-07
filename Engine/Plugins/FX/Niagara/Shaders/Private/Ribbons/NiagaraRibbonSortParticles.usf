@@ -1,0 +1,188 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+#include "NiagaraRibbonCommon.ush"
+
+Buffer<uint> SortedIndices;
+RWBuffer<uint> DestinationSortedIndices;
+Buffer<uint> EmitterCounts;
+uint CountOffset;
+
+int MergeSortSourceBlockSize;
+int MergeSortDestinationBlockSize;
+
+struct FBubbleShortEntry
+{
+	uint ParticleID;
+	float LinkID;
+	
+#if HAS_RIBBON_ID
+	FRibbonID RibbonID;
+#endif
+};
+
+groupshared FBubbleShortEntry BubbleSortTemp[THREADGROUP_SIZE];
+
+
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void InitialSortList(uint3 DispatchThreadId : SV_DispatchThreadID, uint InGroupIndex : SV_GroupIndex, uint3 InGroupID : SV_GroupID)
+{
+	const uint TotalNumParticles = GetTotalNumParticles();
+	const int GroupStartOffset = InGroupID.x * THREADGROUP_SIZE;
+	const int ParticlesRemaining = TotalNumParticles - GroupStartOffset;
+	const int MaxParticlesInSet = THREADGROUP_SIZE;
+	const int TotalNumParticlesInSet = min(MaxParticlesInSet, ParticlesRemaining);
+	
+	const int GlobalIndexOffset = DispatchThreadId.x;
+	const int LocalIndexOffset = InGroupIndex;
+
+	FBubbleShortEntry NewEntry;
+	NewEntry.ParticleID = GlobalIndexOffset; //(TotalNumParticles - 1) - GlobalIndexOffset;
+	NewEntry.LinkID = GetRibbonLinkID(NewEntry.ParticleID);	
+#if HAS_RIBBON_ID
+	NewEntry.RibbonID = GetRibbonID(NewEntry.ParticleID);
+#endif
+	
+	BubbleSortTemp[LocalIndexOffset] = NewEntry;	
+	
+	int SortGroup = 1;
+	
+	for (int Index = 0; Index < THREADGROUP_SIZE; Index++)
+	{
+		// Switch the offset and sync all threads
+		SortGroup ^= 0x1;		
+		GroupMemoryBarrierWithGroupSync();
+
+		if (LocalIndexOffset % 2 == SortGroup && LocalIndexOffset + 1 < TotalNumParticlesInSet)
+		{
+			const FBubbleShortEntry ThisEntry = BubbleSortTemp[LocalIndexOffset + 0];
+			const FBubbleShortEntry NextEntry = BubbleSortTemp[LocalIndexOffset + 1];		
+
+#if HAS_RIBBON_ID			
+			const int RibbonIDComparisonResult = CompareRibbonIDs(ThisEntry.RibbonID, NextEntry.RibbonID);
+			const bool bShouldSwap = RibbonIDComparisonResult > 0 || (RibbonIDComparisonResult == 0 && ThisEntry.LinkID > NextEntry.LinkID);
+#else
+			const bool bShouldSwap = ThisEntry.LinkID > NextEntry.LinkID;
+#endif
+			
+			if (bShouldSwap)
+			{
+				BubbleSortTemp[LocalIndexOffset + 0] = NextEntry;
+				BubbleSortTemp[LocalIndexOffset + 1] = ThisEntry;
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LocalIndexOffset < TotalNumParticlesInSet)
+	{
+		DestinationSortedIndices[GlobalIndexOffset] = BubbleSortTemp[LocalIndexOffset].ParticleID;
+	}
+}
+
+
+
+
+
+
+
+int MergeSortCompare(float SearchLinkOrder, float TestLinkOrder)
+{
+	if (SearchLinkOrder > TestLinkOrder)
+	{
+		return 1;
+	}
+
+	if (SearchLinkOrder == TestLinkOrder)
+	{
+		return 0;
+	}
+	
+	return -1;
+}
+
+#if HAS_RIBBON_ID
+int MergeSortCompare(FRibbonID Left, float LeftLinkOrder, FRibbonID Right, float RightLinkOrder)
+{
+	const int RibbonIDComparisonResult = CompareRibbonIDs(Left, Right);
+
+	if (RibbonIDComparisonResult > 0)
+	{
+		return 1;
+	}
+
+	if (RibbonIDComparisonResult == 0)
+	{
+		return MergeSortCompare(LeftLinkOrder, RightLinkOrder);
+	}
+
+	return -1;
+}
+#endif
+
+
+
+
+// This is a scatter based mergesort kernel
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void MergeSort(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint TotalNumParticles = GetTotalNumParticles();
+	const uint Index = DispatchThreadId.x;
+	
+	if (Index < TotalNumParticles)
+	{		
+		const uint DestinationBlockStart = (Index / MergeSortDestinationBlockSize) * MergeSortDestinationBlockSize;
+		const uint SourceBlockStart = (Index / MergeSortSourceBlockSize) * MergeSortSourceBlockSize;
+		const bool bIsInPrimaryBlock = Index < (DestinationBlockStart + MergeSortSourceBlockSize);
+		const uint OtherSourceBlockStart = DestinationBlockStart + (bIsInPrimaryBlock? MergeSortSourceBlockSize : 0);
+		
+		const uint IndexWithinSourceBlock = Index - SourceBlockStart;
+		
+		const uint ParticleID = SortedIndices[Index];
+		const float LinkID = GetRibbonLinkID(ParticleID);
+#if HAS_RIBBON_ID
+		const FRibbonID RibbonID = GetRibbonID(ParticleID);
+#endif
+			
+		// we find the index of the last particle before this in the other half,
+		// add that index to ours and we have the number of particles preceeding
+		// so we can scatter into the destination
+		// Handle equal values by placing all of those in the primary block before those in the secondary block
+		
+		int SearchStart = 0;
+		int SearchStop = min(int(MergeSortSourceBlockSize), max(int(TotalNumParticles) - int(OtherSourceBlockStart), 0));
+		
+		while (SearchStart != SearchStop)
+		{
+			const int Mid = (SearchStart + SearchStop) / 2;
+			const int SearchIndex = OtherSourceBlockStart + Mid;
+			const uint OtherParticleID = SortedIndices[SearchIndex];
+			const float OtherLinkID = GetRibbonLinkID(OtherParticleID);
+#if HAS_RIBBON_ID
+			const FRibbonID OtherRibbonID = GetRibbonID(OtherParticleID);
+			const int Result = MergeSortCompare(RibbonID, LinkID, OtherRibbonID, OtherLinkID);
+#else
+			const int Result = MergeSortCompare(LinkID, OtherLinkID);			
+#endif
+			
+			if (Result > 0 || (!bIsInPrimaryBlock && Result == 0))
+			{
+				SearchStart = min(Mid + 1, SearchStop);							
+			}
+			else
+			{
+				SearchStop = max(Mid, SearchStart);				
+			}
+		}
+		
+		const int FinalIndex = DestinationBlockStart + IndexWithinSourceBlock + SearchStop;
+		DestinationSortedIndices[FinalIndex] = ParticleID;
+	}
+}
+
+
+
+
