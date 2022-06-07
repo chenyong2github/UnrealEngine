@@ -172,30 +172,6 @@ bool UBlackmagicMediaSource::CanEditChange(const FProperty* InProperty) const
 	return true;
 }
 
-void UBlackmagicMediaSource::PostLoad()
-{
-	Super::PostLoad();
-#if WITH_EDITORONLY_DATA
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (TimecodeFormat_DEPRECATED != EMediaIOTimecodeFormat::None)
-	{
-		switch (TimecodeFormat_DEPRECATED)
-		{
-		case EMediaIOTimecodeFormat::LTC:
-			AutoDetectableTimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::LTC;
-			break;
-		case EMediaIOTimecodeFormat::VITC:
-			AutoDetectableTimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::VITC;
-			break;
-		default:
-			break;
-		}
-		TimecodeFormat_DEPRECATED = EMediaIOTimecodeFormat::None;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-}
-
 void UBlackmagicMediaSource::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& InPropertyChangedEvent)
 {
 	if (InPropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UBlackmagicMediaSource, AutoDetectableTimecodeFormat))
@@ -210,3 +186,27 @@ void UBlackmagicMediaSource::PostEditChangeChainProperty(struct FPropertyChanged
 	Super::PostEditChangeChainProperty(InPropertyChangedEvent);
 }
 #endif //WITH_EDITOR
+
+void UBlackmagicMediaSource::PostLoad()
+{
+	Super::PostLoad();
+#if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (TimecodeFormat_DEPRECATED != EMediaIOTimecodeFormat::None)
+		{
+			switch (TimecodeFormat_DEPRECATED)
+			{
+			case EMediaIOTimecodeFormat::LTC:
+				AutoDetectableTimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::LTC;
+				break;
+			case EMediaIOTimecodeFormat::VITC:
+				AutoDetectableTimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::VITC;
+				break;
+			default:
+				break;
+			}
+			TimecodeFormat_DEPRECATED = EMediaIOTimecodeFormat::None;
+		}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+}
