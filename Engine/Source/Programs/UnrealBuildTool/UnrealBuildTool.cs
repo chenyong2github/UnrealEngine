@@ -451,7 +451,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ArgumentsArray">Command line arguments</param>
 		/// <returns>Zero on success, non-zero on error</returns>
-		private static async Task<int> Main(string[] ArgumentsArray)
+		private static int Main(string[] ArgumentsArray)
 		{
 			FileReference? RunFile = null;
 			SingleInstanceMutex? Mutex = null;
