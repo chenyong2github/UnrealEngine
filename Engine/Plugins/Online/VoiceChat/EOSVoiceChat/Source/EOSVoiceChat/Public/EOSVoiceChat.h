@@ -14,8 +14,6 @@
 #include "eos_rtc_audio_types.h"
 #include "eos_lobby_types.h"
 
-EOSVOICECHAT_API FVoiceChatResult ResultFromEOSResult(const EOS_EResult EosResult);
-
 EOSVOICECHAT_API const TCHAR* LexToString(EOS_ERTCAudioInputStatus Status);
 
 struct FVoiceChatMetadataItem
