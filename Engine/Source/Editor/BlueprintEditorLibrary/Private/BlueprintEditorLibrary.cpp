@@ -601,4 +601,61 @@ UClass* UBlueprintEditorLibrary::GeneratedClass(UBlueprint* BlueprintObj)
 	return nullptr;
 }
 
+void UBlueprintEditorLibrary::SetBlueprintVariableExposeOnSpawn(UBlueprint* Blueprint, const FName& VariableName, bool bExposeOnSpawn)
+{
+	if (!Blueprint)
+	{
+		UE_LOG(LogBlueprintEditorLib, Warning, TEXT("Invalid Blueprint!"));
+		return;
+	}
+	
+	if (VariableName == NAME_None)
+	{
+		UE_LOG(LogBlueprintEditorLib, Warning, TEXT("Invalid variable name!"));
+		return;
+	}
+	
+	if(bExposeOnSpawn)
+	{
+		FBlueprintEditorUtils::SetBlueprintVariableMetaData(Blueprint, VariableName, NULL, FBlueprintMetadata::MD_ExposeOnSpawn, TEXT("true"));
+	}
+	else
+	{
+		FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(Blueprint, VariableName, NULL, FBlueprintMetadata::MD_ExposeOnSpawn);
+	} 
+}
+
+void UBlueprintEditorLibrary::SetBlueprintVariableExposeToCinematics(UBlueprint* Blueprint, const FName& VariableName, bool bExposeToCinematics)
+{
+	if (!Blueprint)
+	{
+		UE_LOG(LogBlueprintEditorLib, Warning, TEXT("Invalid Blueprint!"));
+		return;
+	}
+	
+	if (VariableName == NAME_None)
+	{
+		UE_LOG(LogBlueprintEditorLib, Warning, TEXT("Invalid variable name!"));
+		return;
+	}
+
+	FBlueprintEditorUtils::SetInterpFlag(Blueprint, VariableName, bExposeToCinematics);
+}
+
+void UBlueprintEditorLibrary::SetBlueprintVariableInstanceEditable(UBlueprint* Blueprint, const FName& VariableName, bool bInstanceEditable)
+{
+	if (!Blueprint)
+	{
+		UE_LOG(LogBlueprintEditorLib, Warning, TEXT("Invalid Blueprint!"));
+		return;
+	}
+	
+	if (VariableName == NAME_None)
+	{
+		UE_LOG(LogBlueprintEditorLib, Warning, TEXT("Invalid variable name!"));
+		return;
+	}
+	
+	FBlueprintEditorUtils::SetBlueprintOnlyEditableFlag(Blueprint, VariableName, !bInstanceEditable);
+}
 #undef LOCTEXT_NAMESPACE	// "BlueprintEditorLibrary"

@@ -162,4 +162,34 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting", meta = (ScriptMethod))
 	static UClass* GeneratedClass(UBlueprint* BlueprintObj);
+
+	/**
+	 * Sets "Expose On Spawn" to true/false on a Blueprint variable
+	 *
+	 * @param Blueprint			The blueprint object
+	 * @param VariableName		The variable name
+	 * @param bExposeOnSpawn	Set to true to expose on spawn
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting", meta = (ScriptMethod))
+	static void SetBlueprintVariableExposeOnSpawn(UBlueprint* Blueprint, const FName& VariableName, bool bExposeOnSpawn);
+
+	/**
+	 * Sets "Expose To Cinematics" to true/false on a Blueprint variable
+	 *
+	 * @param Blueprint				The blueprint object
+	 * @param VariableName			The variable name
+	 * @param bExposeToCinematics	Set to true to expose to cinematics
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting", meta = (ScriptMethod))
+	static void SetBlueprintVariableExposeToCinematics(UBlueprint* Blueprint, const FName& VariableName, bool bExposeToCinematics);
+
+	/**
+	 * Sets "Instance Editable" to true/false on a Blueprint variable
+	 *
+	 * @param Blueprint				The blueprint object
+	 * @param VariableName			The variable name
+	 * @param bInstanceEditable		Toggle InstanceEditable
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting", meta = (ScriptMethod))
+	static void SetBlueprintVariableInstanceEditable(UBlueprint* Blueprint, const FName& VariableName, bool bInstanceEditable);
 };
