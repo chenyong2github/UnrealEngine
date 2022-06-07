@@ -45,7 +45,7 @@ void ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 
 		FMeshNaniteSettings& NaniteSettings = NaniteStaticMesh->NaniteSettings;
 		NaniteSettings.bEnabled = true;
-		NaniteSettings.FallbackPercentTriangles = 0.0f; // Keep effectively no fallback mesh triangles
+		NaniteSettings.FallbackPercentTriangles = 0.01f; // Keep effectively no fallback mesh triangles
 		NaniteSettings.FallbackRelativeError = 1.0f;
 
 		const int32 LOD = 0; // Always uses high quality LOD

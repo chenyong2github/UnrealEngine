@@ -4246,17 +4246,13 @@ FPrimitiveSceneProxy* ULandscapeMeshProxyComponent::CreateSceneProxy()
 
 FPrimitiveSceneProxy* ULandscapeNaniteComponent::CreateSceneProxy()
 {
-	// TODO: WIP
-	/*if (GetStaticMesh() == nullptr
-		|| GetStaticMesh()->IsCompiling()
-		|| GetStaticMesh()->GetRenderData() == nullptr
-		|| GetStaticMesh()->GetRenderData()->LODResources.Num() == 0
-		|| GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
+	// Is Nanite supported, and is there built Nanite data for this static mesh?
+	if (ShouldCreateNaniteProxy())
 	{
-		return nullptr;
+		return Super::CreateSceneProxy();
 	}
 
-	return new FLandscapeNaniteSceneProxy(this, LandscapeGuid, ProxyComponentBases, ProxyLOD);*/
-	return Super::CreateSceneProxy();
+	// We *only* want a Nanite proxy for this component, otherwise return null to prevent fallback rendering.
+	return nullptr;
 }
 
