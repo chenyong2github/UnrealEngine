@@ -5752,6 +5752,10 @@ void UWorld::WelcomePlayer(UNetConnection* Connection)
 		LevelName = CurrentLevel->GetOutermost()->GetName();
 		Connection->SetClientWorldPackageName(CurrentLevel->GetOutermost()->GetFName());
 	}
+	if (UGameInstance* GameInst = GetGameInstance())
+	{
+		GameInst->ModifyClientTravelLevelURL(LevelName);
+	}
 
 	FString GameName;
 	FString RedirectURL;
