@@ -60,21 +60,21 @@ namespace EpicGames.Redis
 		public async Task<TElement[]> MembersAsync(CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] values = await _database.SetMembersAsync(Key, flags);
-			return Array.ConvertAll(values, (Converter<RedisValue, TElement>)(x => RedisSerializer.Deserialize<TElement>(x)!));
+			return Array.ConvertAll(values, (Converter<RedisValue, TElement>)(x => RedisSerializer.Deserialize<TElement>(x)));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetPopAsync(RedisKey, CommandFlags)"/>
 		public async Task<TElement> PopAsync(CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue value = await _database.SetPopAsync(Key, flags);
-			return value.IsNull ? default! : RedisSerializer.Deserialize<TElement>(value)!;
+			return value.IsNull ? default! : RedisSerializer.Deserialize<TElement>(value);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetPopAsync(RedisKey, Int64, CommandFlags)"/>
 		public async Task<TElement[]> PopAsync(long count, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] values = await _database.SetPopAsync(Key, count, flags);
-			return Array.ConvertAll<RedisValue, TElement>(values, x => RedisSerializer.Deserialize<TElement>(x)!);
+			return Array.ConvertAll<RedisValue, TElement>(values, x => RedisSerializer.Deserialize<TElement>(x));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetRemoveAsync(RedisKey, RedisValue, CommandFlags)"/>

@@ -37,7 +37,7 @@ namespace EpicGames.Redis
 		public async Task<TElement> GetByIndexAsync(long index, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue value = await Database.ListGetByIndexAsync(Key, index, flags);
-			return value.IsNull? default! : RedisSerializer.Deserialize<TElement>(value)!;
+			return value.IsNull? default! : RedisSerializer.Deserialize<TElement>(value);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListInsertAfterAsync(RedisKey, RedisValue, RedisValue, CommandFlags)"/>
@@ -60,7 +60,7 @@ namespace EpicGames.Redis
 		public async Task<TElement> LeftPopAsync(CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue value = await Database.ListLeftPopAsync(Key, flags);
-			return value.IsNull ? default! : RedisSerializer.Deserialize<TElement>(value)!;
+			return value.IsNull ? default! : RedisSerializer.Deserialize<TElement>(value);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListLeftPushAsync(RedisKey, RedisValue, When, CommandFlags)"/>
@@ -86,7 +86,7 @@ namespace EpicGames.Redis
 		public async Task<TElement[]> RangeAsync(long start = 0, long stop = -1, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] values = await Database.ListRangeAsync(Key, start, stop, flags);
-			return Array.ConvertAll(values, (Converter<RedisValue, TElement>)(x => (TElement)RedisSerializer.Deserialize<TElement>(x)!));
+			return Array.ConvertAll(values, (Converter<RedisValue, TElement>)(x => (TElement)RedisSerializer.Deserialize<TElement>(x)));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListRemoveAsync(RedisKey, RedisValue, Int64, CommandFlags)"/>
@@ -100,7 +100,7 @@ namespace EpicGames.Redis
 		public async Task<TElement> RightPopAsync(CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue value = await Database.ListRightPopAsync(Key, flags);
-			return value.IsNull? default! : RedisSerializer.Deserialize<TElement>(value)!;
+			return value.IsNull? default! : RedisSerializer.Deserialize<TElement>(value);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListRightPushAsync(RedisKey, RedisValue, When, CommandFlags)"/>

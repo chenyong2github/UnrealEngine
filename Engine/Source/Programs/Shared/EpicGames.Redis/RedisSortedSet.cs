@@ -35,7 +35,7 @@ namespace EpicGames.Redis
 		/// <param name="entry"></param>
 		public SortedSetEntry(SortedSetEntry entry)
 		{
-			Element = RedisSerializer.Deserialize<T>(entry.Element)!;
+			Element = RedisSerializer.Deserialize<T>(entry.Element);
 			ElementValue = entry.Element;
 			Score = entry.Score;
 		}
@@ -118,7 +118,7 @@ namespace EpicGames.Redis
 		public async Task<TElement[]> RangeByRankAsync(long start, long stop = -1, Order order = Order.Ascending, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] values = await _database.SortedSetRangeByRankAsync(Key, start, stop, order, flags);
-			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TElement>(x)!);
+			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TElement>(x));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByRankWithScoresAsync(RedisKey, Int64, Int64, Order, CommandFlags)"/>
@@ -132,7 +132,7 @@ namespace EpicGames.Redis
 		public async Task<TElement[]> RangeByScoreAsync(double start = Double.NegativeInfinity, double stop = Double.PositiveInfinity, Exclude exclude = Exclude.None, Order order = Order.Ascending, long skip = 0L, long take = -1L, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] values = await _database.SortedSetRangeByScoreAsync(Key, start, stop, exclude, order, skip, take, flags);
-			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TElement>(x)!);
+			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TElement>(x));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByScoreWithScoresAsync(RedisKey, Double, Double, Exclude, Order, Int64, Int64, CommandFlags)"/>
@@ -148,7 +148,7 @@ namespace EpicGames.Redis
 			RedisValue minValue = RedisSerializer.Serialize(min);
 			RedisValue maxValue = RedisSerializer.Serialize(max);
 			RedisValue[] values = await _database.SortedSetRangeByValueAsync(Key, minValue, maxValue, exclude, order, skip, take, flags);
-			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TElement>(x)!);
+			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TElement>(x));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRankAsync(RedisKey, RedisValue, Order, CommandFlags)"/>

@@ -13,7 +13,7 @@ namespace EpicGames.Redis
 	/// Attribute specifying the converter type to use for a class
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-	public sealed class RedisConverterAttribute : Attribute
+	public class RedisConverterAttribute : Attribute
 	{
 		/// <summary>
 		/// Type of the converter to use
@@ -47,7 +47,7 @@ namespace EpicGames.Redis
 		/// </summary>
 		/// <param name="value"></param>
 		/// <returns></returns>
-		T? FromRedisValue(RedisValue value);
+		T FromRedisValue(RedisValue value);
 	}
 
 	/// <summary>
@@ -63,7 +63,7 @@ namespace EpicGames.Redis
 		}
 
 		/// <inheritdoc/>
-		public T? FromRedisValue(RedisValue value)
+		public T FromRedisValue(RedisValue value)
 		{
 			return CbSerializer.Deserialize<T>(new CbField((byte[])value));
 		}
@@ -83,8 +83,8 @@ namespace EpicGames.Redis
 				_typeConverter = typeConverter;
 			}
 
-			public RedisValue ToRedisValue(T value) => (string?)_typeConverter.ConvertTo(value, typeof(string));
-			public T? FromRedisValue(RedisValue value) => (T?)_typeConverter.ConvertFrom((string)value);
+			public RedisValue ToRedisValue(T value) => (string)_typeConverter.ConvertTo(value, typeof(string));
+			public T FromRedisValue(RedisValue value) => (T)_typeConverter.ConvertFrom((string)value);
 		}
 
 		class RedisNativeConverter<T> : IRedisConverter<T>
@@ -228,7 +228,7 @@ namespace EpicGames.Redis
 		/// <typeparam name="T"></typeparam>
 		/// <param name="value"></param>
 		/// <returns></returns>
-		public static T? Deserialize<T>(RedisValue value)
+		public static T Deserialize<T>(RedisValue value)
 		{
 			return CachedConverter<T>.Converter.FromRedisValue(value);
 		}
