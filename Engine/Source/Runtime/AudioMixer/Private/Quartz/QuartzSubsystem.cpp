@@ -620,11 +620,12 @@ void UQuartzSubsystem::PruneStaleProxiesInternal(TArray<Audio::FQuartzClockProxy
 
 Audio::FQuartzClockProxy* UQuartzSubsystem::FindProxyByName(const FName& ClockName)
 {
-	Audio::FQuartzClockProxy* Result = ActiveAudioMixerClockProxies.FindByKey((ClockName));
+	Audio::FQuartzClockProxy* Result = ActiveAudioMixerClockProxies.FindByKey(ClockName);
 
+	// if the subsystem doesn't have a match, check the externally-registered clock proxies
 	if(!Result)
 	{
-		Result = ActiveAudioMixerClockProxies.FindByKey(ClockName);
+		Result = ActiveExternalClockProxies.FindByKey(ClockName);
 	}
 
 	return Result;
@@ -633,9 +634,11 @@ Audio::FQuartzClockProxy* UQuartzSubsystem::FindProxyByName(const FName& ClockNa
 Audio::FQuartzClockProxy const* UQuartzSubsystem::FindProxyByName(const FName& ClockName) const
 {
 	Audio::FQuartzClockProxy const* Result = ActiveAudioMixerClockProxies.FindByKey(ClockName);
+
+	// if the subsystem doesn't have a match, check the externally-registered clock proxies
 	if(!Result)
 	{
-		Result = ActiveAudioMixerClockProxies.FindByKey(ClockName);
+		Result = ActiveExternalClockProxies.FindByKey(ClockName);
 	}
 
 	return Result;
