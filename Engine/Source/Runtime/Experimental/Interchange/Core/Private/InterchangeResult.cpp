@@ -15,7 +15,7 @@ FString UInterchangeResult::ToJson()
 	TSharedPtr<FJsonObject> MsgObject = MakeShared<FJsonObject>();
 	TSharedPtr<FJsonObject> PropertiesObject = MakeShared<FJsonObject>();
 
-	MsgObject->SetStringField(TEXT("Type"), GetClass()->GetName());
+	MsgObject->SetStringField(TEXT("Type"), GetClass()->GetPathName());
 
 	TArray<TSharedPtr<FJsonValue>> Properties;
 	for (TFieldIterator<FProperty> FieldIterator(GetClass()); FieldIterator; ++FieldIterator)
