@@ -865,7 +865,6 @@ FLidarPointCloudOctree::FLidarPointCloudOctree(ULidarPointCloud* Owner)
 
 FLidarPointCloudOctree::~FLidarPointCloudOctree()
 {
-	FScopeLock Lock(&DataLock);
 	Empty(true);
 }
 
@@ -2478,7 +2477,7 @@ void FLidarPointCloudOctree::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 		if(Ar.IsSaving())
 		{
-			SavingBulkData.Serialize(Ar);
+			SavingBulkData.Serialize(Ar, Owner, false, 1, EFileRegionType::None);
 		}
 		else
 #endif
@@ -2570,19 +2569,17 @@ void FLidarPointCloudOctree::StreamNodeData(FLidarPointCloudOctreeNode* Node)
 //////////////////////////////////////////////////////////// FLidarPointCloudBulkData
 
 #if WITH_EDITOR
-FLidarPointCloudOctree::FLidarPointCloudBulkData::FLidarPointCloudBulkData(FLidarPointCloudOctree* Octree): Octree(Octree)
+FLidarPointCloudOctree::FLidarPointCloudBulkData::FLidarPointCloudBulkData(FLidarPointCloudOctree* Octree)
 {
-	SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
-	Lock(LOCK_READ_WRITE);
-	Realloc(2);
-	Unlock();
-}
-
-void FLidarPointCloudOctree::FLidarPointCloudBulkData::Serialize(FArchive& Ar)
-{
-	ElementSize = Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData() ? INT32_MAX : 1;
-	FUntypedBulkData::Serialize(Ar, Octree->GetOwner());
-	ElementSize = 1;
+	SerializeElementsCallback = [Octree](FArchive& Ar, void*, int64, EBulkDataFlags)
+	{
+		Octree->SerializeBulkData(Ar);
+	};
+#if !USE_RUNTIME_BULKDATA
+	SerializeBulkDataElements = &SerializeElementsCallback;
+#endif // !USE_RUNTIME_BULKDATA
+	
+	SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload | BULKDATA_Size64Bit);
 }
 #endif
 
