@@ -48,9 +48,7 @@ namespace P4VUtils
 		public static IReadOnlyDictionary<string, Command> RootHelperCommands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
 		{
 			["describe"] = new DescribeCommand(),
-#if !IS_LINUX
 			["copyclnum"] = new CopyCLCommand(),
-#endif
 		};
 
 		// UESubmit - commands that help with submitting files/changelists
@@ -168,7 +166,7 @@ namespace P4VUtils
 				return await Command.Execute(Args, ConfigValues, Logger);
 			}
 			else
-			{
+		{
 				Logger.LogError("Unknown command: {Command}", Args[0]);
 				PrintHelp(Logger);
 				return 1;
@@ -412,15 +410,7 @@ namespace P4VUtils
 				return 1;
 			}
 
-			FileReference ConfigFile;
-			if (OperatingSystem.IsMacOS())
-			{
-				ConfigFile = FileReference.Combine(ConfigDir, "Library", "Preferences", "com.perforce.p4v", "customtools.xml");
-			}
-			else
-			{
-				ConfigFile = FileReference.Combine(ConfigDir, ".p4qt", "customtools.xml");
-			}
+			FileReference ConfigFile = FileReference.Combine(ConfigDir, ".p4qt", "customtools.xml");
 
 			XmlDocument Document = new XmlDocument();
 			if (!TryLoadXmlDocument(ConfigFile, Document))
@@ -437,17 +427,7 @@ namespace P4VUtils
 			}
 
 
-			FileReference DotNetLocation;
-			if (OperatingSystem.IsWindows())
-			{
-				DotNetLocation = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles)!, "dotnet", "dotnet.exe");
-			}
-			else
-			{
-				// so we don't need to run SetupDotnet.sh every time we run a tool, point to the executing dotnet, assuming it will be usable later
-				DotNetLocation = new FileReference(Environment.ProcessPath!);
-			}
-
+			FileReference DotNetLocation = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles)!, "dotnet", "dotnet.exe");
 			FileReference AssemblyLocation = new FileReference(Assembly.GetExecutingAssembly().GetOriginalLocation());
 
 			XmlElement? Root = Document.SelectSingleNode("CustomToolDefList") as XmlElement;
