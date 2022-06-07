@@ -1711,7 +1711,18 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 				WindowRenderTargetUpdate(Renderer, Window.Get());
 				if (UseSeparateRenderTarget())
 				{
-					RTTSize = FIntPoint(SizeX, SizeY);
+					uint32 TexSizeX = SizeX, TexSizeY = SizeY;
+					{
+						IStereoRenderTargetManager* const StereoRenderTargetManager =
+							(IsStereoRenderingAllowed() && GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabledOnNextFrame())
+							? GEngine->StereoRenderingDevice->GetRenderTargetManager()
+							: nullptr;
+						if (StereoRenderTargetManager)
+						{
+							StereoRenderTargetManager->CalculateRenderTargetSize(*this, TexSizeX, TexSizeY);
+						}
+					}
+					RTTSize = FIntPoint(TexSizeX, TexSizeY);
 				}
 			}
 
