@@ -956,10 +956,24 @@ public:
 	virtual void PreDestroyFromReplication();
 
 #if WITH_EDITOR
-	/** 
-	 * @return		Returns Valid if this object has data validation rules set up for it and the data for this object is valid. Returns Invalid if it does not pass the rules. Returns NotValidated if no rules are set for this object.
+	/**
+	 * Generic function to validate objects during changelist validations, etc.
+	 *
+	 * @param	ValidationErrors	the array of validation errors.
+	 * @return Valid if this object has data validation rules set up for it and the data for this object is valid. Returns Invalid if it does not pass 
+	 *         the rules. Returns NotValidated if no rules are set for this object.
 	 */
 	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors);
+
+	/**
+	 * Generic function to validate objects during changelist validations, etc.
+	 *
+	 * @param	ValidationErrors	the array of validation errors.
+	 * @param	ValidationWarnings	the array of validation warnings.
+	 * @return Valid if this object has data validation rules set up for it and the data for this object is valid. Returns Invalid if it does not pass 
+	 *         the rules. Returns NotValidated if no rules are set for this object.
+	 */
+	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings);
 #endif // WITH_EDITOR
 
 	/*----------------------------------------------------------

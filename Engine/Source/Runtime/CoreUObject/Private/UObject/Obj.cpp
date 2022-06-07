@@ -4950,6 +4950,11 @@ EDataValidationResult UObject::IsDataValid(TArray<FText>& ValidationErrors)
 	return EDataValidationResult::NotValidated;
 }
 
+EDataValidationResult UObject::IsDataValid(TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings)
+{
+	return IsDataValid(ValidationErrors);
+}
+
 #endif // WITH_EDITOR
 /** IsNameStableForNetworking means an object can be referred to its path name (relative to outer) over the network */
 bool UObject::IsNameStableForNetworking() const

@@ -67,7 +67,7 @@ FString GetPrettyPackageName(const FName& InPackageName)
 	}
 }
 
-EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings)
 {
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	
@@ -140,9 +140,8 @@ EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& Vali
 		// Dependency is not at the latest revision
 		else if (!ExternalDependencyFileState->IsCurrent())
 		{
-			bHasChangelistErrors = true;
-			FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.NotLatest", "{0} is referenced but is not at the latest revision '{1}'"), FText::FromString(GetPrettyPackageName(ExternalDependency)), FText::FromString(ExternalPackageFilename));
-			ValidationErrors.Add(CurrentError);
+			FText CurrentWarning = FText::Format(LOCTEXT("DataValidation.Changelist.NotLatest", "{0} is referenced but is not at the latest revision '{1}'"), FText::FromString(GetPrettyPackageName(ExternalDependency)), FText::FromString(ExternalPackageFilename));
+			ValidationWarnings.Add(CurrentWarning);
 		}
 		// Dependency is not in source control
 		else if (ExternalDependencyFileState->CanAdd())

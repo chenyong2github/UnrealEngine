@@ -155,7 +155,7 @@ EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject
 	if (ensure(InObject))
 	{
 		// First check the class level validation
-		Result = InObject->IsDataValid(ValidationErrors);
+		Result = InObject->IsDataValid(ValidationErrors, ValidationWarnings);
 		// If the asset is still valid or there wasn't a class-level validation, keep validating with custom validators
 		if (Result != EDataValidationResult::Invalid)
 		{
