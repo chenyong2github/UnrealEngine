@@ -3148,9 +3148,8 @@ public:
 
 		
 		// DetectAlphaChannel on the top mip of the generated mip chain
-		//	it is now always Linear F32
 		//	BuildSettings could have programatically introduced alpha that was not in the source
-		// note the order of operations in bForceAlphaChannel and bForceNoAlphaChannel (ambiguity if both are on)
+		// note the order of operations in bForceAlphaChannel and bForceNoAlphaChannel ( ForceNo takes precedence )
 		const bool bImageHasAlphaChannel = !BuildSettings.bForceNoAlphaChannel  && (BuildSettings.bForceAlphaChannel || DetectAlphaChannel(IntermediateMipChain[0]));
 	
 		#if 0
