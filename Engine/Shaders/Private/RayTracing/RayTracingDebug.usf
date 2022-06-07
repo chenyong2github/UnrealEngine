@@ -3,7 +3,8 @@
 #include "../Common.ush"
 #include "../ShadingCommon.ush"
 #include "../ColorMap.ush"
-#include "../HashTable.ush"
+#include "../Hash.ush"
+#include "../Visualization.ush"
 
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
@@ -21,20 +22,6 @@ float TimingScale;
 float MaxTraceDistance;
 float FarFieldMaxTraceDistance;
 float3 FarFieldReferencePos;
-
-float3 IntToColor(uint Index)
-{
-	uint Hash = MurmurMix(Index);
-
-	float3 Color = float3
-	(
-		(Hash >> 0) & 255,
-		(Hash >> 8) & 255,
-		(Hash >> 16) & 255
-	);
-
-	return Color * (1.0f / 255.0f);
-}
 
 float4 DebugRayTracingMaterial(RayDesc Ray, bool bIsFarField)
 {

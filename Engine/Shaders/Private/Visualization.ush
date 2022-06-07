@@ -2,17 +2,8 @@
 
 #pragma once
 
+#include "Hash.ush"
 #include "ColorMap.ush"
-
-uint MurmurMix(uint Hash)
-{
-	Hash ^= Hash >> 16;
-	Hash *= 0x85ebca6b;
-	Hash ^= Hash >> 13;
-	Hash *= 0xc2b2ae35;
-	Hash ^= Hash >> 16;
-	return Hash;
-}
 
 float3 IntToColor(uint Index)
 {
