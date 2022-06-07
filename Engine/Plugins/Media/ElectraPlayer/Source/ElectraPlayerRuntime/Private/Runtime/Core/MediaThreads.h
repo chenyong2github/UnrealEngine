@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "PlayerCore.h"
-
 #include "Core/MediaTypes.h"
 #include "Core/MediaMacros.h"
 #include "Core/MediaNoncopyable.h"
