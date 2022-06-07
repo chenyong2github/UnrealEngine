@@ -36,17 +36,17 @@ const FRigVMTemplate* URigVMSelectNode::GetTemplate() const
 	
 	if(CachedTemplate == nullptr)
 	{
-		const TArray<FRigVMTemplateArgument::FType>& SingleTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
-		const TArray<FRigVMTemplateArgument::FType>& ArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
-		const TArray<FRigVMTemplateArgument::FType>& ArrayArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue);
+		const TArray<FRigVMTemplateArgumentType>& SingleTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
+		const TArray<FRigVMTemplateArgumentType>& ArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
+		const TArray<FRigVMTemplateArgumentType>& ArrayArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue);
 
-		TArray<FRigVMTemplateArgument::FType> ResultTypes = SingleTypes;
+		TArray<FRigVMTemplateArgumentType> ResultTypes = SingleTypes;
 		ResultTypes.Append(ArrayTypes);
-		TArray<FRigVMTemplateArgument::FType> ValueTypes = ArrayTypes;
+		TArray<FRigVMTemplateArgumentType> ValueTypes = ArrayTypes;
 		ValueTypes.Append(ArrayArrayTypes);		
 		
 		TArray<FRigVMTemplateArgument> Arguments;
-		Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, FRigVMTemplateArgument::FType(RigVMTypeUtils::Int32Type, nullptr));
+		Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
 		Arguments.Emplace(*ValueName, ERigVMPinDirection::Input, ValueTypes);
 		Arguments.Emplace(*ResultName, ERigVMPinDirection::Output, ResultTypes);
 		

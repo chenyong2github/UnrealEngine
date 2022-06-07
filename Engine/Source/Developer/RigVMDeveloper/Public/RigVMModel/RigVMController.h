@@ -378,7 +378,7 @@ public:
 	// Resolves a wildcard pin on any node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool ResolveWildCardPin(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
-	bool ResolveWildCardPin(URigVMPin* InPin, const FRigVMTemplateArgument::FType& InType, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+	bool ResolveWildCardPin(URigVMPin* InPin, const FRigVMTemplateArgumentType& InType, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 		
 	// Adds a Function / Struct Node to the edited Graph as an injected node
 	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
@@ -1050,15 +1050,15 @@ private:
 	// If any of the types is supported (without breaking any links), then the filtered permutations will be updated and the change will
 	// propagate to other nodes in the graph.
 	// If it is not supported, we will attempt to find and break any links that do not support this change
-	bool PrepareTemplatePinForType(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes, bool bSetupUndoRedo);
+	bool PrepareTemplatePinForType(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes, bool bSetupUndoRedo);
 
 	// Get filtered types for a wildcard node. If template node, that means just returning its filtered wildcard types, but if it's another type of node (select, if, rereoute), iterate
 	// its connections to figure out the filtered types
-	TArray<FRigVMTemplateArgument::FType> GetWildcardFilteredTypes(URigVMPin* InPin);
+	TArray<FRigVMTemplateArgumentType> GetWildcardFilteredTypes(URigVMPin* InPin);
 	
 	// Updates the permutations allowed without having to break any links
 	bool UpdateFilteredPermutations(URigVMPin* InPin, URigVMPin* InLinkedPin, bool bSetupUndoRedo);
-	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes, bool bSetupUndoRedo);
+	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes, bool bSetupUndoRedo);
 
 	// Changes Pin types if filtered types of a pin are unique
 	bool UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo);

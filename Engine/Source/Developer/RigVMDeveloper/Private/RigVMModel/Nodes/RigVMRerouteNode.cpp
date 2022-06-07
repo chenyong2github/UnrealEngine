@@ -80,13 +80,13 @@ const FRigVMTemplate* URigVMRerouteNode::GetTemplate() const
 	
 	if(CachedTemplate == nullptr)
 	{
-		TArray<FRigVMTemplateArgument::FType> Types;
+		TArray<FRigVMTemplateArgumentType> Types;
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue));
 
 		UScriptStruct* ExecuteStruct = GetGraph()->GetExecuteContextStruct();
-		Types.Add(FRigVMTemplateArgument::FType(ExecuteStruct->GetStructCPPName(), ExecuteStruct));
+		Types.Add(FRigVMTemplateArgumentType(ExecuteStruct->GetStructCPPName(), ExecuteStruct));
 		
 		TArray<FRigVMTemplateArgument> Arguments;
 		Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, Types);

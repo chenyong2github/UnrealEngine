@@ -25,13 +25,13 @@ const FRigVMTemplate* URigVMIfNode::GetTemplate() const
 	
 	if(CachedTemplate == nullptr)
 	{
-		TArray<FRigVMTemplateArgument::FType> Types;
+		TArray<FRigVMTemplateArgumentType> Types;
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue));
 		
 		TArray<FRigVMTemplateArgument> Arguments;
-		Arguments.Emplace(*ConditionName, ERigVMPinDirection::Input, FRigVMTemplateArgument::FType(RigVMTypeUtils::BoolType, nullptr));
+		Arguments.Emplace(*ConditionName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::BoolType, nullptr));
 		Arguments.Emplace(*TrueName, ERigVMPinDirection::Input, Types);
 		Arguments.Emplace(*FalseName, ERigVMPinDirection::Input, Types);
 		Arguments.Emplace(*ResultName, ERigVMPinDirection::Output, Types);

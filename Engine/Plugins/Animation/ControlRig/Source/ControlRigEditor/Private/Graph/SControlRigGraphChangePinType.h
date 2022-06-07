@@ -28,7 +28,7 @@ public:
 
 protected:
 
-	static FText GetBindingText(const FRigVMTemplateArgument::FType& InType);
+	static FText GetBindingText(const FRigVMTemplateArgumentType& InType);
 	FText GetBindingText(URigVMPin* ModelPin) const;
 	FText GetBindingText() const;
 	const FSlateBrush* GetBindingImage() const;
@@ -37,7 +37,7 @@ protected:
 	bool OnCanBindToClass(UClass* InClass) const;
 	void OnAddBinding(FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain);
 	void FillPinTypeMenu( FMenuBuilder& MenuBuilder );
-	void HandlePinTypeChanged(FRigVMTemplateArgument::FType InType);
+	void HandlePinTypeChanged(FRigVMTemplateArgumentType InType);
 
 	TArray<URigVMPin*> ModelPins;
 	UControlRigBlueprint* Blueprint;

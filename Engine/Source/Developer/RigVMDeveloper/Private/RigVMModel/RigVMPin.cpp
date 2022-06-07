@@ -610,9 +610,9 @@ FString URigVMPin::GetArrayElementCppType() const
 	return RigVMTypeUtils::BaseTypeFromArrayType(ResolvedType);
 }
 
-FRigVMTemplateArgument::FType URigVMPin::GetTemplateArgumentType() const
+FRigVMTemplateArgumentType URigVMPin::GetTemplateArgumentType() const
 {
-	return FRigVMTemplateArgument::FType(GetCPPType(), GetCPPTypeObject());
+	return FRigVMTemplateArgumentType(GetCPPType(), GetCPPTypeObject());
 }
 
 bool URigVMPin::IsStringType() const

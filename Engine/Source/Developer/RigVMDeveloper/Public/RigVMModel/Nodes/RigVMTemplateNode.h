@@ -75,14 +75,14 @@ public:
 	const TArray<int32>& GetFilteredPermutationsIndices() const;
 
 	// returns the filtered types of this pin
-	TArray<FRigVMTemplateArgument::FType> GetFilteredTypesForPin(URigVMPin* InPin) const;
+	TArray<FRigVMTemplateArgumentType> GetFilteredTypesForPin(URigVMPin* InPin) const;
 
 	// returns true if updating pin filters with InTypes would result in different filters 
-	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes);
+	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes);
 	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, URigVMPin* LinkedPin);
 
 	// updates the filtered permutations given a link or the types for a pin
-	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes);
+	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes);
 	bool UpdateFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
 
 	// initializes the filtered permutations to all possible permutations
@@ -96,7 +96,7 @@ protected:
 	virtual void InvalidateCache() override;
 	
 	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
-	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes);
+	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes);
 
 	TArray<int32> FindPermutationsForTypes(const TArray<FString>& ArgumentTypes, bool bAllowCasting = false);
 	TArray<FString> GetArgumentTypesForPermutation(const int32 InPermutationIndex);
@@ -113,7 +113,7 @@ protected:
 	TArray<FString> PreferredPermutationTypes;
 	
 	TArray<int32> FilteredPermutations;
-	TMap<FString, TPair<bool, FRigVMTemplateArgument::FType>> SupportedTypesCache;
+	TMap<FString, TPair<bool, FRigVMTemplateArgumentType>> SupportedTypesCache;
 
 	mutable const FRigVMTemplate* CachedTemplate;
 	mutable const FRigVMFunction* CachedFunction;

@@ -190,7 +190,7 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, const FString& InC
 	if (const FRigVMTemplate* Template = GetTemplate())
 	{
 		const FString CacheKey = RootPin->GetName() + TEXT("|") + CPPType;
-		if (const TPair<bool, FRigVMTemplateArgument::FType>* CachedResult = SupportedTypesCache.Find(CacheKey))
+		if (const TPair<bool, FRigVMTemplateArgumentType>* CachedResult = SupportedTypesCache.Find(CacheKey))
 		{
 			if(OutCPPType)
 			{
@@ -199,7 +199,7 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, const FString& InC
 			return CachedResult->Key;
 		}
 
-		FRigVMTemplateArgument::FType OutType;
+		FRigVMTemplateArgumentType OutType;
 		if (Template->ArgumentSupportsType(RootPin->GetFName(), CPPType, &OutType))
 		{
 			if (OutCPPType)
@@ -267,10 +267,10 @@ bool URigVMTemplateNode::FilteredSupportsType(const URigVMPin* InPin, const FStr
 		return GetTemplate()->ArgumentSupportsType(RootPin->GetFName(), InCPPType);
 	}
 
-	const TArray<FRigVMTemplateArgument::FType>& Types = Argument->GetTypes();
+	const TArray<FRigVMTemplateArgumentType>& Types = Argument->GetTypes();
 	for (int32 PermutationIndex : FilteredPermutations)
 	{
-		const FRigVMTemplateArgument::FType& FilteredType = Types[PermutationIndex];
+		const FRigVMTemplateArgumentType& FilteredType = Types[PermutationIndex];
 		if (FilteredType.Matches(RootCPPType, bAllowFloatingPointCasts))
 		{
 			return true;
@@ -365,7 +365,7 @@ FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinN
 		{
 			const FRigVMTemplate* Template = GetTemplate();
 			const FRigVMTemplateArgument* Argument = Template->FindArgument(InRootPinName);
-			const FRigVMTemplateArgument::FType Type = Argument->GetTypes()[PermutationIndex];
+			const FRigVMTemplateArgumentType Type = Argument->GetTypes()[PermutationIndex];
 
 			if (Type.IsArray())
 			{
@@ -470,10 +470,10 @@ const TArray<int32>& URigVMTemplateNode::GetFilteredPermutationsIndices() const
 	return FilteredPermutations;
 }
 
-TArray<FRigVMTemplateArgument::FType> URigVMTemplateNode::GetFilteredTypesForPin(URigVMPin* InPin) const
+TArray<FRigVMTemplateArgumentType> URigVMTemplateNode::GetFilteredTypesForPin(URigVMPin* InPin) const
 {
 	ensureMsgf(InPin->GetNode() == this, TEXT("GetFilteredTypesForPin of %s with pin from another node %s"), *GetNodePath(), *InPin->GetPinPath(true));
-	TArray<FRigVMTemplateArgument::FType> FilteredTypes;
+	TArray<FRigVMTemplateArgumentType> FilteredTypes;
 
 	if (FilteredPermutations.IsEmpty())
 	{
@@ -489,7 +489,7 @@ TArray<FRigVMTemplateArgument::FType> URigVMTemplateNode::GetFilteredTypesForPin
 			if (InPin->GetName() == ArgName)
 			{
 				const FRigVMTemplateArgument* Argument = GetTemplate()->FindArgument(*ArgName);
-				for (const FRigVMTemplateArgument::FType& Type : Argument->GetTypes())
+				for (const FRigVMTemplateArgumentType& Type : Argument->GetTypes())
 				{
 					if (Type.CPPType == CPPType)
 					{
@@ -512,7 +512,7 @@ TArray<FRigVMTemplateArgument::FType> URigVMTemplateNode::GetFilteredTypesForPin
 		FilteredTypes = Argument->GetSupportedTypes(FilteredPermutations);
 		if (bIsArrayElement)
 		{
-			for (FRigVMTemplateArgument::FType& ArrayType : FilteredTypes)
+			for (FRigVMTemplateArgumentType& ArrayType : FilteredTypes)
 			{
 				ArrayType.ConvertToBaseElement();
 			}
@@ -565,7 +565,7 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, U
 			{
 				for(int32 PermutationIndex : PermutationsToTry)
 				{
-					FRigVMTemplateArgument::FType Type = Argument->GetTypes()[PermutationIndex];
+					FRigVMTemplateArgumentType Type = Argument->GetTypes()[PermutationIndex];
 					if (bIsArrayElement)
 					{
 						Type.ConvertToBaseElement();
@@ -586,7 +586,7 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, U
 			const FString LinkedCPPType = LinkedPin->GetCPPType();
 			for(int32 PermIndex : PermutationsToTry)
 			{
-				FRigVMTemplateArgument::FType Type = Argument->GetTypes()[PermIndex];
+				FRigVMTemplateArgumentType Type = Argument->GetTypes()[PermIndex];
 				if (bIsArrayElement)
 				{
 					Type.ConvertToBaseElement();
@@ -601,17 +601,17 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, U
 	return NewFilteredPermutations;
 }
 
-TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes)
+TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes)
 {
 	TArray<int32> NewFilteredPermutations;
 	NewFilteredPermutations.Reserve(FilteredPermutations.Num());
 
 	URigVMPin* RootPin = InPin;
-	TArray<FRigVMTemplateArgument::FType> RootTypes = InTypes;
+	TArray<FRigVMTemplateArgumentType> RootTypes = InTypes;
 	if (URigVMPin* ParentPin = InPin->GetParentPin())
 	{
 		RootPin = ParentPin;
-		for (FRigVMTemplateArgument::FType& Type : RootTypes)
+		for (FRigVMTemplateArgumentType& Type : RootTypes)
 		{
 			Type.ConvertToArray();
 		}
@@ -625,10 +625,10 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, c
 	
 	if (const FRigVMTemplateArgument* Argument = GetTemplate()->FindArgument(RootPin->GetFName()))
 	{
-		const TArray<FRigVMTemplateArgument::FType>& Types = Argument->GetTypes();
+		const TArray<FRigVMTemplateArgumentType>& Types = Argument->GetTypes();
 		for(int32 PermIndex : PermutationsToTry)
 		{
-			for (FRigVMTemplateArgument::FType& RootType : RootTypes)
+			for (FRigVMTemplateArgumentType& RootType : RootTypes)
 			{				
 				if (Types[PermIndex].Matches(RootType.CPPType))
 				{
@@ -715,7 +715,7 @@ TArray<FString> URigVMTemplateNode::GetArgumentTypesForPermutation(const int32 I
 	return ArgTypes;
 }
 
-bool URigVMTemplateNode::PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes)
+bool URigVMTemplateNode::PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes)
 {
 	TArray<int32> NewFilteredPermutations = GetNewFilteredPermutations(InPin, InTypes);
 	if (NewFilteredPermutations.Num() == FilteredPermutations.Num())
@@ -757,7 +757,7 @@ bool URigVMTemplateNode::UpdateFilteredPermutations(URigVMPin* InPin, URigVMPin*
 	return true;
 }
 
-bool URigVMTemplateNode::UpdateFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgument::FType>& InTypes)
+bool URigVMTemplateNode::UpdateFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes)
 {
 	TArray<int32> NewFilteredPermutations = GetNewFilteredPermutations(InPin, InTypes);
 	if (NewFilteredPermutations.Num() == FilteredPermutations.Num())

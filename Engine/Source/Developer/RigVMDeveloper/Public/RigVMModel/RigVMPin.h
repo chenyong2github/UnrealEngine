@@ -234,7 +234,7 @@ public:
 	FString GetArrayElementCppType() const;
 
 	// Returns the argument type this pin would represent within a template
-	FRigVMTemplateArgument::FType GetTemplateArgumentType() const;
+	FRigVMTemplateArgumentType GetTemplateArgumentType() const;
 
 	// Returns true if the C++ data type is FString or FName
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)

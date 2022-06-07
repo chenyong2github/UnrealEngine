@@ -131,7 +131,7 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 	int32 NumPermutations = 1;
 	for(const FRigVMTemplateArgument& Argument : InArguments)
 	{
-		if(!Argument.bSingleton && NumPermutations > 1)
+		if(!Argument.IsSingleton() && NumPermutations > 1)
 		{
 			if(Argument.Types.Num() != NumPermutations)
 			{
@@ -161,7 +161,6 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 				Argument.TypeToPermutations.Add(Argument.Types[i].CPPType, {i});				
 			}
 			
-			Argument.bSingleton = false;
 			NumPermutations = FMath::Max(NumPermutations, Argument.Types.Num()); 
 		}
 	}
@@ -173,7 +172,7 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 		{
 			if(Argument.Types.Num() == 1)
 			{
-				const FRigVMTemplateArgument::FType Type = Argument.Types[0];
+				const FRigVMTemplateArgumentType Type = Argument.Types[0];
 				Argument.Types.SetNum(NumPermutations);
 				TArray<int32> ArgTypePermutations;
 				ArgTypePermutations.SetNum(NumPermutations);
@@ -183,7 +182,6 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 					ArgTypePermutations[Index] = Index;
 				}
 				Argument.TypeToPermutations.Add(Type.CPPType, ArgTypePermutations);
-				Argument.bSingleton = true;
 			}
 		}
 	}

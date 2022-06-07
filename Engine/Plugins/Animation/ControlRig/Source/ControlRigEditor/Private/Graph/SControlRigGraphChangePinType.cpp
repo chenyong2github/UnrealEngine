@@ -49,7 +49,7 @@ void SControlRigChangePinType::Construct(const FArguments& InArgs)
 	];
 }
 
-FText SControlRigChangePinType::GetBindingText(const FRigVMTemplateArgument::FType& InType)
+FText SControlRigChangePinType::GetBindingText(const FRigVMTemplateArgumentType& InType)
 {
 	if(UObject* CPPTypeObject = InType.CPPTypeObject)
 	{
@@ -147,7 +147,7 @@ FLinearColor SControlRigChangePinType::GetBindingColor() const
 {
 	if(ModelPins.Num() > 0)
 	{
-		const FRigVMTemplateArgument::FType Type = ModelPins[0]->GetTemplateArgumentType();
+		const FRigVMTemplateArgumentType Type = ModelPins[0]->GetTemplateArgumentType();
 		const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(Type.CPPType, Type.CPPTypeObject);
 		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
 		return Schema->GetPinTypeColor(PinType);
@@ -178,7 +178,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 			return Info;
 		}
 
-		static FArgumentInfo Make(const FRigVMTemplateArgument::FType& InType, const bool bInIsFilteredOut)
+		static FArgumentInfo Make(const FRigVMTemplateArgumentType& InType, const bool bInIsFilteredOut)
 		{
 			FArgumentInfo Info;
 			Info.Property = nullptr;
@@ -189,11 +189,11 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 
 		const FProperty* Property;
 		bool bIsFilteredOut;
-		FRigVMTemplateArgument::FType Type;
+		FRigVMTemplateArgumentType Type;
 	};
 
-	typedef TPair<FRigVMTemplateArgument::FType, FArgumentInfo> FTypePair;
-	TMap<FRigVMTemplateArgument::FType, FArgumentInfo> Types;
+	typedef TPair<FRigVMTemplateArgumentType, FArgumentInfo> FTypePair;
+	TMap<FRigVMTemplateArgumentType, FArgumentInfo> Types;
 	for(URigVMPin* ModelPin : ModelPins)
 	{
 		if(!ModelPin->IsRootPin())
@@ -208,12 +208,12 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 				const FName ArgumentName = ModelPin->GetFName();
 				if(const FRigVMTemplateArgument* Argument = Template->FindArgument(ArgumentName))
 				{
-					const TArray<FRigVMTemplateArgument::FType>& AllArgumentTypes = Argument->GetTypes();
-					const TArray<FRigVMTemplateArgument::FType>& FilteredArgumentTypes = Argument->GetSupportedTypes(TemplateNode->GetFilteredPermutationsIndices());
+					const TArray<FRigVMTemplateArgumentType>& AllArgumentTypes = Argument->GetTypes();
+					const TArray<FRigVMTemplateArgumentType>& FilteredArgumentTypes = Argument->GetSupportedTypes(TemplateNode->GetFilteredPermutationsIndices());
 					
 					for(int32 PermutationIndex = 0; PermutationIndex < Template->NumPermutations(); PermutationIndex++)
 					{
-						FRigVMTemplateArgument::FType ArgumentType = AllArgumentTypes[PermutationIndex];
+						FRigVMTemplateArgumentType ArgumentType = AllArgumentTypes[PermutationIndex];
 					
 						bool bIsFilteredOut = false;
 						if(!FilteredArgumentTypes.Contains(ArgumentType))
@@ -305,7 +305,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 		
 		for(int32 TypeIndex=0; TypeIndex < SortedTypes.Num(); TypeIndex++)
 		{
-			const FRigVMTemplateArgument::FType& Type = SortedTypes[TypeIndex].Key;
+			const FRigVMTemplateArgumentType& Type = SortedTypes[TypeIndex].Key;
 			const bool bIsFilteredOut = SortedTypes[TypeIndex].Value.bIsFilteredOut;
 			if (Type.CPPTypeObject != nullptr && !IsValid(Type.CPPTypeObject))
 			{
@@ -324,7 +324,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 				if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
 				{
 					if(!FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue).Contains(
-						FRigVMTemplateArgument::FType(ScriptStruct->GetStructCPPName(), ScriptStruct)))
+						FRigVMTemplateArgumentType(ScriptStruct->GetStructCPPName(), ScriptStruct)))
 					{
 						continue;
 					}
@@ -373,7 +373,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection(); // Local Variables
 }
 
-void SControlRigChangePinType::HandlePinTypeChanged(FRigVMTemplateArgument::FType InType)
+void SControlRigChangePinType::HandlePinTypeChanged(FRigVMTemplateArgumentType InType)
 {
 	if(ModelPins.IsEmpty() || (Blueprint == nullptr))
 	{
