@@ -516,7 +516,7 @@ void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 	}
 
 	// Create output.
-	OutFile.CreateOutputFile(InName, DestWidth, DestHeight, bInEnableMips);
+	OutFile.CreateOutputFile(InName, DestWidth, DestHeight, bInEnableMips, 1);
 	if (DestNumChannels == 4)
 	{
 		OutFile.AddFrameBufferChannel(AChannelName, nullptr, Stride);

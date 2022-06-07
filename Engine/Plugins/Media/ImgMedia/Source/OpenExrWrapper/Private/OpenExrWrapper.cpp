@@ -426,7 +426,7 @@ void FTiledOutputFile::AddChannel(const FString& Name)
 }
 
 void FTiledOutputFile::CreateOutputFile(const FString& FilePath,
-	int32 TileWidth, int32 TileHeight, bool bIsMipsEnabled)
+	int32 TileWidth, int32 TileHeight, bool bIsMipsEnabled, int32 NumThreads)
 {
 	if (OutputFile == nullptr)
 	{
@@ -438,7 +438,7 @@ void FTiledOutputFile::CreateOutputFile(const FString& FilePath,
 
 			// Create output file.
 			OutputFile = new Imf::TiledOutputFile(StringCast<ANSICHAR>(*FilePath).Get(),
-				*((Imf::Header*)Header));
+				*((Imf::Header*)Header), NumThreads);
 		}
 		catch (std::exception const& Exception)
 		{

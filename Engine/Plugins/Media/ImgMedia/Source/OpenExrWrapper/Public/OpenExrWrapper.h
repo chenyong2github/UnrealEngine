@@ -239,9 +239,10 @@ public:
 	 * @param TileWidth			Width of a tile.
 	 * @param TileHeight		Height of a tile.
 	 * @param bIsMipsEnabled	True to enable mip mapping.
+	 * @param NumThreads		Number of threads for EXR to use.
 	 */
 	void CreateOutputFile(const FString& FilePath,
-		int32 TileWidth, int32 TileHeight, bool bIsMipsEnabled);
+		int32 TileWidth, int32 TileHeight, bool bIsMipsEnabled, int32 NumThreads);
 
 	/**
 	 * Get the width of a mip level.
