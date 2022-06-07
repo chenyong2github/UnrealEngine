@@ -437,7 +437,7 @@ void FDatasmithSceneXmlReader::ParseMesh(FXmlNode* InNode, TSharedPtr<IDatasmith
 
 void FDatasmithSceneXmlReader::ParseCloth(FXmlNode* InNode, TSharedPtr<IDatasmithClothElement>& OutElement) const
 {
-	// #ue_ds_cloth: xml read
+	// #ue_ds_cloth_note: xml read
 	ParseElement( InNode, OutElement.ToSharedRef() );
 
 	for (const FXmlNode* Node : InNode->GetChildrenNodes())
@@ -1215,7 +1215,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 			OutScene->AddCloth(Element);
 
-// 			Objects.Add( Element->GetName(), Element ); // #ue_ds_cloth_todo cloths referencables by other elements
+// 			Objects.Add( Element->GetName(), Element ); // #ue_ds_cloth_todo cloths referencable by other elements
 		}
 		// LEVEL SEQUENCES
 		else if (Nodes[i]->GetTag() == DATASMITH_LEVELSEQUENCENAME)

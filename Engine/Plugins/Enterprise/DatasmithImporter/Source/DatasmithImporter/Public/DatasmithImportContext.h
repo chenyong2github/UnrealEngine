@@ -214,7 +214,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	FDatasmithImportContext(const FString& InFileName, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel, TSharedPtr<IDatasmithTranslator> InSceneTranslator = nullptr);
 
 	FDatasmithImportContext(const TSharedPtr<UE::DatasmithImporter::FExternalSource>& InExternalSource, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel);
-	
+
 	/** Cached MD5 hash value for faster processing */
 	FMD5Hash FileHash;
 
@@ -257,7 +257,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	/** Map of imported mesh for each mesh element */
 	TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* > ImportedStaticMeshes;
 
-	TMap< TSharedRef< IDatasmithClothElement >, UObject* > ImportedClothes; // UChaosClothAsset
+	TMap< TSharedRef< IDatasmithClothElement >, UObject* > ImportedClothes; // #ue_ds_cloth_todo: UChaosClothAsset
+
+	TArray< UObject* > ImportedClothPresets; // #ue_ds_cloth_todo: UChaosClothPreset // #ue_ds_cloth_todo: map with a dedicated element so that clothes can share parameters
 
 	/** Register IDatasmithMeshElement by their name so they can be searched faster */
 	TMap< FString, TSharedRef < IDatasmithMeshElement > > ImportedStaticMeshesByName;
@@ -316,7 +318,7 @@ public:
 	 * @param bSilent				Doesn't display the options dialog and skips other user input requests
 	 */
 	bool Init(const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent);
-	
+
 	/**
 	 * First part of the Init process, replaces Init, requires a call to SetupDestination and InitScene after that.
 	 * Displays the options to the end-user (blocking call), and updates translator accordingly.

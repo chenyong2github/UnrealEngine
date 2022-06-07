@@ -16,6 +16,21 @@ public:
 	bool IsValid() { return SimRestPosition.Num() == SimPosition.Num() && SimTriangleIndices.Num() % 3 == 0; }
 };
 
+
+class FDatasmithClothPresetProperty
+{
+public:
+	FName Name;
+	double Value;
+};
+
+class DATASMITHCORE_API FDatasmithClothPresetPropertySet
+{
+public:
+	FString SetName;
+	TArray<FDatasmithClothPresetProperty> Properties;
+};
+
 /*
  * Structure of a Cloth
  * - One Thin Mesh:
@@ -28,5 +43,6 @@ class DATASMITHCORE_API FDatasmithCloth
 {
 public:
 	TArray<FDatasmithClothPattern> Patterns;
+	TArray<FDatasmithClothPresetPropertySet> PropertySets;
 };
 

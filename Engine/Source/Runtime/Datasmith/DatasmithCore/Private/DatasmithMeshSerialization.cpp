@@ -319,7 +319,7 @@ FDatasmithPackedMeshes GetDatasmithMeshFromFile(const FString& MeshPath)
 
 DATASMITHCORE_API FDatasmithPackedMeshes GetDatasmithClothFromFile(const FString& Path)
 {
-	// #ue_ds_cloth: asset serialization
+	// #ue_ds_cloth_note: asset serialization
 	FDatasmithPackedMeshes Result;
 
 	TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileReader(*Path) );

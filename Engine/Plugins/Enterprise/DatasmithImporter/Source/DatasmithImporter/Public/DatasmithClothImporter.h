@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 
 class FDatasmithCloth;
+class FDatasmithClothPresetPropertySet;
 class IDatasmithClothElement;
 
 
@@ -15,6 +16,9 @@ class IDatasmithImporterExt
 {
 public:
 	virtual UObject* MakeClothAsset(UObject* Outer, const TCHAR* Name, EObjectFlags ObjectFlags) = 0;
-	virtual void FillCloth(UObject* ClothAsset, TSharedRef<IDatasmithClothElement> ClothElement, FDatasmithCloth& DsCloth) = 0;
+	virtual void FillCloth(UObject* ClothAsset, TSharedRef<IDatasmithClothElement> ClothElement, FDatasmithCloth& Cloth) = 0;
+
+	virtual UObject* MakeClothPropertyAsset(UObject* Outer, const TCHAR* Name, EObjectFlags ObjectFlags) = 0;
+	virtual void FillPropertySet(UObject* PropertySetAsset, TSharedRef<IDatasmithClothElement> ClothElement, const FDatasmithClothPresetPropertySet& PropertySet) = 0;
 };
 

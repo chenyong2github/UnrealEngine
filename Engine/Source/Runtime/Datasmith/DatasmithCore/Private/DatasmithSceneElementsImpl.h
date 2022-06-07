@@ -387,7 +387,7 @@ private:
 	TDatasmithReferenceArrayProxy<IDatasmithMaterialIDElement> MaterialSlots;
 };
 
-// #ue_ds_cloth doc: Experimental Element that describes a cloth asset
+// #ue_ds_cloth_doc: Experimental Element that describes a cloth asset
 class FDatasmithClothElementImpl : public FDatasmithElementImpl< IDatasmithClothElement >
 {
 public:
