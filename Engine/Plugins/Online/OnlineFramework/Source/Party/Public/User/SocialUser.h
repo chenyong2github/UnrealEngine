@@ -129,7 +129,7 @@ public:
 	void JoinParty(const FOnlinePartyTypeId& PartyTypeId) const;
 
 	virtual void JoinParty(const FOnlinePartyTypeId& PartyTypeId, const FName& JoinMethod) const;
-	void RejectPartyInvite(const FOnlinePartyTypeId& PartyTypeId);
+	virtual void RejectPartyInvite(const FOnlinePartyTypeId& PartyTypeId);
 
 	bool HasBeenInvitedToParty(const FOnlinePartyTypeId& PartyTypeId) const;
 	bool CanInviteToParty(const FOnlinePartyTypeId& PartyTypeId) const;
