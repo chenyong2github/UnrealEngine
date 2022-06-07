@@ -30,7 +30,16 @@ public:
 
 	FObjectBindingModelStorageExtension();
 
+	/**
+	 * Implementation function for creating a new model for a binding from its ID. May return a placeholder if the binding does not yet exist.
+	 * @param Binding The binding to create a model for
+	 */
 	TSharedPtr<FViewModel> GetOrCreateModelForBinding(const FGuid& Binding);
+
+	/**
+	 * Implementation function for creating a new model for a binding
+	 * @param Binding The binding to create a model for
+	 */
 	TSharedPtr<FViewModel> GetOrCreateModelForBinding(const FMovieSceneBinding& Binding);
 
 	TSharedPtr<FObjectBindingModel> FindModelForObjectBinding(const FGuid& InObjectBindingID) const;
@@ -51,13 +60,6 @@ private:
 
 	TSharedPtr<FViewModel> CreatePlaceholderForObjectBinding(const FGuid& ObjectID);
 	TSharedPtr<FViewModel> FindPlaceholderForObjectBinding(const FGuid& InObjectBindingID) const;
-
-	/**
-	 * Implementation function for creating a new model for a binding
-	 * @param Binding The binding to create a model for
-	 * @param RootChildren (optional) When specified, will place the object into this child list, if it does not define a desired parent ID.
-	 */
-	TSharedPtr<FViewModel> GetOrCreateModelForBinding(const FMovieSceneBinding& Binding, FViewModelChildren* RootChildren);
 
 	void Compact();
 

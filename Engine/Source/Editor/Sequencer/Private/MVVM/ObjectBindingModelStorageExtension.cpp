@@ -124,26 +124,15 @@ void FObjectBindingModelStorageExtension::OnReinitialize()
 	{
 		MovieScene->EventHandlers.Link(this);
 
-		TSet<FGuid> ObjectBindingsInFolders;
-
-		TArray<UMovieSceneFolder*> AllFolders;
-		GetMovieSceneFoldersRecursive(MovieScene->GetRootFolders(), AllFolders);
-		for (UMovieSceneFolder* Folder : AllFolders)
-		{
-			for (const FGuid& ObjectBindingID : Folder->GetChildObjectBindings())
-			{
-				ObjectBindingsInFolders.Add(ObjectBindingID);
-			}
-		}
-
 		FViewModelChildren RootChildren = OwnerModel->GetChildList(EViewModelListType::Outliner);
 
 		for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
 		{
-			if (!ObjectBindingsInFolders.Contains(Binding.GetObjectGuid()))
+			// Need to create a new one for this object binding
+			TSharedPtr<FViewModel> Model = GetOrCreateModelForBinding(Binding.GetObjectGuid());
+			if (!Model->IsConstructed())
 			{
-				// If this is a spawnable or a possessable with no parent, it belongs in the root
-				GetOrCreateModelForBinding(Binding, &RootChildren);
+				RootChildren.AddChild(Model->GetRoot());
 			}
 		}
 	}
@@ -184,15 +173,11 @@ TSharedPtr<FViewModel> FObjectBindingModelStorageExtension::GetOrCreateModelForB
 		return GetOrCreateModelForBinding(*ObjectBinding);
 	}
 
+	// Placeholders are always created at the root
 	return CreatePlaceholderForObjectBinding(Binding);
 }
 
 TSharedPtr<FViewModel> FObjectBindingModelStorageExtension::GetOrCreateModelForBinding(const FMovieSceneBinding& Binding)
-{
-	return GetOrCreateModelForBinding(Binding, nullptr);
-}
-
-TSharedPtr<FViewModel> FObjectBindingModelStorageExtension::GetOrCreateModelForBinding(const FMovieSceneBinding& Binding, FViewModelChildren* RootChildren)
 {
 	TSharedPtr<FObjectBindingModel> ObjectModel = CreateModelForObjectBinding(Binding);
 
@@ -201,18 +186,7 @@ TSharedPtr<FViewModel> FObjectBindingModelStorageExtension::GetOrCreateModelForB
 	if (DesiredParent.IsValid())
 	{
 		TSharedPtr<FViewModel> Parent = GetOrCreateModelForBinding(DesiredParent);
-
-		// Explicitly remove from parent first to guarantee that the model is re-constructed
-		ObjectModel->RemoveFromParent();
-
 		Parent->GetChildList(EViewModelListType::Outliner).AddChild(ObjectModel);
-	}
-	else if (RootChildren)
-	{
-		// Explicitly remove from parent first to guarantee that the model is re-constructed
-		ObjectModel->RemoveFromParent();
-
-		RootChildren->AddChild(ObjectModel);
 	}
 
 	TSharedPtr<FViewModel> Placeholder = FindPlaceholderForObjectBinding(Binding.GetObjectGuid());
@@ -236,8 +210,13 @@ TSharedPtr<FViewModel> FObjectBindingModelStorageExtension::GetOrCreateModelForB
 
 void FObjectBindingModelStorageExtension::OnBindingAdded(const FMovieSceneBinding& Binding)
 {
-	FViewModelChildren RootChildren = OwnerModel->GetChildList(EViewModelListType::Outliner);
-	TSharedPtr<FViewModel> Model = GetOrCreateModelForBinding(Binding, &RootChildren);
+	TSharedPtr<FViewModel> Model = GetOrCreateModelForBinding(Binding);
+
+	if (!Model->IsConstructed())
+	{
+		OwnerModel->GetChildList(EViewModelListType::Outliner)
+			.AddChild(Model);
+	}
 }
 
 void FObjectBindingModelStorageExtension::OnBindingRemoved(const FGuid& ObjectBindingID)
