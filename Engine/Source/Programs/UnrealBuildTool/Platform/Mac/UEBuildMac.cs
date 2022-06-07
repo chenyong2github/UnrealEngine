@@ -133,7 +133,6 @@ namespace UnrealBuildTool
 
 			if (bCompilingForArm)
 			{
-				Target.bCompileISPC = false;
 				Target.DisablePlugins.AddRange(new string[]
 				{
 					// onnx:
