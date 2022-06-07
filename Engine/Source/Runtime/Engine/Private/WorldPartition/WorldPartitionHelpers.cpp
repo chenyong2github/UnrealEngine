@@ -91,6 +91,7 @@ namespace WorldPartitionHelpers
 
 FWorldPartitionHelpers::FForEachActorWithLoadingParams::FForEachActorWithLoadingParams()
 	: bGCPerActor(false)
+	, bKeepReferences(false)
 	, ActorClass(AActor::StaticClass())
 {}
 
@@ -113,16 +114,21 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 
 void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, const FForEachActorWithLoadingParams& Params)
 {
-	TMap<FGuid, FWorldPartitionReference> ActorReferences;
+	FForEachActorWithLoadingResult Result;
+	ForEachActorWithLoading(WorldPartition, Func, Params, Result);
+}
 
-	auto CallGarbageCollect = [&Params, &ActorReferences]()
+void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, const FForEachActorWithLoadingParams& Params, FForEachActorWithLoadingResult& Result)
+{
+	check(Result.ActorReferences.IsEmpty());
+	auto CallGarbageCollect = [&Params, &Result]()
 	{
+		check(!Params.bKeepReferences);
 		if (Params.OnPreGarbageCollect)
 		{
 			Params.OnPreGarbageCollect();
 		}
-
-		ActorReferences.Empty();
+		Result.ActorReferences.Empty();
 		DoCollectGarbage();
 	};
 
@@ -132,7 +138,7 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 		{
 			if (!Params.FilterActorDesc || Params.FilterActorDesc(*ActorDescIterator))
 			{
-				WorldPartitionHelpers::LoadReferences(WorldPartition, ActorDescIterator->GetGuid(), ActorReferences);
+				WorldPartitionHelpers::LoadReferences(WorldPartition, ActorDescIterator->GetGuid(), Result.ActorReferences);
 
 				FWorldPartitionReference ActorReference(WorldPartition, ActorDescIterator->GetGuid());
 				if (!Func(ActorReference.Get()))
@@ -140,7 +146,7 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 					break;
 				}
 
-				if (Params.bGCPerActor || FWorldPartitionHelpers::HasExceededMaxMemory())
+				if (!Params.bKeepReferences && (Params.bGCPerActor || FWorldPartitionHelpers::HasExceededMaxMemory()))
 				{
 					CallGarbageCollect();
 				}
@@ -148,7 +154,10 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 		}
 	}
 
-	CallGarbageCollect();
+	if (!Params.bKeepReferences)
+	{
+		CallGarbageCollect();
+	}
 }
 
 bool FWorldPartitionHelpers::HasExceededMaxMemory()

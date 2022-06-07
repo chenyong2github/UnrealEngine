@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 
 #if WITH_EDITOR
 
@@ -38,6 +39,9 @@ public:
 		/* Perform a garbage collection per-actor, useful to test if the caller properly handle GCs. */
 		bool bGCPerActor;
 
+		/* Prevent clearing of actor references. */
+		bool bKeepReferences;
+
 		/* The class used to filter actors loading. */
 		TSubclassOf<AActor> ActorClass;
 
@@ -48,6 +52,13 @@ public:
 		TUniqueFunction<void()> OnPreGarbageCollect;
 	};
 
+	/* Struct of optional output from foreach actordesc functions. */
+	struct ENGINE_API FForEachActorWithLoadingResult
+	{
+		/* Reference to all actors and actor references loaded by the foreach actordesc function */
+		TMap<FGuid, FWorldPartitionReference> ActorReferences;
+	};
+
 	UE_DEPRECATED(5.1, "ForEachActorWithLoading is deprecated, ForEachActorWithLoading with FForEachActorWithLoadingParams should be used instead.")
 	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, TFunctionRef<void()> OnReleasingActorReferences = [](){}, bool bGCPerActor = false);
 
@@ -55,6 +66,7 @@ public:
 	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, const TArray<FGuid>& ActorGuids, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, TFunctionRef<void()> OnReleasingActorReferences = [](){}, bool bGCPerActor = false);
 
 	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, const FForEachActorWithLoadingParams& Params = FForEachActorWithLoadingParams());
+	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, const FForEachActorWithLoadingParams& Params, FForEachActorWithLoadingResult& Result);
 	
 	static bool HasExceededMaxMemory();
 	static void DoCollectGarbage();
