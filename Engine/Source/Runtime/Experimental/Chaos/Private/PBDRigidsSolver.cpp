@@ -830,8 +830,9 @@ namespace Chaos
 
 		// Apply CVAR overrides if set
 		{
-			GetEvolution()->GetCollisionConstraints().SetSolverType((EConstraintSolverType)ChaosSolver_SolverType);
-			GetJointConstraints().SetSolverType((EConstraintSolverType)ChaosSolver_SolverType);
+			const EConstraintSolverType SolverType = (EConstraintSolverType)FMath::Clamp(ChaosSolver_SolverType, int32(EConstraintSolverType::None), int32(EConstraintSolverType::QuasiPbd));
+			GetEvolution()->GetCollisionConstraints().SetSolverType(SolverType);
+			GetJointConstraints().SetSolverType(SolverType);
 
 			if (ChaosSolverCollisionPositionFrictionIterations >= 0)
 			{

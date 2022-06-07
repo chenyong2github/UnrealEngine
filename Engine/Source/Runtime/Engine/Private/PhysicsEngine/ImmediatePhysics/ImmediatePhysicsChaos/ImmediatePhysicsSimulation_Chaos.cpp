@@ -836,7 +836,7 @@ namespace ImmediatePhysics_Chaos
 
 		// TEMP: overrides
 		{
-			const EConstraintSolverType SolverType = (EConstraintSolverType)ChaosImmediate_SolverType;
+			const EConstraintSolverType SolverType = (EConstraintSolverType)FMath::Clamp(ChaosImmediate_SolverType, int32(EConstraintSolverType::None), int32(EConstraintSolverType::QuasiPbd));
 			Implementation->Evolution.SetSolverType(SolverType);
 			Implementation->Collisions.SetSolverType(SolverType);
 			Implementation->Joints.SetSolverType(SolverType);
