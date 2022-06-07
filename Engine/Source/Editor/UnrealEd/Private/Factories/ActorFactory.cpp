@@ -330,13 +330,14 @@ void UActorFactory::PostPlaceAsset(TArrayView<const FTypedElementHandle> InEleme
 			if (AActor* CreatedActor = ObjectInterface.GetObjectAs<AActor>())
 			{
 				UObject* Asset = InPlacementInfo.AssetToPlace.GetAsset();
-				PostSpawnActor(Asset, CreatedActor);
 
 				// Only do this if the actor wasn't already given a name
 				if (InPlacementInfo.NameOverride.IsNone())
 				{
 					FActorLabelUtilities::SetActorLabelUnique(CreatedActor, GetDefaultActorLabel(Asset));
 				}
+
+				PostSpawnActor(Asset, CreatedActor);
 
 				CreatedActor->PostEditChange();
 				CreatedActor->PostEditMove(true);
