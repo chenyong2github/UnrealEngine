@@ -18,6 +18,7 @@
 #include "MovieSceneToolsModule.h"
 #include "Engine/EngineTypes.h"
 #include "EditorUndoClient.h"
+#include "ScopedTransaction.h"
 
 struct FAssetData;
 class FMenuBuilder;
@@ -124,6 +125,7 @@ private:
 	/** Control Rig Delegates*/
 	void HandleControlModified(UControlRig* Subject, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context);
 	void HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
+	void HandleControlUndoBracket(UControlRig* Subject, bool bOpenUndoBracket);
 	void HandleOnInitialized(UControlRig* Subject, const EControlRigState InState, const FName& InEventName);
 
 	/** SpaceChannel Delegates*/
@@ -234,6 +236,12 @@ private:
 
 	/** Array of sections that are getting undone, we need to recreate any space channel add,move key delegates to them*/
 	mutable TArray<UMovieSceneControlRigParameterSection*> SectionsGettingUndone;
+
+	/** An index counter for the opened undo brackets */
+	int32 ControlUndoBracket;
+
+	/** A transaction used to group multiple key events */
+	TSharedPtr<FScopedTransaction> ControlUndoTransaction;
 };
 
 

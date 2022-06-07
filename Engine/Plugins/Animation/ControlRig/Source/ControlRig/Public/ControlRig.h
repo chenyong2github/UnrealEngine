@@ -74,6 +74,10 @@ public:
 
 	/** Bindable event for external objects to be notified that a Control is Selected */
 	DECLARE_EVENT_ThreeParams(UControlRig, FControlSelectedEvent, UControlRig*, FRigControlElement*, bool);
+
+	/** Bindable event to manage undo / redo brackets in the client */
+	DECLARE_EVENT_TwoParams(UControlRig, FControlUndoBracketEvent, UControlRig*, bool /* bOpen */);
+	
 	// To support Blueprints/scripting, we need a different delegate type (a 'Dynamic' delegate) which supports looser style UFunction binding (using names).
 	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_ThreeParams(FOnControlSelectedBP, UControlRig, OnControlSelected_BP, UControlRig*, Rig, const FRigControlElement&, Control, bool, bSelected);
 
@@ -412,6 +416,10 @@ public:
 	// selection changes coming from the manipulated subject.
 	FControlSelectedEvent& ControlSelected() { return OnControlSelected; }
 
+	// Returns an event that can be used to subscribe to
+	// Undo Bracket requests such as Open and Close.
+	FControlUndoBracketEvent & ControlUndoBracket() { return OnControlUndoBracket; }
+
 	bool IsCurveControl(const FRigControlElement* InControlElement) const;
 
 	DECLARE_EVENT_ThreeParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState, const FName&);
@@ -710,6 +718,7 @@ protected:
 	int32 PostForwardsSolveBracket;
 	int32 InteractionBracket;
 	int32 InterRigSyncBracket;
+	int32 ControlUndoBracketIndex;
 	uint8 InteractionType;
 	TArray<FRigElementKey> ElementsBeingInteracted;
 	bool bInteractionJustBegan;
@@ -766,6 +775,7 @@ protected:
 	FFilterControlEvent OnFilterControl;
 	FControlModifiedEvent OnControlModified;
 	FControlSelectedEvent OnControlSelected;
+	FControlUndoBracketEvent OnControlUndoBracket;
 
 	UPROPERTY(BlueprintAssignable, Category = ControlRig, meta=(DisplayName="OnControlSelected"))
 	FOnControlSelectedBP OnControlSelected_BP;

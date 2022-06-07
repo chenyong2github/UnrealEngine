@@ -199,6 +199,7 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 	, bSkipNextSelectionFromTimer(false)
 	, bFilterAssetBySkeleton(true)
 	, bFilterAssetByAnimatableControls(true)
+	, ControlUndoBracket(0)
 {
 	FMovieSceneToolsModule::Get().RegisterAnimationBakeHelper(this);
 
@@ -399,6 +400,7 @@ void FControlRigParameterTrackEditor::BindControlRig(UControlRig* ControlRig)
 		ControlRig->ControlModified().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlModified);
 		ControlRig->OnInitialized_AnyThread().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnInitialized);
 		ControlRig->ControlSelected().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlSelected);
+		ControlRig->ControlUndoBracket().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlUndoBracket);
 		BoundControlRigs.Add(ControlRig);
 		UMovieSceneControlRigParameterTrack* Track = FindTrack(ControlRig);
 		if (Track)
@@ -2472,6 +2474,21 @@ void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* Control
 				}
 			}
 		}
+	}
+}
+
+void FControlRigParameterTrackEditor::HandleControlUndoBracket(UControlRig* Subject, bool bOpenUndoBracket)
+{
+	if(bOpenUndoBracket && ControlUndoBracket == 0)
+	{
+		ControlUndoTransaction = MakeShareable(new FScopedTransaction(LOCTEXT("KeyMultipleControls", "Auto-Key multiple controls")));
+	}
+
+	ControlUndoBracket = FMath::Max<int32>(0, ControlUndoBracket + (bOpenUndoBracket ? 1 : -1));
+	
+	if(!bOpenUndoBracket && ControlUndoBracket == 0)
+	{
+		ControlUndoTransaction.Reset();
 	}
 }
 

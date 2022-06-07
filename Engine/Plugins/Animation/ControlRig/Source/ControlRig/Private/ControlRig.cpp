@@ -84,6 +84,7 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, PostSetupBracket(0)
 	, InteractionBracket(0)
 	, InterRigSyncBracket(0)
+	, ControlUndoBracketIndex(0)
 	, InteractionType((uint8)EControlRigInteractionType::None)
 	, bInteractionJustBegan(false)
 #if WITH_EDITORONLY_DATA
@@ -1026,6 +1027,16 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			FControlRigBracketScope BracketScope(UpdateBracket);
 			ExecutedEvent.Broadcast(this, EControlRigState::Update, InEventName);
 		}
+	}
+
+	// close remaining undo brackets from hierarchy
+	while(ControlUndoBracketIndex > 0)
+	{
+		FRigEventContext EventContext;
+		EventContext.Event = ERigEvent::CloseUndoBracket;
+		EventContext.SourceEventName = InEventName;
+		EventContext.LocalTime = Context.AbsoluteTime;
+		HandleHierarchyEvent(GetHierarchy(), EventContext);
 	}
 
 	if (Context.DrawInterface && Context.DrawContainer && bIsEventLastInQueue) 
@@ -2416,6 +2427,15 @@ void UControlRig::HandleHierarchyEvent(URigHierarchy* InHierarchy, const FRigEve
 					ControlModified().Broadcast(this, ControlElement, Context);
 				}
 			}
+			break;
+		}
+		case ERigEvent::OpenUndoBracket:
+		case ERigEvent::CloseUndoBracket:
+		{
+			const bool bOpenUndoBracket = InEvent.Event == ERigEvent::OpenUndoBracket;
+			ControlUndoBracketIndex = FMath::Max<int32>(0, ControlUndoBracketIndex + (bOpenUndoBracket ? 1 : -1));
+			ControlUndoBracket().Broadcast(this, bOpenUndoBracket);
+			break;
 		}
 		default:
 		{

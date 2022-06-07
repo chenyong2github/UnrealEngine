@@ -71,6 +71,12 @@ enum class ERigEvent : uint8
 	/** Request to Auto-Key the Control in Sequencer */
 	RequestAutoKey,
 
+	/** Request to open an Undo bracket in the client */
+	OpenUndoBracket,
+
+	/** Request to close an Undo bracket in the client */
+	CloseUndoBracket,
+
 	/** MAX - invalid */
 	Max UMETA(Hidden),
 };
