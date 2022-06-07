@@ -409,6 +409,15 @@ private:
 // Base file format factory.
 class Sdf_FileFormatFactoryBase : public TfType::FactoryBase {
 public:
+    // XXX(Epic Games):
+    // This addition of a non-inline, virtual destructor exported with the
+    // SDF_API macro ensures that the type information for
+    // Sdf_FileFormatFactoryBase gets exported correctly.
+    // This addresses an issue particularly on Linux when using clang/libc++
+    // where SdfFileFormat objects may not be returned correctly from the
+    // registry due to differences in how libc++ implements dynamic_cast.
+    SDF_API virtual ~Sdf_FileFormatFactoryBase();
+
     virtual SdfFileFormatRefPtr New() const = 0;
 };
 

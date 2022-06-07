@@ -12,6 +12,10 @@ USD_VERSION=22.05a
 # Note that a small patch to the USD CMake build is currently necessary for
 # the usdAbc plugin to require and link against Imath instead of OpenEXR:
 #     git apply USD_v2205a_usdAbc_Imath.patch
+# This patch ensures that SdfFileFormat objects are returned correctly from
+# the registry, particularly on Linux when using clang/libc++ which
+# implements dynamic_cast differently from libstdc++.
+#     git apply USD_v2205a_Sdf_FileFormatFactoryBase_non_inline_dtor.patch
 # Note also that this path may be emitted as part of USD error messages, so
 # it is suggested that it not reveal any sensitive information.
 SOURCE_LOCATION="/tmp/USD_src"

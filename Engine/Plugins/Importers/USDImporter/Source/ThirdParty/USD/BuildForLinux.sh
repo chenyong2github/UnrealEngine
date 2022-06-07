@@ -9,6 +9,13 @@ USD_VERSION=22.05a
 # code, or more commonly by cloning the GitHub repository, e.g. for the
 # current engine USD version:
 #     git clone --branch v22.05a https://github.com/PixarAnimationStudios/USD.git USD_src
+# Note that a small patch to the USD CMake build is currently necessary for
+# the usdAbc plugin to require and link against Imath instead of OpenEXR:
+#     git apply USD_v2205a_usdAbc_Imath.patch
+# This patch ensures that SdfFileFormat objects are returned correctly from
+# the registry, particularly on Linux when using clang/libc++ which
+# implements dynamic_cast differently from libstdc++.
+#     git apply USD_v2205a_Sdf_FileFormatFactoryBase_non_inline_dtor.patch
 # Specifically for Linux when building with clang, an additional patch is
 # needed to ensure that type comparisons work correctly across shared library
 # boundaries:
@@ -30,6 +37,12 @@ TBB_LIB_LOCATION="$TBB_LOCATION/lib/Linux"
 BOOST_LOCATION="$UE_THIRD_PARTY_LOCATION/Boost/boost-1_70_0"
 BOOST_INCLUDE_LOCATION="$BOOST_LOCATION/include"
 BOOST_LIB_LOCATION="$BOOST_LOCATION/lib/Unix/$ARCH_NAME"
+IMATH_LOCATION="$UE_THIRD_PARTY_LOCATION/Imath/Deploy/Imath-3.1.3"
+IMATH_LIB_LOCATION="$IMATH_LOCATION/Unix/$ARCH_NAME"
+IMATH_CMAKE_LOCATION="$IMATH_LIB_LOCATION/lib/cmake/Imath"
+ALEMBIC_LOCATION="$UE_THIRD_PARTY_LOCATION/Alembic/Deploy/alembic-1.8.2"
+ALEMBIC_INCLUDE_LOCATION="$ALEMBIC_LOCATION/include"
+ALEMBIC_LIB_LOCATION="$ALEMBIC_LOCATION/Unix/$ARCH_NAME"
 
 PYTHON_BINARIES_LOCATION="$UE_ENGINE_LOCATION/Binaries/ThirdParty/Python3/Linux"
 PYTHON_EXECUTABLE_LOCATION="$PYTHON_BINARIES_LOCATION/bin/python3"
@@ -71,6 +84,7 @@ CMAKE_ARGS=(
     -DCMAKE_MODULE_LINKER_FLAGS="$CXX_LINKER"
     -DCMAKE_SHARED_LINKER_FLAGS="$CXX_LINKER"
     -DCMAKE_STATIC_LINKER_FLAGS="$CXX_LINKER"
+    -DCMAKE_PREFIX_PATH="$IMATH_CMAKE_LOCATION"
     -DTBB_INCLUDE_DIR="$TBB_INCLUDE_LOCATION"
     -DTBB_LIBRARY="$TBB_LIB_LOCATION"
     -DBoost_NO_BOOST_CMAKE=ON
@@ -82,6 +96,10 @@ CMAKE_ARGS=(
     -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE_LOCATION"
     -DPYTHON_INCLUDE_DIR="$PYTHON_INCLUDE_LOCATION"
     -DPYTHON_LIBRARY="$PYTHON_LIBRARY_LOCATION"
+    -DPXR_BUILD_ALEMBIC_PLUGIN=ON
+    -DPXR_ENABLE_HDF5_SUPPORT=OFF
+    -DALEMBIC_INCLUDE_DIR="$ALEMBIC_INCLUDE_LOCATION"
+    -DALEMBIC_DIR="$ALEMBIC_LIB_LOCATION"
     -DBUILD_SHARED_LIBS=ON
     -DPXR_BUILD_TESTS=OFF
     -DPXR_BUILD_EXAMPLES=OFF
@@ -112,10 +130,16 @@ INSTALL_RESOURCES_PLUGINS_LOCATION="$INSTALL_RESOURCES_LOCATION/plugins"
 mkdir -p $INSTALL_RESOURCES_LOCATION
 mv "$INSTALL_LIB_LOCATION/usd" "$INSTALL_RESOURCES_PLUGINS_LOCATION"
 
-echo Removing top-level USD plugins plugInfo.json file...
+echo Moving USD plugin shared libraries to lib directory...
 INSTALL_PLUGIN_LOCATION="$INSTALL_LOCATION/plugin"
 INSTALL_PLUGIN_USD_LOCATION="$INSTALL_PLUGIN_LOCATION/usd"
+mv $INSTALL_PLUGIN_USD_LOCATION/*.so "$INSTALL_LIB_LOCATION"
+
+echo Removing top-level USD plugins plugInfo.json file...
 rm -f "$INSTALL_PLUGIN_USD_LOCATION/plugInfo.json"
+
+echo Moving UsdAbc plugin directory to UsdResources plugins directory
+mv "$INSTALL_PLUGIN_USD_LOCATION/usdAbc" "$INSTALL_RESOURCES_PLUGINS_LOCATION"
 
 rmdir "$INSTALL_PLUGIN_USD_LOCATION"
 rmdir "$INSTALL_PLUGIN_LOCATION"

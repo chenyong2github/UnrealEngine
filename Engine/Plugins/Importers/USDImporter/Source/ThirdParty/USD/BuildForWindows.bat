@@ -11,6 +11,10 @@ rem     git clone --branch v22.05a https://github.com/PixarAnimationStudios/USD.
 rem Note that a small patch to the USD CMake build is currently necessary for
 rem the usdAbc plugin to require and link against Imath instead of OpenEXR:
 rem     git apply USD_v2205a_usdAbc_Imath.patch
+rem This patch ensures that SdfFileFormat objects are returned correctly from
+rem the registry, particularly on Linux when using clang/libc++ which
+rem implements dynamic_cast differently from libstdc++.
+rem     git apply USD_v2205a_Sdf_FileFormatFactoryBase_non_inline_dtor.patch
 rem Note also that this path may be emitted as part of USD error messages, so
 rem it is suggested that it not reveal any sensitive information.
 set USD_SOURCE_LOCATION=C:\USD_src
