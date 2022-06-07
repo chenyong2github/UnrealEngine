@@ -54,7 +54,7 @@ namespace EpicGames.Redis
 		public async Task<TValue> GetAsync(TName name, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue value = await Database.HashGetAsync(Key, RedisSerializer.Serialize(name), flags);
-			return value.IsNull ? default! : RedisSerializer.Deserialize<TValue>(value);
+			return value.IsNull ? default! : RedisSerializer.Deserialize<TValue>(value)!;
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.HashGetAsync(RedisKey, RedisValue[], CommandFlags)"/>
@@ -62,21 +62,21 @@ namespace EpicGames.Redis
 		{
 			RedisValue[] nameArray = names.Select(x => RedisSerializer.Serialize(x)).ToArray();
 			RedisValue[] valueArray = await Database.HashGetAsync(Key, nameArray, flags);
-			return Array.ConvertAll(valueArray, x => RedisSerializer.Deserialize<TValue>(x));
+			return Array.ConvertAll(valueArray, x => RedisSerializer.Deserialize<TValue>(x)!);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.HashGetAllAsync(RedisKey, CommandFlags)"/>
 		public async Task<HashEntry<TName, TValue>[]> GetAllAsync(CommandFlags flags = CommandFlags.None)
 		{
 			HashEntry[] entries = await Database.HashGetAllAsync(Key, flags);
-			return Array.ConvertAll(entries, x => new HashEntry<TName, TValue>(RedisSerializer.Deserialize<TName>(x.Name), RedisSerializer.Deserialize<TValue>(x.Value)));
+			return Array.ConvertAll(entries, x => new HashEntry<TName, TValue>(RedisSerializer.Deserialize<TName>(x.Name)!, RedisSerializer.Deserialize<TValue>(x.Value)!));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.HashKeysAsync(RedisKey, CommandFlags)"/>
 		public async Task<TName[]> KeysAsync(CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] nameArray = await Database.HashKeysAsync(Key, flags);
-			return Array.ConvertAll(nameArray, x => RedisSerializer.Deserialize<TName>(x));
+			return Array.ConvertAll(nameArray, x => RedisSerializer.Deserialize<TName>(x)!);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.HashLengthAsync(RedisKey, CommandFlags)"/>
@@ -101,7 +101,7 @@ namespace EpicGames.Redis
 		public async Task<TValue[]> ValuesAsync(CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] values = await Database.HashValuesAsync(Key, flags);
-			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TValue>(x));
+			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TValue>(x)!);
 		}
 	}
 

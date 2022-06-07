@@ -32,19 +32,35 @@ namespace EpicGames.Redis.Utility
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			DisposeAsync().AsTask().Wait();
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Dispose pattern
+		/// </summary>
+		/// <param name="disposing"></param>
+		protected virtual void Dispose(bool disposing)
+		{
+			if (disposing)
+			{
+				DisposeAsync().AsTask().Wait();
+			}
 		}
 
 		/// <inheritdoc/>
 		public async ValueTask DisposeAsync()
 		{
+			_cancellationSource?.Cancel();
 			if (_backgroundTask != null)
 			{
-				_cancellationSource!.Cancel();
 				await _backgroundTask;
-				_cancellationSource.Dispose();
-				_backgroundTask = null;
 			}
+			_backgroundTask?.Dispose();
+			_cancellationSource?.Dispose();
+			_backgroundTask = null;
+			_cancellationSource = null;
+			GC.SuppressFinalize(this);
 		}
 
 		/// <summary>
@@ -76,7 +92,14 @@ namespace EpicGames.Redis.Utility
 			Stopwatch timer = Stopwatch.StartNew();
 			for (; ; )
 			{
-				await Task.Delay(duration / 2, cancellationToken).ContinueWith(x => { }); // Do not throw
+				try
+				{
+					await Task.Delay(duration / 2, cancellationToken);
+				}
+				catch (TaskCanceledException)
+				{
+				}
+
 				if (cancellationToken.IsCancellationRequested)
 				{
 					timer.Stop();

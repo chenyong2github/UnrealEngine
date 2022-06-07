@@ -12,7 +12,7 @@ namespace EpicGames.Redis
 	/// Represents a typed pub/sub channel with a particular value
 	/// </summary>
 	/// <typeparam name="T">The type of element stored in the channel</typeparam>
-	public readonly struct RedisChannel<T>
+	public readonly struct RedisChannel<T> : IEquatable<RedisChannel<T>>
 	{
 		/// <summary>
 		/// The key for the list
@@ -45,7 +45,7 @@ namespace EpicGames.Redis
 	/// Subscription to a <see cref="RedisChannel{Task}"/>
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
-	public class RedisChannelSubscription<T> : IDisposable, IAsyncDisposable
+	public sealed class RedisChannelSubscription<T> : IDisposable, IAsyncDisposable
 	{
 		/// <summary>
 		/// The subscriber to register with
@@ -105,7 +105,7 @@ namespace EpicGames.Redis
 		/// <param name="message"></param>
 		void UntypedHandler(RedisChannel _, RedisValue message)
 		{
-			_handler(Channel, RedisSerializer.Deserialize<T>(message));
+			_handler(Channel, RedisSerializer.Deserialize<T>(message)!);
 		}
 
 		/// <inheritdoc/>
