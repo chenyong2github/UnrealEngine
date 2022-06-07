@@ -11,6 +11,14 @@ class UTakeMetaData;
 class ULevelSequence;
 class UTakeRecorderPanel;
 
+DECLARE_DYNAMIC_DELEGATE( FOnTakeRecorderPanelChanged );
+DECLARE_DYNAMIC_DELEGATE( FOnTakeRecorderPreInitialize );
+DECLARE_DYNAMIC_DELEGATE( FOnTakeRecorderStarted );
+DECLARE_DYNAMIC_DELEGATE( FOnTakeRecorderStopped );
+DECLARE_DYNAMIC_DELEGATE_OneParam( FOnTakeRecorderFinished, ULevelSequence*, SequenceAsset );
+DECLARE_DYNAMIC_DELEGATE( FOnTakeRecorderCancelled );
+DECLARE_DYNAMIC_DELEGATE_OneParam( FOnTakeRecorderMarkedFrameAdded, const FMovieSceneMarkedFrame&, MarkedFrame );
+
 UCLASS()
 class TAKERECORDER_API UTakeRecorderBlueprintLibrary : public UBlueprintFunctionLibrary
 {
@@ -86,14 +94,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Take Recorder")
 	static UTakeRecorderPanel* OpenTakeRecorderPanel();
 
-
-	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderPanelChanged);
-	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderPreInitialize);
-	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderStarted);
-	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderStopped);
-	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderFinished, ULevelSequence*, SequenceAsset);
-	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderCancelled);
-	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderMarkedFrameAdded, const FMovieSceneMarkedFrame&, MarkedFrame);
 
 	/** Called when a Take Panel is constructed or destroyed. */
 	UFUNCTION(BlueprintCallable, Category="Take Recorder", meta=(DisplayName="Set On Take Recorder Panel Changed"))

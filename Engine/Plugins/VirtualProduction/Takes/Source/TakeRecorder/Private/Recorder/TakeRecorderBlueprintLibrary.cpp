@@ -14,13 +14,13 @@
 namespace
 {
 	static UTakeRecorderPanel* CurrentTakeRecorderPanel;
-	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderPanelChanged TakeRecorderPanelChanged;
-	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderPreInitialize TakeRecorderPreInitialize;
-	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderStarted TakeRecorderStarted;
-	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderStopped TakeRecorderStopped;
-	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderFinished TakeRecorderFinished;
-	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderCancelled TakeRecorderCancelled;
-	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderMarkedFrameAdded TakeRecorderMarkedFrameAdded;
+	static FOnTakeRecorderPanelChanged TakeRecorderPanelChanged;
+	static FOnTakeRecorderPreInitialize TakeRecorderPreInitialize;
+	static FOnTakeRecorderStarted TakeRecorderStarted;
+	static FOnTakeRecorderStopped TakeRecorderStopped;
+	static FOnTakeRecorderFinished TakeRecorderFinished;
+	static FOnTakeRecorderCancelled TakeRecorderCancelled;
+	static FOnTakeRecorderMarkedFrameAdded TakeRecorderMarkedFrameAdded;
 }
 
 
