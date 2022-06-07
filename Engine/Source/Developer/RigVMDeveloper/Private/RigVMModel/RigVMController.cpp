@@ -3589,9 +3589,10 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 						TGuardValue<TArray<FString>> GuardPreferredPermutation(TemplateNode->PreferredPermutationTypes, {});
 						TemplateNode->InitializeFilteredPermutations();
 					}
+					TemplateNode->InitializeFilteredPermutationsFromTypes();
 					if (!TemplateNode->PreferredPermutationTypes.IsEmpty())
 					{
-						TemplateNode->FilteredPermutations = TemplateNode->FindPermutationsForTypes(TemplateNode->PreferredPermutationTypes);
+						TemplateNode->FilteredPermutations = TemplateNode->FindPermutationsForTypes(TemplateNode->PreferredPermutationTypes, true);
 					}
 					UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
 				}
@@ -3700,6 +3701,29 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 						}
 						else
 						{
+							if (URigVMTemplateNode* FirstTemplateNode = Cast<URigVMTemplateNode>(TargetPin->GetNode()))
+							{
+								if (!FirstTemplateNode->IsSingleton())
+								{
+									TArray<FRigVMTemplateArgument::FType> InputTypes = GetWildcardFilteredTypes(SourcePin);
+									if (InputTypes.Num() > 0)
+									{
+										PrepareTemplatePinForType(TargetPin, InputTypes, bSetupUndoRedo);										
+									}
+								}
+							}
+							if (URigVMTemplateNode* SecondTemplateNode = Cast<URigVMTemplateNode>(SourcePin->GetNode()))
+							{
+								if (!SecondTemplateNode->IsSingleton())
+								{
+									TArray<FRigVMTemplateArgument::FType> OutTypes = GetWildcardFilteredTypes(TargetPin);
+									if (OutTypes.Num() > 0)
+									{
+										PrepareTemplatePinForType(SourcePin, OutTypes, bSetupUndoRedo);										
+									}
+								}
+							}
+							
 							Graph->Links.Add(CreatedLink);
 							SourcePin->Links.Add(CreatedLink);
 							TargetPin->Links.Add(CreatedLink);
@@ -12062,6 +12086,8 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 			}
 		}
 	}
+
+	UpdateTemplateNodePinTypes(Node, false);
 
 	Graph->Nodes.Add(Node);
 

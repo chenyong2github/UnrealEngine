@@ -549,7 +549,12 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, U
 		}
 	}
 
-	TArray<int32> PermutationsToTry = PreferredPermutationTypes.IsEmpty()? FilteredPermutations : TArray<int32>(FindPermutationsForTypes(PreferredPermutationTypes));
+	TArray<int32> PermutationsToTry = FilteredPermutations;
+
+	// Reduce permutations to the ones respecting the preferred types
+	TArray<int32> PreferredPermutations = FindPermutationsForTypes(PreferredPermutationTypes, true);
+	PermutationsToTry = PermutationsToTry.FilterByPredicate([&](const int32& OtherPermutation) { return PreferredPermutations.Contains(OtherPermutation); });
+	
 	bool bLinkedIsTemplate = false;
 	if (URigVMTemplateNode* LinkedTemplate = Cast<URigVMTemplateNode>(LinkedPin->GetNode()))
 	{
@@ -612,7 +617,11 @@ TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, c
 		}
 	}
 
-	TArray<int32> PermutationsToTry = PreferredPermutationTypes.IsEmpty()? FilteredPermutations : TArray<int32>(FindPermutationsForTypes(PreferredPermutationTypes));
+	TArray<int32> PermutationsToTry = FilteredPermutations;
+
+	// Reduce permutations to the ones respecting the preferred types
+	TArray<int32> PreferredPermutations = FindPermutationsForTypes(PreferredPermutationTypes, true);
+	PermutationsToTry = PermutationsToTry.FilterByPredicate([&](const int32& OtherPermutation) { return PreferredPermutations.Contains(OtherPermutation); });
 	
 	if (const FRigVMTemplateArgument* Argument = GetTemplate()->FindArgument(RootPin->GetFName()))
 	{
