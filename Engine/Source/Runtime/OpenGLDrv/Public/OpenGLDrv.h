@@ -913,6 +913,8 @@ public:
 	}
 
 	GLuint GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTargets, FOpenGLTexture** RenderTargets, const uint32* ArrayIndices, const uint32* MipmapLevels, FOpenGLTexture* DepthStencilTarget);
+
+	FRHIPixelShader* GetNULLPixelShader() const;
 	
 private:
 
@@ -988,6 +990,9 @@ private:
 
 	FCriticalSection CustomPresentSection;
 	TRefCountPtr<class FRHICustomPresent> CustomPresent;
+
+	// Cached NULLPS
+	FRHIPixelShader* NULLPixelShaderRHI;
 
 	void InitializeStateResources();
 

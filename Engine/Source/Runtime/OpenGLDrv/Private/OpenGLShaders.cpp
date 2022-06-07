@@ -194,10 +194,20 @@ static void SetDeletedProgramStats(GLuint Program)
 // Create any resources that are required by internal ogl rhi functions.
 void FOpenGLDynamicRHI::SetupRecursiveResources()
 {
-	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	NULLPixelShaderRHI = GetNULLPixelShader();
+}
+
+FRHIPixelShader* FOpenGLDynamicRHI::GetNULLPixelShader() const
+{
+	if (NULLPixelShaderRHI)
 	{
+		return NULLPixelShaderRHI;
+	}
+	else
+	{
+		auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 		TShaderMapRef<FNULLPS> PixelShader(ShaderMap);
-		PixelShader.GetPixelShader();
+		return PixelShader.GetPixelShader();
 	}
 }
 
@@ -3037,7 +3047,7 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 	if (!PixelShaderRHI)
 	{
 		// use special null pixel shader when PixelShader was set to NULL
-		PixelShaderRHI = TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
+		PixelShaderRHI = GetNULLPixelShader();
 	}
 
 
