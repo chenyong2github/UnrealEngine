@@ -180,30 +180,30 @@ void UDataLayerEditorSubsystem::OnExecuteActorEditorContextAction(UWorld* InWorl
 	UE_CLOG(!InWorld, LogDataLayerEditorSubsystem, Error, TEXT("%s - Failed because world in null."), ANSI_TO_TCHAR(__FUNCTION__));
 	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(InWorld))
 	{
-	switch (InType)
-	{
-	case EActorEditorContextAction::ApplyContext:
-		check(InActor && InActor->GetWorld() == InWorld);
+		switch (InType)
 		{
+		case EActorEditorContextAction::ApplyContext:
+			check(InActor && InActor->GetWorld() == InWorld);
+			{
 				AddActorToDataLayers(InActor, DataLayerSubsystem->GetActorEditorContextDataLayers());
-		}
-		break;
-	case EActorEditorContextAction::ResetContext:
+			}
+			break;
+		case EActorEditorContextAction::ResetContext:
 			for (UDataLayerInstance* DataLayer : DataLayerSubsystem->GetActorEditorContextDataLayers())
-		{
-			RemoveFromActorEditorContext(DataLayer);
-		}
-		break;
-	case EActorEditorContextAction::PushContext:
+			{
+				RemoveFromActorEditorContext(DataLayer);
+			}
+			break;
+		case EActorEditorContextAction::PushContext:
 			DataLayerSubsystem->PushActorEditorContext();
-		BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
-		break;
-	case EActorEditorContextAction::PopContext:
+			BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
+			break;
+		case EActorEditorContextAction::PopContext:
 			DataLayerSubsystem->PopActorEditorContext();
-		BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
-		break;
+			BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
+			break;
+		}
 	}
-}
 }	
 
 bool UDataLayerEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const
@@ -211,11 +211,11 @@ bool UDataLayerEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld
 	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(InWorld))
 	{
 		if (!DataLayerSubsystem->GetActorEditorContextDataLayers().IsEmpty())
-	{
+		{
 			OutDiplayInfo.Title = TEXT("Data Layers");
 			OutDiplayInfo.Brush = FAppStyle::GetBrush(TEXT("DataLayer.Editor"));
-		return true;
-	}
+			return true;
+		}
 	}
 	return false;
 }

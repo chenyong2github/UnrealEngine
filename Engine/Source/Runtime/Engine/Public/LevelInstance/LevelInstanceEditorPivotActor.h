@@ -21,5 +21,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
 	virtual bool ShouldExport() override { return false; }
+private:
+	virtual bool ActorTypeSupportsDataLayer() const { return false; }
 #endif
 };
