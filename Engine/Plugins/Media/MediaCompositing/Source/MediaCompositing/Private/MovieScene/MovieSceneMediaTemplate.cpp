@@ -203,6 +203,10 @@ FMovieSceneMediaSectionTemplate::FMovieSceneMediaSectionTemplate(const UMovieSce
 	Params.MediaSoundComponent = InSection.MediaSoundComponent;
 	Params.bLooping = InSection.bLooping;
 	Params.StartFrameOffset = InSection.StartFrameOffset;
+	if (Params.MediaSource != nullptr)
+	{
+		Params.MediaSource->SetCacheSettings(InSection.CacheSettings);
+	}
 
 	// If using an external media player link it here so we don't automatically create it later.
 	Params.MediaPlayer = InSection.bUseExternalMediaPlayer ? InSection.ExternalMediaPlayer : nullptr;

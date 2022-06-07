@@ -4,6 +4,8 @@
 
 #include "MovieSceneSection.h"
 
+#include "MediaSource.h"
+
 #include "MovieSceneMediaSection.generated.h"
 
 class UMediaPlayer;
@@ -52,6 +54,10 @@ public:
 	/** The external media player this track should control. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media", meta = (EditCondition = "bUseExternalMediaPlayer"), AdvancedDisplay)
 	TObjectPtr<UMediaPlayer> ExternalMediaPlayer;
+
+	/** Override the default cache settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", AdvancedDisplay)
+	FMediaSourceCacheSettings CacheSettings;
 
 public:
 
