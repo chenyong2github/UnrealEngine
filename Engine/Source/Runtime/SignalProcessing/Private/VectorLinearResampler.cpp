@@ -43,25 +43,25 @@ uint32 Audio::FVectorLinearResampler::ResampleMono(uint32 OutputFramesNeeded, ui
 
 		float CurrentFrameFractionFloat = (float)(CurrentFrameFraction & 0xffff);
 
-		VectorRegister4f ScaleVec = VectorSetFloat1(1.0f / 65536.0f);
-		VectorRegister4f TwoVec = VectorSetFloat1(2.0f);
-		VectorRegister4f OneVec = VectorSetFloat1(1.0f);
-		VectorRegister4f ThreeVec = VectorSetFloat1(3.0f);
+		VectorRegister4Float ScaleVec = VectorSetFloat1(1.0f / 65536.0f);
+		VectorRegister4Float TwoVec = VectorSetFloat1(2.0f);
+		VectorRegister4Float OneVec = VectorSetFloat1(1.0f);
+		VectorRegister4Float ThreeVec = VectorSetFloat1(3.0f);
 
-		VectorRegister4f CurFracStepVec = VectorSet(
+		VectorRegister4Float CurFracStepVec = VectorSet(
 			(float)((0 * FixedPointSampleRate) & 0xffff),
 			(float)((1 * FixedPointSampleRate) & 0xffff),
 			(float)((2 * FixedPointSampleRate) & 0xffff),
 			(float)((3 * FixedPointSampleRate) & 0xffff));
 
-		VectorRegister4f CurFracVec = VectorSetFloat1(CurrentFrameFractionFloat);
+		VectorRegister4Float CurFracVec = VectorSetFloat1(CurrentFrameFractionFloat);
 		CurFracVec = VectorAdd(CurFracVec, CurFracStepVec);
 		CurFracVec = VectorMultiply(CurFracVec, ScaleVec);
 		CurFracVec = VectorAdd(CurFracVec, TwoVec);
 
-		VectorRegister4f MaskVec = MakeVectorRegisterFloat(0xffbfffff, 0xffbfffff, 0xffbfffff, 0xffbfffff);
+		VectorRegister4Float MaskVec = MakeVectorRegisterFloat(0xffbfffff, 0xffbfffff, 0xffbfffff, 0xffbfffff);
 
-		VectorRegister4f StepVec = VectorSetFloat1((float)((FixedPointSampleRate * 4) & 0xffff));
+		VectorRegister4Float StepVec = VectorSetFloat1((float)((FixedPointSampleRate * 4) & 0xffff));
 		StepVec = VectorMultiply(StepVec, ScaleVec);
 
 		uint32 OutputFramesNeededSIMD = OutputFramesNeeded & ~3;
@@ -76,22 +76,22 @@ uint32 Audio::FVectorLinearResampler::ResampleMono(uint32 OutputFramesNeeded, ui
 			};
 
 			// [0, 0+1, 1, 1+1]
-			VectorRegister4f LeftSamples01 = VectorLoadTwoPairsFloat(LeftSamples + SourceOffsets[0], LeftSamples + SourceOffsets[1]);
+			VectorRegister4Float LeftSamples01 = VectorLoadTwoPairsFloat(LeftSamples + SourceOffsets[0], LeftSamples + SourceOffsets[1]);
 			// [2, 2+1, 3, 3+1]
-			VectorRegister4f LeftSamples23 = VectorLoadTwoPairsFloat(LeftSamples + SourceOffsets[2], LeftSamples + SourceOffsets[3]);
+			VectorRegister4Float LeftSamples23 = VectorLoadTwoPairsFloat(LeftSamples + SourceOffsets[2], LeftSamples + SourceOffsets[3]);
 
 			// [0, 1, 2, 3]
 			// [0+1, 1+1, 2+1, 3+1]
-			VectorRegister4f LeftSamplesFrom, LeftSamplesTo;
+			VectorRegister4Float LeftSamplesFrom, LeftSamplesTo;
 			VectorDeinterleave(LeftSamplesFrom, LeftSamplesTo, LeftSamples01, LeftSamples23);
 
 			// our lerp vector is CurFracVec, masking off the 1 bit in the mantissa, subtract 2.
 			CurFracVec = VectorBitwiseAnd(CurFracVec, MaskVec);
-			VectorRegister4f LerpFactor = VectorSubtract(CurFracVec, TwoVec);
-			VectorRegister4f OneMinusLerpFactor = VectorSubtract(ThreeVec, CurFracVec);
+			VectorRegister4Float LerpFactor = VectorSubtract(CurFracVec, TwoVec);
+			VectorRegister4Float OneMinusLerpFactor = VectorSubtract(ThreeVec, CurFracVec);
 
 			CurFracVec = VectorAdd(CurFracVec, StepVec);
-			VectorRegister4f OutputVec = VectorAdd(VectorMultiply(LeftSamplesFrom, OneMinusLerpFactor), VectorMultiply(LeftSamplesTo, LerpFactor));
+			VectorRegister4Float OutputVec = VectorAdd(VectorMultiply(LeftSamplesFrom, OneMinusLerpFactor), VectorMultiply(LeftSamplesTo, LerpFactor));
 
 			VectorStore(OutputVec, OutputFrames);
 
@@ -138,25 +138,25 @@ uint32 Audio::FVectorLinearResampler::ResampleStereo(uint32 OutputFramesNeeded, 
 	{
 		float CurrentFrameFractionFloat = (float)(CurrentFrameFraction & 0xffff);
 
-		VectorRegister4f ScaleVec = VectorSetFloat1(1.0f / 65536.0f);
-		VectorRegister4f TwoVec = VectorSetFloat1(2.0f);
-		VectorRegister4f OneVec = VectorSetFloat1(1.0f);
-		VectorRegister4f ThreeVec = VectorSetFloat1(3.0f);
+		VectorRegister4Float ScaleVec = VectorSetFloat1(1.0f / 65536.0f);
+		VectorRegister4Float TwoVec = VectorSetFloat1(2.0f);
+		VectorRegister4Float OneVec = VectorSetFloat1(1.0f);
+		VectorRegister4Float ThreeVec = VectorSetFloat1(3.0f);
 
-		VectorRegister4f CurFracStepVec = VectorSet(
+		VectorRegister4Float CurFracStepVec = VectorSet(
 			(float)((0 * FixedPointSampleRate) & 0xffff),
 			(float)((1 * FixedPointSampleRate) & 0xffff),
 			(float)((2 * FixedPointSampleRate) & 0xffff),
 			(float)((3 * FixedPointSampleRate) & 0xffff));
 
-		VectorRegister4f CurFracVec = VectorSetFloat1(CurrentFrameFractionFloat);
+		VectorRegister4Float CurFracVec = VectorSetFloat1(CurrentFrameFractionFloat);
 		CurFracVec = VectorAdd(CurFracVec, CurFracStepVec);
 		CurFracVec = VectorMultiply(CurFracVec, ScaleVec);
 		CurFracVec = VectorAdd(CurFracVec, TwoVec);
 
-		VectorRegister4f MaskVec = MakeVectorRegisterFloat(0xffbfffff, 0xffbfffff, 0xffbfffff, 0xffbfffff);
+		VectorRegister4Float MaskVec = MakeVectorRegisterFloat(0xffbfffff, 0xffbfffff, 0xffbfffff, 0xffbfffff);
 
-		VectorRegister4f StepVec = VectorSetFloat1((float)((FixedPointSampleRate * 4) & 0xffff));
+		VectorRegister4Float StepVec = VectorSetFloat1((float)((FixedPointSampleRate * 4) & 0xffff));
 		StepVec = VectorMultiply(StepVec, ScaleVec);
 
 		uint32 OutputFramesNeededSIMD = OutputFramesNeeded & ~3;
@@ -171,29 +171,29 @@ uint32 Audio::FVectorLinearResampler::ResampleStereo(uint32 OutputFramesNeeded, 
 			};
 
 			// [0, 0+1, 1, 1+1]
-			VectorRegister4f LeftSamples01 = VectorLoadTwoPairsFloat(LeftSamples + SourceOffsets[0], LeftSamples + SourceOffsets[1]);
-			VectorRegister4f RightSamples01 = VectorLoadTwoPairsFloat(RightSamples + SourceOffsets[0], RightSamples + SourceOffsets[1]);
+			VectorRegister4Float LeftSamples01 = VectorLoadTwoPairsFloat(LeftSamples + SourceOffsets[0], LeftSamples + SourceOffsets[1]);
+			VectorRegister4Float RightSamples01 = VectorLoadTwoPairsFloat(RightSamples + SourceOffsets[0], RightSamples + SourceOffsets[1]);
 
 			// [2, 2+1, 3, 3+1]
-			VectorRegister4f LeftSamples23 = VectorLoadTwoPairsFloat(LeftSamples + SourceOffsets[2], LeftSamples + SourceOffsets[3]);
-			VectorRegister4f RightSamples23 = VectorLoadTwoPairsFloat(RightSamples + SourceOffsets[2], RightSamples + SourceOffsets[3]);
+			VectorRegister4Float LeftSamples23 = VectorLoadTwoPairsFloat(LeftSamples + SourceOffsets[2], LeftSamples + SourceOffsets[3]);
+			VectorRegister4Float RightSamples23 = VectorLoadTwoPairsFloat(RightSamples + SourceOffsets[2], RightSamples + SourceOffsets[3]);
 
 			// want [0, 1, 2, 3]
 			// [0+1, 1+1, 2+1, 3+1]
-			VectorRegister4f LeftSamplesFrom, LeftSamplesTo;
+			VectorRegister4Float LeftSamplesFrom, LeftSamplesTo;
 			VectorDeinterleave(LeftSamplesFrom, LeftSamplesTo, LeftSamples01, LeftSamples23);
-			VectorRegister4f RightSamplesFrom, RightSamplesTo;
+			VectorRegister4Float RightSamplesFrom, RightSamplesTo;
 			VectorDeinterleave(RightSamplesFrom, RightSamplesTo, RightSamples01, RightSamples23);
 
 			// our lerp vector is cur_frac_vec, masking off the 1 bit in the mantissa, subtract 2.
 			CurFracVec = VectorBitwiseAnd(CurFracVec, MaskVec);
-			VectorRegister4f LerpFactor = VectorSubtract(CurFracVec, TwoVec);
-			VectorRegister4f OneMinusLerpFactor = VectorSubtract(ThreeVec, CurFracVec);
+			VectorRegister4Float LerpFactor = VectorSubtract(CurFracVec, TwoVec);
+			VectorRegister4Float OneMinusLerpFactor = VectorSubtract(ThreeVec, CurFracVec);
 
 			CurFracVec = VectorAdd(CurFracVec, StepVec);
 
-			VectorRegister4f LeftOutputVec = VectorAdd(VectorMultiply(LeftSamplesFrom, OneMinusLerpFactor), VectorMultiply(LeftSamplesTo, LerpFactor));
-			VectorRegister4f RightOutputVec = VectorAdd(VectorMultiply(RightSamplesFrom, OneMinusLerpFactor), VectorMultiply(RightSamplesTo, LerpFactor));
+			VectorRegister4Float LeftOutputVec = VectorAdd(VectorMultiply(LeftSamplesFrom, OneMinusLerpFactor), VectorMultiply(LeftSamplesTo, LerpFactor));
+			VectorRegister4Float RightOutputVec = VectorAdd(VectorMultiply(RightSamplesFrom, OneMinusLerpFactor), VectorMultiply(RightSamplesTo, LerpFactor));
 
 			VectorStore(LeftOutputVec, OutputFrames);
 			VectorStore(RightOutputVec, OutputFrames + OutputFramesStrideFloats);

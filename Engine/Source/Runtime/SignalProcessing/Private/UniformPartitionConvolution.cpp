@@ -265,7 +265,7 @@ namespace Audio
 		const float* InBData = InB.GetData();
 		float* OutData = Out.GetData();
 
-		const VectorRegister4f SignFlip = MakeVectorRegisterFloat(-1.f, 1.f, -1.f, 1.f);
+		const VectorRegister4Float SignFlip = MakeVectorRegisterFloat(-1.f, 1.f, -1.f, 1.f);
 
 		for (int32 i = 0; i < NumSimd; i += 4)
 		{
@@ -279,16 +279,16 @@ namespace Audio
 			// B1r B1i B2r B2i
 
 			// VectorA = A1r A1i A2r A2i
-			VectorRegister4f VectorInA = VectorLoadAligned(&InAData[i]);
+			VectorRegister4Float VectorInA = VectorLoadAligned(&InAData[i]);
 			// Temp12 = A1i A1r A2i A2r
-			VectorRegister4f Temp1 = VectorSwizzle(VectorInA, 1, 0, 3, 2);
+			VectorRegister4Float Temp1 = VectorSwizzle(VectorInA, 1, 0, 3, 2);
 
 			// VectorB = B1r B1i B2r B2i
-			VectorRegister4f VectorInB = VectorLoadAligned(&InBData[i]);
+			VectorRegister4Float VectorInB = VectorLoadAligned(&InBData[i]);
 			// Temp2 = B1r B1r B2r B2r
-			VectorRegister4f Temp2 = VectorSwizzle(VectorInB, 0, 0, 2, 2);
+			VectorRegister4Float Temp2 = VectorSwizzle(VectorInB, 0, 0, 2, 2);
 			// Temp3 = B1i B1i B2i B2i
-			VectorRegister4f Temp3 = VectorSwizzle(VectorInB, 1, 1, 3, 3);
+			VectorRegister4Float Temp3 = VectorSwizzle(VectorInB, 1, 1, 3, 3);
 
 
 			// VectorA = A1rB1r, A1iB1r, A2rB2r, A2iB2r
@@ -302,7 +302,7 @@ namespace Audio
 			Temp1 = VectorMultiplyAdd(Temp1, SignFlip, VectorInA);
 
 			// VectorOut = O1r + A1rB1r - A1iB1i, O1i + A1iB1r + A1rB1i, O2r + A2rB2r - A2iB2i, O2i + A2iB2r + A2rB2i
-			VectorRegister4f VectorOut = VectorLoadAligned(&OutData[i]);
+			VectorRegister4Float VectorOut = VectorLoadAligned(&OutData[i]);
 			VectorOut = VectorAdd(Temp1, VectorOut);
 
 			VectorStoreAligned(VectorOut, &OutData[i]);
@@ -322,7 +322,7 @@ namespace Audio
 	{
 		check(InBuffer.Num() == OutBuffer.Num());
 
-		VectorRegister4f VectorConstant = MakeVectorRegisterFloat(InConstant, InConstant, InConstant, InConstant);
+		VectorRegister4Float VectorConstant = MakeVectorRegisterFloat(InConstant, InConstant, InConstant, InConstant);
 
 		const int32 Num = InBuffer.Num();
 		const int32 NumSimd = Num & NumSimdMask;
@@ -332,9 +332,9 @@ namespace Audio
 
 		for (int32 i = 0; i < NumSimd; i += 4)
 		{
-			VectorRegister4f VectorIn = VectorLoadAligned(&InData[i]);
+			VectorRegister4Float VectorIn = VectorLoadAligned(&InData[i]);
 
-			VectorRegister4f VectorOut = VectorMultiply(VectorIn, VectorConstant);
+			VectorRegister4Float VectorOut = VectorMultiply(VectorIn, VectorConstant);
 			
 			VectorStoreAligned(VectorOut, &OutData[i]);
 		}
