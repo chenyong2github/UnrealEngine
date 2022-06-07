@@ -130,7 +130,6 @@ FOutlinerItemModelMixin::FOutlinerItemModelMixin()
 	: OutlinerChildList(EViewModelListType::Outliner)
 	, bInitializedExpansion(false)
 	, bInitializedPinnedState(false)
-	, bIsForcedFilteredOut(false)
 {
 }
 
@@ -138,16 +137,6 @@ TSharedPtr<FSequencerEditorViewModel> FOutlinerItemModelMixin::GetEditor() const
 {
 	TSharedPtr<FSequenceModel> SequenceModel = AsViewModel()->FindAncestorOfType<FSequenceModel>();
 	return SequenceModel ? SequenceModel->GetEditor() : nullptr;
-}
-
-bool FOutlinerItemModelMixin::IsForceFilteredOut() const
-{
-	return bIsForcedFilteredOut;
-}
-
-void FOutlinerItemModelMixin::SetForceFilteredOut(bool bInIsForcedFilteredOut)
-{
-	bIsForcedFilteredOut = bInIsForcedFilteredOut;
 }
 
 FName FOutlinerItemModelMixin::GetIdentifier() const
@@ -226,7 +215,7 @@ void FOutlinerItemModelMixin::SetExpansionWithoutSaving(bool bInIsExpanded)
 
 bool FOutlinerItemModelMixin::IsFilteredOut() const
 {
-	return bIsFilteredOut || bIsForcedFilteredOut;
+	return bIsFilteredOut;
 }
 
 bool FOutlinerItemModelMixin::IsPinned() const

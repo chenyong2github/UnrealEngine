@@ -1002,16 +1002,6 @@ bool FSequencerNodeTree::UpdateFilters()
 		const bool bIsNodeFilteredIn = !bHasActiveFilter || FilteredNodes.Contains(Item);
 		Item->SetFilteredOut(!bIsNodeFilteredIn);
 
-		if (FOutlinerItemModel* OutlinerItemModel = Item.AsModel()->CastThis<FOutlinerItemModel>())
-		{
-			if (OutlinerItemModel->IsForceFilteredOut())
-			{
-				// Skip things that are force-filtered-out because we don't want to see or count them
-				// in the outliner hierarchy.
-				continue;
-			}
-		}
-
 		++DisplayNodeCount;
 	}
 

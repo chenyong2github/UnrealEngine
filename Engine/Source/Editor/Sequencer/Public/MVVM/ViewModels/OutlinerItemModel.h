@@ -43,9 +43,6 @@ public:
 	FOutlinerItemModelMixin();
 
 	TSharedPtr<FSequencerEditorViewModel> GetEditor() const;
-
-	bool IsForceFilteredOut() const;
-	void SetForceFilteredOut(bool bInIsForcedFilteredOut);
 	
 	/*~ IOutlinerExtension */
 	FName GetIdentifier() const override;
@@ -116,7 +113,6 @@ private:
 	FCurveEditorTreeItemID CurveEditorItemID;
 	mutable bool bInitializedExpansion;
 	mutable bool bInitializedPinnedState;
-	bool bIsForcedFilteredOut;
 };
 
 template<typename BaseType>
