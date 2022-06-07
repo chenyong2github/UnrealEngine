@@ -66,12 +66,13 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 {
 	using namespace UE::Interchange::Gltf::Private;
 
-	const FString NodeUid = ParentNodeUid + TEXT("\\") + GenerateNameForGltfNode( GltfNode.Name, NodeIndex );
+	const FString NodeName = GenerateNameForGltfNode( GltfNode.Name, NodeIndex );
+	const FString NodeUid = ParentNodeUid + TEXT("\\") + NodeName;
 
 	const UInterchangeSceneNode* ParentSceneNode = Cast< UInterchangeSceneNode >( NodeContainer.GetNode( ParentNodeUid ) );
 
 	UInterchangeSceneNode* InterchangeSceneNode = NewObject< UInterchangeSceneNode >( &NodeContainer );
-	InterchangeSceneNode->InitializeNode( NodeUid, GltfNode.Name, EInterchangeNodeContainerType::TranslatedScene );
+	InterchangeSceneNode->InitializeNode( NodeUid, NodeName, EInterchangeNodeContainerType::TranslatedScene );
 	NodeContainer.AddNode( InterchangeSceneNode );
 
 	FTransform Transform = GltfNode.Transform;
