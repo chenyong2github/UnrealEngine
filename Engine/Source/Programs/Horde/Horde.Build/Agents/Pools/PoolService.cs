@@ -121,6 +121,7 @@ namespace Horde.Build.Services
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
 		/// <param name="sizeStrategy">New pool sizing strategy for the pool</param>
+		/// <param name="useDefaultStrategy">Whether to use the default strategy</param>
 		/// <returns>Async task object</returns>
 		public async Task<IPool?> UpdatePoolAsync(
 			IPool? pool,
@@ -132,7 +133,8 @@ namespace Horde.Build.Services
 			Dictionary<string, string?>? newProperties = null,
 			TimeSpan? scaleOutCooldown = null,
 			TimeSpan? scaleInCooldown = null,
-			PoolSizeStrategy? sizeStrategy = null)
+			PoolSizeStrategy? sizeStrategy = null,
+			bool? useDefaultStrategy = null)
 		{
 			for (; pool != null; pool = await _pools.GetAsync(pool.Id))
 			{
@@ -146,7 +148,8 @@ namespace Horde.Build.Services
 					newProperties: newProperties,
 					scaleOutCooldown: scaleOutCooldown,
 					scaleInCooldown: scaleInCooldown,
-					sizeStrategy: sizeStrategy);
+					sizeStrategy: sizeStrategy,
+					useDefaultStrategy: useDefaultStrategy);
 				
 				if (newPool != null)
 				{

@@ -92,6 +92,7 @@ namespace Horde.Build.Collections
 		/// <param name="sizeStrategy">Pool sizing strategy</param>
 		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
 		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
+		/// <param name="useDefaultStrategy">Whether to use the default strategy</param>
 		/// <returns>Async task</returns>
 		Task<IPool?> TryUpdateAsync(
 			IPool pool,
@@ -109,6 +110,7 @@ namespace Horde.Build.Collections
 			TimeSpan? scaleInCooldown = null,
 			PoolSizeStrategy? sizeStrategy = null,
 			LeaseUtilizationSettings? leaseUtilizationSettings = null,
-			JobQueueSettings? jobQueueSettings = null);
+			JobQueueSettings? jobQueueSettings = null,
+			bool? useDefaultStrategy = null);
 	}
 }

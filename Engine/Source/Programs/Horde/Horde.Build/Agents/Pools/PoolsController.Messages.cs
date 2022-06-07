@@ -185,7 +185,12 @@ namespace Horde.Build.Api
 		/// Pool sizing strategy
 		/// </summary>
 		public PoolSizeStrategy? SizeStrategy { get; set; }
-		
+
+		/// <summary>
+		/// Set pool to use default strategy
+		/// </summary>
+		public bool? UseDefaultStrategy { get; set; }
+
 		/// <summary>
 		/// Settings for lease utilization pool sizing strategy (if used)
 		/// </summary>

@@ -9,6 +9,7 @@ using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Models;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -42,14 +43,14 @@ namespace Horde.Build.Collections.Impl
 			public TimeSpan? ScaleOutCooldown { get; set; }
 			public TimeSpan? ScaleInCooldown { get; set; }
 			public PoolSizeStrategy? SizeStrategy { get; set; }
-			PoolSizeStrategy IPool.SizeStrategy => SizeStrategy ?? PoolSizeStrategy.Default;
+			PoolSizeStrategy IPool.SizeStrategy => SizeStrategy ?? defaultStrategy!.Value;
 			public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
 			public JobQueueSettings? JobQueueSettings { get; set; }
 			public int UpdateIndex { get; set; }
 
 			// Read-only wrappers
 			IReadOnlyList<AgentWorkspace> IPool.Workspaces => Workspaces;
-			IReadOnlyDictionary<string, string> IPool.Properties => Properties;
+			IReadOnlyDictionary<string, string> IPool.Properties => Properties;			
 
 			public PoolDocument()
 			{
@@ -82,13 +83,17 @@ namespace Horde.Build.Collections.Impl
 		/// </summary>
 		readonly IMongoCollection<PoolDocument> _pools;
 
+		static PoolSizeStrategy? defaultStrategy;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService">The database service instance</param>
-		public PoolCollection(MongoService mongoService)
+		/// <param name="serverSettings">The server settings</param>
+		public PoolCollection(MongoService mongoService, IOptions<ServerSettings> serverSettings)
 		{
 			_pools = mongoService.GetCollection<PoolDocument>("Pools");
+			defaultStrategy = serverSettings.Value.DefaultAgentPoolSizeStrategy;
 		}
 
 		/// <inheritdoc/>
@@ -216,7 +221,8 @@ namespace Horde.Build.Collections.Impl
 			TimeSpan? scaleInCooldown, 
 			PoolSizeStrategy? sizeStrategy,
 			LeaseUtilizationSettings? leaseUtilizationSettings,
-			JobQueueSettings? jobQueueSettings)
+			JobQueueSettings? jobQueueSettings, 
+			bool? useDefaultStrategy)
 		{
 			TransactionBuilder<PoolDocument> transaction = new TransactionBuilder<PoolDocument>();
 			if (newName != null)
@@ -297,16 +303,13 @@ namespace Horde.Build.Collections.Impl
 			}
 			if (sizeStrategy != null)
 			{
-				if (sizeStrategy == PoolSizeStrategy.Default)
-				{
-					transaction.Set(x => x.SizeStrategy, null);
-				}
-				else
-				{
-					transaction.Set(x => x.SizeStrategy, sizeStrategy);
-				}
-				
+				transaction.Set(x => x.SizeStrategy, sizeStrategy);				
 			}
+			else if (useDefaultStrategy != null && useDefaultStrategy.Value)
+			{
+				transaction.Set(x => x.SizeStrategy, null);
+			}
+
 			if (leaseUtilizationSettings != null)
 			{
 				transaction.Set(x => x.LeaseUtilizationSettings, leaseUtilizationSettings);
