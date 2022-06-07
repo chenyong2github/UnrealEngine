@@ -81,8 +81,6 @@ struct FCachedRayTracingSceneData
 	TArray<TArray<FRayTracingGeometryInstance>> RayTracingGeometryInstancesPerLOD;
 	TArray<TUniquePtr<FMatrix>> OwnedRayTracingInstanceTransforms;
 
-	TUniformBufferRef<FViewUniformShaderParameters> CachedViewUniformBuffer;
-
 	void SetupViewUniformBufferFromSceneRenderState(class FSceneRenderState& Scene);
 	void SetupFromSceneRenderState(class FSceneRenderState& Scene);
 };
