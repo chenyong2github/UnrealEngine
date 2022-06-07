@@ -99,6 +99,9 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 
 	Tags = InActor->Tags;
 
+	Properties.Empty();
+	InActor->GetActorDescProperties(Properties);
+
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
 	FolderPath = InActor->GetFolderPath();
@@ -150,27 +153,28 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 
 bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
 {
-	return 
-		Guid == Other->Guid && 
-		BaseClass == Other->BaseClass && 
-		NativeClass == Other->NativeClass && 
-		ActorPackage == Other->ActorPackage && 
-		ActorPath == Other->ActorPath && 
-		ActorLabel == Other->ActorLabel && 
+	return
+		Guid == Other->Guid &&
+		BaseClass == Other->BaseClass &&
+		NativeClass == Other->NativeClass &&
+		ActorPackage == Other->ActorPackage &&
+		ActorPath == Other->ActorPath &&
+		ActorLabel == Other->ActorLabel &&
 		BoundsLocation.Equals(Other->BoundsLocation, 0.1f) &&
-		BoundsExtent.Equals(Other->BoundsExtent, 0.1f) && 
-		RuntimeGrid == Other->RuntimeGrid && 
-		bActorIsEditorOnly == Other->bActorIsEditorOnly && 
-		bLevelBoundsRelevant == Other->bLevelBoundsRelevant && 
-		bActorIsHLODRelevant == Other->bActorIsHLODRelevant && 
+		BoundsExtent.Equals(Other->BoundsExtent, 0.1f) &&
+		RuntimeGrid == Other->RuntimeGrid &&
+		bActorIsEditorOnly == Other->bActorIsEditorOnly &&
+		bLevelBoundsRelevant == Other->bLevelBoundsRelevant &&
+		bActorIsHLODRelevant == Other->bActorIsHLODRelevant &&
 		bIsUsingDataLayerAsset == Other->bIsUsingDataLayerAsset &&
-		HLODLayer == Other->HLODLayer && 
+		HLODLayer == Other->HLODLayer &&
 		FolderPath == Other->FolderPath &&
 		FolderGuid == Other->FolderGuid &&
 		ParentActor == Other->ParentActor &&
 		CompareUnsortedArrays(DataLayers, Other->DataLayers) &&
 		CompareUnsortedArrays(References, Other->References) &&
-		CompareUnsortedArrays(Tags, Other->Tags);
+		CompareUnsortedArrays(Tags, Other->Tags) &&
+		Properties.OrderIndependentCompareEqual(Other->Properties);
 }
 
 void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
@@ -334,6 +338,11 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::AddLevelActorFolders)
 	{
 		Ar << FolderGuid;
+	}
+
+	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescPropertyMapSerialization)
+	{
+		Ar << Properties;
 	}
 }
 

@@ -871,6 +871,14 @@ TUniquePtr<FWorldPartitionActorDesc> AActor::CreateActorDesc() const
 	return ActorDesc;
 }
 
+void AActor::GetActorDescProperties(TMap<FName, FName>& Properties) const
+{
+	ForEachComponent<UActorComponent>(false, [&Properties](UActorComponent* Component)
+	{
+		Component->GetActorDescProperties(Properties);
+	});
+}
+
 TUniquePtr<class FWorldPartitionActorDesc> AActor::StaticCreateClassActorDesc(const TSubclassOf<AActor>& ActorClass)
 {
 	return CastChecked<AActor>(ActorClass->GetDefaultObject())->CreateClassActorDesc();

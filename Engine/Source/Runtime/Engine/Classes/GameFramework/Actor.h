@@ -934,6 +934,11 @@ public:
 	TUniquePtr<class FWorldPartitionActorDesc> CreateActorDesc() const;
 
 	/**
+	 * Add properties to the actor desc.
+	 */
+	virtual void GetActorDescProperties(TMap<FName, FName>& Properties) const;
+
+	/**
 	 * Creates an uninitialized actor descriptor from a specific class.
 	 */
 	static TUniquePtr<class FWorldPartitionActorDesc> StaticCreateClassActorDesc(const TSubclassOf<AActor>& ActorClass);

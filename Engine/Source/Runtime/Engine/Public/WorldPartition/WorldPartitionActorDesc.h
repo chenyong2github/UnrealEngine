@@ -97,6 +97,8 @@ public:
 	FBox GetBounds() const;
 	inline const FGuid& GetParentActor() const { return ParentActor; }
 	inline bool IsUsingDataLayerAsset() const { return bIsUsingDataLayerAsset; }
+	inline FName GetProperty(FName PropertyName) const { return Properties.FindRef(PropertyName); }
+	inline bool HasProperty(FName PropertyName) const { return !GetProperty(PropertyName).IsNone(); }
 
 	FName GetActorName() const;
 	FName GetActorLabelOrName() const;
@@ -226,6 +228,7 @@ protected:
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
 	TArray<FName>					Tags;
+	TMap<FName, FName>				Properties;
 	FName							FolderPath;
 	FGuid							FolderGuid;
 

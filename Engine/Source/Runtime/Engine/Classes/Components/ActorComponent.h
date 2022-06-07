@@ -839,6 +839,11 @@ public:
 	 * externally generated HLODs.
 	 */
 	virtual TSubclassOf<class UHLODBuilder> GetCustomHLODBuilderClass() const { return nullptr; }
+
+	/**
+	 * Add properties to the component owner's actor desc.
+	 */
+	virtual void GetActorDescProperties(TMap<FName, FName>& Properties) const { }
 #endif // WITH_EDITOR
 
 	/**
