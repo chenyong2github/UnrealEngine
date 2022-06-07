@@ -217,12 +217,14 @@ public:
 	// Begin UInteractiveTool interface
 	virtual void Setup() override;
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
-	virtual void OnTick(float DeltaTime) override;
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
 	// End UInteractiveTool interface
 
+	// Begin IGenericDataOperatorFactory interface
+	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<UE::Geometry::FMeshMapBaker>> MakeNewOperator() override;
+	// End IGenericDataOperatorFactory interface
 
 protected:
 
@@ -249,6 +251,7 @@ protected:
 	virtual void UpdateResult() override;
 	virtual void UpdateVisualization() override;
 	virtual void GatherAnalytics(FBakeAnalytics::FMeshSettings& Data) override;
+	virtual FString GetAnalyticsEventName() const override { return TEXT("BakeRC"); }
 	// End UBakeMeshAttributeMapsToolBase interface
 	
 	void InvalidateResults();
@@ -263,23 +266,11 @@ protected:
 		// End IGenericDataOperatorFactory interface
 	};
 
-	// TODO :PortRenderCaptureToolToNewBakingFramework
-	// This tool has been ported to modeling mode after the new baking framework was implemented,
-	// since there is quite a lot of code to move the plan is to get the tool working in modeling
-	// mode using the old framework and then port it to the new one. This means that some aspects
-	// of the UBakeMeshAttributeMapsToolBase cannot yet be used, so we work around these and point
-	// out where we're going to need to do future @Refactor-ing. -- matija.kecman, 4 March 2022
-
-	// :PortRenderCaptureToolToNewBakingFramework
-	// When we use the new baking framework, we should be able to use:
-	// - UBakeMeshAttributeMapsToolBase::Compute
-	// - UBakeMeshAttributeMapsToolBase::InvalidateCompute
-	// - UBakeMeshAttributeMapsToolBase::OnMapsUpdated
-	// - UBakeMeshAttributeMapsToolBase::OnTick
- 	FComputeFactory ComputeFactory;
-	TUniquePtr<TGenericDataBackgroundCompute<FBakeRenderCaptureResultsBuilder>> ComputeRC = nullptr;
+	// In this tool we don't call UBakeMeshAttributeMapsToolBase::OnMapsUpdated because it would require e.g, adding
+	// the render capture channels to EBakeMapType.  The implementation is simpler and leads to less coupling if we
+	// just implement custom versions of the following functions.
 	void InvalidateComputeRC();
-	void OnMapsUpdatedRC(const TUniquePtr<FBakeRenderCaptureResultsBuilder>& NewResult);
+	void OnMapsUpdatedRC(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult);
 	
 	/**
 	 * Create texture assets from our result map of Texture2D
@@ -313,10 +304,4 @@ protected:
 	// the capture are reverted to these values
 	UPROPERTY()
 	TObjectPtr<URenderCaptureProperties> ComputedRenderCaptureProperties;
-
-	// Analytics
-	virtual FString GetAnalyticsEventName() const override
-	{
-		return TEXT("BakeRC");
-	}
 };

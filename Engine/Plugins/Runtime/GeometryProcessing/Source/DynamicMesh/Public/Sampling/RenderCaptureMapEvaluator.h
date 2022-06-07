@@ -9,20 +9,34 @@ namespace UE
 namespace Geometry
 {
 
-template <
-	typename DataType,
-	FMeshMapEvaluator::EComponents NumComponents = FMeshMapEvaluator::EComponents::Float4,
-	FMeshMapEvaluator::EAccumulateMode Mode = FMeshMapEvaluator::EAccumulateMode::Add>
-class FGenericEvaluator : public FMeshMapEvaluator
+// TODO Consolidate this with ERenderCaptureType
+enum class ERenderCaptureChannel
+{
+	BaseColor = 1,
+	Roughness = 2,
+	Metallic = 4,
+	Specular = 8,
+	Emissive = 16,
+	WorldNormal = 32,
+	CombinedMRS = 128
+};
+
+template <typename DataType>
+class FRenderCaptureMapEvaluator : public FMeshMapEvaluator
 {
 public:
+
+	ERenderCaptureChannel Channel = ERenderCaptureChannel::BaseColor;
+
+	// Analytics
+	// TODO Add some analytics to collect
 
 	DataType DefaultResult;
 	TFunction<DataType(const FCorrespondenceSample& Sample)> EvaluateSampleCallback;
 	TFunction<FVector4f(const int DataIdx, float*& In)> EvaluateColorCallback;
 
 public:
-	virtual ~FGenericEvaluator() {}
+	virtual ~FRenderCaptureMapEvaluator() {}
 
 	// Begin FMeshMapEvaluator interface
 	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) override
@@ -31,35 +45,36 @@ public:
 		Context.EvaluateDefault = &EvaluateDefault;
 		Context.EvaluateColor = &EvaluateColor;
 		Context.EvalData = this;
-		Context.AccumulateMode = Mode;
+		Context.AccumulateMode = EAccumulateMode::Add;
 		Context.DataLayout = DataLayout();
 	}
 
-	virtual const TArray<EComponents>& DataLayout() const override
-	{
-		static const TArray<EComponents> Layout{ NumComponents };
+	virtual const TArray<EComponents>& DataLayout() const override {
+		static const TArray<EComponents> Layout{(Channel == ERenderCaptureChannel::WorldNormal
+			? EComponents::Float3
+			: EComponents::Float4) };
 		return Layout;
 	}
 
-	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::Generic; }
+	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::RenderCapture; }
 	// End FMeshMapEvaluator interface
 
 	static void EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 	{
-		const FGenericEvaluator* Eval = static_cast<FGenericEvaluator*>(EvalData);
+		const FRenderCaptureMapEvaluator* Eval = static_cast<FRenderCaptureMapEvaluator*>(EvalData);
 		const DataType SampleResult = Eval->EvaluateSampleCallback(Sample);
 		WriteToBuffer(Out, SampleResult);
 	}
 
 	static void EvaluateDefault(float*& Out, void* EvalData)
 	{
-		const FGenericEvaluator* Eval = static_cast<FGenericEvaluator*>(EvalData);
+		const FRenderCaptureMapEvaluator* Eval = static_cast<FRenderCaptureMapEvaluator*>(EvalData);
 		WriteToBuffer(Out, Eval->DefaultResult);
 	}
 
 	static void EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData)
 	{
-		const FGenericEvaluator* Eval = static_cast<FGenericEvaluator*>(EvalData);
+		const FRenderCaptureMapEvaluator* Eval = static_cast<FRenderCaptureMapEvaluator*>(EvalData);
 		Out = Eval->EvaluateColorCallback(DataIdx, In);
 	}
 };
