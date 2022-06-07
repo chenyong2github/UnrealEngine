@@ -116,8 +116,8 @@ void FDatasmithMesh::SetFacesCount(int32 NumFaces)
 	Impl->Normals.Empty(NumFaces * 3);
 	Impl->Normals.Init( FVector3f::ZeroVector, NumFaces * 3 );
 
-	Impl->FaceSmoothingMasks.Empty( NumFaces * 3 );
-	Impl->FaceSmoothingMasks.AddZeroed( NumFaces * 3 );
+	Impl->FaceSmoothingMasks.Empty( NumFaces );
+	Impl->FaceSmoothingMasks.AddZeroed( NumFaces );
 
 	for ( TArray< int32 >& UVIndices : Impl->UVIndices )
 	{

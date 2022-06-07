@@ -190,11 +190,11 @@ void FDatasmithHashTools::ComputeDatasmithMeshHash(const FDatasmithMesh& Mesh)
 		TUpdate(Vertex2);
 		TUpdate(Vertex3);
 		TUpdate(MaterialId);
+		TUpdate(Mesh.GetFaceSmoothingMask(IdxFace));
 
 		for (int32 IdxComponent = 0; IdxComponent < 3; IdxComponent++)
 		{
 			HashFloatVector(FVector(Mesh.GetNormal(IdxFace * 3 + IdxComponent)));
-			TUpdate(Mesh.GetFaceSmoothingMask(IdxFace * 3 + IdxComponent));
 		}
 
 		for (int32 IdxChannel = 0; IdxChannel < UVChannelCount; ++IdxChannel)
