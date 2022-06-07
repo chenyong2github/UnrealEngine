@@ -189,7 +189,7 @@ IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbr::ConvertTexmap( cons
 
 	if (TexmapsConverted)
 	{
-		TexmapsConverted->Add(MapParameter.Map);
+		TexmapsConverted->FindOrAdd(MapParameter.Map);
 	}
 
 	// Check if the texmap has a texture ouput

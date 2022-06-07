@@ -1703,6 +1703,7 @@ IDatasmithMaterialExpression* FDatasmithMaxBakeableToUEPbr::Convert( FDatasmithM
 
 	if ( BakedTextureElement )
 	{
+		MaxMaterialToUEPbr->TexmapsConverted->FindOrAdd(InTexmap).Add(BakedTextureElement);
 		IDatasmithMaterialExpression* MaterialExpression = MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression( EDatasmithMaterialExpressionType::Texture );
 
 		if ( MaterialExpression )
@@ -1740,14 +1741,22 @@ bool FDatasmithMaxPassthroughToUEPbr::IsSupported( const FDatasmithMaxMaterialsT
 		{
 			return true;
 		}
+		else if ( InTexmap->ClassID() == FORESTCOLORCLASS )
+		{
+			return true;
+		}
 	}
 
 	return false;
 }
 
-const TCHAR* FDatasmithMaxPassthroughToUEPbr::GetColorParameterName() const
+const TCHAR* FDatasmithMaxPassthroughToUEPbr::GetColorParameterName(Texmap* InTexmap) const
 {
-	return TEXT("Color1");
+	if ( InTexmap->ClassID() == FORESTCOLORCLASS )
+	{
+		return TEXT("colorbase");
+	}
+	return TEXT("color1");
 }
 
 IDatasmithMaterialExpression* FDatasmithMaxPassthroughToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
@@ -1759,7 +1768,7 @@ IDatasmithMaterialExpression* FDatasmithMaxPassthroughToUEPbr::Convert( FDatasmi
 	MapParameter.Weight = 1.f;
 	MapParameter.bEnabled = ( InTexmap->SubTexmapOn(0) != 0 );
 
-	FLinearColor PassthroughColor = GetColorParameter( InTexmap, GetColorParameterName() );
+	FLinearColor PassthroughColor = GetColorParameter( InTexmap, GetColorParameterName(InTexmap) );
 	IDatasmithMaterialExpression* Map1 = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( MaxMaterialToUEPbr, MapParameter, TEXT("Submap"), PassthroughColor, TOptional< float >() );
 
 	return Map1;
@@ -1801,7 +1810,7 @@ FLinearColor FDatasmithMaxPassthroughToUEPbr::GetColorParameter( Texmap* InTexma
 	return FLinearColor::Black;
 }
 
-const TCHAR* FDatasmithMaxCellularToUEPbr::GetColorParameterName() const
+const TCHAR* FDatasmithMaxCellularToUEPbr::GetColorParameterName(Texmap* InTexmap) const
 {
 	return TEXT("cellcolor");
 }
@@ -1820,7 +1829,7 @@ bool FDatasmithMaxCellularToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUE
 	return false;
 }
 
-const TCHAR* FDatasmithMaxThirdPartyMultiTexmapToUEPbr::GetColorParameterName() const
+const TCHAR* FDatasmithMaxThirdPartyMultiTexmapToUEPbr::GetColorParameterName(Texmap* InTexmap) const
 {
 	return TEXT("sub_color");
 }

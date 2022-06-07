@@ -135,13 +135,13 @@ void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDat
 		}
 	}
 
-	TArray<Texmap*> TexmapsUsedByMaterial;
+	TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>> TexmapsUsedByMaterial;
 	TSharedPtr<IDatasmithBaseMaterialElement> DatasmithMaterial;
 
 	if (FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter(Material))
 	{
 
-		TGuardValue<TArray<Texmap*>*> TexmapsConvertedGuard(MaterialConverter->TexmapsConverted, &TexmapsUsedByMaterial);
+		TGuardValue<TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>>*> TexmapsConvertedGuard(MaterialConverter->TexmapsConverted, &TexmapsUsedByMaterial);
 		 
 		MaterialConverter->Convert(DatasmithScene, DatasmithMaterial, Material, AssetsPath);
 
@@ -155,17 +155,20 @@ void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDat
 	}
 
 	// Tie texture used by an actual material to tracked material
-	for (Texmap* Texture : TexmapsUsedByMaterial)
+	for (TPair<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>> TexmapAndDatasmithElements : TexmapsUsedByMaterial)
 	{
-
+		Texmap* Tex = TexmapAndDatasmithElements.Key;
 		for (FMaterialTracker* MaterialTracker : UsedMaterialToMaterialTracker[Material])
 		{
-			MaterialTracker->AddActualTexture(Texture);
-			UsedTextureToMaterialTracker.FindOrAdd(Texture).Add(MaterialTracker);
+			MaterialTracker->AddActualTexture(Tex);
+			UsedTextureToMaterialTracker.FindOrAdd(Tex).Add(MaterialTracker);
 		}
-	}
 
-	TexmapsConverted.Append(TexmapsUsedByMaterial);
+		// Some material converters create texture elements during material conversion(like bakeable) - record created texture elements
+		UsedTextureToDatasmithElement.FindOrAdd(Tex).Append(TexmapAndDatasmithElements.Value);
+
+		TexmapsConverted.Add(Tex);
+	}
 
 }
 

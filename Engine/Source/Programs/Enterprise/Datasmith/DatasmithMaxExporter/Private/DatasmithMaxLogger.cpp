@@ -2,6 +2,8 @@
 
 #include "DatasmithMaxLogger.h"
 
+#include "DatasmithMaxDirectLink.h"
+
 #include "DatasmithMaxExporterDefines.h"
 
 #include "HAL/UnrealMemory.h"
@@ -75,6 +77,7 @@ void DatasmithMaxLogger::AddPartialSupportedMap(Texmap* Map)
 
 void DatasmithMaxLogger::AddUnsupportedMap(Texmap* Map)
 {
+
 	for (int i = 0; i < UnsupportedMaps.Num(); i++)
 	{
 		if (Map->ClassID() == UnsupportedMaps[i]->ClassID())
@@ -82,6 +85,10 @@ void DatasmithMaxLogger::AddUnsupportedMap(Texmap* Map)
 			return;
 		}
 	}
+
+	MSTR Classname;
+	Map->GetClassName(Classname);
+	DatasmithMaxDirectLink::LogWarning(FString::Printf(TEXT("Unsupported texmap \"%s\" of type %s (0x%08x-0x%08x)"), Map->GetName().ToBSTR(), Classname.ToBSTR(), Map->ClassID().PartA(), Map->ClassID().PartB()));
 
 	UnsupportedMaps.Add(Map);
 }

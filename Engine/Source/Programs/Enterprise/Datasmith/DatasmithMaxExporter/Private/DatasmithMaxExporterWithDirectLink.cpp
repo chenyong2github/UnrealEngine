@@ -1602,7 +1602,8 @@ public:
 
 				TArray<TSharedPtr<IDatasmithTextureElement>> TextureElements;
 				FDatasmithMaxMatExport::GetXMLTexture(ExportedScene.GetDatasmithScene().ToSharedRef(), Texture, ExportedScene.GetSceneExporter().GetAssetsOutputPath(), &TextureElements);
-				MaterialsCollectionTracker.UsedTextureToDatasmithElement.Add(Texture, TextureElements);
+
+				MaterialsCollectionTracker.UsedTextureToDatasmithElement.FindOrAdd(Texture).Append(TextureElements);
 			}
 		}
 

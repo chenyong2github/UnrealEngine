@@ -116,7 +116,7 @@ class FDatasmithMaxPassthroughToUEPbr : public IDatasmithMaxTexmapToUEPbr
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
 
-	virtual const TCHAR* GetColorParameterName() const;
+	virtual const TCHAR* GetColorParameterName(Texmap* InTexmap) const;
 
 	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 	FLinearColor GetColorParameter( Texmap* InTexmap, const TCHAR* ParameterName );
@@ -124,12 +124,12 @@ public:
 
 class FDatasmithMaxCellularToUEPbr : public FDatasmithMaxPassthroughToUEPbr
 {
-	virtual const TCHAR* GetColorParameterName() const override;
+	virtual const TCHAR* GetColorParameterName(Texmap* InTexmap) const override;
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
 };
 
 class FDatasmithMaxThirdPartyMultiTexmapToUEPbr : public FDatasmithMaxPassthroughToUEPbr
 {
-	virtual const TCHAR* GetColorParameterName() const override;
+	virtual const TCHAR* GetColorParameterName(Texmap* InTexmap) const override;
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
 };

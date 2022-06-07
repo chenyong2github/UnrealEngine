@@ -15,6 +15,7 @@ class IDatasmithMaterialExpressionTexture;
 class IDatasmithMaxTexmapToUEPbr;
 class IDatasmithScene;
 class IDatasmithUEPbrMaterialElement;
+class IDatasmithTextureElement;
 class Mtl;
 class Texmap;
 
@@ -59,7 +60,10 @@ public:
 
 	} ConvertState;
 
-	TArray<Texmap*>* TexmapsConverted = nullptr;
+	// Used to record texmaps that were asked for conversion whil ematerial conversion is performed
+	// recordking also datasmith elements created for those maps.
+	// Baked texmaps currently create datasmith elements during material convertion
+	TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>>* TexmapsConverted = nullptr;
 
 protected:
 	TIndirectArray< IDatasmithMaxTexmapToUEPbr > TexmapConverters;
