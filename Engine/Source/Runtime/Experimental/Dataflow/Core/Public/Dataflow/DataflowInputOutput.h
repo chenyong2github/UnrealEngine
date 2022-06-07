@@ -167,7 +167,7 @@ namespace Dataflow
 		void SetValue(T InVal, const FContext& Context)
 		{
 			CacheKey = Context.GetTypeHash();
-			Cache.Data = DeepCopy<T>(InVal);
+			Cache.Data = InVal;
 		}
 
 		T GetValue(const FContext& Context)
@@ -177,7 +177,7 @@ namespace Dataflow
 				OwningNode->Evaluate(Context, this);
 			}
 			ensure(CacheKey == Context.GetTypeHash());
-			return Cache.Data;
+			return DeepCopy<T>(Cache.Data);
 		}
 
 		virtual void Invalidate() override

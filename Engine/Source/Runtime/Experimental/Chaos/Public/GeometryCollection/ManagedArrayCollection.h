@@ -117,20 +117,23 @@ public:
 	T* NewCopy() const
 	{
 		T* Collection = new T();
-		for (const TTuple<FKeyType, FValueType>& Entry : Map)
+		if (!Map.IsEmpty())
 		{
-			if (!Collection->HasGroup(Entry.Key.Get<1>()))
+			for (const TTuple<FKeyType, FValueType>& Entry : Map)
 			{
-				Collection->AddGroup(Entry.Key.Get<1>());
-			}
+				if (!Collection->HasGroup(Entry.Key.Get<1>()))
+				{
+					Collection->AddGroup(Entry.Key.Get<1>());
+				}
 
-			if (NumElements(Entry.Key.Get<1>()) != Collection->NumElements(Entry.Key.Get<1>()))
-			{
-				ensure(!Collection->NumElements(Entry.Key.Get<1>()));
-				Collection->AddElements(NumElements(Entry.Key.Get<1>()), Entry.Key.Get<1>());
-			}
+				if (NumElements(Entry.Key.Get<1>()) != Collection->NumElements(Entry.Key.Get<1>()))
+				{
+					ensure(!Collection->NumElements(Entry.Key.Get<1>()));
+					Collection->AddElements(NumElements(Entry.Key.Get<1>()), Entry.Key.Get<1>());
+				}
 
-			Collection->CopyAttribute(*this, Entry.Key.Get<0>(), Entry.Key.Get<1>());
+				Collection->CopyAttribute(*this, Entry.Key.Get<0>(), Entry.Key.Get<1>());
+			}
 		}
 		return Collection;
 	}

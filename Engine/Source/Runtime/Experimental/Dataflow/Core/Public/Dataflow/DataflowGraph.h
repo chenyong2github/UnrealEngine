@@ -65,21 +65,6 @@ namespace Dataflow
 			return NewNode;
 		}
 
-		template<class T> T* FindNode(FName InName)
-		{
-			for (TSharedPtr<FNode> Node : Nodes)
-			{
-				if (Node->GetName().ToString().Equals(InName.ToString()))
-				{
-					if (Node->GetType().ToString().Equals(T::Type.ToString()))
-					{
-						return reinterpret_cast<T*>(Node.Get()); // @todo(eg) : Can we do better here?
-					}
-				}
-			}
-			return nullptr;
-		}
-
 		TSharedPtr<FNode> FindBaseNode(FGuid InGuid)
 		{
 			for (TSharedPtr<FNode> Node : Nodes)
