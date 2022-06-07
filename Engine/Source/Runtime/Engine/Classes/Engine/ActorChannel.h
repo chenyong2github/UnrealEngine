@@ -155,6 +155,9 @@ public:
 	virtual int64 Close(EChannelCloseReason Reason) override;
 	virtual FString Describe() override;
 
+	/** Release any references this channel is holding to UObjects and object replicators and mark it as broken. */
+	void BreakAndReleaseReferences();
+
 	/** UActorChannel interface and accessors. */
 	AActor* GetActor() {return Actor;}
 

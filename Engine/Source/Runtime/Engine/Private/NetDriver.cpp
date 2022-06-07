@@ -1776,7 +1776,7 @@ void UNetDriver::Shutdown()
 				 {
 					 GuidsToLog.Append(ActorChannel->PendingGuidResolves);
 				 }
-				 ActorChannel->CleanupReplicators();
+				 ActorChannel->BreakAndReleaseReferences();
 			 }
 		}
 
@@ -1804,6 +1804,7 @@ void UNetDriver::Shutdown()
 		// Calls Channel[0]->Close to send a close bunch to server
 		ServerConnection->Close();
 		ServerConnection->FlushNet();
+		ServerConnection->MarkAsGarbage();
 	}
 
 	// Server closing connections with clients
@@ -1841,6 +1842,10 @@ void UNetDriver::Shutdown()
 	ReplicationChangeListMap.Empty();
 
 	// Clean up the actor channel pool
+	for (TObjectPtr<UChannel> Channel : ActorChannelPool)
+	{
+		Channel->MarkAsGarbage();
+	}
 	ActorChannelPool.Empty();
 
 	ConnectionlessHandler.Reset(nullptr);
@@ -3618,9 +3623,7 @@ void UNetDriver::NotifyActorLevelUnloaded( AActor* TheActor )
 		if (Channel != NULL)
 		{
 			ServerConnection->RemoveActorChannel(TheActor);
-			Channel->Actor = NULL;
-			Channel->Broken = true;
-			Channel->CleanupReplicators();
+			Channel->BreakAndReleaseReferences();
 		}
 	}
 }

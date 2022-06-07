@@ -2156,6 +2156,14 @@ void UActorChannel::SetClosingFlag()
 	UChannel::SetClosingFlag();
 }
 
+void UActorChannel::BreakAndReleaseReferences()
+{
+	Actor = nullptr;
+	Broken = true;
+	CleanupReplicators();
+	CreateSubObjects.Empty();
+}
+
 int64 UActorChannel::Close(EChannelCloseReason Reason)
 {
 	FScopedRepContext RepContext(Connection, Actor);

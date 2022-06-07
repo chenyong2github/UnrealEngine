@@ -1190,6 +1190,7 @@ void UNetConnection::CleanUp()
 	SetClientLoginState(EClientLoginState::CleanedUp);
 
 	Driver = nullptr;
+	MarkAsGarbage();
 
 #if UE_NET_TRACE_ENABLED	
 	UE_NET_TRACE_DESTROY_COLLECTOR(InTraceCollector);
