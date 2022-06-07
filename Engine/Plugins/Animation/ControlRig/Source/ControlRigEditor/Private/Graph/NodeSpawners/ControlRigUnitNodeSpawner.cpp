@@ -203,6 +203,10 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 		}
 		
 		URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->GetController(ParentGraph);
+		if(Controller == nullptr)
+		{
+			return nullptr;
+		}
 
 		if (!bIsTemplateNode)
 		{
