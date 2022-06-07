@@ -123,5 +123,6 @@ protected:
 	friend class UControlRigBlueprint;
 	friend struct FRigVMSetTemplateFilteredPermutationsAction;
 	friend struct FRigVMSetPreferredTemplatePermutationsAction;
+	friend struct FRigVMRemoveNodeAction;
 };
 
