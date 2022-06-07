@@ -117,7 +117,7 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Singleton instance of the project service
 		/// </summary>
-		readonly IIssueService _issueService;
+		readonly IssueService _issueService;
 
 		/// <summary>
 		/// Config collection
@@ -141,7 +141,7 @@ namespace Horde.Build.Services
 		/// <param name="configCollection"></param>
 		/// <param name="clock"></param>
 		/// <param name="logger"></param>
-		public JiraService(IOptions<ServerSettings> settings, StreamService streamService, IIssueService issueService, ConfigCollection configCollection, IClock clock, ILogger<JiraService> logger)
+		public JiraService(IOptions<ServerSettings> settings, StreamService streamService, IssueService issueService, ConfigCollection configCollection, IClock clock, ILogger<JiraService> logger)
 		{
 
 			_settings = settings.Value;
@@ -358,7 +358,7 @@ namespace Horde.Build.Services
 			HashSet<string> jiraKeys = new HashSet<string>();
 
 			// Refresh issues
-			List<IIssue> openIssues = await _issueService.FindIssuesAsync(resolved: false);
+			List<IIssue> openIssues = await _issueService.Collection.FindIssuesAsync(resolved: false);
 			for (int idx = 0; idx < openIssues.Count; idx++)
 			{
 				IIssue openIssue = openIssues[idx];
@@ -375,7 +375,7 @@ namespace Horde.Build.Services
 		public async Task<(string? key, string? url)> CreateIssueAsync(IUser user, string? externalIssueUser, int issueId, string summary, string projectId, string componentId, string issueType, string? description, string? hordeIssueLink)
 		{
 
-			IIssue? issue = await _issueService.GetIssueAsync(issueId);
+			IIssue? issue = await _issueService.Collection.GetIssueAsync(issueId);
 			if (issue == null)
 			{
 				throw new Exception($"Issue not found: {issueId}");

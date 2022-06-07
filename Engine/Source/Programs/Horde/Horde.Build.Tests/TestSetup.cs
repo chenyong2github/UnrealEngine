@@ -88,7 +88,7 @@ namespace Horde.Build.Tests
 		public StreamService StreamService => ServiceProvider.GetRequiredService<StreamService>();
 		public ISubscriptionCollection SubscriptionCollection => ServiceProvider.GetRequiredService<ISubscriptionCollection>();
 		public INotificationService NotificationService => ServiceProvider.GetRequiredService<INotificationService>();
-		public IIssueService IssueService => ServiceProvider.GetRequiredService<IIssueService>();
+		public IssueService IssueService => ServiceProvider.GetRequiredService<IssueService>();
 		public JobTaskSource JobTaskSource => ServiceProvider.GetRequiredService<JobTaskSource>();
 		public JobService JobService => ServiceProvider.GetRequiredService<JobService>();
 		public IArtifactCollection ArtifactCollection => ServiceProvider.GetRequiredService<IArtifactCollection>();
@@ -186,7 +186,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<JobTaskSource>();
 			services.AddSingleton<IDowntimeService, DowntimeServiceStub>();
 			services.AddSingleton<IDogStatsd, NoOpDogStatsd>();
-			services.AddSingleton<IIssueService, IssueService>();
+			services.AddSingleton<IssueService>();
 			services.AddSingleton<IFleetManager, AwsFleetManager>();
 			services.AddSingleton<JobService>();
 			services.AddSingleton<LifetimeService>();

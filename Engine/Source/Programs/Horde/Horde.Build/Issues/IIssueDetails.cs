@@ -94,9 +94,9 @@ namespace Horde.Build.Models
 		/// <param name="issueService">The issue service</param>
 		/// <param name="issueId">Issue id to query </param>
 		/// <returns></returns>
-		public static async Task<IIssueDetails?> GetIssueDetailsAsync(this IIssueService issueService, int issueId)
+		public static async Task<IIssueDetails?> GetIssueDetailsAsync(this IssueService issueService, int issueId)
 		{
-			IIssue? issue = await issueService.GetIssueAsync(issueId);
+			IIssue? issue = await issueService.Collection.GetIssueAsync(issueId);
 			if(issue == null)
 			{
 				return null;

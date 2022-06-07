@@ -29,7 +29,7 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Singleton instance of the issue service
 		/// </summary>
-		private readonly IIssueService _issueService;
+		private readonly IssueService _issueService;
 
 		/// <summary>
 		/// Collection of metadata documents
@@ -59,7 +59,7 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public UgsController(IIssueService issueService, IUgsMetadataCollection ugsMetadataCollection, IUserCollection userCollection, ILogFileService logFileService, IOptionsMonitor<ServerSettings> optionsMonitor, ILogger<UgsController> logger)
+		public UgsController(IssueService issueService, IUgsMetadataCollection ugsMetadataCollection, IUserCollection userCollection, ILogFileService logFileService, IOptionsMonitor<ServerSettings> optionsMonitor, ILogger<UgsController> logger)
 		{
 			_issueService = issueService;
 			_ugsMetadataCollection = ugsMetadataCollection;
@@ -160,7 +160,7 @@ namespace Horde.Build.Controllers
 			List<GetUgsIssueResponse> responses = new List<GetUgsIssueResponse>();
 			if (includeResolved)
 			{
-				List<IIssue> issues = await _issueService.FindIssuesAsync(null, resolved: null, count: maxResults);
+				List<IIssue> issues = await _issueService.Collection.FindIssuesAsync(null, resolved: null, count: maxResults);
 				foreach(IIssue issue in issues)
 				{
 					IIssueDetails details = await _issueService.GetIssueDetailsAsync(issue);
@@ -258,7 +258,9 @@ namespace Horde.Build.Controllers
 
 			Dictionary<LogId, ILogFile?> logFiles = new Dictionary<LogId, ILogFile?>();
 
-			List<ILogEvent> events = await _issueService.FindEventsForIssueAsync(issueId, count: 10);
+			List<IIssueSpan> spans = await _issueService.Collection.FindSpansAsync(issueId);
+			List<ILogEvent> events = await _logFileService.FindEventsForSpansAsync(spans.Select(x => x.Id), null, 0, count: 10);
+
 			foreach (ILogEvent logEvent in events)
 			{
 				ILogFile? logFile;

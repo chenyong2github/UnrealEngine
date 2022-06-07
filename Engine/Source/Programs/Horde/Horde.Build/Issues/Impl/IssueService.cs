@@ -26,7 +26,7 @@ using MongoDB.Driver;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace Horde.Build.Services.Impl
+namespace Horde.Build.Services
 {
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
@@ -141,7 +141,7 @@ namespace Horde.Build.Services.Impl
 	/// <summary>
 	/// Wraps funtionality for manipulating build health issues
 	/// </summary>
-	public sealed class IssueService : IIssueService, IHostedService, IDisposable
+	public sealed class IssueService : IHostedService, IDisposable
 	{
 		/// <summary>
 		/// Maximum number of changes to query from Perforce in one go
@@ -159,9 +159,19 @@ namespace Horde.Build.Services.Impl
 		readonly ITicker _ticker;
 
 		/// <summary>
+		/// Accessor for the issue collection
+		/// </summary>
+		public IIssueCollection Collection => _issueCollection;
+
+		/// <summary>
+		/// Delegate for issue creation events
+		/// </summary>
+		public delegate void IssueUpdatedEvent(IIssue issue);
+
+		/// <summary>
 		/// 
 		/// </summary>
-		public event IIssueService.IssueUpdatedEvent? OnIssueUpdated;
+		public event IssueUpdatedEvent? OnIssueUpdated;
 
 		/// <summary>
 		/// List of issue matchers
@@ -262,7 +272,7 @@ namespace Horde.Build.Services.Impl
 			_cachedDesktopAlerts = newCachedDesktopAlerts;
 
 			// Resolve any issues that haven't been seen in a week
-			List<IIssue> openIssues = await FindIssuesAsync(resolved: false);
+			List<IIssue> openIssues = await _issueCollection.FindIssuesAsync(resolved: false);
 			for (int idx = 0; idx < openIssues.Count; idx++)
 			{
 				IIssue openIssue = openIssues[idx];
@@ -330,51 +340,6 @@ namespace Horde.Build.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IIssueSpan>> GetIssueSpansAsync(IIssue issue)
-		{
-			return _issueCollection.FindSpansAsync(issue.Id);
-		}
-
-		/// <inheritdoc/>
-		public Task<List<IIssueStep>> GetIssueStepsAsync(IIssueSpan span)
-		{
-			return _issueCollection.FindStepsAsync(new[] { span.Id });
-		}
-
-		/// <inheritdoc/>
-		public Task<List<IIssueSuspect>> GetIssueSuspectsAsync(IIssue issue)
-		{
-			return _issueCollection.FindSuspectsAsync(issue);
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? ids = null, UserId? userId = null, StreamId? streamId = null, int? minChange = null, int? maxChange = null, bool? resolved = null, bool? promoted = null, int? index = null, int? count = null)
-		{
-			return await _issueCollection.FindIssuesAsync(ids, userId, streamId, minChange, maxChange, resolved, promoted, index, count);
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesForJobAsync(int[]? ids, IJob job, IGraph graph, SubResourceId? stepId = null, SubResourceId? batchId = null, int? labelIdx = null, UserId? userId = null, bool? resolved = null, bool? promoted = null, int? index = null, int? count = null)
-		{
-			List<IIssueStep> steps = await _issueCollection.FindStepsAsync(job.Id, batchId, stepId);
-			List<IIssueSpan> spans = await _issueCollection.FindSpansAsync(steps.Select(x => x.SpanId));
-
-			if (labelIdx != null)
-			{
-				HashSet<string> nodeNames = new HashSet<string>(job.GetNodesForLabel(graph, labelIdx.Value).Select(x => graph.GetNode(x).Name));
-				spans.RemoveAll(x => !nodeNames.Contains(x.NodeName));
-			}
-
-			List<int> issueIds = new List<int>(spans.Select(x => x.IssueId));
-			if(issueIds.Count == 0)
-			{
-				return new List<IIssue>();
-			}
-
-			return await FindIssuesAsync(ids: issueIds, userId: userId, resolved: resolved, promoted: promoted, index: index, count: count);
-		}
-
-		/// <inheritdoc/>
 		public bool ShowDesktopAlertsForIssue(IIssue issue, IReadOnlyList<IIssueSpan> spans)
 		{
 			bool bShowDesktopAlerts = false;
@@ -397,17 +362,24 @@ namespace Horde.Build.Services.Impl
 		}
 
 		/// <summary>
-		/// Gets an issue with the given id
+		/// Updates the state of an issue
 		/// </summary>
-		/// <param name="issueId"></param>
-		/// <returns></returns>
-		public Task<IIssue?> GetIssueAsync(int issueId)
-		{
-			return _issueCollection.GetIssueAsync(issueId);
-		}
-
-		/// <inheritdoc/>
-		public async Task<bool> UpdateIssueAsync(int id, string? userSummary = null, string? description = null, bool? promoted = null, UserId? ownerId = null, UserId? nominatedById = null, bool? acknowledged = null, UserId? declinedById = null, int? fixChange = null, UserId? resolvedById = null, List<ObjectId>? addSpanIds = null, List<ObjectId>? removeSpanIds = null, string? externalIssueKey = null, UserId? quarantinedById = null)
+		/// <param name="id">The current issue id</param>s
+		/// <param name="summary">New summary for the issue</param>
+		/// <param name="description">New description for the issue</param>
+		/// <param name="promoted">Whether the issue should be set as promoted</param>
+		/// <param name="ownerId">New owner of the issue</param>
+		/// <param name="nominatedById">Person that nominated the new owner</param>
+		/// <param name="acknowledged">Whether the issue has been acknowledged</param>
+		/// <param name="declinedById">Name of the user that has declined this issue</param>
+		/// <param name="fixChange">Fix changelist for the issue</param>
+		/// <param name="resolvedById">Whether the issue has been resolved</param>
+		/// <param name="addSpanIds">Add spans to this issue</param>
+		/// <param name="removeSpanIds">Remove spans from this issue</param>
+		/// <param name="externalIssueKey">Key for external issue tracking</param>
+		/// <param name="quarantinedById">User who has quarantined the issue</param>
+		/// <returns>True if the issue was updated</returns>
+		public async Task<bool> UpdateIssueAsync(int id, string? summary = null, string? description = null, bool? promoted = null, UserId? ownerId = null, UserId? nominatedById = null, bool? acknowledged = null, UserId? declinedById = null, int? fixChange = null, UserId? resolvedById = null, List<ObjectId>? addSpanIds = null, List<ObjectId>? removeSpanIds = null, string? externalIssueKey = null, UserId? quarantinedById = null)
 		{
 			IIssue? issue;
 			for (; ; )
@@ -418,7 +390,7 @@ namespace Horde.Build.Services.Impl
 					return false;
 				}
 
-				issue = await _issueCollection.TryUpdateIssueAsync(issue, newUserSummary: userSummary, newDescription: description, newPromoted: promoted, newOwnerId: ownerId ?? resolvedById, newNominatedById: nominatedById, newDeclinedById: declinedById, newAcknowledged: acknowledged, newFixChange: fixChange, newResolvedById: resolvedById, newExcludeSpanIds: removeSpanIds, newExternalIssueKey: externalIssueKey, newQuarantinedById: quarantinedById);
+				issue = await _issueCollection.TryUpdateIssueAsync(issue, newUserSummary: summary, newDescription: description, newPromoted: promoted, newOwnerId: ownerId ?? resolvedById, newNominatedById: nominatedById, newDeclinedById: declinedById, newAcknowledged: acknowledged, newFixChange: fixChange, newResolvedById: resolvedById, newExcludeSpanIds: removeSpanIds, newExternalIssueKey: externalIssueKey, newQuarantinedById: quarantinedById);
 				if (issue != null)
 				{
 					break;
@@ -1370,13 +1342,6 @@ namespace Horde.Build.Services.Impl
 			{
 				return null;
 			}
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindEventsForIssueAsync(int issueId, LogId[]? logIds, int index, int count)
-		{
-			List<IIssueSpan> spans = await _issueCollection.FindSpansAsync(issueId);
-			return await _logFileService.FindEventsForSpansAsync(spans.Select(x => x.Id), logIds, index, count);
 		}
 	}
 }

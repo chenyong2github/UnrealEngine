@@ -580,4 +580,58 @@ namespace Horde.Build.Collections
 		/// <returns>Logger for this issue</returns>
 		IAuditLogChannel<int> GetLogger(int issueId);
 	}
+
+	/// <summary>
+	/// Extension methods for issues
+	/// </summary>
+	public static class IssueCollectionExtensions
+	{
+		/// <summary>
+		/// Find steps for the given spans
+		/// </summary>
+		/// <param name="issueCollection"></param>
+		/// <param name="spanId">Span ids</param>
+		/// <returns>List of steps</returns>
+		public static Task<List<IIssueStep>> FindStepsAsync(this IIssueCollection issueCollection, ObjectId spanId)
+		{
+			return issueCollection.FindStepsAsync(new[] { spanId });
+		}
+
+		/// <summary>
+		/// Searches for open issues affecting a job
+		/// </summary>
+		/// <param name="issueCollection"></param>
+		/// <param name="job"></param>
+		/// <param name="graph"></param>
+		/// <param name="stepId"></param>
+		/// <param name="batchId"></param>
+		/// <param name="labelIdx"></param>
+		/// <param name="userId"></param>
+		/// <param name="resolved">Whether to include results that are resolved</param>
+		/// <param name="promoted">Whether to filter by promoted issues</param>
+		/// <param name="index">Index within the results to return</param>
+		/// <param name="count">Number of results</param>
+		/// <returns></returns>
+		public static async Task<List<IIssue>> FindIssuesForJobAsync(this IIssueCollection issueCollection, IJob job, IGraph graph, SubResourceId? stepId = null, SubResourceId? batchId = null, int? labelIdx = null, UserId? userId = null, bool? resolved = null, bool? promoted = null, int? index = null, int? count = null)
+		{
+			List<IIssueStep> steps = await issueCollection.FindStepsAsync(job.Id, batchId, stepId);
+			List<IIssueSpan> spans = await issueCollection.FindSpansAsync(steps.Select(x => x.SpanId));
+
+			if (labelIdx != null)
+			{
+				HashSet<string> nodeNames = new HashSet<string>(job.GetNodesForLabel(graph, labelIdx.Value).Select(x => graph.GetNode(x).Name));
+				spans.RemoveAll(x => !nodeNames.Contains(x.NodeName));
+			}
+
+			List<int> issueIds = new List<int>(spans.Select(x => x.IssueId));
+			if (issueIds.Count == 0)
+			{
+				return new List<IIssue>();
+			}
+
+			return await issueCollection.FindIssuesAsync(ids: issueIds, userId: userId, resolved: resolved, promoted: promoted, index: index, count: count);
+		}
+
+
+	}
 }

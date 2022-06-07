@@ -78,7 +78,7 @@ namespace Horde.Build.Services
 		readonly JobTaskSource _jobTaskSource;
 		readonly StreamService _streamService;
 		readonly ITemplateCollection _templateCollection;
-		readonly IIssueService? _issueService;
+		readonly IssueService? _issueService;
 		readonly IPerforceService _perforceService;
 		readonly ILogger _logger;
 
@@ -125,7 +125,7 @@ namespace Horde.Build.Services
 		/// <param name="issueService">The issue service</param>
 		/// <param name="perforceService">The perforce service</param>
 		/// <param name="logger">Log output</param>
-		public JobService(IJobCollection jobs, IGraphCollection graphs, IAgentCollection agents, IJobStepRefCollection jobStepRefs, IJobTimingCollection jobTimings, IUserCollection userCollection, INotificationTriggerCollection triggerCollection, JobTaskSource jobTaskSource, StreamService streamService, ITemplateCollection templateCollection, IIssueService issueService, IPerforceService perforceService, ILogger<JobService> logger)
+		public JobService(IJobCollection jobs, IGraphCollection graphs, IAgentCollection agents, IJobStepRefCollection jobStepRefs, IJobTimingCollection jobTimings, IUserCollection userCollection, INotificationTriggerCollection triggerCollection, JobTaskSource jobTaskSource, StreamService streamService, ITemplateCollection templateCollection, IssueService issueService, IPerforceService perforceService, ILogger<JobService> logger)
 		{
 			_jobs = jobs;
 			_graphs = graphs;

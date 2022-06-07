@@ -387,7 +387,7 @@ namespace Horde.Build
 			services.AddSingleton<ICommitService>(sp => sp.GetRequiredService<CommitService>());
 			services.AddSingleton<IClock, Clock>();
 			services.AddSingleton<IDowntimeService, DowntimeService>();
-			services.AddSingleton<IIssueService, IssueService>();
+			services.AddSingleton<IssueService>();
 			services.AddSingleton<JobService>();
 			services.AddSingleton<LifetimeService>();
 			services.AddSingleton<ILogFileService, LogFileService>();
@@ -589,7 +589,7 @@ namespace Horde.Build
 				services.AddHostedService(provider => provider.GetRequiredService<AgentService>());
 				services.AddHostedService(provider => provider.GetRequiredService<CommitService>());
 				services.AddHostedService(provider => provider.GetRequiredService<ConsistencyService>());
-				services.AddHostedService(provider => provider.GetRequiredService<IIssueService>());
+				services.AddHostedService(provider => provider.GetRequiredService<IssueService>());
 				services.AddHostedService<IssueReportService>();
 				services.AddHostedService(provider => (LogFileService)provider.GetRequiredService<ILogFileService>());
 				services.AddHostedService(provider => (NotificationService)provider.GetRequiredService<INotificationService>());

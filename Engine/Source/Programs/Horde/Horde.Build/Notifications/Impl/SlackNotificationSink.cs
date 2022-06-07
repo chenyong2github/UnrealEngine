@@ -219,7 +219,7 @@ namespace Horde.Build.Notifications.Impl
 			}
 		}
 
-		readonly IIssueService _issueService;
+		readonly IssueService _issueService;
 		readonly IUserCollection _userCollection;
 		readonly ILogFileService _logFileService;
 		readonly StreamService _streamService;
@@ -240,7 +240,7 @@ namespace Horde.Build.Notifications.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public SlackNotificationSink(MongoService mongoService, IIssueService issueService, IUserCollection userCollection, ILogFileService logFileService, StreamService streamService, ConfigCollection configCollection, IExternalIssueService externalIssueService, IWebHostEnvironment environment, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
+		public SlackNotificationSink(MongoService mongoService, IssueService issueService, IUserCollection userCollection, ILogFileService logFileService, StreamService streamService, ConfigCollection configCollection, IExternalIssueService externalIssueService, IWebHostEnvironment environment, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
 		{
 			_issueService = issueService;
 			_userCollection = userCollection;
@@ -801,7 +801,7 @@ namespace Horde.Build.Notifications.Impl
 					}
 					else
 					{
-						List<IIssueSuspect> suspects = await _issueService.GetIssueSuspectsAsync(issue);
+						List<IIssueSuspect> suspects = await _issueService.Collection.FindSuspectsAsync(issue);
 						IGrouping<UserId, IIssueSuspect>[] suspectGroups = suspects.GroupBy(x => x.AuthorId).ToArray();
 
 						if (suspectGroups.Length > 0 && suspectGroups.Length <= workflow.MaxMentions)
@@ -1198,7 +1198,7 @@ namespace Horde.Build.Notifications.Impl
 				await _issueService.UpdateIssueAsync(issueId, declinedById: userId);
 			}
 
-			IIssue? newIssue = await _issueService.GetIssueAsync(issueId);
+			IIssue? newIssue = await _issueService.Collection.GetIssueAsync(issueId);
 			if (newIssue != null)
 			{
 				IUser? user = await _userCollection.GetUserAsync(userId);

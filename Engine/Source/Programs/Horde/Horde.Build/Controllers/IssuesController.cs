@@ -34,7 +34,7 @@ namespace Horde.Build.Controllers
 	public class IssuesController : HordeControllerBase
 	{
 		private readonly IIssueCollection _issueCollection;
-		private readonly IIssueService _issueService;
+		private readonly IssueService _issueService;
 		private readonly IExternalIssueService _externalIssueService;
 		private readonly JobService _jobService;
 		private readonly StreamService _streamService;
@@ -45,7 +45,7 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssuesController(ILogger<IssuesController> logger, IIssueCollection issueCollection, IIssueService issueService, JobService jobService, StreamService streamService, IUserCollection userCollection, ILogFileService logFileService, IExternalIssueService externalIssueService)
+		public IssuesController(ILogger<IssuesController> logger, IIssueCollection issueCollection, IssueService issueService, JobService jobService, StreamService streamService, IUserCollection userCollection, ILogFileService logFileService, IExternalIssueService externalIssueService)
 		{			
 			_issueCollection = issueCollection;
 			_issueService = issueService;
@@ -221,7 +221,7 @@ namespace Horde.Build.Controllers
 					streamIdValue = new StreamId(streamId);
 				}
 
-				issues = await _issueService.FindIssuesAsync(ids, userIdValue, streamIdValue, minChange ?? change, maxChange ?? change, resolved, promoted, index, count);
+				issues = await _issueService.Collection.FindIssuesAsync(ids, userIdValue, streamIdValue, minChange ?? change, maxChange ?? change, resolved, promoted, index, count);
 			}
 			else
 			{
@@ -236,7 +236,7 @@ namespace Horde.Build.Controllers
 				}
 
 				IGraph graph = await _jobService.GetGraphAsync(job);
-				issues = await _issueService.FindIssuesForJobAsync(ids, job, graph, stepId?.ToSubResourceId(), batchId?.ToSubResourceId(), labelIdx, userIdValue, resolved, promoted, index, count);
+				issues = await _issueService.Collection.FindIssuesForJobAsync(job, graph, stepId?.ToSubResourceId(), batchId?.ToSubResourceId(), labelIdx, userIdValue, resolved, promoted, index, count);
 			}
 
 			StreamPermissionsCache permissionsCache = new StreamPermissionsCache();
@@ -476,7 +476,8 @@ namespace Horde.Build.Controllers
 				logIdValues.UnionWith(logIds.Select(x => new LogId(x)));
 			}
 
-			List<ILogEvent> events = await _issueService.FindEventsForIssueAsync(issueId, logIdValues.ToArray(), index, count);
+			List<IIssueSpan> spans = await _issueCollection.FindSpansAsync(issueId);
+			List<ILogEvent> events = await _logFileService.FindEventsForSpansAsync(spans.Select(x => x.Id), logIdValues.ToArray(), index, count);
 
 			JobPermissionsCache permissionsCache = new JobPermissionsCache();
 			Dictionary<LogId, ILogFile?> logFiles = new Dictionary<LogId, ILogFile?>();
