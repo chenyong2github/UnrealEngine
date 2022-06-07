@@ -304,4 +304,12 @@ protected:
 	// the capture are reverted to these values
 	UPROPERTY()
 	TObjectPtr<URenderCaptureProperties> ComputedRenderCaptureProperties;
+
+	//
+	// Analytics
+	//
+
+	void RecordAnalytics() const;
+	void GatherAnalytics(const UE::Geometry::FMeshMapBaker& Result);
+
 };
