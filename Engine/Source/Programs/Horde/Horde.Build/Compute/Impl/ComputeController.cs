@@ -21,14 +21,14 @@ namespace Horde.Build.Compute.Impl
 	public class ComputeController : HordeControllerBase
 	{
 		readonly AclService _aclService;
-		readonly IComputeService _computeService;
+		readonly ComputeService _computeService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="aclService"></param>
 		/// <param name="computeService">The compute service singleton</param>
-		public ComputeController(AclService aclService, IComputeService computeService)
+		internal ComputeController(AclService aclService, ComputeService computeService)
 		{
 			_aclService = aclService;
 			_computeService = computeService;
