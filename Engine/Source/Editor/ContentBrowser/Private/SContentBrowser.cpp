@@ -76,10 +76,15 @@
 #include "Widgets/Input/SExpandableButton.h"
 #include "SSearchToggleButton.h"
 #include "SPositiveActionButton.h"
+#include "HAL/IConsoleManager.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
 const FString SContentBrowser::SettingsIniSection = TEXT("ContentBrowser");
+
+// Workaround to hide Save As Collection button until collections support the AliasDataSource
+bool bHideSaveSearchButton = false;
+FAutoConsoleVariableRef CVarHideSaveSearchButton(TEXT("ContentBrowser.HideSaveSearchButton"), bHideSaveSearchButton, TEXT("Hide the Content Browser button to save search as a dynamic collection."));
 
 namespace ContentBrowserSourcesWidgetSwitcherIndex
 {
@@ -767,7 +772,7 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 							.IsEnabled(this, &SContentBrowser::IsSaveSearchButtonEnabled)
 							.OnClicked(this, &SContentBrowser::OnSaveSearchButtonClicked)
 							.ContentPadding(FMargin(1, 1))
-							.Visibility((Config != nullptr ? Config->bCanShowAssetSearch : true) ? EVisibility::Visible : EVisibility::Collapsed)
+							.Visibility((!bHideSaveSearchButton && (Config != nullptr ? Config->bCanShowAssetSearch : true)) ? EVisibility::Visible : EVisibility::Collapsed)
 							[
 								SNew(STextBlock)
 								.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
