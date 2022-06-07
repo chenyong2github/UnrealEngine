@@ -743,7 +743,7 @@ FText SRetargetAnimAssetsWindow::GetFolderPath() const
 FReply SRetargetAnimAssetsWindow::GetExportFolder()
 {
 	TSharedRef<SSelectExportPathDialog> Dialog = SNew(SSelectExportPathDialog)
-	.DefaultAssetPath(FText::FromString(BatchContext.FolderPath));
+	.DefaultAssetPath(FText::FromString(BatchContext.NameRule.FolderPath));
 	
 	if(Dialog->ShowModal() != EAppReturnType::Cancel)
 	{

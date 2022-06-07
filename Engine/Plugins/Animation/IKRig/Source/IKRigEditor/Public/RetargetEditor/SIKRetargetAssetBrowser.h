@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "ContentBrowserDelegates.h"
+#include "IKRetargetBatchOperation.h"
 #include "Widgets/Layout/SBox.h"
 
 
@@ -22,9 +23,7 @@ public:
 	
 private:
 
-	void OnPathChange(const FString& NewPath);
-
-	FReply OnExportButtonClicked() const;
+	FReply OnExportButtonClicked();
 	bool IsExportButtonEnabled() const;
 	
 	void OnAssetDoubleClicked(const FAssetData& AssetData);
@@ -39,8 +38,44 @@ private:
 	/** the animation asset browser */
 	TSharedPtr<SBox> AssetBrowserBox;
 
-	/** the path to export assets to */
-	FString BatchOutputPath = "";
+	/** remember the path the user chose between exports */
+	FString PrevBatchOutputPath = "";
 
 	friend FIKRetargetEditorController;
+};
+
+//** Dialog to select path to export to */
+class SBatchExportDialog: public SWindow
+{
+public:
+	SLATE_BEGIN_ARGS(SBatchExportDialog){}
+	SLATE_ARGUMENT(FText, DefaultAssetPath)
+	SLATE_END_ARGS()
+
+	SBatchExportDialog() : UserResponse(EAppReturnType::Cancel)
+	{
+	}
+
+	void Construct(const FArguments& InArgs);
+
+public:
+	/** Displays the dialog in a blocking fashion */
+	EAppReturnType::Type ShowModal();
+
+	/** Gets the resulting asset path */
+	FString GetAssetPath();
+
+	FIKRetargetBatchOperationContext BatchContext;
+
+protected:
+
+	/** The rename rule sample text */
+	FText ExampleText;
+	void UpdateExampleText();
+
+	void OnPathChange(const FString& NewPath);
+	FReply OnButtonClick(EAppReturnType::Type ButtonID);
+
+	EAppReturnType::Type UserResponse;
+	FText AssetPath;
 };

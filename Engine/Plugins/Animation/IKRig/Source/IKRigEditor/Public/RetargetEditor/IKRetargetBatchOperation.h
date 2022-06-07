@@ -31,9 +31,6 @@ public:
 	/* Rename rules for duplicated assets */
 	EditorAnimUtils::FNameDuplicationRule NameRule;
 
-	/* The base folder path to put newly duplicated assets */
-	FString FolderPath = "";
-
 	/* Reset all data (called when window re-opened */
 	void Reset()
 	{
