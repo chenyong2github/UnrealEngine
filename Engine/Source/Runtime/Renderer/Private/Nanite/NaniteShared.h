@@ -25,25 +25,6 @@ struct FDBufferTextures;
 namespace Nanite
 {
 
-// Must match FStats in NaniteDataDecode.ush
-struct FNaniteStats
-{
-	uint32 NumTris;
-	uint32 NumVerts;
-	uint32 NumViews;
-	uint32 NumMainInstancesPreCull;
-	uint32 NumMainInstancesPostCull;
-	uint32 NumMainVisitedNodes;
-	uint32 NumMainCandidateClusters;
-	uint32 NumPostInstancesPreCull;
-	uint32 NumPostInstancesPostCull;
-	uint32 NumPostVisitedNodes;
-	uint32 NumPostCandidateClusters;
-	uint32 NumLargePageRectClusters;
-	uint32 NumPrimaryViews;
-	uint32 NumTotalViews;
-};
-
 struct FPackedView
 {
 	FMatrix44f	SVPositionToTranslatedWorld;
@@ -142,6 +123,15 @@ struct FRasterState
 {
 	ERasterizerCullMode CullMode = CM_CW;
 	bool bNearClip = true;
+};
+
+struct FBinningData
+{
+	uint32 BinCount = 0;
+
+	FRDGBufferRef DataBuffer = nullptr;
+	FRDGBufferRef HeaderBuffer = nullptr;
+	FRDGBufferRef IndirectArgs = nullptr;
 };
 
 /*

@@ -191,3 +191,33 @@
 #define NANITE_VISUALIZE_POSITION_BITS					(1u << 26u)
 #define NANITE_VISUALIZE_VSM_STATIC_CACHING				(1u << 27u)
 #define NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET	(1u << 28u)
+
+#if defined(__cplusplus)
+#define UINT_TYPE unsigned int
+#else
+#define UINT_TYPE uint
+#endif
+
+struct FNaniteStats
+{
+	UINT_TYPE NumTris;
+	UINT_TYPE NumVerts;
+	UINT_TYPE NumViews;
+	UINT_TYPE NumMainInstancesPreCull;
+	UINT_TYPE NumMainInstancesPostCull;
+	UINT_TYPE NumMainVisitedNodes;
+	UINT_TYPE NumMainCandidateClusters;
+	UINT_TYPE NumPostInstancesPreCull;
+	UINT_TYPE NumPostInstancesPostCull;
+	UINT_TYPE NumPostVisitedNodes;
+	UINT_TYPE NumPostCandidateClusters;
+	UINT_TYPE NumLargePageRectClusters;
+	UINT_TYPE NumPrimaryViews;
+	UINT_TYPE NumTotalViews;
+	UINT_TYPE NumTotalRasterBins;
+	UINT_TYPE NumEmptyRasterBins;
+	UINT_TYPE NumTotalShadingBins;
+	UINT_TYPE NumEmptyShadingBins;
+};
+
+#undef UINT_TYPE

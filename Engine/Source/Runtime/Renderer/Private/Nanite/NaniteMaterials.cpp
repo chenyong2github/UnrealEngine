@@ -461,7 +461,7 @@ void DrawBasePass(
 			PassParameters->MaterialResolve			= RasterResults.MaterialResolve;
 			PassParameters->MaterialIndirectArgs	= GraphBuilder.CreateUAV(FRDGBufferUAVDesc(MaterialIndirectArgs, PF_R32_UINT));
 			PassParameters->MaterialTileRemap		= GraphBuilder.CreateUAV(MaterialTileRemap);
-			PassParameters->MaterialSlotCount		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHighestMaterialSlot();
+			PassParameters->MaterialSlotCount		= HighestMaterialSlot;
 			PassParameters->MaterialTileCount		= TileGridSize.X * TileGridSize.Y;
 			PassParameters->MaterialRemapCount		= TileRemaps;
 			PassParameters->MaterialBinCount		= HighestMaterialBin;
@@ -610,6 +610,8 @@ void DrawBasePass(
 			);
 		});
 	}
+
+	ExtractShadingStats(GraphBuilder, View, MaterialIndirectArgs, HighestMaterialSlot);
 }
 
 void EmitDepthTargets(

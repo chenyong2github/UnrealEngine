@@ -23,24 +23,6 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 #endif
 }
 
-struct FStats
-{
-	uint NumTris;
-	uint NumVerts;
-	uint NumViews;
-	uint NumMainInstancesPreCull;
-	uint NumMainInstancesPostCull;
-	uint NumMainVisitedNodes;
-	uint NumMainCandidateClusters;
-	uint NumPostInstancesPreCull;
-	uint NumPostInstancesPostCull;
-	uint NumPostVisitedNodes;
-	uint NumPostCandidateClusters;
-	uint NumLargePageRectClusters;
-	uint NumPrimaryViews;
-	uint NumTotalViews;
-};
-
 struct FVisibleCluster
 {
 	uint	Flags;

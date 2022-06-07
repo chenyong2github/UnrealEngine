@@ -2566,11 +2566,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				}
 
 				Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, RasterResults);
-
-				if (GNaniteShowStats != 0 && IStereoRendering::IsAPrimaryView(View))
-				{
-					Nanite::PrintStats(GraphBuilder, View);
-				}
 			}
 		}
 	}
@@ -2768,17 +2763,32 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				});
 		}
 #endif  // WITH_MGPU
-
-		if (bVisualizeNanite)
+		
+		if (bNaniteEnabled)
 		{
-			Nanite::AddVisualizationPasses(
-				GraphBuilder,
-				Scene,
-				SceneTextures,
-				ActiveViewFamily->EngineShowFlags,
-				Views,
-				NaniteRasterResults
-			);
+			if (GNaniteShowStats != 0)
+			{
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+				{
+					const FViewInfo& View = Views[ViewIndex];
+					if (IStereoRendering::IsAPrimaryView(View))
+					{
+						Nanite::PrintStats(GraphBuilder, View);
+					}
+				}
+			}
+
+			if (bVisualizeNanite)
+			{
+				Nanite::AddVisualizationPasses(
+					GraphBuilder,
+					Scene,
+					SceneTextures,
+					ActiveViewFamily->EngineShowFlags,
+					Views,
+					NaniteRasterResults
+				);
+			}
 		}
 
 		// VisualizeVirtualShadowMap TODO

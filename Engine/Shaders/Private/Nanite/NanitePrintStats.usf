@@ -14,12 +14,20 @@
 
 uint PackedClusterSize;
 
+uint NumMainPassRasterBins;
+uint NumPostPassRasterBins;
+uint NumShadingBins;
+
 StructuredBuffer<FQueueState>		QueueState;
 Buffer<uint>						MainPassRasterizeArgsSWHW;
 Buffer<uint>						PostPassRasterizeArgsSWHW;
 
-StructuredBuffer<FStats>			InStatsBuffer;
-RWStructuredBuffer<FStats>			OutStatsBuffer;
+StructuredBuffer<uint4>				MainPassRasterBinHeaders;
+StructuredBuffer<uint4>				PostPassRasterBinHeaders;
+Buffer<uint>						MaterialIndirectArgs;
+
+StructuredBuffer<FNaniteStats>		InStatsBuffer;
+RWStructuredBuffer<FNaniteStats>	OutStatsBuffer;
 
 RWBuffer<uint>						OutClusterStatsArgs;
 
@@ -113,7 +121,7 @@ void PrintStats()
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 #else
 	ScreenPos.y += (InStatsBuffer[0].NumPrimaryViews > 0 ? 11 : 9) * ShaderPrintData.FontSpacing.y;
-#endif
+#endif // PRINT_PASS == 0
 
 #if TWO_PASS_CULLING
 #if PRINT_PASS == 1
@@ -159,7 +167,7 @@ void PrintStats()
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 #else
 	ScreenPos.y += 9 * ShaderPrintData.FontSpacing.y;
-#endif
+#endif // PRINT_PASS == 1
 #endif
 
 #if PRINT_PASS == 2
@@ -190,7 +198,41 @@ void PrintStats()
 	ScreenPos.x = ItemX;
 	ScreenPos = ShaderPrintText(ScreenPos, TEXT("LGE P-RECT"), FontYellow);
 	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumLargePageRectClusters);
-#endif
+#else
+	ScreenPos.y += 6 * ShaderPrintData.FontSpacing.y;
+#endif // PRINT_PASS == 2
+
+#if PRINT_PASS == 3
+	// Materials: Raster Bins
+	ScreenPos.x = HeadlineX;
+	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Raster Bins"), FontOrange);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintText(ScreenPos, TEXT("     Total"), FontYellow);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumTotalRasterBins);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintText(ScreenPos, TEXT("     Empty"), FontYellow);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumEmptyRasterBins);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	// Materials: Shading Bins
+	ScreenPos.x = HeadlineX;
+	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Shading Bins"), FontOrange);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintText(ScreenPos, TEXT("     Total"), FontYellow);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumTotalShadingBins);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintText(ScreenPos, TEXT("     Empty"), FontYellow);
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumEmptyShadingBins);
+#endif // PRINT_PASS == 3
 }
 
 #endif // SHADER_PRINT_STATS
@@ -198,7 +240,7 @@ void PrintStats()
 #if SHADER_CALCULATE_STATS
 
 [numthreads(1, 1, 1)]
-void CalculateStats()
+void CalculateRasterStats()
 {
 	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
 	uint NumClusters = MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex];
@@ -215,6 +257,60 @@ void CalculateStats()
 	OutStatsBuffer[0].NumMainCandidateClusters	= QueueState[0].PassState[0].ClusterWriteOffset;
 	OutStatsBuffer[0].NumPostVisitedNodes		= QueueState[0].PassState[1].NodeWriteOffset;
 	OutStatsBuffer[0].NumPostCandidateClusters	= QueueState[0].PassState[1].ClusterWriteOffset;
+
+	uint NumEmptyRasterBins = 0;
+	uint NumTotalRasterBins = NumMainPassRasterBins;
+
+	LOOP
+	for (uint RasterBinIndex = 0; RasterBinIndex < NumMainPassRasterBins; ++RasterBinIndex)
+	{
+		const uint BinSWCount = MainPassRasterBinHeaders[RasterBinIndex].x;
+		const uint BinHWCount = MainPassRasterBinHeaders[RasterBinIndex].y;
+
+		if ((BinSWCount + BinHWCount) == 0)
+		{
+			++NumEmptyRasterBins;
+		}
+	}
+
+#if TWO_PASS_CULLING
+	NumTotalRasterBins += NumPostPassRasterBins;
+
+	LOOP
+	for (uint RasterBinIndex = 0; RasterBinIndex < NumPostPassRasterBins; ++RasterBinIndex)
+	{
+		const uint BinSWCount = PostPassRasterBinHeaders[RasterBinIndex].x;
+		const uint BinHWCount = PostPassRasterBinHeaders[RasterBinIndex].y;
+
+		if ((BinSWCount + BinHWCount) == 0)
+		{
+			++NumEmptyRasterBins;
+		}
+	}
+#endif
+
+	OutStatsBuffer[0].NumTotalRasterBins		= NumTotalRasterBins;
+	OutStatsBuffer[0].NumEmptyRasterBins		= NumEmptyRasterBins;
+	OutStatsBuffer[0].NumTotalShadingBins		= 0;
+	OutStatsBuffer[0].NumEmptyShadingBins		= 0;
+}
+
+[numthreads(1, 1, 1)]
+void CalculateShadingStats()
+{
+	uint NumEmptyShadingBins = 0;
+
+	LOOP
+	for (uint ShadingBinIndex = 0; ShadingBinIndex < NumShadingBins; ++ShadingBinIndex)
+	{
+		if (MaterialIndirectArgs[ShadingBinIndex * DRAW_INDEXED_INDIRECT_UINT_COUNT + 1] == 0)
+		{
+			++NumEmptyShadingBins;
+		}
+	}
+
+	OutStatsBuffer[0].NumTotalShadingBins = NumShadingBins;
+	OutStatsBuffer[0].NumEmptyShadingBins = NumEmptyShadingBins;
 }
 
 #endif // SHADER_CALCULATE_STATS

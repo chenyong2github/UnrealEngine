@@ -1958,15 +1958,6 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 	}
 }
 
-struct FBinningData
-{
-	uint32 BinCount = 0;
-
-	FRDGBufferRef DataBuffer = nullptr;
-	FRDGBufferRef HeaderBuffer = nullptr;
-	FRDGBufferRef IndirectArgs = nullptr;
-};
-
 static void AddPass_Binning(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -2090,7 +2081,7 @@ static void AddPass_Binning(
 	}
 }
 
-void AddPass_Rasterize(
+FBinningData AddPass_Rasterize(
 	FRDGBuilder& GraphBuilder,
 	FNaniteRasterPipelines& RasterPipelines,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -2609,6 +2600,8 @@ void AddPass_Rasterize(
 			}
 		});
 	}
+
+	return BinningData;
 }
 
 FRasterContext InitRasterContext(
@@ -2756,7 +2749,7 @@ static void CullRasterizeMultiPass(
 	bool bExtractStats
 )
 {
-	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::CullRasterizeSplitViewRanges");
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::CullRasterizeMultiPass");
 
 	check(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 
@@ -2895,20 +2888,8 @@ void CullRasterize(
 	if (CullingContext.DebugFlags != 0)
 	{
 		FNaniteStats Stats;
-		Stats.NumTris  = 0;
-		Stats.NumVerts = 0;
-		Stats.NumViews = 0;
+		FMemory::Memzero(Stats);
 		Stats.NumMainInstancesPreCull	= CullingContext.NumInstancesPreCull;
-		Stats.NumMainInstancesPostCull	= 0;
-		Stats.NumMainVisitedNodes		= 0;
-		Stats.NumMainCandidateClusters	= 0;
-		Stats.NumPostInstancesPreCull	= 0;
-		Stats.NumPostInstancesPostCull	= 0;
-		Stats.NumPostVisitedNodes		= 0;
-		Stats.NumPostCandidateClusters	= 0;
-		Stats.NumLargePageRectClusters	= 0;
-		Stats.NumPrimaryViews			= 0;
-		Stats.NumTotalViews				= 0;
 
 		CullingContext.StatsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Nanite.StatsBuffer"), sizeof(FNaniteStats), 1, &Stats, sizeof(FNaniteStats));
 	}
@@ -2922,20 +2903,20 @@ void CullRasterize(
 		// Never use the disocclusion hack with virtual shadows as it interacts very poorly with caching that first frame
 		const bool bDisocclusionHack = GNaniteDisocclusionHack && !VirtualShadowMapArray;
 
-		CullingParameters.InViews		= GraphBuilder.CreateSRV(CullingContext.ViewsBuffer);
-		CullingParameters.NumViews		= Views.Num();
-		CullingParameters.NumPrimaryViews = NumPrimaryViews;
-		CullingParameters.DisocclusionLodScaleFactor = bDisocclusionHack ? 0.01f : 1.0f;	// TODO: Get rid of this hack
-		CullingParameters.HZBTexture	= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
-		CullingParameters.HZBSize		= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2f(0.0f);
-		CullingParameters.HZBSampler	= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
-		CullingParameters.PageConstants = CullingContext.PageConstants;
-		CullingParameters.MaxCandidateClusters	= Nanite::FGlobalResources::GetMaxCandidateClusters();
-		CullingParameters.MaxVisibleClusters	= Nanite::FGlobalResources::GetMaxVisibleClusters();
-		CullingParameters.RenderFlags	= CullingContext.RenderFlags;
-		CullingParameters.DebugFlags	= CullingContext.DebugFlags;
-		CullingParameters.CompactedViewInfo = nullptr;
-		CullingParameters.CompactedViewsAllocation = nullptr;
+		CullingParameters.InViews						= GraphBuilder.CreateSRV(CullingContext.ViewsBuffer);
+		CullingParameters.NumViews						= Views.Num();
+		CullingParameters.NumPrimaryViews				= NumPrimaryViews;
+		CullingParameters.DisocclusionLodScaleFactor	= bDisocclusionHack ? 0.01f : 1.0f;	// TODO: Get rid of this hack
+		CullingParameters.HZBTexture					= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
+		CullingParameters.HZBSize						= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2f(0.0f);
+		CullingParameters.HZBSampler					= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
+		CullingParameters.PageConstants					= CullingContext.PageConstants;
+		CullingParameters.MaxCandidateClusters			= Nanite::FGlobalResources::GetMaxCandidateClusters();
+		CullingParameters.MaxVisibleClusters			= Nanite::FGlobalResources::GetMaxVisibleClusters();
+		CullingParameters.RenderFlags					= CullingContext.RenderFlags;
+		CullingParameters.DebugFlags					= CullingContext.DebugFlags;
+		CullingParameters.CompactedViewInfo				= nullptr;
+		CullingParameters.CompactedViewsAllocation		= nullptr;
 	}
 
 	FVirtualTargetParameters VirtualTargetParameters;
@@ -3098,7 +3079,10 @@ void CullRasterize(
 		VirtualTargetParameters
 	);
 
-	AddPass_Rasterize(
+	FBinningData MainPassBinning{};
+	FBinningData PostPassBinning{};
+
+	MainPassBinning = AddPass_Rasterize(
 		GraphBuilder,
 		RasterPipelines,
 		Views,
@@ -3191,7 +3175,7 @@ void CullRasterize(
 		);
 
 		// Render post pass
-		AddPass_Rasterize(
+		PostPassBinning = AddPass_Rasterize(
 			GraphBuilder,
 			RasterPipelines,
 			Views,
@@ -3226,7 +3210,14 @@ void CullRasterize(
 	if (bExtractStats)
 	{
 		const bool bVirtualTextureTarget = VirtualShadowMapArray != nullptr;
-		ExtractStats(GraphBuilder, SharedContext, CullingContext, bVirtualTextureTarget);
+		ExtractRasterStats(
+			GraphBuilder,
+			SharedContext,
+			CullingContext,
+			MainPassBinning,
+			PostPassBinning,
+			bVirtualTextureTarget
+		);
 	}
 
 #if !UE_BUILD_SHIPPING

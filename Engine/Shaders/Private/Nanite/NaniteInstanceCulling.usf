@@ -177,7 +177,7 @@ RWByteAddressBuffer						OutMainAndPostNodesAndClusterBatches;
 RWStructuredBuffer<FQueueState>			OutQueueState;
 
 #if DEBUG_FLAGS
-RWStructuredBuffer<FStats>				OutStatsBuffer;
+RWStructuredBuffer<FNaniteStats>		OutStatsBuffer;
 #endif
 
 

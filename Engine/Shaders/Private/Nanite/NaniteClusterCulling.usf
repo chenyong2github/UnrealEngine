@@ -73,7 +73,7 @@ groupshared uint			GroupClusterBatchStartIndex;
 groupshared uint			GroupClusterBatchReadySize;
 
 #if DEBUG_FLAGS
-RWStructuredBuffer<FStats>	OutStatsBuffer;
+RWStructuredBuffer<FNaniteStats> OutStatsBuffer;
 #endif
 
 float						DisocclusionLodScaleFactor;	// TODO: HACK: Force LOD down first frame an instance is visible to mitigate disocclusion spikes.

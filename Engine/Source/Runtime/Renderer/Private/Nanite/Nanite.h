@@ -14,11 +14,20 @@
 namespace Nanite
 {
 
-void ExtractStats(
+void ExtractRasterStats(
 	FRDGBuilder& GraphBuilder,
 	const FSharedContext& SharedContext,
 	const FCullingContext& CullingContext,
+	const FBinningData& MainPassBinning,
+	const FBinningData& PostPassBinning,
 	bool bVirtualTextureTarget
+);
+
+void ExtractShadingStats(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FRDGBufferRef MaterialIndirectArgs,
+	uint32 NumShadingBins
 );
 
 void PrintStats(
