@@ -444,6 +444,18 @@ void UWidgetBlueprintGeneratedClass::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		// We've made it so the actual set of named slots we expose is AvailableNamedSlots, we need to copy
+		// the initial set we load though to ensure we don't get compile time load errors.
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WidgetInheritedNamedSlots)
+		{
+			AvailableNamedSlots = NamedSlots;
+			InstanceNamedSlots = NamedSlots;
+		}
+	}
 }
 
 UWidgetBlueprintGeneratedClass* UWidgetBlueprintGeneratedClass::FindWidgetTreeOwningClass() const

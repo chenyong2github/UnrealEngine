@@ -99,19 +99,28 @@ public:
 	TArray< TObjectPtr<UWidgetAnimation> > Animations;
 
 	/**
-	 * Exposed Named Slots for content.  These are slots that are accumulated from all super classes on compile.
-	 * and will exclude any named slots that are filled by a parent class.
-	 **/
-	UPROPERTY()
-	TArray<FName> AvailableNamedSlots;
-
-	/**
 	 * All named slots, even the ones that have content already filled into them by a parent class and are not
 	 * available for extension.
 	 **/
 	UPROPERTY()
 	TArray<FName> NamedSlots;
 
+	/**
+	 * Available Named Slots for content in a subclass.  These are slots that are accumulated from all super
+	 * classes on compile.  They will exclude any named slots that are filled by a parent class.
+	 **/
+	UPROPERTY()
+	TArray<FName> AvailableNamedSlots;
+
+	/**
+	 * These are the set of named slots that can be used on an instance of the widget.  This set is slightly
+	 * different from available named slots, because ones designated UNamedSlot::bExposeOnInstanceOnly == true
+	 * will also be in this list, even though they wont be in AvailableNamedSlots, if are inherited, as inherited
+	 * named slots do not have the capability to remove existing content in a named slot.
+	 **/
+	UPROPERTY()
+	TArray<FName> InstanceNamedSlots;
+	
 public:
 	UWidgetTree* GetWidgetTreeArchetype() const { return WidgetTree; }
 	void SetWidgetTreeArchetype(UWidgetTree* InWidgetTree);

@@ -829,12 +829,14 @@ UWidget* UUserWidget::GetWidgetFromName(const FName& Name) const
 void UUserWidget::GetSlotNames(TArray<FName>& SlotNames) const
 {
 	// Only do this if this widget is of a blueprint class
-	if (UWidgetBlueprintGeneratedClass* BGClass = GetWidgetTreeOwningClass())
+	if (const UWidgetBlueprintGeneratedClass* BGClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()))
 	{
-		SlotNames.Append(BGClass->NamedSlots);
+		SlotNames.Append(BGClass->InstanceNamedSlots);
 	}
 	else if (WidgetTree) // For non-blueprint widget blueprints we have to go through the widget tree to locate the named slots dynamically.
 	{
+		// TODO: This code is probably defunct now, that we always have a BPGC?
+		
 		WidgetTree->ForEachWidget([&SlotNames] (UWidget* Widget) {
 			if ( Widget && Widget->IsA<UNamedSlot>() )
 			{
@@ -1930,13 +1932,6 @@ bool UUserWidget::IsAsset() const
 {
 	// This stops widget archetypes from showing up in the content browser
 	return false;
-}
-
-void UUserWidget::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 }
 
 void UUserWidget::PreSave(FObjectPreSaveContext ObjectSaveContext)

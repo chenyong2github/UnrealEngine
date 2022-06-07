@@ -93,6 +93,27 @@ const FText UNamedSlot::GetPaletteCategory()
 	return LOCTEXT("Common", "Common");
 }
 
+void UNamedSlot::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+}
+
+void UNamedSlot::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	const int32 FortniteMainBranchObjectVersion = GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	if (FortniteMainBranchObjectVersion < FFortniteMainBranchObjectVersion::WidgetInheritedNamedSlots)
+	{
+		bExposeOnInstanceOnly = true;
+	}
+#endif
+}
+
 #endif
 
 /////////////////////////////////////////////////////

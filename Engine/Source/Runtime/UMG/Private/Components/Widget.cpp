@@ -1250,13 +1250,6 @@ void UWidget::DeselectByDesigner()
 #define LOCTEXT_NAMESPACE "UMG"
 #endif // WITH_EDITOR
 
-void UWidget::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 void UWidget::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	Super::PreSave(ObjectSaveContext);

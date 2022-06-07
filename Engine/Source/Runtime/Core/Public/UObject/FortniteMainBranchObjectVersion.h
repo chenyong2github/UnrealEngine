@@ -69,7 +69,7 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// TimelineTemplates store their derived names instead of dynamically generating
 		StoreTimelineNamesInTemplate,
 		
-		// New Pose Asset data type
+		// Avoid duplicating widget animations to save space.
 		WidgetStopDuplicatingAnimations,
 
 		// Allow reducing of the base LOD, we need to store some imported model data so we can reduce again from the same data.
@@ -219,6 +219,12 @@ struct CORE_API FFortniteMainBranchObjectVersion
 
 		// Water body collision settings are now those of the base UPrimitiveComponent, rather than duplicated in UWaterBodyComponent
 		WaterBodyComponentCollisionSettingsRefactor,
+
+		// Introducing widget inherited named slots.  This wouldn't have required a version bump, except in the previous
+		// version, users could make NamedSlots and then Seed them with any random widgets, as a sorta 'default' setup.
+		// In order to preserve that, we're bumping the version so that we can set a new field on UNamedSlot to control
+		// if a widget exposes its named slot to everyone (even if it has content), which by default they wont any longer.
+		WidgetInheritedNamedSlots,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

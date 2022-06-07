@@ -25,6 +25,7 @@
 #include "WidgetBlueprintExtension.h"
 #include "Editor/WidgetCompilerLog.h"
 #include "Editor.h"
+#include "Algo/RemoveIf.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -906,13 +907,19 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 		// Add all the names of the named slot widgets to the slot names structure.
 		{
 			BPGClass->NamedSlots.Reset();
+			BPGClass->InstanceNamedSlots.Reset();
 			UWidgetBlueprint* WidgetBPIt = WidgetBP;
 			while (WidgetBPIt)
 			{
-				WidgetBPIt->ForEachSourceWidget([&] (UWidget* Widget) {
-					if ( Widget && Widget->IsA<UNamedSlot>() )
+				WidgetBPIt->ForEachSourceWidget([&] (const UWidget* Widget) {
+					if (const UNamedSlot* NamedSlot = Cast<UNamedSlot>(Widget))
 					{
 						BPGClass->NamedSlots.Add(Widget->GetFName());
+
+						if (NamedSlot->bExposeOnInstanceOnly)
+						{
+							BPGClass->InstanceNamedSlots.Add(Widget->GetFName());
+						}
 					}
 				});
 				
@@ -927,6 +934,18 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 				// If we find content for this slot, remove it from the available set.
 				BPGClass->AvailableNamedSlots.Remove(SlotName);
 			});
+
+			// Remove any available subclass named slots that are marked as instance named slot.
+			for (const FName& InstanceNamedSlot : BPGClass->InstanceNamedSlots)
+			{
+				BPGClass->AvailableNamedSlots.Remove(InstanceNamedSlot);
+			}
+
+			// Now add any available named slot that doesn't have anything in it also.
+			for (const FName& AvailableNamedSlot : BPGClass->AvailableNamedSlots)
+			{
+				BPGClass->InstanceNamedSlots.AddUnique(AvailableNamedSlot);
+			}
 		}
 
 		// Make sure that we don't have dueling widget hierarchies
