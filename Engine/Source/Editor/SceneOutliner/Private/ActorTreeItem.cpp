@@ -392,7 +392,7 @@ bool FActorTreeItem::ShouldShowPinnedState() const
 	{
 		const ULevel* Level = ActorPtr->GetLevel();
 		const UWorld* World = Level->GetWorld();
-		return !World->IsGameWorld() && !!Level->GetWorldPartition();
+		return World && !World->IsGameWorld() && !!Level->GetWorldPartition();
 	}
 
 	return false;
