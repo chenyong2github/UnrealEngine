@@ -18,9 +18,9 @@ namespace UE::DerivedData::Private
 template <typename CharType>
 static inline void AssertValidCacheBucketName(TStringView<CharType> Name)
 {
-	checkf(IsValidCacheBucketName(Name),
-		TEXT("A cache bucket name must be alphanumeric, non-empty, and contain fewer than 256 code units. ")
-		TEXT("Name: '%s'"), *WriteToString<256>(Name));
+	checkf(FCacheBucket::IsValidName(Name),
+		TEXT("A cache bucket name must be alphanumeric, non-empty, and contain at most %d code units. Name: '%s'"),
+		*WriteToString<256>(Name), FCacheBucket::MaxNameLen);
 }
 
 class FCacheBucketOwner : public FCacheBucket

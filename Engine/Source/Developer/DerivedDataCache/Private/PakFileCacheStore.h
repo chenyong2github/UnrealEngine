@@ -3,16 +3,16 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Containers/StringFwd.h"
-#include "DerivedDataBackendInterface.h"
+#include "DerivedDataLegacyCacheStore.h"
 
 namespace UE::DerivedData
 {
 
-class IPakFileCacheStore : public FDerivedDataBackendInterface
+class IPakFileCacheStore : public ILegacyCacheStore
 {
 public:
 	virtual void Close() = 0;
+	virtual bool IsWritable() const = 0;
 	virtual bool SaveCache() = 0;
 	virtual bool LoadCache(const TCHAR* InFilename) = 0;
 	virtual void MergeCache(IPakFileCacheStore* OtherPak) = 0;

@@ -339,8 +339,8 @@ public:
 			CreatedNodes.AddUnique(ParsedNode.Key);
 
 			// Parse any debug options for this node. E.g. -DDC-<Name>-MissRate
-			FDerivedDataBackendInterface::FBackendDebugOptions DebugOptions;
-			if (FDerivedDataBackendInterface::FBackendDebugOptions::ParseFromTokens(DebugOptions, *NodeName, FCommandLine::Get()))
+			FBackendDebugOptions DebugOptions;
+			if (FBackendDebugOptions::ParseFromTokens(DebugOptions, *NodeName, FCommandLine::Get()))
 			{
 				if (!ParsedNode.Key->LegacyDebugOptions(DebugOptions))
 				{
@@ -1127,185 +1127,6 @@ private:
 namespace UE::DerivedData
 {
 
-void FDerivedDataBackendInterface::LegacyPut(
-	const TConstArrayView<FLegacyCachePutRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCachePutComplete&& OnComplete)
-{
-	if (GetLegacyMode() != EBackendLegacyMode::LegacyOnly)
-	{
-		return ILegacyCacheStore::LegacyPut(Requests, Owner, MoveTemp(OnComplete));
-	}
-
-	for (const FLegacyCachePutRequest& Request : Requests)
-	{
-		FCompositeBuffer CompositeValue = Request.Value.GetRawData();
-		Request.Key.WriteValueTrailer(CompositeValue);
-
-		checkf(CompositeValue.GetSize() < MAX_int32,
-			TEXT("Value is 2 GiB or greater, which is not supported for put of '%s' from '%s'"),
-			*Request.Key.GetShortKey(), *Request.Name);
-
-		UE_CLOG(Request.Key.HasShortKey(), LogDerivedDataCache, VeryVerbose,
-			TEXT("ShortenKey %s -> %s"), *Request.Key.GetFullKey(), *Request.Key.GetShortKey());
-
-		FSharedBuffer Value = MoveTemp(CompositeValue).ToShared();
-		const TArrayView<const uint8> Data(MakeArrayView(static_cast<const uint8*>(Value.GetData()), int32(Value.GetSize())));
-		const EPutStatus Status = PutCachedData(*Request.Key.GetShortKey(), Data, /*bPutEvenIfExists*/ false);
-		OnComplete({Request.Name, Request.Key, Request.UserData, Status == EPutStatus::Cached ? EStatus::Ok : EStatus::Error});
-	}
-}
-
-void FDerivedDataBackendInterface::LegacyGet(
-	TConstArrayView<FLegacyCacheGetRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCacheGetComplete&& OnComplete)
-{
-	const EBackendLegacyMode LegacyMode = GetLegacyMode();
-	if (LegacyMode == EBackendLegacyMode::ValueOnly)
-	{
-		return ILegacyCacheStore::LegacyGet(Requests, Owner, MoveTemp(OnComplete));
-	}
-
-	// Make a blocking query to the value cache and fall back to the legacy cache for requests with errors.
-
-	TArray<FLegacyCacheGetRequest> LegacyRequests;
-	if (LegacyMode == EBackendLegacyMode::ValueWithLegacyFallback)
-	{
-		TArray<FLegacyCacheGetRequest, TInlineAllocator<8>> ValueRequests;
-		ValueRequests.Reserve(Requests.Num());
-		uint64 RequestIndex = 0;
-		for (const FLegacyCacheGetRequest& Request : Requests)
-		{
-			ValueRequests.Add_GetRef(Request).UserData = RequestIndex++;
-		}
-
-		FRequestOwner BlockingOwner(EPriority::Blocking);
-		ILegacyCacheStore::LegacyGet(ValueRequests, BlockingOwner, [this, &OnComplete, &Requests, &ValueRequests](FLegacyCacheGetResponse&& Response)
-		{
-			if (Response.Status != EStatus::Error)
-			{
-				const int32 Index = int32(Response.UserData);
-				Response.UserData = Requests[Index].UserData;
-				ValueRequests[Index].UserData = MAX_uint64;
-				OnComplete(MoveTemp(Response));
-			}
-		});
-		BlockingOwner.Wait();
-
-		for (const FLegacyCacheGetRequest& Request : ValueRequests)
-		{
-			if (Request.UserData != MAX_uint64)
-			{
-				LegacyRequests.Add(Requests[int32(Request.UserData)]);
-			}
-		}
-		if (LegacyRequests.IsEmpty())
-		{
-			return;
-		}
-		Requests = LegacyRequests;
-	}
-
-	// Query the legacy cache by translating the requests to legacy cache functions.
-
-	FRequestOwner AsyncOwner(FPlatformMath::Min(Owner.GetPriority(), EPriority::Highest));
-	FRequestBarrier Barrier(AsyncOwner);
-	AsyncOwner.KeepAlive();
-
-	TArray<FString, TInlineAllocator<8>> ExistsKeys;
-	TArray<const FLegacyCacheGetRequest*, TInlineAllocator<8>> ExistsRequests;
-
-	TArray<FString, TInlineAllocator<8>> PrefetchKeys;
-	TArray<const FLegacyCacheGetRequest*, TInlineAllocator<8>> PrefetchRequests;
-
-	for (const FLegacyCacheGetRequest& Request : Requests)
-	{
-		if (!EnumHasAnyFlags(Request.Policy, ECachePolicy::Query))
-		{
-			OnComplete({Request.Name, Request.Key, {}, Request.UserData, EStatus::Error});
-		}
-		else if (EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData))
-		{
-			const bool bExists = !EnumHasAnyFlags(Request.Policy, ECachePolicy::Store);
-			(bExists ? ExistsKeys : PrefetchKeys).Emplace(Request.Key.GetShortKey());
-			(bExists ? ExistsRequests : PrefetchRequests).Add(&Request);
-		}
-		else
-		{
-			FSharedBuffer Value;
-			TArray<uint8> Data;
-			if (const bool bGetOk = GetCachedData(*Request.Key.GetShortKey(), Data))
-			{
-				FCompositeBuffer CompositeValue(MakeSharedBufferFromArray(MoveTemp(Data)));
-				if (const bool bKeyOk = Request.Key.ReadValueTrailer(CompositeValue))
-				{
-					Value = MoveTemp(CompositeValue).ToShared();
-				}
-			}
-			const EStatus Status = Value ? EStatus::Ok : EStatus::Error;
-			FLegacyCacheValue LegacyValue(FCompositeBuffer(MoveTemp(Value)));
-			if (LegacyValue.HasData() && LegacyMode == EBackendLegacyMode::ValueWithLegacyFallback)
-			{
-				Private::LaunchTaskInCacheThreadPool(AsyncOwner, [this, &AsyncOwner, Request, LegacyValue]
-				{
-					ILegacyCacheStore::LegacyPut({{Request.Name, Request.Key, LegacyValue}}, AsyncOwner, [](auto&&){});
-				});
-			}
-			OnComplete({Request.Name, Request.Key, MoveTemp(LegacyValue), Request.UserData, Status});
-		}
-	}
-
-	if (!PrefetchKeys.IsEmpty())
-	{
-		int32 Index = 0;
-		const TBitArray<> Exists = TryToPrefetch(PrefetchKeys);
-		for (const FLegacyCacheGetRequest* const Request : PrefetchRequests)
-		{
-			OnComplete({Request->Name, Request->Key, {}, Request->UserData, Exists[Index] ? EStatus::Ok : EStatus::Error});
-			++Index;
-		}
-	}
-
-	if (!ExistsKeys.IsEmpty())
-	{
-		int32 Index = 0;
-		const TBitArray<> Exists = CachedDataProbablyExistsBatch(ExistsKeys);
-		for (const FLegacyCacheGetRequest* const Request : ExistsRequests)
-		{
-			OnComplete({Request->Name, Request->Key, {}, Request->UserData, Exists[Index] ? EStatus::Ok : EStatus::Error});
-			++Index;
-		}
-	}
-}
-
-void FDerivedDataBackendInterface::LegacyDelete(
-	const TConstArrayView<FLegacyCacheDeleteRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCacheDeleteComplete&& OnComplete)
-{
-	if (GetLegacyMode() != EBackendLegacyMode::LegacyOnly)
-	{
-		return ILegacyCacheStore::LegacyDelete(Requests, Owner, MoveTemp(OnComplete));
-	}
-
-	for (const FLegacyCacheDeleteRequest& Request : Requests)
-	{
-		RemoveCachedData(*Request.Key.GetShortKey(), Request.bTransient);
-		OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Ok});
-	}
-}
-
-void FDerivedDataBackendInterface::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
-{
-	OutNode = MoveTemp(GatherUsageStats().Get());
-}
-
-bool FDerivedDataBackendInterface::LegacyDebugOptions(FBackendDebugOptions& Options)
-{
-	return ApplyDebugOptions(Options);
-}
-
 FDerivedDataBackend* FDerivedDataBackend::Create()
 {
 	return new FDerivedDataBackendGraph();
@@ -1341,7 +1162,7 @@ FBackendDebugOptions::FBackendDebugOptions()
 /**
  * Parse debug options for the provided node name. Returns true if any options were specified
  */
-bool FBackendDebugOptions::ParseFromTokens(FDerivedDataBackendInterface::FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InInputTokens)
+bool FBackendDebugOptions::ParseFromTokens(FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InInputTokens)
 {
 	// Check if the input stream has any DDC options for this node.
 	TStringBuilder<64> Prefix;

@@ -6,6 +6,7 @@
 #include "Algo/StableSort.h"
 #include "Algo/Transform.h"
 #include "Compression/OodleDataCompression.h"
+#include "DerivedDataBackendInterface.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
@@ -46,44 +47,11 @@ public:
 
 	void Close() final;
 
-	/** Return a name for this interface */
-	FString GetName() const final;
+	bool IsWritable() const final { return bWriting; }
 
-	/** return true if this cache is writable **/
-	bool IsWritable() const final;
-
-	/** Returns a class of speed for this interface **/
-	ESpeedClass GetSpeedClass() const final;
-
-	bool BackfillLowerCacheLevels() const final;
-
-	/**
-	 * Synchronous test for the existence of a cache item
-	 *
-	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
-	 * @return				true if the data probably will be found, this can't be guaranteed because of concurrency in the backends, corruption, etc
-	 */
-	bool CachedDataProbablyExists(const TCHAR* CacheKey) final;
-
-	/**
-	 * Synchronous retrieve of a cache item
-	 *
-	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
-	 * @param	OutData		Buffer to receive the results, if any were found
-	 * @return				true if any data was found, and in this case OutData is non-empty
-	 */
-	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
-
-	/**
-	 * Asynchronous, fire-and-forget placement of a cache item
-	 *
-	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
-	 * @param	InData		Buffer containing the data to cache, can be destroyed after the call returns, immediately
-	 * @param	bPutEvenIfExists	If true, then do not attempt skip the put even if CachedDataProbablyExists returns true
-	 */
-	EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
-
-	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) final;
+	bool CachedDataProbablyExists(const TCHAR* CacheKey);
+	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData);
+	void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists);
 
 	/**
 	 * Save the cache to disk
@@ -108,18 +76,7 @@ public:
 		return CachePath;
 	}
 
-	TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const final;
-
-	TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) final
-	{
-		return CachedDataProbablyExistsBatch(CacheKeys);
-	}
-
-	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) final { return true; }
-
-	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final;
-
-	EBackendLegacyMode GetLegacyMode() const final { return EBackendLegacyMode::ValueOnly; }
+	// ICacheStore
 
 	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
@@ -145,6 +102,11 @@ public:
 		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) final;
+
+	// ILegacyCacheStore
+
+	void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final;
+	bool LegacyDebugOptions(FBackendDebugOptions& Options) final;
 
 private:
 	[[nodiscard]] bool PutCacheRecord(FStringView Name, const FCacheRecord& Record, const FCacheRecordPolicy& Policy, uint64& OutWriteSize);
@@ -278,11 +240,6 @@ FPakFileCacheStore::~FPakFileCacheStore()
 	Close();
 }
 
-FString FPakFileCacheStore::GetName() const
-{
-	return CachePath;
-}
-
 void FPakFileCacheStore::Close()
 {
 	FDerivedDataBackend::Get().WaitForQuiescence();
@@ -297,21 +254,6 @@ void FPakFileCacheStore::Close()
 		CacheItems.Empty();
 		bClosed = true;
 	}
-}
-
-bool FPakFileCacheStore::IsWritable() const
-{
-	return bWriting && !bClosed;
-}
-
-FDerivedDataBackendInterface::ESpeedClass FPakFileCacheStore::GetSpeedClass() const
-{
-	return ESpeedClass::Local;
-}
-
-bool FPakFileCacheStore::BackfillLowerCacheLevels() const
-{
-	return false;
 }
 
 bool FPakFileCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
@@ -386,13 +328,10 @@ bool FPakFileCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& Out
 	return false;
 }
 
-FDerivedDataBackendInterface::EPutStatus FPakFileCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+void FPakFileCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePut());
-	if (!IsWritable() || DebugOptions.ShouldSimulateGetMiss(CacheKey))
-	{
-		return EPutStatus::NotCached;
-	}
+	if (bWriting && !bClosed && !DebugOptions.ShouldSimulateGetMiss(CacheKey))
 	{
 		FWriteScopeLock ScopeLock(SynchronizationObject);
 		FString Key(CacheKey);
@@ -421,7 +360,7 @@ FDerivedDataBackendInterface::EPutStatus FPakFileCacheStore::PutCachedData(const
 						Item->Crc = Crc.GetValue();
 						FileHandle->Seek(Offset);
 					}
-					return EPutStatus::Cached;
+					return;
 				}
 
 				UE_LOG(LogDerivedDataCache, Warning,
@@ -438,7 +377,6 @@ FDerivedDataBackendInterface::EPutStatus FPakFileCacheStore::PutCachedData(const
 			CacheItems.Empty();
 			FileHandle.Reset();
 			UE_LOG(LogDerivedDataCache, Fatal, TEXT("%s: Could not write pak file... out of disk space?"), *CachePath);
-			return EPutStatus::NotCached;
 		}
 		else
 		{
@@ -450,23 +388,8 @@ FDerivedDataBackendInterface::EPutStatus FPakFileCacheStore::PutCachedData(const
 			FileHandle->Write(InData.GetData(), InData.Num());
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Put %s"), *CachePath, CacheKey);
 			CacheItems.Add(Key, FCacheValue(Offset, InData.Num(), Crc.GetValue()));
-			return EPutStatus::Cached;
 		}
 	}
-}
-
-void FPakFileCacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
-{
-	if (bClosed || bTransient)
-	{
-		return;
-	}
-	// strangish. We can delete from a pak, but it only deletes the index 
-	// if this is a read cache, it will read it next time
-	// if this is a write cache, we wasted space
-	FWriteScopeLock ScopeLock(SynchronizationObject);
-	FString Key(CacheKey);
-	CacheItems.Remove(Key);
 }
 
 bool FPakFileCacheStore::SaveCache()
@@ -681,15 +604,13 @@ bool IPakFileCacheStore::SortAndCopy(const FString &InputFilename, const FString
 	return true;
 }
 
-TSharedRef<FDerivedDataCacheStatsNode> FPakFileCacheStore::GatherUsageStats() const
+void FPakFileCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
-	TSharedRef<FDerivedDataCacheStatsNode> StatsNode =
-		MakeShared<FDerivedDataCacheStatsNode>(TEXT("PakFile"), CachePath, /*bIsLocal*/ true);
-	StatsNode->UsageStats.Add(TEXT(""), UsageStats);
-	return StatsNode;
+	OutNode = {TEXT("PakFile"), CachePath, /*bIsLocal*/ true};
+	OutNode.UsageStats.Add(TEXT(""), UsageStats);
 }
 
-bool FPakFileCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+bool FPakFileCacheStore::LegacyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;
@@ -889,7 +810,7 @@ bool FPakFileCacheStore::PutCacheRecord(
 	const FCacheRecordPolicy& Policy,
 	uint64& OutWriteSize)
 {
-	if (!IsWritable())
+	if (!bWriting || bClosed)
 	{
 		return false;
 	}
@@ -1074,7 +995,7 @@ bool FPakFileCacheStore::PutCacheValue(
 	const ECachePolicy Policy,
 	uint64& OutWriteSize)
 {
-	if (!IsWritable())
+	if (!bWriting || bClosed)
 	{
 		return false;
 	}
@@ -1543,9 +1464,6 @@ class FCompressedPakFileCacheStore final : public FPakFileCacheStore
 public:
 	FCompressedPakFileCacheStore(const TCHAR* InFilename, bool bInWriting);
 
-	EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) final;
-	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) final;
-
 	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
 		IRequestOwner& Owner,
@@ -1557,8 +1475,6 @@ public:
 		FOnCachePutValueComplete&& OnComplete) final;
 
 private:
-	static const EName CompressionFormat = NAME_Zlib;
-	static const ECompressionFlags CompressionFlags = COMPRESS_BiasMemory;
 	static const ECompressedBufferCompressor RequiredCompressor = ECompressedBufferCompressor::Kraken;
 	static const ECompressedBufferCompressionLevel MinRequiredCompressionLevel = ECompressedBufferCompressionLevel::Optimal2;
 
@@ -1568,37 +1484,6 @@ private:
 FCompressedPakFileCacheStore::FCompressedPakFileCacheStore(const TCHAR* InFilename, bool bInWriting)
 	: FPakFileCacheStore(InFilename, bInWriting)
 {
-}
-
-FDerivedDataBackendInterface::EPutStatus FCompressedPakFileCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
-{
-	int32 UncompressedSize = InData.Num();
-	int32 CompressedSize = FCompression::CompressMemoryBound(CompressionFormat, UncompressedSize, CompressionFlags);
-
-	TArray<uint8> CompressedData;
-	CompressedData.AddUninitialized(CompressedSize + sizeof(UncompressedSize));
-
-	FMemory::Memcpy(&CompressedData[0], &UncompressedSize, sizeof(UncompressedSize));
-	verify(FCompression::CompressMemory(CompressionFormat, CompressedData.GetData() + sizeof(UncompressedSize), CompressedSize, InData.GetData(), InData.Num(), CompressionFlags));
-	CompressedData.SetNum(CompressedSize + sizeof(UncompressedSize), false);
-
-	return FPakFileCacheStore::PutCachedData(CacheKey, CompressedData, bPutEvenIfExists);
-}
-
-bool FCompressedPakFileCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
-{
-	TArray<uint8> CompressedData;
-	if(!FPakFileCacheStore::GetCachedData(CacheKey, CompressedData))
-	{
-		return false;
-	}
-
-	int32 UncompressedSize;
-	FMemory::Memcpy(&UncompressedSize, &CompressedData[0], sizeof(UncompressedSize));
-	OutData.SetNum(UncompressedSize);
-	verify(FCompression::UncompressMemory(CompressionFormat, OutData.GetData(), UncompressedSize, CompressedData.GetData() + sizeof(UncompressedSize), CompressedData.Num() - sizeof(UncompressedSize), CompressionFlags));
-
-	return true;
 }
 
 void FCompressedPakFileCacheStore::Put(

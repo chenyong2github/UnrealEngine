@@ -210,7 +210,7 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 	FCbObjectView KeyObject = ObjectView[ANSITEXTVIEW("Key")].AsObjectView();
 	auto TrySetBucketName = [](FUtf8StringView Name, FCacheKey& Key)
 	{
-		if (Private::IsValidCacheBucketName(Name))
+		if (FCacheBucket::IsValidName(Name))
 		{
 			Key.Bucket = FCacheBucket(Name);
 			return true;

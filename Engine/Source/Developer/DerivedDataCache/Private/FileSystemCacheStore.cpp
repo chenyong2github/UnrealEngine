@@ -6,9 +6,7 @@
 #include "Algo/StableSort.h"
 #include "Algo/Transform.h"
 #include "Async/Async.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "Containers/StaticBitArray.h"
-#include "DerivedDataBackendCorruptionWrapper.h"
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheMaintainer.h"
@@ -25,7 +23,6 @@
 #include "HAL/Thread.h"
 #include "Hash/xxhash.h"
 #include "HashingArchiveProxy.h"
-#include "Math/NumericLimits.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreMisc.h"
@@ -46,21 +43,9 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "Templates/Greater.h"
 
-#define MAX_BACKEND_KEY_LENGTH (120)
-#define MAX_BACKEND_NUMBERED_SUBFOLDER_LENGTH (9)
-#if PLATFORM_LINUX	// PATH_MAX on Linux is 4096 (getconf PATH_MAX /, also see limits.h), so this value can be larger (note that it is still arbitrary).
-                    // This should not affect sharing the cache between platforms as the absolute paths will be different anyway.
-	#define MAX_CACHE_DIR_LEN (3119)
-#else
-	#define MAX_CACHE_DIR_LEN (119)
-#endif // PLATFORM_LINUX
-#define MAX_CACHE_EXTENTION_LEN (4)
-
 namespace UE::DerivedData
 {
 
-TRACE_DECLARE_INT_COUNTER(FileSystemDDC_Exist, TEXT("FileSystemDDC Exist"));
-TRACE_DECLARE_INT_COUNTER(FileSystemDDC_ExistHit, TEXT("FileSystemDDC Exist Hit"));
 TRACE_DECLARE_INT_COUNTER(FileSystemDDC_Get, TEXT("FileSystemDDC Get"));
 TRACE_DECLARE_INT_COUNTER(FileSystemDDC_GetHit, TEXT("FileSystemDDC Get Hit"));
 TRACE_DECLARE_INT_COUNTER(FileSystemDDC_Put, TEXT("FileSystemDDC Put"));
@@ -70,25 +55,24 @@ TRACE_DECLARE_INT_COUNTER(FileSystemDDC_BytesWritten, TEXT("FileSystemDDC Bytes 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if PLATFORM_LINUX
+// PATH_MAX on Linux is 4096 (getconf PATH_MAX /, also see limits.h), so this value can be larger (note that it is still arbitrary).
+// This should not affect sharing the cache between platforms as the absolute paths will be different anyway.
+static constexpr int32 GMaxCacheRootLen = 3119;
+#else
+static constexpr int32 GMaxCacheRootLen = 119;
+#endif // PLATFORM_LINUX
+
+static constexpr int32 GMaxCacheKeyLen =
+	FCacheBucket::MaxNameLen + // Name
+	sizeof(FIoHash) * 2 +      // Hash
+	4 +                        // Separators /<Name>/<Hash01>/<Hash23>/<Hash4-40>
+	4;                         // Extension (.udd)
+
 static const TCHAR* GBucketsDirectoryName = TEXT("Buckets");
 static const TCHAR* GContentDirectoryName = TEXT("Content");
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void BuildPathForLegacyCache(const TCHAR* const CacheKey, FStringBuilderBase& Path)
-{
-	TStringBuilder<256> Key;
-	Key << CacheKey;
-	for (TCHAR& Char : MakeArrayView(Key))
-	{
-		Char = FChar::ToUpper(Char);
-	}
-	checkf(Algo::AllOf(MakeArrayView(Key),
-		[](TCHAR C) { return FChar::IsAlnum(C) || FChar::IsUnderscore(C) || C == TEXT('$'); }),
-		TEXT("Invalid characters in cache key %s"), CacheKey);
-	const uint32 Hash = FCrc::StrCrc_DEPRECATED(Key.Len(), Key.GetData());
-	Path.Appendf(TEXT("%1d/%1d/%1d/%s.udd"), (Hash / 100) % 10, (Hash / 10) % 10, Hash % 10, *Key);
-}
 
 void BuildPathForCachePackage(const FCacheKey& CacheKey, FStringBuilderBase& Path)
 {
@@ -696,7 +680,6 @@ class FAccessLogWriter
 public:
 	FAccessLogWriter(const TCHAR* FileName, const FString& CachePath);
 
-	void Append(const TCHAR* CacheKey, FStringView Path);
 	void Append(const FIoHash& RawHash, FStringView Path);
 	void Append(const FCacheKey& CacheKey, FStringView Path);
 
@@ -706,7 +689,6 @@ private:
 	TUniquePtr<FArchive> Archive;
 	FString BasePath;
 	FCriticalSection CriticalSection;
-	TSet<FString> CacheKeys;
 	TSet<FIoHash> ContentKeys;
 	TSet<FCacheKey> RecordKeys;
 };
@@ -715,18 +697,6 @@ FAccessLogWriter::FAccessLogWriter(const TCHAR* const FileName, const FString& C
 	: Archive(IFileManager::Get().CreateFileWriter(FileName, FILEWRITE_AllowRead))
 	, BasePath(CachePath / TEXT(""))
 {
-}
-
-void FAccessLogWriter::Append(const TCHAR* const CacheKey, const FStringView Path)
-{
-	FScopeLock Lock(&CriticalSection);
-
-	bool bIsAlreadyInSet = false;
-	CacheKeys.FindOrAdd(FString(CacheKey), &bIsAlreadyInSet);
-	if (!bIsAlreadyInSet)
-	{
-		AppendPath(Path);
-	}
 }
 
 void FAccessLogWriter::Append(const FIoHash& RawHash, const FStringView Path)
@@ -765,35 +735,20 @@ void FAccessLogWriter::AppendPath(const FStringView Path)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FFileSystemCacheStore final : public FDerivedDataBackendInterface
+class FFileSystemCacheStore final : public ILegacyCacheStore
 {
 public:
-	FFileSystemCacheStore(const TCHAR* CachePath, const TCHAR* Params, const TCHAR* AccessLogPath);
-
-	inline bool IsUsable() const { return !bDisabled; }
+	FFileSystemCacheStore(
+		const TCHAR* CachePath,
+		const TCHAR* Params,
+		const TCHAR* AccessLogPath,
+		ECacheStoreFlags& OutFlags);
 
 	bool RunSpeedTest(
 		double InSkipTestsIfSeeksExceedMS,
 		double& OutSeekTimeMS,
 		double& OutReadSpeedMBs,
 		double& OutWriteSpeedMBs) const;
-
-	// FDerivedDataBackendInterface Interface
-
-	FString GetName() const final { return CachePath; }
-	bool IsWritable() const final { return !bReadOnly && !bDisabled; }
-	ESpeedClass GetSpeedClass() const final { return SpeedClass; }
-	
-	bool CachedDataProbablyExists(const TCHAR* CacheKey) final;
-	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& Data) final;
-	EPutStatus PutCachedData(const TCHAR* CacheKey, TConstArrayView<uint8> Data, bool bPutEvenIfExists) final;
-	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) final;
-	TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const final;
-	TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) final;
-	bool WouldCache(const TCHAR* CacheKey, TConstArrayView<uint8> InData) final;
-	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final;
-
-	EBackendLegacyMode GetLegacyMode() const final { return LegacyMode; }
 
 	// ICacheStore Interface
 
@@ -817,6 +772,11 @@ public:
 		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) final;
+
+	// ILegacyCacheStore
+
+	void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final;
+	bool LegacyDebugOptions(FBackendDebugOptions& Options) final;
 
 private:
 	[[nodiscard]] bool PutCacheRecord(FStringView Name, const FCacheRecord& Record, const FCacheRecordPolicy& Policy, uint64& OutWriteSize);
@@ -868,26 +828,14 @@ private:
 	[[nodiscard]] bool FileExists(FStringBuilderBase& Path) const;
 
 private:
-	void BuildCacheLegacyPath(const TCHAR* const CacheKey, FStringBuilderBase& Path) const
-	{
-		Path << CachePath << TEXT('/');
-		BuildPathForLegacyCache(CacheKey, Path);
-	}
-
 	/** Base path we are storing the cache files in. */
 	FString	CachePath;
-	/** How to access the legacy cache. */
-	EBackendLegacyMode LegacyMode = EBackendLegacyMode::ValueWithLegacyFallback;
-	/** Class of this cache */
-	ESpeedClass SpeedClass;
-	/** If true, we failed to write to this directory and it did not contain anything so we should not be used. */
-	bool		bDisabled;
+	/** Class of this cache. */
+	EBackendSpeedClass SpeedClass;
 	/** If true, do not attempt to write to this cache. */
 	bool		bReadOnly;
 	/** If true, CachedDataProbablyExists will update the file timestamps. */
 	bool		bTouch;
-	/** If true, allow transient data to be removed from the cache. */
-	bool		bPurgeTransient;
 	/** Age of file when it should be deleted from DDC cache. */
 	double		DaysToDeleteUnusedFiles;
 
@@ -895,17 +843,6 @@ private:
 	uint64		MaxRecordSizeKB = 256;
 	/** Maximum total size of compressed data stored within a value package, or a record package with one attachment. */
 	uint64		MaxValueSizeKB = 1024;
-
-	/** Object used for synchronization via a scoped lock. */
-	FCriticalSection SynchronizationObject;
-
-	// DDCNotification metrics
-
-	/** Map of cache keys to miss times for generating timing deltas. */
-	TMap<FString, double> DDCNotificationCacheTimes;
-
-	/** The total estimated build time accumulated from cache miss/put deltas. */
-	double TotalEstimatedBuildTime;
 
 	/** Access log to write to */
 	TUniquePtr<FAccessLogWriter> AccessLogWriter;
@@ -924,18 +861,16 @@ private:
 FFileSystemCacheStore::FFileSystemCacheStore(
 	const TCHAR* const InCachePath,
 	const TCHAR* const InParams,
-	const TCHAR* const InAccessLogPath)
+	const TCHAR* const InAccessLogPath,
+	ECacheStoreFlags& OutFlags)
 	: CachePath(InCachePath)
-	, SpeedClass(ESpeedClass::Unknown)
-	, bDisabled(false)
+	, SpeedClass(EBackendSpeedClass::Unknown)
 	, bReadOnly(false)
 	, bTouch(false)
-	, bPurgeTransient(false)
 	, DaysToDeleteUnusedFiles(15.0)
-	, TotalEstimatedBuildTime(0)
 {
 	// If we find a platform that has more stringent limits, this needs to be rethought.
-	checkf(MAX_BACKEND_KEY_LENGTH + MAX_CACHE_DIR_LEN + MAX_BACKEND_NUMBERED_SUBFOLDER_LENGTH + MAX_CACHE_EXTENTION_LEN < FPlatformMisc::GetMaxPathLength(),
+	checkf(GMaxCacheRootLen + GMaxCacheKeyLen <= FPlatformMisc::GetMaxPathLength(),
 		TEXT("Not enough room left for cache keys in max path."));
 
 	check(CachePath.Len());
@@ -944,18 +879,9 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 	// Params that override our instance defaults
 	FParse::Bool(InParams, TEXT("ReadOnly="), bReadOnly);
 	FParse::Bool(InParams, TEXT("Touch="), bTouch);
-	FParse::Bool(InParams, TEXT("PurgeTransient="), bPurgeTransient);
 	FParse::Value(InParams, TEXT("UnusedFileAge="), DaysToDeleteUnusedFiles);
 	FParse::Value(InParams, TEXT("MaxRecordSizeKB="), MaxRecordSizeKB);
 	FParse::Value(InParams, TEXT("MaxValueSizeKB="), MaxValueSizeKB);
-
-	if (FString LegacyModeString; FParse::Value(InParams, TEXT("LegacyMode="), LegacyModeString))
-	{
-		if (!TryLexFromString(LegacyMode, LegacyModeString))
-		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Ignoring unrecognized legacy mode '%s'"), *CachePath, *LegacyModeString);
-		}
-	}
 
 	// Flush the cache if requested.
 	bool bFlush = false;
@@ -985,7 +911,7 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 
 	if (!SkipSpeedTest && !RunSpeedTest(ConsiderSlowAtMS * 2, SpeedStats.LatencyMS, SpeedStats.ReadSpeedMBs, SpeedStats.WriteSpeedMBs))
 	{
-		bDisabled = true;
+		OutFlags = ECacheStoreFlags::None;
 		UE_LOG(LogDerivedDataCache, Warning, TEXT("No read or write access to %s"), *CachePath);
 	}
 	else
@@ -999,19 +925,19 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 		// classify and report on these times
 		if (SpeedStats.LatencyMS < 1)
 		{
-			SpeedClass = ESpeedClass::Local;
+			SpeedClass = EBackendSpeedClass::Local;
 		}
 		else if (SpeedStats.LatencyMS <= ConsiderFastAtMS)
 		{
-			SpeedClass = ESpeedClass::Fast;
+			SpeedClass = EBackendSpeedClass::Fast;
 		}
 		else if (SpeedStats.LatencyMS >= ConsiderSlowAtMS)
 		{
-			SpeedClass = ESpeedClass::Slow;
+			SpeedClass = EBackendSpeedClass::Slow;
 		}
 		else
 		{
-			SpeedClass = ESpeedClass::Ok;
+			SpeedClass = EBackendSpeedClass::Ok;
 		}
 
 		UE_LOG(LogDerivedDataCache, Display,
@@ -1019,7 +945,7 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 			TEXT("Assigned SpeedClass '%s'"),
 			*CachePath, SpeedStats.LatencyMS, SpeedStats.ReadSpeedMBs, SpeedStats.WriteSpeedMBs, LexToString(SpeedClass));
 
-		if (SpeedClass <= FDerivedDataBackendInterface::ESpeedClass::Slow && !bReadOnly)
+		if (SpeedClass <= EBackendSpeedClass::Slow && !bReadOnly)
 		{
 			if (GIsBuildMachine)
 			{
@@ -1096,10 +1022,15 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 			}
 		}
 
-		if (IsUsable() && InAccessLogPath != nullptr && *InAccessLogPath != 0)
+		if (InAccessLogPath && *InAccessLogPath)
 		{
 			AccessLogWriter.Reset(new FAccessLogWriter(InAccessLogPath, CachePath));
 		}
+
+		ECacheStoreFlags Flags = ECacheStoreFlags::Query;
+		Flags |= bReadOnly ? ECacheStoreFlags::None : ECacheStoreFlags::Store;
+		Flags |= SpeedClass == EBackendSpeedClass::Local ? ECacheStoreFlags::Local : ECacheStoreFlags::Remote;
+		OutFlags = Flags;
 	}
 }
 
@@ -1128,10 +1059,10 @@ bool FFileSystemCacheStore::RunSpeedTest(
 	int TotalDataWritten = 0;
 
 	const FString AbsoluteCachePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*CachePath);
-	if (AbsoluteCachePath.Len() > MAX_CACHE_DIR_LEN)
+	if (AbsoluteCachePath.Len() >= GMaxCacheRootLen)
 	{
 		const FText ErrorMessage = FText::Format(NSLOCTEXT("DerivedDataCache", "PathTooLong", "Cache path {0} is longer than {1} characters... please adjust [DerivedDataBackendGraph] paths to be shorter (this leaves more room for cache keys)."),
-			FText::FromString(AbsoluteCachePath), FText::AsNumber(MAX_CACHE_DIR_LEN));
+			FText::FromString(AbsoluteCachePath), FText::AsNumber(GMaxCacheRootLen));
 		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
 		UE_LOG(LogDerivedDataCache, Fatal, TEXT("%s"), *ErrorMessage.ToString());
 	}
@@ -1315,274 +1246,14 @@ bool FFileSystemCacheStore::RunSpeedTest(
 	return bWriteTestPassed || bReadTestPassed;
 }
 
-bool FFileSystemCacheStore::CachedDataProbablyExists(const TCHAR* const CacheKey)
+void FFileSystemCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Exist);
-	TRACE_COUNTER_INCREMENT(FileSystemDDC_Exist);
-	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
-
-	if (!IsUsable())
-	{
-		UE_LOG(LogDerivedDataCache, VeryVerbose,
-			TEXT("%s: Skipped exists check of %s because this cache store is not available"), *CachePath, CacheKey);
-		return false;
-	}
-
-	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
-	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for exists check of %s"), *CachePath, CacheKey);
-		return false;
-	}
-
-	TStringBuilder<256> LegacyPath;
-	BuildCacheLegacyPath(CacheKey, LegacyPath);
-	const bool bExists = FileExists(LegacyPath);
-	if (bExists)
-	{
-		if (AccessLogWriter)
-		{
-			AccessLogWriter->Append(CacheKey, LegacyPath);
-		}
-
-		TRACE_COUNTER_INCREMENT(FileSystemDDC_ExistHit);
-		COOK_STAT(Timer.AddHit(0));
-	}
-	// If not using a shared cache, record a (probable) miss
-	else if (!GetDerivedDataCacheRef().GetUsingSharedDDC())
-	{
-		// store a cache miss
-		FScopeLock ScopeLock(&SynchronizationObject);
-		if (!DDCNotificationCacheTimes.Contains(CacheKey))
-		{
-			DDCNotificationCacheTimes.Add(CacheKey, FPlatformTime::Seconds());
-		}
-	}
-
-	UE_LOG(LogDerivedDataCache, Verbose,
-		TEXT("%s: CachedDataProbablyExists=%d for %s"), *CachePath, int32(bExists), CacheKey);
-
-	return bExists;
+	OutNode = {TEXT("File System"), *CachePath, SpeedClass == EBackendSpeedClass::Local};
+	OutNode.UsageStats.Add(TEXT(""), UsageStats);
+	OutNode.SpeedStats = SpeedStats;
 }
 
-bool FFileSystemCacheStore::GetCachedData(const TCHAR* const CacheKey, TArray<uint8>& Data)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Get);
-	TRACE_COUNTER_INCREMENT(FileSystemDDC_Get);
-	COOK_STAT(auto Timer = UsageStats.TimeGet());
-
-	const double StartTime = FPlatformTime::Seconds();
-
-	if (!IsUsable())
-	{
-		UE_LOG(LogDerivedDataCache, VeryVerbose,
-			TEXT("%s: Skipped get of %s because this cache store is not available"), *CachePath, CacheKey);
-		return false;
-	}
-
-	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
-	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s"), *CachePath, CacheKey);
-		return false;
-	}
-
-	const auto ReadData = [this, CacheKey, &Data](FArchive& Ar)
-	{
-		const int64 Size = Ar.TotalSize();
-		if (Size > MAX_int32)
-		{
-			Ar.SetError();
-			return;
-		}
-
-		Data.Reset(int32(Size));
-		Data.AddUninitialized(int32(Size));
-		Ar.Serialize(Data.GetData(), Size);
-
-		if (!FCorruptionWrapper::ReadTrailer(Data, *CachePath, CacheKey))
-		{
-			Ar.SetError();
-		}
-	};
-
-	TStringBuilder<256> LegacyPath;
-	BuildCacheLegacyPath(CacheKey, LegacyPath);
-	if (LoadFile(LegacyPath, CacheKey, ReadData))
-	{
-		if (AccessLogWriter)
-		{
-			AccessLogWriter->Append(CacheKey, LegacyPath);
-		}
-
-		const double ReadDuration = FPlatformTime::Seconds() - StartTime;
-		const double ReadSpeed = ReadDuration > 0.001 ? (Data.Num() / ReadDuration) / (1024.0 * 1024.0) : 0.0;
-		UE_LOG(LogDerivedDataCache, Verbose,
-			TEXT("%s: Cache hit on %s (%d bytes, %.02f secs, %.2fMB/s)"),
-			*CachePath, CacheKey, Data.Num(), ReadDuration, ReadSpeed);
-		TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
-		TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, int64(Data.Num()));
-		COOK_STAT(Timer.AddHit(Data.Num()));
-		return true;
-	}
-
-	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss on %s"), *CachePath, CacheKey);
-	Data.Empty();
-
-	// If not using a shared cache, record a miss
-	if (!GetDerivedDataCacheRef().GetUsingSharedDDC())
-	{
-		// store a cache miss
-		FScopeLock ScopeLock(&SynchronizationObject);
-		if (!DDCNotificationCacheTimes.Contains(CacheKey))
-		{
-			DDCNotificationCacheTimes.Add(CacheKey, FPlatformTime::Seconds());
-		}
-	}
-
-	return false;
-}
-
-bool FFileSystemCacheStore::WouldCache(const TCHAR* const CacheKey, const TConstArrayView<uint8> InData)
-{
-	return IsWritable() && !CachedDataProbablyExists(CacheKey);
-}
-
-FFileSystemCacheStore::EPutStatus FFileSystemCacheStore::PutCachedData(
-	const TCHAR* const CacheKey,
-	const TConstArrayView<uint8> Data,
-	const bool bPutEvenIfExists)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Put);
-	TRACE_COUNTER_INCREMENT(FileSystemDDC_Put);
-	COOK_STAT(auto Timer = UsageStats.TimePut());
-
-	checkf(Data.Num(), TEXT("%s: Failed to put %s due to empty data"), *CachePath, CacheKey);
-
-	if (!IsUsable())
-	{
-		UE_LOG(LogDerivedDataCache, VeryVerbose,
-			TEXT("%s: Skipped put of %s because this cache store is not available"), *CachePath, CacheKey);
-		return EPutStatus::NotCached;
-	}
-
-	if (!IsWritable())
-	{
-		UE_LOG(LogDerivedDataCache, VeryVerbose,
-			TEXT("%s: Skipped put of %s because this cache store is read-only"), *CachePath, CacheKey);
-		return EPutStatus::NotCached;
-	}
-
-	if (DebugOptions.ShouldSimulatePutMiss(CacheKey))
-	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s"), *CachePath, CacheKey);
-		return EPutStatus::NotCached;
-	}
-
-	TStringBuilder<256> LegacyPath;
-	BuildCacheLegacyPath(CacheKey, LegacyPath);
-
-	if (AccessLogWriter)
-	{
-		AccessLogWriter->Append(CacheKey, LegacyPath);
-	}
-
-	EPutStatus Status = EPutStatus::NotCached;
-
-	if (bPutEvenIfExists || !FileExists(LegacyPath))
-	{
-		const auto WriteData = [this, CacheKey, &Data](FArchive& Ar)
-		{
-			Ar.Serialize(const_cast<uint8*>(Data.GetData()), Data.Num());
-			FCorruptionWrapper::WriteTrailer(Ar, Data, *CachePath, CacheKey);
-		};
-
-		if (SaveFile(LegacyPath, CacheKey, WriteData))
-		{
-			UE_LOG(LogDerivedDataCache, Verbose,
-				TEXT("%s: Successful cache put of %s to %s"), *CachePath, CacheKey, *LegacyPath);
-			TRACE_COUNTER_INCREMENT(FileSystemDDC_PutHit);
-			TRACE_COUNTER_ADD(FileSystemDDC_BytesWritten, int64(Data.Num()));
-			COOK_STAT(Timer.AddHit(Data.Num()));
-			Status = EPutStatus::Cached;
-		}
-	}
-	else
-	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Skipping put of %s to existing file"), *CachePath, CacheKey);
-		Status = EPutStatus::Cached;
-	}
-
-	// If not using a shared cache, update estimated build time
-	if (!GetDerivedDataCacheRef().GetUsingSharedDDC())
-	{
-		FScopeLock ScopeLock(&SynchronizationObject);
-
-		if (DDCNotificationCacheTimes.Contains(CacheKey))
-		{
-			// There isn't any way to get exact build times in the DDC code as custom asset processing and async are factors.
-			// So, estimate the asset build time based on the delta between the cache miss and the put
-			TotalEstimatedBuildTime += (FPlatformTime::Seconds() - DDCNotificationCacheTimes[CacheKey]);
-			DDCNotificationCacheTimes.Remove(CacheKey);
-
-			// If more than 20 seconds has been spent building assets, send out a notification
-			if (TotalEstimatedBuildTime > 20.0f)
-			{
-				// Send out a DDC put notification if we have any subscribers
-				FDerivedDataCacheInterface::FOnDDCNotification& DDCNotificationEvent =
-					GetDerivedDataCacheRef().GetDDCNotificationEvent();
-
-				if (DDCNotificationEvent.IsBound())
-				{
-					TotalEstimatedBuildTime = 0.0f;
-
-					DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.PutCachedData"),
-					STAT_FSimpleDelegateGraphTask_DDCNotification, STATGROUP_TaskGraphTasks);
-
-					FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-						FSimpleDelegateGraphTask::FDelegate::CreateLambda([DDCNotificationEvent]() {
-						DDCNotificationEvent.Broadcast(FDerivedDataCacheInterface::SharedDDCPerformanceNotification);
-					}),
-						GET_STATID(STAT_FSimpleDelegateGraphTask_DDCNotification),
-						nullptr,
-						ENamedThreads::GameThread);
-				}
-			}
-		}
-	}
-
-	return Status;
-}
-
-void FFileSystemCacheStore::RemoveCachedData(const TCHAR* const CacheKey, const bool bTransient)
-{
-	check(IsUsable());
-	if (IsWritable() && (!bTransient || bPurgeTransient))
-	{
-		TStringBuilder<256> LegacyPath;
-		BuildCacheLegacyPath(CacheKey, LegacyPath);
-		if (bTransient)
-		{
-			UE_LOG(LogDerivedDataCache, Verbose,
-				TEXT("%s: Deleting cached data for %s from %s"), *CachePath, CacheKey, *LegacyPath);
-		}
-		IFileManager::Get().Delete(*LegacyPath, /*bRequireExists*/ false, /*bEvenReadOnly*/ false, /*bQuiet*/ true);
-	}
-}
-
-TSharedRef<FDerivedDataCacheStatsNode> FFileSystemCacheStore::GatherUsageStats() const
-{
-	TSharedRef<FDerivedDataCacheStatsNode> Usage =
-		MakeShared<FDerivedDataCacheStatsNode>(TEXT("File System"), *CachePath, SpeedClass == ESpeedClass::Local);
-	Usage->UsageStats.Add(TEXT(""), UsageStats);
-	Usage->SpeedStats = SpeedStats;
-	return Usage;
-}
-
-TBitArray<> FFileSystemCacheStore::TryToPrefetch(const TConstArrayView<FString> CacheKeys)
-{
-	return CachedDataProbablyExistsBatch(CacheKeys);
-}
-
-bool FFileSystemCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+bool FFileSystemCacheStore::LegacyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;
@@ -1797,7 +1468,7 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	const FCacheRecordPolicy& Policy,
 	uint64& OutWriteSize)
 {
-	if (!IsWritable())
+	if (bReadOnly)
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose,
 			TEXT("%s: Skipped put of %s from '%.*s' because this cache store is read-only"),
@@ -1809,7 +1480,7 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	const ECachePolicy RecordPolicy = Policy.GetRecordPolicy();
 
 	// Skip the request if storing to the cache is disabled.
-	const ECachePolicy StoreFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote;
+	const ECachePolicy StoreFlag = SpeedClass == EBackendSpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote;
 	if (!EnumHasAnyFlags(RecordPolicy, StoreFlag))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
@@ -1829,7 +1500,7 @@ bool FFileSystemCacheStore::PutCacheRecord(
 
 	// Check if there is an existing record package.
 	FCbPackage ExistingPackage;
-	const ECachePolicy QueryFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
+	const ECachePolicy QueryFlag = SpeedClass == EBackendSpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
 	bool bReplaceExisting = !EnumHasAnyFlags(RecordPolicy, QueryFlag);
 	bool bSavePackage = bReplaceExisting;
 	if (const bool bLoadPackage = !bReplaceExisting || !Algo::AllOf(Record.GetValues(), &FValue::HasData))
@@ -1963,16 +1634,8 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecordOnly(
 	const FCacheKey& Key,
 	const FCacheRecordPolicy& Policy)
 {
-	if (!IsUsable())
-	{
-		UE_LOG(LogDerivedDataCache, VeryVerbose,
-			TEXT("%s: Skipped get of %s from '%.*s' because this cache store is not available"),
-			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
-		return FOptionalCacheRecord();
-	}
-
 	// Skip the request if querying the cache is disabled.
-	const ECachePolicy QueryFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
+	const ECachePolicy QueryFlag = SpeedClass == EBackendSpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
 	if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), QueryFlag))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' due to cache policy"),
@@ -2088,7 +1751,7 @@ bool FFileSystemCacheStore::PutCacheValue(
 	const ECachePolicy Policy,
 	uint64& OutWriteSize)
 {
-	if (!IsWritable())
+	if (bReadOnly)
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose,
 			TEXT("%s: Skipped put of %s from '%.*s' because this cache store is read-only"),
@@ -2097,7 +1760,7 @@ bool FFileSystemCacheStore::PutCacheValue(
 	}
 
 	// Skip the request if storing to the cache is disabled.
-	const ECachePolicy StoreFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote;
+	const ECachePolicy StoreFlag = SpeedClass == EBackendSpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote;
 	if (!EnumHasAnyFlags(Policy, StoreFlag))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
@@ -2116,7 +1779,7 @@ bool FFileSystemCacheStore::PutCacheValue(
 	FCbPackage ExistingPackage;
 	TStringBuilder<256> Path;
 	BuildCachePackagePath(Key, Path);
-	const ECachePolicy QueryFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
+	const ECachePolicy QueryFlag = SpeedClass == EBackendSpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
 	bool bReplaceExisting = !EnumHasAnyFlags(Policy, QueryFlag);
 	bool bSavePackage = bReplaceExisting;
 	if (const bool bLoadPackage = !bReplaceExisting || !Value.HasData())
@@ -2233,16 +1896,8 @@ bool FFileSystemCacheStore::GetCacheValueOnly(
 	const ECachePolicy Policy,
 	FValue& OutValue)
 {
-	if (!IsUsable())
-	{
-		UE_LOG(LogDerivedDataCache, VeryVerbose,
-			TEXT("%s: Skipped get of %s from '%.*s' because this cache store is not available"),
-			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
-		return false;
-	}
-
 	// Skip the request if querying the cache is disabled.
-	const ECachePolicy QueryFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
+	const ECachePolicy QueryFlag = SpeedClass == EBackendSpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
 	if (!EnumHasAnyFlags(Policy, QueryFlag))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' due to cache policy"),
@@ -2597,7 +2252,6 @@ bool FFileSystemCacheStore::LoadFile(
 	const FStringView DebugName,
 	const TFunctionRef<void (FArchive& Ar)> ReadFunction) const
 {
-	check(IsUsable());
 	const double StartTime = FPlatformTime::Seconds();
 
 	TUniquePtr<FArchive> Ar = OpenFileRead(Path, DebugName);
@@ -2700,16 +2354,12 @@ ILegacyCacheStore* CreateFileSystemCacheStore(
 	const TCHAR* AccessLogPath,
 	ECacheStoreFlags& OutFlags)
 {
-	TUniquePtr<FFileSystemCacheStore> Store(new FFileSystemCacheStore(CachePath, Params, AccessLogPath));
-	if (Store->IsUsable())
+	TUniquePtr<FFileSystemCacheStore> Store = MakeUnique<FFileSystemCacheStore>(CachePath, Params, AccessLogPath, OutFlags);
+	if (OutFlags == ECacheStoreFlags::None)
 	{
-		ECacheStoreFlags Flags = ECacheStoreFlags::Query;
-		Flags |= Store->IsWritable() ? ECacheStoreFlags::Store : ECacheStoreFlags::None;
-		Flags |= Store->GetSpeedClass() == EBackendSpeedClass::Local ? ECacheStoreFlags::Local : ECacheStoreFlags::Remote;
-		OutFlags = Flags;
-		return Store.Release();
+		Store.Reset();
 	}
-	return nullptr;
+	return Store.Release();
 }
 
 } // UE::DerivedData

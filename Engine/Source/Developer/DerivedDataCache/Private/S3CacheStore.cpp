@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DerivedDataBackendInterface.h"
+#include "DerivedDataLegacyCacheStore.h"
 
 #if WITH_S3_DDC_BACKEND
 
@@ -12,9 +12,8 @@
 	#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
 
-#include "Algo/AllOf.h"
 #include "Async/ParallelFor.h"
-#include "DerivedDataBackendCorruptionWrapper.h"
+#include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheUsageStats.h"
@@ -23,14 +22,12 @@
 #include "Dom/JsonObject.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
-#include "HAL/Runnable.h"
 #include "HashingArchiveProxy.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Base64.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
-#include "Misc/OutputDeviceRedirector.h"
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
 #include "ProfilingDebugging/CountersTrace.h"
@@ -40,7 +37,6 @@
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
-#include "Serialization/MemoryReader.h"
 
 #include "curl/curl.h"
 
@@ -62,24 +58,13 @@
 namespace UE::DerivedData
 {
 
-TRACE_DECLARE_INT_COUNTER(S3DDC_Exist, TEXT("S3DDC Exist"));
-TRACE_DECLARE_INT_COUNTER(S3DDC_ExistHit, TEXT("S3DDC Exist Hit"));
 TRACE_DECLARE_INT_COUNTER(S3DDC_Get, TEXT("S3DDC Get"));
 TRACE_DECLARE_INT_COUNTER(S3DDC_GetHit, TEXT("S3DDC Get Hit"));
-TRACE_DECLARE_INT_COUNTER(S3DDC_BytesRecieved, TEXT("S3DDC Bytes Recieved"));
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void BuildPathForLegacyCache(const TCHAR* const CacheKey, FStringBuilderBase& Path);
 void BuildPathForCachePackage(const FCacheKey& CacheKey, FStringBuilderBase& Path);
 void BuildPathForCacheContent(const FIoHash& RawHash, FStringBuilderBase& Path);
-
-static FString BuildPathForLegacyCache(const TCHAR* CacheKey)
-{
-	TStringBuilder<256> Path;
-	BuildPathForLegacyCache(CacheKey, Path);
-	return FString(Path);
-}
 
 class FStringAnsi
 {
@@ -192,18 +177,18 @@ bool IsSuccessfulHttpResponse(long ResponseCode)
 
 struct IRequestCallback
 {
-	virtual ~IRequestCallback() { }
+	virtual ~IRequestCallback() = default;
 	virtual bool Update(int NumBytes, int TotalBytes) = 0;
 };
 
 /**
  * Backend for a read-only AWS S3 based caching service.
  **/
-class FS3CacheStore final : public FDerivedDataBackendInterface
+class FS3CacheStore final : public ILegacyCacheStore
 {
 public:
 	/**
-	 * Creates the backend, checks health status and attempts to acquire an access token.
+	 * Creates the cache store, checks health status and attempts to acquire an access token.
 	 *
 	 * @param  InRootManifestPath   Local path to the JSON manifest in the workspace containing a list of files to download
 	 * @param  InBaseUrl            Base URL for the bucket, with trailing slash (eg. https://foo.s3.us-east-1.amazonaws.com/)
@@ -212,34 +197,16 @@ public:
 	 * @param  InCachePath          Path to cache the DDC files
 	 */
 	FS3CacheStore(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath);
-	~FS3CacheStore() final;
+
+	inline const FString& GetName() const { return BaseUrl; }
 
 	/**
-	 * Checks is backend is usable (reachable and accessible).
+	 * Checks if cache store is usable (reachable and accessible).
 	 * @return true if usable
 	 */
-	bool IsUsable() const;
+	inline bool IsUsable() const { return bEnabled; }
 
-	/* S3 Cache cannot be written to*/
-	bool IsWritable() const final { return false; }
-
-	/* S3 Cache does not try to write back to lower caches (e.g. Shared DDC) */
-	bool BackfillLowerCacheLevels() const final { return false; }
-
-	bool CachedDataProbablyExists(const TCHAR* CacheKey) final;
-	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) final;
-	EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) final;
-	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) final;
-	TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const final;
-
-	FString GetName() const final;
-	ESpeedClass GetSpeedClass() const final;
-	TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) final;
-	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) final;
-
-	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final;
-
-	EBackendLegacyMode GetLegacyMode() const final { return EBackendLegacyMode::ValueWithLegacyFallback; }
+	// ICacheStore
 
 	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
@@ -261,6 +228,11 @@ public:
 		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) final;
+
+	// ILegacyCacheStore
+
+	void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final;
+	bool LegacyDebugOptions(FBackendDebugOptions& Options) final;
 
 private:
 	struct FBundle;
@@ -324,7 +296,6 @@ private:
 	bool DownloadManifest(const FRootManifest& RootManifest, FFeedbackContext* Context);
 	void RemoveUnusedBundles();
 	void ReadBundle(FBundle& Bundle);
-	bool FindBundleEntry(const TCHAR* CacheKey, const FBundle*& OutBundle, const FBundleEntry*& OutBundleEntry) const;
 
 	FBackendDebugOptions DebugOptions;
 };
@@ -1044,112 +1015,10 @@ FS3CacheStore::FS3CacheStore(const TCHAR* InRootManifestPath, const TCHAR* InBas
 	}
 }
 
-FS3CacheStore::~FS3CacheStore()
+void FS3CacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
-}
-
-bool FS3CacheStore::IsUsable() const
-{
-	return bEnabled;
-}
-
-bool FS3CacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(S3DDC_Exist);
-	TRACE_COUNTER_ADD(S3DDC_Exist, int64(1));
-	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
-
-	const FBundle* Bundle;
-	const FBundleEntry* BundleEntry;
-
-	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
-	{
-		return false;
-	}
-
-	if (!FindBundleEntry(CacheKey, Bundle, BundleEntry))
-	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("S3DerivedDataBackend: Cache miss on %s (probably)"), CacheKey);
-		return false;
-	}
-
-	TRACE_COUNTER_ADD(S3DDC_ExistHit, int64(1));
-	COOK_STAT(Timer.AddHit(BundleEntry->Length));
-	return true;
-}
-
-bool FS3CacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(S3DDC_Get);
-	TRACE_COUNTER_ADD(S3DDC_Get, int64(1));
-	COOK_STAT(auto Timer = UsageStats.TimeGet());
-
-	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
-	{
-		return false;
-	}
-
-	const FBundle* Bundle;
-	const FBundleEntry* BundleEntry;
-	if (FindBundleEntry(CacheKey, Bundle, BundleEntry))
-	{
-		TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(*Bundle->LocalFile));
-		if (Reader.IsValid() && !Reader->IsError())
-		{
-			TRACE_COUNTER_ADD(S3DDC_GetHit, int64(1));
-			COOK_STAT(Timer.AddHit(BundleEntry->Length));
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("S3DerivedDataBackend: Cache hit on %s"), CacheKey);
-			OutData.SetNum(BundleEntry->Length);
-			Reader->Seek(BundleEntry->Offset);
-			Reader->Serialize(OutData.GetData(), BundleEntry->Length);
-			if (FCorruptionWrapper::ReadTrailer(OutData, *BaseUrl, CacheKey))
-			{
-				return true;
-			}
-		}
-	}
-
-	UE_LOG(LogDerivedDataCache, Verbose, TEXT("S3DerivedDataBackend: Cache miss on %s"), CacheKey);
-	return false;
-}
-
-FDerivedDataBackendInterface::EPutStatus FS3CacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
-{
-	// Not implemented
-	return EPutStatus::NotCached;
-}
-
-void FS3CacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
-{
-	// Not implemented
-}
-
-TSharedRef<FDerivedDataCacheStatsNode> FS3CacheStore::GatherUsageStats() const
-{
-	TSharedRef<FDerivedDataCacheStatsNode> StatsNode =
-		MakeShared<FDerivedDataCacheStatsNode>(TEXT("S3"), BaseUrl, /*bIsLocal*/ false);
-	StatsNode->UsageStats.Add(TEXT(""), UsageStats);
-	return StatsNode;
-}
-
-FString FS3CacheStore::GetName() const
-{
-	return BaseUrl;
-}
-
-FDerivedDataBackendInterface::ESpeedClass FS3CacheStore::GetSpeedClass() const
-{
-	return ESpeedClass::Local;
-}
-
-TBitArray<> FS3CacheStore::TryToPrefetch(TConstArrayView<FString> CacheKeys)
-{
-	return CachedDataProbablyExistsBatch(CacheKeys);
-}
-
-bool FS3CacheStore::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
-{
-	return false;
+	OutNode = {TEXT("S3"), BaseUrl, /*bIsLocal*/ false};
+	OutNode.UsageStats.Add(TEXT(""), UsageStats);
 }
 
 bool FS3CacheStore::DownloadManifest(const FRootManifest& RootManifest, FFeedbackContext* Context)
@@ -1304,28 +1173,7 @@ void FS3CacheStore::ReadBundle(FBundle& Bundle)
 	}
 }
 
-bool FS3CacheStore::FindBundleEntry(const TCHAR* CacheKey, const FBundle*& OutBundle, const FBundleEntry*& OutBundleEntry) const
-{
-	FSHAHash Hash;
-
-	auto AnsiString = StringCast<ANSICHAR>(*BuildPathForLegacyCache(CacheKey).ToUpper());
-	FSHA1::HashBuffer(AnsiString.Get(), AnsiString.Length(), Hash.Hash);
-
-	for (const FBundle& Bundle : Bundles)
-	{
-		const FBundleEntry* Entry = Bundle.Entries.Find(Hash);
-		if (Entry != nullptr)
-		{
-			OutBundle = &Bundle;
-			OutBundleEntry = Entry;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool FS3CacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+bool FS3CacheStore::LegacyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;

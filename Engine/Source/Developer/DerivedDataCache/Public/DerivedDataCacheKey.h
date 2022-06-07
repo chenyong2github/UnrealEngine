@@ -6,6 +6,7 @@
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "IO/IoHash.h"
+#include "Misc/AsciiSet.h"
 #include "Templates/TypeHash.h"
 
 #define UE_API DERIVEDDATACACHE_API
@@ -20,11 +21,22 @@ namespace UE::DerivedData
 /**
  * An alphanumeric identifier that groups related cache records.
  *
- * A cache bucket name must be alphanumeric, non-empty, and contain fewer than 256 code units.
+ * A cache bucket name must be alphanumeric, non-empty, and contain fewer than 64 code units.
  */
 class FCacheBucket
 {
 public:
+	/** Maximum number of code units in a valid cache bucket name. */
+	static constexpr int32 MaxNameLen = 63;
+
+	/** Returns true if the name is a valid cache bucket name. */
+	template <typename CharType>
+	static inline bool IsValidName(TStringView<CharType> Name)
+	{
+		constexpr FAsciiSet Valid("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+		return !Name.IsEmpty() && Name.Len() <= MaxNameLen && FAsciiSet::HasOnly(Name, Valid);
+	}
+
 	/** Construct a null cache bucket. */
 	FCacheBucket() = default;
 
