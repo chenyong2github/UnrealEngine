@@ -188,7 +188,7 @@ public:
 	*   Offsets is the size of the dependent group;
 	*   Final is post resize of dependent group used for bounds checking on remapped indices.
 	*/
-	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList) { }
+	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList, const TSet<int32> & DeletionSet) { }
 
 #if 0 //not needed until per instance serialization
 	/** Swap elements*/
@@ -628,10 +628,10 @@ public:
 	virtual ~TManagedArray()
 	{}
 
-	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList) override
+	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList, const TSet<int32>& DeletionSet) override
 	{
 		UE_LOG(UManagedArrayLogging, Log, TEXT("TManagedArray<int32>[%p]::Reindex()"),this);
-	
+
 		int32 ArraySize = Num(), MaskSize = Offsets.Num();
 		for (int32 Index = 0; Index < ArraySize; Index++)
 		{
@@ -639,14 +639,14 @@ public:
 			if (0 <= RemapVal)
 			{
 				ensure(RemapVal < MaskSize);
-				this->operator[](Index) -= Offsets[RemapVal];
-
-				// #todo Reindexing is currently incorrect in a few cases where it leaves dangling indices that
-				// should be set to INDEX_NONE.
-				// This ensure is currently suppressed to handle the dangling index problem specifically 
-				// in the ConvexGroup case (GeometryCollectionConvexUtility::RemoveConvexHulls) but should be reinstated 
-				// once we have a better solution in place for Reindexing.
-				//ensure(-1 <= this->operator[](Index) && this->operator[](Index) < FinalSize);
+				if (DeletionSet.Contains(this->operator[](Index)))
+				{
+					this->operator[](Index) = INDEX_NONE;
+				}
+				else
+				{
+					this->operator[](Index) -= Offsets[RemapVal];
+				}
 				ensure(-1 <= this->operator[](Index));
 			}
 		}
@@ -690,12 +690,11 @@ public:
 	virtual ~TManagedArray()
 	{}
 	
-	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList) override
+	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList, const TSet<int32>& DeletionSet) override
 	{
 		UE_LOG(UManagedArrayLogging, Log, TEXT("TManagedArray<TArray<int32>>[%p]::Reindex()"), this);
 		
 		int32 ArraySize = Num(), MaskSize = Offsets.Num();
-		TSet<int32> SortedDeletionSet(SortedDeletionList);
 
 		for (int32 Index = 0; Index < ArraySize; Index++)
 		{
@@ -760,7 +759,7 @@ public:
 	virtual ~TManagedArray()
 	{}
 
-	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList) override
+	virtual void Reindex(const TArray<int32> & Offsets, const int32 & FinalSize, const TArray<int32> & SortedDeletionList, const TSet<int32>& DeletionSet) override
 	{
 		UE_LOG(UManagedArrayLogging, Log, TEXT("TManagedArray<FIntVector>[%p]::Reindex()"), this);
 		int32 ArraySize = Num(), MaskSize = Offsets.Num();
@@ -772,7 +771,14 @@ public:
 				if (0 <= RemapVal[i])
 				{
 					ensure(RemapVal[i] < MaskSize);
-					this->operator[](Index)[i] -= Offsets[RemapVal[i]];
+					if (DeletionSet.Contains(this->operator[](Index)[i]))
+					{
+						this->operator[](Index)[i] = INDEX_NONE;
+					}
+					else
+					{
+						this->operator[](Index)[i] -= Offsets[RemapVal[i]];
+					}
 					ensure(-1 <= this->operator[](Index)[i] && this->operator[](Index)[i] <= FinalSize);
 				}
 			}
@@ -819,7 +825,7 @@ public:
 	virtual ~TManagedArray()
 	{}
 
-	virtual void Reindex(const TArray<int32>& Offsets, const int32& FinalSize, const TArray<int32>& SortedDeletionList) override
+	virtual void Reindex(const TArray<int32>& Offsets, const int32& FinalSize, const TArray<int32>& SortedDeletionList, const TSet<int32>& DeletionSet) override
 	{
 		UE_LOG(UManagedArrayLogging, Log, TEXT("TManagedArray<FIntVector>[%p]::Reindex()"), this);
 		int32 ArraySize = Num(), MaskSize = Offsets.Num();
@@ -831,7 +837,14 @@ public:
 				if (0 <= RemapVal[i])
 				{
 					ensure(RemapVal[i] < MaskSize);
-					this->operator[](Index)[i] -= Offsets[RemapVal[i]];
+					if (DeletionSet.Contains(this->operator[](Index)[i]))
+					{
+						this->operator[](Index)[i] = INDEX_NONE;
+					}
+					else
+					{
+						this->operator[](Index)[i] -= Offsets[RemapVal[i]];
+					}
 					ensure(-1 <= this->operator[](Index)[i] && this->operator[](Index)[i] <= FinalSize);
 				}
 			}
@@ -878,7 +891,7 @@ public:
 	virtual ~TManagedArray()
 	{}
 
-	virtual void Reindex(const TArray<int32>& Offsets, const int32& FinalSize, const TArray<int32>& SortedDeletionList) override
+	virtual void Reindex(const TArray<int32>& Offsets, const int32& FinalSize, const TArray<int32>& SortedDeletionList, const TSet<int32>& DeletionSet) override
 	{
 		UE_LOG(UManagedArrayLogging, Log, TEXT("TManagedArray<FIntVector>[%p]::Reindex()"), this);
 		int32 ArraySize = Num(), MaskSize = Offsets.Num();
@@ -893,7 +906,14 @@ public:
 					if (0 <= RemapVal[i])
 					{
 						ensure(RemapVal[i] < MaskSize);
-						this->operator[](Index)[ArrayIndex][i] -= Offsets[RemapVal[i]];
+						if (DeletionSet.Contains(this->operator[](Index)[ArrayIndex][i]))
+						{
+							this->operator[](Index)[ArrayIndex][i] = INDEX_NONE;
+						}
+						else
+						{
+							this->operator[](Index)[ArrayIndex][i] -= Offsets[RemapVal[i]];
+						}
 						ensure(-1 <= this->operator[](Index)[ArrayIndex][i] && this->operator[](Index)[ArrayIndex][i] <= FinalSize);
 					}
 				}
@@ -945,7 +965,7 @@ public:
 	virtual ~TManagedArray()
 	{}
 
-	virtual void Reindex(const TArray<int32>& Offsets, const int32& FinalSize, const TArray<int32>& SortedDeletionList) override
+	virtual void Reindex(const TArray<int32>& Offsets, const int32& FinalSize, const TArray<int32>& SortedDeletionList, const TSet<int32>& DeletionSet) override
 	{
 		UE_LOG(UManagedArrayLogging, Log, TEXT("TManagedArray<FIntVector>[%p]::Reindex()"), this);
 		int32 ArraySize = Num(), MaskSize = Offsets.Num();
@@ -957,7 +977,14 @@ public:
 				if (0 <= RemapVal[i])
 				{
 					ensure(RemapVal[i] < MaskSize);
-					this->operator[](Index)[i] -= Offsets[RemapVal[i]];
+					if (DeletionSet.Contains(this->operator[](Index)[i]))
+					{
+						this->operator[](Index)[i] = INDEX_NONE;
+					}
+					else
+					{
+						this->operator[](Index)[i] -= Offsets[RemapVal[i]];
+					}
 					ensure(-1 <= this->operator[](Index)[i] && this->operator[](Index)[i] <= FinalSize);
 				}
 			}
@@ -975,6 +1002,72 @@ public:
 				if (RemapVal[i] >= 0)
 				{
 					RemapVal[i] = InverseNewOrder[RemapVal[i]];
+				}
+			}
+		}
+	}
+};
+
+template<>
+class TManagedArray<TArray<int32>> : public TManagedArrayBase<TArray<int32>>
+{
+public:
+	using TManagedArrayBase<TArray<int32>>::Num;
+
+	FORCEINLINE TManagedArray()
+	{}
+
+	FORCEINLINE TManagedArray(const TArray<TArray<int32>>& Other)
+		: TManagedArrayBase<TArray<int32>>(Other)
+	{}
+
+	FORCEINLINE TManagedArray(const TManagedArray<TArray<int32>>& Other) = delete;
+	FORCEINLINE TManagedArray(TManagedArray<TArray<int32>>&& Other) = default;
+	FORCEINLINE TManagedArray(TArray<TArray<int32>>&& Other)
+		: TManagedArrayBase<TArray<int32>>(MoveTemp(Other))
+	{}
+	FORCEINLINE TManagedArray& operator=(TManagedArray<TArray<int32>>&& Other) = default;
+
+	virtual ~TManagedArray()
+	{}
+
+	virtual void Reindex(const TArray<int32>& Offsets, const int32& FinalSize, const TArray<int32>& SortedDeletionList, const TSet<int32>& DeletionSet) override
+	{
+		UE_LOG(UManagedArrayLogging, Log, TEXT("TManagedArray<FIntVector>[%p]::Reindex()"), this);
+		int32 ArraySize = Num(), MaskSize = Offsets.Num();
+		for (int32 Index = 0; Index < ArraySize; Index++)
+		{
+			const TArray<int32>& RemapValArray = this->operator[](Index);
+			for (int32 ArrayIndex = 0; ArrayIndex < RemapValArray.Num(); ArrayIndex++)
+			{
+				if (0 <= RemapValArray[ArrayIndex])
+				{
+					ensure(RemapValArray[ArrayIndex] < MaskSize);
+					if (DeletionSet.Contains(this->operator[](Index)[ArrayIndex]))
+					{
+						this->operator[](Index)[ArrayIndex] = INDEX_NONE;
+					}
+					else
+					{
+						this->operator[](Index)[ArrayIndex] -= Offsets[RemapValArray[ArrayIndex]];
+					}
+					ensure(-1 <= this->operator[](Index)[ArrayIndex] && this->operator[](Index)[ArrayIndex] <= FinalSize);
+				}
+			}
+		}
+	}
+
+	virtual void ReindexFromLookup(const TArray<int32>& InverseNewOrder) override
+	{
+		int32 ArraySize = Num();
+		for (int32 Index = 0; Index < ArraySize; Index++)
+		{
+			TArray<int32>& RemapValArray = this->operator[](Index);
+			for (int32 ArrayIndex = 0; ArrayIndex < RemapValArray.Num(); ArrayIndex++)
+			{
+				if (RemapValArray[ArrayIndex] >= 0)
+				{
+					RemapValArray[ArrayIndex] = InverseNewOrder[RemapValArray[ArrayIndex]];
 				}
 			}
 		}

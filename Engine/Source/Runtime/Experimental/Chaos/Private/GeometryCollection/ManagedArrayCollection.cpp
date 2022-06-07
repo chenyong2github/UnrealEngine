@@ -37,6 +37,7 @@ void FManagedArrayCollection::RemoveElements(const FName& Group, const TArray<in
 		TArray<int32> Offsets;
 		GeometryCollectionAlgo::BuildIncrementMask(SortedDeletionList, GroupSize, Offsets);
 
+		TSet<int32> DeletionSet(SortedDeletionList);
 		for (const TTuple<FKeyType, FValueType>& Entry : Map)
 		{
 			//
@@ -44,7 +45,7 @@ void FManagedArrayCollection::RemoveElements(const FName& Group, const TArray<in
 			//
 			if (Entry.Value.GroupIndexDependency == Group && Params.bReindexDependentAttibutes)
 			{
-				Entry.Value.Value->Reindex(Offsets, GroupSize - DelListNum, SortedDeletionList);
+				Entry.Value.Value->Reindex(Offsets, GroupSize - DelListNum, SortedDeletionList, DeletionSet);
 			}
 
 			//

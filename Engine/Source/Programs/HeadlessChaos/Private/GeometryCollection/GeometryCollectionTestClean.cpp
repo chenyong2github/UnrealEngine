@@ -143,6 +143,7 @@ namespace GeometryCollectionTest
 
 		GeometryCollectionAlgo::TriangulateBoundaries(Coll, BoundaryVertexIndices, true, 0);
 		BoundaryVertexIndices.Empty();
+
 		GeometryCollectionAlgo::FindOpenBoundaries(Coll, 1e-2, BoundaryVertexIndices);
 		EXPECT_EQ(CountHoles(BoundaryVertexIndices), 0);
 		EXPECT_GT(CountTinyFaces(Coll), TinyFacesBefore);

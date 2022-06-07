@@ -311,11 +311,13 @@ protected:
 	/**
 	* Update Face Attributes based on changes in the group.
 	*/
+	bool BuildFaceToGeometryMapping(bool InSaved=false);
 	void UpdateFaceGroupElements();
 
 	/**
-	* Update Vertex Attributes based on changes in the group.
+	* Build and Update Vertex Attributes based on changes in the group.
 	*/
+	bool BuildVertexToGeometryMapping(bool InSaved = false);
 	void UpdateVerticesGroupElements();
 
 	/** 

@@ -1256,4 +1256,185 @@ namespace GeometryCollectionTest
 
 		delete Collection;
 	}
+
+
+	void IntListReindexOnDeletionTest()
+	{
+		//--gtest_filter=GeometryCollection_CreationTest.IntListReindexOnDeletionTest
+
+		//
+		// Build two arrays in GroupB:
+		//   - One array is an index into GroupA. (dependent on  A)
+		//   - The other array stores a local copy of the value in A. 
+		// As elements are deleted from GroupA, the indices will be 
+		// shifted within GroupB, and missing references will be 
+		// updated to INDEX_NONE. 
+		//
+		// At the end of the test all indices in GroupB will be INDEX_NONE.
+
+		FManagedArrayCollection* Collection = new FManagedArrayCollection();
+
+		FManagedArrayCollection::FConstructionParameters DependencyOnA("GroupA");
+		Collection->AddGroup("GroupA");
+		Collection->AddGroup("GroupB");
+
+		Collection->AddElements(10, "GroupA");
+		Collection->AddElements(10, "GroupB");
+
+		TManagedArray<float>& AttrInA = Collection->AddAttribute<float>("Floats", "GroupA");
+
+		// int32
+		TManagedArray<int32>& IntInB = Collection->AddAttribute<int32>("Int", "GroupB", DependencyOnA);
+		TManagedArray<float>& IntInBVal = Collection->AddAttribute<float>("Intf", "GroupB");
+		//FIntVector
+		TManagedArray<FIntVector>& VecInB = Collection->AddAttribute<FIntVector>("IntVec", "GroupB", DependencyOnA);
+		TManagedArray< TArray<float> >& VecInBVal = Collection->AddAttribute< TArray<float> >("IntVecf", "GroupB");
+		//FIntVector2
+		TManagedArray<FIntVector2>& Vec2InB = Collection->AddAttribute<FIntVector2>("IntVec2", "GroupB", DependencyOnA);
+		TManagedArray< TArray<float> >& Vec2InBVal = Collection->AddAttribute< TArray<float> >("IntVec2f", "GroupB");
+		// TArray<FIntVector2>
+		TManagedArray<TArray<FIntVector2>>& VecArray2InB = Collection->AddAttribute<TArray<FIntVector2>>("IntVecArray2", "GroupB", DependencyOnA);
+		TManagedArray< TArray<FVector2f> >& VecArray2InBVal = Collection->AddAttribute< TArray<FVector2f> >("IntVecArray2f", "GroupB");
+		// FIntVector4
+		TManagedArray<FIntVector4>& Vec4InB = Collection->AddAttribute<FIntVector4>("Int4", "GroupB", DependencyOnA);
+		TManagedArray< TArray<float> >& Vec4InBVal = Collection->AddAttribute< TArray<float> >("Int4f", "GroupB");
+		// TArray<int32>
+		TManagedArray<TArray<int32>>& ArrayNInB = Collection->AddAttribute<TArray<int32>>("IntArray", "GroupB", DependencyOnA);
+		TManagedArray<TArray<float>>& ArrayNInBVal = Collection->AddAttribute<TArray<float>>("IntArrayf", "GroupB");
+
+
+		for (int i = 0; i < 10; i++)
+		{
+			AttrInA[i] = i * 0.1;
+		}
+
+		for (int i = 0; i < 10; i++)
+		{
+			// int32
+			IntInB[i] = i;
+			IntInBVal[i] = AttrInA[IntInB[i]];
+
+			//FIntVector
+			VecInB[i] = FIntVector(FMath::Clamp(i - 1, 0, 9), FMath::Clamp(i, 0, 9), FMath::Clamp(i + 1, 0, 9));
+			VecInBVal[i].SetNum(3);
+			VecInBVal[i][0] = AttrInA[VecInB[i][0]];
+			VecInBVal[i][1] = AttrInA[VecInB[i][1]];
+			VecInBVal[i][2] = AttrInA[VecInB[i][2]];
+
+			//FIntVector4
+			Vec2InB[i] = FIntVector2(FMath::Clamp(i - 1, 0, 9), FMath::Clamp(i, 0, 9));
+			Vec2InBVal[i].SetNum(2);
+			Vec2InBVal[i][0] = AttrInA[Vec2InB[i][0]];
+			Vec2InBVal[i][1] = AttrInA[Vec2InB[i][1]];
+
+			// TArray<FIntVector2>
+			VecArray2InB[i].SetNum(i);
+			VecArray2InBVal[i].SetNum(i);
+			for (int j = 0; j < i; j++)
+			{
+				VecArray2InB[i][j] = FIntVector2(FMath::Clamp(j - 1, 0, 9), FMath::Clamp(j, 0, 9));
+				VecArray2InBVal[i][j] = FVector2f(AttrInA[VecArray2InB[i][j][0]], AttrInA[VecArray2InB[i][j][1]]);
+			}
+
+			//FIntVector4
+			Vec4InB[i] = FIntVector4(FMath::Clamp(i - 1, 0, 9), FMath::Clamp(i, 0, 9), FMath::Clamp(i + 1, 0, 9), FMath::Clamp(i + 2, 0, 9));
+			Vec4InBVal[i].SetNum(4);
+			Vec4InBVal[i][0] = AttrInA[Vec4InB[i][0]];
+			Vec4InBVal[i][1] = AttrInA[Vec4InB[i][1]];
+			Vec4InBVal[i][2] = AttrInA[Vec4InB[i][2]];
+			Vec4InBVal[i][3] = AttrInA[Vec4InB[i][3]];
+
+			//TArray<int32>
+			ArrayNInB[i].SetNum(i);
+			ArrayNInBVal[i].SetNum(i);
+			for (int j = 0; j < i; j++)
+			{
+				ArrayNInB[i][j] = FMath::Clamp(j, 0, 9);
+				ArrayNInBVal[i][j] = AttrInA[ArrayNInB[i][j]];
+			}
+		}
+
+		auto RemoveIndicesOn = [&](const TArray<int32>& Elements)
+		{
+			bool HasValidValues = false;
+			Collection->RemoveElements("GroupA", Elements);
+			for (int i = 0; i < 10; i++)
+			{
+				// int32
+				if (IntInB[i] != INDEX_NONE)
+				{
+					HasValidValues = true;
+					EXPECT_NEAR(AttrInA[IntInB[i]], IntInBVal[i], FLT_EPSILON);
+				}
+
+				//FIntVector
+				for (int j = 0; j < 3; j++)
+				{
+					if (VecInB[i][j] != INDEX_NONE)
+					{
+						HasValidValues = true;
+						EXPECT_NEAR(AttrInA[VecInB[i][j]], VecInBVal[i][j], FLT_EPSILON);
+					}
+				}
+
+				//FIntVector2
+				for (int j = 0; j < 2; j++)
+				{
+					if (Vec2InB[i][j] != INDEX_NONE)
+					{
+						HasValidValues = true;
+						EXPECT_NEAR(AttrInA[Vec2InB[i][j]], Vec2InBVal[i][j], FLT_EPSILON);
+					}
+				}
+
+				// TArray<FIntVector2>
+				for (int j = 0; j < i; j++)
+				{
+					if (VecArray2InB[i][j][0] != INDEX_NONE)
+					{
+						HasValidValues = true;
+						EXPECT_NEAR(AttrInA[VecArray2InB[i][j][0]], VecArray2InBVal[i][j][0], FLT_EPSILON);
+					}
+					if (VecArray2InB[i][j][1] != INDEX_NONE)
+					{
+						HasValidValues = true;
+						ensure(FMath::IsNearlyEqual(AttrInA[VecArray2InB[i][j][1]], VecArray2InBVal[i][j][1], FLT_EPSILON));
+						EXPECT_NEAR(AttrInA[VecArray2InB[i][j][1]], VecArray2InBVal[i][j][1], FLT_EPSILON);
+					}
+				}
+
+
+				//FIntVector4
+				for (int j = 0; j < 4; j++)
+				{
+					if (Vec4InB[i][j] != INDEX_NONE)
+					{
+						HasValidValues = true;
+						EXPECT_NEAR(AttrInA[Vec4InB[i][j]], Vec4InBVal[i][j], FLT_EPSILON);
+					}
+				}
+
+				//TArray<int32>
+				for (int j = 0; j < i; j++)
+				{
+					if (ArrayNInB[i][j] != INDEX_NONE)
+					{
+						HasValidValues = true;
+						EXPECT_NEAR(AttrInA[ArrayNInB[i][j]], ArrayNInBVal[i][j], FLT_EPSILON);
+					}
+				}
+			}
+			return HasValidValues;
+		};
+
+		EXPECT_TRUE(RemoveIndicesOn({ 3 }));
+		EXPECT_TRUE(RemoveIndicesOn({ 3,4,5 }));
+		EXPECT_TRUE(RemoveIndicesOn({ 5 }));
+		EXPECT_TRUE(RemoveIndicesOn({ 0 }));
+		EXPECT_TRUE(RemoveIndicesOn({ 1,3 }));
+		EXPECT_TRUE(RemoveIndicesOn({ 1 }));
+		EXPECT_FALSE(RemoveIndicesOn({ 0 }));
+
+		delete Collection;
+	}
 }

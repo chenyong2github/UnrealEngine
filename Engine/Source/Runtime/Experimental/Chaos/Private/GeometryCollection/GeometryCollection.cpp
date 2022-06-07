@@ -543,11 +543,13 @@ void FGeometryCollection::RemoveElements(const FName & Group, const TArray<int32
 		}
 		else if( Group == FGeometryCollection::FacesGroup)
 		{
+			BuildFaceToGeometryMapping();
 			Super::RemoveElements(Group, SortedDeletionList);
 			UpdateFaceGroupElements();
 		}
 		else if (Group == FGeometryCollection::VerticesGroup)
 		{
+			BuildVertexToGeometryMapping();
 			Super::RemoveElements(Group, SortedDeletionList);
 			UpdateVerticesGroupElements();
 		}
@@ -778,56 +780,105 @@ void FGeometryCollection::ReorderGeometryElements(const TArray<int32>& NewOrder)
 	Super::ReorderElements(GeometryGroup, NewOrder);
 }
 
+bool FGeometryCollection::BuildVertexToGeometryMapping(bool InSaved )
+{
+	bool AttributeAdded = false;
+
+	if (!FindAttribute<int32>("VertexToGeometryIndex", VerticesGroup))
+	{
+		FConstructionParameters NotSaved = { FName(""), InSaved };
+		AddAttribute<int32>("VertexToGeometryIndex", VerticesGroup, NotSaved);
+		AttributeAdded = true;
+	}
+
+	TManagedArray<int32>* VertexGeometryMap = FindAttribute<int32>("VertexToGeometryIndex", VerticesGroup);
+	if (ensure(VertexGeometryMap))
+	{
+		for (int32 GeometryIndex = NumElements(GeometryGroup) - 1; GeometryIndex >= 0; GeometryIndex--)
+		{
+			int VertexEnd = VertexStart[GeometryIndex] + VertexCount[GeometryIndex];
+			for (int32 VertexIndex = VertexStart[GeometryIndex]; VertexIndex < VertexEnd; VertexIndex++)
+			{
+				(*VertexGeometryMap)[VertexIndex] = GeometryIndex;
+			}
+		}
+	}
+	return AttributeAdded;
+}
+
 void FGeometryCollection::UpdateVerticesGroupElements()
 {
 	//
 	//  Reset the VertexCount array
 	//
-	int32 NumberOfVertices = Vertex.Num();
-	for (int32 GeometryIndex = 0, ng = TransformIndex.Num(); GeometryIndex < ng; ++GeometryIndex)
-	{
-		int32 VertexIndex = VertexStart[GeometryIndex];
-		if (VertexIndex != INDEX_NONE)
+	TManagedArray<int32>* VertexGeometryMap = FindAttribute<int32>("VertexToGeometryIndex", VerticesGroup);
+	if(ensure(VertexGeometryMap))
+	{ 
+		for (int32 GeometryIndex = NumElements(FGeometryCollection::GeometryGroup) - 1; GeometryIndex >= 0; GeometryIndex--)
 		{
-			int32 StartBoneMapTransformValue = BoneMap[VertexIndex];
-			int32 CurrentBoneMapTransformValue = StartBoneMapTransformValue;
-			while ((CurrentBoneMapTransformValue == StartBoneMapTransformValue) && (++VertexIndex < NumberOfVertices))
-			{
-				CurrentBoneMapTransformValue = BoneMap[VertexIndex];
-			}
-			VertexCount[GeometryIndex] = VertexIndex - VertexStart[GeometryIndex];
-		}
-		else
-		{
+			VertexStart[GeometryIndex] = INT_MAX;
 			VertexCount[GeometryIndex] = 0;
 		}
+
+		for (int32 VertexIndex = NumElements(VerticesGroup) - 1; VertexIndex >= 0; VertexIndex--)
+		{
+			VertexStart[ (*VertexGeometryMap)[VertexIndex] ] = FMath::Min(VertexStart[ (*VertexGeometryMap)[VertexIndex] ], VertexIndex);
+			VertexCount[ (*VertexGeometryMap)[VertexIndex] ]++;
+		}
 	}
+
+	ensure(HasContiguousVertices());
+}
+
+bool FGeometryCollection::BuildFaceToGeometryMapping(bool InSaved)
+{
+	bool AttributeAdded = false;
+
+	if (!FindAttribute<int32>("FaceToGeometryIndex", FacesGroup))
+	{
+		FConstructionParameters NotSaved = { FName(""), InSaved };
+		AddAttribute<int32>("FaceToGeometryIndex", FacesGroup, NotSaved);
+		AttributeAdded = true;
+	}
+
+	TManagedArray<int32>* FaceGeometryMap = FindAttribute<int32>("FaceToGeometryIndex", FacesGroup);
+	if (ensure(FaceGeometryMap))
+	{
+		for (int32 GeometryIndex = NumElements(GeometryGroup) - 1; GeometryIndex >= 0; GeometryIndex--)
+		{
+			int FaceEnd = FaceStart[GeometryIndex] + FaceCount[GeometryIndex];
+			for (int32 FaceIndex = FaceStart[GeometryIndex]; FaceIndex < FaceEnd; FaceIndex++)
+			{
+				(*FaceGeometryMap)[FaceIndex] = GeometryIndex;
+			}
+		}
+	}
+	return AttributeAdded;
 }
 
 void FGeometryCollection::UpdateFaceGroupElements()
 {
 	//
-	//  Reset the FaceCount array
+	//  Reset the FaceCount and NumFaces array
 	//
-	int32 NumberOfFaces = Indices.Num();
-	for (int32 GeometryIndex = 0, ng = TransformIndex.Num(); GeometryIndex < ng; ++GeometryIndex)
+
+	TManagedArray<int32>* FaceGeometryMap = FindAttribute<int32>("FaceToGeometryIndex", FacesGroup);
+	if (ensure(FaceGeometryMap))
 	{
-		int32 FaceIndex = FaceStart[GeometryIndex];
-		if (FaceIndex != INDEX_NONE)
+		for (int32 GeometryIndex = NumElements(FGeometryCollection::GeometryGroup) - 1; GeometryIndex >= 0; GeometryIndex--)
 		{
-			int32 StartBoneMapTransformValue = BoneMap[Indices[FaceIndex][0]];
-			int32 CurrentBoneMapTransformValue = StartBoneMapTransformValue;
-			while ((CurrentBoneMapTransformValue == StartBoneMapTransformValue) && (++FaceIndex < NumberOfFaces))
-			{
-				CurrentBoneMapTransformValue = BoneMap[Indices[FaceIndex][0]];
-			}
-			FaceCount[GeometryIndex] = FaceIndex - FaceStart[GeometryIndex];
-		}
-		else
-		{
+			FaceStart[GeometryIndex] = INT_MAX;
 			FaceCount[GeometryIndex] = 0;
 		}
+
+		for (int32 FaceIndex = NumElements(FacesGroup) - 1; FaceIndex >= 0; FaceIndex--)
+		{
+			FaceStart[(*FaceGeometryMap)[FaceIndex]] = FMath::Min(FaceStart[(*FaceGeometryMap)[FaceIndex]], FaceIndex);
+			FaceCount[(*FaceGeometryMap)[FaceIndex]]++;
+		}
 	}
+
+	ensure(HasContiguousVertices());
 }
 
 

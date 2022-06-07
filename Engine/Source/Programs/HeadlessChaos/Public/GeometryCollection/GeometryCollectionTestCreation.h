@@ -35,4 +35,6 @@ namespace GeometryCollectionTest
 
 	void  AttributeDependencyTest();
 
+	void IntListReindexOnDeletionTest();
+
 }
