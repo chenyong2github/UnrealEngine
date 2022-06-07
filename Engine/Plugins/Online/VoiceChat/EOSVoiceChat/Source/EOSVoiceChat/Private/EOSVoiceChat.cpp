@@ -1017,7 +1017,7 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 }
 
 FEOSVoiceChat::FInitSession::FInitSession()
-	: EosAudioDevicePool{ MakeUnique<FEOSAudioDevicePool>(EosRtcInterface) }
+	: EosAudioDevicePool{ MakeShared<FEOSAudioDevicePool>(EosRtcInterface) }
 {
 }
 

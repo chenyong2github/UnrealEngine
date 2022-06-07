@@ -10,7 +10,7 @@
 
 #include "eos_rtc_types.h"
 
-class FEOSAudioDevicePool final
+class FEOSAudioDevicePool final : public TSharedFromThis<FEOSAudioDevicePool>
 {
 public:
 	explicit FEOSAudioDevicePool(EOS_HRTC& InEosRtcInterface);

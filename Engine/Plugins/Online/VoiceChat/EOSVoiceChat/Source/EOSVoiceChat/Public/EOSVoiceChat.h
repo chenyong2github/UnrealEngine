@@ -177,7 +177,7 @@ protected:
 
 		EOS_NotificationId OnAudioDevicesChangedNotificationId = EOS_INVALID_NOTIFICATIONID;
 
-		TUniquePtr<FEOSAudioDevicePool> EosAudioDevicePool;
+		TSharedRef<FEOSAudioDevicePool> EosAudioDevicePool;
 	};
 	FInitSession InitSession;
 
