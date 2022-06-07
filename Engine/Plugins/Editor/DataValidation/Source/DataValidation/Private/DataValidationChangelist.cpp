@@ -4,6 +4,7 @@
 
 #include "Algo/AnyOf.h"
 #include "Algo/Transform.h"
+#include "Misc/Paths.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ISourceControlProvider.h"
