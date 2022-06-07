@@ -9,7 +9,7 @@
 FVulkanLayoutManager FVulkanCommandListContext::LayoutManager;
 
 // All shader stages supported by VK device - VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, FRAGMENT etc
-extern uint32 GVulkanDeviceShaderStageBits;
+extern uint32 GVulkanDevicePipelineStageBits;
 
 //
 // The following two functions are used when the RHI needs to do image layout transitions internally.
@@ -302,7 +302,7 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 
 	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::SRVGraphics))
 	{
-		StageFlags |= (GVulkanDeviceShaderStageBits & ~VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+		StageFlags |= (GVulkanDevicePipelineStageBits & ~VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
 		AccessFlags |= VK_ACCESS_SHADER_READ_BIT;
 		Layout = SRVLayout;
 
@@ -323,7 +323,7 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 
 	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::UAVGraphics))
 	{
-		StageFlags |= (GVulkanDeviceShaderStageBits & ~VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+		StageFlags |= (GVulkanDevicePipelineStageBits & ~VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
 		AccessFlags |= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 		Layout = VK_IMAGE_LAYOUT_GENERAL;
 

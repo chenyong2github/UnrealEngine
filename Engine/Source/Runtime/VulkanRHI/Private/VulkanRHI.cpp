@@ -95,7 +95,7 @@ bool GGPUCrashDebuggingEnabled = false;
 extern TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar;
 
 // All shader stages supported by VK device - VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, FRAGMENT etc
-uint32 GVulkanDeviceShaderStageBits = 0;
+uint32 GVulkanDevicePipelineStageBits = 0;
 
 DEFINE_LOG_CATEGORY(LogVulkan)
 
@@ -855,19 +855,22 @@ void FVulkanDynamicRHI::InitInstance()
 		GUseTexture3DBulkDataRHI = false;
 
 		// these are supported by all devices
-		GVulkanDeviceShaderStageBits = 	VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | 
-										VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-										VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		GVulkanDevicePipelineStageBits = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		uint32 VulkanDeviceShaderStageBits = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+
 		// optional shader stages
 		if (Device->GetPhysicalFeatures().geometryShader) 
 		{
-			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+			GVulkanDevicePipelineStageBits |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+			VulkanDeviceShaderStageBits |= VK_SHADER_STAGE_GEOMETRY_BIT;
 		}
 		
 		// Check for wave ops support (only filled on platforms creating Vulkan 1.1 or greater instances)
 		const VkSubgroupFeatureFlags RequiredSubgroupFlags = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT | VK_SUBGROUP_FEATURE_BALLOT_BIT;
-		GRHISupportsWaveOperations = VKHasAllFlags(Device->GetDeviceSubgroupProperties().supportedStages, GVulkanDeviceShaderStageBits) &&
+		GRHISupportsWaveOperations = VKHasAllFlags(Device->GetDeviceSubgroupProperties().supportedStages, VulkanDeviceShaderStageBits) &&
 			VKHasAllFlags(Device->GetDeviceSubgroupProperties().supportedOperations, RequiredSubgroupFlags);
+
+		UE_LOG(LogVulkanRHI, Display, TEXT("Wave Operations have been %s."), GRHISupportsWaveOperations ? TEXT("ENABLED") : TEXT("DISABLED"));
 
 		if (GGPUCrashDebuggingEnabled && !Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
 		{
