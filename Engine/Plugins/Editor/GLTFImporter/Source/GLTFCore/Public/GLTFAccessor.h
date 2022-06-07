@@ -140,13 +140,12 @@ namespace GLTF
 		void GetVec4Array(FVector4f* Buffer) const override;
 		void GetMat4Array(FMatrix44f* Buffer) const override;
 
-	private:
+		const uint8* DataAt(uint32 Index) const;
+
 		const FBufferView& BufferView;
 		const uint32       ByteOffset;
 		const uint32       ElementSize;
 		const uint32	   ByteStride;
-
-		const uint8* DataAt(uint32 Index) const;
 	};
 
 	struct GLTFCORE_API FVoidAccessor final : FAccessor
