@@ -720,20 +720,7 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 {
 	FRigVMInverseAction InverseAction;
 
-	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
-	{
-		InverseAction.AddAction(FRigVMAddUnitNodeAction(UnitNode), InController);
-		for (URigVMPin* Pin : UnitNode->GetPins())
-		{
-			if (Pin->GetDirection() == ERigVMPinDirection::Input ||
-				Pin->GetDirection() == ERigVMPinDirection::IO ||
-				Pin->GetDirection() == ERigVMPinDirection::Visible)
-			{
-				InverseAction.AddAction(FRigVMSetPinDefaultValueAction(Pin, Pin->GetDefaultValue()), InController);
-			}
-		}
-	}
-	else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode))
+	if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMAddVariableNodeAction(VariableNode), InController);
 		URigVMPin* ValuePin = VariableNode->GetValuePin();
@@ -758,10 +745,6 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	else if (URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMAddSelectNodeAction(SelectNode), InController);
-	}
-	else if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InNode))
-	{
-		InverseAction.AddAction(FRigVMAddTemplateNodeAction(TemplateNode), InController);
 	}
 	else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(InNode))
 	{
@@ -792,6 +775,19 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	else if (InNode->IsA<URigVMFunctionEntryNode>() || InNode->IsA<URigVMFunctionReturnNode>())
 	{
 		// Do nothing
+	}
+	else if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InNode))
+	{
+		InverseAction.AddAction(FRigVMAddTemplateNodeAction(TemplateNode), InController);
+		for (URigVMPin* Pin : TemplateNode->GetPins())
+		{
+			if (Pin->GetDirection() == ERigVMPinDirection::Input ||
+				Pin->GetDirection() == ERigVMPinDirection::IO ||
+				Pin->GetDirection() == ERigVMPinDirection::Visible)
+			{
+				InverseAction.AddAction(FRigVMSetPinDefaultValueAction(Pin, Pin->GetDefaultValue()), InController);
+			}
+		}
 	}
 	else
 	{
