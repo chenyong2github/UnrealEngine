@@ -732,14 +732,23 @@ namespace UE
 					}
 					else if (IncompleteTests.Count() > 0)
 					{
-						MB.H3("The following test(s) were incomplete:");
-
-						foreach (UnrealAutomatedTestResult Result in IncompleteTests)
+						var InProcess = IncompleteTests.Where(T => T.State == TestStateType.InProcess);
+						if (InProcess.Any())
 						{
-							MB.H4(string.Format("Error: Test '{0}' did not run or complete", Result.TestDisplayName));
-							MB.Paragraph("FullName: " + Result.FullTestPath);
-							MB.UnorderedList(CapErrorOrWarningList(Result.ErrorEvents.Select(E => ErrorLineForHorde(E.Message)).Distinct()));
-							MB.UnorderedList(CapErrorOrWarningList(Result.WarningEvents.Select(E => WarningLineForHorde(E.Message)).Distinct()));
+							MB.H3("The following test(s) were incomplete:");
+							foreach (UnrealAutomatedTestResult Result in InProcess)
+							{
+								MB.H4(string.Format("Error: Test '{0}' did not complete", Result.TestDisplayName));
+								MB.Paragraph("FullName: " + Result.FullTestPath);
+								MB.UnorderedList(CapErrorOrWarningList(Result.ErrorEvents.Select(E => ErrorLineForHorde(E.Message)).Distinct()));
+								MB.UnorderedList(CapErrorOrWarningList(Result.WarningEvents.Select(E => WarningLineForHorde(E.Message)).Distinct()));
+							}
+						}
+						var NotRun = IncompleteTests.Where(T => T.State == TestStateType.NotRun);
+						if (NotRun.Any())
+						{
+							MB.H3("The following test(s) were not run:");
+							MB.UnorderedList(NotRun.Select(T => T.FullTestPath));
 						}
 					}
 				}
