@@ -2663,6 +2663,8 @@ public:
 	ULocalPlayer* GetLocalPlayerFromInputDevice(UWorld * InWorld, const FInputDeviceId InputDevice) const;
 
 	void SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentControllerId, const int32 NewControllerID) const;
+	
+	void SwapPlatformUserId(ULocalPlayer *NewPlayer, const FPlatformUserId CurrentUserId, const FPlatformUserId NewUserID) const;
 
 	/** 
 	 * Find a Local Player Controller, which may not exist at all if this is a server.

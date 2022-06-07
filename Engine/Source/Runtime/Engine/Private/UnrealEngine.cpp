@@ -3951,6 +3951,32 @@ void UEngine::SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentContr
 	}
 }
 
+void UEngine::SwapPlatformUserId(ULocalPlayer *NewPlayer, const FPlatformUserId CurrentUserId, const FPlatformUserId NewUserID) const
+{
+	for (auto It = WorldList.CreateConstIterator(); It; ++It)
+	{
+		if (It->OwningGameInstance == nullptr)
+		{
+			continue;
+		}
+
+		const TArray<class ULocalPlayer*> & LocalPlayers = It->OwningGameInstance->GetLocalPlayers();
+
+		if (LocalPlayers.Contains(NewPlayer))
+		{
+			// This is the world context that NewPlayer belongs to, see if anyone is using their CurrentUserId
+			for (ULocalPlayer* LocalPlayer : LocalPlayers)
+			{
+				if (LocalPlayer && LocalPlayer != NewPlayer && LocalPlayer->GetPlatformUserId() == NewUserID)
+				{
+					LocalPlayer->SetPlatformUserId(CurrentUserId);
+					return;
+				}
+			}
+		}
+	}
+}
+
 APlayerController* UEngine::GetFirstLocalPlayerController(const UWorld* InWorld)
 {
 	const FWorldContext &Context = GetWorldContextFromWorldChecked(InWorld);
