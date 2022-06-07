@@ -78,6 +78,7 @@ struct FNaniteDisplacedMeshParams
 	FNaniteDisplacedMeshParams(const FNaniteDisplacedMeshParams& Other)
 		: BaseMesh(Other.BaseMesh)
 		, DiceRate(Other.DiceRate)
+		, DisplacementMaps(Other.DisplacementMaps)
 	{}
 
 	/** Equality operator. */

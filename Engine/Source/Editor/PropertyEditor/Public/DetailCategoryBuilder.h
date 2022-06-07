@@ -137,9 +137,10 @@ public:
 	 *
 	 * @param StructData		External struct data to add to the root
 	 * @param Location			The location within the category where the properties are to be shown
+	 * @param PropertiesRow		Optional pointer to an array that will contains the IDetailPropertyRow of the properties added
 	 * @return Array of all properties added to this category
 	 */
-	virtual TArray<TSharedPtr<IPropertyHandle>> AddAllExternalStructureProperties(TSharedRef<FStructOnScope> StructData, EPropertyLocation::Type Location = EPropertyLocation::Default) = 0;
+	virtual TArray<TSharedPtr<IPropertyHandle>> AddAllExternalStructureProperties(TSharedRef<FStructOnScope> StructData, EPropertyLocation::Type Location = EPropertyLocation::Default, TArray<IDetailPropertyRow*>* OutPropertiesRow = nullptr) = 0;
 
 	/**
 	 * Adds a custom widget row to the category

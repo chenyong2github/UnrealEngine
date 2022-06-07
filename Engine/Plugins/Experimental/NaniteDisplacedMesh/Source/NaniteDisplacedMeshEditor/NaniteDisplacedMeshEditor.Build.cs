@@ -18,11 +18,13 @@ namespace UnrealBuildTool.Rules
 					"EditorFramework",
 					"EditorStyle",
 					"Engine",
+					"PropertyEditor",
 					"RHI",
 					"Slate",
+					"Slate",
 					"SlateCore",
-					"UnrealEd",
 					"TargetPlatform",
+					"UnrealEd",
 				}
 			);
 

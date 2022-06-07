@@ -401,6 +401,12 @@ void FDetailPropertyRow::GenerateChildrenForPropertyNode( TSharedPtr<FPropertyNo
 					// Create and initialize the child first
 					FDetailLayoutCustomization Customization;
 					Customization.PropertyRow = MakeShareable(new FDetailPropertyRow(ChildNode, ParentCategoryRef));
+
+					if (CustomResetToDefault.IsSet() && CustomResetToDefault->PropagatesToChildren())
+					{
+						Customization.PropertyRow->OverrideResetToDefault(CustomResetToDefault.GetValue());
+					}
+
 					TSharedRef<FDetailItemNode> ChildNodeItem = MakeShareable(new FDetailItemNode(Customization, ParentCategoryRef, ParentEnabledState));
 					ChildNodeItem->Initialize();
 

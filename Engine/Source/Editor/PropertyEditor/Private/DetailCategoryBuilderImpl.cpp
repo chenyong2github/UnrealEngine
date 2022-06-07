@@ -455,7 +455,7 @@ IDetailPropertyRow* FDetailCategoryImpl::AddExternalStructureProperty(TSharedPtr
 	return NewRow.Get();
 }
 
-TArray<TSharedPtr<IPropertyHandle>> FDetailCategoryImpl::AddAllExternalStructureProperties(TSharedRef<FStructOnScope> StructData, EPropertyLocation::Type Location)
+TArray<TSharedPtr<IPropertyHandle>> FDetailCategoryImpl::AddAllExternalStructureProperties(TSharedRef<FStructOnScope> StructData, EPropertyLocation::Type Location, TArray<IDetailPropertyRow*>* OutPropertiesRow)
 {
 	TSharedPtr<FStructurePropertyNode> RootPropertyNode(new FStructurePropertyNode);
 	RootPropertyNode->SetStructure(StructData);
@@ -491,6 +491,10 @@ TArray<TSharedPtr<IPropertyHandle>> FDetailCategoryImpl::AddAllExternalStructure
 				AddDefaultLayout(NewCustomization, NAME_None);
 
 				Handles.Add(DetailLayoutBuilderRef.GetPropertyHandle(PropertyNode));
+				if (OutPropertiesRow)
+				{
+					OutPropertiesRow->Add(NewCustomization.PropertyRow.Get());
+				}
 			}
 		}
 	}
