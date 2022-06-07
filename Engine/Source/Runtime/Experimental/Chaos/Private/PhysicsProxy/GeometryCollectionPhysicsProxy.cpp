@@ -1898,7 +1898,11 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_External(Chaos::FDirt
 
 		TargetResults.Parent[TransformGroupIndex] = GameThreadCollection.Parent[TransformGroupIndex];
 		TargetResults.Transforms[TransformGroupIndex] = GameThreadCollection.Transform[TransformGroupIndex];
-		
+
+#if WITH_EDITORONLY_DATA
+		TargetResults.DamageInfo[TransformGroupIndex].Damage = 0.0f;
+		TargetResults.DamageInfo[TransformGroupIndex].DamageThreshold = 0.0f;
+#endif
 	}
 	
 	// TargetResults.GlobalTransforms; // no need, can be recomputed ?  
@@ -2107,7 +2111,9 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDR
 			PhysicsThreadCollection.Active[TransformGroupIndex] = !TargetResults.States[TransformGroupIndex].DisabledState;
 
 #if WITH_EDITORONLY_DATA
-			TargetResults.CollisionImpulses[TransformGroupIndex] = static_cast<float>(Handle->CollisionImpulse());
+			FGeometryCollectionResults::FDamageInfo& DamageInfo = TargetResults.DamageInfo[TransformGroupIndex];
+			DamageInfo.Damage = static_cast<float>(Handle->CollisionImpulse());
+			DamageInfo.DamageThreshold = static_cast<float>(Handle->Strain());
 #endif			
 		}    // end for
 	}        // STAT_CalcParticleToWorld scope
@@ -2187,11 +2193,12 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		}
 
 #if WITH_EDITORONLY_DATA
-		if (FCollisionImpulseCollector* Collector = FCollisionImpulseWatcher::GetInstance().Find(CollectorGuid))
+		if (FDamageCollector* Collector = FRuntimeDataCollector::GetInstance().Find(CollectorGuid))
 		{
 			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 			{
-				Collector->SampleImpulse(TransformGroupIndex, TargetResults.CollisionImpulses[TransformGroupIndex]);
+				const FGeometryCollectionResults::FDamageInfo& DamageInfo = TargetResults.DamageInfo[TransformGroupIndex]; 
+				Collector->SampleDamage(TransformGroupIndex, DamageInfo.Damage, DamageInfo.DamageThreshold);
 			}
 		}
 #endif
@@ -3498,46 +3505,46 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPBDRigid
 }
 
 
-void FCollisionImpulseCollector::Reset(int32 NumTransforms)
+void FDamageCollector::Reset(int32 NumTransforms)
 {
-	ImpulseData.Reset();
-	ImpulseData.SetNum(NumTransforms);
+	DamageData.Reset();
+	DamageData.SetNum(NumTransforms);
 }
 
-void FCollisionImpulseCollector::SampleImpulse(int32 TransformIndex, float Value)
+void FDamageCollector::SampleDamage(int32 TransformIndex, float Damage, float DamageThreshold)
 {
-	if (ImpulseData.IsValidIndex(TransformIndex))
+	if (DamageData.IsValidIndex(TransformIndex))
 	{
-		FImpulseData& Data = ImpulseData[TransformIndex];
-		Data.Min = FMath::Min(Data.Min, Value);
-		Data.Max = FMath::Max(Data.Max, Value);
-		Data.Count++;
+		FDamageData& Data = DamageData[TransformIndex];
+		Data.DamageThreshold = DamageThreshold;
+		Data.MaxDamages = FMath::Max(Data.MaxDamages, Damage);
+		Data.bIsBroken = Data.bIsBroken || (Damage > DamageThreshold);
 	}
 }
 
-FCollisionImpulseWatcher& FCollisionImpulseWatcher::GetInstance()
+FRuntimeDataCollector& FRuntimeDataCollector::GetInstance()
 {
-	static FCollisionImpulseWatcher Instance;
+	static FRuntimeDataCollector Instance;
 	return Instance;
 }
 
-void FCollisionImpulseWatcher::Clear()
+void FRuntimeDataCollector::Clear()
 {
 	Collectors.Reset();
 }
 
-FCollisionImpulseCollector* FCollisionImpulseWatcher::Find(const FGuid& Guid)
+FDamageCollector* FRuntimeDataCollector::Find(const FGuid& Guid)
 {
 	return Collectors.Find(Guid);
 }
 
-void FCollisionImpulseWatcher::AddCollector(const FGuid& Guid, int32 TransformNum)
+void FRuntimeDataCollector::AddCollector(const FGuid& Guid, int32 TransformNum)
 {
-	FCollisionImpulseCollector& Collector = Collectors.FindOrAdd(Guid);
+	FDamageCollector& Collector = Collectors.FindOrAdd(Guid);
 	Collector.Reset(TransformNum);
 }
 
-void FCollisionImpulseWatcher::RemoveCollector(const FGuid& Guid)
+void FRuntimeDataCollector::RemoveCollector(const FGuid& Guid)
 {
 	Collectors.Remove(Guid);
 	

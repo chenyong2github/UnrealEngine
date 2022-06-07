@@ -36,11 +36,10 @@ enum class EOutlinerItemNameEnum : uint8
 };
 
 UENUM(BlueprintType)
-enum class EOutlinerDisplayColumn : uint8
+enum class EOutlinerColumnMode : uint8
 {
-	InitialState = 0		UMETA(DisplayName = "Initial State"),
-	RelativeSize = 1		UMETA(DisplayName = "Relative Size"),
-	Damages = 2				UMETA(Damages = "Damages"),
+	StateAndSize = 0		UMETA(DisplayName = "State And Size"),
+	Damage = 2				UMETA(DisplayName = "Damage"),
 };
 
 /** Settings for Outliner configuration. **/
@@ -61,8 +60,8 @@ public:
 	bool ColorByLevel;
 
 	/** the column to be display in the outliner */
-	UPROPERTY(EditAnywhere, Category = OutlinerSettings, meta = (DisplayName = "Display column"))
-	EOutlinerDisplayColumn DisplayColumn;
+	UPROPERTY(EditAnywhere, Category = OutlinerSettings, meta = (DisplayName = "Column Mode"))
+	EOutlinerColumnMode ColumnMode;
 };
 
 
@@ -145,9 +144,10 @@ public:
 		, ParentComponentItem(InParentComponentItem)
 		, ItemColor(FSlateColor::UseForeground())
 		, RelativeSize(0)
-		, Damages(0)
-		, DamageThreshold(0)
 		, InitialState(INDEX_NONE)
+		, Damage(0)
+		, DamageThreshold(0)
+		, Broken(false) 
 	{}
 
 	/** FGeometryCollectionTreeItem interface */
@@ -156,6 +156,7 @@ public:
 	TSharedRef<SWidget> MakeRelativeSizeColumnWidget() const;
 	TSharedRef<SWidget> MakeDamagesColumnWidget() const;
 	TSharedRef<SWidget> MakeDamageThresholdColumnWidget() const;
+	TSharedRef<SWidget> MakeBrokenColumnWidget() const;
 	TSharedRef<SWidget> MakeInitialStateColumnWidget() const;
 	TSharedRef<SWidget> MakeEmptyColumnWidget() const;
 	virtual void GetChildren(FGeometryCollectionTreeItemList& OutChildren) override;
@@ -180,9 +181,10 @@ private:
 	FSlateColor ItemColor;
 	FText ItemText;
 	float RelativeSize;
-	float Damages;
-	float DamageThreshold;
 	int32 InitialState;
+	float Damage;
+	float DamageThreshold;
+	bool Broken;
 };
 
 typedef TSharedPtr<class FGeometryCollectionTreeItemBone> FGeometryCollectionTreeItemBonePtr;
@@ -190,7 +192,13 @@ typedef TSharedPtr<class FGeometryCollectionTreeItemBone> FGeometryCollectionTre
 namespace SGeometryCollectionOutlinerColumnID
 {
 	const FName Bone("Bone");
-	const FName Custom("Custom");
+	// State and Size column mode
+	const FName RelativeSize("Relative Size");
+	const FName InitialState("Initial State");
+	// Damage Column Mode
+	const FName Damage("Damage");
+	const FName DamageThreshold("DamageThreshold");
+	const FName Broken("Broken");
 }
 
 class SGeometryCollectionOutlinerRow : public SMultiColumnTableRow<FGeometryCollectionTreeItemBonePtr>
@@ -232,7 +240,7 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	void RegenerateItems();
-	void UpdateDisplayColumn();
+	void RegenerateHeader();
 
 	TSharedRef<ITableRow> MakeTreeRowWidget(FGeometryCollectionTreeItemPtr InInfo, const TSharedRef<STableViewBase>& OwnerTable);
 	TSharedRef<ITableRow> OnGeneratePinnedRowWidget(FGeometryCollectionTreeItemPtr InItem, const TSharedRef<STableViewBase>& InOwnerTable, bool bPinned);

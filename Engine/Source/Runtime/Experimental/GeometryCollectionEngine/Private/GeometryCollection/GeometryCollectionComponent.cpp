@@ -2228,11 +2228,11 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 	CollectorGuid = RunTimeDataCollectionGuid;
 	if (bEnableRunTimeDataCollection && RestCollection)
 	{
-		FCollisionImpulseWatcher::GetInstance().AddCollector(CollectorGuid, RestCollection->NumElements(FGeometryCollection::TransformGroup));
+		FRuntimeDataCollector::GetInstance().AddCollector(CollectorGuid, RestCollection->NumElements(FGeometryCollection::TransformGroup));
 	}
 	else
 	{
-		FCollisionImpulseWatcher::GetInstance().RemoveCollector(CollectorGuid);
+		FRuntimeDataCollector::GetInstance().RemoveCollector(CollectorGuid);
 	}
 #endif
 	PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, *DynamicCollection, SimulationParameters, InitialSimFilter, InitialQueryFilter, CollectorGuid);
@@ -2244,9 +2244,9 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 }
 
 #if WITH_EDITORONLY_DATA
-const FCollisionImpulseCollector* UGeometryCollectionComponent::GetRunTimeDataCollector() const
+const FDamageCollector* UGeometryCollectionComponent::GetRunTimeDataCollector() const
 {
-	return FCollisionImpulseWatcher::GetInstance().Find(RunTimeDataCollectionGuid);
+	return FRuntimeDataCollector::GetInstance().Find(RunTimeDataCollectionGuid);
 }
 #endif
 

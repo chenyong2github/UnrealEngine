@@ -604,13 +604,18 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawn
 					[
 						OutlinerDetailsView.ToSharedRef()
 					]
-
 					+ SVerticalBox::Slot()
 					[
 						SAssignNew(OutlinerView, SGeometryCollectionOutliner)
 						.OnBoneSelectionChanged(this, &FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged)
 					]
-
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SButton)
+						.OnClicked(this, &FFractureEditorModeToolkit::RefreshOutliner)
+						.Text(LOCTEXT("Refresh", "Refresh"))
+					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
@@ -628,6 +633,15 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawn
 
 	HierarchyTab = CreatedTab;
 	return CreatedTab.ToSharedRef();
+}
+
+FReply FFractureEditorModeToolkit::RefreshOutliner()
+{
+	if (OutlinerView)
+	{
+		OutlinerView->RegenerateItems();
+	}
+	return FReply::Handled();
 }
 
 TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateStatisticsTab(const FSpawnTabArgs& Args)
@@ -699,9 +713,9 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 			GetStatisticsSummary(Stats);
 			StatisticsView->SetStatistics(Stats);
 		}
-		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, DisplayColumn))
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ColumnMode))
 		{
-			OutlinerView->UpdateDisplayColumn();
+			OutlinerView->RegenerateHeader();
 			OutlinerView->RegenerateItems();
 			FGeometryCollectionStatistics Stats;
 			GetStatisticsSummary(Stats);

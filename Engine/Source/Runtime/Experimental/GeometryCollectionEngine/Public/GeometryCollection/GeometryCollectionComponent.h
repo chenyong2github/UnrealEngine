@@ -35,7 +35,7 @@ class UChaosPhysicalMaterial;
 class AChaosSolverActor;
 struct FGeometryCollectionEmbeddedExemplar;
 class UInstancedStaticMeshComponent;
-struct FCollisionImpulseCollector;
+struct FDamageCollector;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FChaosBreakEvent&, BreakEvent);
 
@@ -710,7 +710,7 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	const FCollisionImpulseCollector* GetRunTimeDataCollector() const;
+	const FDamageCollector* GetRunTimeDataCollector() const;
 #endif
 	
 	// #todo should this only be available in editor?

@@ -162,7 +162,7 @@ public:
 		Transforms.SetNumUninitialized(NumTransforms);
 		Parent.SetNumUninitialized(NumTransforms);
 #if WITH_EDITORONLY_DATA
-		CollisionImpulses.SetNumUninitialized(NumTransforms);
+		DamageInfo.SetNumUninitialized(NumTransforms);
 #endif		
 	}
 
@@ -172,9 +172,9 @@ public:
 		int16 DisabledState: 1;
 		int16 HasInternalClusterParent: 1;
 		int16 DynamicInternalClusterParent: 1;
-		// 6 bits left
+		// 5 bits left
 	};
-	
+
 	Chaos::FReal SolverDt;
 	TArray<FState> States;
 	TArray<FMatrix> GlobalTransforms;
@@ -187,8 +187,14 @@ public:
 	TArray<int32> Parent;
 
 #if WITH_EDITORONLY_DATA
+	struct FDamageInfo
+	{
+		float Damage = 0;
+		float DamageThreshold = 0;
+	};
+	
 	// use to display impulse statistics in editor
-	TArray<float> CollisionImpulses;
+	TArray<FDamageInfo> DamageInfo;
 #endif
 	
 	bool IsObjectDynamic;

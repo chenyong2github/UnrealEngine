@@ -213,6 +213,8 @@ private:
 	/** Callback for map changes. */
 	void HandleMapChanged(UWorld* NewWorld, EMapChangeType MapChangeType);
 
+	FReply RefreshOutliner();
+	
 private:
 	UFractureModalTool* ActiveTool;
 
