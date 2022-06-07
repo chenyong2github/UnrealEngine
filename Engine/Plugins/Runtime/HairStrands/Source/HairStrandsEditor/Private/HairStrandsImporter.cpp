@@ -41,7 +41,7 @@ UGroomAsset* FHairStrandsImporter::ImportHair(const FHairImportContext& ImportCo
 	check(OutHairAsset->AreGroupsValid());
 	check(uint32(OutHairAsset->GetNumHairGroups()) == GroupCount);
 
-	OutHairAsset->CommitHairDescription(MoveTemp(HairDescription));
+	OutHairAsset->CommitHairDescription(MoveTemp(HairDescription), UGroomAsset::EHairDescriptionType::Source);
 
 	// Populate the interpolation settings with the new settings from the importer	
 	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)

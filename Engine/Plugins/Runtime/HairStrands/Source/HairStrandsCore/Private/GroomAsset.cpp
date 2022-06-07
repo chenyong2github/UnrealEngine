@@ -723,16 +723,16 @@ void UGroomAsset::Serialize(FArchive& Ar)
 		{
 			// When serializing data for editor, serialize the HairDescription as bulk data
 			// The computed groom data is fetched from the Derived Data Cache
-			if (!HairDescriptionBulkData)
+			if (!HairDescriptionBulkData[EHairDescriptionType::Source])
 			{
 				// When loading, bulk data can be null so instantiate a new one to serialize into
-				HairDescriptionBulkData = MakeUnique<FHairDescriptionBulkData>();
+				HairDescriptionBulkData[EHairDescriptionType::Source] = MakeUnique<FHairDescriptionBulkData>();
 			}
 
 			// We don' serialize the hair description if it is a transactional object (i.e., for undo/redo)
 			if (!Ar.IsTransacting())
 			{
-				HairDescriptionBulkData->Serialize(Ar, this);
+				HairDescriptionBulkData[EHairDescriptionType::Source]->Serialize(Ar, this);
 			}
 		}
 #endif // WITH_EDITORONLY_DATA
@@ -1036,7 +1036,7 @@ void UGroomAsset::PostLoad()
 	const bool bIsLegacyAsset = HairGroupsInterpolation.Num() == 0;
 	if (bIsLegacyAsset)
 	{
-		if (HairDescriptionBulkData)
+		if (HairDescriptionBulkData[HairDescriptionType])
 		{
 			const FHairDescriptionGroups& LocalHairDescriptionGroups = GetHairDescriptionGroups();
 
@@ -1625,7 +1625,7 @@ const TArray<UAssetUserData*>* UGroomAsset::GetAssetUserDataArray() const
 bool UGroomAsset::CanRebuildFromDescription() const
 {
 #if WITH_EDITORONLY_DATA
-	return HairDescriptionBulkData.IsValid() && !HairDescriptionBulkData->IsEmpty();
+	return HairDescriptionBulkData[HairDescriptionType].IsValid() && !HairDescriptionBulkData[HairDescriptionType]->IsEmpty();
 #else
 	return false;
 #endif
@@ -2003,12 +2003,12 @@ FString UGroomAsset::BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGro
 	GroomDerivedDataCacheUtils::SerializeHairInterpolationSettingsForDDC(Ar, GroupIndex, const_cast<FHairGroupsInterpolation&>(InterpolationSettings), const_cast<FHairGroupsLOD&>(LODSettings), bNeedInterpolationData);
 
 	FString KeySuffix;
-	if (HairDescriptionBulkData)
+	if (HairDescriptionBulkData[HairDescriptionType])
 	{
 		// Reserve twice the size of TempBytes because of ByteToHex below + 3 for "ID" and \0
-		KeySuffix.Reserve(HairDescriptionBulkData->GetIdString().Len() + TempBytes.Num() * 2 + 3);
+		KeySuffix.Reserve(HairDescriptionBulkData[HairDescriptionType]->GetIdString().Len() + TempBytes.Num() * 2 + 3);
 		KeySuffix += TEXT("ID");
-		KeySuffix += HairDescriptionBulkData->GetIdString();
+		KeySuffix += HairDescriptionBulkData[HairDescriptionType]->GetIdString();
 	}
 	else
 	{
@@ -2065,46 +2065,48 @@ FString UGroomAsset::GetDerivedDataKeyForMeshes(uint32 GroupIndex)
 }
 
 
-void UGroomAsset::CommitHairDescription(FHairDescription&& InHairDescription)
+void UGroomAsset::CommitHairDescription(FHairDescription&& InHairDescription, EHairDescriptionType Type)
 {
-	CachedHairDescription = MakeUnique<FHairDescription>(InHairDescription);
+	HairDescriptionType = Type;
 
-	if (!HairDescriptionBulkData)
+	CachedHairDescription[HairDescriptionType] = MakeUnique<FHairDescription>(InHairDescription);
+
+	if (!HairDescriptionBulkData[HairDescriptionType])
 	{
-		HairDescriptionBulkData = MakeUnique<FHairDescriptionBulkData>();
+		HairDescriptionBulkData[HairDescriptionType] = MakeUnique<FHairDescriptionBulkData>();
 	}
 
 	// Update the cached hair description groups with the new hair description data
-	CachedHairDescriptionGroups = MakeUnique<FHairDescriptionGroups>();
-	FGroomBuilder::BuildHairDescriptionGroups(*CachedHairDescription, *CachedHairDescriptionGroups);
+	CachedHairDescriptionGroups[HairDescriptionType] = MakeUnique<FHairDescriptionGroups>();
+	FGroomBuilder::BuildHairDescriptionGroups(*CachedHairDescription[HairDescriptionType], *CachedHairDescriptionGroups[HairDescriptionType]);
 
-	HairDescriptionBulkData->SaveHairDescription(*CachedHairDescription);
+	HairDescriptionBulkData[HairDescriptionType]->SaveHairDescription(*CachedHairDescription[HairDescriptionType]);
 }
 
 const FHairDescriptionGroups& UGroomAsset::GetHairDescriptionGroups()
 {
-	check(HairDescriptionBulkData);
+	check(HairDescriptionBulkData[HairDescriptionType]);
 
-	if (!CachedHairDescription)
+	if (!CachedHairDescription[HairDescriptionType])
 	{
-		CachedHairDescription = MakeUnique<FHairDescription>();
-		HairDescriptionBulkData->LoadHairDescription(*CachedHairDescription);
+		CachedHairDescription[HairDescriptionType] = MakeUnique<FHairDescription>();
+		HairDescriptionBulkData[HairDescriptionType]->LoadHairDescription(*CachedHairDescription[HairDescriptionType]);
 	}
-	if (!CachedHairDescriptionGroups)
+	if (!CachedHairDescriptionGroups[HairDescriptionType])
 	{
-		CachedHairDescriptionGroups = MakeUnique<FHairDescriptionGroups>();
-		FGroomBuilder::BuildHairDescriptionGroups(*CachedHairDescription, *CachedHairDescriptionGroups);
+		CachedHairDescriptionGroups[HairDescriptionType] = MakeUnique<FHairDescriptionGroups>();
+		FGroomBuilder::BuildHairDescriptionGroups(*CachedHairDescription[HairDescriptionType], *CachedHairDescriptionGroups[HairDescriptionType]);
 	}
 
-	return *CachedHairDescriptionGroups;
+	return *CachedHairDescriptionGroups[HairDescriptionType];
 }
 
 FHairDescription UGroomAsset::GetHairDescription() const
 {
 	FHairDescription OutHairDescription;
-	if (HairDescriptionBulkData)
+	if (HairDescriptionBulkData[HairDescriptionType])
 	{
-		HairDescriptionBulkData->LoadHairDescription(OutHairDescription);
+		HairDescriptionBulkData[HairDescriptionType]->LoadHairDescription(OutHairDescription);
 	}
 	return MoveTemp(OutHairDescription);
 }
@@ -2165,7 +2167,7 @@ bool UGroomAsset::CacheDerivedData(uint32 GroupIndex)
 
 bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey)
 {
-	if (!HairDescriptionBulkData)
+	if (!HairDescriptionBulkData[HairDescriptionType])
 	{
 		UE_LOG(LogHairStrands, Error, TEXT("[Groom] The groom asset %s is too old. Please reimported the groom from its original source file."));
 		return false;
