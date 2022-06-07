@@ -581,9 +581,24 @@ public:
 					RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel(), ERayTracingInstanceLayer::NearField, RayTracingMask);
 
 					// If thin shadow is requested, we ensure that regular shadow mask is not added.
+					// TODO: can this logic live in BuildInstanceMaskAndFlags instead?
 					if (RayTracingMask == RAY_TRACING_MASK_THIN_SHADOW)
 					{
-						RayTracingInstance.Mask &= ~RAY_TRACING_MASK_SHADOW;
+						if (RayTracingInstance.Mask & RAY_TRACING_MASK_SHADOW)
+						{
+							// geometry casts shadows, make sure it is in only one of the shadow casting groups, so it can be treated seperately if desired
+							RayTracingInstance.Mask &= ~RAY_TRACING_MASK_SHADOW;
+							RayTracingInstance.Mask |= RAY_TRACING_MASK_THIN_SHADOW;
+						}
+						else
+						{
+							// if the geometry does not cast shadows, remove this flag
+							RayTracingInstance.Mask &= ~RAY_TRACING_MASK_THIN_SHADOW;
+						}
+						// make sure geometry is only in the hair group
+						RayTracingInstance.Mask &= ~RAY_TRACING_MASK_OPAQUE;
+						RayTracingInstance.Mask &= ~RAY_TRACING_MASK_TRANSLUCENT;
+						RayTracingInstance.Mask |= RAY_TRACING_MASK_HAIR_STRANDS;
 					}
 
 					OutRayTracingInstances.Add(RayTracingInstance);
