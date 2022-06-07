@@ -13,6 +13,11 @@ namespace Horde.Build.Fleet.Autoscale
 	public enum PoolSizeStrategy
 	{
 		/// <summary>
+		/// Use the default strategy configured in server settings
+		/// </summary>
+		Default,
+
+		/// <summary>
 		/// Strategy based on lease utilization
 		/// <see cref="Horde.Build.Fleet.Autoscale.LeaseUtilizationStrategy"/>
 		/// </summary>

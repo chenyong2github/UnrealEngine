@@ -80,7 +80,7 @@ namespace Horde.Build.Fleet.Autoscale
 			Dictionary<PoolSizeStrategy, List<PoolSizeData>> poolSizeDataByStrategy = await GetPoolSizeDataByStrategyType();
 			foreach ((PoolSizeStrategy strategyType, List<PoolSizeData> currentData) in poolSizeDataByStrategy)
 			{
-				List<PoolSizeData> newData = await GetPoolSizeStrategy(strategyType).CalcDesiredPoolSizesAsync(currentData);
+				List<PoolSizeData> newData = await GetPoolSizeStrategy(strategyType, _settings.DefaultAgentPoolSizeStrategy).CalcDesiredPoolSizesAsync(currentData);
 				await ResizePools(newData);
 			}
 			
@@ -98,7 +98,7 @@ namespace Horde.Build.Fleet.Autoscale
 			foreach (PoolSizeStrategy strategyType in Enum.GetValues<PoolSizeStrategy>())
 			{
 				result[strategyType] = pools
-					.Where(x => (x.SizeStrategy ?? _settings.DefaultAgentPoolSizeStrategy) == strategyType)
+					.Where(x => (x.SizeStrategy == PoolSizeStrategy.Default ? _settings.DefaultAgentPoolSizeStrategy : x.SizeStrategy) == strategyType)
 					.Select(x => new PoolSizeData(x, GetAgentsInPool(x.Id), null))
 					.ToList();
 			}
@@ -190,14 +190,20 @@ namespace Horde.Build.Fleet.Autoscale
 			_noOpStrategy = noOpStrategy;
 		}
 		
-		private IPoolSizeStrategy GetPoolSizeStrategy(PoolSizeStrategy type)
+		private IPoolSizeStrategy GetPoolSizeStrategy(PoolSizeStrategy type, PoolSizeStrategy defaultStrategy)
 		{
+
+			if (type == PoolSizeStrategy.Default)
+			{
+				type = defaultStrategy;
+			}
+
 			return type switch
 			{
 				PoolSizeStrategy.LeaseUtilization => _leaseUtilizationStrategy,
 				PoolSizeStrategy.JobQueue => _jobQueueStrategy,
 				PoolSizeStrategy.NoOp => _noOpStrategy,
-				_ => _noOpStrategy,
+				_ => throw new Exception($"Unknown strategy: {type}")
 			};
 		}
 	}

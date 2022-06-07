@@ -42,6 +42,7 @@ namespace Horde.Build.Collections.Impl
 			public TimeSpan? ScaleOutCooldown { get; set; }
 			public TimeSpan? ScaleInCooldown { get; set; }
 			public PoolSizeStrategy? SizeStrategy { get; set; }
+			PoolSizeStrategy IPool.SizeStrategy => SizeStrategy ?? PoolSizeStrategy.Default;
 			public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
 			public JobQueueSettings? JobQueueSettings { get; set; }
 			public int UpdateIndex { get; set; }
@@ -296,7 +297,15 @@ namespace Horde.Build.Collections.Impl
 			}
 			if (sizeStrategy != null)
 			{
-				transaction.Set(x => x.SizeStrategy, sizeStrategy);
+				if (sizeStrategy == PoolSizeStrategy.Default)
+				{
+					transaction.Set(x => x.SizeStrategy, null);
+				}
+				else
+				{
+					transaction.Set(x => x.SizeStrategy, sizeStrategy);
+				}
+				
 			}
 			if (leaseUtilizationSettings != null)
 			{

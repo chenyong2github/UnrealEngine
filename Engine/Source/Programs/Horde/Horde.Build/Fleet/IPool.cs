@@ -83,7 +83,7 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Pool sizing strategy to be used for this pool
 		/// </summary>
-		public PoolSizeStrategy? SizeStrategy { get; }
+		public PoolSizeStrategy SizeStrategy { get; }
 		
 		/// <summary>
 		/// Settings for lease utilization pool sizing strategy (if used)
