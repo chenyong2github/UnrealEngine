@@ -4,6 +4,7 @@
 #include "GerstnerWaterWaveSubsystem.h"
 #include "WaterBodyActor.h"
 #include "GerstnerWaterWaves.h"
+#include "Engine/Engine.h"
 
 FGerstnerWaterWaveViewExtension::FGerstnerWaterWaveViewExtension(const FAutoRegister& AutoReg, UWorld* InWorld) : FWorldSceneViewExtension(AutoReg, InWorld), WaveGPUData(MakeShared<FWaveGPUResources, ESPMode::ThreadSafe>())
 {
