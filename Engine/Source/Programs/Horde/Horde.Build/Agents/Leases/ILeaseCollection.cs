@@ -3,11 +3,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Logs;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Agents.Leases
 {
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;

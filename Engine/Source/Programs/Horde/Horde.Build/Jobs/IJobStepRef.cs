@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Logs;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Jobs
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

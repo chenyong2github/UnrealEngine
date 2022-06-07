@@ -2,11 +2,13 @@
 
 using System;
 using System.Collections.Generic;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Agents
 {
 	using LeaseId = ObjectId<ILease>;
 

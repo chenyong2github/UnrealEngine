@@ -4,12 +4,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using EpicGames.Core;
-using Horde.Build.Models;
+using Horde.Build.Issues;
+using Horde.Build.Issues.External;
 using Horde.Build.Server;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Issues
 {
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;

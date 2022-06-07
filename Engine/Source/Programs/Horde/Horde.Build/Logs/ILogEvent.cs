@@ -7,7 +7,7 @@ using HordeCommon;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Logs
 {
 	using LogId = ObjectId<ILogFile>;
 

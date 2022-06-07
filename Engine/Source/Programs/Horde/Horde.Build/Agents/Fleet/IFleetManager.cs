@@ -2,9 +2,9 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Agents.Pools;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Agents.Fleet
 {
 	/// <summary>
 	/// Service to manage a fleet of machines

@@ -13,10 +13,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Logs;
-using Horde.Build.Models;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Jobs;
+using Horde.Build.Logs.Data;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
@@ -28,7 +27,7 @@ using OpenTracing;
 using OpenTracing.Util;
 using Stream = System.IO.Stream;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Logs
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

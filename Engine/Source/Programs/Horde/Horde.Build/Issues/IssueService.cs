@@ -9,13 +9,15 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Config;
-using Horde.Build.IssueHandlers;
-using Horde.Build.IssueHandlers.Impl;
-using Horde.Build.Models;
+using Horde.Build.Configuration;
+using Horde.Build.Issues.Handlers;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Logs;
+using Horde.Build.Perforce;
 using Horde.Build.Server;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
@@ -26,7 +28,7 @@ using MongoDB.Driver;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Issues
 {
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;

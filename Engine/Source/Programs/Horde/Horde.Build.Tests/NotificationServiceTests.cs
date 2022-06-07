@@ -3,16 +3,20 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Issues.Impl;
-using Horde.Build.Models;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Devices;
+using Horde.Build.Issues;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
 using Horde.Build.Notifications;
-using Horde.Build.Notifications.Impl;
+using Horde.Build.Users;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using Horde.Build.Logs;
 
 namespace Horde.Build.Tests
 {

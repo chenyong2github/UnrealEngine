@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Horde.Build.Config
+namespace Horde.Build.Configuration
 {
 	/// <summary>
 	/// Collection of config documents

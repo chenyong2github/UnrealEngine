@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Horde.Build.Models;
-
-namespace Horde.Build.Api
+namespace Horde.Build.Notifications
 {
 	/// <summary>
 	/// A request from a user to be notified when something happens.

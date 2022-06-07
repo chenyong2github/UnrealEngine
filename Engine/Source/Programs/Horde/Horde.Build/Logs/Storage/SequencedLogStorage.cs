@@ -2,10 +2,10 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Logs.Data;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Logs.Storage.Impl
+namespace Horde.Build.Logs.Storage
 {
 	using LogId = ObjectId<ILogFile>;
 

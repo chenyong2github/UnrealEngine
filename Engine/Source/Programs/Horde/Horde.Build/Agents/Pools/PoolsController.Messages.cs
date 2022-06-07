@@ -4,20 +4,19 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using EpicGames.Horde.Common;
-using Horde.Build.Fleet.Autoscale;
-using Horde.Build.Models;
+using Horde.Build.Agents.Fleet;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Agents.Pools
 {
-	/// <see cref="Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings" />
-	public class LeaseUtilizationSettings
+	/// <see cref="LeaseUtilizationSettings" />
+	public class LeaseUtilizationSettingsMessage
 	{
 		/// <summary>
 		/// Construct a public REST API representation from the internal one
 		/// </summary>
 		/// <param name="settings"></param>
 #pragma warning disable IDE0060 // Remove unused parameter
-		public LeaseUtilizationSettings(Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings settings)
+		public LeaseUtilizationSettingsMessage(LeaseUtilizationSettings settings)
 #pragma warning restore IDE0060 // Remove unused parameter
 		{
 		}
@@ -26,14 +25,14 @@ namespace Horde.Build.Api
 		/// Convert this public REST API object to an internal representation
 		/// </summary>
 		/// <returns></returns>
-		public Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings Convert()
+		public Horde.Build.Agents.Fleet.LeaseUtilizationSettings Convert()
 		{
-			return new Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings();
+			return new Horde.Build.Agents.Fleet.LeaseUtilizationSettings();
 		}
 	}
 	
-	/// <see cref="Horde.Build.Fleet.Autoscale.JobQueueSettings" />
-	public class JobQueueSettings
+	/// <see cref="JobQueueSettings" />
+	public class JobQueueSettingsMessage
 	{
 		/// <summary>
 		/// Factor translating queue size to additional agents to grow the pool with
@@ -53,7 +52,7 @@ namespace Horde.Build.Api
 		/// Construct a public REST API representation from the internal one
 		/// </summary>
 		/// <param name="settings"></param>
-		public JobQueueSettings(Horde.Build.Fleet.Autoscale.JobQueueSettings settings)
+		public JobQueueSettingsMessage(JobQueueSettings settings)
 		{
 			ScaleInFactor = settings.ScaleInFactor;
 			ScaleOutFactor = settings.ScaleOutFactor;
@@ -63,9 +62,9 @@ namespace Horde.Build.Api
 		/// Convert this public REST API object to an internal representation
 		/// </summary>
 		/// <returns></returns>
-		public Horde.Build.Fleet.Autoscale.JobQueueSettings Convert()
+		public JobQueueSettings Convert()
 		{
-			return new Horde.Build.Fleet.Autoscale.JobQueueSettings(ScaleOutFactor, ScaleInFactor);
+			return new JobQueueSettings(ScaleOutFactor, ScaleInFactor);
 		}
 	}
 	
@@ -108,12 +107,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Settings for lease utilization pool sizing strategy (if used)
 		/// </summary>
-		public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
+		public LeaseUtilizationSettingsMessage? LeaseUtilizationSettings { get; set; }
 		
 		/// <summary>
 		/// Settings for job queue pool sizing strategy (if used) 
 		/// </summary>
-		public JobQueueSettings? JobQueueSettings { get; set; }
+		public JobQueueSettingsMessage? JobQueueSettings { get; set; }
 
 		/// <summary>
 		/// The minimum nunmber of agents to retain in this pool
@@ -282,12 +281,12 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Settings for lease utilization pool sizing strategy (if used)
 		/// </summary>
-		public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
+		public LeaseUtilizationSettingsMessage? LeaseUtilizationSettings { get; set; }
 		
 		/// <summary>
 		/// Settings for job queue pool sizing strategy (if used) 
 		/// </summary>
-		public JobQueueSettings? JobQueueSettings { get; set; }
+		public JobQueueSettingsMessage? JobQueueSettings { get; set; }
 
 		/// <summary>
 		/// The minimum nunmber of agents to retain in this pool
@@ -322,8 +321,8 @@ namespace Horde.Build.Api
 			ScaleOutCooldown = pool.ScaleOutCooldown == null ? null : (int)pool.ScaleOutCooldown.Value.TotalSeconds;
 			ScaleInCooldown = pool.ScaleInCooldown == null ? null : (int)pool.ScaleInCooldown.Value.TotalSeconds;
 			SizeStrategy = pool.SizeStrategy;
-			LeaseUtilizationSettings = pool.LeaseUtilizationSettings == null ? null : new LeaseUtilizationSettings(pool.LeaseUtilizationSettings);
-			JobQueueSettings = pool.JobQueueSettings == null ? null : new JobQueueSettings(pool.JobQueueSettings);
+			LeaseUtilizationSettings = pool.LeaseUtilizationSettings == null ? null : new LeaseUtilizationSettingsMessage(pool.LeaseUtilizationSettings);
+			JobQueueSettings = pool.JobQueueSettings == null ? null : new JobQueueSettingsMessage(pool.JobQueueSettings);
 			MinAgents = pool.MinAgents;
 			NumReserveAgents = pool.NumReserveAgents;
 			Workspaces = pool.Workspaces.Select(x => new GetAgentWorkspaceResponse(x)).ToList();

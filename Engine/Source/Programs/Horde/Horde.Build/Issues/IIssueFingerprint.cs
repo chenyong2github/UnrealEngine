@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Issues
 {
 	/// <summary>
 	/// Fingerprint for an issue

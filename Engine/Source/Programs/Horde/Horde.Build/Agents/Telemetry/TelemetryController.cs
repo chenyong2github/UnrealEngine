@@ -3,12 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Agents.Telemetry
 {
 	/// <summary>
 	/// Controller for the /api/v1/reports endpoint, used for the reports pages

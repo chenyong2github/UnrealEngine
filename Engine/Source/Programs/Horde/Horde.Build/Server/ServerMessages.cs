@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Server Info

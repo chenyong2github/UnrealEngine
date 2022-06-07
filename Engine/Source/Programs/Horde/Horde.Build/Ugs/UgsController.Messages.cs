@@ -5,9 +5,10 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using EpicGames.Core;
-using Horde.Build.Models;
+using Horde.Build.Issues;
+using Horde.Build.Users;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Ugs
 {
 	/// <summary>
 	/// Review by a user of a particular change

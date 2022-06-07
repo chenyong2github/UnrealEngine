@@ -7,18 +7,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Jobs;
+using Horde.Build.Logs;
+using Horde.Build.Perforce;
 using Horde.Build.Server;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Tasks.Impl
+namespace Horde.Build.Tasks
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;

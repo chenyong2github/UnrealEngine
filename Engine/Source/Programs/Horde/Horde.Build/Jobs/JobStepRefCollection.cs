@@ -4,14 +4,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Logs;
 using Horde.Build.Server;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
-namespace Horde.Build.Collections.Impl
+namespace Horde.Build.Jobs
 {
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;

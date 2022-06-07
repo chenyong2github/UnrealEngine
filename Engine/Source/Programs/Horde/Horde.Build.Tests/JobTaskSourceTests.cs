@@ -3,15 +3,17 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Horde.Build.Services;
 using System.Linq;
 using System;
-
+using Horde.Build.Agents;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Streams;
 
 namespace Horde.Build.Tests
 {

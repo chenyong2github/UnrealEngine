@@ -1,16 +1,17 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Horde.Build.Acls;
-using Horde.Build.Api;
+using Horde.Build.Projects;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Projects
 {
 	using ProjectId = StringId<IProject>;
 

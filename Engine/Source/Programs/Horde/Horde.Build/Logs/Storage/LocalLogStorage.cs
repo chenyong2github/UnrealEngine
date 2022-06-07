@@ -2,7 +2,7 @@
 
 using System;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Logs.Data;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 

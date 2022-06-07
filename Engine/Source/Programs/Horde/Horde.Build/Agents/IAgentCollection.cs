@@ -1,15 +1,17 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Agents.Software;
+using Horde.Build.Auditing;
 using Horde.Build.Utilities;
 using HordeCommon;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Agents
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using PoolId = StringId<IPool>;

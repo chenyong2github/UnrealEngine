@@ -2,14 +2,13 @@
 
 using System;
 using System.Threading.Tasks;
-using Horde.Build.Collections;
-using Horde.Build.Collections.Impl;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
 using Horde.Build.Server;
+using Horde.Build.Users;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Service to perform schema upgrades on the database

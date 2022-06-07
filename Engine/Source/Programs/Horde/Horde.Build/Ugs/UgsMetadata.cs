@@ -2,9 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using Horde.Build.Api;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Ugs
 {
 	/// <summary>
 	/// Metadata for a particular user

@@ -3,10 +3,9 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Models;
 using HordeCommon;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Jobs.Templates
 {
 	/// <summary>
 	/// Interface for a collection of template documents

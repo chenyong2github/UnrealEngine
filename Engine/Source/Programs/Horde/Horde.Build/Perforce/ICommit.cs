@@ -1,10 +1,11 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using Horde.Build.Models;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Commits
+namespace Horde.Build.Perforce
 {
 	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;

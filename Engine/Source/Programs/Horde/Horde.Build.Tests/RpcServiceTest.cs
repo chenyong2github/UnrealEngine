@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -10,9 +10,11 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Grpc.Core;
-using Horde.Build.Models;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Logs;
+using Horde.Build.Server;
 using HordeCommon.Rpc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -21,12 +23,14 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using AgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
 using ISession = Microsoft.AspNetCore.Http.ISession;
-using PoolId = Horde.Build.Utilities.StringId<Horde.Build.Models.IPool>;
+using Horde.Build.Jobs.Artifacts;
+using Horde.Build.Agents;
 
 namespace Horde.Build.Tests
 {
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
+	using PoolId = StringId<IPool>;
 
 	public class AppLifetimeStub : IHostApplicationLifetime
 	{
@@ -398,7 +402,7 @@ namespace Horde.Build.Tests
 
 			// Set the session ID on the job batch to pass auth later
 			Deref(await JobCollection.TryAssignLeaseAsync(fixture.Job1, 0, new PoolId("foo"),
-				new AgentId("test"), new ObjectId<Horde.Build.Models.ISession>(sessionId),
+				new AgentId("test"), new ObjectId<Horde.Build.Agents.Sessions.ISession>(sessionId),
 				LeaseId.GenerateNewId(), LogId.GenerateNewId()));
 /*
 			TestAsyncStreamReader<UploadArtifactRequest> RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);

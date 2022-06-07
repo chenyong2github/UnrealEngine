@@ -3,15 +3,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Jobs;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Users
 {
 	using JobId = ObjectId<IJob>;
 	using UserId = ObjectId<IUser>;

@@ -7,16 +7,15 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Collections;
 using Horde.Build.Commands;
-using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Agents.Software
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 

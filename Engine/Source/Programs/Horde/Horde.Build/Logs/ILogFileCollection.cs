@@ -2,11 +2,11 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Models;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Jobs;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Logs
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

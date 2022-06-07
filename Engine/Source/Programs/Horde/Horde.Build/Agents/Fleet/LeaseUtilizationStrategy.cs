@@ -6,15 +6,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Google.Protobuf.WellKnownTypes;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace Horde.Build.Fleet.Autoscale
+namespace Horde.Build.Agents.Fleet
 {
 	using PoolId = StringId<IPool>;
 

@@ -3,9 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Models;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Agents.Telemetry
 {
 	/// <summary>
 	/// Collection of utilization collection

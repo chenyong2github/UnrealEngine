@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Copyright Epic Games, Inc. All Rights Reserved.	
-
 using System;
 using System.Text;
 using System.Threading.Tasks;
-using Horde.Build.Api;
 using Horde.Build.Controllers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -13,7 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
-namespace Horde.Build
+namespace Horde.Build.Server
 {
 	/// <summary>	
 	/// Dashboard authorization challenge controller	

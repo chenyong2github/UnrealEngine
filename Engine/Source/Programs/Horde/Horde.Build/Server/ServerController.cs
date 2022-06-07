@@ -2,12 +2,11 @@
 
 using System.Diagnostics;
 using System.Reflection;
-using Horde.Build.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Controller managing account status

@@ -4,18 +4,21 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Horde.Build.Collections;
-using Horde.Build.Collections.Impl;
-using Horde.Build.Config;
 using Horde.Build.Jobs;
 using Horde.Build.Server;
-using Horde.Build.Services;
+using Horde.Build.Perforce;
 using Horde.Build.Tests.Stubs.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Horde.Build.Agents;
+using Horde.Build.Streams;
+using Horde.Build.Jobs.Templates;
+using Horde.Build.Configuration;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Jobs.Artifacts;
 
 namespace Horde.Build.Tests;
 

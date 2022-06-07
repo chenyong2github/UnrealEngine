@@ -9,12 +9,15 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Agent.Parser;
 using Horde.Agent.Utility;
-using Horde.Build.IssueHandlers.Impl;
-using Horde.Build.Models;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Jobs;
+using Horde.Build.Issues;
+using Horde.Build.Logs;
+using Horde.Build.Users;
+using Horde.Build.Projects;
+using Horde.Build.Streams;
 using Horde.Build.Server;
-using Horde.Build.Services;
 using Horde.Build.Tests.Stubs.Services;
-using Horde.Build.Collections;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +26,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
+using Horde.Build.Issues.Handlers;
 
 namespace Horde.Build.Tests
 {
@@ -115,8 +119,8 @@ namespace Horde.Build.Tests
 			string revision = $"config:{streamId}";
 
 			StreamConfig streamConfig = new StreamConfig { Name = streamName };
-			streamConfig.Tabs.Add(new Api.CreateJobsTabRequest { Title = "General", Templates = new List<string> { "test-template" } });
-			streamConfig.Templates.Add(new Api.TemplateRefConfig { Id = new TemplateRefId("test-template") });
+			streamConfig.Tabs.Add(new CreateJobsTabRequest { Title = "General", Templates = new List<string> { "test-template" } });
+			streamConfig.Templates.Add(new TemplateRefConfig { Id = new TemplateRefId("test-template") });
 			await ConfigCollection.AddConfigAsync(revision, streamConfig);
 
 			return Deref(await StreamCollection.TryCreateOrReplaceAsync(streamId, null, revision, projectId));
@@ -199,7 +203,7 @@ namespace Horde.Build.Tests
 				{
 					SubResourceId stepId = new SubResourceId((ushort)((groupIdx * 100) + nodeIdx));
 
-					ILogFile logFile = LogFileService.CreateLogFileAsync(jobId, null, Horde.Build.Api.LogType.Json).Result;
+					ILogFile logFile = LogFileService.CreateLogFileAsync(jobId, null, LogType.Json).Result;
 
 					Mock<IJobStep> step = new Mock<IJobStep>(MockBehavior.Strict);
 					step.SetupGet(x => x.Id).Returns(stepId);
@@ -1563,7 +1567,7 @@ namespace Horde.Build.Tests
 				spans.Add(MockSpan(new StreamId("ue5-release-staging"), MockSuspect(101, 1), MockSuspect(102, 2)));
 				spans.Add(MockSpan(new StreamId("ue5-release"), MockSuspect(1, null), MockSuspect(2, null)));
 
-				List<IIssueSpan> results = Horde.Build.Services.IssueService.FindMergeOriginSpans(spans);
+				List<IIssueSpan> results = Horde.Build.Issues.IssueService.FindMergeOriginSpans(spans);
 				Assert.AreEqual(1, results.Count);
 				Assert.AreEqual(new StreamId("ue5-release"), results[0].StreamId);
 			}
@@ -1574,7 +1578,7 @@ namespace Horde.Build.Tests
 				spans.Add(MockSpan(new StreamId("ue5-release-staging"), MockSuspect(101, 1), MockSuspect(102, null)));
 				spans.Add(MockSpan(new StreamId("ue5-release"), MockSuspect(1, null), MockSuspect(2, null)));
 
-				List<IIssueSpan> results = Horde.Build.Services.IssueService.FindMergeOriginSpans(spans);
+				List<IIssueSpan> results = Horde.Build.Issues.IssueService.FindMergeOriginSpans(spans);
 				Assert.AreEqual(1, results.Count);
 				Assert.AreEqual(new StreamId("ue5-release"), results[0].StreamId);
 			}
@@ -1585,7 +1589,7 @@ namespace Horde.Build.Tests
 				spans.Add(MockSpan(new StreamId("ue5-release-staging"), MockSuspect(101, 1), MockSuspect(102, null)));
 				spans.Add(MockSpan(new StreamId("ue5-main"), MockSuspect(201, null), MockSuspect(202, 2)));
 
-				List<IIssueSpan> results = Horde.Build.Services.IssueService.FindMergeOriginSpans(spans);
+				List<IIssueSpan> results = Horde.Build.Issues.IssueService.FindMergeOriginSpans(spans);
 				Assert.AreEqual(1, results.Count);
 				Assert.AreEqual(new StreamId("ue5-release"), results[0].StreamId);
 			}

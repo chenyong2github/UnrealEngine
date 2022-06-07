@@ -4,10 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using EpicGames.Core;
-using Horde.Build.Models;
 using HordeCommon;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Jobs.Templates
 {
 	/// <summary>
 	/// Base class for template parameters

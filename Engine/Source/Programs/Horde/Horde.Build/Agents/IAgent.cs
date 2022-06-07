@@ -10,14 +10,21 @@ using EpicGames.Horde.Common;
 using EpicGames.Horde.Compute;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Acls;
-using Horde.Build.Services;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Agents.Software;
+using Horde.Build.Logs;
+using Horde.Build.Perforce;
+using Horde.Build.Server;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Agents
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using LeaseId = ObjectId<ILease>;

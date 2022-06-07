@@ -7,17 +7,20 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
 using Horde.Build.Notifications;
+using Horde.Build.Projects;
+using Horde.Build.Server;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Devices
 {
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;

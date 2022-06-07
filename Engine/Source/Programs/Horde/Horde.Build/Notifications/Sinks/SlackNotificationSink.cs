@@ -15,13 +15,17 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Config;
-using Horde.Build.Issues.Impl;
-using Horde.Build.Models;
+using Horde.Build.Configuration;
+using Horde.Build.Devices;
+using Horde.Build.Issues;
+using Horde.Build.Issues.External;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Logs;
+using Horde.Build.Perforce;
 using Horde.Build.Server;
-using Horde.Build.Services;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Horde.Build.Utilities.Slack.BlockKit;
 using HordeCommon;
@@ -34,7 +38,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
-namespace Horde.Build.Notifications.Impl
+namespace Horde.Build.Notifications.Sinks
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

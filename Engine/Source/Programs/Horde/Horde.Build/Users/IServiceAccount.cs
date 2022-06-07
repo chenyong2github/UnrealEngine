@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using MongoDB.Bson;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Users
 {
 	/// <summary>
 	/// A service account used for authenticating during server-to-server communication

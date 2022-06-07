@@ -3,8 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Logs;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Streams;
+using Horde.Build.Jobs;
 using Horde.Build.Utilities;
 using HordeCommon;
 

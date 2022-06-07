@@ -6,14 +6,13 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
+using Horde.Build.Projects;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using MongoDB.Driver;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Streams
 {
 	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;

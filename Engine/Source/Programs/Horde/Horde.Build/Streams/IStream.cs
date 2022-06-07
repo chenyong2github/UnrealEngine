@@ -7,13 +7,18 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Horde.Build.Acls;
-using Horde.Build.Api;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Jobs.Schedules;
+using Horde.Build.Jobs.Templates;
+using Horde.Build.Projects;
 using Horde.Build.Server;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Streams
 {
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
@@ -116,9 +121,9 @@ namespace Horde.Build.Models
 		/// Creates an API response object from this stream
 		/// </summary>
 		/// <returns>The response object</returns>
-		public Api.GetAgentTypeResponse ToApiResponse()
+		public GetAgentTypeResponse ToApiResponse()
 		{
-			return new Api.GetAgentTypeResponse(Pool.ToString(), Workspace, TempStorageDir, Environment);
+			return new GetAgentTypeResponse(Pool.ToString(), Workspace, TempStorageDir, Environment);
 		}
 
 		/// <summary>
@@ -236,9 +241,9 @@ namespace Horde.Build.Models
 		/// Creates an API response object from this stream
 		/// </summary>
 		/// <returns>The response object</returns>
-		public Api.GetWorkspaceTypeResponse ToApiResponse()
+		public GetWorkspaceTypeResponse ToApiResponse()
 		{
-			return new Api.GetWorkspaceTypeResponse(Cluster, ServerAndPort, UserName, Identifier, Stream, View, Incremental, UseAutoSdk);
+			return new GetWorkspaceTypeResponse(Cluster, ServerAndPort, UserName, Identifier, Stream, View, Incremental, UseAutoSdk);
 		}
 	}
 
@@ -733,13 +738,13 @@ namespace Horde.Build.Models
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response object</param>
 		/// <param name="apiTemplateRefs">The template refs for this stream. Passed separately because they have their own ACL.</param>
 		/// <returns>New response instance</returns>
-		public static Api.GetStreamResponse ToApiResponse(this IStream stream, bool bIncludeAcl, List<GetTemplateRefResponse> apiTemplateRefs)
+		public static GetStreamResponse ToApiResponse(this IStream stream, bool bIncludeAcl, List<GetTemplateRefResponse> apiTemplateRefs)
 		{
 			List<GetStreamTabResponse> apiTabs = stream.Tabs.ConvertAll(x => x.ToResponse());
 			Dictionary<string, GetAgentTypeResponse> apiAgentTypes = stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
 			Dictionary<string, GetWorkspaceTypeResponse> apiWorkspaceTypes = stream.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
 			GetAclResponse? apiAcl = (bIncludeAcl && stream.Acl != null)? new GetAclResponse(stream.Acl) : null;
-			return new Api.GetStreamResponse(stream.Id.ToString(), stream.ProjectId.ToString(), stream.Name, stream.ConfigRevision, stream.Order, stream.NotificationChannel, stream.NotificationChannelFilter, stream.TriageChannel, stream.DefaultPreflight?.ToRequest(), apiTabs, apiAgentTypes, apiWorkspaceTypes, apiTemplateRefs, apiAcl, stream.PausedUntil, stream.PauseComment, stream.Config.Workflows);
+			return new GetStreamResponse(stream.Id.ToString(), stream.ProjectId.ToString(), stream.Name, stream.ConfigRevision, stream.Order, stream.NotificationChannel, stream.NotificationChannelFilter, stream.TriageChannel, stream.DefaultPreflight?.ToRequest(), apiTabs, apiAgentTypes, apiWorkspaceTypes, apiTemplateRefs, apiAcl, stream.PausedUntil, stream.PauseComment, stream.Config.Workflows);
 		}
 
 		/// <summary>

@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
+using Horde.Build.Jobs;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Users
 {
 	using JobId = ObjectId<IJob>;
 	using UserId = ObjectId<IUser>;

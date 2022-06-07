@@ -3,10 +3,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using EpicGames.Core;
-using Horde.Build.Models;
 using HordeCommon;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Jobs.Graphs
 {
 	/// <summary>
 	/// Information required to create a node

@@ -11,10 +11,11 @@ using EpicGames.Core;
 using EpicGames.Redis;
 using EpicGames.Redis.Utility;
 using EpicGames.Serialization;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Jobs.Templates;
+using Horde.Build.Perforce;
 using Horde.Build.Server;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
@@ -26,7 +27,7 @@ using OpenTracing.Util;
 using StackExchange.Redis;
 using TimeZoneConverter;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Jobs.Schedules
 {
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;

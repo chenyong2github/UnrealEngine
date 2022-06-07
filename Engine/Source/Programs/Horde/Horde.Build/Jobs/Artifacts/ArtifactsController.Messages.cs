@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
-using Horde.Build.Models;
+using Horde.Build.Jobs.Artifacts;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Jobs.Artifacts
 {
 	/// <summary>
 	/// Response from creating an artifact

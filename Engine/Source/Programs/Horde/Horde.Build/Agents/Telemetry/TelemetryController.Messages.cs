@@ -3,9 +3,8 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
-using Horde.Build.Models;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Agents.Telemetry
 {
 
 	/// <summary>

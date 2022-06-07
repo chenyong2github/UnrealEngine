@@ -13,7 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Horde.Build.Tools.Impl
+namespace Horde.Build.Tools
 {
 	using ToolId = StringId<Tool>;
 	using ToolDeploymentId = ObjectId<ToolDeployment>;

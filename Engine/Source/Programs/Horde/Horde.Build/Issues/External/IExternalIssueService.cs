@@ -4,11 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Hosting;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Issues.External
 {
 	using StreamId = StringId<IStream>;
 

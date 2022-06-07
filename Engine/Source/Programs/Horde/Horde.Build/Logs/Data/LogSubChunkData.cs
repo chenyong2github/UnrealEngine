@@ -2,11 +2,10 @@
 
 using System;
 using EpicGames.Core;
-using Horde.Build.Api;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Logs
+namespace Horde.Build.Logs.Data
 {
 	/// <summary>
 	/// Pending data for a sub-chunk

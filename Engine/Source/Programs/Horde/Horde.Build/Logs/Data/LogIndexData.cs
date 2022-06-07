@@ -9,7 +9,7 @@ using Horde.Build.Utilities;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace Horde.Build.Logs
+namespace Horde.Build.Logs.Data
 {
 	/// <summary>
 	/// Contains a source block of text to be indexed

@@ -12,7 +12,8 @@ using EpicGames.Redis;
 using EpicGames.Serialization;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
-using Horde.Build.Models;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Leases;
 using Horde.Build.Server;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
@@ -23,7 +24,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
-namespace Horde.Build.Compute.Impl
+namespace Horde.Build.Compute
 {
 	using LeaseId = ObjectId<ILease>;
 

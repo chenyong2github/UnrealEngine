@@ -2,7 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Jobs.Timing
 {
 	/// <summary>
 	/// Information about the timing for an individual step

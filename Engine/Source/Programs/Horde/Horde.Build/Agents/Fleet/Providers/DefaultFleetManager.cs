@@ -2,10 +2,10 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Agents.Pools;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Services.Impl
+namespace Horde.Build.Agents.Fleet.Providers
 {
 	/// <summary>
 	/// Default implementation of <see cref="IFleetManager"/>

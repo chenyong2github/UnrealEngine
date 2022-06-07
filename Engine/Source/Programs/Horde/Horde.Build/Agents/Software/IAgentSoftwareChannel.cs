@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Agents.Software
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 

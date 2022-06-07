@@ -3,10 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Models;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Agents.Sessions
 {
 	using SessionId = ObjectId<ISession>;
 

@@ -3,10 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using Horde.Build.Models;
+using Horde.Build.Jobs.TestData;
 using MongoDB.Bson.Serialization;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Jobs.TestData
 {
 	/// <summary>
 	/// Response object describing test data to store

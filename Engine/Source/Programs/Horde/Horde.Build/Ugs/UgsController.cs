@@ -4,17 +4,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Users;
+using Horde.Build.Logs;
+using Horde.Build.Issues;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Ugs
 {
 	using LogId = ObjectId<ILogFile>;
 	using UserId = ObjectId<IUser>;

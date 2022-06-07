@@ -6,14 +6,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Common;
-using Horde.Build.Collections;
-using Horde.Build.Fleet.Autoscale;
-using Horde.Build.Models;
+using Horde.Build.Agents.Fleet;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Agents.Pools
 {
 	using PoolId = StringId<IPool>;
 

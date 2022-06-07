@@ -3,9 +3,9 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Models;
+using Horde.Build.Jobs.Templates;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Jobs.Graphs
 {
 	/// <summary>
 	/// Interface for a collection of graph documents

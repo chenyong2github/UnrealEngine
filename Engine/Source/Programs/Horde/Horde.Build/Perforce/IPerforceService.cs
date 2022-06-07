@@ -6,9 +6,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Perforce;
-using Horde.Build.Models;
+using Horde.Build.Jobs.Templates;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Perforce
 {
 	/// <summary>
 	/// Information about a Perforce user

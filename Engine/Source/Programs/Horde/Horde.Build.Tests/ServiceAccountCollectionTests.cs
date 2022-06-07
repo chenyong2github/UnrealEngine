@@ -2,10 +2,8 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Collections;
-using Horde.Build.Collections.Impl;
-using Horde.Build.Models;
 using Horde.Build.Server;
+using Horde.Build.Users;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 

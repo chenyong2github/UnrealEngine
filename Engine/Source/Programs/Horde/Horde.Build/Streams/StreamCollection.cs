@@ -7,17 +7,20 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Config;
-using Horde.Build.Models;
+using Horde.Build.Configuration;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Schedules;
+using Horde.Build.Jobs.Templates;
+using Horde.Build.Projects;
 using Horde.Build.Server;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
-namespace Horde.Build.Collections.Impl
+namespace Horde.Build.Streams
 {
 	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;

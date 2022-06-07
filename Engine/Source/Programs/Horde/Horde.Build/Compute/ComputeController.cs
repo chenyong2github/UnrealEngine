@@ -10,7 +10,7 @@ using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Horde.Build.Compute.Impl
+namespace Horde.Build.Compute
 {
 	/// <summary>
 	/// Controller for the /api/v1/compute endpoint

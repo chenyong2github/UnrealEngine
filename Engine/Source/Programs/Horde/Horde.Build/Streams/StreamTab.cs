@@ -2,11 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using Horde.Build.Api;
 using Horde.Build.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Streams
 {
 	using TemplateRefId = StringId<TemplateRef>;
 

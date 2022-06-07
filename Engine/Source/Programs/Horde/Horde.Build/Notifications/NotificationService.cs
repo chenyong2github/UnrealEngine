@@ -8,12 +8,15 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Issues.Impl;
-using Horde.Build.Models;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Devices;
+using Horde.Build.Issues;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Logs;
 using Horde.Build.Server;
-using Horde.Build.Services;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
@@ -25,7 +28,7 @@ using StackExchange.Redis;
 using StatsdClient;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
-namespace Horde.Build.Notifications.Impl
+namespace Horde.Build.Notifications
 {
 	using UserId = ObjectId<IUser>;
 

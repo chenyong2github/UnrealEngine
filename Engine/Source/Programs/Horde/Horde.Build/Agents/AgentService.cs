@@ -12,8 +12,11 @@ using EpicGames.Redis;
 using EpicGames.Serialization;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Acls;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Agents.Software;
+using Horde.Build.Auditing;
 using Horde.Build.Server;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
@@ -26,7 +29,7 @@ using OpenTracing.Util;
 using StackExchange.Redis;
 using StatsdClient;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Agents
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using LeaseId = ObjectId<ILease>;

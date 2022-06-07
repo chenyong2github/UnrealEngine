@@ -4,9 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using Horde.Build.Models;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Devices
 {
 
 	/// <summary>

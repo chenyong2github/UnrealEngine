@@ -2,10 +2,10 @@
 
 using System;
 using EpicGames.Horde.Storage;
-using Horde.Build.Models;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Commits
+namespace Horde.Build.Perforce
 {
 	using StreamId = StringId<IStream>;
 

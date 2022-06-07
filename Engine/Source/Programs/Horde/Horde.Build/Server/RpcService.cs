@@ -13,11 +13,19 @@ using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Horde.Build.Acls;
-using Horde.Build.Collections;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Agents.Software;
 using Horde.Build.Jobs;
-using Horde.Build.Models;
+using Horde.Build.Jobs.Artifacts;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Jobs.Templates;
+using Horde.Build.Jobs.TestData;
+using Horde.Build.Logs;
 using Horde.Build.Server;
-using Horde.Build.Tasks.Impl;
+using Horde.Build.Streams;
+using Horde.Build.Tasks;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc;
@@ -26,14 +34,19 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
-	using IStream = Horde.Build.Models.IStream;
+	using IStream = Horde.Build.Streams.IStream;
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using RpcAgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
 	using RpcDeviceCapabilities = HordeCommon.Rpc.Messages.DeviceCapabilities;
+	using RpcGetStreamResponse = HordeCommon.Rpc.GetStreamResponse;
+	using RpcGetJobResponse = HordeCommon.Rpc.GetJobResponse;
+	using RpcGetStepResponse = HordeCommon.Rpc.GetStepResponse;
+	using RpcUpdateJobRequest = HordeCommon.Rpc.UpdateJobRequest;
+	using RpcUpdateStepRequest = HordeCommon.Rpc.UpdateStepRequest;
 	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 
@@ -389,7 +402,7 @@ namespace Horde.Build.Services
 		/// <param name="request">Request arguments</param>
 		/// <param name="context">Context for the RPC call</param>
 		/// <returns>Information about the new agent</returns>
-		public override async Task<GetStreamResponse> GetStream(GetStreamRequest request, ServerCallContext context)
+		public override async Task<RpcGetStreamResponse> GetStream(GetStreamRequest request, ServerCallContext context)
 		{
 			StreamId streamIdValue = new StreamId(request.StreamId);
 
@@ -412,7 +425,7 @@ namespace Horde.Build.Services
 		/// <param name="request">Request arguments</param>
 		/// <param name="context">Context for the RPC call</param>
 		/// <returns>Information about the new agent</returns>
-		public override async Task<GetJobResponse> GetJob(GetJobRequest request, ServerCallContext context)
+		public override async Task<RpcGetJobResponse> GetJob(GetJobRequest request, ServerCallContext context)
 		{
 			JobId jobIdValue = new JobId(request.JobId.ToObjectId());
 
@@ -435,7 +448,7 @@ namespace Horde.Build.Services
 		/// <param name="request">Request arguments</param>
 		/// <param name="context">Context for the RPC call</param>
 		/// <returns>Information about the new agent</returns>
-		public override async Task<Empty> UpdateJob(UpdateJobRequest request, ServerCallContext context)
+		public override async Task<Empty> UpdateJob(RpcUpdateJobRequest request, ServerCallContext context)
 		{
 			JobId jobIdValue = new JobId(request.JobId);
 
@@ -470,7 +483,7 @@ namespace Horde.Build.Services
 			}
 
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-			job = await _jobService.UpdateBatchAsync(job, batchId, null, Api.JobStepBatchState.Starting);
+			job = await _jobService.UpdateBatchAsync(job, batchId, null, JobStepBatchState.Starting);
 
 			if (job == null)
 			{
@@ -500,7 +513,7 @@ namespace Horde.Build.Services
 			}
 
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-			await _jobService.UpdateBatchAsync(job, batch.Id, null, Api.JobStepBatchState.Complete);
+			await _jobService.UpdateBatchAsync(job, batch.Id, null, JobStepBatchState.Complete);
 			return new Empty();
 		}
 
@@ -534,7 +547,7 @@ namespace Horde.Build.Services
 
 			// Find the batch being executed
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
-			if (batch.State != Api.JobStepBatchState.Starting && batch.State != Api.JobStepBatchState.Running)
+			if (batch.State != JobStepBatchState.Starting && batch.State != JobStepBatchState.Running)
 			{
 				return new BeginStepResponse { State = BeginStepResponse.Types.Result.Complete };
 			}
@@ -547,7 +560,7 @@ namespace Horde.Build.Services
 				if (stepIdx == batch.Steps.Count)
 				{
 					_logger.LogDebug("Job {JobId} batch {BatchId} is complete", job.Id, batch.Id);
-					if (await _jobService.TryUpdateBatchAsync(job, batch.Id, newState: Api.JobStepBatchState.Stopping) == null)
+					if (await _jobService.TryUpdateBatchAsync(job, batch.Id, newState: JobStepBatchState.Stopping) == null)
 					{
 						return null;
 					}
@@ -570,7 +583,7 @@ namespace Horde.Build.Services
 			// Create a log file if necessary
 			if (log.Value == null)
 			{
-				log.Value = await _logFileService.CreateLogFileAsync(job.Id, batch.SessionId, Api.LogType.Json);
+				log.Value = await _logFileService.CreateLogFileAsync(job.Id, batch.SessionId, LogType.Json);
 			}
 
 			// Get the node for this step
@@ -682,7 +695,7 @@ namespace Horde.Build.Services
 		/// <param name="request">Request arguments</param>
 		/// <param name="context">Context for the RPC call</param>
 		/// <returns>Information about the new agent</returns>
-		public override async Task<Empty> UpdateStep(UpdateStepRequest request, ServerCallContext context)
+		public override async Task<Empty> UpdateStep(RpcUpdateStepRequest request, ServerCallContext context)
 		{
 			IJob? job = await _jobService.GetJobAsync(new JobId(request.JobId));
 			if (job == null)
@@ -714,7 +727,7 @@ namespace Horde.Build.Services
 		/// <param name="request">Request arguments</param>
 		/// <param name="context">Context for the RPC call</param>
 		/// <returns>Information about the step</returns>
-		public override async Task<GetStepResponse> GetStep(GetStepRequest request, ServerCallContext context)
+		public override async Task<RpcGetStepResponse> GetStep(GetStepRequest request, ServerCallContext context)
 		{
 			IJob job = await GetJobAsync(new JobId(request.JobId));
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
@@ -725,7 +738,7 @@ namespace Horde.Build.Services
 				throw new StructuredRpcException(StatusCode.NotFound, "Unable to find step {JobId}:{BatchId}:{StepId}", job.Id, batch.Id, stepId);
 			}
 
-			return new GetStepResponse { Outcome = step.Outcome, State = step.State, AbortRequested = step.AbortRequested || step.HasTimedOut(_clock.UtcNow) };
+			return new RpcGetStepResponse { Outcome = step.Outcome, State = step.State, AbortRequested = step.AbortRequested || step.HasTimedOut(_clock.UtcNow) };
 		}
 
 		/// <summary>
@@ -833,7 +846,7 @@ namespace Horde.Build.Services
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Resource not found");
 			}
-			if (!Horde.Build.Services.LogFileService.AuthorizeForSession(logFile, context.GetHttpContext().User))
+			if (!LogFileService.AuthorizeForSession(logFile, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access denied");
 			}

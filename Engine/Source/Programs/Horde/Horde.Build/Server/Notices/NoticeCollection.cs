@@ -6,12 +6,11 @@ using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Horde.Build.Models;
-using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
+using Horde.Build.Users;
 
-namespace Horde.Build.Collections.Impl
+namespace Horde.Build.Server.Notices
 {
 	using UserId = ObjectId<IUser>;
 

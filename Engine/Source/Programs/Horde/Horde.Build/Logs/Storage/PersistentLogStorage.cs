@@ -3,12 +3,12 @@
 using System;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Models;
+using Horde.Build.Logs.Data;
 using Horde.Build.Storage;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Logs.Readers
+namespace Horde.Build.Logs.Storage
 {
 	using LogId = ObjectId<ILogFile>;
 

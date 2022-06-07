@@ -7,8 +7,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf.WellKnownTypes;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -19,7 +19,7 @@ using OpenTracing;
 using OpenTracing.Util;
 using StatsdClient;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Agents.Fleet
 {
 	using PoolId = StringId<IPool>;
 

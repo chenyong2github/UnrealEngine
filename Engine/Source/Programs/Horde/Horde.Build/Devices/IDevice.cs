@@ -3,11 +3,13 @@
 using System;
 using System.Collections.Generic;
 using Horde.Build.Acls;
+using Horde.Build.Projects;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Devices
 {
 	using DeviceId = StringId<IDevice>;
 	using DevicePlatformId = StringId<IDevicePlatform>;

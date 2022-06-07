@@ -9,10 +9,18 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Tasks.Impl;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Issues;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Jobs.Templates;
+using Horde.Build.Jobs.Timing;
+using Horde.Build.Logs;
+using Horde.Build.Notifications;
+using Horde.Build.Perforce;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
@@ -21,7 +29,7 @@ using MongoDB.Driver;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Jobs
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;

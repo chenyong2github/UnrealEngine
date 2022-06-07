@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Utilities
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Tracks open HTTP requests to ASP.NET

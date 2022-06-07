@@ -2,9 +2,10 @@
 
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using Horde.Build.Models;
+using Horde.Build.Acls;
+using Horde.Build.Projects;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Projects
 {
 	/// <summary>
 	/// Information about a category to display for a stream

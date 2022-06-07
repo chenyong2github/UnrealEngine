@@ -4,12 +4,16 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using EpicGames.Core;
-using Horde.Build.Models;
+using Horde.Build.Acls;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Jobs.Templates;
 using Horde.Build.Server;
+using Horde.Build.Jobs.Schedules;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Streams
 {
 	using TemplateRefId = StringId<TemplateRef>;
 	using WorkflowId = StringId<WorkflowConfig>;

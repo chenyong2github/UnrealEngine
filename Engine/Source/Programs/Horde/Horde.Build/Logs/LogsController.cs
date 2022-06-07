@@ -7,17 +7,15 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Logs;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Issues;
+using Horde.Build.Jobs;
+using Horde.Build.Logs.Data;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Logs
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

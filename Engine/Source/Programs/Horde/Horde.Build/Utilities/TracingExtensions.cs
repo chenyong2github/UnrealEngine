@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
 using OpenTracing;
 
 namespace Horde.Build.Utilities

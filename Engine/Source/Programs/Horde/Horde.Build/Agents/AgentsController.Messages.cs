@@ -4,11 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using Horde.Build.Acls;
+using Horde.Build.Agents;
 using EpicGames.Core;
-using Horde.Build.Models;
 using HordeCommon;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Sessions;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Agents
 {
 	/// <summary>
 	/// Parameters to register a new agent

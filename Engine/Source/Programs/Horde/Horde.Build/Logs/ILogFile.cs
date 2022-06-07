@@ -3,10 +3,11 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
-using Horde.Build.Api;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Jobs;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Logs
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

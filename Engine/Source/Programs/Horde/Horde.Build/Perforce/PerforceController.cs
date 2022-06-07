@@ -4,14 +4,12 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Models;
 using Horde.Build.Server;
-using Horde.Build.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Perforce
 {
 	/// <summary>
 	/// Controller for Perforce triggers and callbacks

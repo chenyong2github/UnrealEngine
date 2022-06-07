@@ -1,14 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Collections;
-using Horde.Build.Models;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Projects
 {
 	using ProjectId = StringId<IProject>;
 

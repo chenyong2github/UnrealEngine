@@ -9,7 +9,7 @@ using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Serializers;
 using StackExchange.Redis;
 
-namespace Horde.Build.Utilities
+namespace Horde.Build.Agents
 {
 	/// <summary>
 	/// Normalized hostname of an agent

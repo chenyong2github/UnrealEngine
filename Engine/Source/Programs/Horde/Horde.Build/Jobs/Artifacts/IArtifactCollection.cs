@@ -2,11 +2,10 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Models;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
-namespace Horde.Build.Jobs
+namespace Horde.Build.Jobs.Artifacts
 {
 	using JobId = ObjectId<IJob>;
 

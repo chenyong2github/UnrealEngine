@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Horde.Build.Logs
+namespace Horde.Build.Logs.Data
 {
 	/// <summary>
 	/// Functionality for decomposing log text into tokens

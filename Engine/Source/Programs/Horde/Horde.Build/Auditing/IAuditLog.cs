@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Auditing
 {
 	/// <summary>
 	/// Message from an audit log

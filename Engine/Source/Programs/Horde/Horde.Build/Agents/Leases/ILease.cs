@@ -3,10 +3,14 @@
 using System;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Logs;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Agents.Leases
 {
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;

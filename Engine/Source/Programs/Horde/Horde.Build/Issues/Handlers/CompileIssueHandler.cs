@@ -5,12 +5,13 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using EpicGames.Core;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Logs;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 
-namespace Horde.Build.IssueHandlers.Impl
+namespace Horde.Build.Issues.Handlers
 {
 	/// <summary>
 	/// Instance of a particular compile error

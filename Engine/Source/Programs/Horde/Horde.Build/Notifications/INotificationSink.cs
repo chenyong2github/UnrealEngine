@@ -3,10 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Issues.Impl;
-using Horde.Build.Models;
-using Horde.Build.Server;
+using Horde.Build.Devices;
+using Horde.Build.Issues;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Logs;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using HordeCommon;
 
 namespace Horde.Build.Notifications

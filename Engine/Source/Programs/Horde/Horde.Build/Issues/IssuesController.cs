@@ -5,19 +5,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Auditing;
 using Horde.Build.Server;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using Microsoft.Extensions.Logging;
+using Horde.Build.Jobs;
+using Horde.Build.Logs;
+using Horde.Build.Streams;
+using Horde.Build.Issues.External;
+using Horde.Build.Users;
+using Horde.Build.Jobs.Graphs;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Issues
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;

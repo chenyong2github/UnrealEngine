@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-namespace Horde.Build.Models
+namespace Horde.Build.Users
 {
 	/// <summary>
 	/// Avatar for the user

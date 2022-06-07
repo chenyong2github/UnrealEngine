@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-namespace Horde.Build.Api
+namespace Horde.Build.Agents.Leases
 {
 
 	/// <summary>

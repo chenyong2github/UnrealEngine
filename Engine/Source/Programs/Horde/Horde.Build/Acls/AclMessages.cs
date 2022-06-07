@@ -1,10 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using Horde.Build.Acls;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Acls
 {
 	/// <summary>
 	/// New claim to create

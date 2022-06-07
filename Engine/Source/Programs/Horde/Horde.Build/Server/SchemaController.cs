@@ -12,7 +12,7 @@ using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Controller for the /api/v1/schema endpoint

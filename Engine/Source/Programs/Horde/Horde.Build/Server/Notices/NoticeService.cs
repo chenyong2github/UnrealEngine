@@ -3,12 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server.Notices
 {
 	using UserId = ObjectId<IUser>;
 

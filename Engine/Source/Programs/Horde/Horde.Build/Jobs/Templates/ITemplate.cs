@@ -3,11 +3,10 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
-using Horde.Build.Api;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Jobs.Templates
 {
 	/// <summary>
 	/// Base class for parameters used to configure templates via the new build dialog

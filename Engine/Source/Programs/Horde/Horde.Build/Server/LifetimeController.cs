@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Horde.Build.Server;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Controller for app lifetime related routes

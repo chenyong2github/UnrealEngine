@@ -4,10 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using EpicGames.Core;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Logs;
+using Horde.Build.Perforce;
 
-namespace Horde.Build.IssueHandlers
+namespace Horde.Build.Issues
 {
 	/// <summary>
 	/// Information about a changelist and a value ranking the likelihood that it caused an issue

@@ -9,7 +9,7 @@ using EpicGames.Core;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Jobs.Graphs
 {
 	/// <summary>
 	/// Represents a node in the graph

@@ -8,8 +8,9 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using Horde.Build.Users;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Perforce
 {
 	/// <summary>
 	/// Summary information for a change

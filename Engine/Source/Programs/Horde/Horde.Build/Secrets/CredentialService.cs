@@ -5,12 +5,11 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Models;
 using Horde.Build.Server;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Secrets
 {
 	/// <summary>
 	/// Service for accessing and modifying credentials

@@ -4,11 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using EpicGames.Horde.Common;
-using Horde.Build.Fleet.Autoscale;
-using Horde.Build.Models;
+using Horde.Build.Agents.Fleet;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Agents.Pools
 {
 	using PoolId = StringId<IPool>;
 

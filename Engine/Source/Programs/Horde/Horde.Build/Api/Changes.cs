@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
-using Horde.Build.Models;
+using Horde.Build.Perforce;
+using Horde.Build.Users;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Perforce
 {
 	/// <summary>
 	/// Information about a submitted changelist

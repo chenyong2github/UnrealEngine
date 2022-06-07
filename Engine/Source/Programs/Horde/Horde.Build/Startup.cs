@@ -22,31 +22,34 @@ using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Horde.Build.Acls;
 using Horde.Build.Authentication;
-using Horde.Build.Collections;
-using Horde.Build.Collections.Impl;
-using Horde.Build.Commits;
-using Horde.Build.Commits.Impl;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Fleet;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Agents.Software;
+using Horde.Build.Agents.Telemetry;
 using Horde.Build.Compute;
-using Horde.Build.Compute.Impl;
-using Horde.Build.Config;
-using Horde.Build.Fleet.Autoscale;
-using Horde.Build.Issues.Impl;
+using Horde.Build.Configuration;
+using Horde.Build.Devices;
+using Horde.Build.Issues;
+using Horde.Build.Issues.External;
 using Horde.Build.Jobs;
+using Horde.Build.Jobs.Artifacts;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Jobs.Schedules;
+using Horde.Build.Jobs.Templates;
+using Horde.Build.Jobs.TestData;
+using Horde.Build.Jobs.Timing;
 using Horde.Build.Logs;
 using Horde.Build.Logs.Builder;
-using Horde.Build.Logs.Readers;
 using Horde.Build.Logs.Storage;
-using Horde.Build.Logs.Storage.Impl;
-using Horde.Build.Models;
 using Horde.Build.Notifications;
-using Horde.Build.Notifications.Impl;
+using Horde.Build.Secrets;
 using Horde.Build.Server;
-using Horde.Build.Services;
-using Horde.Build.Services.Impl;
 using Horde.Build.Storage;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Tasks;
-using Horde.Build.Tasks.Impl;
 using Horde.Build.Tools;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -81,6 +84,15 @@ using Serilog.Events;
 using StackExchange.Redis;
 using StatsdClient;
 using Status = Grpc.Core.Status;
+using Horde.Build.Users;
+using Horde.Build.Perforce;
+using Horde.Build.Projects;
+using Horde.Build.Streams;
+using Horde.Build.Ugs;
+using Horde.Build.Auditing;
+using Horde.Build.Agents.Fleet.Providers;
+using Horde.Build.Server.Notices;
+using Horde.Build.Notifications.Sinks;
 
 namespace Horde.Build
 {
@@ -434,7 +446,7 @@ namespace Horde.Build
 			{
 				// This SharedCredentials option is primarily for development purposes.
 				(string accessKey, string secretAccessKey, string secretToken) = AwsHelper.ReadAwsCredentials(settings.S3AwsProfile);
-				awsOptions.Credentials = new Credentials(accessKey, secretAccessKey, secretToken, DateTime.Now + TimeSpan.FromHours(12));
+				awsOptions.Credentials = new Amazon.SecurityToken.Model.Credentials(accessKey, secretAccessKey, secretToken, DateTime.Now + TimeSpan.FromHours(12));
 			}
 			
 			services.AddSingleton(awsOptions);

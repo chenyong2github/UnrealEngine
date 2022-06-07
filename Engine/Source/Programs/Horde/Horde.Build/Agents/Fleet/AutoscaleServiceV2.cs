@@ -6,9 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
@@ -18,7 +16,7 @@ using OpenTracing;
 using OpenTracing.Util;
 using StatsdClient;
 
-namespace Horde.Build.Fleet.Autoscale
+namespace Horde.Build.Agents.Fleet
 {
 	using PoolId = StringId<IPool>;
 

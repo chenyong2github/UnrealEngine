@@ -3,11 +3,12 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using EpicGames.Core;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Notifications
 {
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;

@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using Horde.Build.Models;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Agents.Software
 {
 	/// <summary>
 	/// Information about an agent software channel

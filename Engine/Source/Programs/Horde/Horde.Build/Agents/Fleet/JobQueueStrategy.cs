@@ -4,14 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 
-namespace Horde.Build.Fleet.Autoscale
+namespace Horde.Build.Agents.Fleet
 {
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
@@ -51,7 +51,7 @@ namespace Horde.Build.Fleet.Autoscale
 	/// Calculate pool size by observing the number of jobs in waiting state
 	///
 	/// Allows for more proactive scaling compared to LeaseUtilizationStrategy.
-	/// <see cref="Horde.Build.Fleet.Autoscale.LeaseUtilizationStrategy"/> 
+	/// <see cref="LeaseUtilizationStrategy"/> 
 	/// </summary>
 	public class JobQueueStrategy : IPoolSizeStrategy
 	{

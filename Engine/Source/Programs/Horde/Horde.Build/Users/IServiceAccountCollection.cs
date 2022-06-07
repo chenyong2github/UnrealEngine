@@ -2,10 +2,9 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Models;
 using MongoDB.Bson;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Users
 {
 	/// <summary>
 	/// Interface for a collection of service account documents

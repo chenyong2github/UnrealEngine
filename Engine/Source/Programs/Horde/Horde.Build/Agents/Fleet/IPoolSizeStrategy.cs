@@ -3,9 +3,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Agents.Pools;
 
-namespace Horde.Build.Fleet.Autoscale
+namespace Horde.Build.Agents.Fleet
 {
 	/// <summary>
 	/// Available pool sizing strategies
@@ -14,19 +14,19 @@ namespace Horde.Build.Fleet.Autoscale
 	{
 		/// <summary>
 		/// Strategy based on lease utilization
-		/// <see cref="Horde.Build.Fleet.Autoscale.LeaseUtilizationStrategy"/>
+		/// <see cref="LeaseUtilizationStrategy"/>
 		/// </summary>
 		LeaseUtilization,
 		
 		/// <summary>
 		/// Strategy based on size of job build queue
-		/// <see cref="Horde.Build.Fleet.Autoscale.JobQueueStrategy"/> 
+		/// <see cref="JobQueueStrategy"/> 
 		/// </summary>
 		JobQueue,
 		
 		/// <summary>
 		/// No-op strategy used as fallback/default behavior
-		/// <see cref="Horde.Build.Fleet.Autoscale.NoOpPoolSizeStrategy"/> 
+		/// <see cref="NoOpPoolSizeStrategy"/> 
 		/// </summary>
 		NoOp
 	}

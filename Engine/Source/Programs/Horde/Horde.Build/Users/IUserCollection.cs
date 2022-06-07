@@ -3,11 +3,11 @@
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Users
 {
 	using JobId = ObjectId<IJob>;
 	using UserId = ObjectId<IUser>;

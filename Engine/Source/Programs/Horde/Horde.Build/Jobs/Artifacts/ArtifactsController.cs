@@ -10,11 +10,9 @@ using System.Net.Mime;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
 using Horde.Build.Jobs;
-using Horde.Build.Models;
+using Horde.Build.Jobs.Graphs;
 using Horde.Build.Server;
-using Horde.Build.Services;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -22,7 +20,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Jobs.Artifacts
 {
 	using JobId = ObjectId<IJob>;
 

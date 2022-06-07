@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Horde.Build.Models;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -13,7 +12,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
-namespace Horde.Build.Collections.Impl
+namespace Horde.Build.Logs
 {
 	using LogId = ObjectId<ILogFile>;
 

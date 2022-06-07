@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Agents.Sessions
 {
 	using SessionId = ObjectId<ISession>;
 

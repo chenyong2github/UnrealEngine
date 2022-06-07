@@ -3,8 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Models;
+using Horde.Build.Logs.Data;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Logs

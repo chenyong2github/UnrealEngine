@@ -2,7 +2,7 @@
 
 using System.Threading.Tasks;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Agents.Software
 {
 	/// <summary>
 	/// Interface for a collection of template documents

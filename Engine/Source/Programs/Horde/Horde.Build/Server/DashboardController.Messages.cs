@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-namespace Horde.Build.Api
+namespace Horde.Build.Server
 {
 	/// <summary>
 	/// Setting information required by dashboard

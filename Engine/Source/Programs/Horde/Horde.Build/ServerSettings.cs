@@ -3,7 +3,7 @@
 using System;
 using System.Linq;
 using EpicGames.Horde.Storage;
-using Horde.Build.Fleet.Autoscale;
+using Horde.Build.Agents.Fleet;
 using Horde.Build.Utilities;
 using TimeZoneConverter;
 

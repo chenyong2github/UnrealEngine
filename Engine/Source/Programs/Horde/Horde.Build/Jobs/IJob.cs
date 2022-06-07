@@ -6,13 +6,22 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using EpicGames.Core;
 using Horde.Build.Acls;
-using Horde.Build.Api;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Jobs.Timing;
+using Horde.Build.Logs;
+using Horde.Build.Streams;
+using Horde.Build.Ugs;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Jobs
 {
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;

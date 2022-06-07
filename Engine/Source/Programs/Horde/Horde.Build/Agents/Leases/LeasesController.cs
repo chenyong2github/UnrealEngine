@@ -5,16 +5,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Agents.Sessions;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Agents.Leases
 {
 	using LeaseId = ObjectId<ILease>;
 	using SessionId = ObjectId<ISession>;

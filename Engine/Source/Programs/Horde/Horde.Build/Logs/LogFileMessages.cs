@@ -2,10 +2,9 @@
 
 using System.Collections.Generic;
 using Horde.Build.Logs;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Logs.Data;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Logs
 {
 	/// <summary>
 	/// The type of data stored in this log file

@@ -6,17 +6,18 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Collections;
-using Horde.Build.Config;
-using Horde.Build.Models;
+using Horde.Build.Configuration;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
 using Horde.Build.Notifications;
 using Horde.Build.Server;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Issues.Impl
+namespace Horde.Build.Issues
 {
 	using TemplateRefId = StringId<TemplateRef>;
 	using WorkflowId = StringId<WorkflowConfig>;
@@ -185,7 +186,7 @@ namespace Horde.Build.Issues.Impl
 			foreach (IGrouping<TemplateRefId, IJob> templateGroup in jobs.GroupBy(x => x.TemplateId))
 			{
 				WorkflowId? templateWorkflowId = null;
-				if (stream.Config.TryGetTemplate(templateGroup.Key, out Api.TemplateRefConfig? templateRefConfig))
+				if (stream.Config.TryGetTemplate(templateGroup.Key, out TemplateRefConfig? templateRefConfig))
 				{
 					templateWorkflowId = templateRefConfig.Annotations.WorkflowId;
 				}

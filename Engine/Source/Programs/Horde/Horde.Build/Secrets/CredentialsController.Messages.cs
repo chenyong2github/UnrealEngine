@@ -2,9 +2,10 @@
 
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using Horde.Build.Models;
+using Horde.Build.Acls;
+using Horde.Build.Secrets;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Credentials
 {
 	/// <summary>
 	/// Parameters to create a new credential

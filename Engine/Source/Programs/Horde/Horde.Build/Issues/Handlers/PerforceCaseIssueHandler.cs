@@ -5,11 +5,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using EpicGames.Core;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Logs;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.IssueHandlers.Impl
+namespace Horde.Build.Issues.Handlers
 {
 	/// <summary>
 	/// Instance of a Perforce case mismatch error

@@ -8,7 +8,6 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Bundles;
@@ -17,10 +16,9 @@ using EpicGames.Horde.Storage;
 using EpicGames.Perforce;
 using EpicGames.Redis;
 using EpicGames.Serialization;
-using Horde.Build.Collections;
-using Horde.Build.Models;
 using Horde.Build.Server;
-using Horde.Build.Services;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
@@ -29,7 +27,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
-namespace Horde.Build.Commits.Impl
+namespace Horde.Build.Perforce
 {
 	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;

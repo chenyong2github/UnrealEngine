@@ -14,9 +14,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
-using Horde.Build.Collections;
-using Horde.Build.Models;
 using Horde.Build.Server;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -24,9 +23,9 @@ using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Perforce
 {
-	using P4 = Perforce.P4;
+	using P4 = global::Perforce.P4;
 
 	static class PerforceExtensions
 	{

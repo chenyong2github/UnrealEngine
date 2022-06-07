@@ -3,7 +3,6 @@
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
-using Horde.Build.Models;
 using Horde.Build.Server;
 using MongoDB.Bson;
 

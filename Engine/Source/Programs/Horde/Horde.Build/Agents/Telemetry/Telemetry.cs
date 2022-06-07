@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Agents.Telemetry
 {
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;

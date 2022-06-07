@@ -5,8 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Horde.Common;
-using Horde.Build.Fleet.Autoscale;
-using Horde.Build.Models;
+using Horde.Build.Agents.Fleet;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Options;
@@ -14,7 +13,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
-namespace Horde.Build.Collections.Impl
+namespace Horde.Build.Agents.Pools
 {
 	using PoolId = StringId<IPool>;
 

@@ -3,8 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Models;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Sessions;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.Mvc;

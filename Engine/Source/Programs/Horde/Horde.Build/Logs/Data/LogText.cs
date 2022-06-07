@@ -9,7 +9,7 @@ using System.Text.Json;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Logs
+namespace Horde.Build.Logs.Data
 {
 	/// <summary>
 	/// Exception thrown trying to parse log output

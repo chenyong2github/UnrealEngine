@@ -3,7 +3,7 @@
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Jobs.Artifacts
 {
 	using JobId = ObjectId<IJob>;
 

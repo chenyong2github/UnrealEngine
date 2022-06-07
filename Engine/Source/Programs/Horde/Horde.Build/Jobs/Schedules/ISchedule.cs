@@ -2,10 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using Horde.Build.Perforce;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Jobs.Schedules
 {
 	using JobId = ObjectId<IJob>;
 	using TemplateRefId = StringId<TemplateRef>;

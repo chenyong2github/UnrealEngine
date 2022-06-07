@@ -4,14 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Agents.Fleet;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Horde.Build.Controllers
+namespace Horde.Build.Agents.Pools
 {
 	using PoolId = StringId<IPool>;
 
@@ -58,8 +56,8 @@ namespace Horde.Build.Controllers
 				return Forbid(AclAction.CreatePool);
 			}
 
-			Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings? luSettings = create.LeaseUtilizationSettings?.Convert();
-			Horde.Build.Fleet.Autoscale.JobQueueSettings? jqSettings = create.JobQueueSettings?.Convert();
+			LeaseUtilizationSettings? luSettings = create.LeaseUtilizationSettings?.Convert();
+			JobQueueSettings? jqSettings = create.JobQueueSettings?.Convert();
 			
 			TimeSpan? scaleOutCooldown = create.ScaleOutCooldown == null ? null : TimeSpan.FromSeconds(create.ScaleOutCooldown.Value);
 			TimeSpan? scaleInCooldown = create.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(create.ScaleInCooldown.Value);

@@ -4,12 +4,16 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Api;
-using Horde.Build.Fleet.Autoscale;
-using Horde.Build.Models;
+using Horde.Build.Agents.Pools;
+using Horde.Build.Agents.Fleet;
+using Horde.Build.Projects;
+using Horde.Build.Streams;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Horde.Build.Agents;
 
 namespace Horde.Build.Tests.Fleet
 {

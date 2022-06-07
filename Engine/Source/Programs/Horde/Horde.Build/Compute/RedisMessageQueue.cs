@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using EpicGames.Redis;
 using StackExchange.Redis;
 
-namespace Horde.Build.Compute.Impl
+namespace Horde.Build.Compute
 {
 	/// <summary>
 	/// Interface for a distributed message queue

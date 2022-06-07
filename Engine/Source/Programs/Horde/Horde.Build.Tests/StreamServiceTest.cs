@@ -3,7 +3,7 @@
 using System;
 using System.Globalization;
 using System.Threading.Tasks;
-using Horde.Build.Models;
+using Horde.Build.Streams;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests

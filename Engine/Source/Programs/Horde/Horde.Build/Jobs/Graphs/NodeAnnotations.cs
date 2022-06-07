@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Jobs.Graphs
 {
 	using WorkflowId = StringId<WorkflowConfig>;
 

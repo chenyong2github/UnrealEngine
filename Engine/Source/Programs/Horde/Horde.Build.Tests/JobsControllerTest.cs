@@ -3,6 +3,7 @@
 using System;
 using System.Net;
 using System.Threading.Tasks;
+using Horde.Build.Jobs.Artifacts;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
@@ -19,7 +20,7 @@ namespace Horde.Build.Tests
         public async Task GetArtifactDataByFilenameTest()
         {
 			Fixture? fixture = await GetFixture();
-			Models.IArtifact? art = fixture.Job1Artifact;
+			IArtifact? art = fixture.Job1Artifact;
 
 			// Test existing filename
 			System.Net.Http.HttpResponseMessage? res = await Client.GetAsync(GetUri(art.JobId.ToString(), art.StepId.ToString()!, art.Name));

@@ -5,14 +5,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Agents.Sessions;
+using Horde.Build.Agents.Leases;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Server
 {
 	using SessionId = ObjectId<ISession>;
 

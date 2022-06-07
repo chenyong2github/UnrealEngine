@@ -6,10 +6,14 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
-using Horde.Build.Models;
+using Horde.Build.Acls;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 using HordeCommon;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Jobs
 {
 	/// <summary>
 	/// State of the job

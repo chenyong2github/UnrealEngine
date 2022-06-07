@@ -10,19 +10,20 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Horde.Build.Models;
 using Polly;
 using Polly.Extensions.Http;
 using Horde.Build.Utilities;
-using Horde.Build.Config;
+using Horde.Build.Configuration;
 using Microsoft.Extensions.Hosting;
 using HordeCommon;
 using System.Threading;
 using System.Linq;
 using Horde.Build.Server;
+using Horde.Build.Streams;
+using Horde.Build.Users;
 
-namespace Horde.Build.Services
-{	
+namespace Horde.Build.Issues.External
+{
 	/// <summary>
 	/// Jira issue information
 	/// </summary>

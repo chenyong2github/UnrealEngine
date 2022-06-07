@@ -5,9 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Perforce;
-using Horde.Build.Collections;
-using Horde.Build.Models;
-using Horde.Build.Services;
+using Horde.Build.Perforce;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Tests.Stubs.Services

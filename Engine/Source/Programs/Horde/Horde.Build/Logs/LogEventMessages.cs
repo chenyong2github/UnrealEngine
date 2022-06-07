@@ -3,10 +3,9 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using EpicGames.Core;
-using Horde.Build.Models;
 using HordeCommon;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Logs
 {
 	/// <summary>
 	/// Information about an uploaded event

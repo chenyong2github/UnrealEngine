@@ -12,13 +12,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Acls;
-using Horde.Build.Api;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Notifications;
+using Horde.Build.Perforce;
+using Horde.Build.Projects;
 using Horde.Build.Server;
-using Horde.Build.Services;
+using Horde.Build.Streams;
 using Horde.Build.Tools;
+using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.StaticFiles;
@@ -27,7 +29,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Horde.Build.Config
+namespace Horde.Build.Configuration
 {
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;

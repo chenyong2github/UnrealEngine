@@ -10,8 +10,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf.WellKnownTypes;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Agents;
+using Horde.Build.Agents.Leases;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Perforce
 {
 	/// <summary>
 	/// Health of a particular server

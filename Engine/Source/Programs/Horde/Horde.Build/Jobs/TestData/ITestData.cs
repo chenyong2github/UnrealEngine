@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Jobs.TestData
 {
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;

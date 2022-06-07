@@ -2,8 +2,7 @@
 
 using System.Linq;
 using System.Security.Claims;
-using Horde.Build.Collections;
-using Horde.Build.Models;
+using Horde.Build.Users;
 
 namespace Horde.Build.Utilities
 {

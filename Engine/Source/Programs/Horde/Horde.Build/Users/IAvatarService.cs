@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Threading.Tasks;
-using Horde.Build.Models;
 
-namespace Horde.Build.Services
+namespace Horde.Build.Users
 {
 	/// <summary>
 	/// Provides avatar images

@@ -2,11 +2,10 @@
 
 using System;
 using System.ComponentModel.DataAnnotations;
-using Horde.Build.Models;
+using Horde.Build.Users;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Server.Notices
 {
-
 	/// <summary>
 	/// Parameters required to create a notice
 	/// </summary>

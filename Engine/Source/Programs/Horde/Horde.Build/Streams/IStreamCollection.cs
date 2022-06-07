@@ -3,12 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Api;
-using Horde.Build.Models;
-using Horde.Build.Server;
+using Horde.Build.Jobs;
+using Horde.Build.Projects;
 using Horde.Build.Utilities;
 
-namespace Horde.Build.Collections
+namespace Horde.Build.Streams
 {
 	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;

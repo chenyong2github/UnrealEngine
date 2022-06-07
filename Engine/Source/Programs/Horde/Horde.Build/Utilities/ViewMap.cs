@@ -9,7 +9,7 @@ using EpicGames.Core;
 
 namespace Horde.Build.Utilities
 {
-	using P4 = Perforce.P4;
+	using P4 = global::Perforce.P4;
 
 	/// <summary>
 	/// Stores a mapping from one set of paths to another

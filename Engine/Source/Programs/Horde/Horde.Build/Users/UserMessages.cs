@@ -5,10 +5,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using EpicGames.Core;
-using Horde.Build.Models;
 using MongoDB.Bson;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Users
 {
 	/// <summary>
 	/// Response describing the current user

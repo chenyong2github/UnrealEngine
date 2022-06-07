@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Horde.Build.Api
+namespace Horde.Build.Configuration
 {
 	/// <summary>
 	/// Server settings 

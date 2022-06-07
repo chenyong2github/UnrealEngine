@@ -13,7 +13,7 @@ using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Extensions.Http;
 
-namespace Horde.Build.Models
+namespace Horde.Build.Issues.External
 {
 	/// <summary>
 	/// 
