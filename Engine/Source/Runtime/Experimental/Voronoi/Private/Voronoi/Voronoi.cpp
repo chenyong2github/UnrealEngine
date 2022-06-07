@@ -9,6 +9,8 @@ THIRD_PARTY_INCLUDES_END
 
 namespace {
 
+	constexpr double VoronoiDefaultBoundingBoxSlack = .01f;
+
 	// initialize AABB, ignoring NaNs
 	FBox SafeInitBounds(const TArrayView<const FVector>& Points)
 	{
@@ -42,7 +44,7 @@ namespace {
 	}
 
 	// Add sites to Voronoi container, with contiguous ids, ignoring NaNs, ignoring Sites that are on top of existing sites
-	int32 PutSitesWithDistanceCheck(voro::container *Container, const TArrayView<const FVector>& Sites, int32 Offset, float SquaredDistThreshold = 1e-4)
+	int32 PutSitesWithDistanceCheck(voro::container *Container, const TArrayView<const FVector>& Sites, int32 Offset, double SquaredDistThreshold = 1e-4)
 	{
 		int32 SkippedPts = 0;
 		voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
@@ -60,9 +62,9 @@ namespace {
 				int ExistingPtID;
 				if (Container->find_voronoi_cell(V.X, V.Y, V.Z, EX, EY, EZ, ExistingPtID, VoroCompute))
 				{
-					float dx = V.X - EX;
-					float dy = V.Y - EY;
-					float dz = V.Z - EZ;
+					double dx = V.X - EX;
+					double dy = V.Y - EY;
+					double dz = V.Z - EZ;
 					if (dx*dx + dy * dy + dz * dz < SquaredDistThreshold)
 					{
 						SkippedPts++;
@@ -75,7 +77,8 @@ namespace {
 		return SkippedPts;
 	}
 
-	TUniquePtr<voro::container> StandardVoroContainerInit(const TArrayView<const FVector>& Sites, FBox& BoundingBox, float BoundingBoxSlack = 0.1f, float SquaredDistSkipPtThreshold = 0.0f)
+	TPimplPtr<voro::container> EmptyVoroContainerInit(int32 ExpectedNumSites, FBox& BoundingBox,
+		double BoundingBoxSlack = VoronoiDefaultBoundingBoxSlack)
 	{
 		BoundingBox = BoundingBox.ExpandBy(BoundingBoxSlack);
 		FVector BoundingBoxSize = BoundingBox.GetSize();
@@ -84,18 +87,23 @@ namespace {
 		// TODO: Figure out reasonable bounds / behavior for this case
 		ensure(BoundingBoxSize.GetMax() < HUGE_VALF);
 
-
-		int NumSites = Sites.Num();
-
 		int GridCellsX, GridCellsY, GridCellsZ;
-		voro::guess_optimal(Sites.Num(), BoundingBoxSize.X, BoundingBoxSize.Y, BoundingBoxSize.Z, GridCellsX, GridCellsY, GridCellsZ);
+		voro::guess_optimal(ExpectedNumSites, BoundingBoxSize.X, BoundingBoxSize.Y, BoundingBoxSize.Z, GridCellsX, GridCellsY, GridCellsZ);
 
-		TUniquePtr<voro::container> Container = MakeUnique<voro::container>(
+		TPimplPtr<voro::container> Container = MakePimpl<voro::container>(
 			BoundingBox.Min.X, BoundingBox.Max.X, BoundingBox.Min.Y,
 			BoundingBox.Max.Y, BoundingBox.Min.Z, BoundingBox.Max.Z,
 			GridCellsX, GridCellsY, GridCellsZ, false, false, false, 10
-		);
+			);
 
+		return Container;
+	}
+
+	TPimplPtr<voro::container> StandardVoroContainerInit(const TArrayView<const FVector>& Sites, FBox& BoundingBox, 
+		double BoundingBoxSlack = VoronoiDefaultBoundingBoxSlack, double SquaredDistSkipPtThreshold = 0.0f)
+	{
+		TPimplPtr<voro::container> Container = EmptyVoroContainerInit(Sites.Num(), BoundingBox, BoundingBoxSlack);
+		
 		if (SquaredDistSkipPtThreshold > 0)
 		{
 			PutSitesWithDistanceCheck(Container.Get(), Sites, 0, SquaredDistSkipPtThreshold);
@@ -107,34 +115,55 @@ namespace {
 
 		return Container;
 	}
+
+
 };
 
 FVoronoiDiagram::~FVoronoiDiagram() = default;
 
-// TODO: ExtraBoundingSpace unused
-FVoronoiDiagram::FVoronoiDiagram(const TArrayView<const FVector>& Sites, float ExtraBoundingSpace, float SquaredDistSkipPtThreshold) : NumSites(0), Container(nullptr)
+FVoronoiDiagram::FVoronoiDiagram(const TArrayView<const FVector>& Sites, double ExtraBoundingSpace, double SquaredDistSkipPtThreshold) : NumSites(0), Container(nullptr)
 {
-	FBox BoundingBox = SafeInitBounds(Sites);
-	Container = StandardVoroContainerInit(Sites, BoundingBox, DefaultBoundingBoxSlack, SquaredDistSkipPtThreshold);
+	FBox BoundingBox = SafeInitBounds(Sites).ExpandBy(FMath::Max(0, ExtraBoundingSpace));
+	Container = StandardVoroContainerInit(Sites, BoundingBox, 0, SquaredDistSkipPtThreshold);
 	this->Bounds = BoundingBox;
 	NumSites = Sites.Num();
 }
 
-// TODO: ExtraBoundingSpace unused
-FVoronoiDiagram::FVoronoiDiagram(const TArrayView<const FVector>& Sites, const FBox &Bounds, float ExtraBoundingSpace, float SquaredDistSkipPtThreshold) : NumSites(0), Container(nullptr)
+FVoronoiDiagram::FVoronoiDiagram(const TArrayView<const FVector>& Sites, const FBox &Bounds, double ExtraBoundingSpace, double SquaredDistSkipPtThreshold) : NumSites(0), Container(nullptr)
 {
-	FBox BoundingBox(Bounds);
-	Container = StandardVoroContainerInit(Sites, BoundingBox, DefaultBoundingBoxSlack, SquaredDistSkipPtThreshold);
+	FBox BoundingBox = Bounds.ExpandBy(FMath::Max(0, ExtraBoundingSpace));
+	Container = StandardVoroContainerInit(Sites, BoundingBox, 0, SquaredDistSkipPtThreshold);
 	this->Bounds = BoundingBox;
 	NumSites = Sites.Num();
 }
 
+FVoronoiDiagram::FVoronoiDiagram(int32 ExpectedNumSites, const FBox& Bounds, double ExtraBoundingSpace) : NumSites(0), Container(nullptr)
+{
+	FBox BoundingBox = Bounds.ExpandBy(FMath::Max(0, ExtraBoundingSpace));
+	Container = EmptyVoroContainerInit(ExpectedNumSites, BoundingBox, 0);
+	this->Bounds = BoundingBox;
+}
 
 
-bool VoronoiNeighbors(const TArrayView<const FVector> &Sites, TArray<TArray<int>> &Neighbors, bool bExcludeBounds, float SquaredDistSkipPtThreshold) 
+FBox FVoronoiDiagram::GetBounds(const TArrayView<const FVector>& Sites, double ExtraBoundingSpace)
+{
+	FBox Bounds = SafeInitBounds(Sites);
+	return Bounds.ExpandBy(ExtraBoundingSpace);
+}
+
+void FVoronoiDiagram::Initialize(const TArrayView<const FVector>& Sites, const FBox& BoundsIn, double ExtraBoundingSpace, double SquaredDistSkipPtThreshold)
+{
+	FBox BoundingBox = BoundsIn.ExpandBy(FMath::Max(0, ExtraBoundingSpace));
+	Container = StandardVoroContainerInit(Sites, BoundingBox, 0, SquaredDistSkipPtThreshold);
+	Bounds = BoundingBox;
+	NumSites = Sites.Num();
+}
+
+
+bool VoronoiNeighbors(const TArrayView<const FVector> &Sites, TArray<TArray<int>> &Neighbors, bool bExcludeBounds, double SquaredDistSkipPtThreshold) 
 {
 	FBox BoundingBox = SafeInitBounds(Sites);
-	auto Container = StandardVoroContainerInit(Sites, BoundingBox, FVoronoiDiagram::DefaultBoundingBoxSlack, SquaredDistSkipPtThreshold);
+	auto Container = StandardVoroContainerInit(Sites, BoundingBox, VoronoiDefaultBoundingBoxSlack, SquaredDistSkipPtThreshold);
 	int32 NumSites = Sites.Num();
 
 	Neighbors.Empty(NumSites);
@@ -161,18 +190,18 @@ bool VoronoiNeighbors(const TArrayView<const FVector> &Sites, TArray<TArray<int>
 	return true;
 }
 
-bool GetVoronoiEdges(const TArrayView<const FVector>& Sites, const FBox& Bounds, TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember, float SquaredDistSkipPtThreshold)
+bool GetVoronoiEdges(const TArrayView<const FVector>& Sites, const FBox& Bounds, TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember, double SquaredDistSkipPtThreshold)
 {
 	int32 NumSites = Sites.Num();
 	FBox BoundingBox(Bounds);
-	FVoronoiDiagram Diagram(Sites, Bounds, FVoronoiDiagram::DefaultBoundingBoxSlack, SquaredDistSkipPtThreshold);
+	FVoronoiDiagram Diagram(Sites, Bounds, VoronoiDefaultBoundingBoxSlack, SquaredDistSkipPtThreshold);
 	Diagram.ComputeCellEdges(Edges, CellMember, Diagram.ApproxSitesPerThreadWithDefault(-1));
 	return true;
 }
 
 
 // TODO: maybe make this a "SetSites" instead of an Add?
-void FVoronoiDiagram::AddSites(const TArrayView<const FVector>& AddSites, float SquaredDistSkipPtThreshold)
+void FVoronoiDiagram::AddSites(const TArrayView<const FVector>& AddSites, double SquaredDistSkipPtThreshold)
 {
 	int32 OrigSitesNum = NumSites;
 	if (SquaredDistSkipPtThreshold > 0)
@@ -287,6 +316,38 @@ void FVoronoiDiagram::ComputeAllCells(TArray<FVoronoiCellInfo>& AllCells, int32 
 				FVoronoiCellInfo& Cell = AllCells[id];
 				check(Cell.Faces.Num() == 0); // TODO RM
 				cell.extractCellInfo(FVector(x,y,z), Cell.Vertices, Cell.Faces, Cell.Neighbors, Cell.Normals);
+			}
+		} while (CellIterator.inc());
+	});
+}
+
+void FVoronoiDiagram::ComputeAllNeighbors(TArray<TArray<int32>>& AllNeighbors, bool bExcludeBounds, int32 ApproxSitesPerThread)
+{
+	check(Container);
+
+	TArray<int32> ChunkBounds = GetParallelBlockRanges(ApproxSitesPerThread);
+
+	AllNeighbors.SetNum(NumSites);
+
+	ParallelFor(ChunkBounds.Num() - 1, [&](int ChunkIdx)
+	{
+		voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
+		voro::c_loop_block_range CellIterator(*Container);
+		CellIterator.setup_range(ChunkBounds[ChunkIdx], ChunkBounds[ChunkIdx + 1]);
+		voro::voronoicell_neighbor cell;
+		if (!CellIterator.start())
+		{
+			return;
+		}
+		do
+		{
+			bool bCouldComputeCell = Container->compute_cell(cell, CellIterator, VoroCompute);
+			ensureMsgf(bCouldComputeCell, TEXT("Failed to compute a Voronoi cell -- this may indicate sites positioned directly on top of other sites, which is not valid for a Voronoi diagram"));
+			if (bCouldComputeCell)
+			{
+				int32 id = CellIterator.pid();
+
+				cell.neighborsTArray(AllNeighbors[id], bExcludeBounds);
 			}
 		} while (CellIterator.inc());
 	});
@@ -419,16 +480,21 @@ void FVoronoiDiagram::ComputeCellEdges(TArray<TTuple<FVector, FVector>>& Edges, 
 	}
 }
 
-//// TODO: expose separate compute data as something we can pass into this fn, and uncomment it
-//int32 FVoronoiDiagram::FindCell(const FVector& Pos)
-//{
-//	check(Container);
-//	voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
-//	double rx, ry, rz; // holds position of the found Voronoi site (if any); currently unused
-//	int pid;
-//	bool found = Container->find_voronoi_cell(Pos.X, Pos.Y, Pos.Z, rx, ry, rz, pid, VoroCompute);
-//	return found ? pid : -1;
-//}
+int32 FVoronoiDiagram::FindCell(const FVector& Pos, FVoronoiComputeHelper& ComputeHelper, FVector& OutFoundSite) const
+{
+	check(Container && ComputeHelper.Compute && &ComputeHelper.Compute->con == Container.Get());
+	
+	int pid;
+	bool found = Container->find_voronoi_cell(Pos.X, Pos.Y, Pos.Z, OutFoundSite.X, OutFoundSite.Y, OutFoundSite.Z, pid, *ComputeHelper.Compute.Get());
+	
+	return found ? pid : -1;
+}
 
-const float FVoronoiDiagram::DefaultBoundingBoxSlack = .1f;
+FVoronoiComputeHelper FVoronoiDiagram::GetComputeHelper() const
+{
+	FVoronoiComputeHelper Helper;
+	Helper.Compute = MakePimpl<voro::voro_compute<voro::container>>(Container->make_compute());
+	return Helper;
+}
+
 const int FVoronoiDiagram::MinDefaultSitesPerThread = 150;

@@ -46,10 +46,16 @@ container_base::container_base(double ax_,double bx_,double ay_,double by_,doubl
 /** The container destructor frees the dynamically allocated memory. */
 container_base::~container_base() {
 	int l;
-	for(l=0;l<nxyz;l++) delete [] p[l];
-	for(l=0;l<nxyz;l++) delete [] id[l];
-	delete [] id;
-	delete [] p;
+	if (p)
+	{
+		for (l = 0; l < nxyz; l++) delete[] p[l];
+		delete[] p;
+	}
+	if (id)
+	{
+		for (l = 0; l < nxyz; l++) delete[] id[l];
+		delete[] id;
+	}
 	delete [] co;
 	delete [] mem;
 }
