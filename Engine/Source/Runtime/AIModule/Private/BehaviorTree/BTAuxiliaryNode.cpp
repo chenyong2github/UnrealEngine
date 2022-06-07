@@ -2,6 +2,7 @@
 
 #include "BehaviorTree/BTAuxiliaryNode.h"
 #include "BehaviorTree/BTCompositeNode.h"
+#include "VisualLogger/VisualLogger.h"
 
 UBTAuxiliaryNode::UBTAuxiliaryNode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -60,6 +61,8 @@ bool UBTAuxiliaryNode::WrappedTickNode(UBehaviorTreeComponent& OwnerComp, uint8*
 				    UseDeltaTime = AuxMemory->AccumulatedDeltaTime;
 				    AuxMemory->AccumulatedDeltaTime = 0.0f;
     
+					UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Ticking aux node: %s"), *UBehaviorTreeTypes::DescribeNodeHelper(this));
+
 				    const_cast<UBTAuxiliaryNode*>(NodeOb)->TickNode(OwnerComp, NodeMemory, UseDeltaTime);
 				}
 
@@ -71,6 +74,8 @@ bool UBTAuxiliaryNode::WrappedTickNode(UBehaviorTreeComponent& OwnerComp, uint8*
 			}
 			else
 			{
+				UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Ticking aux node: %s"), *UBehaviorTreeTypes::DescribeNodeHelper(this));
+
 				const_cast<UBTAuxiliaryNode*>(NodeOb)->TickNode(OwnerComp, NodeMemory, UseDeltaTime);
 				NextNeededDeltaTime = 0.0f;
 				return true;

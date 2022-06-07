@@ -17,6 +17,7 @@
 
 #include "BehaviorTree/TestBTTask_Log.h"
 #include "BehaviorTree/TestBTTask_SetFlag.h"
+#include "BehaviorTree/TestBTTask_ToggleFlag.h"
 #include "BehaviorTree/TestBTTask_SetValue.h"
 #include "BehaviorTree/TestBTTask_LatentWithFlags.h"
 #include "BehaviorTree/TestBTDecorator_Blackboard.h"
@@ -162,6 +163,17 @@ struct FBTBuilder
 		ParentNode.Children[ChildIdx].ChildTask = TaskNode;
 	}
 
+	static void AddTaskToggleFlag(UBTCompositeNode& ParentNode, EBTNodeResult::Type NodeResult, FName BoolKeyName, int32 NumToggles)
+	{
+		UTestBTTask_ToggleFlag* TaskNode = NewObject<UTestBTTask_ToggleFlag>(ParentNode.GetTreeAsset());
+		TaskNode->TaskResult = NodeResult;
+		TaskNode->KeyName = BoolKeyName;
+		TaskNode->NumToggles = NumToggles;
+
+		const int32 ChildIdx = ParentNode.Children.AddZeroed(1);
+		ParentNode.Children[ChildIdx].ChildTask = TaskNode;
+	}
+
 	static void AddTaskValueChange(UBTCompositeNode& ParentNode, int32 Value, EBTNodeResult::Type NodeResult, FName IntKeyName = TEXT("Int"), FName IntOnAbortKeyName = FName(), int32 OnAbortValue = 0)
 	{
 		UTestBTTask_SetValue* TaskNode = NewObject<UTestBTTask_SetValue>(ParentNode.GetTreeAsset());
@@ -290,7 +302,7 @@ struct FBTBuilder
 		return *ServiceOb;
 	}
 
-	static void WithServiceLog(UBTCompositeNode& ParentNode, int32 ActivationIndex, int32 DeactivationIndex, int32 TickIndex = INDEX_NONE, FName TickBoolKeyName = NAME_None, bool bCallTickOnSearchStart = false, FName BecomeRelevantBoolKeyName = NAME_None, FName CeaseRelevantBoolKeyName = NAME_None)
+	static void WithServiceLog(UBTCompositeNode& ParentNode, int32 ActivationIndex, int32 DeactivationIndex, int32 TickIndex = INDEX_NONE, FName TickBoolKeyName = NAME_None, bool bCallTickOnSearchStart = false, FName BecomeRelevantBoolKeyName = NAME_None, FName CeaseRelevantBoolKeyName = NAME_None, bool bToggleValue = false)
 	{
 		UTestBTService_Log& LogService = WithService<UTestBTService_Log>(ParentNode);
 		LogService.LogActivation = ActivationIndex;
@@ -299,6 +311,7 @@ struct FBTBuilder
 		LogService.SetFlagOnTick(TickBoolKeyName, bCallTickOnSearchStart);
 		LogService.KeyNameBecomeRelevant = BecomeRelevantBoolKeyName;
 		LogService.KeyNameCeaseRelevant = CeaseRelevantBoolKeyName;
+		LogService.bToggleValue = bToggleValue;
 	}
 
 	template<class T>
@@ -313,7 +326,7 @@ struct FBTBuilder
 		return *ServiceOb;
 	}
 
-	static void WithTaskServiceLog(UBTCompositeNode& ParentNode, int32 ActivationIndex, int32 DeactivationIndex, int32 TickIndex = INDEX_NONE, FName TickBoolKeyName = NAME_None, bool bCallTickOnSearchStart = false, FName BecomeRelevantBoolKeyName = NAME_None, FName CeaseRelevantBoolKeyName = NAME_None)
+	static void WithTaskServiceLog(UBTCompositeNode& ParentNode, int32 ActivationIndex, int32 DeactivationIndex, int32 TickIndex = INDEX_NONE, FName TickBoolKeyName = NAME_None, bool bCallTickOnSearchStart = false, FName BecomeRelevantBoolKeyName = NAME_None, FName CeaseRelevantBoolKeyName = NAME_None, bool bToggleValue = false)
 	{
 		UTestBTService_Log& LogService = WithTaskService<UTestBTService_Log>(ParentNode);
 		LogService.LogActivation = ActivationIndex;
@@ -322,5 +335,6 @@ struct FBTBuilder
 		LogService.SetFlagOnTick(TickBoolKeyName, bCallTickOnSearchStart);
 		LogService.KeyNameBecomeRelevant = BecomeRelevantBoolKeyName;
 		LogService.KeyNameCeaseRelevant = CeaseRelevantBoolKeyName;
+		LogService.bToggleValue = bToggleValue;
 	}
 };

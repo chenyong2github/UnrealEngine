@@ -450,6 +450,245 @@ struct FAITest_BTAbortingDuringServiceTick : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortingDuringServiceTick, "System.AI.Behavior Trees.Abort: during service tick")
 
+
+struct FAITest_BTRestartingTheAbortedBranch : public FAITest_SimpleBT
+{
+	FAITest_BTRestartingTheAbortedBranch()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				UBTCompositeNode& CompNode3 = FBTBuilder::AddSelector(CompNode2);
+				{
+					FBTBuilder::AddTaskToggleFlag(CompNode3, EBTNodeResult::InProgress, TEXT("Bool1"), 2/*NumOfToggles*/);
+					FBTBuilder::WithDecoratorBlackboard(CompNode3, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool2"));
+					FBTBuilder::WithTaskServiceLog(CompNode3, 1 /*ActivationIndex*/, 2 /*DeactivationIndex*/, 3 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+											    NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool2") /*CeaseRelevantBoolKeyName*/);
+					FBTBuilder::AddTask(CompNode3, 5, EBTNodeResult::Succeeded);
+				}
+			}
+			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded);
+		}
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(5);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTRestartingTheAbortedBranch, "System.AI.Behavior Trees.Toggle: restart the aborted branch")
+
+
+struct FAITest_BTAbortingTheRestarted : public FAITest_SimpleBT
+{
+	FAITest_BTAbortingTheRestarted()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				UBTCompositeNode& CompNode3 = FBTBuilder::AddSelector(CompNode2);
+				{
+					FBTBuilder::AddTaskToggleFlag(CompNode3, EBTNodeResult::InProgress, TEXT("Bool1"), 3/*NumOfToggles*/);
+					FBTBuilder::WithDecoratorBlackboard(CompNode3, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool2"));
+					FBTBuilder::WithTaskServiceLog(CompNode3, 1 /*ActivationIndex*/, 2 /*DeactivationIndex*/, 3 /*TickIndex*/);
+					FBTBuilder::AddTask(CompNode3, 5, EBTNodeResult::Succeeded);
+				}
+			}
+			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded);
+		}
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(6);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortingTheRestarted, "System.AI.Behavior Trees.Toggle: reabort the restarted branch")
+
+
+struct FAITest_BTRestartingTheReaborted : public FAITest_SimpleBT
+{
+	FAITest_BTRestartingTheReaborted()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				UBTCompositeNode& CompNode3 = FBTBuilder::AddSelector(CompNode2);
+				{
+					FBTBuilder::AddTaskToggleFlag(CompNode3, EBTNodeResult::InProgress, TEXT("Bool1"), 4/*NumOfToggles*/);
+					FBTBuilder::WithDecoratorBlackboard(CompNode3, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool2"));
+					FBTBuilder::WithTaskServiceLog(CompNode3, 1 /*ActivationIndex*/, 2 /*DeactivationIndex*/, 3 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool2") /*CeaseRelevantBoolKeyName*/);
+					FBTBuilder::AddTask(CompNode3, 5, EBTNodeResult::Succeeded);
+				}
+			}
+			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded);
+		}
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(5);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTRestartingTheReaborted, "System.AI.Behavior Trees.Toggle: restart the reaborted branch")
+
+
+struct FAITest_BTRestartingTheAbortedBranchDuringServiceTick : public FAITest_SimpleBT
+{
+	FAITest_BTRestartingTheAbortedBranchDuringServiceTick()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				UBTCompositeNode& CompNode3 = FBTBuilder::AddSelector(CompNode2);
+				{
+					FBTBuilder::AddTask(CompNode3, 4, EBTNodeResult::Succeeded);
+					FBTBuilder::WithDecoratorBlackboard(CompNode3, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool2"));
+					FBTBuilder::WithTaskServiceLog(CompNode3, -1 /*ActivationIndex*/, -1 /*DeactivationIndex*/, -1 /*TickIndex*/, TEXT("Bool1") /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, NAME_None /*CeaseRelevantBoolKeyName*/, true /*bToggleValues*/);
+					FBTBuilder::WithTaskServiceLog(CompNode3, -1 /*ActivationIndex*/, -1 /*DeactivationIndex*/, -1 /*TickIndex*/, TEXT("Bool1") /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, NAME_None /*CeaseRelevantBoolKeyName*/, true /*bToggleValues*/);
+
+					FBTBuilder::WithTaskServiceLog(CompNode3, 1 /*ActivationIndex*/, 2 /*DeactivationIndex*/, 3 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool2") /*CeaseRelevantBoolKeyName*/);
+					FBTBuilder::AddTask(CompNode3, 5, EBTNodeResult::Succeeded);
+				}
+			}
+			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded);
+		}
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(5);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTRestartingTheAbortedBranchDuringServiceTick, "System.AI.Behavior Trees.Toggle: restart the aborted branch during service tick")
+
+
+struct FAITest_BTRestartTheAbortedBranchDuringServiceCeaseRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTRestartTheAbortedBranchDuringServiceCeaseRelevant()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				UBTCompositeNode& CompNode3 = FBTBuilder::AddSelector(CompNode2);
+				{
+					FBTBuilder::AddTaskToggleFlag(CompNode3, EBTNodeResult::InProgress, TEXT("Bool1"), 1/*NumOfToggles*/);
+					FBTBuilder::WithDecoratorBlackboard(CompNode3, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool2"));
+					FBTBuilder::WithTaskServiceLog(CompNode3, -1 /*ActivationIndex*/, -1 /*DeactivationIndex*/, -1 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool1") /*CeaseRelevantBoolKeyName*/, true /*bToggleValues*/);
+
+					FBTBuilder::WithTaskServiceLog(CompNode3, 1 /*ActivationIndex*/, 2 /*DeactivationIndex*/, 3 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool2") /*CeaseRelevantBoolKeyName*/);
+					FBTBuilder::AddTask(CompNode3, 5, EBTNodeResult::Succeeded);
+				}
+			}
+			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded);
+		}
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(6);
+		ExpectedResult.Add(5);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTRestartTheAbortedBranchDuringServiceCeaseRelevant, "System.AI.Behavior Trees.Toggle: restart the aborted branch during service cease relevant")
+
+struct FAITest_BTRestartTheReabortedBranchDuringServiceCeaseRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTRestartTheReabortedBranchDuringServiceCeaseRelevant()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				UBTCompositeNode& CompNode3 = FBTBuilder::AddSelector(CompNode2);
+				{
+					FBTBuilder::AddTaskToggleFlag(CompNode3, EBTNodeResult::InProgress, TEXT("Bool1"), 1/*NumOfToggles*/);
+					FBTBuilder::WithDecoratorBlackboard(CompNode3, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool2"));
+					FBTBuilder::WithTaskServiceLog(CompNode3, -1 /*ActivationIndex*/, -1 /*DeactivationIndex*/, -1 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool1") /*CeaseRelevantBoolKeyName*/, true /*bToggleValues*/);
+					FBTBuilder::WithTaskServiceLog(CompNode3, -1 /*ActivationIndex*/, -1 /*DeactivationIndex*/, -1 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool1") /*CeaseRelevantBoolKeyName*/, true /*bToggleValues*/);
+					FBTBuilder::WithTaskServiceLog(CompNode3, -1 /*ActivationIndex*/, -1 /*DeactivationIndex*/, -1 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool1") /*CeaseRelevantBoolKeyName*/, true /*bToggleValues*/);
+
+					FBTBuilder::WithTaskServiceLog(CompNode3, 1 /*ActivationIndex*/, 2 /*DeactivationIndex*/, 3 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool2") /*CeaseRelevantBoolKeyName*/);
+					FBTBuilder::AddTask(CompNode3, 5, EBTNodeResult::Succeeded);
+				}
+			}
+			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded);
+		}
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(6);
+		ExpectedResult.Add(5);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTRestartTheReabortedBranchDuringServiceCeaseRelevant, "System.AI.Behavior Trees.Toggle: restart the reaborted branch during service cease relevant")
+
+struct FAITest_BTStartBranchDuringServiceCeaseRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTStartBranchDuringServiceCeaseRelevant()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				UBTCompositeNode& CompNode3 = FBTBuilder::AddSelector(CompNode2);
+				{
+					FBTBuilder::AddTask(CompNode3, 5, EBTNodeResult::Succeeded);
+					FBTBuilder::WithDecoratorBlackboard(CompNode3, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool2"));
+
+					FBTBuilder::AddTaskToggleFlag(CompNode3, EBTNodeResult::InProgress, TEXT("Bool1"), 1/*NumOfToggles*/);
+					FBTBuilder::WithTaskServiceLog(CompNode3, 1 /*ActivationIndex*/, 2 /*DeactivationIndex*/, 3 /*TickIndex*/, NAME_None /*TickBoolKeyName*/, false /*bCallTickOnSearchStart*/,
+						NAME_None /*BecomeRelevantBoolKeyeyName*/, TEXT("Bool2") /*CeaseRelevantBoolKeyName*/);
+				}
+			}
+			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded);
+		}
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(6);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTStartBranchDuringServiceCeaseRelevant, "System.AI.Behavior Trees.Toggle: start new branch during service cease relevant")
+
 struct FAITest_BTAbortingDuringServiceBecomeRelevant : public FAITest_SimpleBT
 {
 	FAITest_BTAbortingDuringServiceBecomeRelevant()

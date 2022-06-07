@@ -97,32 +97,21 @@ void UBTDecorator::ConditionalFlowAbort(UBehaviorTreeComponent& OwnerComp, EBTDe
 
 	uint8* NodeMemory = OwnerComp.GetNodeMemory((UBTNode*)this, InstanceIdx);
 
-	const bool bIsExecutingBranch = OwnerComp.IsExecutingBranch(this, GetChildIndex());
 	const bool bPass = WrappedCanExecute(OwnerComp, NodeMemory);
-	const bool bAbortPending = OwnerComp.IsAbortPending();
 	const bool bAlwaysRequestWhenPassing = (RequestMode == EBTDecoratorAbortRequest::ConditionPassing);
 
-	const bool bLogRequestExecution = (!bIsExecutingBranch && bPass) || (bIsExecutingBranch && bPass && (bAlwaysRequestWhenPassing || bAbortPending));
-	UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, ConditionalFlowAbort(%s) pass:%d executingBranch:%d abortPending:%d => %s"),
+	UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, ConditionalFlowAbort(%s) pass:%d"),
 		*UBehaviorTreeTypes::DescribeNodeHelper(this),
-		bAlwaysRequestWhenPassing ? TEXT("always when passing") : TEXT("on change"),
-		bPass ? 1 : 0,
-		bIsExecutingBranch ? 1 : 0,
-		bAbortPending ? 1 : 0,
-		!bPass ? TEXT("request branch deactivation") : (bLogRequestExecution ? TEXT("request execution") : TEXT("skip")));
+		bAlwaysRequestWhenPassing ? TEXT("always when passing") : TEXT("on change"));
+
 
 	if (!bPass)
 	{
 		OwnerComp.RequestBranchDeactivation(*this);
 	}
-	else if (!bIsExecutingBranch)
+	else
 	{
-		OwnerComp.RequestExecution(this);
-	}
-	else if (bAlwaysRequestWhenPassing || bAbortPending)
-	{
-		// force result Aborted to restart from this decorator
-		OwnerComp.RequestExecution(GetParentNode(), InstanceIdx, this, GetChildIndex(), EBTNodeResult::Aborted);
+		OwnerComp.RequestBranchActivation(*this, bAlwaysRequestWhenPassing);
 	}
 }
 

@@ -29,6 +29,9 @@ class UTestBTService_Log : public UBTService
 	UPROPERTY()
 	int32 LogTick;
 
+	UPROPERTY()
+	bool bToggleValue;
+
 	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
