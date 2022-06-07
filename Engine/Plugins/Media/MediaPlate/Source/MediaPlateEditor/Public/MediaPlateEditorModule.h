@@ -2,16 +2,20 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
 #include "TickableEditorObject.h"
 #include "UObject/ObjectPtr.h"
 
+class FDragDropEvent;
 class IAssetTools;
 class IAssetTypeActions;
 class ISlateStyle;
 class UMediaPlateComponent;
+class UMediaSource;
+struct FAssetData;
 
 /** Log category for this module. */
 DECLARE_LOG_CATEGORY_EXTERN(LogMediaPlateEditor, Log, All);
@@ -37,6 +41,16 @@ public:
 	 * Call this when a media plate starts playing so we can track it.
 	 */
 	void MediaPlateStartedPlayback(TObjectPtr<UMediaPlateComponent> MediaPlate);
+
+	/**
+	 * Call this if you want to check if your media source is a drag and drop media source.
+	 * If it is, then this will remove it from this module
+	 * and you can then change the outer (as it will be transient.)
+	 * 
+	 * @param MediaSource	Media source to check.
+	 * @return				True if it is a drag and drop media source.
+	 */
+	bool RemoveMediaSourceFromDragDropCache(UMediaSource* MediaSource);
 	
 private:
 
@@ -51,6 +65,9 @@ private:
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 	/** Handle for our track editor. */
 	FDelegateHandle TrackEditorBindingHandle;
+
+	/** Maps a drag and drop file to a media source we created from it. */
+	TMap<FString, TWeakObjectPtr<UMediaSource>> MapFileToMediaSource;
 
 	/**
 	 * Registers all of our asset tools.
@@ -69,4 +86,17 @@ private:
 	 * Unregisters all of our asset tools.
 	 */
 	void UnregisterAssetTools();
+
+	/**
+	 * Called after the engine has initialized.
+	 */
+	void OnPostEngineInit();
+
+	/**
+	 * Extracts an asset for a file if it can.
+	 *
+	 * @param Files				Files to get the asset from.
+	 * @param AssetDataArray	Will add the asset here if it gets one.
+	 */
+	void ExtractAssetDataFromFiles(const TArray<FString>& Files, TArray<FAssetData>& AssetDataArray);
 };

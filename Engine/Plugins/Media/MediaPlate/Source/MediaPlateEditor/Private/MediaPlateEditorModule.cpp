@@ -11,9 +11,12 @@
 #include "MediaPlateEditorStyle.h"
 #include "MediaPlayer.h"
 #include "MediaSoundComponent.h"
+#include "MediaSource.h"
 #include "Models/MediaPlateEditorCommands.h"
 #include "PropertyEditorModule.h"
 #include "Sequencer/MediaPlateTrackEditor.h"
+#include "SLevelViewport.h"
+#include "Subsystems/EditorAssetSubsystem.h"
 
 DEFINE_LOG_CATEGORY(LogMediaPlateEditor);
 
@@ -34,10 +37,21 @@ void FMediaPlateEditorModule::StartupModule()
 
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
 	TrackEditorBindingHandle = SequencerModule.RegisterPropertyTrackEditor<FMediaPlateTrackEditor>();
+
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FMediaPlateEditorModule::OnPostEngineInit);
 }
 
 void FMediaPlateEditorModule::ShutdownModule()
 {
+	if (GEditor != nullptr)
+	{
+		UEditorAssetSubsystem* EditorAssetSubsystem = GEditor->GetEditorSubsystem<UEditorAssetSubsystem>();
+		if (EditorAssetSubsystem != nullptr)
+		{
+			EditorAssetSubsystem->GetOnExtractAssetFromFile().RemoveAll(this);
+		}
+	}
+
 	ISequencerModule* SequencerModulePtr = FModuleManager::Get().GetModulePtr<ISequencerModule>("Sequencer");
 	if (SequencerModulePtr)
 	{
@@ -112,6 +126,17 @@ void FMediaPlateEditorModule::MediaPlateStartedPlayback(TObjectPtr<UMediaPlateCo
 	}
 }
 
+bool FMediaPlateEditorModule::RemoveMediaSourceFromDragDropCache(UMediaSource* MediaSource)
+{
+	const FString* Key = MapFileToMediaSource.FindKey(MediaSource);
+	bool bIsInCache = Key != nullptr;
+	if (bIsInCache)
+	{
+		MapFileToMediaSource.Remove(*Key);
+	}
+	return bIsInCache;
+}
+
 void FMediaPlateEditorModule::RegisterAssetTools()
 {
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -136,6 +161,47 @@ void FMediaPlateEditorModule::UnregisterAssetTools()
 		for (TSharedRef<IAssetTypeActions>& Action : RegisteredAssetTypeActions)
 		{
 			AssetTools.UnregisterAssetTypeActions(Action);
+		}
+	}
+}
+
+void FMediaPlateEditorModule::OnPostEngineInit()
+{
+	UEditorAssetSubsystem* EditorAssetSubsystem = GEditor->GetEditorSubsystem<UEditorAssetSubsystem>();
+	if (EditorAssetSubsystem != nullptr)
+	{
+		EditorAssetSubsystem->GetOnExtractAssetFromFile().AddRaw(this, &FMediaPlateEditorModule::ExtractAssetDataFromFiles);
+	}
+}
+
+void FMediaPlateEditorModule::ExtractAssetDataFromFiles(const TArray<FString>& Files,
+	TArray<FAssetData>& AssetDataArray)
+{
+	if (Files.Num() > 0)
+	{
+		// Do we have this already?
+		UMediaSource* MediaSource = nullptr;
+		TWeakObjectPtr<UMediaSource>* ExistingMediaSourcePtr = MapFileToMediaSource.Find(Files[0]);
+		if (ExistingMediaSourcePtr != nullptr)
+		{
+			MediaSource = ExistingMediaSourcePtr->Get();
+		}
+
+		// If we dont have it then create one now.
+		if (MediaSource == nullptr)
+		{
+			MediaSource = UMediaSource::SpawnMediaSourceForString(Files[0], GetTransientPackage());
+			if (MediaSource != nullptr)
+			{
+				MapFileToMediaSource.Emplace(Files[0], MediaSource);
+			}
+		}
+
+		// Return this via the array.
+		if (MediaSource != nullptr)
+		{
+			FAssetData AssetData(MediaSource);
+			AssetDataArray.Add(AssetData);
 		}
 	}
 }

@@ -2,9 +2,11 @@
 
 #include "ActorFactoryMediaPlate.h"
 
+#include "Async/Async.h"
 #include "MediaSource.h"
 #include "MediaPlate.h"
 #include "MediaPlateComponent.h"
+#include "MediaPlateEditorModule.h"
 #include "MediaPlaylist.h"
 
 #define LOCTEXT_NAMESPACE "ActorFactoryMediaPlate"
@@ -65,6 +67,35 @@ void UActorFactoryMediaPlate::SetUpActor(UObject* Asset, AActor* Actor)
 				if (Playlist->Num() == 0)
 				{
 					Playlist->Add(MediaSource);
+
+					// Is this media source from a drag and drop?
+					FMediaPlateEditorModule* EditorModule = FModuleManager::LoadModulePtr<FMediaPlateEditorModule>("MediaPlateEditor");
+					if (EditorModule != nullptr)
+					{
+						bool bIsInDragDropCache = EditorModule->RemoveMediaSourceFromDragDropCache(MediaSource);
+						if (bIsInDragDropCache)
+						{
+							// Yes. Move this out of transient.
+							// Can't do it here as the asset is still being used.
+							TWeakObjectPtr<UMediaPlateComponent> MediaPlateComponentPtr(MediaPlate->MediaPlateComponent);
+							AsyncTask(ENamedThreads::GameThread, [MediaPlateComponentPtr]()
+							{
+								UMediaPlateComponent* MediaPlateComponent = MediaPlateComponentPtr.Get();
+								if (MediaPlateComponent != nullptr)
+								{
+									UMediaPlaylist* Playlist = MediaPlateComponent->MediaPlaylist;
+									if ((Playlist != nullptr) && (Playlist->Num() > 0))
+									{
+										UMediaSource* MediaSource = Playlist->Get(0);
+										if (MediaSource != nullptr)
+										{
+											MediaSource->Rename(nullptr, MediaPlateComponent);
+										}
+									}
+								}
+							});
+						}
+					}
 				}
 			}
 		}
