@@ -9,6 +9,11 @@
 #include "IHapticDevice.h"
 
 class FOpenXRHMD;
+class UInputAction;
+class UInputTrigger;
+class UInputModifier;
+class UInputMappingContext;
+class UPlayerMappableInputConfig;
 struct FInputActionKeyMapping;
 struct FInputAxisKeyMapping;
 struct FKey;
@@ -29,9 +34,43 @@ public:
 		FName			Name;
 		XrAction		Handle;
 
+		TObjectPtr<const UInputAction> Object;
 		TMap<TPair<XrPath, XrPath>, FName> KeyMap;
+		TMultiMap<TPair<XrPath, XrPath>, TObjectPtr<UInputTrigger>> Triggers;
+		TMultiMap<TPair<XrPath, XrPath>, TObjectPtr<UInputModifier>> Modifiers;
 
-		FOpenXRAction(XrActionSet InActionSet, XrActionType InActionType, const FName& InName, const TArray<XrPath>& SubactionPaths);
+		FOpenXRAction(XrActionSet InActionSet,
+			XrActionType InActionType,
+			const FName& InName, const
+			FString& InLocalizedName,
+			const TArray<XrPath>& InSubactionPaths,
+			const TObjectPtr<const UInputAction>& InObject);
+
+		FOpenXRAction(XrActionSet InActionSet,
+			XrActionType InActionType,
+			const FName& InName,
+			const FString& InLocalizedName,
+			const TArray<XrPath>& InSubactionPaths);
+	};
+
+	struct FOpenXRActionSet
+	{
+		XrActionSet		Handle;
+		FName			Name;
+		FString			LocalizedName;
+
+		TObjectPtr<const UInputMappingContext> Object;
+
+		FOpenXRActionSet(XrInstance InInstance,
+			const FName& InName,
+			const FString& InLocalizedName,
+			uint32 InPriority,
+			const TObjectPtr<const UInputMappingContext>& InObject);
+
+		FOpenXRActionSet(XrInstance InInstance,
+			const FName& InName,
+			const FString& InLocalizedName,
+			uint32 InPriority);
 	};
 
 	struct FOpenXRController
@@ -95,12 +134,19 @@ public:
 
 		FOpenXRHMD* OpenXRHMD;
 
-		TArray<XrActiveActionSet> ActionSets;
-		TArray<XrActionSet> PluginActionSets;
+		TMap<FString, FInteractionProfile> Profiles;
+		TArray<FOpenXRActionSet> ActionSets;
+		TArray<FOpenXRActionSet> PluginActionSets;
 		TArray<XrPath> SubactionPaths;
-		TArray<FOpenXRAction> Actions;
+		TArray<FOpenXRAction> LegacyActions, EnhancedActions;
 		TMap<EControllerHand, FOpenXRController> Controllers;
 		TMap<FName, EControllerHand> MotionSourceToControllerHandMap;
+
+		XrActiveActionSet ControllerSet;
+		XrActiveActionSet LegacySet;
+
+		UPlayerMappableInputConfig* MappableInputConfig;
+
 		XrAction GetActionForMotionSource(FName MotionSource) const;
 		int32 GetDeviceIDForMotionSource(FName MotionSource) const;
 		XrPath GetUserPathForMotionSource(FName MotionSource) const;
@@ -110,12 +156,14 @@ public:
 		bool bDirectionalBindingSupported;
 
 		void BuildActions();
+		void BuildLegacyActions();
+		void BuildEnhancedActions(const FSoftObjectPath& MappableInputConfigPath);
 		void DestroyActions();
 
 		template<typename T>
-		int32 SuggestBindings(XrInstance Instance, FOpenXRAction& Action, const TArray<T>& Mappings, TMap<FString, FInteractionProfile>& Profiles);
-
-		bool SuggestBindingForKey(XrInstance Instance, FOpenXRAction& Action, const FKey& Key, TMap<FString, FInteractionProfile>& Profiles);
+		int32 SuggestBindings(XrInstance Instance, FOpenXRAction& Action, const TArray<T>& Mappings);
+		bool SuggestBindingForKey(XrInstance Instance, FOpenXRAction& Action, const FKey& Key, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+		bool SuggestBindingForKey(XrInstance Instance, FOpenXRAction& Action, const FKey& Key);
 
 		/** handler to send all messages to */
 		TSharedRef<FGenericApplicationMessageHandler> MessageHandler;

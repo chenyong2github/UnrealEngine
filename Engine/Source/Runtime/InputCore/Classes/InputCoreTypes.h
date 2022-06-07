@@ -508,6 +508,7 @@ struct INPUTCORE_API EKeys
 	static const FKey Vive_Left_Menu_Click;
 	static const FKey Vive_Left_Trigger_Click;
 	static const FKey Vive_Left_Trigger_Axis;
+	static const FKey Vive_Left_Trackpad_2D;
 	static const FKey Vive_Left_Trackpad_X;
 	static const FKey Vive_Left_Trackpad_Y;
 	static const FKey Vive_Left_Trackpad_Click;
@@ -521,6 +522,7 @@ struct INPUTCORE_API EKeys
 	static const FKey Vive_Right_Menu_Click;
 	static const FKey Vive_Right_Trigger_Click;
 	static const FKey Vive_Right_Trigger_Axis;
+	static const FKey Vive_Right_Trackpad_2D;
 	static const FKey Vive_Right_Trackpad_X;
 	static const FKey Vive_Right_Trackpad_Y;
 	static const FKey Vive_Right_Trackpad_Click;
@@ -535,6 +537,7 @@ struct INPUTCORE_API EKeys
 	static const FKey MixedReality_Left_Grip_Click;
 	static const FKey MixedReality_Left_Trigger_Click;
 	static const FKey MixedReality_Left_Trigger_Axis;
+	static const FKey MixedReality_Left_Thumbstick_2D;
 	static const FKey MixedReality_Left_Thumbstick_X;
 	static const FKey MixedReality_Left_Thumbstick_Y;
 	static const FKey MixedReality_Left_Thumbstick_Click;
@@ -542,6 +545,7 @@ struct INPUTCORE_API EKeys
 	static const FKey MixedReality_Left_Thumbstick_Down;
 	static const FKey MixedReality_Left_Thumbstick_Left;
 	static const FKey MixedReality_Left_Thumbstick_Right;
+	static const FKey MixedReality_Left_Trackpad_2D;
 	static const FKey MixedReality_Left_Trackpad_X;
 	static const FKey MixedReality_Left_Trackpad_Y;
 	static const FKey MixedReality_Left_Trackpad_Click;
@@ -554,6 +558,7 @@ struct INPUTCORE_API EKeys
 	static const FKey MixedReality_Right_Grip_Click;
 	static const FKey MixedReality_Right_Trigger_Click;
 	static const FKey MixedReality_Right_Trigger_Axis;
+	static const FKey MixedReality_Right_Thumbstick_2D;
 	static const FKey MixedReality_Right_Thumbstick_X;
 	static const FKey MixedReality_Right_Thumbstick_Y;
 	static const FKey MixedReality_Right_Thumbstick_Click;
@@ -561,6 +566,7 @@ struct INPUTCORE_API EKeys
 	static const FKey MixedReality_Right_Thumbstick_Down;
 	static const FKey MixedReality_Right_Thumbstick_Left;
 	static const FKey MixedReality_Right_Thumbstick_Right;
+	static const FKey MixedReality_Right_Trackpad_2D;
 	static const FKey MixedReality_Right_Trackpad_X;
 	static const FKey MixedReality_Right_Trackpad_Y;
 	static const FKey MixedReality_Right_Trackpad_Click;
@@ -581,6 +587,7 @@ struct INPUTCORE_API EKeys
 	static const FKey OculusTouch_Left_Trigger_Click;
 	static const FKey OculusTouch_Left_Trigger_Axis;
 	static const FKey OculusTouch_Left_Trigger_Touch;
+	static const FKey OculusTouch_Left_Thumbstick_2D;
 	static const FKey OculusTouch_Left_Thumbstick_X;
 	static const FKey OculusTouch_Left_Thumbstick_Y;
 	static const FKey OculusTouch_Left_Thumbstick_Click;
@@ -599,6 +606,7 @@ struct INPUTCORE_API EKeys
 	static const FKey OculusTouch_Right_Trigger_Click;
 	static const FKey OculusTouch_Right_Trigger_Axis;
 	static const FKey OculusTouch_Right_Trigger_Touch;
+	static const FKey OculusTouch_Right_Thumbstick_2D;
 	static const FKey OculusTouch_Right_Thumbstick_X;
 	static const FKey OculusTouch_Right_Thumbstick_Y;
 	static const FKey OculusTouch_Right_Thumbstick_Click;
@@ -620,6 +628,7 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Left_Trigger_Click;
 	static const FKey ValveIndex_Left_Trigger_Axis;
 	static const FKey ValveIndex_Left_Trigger_Touch;
+	static const FKey ValveIndex_Left_Thumbstick_2D;
 	static const FKey ValveIndex_Left_Thumbstick_X;
 	static const FKey ValveIndex_Left_Thumbstick_Y;
 	static const FKey ValveIndex_Left_Thumbstick_Click;
@@ -628,6 +637,7 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Left_Thumbstick_Down;
 	static const FKey ValveIndex_Left_Thumbstick_Left;
 	static const FKey ValveIndex_Left_Thumbstick_Right;
+	static const FKey ValveIndex_Left_Trackpad_2D;
 	static const FKey ValveIndex_Left_Trackpad_X;
 	static const FKey ValveIndex_Left_Trackpad_Y;
 	static const FKey ValveIndex_Left_Trackpad_Force;
@@ -647,6 +657,7 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Right_Trigger_Click;
 	static const FKey ValveIndex_Right_Trigger_Axis;
 	static const FKey ValveIndex_Right_Trigger_Touch;
+	static const FKey ValveIndex_Right_Thumbstick_2D;
 	static const FKey ValveIndex_Right_Thumbstick_X;
 	static const FKey ValveIndex_Right_Thumbstick_Y;
 	static const FKey ValveIndex_Right_Thumbstick_Click;
@@ -655,6 +666,7 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Right_Thumbstick_Down;
 	static const FKey ValveIndex_Right_Thumbstick_Left;
 	static const FKey ValveIndex_Right_Thumbstick_Right;
+	static const FKey ValveIndex_Right_Trackpad_2D;
 	static const FKey ValveIndex_Right_Trackpad_X;
 	static const FKey ValveIndex_Right_Trackpad_Y;
 	static const FKey ValveIndex_Right_Trackpad_Force;

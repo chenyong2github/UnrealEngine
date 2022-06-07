@@ -10,7 +10,10 @@ public class OpenXREditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
+				"UnrealEd",
 				"OpenXRHMD",
+				"OpenXRInput"
 			}
 		);
 
