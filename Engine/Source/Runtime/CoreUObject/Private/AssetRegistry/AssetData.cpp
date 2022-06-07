@@ -214,7 +214,7 @@ void FAssetData::SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Ar << AssetClass;
-		AssetClassPath = FAssetData::TryConvertShortClassNameToPathName(AssetClass);
+		AssetClassPath = FAssetData::TryConvertShortClassNameToPathName(AssetClass, ELogVerbosity::NoLogging);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
