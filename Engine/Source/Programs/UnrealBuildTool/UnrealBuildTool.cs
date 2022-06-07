@@ -506,9 +506,6 @@ namespace UnrealBuildTool
 				// Add all the default event matchers from the UBT assembly
 				Log.EventParser.AddMatchersFromAssembly(Assembly.GetExecutingAssembly());
 
-				// Read all the ignore patterns
-				await Log.EventParser.ReadIgnorePatternsAsync(Unreal.EngineDirectory);
-
 				// Configure the progress writer
 				ProgressWriter.bWriteMarkup = Options.bWriteProgressMarkup;
 
