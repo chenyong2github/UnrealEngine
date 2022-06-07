@@ -7,6 +7,7 @@
 #include "SkeletalDebugRendering.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "AnimCustomInstanceHelper.h"
+#include "ControlRigObjectBinding.h"
 
 // CVar to disable control rig execution within a component
 static TAutoConsoleVariable<int32> CVarControlRigDisableExecutionComponent(TEXT("ControlRig.DisableExecutionInComponent"), 0, TEXT("if nonzero we disable the execution of Control Rigs inside a ControlRigComponent."));
@@ -1192,8 +1193,33 @@ void UControlRigComponent::SetControlRig(UControlRig* InControlRig)
 	ControlRig->OnExecuted_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigExecutedEvent);
 
 	ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, this);
+	if(ObjectBinding.IsValid())
+	{
+		ControlRig->SetObjectBinding(ObjectBinding);
+	}
 
 	ControlRig->Initialize();
+}
+
+void UControlRigComponent::SetControlRigClass(TSubclassOf<UControlRig> InControlRigClass)
+{
+	ControlRig = nullptr;
+	ControlRigClass = InControlRigClass;
+	Initialize();
+}
+
+void UControlRigComponent::SetObjectBinding(UObject* InObjectToBind)
+{
+	if(!ObjectBinding.IsValid())
+	{
+		ObjectBinding = MakeShared<FControlRigObjectBinding>();
+	}
+	ObjectBinding->BindToObject(InObjectToBind);
+
+	if(UControlRig* CR = SetupControlRigIfRequired())
+	{
+		CR->SetObjectBinding(ObjectBinding);
+	}
 }
 
 void UControlRigComponent::ValidateMappingData()

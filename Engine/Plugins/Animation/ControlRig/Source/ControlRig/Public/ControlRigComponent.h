@@ -179,7 +179,7 @@ class CONTROLRIG_API UControlRigComponent : public UPrimitiveComponent
 public:
 
 	/** The class of control rig to instantiate */
-	UPROPERTY(EditAnywhere, Category = ControlRig, meta = (DisallowCreateNew))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ControlRig, meta = (DisallowCreateNew), BlueprintSetter = SetControlRigClass)
 	TSubclassOf<UControlRig> ControlRigClass;
 
 	/** Event fired just before this component's ControlRig is initialized */
@@ -597,6 +597,12 @@ public:
 		
 	void SetControlRig(UControlRig* ControlRig);
 
+	UFUNCTION(BlueprintCallable, Category = "ControlRig")
+	void SetControlRigClass(TSubclassOf<UControlRig> InControlRigClass);
+
+	UFUNCTION(BlueprintCallable, Category = "ControlRig")
+	void SetObjectBinding(UObject* InObjectToBind);
+
 private:
 
 	struct FCachedSkeletalMeshComponentSettings
@@ -665,6 +671,8 @@ private:
 	TArray<int32> InputElementIndices;
 	TArray<FTransform> InputTransforms;
 	TArray<FTransform> LastInputTransforms;
+
+	TSharedPtr<IControlRigObjectBinding> ObjectBinding;
 
 	friend class FControlRigSceneProxy;
 };
