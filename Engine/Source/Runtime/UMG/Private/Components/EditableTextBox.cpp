@@ -21,6 +21,8 @@ static FEditableTextBoxStyle* EditorEditableTextBoxStyle = nullptr;
 UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	IsReadOnly = false;
 	IsPassword = false;
 	MinimumDesiredWidth = 0.0f;
@@ -32,6 +34,7 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	AllowContextMenu = true;
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	OverflowPolicy = ETextOverflowPolicy::Clip;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (DefaultEditableTextBoxStyle == nullptr)
 	{
@@ -74,6 +77,7 @@ void UEditableTextBox::ReleaseSlateResources(bool bReleaseChildren)
 	MyEditableTextBlock.Reset();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedRef<SWidget> UEditableTextBox::RebuildWidget()
 {
 	MyEditableTextBlock = SNew(SEditableTextBox)
@@ -142,12 +146,36 @@ void UEditableTextBox::SetText(FText InText)
 	}
 }
 
+FText UEditableTextBox::GetHintText() const
+{
+	if (MyEditableTextBlock.IsValid())
+	{
+		return MyEditableTextBlock->GetHintText();
+	}
+
+	return HintText;
+}
+
 void UEditableTextBox::SetHintText(FText InText)
 {
 	HintText = InText;
 	if (MyEditableTextBlock.IsValid())
 	{
 		MyEditableTextBlock->SetHintText(HintText);
+	}
+}
+
+float UEditableTextBox::GetMinimumDesiredWidth() const
+{
+	return MinimumDesiredWidth;
+}
+
+void UEditableTextBox::SetMinDesiredWidth(float InMinDesiredWidth)
+{
+	MinimumDesiredWidth = InMinDesiredWidth;
+	if (MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetMinimumDesiredWidth(MinimumDesiredWidth);
 	}
 }
 
@@ -168,6 +196,11 @@ void UEditableTextBox::SetError(FText InError)
 	}
 }
 
+bool UEditableTextBox::GetIsReadOnly() const
+{
+	return IsReadOnly;
+}
+
 void UEditableTextBox::SetIsReadOnly(bool bReadOnly)
 {
 	IsReadOnly = bReadOnly;
@@ -175,6 +208,11 @@ void UEditableTextBox::SetIsReadOnly(bool bReadOnly)
 	{
 		MyEditableTextBlock->SetIsReadOnly(IsReadOnly);
 	}
+}
+
+bool UEditableTextBox::GetIsPassword() const
+{
+	return IsPassword;
 }
 
 void UEditableTextBox::SetIsPassword(bool bIsPassword)
@@ -204,6 +242,12 @@ bool UEditableTextBox::HasError() const
 	return false;
 }
 
+
+ETextJustify::Type UEditableTextBox::GetJustification() const
+{
+	return Justification;
+}
+
 void UEditableTextBox::SetJustification(ETextJustify::Type InJustification)
 {
 	Justification = InJustification;
@@ -211,6 +255,11 @@ void UEditableTextBox::SetJustification(ETextJustify::Type InJustification)
 	{
 		MyEditableTextBlock->SetJustification(InJustification);
 	}
+}
+
+ETextOverflowPolicy UEditableTextBox::GetTextOverflowPolicy() const
+{
+	return OverflowPolicy;
 }
 
 void UEditableTextBox::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
@@ -233,6 +282,7 @@ void UEditableTextBox::HandleOnTextCommitted(const FText& InText, ETextCommit::T
 	Text = InText;
 	OnTextCommitted.Broadcast(InText, CommitMethod);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_ACCESSIBILITY
 TSharedPtr<SWidget> UEditableTextBox::GetAccessibleWidget() const
