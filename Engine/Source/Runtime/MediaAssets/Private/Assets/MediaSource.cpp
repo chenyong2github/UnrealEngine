@@ -7,6 +7,12 @@
 #include "Misc/Paths.h"
 #include "StreamMediaSource.h"
 
+void UMediaSource::SetCacheSettings(const FMediaSourceCacheSettings& Settings)
+{
+	SetMediaOptionBool(TEXT("ImgMediaSmartCacheEnabled"), Settings.bOverride);
+	SetMediaOptionFloat(TEXT("ImgMediaSmartCacheTimeToLookAhead"), Settings.TimeToLookAhead);
+}
+
 void UMediaSource::RegisterSpawnFromFileExtension(const FString& Extension,
 	FMediaSourceSpawnDelegate InDelegate)
 {

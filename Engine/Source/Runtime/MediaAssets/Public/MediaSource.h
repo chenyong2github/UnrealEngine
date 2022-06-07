@@ -15,6 +15,28 @@
 /** Delegate for creating a media source from a string. */
 DECLARE_DELEGATE_RetVal_TwoParams(UMediaSource*, FMediaSourceSpawnDelegate, const FString&, UObject*);
 
+/** Cache settings to pass to the player. */
+USTRUCT(BlueprintType)
+struct FMediaSourceCacheSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	/**
+	 * Override the default cache settings.
+	 * Currently only the ImgMedia player supports these settings.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Media Cache")
+	bool bOverride = false;
+
+	/**
+	 * The cache will fill up with frames that are up to this time from the current time.
+	 * E.g. if this is 0.2, and we are at time index 5 seconds,
+	 * then we will fill the cache with frames between 5 seconds and 5.2 seconds.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Media Cache")
+	float TimeToLookAhead = 0.2f;
+};
+
 /**
  * Abstract base class for media sources.
  *
@@ -49,6 +71,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaSource")
 	virtual bool Validate() const PURE_VIRTUAL(UMediaSource::Validate, return false;);
+
+	/**
+	 * Call this to set cache settings to pass to the player.
+	 */
+	void SetCacheSettings(const FMediaSourceCacheSettings& Settings);
 
 	/**
 	 * Call this to register a callback when someone calls SpawnMediaSourceForString.

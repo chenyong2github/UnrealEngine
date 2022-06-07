@@ -21,6 +21,8 @@ FLazyName UMediaPlateComponent::MediaPlaylistName(TEXT("MediaPlaylist0"));
 UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	CacheSettings.bOverride = true;
+
 	// Set up media component.
 	MediaComponent = CreateDefaultSubobject<UMediaComponent>(MediaComponentName);
 	if (MediaComponent != nullptr)
@@ -152,10 +154,10 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 
 	if (InMediaSource != nullptr)
 	{
+		// Set cache settings.
+		InMediaSource->SetCacheSettings(CacheSettings);
+		
 		// Set media options.
-		InMediaSource->SetMediaOptionBool(TEXT("ImgMediaSmartCacheEnabled"), bSmartCacheEnabled);
-		InMediaSource->SetMediaOptionFloat(TEXT("ImgMediaSmartCacheTimeToLookAhead"), SmartCacheTimeToLookAhead);
-	
 		TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 		if (MediaPlayer != nullptr)
 		{

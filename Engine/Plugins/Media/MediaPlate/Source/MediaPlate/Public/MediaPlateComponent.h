@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 #include "MediaPlayerOptions.h"
+#include "MediaSource.h"
 #include "MediaTextureTracker.h"
 
 #include "MediaPlateComponent.generated.h"
@@ -85,17 +86,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
 	TObjectPtr<UMediaPlaylist> MediaPlaylist;
 
-	/** Enable smart caching for image sequences. */
+	/** Override the default cache settings. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
-	bool bSmartCacheEnabled = true;
-
-	/**
-	 * The cache will fill up with frames that are up to this time from the current time.
-	 * E.g. if this is 0.2, and we are at time index 5 seconds,
-	 * then we will fill the cache with frames between 5 seconds and 5.2 seconds.
-	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
-	float SmartCacheTimeToLookAhead = 0.2f;
+	FMediaSourceCacheSettings CacheSettings;
 
 	/**
 	 * Specify type of mesh used for visible mips and tiles calculations.
