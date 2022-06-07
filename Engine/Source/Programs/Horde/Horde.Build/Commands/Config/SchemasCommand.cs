@@ -3,7 +3,6 @@
 using System;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Controllers;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
