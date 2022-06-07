@@ -170,6 +170,47 @@ class FRayTracingDebugTraversalCS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugTraversalCS, "/Engine/Private/RayTracing/RayTracingDebugTraversal.usf", "RayTracingDebugTraversalCS", SF_Compute);
 
+void BindRayTracingDebugCHSMaterialBindings(FRHICommandList& RHICmdList, const FViewInfo& View, FRayTracingPipelineState* PipelineState)
+{
+	const int32 NumTotalBindings = View.VisibleRayTracingMeshCommands.Num();
+
+	auto Alloc = [&](uint32 Size, uint32 Align)
+	{
+		return RHICmdList.Bypass()
+			? FMemStack::Get().Alloc(Size, Align)
+			: RHICmdList.Alloc(Size, Align);
+	};
+
+	const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
+	FRayTracingLocalShaderBindings* Bindings = (FRayTracingLocalShaderBindings*)Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings));
+
+	const uint32 NumUniformBuffers = 1;
+	FRHIUniformBuffer** UniformBufferArray = (FRHIUniformBuffer**)Alloc(sizeof(FRHIUniformBuffer*) * NumUniformBuffers, alignof(FRHIUniformBuffer*));
+	UniformBufferArray[0] = View.ViewUniformBuffer.GetReference();
+
+	uint32 BindingIndex = 0;
+	for (const FVisibleRayTracingMeshCommand VisibleMeshCommand : View.VisibleRayTracingMeshCommands)
+	{
+		const FRayTracingMeshCommand& MeshCommand = *VisibleMeshCommand.RayTracingMeshCommand;
+
+		FRayTracingLocalShaderBindings Binding = {};
+		Binding.InstanceIndex = VisibleMeshCommand.InstanceIndex;
+		Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
+		Binding.UniformBuffers = UniformBufferArray;
+		Binding.NumUniformBuffers = NumUniformBuffers;
+
+		Bindings[BindingIndex] = Binding;
+		BindingIndex++;
+	}
+
+	const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
+	RHICmdList.SetRayTracingHitGroups(
+		View.GetRayTracingSceneChecked(),
+		PipelineState,
+		NumTotalBindings, Bindings,
+		bCopyDataToInlineStorage);
+}
+
 static bool RequiresRayTracingDebugCHS(uint32 DebugVisualizationMode)
 {
 	return DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCES || DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRIANGLES;
@@ -328,6 +369,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 	auto RayGenShader = ShaderMap->GetShader<FRayTracingDebugRGS>();
 
 	FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
+	bool bRequiresBindings = false;
 
 	if (RequiresRayTracingDebugCHS(DebugVisualizationMode))
 	{
@@ -339,10 +381,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		auto ClosestHitShader = ShaderMap->GetShader<FRayTracingDebugCHS>();
 		FRHIRayTracingShader* HitGroupTable[] = { ClosestHitShader.GetRayTracingShader() };
 		Initializer.SetHitGroupTable(HitGroupTable);
-		Initializer.bAllowHitGroupIndexing = false; // Use the same hit shader for all geometry in the scene by disabling SBT indexing.
+		Initializer.bAllowHitGroupIndexing = true; // Required for stable output using GetBaseInstanceIndex().
 		Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE;
 
 		Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(GraphBuilder.RHICmdList, Initializer);
+		bRequiresBindings = true;
 	}
 
 	FRayTracingDebugRGS::FParameters* RayGenParameters = GraphBuilder.AllocParameters<FRayTracingDebugRGS::FParameters>();
@@ -377,10 +420,15 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		RDG_EVENT_NAME("RayTracingDebug"),
 		RayGenParameters,
 		ERDGPassFlags::Compute,
-		[this, RayGenParameters, RayGenShader, &View, Pipeline, ViewRect](FRHIRayTracingCommandList& RHICmdList)
+		[this, RayGenParameters, RayGenShader, &View, Pipeline, ViewRect, bRequiresBindings](FRHIRayTracingCommandList& RHICmdList)
 	{
 		FRayTracingShaderBindingsWriter GlobalResources;
 		SetShaderParameters(GlobalResources, RayGenShader, *RayGenParameters);
+
+		if (bRequiresBindings)
+		{
+			BindRayTracingDebugCHSMaterialBindings(RHICmdList, View, Pipeline);
+		}
 
 		RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), View.GetRayTracingSceneChecked(), GlobalResources, ViewRect.Size().X, ViewRect.Size().Y);
 	});
