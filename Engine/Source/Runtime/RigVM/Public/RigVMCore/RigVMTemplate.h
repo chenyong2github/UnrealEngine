@@ -230,9 +230,6 @@ protected:
 	ERigVMPinDirection Direction;
 
 	UPROPERTY()
-	bool bSingleton_DEPRECATED;
-
-	UPROPERTY()
 	TArray<FRigVMTemplateArgumentType> Types;
 
 	TMap<FString, TArray<int32>> TypeToPermutations;
