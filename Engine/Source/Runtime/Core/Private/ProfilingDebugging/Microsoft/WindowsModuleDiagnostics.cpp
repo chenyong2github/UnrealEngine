@@ -51,8 +51,8 @@ private:
 	void						OnDllNotification(unsigned int Reason, const void* DataPtr);
 	static FModuleTrace*		Instance;
 	SubscriberArray				Subscribers;
-	void*						CallbackCookie;
-	HeapId						ProgramHeapId;
+	void*						CallbackCookie = nullptr;
+	HeapId						ProgramHeapId = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -67,8 +67,11 @@ FModuleTrace::FModuleTrace(FMalloc* InMalloc)
 ////////////////////////////////////////////////////////////////////////////////
 FModuleTrace::~FModuleTrace()
 {
-	FNtDllFunction UnregisterFunc("LdrUnregisterDllNotification");
-	UnregisterFunc(CallbackCookie);
+	if (CallbackCookie)
+	{
+		FNtDllFunction UnregisterFunc("LdrUnregisterDllNotification");
+		UnregisterFunc(CallbackCookie);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
