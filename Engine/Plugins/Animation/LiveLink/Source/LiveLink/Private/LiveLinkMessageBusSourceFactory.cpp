@@ -5,6 +5,8 @@
 #include "LiveLinkMessageBusSource.h"
 #include "LiveLinkMessageBusFinder.h"
 
+#include "SLiveLinkMessageBusSourceFactory.h"
+
 #include "Features/IModularFeatures.h"
 #include "Misc/MessageDialog.h"
 
@@ -26,6 +28,14 @@ TSharedPtr<SWidget> ULiveLinkMessageBusSourceFactory::BuildCreationPanel(FOnLive
 		.OnSourceSelected(FOnLiveLinkMessageBusSourceSelected::CreateUObject(this, &ULiveLinkMessageBusSourceFactory::OnSourceSelected, InOnLiveLinkSourceCreated));
 }
 
+TSharedPtr<FLiveLinkMessageBusSource> ULiveLinkMessageBusSourceFactory::MakeSource(const FText& Name,
+																				   const FText& MachineName,
+																				   const FMessageAddress& Address,
+																				   double TimeOffset) const
+{
+	return MakeShared<FLiveLinkMessageBusSource>(Name, MachineName, Address, TimeOffset);
+}
+
 TSharedPtr<ILiveLinkSource> ULiveLinkMessageBusSourceFactory::CreateSource(const FString& ConnectionString) const
 {
 	FString Name;
@@ -35,7 +45,7 @@ TSharedPtr<ILiveLinkSource> ULiveLinkMessageBusSourceFactory::CreateSource(const
 	}
 
 	const double TimeOffset = 0.0;
-	return MakeShared<FLiveLinkMessageBusSource>(FText::FromString(Name), FText::GetEmpty(), FMessageAddress(), TimeOffset);
+	return MakeSource(FText::FromString(Name), FText::GetEmpty(), FMessageAddress(), TimeOffset);
 }
 
 
@@ -72,7 +82,7 @@ void ULiveLinkMessageBusSourceFactory::OnSourceSelected(FProviderPollResultPtr S
 		}
 #endif
 
-		TSharedPtr<FLiveLinkMessageBusSource> SharedPtr = MakeShared<FLiveLinkMessageBusSource>(FText::FromString(SelectedSource->Name), FText::FromString(SelectedSource->MachineName), SelectedSource->Address, SelectedSource->MachineTimeOffset);
+		TSharedPtr<FLiveLinkMessageBusSource> SharedPtr = MakeSource(FText::FromString(SelectedSource->Name), FText::FromString(SelectedSource->MachineName), SelectedSource->Address, SelectedSource->MachineTimeOffset);
 		FString ConnectionString = CreateConnectionString(*SelectedSource.Get());
 		InOnLiveLinkSourceCreated.ExecuteIfBound(SharedPtr, MoveTemp(ConnectionString));
 	}

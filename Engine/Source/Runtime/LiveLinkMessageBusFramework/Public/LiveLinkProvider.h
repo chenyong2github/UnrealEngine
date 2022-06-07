@@ -40,6 +40,19 @@ struct ILiveLinkProvider : public ILiveLinkProvider_Base_DEPRECATED
 public:
 	LIVELINKMESSAGEBUSFRAMEWORK_API static TSharedPtr<ILiveLinkProvider> CreateLiveLinkProvider(const FString& ProviderName);
 
+	/**
+	 * Create a Live Link Provider based on a class derived from ILiveLinkProvider instead of using the default Live Link Provider.
+	 * @param ProviderName		The provider name.
+	 * @param EndpointBuilder	An endpoint builder that can be used to add additional message handlers.
+	 * @return					Shared pointer to the ILiveLinkProvider-derived class. Use StaticCastSharedPtr to cast it back to child class type.
+	 */
+	template<typename T>
+	static TSharedPtr<ILiveLinkProvider> CreateLiveLinkProvider(const FString& ProviderName,
+																struct FMessageEndpointBuilder&& EndpointBuilder)
+	{
+		return MakeShared<T>(ProviderName, MoveTemp(EndpointBuilder));
+	}
+
 	virtual ~ILiveLinkProvider() {}
 
 	/**

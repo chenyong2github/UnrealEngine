@@ -8,6 +8,7 @@
 #include "LiveLinkHeartbeatEmitter.h"
 #include "LiveLinkLog.h"
 #include "LiveLinkMessageBusDiscoveryManager.h"
+#include "LiveLinkMessageBusSourceSettings.h"
 #include "LiveLinkMessages.h"
 #include "LiveLinkRoleTrait.h"
 #include "LiveLinkSettings.h"
@@ -15,7 +16,6 @@
 
 #include "MessageEndpointBuilder.h"
 #include "Misc/App.h"
-
 
 FLiveLinkMessageBusSource::FLiveLinkMessageBusSource(const FText& InSourceType, const FText& InSourceMachineName, const FMessageAddress& InConnectionAddress, double InMachineTimeOffset)
 	: ConnectionAddress(InConnectionAddress)
@@ -41,15 +41,7 @@ void FLiveLinkMessageBusSource::ReceiveClient(ILiveLinkClient* InClient, FGuid I
 		RoleInstances.Add(RoleClass->GetDefaultObject<ULiveLinkRole>());
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	MessageEndpoint = FMessageEndpoint::Builder(TEXT("LiveLinkMessageBusSource"))
-		.Handling<FLiveLinkSubjectDataMessage>(this, &FLiveLinkMessageBusSource::HandleSubjectData)
-		.Handling<FLiveLinkSubjectFrameMessage>(this, &FLiveLinkMessageBusSource::HandleSubjectFrame)
-		.Handling<FLiveLinkHeartbeatMessage>(this, &FLiveLinkMessageBusSource::HandleHeartbeat)
-		.Handling<FLiveLinkClearSubject>(this, &FLiveLinkMessageBusSource::HandleClearSubject)
-		.ReceivingOnAnyThread()
-		.WithCatchall(this, &FLiveLinkMessageBusSource::InternalHandleMessage);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	MessageEndpoint = CreateAndInitializeMessageEndpoint();
 
 	if (ConnectionAddress.IsValid())
 	{
@@ -191,21 +183,11 @@ void FLiveLinkMessageBusSource::InternalHandleMessage(const TSharedRef<IMessageC
 	const FLiveLinkSubjectKey SubjectKey(SourceGuid, SubjectName);
 	if (bIsStaticData)
 	{
-		check(MessageTypeInfo->IsChildOf(FLiveLinkBaseStaticData::StaticStruct()));
-
-		FLiveLinkStaticDataStruct DataStruct(MessageTypeInfo);
-		DataStruct.InitializeWith(MessageTypeInfo, reinterpret_cast<const FLiveLinkBaseStaticData*>(Context->GetMessage()));
-		Client->PushSubjectStaticData_AnyThread(SubjectKey, SubjectRole, MoveTemp(DataStruct));
+		InitializeAndPushStaticData_AnyThread(SubjectName, SubjectRole, SubjectKey, Context, MessageTypeInfo);
 	}
 	else
 	{
-		check(MessageTypeInfo->IsChildOf(FLiveLinkBaseFrameData::StaticStruct()));
-
-		FLiveLinkFrameDataStruct DataStruct(MessageTypeInfo);
-		const FLiveLinkBaseFrameData* Message = reinterpret_cast<const FLiveLinkBaseFrameData*>(Context->GetMessage());
-		DataStruct.InitializeWith(MessageTypeInfo, Message);
-		DataStruct.GetBaseData()->WorldTime = Message->WorldTime.GetOffsettedTime();
-		Client->PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(DataStruct));
+		InitializeAndPushFrameData_AnyThread(SubjectName, SubjectKey, Context, MessageTypeInfo);
 	}
 }
 
@@ -225,6 +207,58 @@ FText FLiveLinkMessageBusSource::GetSourceStatus() const
 		return NSLOCTEXT("LiveLinkMessageBusSource", "ActiveStatus", "Active");
 	}
 	return NSLOCTEXT("LiveLinkMessageBusSource", "TimeoutStatus", "Not responding");
+}
+
+TSubclassOf<ULiveLinkSourceSettings> FLiveLinkMessageBusSource::GetSettingsClass() const
+{
+	return ULiveLinkMessageBusSourceSettings::StaticClass();
+}
+
+TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> FLiveLinkMessageBusSource::CreateAndInitializeMessageEndpoint()
+{
+	FMessageEndpointBuilder EndpointBuilder = FMessageEndpoint::Builder(GetSourceName());
+	InitializeMessageEndpoint(EndpointBuilder);
+	return EndpointBuilder;
+}
+
+void FLiveLinkMessageBusSource::InitializeAndPushStaticData_AnyThread(FName SubjectName,
+																	  TSubclassOf<ULiveLinkRole> SubjectRole,
+																	  const FLiveLinkSubjectKey& SubjectKey,
+																	  const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context,
+																	  UScriptStruct* MessageTypeInfo)
+{
+	check(MessageTypeInfo->IsChildOf(FLiveLinkBaseStaticData::StaticStruct()));
+
+	FLiveLinkStaticDataStruct DataStruct(MessageTypeInfo);
+	DataStruct.InitializeWith(MessageTypeInfo, reinterpret_cast<const FLiveLinkBaseStaticData*>(Context->GetMessage()));
+	PushClientSubjectStaticData_AnyThread(SubjectKey, SubjectRole, MoveTemp(DataStruct));
+}
+
+void FLiveLinkMessageBusSource::InitializeAndPushFrameData_AnyThread(FName SubjectName,
+																	 const FLiveLinkSubjectKey& SubjectKey,
+																	 const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context,
+																	 UScriptStruct* MessageTypeInfo)
+{
+	check(MessageTypeInfo->IsChildOf(FLiveLinkBaseFrameData::StaticStruct()));
+
+	FLiveLinkFrameDataStruct DataStruct(MessageTypeInfo);
+	const FLiveLinkBaseFrameData* Message = reinterpret_cast<const FLiveLinkBaseFrameData*>(Context->GetMessage());
+	DataStruct.InitializeWith(MessageTypeInfo, Message);
+	DataStruct.GetBaseData()->WorldTime = Message->WorldTime.GetOffsettedTime();
+	PushClientSubjectFrameData_AnyThread(SubjectKey, MoveTemp(DataStruct));
+}
+
+void FLiveLinkMessageBusSource::PushClientSubjectStaticData_AnyThread(const FLiveLinkSubjectKey& SubjectKey,
+																	  TSubclassOf<ULiveLinkRole> Role,
+																	  FLiveLinkStaticDataStruct&& StaticData)
+{
+	Client->PushSubjectStaticData_AnyThread(SubjectKey, Role, MoveTemp(StaticData));
+}
+
+void FLiveLinkMessageBusSource::PushClientSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& SubjectKey,
+																	 FLiveLinkFrameDataStruct&& FrameData)
+{
+	Client->PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(FrameData));
 }
 
 void FLiveLinkMessageBusSource::HandleHeartbeat(const FLiveLinkHeartbeatMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
@@ -254,7 +288,7 @@ void FLiveLinkMessageBusSource::SendConnectMessage()
 {
 	FLiveLinkConnectMessage* ConnectMessage = FMessageEndpoint::MakeMessage<FLiveLinkConnectMessage>();
 	ConnectMessage->LiveLinkVersion = ILiveLinkClient::LIVELINK_VERSION;
-	MessageEndpoint->Send(ConnectMessage, ConnectionAddress);
+	SendMessage(ConnectMessage);
 	FLiveLinkHeartbeatEmitter& HeartbeatEmitter = ILiveLinkModule::Get().GetHeartbeatEmitter();
 	HeartbeatEmitter.StartHeartbeat(ConnectionAddress, MessageEndpoint);
 	bIsValid = true;
@@ -279,6 +313,25 @@ bool FLiveLinkMessageBusSource::RequestSourceShutdown()
 	MessageEndpoint.Reset();
 
 	return true;
+}
+
+const FName& FLiveLinkMessageBusSource::GetSourceName() const
+{
+	static FName Name(TEXT("LiveLinkMessageBusSource"));
+	return Name;
+}
+
+void FLiveLinkMessageBusSource::InitializeMessageEndpoint(FMessageEndpointBuilder& EndpointBuilder)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MessageEndpoint = EndpointBuilder
+	.Handling<FLiveLinkSubjectDataMessage>(this, &FLiveLinkMessageBusSource::HandleSubjectData)
+	.Handling<FLiveLinkSubjectFrameMessage>(this, &FLiveLinkMessageBusSource::HandleSubjectFrame)
+	.Handling<FLiveLinkHeartbeatMessage>(this, &FLiveLinkMessageBusSource::HandleHeartbeat)
+	.Handling<FLiveLinkClearSubject>(this, &FLiveLinkMessageBusSource::HandleClearSubject)
+	.ReceivingOnAnyThread()
+	.WithCatchall(this, &FLiveLinkMessageBusSource::InternalHandleMessage);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

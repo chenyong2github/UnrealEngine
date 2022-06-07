@@ -6,7 +6,6 @@
 
 #include "HAL/ThreadSafeBool.h"
 #include "IMessageContext.h"
-#include "LiveLinkMessageBusSourceSettings.h"
 #include "LiveLinkRole.h"
 #include "MessageEndpoint.h"
 
@@ -36,10 +35,48 @@ public:
 	virtual FText GetSourceMachineName() const override { return SourceMachineName; }
 	virtual FText GetSourceStatus() const override;
 
-	virtual TSubclassOf<ULiveLinkSourceSettings> GetSettingsClass() const override { return ULiveLinkMessageBusSourceSettings::StaticClass(); }
+	virtual TSubclassOf<ULiveLinkSourceSettings> GetSettingsClass() const override;
 	//~ End ILiveLinkSource interface
 
+protected:
+	// Returns the source name to uniquely identify it among the FLiveLinkMessageBusSource classes
+	virtual const FName& GetSourceName() const;
+	// This lets child classes the opportunity to add custom message handlers to the endpoint builder
+	virtual void InitializeMessageEndpoint(FMessageEndpointBuilder& EndpointBuilder);
+	bool IsMessageEndpointConnected() const { return ConnectionAddress.IsValid() && MessageEndpoint.IsValid() && MessageEndpoint->IsConnected(); }
+
+	// Initialize the static data and send it to the clients
+	virtual void InitializeAndPushStaticData_AnyThread(FName SubjectName,
+													   TSubclassOf<ULiveLinkRole> SubjectRole,
+													   const FLiveLinkSubjectKey& SubjectKey,
+													   const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context,
+													   UScriptStruct* MessageTypeInfo);
+	// Initialize the frame data and send it to the clients
+	virtual void InitializeAndPushFrameData_AnyThread(FName SubjectName,
+													  const FLiveLinkSubjectKey& SubjectKey,
+													  const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context,
+													  UScriptStruct* MessageTypeInfo);
+
+	// Send the static data to the clients
+	void PushClientSubjectStaticData_AnyThread(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> Role, FLiveLinkStaticDataStruct&& StaticData);
+	// Send the frame data to the clients
+	void PushClientSubjectFrameData_AnyThread(const FLiveLinkSubjectKey& SubjectKey, FLiveLinkFrameDataStruct&& FrameData);
+
+	// Send a message through the endpoint
+	template<typename MessageType>
+	void SendMessage(MessageType* Message)
+	{
+		if (!Message || !IsMessageEndpointConnected())
+		{
+			return;
+		}
+
+		MessageEndpoint->Send(Message, ConnectionAddress);
+	}
+
 private:
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> CreateAndInitializeMessageEndpoint();
+
 	//~ Message bus message handlers
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	void HandleSubjectData(const FLiveLinkSubjectDataMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
