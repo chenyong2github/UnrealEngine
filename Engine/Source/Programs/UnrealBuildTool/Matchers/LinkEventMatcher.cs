@@ -30,9 +30,18 @@ namespace UnrealBuildTool.Matchers
 		static readonly Regex s_microsoftErrorPattern = new Regex(
 			@"error (?<code>LNK\d+):");
 
+		static readonly Regex s_ignoredLinkWarningPattern = new Regex(
+			@"^\s*ld: warning: Linker asked to preserve internal global:");
+
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
+			if (cursor.IsMatch(s_ignoredLinkWarningPattern))
+			{
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Linker);
+			}
+
 			int lineCount = 0;
 			bool isError = false;
 			bool isWarning = false;

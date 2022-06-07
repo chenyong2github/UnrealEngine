@@ -621,6 +621,20 @@ namespace UnrealBuildToolTests
 		}
 
 		[TestMethod]
+		public void IOSIgnoredLinkEvents()
+		{
+			string[] lines =
+			{
+				@"ld: warning: Linker asked to preserve internal global: 'inflateEnd'",
+				@"ld: warning: Linker asked to preserve internal global: 'inflateReset'",
+			};
+
+			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+			CheckEventGroup(logEvents.Slice(0, 1), 0, 1, LogLevel.Information, KnownLogEvents.Linker);
+			CheckEventGroup(logEvents.Slice(1, 1), 1, 1, LogLevel.Information, KnownLogEvents.Linker);
+		}
+
+		[TestMethod]
 		public void XoreaxErrorMatcher()
 		{
 			string[] lines =
