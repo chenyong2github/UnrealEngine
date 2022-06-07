@@ -607,6 +607,11 @@ namespace Horde.Build.Jobs
 		public int ClonedPreflightChange { get; }
 
 		/// <summary>
+		/// Description for the shelved change if running a preflight
+		/// </summary>
+		public string? PreflightDescription { get; }
+
+		/// <summary>
 		/// Priority of this job
 		/// </summary>
 		public Priority Priority { get; }

@@ -232,6 +232,11 @@ namespace Horde.Build.Jobs
 		public int? ClonedPreflightChange { get; set; }
 
 		/// <summary>
+		/// Description of the preflight
+		/// </summary>
+		public string? PreflightDescription { get; set; }
+
+		/// <summary>
 		/// The template type
 		/// </summary>
 		public string TemplateId { get; set; }
@@ -357,6 +362,7 @@ namespace Horde.Build.Jobs
 			CodeChange = (job.CodeChange != 0) ? (int?)job.CodeChange : null;
 			PreflightChange = (job.PreflightChange != 0) ? (int?)job.PreflightChange : null;
 			ClonedPreflightChange = (job.ClonedPreflightChange != 0) ? (int?)job.ClonedPreflightChange : null;
+			PreflightDescription = job.PreflightDescription;
 			TemplateId = job.TemplateId.ToString();
 			TemplateHash = job.TemplateHash?.ToString() ?? String.Empty;
 			GraphHash = job.GraphHash.ToString();

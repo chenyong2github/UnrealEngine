@@ -162,8 +162,8 @@ namespace Horde.Build.Perforce
 		/// <param name="streamName">The stream to query</param>
 		/// <param name="changeNumber">Shelved changelist number</param>
 		/// <param name="impersonateUser">Name of the user to impersonate</param>
-		/// <returns></returns>
-		public Task<CheckShelfResult> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser);
+		/// <returns>Whether the shelf is valid, plus the description for it</returns>
+		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream

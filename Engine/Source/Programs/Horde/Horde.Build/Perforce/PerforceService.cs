@@ -943,7 +943,7 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<CheckShelfResult> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser)
+		public async Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.CheckPreflightAsync").StartActive();
 			scope.Span.SetTag("ClusterName", clusterName);
@@ -957,11 +957,11 @@ namespace Horde.Build.Perforce
 				P4.Changelist change = repository.GetChangelist(changeNumber, new P4.DescribeCmdOptions(P4.DescribeChangelistCmdFlags.Omit | P4.DescribeChangelistCmdFlags.Shelved, 0, 0));
 				if(change == null)
 				{
-					return CheckShelfResult.NoChange;
+					return (CheckShelfResult.NoChange, null);
 				}
 				if (change.ShelvedFiles == null || change.ShelvedFiles.Count == 0)
 				{
-					return CheckShelfResult.NoShelvedFiles;
+					return (CheckShelfResult.NoShelvedFiles, null);
 				}
 
 				P4.Stream stream = repository.GetStream(streamName, new P4.StreamCmdOptions(P4.StreamCmdFlags.View, null, null));
@@ -983,10 +983,11 @@ namespace Horde.Build.Perforce
 
 				if (bHasUnmappedFile)
 				{
-					return bHasMappedFile ? CheckShelfResult.MixedStream : CheckShelfResult.WrongStream;
+					return (bHasMappedFile ? CheckShelfResult.MixedStream : CheckShelfResult.WrongStream, null);
 				}
+
+				return (CheckShelfResult.Ok, change.Description);
 			}
-			return CheckShelfResult.Ok;
 		}
 
 		/// <inheritdoc/>

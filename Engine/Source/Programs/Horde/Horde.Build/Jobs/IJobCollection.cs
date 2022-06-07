@@ -45,6 +45,7 @@ namespace Horde.Build.Jobs
 		/// <param name="codeChange">The corresponding code changelist number</param>
 		/// <param name="preflightChange">Optional changelist to preflight</param>
 		/// <param name="clonedPreflightChange">Optional cloned preflight changelist</param>
+		/// <param name="preflightDescription">Description for the change being preflighted</param>
 		/// <param name="startedByUserId">User that started the job</param>
 		/// <param name="priority">Priority of the job</param>
 		/// <param name="autoSubmit">Whether to automatically submit the preflighted change on completion</param>
@@ -57,7 +58,7 @@ namespace Horde.Build.Jobs
 		/// <param name="notificationChannelFilter">Notification channel filter for this job</param>
 		/// <param name="arguments">Arguments for the job</param>
 		/// <returns>The new job document</returns>
-		Task<IJob> AddAsync(JobId jobId, StreamId streamId, TemplateRefId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, int? preflightChange, int? clonedPreflightChange, UserId? startedByUserId, Priority? priority, bool? autoSubmit, bool? updateIssues, bool? promoteIssuesByDefault, List<ChainedJobTemplate>? jobTriggers, bool showUgsBadges, bool showUgsAlerts, string? notificationChannel, string? notificationChannelFilter, List<string>? arguments);
+		Task<IJob> AddAsync(JobId jobId, StreamId streamId, TemplateRefId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, int? preflightChange, int? clonedPreflightChange, string? preflightDescription, UserId? startedByUserId, Priority? priority, bool? autoSubmit, bool? updateIssues, bool? promoteIssuesByDefault, List<ChainedJobTemplate>? jobTriggers, bool showUgsBadges, bool showUgsAlerts, string? notificationChannel, string? notificationChannelFilter, List<string>? arguments);
 
 		/// <summary>
 		/// Gets a job with the given unique id
