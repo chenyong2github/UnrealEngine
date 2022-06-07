@@ -18,6 +18,7 @@
 
 class FAssetPackageData;
 class FEditorDomainSaveClient;
+class FScopeLock;
 class IAssetRegistry;
 class UObject;
 class UPackage;
@@ -215,8 +216,12 @@ private:
 	FEditorDomain(const FEditorDomain& Other) = delete;
 	FEditorDomain(FEditorDomain&& Other) = delete;
 
-	/** Read the PackageSource data from PackageSources, or from the asset registry if not in PackageSources. */
-	bool TryFindOrAddPackageSource(FName PackageName, TRefCountPtr<FPackageSource>& OutSource,
+	/**
+	 * Read the PackageSource data from PackageSources, or from the asset registry if not in PackageSources.
+	 * Note this function can exit and reenter the provided ScopeLock. If so it will set bOutReenteredLock=true and caller must handle
+	 * retesting variables that may have changed while outside of the lock.
+	*/
+	bool TryFindOrAddPackageSource(FScopeLock& ScopeLock, bool& bOutReenteredLock, FName PackageName, TRefCountPtr<FPackageSource>& OutSource,
 		UE::EditorDomain::FPackageDigest* OutErrorDigest=nullptr);
 	/** Return the PackageSource data in PackageSources, if it exists */
 	TRefCountPtr<FPackageSource> FindPackageSource(const FPackagePath& PackagePath);
@@ -236,7 +241,7 @@ private:
 	/** AssetUpdated event to invalidate our information about where it should be loaded from. */
 	void OnAssetUpdatedOnDisk(const FAssetData& AssetData);
 	/** Same As GetPackageDigest, but assumes lock is already held. */
-	UE::EditorDomain::FPackageDigest GetPackageDigest_WithinLock(FName PackageDigest);
+	UE::EditorDomain::FPackageDigest GetPackageDigest_WithinLock(FScopeLock& ScopeLock, bool& bOutReenteredLock, FName PackageDigest);
 
 
 	/** Subsystem used to request the save of missing packages into the EditorDomain from a separate process. */
