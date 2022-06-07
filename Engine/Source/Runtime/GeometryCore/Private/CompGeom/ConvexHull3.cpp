@@ -118,8 +118,20 @@ void TExtremePoints3<RealType>::Init(int32 NumPoints, TFunctionRef<TVector<RealT
 	Basis[1] = GetPointFunc(Extreme[2]) - Origin;
 	// project Basis[1] to be orthogonal to Basis[0]
 	Basis[1] -= (Basis[0].Dot(Basis[1])) * Basis[0];
-	Normalize(Basis[1]);
+	if (!Basis[1].Normalize(Epsilon)) // points too collinear to form a valid basis
+	{
+		Dimension = 1;
+		Extreme[3] = Extreme[2] = Extreme[1];
+		return;
+	}
 	Basis[2] = Basis[0].Cross(Basis[1]);
+	if (!Basis[2].Normalize(Epsilon)) // points too collinear to form a valid basis
+	{
+		Dimension = 1;
+		Extreme[3] = Extreme[2] = Extreme[1];
+		return;
+	}
+
 
 	{
 		TPlane3<RealType> Plane(Basis[2], Origin);

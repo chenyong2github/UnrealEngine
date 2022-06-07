@@ -33,13 +33,13 @@ struct GEOMETRYCORE_API TExtremePoints3
 	TVector<RealType> Origin{ 0,0,0 };
 	TVector<RealType> Basis[3]{ {0,0,0}, {0,0,0}, {0,0,0} };
 
-	TExtremePoints3(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true; }, double Epsilon = 0)
+	TExtremePoints3(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true; }, double Epsilon = TMathUtil<RealType>::Epsilon)
 	{
 		Init(NumPoints, GetPointFunc, FilterFunc, Epsilon);
 	}
 
 private:
-	void Init(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, double Epsilon = 0);
+	void Init(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, double Epsilon = TMathUtil<RealType>::Epsilon);
 };
 
 /**
