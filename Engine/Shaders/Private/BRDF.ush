@@ -321,7 +321,7 @@ float3 Diffuse_Chan( float3 DiffuseColor, float a2, float NoV, float NoL, float 
 	NoH = saturate(NoH);
 
 	// a2 = 2 / ( 1 + exp2( 18 * g )
-	float g = saturate( (1.0 / 18.0) * log2( 2 / a2 - 1 ) );
+	float g = saturate( (1.0 / 18.0) * log2( 2 * rcpFast(a2) - 1 ) );
 
 	float F0 = VoH + Pow5( 1 - VoH );
 	float FdV = 1 - 0.75 * Pow5( 1 - NoV );
@@ -331,7 +331,7 @@ float3 Diffuse_Chan( float3 DiffuseColor, float a2, float NoV, float NoL, float 
 	float Fd = lerp( F0, FdV * FdL, saturate( 2.2 * g - 0.5 ) );
 
 	// Retro reflectivity contribution.
-	float Fb = ( (34.5 * g - 59 ) * g + 24.5 ) * VoH * exp2( -max( 73.2 * g - 21.2, 8.9 ) * sqrt( NoH ) );
+	float Fb = ( (34.5 * g - 59 ) * g + 24.5 ) * VoH * exp2( -max( 73.2 * g - 21.2, 8.9 ) * sqrtFast( NoH ) );
 	// It fades out when lights become area lights in order to avoid visual artefacts.
 	Fb *= RetroReflectivityWeight;
 	

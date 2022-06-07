@@ -281,7 +281,10 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 			if (STRATA_DIFFUSE_CHAN && Settings.bRoughDiffuseEnabled)
 			{
-				// If the specular layer is anisotropic, the diffuse takes the 'main' roughness value rather than the tangent/bitangent value
+				// * If the specular layer is anisotropic, the diffuse takes the 'main' roughness value rather than the tangent/bitangent value
+				// * The Chan model bakes transmittance specular directional albedo assuming F=0.04. In previous code we reapplied 
+				//   this transmittance, as the energy preservation code we remove it as well. However the visual effect was small 
+				//   and the cost was rather large (~8%). This is why we removed it in recent iteration
 				Sample.DiffusePathValue = Diffuse_Chan(DiffuseColor, Alpha2, NoV, AreaLightContext.NoL, VoH, NoH, GetAreaLightDiffuseMicroReflWeight(AreaLightContext.AreaLight));
 			}
 			else
@@ -319,25 +322,9 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 					HazeMSScale = ComputeEnergyConservation(EnergyTerms);
 				}
 			#endif
-
-				// We remove the Chan model baked transmittance specular directional albedo assuming F=0.04.
-				// Then we apply the transmittance according to the current surface setup.
-				// To make this a safe operation:
-				//	- We clamp SpecularTChan to a threshold to avoid div by 0 when the material is a metal. 
-				//	- When the material tends to be metal, DirectionalAlbedo_SpecularTransmission will naturally tend to be 0
-				if (STRATA_DIFFUSE_CHAN > 0 && Settings.bRoughDiffuseEnabled)
-				{
-					const float ChanF0 = 0.04;
-					FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(SafeRoughness, BSDFContext.Context.NoV, ChanF0, 1.0f);
-					const float3 SpecularTransmitionChanF0ToMaterialF0 = DirectionalAlbedo_SpecularTransmission / max(STRATA_EPSILON, ComputeEnergyPreservation(EnergyTerms));
-					Sample.DiffusePathValue *= SpecularTransmitionChanF0ToMaterialF0;
-					Sample.IntegratedDiffuseValue *= SpecularTransmitionChanF0ToMaterialF0;
-				}
-				else
-				{
-					Sample.DiffusePathValue *= DirectionalAlbedo_SpecularTransmission;
-					Sample.IntegratedDiffuseValue *= DirectionalAlbedo_SpecularTransmission;
-				}
+			
+				Sample.DiffusePathValue *= DirectionalAlbedo_SpecularTransmission;
+				Sample.IntegratedDiffuseValue *= DirectionalAlbedo_SpecularTransmission;
 			}
 
 
