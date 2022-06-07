@@ -93,6 +93,8 @@ const FText UNamedSlot::GetPaletteCategory()
 	return LOCTEXT("Common", "Common");
 }
 
+#endif
+
 void UNamedSlot::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -114,7 +116,6 @@ void UNamedSlot::PostLoad()
 #endif
 }
 
-#endif
 
 /////////////////////////////////////////////////////
 
