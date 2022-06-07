@@ -14,7 +14,7 @@ int32 UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch = 0;
 UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , bIsAlwaysLoaded(false)
-, MinMaxZ(-WORLDPARTITION_MAX, WORLDPARTITION_MAX)
+, MinMaxZ(-HALF_WORLD_MAX, HALF_WORLD_MAX)
 , Priority(0)
 , CachedMinSourcePriority((uint8)EStreamingSourcePriority::Lowest)
 , CachedSourceInfoEpoch(INT_MIN)

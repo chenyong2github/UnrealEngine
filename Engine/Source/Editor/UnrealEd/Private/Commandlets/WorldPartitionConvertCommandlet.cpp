@@ -163,7 +163,7 @@ UWorldPartitionConvertCommandlet::UWorldPartitionConvertCommandlet(const FObject
 	, ConversionSuffix(TEXT("_WP"))
 	, bConvertActorsNotReferencedByLevelScript(true)
 	, WorldOrigin(FVector::ZeroVector)
-	, WorldExtent(WORLDPARTITION_MAX * 0.5)
+	, WorldExtent(HALF_WORLD_MAX)
 	, LandscapeGridSize(4)
 	, DataLayerAssetFolder(TEXT("Game/DataLayers/"))
 	, DataLayerFactory(NewObject<UDataLayerFactory>())

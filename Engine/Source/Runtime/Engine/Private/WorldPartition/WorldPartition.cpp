@@ -205,7 +205,7 @@ class FLoaderAdapterAlwaysLoadedActors : public FLoaderAdapterShape
 {
 public:
 	FLoaderAdapterAlwaysLoadedActors(UWorld* InWorld)
-		: FLoaderAdapterShape(InWorld, FBox(FVector(-WORLDPARTITION_MAX, -WORLDPARTITION_MAX, -WORLDPARTITION_MAX), FVector(WORLDPARTITION_MAX, WORLDPARTITION_MAX, WORLDPARTITION_MAX)), TEXT("Always Loaded"))
+		: FLoaderAdapterShape(InWorld, FBox(FVector(-HALF_WORLD_MAX, -HALF_WORLD_MAX, -HALF_WORLD_MAX), FVector(HALF_WORLD_MAX, HALF_WORLD_MAX, HALF_WORLD_MAX)), TEXT("Always Loaded"))
 	{
 		bIncludeSpatiallyLoadedActors = false;
 		bIncludeNonSpatiallyLoadedActors = true;
@@ -690,7 +690,7 @@ void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Ro
 #if WITH_EDITOR
 	if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadRegion())
 	{
-		const FVector LoadExtent(GLoadingRangeBugItGo, GLoadingRangeBugItGo, WORLDPARTITION_MAX);
+		const FVector LoadExtent(GLoadingRangeBugItGo, GLoadingRangeBugItGo, HALF_WORLD_MAX);
 		const FBox LoadCellsBox(Loc - LoadExtent, Loc + LoadExtent);
 
 		FLoaderAdapterShape* LoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, LoadCellsBox, TEXT("BugItGo"));

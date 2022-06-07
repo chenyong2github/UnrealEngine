@@ -134,7 +134,7 @@ void FWorldPartitionMiniMapHelper::CalTopViewOfWorld(FMatrix& OutProjectionMatri
 	const float OrthoWidth = FMath::Max(1.f, ViewportWidth * OrthoZoom);
 	const float OrthoHeight = FMath::Max(1.f, ViewportHeight * OrthoZoom);
 
-	const float ZOffset = WORLDPARTITION_MAX * 0.5;
+	const float ZOffset = HALF_WORLD_MAX;
 	OutProjectionMatrix = FReversedZOrthoMatrix(
 		OrthoWidth,
 		OrthoHeight,

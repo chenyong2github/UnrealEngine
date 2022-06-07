@@ -282,7 +282,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 
 void SWorldPartitionEditorGrid2D::CreateRegionFromSelection()
 {
-	const FBox RegionBox(FVector(SelectBox.Min.X, SelectBox.Min.Y, -WORLDPARTITION_MAX), FVector(SelectBox.Max.X, SelectBox.Max.Y, WORLDPARTITION_MAX));
+	const FBox RegionBox(FVector(SelectBox.Min.X, SelectBox.Min.Y, -HALF_WORLD_MAX), FVector(SelectBox.Max.X, SelectBox.Max.Y, HALF_WORLD_MAX));
 	FLoaderAdapterShape* LoaderAdapter = WorldPartition->CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, RegionBox, TEXT("Loaded Region"));
 	LoaderAdapter->SetUserCreated(true);
 	LoaderAdapter->Load();
@@ -569,7 +569,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 {
 	const FBox2D ViewRect(FVector2D(ForceInitToZero), AllottedGeometry.GetLocalSize());
 	const FBox2D WorldViewRect(ScreenToWorld.TransformPoint(ViewRect.Min), ScreenToWorld.TransformPoint(ViewRect.Max));
-	const FBox ViewRectWorld(FVector(WorldViewRect.Min.X, WorldViewRect.Min.Y, -WORLDPARTITION_MAX), FVector(WorldViewRect.Max.X, WorldViewRect.Max.Y, WORLDPARTITION_MAX));
+	const FBox ViewRectWorld(FVector(WorldViewRect.Min.X, WorldViewRect.Min.Y, -HALF_WORLD_MAX), FVector(WorldViewRect.Max.X, WorldViewRect.Max.Y, HALF_WORLD_MAX));
 
 	TSet<FWorldPartitionActorDescViewBoundsProxy> ActorDescList;
 	
@@ -1089,8 +1089,8 @@ void SWorldPartitionEditorGrid2D::UpdateSelection()
 	if (SelectBox2D.GetArea() > 0.0f)
 	{
 		SelectBox = FBox(
-			FVector(SelectBox2D.Min.X, SelectBox2D.Min.Y, -WORLDPARTITION_MAX),
-			FVector(SelectBox2D.Max.X, SelectBox2D.Max.Y, WORLDPARTITION_MAX)
+			FVector(SelectBox2D.Min.X, SelectBox2D.Min.Y, -HALF_WORLD_MAX),
+			FVector(SelectBox2D.Max.X, SelectBox2D.Max.Y, HALF_WORLD_MAX)
 		);
 	}
 }

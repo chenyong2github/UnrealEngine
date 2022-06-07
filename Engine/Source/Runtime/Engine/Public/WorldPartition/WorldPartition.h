@@ -48,8 +48,6 @@ enum class EWorldPartitionInitState
 	Uninitializing
 };
 
-#define WORLDPARTITION_MAX UE_OLD_WORLD_MAX
-
 #if WITH_EDITOR
 /**
  * Interface for the world partition editor
