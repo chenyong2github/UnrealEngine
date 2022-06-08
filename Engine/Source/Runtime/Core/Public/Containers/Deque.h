@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "IteratorAdapter.h"
+#include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/MemoryOps.h"
