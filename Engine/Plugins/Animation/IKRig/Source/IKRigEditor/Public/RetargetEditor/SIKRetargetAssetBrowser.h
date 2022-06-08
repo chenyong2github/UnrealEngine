@@ -7,6 +7,7 @@
 #include "ContentBrowserDelegates.h"
 #include "IKRetargetBatchOperation.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SWindow.h"
 
 
 class FIKRetargetEditorController;
