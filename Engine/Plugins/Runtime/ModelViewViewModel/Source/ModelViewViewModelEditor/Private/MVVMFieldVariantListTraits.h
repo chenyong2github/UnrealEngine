@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Framework/Views/TableViewTypeTraits.h"
+#include "MVVMPropertyPath.h"
 #include "Types/MVVMFieldVariant.h"
 
 template <>
@@ -108,6 +109,60 @@ struct TListTypeTraits<UE::MVVM::FMVVMConstFieldVariant>
 	static FString DebugDump(UE::MVVM::FMVVMConstFieldVariant InPtr)
 	{
 		return InPtr.GetName().ToString();
+	}
+
+	class SerializerType {};
+};
+
+template <>
+struct TIsValidListItem<FMVVMBlueprintPropertyPath>
+{
+	enum
+	{
+		Value = true
+	};
+};
+
+template <>
+struct TListTypeTraits<FMVVMBlueprintPropertyPath>
+{
+	typedef FMVVMBlueprintPropertyPath NullableType;
+
+	using MapKeyFuncs = TDefaultMapHashableKeyFuncs<FMVVMBlueprintPropertyPath, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<FMVVMBlueprintPropertyPath, FSparseItemInfo, false>;
+	using SetKeyFuncs = DefaultKeyFuncs<FMVVMBlueprintPropertyPath>;
+
+	template<typename U>
+	static void AddReferencedObjects(FReferenceCollector&,
+		TArray<FMVVMBlueprintPropertyPath>&,
+		TSet<FMVVMBlueprintPropertyPath>&,
+		TMap<const U*, FMVVMBlueprintPropertyPath>&)
+	{
+	}
+
+	static bool IsPtrValid(const FMVVMBlueprintPropertyPath& InPtr)
+	{
+		return !InPtr.IsEmpty();
+	}
+
+	static void ResetPtr(FMVVMBlueprintPropertyPath& InPtr)
+	{
+		InPtr = FMVVMBlueprintPropertyPath();
+	}
+
+	static FMVVMBlueprintPropertyPath MakeNullPtr()
+	{
+		return FMVVMBlueprintPropertyPath();
+	}
+
+	static FMVVMBlueprintPropertyPath NullableItemTypeConvertToItemType(const FMVVMBlueprintPropertyPath& InPtr)
+	{
+		return InPtr;
+	}
+
+	static FString DebugDump(FMVVMBlueprintPropertyPath InPtr)
+	{
+		return InPtr.GetBasePropertyPath();
 	}
 
 	class SerializerType {};

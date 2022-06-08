@@ -179,12 +179,17 @@ private:
 	}
 };
 
+inline uint32 GetTypeHash(const FMVVMBlueprintFieldPath& FieldPath)
+{
+	return GetTypeHash(FieldPath.GetFieldName());
+}
+
 /**
  * Base path to properties for MVVM view models and widgets.
  * 
  * Used to associate properties within MVVM bindings in editor & during MVVM compilation
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FMVVMBlueprintPropertyPath
 {
 	GENERATED_BODY()
@@ -339,6 +344,18 @@ public:
 		}
 	}
 };
+
+inline uint32 GetTypeHash(const FMVVMBlueprintPropertyPath& Path)
+{
+	uint32 Hash = 0;
+	TArray<FName> Paths = Path.GetPaths();
+
+	for (const FName& SubPath : Paths)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(SubPath));
+	}
+	return Hash;
+}
 
 template<>
 struct TStructOpsTypeTraits<FMVVMBlueprintPropertyPath> : public TStructOpsTypeTraitsBase2<FMVVMBlueprintPropertyPath>
