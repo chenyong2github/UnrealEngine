@@ -131,13 +131,17 @@ namespace UnrealVS
 		/// </summary>
 		public void OnOutputFromGenerateProjectFilesProcess(object _Sender, DataReceivedEventArgs Args)
 		{
-			ThreadHelper.ThrowIfNotOnUIThread();
-
-			var Pane = UnrealVSPackage.Instance.GetOutputPane();
-			if (Pane != null)
+			var AsyncTask = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
 			{
-				Pane.OutputString(Args.Data + "\n");
-			}
+				await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+				var Pane = UnrealVSPackage.Instance.GetOutputPane();
+				if (Pane != null)
+				{
+					Pane.OutputString(Args.Data + "\n");
+				}
+			});
+			AsyncTask.Join();
 		}
 
 		private string GetBatchFileName()
