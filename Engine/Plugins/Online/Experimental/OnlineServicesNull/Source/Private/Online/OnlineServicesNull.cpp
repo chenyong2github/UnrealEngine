@@ -3,6 +3,7 @@
 #include "Online/OnlineServicesNull.h"
 #include "Online/OnlineServicesNullTypes.h"
 
+#include "Online/AchievementsNull.h"
 #include "Online/AuthNull.h"
 #include "Online/LobbiesNull.h"
 
@@ -30,6 +31,7 @@ FOnlineServicesNull::FOnlineServicesNull(FName InInstanceName)
 
 void FOnlineServicesNull::RegisterComponents()
 {
+	Components.Register<FAchievementsNull>(*this);
 	Components.Register<FAuthNull>(*this);
 #if WITH_ENGINE
 	Components.Register<FLobbiesNull>(*this);
