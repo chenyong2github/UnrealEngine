@@ -651,11 +651,6 @@ IQueuedWork* FImgMediaLoader::GetWork()
 	TMap<int32, FImgMediaTileSelection> DesiredMipsAndTiles;
 	GetDesiredMipTiles(FrameNumber, DesiredMipsAndTiles);
 	
-	if (DesiredMipsAndTiles.IsEmpty())
-	{
-		return nullptr;
-	}
-	
 	// Set up work.
 	Work->Initialize(FrameNumber, DesiredMipsAndTiles, ExistingFrame);
 	QueuedFrameNumbers.Add(FrameNumber);
