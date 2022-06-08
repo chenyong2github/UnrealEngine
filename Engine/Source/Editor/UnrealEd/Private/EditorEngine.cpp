@@ -7526,6 +7526,9 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		UStaticMesh::OnLodStrippingQualityLevelChanged(nullptr);
 	}
 
+	constexpr bool bUpdateProgressDialog = true;
+	constexpr bool bCacheAllRemainingShaders = false;
+
 	if (bChangedFeatureLevel)
 	{
 		FScopedSlowTask SlowTask(100.f, NSLOCTEXT("Engine", "ChangingPreviewPlatform", "Changing Preview Platform"), true);
@@ -7549,10 +7552,10 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		}
 
 		SlowTask.EnterProgressFrame(35.0f);
-		UMaterial::AllMaterialsCacheResourceShadersForRendering(true);
+		UMaterial::AllMaterialsCacheResourceShadersForRendering(bUpdateProgressDialog, bCacheAllRemainingShaders);
 
 		SlowTask.EnterProgressFrame(35.0f);
-		UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(true);
+		UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(bUpdateProgressDialog, bCacheAllRemainingShaders);
 
 		SlowTask.EnterProgressFrame(15.0f, NSLOCTEXT("Engine", "SlowTaskGlobalShaderMapMessage", "Compiling global shaders"));
 		CompileGlobalShaderMap(PreviewPlatform.PreviewFeatureLevel);
@@ -7568,8 +7571,8 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		// Rebuild materials if we have the same feature level but a different 'material quality platform'
 		FGlobalComponentRecreateRenderStateContext Recreate;
 		FlushRenderingCommands();
-		UMaterial::AllMaterialsCacheResourceShadersForRendering(true);
-		UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(true);
+		UMaterial::AllMaterialsCacheResourceShadersForRendering(bUpdateProgressDialog, bCacheAllRemainingShaders);
+		UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(bUpdateProgressDialog, bCacheAllRemainingShaders);
 		PreviewFeatureLevelChanged.Broadcast(EffectiveFeatureLevel);
 	}
 

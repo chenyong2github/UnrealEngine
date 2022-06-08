@@ -1741,7 +1741,7 @@ public:
 #endif // WITH_EDITOR
 
 	// For all materials, UMaterial::CacheResourceShadersForRendering
-	ENGINE_API static void AllMaterialsCacheResourceShadersForRendering(bool bUpdateProgressDialog = false);
+	ENGINE_API static void AllMaterialsCacheResourceShadersForRendering(bool bUpdateProgressDialog = false, bool bCacheAllRemainingShaders = true);
 
 #if WITH_EDITORONLY_DATA
 	/**

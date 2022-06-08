@@ -3795,7 +3795,7 @@ FPostProcessMaterialNode* IteratePostProcessMaterialNodes(const FFinalPostProces
 	}
 }
 
-void UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(bool bUpdateProgressDialog)
+void UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(bool bUpdateProgressDialog, bool bCacheAllRemainingShaders)
 {
 #if STORE_ONLY_ACTIVE_SHADERMAPS
 	TArray<UMaterialInstance*> MaterialInstances;
@@ -3827,7 +3827,7 @@ void UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(bool bUpdat
 	{
 		UMaterialInstance* MaterialInstance = (UMaterialInstance*)MaterialInstanceObj;
 
-		MaterialInstance->CacheResourceShadersForRendering();
+		MaterialInstance->CacheResourceShadersForRendering(bCacheAllRemainingShaders ? EMaterialShaderPrecompileMode::Default : EMaterialShaderPrecompileMode::None);
 
 #if WITH_EDITOR
 		if (bUpdateProgressDialog)
