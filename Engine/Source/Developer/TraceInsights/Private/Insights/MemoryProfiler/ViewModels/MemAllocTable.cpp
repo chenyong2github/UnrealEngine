@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemAllocTable.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
@@ -31,11 +32,13 @@ const FName FMemAllocTableColumns::StartTimeColumnId(TEXT("StartTime"));
 const FName FMemAllocTableColumns::EndTimeColumnId(TEXT("EndTime"));
 const FName FMemAllocTableColumns::DurationColumnId(TEXT("Duration"));
 const FName FMemAllocTableColumns::AddressColumnId(TEXT("Address"));
-const FName FMemAllocTableColumns::MemoryPageColumnId(TEXT("Memory Page"));
+const FName FMemAllocTableColumns::MemoryPageColumnId(TEXT("MemoryPage"));
 const FName FMemAllocTableColumns::CountColumnId(TEXT("Count"));
 const FName FMemAllocTableColumns::SizeColumnId(TEXT("Size"));
 const FName FMemAllocTableColumns::TagColumnId(TEXT("Tag"));
 const FName FMemAllocTableColumns::FunctionColumnId(TEXT("Function"));
+const FName FMemAllocTableColumns::SourceFileColumnId(TEXT("SourceFile"));
+const FName FMemAllocTableColumns::CallstackSizeColumnId(TEXT("CallstackSize"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FMemAllocTable
@@ -682,7 +685,7 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetTitleName(LOCTEXT("TagColumnTitle", "LLM Tag"));
 		Column.SetDescription(LOCTEXT("TagColumnDesc", "LLM tag of allocation"));
 
-		// This column is filtered with a custom filter with suggestions 
+		// This column is filtered with a custom filter with suggestions
 		// so we do not mark it here as CanBeFiltered to prevent it from having a default string filter set.
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden);
 
@@ -731,7 +734,7 @@ void FMemAllocTable::AddDefaultColumns()
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
-	// Function Column
+	// Top Function Column
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::FunctionColumnId);
 		FTableColumn& Column = *ColumnRef;
@@ -739,7 +742,7 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetIndex(ColumnIndex++);
 
 		Column.SetShortName(LOCTEXT("FunctionColumnName", "Function"));
-		Column.SetTitleName(LOCTEXT("FunctionColumnTitle", "Function (Callstack)"));
+		Column.SetTitleName(LOCTEXT("FunctionColumnTitle", "Top Function"));
 		Column.SetDescription(LOCTEXT("FunctionColumnDesc", "Resolved top function from the callstack of allocation"));
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
@@ -767,38 +770,215 @@ void FMemAllocTable::AddDefaultColumns()
 				else //if (Node->Is<FMemAllocNode>())
 				{
 					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const uint64 CallstackId = MemAllocNode.GetCallstackId();
+					const FText CallstackText = MemAllocNode.GetTopFunction();
+					return FTableCellValue(CallstackText, CallstackId);
+				}
+
+				return TOptional<FTableCellValue>();
+			}
+
+			virtual uint64 GetValueId(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				if (!Node.IsGroup()) //if (Node->Is<FMemAllocNode>())
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					return MemAllocNode.GetCallstackId();
+				}
+
+				return 0;
+			}
+		};
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FFunctionValueGetter>();
+		Column.SetValueGetter(Getter);
+
+		class FFunctionValueFormatter : public FTextValueFormatter
+		{
+		public:
+			virtual TSharedPtr<IToolTip> GetCustomTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+
+				return SNew(SToolTip)
+					.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FTableCellValueFormatter::GetTooltipVisibility)))
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(2.0f)
+						[
+							SNew(STextBlock)
+							.Text(&MemAllocNode, &FMemAllocNode::GetTopFunction)
+							.ColorAndOpacity(FSlateColor(EStyleColor::AccentBlue))
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(2.0f, 6.0f, 2.0f, 2.0f)
+						[
+							SNew(STextBlock)
+							.Text(&MemAllocNode, &FMemAllocNode::GetFullCallstack)
+						]
+					];
+			}
+
+			virtual FText FormatValueForTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+				return MemAllocNode.GetTopFunction();
+			}
+		};
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FFunctionValueFormatter>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValueWithId>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		AddColumn(ColumnRef);
+	}
+	//////////////////////////////////////////////////
+	// Source File Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::SourceFileColumnId);
+		FTableColumn& Column = *ColumnRef;
+
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("SourceFileColumnName", "Source"));
+		Column.SetTitleName(LOCTEXT("SourceFileColumnTitle", "Top Source File"));
+		Column.SetDescription(LOCTEXT("SourceFileColumnDesc", "Source file of the top function from the callstack of allocation"));
+
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetInitialWidth(550.0f);
+
+		Column.SetDataType(ETableCellDataType::Text);
+
+		Column.SetIsDynamic(true);
+
+		class FSourceValueGetter : public FTableCellValueGetter
+		{
+		public:
+			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+				}
+				else //if (Node->Is<FMemAllocNode>())
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					const uint64 CallstackId = MemAllocNode.GetCallstackId();
+					const FText CallstackText = MemAllocNode.GetTopSourceFile();
+					return FTableCellValue(CallstackText, CallstackId);
+				}
+
+				return TOptional<FTableCellValue>();
+			}
+
+			virtual uint64 GetValueId(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				if (!Node.IsGroup()) //if (Node->Is<FMemAllocNode>())
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+					return MemAllocNode.GetCallstackId();
+				}
+				return 0;
+			}
+		};
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FSourceValueGetter>();
+		Column.SetValueGetter(Getter);
+
+		class FSourceValueFormatter : public FTextValueFormatter
+		{
+		public:
+			virtual TSharedPtr<IToolTip> GetCustomTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+
+				return SNew(SToolTip)
+					.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FTableCellValueFormatter::GetTooltipVisibility)))
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(2.0f)
+						[
+							SNew(STextBlock)
+							.Text(&MemAllocNode, &FMemAllocNode::GetTopSourceFileEx)
+							.ColorAndOpacity(FSlateColor(EStyleColor::AccentBlue))
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(2.0f, 6.0f, 2.0f, 2.0f)
+						[
+							SNew(STextBlock)
+							.Text(&MemAllocNode, &FMemAllocNode::GetFullCallstackSourceFiles)
+						]
+					];
+			}
+
+			virtual FText FormatValueForTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
+				return MemAllocNode.GetTopSourceFileEx();
+			}
+		};
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FSourceValueFormatter>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValueWithId>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		AddColumn(ColumnRef);
+	}
+	//////////////////////////////////////////////////
+	// Callstack Size Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FMemAllocTableColumns::CallstackSizeColumnId);
+		FTableColumn& Column = *ColumnRef;
+
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("CallstackSizeColumnName", "Callstack Size"));
+		Column.SetTitleName(LOCTEXT("CallstackSizeColumnTitle", "Callstack Size"));
+		Column.SetDescription(LOCTEXT("CallstackSizeColumnDesc", "Number of callstack frames.\nTooltip shows entire callstack."));
+
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetInitialWidth(100.0f);
+
+		Column.SetDataType(ETableCellDataType::Int64);
+
+		class FCallstackSizeValueGetter : public FTableCellValueGetter
+		{
+		public:
+			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+				}
+				else //if (Node->Is<FMemAllocNode>())
+				{
+					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
 					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
 					if (Alloc)
 					{
 						const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
-
-						if (!Callstack)
-						{
-							return FTableCellValue(FText::FromString(GetCallstackNotAvailableString()), 0);
-						}
-
-						if (Callstack->Num() == 0)
-						{
-							return FTableCellValue(FText::FromString(GetEmptyCallstackString()), uint64(Callstack));
-						}
-
-						const TraceServices::FStackFrame* Frame = nullptr;
-						for (uint32 FrameIndex = 0; FrameIndex < Callstack->Num(); ++FrameIndex)
-						{
-							Frame = Callstack->Frame(FrameIndex);
-							check(Frame != nullptr);
-
-							if (Frame->Symbol &&
-								Frame->Symbol->Name &&
-								Frame->Symbol->FilterStatus != TraceServices::EResolvedSymbolFilterStatus::Filtered)
-							{
-								break;
-							}
-						}
-
-						TStringBuilder<1024> Str;
-						FormatStackFrame(*Frame, Str, EStackFrameFormatFlags::Module);
-						return FTableCellValue(FText::FromString(FString(Str)), uint64(Callstack));
+						const int64 CallstackSize = (Callstack && (Callstack->Num() != 1 || Callstack->Addr(0) != 0)) ? Callstack->Num() : 0;
+						return FTableCellValue(CallstackSize);
 					}
 				}
 
@@ -810,39 +990,38 @@ void FMemAllocTable::AddDefaultColumns()
 				if (!Node.IsGroup()) //if (Node->Is<FMemAllocNode>())
 				{
 					const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
-					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
-					if (Alloc)
-					{
-						const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
-						return uint64(Callstack);
-					}
+					return MemAllocNode.GetCallstackId();
 				}
-
 				return 0;
 			}
 		};
-		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FFunctionValueGetter>();
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FCallstackSizeValueGetter>();
 		Column.SetValueGetter(Getter);
 
-		class FunctionValueFormatter : public FTextValueFormatter
+		class FCallstackValueFormatter : public FTableCellValueFormatter
 		{
 		public:
+			virtual FText FormatValue(const TOptional<FTableCellValue>& InValue) const override
+			{
+				return InValue.IsSet() ? FText::AsNumber(InValue.GetValue().Int64) : FText::GetEmpty();
+			}
+
 			virtual TSharedPtr<IToolTip> GetCustomTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override
 			{
 				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
 
 				return SNew(SToolTip)
-						.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FTableCellValueFormatter::GetTooltipVisibility)))
+					.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FTableCellValueFormatter::GetTooltipVisibility)))
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(2.0f)
 						[
-							SNew(SVerticalBox)
-							+ SVerticalBox::Slot()
-							.AutoHeight()
-							.Padding(2.0f)
-							[
-								SNew(STextBlock)
-								.Text(&MemAllocNode, &FMemAllocNode::GetFullCallstack)
-							]
-						];
+							SNew(STextBlock)
+							.Text(&MemAllocNode, &FMemAllocNode::GetFullCallstack)
+						]
+					];
 			}
 
 			virtual FText FormatValueForTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override
@@ -850,12 +1029,17 @@ void FMemAllocTable::AddDefaultColumns()
 				const FMemAllocNode& MemAllocNode = static_cast<const FMemAllocNode&>(Node);
 				return MemAllocNode.GetFullCallstack();
 			}
+
+			virtual FText FormatValueForGrouping(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+			{
+				return FormatValue(Column.GetValue(Node));
+			}
 		};
 
-		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FunctionValueFormatter>();
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FCallstackValueFormatter>();
 		Column.SetValueFormatter(Formatter);
 
-		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValueWithId>(ColumnRef);
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
 		AddColumn(ColumnRef);

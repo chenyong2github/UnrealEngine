@@ -126,7 +126,7 @@ private:
 	static Type GetValue(const FTableCellValue& CellValue);
 	static FText GetValueAsText(const FTableColumn& Column, const FTableTreeNode& Node)
 	{
-		return Column.GetValueAsTooltipText(Node);
+		return Column.GetValueAsGroupingText(Node);
 	}
 };
 

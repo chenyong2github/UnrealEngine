@@ -32,6 +32,13 @@ FText FTableCellValueFormatter::FormatValueForTooltip(const FTableColumn& Column
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FText FTableCellValueFormatter::FormatValueForGrouping(const FTableColumn& Column, const FBaseTreeNode& Node) const
+{
+	return FormatValueForTooltip(Column.GetValue(Node));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedPtr<IToolTip> FTableCellValueFormatter::GetCustomTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const
 {
 	return SNew(SToolTip)

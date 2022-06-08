@@ -177,6 +177,7 @@ public:
 
 	FText GetValueAsText(const FBaseTreeNode& InNode) const;
 	FText GetValueAsTooltipText(const FBaseTreeNode& InNode) const;
+	FText GetValueAsGroupingText(const FBaseTreeNode& InNode) const;
 
 	FString GetValueAsSerializableString(const FBaseTreeNode& InNode) const;
 
@@ -261,7 +262,7 @@ private:
 
 	/** Initial sorting mode. */
 	EColumnSortMode::Type InitialSortMode;
-	
+
 	/** Used to convert in a custom way from string to column data type in FilterConfigurator */
 	TSharedPtr<IFilterValueConverter> ValueConverter;
 

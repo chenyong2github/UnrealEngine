@@ -33,6 +33,7 @@ public:
 	TraceServices::TagIdType GetTagId() const { return TagId; }
 	const TraceServices::FCallstack* GetCallstack() const { return Callstack; }
 	FText GetFullCallstack() const;
+	FText GetFullCallstackSourceFiles() const;
 	HeapId GetRootHeap() const { return RootHeap; };
 
 private:

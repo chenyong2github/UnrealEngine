@@ -198,7 +198,7 @@ FName FMemAllocGroupingByCallstack::GetGroupName(const TraceServices::FStackFram
 FText FMemAllocGroupingByCallstack::GetGroupTooltip(const TraceServices::FStackFrame* Frame) const
 {
 	TStringBuilder<1024> String;
-	FormatStackFrame(*Frame, String, EStackFrameFormatFlags::Module | EStackFrameFormatFlags::FileAndLine);
+	FormatStackFrame(*Frame, String, EStackFrameFormatFlags::ModuleSymbolFileAndLine);
 	return FText::FromString(FString(String));
 }
 

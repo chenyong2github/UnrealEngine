@@ -55,6 +55,13 @@ FText FTableColumn::GetValueAsTooltipText(const FBaseTreeNode& InNode) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FText FTableColumn::GetValueAsGroupingText(const FBaseTreeNode& InNode) const
+{
+	return ValueFormatter->FormatValueForGrouping(*this, InNode);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 inline void TrimEndingZero(FString& Str)
 {
 	const TCHAR* Start = *Str;

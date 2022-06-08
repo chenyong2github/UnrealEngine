@@ -63,7 +63,17 @@ public:
 	bool IsValidMemAlloc() const { return GetMemTableChecked().IsValidRowIndex(GetRowIndex()); }
 	const FMemoryAlloc* GetMemAlloc() const { return GetMemTableChecked().GetMemAlloc(GetRowIndex()); }
 	const FMemoryAlloc& GetMemAllocChecked() const { return GetMemTableChecked().GetMemAllocChecked(GetRowIndex()); }
+
+	uint64 GetCallstackId() const;
 	FText GetFullCallstack() const;
+	FText GetFullCallstackSourceFiles() const;
+	FText GetTopFunction() const;
+	FText GetTopFunctionEx() const;
+	FText GetTopSourceFile() const;
+	FText GetTopSourceFileEx() const;
+
+private:
+	FText GetTopFunctionOrSourceFile(uint8 Flags) const;
 
 private:
 	FMemAllocTable* MemAllocTable;

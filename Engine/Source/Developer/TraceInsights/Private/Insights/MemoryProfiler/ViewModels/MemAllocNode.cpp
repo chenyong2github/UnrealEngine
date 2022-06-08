@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemAllocNode.h"
+#include "Insights/MemoryProfiler/ViewModels/CallstackFormatting.h"
 
 #define LOCTEXT_NAMESPACE "MemAllocNode"
 
@@ -11,14 +12,92 @@ const FName FMemAllocNode::TypeName(TEXT("FMemAllocNode"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+uint64 FMemAllocNode::GetCallstackId() const
+{
+	return IsValidMemAlloc() ? uint64(GetMemAllocChecked().GetCallstack()) : 0ull;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FText FMemAllocNode::GetFullCallstack() const
 {
-	if (IsValidMemAlloc())
+	return IsValidMemAlloc() ? GetMemAllocChecked().GetFullCallstack() : FText();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText FMemAllocNode::GetFullCallstackSourceFiles() const
+{
+	return IsValidMemAlloc() ? GetMemAllocChecked().GetFullCallstackSourceFiles() : FText();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText FMemAllocNode::GetTopFunction() const
+{
+	return GetTopFunctionOrSourceFile((uint8)EStackFrameFormatFlags::ModuleAndSymbol);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText FMemAllocNode::GetTopFunctionEx() const
+{
+	return GetTopFunctionOrSourceFile((uint8)EStackFrameFormatFlags::ModuleSymbolFileAndLine);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText FMemAllocNode::GetTopSourceFile() const
+{
+	return GetTopFunctionOrSourceFile((uint8)EStackFrameFormatFlags::File);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText FMemAllocNode::GetTopSourceFileEx() const
+{
+	return GetTopFunctionOrSourceFile((uint8)EStackFrameFormatFlags::FileAndLine);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText FMemAllocNode::GetTopFunctionOrSourceFile(uint8 Flags) const
+{
+	if (!IsValidMemAlloc())
 	{
-		return GetMemAllocChecked().GetFullCallstack();
+		return FText();
 	}
 
-	return FText();
+	const Insights::FMemoryAlloc& Alloc = GetMemAllocChecked();
+	const TraceServices::FCallstack* Callstack = Alloc.GetCallstack();
+
+	if (!Callstack)
+	{
+		return FText::FromString(GetCallstackNotAvailableString());
+	}
+
+	if (Callstack->Num() == 0)
+	{
+		return FText::FromString(GetEmptyCallstackString());
+	}
+
+	const TraceServices::FStackFrame* Frame = nullptr;
+	for (uint32 FrameIndex = 0; FrameIndex < Callstack->Num(); ++FrameIndex)
+	{
+		Frame = Callstack->Frame(FrameIndex);
+		check(Frame != nullptr);
+
+		if (Frame->Symbol &&
+			Frame->Symbol->Name &&
+			Frame->Symbol->FilterStatus != TraceServices::EResolvedSymbolFilterStatus::Filtered)
+		{
+			break;
+		}
+	}
+
+	TStringBuilder<1024> Str;
+	FormatStackFrame(*Frame, Str, (EStackFrameFormatFlags)Flags);
+	return FText::FromString(FString(Str));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
