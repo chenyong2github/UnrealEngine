@@ -1,5 +1,6 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "EpicStageApp.h"
-#include "Modules/ModuleManager.h"
 #include "IWebRemoteControlModule.h"
 
 void FEpicStageAppModule::StartupModule()

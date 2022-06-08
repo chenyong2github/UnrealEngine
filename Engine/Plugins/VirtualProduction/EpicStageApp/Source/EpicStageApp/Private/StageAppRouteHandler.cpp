@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "StageAppRouteHandler.h"
 
 #include "CanvasTypes.h"
@@ -5,7 +7,6 @@
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterRootActor.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "EpicStageApp.h"
 #include "IDisplayClusterScenePreview.h"
 #include "IImageWrapperModule.h"
 #include "Misc/Base64.h"
