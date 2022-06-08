@@ -7043,7 +7043,7 @@ bool UEditorEngine::NetworkRemapPath( UPendingNetGame *PendingNetGame, FString& 
 	return NetworkRemapPath_local(Context, Str, bReading, PendingNetGame->GetDemoNetDriver() != nullptr);
 }
 
-void UEditorEngine::VerifyLoadMapWorldCleanup()
+void UEditorEngine::VerifyLoadMapWorldCleanup(FWorldContext* ForContext)
 {
 	// This does the same as UEngine::VerifyLoadMapWorldCleanup except it also allows Editor Worlds as a valid world.
 
@@ -7092,6 +7092,21 @@ void UEditorEngine::VerifyLoadMapWorldCleanup()
 					UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
 			}
 		}
+	}
+	
+	if (ForContext)
+	{
+		for (FObjectKey Key : ForContext->GarbageObjectsToVerify)
+		{
+			if (UObject* Object = Key.ResolveObjectPtrEvenIfPendingKill())
+			{
+				UE_LOG(LogLoad, Error, TEXT("Object %s not cleaned up by garbage collection!"), *Object->GetPathName());
+			
+				FindAndPrintStaleReferencesToObject(Object, 
+					UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
+			}
+		}
+		ForContext->GarbageObjectsToVerify.Reset();
 	}
 }
 

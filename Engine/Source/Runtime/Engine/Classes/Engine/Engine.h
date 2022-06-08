@@ -382,6 +382,9 @@ struct FWorldContext
 	float PIEFixedTickSeconds  = 0.f;
 	float PIEAccumulatedTickSeconds = 0.f;
 
+	/** On a transition to another level (e.g. LoadMap), the engine will verify that these objects have been cleaned up by garbage collection */
+	TSet<FObjectKey> GarbageObjectsToVerify;
+
 	/**************************************************************/
 
 	/** Outside pointers to CurrentWorld that should be kept in sync if current world changes  */
@@ -3182,8 +3185,8 @@ public:
 	 */
 	UWorld* GetCurrentPlayWorld(UWorld* PossiblePlayWorld = nullptr) const;
 
-	/** Verify any remaining World(s) are valid after ::LoadMap destroys a world */
-	virtual void VerifyLoadMapWorldCleanup();
+	/** Verify any remaining World(s) are valid after ::LoadMap destroys a world. May also check that "must-destroy" objects associated with the world context have been destroyed. */
+	virtual void VerifyLoadMapWorldCleanup(FWorldContext* ForWorldContext = nullptr);
 
 	/**
 	 * Attempts to find what is referencing a world that should have been garbage collected

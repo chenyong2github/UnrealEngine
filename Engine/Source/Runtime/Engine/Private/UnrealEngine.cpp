@@ -13140,6 +13140,7 @@ void DestroyNamedNetDriver_Local(FWorldContext &Context, FName NetDriverName)
 			ensureMsgf(!(NetDriver->IsInTick() && NetDriverName != NAME_PendingNetDriver), TEXT("Attempting to destroy NetDriver %s [%s] while it is ticking."), *NetDriver->GetName(), *NetDriverName.ToString());
 
 			Context.ActiveNetDrivers.RemoveAtSwap(Index);
+			Context.GarbageObjectsToVerify.Add(NetDriver);
 			NetDriver->SetWorld(NULL);
 			NetDriver->Shutdown();
 			NetDriver->LowLevelDestroy();
@@ -14280,7 +14281,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	if (GDelayTrimMemoryDuringMapLoadMode == 0)
 	{
 		// Dump info
-		VerifyLoadMapWorldCleanup();
+		VerifyLoadMapWorldCleanup(&WorldContext);
 	}
 
 	FMoviePlayerProxy::BlockingTick();
@@ -15298,12 +15299,12 @@ bool UEngine::IsWorldDuplicate(const UWorld* const InWorld)
 	return false;
 }
 
-void UEngine::VerifyLoadMapWorldCleanup()
+void UEngine::VerifyLoadMapWorldCleanup(FWorldContext* ForWorldContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(VerifyLoadMapWorldCleanup);
 	// All worlds at this point should be the CurrentWorld of some context, preview worlds, or streaming level
 	// worlds that are owned by the CurrentWorld of some context.
-	TArray<UObject*> LeakedWorlds;
+	TArray<UObject*> LeakedObjects;
 	for( TObjectIterator<UWorld> It; It; ++It )
 	{
 		UWorld* World = *It;
@@ -15312,17 +15313,29 @@ void UEngine::VerifyLoadMapWorldCleanup()
 		{
 			if ((World->PersistentLevel == nullptr || !WorldHasValidContext(World->PersistentLevel->OwningWorld)) && !IsWorldDuplicate(World))
 			{
-				LeakedWorlds.Add(World);
+				LeakedObjects.Add(World);
 			}
 		}
 	}
 
-	if (LeakedWorlds.Num())
+	if (ForWorldContext)
 	{
-		UE_LOG(LogLoad, Error, TEXT("Some previously active worlds were not cleaned up by garbage collection!"));
+		for (FObjectKey Key : ForWorldContext->GarbageObjectsToVerify)
+		{
+			if (UObject* Obj = Key.ResolveObjectPtrEvenIfPendingKill())
+			{
+				LeakedObjects.Add(Obj);
+			}
+		}
+		ForWorldContext->GarbageObjectsToVerify.Reset();
+	}
+
+	if (LeakedObjects.Num())
+	{
+		UE_LOG(LogLoad, Error, TEXT("Some previously active worlds or related objects were not cleaned up by garbage collection!"));
 		UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded. Dumping reference chains:"));
 
-		FindAndPrintStaleReferencesToObjects(LeakedWorlds, UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
+		FindAndPrintStaleReferencesToObjects(LeakedObjects, UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
 
 		if (!UObjectBaseUtility::IsPendingKillEnabled())
 		{
