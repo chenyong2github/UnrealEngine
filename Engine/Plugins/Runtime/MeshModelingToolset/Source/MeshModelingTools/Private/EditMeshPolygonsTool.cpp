@@ -292,13 +292,21 @@ void UEditMeshPolygonsTool::Setup()
 	// Initialize the common properties but don't add them yet, because we want them to be under the activity-specific ones.
 	CommonProps = NewObject<UPolyEditCommonProperties>(this);
 	CommonProps->RestoreProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
+
 	CommonProps->WatchProperty(CommonProps->LocalFrameMode,
 		[this](ELocalFrameMode) { UpdateGizmoFrame(); });
 	CommonProps->WatchProperty(CommonProps->bLockRotation,
+		[this](bool) { LockedTransfomerFrame = LastTransformerFrame; });
+	CommonProps->WatchProperty(CommonProps->bGizmoVisible,
 		[this](bool)
 		{
-			LockedTransfomerFrame = LastTransformerFrame;
+			if (!CurrentActivity)
+			{
+				UpdateGizmoVisibility();
+				ResetUserMessage();
+			}
 		});
+
 	// We are going to SilentUpdate here because otherwise the Watches above will immediately fire
 	// and cause UpdateGizmoFrame() to be called emitting a spurious Transform change. 
 	CommonProps->SilentUpdateWatched();
@@ -489,6 +497,24 @@ void UEditMeshPolygonsTool::Setup()
 	}
 }
 
+void UEditMeshPolygonsTool::ResetUserMessage()
+{
+	// When the gizmo is hidden, notify the user and
+	// specify the toggle hotkey to prevent panic
+	if (!TransformGizmo->IsVisible())
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("ToggleTransformGizmoNotify", "Transform Gizmo Hidden, Press 'R' to Unhide"),
+			EToolMessageLevel::UserNotification);
+	}
+	else
+	{
+		GetToolManager()->DisplayMessage(
+			DefaultMessage,
+			EToolMessageLevel::UserNotification);
+	}
+}
+
 bool UEditMeshPolygonsTool::IsToolInputSelectionUsable(const UPersistentMeshSelection* InputSelectionIn)
 {
 	// TODO: We currently don't support persistent selection on volume brushes because
@@ -659,6 +685,19 @@ void UEditMeshPolygonsTool::RegisterActions(FInteractiveToolActionSet& ActionSet
 		LOCTEXT("DeleteSelectionUIName", "Delete Selection"),
 		LOCTEXT("DeleteSelectionTooltip", "Delete Selection"),
 		EModifierKey::None, EKeys::Delete, OnDeletionKeyPress);
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 5,
+		TEXT("ToggleTransformGizmoAKey"),
+		LOCTEXT("ToggleTransformGizmoUIName", "Toggle Transform Gizmo Visibility"),
+		LOCTEXT("ToggleTransformGizmoTooltip", "Toggle Transform Gizmo Visibility"),
+		EModifierKey::None, EKeys::R,
+		[this]() 
+		{
+			if (!CurrentActivity)
+			{
+				CommonProps->bGizmoVisible = !CommonProps->bGizmoVisible;
+			}
+		});
 
 	// TODO: Esc should be made to exit out of current activity if one is active. However this
 	// requires a bit of work because we don't seem to be able to register conditional actions,
@@ -1112,10 +1151,6 @@ void UEditMeshPolygonsTool::EndCurrentActivity(EToolShutdownType ShutdownType)
 		if (CurrentActivity->IsRunning())
 		{
 			CurrentActivity->End(ShutdownType);
-
-			// Reset info message.
-			GetToolManager()->DisplayMessage(DefaultMessage,
-				EToolMessageLevel::UserNotification);
 		}
 
 		CurrentActivity = nullptr;
@@ -1128,6 +1163,10 @@ void UEditMeshPolygonsTool::EndCurrentActivity(EToolShutdownType ShutdownType)
 		SetToolPropertySourceEnabled(SelectionMechanic->Properties, true);
 		UpdateGizmoVisibility();
 	}
+
+	// If an activity displays a notification, it should be
+	// overwritten with an appropriate notification once finished
+	ResetUserMessage();
 }
 
 void UEditMeshPolygonsTool::NotifyActivitySelfEnded(UInteractiveToolActivity* Activity)
@@ -1137,24 +1176,23 @@ void UEditMeshPolygonsTool::NotifyActivitySelfEnded(UInteractiveToolActivity* Ac
 
 void UEditMeshPolygonsTool::UpdateGizmoVisibility()
 {
-	if (SelectionMechanic->HasSelection())
+	// Only allow gizmo to become visible if something is selected,
+	// the gizmo isn't hidden, and there is no current activity.
+	if (SelectionMechanic->HasSelection() && CommonProps->bGizmoVisible && !CurrentActivity)
 	{
 		if (TransformGizmo)
 		{
 			TransformGizmo->SetVisibility(true);
 		}
 
-		// update frame because we might be here due to an undo event/etc, rather than an explicit 
-		// selection change
+		// Update frame because we might be here due to an undo event/etc,
+		// rather than an explicit selection change
 		LastGeometryFrame = SelectionMechanic->GetSelectionFrame(true, &LastGeometryFrame);
 		UpdateGizmoFrame();
 	}
-	else
+	else if(TransformGizmo)
 	{
-		if (TransformGizmo)
-		{
-			TransformGizmo->SetVisibility(false);
-		}
+		TransformGizmo->SetVisibility(false);
 	}
 }
 
@@ -1192,7 +1230,6 @@ void UEditMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty* 
 		SelectionMechanic->SetShowSelectableCorners(CommonProps->bShowSelectableCorners);
 	}
 }
-
 
 //
 // Gizmo change tracking

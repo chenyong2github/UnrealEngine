@@ -78,6 +78,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowSelectableCorners = false;
 
+	/** When true, allows the transform gizmo to be rendered */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bGizmoVisible = false;
+
 	/** Determines whether, on selection changes, the gizmo's rotation is taken from the object transform, or from the geometry
 	 elements selected. Only relevant with a local coordinate system and when rotation is not locked. */
 	UPROPERTY(EditAnywhere, Category = Gizmo, meta = (HideEditConditionToggle, EditCondition = "bLocalCoordSystem && !bLockRotation"))
@@ -563,6 +567,8 @@ protected:
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	FText DefaultMessage;
+
+	void ResetUserMessage();
 
 	bool IsToolInputSelectionUsable(const UPersistentMeshSelection* InputSelection);
 	bool bSelectionStateDirty = false;
