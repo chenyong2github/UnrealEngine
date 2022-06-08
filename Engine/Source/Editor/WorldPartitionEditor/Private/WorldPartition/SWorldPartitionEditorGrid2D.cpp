@@ -984,7 +984,7 @@ int32 SWorldPartitionEditorGrid2D::OnPaint(const FPaintArgs& Args, const FGeomet
 
 		if (bResetView)
 		{
-			const FBox WorldBounds = WorldPartition->GetEditorWorldBounds();
+			const FBox WorldBounds = WorldPartition->GetWorldBounds();
 			FocusBox(WorldBounds);
 		}
 
