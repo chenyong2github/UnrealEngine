@@ -148,7 +148,19 @@ UMaterialInstanceDynamic* USlateVectorArtData::ConvertToMaterialInstanceDynamic(
 void USlateVectorArtData::EnsureValidData()
 {
 #if WITH_EDITORONLY_DATA
-	//InitFromStaticMesh(*MeshAsset);
+	if (MeshAsset)
+	{
+		InitFromStaticMesh(*MeshAsset);
+	}
+	else
+	{
+		SourceMaterial = nullptr;
+		VertexData.Reset();
+		IndexData.Reset();
+		Material = nullptr;
+		ExtentMin = FVector2D(FLT_MAX, FLT_MAX);
+		ExtentMax = FVector2D(-FLT_MAX, -FLT_MAX);
+	}
 #endif
 }
 
