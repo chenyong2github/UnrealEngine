@@ -27,7 +27,7 @@ namespace Horde.Build.Issues.Handlers
 		/// </summary>
 		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? eventId)
+		public static bool IsMatchingEventId(EventId eventId)
 		{
 			return eventId == KnownLogEvents.AutomationTool_UnacceptableWords;
 		}
@@ -39,19 +39,18 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public override bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
-			if (!IsMatchingEventId(eventData.EventId))
+			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				fingerprint = null;
-				return false;
+				if(stepEvent.EventId != null && IsMatchingEventId(stepEvent.EventId.Value))
+				{
+					List<string> newFileNames = new List<string>();
+					GetSourceFiles(stepEvent.EventData, newFileNames);
+
+					stepEvent.Fingerprint = new NewIssueFingerprint(Type, newFileNames, null, null);
+				}
 			}
-
-			List<string> newFileNames = new List<string>();
-			GetSourceFiles(eventData, newFileNames);
-
-			fingerprint = new NewIssueFingerprint(Type, newFileNames, null, null);
-			return true;
 		}
 	}
 }

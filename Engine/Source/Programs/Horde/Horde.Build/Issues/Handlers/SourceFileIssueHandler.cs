@@ -16,18 +16,12 @@ namespace Horde.Build.Issues.Handlers
 	/// <summary>
 	/// Instance of a particular compile error
 	/// </summary>
-	abstract class SourceFileIssueHandler : IIssueHandler
+	abstract class SourceFileIssueHandler : IssueHandler
 	{
 		/// <summary>
 		/// Prefix used to identify files that may match against modified files, but which are not the files failing to compile
 		/// </summary>
 		protected const string NotePrefix = "note:";
-
-		/// <inheritdoc/>
-		public abstract string Type { get; }
-
-		/// <inheritdoc/>
-		public abstract int Priority { get; }
 
 		/// <summary>
 		/// Extracts a list of source files from an event
@@ -87,13 +81,7 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public abstract bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint);
-
-		/// <inheritdoc/>
-		public abstract string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity);
-
-		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
+		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
 			List<string> fileNames = new List<string>();
 			foreach (string key in fingerprint.Keys)

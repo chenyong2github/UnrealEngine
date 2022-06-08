@@ -95,19 +95,21 @@ namespace Horde.Build.Issues
 		/// <inheritdoc/>
 		public bool Equals(IIssueFingerprint? otherFingerprint)
 		{
-			if(otherFingerprint == null || !Type.Equals(otherFingerprint.Type, StringComparison.Ordinal) || !Keys.SetEquals(otherFingerprint.Keys))
+			if (!ReferenceEquals(this, otherFingerprint))
 			{
-				return false;
+				if (otherFingerprint == null || !Type.Equals(otherFingerprint.Type, StringComparison.Ordinal) || !Keys.SetEquals(otherFingerprint.Keys))
+				{
+					return false;
+				}
+				if (!ContentsEqual(RejectKeys, otherFingerprint.RejectKeys))
+				{
+					return false;
+				}
+				if (!ContentsEqual(Metadata, otherFingerprint.Metadata))
+				{
+					return false;
+				}
 			}
-			if (!ContentsEqual(RejectKeys, otherFingerprint.RejectKeys))
-			{
-				return false;
-			}
-			if (!ContentsEqual(Metadata, otherFingerprint.Metadata))
-			{
-				return false;
-			}
-
 			return true;
 		}
 

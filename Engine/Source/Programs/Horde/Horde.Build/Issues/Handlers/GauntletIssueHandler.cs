@@ -17,7 +17,7 @@ namespace Horde.Build.Issues.Handlers
 	/// <summary>
 	/// Instance of a particular Gauntlet error
 	/// </summary>
-	class GauntletIssueHandler : IIssueHandler
+	class GauntletIssueHandler : IssueHandler
 	{
 		/// <summary>
 		/// Prefix for unit test keys
@@ -30,17 +30,17 @@ namespace Horde.Build.Issues.Handlers
 		const string ScreenshotTestPrefix = "Screenshot:";
 
 		/// <inheritdoc/>
-		public string Type => "Gauntlet";
+		public override string Type => "Gauntlet";
 
 		/// <inheritdoc/>
-		public int Priority => 10;
+		public override int Priority => 10;
 
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
 		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? eventId)
+		public static bool IsMatchingEventId(EventId eventId)
 		{
 			return eventId == KnownLogEvents.Gauntlet_UnitTest || eventId == KnownLogEvents.Gauntlet_ScreenshotTest;
 		}
@@ -98,30 +98,30 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
-			if(!IsMatchingEventId(eventData.EventId))
+			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				fingerprint = null;
-				return false;
+				if (stepEvent.EventId != null && IsMatchingEventId(stepEvent.EventId.Value))
+				{
+					HashSet<string> keys = new HashSet<string>();
+					GetUnitTestNames(stepEvent.EventData, keys);
+					GetScreenshotTestNames(stepEvent.EventData, keys);
+
+					if (keys.Count == 0)
+					{
+						stepEvent.Ignored = true;
+					}
+					else
+					{
+						stepEvent.Fingerprint = new NewIssueFingerprint(Type, keys, null, null);
+					}
+				}
 			}
-
-			HashSet<string> keys = new HashSet<string>();
-			GetUnitTestNames(eventData, keys);
-			GetScreenshotTestNames(eventData, keys);
-
-			if (keys.Count == 0)
-			{
-				fingerprint = null;
-				return false;
-			}
-
-			fingerprint = new NewIssueFingerprint(Type, keys, null, null);
-			return true;
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> changes)
+		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> changes)
 		{
 			foreach (SuspectChange change in changes)
 			{
@@ -133,7 +133,7 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
+		public override string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
 			List<string> unitTestNames = fingerprint.Keys.Where(x => x.StartsWith(UnitTestPrefix, StringComparison.Ordinal)).Select(x => x.Substring(UnitTestPrefix.Length + 1)).ToList();
 			if (unitTestNames.Count > 0)

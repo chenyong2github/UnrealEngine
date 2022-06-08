@@ -1027,7 +1027,7 @@ namespace Horde.Build.Tests
 		}
 
 		[TestMethod]
-		public async Task LinkerIssueTest()
+		public async Task SymbolIssueTest3()
 		{
 			// #1
 			// Scenario: Job step completes successfully at CL 105
@@ -1059,9 +1059,9 @@ namespace Horde.Build.Tests
 
 				IIssue issue = issues[0];
 				List<IIssueSpan> spans = await IssueCollection.FindSpansAsync(issue.Id);
-				Assert.AreEqual(spans.Count, 1);
-				Assert.AreEqual(issue.Fingerprints.Count, 1);
-				Assert.AreEqual(issue.Fingerprints[0].Type, "Symbol");
+				Assert.AreEqual(1, spans.Count);
+				Assert.AreEqual(1, issue.Fingerprints.Count);
+				Assert.AreEqual("Symbol", issue.Fingerprints[0].Type);
 
 				IIssueSpan span = spans[0];
 				Assert.AreEqual(105, span.LastSuccess?.Change);
@@ -1086,9 +1086,9 @@ namespace Horde.Build.Tests
 
 				IIssue issue = issues[0];
 				List<IIssueSpan> spans = await IssueCollection.FindSpansAsync(issue.Id);
-				Assert.AreEqual(spans.Count, 1);
-				Assert.AreEqual(issue.Fingerprints.Count, 1);
-				Assert.AreEqual(issue.Fingerprints[0].Type, "Symbol");
+				Assert.AreEqual(1, spans.Count);
+				Assert.AreEqual(1, issue.Fingerprints.Count);
+				Assert.AreEqual("Default", issue.Fingerprints[0].Type);
 
 				IIssueSpan span = spans[0];
 				Assert.AreEqual(120, span.LastSuccess?.Change);
@@ -1113,7 +1113,7 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(1, issues.Count);
 
 			IIssue issue = issues[0];
-			Assert.AreEqual("Linker errors in Update Version Files", issue.Summary);
+			Assert.AreEqual("Errors in Update Version Files", issue.Summary);
 		}
 
 		[TestMethod]

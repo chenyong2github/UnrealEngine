@@ -40,28 +40,27 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public override bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
-			if (!IsMatchingEventId(eventData.EventId))
+			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				fingerprint = null;
-				return false;
+				if (stepEvent.EventId.HasValue && IsMatchingEventId(stepEvent.EventId))
+				{
+					List<string> newFileNames = new List<string>();
+					GetSourceFiles(stepEvent.EventData, newFileNames);
+
+					string? compileType;
+					if (!annotations.TryGetValue(CompileTypeAnnotation, out compileType))
+					{
+						compileType = "Compile";
+					}
+
+					List<string> newMetadata = new List<string>();
+					newMetadata.Add($"{CompileTypeAnnotation}={compileType}");
+
+					stepEvent.Fingerprint = new NewIssueFingerprint(Type, newFileNames, null, newMetadata);
+				}
 			}
-
-			List<string> newFileNames = new List<string>();
-			GetSourceFiles(eventData, newFileNames);
-
-			string? compileType;
-			if (!annotations.TryGetValue(CompileTypeAnnotation, out compileType))
-			{
-				compileType = "Compile";
-			}
-
-			List<string> newMetadata = new List<string>();
-			newMetadata.Add($"{CompileTypeAnnotation}={compileType}");
-
-			fingerprint = new NewIssueFingerprint(Type, newFileNames, null, newMetadata);
-			return true;
 		}
 
 		/// <inheritdoc/>

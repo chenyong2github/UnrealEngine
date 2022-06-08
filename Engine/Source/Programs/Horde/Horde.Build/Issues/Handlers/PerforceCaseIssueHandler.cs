@@ -15,26 +15,26 @@ namespace Horde.Build.Issues.Handlers
 	/// <summary>
 	/// Instance of a Perforce case mismatch error
 	/// </summary>
-	class PerforceCaseIssueHandler : IIssueHandler
+	class PerforceCaseIssueHandler : IssueHandler
 	{
 		/// <inheritdoc/>
-		public string Type => "PerforceCase";
+		public override string Type => "PerforceCase";
 
 		/// <inheritdoc/>
-		public int Priority => 10;
+		public override int Priority => 10;
 
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
 		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? eventId)
+		public static bool IsMatchingEventId(EventId eventId)
 		{
 			return eventId == KnownLogEvents.AutomationTool_PerforceCase;
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> changes)
+		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> changes)
 		{
 			foreach (SuspectChange change in changes)
 			{
@@ -46,7 +46,7 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
+		public override string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
 			return $"Inconsistent case for {StringUtils.FormatList(fingerprint.Keys.Select(x => x.Substring(x.LastIndexOf('/') + 1)).ToArray(), 3)}";
 		}
@@ -75,19 +75,18 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
-			if (!IsMatchingEventId(eventData.EventId))
+			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				fingerprint = null;
-				return false;
+				if (stepEvent.EventId != null && IsMatchingEventId(stepEvent.EventId.Value))
+				{
+					HashSet<string> newFileNames = new HashSet<string>();
+					GetSourceFiles(stepEvent.EventData, newFileNames);
+
+					stepEvent.Fingerprint = new NewIssueFingerprint(Type, newFileNames, null, null);
+				}
 			}
-
-			HashSet<string> newFileNames = new HashSet<string>();
-			GetSourceFiles(eventData, newFileNames);
-
-			fingerprint = new NewIssueFingerprint(Type, newFileNames, null, null);
-			return true;
 		}
 	}
 }

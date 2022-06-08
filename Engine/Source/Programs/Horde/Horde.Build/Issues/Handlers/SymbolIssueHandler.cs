@@ -17,7 +17,7 @@ namespace Horde.Build.Issues.Handlers
 	/// <summary>
 	/// Instance of a particular compile error
 	/// </summary>
-	class SymbolIssueHandler : IIssueHandler
+	class SymbolIssueHandler : IssueHandler
 	{
 		const string NodeName = "Node";
 		const string EventIdName = "EventId";
@@ -25,17 +25,17 @@ namespace Horde.Build.Issues.Handlers
 		static readonly string DuplicateEventIdMetadata = $"{EventIdName}={KnownLogEvents.Linker_DuplicateSymbol.Id}";
 
 		/// <inheritdoc/>
-		public string Type => "Symbol";
+		public override string Type => "Symbol";
 
 		/// <inheritdoc/>
-		public int Priority => 10;
+		public override int Priority => 10;
 
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
 		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? eventId)
+		public static bool IsMatchingEventId(EventId eventId)
 		{
 			return eventId == KnownLogEvents.Linker_UndefinedSymbol || eventId == KnownLogEvents.Linker_DuplicateSymbol || eventId == KnownLogEvents.Linker;
 		}
@@ -58,7 +58,7 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> changes)
+		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> changes)
 		{
 			HashSet<string> names = new HashSet<string>();
 			foreach (string name in fingerprint.Keys)
@@ -77,7 +77,7 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
+		public override string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
 			HashSet<string> symbols = fingerprint.Keys;
 			if (symbols.Count == 0)
@@ -107,26 +107,39 @@ namespace Horde.Build.Issues.Handlers
 			}
 		}
 
-		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
-			if (!IsMatchingEventId(eventData.EventId))
+			bool hasMatches = false;
+			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				fingerprint = null;
-				return false;
+				if (stepEvent.EventId != null)
+				{
+					EventId eventId = stepEvent.EventId.Value;
+					if (IsMatchingEventId(eventId))
+					{
+						SortedSet<string> symbolNames = new SortedSet<string>();
+						GetSymbolNames(stepEvent.EventData, symbolNames);
+
+						if (symbolNames.Count > 0)
+						{
+							List<string> metadata = new List<string>();
+							metadata.Add($"{NodeName}={node.Name}");
+							metadata.Add($"{EventIdName}={eventId.Id}");
+
+							stepEvent.Fingerprint = new NewIssueFingerprint(Type, symbolNames, null, metadata);
+							hasMatches = true;
+						}
+						else if (hasMatches)
+						{
+							stepEvent.Ignored = true;
+						}
+					}
+					else if(eventId == KnownLogEvents.Generic || eventId == KnownLogEvents.AutomationTool)
+					{
+						stepEvent.Ignored = true;
+					}
+				}
 			}
-
-			SortedSet<string> symbolNames = new SortedSet<string>();
-			GetSymbolNames(eventData, symbolNames);
-
-			List<string> metadata = new List<string>();
-			metadata.Add($"{NodeName}={node.Name}");
-			if (eventData.EventId != null)
-			{
-				metadata.Add($"{EventIdName}={eventData.EventId.Value.Id}");
-			}
-
-			fingerprint = new NewIssueFingerprint(Type, symbolNames, null, metadata);
-			return true;
 		}
 	}
 }

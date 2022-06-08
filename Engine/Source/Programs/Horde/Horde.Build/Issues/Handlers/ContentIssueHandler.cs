@@ -17,20 +17,20 @@ namespace Horde.Build.Issues.Handlers
 	/// <summary>
 	/// Instance of a particular compile error
 	/// </summary>
-	class ContentIssueHandler : IIssueHandler
+	class ContentIssueHandler : IssueHandler
 	{
 		/// <inheritdoc/>
-		public string Type => "Content";
+		public override string Type => "Content";
 
 		/// <inheritdoc/>
-		public int Priority => 10;
+		public override int Priority => 10;
 
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
 		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? eventId)
+		public static bool IsMatchingEventId(EventId eventId)
 		{
 			return eventId == KnownLogEvents.Engine_AssetLog;
 		}
@@ -55,22 +55,22 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
-			if (!IsMatchingEventId(eventData.EventId))
+			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				fingerprint = null;
-				return false;
-			}
+				if (stepEvent.EventId != null && IsMatchingEventId(stepEvent.EventId.Value))
+				{
+					HashSet<string> newAssetNames = new HashSet<string>();
+					GetAssetNames(stepEvent.EventData, newAssetNames);
 
-			HashSet<string> newAssetNames = new HashSet<string>();
-			GetAssetNames(eventData, newAssetNames);
-			fingerprint = new NewIssueFingerprint(Type, newAssetNames, null, null);
-			return true;
+					stepEvent.Fingerprint = new NewIssueFingerprint(Type, newAssetNames, null, null);
+				}
+			}
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
+		public override string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
 			string type = (severity == IssueSeverity.Warning) ? "Warnings" : "Errors";
 			string list = StringUtils.FormatList(fingerprint.Keys.ToArray(), 2);
@@ -78,7 +78,7 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
+		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
 			foreach (SuspectChange suspect in suspects)
 			{

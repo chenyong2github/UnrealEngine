@@ -1,44 +1,45 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
-using Horde.Build.Logs;
 
 namespace Horde.Build.Issues.Handlers
 {
 	/// <summary>
 	/// Instance of a particular compile error
 	/// </summary>
-	class DefaultIssueHandler : IIssueHandler
+	class DefaultIssueHandler : IssueHandler
 	{
 		/// <summary>
 		/// Name of the handler
 		/// </summary>
-		public const string Type = "Default";
+		public const string TypeConst = "Default";
 
 		/// <inheritdoc/>
-		string IIssueHandler.Type => Type;
+		public override string Type => TypeConst;
 
 		/// <inheritdoc/>
-		public int Priority => 0;
+		public override int Priority => 0;
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
-			fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null, null);
-			return true;
+			NewIssueFingerprint fingerprint = new NewIssueFingerprint(TypeConst, new[] { node.Name }, null, null);
+			foreach (IssueEvent stepEvent in stepEvents)
+			{
+				stepEvent.Fingerprint = fingerprint;
+			}
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
+		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
+		public override string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
 			string nodeName = fingerprint.Keys.FirstOrDefault() ?? "(unknown)";
 			if(severity == IssueSeverity.Warning)

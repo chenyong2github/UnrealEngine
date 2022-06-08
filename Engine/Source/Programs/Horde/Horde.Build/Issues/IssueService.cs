@@ -126,7 +126,7 @@ namespace Horde.Build.Issues
 		/// <returns>True if the user should be notified for this change</returns>
 		public bool ShowNotifications()
 		{
-			return _showDesktopAlerts && Issue.Fingerprints.Any(x => x.Type != DefaultIssueHandler.Type);
+			return _showDesktopAlerts && Issue.Fingerprints.Any(x => x.Type != DefaultIssueHandler.TypeConst);
 		}
 
 		/// <summary>
@@ -176,14 +176,14 @@ namespace Horde.Build.Issues
 		public event IssueUpdatedEvent? OnIssueUpdated;
 
 		/// <summary>
-		/// List of issue matchers
+		/// List of issue handlers
 		/// </summary>
-		readonly List<IIssueHandler> _matchers = new List<IIssueHandler>();
+		readonly List<IssueHandler> _handlers = new List<IssueHandler>();
 
 		/// <summary>
 		/// Available issue serializers
 		/// </summary>
-		readonly Dictionary<string, IIssueHandler> _typeToHandler = new Dictionary<string, IIssueHandler>(StringComparer.Ordinal);
+		readonly Dictionary<string, IssueHandler> _typeToHandler = new Dictionary<string, IssueHandler>(StringComparer.Ordinal);
 
 		/// <summary>
 		/// Cached list of currently open issues
@@ -228,17 +228,17 @@ namespace Horde.Build.Issues
 			_ticker = clock.AddTicker<IssueService>(TimeSpan.FromMinutes(1.0), TickAsync, logger);
 			_logger = logger;
 
-			// Create all the issue factories
-			Type[] matcherTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssueHandler).IsAssignableFrom(x)).ToArray();
-			foreach (Type matcherType in matcherTypes)
+			// Create all the issue handlers
+			Type[] handlerTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IssueHandler).IsAssignableFrom(x)).ToArray();
+			foreach (Type handlerType in handlerTypes)
 			{
-				IIssueHandler matcher = (IIssueHandler)Activator.CreateInstance(matcherType)!;
-				_matchers.Add(matcher);
+				IssueHandler matcher = (IssueHandler)Activator.CreateInstance(handlerType)!;
+				_handlers.Add(matcher);
 			}
-			_matchers.SortBy(x => -x.Priority);
+			_handlers.SortBy(x => -x.Priority);
 
 			// Build the type name to factory map
-			_typeToHandler = _matchers.ToDictionary(x => x.Type, x => x, StringComparer.Ordinal);
+			_typeToHandler = _handlers.ToDictionary(x => x.Type, x => x, StringComparer.Ordinal);
 		}
 
 		/// <inheritdoc/>
@@ -441,83 +441,6 @@ namespace Horde.Build.Issues
 		}
 
 		/// <summary>
-		/// Information about a particular log event to be added to a span
-		/// </summary>
-		class NewEvent
-		{
-			/// <summary>
-			/// The event interface
-			/// </summary>
-			public ILogEvent Event { get; }
-
-			/// <summary>
-			/// Data for the event
-			/// </summary>
-			public ILogEventData EventData { get; }
-
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="logEvent">The event interface</param>
-			/// <param name="eventData">Data for the event</param>
-			public NewEvent(ILogEvent logEvent, ILogEventData eventData)
-			{
-				Event = logEvent;
-				EventData = eventData;
-			}
-
-			/// <inheritdoc/>
-			public override string ToString()
-			{
-				return $"[{Event.LineIndex}] {EventData.Message}";
-			}
-		}
-
-		/// <summary>
-		/// Information about a new event to be added to a span
-		/// </summary>
-		class NewEventGroup
-		{
-			/// <summary>
-			/// Digest of the fingerprint, for log tracking
-			/// </summary>
-			public ContentHash Digest { get; }
-
-			/// <summary>
-			/// Fingerprint for the event
-			/// </summary>
-			public NewIssueFingerprint Fingerprint { get; }
-
-			/// <summary>
-			/// Individual log events
-			/// </summary>
-			public List<NewEvent> Events { get; } = new List<NewEvent>();
-
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="fingerprint">Fingerprint for the event</param>
-			public NewEventGroup(NewIssueFingerprint fingerprint)
-			{
-				Digest = ContentHash.MD5(fingerprint.ToString());
-				Fingerprint = fingerprint;
-			}
-
-			/// <summary>
-			/// Merge with another group
-			/// </summary>
-			/// <param name="otherGroup">The group to merge with</param>
-			/// <returns>A new group combining both groups</returns>
-			public NewEventGroup MergeWith(NewEventGroup otherGroup)
-			{
-				NewEventGroup newGroup = new NewEventGroup(NewIssueFingerprint.Merge(Fingerprint, otherGroup.Fingerprint));
-				newGroup.Events.AddRange(Events);
-				newGroup.Events.AddRange(otherGroup.Events);
-				return newGroup;
-			}
-		}
-
-		/// <summary>
 		/// Marks a step as complete
 		/// </summary>
 		/// <param name="job">The job to update</param>
@@ -591,7 +514,7 @@ namespace Horde.Build.Issues
 			}
 
 			// Gets the events for this step grouped by fingerprint
-			HashSet<NewEventGroup> eventGroups = await GetEventGroupsForStepAsync(job, batch, step, node, annotations);
+			HashSet<IssueEventGroup> eventGroups = await GetEventGroupsForStepAsync(job, batch, step, node, annotations);
 
 			// Try to update all the events. We may need to restart this due to optimistic transactions, so keep track of any existing spans we do not need to check against.
 			await using(IAsyncDisposable issueLock = await _issueCollection.EnterCriticalSectionAsync())
@@ -636,7 +559,7 @@ namespace Horde.Build.Issues
 		/// <param name="node">The node corresponding to the step</param>
 		/// <param name="annotations">Annotations for this node</param>
 		/// <returns>Set of new events</returns>
-		async Task<HashSet<NewEventGroup>> GetEventGroupsForStepAsync(IJob job, IJobStepBatch batch, IJobStep step, INode node, IReadOnlyNodeAnnotations annotations)
+		async Task<HashSet<IssueEventGroup>> GetEventGroupsForStepAsync(IJob job, IJobStepBatch batch, IJobStep step, INode node, IReadOnlyNodeAnnotations annotations)
 		{
 			// Make sure the step has a log file
 			if (step.LogId == null)
@@ -651,70 +574,48 @@ namespace Horde.Build.Issues
 				throw new ArgumentException($"Unable to retrieve log {step.LogId}");
 			}
 
-			// Process all the events for this step
-			List<ILogEvent> stepEvents = await _logFileService.FindEventsAsync(logFile);
+			// Create a list of all the events for this step
+			List<IssueEvent> issueEvents = new List<IssueEvent>();
 
-			// Create a new list of event fingerprints for each one
-			bool nonSystemicErrors = false;
-			Dictionary<NewIssueFingerprint, NewEventGroup> fingerprintToEventGroup = new Dictionary<NewIssueFingerprint, NewEventGroup>();
+			List<ILogEvent> stepEvents = await _logFileService.FindEventsAsync(logFile);
 			foreach (ILogEvent stepEvent in stepEvents)
 			{
-				// Read the full message for this log event
 				ILogEventData stepEventData = await _logFileService.GetEventDataAsync(logFile, stepEvent.LineIndex, stepEvent.LineCount);
-
-				// Parse a fingerprint from the event
-				NewIssueFingerprint? fingerprint = null;
-				foreach (IIssueHandler matcher in _matchers)
-				{
-					if (matcher.TryGetFingerprint(job, node, annotations, stepEventData, out fingerprint))
-					{
-						if (fingerprint.Type != "Systemic")
-						{
-							if (stepEventData.Severity == EventSeverity.Error)
-							{
-								nonSystemicErrors = true;
-							}
-						}
-
-						break;
-					}
-				}
-
-				// If we matched a fingerprint, add it to the existing set
-				if (fingerprint != null)
-				{
-					NewEventGroup? eventGroup;
-					if (!fingerprintToEventGroup.TryGetValue(fingerprint, out eventGroup))
-					{
-						eventGroup = new NewEventGroup(fingerprint);
-						fingerprintToEventGroup.Add(fingerprint, eventGroup);
-					}
-					eventGroup.Events.Add(new NewEvent(stepEvent, stepEventData));
-				}
+				issueEvents.Add(new IssueEvent(stepEvent, stepEventData));
 			}
-						
-			// Only generate user issues for systemic issues where there are no other failures, otherwise this leads to many false positives (Experimental)
-			if (nonSystemicErrors)
-			{
-				List<NewIssueFingerprint> systemicFingerprints = fingerprintToEventGroup.Keys.Where(x => x.Type == "Systemic").ToList();
 
-				if ((systemicFingerprints.Count != 0) && (systemicFingerprints.Count != fingerprintToEventGroup.Values.Count))
+			// Pass all the events to each matcher in turn, and allow it to tag any events it can handle
+			List<IssueEvent> remainingEvents = new List<IssueEvent>(issueEvents);
+			foreach (IssueHandler handler in _handlers)
+			{
+				handler.TagEvents(job, node, annotations, remainingEvents);
+				remainingEvents.RemoveAll(x => x.Ignored || x.Fingerprint != null);
+			}
+
+			// Create all the event groups from the non-ignored events
+			Dictionary<NewIssueFingerprint, IssueEventGroup> fingerprintToEventGroup = new Dictionary<NewIssueFingerprint, IssueEventGroup>();
+			foreach (IssueEvent issueEvent in issueEvents)
+			{
+				if (!issueEvent.Ignored && issueEvent.Fingerprint != null)
 				{
-					for (int i = 0; i < systemicFingerprints.Count; i++)
+					IssueEventGroup? eventGroup;
+					if (!fingerprintToEventGroup.TryGetValue(issueEvent.Fingerprint, out eventGroup))
 					{
-						fingerprintToEventGroup.Remove(systemicFingerprints[i]);
+						eventGroup = new IssueEventGroup(issueEvent.Fingerprint);
+						fingerprintToEventGroup.Add(issueEvent.Fingerprint, eventGroup);
 					}
+					eventGroup.Events.Add(issueEvent);
 				}
 			}
 
 			// Print the list of new events
-			HashSet<NewEventGroup> eventGroups = new HashSet<NewEventGroup>(fingerprintToEventGroup.Values);
+			HashSet<IssueEventGroup> eventGroups = new HashSet<IssueEventGroup>(fingerprintToEventGroup.Values);
 
 			_logger.LogDebug("UpdateCompleteStep({JobId}, {BatchId}, {StepId}): {NumEvents} events, {NumFingerprints} unique fingerprints", job.Id, batch.Id, step.Id, stepEvents.Count, eventGroups.Count);
-			foreach (NewEventGroup eventGroup in eventGroups)
+			foreach (IssueEventGroup eventGroup in eventGroups)
 			{
 				_logger.LogDebug("Group {Digest}: Type '{FingerprintType}', keys '{FingerprintKeys}'", eventGroup.Digest.ToString(), eventGroup.Fingerprint.Type, String.Join(", ", eventGroup.Fingerprint.Keys));
-				foreach (NewEvent eventItem in eventGroup.Events)
+				foreach (IssueEvent eventItem in eventGroup.Events)
 				{
 					_logger.LogDebug("Group {Digest}: [{Line}] {Message}", eventGroup.Digest.ToString(), eventItem.Event.LineIndex, eventItem.EventData.Message);
 				}
@@ -735,7 +636,7 @@ namespace Horde.Build.Issues
 		/// <param name="annotations">Annotations for this step</param>
 		/// <param name="promoteByDefault"></param>
 		/// <returns>True if the adding completed</returns>
-		async Task<bool> AddEventsToExistingSpans(IJob job, IJobStepBatch batch, IJobStep step, HashSet<NewEventGroup> newEventGroups, List<IIssueSpan> openSpans, HashSet<ObjectId> checkedSpanIds, IReadOnlyNodeAnnotations? annotations, bool promoteByDefault)
+		async Task<bool> AddEventsToExistingSpans(IJob job, IJobStepBatch batch, IJobStep step, HashSet<IssueEventGroup> newEventGroups, List<IIssueSpan> openSpans, HashSet<ObjectId> checkedSpanIds, IReadOnlyNodeAnnotations? annotations, bool promoteByDefault)
 		{
 			for(int spanIdx = 0; spanIdx < openSpans.Count; spanIdx++)
 			{
@@ -743,7 +644,7 @@ namespace Horde.Build.Issues
 				if (!checkedSpanIds.Contains(openSpan.Id))
 				{
 					// Filter out the events which match the span's fingerprint
-					List<NewEventGroup> matchEventGroups = newEventGroups.Where(x => openSpan.Fingerprint.IsMatch(x.Fingerprint)).ToList();
+					List<IssueEventGroup> matchEventGroups = newEventGroups.Where(x => openSpan.Fingerprint.IsMatch(x.Fingerprint)).ToList();
 					if (matchEventGroups.Count > 0)
 					{
 						// Add the new step data
@@ -763,7 +664,7 @@ namespace Horde.Build.Issues
 						}
 
 						// Write out all the merged events
-						foreach (NewEventGroup eventGroup in matchEventGroups)
+						foreach (IssueEventGroup eventGroup in matchEventGroups)
 						{
 							_logger.LogDebug("Matched fingerprint {Digest} ({NumLogEvents} log events) to span {SpanId}", eventGroup.Digest, eventGroup.Events.Count, newSpan.Id);
 						}
@@ -787,14 +688,14 @@ namespace Horde.Build.Issues
 		/// </summary>
 		/// <param name="events">Set of event severity values</param>
 		/// <returns>Severity of this issue</returns>
-		static IssueSeverity GetIssueSeverity(IEnumerable<NewEvent> events)
+		static IssueSeverity GetIssueSeverity(IEnumerable<IssueEvent> events)
 		{
 			IssueSeverity severity;
-			if (events.Any(x => x.Event.Severity == EventSeverity.Error))
+			if (events.Any(x => x.Severity == EventSeverity.Error))
 			{
 				severity = IssueSeverity.Error;
 			}
-			else if (events.Any(x => x.Event.Severity == EventSeverity.Warning))
+			else if (events.Any(x => x.Severity == EventSeverity.Warning))
 			{
 				severity = IssueSeverity.Warning;
 			}
@@ -818,21 +719,21 @@ namespace Horde.Build.Issues
 		/// <param name="annotations"></param>
 		/// <param name="promoteByDefault"></param>
 		/// <returns>True if all events were added</returns>
-		async Task<bool> AddEventsToNewSpans(IStream stream, IJob job, IJobStepBatch batch, IJobStep step, INode node, List<IIssueSpan> openSpans, HashSet<NewEventGroup> newEventGroups, IReadOnlyNodeAnnotations? annotations, bool promoteByDefault)
+		async Task<bool> AddEventsToNewSpans(IStream stream, IJob job, IJobStepBatch batch, IJobStep step, INode node, List<IIssueSpan> openSpans, HashSet<IssueEventGroup> newEventGroups, IReadOnlyNodeAnnotations? annotations, bool promoteByDefault)
 		{
 			while (newEventGroups.Count > 0)
 			{
 				// Keep track of the event groups we merge together
-				List<NewEventGroup> sourceEventGroups = new List<NewEventGroup>();
+				List<IssueEventGroup> sourceEventGroups = new List<IssueEventGroup>();
 				sourceEventGroups.Add(newEventGroups.First());
 
 				// Take the first event, and find all other events that match against it
-				NewEventGroup eventGroup = sourceEventGroups[0];
-				foreach (NewEventGroup otherEventGroup in newEventGroups.Skip(1))
+				IssueEventGroup eventGroup = sourceEventGroups[0];
+				foreach (IssueEventGroup otherEventGroup in newEventGroups.Skip(1))
 				{
 					if (otherEventGroup.Fingerprint.IsMatchForNewSpan(eventGroup.Fingerprint))
 					{
-						NewEventGroup newEventGroup = eventGroup.MergeWith(otherEventGroup);
+						IssueEventGroup newEventGroup = eventGroup.MergeWith(otherEventGroup);
 						_logger.LogDebug("Merging group {Group} with group {OtherGroup} to form {NewGroup}", eventGroup.Digest.ToString(), otherEventGroup.Digest.ToString(), newEventGroup.Digest.ToString());
 						sourceEventGroups.Add(otherEventGroup);
 						eventGroup = newEventGroup;
@@ -1154,7 +1055,7 @@ namespace Horde.Build.Issues
 		async Task<List<NewIssueSpanSuspectData>> FindSuspectsForSpanAsync(IStream stream, IIssueFingerprint fingerprint, int minChange, int maxChange)
 		{
 			List<NewIssueSpanSuspectData> suspects = new List<NewIssueSpanSuspectData>();
-			if (_typeToHandler.TryGetValue(fingerprint.Type, out IIssueHandler? handler))
+			if (_typeToHandler.TryGetValue(fingerprint.Type, out IssueHandler? handler))
 			{
 				_logger.LogDebug("Querying for changes in {StreamName} between {MinChange} and {MaxChange}", stream.Name, minChange, maxChange);
 
@@ -1256,9 +1157,9 @@ namespace Horde.Build.Issues
 		/// <returns>The summary text</returns>
 		string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
-			if (_typeToHandler.TryGetValue(fingerprint.Type, out IIssueHandler? matcher))
+			if (_typeToHandler.TryGetValue(fingerprint.Type, out IssueHandler? handler))
 			{
-				return matcher.GetSummary(fingerprint, severity);
+				return handler.GetSummary(fingerprint, severity);
 			}
 			else
 			{

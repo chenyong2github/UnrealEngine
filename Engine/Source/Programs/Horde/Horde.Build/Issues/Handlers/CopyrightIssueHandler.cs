@@ -17,84 +17,40 @@ namespace Horde.Build.Issues.Handlers
 	/// <summary>
 	/// Instance of a particular compile error
 	/// </summary>
-	class CopyrightIssueHandler : IIssueHandler
+	class CopyrightIssueHandler : SourceFileIssueHandler
 	{
 		/// <inheritdoc/>
-		public string Type => "Copyright";
+		public override string Type => "Copyright";
 
 		/// <inheritdoc/>
-		public int Priority => 10;
-
-		/// <summary>
-		/// Filenames containing errors or warnings
-		/// </summary>
-		public HashSet<string> FileNames { get; set; } = new HashSet<string>();
+		public override int Priority => 10;
 
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
 		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? eventId)
+		public static bool IsMatchingEventId(EventId eventId)
 		{
 			return eventId == KnownLogEvents.AutomationTool_MissingCopyright;
 		}
 
-		/// <summary>
-		/// Extracts a list of source files from an event
-		/// </summary>
-		/// <param name="logEventData">The event data</param>
-		/// <param name="sourceFiles">List of source files</param>
-		public static void GetSourceFiles(ILogEventData logEventData, HashSet<string> sourceFiles)
+		/// <inheritdoc/>
+		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
-			foreach (ILogEventLine line in logEventData.Lines)
+			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				string? relativePath;
-				if (line.Data.TryGetNestedProperty("properties.file.relativePath", out relativePath) || line.Data.TryGetNestedProperty("properties.file", out relativePath))
+				if (stepEvent.EventId != null && IsMatchingEventId(stepEvent.EventId.Value))
 				{
-					int endIdx = relativePath.LastIndexOfAny(new char[] { '/', '\\' }) + 1;
-					string fileName = relativePath.Substring(endIdx);
-					sourceFiles.Add(fileName);
+					List<string> newFileNames = new List<string>();
+					GetSourceFiles(stepEvent.EventData, newFileNames);
+					stepEvent.Fingerprint = new NewIssueFingerprint(Type, newFileNames, null, null);
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
-		{
-			if (!IsMatchingEventId(eventData.EventId))
-			{
-				fingerprint = null;
-				return false;
-			}
-
-			HashSet<string> newFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			GetSourceFiles(eventData, newFileNames);
-			fingerprint = new NewIssueFingerprint(Type, newFileNames, null, null);
-			return true;
-		}
-
-		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
-		{
-			foreach (SuspectChange suspect in suspects)
-			{
-				if (suspect.ContainsCode)
-				{
-					if (FileNames.Any(x => suspect.ModifiesFile(x)))
-					{
-						suspect.Rank += 20;
-					}
-					else
-					{
-						suspect.Rank += 10;
-					}
-				}
-			}
-		}
-
-		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
+		public override string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
 			return $"Missing copyright notice in {StringUtils.FormatList(fingerprint.Keys.ToArray(), 2)}";
 		}
