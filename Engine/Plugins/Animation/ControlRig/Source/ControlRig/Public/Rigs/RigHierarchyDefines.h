@@ -569,7 +569,9 @@ public:
 			}
 			case ERigControlType::Transform:
 			{
-				return Get<FTransform_Float>().ToTransform();
+				Transform = Get<FTransform_Float>().ToTransform();
+				Transform.NormalizeRotation();
+				break;
 			}
 			case ERigControlType::TransformNoScale:
 			{
