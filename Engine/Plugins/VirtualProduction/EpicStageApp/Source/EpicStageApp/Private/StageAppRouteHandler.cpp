@@ -173,7 +173,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 		break;
 
 	case ERCWebSocketNDisplayPreviewRenderProjectionType::Perspective:
-		RenderSettings.ProjectionType = EDisplayClusterMeshProjectionType::Perspective;
+		RenderSettings.ProjectionType = EDisplayClusterMeshProjectionType::Linear;
 		break;
 	}
 
