@@ -2,30 +2,34 @@
 
 #include "DisplayClusterLightCardEditorWidget.h"
 
+#include "DisplayClusterLightCardEditorViewportClient.h"
+
 #include "SceneManagement.h"
 #include "UnrealWidget.h"
-#include "EditorViewportClient.h"
 
-void FDisplayClusterLightCardEditorWidget::Draw(const FSceneView* View, const FEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* PDI)
+void FDisplayClusterLightCardEditorWidget::Draw(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* PDI)
 {
+	const bool bIsOrthographic = ViewportClient->GetRenderViewportType() != LVT_Perspective;
+
 	const float SizeScalar = GetSizeScreenScalar(View, ViewportClient);
 	const float LengthScalar = GetLengthScreenScalar(View, ViewportClient, Transform.GetTranslation());
+	const float OrthoScalar = bIsOrthographic ? 1.0f / View->ViewMatrices.GetProjectionMatrix().M[0][0] : 1.0f;
 
 	if (WidgetMode == EWidgetMode::WM_RotateZ)
 	{
-		DrawAxis(PDI, EAxisList::Type::Y, SizeScalar, LengthScalar);
+		DrawAxis(PDI, EAxisList::Type::Y, SizeScalar, LengthScalar, OrthoScalar);
 		DrawCircle(PDI, EAxisList::Type::Z, SizeScalar, LengthScalar);
-		DrawOrigin(PDI, SizeScalar);
+		DrawOrigin(PDI, SizeScalar, OrthoScalar);
 	}
 	else
 	{
-		DrawAxis(PDI, EAxisList::Type::X, SizeScalar, LengthScalar);
-		DrawAxis(PDI, EAxisList::Type::Y, SizeScalar, LengthScalar);
-		DrawOrigin(PDI, SizeScalar);
+		DrawAxis(PDI, EAxisList::Type::X, SizeScalar, LengthScalar, OrthoScalar);
+		DrawAxis(PDI, EAxisList::Type::Y, SizeScalar, LengthScalar, OrthoScalar);
+		DrawOrigin(PDI, SizeScalar, OrthoScalar);
 	}
 }
 
-void FDisplayClusterLightCardEditorWidget::DrawAxis(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar)
+void FDisplayClusterLightCardEditorWidget::DrawAxis(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar, float OrthoScalar)
 {
 	const FVector Origin = Transform.GetTranslation();
 
@@ -42,26 +46,26 @@ void FDisplayClusterLightCardEditorWidget::DrawAxis(FPrimitiveDrawInterface* PDI
 
 		if (WidgetMode == EWidgetMode::WM_Scale)
 		{
-			PDI->DrawPoint(AxisEnd, AxisColor, AxisCapSize * SizeScalar, ESceneDepthPriorityGroup::SDPG_Foreground);
+			PDI->DrawPoint(AxisEnd, AxisColor, AxisCapSize * SizeScalar * OrthoScalar, ESceneDepthPriorityGroup::SDPG_Foreground);
 		}
 	}
 	PDI->SetHitProxy(nullptr);
 }
 
-void FDisplayClusterLightCardEditorWidget::DrawOrigin(FPrimitiveDrawInterface* PDI, float SizeScalar)
+void FDisplayClusterLightCardEditorWidget::DrawOrigin(FPrimitiveDrawInterface* PDI, float SizeScalar, float OrthoScalar)
 {
 	const FVector Origin = ProjectionTransform.ProjectPosition(Transform.GetTranslation());
 	const FLinearColor Color = HighlightedAxis == EAxisList::Type::XYZ ? HighlightColor : FLinearColor::Black;
 
 	PDI->SetHitProxy(new HWidgetAxis(EAxisList::Type::XYZ));
-	PDI->DrawPoint(Origin, Color, OriginSize * SizeScalar, ESceneDepthPriorityGroup::SDPG_Foreground);
+	PDI->DrawPoint(Origin, Color, OriginSize * SizeScalar * OrthoScalar, ESceneDepthPriorityGroup::SDPG_Foreground);
 	PDI->SetHitProxy(nullptr);
 }
 
 void FDisplayClusterLightCardEditorWidget::DrawCircle(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar)
 {
 	const float ScaledRadius = CirlceRadius * LengthScalar;
-	const int32 NumSides = FMath::Max(ScaledRadius / 2, 24.0f);
+	const int32 NumSides = FMath::Clamp(ScaledRadius / 2, 24.0f, 100.0f);
 	const float AngleDelta = 2.0f * UE_PI / NumSides;
 
 	const FVector Origin = Transform.GetTranslation();
@@ -123,7 +127,7 @@ FLinearColor FDisplayClusterLightCardEditorWidget::GetAxisColor(EAxisList::Type 
 	return FLinearColor::Transparent;
 }
 
-float FDisplayClusterLightCardEditorWidget::GetLengthScreenScalar(const FSceneView* View, const FEditorViewportClient* ViewportClient, const FVector& Origin) const
+float FDisplayClusterLightCardEditorWidget::GetLengthScreenScalar(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient, const FVector& Origin) const
 {
 	// The ideal behavior for the length of the widget axes is to remain a fixed length regardless of the field of view or distance from the camera,
 	// but change proportionally with the size of the viewport, so that the widget takes up the same percentage of viewport space. 
@@ -135,17 +139,19 @@ float FDisplayClusterLightCardEditorWidget::GetLengthScreenScalar(const FSceneVi
 	// Note we use the x axis sizes to compute the scalars as the viewport will only scale smaller when the width is resized; when the 
 	// height is resized, the view is clamped
 
+	const bool bIsOrthographic = ViewportClient->GetRenderViewportType() != LVT_Perspective;
+
 	const float DPIScale = ViewportClient->GetDPIScale();
 	const float ResolutionScale = View->UnconstrainedViewRect.Size().X / (DPIScale * ReferenceResolution);
 
 	const float DistanceFromView = FMath::Max(FVector::Dist(Origin, View->ViewMatrices.GetViewOrigin()), 1.f);
-	const float ProjectionScale = DistanceFromView / View->ViewMatrices.GetScreenScale();
+	const float ProjectionScale = bIsOrthographic ? 1.0 / View->ViewMatrices.GetScreenScale() : DistanceFromView / View->ViewMatrices.GetScreenScale();
 
 	const float FinalScalar = DPIScale * ResolutionScale * ProjectionScale;
 	return FinalScalar;
 }
 
-float FDisplayClusterLightCardEditorWidget::GetSizeScreenScalar(const FSceneView* View, const FEditorViewportClient* ViewportClient) const
+float FDisplayClusterLightCardEditorWidget::GetSizeScreenScalar(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient) const
 {
 	// The ideal behavior for the size of the widget is to remain a fixed size regardless of the field of view or distance from the camera,
 	// but change proportionally with the size of the viewport, so that the widget takes up the same percentage of viewport space. 
@@ -156,11 +162,13 @@ float FDisplayClusterLightCardEditorWidget::GetSizeScreenScalar(const FSceneView
 	// Note we use the x axis sizes to compute the scalars as the viewport will only scale smaller when the width is resized; when the 
 	// height is resized, the view is clamped
 
+	const bool bIsOrthographic = ViewportClient->GetRenderViewportType() != LVT_Perspective;
+
 	const float DPIScale = ViewportClient->GetDPIScale();
 	const float ResolutionScale = View->UnconstrainedViewRect.Size().X / (DPIScale * ReferenceResolution);
 
 	const FMatrix& ProjectionMatrix = View->ViewMatrices.GetProjectionMatrix();
-	const float ProjectionScale = FMath::Abs(ProjectionMatrix.M[0][0]);
+	const float ProjectionScale = !bIsOrthographic ? FMath::Abs(ProjectionMatrix.M[0][0]) : 1.0f;
 
 	const float FinalScalar = DPIScale * ResolutionScale / ProjectionScale;
 	return FinalScalar;

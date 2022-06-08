@@ -60,6 +60,16 @@ public:
 					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GenerateProjectionMenu)
 				]
 				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.0f, 2.0f)
+				[
+					SNew(SEditorViewportToolbarMenu)
+					.ParentToolBar(SharedThis(this))
+					.Cursor(EMouseCursor::Default)
+					.Label(LOCTEXT("LightCardEditorViewMenuLabel", "View"))
+					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GenerateViewMenu)
+				]
+				+ SHorizontalBox::Slot()
 				.Padding(3.0f, 1.0f)
 				.HAlign(HAlign_Right)
 				[
@@ -86,11 +96,7 @@ public:
 
 		FMenuBuilder PreviewOptionsMenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
 		{
-			PreviewOptionsMenuBuilder.BeginSection("LightCardEditorViewportOptions", LOCTEXT("ViewportOptionsMenuHeader", "Viewport Options"));
-			{
-				PreviewOptionsMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ResetCamera);
-			}
-			PreviewOptionsMenuBuilder.EndSection();
+			// TODO: Any advanced viewport options can be added here
 		}
 
 		return PreviewOptionsMenuBuilder.MakeWidget();
@@ -102,10 +108,18 @@ public:
 
 		if (EditorViewport.IsValid())
 		{
-			switch (EditorViewport.Pin()->GetLightCardEditorViewportClient()->GetProjectionMode())
+			TSharedRef<FDisplayClusterLightCardEditorViewportClient> ViewportClient = EditorViewport.Pin()->GetLightCardEditorViewportClient();
+			switch (ViewportClient->GetProjectionMode())
 			{
-			case EDisplayClusterMeshProjectionType::Perspective:
-				Label = LOCTEXT("ProjectionwMenuTitle_Perspective", "Perspective");
+			case EDisplayClusterMeshProjectionType::Linear:
+				if (ViewportClient->GetRenderViewportType() == ELevelViewportType::LVT_Perspective)
+				{
+					Label = LOCTEXT("ProjectionwMenuTitle_Perspective", "Perspective");
+				}
+				else
+				{
+					Label = LOCTEXT("ProjectionwMenuTitle_Orthographic", "Orthographic");
+				}
 				break;
 
 			case EDisplayClusterMeshProjectionType::Azimuthal:
@@ -125,34 +139,39 @@ public:
 		FMenuBuilder ViewMenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
 
 		ViewMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().PerspectiveProjection);
+		ViewMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().OrthographicProjection);
 		ViewMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().AzimuthalProjection);
 
 		return ViewMenuBuilder.MakeWidget();
 	}
 
-	FText GetViewMenuLabel() const
+	TSharedRef<SWidget> GenerateViewMenu() const
 	{
-		FText Label = NSLOCTEXT("BlueprintEditor", "ViewMenuTitle_Default", "View");
+		TSharedPtr<const FUICommandList> CommandList = EditorViewport.IsValid() ? EditorViewport.Pin()->GetCommandList() : nullptr;
 
-		if (EditorViewport.IsValid())
+		const bool bInShouldCloseWindowAfterMenuSelection = true;
+
+		FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
 		{
-			switch (EditorViewport.Pin()->GetViewportClient()->GetViewMode())
+			MenuBuilder.BeginSection("LightCardEditorViewOrientation", LOCTEXT("ViewOrientationMenuHeader", "View Orientation"));
 			{
-			case VMI_Lit:
-				Label = NSLOCTEXT("BlueprintEditor", "ViewMenuTitle_Lit", "Lit");
-				break;
-
-			case VMI_Unlit:
-				Label = NSLOCTEXT("BlueprintEditor", "ViewMenuTitle_Unlit", "Unlit");
-				break;
-
-			case VMI_BrushWireframe:
-				Label = NSLOCTEXT("BlueprintEditor", "ViewMenuTitle_Wireframe", "Wireframe");
-				break;
+				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ViewOrientationTop);
+				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ViewOrientationBottom);
+				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ViewOrientationLeft);
+				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ViewOrientationRight);
+				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ViewOrientationFront);
+				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ViewOrientationBack);
 			}
+			MenuBuilder.EndSection();
+
+			MenuBuilder.BeginSection("LightCardEditorViewOptions", LOCTEXT("ViewOptionsMenuHeader", "View Options"));
+			{
+				MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ResetCamera);
+			}
+			MenuBuilder.EndSection();
 		}
 
-		return Label;
+		return MenuBuilder.MakeWidget();
 	}
 
 	TSharedRef<SWidget> MakeTransformToolBar()
@@ -228,12 +247,18 @@ private:
 	TWeakPtr<SDisplayClusterLightCardEditorViewport> EditorViewport;
 };
 
+const FVector SDisplayClusterLightCardEditorViewport::ViewDirectionTop = FVector(0.0f, 0.0f, 1.0f);
+const FVector SDisplayClusterLightCardEditorViewport::ViewDirectionBottom = FVector(0.0f, 0.0f, -1.0f);
+const FVector SDisplayClusterLightCardEditorViewport::ViewDirectionLeft = FVector(0.0f, -1.0f, 0.0f);
+const FVector SDisplayClusterLightCardEditorViewport::ViewDirectionRight = FVector(0.0f, 1.0f, 0.0f);
+const FVector SDisplayClusterLightCardEditorViewport::ViewDirectionFront = FVector(1.0f, 0.0f, 0.0f);
+const FVector SDisplayClusterLightCardEditorViewport::ViewDirectionBack = FVector(-1.0f, 0.0f, 0.0f);
+
 void SDisplayClusterLightCardEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<class FUICommandList> InCommandList)
 {
 	LightCardEditorPtr = InLightCardEditor;
 	
-	AdvancedPreviewScene = MakeShared<FAdvancedPreviewScene>(FPreviewScene::ConstructionValues());
-	AdvancedPreviewScene->SetFloorVisibility(true);
+	PreviewScene = MakeShared<FPreviewScene>(FPreviewScene::ConstructionValues());
 		
 	SEditorViewport::Construct(SEditorViewport::FArguments());
 
@@ -302,9 +327,9 @@ void SDisplayClusterLightCardEditorViewport::SummonContextMenu()
 
 TSharedRef<FEditorViewportClient> SDisplayClusterLightCardEditorViewport::MakeEditorViewportClient()
 {
-	check(AdvancedPreviewScene.IsValid());
+	check(PreviewScene.IsValid());
 	
-	ViewportClient = MakeShareable(new FDisplayClusterLightCardEditorViewportClient(*AdvancedPreviewScene.Get(),
+	ViewportClient = MakeShareable(new FDisplayClusterLightCardEditorViewportClient(*PreviewScene.Get(),
 		SharedThis(this)));
 	return ViewportClient.ToSharedRef();
 }
@@ -336,7 +361,6 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 			FCanExecuteAction(),
 			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsEditorWidgetModeSelected, FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate)
 		);
-
 		
 		CommandList->MapAction(
 			Commands.RotateMode,
@@ -364,15 +388,45 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 
 		CommandList->MapAction(
 			FDisplayClusterLightCardEditorCommands::Get().PerspectiveProjection,
-			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Perspective),
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Linear, ELevelViewportType::LVT_Perspective),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Perspective));
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Linear, ELevelViewportType::LVT_Perspective));
+
+		CommandList->MapAction(
+			FDisplayClusterLightCardEditorCommands::Get().OrthographicProjection,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Linear, ELevelViewportType::LVT_OrthoFreelook),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Linear, ELevelViewportType::LVT_OrthoFreelook));
 
 		CommandList->MapAction(
 			FDisplayClusterLightCardEditorCommands::Get().AzimuthalProjection,
-			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Azimuthal),
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Azimuthal, ELevelViewportType::LVT_Perspective),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Azimuthal));
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Azimuthal, ELevelViewportType::LVT_Perspective));
+
+		CommandList->MapAction(
+			Commands.ViewOrientationTop,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetViewDirection, ViewDirectionTop));
+
+		CommandList->MapAction(
+			Commands.ViewOrientationBottom,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetViewDirection, ViewDirectionBottom));
+
+		CommandList->MapAction(
+			Commands.ViewOrientationLeft,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetViewDirection, ViewDirectionLeft));
+
+		CommandList->MapAction(
+			Commands.ViewOrientationRight,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetViewDirection, ViewDirectionRight));
+
+		CommandList->MapAction(
+			Commands.ViewOrientationFront,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetViewDirection, ViewDirectionFront));
+
+		CommandList->MapAction(
+			Commands.ViewOrientationBack,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetViewDirection, ViewDirectionBack));
 
 		CommandList->MapAction(
 			Commands.ResetCamera,
@@ -457,22 +511,30 @@ void SDisplayClusterLightCardEditorViewport::CycleEditorWidgetMode()
 	SetEditorWidgetMode((FDisplayClusterLightCardEditorWidget::EWidgetMode)WidgetModeAsInt);
 }
 
-void SDisplayClusterLightCardEditorViewport::SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode)
+void SDisplayClusterLightCardEditorViewport::SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode, ELevelViewportType InViewportType)
 {
 	if (ViewportClient.IsValid())
 	{
-		ViewportClient->SetProjectionMode(InProjectionMode);
+		ViewportClient->SetProjectionMode(InProjectionMode, InViewportType);
 	}
 }
 
-bool SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected(EDisplayClusterMeshProjectionType InProjectionMode) const
+bool SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected(EDisplayClusterMeshProjectionType InProjectionMode, ELevelViewportType ViewportType) const
 {
 	if (ViewportClient.IsValid())
 	{
-		return ViewportClient->GetProjectionMode() == InProjectionMode;
+		return ViewportClient->GetProjectionMode() == InProjectionMode && ViewportClient->GetRenderViewportType() == ViewportType;
 	}
 
 	return false;
+}
+
+void SDisplayClusterLightCardEditorViewport::SetViewDirection(FVector InViewDirection)
+{
+	if (ViewportClient.IsValid())
+	{
+		ViewportClient->SetViewRotation(InViewDirection.Rotation());
+	}
 }
 
 bool SDisplayClusterLightCardEditorViewport::IsDrawingLightCard() const

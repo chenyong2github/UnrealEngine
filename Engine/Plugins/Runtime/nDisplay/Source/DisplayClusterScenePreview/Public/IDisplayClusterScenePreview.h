@@ -135,6 +135,14 @@ public:
 	virtual bool AddActorToRenderer(int32 RendererId, AActor* Actor) = 0;
 
 	/**
+	 * Removes an actor from the preview scene for a renderer.
+	 *
+	 * @param RendererId The ID of the renderer as returned from CreateRenderer.
+	 * @param Actor The actor to remove to the renderer's scene.
+	 */
+	virtual bool RemoveActorFromRenderer(int32 RendererId, AActor* Actor) = 0;
+
+	/**
 	 * Clear the scene of a renderer.
 	 * 
 	 * @param RendererId The ID of the renderer as returned from CreateRenderer.

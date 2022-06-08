@@ -42,7 +42,7 @@ public:
 	}
 };
 
-using FMeshPerspectiveProjectionVS = FMeshProjectionVS<EDisplayClusterMeshProjectionType::Perspective>;
+using FMeshPerspectiveProjectionVS = FMeshProjectionVS<EDisplayClusterMeshProjectionType::Linear>;
 using FMeshAzimuthalProjectionVS = FMeshProjectionVS<EDisplayClusterMeshProjectionType::Azimuthal>;
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FMeshPerspectiveProjectionVS, TEXT("/Plugin/nDisplay/Private/MeshProjectionShaders.usf"), TEXT("PerspectiveVS"), SF_Vertex);
@@ -140,7 +140,7 @@ public:
 
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-		ERasterizerCullMode MeshCullMode = CM_None;
+		ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 
 		FMeshMaterialShaderElementData ShaderElementData;
 		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
@@ -343,7 +343,7 @@ public:
 
 				const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 				ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
-				ERasterizerCullMode MeshCullMode = CM_None;
+				ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material, OverrideSettings);
 
 				FMeshProjectionHitProxyShaderElementData ShaderElementData(MeshBatch.BatchHitProxyId);
 				ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
@@ -693,7 +693,7 @@ FVector FDisplayClusterMeshProjectionTransform::ProjectPosition(const FVector& W
 {
 	FVector ProjectedPosition(WorldPosition);
 
-	if (Projection != EDisplayClusterMeshProjectionType::Perspective)
+	if (Projection != EDisplayClusterMeshProjectionType::Linear)
 	{
 		const FVector ViewPos = ViewMatrix.TransformPosition(WorldPosition);
 		const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, Projection);
@@ -707,7 +707,7 @@ FVector FDisplayClusterMeshProjectionTransform::UnprojectPosition(const FVector&
 {
 	FVector UnprojectedPosition(ProjectedPosition);
 
-	if (Projection != EDisplayClusterMeshProjectionType::Perspective)
+	if (Projection != EDisplayClusterMeshProjectionType::Linear)
 	{
 		const FVector ViewPos = ViewMatrix.TransformPosition(ProjectedPosition);
 		const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::UnprojectViewPosition(ViewPos, Projection);
@@ -1053,7 +1053,7 @@ void FDisplayClusterMeshProjectionRenderer::RenderNormals(FCanvas* Canvas,
 #define SWITCH_ON_PROJECTION_TYPE(FuncName, ProjectionType, ...) switch (ProjectionType) \
 	{ \
 	PROJECTION_TYPE_CASE(FuncName, EDisplayClusterMeshProjectionType::Azimuthal, __VA_ARGS__) \
-	PROJECTION_TYPE_CASE(FuncName, EDisplayClusterMeshProjectionType::Perspective, __VA_ARGS__) \
+	PROJECTION_TYPE_CASE(FuncName, EDisplayClusterMeshProjectionType::Linear, __VA_ARGS__) \
 	}
 
 void FDisplayClusterMeshProjectionRenderer::AddBaseRenderPass(FRDGBuilder& GraphBuilder,
@@ -1577,7 +1577,7 @@ bool FDisplayClusterMeshProjectionRenderer::IsPrimitiveComponentSelected(const U
 // Explicit template specializations for each projection type
 #define PROJECTION_TYPE_TEMPLATE_SPECIALIZATION(FuncName, ProjectionType, ...) template void FDisplayClusterMeshProjectionRenderer::FuncName<ProjectionType>(__VA_ARGS__);
 #define CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(FuncName, ...) \
-	PROJECTION_TYPE_TEMPLATE_SPECIALIZATION(FuncName, EDisplayClusterMeshProjectionType::Perspective, __VA_ARGS__) \
+	PROJECTION_TYPE_TEMPLATE_SPECIALIZATION(FuncName, EDisplayClusterMeshProjectionType::Linear, __VA_ARGS__) \
 	PROJECTION_TYPE_TEMPLATE_SPECIALIZATION(FuncName, EDisplayClusterMeshProjectionType::Azimuthal, __VA_ARGS__)
 
 CREATE_PROJECTION_TYPE_TEMPLATE_SPECIALIZATIONS(RenderPrimitives_RenderThread, const FSceneView* View, FRHICommandList& RHICmdList, bool bTranslucencyPass)

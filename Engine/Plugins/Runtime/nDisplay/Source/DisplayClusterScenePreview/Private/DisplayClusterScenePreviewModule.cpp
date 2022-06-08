@@ -99,6 +99,17 @@ bool FDisplayClusterScenePreviewModule::AddActorToRenderer(int32 RendererId, AAc
 	return false;
 }
 
+bool FDisplayClusterScenePreviewModule::RemoveActorFromRenderer(int32 RendererId, AActor* Actor)
+{
+	if (FRendererConfig* Config = RendererConfigs.Find(RendererId))
+	{
+		Config->Renderer->RemoveActor(Actor);
+		return true;
+	}
+
+	return false;
+}
+
 bool FDisplayClusterScenePreviewModule::ClearRendererScene(int32 RendererId)
 {
 	if (FRendererConfig* Config = RendererConfigs.Find(RendererId))

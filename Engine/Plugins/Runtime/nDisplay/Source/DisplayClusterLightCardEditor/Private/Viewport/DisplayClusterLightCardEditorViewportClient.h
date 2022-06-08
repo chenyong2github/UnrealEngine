@@ -17,6 +17,7 @@ class SDisplayClusterLightCardEditor;
 class SDisplayClusterLightCardEditorViewport;
 class FScopedTransaction;
 class UDisplayClusterConfigurationViewport;
+class UProceduralMeshComponent;
 
 /** Viewport Client for the preview viewport */
 class FDisplayClusterLightCardEditorViewportClient : public FEditorViewportClient, public TSharedFromThis<FDisplayClusterLightCardEditorViewportClient>
@@ -97,6 +98,9 @@ private:
 		/** Gets the normal vector and distance at the specified world location. The normal and distance are bilinearly interpolated from the nearest pixels in the normal map */
 		bool GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance) const;
 
+		/** Morphs the vertices of the specified prodedural mesh to match the normal map */
+		void MorphProceduralMesh(UProceduralMeshComponent* InProceduralMeshComponent) const;
+
 		/** Generates a texture object that can be used to visualize the normal map */
 		UTexture2D* GenerateNormalMapTexture(const FString& TextureName);
 
@@ -121,7 +125,7 @@ private:
 	};
 
 public:
-	FDisplayClusterLightCardEditorViewportClient(FAdvancedPreviewScene& InPreviewScene,
+	FDisplayClusterLightCardEditorViewportClient(FPreviewScene& InPreviewScene,
 		const TWeakPtr<SDisplayClusterLightCardEditorViewport>& InEditorViewportWidget);
 	virtual ~FDisplayClusterLightCardEditorViewportClient() override;
 	
@@ -169,8 +173,14 @@ public:
 	FDisplayClusterLightCardEditorWidget::EWidgetMode GetEditorWidgetMode() const { return EditorWidget->GetWidgetMode(); }
 	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode) { EditorWidget->SetWidgetMode(InWidgetMode); }
 
+	/** Gets the current projection mode of the editor viewport */
 	EDisplayClusterMeshProjectionType GetProjectionMode() const { return ProjectionMode; }
-	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode);
+
+	/** Gets the current viewport type the viewport is being rendered with */
+	ELevelViewportType GetRenderViewportType() const { return RenderViewportType; }
+
+	/** Sets the projection mode and the render viewport type of the viewport */
+	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode, ELevelViewportType InViewportType);
 
 	/** Gets the field of view of the specified projection mode */
 	float GetProjectionModeFOV(EDisplayClusterMeshProjectionType InProjectionMode) const;
@@ -268,6 +278,12 @@ private:
 	/** Sets the light card position to the given spherical coordinates */
 	void SetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard, const FSphericalCoordinates& SphericalCoords) const;
 
+	/** Performs a ray trace against the stage's geometry, and returns the hit point */
+	bool TraceStage(const FVector& RayStart, const FVector& RayEnd, FVector& OutHitLocation) const;
+
+	/** Traces the world geometry to find the best direction vector from the view origin to a valid point in space using a screen ray */
+	FVector TraceScreenRay(const FVector& RayOrigin, const FVector& RayDirection, const FVector& ViewOrigin);
+
 	/** Traces to find the light card corresponding to a click on a stage screen */
 	ADisplayClusterLightCardActor* TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY);
 
@@ -363,6 +379,9 @@ private:
 	/** The current projection mode the 3D viewport is being displayed with */
 	EDisplayClusterMeshProjectionType ProjectionMode = EDisplayClusterMeshProjectionType::Azimuthal;
 
+	/** The viewport type (perspective or orthogonal) to use when rendering the viewport. Separate from ViewportType since ViewportType also determines input functionality */
+	ELevelViewportType RenderViewportType = LVT_Perspective;
+
 	/** The component of the root actor that is acting as the projection origin. Can be either the root component (stage origin) or a view origin component */
 	TWeakObjectPtr<USceneComponent> ProjectionOriginComponent;
 
@@ -378,6 +397,9 @@ private:
 	/** The render target used to render a map of the screens' normals for the southern hemisphere of the view */
 	FNormalMap SouthNormalMap;
 
+	/** A morphed ico-sphere mesh component that approximates the normal and depth map */
+	TWeakObjectPtr<UProceduralMeshComponent> NormalMapMeshComponent;
+
 	/** Indicates if the cached normal map is invalid and needs to be redrawn */
 	bool bNormalMapInvalid = false;
 
@@ -392,4 +414,7 @@ private:
 
 	/** Multicast delegate that stores callbacks to be invoked the next time the scene is refreshed */
 	FOnNextSceneRefresh OnNextSceneRefreshDelegate;
+
+	/** A flag that disables drawing with the custom projection renderer and instead renders the viewport client with the editor's default renderer */
+	bool bDisableCustomRenderer = false;
 };

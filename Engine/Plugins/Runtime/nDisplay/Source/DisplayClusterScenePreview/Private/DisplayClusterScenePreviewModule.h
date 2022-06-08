@@ -30,6 +30,7 @@ public:
 	virtual bool SetRendererRootActor(int32 RendererId, ADisplayClusterRootActor* Actor, bool bAutoUpdateLightcards = false) override;
 	virtual ADisplayClusterRootActor* GetRendererRootActor(int32 RendererId) override;
 	virtual bool AddActorToRenderer(int32 RendererId, AActor* Actor) override;
+	virtual bool RemoveActorFromRenderer(int32 RendererId, AActor* Actor) override;
 	virtual bool ClearRendererScene(int32 RendererId) override;
 	virtual bool SetRendererActorSelectedDelegate(int32 RendererId, FDisplayClusterMeshProjectionRenderer::FSelection ActorSelectedDelegate) override;
 	virtual bool SetRendererRenderSimpleElementsDelegate(int32 RendererId, FDisplayClusterMeshProjectionRenderer::FSimpleElementPass RenderSimpleElementsDelegate) override;

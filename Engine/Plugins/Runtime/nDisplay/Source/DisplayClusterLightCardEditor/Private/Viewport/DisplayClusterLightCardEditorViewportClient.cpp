@@ -35,9 +35,11 @@
 #include "ImageUtils.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/GameplayStatics.h"
+#include "KismetProceduralMeshLibrary.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "Math/UnrealMathUtility.h"
 #include "PreviewScene.h"
+#include "ProceduralMeshComponent.h"
 #include "RayTracingDebugVisualizationMenuCommands.h"
 #include "Renderer/Private/SceneRendering.h"
 #include "ScopedTransaction.h"
@@ -232,8 +234,8 @@ bool FDisplayClusterLightCardEditorViewportClient::FNormalMap::GetNormalAndDista
 {
 	auto GetPixel = [this](uint32 InX, uint32 InY)
 	{
-		uint32 ClampedX = FMath::Clamp(InX, (uint32)0, SizeX);
-		uint32 ClampedY = FMath::Clamp(InY, (uint32)0, SizeY);
+		uint32 ClampedX = FMath::Clamp(InX, (uint32)0, SizeX - 1);
+		uint32 ClampedY = FMath::Clamp(InY, (uint32)0, SizeY - 1);
 
 		return CachedNormalData[ClampedY * SizeX + ClampedX].GetFloats();
 	};
@@ -283,6 +285,43 @@ bool FDisplayClusterLightCardEditorViewportClient::FNormalMap::GetNormalAndDista
 	}
 }
 
+void FDisplayClusterLightCardEditorViewportClient::FNormalMap::MorphProceduralMesh(UProceduralMeshComponent* InProceduralMeshComponent) const
+{
+	const FVector ViewOrigin = ViewMatrices.GetViewOrigin();
+	const FVector ViewDirection = ViewMatrices.GetViewMatrix().TransformVector(FVector::ZAxisVector);
+	const float MaxAngle = 1.0f / ViewMatrices.GetProjectionMatrix().M[0][0];
+
+	FProcMeshSection& Section = *InProceduralMeshComponent->GetProcMeshSection(0);
+
+
+	for (int32 Index = 0; Index < Section.ProcVertexBuffer.Num(); ++Index)
+	{
+		FProcMeshVertex& Vertex = Section.ProcVertexBuffer[Index];
+
+		const FVector VertexPosition = Vertex.Position;
+		const FVector VertexWorldPosition = VertexPosition + ViewOrigin;
+		const FVector VertexDirection = Vertex.Position.GetSafeNormal();
+		const float VertexAngle = FMath::Acos(VertexDirection | ViewDirection);
+
+		if (VertexAngle < MaxAngle)
+		{
+			FVector Normal;
+			float Depth;
+			GetNormalAndDistanceAtPosition(VertexWorldPosition, Normal, Depth);
+
+			const FVector NewPosition = VertexDirection * Depth;
+			Vertex.Position = NewPosition;
+
+			const FMatrix RadialBasis = FRotationMatrix::MakeFromX(VertexDirection);
+
+			const FVector WorldNormal = RadialBasis.TransformVector(Normal);
+			Vertex.Normal = WorldNormal;
+		}
+	}
+
+	InProceduralMeshComponent->SetProcMeshSection(0, Section);
+}
+
 UTexture2D* FDisplayClusterLightCardEditorViewportClient::FNormalMap::GenerateNormalMapTexture(const FString& TextureName)
 {
 	if (NormalMapTexture.IsValid())
@@ -314,7 +353,7 @@ UTexture2D* FDisplayClusterLightCardEditorViewportClient::FNormalMap::GenerateNo
 //////////////////////////////////////////////////////////////////////////
 // FDisplayClusterLightCardEditorViewportClient
 
-FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorViewportClient(FAdvancedPreviewScene& InPreviewScene,
+FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorViewportClient(FPreviewScene& InPreviewScene,
 	const TWeakPtr<SDisplayClusterLightCardEditorViewport>& InEditorViewportWidget)
 	: FEditorViewportClient(nullptr, &InPreviewScene, InEditorViewportWidget)
 	, LightCardEditorViewportPtr(InEditorViewportWidget)
@@ -365,7 +404,7 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	
 	UpdatePreviewActor(LightCardEditorPtr.Pin()->GetActiveRootActor().Get());
 
-	SetProjectionMode(EDisplayClusterMeshProjectionType::Azimuthal);
+	SetProjectionMode(EDisplayClusterMeshProjectionType::Azimuthal, ELevelViewportType::LVT_Perspective);
 }
 
 FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorViewportClient()
@@ -429,12 +468,12 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 	}
 
 	// EditorViewportClient sets the cursor settings based on the state of the built in FWidget, which isn't being used here, so
-	// force a software cursor if we are dragging an actor so that the correct mouse cursor shows up
+	// force a hardware cursor if we are dragging an actor so that the correct mouse cursor shows up
 	switch (InputMode)
 	{
 	case EInputMode::DraggingActor:
-		SetRequiredCursor(false, true);
-		SetRequiredCursorOverride(true, EMouseCursor::CardinalCross);
+		SetRequiredCursor(true, false);
+		SetRequiredCursorOverride(true, EMouseCursor::GrabHandClosed);
 		break;
 
 	case EInputMode::DrawingLightCard:
@@ -469,6 +508,13 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 	{
 		RenderNormalMap(NorthNormalMap, FVector::UpVector);
 		RenderNormalMap(SouthNormalMap, -FVector::UpVector);
+
+		if (NormalMapMeshComponent.IsValid())
+		{
+			NorthNormalMap.MorphProceduralMesh(NormalMapMeshComponent.Get());
+			SouthNormalMap.MorphProceduralMesh(NormalMapMeshComponent.Get());
+		}
+
 		bNormalMapInvalid = false;
 	}
 
@@ -568,13 +614,20 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 
 	Canvas->Clear(FLinearColor::Black);
 
-	FDisplayClusterScenePreviewRenderSettings RenderSettings;
-	RenderSettings.RenderType = FDisplayClusterScenePreviewRenderSettings::ERenderType::Color;
-	RenderSettings.EngineShowFlags = EngineShowFlags;
-	RenderSettings.ProjectionType = ProjectionMode;
-	GetSceneViewInitOptions(RenderSettings.ViewInitOptions);
+	if (!bDisableCustomRenderer)
+	{
+		FDisplayClusterScenePreviewRenderSettings RenderSettings;
+		RenderSettings.RenderType = FDisplayClusterScenePreviewRenderSettings::ERenderType::Color;
+		RenderSettings.EngineShowFlags = EngineShowFlags;
+		RenderSettings.ProjectionType = ProjectionMode;
+		GetSceneViewInitOptions(RenderSettings.ViewInitOptions);
 
-	IDisplayClusterScenePreview::Get().Render(PreviewRendererId, RenderSettings, *Canvas);
+		IDisplayClusterScenePreview::Get().Render(PreviewRendererId, RenderSettings, *Canvas);
+	}
+	else
+	{
+		GetRendererModule().BeginRenderingViewFamily(Canvas, &ViewFamily);
+	}
 
 	if (View)
 	{
@@ -828,6 +881,16 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(
 		FVector Direction;
 		PixelToWorld(*View, MousePos, Origin, Direction);
 
+		if (RenderViewportType != LVT_Perspective)
+		{
+			// For orthogonal projections, PixelToWorld does not return the view origin or a direction from the view origin. Use TraceScreenRay
+			// to find a useful direction away from the view origin to use
+			const FVector ViewOrigin = View->ViewLocation;
+
+			Direction = TraceScreenRay(Origin, Direction, ViewOrigin);
+			Origin = ViewOrigin;
+		}
+
 		DragWidgetOffset = Direction - (CachedEditorWidgetWorldTransform.GetTranslation() - Origin).GetSafeNormal();
 		LastWidgetMousePos = MousePos;
 	}
@@ -900,14 +963,27 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 	).SetRealtimeUpdate(IsRealtime()));
 
 	FSceneView* View = CalcSceneView(&ViewFamily);
+	const FVector ViewOrigin = View->ViewLocation;
 
-	FVector ViewOrigin;
 	TArray<FVector> MouseWorldDirections; // directions from view origin
+
+	FVector ScreenOrigin;
+	FVector ScreenDirection;
 	MouseWorldDirections.AddUninitialized(MousePositions.Num());
 
 	for (int32 PointIdx = 0; PointIdx < MousePositions.Num(); ++PointIdx)
 	{
-		PixelToWorld(*View, MousePositions[PointIdx], ViewOrigin, MouseWorldDirections[PointIdx]);
+		PixelToWorld(*View, MousePositions[PointIdx], ScreenOrigin, ScreenDirection);
+
+		if (RenderViewportType != LVT_Perspective)
+		{
+			// For orthogonal projections, PixelToWorld does not return the view origin or a direction from the view origin. Use TraceScreenRay
+			// to find a useful direction away from the view origin to use
+
+			ScreenDirection = TraceScreenRay(ScreenOrigin, ScreenDirection, ViewOrigin);
+		}
+
+		MouseWorldDirections[PointIdx] = ScreenDirection;
 	}
 
 	//
@@ -1142,9 +1218,6 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 		return;
 	}
 
-	UWorld* PreviewWorld = PreviewScene->GetWorld();
-	check(PreviewWorld);
-
 	const bool bIsCtrlKeyDown = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
 	const bool bMultiSelect = Key == EKeys::LeftMouseButton && bIsCtrlKeyDown;
 	const bool bIsRightClickSelection = Key == EKeys::RightMouseButton && !bIsCtrlKeyDown && !Viewport->KeyState(EKeys::LeftMouseButton);
@@ -1315,7 +1388,42 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 					ProxyConfig->StageSettings.Lightcard.bEnable = false;
 				}
 
-				RootActorBoundingRadius = 0.5f * RootActorProxy->GetComponentsBoundingBox().GetSize().Length();
+				FBox BoundingBox = RootActorProxy->GetComponentsBoundingBox();
+				RootActorBoundingRadius = FMath::Max(BoundingBox.Min.Length(), BoundingBox.Max.Length());
+
+				// Create the normal map mesh component, which is used to run traces on the generated normal map of the stage
+				{
+					NormalMapMeshComponent = NewObject<UProceduralMeshComponent>(GetTransientPackage(), TEXT("NormalMapMesh"));
+					NormalMapMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+					PreviewScene->AddComponent(NormalMapMeshComponent.Get(), FTransform(ProjectionOriginComponent.Get()->GetComponentLocation()));
+
+					UStaticMesh* IcoSphereMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/nDisplay/Meshes/SM_IcoSphere.SM_IcoSphere"), nullptr, LOAD_None, nullptr);
+
+					if (ensure(IcoSphereMesh))
+					{
+						int32 NumSections = IcoSphereMesh->GetNumSections(0);
+						for (int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
+						{
+							TArray<FVector> Vertices;
+							TArray<int32> Triangles;
+							TArray<FVector> Normals;
+							TArray<FVector2D> UVs;
+							TArray<FProcMeshTangent> Tangents;
+
+							UKismetProceduralMeshLibrary::GetSectionFromStaticMesh(IcoSphereMesh, 0, SectionIndex, Vertices, Triangles, Normals, UVs, Tangents);
+
+							TArray<FVector2D> EmptyUVs;
+							TArray<FLinearColor> EmptyColors;
+							NormalMapMeshComponent.Get()->CreateMeshSection_LinearColor(SectionIndex, Vertices, Triangles, Normals, UVs, EmptyUVs, EmptyUVs, EmptyUVs, EmptyColors, Tangents, true);
+
+							for (int32 Index = 0; Index < IcoSphereMesh->GetStaticMaterials().Num(); ++Index)
+							{
+								UMaterialInterface* MaterialInterface = IcoSphereMesh->GetStaticMaterials()[Index].MaterialInterface;
+								NormalMapMeshComponent.Get()->SetMaterial(Index, MaterialInterface);
+							}
+						}
+					}
+				}
 			}
 
 			// Filter out any primitives hidden in game except screen components
@@ -1407,9 +1515,33 @@ void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms()
 }
 
 void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
-EDisplayClusterLightCardEditorProxyType ProxyType)
+	EDisplayClusterLightCardEditorProxyType ProxyType)
 {
-	IDisplayClusterScenePreview::Get().ClearRendererScene(PreviewRendererId);
+	// Clear the primitives from the scene renderer based on the type of proxy that is being destroyed
+	switch (ProxyType)
+	{
+	case EDisplayClusterLightCardEditorProxyType::RootActor:
+		if (RootActorProxy.IsValid())
+		{
+			IDisplayClusterScenePreview::Get().RemoveActorFromRenderer(PreviewRendererId, RootActorProxy.Get());
+		}
+		break;
+
+	case EDisplayClusterLightCardEditorProxyType::LightCards:
+		for (const FLightCardProxy& LightCardProxy : LightCardProxies)
+		{
+			if (LightCardProxy.Proxy.IsValid())
+			{
+				IDisplayClusterScenePreview::Get().RemoveActorFromRenderer(PreviewRendererId, LightCardProxy.Proxy.Get());
+			}
+		}
+		break;
+
+	case EDisplayClusterLightCardEditorProxyType::All:
+	default:
+		IDisplayClusterScenePreview::Get().ClearRendererScene(PreviewRendererId);
+		break;
+	}
 
 	UWorld* PreviewWorld = PreviewScene->GetWorld();
 	check(PreviewWorld);
@@ -1427,6 +1559,12 @@ EDisplayClusterLightCardEditorProxyType ProxyType)
 		{
 			RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
 			RootActorLevelInstance.Reset();
+		}
+
+		if (NormalMapMeshComponent.IsValid())
+		{
+			PreviewScene->RemoveComponent(NormalMapMeshComponent.Get());
+			NormalMapMeshComponent.Reset();
 		}
 	}
 	
@@ -1460,11 +1598,12 @@ void FDisplayClusterLightCardEditorViewportClient::SelectLightCards(const TArray
 	}
 }
 
-void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode)
+void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode, ELevelViewportType InViewportType)
 {
 	ProjectionMode = InProjectionMode;
+	RenderViewportType = InViewportType;
 
-	if (ProjectionMode == EDisplayClusterMeshProjectionType::Perspective)
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::Linear)
 	{
 		// TODO: Do we want to cache the perspective rotation and restore it when the user switches back?
 		SetViewRotation(FVector::ForwardVector.Rotation());
@@ -1530,7 +1669,7 @@ void FDisplayClusterLightCardEditorViewportClient::ResetCamera(bool bLocationOnl
 		return;
 	}
 	
-	SetProjectionMode(GetProjectionMode());
+	SetProjectionMode(GetProjectionMode(), GetRenderViewportType());
 
 	ResetFOVs();
 }
@@ -1609,7 +1748,18 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCardsToPixel
 	FVector Origin;
 	FVector Direction;
 	PixelToWorld(*View, PixelPos, Origin, Direction);
- 
+
+	if (RenderViewportType != LVT_Perspective)
+	{
+		// For orthogonal projections, PixelToWorld does not return the view origin or a direction from the view origin. Use TraceScreenRay
+		// to find a useful direction away from the view origin to use
+
+		const FVector ViewOrigin = View->ViewLocation;
+
+		Direction = TraceScreenRay(Origin, Direction, ViewOrigin);
+		Origin = ViewOrigin;
+	}
+
 	// Compute desired coordinates (radius doesn't matter here since we will use the flush constraint on the light cards after moving them)
 	const FSphericalCoordinates DesiredCoords(Direction * 100.0f);
 	const FSphericalCoordinates DeltaCoords = DesiredCoords - AverageCoords;
@@ -1683,10 +1833,10 @@ void FDisplayClusterLightCardEditorViewportClient::GetSceneViewInitOptions(FScen
 
 	const float MinZ = GetNearClipPlane();
 	const float MaxZ = MinZ;
-	const float FieldOfView = GetProjectionModeFOV(ProjectionMode);
+	const float FieldOfView = FMath::DegreesToRadians(GetProjectionModeFOV(ProjectionMode));
 
 	// Avoid zero ViewFOV's which cause divide by zero's in projection matrix
-	const float MatrixFOV = FMath::Max(0.001f, FieldOfView) * (float)PI / 360.0f;
+	const float HalfFOV = FMath::Max(0.5f * FieldOfView, 0.001f);
 
 	float XAxisMultiplier;
 	float YAxisMultiplier;
@@ -1706,27 +1856,59 @@ void FDisplayClusterLightCardEditorViewportClient::GetSceneViewInitOptions(FScen
 		YAxisMultiplier = 1.0f;
 	}
 
-	if ((bool)ERHIZBuffer::IsInverted)
+	if (RenderViewportType == LVT_Perspective)
 	{
-		ViewInitOptions.ProjectionMatrix = FReversedZPerspectiveMatrix(
-			MatrixFOV,
-			MatrixFOV,
-			XAxisMultiplier,
-			YAxisMultiplier,
-			MinZ,
-			MaxZ
+		if ((bool)ERHIZBuffer::IsInverted)
+		{
+			ViewInitOptions.ProjectionMatrix = FReversedZPerspectiveMatrix(
+				HalfFOV,
+				HalfFOV,
+				XAxisMultiplier,
+				YAxisMultiplier,
+				MinZ,
+				MaxZ
 			);
+		}
+		else
+		{
+			ViewInitOptions.ProjectionMatrix = FPerspectiveMatrix(
+				HalfFOV,
+				HalfFOV,
+				XAxisMultiplier,
+				YAxisMultiplier,
+				MinZ,
+				MaxZ
+			);
+		}
 	}
 	else
 	{
-		ViewInitOptions.ProjectionMatrix = FPerspectiveMatrix(
-			MatrixFOV,
-			MatrixFOV,
-			XAxisMultiplier,
-			YAxisMultiplier,
-			MinZ,
-			MaxZ
+		const float ZScale = 0.5f / HALF_WORLD_MAX;
+		const float ZOffset = HALF_WORLD_MAX;
+
+		const float FOVScale = FMath::Tan(HalfFOV) / GetDPIScale();
+
+		const float OrthoWidth = 0.5f * FOVScale * ViewportSize.X;
+		const float OrthoHeight = 0.5f * FOVScale * ViewportSize.Y;
+
+		if ((bool)ERHIZBuffer::IsInverted)
+		{
+			ViewInitOptions.ProjectionMatrix = FReversedZOrthoMatrix(
+				OrthoWidth,
+				OrthoHeight,
+				ZScale,
+				ZOffset
 			);
+		}
+		else
+		{
+			ViewInitOptions.ProjectionMatrix = FOrthoMatrix(
+				OrthoWidth,
+				OrthoHeight,
+				ZScale,
+				ZOffset
+			);
+		}
 	}
 
 	if (!ViewInitOptions.IsValidViewRectangle())
@@ -1741,10 +1923,6 @@ void FDisplayClusterLightCardEditorViewportClient::GetSceneViewInitOptions(FScen
 	ViewInitOptions.BackgroundColor = GetBackgroundColor();
 
 	ViewInitOptions.EditorViewBitflag = (uint64)1 << ViewIndex, // send the bit for this view - each actor will check it's visibility bits against this
-
-	// for ortho views to steal perspective view origin
-	ViewInitOptions.OverrideLODViewOrigin = FVector::ZeroVector;
-	ViewInitOptions.bUseFauxOrthoViewPos = true;
 
 	ViewInitOptions.FOV = FieldOfView;
 	ViewInitOptions.OverrideFarClippingPlaneDistance = GetFarClipPlaneOverride();
@@ -2026,9 +2204,6 @@ void FDisplayClusterLightCardEditorViewportClient::VerifyAndFixLightCardOrigin(A
 
 void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis)
 {
-	FIntPoint MousePos;
-	InViewport->GetMousePos(MousePos);
-
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		InViewport,
 		GetScene(),
@@ -2037,10 +2212,6 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 	);
 
 	FSceneView* View = CalcSceneView(&ViewFamily);
-
-	FVector Origin;
-	FVector Direction;
-	PixelToWorld(*View, MousePos, Origin, Direction);
 
 	const TWeakObjectPtr<ADisplayClusterLightCardActor>& LastSelectedLightCard = SelectedLightCards.Last();
 
@@ -2204,6 +2375,17 @@ FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClus
 	FVector Direction;
 	PixelToWorld(*View, MousePos, Origin, Direction);
 
+	if (RenderViewportType != LVT_Perspective)
+	{
+		// For orthogonal projections, PixelToWorld does not return the view origin or a direction from the view origin. Use TraceScreenRay
+		// to find a useful direction away from the view origin to use
+
+		const FVector ViewOrigin = View->ViewLocation;
+
+		Direction = TraceScreenRay(Origin, Direction, ViewOrigin);
+		Origin = ViewOrigin;
+	}
+
 	Direction = (Direction - DragWidgetOffset).GetSafeNormal();
 
 	const FVector LocalDirection = LightCard->GetActorRotation().RotateVector(Direction);
@@ -2318,7 +2500,9 @@ FVector2D FDisplayClusterLightCardEditorViewportClient::GetLightCardScaleDelta(F
 	const FVector LightCardSize3D = LightCard->GetLightCardBounds(bLocalSpace).GetSize();
 	const FVector2D SizeToScale = FVector2D((CurrentAxis & EAxisList::X) * LightCardSize3D.Y, (CurrentAxis & EAxisList::Y) * LightCardSize3D.Z);
 	const double DistanceFromCamera = FMath::Max(FVector::Dist(WorldWidgetOrigin, View->ViewMatrices.GetViewOrigin()), 1.0f);
-	const double ScreenSize = View->ViewMatrices.GetScreenScale() * SizeToScale.Length() / DistanceFromCamera;
+	const double ScreenSize = RenderViewportType == LVT_Perspective 
+		? View->ViewMatrices.GetScreenScale() * SizeToScale.Length() / DistanceFromCamera 
+		: SizeToScale.Length() * View->ViewMatrices.GetProjectionMatrix().M[0][0] * View->UnscaledViewRect.Width();
 
 	// Compute the scale delta as s' - s = 2d / h_0
 	const double ScaleMagnitude = 2.0f * (ScaleDir | DragDir) / ScreenSize;
@@ -2406,6 +2590,89 @@ FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClus
 	return LightCardCoords;
 }
 
+bool FDisplayClusterLightCardEditorViewportClient::TraceStage(const FVector& RayStart, const FVector& RayEnd, FVector& OutHitLocation) const
+{
+	UWorld* PreviewWorld = PreviewScene->GetWorld();
+	check(PreviewWorld);
+
+	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(DisplayClusterStageTrace), true);
+
+	for (const FLightCardProxy& ProxyRef : LightCardProxies)
+	{
+		if (ProxyRef.Proxy.IsValid())
+		{
+			TraceParams.AddIgnoredActor(ProxyRef.Proxy.Get());
+		}
+	}
+
+	TraceParams.AddIgnoredComponent(NormalMapMeshComponent.Get());
+
+	FHitResult HitResult;
+	if (PreviewWorld->LineTraceSingleByObjectType(HitResult, RayStart, RayEnd, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), TraceParams))
+	{
+		// If the actor we hit was the stage root actor, return the hit location.
+		if (RootActorProxy.Get() == HitResult.GetActor())
+		{
+			OutHitLocation = HitResult.Location;
+			return true;
+		}
+	}
+
+	OutHitLocation = FVector::ZeroVector;
+	return false;
+}
+
+FVector FDisplayClusterLightCardEditorViewportClient::TraceScreenRay(const FVector& OrthogonalOrigin, const FVector& OrthogonalDirection, const FVector& ViewOrigin)
+{
+	const FVector RayStart = OrthogonalOrigin;
+	const FVector RayEnd = OrthogonalOrigin + OrthogonalDirection * WORLD_MAX;
+
+	FVector Direction = FVector::ZeroVector;
+
+	// First, trace against the stage actor to see if the screen ray hits it; if so, simply return the direction from the view origin to this hit point
+	FVector HitLocation = FVector::ZeroVector;
+	if (TraceStage(RayStart, RayEnd, HitLocation))
+	{
+		Direction = (HitLocation - ViewOrigin).GetSafeNormal();
+	}
+	else
+	{
+		// If we didn't hit any stage geometry, try to trace against the normal map mesh. Procedural meshes does not appear to handle inward pointing normals correctly,
+		// so we need to reverse the trace start and end locations to get a useful hit result
+
+		UWorld* PreviewWorld = PreviewScene->GetWorld();
+		check(PreviewWorld);
+
+		FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(DisplayClusterStageTrace), true);
+
+		for (const FLightCardProxy& ProxyRef : LightCardProxies)
+		{
+			if (ProxyRef.Proxy.IsValid())
+			{
+				TraceParams.AddIgnoredActor(ProxyRef.Proxy.Get());
+			}
+		}
+
+		TraceParams.AddIgnoredActor(RootActorProxy.Get());
+
+		FHitResult HitResult;
+		if (PreviewWorld->LineTraceSingleByObjectType(HitResult, RayEnd, RayStart, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), TraceParams))
+		{
+			HitLocation = HitResult.Location;
+			Direction = (HitLocation - ViewOrigin).GetSafeNormal();
+		}
+		else
+		{
+			// If the screen ray does not hit the stage or the normal map mesh, then simply use the closest point on the ray to the view origin
+			const FVector ClosestPoint = OrthogonalOrigin + ((ViewOrigin - OrthogonalOrigin) | OrthogonalDirection) * OrthogonalDirection;
+
+			Direction = (ClosestPoint - ViewOrigin).GetSafeNormal();
+		}
+	}
+
+	return Direction;
+}
+
 ADisplayClusterLightCardActor* FDisplayClusterLightCardEditorViewportClient::TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY)
 {
 	UWorld* PreviewWorld = PreviewScene->GetWorld();
@@ -2416,13 +2683,15 @@ ADisplayClusterLightCardActor* FDisplayClusterLightCardEditorViewportClient::Tra
 	PixelToWorld(View, FIntPoint(HitX, HitY), Origin, Direction);
 
 	const FVector CursorRayStart = Origin;
-	const FVector CursorRayEnd = CursorRayStart + Direction * HALF_WORLD_MAX;
+	const FVector CursorRayEnd = CursorRayStart + Direction * (RenderViewportType == LVT_Perspective ? HALF_WORLD_MAX : WORLD_MAX);
 
-	FCollisionQueryParams Param(SCENE_QUERY_STAT(DragDropTrace), true);
+	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(LightCardTrace), true);
+
+	TraceParams.AddIgnoredComponent(NormalMapMeshComponent.Get());
 
 	bool bHitLightCard = false;
 	FHitResult ScreenHitResult;
-	if (PreviewWorld->LineTraceSingleByObjectType(ScreenHitResult, CursorRayStart, CursorRayEnd, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), Param))
+	if (PreviewWorld->LineTraceSingleByObjectType(ScreenHitResult, CursorRayStart, CursorRayEnd, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), TraceParams))
 	{
 		if (AActor* HitActor = ScreenHitResult.GetActor())
 		{
@@ -2449,7 +2718,7 @@ ADisplayClusterLightCardActor* FDisplayClusterLightCardEditorViewportClient::Tra
 						const FVector ViewOriginRayEnd = ViewOriginRayStart + (ScreenHitResult.Location - ViewOriginRayStart) * HALF_WORLD_MAX;
 
 						TArray<FHitResult> HitResults;
-						if (PreviewWorld->LineTraceMultiByObjectType(HitResults, ViewOriginRayStart, ViewOriginRayEnd, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), Param))
+						if (PreviewWorld->LineTraceMultiByObjectType(HitResults, ViewOriginRayStart, ViewOriginRayEnd, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), TraceParams))
 						{
 							for (FHitResult& HitResult : HitResults)
 							{
@@ -2487,11 +2756,23 @@ void FDisplayClusterLightCardEditorViewportClient::PixelToWorld(const FSceneView
 	const FMatrix& InvViewMatrix = View.ViewMatrices.GetInvViewMatrix();
 
 	const FVector4 ScreenPos = View.PixelToScreen(PixelPos.X, PixelPos.Y, 0);
-	const FVector ViewPos = FVector(InvProjMatrix.TransformFVector4(FVector4(ScreenPos.X * GNearClippingPlane, ScreenPos.Y * GNearClippingPlane, 0.0f, GNearClippingPlane)));
+	const FVector4 HomogeneousPos = RenderViewportType == LVT_Perspective
+		? FVector4(ScreenPos.X * GNearClippingPlane, ScreenPos.Y * GNearClippingPlane, 0.0f, GNearClippingPlane)
+		: FVector4(ScreenPos.X, ScreenPos.Y, 1.0f, 1.0f);
+
+	const FVector ViewPos = FVector(InvProjMatrix.TransformFVector4(HomogeneousPos));
 	const FVector UnprojectedViewPos = FDisplayClusterMeshProjectionRenderer::UnprojectViewPosition(ViewPos, ProjectionMode);
 
-	OutOrigin = View.ViewMatrices.GetViewOrigin();
-	OutDirection = InvViewMatrix.TransformVector(UnprojectedViewPos).GetSafeNormal();
+	if (RenderViewportType == LVT_Perspective)
+	{
+		OutOrigin = View.ViewMatrices.GetViewOrigin();
+		OutDirection = InvViewMatrix.TransformVector(UnprojectedViewPos).GetSafeNormal();
+	}
+	else
+	{
+		OutOrigin = InvViewMatrix.TransformFVector4(UnprojectedViewPos);
+		OutDirection = InvViewMatrix.TransformVector(FVector(0, 0, 1)).GetSafeNormal();
+	}
 }
 
 bool FDisplayClusterLightCardEditorViewportClient::WorldToPixel(const FSceneView& View, const FVector& WorldPos, FVector2D& OutPixelPos) const
@@ -2687,7 +2968,7 @@ void FDisplayClusterLightCardEditorViewportClient::ResetFOVs()
 	{
 		ProjectionFOVs.AddDefaulted(MaxFOVs - ProjectionFOVs.Num());
 	}
-	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::Perspective)] = 90.0f;
+	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::Linear)] = 90.0f;
 	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::Azimuthal)] = 130.0f;
 }
 

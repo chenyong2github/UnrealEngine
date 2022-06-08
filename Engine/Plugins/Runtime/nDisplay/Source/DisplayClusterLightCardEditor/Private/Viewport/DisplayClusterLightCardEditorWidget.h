@@ -8,8 +8,8 @@
 #include "DisplayClusterMeshProjectionRenderer.h"
 
 class FSceneView;
-class FEditorViewportClient;
 class FPrimitiveDrawInterface;
+class FDisplayClusterLightCardEditorViewportClient;
 
 /** Widget used to manipulate entities in the light card editor's viewport */
 class FDisplayClusterLightCardEditorWidget
@@ -50,7 +50,7 @@ public:
 		WM_Max
 	};
 
-	void Draw(const FSceneView* View, const FEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* PDI);
+	void Draw(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* PDI);
 
 	EWidgetMode GetWidgetMode() const { return WidgetMode; }
 	void SetWidgetMode(EWidgetMode NewWidgetMode) { WidgetMode = NewWidgetMode; }
@@ -62,10 +62,10 @@ public:
 
 private:
 	/** Draws the specified axis to the PDI, sizing and coloring it appropriately */
-	void DrawAxis(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar);
+	void DrawAxis(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar, float OrthoScalar);
 
 	/** Draws the widget origin to the PDI, sizing and coloring it appropriately */
-	void DrawOrigin(FPrimitiveDrawInterface* PDI, float SizeScalar);
+	void DrawOrigin(FPrimitiveDrawInterface* PDI, float SizeScalar, float OrthoScalar);
 
 	void DrawCircle(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar);
 
@@ -76,10 +76,10 @@ private:
 	FLinearColor GetAxisColor(EAxisList::Type Axis) const;
 
 	/** Calculates a scalar to use to keep lengths and lines a fixed size on the screen regardless of DPI, viewport size, FOV, or distance from the view origin */
-	float GetLengthScreenScalar(const FSceneView* View, const FEditorViewportClient* ViewportClient, const FVector& Origin) const;
+	float GetLengthScreenScalar(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient, const FVector& Origin) const;
 
 	/** Calculates a scalar to use to keep sizes a fixed size on the screen regardless of DPI, viewport size, FOV, or distance from the view origin */
-	float GetSizeScreenScalar(const FSceneView* View, const FEditorViewportClient* ViewportClient) const;
+	float GetSizeScreenScalar(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient) const;
 
 private:
 	/** The current mode the widget is in */

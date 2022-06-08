@@ -20,6 +20,14 @@ class FDisplayClusterLightCardEditorViewportClient;
 class SDisplayClusterLightCardEditorViewport : public SEditorViewport, public ICommonEditorViewportToolbarInfoProvider
 {
 public:
+	static const FVector ViewDirectionTop;
+	static const FVector ViewDirectionBottom;
+	static const FVector ViewDirectionLeft;
+	static const FVector ViewDirectionRight;
+	static const FVector ViewDirectionFront;
+	static const FVector ViewDirectionBack;
+
+public:
 	SLATE_BEGIN_ARGS(SDisplayClusterLightCardEditorViewport) {}
 	SLATE_END_ARGS()
 
@@ -56,12 +64,23 @@ private:
 	/** Create the popup context menu */
 	TSharedRef<SWidget> MakeContextMenu();
 
+	/** Sets the widget mode for the editor viewport to the specified mode */
 	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode);
+
+	/** Returns true if the widget mode of the editor viewport matches the specified mode */
 	bool IsEditorWidgetModeSelected(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode) const;
+
+	/** Cycles the widget mode of the editor viewport */
 	void CycleEditorWidgetMode();
 
-	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode);
-	bool IsProjectionModeSelected(EDisplayClusterMeshProjectionType InProjectionMode) const;
+	/** Sets the projection mode and viewport type of the editor viewport */
+	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode, ELevelViewportType InViewportType);
+
+	/** Returns true if the editor viewport's projection mode and viewport type match the specified parameters */
+	bool IsProjectionModeSelected(EDisplayClusterMeshProjectionType InProjectionMode, ELevelViewportType InViewportType) const;
+
+	/** Sets the direction of the editor viewport */
+	void SetViewDirection(FVector InViewDirection);
 
 	/** Handles the Draw LC button being pressed. */
 	void DrawLightCard();
@@ -76,8 +95,8 @@ private:
 	bool CanPasteLightCardsHere() const;
 
 private:
-	/** Preview Scene - uses advanced preview settings */
-	TSharedPtr<FAdvancedPreviewScene> AdvancedPreviewScene;
+	/** The preview scene to use by the viewport client to manage the preview 3D world */
+	TSharedPtr<FPreviewScene> PreviewScene;
 	
 	/** Level viewport client */
 	TSharedPtr<FDisplayClusterLightCardEditorViewportClient> ViewportClient;

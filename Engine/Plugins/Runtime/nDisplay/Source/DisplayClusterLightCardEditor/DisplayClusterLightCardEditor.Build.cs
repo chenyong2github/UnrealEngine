@@ -25,6 +25,7 @@ public class DisplayClusterLightCardEditor : ModuleRules
 				"InputCore",
 				"OpenCV",
 				"OpenCVHelper",
+				"ProceduralMeshComponent",
 				"PropertyEditor",
 				"RenderCore",
 				"Renderer",

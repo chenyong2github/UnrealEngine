@@ -26,7 +26,15 @@ public:
 	TSharedPtr<FUICommandInfo> ResetCamera;
 
 	TSharedPtr<FUICommandInfo> PerspectiveProjection;
+	TSharedPtr<FUICommandInfo> OrthographicProjection;
 	TSharedPtr<FUICommandInfo> AzimuthalProjection;
+
+	TSharedPtr<FUICommandInfo> ViewOrientationTop;
+	TSharedPtr<FUICommandInfo> ViewOrientationBottom;
+	TSharedPtr<FUICommandInfo> ViewOrientationLeft;
+	TSharedPtr<FUICommandInfo> ViewOrientationRight;
+	TSharedPtr<FUICommandInfo> ViewOrientationFront;
+	TSharedPtr<FUICommandInfo> ViewOrientationBack;
 
 	TSharedPtr<FUICommandInfo> AddNewLightCard;
 	TSharedPtr<FUICommandInfo> AddExistingLightCard;

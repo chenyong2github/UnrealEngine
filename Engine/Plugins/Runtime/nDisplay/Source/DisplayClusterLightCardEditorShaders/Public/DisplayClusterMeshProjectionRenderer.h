@@ -18,7 +18,7 @@ struct FEngineShowFlags;
 enum DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API EDisplayClusterMeshProjectionType
 {
 	/** Default linear projection */
-	Perspective,
+	Linear,
 
 	/** Non-linear spherical projection based on the azimuthal equidistant map projection */
 	Azimuthal
@@ -41,7 +41,7 @@ class DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionTran
 {
 public:
 	FDisplayClusterMeshProjectionTransform()
-		: FDisplayClusterMeshProjectionTransform(EDisplayClusterMeshProjectionType::Perspective, FMatrix::Identity)
+		: FDisplayClusterMeshProjectionTransform(EDisplayClusterMeshProjectionType::Linear, FMatrix::Identity)
 	{ }
 
 	FDisplayClusterMeshProjectionTransform(EDisplayClusterMeshProjectionType InProjection, const FMatrix& InViewMatrix)
