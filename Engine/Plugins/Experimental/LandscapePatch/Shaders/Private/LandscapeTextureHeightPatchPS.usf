@@ -10,7 +10,12 @@
 //#define APPLY_LANDSCAPE_PATCH 1
 //#define OFFSET_LANDSCAPE_PATCH 1
 //#define SIMPLE_TEXTURE_COPY 1
+//#define CONVERT_TO_NATIVE_LANDSCAPE_PATCH 1
+//#define CONVERT_BACK_FROM_NATIVE_LANDSCAPE_PATCH 1
 #endif // defined (__INTELLISENSE__)
+
+// This constant gets used in multiple shaders, hence it's out here.
+static const float LANDSCAPE_MID_VALUE = 32768.0f;
 
 #if APPLY_LANDSCAPE_PATCH
 Texture2D<float4> InSourceHeightmap;
@@ -18,23 +23,29 @@ Texture2D<float4> InHeightPatch;
 SamplerState InHeightPatchSampler;
 float4x4 InHeightmapToPatch;
 float2 InPatchWorldDimensions;
-float InPatchBaseHeight;
 float2 InEdgeUVDeadBorder;
 float InFalloffWorldMargin;
+// Value that corresponds to 0 (i.e. to LANDSCAPE_MID_VALUE) in the patch data
+float InZeroInEncoding;
+// Scale to apply to patch values relative to the value representing zero
 float InHeightScale;
-// When false, falloff is circular. When true, it is rectangular.
-uint bRectangularFalloff;
-// When true, the texture alpha channel is considered for blending (in addition to falloff, if any)
-uint bApplyPatchAlpha;
-// When true, the patch stored height is interpreted relative to landscape mid value and applied to
-// the landscape, instead of alpha blending with the landscape.
-uint bAdditiveMode;
+// An offset to apply to the resulting height, after applying the height scale
+float InHeightOffset;
+// A combination of flags, whose positions are set in the corresponding cpp file.
+uint InFlags;
+
 
 void ApplyLandscapeTextureHeightPatch(in float4 SVPos : SV_POSITION, out float2 OutColor : SV_Target0)
 {
 	static const float HALF_PI = 3.14159265f / 2;
-	static const float LANDSCAPE_MID_VALUE = 32768.0f;
 	static const float FLOAT_TOLERANCE = 0.0001;
+	
+	// Unpack our flags. The flag choices are set in FApplyLandscapeTextureHeightPatchPS::ModifyCompilationEnvironment
+	// so that they match to the cpp file
+	bool bRectangularFalloff = InFlags & RECTANGULAR_FALLOFF_FLAG;
+	bool bApplyPatchAlpha = InFlags & APPLY_PATCH_ALPHA_FLAG;
+	bool bAdditiveMode = InFlags & ADDITIVE_MODE_FLAG;
+	bool bInputIsPackedHeight = InFlags & INPUT_IS_PACKED_HEIGHT_FLAG;
 	
 	// We need only the 2D affine transformation that goes from landscape XY heightmap integer coordinates
 	// to patch UV coordinates.
@@ -43,12 +54,9 @@ void ApplyLandscapeTextureHeightPatch(in float4 SVPos : SV_POSITION, out float2 
 	
 	float2 PatchUVCoordinates = mul(HeightmapToPatchRotateScale, SVPos.xy) + HeightmapToPatchTranslate;
 	float4 PatchSampledValue = InHeightPatch.Sample(InHeightPatchSampler, PatchUVCoordinates);
-	float PatchStoredHeight = UnpackHeight(PatchSampledValue.xy);
-	if (bAdditiveMode)
-	{
-		PatchStoredHeight -= LANDSCAPE_MID_VALUE;
-	}
-	float PatchHeight = InHeightScale * PatchStoredHeight + InPatchBaseHeight;
+	float PatchStoredHeight = bInputIsPackedHeight ? UnpackHeight(PatchSampledValue.xy) : PatchSampledValue.x;
+	
+	float PatchSignedHeight = InHeightScale * (PatchStoredHeight - InZeroInEncoding) + InHeightOffset;
 	
 	int2 HeightmapCoordinates = floor(SVPos.xy);
 	float4 CurrentPackedHeight = InSourceHeightmap.Load(int3(HeightmapCoordinates, 0));
@@ -113,11 +121,11 @@ void ApplyLandscapeTextureHeightPatch(in float4 SVPos : SV_POSITION, out float2 
 	float NewHeight = 0;
 	if (bAdditiveMode)
 	{
-		NewHeight = CurrentHeight + Alpha * PatchHeight;
+		NewHeight = CurrentHeight + Alpha * PatchSignedHeight;
 	}
 	else
 	{
-		NewHeight = lerp(CurrentHeight, PatchHeight, Alpha);
+		NewHeight = lerp(CurrentHeight, LANDSCAPE_MID_VALUE + PatchSignedHeight, Alpha);
 	}
 	
 	OutColor = PackHeight(NewHeight);
@@ -130,10 +138,39 @@ float InHeightOffset;
 
 void ApplyOffsetToHeightmap(in float4 SVPos : SV_POSITION, out float2 OutColor : SV_Target0)
 {
-	float StoredHeight = UnpackHeight(InHeightmap.Load(int3(SVPos.xy, 0)));
+	float StoredHeight = UnpackHeight(InHeightmap.Load(int3(SVPos.xy, 0)).xy);
 	OutColor = PackHeight(StoredHeight + InHeightOffset);
 }
 #endif // OFFSET_LANDSCAPE_PATCH
+
+#if CONVERT_TO_NATIVE_LANDSCAPE_PATCH
+Texture2D<float4> InHeightmap;
+float InZeroInEncoding;
+float InHeightScale;
+float InHeightOffset;
+
+void ConvertToNativeLandscapePatch(in float4 SVPos : SV_POSITION, out float2 OutColor : SV_Target0)
+{
+	float StoredHeight = InHeightmap.Load(int3(SVPos.xy, 0)).x;
+	// Apply the same kinds of transformations that we would apply for alpha blend mode in ApplyLandscapeTextureHeightPatch
+	OutColor = PackHeight(InHeightScale * (StoredHeight - InZeroInEncoding) + InHeightOffset + LANDSCAPE_MID_VALUE);
+}
+#endif // CONVERT_TO_NATIVE_LANDSCAPE_PATCH
+
+#if CONVERT_BACK_FROM_NATIVE_LANDSCAPE_PATCH
+Texture2D<float4> InHeightmap;
+float InZeroInEncoding;
+float InHeightScale;
+float InHeightOffset;
+
+void ConvertBackFromNativeLandscapePatch(in float4 SVPos : SV_POSITION, out float OutColor : SV_Target0)
+{
+	float StoredHeight = UnpackHeight(InHeightmap.Load(int3(SVPos.xy, 0)).xy);
+	// Undo the transformation we do in ConvertToNativeLandscapePatch
+	OutColor = InHeightScale ? (StoredHeight - LANDSCAPE_MID_VALUE - InHeightOffset) / InHeightScale + InZeroInEncoding
+		: InZeroInEncoding;
+}
+#endif // CONVERT_BACK_FROM_NATIVE_LANDSCAPE_PATCH
 
 #if SIMPLE_TEXTURE_COPY
 Texture2D<float4> InSource;

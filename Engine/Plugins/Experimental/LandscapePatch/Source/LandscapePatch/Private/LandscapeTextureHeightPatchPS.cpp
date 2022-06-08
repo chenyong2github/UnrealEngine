@@ -16,6 +16,12 @@ bool FApplyLandscapeTextureHeightPatchPS::ShouldCompilePermutation(const FGlobal
 void FApplyLandscapeTextureHeightPatchPS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	OutEnvironment.SetDefine(TEXT("APPLY_LANDSCAPE_PATCH"), 1);
+
+	// Make our flag choices match in the shader.
+	OutEnvironment.SetDefine(TEXT("RECTANGULAR_FALLOFF_FLAG"), static_cast<uint8>(FApplyLandscapeTextureHeightPatchPS::EFlags::RectangularFalloff));
+	OutEnvironment.SetDefine(TEXT("APPLY_PATCH_ALPHA_FLAG"), static_cast<uint8>(FApplyLandscapeTextureHeightPatchPS::EFlags::ApplyPatchAlpha));
+	OutEnvironment.SetDefine(TEXT("ADDITIVE_MODE_FLAG"), static_cast<uint8>(FApplyLandscapeTextureHeightPatchPS::EFlags::AdditiveMode));
+	OutEnvironment.SetDefine(TEXT("INPUT_IS_PACKED_HEIGHT_FLAG"), static_cast<uint8>(FApplyLandscapeTextureHeightPatchPS::EFlags::InputIsPackedHeight));
 }
 
 void FApplyLandscapeTextureHeightPatchPS::AddToRenderGraph(FRDGBuilder& GraphBuilder, FParameters* InParameters, const FIntRect& DestinationBounds)
@@ -91,8 +97,80 @@ void FSimpleTextureCopyPS::AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextu
 		FIntRect(0, 0, DestinationSize.X, DestinationSize.Y));
 }
 
+bool FConvertToNativeLandscapePatchPS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	return DoesPlatformSupportEditLayers(Parameters.Platform);
+}
+
+void FConvertToNativeLandscapePatchPS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	OutEnvironment.SetDefine(TEXT("CONVERT_TO_NATIVE_LANDSCAPE_PATCH"), 1);
+}
+
+void FConvertToNativeLandscapePatchPS::AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture, 
+	FRDGTextureRef DestinationTexture, const FConvertToNativeLandscapePatchParams& Params)
+{
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	TShaderMapRef<FConvertToNativeLandscapePatchPS> PixelShader(ShaderMap);
+
+	FRDGTextureSRVRef SourceSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(SourceTexture, 0));
+
+	FConvertToNativeLandscapePatchPS::FParameters* ShaderParams = GraphBuilder.AllocParameters<FConvertToNativeLandscapePatchPS::FParameters>();
+	ShaderParams->InHeightmap = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(SourceTexture, 0));
+	ShaderParams->InZeroInEncoding = Params.ZeroInEncoding;
+	ShaderParams->InHeightScale = Params.HeightScale;
+	ShaderParams->InHeightOffset = Params.HeightOffset;
+	ShaderParams->RenderTargets[0] = FRenderTargetBinding(DestinationTexture, ERenderTargetLoadAction::ENoAction, /*InMipIndex = */0);
+	FIntVector DestinationSize = DestinationTexture->Desc.GetSize();
+
+	FPixelShaderUtils::AddFullscreenPass(
+		GraphBuilder,
+		ShaderMap,
+		RDG_EVENT_NAME("ConvertToNativeLandscapePatch"),
+		PixelShader,
+		ShaderParams,
+		FIntRect(0, 0, DestinationSize.X, DestinationSize.Y));
+}
+
+bool FConvertBackFromNativeLandscapePatchPS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	return DoesPlatformSupportEditLayers(Parameters.Platform);
+}
+
+void FConvertBackFromNativeLandscapePatchPS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	OutEnvironment.SetDefine(TEXT("CONVERT_BACK_FROM_NATIVE_LANDSCAPE_PATCH"), 1);
+}
+
+void FConvertBackFromNativeLandscapePatchPS::AddToRenderGraph(FRDGBuilder& GraphBuilder, FRDGTextureRef SourceTexture,
+	FRDGTextureRef DestinationTexture, const FConvertToNativeLandscapePatchParams& Params)
+{
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	TShaderMapRef<FConvertBackFromNativeLandscapePatchPS> PixelShader(ShaderMap);
+
+	FRDGTextureSRVRef SourceSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(SourceTexture, 0));
+
+	FConvertBackFromNativeLandscapePatchPS::FParameters* ShaderParams = GraphBuilder.AllocParameters<FConvertBackFromNativeLandscapePatchPS::FParameters>();
+	ShaderParams->InHeightmap = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(SourceTexture, 0));
+	ShaderParams->InZeroInEncoding = Params.ZeroInEncoding;
+	ShaderParams->InHeightScale = Params.HeightScale;
+	ShaderParams->InHeightOffset = Params.HeightOffset;
+	ShaderParams->RenderTargets[0] = FRenderTargetBinding(DestinationTexture, ERenderTargetLoadAction::ENoAction, /*InMipIndex = */0);
+	FIntVector DestinationSize = DestinationTexture->Desc.GetSize();
+
+	FPixelShaderUtils::AddFullscreenPass(
+		GraphBuilder,
+		ShaderMap,
+		RDG_EVENT_NAME("ConvertBackFromNativeLandscapePatch"),
+		PixelShader,
+		ShaderParams,
+		FIntRect(0, 0, DestinationSize.X, DestinationSize.Y));
+}
+
 }//end UE::Landscape
 
 IMPLEMENT_GLOBAL_SHADER(UE::Landscape::FApplyLandscapeTextureHeightPatchPS, "/Plugin/LandscapePatch/Private/LandscapeTextureHeightPatchPS.usf", "ApplyLandscapeTextureHeightPatch", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(UE::Landscape::FOffsetHeightmapPS, "/Plugin/LandscapePatch/Private/LandscapeTextureHeightPatchPS.usf", "ApplyOffsetToHeightmap", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(UE::Landscape::FSimpleTextureCopyPS, "/Plugin/LandscapePatch/Private/LandscapeTextureHeightPatchPS.usf", "SimpleTextureCopy", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(UE::Landscape::FConvertToNativeLandscapePatchPS, "/Plugin/LandscapePatch/Private/LandscapeTextureHeightPatchPS.usf", "ConvertToNativeLandscapePatch", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(UE::Landscape::FConvertBackFromNativeLandscapePatchPS, "/Plugin/LandscapePatch/Private/LandscapeTextureHeightPatchPS.usf", "ConvertBackFromNativeLandscapePatch", SF_Pixel);

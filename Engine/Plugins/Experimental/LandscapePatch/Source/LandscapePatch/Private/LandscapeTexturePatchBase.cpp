@@ -7,6 +7,13 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Landscape.h"
 
+void ULandscapeTexturePatchBase::SetTextureAsset(UTexture* TextureIn)
+{
+	ensureMsgf(!TextureIn || TextureIn->VirtualTextureStreaming == 0, 
+		TEXT("ULandscapeTexturePatchBase::SetTextureAsset: Virtual textures are not supported."));
+	TextureAsset = TextureIn; 
+}
+
 FTransform ULandscapeTexturePatchBase::GetPatchToWorldTransform() const
 {
 	FTransform PatchToWorld = GetComponentTransform();

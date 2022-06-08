@@ -58,7 +58,7 @@ public:
 
 	// These need to be public so that we can take the internal texture and write it to an external one
 	UTexture2D* GetInternalTexture() { return InternalTexture; }
-	void SetTextureAsset(UTexture* TextureIn) { TextureAsset = TextureIn; }
+	void SetTextureAsset(UTexture* TextureIn);
 
 	virtual ELandscapeTexturePatchSourceMode GetSourceMode() const { return SourceMode; }
 	/**
@@ -138,7 +138,8 @@ protected:
 	 * Texture used when source mode is set to a texture asset, or for intializing from a texture asset.
 	 */
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditConditionHides, DisplayPriority = 20, DisplayName = "Texture Asset", 
-		EditCondition = "SourceMode == ELandscapeTexturePatchSourceMode::TextureAsset || bShowTextureAssetProperty"))
+		EditCondition = "SourceMode == ELandscapeTexturePatchSourceMode::TextureAsset || bShowTextureAssetProperty", 
+		DisallowedAssetDataTags = "VirtualTextureStreaming=True"))
 	TObjectPtr<UTexture> TextureAsset = nullptr;
 
 	/** At scale 1.0, the X and Y of the region affected by the height patch. This corresponds to the distance from the center
