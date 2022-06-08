@@ -52,11 +52,11 @@ protected:
 	UPROPERTY()
 	FVector Dimensions = FVector(1.0f, 1.0f, 1.0f);
 
-	// Box up axis
+	// Box up axis, corresponds to Z dimension
 	UPROPERTY()
 	FVector UpDirection = FVector::UpVector;
 
-	// Box side axis
+	// Box side axis, corresponds to Y dimension
 	UPROPERTY()
 	FVector SideDirection = FVector::RightVector;
 };
