@@ -5,6 +5,11 @@
 
 #include "SceneView.h"
 
+static TAutoConsoleVariable<float> CVarImgMediaFieldOfViewMultiplier(
+	TEXT("ImgMedia.FieldOfViewMultiplier"),
+	1.0f,
+	TEXT("Multiply the field of view for active cameras by this value, generally to increase the frustum overall sizes to mitigate missing tile artifacts.\n"),
+	ECVF_Default);
 
 FImgMediaSceneViewExtension::FImgMediaSceneViewExtension(const FAutoRegister& AutoReg)
 	: FSceneViewExtensionBase(AutoReg)
@@ -39,13 +44,31 @@ void FImgMediaSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InView
 
 	static const auto CVarMinAutomaticViewMipBiasOffset = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ViewTextureMipBias.Offset"));
 	static const auto CVarMinAutomaticViewMipBias = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ViewTextureMipBias.Min"));
+	const float FieldOfViewMultiplier = CVarImgMediaFieldOfViewMultiplier.GetValueOnGameThread();
 
 	for (const FSceneView* View : InViewFamily.Views)
 	{
 		FImgMediaViewInfo Info;
 		Info.Location = View->ViewMatrices.GetViewOrigin();
-		Info.ViewMatrix = View->ViewMatrices.GetViewMatrix();
 		Info.ViewProjectionMatrix = View->ViewMatrices.GetViewProjectionMatrix();
+
+		if (FMath::IsNearlyEqual(FieldOfViewMultiplier, 1.0f))
+		{
+			Info.OverscanViewProjectionMatrix = Info.ViewProjectionMatrix;
+		}
+		else
+		{
+			FMatrix AdjustedProjectionMatrix = View->ViewMatrices.GetProjectionMatrix();
+
+			const double HalfHorizontalFOV = FMath::Atan(1.0 / AdjustedProjectionMatrix.M[0][0]);
+			const double HalfVerticalFOV = FMath::Atan(1.0 / AdjustedProjectionMatrix.M[1][1]);
+
+			AdjustedProjectionMatrix.M[0][0] = 1.0 / FMath::Tan(HalfHorizontalFOV * FieldOfViewMultiplier);
+			AdjustedProjectionMatrix.M[1][1] = 1.0 / FMath::Tan(HalfVerticalFOV * FieldOfViewMultiplier);
+			
+			Info.OverscanViewProjectionMatrix = View->ViewMatrices.GetViewMatrix() * AdjustedProjectionMatrix;
+		}
+		
 		Info.ViewportRect = View->UnconstrainedViewRect.Scale(ResolutionFraction);
 
 		// We store hidden or show-only ids to later avoid needless calculations when objects are not in view.

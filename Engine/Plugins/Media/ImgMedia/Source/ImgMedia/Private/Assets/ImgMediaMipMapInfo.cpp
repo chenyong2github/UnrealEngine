@@ -357,7 +357,7 @@ namespace {
 
 				// Get frustum.
 				FConvexVolume ViewFrustum;
-				GetViewFrustumBounds(ViewFrustum, ViewInfo.ViewProjectionMatrix, false, false);
+				GetViewFrustumBounds(ViewFrustum, ViewInfo.OverscanViewProjectionMatrix, false, false);
 
 				int32 MaxLevel = InSequenceInfo.NumMipLevels - 1;
 				int MipLevelDiv = 1 << MaxLevel;
@@ -557,7 +557,7 @@ namespace {
 
 				// Analytical derivation of visible tiles from the view frustum, given a sphere presumed to be infinitely large
 				FConvexVolume ViewFrustum;
-				GetViewFrustumBounds(ViewFrustum, ViewInfo.ViewProjectionMatrix, false, false);
+				GetViewFrustumBounds(ViewFrustum, ViewInfo.OverscanViewProjectionMatrix, false, false);
 				
 				// Include all tiles containted in the visible UV region
 				int32 NumX = InSequenceInfo.NumTiles.X;
