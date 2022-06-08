@@ -2072,50 +2072,8 @@ public:
 			case KCST_DoubleToFloatCast:
 				CastType = CST_DoubleToFloat;
 				break;
-			case KCST_DoubleToFloatArrayCast:
-				CastType = CST_DoubleToFloatArray;
-				break;
-			case KCST_DoubleToFloatSetCast:
-				CastType = CST_DoubleToFloatSet;
-				break;
 			case KCST_FloatToDoubleCast:
 				CastType = CST_FloatToDouble;
-				break;
-			case KCST_FloatToDoubleArrayCast:
-				CastType = CST_FloatToDoubleArray;
-				break;
-			case KCST_FloatToDoubleSetCast:
-				CastType = CST_FloatToDoubleSet;
-				break;
-			case KCST_VectorToVector3fCast:
-				CastType = CST_VectorToVector3f;
-				break;
-			case KCST_Vector3fToVectorCast:
-				CastType = CST_Vector3fToVector;
-				break;
-			case KCST_FloatToDoubleKeys_MapCast:
-				CastType = CST_FloatToDoubleKeys_Map;
-				break;
-			case KCST_DoubleToFloatKeys_MapCast:
-				CastType = CST_DoubleToFloatKeys_Map;
-				break;
-			case KCST_FloatToDoubleValues_MapCast:
-				CastType = CST_FloatToDoubleValues_Map;
-				break;
-			case KCST_DoubleToFloatValues_MapCast:
-				CastType = CST_DoubleToFloatValues_Map;
-				break;
-			case KCST_FloatToDoubleKeys_FloatToDoubleValues_MapCast:
-				CastType = CST_FloatToDoubleKeys_FloatToDoubleValues_Map;
-				break;
-			case KCST_DoubleToFloatKeys_FloatToDoubleValues_MapCast:
-				CastType = CST_DoubleToFloatKeys_FloatToDoubleValues_Map;
-				break;
-			case KCST_DoubleToFloatKeys_DoubleToFloatValues_MapCast:
-				CastType = CST_DoubleToFloatKeys_DoubleToFloatValues_Map;
-				break;
-			case KCST_FloatToDoubleKeys_DoubleToFloatValues_MapCast:
-				CastType = CST_FloatToDoubleKeys_DoubleToFloatValues_Map;
 				break;
 			default:
 				check(false);
@@ -2254,25 +2212,7 @@ public:
 			EmitCreateMapStatement(Statement);
 			break;
 		case KCST_DoubleToFloatCast:
-		case KCST_DoubleToFloatArrayCast:
-		case KCST_DoubleToFloatSetCast:
 		case KCST_FloatToDoubleCast:
-		case KCST_FloatToDoubleArrayCast:
-		case KCST_FloatToDoubleSetCast:
-		case KCST_VectorToVector3fCast:
-		case KCST_VectorToVector3fArrayCast:
-		case KCST_VectorToVector3fSetCast:
-		case KCST_Vector3fToVectorCast:
-		case KCST_Vector3fToVectorArrayCast:
-		case KCST_Vector3fToVectorSetCast:
-		case KCST_FloatToDoubleKeys_MapCast:
-		case KCST_DoubleToFloatKeys_MapCast:
-		case KCST_FloatToDoubleValues_MapCast:
-		case KCST_DoubleToFloatValues_MapCast:
-		case KCST_FloatToDoubleKeys_FloatToDoubleValues_MapCast:
-		case KCST_DoubleToFloatKeys_FloatToDoubleValues_MapCast:
-		case KCST_DoubleToFloatKeys_DoubleToFloatValues_MapCast:
-		case KCST_FloatToDoubleKeys_DoubleToFloatValues_MapCast:
 			EmitCastStatement(Statement);
 			break;
 		default:

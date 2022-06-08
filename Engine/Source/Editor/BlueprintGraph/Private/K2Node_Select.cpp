@@ -152,12 +152,12 @@ public:
 				{
 					using namespace UE::KismetCompiler;
 
-					TOptional<TPair<FBPTerminal*, EKismetCompiledStatementType>> ImplicitCastEntry =
+					FBPTerminal* ImplicitCastEntry =
 						CastingUtils::InsertImplicitCastStatement(Context, OptionPins[OptionIdx], ValueTerm);
 
 					if (ImplicitCastEntry)
 					{
-						ValueTerm = ImplicitCastEntry->Get<0>();
+						ValueTerm = ImplicitCastEntry;
 					}
 				}
 

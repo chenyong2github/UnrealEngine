@@ -68,30 +68,7 @@ enum EKismetCompiledStatementType
 	KCST_SwitchValue = 29,
 	
 	KCST_DoubleToFloatCast = 30,
-	KCST_DoubleToFloatArrayCast = 31,
-	KCST_DoubleToFloatSetCast = 32,
-	
-	KCST_FloatToDoubleCast = 33,
-	KCST_FloatToDoubleArrayCast = 34,
-	KCST_FloatToDoubleSetCast = 35,
-	
-	KCST_VectorToVector3fCast = 36,
-	KCST_VectorToVector3fArrayCast = 37,
-	KCST_VectorToVector3fSetCast = 38,
-	
-	KCST_Vector3fToVectorCast = 39,
-	KCST_Vector3fToVectorArrayCast = 40,
-	KCST_Vector3fToVectorSetCast = 41,
-
-	KCST_FloatToDoubleKeys_MapCast = 42,
-	KCST_DoubleToFloatKeys_MapCast = 43,
-	KCST_FloatToDoubleValues_MapCast = 44,
-	KCST_DoubleToFloatValues_MapCast = 45,
-
-	KCST_FloatToDoubleKeys_FloatToDoubleValues_MapCast = 46,
-	KCST_DoubleToFloatKeys_FloatToDoubleValues_MapCast = 47,
-	KCST_DoubleToFloatKeys_DoubleToFloatValues_MapCast = 48,
-	KCST_FloatToDoubleKeys_DoubleToFloatValues_MapCast = 49,
+	KCST_FloatToDoubleCast = 31,
 
 	//~ Kismet instrumentation extensions:
 

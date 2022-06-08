@@ -11,17 +11,40 @@ class UEdGraphPin;
 
 namespace UE::KismetCompiler::CastingUtils
 {
-	using StatementNamePair = TPair<EKismetCompiledStatementType, const TCHAR*>;
+	enum class FloatingPointCastType
+	{
+		None,
+		FloatToDouble,
+		DoubleToFloat,
+		Container,
+		Struct
+	};
+
+	struct FConversion
+	{
+		FloatingPointCastType Type = FloatingPointCastType::None;
+		UFunction* Function = nullptr;
+	};
+
+	struct FImplicitCastParams
+	{
+		FConversion Conversion;
+		FBPTerminal* TargetTerminal = nullptr;
+		UEdGraphNode* TargetNode = nullptr;
+	};
 
 	/**
-	 * Given a specific EKismetCompiledStatementType enum, this function returns its inverse.
-	 * eg: the inverse of KCST_DoubleToFloatCast is KCST_FloatToDoubleCast.
-	 * Invalid enums (ie: not cast-related) will return an unset TOptional.
+	 * Directly creates a new FBPTerminal that holds the result of an implicit cast.
+	 * Internally, this is used by InsertImplicitCastStatement, but it can be used by any node
+	 * that has special semantics for handling implicit casts. The terminal is guaranteed to have 
+	 * a unique name in the context.
 	 * 
-	 * @param Statement - The enum to query for an inverse.
-	 * @return A set TOptional with the enum's inverse. Unset if no inverse is found.
+	 * @param Context - Current function context to add the terminal to.
+	 * @param Net - The corresponding pin that we'll copy type details from.
+	 * @param SourceNode - The source node for the terminal. This is usually the Net's owner, but it can be different if necessary.
+	 * @return A new FBPTerminal for the temporary variable that holds the casted result.
 	 */
-	KISMETCOMPILER_API TOptional<EKismetCompiledStatementType> GetInverseCastStatement(EKismetCompiledStatementType Statement);
+	KISMETCOMPILER_API FBPTerminal* MakeImplicitCastTerminal(FKismetFunctionContext& Context, UEdGraphPin* Net, UEdGraphNode* SourceNode = nullptr);
 
 	/**
 	 * Analyzes the NetMap of the current function context for potential implicit casts.
@@ -35,17 +58,29 @@ namespace UE::KismetCompiler::CastingUtils
 
 	/**
 	 * Utility function used by nodes for inserting implicit cast statements.
-	 * During compilation, a node that potentially may need to handle a cast should call this function.
-	 * If the current pin needs a cast, a statement is inserted, and a new terminal for the temporary is returned.
+	 * A compiled cast statement is created on the target node with the given parameters.
 	 * 
+	 * @param Context - Current function context to analyze. Assumes the ImplicitCastMap has been populated.
+	 * @param CastParams - Parameters for the cast operation.
+	 * @param RHSTerm - The current terminal that should have its data read from.
+	 */
+	KISMETCOMPILER_API void InsertImplicitCastStatement(FKismetFunctionContext& Context,
+														const FImplicitCastParams& CastParams,
+														FBPTerminal* RHSTerm);
+
+	/**
+	 * Utility function used by nodes for inserting implicit cast statements.
+	 * Similar to above, but the cast parameters are read from the context's cast map using
+	 * a destination pin as the key. If no entry exists in the map, null is returned.
+	 *
 	 * @param Context - Current function context to analyze. Assumes the ImplicitCastMap has been populated.
 	 * @param DestinationPin - Used as a key in the ImplicitCastMap. These pins are always inputs.
 	 * @param RHSTerm - The current terminal that should have its data read from.
-	 * @return A new FBPTerminal, EKismetCompiledStatementType pair for the temporary variable that has the casted result (if one exists)
+	 * @return A new FBPTerminal for the temporary variable that holds the casted result (if one exists).
 	 */
-	KISMETCOMPILER_API TOptional<TPair<FBPTerminal*, EKismetCompiledStatementType>> InsertImplicitCastStatement(FKismetFunctionContext& Context,
-																												UEdGraphPin* DestinationPin,
-																												FBPTerminal* RHSTerm);
+	KISMETCOMPILER_API FBPTerminal* InsertImplicitCastStatement(FKismetFunctionContext& Context,
+																UEdGraphPin* DestinationPin,
+																FBPTerminal* RHSTerm);
 
 	/**
 	 * Removes the specific UEdGraphPin from the context's implicit cast map.
@@ -61,14 +96,14 @@ namespace UE::KismetCompiler::CastingUtils
 	/**
 	 * Retrieves the conversion type needed between two arbitrary pins (if necessary). Specifically, this indicates if either
 	 * a narrowing or widening cast is needed between a float or a double type (including containers). In addition to the
-	 * corresponding EKismetCompiledStatementType that represents the cast type, a string literal describing the cast is also
-	 * returned.
+	 * corresponding FloatingPointCastType that represents the cast type, a UFunction* may be included for container and
+	 * struct conversions.
 	 * 
 	 * @param SourcePin - The source pin to compare.
 	 * @param DestinationPin - The destination pin to compare.
-	 * @return A new StatementNamePair containing the cast information. The result is unset if no conversion is needed.
+	 * @return A new FConversion containing the cast information.
 	 */
-	KISMETCOMPILER_API TOptional<StatementNamePair> GetFloatingPointConversionType(const UEdGraphPin& SourcePin, const UEdGraphPin& DestinationPin);
+	KISMETCOMPILER_API FConversion GetFloatingPointConversion(const UEdGraphPin& SourcePin, const UEdGraphPin& DestinationPin);
 
 } // UE::KismetCompiler::CastingUtils
 

@@ -51,12 +51,12 @@ void FKCHandler_MakeContainer::Compile(FKismetFunctionContext& Context, UEdGraph
 				{
 					using namespace UE::KismetCompiler;
 
-					TOptional<TPair<FBPTerminal*, EKismetCompiledStatementType>> ImplicitCastEntry =
+					FBPTerminal* ImplicitCastEntry =
 						CastingUtils::InsertImplicitCastStatement(Context, Pin, RHSTerm);
 
 					if (ImplicitCastEntry)
 					{
-						RHSTerm = ImplicitCastEntry->Get<0>();
+						RHSTerm = ImplicitCastEntry;
 					}
 				}
 				RHSTerms.Add(RHSTerm);

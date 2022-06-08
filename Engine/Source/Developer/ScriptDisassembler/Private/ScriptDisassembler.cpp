@@ -251,21 +251,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 		TEXT("ObjectToBool"),
 		TEXT("InterfaceToBool"),
 		TEXT("DoubleToFloat"),
-		TEXT("DoubleToFloatArray"),
-		TEXT("DoubleToFloatSet"),
 		TEXT("FloatToDouble"),
-		TEXT("FloatToDoubleArray"),
-		TEXT("FloatToDoubleSet"),
-		TEXT("VectorToVector3f"),
-		TEXT("Vector3fToVector"),
-		TEXT("FloatToDoubleKeys_Map"),
-		TEXT("DoubleToFloatKeys_Map"),
-		TEXT("FloatToDoubleValues_Map"),
-		TEXT("DoubleToFloatValues_Map"),
-		TEXT("FloatToDoubleKeys_FloatToDoubleValues_Map"),
-		TEXT("DoubleToFloatKeys_FloatToDoubleValues_Map"),
-		TEXT("DoubleToFloatKeys_DoubleToFloatValues_Map"),
-		TEXT("FloatToDoubleKeys_DoubleToFloatValues_Map"),
 	};
 
 	auto PrintVariable = [&ScriptIndex, Opcode, this](FStringView VariableDescription)

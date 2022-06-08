@@ -131,30 +131,31 @@ FBlueprintCompiledStatement* FKCHandler_MathExpression::GenerateFunctionRPN(UEdG
 
 			if (RHSTerm)
 			{
-				const FImplicitCastParams* CastParams =
+				using namespace UE::KismetCompiler;
+
+				const CastingUtils::FImplicitCastParams* CastParams =
 					Context.ImplicitCastMap.Find(PinMatch);
+
 				if (CastParams)
 				{
-					using namespace UE::KismetCompiler;
-
 					check(CastParams->TargetTerminal);
 
 					UFunction* CastFunction = nullptr;
 
-					switch (CastParams->CastType)
+					switch (CastParams->Conversion.Type)
 					{
-					case KCST_DoubleToFloatCast:
+					case CastingUtils::FloatingPointCastType::DoubleToFloat:
 						CastFunction = 
 							UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, Conv_DoubleToFloat));
 						break;
 
-					case KCST_FloatToDoubleCast:
+					case CastingUtils::FloatingPointCastType::FloatToDouble:
 						CastFunction = 
 							UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, Conv_FloatToDouble));
 						break;
 
 					default:
-						checkf(false, TEXT("Unsupported cast type used in math expression node: %d"), CastParams->CastType);
+						checkf(false, TEXT("Unsupported cast type used in math expression node: %d"), CastParams->Conversion.Type);
 					}
 
 					check(CastFunction);
@@ -257,20 +258,15 @@ void FKCHandler_MathExpression::RegisterNets(FKismetFunctionContext& Context, UE
 					{
 						if (DestinationPin)
 						{
-							TOptional<CastingUtils::StatementNamePair> ConversionType =
-								CastingUtils::GetFloatingPointConversionType(*PinNet, *DestinationPin);
+							CastingUtils::FConversion Conversion =
+								CastingUtils::GetFloatingPointConversion(*PinNet, *DestinationPin);
 
-							if (ConversionType)
+							if (Conversion.Type != CastingUtils::FloatingPointCastType::None)
 							{
-								EKismetCompiledStatementType CastType = ConversionType->Get<0>();
-								const TCHAR* TermName = ConversionType->Get<1>();
-
-								FBPTerminal* NewTerm = Context.CreateLocalTerminal();
+								FBPTerminal* NewTerm = CastingUtils::MakeImplicitCastTerminal(Context, DestinationPin);
 								UEdGraphNode* OwningNode = DestinationPin->GetOwningNode();
-								NewTerm->CopyFromPin(DestinationPin, Context.NetNameMap->MakeValidName(DestinationPin, TermName));
-								NewTerm->Source = OwningNode;
 
-								Context.ImplicitCastMap.Add(DestinationPin, FImplicitCastParams{ CastType, NewTerm, OwningNode });
+								Context.ImplicitCastMap.Add(DestinationPin, CastingUtils::FImplicitCastParams{Conversion, NewTerm, OwningNode});
 							}
 						}
 					}

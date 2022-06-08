@@ -932,10 +932,7 @@ void FKismetCompilerUtilities::CreateObjectAssignmentStatement(FKismetFunctionCo
 		// Some terms don't necessarily have a valid SourcePin (eg: FKCHandler_FunctionEntry)
 		if (DstPinSearchKey)
 		{
-			TOptional<TPair<FBPTerminal*, EKismetCompiledStatementType>> ImplicitCastEntry =
-				CastingUtils::InsertImplicitCastStatement(Context, DstPinSearchKey, RHSTerm);
-
-			ImplicitCastTerm = ImplicitCastEntry ? ImplicitCastEntry->Get<0>() : nullptr;
+			ImplicitCastTerm = CastingUtils::InsertImplicitCastStatement(Context, DstPinSearchKey, RHSTerm);
 		}
 
 		if (ImplicitCastTerm != nullptr)
@@ -2043,25 +2040,7 @@ bool FKismetCompilerUtilities::CheckFunctionCompiledStatementsThreadSafety(const
 			case KCST_CastObjToInterface:
 			case KCST_DynamicCast:
 			case KCST_DoubleToFloatCast:
-			case KCST_DoubleToFloatArrayCast:
-			case KCST_DoubleToFloatSetCast:
 			case KCST_FloatToDoubleCast:
-			case KCST_FloatToDoubleArrayCast:
-			case KCST_FloatToDoubleSetCast:
-			case KCST_VectorToVector3fCast:
-			case KCST_VectorToVector3fArrayCast:
-			case KCST_VectorToVector3fSetCast:
-			case KCST_Vector3fToVectorCast:
-			case KCST_Vector3fToVectorArrayCast:
-			case KCST_Vector3fToVectorSetCast:
-			case KCST_FloatToDoubleKeys_MapCast:
-			case KCST_DoubleToFloatKeys_MapCast:
-			case KCST_FloatToDoubleValues_MapCast:
-			case KCST_DoubleToFloatValues_MapCast:
-			case KCST_FloatToDoubleKeys_FloatToDoubleValues_MapCast:
-			case KCST_DoubleToFloatKeys_FloatToDoubleValues_MapCast:
-			case KCST_DoubleToFloatKeys_DoubleToFloatValues_MapCast:
-			case KCST_FloatToDoubleKeys_DoubleToFloatValues_MapCast:
 			case KCST_ObjectToBool:
 				break;
 			case KCST_AddMulticastDelegate:

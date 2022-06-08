@@ -75,6 +75,8 @@ public:
  */
 void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext& Context, UEdGraphNode* Node, UEdGraphPin* SelfPin)
 {
+	using namespace UE::KismetCompiler;
+
 	int32 NumErrorsAtStart = CompilerContext.MessageLog.NumErrors;
 
 	// Find the function, starting at the parent class
@@ -162,8 +164,8 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 		//     NativeFunctionWithReferenceParam(CastedInput)	; CastedInput has possibly changed since this function takes a float&
 		//     Input = (double)CastedInput						; Now we need to propagate that change back to Input
 		//
-		using CastEntry = TTuple<FBPTerminal*, FBPTerminal*, EKismetCompiledStatementType>;
-		TArray<CastEntry> ModifiedCastInputs;
+		using CastEntryT = TPair<FBPTerminal*, CastingUtils::FImplicitCastParams>;
+		TArray<CastEntryT> ModifiedCastInputs;
 
 		// Check each property
 		bool bMatchedAllParams = true;
@@ -254,14 +256,14 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 								}
 
 								{
-									using namespace UE::KismetCompiler;
+									const CastingUtils::FImplicitCastParams* CastParams =
+										Context.ImplicitCastMap.Find(PinMatch);
 
-									TOptional<TPair<FBPTerminal*, EKismetCompiledStatementType>> ImplicitCastEntry =
-										CastingUtils::InsertImplicitCastStatement(Context, PinMatch, RHSTerm);
-
-									if (ImplicitCastEntry)
+									if (CastParams)
 									{
-										FBPTerminal* CastTerm = ImplicitCastEntry->Get<0>();
+										FBPTerminal* ImplicitCastTerm =
+											CastingUtils::InsertImplicitCastStatement(Context, PinMatch, RHSTerm);
+										check(ImplicitCastTerm);
 
 										bool bIsNonConstReference =
 											Property->HasAllPropertyFlags(CPF_OutParm | CPF_ReferenceParm) &&
@@ -269,15 +271,23 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 
 										if (bIsNonConstReference)
 										{
-											TOptional<EKismetCompiledStatementType> CastType = 
-												CastingUtils::GetInverseCastStatement(ImplicitCastEntry->Get<1>());
+											CastingUtils::FImplicitCastParams InverseCastParams = *CastParams;
 
-											check(CastType.IsSet());
+											if (CastParams->Conversion.Type == CastingUtils::FloatingPointCastType::FloatToDouble)
+											{
+												InverseCastParams.Conversion.Type = CastingUtils::FloatingPointCastType::DoubleToFloat;
+											}
+											else if (CastParams->Conversion.Type == CastingUtils::FloatingPointCastType::DoubleToFloat)
+											{
+												InverseCastParams.Conversion.Type = CastingUtils::FloatingPointCastType::FloatToDouble;
+											}
 
-											ModifiedCastInputs.Add(CastEntry{RHSTerm, CastTerm, *CastType});
+											InverseCastParams.TargetTerminal = RHSTerm;
+
+											ModifiedCastInputs.Add(CastEntryT{ImplicitCastTerm, InverseCastParams});
 										}
 
-										RHSTerm = CastTerm;
+										RHSTerm = ImplicitCastTerm;
 									}
 								}
 
@@ -505,21 +515,12 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 			}
 
 			{
-				using namespace UE::KismetCompiler;
-
 				for (const auto& It : ModifiedCastInputs)
 				{
-					FBPTerminal* LocalLHSTerm = It.Get<0>();
-					FBPTerminal* LocalRHSTerm = It.Get<1>();
-					EKismetCompiledStatementType LocalCastType = It.Get<2>();
+					FBPTerminal* LocalRHSTerm = It.Get<0>();
+					CastingUtils::FImplicitCastParams LocalInverseCastParams = It.Get<1>();
 
-					check(LocalLHSTerm);
-					check(LocalRHSTerm);
-
-					FBlueprintCompiledStatement& CastStatement = Context.AppendStatementForNode(Node);
-					CastStatement.LHS = LocalLHSTerm;
-					CastStatement.Type = LocalCastType;
-					CastStatement.RHS.Add(LocalRHSTerm);
+					CastingUtils::InsertImplicitCastStatement(Context, LocalInverseCastParams, LocalRHSTerm);
 				}
 			}
 

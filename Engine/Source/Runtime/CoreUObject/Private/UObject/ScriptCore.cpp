@@ -24,7 +24,6 @@
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
-#include "UObject/ScriptCastingUtils.h"
 #include "UObject/Stack.h"
 #include "UObject/Reload.h"
 #include "Blueprint/BlueprintSupport.h"
@@ -3873,7 +3872,10 @@ DEFINE_FUNCTION(UObject::execDoubleToFloatCast)
 {
 	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
 	{
-		DoubleToFloatCast(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+		const double* Source = reinterpret_cast<const double*>(Stack.MostRecentPropertyAddress);
+		float* Destination = reinterpret_cast<float*>(RESULT_PARAM);
+
+		*Destination = static_cast<float>(*Source);
 	}
 	else
 	{
@@ -3882,23 +3884,14 @@ DEFINE_FUNCTION(UObject::execDoubleToFloatCast)
 }
 IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloat, execDoubleToFloatCast )
 
-DEFINE_FUNCTION(UObject::execDoubleToFloatArrayCast)
-{
-	CopyAndCastArrayFromStack<double, float>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatArray, execDoubleToFloatArrayCast )
-
-DEFINE_FUNCTION(UObject::execDoubleToFloatSetCast)
-{
-	CopyAndCastSetFromStack<double, float>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatSet, execDoubleToFloatSetCast )
-
 DEFINE_FUNCTION(UObject::execFloatToDoubleCast)
 {
 	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
 	{
-		FloatToDoubleCast(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+		const float* Source = reinterpret_cast<const float*>(Stack.MostRecentPropertyAddress);
+		double* Destination = reinterpret_cast<double*>(RESULT_PARAM);
+
+		*Destination = *Source;
 	}
 	else
 	{
@@ -3906,92 +3899,6 @@ DEFINE_FUNCTION(UObject::execFloatToDoubleCast)
 	}
 }
 IMPLEMENT_CAST_FUNCTION( CST_FloatToDouble, execFloatToDoubleCast )
-
-DEFINE_FUNCTION(UObject::execFloatToDoubleArrayCast)
-{
-	CopyAndCastArrayFromStack<float, double>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleArray, execFloatToDoubleArrayCast )
-
-DEFINE_FUNCTION(UObject::execFloatToDoubleSetCast)
-{
-	CopyAndCastSetFromStack<float, double>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleSet, execFloatToDoubleSetCast )
-
-DEFINE_FUNCTION(UObject::execVectorToVector3fCast)
-{
-	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
-	{
-		FloatingPointCast<FVector, FVector3f>(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
-	}
-	else
-	{
-		UE_LOG(LogScript, Verbose, TEXT("Cast failed: recent properties were null!"));
-	}
-}
-IMPLEMENT_CAST_FUNCTION( CST_VectorToVector3f, execVectorToVector3fCast )
-
-DEFINE_FUNCTION(UObject::execVector3fToVectorCast)
-{
-	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
-	{
-		FloatingPointCast<FVector3f, FVector>(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
-	}
-	else
-	{
-		UE_LOG(LogScript, Verbose, TEXT("Cast failed: recent properties were null!"));
-	}
-}
-IMPLEMENT_CAST_FUNCTION( CST_Vector3fToVector, execVector3fToVectorCast )
-
-DEFINE_FUNCTION(UObject::execFloatToDoubleKeysMapCast)
-{
-	CopyAndCastMapFromStack<FloatToDoubleCast, CopyElement>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleKeys_Map, execFloatToDoubleKeysMapCast )
-
-DEFINE_FUNCTION(UObject::execDoubleToFloatKeysMapCast)
-{
-	CopyAndCastMapFromStack<DoubleToFloatCast, CopyElement>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatKeys_Map, execDoubleToFloatKeysMapCast )
-
-DEFINE_FUNCTION(UObject::execFloatToDoubleValuesMapCast)
-{
-	CopyAndCastMapFromStack<CopyElement, FloatToDoubleCast>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleValues_Map, execFloatToDoubleValuesMapCast )
-
-DEFINE_FUNCTION(UObject::execDoubleToFloatValuesMapCast)
-{
-	CopyAndCastMapFromStack<CopyElement, DoubleToFloatCast>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatValues_Map, execDoubleToFloatValuesMapCast )
-
-DEFINE_FUNCTION(UObject::execFloatToDoubleKeysFloatToDoubleValuesMapCast)
-{
-	CopyAndCastMapFromStack<FloatToDoubleCast, FloatToDoubleCast>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleKeys_FloatToDoubleValues_Map, execFloatToDoubleKeysFloatToDoubleValuesMapCast )
-
-DEFINE_FUNCTION(UObject::execDoubleToFloatKeysFloatToDoubleValuesMapCast)
-{
-	CopyAndCastMapFromStack<DoubleToFloatCast, FloatToDoubleCast>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatKeys_FloatToDoubleValues_Map, execDoubleToFloatKeysFloatToDoubleValuesMapCast )
-
-DEFINE_FUNCTION(UObject::execDoubleToFloatKeysDoubleToFloatValuesMapCast)
-{
-	CopyAndCastMapFromStack<DoubleToFloatCast, DoubleToFloatCast>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatKeys_DoubleToFloatValues_Map, execDoubleToFloatKeysDoubleToFloatValuesMapCast )
-
-DEFINE_FUNCTION(UObject::execFloatToDoubleKeysDoubleToFloatValuesMapCast)
-{
-	CopyAndCastMapFromStack<FloatToDoubleCast, DoubleToFloatCast>(Stack, RESULT_PARAM);
-}
-IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleKeys_DoubleToFloatValues_Map, execFloatToDoubleKeysDoubleToFloatValuesMapCast )
 
 DEFINE_FUNCTION(UObject::execObjectToBool)
 {

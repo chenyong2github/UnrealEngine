@@ -2,7 +2,6 @@
 
 #include "PropertyAccess.h"
 #include "Misc/MemStack.h"
-#include "UObject/ScriptCastingUtils.h"
 
 #define LOCTEXT_NAMESPACE "PropertyAccess"
 
@@ -385,7 +384,7 @@ struct FPropertyAccessSystem
 			checkSlow(InDestProperty->IsA<FArrayProperty>());
 			const FArrayProperty* SrcArrayProperty = ExactCastField<const FArrayProperty>(InSrcProperty);
 			const FArrayProperty* DestArrayProperty = ExactCastField<const FArrayProperty>(InDestProperty);
-			CopyAndCastArray<float, double>(SrcArrayProperty, InSrcAddr, DestArrayProperty, InDestAddr);
+			CopyAndCastFloatingPointArray<float, double>(SrcArrayProperty, InSrcAddr, DestArrayProperty, InDestAddr);
 			break;
 		}
 		case EPropertyAccessCopyType::DemoteArrayDoubleToFloat:
@@ -394,7 +393,7 @@ struct FPropertyAccessSystem
 			checkSlow(InDestProperty->IsA<FArrayProperty>());
 			const FArrayProperty* SrcArrayProperty = ExactCastField<const FArrayProperty>(InSrcProperty);
 			const FArrayProperty* DestArrayProperty = ExactCastField<const FArrayProperty>(InDestProperty);
-			CopyAndCastArray<double, float>(SrcArrayProperty, InSrcAddr, DestArrayProperty, InDestAddr);
+			CopyAndCastFloatingPointArray<double, float>(SrcArrayProperty, InSrcAddr, DestArrayProperty, InDestAddr);
 			break;
 		}
 		default:
@@ -604,6 +603,30 @@ struct FPropertyAccessSystem
 					ProcessCopy(InStruct, InContainer, InLibrary, CopyIndex, InBatchId, [](const FProperty*, void*){});
 				}
 			}
+		}
+	}
+
+	template <typename SourceType, typename DestinationType>
+	static void CopyAndCastFloatingPointArray(const FArrayProperty* SourceArrayProperty,
+											  const void* SourceAddress,
+											  const FArrayProperty* DestinationArrayProperty,
+											  void* DestinationAddress)
+	{
+		checkSlow(SourceArrayProperty);
+		checkSlow(SourceAddress);
+		checkSlow(DestinationArrayProperty);
+		checkSlow(DestinationAddress);
+
+		FScriptArrayHelper SourceArrayHelper(SourceArrayProperty, SourceAddress);
+		FScriptArrayHelper DestinationArrayHelper(DestinationArrayProperty, DestinationAddress);
+
+		DestinationArrayHelper.Resize(SourceArrayHelper.Num());
+		for (int32 i = 0; i < SourceArrayHelper.Num(); ++i)
+		{
+			const SourceType* SourceData = reinterpret_cast<const SourceType*>(SourceArrayHelper.GetRawPtr(i));
+			DestinationType* DestinationData = reinterpret_cast<DestinationType*>(DestinationArrayHelper.GetRawPtr(i));
+
+			*DestinationData = static_cast<DestinationType>(*SourceData);
 		}
 	}
 };

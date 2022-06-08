@@ -9,6 +9,7 @@
 #include "BPTerminal.h"
 #include "BlueprintCompiledStatement.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "KismetCastingUtils.h"
 
 class Error;
 class UBlueprint;
@@ -30,13 +31,6 @@ enum ETerminalSpecification
 	TS_Unspecified,
 	TS_Literal,
 	TS_ForcedShared,
-};
-
-struct FImplicitCastParams
-{
-	EKismetCompiledStatementType CastType = KCST_Nop;
-	FBPTerminal* TargetTerminal = nullptr;
-	UEdGraphNode* TargetNode = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -92,7 +86,7 @@ public:
 	TMap<UEdGraphPin*, FBPTerminal*> LiteralHackMap;
 
 	// Contains a map of destination pins that will need an implicit cast to either a float or double
-	TMap<UEdGraphPin*, FImplicitCastParams> ImplicitCastMap;
+	TMap<UEdGraphPin*, UE::KismetCompiler::CastingUtils::FImplicitCastParams> ImplicitCastMap;
 
 	bool bIsUbergraph;
 	bool bCannotBeCalledFromOtherKismet;

@@ -45,19 +45,16 @@ public:
 
 			if ((VariablePinNet != nullptr) && (ValuePinNet != nullptr))
 			{
-				TOptional<CastingUtils::StatementNamePair> ConversionType =
-					CastingUtils::GetFloatingPointConversionType(*ValuePinNet, *VariablePinNet);
+				CastingUtils::FConversion Conversion =
+					CastingUtils::GetFloatingPointConversion(*ValuePinNet, *VariablePinNet);
 
-				if (ConversionType)
+				if (Conversion.Type != CastingUtils::FloatingPointCastType::None)
 				{
 					check(!ImplicitCastMap.Contains(VarRefNode));
 
-					FBPTerminal* NewTerminal = Context.CreateLocalTerminal();
-					UEdGraphNode* OwningNode = VariablePinNet->GetOwningNode();
-					NewTerminal->CopyFromPin(VariablePinNet, Context.NetNameMap->MakeValidName(VariablePin, ConversionType->Get<1>()));
-					NewTerminal->Source = OwningNode;
+					FBPTerminal* NewTerminal = CastingUtils::MakeImplicitCastTerminal(Context, VariablePinNet);
 
-					ImplicitCastMap.Add(VarRefNode, TPair<FBPTerminal*, EKismetCompiledStatementType>{ NewTerminal, ConversionType->Get<0>() });
+					ImplicitCastMap.Add(VarRefNode, CastingUtils::FImplicitCastParams{Conversion, NewTerminal, Node});
 				}
 			}
 		}
@@ -103,17 +100,11 @@ private:
 				using namespace UE::KismetCompiler;
 
 				UK2Node_VariableSetRef* VarRefNode = CastChecked<UK2Node_VariableSetRef>(Node);
-				if (TPair<FBPTerminal*, EKismetCompiledStatementType>* CastEntry = ImplicitCastMap.Find(VarRefNode))
+				if (CastingUtils::FImplicitCastParams* CastParams = ImplicitCastMap.Find(VarRefNode))
 				{
-					FBPTerminal* CastTerminal = CastEntry->Get<0>();
-					EKismetCompiledStatementType StatementType = CastEntry->Get<1>();
-
-					FBlueprintCompiledStatement& CastStatement = Context.AppendStatementForNode(Node);
-					CastStatement.LHS = CastTerminal;
-					CastStatement.Type = StatementType;
-					CastStatement.RHS.Add(RHSTerm);
-
-					RHSTerm = CastTerminal;
+					CastingUtils::InsertImplicitCastStatement(Context, *CastParams, RHSTerm);
+					
+					RHSTerm = CastParams->TargetTerminal;
 
 					ImplicitCastMap.Remove(VarRefNode);
 
@@ -146,7 +137,7 @@ private:
 		}
 	}
 
-	TMap<UK2Node_VariableSetRef*, TPair<FBPTerminal*, EKismetCompiledStatementType>> ImplicitCastMap;
+	TMap<UK2Node_VariableSetRef*, UE::KismetCompiler::CastingUtils::FImplicitCastParams> ImplicitCastMap;
 };
 
 UK2Node_VariableSetRef::UK2Node_VariableSetRef(const FObjectInitializer& ObjectInitializer)

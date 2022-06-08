@@ -50,26 +50,14 @@ public:
 
 		if (VariablePinNet && ValuePinNet)
 		{
-			TOptional<CastingUtils::StatementNamePair> ConversionType =
-				CastingUtils::GetFloatingPointConversionType(*ValuePinNet, *VariablePinNet);
+			CastingUtils::FConversion Conversion =
+				CastingUtils::GetFloatingPointConversion(*ValuePinNet, *VariablePinNet);
 
-			if (ConversionType)
+			if (Conversion.Type != CastingUtils::FloatingPointCastType::None)
 			{
-				FString DescriptiveName = Node->GetName();
+				FBPTerminal* NewTerm = CastingUtils::MakeImplicitCastTerminal(Context, VariablePinNet, Node);
 
-				FString TerminalName = FString::Printf(TEXT("%s_%s_%s"),
-					*DescriptiveName,
-					*VariablePinNet->PinName.ToString(),
-					ConversionType->Get<1>());
-
-				FBPTerminal* NewTerm = Context.CreateLocalTerminal();
-				NewTerm->Name = TerminalName;
-				NewTerm->Type = VariablePinNet->PinType;
-				NewTerm->Source = Node;
-
-				EKismetCompiledStatementType CastType = ConversionType->Get<0>();
-
-				Context.ImplicitCastMap.Add(VariablePin, FImplicitCastParams{CastType, NewTerm, Node});
+				Context.ImplicitCastMap.Add(VariablePin, CastingUtils::FImplicitCastParams{Conversion, NewTerm, Node});
 			}
 		}
 		else
