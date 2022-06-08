@@ -13263,6 +13263,28 @@ void UMaterialFunctionInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>&
 #endif
 }
 
+namespace
+{
+	FString GetEditorOnlyDataName(const TCHAR* InMaterialName)
+	{
+		return FString::Printf(TEXT("%sEditorOnlyData"), InMaterialName);
+	}
+}
+
+bool UMaterialFunctionInterface::Rename(const TCHAR* NewName, UObject* NewOuter, ERenameFlags Flags)
+{
+	bool bRenamed = Super::Rename(NewName, NewOuter, Flags);
+#if WITH_EDITORONLY_DATA
+	// if we have EditorOnlyData, also rename it if we are changing the material's name
+	if (bRenamed && NewName && EditorOnlyData)
+	{
+		FString EditorOnlyDataName = GetEditorOnlyDataName(NewName);
+		bRenamed = EditorOnlyData->Rename(*EditorOnlyDataName, nullptr, Flags);
+	}
+#endif
+	return bRenamed;
+}
+
 UMaterialFunctionInterface* UMaterialFunctionInterface::GetBaseFunctionInterface()
 {
 	return GetBaseFunction();
@@ -13478,7 +13500,7 @@ UMaterialFunctionInterfaceEditorOnlyData* UMaterialFunctionInterface::CreateEdit
 	check(EditorOnlyClass);
 	check(EditorOnlyClass->HasAllClassFlags(CLASS_Optional));
 
-	const FString EditorOnlyName = FString::Printf(TEXT("%sEditorOnlyData"), *GetName());
+	const FString EditorOnlyName = GetEditorOnlyDataName(*GetName());
 	const EObjectFlags EditorOnlyFlags = GetMaskedFlags(RF_PropagateToSubObjects);
 	return NewObject<UMaterialFunctionInterfaceEditorOnlyData>(this, EditorOnlyClass, *EditorOnlyName, EditorOnlyFlags);
 }

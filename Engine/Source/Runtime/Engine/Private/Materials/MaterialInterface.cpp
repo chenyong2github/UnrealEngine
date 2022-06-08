@@ -1363,6 +1363,15 @@ void UMaterialInterface::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUse
 }
 
 #if WITH_EDITORONLY_DATA
+
+namespace
+{
+	FString GetEditorOnlyDataName(const TCHAR* InMaterialName)
+	{
+		return FString::Printf(TEXT("%sEditorOnlyData"), InMaterialName);
+	}
+}
+
 const UClass* UMaterialInterface::GetEditorOnlyDataClass() const
 {
 	return UMaterialInterfaceEditorOnlyData::StaticClass();
@@ -1376,11 +1385,25 @@ UMaterialInterfaceEditorOnlyData* UMaterialInterface::CreateEditorOnlyData()
 	check(EditorOnlyClass);
 	check(EditorOnlyClass->HasAllClassFlags(CLASS_Optional));
 
-	const FString EditorOnlyName = FString::Printf(TEXT("%sEditorOnlyData"), *GetName());
+	const FString EditorOnlyName = GetEditorOnlyDataName(*GetName());
 	const EObjectFlags EditorOnlyFlags = GetMaskedFlags(RF_PropagateToSubObjects);
 	return NewObject<UMaterialInterfaceEditorOnlyData>(this, EditorOnlyClass, *EditorOnlyName, EditorOnlyFlags);
 }
 #endif // WITH_EDITORONLY_DATA
+
+bool UMaterialInterface::Rename(const TCHAR* NewName, UObject* NewOuter, ERenameFlags Flags)
+{
+	bool bRenamed = Super::Rename(NewName, NewOuter, Flags);
+#if WITH_EDITORONLY_DATA
+	// if we have EditorOnlyData, also rename it if we are changing the material's name
+	if (bRenamed && NewName && EditorOnlyData)
+	{
+		FString EditorOnlyDataName = GetEditorOnlyDataName(NewName);
+		bRenamed = EditorOnlyData->Rename(*EditorOnlyDataName, nullptr, Flags);
+	}
+#endif
+	return bRenamed;
+}
 
 UMaterialInterfaceEditorOnlyData::UMaterialInterfaceEditorOnlyData()
 {
@@ -1408,6 +1431,17 @@ void UMaterialInterfaceEditorOnlyData::Serialize(FArchive& Ar)
 
 	if (bSavedCachedExpressionData)
 	{
+		// if we do not have our CachedExpressionData set at this point, 
+		// it means this object's name doesn't match the default created object name and we need to fix our pointer into the material interface
+		if (CachedExpressionData == nullptr)
+		{
+#if WITH_EDITORONLY_DATA
+			UMaterialInterface* Owner = Cast<UMaterialInterface>(GetOuter());
+			Owner->EditorOnlyData = this;
+			CachedExpressionData = Owner->CachedExpressionData->EditorOnlyData;
+#endif
+		}
+
 		check(CachedExpressionData);
 		UScriptStruct* Struct = FMaterialCachedExpressionEditorOnlyData::StaticStruct();
 		Struct->SerializeTaggedProperties(Ar, (uint8*)CachedExpressionData.Get(), Struct, nullptr);

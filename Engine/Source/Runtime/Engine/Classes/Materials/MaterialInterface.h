@@ -219,6 +219,8 @@ class UMaterialInterface : public UObject, public IBlendableInterface, public II
 
 #if WITH_EDITORONLY_DATA
 protected:
+	friend class UMaterialInterfaceEditorOnlyData;
+
 	UPROPERTY()
 	TObjectPtr<UMaterialInterfaceEditorOnlyData> EditorOnlyData;
 
@@ -328,6 +330,7 @@ public:
 	ENGINE_API virtual void PostLoad() override;
 	ENGINE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	ENGINE_API virtual void PostCDOContruct() override;
+	ENGINE_API virtual bool Rename(const TCHAR* NewName = nullptr, UObject* NewOuter = nullptr, ERenameFlags Flags = REN_None) override;
 	ENGINE_API static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 #if WITH_EDITOR
