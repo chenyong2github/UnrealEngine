@@ -151,6 +151,32 @@ namespace LevelInstanceMenuUtils
 			}
 		}
 	}
+
+	void CreateAddDataLayerSupportMenu(UToolMenu* Menu, AActor* ContextActor)
+	{
+		FText EntryDesc;
+		ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(ContextActor);
+		ULevelInstanceSubsystem* LevelInstanceSubsystem = ContextActor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>();
+		if (!LevelInstance || 
+			!LevelInstanceSubsystem ||
+			!LevelInstance->IsWorldAssetValid() ||
+			!LevelInstance->CanEnterEdit(&EntryDesc) ||
+			!ULevelInstanceSubsystem::CanUsePackage(*LevelInstance->GetWorldAssetPackage()) ||
+			ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(*LevelInstance->GetWorldAssetPackage()))
+		{
+			return;
+		}
+
+		FToolUIAction LevelInstanceEditAction;
+		LevelInstanceEditAction.ExecuteAction.BindLambda([LevelInstanceSubsystem, LevelInstance, ContextActor](const FToolMenuContext&)
+		{
+			LevelInstanceSubsystem->AddDataLayerSupport(LevelInstance);
+		});
+
+		AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
+		EntryDesc = FText::Format(LOCTEXT("LevelInstanceName", "{0}:{1}"), FText::FromString(LevelInstanceActor->GetActorLabel()), FText::FromString(LevelInstance->GetWorldAssetPackage()));
+		CreateLevelSection(Menu).AddMenuEntry(NAME_None, LOCTEXT("AddDataLayerSupport", "Add Data Layer Support"), EntryDesc, FSlateIcon(), LevelInstanceEditAction);
+	}
 		
 	void CreateCommitDiscardMenu(UToolMenu* Menu, AActor* ContextActor)
 	{
@@ -709,6 +735,7 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 			if (ContextActor)
 			{
 				LevelInstanceMenuUtils::CreateEditMenu(ToolMenu, ContextActor);
+				LevelInstanceMenuUtils::CreateAddDataLayerSupportMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreateCommitDiscardMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreateBreakMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreatePackedBlueprintMenu(ToolMenu, ContextActor);

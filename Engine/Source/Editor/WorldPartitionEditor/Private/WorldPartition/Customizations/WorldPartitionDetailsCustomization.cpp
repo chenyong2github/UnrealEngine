@@ -68,6 +68,14 @@ void FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged(ECheckBo
 {
 	if (CheckState == ECheckBoxState::Checked)
 	{
+		if (WorldPartition->CanBeUsedByLevelInstance())
+		{
+			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionConfirmEnableStreamingOnLevelReferencedByLevelInstance", "You are about to enable streaming on a level that could be used by level instances. Continuing will invalidate level instances referencing this level. Continue?")) == EAppReturnType::No)
+			{
+				return;
+			}
+		}
+
 		if (!WorldPartition->bStreamingWasEnabled)
 		{
 			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionConfirmEnableStreaming", "You are about to enable streaming for the first time, the world will be setup to stream. Continue?")) == EAppReturnType::No)

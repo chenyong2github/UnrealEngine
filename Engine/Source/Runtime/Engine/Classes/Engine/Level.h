@@ -78,6 +78,7 @@ private:
 	friend class UWorld;
 	friend class ULevel;
 	friend class UActorFolder;
+	friend class FWorldPartitionConverter;
 	friend class UWorldPartitionConvertCommandlet;
 	friend class FWorldPartitionLevelHelper;
 	friend class UWorldPartitionLevelStreamingDynamic;
