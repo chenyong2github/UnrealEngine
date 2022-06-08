@@ -12,7 +12,5 @@ public class BackgroundHTTPFileHash : ModuleRules
                 "Core",
             }
         );
-        
-        PrivatePCHHeaderFile = "Private/BackgroundHttpFileHashPrivate.h";
     }
 }
