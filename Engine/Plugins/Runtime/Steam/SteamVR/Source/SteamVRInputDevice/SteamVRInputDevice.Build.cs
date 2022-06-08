@@ -35,9 +35,6 @@ public class SteamVRInputDevice : ModuleRules
 {
 	public SteamVRInputDevice(ReadOnlyTargetRules Target) : base(Target)
     {
-        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-        PrivatePCHHeaderFile = "Public/ISteamVRInputDeviceModule.h";
-
         PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
         PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
 
