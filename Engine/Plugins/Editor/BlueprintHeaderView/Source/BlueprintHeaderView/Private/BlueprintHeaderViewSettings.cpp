@@ -39,7 +39,12 @@ void UBlueprintHeaderViewSettings::PostEditChangeProperty(FPropertyChangedEvent&
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	FName PropertyChangedName = PropertyChangedEvent.GetPropertyName();
+	if (!PropertyChangedEvent.MemberProperty)
+	{
+		return;
+	}
+
+	const FName PropertyChangedName = PropertyChangedEvent.MemberProperty->GetFName();
 
 	if (PropertyChangedName == GET_MEMBER_NAME_CHECKED(UBlueprintHeaderViewSettings, FontSize))
 	{
