@@ -41,10 +41,23 @@ public:
 	virtual bool IsSequencerRemoteOpenEnabled() const = 0;
 
 	/**
+	 * @return true if the remote close option is enabled.
+	 */
+	virtual bool IsSequencerRemoteCloseEnabled() const = 0;
+
+	/**
 	 * Set the remote open option in Multi-User
-	 * which open sequencer for other user when this option is enabled on both user machines.
+	 * which opens Sequencer for other users when this option is enabled on both user machines.
 	 * 
 	 * @param bEnable The value to set for the remote open option
 	 */
 	virtual void SetSequencerRemoteOpen(bool bEnable) = 0;
+
+	/**
+	 * Set the remote close option in Multi-User
+	 * which closes Sequencer for this user when the sequence is closed by a remote user.
+	 *
+	 * @param bEnable The value to set for the remote close option
+	 */
+	virtual void SetSequencerRemoteClose(bool bEnable) = 0;
 };

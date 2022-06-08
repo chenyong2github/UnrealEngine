@@ -42,10 +42,13 @@ static TAutoConsoleVariable<int32> CVarEnablePlaybackSync(TEXT("Concert.EnableSe
 // Enable Sequence Playing on game client
 static TAutoConsoleVariable<int32> CVarEnableSequencePlayer(TEXT("Concert.EnableSequencePlayer"), 1, TEXT("Enable Concert Sequence Players on `-game` client."));
 
-// Enable opening Sequencer on remote machine whenever a sequencer is opened, if both instance have this option on.
+// Enable opening Sequencer on remote machine whenever a Sequencer is opened, if both instances have this option on.
 static TAutoConsoleVariable<int32> CVarEnableRemoteSequencerOpen(TEXT("Concert.EnableOpenRemoteSequencer"), 1, TEXT("Enable Concert remote Sequencer opening."));
 
-// Enable opening Sequencer on remote machine whenever a sequencer is opened, if both instance have this option on.
+// Enable closing Sequencer for this user when a remote user closes the sequence.
+static TAutoConsoleVariable<int32> CVarEnableRemoteSequencerClose(TEXT("Concert.EnableCloseRemoteSequencer"), 0, TEXT("Enable Concert remote Sequencer closing."));
+
+// Enable synchronizing the timeline of unrelated Sequencers on remote machine whenever a Sequencer state event is received, if both instances have this option on.
 static TAutoConsoleVariable<int32> CVarEnableUnrelatedTimelineSync(TEXT("Concert.EnableUnrelatedTimelineSync"), 0, TEXT("Enable syncing unrelated sequencer timeline."));
 
 // Enable always closing player on remote machine whenever a sequencer is closed on an editor.
@@ -232,9 +235,19 @@ bool FConcertClientSequencerManager::IsSequencerRemoteOpenEnabled() const
 	return CVarEnableRemoteSequencerOpen.GetValueOnAnyThread() > 0;
 }
 
+bool FConcertClientSequencerManager::IsSequencerRemoteCloseEnabled() const
+{
+	return CVarEnableRemoteSequencerClose.GetValueOnAnyThread() > 0;
+}
+
 void FConcertClientSequencerManager::SetSequencerRemoteOpen(bool bEnable)
 {
 	CVarEnableRemoteSequencerOpen->AsVariable()->Set(bEnable ? 1 : 0);
+}
+
+void FConcertClientSequencerManager::SetSequencerRemoteClose(bool bEnable)
+{
+	CVarEnableRemoteSequencerClose->AsVariable()->Set(bEnable ? 1 : 0);
 }
 
 bool FConcertClientSequencerManager::ShouldAlwaysCloseGameSequencerPlayer() const
@@ -474,17 +487,37 @@ void FConcertClientSequencerManager::ApplyCloseEvent(const FConcertSequencerClos
 	FConcertSequencerState* SequencerState = SequencerStates.Find(*CloseEvent.SequenceObjectPath);
 	if (SequencerState)
 	{
+		const TArray<FOpenSequencerData*, TInlineAllocator<1>> OpenSequencersForObject = GatherRootSequencersByState(SequencerState->SequenceObjectPath);
+
 		// if the event was that a sequencer that was in controller playback mode was closed, stop playback
 		if (CloseEvent.bControllerClose)
 		{
 			SequencerState->PlayerStatus = EConcertMovieScenePlayerStatus::Stopped;
-			for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(SequencerState->SequenceObjectPath))
+			for (FOpenSequencerData* OpenSequencer : OpenSequencersForObject)
 			{
 				OpenSequencer->PlaybackMode = EPlaybackMode::Undefined;
 				TSharedPtr<ISequencer> Sequencer = OpenSequencer->WeakSequencer.Pin();
 				Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
 			}
 		}
+
+		if (GEditor && IsSequencerRemoteCloseEnabled())
+		{
+			for (FOpenSequencerData* OpenSequencer : OpenSequencersForObject)
+			{
+				TSharedPtr<ISequencer> Sequencer = OpenSequencer->WeakSequencer.Pin();
+				UMovieSceneSequence* Sequence = Sequencer.IsValid() ? Sequencer->GetRootMovieSceneSequence() : nullptr;
+
+				// Verify that this Sequencer is open for the particular
+				// sequence being closed since the array of open Sequencers
+				// may contain unrelated Sequencers.
+				if (Sequence && (Sequence->GetPathName() == CloseEvent.SequenceObjectPath))
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(Sequence);
+				}
+			}
+		}
+
 		// Discard the state if it's no longer opened by anyone.
 		//
 		if (CloseEvent.EditorsWithSequencerOpened == 0)

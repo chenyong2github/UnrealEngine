@@ -87,6 +87,11 @@ public:
 	virtual bool IsSequencerRemoteOpenEnabled() const override;
 
 	/**
+	 * @return true if the remote close option is enabled.
+	 */
+	virtual bool IsSequencerRemoteCloseEnabled() const override;
+
+	/**
 	 * Checks the CVar to see if we are allowed to forcefully close the player on game instances.
 	 *
 	 * @return true if we should always close a sequence player on a -game instance.
@@ -95,11 +100,19 @@ public:
 
 	/**
 	 * Set the remote open option in Multi-User
-	 * which open sequencer for other user when this option is enabled on both user machines.
-	 * 
+	 * which opens Sequencer for other users when this option is enabled on both user machines.
+	 *
 	 * @param bEnable The value to set for the remote open option
 	 */
 	virtual void SetSequencerRemoteOpen(bool bEnable) override;
+
+	/**
+	 * Set the remote close option in Multi-User
+	 * which closes Sequencer for this user when the sequence is closed by a remote user.
+	 *
+	 * @param bEnable The value to set for the remote close option
+	 */
+	virtual void SetSequencerRemoteClose(bool bEnable) override;
 
 	/** Assign the current active workspace to this sequencer. */
 	void SetActiveWorkspace(TSharedPtr<FConcertClientWorkspace> Workspace);

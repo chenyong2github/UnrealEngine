@@ -448,6 +448,32 @@ public:
 				FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Sequencer.SyncSequence", "Concert.Sequencer.SyncSequence.Small"),
 				EUserInterfaceActionType::ToggleButton
 			);
+
+			// Toggle remote close
+			ToolbarBuilder.AddToolBarButton(
+				FUIAction(
+					FExecuteAction::CreateLambda([]()
+					{
+						TSharedPtr<IConcertSyncClient> SyncClientPin = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser"));
+						if (SyncClientPin && SyncClientPin->GetSequencerManager())
+						{
+							IConcertClientSequencerManager* SequencerManager = SyncClientPin->GetSequencerManager();
+							SequencerManager->SetSequencerRemoteClose(!SequencerManager->IsSequencerRemoteCloseEnabled());
+						}
+					}),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateLambda([]()
+					{
+						TSharedPtr<IConcertSyncClient> SyncClientPin = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser"));
+						return SyncClientPin.IsValid() && SyncClientPin->GetSequencerManager() && SyncClientPin->GetSequencerManager()->IsSequencerRemoteCloseEnabled();
+					})
+				),
+				NAME_None,
+				LOCTEXT("ToggleRemoteCloseLabel", "Remote Close"),
+				LOCTEXT("ToggleRemoteCloseTooltip", "Toggle Multi-User Remote Close. If the option is enabled, any open Sequencers for a sequence will be closed when another user in the Multi-User session closes that sequence."),
+				FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Sequencer.SyncSequence", "Concert.Sequencer.SyncSequence.Small"),
+				EUserInterfaceActionType::ToggleButton
+			);
 		}
 		ToolbarBuilder.EndSection();
 
