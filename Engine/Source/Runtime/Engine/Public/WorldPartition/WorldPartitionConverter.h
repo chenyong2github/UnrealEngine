@@ -21,6 +21,7 @@ public:
 		FParameters()
 		: bConvertSubLevels(true)
 		, bEnableStreaming(true)
+		, bSupportsStreaming(true)
 		, bUseActorFolders(true)
 		, EditorHashClass(nullptr)
 		, RuntimeHashClass(nullptr)
@@ -28,6 +29,7 @@ public:
 
 		bool bConvertSubLevels;
 		bool bEnableStreaming;
+		bool bSupportsStreaming;
 		bool bUseActorFolders;
 		TSubclassOf<UWorldPartitionEditorHash> EditorHashClass;
 		TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass;
