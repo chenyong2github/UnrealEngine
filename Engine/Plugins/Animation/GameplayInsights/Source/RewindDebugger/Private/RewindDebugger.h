@@ -120,9 +120,7 @@ private:
 	void OnPIEStopped(bool bSimulating);
 	void OnPIESingleStepped(bool bSimulating);
 
-
 	void SetCurrentScrubTime(double Time);
-	void UpdateTraceTime();
 
 	TBindableProperty<double> TraceTime;
 	TBindableProperty<float> RecordingDuration;
@@ -150,9 +148,20 @@ private:
 	double CurrentScrubTime;
 	TRange<double> CurrentViewRange;
 	TRange<double> CurrentTraceRange;
-	int64 ScrubFrameIndex;
 	uint16 RecordingIndex;
 
+	struct FScrubTimeInformation
+	{
+		double ProfileTime = 0;  // Profiling/Tracing time
+		int64 FrameIndex = 0;    // Scrub Frame Index
+	};
+	
+	FScrubTimeInformation ScrubTimeInformation;
+	FScrubTimeInformation LowerBoundViewTimeInformation;
+	FScrubTimeInformation UpperBoundViewTimeInformation;
+
+	static void GetScrubTimeInformation(double InDebugTime, FScrubTimeInformation & InOutTimeInformation, uint16 InRecordingIndex, const TraceServices::IAnalysisSession* AnalysisSession);
+	
 	TArray<TSharedPtr<FDebugObjectInfo>> DebugComponents;
 	mutable TSharedPtr<FDebugObjectInfo> SelectedComponent;
 	
