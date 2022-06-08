@@ -2125,7 +2125,6 @@ void ULandscapeComponent::SetHeightmap(UTexture2D* NewHeightmap)
 
 void ULandscapeComponent::SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToEditingWeightmap)
 {
-#if WITH_EDITORONLY_DATA
 	FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
 	if (InApplyToEditingWeightmap && EditingLayer != nullptr)
@@ -2134,7 +2133,6 @@ void ULandscapeComponent::SetWeightmapTextures(const TArray<UTexture2D*>& InNewW
 		EditingLayer->WeightmapData.Textures.Append(InNewWeightmapTextures);
 	}
 	else
-#endif
 	{
 		WeightmapTextures = InNewWeightmapTextures;
 	}
@@ -2147,7 +2145,6 @@ void ULandscapeComponent::SetWeightmapLayerAllocations(const TArray<FWeightmapLa
 
 TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnEditingWeightmap)
 {
-#if WITH_EDITORONLY_DATA
 	if (InReturnEditingWeightmap)
 	{
 		if (FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
@@ -2155,14 +2152,12 @@ TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsag
 			return EditingLayer->WeightmapData.TextureUsages;
 		}
 	}
-#endif
 
 	return WeightmapTexturesUsage;
 }
 
 const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnEditingWeightmap) const
 {
-#if WITH_EDITORONLY_DATA
 	if (InReturnEditingWeightmap)
 	{
 		if (const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
@@ -2170,14 +2165,12 @@ const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTextur
 			return EditingLayer->WeightmapData.TextureUsages;
 		}
 	}
-#endif
 
 	return WeightmapTexturesUsage;
 }
 
 TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(const FGuid& InLayerGuid)
 {
-#if WITH_EDITORONLY_DATA
 	if (InLayerGuid.IsValid())
 	{
 		if (FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
@@ -2185,14 +2178,12 @@ TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsag
 			return LayerData->WeightmapData.TextureUsages;
 		}
 	}
-#endif
 
 	return WeightmapTexturesUsage;
 }
 
 const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(const FGuid& InLayerGuid) const
 {
-#if WITH_EDITORONLY_DATA
 	if (InLayerGuid.IsValid())
 	{
 		if (const FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
@@ -2200,14 +2191,12 @@ const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTextur
 			return LayerData->WeightmapData.TextureUsages;
 		}
 	}
-#endif
 
 	return WeightmapTexturesUsage;
 }
 
 void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToEditingWeightmap)
 {
-#if WITH_EDITORONLY_DATA
 	FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
 	if (InApplyToEditingWeightmap && EditingLayer != nullptr)
@@ -2216,13 +2205,12 @@ void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeigh
 		EditingLayer->WeightmapData.TextureUsages.Append(InNewWeightmapTexturesUsage);
 	}
 	else
-#endif
 	{
 		WeightmapTexturesUsage = InNewWeightmapTexturesUsage;
 	}
 }
 
-#endif
+#endif // WITH_EDITOR
 
 void ALandscapeProxy::PostRegisterAllComponents()
 {
@@ -2283,7 +2271,7 @@ void ALandscapeProxy::PostRegisterAllComponents()
 			LandscapeInfo->FixupProxiesTransform();
 		}
 	}
-#endif
+#endif // WITH_EDITOR
 }
 
 void ALandscapeProxy::UnregisterAllComponents(const bool bForReregister)
@@ -4317,9 +4305,9 @@ void ULandscapeInfo::UnregisterActorComponent(ULandscapeComponent* Component)
 		XYComponentBounds = FIntRect(MAX_int32, MAX_int32, MIN_int32, MIN_int32);
 
 		for (const auto& XYComponentPair : XYtoComponentMap)
-		{
+	{
 			XYComponentBounds.Include(XYComponentPair.Key);
-		}
+	}
 	}
 }
 
@@ -4740,14 +4728,14 @@ void ALandscapeProxy::BuildGIBakedTextures(struct FScopedSlowTask* InSlowTask /*
 		const bool bShouldMarkDirty = true;
 		UpdateGIBakedTextureData(bShouldMarkDirty);
 	}
-}
+	}
 
 int32 ALandscapeProxy::GetOutdatedGIBakedTextureComponentsCount() const
-{
+	{
 	int32 OutdatedGITextureComponentsCount = 0;
 	UpdateGIBakedTextureStatus(nullptr, nullptr, &OutdatedGITextureComponentsCount);
 	return OutdatedGITextureComponentsCount;
-}
+	}
 
 void ALandscapeProxy::UpdateGIBakedTextureStatus(bool* bOutGenerateLandscapeGIData, TMap<UTexture2D*, FGIBakedTextureState>* OutComponentsNeedBakingByHeightmap, int32* OutdatedComponentsCount) const
 {
@@ -4927,53 +4915,53 @@ void ALandscapeProxy::UpdateGIBakedTextures(bool bBakeAllGITextures)
 		{
 			// We throttle, baking only one atlas per frame if bBakeAllGITextures is false.
 			if (!bBakeAllGITextures && NumGenerated > 0)
-			{
-				NumComponentsNeedingTextureBaking += Info.Components.Num();
-			}
-			else
-			{
-				UTexture2D* HeightmapTexture = It.Key();
-				// 1/8 the res of the heightmap
+				{
+					NumComponentsNeedingTextureBaking += Info.Components.Num();
+				}
+				else
+				{
+					UTexture2D* HeightmapTexture = It.Key();
+					// 1/8 the res of the heightmap
 				FIntPoint AtlasSize(HeightmapTexture->Source.GetSizeX() >> 3, HeightmapTexture->Source.GetSizeY() >> 3);
 
-				TArray<FColor> AtlasSamples;
-				AtlasSamples.AddZeroed(AtlasSize.X * AtlasSize.Y);
+					TArray<FColor> AtlasSamples;
+					AtlasSamples.AddZeroed(AtlasSize.X * AtlasSize.Y);
 
-				for (ULandscapeComponent* Component : Info.Components)
-				{
-					// not registered; ignore this component
-					if (!Component->SceneProxy)
+					for (ULandscapeComponent* Component : Info.Components)
 					{
-						continue;
-					}
+						// not registered; ignore this component
+						if (!Component->SceneProxy)
+						{
+							continue;
+						}
 
-					int32 ComponentSamples = (SubsectionSizeQuads + 1) * NumSubsections;
-					check(FMath::IsPowerOfTwo(ComponentSamples));
+						int32 ComponentSamples = (SubsectionSizeQuads + 1) * NumSubsections;
+						check(FMath::IsPowerOfTwo(ComponentSamples));
 
-					int32 BakeSize = ComponentSamples >> 3;
-					TArray<FColor> Samples;
-					if (FMaterialUtilities::ExportBaseColor(Component, BakeSize, Samples))
-					{
+						int32 BakeSize = ComponentSamples >> 3;
+						TArray<FColor> Samples;
+						if (FMaterialUtilities::ExportBaseColor(Component, BakeSize, Samples))
+						{
 						int32 AtlasOffsetX = FMath::RoundToInt(Component->HeightmapScaleBias.Z * (float)HeightmapTexture->Source.GetSizeX()) >> 3;
 						int32 AtlasOffsetY = FMath::RoundToInt(Component->HeightmapScaleBias.W * (float)HeightmapTexture->Source.GetSizeY()) >> 3;
-						for (int32 y = 0; y < BakeSize; y++)
-						{
-							FMemory::Memcpy(&AtlasSamples[(y + AtlasOffsetY) * AtlasSize.X + AtlasOffsetX], &Samples[y * BakeSize], sizeof(FColor) * BakeSize);
+							for (int32 y = 0; y < BakeSize; y++)
+							{
+								FMemory::Memcpy(&AtlasSamples[(y + AtlasOffsetY) * AtlasSize.X + AtlasOffsetX], &Samples[y * BakeSize], sizeof(FColor) * BakeSize);
+							}
+							NumGenerated++;
 						}
-						NumGenerated++;
 					}
-				}
 				UTexture2D* AtlasTexture = FMaterialUtilities::CreateTexture(GetOutermost(), HeightmapTexture->GetName() + TEXT("_BaseColor"), AtlasSize, AtlasSamples, TC_Default, TEXTUREGROUP_World, RF_NoFlags, true, Info.CombinedStateId);
 
-				for (ULandscapeComponent* Component : Info.Components)
-				{
+					for (ULandscapeComponent* Component : Info.Components)
+					{
 					Component->BakedTextureMaterialGuid = Info.CombinedStateId;
-					Component->GIBakedBaseColorTexture = AtlasTexture;
-					Component->MarkRenderStateDirty();
+						Component->GIBakedBaseColorTexture = AtlasTexture;
+						Component->MarkRenderStateDirty();
+					}
 				}
 			}
 		}
-	}
 
 	TotalComponentsNeedingTextureBaking += NumComponentsNeedingTextureBaking;
 

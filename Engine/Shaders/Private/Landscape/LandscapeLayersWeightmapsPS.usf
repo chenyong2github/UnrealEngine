@@ -174,7 +174,7 @@ float FinalizeWeightmapChannel(uint2 InSampleCoordinates, uint InChannelIndex)
 
 
 // ----------------------------------------------------------------------------------
-// Compute shaders : 
+// Pixel shaders : 
 
 #if MERGE_EDIT_LAYERS
 void MergeEditLayers(in float4 SVPos : SV_POSITION, out float OutColor : SV_Target0)

@@ -2511,21 +2511,17 @@ void ExecuteCopyLayersTexture(TArray<FLandscapeLayersCopyTextureParams>&& InCopy
 }
 
 /** Per component information from read back results. */
-struct FLandscapeEditLayerReadbackResult
+struct FLandscapeEditLayerComponentReadbackResult
 {
+	ULandscapeComponent* LandscapeComponent = nullptr;
 	/** ELandscapeLayerUpdateMode flags set on ULandscapeComponent at time when read back task was submitted. */
-	int32 UpdateModes;
+	uint32 UpdateModes = 0;
 	/** Were the associated heightmap/weightmaps modified. */
-	bool bModified;
+	bool bModified = false;
 
-	FLandscapeEditLayerReadbackResult()
-		: UpdateModes(0)
-		, bModified(false)
-	{}
-
-	FLandscapeEditLayerReadbackResult(int32 InUpdateModes, bool bInModified)
-		: UpdateModes(InUpdateModes)
-		, bModified(bInModified)
+	FLandscapeEditLayerComponentReadbackResult(ULandscapeComponent* InLandscapeComponent, uint32 InUpdateModes)
+		: LandscapeComponent(InLandscapeComponent)
+		, UpdateModes(InUpdateModes)
 	{}
 };
 
@@ -3684,7 +3680,7 @@ struct FUpdateLayersContentContext
 				LandscapeComponentsWeightmapsToRender.Reset();
 				LandscapeComponentsWeightmapsToResolve.Reset();
 			}
-			// Note that the AllLandscapeComponentsToResolve and AllLandscapeComponentsToUpdate are *not* reset here: they can only grow (we're assuming refresh only adds new components): 
+			// Note that the AllLandscapeComponentsToResolve and AllLandscapeComponentReadbackResults are *not* reset here: they can only grow (we're assuming refresh only adds new components): 
 
 			// Iterate on all dirty components and retrieve the components that need to be resolved or rendered for their heightmap or weightmaps :
 			TArray<ULandscapeComponent*> AllLandscapeComponents;
@@ -3805,7 +3801,11 @@ struct FUpdateLayersContentContext
 			{
 				if (Component->GetLayerUpdateFlagPerMode() & ELandscapeLayerUpdateMode::Update_Client_Deferred)
 				{
-					AllLandscapeComponentsToUpdate.FindOrAdd(Component, FLandscapeEditLayerReadbackResult(ELandscapeLayerUpdateMode::Update_Client_Deferred, false));
+					FLandscapeEditLayerComponentReadbackResult* ComponentReadbackResult = AllLandscapeComponentReadbackResults.FindByPredicate([Component](const FLandscapeEditLayerComponentReadbackResult& Element) { return Element.LandscapeComponent == Component; });
+					if (ComponentReadbackResult == nullptr)
+					{
+						AllLandscapeComponentReadbackResults.Add(FLandscapeEditLayerComponentReadbackResult(Component, ELandscapeLayerUpdateMode::Update_Client_Deferred));
+					}
 				}
 			}
 		}
@@ -3834,7 +3834,7 @@ struct FUpdateLayersContentContext
 	// List of components whose heightmap or weightmaps needs to be resolved because they are either dirty or are neighbor to a component that is dirty:
 	TSet<ULandscapeComponent*> AllLandscapeComponentsToResolve;
 	// List of GPU readback results for heightmaps/weightmaps that need to be resolved, associated with their owning landscape component :
-	TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult> AllLandscapeComponentsToUpdate;
+	TArray<FLandscapeEditLayerComponentReadbackResult> AllLandscapeComponentReadbackResults;
 };
 ENUM_CLASS_FLAGS(FUpdateLayersContentContext::ERefreshFlags);
 
@@ -4915,39 +4915,42 @@ int32 ALandscape::RegenerateLayersHeightmaps(const FUpdateLayersContentContext& 
 	return HeightmapUpdateModes;
 }
 
-void ALandscape::UpdateForChangedHeightmaps(ULandscapeComponent* InComponent, const FLandscapeEditLayerReadbackResult& InReadbackResult)
+void ALandscape::UpdateForChangedHeightmaps(const TArrayView<FLandscapeEditLayerComponentReadbackResult>& InComponentReadbackResults)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_UpdateForChangedHeightmaps);
 
-	// If the source data has changed, mark the component as needing a collision data update:
-	//  - If ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision is passed, it will be done immediately
-	//  - If not, at least the component's collision data will still get updated eventually, when the flag is finally passed :
-	if (InReadbackResult.bModified)
+	for (const FLandscapeEditLayerComponentReadbackResult& ComponentReadbackResult : InComponentReadbackResults)
 	{
-		InComponent->SetPendingCollisionDataUpdate(true);
-	}
-
-	const int32 HeightUpdateMode = InReadbackResult.UpdateModes & (ELandscapeLayerUpdateMode::Update_Heightmap_All | ELandscapeLayerUpdateMode::Update_Heightmap_Editing | ELandscapeLayerUpdateMode::Update_Heightmap_Editing_NoCollision);
-
-	// Only update collision if there was an actual change performed on the source data : 
-	if (InComponent->GetPendingCollisionDataUpdate())
-	{
-		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision, HeightUpdateMode))
+		// If the source data has changed, mark the component as needing a collision data update:
+		//  - If ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision is passed, it will be done immediately
+		//  - If not, at least the component's collision data will still get updated eventually, when the flag is finally passed :
+		if (ComponentReadbackResult.bModified)
 		{
-			InComponent->UpdateCachedBounds();
-			InComponent->UpdateComponentToWorld();
-
-			// Avoid updating height field if we are going to recreate collision in this update
-			bool bUpdateHeightfieldRegion = !IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, HeightUpdateMode);
-			InComponent->UpdateCollisionData(bUpdateHeightfieldRegion);
-			InComponent->SetPendingCollisionDataUpdate(false);
+			ComponentReadbackResult.LandscapeComponent->SetPendingCollisionDataUpdate(true);
 		}
-		else if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Approximated_Bounds, HeightUpdateMode))
+
+		const uint32 HeightUpdateMode = ComponentReadbackResult.UpdateModes & (ELandscapeLayerUpdateMode::Update_Heightmap_All | ELandscapeLayerUpdateMode::Update_Heightmap_Editing | ELandscapeLayerUpdateMode::Update_Heightmap_Editing_NoCollision);
+
+		// Only update collision if there was an actual change performed on the source data : 
+		if (ComponentReadbackResult.LandscapeComponent->GetPendingCollisionDataUpdate())
 		{
-			// Update bounds with an approximated value (real computation will be done anyways when computing collision)
-			const bool bInApproximateBounds = true;
-			InComponent->UpdateCachedBounds(bInApproximateBounds);
-			InComponent->UpdateComponentToWorld();
+			if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision, HeightUpdateMode))
+			{
+				ComponentReadbackResult.LandscapeComponent->UpdateCachedBounds();
+				ComponentReadbackResult.LandscapeComponent->UpdateComponentToWorld();
+
+				// Avoid updating height field if we are going to recreate collision in this update
+				bool bUpdateHeightfieldRegion = !IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, HeightUpdateMode);
+				ComponentReadbackResult.LandscapeComponent->UpdateCollisionData(bUpdateHeightfieldRegion);
+				ComponentReadbackResult.LandscapeComponent->SetPendingCollisionDataUpdate(false);
+			}
+			else if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Approximated_Bounds, HeightUpdateMode))
+			{
+				// Update bounds with an approximated value (real computation will be done anyways when computing collision)
+				const bool bInApproximateBounds = true;
+				ComponentReadbackResult.LandscapeComponent->UpdateCachedBounds(bInApproximateBounds);
+				ComponentReadbackResult.LandscapeComponent->UpdateComponentToWorld();
+			}
 		}
 	}
 }
@@ -4957,7 +4960,7 @@ void ALandscape::ResolveLayersHeightmapTexture(
 	TSet<UTexture2D*> const& HeightmapsToResolve,
 	bool bIntermediateRender,
 	bool bFlushRender,
-	TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult>& InOutComponents)
+	TArray<FLandscapeEditLayerComponentReadbackResult>& InOutComponentReadbackResults)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_ResolveLayersHeightmapTexture);
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersResolveHeightmaps);
@@ -4968,11 +4971,6 @@ void ALandscape::ResolveLayersHeightmapTexture(
 		return;
 	}
 
-	FDirtyDelegate OnDirtyDelegate = [this, &MapHelper](UTexture2D const* Heightmap, FColor const* OldData, FColor const* NewData)
-	{
-		OnDirtyHeightmap(MapHelper, Heightmap, OldData, NewData);
-	};
-
 	TArray<ULandscapeComponent*> ChangedComponents;
 	for (UTexture2D* Heightmap : HeightmapsToResolve)
 	{
@@ -4980,7 +4978,7 @@ void ALandscape::ResolveLayersHeightmapTexture(
 		check(LandscapeProxy);
 		if (FLandscapeEditLayerReadback** CPUReadback = LandscapeProxy->HeightmapsCPUReadback.Find(Heightmap))
 		{
-			const bool bChanged = ResolveLayersTexture(MapHelper, *CPUReadback, Heightmap, bIntermediateRender, bFlushRender, InOutComponents, OnDirtyDelegate);
+			const bool bChanged = ResolveLayersTexture(MapHelper, *CPUReadback, Heightmap, bIntermediateRender, bFlushRender, InOutComponentReadbackResults, /*bIsWeightmap = */false);
 			if (bChanged)
 			{
 				ChangedComponents.Append(MapHelper.HeightmapToComponents[Heightmap]);
@@ -5171,8 +5169,8 @@ bool ALandscape::ResolveLayersTexture(
 	UTexture2D* InOutputTexture,
 	bool bIntermediateRender,
 	bool bFlushRender,
-	TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult>& InOutComponents,
-	FDirtyDelegate DirtyDelegate)
+	TArray<FLandscapeEditLayerComponentReadbackResult>& InOutComponentReadbackResults,
+	bool bIsWeightmap)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_ResolveLayersTexture);
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersResolveTexture);
@@ -5206,10 +5204,21 @@ bool ALandscape::ResolveLayersTexture(
 				// Don't do this for intermediate renders.
 				if (MipIndex == 0 && !bIntermediateRender)
 				{
-					const uint32 Hash = FLandscapeEditLayerReadback::CalculateHash((uint8*)OutMipsData[MipIndex].GetData(), OutMipsData[MipIndex].Num() * sizeof(FColor));
+					uint32 Hash = 0;
+					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_CalculateHash);
+						Hash = FLandscapeEditLayerReadback::CalculateHash((uint8*)OutMipsData[MipIndex].GetData(), OutMipsData[MipIndex].Num() * sizeof(FColor));
+					}
 					if (InCPUReadback->SetHash(Hash))
 					{
-						DirtyDelegate(InOutputTexture, (FColor*)TextureData, OutMipsData[MipIndex].GetData());
+						if (bIsWeightmap)
+						{
+							OnDirtyWeightmap(MapHelper, InOutputTexture, (FColor*)TextureData, OutMipsData[MipIndex].GetData());
+						}
+						else
+						{
+							OnDirtyHeightmap(MapHelper, InOutputTexture, (FColor*)TextureData, OutMipsData[MipIndex].GetData());
+						}
 						bChanged = true;
 
 						// We're about to modify the texture's source data, the texture needs to know so that it can handle properly update cached platform data (additionally, the package needs to be dirtied) :
@@ -5232,9 +5241,13 @@ bool ALandscape::ResolveLayersTexture(
 				ULandscapeComponent** Component = GetLandscapeInfo()->XYtoComponentMap.Find(ComponentContext.ComponentKey);
 				if (Component != nullptr && *Component != nullptr)
 				{
-					FLandscapeEditLayerReadbackResult& ComponentInfo = InOutComponents.FindOrAdd(*Component);
-					ComponentInfo.UpdateModes |= ComponentContext.UpdateModes;
-					ComponentInfo.bModified |= bChanged ? 1 : 0;
+					FLandscapeEditLayerComponentReadbackResult* ComponentReadbackResult = InOutComponentReadbackResults.FindByPredicate([LandscapeComponent = *Component](const FLandscapeEditLayerComponentReadbackResult& Element) { return Element.LandscapeComponent == LandscapeComponent; });
+					if (ComponentReadbackResult == nullptr)
+					{
+						ComponentReadbackResult = &InOutComponentReadbackResults.Add_GetRef(FLandscapeEditLayerComponentReadbackResult(*Component, ELandscapeLayerUpdateMode::Update_None));
+					}
+					ComponentReadbackResult->UpdateModes |= ComponentContext.UpdateModes;
+					ComponentReadbackResult->bModified |= bChanged ? 1 : 0;
 				}
 			}
 		}
@@ -7043,25 +7056,29 @@ int32 ALandscape::RegenerateLayersWeightmaps(FUpdateLayersContentContext& InUpda
 	return 0;
 }
 
-void ALandscape::UpdateForChangedWeightmaps(ULandscapeComponent* InComponent, const FLandscapeEditLayerReadbackResult& InReadbackResult)
+void ALandscape::UpdateForChangedWeightmaps(const TArrayView<FLandscapeEditLayerComponentReadbackResult>& InComponentReadbackResults)
 {
-	// If the source data has changed, mark the component as needing a collision layer data update:
-	//  - If ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision is passed, it will be done immediately
-	//  - If not, at least the component's collision layer data will still get updated eventually, when the flag is finally passed :
-	if (InReadbackResult.bModified)
-	{
-		InComponent->SetPendingLayerCollisionDataUpdate(true);
-	}
+	TArray<ULandscapeComponent*> ComponentsNeedingMaterialInstanceUpdates;
 
-	const int32 WeightUpdateMode = InReadbackResult.UpdateModes & (ELandscapeLayerUpdateMode::Update_Weightmap_All | ELandscapeLayerUpdateMode::Update_Weightmap_Editing | ELandscapeLayerUpdateMode::Update_Weightmap_Editing_NoCollision);
-
-	if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision, WeightUpdateMode))
+	for (const FLandscapeEditLayerComponentReadbackResult& ComponentReadbackResult : InComponentReadbackResults)
 	{
-		// Only update collision data if there was an actual change performed on the source data : 
-		if (InComponent->GetPendingLayerCollisionDataUpdate())
+		// If the source data has changed, mark the component as needing a collision layer data update:
+		//  - If ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision is passed, it will be done immediately
+		//  - If not, at least the component's collision layer data will still get updated eventually, when the flag is finally passed :
+		if (ComponentReadbackResult.bModified)
 		{
-			InComponent->UpdateCollisionLayerData();
-			InComponent->SetPendingLayerCollisionDataUpdate(false);
+			ComponentReadbackResult.LandscapeComponent->SetPendingLayerCollisionDataUpdate(true);
+		}
+
+		const int32 WeightUpdateMode = ComponentReadbackResult.UpdateModes & (ELandscapeLayerUpdateMode::Update_Weightmap_All | ELandscapeLayerUpdateMode::Update_Weightmap_Editing | ELandscapeLayerUpdateMode::Update_Weightmap_Editing_NoCollision);
+		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision, WeightUpdateMode))
+		{
+			// Only update collision data if there was an actual change performed on the source data : 
+			if (ComponentReadbackResult.LandscapeComponent->GetPendingLayerCollisionDataUpdate())
+			{
+				ComponentReadbackResult.LandscapeComponent->UpdateCollisionLayerData();
+				ComponentReadbackResult.LandscapeComponent->SetPendingLayerCollisionDataUpdate(false);
+			}
 		}
 	}
 }
@@ -7271,7 +7288,7 @@ void ALandscape::ResolveLayersWeightmapTexture(
 	TSet<UTexture2D*> const& WeightmapsToResolve,
 	bool bIntermediateRender,
 	bool bFlushRender,
-	TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult>& InOutComponents)
+	TArray<FLandscapeEditLayerComponentReadbackResult>& InOutComponentReadbackResults)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_ResolveLayersWeightmapTexture);
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeLayersResolveWeightmaps);
@@ -7282,11 +7299,6 @@ void ALandscape::ResolveLayersWeightmapTexture(
 		return;
 	}
 
-	FDirtyDelegate OnDirtyDelegate = [this, &MapHelper](UTexture2D const* Weightmap, FColor const* OldData, FColor const* NewData)
-	{
-		OnDirtyWeightmap(MapHelper, Weightmap, OldData, NewData);
-	};
-
 	TArray<ULandscapeComponent*> ChangedComponents;
 	for (UTexture2D* Weightmap : WeightmapsToResolve)
 	{
@@ -7294,7 +7306,7 @@ void ALandscape::ResolveLayersWeightmapTexture(
 		check(LandscapeProxy);
 		if (FLandscapeEditLayerReadback** CPUReadback = LandscapeProxy->WeightmapsCPUReadback.Find(Weightmap))
 		{
-			const bool bChanged = ResolveLayersTexture(MapHelper, *CPUReadback, Weightmap, bIntermediateRender, bFlushRender, InOutComponents, OnDirtyDelegate);
+			const bool bChanged = ResolveLayersTexture(MapHelper, *CPUReadback, Weightmap, bIntermediateRender, bFlushRender, InOutComponentReadbackResults, /*bIsWeightmap = */true);
 			if (bChanged)
 			{
 				ChangedComponents.Append(MapHelper.WeightmapToComponents[Weightmap]);
@@ -7773,11 +7785,10 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		const bool bDoIntermediateRender = false; // bIntermediateRender flag is for the work queued up this frame not the delayed resolves
 		const bool bDoFlushRender = bIntermediateRender; // Flush before we do an intermediate render later in this frame
 
-		TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult> ModifiedComponentInfo;
-		ResolveLayersHeightmapTexture(MapHelper, MapHelper.Heightmaps, bDoIntermediateRender, bDoFlushRender, ModifiedComponentInfo);
-		ResolveLayersWeightmapTexture(MapHelper, MapHelper.Weightmaps, bDoIntermediateRender, bDoFlushRender, ModifiedComponentInfo);
-
-		LayerContentUpdateModes |= UpdateAfterReadbackResolves(ModifiedComponentInfo);
+		TArray<FLandscapeEditLayerComponentReadbackResult> ComponentReadbackResults;
+		ResolveLayersHeightmapTexture(MapHelper, MapHelper.Heightmaps, bDoIntermediateRender, bDoFlushRender, ComponentReadbackResults);
+		ResolveLayersWeightmapTexture(MapHelper, MapHelper.Weightmaps, bDoIntermediateRender, bDoFlushRender, ComponentReadbackResults);
+		LayerContentUpdateModes |= UpdateAfterReadbackResolves(ComponentReadbackResults);
 	}
 
 	if (LayerContentUpdateModes == 0 && !bForceRender)
@@ -7801,8 +7812,8 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	if (bFlushRender || CVarLandscapeForceFlush.GetValueOnGameThread() != 0)
 	{
 		const bool bDoFlushRender = true;
-		ResolveLayersHeightmapTexture(UpdateLayersContentContext.MapHelper, UpdateLayersContentContext.HeightmapsToResolve, bIntermediateRender, bDoFlushRender, UpdateLayersContentContext.AllLandscapeComponentsToUpdate);
-		ResolveLayersWeightmapTexture(UpdateLayersContentContext.MapHelper, UpdateLayersContentContext.WeightmapsToResolve, bIntermediateRender, bDoFlushRender, UpdateLayersContentContext.AllLandscapeComponentsToUpdate);
+		ResolveLayersHeightmapTexture(UpdateLayersContentContext.MapHelper, UpdateLayersContentContext.HeightmapsToResolve, bIntermediateRender, bDoFlushRender, UpdateLayersContentContext.AllLandscapeComponentReadbackResults);
+		ResolveLayersWeightmapTexture(UpdateLayersContentContext.MapHelper, UpdateLayersContentContext.WeightmapsToResolve, bIntermediateRender, bDoFlushRender, UpdateLayersContentContext.AllLandscapeComponentReadbackResults);
 	}
 
 	// Clear processed mode flags
@@ -7813,7 +7824,7 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	}
 
 	// Apply post resolve updates
-	const int32 ToProcessModes = UpdateAfterReadbackResolves(UpdateLayersContentContext.AllLandscapeComponentsToUpdate);
+	const uint32 ToProcessModes = UpdateAfterReadbackResolves(UpdateLayersContentContext.AllLandscapeComponentReadbackResults);
 	LayerContentUpdateModes |= ToProcessModes;
 
 	if (LandscapeEdMode)
@@ -7853,7 +7864,7 @@ private:
 	ULandscapeHeightfieldCollisionComponent* CollisionComponent;
 };
 
-int32 ALandscape::UpdateCollisionAndClients(TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult> const& Components)
+uint32 ALandscape::UpdateCollisionAndClients(const TArrayView<FLandscapeEditLayerComponentReadbackResult>& InComponentReadbackResults)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_PostResolve_CollisionAndClients);
 
@@ -7865,27 +7876,24 @@ int32 ALandscape::UpdateCollisionAndClients(TMap<ULandscapeComponent*, FLandscap
 	TArray<uint16> HeightData;
 	TArray<uint8> LayerContributionMaskData;
 
-	for (auto Pair : Components)
+	for (const FLandscapeEditLayerComponentReadbackResult& ComponentReadbackResult : InComponentReadbackResults)
 	{
-		ULandscapeComponent* LandscapeComponent = Pair.Key;
-		const int32 UpdateModes = Pair.Value.UpdateModes;
-
 		bool bDeferClientUpdateForComponent = false;
 		bool bDoUpdateClient = true;
-		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, UpdateModes))
+		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, ComponentReadbackResult.UpdateModes))
 		{
-			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
+			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = ComponentReadbackResult.LandscapeComponent->CollisionComponent.Get())
 			{
 				FEnableCollisionHashOptimScope Scope(CollisionComp);
 				bDoUpdateClient = CollisionComp->RecreateCollision();
 			}
 		}
 
-		if (bDoUpdateClient && IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client, UpdateModes))
+		if (bDoUpdateClient && IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client, ComponentReadbackResult.UpdateModes))
 		{
 			if (!GUndo)
 			{
-				if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
+				if (ULandscapeHeightfieldCollisionComponent* CollisionComp = ComponentReadbackResult.LandscapeComponent->CollisionComponent.Get())
 				{
 					FNavigationSystem::UpdateComponentData(*CollisionComp);
 					CollisionComp->SnapFoliageInstances();
@@ -7898,11 +7906,11 @@ int32 ALandscape::UpdateCollisionAndClients(TMap<ULandscapeComponent*, FLandscap
 			}
 		}
 
-		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client_Editing, UpdateModes))
+		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Client_Editing, ComponentReadbackResult.UpdateModes))
 		{
 			if (LandscapeEdModeInfo.ViewMode == ELandscapeViewMode::LayerContribution)
 			{
-				check(ComponentSizeQuads == LandscapeComponent->ComponentSizeQuads);
+				check(ComponentSizeQuads == ComponentReadbackResult.LandscapeComponent->ComponentSizeQuads);
 				const int32 Stride = (1 + ComponentSizeQuads);
 				const int32 ArraySize = Stride * Stride;
 				if (LayerContributionMaskData.Num() != ArraySize)
@@ -7910,13 +7918,13 @@ int32 ALandscape::UpdateCollisionAndClients(TMap<ULandscapeComponent*, FLandscap
 					LayerContributionMaskData.AddZeroed(ArraySize);
 				}
 				uint8* LayerContributionMaskDataPtr = LayerContributionMaskData.GetData();
-				const int32 X1 = LandscapeComponent->GetSectionBase().X;
+				const int32 X1 = ComponentReadbackResult.LandscapeComponent->GetSectionBase().X;
 				const int32 X2 = X1 + ComponentSizeQuads;
-				const int32 Y1 = LandscapeComponent->GetSectionBase().Y;
+				const int32 Y1 = ComponentReadbackResult.LandscapeComponent->GetSectionBase().Y;
 				const int32 Y2 = Y1 + ComponentSizeQuads;
 				bool bLayerContributionWrittenData = false;
 
-				ULandscapeInfo* Info = LandscapeComponent->GetLandscapeInfo();
+				ULandscapeInfo* Info = ComponentReadbackResult.LandscapeComponent->GetLandscapeInfo();
 				check(Info);
 				FLandscapeEditDataInterface LandscapeEdit(Info);
 
@@ -7956,7 +7964,7 @@ int32 ALandscape::UpdateCollisionAndClients(TMap<ULandscapeComponent*, FLandscap
 
 		if (bDeferClientUpdateForComponent)
 		{
-			LandscapeComponent->RequestDeferredClientUpdate();
+			ComponentReadbackResult.LandscapeComponent->RequestDeferredClientUpdate();
 		}
 	}
 
@@ -7964,23 +7972,20 @@ int32 ALandscape::UpdateCollisionAndClients(TMap<ULandscapeComponent*, FLandscap
 	return bAllClientsUpdated ? 0 : ELandscapeLayerUpdateMode::Update_Client_Deferred;
 }
 
-int32 ALandscape::UpdateAfterReadbackResolves(TMap<ULandscapeComponent*, FLandscapeEditLayerReadbackResult> const& Components)
+uint32 ALandscape::UpdateAfterReadbackResolves(const TArrayView<FLandscapeEditLayerComponentReadbackResult>& InComponentReadbackResults)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_PostResolve_Updates);
 
-	int32 NewUpdateFlags = 0;
+	uint32 NewUpdateFlags = 0;
 
-	if (Components.Num())
+	if (InComponentReadbackResults.Num())
 	{
-		for (auto Pair : Components)
-		{
-			UpdateForChangedHeightmaps(Pair.Key, Pair.Value);
-			UpdateForChangedWeightmaps(Pair.Key, Pair.Value);
-		}
+		UpdateForChangedHeightmaps(InComponentReadbackResults);
+		UpdateForChangedWeightmaps(InComponentReadbackResults);
 
 		GetLandscapeInfo()->UpdateAllAddCollisions();
 
-		NewUpdateFlags |= UpdateCollisionAndClients(Components);
+		NewUpdateFlags |= UpdateCollisionAndClients(InComponentReadbackResults);
 	}
 
 	return NewUpdateFlags;

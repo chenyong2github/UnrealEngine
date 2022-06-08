@@ -231,7 +231,7 @@ float3 ComputeNullableTriangleNormal(float4 InPoint0, float4 InPoint1, float4 In
 
 
 // ----------------------------------------------------------------------------------
-// Compute shaders : 
+// Pixel shaders : 
 
 #if MERGE_EDIT_LAYERS
 // Take all source edit layers heightmap regions and merge them all into a (almost) final heightmap
