@@ -63,7 +63,7 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	UPROPERTY()
 	TArray<uint8> CollisionQuadFlags;
 
-	/** Guid used to share PhysX heightfield objects in the editor */
+	/** Guid used to share Physics heightfield objects in the editor */
 	UPROPERTY()
 	FGuid HeightfieldGuid;
 
@@ -221,7 +221,7 @@ public:
 	 */
 	virtual bool CookCollisionData(const FName& Format, bool bUseOnlyDefMaterial, bool bCheckDDC, TArray<uint8>& OutCookedData, TArray<UPhysicalMaterial*>& InOutMaterials) const;
 
-	/** Modify a sub-region of the PhysX heightfield. Note that this does not update the physical material */
+	/** Modify a sub-region of the physics heightfield. Note that this does not update the physical material */
 	void UpdateHeightfieldRegion(int32 ComponentX1, int32 ComponentY1, int32 ComponentX2, int32 ComponentY2);
 
 	/** Computes a hash of all the data that will impact final collision */
