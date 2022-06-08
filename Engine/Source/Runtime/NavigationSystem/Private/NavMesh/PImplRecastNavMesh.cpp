@@ -2846,7 +2846,17 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 #endif
 
 	const bool bIsBeingBuilt = Generator != nullptr && !!NavMeshOwner->bDistinctlyDrawTilesBeingBuilt
-		&& Generator->IsTileChanged(TileIdx == INDEX_NONE ? DetourNavMesh->decodePolyIdTile(DetourNavMesh->getTileRef(&Tile)) : TileIdx);
+		&& Generator->IsTileChanged(FNavTileRef(DetourNavMesh->getTileRef(&Tile)));
+
+	UE_SUPPRESS(LogNavigation, VeryVerbose,
+	{
+		if (bIsBeingBuilt)
+		{
+			const dtTileRef TileRef = DetourNavMesh->getTileRef(&Tile);
+			UE_LOG(LogNavigation, VeryVerbose, TEXT("%s TileId: %d Salt: %d TileRef: 0x%llx bIsBeingBuilt"),
+				ANSI_TO_TCHAR(__FUNCTION__), DetourNavMesh->decodePolyIdTile(TileRef), DetourNavMesh->decodePolyIdSalt(TileRef), TileRef);	
+		}
+	});
 
 	// add all the poly verts
 	FVector::FReal* F = Tile.verts;

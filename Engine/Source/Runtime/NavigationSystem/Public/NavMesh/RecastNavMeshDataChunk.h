@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "AI/Navigation/NavigationTypes.h"
 #include "AI/Navigation/NavigationDataChunk.h"
+#include "NavMesh/RecastNavMesh.h"
 #include "RecastNavMeshDataChunk.generated.h"
 
 class FPImplRecastNavMesh;
@@ -66,16 +67,32 @@ class NAVIGATIONSYSTEM_API URecastNavMeshDataChunk : public UNavigationDataChunk
 	//~ End UObject Interface
 
 	/** Attaches tiles to specified navmesh, transferring tile ownership to navmesh */
+	UE_DEPRECATED(5.1, "Use overload using ARecastNavMesh& instead")
 	TArray<uint32> AttachTiles(FPImplRecastNavMesh& NavMeshImpl);
 
 	/** Attaches tiles to specified navmesh */
+	UE_DEPRECATED(5.1, "Use overload using ARecastNavMesh& instead")
 	TArray<uint32> AttachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData);
 
 	/** Detaches tiles from specified navmesh, taking tile ownership */
+	UE_DEPRECATED(5.1, "Use overload using ARecastNavMesh& instead")
 	TArray<uint32> DetachTiles(FPImplRecastNavMesh& NavMeshImpl);
 
 	/** Detaches tiles from specified navmesh */
+	UE_DEPRECATED(5.1, "Use overload using ARecastNavMesh& instead")
 	TArray<uint32> DetachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership);
+
+	/** Attaches tiles to specified navmesh, transferring tile ownership to navmesh */
+	TArray<FNavTileRef> AttachTiles(ARecastNavMesh& NavMesh);
+
+	/** Attaches tiles to specified navmesh */
+	TArray<FNavTileRef> AttachTiles(ARecastNavMesh& NavMesh, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData);
+
+	/** Detaches tiles from specified navmesh, taking tile ownership */
+	TArray<FNavTileRef> DetachTiles(ARecastNavMesh& NavMesh);
+
+	/** Detaches tiles from specified navmesh */
+	TArray<FNavTileRef> DetachTiles(ARecastNavMesh& NavMesh, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership);
 
 	/** 
 	 * Experimental: Moves tiles data on the xy plane by the offset (in tile coordinates) and rotation (in degree).

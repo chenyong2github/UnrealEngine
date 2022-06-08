@@ -243,6 +243,37 @@ struct FRecastDebugGeometry
 	uint32 NAVIGATIONSYSTEM_API GetAllocatedSize() const;
 };
 
+struct FNavTileRef
+{
+	FNavTileRef() {}
+	explicit FNavTileRef(const uint64 InTileRef) : TileRef(InTileRef) {}
+
+	explicit operator uint64() const { return TileRef; }
+
+	bool operator==(const FNavTileRef InRef) const { return TileRef == (uint64)InRef; }
+	bool operator!=(const FNavTileRef InRef) const { return TileRef != (uint64)InRef; }
+
+	bool IsValid() const { return TileRef != (uint64)FNavTileRef(); }
+
+	/** Those 2 functions are used for backward compatibility of the following deprecated functions in FRecastNavMeshGenerator and ARecastNavMesh:
+	*	  RemoveTileLayers
+	*     AddGeneratedTilesTimeSliced
+	*     AddGeneratedTiles
+	*     RemoveLayers
+	*     ProcessTileTasksAsync
+	*     ProcessTileTasks
+	*     AttachTiles
+	*     DetachTiles
+	*     OnNavMeshTilesUpdated
+	*     InvalidateAffectedPaths
+	*   They will be removed with the deprecated methods */
+	static void NAVIGATIONSYSTEM_API DeprecatedGetTileIdsFromNavTileRefs(const FPImplRecastNavMesh* RecastNavMeshImpl, const TArray<FNavTileRef>& InTileRefs, TArray<uint32>& OutTileIds);
+	static void NAVIGATIONSYSTEM_API DeprecatedMakeTileRefsFromTileIds(const FPImplRecastNavMesh* RecastNavMeshImpl, const TArray<uint32>& InTileIds, TArray<FNavTileRef>& OutTileRefs);
+	
+private:	
+	uint64 TileRef = 0;
+};
+
 struct FNavPoly
 {
 	NavNodeRef Ref;
@@ -929,6 +960,8 @@ public:
 
 	const TArray<FIntPoint>& GetActiveTiles() const;
 	TArray<FIntPoint>& GetActiveTiles(); 
+
+	void LogRecastTile(const TCHAR* Caller, const FName& Prefix, const FName& OperationName, const dtNavMesh& DetourMesh, const int32 TileX, const int32 TileY, const int32 LayerIndex, const uint64 TileRef) const;
 	
 protected:
 	/** Serialization helper. */
@@ -990,7 +1023,11 @@ public:
 	void RequestDrawingUpdate(bool bForce = false);
 
 	/** called after regenerating tiles */
+	UE_DEPRECATED(5.1, "Use new version with FNavTileRef")
 	virtual void OnNavMeshTilesUpdated(const TArray<uint32>& ChangedTiles);
+
+	/** called after regenerating tiles */
+	virtual void OnNavMeshTilesUpdated(const TArray<FNavTileRef>& ChangedTiles);
 
 	/** Event from generator that navmesh build has finished */
 	virtual void OnNavMeshGenerationFinished();
@@ -1252,7 +1289,11 @@ protected:
 	void UpdatePolyRefBitsPreview();
 	
 	/** Invalidates active paths that go through changed tiles  */
+	UE_DEPRECATED(5.1, "Use new version with FNavTileRef")
 	void InvalidateAffectedPaths(const TArray<uint32>& ChangedTiles);
+
+	/** Invalidates active paths that go through changed tiles  */
+	void InvalidateAffectedPaths(const TArray<FNavTileRef>& ChangedTiles);
 
 	/** created a new FRecastNavMeshGenerator instance. Overrider to supply your
 	 *	own extentions. Note: needs to derive from FRecastNavMeshGenerator */
@@ -1264,6 +1305,7 @@ private:
 	friend struct FRecastGraphWrapper;
 	friend FRecastNavMeshGenerator;
 	friend class FPImplRecastNavMesh;
+	friend class URecastNavMeshDataChunk;
 	// destroys FPImplRecastNavMesh instance if it has been created 
 	void DestroyRecastPImpl();
 	// @todo docuement

@@ -8,6 +8,7 @@
 #include "NavMesh/RecastHelpers.h"
 #include "NavMesh/RecastVersion.h"
 #include "Detour/DetourNavMeshBuilder.h"
+#include "NavMesh/RecastNavMeshGenerator.h"
 
 //----------------------------------------------------------------------//
 // FRecastTileData                                                                
@@ -66,12 +67,12 @@ static uint8* DuplicateRecastRawData(const uint8* Src, int32 SrcSize)
 
 namespace UE::NavMesh::Private
 {
-	bool IsUsingActiveTileGeneration(const FPImplRecastNavMesh& NavMeshImpl)
+	bool IsUsingActiveTileGeneration(const ARecastNavMesh& NavMesh)
 	{
-		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMeshImpl.NavMeshOwner->GetWorld());
+		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMesh.GetWorld());
 		if (NavSys)
 		{
-			return NavMeshImpl.NavMeshOwner->IsUsingActiveTilesGeneration(*NavSys);
+			return NavMesh.IsUsingActiveTilesGeneration(*NavSys);
 		}
 		return false;
 	}
@@ -191,36 +192,74 @@ void URecastNavMeshDataChunk::SerializeRecastData(FArchive& Ar, int32 NavMeshVer
 }
 #endif// WITH_RECAST
 
+// Deprecated
 TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMeshImpl)
 {
-	check(NavMeshImpl.NavMeshOwner && NavMeshImpl.NavMeshOwner->GetWorld());
-	const bool bIsGameWorld = NavMeshImpl.NavMeshOwner->GetWorld()->IsGameWorld();
+	check(NavMeshImpl.NavMeshOwner);
+	const TArray<FNavTileRef> TileRefs = AttachTiles(*NavMeshImpl.NavMeshOwner);
+	TArray<uint32> TileIds;
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(&NavMeshImpl, TileRefs, TileIds);
+	return TileIds;
+}
+
+// Deprecated
+TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData)
+{
+	check(NavMeshImpl.NavMeshOwner);
+	const TArray<FNavTileRef> TileRefs = AttachTiles(*NavMeshImpl.NavMeshOwner, bKeepCopyOfData, bKeepCopyOfCacheData);
+	TArray<uint32> TileIds;
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(&NavMeshImpl, TileRefs, TileIds);
+	return TileIds;
+}
+
+// Deprecated
+TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMeshImpl)
+{
+	check(NavMeshImpl.NavMeshOwner);
+	const TArray<FNavTileRef> TileRefs = DetachTiles(*NavMeshImpl.NavMeshOwner);
+	TArray<uint32> TileIds;
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(&NavMeshImpl, TileRefs, TileIds);
+	return TileIds;
+}
+
+// Deprecated
+TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership)
+{
+	check(NavMeshImpl.NavMeshOwner);
+	const TArray<FNavTileRef> TileRefs = DetachTiles(*NavMeshImpl.NavMeshOwner, bTakeDataOwnership, bTakeCacheDataOwnership);
+	TArray<uint32> TileIds;
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(&NavMeshImpl, TileRefs, TileIds);
+	return TileIds;
+}
+
+TArray<FNavTileRef> URecastNavMeshDataChunk::AttachTiles(ARecastNavMesh& NavMesh)
+{
+	check(NavMesh.GetWorld());
+	const bool bIsGameWorld = NavMesh.GetWorld()->IsGameWorld();
 
 	// In editor we still need to own the data so a copy will be made.
 	const bool bKeepCopyOfData = !bIsGameWorld;
 	const bool bKeepCopyOfCacheData = !bIsGameWorld;
 
-	return AttachTiles(NavMeshImpl, bKeepCopyOfData, bKeepCopyOfCacheData);
+	return AttachTiles(NavMesh, bKeepCopyOfData, bKeepCopyOfCacheData);
 }
 
-TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData)
+TArray<FNavTileRef> URecastNavMeshDataChunk::AttachTiles(ARecastNavMesh& NavMesh, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData)
 {
 	UE_LOG(LogNavigation, Verbose, TEXT("%s Attaching to NavMesh - %s"), ANSI_TO_TCHAR(__FUNCTION__), *NavigationDataName.ToString());
 	
-	TArray<uint32> Result;
+	TArray<FNavTileRef> Result;
 	Result.Reserve(Tiles.Num());
 
 #if WITH_RECAST	
-	dtNavMesh* NavMesh = NavMeshImpl.DetourNavMesh;
+	dtNavMesh* DetourNavMesh = NavMesh.GetRecastMesh();
 
-	if (NavMesh != nullptr)
+	if (DetourNavMesh != nullptr)
 	{
-		check(NavMeshImpl.NavMeshOwner);
-		
 		TArray<FIntPoint>* ActiveTiles = nullptr;
-		if (UE::NavMesh::Private::IsUsingActiveTileGeneration(NavMeshImpl))
+		if (UE::NavMesh::Private::IsUsingActiveTileGeneration(NavMesh))
 		{
-			ActiveTiles = &NavMeshImpl.NavMeshOwner->GetActiveTiles();
+			ActiveTiles = &NavMesh.GetActiveTiles();
 		}
 		
 		for (FRecastTileData& TileData : Tiles)
@@ -240,14 +279,13 @@ TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMesh
 				}
 				
 				// If there was a previous tile at the location remove it
-				if (const dtMeshTile* PreExistingTile = NavMesh->getTileAt(Header->x, Header->y, Header->layer))
+				if (const dtMeshTile* PreExistingTile = DetourNavMesh->getTileAt(Header->x, Header->y, Header->layer))
 				{
-					if (const dtTileRef PreExistingTileRef = NavMesh->getTileRef(PreExistingTile))
+					if (const dtTileRef PreExistingTileRef = DetourNavMesh->getTileRef(PreExistingTile))
 					{
-						UE_LOG(LogNavigation, VeryVerbose, TEXT("%s> Tile (%d,%d:%d), %s removing TileRef: 0x%llx"),
-							*NavMeshImpl.NavMeshOwner->GetName(), Header->x, Header->y, Header->layer, ANSI_TO_TCHAR(__FUNCTION__), PreExistingTileRef);
+						NavMesh.LogRecastTile(ANSI_TO_TCHAR(__FUNCTION__), FName("   "), FName("removing"), *DetourNavMesh, Header->x, Header->y, Header->layer, PreExistingTileRef);
 						
-						NavMesh->removeTile(PreExistingTileRef, nullptr, nullptr);	
+						DetourNavMesh->removeTile(PreExistingTileRef, nullptr, nullptr);	
 					}
 				}
 
@@ -255,7 +293,7 @@ TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMesh
 				dtTileRef TileRef = 0;
 				const dtMeshTile* MeshTile = nullptr;
 
-				dtStatus status = NavMesh->addTile(TileData.TileRawData->RawData, TileData.TileDataSize, DT_TILE_FREE_DATA, 0, &TileRef);
+				dtStatus status = DetourNavMesh->addTile(TileData.TileRawData->RawData, TileData.TileDataSize, DT_TILE_FREE_DATA, 0, &TileRef);
 
 				if (dtStatusFailed(status))
 				{
@@ -263,7 +301,7 @@ TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMesh
 				}
 				else
 				{
-					MeshTile = NavMesh->getTileByRef(TileRef);
+					MeshTile = DetourNavMesh->getTileByRef(TileRef);
 					check(MeshTile);
 					
 					TileData.X = MeshTile->header->x;
@@ -272,8 +310,7 @@ TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMesh
 					TileData.bAttached = true;
 				}
 
-				UE_LOG(LogNavigation, VeryVerbose, TEXT("  %s> Tile (%d,%d:%d), %s added TileRef: 0x%llx"),
-					*NavMeshImpl.NavMeshOwner->GetName(), TileData.X, TileData.Y, TileData.Layer, ANSI_TO_TCHAR(__FUNCTION__), TileRef);
+				NavMesh.LogRecastTile(ANSI_TO_TCHAR(__FUNCTION__), FName("   "), FName("added"), *DetourNavMesh, TileData.X, TileData.Y, TileData.Layer, TileRef);
 				
 				if (ActiveTiles)
 				{
@@ -298,7 +335,7 @@ TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMesh
 					FBox TileBBox = Recast2UnrealBox(MeshTile->header->bmin, MeshTile->header->bmax);
 
 					FNavMeshTileData LayerData(TileData.TileCacheRawData->RawData, TileData.TileCacheDataSize, TileData.Layer, TileBBox);
-					NavMeshImpl.AddTileCacheLayer(TileData.X, TileData.Y, TileData.Layer, LayerData);
+					NavMesh.GetRecastNavMeshImpl()->AddTileCacheLayer(TileData.X, TileData.Y, TileData.Layer, LayerData);
 
 					if (bKeepCopyOfCacheData == false)
 					{
@@ -313,7 +350,7 @@ TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMesh
 					}
 				}
 
-				Result.Add(NavMesh->decodePolyIdTile(TileRef));
+				Result.Add(FNavTileRef(TileRef));
 			}
 		}
 	}
@@ -323,40 +360,38 @@ TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMesh
 	return Result;
 }
 
-TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMeshImpl)
+TArray<FNavTileRef> URecastNavMeshDataChunk::DetachTiles(ARecastNavMesh& NavMesh)
 {
-	check(NavMeshImpl.NavMeshOwner && NavMeshImpl.NavMeshOwner->GetWorld());
-	const bool bIsGameWorld = NavMeshImpl.NavMeshOwner->GetWorld()->IsGameWorld();
+	check(NavMesh.GetWorld());
+	const bool bIsGameWorld = NavMesh.GetWorld()->IsGameWorld();
 
 	// Keep data in game worlds (in editor we have a copy of the data so we don't keep it).
 	const bool bTakeDataOwnership = bIsGameWorld;
 	const bool bTakeCacheDataOwnership = bIsGameWorld;
 
-	return DetachTiles(NavMeshImpl, bTakeDataOwnership, bTakeCacheDataOwnership);
+	return DetachTiles(NavMesh, bTakeDataOwnership, bTakeCacheDataOwnership);
 }
 
-TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership)
+TArray<FNavTileRef> URecastNavMeshDataChunk::DetachTiles(ARecastNavMesh& NavMesh, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership)
 {
 	UE_LOG(LogNavigation, Verbose, TEXT("%s Detaching from %s"), ANSI_TO_TCHAR(__FUNCTION__), *NavigationDataName.ToString());
 
-	TArray<uint32> Result;
+	TArray<FNavTileRef> Result;
 	Result.Reserve(Tiles.Num());
 
 #if WITH_RECAST
-	dtNavMesh* NavMesh = NavMeshImpl.DetourNavMesh;
+	dtNavMesh* DetourNavMesh = NavMesh.GetRecastMesh();
 
-	if (NavMesh != nullptr)
+	if (DetourNavMesh != nullptr)
 	{
-		check(NavMeshImpl.NavMeshOwner);
-		
 		TArray<FIntPoint>* ActiveTiles = nullptr;
-		if (UE::NavMesh::Private::IsUsingActiveTileGeneration(NavMeshImpl))
+		if (UE::NavMesh::Private::IsUsingActiveTileGeneration(NavMesh))
 		{
-			ActiveTiles = &NavMeshImpl.NavMeshOwner->GetActiveTiles();
+			ActiveTiles = &NavMesh.GetActiveTiles();
 		}
 
 		TArray<const dtMeshTile*> ExtraMeshTiles;
-		const bool bIsDynamic = NavMeshImpl.NavMeshOwner->SupportsRuntimeGeneration();
+		const bool bIsDynamic = NavMesh.SupportsRuntimeGeneration();
 		
 		for (FRecastTileData& TileData : Tiles)
 		{
@@ -364,14 +399,14 @@ TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMesh
 			{
 				// Detach tile cache layer and take ownership over compressed data
 				dtTileRef TileRef = 0;
-				const dtMeshTile* MeshTile = NavMesh->getTileAt(TileData.X, TileData.Y, TileData.Layer);
+				const dtMeshTile* MeshTile = DetourNavMesh->getTileAt(TileData.X, TileData.Y, TileData.Layer);
 				if (MeshTile)
 				{
-					TileRef = NavMesh->getTileRef(MeshTile);
+					TileRef = DetourNavMesh->getTileRef(MeshTile);
 
 					if (bTakeCacheDataOwnership)
 					{
-						FNavMeshTileData TileCacheData = NavMeshImpl.GetTileCacheLayer(TileData.X, TileData.Y, TileData.Layer);
+						FNavMeshTileData TileCacheData = NavMesh.GetRecastNavMeshImpl()->GetTileCacheLayer(TileData.X, TileData.Y, TileData.Layer);
 						if (TileCacheData.IsValid())
 						{
 							TileData.TileCacheDataSize = TileCacheData.DataSize;
@@ -379,20 +414,19 @@ TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMesh
 						}
 					}
 
-					UE_LOG(LogNavigation, VeryVerbose, TEXT("  %s> Tile (%d,%d:%d), removing TileRef: 0x%llx"),
-						*NavMeshImpl.NavMeshOwner->GetName(), TileData.X, TileData.Y, TileData.Layer, TileRef);
+					NavMesh.LogRecastTile(ANSI_TO_TCHAR(__FUNCTION__), FName("   "), FName("removing"), *DetourNavMesh, TileData.X, TileData.Y, TileData.Layer, TileRef);
 				
-					NavMeshImpl.RemoveTileCacheLayer(TileData.X, TileData.Y, TileData.Layer);
+					NavMesh.GetRecastNavMeshImpl()->RemoveTileCacheLayer(TileData.X, TileData.Y, TileData.Layer);
 
 					if (bTakeDataOwnership)
 					{
 						// Remove tile from navmesh and take ownership of tile raw data
-						NavMesh->removeTile(TileRef, &TileData.TileRawData->RawData, &TileData.TileDataSize);
+						DetourNavMesh->removeTile(TileRef, &TileData.TileRawData->RawData, &TileData.TileDataSize);
 					}
 					else
 					{
 						// In the editor we have a copy of tile data so just release tile in navmesh
-						NavMesh->removeTile(TileRef, nullptr, nullptr);
+						DetourNavMesh->removeTile(TileRef, nullptr, nullptr);
 					}
 
 					if (ActiveTiles)
@@ -400,25 +434,25 @@ TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMesh
 						ActiveTiles->RemoveSwap(FIntPoint(TileData.X, TileData.Y));	
 					}
 						
-					Result.Add(NavMesh->decodePolyIdTile(TileRef));
+					Result.Add(FNavTileRef(TileRef));
 				}
 
 				if (bIsDynamic)
 				{
 					// Remove any tile remaining
-					const int32 MaxTiles = NavMesh->getTileCountAt(TileData.X, TileData.Y);
+					const int32 MaxTiles = DetourNavMesh->getTileCountAt(TileData.X, TileData.Y);
 					if (MaxTiles > 0)
 					{
 						ExtraMeshTiles.SetNumZeroed(MaxTiles, false);
-						const int32 MeshTilesCount = NavMesh->getTilesAt(TileData.X, TileData.Y, ExtraMeshTiles.GetData(), MaxTiles);
+						const int32 MeshTilesCount = DetourNavMesh->getTilesAt(TileData.X, TileData.Y, ExtraMeshTiles.GetData(), MaxTiles);
 						for (int32 i = 0; i < MeshTilesCount; ++i)
 						{
 							const dtMeshTile* ExtraMeshTile = ExtraMeshTiles[i];
-							dtTileRef ExtraTileRef = NavMesh->getTileRef(ExtraMeshTile);
+							dtTileRef ExtraTileRef = DetourNavMesh->getTileRef(ExtraMeshTile);
 							if (ExtraTileRef)
 							{
-								NavMesh->removeTile(ExtraTileRef, nullptr, nullptr);
-								Result.Add(NavMesh->decodePolyIdTile(ExtraTileRef));
+								DetourNavMesh->removeTile(ExtraTileRef, nullptr, nullptr);
+								Result.Add(FNavTileRef(ExtraTileRef));
 							}
 						}
 					}

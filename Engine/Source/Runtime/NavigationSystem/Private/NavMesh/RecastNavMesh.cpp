@@ -78,6 +78,19 @@ namespace
 
 }
 
+namespace UE::NavMesh::Private
+{
+	FNavTileRef GetTileRefFromPolyRef(const dtNavMesh& DetourMesh, const NavNodeRef PolyRef)
+	{
+		unsigned int Salt = 0;
+		unsigned int TileIndex = 0;
+		unsigned int PolyIndex = 0;
+		DetourMesh.decodePolyId(PolyRef, Salt, TileIndex, PolyIndex);
+		const dtTileRef TileRef = DetourMesh.encodePolyId(Salt, TileIndex, 0);
+		return FNavTileRef(TileRef);
+	}
+} // namespace UE::NavMesh::Private
+
 FDetourTileLayout::FDetourTileLayout(const dtMeshTile& tile)
 {
 	const dtMeshHeader* header = tile.header;
@@ -283,6 +296,43 @@ uint32 FRecastDebugGeometry::GetAllocatedSize() const
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	return Size;
+}
+
+//----------------------------------------------------------------------//
+// FNavTileRef
+//----------------------------------------------------------------------//
+
+// Only use for deprecation
+void FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(const FPImplRecastNavMesh* RecastNavMeshImpl, const TArray<FNavTileRef>& InTileRefs, TArray<uint32>& OutTileIds)
+{
+	if (RecastNavMeshImpl)
+	{
+		if (const dtNavMesh* DetourMesh = RecastNavMeshImpl->DetourNavMesh)
+		{
+			OutTileIds.Reserve(InTileRefs.Num());
+			for (const FNavTileRef TileRef : InTileRefs)
+			{
+				OutTileIds.Add(DetourMesh->decodePolyIdTile((dtTileRef)TileRef));
+			}
+		}
+	}
+}
+
+// Only use for deprecation
+void FNavTileRef::DeprecatedMakeTileRefsFromTileIds(const FPImplRecastNavMesh* RecastNavMeshImpl, const TArray<uint32>& InTileIds, TArray<FNavTileRef>& OutTileRefs)
+{
+	if (RecastNavMeshImpl)
+	{
+		if (const dtNavMesh* DetourMesh = RecastNavMeshImpl->DetourNavMesh)
+		{
+			OutTileRefs.Reserve(InTileIds.Num());
+			for (const uint32 TileId : InTileIds)
+			{
+				const dtTileRef TileRef = DetourMesh->encodePolyId(0, TileId, 0);
+				OutTileRefs.Add(FNavTileRef(TileRef));
+			}
+		}
+	}
 }
 
 //----------------------------------------------------------------------//
@@ -808,6 +858,15 @@ TArray<FIntPoint>& ARecastNavMesh::GetActiveTiles()
 	FRecastNavMeshGenerator* MyGenerator = static_cast<FRecastNavMeshGenerator*>(GetGenerator());
 	check(MyGenerator);
 	return MyGenerator->ActiveTiles;
+}
+
+void ARecastNavMesh::LogRecastTile(const TCHAR* Caller, const FName& Prefix, const FName& OperationName, const dtNavMesh& DetourMesh, const int32 TileX, const int32 TileY, const int32 LayerIndex, const dtTileRef TileRef) const
+{
+	UE_LOG(LogNavigation, VeryVerbose, TEXT("%s> %s Tile (%d,%d:%d), %s TileId: %d, Salt: %d, TileRef: 0x%llx (%s)"),
+		   *GetName(), *Prefix.ToString(),
+		   TileX, TileY, LayerIndex, *OperationName.ToString(),
+		   DetourMesh.decodePolyIdTile(TileRef), DetourMesh.decodePolyIdSalt(TileRef), TileRef, 
+		   Caller);
 }
 
 void ARecastNavMesh::RestrictBuildingToActiveTiles(bool InRestrictBuildingToActiveTiles)
@@ -2093,17 +2152,39 @@ void ARecastNavMesh::DrawDebugPathCorridor(NavNodeRef const* PathPolys, int32 Nu
 #endif // ENABLE_DRAW_DEBUG
 }
 
+// Deprecated
 void ARecastNavMesh::OnNavMeshTilesUpdated(const TArray<uint32>& ChangedTiles)
+{
+	TArray<FNavTileRef> ChangedTileRefs;
+	FNavTileRef::DeprecatedMakeTileRefsFromTileIds(RecastNavMeshImpl, ChangedTiles, ChangedTileRefs);
+	OnNavMeshTilesUpdated(ChangedTileRefs);
+}
+
+void ARecastNavMesh::OnNavMeshTilesUpdated(const TArray<FNavTileRef>& ChangedTiles)
 {
 	InvalidateAffectedPaths(ChangedTiles);
 }
 
+// Deprecated
 void ARecastNavMesh::InvalidateAffectedPaths(const TArray<uint32>& ChangedTiles)
+{
+	TArray<FNavTileRef> ChangedTileRefs;
+	FNavTileRef::DeprecatedMakeTileRefsFromTileIds(RecastNavMeshImpl, ChangedTiles, ChangedTileRefs);
+	InvalidateAffectedPaths(ChangedTileRefs);
+}
+
+void ARecastNavMesh::InvalidateAffectedPaths(const TArray<FNavTileRef>& ChangedTiles)
 {
 	const int32 PathsCount = ActivePaths.Num();
 	const int32 ChangedTilesCount = ChangedTiles.Num();
 	
 	if (ChangedTilesCount == 0 || PathsCount == 0)
+	{
+		return;
+	}
+	
+	const dtNavMesh* DetourMesh = RecastNavMeshImpl->DetourNavMesh;
+	if (DetourMesh == nullptr)
 	{
 		return;
 	}
@@ -2140,8 +2221,8 @@ void ARecastNavMesh::InvalidateAffectedPaths(const TArray<uint32>& ChangedTiles)
 				const NavNodeRef* PathPoly = Path->PathCorridor.GetData();
 				for (int32 NodeIndex = 0; NodeIndex < PathLenght; ++NodeIndex, ++PathPoly)
 				{
-					const uint32 NodeTileIdx = RecastNavMeshImpl->GetTileIndexFromPolyRef(*PathPoly);
-					if (ChangedTiles.Contains(NodeTileIdx))
+					const FNavTileRef NavTileRef = UE::NavMesh::Private::GetTileRefFromPolyRef(*DetourMesh, *PathPoly);
+					if (ChangedTiles.Contains(NavTileRef))
 					{
 						SharedPath->Invalidate();
 						ActivePaths.RemoveAtSwap(PathIndex, 1, /*bAllowShrinking=*/false);
@@ -2427,7 +2508,7 @@ void ARecastNavMesh::OnStreamingLevelAdded(ULevel* InLevel, UWorld* InWorld)
 
 void ARecastNavMesh::AttachNavMeshDataChunk(URecastNavMeshDataChunk& NavDataChunk)
 {
-	TArray<uint32> AttachedIndices = NavDataChunk.AttachTiles(*RecastNavMeshImpl);
+	const TArray<FNavTileRef> AttachedIndices = NavDataChunk.AttachTiles(*this);
 	if (AttachedIndices.Num() > 0)
 	{
 		InvalidateAffectedPaths(AttachedIndices);
@@ -2451,7 +2532,7 @@ void ARecastNavMesh::OnStreamingLevelRemoved(ULevel* InLevel, UWorld* InWorld)
 
 void ARecastNavMesh::DetachNavMeshDataChunk(URecastNavMeshDataChunk& NavDataChunk)
 {
-	TArray<uint32> DetachedIndices = NavDataChunk.DetachTiles(*RecastNavMeshImpl);
+	const TArray<FNavTileRef> DetachedIndices = NavDataChunk.DetachTiles(*this);
 	if (DetachedIndices.Num() > 0)
 	{
 		InvalidateAffectedPaths(DetachedIndices);

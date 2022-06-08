@@ -4630,7 +4630,7 @@ void FRecastNavMeshGenerator::EnsureBuildCompletion()
 	do 
 	{
 		const int32 NumTasksToProcess = (bDoAsyncDataGathering ? 1 : MaxTileGeneratorTasks) - RunningDirtyTiles.Num();
-		ProcessTileTasks(NumTasksToProcess);
+		ProcessTileTasksAndGetUpdatedTiles(NumTasksToProcess);
 		
 		// Block until tasks are finished
 		for (FRunningTileElement& Element : RunningDirtyTiles)
@@ -4688,15 +4688,15 @@ void FRecastNavMeshGenerator::TickAsyncBuild(float DeltaSeconds)
 	const bool bDoAsyncDataGathering = GatherGeometryOnGameThread() == false;
 
 	const int32 NumTasksToSubmit = (bDoAsyncDataGathering ? 1 : MaxTileGeneratorTasks) - NumRunningTasks;
-	TArray<uint32> UpdatedTileIndices = ProcessTileTasks(NumTasksToSubmit);
+	TArray<FNavTileRef> UpdatedTileRefs = ProcessTileTasksAndGetUpdatedTiles(NumTasksToSubmit);
 			
-	if (UpdatedTileIndices.Num() > 0)
+	if (UpdatedTileRefs.Num() > 0)
 	{
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_OnNavMeshTilesUpdated);
 
 			// Invalidate active paths that go through regenerated tiles
-			DestNavMesh->OnNavMeshTilesUpdated(UpdatedTileIndices);
+			DestNavMesh->OnNavMeshTilesUpdated(UpdatedTileRefs);
 		}
 
 		bRequestDrawingUpdate = true;
@@ -4704,11 +4704,24 @@ void FRecastNavMeshGenerator::TickAsyncBuild(float DeltaSeconds)
 #if	WITH_EDITOR
 		// Store completed tiles with timestamps to have ability to distinguish during debug draw
 		const double Timestamp = FPlatformTime::Seconds();
-		RecentlyBuiltTiles.Reserve(RecentlyBuiltTiles.Num() + UpdatedTileIndices.Num());
-		for (uint32 TiledIdx : UpdatedTileIndices)
+		RecentlyBuiltTiles.Reserve(RecentlyBuiltTiles.Num() + UpdatedTileRefs.Num());
+		for (const FNavTileRef TileRef : UpdatedTileRefs)
 		{
+			UE_SUPPRESS(LogNavigation, VeryVerbose,
+			{
+				if (DestNavMesh->GetRecastNavMeshImpl())
+				{
+					if (const dtNavMesh* DetourMesh = DestNavMesh->GetRecastNavMeshImpl()->GetRecastMesh())
+					{
+						const uint32 TileIndex = DetourMesh->decodePolyIdTile((dtTileRef)TileRef);
+						const uint32 Salt = DetourMesh->decodePolyIdSalt((dtTileRef)TileRef);
+						UE_LOG(LogNavigation, VeryVerbose, TEXT("%s Adding to RecentlyBuiltTiles TileId: %d Salt: %d TileRef: 0x%llx"), ANSI_TO_TCHAR(__FUNCTION__), TileIndex, Salt, (dtTileRef)TileRef);
+					}
+				}
+			});
+			
 			FTileTimestamp TileTimestamp;
-			TileTimestamp.TileIdx = TiledIdx;
+			TileTimestamp.NavTileRef = TileRef;
 			TileTimestamp.Timestamp = Timestamp;
 			RecentlyBuiltTiles.Add(TileTimestamp);
 		}
@@ -4823,7 +4836,7 @@ void FRecastNavMeshGenerator::ResetTimeSlicedTileGeneratorSync()
 	SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::Init;
 	SyncTimeSlicedData.UpdatedTilesCache.Reset();
 	SyncTimeSlicedData.OldLayerTileIdMapCached.Reset();
-	SyncTimeSlicedData.ResultTileIndicesCached.Reset();
+	SyncTimeSlicedData.ResultTileRefsCached.Reset();
 	SyncTimeSlicedData.AddGeneratedTilesState = EAddGeneratedTilesTimeSlicedState::Init;
 	SyncTimeSlicedData.AddGenTilesLayerIndex = 0;
 }
@@ -4833,7 +4846,7 @@ void FRecastNavMeshGenerator::RemoveTiles(const TArray<FIntPoint>& Tiles)
 {
 	for (const FIntPoint& TileXY : Tiles)
 	{
-		RemoveTileLayers(TileXY.X, TileXY.Y);
+		RemoveTileLayersAndGetUpdatedTiles(TileXY.X, TileXY.Y);
 
 		if (PendingDirtyTiles.Num() > 0)
 		{
@@ -4942,10 +4955,19 @@ namespace RecastTileVersionHelper
 	}
 }
 
+// Deprecated
 TArray<uint32> FRecastNavMeshGenerator::RemoveTileLayers(const int32 TileX, const int32 TileY, TMap<int32, dtPolyRef>* OldLayerTileIdMap)
 {
+	const TArray<FNavTileRef>& TileRefs = RemoveTileLayersAndGetUpdatedTiles(TileX, TileY, OldLayerTileIdMap);
+	TArray<uint32> TileIds;
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(DestNavMesh->GetRecastNavMeshImpl(), TileRefs, TileIds);
+	return TileIds;
+}
+
+TArray<FNavTileRef> FRecastNavMeshGenerator::RemoveTileLayersAndGetUpdatedTiles(const int32 TileX, const int32 TileY, TMap<int32, dtPolyRef>* OldLayerTileIdMap)
+{
 	dtNavMesh* DetourMesh = DestNavMesh->GetRecastNavMeshImpl()->GetRecastMesh();
-	TArray<uint32> UpdatedIndices;
+	TArray<FNavTileRef> UpdatedIndices;
 	
 	if (DetourMesh != nullptr && DetourMesh->isEmpty() == false)
 	{
@@ -4963,13 +4985,13 @@ TArray<uint32> FRecastNavMeshGenerator::RemoveTileLayers(const int32 TileX, cons
 				dtPolyRef TileRef = DetourMesh->getTileRef(Tiles[i]);
 
 				NumActiveTiles--;
-				UE_LOG(LogNavigation, VeryVerbose, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%llx (active count: %d)"),
-					*DestNavMesh->GetName(), TileX, TileY, LayerIndex, TileRef, NumActiveTiles);
+				DestNavMesh->LogRecastTile(ANSI_TO_TCHAR(__FUNCTION__), FName(""), FName("removing"), *DetourMesh, TileX, TileY, LayerIndex, TileRef);
 
 				DetourMesh->removeTile(TileRef, nullptr, nullptr);
 
-				uint32 TileId = RecastTileVersionHelper::GetUpdatedTileId(TileRef, DetourMesh);
-				UpdatedIndices.AddUnique(TileId);
+				UpdatedIndices.AddUnique(FNavTileRef(TileRef));
+
+				RecastTileVersionHelper::GetUpdatedTileId(TileRef, DetourMesh);	// Updates TileRef
 
 				if (OldLayerTileIdMap)
 				{
@@ -5005,7 +5027,7 @@ FRecastNavMeshGenerator::FSyncTimeSlicedData::FSyncTimeSlicedData()
 {
 }
 
-void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<uint32>& OutResultTileIndices)
+void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<FNavTileRef>& OutResultTileRefs)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastAddGeneratedTileLayer);
 
@@ -5032,13 +5054,13 @@ void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTil
 		if (OldTileRef)
 		{
 			NumActiveTiles--;
-			UE_LOG(LogNavigation, VeryVerbose, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%llx (active count: %d)"),
-				*DestNavMesh->GetName(), TileX, TileY, LayerIndex, OldTileRef, NumActiveTiles);
+			DestNavMesh->LogRecastTile(ANSI_TO_TCHAR(__FUNCTION__), FName(""), FName("removing"), *DetourMesh, TileX, TileY, LayerIndex, OldTileRef);
 
 			DetourMesh->removeTile(OldTileRef, nullptr, nullptr);
 
-			const uint32 TileId = RecastTileVersionHelper::GetUpdatedTileId(OldTileRef, DetourMesh);
-			OutResultTileIndices.AddUnique(TileId);
+			OutResultTileRefs.AddUnique(FNavTileRef(OldTileRef));
+			
+			RecastTileVersionHelper::GetUpdatedTileId(OldTileRef, DetourMesh);	// Updates OldTileRef
 		}
 		else
 		{
@@ -5074,11 +5096,10 @@ void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTil
 			}
 			else
 			{
-				OutResultTileIndices.AddUnique(DetourMesh->decodePolyIdTile(ResultTileRef));
+				OutResultTileRefs.AddUnique(FNavTileRef(ResultTileRef));
 				NumActiveTiles++;
 
-				UE_LOG(LogNavigation, VeryVerbose, TEXT("%s> Tile (%d,%d:%d), added TileRef: 0x%llx (active count: %d)"),
-					*DestNavMesh->GetName(), TileX, TileY, LayerIndex, ResultTileRef, NumActiveTiles);
+				DestNavMesh->LogRecastTile(ANSI_TO_TCHAR(__FUNCTION__), FName(""), FName("added generated"), *DetourMesh, TileX, TileY, LayerIndex, ResultTileRef);
 
 				{
 					// NavMesh took the ownership of generated data, so we don't need to deallocate it
@@ -5091,8 +5112,8 @@ void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTil
 	{
 		// remove the layer since it ended up empty
 		DetourMesh->removeTile(OldTileRef, nullptr, nullptr);
-		const uint32 TileId = RecastTileVersionHelper::GetUpdatedTileId(OldTileRef, DetourMesh);
-		OutResultTileIndices.AddUnique(TileId);
+
+		OutResultTileRefs.AddUnique(FNavTileRef(OldTileRef));
 	}
 }
 
@@ -5146,7 +5167,18 @@ void FRecastNavMeshGenerator::LogDirtyAreas(
 }
 #endif
 
+// Deprecated 
 ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecastTileGenerator& TileGenerator, TArray<uint32>& OutResultTileIndices)
+{
+	TArray<FNavTileRef> OutTileRefs;
+	const ETimeSliceWorkResult Result = AddGeneratedTilesTimeSliced(TileGenerator, OutTileRefs);
+
+	TArray<uint32> TileIds;
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(DestNavMesh->GetRecastNavMeshImpl(), OutTileRefs, TileIds);
+	return Result;
+}
+
+ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecastTileGenerator& TileGenerator, TArray<FNavTileRef>& OutResultTileRefs)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastAddGeneratedTiles);
 
@@ -5163,15 +5195,15 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 	{
 	case EAddGeneratedTilesTimeSlicedState::Init:
 	{
-		SyncTimeSlicedData.ResultTileIndicesCached.Reset();
-		SyncTimeSlicedData.ResultTileIndicesCached.Reserve(TileLayers.Num());
+		SyncTimeSlicedData.ResultTileRefsCached.Reset();
+		SyncTimeSlicedData.ResultTileRefsCached.Reserve(TileLayers.Num());
 		SyncTimeSlicedData.OldLayerTileIdMapCached.Reset();
 		SyncTimeSlicedData.OldLayerTileIdMapCached.Reserve(TileLayers.Num());
 		SyncTimeSlicedData.AddGenTilesLayerIndex = TileGenerator.GetDirtyLayersMask().Find(true);
 		if (TileGenerator.IsFullyRegenerated())
 		{
 			// remove all layers
-			SyncTimeSlicedData.ResultTileIndicesCached = RemoveTileLayers(TileX, TileY, &SyncTimeSlicedData.OldLayerTileIdMapCached);
+			SyncTimeSlicedData.ResultTileRefsCached = RemoveTileLayersAndGetUpdatedTiles(TileX, TileY, &SyncTimeSlicedData.OldLayerTileIdMapCached);
 		}
 
 		SyncTimeSlicedData.AddGeneratedTilesState = EAddGeneratedTilesTimeSlicedState::AddTiles;
@@ -5192,7 +5224,7 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 						break;
 					}
 
-					AddGeneratedTileLayer(SyncTimeSlicedData.AddGenTilesLayerIndex, TileGenerator, SyncTimeSlicedData.OldLayerTileIdMapCached, SyncTimeSlicedData.ResultTileIndicesCached);
+					AddGeneratedTileLayer(SyncTimeSlicedData.AddGenTilesLayerIndex, TileGenerator, SyncTimeSlicedData.OldLayerTileIdMapCached, SyncTimeSlicedData.ResultTileRefsCached);
 
 					SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished();
 				}
@@ -5218,25 +5250,34 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 		SyncTimeSlicedData.AddGenTilesLayerIndex = 0;
 		SyncTimeSlicedData.AddGeneratedTilesState = EAddGeneratedTilesTimeSlicedState::Init;
 
-		OutResultTileIndices = MoveTemp(SyncTimeSlicedData.ResultTileIndicesCached);
+		OutResultTileRefs = MoveTemp(SyncTimeSlicedData.ResultTileRefsCached);
 	}
 
 	return WorkResult;
 }
 
+// Deprecated
 TArray<uint32> FRecastNavMeshGenerator::AddGeneratedTiles(FRecastTileGenerator& TileGenerator)
+{
+	const TArray<FNavTileRef>& TileRefs = AddGeneratedTilesAndGetUpdatedTiles(TileGenerator);
+	TArray<uint32> TileIds;
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(DestNavMesh->GetRecastNavMeshImpl(), TileRefs, TileIds);
+	return TileIds;
+}
+
+TArray<FNavTileRef> FRecastNavMeshGenerator::AddGeneratedTilesAndGetUpdatedTiles(FRecastTileGenerator& TileGenerator)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastAddGeneratedTiles);
 
 	TMap<int32, dtPolyRef> OldLayerTileIdMap;
-	TArray<uint32> ResultTileIndices;
+	TArray<FNavTileRef> ResultTileRefs;
 	const int32 TileX = TileGenerator.GetTileX();
 	const int32 TileY = TileGenerator.GetTileY();
 
 	if (TileGenerator.IsFullyRegenerated())
 	{
 		// remove all layers
-		ResultTileIndices = RemoveTileLayers(TileX, TileY, &OldLayerTileIdMap);
+		ResultTileRefs = RemoveTileLayersAndGetUpdatedTiles(TileX, TileY, &OldLayerTileIdMap);
 	}
 
 	dtNavMesh* DetourMesh = DestNavMesh->GetRecastNavMeshImpl()->GetRecastMesh();
@@ -5247,18 +5288,18 @@ TArray<uint32> FRecastNavMeshGenerator::AddGeneratedTiles(FRecastTileGenerator& 
 		&& FirstDirtyTileIndex != INDEX_NONE)
 	{
 		TArray<FNavMeshTileData> TileLayers = TileGenerator.GetNavigationData();
-		ResultTileIndices.Reserve(TileLayers.Num());
+		ResultTileRefs.Reserve(TileLayers.Num());
 
 		for (int32 LayerIndex = FirstDirtyTileIndex; LayerIndex < TileGenerator.GetDirtyLayersMask().Num(); ++LayerIndex)
 		{
 			if (TileGenerator.IsLayerChanged(LayerIndex))
 			{
-				AddGeneratedTileLayer(LayerIndex, TileGenerator, OldLayerTileIdMap, ResultTileIndices);
+				AddGeneratedTileLayer(LayerIndex, TileGenerator, OldLayerTileIdMap, ResultTileRefs);
 			}
 		}
 	}
 
-	return ResultTileIndices;
+	return ResultTileRefs;
 }
 
 void FRecastNavMeshGenerator::DiscardCurrentBuildingTasks()
@@ -5657,13 +5698,21 @@ TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGenerator(co
 	return ConstuctTileGeneratorImpl<FRecastTileGenerator>(Coord, DirtyAreas);
 }
 
+// Deprecated
 void FRecastNavMeshGenerator::RemoveLayers(const FIntPoint& Tile, TArray<uint32>& UpdatedTiles)
+{
+	TArray<FNavTileRef> TileRefs;
+	RemoveLayers(Tile, TileRefs);
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(DestNavMesh->GetRecastNavMeshImpl(), TileRefs, UpdatedTiles);
+}
+	
+void FRecastNavMeshGenerator::RemoveLayers(const FIntPoint& Tile, TArray<FNavTileRef>& UpdatedTiles)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RemoveLayers);
 
 	// If there is nothing to generate remove all tiles from navmesh at specified grid coordinates
 	UpdatedTiles.Append(
-		RemoveTileLayers(Tile.X, Tile.Y)
+		RemoveTileLayersAndGetUpdatedTiles(Tile.X, Tile.Y)
 	);
 	DestNavMesh->MarkEmptyTileCacheLayers(Tile.X, Tile.Y);
 }
@@ -5691,11 +5740,20 @@ void FRecastNavMeshGenerator::StoreDebugData(const FRecastTileGenerator& TileGen
 #endif
 
 #if RECAST_ASYNC_REBUILDING
+// Deprecated	
 TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTasksToProcess)
+{
+	const TArray<FNavTileRef>& TileRefs = ProcessTileTasksAsyncAndGetUpdatedTiles(NumTasksToProcess);
+	TArray<uint32> TileIds;
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(DestNavMesh->GetRecastNavMeshImpl(), TileRefs, TileIds);
+	return TileIds;
+}
+
+TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksAsyncAndGetUpdatedTiles(const int32 NumTasksToProcess)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_ProcessTileTasksAsync);
 
-	TArray<uint32> UpdatedTiles;
+	TArray<FNavTileRef> UpdatedTiles;
 	const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
 
 	int32 NumProcessedTasks = 0;
@@ -5764,8 +5822,8 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTas
 			if (!Element.bShouldDiscard)
 			{
 				FRecastTileGenerator& TileGenerator = *(Element.AsyncTask->GetTask().TileGenerator);
-				TArray<uint32> UpdatedTileIndices = AddGeneratedTiles(TileGenerator);
-				UpdatedTiles.Append(UpdatedTileIndices);
+				TArray<FNavTileRef> UpdatedTileRefs = AddGeneratedTilesAndGetUpdatedTiles(TileGenerator);
+				UpdatedTiles.Append(UpdatedTileRefs);
 			
 				StoreCompressedTileCacheLayers(TileGenerator, Element.Coord.X, Element.Coord.Y);
 
@@ -5807,14 +5865,23 @@ TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGeneratorFro
 	return TileGenerator;
 }
 
+// Deprecated
 TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSliced()
+{
+	const TArray<FNavTileRef>& TileRefs = ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles();
+	TArray<uint32> TileIds;
+	FNavTileRef::GetTileIdsFromNavTileRefs(DestNavMesh->GetRecastNavMeshImpl(), TileRefs, TileIds);
+	return TileIds;
+}
+
+TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_ProcessTileTasksSyncTimeSliced);
 	CSV_SCOPED_TIMING_STAT(NAVREGEN, ProcessTileTasksSyncTimeSliced);
 
 	check(SyncTimeSlicedData.TimeSliceManager);
 
-	TArray<uint32> UpdatedTiles;
+	TArray<FNavTileRef> UpdatedTiles;
 	double TimeStartProcessingTileThisFrame = 0.;
 
 	auto HasWorkToDo = [this]()
@@ -5990,14 +6057,23 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSliced()
 	return EndFunction(false /* bCalcTileRegenDuration */, bHadWorktoDo);
 }
 
-//this code path is approx 10% faster than ProcessTileTasksSyncTimeSliced, however it spikes far worse for most use cases.
+// Deprecated
 TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSync(const int32 NumTasksToProcess)
+{
+	const TArray<FNavTileRef>& TileRefs = ProcessTileTasksSyncAndGetUpdatedTiles(NumTasksToProcess);
+	TArray<uint32> TileIds;
+	FNavTileRef::GetTileIdsFromNavTileRefs(DestNavMesh->GetRecastNavMeshImpl(), TileRefs, TileIds);
+	return TileIds;
+}
+	
+//this code path is approx 10% faster than ProcessTileTasksSyncTimeSliced, however it spikes far worse for most use cases.
+TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncAndGetUpdatedTiles(const int32 NumTasksToProcess)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_ProcessTileTasksSync);
 
 	const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
 	int32 NumProcessedTasks = 0;
-	TArray<uint32> UpdatedTiles;
+	TArray<FNavTileRef> UpdatedTiles;
 	FIntPoint TileLocation;
 
 	// Submit pending tile elements
@@ -6014,7 +6090,7 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSync(const int32 NumTask
 		{
 			TileGeneratorRef.DoWork();
 
-			UpdatedTiles = AddGeneratedTiles(TileGeneratorRef);
+			UpdatedTiles = AddGeneratedTilesAndGetUpdatedTiles(TileGeneratorRef);
 
 			StoreCompressedTileCacheLayers(TileGeneratorRef, TileLocation.X, TileLocation.Y);
 		}
@@ -6038,13 +6114,21 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSync(const int32 NumTask
 
 TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasks(const int32 NumTasksToProcess)
 {
+	const TArray<FNavTileRef>& TileRefs = ProcessTileTasksAndGetUpdatedTiles(NumTasksToProcess);
+	TArray<uint32> TileIds;
+	FNavTileRef::DeprecatedGetTileIdsFromNavTileRefs(DestNavMesh->GetRecastNavMeshImpl(), TileRefs, TileIds);
+	return TileIds;
+}
+
+TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksAndGetUpdatedTiles(const int32 NumTasksToProcess)
+{
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_ProcessTileTasks);
 
 	const bool bHasTasksAtStart = GetNumRemaningBuildTasks() > 0;
-	TArray<uint32> UpdatedTiles;
+	TArray<FNavTileRef> UpdatedTiles;
 
 #if RECAST_ASYNC_REBUILDING
-	UpdatedTiles = ProcessTileTasksAsync(NumTasksToProcess);
+	UpdatedTiles = ProcessTileTasksAsyncAndGetUpdatedTiles(NumTasksToProcess);
 #else
 	if (SyncTimeSlicedData.TimeSliceManager)
 	{
@@ -6069,11 +6153,11 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasks(const int32 NumTasksToP
 
 	if (SyncTimeSlicedData.bTimeSliceRegenActive)
 	{
-		UpdatedTiles = ProcessTileTasksSyncTimeSliced();
+		UpdatedTiles = ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles();
 	}
 	else
 	{
-		UpdatedTiles = ProcessTileTasksSync(NumTasksToProcess);
+		UpdatedTiles = ProcessTileTasksSyncAndGetUpdatedTiles(NumTasksToProcess);
 	}
 #endif
 
@@ -6253,14 +6337,14 @@ bool FRecastNavMeshGenerator::IsTimeSliceRegenActive() const
 	return SyncTimeSlicedData.bTimeSliceRegenActive;
 }
 
-bool FRecastNavMeshGenerator::IsTileChanged(int32 TileIdx) const
+bool FRecastNavMeshGenerator::IsTileChanged(const FNavTileRef InTileRef) const
 {
 #if WITH_EDITOR	
 	// Check recently built tiles
-	if (TileIdx > 0)
+	if (InTileRef.IsValid())
 	{
 		FTileTimestamp TileTimestamp;
-		TileTimestamp.TileIdx = static_cast<uint32>(TileIdx);
+		TileTimestamp.NavTileRef = InTileRef;
 		if (RecentlyBuiltTiles.Contains(TileTimestamp))
 		{
 			return true;
