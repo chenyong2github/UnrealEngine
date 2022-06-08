@@ -30,7 +30,7 @@ namespace UE
 namespace Http::Private
 {
 
-static constexpr uint32 MaxTotalConnections = 32;
+static constexpr uint32 MaxTotalConnections = 8;
 static constexpr uint32 WaitIntervalMs = 10;
 
 struct FHttpSharedDataInternals
