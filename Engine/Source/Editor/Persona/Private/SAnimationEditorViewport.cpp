@@ -1157,58 +1157,72 @@ int32 SAnimationEditorViewportTabBody::GetLODModelCount() const
 
 void SAnimationEditorViewportTabBody::OnShowMorphTargets()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
 	{
 		InMesh->bDisableMorphTarget = !InMesh->bDisableMorphTarget;
+		InMesh->MarkRenderStateDirty();
 	});
+	RefreshViewport();
 }
 
 void SAnimationEditorViewportTabBody::OnShowBoneNames()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
 	{
 		InMesh->bShowBoneNames = !InMesh->bShowBoneNames;
+		InMesh->MarkRenderStateDirty();
 	});
+	RefreshViewport();
 }
 
 void SAnimationEditorViewportTabBody::OnShowRawAnimation()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
 	{
 		InMesh->bDisplayRawAnimation = !InMesh->bDisplayRawAnimation;
+		InMesh->MarkRenderStateDirty();
 	});
+	RefreshViewport();
 }
 
 void SAnimationEditorViewportTabBody::OnShowNonRetargetedAnimation()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
 	{
 		InMesh->bDisplayNonRetargetedPose = !InMesh->bDisplayNonRetargetedPose;
+		InMesh->MarkRenderStateDirty();
 	});
+	RefreshViewport();
 }
 
 void SAnimationEditorViewportTabBody::OnShowSourceRawAnimation()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
 	{
 		InMesh->bDisplaySourceAnimation = !InMesh->bDisplaySourceAnimation;
+		InMesh->MarkRenderStateDirty();
 	});
+	RefreshViewport();
 }
 
 void SAnimationEditorViewportTabBody::OnShowBakedAnimation()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
 	{
 		InMesh->bDisplayBakedAnimation = !InMesh->bDisplayBakedAnimation;
+		InMesh->MarkRenderStateDirty();
 	});
+	RefreshViewport();
 }
 
 void SAnimationEditorViewportTabBody::OnShowAdditiveBase()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
 	{
 		InMesh->bDisplayAdditiveBasePose = !InMesh->bDisplayAdditiveBasePose;
+		InMesh->MarkRenderStateDirty();
 	});
+	RefreshViewport();
 }
 
 bool SAnimationEditorViewportTabBody::IsPreviewingAnimation() const
@@ -1237,7 +1251,7 @@ bool SAnimationEditorViewportTabBody::IsShowingRawAnimation() const
 
 void SAnimationEditorViewportTabBody::OnToggleDisablePostProcess()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* InMesh)
 	{
 		InMesh->ToggleDisablePostProcessBlueprint();
 	});
@@ -1308,13 +1322,15 @@ bool SAnimationEditorViewportTabBody::IsShowingMeshInfo(int32 DisplayInfoMode) c
 
 void SAnimationEditorViewportTabBody::OnShowOverlayNone()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->SetShowBoneWeight(false);
 		PreviewMeshComponent->SetShowMorphTargetVerts(false);
+		PreviewMeshComponent->MarkRenderStateDirty();
 	});
-	
+
 	UpdateShowFlagForMeshEdges();
+	RefreshViewport();
 }
 
 bool SAnimationEditorViewportTabBody::IsShowingOverlayNone() const
@@ -1325,13 +1341,14 @@ bool SAnimationEditorViewportTabBody::IsShowingOverlayNone() const
 
 void SAnimationEditorViewportTabBody::OnShowOverlayBoneWeight()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->SetShowBoneWeight( !PreviewMeshComponent->bDrawBoneInfluences );
 		PreviewMeshComponent->MarkRenderStateDirty();
 	});
 	
 	UpdateShowFlagForMeshEdges();
+	RefreshViewport();
 }
 
 bool SAnimationEditorViewportTabBody::IsShowingOverlayBoneWeight() const
@@ -1342,13 +1359,14 @@ bool SAnimationEditorViewportTabBody::IsShowingOverlayBoneWeight() const
 
 void SAnimationEditorViewportTabBody::OnShowOverlayMorphTargetVert()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->SetShowMorphTargetVerts(!PreviewMeshComponent->bDrawMorphTargetVerts);
 		PreviewMeshComponent->MarkRenderStateDirty();
 	});
 
 	UpdateShowFlagForMeshEdges();
+	RefreshViewport();
 }
 
 bool SAnimationEditorViewportTabBody::IsShowingOverlayMorphTargetVerts() const
@@ -1395,10 +1413,13 @@ bool SAnimationEditorViewportTabBody::IsLocalAxesModeSet(int32 LocalAxesMode) co
 
 void SAnimationEditorViewportTabBody::OnShowSockets()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->bDrawSockets = !PreviewMeshComponent->bDrawSockets;
+		PreviewMeshComponent->MarkRenderStateDirty();
 	});
+
+	RefreshViewport();
 }
 
 bool SAnimationEditorViewportTabBody::IsShowingSockets() const
@@ -1409,10 +1430,13 @@ bool SAnimationEditorViewportTabBody::IsShowingSockets() const
 
 void SAnimationEditorViewportTabBody::OnShowAttributes()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->bDrawAttributes = !PreviewMeshComponent->bDrawAttributes;
+		PreviewMeshComponent->MarkRenderStateDirty();
 	});
+	
+	RefreshViewport();
 }
 
 bool SAnimationEditorViewportTabBody::IsShowingAttributes() const
@@ -1448,7 +1472,7 @@ bool SAnimationEditorViewportTabBody::IsPlaybackSpeedSelected(int32 PlaybackSpee
 
 void SAnimationEditorViewportTabBody::ShowRetargetBasePose()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->PreviewInstance->SetForceRetargetBasePose(!PreviewMeshComponent->PreviewInstance->GetForceRetargetBasePose());
 	});
@@ -1486,7 +1510,7 @@ void SAnimationEditorViewportTabBody::ShowBound()
 	TSharedRef<FAnimationViewportClient> AnimViewportClient = StaticCastSharedRef<FAnimationViewportClient>(LevelViewportClient.ToSharedRef());	
 	AnimViewportClient->ToggleShowBounds();
 
-	SetViewportSettingForEachDebugMesh([AnimViewportClient](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([AnimViewportClient](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->bDisplayBound = AnimViewportClient->EngineShowFlags.Bounds;
 		PreviewMeshComponent->RecreateRenderState_Concurrent();
@@ -1507,7 +1531,7 @@ bool SAnimationEditorViewportTabBody::IsShowBoundEnabled() const
 void SAnimationEditorViewportTabBody::ToggleShowPreviewMesh()
 {
 	const bool bCurrentlyVisible = IsShowPreviewMeshEnabled();
-	SetViewportSettingForEachDebugMesh([bCurrentlyVisible](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([bCurrentlyVisible](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->SetVisibility(!bCurrentlyVisible);
 	});
@@ -1534,7 +1558,7 @@ bool SAnimationEditorViewportTabBody::IsShowPreviewMeshEnabled() const
 
 void SAnimationEditorViewportTabBody::UseInGameBound()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->UseInGameBounds(! PreviewMeshComponent->IsUsingInGameBounds());
 	});
@@ -1569,7 +1593,7 @@ bool SAnimationEditorViewportTabBody::IsUsingInGameBound() const
 
 void SAnimationEditorViewportTabBody::UseFixedBounds()
 {
-	SetViewportSettingForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
+	ForEachDebugMesh([](UDebugSkelMeshComponent* PreviewMeshComponent)
 	{
 		PreviewMeshComponent->bComponentUseFixedSkelBounds = !PreviewMeshComponent->bComponentUseFixedSkelBounds;
 	});

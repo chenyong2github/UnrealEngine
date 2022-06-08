@@ -168,6 +168,10 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	UPROPERTY()
 	ESkeletonDrawMode SkeletonDrawMode = ESkeletonDrawMode::Default;
 
+	/** If true then the skeletal mesh associated with the component is drawn. */
+	UPROPERTY()
+	uint32 bDrawMesh:1;
+	
 	/** If true then the bone names associated with the skeletal mesh are displayed */
 	UPROPERTY()
 	uint32 bShowBoneNames:1;

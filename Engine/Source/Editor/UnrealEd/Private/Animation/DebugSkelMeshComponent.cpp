@@ -30,6 +30,7 @@
 UDebugSkelMeshComponent::UDebugSkelMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bDrawMesh = true;
 	PreviewInstance = NULL;
 	bDisplayRawAnimation = false;
 	bDisplayNonRetargetedPose = false;
@@ -1284,7 +1285,8 @@ void FDebugSkelMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 }
 
 FDebugSkelMeshDynamicData::FDebugSkelMeshDynamicData(UDebugSkelMeshComponent* InComponent)
-	: bDrawNormals(InComponent->bDrawNormals)
+	: bDrawMesh(InComponent->bDrawMesh)
+	, bDrawNormals(InComponent->bDrawNormals)
 	, bDrawTangents(InComponent->bDrawTangents)
 	, bDrawBinormals(InComponent->bDrawBinormals)
 	, bDrawClothPaintPreview(InComponent->bShowClothData)
