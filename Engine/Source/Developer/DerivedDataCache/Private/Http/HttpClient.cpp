@@ -6,7 +6,10 @@
 #include "Misc/ScopeRWLock.h"
 #include "Tasks/Task.h"
 
-#define CURL_NO_OLDIES
+#if !defined(CURL_NO_OLDIES)
+	#define CURL_NO_OLDIES
+#endif
+
 #if PLATFORM_MICROSOFT
 #include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #endif

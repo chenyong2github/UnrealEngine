@@ -17,7 +17,10 @@
 #include <openssl/ssl.h>
 #endif
 
-#define CURL_NO_OLDIES
+#if !defined(CURL_NO_OLDIES)
+	#define CURL_NO_OLDIES
+#endif
+
 #if PLATFORM_MICROSOFT
 #include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #endif
