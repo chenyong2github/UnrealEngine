@@ -414,7 +414,7 @@ TSet<FString> UMetasoundEditorGraphNode::GetDisallowedPinClassNames(const UEdGra
 	}
 
 	TSet<FString> DisallowedClasses;
-	const FName ClassName = ProxyGenClass->GetFName();
+	const FTopLevelAssetPath ClassName = ProxyGenClass->GetClassPathName();
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
 		UClass* Class = *ClassIt;
@@ -428,7 +428,7 @@ TSet<FString> UMetasoundEditorGraphNode::GetDisallowedPinClassNames(const UEdGra
 			continue;
 		}
 
-		if (ClassIt->GetFName() == ClassName)
+		if (ClassIt->GetClassPathName() == ClassName)
 		{
 			continue;
 		}

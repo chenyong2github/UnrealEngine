@@ -1284,7 +1284,7 @@ void UMetasoundEditorGraphSchema::TrySetDefaultValue(UEdGraphPin& Pin, const FSt
 			{
 				if (UClass* Class = Object->GetClass())
 				{
-					if (DisallowedClassNames.Contains(Class->GetName()))
+					if (DisallowedClassNames.Contains(Class->GetClassPathName().ToString()))
 					{
 						return;
 					}
