@@ -111,7 +111,7 @@ TSharedRef<SWidget> SRCControllerPanelHeader::GetControllerMenuContentWidget() c
 	for (const TPair<EPropertyBagPropertyType, UObject*>& Pair : VirtualPropertyFieldClassNames)
 	{
 		// Display Name
-		UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("EPropertyBagPropertyType"));
+		const UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/StructUtils.EPropertyBagPropertyType"));
 		FString PropertyTypeString = Enum->GetValueAsName(Pair.Key).ToString();
 		PropertyTypeString.RemoveFromStart("EPropertyBagPropertyType::");
 
