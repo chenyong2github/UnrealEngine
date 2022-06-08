@@ -18,7 +18,10 @@ public:
 	FHttpPath RoutePath;
 	EHttpServerRequestVerbs RequestVerbs;
 	FString InputContentType;
-	FString InputExpectedFormat;
+	FString InputExpectedFormat;	
+	FString RpcCategory;
+	bool bAlwaysOn;
+
 	FExternalRouteInfo()
 	{
 		RouteName = FName(TEXT(""));
@@ -26,14 +29,19 @@ public:
 		RequestVerbs = EHttpServerRequestVerbs::VERB_NONE;
 		InputContentType = TEXT("");
 		InputExpectedFormat = TEXT("");
+		RpcCategory = TEXT("Unknown");
+		bAlwaysOn = false;
 	}
-	FExternalRouteInfo(FName InRouteName, FHttpPath InRoutePath, EHttpServerRequestVerbs InRequestVerbs, FString InContentType = TEXT(""), FString InExpectedFormat = TEXT(""))
+
+	FExternalRouteInfo(FName InRouteName, FHttpPath InRoutePath, EHttpServerRequestVerbs InRequestVerbs, FString InCategory = TEXT("Unknown"), bool bInAlwaysOn = false, FString InContentType = TEXT(""), FString InExpectedFormat = TEXT(""))
 	{
 		RouteName = InRouteName;
 		RoutePath = InRoutePath;
 		RequestVerbs = InRequestVerbs;
 		InputContentType = InContentType;
 		InputExpectedFormat = InExpectedFormat;
+		RpcCategory = InCategory;
+		bAlwaysOn = false;
 	}
 };
 
@@ -68,11 +76,16 @@ class EXTERNALRPCREGISTRY_API UExternalRpcRegistry : public UObject
 protected:
 	static UExternalRpcRegistry * ObjectInstance;
 	TMap<FName, FExternalRouteDesc> RegisteredRoutes;
-
+	TArray<FString> ActiveRpcCategories;
 public:
 	static UExternalRpcRegistry * GetInstance();
 
 	int PortToUse = 11223;
+
+	/**
+	* Check if this Rpc is from a category that is meant to be enabled.
+	*/
+	bool IsActiveRpcCategory(FString InCategory);
 
 	/**
 	 * Try to get a route registered under given friendly name. Returns false if could not be found.
@@ -85,7 +98,7 @@ public:
 	 * Register a new route.
 	 * Will override existing routes if option is set, otherwise will error and fail to bind.
 	 */
-	void RegisterNewRoute(FName RouteName, const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler, bool bOverrideIfBound = false, FString OptionalContentType = TEXT(""), FString OptionalExpectedFormat = TEXT(""));
+	void RegisterNewRoute(FName RouteName, const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler, bool bOverrideIfBound = false, bool bIsAlwaysOn = false, FString OptionalCategory = TEXT("Unknown"), FString OptionalContentType = TEXT(""), FString OptionalExpectedFormat = TEXT(""));
 
 	/**
 	 * Clean up a route.
