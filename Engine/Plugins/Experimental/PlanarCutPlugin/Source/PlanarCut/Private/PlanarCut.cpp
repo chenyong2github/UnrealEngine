@@ -52,6 +52,8 @@ using namespace UE::Geometry;
 
 using namespace UE::PlanarCut;
 
+#define LOCTEXT_NAMESPACE "PlanarCut"
+
 // logic from FMeshUtility::GenerateGeometryCollectionFromBlastChunk, sets material IDs based on construction pattern that external materials have even IDs and are matched to internal materials at InternalID = ExternalID+1
 int32 FInternalSurfaceMaterials::GetDefaultMaterialIDForGeometry(const FGeometryCollection& Collection, int32 GeometryIdx) const
 {
@@ -544,11 +546,13 @@ int32 CutWithPlanarCells(
 	int32 RandomSeed,
 	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
-	bool bSetDefaultInternalMaterialsFromCollection
+	bool bSetDefaultInternalMaterialsFromCollection,
+	FProgressCancel* Progress
+
 )
 {
 	TArray<int32> TransformIndices { TransformIdx };
-	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, CollisionSampleSpacing, RandomSeed, TransformCollection, bIncludeOutsideCellInOutput, bSetDefaultInternalMaterialsFromCollection);
+	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, CollisionSampleSpacing, RandomSeed, TransformCollection, bIncludeOutsideCellInOutput, bSetDefaultInternalMaterialsFromCollection, Progress);
 }
 
 
@@ -561,9 +565,11 @@ int32 CutMultipleWithMultiplePlanes(
 	double CollisionSampleSpacing,
 	int32 RandomSeed,
 	const TOptional<FTransform>& TransformCollection,
-	bool bSetDefaultInternalMaterialsFromCollection
+	bool bSetDefaultInternalMaterialsFromCollection,
+	FProgressCancel* Progress
 )
 {
+	FProgressCancel::FProgressScope PrepareScope = FProgressCancel::CreateScopeTo(Progress, .1, LOCTEXT("CutWithMultiplePlanesInit", "Preparing to cut with planes"));
 	int32 OrigNumGeom = Collection.FaceCount.Num();
 	int32 CurNumGeom = OrigNumGeom;
 
@@ -576,10 +582,27 @@ int32 CutMultipleWithMultiplePlanes(
 
 	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorld);
 
+	PrepareScope.Done();
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+	FProgressCancel::FProgressScope CutScope = FProgressCancel::CreateScopeTo(Progress, .99);
+
 	int32 NewGeomStartIdx = -1;
 	NewGeomStartIdx = MeshCollection.CutWithMultiplePlanes(Planes, Grout, CollisionSampleSpacing, RandomSeed, &Collection, InternalSurfaceMaterials, bSetDefaultInternalMaterialsFromCollection);
 
+	CutScope.Done();
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+	FProgressCancel::FProgressScope ReindexScope = FProgressCancel::CreateScopeTo(Progress, 1);
+
 	Collection.ReindexMaterials();
+
+	ReindexScope.Done();
+
 	return NewGeomStartIdx;
 }
 
@@ -593,9 +616,11 @@ int32 CutMultipleWithPlanarCells(
 	int32 RandomSeed,
 	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
-	bool bSetDefaultInternalMaterialsFromCollection
+	bool bSetDefaultInternalMaterialsFromCollection,
+	FProgressCancel* Progress
 )
 {
+	FProgressCancel::FProgressScope CreateMeshCollectionScope = FProgressCancel::CreateScopeTo(Progress, .1);
 	if (bSetDefaultInternalMaterialsFromCollection)
 	{
 		Cells.InternalSurfaceMaterials.SetUVScaleFromCollection(Source);
@@ -604,31 +629,42 @@ int32 CutMultipleWithPlanarCells(
 	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
 
 	FDynamicMeshCollection MeshCollection(&Source, TransformIndices, CollectionToWorld);
+	CreateMeshCollectionScope.Done();
+
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+
+	FProgressCancel::FProgressScope CellMeshScope = FProgressCancel::CreateScopeTo(Progress, .1);
 	double OnePercentExtend = MeshCollection.Bounds.MaxDim() * .01;
 	FRandomStream RandomStream(RandomSeed);
 	FCellMeshes CellMeshes(Source.NumUVLayers(), RandomStream, Cells, MeshCollection.Bounds, Grout, OnePercentExtend, bIncludeOutsideCellInOutput);
+	CellMeshScope.Done();
 
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+
+	FProgressCancel::FProgressScope CutScope = FProgressCancel::CreateScopeTo(Progress, .99);
 	int32 NewGeomStartIdx = -1;
-
 	NewGeomStartIdx = MeshCollection.CutWithCellMeshes(Cells.InternalSurfaceMaterials, Cells.PlaneCells, CellMeshes, &Source, bSetDefaultInternalMaterialsFromCollection, CollisionSampleSpacing);
+	CutScope.Done();
 
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+
+	FProgressCancel::FProgressScope ReindexScope = FProgressCancel::CreateScopeTo(Progress, 1);
 	Source.ReindexMaterials();
+	ReindexScope.Done();
 	return NewGeomStartIdx;
 }
 
-int32 CutWithMesh(
-	FMeshDescription* CuttingMesh,
-	FTransform CuttingMeshTransform,
-	FInternalSurfaceMaterials& InternalSurfaceMaterials,
-	FGeometryCollection& Collection,
-	const TArrayView<const int32>& TransformIndices,
-	double CollisionSampleSpacing,
-	const TOptional<FTransform>& TransformCollection,
-	bool bSetDefaultInternalMaterialsFromCollection
-)
+FDynamicMesh3 ConvertMeshDescriptionToCuttingDynamicMesh(const FMeshDescription* CuttingMesh, int32 NumUVLayers, FProgressCancel* Progress)
 {
-	int32 NewGeomStartIdx = -1;
-
 	// populate the BaseMesh with a conversion of the input mesh.
 	FMeshDescriptionToDynamicMesh Converter;
 	FDynamicMesh3 FullMesh; // full-featured conversion of the source mesh
@@ -648,9 +684,18 @@ int32 CutWithMesh(
 		Tangents.CopyToOverlays(FullMesh);
 	}
 
+	if (Progress && Progress->Cancelled())
+	{
+		return FDynamicMesh3(); // return empty mesh on cancel
+	}
+
 	FDynamicMesh3 DynamicCuttingMesh; // version of mesh that is split apart at seams to be compatible w/ geometry collection, with corresponding attributes set
-	int32 NumUVLayers = Collection.NumUVLayers();
 	SetGeometryCollectionAttributes(DynamicCuttingMesh, NumUVLayers);
+
+	if (Progress && Progress->Cancelled())
+	{
+		return FDynamicMesh3(); // return empty mesh on cancel
+	}
 
 	// Note: This conversion will likely go away, b/c I plan to switch over to doing the boolean operations on the fuller rep, but the code can be adapted
 	//		 to the dynamic mesh -> geometry collection conversion phase, as this same splitting will then need to happen there.
@@ -720,6 +765,24 @@ int32 CutWithMesh(
 			}
 		}
 	}
+	return DynamicCuttingMesh;
+}
+
+int32 CutWithMesh(
+	const FDynamicMesh3& DynamicCuttingMesh,
+	FTransform CuttingMeshTransform,
+	FInternalSurfaceMaterials& InternalSurfaceMaterials,
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	double CollisionSampleSpacing,
+	const TOptional<FTransform>& TransformCollection,
+	bool bSetDefaultInternalMaterialsFromCollection,
+	FProgressCancel* Progress
+)
+{
+	FProgressCancel::FProgressScope PrepareScope = FProgressCancel::CreateScopeTo(Progress, .1);
+
+	int32 NewGeomStartIdx = -1;
 
 	if (bSetDefaultInternalMaterialsFromCollection)
 	{
@@ -730,15 +793,37 @@ int32 CutWithMesh(
 
 	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
 
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+
 	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorld);
+	int32 NumUVLayers = Collection.NumUVLayers();
 	FCellMeshes CellMeshes(NumUVLayers, DynamicCuttingMesh, InternalSurfaceMaterials, CuttingMeshTransform);
 
 	TArray<TPair<int32, int32>> CellConnectivity;
 	CellConnectivity.Add(TPair<int32, int32>(0, -1)); // there's only one 'inside' cell (0), so all cut surfaces are connecting the 'inside' cell (0) to the 'outside' cell (-1)
 
+	PrepareScope.Done();
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+	FProgressCancel::FProgressScope CutScope = FProgressCancel::CreateScopeTo(Progress, .99);
+
 	NewGeomStartIdx = MeshCollection.CutWithCellMeshes(InternalSurfaceMaterials, CellConnectivity, CellMeshes, &Collection, bSetDefaultInternalMaterialsFromCollection, CollisionSampleSpacing);
 
+	CutScope.Done();
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+	FProgressCancel::FProgressScope ReindexScope = FProgressCancel::CreateScopeTo(Progress, 1);
+
 	Collection.ReindexMaterials();
+	ReindexScope.Done();
+
 	return NewGeomStartIdx;
 }
 

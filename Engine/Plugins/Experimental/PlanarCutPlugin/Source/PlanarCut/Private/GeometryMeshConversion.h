@@ -89,7 +89,7 @@ struct PLANARCUT_API FCellMeshes
 	FCellMeshes(int32 NumUVLayers, FRandomStream& RandomStream, const FPlanarCells& Cells, UE::Geometry::FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell);
 
 	// Note: RandomStream not required for this constructor because noise is not supported in this case
-	FCellMeshes(int32 NumUVLayers, UE::Geometry::FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform);
+	FCellMeshes(int32 NumUVLayers, const UE::Geometry::FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform);
 
 	// Special function to just make the "grout" part of the planar mesh cells
 	// Used to make the multi-plane cuts with grout easier to implement

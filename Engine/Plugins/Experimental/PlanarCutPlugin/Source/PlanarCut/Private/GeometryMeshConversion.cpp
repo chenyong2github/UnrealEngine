@@ -1185,23 +1185,25 @@ FCellMeshes::FCellMeshes(int32 NumUVLayersIn, FRandomStream& RandomStream, const
 }
 
 
-FCellMeshes::FCellMeshes(int32 NumUVLayersIn, FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform)
+FCellMeshes::FCellMeshes(int32 NumUVLayersIn, const FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform)
 {
 	NumUVLayers = NumUVLayersIn;
 	SetNumCells(2);
 
+	CellMeshes[0].AugMesh = SingleCutter;
+
 	if (Transform.IsSet())
 	{
-		MeshTransforms::ApplyTransform(SingleCutter, FTransformSRT3d(Transform.GetValue()));
+		MeshTransforms::ApplyTransform(CellMeshes[0].AugMesh, FTransformSRT3d(Transform.GetValue()));
 	}
 
 	// Mesh should already be augmented
-	if (!ensure(AugmentedDynamicMesh::IsAugmented(SingleCutter)))
+	if (!ensure(AugmentedDynamicMesh::IsAugmented(CellMeshes[0].AugMesh)))
 	{
-		AugmentedDynamicMesh::Augment(SingleCutter, NumUVLayers);
+		AugmentedDynamicMesh::Augment(CellMeshes[0].AugMesh, NumUVLayers);
 	}
 
-	CellMeshes[0].AugMesh = SingleCutter;
+	
 
 	// first mesh is the same as the second mesh, but will be subtracted b/c it's the "outside cell"
 	// TODO: special case this logic so we don't have to hold two copies of the exact same mesh!

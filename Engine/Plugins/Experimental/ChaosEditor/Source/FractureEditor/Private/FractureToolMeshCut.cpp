@@ -14,6 +14,9 @@
 
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
+#include "FractureToolBackgroundTask.h"
+
+using namespace UE::Fracture;
 
 #define LOCTEXT_NAMESPACE "FractureMesh"
 
@@ -196,6 +199,68 @@ void UFractureToolMeshCut::FractureContextChanged()
 	}
 }
 
+class FMeshFractureOp : public FGeometryCollectionOperator
+{
+public:
+	FMeshFractureOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionOperator(SourceCollection)
+	{}
+
+	virtual ~FMeshFractureOp() = default;
+
+	TArray<int> Selection;
+	TArray<FTransform> MeshTransforms;
+	float PointSpacing;
+	int Seed;
+	FTransform Transform;
+	UE::Geometry::FDynamicMesh3 CuttingMesh;
+
+	// TGenericDataOperator interface:
+	virtual void CalculateResult(FProgressCancel* Progress) override
+	{
+		// Note: Noise not currently supported
+		FInternalSurfaceMaterials InternalSurfaceMaterials;
+
+		ResultGeometryIndex = -1;
+		const float ProgressFrac = 1.0 / MeshTransforms.Num();
+		
+		TArray<int32> BonesToCut = Selection;
+		for (const FTransform& ScatterTransform : MeshTransforms)
+		{
+			if (Progress && Progress->Cancelled())
+			{
+				return;
+			}
+
+			FProgressCancel::FProgressScope ProgressScope(Progress, ProgressFrac);
+			int32 Index = CutWithMesh(CuttingMesh, ScatterTransform, InternalSurfaceMaterials, *CollectionCopy, BonesToCut, PointSpacing, Transform);
+			int32 NewLen = Algo::RemoveIf(BonesToCut, [&](int32 Bone)
+				{
+					return !CollectionCopy->IsVisible(Bone); // remove already-fractured pieces from the to-cut list
+				});
+			BonesToCut.SetNum(NewLen);
+			if (ResultGeometryIndex == -1)
+			{
+				ResultGeometryIndex = Index;
+			}
+			if (Index > -1)
+			{
+				int32 TransformIdx = CollectionCopy->TransformIndex[Index];
+				// after a successful cut, also consider any new bones added by the cut
+				for (int32 NewBoneIdx = TransformIdx; NewBoneIdx < CollectionCopy->NumElements(FGeometryCollection::TransformGroup); NewBoneIdx++)
+				{
+					BonesToCut.Add(NewBoneIdx);
+				}
+			}
+		}
+
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+		SetResult(MoveTemp(CollectionCopy));
+	}
+};
+
 int32 UFractureToolMeshCut::ExecuteFracture(const FFractureToolContext& FractureContext)
 {
 	if (FractureContext.IsValid())
@@ -207,63 +272,25 @@ int32 UFractureToolMeshCut::ExecuteFracture(const FFractureToolContext& Fracture
 			return INDEX_NONE;
 		}
 
-		FMeshDescription* MeshDescription = LocalCutSettings->CuttingActor->GetStaticMeshComponent()->GetStaticMesh()->GetMeshDescription(0);
-		FTransform ActorTransform(LocalCutSettings->CuttingActor->GetTransform());
-		FInternalSurfaceMaterials InternalSurfaceMaterials;
-
-		// Proximity is invalidated.
-		ClearProximity(FractureContext.GetGeometryCollection().Get());
-
-		// (Note: noise and grout not currently supported)
+		TUniquePtr<FMeshFractureOp> MeshCutOp = MakeUnique<FMeshFractureOp>(*(FractureContext.GetGeometryCollection()));
+		MeshCutOp->Selection = FractureContext.GetSelection();
+		MeshCutOp->PointSpacing = CollisionSettings->GetPointSpacing();
+		MeshCutOp->Seed = FractureContext.GetSeed();
+		MeshCutOp->Transform = FractureContext.GetTransform();
 		if (LocalCutSettings->CutDistribution == EMeshCutDistribution::SingleCut)
 		{
-			return CutWithMesh(MeshDescription, ActorTransform, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CollisionSettings->GetPointSpacing(), FractureContext.GetTransform());
+			MeshCutOp->MeshTransforms.Add(LocalCutSettings->CuttingActor->GetTransform());
 		}
 		else
 		{
-			TArray<FTransform> MeshTransforms;
-			GenerateMeshTransforms(FractureContext, MeshTransforms);
-			int32 FirstIndex = -1;
-			// Create progress indicator dialog
-			static const FText SlowTaskText = LOCTEXT("CutWithScatteredMeshes", "Cutting geometry collection with mesh ...");
-
-			FScopedSlowTask SlowTask(MeshTransforms.Num(), SlowTaskText);
-			SlowTask.MakeDialog();
-
-			// Declare progress shortcut lambdas
-			auto EnterProgressFrame = [&SlowTask](float Progress)
-			{
-				SlowTask.EnterProgressFrame(Progress);
-			};
-
-			// TODO: support passing multiple transforms to CutWithMesh, and doing the loop inside that function *after* the mesh conversions are done
-			// (As is, we're re-converting the cutting mesh for each transform!)
-			TArray<int32> BonesToCut = FractureContext.GetSelection();
-			for (const FTransform& ScatterTransform : MeshTransforms)
-			{
-				EnterProgressFrame(1);
-				int32 Index = CutWithMesh(MeshDescription, ScatterTransform, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), BonesToCut, CollisionSettings->GetPointSpacing(), FractureContext.GetTransform());
-				int32 NewLen = Algo::RemoveIf(BonesToCut, [&FractureContext](int32 Bone)
-					{
-						return !FractureContext.GetGeometryCollection()->IsVisible(Bone); // remove already-fractured pieces from the to-cut list
-					});
-				BonesToCut.SetNum(NewLen);
-				if (FirstIndex == -1)
-				{
-					FirstIndex = Index;
-				}
-				if (Index > -1)
-				{
-					int32 TransformIdx = FractureContext.GetGeometryCollection()->TransformIndex[Index];
-					// after a successful cut, also consider any new bones added by the cut
-					for (int32 NewBoneIdx = TransformIdx; NewBoneIdx < FractureContext.GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup); NewBoneIdx++)
-					{
-						BonesToCut.Add(NewBoneIdx);
-					}
-				}
-			}
-			return FirstIndex;
+			GenerateMeshTransforms(FractureContext, MeshCutOp->MeshTransforms);
 		}
+		FMeshDescription* MeshDescription = LocalCutSettings->CuttingActor->GetStaticMeshComponent()->GetStaticMesh()->GetMeshDescription(0);
+		MeshCutOp->CuttingMesh = ConvertMeshDescriptionToCuttingDynamicMesh(MeshDescription, FractureContext.GetGeometryCollection()->NumUVLayers());
+
+		int Result = RunCancellableGeometryCollectionOp<FMeshFractureOp>(*(FractureContext.GetGeometryCollection()),
+			MoveTemp(MeshCutOp), LOCTEXT("ComputingVoronoiFractureMessage", "Computing Mesh Fracture"));
+		return Result;
 	}
 
 	return INDEX_NONE;

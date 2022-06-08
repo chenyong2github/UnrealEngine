@@ -12,6 +12,9 @@
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "PlanarCut.h"
 #include "FractureToolContext.h"
+#include "FractureToolBackgroundTask.h"
+
+using namespace UE::Fracture;
 
 #define LOCTEXT_NAMESPACE "FractureBrick"
 
@@ -373,6 +376,35 @@ void UFractureToolBrick::AddBoxEdges(const FVector& Min, const FVector& Max)
 	Edges.Emplace(MakeTuple(FVector(Min.X, Max.Y, Max.Z), Max));
 }
 
+class FCellsFractureOp : public FGeometryCollectionOperator
+{
+public:
+	FCellsFractureOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionOperator(SourceCollection)
+	{}
+
+	virtual ~FCellsFractureOp() = default;
+
+	TArray<int> Selection;
+	FPlanarCells Cells;
+	float PointSpacing;
+	float Grout = 0;
+	int Seed;
+	FTransform Transform;
+
+	// TGenericDataOperator interface:
+	virtual void CalculateResult(FProgressCancel* Progress) override
+	{
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+
+		ResultGeometryIndex = CutMultipleWithPlanarCells(Cells, *CollectionCopy, Selection, Grout, PointSpacing, Seed, Transform, true, true, Progress);
+
+		SetResult(MoveTemp(CollectionCopy));
+	}
+};
+
 int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureContext)
 {
 	if (FractureContext.IsValid())
@@ -405,19 +437,23 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 			BricksToCut.Add(BrickBox.TransformBy(Trans));
 		}
 
- 		FPlanarCells VoronoiPlanarCells = FPlanarCells(BricksToCut);
-
-		FNoiseSettings NoiseSettings;
+		TUniquePtr<FCellsFractureOp> BrickOp = MakeUnique<FCellsFractureOp>(*(FractureContext.GetGeometryCollection()));
+		BrickOp->Selection = FractureContext.GetSelection();
+		BrickOp->Grout = 0; // CutterSettings->Grout; // Note: Grout is currently baked directly into the brick cells above
+		BrickOp->PointSpacing = CollisionSettings->GetPointSpacing();
+		BrickOp->Cells = FPlanarCells(BricksToCut);
 		if (CutterSettings->Amplitude > 0.0f)
 		{
-			CutterSettings->TransferNoiseSettings(NoiseSettings);
-			VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
+			FNoiseSettings Settings;
+			CutterSettings->TransferNoiseSettings(Settings);
+			BrickOp->Cells.InternalSurfaceMaterials.NoiseSettings = Settings;
 		}
+		BrickOp->Seed = FractureContext.GetSeed();
+		BrickOp->Transform = FractureContext.GetTransform();
 
-		// Proximity is invalidated.
-		ClearProximity(FractureContext.GetGeometryCollection().Get());
-
-		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), 0, CollisionSettings->GetPointSpacing(), FractureContext.GetSeed(), FractureContext.GetTransform());
+		int Result = RunCancellableGeometryCollectionOp<FCellsFractureOp>(*(FractureContext.GetGeometryCollection()),
+			MoveTemp(BrickOp), LOCTEXT("ComputingBrickFractureMessage", "Computing Brick Fracture"));
+		return Result;
 	}
 
 	return INDEX_NONE;
