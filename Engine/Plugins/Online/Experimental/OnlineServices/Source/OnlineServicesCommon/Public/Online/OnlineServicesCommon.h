@@ -35,6 +35,7 @@ public:
 	// IOnlineServices
 	virtual void Init() override;
 	virtual void Destroy() override;
+	virtual IAchievementsPtr GetAchievementsInterface() override;
 	virtual IAuthPtr GetAuthInterface() override;
 	virtual IFriendsPtr GetFriendsInterface() override;
 	virtual IPresencePtr GetPresenceInterface() override;

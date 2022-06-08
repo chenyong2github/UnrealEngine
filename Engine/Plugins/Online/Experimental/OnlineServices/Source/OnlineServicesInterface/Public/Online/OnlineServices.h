@@ -13,6 +13,7 @@ namespace UE::Online {
 
 // Interfaces
 using IOnlineServicesPtr = TSharedPtr<class IOnlineServices>;
+using IAchievementsPtr = TSharedPtr<class IAchievements>;
 using IAuthPtr = TSharedPtr<class IAuth>;
 using IFriendsPtr = TSharedPtr<class IFriends>;
 using IPresencePtr = TSharedPtr<class IPresence>;
@@ -52,6 +53,11 @@ public:
 	 *
 	 */
 	virtual void Destroy() = 0;
+
+	/**
+	 *
+	 */
+	virtual IAchievementsPtr GetAchievementsInterface() = 0;
 
 	/**
 	 *

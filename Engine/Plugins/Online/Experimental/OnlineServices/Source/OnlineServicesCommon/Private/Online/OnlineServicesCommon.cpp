@@ -40,6 +40,11 @@ void FOnlineServicesCommon::Destroy()
 	Shutdown();
 }
 
+IAchievementsPtr FOnlineServicesCommon::GetAchievementsInterface()
+{
+	return IAchievementsPtr(AsShared(), Get<IAchievements>());
+}
+
 IAuthPtr FOnlineServicesCommon::GetAuthInterface()
 {
 	return IAuthPtr(AsShared(), Get<IAuth>());
