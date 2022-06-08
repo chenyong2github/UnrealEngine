@@ -200,7 +200,7 @@ void SImgMediaProcessImages::ProcessAllImages()
 	bool bUseCustomFormat = Options->bUseCustomFormat;
 	int32 InTileWidth = Options->bEnableTiling ? Options->TileSizeX : 0;
 	int32 InTileHeight = Options->bEnableTiling ? Options->TileSizeY : 0;
-	int32 TileBorder = Options->bEnableTiling ? Options->TileBorder : 0;
+	int32 TileBorder = 0; // Note: virtual texture support is shelved for now.
 	bool bEnableMips = Options->bEnableMipMapping;
 
 	// Create output directory.
@@ -912,7 +912,7 @@ void SImgMediaProcessImages::HandleProcessing()
 					bool bUseCustomFormat = Options->bUseCustomFormat;
 					int32 InTileWidth = Options->bEnableTiling ? Options->TileSizeX : 0;
 					int32 InTileHeight = Options->bEnableTiling ? Options->TileSizeY : 0;
-					int32 TileBorder = Options->bEnableTiling ? Options->TileBorder : 0;
+					int32 TileBorder = 0; // Note: virtual texture support is shelved for now.
 					bool bEnableMips = Options->bEnableMipMapping;
 					bool bHasAlphaChannel = false;
 					FString OutPath = Options->OutputPath.Path;

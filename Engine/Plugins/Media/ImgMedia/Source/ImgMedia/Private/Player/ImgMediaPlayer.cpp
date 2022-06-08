@@ -229,7 +229,6 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	FFrameRate FrameRateOverride(0, 0);
 	TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe> MipMapInfo;
 	bool bFillGapsInSequence = true;
-	bool bReadVirtualTextureTiles = false;
 	bool bIsSmartCacheEnabled = false;
 	float SmartCacheTimeToLookAhead = 0.0f;
 	if (Options != nullptr)
@@ -237,7 +236,6 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 		FrameRateOverride.Denominator = Options->GetMediaOption(ImgMedia::FrameRateOverrideDenonimatorOption, 0LL);
 		FrameRateOverride.Numerator = Options->GetMediaOption(ImgMedia::FrameRateOverrideNumeratorOption, 0LL);
 		bFillGapsInSequence = Options->GetMediaOption(ImgMedia::FillGapsInSequenceOption, true);
-		bReadVirtualTextureTiles = Options->GetMediaOption(ImgMedia::ReadVirtualTextureTiles, false);
 		bIsSmartCacheEnabled = Options->GetMediaOption(ImgMedia::SmartCacheEnabled, false);
 		SmartCacheTimeToLookAhead = Options->GetMediaOption(ImgMedia::SmartCacheTimeToLookAhead, 0.0f);
 		TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> DefaultValue;
@@ -258,8 +256,7 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	// initialize image loader on a separate thread
 	FImgMediaLoaderSmartCacheSettings SmartCacheSettings(bIsSmartCacheEnabled, SmartCacheTimeToLookAhead);
 	Loader = MakeShared<FImgMediaLoader, ESPMode::ThreadSafe>(Scheduler.ToSharedRef(),
-		GlobalCache.ToSharedRef(), MipMapInfo, bFillGapsInSequence, bReadVirtualTextureTiles,
-		SmartCacheSettings);
+		GlobalCache.ToSharedRef(), MipMapInfo, bFillGapsInSequence, SmartCacheSettings);
 	Scheduler->RegisterLoader(Loader.ToSharedRef());
 
 	const FString SequencePath = Url.RightChop(6);
@@ -455,29 +452,6 @@ bool FImgMediaPlayer::GetPlayerFeatureFlag(EFeatureFlag flag) const
 	}
 #endif  // IMG_MEDIA_PLAYER_VERSION >= 2
 	return IMediaPlayer::GetPlayerFeatureFlag(flag);
-}
-
-/* IMediaView interface
- *****************************************************************************/
-
-bool FImgMediaPlayer::GetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>& OutTiles) const
-{
-	if (Loader.IsValid())
-	{
-		return Loader->GetVisibleTiles(OutTiles);
-	}
-
-	return false;
-}
-
-bool FImgMediaPlayer::SetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>&& InTiles)
-{
-	if (Loader.IsValid())
-	{
-		return Loader->SetVisibleTiles(MoveTemp(InTiles));
-	}
-
-	return false;
 }
 
 

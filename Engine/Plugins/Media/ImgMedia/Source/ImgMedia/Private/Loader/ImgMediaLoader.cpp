@@ -85,13 +85,11 @@ FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::T
 	const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
 	const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo,
 	bool bInFillGapsInSequence,
-	bool bInReadVirtualTextureTiles,
 	const FImgMediaLoaderSmartCacheSettings& InSmartCacheSettings)
 	: Frames(1)
 	, ImageWrapperModule(FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper"))
 	, Initialized(false)
 	, bFillGapsInSequence(bInFillGapsInSequence)
-	, bReadVirtualTextureTiles(bInReadVirtualTextureTiles)
 	, bIsTiled(false)
 	, TilingDescription()
 	, NumLoadAhead(0)
@@ -652,6 +650,11 @@ IQueuedWork* FImgMediaLoader::GetWork()
 
 	TMap<int32, FImgMediaTileSelection> DesiredMipsAndTiles;
 	GetDesiredMipTiles(FrameNumber, DesiredMipsAndTiles);
+	
+	if (DesiredMipsAndTiles.IsEmpty())
+	{
+		return nullptr;
+	}
 	
 	// Set up work.
 	Work->Initialize(FrameNumber, DesiredMipsAndTiles, ExistingFrame);
@@ -1301,23 +1304,7 @@ void FImgMediaLoader::AddFrameToCache(int32 FrameNumber, const TSharedPtr<FImgMe
 
 void FImgMediaLoader::GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMediaTileSelection>& OutMipsAndTiles)
 {
-	if(bReadVirtualTextureTiles)
-	{
-		TMap<int32, TSet<FMediaTileCoordinate>> VisibleTiles;
-		GetVisibleTiles(VisibleTiles);
-
-		for (const auto& Pair : VisibleTiles)
-		{
-			FImgMediaTileSelection Selection = FImgMediaTileSelection::CreateForTargetMipLevel(GetNumTilesX(), GetNumTilesY(), Pair.Key);
-
-			for (const FMediaTileCoordinate& Coordinate : Pair.Value)
-			{
-				Selection.SetVisible(Coordinate.X, Coordinate.Y);
-			}
-			OutMipsAndTiles.Emplace(Pair.Key, MoveTemp(Selection));
-		}
-	}
-	else if(MipMapInfo.IsValid() && MipMapInfo->HasObjects())
+	if(MipMapInfo.IsValid() && MipMapInfo->HasObjects())
 	{
 		OutMipsAndTiles = MipMapInfo->GetVisibleTiles();
 	}
@@ -1414,18 +1401,3 @@ bool FImgMediaLoader::GetNumberAtEndOfString(int32 &Number, const FString& Strin
 	return bFoundNumber;
 }
 
-bool FImgMediaLoader::GetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>& OutTiles) const
-{
-	FScopeLock Lock(&CriticalSectionTiles);
-	OutTiles = ActiveTilesPerMipLevel;
-
-	return true;
-}
-
-bool FImgMediaLoader::SetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>&& InTiles)
-{
-	FScopeLock Lock(&CriticalSectionTiles);
-	ActiveTilesPerMipLevel = MoveTemp(InTiles);
-
-	return true;
-}

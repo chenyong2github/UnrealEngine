@@ -58,7 +58,6 @@ public:
 		const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
 		const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo,
 		bool bInFillGapsInSequence,
-		bool bInReadVirtualTextureTiles,
 		const FImgMediaLoaderSmartCacheSettings& InSmartCacheSettings);
 
 	/** Virtual destructor. */
@@ -461,14 +460,6 @@ protected:
 	 */
 	bool GetNumberAtEndOfString(int32& Number, const FString& String) const;
 
-public:
-	
-	/** Thread-safe function to get currently visible tiles per mip level. */
-	bool GetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>& OutTiles) const;
-
-	/** Thread-safe function to set currently visible tiles per mip level. */
-	bool SetVisibleTiles(TMap<int32, TSet<FMediaTileCoordinate>>&& InTiles);
-
 private:
 
 	/** Critical section for synchronizing access to Frames. */
@@ -494,9 +485,6 @@ private:
 
 	/** If true, then any gaps in the sequence will be filled with blank frames. */
 	const bool bFillGapsInSequence;
-
-	/** If true, then virtual texture tiles will be used instead of the MipMapInfo object (applicable for tiled image sequences). */
-	const bool bReadVirtualTextureTiles;
 
 	/** True if this sequence contains tiles. */
 	bool bIsTiled;
@@ -567,11 +555,6 @@ private:
 	} QueuedSampleFetch;
 
 private:
-	/** Critical section for synchronizing access to the active tile list. */
-	mutable FCriticalSection CriticalSectionTiles;
-
-	/** List of visible tiles updated through the IMediaView interface. */
-	TMap<int32, TSet<FMediaTileCoordinate>> ActiveTilesPerMipLevel;
 
 	/** Settings for the smart cache. */
 	FImgMediaLoaderSmartCacheSettings SmartCacheSettings;

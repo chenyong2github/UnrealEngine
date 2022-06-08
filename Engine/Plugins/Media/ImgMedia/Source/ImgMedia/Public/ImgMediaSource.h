@@ -66,10 +66,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Sequence)
 	bool bFillGapsInSequence;
 
-	/** If true, tiled image sequences will rely only on visible tiles provided by the virtual texture system for playback. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Sequence, AdvancedDisplay)
-	bool bReadVirtualTextureTiles;
-
 #if WITH_EDITORONLY_DATA
 
 	/** This is only used so we can customize editing of SequencePath. */

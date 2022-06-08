@@ -43,10 +43,6 @@ public:
 	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (EditCondition = "bEnableTiling", ClampMin = "0.0"))
 	int32 TileSizeY = 256;
 
-	/** Number of pixels to duplicate along each tile border. */
-	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (EditCondition = "bEnableTiling", ClampMin = "0.0"))
-	int32 TileBorder = 0;
-
 	/** Number of threads to use when processing. If 0 then this number is set automatically. */
 	UPROPERTY(EditAnywhere, Transient, Category = Processing, meta = (ClampMin = "0.0"))
 	int32 NumThreads = 0;
