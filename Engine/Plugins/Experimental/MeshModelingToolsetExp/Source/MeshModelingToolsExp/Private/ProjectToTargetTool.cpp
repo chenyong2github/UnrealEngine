@@ -74,6 +74,9 @@ TUniquePtr<FDynamicMeshOperator> UProjectToTargetTool::MakeNewOperator()
 		RemeshOp->bSmoothInFillAreas = ProjectProperties->bSmoothInFillAreas;
 		RemeshOp->FillAreaDistanceMultiplier = ProjectProperties->FillAreaDistanceMultiplier;
 		RemeshOp->FillAreaSmoothMultiplier = ProjectProperties->FillAreaSmoothMultiplier;
+
+		// disable convergence check
+		RemeshOp->MinActiveEdgeFraction = 0.0;
 	}
 
 	return Op;

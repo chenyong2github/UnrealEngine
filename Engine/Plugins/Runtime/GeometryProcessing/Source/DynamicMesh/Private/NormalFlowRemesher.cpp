@@ -54,7 +54,8 @@ void FNormalFlowRemesher::RemeshWithFaceProjection()
 			break;
 		}
 
-		RemeshIteration();
+		// currently disabling converge check
+		RemeshIteration( []() {return false; } );
 
 		if (Iterations > MaxRemeshIterations / 2)
 		{

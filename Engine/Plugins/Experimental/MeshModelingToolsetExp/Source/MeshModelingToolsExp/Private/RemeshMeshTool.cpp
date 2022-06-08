@@ -113,19 +113,14 @@ void URemeshMeshTool::Setup()
 
 	OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalMesh.Get(), true);
 
-	// calculate initial mesh area (no utility fn yet)
-	// TODO: will need to change to account for component transform's Scale3D
-	InitialMeshArea = 0;
-	for (int tid : OriginalMesh->TriangleIndicesItr())
-	{
-		InitialMeshArea += OriginalMesh->GetTriArea(tid);
-	}
+	// calculate initial mesh area
+	InitialMeshArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*OriginalMesh).Y;
 
 	// set properties defaults
 
 	// arbitrary threshold of 5000 tris seems reasonable?
 	BasicProperties->TargetTriangleCount = (OriginalMesh->TriangleCount() < 5000) ? 5000 : OriginalMesh->TriangleCount();
-	BasicProperties->TargetEdgeLength = CalculateTargetEdgeLength(BasicProperties->TargetTriangleCount);
+	BasicProperties->TargetEdgeLength = FRemeshMeshOp::CalculateTargetEdgeLength(OriginalMesh.Get(), BasicProperties->TargetTriangleCount, InitialMeshArea);
 
 	// add properties to GUI
 	AddToolPropertySource(BasicProperties);
@@ -201,7 +196,7 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 
 	if (!BasicProperties->bUseTargetEdgeLength)
 	{
-		Op->TargetEdgeLength = CalculateTargetEdgeLength(BasicProperties->TargetTriangleCount);
+		Op->TargetEdgeLength = FRemeshMeshOp::CalculateTargetEdgeLength(OriginalMesh.Get(), BasicProperties->TargetTriangleCount, InitialMeshArea);
 		Op->TriangleCountHint = 2.0 * BasicProperties->TargetTriangleCount;
 	}
 	else
@@ -273,13 +268,6 @@ void URemeshMeshTool::UpdateVisualization()
 	}
 	Preview->ConfigureMaterials(MaterialSet.Materials,
 								ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
-}
-
-double URemeshMeshTool::CalculateTargetEdgeLength(int TargetTriCount)
-{
-	double TargetTriArea = InitialMeshArea / (double)TargetTriCount;
-	double EdgeLen = TriangleUtil::EquilateralEdgeLengthForArea(TargetTriArea);
-	return (double)FMath::RoundToInt(EdgeLen*100.0) / 100.0;
 }
 
 bool URemeshMeshTool::CanAccept() const

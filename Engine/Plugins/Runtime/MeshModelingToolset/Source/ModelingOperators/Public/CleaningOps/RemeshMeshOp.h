@@ -58,13 +58,22 @@ public:
 
 	ERemeshType RemeshType = ERemeshType::Standard;
 
-	int RemeshIterations;
-	int MaxRemeshIterations;
+	int RemeshIterations = 20;
+	int MaxRemeshIterations = 20;
+	double MinActiveEdgeFraction = 0.01;		// terminate remeshing if modified edge count in last pass is below this fraction of total edges
 	int ExtraProjectionIterations = 5;
 	int TriangleCountHint = 0;
-	float SmoothingStrength, TargetEdgeLength;
+	float SmoothingStrength = 0.25f;
+	double TargetEdgeLength = 1.0f;
 	ERemeshSmoothingType SmoothingType;
-	bool bDiscardAttributes, bPreserveSharpEdges, bFlips, bSplits, bCollapses, bReproject, bPreventNormalFlips, bPreventTinyTriangles;
+	bool bDiscardAttributes = false;
+	bool bPreserveSharpEdges = true;
+	bool bFlips = true;
+	bool bSplits = true;
+	bool bCollapses = true;
+	bool bReproject = true;
+	bool bPreventNormalFlips = true;
+	bool bPreventTinyTriangles = true;
 	bool bReprojectConstraints = false;
 	double BoundaryCornerAngleThreshold = 45.0;
 
@@ -76,8 +85,8 @@ public:
 	FDynamicMesh3* ProjectionTarget = nullptr;
 	FDynamicMeshAABBTree3* ProjectionTargetSpatial = nullptr;
 
-	FTransformSRT3d TargetMeshLocalToWorld;
-	FTransformSRT3d ToolMeshLocalToWorld;
+	FTransformSRT3d TargetMeshLocalToWorld = FTransformSRT3d::Identity();
+	FTransformSRT3d ToolMeshLocalToWorld = FTransformSRT3d::Identity();
 	bool bUseWorldSpace = false;
 	bool bParallel = true;
 
@@ -111,6 +120,11 @@ public:
 	// FDynamicMeshOperator implementation
 	// 
 	virtual void CalculateResult(FProgressCancel* Progress) override;
+
+
+public:
+	static double CalculateTargetEdgeLength(const FDynamicMesh3* Mesh, int TargetTriCount, double PrecomputedMeshArea = 0.0);
+
 
 protected:
 

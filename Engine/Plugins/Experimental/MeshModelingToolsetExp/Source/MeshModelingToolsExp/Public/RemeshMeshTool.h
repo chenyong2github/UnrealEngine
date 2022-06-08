@@ -147,6 +147,5 @@ protected:
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 	double InitialMeshArea;
 
-	double CalculateTargetEdgeLength(int TargetTriCount);
 	void UpdateVisualization();
 };

@@ -13,8 +13,6 @@ void FQueueRemesher::FastestRemesh()
 		ensureMsgf(false, TEXT("Input Mesh has Attribute overlays but no Constraints are configured. Use FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams() to create a Constraint Set for Attribute seams."));
 	}
 
-	ModifiedEdgesLastPass = 0;
-
 	ResetQueue();
 
 	// First we do fast splits to hit edge length target
@@ -27,6 +25,7 @@ void FQueueRemesher::FastestRemesh()
 		}
 
 		int nSplits = FastSplitIteration();
+		ModifiedEdgesLastPass = nSplits;
 
 		if ((double)nSplits / (double)Mesh->EdgeCount() < 0.01)
 		{
@@ -47,8 +46,20 @@ void FQueueRemesher::FastestRemesh()
 			break;
 		}
 
+		// if fraction of modified edges falls below threshold, consider the result converged and terminate
+		auto EarlyTerminationCheck = [k, this]() {
+			double ModifiedEdgeFraction = (double)ModifiedEdgesLastPass / (double)Mesh->EdgeCount();
+			return (k > 10 && ModifiedEdgeFraction < MinActiveEdgeFraction);
+		};
+
 		ProjectionMode = (k % 2 == 0) ? ETargetProjectionMode::NoProjection : OriginalProjectionMode;
-		RemeshIteration();
+		RemeshIteration(EarlyTerminationCheck);
+
+		// If fraction of active edges falls below threshold, terminate early
+		if (EarlyTerminationCheck())
+		{
+			break;
+		}
 	}
 
 	if (Cancelled())
@@ -58,7 +69,7 @@ void FQueueRemesher::FastestRemesh()
 
 	// Final pass with full projection
 	ProjectionMode = OriginalProjectionMode;
-	RemeshIteration();
+	RemeshIteration( []() { return false; } );
 }
 
 int FQueueRemesher::FastSplitIteration()
@@ -164,8 +175,10 @@ int FQueueRemesher::FastSplitIteration()
 }
 
 
-void FQueueRemesher::RemeshIteration()
+void FQueueRemesher::RemeshIteration(TFunctionRef<bool(void)> EarlyTerminationCheck)
 {
+	ModifiedEdgesLastPass = 0;
+
 	if (Mesh->TriangleCount() == 0)
 	{
 		return;
@@ -192,7 +205,7 @@ void FQueueRemesher::RemeshIteration()
 		}
 	};
 
-
+	int32 ProcessedEdges = 0;
 	if (!ModifiedEdges)
 	{
 		// FIRST ITERATION
@@ -226,7 +239,7 @@ void FQueueRemesher::RemeshIteration()
 		EdgeBuffer = MoveTemp(*ModifiedEdges);
 		ModifiedEdges->Reset();
 
-		for (auto CurrentEdgeID : EdgeBuffer)
+		for (int CurrentEdgeID : EdgeBuffer)
 		{
 			if (Cancelled())
 			{
@@ -244,6 +257,10 @@ void FQueueRemesher::RemeshIteration()
 
 	ProfileEndOps();
 
+	if (EarlyTerminationCheck())
+	{
+		return;
+	}
 	if (Cancelled())
 	{
 		return;

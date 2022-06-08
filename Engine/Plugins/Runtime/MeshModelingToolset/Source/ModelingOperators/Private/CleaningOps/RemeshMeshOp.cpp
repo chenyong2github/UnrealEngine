@@ -23,6 +23,7 @@ TUniquePtr<FRemesher> FRemeshMeshOp::CreateRemesher(ERemeshType Type, FDynamicMe
 	{
 		TUniquePtr<FQueueRemesher> QueueRemesher = MakeUnique<FQueueRemesher>(TargetMesh);
 		QueueRemesher->MaxRemeshIterations = MaxRemeshIterations;
+		QueueRemesher->MinActiveEdgeFraction = MinActiveEdgeFraction;
 		return QueueRemesher;
 	}
 	case ERemeshType::FullPass:
@@ -33,6 +34,7 @@ TUniquePtr<FRemesher> FRemeshMeshOp::CreateRemesher(ERemeshType Type, FDynamicMe
 	{
 		TUniquePtr<FNormalFlowRemesher> NormalFlowRemesher = MakeUnique<FNormalFlowRemesher>(TargetMesh);
 		NormalFlowRemesher->MaxRemeshIterations = MaxRemeshIterations;
+		NormalFlowRemesher->MinActiveEdgeFraction = 0;		// disable convergence check for NormalFlow remeshing
 		NormalFlowRemesher->NumExtraProjectionIterations = ExtraProjectionIterations;
 		NormalFlowRemesher->MaxTriangleCount = FMath::Max(0, TriangleCountHint);
 		NormalFlowRemesher->FaceProjectionPassesPerRemeshIteration = FaceProjectionPassesPerRemeshIteration;
@@ -236,4 +238,19 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 			CopyVertexNormalsToOverlay(*TargetMesh, *TargetMesh->Attributes()->PrimaryNormals());
 		}
 	}
+}
+
+
+
+double FRemeshMeshOp::CalculateTargetEdgeLength(const FDynamicMesh3* Mesh, int TargetTriCount, double PrecomputedMeshArea)
+{
+	double InitialMeshArea = PrecomputedMeshArea;
+	if (InitialMeshArea <= 0)
+	{
+		InitialMeshArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*Mesh).Y;
+	}
+
+	double TargetTriArea = InitialMeshArea / (double)TargetTriCount;
+	double EdgeLen = TriangleUtil::EquilateralEdgeLengthForArea(TargetTriArea);
+	return (double)FMath::RoundToInt(EdgeLen*100.0) / 100.0;
 }

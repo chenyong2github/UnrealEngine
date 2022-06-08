@@ -34,6 +34,9 @@ public:
 	/// Max number of passes doing full remeshing operations
 	int MaxRemeshIterations = 20;
 
+	/// If fraction of active edges falls below this threshold, consider result converged and terminate before MaxRemeshIterations
+	double MinActiveEdgeFraction = 0.01;
+
 	/// Converge on remeshed result as quickly as possible
 	void FastestRemesh();
 
@@ -139,7 +142,10 @@ protected:
 	int FastSplitIteration();
 
 	/// This pass does all edge operations plug smoothing and reprojection.
-	void RemeshIteration();
+	/// EarlyTerminationCheck will be called after remesh operations, before smoothing/reprojection. Caller can return true to abort further computation.
+	void RemeshIteration(
+		TFunctionRef<bool(void)> EarlyTerminationCheck
+	);
 
 	// Whether an edge should be added to ModifiedEdges (used in async tasks)
 	TArray<bool> EdgeShouldBeQueuedBuffer;	
