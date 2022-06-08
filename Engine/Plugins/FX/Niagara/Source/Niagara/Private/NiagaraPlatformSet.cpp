@@ -77,12 +77,27 @@ static FAutoConsoleCommand GCmdSetNiagaraQualityLevelOverride(
 		}
 	)
 ); 
+
 static FAutoConsoleVariableRef CVarNiagaraQualityLevel(
 	NiagaraQualityLevelName,
 	GNiagaraQualityLevel,
 	TEXT("The quality level for Niagara Effects. \n"),
-	FConsoleVariableDelegate::CreateStatic(&FNiagaraPlatformSet::OnQualityLevelChanged),
 	ECVF_Scalability
+);
+
+// Sync function for checking quality level hasn't changed
+// This must be done at the end of all console variable changes otherwise we can encounter multiple changes to the Q level resulting in some systems being left deactivated
+FAutoConsoleVariableSink CVarNiagaraQualityLevelSync(
+	FConsoleCommandDelegate::CreateLambda(
+		[]()
+		{
+			const int32 CurrentLevel = FNiagaraPlatformSet::GetQualityLevel();
+			if (CurrentLevel != GNiagaraQualityLevel)
+			{
+				SetGNiagaraQualityLevel(GNiagaraQualityLevel);
+			}
+		}
+	)
 );
 
 /** Minimum quality level available for a platform. Defaults to -1, indicating there is no minimum. */
@@ -259,17 +274,6 @@ int32 FNiagaraPlatformSet::GetFullQualityLevelMask(int32 NumQualityLevels)
 	}
 
 	return QualityLevelMask;
-}
-
-void FNiagaraPlatformSet::OnQualityLevelChanged(IConsoleVariable* Variable)
-{
-	int32 NewQualityLevel = Variable->GetInt();
-	int32 CurrentLevel = GetQualityLevel();
-
-	if (CurrentLevel != NewQualityLevel)
-	{
-		SetGNiagaraQualityLevel(NewQualityLevel);
-	}
 }
 
 uint32 FNiagaraPlatformSet::LastDirtiedFrame = 0;

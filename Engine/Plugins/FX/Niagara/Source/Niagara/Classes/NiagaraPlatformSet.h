@@ -315,7 +315,6 @@ struct NIAGARA_API FNiagaraPlatformSet
 	static FText GetQualityLevelText(int32 QualityLevel);
 	static FText GetQualityLevelMaskText(int32 QualityLevelMask);
 
-	static void OnQualityLevelChanged(IConsoleVariable* Variable);
 	static int32 GetQualityLevel();
 	static int32 GetMinQualityLevel();
 	static int32 GetMaxQualityLevel();
