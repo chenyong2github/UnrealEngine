@@ -80,6 +80,7 @@ public:
 		, _SupportDynamicSliderMaxValue(false)
 		, _SupportDynamicSliderMinValue(false)
 		, _SliderExponent(1.f)
+		, _EnableWheel(true)
 		, _Font(FCoreStyle::Get().GetFontStyle(TEXT("NormalFont")))
 		, _ContentPadding(FMargin(2.0f, 1.0f))
 		, _OnValueChanged()
@@ -128,6 +129,10 @@ public:
 		SLATE_ATTRIBUTE(float, SliderExponent)
 		/** When use exponential scale for the slider which is the neutral value */
 		SLATE_ATTRIBUTE(NumericType, SliderExponentNeutralValue)
+		/** Whether this spin box should have mouse wheel feature enabled, defaults to true */
+		SLATE_ARGUMENT(bool, EnableWheel)
+		/** Step to increment or decrement the value by when scrolling the mouse wheel. If not specified will determine automatically */
+		SLATE_ATTRIBUTE(TOptional< NumericType >, WheelStep)
 		/** Font used to display text in the slider */
 		SLATE_ATTRIBUTE(FSlateFontInfo, Font)
 		/** Padding to add around this widget and its internal widgets */
@@ -199,6 +204,9 @@ public:
 		SupportDynamicSliderMinValue = InArgs._SupportDynamicSliderMinValue;
 		OnDynamicSliderMaxValueChanged = InArgs._OnDynamicSliderMaxValueChanged;
 		OnDynamicSliderMinValueChanged = InArgs._OnDynamicSliderMinValueChanged;
+
+		bEnableWheel = InArgs._EnableWheel;
+		WheelStep = InArgs._WheelStep;
 
 		bPreventThrottling = InArgs._PreventThrottling;
 
@@ -624,15 +632,15 @@ public:
 				else
 				{
 					// If this control has a specified delta and sensitivity then we use that instead of the current value for determining how much to change.
-					const float Sign = (MouseEvent.GetCursorDelta().X > 0) ? 1.f : -1.f;
+					const double Sign = (MouseEvent.GetCursorDelta().X > 0) ? 1.0 : -1.0;
 					if (LinearDeltaSensitivity.IsSet() && LinearDeltaSensitivity.Get() != 0 && Delta.IsSet() && Delta.Get() > 0)
 					{
-						const float MouseDelta = FMath::Abs(MouseEvent.GetCursorDelta().X / LinearDeltaSensitivity.Get());
-						NewValue = InternalValue + (Sign * MouseDelta * FMath::Pow((float)Delta.Get(), SliderExponent.Get()));
+						const double MouseDelta = FMath::Abs(MouseEvent.GetCursorDelta().X / LinearDeltaSensitivity.Get());
+						NewValue = InternalValue + (Sign * MouseDelta * FMath::Pow((double)Delta.Get(), SliderExponent.Get()));
 					}
 					else
 					{
-						const float MouseDelta = FMath::Abs(MouseEvent.GetCursorDelta().X / SliderWidthInSlateUnits);
+						const double MouseDelta = FMath::Abs(MouseEvent.GetCursorDelta().X / SliderWidthInSlateUnits);
 						const double CurrentValue = FMath::Clamp<double>(FMath::Abs(InternalValue), 1.0, (double)std::numeric_limits<NumericType>::max());
 						NewValue = InternalValue + (Sign * MouseDelta * FMath::Pow((float)CurrentValue, SliderExponent.Get()));
 					}
@@ -642,6 +650,49 @@ public:
 				//UE_LOG(LogSlate, Warning, TEXT("A - %llx B - %f  C - %llx"), RoundedNewValue, NewValue, static_cast<NumericType>(NewValue));
 				CommitValue(RoundedNewValue, NewValue, CommittedViaSpin, ETextCommit::OnEnter);
 			}
+
+			return FReply::Handled();
+		}
+
+		return FReply::Unhandled();
+	}
+
+	/**
+	 * Called when the mouse wheel is spun. This event is bubbled.
+	 *
+	 * @param  MouseEvent  Mouse event
+	 * @return  Returns whether the event was handled, along with other possible actions
+	 */
+	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		if (bEnableWheel && PointerDraggingSliderIndex == INDEX_NONE && HasKeyboardFocus())
+		{
+			// If there is no WheelStep defined, we use 1.0 (Or 0.1 if slider range is <= 10)
+			constexpr bool bIsIntegral = TIsIntegral<NumericType>::Value;
+			const bool bIsSmallStep = !bIsIntegral && (GetMaxSliderValue() - GetMinSliderValue()) <= 10.0;
+			double Step = WheelStep.IsSet() && WheelStep.Get().IsSet() ? WheelStep.Get().GetValue() : (bIsSmallStep ? 0.1 : 1.0);
+
+			if (MouseEvent.IsControlDown())
+			{
+				// If no value is set for WheelSmallStep, we use the DefaultStep divided by 10
+				Step /= 10.0;
+			}
+			else if (MouseEvent.IsShiftDown())
+			{
+				// If no value is set for WheelBigStep, we use the DefaultStep multiplied by 10
+				Step *= 10.0;
+			}
+
+			const double Sign = (MouseEvent.GetWheelDelta() > 0) ? 1.0 : -1.0;
+			const double NewValue = InternalValue + (Sign * Step);
+			const NumericType RoundedNewValue = RoundIfIntegerValue(NewValue);
+
+			// First SetText is to update the value before calling CommitValue. Otherwise, when the text lose
+			// focus from the CommitValue, it will override the value we just committed.
+			// The second SetText is to update the text to the InternalValue since it could have been clamped.
+			EditableText->SetText(FText::FromString(Interface->ToString(NewValue)));
+			CommitValue(RoundedNewValue, NewValue, CommittedViaSpin, ETextCommit::OnEnter);
+			EditableText->SetText(FText::FromString(Interface->ToString(InternalValue)));
 
 			return FReply::Handled();
 		}
@@ -1076,6 +1127,7 @@ private:
 	TAttribute<bool> EnableSlider;
 	TAttribute<bool> SupportDynamicSliderMaxValue;
 	TAttribute<bool> SupportDynamicSliderMinValue;
+	TAttribute< TOptional<NumericType> > WheelStep;
 	FOnDynamicSliderMinMaxValueChanged OnDynamicSliderMaxValueChanged;
 	FOnDynamicSliderMinMaxValueChanged OnDynamicSliderMinValueChanged;
 
@@ -1151,6 +1203,9 @@ private:
 	 * When true, the viewport will be updated with every single change to the value during dragging
 	 */
 	bool bPreventThrottling;
+
+	/** Does this spin box have the mouse wheel feature enabled? */
+	bool bEnableWheel = true;
 };
 
 template<typename NumericType>

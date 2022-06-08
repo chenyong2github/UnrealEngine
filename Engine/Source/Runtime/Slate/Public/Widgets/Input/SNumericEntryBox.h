@@ -86,14 +86,15 @@ public:
 		, _Delta(NumericType(0))
 		, _MinValue(TNumericLimits<NumericType>::Lowest())
 		, _MaxValue(TNumericLimits<NumericType>::Max())
-		, _MinSliderValue(NumericType(0))				
+		, _MinSliderValue(NumericType(0))
 		, _MaxSliderValue(NumericType(100))
 		, _SliderExponent(1.f)
+		, _AllowWheel(true)
 		, _MinDesiredValueWidth(0.f)
 		, _DisplayToggle(false)
 		, _ToggleChecked(ECheckBoxState::Checked)
 		, _TogglePadding(FMargin(1.f,0.f,1.f,0.f) )
-	{}		
+	{}
 
 		/** Style to use for the editable text box within this widget */
 		SLATE_STYLE_ARGUMENT( FEditableTextBoxStyle, EditableTextBoxStyle )
@@ -149,6 +150,10 @@ public:
 		SLATE_ATTRIBUTE( float, SliderExponent )
 		/** When using exponential scale specify a neutral value where we want the maximum precision (by default it is the smallest slider value)*/
 		SLATE_ATTRIBUTE(NumericType, SliderExponentNeutralValue )
+		/** Whether this spin box should have mouse wheel feature enabled, defaults to true */
+		SLATE_ARGUMENT( bool, AllowWheel )
+		/** Step to increment or decrement the value by when scrolling the mouse wheel. If not specified will determine automatically */
+		SLATE_ATTRIBUTE( TOptional< NumericType >, WheelStep )
 		/** The minimum desired width for the value portion of the control. */
 		SLATE_ATTRIBUTE( float, MinDesiredValueWidth )
 		/** The text margin to use if overridden. */
@@ -238,6 +243,8 @@ public:
 				.MinValue(InArgs._MinValue)
 				.SliderExponent(InArgs._SliderExponent)
 				.SliderExponentNeutralValue(InArgs._SliderExponentNeutralValue)
+				.EnableWheel(InArgs._AllowWheel)
+				.WheelStep(InArgs._WheelStep)
 				.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)
 				.OnEndSliderMovement(InArgs._OnEndSliderMovement)
 				.MinDesiredWidth(InArgs._MinDesiredValueWidth)

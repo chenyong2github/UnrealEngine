@@ -331,6 +331,16 @@ public:
 				UE_LOG(LogPropertyNode, Warning, TEXT("UI Min (%s) >= UI Max (%s) for Ranged Numeric property %s"), *UIMinString, *UIMaxString, *Property->GetPathName());
 			}
 
+			const FString& WheelStepString = GetMetaDataFromKey("WheelStep");
+			NumericType WheelStepValue = NumericType(0);
+
+			if (!WheelStepString.IsEmpty())
+			{
+				TTypeFromString<NumericType>::FromString(WheelStepValue, *WheelStepString);
+			}
+
+			TOptional<NumericType> WheelStep = WheelStepString.Len() ? WheelStepValue : TOptional<NumericType>();
+
 			FObjectPropertyNode* ObjectPropertyNode = PropertyNode->FindObjectItemParent();
 			const bool bAllowSpin = (!ObjectPropertyNode || (1 == ObjectPropertyNode->GetNumObjects()))
 				&& !PropertyHandle->GetBoolMetaData("NoSpinbox");
@@ -392,6 +402,8 @@ public:
 				.Delta(Delta)
 				// LinearDeltaSensitivity needs to be left unset if not provided, rather than being set to some default
 				.LinearDeltaSensitivity(LinearDeltaSensitivity != 0 ? LinearDeltaSensitivity : TAttribute<int32>())
+				.AllowWheel(bAllowSpin)
+				.WheelStep(WheelStep)
 				.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
 				.OnValueChanged(this, &SPropertyEditorNumeric<NumericType>::OnValueChanged)
 				.OnValueCommitted(this, &SPropertyEditorNumeric<NumericType>::OnValueCommitted)
