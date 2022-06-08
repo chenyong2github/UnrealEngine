@@ -78,7 +78,7 @@ namespace Dataflow
 	{
 		ManagedArrayOut->SetValue(TSharedPtr<FManagedArrayCollection>(nullptr), Context);
 
-		if (const FEngineContext* EngineContext = (const FEngineContext*)(&Context))
+		if (const FEngineContext* EngineContext = Context.AsType<FEngineContext>(FName("UGeometryCollection")))
 		{
 			if (UGeometryCollection* GeometryCollectionObject = Cast<UGeometryCollection>(EngineContext->Owner))
 			{
