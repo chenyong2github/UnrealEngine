@@ -47,7 +47,7 @@ public:
 
 	void Close() final;
 
-	bool IsWritable() const final { return bWriting; }
+	bool IsWritable() const final { return bWriting && !bClosed; }
 
 	bool CachedDataProbablyExists(const TCHAR* CacheKey);
 	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData);
