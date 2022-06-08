@@ -3,7 +3,6 @@
 #pragma once
 
 #include <Metal/Metal.h>
-#include "AGXState.h"
 #include "AGXResources.h"
 #include "AGXViewport.h"
 #include "RHICore.h"

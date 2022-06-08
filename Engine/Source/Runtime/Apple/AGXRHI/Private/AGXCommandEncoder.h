@@ -345,7 +345,7 @@ public:
 	 * @param Usage The resource usage mask.
 	 * @param Format The Pixel format to reinterpret the resource as.
 	 */
-	void SetShaderBuffer(mtlpp::FunctionType const FunctionType, FAGXBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0);
+	void SetShaderBuffer(mtlpp::FunctionType FunctionType, FAGXBuffer const& Buffer, NSUInteger Offset, NSUInteger Length, NSUInteger Index, MTLResourceUsage Usage, EPixelFormat Format = PF_Unknown, NSUInteger ElementRowPitch = 0);
 	
 	/*
 	 * Set an FAGXBufferData to the specified shader frequency at the given bind point index.
@@ -373,7 +373,7 @@ public:
 	 * @param Index The index to modify.
 	 * @param Usage The resource usage mask.
 	 */
-	void SetShaderTexture(mtlpp::FunctionType const FunctionType, FAGXTexture const& Texture, NSUInteger const Index, mtlpp::ResourceUsage const Usage);
+	void SetShaderTexture(mtlpp::FunctionType FunctionType, FAGXTexture const& Texture, NSUInteger Index, MTLResourceUsage Usage);
 	
 	/*
 	 * Set a global sampler for the specified shader frequency at the given bind point index.
@@ -451,7 +451,7 @@ private:
         /** The bound buffer offsets or 0. */
         NSUInteger Offsets[ML_MaxBuffers];
 		/** The usage mask for the bound resource or 0 */
-		mtlpp::ResourceUsage Usage[ML_MaxBuffers];
+		MTLResourceUsage Usage[ML_MaxBuffers];
 		/** The bound buffer constants */
 		struct FSizeConstants
 		{
@@ -517,7 +517,7 @@ public:
 	TSet<ns::AutoReleased<FAGXBuffer>> BufferBindingHistory;
 	TSet<ns::AutoReleased<FAGXTexture>> TextureBindingHistory;
 	
-	TMap<mtlpp::Resource::Type, mtlpp::ResourceUsage> ResourceUsage;
+	TMap<mtlpp::Resource::Type, MTLResourceUsage> ResourceUsage;
 	
 	uint32 EncoderNum;
 	uint32 CmdBufIndex;

@@ -104,13 +104,13 @@ void FAGXShaderParameterCache::CommitPackedGlobals(FAGXStateCache* Cache, FAGXCo
 				uint8 const* Bytes = PackedGlobalUniforms[Index]->Data;
 				ns::AutoReleased<FAGXBuffer> Buffer(Encoder->GetRingBuffer().NewBuffer(Size, 0));
 				FMemory::Memcpy((uint8*)Buffer.GetContents(), Bytes, Size);
-				Cache->SetShaderBuffer((EAGXShaderStages)Frequency, Buffer, nil, 0, Size, UniformBufferIndex, mtlpp::ResourceUsage::Read);
+				Cache->SetShaderBuffer((EAGXShaderStages)Frequency, Buffer, nil, 0, Size, UniformBufferIndex, MTLResourceUsageRead);
 			}
 			else
 			{
 				PackedGlobalUniforms[Index]->Len = Size;
-				Cache->SetShaderBuffer((EAGXShaderStages)Frequency, nil, nil, 0, 0, UniformBufferIndex, mtlpp::ResourceUsage(0));
-				Cache->SetShaderBuffer((EAGXShaderStages)Frequency, nil, PackedGlobalUniforms[Index], 0, Size, UniformBufferIndex, mtlpp::ResourceUsage::Read);
+				Cache->SetShaderBuffer((EAGXShaderStages)Frequency, nil, nil, 0, 0, UniformBufferIndex, 0);
+				Cache->SetShaderBuffer((EAGXShaderStages)Frequency, nil, PackedGlobalUniforms[Index], 0, Size, UniformBufferIndex, MTLResourceUsageRead);
 			}
 
 			// mark as clean

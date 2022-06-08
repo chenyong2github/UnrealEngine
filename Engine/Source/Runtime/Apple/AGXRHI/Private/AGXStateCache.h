@@ -78,7 +78,7 @@ public:
 	 * @param Usage The resource usage flags.
 	 * @param Format The UAV pixel format.
 	 */
-	void SetShaderBuffer(EAGXShaderStages const Frequency, FAGXBuffer const& Buffer, FAGXBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0);
+	void SetShaderBuffer(EAGXShaderStages Frequency, FAGXBuffer const& Buffer, FAGXBufferData* const Bytes, NSUInteger Offset, NSUInteger Length, NSUInteger Index, MTLResourceUsage Usage, EPixelFormat Format = PF_Unknown, NSUInteger ElementRowPitch = 0);
 	
 	/*
 	 * Set a global texture for the specified shader frequency at the given bind point index.
@@ -87,7 +87,7 @@ public:
 	 * @param Index The index to modify.
 	 * @param Usage The resource usage flags.
 	 */
-	void SetShaderTexture(EAGXShaderStages const Frequency, FAGXTexture const& Texture, NSUInteger const Index, mtlpp::ResourceUsage const Usage);
+	void SetShaderTexture(EAGXShaderStages Frequency, FAGXTexture const& Texture, NSUInteger Index, MTLResourceUsage Usage);
 	
 	/*
 	 * Set a global sampler for the specified shader frequency at the given bind point index.
@@ -186,7 +186,7 @@ private:
 #pragma mark - Private Type Declarations -
 	struct FAGXBufferBinding
 	{
-		FAGXBufferBinding() : Bytes(nil), Offset(0), Length(0), Usage((mtlpp::ResourceUsage)0) {}
+		FAGXBufferBinding() : Bytes(nil), Offset(0), Length(0), Usage(0) {}
 		/** The bound buffers or nil. */
 		ns::AutoReleased<FAGXBuffer> Buffer;
 		/** Optional bytes buffer used instead of an FAGXBuffer */
@@ -198,7 +198,7 @@ private:
 		/** The bound buffer element row pitch or 0 */
 		NSUInteger ElementRowPitch;
 		/** The bound buffer usage or 0 */
-		mtlpp::ResourceUsage Usage;
+		MTLResourceUsage Usage;
 	};
 	
 	/** A structure of arrays for the current buffer binding settings. */
@@ -220,7 +220,7 @@ private:
 		/** The bound textures or nil. */
 		ns::AutoReleased<FAGXTexture> Textures[ML_MaxTextures];
 		/** The bound texture usage or 0 */
-		mtlpp::ResourceUsage Usage[ML_MaxTextures];
+		MTLResourceUsage Usage[ML_MaxTextures];
 		/** A bitmask for which textures were bound by the application where a bit value of 1 is bound and 0 is unbound. */
 		FAGXTextureMask Bound;
 	};

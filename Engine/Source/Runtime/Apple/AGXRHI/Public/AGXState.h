@@ -6,12 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
-THIRD_PARTY_INCLUDES_START
-#include "mtlpp.hpp"
-THIRD_PARTY_INCLUDES_END
-
 class FAGXSamplerState : public FRHISamplerState
 {
 public:

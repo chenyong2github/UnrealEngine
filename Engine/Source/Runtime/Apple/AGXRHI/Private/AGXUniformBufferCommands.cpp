@@ -59,7 +59,7 @@ static void SetUniformBufferInternal(FAGXContext* Context, RHIShaderType* Shader
             UB->PrepareToBind();
             
             FAGXBuffer Buf(UB->Backing, ns::Ownership::AutoRelease);
-            Context->GetCurrentState().SetShaderBuffer(Stage, Buf, nil, UB->Offset, UB->GetSize(), BufferIndex, mtlpp::ResourceUsage::Read);
+            Context->GetCurrentState().SetShaderBuffer(Stage, Buf, nil, UB->Offset, UB->GetSize(), BufferIndex, MTLResourceUsageRead);
         }
     }
 }

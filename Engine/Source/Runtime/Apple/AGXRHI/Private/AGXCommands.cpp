@@ -309,17 +309,17 @@ void FAGXRHICommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, u
 	{
         if (Surface->Texture || !(Surface->GetDesc().Flags & TexCreate_Presentable))
         {
-            Context->GetCurrentState().SetShaderTexture(Stage, Surface->Texture, TextureIndex, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
+            Context->GetCurrentState().SetShaderTexture(Stage, Surface->Texture, TextureIndex, (MTLResourceUsageRead | MTLResourceUsageSample));
         }
         else
         {
             FAGXTexture Tex = Surface->GetCurrentTexture();
-            Context->GetCurrentState().SetShaderTexture(Stage, Tex, TextureIndex, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
+            Context->GetCurrentState().SetShaderTexture(Stage, Tex, TextureIndex, (MTLResourceUsageRead | MTLResourceUsageSample));
         }
 	}
 	else
 	{
-		Context->GetCurrentState().SetShaderTexture(Stage, nil, TextureIndex, mtlpp::ResourceUsage(0));
+		Context->GetCurrentState().SetShaderTexture(Stage, nil, TextureIndex, 0);
 	}
 	}
 }
@@ -332,17 +332,17 @@ void FAGXRHICommandContext::RHISetShaderTexture(FRHIComputeShader* ComputeShader
     {
         if (Surface->Texture || !(Surface->GetDesc().Flags & TexCreate_Presentable))
         {
-            Context->GetCurrentState().SetShaderTexture(EAGXShaderStages::Compute, Surface->Texture, TextureIndex, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
+            Context->GetCurrentState().SetShaderTexture(EAGXShaderStages::Compute, Surface->Texture, TextureIndex, (MTLResourceUsageRead | MTLResourceUsageSample));
         }
         else
         {
             FAGXTexture Tex = Surface->GetCurrentTexture();
-            Context->GetCurrentState().SetShaderTexture(EAGXShaderStages::Compute, Tex, TextureIndex, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
+            Context->GetCurrentState().SetShaderTexture(EAGXShaderStages::Compute, Tex, TextureIndex, (MTLResourceUsageRead | MTLResourceUsageSample));
         }
 	}
 	else
 	{
-		Context->GetCurrentState().SetShaderTexture(EAGXShaderStages::Compute, nil, TextureIndex, mtlpp::ResourceUsage(0));
+		Context->GetCurrentState().SetShaderTexture(EAGXShaderStages::Compute, nil, TextureIndex, 0);
 	}
 	}
 }

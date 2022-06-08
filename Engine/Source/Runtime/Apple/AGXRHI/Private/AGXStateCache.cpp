@@ -231,14 +231,14 @@ FAGXStateCache::~FAGXStateCache()
 			ShaderBuffers[Frequency].Buffers[i].Length = 0;
 			ShaderBuffers[Frequency].Buffers[i].ElementRowPitch = 0;
 			ShaderBuffers[Frequency].Buffers[i].Offset = 0;
-			ShaderBuffers[Frequency].Buffers[i].Usage = mtlpp::ResourceUsage(0);
+			ShaderBuffers[Frequency].Buffers[i].Usage = 0;
 			ShaderBuffers[Frequency].Formats[i] = PF_Unknown;
 		}
 		ShaderBuffers[Frequency].Bound = 0;
 		for (uint32 i = 0; i < ML_MaxTextures; i++)
 		{
 			ShaderTextures[Frequency].Textures[i] = nil;
-			ShaderTextures[Frequency].Usage[i] = mtlpp::ResourceUsage(0);
+			ShaderTextures[Frequency].Usage[i] = 0;
 		}
 		ShaderTextures[Frequency].Bound = 0;
 	}
@@ -293,7 +293,7 @@ void FAGXStateCache::Reset(void)
 		for (uint32 i = 0; i < ML_MaxTextures; i++)
 		{
 			ShaderTextures[Frequency].Textures[i] = nil;
-			ShaderTextures[Frequency].Usage[i] = mtlpp::ResourceUsage(0);
+			ShaderTextures[Frequency].Usage[i] = 0;
 		}
 		ShaderTextures[Frequency].Bound = 0;
 	}
@@ -411,7 +411,7 @@ void FAGXStateCache::SetComputeShader(FAGXComputeShader* InComputeShader)
 		for (uint32 Index = 0; Index < ML_MaxTextures; ++Index)
 		{
 			ShaderTextures[EAGXShaderStages::Compute].Textures[Index] = nil;
-			ShaderTextures[EAGXShaderStages::Compute].Usage[Index] = mtlpp::ResourceUsage(0);
+			ShaderTextures[EAGXShaderStages::Compute].Usage[Index] = 0;
 		}
 		ShaderTextures[EAGXShaderStages::Compute].Bound = 0;
 
@@ -1104,7 +1104,7 @@ void FAGXStateCache::SetVertexStream(uint32 const Index, FAGXBuffer* Buffer, FAG
 	VertexBuffers[Index].Bytes = Bytes;
 	VertexBuffers[Index].Length = Length;
 	
-	SetShaderBuffer(EAGXShaderStages::Vertex, VertexBuffers[Index].Buffer, Bytes, Offset, Length, UNREAL_TO_METAL_BUFFER_INDEX(Index), mtlpp::ResourceUsage::Read);
+	SetShaderBuffer(EAGXShaderStages::Vertex, VertexBuffers[Index].Buffer, Bytes, Offset, Length, UNREAL_TO_METAL_BUFFER_INDEX(Index), MTLResourceUsageRead);
 }
 
 uint32 FAGXStateCache::GetVertexBufferSize(uint32 const Index)
@@ -1336,7 +1336,7 @@ bool FAGXStateCache::NeedsToSetRenderTarget(const FRHIRenderPassInfo& InRenderPa
 	return bAllChecksPassed == false;
 }
 
-void FAGXStateCache::SetShaderBuffer(EAGXShaderStages const Frequency, FAGXBuffer const& Buffer, FAGXBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format, NSUInteger const ElementRowPitch)
+void FAGXStateCache::SetShaderBuffer(EAGXShaderStages Frequency, FAGXBuffer const& Buffer, FAGXBufferData* const Bytes, NSUInteger Offset, NSUInteger Length, NSUInteger Index, MTLResourceUsage Usage, EPixelFormat Format, NSUInteger ElementRowPitch)
 {
 	check(Frequency < EAGXShaderStages::Num);
 	check(Index < ML_MaxBuffers);
@@ -1369,7 +1369,7 @@ void FAGXStateCache::SetShaderBuffer(EAGXShaderStages const Frequency, FAGXBuffe
 	}
 }
 
-void FAGXStateCache::SetShaderTexture(EAGXShaderStages const Frequency, FAGXTexture const& Texture, NSUInteger const Index, mtlpp::ResourceUsage const Usage)
+void FAGXStateCache::SetShaderTexture(EAGXShaderStages Frequency, FAGXTexture const& Texture, NSUInteger Index, MTLResourceUsage Usage)
 {
 	check(Frequency < EAGXShaderStages::Num);
 	check(Index < ML_MaxTextures);
@@ -1423,12 +1423,12 @@ void FAGXStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FRHITextu
 {
 	FAGXSurface* Surface = AGXGetMetalSurfaceFromRHITexture(TextureRHI);
 	ns::AutoReleased<FAGXTexture> Texture;
-	mtlpp::ResourceUsage Usage = (mtlpp::ResourceUsage)0;
+	MTLResourceUsage Usage = 0;
 	if (Surface != nullptr)
 	{
 		TextureRHI->SetLastRenderTime(CurrentTime);
 		Texture = Surface->Texture;
-		Usage = mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample);
+		Usage = MTLResourceUsageRead | MTLResourceUsageSample;
 	}
 	
 	switch (ShaderStage)
@@ -1460,11 +1460,11 @@ void FAGXStateCache::SetShaderResourceView(FAGXContext* Context, EAGXShaderStage
 			FAGXTexture View(SRV->GetTextureView());
 			if (View)
 			{
-				SetShaderTexture(ShaderStage, View, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample));
+				SetShaderTexture(ShaderStage, View, BindIndex, (MTLResourceUsageRead | MTLResourceUsageSample));
 			}
 			else
 			{
-				SetShaderTexture(ShaderStage, nil, BindIndex, mtlpp::ResourceUsage(0));
+				SetShaderTexture(ShaderStage, nil, BindIndex, 0);
 			}
 		}
 		else
@@ -1476,11 +1476,11 @@ void FAGXStateCache::SetShaderResourceView(FAGXContext* Context, EAGXShaderStage
 				ns::AutoReleased<FAGXTexture> Tex;
 				Tex = SRV->GetLinearTexture();
 
-				SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample));
+				SetShaderTexture(ShaderStage, Tex, BindIndex, (MTLResourceUsageRead | MTLResourceUsageSample));
 			}
 			else 
 			{
-				SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, SRV->Offset, Buffer->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
+				SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, SRV->Offset, Buffer->GetSize(), BindIndex, MTLResourceUsageRead, (EPixelFormat)SRV->Format);
 			}
 		}
 	}
@@ -1525,7 +1525,7 @@ void FAGXStateCache::SetShaderUnorderedAccessView(EAGXShaderStages ShaderStage, 
 			{
 				FPlatformAtomics::InterlockedExchange(&Surface->Written, 1);
 
-				SetShaderTexture(ShaderStage, View, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
+				SetShaderTexture(ShaderStage, View, BindIndex, (MTLResourceUsageRead | MTLResourceUsageWrite));
 
 				if (Surface->Texture.GetBuffer() && (EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_AtomicCompatible)))
 				{
@@ -1535,12 +1535,12 @@ void FAGXStateCache::SetShaderUnorderedAccessView(EAGXShaderStages ShaderStage, 
 					FAGXBuffer Buffer(Surface->Texture.GetBuffer(), false);
 					const uint32 BufferOffset = Surface->Texture.GetBufferOffset();
 					const uint32 BufferSize = Surface->Texture.GetBuffer().GetLength();
-					SetShaderBuffer(ShaderStage, Buffer, nullptr, BufferOffset, BufferSize, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), static_cast<EPixelFormat>(UAV->Format), ElementsPerRow);
+					SetShaderBuffer(ShaderStage, Buffer, nullptr, BufferOffset, BufferSize, BindIndex, (MTLResourceUsageRead | MTLResourceUsageWrite), static_cast<EPixelFormat>(UAV->Format), ElementsPerRow);
 				}
 			}
 			else
 			{
-				SetShaderTexture(ShaderStage, nil, BindIndex, mtlpp::ResourceUsage(0));
+				SetShaderTexture(ShaderStage, nil, BindIndex, 0);
 			}
 		}
 		else
@@ -1552,10 +1552,10 @@ void FAGXStateCache::SetShaderUnorderedAccessView(EAGXShaderStages ShaderStage, 
 			{
 				ns::AutoReleased<FAGXTexture> Tex;
 				Tex = UAV->GetLinearTexture();
-				SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
+				SetShaderTexture(ShaderStage, Tex, BindIndex, (MTLResourceUsageRead | MTLResourceUsageWrite));
 			}
 
-			SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, 0, Buffer->GetSize(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), (EPixelFormat)UAV->Format);
+			SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, 0, Buffer->GetSize(), BindIndex, (MTLResourceUsageRead | MTLResourceUsageWrite), (EPixelFormat)UAV->Format);
 		}
 	}
 }
