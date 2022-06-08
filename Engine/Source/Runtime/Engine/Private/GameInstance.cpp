@@ -724,10 +724,19 @@ bool UGameInstance::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 
 ULocalPlayer* UGameInstance::CreateInitialPlayer(FString& OutError)
 {
-	return CreateLocalPlayer( 0, OutError, false );
+	return CreateLocalPlayer(IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser(), OutError, false);
 }
 
 ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutError, bool bSpawnPlayerController)
+{
+	// A compatibility call that will map the old int32 ControllerId to the new platform user
+	FPlatformUserId UserId = FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerId);
+	FInputDeviceId DummyInputDevice = INPUTDEVICEID_NONE;
+	IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, DummyInputDevice);
+	return CreateLocalPlayer(UserId, OutError, bSpawnPlayerController);
+}
+
+ULocalPlayer* UGameInstance::CreateLocalPlayer(FPlatformUserId UserId, FString& OutError, bool bSpawnPlayerController)
 {
 	check(GetEngine()->LocalPlayerClass != NULL);
 
@@ -736,31 +745,31 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutE
 
 	const int32 MaxSplitscreenPlayers = (GetGameViewportClient() != NULL) ? GetGameViewportClient()->MaxSplitscreenPlayers : 1;
 
-	if (FindLocalPlayerFromControllerId( ControllerId ) != NULL)
+	if (FindLocalPlayerFromPlatformUserId(UserId) != NULL)
 	{
-		OutError = FString::Printf(TEXT("A local player already exists for controller ID %d,"), ControllerId);
+		OutError = FString::Printf(TEXT("A local player already exists for PlatformUserId %d,"), UserId.GetInternalId());
 	}
 	else if (LocalPlayers.Num() < MaxSplitscreenPlayers)
 	{
 		// If the controller ID is not specified then find the first available
-		if (ControllerId < 0)
+		if (!UserId.IsValid())
 		{
-			for (ControllerId = 0; ControllerId < MaxSplitscreenPlayers; ++ControllerId)
+			for (int32 Id = 0; Id < MaxSplitscreenPlayers; ++Id)
 			{
-				if (FindLocalPlayerFromControllerId( ControllerId ) == NULL)
+				if (FindLocalPlayerFromControllerId(Id) == nullptr)
 				{
 					break;
 				}
 			}
-			check(ControllerId < MaxSplitscreenPlayers);
+			check(UserId.GetInternalId() < MaxSplitscreenPlayers);
 		}
-		else if (ControllerId >= MaxSplitscreenPlayers)
+		else if (UserId.GetInternalId() >= MaxSplitscreenPlayers)
 		{
-			UE_LOG(LogPlayerManagement, Warning, TEXT("Controller ID (%d) is unlikely to map to any physical device, so this player will not receive input"), ControllerId);
+			UE_LOG(LogPlayerManagement, Warning, TEXT("Controller ID (%d) is unlikely to map to any physical device, so this player will not receive input"), UserId.GetInternalId());
 		}
 
 		NewPlayer = NewObject<ULocalPlayer>(GetEngine(), GetEngine()->LocalPlayerClass);
-		InsertIndex = AddLocalPlayer(NewPlayer, ControllerId);
+		InsertIndex = AddLocalPlayer(NewPlayer, UserId);
 		UWorld* CurrentWorld = GetWorld();
 		if (bSpawnPlayerController && InsertIndex != INDEX_NONE && CurrentWorld != nullptr)
 		{
@@ -808,6 +817,14 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutE
 
 int32 UGameInstance::AddLocalPlayer(ULocalPlayer* NewLocalPlayer, int32 ControllerId)
 {
+	FPlatformUserId UserId = FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerId);
+	FInputDeviceId DummyInputDevice = INPUTDEVICEID_NONE;
+	IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, DummyInputDevice);
+	return AddLocalPlayer(NewLocalPlayer, UserId);
+}
+
+int32 UGameInstance::AddLocalPlayer(ULocalPlayer* NewLocalPlayer, FPlatformUserId UserId)
+{
 	if (NewLocalPlayer == nullptr)
 	{
 		return INDEX_NONE;
@@ -816,8 +833,8 @@ int32 UGameInstance::AddLocalPlayer(ULocalPlayer* NewLocalPlayer, int32 Controll
 	// Add to list
 	const int32 InsertIndex = LocalPlayers.AddUnique(NewLocalPlayer);
 
-	// Notify the player he/she was added
-	NewLocalPlayer->PlayerAdded(GetGameViewportClient(), ControllerId);
+	// Notify the player they were added
+	NewLocalPlayer->PlayerAdded(GetGameViewportClient(), UserId);
 
 	// Notify the viewport that we added a player (so it can update splitscreen settings, etc)
 	if ( GetGameViewportClient() != nullptr)
@@ -825,7 +842,7 @@ int32 UGameInstance::AddLocalPlayer(ULocalPlayer* NewLocalPlayer, int32 Controll
 		GetGameViewportClient()->NotifyPlayerAdded(InsertIndex, NewLocalPlayer);
 	}
 
-	UE_LOG(LogPlayerManagement, Log, TEXT("UGameInstance::AddLocalPlayer: Added player %s with ControllerId %d at index %d (%d remaining players)"), *NewLocalPlayer->GetName(), NewLocalPlayer->GetControllerId(), InsertIndex, LocalPlayers.Num());
+	UE_LOG(LogPlayerManagement, Log, TEXT("UGameInstance::AddLocalPlayer: Added player %s with PlatformUserId %d at index %d (%d remaining players)"), *NewLocalPlayer->GetName(), NewLocalPlayer->GetPlatformUserId(), InsertIndex, LocalPlayers.Num());
 
 	OnLocalPlayerAddedEvent.Broadcast(NewLocalPlayer);
 
@@ -1021,6 +1038,19 @@ ULocalPlayer* UGameInstance::FindLocalPlayerFromControllerId(const int32 Control
 	for (ULocalPlayer * LP : LocalPlayers)
 	{
 		if (LP && (LP->GetControllerId() == ControllerId))
+		{
+			return LP;
+		}
+	}
+
+	return nullptr;
+}
+
+ULocalPlayer* UGameInstance::FindLocalPlayerFromPlatformUserId(const FPlatformUserId UserId) const
+{
+	for (ULocalPlayer* LP : LocalPlayers)
+	{
+		if (LP && (LP->GetPlatformUserId() == UserId))
 		{
 			return LP;
 		}

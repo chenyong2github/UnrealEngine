@@ -338,12 +338,30 @@ public:
 	ULocalPlayer*			CreateLocalPlayer(int32 ControllerId, FString& OutError, bool bSpawnPlayerController);
 
 	/**
+	 * Adds a new player.
+	 * @param UserId - The platform user id the player should accept input from
+	 * @param OutError - If no player is returned, OutError will contain a string describing the reason.
+	 * @param bSpawnPlayerController - True if a player controller should be spawned immediately for the new player.
+	 * @return The player which was created.
+	 */
+	ULocalPlayer* CreateLocalPlayer(FPlatformUserId UserId, FString& OutError, bool bSpawnPlayerController);
+
+	/**
 	 * Adds a LocalPlayer to the local and global list of Players.
 	 *
 	 * @param	NewPlayer	the player to add
 	 * @param	ControllerId id of the controller associated with the player
 	 */
+	UE_DEPRECATED(5.1, "This version of AddLocalPlayer has been deprecated, pleasse use the version that takes a FPlatformUserId instead.")
 	virtual int32			AddLocalPlayer(ULocalPlayer* NewPlayer, int32 ControllerId);
+
+	/**
+	 * Adds a LocalPlayer to the local and global list of Players.
+	 *
+	 * @param	NewPlayer	The player to add
+	 * @param	UserId		Id of the platform user associated with the player
+	 */
+	virtual int32 AddLocalPlayer(ULocalPlayer* NewPlayer, FPlatformUserId UserId);
 
 	/**
 	 * Removes a player.
@@ -366,6 +384,9 @@ public:
 
 	/** Returns the local player assigned to a physical Controller Id, or null if not found */
 	ULocalPlayer*			FindLocalPlayerFromControllerId(const int32 ControllerId) const;
+	
+	/** Returns the local player assigned to this platform user id, or null if not found */
+	ULocalPlayer* FindLocalPlayerFromPlatformUserId(const FPlatformUserId UserId) const;
 
 	/** Returns the local player that has been assigned the specific unique net id */
 	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(FUniqueNetIdPtr UniqueNetId) const;

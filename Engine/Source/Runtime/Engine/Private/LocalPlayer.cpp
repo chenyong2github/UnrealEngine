@@ -268,6 +268,14 @@ void ULocalPlayer::PlayerAdded(UGameViewportClient* InViewportClient, int32 InCo
 	SubsystemCollection.Initialize(this);
 }
 
+void ULocalPlayer::PlayerAdded(UGameViewportClient* InViewportClient, FPlatformUserId InUserId)
+{
+	ViewportClient = InViewportClient;
+	SetPlatformUserId(InUserId);
+
+	SubsystemCollection.Initialize(this);
+}
+
 void ULocalPlayer::InitOnlineSession()
 {
 	// FIXME: This may be obsolete, still here to support a few straggler cases that do stuff in child classes
@@ -1564,14 +1572,21 @@ void ULocalPlayer::SetControllerId( int32 NewControllerId )
 	}
 }
 
-void ULocalPlayer::SetPlatformUserId(FPlatformUserId InPlatformUserId)
+void ULocalPlayer::SetPlatformUserId(FPlatformUserId NewPlatformUserId)
 {
-	if (InPlatformUserId != PlatformUserId)
+	if (NewPlatformUserId != PlatformUserId)
 	{
 		const FPlatformUserId CurrentPlatformUserId = PlatformUserId;
 
-		PlatformUserId = InPlatformUserId;
-		OnPlatformUserIdChanged().Broadcast(InPlatformUserId, CurrentPlatformUserId);
+		// set this player's CurrentPlatformUserId to PLATFORMUSERID_NONE so that if we need to swap
+		// platform users with another player we don't re-enter the function for this player.
+		PlatformUserId = PLATFORMUSERID_NONE;
+
+		// see if another player is already using this PlatformUserID; if so, swap PlatformUserIDs with them
+		GEngine->SwapPlatformUserId(this, CurrentPlatformUserId, NewPlatformUserId);
+		PlatformUserId = NewPlatformUserId;
+		
+		OnPlatformUserIdChanged().Broadcast(NewPlatformUserId, CurrentPlatformUserId);
 
 		if (GEngine->IsControllerIdUsingPlatformUserId())
 		{

@@ -378,6 +378,11 @@ public:
 	virtual void PlayerAdded(class UGameViewportClient* InViewportClient, int32 InControllerID);
 
 	/**
+	 * Called at creation time for internal setup
+	 */
+	virtual void PlayerAdded(class UGameViewportClient* InViewportClient, FPlatformUserId InUserId);
+
+	/**
 	 * Called to initialize the online delegates
 	 */
 	virtual void InitOnlineSession();
