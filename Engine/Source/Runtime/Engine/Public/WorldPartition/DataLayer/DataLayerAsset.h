@@ -18,8 +18,12 @@ class ENGINE_API UDataLayerAsset : public UObject
 
 	friend class UDataLayerConversionInfo;
 
-public:
 #if WITH_EDITOR
+	//~ Begin UObject Interface
+	virtual void PostLoad() override;
+	//~ End UObject Interface
+
+public:
 	void SetType(EDataLayerType Type) { DataLayerType = Type; }
 	void SetDebugColor(FColor InDebugColor) { DebugColor = InDebugColor; }
 #endif

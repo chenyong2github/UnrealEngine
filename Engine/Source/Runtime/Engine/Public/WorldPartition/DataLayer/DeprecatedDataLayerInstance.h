@@ -22,6 +22,12 @@ class ENGINE_API UDeprecatedDataLayerInstance final : public UDataLayerInstance
 	friend class UDataLayerToAssetCommandletContext;
 	friend class UDataLayerToAssetCommandlet;
 
+#if WITH_EDITOR
+	//~ Begin UObject Interface
+	virtual void PostLoad() override;
+	//~ End UObject Interface
+#endif
+
 public:
 #if WITH_EDITOR
 	static FName MakeName();

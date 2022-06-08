@@ -289,6 +289,11 @@ struct FLinearColor
 	static CORE_API FLinearColor MakeFromColorTemperature( float Temp );
 
 	/**
+	* Makes a random color based on a seed.
+	*/
+	static CORE_API FLinearColor MakeRandomSeededColor(int32 Seed);
+
+	/**
 	 * Euclidean distance between two points.
 	 */
 	static inline float Dist( const FLinearColor &V1, const FLinearColor &V2 )
@@ -567,6 +572,11 @@ public:
 	* Converts temperature in Kelvins of a black body radiator to RGB chromaticity.
 	*/
 	static CORE_API FColor MakeFromColorTemperature( float Temp );
+
+	/**
+	* Makes a random color based on a seed.
+	*/
+	static CORE_API FColor MakeRandomSeededColor(int32 Seed);
 
 	/**
 	* Conversions to/from GPU UNorm floats, U8, U16

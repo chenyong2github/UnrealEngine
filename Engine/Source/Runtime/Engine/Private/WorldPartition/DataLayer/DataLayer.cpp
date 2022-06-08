@@ -26,8 +26,7 @@ UDEPRECATED_DataLayer::UDEPRECATED_DataLayer(const FObjectInitializer& ObjectIni
 , bIsRuntime(false)
 , InitialRuntimeState(EDataLayerRuntimeState::Unloaded)
 , DebugColor(FColor::Black)
-{
-}
+{}
 
 void UDEPRECATED_DataLayer::PostLoad()
 {
@@ -47,11 +46,7 @@ void UDEPRECATED_DataLayer::PostLoad()
 
 	if (DebugColor == FColor::Black)
 	{
-		FRandomStream RandomStream(GetFName());
-		const uint8 R = (uint8)(RandomStream.GetFraction() * 255.f);
-		const uint8 G = (uint8)(RandomStream.GetFraction() * 255.f);
-		const uint8 B = (uint8)(RandomStream.GetFraction() * 255.f);
-		DebugColor = FColor(R, G, B);
+		DebugColor = FColor::MakeRandomSeededColor(GetTypeHash(GetName()));
 	}
 #endif
 

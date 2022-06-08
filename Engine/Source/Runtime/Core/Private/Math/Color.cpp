@@ -8,6 +8,7 @@
 #include "Math/Vector.h"
 #include "Math/Vector4.h"
 #include "Math/Float16Color.h"
+#include "Math/RandomStream.h"
 
 // Common colors.
 const FLinearColor FLinearColor::White(1.f,1.f,1.f);
@@ -511,6 +512,22 @@ FLinearColor FLinearColor::MakeFromColorTemperature( float Temp )
 	float B =  0.0556434f * X + -0.2040259f * Y +  1.0572252f * Z;
 
 	return FLinearColor(R,G,B);
+}
+
+FLinearColor FLinearColor::MakeRandomSeededColor(int32 Seed)
+{
+	FRandomStream RandomStream(Seed);
+
+	float R = RandomStream.GetFraction();
+	float G = RandomStream.GetFraction();
+	float B = RandomStream.GetFraction();
+
+	return FLinearColor(R,G,B);
+}
+
+FColor FColor::MakeRandomSeededColor(int32 Seed)
+{
+	return FLinearColor::MakeRandomSeededColor( Seed ).ToFColor( true );
 }
 
 FColor FColor::MakeFromColorTemperature( float Temp )

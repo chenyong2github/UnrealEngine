@@ -30,11 +30,17 @@ void UDeprecatedDataLayerInstance::OnCreated()
 
 	DeprecatedDataLayerFName = TEXT("");
 
-	FRandomStream RandomStream(GetDataLayerFName());
-	const uint8 R = (uint8)(RandomStream.GetFraction() * 255.f);
-	const uint8 G = (uint8)(RandomStream.GetFraction() * 255.f);
-	const uint8 B = (uint8)(RandomStream.GetFraction() * 255.f);
-	DebugColor = FColor(R, G, B);
+	DebugColor = FColor::MakeRandomSeededColor(GetTypeHash(GetDataLayerFName().ToString()));
+}
+
+void UDeprecatedDataLayerInstance::PostLoad()
+{
+	if (DebugColor == FColor::Black)
+	{
+		DebugColor = FColor::MakeRandomSeededColor(GetTypeHash(GetDataLayerFName().ToString()));
+	}
+
+	Super::PostLoad();
 }
 
 FName UDeprecatedDataLayerInstance::MakeName(const UDEPRECATED_DataLayer* DeprecatedDataLayer)
