@@ -294,6 +294,8 @@ FORCEINLINE_DEBUGGABLE static void GetPointersToArrayDataByPredicate(TArray<cons
 
 uint32 UPrimitiveComponent::GlobalOverlapEventsCounter = 0;
 
+FName UPrimitiveComponent::RVTActorDescProperty(TEXT("RVT"));
+
 // 0 is reserved to mean invalid
 FThreadSafeCounter UPrimitiveComponent::NextRegistrationSerialNumber;
 
@@ -1203,6 +1205,14 @@ void UPrimitiveComponent::CheckForErrors()
 			->AddToken(FUObjectToken::Create(Owner))
 			->AddToken(FTextToken::Create(LOCTEXT( "MapCheck_Message_InvalidLightmapSettings", "Component is a static type but has invalid lightmap settings!  Indirect lighting will be black.  Common causes are lightmap resolution of 0, LightmapCoordinateIndex out of bounds." )))
 			->AddToken(FMapErrorToken::Create(FMapErrors::StaticComponentHasInvalidLightmapSettings));
+	}
+}
+
+void UPrimitiveComponent::GetActorDescProperties(TMap<FName, FName>& Properties) const
+{
+	if (RuntimeVirtualTextures.Num())
+	{
+		Properties.Add(UPrimitiveComponent::RVTActorDescProperty, NAME_None);
 	}
 }
 

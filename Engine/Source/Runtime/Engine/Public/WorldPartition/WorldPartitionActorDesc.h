@@ -98,7 +98,7 @@ public:
 	inline const FGuid& GetParentActor() const { return ParentActor; }
 	inline bool IsUsingDataLayerAsset() const { return bIsUsingDataLayerAsset; }
 	inline FName GetProperty(FName PropertyName) const { return Properties.FindRef(PropertyName); }
-	inline bool HasProperty(FName PropertyName) const { return !GetProperty(PropertyName).IsNone(); }
+	inline bool HasProperty(FName PropertyName) const { return Properties.Contains(PropertyName); }
 
 	FName GetActorName() const;
 	FName GetActorLabelOrName() const;

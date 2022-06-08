@@ -210,7 +210,8 @@ public:
 	~UPrimitiveComponent();
 
 	// Rendering
-	
+	static FName RVTActorDescProperty;
+
 	/**
 	 * The minimum distance at which the primitive should be rendered, 
 	 * measured in world space units from the center of the primitive's bounding sphere to the camera position.
@@ -2164,6 +2165,7 @@ public:
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 #if WITH_EDITOR
 	virtual void CheckForErrors() override;
+	virtual void GetActorDescProperties(TMap<FName, FName>& Properties) const;
 #endif // WITH_EDITOR	
 	//~ End UActorComponent Interface
 

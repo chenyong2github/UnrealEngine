@@ -8,6 +8,7 @@
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/ScopeExit.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 #include "Engine/EngineTypes.h"
@@ -52,6 +53,8 @@
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/SWorldPartitionBuildNavigationDialog.h"
 #include "WorldPartition/WorldPartitionBuildNavigationOptions.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
+#include "WorldPartition/WorldPartitionRuntimeVirtualTextureBuilder.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorBuildUtils, Log, All);
 
@@ -1192,8 +1195,8 @@ void FBuildAllHandler::ProcessBuild(const TWeakPtr<SBuildProgressWidget>& BuildP
 		}
 		else if (StepId == FBuildOptions::BuildMinimap)
 		{
-			BuildProgressWidget.Pin()->SetBuildType(SBuildProgressWidget::BUILDTYPE_HLODs);
-			FEditorBuildUtils::TriggerHierarchicalLODBuilder(CurrentWorld, CurrentBuildId);
+			BuildProgressWidget.Pin()->SetBuildType(SBuildProgressWidget::BUILDTYPE_Minimap);
+			FEditorBuildUtils::TriggerMinimapBuilder(CurrentWorld, CurrentBuildId);
 		}
 		else if (StepId == FBuildOptions::BuildTextureStreaming)
 		{
@@ -1596,37 +1599,49 @@ bool FEditorBuildUtils::EditorBuildVirtualTexture(UWorld* InWorld)
 	}
 
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-	TArray<URuntimeVirtualTextureComponent*> Components;
-	for (TObjectIterator<URuntimeVirtualTextureComponent> It; It; ++It)
+	ON_SCOPE_EXIT
 	{
-		if (Module->HasStreamedMips(*It))
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+	};
+
+	{
+		FWorldPartitionHelpers::FForEachActorWithLoadingResult ForEachActorWithLoadingResult;
+		if (UWorldPartition* WorldPartition = InWorld->GetWorldPartition())
 		{
-			Components.Add(*It);
+			FScopedSlowTask BuildTask(1.0f, LOCTEXT("VirtualTextureBuild", "Loading Actors"));
+			BuildTask.MakeDialog();
+			UWorldPartitionRuntimeVirtualTextureBuilder::LoadRuntimeVirtualTextureActors(WorldPartition, ForEachActorWithLoadingResult);
+		}
+
+		TArray<URuntimeVirtualTextureComponent*> Components;
+		for (TObjectIterator<URuntimeVirtualTextureComponent> It; It; ++It)
+		{
+			if (Module->HasStreamedMips(*It))
+			{
+				Components.Add(*It);
+			}
+		}
+
+		if (Components.Num() == 0)
+		{
+			return true;
+		}
+
+		FScopedSlowTask BuildTask(Components.Num(), LOCTEXT("VirtualTextureBuild", "Building Virtual Textures"));
+		BuildTask.MakeDialog(true);
+
+		for (URuntimeVirtualTextureComponent* Component : Components)
+		{
+			BuildTask.EnterProgressFrame();
+
+			// Note that Build*() functions return true if the associated Has*() functions return false
+			if (BuildTask.ShouldCancel() || !Module->BuildStreamedMips(Component))
+			{
+				return false;
+			}
 		}
 	}
-
-	if (Components.Num() == 0)
-	{
-		return true;
-	}
-
-	FScopedSlowTask BuildTask(Components.Num(), LOCTEXT("VirtualTextureBuild", "Building Virtual Textures"));
-	BuildTask.MakeDialog(true);
-
-	for (URuntimeVirtualTextureComponent* Component : Components)
-	{
-		BuildTask.EnterProgressFrame();
-
-		// Note that Build*() functions return true if the associated Has*() functions return false
-		if (BuildTask.ShouldCancel() || !Module->BuildStreamedMips(Component))
-		{
-			return false;
-		}
-	}
-
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
+	
 	return true;
 }
 
