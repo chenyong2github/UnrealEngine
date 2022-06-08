@@ -112,6 +112,15 @@ struct FResolvePresetFieldArgs
 };
 
 /**
+ * Arguments for resolving a Controller on a preset.
+ */
+struct FResolvePresetControllerArgs
+{
+	FString PresetName;
+	FString ControllerName;
+};
+
+/**
  * Requested access mode to a remote property
  */
 UENUM()
@@ -316,6 +325,28 @@ public:
 	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bAllowIntercept = false) = 0;
 
 	/**
+	* Set a controller's value on a Remote Control Preset
+	* @param PresetName - The Remote Control Preset asset's name
+	* @param ControllerName - The name of the controller being manipulated
+	* @param Backend - the struct deserializer backend to use to deserialize the object properties.
+	* @param InPayload - the JSON payoad
+	* @param bAllowIntercept - Whether the call needs to be replicated to interceptors or invoked directly
+	*	@return true if the operation succeeded
+	*/
+	virtual bool SetPresetController(const FName PresetName, const FName ControllerName, IStructDeserializerBackend& Backend, const TArray<uint8>& InPayload, const bool bAllowIntercept) = 0;
+
+	/**
+	 * Set a controller's value on a Remote Control Preset
+	 * @param PresetName - The Remote Control Preset asset's name
+	 * @param Controller - The controller object being manipulated
+	 * @param Backend - the struct deserializer backend to use to deserialize the object properties.
+	 * @param InPayload - the JSON payoad
+	* @param bAllowIntercept - Whether the call needs to be replicated to interceptors or invoked directly
+	 * @return true if the operation succeeded
+	 */
+	virtual bool SetPresetController(const FName PresetName, class URCVirtualPropertyBase* Controller, IStructDeserializerBackend& Backend, const TArray<uint8>& InPayload, const bool bAllowIntercept) = 0;
+
+	/**
 	 * Resolve the underlying function from a preset.
 	 * @return the underlying function and objects that the property is exposed on.
 	 */
@@ -449,3 +480,4 @@ public:
 	/** Get map of the factories which is responsible for the Remote Control property creation */
 	virtual const TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>>& GetEntityFactories() const = 0;
 };
+

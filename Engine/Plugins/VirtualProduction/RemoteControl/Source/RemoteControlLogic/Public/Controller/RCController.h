@@ -35,6 +35,12 @@ public:
 	/** Execute all behaviours for this controller. */
 	virtual void ExecuteBehaviours();
 
+	/** Handles modifications to controller value; evaluates all behaviours */
+	virtual void OnModifyPropertyValue() override
+	{
+		ExecuteBehaviours();
+	}
+
 public:
 	/** Set of the behaviours */
 	UPROPERTY()

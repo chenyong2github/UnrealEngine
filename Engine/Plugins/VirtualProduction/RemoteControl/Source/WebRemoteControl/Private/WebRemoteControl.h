@@ -131,6 +131,8 @@ private:
 	bool HandlePassphraseRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleCreateTransientPresetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleDeleteTransientPresetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandlePresetSetControllerRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandlePresetGetControllerRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 
 	//~ Websocket route handlers
 	void HandleWebSocketHttpMessage(const struct FRemoteControlWebSocketMessage& WebSocketMessage);
@@ -203,4 +205,8 @@ private:
 
 	/** Receiver that responds to beacon messages from the stage app. */
 	FStageAppBeaconReceiver StageAppBeaconReceiver;
+
+	/** Name cache for Get Controller Result structs
+	* Key: Controller name; Value: Name of the dynamic struct holding our result*/
+	TMap<FName, FString> ControllersSerializerStructNameCache;
 };

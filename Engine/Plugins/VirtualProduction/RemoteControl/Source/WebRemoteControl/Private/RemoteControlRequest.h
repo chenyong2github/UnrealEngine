@@ -817,3 +817,31 @@ struct FRCWebSocketTransactionEndBody : public FRCRequest
 	UPROPERTY()
 	int32 TransactionId = -1;
 };
+
+/**
+ * Struct representation of SetPresetController HTTP request
+ */
+USTRUCT()
+struct FRCPresetSetControllerRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCPresetSetControllerRequest()
+	{
+		AddStructParameter(PropertyValueLabel());
+	}
+
+	/**
+	 * Get the label for the PropertyValue struct.
+	 */
+	static FString PropertyValueLabel() { return TEXT("PropertyValue"); }
+
+public:
+
+	/**
+	 * The name of the Controller being set (for a given Remote Control Preset asset)
+	 */
+	UPROPERTY()
+	FString ControllerName;
+};
+

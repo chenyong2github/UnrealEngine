@@ -11,7 +11,6 @@
 #include "StructDeserializer.h"
 #include "UObject/FieldPath.h"
 
-
 void FRemoteControlInterceptionProcessor::SetObjectProperties(FRCIPropertiesMetadata& PropsMetadata)
 {
 	// Set object reference
@@ -110,3 +109,14 @@ void FRemoteControlInterceptionProcessor::InvokeCall(FRCIFunctionMetadata& InFun
 		IRemoteControlModule::Get().InvokeCall(Call);
 	}
 }
+
+void FRemoteControlInterceptionProcessor::SetPresetController(FRCIControllerMetadata& InController)
+{
+	FMemoryReader Reader(InController.Payload);
+	FJsonStructDeserializerBackend Backend(Reader);
+
+	constexpr bool bAllowIntercept = false; // Run without replication
+
+	IRemoteControlModule::Get().SetPresetController(InController.Preset, InController.Controller, Backend, TArray<uint8>(), bAllowIntercept);
+}
+

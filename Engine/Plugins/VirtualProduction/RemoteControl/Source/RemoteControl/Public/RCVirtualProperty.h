@@ -7,10 +7,11 @@
  
 #include "RCVirtualProperty.generated.h"
 
+class FStructOnScope;
 class IStructSerializerBackend;
+class IStructDeserializerBackend;
 class URemoteControlPreset;
 class URCVirtualPropertyContainerBase;
-class FStructOnScope;
 
 /**
  * Base class for dynamic virtual properties
@@ -43,6 +44,8 @@ protected:
 	/** Pointer to Instanced property which is holds  bag of properties */
 	virtual const FInstancedPropertyBag* GetPropertyBagInstance() const;
 
+	virtual void OnModifyPropertyValue() {}
+
 public:
 	/** Returns const FProperty for this RC virtual property */
 	virtual const FProperty* GetProperty() const;
@@ -62,6 +65,13 @@ public:
 	 * @param OutBackend Struct Serialize Backend 
 	 */
 	void SerializeToBackend(IStructSerializerBackend& OutBackend);
+
+	/**
+	 * Deserialize Virtual Property from a given Backend
+	 *
+	 * @param InBackend  - Deserializer containing a payload with value data
+	 */
+	bool DeserializeFromBackend(IStructDeserializerBackend& InBackend);
 
 	/** Compare this virtual property value with given property value */
 	bool IsValueEqual(URCVirtualPropertyBase* InVirtualProperty);

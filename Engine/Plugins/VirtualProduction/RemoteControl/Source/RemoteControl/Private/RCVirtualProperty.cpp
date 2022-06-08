@@ -2,11 +2,12 @@
 
 #include "RCVirtualProperty.h"
 
+#include "IStructDeserializerBackend.h"
+#include "RCVirtualPropertyContainer.h"
+#include "StructDeserializer.h"
 #include "StructSerializer.h"
 #include "UObject/TextProperty.h"
 #include "UObject/StructOnScope.h"
-
-#include "RCVirtualPropertyContainer.h"
 
 const FProperty* URCVirtualPropertyBase::GetProperty() const
 {
@@ -116,6 +117,27 @@ void URCVirtualPropertyBase::SerializeToBackend(IStructSerializerBackend& OutBac
 	FStructSerializerPolicies Policies; 
 	Policies.MapSerialization = EStructSerializerMapPolicies::Array;
 	FStructSerializer::SerializeElement(GetContainerPtr(), GetProperty(), INDEX_NONE, OutBackend, Policies);
+}
+
+bool URCVirtualPropertyBase::DeserializeFromBackend(IStructDeserializerBackend& InBackend)
+{
+	FStructDeserializerPolicies Policies;
+	const FProperty* Property = GetProperty();
+	Policies.PropertyFilter = [&Property](const FProperty* CurrentProp, const FProperty* ParentProp)
+	{
+		return CurrentProp == Property;
+	};
+
+	const UPropertyBag* TypeInfo = GetPropertyBagInstance()->GetPropertyBagStruct();
+	UPropertyBag* TypeInfoNonConst = const_cast<UPropertyBag*>(TypeInfo);
+
+	bool bSuccess = FStructDeserializer::DeserializeElement(GetContainerPtr(), *TypeInfoNonConst, INDEX_NONE, InBackend, Policies);
+	if (bSuccess)
+	{
+		OnModifyPropertyValue();
+	}
+
+	return bSuccess;
 }
 
 bool URCVirtualPropertyBase::IsValueEqual(URCVirtualPropertyBase* InVirtualProperty)

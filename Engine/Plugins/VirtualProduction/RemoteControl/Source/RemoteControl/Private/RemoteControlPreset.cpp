@@ -541,7 +541,7 @@ void URemoteControlPreset::ResetVirtualProperties()
 {
 	if (ensure(ControllerContainer))
 	{
-		return ControllerContainer->Reset();
+		ControllerContainer->Reset();
 	}
 }
 

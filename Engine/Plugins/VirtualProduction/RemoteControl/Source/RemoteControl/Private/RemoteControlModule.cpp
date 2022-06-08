@@ -2,13 +2,19 @@
 
 #include "RemoteControlModule.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Backends/CborStructSerializerBackend.h"
+#include "Components/ActorComponent.h"
+#include "Components/LightComponent.h"
+#include "Features/IModularFeatures.h"
 #include "IRemoteControlInterceptionFeature.h"
 #include "IRemoteControlModule.h"
 #include "IStructDeserializerBackend.h"
 #include "IStructSerializerBackend.h"
-#include "Components/ActorComponent.h"
-#include "Components/LightComponent.h"
 #include "RCPropertyUtilities.h"
+#include "RCVirtualPropertyContainer.h"
+#include "RCVirtualProperty.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlInterceptionHelpers.h"
 #include "RemoteControlInterceptionProcessor.h"
@@ -17,13 +23,6 @@
 #include "Serialization/PropertyMapStructDeserializerBackendWrapper.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
-#include "Backends/CborStructSerializerBackend.h"
-#include "Features/IModularFeatures.h"
-#include "Misc/CoreMisc.h"
-#include "Misc/ScopeExit.h"
-#include "Misc/TVariant.h"
 #include "UObject/Class.h"
 #include "UObject/FieldPath.h"
 #include "UObject/UnrealType.h"
@@ -1207,6 +1206,76 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 		return bSuccess;
 	}
 	return false;
+}
+
+bool FRemoteControlModule::SetPresetController(const FName PresetName, const FName ControllerName, IStructDeserializerBackend& Backend, const TArray<uint8>& InPayload, const bool bAllowIntercept)
+{
+	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(PresetName);
+	if (!ensure(Preset))
+	{
+		return false;
+	}
+
+	URCVirtualPropertyBase* VirtualProperty = Preset->GetVirtualProperty(ControllerName);
+	if (!ensure(VirtualProperty))
+	{
+		return false;
+	}
+
+	return SetPresetController(PresetName, VirtualProperty, Backend, InPayload, bAllowIntercept);
+}
+
+// Note: The actual Controller implementation (URCController) resides in the RemoteControlLogic module
+// and is not referenced directly here to avoid circular dependency between RemoteControl and RemoteControlLogic modules.
+// Controllers are simply accessed as their parent "URCVirtualPropertyBase" objects 
+
+bool FRemoteControlModule::SetPresetController(const FName PresetName, class URCVirtualPropertyBase* VirtualProperty, IStructDeserializerBackend& Backend, const TArray<uint8>& InPayload, const bool bAllowIntercept)
+{
+	if (!ensure(VirtualProperty))
+	{
+		return false;
+	}
+
+	URemoteControlPreset* Preset = VirtualProperty->PresetWeakPtr.Get();
+	if (!ensure(Preset))
+	{
+		return false;
+	}
+
+	if (bAllowIntercept)
+	{
+		// Build interception command
+		FRCIControllerMetadata ControllersMetadata(PresetName, VirtualProperty->PropertyName, InPayload);
+
+		// Initialization
+		IModularFeatures& ModularFeatures = IModularFeatures::Get();
+		const FName InterceptorFeatureName = IRemoteControlInterceptionFeatureInterceptor::GetName();
+		const int32 InterceptorsAmount = ModularFeatures.GetModularFeatureImplementationCount(IRemoteControlInterceptionFeatureInterceptor::GetName());
+
+		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("SetPresetController - Num Interceptors: %d"), InterceptorsAmount);
+
+		// Pass interception command data to all available interceptors
+		bool bShouldIntercept = false;
+		for (int32 InterceptorIdx = 0; InterceptorIdx < InterceptorsAmount; ++InterceptorIdx)
+		{
+			IRemoteControlInterceptionFeatureInterceptor* const Interceptor = static_cast<IRemoteControlInterceptionFeatureInterceptor*>(ModularFeatures.GetModularFeatureImplementation(InterceptorFeatureName, InterceptorIdx));
+			if (Interceptor)
+			{
+				// Update response flag
+				bShouldIntercept |= (Interceptor->SetPresetController(ControllersMetadata) == ERCIResponse::Intercept);
+			}
+		}
+
+		// Don't process the RC message if any of interceptors returned ERCIResponse::Intercept
+		if (bShouldIntercept)
+		{
+			return true;
+		}
+	}
+
+	bool bSuccess = VirtualProperty->DeserializeFromBackend(Backend);
+
+	return bSuccess;
 }
 
 bool FRemoteControlModule::ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bAllowIntercept)

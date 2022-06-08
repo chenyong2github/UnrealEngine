@@ -20,5 +20,6 @@ public:
 	virtual void SetObjectProperties(FRCIPropertiesMetadata& InProperties) override;
 	virtual void ResetObjectProperties(FRCIObjectMetadata& InObject) override;
 	virtual void InvokeCall(FRCIFunctionMetadata& InFunction) override;
+	virtual void SetPresetController(FRCIControllerMetadata& InController) override;
 	// ~IRemoteControlInterceptionCommands interface
 };

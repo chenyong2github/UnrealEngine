@@ -23,6 +23,7 @@ public:
 	virtual ERCIResponse SetObjectProperties(FRCIPropertiesMetadata& InProperties) override;
 	virtual ERCIResponse ResetObjectProperties(FRCIObjectMetadata& InObject) override;
 	virtual ERCIResponse InvokeCall(FRCIFunctionMetadata& InFunction) override;
+	virtual ERCIResponse SetPresetController(FRCIControllerMetadata& InController) override;
 	// ~IRemoteControlInterceptionCommands interface
 
 private:
@@ -39,6 +40,8 @@ private:
 	void OnReplication_ResetObjectProperties (const TArray<uint8>& Buffer);
 	// Process InvokeCall command replication data
 	void OnReplication_InvokeCall (const TArray<uint8>& Buffer);
+	// Process SetPresetController command replication data
+	void OnReplication_SetPresetController(const TArray<uint8>& Buffer);
 	// Send the queue of replication events at the end of the tick
 	void SendReplicationQueue();
 

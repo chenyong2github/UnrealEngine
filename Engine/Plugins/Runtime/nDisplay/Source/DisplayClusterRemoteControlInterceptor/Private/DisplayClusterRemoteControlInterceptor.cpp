@@ -111,6 +111,24 @@ ERCIResponse FDisplayClusterRemoteControlInterceptor::InvokeCall(FRCIFunctionMet
 	return ERCIResponse::Intercept;
 }
 
+ERCIResponse FDisplayClusterRemoteControlInterceptor::SetPresetController(FRCIControllerMetadata& InController)
+{
+	// Serialize command data to binary
+	TArray<uint8> Buffer;
+	FMemoryWriter MemoryWriter(Buffer);
+	MemoryWriter << InController;
+
+	// Queue interception sending
+	QueueInterceptEvent(FRCIControllerMetadata::Name, InController.GetUniquePath(), MoveTemp(Buffer));
+
+	if (bForceApply)
+	{
+		return ERCIResponse::Apply;
+	}
+
+	return ERCIResponse::Intercept;
+}
+
 void FDisplayClusterRemoteControlInterceptor::OnClusterEventBinaryHandler(const FDisplayClusterClusterEventBinary& Event)
 {
 	// Dispatch data to a proper handler
@@ -141,6 +159,10 @@ void FDisplayClusterRemoteControlInterceptor::OnClusterEventBinaryHandler(const 
 				else if (MetadataName == FRCIFunctionMetadata::Name)
 				{
 					OnReplication_InvokeCall(EventPayload);
+				}
+				else if (MetadataName == FRCIControllerMetadata::Name)
+				{
+					OnReplication_SetPresetController(EventPayload);
 				}
 			}
 		}
@@ -226,6 +248,31 @@ void FDisplayClusterRemoteControlInterceptor::OnReplication_InvokeCall(const TAr
 		if (Processor)
 		{
 			Processor->InvokeCall(FunctionMetadata);
+		}
+	}
+}
+
+void FDisplayClusterRemoteControlInterceptor::OnReplication_SetPresetController(const TArray<uint8>& Buffer)
+{
+	UE_LOG(LogDisplayClusterRemoteControlInterceptor, VeryVerbose, TEXT("Processing replication event SetPresetController: %d bytes"), Buffer.Num());
+
+	// Deserialize command data
+	FMemoryReader MemoryReader(Buffer);
+	FRCIControllerMetadata ControllerMetadata;
+	MemoryReader << ControllerMetadata;
+
+	// Initialization
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	const FName ProcessorFeatureName = IRemoteControlInterceptionFeatureProcessor::GetName();
+	const int32 ProcessorsAmount = ModularFeatures.GetModularFeatureImplementationCount(IRemoteControlInterceptionFeatureProcessor::GetName());
+
+	// Send the command to the processor(s)
+	for (int32 ProcessorIdx = 0; ProcessorIdx < ProcessorsAmount; ++ProcessorIdx)
+	{
+		IRemoteControlInterceptionFeatureProcessor* const Processor = static_cast<IRemoteControlInterceptionFeatureProcessor*>(ModularFeatures.GetModularFeatureImplementation(ProcessorFeatureName, ProcessorIdx));
+		if (Processor)
+		{
+			Processor->SetPresetController(ControllerMetadata);
 		}
 	}
 }

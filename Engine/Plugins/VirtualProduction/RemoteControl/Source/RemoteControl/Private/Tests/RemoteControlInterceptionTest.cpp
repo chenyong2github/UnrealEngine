@@ -22,7 +22,6 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 
-
 /**
  * Interceptor interface implementation
  */
@@ -78,6 +77,22 @@ protected:
 		
 		return ERCIResponse::Intercept;
 	}
+
+	virtual ERCIResponse SetPresetController(FRCIControllerMetadata& InController)
+	{
+		// Get processor feature
+		IRemoteControlInterceptionFeatureProcessor* const Processor = static_cast<IRemoteControlInterceptionFeatureProcessor*>(
+			IModularFeatures::Get().GetModularFeatureImplementation(IRemoteControlInterceptionFeatureProcessor::GetName(), 0));
+
+		// In case the processor feature has been registered, forward data directly to the processor
+		if (Processor)
+		{
+			Processor->SetPresetController(InController);
+		}
+
+		return ERCIResponse::Intercept;
+	}
+
 	// ~IRemoteControlInterceptionCommands interface
 };
 

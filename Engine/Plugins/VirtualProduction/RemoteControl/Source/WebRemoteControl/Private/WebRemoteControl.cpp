@@ -6,6 +6,8 @@
 #include "Modules/ModuleManager.h"
 
 #include "IRemoteControlModule.h"
+#include "RCVirtualPropertyContainer.h"
+#include "RCVirtualProperty.h"
 #include "RemoteControlReflectionUtils.h"
 #include "RemoteControlRoute.h"
 #include "RemoteControlSettings.h"
@@ -757,6 +759,21 @@ void FWebRemoteControlModule::RegisterRoutes()
 		EHttpServerRequestVerbs::VERB_DELETE,
 		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleDeleteTransientPresetRoute)
 	});
+
+	// Remote Control Logic - Controllers
+	RegisterRoute({
+	TEXT("Set a controller value on a preset."),
+	FHttpPath(TEXT("/remote/preset/:preset/controller/:controller")),
+	EHttpServerRequestVerbs::VERB_PUT,
+	FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandlePresetSetControllerRoute)
+		});
+
+	RegisterRoute({
+		TEXT("Get a controller value from a preset."),
+		FHttpPath(TEXT("/remote/preset/:preset/controller/:controller")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandlePresetGetControllerRoute)
+		});
 
 	//**************************************
 	// Special websocket route just using http request
@@ -1971,6 +1988,151 @@ bool FWebRemoteControlModule::HandleDeleteTransientPresetRoute(const FHttpServer
 	Response->Code = EHttpServerResponseCodes::Ok;
 
 	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+// Remote Control Logic - Controllers
+bool FWebRemoteControlModule::HandlePresetSetControllerRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	// 1. Prepare response object
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+	// 2. Validate Content Type
+	if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+	{
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Expected content type to be application/json"), Response->Body);
+		OnComplete(MoveTemp(Response));
+
+		return false;
+	}
+
+	// 3. Deserialize Json POST data into request struct
+	FRCPresetSetControllerRequest SetControllerRequest;
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, SetControllerRequest))
+	{
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to process JSON body. Expected format: type to be application/json"), Response->Body);
+		OnComplete(MoveTemp(Response));
+
+		return false;
+	}
+
+	// 4. Resolve url arguments
+	FResolvePresetControllerArgs Args;
+	Args.PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+	Args.ControllerName = Request.PathParams.FindChecked(TEXT("controller"));
+
+	// 5. Acquire Remote Control Preset object
+	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*Args.PresetName);
+	if (Preset == nullptr)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		OnComplete(MoveTemp(Response));
+
+		return false;
+	}
+
+	// 6. Acquire Controller
+	URCVirtualPropertyBase* Controller = Preset->GetVirtualProperty(*Args.ControllerName);
+	if (!Controller)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the controller input."), Response->Body);
+		OnComplete(MoveTemp(Response));
+
+		return false;
+	}
+
+	// 7. Reformat Payload to represent our internal structure
+	TArray<uint8> NewPayload;
+	const FName PropertyValueKey = WebRemoteControlStructUtils::Prop_PropertyValue;
+
+	RemotePayloadSerializer::ReplaceFirstOccurence(SetControllerRequest.TCHARBody, PropertyValueKey.ToString(), Args.ControllerName, NewPayload);
+	FMemoryReader Reader(NewPayload);
+	FJsonStructDeserializerBackend Backend(Reader);
+
+	// 8. Invoke via RC Module which provides Interception functionality
+	const bool bSuccess = IRemoteControlModule::Get().SetPresetController(*Args.PresetName, Controller, Backend, NewPayload, true /*support interception*/);
+
+	// 9. Finalize HTTP Response
+	if (bSuccess)
+	{
+		Response->Code = EHttpServerResponseCodes::Ok;
+	}
+	else
+	{
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to set controller %s."), *Args.ControllerName), Response->Body);
+	}
+
+	OnComplete(MoveTemp(Response));
+
+	return true;
+
+}
+
+bool FWebRemoteControlModule::HandlePresetGetControllerRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	// 1. Prepare response object
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
+
+	// 2. Resolve url arguments
+	FResolvePresetControllerArgs Args;
+	Args.PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+	Args.ControllerName = Request.PathParams.FindChecked(TEXT("controller"));
+
+	// 3. Acquire Remote Control Preset object
+	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*Args.PresetName);
+	if (Preset == nullptr)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		OnComplete(MoveTemp(Response));
+
+		return true;
+	}
+
+	// 4. Acquire Controller
+	URCVirtualPropertyBase* Controller = Preset->GetVirtualProperty(*Args.ControllerName);
+	if (!Controller)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the controller input."), Response->Body);
+		OnComplete(MoveTemp(Response));
+
+		return true;
+	}
+
+	// 5. Define a StructOnScope for representing our generic value output
+	FWebRCGenerateStructArgs StructArgs;
+	const FName PropertyValueKey = WebRemoteControlStructUtils::Prop_PropertyValue;
+	StructArgs.GenericProperties.Emplace(PropertyValueKey, Controller->GetProperty());
+
+	FString& StructName = ControllersSerializerStructNameCache.FindOrAdd(Controller->PropertyName);
+	if(StructName.IsEmpty())
+	{
+		StructName = FString::Format(TEXT("{0}_{1}"), { *PropertyValueKey.ToString(), Controller->Id.ToString() });
+		ControllersSerializerStructNameCache.Add(Controller->PropertyName, StructName);
+	}
+	
+	FStructOnScope Result(UE::WebRCReflectionUtils::GenerateStruct(*StructName, StructArgs));
+
+	// 6. Copy raw memory from the controller onto our dynamic struct
+	const FProperty* TargetValueProp = Result.GetStruct()->FindPropertyByName(PropertyValueKey);
+	uint8* DestPtr = TargetValueProp->ContainerPtrToValuePtr<uint8>((void*)Result.GetStructMemory());
+
+	Controller->CopyCompleteValue(TargetValueProp, DestPtr);
+
+	// 7. Serialize to JSON
+	TArray<uint8> JsonBuffer;
+	FMemoryWriter Writer(JsonBuffer);
+	WebRemoteControlInternalUtils::SerializeStructOnScope(Result, Writer);
+
+	// 8. Finalize HTTP Response
+	WebRemoteControlUtils::ConvertToUTF8(JsonBuffer, Response->Body);
+	Response->Code = EHttpServerResponseCodes::Ok;
+
+	OnComplete(MoveTemp(Response));
+
 	return true;
 }
 

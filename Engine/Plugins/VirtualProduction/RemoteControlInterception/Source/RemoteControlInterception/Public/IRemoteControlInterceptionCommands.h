@@ -7,6 +7,7 @@
 struct FRCIObjectMetadata;
 struct FRCIFunctionMetadata;
 struct FRCIPropertiesMetadata;
+struct FRCIControllerMetadata;
 
 /**
  * Interception flags that define how RemoteControl should behave after a message was intercepted.
@@ -90,6 +91,15 @@ public:
 	 * @return - Return types depends on the interface implementation (template parameter)
 	 */
 	virtual TResponseType InvokeCall(FRCIFunctionMetadata& InFunction) = 0;
+
+	/**
+	 * SetPresetController command
+	 *
+	 * @param InController - Metadata of the controller being manipulated
+	 *
+	 * @return - Return types depends on the interface implementation (template parameter)
+	 */
+	virtual TResponseType SetPresetController(FRCIControllerMetadata& InController) = 0;
 };
 
 
@@ -297,5 +307,72 @@ public:
 
 private:
 	/** Object Path + Function Path */
+	FName UniquePath;
+};
+
+/**
+ * Controller properties for interception of Controller get/set operations
+ */
+struct FRCIControllerMetadata
+{
+public:
+
+	FRCIControllerMetadata() = default;
+
+	FRCIControllerMetadata(const FName InPreset, const FName InController, const TArray<uint8>& InPayload)
+		: Preset(InPreset)
+		, Controller(InController)
+		, Payload(InPayload)
+	{
+		UniquePath = *FString::Printf(TEXT("%s:%s"), *Preset.ToString(), *Controller.ToString());
+	}
+
+public:
+	/** Get Unique Path for Controller metadata */
+	const FName& GetUniquePath() const
+	{
+		return UniquePath;
+	}
+
+	/** Returns true if reference is valid */
+	bool IsValid() const
+	{
+		return !Preset.IsNone() && !Controller.IsNone() && Payload.Num() > 0;
+	}
+
+	/**
+	* FRCIControllerMetadata serialization
+	*
+	* @param Ar				- The archive
+	* @param Interception	- Instance to serialize/deserialize
+	*
+	* @return FArchive instance.
+	*/
+	friend FArchive& operator<<(FArchive& Ar, FRCIControllerMetadata& Interception)
+	{
+		Ar << Interception.Preset;
+		Ar << Interception.Controller;
+		// const cast is needed for keeping the const& on a constructor and as a class parameter
+		Ar << const_cast<TArray<uint8>&>(Interception.Payload);
+		return Ar;
+	}
+
+public:
+	/**Name of the Remote Control Preset holding the Controller */
+	FName Preset;
+
+	/** The Controller being manipulated in the Preset */
+	FName Controller;
+
+	/** Request Payload */
+	const TArray<uint8> Payload;
+
+public:
+	/** Structure Name - Used by replication event handlers to deserialize event data into
+	* the correct structure for a given event*/
+	static constexpr TCHAR const* Name = TEXT("FRCIControllerMetadata");
+
+private:
+	/** Preset Name + Controller Name*/
 	FName UniquePath;
 };
