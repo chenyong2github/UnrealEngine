@@ -12355,22 +12355,6 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, const TArray<F
 }
 
 
-void FSequencer::ExportToCameraAnim()
-{
-	using namespace UE::Sequencer;
-
-	for (const TWeakPtr<FViewModel>& Node : Selection.GetSelectedOutlinerItems())
-	{
-		if (FObjectBindingModel* ObjectBindingNode = ICastable::CastWeakPtr<FObjectBindingModel>(Node))
-		{
-			FGuid Guid = ObjectBindingNode->GetObjectGuid();
-			
-			MovieSceneToolHelpers::ExportToCameraAnim(GetFocusedMovieSceneSequence()->GetMovieScene(), Guid);
-		}
-	}
-}
-
-
 void FSequencer::GenericTextEntryModeless(const FText& DialogText, const FText& DefaultText, FOnTextCommitted OnTextComitted)
 {
 	TSharedRef<STextEntryPopup> TextEntryPopup = 
@@ -13125,11 +13109,6 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.ExportFBX,
 		FExecuteAction::CreateSP( this, &FSequencer::ExportFBX ),
-		FCanExecuteAction::CreateLambda( [] { return true; } ) );
-
-	SequencerCommandBindings->MapAction(
-		Commands.ExportToCameraAnim,
-		FExecuteAction::CreateSP( this, &FSequencer::ExportToCameraAnim ),
 		FCanExecuteAction::CreateLambda( [] { return true; } ) );
 
 	SequencerCommandBindings->MapAction(

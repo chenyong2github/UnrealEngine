@@ -407,15 +407,6 @@ public:
 	 */
 	static void CopyKeyDataToMoveAxis(const TMovieSceneChannelData<FMovieSceneDoubleValue>& KeyData, UInterpTrackMoveAxis* MoveAxis, FFrameRate FrameRate);
 
-	/*
-	 * Export the object binding to a camera anim
-	 *
-	 * @param InMovieScene The movie scene to export the object binding from
-	 * @param InObjectBinding The object binding to export
-	 * @return The exported camera anim asset
-	 */
-	static UObject* ExportToCameraAnim(UMovieScene* InMovieScene, FGuid& InObjectBinding);
-
 
 	/*
 	 * Export the SkelMesh to an Anim Sequence for specified MovieScene and Player

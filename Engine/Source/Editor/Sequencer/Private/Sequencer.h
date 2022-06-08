@@ -674,9 +674,6 @@ public:
 	/** Exports the animation to an fbx file. */
 	void ExportFBX();
 
-	/** Exports the animation to a camera anim asset. */
-	void ExportToCameraAnim();
-
 public:
 
 	/** Put the sequencer in a horizontally auto-scrolling state with the given rate */

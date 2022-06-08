@@ -969,14 +969,7 @@ void FObjectBindingModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([=]{ Sequencer->ExportFBX(); })
 			));
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ExportToCameraAnim", "Export to Camera Anim..."),
-			LOCTEXT("ExportToCameraAnimTooltip", "Exports the animation to a camera anim asset"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([=]{ Sequencer->ExportToCameraAnim(); })
-			));
+			
 		MenuBuilder.EndSection();
 	}
 

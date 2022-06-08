@@ -406,9 +406,6 @@ public:
 	/** Exports animation to fbx. */
 	TSharedPtr< FUICommandInfo > ExportFBX;
 
-	/** Exports animation to camera anim. */
-	TSharedPtr< FUICommandInfo > ExportToCameraAnim;
-
 	/** Toggle whether we should evaluate sub sequences in isolation */
 	TSharedPtr< FUICommandInfo > ToggleEvaluateSubSequencesInIsolation;
 
