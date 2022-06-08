@@ -43,7 +43,6 @@ public class OpenCV : ModuleRules
 			PublicRuntimeLibraryPaths.Add(BinaryPath);
 			RuntimeDependencies.Add(Path.Combine(BinaryPath, LibName));
 			RuntimeDependencies.Add(Path.Combine(BinaryPath, "libopencv_world.so.405"));
-			RuntimeDependencies.Add(Path.Combine(BinaryPath, "libopencv_world.so.4.5.5"));
 			PublicDefinitions.Add("WITH_OPENCV=1");
 		}
 		else // unsupported platform
