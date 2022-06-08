@@ -30,3 +30,13 @@ struct TMassExternalSubsystemTraits<UZoneGraphSubsystem> final
 		GameThreadOnly = false
 	};
 };
+
+class UZoneGraphAnnotationSubsystem;
+template<>
+struct TMassExternalSubsystemTraits<UZoneGraphAnnotationSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = false
+	};
+};
