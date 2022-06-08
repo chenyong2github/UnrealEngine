@@ -83,7 +83,7 @@ struct FActorCluster
 	FDataLayersID				DataLayersID;
 
 	FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView);
-	void Add(const FActorCluster& InActorCluster, const TMap<FGuid, FWorldPartitionActorDescView>& InActorDescViewMap);
+	void Add(const FActorCluster& InActorCluster);
 };
 
 /**
@@ -91,14 +91,14 @@ struct FActorCluster
  */
 struct FActorContainerInstance
 {
-	FActorContainerInstance(const FActorContainerID& InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InRuntimeDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap);
+	FActorContainerInstance(const FActorContainerID& InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InRuntimeDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView*> InActorDescViewMap);
 	
 	FActorContainerID			ID;
 	FTransform					Transform;
 	FBox						Bounds;
 	EContainerClusterMode		ClusterMode;
 	const UActorDescContainer*	Container;
-	TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap;
+	TMap<FGuid, FWorldPartitionActorDescView*> ActorDescViewMap;
 	TSet<const UDataLayerInstance*>		DataLayers;
 
 	const FWorldPartitionActorDescView& GetActorDescView(const FGuid& InGuid) const;
@@ -168,11 +168,11 @@ public:
 	FActorContainerInstance* GetClusterInstance(const UActorDescContainer* InContainer);
 	const FActorContainerInstance* GetClusterInstance(const UActorDescContainer* InContainer) const;
 
-	static void CreateActorClusters(UWorld* World, const TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap, TArray<FActorCluster>& OutActorClusters);
+	static void CreateActorClusters(UWorld* World, const TMap<FGuid, FWorldPartitionActorDescView*>& ActorDescViewMap, TArray<FActorCluster>& OutActorClusters);
 
 private:
 	const TArray<FActorCluster>& CreateActorClusters(const FActorContainerInstance& ContainerInstance);
-	static void CreateActorClusters(UWorld* World, const TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap, TArray<FActorCluster>& OutActorClusters, FFilterActorDescViewFunc InFilterActorDescViewFunc);
+	static void CreateActorClusters(UWorld* World, const TMap<FGuid, FWorldPartitionActorDescView*>& ActorDescViewMap, TArray<FActorCluster>& OutActorClusters, FFilterActorDescViewFunc InFilterActorDescViewFunc);
 	
 	// Init data
 	FFilterActorDescViewFunc FilterActorDescViewFunc;

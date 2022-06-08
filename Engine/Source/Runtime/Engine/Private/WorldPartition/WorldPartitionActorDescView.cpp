@@ -145,6 +145,11 @@ const FGuid& FWorldPartitionActorDescView::GetFolderGuid() const
 	return ActorDesc->GetFolderGuid();
 }
 
+bool FWorldPartitionActorDescView::IsContainerInstance() const
+{
+	return ActorDesc->IsContainerInstance();
+}
+
 bool FWorldPartitionActorDescView::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
 	return ActorDesc->GetContainerInstance(OutLevelContainer, OutLevelTransform, OutClusterMode);

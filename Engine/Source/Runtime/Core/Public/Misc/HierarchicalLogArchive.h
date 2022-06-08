@@ -17,6 +17,17 @@ public:
 		FHierarchicalLogArchive* Ar;
 	};
 
+	void Print(const TCHAR* InLine)
+	{
+		WriteLine(InLine, false);
+	}
+
+	UE_NODISCARD FIndentScope PrintIndent(const TCHAR* InLine)
+	{
+		WriteLine(InLine, true);
+		return FIndentScope(this);
+	}
+
 	template <typename FmtType, typename... Types>
 	void Printf(const FmtType& Fmt, Types... Args)
 	{

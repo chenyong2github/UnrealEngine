@@ -802,7 +802,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreami
 
 	for (auto& ActorDescViewPair : ContainerInstance->ActorDescViewMap)
 	{
-		const FWorldPartitionActorDescView& ActorDescView = ActorDescViewPair.Value;
+		const FWorldPartitionActorDescView& ActorDescView = *ActorDescViewPair.Value;
 		if (ActorDescView.GetActorNativeClass()->IsChildOf<ASpatialHashRuntimeGridInfo>())
 		{
 			FWorldPartitionReference Ref(WorldPartition, ActorDescView.GetGuid());

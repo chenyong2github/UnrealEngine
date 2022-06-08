@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionRenameDuplicateBuilder.h"
-
+#include "WorldPartition/WorldPartitionStreamingGeneration.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
@@ -133,21 +133,21 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 		UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("Failed to retrieve WorldPartition."));
 		return false;
 	}
-		
-	TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap;
+
+	FActorDescViewMap ActorDescViewMap;
 	for (UActorDescContainer::TConstIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 	{
 		const FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 		FWorldPartitionActorDescView ActorDescView(ActorDesc);
 		// Invalidate data layers to avoid clustering errors. It doesn't matter here as we need clustering only to gather references
 		ActorDescView.SetInvalidDataLayers();
-		ActorDescViewMap.Add(ActorDesc->GetGuid(), ActorDescView);
+		ActorDescViewMap.Emplace(ActorDescView.GetGuid(), ActorDescView);
 	}
 
 	TArray<FActorCluster> ActorClusters;
 	{
 		UE_SCOPED_TIMER(TEXT("Create actor clusters"), LogWorldPartitionRenameDuplicateBuilder, Display);
-		FActorClusterContext::CreateActorClusters(World, ActorDescViewMap, ActorClusters);
+		FActorClusterContext::CreateActorClusters(World, ActorDescViewMap.GetActorDescViewsByGuid(), ActorClusters);
 	}
 
 	UPackage* OriginalPackage = World->GetPackage();
@@ -342,8 +342,10 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 					// If we are renaming add package to delete
 					if (bRename)
 					{
-						FWorldPartitionActorDescView& ActorDescView = ActorDescViewMap.FindChecked(ActorGuid);
-						PackagesToDelete.Add(ActorDescView.GetActorPackage().ToString());
+						const FWorldPartitionActorDescView* ActorDescView = const_cast<const FActorDescViewMap&>(ActorDescViewMap).FindByGuid(ActorGuid);
+						check(ActorDescView);
+
+						PackagesToDelete.Add(ActorDescView->GetActorPackage().ToString());
 					}
 				}
 						

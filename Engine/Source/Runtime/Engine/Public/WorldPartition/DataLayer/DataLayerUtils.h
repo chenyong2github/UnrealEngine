@@ -8,6 +8,7 @@
 #include "WorldPartition/DataLayer/DataLayerType.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
+#include "WorldPartition/WorldPartitionStreamingGeneration.h"
 
 class FWorldDataLayersActorDesc;
 class FWorldPartitionActorDesc;
@@ -26,7 +27,7 @@ public:
 
 	static TArray<FName> ResolvedDataLayerInstanceNames(const FWorldPartitionActorDesc* InActorDesc, const FWorldDataLayersActorDesc* InWorldDataLayersActorDesc = nullptr, UWorld* InWorld = nullptr, bool* bOutIsResultValid = nullptr);
 	
-	static bool ResolveRuntimeDataLayerInstanceNames(const FWorldPartitionActorDescView& InActorDescView, const TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViews, TArray<FName>& OutRuntimeDataLayerInstanceNames);
+	static bool ResolveRuntimeDataLayerInstanceNames(const FWorldPartitionActorDescView& InActorDescView, const FActorDescViewMap& ActorDescViewMap, TArray<FName>& OutRuntimeDataLayerInstanceNames);
 #endif
 
 #if DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED

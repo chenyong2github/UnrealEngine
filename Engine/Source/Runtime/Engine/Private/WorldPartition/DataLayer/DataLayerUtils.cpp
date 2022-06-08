@@ -96,32 +96,29 @@ TArray<FName> FDataLayerUtils::ResolvedDataLayerInstanceNames(const FWorldPartit
 }
 
 // For performance reasons, this function assumes that InActorDesc's DataLayerInstanceNames was already resolved.
-bool FDataLayerUtils::ResolveRuntimeDataLayerInstanceNames(const FWorldPartitionActorDescView& InActorDescView, const TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViews, TArray<FName>& OutRuntimeDataLayerInstanceNames)
+bool FDataLayerUtils::ResolveRuntimeDataLayerInstanceNames(const FWorldPartitionActorDescView& InActorDescView, const FActorDescViewMap& ActorDescViewMap, TArray<FName>& OutRuntimeDataLayerInstanceNames)
 {
-	if (InActorDescView.GetDataLayerInstanceNames().IsEmpty())
+	TArray<const FWorldPartitionActorDescView*> WorldDataLayerViews = ActorDescViewMap.FindByExactNativeClass<AWorldDataLayers>();
+	
+	if (WorldDataLayerViews.Num())
 	{
-		return true;
-	}
+		check(WorldDataLayerViews.Num() == 1);
+		const FWorldPartitionActorDescView* WorldDataLayersActorDescView = WorldDataLayerViews[0];
+	
+		FWorldDataLayersActorDesc* WorldDataLayersActorDesc = (FWorldDataLayersActorDesc*)WorldDataLayersActorDescView->GetActorDesc();
 
-	for (auto& [ActorGuid, ActorDescView] : ActorDescViews)
-	{
-		if (ActorDescView.GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
+		for (FName DataLayerInstanceName : InActorDescView.GetDataLayerInstanceNames())
 		{
-			FWorldDataLayersActorDesc* WorldDataLayersActorDesc = (FWorldDataLayersActorDesc*)ActorDescView.GetActorDesc();
-
-			for (FName DataLayerInstanceName : InActorDescView.GetDataLayerInstanceNames())
+			if (const FDataLayerInstanceDesc* DataLayerInstanceDesc = WorldDataLayersActorDesc->GetDataLayerInstanceFromInstanceName(DataLayerInstanceName))
 			{
-				if (const FDataLayerInstanceDesc* DataLayerInstanceDesc = WorldDataLayersActorDesc->GetDataLayerInstanceFromInstanceName(DataLayerInstanceName))
+				if (DataLayerInstanceDesc->GetDataLayerType() == EDataLayerType::Runtime)
 				{
-					if (DataLayerInstanceDesc->GetDataLayerType() == EDataLayerType::Runtime)
-					{
-						OutRuntimeDataLayerInstanceNames.Add(DataLayerInstanceName);
-					}
+					OutRuntimeDataLayerInstanceNames.Add(DataLayerInstanceName);
 				}
 			}
-
-			return true;
 		}
+
+		return true;
 	}
 
 	return false;

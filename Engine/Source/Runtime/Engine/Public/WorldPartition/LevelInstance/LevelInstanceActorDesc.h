@@ -26,6 +26,7 @@ public:
 
 	inline FName GetLevelPackage() const { return LevelPackage; }
 
+	virtual bool IsContainerInstance() const override;
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const override;
 
 protected:

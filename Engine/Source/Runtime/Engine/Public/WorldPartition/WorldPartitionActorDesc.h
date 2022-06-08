@@ -104,7 +104,9 @@ public:
 	FName GetActorLabelOrName() const;
 	FName GetDisplayClassName() const;
 
+	virtual bool IsContainerInstance() const { return false; }
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
+
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
 	virtual bool IsResaveNeeded() const { return false; }
 	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const { return true; }
