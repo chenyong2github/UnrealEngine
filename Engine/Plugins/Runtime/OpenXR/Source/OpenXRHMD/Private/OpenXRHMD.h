@@ -78,6 +78,8 @@ public:
 
 		TArray<XrViewConfigurationView> ViewConfigs;
 		TArray<class IOpenXRExtensionPlugin*> PluginViews;
+
+		bool bXrFrameStateUpdated = false;
 	};
 
 	struct FPipelinedLayerState
