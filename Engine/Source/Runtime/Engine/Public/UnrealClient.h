@@ -800,9 +800,29 @@ public:
 	{
 	}
 
+	FInputKeyEventArgs(FViewport* InViewport, FInputDeviceId InInputDevice, FKey InKey, EInputEvent InEvent)
+		: Viewport(InViewport)
+		, InputDevice(InInputDevice)
+		, Key(InKey)
+		, Event(InEvent)
+		, AmountDepressed(1.0f)
+		, bIsTouchEvent(false)
+	{
+	}
+
 	FInputKeyEventArgs(FViewport* InViewport, int32 InControllerId, FKey InKey, EInputEvent InEvent, float InAmountDepressed, bool bInIsTouchEvent)
 		: Viewport(InViewport)
 		, ControllerId(InControllerId)
+		, Key(InKey)
+		, Event(InEvent)
+		, AmountDepressed(InAmountDepressed)
+		, bIsTouchEvent(bInIsTouchEvent)
+	{
+	}
+	
+	FInputKeyEventArgs(FViewport* InViewport, FInputDeviceId InInputDevice, FKey InKey, EInputEvent InEvent, float InAmountDepressed, bool bInIsTouchEvent)
+		: Viewport(InViewport)
+		, InputDevice(InInputDevice)
 		, Key(InKey)
 		, Event(InEvent)
 		, AmountDepressed(InAmountDepressed)
@@ -818,6 +838,8 @@ public:
 	FViewport* Viewport;
 	// The controller which the key event is from.
 	int32 ControllerId;
+	// The input device which this key event is from
+	FInputDeviceId InputDevice;
 	// The type of event which occurred.
 	FKey Key;
 	// The type of event which occurred.
@@ -870,7 +892,22 @@ public:
 	 * @param	bGamepad - input came from gamepad (ie xbox controller)
 	 * @return	True to consume the axis movement, false to pass it on.
 	 */
+	// TODO: Deprecate this version
 	virtual bool InputAxis(FViewport* Viewport,int32 ControllerId,FKey Key,float Delta,float DeltaTime,int32 NumSamples=1,bool bGamepad=false) { return false; }
+
+	/**
+	 * Check an axis movement received by the viewport.
+	 * If the viewport client uses the movement, it should return true to consume it.
+	 * @param	Viewport - The viewport which the axis movement is from.
+	 * @param	InputDevice - The input device that triggered this axis movement
+	 * @param	Key - The name of the axis which moved.
+	 * @param	Delta - The axis movement delta.
+	 * @param	DeltaTime - The time since the last axis update.
+	 * @param	NumSamples - The number of device samples that contributed to this Delta, useful for things like smoothing
+	 * @param	bGamepad - input came from gamepad (ie xbox controller)
+	 * @return	True to consume the axis movement, false to pass it on.
+	 */
+	virtual bool InputAxis(FViewport* Viewport, FInputDeviceId InputDevice, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) { return false; }
 
 	/**
 	 * Check a character input received by the viewport.
