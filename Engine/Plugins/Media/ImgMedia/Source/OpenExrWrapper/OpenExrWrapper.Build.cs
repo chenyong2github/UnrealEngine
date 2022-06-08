@@ -7,11 +7,7 @@ namespace UnrealBuildTool.Rules
 		public OpenExrWrapper(ReadOnlyTargetRules Target) : base(Target)
 		{
 			bEnableExceptions = true;
-
-			PCHUsage = ModuleRules.PCHUsageMode.NoSharedPCHs;
-			PrivatePCHHeaderFile = "Public/OpenExrWrapper.h";
-
-            bUseRTTI = true;
+			bUseRTTI = true;
 
             PublicDependencyModuleNames.AddRange(
 				new string[] {
@@ -34,7 +30,7 @@ namespace UnrealBuildTool.Rules
                 System.Console.WriteLine("OpenExrWrapper does not supported this platform");
             }
 
-            PrivateIncludePaths.Add("OpenExrWrapper/Private");
+			PrivateIncludePaths.Add("OpenExrWrapper/Private");
         }
 	}
 }

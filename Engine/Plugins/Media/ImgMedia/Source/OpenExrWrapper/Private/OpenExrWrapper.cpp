@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include <exception>
 #include "OpenExrWrapper.h"
+
+#include <exception>
 #include "Containers/UnrealString.h"
 #include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
