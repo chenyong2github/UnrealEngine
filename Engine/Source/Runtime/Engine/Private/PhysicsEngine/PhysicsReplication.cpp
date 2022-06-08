@@ -80,6 +80,9 @@ namespace CharacterMovementCVars
 
 	static int32 ApplyAsyncSleepState = 1;
 	static FAutoConsoleVariableRef CVarApplyAsyncSleepState(TEXT("p.ApplyAsyncSleepState"), ApplyAsyncSleepState, TEXT(""));
+
+	static bool OnlyApplyAsyncSleepStateIfShouldSleep = true;
+	static FAutoConsoleVariableRef CVarOnlyApplyAsyncSleepStateIfShouldSleep(TEXT("p.OnlyApplyAsyncSleepStateIfShouldSleep"), OnlyApplyAsyncSleepStateIfShouldSleep, TEXT(""));
 }
 
 namespace PhysicsReplicationCVars
@@ -407,6 +410,7 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 				AsyncDesiredState.LinearVelocity = NewState.LinVel;
 				AsyncDesiredState.AngularVelocity = NewState.AngVel;
 				AsyncDesiredState.Proxy = static_cast<Chaos::FSingleParticlePhysicsProxy*>(BI->GetPhysicsActorHandle());
+				// ObjectState may not be needed at all.
 				AsyncDesiredState.ObjectState = AsyncDesiredState.Proxy->GetGameThreadAPI().ObjectState();
 				AsyncDesiredState.ErrorCorrection = { ErrorCorrection.LinearVelocityCoefficient, ErrorCorrection.AngularVelocityCoefficient, ErrorCorrection.PositionLerp, ErrorCorrection.AngleLerp };
 				AsyncDesiredState.bShouldSleep = bShouldSleep;
@@ -679,17 +683,22 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 				Handle->SetV(NewLinVel);
 				Handle->SetW(FMath::DegreesToRadians(NewAngVel));
 
+				// The old state should probably not be the default here.
 				EObjectStateType ObjectStateType = State.ObjectState;
 				if ((CharacterMovementCVars::ApplyAsyncSleepState != 0) && State.bShouldSleep)
 				{
 					ObjectStateType = EObjectStateType::Sleeping;
 				}
-				// don't allow kinematic to sleeping transition
-				bool bInvalidObjectState = (ObjectStateType == EObjectStateType::Sleeping && Handle->ObjectState() == EObjectStateType::Kinematic);
-				if (!bInvalidObjectState)
+
+				if (State.bShouldSleep || !CharacterMovementCVars::OnlyApplyAsyncSleepStateIfShouldSleep)
 				{
-					auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
-					Solver->GetEvolution()->SetParticleObjectState(Proxy->GetHandle_LowLevel()->CastToRigidParticle(), ObjectStateType);	//todo: move object state into physics thread api
+					// don't allow kinematic to sleeping transition
+					bool bInvalidObjectState = (ObjectStateType == EObjectStateType::Sleeping && Handle->ObjectState() == EObjectStateType::Kinematic);
+					if (!bInvalidObjectState)
+					{
+						auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
+						Solver->GetEvolution()->SetParticleObjectState(Proxy->GetHandle_LowLevel()->CastToRigidParticle(), ObjectStateType);	//todo: move object state into physics thread api
+					}
 				}
 			}
 		}
