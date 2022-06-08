@@ -90,6 +90,36 @@ bool UVCamModifier::IsEnabled() const
 	return false;
 }
 
+bool UVCamModifier::SetStackEntryName(FName NewName)
+{
+	if (const UVCamComponent* ParentComponent = GetOwningVCamComponent())
+	{
+		const bool bNameAlreadyExists = ParentComponent->ModifierStack.ContainsByPredicate([NewName](const FModifierStackEntry& StackEntryToTest)
+		{
+			return StackEntryToTest.Name.IsEqual(NewName);
+		});
+
+		if (!bNameAlreadyExists)
+		{
+			if (FModifierStackEntry* StackEntry = GetCorrespondingStackEntry())
+			{
+				StackEntry->Name = NewName;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+FName UVCamModifier::GetStackEntryName() const
+{
+	if (FModifierStackEntry* StackEntry = GetCorrespondingStackEntry())
+	{
+		return StackEntry->Name;
+	}
+	return NAME_None;
+}
+
 const UInputMappingContext* UVCamModifier::GetInputMappingContext(int32& InputPriority) const
 {
 	return nullptr;

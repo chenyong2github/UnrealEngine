@@ -41,6 +41,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera", meta=(ReturnDisplayName="Enabled"))
 	bool IsEnabled() const;
 
+	// Sets the name of the modifier in the associated modifier stack
+	// Returns a bool for whether 
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera", meta=(ReturnDisplayName="Success"))
+	bool SetStackEntryName(FName NewName);
+
+	// Gets the name of the modifier in the associated modifier stack
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera", meta=(ReturnDisplayName="Name"))
+	FName GetStackEntryName() const;
+
 	// Allows a modifier to return Input Mapping Context which will get automatically registered with the input system
 	// The Input Priority of the mapping context will be set by reference
 	virtual const UInputMappingContext* GetInputMappingContext(int32& InputPriority) const;
