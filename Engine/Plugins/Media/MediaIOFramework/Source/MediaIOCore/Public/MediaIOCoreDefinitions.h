@@ -105,10 +105,10 @@ struct MEDIAIOCORE_API FMediaIOAutoDetectableTimecodeFormat_Backup
 	GENERATED_BODY()
 
 	/** The timecode format if not autodetected. */
-	UPROPERTY(EditAnywhere, Category = "AJA")
+	UPROPERTY(EditAnywhere, Category = "Configuration")
 	EMediaIOTimecodeFormat TimecodeFormat = EMediaIOTimecodeFormat::None;
 	/** Whether the timecode should be autodetected. */
-	UPROPERTY(EditAnywhere, Category = "AJA")
+	UPROPERTY(EditAnywhere, Category = "Configuration")
 	bool bAutoDetect = false;
 };
 
@@ -357,4 +357,33 @@ public:
 
 	/** Return true if the configuration has been set properly */
 	bool IsValid() const;
+};
+
+/**
+ * Configuration of a Timecode from Video
+ */
+USTRUCT()
+struct MEDIAIOCORE_API FMediaIOVideoTimecodeConfiguration
+{
+	GENERATED_BODY()
+	
+	/** Read the timecode from a video signal. */
+	UPROPERTY(VisibleAnywhere, Category=Configuration)
+	FMediaIOConfiguration MediaConfiguration;
+
+	/** Timecode format to read from a video signal. */
+	UPROPERTY(VisibleAnywhere, Category=Configuration)
+	EMediaIOAutoDetectableTimecodeFormat TimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::Auto;
+
+public:
+	/** Return true if the configuration has been set properly */
+	bool IsValid() const;
+
+	bool operator== (const FMediaIOVideoTimecodeConfiguration& Other) const;
+
+	/**
+	 * Get the configuration text representation.
+	 * @return String representation, i.e. "Video/Single1/1080p30fps/LTC".
+	 */
+	FText ToText(bool bAutoDetected = false) const;
 };

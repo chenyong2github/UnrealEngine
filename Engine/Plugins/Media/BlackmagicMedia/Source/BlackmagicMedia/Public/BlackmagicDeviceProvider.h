@@ -38,11 +38,13 @@ public:
 	virtual TArray<FMediaIOMode> GetModes(const FMediaIODevice& InDevice, bool bInOutput) const override;
 	virtual TArray<FMediaIOInputConfiguration> GetInputConfigurations() const override;
 	virtual TArray<FMediaIOOutputConfiguration> GetOutputConfigurations() const override;
+	virtual TArray<FMediaIOVideoTimecodeConfiguration> GetTimecodeConfigurations() const override;
 
 	virtual FMediaIOConfiguration GetDefaultConfiguration() const override;
 	virtual FMediaIOMode GetDefaultMode() const override;
 	virtual FMediaIOInputConfiguration GetDefaultInputConfiguration() const override;
 	virtual FMediaIOOutputConfiguration GetDefaultOutputConfiguration() const override;
+	virtual FMediaIOVideoTimecodeConfiguration GetDefaultTimecodeConfiguration() const override;
 
 	virtual FText ToText(const FMediaIOConfiguration& InConfiguration) const override;
 	virtual FText ToText(const FMediaIOConnection& InConnection) const override;

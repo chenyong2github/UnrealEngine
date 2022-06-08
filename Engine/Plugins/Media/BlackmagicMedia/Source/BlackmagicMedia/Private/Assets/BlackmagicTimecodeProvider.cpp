@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlackmagicTimecodeProvider.h"
+#include "BlackmagicDeviceProvider.h"
 #include "BlackmagicMediaPrivate.h"
-#include "Blackmagic.h"
 #include "IBlackmagicMediaModule.h"
 
 #include "HAL/CriticalSection.h"
@@ -17,12 +17,13 @@ namespace BlackmagicTimecodeProviderHelpers
 	class FEventCallback : public BlackmagicDesign::IInputEventCallback
 	{
 	public:
-		FEventCallback(const BlackmagicDesign::FChannelInfo& InChannelInfo, const FFrameRate& InFrameRate)
+		FEventCallback(UBlackmagicTimecodeProvider* InTimecodeProvider, const BlackmagicDesign::FChannelInfo& InChannelInfo, const FFrameRate& InFrameRate)
 			: RefCounter(0)
 			, ChannelInfo(InChannelInfo)
 			, State(ETimecodeProviderSynchronizationState::Closed)
 			, FrameRate(InFrameRate)
 			, bHasWarnedMissingTimecode(false)
+			, TimecodeProvider(InTimecodeProvider)
 		{
 		}
 
@@ -102,6 +103,43 @@ namespace BlackmagicTimecodeProviderHelpers
 
 		virtual void OnFrameFormatChanged(const BlackmagicDesign::FFormatInfo& NewFormat) override
 		{
+			if (UBlackmagicTimecodeProvider* TimecodeProviderPtr = TimecodeProvider.Get())
+			{
+				if (TimecodeProviderPtr->bAutoDetectTimecode)
+				{
+					FrameRate = FFrameRate(NewFormat.FrameRateNumerator, NewFormat.FrameRateDenominator);
+					TimecodeProviderPtr->TimecodeConfiguration.MediaConfiguration.MediaMode.FrameRate = FrameRate;
+					TimecodeProviderPtr->TimecodeConfiguration.MediaConfiguration.MediaMode.Resolution = FIntPoint(NewFormat.Width, NewFormat.Height);
+					TimecodeProviderPtr->TimecodeConfiguration.MediaConfiguration.MediaMode.DeviceModeIdentifier = NewFormat.DisplayMode;
+
+					switch (NewFormat.FieldDominance)
+					{
+						case BlackmagicDesign::EFieldDominance::Progressive:
+						{
+							TimecodeProviderPtr->TimecodeConfiguration.MediaConfiguration.MediaMode.Standard = EMediaIOStandardType::Progressive;
+							break;
+						}
+						case BlackmagicDesign::EFieldDominance::ProgressiveSegmentedFrame:
+						{
+							TimecodeProviderPtr->TimecodeConfiguration.MediaConfiguration.MediaMode.Standard = EMediaIOStandardType::ProgressiveSegmentedFrame;
+							break;
+						}
+						case BlackmagicDesign::EFieldDominance::Interlaced:
+						{
+							TimecodeProviderPtr->TimecodeConfiguration.MediaConfiguration.MediaMode.Standard = EMediaIOStandardType::Interlaced;
+							break;
+						}
+						default:
+						{
+							ensure(0);
+							break;
+						}
+					}
+
+					return;
+				}
+			}
+
 			UE_LOG(LogBlackmagicMedia, Error, TEXT("The video format changed."));
 			State = ETimecodeProviderSynchronizationState::Error;
 		}
@@ -126,6 +164,8 @@ namespace BlackmagicTimecodeProviderHelpers
 		FFrameRate FrameRate;
 
 		bool bHasWarnedMissingTimecode;
+
+		TWeakObjectPtr<UBlackmagicTimecodeProvider> TimecodeProvider;
 	};
 
 }
@@ -133,11 +173,11 @@ namespace BlackmagicTimecodeProviderHelpers
 
 //~ UBlackmagicTimecodeProvider implementation
 //--------------------------------------------------------------------
-UBlackmagicTimecodeProvider::UBlackmagicTimecodeProvider(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, EventCallback(nullptr)
+UBlackmagicTimecodeProvider::UBlackmagicTimecodeProvider()
+	: EventCallback(nullptr)
 {
-	MediaConfiguration.bIsInput = true;
+	TimecodeConfiguration.MediaConfiguration = FBlackmagicDeviceProvider().GetDefaultConfiguration();
+	TimecodeConfiguration.MediaConfiguration.bIsInput = true;
 }
 
 bool UBlackmagicTimecodeProvider::FetchTimecode(FQualifiedFrameTime& OutFrameTime)
@@ -147,7 +187,7 @@ bool UBlackmagicTimecodeProvider::FetchTimecode(FQualifiedFrameTime& OutFrameTim
 		return false;
 	}
 
-	const FFrameRate Rate = MediaConfiguration.MediaMode.FrameRate;
+	const FFrameRate Rate = TimecodeConfiguration.MediaConfiguration.MediaMode.FrameRate;
 	const FTimecode Timecode = EventCallback->GetTimecode();
 
 	OutFrameTime = FQualifiedFrameTime(Timecode, Rate);
@@ -162,7 +202,7 @@ ETimecodeProviderSynchronizationState UBlackmagicTimecodeProvider::GetSynchroniz
 
 bool UBlackmagicTimecodeProvider::Initialize(class UEngine* InEngine)
 {
-	if (!MediaConfiguration.IsValid())
+	if (!TimecodeConfiguration.MediaConfiguration.IsValid())
 	{
 		UE_LOG(LogBlackmagicMedia, Warning, TEXT("The configuration of '%s' is not valid."), *GetName());
 		return false;
@@ -174,24 +214,25 @@ bool UBlackmagicTimecodeProvider::Initialize(class UEngine* InEngine)
 		return false;
 	}
 
-	if (TimecodeFormat == EMediaIOTimecodeFormat::None)
+	if (TimecodeConfiguration.TimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::None)
 	{
 		UE_LOG(LogBlackmagicMedia, Error, TEXT("The TimecodeProvider '%s' can't be initialized. Selected timecode format is invalid."), *GetName());
 		return false;
 	}
 
 	BlackmagicDesign::FChannelInfo ChannelInfo;
-	ChannelInfo.DeviceIndex = MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
+	ChannelInfo.DeviceIndex = TimecodeConfiguration.MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
 
 	check(EventCallback == nullptr);
-	EventCallback = new BlackmagicTimecodeProviderHelpers::FEventCallback(ChannelInfo, MediaConfiguration.MediaMode.FrameRate);
+	EventCallback = new BlackmagicTimecodeProviderHelpers::FEventCallback(this, ChannelInfo, TimecodeConfiguration.MediaConfiguration.MediaMode.FrameRate);
 
 	BlackmagicDesign::FInputChannelOptions ChannelOptions;
 	ChannelOptions.CallbackPriority = 5;
-	ChannelOptions.FormatInfo.DisplayMode = MediaConfiguration.MediaMode.DeviceModeIdentifier;
-	ChannelOptions.FormatInfo.FrameRateNumerator = MediaConfiguration.MediaMode.FrameRate.Numerator;
-	ChannelOptions.FormatInfo.FrameRateDenominator = MediaConfiguration.MediaMode.FrameRate.Denominator;
-	switch (MediaConfiguration.MediaMode.Standard)
+	ChannelOptions.FormatInfo.DisplayMode = TimecodeConfiguration.MediaConfiguration.MediaMode.DeviceModeIdentifier;
+	ChannelOptions.FormatInfo.FrameRateNumerator = TimecodeConfiguration.MediaConfiguration.MediaMode.FrameRate.Numerator;
+	ChannelOptions.FormatInfo.FrameRateDenominator = TimecodeConfiguration.MediaConfiguration.MediaMode.FrameRate.Denominator;
+
+	switch (TimecodeConfiguration.MediaConfiguration.MediaMode.Standard)
 	{
 	case EMediaIOStandardType::Interlaced:
 		ChannelOptions.FormatInfo.FieldDominance = BlackmagicDesign::EFieldDominance::Interlaced;
@@ -205,17 +246,24 @@ bool UBlackmagicTimecodeProvider::Initialize(class UEngine* InEngine)
 		break;
 	}
 
-	ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_None;
-	switch (TimecodeFormat)
+	if (bAutoDetectTimecode)
 	{
-	case EMediaIOTimecodeFormat::LTC:
-		ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_LTC;
-		break;
-	case EMediaIOTimecodeFormat::VITC:
-		ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_VITC1;
-		break;
-	default:
-		break;
+		ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_Auto;
+	}
+	else
+	{
+		ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_None;
+		switch (TimecodeConfiguration.TimecodeFormat)
+		{
+		case EMediaIOAutoDetectableTimecodeFormat::LTC:
+			ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_LTC;
+			break;
+		case EMediaIOAutoDetectableTimecodeFormat::VITC:
+			ChannelOptions.TimecodeFormat = BlackmagicDesign::ETimecodeFormat::TCF_VITC1;
+			break;
+		default:
+			break;
+		}
 	}
 
 
@@ -246,4 +294,25 @@ void UBlackmagicTimecodeProvider::ReleaseResources()
 		EventCallback->Uninitialize();
 		EventCallback = nullptr;
 	}
+}
+
+void UBlackmagicTimecodeProvider::PostLoad()
+{
+	Super::PostLoad();
+	
+#if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (TimecodeFormat_DEPRECATED != EMediaIOTimecodeFormat::None)
+	{
+		TimecodeConfiguration.TimecodeFormat = UE::MediaIO::ToAutoDetectableTimecodeFormat(TimecodeFormat_DEPRECATED);
+		TimecodeFormat_DEPRECATED = EMediaIOTimecodeFormat::None;
+	}
+
+	if (MediaConfiguration_DEPRECATED.IsValid())
+	{
+		TimecodeConfiguration.MediaConfiguration = MediaConfiguration_DEPRECATED;
+		MediaConfiguration_DEPRECATED = FMediaIOConfiguration();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 }

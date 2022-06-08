@@ -525,7 +525,6 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 
 	BlackmagicDesign::FInputChannelOptions ChannelOptions;
 	ChannelOptions.bAutoDetect = bAutoDetect;
-	ChannelOptions.bAutoDetectTimecode = bAutoDetectTimecode;
 	ChannelOptions.CallbackPriority = 10;
 	ChannelOptions.bReadVideo = Options->GetMediaOption(BlackmagicMediaOption::CaptureVideo, true);
 	ChannelOptions.FormatInfo.DisplayMode = Options->GetMediaOption(BlackmagicMediaOption::BlackmagicVideoFormat, (int64)BlackmagicMediaOption::DefaultVideoFormat);

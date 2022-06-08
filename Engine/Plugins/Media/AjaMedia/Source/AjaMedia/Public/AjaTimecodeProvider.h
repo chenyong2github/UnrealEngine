@@ -25,14 +25,30 @@ class UEngine;
 UCLASS(Blueprintable, editinlinenew, meta=(DisplayName="AJA SDI Input", MediaIOCustomLayout="AJA"))
 class AJAMEDIA_API UAjaTimecodeProvider : public UGenlockedTimecodeProvider, public FTickableGameObject
 {
-	GENERATED_UCLASS_BODY()
-
 public:
+	GENERATED_BODY()
+
+	UAjaTimecodeProvider();
+
 	//~ UTimecodeProvider interface
 	virtual bool FetchTimecode(FQualifiedFrameTime& OutFrameTime) override;
 	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const override { return State; }
 	virtual bool Initialize(class UEngine* InEngine) override;
 	virtual void Shutdown(class UEngine* InEngine) override;
+	virtual bool SupportsAutoDetected() const override
+	{
+		return true;
+	}
+    
+	virtual void SetIsAutoDetected(bool bInIsAutoDetected) override
+	{
+		bAutoDetectTimecode = bInIsAutoDetected;
+	}
+	
+	virtual bool IsAutoDetected() const override
+	{
+		return bAutoDetectTimecode;
+	}
 
 	//~ FTickableGameObject interface
 	virtual ETickableTickType GetTickableTickType() const override;
@@ -45,6 +61,7 @@ public:
 	//~ UObject interface
 	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 
 private:
 	struct FAJACallback;
@@ -74,12 +91,20 @@ public:
 	UPROPERTY(EditAnywhere, Category="Timecode", meta=(EditCondition="bUseDedicatedPin"))
 	FAjaMediaTimecodeReference LTCConfiguration;
 
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "Use VideoConfiguration instead")
 	/**
      * It read the timecode from an input source.
 	 */
+	UPROPERTY(meta=(DeprecatedProperty))
+	FAjaMediaTimecodeConfiguration VideoConfiguration_DEPRECATED;
+#endif
+	
 	UPROPERTY(EditAnywhere, Category="Timecode", meta=(EditCondition="!bUseDedicatedPin"))
-	FAjaMediaTimecodeConfiguration VideoConfiguration;
-
+	/** Use the time code embedded in the input stream. */
+	/** Timecode format to read from a video signal. */
+	FMediaIOVideoTimecodeConfiguration TimecodeConfiguration;
+	
 	UPROPERTY()
 	bool bAutoDetectTimecode = true;
 

@@ -18,6 +18,7 @@
 #include "Customizations/MediaIOConfigurationCustomization.h"
 #include "Customizations/MediaIOInputConfigurationCustomization.h"
 #include "Customizations/MediaIOOutputConfigurationCustomization.h"
+#include "Customizations/MediaIOVideoTimecodeConfigurationCustomization.h"
 
 
 DEFINE_LOG_CATEGORY(LogMediaIOEditor);
@@ -86,12 +87,14 @@ private:
 		PropertyModule.RegisterCustomPropertyTypeLayout(FMediaIODevice::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMediaIODeviceCustomization::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout(FMediaIOInputConfiguration::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMediaIOInputConfigurationCustomization::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout(FMediaIOOutputConfiguration::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMediaIOOutputConfigurationCustomization::MakeInstance));
+		PropertyModule.RegisterCustomPropertyTypeLayout(FMediaIOVideoTimecodeConfiguration::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMediaIOVideoTimecodeConfigurationCustomization::MakeInstance));
 	}
 
 	/** Unregister details view customizations. */
 	void UnregisterCustomizations()
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.UnregisterCustomPropertyTypeLayout(FMediaIOVideoTimecodeConfiguration::StaticStruct()->GetFName());
 		PropertyModule.UnregisterCustomPropertyTypeLayout(FMediaIOOutputConfiguration::StaticStruct()->GetFName());
 		PropertyModule.UnregisterCustomPropertyTypeLayout(FMediaIOInputConfiguration::StaticStruct()->GetFName());
 		PropertyModule.UnregisterCustomPropertyTypeLayout(FMediaIODevice::StaticStruct()->GetFName());

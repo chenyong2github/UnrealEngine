@@ -183,7 +183,6 @@ namespace BlackmagicDesign
 
 		bool bUseTheDedicatedLTCInput;
 		bool bAutoDetect;
-		bool bAutoDetectTimecode;
 	};
 
 	/* FOutputChannelOptions definition

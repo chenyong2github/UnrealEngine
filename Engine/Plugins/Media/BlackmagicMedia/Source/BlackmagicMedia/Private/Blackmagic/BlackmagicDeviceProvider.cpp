@@ -279,6 +279,27 @@ TArray<FMediaIOOutputConfiguration> FBlackmagicDeviceProvider::GetOutputConfigur
 	return Results;
 }
 
+TArray<FMediaIOVideoTimecodeConfiguration> FBlackmagicDeviceProvider::GetTimecodeConfigurations() const
+{
+	TArray<FMediaIOVideoTimecodeConfiguration> MediaConfigurations;
+	bool bHasInputConfiguration = false;
+	{
+		TArray<FMediaIOConfiguration> InputConfigurations = GetConfigurations(true, false);
+
+		FMediaIOVideoTimecodeConfiguration DefaultTimecodeConfiguration;
+		MediaConfigurations.Reset(InputConfigurations.Num() * 2);
+		for (const FMediaIOConfiguration& InputConfiguration : InputConfigurations)
+		{
+			DefaultTimecodeConfiguration.MediaConfiguration = InputConfiguration;
+			DefaultTimecodeConfiguration.TimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::LTC;
+			MediaConfigurations.Add(DefaultTimecodeConfiguration);
+
+			DefaultTimecodeConfiguration.TimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::VITC;
+			MediaConfigurations.Add(DefaultTimecodeConfiguration);
+		}
+	}
+	return MediaConfigurations;
+}
 
 TArray<FMediaIODevice> FBlackmagicDeviceProvider::GetDevices() const
 {
@@ -372,6 +393,12 @@ FMediaIOConfiguration FBlackmagicDeviceProvider::GetDefaultConfiguration() const
 	return Configuration;
 }
 
+FMediaIOVideoTimecodeConfiguration FBlackmagicDeviceProvider::GetDefaultTimecodeConfiguration() const
+{
+	FMediaIOVideoTimecodeConfiguration Configuration;
+	Configuration.MediaConfiguration = GetDefaultConfiguration();
+	return Configuration;
+}
 
 FMediaIOMode FBlackmagicDeviceProvider::GetDefaultMode() const
 {
@@ -446,6 +473,5 @@ FText FBlackmagicDeviceProvider::ToText(const FMediaIOOutputConfiguration& InCon
 	}
 	return LOCTEXT("Invalid", "<Invalid>");
 }
-
 
 #undef LOCTEXT_NAMESPACE

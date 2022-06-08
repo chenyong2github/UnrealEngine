@@ -34,9 +34,8 @@ struct UAjaTimecodeProvider::FAJACallback : public AJA::IAJATimecodeChannelCallb
 
 //~ UAjaTimecodeProvider implementation
 //--------------------------------------------------------------------
-UAjaTimecodeProvider::UAjaTimecodeProvider(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, TimecodeChannel(nullptr)
+UAjaTimecodeProvider::UAjaTimecodeProvider()
+	: TimecodeChannel(nullptr)
 	, SyncCallback(nullptr)
 #if WITH_EDITORONLY_DATA
 	, InitializedEngine(nullptr)
@@ -65,7 +64,7 @@ bool UAjaTimecodeProvider::FetchTimecode(FQualifiedFrameTime& OutFrameTime)
 	// We expect the timecode to be processed in the library. 
 	// What we receive will be a "linear" timecode even for frame rates greater than 30.
 
-	FFrameRate FrameRate = bUseDedicatedPin ? LTCConfiguration.LtcFrameRate : VideoConfiguration.MediaConfiguration.MediaMode.FrameRate;
+	FFrameRate FrameRate = bUseDedicatedPin ? LTCConfiguration.LtcFrameRate : TimecodeConfiguration.MediaConfiguration.MediaMode.FrameRate;
 	FTimecode Timecode = FAja::ConvertAJATimecode2Timecode(NewTimecode, FrameRate);
 
 	OutFrameTime = FQualifiedFrameTime(Timecode, FrameRate);
@@ -103,7 +102,7 @@ bool UAjaTimecodeProvider::Initialize(class UEngine* InEngine)
 	else
 	{
 		FString FailureReason;
-		if ((bUseDedicatedPin && !LTCConfiguration.IsValid()) || (!bUseDedicatedPin && !VideoConfiguration.IsValid()))
+		if ((bUseDedicatedPin && !LTCConfiguration.IsValid()) || (!bUseDedicatedPin && !TimecodeConfiguration.IsValid()))
 		{
 			State = ETimecodeProviderSynchronizationState::Error;
 			UE_LOG(LogAjaMedia, Warning, TEXT("The TimecodeProvider '%s' configuration is invalid."), *GetName());
@@ -142,6 +141,28 @@ void UAjaTimecodeProvider::Serialize(FArchive& Ar)
 		bUseDedicatedPin = bUseReferenceIn;
 	}
 }
+
+void UAjaTimecodeProvider::PostLoad()
+{
+	Super::PostLoad();
+	
+#if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (VideoConfiguration_DEPRECATED.TimecodeFormat != EMediaIOTimecodeFormat::None)
+	{
+		TimecodeConfiguration.TimecodeFormat = UE::MediaIO::ToAutoDetectableTimecodeFormat(VideoConfiguration_DEPRECATED.TimecodeFormat);
+		VideoConfiguration_DEPRECATED.TimecodeFormat = EMediaIOTimecodeFormat::None;
+	}
+
+	if (VideoConfiguration_DEPRECATED.IsValid())
+	{
+		TimecodeConfiguration.MediaConfiguration = VideoConfiguration_DEPRECATED.MediaConfiguration;
+		VideoConfiguration_DEPRECATED.MediaConfiguration = FMediaIOConfiguration();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+}
+
 
 void UAjaTimecodeProvider::ReleaseResources()
 {
@@ -204,8 +225,8 @@ void UAjaTimecodeProvider::OnConfigurationAutoDetected(TArray<FAjaDeviceProvider
 	{
 		FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat Format = InConfigurations[0];
 
-		VideoConfiguration.MediaConfiguration = Format.Configuration;
-		VideoConfiguration.TimecodeFormat = Format.TimecodeFormat;
+		TimecodeConfiguration.MediaConfiguration = Format.Configuration;
+		TimecodeConfiguration.TimecodeFormat = UE::MediaIO::ToAutoDetectableTimecodeFormat(Format.TimecodeFormat);
 	}
 	else
 	{
@@ -222,7 +243,7 @@ bool UAjaTimecodeProvider::Initialize_Internal(class UEngine* InEngine, AJA::AJA
 	check(SyncCallback == nullptr);
 	SyncCallback = new FAJACallback(this);
 
-	const int32 DeviceIndex = bUseDedicatedPin ? LTCConfiguration.Device.DeviceIdentifier : VideoConfiguration.MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
+	const int32 DeviceIndex = bUseDedicatedPin ? LTCConfiguration.Device.DeviceIdentifier : TimecodeConfiguration.MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
 	if (DeviceIndex == -1)
 	{ 
 		State = ETimecodeProviderSynchronizationState::Error;
@@ -247,13 +268,13 @@ bool UAjaTimecodeProvider::Initialize_Internal(class UEngine* InEngine, AJA::AJA
 		InOptions.bReadTimecodeFromReferenceIn = false;
 		InOptions.LTCSourceIndex = 0;
 
-		InOptions.ChannelIndex = VideoConfiguration.MediaConfiguration.MediaConnection.PortIdentifier;
-		InOptions.VideoFormatIndex = VideoConfiguration.MediaConfiguration.MediaMode.DeviceModeIdentifier;
+		InOptions.ChannelIndex = TimecodeConfiguration.MediaConfiguration.MediaConnection.PortIdentifier;
+		InOptions.VideoFormatIndex = TimecodeConfiguration.MediaConfiguration.MediaMode.DeviceModeIdentifier;
 
 		InOptions.TransportType = AJA::ETransportType::TT_SdiSingle;
 		{
-			const EMediaIOTransportType TransportType = VideoConfiguration.MediaConfiguration.MediaConnection.TransportType;
-			const EMediaIOQuadLinkTransportType QuadTransportType = VideoConfiguration.MediaConfiguration.MediaConnection.QuadTransportType;
+			const EMediaIOTransportType TransportType = TimecodeConfiguration.MediaConfiguration.MediaConnection.TransportType;
+			const EMediaIOQuadLinkTransportType QuadTransportType = TimecodeConfiguration.MediaConfiguration.MediaConnection.QuadTransportType;
 			switch (TransportType)
 			{
 			case EMediaIOTransportType::SingleLink:
@@ -272,15 +293,15 @@ bool UAjaTimecodeProvider::Initialize_Internal(class UEngine* InEngine, AJA::AJA
 		}
 
 		InOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
-		switch (VideoConfiguration.TimecodeFormat)
+		switch (TimecodeConfiguration.TimecodeFormat)
 		{
-		case EMediaIOTimecodeFormat::None:
+		case EMediaIOAutoDetectableTimecodeFormat::None:
 			InOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
 			break;
-		case EMediaIOTimecodeFormat::LTC:
+		case EMediaIOAutoDetectableTimecodeFormat::LTC:
 			InOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_LTC;
 			break;
-		case EMediaIOTimecodeFormat::VITC:
+		case EMediaIOAutoDetectableTimecodeFormat::VITC:
 			InOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_VITC1;
 			break;
 		default:

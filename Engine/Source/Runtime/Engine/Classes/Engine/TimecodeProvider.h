@@ -99,4 +99,21 @@ public:
 
 	/** This Provider stopped being the Engine's Provider. */
 	virtual void Shutdown(class UEngine* InEngine) PURE_VIRTUAL(UTimecodeProvider::Shutdown, );
+
+	/** Whether this provider supports format autodetection. */
+	virtual bool SupportsAutoDetected() const
+	{
+		return false;
+	}
+	
+	/** Set the autodetected flag on this provider. */
+	virtual void SetIsAutoDetected(bool bInIsAutoDetected)
+	{
+	}
+	
+	/** Get whether this provider is currently using autodetection. */
+	virtual bool IsAutoDetected() const
+	{
+		return false;
+	}
 };

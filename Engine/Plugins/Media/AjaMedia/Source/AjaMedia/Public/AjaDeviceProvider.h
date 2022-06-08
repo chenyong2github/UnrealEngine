@@ -122,6 +122,7 @@ public:
 	virtual TArray<FMediaIOOutputConfiguration> GetOutputConfigurations() const override;
 	virtual TArray<FMediaIODevice> GetDevices() const override;
 	virtual TArray<FMediaIOMode> GetModes(const FMediaIODevice& InDevice, bool bInOutput) const override;
+	virtual TArray<FMediaIOVideoTimecodeConfiguration> GetTimecodeConfigurations() const override;
 	TArray<FAjaMediaTimecodeConfiguration> GetTimecodeConfiguration() const;
 	TArray<FAjaMediaTimecodeReference> GetTimecodeReferences() const;
 
@@ -129,6 +130,7 @@ public:
 	virtual FMediaIOMode GetDefaultMode() const override;
 	virtual FMediaIOInputConfiguration GetDefaultInputConfiguration() const override;
 	virtual FMediaIOOutputConfiguration GetDefaultOutputConfiguration() const override;
+	virtual FMediaIOVideoTimecodeConfiguration GetDefaultTimecodeConfiguration() const override;
 
 private:
 	TUniquePtr<FAJAAutoDetectChannelCallback> AutoDetectCallback;
