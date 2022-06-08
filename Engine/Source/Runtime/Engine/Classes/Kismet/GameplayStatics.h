@@ -34,7 +34,7 @@ class USoundBase;
 class USoundConcurrency;
 class UStaticMesh;
 class FMemoryReader;
-
+class APlayerController;
 struct FDialogueContext;
 
 
@@ -226,6 +226,14 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	static class APlayerController* GetPlayerControllerFromID(const UObject* WorldContextObject, int32 ControllerID);
 
 	/** 
+	 * Returns the player controller with the specified physical controller ID. This only works for local players.
+	 *
+	 * @param ControllerID	Physical controller ID, the same value returned from Get Player Controller ID
+	 */
+	UFUNCTION(BlueprintPure, Category="Game", meta=(DisplayName="Get Local Player Controller From Platform User", WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
+	static APlayerController* GetPlayerControllerFromPlatformUser(const UObject* WorldContextObject, FPlatformUserId UserId);
+
+	/** 
 	 * Create a new local player for this game, for cases like local multiplayer.
 	 *
 	 * @param ControllerId             The ID of the physical controller that the should control the newly created player. A value of -1 specifies to use the next available ID
@@ -234,6 +242,16 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game", meta = (DisplayName="Create Local Player", WorldContext = "WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true"))
 	static class APlayerController* CreatePlayer(const UObject* WorldContextObject, int32 ControllerId = -1, bool bSpawnPlayerController = true);
+	
+	/** 
+	 * Create a new local player for this game, for cases like local multiplayer.
+	 *
+	 * @param UserId             	   The platform user id that should control the newly created player. A valude of PLATFRMUSERID_NONE specifies to use the next available ID	
+	 * @param bSpawnPlayerController   Whether a player controller should be spawned immediately for this player. If false a player controller will not be created automatically until transition to the next map.
+	 * @return                         The created player controller if one is created.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Game", meta = (AutoCreateRefTerm="UserId", DisplayName="Create Local Player For Platform User", WorldContext = "WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true"))
+	static class APlayerController* CreatePlayerFromPlatformUser(const UObject* WorldContextObject, FPlatformUserId UserId, bool bSpawnPlayerController = true);
 
 	/** 
 	 * Removes a local player from this game.
@@ -254,6 +272,15 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	static int32 GetPlayerControllerID(APlayerController* Player);
 
 	/**
+	 * Gets what Platform User Id a player is using. This only works for local player controllers.
+	 *
+	 * @param Player	The player controller of the player to get the ID of
+	 * @return			The Platform User Id of the passed in player. PLATFORMUSERID_NONE if there is no physical controller assigned to the passed in player
+	 */
+	UFUNCTION(BlueprintPure, Category="Game", meta=(DisplayName="Get Local Player Platform User Id", UnsafeDuringActorConstruction="true"))
+	static FPlatformUserId GetPlayerPlatformUserId(const APlayerController* PlayerController);
+
+	/**
 	 * Sets what physical controller ID a player should be using. This only works for local player controllers.
 	 *
 	 * @param Player			The player controller of the player to change the controller ID of
@@ -261,6 +288,15 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game", meta=(DisplayName="Set Local Player Controller ID",UnsafeDuringActorConstruction="true"))
 	static void SetPlayerControllerID(APlayerController* Player, int32 ControllerId);
+	
+	/**
+	 * Sets what platform user id a player should be using. This only works for local player controllers.
+	 *
+	 * @param Player			The player controller of the player to change the platform user of
+	 * @param PlatformUserId	The platform user id to assign this player
+	 */
+	UFUNCTION(BlueprintCallable, Category="Game", meta=(DisplayName="Set Local Player Controller Platform User Id",UnsafeDuringActorConstruction="true"))
+	static void SetPlayerPlatformUserId(APlayerController* PlayerController, FPlatformUserId UserId);
 
 	// --- Level Streaming functions ------------------------
 	

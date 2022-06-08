@@ -362,15 +362,20 @@ class APlayerController* UGameplayStatics::GetPlayerController(const UObject* Wo
 	return nullptr;
 }
 
-class APlayerController* UGameplayStatics::GetPlayerControllerFromID(const UObject* WorldContextObject, int32 ControllerID)
+APlayerController* UGameplayStatics::GetPlayerControllerFromID(const UObject* WorldContextObject, int32 ControllerID)
+{
+	return GetPlayerControllerFromPlatformUser(WorldContextObject, FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerID));
+}
+
+APlayerController* UGameplayStatics::GetPlayerControllerFromPlatformUser(const UObject* WorldContextObject, FPlatformUserId UserId)
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 		{
 			APlayerController* PlayerController = Iterator->Get();
-			int32 PlayerControllerID = GetPlayerControllerID(PlayerController);
-			if (PlayerControllerID != INDEX_NONE && PlayerControllerID == ControllerID)
+			FPlatformUserId PlayerControllerUserID = GetPlayerPlatformUserId(PlayerController);
+			if (PlayerControllerUserID.IsValid() && PlayerControllerUserID == UserId)
 			{
 				return PlayerController;
 			}
@@ -399,10 +404,15 @@ APlayerCameraManager* UGameplayStatics::GetPlayerCameraManager(const UObject* Wo
 
 APlayerController* UGameplayStatics::CreatePlayer(const UObject* WorldContextObject, int32 ControllerId, bool bSpawnPlayerController)
 {
+	return CreatePlayerFromPlatformUser(WorldContextObject, FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerId), bSpawnPlayerController);
+}
+
+APlayerController* UGameplayStatics::CreatePlayerFromPlatformUser(const UObject* WorldContextObject, FPlatformUserId UserId, bool bSpawnPlayerController)
+{
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	FString Error;
 
-	ULocalPlayer* LocalPlayer = World ? World->GetGameInstance()->CreateLocalPlayer(ControllerId, Error, bSpawnPlayerController) : nullptr;
+	ULocalPlayer* LocalPlayer = World ? World->GetGameInstance()->CreateLocalPlayer(UserId, Error, bSpawnPlayerController) : nullptr;
 
 	if (Error.Len() > 0)
 	{
@@ -432,24 +442,35 @@ void UGameplayStatics::RemovePlayer(APlayerController* PlayerController, bool bD
 
 int32 UGameplayStatics::GetPlayerControllerID(APlayerController* PlayerController)
 {
+	FPlatformUserId UserID = GetPlayerPlatformUserId(PlayerController);
+	return FGenericPlatformMisc::GetUserIndexForPlatformUser(UserID);
+}
+
+FPlatformUserId UGameplayStatics::GetPlayerPlatformUserId(const APlayerController* PlayerController)
+{
 	if (PlayerController)
 	{
-		if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
+		if (const ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
 		{
-			return LocalPlayer->GetControllerId();
+			return LocalPlayer->GetPlatformUserId();
 		}
 	}
 
-	return INDEX_NONE;
+	return PLATFORMUSERID_NONE;
 }
 
 void UGameplayStatics::SetPlayerControllerID(APlayerController* PlayerController, int32 ControllerId)
+{
+	SetPlayerPlatformUserId(PlayerController, FPlatformMisc::GetPlatformUserForUserIndex(ControllerId));
+}
+
+void UGameplayStatics::SetPlayerPlatformUserId(APlayerController* PlayerController, FPlatformUserId UserId)
 {
 	if (PlayerController)
 	{
 		if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
 		{
-			LocalPlayer->SetControllerId(ControllerId);
+			LocalPlayer->SetPlatformUserId(UserId);
 		}
 	}
 }
