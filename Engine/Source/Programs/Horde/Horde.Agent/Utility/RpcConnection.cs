@@ -342,6 +342,7 @@ namespace Horde.Agent.Utility
 		};
 
 		private readonly Func<GrpcChannel> _createGrpcChannel;
+		private readonly Func<GrpcChannel, HordeRpc.HordeRpcClient> _createHordeRpcClient;
 		private readonly TaskCompletionSource<bool> _stoppingTaskSource = new TaskCompletionSource<bool>();
 		private TaskCompletionSource<RpcSubConnection> _subConnectionTaskSource = new TaskCompletionSource<RpcSubConnection>();
 		private Task? _backgroundTask;
@@ -351,10 +352,12 @@ namespace Horde.Agent.Utility
 		/// Constructor
 		/// </summary>
 		/// <param name="createGrpcChannel">Factory method for creating new GRPC channels</param>
+		/// <param name="createHordeRpcClient">Factory method for creating new Horde.Rpc clients</param>
 		/// <param name="logger">Logger instance</param>
-		public RpcConnection(Func<GrpcChannel> createGrpcChannel, ILogger logger)
+		public RpcConnection(Func<GrpcChannel> createGrpcChannel, Func<GrpcChannel, HordeRpc.HordeRpcClient> createHordeRpcClient, ILogger logger)
 		{
 			_createGrpcChannel = createGrpcChannel;
+			_createHordeRpcClient = createHordeRpcClient;
 			_logger = logger;
 
 			_backgroundTask = Task.Run(() => ExecuteAsync());
@@ -624,7 +627,7 @@ namespace Horde.Agent.Utility
 		{
 			using (GrpcChannel channel = _createGrpcChannel())
 			{
-				HordeRpc.HordeRpcClient client = new HordeRpc.HordeRpcClient(channel);//.Intercept(new ClientTracingInterceptor(GlobalTracer.Instance)));
+				HordeRpc.HordeRpcClient client = _createHordeRpcClient(channel);
 
 				RpcSubConnection? subConnection = null;
 				try
@@ -737,9 +740,9 @@ namespace Horde.Agent.Utility
 			}
 		}
 
-		public static IRpcConnection Create(Func<GrpcChannel> createGrpcChannel, ILogger logger)
+		public static IRpcConnection Create(Func<GrpcChannel> createGrpcChannel, Func<GrpcChannel, HordeRpc.HordeRpcClient> createHordeRpcClient, ILogger logger)
 		{
-			return new RpcConnection(createGrpcChannel, logger);
+			return new RpcConnection(createGrpcChannel, createHordeRpcClient, logger);
 		}
 	}
 }

@@ -6,6 +6,10 @@ using System.Linq;
 using Google.Protobuf;
 using Google.Protobuf.Collections;
 
+// These partial classes/extensions operate on generated gRPC and Protobuf code.
+// Warnings below are disabled to avoid documenting every class touched.
+#pragma warning disable CS1591
+#pragma warning disable CA1716
 namespace HordeCommon.Rpc
 {
 	partial class Property
@@ -181,3 +185,5 @@ namespace HordeCommon.Rpc
 		}
 	}
 }
+#pragma warning restore CA1716
+#pragma warning restore CS1591

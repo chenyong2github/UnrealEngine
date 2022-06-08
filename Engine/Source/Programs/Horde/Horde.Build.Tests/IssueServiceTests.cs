@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+extern alias HordeAgent;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,8 +9,8 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Agent.Parser;
-using Horde.Agent.Utility;
+using HordeAgent.Horde.Agent.Parser;
+using HordeAgent.Horde.Agent.Utility;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs;
 using Horde.Build.Issues;

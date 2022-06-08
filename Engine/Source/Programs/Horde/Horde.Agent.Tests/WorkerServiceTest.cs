@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using Grpc.Net.Client;
 using Horde.Agent.Execution.Interfaces;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
@@ -13,9 +17,9 @@ using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
 
 namespace Horde.Agent.Tests
 {
@@ -23,14 +27,24 @@ namespace Horde.Agent.Tests
 	public class WorkerServiceTest
 	{
 		private readonly ILogger<WorkerService> _workerLogger;
+		private readonly ILogger<GrpcService> _grpcServiceLogger;
+		private readonly ILogger<FakeHordeRpcServer> _hordeRpcServerLogger;
 
 		public WorkerServiceTest()
 		{
-			_workerLogger = NullLogger<WorkerService>.Instance;
+			using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+			{
+				builder.AddConsole(consoleLoggerOptions => consoleLoggerOptions.TimestampFormat = "[HH:mm:ss] ");
+			});
+
+			_workerLogger = loggerFactory.CreateLogger<WorkerService>();
+			_grpcServiceLogger = loggerFactory.CreateLogger<GrpcService>();
+			_hordeRpcServerLogger = loggerFactory.CreateLogger<FakeHordeRpcServer>();
 		}
 
 		private WorkerService GetWorkerService(
-			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null)
+			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null,
+			Func<GrpcChannel, HordeRpc.HordeRpcClient>? createHordeRpcClient = null)
 		{
 			AgentSettings settings = new AgentSettings();
 			ServerProfile profile = new ServerProfile();
@@ -44,7 +58,10 @@ namespace Horde.Agent.Tests
 			settings.Executor = ExecutorType.Test; // Not really used since the executor is overridden in the tests
 			IOptions<AgentSettings> settingsMonitor = new TestOptionsMonitor<AgentSettings>(settings);
 
-			return new WorkerService(_workerLogger, settingsMonitor, null!, null!, createExecutor);
+			GrpcService grpcService = new (settingsMonitor, _grpcServiceLogger);
+			WorkerService ws = new (_workerLogger, settingsMonitor, grpcService, null!, createExecutor, createHordeRpcClient);
+			ws._rpcConnectionRetryDelay = TimeSpan.FromSeconds(0.1);
+			return ws;
 		}
 
 		[TestMethod]
@@ -166,6 +183,243 @@ namespace Horde.Agent.Tests
 
 			await ws.PollForStepAbort(rpcConnection, "jobId1", "batchId1", "logId1", stepCancelSource, stepFinishedSource.Task, stepPollCancelSource.Token);
 			Assert.IsTrue(stepCancelSource.IsCancellationRequested);
+		}
+
+		[TestMethod]
+		public async Task Shutdown()
+		{
+			IExecutor executor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
+			{
+				await Task.Delay(50, cancellationToken);
+				return JobStepOutcome.Success;
+			});
+			
+			using CancellationTokenSource cts = new ();
+			cts.CancelAfter(20000);
+
+			FakeHordeRpcServer fakeServer = new("bogusServerName", _hordeRpcServerLogger, cts.Token);
+			using WorkerService ws = GetWorkerService((a, b, c) => executor,(c) => fakeServer.GetClient());
+
+			Task handleSessionTask = ws.HandleSessionAsync(cts.Token);
+			await fakeServer.CreateSessionReceived.Task.WaitAsync(cts.Token);
+			await fakeServer.UpdateSessionReceived.Task.WaitAsync(cts.Token);
+			await ws.ShutdownAsync(_workerLogger);
+			await handleSessionTask; // Ensure it runs to completion and no exceptions are raised
+		}
+	}
+
+	/// <summary>
+	/// Fake implementation of a HordeRpc gRPC server.
+	/// Provides a corresponding gRPC client class that can be used with the WorkerService
+	/// to test client-server interactions.
+	/// </summary>
+	internal class FakeHordeRpcServer
+	{
+		private readonly string _serverName;
+		private bool _isStopping = false;
+		private List<Lease> _leases = new();
+		private readonly Mock<HordeRpc.HordeRpcClient> _mockClient;
+		private readonly ILogger<FakeHordeRpcServer> _logger;
+		public readonly TaskCompletionSource<bool> CreateSessionReceived = new();
+		public readonly TaskCompletionSource<bool> UpdateSessionReceived = new();
+
+		public FakeHordeRpcServer(string serverName,ILogger<FakeHordeRpcServer> logger, CancellationToken cancellationToken)
+		{
+			_serverName = serverName;
+			_mockClient = new (MockBehavior.Strict);
+			_logger = logger;
+
+			_mockClient
+				.Setup(m => m.CreateSessionAsync(It.IsAny<CreateSessionRequest>(), null, null, It.IsAny<CancellationToken>()))
+				.Returns<CreateSessionRequest, Metadata, DateTime?, CancellationToken>((request, metadata, expireTime, cancellationToken) => CreateAsyncUnaryCall(OnCreateSessionRequest(request)));
+			
+			_mockClient
+				.Setup(m => m.QueryServerStateV2(null, null, It.IsAny<CancellationToken>()))
+				.Returns(() => GetQueryServerStateCall(cancellationToken));
+			
+			_mockClient
+				.Setup(m => m.UpdateSession(null, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+				.Returns(() => GetUpdateSessionCall(cancellationToken));
+		}
+
+		public HordeRpc.HordeRpcClient GetClient()
+		{
+			return _mockClient.Object;
+		}
+
+		public CreateSessionResponse OnCreateSessionRequest(CreateSessionRequest request)
+		{
+			CreateSessionReceived.TrySetResult(true);
+			_logger.LogInformation("OnCreateSessionRequest: {Name} {Status}", request.Name, request.Status);
+			CreateSessionResponse response = new()
+			{
+				AgentId = "bogusAgentId",
+				Token = "bogusToken",
+				SessionId = "bogusSessionId",
+				ExpiryTime = Timestamp.FromDateTime(DateTime.UtcNow.AddHours(3)),
+			};
+
+			return response;
+		}
+
+		public AsyncDuplexStreamingCall<QueryServerStateRequest, QueryServerStateResponse> GetQueryServerStateCall(CancellationToken cancellationToken)
+		{
+			FakeAsyncStreamReader<QueryServerStateResponse> responseStream = new(cancellationToken);
+			FakeClientStreamWriter<QueryServerStateRequest> requestStream = new(onComplete: () =>
+			{
+				responseStream.Complete();
+				return Task.CompletedTask;
+			});
+
+			responseStream.Write(new QueryServerStateResponse { Name = _serverName, Stopping = _isStopping });
+			
+			return new (
+				requestStream,
+				responseStream,
+				Task.FromResult(new Metadata()),
+				() => Status.DefaultSuccess,
+				() => new Metadata(),
+				() => { /*isDisposed = true;*/ });
+		}
+		
+		public AsyncDuplexStreamingCall<UpdateSessionRequest, UpdateSessionResponse> GetUpdateSessionCall(CancellationToken cancellationToken)
+		{
+			FakeAsyncStreamReader<UpdateSessionResponse> responseStream = new(cancellationToken);
+			
+			async Task OnRequest(UpdateSessionRequest request)
+			{
+				UpdateSessionReceived.TrySetResult(true);
+				
+				// TODO: Handle updates of leases sent in request and verify session/agent IDs.
+				
+				_logger.LogInformation("OnUpdateSessionRequest: {AgentId} {SessionId} {Status}", request.AgentId, request.SessionId, request.Status);
+				await Task.Delay(1000, cancellationToken);
+				UpdateSessionResponse response = new () { ExpiryTime = Timestamp.FromDateTime(DateTime.UtcNow + TimeSpan.FromMinutes(120)) };
+				response.Leases.AddRange(_leases);
+				await responseStream.Write(response);
+			}
+			
+			FakeClientStreamWriter<UpdateSessionRequest> requestStream = new(OnRequest, () => {
+				responseStream.Complete();
+				return Task.CompletedTask;
+			});
+			
+			return new (
+				requestStream,
+				responseStream,
+				Task.FromResult(new Metadata()),
+				() => Status.DefaultSuccess,
+				() => new Metadata(),
+				() => { });
+		}
+		
+		public static AsyncUnaryCall<TResponse> CreateAsyncUnaryCall<TResponse>(TResponse response)
+		{
+			return new AsyncUnaryCall<TResponse>(
+				Task.FromResult(response),
+				Task.FromResult(new Metadata()),
+				() => Status.DefaultSuccess,
+				() => new Metadata(),
+				() => { });
+		}
+	}
+
+	/// <summary>
+	/// Fake stream reader used for testing gRPC clients
+	/// </summary>
+	/// <typeparam name="T">Message type reader will handle</typeparam>
+	internal class FakeAsyncStreamReader<T> : IAsyncStreamReader<T> where T : class
+	{
+		private readonly Channel<T> _channel = System.Threading.Channels.Channel.CreateUnbounded<T>();
+		private T? _current;
+		private CancellationToken? _cancellationTokenOverride;
+
+		public FakeAsyncStreamReader(CancellationToken? cancellationTokenOverride = null)
+		{
+			_cancellationTokenOverride = cancellationTokenOverride;
+		}
+
+		public Task Write(T message)
+		{
+			if (!_channel.Writer.TryWrite(message))
+			{
+				throw new InvalidOperationException("Unable to write message.");
+			}
+			
+			return Task.CompletedTask;
+		}
+
+		public void Complete()
+		{
+			_channel.Writer.Complete();
+		}
+		
+		/// <inheritdoc/>
+		public async Task<bool> MoveNext(CancellationToken cancellationToken)
+		{
+			if (_cancellationTokenOverride != null)
+			{
+				cancellationToken = _cancellationTokenOverride.Value;
+			}
+				
+			if (await _channel.Reader.WaitToReadAsync(cancellationToken))
+			{
+				if (_channel.Reader.TryRead(out T? message))
+				{
+					_current = message;
+					return true;
+				}
+			}
+
+			_current = null!;
+			return false;
+		}
+		
+		/// <inheritdoc/>
+		public T Current
+		{
+			get
+			{
+				if (_current == null)
+				{
+					throw new InvalidOperationException("No current element is available.");
+				}
+				return _current;
+			}
+		}
+	}
+	
+	/// <summary>
+	/// Fake stream writer used for testing gRPC clients
+	/// </summary>
+	/// <typeparam name="T">Message type writer will handle</typeparam>
+	internal class FakeClientStreamWriter<T> : IClientStreamWriter<T> where T : class
+	{
+		private readonly Func<T, Task>? _onWrite;
+		private readonly Func<Task>? _onComplete;
+		private bool _isCompleted;
+
+		public FakeClientStreamWriter(Func<T, Task>? onWrite = null, Func<Task>? onComplete = null)
+		{
+			_onWrite = onWrite;
+			_onComplete = onComplete;
+		}
+
+		/// <inheritdoc/>
+		public async Task WriteAsync(T message)
+		{
+			if (_isCompleted) throw new InvalidOperationException("Stream is marked as complete");
+			if (_onWrite != null) await _onWrite(message);
+		}
+
+		/// <inheritdoc/>
+		public WriteOptions? WriteOptions { get; set; }
+		
+		/// <inheritdoc/>
+		public async Task CompleteAsync()
+		{
+			_isCompleted = true;
+			if (_onComplete != null) await _onComplete();
 		}
 	}
 }

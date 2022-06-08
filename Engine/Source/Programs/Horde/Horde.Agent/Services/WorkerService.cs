@@ -209,15 +209,27 @@ namespace Horde.Agent.Services
 		int _updateSessionFailures;
 
 		/// <summary>
-		/// Function for creating a new executor. Primarily done this way to aid testing. 
+		/// Function for creating a new executor. Primarily to aid testing. 
 		/// </summary>
 		private readonly Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor> _createExecutor;
 
 		/// <summary>
+		/// Function for creating a new HordeRpcClient. Primarily to aid testing. 
+		/// </summary>
+		private readonly Func<GrpcChannel, HordeRpc.HordeRpcClient> _createHordeRpcClient;
+
+		/// <summary>
 		/// How often to poll the server checking if a step has been aborted
-		/// Exposed as internal to ease testing. 
+		/// Exposed as internal to ease testing.
 		/// </summary>
 		internal TimeSpan _stepAbortPollInterval = TimeSpan.FromSeconds(5);
+		
+		
+		/// <summary>
+		/// How long to wait before trying to reacquire a new connection
+		/// Exposed as internal to ease testing. Using a lower delay can speed up tests. 
+		/// </summary>
+		internal TimeSpan _rpcConnectionRetryDelay = TimeSpan.FromSeconds(5);
 
 		/// <summary>
 		/// Constructor. Registers with the server and starts accepting connections.
@@ -226,14 +238,18 @@ namespace Horde.Agent.Services
 		/// <param name="options">The current settings</param>
 		/// <param name="grpcService">Instance of the Grpc service</param>
 		/// <param name="storageClient">Instance of the storage client</param>
-		/// <param name="createExecutor"></param>
-		public WorkerService(ILogger<WorkerService> logger, IOptions<AgentSettings> options, GrpcService grpcService, IStorageClient storageClient, Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null)
+		/// <param name="createExecutor">Optional factory method for creating an executor</param>
+		/// <param name="createHordeRpcClient">Optional factory method for creating a HordeRpcClient</param>
+		public WorkerService(ILogger<WorkerService> logger, IOptions<AgentSettings> options, GrpcService grpcService, IStorageClient storageClient,
+			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null,
+			Func<GrpcChannel, HordeRpc.HordeRpcClient>? createHordeRpcClient = null)
 		{
 			_logger = logger;
 			_settings = options.Value;
 			_serverProfile = _settings.GetCurrentServerProfile();
 			_grpcService = grpcService;
 			_storageClient = storageClient;
+			_createHordeRpcClient = createHordeRpcClient ?? (channel => new HordeRpc.HordeRpcClient(channel));
 
 			if (_settings.WorkingDir == null)
 			{
@@ -290,7 +306,7 @@ namespace Horde.Agent.Services
 		/// Background task to cycle access tokens and update the state of the agent with the server.
 		/// </summary>
 		/// <param name="stoppingToken">Indicates that the service is trying to stop</param>
-		async Task ExecuteInnerAsync(CancellationToken stoppingToken)
+		internal async Task ExecuteInnerAsync(CancellationToken stoppingToken)
 		{
 			// Print the server info
 			_logger.LogInformation("Server: {Server}", _serverProfile.Url);
@@ -424,7 +440,7 @@ namespace Horde.Agent.Services
 		/// </summary>
 		/// <param name="stoppingToken">Indicates that the service is trying to stop</param>
 		/// <returns>Async task</returns>
-		async Task HandleSessionAsync(CancellationToken stoppingToken)
+		internal async Task HandleSessionAsync(CancellationToken stoppingToken)
 		{
 			// Make sure there's only one instance of the agent running
 			using Mutex singleInstanceMutex = new Mutex(false, "Global\\HordeAgent-DB828ACB-0AA5-4D32-A62A-21D4429B1014");
@@ -469,7 +485,7 @@ namespace Horde.Agent.Services
 			CreateSessionResponse createSessionResponse;
 			using (GrpcChannel channel = _grpcService.CreateGrpcChannel(_serverProfile.Token))
 			{
-				HordeRpc.HordeRpcClient rpcClient = new HordeRpc.HordeRpcClient(channel);
+				HordeRpc.HordeRpcClient rpcClient = _createHordeRpcClient(channel);
 
 				// Create the session information
 				CreateSessionRequest sessionRequest = new CreateSessionRequest();
@@ -483,8 +499,10 @@ namespace Horde.Agent.Services
 				_logger.LogInformation("Session started ({SessionId})", createSessionResponse.SessionId);
 			}
 
+			Func<GrpcChannel> createGrpcChannel = () => _grpcService.CreateGrpcChannel(createSessionResponse.Token);
+			
 			// Open a connection to the server
-			await using (IRpcConnection rpcCon = RpcConnection.Create(() => _grpcService.CreateGrpcChannel(createSessionResponse.Token), _logger))
+			await using (IRpcConnection rpcCon = RpcConnection.Create(createGrpcChannel, _createHordeRpcClient, _logger))
 			{
 				// Track how many updates we get in 10 seconds. We'll start rate limiting this if it looks like we've got a problem that's causing us to spam the server.
 				Stopwatch updateTimer = Stopwatch.StartNew();
@@ -554,7 +572,8 @@ namespace Horde.Agent.Services
 						{
 							if (rpcClientRef == null)
 							{
-								await Task.WhenAny(Task.Delay(TimeSpan.FromSeconds(5.0), stoppingToken), waitTask);
+								// An RpcConnection has not yet been established, wait a period of time and try again
+								await Task.WhenAny(Task.Delay(_rpcConnectionRetryDelay, stoppingToken), waitTask);
 							}
 							else
 							{
@@ -1459,7 +1478,7 @@ namespace Horde.Agent.Services
 		/// </summary>
 		/// <param name="logger">Logging device</param>
 		/// <returns>Outcome of this operation</returns>
-		Task<LeaseResult> ShutdownAsync(ILogger logger)
+		internal Task<LeaseResult> ShutdownAsync(ILogger logger)
 		{
 			logger.LogInformation("Setting shutdown flag");
 			_requestShutdown = true;
