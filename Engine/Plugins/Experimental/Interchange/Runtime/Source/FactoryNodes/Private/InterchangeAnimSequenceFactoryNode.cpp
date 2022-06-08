@@ -18,8 +18,40 @@ namespace UE::Interchange::Animation
 	}
 }
 
+namespace UE::Interchange
+{
+	const FAttributeKey& FAnimSequenceNodeStaticData::GetAnimatedMorphTargetDependenciesKey()
+	{
+		static FAttributeKey AttributeKey(TEXT("__AnimatedMeshMorphTargetDependencies__"));
+		return AttributeKey;
+	}
+	
+	const FAttributeKey& FAnimSequenceNodeStaticData::GetAnimatedAttributeCurveNamesKey()
+	{
+		static FAttributeKey AttributeKey(TEXT("__AnimatedAttributeCurveNames__"));
+		return AttributeKey;
+	}
+	
+	const FAttributeKey& FAnimSequenceNodeStaticData::GetAnimatedAttributeStepCurveNamesKey()
+	{
+		static FAttributeKey AttributeKey(TEXT("__AnimatedAttributeStepCurveNames__"));
+		return AttributeKey;
+	}
+
+	const FAttributeKey& FAnimSequenceNodeStaticData::GetAnimatedMaterialCurveSuffixesKey()
+	{
+		static FAttributeKey AttributeKey(TEXT("__AnimatedMaterialCurveSuffixes__"));
+		return AttributeKey;
+	}
+}//ns UE::Interchange
+
+
 UInterchangeAnimSequenceFactoryNode::UInterchangeAnimSequenceFactoryNode()
 {
+	AnimatedMorphTargetDependencies.Initialize(Attributes, UE::Interchange::FAnimSequenceNodeStaticData::GetAnimatedMorphTargetDependenciesKey().ToString());
+	AnimatedAttributeCurveNames.Initialize(Attributes, UE::Interchange::FAnimSequenceNodeStaticData::GetAnimatedAttributeCurveNamesKey().ToString());
+	AnimatedAttributeStepCurveNames.Initialize(Attributes, UE::Interchange::FAnimSequenceNodeStaticData::GetAnimatedAttributeStepCurveNamesKey().ToString());
+	AnimatedMaterialCurveSuffixes.Initialize(Attributes, UE::Interchange::FAnimSequenceNodeStaticData::GetAnimatedMaterialCurveSuffixesKey().ToString());
 }
 
 void UInterchangeAnimSequenceFactoryNode::InitializeAnimSequenceNode(const FString& UniqueID, const FString& DisplayLabel)
@@ -106,6 +138,46 @@ bool UInterchangeAnimSequenceFactoryNode::SetCustomImportBoneTracksRangeStop(con
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ImportBoneTracksRangeStop, double);
 }
 
+bool UInterchangeAnimSequenceFactoryNode::GetCustomImportAttributeCurves(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ImportAttributeCurves, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetCustomImportAttributeCurves(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ImportAttributeCurves, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::GetCustomDoNotImportCurveWithZero(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(DoNotImportCurveWithZero, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetCustomDoNotImportCurveWithZero(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(DoNotImportCurveWithZero, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::GetCustomRemoveCurveRedundantKeys(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(RemoveCurveRedundantKeys, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetCustomRemoveCurveRedundantKeys(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(RemoveCurveRedundantKeys, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::GetCustomDeleteExistingMorphTargetCurves(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(DeleteExistingMorphTargetCurves, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetCustomDeleteExistingMorphTargetCurves(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(DeleteExistingMorphTargetCurves, bool);
+}
+
 bool UInterchangeAnimSequenceFactoryNode::GetCustomSkeletonSoftObjectPath(FSoftObjectPath& AttributeValue) const
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(SkeletonSoftObjectPath, FSoftObjectPath)
@@ -114,6 +186,139 @@ bool UInterchangeAnimSequenceFactoryNode::GetCustomSkeletonSoftObjectPath(FSoftO
 bool UInterchangeAnimSequenceFactoryNode::SetCustomSkeletonSoftObjectPath(const FSoftObjectPath& AttributeValue)
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletonSoftObjectPath, FSoftObjectPath)
+}
+
+int32 UInterchangeAnimSequenceFactoryNode::GetAnimatedMorphTargetDependeciesCount() const
+{
+	return AnimatedMorphTargetDependencies.GetCount();
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetAnimatedMorphTargetDependencies(TArray<FString>& OutDependencies) const
+{
+	AnimatedMorphTargetDependencies.GetItems(OutDependencies);
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetAnimatedMorphTargetDependency(const int32 Index, FString& OutDependency) const
+{
+	AnimatedMorphTargetDependencies.GetItem(Index, OutDependency);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetAnimatedMorphTargetDependencyUid(const FString& DependencyUid)
+{
+	return AnimatedMorphTargetDependencies.AddItem(DependencyUid);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::RemoveAnimatedMorphTargetDependencyUid(const FString& DependencyUid)
+{
+	return AnimatedMorphTargetDependencies.RemoveItem(DependencyUid);
+}
+
+
+int32 UInterchangeAnimSequenceFactoryNode::GetAnimatedAttributeCurveNamesCount() const
+{
+	return AnimatedAttributeCurveNames.GetCount();
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetAnimatedAttributeCurveNames(TArray<FString>& OutAttributeCurveNames) const
+{
+	AnimatedAttributeCurveNames.GetItems(OutAttributeCurveNames);
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetAnimatedAttributeCurveName(const int32 Index, FString& OutAttributeCurveName) const
+{
+	AnimatedAttributeCurveNames.GetItem(Index, OutAttributeCurveName);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetAnimatedAttributeCurveName(const FString& AttributeCurveName)
+{
+	return AnimatedAttributeCurveNames.AddItem(AttributeCurveName);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::RemoveAnimatedAttributeCurveName(const FString& AttributeCurveName)
+{
+	return AnimatedAttributeCurveNames.RemoveItem(AttributeCurveName);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::GetCustomMaterialDriveParameterOnCustomAttribute(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(MaterialDriveParameterOnCustomAttribute, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetCustomMaterialDriveParameterOnCustomAttribute(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(MaterialDriveParameterOnCustomAttribute, bool);
+}
+
+int32 UInterchangeAnimSequenceFactoryNode::GetAnimatedMaterialCurveSuffixesCount() const
+{
+	return AnimatedMaterialCurveSuffixes.GetCount();
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetAnimatedMaterialCurveSuffixes(TArray<FString>& OutMaterialCurveSuffixes) const
+{
+	AnimatedMaterialCurveSuffixes.GetItems(OutMaterialCurveSuffixes);
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetAnimatedMaterialCurveSuffixe(const int32 Index, FString& OutMaterialCurveSuffixe) const
+{
+	AnimatedMaterialCurveSuffixes.GetItem(Index, OutMaterialCurveSuffixe);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetAnimatedMaterialCurveSuffixe(const FString& MaterialCurveSuffixe)
+{
+	return AnimatedMaterialCurveSuffixes.AddItem(MaterialCurveSuffixe);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::RemoveAnimatedMaterialCurveSuffixe(const FString& MaterialCurveSuffixe)
+{
+	return AnimatedMaterialCurveSuffixes.RemoveItem(MaterialCurveSuffixe);
+}
+
+
+int32 UInterchangeAnimSequenceFactoryNode::GetAnimatedAttributeStepCurveNamesCount() const
+{
+	return AnimatedAttributeStepCurveNames.GetCount();
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetAnimatedAttributeStepCurveNames(TArray<FString>& OutAttributeStepCurveNames) const
+{
+	AnimatedAttributeStepCurveNames.GetItems(OutAttributeStepCurveNames);
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetAnimatedAttributeStepCurveName(const int32 Index, FString& OutAttributeStepCurveName) const
+{
+	AnimatedAttributeStepCurveNames.GetItem(Index, OutAttributeStepCurveName);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetAnimatedAttributeStepCurveName(const FString& AttributeStepCurveName)
+{
+	return AnimatedAttributeStepCurveNames.AddItem(AttributeStepCurveName);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::RemoveAnimatedAttributeStepCurveName(const FString& AttributeStepCurveName)
+{
+	return AnimatedAttributeStepCurveNames.RemoveItem(AttributeStepCurveName);
+}
+
+
+bool UInterchangeAnimSequenceFactoryNode::GetCustomDeleteExistingCustomAttributeCurves(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(DeleteExistingCustomAttributeCurves, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetCustomDeleteExistingCustomAttributeCurves(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(DeleteExistingCustomAttributeCurves, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::GetCustomDeleteExistingNonCurveCustomAttributes(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(DeleteExistingNonCurveCustomAttributes, bool);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetCustomDeleteExistingNonCurveCustomAttributes(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(DeleteExistingNonCurveCustomAttributes, bool);
 }
 
 /************************************************************************/

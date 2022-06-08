@@ -32,7 +32,7 @@ namespace UE
 			class FFbxParser
 			{
 			public:
-				explicit FFbxParser(UInterchangeResultsContainer* InResultsContainer)
+				explicit FFbxParser(TWeakObjectPtr<UInterchangeResultsContainer> InResultsContainer)
 					: ResultsContainer(InResultsContainer)
 				{}
 
@@ -55,7 +55,7 @@ namespace UE
 				template <typename T>
 				T* AddMessage() const
 				{
-					check(ResultsContainer != nullptr);
+					check(ResultsContainer.IsValid());
 					T* Item = ResultsContainer->Add<T>();
 					Item->SourceAssetName = SourceFilename;
 					return Item;
@@ -64,7 +64,7 @@ namespace UE
 
 				void AddMessage(UInterchangeResult* Item) const
 				{
-					check(ResultsContainer != nullptr);
+					check(ResultsContainer.IsValid());
 					ResultsContainer->Add(Item);
 					Item->SourceAssetName = SourceFilename;
 				}
@@ -79,7 +79,7 @@ namespace UE
 
 				void CleanupFbxData();
 
-				UInterchangeResultsContainer* ResultsContainer;
+				TWeakObjectPtr<UInterchangeResultsContainer> ResultsContainer;
 				FbxManager* SDKManager = nullptr;
 				FbxScene* SDKScene = nullptr;
 				FbxImporter* SDKImporter = nullptr;

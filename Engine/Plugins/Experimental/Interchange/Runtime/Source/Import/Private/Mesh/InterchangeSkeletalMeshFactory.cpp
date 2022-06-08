@@ -53,98 +53,98 @@ namespace UE
 				FString TranslatorPayloadKey;
 			};
 
-			void FillBlendShapeMeshDescriptionsPerBlendShapeName(const FMeshNodeContext& MeshNodeContext
-																 , TMap<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>& BlendShapeMeshDescriptionsPerBlendShapeName
+			void FillMorphTargetMeshDescriptionsPerMorphTargetName(const FMeshNodeContext& MeshNodeContext
+																 , TMap<FString, TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>& MorphTargetMeshDescriptionsPerMorphTargetName
 																 , const IInterchangeSkeletalMeshPayloadInterface* SkeletalMeshTranslatorPayloadInterface
 																 , const int32 VertexOffset
 																 , const UInterchangeBaseNodeContainer* NodeContainer
 																 , FString AssetName)
 			{
-				TArray<FString> BlendShapeUids;
-				MeshNodeContext.MeshNode->GetShapeDependencies(BlendShapeUids);
-				TMap<FString, TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>> TempBlendShapeMeshDescriptionsPerBlendShapeName;
-				TempBlendShapeMeshDescriptionsPerBlendShapeName.Reserve(BlendShapeUids.Num());
-				for (const FString& BlendShapeUid : BlendShapeUids)
+				TArray<FString> MorphTargetUids;
+				MeshNodeContext.MeshNode->GetMorphTargetDependencies(MorphTargetUids);
+				TMap<FString, TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>> TempMorphTargetMeshDescriptionsPerMorphTargetName;
+				TempMorphTargetMeshDescriptionsPerMorphTargetName.Reserve(MorphTargetUids.Num());
+				for (const FString& MorphTargetUid : MorphTargetUids)
 				{
-					if (const UInterchangeMeshNode* BlendShapeMeshNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(BlendShapeUid)))
+					if (const UInterchangeMeshNode* MorphTargetMeshNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetUid)))
 					{
-						TOptional<FString> BlendShapePayloadKey = BlendShapeMeshNode->GetPayLoadKey();
-						if (!BlendShapePayloadKey.IsSet())
+						TOptional<FString> MorphTargetPayloadKey = MorphTargetMeshNode->GetPayLoadKey();
+						if (!MorphTargetPayloadKey.IsSet())
 						{
 							UE_LOG(LogInterchangeImport, Warning, TEXT("Empty LOD morph target mesh reference payload when importing SkeletalMesh asset %s"), *AssetName);
 							continue;
 						}
-						const FString PayloadKey = BlendShapePayloadKey.GetValue();
+						const FString PayloadKey = MorphTargetPayloadKey.GetValue();
 						//Add the map entry key, the translator will be call after to bulk get all the needed payload
-						TempBlendShapeMeshDescriptionsPerBlendShapeName.Add(PayloadKey, SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshBlendShapePayloadData(PayloadKey));
+						TempMorphTargetMeshDescriptionsPerMorphTargetName.Add(PayloadKey, SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshMorphTargetPayloadData(PayloadKey));
 					}
 				}
 
-				for (const FString& BlendShapeUid : BlendShapeUids)
+				for (const FString& MorphTargetUid : MorphTargetUids)
 				{
-					if (const UInterchangeMeshNode* BlendShapeMeshNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(BlendShapeUid)))
+					if (const UInterchangeMeshNode* MorphTargetMeshNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(MorphTargetUid)))
 					{
 						
-						TOptional<FString> BlendShapePayloadKey = BlendShapeMeshNode->GetPayLoadKey();
-						if (!BlendShapePayloadKey.IsSet())
+						TOptional<FString> MorphTargetPayloadKey = MorphTargetMeshNode->GetPayLoadKey();
+						if (!MorphTargetPayloadKey.IsSet())
 						{
 							continue;
 						}
-						const FString& BlendShapePayloadKeyString = BlendShapePayloadKey.GetValue();
-						if (!ensure(TempBlendShapeMeshDescriptionsPerBlendShapeName.Contains(BlendShapePayloadKeyString)))
+						const FString& MorphTargetPayloadKeyString = MorphTargetPayloadKey.GetValue();
+						if (!ensure(TempMorphTargetMeshDescriptionsPerMorphTargetName.Contains(MorphTargetPayloadKeyString)))
 						{
 							continue;
 						}
 
-						TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData> BlendShapeMeshPayload = TempBlendShapeMeshDescriptionsPerBlendShapeName.FindChecked(BlendShapePayloadKeyString).Get();
-						if (!BlendShapeMeshPayload.IsSet())
+						TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData> MorphTargetMeshPayload = TempMorphTargetMeshDescriptionsPerMorphTargetName.FindChecked(MorphTargetPayloadKeyString).Get();
+						if (!MorphTargetMeshPayload.IsSet())
 						{
-							UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeletal mesh morph target payload key [%s] SkeletalMesh asset %s"), *BlendShapePayloadKeyString, *AssetName);
+							UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeletal mesh morph target payload key [%s] SkeletalMesh asset %s"), *MorphTargetPayloadKeyString, *AssetName);
 							continue;
 						}
-						BlendShapeMeshPayload->VertexOffset = VertexOffset;
+						MorphTargetMeshPayload->VertexOffset = VertexOffset;
 						//Use the Mesh node parent bake transform
 						if (MeshNodeContext.SceneGlobalTransform.IsSet())
 						{
-							BlendShapeMeshPayload->GlobalTransform = MeshNodeContext.SceneGlobalTransform;
+							MorphTargetMeshPayload->GlobalTransform = MeshNodeContext.SceneGlobalTransform;
 						}
 						else
 						{
-							BlendShapeMeshPayload->GlobalTransform.Reset();
+							MorphTargetMeshPayload->GlobalTransform.Reset();
 						}
 
-						if (!BlendShapeMeshNode->GetBlendShapeName(BlendShapeMeshPayload->BlendShapeName))
+						if (!MorphTargetMeshNode->GetMorphTargetName(MorphTargetMeshPayload->MorphTargetName))
 						{
-							BlendShapeMeshPayload->BlendShapeName = BlendShapePayloadKeyString;
+							MorphTargetMeshPayload->MorphTargetName = MorphTargetPayloadKeyString;
 						}
-						//Add the Blend shape to the blend shape map
-						BlendShapeMeshDescriptionsPerBlendShapeName.Add(BlendShapePayloadKeyString, BlendShapeMeshPayload);
+						//Add the morph target to the morph target map
+						MorphTargetMeshDescriptionsPerMorphTargetName.Add(MorphTargetPayloadKeyString, MorphTargetMeshPayload);
 					}
 				}
 			}
 
-			void CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(const TMap<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>& LodBlendShapeMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
+			void CopyMorphTargetsMeshDescriptionToSkeletalMeshImportData(const TMap<FString, TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>& LodMorphTargetMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
 			{
-				const int32 OriginalMorphTargetCount = LodBlendShapeMeshDescriptions.Num();
+				const int32 OriginalMorphTargetCount = LodMorphTargetMeshDescriptions.Num();
 				TArray<FString> Keys;
 				int32 MorphTargetCount = 0;
-				for (const TPair<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>& Pair : LodBlendShapeMeshDescriptions)
+				for (const TPair<FString, TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>& Pair : LodMorphTargetMeshDescriptions)
 				{
-					const FString BlendShapeName(Pair.Key);
-					const TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>& BlendShapePayloadData = Pair.Value;
-					if (!BlendShapePayloadData.IsSet())
+					const FString MorphTargetName(Pair.Key);
+					const TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>& MorphTargetPayloadData = Pair.Value;
+					if (!MorphTargetPayloadData.IsSet())
 					{
-						UE_LOG(LogInterchangeImport, Error, TEXT("Empty blend shape optional payload data [%s]"), *BlendShapeName);
+						UE_LOG(LogInterchangeImport, Error, TEXT("Empty morph target optional payload data [%s]"), *MorphTargetName);
 						continue;
 					}
 
-					const FMeshDescription& SourceMeshDescription = BlendShapePayloadData.GetValue().LodMeshDescription;
-					const int32 VertexOffset = BlendShapePayloadData->VertexOffset;
+					const FMeshDescription& SourceMeshDescription = MorphTargetPayloadData.GetValue().LodMeshDescription;
+					const int32 VertexOffset = MorphTargetPayloadData->VertexOffset;
 					const int32 SourceMeshVertexCount = SourceMeshDescription.Vertices().Num();
 					const int32 DestinationVertexIndexMax = VertexOffset + SourceMeshVertexCount;
 					if (!DestinationSkeletalMeshImportData.Points.IsValidIndex(DestinationVertexIndexMax-1))
 					{
-						UE_LOG(LogInterchangeImport, Error, TEXT("Corrupted blend shape optional payload data [%s]"), *BlendShapeName);
+						UE_LOG(LogInterchangeImport, Error, TEXT("Corrupted morph target optional payload data [%s]"), *MorphTargetName);
 						continue;
 					}
 					Keys.Add(Pair.Key);
@@ -171,7 +171,7 @@ namespace UE
 				ParallelFor(NumMorphGroup, [MorphTargetGroupSize,
 							MorphTargetCount,
 							NumMorphGroup,
-							&LodBlendShapeMeshDescriptions,
+							&LodMorphTargetMeshDescriptions,
 							&Keys,
 							&DestinationSkeletalMeshImportData](const int32 MorphTargetGroupIndex)
 				{
@@ -185,17 +185,17 @@ namespace UE
 							//Executing the last morph target group, in case we do not have a full last group.
 							break;
 						}
-						const FString BlendShapeKey(Keys[MorphTargetIndex]);
-						const TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>& BlendShapePayloadData = LodBlendShapeMeshDescriptions.FindChecked(BlendShapeKey);
-						if (!ensure(BlendShapePayloadData.IsSet()))
+						const FString MorphTargetKey(Keys[MorphTargetIndex]);
+						const TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>& MorphTargetPayloadData = LodMorphTargetMeshDescriptions.FindChecked(MorphTargetKey);
+						if (!ensure(MorphTargetPayloadData.IsSet()))
 						{
 							//This error was suppose to be catch in the pre parallel for loop
 							break;
 						}
 
-						const FMeshDescription& SourceMeshDescription = BlendShapePayloadData.GetValue().LodMeshDescription;
-						const FTransform GlobalTransform = BlendShapePayloadData->GlobalTransform.IsSet() ? BlendShapePayloadData->GlobalTransform.GetValue() : FTransform::Identity;
-						const int32 VertexOffset = BlendShapePayloadData->VertexOffset;
+						const FMeshDescription& SourceMeshDescription = MorphTargetPayloadData.GetValue().LodMeshDescription;
+						const FTransform GlobalTransform = MorphTargetPayloadData->GlobalTransform.IsSet() ? MorphTargetPayloadData->GlobalTransform.GetValue() : FTransform::Identity;
+						const int32 VertexOffset = MorphTargetPayloadData->VertexOffset;
 						const int32 SourceMeshVertexCount = SourceMeshDescription.Vertices().Num();
 						const int32 DestinationVertexIndexMax = VertexOffset + SourceMeshVertexCount;
 						if (!ensure(DestinationSkeletalMeshImportData.Points.IsValidIndex(DestinationVertexIndexMax-1)))
@@ -210,7 +210,7 @@ namespace UE
 
 						//Create the morph target source data
 						FString& MorphTargetName = DestinationSkeletalMeshImportData.MorphTargetNames[MorphTargetIndex];
-						MorphTargetName = BlendShapePayloadData->BlendShapeName;
+						MorphTargetName = MorphTargetPayloadData->MorphTargetName;
 						TSet<uint32>& ModifiedPoints = DestinationSkeletalMeshImportData.MorphTargetModifiedPoints[MorphTargetIndex];
 						FSkeletalMeshImportData& MorphTargetData = DestinationSkeletalMeshImportData.MorphTargets[MorphTargetIndex];
 
@@ -416,17 +416,17 @@ namespace UE
 				TMap<FString, TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>>> LodMeshPayloadPerTranslatorPayloadKey;
 				LodMeshPayloadPerTranslatorPayloadKey.Reserve(MeshReferences.Num());
 
-				TMap<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> BlendShapeMeshDescriptionsPerBlendShapeName;
-				int32 BlendShapeCount = 0;
+				TMap<FString, TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> MorphTargetMeshDescriptionsPerMorphTargetName;
+				int32 MorphTargetCount = 0;
 
 				for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
 				{
 					//Add the payload entry key, the payload data will be fill later in bulk by the translator
 					LodMeshPayloadPerTranslatorPayloadKey.Add(MeshNodeContext.TranslatorPayloadKey, SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshLodPayloadData(MeshNodeContext.TranslatorPayloadKey));
-					//Count the blend shape dependencies so we can reserve the right amount
-					BlendShapeCount += (bImportMorphTarget && MeshNodeContext.MeshNode) ? MeshNodeContext.MeshNode->GetShapeDependeciesCount() : 0;
+					//Count the morph target dependencies so we can reserve the right amount
+					MorphTargetCount += (bImportMorphTarget && MeshNodeContext.MeshNode) ? MeshNodeContext.MeshNode->GetMorphTargetDependeciesCount() : 0;
 				}
-				BlendShapeMeshDescriptionsPerBlendShapeName.Reserve(BlendShapeCount);
+				MorphTargetMeshDescriptionsPerMorphTargetName.Reserve(MorphTargetCount);
 
 				//Fill the lod mesh description using all combined mesh part
 				for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
@@ -527,8 +527,8 @@ namespace UE
 					}
 					if (bImportMorphTarget)
 					{
-						FillBlendShapeMeshDescriptionsPerBlendShapeName(MeshNodeContext
-																		, BlendShapeMeshDescriptionsPerBlendShapeName
+						FillMorphTargetMeshDescriptionsPerMorphTargetName(MeshNodeContext
+																		, MorphTargetMeshDescriptionsPerMorphTargetName
 																		, SkeletalMeshTranslatorPayloadInterface
 																		, VertexOffset
 																		, Arguments.NodeContainer
@@ -539,8 +539,8 @@ namespace UE
 				DestinationImportData = FSkeletalMeshImportData::CreateFromMeshDescription(LodMeshDescription);
 				DestinationImportData.RefBonesBinary = RefBonesBinary;
 
-				//Copy all the lod blend shapes data to the DestinationImportData.
-				CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(BlendShapeMeshDescriptionsPerBlendShapeName, DestinationImportData);
+				//Copy all the lod morph targets data to the DestinationImportData.
+				CopyMorphTargetsMeshDescriptionToSkeletalMeshImportData(MorphTargetMeshDescriptionsPerMorphTargetName, DestinationImportData);
 			}
 
 			void ProcessImportMeshInfluences(const int32 WedgeCount, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences)
@@ -1198,7 +1198,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		//Add the lod mesh data to the skeletalmesh
 		FSkeletalMeshImportData SkeletalMeshImportData;
 		const bool bSkinControlPointToTimeZero = bUseTimeZeroAsBindPose && bDiffPose;
-		//Get all meshes and blend shapes payload and fill the SkeletalMeshImportData structure
+		//Get all meshes and morph targets payload and fill the SkeletalMeshImportData structure
 		UE::Interchange::Private::RetrieveAllSkeletalMeshPayloadsAndFillImportData(SkeletalMeshFactoryNode
 																					, SkeletalMeshImportData
 																					, MeshReferences

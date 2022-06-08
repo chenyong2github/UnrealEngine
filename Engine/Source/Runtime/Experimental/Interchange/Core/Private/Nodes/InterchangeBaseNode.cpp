@@ -228,6 +228,16 @@ bool UInterchangeBaseNode::GetFloatAttribute(const FName& NodeAttributeKey, floa
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(float);
 }
 
+bool UInterchangeBaseNode::AddDoubleAttribute(const FName& NodeAttributeKey, const double& Value)
+{
+	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(double);
+}
+
+bool UInterchangeBaseNode::GetDoubleAttribute(const FName& NodeAttributeKey, double& OutValue) const
+{
+	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(double);
+}
+
 bool UInterchangeBaseNode::AddStringAttribute(const FName& NodeAttributeKey, const FString& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FString);

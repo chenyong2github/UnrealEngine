@@ -94,11 +94,11 @@ namespace UE
 				FbxGeometryConverter* SDKGeometryConverter = nullptr;
 			};
 
-			class FShapePayloadContext : public FPayloadContextBase
+			class FMorphTargetPayloadContext : public FPayloadContextBase
 			{
 			public:
-				virtual ~FShapePayloadContext() {}
-				virtual FString GetPayloadType() const override { return TEXT("Shape-PayloadContext"); }
+				virtual ~FMorphTargetPayloadContext() {}
+				virtual FString GetPayloadType() const override { return TEXT("MorphTarget-PayloadContext"); }
 				virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) override;
 				FbxShape* Shape = nullptr;
 				FbxScene* SDKScene = nullptr;

@@ -1,17 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "InterchangeGenericAnimationPipeline.h"
 
+#include "Animation/AnimationSettings.h"
 #include "CoreMinimal.h"
 #include "InterchangeAnimSequenceFactoryNode.h"
+#include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
 #include "InterchangeSceneNode.h"
 #include "InterchangeSkeletalMeshFactoryNode.h"
+#include "InterchangeSkeletalMeshLodDataNode.h"
 #include "InterchangeSkeletonFactoryNode.h"
 #include "InterchangeSkeletonHelper.h"
 #include "InterchangeSourceData.h"
+#include "Nodes/InterchangeAnimationAPI.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Nodes/InterchangeSourceNode.h"
+#include "Nodes/InterchangeUserDefinedAttribute.h"
 
 
 namespace UE::Interchange::Private
@@ -24,7 +29,7 @@ namespace UE::Interchange::Private
 		if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(NodeUid)))
 		{
 			bool bIsAnimated = false;
-			if (SceneNode->GetCustomIsNodeTransformAnimated(bIsAnimated) && bIsAnimated)
+			if (UInterchangeAnimationAPI::GetCustomIsNodeTransformAnimated(SceneNode, bIsAnimated) && bIsAnimated)
 			{
 				return true;
 			}
@@ -65,6 +70,12 @@ void UInterchangeGenericAnimationPipeline::AdjustSettingsForReimportType(EInterc
 
 void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
+	if (!bImportAnimations)
+	{
+		//Nothing to import
+		return;
+	}
+
 	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
 	if (!InBaseNodeContainer)
 	{
@@ -152,9 +163,9 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 				{
 					double SceneNodeAnimStart;
 					double SceneNodeAnimStop;
-					if (SceneNode->GetCustomNodeTransformAnimationStartTime(SceneNodeAnimStart))
+					if (UInterchangeAnimationAPI::GetCustomNodeTransformAnimationStartTime(SceneNode, SceneNodeAnimStart))
 					{
-						if (SceneNode->GetCustomNodeTransformAnimationEndTime(SceneNodeAnimStop))
+						if (UInterchangeAnimationAPI::GetCustomNodeTransformAnimationEndTime(SceneNode, SceneNodeAnimStop))
 						{
 							if (RangeStart > SceneNodeAnimStart)
 							{
@@ -172,24 +183,132 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 		}
 	}
 
+	//Retrieve all skeletons and all morph target anim data
+	TMap<UInterchangeSkeletonFactoryNode*, TArray<const UInterchangeMeshNode*>> MorphTargetsPerSkeletons;
 
-	//Retrieve all skeletons
-	TArray<UInterchangeSkeletonFactoryNode*> Skeletons;
-	BaseNodeContainer->IterateNodes([&Skeletons, LocalNodeContainer = BaseNodeContainer](const FString& NodeUid, UInterchangeBaseNode* Node)
+	BaseNodeContainer->IterateNodes([&MorphTargetsPerSkeletons, LocalNodeContainer = BaseNodeContainer](const FString& NodeUid, UInterchangeBaseNode* Node)
 		{
 			if (UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = Cast<UInterchangeSkeletonFactoryNode>(Node))
 			{
+				const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = nullptr;
+				//Iterate dependencies
+				TArray<FString> SkeletalMeshNodeUids;
+				LocalNodeContainer->GetNodes(UInterchangeSkeletalMeshFactoryNode::StaticClass(), SkeletalMeshNodeUids);
+				for (const FString& SkelMeshFactoryNodeUid : SkeletalMeshNodeUids)
+				{
+					if (const UInterchangeSkeletalMeshFactoryNode* CurrentSkeletalMeshFactoryNode = Cast<const UInterchangeSkeletalMeshFactoryNode>(LocalNodeContainer->GetFactoryNode(SkelMeshFactoryNodeUid)))
+					{
+						TArray<FString> SkeletalMeshDependencies;
+						CurrentSkeletalMeshFactoryNode->GetFactoryDependencies(SkeletalMeshDependencies);
+						for (const FString& SkeletalMeshDependencyUid : SkeletalMeshDependencies)
+						{
+							if (NodeUid.Equals(SkeletalMeshDependencyUid))
+							{
+								SkeletalMeshFactoryNode = CurrentSkeletalMeshFactoryNode;
+								break;
+							}
+						}
+					}
+				}
+
 				FString RootSceneNodeUid;
 				SkeletonFactoryNode->GetCustomRootJointUid(RootSceneNodeUid);
 				if(UE::Interchange::Private::IsSkeletonAnimatedRecursive(RootSceneNodeUid, LocalNodeContainer))
 				{
-					Skeletons.Add(SkeletonFactoryNode);
+					MorphTargetsPerSkeletons.FindOrAdd(SkeletonFactoryNode);
+				}
+				
+				if (SkeletalMeshFactoryNode)
+				{
+					//Find the skeletalmesh morph targets
+					FString SkeletalMeshFactoryNodeUid = SkeletalMeshFactoryNode->GetUniqueID();
+					//Get the LOD data factory node
+					TArray<FString> LodDataChildren;
+					SkeletalMeshFactoryNode->GetLodDataUniqueIds(LodDataChildren);
+					for (const FString& ChildUid : LodDataChildren)
+					{
+						if (const UInterchangeSkeletalMeshLodDataNode* LodData = Cast<UInterchangeSkeletalMeshLodDataNode>(LocalNodeContainer->GetNode(ChildUid)))
+						{
+							TArray<FString> MeshUids;
+							LodData->GetMeshUids(MeshUids);
+							for (const FString& MeshUid : MeshUids)
+							{
+								if (const UInterchangeBaseNode* BaseNode = LocalNodeContainer->GetNode(MeshUid))
+								{
+									const UInterchangeMeshNode* MeshNode = nullptr;
+									FString RealMeshUid;
+									if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNode))
+									{
+										SceneNode->GetCustomAssetInstanceUid(RealMeshUid);
+									}
+									else
+									{
+										RealMeshUid = MeshUid;
+									}
+									MeshNode = Cast<UInterchangeMeshNode>(LocalNodeContainer->GetNode(RealMeshUid));
+									if (MeshNode)
+									{
+										TArray<FString> MorphTargetUids;
+										MeshNode->GetMorphTargetDependencies(MorphTargetUids);
+										bool bIsMorphTargetAnimated = false;
+										TArray<const UInterchangeMeshNode*> MorphTargets;
+										for (const FString& MorphTargetUid : MorphTargetUids)
+										{
+											if (const UInterchangeMeshNode* MorphTargetNode = Cast<UInterchangeMeshNode>(LocalNodeContainer->GetNode(MorphTargetUid)))
+											{
+												MorphTargets.AddUnique(MorphTargetNode);
+												TOptional<FString> MorphTargetAnimationPayloadKey = MorphTargetNode->GetAnimationCurvePayLoadKey();
+												if (MorphTargetAnimationPayloadKey.IsSet())
+												{
+													bIsMorphTargetAnimated = true;
+												}
+											}
+										}
+										if (bIsMorphTargetAnimated)
+										{
+											TArray<const UInterchangeMeshNode*>& MorphTargetNodes = MorphTargetsPerSkeletons.FindOrAdd(SkeletonFactoryNode);
+											MorphTargetNodes.Reset(MorphTargets.Num());
+											MorphTargetNodes.Append(MorphTargets);
+										}
+									}
+								}
+							}
+						}
+					}
+					
+					//If we do not already create an anim sequence for this skeleton, add the anim sequence if we have
+					//at least one animated user defined attribute.
+					if (!MorphTargetsPerSkeletons.Contains(SkeletonFactoryNode))
+					{
+						//Add anim sequence if we have at least one animated user defined attributes
+						LocalNodeContainer->BreakableIterateNodeChildren(RootSceneNodeUid, [&MorphTargetsPerSkeletons, SkeletonFactoryNode](const UInterchangeBaseNode* Node)
+							{
+								if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Node))
+								{
+									TArray<FInterchangeUserDefinedAttributeInfo> AttributeInfos;
+									UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttributeInfos(SceneNode, AttributeInfos);
+									for (const FInterchangeUserDefinedAttributeInfo& AttributeInfo : AttributeInfos)
+									{
+										if (AttributeInfo.PayloadKey.IsSet())
+										{
+											MorphTargetsPerSkeletons.FindOrAdd(SkeletonFactoryNode);
+											return true;
+										}
+									}
+								}
+								return false;
+							});
+					}
 				}
 			}
 		});
+
+	const TArray<FString> CustomAttributeNamesToImport = UAnimationSettings::Get()->GetBoneCustomAttributeNamesToImport();
+
 	//for each animated skeleton create one anim sequence factory node
-	for (UInterchangeSkeletonFactoryNode* SkeletonFactoryNode : Skeletons)
+	for (const TPair<UInterchangeSkeletonFactoryNode*, TArray<const UInterchangeMeshNode*>>& SkeletonAndMorphTargets : MorphTargetsPerSkeletons)
 	{
+		UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = SkeletonAndMorphTargets.Key;
 		const FString AnimSequenceUid = TEXT("\\AnimSequence") + SkeletonFactoryNode->GetUniqueID();
 		FString AnimSequenceName = SkeletonFactoryNode->GetDisplayLabel();
 		if (AnimSequenceName.EndsWith(TEXT("_Skeleton")))
@@ -231,6 +350,28 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 			AnimSequenceFactoryNode->SetCustomImportBoneTracksRangeStop(RangeStop);
 		}
 
+		AnimSequenceFactoryNode->SetCustomImportAttributeCurves(bImportCustomAttribute);
+		AnimSequenceFactoryNode->SetCustomDoNotImportCurveWithZero(bDoNotImportCurveWithZero);
+		AnimSequenceFactoryNode->SetCustomRemoveCurveRedundantKeys(bRemoveCurveRedundantKeys);
+		AnimSequenceFactoryNode->SetCustomDeleteExistingMorphTargetCurves(bDeleteExistingMorphTargetCurves);
+		AnimSequenceFactoryNode->SetCustomDeleteExistingCustomAttributeCurves(bDeleteExistingCustomAttributeCurves);
+		AnimSequenceFactoryNode->SetCustomDeleteExistingNonCurveCustomAttributes(bDeleteExistingNonCurveCustomAttributes);
+
+		AnimSequenceFactoryNode->SetCustomMaterialDriveParameterOnCustomAttribute(bSetMaterialDriveParameterOnCustomAttribute);
+		for (const FString& MaterialSuffixe : MaterialCurveSuffixes)
+		{
+			AnimSequenceFactoryNode->SetAnimatedMaterialCurveSuffixe(MaterialSuffixe);
+		}
+
+		//Add the animated morph targets uid so the factory can import them
+		if (SkeletonAndMorphTargets.Value.Num() > 0)
+		{
+			for (const UInterchangeMeshNode* MorphTargetNode : SkeletonAndMorphTargets.Value)
+			{
+				AnimSequenceFactoryNode->SetAnimatedMorphTargetDependencyUid(MorphTargetNode->GetUniqueID());
+			}
+		}
+
 		//USkeleton cannot be created without a valid skeletalmesh
 		const FString SkeletonUid = SkeletonFactoryNode->GetUniqueID();
 		AnimSequenceFactoryNode->AddFactoryDependencyUid(SkeletonUid);
@@ -242,6 +383,45 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 			//Iterate all joints to set the meta data value in the anim sequence factory node
 			UE::Interchange::Private::FSkeletonHelper::RecursiveAddSkeletonMetaDataValues(BaseNodeContainer, AnimSequenceFactoryNode, RootJointUid);
 #endif //WITH_EDITOR
+			BaseNodeContainer->IterateNodeChildren(RootJointUid, [&AnimSequenceFactoryNode, &CustomAttributeNamesToImport](const UInterchangeBaseNode* Node)
+			{
+				if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Node))
+				{
+					FString BoneName = SceneNode->GetDisplayLabel();
+					bool bImportAllAttributesOnBone = UAnimationSettings::Get()->BoneNamesWithCustomAttributes.Contains(BoneName);
+						
+					TArray<FInterchangeUserDefinedAttributeInfo> AttributeInfos;
+					UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttributeInfos(SceneNode, AttributeInfos);
+					for (const FInterchangeUserDefinedAttributeInfo& AttributeInfo : AttributeInfos)
+					{
+						if (AttributeInfo.PayloadKey.IsSet())
+						{
+							bool bDecimalType = false;
+							switch (AttributeInfo.Type)
+							{
+							case UE::Interchange::EAttributeTypes::Float:
+							case UE::Interchange::EAttributeTypes::Float16:
+							case UE::Interchange::EAttributeTypes::Double:
+								{
+									bDecimalType = true;
+								}
+								break;
+							}
+
+							const bool bForceImportBoneCustomAttribute = CustomAttributeNamesToImport.Contains(AttributeInfo.Name);
+							//Material attribute curve
+							if (!bImportAllAttributesOnBone && bDecimalType && !bForceImportBoneCustomAttribute)
+							{
+								AnimSequenceFactoryNode->SetAnimatedAttributeCurveName(AttributeInfo.Name);
+							}
+							else if (bForceImportBoneCustomAttribute || bImportAllAttributesOnBone)
+							{
+								AnimSequenceFactoryNode->SetAnimatedAttributeStepCurveName(AttributeInfo.Name);
+							}
+						}
+					}
+				}
+			});
 		}
 
 		const bool bImportOnlyAnimation = CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations;

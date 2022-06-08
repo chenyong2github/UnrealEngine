@@ -16,7 +16,10 @@
 
 namespace UE::Interchange
 {
-
+	/**
+	 * This payload class is use to get a scene node bake transform payload
+	 * The translator should bake the scene node transform using the bake settings provide by the factory.
+	 */
 	struct INTERCHANGECOMMONPARSER_API FAnimationBakeTransformPayloadData
 	{
 		double BakeFrequency = 30.0;
@@ -24,31 +27,9 @@ namespace UE::Interchange
 		double RangeEndTime = 1.0 / BakeFrequency;
 		TArray<FTransform> Transforms;
 
-		void Serialize(FArchive& Ar)
-		{
-			Ar << BakeFrequency;
-			Ar << RangeStartTime;
-			Ar << RangeEndTime;
-			Ar << Transforms;
-		}
+		void Serialize(FArchive& Ar);
 	};
 }
-
-UENUM()
-enum class EInterchangeTransformCurveChannel
-{
-	TranslationX = 0,
-	TranslationY = 1,
-	TranslationZ = 2,
-	EulerX = 3,
-	EulerY = 4,
-	EulerZ = 5,
-	ScaleX = 6,
-	ScaleY = 7,
-	ScaleZ = 8,
-	TransformChannelCount = 9,
-	None
-};
 
 /** If using Cubic, this enum describes how the tangents should be controlled. */
 UENUM()
@@ -142,38 +123,23 @@ struct INTERCHANGECOMMONPARSER_API FInterchangeCurveKey
 	void ToRichCurveKey(FRichCurveKey& OutKey) const;
 #endif
 
-	void Serialize(FArchive& Ar)
-	{
-		Ar << InterpMode;
-		Ar << TangentMode;
-		Ar << TangentWeightMode;
-		Ar << Time;
-		Ar << Value;
-		Ar << ArriveTangent;
-		Ar << ArriveTangentWeight;
-		Ar << LeaveTangent;
-		Ar << LeaveTangentWeight;
-	}
+	void Serialize(FArchive& Ar);
 
-	friend FArchive& operator<<(FArchive& Ar, FInterchangeCurveKey& P)
+	friend FArchive& operator<<(FArchive& Ar, FInterchangeCurveKey& InterchangeCurveKey)
 	{
-		P.Serialize(Ar);
+		InterchangeCurveKey.Serialize(Ar);
 		return Ar;
 	}
 };
 
 /**
-* This struct contains only the key data, this is only used to pass animation data from translators to factories.
-* You cannot evaluate a curve with this struct.
+* This struct contains only the key data, this is only used to pass animation data from interchange worker process translators to factories.
 */
 USTRUCT()
 struct INTERCHANGECOMMONPARSER_API FInterchangeCurve
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	EInterchangeTransformCurveChannel TransformChannel = EInterchangeTransformCurveChannel::None;
-	
 	UPROPERTY()
 	TArray<FInterchangeCurveKey> Keys;
 
@@ -182,15 +148,40 @@ struct INTERCHANGECOMMONPARSER_API FInterchangeCurve
 	void ToRichCurve(FRichCurve& OutKey) const;
 #endif
 
-	void Serialize(FArchive& Ar)
-	{
-		Ar << TransformChannel;
-		Ar << Keys;
-	}
+	void Serialize(FArchive& Ar);
 
-	friend FArchive& operator<<(FArchive& Ar, FInterchangeCurve& P)
+	friend FArchive& operator<<(FArchive& Ar, FInterchangeCurve& InterchangeCurve)
 	{
-		P.Serialize(Ar);
+		InterchangeCurve.Serialize(Ar);
 		return Ar;
 	}
+};
+
+/**
+* This struct contains only the key data, this is only used to pass animation data from translators to factories.
+*/
+USTRUCT()
+struct INTERCHANGECOMMONPARSER_API FInterchangeStepCurve
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<float> KeyTimes;
+	TOptional<TArray<float>> FloatKeyValues;
+	TOptional<TArray<int32>> IntegerKeyValues;
+	TOptional<TArray<FString>> StringKeyValues;
+
+	void RemoveRedundantKeys(float Threshold);
+
+	void Serialize(FArchive& Ar);
+
+	friend FArchive& operator<<(FArchive& Ar, FInterchangeStepCurve& InterchangeStepCurve)
+	{
+		InterchangeStepCurve.Serialize(Ar);
+		return Ar;
+	}
+
+private:
+	template<typename ValueType>
+	void InternalRemoveRedundantKey(TArray<ValueType>& Values, TFunctionRef<bool(const ValueType& ValueA, const ValueType& ValueB)> CompareFunction);
 };

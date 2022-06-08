@@ -8,9 +8,15 @@ namespace UE
 	namespace Interchange
 	{
 
-		const FAttributeKey& FMeshNodeStaticData::PayloadSourceFileKey()
+		const FAttributeKey& FMeshNodeStaticData::PayloadSourceKey()
 		{
-			static FAttributeKey AttributeKey(TEXT("__PayloadSourceFile__"));
+			static FAttributeKey AttributeKey(TEXT("__PayloadSourceKey__"));
+			return AttributeKey;
+		}
+
+		const FAttributeKey& FMeshNodeStaticData::PayloadAnimationCurveKey()
+		{
+			static FAttributeKey AttributeKey(TEXT("__PayloadAnimationCurveKey__"));
 			return AttributeKey;
 		}
 
@@ -20,15 +26,15 @@ namespace UE
 			return AttributeKey;
 		}
 
-		const FAttributeKey& FMeshNodeStaticData::IsBlendShapeKey()
+		const FAttributeKey& FMeshNodeStaticData::IsMorphTargetKey()
 		{
-			static FAttributeKey AttributeKey(TEXT("__IsBlendShapeKey__"));
+			static FAttributeKey AttributeKey(TEXT("__IsMorphTargetKey__"));
 			return AttributeKey;
 		}
 
-		const FAttributeKey& FMeshNodeStaticData::BlendShapeNameKey()
+		const FAttributeKey& FMeshNodeStaticData::MorphTargetNameKey()
 		{
-			static FAttributeKey AttributeKey(TEXT("__BlendShapeNameKey__"));
+			static FAttributeKey AttributeKey(TEXT("__MorphTargetNameKey__"));
 			return AttributeKey;
 		}
 
@@ -38,9 +44,9 @@ namespace UE
 			return Dependencies_BaseKey;
 		}
 
-		const FAttributeKey& FMeshNodeStaticData::GetShapeDependenciesKey()
+		const FAttributeKey& FMeshNodeStaticData::GetMorphTargetDependenciesKey()
 		{
-			static FAttributeKey Dependencies_BaseKey(TEXT("__MeshShapeDependencies__"));
+			static FAttributeKey Dependencies_BaseKey(TEXT("__MeshMorphTargetDependencies__"));
 			return Dependencies_BaseKey;
 		}
 
@@ -62,7 +68,7 @@ namespace UE
 UInterchangeMeshNode::UInterchangeMeshNode()
 {
 	SkeletonDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey().ToString());
-	ShapeDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey().ToString());
+	MorphTargetDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetMorphTargetDependenciesKey().ToString());
 	SceneInstancesUids.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey().ToString());
 	SlotMaterialDependencies.Initialize(Attributes.ToSharedRef(), UE::Interchange::FMeshNodeStaticData::GetSlotMaterialDependenciesKey().ToString());
 }
@@ -71,21 +77,25 @@ FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 {
 	FString KeyDisplayName = NodeAttributeKey.ToString();
 	const FString NodeAttributeKeyString = KeyDisplayName;
-	if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::PayloadSourceFileKey())
+	if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::PayloadSourceKey())
 	{
 		return KeyDisplayName = TEXT("Payload Source Key");
+	}
+	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey())
+	{
+		return KeyDisplayName = TEXT("Payload Animation Curve Key");
 	}
 	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::IsSkinnedMeshKey())
 	{
 		return KeyDisplayName = TEXT("Is a Skinned Mesh");
 	}
-	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::IsBlendShapeKey())
+	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::IsMorphTargetKey())
 	{
-		return KeyDisplayName = TEXT("Is a Blend Shape");
+		return KeyDisplayName = TEXT("Is a Morph Target");
 	}
-	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::BlendShapeNameKey())
+	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::MorphTargetNameKey())
 	{
-		return KeyDisplayName = TEXT("Blend Shape Name");
+		return KeyDisplayName = TEXT("Morph Target Name");
 	}
 	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey())
 	{
@@ -102,13 +112,13 @@ FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 		}
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey())
+	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::GetMorphTargetDependenciesKey())
 	{
-		return KeyDisplayName = TEXT("Shape Dependencies count");
+		return KeyDisplayName = TEXT("Morph Target Dependencies Count");
 	}
-	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey().ToString()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetMorphTargetDependenciesKey().ToString()))
 	{
-		KeyDisplayName = TEXT("Shape Dependencies Index ");
+		KeyDisplayName = TEXT("Morph Target Dependencies Index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
 		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
 		if (IndexPosition < NodeAttributeKeyString.Len())
@@ -146,9 +156,9 @@ FString UInterchangeMeshNode::GetAttributeCategory(const UE::Interchange::FAttri
 	{
 		return FString(TEXT("SkeletonDependencies"));
 	}
-	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey().ToString()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetMorphTargetDependenciesKey().ToString()))
 	{
-		return FString(TEXT("ShapeDependencies"));
+		return FString(TEXT("MorphTargetDependencies"));
 	}
 	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey().ToString()))
 	{
@@ -222,14 +232,14 @@ bool UInterchangeMeshNode::SetSkinnedMesh(const bool bIsSkinnedMesh)
 	return false;
 }
 
-bool UInterchangeMeshNode::IsBlendShape() const
+bool UInterchangeMeshNode::IsMorphTarget() const
 {
-	if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::IsBlendShapeKey()))
+	if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::IsMorphTargetKey()))
 	{
 		return false;
 	}
 
-	UE::Interchange::FAttributeStorage::TAttributeHandle<bool> Handle = Attributes->GetAttributeHandle<bool>(UE::Interchange::FMeshNodeStaticData::IsBlendShapeKey());
+	UE::Interchange::FAttributeStorage::TAttributeHandle<bool> Handle = Attributes->GetAttributeHandle<bool>(UE::Interchange::FMeshNodeStaticData::IsMorphTargetKey());
 	if (Handle.IsValid())
 	{
 		bool bValue = false;
@@ -239,40 +249,40 @@ bool UInterchangeMeshNode::IsBlendShape() const
 	return false;
 }
 
-bool UInterchangeMeshNode::SetBlendShape(const bool bIsBlendShape)
+bool UInterchangeMeshNode::SetMorphTarget(const bool bIsMorphTarget)
 {
-	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::IsBlendShapeKey(), bIsBlendShape);
+	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::IsMorphTargetKey(), bIsMorphTarget);
 	if (IsAttributeStorageResultSuccess(Result))
 	{
-		UE::Interchange::FAttributeStorage::TAttributeHandle<bool> Handle = Attributes->GetAttributeHandle<bool>(UE::Interchange::FMeshNodeStaticData::IsBlendShapeKey());
+		UE::Interchange::FAttributeStorage::TAttributeHandle<bool> Handle = Attributes->GetAttributeHandle<bool>(UE::Interchange::FMeshNodeStaticData::IsMorphTargetKey());
 		return Handle.IsValid();
 	}
 	return false;
 }
 
-bool UInterchangeMeshNode::GetBlendShapeName(FString& OutBlendShapeName) const
+bool UInterchangeMeshNode::GetMorphTargetName(FString& OutMorphTargetName) const
 {
-	OutBlendShapeName.Empty();
-	if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::BlendShapeNameKey()))
+	OutMorphTargetName.Empty();
+	if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::MorphTargetNameKey()))
 	{
 		return false;
 	}
 
-	UE::Interchange::FAttributeStorage::TAttributeHandle<FString> Handle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::BlendShapeNameKey());
+	UE::Interchange::FAttributeStorage::TAttributeHandle<FString> Handle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::MorphTargetNameKey());
 	if (Handle.IsValid())
 	{
-		Handle.Get(OutBlendShapeName);
+		Handle.Get(OutMorphTargetName);
 		return true;
 	}
 	return false;
 }
 
-bool UInterchangeMeshNode::SetBlendShapeName(const FString& BlendShapeName)
+bool UInterchangeMeshNode::SetMorphTargetName(const FString& MorphTargetName)
 {
-	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::BlendShapeNameKey(), BlendShapeName);
+	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::MorphTargetNameKey(), MorphTargetName);
 	if (IsAttributeStorageResultSuccess(Result))
 	{
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> Handle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::BlendShapeNameKey());
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> Handle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::MorphTargetNameKey());
 		return Handle.IsValid();
 	}
 	return false;
@@ -280,11 +290,11 @@ bool UInterchangeMeshNode::SetBlendShapeName(const FString& BlendShapeName)
 
 const TOptional<FString> UInterchangeMeshNode::GetPayLoadKey() const
 {
-	if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::PayloadSourceFileKey()))
+	if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::PayloadSourceKey()))
 	{
 		return TOptional<FString>();
 	}
-	UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::PayloadSourceFileKey());
+	UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::PayloadSourceKey());
 	if (!AttributeHandle.IsValid())
 	{
 		return TOptional<FString>();
@@ -293,7 +303,7 @@ const TOptional<FString> UInterchangeMeshNode::GetPayLoadKey() const
 	UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayloadKey);
 	if (!IsAttributeStorageResultSuccess(Result))
 	{
-		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.GetPayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadSourceFileKey());
+		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.GetPayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadSourceKey());
 		return TOptional<FString>();
 	}
 	return TOptional<FString>(PayloadKey);
@@ -301,13 +311,43 @@ const TOptional<FString> UInterchangeMeshNode::GetPayLoadKey() const
 
 void UInterchangeMeshNode::SetPayLoadKey(const FString& PayloadKey)
 {
-	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::PayloadSourceFileKey(), PayloadKey);
+	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::PayloadSourceKey(), PayloadKey);
 	if (!IsAttributeStorageResultSuccess(Result))
 	{
-		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.SetPayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadSourceFileKey());
+		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.SetPayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadSourceKey());
 	}
 }
-	
+
+const TOptional<FString> UInterchangeMeshNode::GetAnimationCurvePayLoadKey() const
+{
+	if (!Attributes->ContainAttribute(UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey()))
+	{
+		return TOptional<FString>();
+	}
+	UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey());
+	if (!AttributeHandle.IsValid())
+	{
+		return TOptional<FString>();
+	}
+	FString PayloadKey;
+	UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayloadKey);
+	if (!IsAttributeStorageResultSuccess(Result))
+	{
+		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.GetAnimationCurvePayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey());
+		return TOptional<FString>();
+	}
+	return TOptional<FString>(PayloadKey);
+}
+
+void UInterchangeMeshNode::SetAnimationCurvePayLoadKey(const FString& PayloadKey)
+{
+	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey(), PayloadKey);
+	if (!IsAttributeStorageResultSuccess(Result))
+	{
+		LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.SetAnimationCurvePayLoadKey"), UE::Interchange::FMeshNodeStaticData::PayloadAnimationCurveKey());
+	}
+}
+
 bool UInterchangeMeshNode::GetCustomVertexCount(int32& AttributeValue) const
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(VertexCount, int32);
@@ -423,29 +463,29 @@ bool UInterchangeMeshNode::RemoveSkeletonDependencyUid(const FString& Dependency
 	return SkeletonDependencies.RemoveItem(DependencyUid);
 }
 
-int32 UInterchangeMeshNode::GetShapeDependeciesCount() const
+int32 UInterchangeMeshNode::GetMorphTargetDependeciesCount() const
 {
-	return ShapeDependencies.GetCount();
+	return MorphTargetDependencies.GetCount();
 }
 
-void UInterchangeMeshNode::GetShapeDependencies(TArray<FString>& OutDependencies) const
+void UInterchangeMeshNode::GetMorphTargetDependencies(TArray<FString>& OutDependencies) const
 {
-	ShapeDependencies.GetItems(OutDependencies);
+	MorphTargetDependencies.GetItems(OutDependencies);
 }
 
-void UInterchangeMeshNode::GetShapeDependency(const int32 Index, FString& OutDependency) const
+void UInterchangeMeshNode::GetMorphTargetDependency(const int32 Index, FString& OutDependency) const
 {
-	ShapeDependencies.GetItem(Index, OutDependency);
+	MorphTargetDependencies.GetItem(Index, OutDependency);
 }
 
-bool UInterchangeMeshNode::SetShapeDependencyUid(const FString& DependencyUid)
+bool UInterchangeMeshNode::SetMorphTargetDependencyUid(const FString& DependencyUid)
 {
-	return ShapeDependencies.AddItem(DependencyUid);
+	return MorphTargetDependencies.AddItem(DependencyUid);
 }
 
-bool UInterchangeMeshNode::RemoveShapeDependencyUid(const FString& DependencyUid)
+bool UInterchangeMeshNode::RemoveMorphTargetDependencyUid(const FString& DependencyUid)
 {
-	return ShapeDependencies.RemoveItem(DependencyUid);
+	return MorphTargetDependencies.RemoveItem(DependencyUid);
 }
 
 int32 UInterchangeMeshNode::GetSceneInstanceUidsCount() const

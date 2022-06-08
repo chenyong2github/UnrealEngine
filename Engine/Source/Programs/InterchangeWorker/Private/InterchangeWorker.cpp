@@ -78,19 +78,11 @@ int32 Main(int32 Argc, TCHAR * Argv[])
  		UE_LOG(LogInterchangeWorker, Error, TEXT("%s"), *WorkerVersionError);
  	}
 
-	if (!WorkerVersionError.IsEmpty())
+	//FInterchangeWorkerImpl Scope
 	{
-		UInterchangeResultError_Generic* Message = NewObject<UInterchangeResultError_Generic>(GetTransientPackage());
-		Message->SourceAssetName = TEXT("InterchangeWorkerProgram");
-		Message->Text = FText::FromString(WorkerVersionError);
-		WorkerVersionError = Message->ToJson();
-		Message->ClearFlags(RF_Standalone);
-		Message->ClearInternalFlags(EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading);
-		//Should be garbage collectable now
+		FInterchangeWorkerImpl Worker(FCString::Atoi(*ServerPID), FCString::Atoi(*ServerPort), ResultFolder);
+		Worker.Run(WorkerVersionError);
 	}
-
-	FInterchangeWorkerImpl Worker(FCString::Atoi(*ServerPID), FCString::Atoi(*ServerPort), ResultFolder);
-	Worker.Run(WorkerVersionError);
 
 	if (!WorkerVersionError.IsEmpty())
 	{

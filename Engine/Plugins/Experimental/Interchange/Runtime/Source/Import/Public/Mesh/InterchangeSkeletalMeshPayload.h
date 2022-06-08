@@ -18,15 +18,15 @@ namespace UE
 			TArray<FString> JointNames;
 		};
 
-		struct FSkeletalMeshBlendShapePayloadData
+		struct FSkeletalMeshMorphTargetPayloadData
 		{
-			//BlendShape payload is a MeshDescription containing at least the vertex position.
+			//Morph target payload is a MeshDescription containing at least the vertex position.
 			FMeshDescription LodMeshDescription;
 			TOptional<FTransform> GlobalTransform;
-			//The vertex offset of the blendshape in case we combine mesh node together
+			//The vertex offset of the morph target in case we combine mesh node together
 			int32 VertexOffset;
-			//The name of the blendshape
-			FString BlendShapeName;
+			//The name of the morph target
+			FString MorphTargetName;
 		};
 	}//ns Interchange
 }//ns UE

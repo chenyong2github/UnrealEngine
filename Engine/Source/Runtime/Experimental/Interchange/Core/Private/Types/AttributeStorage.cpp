@@ -85,6 +85,20 @@ namespace UE
 			return AttributeTypeString;
 		}
 
+		EAttributeTypes StringToAttributeType(const FString& AttributeTypeString)
+		{
+			const int32 MaxAttributetypes = static_cast<int32>(EAttributeTypes::Max);
+			for (int32 AttributeTypeEnumIndex = 0; AttributeTypeEnumIndex < MaxAttributetypes; ++AttributeTypeEnumIndex)
+			{
+				const EAttributeTypes Attributetype = static_cast<EAttributeTypes>(AttributeTypeEnumIndex);
+				if (AttributeTypeString.Equals(AttributeTypeToString(Attributetype)))
+				{
+					return Attributetype;
+				}
+			}
+			return EAttributeTypes::None;
+		}
+
 		void LogAttributeStorageErrors(const EAttributeStorageResult Result, const FString OperationName, const FAttributeKey AttributeKey)
 		{
 			//////////////////////////////////////////////////////////////////////////

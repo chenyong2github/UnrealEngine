@@ -366,6 +366,18 @@ public:
 	bool GetFloatAttribute(const FName& NodeAttributeKey, float& OutValue) const;
 
 	/**
+	 * Add a double attribute to this node. Return false if the attribute do not exist or if we cannot add it
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool AddDoubleAttribute(const FName& NodeAttributeKey, const double& Value);
+	
+	/**
+	 * Get a double attribute from this node. Return false if the attribute do not exist
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool GetDoubleAttribute(const FName& NodeAttributeKey, double& OutValue) const;
+
+	/**
 	 * Add a string attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")

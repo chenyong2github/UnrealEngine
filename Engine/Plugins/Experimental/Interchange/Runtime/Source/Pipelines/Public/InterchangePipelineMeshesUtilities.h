@@ -45,7 +45,7 @@ struct FInterchangeMeshInstance
 	{
 		LodGroupNode = nullptr;
 		bReferenceSkinnedMesh = false;
-		bReferenceBlendShape = false;
+		bReferenceMorphTarget = false;
 	}
 	/**
 	 * This ID represent either 1: a lod group scene node uid or 2: a mesh scene node uid.
@@ -63,7 +63,7 @@ struct FInterchangeMeshInstance
 	bool bReferenceSkinnedMesh;
 
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
-	bool bReferenceBlendShape;
+	bool bReferenceMorphTarget;
 
 	/**
 	 * Each scene node here represent a mesh scene node. Only if we represent a lod group we can have more then 1 mesh scene node for a specific lod index.

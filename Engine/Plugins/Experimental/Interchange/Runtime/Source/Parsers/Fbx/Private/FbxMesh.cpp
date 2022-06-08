@@ -3,6 +3,7 @@
 #include "FbxMesh.h"
 
 #include "CoreMinimal.h"
+#include "FbxAnimation.h"
 #include "FbxAPI.h"
 #include "FbxConvert.h"
 #include "FbxHelper.h"
@@ -1186,25 +1187,25 @@ bool FMeshPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& 
 }
 
 //////////////////////////////////////////////////////////////////////////
-/// FShapePayloadContext implementation
+/// FMorphTargetPayloadContext implementation
 
-bool FShapePayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
+bool FMorphTargetPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
 {
 	if (!ensure(Shape))
 	{
 		//Todo log an error
 		return false;
 	}
-	//Import the BlendShape
-	FMeshDescription ShapeMeshDescription;
-	FStaticMeshAttributes StaticMeshAttribute(ShapeMeshDescription);
+	//Import the MorphTarget
+	FMeshDescription MorphTargetMeshDescription;
+	FStaticMeshAttributes StaticMeshAttribute(MorphTargetMeshDescription);
 	StaticMeshAttribute.Register();
-	FMeshDescriptionImporter MeshDescriptionImporter(Parser, &ShapeMeshDescription, SDKScene, SDKGeometryConverter);
+	FMeshDescriptionImporter MeshDescriptionImporter(Parser, &MorphTargetMeshDescription, SDKScene, SDKGeometryConverter);
 	if (!MeshDescriptionImporter.FillMeshDescriptionFromFbxShape(Shape))
 	{
 		UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 		Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Shape);
-		Message->Text = LOCTEXT("MeshDescriptionBlendShapeError", "Unable to create MeshDescription from FBX blend shape.");
+		Message->Text = LOCTEXT("MeshDescriptionMorphTargetError", "Unable to create MeshDescription from FBX morph target.");
 
 		return false;
 	}
@@ -1212,7 +1213,7 @@ bool FShapePayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString&
 	//Dump the MeshDescription to a file
 	{
 		FLargeMemoryWriter Ar;
-		ShapeMeshDescription.Serialize(Ar);
+		MorphTargetMeshDescription.Serialize(Ar);
 		uint8* ArchiveData = Ar.GetData();
 		int64 ArchiveSize = Ar.TotalSize();
 		TArray64<uint8> Buffer(ArchiveData, ArchiveSize);
@@ -1272,172 +1273,193 @@ void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometr
 		FString MeshUniqueID = FFbxHelper::GetMeshUniqueID(Mesh);
 		const UInterchangeMeshNode* ExistingMeshNode = Cast<UInterchangeMeshNode>(NodeContainer.GetNode(MeshUniqueID));
 		UInterchangeMeshNode* MeshNode = nullptr;
-		if (!ExistingMeshNode)
+		if (ExistingMeshNode)
 		{
-			MeshNode = CreateMeshNode(NodeContainer, MeshName, MeshUniqueID);
-			if (Geometry->GetDeformerCount(FbxDeformer::eSkin) > 0)
-			{
-				//Set the skinned mesh attribute
-				MeshNode->SetSkinnedMesh(true);
-				ExtractSkinnedMeshNodeJoints(SDKScene, NodeContainer, Mesh, MeshNode);
-			}
-			Mesh->ComputeBBox();
-			const int32 MeshVertexCount = Mesh->GetControlPointsCount();
-			MeshNode->SetCustomVertexCount(MeshVertexCount);
-			const int32 MeshPolygonCount = Mesh->GetPolygonCount();
-			MeshNode->SetCustomPolygonCount(MeshPolygonCount);
-			const FBox MeshBoundingBox = FBox(FFbxConvert::ConvertPos(Mesh->BBoxMin.Get()), FFbxConvert::ConvertPos(Mesh->BBoxMax.Get()));
-			MeshNode->SetCustomBoundingBox(MeshBoundingBox);
-			const bool bMeshHasVertexNormal = Mesh->GetElementNormalCount() > 0;
-			MeshNode->SetCustomHasVertexNormal(bMeshHasVertexNormal);
-			const bool bMeshHasVertexBinormal = Mesh->GetElementBinormalCount() > 0;
-			MeshNode->SetCustomHasVertexBinormal(bMeshHasVertexBinormal);
-			const bool bMeshHasVertexTangent = Mesh->GetElementTangentCount() > 0;
-			MeshNode->SetCustomHasVertexTangent(bMeshHasVertexTangent);
-			const bool bMeshHasSmoothGroup = Mesh->GetElementSmoothingCount() > 0;
-			MeshNode->SetCustomHasSmoothGroup(bMeshHasSmoothGroup);
-			const bool bMeshHasVertexColor = Mesh->GetElementVertexColorCount() > 0;
-			MeshNode->SetCustomHasVertexColor(bMeshHasVertexColor);
-			const int32 MeshUVCount = Mesh->GetElementUVCount();
-			MeshNode->SetCustomUVCount(MeshUVCount);
+			//This mesh node was already created
+			continue;
+		}
+
+		MeshNode = CreateMeshNode(NodeContainer, MeshName, MeshUniqueID);
+		if (Geometry->GetDeformerCount(FbxDeformer::eSkin) > 0)
+		{
+			//Set the skinned mesh attribute
+			MeshNode->SetSkinnedMesh(true);
+			ExtractSkinnedMeshNodeJoints(SDKScene, NodeContainer, Mesh, MeshNode);
+		}
+		Mesh->ComputeBBox();
+		const int32 MeshVertexCount = Mesh->GetControlPointsCount();
+		MeshNode->SetCustomVertexCount(MeshVertexCount);
+		const int32 MeshPolygonCount = Mesh->GetPolygonCount();
+		MeshNode->SetCustomPolygonCount(MeshPolygonCount);
+		const FBox MeshBoundingBox = FBox(FFbxConvert::ConvertPos(Mesh->BBoxMin.Get()), FFbxConvert::ConvertPos(Mesh->BBoxMax.Get()));
+		MeshNode->SetCustomBoundingBox(MeshBoundingBox);
+		const bool bMeshHasVertexNormal = Mesh->GetElementNormalCount() > 0;
+		MeshNode->SetCustomHasVertexNormal(bMeshHasVertexNormal);
+		const bool bMeshHasVertexBinormal = Mesh->GetElementBinormalCount() > 0;
+		MeshNode->SetCustomHasVertexBinormal(bMeshHasVertexBinormal);
+		const bool bMeshHasVertexTangent = Mesh->GetElementTangentCount() > 0;
+		MeshNode->SetCustomHasVertexTangent(bMeshHasVertexTangent);
+		const bool bMeshHasSmoothGroup = Mesh->GetElementSmoothingCount() > 0;
+		MeshNode->SetCustomHasSmoothGroup(bMeshHasSmoothGroup);
+		const bool bMeshHasVertexColor = Mesh->GetElementVertexColorCount() > 0;
+		MeshNode->SetCustomHasVertexColor(bMeshHasVertexColor);
+		const int32 MeshUVCount = Mesh->GetElementUVCount();
+		MeshNode->SetCustomUVCount(MeshUVCount);
 						
-			//Add Material dependencies, we use always the first fbx node that instance the fbx geometry to grab the fbx surface materials.
+		//Add Material dependencies, we use always the first fbx node that instance the fbx geometry to grab the fbx surface materials.
+		{
+			//Grab all Material indexes use by the mesh
+			TArray<int32> MaterialIndexes;
+			int32 PolygonCount = Mesh->GetPolygonCount();
+			if (FbxGeometryElementMaterial* GeometryElementMaterial = Mesh->GetElementMaterial())
 			{
-				//Grab all Material indexes use by the mesh
-				TArray<int32> MaterialIndexes;
-				int32 PolygonCount = Mesh->GetPolygonCount();
-				if (FbxGeometryElementMaterial* GeometryElementMaterial = Mesh->GetElementMaterial())
+				FbxLayerElementArrayTemplate<int32>& IndexArray = GeometryElementMaterial->GetIndexArray();
+				switch (GeometryElementMaterial->GetMappingMode())
 				{
-					FbxLayerElementArrayTemplate<int32>& IndexArray = GeometryElementMaterial->GetIndexArray();
-					switch (GeometryElementMaterial->GetMappingMode())
+					case FbxGeometryElement::eByPolygon:
 					{
-						case FbxGeometryElement::eByPolygon:
+						if (IndexArray.GetCount() == PolygonCount)
 						{
-							if (IndexArray.GetCount() == PolygonCount)
+							for (int32 PolygonIndex = 0; PolygonIndex < PolygonCount; ++PolygonIndex)
 							{
-								for (int i = 0; i < PolygonCount; ++i)
-								{
-									MaterialIndexes.AddUnique(IndexArray.GetAt(i));
-								}
-							}
-						}
-						break;
-
-						case FbxGeometryElement::eAllSame:
-						{
-							if (IndexArray.GetCount() > 0)
-							{
-								MaterialIndexes.AddUnique(IndexArray.GetAt(0));
-							}
-						}
-						break;
-					}
-				}
-				if (FbxNode* FbxMeshNode = Mesh->GetNode())
-				{
-					bool bAddAllNodeMaterials = (MaterialIndexes.Num() == 0);
-					const int32 MaterialCount = FbxMeshNode->GetMaterialCount();
-					for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
-					{
-						FbxSurfaceMaterial* FbxMaterial = FbxMeshNode->GetMaterial(MaterialIndex);
-						FString MaterialName = FFbxHelper::GetFbxObjectName(FbxMaterial);
-						FString MaterialUid = TEXT("\\Material\\") + MaterialName;
-						if (bAddAllNodeMaterials || MaterialIndexes.Contains(MaterialIndex))
-						{
-							MeshNode->SetSlotMaterialDependencyUid(MaterialName, MaterialUid);
-						}
-					}
-				}
-			}
-
-			FString PayLoadKey = MeshUniqueID;
-			if (ensure(!PayloadContexts.Contains(PayLoadKey)))
-			{
-				TSharedPtr<FMeshPayloadContext> GeoPayload = MakeShared<FMeshPayloadContext>();
-				GeoPayload->Mesh = Mesh;
-				GeoPayload->SDKScene = SDKScene;
-				GeoPayload->SDKGeometryConverter = SDKGeometryConverter;
-				PayloadContexts.Add(PayLoadKey, GeoPayload);
-			}
-			MeshNode->SetPayLoadKey(PayLoadKey);
-
-			//Add all BlendShapes for this geometry node
-
-			TMap<FString, FbxShape*> ShapeNameToFbxShape;
-			const int32 BlendShapeCount = Geometry->GetDeformerCount(FbxDeformer::eBlendShape);
-
-			for (int32 BlendShapeIndex = 0; BlendShapeIndex < BlendShapeCount; ++BlendShapeIndex)
-			{
-				FbxBlendShape* BlendShape = (FbxBlendShape*)Geometry->GetDeformer(BlendShapeIndex, FbxDeformer::eBlendShape);
-				const int32 BlendShapeChannelCount = BlendShape->GetBlendShapeChannelCount();
-				FString BlendShapeName = FFbxHelper::GetFbxObjectName(BlendShape);
-				// see below where this is used for explanation...
-				const bool bMightBeBadMAXFile = (BlendShapeName == FString("Morpher"));
-				for (int32 ChannelIndex = 0; ChannelIndex < BlendShapeChannelCount; ++ChannelIndex)
-				{
-					FbxBlendShapeChannel* Channel = BlendShape->GetBlendShapeChannel(ChannelIndex);
-					if (Channel)
-					{
-						//Find which shape should we use according to the weight.
-						const int32 CurrentChannelShapeCount = Channel->GetTargetShapeCount();
-						FString ChannelName = FFbxHelper::GetFbxObjectName(Channel);
-						// Maya adds the name of the blendshape and an underscore to the front of the channel name, so remove it
-						if (ChannelName.StartsWith(BlendShapeName))
-						{
-							ChannelName.RightInline(ChannelName.Len() - (BlendShapeName.Len() + 1), false);
-						}
-						for (int32 ShapeIndex = 0; ShapeIndex < CurrentChannelShapeCount; ++ShapeIndex)
-						{
-							FbxShape* Shape = Channel->GetTargetShape(ShapeIndex);
-							FString ShapeName;
-							if (CurrentChannelShapeCount > 1)
-							{
-								ShapeName = FFbxHelper::GetFbxObjectName(Shape);
-							}
-							else
-							{
-								if (bMightBeBadMAXFile)
-								{
-									ShapeName = FFbxHelper::GetFbxObjectName(Shape);
-								}
-								else
-								{
-									// Maya concatenates the number of the shape to the end of its name, so instead use the name of the channel
-									ShapeName = ChannelName;
-								}
-							}
-							ensure(!ShapeNameToFbxShape.Contains(ShapeName));
-							ShapeNameToFbxShape.Add(ShapeName, Shape);
-							FString ShapeAttributeName = FFbxHelper::GetMeshName(Shape);
-							FString ShapeUniqueID = FFbxHelper::GetMeshUniqueID(Shape);
-							const UInterchangeMeshNode* ExistingShapeNode = Cast<const UInterchangeMeshNode>(NodeContainer.GetNode(ShapeUniqueID));
-							if (!ExistingShapeNode)
-							{
-								UInterchangeMeshNode* ShapeNode = CreateMeshNode(NodeContainer, ShapeAttributeName, ShapeUniqueID);
-								const bool bIsBlendShape = true;
-								ShapeNode->SetBlendShape(bIsBlendShape);
-								ShapeNode->SetBlendShapeName(ShapeName);
-
-								//Create a Mesh node dependency, so the mesh node can retrieve is associate blendshape
-								MeshNode->SetShapeDependencyUid(ShapeUniqueID);
-
-								FString ShapePayLoadKey = ShapeUniqueID;
-								if (ensure(!PayloadContexts.Contains(ShapePayLoadKey)))
-								{
-									TSharedPtr<FShapePayloadContext> GeoPayload = MakeShared<FShapePayloadContext>();
-									GeoPayload->Shape = Shape;
-									GeoPayload->SDKScene = SDKScene;
-									GeoPayload->SDKGeometryConverter = SDKGeometryConverter;
-									PayloadContexts.Add(ShapePayLoadKey, GeoPayload);
-								}
-								ShapeNode->SetPayLoadKey(ShapePayLoadKey);
+								MaterialIndexes.AddUnique(IndexArray.GetAt(PolygonIndex));
 							}
 						}
 					}
+					break;
+
+					case FbxGeometryElement::eAllSame:
+					{
+						if (IndexArray.GetCount() > 0)
+						{
+							MaterialIndexes.AddUnique(IndexArray.GetAt(0));
+						}
+					}
+					break;
 				}
 			}
-		}					
-	}
+			if (FbxNode* FbxMeshNode = Mesh->GetNode())
+			{
+				bool bAddAllNodeMaterials = (MaterialIndexes.Num() == 0);
+				const int32 MaterialCount = FbxMeshNode->GetMaterialCount();
+				for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+				{
+					FbxSurfaceMaterial* FbxMaterial = FbxMeshNode->GetMaterial(MaterialIndex);
+					FString MaterialName = FFbxHelper::GetFbxObjectName(FbxMaterial);
+					FString MaterialUid = TEXT("\\Material\\") + MaterialName;
+					if (bAddAllNodeMaterials || MaterialIndexes.Contains(MaterialIndex))
+					{
+						MeshNode->SetSlotMaterialDependencyUid(MaterialName, MaterialUid);
+					}
+				}
+			}
+		}
+
+		FString PayLoadKey = MeshUniqueID;
+		if (ensure(!PayloadContexts.Contains(PayLoadKey)))
+		{
+			TSharedPtr<FMeshPayloadContext> GeoPayload = MakeShared<FMeshPayloadContext>();
+			GeoPayload->Mesh = Mesh;
+			GeoPayload->SDKScene = SDKScene;
+			GeoPayload->SDKGeometryConverter = SDKGeometryConverter;
+			PayloadContexts.Add(PayLoadKey, GeoPayload);
+		}
+		MeshNode->SetPayLoadKey(PayLoadKey);
+
+		int32 NumAnimations = SDKScene->GetSrcObjectCount<FbxAnimStack>();
+			
+		//Anim stack should be merge so we expect to have only one stack here
+		ensure(NumAnimations <= 1);
+		FbxAnimStack* AnimStack = NumAnimations == 1 ? (FbxAnimStack*)SDKScene->GetSrcObject<FbxAnimStack>(0) : nullptr;
+
+		//Add all MorphTargets for this geometry node
+
+		TMap<FString, FbxShape*> ShapeNameToFbxShape;
+		const int32 MorphTargetCount = Geometry->GetDeformerCount(FbxDeformer::eBlendShape);
+
+		for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetCount; ++MorphTargetIndex)
+		{
+			FbxBlendShape* MorphTarget = (FbxBlendShape*)Geometry->GetDeformer(MorphTargetIndex, FbxDeformer::eBlendShape);
+			const int32 MorphTargetChannelCount = MorphTarget->GetBlendShapeChannelCount();
+			FString MorphTargetName = FFbxHelper::GetFbxObjectName(MorphTarget);
+			// see below where this is used for explanation...
+			const bool bMightBeBadMAXFile = (MorphTargetName == FString("Morpher"));
+			for (int32 ChannelIndex = 0; ChannelIndex < MorphTargetChannelCount; ++ChannelIndex)
+			{
+				FbxBlendShapeChannel* Channel = MorphTarget->GetBlendShapeChannel(ChannelIndex);
+				if (!Channel)
+				{
+					continue;
+				}
+				//Find which morph target should we use according to the weight.
+				const int32 CurrentChannelMorphTargetCount = Channel->GetTargetShapeCount();
+				FString ChannelName = FFbxHelper::GetFbxObjectName(Channel);
+				// Maya adds the name of the MorphTarget and an underscore to the front of the channel name, so remove it
+				if (ChannelName.StartsWith(MorphTargetName))
+				{
+					ChannelName.RightInline(ChannelName.Len() - (MorphTargetName.Len() + 1), false);
+				}
+				for (int32 ChannelMorphTargetIndex = 0; ChannelMorphTargetIndex < CurrentChannelMorphTargetCount; ++ChannelMorphTargetIndex)
+				{
+					FbxShape* Shape = Channel->GetTargetShape(ChannelMorphTargetIndex);
+					FString ShapeName;
+					if (CurrentChannelMorphTargetCount > 1)
+					{
+						ShapeName = FFbxHelper::GetFbxObjectName(Shape);
+					}
+					else
+					{
+						if (bMightBeBadMAXFile)
+						{
+							ShapeName = FFbxHelper::GetFbxObjectName(Shape);
+						}
+						else
+						{
+							// Maya concatenates the number of the shape to the end of its name, so instead use the name of the channel
+							ShapeName = ChannelName;
+						}
+					}
+					ensure(!ShapeNameToFbxShape.Contains(ShapeName));
+					ShapeNameToFbxShape.Add(ShapeName, Shape);
+					FString MorphTargetAttributeName = FFbxHelper::GetMeshName(Shape);
+					FString MorphTargetUniqueID = FFbxHelper::GetMeshUniqueID(Shape);
+					const UInterchangeMeshNode* ExistingMorphTargetNode = Cast<const UInterchangeMeshNode>(NodeContainer.GetNode(MorphTargetUniqueID));
+					if (!ExistingMorphTargetNode)
+					{
+						UInterchangeMeshNode* MorphTargetNode = CreateMeshNode(NodeContainer, MorphTargetAttributeName, MorphTargetUniqueID);
+						const bool bIsMorphTarget = true;
+						MorphTargetNode->SetMorphTarget(bIsMorphTarget);
+						MorphTargetNode->SetMorphTargetName(ShapeName);
+
+						//Create a Mesh node dependency, so the mesh node can retrieve is associate morph target
+						MeshNode->SetMorphTargetDependencyUid(MorphTargetUniqueID);
+
+						FString MorphTargetPayLoadKey = MorphTargetUniqueID;
+						if (ensure(!PayloadContexts.Contains(MorphTargetPayLoadKey)))
+						{
+							TSharedPtr<FMorphTargetPayloadContext> GeoPayload = MakeShared<FMorphTargetPayloadContext>();
+							GeoPayload->Shape = Shape;
+							GeoPayload->SDKScene = SDKScene;
+							GeoPayload->SDKGeometryConverter = SDKGeometryConverter;
+							PayloadContexts.Add(MorphTargetPayLoadKey, GeoPayload);
+						}
+						MorphTargetNode->SetPayLoadKey(MorphTargetPayLoadKey);
+
+						//Add the morph target animation float curve payload to the morph target.
+						if (AnimStack)
+						{
+							//If the morph target node is animated prepare a curve payload to retrieve the morph target animation
+							FbxAnimCurve* Curve = Geometry->GetShapeChannel(MorphTargetIndex, ChannelIndex, (FbxAnimLayer*)AnimStack->GetMember(0));
+							if ((Curve && Curve->KeyGetCount() > 0))
+							{
+								UE::Interchange::Private::FFbxAnimation::AddMorphTargetCurvesAnimation(MorphTargetNode, SDKScene, GeometryIndex, MorphTargetIndex, ChannelIndex, MorphTargetPayLoadKey, PayloadContexts);
+							}
+						}
+					}
+				} // for CurrentChannelMorphTargetCount
+			} // for MorphTargetChannelCount
+		} // for MorphTargetCount
+	} // for GeometryCount
 }
 
 bool FFbxMesh::GetGlobalJointBindPoseTransform(FbxScene* SDKScene, FbxNode* Joint, FbxAMatrix& GlobalBindPoseJointMatrix)

@@ -334,12 +334,12 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> UInterchangeFbx
 	return Promise->GetFuture();
 }
 
-TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> UInterchangeFbxTranslator::GetSkeletalMeshBlendShapePayloadData(const FString& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> UInterchangeFbxTranslator::GetSkeletalMeshMorphTargetPayloadData(const FString& PayLoadKey) const
 {
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>>();
+	TSharedPtr<TPromise<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>>();
 	if (!Dispatcher.IsValid())
 	{
-		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>{});
+		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
 		return Promise->GetFuture();
 	}
 
@@ -360,7 +360,7 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> UInterch
 
 		if (TaskState != UE::Interchange::ETaskState::ProcessOk)
 		{
-			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>{});
+			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
 			return;
 		}
 		//Grab the result file and fill the BaseNodeContainer
@@ -371,7 +371,7 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> UInterch
 		if (!ensure(FPaths::FileExists(SkeletalMeshPayloadFilename)))
 		{
 			//TODO log an error saying the payload file do not exist even if the get payload command succeed
-			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>{});
+			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
 			return;
 		}
 		//All sub object should be gone with the reset
@@ -382,33 +382,33 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> UInterch
 		if (FileDataSize < 1)
 		{
 			//Nothing to load from this file
-			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>{});
+			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
 			return;
 		}
-		UE::Interchange::FSkeletalMeshBlendShapePayloadData SkeletalMeshBlendShapePayload;
-		SkeletalMeshBlendShapePayload.LodMeshDescription.Empty();
+		UE::Interchange::FSkeletalMeshMorphTargetPayloadData SkeletalMeshMorphTargetPayload;
+		SkeletalMeshMorphTargetPayload.LodMeshDescription.Empty();
 		//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
 		FLargeMemoryReader Ar(FileData, FileDataSize);
-		SkeletalMeshBlendShapePayload.LodMeshDescription.Serialize(Ar);
-		Promise->SetValue(MoveTemp(SkeletalMeshBlendShapePayload));
+		SkeletalMeshMorphTargetPayload.LodMeshDescription.Serialize(Ar);
+		Promise->SetValue(MoveTemp(SkeletalMeshMorphTargetPayload));
 	}));
 
 	//The task was not added to the dispatcher
 	if (CreatedTaskIndex == INDEX_NONE)
 	{
-		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>{});
+		Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
 	}
 
 	return Promise->GetFuture();
 }
 
-TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> UInterchangeFbxTranslator::GetAnimationTransformPayloadData(const FString& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeFbxTranslator::GetAnimationCurvePayloadData(const FString& PayLoadKey) const
 {
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationTransformPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationTransformPayloadData>>>();
+	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationCurvePayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationCurvePayloadData>>>();
 
 	if (!Dispatcher.IsValid())
 	{
-		Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>());
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>());
 		return Promise->GetFuture();
 	}
 
@@ -429,7 +429,7 @@ TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> UInterchange
 
 			if (TaskState != UE::Interchange::ETaskState::ProcessOk)
 			{
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>());
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>());
 				return;
 			}
 
@@ -441,11 +441,11 @@ TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> UInterchange
 			if (!ensure(FPaths::FileExists(AnimationTransformPayloadFilename)))
 			{
 				// TODO log an error saying the payload file does not exist even if the get payload command succeeded
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>());
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>());
 				return;
 			}
 
-			UE::Interchange::FAnimationTransformPayloadData AnimationTransformPayload;
+			UE::Interchange::FAnimationCurvePayloadData AnimationTransformPayload;
 
 			// All sub object should be gone with the reset
 			TArray64<uint8> Buffer;
@@ -455,7 +455,7 @@ TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> UInterchange
 			if (FileDataSize < 1)
 			{
 				// Nothing to load from this file
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>());
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>());
 				return;
 			}
 
@@ -463,16 +463,11 @@ TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> UInterchange
 			FLargeMemoryReader Ar(FileData, FileDataSize);
 			TArray<FInterchangeCurve> InterchangeCurves;
 			Ar << InterchangeCurves;
-			AnimationTransformPayload.TransformCurves.AddDefaulted(static_cast<int32>(EInterchangeTransformCurveChannel::TransformChannelCount));
-			for (const FInterchangeCurve& InterchangeCurve : InterchangeCurves)
+			AnimationTransformPayload.Curves.AddDefaulted(InterchangeCurves.Num());
+			for (int32 CurveIndex = 0; CurveIndex < InterchangeCurves.Num(); ++CurveIndex)
 			{
-				int32 TransformChannelIndex = static_cast<int32>(InterchangeCurve.TransformChannel);
-				if (AnimationTransformPayload.TransformCurves.IsValidIndex(TransformChannelIndex))
-				{
-					UE::Interchange::FAnimationCurveTransformPayloadData& CurveTransformData = AnimationTransformPayload.TransformCurves[static_cast<int32>(InterchangeCurve.TransformChannel)];
-					CurveTransformData.TransformChannel = InterchangeCurve.TransformChannel;
-					InterchangeCurve.ToRichCurve(CurveTransformData.Curve);
-				}
+				const FInterchangeCurve& InterchangeCurve = InterchangeCurves[CurveIndex];
+				InterchangeCurve.ToRichCurve(AnimationTransformPayload.Curves[CurveIndex]);
 			}
 			Promise->SetValue(MoveTemp(AnimationTransformPayload));
 		}));
@@ -480,7 +475,79 @@ TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> UInterchange
 	// The task was not added to the dispatcher
 	if (CreatedTaskIndex == INDEX_NONE)
 	{
-		Promise->SetValue(TOptional<UE::Interchange::FAnimationTransformPayloadData>{});
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>{});
+	}
+
+	return Promise->GetFuture();
+}
+
+TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> UInterchangeFbxTranslator::GetAnimationStepCurvePayloadData(const FString& PayLoadKey) const
+{
+	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>>>();
+
+	if (!Dispatcher.IsValid())
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>());
+		return Promise->GetFuture();
+	}
+
+	// Create a json command to read the fbx file
+	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
+	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
+		{
+			UE::Interchange::ETaskState TaskState;
+			FString JsonResult;
+			TArray<FString> JsonMessages;
+			Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
+
+			// Parse the Json messages into UInterchangeResults
+			for (const FString& JsonMessage : JsonMessages)
+			{
+				AddMessage(UInterchangeResult::FromJson(JsonMessage));
+			}
+
+			if (TaskState != UE::Interchange::ETaskState::ProcessOk)
+			{
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>());
+				return;
+			}
+
+			// Grab the result file and fill the BaseNodeContainer
+			UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
+			ResultParser.FromJson(JsonResult);
+			FString AnimationTransformPayloadFilename = ResultParser.GetResultFilename();
+
+			if (!ensure(FPaths::FileExists(AnimationTransformPayloadFilename)))
+			{
+				// TODO log an error saying the payload file does not exist even if the get payload command succeeded
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>());
+				return;
+			}
+
+			UE::Interchange::FAnimationStepCurvePayloadData AnimationTransformPayload;
+
+			// All sub object should be gone with the reset
+			TArray64<uint8> Buffer;
+			FFileHelper::LoadFileToArray(Buffer, *AnimationTransformPayloadFilename);
+			uint8* FileData = Buffer.GetData();
+			int64 FileDataSize = Buffer.Num();
+			if (FileDataSize < 1)
+			{
+				// Nothing to load from this file
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>());
+				return;
+			}
+
+			// Buffer keeps the ownership of the data, the large memory reader is use to serialize the TMap
+			FLargeMemoryReader Ar(FileData, FileDataSize);
+			Ar << AnimationTransformPayload.StepCurves;
+			Promise->SetValue(MoveTemp(AnimationTransformPayload));
+		}));
+
+	// The task was not added to the dispatcher
+	if (CreatedTaskIndex == INDEX_NONE)
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>{});
 	}
 
 	return Promise->GetFuture();

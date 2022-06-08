@@ -55,6 +55,50 @@ public:
 		}
 	}
 
+	/**
+	 * Recursively traverse the hierarchy starting with the specified node unique ID.
+	 * If the iteration lambda return true the iteration will stop. If the iteration lambda return false the iteration will continue.
+	 */
+	void IterateNodeChildren(const FString& NodeUniqueID, TFunctionRef<void(const UInterchangeBaseNode*)> IterationLambda) const
+	{
+
+		if (const UInterchangeBaseNode* Node = GetNode(NodeUniqueID))
+		{
+			IterationLambda(Node);
+			const TArray<FString> ChildrenIds = GetNodeChildrenUids(NodeUniqueID);
+			for (int32 ChildIndex = 0; ChildIndex < ChildrenIds.Num(); ++ChildIndex)
+			{
+				IterateNodeChildren(ChildrenIds[ChildIndex], IterationLambda);
+			}
+		}
+	}
+
+	/**
+	 * Recursively traverse the hierarchy starting with the specified node unique ID.
+	 * If the iteration lambda return true the iteration will stop. If the iteration lambda return false the iteration will continue.
+	 * 
+	 * @return - Return true if the iteration was break, false otherwise
+	 */
+	bool BreakableIterateNodeChildren(const FString& NodeUniqueID, TFunctionRef<bool(const UInterchangeBaseNode*)> IterationLambda) const
+	{
+		if (const UInterchangeBaseNode* Node = GetNode(NodeUniqueID))
+		{
+			if (IterationLambda(Node))
+			{
+				return true;
+			}
+			const TArray<FString> ChildrenIds = GetNodeChildrenUids(NodeUniqueID);
+			for (int32 ChildIndex = 0; ChildIndex < ChildrenIds.Num(); ++ChildIndex)
+			{
+				if (BreakableIterateNodeChildren(ChildrenIds[ChildIndex], IterationLambda))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	/** Unordered iteration of the all nodes, but I can be stop early by returning true */
 	void BreakableIterateNodes(TFunctionRef<bool(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
 

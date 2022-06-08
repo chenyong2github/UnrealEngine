@@ -279,43 +279,15 @@ namespace UE
 						}
 					}
 				}
-				//Scene node transform can be animated, add the animation payload key.
-				FFbxAnimation::AddNodeTransformAnimation(SDKScene, Node, NodeContainer, UnrealNode, PayloadContexts);
+				//Scene node transform can be animated, add the transform animation payload key.
+				FFbxAnimation::AddNodeTransformAnimation(SDKScene, Node, UnrealNode, PayloadContexts);
 
 				//Add all custom Attributes for the node
-				auto IsSupportedExtraAttributeType = [](int32 InDataType)
-				{
-					switch (InDataType)
-					{
-					case EFbxType::eFbxBool:
-
-					case EFbxType::eFbxChar:		//!< 8 bit signed integer.
-					case EFbxType::eFbxUChar:		//!< 8 bit unsigned integer.
-					case EFbxType::eFbxShort:		//!< 16 bit signed integer.
-					case EFbxType::eFbxUShort:		//!< 16 bit unsigned integer.
-					case EFbxType::eFbxInt:			//!< 32 bit signed integer.
-					case EFbxType::eFbxUInt:		//!< 32 bit unsigned integer.
-					case EFbxType::eFbxLongLong:	//!< 64 bit signed integer.
-					case EFbxType::eFbxULongLong:	//!< 64 bit unsigned integer.
-					case EFbxType::eFbxHalfFloat:	//!< 16 bit floating point.
-					case EFbxType::eFbxFloat:		//!< Floating point value.
-					case EFbxType::eFbxDouble:	//!< Double width floating point value.
-					case EFbxType::eFbxDouble2:	//!< Vector of two double values.
-					case EFbxType::eFbxDouble3:	//!< Vector of three double values.
-					case EFbxType::eFbxDouble4:	//!< Vector of four double values.
-
-					case EFbxType::eFbxEnum:		//!< Enumeration.
-					case EFbxType::eFbxString:	//!< String.
-						return true;
-					}
-
-					return false;
-				};
-
 				FbxProperty Property = Node->GetFirstProperty();
 				while (Property.IsValid())
 				{
-					if (Property.GetFlag(FbxPropertyFlags::eUserDefined) && IsSupportedExtraAttributeType(Property.GetPropertyDataType().GetType()))
+					EFbxType PropertyType =  Property.GetPropertyDataType().GetType();
+					if (Property.GetFlag(FbxPropertyFlags::eUserDefined) && FFbxAnimation::IsFbxPropertyTypeSupported(PropertyType))
 					{
 						FString PropertyName = FFbxHelper::GetFbxPropertyName(Property);
 
@@ -323,8 +295,8 @@ namespace UE
 						TOptional<FString> PayloadKey;
 						if (CurveNode && CurveNode->IsAnimated())
 						{
-							//Set the optional payload key
-							//Create an attribute animation payload
+							//Attribute is animated, add the curves payload key that represent the attribute animation
+							FFbxAnimation::AddNodeAttributeCurvesAnimation(Node, Property, CurveNode, UnrealNode, PayloadContexts, PropertyType, PayloadKey);
 						}
 						switch (Property.GetPropertyDataType().GetType())
 						{

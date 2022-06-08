@@ -15,12 +15,13 @@ namespace UE
 
 		struct INTERCHANGENODES_API FMeshNodeStaticData : public FBaseNodeStaticData
 		{
-			static const FAttributeKey& PayloadSourceFileKey();
+			static const FAttributeKey& PayloadSourceKey();
+			static const FAttributeKey& PayloadAnimationCurveKey();
 			static const FAttributeKey& IsSkinnedMeshKey();
-			static const FAttributeKey& IsBlendShapeKey();
-			static const FAttributeKey& BlendShapeNameKey();
+			static const FAttributeKey& IsMorphTargetKey();
+			static const FAttributeKey& MorphTargetNameKey();
 			static const FAttributeKey& GetSkeletonDependenciesKey();
-			static const FAttributeKey& GetShapeDependenciesKey();
+			static const FAttributeKey& GetMorphTargetDependenciesKey();
 			static const FAttributeKey& GetSceneInstancesUidsKey();
 			static const FAttributeKey& GetSlotMaterialDependenciesKey();
 		};
@@ -76,35 +77,40 @@ public:
 	bool SetSkinnedMesh(const bool bIsSkinnedMesh);
 
 	/**
-	 * Return true if this node represent a blend shape
+	 * Return true if this node represent a morph target
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	bool IsBlendShape() const;
+	bool IsMorphTarget() const;
 
 	/**
-	 * Set the IsBlendShape attribute to determine if this node represent a blend shape.
+	 * Set the IsMorphTarget attribute to determine if this node represent a morph target.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	bool SetBlendShape(const bool bIsBlendShape);
+	bool SetMorphTarget(const bool bIsMorphTarget);
 
 	/**
-	 * Get the blend shape name.
-	 * Return true if we successfully query the BlendShapeName attribute
+	 * Get the morph target name.
+	 * Return true if we successfully query the MorphTargetName attribute
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	bool GetBlendShapeName(FString& OutBlendShapeName) const;
+	bool GetMorphTargetName(FString& OutMorphTargetName) const;
 
 	/**
-	 * Set the BlendShapeName attribute to determine if this node represent a blend shape.
+	 * Set the MorphTargetName attribute to determine if this node represent a morph target.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	bool SetBlendShapeName(const FString& BlendShapeName);
+	bool SetMorphTargetName(const FString& MorphTargetName);
 
 	/** Mesh node Interface Begin */
 	virtual const TOptional<FString> GetPayLoadKey() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
 	virtual void SetPayLoadKey(const FString& PayloadKey);
+
+	virtual const TOptional<FString> GetAnimationCurvePayLoadKey() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
+	virtual void SetAnimationCurvePayLoadKey(const FString& PayloadKey);
 	
 	/** Query this mesh vertices count. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
@@ -209,34 +215,34 @@ public:
 	bool RemoveSkeletonDependencyUid(const FString& DependencyUid);
 
 	/**
-	 * This function allow to retrieve the number of Shape dependencies for this object.
+	 * This function allow to retrieve the number of morph target dependencies for this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	int32 GetShapeDependeciesCount() const;
+	int32 GetMorphTargetDependeciesCount() const;
 
 	/**
-	 * This function allow to retrieve the Shape dependency for this object.
+	 * This function allow to retrieve the morph target dependency for this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	void GetShapeDependencies(TArray<FString>& OutDependencies) const;
+	void GetMorphTargetDependencies(TArray<FString>& OutDependencies) const;
 
 	/**
-	 * This function allow to retrieve one Shape dependency for this object.
+	 * This function allow to retrieve one morph target dependency for this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	void GetShapeDependency(const int32 Index, FString& OutDependency) const;
+	void GetMorphTargetDependency(const int32 Index, FString& OutDependency) const;
 
 	/**
-	 * Add one Shape dependency to this object.
+	 * Add one morph target dependency to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	bool SetShapeDependencyUid(const FString& DependencyUid);
+	bool SetMorphTargetDependencyUid(const FString& DependencyUid);
 
 	/**
-	 * Remove one Shape dependency from this object.
+	 * Remove one morph target dependency from this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	bool RemoveShapeDependencyUid(const FString& DependencyUid);
+	bool RemoveMorphTargetDependencyUid(const FString& DependencyUid);
 
 	/**
 	 * This function allow to retrieve the number of scene node instancing this mesh.
@@ -245,25 +251,25 @@ public:
 	int32 GetSceneInstanceUidsCount() const;
 
 	/**
-	 * This function allow to retrieve the Shape dependency for this object.
+	 * This function allow to retrieve the asset instances this scene node is refering.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
 	void GetSceneInstanceUids(TArray<FString>& OutDependencies) const;
 
 	/**
-	 * This function allow to retrieve one Shape dependency for this object.
+	 * This function allow to retrieve an asset instance this scene node is refering.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
 	void GetSceneInstanceUid(const int32 Index, FString& OutDependency) const;
 
 	/**
-	 * Add one Shape dependency to this object.
+	 * Add one asset instance this scene node is refering.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
 	bool SetSceneInstanceUid(const FString& DependencyUid);
 
 	/**
-	 * Remove one Shape dependency from this object.
+	 * Remove one asset instance this scene node is refering.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
 	bool RemoveSceneInstanceUid(const FString& DependencyUid);
@@ -305,7 +311,7 @@ private:
 
 	UE::Interchange::TArrayAttributeHelper<FString> SkeletonDependencies;
 	UE::Interchange::TArrayAttributeHelper<FString> MaterialDependencies;
-	UE::Interchange::TArrayAttributeHelper<FString> ShapeDependencies;
+	UE::Interchange::TArrayAttributeHelper<FString> MorphTargetDependencies;
 	UE::Interchange::TArrayAttributeHelper<FString> SceneInstancesUids;
 	
 	UE::Interchange::TMapAttributeHelper<FString, FString> SlotMaterialDependencies;

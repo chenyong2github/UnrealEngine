@@ -40,7 +40,7 @@ public:
 	 * @return - The resulting PayloadData as a TFuture point by the payload key. The TOptional will not be set if there is an error retrieving the payload.
 	 * 
 	 */
-	virtual TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> GetSkeletalMeshBlendShapePayloadData(const FString& PayLoadKey) const = 0;
+	virtual TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> GetSkeletalMeshMorphTargetPayloadData(const FString& PayLoadKey) const = 0;
 };
 
 

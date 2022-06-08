@@ -98,10 +98,6 @@ FString UInterchangeSceneNode::GetKeyDisplayName(const UE::Interchange::FAttribu
 		}
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey == Macro_CustomTransformCurvePayloadKeyKey)
-	{
-		return FString(TEXT("Transform Curve Payload Key"));
-	}
 	return Super::GetKeyDisplayName(NodeAttributeKey);
 }
 
@@ -118,10 +114,6 @@ FString UInterchangeSceneNode::GetAttributeCategory(const UE::Interchange::FAttr
 		|| NodeAttributeKey == Macro_CustomTimeZeroLocalTransformKey)
 	{
 		return FString(TEXT("Joint"));
-	}
-	else if (NodeAttributeKey == Macro_CustomTransformCurvePayloadKeyKey)
-	{
-		return FString(TEXT("Animation"));
 	}
 	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey().ToString()))
 	{
@@ -261,56 +253,6 @@ bool UInterchangeSceneNode::GetCustomAssetInstanceUid(FString& AttributeValue) c
 bool UInterchangeSceneNode::SetCustomAssetInstanceUid(const FString& AttributeValue)
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AssetInstanceUid, FString);
-}
-
-bool UInterchangeSceneNode::GetCustomIsNodeTransformAnimated(bool& AttributeValue) const
-{
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(IsNodeTransformAnimated, bool);
-}
-
-bool UInterchangeSceneNode::SetCustomIsNodeTransformAnimated(const bool& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(IsNodeTransformAnimated, bool);
-}
-
-bool UInterchangeSceneNode::GetCustomNodeTransformAnimationKeyCount(int32& AttributeValue) const
-{
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(NodeTransformAnimationKeyCount, int32);
-}
-
-bool UInterchangeSceneNode::SetCustomNodeTransformAnimationKeyCount(const int32& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(NodeTransformAnimationKeyCount, int32);
-}
-
-bool UInterchangeSceneNode::GetCustomNodeTransformAnimationStartTime(double& AttributeValue) const
-{
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(NodeTransformAnimationStartTime, double);
-}
-
-bool UInterchangeSceneNode::SetCustomNodeTransformAnimationStartTime(const double& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(NodeTransformAnimationStartTime, double);
-}
-
-bool UInterchangeSceneNode::GetCustomNodeTransformAnimationEndTime(double& AttributeValue) const
-{
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(NodeTransformAnimationEndTime, double);
-}
-
-bool UInterchangeSceneNode::SetCustomNodeTransformAnimationEndTime(const double& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(NodeTransformAnimationEndTime, double);
-}
-
-bool UInterchangeSceneNode::GetCustomTransformCurvePayloadKey(FString& AttributeValue) const
-{
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(TransformCurvePayloadKey, FString);
-}
-
-bool UInterchangeSceneNode::SetCustomTransformCurvePayloadKey(const FString& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TransformCurvePayloadKey, FString);
 }
 
 void UInterchangeSceneNode::ResetAllGlobalTransformCaches(const UInterchangeBaseNodeContainer* BaseNodeContainer)

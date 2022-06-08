@@ -44,7 +44,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
 	bool bImportAnimations = true;
 
-	/** Import bone transform tracks. If false, this will discard any bone transform tracks. (useful for curves only animations)*/
+	/** Import bone transform tracks. If false, this will discard any bone transform tracks.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
 	bool bImportBoneTracks = true;
 
@@ -78,7 +78,7 @@ public:
 
 	/** When importing custom attribute as curve, remove redundant keys */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations", meta = (EditCondition = "bImportCustomAttribute", DisplayName = "Remove Redundant Keys"))
-	bool bRemoveRedundantKeys = false;
+	bool bRemoveCurveRedundantKeys = false;
 
 	/** When importing custom attribute or morphtarget as curve, do not import if it doens't have any value other than zero. This is to avoid adding extra curves to evaluate */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations", meta = (EditCondition = "bImportCustomAttribute", DisplayName = "Do not import curves with only 0 values"))
@@ -92,7 +92,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
 	bool bDeleteExistingCustomAttributeCurves = false;
 
-	/** If enabled, this will delete this type of asset from the FBX */
+	/** If true, all previous morph target curves will be deleted when doing a re-import */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
 	bool bDeleteExistingMorphTargetCurves = false;
 

@@ -15,7 +15,7 @@
 #include "MeshDescription.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeLock.h"
-#include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeAnimationAPI.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "SkeletalMeshAttributes.h"
 #include "StaticMeshAttributes.h"
@@ -25,67 +25,8 @@
 
 namespace UE::Interchange::Private
 {
-	float GetTransformChannelValue(const EInterchangeTransformCurveChannel Channel, const FTransform& Transform)
+	bool ImportCurve(const FbxAnimCurve* SourceFloatCurves, const float ScaleValue, TArray<FInterchangeCurveKey>& DestinationFloatCurve)
 	{
-		switch (Channel)
-		{
-			case EInterchangeTransformCurveChannel::TranslationX:
-			{
-				return Transform.GetLocation().X;
-			}
-			break;
-			case EInterchangeTransformCurveChannel::TranslationY:
-			{
-				return Transform.GetLocation().Y;
-			}
-			break;
-			case EInterchangeTransformCurveChannel::TranslationZ:
-			{
-				return Transform.GetLocation().Z;
-			}
-			break;
-			case EInterchangeTransformCurveChannel::EulerX:
-			{
-				return Transform.GetRotation().Euler().X;
-			}
-			break;
-			case EInterchangeTransformCurveChannel::EulerY:
-			{
-				return Transform.GetRotation().Euler().Y;
-			}
-			break;
-			case EInterchangeTransformCurveChannel::EulerZ:
-			{
-				return Transform.GetRotation().Euler().Z;
-			}
-			break;
-			case EInterchangeTransformCurveChannel::ScaleX:
-			{
-				return Transform.GetScale3D().X;
-			}
-			break;
-			case EInterchangeTransformCurveChannel::ScaleY:
-			{
-				return Transform.GetScale3D().Y;
-			}
-			break;
-			case EInterchangeTransformCurveChannel::ScaleZ:
-			{
-				return Transform.GetScale3D().Z;
-			}
-			break;
-		}
-		return 0.0f;
-	}
-
-	bool ImportCurve(FbxNode* Node, const EInterchangeTransformCurveChannel TransformChannel, const FbxAnimCurve* SourceFloatCurves, const float ScaleValue, TArray<FInterchangeCurveKey>& DestinationFloatCurve)
-	{
-		bool bUseNodeTransform = false;
-		if (TransformChannel != EInterchangeTransformCurveChannel::None)
-		{
-			bUseNodeTransform = Node != nullptr;
-		}
-
 		if (!SourceFloatCurves)
 		{
 			return true;
@@ -99,20 +40,7 @@ namespace UE::Interchange::Private
 			FbxAnimCurveKey Key = SourceFloatCurves->KeyGet(KeyIndex);
 			FbxTime KeyTime = Key.GetTime();
 			const float KeyTimeValue = static_cast<float>(KeyTime.GetSecondDouble());
-			float ValueAtTime = Key.GetValue();
-			if (bUseNodeTransform)
-			{
-				FbxAMatrix NodeTransform = Node->EvaluateGlobalTransform(KeyTime);
-				FbxNode* ParentNode = Node->GetParent();
-				if (ParentNode)
-				{
-					FbxAMatrix ParentTransform = ParentNode->EvaluateGlobalTransform(KeyTime);
-					NodeTransform = ParentTransform.Inverse() * NodeTransform;
-				}
-				FTransform Transform = UE::Interchange::Private::FFbxConvert::ConvertTransform(NodeTransform);
-				ValueAtTime = GetTransformChannelValue(TransformChannel, Transform);
-			}
-			float Value = ValueAtTime * ScaleValue;
+			float Value = Key.GetValue() * ScaleValue;
 			FInterchangeCurveKey& InterchangeCurveKey = DestinationFloatCurve.AddDefaulted_GetRef();
 			InterchangeCurveKey.Time = KeyTimeValue;
 			InterchangeCurveKey.Value = Value;
@@ -345,68 +273,114 @@ namespace UE::Interchange::Private
 		return true;
 	}
 
-	bool ImportCurve(const FbxAnimCurve* SourceFloatCurves, const float ScaleValue, TArray<FInterchangeCurveKey>& DestinationFloatCurve)
+	template<typename AttributeType>
+	void FillStepCurveAttribute(TArray<float>& OutFrameTimes, TArray<AttributeType>& OutFrameValues, const FbxAnimCurve* FbxCurve, TFunctionRef<AttributeType(const FbxAnimCurveKey*, const FbxTime*)> EvaluationFunction)
 	{
-		return ImportCurve(nullptr, EInterchangeTransformCurveChannel::None, SourceFloatCurves, ScaleValue, DestinationFloatCurve);
+		const int32 KeyCount = FbxCurve ? FbxCurve->KeyGetCount() : 0;
+
+		if (KeyCount > 0)
+		{
+			OutFrameTimes.Reserve(KeyCount);
+			OutFrameValues.Reserve(KeyCount);
+			const FbxTime StartTime = FbxCurve->KeyGet(0).GetTime();
+
+			for (int32 KeyIndex = 0; KeyIndex < KeyCount; ++KeyIndex)
+			{
+				FbxAnimCurveKey Key = FbxCurve->KeyGet(KeyIndex);
+				FbxTime KeyTime = Key.GetTime() - StartTime;
+
+				OutFrameTimes.Add(KeyTime.GetSecondDouble());
+				OutFrameValues.Add(EvaluationFunction(&Key, &KeyTime));
+			}
+		}
+		else
+		{
+			OutFrameTimes.Add(0);
+			OutFrameValues.Add(EvaluationFunction(nullptr, nullptr));
+		}
 	}
 
-	bool ImportTranslationCurves(FbxNode* Node, TArray<FbxAnimCurve*>& SourceTransformChannelCurves, TArray<FInterchangeCurve>& TransformChannelCurves)
+	void ImportFloatStepCurve(const FbxAnimCurve* SourceCurves, FbxProperty& Property, FInterchangeStepCurve& DestinationCurve)
 	{
-		bool bResult = true;
-		//Translation X
-		bResult &= ImportCurve(Node, EInterchangeTransformCurveChannel::TranslationX, SourceTransformChannelCurves[0], 1.0f, TransformChannelCurves[0].Keys);
-		TransformChannelCurves[0].TransformChannel = EInterchangeTransformCurveChannel::TranslationX;
-		//Translation Y
-		bResult &= ImportCurve(Node, EInterchangeTransformCurveChannel::TranslationY, SourceTransformChannelCurves[1], 1.0f, TransformChannelCurves[1].Keys);
-		TransformChannelCurves[1].TransformChannel = EInterchangeTransformCurveChannel::TranslationY;
-		//Translation Z
-		bResult &= ImportCurve(Node, EInterchangeTransformCurveChannel::TranslationZ, SourceTransformChannelCurves[2], 1.0f, TransformChannelCurves[2].Keys);
-		TransformChannelCurves[2].TransformChannel = EInterchangeTransformCurveChannel::TranslationZ;
+		TArray<float> StepCurveValues;
+		FillStepCurveAttribute<float>(DestinationCurve.KeyTimes, StepCurveValues, SourceCurves, [&Property](const FbxAnimCurveKey* Key, const FbxTime* KeyTime)
+			{
+				if (Key)
+				{
+					return Key->GetValue();
+				}
+				else
+				{
+					return Property.Get<float>();
+				}
+			});
+		DestinationCurve.FloatKeyValues = StepCurveValues;
 
-		return bResult;
-	}
-	
-	bool ImportRotationCurves(FbxNode* Node, TArray<FbxAnimCurve*>& SourceTransformChannelCurves, TArray<FInterchangeCurve>& TransformChannelCurves)
-	{
-		bool bResult = true;
-		//Euler X
-		bResult &= ImportCurve(Node, EInterchangeTransformCurveChannel::EulerX, SourceTransformChannelCurves[3], 1.0f, TransformChannelCurves[3].Keys);
-		TransformChannelCurves[3].TransformChannel = EInterchangeTransformCurveChannel::EulerX;
-		//Euler Y
-		bResult &= ImportCurve(Node, EInterchangeTransformCurveChannel::EulerY, SourceTransformChannelCurves[4], 1.0f, TransformChannelCurves[4].Keys);
-		TransformChannelCurves[4].TransformChannel = EInterchangeTransformCurveChannel::EulerY;
-		//Euler Z
-		bResult &= ImportCurve(Node, EInterchangeTransformCurveChannel::EulerZ, SourceTransformChannelCurves[5], 1.0f, TransformChannelCurves[5].Keys);
-		TransformChannelCurves[5].TransformChannel = EInterchangeTransformCurveChannel::EulerZ;
-
-		return bResult;
-	}
-	
-	bool ImportScaleCurves(FbxNode* Node, TArray<FbxAnimCurve*>& SourceTransformChannelCurves, TArray<FInterchangeCurve>& TransformChannelCurves)
-	{
-		bool bResult = true;
-		//Scale X
-		bResult &= ImportCurve(Node, EInterchangeTransformCurveChannel::ScaleX, SourceTransformChannelCurves[6], 1.0f, TransformChannelCurves[6].Keys);
-		TransformChannelCurves[6].TransformChannel = EInterchangeTransformCurveChannel::ScaleX;
-		//Scale Y
-		bResult &= ImportCurve(Node, EInterchangeTransformCurveChannel::ScaleY, SourceTransformChannelCurves[7], 1.0f, TransformChannelCurves[7].Keys);
-		TransformChannelCurves[7].TransformChannel = EInterchangeTransformCurveChannel::ScaleY;
-		//Scale Z
-		bResult &= ImportCurve(Node, EInterchangeTransformCurveChannel::ScaleZ, SourceTransformChannelCurves[8], 1.0f, TransformChannelCurves[8].Keys);
-		TransformChannelCurves[8].TransformChannel = EInterchangeTransformCurveChannel::ScaleZ;
-
-		return bResult;
 	}
 
-	bool ImportTransformCurves(FbxNode* Node
-		, TArray<FbxAnimCurve*>& SourceTransformChannelCurves
-		, TArray<FInterchangeCurve>& TransformChannelCurves)
+	void ImportIntegerStepCurve(const FbxAnimCurve* SourceCurves, FbxProperty& Property, FInterchangeStepCurve& DestinationCurve)
 	{
-		bool bResult = true;
-		bResult &= ImportTranslationCurves(Node, SourceTransformChannelCurves, TransformChannelCurves);
-		bResult &= ImportRotationCurves(Node, SourceTransformChannelCurves, TransformChannelCurves);
-		bResult &= ImportScaleCurves(Node, SourceTransformChannelCurves, TransformChannelCurves);
-		return bResult;
+		TArray<int32> StepCurveValues;
+		FillStepCurveAttribute<int32>(DestinationCurve.KeyTimes, StepCurveValues, SourceCurves, [&Property](const FbxAnimCurveKey* Key, const FbxTime* KeyTime)
+			{
+				if (Key)
+				{
+					return static_cast<int32>(Key->GetValue());
+				}
+				else
+				{
+					return static_cast<int32>(Property.Get<int32>());
+				}
+			});
+		DestinationCurve.IntegerKeyValues = StepCurveValues;
+	}
+
+	void ImportStringStepCurve(const FbxAnimCurve* SourceCurves, FbxProperty& Property, FInterchangeStepCurve& DestinationCurve)
+	{
+		TArray<FString> StepCurveValues;
+		FillStepCurveAttribute<FString>(DestinationCurve.KeyTimes, StepCurveValues, SourceCurves, [&Property](const FbxAnimCurveKey* Key, const FbxTime* KeyTime)
+			{
+				if (KeyTime)
+				{
+					FbxPropertyValue& EvaluatedValue = Property.EvaluateValue(*KeyTime);
+					FbxString StringValue;
+					EvaluatedValue.Get(&StringValue, EFbxType::eFbxString);
+					return FString(UTF8_TO_TCHAR(StringValue));
+				}
+				else
+				{
+					return FString(UTF8_TO_TCHAR(Property.Get<FbxString>()));
+				}
+			});
+		DestinationCurve.StringKeyValues = StepCurveValues;
+	}
+
+	void ImportEnumStepCurve(const FbxAnimCurve* SourceCurves, FbxProperty& Property, FInterchangeStepCurve& DestinationCurve)
+	{
+		TArray<FString> StepCurveValues;
+		FillStepCurveAttribute<FString>(DestinationCurve.KeyTimes, StepCurveValues, SourceCurves, [&Property](const FbxAnimCurveKey* Key, const FbxTime* KeyTime)
+			{
+				int32 EnumIndex = -1;
+
+				if (KeyTime)
+				{
+					FbxPropertyValue& EvaluatedValue = Property.EvaluateValue(*KeyTime);
+					EvaluatedValue.Get(&EnumIndex, EFbxType::eFbxEnum);
+				}
+				else
+				{
+					EnumIndex = Property.Get<FbxEnum>();
+				}
+
+				if (EnumIndex < 0 || EnumIndex >= Property.GetEnumCount())
+				{
+					return FString();
+				}
+
+				const char* EnumValue = Property.GetEnumValue(EnumIndex);
+				return FString(UTF8_TO_TCHAR(EnumValue));
+			});
+		DestinationCurve.StringKeyValues = StepCurveValues;
 	}
 
 	bool ImportBakeTransforms(FbxNode* Node, FAnimationBakeTransformPayloadData& AnimationBakeTransformPayloadData)
@@ -429,8 +403,9 @@ namespace UE::Interchange::Private
 		FbxTime TimeStep = 0;
 		TimeStep.SetSecondDouble(TimeStepSecond);
 
-		const int32 NumFrame = FMath::RoundToInt32((AnimationBakeTransformPayloadData.RangeEndTime - AnimationBakeTransformPayloadData.RangeStartTime * AnimationBakeTransformPayloadData.BakeFrequency));
-		
+		const int32 NumFrame = FMath::RoundToInt32((AnimationBakeTransformPayloadData.RangeEndTime - AnimationBakeTransformPayloadData.RangeStartTime) * AnimationBakeTransformPayloadData.BakeFrequency);
+		check(NumFrame >= 0);
+
 		//Add a threshold when we compare if we have reach the end of the animation
 		const FbxTime TimeComparisonThreshold = (UE_DOUBLE_KINDA_SMALL_NUMBER * static_cast<double>(FBXSDK_TC_SECOND));
 		AnimationBakeTransformPayloadData.Transforms.Empty(NumFrame);
@@ -563,24 +538,31 @@ namespace UE::Interchange::Private
 
 	bool FAnimationPayloadContextTransform::FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
 	{
-		//Will need this one to import animated curves
+		if (AttributeFetchPayloadData.IsSet())
+		{
+			return InternalFetchCurveNodePayloadToFile(Parser, PayloadFilepath);
+		}
+		else if (MorphTargetFetchPayloadData.IsSet())
+		{
+			return InternalFetchMorphTargetCurvePayloadToFile(Parser, PayloadFilepath);
+		}
 		return false;
 	}
 
 	bool FAnimationPayloadContextTransform::FetchAnimationBakeTransformPayloadToFile(FFbxParser& Parser, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& PayloadFilepath)
 	{
-		if (!ensure(SDKScene != nullptr))
+		if (!ensure(NodeTransformFetchPayloadData.IsSet()))
 		{
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
-			Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(Node);
-			Message->Text = LOCTEXT("FBXSceneNull_Animation", "Cannot fetch FBX animation transform payload because the FBX scene is null.");
+			Message->Text = LOCTEXT("NodeTransformFetchPayloadData_NotSet", "Cannot fetch FBX animation transform payload because the FBX FNodeTransformFetchPayloadData is not set.");
 			return false;
 		}
 
-		if (!ensure(Node != nullptr))
+		FNodeTransformFetchPayloadData& FetchPayloadData = NodeTransformFetchPayloadData.GetValue();
+		if (!ensure(FetchPayloadData.Node))
 		{
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
-			Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(Node);
+			Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(FetchPayloadData.Node);
 			Message->Text = LOCTEXT("FBXNodeNull", "Cannot fetch FBX animation transform payload because the FBX node is null.");
 			return false;
 		}
@@ -591,7 +573,7 @@ namespace UE::Interchange::Private
 		AnimationBakeTransformPayloadData.RangeStartTime = RangeStartTime;
 		AnimationBakeTransformPayloadData.RangeEndTime = RangeEndTime;
 
-		ImportBakeTransforms(Node, AnimationBakeTransformPayloadData);
+		ImportBakeTransforms(FetchPayloadData.Node, AnimationBakeTransformPayloadData);
 		{
 			FLargeMemoryWriter Ar;
 			AnimationBakeTransformPayloadData.Serialize(Ar);
@@ -603,7 +585,167 @@ namespace UE::Interchange::Private
 		return true;
 	}
 
-	void FFbxAnimation::AddNodeTransformAnimation(FbxScene* SDKScene, FbxNode* JointNode, UInterchangeBaseNodeContainer& NodeContainer, UInterchangeSceneNode* SceneNode, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
+	bool FAnimationPayloadContextTransform::InternalFetchCurveNodePayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
+	{
+		check(AttributeFetchPayloadData.IsSet());
+		FAttributeFetchPayloadData& FetchPayloadData = AttributeFetchPayloadData.GetValue();
+		if (!ensure(FetchPayloadData.Node != nullptr))
+		{
+			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+			Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(FetchPayloadData.Node);
+			Message->Text = LOCTEXT("InternalFetchCurveNodePayloadToFile_FBXNodeNull", "Cannot fetch FBX animation curve payload because the FBX node is null.");
+			return false;
+		}
+
+		if (!ensure(FetchPayloadData.AnimCurves != nullptr))
+		{
+			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+			Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(FetchPayloadData.Node);
+			Message->Text = LOCTEXT("InternalFetchCurveNodePayloadToFile_FBXCurveNull", "Cannot fetch FBX user attribute animation curve payload because the FBX anim curve node is null.");
+			return false;
+		}
+		if (FetchPayloadData.bAttributeTypeIsStepCurveAnimation)
+		{
+			//Fetch TArray<FInterchangeStepCurve> step curve, no interpolation
+			TArray<FInterchangeStepCurve> InterchangeStepCurves;
+			const uint32 ChannelCount = FetchPayloadData.AnimCurves->GetChannelsCount();
+			for (uint32 ChannelIndex = 0; ChannelIndex < ChannelCount; ++ChannelIndex)
+			{
+				const uint32 ChannelCurveCount = FetchPayloadData.AnimCurves->GetCurveCount(ChannelIndex);
+				for (uint32 CurveIndex = 0; CurveIndex < ChannelCurveCount; ++CurveIndex)
+				{
+					if (FbxAnimCurve* CurrentAnimCurve = FetchPayloadData.AnimCurves->GetCurve(ChannelIndex, CurveIndex))
+					{
+						switch (FetchPayloadData.PropertyType)
+						{
+							case EFbxType::eFbxBool:
+							case EFbxType::eFbxChar:
+							case EFbxType::eFbxUChar:
+							case EFbxType::eFbxShort:
+							case EFbxType::eFbxUShort:
+							case EFbxType::eFbxInt:
+							case EFbxType::eFbxUInt:
+							case EFbxType::eFbxLongLong:
+							case EFbxType::eFbxULongLong:
+								ImportIntegerStepCurve(CurrentAnimCurve, FetchPayloadData.Property, InterchangeStepCurves.AddDefaulted_GetRef());
+								break;
+							case EFbxType::eFbxHalfFloat:
+							case EFbxType::eFbxFloat:
+							case EFbxType::eFbxDouble:
+							case EFbxType::eFbxDouble2:
+							case EFbxType::eFbxDouble3:
+							case EFbxType::eFbxDouble4:
+								check(false); //Float curve payload should be extract as FInterchangeCurve since we can interpolate them
+								ImportFloatStepCurve(CurrentAnimCurve, FetchPayloadData.Property, InterchangeStepCurves.AddDefaulted_GetRef());
+								break;
+							case EFbxType::eFbxEnum:
+								ImportEnumStepCurve(CurrentAnimCurve, FetchPayloadData.Property, InterchangeStepCurves.AddDefaulted_GetRef());
+								break;
+							case EFbxType::eFbxString:
+								ImportStringStepCurve(CurrentAnimCurve, FetchPayloadData.Property, InterchangeStepCurves.AddDefaulted_GetRef());
+								break;
+						}
+					}
+				}
+			}
+			{
+				FLargeMemoryWriter Ar;
+				Ar << InterchangeStepCurves;
+				uint8* ArchiveData = Ar.GetData();
+				int64 ArchiveSize = Ar.TotalSize();
+				TArray64<uint8> Buffer(ArchiveData, ArchiveSize);
+				FFileHelper::SaveArrayToFile(Buffer, *PayloadFilepath);
+			}
+		}
+		else
+		{
+			//Fetch TArray<FInterchangeCurve> which are float curves with interpolation
+			TArray<FInterchangeCurve> InterchangeCurves;
+			const uint32 ChannelCount = FetchPayloadData.AnimCurves->GetChannelsCount();
+			for (uint32 ChannelIndex = 0; ChannelIndex < ChannelCount; ++ChannelIndex)
+			{
+				const uint32 ChannelCurveCount = FetchPayloadData.AnimCurves->GetCurveCount(ChannelIndex);
+				for (uint32 CurveIndex = 0; CurveIndex < ChannelCurveCount; ++CurveIndex)
+				{
+					if (FbxAnimCurve* CurrentAnimCurve = FetchPayloadData.AnimCurves->GetCurve(ChannelIndex, CurveIndex))
+					{
+						ImportCurve(CurrentAnimCurve, 1.0f, InterchangeCurves.AddDefaulted_GetRef().Keys);
+					}
+				}
+			}
+			{
+				FLargeMemoryWriter Ar;
+				Ar << InterchangeCurves;
+				uint8* ArchiveData = Ar.GetData();
+				int64 ArchiveSize = Ar.TotalSize();
+				TArray64<uint8> Buffer(ArchiveData, ArchiveSize);
+				FFileHelper::SaveArrayToFile(Buffer, *PayloadFilepath);
+			}
+		}
+		return true;
+	}
+
+	bool FAnimationPayloadContextTransform::InternalFetchMorphTargetCurvePayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
+	{
+		check(MorphTargetFetchPayloadData.IsSet());
+		FMorphTargetFetchPayloadData& FetchPayloadData = MorphTargetFetchPayloadData.GetValue();
+
+		if(!FetchPayloadData.SDKScene)
+		{
+			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+			Message->Text = LOCTEXT("InternalFetchMorphTargetCurvePayloadToFile_FBXSDKSceneNull", "InternalFetchMorphTargetCurvePayloadToFile, fbx sdk is nullptr.");
+			return false;
+		}
+		
+		int32 GeometryCount = FetchPayloadData.SDKScene->GetGeometryCount();
+
+		FbxGeometry* Geometry = FetchPayloadData.SDKScene->GetGeometry(FetchPayloadData.GeometryIndex);
+		if (!Geometry || Geometry->GetAttributeType() != FbxNodeAttribute::eMesh)
+		{
+			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+			Message->Text = LOCTEXT("InternalFetchMorphTargetCurvePayloadToFile_FBXGeometryNull", "Cannot fetch FBX geometry from the scene.");
+			return false;
+		}
+
+		FbxAnimCurve* AnimCurve = nullptr;
+		int32 NumAnimations = FetchPayloadData.SDKScene->GetSrcObjectCount<FbxAnimStack>();
+		//Anim stack should be merge so we expect to have only one stack here
+		ensure(NumAnimations <= 1);
+		if (FbxAnimStack* AnimStack = NumAnimations == 1 ? (FbxAnimStack*)FetchPayloadData.SDKScene->GetSrcObject<FbxAnimStack>(0) : nullptr)
+		{
+			AnimCurve = Geometry->GetShapeChannel(FetchPayloadData.MorphTargetIndex, FetchPayloadData.ChannelIndex, (FbxAnimLayer*)AnimStack->GetMember(0));
+		}
+
+		if (!ensure(AnimCurve != nullptr))
+		{
+			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+			if (FbxNode* Node = Geometry->GetNode())
+			{
+				Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(Node);
+			}
+			Message->Text = LOCTEXT("InternalFetchMorphTargetCurvePayloadToFile_FBXCurveNull", "Cannot fetch FBX morph target animation curve payload because the FBX anim curve node is null.");
+			return false;
+		}
+		TArray<FInterchangeCurve> InterchangeCurves;
+		//Morph target curve in fbx are between 0 and 100, in Unreal we are between 0 and 1, so we must scale
+		//The curve with 0.01
+		constexpr float ScaleCurve = 0.01f;
+		ImportCurve(AnimCurve, ScaleCurve, InterchangeCurves.AddDefaulted_GetRef().Keys);
+		{
+			FLargeMemoryWriter Ar;
+			Ar << InterchangeCurves;
+			uint8* ArchiveData = Ar.GetData();
+			int64 ArchiveSize = Ar.TotalSize();
+			TArray64<uint8> Buffer(ArchiveData, ArchiveSize);
+			FFileHelper::SaveArrayToFile(Buffer, *PayloadFilepath);
+		}
+		return true;
+	}
+
+	void FFbxAnimation::AddNodeTransformAnimation(FbxScene* SDKScene
+		, FbxNode* Node
+		, UInterchangeSceneNode* SceneNode
+		, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
 	{
 		int32 NumAnimations = SDKScene->GetSrcObjectCount<FbxAnimStack>();
 		//Anim stack should be merge so we expect to have only one stack here
@@ -611,28 +753,122 @@ namespace UE::Interchange::Private
 
 		double FrameRate = FbxTime::GetFrameRate(SDKScene->GetGlobalSettings().GetTimeMode());
 
-		FGetFbxTransformCurvesParameters Parameters(SDKScene, JointNode);
+		FGetFbxTransformCurvesParameters Parameters(SDKScene, Node);
 		GetFbxTransformCurves(Parameters);
 
 		if (Parameters.IsNodeAnimated)
 		{
-			FString PayLoadKey = FFbxHelper::GetFbxNodeHierarchyName(JointNode) + TEXT("_AnimationPayloadKey");
+			FString PayLoadKey = FFbxHelper::GetFbxNodeHierarchyName(Node) + TEXT("_AnimationPayloadKey");
 			if (ensure(!PayloadContexts.Contains(PayLoadKey)))
 			{
 				TSharedPtr<FAnimationPayloadContextTransform> AnimPayload = MakeShared<FAnimationPayloadContextTransform>();
-				AnimPayload->Node = JointNode;
-				AnimPayload->SDKScene = SDKScene;
-				
+				FNodeTransformFetchPayloadData FetchPayloadData;
+				FetchPayloadData.Node = Node;
+				AnimPayload->NodeTransformFetchPayloadData = FetchPayloadData;
 				PayloadContexts.Add(PayLoadKey, AnimPayload);
 			}
-			SceneNode->SetCustomTransformCurvePayloadKey(PayLoadKey);
-			SceneNode->SetCustomIsNodeTransformAnimated(Parameters.IsNodeAnimated);
-			SceneNode->SetCustomNodeTransformAnimationKeyCount(Parameters.KeyCount);
-			SceneNode->SetCustomNodeTransformAnimationStartTime(Parameters.StartTime.GetSecondDouble());
-			SceneNode->SetCustomNodeTransformAnimationEndTime(Parameters.EndTime.GetSecondDouble());
+			UInterchangeAnimationAPI::SetCustomNodeTransformPayloadKey(SceneNode, PayLoadKey);
+			UInterchangeAnimationAPI::SetCustomIsNodeTransformAnimated(SceneNode, Parameters.IsNodeAnimated);
+			UInterchangeAnimationAPI::SetCustomNodeTransformAnimationKeyCount(SceneNode, Parameters.KeyCount);
+			UInterchangeAnimationAPI::SetCustomNodeTransformAnimationStartTime(SceneNode, Parameters.StartTime.GetSecondDouble());
+			UInterchangeAnimationAPI::SetCustomNodeTransformAnimationEndTime(SceneNode, Parameters.EndTime.GetSecondDouble());
 		}
 	}
 
+	void FFbxAnimation::AddNodeAttributeCurvesAnimation(FbxNode* Node
+		, FbxProperty& Property
+		, FbxAnimCurveNode* AnimCurveNode
+		, UInterchangeSceneNode* SceneNode
+		, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts
+		, EFbxType PropertyType
+		, TOptional<FString>& OutPayloadKey)
+	{
+		const FString PropertyName = FFbxHelper::GetFbxPropertyName(Property);
+		const FString PayLoadKey = FFbxHelper::GetFbxNodeHierarchyName(Node) + PropertyName + TEXT("_AnimationPayloadKey");
+		if (ensure(!PayloadContexts.Contains(PayLoadKey)))
+		{
+			TSharedPtr<FAnimationPayloadContextTransform> AnimPayload = MakeShared<FAnimationPayloadContextTransform>();
+			FAttributeFetchPayloadData FetchPayloadData;
+			FetchPayloadData.Node = Node;
+			FetchPayloadData.AnimCurves = AnimCurveNode;
+
+			//Any property that is not decimal should import with step curve
+			FetchPayloadData.bAttributeTypeIsStepCurveAnimation = !IsFbxPropertyTypeDecimal(PropertyType);
+			FetchPayloadData.PropertyType = PropertyType;
+			FetchPayloadData.Property = Property;
+			AnimPayload->AttributeFetchPayloadData = FetchPayloadData;
+			PayloadContexts.Add(PayLoadKey, AnimPayload);
+			OutPayloadKey = PayLoadKey;
+		}
+	}
+
+	void FFbxAnimation::AddMorphTargetCurvesAnimation(UInterchangeMeshNode* MorphTargetNode
+		, FbxScene* SDKScene
+		, int32 GeometryIndex
+		, int32 MorphTargetIndex
+		, int32 ChannelIndex
+		, const FString& MorphTargetPayloadKey
+		, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
+	{
+		check(MorphTargetNode);
+		const FString PayLoadKey = MorphTargetPayloadKey + TEXT("_CurveAnimationPayloadKey");
+		if (ensure(!PayloadContexts.Contains(PayLoadKey)))
+		{
+			TSharedPtr<FAnimationPayloadContextTransform> AnimPayload = MakeShared<FAnimationPayloadContextTransform>();
+			FMorphTargetFetchPayloadData FetchPayloadData;
+			FetchPayloadData.SDKScene = SDKScene;
+			FetchPayloadData.GeometryIndex = GeometryIndex;
+			FetchPayloadData.MorphTargetIndex = MorphTargetIndex;
+			FetchPayloadData.ChannelIndex = ChannelIndex;
+			AnimPayload->MorphTargetFetchPayloadData = FetchPayloadData;
+
+			PayloadContexts.Add(PayLoadKey, AnimPayload);
+		}
+		MorphTargetNode->SetAnimationCurvePayLoadKey(PayLoadKey);
+	}
+
+	bool FFbxAnimation::IsFbxPropertyTypeSupported(EFbxType PropertyType)
+	{
+		switch (PropertyType)
+		{
+		case EFbxType::eFbxBool:
+		case EFbxType::eFbxChar:		//!< 8 bit signed integer.
+		case EFbxType::eFbxUChar:		//!< 8 bit unsigned integer.
+		case EFbxType::eFbxShort:		//!< 16 bit signed integer.
+		case EFbxType::eFbxUShort:		//!< 16 bit unsigned integer.
+		case EFbxType::eFbxInt:			//!< 32 bit signed integer.
+		case EFbxType::eFbxUInt:		//!< 32 bit unsigned integer.
+		case EFbxType::eFbxLongLong:	//!< 64 bit signed integer.
+		case EFbxType::eFbxULongLong:	//!< 64 bit unsigned integer.
+		case EFbxType::eFbxHalfFloat:	//!< 16 bit floating point.
+		case EFbxType::eFbxFloat:		//!< Floating point value.
+		case EFbxType::eFbxDouble:	//!< Double width floating point value.
+		case EFbxType::eFbxDouble2:	//!< Vector of two double values.
+		case EFbxType::eFbxDouble3:	//!< Vector of three double values.
+		case EFbxType::eFbxDouble4:	//!< Vector of four double values.
+		case EFbxType::eFbxEnum:		//!< Enumeration.
+		case EFbxType::eFbxString:	//!< String.
+			return true;
+		}
+
+		return false;
+	};
+
+	bool FFbxAnimation::IsFbxPropertyTypeDecimal(EFbxType PropertyType)
+	{
+		switch (PropertyType)
+		{
+		case EFbxType::eFbxHalfFloat:
+		case EFbxType::eFbxFloat:
+		case EFbxType::eFbxDouble:
+		case EFbxType::eFbxDouble2:
+		case EFbxType::eFbxDouble3:
+		case EFbxType::eFbxDouble4:
+			return true;
+		}
+
+		return false;
+	}
 }//ns UE::Interchange::Private
 
 #undef LOCTEXT_NAMESPACE

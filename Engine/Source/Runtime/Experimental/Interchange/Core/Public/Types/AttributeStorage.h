@@ -230,13 +230,22 @@ namespace UE
 			BoxSphereBounds3f	= 54,
 			BoxSphereBounds3d	= 55,
 			Sphere3f			= 56,
-			Sphere3d			= 57
+			Sphere3d			= 57,
+
+			//Max should always be updated if we add a new supported type
+			Max                 = 58
 		};
 
 		/**
 		 * Return the FString for the specified AttributeType
 		 */
 		INTERCHANGECORE_API FString AttributeTypeToString(EAttributeTypes AttributeType);
+
+		/**
+		 * Return the AttributeType for the specified FString, return EAttributeTypes::None if the string do not match any
+		 * supported attribute type.
+		 */
+		INTERCHANGECORE_API EAttributeTypes StringToAttributeType(const FString& AttributeTypeString);
 
 		/**
 		 * Stub for attribute type traits.
