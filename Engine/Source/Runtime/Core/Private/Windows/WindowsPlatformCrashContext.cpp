@@ -53,6 +53,10 @@
 #define NOINITCRASHREPORTER 0
 #endif
 
+#ifndef DISABLE_CRC_SUBMIT_AND_RESTART_BUTTON
+#define DISABLE_CRC_SUBMIT_AND_RESTART_BUTTON 0
+#endif
+
 #define CR_CLIENT_MAX_PATH_LEN 265
 #define CR_CLIENT_MAX_ARGS_LEN 256
 
@@ -331,6 +335,11 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 		FCString::Sprintf(AnalyticsSummaryGuid, TEXT(" -ProcessGroupId=%s"), *FApp::GetInstanceId().ToString(EGuidFormats::Digits));
 		FCString::Strncat(CrashReporterClientArgs, AnalyticsSummaryGuid, CR_CLIENT_MAX_ARGS_LEN);
 	}
+
+#if DISABLE_CRC_SUBMIT_AND_RESTART_BUTTON
+	// Prevent showing the button if the application cannot be restarted.
+	FCString::Strncat(CrashReporterClientArgs, TEXT(" -HideSubmitAndRestart"), CR_CLIENT_MAX_ARGS_LEN);
+#endif
 
 	// Parse commandline arguments relevant to pass to the client. Note that since we run this from static initialization
 	// FCommandline has not yet been initialized, instead we need to use the OS provided methods.
@@ -854,6 +863,12 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 					CrashReportClientArguments += TEXT(" -waitforattach");
 				}
 #endif
+
+#if DISABLE_CRC_SUBMIT_AND_RESTART_BUTTON
+				// Prevent showing the button if the application cannot be restarted.
+				CrashReportClientArguments += TEXT(" -HideSubmitAndRestart");
+#endif
+
 				bCrashReporterRan = FPlatformProcess::CreateProc(CrashReporterClientPath, *CrashReportClientArguments, true, false, false, NULL, 0, NULL, NULL).IsValid();
 			}
 

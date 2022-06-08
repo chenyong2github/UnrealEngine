@@ -20,8 +20,12 @@ public:
 	 * Slate arguments
 	 */
 	SLATE_BEGIN_ARGS(SCrashReportClient)
+		: _bHideSubmitAndRestart(false)
 	{
 	}
+
+	/** Should the Submit and Send button be hitten. This can be overriden by a platform settings in the crash report config ini file. */
+	SLATE_ARGUMENT(bool, bHideSubmitAndRestart)
 
 	SLATE_END_ARGS()
 
@@ -71,6 +75,7 @@ private:
 	TSharedPtr<SMultiLineEditableTextBox> CrashDetailsInformation;
 
 	bool bHasUserCommentErrors;
+	bool bHideSubmitAndRestart;
 };
 
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
