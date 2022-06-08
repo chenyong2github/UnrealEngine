@@ -47,7 +47,7 @@ struct FOutputDeviceBlockAllocationTag : FDefaultBlockAllocationTag
 
 		FORCEINLINE static void* Malloc(SIZE_T Size, uint32 Alignment)
 		{
-			return FMemory::Malloc(Size, Alignment);
+			return FMemory::Malloc(Size, DEFAULT_ALIGNMENT);
 		}
 
 		FORCEINLINE static void Free(void* Pointer, SIZE_T Size)
