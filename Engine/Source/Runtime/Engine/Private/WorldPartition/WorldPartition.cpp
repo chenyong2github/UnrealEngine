@@ -587,6 +587,12 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				bIsPIE = true;
 			}
 
+			if (StreamingPolicy)
+			{
+				UE_LOG(LogWorldPartition, Warning, TEXT("StreamingPolicy was set when initializing the world partition object"));
+				StreamingPolicy = nullptr;
+			}
+
 			OnBeginPlay();
 		}
 
