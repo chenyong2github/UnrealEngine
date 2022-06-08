@@ -702,11 +702,11 @@ bool FOnlineSessionEOSPlus::SendSessionInviteToFriend(int32 LocalUserNum, FName 
 	if (bUseEOSSessions)
 	{
 		FUniqueNetIdPtr FriendId = GetEOSNetId(Friend.ToString());
-		if (!FriendId.IsValid())
+		if (FriendId.IsValid())
 		{
-			return false;
-		}
-		return EOSSessionInterface->SendSessionInviteToFriend(LocalUserNum, SessionName, *FriendId);
+			// We want to send the platform invite always to comply with platform requirements, so we won't return here
+			EOSSessionInterface->SendSessionInviteToFriend(LocalUserNum, SessionName, *FriendId);
+		}		
 	}
 	FUniqueNetIdPtr FriendId = GetBaseNetId(Friend.ToString());
 	if (!FriendId.IsValid())
@@ -725,18 +725,21 @@ bool FOnlineSessionEOSPlus::SendSessionInviteToFriend(const FUniqueNetId& LocalU
 		{
 			return false;
 		}
+
 		FUniqueNetIdPtr FriendId = GetEOSNetId(Friend.ToString());
-		if (!FriendId.IsValid())
+		if (FriendId.IsValid())
 		{
-			return false;
-		}
-		return EOSSessionInterface->SendSessionInviteToFriend(*Id, SessionName, *FriendId);
+			// We want to send the platform invite always to comply with platform requirements, so we won't return here
+			EOSSessionInterface->SendSessionInviteToFriend(*Id, SessionName, *FriendId);
+		} 
 	}
+
 	FUniqueNetIdPtr Id = GetBaseNetId(LocalUserId.ToString());
 	if (!Id.IsValid())
 	{
 		return false;
 	}
+
 	FUniqueNetIdPtr FriendId = GetBaseNetId(Friend.ToString());
 	if (!FriendId.IsValid())
 	{
@@ -749,8 +752,10 @@ bool FOnlineSessionEOSPlus::SendSessionInviteToFriends(int32 LocalUserNum, FName
 {
 	if (bUseEOSSessions)
 	{
-		return EOSSessionInterface->SendSessionInviteToFriends(LocalUserNum, SessionName, GetEOSNetIds(Friends));
+		// We want to send the platform invite always to comply with platform requirements, so we won't return here
+		EOSSessionInterface->SendSessionInviteToFriends(LocalUserNum, SessionName, GetEOSNetIds(Friends));
 	}
+
 	return BaseSessionInterface->SendSessionInviteToFriends(LocalUserNum, SessionName, GetBaseNetIds(Friends));
 }
 
@@ -763,8 +768,11 @@ bool FOnlineSessionEOSPlus::SendSessionInviteToFriends(const FUniqueNetId& Local
 		{
 			return false;
 		}
-		return EOSSessionInterface->SendSessionInviteToFriends(*Id, SessionName, GetEOSNetIds(Friends));
+
+		// We want to send the platform invite always to comply with platform requirements, so we won't return here
+		EOSSessionInterface->SendSessionInviteToFriends(*Id, SessionName, GetEOSNetIds(Friends));
 	}
+
 	FUniqueNetIdPtr Id = GetBaseNetId(LocalUserId.ToString());
 	if (!Id.IsValid())
 	{

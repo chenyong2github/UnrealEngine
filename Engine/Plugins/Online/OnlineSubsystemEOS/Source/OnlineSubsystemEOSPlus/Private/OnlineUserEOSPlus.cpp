@@ -614,10 +614,20 @@ FUniqueNetIdEOSPlusPtr FOnlineUserEOSPlus::AddRemotePlayer(FUniqueNetIdPtr BaseN
 {
 	FUniqueNetIdEOSPlusPtr PlusNetId = FUniqueNetIdEOSPlus::Create(BaseNetId, EOSNetId);
 
-	BaseNetIdToNetIdPlus.Add(BaseNetId->ToString(), PlusNetId);
-	EOSNetIdToNetIdPlus.Add(EOSNetId->ToString(), PlusNetId);
-	NetIdPlusToBaseNetId.Add(PlusNetId->ToString(), BaseNetId);
-	NetIdPlusToEOSNetId.Add(PlusNetId->ToString(), EOSNetId);
+	// BaseNetId may not be valid for EOS friends
+	if (BaseNetId.IsValid())
+	{
+		BaseNetIdToNetIdPlus.Add(BaseNetId->ToString(), PlusNetId);
+		NetIdPlusToBaseNetId.Add(PlusNetId->ToString(), BaseNetId);
+	}
+
+	// EOSNetId may not be valid for platform friends
+	if (EOSNetId.IsValid())
+	{
+		EOSNetIdToNetIdPlus.Add(EOSNetId->ToString(), PlusNetId);
+		NetIdPlusToEOSNetId.Add(PlusNetId->ToString(), EOSNetId);
+	}
+
 	NetIdPlusToNetIdPlus.Add(PlusNetId->ToString(), PlusNetId);
 
 	return PlusNetId;
@@ -738,8 +748,21 @@ FUniqueNetIdPtr FOnlineUserEOSPlus::CreateUniquePlayerId(const FString& Str)
 		return nullptr;
 	}
 
-	FUniqueNetIdPtr BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Str.Left(FoundAt));
-	FUniqueNetIdPtr EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Str.Right(Str.Len() - FoundAt - 3));
+	// BaseNetId will only be valid for platform friends
+	FUniqueNetIdPtr BaseNetId = nullptr;
+	FString BaseNetIdStr = Str.Left(FoundAt);
+	if (!BaseNetIdStr.IsEmpty())
+	{
+		BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(BaseNetIdStr);
+	}
+
+	// EOSNetId will only be valid for EOS friends
+	FUniqueNetIdPtr EOSNetId = nullptr;
+	FString EOSNetIdStr = Str.Right(Str.Len() - FoundAt - 3);
+	if (!EOSNetIdStr.IsEmpty())
+	{
+		EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(EOSNetIdStr);
+	}
 
 	return AddRemotePlayer(BaseNetId, EOSNetId);
 }
@@ -933,6 +956,18 @@ void FOnlineUserEOSPlus::OnFriendRemoved(const FUniqueNetId& UserId, const FUniq
 	TriggerOnFriendRemovedDelegates(*NetIdPlus, *FriendNetIdPlus);
 }
 
+void FOnlineUserEOSPlus::CacheFriendListNetIds(int32 LocalUserNum, const FString& ListName)
+{
+	TArray<TSharedRef<FOnlineFriend>> Friends;
+	GetFriendsList(LocalUserNum, ListName, Friends);
+
+	for (const TSharedRef<FOnlineFriend>& Friend : Friends)
+	{
+		// This call will add the friends as remote players, caching their NetIds for later use
+		CreateUniquePlayerId(Friend->GetUserId()->ToString());
+	}
+}
+
 bool FOnlineUserEOSPlus::ReadFriendsList(int32 LocalUserNum, const FString& ListName, const FOnReadFriendsListComplete& Delegate)
 {
 	if (BaseFriendsInterface.IsValid())
@@ -943,6 +978,8 @@ bool FOnlineUserEOSPlus::ReadFriendsList(int32 LocalUserNum, const FString& List
 			// Skip reading EAS if not in use and if we errored at the platform level
 			if (!UEOSSettings::GetSettings().bUseEAS || !bWasSuccessful)
 			{
+				CacheFriendListNetIds(LocalUserNum, ListName);
+
 				IntermediateComplete.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
 				return;
 			}
@@ -950,6 +987,8 @@ bool FOnlineUserEOSPlus::ReadFriendsList(int32 LocalUserNum, const FString& List
 			EOSFriendsInterface->ReadFriendsList(LocalUserNum, ListName,
 				FOnReadFriendsListComplete::CreateLambda([this, OnComplete = FOnReadFriendsListComplete(IntermediateComplete)](int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr)
 			{
+				CacheFriendListNetIds(LocalUserNum, ListName);
+
 				OnComplete.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
 			}));
 		}));
@@ -969,6 +1008,8 @@ bool FOnlineUserEOSPlus::ReadFriendsList(int32 LocalUserNum, const FString& List
 		return EOSFriendsInterface->ReadFriendsList(LocalUserNum, ListName,
 			FOnReadFriendsListComplete::CreateLambda([this, OnComplete = FOnReadFriendsListComplete(Delegate)](int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr)
 		{
+			CacheFriendListNetIds(LocalUserNum, ListName);
+
 			OnComplete.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
 		}));
 	}
