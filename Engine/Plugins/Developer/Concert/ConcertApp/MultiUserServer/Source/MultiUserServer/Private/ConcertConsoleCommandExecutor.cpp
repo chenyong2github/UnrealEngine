@@ -86,6 +86,11 @@ namespace UE::MultiUserServer
 	{
 		return FInputChord();
 	}
+
+	FInputChord FConcertConsoleCommandExecutor::GetIterateExecutorHotKey() const
+	{
+		return FInputChord();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

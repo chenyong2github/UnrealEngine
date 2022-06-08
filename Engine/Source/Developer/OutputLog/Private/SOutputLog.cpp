@@ -459,6 +459,8 @@ FReply SConsoleInputBox::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKe
 	}
 	else
 	{
+		const FInputChord KeyEventAsInputChord = FInputChord(KeyEvent.GetKey(), EModifierKey::FromBools(KeyEvent.IsControlDown(), KeyEvent.IsAltDown(), KeyEvent.IsShiftDown(), KeyEvent.IsCommandDown()));
+
 		if(KeyEvent.GetKey() == EKeys::Up)
 		{
 			// If the command field isn't empty we need you to have pressed Control+Up to summon the history (to make sure you're not just using caret navigation)
@@ -506,6 +508,11 @@ FReply SConsoleInputBox::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKe
 				ClearSuggestions();
 			}
 
+			return FReply::Handled();
+		}
+		else if (ActiveCommandExecutor && ActiveCommandExecutor->GetIterateExecutorHotKey() == KeyEventAsInputChord)
+		{
+			MakeNextCommandExecutorActive();
 			return FReply::Handled();
 		}
 	}
@@ -658,6 +665,28 @@ bool SConsoleInputBox::GetActiveCommandExecutorAllowMultiLine() const
 bool SConsoleInputBox::IsCommandExecutorMenuEnabled() const
 {
 	return !ConsoleCommandCustomExec.IsBound(); // custom execs always show the default executor in the UI (which has the selector disabled)
+}
+
+void SConsoleInputBox::MakeNextCommandExecutorActive()
+{
+	// Sorted so the iteration order matches the displayed order.
+	TArray<IConsoleCommandExecutor*> CommandExecutors = IModularFeatures::Get().GetModularFeatureImplementations<IConsoleCommandExecutor>(IConsoleCommandExecutor::ModularFeatureName());
+	CommandExecutors.Sort([](IConsoleCommandExecutor& LHS, IConsoleCommandExecutor& RHS)
+		{
+			return LHS.GetDisplayName().CompareTo(RHS.GetDisplayName()) < 0;
+		});
+
+	int32 CurrentIndex = CommandExecutors.IndexOfByKey(ActiveCommandExecutor);
+	if (CurrentIndex >= 0)
+	{
+		CurrentIndex++;
+		if (CurrentIndex >= CommandExecutors.Num())
+		{
+			CurrentIndex = 0;
+		}
+
+		SetActiveCommandExecutor(CommandExecutors[CurrentIndex]->GetName());
+	}
 }
 
 TSharedRef<SWidget> SConsoleInputBox::GetCommandExecutorMenuContent()

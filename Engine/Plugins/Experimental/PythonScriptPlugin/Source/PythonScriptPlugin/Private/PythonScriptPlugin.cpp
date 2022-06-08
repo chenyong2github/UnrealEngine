@@ -170,6 +170,15 @@ FInputChord FPythonCommandExecutor::GetHotKey() const
 #endif
 }
 
+FInputChord FPythonCommandExecutor::GetIterateExecutorHotKey() const
+{
+#if WITH_EDITOR
+	return FGlobalEditorCommonCommands::Get().SelectNextConsoleExecutor->GetActiveChord(EMultipleKeyBindingIndex::Primary).Get();
+#else
+	return FInputChord();
+#endif
+}
+
 FPythonREPLCommandExecutor::FPythonREPLCommandExecutor(IPythonScriptPlugin* InPythonScriptPlugin)
 	: PythonScriptPlugin(InPythonScriptPlugin)
 {
@@ -238,6 +247,15 @@ FInputChord FPythonREPLCommandExecutor::GetHotKey() const
 {
 #if WITH_EDITOR
 	return FGlobalEditorCommonCommands::Get().OpenConsoleCommandBox->GetActiveChord(EMultipleKeyBindingIndex::Primary).Get();
+#else
+	return FInputChord();
+#endif
+}
+
+FInputChord FPythonREPLCommandExecutor::GetIterateExecutorHotKey() const
+{
+#if WITH_EDITOR
+	return FGlobalEditorCommonCommands::Get().SelectNextConsoleExecutor->GetActiveChord(EMultipleKeyBindingIndex::Primary).Get();
 #else
 	return FInputChord();
 #endif

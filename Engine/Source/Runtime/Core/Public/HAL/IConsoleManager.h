@@ -672,6 +672,11 @@ public:
 	* Returns the hotkey for this executor
 	*/
 	virtual struct FInputChord GetHotKey() const = 0;
+	/**
+	* Returns the hotkey to switch to the next executor. This is usually the same hotkey as GetHotKey but with a modifier,
+	* such as "`" turning into "Ctrl + `".
+	*/
+	virtual struct FInputChord GetIterateExecutorHotKey() const = 0;
 };
 
 

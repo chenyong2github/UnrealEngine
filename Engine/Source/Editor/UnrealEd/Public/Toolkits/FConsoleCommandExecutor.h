@@ -28,6 +28,11 @@ public:
 	{
 		return FGlobalEditorCommonCommands::Get().OpenConsoleCommandBox->GetActiveChord(EMultipleKeyBindingIndex::Primary).Get();
 	}
+
+	virtual FInputChord GetIterateExecutorHotKey() const override
+	{
+		return FGlobalEditorCommonCommands::Get().FGlobalEditorCommonCommands::Get().SelectNextConsoleExecutor->GetActiveChord(EMultipleKeyBindingIndex::Primary).Get();
+	}
 private:
 	bool ExecInternal(const TCHAR*) const;
 };

@@ -45,6 +45,7 @@ public:
 	virtual bool AllowHotKeyClose() const override;
 	virtual bool AllowMultiLine() const override;
 	virtual FInputChord GetHotKey() const override;
+	virtual FInputChord GetIterateExecutorHotKey() const override;
 
 private:
 	IPythonScriptPlugin* PythonScriptPlugin;
@@ -69,6 +70,7 @@ public:
 	virtual bool AllowHotKeyClose() const override;
 	virtual bool AllowMultiLine() const override;
 	virtual FInputChord GetHotKey() const override;
+	virtual FInputChord GetIterateExecutorHotKey() const override;
 
 private:
 	IPythonScriptPlugin* PythonScriptPlugin;
