@@ -7,7 +7,7 @@
 #include "RenderGraphResourcePool.h"
 #include "VisualizeTexture.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-
+#include "Async/ParallelFor.h"
 
 #if ENABLE_RHI_VALIDATION
 
@@ -1524,7 +1524,7 @@ void FRDGBuilder::Execute()
 	const FRDGPassHandle ProloguePassHandle = GetProloguePassHandle();
 	const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
 
-	FGraphEventArray AsyncCompileEvents;
+	FGraphEventArray AsyncCompileEvents = ParallelSetupEvents;
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExecuteBegin());
 	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = true);
@@ -1637,6 +1637,8 @@ void FRDGBuilder::Execute()
 			}
 		}
 
+		CreateUniformBuffers(bParallelExecuteEnabled ? &AsyncCompileEvents : nullptr);
+
 		{
 			SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::CollectBarriers", FColor::Magenta);
 			SCOPE_CYCLE_COUNTER(STAT_RDG_CollectBarriersTime);
@@ -1670,34 +1672,29 @@ void FRDGBuilder::Execute()
 		});
 	}
 
+	CreatePassBarriers(bParallelExecuteEnabled ? &AsyncCompileEvents : nullptr);
+
+	EndFlushResourcesRHI();
+
+	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = bParallelExecuteEnabled);
+
+	FGraphEventRef DispatchParallelExecuteEvent;
+
 	if (bParallelExecuteEnabled)
 	{
-		// Overlap pass barrier creation with other compilation tasks, since it's not required to run on the render thread.
-		AsyncCompileEvents.Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[this](ENamedThreads::Type, const FGraphEventRef&)
+		DispatchParallelExecuteEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[this, &RHICmdContext = RHICmdList.GetContext()](ENamedThreads::Type, const FGraphEventRef&)
 		{
-			CreatePassBarriers();
+			DispatchParallelExecute(&RHICmdContext);
 
-		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
-	}
-	else
-	{
-		CreatePassBarriers();
+		}, TStatId(), &AsyncCompileEvents, ENamedThreads::AnyHiPriThreadHiPriTask);
 	}
 
 	SubmitBufferUploads();
 
-	CreateUniformBuffers();
-
-	EndFlushResourcesRHI();
-
 	IF_RDG_ENABLE_TRACE(Trace.OutputGraphBegin());
 
-	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = bParallelExecuteEnabled);
-
 	const ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread_Local();
-
-	FGraphEventRef DispatchParallelExecuteEvent;
 
 	if (!IsImmediateMode())
 	{
@@ -1709,16 +1706,6 @@ void FRDGBuilder::Execute()
 		if (!AsyncCompileEvents.IsEmpty())
 		{
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(AsyncCompileEvents, RenderThread);
-		}
-
-		if (bParallelExecuteEnabled)
-		{
-			DispatchParallelExecuteEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
-				[this, &RHICmdContext = RHICmdList.GetContext()](ENamedThreads::Type, const FGraphEventRef&)
-			{
-				DispatchParallelExecute(&RHICmdContext);
-
-			}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
 		}
 
 		for (FRDGPassHandle PassHandle = ProloguePassHandle; PassHandle <= EpiloguePassHandle; ++PassHandle)
@@ -2103,9 +2090,11 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 		SubmitBufferUploads();
 		CompilePassOps(Pass);
 		BeginResourcesRHI(Pass, PassHandle);
+		CreateUniformBuffers(nullptr);
 		CollectPassBarriers(Pass, PassHandle);
-		CreatePassBarriers();
-		CreateUniformBuffers();
+		CreatePassBarriers(nullptr);
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(ParallelSetupEvents);
+		ParallelSetupEvents.Reset();
 		ExecutePass(Pass, RHICmdList);
 	}
 
@@ -2164,9 +2153,9 @@ void FRDGBuilder::SubmitBufferUploads()
 			else
 #endif
 			{
-				void* DestPtr = RHICmdList.LockBuffer(UploadedBuffer.Buffer->GetRHI(), 0, UploadedBuffer.DataSize, RLM_WriteOnly);
+				void* DestPtr = RHICmdList.LockBuffer(UploadedBuffer.Buffer->GetRHIUnchecked(), 0, UploadedBuffer.DataSize, RLM_WriteOnly);
 				FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
-				RHICmdList.UnlockBuffer(UploadedBuffer.Buffer->GetRHI());
+				RHICmdList.UnlockBuffer(UploadedBuffer.Buffer->GetRHIUnchecked());
 			}
 
 			if (UploadedBuffer.bUseFreeCallbacks)
@@ -2381,15 +2370,33 @@ void FRDGBuilder::DispatchParallelExecute(IRHICommandContext* RHICmdContext)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FRDGBuilder::CreateUniformBuffers()
+void FRDGBuilder::CreateUniformBuffers(FGraphEventArray* AsyncCompileEvents)
 {
-	SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::CreateUniformBuffers", FColor::Magenta);
+	const int32 ParallelDispatchThreshold = 4;
 
-	for (FRDGUniformBufferHandle UniformBufferHandle : UniformBuffersToCreate)
+	const auto CreateUniformBuffersFunction = [this]
 	{
-		UniformBuffers[UniformBufferHandle]->InitRHI();
+		SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::CreateUniformBuffers", FColor::Magenta);
+		for (FRDGUniformBufferHandle UniformBufferHandle : UniformBuffersToCreate)
+		{
+			UniformBuffers[UniformBufferHandle]->InitRHI();
+		}
+		UniformBuffersToCreate.Reset();
+	};
+
+	if (AsyncCompileEvents && UniformBuffersToCreate.Num() > ParallelDispatchThreshold)
+	{
+		AsyncCompileEvents->Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[CreateUniformBuffersFunction](ENamedThreads::Type, const FGraphEventRef&)
+		{
+			CreateUniformBuffersFunction();
+
+		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
 	}
-	UniformBuffersToCreate.Reset();
+	else
+	{
+		CreateUniformBuffersFunction();
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2497,7 +2504,7 @@ void FRDGBuilder::ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FR
 
 void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdListPass)
 {
-#if RDG_EVENTS != RDG_EVENTS_NONE
+#if 1 || RDG_EVENTS != RDG_EVENTS_NONE
 	SCOPED_NAMED_EVENT_TCHAR(Pass->GetName(), FColor::Magenta);
 #endif
 
@@ -2634,15 +2641,43 @@ void FRDGBuilder::CollectPassBarriers(FRDGPass* Pass, FRDGPassHandle PassHandle)
 	}
 }
 
-void FRDGBuilder::CreatePassBarriers()
+void FRDGBuilder::CreatePassBarriers(FGraphEventArray* AsyncCompileEvents)
 {
-	SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::CreatePassBarriers", FColor::Magenta);
+	const int32 NumBarriersPerTask = 128;
 
-	for (FRDGBarrierBatchBegin* BarrierBatchBegin : TransitionCreateQueue)
+	if (AsyncCompileEvents && TransitionCreateQueue.Num() > NumBarriersPerTask)
 	{
-		BarrierBatchBegin->CreateTransition();
+		AsyncCompileEvents->Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[this, NumBarriersPerTask](ENamedThreads::Type, const FGraphEventRef&)
+		{
+#if 1
+			ParallelFor(TEXT("FRDGBuilder::CreatePassBarriers"), TransitionCreateQueue.Num(), NumBarriersPerTask, [this](int32 Index)
+			{
+				TransitionCreateQueue[Index]->CreateTransition();
+			});
+#else
+			SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::CreatePassBarriers", FColor::Magenta);
+			for (FRDGBarrierBatchBegin* BeginBatch : TransitionCreateQueue)
+			{
+				BeginBatch->CreateTransition();
+			}
+#endif
+
+			TransitionCreateQueue.Reset();
+
+		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
 	}
-	TransitionCreateQueue.Reset();
+	else
+	{
+		SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::CreatePassBarriers", FColor::Magenta);
+
+		for (FRDGBarrierBatchBegin* BeginBatch : TransitionCreateQueue)
+		{
+			BeginBatch->CreateTransition();
+		}
+
+		TransitionCreateQueue.Reset();
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

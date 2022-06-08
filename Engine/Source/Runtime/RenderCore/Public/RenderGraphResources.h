@@ -1417,5 +1417,6 @@ inline FRDGTextureSRV* GetAsTextureSRV(FRDGView* View)
 }
 
 inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRDGParameterStruct& ParameterStruct);
+inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRenderTargetBindingSlots& RenderTargets);
 
 #include "RenderGraphResources.inl"

@@ -184,6 +184,19 @@ public:
 	/** A hint to the builder to flush work to the RHI thread after the last queued pass on the execution timeline. */
 	void AddDispatchHint();
 
+
+	template <typename TaskLambda>
+	void AddSetupTask(TaskLambda&& Task)
+	{
+		ParallelSetupEvents.Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[Task = MoveTemp(Task)](ENamedThreads::Type, const FGraphEventRef&)
+		{
+			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+			Task();
+
+		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
+	}
+
 	/** Tells the builder to delete unused RHI resources. The behavior of this method depends on whether RDG immediate mode is enabled:
 	 *   Deferred:  RHI resource flushes are performed prior to execution.
 	 *   Immediate: RHI resource flushes are performed immediately.
@@ -650,6 +663,9 @@ private:
 	/** Array of all active parallel execute tasks. */
 	FGraphEventArray ParallelExecuteEvents;
 
+	/** Array of all task events requested by the user. */
+	FGraphEventArray ParallelSetupEvents;
+
 	/** Tracks the final access used on resources in order to call SetTrackedAccess. */
 	TArray<FRHITrackedAccessInfo, FRDGArrayAllocator> EpilogueResourceAccesses;
 
@@ -749,9 +765,9 @@ private:
 
 	void CollectPassBarriers(FRDGPass* Pass, FRDGPassHandle PassHandle);
 
-	void CreatePassBarriers();
+	void CreatePassBarriers(FGraphEventArray* AsyncCompileEvents);
 
-	void CreateUniformBuffers();
+	void CreateUniformBuffers(FGraphEventArray* AsyncCompileEvents);
 
 	void AddPassDependency(FRDGPassHandle ProducerHandle, FRDGPassHandle ConsumerHandle);
 

@@ -209,13 +209,17 @@ inline FRDGBufferUAVDesc::FRDGBufferUAVDesc(FRDGBufferRef InBuffer)
 
 inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRDGParameterStruct& ParameterStruct)
 {
-	const FRenderTargetBindingSlots& RDGRenderTargets = ParameterStruct.GetRenderTargets();
+	return ExtractRenderTargetsInfo(ParameterStruct.GetRenderTargets());
+}
+
+inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRenderTargetBindingSlots& RenderTargets)
+{
 	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
 	uint32 RenderTargetIndex = 0;
 
 	RenderTargetsInfo.NumSamples = 1;
 
-	RDGRenderTargets.Enumerate([&](FRenderTargetBinding RenderTarget)
+	RenderTargets.Enumerate([&](FRenderTargetBinding RenderTarget)
 	{
 		FRDGTextureRef Texture = RenderTarget.GetTexture();
 
@@ -231,7 +235,7 @@ inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRDGPar
 		RenderTargetsInfo.RenderTargetFormats[RenderTargetIndex] = PF_Unknown;
 	}
 
-	const FDepthStencilBinding& DepthStencil = RDGRenderTargets.DepthStencil;
+	const FDepthStencilBinding& DepthStencil = RenderTargets.DepthStencil;
 	if (FRDGTextureRef DepthTexture = DepthStencil.GetTexture())
 	{
 		RenderTargetsInfo.DepthStencilTargetFormat = DepthTexture->Desc.Format;
@@ -251,8 +255,8 @@ inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRDGPar
 		RenderTargetsInfo.DepthStencilTargetFormat = PF_Unknown;
 	}
 
-	RenderTargetsInfo.MultiViewCount = RDGRenderTargets.MultiViewCount;
-	RenderTargetsInfo.bHasFragmentDensityAttachment = RDGRenderTargets.ShadingRateTexture != nullptr;
+	RenderTargetsInfo.MultiViewCount = RenderTargets.MultiViewCount;
+	RenderTargetsInfo.bHasFragmentDensityAttachment = RenderTargets.ShadingRateTexture != nullptr;
 
 	return RenderTargetsInfo;
 }
