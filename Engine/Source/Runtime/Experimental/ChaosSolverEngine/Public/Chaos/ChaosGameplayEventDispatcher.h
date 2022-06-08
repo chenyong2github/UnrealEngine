@@ -26,20 +26,29 @@ public:
 
 	FChaosBreakEvent();
 
+	/** primitive component involved in the break event */
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
 	TObjectPtr<UPrimitiveComponent> Component = nullptr;
 
+	/** World location of the break */
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
 	FVector Location;
 
+	/** Linear Velocity of the breaking particle  */
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
 	FVector Velocity;
 
+	/** Angular Velocity of the breaking particle  */
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
 	FVector AngularVelocity;
 
+	/** Mass of the breaking particle  */
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
 	float Mass;
+
+	/** Index of the geometry collection bone if positive */
+	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
+	int32 Index;
 };
 
 USTRUCT(BlueprintType)

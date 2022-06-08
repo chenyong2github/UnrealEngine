@@ -22,6 +22,7 @@ FChaosBreakEvent::FChaosBreakEvent()
 	, Velocity(FVector::ZeroVector)
 	, AngularVelocity(FVector::ZeroVector)
 	, Mass(0.0f)
+	, Index(INDEX_NONE)
 {
 
 }
@@ -464,6 +465,7 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 						BreakEvent.Velocity = BreakingDataItem.Velocity;
 						BreakEvent.AngularVelocity = BreakingDataItem.AngularVelocity;
 						BreakEvent.Mass = BreakingDataItem.Mass;
+						BreakEvent.Index = BreakingDataItem.TransformGroupIndex;
 					}
 				}
 			}
