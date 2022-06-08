@@ -136,26 +136,53 @@ void FCurveEditorDragOperation_MoveKeys::OnEndDrag(FVector2D InitialPosition, FV
 	{
 		if (FCurveModel* Curve = CurveEditor->FindCurve(KeyData.CurveID))
 		{
-			// First, remove any keys that overlap before moving the new key on top
-			TArray<FKeyHandle> KeysToRemove;
+			// Gather all the final key time positions
+			TArray<FKeyPosition> KeyTimes;
 			for (int32 KeyIndex = 0; KeyIndex < KeyData.Handles.Num(); ++KeyIndex)
 			{
 				const FKeyHandle& KeyHandle = KeyData.Handles[KeyIndex];
 				FKeyPosition KeyTime = KeyData.LastDraggedKeyPositions[KeyIndex];
+				KeyTimes.Add(KeyTime);
+			}
 
+			// For each key time, look for all the keys that match
+			TArray<FKeyHandle> KeysToRemove;
+			for (const FKeyPosition& KeyTime : KeyTimes)
+			{
 				TArray<FKeyHandle> KeysInRange;
 				Curve->GetKeys(*CurveEditor, KeyTime.InputValue, KeyTime.InputValue, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeysInRange);
 
-				for (const FKeyHandle& KeyInRangeHandle : KeysInRange)
+				// If there's more than 1 key at this time, remove all but the keys that moved the largest amount
+				if (KeysInRange.Num() > 1)
 				{
-					if (KeyHandle != KeyInRangeHandle)
+					double MaxDist = TNumericLimits<double>::Min();
+					FKeyHandle MaxKeyHandle;
+					for (const FKeyHandle& KeyInRange : KeysInRange)
 					{
-						KeysToRemove.Add(KeyInRangeHandle);
+						int32 KeyDataIndex = KeyData.Handles.Find(KeyInRange);
+						if (KeyDataIndex != INDEX_NONE)
+						{
+							double Dist = FMath::Abs(KeyData.StartKeyPositions[KeyDataIndex].InputValue - KeyData.LastDraggedKeyPositions[KeyDataIndex].InputValue);
+							if (Dist > MaxDist)
+							{
+								MaxKeyHandle = KeyInRange;
+								MaxDist = Dist;
+							}
+						}
+					}
+
+					for (const FKeyHandle& KeyInRange : KeysInRange)
+					{
+						if (KeyInRange != MaxKeyHandle)
+						{
+							KeysToRemove.Add(KeyInRange);
+						}
 					}
 				}
 			}
-			Curve->RemoveKeys(KeysToRemove);
 
+			// Remove any keys that overlap before moving new keys on top
+			Curve->RemoveKeys(KeysToRemove);
 			// Then, move the keys
 			Curve->SetKeyPositions(KeyData.Handles, KeyData.LastDraggedKeyPositions, EPropertyChangeType::ValueSet);
 		}
