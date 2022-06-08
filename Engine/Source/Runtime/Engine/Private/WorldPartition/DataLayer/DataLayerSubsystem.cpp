@@ -56,7 +56,11 @@ void FDataLayersEditorBroadcast::StaticOnActorDataLayersEditorLoadingStateChange
 #endif
 
 UDataLayerSubsystem::UDataLayerSubsystem()
-{}
+{
+#if WITH_EDITOR
+	DataLayerActorEditorContextID = 0;
+#endif
+}
 
 void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -601,18 +605,21 @@ void UDataLayerSubsystem::GetDataLayerDebugColors(TMap<FName, FColor>& OutMappin
 
 void UDataLayerSubsystem::PushActorEditorContext() const
 {
+	++DataLayerActorEditorContextID;
 	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 	{
-		WorldDataLayers->PushActorEditorContext();
+		WorldDataLayers->PushActorEditorContext(DataLayerActorEditorContextID);
 	}
 }
 
 void UDataLayerSubsystem::PopActorEditorContext() const
 {
+	check(DataLayerActorEditorContextID > 0);
 	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 	{
-		WorldDataLayers->PopActorEditorContext();
+		WorldDataLayers->PopActorEditorContext(DataLayerActorEditorContextID);
 	}
+	--DataLayerActorEditorContextID;
 }
 
 TArray<UDataLayerInstance*> UDataLayerSubsystem::GetActorEditorContextDataLayers() const

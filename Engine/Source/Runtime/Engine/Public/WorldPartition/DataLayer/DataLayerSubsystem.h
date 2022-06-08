@@ -200,6 +200,8 @@ public:
 private:
 #if WITH_EDITOR
 	void OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer);
+
+	mutable int32 DataLayerActorEditorContextID;
 #endif
 
 	/** Console command used to toggle activation of a DataLayer */

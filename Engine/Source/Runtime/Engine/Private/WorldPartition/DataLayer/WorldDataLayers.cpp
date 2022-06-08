@@ -16,6 +16,7 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
+#include "Algo/Find.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldDataLayers"
@@ -576,18 +577,28 @@ bool AWorldDataLayers::RemoveFromActorEditorContext(UDataLayerInstance* InDataLa
 	return false;
 }
 
-void AWorldDataLayers::PushActorEditorContext()
+void AWorldDataLayers::PushActorEditorContext(int32 InContextID)
 {
 	Modify(/*bDirty*/false);
+	CurrentDataLayers.ContextID = InContextID;
 	CurrentDataLayersStack.Push(CurrentDataLayers);
 	CurrentDataLayers.Reset();
 }
 
-void AWorldDataLayers::PopActorEditorContext()
+void AWorldDataLayers::PopActorEditorContext(int32 InContextID)
 {
-	check(!CurrentDataLayersStack.IsEmpty());
-	Modify(/*bDirty*/false);
-	CurrentDataLayers = CurrentDataLayersStack.Pop();
+	if (Algo::FindByPredicate(CurrentDataLayersStack, [InContextID](FActorPlacementDataLayers& Element) { return Element.ContextID == InContextID; }))
+	{
+		Modify(/*bDirty*/false);
+		while (!CurrentDataLayersStack.IsEmpty())
+		{
+			CurrentDataLayers = CurrentDataLayersStack.Pop();
+			if (CurrentDataLayers.ContextID == InContextID)
+			{
+				break;
+			}
+		}
+	}
 }
 
 TArray<UDataLayerInstance*> AWorldDataLayers::GetActorEditorContextDataLayers() const

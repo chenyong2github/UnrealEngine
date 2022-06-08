@@ -24,6 +24,9 @@ struct FActorPlacementDataLayers
 	UPROPERTY()
 	TArray<FName> DataLayerInstanceNames;
 
+	UPROPERTY()
+	int32 ContextID = INT32_MAX;
+
 	void Reset()
 	{
 		DataLayerInstanceNames.Reset();
@@ -68,8 +71,8 @@ public:
 	bool IsInActorEditorContext(const UDataLayerInstance* InDataLayerInstance) const;
 	bool AddToActorEditorContext(UDataLayerInstance* InDataLayerInstance);
 	bool RemoveFromActorEditorContext(UDataLayerInstance* InDataLayerInstance);
-	void PushActorEditorContext();
-	void PopActorEditorContext();
+	void PushActorEditorContext(int32 InContextID);
+	void PopActorEditorContext(int32 InContextID);
 	TArray<UDataLayerInstance*> GetActorEditorContextDataLayers() const;
 
 	//~ Begin Helper Functions
