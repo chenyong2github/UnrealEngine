@@ -10,7 +10,7 @@
  * Global settings for Epic Stage App integration.
  */
 UCLASS(config = Engine)
-class WEBREMOTECONTROL_API UStageAppSettings : public UDeveloperSettings
+class EPICSTAGEAPP_API UStageAppSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 

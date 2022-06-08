@@ -1864,15 +1864,7 @@ USceneComponent* FDisplayClusterLightCardEditorViewportClient::FindProjectionOri
 		return nullptr;
 	}
 
-	TArray<UDisplayClusterCameraComponent*> ViewOriginComponents;
-	InRootActor->GetComponents<UDisplayClusterCameraComponent>(ViewOriginComponents);
-
-	if (ViewOriginComponents.Num())
-	{
-		return ViewOriginComponents[0];
-	}
-
-	return InRootActor->GetRootComponent();
+	return InRootActor->GetCommonViewPoint();
 }
 
 bool FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected(const AActor* Actor)

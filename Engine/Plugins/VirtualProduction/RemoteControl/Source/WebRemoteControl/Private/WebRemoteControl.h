@@ -13,7 +13,6 @@
 #include "RemoteControlRoute.h"
 #include "RemoteControlWebsocketRoute.h"
 #include "RemoteControlWebSocketServer.h"
-#include "StageAppBeaconReceiver.h"
 #include "WebRemoteControlEditorRoutes.h"
 
 struct FHttpServerRequest;
@@ -202,9 +201,6 @@ private:
 	FSimpleMulticastDelegate OnHttpServerStoppedDelegate;
 	FOnWebServerStarted OnWebSocketServerStartedDelegate;
 	FSimpleMulticastDelegate OnWebSocketServerStoppedDelegate;
-
-	/** Receiver that responds to beacon messages from the stage app. */
-	FStageAppBeaconReceiver StageAppBeaconReceiver;
 
 	/** Name cache for Get Controller Result structs
 	* Key: Controller name; Value: Name of the dynamic struct holding our result*/

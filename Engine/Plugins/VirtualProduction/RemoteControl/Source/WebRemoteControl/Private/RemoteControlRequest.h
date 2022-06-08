@@ -4,52 +4,9 @@
 #include "CoreMinimal.h"
 #include "IRemoteControlModule.h"
 #include "RemoteControlModels.h"
+#include "RemoteControlWebsocketRoute.h"
+
 #include "RemoteControlRequest.generated.h"
-
-struct FBlockDelimiters
-{
-	int64 BlockStart = -1;
-	int64 BlockEnd = -1;
-
-	/** Get the size of current block */
-	int64 GetBlockSize() const { return BlockEnd - BlockStart; }
-};
-
-/**
- * Holds a request made to the remote control server.
- */
-USTRUCT()
-struct FRCRequest
-{
-	GENERATED_BODY()
-
-	virtual ~FRCRequest() = default;
-
-	TMap<FString, FBlockDelimiters>& GetStructParameters()
-	{
-		return StructParameters;
-	}
-
-	FBlockDelimiters& GetParameterDelimiters(const FString& ParameterName)
-	{
-		return StructParameters.FindChecked(ParameterName);
-	}
-
-	UPROPERTY()
-	FString Passphrase;
-
-	/** Holds the request's TCHAR payload. */
-	TArray<uint8> TCHARBody;
-
-protected:
-	void AddStructParameter(FString ParameterName)
-	{
-		StructParameters.Add(MoveTemp(ParameterName), FBlockDelimiters());
-	}
-
-	/** Holds the start and end of struct parameters */
-	TMap<FString, FBlockDelimiters> StructParameters;
-};
 
 USTRUCT()
 struct FRCRequestWrapper : public FRCRequest

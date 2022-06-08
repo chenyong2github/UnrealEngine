@@ -257,6 +257,7 @@ void FDisplayClusterScenePreviewModule::RegisterOrUnregisterGlobalActorEvents()
 		}
 	}
 
+#if WITH_EDITOR
 	if (bShouldBeRegistered && !bIsRegisteredForActorEvents)
 	{
 		// Register for events
@@ -279,10 +280,12 @@ void FDisplayClusterScenePreviewModule::RegisterOrUnregisterGlobalActorEvents()
 			GEngine->OnLevelActorDeleted().RemoveAll(this);
 		}
 	}
+#endif
 }
 
 void FDisplayClusterScenePreviewModule::RegisterRootActorEvents(AActor* Actor, bool bShouldRegister)
 {
+#if WITH_EDITOR
 	if (!Actor)
 	{
 		return;
@@ -299,6 +302,7 @@ void FDisplayClusterScenePreviewModule::RegisterRootActorEvents(AActor* Actor, b
 			Blueprint->OnCompiled().RemoveAll(this);
 		}
 	}
+#endif
 }
 
 void FDisplayClusterScenePreviewModule::AutoPopulateScene(FRendererConfig& RendererConfig)
@@ -407,6 +411,7 @@ void FDisplayClusterScenePreviewModule::OnLevelActorDeleted(AActor* Actor)
 
 void FDisplayClusterScenePreviewModule::OnBlueprintCompiled(UBlueprint* Blueprint)
 {
+#if WITH_EDITOR
 	for (TPair<int32, FRendererConfig>& ConfigPair : RendererConfigs)
 	{
 		FRendererConfig& Config = ConfigPair.Value;
@@ -415,6 +420,7 @@ void FDisplayClusterScenePreviewModule::OnBlueprintCompiled(UBlueprint* Blueprin
 			Config.bIsSceneDirty = true;
 		}
 	}
+#endif
 }
 
 void FDisplayClusterScenePreviewModule::OnObjectTransacted(UObject* Object, const FTransactionObjectEvent& TransactionObjectEvent)

@@ -42,6 +42,8 @@
 
 #include "Game/EngineClasses/Scene/DisplayClusterRootActorInitializer.h"
 
+#include "Algo/MaxElement.h"
+
 #if WITH_EDITOR
 #include "IConcertSyncClientModule.h"
 #include "IConcertClientWorkspace.h"
@@ -1040,6 +1042,65 @@ void ADisplayClusterRootActor::RerunConstructionScripts()
 UDisplayClusterCameraComponent* ADisplayClusterRootActor::GetDefaultCamera() const
 {
 	return DefaultViewPoint;
+}
+
+USceneComponent* ADisplayClusterRootActor::GetCommonViewPoint() const
+{
+	if (UDisplayClusterConfigurationData* ConfigData = GetConfigData())
+	{
+		if (ConfigData->Cluster)
+		{
+			TMap<FString, int32> ViewPointCounts;
+
+			// Get all the camera names used by viewports in this cluster
+			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodePair : ConfigData->Cluster->Nodes)
+			{
+				if (!NodePair.Value)
+				{
+					continue;
+				}
+
+				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : NodePair.Value->Viewports)
+				{
+					if (!ViewportPair.Value)
+					{
+						continue;
+					}
+
+					ViewPointCounts.FindOrAdd(ViewportPair.Value->Camera)++;
+				}
+			}
+
+			if (!ViewPointCounts.IsEmpty())
+			{
+				// Find the viewpoint with the most references
+				TPair<FString, int32>* MostCommonViewPointCount = Algo::MaxElementBy(ViewPointCounts,
+					[](const TPair<FString, int32>& Pair)
+					{
+						return Pair.Value;
+					}
+				);
+
+				if (MostCommonViewPointCount && !MostCommonViewPointCount->Key.IsEmpty())
+				{
+					// Try to return the camera with the most common name
+					if (USceneComponent* Camera = GetComponentByName<UDisplayClusterCameraComponent>(MostCommonViewPointCount->Key))
+					{
+						return Camera;
+					}
+				}
+			}
+		}
+	}
+
+	// We didn't find a common camera override (or it was empty), so fall back to the default camera
+	if (USceneComponent* DefaultCamera = GetDefaultCamera())
+	{
+		return DefaultCamera;
+	}
+
+	// No default camera, so fall back to the cluster root
+	return GetRootComponent();
 }
 
 bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplace)

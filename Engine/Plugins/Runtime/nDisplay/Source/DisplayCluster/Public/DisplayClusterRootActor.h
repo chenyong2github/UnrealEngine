@@ -122,6 +122,13 @@ public:
 	UFUNCTION(BlueprintGetter)
 	UDisplayClusterCameraComponent* GetDefaultCamera() const;
 
+	/**
+	 * Get the view origin most commonly used by viewports in this cluster.
+	 * If no viewports override the camera, this returns the default camera, or if there isn't one, the actor's root component.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Components")
+	USceneComponent* GetCommonViewPoint() const;
+
 	UFUNCTION(BlueprintCallable, Category = "NDisplay|Render")
 	bool SetReplaceTextureFlagForAllViewports(bool bReplace);
 

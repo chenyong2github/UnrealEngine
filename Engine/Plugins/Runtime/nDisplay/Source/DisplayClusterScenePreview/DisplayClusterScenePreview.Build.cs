@@ -20,8 +20,7 @@ public class DisplayClusterScenePreview : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"RenderCore",
-				"UnrealEd"
+				"RenderCore"
 			});
 	}
 }
