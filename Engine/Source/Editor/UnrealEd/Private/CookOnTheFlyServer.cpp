@@ -6653,14 +6653,14 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, TMap<FN
 		}
 	}
 
-	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
-	{
-		TargetPlatform->GetExtraPackagesToCook(FilesInPath);
-	}
-	UpdateInstigators(EInstigator::TargetPlatformExtraPackagesToCook);
-
 	if (!(FilesToCookFlags & ECookByTheBookOptions::SkipSoftReferences))
 	{
+		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+		{
+			TargetPlatform->GetExtraPackagesToCook(FilesInPath);
+		}
+		UpdateInstigators(EInstigator::TargetPlatformExtraPackagesToCook);
+
 		const FString ExternalMountPointName(TEXT("/Game/"));
 		for (const FNameWithInstigator& CurrEntry : CookDirectories)
 		{
