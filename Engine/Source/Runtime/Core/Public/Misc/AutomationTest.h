@@ -1411,7 +1411,7 @@ public:
 	 */
 	virtual bool SuppressLogs()
 	{
-		return false;
+		return bSuppressLogs;
 	}
 
 	/**
@@ -1815,7 +1815,7 @@ protected:
 	bool bRunOnSeparateThread;
 
 	/** Flag to suppress logs */
-	bool bSuppressLogs;
+	bool bSuppressLogs = false;
 
 	/** Name of the test */
 	FString TestName;
