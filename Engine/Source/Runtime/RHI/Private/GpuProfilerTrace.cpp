@@ -16,7 +16,7 @@ namespace GpuProfilerTrace
 
 static TAutoConsoleVariable<int32> CVarGpuProfilerMaxEventBufferSizeKB(
 	TEXT("r.GpuProfilerMaxEventBufferSizeKB"),
-	16,
+	32,
 	TEXT("Size of the scratch buffer in kB."),
 	ECVF_Default);
 
