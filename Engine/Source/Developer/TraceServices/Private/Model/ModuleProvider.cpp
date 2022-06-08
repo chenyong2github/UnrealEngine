@@ -5,6 +5,7 @@
 
 #include "Algo/Find.h"
 #include "Algo/Transform.h"
+#include "Async/ParallelFor.h"
 #include "Common/CachedPagedArray.h"
 #include "Common/CachedStringStore.h"
 #include "Common/Utils.h"
@@ -37,7 +38,14 @@ namespace TraceServices {
 class FResolvedSymbolFilter : public IResolvedSymbolFilter
 {
 public:
+	FResolvedSymbolFilter();
+	virtual ~FResolvedSymbolFilter();
+
 	virtual void Update(FResolvedSymbol& InSymbol) const override;
+
+private:
+	TArray<FString> IgnoreSymbolsByFunctionName;
+	TArray<FRegexPattern> IgnoreSymbolsByFilePath;
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -367,10 +375,17 @@ void TModuleProvider<SymbolResolverType>::LoadSymbolsFromCache(IAnalysisCache& C
 			continue;
 		}
 		FResolvedSymbol& Resolved = SymbolCache.EmplaceBack(ESymbolQueryResult::OK, Module, Name, File, Symbol.Line, EResolvedSymbolFilterStatus::Unknown);
-		SymbolFilter.Update(Resolved);
 		SymbolCacheLookup.Add(Symbol.Address, &Resolved);
 	}
 	NumCachedSymbols = SymbolCacheLookup.Num();
+
+	// Update filter for all cached symbols.
+	ParallelFor(SymbolCache.Num(), [this](uint32 Index)
+		{
+			SymbolFilter.Update(SymbolCache[Index]);
+		},
+		EParallelForFlags::BackgroundPriority);
+
 	UE_LOG(LogTraceServices, Display, TEXT("Loaded %d symbols from cache."), SymbolCacheLookup.Num());
 }
 
@@ -394,6 +409,26 @@ uint32 TModuleProvider<SymbolResolverType>::GetNumCachedSymbolsFromModule(uint64
 }
 
 /////////////////////////////////////////////////////////////////////
+FResolvedSymbolFilter::FResolvedSymbolFilter()
+{
+	IgnoreSymbolsByFunctionName.Add(TEXT("FMemory::"));
+	IgnoreSymbolsByFunctionName.Add(TEXT("FMallocWrapper::"));
+	IgnoreSymbolsByFunctionName.Add(TEXT("FMallocPoisonProxy::"));
+	IgnoreSymbolsByFunctionName.Add(TEXT("Malloc"));
+	IgnoreSymbolsByFunctionName.Add(TEXT("Realloc"));
+	IgnoreSymbolsByFunctionName.Add(TEXT("MemoryTrace_"));
+	IgnoreSymbolsByFunctionName.Add(TEXT("operator new"));
+	IgnoreSymbolsByFunctionName.Add(TEXT("std::"));
+
+	IgnoreSymbolsByFilePath.Add(FRegexPattern(FString(TEXT(".*/Containers/.*"))));
+}
+
+/////////////////////////////////////////////////////////////////////
+FResolvedSymbolFilter::~FResolvedSymbolFilter()
+{
+}
+
+/////////////////////////////////////////////////////////////////////
 void FResolvedSymbolFilter::Update(FResolvedSymbol& InSymbol) const
 {
 	bool bIsFiltered = false;
@@ -401,19 +436,9 @@ void FResolvedSymbolFilter::Update(FResolvedSymbol& InSymbol) const
 	if (!bIsFiltered && InSymbol.Name)
 	{
 		// Ignore symbols by function name prefix.
-		FStringView IgnoreSymbolsByFunctionName[] =
+		for (const FString& Prefix : IgnoreSymbolsByFunctionName)
 		{
-			TEXTVIEW("FMemory::"),
-			TEXTVIEW("FMallocWrapper::"),
-			TEXTVIEW("FMallocPoisonProxy::"),
-			TEXTVIEW("Malloc"),
-			TEXTVIEW("Realloc"),
-			TEXTVIEW("MemoryTrace_"),
-			TEXTVIEW("operator new"),
-		};
-		for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFunctionName); ++StringIndex)
-		{
-			if (FCString::Strnicmp(InSymbol.Name, IgnoreSymbolsByFunctionName[StringIndex].GetData(), IgnoreSymbolsByFunctionName[StringIndex].Len()) == 0)
+			if (FCString::Strnicmp(InSymbol.Name, *Prefix, Prefix.Len()) == 0)
 			{
 				bIsFiltered = true;
 				break;
@@ -424,14 +449,8 @@ void FResolvedSymbolFilter::Update(FResolvedSymbol& InSymbol) const
 	if (!bIsFiltered && InSymbol.File)
 	{
 		// Ignore symbols by file path, specified as RegexPattern strings.
-		FStringView IgnoreSymbolsByFilePath[] =
+		for (const FRegexPattern& RegexPattern : IgnoreSymbolsByFilePath)
 		{
-			TEXTVIEW(".*/Containers/.*"),
-		};
-		for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFilePath); ++StringIndex)
-		{
-			const FString Pattern(IgnoreSymbolsByFilePath[StringIndex]);
-			const FRegexPattern RegexPattern(Pattern);
 			FString File(InSymbol.File);
 			File.ReplaceCharInline(TEXT('\\'), TEXT('/'), ESearchCase::CaseSensitive);
 			FRegexMatcher RegexMatcher(RegexPattern, File);
