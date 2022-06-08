@@ -1403,3 +1403,5 @@ void ConvertToMeshDescription(
 	FDynamicMeshToMeshDescription Converter;
 	Converter.Convert(&CombinedMesh, MeshOut, true);
 }
+
+#undef LOCTEXT_NAMESPACE
