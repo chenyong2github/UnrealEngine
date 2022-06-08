@@ -143,7 +143,7 @@ protected:
 
 		TWeakObjectPtr<const USocialUser> TargetUser;
 		FOnlinePartyTypeId PartyTypeId;
-		FName JoinMethod;
+		FName JoinMethod = PartyJoinMethod::Unspecified;
 		FUniqueNetIdRepl TargetUserPlatformId;
 		FSessionId PlatformSessionId;
 
