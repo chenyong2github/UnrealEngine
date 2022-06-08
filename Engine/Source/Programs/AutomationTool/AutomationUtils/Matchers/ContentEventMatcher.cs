@@ -35,14 +35,14 @@ namespace AutomationUtils.Matchers
 				Match? match = s_pattern.Match(input.CurrentLine!);
 				if (match.Success)
 				{
-					LogEventBuilder builder = new LogEventBuilder(input.Hanging());
+					LogEventBuilder builder = new LogEventBuilder(input);
 
 					builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
 					builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
 					builder.AnnotateAsset(match.Groups["asset"]);
 					builder.Annotate(match.Groups["message"], LogEventMarkup.Message);
 
-					while(builder.Current.TryGetLine(1, out _))
+					while(builder.IsNextLineHanging())
 					{
 						builder.MoveNext();
 					}

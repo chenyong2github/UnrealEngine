@@ -30,7 +30,7 @@ namespace AutomationUtils.Matchers
 			{
 				string indent = match.Groups["indent"].Value + " ";
 
-				LogEventBuilder builder = new LogEventBuilder(cursor.Hanging());
+				LogEventBuilder builder = new LogEventBuilder(cursor);
 				builder.Annotate(match.Groups["group"]);
 
 				string group = match.Groups["group"].Value;
@@ -40,7 +40,7 @@ namespace AutomationUtils.Matchers
 
 				//				int LineCount = 1;
 				EventId eventId = KnownLogEvents.Gauntlet;
-				while (builder.Next.CurrentLine != null)
+				while (builder.Next.CurrentLine != null && builder.IsNextLineAligned())
 				{
 					builder.MoveNext();
 					if (inErrorList)

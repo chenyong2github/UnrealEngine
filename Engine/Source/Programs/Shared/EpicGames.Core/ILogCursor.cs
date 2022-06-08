@@ -62,74 +62,6 @@ namespace EpicGames.Core
 			public int CurrentLineNumber => _baseLineNumber;
 		}
 
-		class HangingIndentLogCursor : ILogCursor
-		{
-			readonly ILogCursor _inner;
-			readonly int _indent;
-
-			public HangingIndentLogCursor(ILogCursor inner)
-			{
-				_inner = inner;
-				_indent = 0;
-
-				string? line = inner.CurrentLine;
-				if (line != null)
-				{
-					while (_indent < line.Length && Char.IsWhiteSpace(line[_indent]))
-					{
-						_indent++;
-					}
-				}
-			}
-
-			public string? this[int index]
-			{
-				get
-				{
-					if (index <= 0)
-					{
-						return _inner[index];
-					}
-
-					string? line = _inner[index];
-					if (line != null && HasPrefix(line, _inner.CurrentLine!, _indent))
-					{
-						return line;
-					}
-
-					return null;
-				}
-			}
-
-			static bool HasPrefix(string line, string prefix, int prefixLength)
-			{
-				if (line.Length > prefixLength && String.CompareOrdinal(line, 0, prefix, 0, prefixLength) == 0 && Char.IsWhiteSpace(line[prefixLength]))
-				{
-					return true;
-				}
-				if(IsWhitespace(line))
-				{
-					return true;
-				}
-				return false;
-			}
-
-			static bool IsWhitespace(string line)
-			{
-				for (int idx = 0; idx < line.Length; idx++)
-				{
-					if (!Char.IsWhiteSpace(line[idx]))
-					{
-						return false;
-					}
-				}
-				return true;
-			}
-
-			public string? CurrentLine => _inner.CurrentLine;
-			public int CurrentLineNumber => _inner.CurrentLineNumber;
-		}
-
 		/// <summary>
 		/// Creates a new log cursor based at an offset from the current line
 		/// </summary>
@@ -139,16 +71,6 @@ namespace EpicGames.Core
 		public static ILogCursor Rebase(this ILogCursor cursor, int offset)
 		{
 			return new RebasedLogCursor(cursor, cursor.CurrentLineNumber + offset);
-		}
-
-		/// <summary>
-		/// Creates a new log cursor which enumerates lines with a hanging indent
-		/// </summary>
-		/// <param name="cursor">The current log cursor instance</param>
-		/// <returns>New log cursor instance</returns>
-		public static ILogCursor Hanging(this ILogCursor cursor)
-		{
-			return new HangingIndentLogCursor(cursor);
 		}
 
 		/// <summary>
@@ -304,6 +226,64 @@ namespace EpicGames.Core
 				}
 			}
 			return offset;
+		}
+
+		/// <summary>
+		/// Check if a line at a given offset is left-aligned with at least this indent of another line
+		/// </summary>
+		/// <param name="cursor">The log cursor</param>
+		/// <param name="offset">Offset of the line to check</param>
+		/// <param name="firstLine">The first line to compare with</param>
+		/// <returns>True if the line at the given offset is aligned at least as much as the current lien</returns>
+		public static bool IsAligned(this ILogCursor cursor, int offset, string? firstLine)
+		{
+			if (firstLine == null || !cursor.TryGetLine(offset, out string? line))
+			{
+				return false;
+			}
+
+			for (int idx = 0; idx < line.Length; idx++)
+			{
+				if (idx == firstLine.Length || !Char.IsWhiteSpace(firstLine[idx]))
+				{
+					return true;
+				}
+				if (line[idx] != firstLine[idx])
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// Check if a line at a given offset is left-aligned with at least this indent of another line
+		/// </summary>
+		/// <param name="cursor">The log cursor</param>
+		/// <param name="offset">Offset of the line to check</param>
+		/// <param name="firstLine">The first line to compare with</param>
+		/// <returns>True if the line at the given offset is aligned at least as much as the current lien</returns>
+		public static bool IsHanging(this ILogCursor cursor, int offset, string? firstLine)
+		{
+			if (firstLine == null || !cursor.TryGetLine(offset, out string? line))
+			{
+				return false;
+			}
+
+			for (int idx = 0; idx < line.Length; idx++)
+			{
+				if (idx == firstLine.Length || !Char.IsWhiteSpace(firstLine[idx]))
+				{
+					return Char.IsWhiteSpace(line[idx]);
+				}
+				if (line[idx] != firstLine[idx])
+				{
+					return false;
+				}
+			}
+
+			return true;
 		}
 	}
 }

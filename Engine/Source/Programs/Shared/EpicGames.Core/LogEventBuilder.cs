@@ -352,6 +352,30 @@ namespace EpicGames.Core
 			_properties.Add(name, value);
 		}
 
+		string? GetFirstLine()
+		{
+			if (_lines == null || _lines.Count == 0)
+			{
+				return Current.CurrentLine;
+			}
+			else
+			{
+				return _lines[^1]._message;
+			}
+		}
+
+		/// <summary>
+		/// Check if the next line is aligned or indented from the first line
+		/// </summary>
+		/// <returns>True if the next line is aligned with this</returns>
+		public bool IsNextLineAligned() => Next.IsAligned(0, GetFirstLine());
+
+		/// <summary>
+		/// Check if the next line is indented from the first line
+		/// </summary>
+		/// <returns>True if the next line is aligned with this</returns>
+		public bool IsNextLineHanging() => Next.IsHanging(0, GetFirstLine());
+
 		/// <summary>
 		/// Complete the current line and move to the next
 		/// </summary>

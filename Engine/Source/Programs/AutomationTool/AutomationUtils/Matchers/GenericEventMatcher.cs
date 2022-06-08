@@ -40,8 +40,8 @@ namespace AutomationUtils.Matchers
 					level = LogLevel.Warning;
 				}
 
-				LogEventBuilder builder = new LogEventBuilder(cursor.Hanging());
-				while (builder.Next.CurrentLine != null)
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				while (builder.IsNextLineHanging())
 				{
 					builder.MoveNext();
 				}

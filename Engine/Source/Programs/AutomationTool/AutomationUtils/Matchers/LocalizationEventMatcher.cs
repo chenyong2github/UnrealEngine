@@ -22,7 +22,7 @@ namespace AutomationUtils.Matchers
 			@"(?:\((?<line>\d+)\))?" +
 			@":");
 
-		static readonly Regex s_indentPattern = new Regex(@"^\s+");
+		static readonly Regex s_trailingPattern = new Regex(@": See conflicting location\.\s*$");
 
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor input)
@@ -30,17 +30,6 @@ namespace AutomationUtils.Matchers
 			Match? match;
 			if (input.TryMatch(s_pattern, out match))
 			{
-				LogEventBuilder builder = new LogEventBuilder(input.Hanging());
-				builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
-				builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
-				builder.AnnotateSourceFile(match.Groups["file"], "Engine");
-				builder.Annotate(match.Groups["line"], LogEventMarkup.LineNumber);
-
-				while (builder.Next.CurrentLine != null)
-				{
-					builder.MoveNext();
-				}
-
 				LogLevel level = match.Groups["severity"].Value switch
 				{
 					"Error" => LogLevel.Error,
@@ -48,10 +37,26 @@ namespace AutomationUtils.Matchers
 					_ => LogLevel.Information,
 				};
 
-				return builder.ToMatch(LogEventPriority.High, level, KnownLogEvents.Engine_Localization);
+				LogEventBuilder builder = new LogEventBuilder(input);
+				Annotate(builder, match);
 
+				if (builder.IsNextLineAligned() && builder.Next.TryMatch(s_pattern, out match) && builder.Next.IsMatch(s_trailingPattern))
+				{
+					builder.MoveNext();
+					Annotate(builder, match);
+				}
+
+				return builder.ToMatch(LogEventPriority.High, level, KnownLogEvents.Engine_Localization);
 			}
 			return null;
+		}
+
+		static void Annotate(LogEventBuilder builder, Match match)
+		{
+			builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
+			builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
+			builder.AnnotateSourceFile(match.Groups["file"], null);
+			builder.Annotate(match.Groups["line"], LogEventMarkup.LineNumber);
 		}
 	}
 }

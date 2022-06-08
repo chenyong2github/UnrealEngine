@@ -28,11 +28,11 @@ namespace AutomationUtils.Matchers
 			Match? match;
 			if (input.TryMatch(s_pattern, out match))
 			{
-				LogEventBuilder builder = new LogEventBuilder(input.Hanging());
+				LogEventBuilder builder = new LogEventBuilder(input);
 				builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
 				builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
 				
-				while(builder.Next.CurrentLine != null)
+				while(builder.IsNextLineHanging())
 				{
 					builder.MoveNext();
 				}
