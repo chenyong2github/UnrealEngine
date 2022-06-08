@@ -25,6 +25,52 @@ ULandscapeNaniteComponent::ULandscapeNaniteComponent(const FObjectInitializer& O
 {
 }
 
+void ULandscapeNaniteComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	ALandscapeProxy* LandscapeProxy = GetLandscapeProxy();
+	if (ensure(LandscapeProxy))
+	{
+		// Ensure that the component lighting and shadow settings matches the actor
+		UpdatedSharedPropertiesFromActor();
+	}
+}
+
+ALandscapeProxy* ULandscapeNaniteComponent::GetLandscapeProxy() const
+{
+	return CastChecked<ALandscapeProxy>(GetOuter());
+}
+
+ALandscape* ULandscapeNaniteComponent::GetLandscapeActor() const
+{
+	ALandscapeProxy* Landscape = GetLandscapeProxy();
+	if (Landscape)
+	{
+		return Landscape->GetLandscapeActor();
+	}
+	return nullptr;
+}
+
+void ULandscapeNaniteComponent::UpdatedSharedPropertiesFromActor()
+{
+	ALandscapeProxy* LandscapeProxy = GetLandscapeProxy();
+
+	CastShadow = LandscapeProxy->CastShadow;
+	bCastDynamicShadow = LandscapeProxy->bCastDynamicShadow;
+	bCastStaticShadow = LandscapeProxy->bCastStaticShadow;
+	bCastContactShadow = LandscapeProxy->bCastContactShadow;
+	bCastFarShadow = LandscapeProxy->bCastFarShadow;
+	bCastHiddenShadow = LandscapeProxy->bCastHiddenShadow;
+	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
+	bAffectDistanceFieldLighting = LandscapeProxy->bAffectDistanceFieldLighting;
+	bRenderCustomDepth = LandscapeProxy->bRenderCustomDepth;
+	CustomDepthStencilWriteMask = LandscapeProxy->CustomDepthStencilWriteMask;
+	CustomDepthStencilValue = LandscapeProxy->CustomDepthStencilValue;
+	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
+	LightingChannels = LandscapeProxy->LightingChannels;
+}
+
 #if WITH_EDITOR
 
 void ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId)

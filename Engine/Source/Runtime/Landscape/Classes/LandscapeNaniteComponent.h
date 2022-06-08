@@ -9,6 +9,7 @@
 
 #include "LandscapeNaniteComponent.generated.h"
 
+class ALandscape;
 class ALandscapeProxy;
 class ULandscapeComponent;
 class FPrimitiveSceneProxy;
@@ -21,9 +22,24 @@ class ULandscapeNaniteComponent : public UStaticMeshComponent
 public:
 	ULandscapeNaniteComponent(const FObjectInitializer& ObjectInitializer);
 
+	virtual void PostLoad() override;
+
+	/** Gets the landscape proxy actor which owns this component */
+	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxy() const;
+						
+	/** Get the landscape actor associated with this component. */
+	LANDSCAPE_API ALandscape* GetLandscapeActor() const;
+
 	inline const FGuid& GetProxyContentId() const
 	{
 		return ProxyContentId;
+	}
+
+	void UpdatedSharedPropertiesFromActor();
+
+	inline bool IsEnabled() const
+	{
+		return true; // TODO: Allow component to be disabled
 	}
 
 private:

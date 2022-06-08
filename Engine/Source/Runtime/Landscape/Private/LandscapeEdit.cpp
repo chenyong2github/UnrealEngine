@@ -5086,6 +5086,11 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 				Comp->UpdatedSharedPropertiesFromActor();
 			}
 		}
+
+		if (NaniteComponent)
+		{
+			NaniteComponent->UpdatedSharedPropertiesFromActor();
+		}
 	}
 	else if (GIsEditor && 
 		(PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bMeshHoles) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MeshHolesMaxLod)))
@@ -5096,6 +5101,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	if (GIsEditor && PropertyName == FName(TEXT("bEnableNanite")))
 	{
 		CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+		UpdateRenderingMethod();
 		MarkComponentsRenderStateDirty();
 	}
 	else if (PropertyName == FName(TEXT("bUseDynamicMaterialInstance")))
@@ -5212,6 +5218,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 				if (UseNaniteLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
 				{
 					CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+					UpdateRenderingMethod();
 				}
 			}
 		}
@@ -5582,6 +5589,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		// Generate Nanite data for a landscape with components on it, and recreate render state
 		// Streaming proxies won't be built here, but the bPropagateToProxies path will.
 		CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+		UpdateRenderingMethod();
 		MarkComponentsRenderStateDirty();
 	}
 
@@ -5655,6 +5663,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 					if (UseNaniteLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
 					{
 						CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+						UpdateRenderingMethod();
 					}
 				}
 			}

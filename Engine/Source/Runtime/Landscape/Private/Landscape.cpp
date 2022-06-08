@@ -318,23 +318,14 @@ void ALandscapeProxy::CheckGenerateNanitePlatformData(bool bIsCooking, const ITa
 		{
 			NaniteComponent->InitializeForLandscape(this, NaniteContentId);
 		}
+
+		NaniteComponent->UpdatedSharedPropertiesFromActor();
 	}
 	else if (NaniteComponent != nullptr)
 	{
 		NaniteComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 		NaniteComponent->DestroyComponent();
 		NaniteComponent = nullptr;
-	}
-
-	if (!bIsCooking)
-	{
-		for (ULandscapeComponent* Component : LandscapeComponents)
-		{
-			if (Component)
-			{
-				Component->SetNaniteActive(IsNaniteEnabled());
-			}
-		}
 	}
 }
 
@@ -2796,6 +2787,8 @@ void ALandscapeProxy::OnFeatureLevelChanged(ERHIFeatureLevel::Type NewFeatureLev
 			}
 		}
 	}
+
+	UpdateRenderingMethod();
 }
 #endif
 
@@ -2877,7 +2870,7 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 	{
 		//if (UseNaniteLandscapeMesh(Ar.CookingTarget())) // TODO: WIP
 		{
-			CheckGenerateNanitePlatformData(/*bIsCooking = */ true, Ar.CookingTarget());
+			CheckGenerateNanitePlatformData(Ar.IsCooking(), Ar.CookingTarget());
 		}
 	}
 #endif
@@ -3299,6 +3292,8 @@ void ALandscapeProxy::PostLoad()
 		}
 	}
 #endif // WITH_EDITOR
+
+	UpdateRenderingMethod();
 }
 
 FIntPoint ALandscapeProxy::GetSectionBaseOffset() const
@@ -3307,6 +3302,7 @@ FIntPoint ALandscapeProxy::GetSectionBaseOffset() const
 }
 
 #if WITH_EDITOR
+
 void ALandscapeProxy::Destroyed()
 {
 	Super::Destroyed();
@@ -5097,12 +5093,37 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeCo
 		FLandscapeProxyComponentDataChangedParams ChangeParams(Iter.Value());
 		Iter.Key()->OnComponentDataChanged.Broadcast(Iter.Key(), ChangeParams);
 	#endif
+
+		Iter.Key()->UpdateRenderingMethod();
 	}
 }
 
 void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
 	InvalidateGeneratedComponentData(Components.Array(), bInvalidateLightingCache);
+}
+
+void ALandscapeProxy::UpdateRenderingMethod()
+{
+	bool bAllowNanite = false;
+	if (ALandscape* LandscapeActor = GetLandscapeActor())
+	{
+		if (UWorld* World = LandscapeActor->GetWorld())
+		{
+			const bool bIsMobile = ((GEngine->GetDefaultWorldFeatureLevel() == ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1)));
+			const ERHIFeatureLevel::Type FeatureLevel = bIsMobile ? ERHIFeatureLevel::ES3_1 : GMaxRHIFeatureLevel;
+			bAllowNanite = UseNanite(GShaderPlatformForFeatureLevel[FeatureLevel]);
+		}
+	}
+
+	const bool bNaniteActive = bAllowNanite && (NaniteComponent && NaniteComponent->IsEnabled());
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		if (Component)
+		{
+			Component->SetNaniteActive(bNaniteActive);
+		}
+	}
 }
 
 ULandscapeLODStreamingProxy::ULandscapeLODStreamingProxy(const FObjectInitializer& ObjectInitializer)
