@@ -66,7 +66,7 @@ public:
 	A3DStatus FillFrom(IndexerType EntityPtr)
 	{
 		ResetData();
-	
+
 		if (EntityPtr == GetDefaultIndexerValue())
 		{
 			Status = A3DStatus::A3D_ERROR;
@@ -94,7 +94,7 @@ public:
 		else
 		{
 			Status = Getter(EntityPtr, &Data, Forward<InArgTypes>(Args)...);
-			if(Status == A3DStatus::A3D_SUCCESS)
+			if (Status == A3DStatus::A3D_SUCCESS)
 			{
 				bDataFromTechSoft = true;
 			}
@@ -202,7 +202,7 @@ private:
 
 	void ResetData()
 	{
-		if(bDataFromTechSoft)
+		if (bDataFromTechSoft)
 		{
 			GetData(GetDefaultIndexerValue());
 		}
@@ -710,7 +710,16 @@ CADINTERFACES_API A3DStatus TUniqueTSObj<A3DUTF8Char*>::GetData(const A3DEntity*
 template<>
 CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DUTF8Char*>::GetDefaultIndexerValue() const;
 
+CADINTERFACES_API class FTechSoftDefaultValue
+{
+public:
+	static const uint32 Material;
+	static const uint32 Picture;
+	static const uint32 RgbColor;
+	static const uint32 Style;
+	static const uint32 TextureApplication;
+	static const uint32 TextureDefinition;
+};
 
 }
-
 #endif

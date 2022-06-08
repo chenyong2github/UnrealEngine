@@ -61,8 +61,6 @@ public:
 
 	bool InitializeKernel(const TCHAR* = TEXT(""));
 
-	static uint32 InvalidScriptIndex;
-
 private:
 
 	bool bIsExternal = false;

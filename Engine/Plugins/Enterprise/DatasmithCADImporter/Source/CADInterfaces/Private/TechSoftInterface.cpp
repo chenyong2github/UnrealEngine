@@ -13,7 +13,14 @@
 namespace CADLibrary
 {
 
-uint32 FTechSoftInterface::InvalidScriptIndex = -1;
+#ifdef USE_TECHSOFT_SDK
+const uint32 FTechSoftDefaultValue::Material = A3D_DEFAULT_MATERIAL_INDEX;
+const uint32 FTechSoftDefaultValue::Picture = A3D_DEFAULT_PICTURE_INDEX;
+const uint32 FTechSoftDefaultValue::RgbColor = A3D_DEFAULT_COLOR_INDEX;
+const uint32 FTechSoftDefaultValue::Style = A3D_DEFAULT_STYLE_INDEX;
+const uint32 FTechSoftDefaultValue::TextureApplication = A3D_DEFAULT_TEXTURE_APPLICATION_INDEX;
+const uint32 FTechSoftDefaultValue::TextureDefinition = A3D_DEFAULT_TEXTURE_DEFINITION_INDEX;
+#endif
 
 FTechSoftInterface& FTechSoftInterface::Get()
 {

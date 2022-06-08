@@ -169,8 +169,8 @@ private:
 			// there is a bijection between A3DTess3DData->m_psFaceTessData and A3DTopoShellData->m_ppFaces
 			Tessellation.PatchId = Index;
 
-			Tessellation.MaterialUId = FTechSoftInterface::InvalidScriptIndex;
-			if (FaceTessData.m_uiStyleIndexesSize > 0)
+			Tessellation.MaterialUId = 0;
+			if (FaceTessData.m_uiStyleIndexesSize != FTechSoftDefaultValue::Style)
 			{
 				// Store the StyleIndex on the MaterialName. It will be processed after tessellation
 				Tessellation.MaterialUId = FaceTessData.m_puiStyleIndexes[0];

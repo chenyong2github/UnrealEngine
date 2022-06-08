@@ -1498,18 +1498,18 @@ void FTechSoftFileParser::BuildReferenceName(FEntityMetaData& ReferenceData)
 
 	if (Format == ECADFormat::JT)
 	{
-		if (TechSoftUtils::ReplaceOrAddNameValue(MetaData, TEXT("SDKName")))
+		if (TechSoftFileParserImpl::ReplaceOrAddNameValue(MetaData, TEXT("SDKName")))
 		{
 			return;
 		}
 	}
 
-	if (TechSoftUtils::CheckIfNameExists(MetaData))
+	if (TechSoftFileParserImpl::CheckIfNameExists(MetaData))
 	{
 		return;
 	}
 
-	if (TechSoftUtils::ReplaceOrAddNameValue(MetaData, TEXT("PartNumber")))
+	if (TechSoftFileParserImpl::ReplaceOrAddNameValue(MetaData, TEXT("PartNumber")))
 	{
 		return;
 	}
@@ -1625,7 +1625,7 @@ void FTechSoftFileParser::BuildBodyName(FEntityMetaData& BodyData, const FEntity
 {
 	TMap<FString, FString>& MetaData = BodyData.MetaData;
 
-	if (TechSoftUtils::CheckIfNameExists(MetaData))
+	if (TechSoftFileParserImpl::CheckIfNameExists(MetaData))
 	{
 		return;
 	}

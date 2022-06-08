@@ -467,8 +467,8 @@ namespace CADLibrary
 				}
 
 				// Get the polygonGroup (material is preferred over color)
-				FCadUuid GraphicName = Tessellation.MaterialUId ? Tessellation.MaterialUId : Tessellation.ColorUId;
-				const FPolygonGroupID* PolygonGroupID = MaterialToPolygonGroupMapping.Find(GraphicName);
+				FMaterialUId GraphicUId = Tessellation.MaterialUId ? Tessellation.MaterialUId : Tessellation.ColorUId;
+				const FPolygonGroupID* PolygonGroupID = MaterialToPolygonGroupMapping.Find(GraphicUId);
 				if (PolygonGroupID == nullptr)
 				{
 					continue;

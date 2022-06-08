@@ -262,7 +262,7 @@ void BuildCADMaterial(uint32 MaterialIndex, const A3DGraphStyleData& GraphStyleD
 #endif
 
 // Replicates the logic in FTechSoftFileParser::ExtractGraphStyleProperties
-void GetMaterialValues(uint32 StyleIndex, FCadUuid& OutColorName, FCadUuid& OutMaterialName)
+void GetMaterialValues(uint32 StyleIndex, FMaterialUId& OutColorName, FMaterialUId& OutMaterialName)
 {
 #if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	TUniqueTSObjFromIndex<A3DGraphStyleData> GraphStyleData(StyleIndex);
@@ -295,8 +295,8 @@ void GetMaterialValues(uint32 StyleIndex, FCadUuid& OutColorName, FCadUuid& OutM
 
 void RestoreMaterials(const TSharedPtr<FJsonObject>& DefaultValues, FBodyMesh& BodyMesh)
 {
-	FCadUuid DefaultColorName = 0;
-	FCadUuid DefaultMaterialName = 0;
+	FMaterialUId DefaultColorName = 0;
+	FMaterialUId DefaultMaterialName = 0;
 
 	DefaultValues->TryGetNumberField(JSON_ENTRY_COLOR_NAME, DefaultColorName);
 	DefaultValues->TryGetNumberField(JSON_ENTRY_MATERIAL_NAME, DefaultMaterialName);
@@ -310,21 +310,21 @@ void RestoreMaterials(const TSharedPtr<FJsonObject>& DefaultValues, FBodyMesh& B
 		uint32 CachedStyleIndex = Tessellation.MaterialUId;
 		Tessellation.MaterialUId = 0;
 
-		FCadUuid ColorName = DefaultColorName;
-		FCadUuid MaterialName = DefaultMaterialName;
+		FMaterialUId ColorUId = DefaultColorName;
+		FMaterialUId MaterialUId = DefaultMaterialName;
 
-		GetMaterialValues(CachedStyleIndex, ColorName, MaterialName);
+		GetMaterialValues(CachedStyleIndex, ColorUId, MaterialUId);
 
-		if (ColorName)
+		if (ColorUId)
 		{
-			Tessellation.ColorUId = ColorName;
-			BodyMesh.ColorSet.Add(ColorName);
+			Tessellation.ColorUId = ColorUId;
+			BodyMesh.ColorSet.Add(ColorUId);
 		}
 
-		if (MaterialName)
+		if (MaterialUId)
 		{
-			Tessellation.MaterialUId = MaterialName;
-			BodyMesh.MaterialSet.Add(MaterialName);
+			Tessellation.MaterialUId = MaterialUId;
+			BodyMesh.MaterialSet.Add(MaterialUId);
 		}
 	}
 }
@@ -770,27 +770,6 @@ FString CleanNameByRemoving_prt(const FString& Name)
 	}
 	return Name;
 }
-bool CheckIfNameExists(TMap<FString, FString>& MetaData)
-{
-	FString* NamePtr = MetaData.Find(TEXT("Name"));
-	if (NamePtr != nullptr)
-	{
-		return true;
-	}
-	return false;
-}
-bool ReplaceOrAddNameValue(TMap<FString, FString>& MetaData, const TCHAR* Key)
-{
-	FString* NamePtr = MetaData.Find(Key);
-	if (NamePtr != nullptr)
-	{
-		FString& Name = MetaData.FindOrAdd(TEXT("Name"));
-		Name = *NamePtr;
-		return true;
-	}
-	return false;
-}
-
 
 } // NS TechSoftUtils
 
