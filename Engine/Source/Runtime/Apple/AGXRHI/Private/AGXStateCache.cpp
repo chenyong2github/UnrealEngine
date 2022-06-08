@@ -166,7 +166,7 @@ void AGXSafeReleaseMetalRenderPassDescriptor(MTLRenderPassDescriptor* Desc)
 	}
 }
 
-FAGXStateCache::FAGXStateCache(bool const bInImmediate)
+FAGXStateCache::FAGXStateCache(bool bInImmediate)
 : DepthStore(MTLStoreActionUnknown)
 , StencilStore(MTLStoreActionUnknown)
 , VisibilityResults(nullptr)
@@ -246,7 +246,7 @@ FAGXStateCache::~FAGXStateCache()
 	VisibilityResults = nil;
 }
 
-void FAGXStateCache::Reset(void)
+void FAGXStateCache::Reset()
 {
 	SampleCount = 0;
 	
@@ -371,7 +371,7 @@ void FAGXStateCache::SetBlendFactor(FLinearColor const& InBlendFactor)
 	}
 }
 
-void FAGXStateCache::SetStencilRef(uint32 const InStencilRef)
+void FAGXStateCache::SetStencilRef(uint32 InStencilRef)
 {
 	if(StencilRef != InStencilRef)
 	{
@@ -422,7 +422,7 @@ void FAGXStateCache::SetComputeShader(FAGXComputeShader* InComputeShader)
 	}
 }
 
-bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets, FAGXQueryBuffer* QueryBuffer, bool const bRestart)
+bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets, FAGXQueryBuffer* QueryBuffer, bool bRestart)
 {
 	bool bNeedsSet = false;
 	
@@ -791,8 +791,8 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				DepthClearValue = 1.0f;
 			}
 
-			bool const bCombinedDepthStencilUsingStencil = (DepthTexture && (MTLPixelFormat)DepthTexture.GetPixelFormat() != MTLPixelFormatDepth32Float && RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingStencil());
-			bool const bUsingDepth = (RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingDepth() || (bCombinedDepthStencilUsingStencil));
+			const bool bCombinedDepthStencilUsingStencil = (DepthTexture && (MTLPixelFormat)DepthTexture.GetPixelFormat() != MTLPixelFormatDepth32Float && RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingStencil());
+			const bool bUsingDepth = (RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingDepth() || (bCombinedDepthStencilUsingStencil));
 			if (DepthTexture && bUsingDepth)
 			{
 				MTLRenderPassDepthAttachmentDescriptor* DepthAttachment = [RenderPass depthAttachment];
@@ -882,8 +882,8 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
             //if we're dealing with a samplecount mismatch we just bail on stencil entirely as stencil
             //doesn't have an autoresolve target to use.
 			
-			bool const bCombinedDepthStencilUsingDepth = (StencilTexture && (MTLPixelFormat)StencilTexture.GetPixelFormat() != MTLPixelFormatStencil8 && RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingDepth());
-			bool const bUsingStencil = RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingStencil() || (bCombinedDepthStencilUsingDepth);
+			const bool bCombinedDepthStencilUsingDepth = (StencilTexture && (MTLPixelFormat)StencilTexture.GetPixelFormat() != MTLPixelFormatStencil8 && RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingDepth());
+			const bool bUsingStencil = RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingStencil() || (bCombinedDepthStencilUsingDepth);
 			if (StencilTexture && bUsingStencil)
 			{
 				MTLRenderPassStencilAttachmentDescriptor* StencilAttachment = [RenderPass stencilAttachment];
@@ -985,14 +985,14 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 	return bNeedsSet;
 }
 
-void FAGXStateCache::InvalidateRenderTargets(void)
+void FAGXStateCache::InvalidateRenderTargets()
 {
 	bHasValidRenderTarget = false;
 	bHasValidColorTarget = false;
 	bIsRenderTargetActive = false;
 }
 
-void FAGXStateCache::SetRenderTargetsActive(bool const bActive)
+void FAGXStateCache::SetRenderTargetsActive(bool bActive)
 {
 	bIsRenderTargetActive = bActive;
 }
@@ -1087,7 +1087,7 @@ void FAGXStateCache::SetViewports(MTLViewport const InViewport[], uint32 Count)
 	ActiveViewports = Count;
 }
 
-void FAGXStateCache::SetVertexStream(uint32 const Index, FAGXBuffer* Buffer, FAGXBufferData* Bytes, uint32 const Offset, uint32 const Length)
+void FAGXStateCache::SetVertexStream(uint32 Index, FAGXBuffer* Buffer, FAGXBufferData* Bytes, uint32 Offset, uint32 Length)
 {
 	check(Index < MaxVertexElementCount);
 	check(UNREAL_TO_METAL_BUFFER_INDEX(Index) < MaxMetalStreams);
@@ -1107,7 +1107,7 @@ void FAGXStateCache::SetVertexStream(uint32 const Index, FAGXBuffer* Buffer, FAG
 	SetShaderBuffer(EAGXShaderStages::Vertex, VertexBuffers[Index].Buffer, Bytes, Offset, Length, UNREAL_TO_METAL_BUFFER_INDEX(Index), MTLResourceUsageRead);
 }
 
-uint32 FAGXStateCache::GetVertexBufferSize(uint32 const Index)
+uint32 FAGXStateCache::GetVertexBufferSize(uint32 Index)
 {
 	check(Index < MaxVertexElementCount);
 	check(UNREAL_TO_METAL_BUFFER_INDEX(Index) < MaxMetalStreams);
@@ -1167,7 +1167,7 @@ EPrimitiveType FAGXStateCache::GetPrimitiveType()
 	return GraphicsPSO->GetPrimitiveType();
 }
 
-void FAGXStateCache::BindUniformBuffer(EAGXShaderStages const Freq, uint32 const BufferIndex, FRHIUniformBuffer* BufferRHI)
+void FAGXStateCache::BindUniformBuffer(EAGXShaderStages Freq, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
 {
 	check(BufferIndex < ML_MaxBuffers);
 	if (BoundUniformBuffers[Freq][BufferIndex] != BufferRHI)
@@ -1178,12 +1178,12 @@ void FAGXStateCache::BindUniformBuffer(EAGXShaderStages const Freq, uint32 const
 	}
 }
 
-void FAGXStateCache::SetDirtyUniformBuffers(EAGXShaderStages const Freq, uint32 const Dirty)
+void FAGXStateCache::SetDirtyUniformBuffers(EAGXShaderStages Freq, uint32 Dirty)
 {
 	DirtyUniformBuffers[Freq] = Dirty;
 }
 
-void FAGXStateCache::SetVisibilityResultMode(mtlpp::VisibilityResultMode const Mode, NSUInteger const Offset)
+void FAGXStateCache::SetVisibilityResultMode(mtlpp::VisibilityResultMode Mode, NSUInteger Offset)
 {
 	if (VisibilityMode != Mode || VisibilityOffset != Offset)
 	{
@@ -1279,7 +1279,7 @@ bool FAGXStateCache::NeedsToSetRenderTarget(const FRHIRenderPassInfo& InRenderPa
 					FAGXSurface& Surface = *AGXGetMetalSurfaceFromRHITexture(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget);
 					
 					const uint32 DepthSampleCount = (Surface.MSAATexture ? Surface.MSAATexture.GetSampleCount() : Surface.Texture.GetSampleCount());
-					bool const bDepthStencilSampleCountMismatchFixup = (SampleCount != DepthSampleCount);
+					const bool bDepthStencilSampleCountMismatchFixup = (SampleCount != DepthSampleCount);
 
 					ERenderTargetStoreAction HighLevelStoreAction = (Surface.MSAATexture && !bDepthStencilSampleCountMismatchFixup) ? ERenderTargetStoreAction::EMultisampleResolve : GetStoreAction(GetDepthActions(RenderPassInfo.DepthStencilRenderTarget.Action));
 					
@@ -1727,7 +1727,7 @@ void FAGXStateCache::CommitComputeResources(FAGXCommandEncoder* Compute)
 	GetShaderParameters(EAGXShaderStages::Compute).CommitPackedGlobals(this, Compute, EAGXShaderStages::Compute, ComputeShader->Bindings);
 }
 
-bool FAGXStateCache::PrepareToRestart(bool const bCurrentApplied)
+bool FAGXStateCache::PrepareToRestart(bool bCurrentApplied)
 {
 	if(CanRestartRenderPass())
 	{
@@ -1806,7 +1806,7 @@ bool FAGXStateCache::PrepareToRestart(bool const bCurrentApplied)
 	}
 }
 
-void FAGXStateCache::SetStateDirty(void)
+void FAGXStateCache::SetStateDirty()
 {	
 	RasterBits = UINT32_MAX;
     PipelineBits = EAGXPipelineFlagMask;
@@ -1818,12 +1818,12 @@ void FAGXStateCache::SetStateDirty(void)
 	}
 }
 
-void FAGXStateCache::SetShaderBufferDirty(EAGXShaderStages const Frequency, NSUInteger const Index)
+void FAGXStateCache::SetShaderBufferDirty(EAGXShaderStages Frequency, NSUInteger Index)
 {
 	ShaderBuffers[Frequency].Bound |= (1 << Index);
 }
 
-void FAGXStateCache::SetRenderStoreActions(FAGXCommandEncoder& CommandEncoder, bool const bConditionalSwitch)
+void FAGXStateCache::SetRenderStoreActions(FAGXCommandEncoder& CommandEncoder, bool bConditionalSwitch)
 {
 	check(CommandEncoder.IsRenderCommandEncoderActive())
 	{
@@ -2149,7 +2149,7 @@ void FAGXStateCache::SetComputePipelineState(FAGXCommandEncoder& CommandEncoder)
 	}
 }
 
-void FAGXStateCache::CommitResourceTable(EAGXShaderStages const Frequency, mtlpp::FunctionType const Type, FAGXCommandEncoder& CommandEncoder)
+void FAGXStateCache::CommitResourceTable(EAGXShaderStages Frequency, MTLFunctionType Type, FAGXCommandEncoder& CommandEncoder)
 {
 	FAGXBufferBindings& BufferBindings = ShaderBuffers[Frequency];
 	while(BufferBindings.Bound)

@@ -39,32 +39,32 @@ enum EAGXRenderFlags
 class FAGXStateCache
 {
 public:
-	FAGXStateCache(bool const bInImmediate);
+	FAGXStateCache(bool bInImmediate);
 	~FAGXStateCache();
 	
 	/** Reset cached state for reuse */
-	void Reset(void);
+	void Reset();
 
 	void SetScissorRect(bool bEnable, MTLScissorRect const& Rect);
 	void SetBlendFactor(FLinearColor const& InBlendFactor);
-	void SetStencilRef(uint32 const InStencilRef);
+	void SetStencilRef(uint32 InStencilRef);
 	void SetComputeShader(FAGXComputeShader* InComputeShader);
-	bool SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets, FAGXQueryBuffer* QueryBuffer, bool const bRestart);
-	void InvalidateRenderTargets(void);
-	void SetRenderTargetsActive(bool const bActive);
+	bool SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets, FAGXQueryBuffer* QueryBuffer, bool bRestart);
+	void InvalidateRenderTargets();
+	void SetRenderTargetsActive(bool bActive);
 	void SetViewport(MTLViewport const& InViewport);
 	void SetViewports(MTLViewport const InViewport[], uint32 Count);
-	void SetVertexStream(uint32 const Index, FAGXBuffer* Buffer, FAGXBufferData* Bytes, uint32 const Offset, uint32 const Length);
+	void SetVertexStream(uint32 Index, FAGXBuffer* Buffer, FAGXBufferData* Bytes, uint32 Offset, uint32 Length);
 	void SetGraphicsPipelineState(FAGXGraphicsPipelineState* State);
-	void BindUniformBuffer(EAGXShaderStages const Freq, uint32 const BufferIndex, FRHIUniformBuffer* BufferRHI);
-	void SetDirtyUniformBuffers(EAGXShaderStages const Freq, uint32 const Dirty);
+	void BindUniformBuffer(EAGXShaderStages Freq, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI);
+	void SetDirtyUniformBuffers(EAGXShaderStages Freq, uint32 Dirty);
 	
 	/*
 	 * Monitor if samples pass the depth and stencil tests.
 	 * @param Mode Controls if the counter is disabled or moniters passing samples.
 	 * @param Offset The offset relative to the occlusion query buffer provided when the command encoder was created.  offset must be a multiple of 8.
 	 */
-	void SetVisibilityResultMode(mtlpp::VisibilityResultMode const Mode, NSUInteger const Offset);
+	void SetVisibilityResultMode(mtlpp::VisibilityResultMode Mode, NSUInteger Offset);
 	
 #pragma mark - Public Shader Resource Mutators -
 	/*
@@ -101,11 +101,11 @@ public:
 	
 	void SetShaderUnorderedAccessView(EAGXShaderStages ShaderStage, uint32 BindIndex, FAGXUnorderedAccessView* RESTRICT UAV);
 
-	void SetStateDirty(void);
+	void SetStateDirty();
 	
-	void SetShaderBufferDirty(EAGXShaderStages const Frequency, NSUInteger const Index);
+	void SetShaderBufferDirty(EAGXShaderStages Frequency, NSUInteger Index);
 	
-	void SetRenderStoreActions(FAGXCommandEncoder& CommandEncoder, bool const bConditionalSwitch);
+	void SetRenderStoreActions(FAGXCommandEncoder& CommandEncoder, bool bConditionalSwitch);
 	
 	void SetRenderState(FAGXCommandEncoder& CommandEncoder, FAGXCommandEncoder* PrologueEncoder);
 
@@ -113,11 +113,11 @@ public:
 
 	void CommitComputeResources(FAGXCommandEncoder* Compute);
 	
-	void CommitResourceTable(EAGXShaderStages const Frequency, mtlpp::FunctionType const Type, FAGXCommandEncoder& CommandEncoder);
+	void CommitResourceTable(EAGXShaderStages Frequency, MTLFunctionType Type, FAGXCommandEncoder& CommandEncoder);
 	
-	bool PrepareToRestart(bool const bCurrentApplied);
+	bool PrepareToRestart(bool bCurrentApplied);
 	
-	FAGXShaderParameterCache& GetShaderParameters(EAGXShaderStages const Stage) { return ShaderParameters[Stage]; }
+	FAGXShaderParameterCache& GetShaderParameters(EAGXShaderStages Stage) { return ShaderParameters[Stage]; }
 	FLinearColor const& GetBlendFactor() const { return BlendFactor; }
 	uint32 GetStencilRef() const { return StencilRef; }
 	FAGXDepthStencilState* GetDepthStencilState() const { return DepthStencilState; }
@@ -129,18 +129,18 @@ public:
 	int32 GetNumRenderTargets() { return bHasValidColorTarget ? RenderPassInfo.GetNumColorRenderTargets() : -1; }
 	bool GetHasValidRenderTarget() const { return bHasValidRenderTarget; }
 	bool GetHasValidColorTarget() const { return bHasValidColorTarget; }
-	MTLViewport const& GetViewport(uint32 const Index) const { check(Index < ML_MaxViewports); return Viewport[Index]; }
-	uint32 GetVertexBufferSize(uint32 const Index);
+	MTLViewport const& GetViewport(uint32 Index) const { check(Index < ML_MaxViewports); return Viewport[Index]; }
+	uint32 GetVertexBufferSize(uint32 Index);
 	uint32 GetRenderTargetArraySize() const { return RenderTargetArraySize; }
-	const FRHIUniformBuffer** GetBoundUniformBuffers(EAGXShaderStages const Freq) { return (const FRHIUniformBuffer**)&BoundUniformBuffers[Freq][0]; }
-	uint32 GetDirtyUniformBuffers(EAGXShaderStages const Freq) const { return DirtyUniformBuffers[Freq]; }
+	const FRHIUniformBuffer** GetBoundUniformBuffers(EAGXShaderStages Freq) { return (const FRHIUniformBuffer**)&BoundUniformBuffers[Freq][0]; }
+	uint32 GetDirtyUniformBuffers(EAGXShaderStages Freq) const { return DirtyUniformBuffers[Freq]; }
 	FAGXQueryBuffer* GetVisibilityResultsBuffer() const { return VisibilityResults; }
 	bool GetScissorRectEnabled() const { return bScissorRectEnabled; }
 	bool NeedsToSetRenderTarget(const FRHIRenderPassInfo& RenderPassInfo);
 	bool HasValidDepthStencilSurface() const { return IsValidRef(DepthStencilSurface); }
     bool CanRestartRenderPass() const { return bCanRestartRenderPass; }
-	MTLRenderPassDescriptor* GetRenderPassDescriptor(void) const { return RenderPassDesc; }
-	uint32 GetSampleCount(void) const { return SampleCount; }
+	MTLRenderPassDescriptor* GetRenderPassDescriptor() const { return RenderPassDesc; }
+	uint32 GetSampleCount() const { return SampleCount; }
     bool IsLinearBuffer(EAGXShaderStages ShaderStage, uint32 BindIndex);
 	FAGXShaderPipeline* GetPipelineState() const;
 	EPrimitiveType GetPrimitiveType();
@@ -148,7 +148,7 @@ public:
 	uint32 GetVisibilityResultOffset() { return VisibilityOffset; }
 	
 	FTexture2DRHIRef CreateFallbackDepthStencilSurface(uint32 Width, uint32 Height);
-	bool GetFallbackDepthStencilBound(void) const { return bFallbackDepthStencilBound; }
+	bool GetFallbackDepthStencilBound() const { return bFallbackDepthStencilBound; }
 	
 	void SetRenderPipelineState(FAGXCommandEncoder& CommandEncoder, FAGXCommandEncoder* PrologueEncoder);
     void SetComputePipelineState(FAGXCommandEncoder& CommandEncoder);

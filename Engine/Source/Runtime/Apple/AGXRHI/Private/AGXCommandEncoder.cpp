@@ -37,7 +37,7 @@ FAGXCommandEncoder::FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEnco
 , CmdBufIndex(0)
 , Type(InType)
 {
-	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
+	for (uint32 Frequency = 0; Frequency < NUM_SHADER_FREQUENCIES; Frequency++)
 	{
 		FMemory::Memzero(ShaderBuffers[Frequency].Bytes);
 		FMemory::Memzero(ShaderBuffers[Frequency].Offsets);
@@ -77,7 +77,7 @@ FAGXCommandEncoder::~FAGXCommandEncoder(void)
 		[DebugGroups release];
 	}
 	
-	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
+	for (uint32 Frequency = 0; Frequency < NUM_SHADER_FREQUENCIES; Frequency++)
 	{
 		for (uint32 i = 0; i < ML_MaxBuffers; i++)
 		{
@@ -115,7 +115,7 @@ void FAGXCommandEncoder::Reset(void)
 		StencilStoreAction = MTLStoreActionUnknown;
 	}
 	
-	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
+	for (uint32 Frequency = 0; Frequency < NUM_SHADER_FREQUENCIES; Frequency++)
 	{
 		for (uint32 i = 0; i < ML_MaxBuffers; i++)
 		{
@@ -133,7 +133,7 @@ void FAGXCommandEncoder::Reset(void)
 
 void FAGXCommandEncoder::ResetLive(void)
 {
-	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
+	for (uint32 Frequency = 0; Frequency < NUM_SHADER_FREQUENCIES; Frequency++)
 	{
 		for (uint32 i = 0; i < ML_MaxBuffers; i++)
 		{
@@ -602,7 +602,7 @@ void FAGXCommandEncoder::EndEncoding(void)
 		}
 	}
 	
-	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
+	for (uint32 Frequency = 0; Frequency < NUM_SHADER_FREQUENCIES; Frequency++)
 	{
 		for (uint32 i = 0; i < ML_MaxBuffers; i++)
 		{
@@ -739,7 +739,7 @@ void FAGXCommandEncoder::SetRenderPassDescriptor(MTLRenderPassDescriptor* InRend
 	}
 	check(RenderPassDesc);
 	
-	for (uint32 Frequency = 0; Frequency < uint32(MTLFunctionTypeKernel)+1; Frequency++)
+	for (uint32 Frequency = 0; Frequency < NUM_SHADER_FREQUENCIES; Frequency++)
 	{
 		for (uint32 i = 0; i < ML_MaxBuffers; i++)
 		{
@@ -882,12 +882,12 @@ void FAGXCommandEncoder::SetVisibilityResultMode(mtlpp::VisibilityResultMode con
 	
 #pragma mark - Public Shader Resource Mutators -
 
-void FAGXCommandEncoder::SetShaderBuffer(mtlpp::FunctionType FunctionType, FAGXBuffer const& Buffer, NSUInteger Offset, NSUInteger Length, NSUInteger index, MTLResourceUsage Usage, EPixelFormat Format, NSUInteger ElementRowPitch)
+void FAGXCommandEncoder::SetShaderBuffer(MTLFunctionType FunctionType, FAGXBuffer const& Buffer, NSUInteger Offset, NSUInteger Length, NSUInteger index, MTLResourceUsage Usage, EPixelFormat Format, NSUInteger ElementRowPitch)
 {
 	check(index < ML_MaxBuffers);
     if(GetAGXDeviceContext().SupportsFeature(EAGXFeaturesSetBufferOffset) && Buffer && (ShaderBuffers[uint32(FunctionType)].Bound & (1 << index)) && ShaderBuffers[uint32(FunctionType)].Buffers[index] == Buffer)
     {
-		if (FunctionType == mtlpp::FunctionType::Vertex || FunctionType == mtlpp::FunctionType::Kernel)
+		if (FunctionType == MTLFunctionTypeVertex || FunctionType == MTLFunctionTypeKernel)
 		{
 			FenceResource(Buffer);
 		}
@@ -920,7 +920,7 @@ void FAGXCommandEncoder::SetShaderBuffer(mtlpp::FunctionType FunctionType, FAGXB
 	}
 }
 
-void FAGXCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType, FAGXBufferData* Data, NSUInteger const Offset, NSUInteger const Index, EPixelFormat const Format, NSUInteger const ElementRowPitch)
+void FAGXCommandEncoder::SetShaderData(MTLFunctionType FunctionType, FAGXBufferData* Data, NSUInteger Offset, NSUInteger Index, EPixelFormat Format, NSUInteger ElementRowPitch)
 {
 	check(Index < ML_MaxBuffers);
 	
@@ -942,7 +942,7 @@ void FAGXCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType, F
 	SetShaderBufferInternal(FunctionType, Index);
 }
 
-void FAGXCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType, uint8 const* Bytes, NSUInteger const Length, NSUInteger const Index)
+void FAGXCommandEncoder::SetShaderBytes(MTLFunctionType FunctionType, uint8 const* Bytes, NSUInteger Length, NSUInteger Index)
 {
 	check(Index < ML_MaxBuffers);
 	
@@ -954,15 +954,15 @@ void FAGXCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType, 
 		{
 			switch (FunctionType)
 			{
-				case mtlpp::FunctionType::Vertex:
+				case MTLFunctionTypeVertex:
 					check(RenderCommandEncoder);
 					[RenderCommandEncoder setVertexBytes:static_cast<const void*>(Bytes) length:Length atIndex:Index];
 					break;
-				case mtlpp::FunctionType::Fragment:
+				case MTLFunctionTypeFragment:
 					check(RenderCommandEncoder);
 					[RenderCommandEncoder setFragmentBytes:static_cast<const void*>(Bytes) length:Length atIndex:Index];
 					break;
-				case mtlpp::FunctionType::Kernel:
+				case MTLFunctionTypeKernel:
 					check(ComputeCommandEncoder);
 					[ComputeCommandEncoder setBytes:static_cast<const void*>(Bytes) length:Length atIndex:Index];
 					break;
@@ -998,7 +998,7 @@ void FAGXCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType, 
 	SetShaderBufferInternal(FunctionType, Index);
 }
 
-void FAGXCommandEncoder::SetShaderBufferOffset(mtlpp::FunctionType FunctionType, NSUInteger const Offset, NSUInteger const Length, NSUInteger const index)
+void FAGXCommandEncoder::SetShaderBufferOffset(MTLFunctionType FunctionType, NSUInteger Offset, NSUInteger Length, NSUInteger index)
 {
 	check(index < ML_MaxBuffers);
     checkf(ShaderBuffers[uint32(FunctionType)].Buffers[index] && (ShaderBuffers[uint32(FunctionType)].Bound & (1 << index)), TEXT("Buffer must already be bound"));
@@ -1007,15 +1007,15 @@ void FAGXCommandEncoder::SetShaderBufferOffset(mtlpp::FunctionType FunctionType,
 	ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GAGXBufferFormats[PF_Unknown].DataFormat, 0);
 	switch (FunctionType)
 	{
-		case mtlpp::FunctionType::Vertex:
+		case MTLFunctionTypeVertex:
 			check (RenderCommandEncoder);
 			[RenderCommandEncoder setVertexBufferOffset:(Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset()) atIndex:index];
 			break;
-		case mtlpp::FunctionType::Fragment:
+		case MTLFunctionTypeFragment:
 			check(RenderCommandEncoder);
 			[RenderCommandEncoder setFragmentBufferOffset:(Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset()) atIndex:index];
 			break;
-		case mtlpp::FunctionType::Kernel:
+		case MTLFunctionTypeKernel:
 			check (ComputeCommandEncoder);
 			[ComputeCommandEncoder setBufferOffset:(Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset()) atIndex:index];
 			break;
@@ -1025,21 +1025,21 @@ void FAGXCommandEncoder::SetShaderBufferOffset(mtlpp::FunctionType FunctionType,
 	}
 }
 
-void FAGXCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FAGXTexture const& Texture, NSUInteger index, MTLResourceUsage Usage)
+void FAGXCommandEncoder::SetShaderTexture(MTLFunctionType FunctionType, FAGXTexture const& Texture, NSUInteger index, MTLResourceUsage Usage)
 {
 	check(index < ML_MaxTextures);
 	switch (FunctionType)
 	{
-		case mtlpp::FunctionType::Vertex:
+		case MTLFunctionTypeVertex:
 			check (RenderCommandEncoder);
 			FenceResource(Texture);
 			[RenderCommandEncoder setVertexTexture:Texture.GetPtr() atIndex:index];
 			break;
-		case mtlpp::FunctionType::Fragment:
+		case MTLFunctionTypeFragment:
 			check(RenderCommandEncoder);
 			[RenderCommandEncoder setFragmentTexture:Texture.GetPtr() atIndex:index];
 			break;
-		case mtlpp::FunctionType::Kernel:
+		case MTLFunctionTypeKernel:
 			check (ComputeCommandEncoder);
 			FenceResource(Texture);
 			[ComputeCommandEncoder setTexture:Texture.GetPtr() atIndex:index];
@@ -1066,20 +1066,20 @@ void FAGXCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FAGX
 	}
 }
 
-void FAGXCommandEncoder::SetShaderSamplerState(mtlpp::FunctionType FunctionType, id<MTLSamplerState> Sampler, NSUInteger index)
+void FAGXCommandEncoder::SetShaderSamplerState(MTLFunctionType FunctionType, id<MTLSamplerState> Sampler, NSUInteger index)
 {
 	check(index < ML_MaxSamplers);
 	switch (FunctionType)
 	{
-		case mtlpp::FunctionType::Vertex:
+		case MTLFunctionTypeVertex:
        		check (RenderCommandEncoder);
 			[RenderCommandEncoder setVertexSamplerState:Sampler atIndex:index];
 			break;
-		case mtlpp::FunctionType::Fragment:
+		case MTLFunctionTypeFragment:
 			check (RenderCommandEncoder);
 			[RenderCommandEncoder setFragmentSamplerState:Sampler atIndex:index];
 			break;
-		case mtlpp::FunctionType::Kernel:
+		case MTLFunctionTypeKernel:
 			check (ComputeCommandEncoder);
 			[ComputeCommandEncoder setSamplerState:Sampler atIndex:index];
 			break;
@@ -1089,11 +1089,11 @@ void FAGXCommandEncoder::SetShaderSamplerState(mtlpp::FunctionType FunctionType,
 	}
 }
 
-void FAGXCommandEncoder::SetShaderSideTable(mtlpp::FunctionType const FunctionType, NSUInteger const Index)
+void FAGXCommandEncoder::SetShaderSideTable(MTLFunctionType const FunctionType, NSUInteger const Index)
 {
 	if (Index < ML_MaxBuffers)
 	{
-		SetShaderData(FunctionType, ShaderBuffers[uint32(FunctionType)].SideTable, 0, Index);
+		SetShaderData(FunctionType, ShaderBuffers[FunctionType].SideTable, 0, Index);
 	}
 }
 
@@ -1140,7 +1140,7 @@ void FAGXCommandEncoder::FenceResource(mtlpp::Buffer const& Resource)
 {
 }
 
-void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, uint32 Index)
+void FAGXCommandEncoder::SetShaderBufferInternal(MTLFunctionType Function, uint32 Index)
 {
 	FAGXBufferBindings& Binding = ShaderBuffers[uint32(Function)];
 
@@ -1170,20 +1170,20 @@ void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, u
         
 		switch (Function)
 		{
-			case mtlpp::FunctionType::Vertex:
+			case MTLFunctionTypeVertex:
 				Binding.Bound |= (1 << Index);
 				check(RenderCommandEncoder);
 				FenceResource(Buffer);
 				[RenderCommandEncoder setVertexBuffer:Buffer.GetPtr() offset:(Offset + Buffer.GetOffset()) atIndex:Index];
 				break;
 
-			case mtlpp::FunctionType::Fragment:
+			case MTLFunctionTypeFragment:
 				Binding.Bound |= (1 << Index);
 				check(RenderCommandEncoder);
 				[RenderCommandEncoder setFragmentBuffer:Buffer.GetPtr() offset:(Offset + Buffer.GetOffset()) atIndex:Index];
 				break;
 
-			case mtlpp::FunctionType::Kernel:
+			case MTLFunctionTypeKernel:
 				Binding.Bound |= (1 << Index);
 				check(ComputeCommandEncoder);
 				FenceResource(Buffer);
@@ -1210,19 +1210,19 @@ void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, u
 		
 		switch (Function)
 		{
-			case mtlpp::FunctionType::Vertex:
+			case MTLFunctionTypeVertex:
 				Binding.Bound |= (1 << Index);
 				check(RenderCommandEncoder);
 				[RenderCommandEncoder setVertexBytes:static_cast<const void*>(Bytes) length:(NSUInteger)Len atIndex:Index];
 				break;
 
-			case mtlpp::FunctionType::Fragment:
+			case MTLFunctionTypeFragment:
 				Binding.Bound |= (1 << Index);
 				check(RenderCommandEncoder);
 				[RenderCommandEncoder setFragmentBytes:static_cast<const void*>(Bytes) length:(NSUInteger)Len atIndex:Index];
 				break;
 
-			case mtlpp::FunctionType::Kernel:
+			case MTLFunctionTypeKernel:
 				Binding.Bound |= (1 << Index);
 				check(ComputeCommandEncoder);
 				[ComputeCommandEncoder setBytes:static_cast<const void*>(Bytes) length:(NSUInteger)Len atIndex:Index];

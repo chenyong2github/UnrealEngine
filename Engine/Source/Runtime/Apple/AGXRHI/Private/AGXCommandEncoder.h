@@ -12,48 +12,6 @@ class FAGXCommandQueue;
 class FAGXGraphicsPipelineState;
 struct FAGXCommandBufferFence;
 
-#if 0
-template<typename T>
-class TObjCWrapper : public FThreadSafeRefCountedObject
-{
-	using Pointer = T*;
-
-public:
-	UE_NONCOPYABLE(TObjCWrapper)
-
-	TObjCWrapper(Pointer InObject = nil)
-		: Impl([InObject retain])
-	{
-	}
-
-	~TObjCWrapper()
-	{
-		if (Impl)
-		{
-			[Impl release];
-			Impl = nil;
-		}
-	}
-
-	bool IsValid() const
-	{
-		return (Impl != nil);
-	}
-
-	Pointer AllocInit()
-	{
-		check(!IsValid());
-		Impl = [[T alloc] init];
-		return Impl;
-	}
-
-private:
-	Pointer Impl;
-};
-
-typedef TRefCountPtr<TObjCWrapper<MTLRenderPassDescriptor> > FMTLRenderPassDescriptor;
-#endif // 0
-
 /**
  * Enumeration for submission hints to avoid unclear bool values.
  */
@@ -98,8 +56,6 @@ enum EAGXCommandEncoderType
 class FAGXCommandEncoder
 {
 public:
-#pragma mark - Public C++ Boilerplate -
-
 	/** Default constructor */
 	FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEncoderType Type);
 	
@@ -112,8 +68,6 @@ public:
 	/** Reset cached state for reuse while in rendering */
 	void ResetLive(void);
 	
-#pragma mark - Public Command Buffer Mutators -
-
 	/**
 	 * Start encoding to CommandBuffer. It is an error to call this with any outstanding command encoders or current command buffer.
 	 * Instead call EndEncoding & CommitCommandBuffer before calling this.
@@ -126,8 +80,6 @@ public:
  	 */
 	void CommitCommandBuffer(uint32 const Flags);
 
-#pragma mark - Public Command Buffer Accessors -
-	
 	/** @returns the current command buffer */
 	mtlpp::CommandBuffer& GetCommandBuffer() { return CommandBuffer; }
 
@@ -137,8 +89,6 @@ public:
 	/** @returns the monotonically incremented command buffer index */
 	uint32 GetCommandBufferIndex() const { return CmdBufIndex; }
 
-#pragma mark - Public Command Encoder Accessors -
-	
 	/** @returns True if and only if there is an active parallel render command encoder, otherwise false. */
 	bool IsParallelRenderCommandEncoderActive() const;
 	
@@ -187,8 +137,6 @@ public:
 	/** @returns The number of encoded passes in the command buffer. */
 	uint32 NumEncodedPasses(void) const { return EncoderNum; }
 	
-#pragma mark - Public Command Encoder Mutators -
-
 	/**
  	 * Begins encoding rendering commands into the current command buffer. No other encoder may be active & the MTLRenderPassDescriptor must previously have been set.
 	 * @param NumChildren The number of child render-encoders to create. 
@@ -215,8 +163,6 @@ public:
 	/** Adds a command-buffer completion handler to the command-buffer */
 	void AddCompletionHandler(mtlpp::CommandBufferHandler Handler);
 	
-#pragma mark - Public Debug Support -
-	
 	/*
 	 * Inserts a debug string into the command buffer.  This does not change any API behavior, but can be useful when debugging.
 	 * @param string The name of the signpost. 
@@ -236,8 +182,6 @@ public:
 	/* Get the command-buffer stats object. */
 	FAGXCommandBufferStats* GetCommandBufferStats(void);
 #endif
-
-#pragma mark - Public Render State Mutators -
 
 	/**
 	 * Set the render pass descriptor - no encoder may be active when this function is called.
@@ -333,8 +277,6 @@ public:
 	 */
 	void SetVisibilityResultMode(mtlpp::VisibilityResultMode const Mode, NSUInteger const Offset);
 	
-#pragma mark - Public Shader Resource Mutators -
-	
 	/*
 	 * Set a global buffer for the specified shader frequency at the given bind point index.
 	 * @param FunctionType The shader function to modify.
@@ -345,7 +287,7 @@ public:
 	 * @param Usage The resource usage mask.
 	 * @param Format The Pixel format to reinterpret the resource as.
 	 */
-	void SetShaderBuffer(mtlpp::FunctionType FunctionType, FAGXBuffer const& Buffer, NSUInteger Offset, NSUInteger Length, NSUInteger Index, MTLResourceUsage Usage, EPixelFormat Format = PF_Unknown, NSUInteger ElementRowPitch = 0);
+	void SetShaderBuffer(MTLFunctionType FunctionType, FAGXBuffer const& Buffer, NSUInteger Offset, NSUInteger Length, NSUInteger Index, MTLResourceUsage Usage, EPixelFormat Format = PF_Unknown, NSUInteger ElementRowPitch = 0);
 	
 	/*
 	 * Set an FAGXBufferData to the specified shader frequency at the given bind point index.
@@ -355,7 +297,7 @@ public:
 	 * @param Index The index to modify.
 	 * @param Format The pixel format to reinterpret the resource as.
 	 */
-	void SetShaderData(mtlpp::FunctionType const FunctionType, FAGXBufferData* Data, NSUInteger const Offset, NSUInteger const Index, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0);
+	void SetShaderData(MTLFunctionType FunctionType, FAGXBufferData* Data, NSUInteger Offset, NSUInteger Index, EPixelFormat Format = PF_Unknown, NSUInteger ElementRowPitch = 0);
 	
 	/*
 	 * Set bytes to the specified shader frequency at the given bind point index.
@@ -364,7 +306,7 @@ public:
 	 * @param Length The length of the buffer or 0 when Bytes is nil.
 	 * @param Index The index to modify.
 	 */
-	void SetShaderBytes(mtlpp::FunctionType const FunctionType, uint8 const* Bytes, NSUInteger const Length, NSUInteger const Index);
+	void SetShaderBytes(MTLFunctionType FunctionType, uint8 const* Bytes, NSUInteger Length, NSUInteger Index);
 	
 	/*
 	 * Set a global texture for the specified shader frequency at the given bind point index.
@@ -373,7 +315,7 @@ public:
 	 * @param Index The index to modify.
 	 * @param Usage The resource usage mask.
 	 */
-	void SetShaderTexture(mtlpp::FunctionType FunctionType, FAGXTexture const& Texture, NSUInteger Index, MTLResourceUsage Usage);
+	void SetShaderTexture(MTLFunctionType FunctionType, FAGXTexture const& Texture, NSUInteger Index, MTLResourceUsage Usage);
 	
 	/*
 	 * Set a global sampler for the specified shader frequency at the given bind point index.
@@ -381,14 +323,14 @@ public:
 	 * @param Sampler The sampler state to bind or nil to clear.
 	 * @param Index The index to modify.
 	 */
-	void SetShaderSamplerState(mtlpp::FunctionType FunctionType, id<MTLSamplerState> Sampler, NSUInteger Index);
+	void SetShaderSamplerState(MTLFunctionType FunctionType, id<MTLSamplerState> Sampler, NSUInteger Index);
 	
 	/*
 	 * Set the shader side-table data for FunctionType at Index.
 	 * @param FunctionType The shader function to modify.
 	 * @param Index The index to bind data to.
 	 */
-	void SetShaderSideTable(mtlpp::FunctionType const FunctionType, NSUInteger const Index);
+	void SetShaderSideTable(MTLFunctionType FunctionType, NSUInteger Index);
 	
 	/*
 	 * Transition resource so that we can barrier fragment->vertex stages.
@@ -396,24 +338,18 @@ public:
 	 */
 	void TransitionResources(mtlpp::Resource const& Resource);
 	
-#pragma mark - Public Compute State Mutators -
-	
 	/*
 	 * Set the compute pipeline state that will be used.
 	 * @param State The state to set - must not be nil.
 	 */
 	void SetComputePipelineState(FAGXShaderPipeline* State);
 
-#pragma mark - Public Ring-Buffer Accessor -
-	
 	/*
 	 * Get the internal ring-buffer used for temporary allocations.
 	 * @returns The temporary allocation buffer for this command-encoder.
 	 */
 	FAGXSubBufferRing& GetRingBuffer(void);
 	
-#pragma mark - Public Resource query Access -
-
 	/*
 	 * Returns True if the Resource has been bound to a command encoder, otherwise false.  History will be cleared after a commit operation
 	 * @returns True if the Resource has been bound to a command encoder, otherwise false.
@@ -422,7 +358,6 @@ public:
 	bool HasBufferBindingHistory(FAGXBuffer const& Buffer) const;
 	
 private:
-#pragma mark - Private Functions -
 	/*
 	 * Set the offset for the buffer bound on the specified shader frequency at the given bind point index.
 	 * @param FunctionType The shader function to modify.
@@ -430,15 +365,16 @@ private:
 	 * @param Length The data length - caller is responsible for accounting for non-zero Offset.
 	 * @param Index The index to modify.
 	 */
-	void SetShaderBufferOffset(mtlpp::FunctionType const FunctionType, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index);
+	void SetShaderBufferOffset(MTLFunctionType FunctionType, NSUInteger Offset, NSUInteger Length, NSUInteger Index);
 	
-	void SetShaderBufferInternal(mtlpp::FunctionType Function, uint32 Index);
+	void SetShaderBufferInternal(MTLFunctionType Function, uint32 Index);
 	
 	void FenceResource(mtlpp::Texture const& Resource);
 	void FenceResource(mtlpp::Buffer const& Resource);
 	
-#pragma mark - Private Type Declarations -
 private:
+	static const uint32 NUM_SHADER_FREQUENCIES = uint32(MTLFunctionTypeKernel) + 1;
+
     /** A structure of arrays for the current buffer binding settings. */
     struct FAGXBufferBindings
     {
@@ -467,7 +403,6 @@ private:
         /** A bitmask for which buffers were bound by the application where a bit value of 1 is bound and 0 is unbound. */
         uint32 Bound;
         
-public:
         void SetBufferMetaData(NSUInteger Index, NSUInteger Length, NSUInteger Format, NSUInteger ElementRowPitch)
         {
 			Lengths[Index].Length = Length;
@@ -482,13 +417,12 @@ public:
         }
 	};
 	
-#pragma mark - Private Member Variables -
 	FAGXCommandList& CommandList;
 
     // Cache Queue feature
     bool bSupportsMetalFeaturesSetBytes;
     
-	FAGXBufferBindings ShaderBuffers[int(mtlpp::FunctionType::Kernel)+1];
+	FAGXBufferBindings ShaderBuffers[NUM_SHADER_FREQUENCIES];
 	
 	MTLStoreAction ColorStoreActions[MaxSimultaneousRenderTargets];
 	MTLStoreAction DepthStoreAction;

@@ -1136,22 +1136,22 @@ void FAGXRenderPass::CommitRenderResourceTables(void)
 	
 	State.CommitRenderResources(&CurrentEncoder);
 	
-	State.CommitResourceTable(EAGXShaderStages::Vertex, mtlpp::FunctionType::Vertex, CurrentEncoder);
+	State.CommitResourceTable(EAGXShaderStages::Vertex, MTLFunctionTypeVertex, CurrentEncoder);
 	
 	FAGXGraphicsPipelineState const* BoundShaderState = State.GetGraphicsPSO();
 	
 	if (BoundShaderState->VertexShader->SideTableBinding >= 0)
 	{
-		CurrentEncoder.SetShaderSideTable(mtlpp::FunctionType::Vertex, BoundShaderState->VertexShader->SideTableBinding);
+		CurrentEncoder.SetShaderSideTable(MTLFunctionTypeVertex, BoundShaderState->VertexShader->SideTableBinding);
 		State.SetShaderBuffer(EAGXShaderStages::Vertex, nil, nil, 0, 0, BoundShaderState->VertexShader->SideTableBinding, 0);
 	}
 	
 	if (IsValidRef(BoundShaderState->PixelShader))
 	{
-		State.CommitResourceTable(EAGXShaderStages::Pixel, mtlpp::FunctionType::Fragment, CurrentEncoder);
+		State.CommitResourceTable(EAGXShaderStages::Pixel, MTLFunctionTypeFragment, CurrentEncoder);
 		if (BoundShaderState->PixelShader->SideTableBinding >= 0)
 		{
-			CurrentEncoder.SetShaderSideTable(mtlpp::FunctionType::Fragment, BoundShaderState->PixelShader->SideTableBinding);
+			CurrentEncoder.SetShaderSideTable(MTLFunctionTypeFragment, BoundShaderState->PixelShader->SideTableBinding);
 			State.SetShaderBuffer(EAGXShaderStages::Pixel, nil, nil, 0, 0, BoundShaderState->PixelShader->SideTableBinding, 0);
 		}
 	}
@@ -1161,12 +1161,12 @@ void FAGXRenderPass::CommitDispatchResourceTables(void)
 {
 	State.CommitComputeResources(&CurrentEncoder);
 	
-	State.CommitResourceTable(EAGXShaderStages::Compute, mtlpp::FunctionType::Kernel, CurrentEncoder);
+	State.CommitResourceTable(EAGXShaderStages::Compute, MTLFunctionTypeKernel, CurrentEncoder);
 	
 	FAGXComputeShader const* ComputeShader = State.GetComputeShader();
 	if (ComputeShader->SideTableBinding >= 0)
 	{
-		CurrentEncoder.SetShaderSideTable(mtlpp::FunctionType::Kernel, ComputeShader->SideTableBinding);
+		CurrentEncoder.SetShaderSideTable(MTLFunctionTypeKernel, ComputeShader->SideTableBinding);
 		State.SetShaderBuffer(EAGXShaderStages::Compute, nil, nil, 0, 0, ComputeShader->SideTableBinding, 0);
 	}
 }
@@ -1175,12 +1175,12 @@ void FAGXRenderPass::CommitAsyncDispatchResourceTables(void)
 {
 	State.CommitComputeResources(&PrologueEncoder);
 	
-	State.CommitResourceTable(EAGXShaderStages::Compute, mtlpp::FunctionType::Kernel, PrologueEncoder);
+	State.CommitResourceTable(EAGXShaderStages::Compute, MTLFunctionTypeKernel, PrologueEncoder);
 	
 	FAGXComputeShader const* ComputeShader = State.GetComputeShader();
 	if (ComputeShader->SideTableBinding >= 0)
 	{
-		PrologueEncoder.SetShaderSideTable(mtlpp::FunctionType::Kernel, ComputeShader->SideTableBinding);
+		PrologueEncoder.SetShaderSideTable(MTLFunctionTypeKernel, ComputeShader->SideTableBinding);
 		State.SetShaderBuffer(EAGXShaderStages::Compute, nil, nil, 0, 0, ComputeShader->SideTableBinding, 0);
 	}
 }
