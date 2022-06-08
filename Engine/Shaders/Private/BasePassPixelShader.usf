@@ -94,12 +94,6 @@
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
 #endif
 
-
-// We detect the isolated unlit BSDF node case to make sure lots of code is optimised out, when used, there can only be one.
-// When unlit is selected as part of dynamic shading model, the SLAB model is used instead.
-// This allows us to avoid having the unlit node case inside the general BSDF loop and 0 BSDF to process in such pixels.
-#define STRATA_OPTIMIZED_UNLIT			MATERIAL_SHADINGMODEL_UNLIT
-
 float NormalCurvatureToRoughness(float3 WorldNormal)
 {
     float3 dNdx = ddx(WorldNormal);

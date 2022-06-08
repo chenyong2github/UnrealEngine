@@ -70,6 +70,12 @@
 #define STRATA_BLENDING_ALPHAHOLDOUT					0
 #endif
 
+// We detect the isolated unlit BSDF node case to make sure lots of code is optimised out.
+// When unlit is selected as part of the legacy dynamic shading model, the SLAB model is used instead.
+#ifndef STRATA_OPTIMIZED_UNLIT
+#define STRATA_OPTIMIZED_UNLIT							0
+#endif
+
 #ifndef MATERIAL_SHADINGMODEL_DEFAULT_LIT
 #define MATERIAL_SHADINGMODEL_DEFAULT_LIT				0
 #endif

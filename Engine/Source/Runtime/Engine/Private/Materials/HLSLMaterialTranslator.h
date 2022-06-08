@@ -431,6 +431,7 @@ protected:
 	uint32 StrataMaterialRequestedSizeByte;
 	bool bStrataMaterialIsSimple;
 	bool bStrataMaterialIsSingle;
+	bool bStrataMaterialIsUnlitNode;
 	bool bStrataUsesConversionFromLegacy;
 	bool bStrataOutputsOpaqueRoughRefractions;
 
