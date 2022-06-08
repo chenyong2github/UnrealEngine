@@ -568,9 +568,9 @@ IFileHandle* FApplePlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrit
 	if (Handle != -1)
 	{
 		TRACE_PLATFORMFILE_END_OPEN(Handle);
-#if PLATFORM_MAC && !UE_BUILD_SHIPPING
+#if PLATFORM_MAC && UE_EDITOR && !UE_BUILD_SHIPPING
 		// No blocking attempt shared lock, failure means we should not have opened the file for reading, protect against multiple instances and client/server versions
-		if(!bAllowWrite && flock(Handle, LOCK_NB | LOCK_SH) == -1)
+		if(flock(Handle, LOCK_NB | LOCK_SH) != 0)
 		{
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
 			int CloseResult = close(Handle);
@@ -623,8 +623,8 @@ IFileHandle* FApplePlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, 
 	{
 		TRACE_PLATFORMFILE_END_OPEN(Handle);
 #if PLATFORM_MAC && UE_EDITOR && !UE_BUILD_SHIPPING
-		// No blocking attempt exclusive lock, failure means we should not have opened the file for writing, protect against multiple instances and client/server versions
-		if(!bAllowRead && flock(Handle, LOCK_NB | LOCK_EX) == -1)
+		// No blocking attempt EXclusive lock, failure means we should not have opened the file for writing, protect against multiple instances and client/server versions
+		if(flock(Handle, LOCK_NB | LOCK_EX) != 0)
 		{
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
 			int CloseResult = close(Handle);
@@ -641,6 +641,12 @@ IFileHandle* FApplePlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, 
 			(void)CloseResult;
 #endif
 			return nullptr;
+		}
+		
+		// We have created the writer, if reading is required downgrade the lock to SHared
+		if(bAllowRead)
+		{
+			flock(Handle, LOCK_NB | LOCK_SH);
 		}
 #endif
 		
