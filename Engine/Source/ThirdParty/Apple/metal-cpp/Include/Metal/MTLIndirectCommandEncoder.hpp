@@ -2,7 +2,7 @@
 //
 // Metal/MTLIndirectCommandEncoder.hpp
 //
-// Copyright 2020-2021 Apple Inc.
+// Copyright 2020-2022 Apple Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,6 +48,18 @@ public:
     void drawPrimitives(MTL::PrimitiveType primitiveType, NS::UInteger vertexStart, NS::UInteger vertexCount, NS::UInteger instanceCount, NS::UInteger baseInstance);
 
     void drawIndexedPrimitives(MTL::PrimitiveType primitiveType, NS::UInteger indexCount, MTL::IndexType indexType, const class Buffer* indexBuffer, NS::UInteger indexBufferOffset, NS::UInteger instanceCount, NS::Integer baseVertex, NS::UInteger baseInstance);
+
+    void setObjectBuffer(const class Buffer* buffer, NS::UInteger offset, NS::UInteger index);
+
+    void setMeshBuffer(const class Buffer* buffer, NS::UInteger offset, NS::UInteger index);
+
+    void drawMeshThreadgroups(MTL::Size threadgroupsPerGrid, MTL::Size threadsPerObjectThreadgroup, MTL::Size threadsPerMeshThreadgroup);
+
+    void drawMeshThreads(MTL::Size threadsPerGrid, MTL::Size threadsPerObjectThreadgroup, MTL::Size threadsPerMeshThreadgroup);
+
+    void setBarrier();
+
+    void clearBarrier();
 
     void reset();
 };
@@ -118,6 +130,42 @@ _MTL_INLINE void MTL::IndirectRenderCommand::drawPrimitives(MTL::PrimitiveType p
 _MTL_INLINE void MTL::IndirectRenderCommand::drawIndexedPrimitives(MTL::PrimitiveType primitiveType, NS::UInteger indexCount, MTL::IndexType indexType, const MTL::Buffer* indexBuffer, NS::UInteger indexBufferOffset, NS::UInteger instanceCount, NS::Integer baseVertex, NS::UInteger baseInstance)
 {
     Object::sendMessage<void>(this, _MTL_PRIVATE_SEL(drawIndexedPrimitives_indexCount_indexType_indexBuffer_indexBufferOffset_instanceCount_baseVertex_baseInstance_), primitiveType, indexCount, indexType, indexBuffer, indexBufferOffset, instanceCount, baseVertex, baseInstance);
+}
+
+// method: setObjectBuffer:offset:atIndex:
+_MTL_INLINE void MTL::IndirectRenderCommand::setObjectBuffer(const MTL::Buffer* buffer, NS::UInteger offset, NS::UInteger index)
+{
+    Object::sendMessage<void>(this, _MTL_PRIVATE_SEL(setObjectBuffer_offset_atIndex_), buffer, offset, index);
+}
+
+// method: setMeshBuffer:offset:atIndex:
+_MTL_INLINE void MTL::IndirectRenderCommand::setMeshBuffer(const MTL::Buffer* buffer, NS::UInteger offset, NS::UInteger index)
+{
+    Object::sendMessage<void>(this, _MTL_PRIVATE_SEL(setMeshBuffer_offset_atIndex_), buffer, offset, index);
+}
+
+// method: drawMeshThreadgroups:threadsPerObjectThreadgroup:threadsPerMeshThreadgroup:
+_MTL_INLINE void MTL::IndirectRenderCommand::drawMeshThreadgroups(MTL::Size threadgroupsPerGrid, MTL::Size threadsPerObjectThreadgroup, MTL::Size threadsPerMeshThreadgroup)
+{
+    Object::sendMessage<void>(this, _MTL_PRIVATE_SEL(drawMeshThreadgroups_threadsPerObjectThreadgroup_threadsPerMeshThreadgroup_), threadgroupsPerGrid, threadsPerObjectThreadgroup, threadsPerMeshThreadgroup);
+}
+
+// method: drawMeshThreads:threadsPerObjectThreadgroup:threadsPerMeshThreadgroup:
+_MTL_INLINE void MTL::IndirectRenderCommand::drawMeshThreads(MTL::Size threadsPerGrid, MTL::Size threadsPerObjectThreadgroup, MTL::Size threadsPerMeshThreadgroup)
+{
+    Object::sendMessage<void>(this, _MTL_PRIVATE_SEL(drawMeshThreads_threadsPerObjectThreadgroup_threadsPerMeshThreadgroup_), threadsPerGrid, threadsPerObjectThreadgroup, threadsPerMeshThreadgroup);
+}
+
+// method: setBarrier
+_MTL_INLINE void MTL::IndirectRenderCommand::setBarrier()
+{
+    Object::sendMessage<void>(this, _MTL_PRIVATE_SEL(setBarrier));
+}
+
+// method: clearBarrier
+_MTL_INLINE void MTL::IndirectRenderCommand::clearBarrier()
+{
+    Object::sendMessage<void>(this, _MTL_PRIVATE_SEL(clearBarrier));
 }
 
 // method: reset
