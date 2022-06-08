@@ -24,6 +24,16 @@ void UGizmoElementArrow::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 		return;
 	}
 
+	if (bUpdateArrowBody)
+	{
+		UpdateArrowBody();
+	}
+
+	if (bUpdateArrowHead)
+	{
+		UpdateArrowHead();
+	}
+
 	const FSceneView* View = RenderAPI->GetSceneView();
 	bool bVisibleViewDependent = GetViewDependentVisibility(View, RenderState.LocalToWorldTransform, Base);
 
@@ -59,7 +69,7 @@ void UGizmoElementArrow::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 		}
 	}
 
-	CacheRenderState(RenderStateCopy.LocalToWorldTransform, bVisibleViewDependent);
+	CacheRenderState(RenderStateCopy.LocalToWorldTransform, RenderStateCopy.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementArrow::LineTrace(const FVector RayOrigin, const FVector RayDirection)
@@ -103,9 +113,12 @@ FBoxSphereBounds UGizmoElementArrow::CalcBounds(const FTransform& LocalToWorld) 
 
 void UGizmoElementArrow::SetBase(const FVector& InBase)
 {
-	Base = InBase;
-	UpdateArrowBody();
-	UpdateArrowHead();
+	if (Base != InBase)
+	{
+		Base = InBase;
+		bUpdateArrowBody = true;
+		bUpdateArrowHead = true;
+	}
 }
 
 FVector UGizmoElementArrow::GetBase() const
@@ -117,8 +130,8 @@ void UGizmoElementArrow::SetDirection(const FVector& InDirection)
 {
 	Direction = InDirection;
 	Direction.Normalize();
-	UpdateArrowBody();
-	UpdateArrowHead();
+	bUpdateArrowBody = true;
+	bUpdateArrowHead = true;
 }
 
 FVector UGizmoElementArrow::GetDirection() const
@@ -130,7 +143,7 @@ void UGizmoElementArrow::SetSideDirection(const FVector& InSideDirection)
 {
 	SideDirection = InSideDirection;
 	SideDirection.Normalize();
-	UpdateArrowHead();
+	bUpdateArrowHead = true;
 }
 
 FVector UGizmoElementArrow::GetSideDirection() const
@@ -140,9 +153,12 @@ FVector UGizmoElementArrow::GetSideDirection() const
 
 void UGizmoElementArrow::SetBodyLength(float InBodyLength)
 {
-	BodyLength = InBodyLength;
-	UpdateArrowBody();
-	UpdateArrowHead();
+	if (BodyLength != InBodyLength)
+	{
+		BodyLength = InBodyLength;
+		bUpdateArrowBody = true;
+		bUpdateArrowHead = true;
+	}
 }
 
 float UGizmoElementArrow::GetBodyLength() const
@@ -152,9 +168,12 @@ float UGizmoElementArrow::GetBodyLength() const
 
 void UGizmoElementArrow::SetBodyRadius(float InBodyRadius)
 {
-	BodyRadius = InBodyRadius;
-	UpdateArrowBody();
-	UpdateArrowHead();
+	if (BodyRadius != InBodyRadius)
+	{
+		BodyRadius = InBodyRadius;
+		bUpdateArrowBody = true;
+		bUpdateArrowHead = true;
+	}
 }
 
 float UGizmoElementArrow::GetBodyRadius() const
@@ -164,8 +183,11 @@ float UGizmoElementArrow::GetBodyRadius() const
 
 void UGizmoElementArrow::SetHeadLength(float InHeadLength)
 {
-	HeadLength = InHeadLength;
-	UpdateArrowHead();
+	if (HeadLength != InHeadLength)
+	{
+		HeadLength = InHeadLength;
+		bUpdateArrowHead = true;
+	}
 }
 
 float UGizmoElementArrow::GetHeadLength() const
@@ -175,8 +197,11 @@ float UGizmoElementArrow::GetHeadLength() const
 
 void UGizmoElementArrow::SetHeadRadius(float InHeadRadius)
 {
-	HeadRadius = InHeadRadius;
-	UpdateArrowHead();
+	if (HeadRadius != InHeadRadius)
+	{
+		HeadRadius = InHeadRadius;
+		bUpdateArrowHead = true;
+	}
 }
 
 float UGizmoElementArrow::GetHeadRadius() const
@@ -186,14 +211,27 @@ float UGizmoElementArrow::GetHeadRadius() const
 
 void UGizmoElementArrow::SetNumSides(int32 InNumSides)
 {
-	NumSides = InNumSides;
-	UpdateArrowBody();
-	UpdateArrowHead();
+	if (NumSides != InNumSides)
+	{
+		NumSides = InNumSides;
+		bUpdateArrowBody = true;
+		bUpdateArrowHead = true;
+	}
 }
 
 int32 UGizmoElementArrow::GetNumSides() const
 {
 	return NumSides;
+}
+
+void UGizmoElementArrow::SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold)
+{
+	if (PixelHitDistanceThreshold != InPixelHitDistanceThreshold)
+	{
+		PixelHitDistanceThreshold = InPixelHitDistanceThreshold;
+		bUpdateArrowBody = true;
+		bUpdateArrowHead = true;
+	}
 }
 
 void UGizmoElementArrow::SetHeadType(EGizmoElementArrowHeadType InHeadType)
@@ -228,6 +266,9 @@ void UGizmoElementArrow::UpdateArrowBody()
 	CylinderElement->SetHeight(BodyLength);
 	CylinderElement->SetNumSides(NumSides);
 	CylinderElement->SetRadius(BodyRadius);
+	CylinderElement->SetPixelHitDistanceThreshold(PixelHitDistanceThreshold);
+
+	bUpdateArrowBody = false;
 }
 
 void UGizmoElementArrow::UpdateArrowHead()
@@ -242,6 +283,7 @@ void UGizmoElementArrow::UpdateArrowHead()
 		ConeElement->SetRadius(HeadRadius);
 		ConeElement->SetNumSides(NumSides);
 		ConeElement->SetElementInteractionState(ElementInteractionState);
+		ConeElement->SetPixelHitDistanceThreshold(PixelHitDistanceThreshold);
 	}
 	else // (HeadType == EGizmoElementArrowHeadType::Cube)
 	{
@@ -251,5 +293,8 @@ void UGizmoElementArrow::UpdateArrowHead()
 		BoxElement->SetSideDirection(SideDirection);
 		BoxElement->SetDimensions(FVector(HeadLength, HeadLength, HeadLength));
 		BoxElement->SetElementInteractionState(ElementInteractionState);
+		BoxElement->SetPixelHitDistanceThreshold(PixelHitDistanceThreshold);
 	}
+
+	bUpdateArrowHead = false;
 }

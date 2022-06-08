@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BaseGizmos/GizmoElementBase.h"
+#include "BaseGizmos/GizmoElementLineBase.h"
 #include "InputState.h"
 #include "UObject/ObjectMacros.h"
 #include "GizmoElementCircle.generated.h"
@@ -13,7 +13,7 @@
  * Draws a filled or line circle based on parameters.
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementCircle : public UGizmoElementBase
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementCircle : public UGizmoElementLineBase
 {
 	GENERATED_BODY()
 

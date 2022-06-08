@@ -126,8 +126,7 @@ void UTransformGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 		CurrentTransform = ActiveTarget->GetTransform();
 
 		UGizmoElementBase::FRenderTraversalState RenderState;
-		RenderState.LocalToWorldTransform = GetGizmoTransform();
-
+		RenderState.Initialize(RenderAPI->GetSceneView(), GetGizmoTransform());
 		GizmoElementRoot->Render(RenderAPI, RenderState);
 	}
 }
@@ -896,6 +895,7 @@ UGizmoElementRectangle* UTransformGizmo::MakeTranslateScreenSpaceHandle()
 	RectangleElement->SetHitMesh(true);
 	RectangleElement->SetDrawMesh(false);
 	RectangleElement->SetDrawLine(true);
+	RectangleElement->SetHoverLineThicknessMultiplier(3.0);
 	return RectangleElement;
 }
 

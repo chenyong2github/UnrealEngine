@@ -75,6 +75,9 @@ public:
 	virtual void SetHeadType(EGizmoElementArrowHeadType InHeadType);
 	virtual EGizmoElementArrowHeadType GetHeadType() const;
 
+	// Pixel hit distance threshold, element will be scaled enough to add this threshold when line-tracing.
+	virtual void SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold) override;
+
 protected:
 
 	// Update arrow cylinder based on parameters
@@ -82,6 +85,12 @@ protected:
 
 	// Update arrow cone or box based on parameters
 	virtual void UpdateArrowHead();
+
+	// Flag indicating body properties need to be updated prior to render
+	bool bUpdateArrowBody = true;
+
+	// Flag indicating head properties need to be updated prior to render
+	bool bUpdateArrowHead = true;
 
 	// Arrow cylinder body
 	UPROPERTY()

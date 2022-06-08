@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "BaseGizmos/GizmoRenderingUtil.h"
 #include "InputState.h"
+#include "SceneView.h"
 #include "ToolContextInterfaces.h"
 #include "UObject/GCObject.h"
 #include "GizmoElementBase.generated.h"
@@ -47,7 +49,7 @@ enum class EGizmoElementViewAlignType
 };
 
 /**
- * Base class for simple objects intended to be used as part of 3D Gizmos.
+ * Base class for 2d and 3d primitive objects intended to be used as part of 3D Gizmos.
  * Contains common properties and utility functions.
  * This class does nothing by itself, use subclasses like UGizmoElementCylinder
  */
@@ -73,14 +75,8 @@ public:
 		// Note: non-uniform scale is not supported and the X scale element will be used for uniform scaling.
 		FTransform LocalToWorldTransform;
 
-		// LocalToWorld translation 
-		FVector LocalToWorldTranslation;
-
-		// LocalToWorld rotation 
-		FQuat LocalToWorldRotation;
-
-		// LocalToWorld uniform scale, non-uniform scale is not supported
-		double LocalToWorldScale;
+		// Pixel to world scale
+		double PixelToWorldScale = 1.0;
 
 		// Material, if set, overrides the element's material
 		TWeakObjectPtr<UMaterialInterface> Material = nullptr;
@@ -93,6 +89,12 @@ public:
 
 		// Interact state, if not equal to none, overrides the element's interact state
 		EGizmoElementInteractionState InteractionState = EGizmoElementInteractionState::None;
+
+		void Initialize(const FSceneView* InSceneView, FTransform InTransform)
+		{
+			LocalToWorldTransform = InTransform;
+			PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(InSceneView, InTransform.GetLocation());
+		}
 	};
 
 public:
@@ -209,6 +211,10 @@ public:
 	virtual void SetVertexColor(const FColor& InVertexColor);
 	FColor GetVertexColor() const;
 
+	// Pixel hit distance threshold, element will be scaled enough to add this threshold when line-tracing.
+	virtual void SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold);
+	virtual float GetPixelHitDistanceThreshold() const;
+
 protected:
 
 	// Render and LineTrace should only occur when bEnabled is true.
@@ -295,21 +301,17 @@ protected:
 	UPROPERTY()
 	FColor VertexColor = FColor::White;
 
+	// Pixel hit distance threshold, element will be scaled enough to add this threshold when line-tracing.
+	UPROPERTY()
+	float PixelHitDistanceThreshold = 7.0;
+
 	// Render stores the last cached transform, used by line trace.
 	UPROPERTY()
 	FTransform CachedLocalToWorldTransform = FTransform::Identity;
 
-	// Render stores the last cached translation, used by line trace.
+	// Render stores the last pixel to world scale, used by line trace.
 	UPROPERTY()
-	FVector CachedLocalToWorldTranslation = FVector::ZeroVector;
-
-	// Render stores the last cached rotation, used by line trace.
-	UPROPERTY()
-	FQuat CachedLocalToWorldRotation = FQuat::Identity;
-
-	// Render stores the last cached rotation, used by line trace.
-	UPROPERTY()
-	double CachedLocalToWorldScale = 1.0;
+	float CachedPixelToWorldScale = 1.0;
 
 	// Whether last transform has been cached.
 	UPROPERTY()
@@ -329,7 +331,7 @@ protected:
 
 protected:
 	// Cache render state during render traversal, to be used subsequently when line tracing.
-	virtual void CacheRenderState(const FTransform& InLocalToWorldState, bool InVisibleViewDependent = true);
+	virtual void CacheRenderState(const FTransform& InLocalToWorldState, double InPixelToWorldScale, bool InVisibleViewDependent = true);
 
 	// Update render traversal state based on properties in the current object, should always be called at the beginning of Render()
 	virtual void UpdateRenderTraversalState(FRenderTraversalState& InRenderTraversalState);

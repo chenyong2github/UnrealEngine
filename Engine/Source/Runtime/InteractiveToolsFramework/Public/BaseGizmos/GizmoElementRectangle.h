@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BaseGizmos/GizmoElementBase.h"
+#include "BaseGizmos/GizmoElementLineBase.h"
 #include "InputState.h"
 #include "UObject/ObjectMacros.h"
 #include "GizmoElementRectangle.generated.h"
@@ -16,7 +16,7 @@ class FMaterialRenderProxy;
  * Draws a rectangle based on parameters.
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementRectangle : public UGizmoElementBase
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementRectangle : public UGizmoElementLineBase
 {
 	GENERATED_BODY()
 
@@ -50,11 +50,11 @@ public:
 
 	// Screen space, when true orients the rectangle to the screen up and side vectors
 	virtual void SetScreenSpace(bool InScreenSpace);
-	virtual bool GetScreenSpace();
+	virtual bool GetScreenSpace() const;
 
 	// Line color
 	virtual void SetLineColor(const FColor& InLineColor);
-	virtual FColor GetLineColor();
+	virtual FColor GetLineColor() const;
 
 	// Draw mesh
 	virtual void SetDrawMesh(bool InDrawMesh);

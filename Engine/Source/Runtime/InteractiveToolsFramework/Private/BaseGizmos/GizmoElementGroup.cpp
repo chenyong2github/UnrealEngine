@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseGizmos/GizmoElementGroup.h"
-#include "BaseGizmos/GizmoRenderingUtil.h"
-
 
 void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
@@ -23,8 +21,7 @@ void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 		float Scale = RenderStateCopy.LocalToWorldTransform.GetScale3D().X;
 		if (bConstantScale)
 		{
-			const float ConstantScaleFactor = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(RenderAPI->GetSceneView(), RenderStateCopy.LocalToWorldTransform.GetTranslation());
-			Scale *= ConstantScaleFactor;
+			Scale *= RenderStateCopy.PixelToWorldScale;
 		}
 		RenderStateCopy.LocalToWorldTransform.SetScale3D(FVector(Scale, Scale, Scale));
 
@@ -48,7 +45,7 @@ void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 		}
 	}
 
-	CacheRenderState(RenderStateCopy.LocalToWorldTransform, bVisibleViewDependent);
+	CacheRenderState(RenderStateCopy.LocalToWorldTransform, RenderStateCopy.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementGroup::LineTrace(const FVector Start, const FVector Direction)

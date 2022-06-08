@@ -65,10 +65,10 @@ void UGizmoElementRectangle::Render(IToolsContextRenderAPI* RenderAPI, const FRe
 		}
 		if (bDrawLine)
 		{
-			DrawRectangle(PDI, WorldCenter, Axis0, Axis1, LineColor, WorldWidth, WorldHeight, SDPG_Foreground, 0.0f);
+			DrawRectangle(PDI, WorldCenter, Axis0, Axis1, LineColor, WorldWidth, WorldHeight, SDPG_Foreground, GetCurrentLineThickness());
 		}
 	}
-	CacheRenderState(LocalToWorldTransform, bVisibleViewDependent);
+	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementRectangle::LineTrace(const FVector RayOrigin, const FVector RayDirection)
@@ -82,8 +82,9 @@ FInputRayHit UGizmoElementRectangle::LineTrace(const FVector RayOrigin, const FV
 			const FVector Normal = FVector::CrossProduct(UpAxis, SideAxis);
 			const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(Center);
 			const double Scale = CachedLocalToWorldTransform.GetScale3D().X;
-			const double WorldHeight = Scale * Height;
-			const double WorldWidth = Scale * Width;
+			const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
+			const double WorldHeight = Scale * Height + 2.0 * PixelHitThresholdAdjust;
+			const double WorldWidth = Scale * Width + 2.0 * PixelHitThresholdAdjust;
 			const FVector Base = WorldCenter - UpAxis * WorldHeight * 0.5 - SideAxis * WorldWidth * 0.5;
 
 			// if ray is parallel to rectangle, no hit
@@ -182,7 +183,7 @@ void UGizmoElementRectangle::SetScreenSpace(bool InScreenSpace)
 	bScreenSpace = InScreenSpace;
 }
 
-bool UGizmoElementRectangle::GetScreenSpace()
+bool UGizmoElementRectangle::GetScreenSpace() const
 {
 	return bScreenSpace;
 }
@@ -192,7 +193,7 @@ void UGizmoElementRectangle::SetLineColor(const FColor& InLineColor)
 	LineColor = InLineColor;
 }
 
-FColor UGizmoElementRectangle::GetLineColor()
+FColor UGizmoElementRectangle::GetLineColor() const
 {
 	return LineColor;
 }

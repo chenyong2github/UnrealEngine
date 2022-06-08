@@ -48,7 +48,7 @@ void UGizmoElementBox::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTr
 		}
 	}
 
-	CacheRenderState(LocalToWorldTransform, bVisibleViewDependent);
+	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementBox::LineTrace(const FVector RayOrigin, const FVector RayDirection)

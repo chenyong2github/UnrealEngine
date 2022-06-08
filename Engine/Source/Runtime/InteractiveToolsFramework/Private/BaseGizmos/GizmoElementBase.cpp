@@ -5,7 +5,7 @@
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "Materials/MaterialInterface.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogGizmoElements, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogGizmoElementBase, Log, All);
 
 bool UGizmoElementBase::GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
 {
@@ -57,7 +57,7 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 		bool bNonUniformScaleWarning = true;
 		if (bNonUniformScaleWarning)
 		{
-			UE_LOG(LogGizmoElements, Warning, TEXT("Gizmo element library view-dependent alignment does not currently support non-uniform scale (%f %f %f)."),
+			UE_LOG(LogGizmoElementBase, Warning, TEXT("Gizmo element library view-dependent alignment does not currently support non-uniform scale (%f %f %f)."),
 				Scale.X, Scale.Y, Scale.Z);
 			bNonUniformScaleWarning = false;
 		}
@@ -170,9 +170,10 @@ const UMaterialInterface* UGizmoElementBase::GetCurrentMaterial(const FRenderTra
 	return Material;
 }
 
-void UGizmoElementBase::CacheRenderState(const FTransform& InLocalToWorldState, bool InVisibleViewDependent)
+void UGizmoElementBase::CacheRenderState(const FTransform& InLocalToWorldState, double InPixelToWorldScale, bool InVisibleViewDependent)
 {
 	CachedLocalToWorldTransform = InLocalToWorldState;
+	CachedPixelToWorldScale = InPixelToWorldScale;
 	bHasCachedLocalToWorldTransform = true;
 	bCachedVisibleViewDependent = InVisibleViewDependent;
 }
@@ -180,6 +181,8 @@ void UGizmoElementBase::CacheRenderState(const FTransform& InLocalToWorldState, 
 void UGizmoElementBase::ResetCachedRenderState()
 {
 	bHasCachedLocalToWorldTransform = false;
+	CachedLocalToWorldTransform = FTransform::Identity;
+	CachedPixelToWorldScale = 1.0f;
 	bCachedVisibleViewDependent = true;
 }
 
@@ -405,4 +408,13 @@ FColor UGizmoElementBase::GetVertexColor() const
 	return VertexColor;
 }
 
+void UGizmoElementBase::SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold)
+{
+	PixelHitDistanceThreshold = InPixelHitDistanceThreshold;
+}
+
+float UGizmoElementBase::GetPixelHitDistanceThreshold() const
+{
+	return PixelHitDistanceThreshold;
+}
 

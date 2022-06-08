@@ -42,7 +42,7 @@ void UGizmoElementCone::Render(IToolsContextRenderAPI* RenderAPI, const FRenderT
 			DrawCone(PDI, RenderLocalToWorldTransform.ToMatrixWithScale(), Angle, Angle, NumSides, false, FColor::White, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 		}
 	}
-	CacheRenderState(LocalToWorldTransform, bVisibleViewDependent);
+	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
 
 
@@ -54,11 +54,12 @@ FInputRayHit UGizmoElementCone::LineTrace(const FVector RayOrigin, const FVector
 		bool bIntersects = false;
 		double RayParam = 0.0;
 
+		const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
 		const double ConeSide = FMath::Sqrt(Height * Height + Radius * Radius);
 		const double CosAngle = Height / ConeSide;
-		const double ConeHeight = Height * CachedLocalToWorldTransform.GetScale3D().X;
-		const FVector ConeOrigin = CachedLocalToWorldTransform.TransformPosition(Origin);
+		const double ConeHeight = Height * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust * 2.0;
 		const FVector ConeDirection = CachedLocalToWorldTransform.TransformVectorNoScale(Direction);
+		const FVector ConeOrigin = CachedLocalToWorldTransform.TransformPosition(Origin) - ConeDirection * PixelHitThresholdAdjust;
 
 		GizmoMath::RayConeIntersection(
 			ConeOrigin,

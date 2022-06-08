@@ -64,10 +64,10 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 
 		if (bDrawLine)
 		{
-			DrawCircle(PDI, WorldCenter, Axis0, Axis1, LineColor, WorldRadius, NumSides, SDPG_Foreground, 0.0f);
+			DrawCircle(PDI, WorldCenter, Axis0, Axis1, LineColor, WorldRadius, NumSides, SDPG_Foreground, GetCurrentLineThickness());
 		}
 	}
-	CacheRenderState(LocalToWorldTransform, bVisibleViewDependent);
+	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementCircle::LineTrace(const FVector RayOrigin, const FVector RayDirection)
@@ -81,7 +81,8 @@ FInputRayHit UGizmoElementCircle::LineTrace(const FVector RayOrigin, const FVect
 
 			const FVector WorldNormal = CachedLocalToWorldTransform.TransformVectorNoScale(Normal);
 			const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(Center);
-			const double WorldRadius = CachedLocalToWorldTransform.GetScale3D().X * Radius;
+			const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
+			const double WorldRadius = CachedLocalToWorldTransform.GetScale3D().X * Radius + PixelHitThresholdAdjust;
 
 			UE::Geometry::FLinearIntersection Result;
 			IntersectionUtil::RayCircleIntersection(RayOrigin, RayDirection, WorldCenter, WorldRadius, WorldNormal, Result);

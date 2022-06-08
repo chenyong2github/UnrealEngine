@@ -41,7 +41,7 @@ void UGizmoElementCylinder::Render(IToolsContextRenderAPI* RenderAPI, const FRen
 
 		}
 	}
-	CacheRenderState(LocalToWorldTransform, bVisibleViewDependent);
+	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
 
 
@@ -53,8 +53,9 @@ FInputRayHit UGizmoElementCylinder::LineTrace(const FVector RayOrigin, const FVe
 		bool bIntersects = false;
 		double RayParam = 0.0;
 		
-		const double CylinderHeight = Height * CachedLocalToWorldTransform.GetScale3D().X;
-		const double CylinderRadius = Radius * CachedLocalToWorldTransform.GetScale3D().X;
+		const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
+		const double CylinderHeight = Height * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust * 2.0;
+		const double CylinderRadius = Radius * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust;
 		const FVector CylinderDirection = CachedLocalToWorldTransform.TransformVectorNoScale(Direction);
 		const FVector CylinderLocalCenter = Base + Direction * Height * 0.5;
 		const FVector CylinderCenter = CachedLocalToWorldTransform.TransformPosition(CylinderLocalCenter);
