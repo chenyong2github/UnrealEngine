@@ -20,6 +20,8 @@ public:
 	FTaskEntry(const TraceServices::FTaskInfo &TaskInfo);
 	~FTaskEntry() {}
 
+	const TCHAR* GetDebugName() const { return DebugName; }
+
 	double GetCreatedTimestamp() const { return CreatedTimestamp; }
 	uint32 GetCreatedThreadId() const { return CreatedThreadId; }
 

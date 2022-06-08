@@ -18,6 +18,7 @@ class FTableColumn;
 // Column identifiers
 struct FTaskTableColumns
 {
+	static const FName DebugNameColumnId;
 	static const FName CreatedTimestampColumnId;
 	static const FName CreatedThreadIdColumnId;
 	static const FName LaunchedTimestampColumnId;
