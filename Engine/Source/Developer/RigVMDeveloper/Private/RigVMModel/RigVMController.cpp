@@ -15874,11 +15874,6 @@ void URigVMController::InitializeAllTemplateFiltersInGraph(bool bSetupUndoRedo, 
 		{
 			if (!TemplateNode->IsSingleton())
 			{
-				if (!TemplateNode->PreferredPermutationTypes.IsEmpty())
-				{
-					continue;
-				}
-				
 				TArray<int32> OldPermutations = TemplateNode->FilteredPermutations;
 				TemplateNode->InitializeFilteredPermutations();
 				if (bChangePinTypes)
