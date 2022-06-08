@@ -2,6 +2,7 @@
 
 #include "Online/OnlineServicesEOSGS.h"
 
+#include "Online/AchievementsEOSGS.h"
 #include "Online/AuthEOSGS.h"
 #include "Online/LobbiesEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
@@ -47,6 +48,7 @@ FOnlineServicesEOSGS::FOnlineServicesEOSGS(FName InInstanceName)
 
 void FOnlineServicesEOSGS::RegisterComponents()
 {
+	Components.Register<FAchievementsEOSGS>(*this);
 	Components.Register<FAuthEOSGS>(*this);
 	Components.Register<FLobbiesEOSGS>(*this);
 	Super::RegisterComponents();
