@@ -497,9 +497,6 @@ private:
 	/** PackagePath containing the payload (this will be empty if the payload does not come from PackageResourceManager)*/
 	FPackagePath PackagePath;
 
-	/** PackageSegment to load with the packagepath (unused if the payload does not come from PackageResourceManager) */
-	EPackageSegment PackageSegment= EPackageSegment::Header;
-
 	/** A 32bit bitfield of flags */
 	EFlags Flags = EFlags::None;
 
