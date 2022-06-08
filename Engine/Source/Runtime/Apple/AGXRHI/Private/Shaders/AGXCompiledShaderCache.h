@@ -48,7 +48,7 @@ public:
 private:
 	FRWLock Lock;
 	TMap<FAGXCompiledShaderKey, mtlpp::Function> Cache;
-	TMap<mtlpp::Function::Type, mtlpp::Library> LibCache;
+	TMap<id<MTLFunction>, mtlpp::Library> LibCache;
 };
 
 extern FAGXCompiledShaderCache& GetAGXCompiledShaderCache();

@@ -64,7 +64,7 @@ public:
 	 * @param Mode Controls if the counter is disabled or moniters passing samples.
 	 * @param Offset The offset relative to the occlusion query buffer provided when the command encoder was created.  offset must be a multiple of 8.
 	 */
-	void SetVisibilityResultMode(mtlpp::VisibilityResultMode Mode, NSUInteger Offset);
+	void SetVisibilityResultMode(MTLVisibilityResultMode Mode, NSUInteger Offset);
 	
 #pragma mark - Public Shader Resource Mutators -
 	/*
@@ -126,13 +126,13 @@ public:
 	FAGXComputeShader* GetComputeShader() const { return ComputeShader; }
 	CGSize GetFrameBufferSize() const { return FrameBufferSize; }
 	FRHIRenderPassInfo const& GetRenderPassInfo() const { return RenderPassInfo; }
-	int32 GetNumRenderTargets() { return bHasValidColorTarget ? RenderPassInfo.GetNumColorRenderTargets() : -1; }
+	int32 GetNumRenderTargets() const { return bHasValidColorTarget ? RenderPassInfo.GetNumColorRenderTargets() : -1; }
 	bool GetHasValidRenderTarget() const { return bHasValidRenderTarget; }
 	bool GetHasValidColorTarget() const { return bHasValidColorTarget; }
-	MTLViewport const& GetViewport(uint32 Index) const { check(Index < ML_MaxViewports); return Viewport[Index]; }
-	uint32 GetVertexBufferSize(uint32 Index);
+	const MTLViewport& GetViewport(uint32 Index) const { check(Index < ML_MaxViewports); return Viewport[Index]; }
+	uint32 GetVertexBufferSize(uint32 Index) const;
 	uint32 GetRenderTargetArraySize() const { return RenderTargetArraySize; }
-	const FRHIUniformBuffer** GetBoundUniformBuffers(EAGXShaderStages Freq) { return (const FRHIUniformBuffer**)&BoundUniformBuffers[Freq][0]; }
+	const FRHIUniformBuffer** GetBoundUniformBuffers(EAGXShaderStages Freq) const { return (const FRHIUniformBuffer**)&BoundUniformBuffers[Freq][0]; }
 	uint32 GetDirtyUniformBuffers(EAGXShaderStages Freq) const { return DirtyUniformBuffers[Freq]; }
 	FAGXQueryBuffer* GetVisibilityResultsBuffer() const { return VisibilityResults; }
 	bool GetScissorRectEnabled() const { return bScissorRectEnabled; }
@@ -141,11 +141,11 @@ public:
     bool CanRestartRenderPass() const { return bCanRestartRenderPass; }
 	MTLRenderPassDescriptor* GetRenderPassDescriptor() const { return RenderPassDesc; }
 	uint32 GetSampleCount() const { return SampleCount; }
-    bool IsLinearBuffer(EAGXShaderStages ShaderStage, uint32 BindIndex);
+    bool IsLinearBuffer(EAGXShaderStages ShaderStage, uint32 BindIndex) const;
 	FAGXShaderPipeline* GetPipelineState() const;
-	EPrimitiveType GetPrimitiveType();
-	mtlpp::VisibilityResultMode GetVisibilityResultMode() { return VisibilityMode; }
-	uint32 GetVisibilityResultOffset() { return VisibilityOffset; }
+	EPrimitiveType GetPrimitiveType() const;
+	MTLVisibilityResultMode GetVisibilityResultMode() const { return VisibilityMode; }
+	uint32 GetVisibilityResultOffset() const { return VisibilityOffset; }
 	
 	FTexture2DRHIRef CreateFallbackDepthStencilSurface(uint32 Width, uint32 Height);
 	bool GetFallbackDepthStencilBound() const { return bFallbackDepthStencilBound; }
@@ -269,7 +269,7 @@ private:
 	MTLStoreAction StencilStore;
 
 	FAGXQueryBuffer* VisibilityResults;
-	mtlpp::VisibilityResultMode VisibilityMode;
+	MTLVisibilityResultMode VisibilityMode;
 	NSUInteger VisibilityOffset;
 	NSUInteger VisibilityWritten;
 

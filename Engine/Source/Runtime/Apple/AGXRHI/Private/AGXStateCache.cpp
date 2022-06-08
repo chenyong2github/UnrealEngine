@@ -17,13 +17,13 @@
 	#define FMETALTEXTUREMASK_MAX UINT32_MAX
 #endif
 
-static mtlpp::TriangleFillMode TranslateFillMode(ERasterizerFillMode FillMode)
+static MTLTriangleFillMode TranslateFillMode(ERasterizerFillMode FillMode)
 {
 	switch (FillMode)
 	{
-		case FM_Wireframe:	return mtlpp::TriangleFillMode::Lines;
-		case FM_Point:		return mtlpp::TriangleFillMode::Fill;
-		default:			return mtlpp::TriangleFillMode::Fill;
+		case FM_Wireframe:	return MTLTriangleFillModeLines;
+		case FM_Point:		return MTLTriangleFillModeFill;
+		default:			return MTLTriangleFillModeFill;
 	};
 }
 
@@ -37,13 +37,13 @@ static MTLCullMode TranslateCullMode(ERasterizerCullMode CullMode)
 	}
 }
 
-static mtlpp::DepthClipMode TranslateDepthClipMode(ERasterizerDepthClipMode DepthClipMode)
+static MTLDepthClipMode TranslateDepthClipMode(ERasterizerDepthClipMode DepthClipMode)
 {
 	switch (DepthClipMode)
 	{
-	case ERasterizerDepthClipMode::DepthClip:	return mtlpp::DepthClipMode::Clip;
-	case ERasterizerDepthClipMode::DepthClamp:	return mtlpp::DepthClipMode::Clamp;
-	default:									return mtlpp::DepthClipMode::Clip;
+		case ERasterizerDepthClipMode::DepthClip:	return MTLDepthClipModeClip;
+		case ERasterizerDepthClipMode::DepthClamp:	return MTLDepthClipModeClamp;
+		default:									return MTLDepthClipModeClip;
 	}
 }
 
@@ -170,7 +170,7 @@ FAGXStateCache::FAGXStateCache(bool bInImmediate)
 : DepthStore(MTLStoreActionUnknown)
 , StencilStore(MTLStoreActionUnknown)
 , VisibilityResults(nullptr)
-, VisibilityMode(mtlpp::VisibilityResultMode::Disabled)
+, VisibilityMode(MTLVisibilityResultModeDisabled)
 , VisibilityOffset(0)
 , VisibilityWritten(0)
 , DepthStencilState(nullptr)
@@ -299,7 +299,7 @@ void FAGXStateCache::Reset()
 	}
 	
 	VisibilityResults = nil;
-	VisibilityMode = mtlpp::VisibilityResultMode::Disabled;
+	VisibilityMode = MTLVisibilityResultModeDisabled;
 	VisibilityOffset = 0;
 	VisibilityWritten = 0;
 	
@@ -1107,7 +1107,7 @@ void FAGXStateCache::SetVertexStream(uint32 Index, FAGXBuffer* Buffer, FAGXBuffe
 	SetShaderBuffer(EAGXShaderStages::Vertex, VertexBuffers[Index].Buffer, Bytes, Offset, Length, UNREAL_TO_METAL_BUFFER_INDEX(Index), MTLResourceUsageRead);
 }
 
-uint32 FAGXStateCache::GetVertexBufferSize(uint32 Index)
+uint32 FAGXStateCache::GetVertexBufferSize(uint32 Index) const
 {
 	check(Index < MaxVertexElementCount);
 	check(UNREAL_TO_METAL_BUFFER_INDEX(Index) < MaxMetalStreams);
@@ -1161,7 +1161,7 @@ FAGXShaderPipeline* FAGXStateCache::GetPipelineState() const
 	return GraphicsPSO->GetPipeline();
 }
 
-EPrimitiveType FAGXStateCache::GetPrimitiveType()
+EPrimitiveType FAGXStateCache::GetPrimitiveType() const
 {
 	check(IsValidRef(GraphicsPSO));
 	return GraphicsPSO->GetPrimitiveType();
@@ -1183,7 +1183,7 @@ void FAGXStateCache::SetDirtyUniformBuffers(EAGXShaderStages Freq, uint32 Dirty)
 	DirtyUniformBuffers[Freq] = Dirty;
 }
 
-void FAGXStateCache::SetVisibilityResultMode(mtlpp::VisibilityResultMode Mode, NSUInteger Offset)
+void FAGXStateCache::SetVisibilityResultMode(MTLVisibilityResultMode Mode, NSUInteger Offset)
 {
 	if (VisibilityMode != Mode || VisibilityOffset != Offset)
 	{
@@ -1486,7 +1486,7 @@ void FAGXStateCache::SetShaderResourceView(FAGXContext* Context, EAGXShaderStage
 	}
 }
 
-bool FAGXStateCache::IsLinearBuffer(EAGXShaderStages ShaderStage, uint32 BindIndex)
+bool FAGXStateCache::IsLinearBuffer(EAGXShaderStages ShaderStage, uint32 BindIndex) const
 {
     switch (ShaderStage)
     {
@@ -1927,7 +1927,7 @@ void FAGXStateCache::SetRenderState(FAGXCommandEncoder& CommandEncoder, FAGXComm
 		if (RasterBits & EAGXRenderFlagVisibilityResultMode)
 		{
 			CommandEncoder.SetVisibilityResultMode(VisibilityMode, VisibilityOffset);
-			if (VisibilityMode != mtlpp::VisibilityResultMode::Disabled)
+			if (VisibilityMode != MTLVisibilityResultModeDisabled)
 			{
             	VisibilityWritten = VisibilityOffset + FAGXQueryBufferPool::EQueryResultMaxSize;
 			}

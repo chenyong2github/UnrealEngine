@@ -904,11 +904,11 @@ void FAGXSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuffe
 	uint32 Stride;
 	uint32 BytesPerImage = GetMipSize(MipIndex, &Stride, true);
 	
-	mtlpp::Region Region;
+	MTLRegion Region;
 	if (GetDesc().IsTexture3D())
 	{
 		// upload the texture to the texture slice
-		Region = mtlpp::Region(
+		Region = MTLRegionMake3D(
 			0, 0, 0,
 			FMath::Max<uint32>(GetDesc().Extent.X >> MipIndex, 1),
 			FMath::Max<uint32>(GetDesc().Extent.Y >> MipIndex, 1),
@@ -918,7 +918,7 @@ void FAGXSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuffe
 	else
 	{
 		// upload the texture to the texture slice
-		Region = mtlpp::Region(
+		Region = MTLRegionMake2D(
 			0, 0,
 			FMath::Max<uint32>(GetDesc().Extent.X >> MipIndex, 1),
 			FMath::Max<uint32>(GetDesc().Extent.Y >> MipIndex, 1)
@@ -1025,7 +1025,13 @@ void FAGXSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuffe
 		}
 #endif
 		
-		MTLPP_VALIDATE(mtlpp::Texture, Texture, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Replace(Region, MipIndex, ArrayIndex, SourceBuffer.contents, Stride, BytesPerImage));
+		[Texture.GetPtr() replaceRegion:Region
+							mipmapLevel:MipIndex
+								  slice:ArrayIndex
+							  withBytes:(const void*)[SourceBuffer contents]
+							bytesPerRow:Stride
+						  bytesPerImage:BytesPerImage];
+
 		[SourceBuffer release];
 		
 		INC_DWORD_STAT_BY(STAT_AGXTextureMemUpdate, BytesPerImage);
@@ -1056,11 +1062,11 @@ void* FAGXSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode Lo
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 			const bool bIssueImmediateCommands = RHICmdList.Bypass() || IsInRHIThread();
 			
-			mtlpp::Region Region;
+			MTLRegion Region;
 			if (GetDesc().IsTexture3D())
 			{
 				// upload the texture to the texture slice
-				Region = mtlpp::Region(
+				Region = MTLRegionMake3D(
 					0, 0, 0,
 					FMath::Max<uint32>(GetDesc().Extent.X >> MipIndex, 1),
 					FMath::Max<uint32>(GetDesc().Extent.Y >> MipIndex, 1),
@@ -1069,7 +1075,7 @@ void* FAGXSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode Lo
 			else
 			{
 				// upload the texture to the texture slice
-				Region = mtlpp::Region(
+				Region = MTLRegionMake2D(
 					0, 0,
 					FMath::Max<uint32>(GetDesc().Extent.X >> MipIndex, 1),
 					FMath::Max<uint32>(GetDesc().Extent.Y >> MipIndex, 1)
@@ -1140,7 +1146,13 @@ void* FAGXSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode Lo
 					BytesPerRow = 0;
 					MipBytes = 0;
 				}
-				MTLPP_VALIDATE(mtlpp::Texture, Texture, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, GetBytes(MTLPP_VALIDATE(mtlpp::Buffer, SourceData, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, GetContents()), BytesPerRow, MipBytes, Region, MipIndex, ArrayIndex));
+
+				[Texture.GetPtr() getBytes:(void*)((uint8*)[SourceData.GetPtr() contents] + SourceData.GetOffset())
+							   bytesPerRow:BytesPerRow
+							 bytesPerImage:MipBytes
+								fromRegion:Region
+							   mipmapLevel:MipIndex
+									 slice:ArrayIndex];
 			}
 			
 #if PLATFORM_MAC
@@ -1500,7 +1512,7 @@ FTexture2DRHIRef FAGXDynamicRHI::RHIAsyncReallocateTexture2D(FRHITexture2D* OldT
 
 			// only handling straight 2D textures here
 			uint32 SliceIndex = 0;
-			mtlpp::Origin Origin(0, 0, 0);
+			MTLOrigin Origin = MTLOriginMake(0, 0, 0);
 
 			FAGXTexture Tex = OldTexture->Texture;
 
@@ -1515,7 +1527,7 @@ FTexture2DRHIRef FAGXDynamicRHI::RHIAsyncReallocateTexture2D(FRHITexture2D* OldT
 				const uint32 MipSizeX = FMath::Max<uint32>(1, NewSizeX >> (MipIndex + DestMipOffset));
 				const uint32 MipSizeY = FMath::Max<uint32>(1, NewSizeY >> (MipIndex + DestMipOffset));
 
-				bAsync &= Context.AsyncCopyFromTextureToTexture(OldTexture->Texture, SliceIndex, MipIndex + SourceMipOffset, Origin, mtlpp::Size(MipSizeX, MipSizeY, 1), NewTexture->Texture, SliceIndex, MipIndex + DestMipOffset, Origin);
+				bAsync &= Context.AsyncCopyFromTextureToTexture(OldTexture->Texture, SliceIndex, MipIndex + SourceMipOffset, Origin, MTLSizeMake(MipSizeX, MipSizeY, 1), NewTexture->Texture, SliceIndex, MipIndex + DestMipOffset, Origin);
 			}
 
 			// when done, decrement the counter to indicate it's safe
@@ -1677,7 +1689,7 @@ static void InternalUpdateTexture2D(FAGXContext& Context, FRHITexture2D* Texture
 	FAGXSurface* Texture = ResourceCast(TextureRHI);
 	FAGXTexture Tex = Texture->Texture;
 	
-	mtlpp::Region Region = mtlpp::Region(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.Width, UpdateRegion.Height);
+	MTLRegion Region = MTLRegionMake2D(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.Width, UpdateRegion.Height);
 	
 	if ([Tex.GetPtr() storageMode] == MTLStorageModePrivate)
 	{
@@ -1701,7 +1713,10 @@ static void InternalUpdateTexture2D(FAGXContext& Context, FRHITexture2D* Texture
 	}
 	else
 	{
-		MTLPP_VALIDATE(mtlpp::Texture, Tex, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Replace(Region, MipIndex, 0, MTLPP_VALIDATE(mtlpp::Buffer, Buffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, GetContents()), SourcePitch, 0));
+		[Tex.GetPtr() replaceRegion:Region
+						mipmapLevel:MipIndex
+						  withBytes:(const void*)((uint8*)[Buffer.GetPtr() contents] + Buffer.GetOffset())
+						bytesPerRow:SourcePitch];
 	}
 
 	FPlatformAtomics::InterlockedExchange(&Texture->Written, 1);
@@ -1772,8 +1787,12 @@ void FAGXDynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 MipInd
 				SourceData = (uint8*)ExpandedData.GetData();
 			}
 #endif
-			mtlpp::Region Region = mtlpp::Region(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.Width, UpdateRegion.Height);
-			MTLPP_VALIDATE(mtlpp::Texture, Tex, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Replace(Region, MipIndex, 0, SourceData, SourcePitch, 0));
+			MTLRegion Region = MTLRegionMake2D(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.Width, UpdateRegion.Height);
+
+			[Tex.GetPtr() replaceRegion:Region
+							mipmapLevel:MipIndex
+							  withBytes:(const void*)SourceData
+							bytesPerRow:SourcePitch];
 
 			FPlatformAtomics::InterlockedExchange(&Texture->Written, 1);
 		}
@@ -1821,7 +1840,7 @@ static void InternalUpdateTexture3D(FAGXContext& Context, FRHITexture3D* Texture
 	FAGXSurface* Texture = ResourceCast(TextureRHI);
 	FAGXTexture Tex = Texture->Texture;
 	
-	mtlpp::Region Region = mtlpp::Region(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ, UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth);
+	MTLRegion Region = MTLRegionMake3D(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ, UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth);
 	
 	if ([Tex.GetPtr() storageMode] == MTLStorageModePrivate)
 	{
@@ -1843,7 +1862,12 @@ static void InternalUpdateTexture3D(FAGXContext& Context, FRHITexture3D* Texture
 	}
 	else
 	{
-		MTLPP_VALIDATE(mtlpp::Texture, Tex, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Replace(Region, MipIndex, 0, (uint8*)Buffer.GetContents(), SourceRowPitch, SourceDepthPitch));
+		[Tex.GetPtr() replaceRegion:Region
+						mipmapLevel:MipIndex
+							  slice:0
+						  withBytes:(const void*)((uint8*)[Buffer.GetPtr() contents] + Buffer.GetOffset())
+						bytesPerRow:SourceRowPitch
+					  bytesPerImage:SourceDepthPitch];
 	}
 
 	FPlatformAtomics::InterlockedExchange(&Texture->Written, 1);
@@ -1941,8 +1965,15 @@ void FAGXDynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI,uint32 MipInde
 		}
 		else
 		{
-			mtlpp::Region Region = mtlpp::Region(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ, UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth);
-			MTLPP_VALIDATE(mtlpp::Texture, Tex, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Replace(Region, MipIndex, 0, SourceData, SourceRowPitch, SourceDepthPitch));
+			MTLRegion Region = MTLRegionMake3D(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ, UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth);
+
+			[Tex.GetPtr() replaceRegion:Region
+							mipmapLevel:MipIndex
+								  slice:0
+							  withBytes:(const void*)SourceData
+							bytesPerRow:SourceRowPitch
+						  bytesPerImage:SourceDepthPitch];
+
 			FPlatformAtomics::InterlockedExchange(&Texture->Written, 1);
 		}
 		
@@ -2053,11 +2084,11 @@ void FAGXRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITe
 				{
 					uint32 SourceMipIndex = CopyInfo.SourceMipIndex + MipIndex;
 					uint32 DestMipIndex = CopyInfo.DestMipIndex + MipIndex;
-					mtlpp::Size SourceSize(FMath::Max(Size.X >> MipIndex, 1), FMath::Max(Size.Y >> MipIndex, 1), FMath::Max(Size.Z >> MipIndex, 1));
-					mtlpp::Size DestSize = SourceSize;
+					MTLSize SourceSize = MTLSizeMake(FMath::Max(Size.X >> MipIndex, 1), FMath::Max(Size.Y >> MipIndex, 1), FMath::Max(Size.Z >> MipIndex, 1));
+					MTLSize DestSize = SourceSize;
 
-					mtlpp::Origin SourceOrigin(CopyInfo.SourcePosition.X >> MipIndex, CopyInfo.SourcePosition.Y >> MipIndex, CopyInfo.SourcePosition.Z >> MipIndex);
-					mtlpp::Origin DestinationOrigin(CopyInfo.DestPosition.X >> MipIndex, CopyInfo.DestPosition.Y >> MipIndex, CopyInfo.DestPosition.Z >> MipIndex);
+					MTLOrigin SourceOrigin = MTLOriginMake(CopyInfo.SourcePosition.X >> MipIndex, CopyInfo.SourcePosition.Y >> MipIndex, CopyInfo.SourcePosition.Z >> MipIndex);
+					MTLOrigin DestinationOrigin = MTLOriginMake(CopyInfo.DestPosition.X >> MipIndex, CopyInfo.DestPosition.Y >> MipIndex, CopyInfo.DestPosition.Z >> MipIndex);
 
 					if (TextureFormatCompatible)
 					{
@@ -2068,7 +2099,7 @@ void FAGXRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITe
 					// Account for create with TexCreate_SRGB flag which could make these different
 					if (TextureFormatExactMatch && (SrcTexture.GetPixelFormat() == MetalDestTexture->Texture.GetPixelFormat()))
 					{
-						GetInternalContext().CopyFromTextureToTexture(SrcTexture, SourceSliceIndex, SourceMipIndex, SourceOrigin,SourceSize,MetalDestTexture->Texture, DestSliceIndex, DestMipIndex, DestinationOrigin);
+						GetInternalContext().CopyFromTextureToTexture(SrcTexture, SourceSliceIndex, SourceMipIndex, SourceOrigin, SourceSize, MetalDestTexture->Texture, DestSliceIndex, DestMipIndex, DestinationOrigin);
 					}
 					else
 					{

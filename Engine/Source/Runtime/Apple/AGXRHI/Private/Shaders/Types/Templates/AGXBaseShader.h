@@ -20,7 +20,7 @@
 #pragma mark - AGX RHI Base Shader Class Support Routines
 
 
-extern mtlpp::LanguageVersion AGXValidateVersion(uint32 Version);
+extern MTLLanguageVersion AGXValidateVersion(uint32 Version);
 
 
 //------------------------------------------------------------------------------
@@ -263,23 +263,23 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 
 			NSString* NewShaderString = [ShaderString stringByReplacingOccurrencesOfString:@"#pragma once" withString:@""];
 
-			mtlpp::CompileOptions CompileOptions;
+			MTLCompileOptions* CompileOptions = [[MTLCompileOptions alloc] init];
 
 #if DEBUG_METAL_SHADERS
 			static bool bForceFastMath = FParse::Param(FCommandLine::Get(), TEXT("metalfastmath"));
 			static bool bForceNoFastMath = FParse::Param(FCommandLine::Get(), TEXT("metalnofastmath"));
 			if (bForceNoFastMath)
 			{
-				CompileOptions.SetFastMathEnabled(NO);
+				[CompileOptions setFastMathEnabled:NO];
 			}
 			else if (bForceFastMath)
 			{
-				CompileOptions.SetFastMathEnabled(YES);
+				[CompileOptions setFastMathEnabled:YES];
 			}
 			else
 #endif
 			{
-				CompileOptions.SetFastMathEnabled((BOOL)(!(Header.CompileFlags & (1 << CFLAG_NoFastMath))));
+				[CompileOptions setFastMathEnabled:(BOOL)(!(Header.CompileFlags & (1 << CFLAG_NoFastMath)))];
 			}
 
 #if !PLATFORM_MAC || DEBUG_METAL_SHADERS
@@ -290,41 +290,49 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 #if DEBUG_METAL_SHADERS
 			[PreprocessorMacros addEntriesFromDictionary: @{ @"MTLSL_ENABLE_DEBUG_INFO" : @(1)}];
 #endif
-			CompileOptions.SetPreprocessorMacros(PreprocessorMacros);
+			[CompileOptions setPreprocessorMacros:PreprocessorMacros];
 #endif
 
-			mtlpp::LanguageVersion MetalVersion;
-			switch(Header.Version)
+			MTLLanguageVersion MetalVersion;
+			switch (Header.Version)
 			{
 				case 7:
-					MetalVersion = mtlpp::LanguageVersion::Version2_4;
+					MetalVersion = MTLLanguageVersion2_4;
 					break;
+
 				case 6:
-					MetalVersion = mtlpp::LanguageVersion::Version2_3;
+					MetalVersion = MTLLanguageVersion2_3;
 					break;
+
 				case 5:
-					MetalVersion = mtlpp::LanguageVersion::Version2_2;
+					MetalVersion = MTLLanguageVersion2_2;
 					break;
+
 				default:
 					UE_LOG(LogRHI, Fatal, TEXT("Failed to create shader with unknown version %d: %s"), Header.Version, *FString(NewShaderString));
-					MetalVersion = mtlpp::LanguageVersion::Version2_2;
+					MetalVersion = MTLLanguageVersion2_2;
 					break;
-				}
-			CompileOptions.SetLanguageVersion(MetalVersion);
+			}
 
-			ns::AutoReleasedError Error;
-			Library = GMtlppDevice.NewLibrary(NewShaderString, CompileOptions, &Error);
-			if (Library == nil)
+			[CompileOptions setLanguageVersion:MetalVersion];
+
+			NSError* Error = nil;
+			id<MTLLibrary> NewLibrary = [GMtlDevice newLibraryWithSource:NewShaderString options:CompileOptions error:&Error];
+			if (NewLibrary == nil)
 			{
 				UE_LOG(LogRHI, Error, TEXT("*********** Error\n%s"), *FString(NewShaderString));
-				UE_LOG(LogRHI, Fatal, TEXT("Failed to create shader: %s"), *FString([Error.GetPtr() description]));
+				UE_LOG(LogRHI, Fatal, TEXT("Failed to create shader: %s"), *FString([Error description]));
 			}
 			else if (Error != nil)
 			{
 				// Warning...
 				UE_LOG(LogRHI, Warning, TEXT("*********** Warning\n%s"), *FString(NewShaderString));
-				UE_LOG(LogRHI, Warning, TEXT("Created shader with warnings: %s"), *FString([Error.GetPtr() description]));
+				UE_LOG(LogRHI, Warning, TEXT("Created shader with warnings: %s"), *FString([Error description]));
 			}
+
+			Library = mtlpp::Library(NewLibrary, nullptr, ns::Ownership::Assign);
+
+			[CompileOptions release];
 
 			GlslCodeNSString = NewShaderString;
 			[GlslCodeNSString retain];

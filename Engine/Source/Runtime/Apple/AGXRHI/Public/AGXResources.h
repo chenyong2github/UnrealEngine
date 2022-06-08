@@ -477,7 +477,7 @@ public:
 	void Swap(FAGXResourceMultiBuffer& Other);
 
 	// 16- or 32-bit; used for index buffers only.
-	mtlpp::IndexType IndexType;
+	MTLIndexType IndexType;
 };
 
 typedef FAGXResourceMultiBuffer FAGXIndexBuffer;

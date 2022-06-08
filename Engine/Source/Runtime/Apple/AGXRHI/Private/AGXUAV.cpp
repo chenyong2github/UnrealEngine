@@ -51,7 +51,7 @@ FAGXResourceViewBase::FAGXResourceViewBase(FRHIBuffer* InBuffer, uint32 InStartO
 		}
 		else
 		{
-			Format = (SourceBuffer->IndexType == mtlpp::IndexType::UInt16) ? PF_R16_UINT : PF_R32_UINT;
+			Format = (SourceBuffer->IndexType == MTLIndexTypeUInt16) ? PF_R16_UINT : PF_R32_UINT;
 			Stride = SourceBuffer->GetStride();
 
 			check(Stride == ((Format == PF_R16_UINT) ? 2 : 4));
@@ -460,7 +460,7 @@ void FAGXDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRVRHI,
 	SRV->SourceBuffer = ResourceCast(BufferRHI);
 	SRV->Stride = 0;
 
-	SRV->Format = SRV->SourceBuffer && SRV->SourceBuffer->IndexType != mtlpp::IndexType::UInt16
+	SRV->Format = SRV->SourceBuffer && SRV->SourceBuffer->IndexType != MTLIndexTypeUInt16
 		? PF_R32_UINT
 		: PF_R16_UINT;
 

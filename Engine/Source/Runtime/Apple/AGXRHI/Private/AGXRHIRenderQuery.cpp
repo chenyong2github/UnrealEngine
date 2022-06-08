@@ -205,11 +205,11 @@ void FAGXRHIRenderQuery::Begin(FAGXContext* Context, TSharedPtr<FAGXCommandBuffe
 
 			if ((GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5) && GetAGXDeviceContext().SupportsFeature(EAGXFeaturesCountingQueries))
 			{
-				Context->GetCurrentState().SetVisibilityResultMode(mtlpp::VisibilityResultMode::Counting, Buffer.Offset);
+				Context->GetCurrentState().SetVisibilityResultMode(MTLVisibilityResultModeCounting, Buffer.Offset);
 			}
 			else
 			{
-				Context->GetCurrentState().SetVisibilityResultMode(mtlpp::VisibilityResultMode::Boolean, Buffer.Offset);
+				Context->GetCurrentState().SetVisibilityResultMode(MTLVisibilityResultModeBoolean, Buffer.Offset);
 			}
 			if (BatchFence.IsValid())
 			{
@@ -242,7 +242,7 @@ void FAGXRHIRenderQuery::End(FAGXContext* Context)
 		{
 			// switch back to non-occlusion rendering
 			check(Buffer.CommandBufferFence.IsValid());
-			Context->GetCurrentState().SetVisibilityResultMode(mtlpp::VisibilityResultMode::Disabled, 0);
+			Context->GetCurrentState().SetVisibilityResultMode(MTLVisibilityResultModeDisabled, 0);
 
 			// For unique, unbatched, queries insert the fence now
 			if (!Buffer.bBatchFence)

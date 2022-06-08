@@ -561,7 +561,7 @@ void FAGXRenderPass::InsertTextureBarrier()
 #endif
 }
 
-void FAGXRenderPass::CopyFromTextureToBuffer(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FAGXBuffer const& toBuffer, uint32 destinationOffset, uint32 destinationBytesPerRow, uint32 destinationBytesPerImage, mtlpp::BlitOption options)
+void FAGXRenderPass::CopyFromTextureToBuffer(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, MTLOrigin sourceOrigin, MTLSize sourceSize, FAGXBuffer const& toBuffer, uint32 destinationOffset, uint32 destinationBytesPerRow, uint32 destinationBytesPerImage, mtlpp::BlitOption options)
 {
 	ConditionalSwitchToBlit();
 	
@@ -573,8 +573,8 @@ void FAGXRenderPass::CopyFromTextureToBuffer(FAGXTexture const& Texture, uint32 
 		[Encoder			 copyFromTexture:Texture.GetPtr()
 								 sourceSlice:(NSUInteger)sourceSlice
 								 sourceLevel:(NSUInteger)sourceLevel
-								sourceOrigin:*reinterpret_cast<MTLOrigin*>(&sourceOrigin)
-								  sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+								sourceOrigin:sourceOrigin
+								  sourceSize:sourceSize
 									toBuffer:toBuffer.GetPtr()
 						   destinationOffset:(NSUInteger)destinationOffset + toBuffer.GetOffset()
 					  destinationBytesPerRow:(NSUInteger)destinationBytesPerRow
@@ -585,7 +585,7 @@ void FAGXRenderPass::CopyFromTextureToBuffer(FAGXTexture const& Texture, uint32 
 	ConditionalSubmit();
 }
 
-void FAGXRenderPass::CopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin, mtlpp::BlitOption options)
+void FAGXRenderPass::CopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, MTLSize sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, MTLOrigin destinationOrigin, mtlpp::BlitOption options)
 {
 	ConditionalSwitchToBlit();
 	
@@ -600,11 +600,11 @@ void FAGXRenderPass::CopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 so
 						   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
 					  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
 					sourceBytesPerImage:(NSUInteger)sourceBytesPerImage
-							 sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+							 sourceSize:sourceSize
 							  toTexture:toTexture.GetPtr()
 					   destinationSlice:(NSUInteger)destinationSlice
 					   destinationLevel:(NSUInteger)destinationLevel
-					  destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
+					  destinationOrigin:destinationOrigin];
 	}
 	else
 	{
@@ -612,18 +612,18 @@ void FAGXRenderPass::CopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 so
 						   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
 					  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
 					sourceBytesPerImage:(NSUInteger)sourceBytesPerImage
-							 sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+							 sourceSize:sourceSize
 							  toTexture:toTexture.GetPtr()
 					   destinationSlice:(NSUInteger)destinationSlice
 					   destinationLevel:(NSUInteger)destinationLevel
-					  destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)
+					  destinationOrigin:destinationOrigin
 								options:*reinterpret_cast<MTLBlitOption*>(&options)];
 	}
 	
 	ConditionalSubmit();
 }
 
-void FAGXRenderPass::CopyFromTextureToTexture(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin)
+void FAGXRenderPass::CopyFromTextureToTexture(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, MTLOrigin sourceOrigin, MTLSize sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, MTLOrigin destinationOrigin)
 {
 	ConditionalSwitchToBlit();
 	
@@ -635,12 +635,12 @@ void FAGXRenderPass::CopyFromTextureToTexture(FAGXTexture const& Texture, uint32
 	[Encoder	  copyFromTexture:Texture.GetPtr()
 					  sourceSlice:(NSUInteger)sourceSlice
 					  sourceLevel:(NSUInteger)sourceLevel
-					 sourceOrigin:*reinterpret_cast<MTLOrigin*>(&sourceOrigin)
-					   sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+					 sourceOrigin:sourceOrigin
+					   sourceSize:sourceSize
 						toTexture:toTexture.GetPtr()
 				 destinationSlice:(NSUInteger)destinationSlice
 				 destinationLevel:(NSUInteger)destinationLevel
-				destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
+				destinationOrigin:destinationOrigin];
 	
 	ConditionalSubmit();
 }
@@ -663,7 +663,7 @@ void FAGXRenderPass::CopyFromBufferToBuffer(FAGXBuffer const& SourceBuffer, NSUI
 	ConditionalSubmit();
 }
 
-void FAGXRenderPass::PresentTexture(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin)
+void FAGXRenderPass::PresentTexture(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, MTLOrigin sourceOrigin, MTLSize sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, MTLOrigin destinationOrigin)
 {
 	ConditionalSwitchToBlit();
 	
@@ -675,12 +675,12 @@ void FAGXRenderPass::PresentTexture(FAGXTexture const& Texture, uint32 sourceSli
 	[Encoder	  copyFromTexture:Texture.GetPtr()
 					  sourceSlice:(NSUInteger)sourceSlice
 					  sourceLevel:(NSUInteger)sourceLevel
-					 sourceOrigin:*reinterpret_cast<MTLOrigin*>(&sourceOrigin)
-					   sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+					 sourceOrigin:sourceOrigin
+					   sourceSize:sourceSize
 						toTexture:toTexture.GetPtr()
 				 destinationSlice:(NSUInteger)destinationSlice
 				 destinationLevel:(NSUInteger)destinationLevel
-				destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
+				destinationOrigin:destinationOrigin];
 }
 
 void FAGXRenderPass::SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice, uint32 Level)
@@ -744,7 +744,7 @@ void FAGXRenderPass::FillBuffer(FAGXBuffer const& Buffer, ns::Range Range, uint8
 	}
 }
 
-bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin, mtlpp::BlitOption options)
+bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, MTLSize sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, MTLOrigin destinationOrigin, mtlpp::BlitOption options)
 {
 	id<MTLBlitCommandEncoder> TargetEncoder = nil;
 	bool bAsync = !CurrentEncoder.HasTextureBindingHistory(toTexture);
@@ -769,11 +769,11 @@ bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint
 							   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
 						  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
 						sourceBytesPerImage:(NSUInteger)sourceBytesPerImage
-								 sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+								 sourceSize:sourceSize
 								  toTexture:toTexture.GetPtr()
 						   destinationSlice:(NSUInteger)destinationSlice
 						   destinationLevel:(NSUInteger)destinationLevel
-						  destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
+						  destinationOrigin:destinationOrigin];
 	}
 	else
 	{
@@ -781,18 +781,18 @@ bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint
 							   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
 						  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
 						sourceBytesPerImage:(NSUInteger)sourceBytesPerImage
-								 sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+								 sourceSize:sourceSize
 								  toTexture:toTexture.GetPtr()
 						   destinationSlice:(NSUInteger)destinationSlice
 						   destinationLevel:(NSUInteger)destinationLevel
-						  destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)
+						  destinationOrigin:destinationOrigin
 									options:*reinterpret_cast<MTLBlitOption*>(&options)];
 	}
 	
 	return bAsync;
 }
 
-bool FAGXRenderPass::AsyncCopyFromTextureToTexture(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin)
+bool FAGXRenderPass::AsyncCopyFromTextureToTexture(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, MTLOrigin sourceOrigin, MTLSize sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, MTLOrigin destinationOrigin)
 {
 	id<MTLBlitCommandEncoder> TargetEncoder = nil;
 	bool bAsync = !CurrentEncoder.HasTextureBindingHistory(toTexture);
@@ -814,12 +814,12 @@ bool FAGXRenderPass::AsyncCopyFromTextureToTexture(FAGXTexture const& Texture, u
 	[TargetEncoder	  copyFromTexture:Texture.GetPtr()
 						  sourceSlice:(NSUInteger)sourceSlice
 						  sourceLevel:(NSUInteger)sourceLevel
-						 sourceOrigin:*reinterpret_cast<MTLOrigin*>(&sourceOrigin)
-						   sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+						 sourceOrigin:sourceOrigin
+						   sourceSize:sourceSize
 							toTexture:toTexture.GetPtr()
 					 destinationSlice:(NSUInteger)destinationSlice
 					 destinationLevel:(NSUInteger)destinationLevel
-					destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
+					destinationOrigin:destinationOrigin];
 
 	return bAsync;
 }

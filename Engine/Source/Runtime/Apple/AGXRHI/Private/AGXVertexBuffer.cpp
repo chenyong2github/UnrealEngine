@@ -602,7 +602,7 @@ void FAGXRHIBuffer::Unlock()
 FAGXResourceMultiBuffer::FAGXResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBufferUsage InAgxUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType Type)
 	: FRHIBuffer(InSize, InUsage, InStride)
 	, FAGXRHIBuffer(InSize, InUsage, InAgxUsage, Type)
-	, IndexType((InStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32)
+	, IndexType((InStride == 2) ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32)
 {
 	if (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer))
 	{

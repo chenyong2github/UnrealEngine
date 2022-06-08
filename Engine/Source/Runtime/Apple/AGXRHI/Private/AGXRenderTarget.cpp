@@ -73,8 +73,8 @@ void FAGXRHICommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI
 		checkf( DestinationDesc.IsTexture2D()   || DestinationDesc.IsTextureCube(), TEXT("Only Tex2D & Cube are tested to work so far!"));
 		checkf(!DestinationDesc.IsTextureCube() || DestinationDesc.ArraySize == 1,  TEXT("Cube arrays might not work yet."));
 
-		mtlpp::Origin Origin(0, 0, 0);
-		mtlpp::Size Size(0, 0, 1);
+		MTLOrigin Origin = MTLOriginMake(0, 0, 0);
+		MTLSize Size = MTLSizeMake(0, 0, 1);
 		if (ResolveParams.Rect.IsValid())
 		{
 			// Partial copy
@@ -265,7 +265,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 	OutData.AddUninitialized(SizeX * SizeY);
 	
 	FColor* OutDataPtr = OutData.GetData();
-	mtlpp::Region Region(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
+	MTLRegion Region = MTLRegionMake2D(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
     
 	FAGXTexture Texture = Surface->Texture;
     if(!Texture && EnumHasAnyFlags(Surface->GetDesc().Flags, TexCreate_Presentable))
@@ -307,10 +307,10 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 			
 			TempTexture = GMtlppDevice.NewTexture(Desc);
 			
-			ImmediateContext.Context->CopyFromTextureToTexture(Texture, 0, InFlags.GetMip(), mtlpp::Origin(Region.origin), mtlpp::Size(Region.size), TempTexture, 0, 0, mtlpp::Origin(0, 0, 0));
+			ImmediateContext.Context->CopyFromTextureToTexture(Texture, 0, InFlags.GetMip(), Region.origin, Region.size, TempTexture, 0, 0, MTLOriginMake(0, 0, 0));
 			
 			Texture = TempTexture;
-			Region = mtlpp::Region(0, 0, SizeX, SizeY);
+			Region = MTLRegionMake2D(0, 0, SizeX, SizeY);
 		}
 #if PLATFORM_MAC
 		if ([Texture.GetPtr() storageMode] == MTLStorageModeManaged)
@@ -329,7 +329,12 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 		TArray<uint8> Data;
 		Data.AddUninitialized(BytesPerImage);
 		
-		Texture.GetBytes(Data.GetData(), Stride, BytesPerImage, Region, 0, 0);
+		[Texture.GetPtr() getBytes:(void*)Data.GetData()
+					   bytesPerRow:Stride
+					 bytesPerImage:BytesPerImage
+						fromRegion:Region
+					   mipmapLevel:0
+							 slice:0];
 		
 		ConvertSurfaceDataToFColor(Surface->GetDesc().Format, SizeX, SizeY, (uint8*)Data.GetData(), Stride, OutDataPtr, InFlags);
 		
@@ -441,7 +446,7 @@ void FAGXDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect R
 	OutData.Empty();
 	OutData.AddUninitialized(SizeX * SizeY);
 	
-	mtlpp::Region Region = mtlpp::Region(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
+	MTLRegion Region = MTLRegionMake2D(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
 	
 	// function wants details about the destination, not the source
 	const uint32 Stride = GPixelFormats[Surface->GetDesc().Format].BlockBytes * SizeX;
@@ -507,7 +512,7 @@ void FAGXDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRect 
 	OutData.Empty();
 	OutData.AddUninitialized(SizeX * SizeY * SizeZ);
 	
-	mtlpp::Region Region = mtlpp::Region(InRect.Min.X, InRect.Min.Y, ZMinMax.X, SizeX, SizeY, SizeZ);
+	MTLRegion Region = MTLRegionMake3D(InRect.Min.X, InRect.Min.Y, ZMinMax.X, SizeX, SizeY, SizeZ);
 	
 	// function wants details about the destination, not the source
 	const uint32 Stride = GPixelFormats[Surface->GetDesc().Format].BlockBytes * SizeX;

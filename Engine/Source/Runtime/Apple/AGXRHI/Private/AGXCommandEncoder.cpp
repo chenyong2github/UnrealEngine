@@ -57,7 +57,7 @@ FAGXCommandEncoder::FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEnco
 	StencilStoreAction = MTLStoreActionUnknown;
 }
 
-FAGXCommandEncoder::~FAGXCommandEncoder(void)
+FAGXCommandEncoder::~FAGXCommandEncoder()
 {
 	if(CommandBuffer)
 	{
@@ -94,7 +94,7 @@ FAGXCommandEncoder::~FAGXCommandEncoder(void)
 	}
 }
 
-void FAGXCommandEncoder::Reset(void)
+void FAGXCommandEncoder::Reset()
 {
     check(IsRenderCommandEncoderActive() == false
           && IsComputeCommandEncoderActive() == false
@@ -131,7 +131,7 @@ void FAGXCommandEncoder::Reset(void)
 	[DebugGroups removeAllObjects];
 }
 
-void FAGXCommandEncoder::ResetLive(void)
+void FAGXCommandEncoder::ResetLive()
 {
 	for (uint32 Frequency = 0; Frequency < NUM_SHADER_FREQUENCIES; Frequency++)
 	{
@@ -175,7 +175,7 @@ void FAGXCommandEncoder::ResetLive(void)
 
 #pragma mark - Public Command Buffer Mutators -
 
-void FAGXCommandEncoder::StartCommandBuffer(void)
+void FAGXCommandEncoder::StartCommandBuffer()
 {
 	check(!CommandBuffer || EncoderNum == 0);
 	check(IsRenderCommandEncoderActive() == false
@@ -202,15 +202,15 @@ void FAGXCommandEncoder::StartCommandBuffer(void)
 	}
 }
 	
-void FAGXCommandEncoder::CommitCommandBuffer(uint32 const Flags)
+void FAGXCommandEncoder::CommitCommandBuffer(uint32 Flags)
 {
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false
           && IsComputeCommandEncoderActive() == false
           && IsBlitCommandEncoderActive() == false);
 
-	bool const bWait = (Flags & EAGXSubmitFlagsWaitOnCommandBuffer);
-	bool const bIsLastCommandBuffer = (Flags & EAGXSubmitFlagsLastCommandBuffer);
+	const bool bWait = (Flags & EAGXSubmitFlagsWaitOnCommandBuffer);
+	const bool bIsLastCommandBuffer = (Flags & EAGXSubmitFlagsLastCommandBuffer);
 	
 	if (EncoderNum == 0 && !bWait && !(Flags & EAGXSubmitFlagsForce))
 	{
@@ -291,12 +291,12 @@ bool FAGXCommandEncoder::IsBlitCommandEncoderActive() const
 	return (BlitCommandEncoder != nil);
 }
 
-bool FAGXCommandEncoder::IsImmediate(void) const
+bool FAGXCommandEncoder::IsImmediate() const
 {
 	return CommandList.IsImmediate();
 }
 
-bool FAGXCommandEncoder::IsParallel(void) const
+bool FAGXCommandEncoder::IsParallel() const
 {
 	return CommandList.IsParallel() && (Type == EAGXCommandEncoderCurrent);
 }
@@ -376,7 +376,7 @@ void FAGXCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren)
 	}
 }
 
-void FAGXCommandEncoder::BeginRenderCommandEncoding(void)
+void FAGXCommandEncoder::BeginRenderCommandEncoding()
 {
 	check(RenderPassDesc);
 	check(CommandList.IsParallel() || CommandBuffer);
@@ -442,7 +442,7 @@ void FAGXCommandEncoder::BeginComputeCommandEncoding(MTLDispatchType DispatchTyp
 	}
 }
 
-void FAGXCommandEncoder::BeginBlitCommandEncoding(void)
+void FAGXCommandEncoder::BeginBlitCommandEncoding()
 {
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
@@ -467,7 +467,7 @@ void FAGXCommandEncoder::BeginBlitCommandEncoding(void)
 	}
 }
 
-void FAGXCommandEncoder::EndEncoding(void)
+void FAGXCommandEncoder::EndEncoding()
 {
 	@autoreleasepool
 	{
@@ -686,7 +686,7 @@ void FAGXCommandEncoder::PushDebugGroup(ns::String const& String)
 	}
 }
 
-void FAGXCommandEncoder::PopDebugGroup(void)
+void FAGXCommandEncoder::PopDebugGroup()
 {
 	if (DebugGroups.count > 0)
 	{
@@ -711,7 +711,7 @@ void FAGXCommandEncoder::PopDebugGroup(void)
 }
 
 #if ENABLE_METAL_GPUPROFILE
-FAGXCommandBufferStats* FAGXCommandEncoder::GetCommandBufferStats(void)
+FAGXCommandBufferStats* FAGXCommandEncoder::GetCommandBufferStats()
 {
 	return CommandBufferStats;
 }
@@ -806,7 +806,7 @@ void FAGXCommandEncoder::SetCullMode(MTLCullMode InCullMode)
 	}
 }
 
-void FAGXCommandEncoder::SetDepthBias(float const InDepthBias, float const InSlopeScale, float const InClamp)
+void FAGXCommandEncoder::SetDepthBias(float InDepthBias, float InSlopeScale, float InClamp)
 {
     check (RenderCommandEncoder);
 	{
@@ -831,23 +831,23 @@ void FAGXCommandEncoder::SetScissorRect(MTLScissorRect const Rect[], uint32 NumA
 #endif
 }
 
-void FAGXCommandEncoder::SetTriangleFillMode(mtlpp::TriangleFillMode const InFillMode)
+void FAGXCommandEncoder::SetTriangleFillMode(MTLTriangleFillMode InFillMode)
 {
     check(RenderCommandEncoder);
 	{
-		[RenderCommandEncoder setTriangleFillMode:(MTLTriangleFillMode)InFillMode];
+		[RenderCommandEncoder setTriangleFillMode:InFillMode];
 	}
 }
 
-void FAGXCommandEncoder::SetDepthClipMode(mtlpp::DepthClipMode const InDepthClipMode)
+void FAGXCommandEncoder::SetDepthClipMode(MTLDepthClipMode InDepthClipMode)
 {
 	check(RenderCommandEncoder);
 	{
-		[RenderCommandEncoder setDepthClipMode:(MTLDepthClipMode)InDepthClipMode];
+		[RenderCommandEncoder setDepthClipMode:InDepthClipMode];
 	}
 }
 
-void FAGXCommandEncoder::SetBlendColor(float const Red, float const Green, float const Blue, float const Alpha)
+void FAGXCommandEncoder::SetBlendColor(float Red, float Green, float Blue, float Alpha)
 {
 	check(RenderCommandEncoder);
 	{
@@ -863,7 +863,7 @@ void FAGXCommandEncoder::SetDepthStencilState(id<MTLDepthStencilState> InDepthSt
 	}
 }
 
-void FAGXCommandEncoder::SetStencilReferenceValue(uint32 const ReferenceValue)
+void FAGXCommandEncoder::SetStencilReferenceValue(uint32 ReferenceValue)
 {
     check (RenderCommandEncoder);
 	{
@@ -871,12 +871,12 @@ void FAGXCommandEncoder::SetStencilReferenceValue(uint32 const ReferenceValue)
 	}
 }
 
-void FAGXCommandEncoder::SetVisibilityResultMode(mtlpp::VisibilityResultMode const Mode, NSUInteger const Offset)
+void FAGXCommandEncoder::SetVisibilityResultMode(MTLVisibilityResultMode Mode, NSUInteger Offset)
 {
     check (RenderCommandEncoder);
 	{
-		check(Mode == mtlpp::VisibilityResultMode::Disabled || [RenderPassDesc visibilityResultBuffer]);
-		[RenderCommandEncoder setVisibilityResultMode:(MTLVisibilityResultMode)Mode offset:Offset];
+		check(Mode == MTLVisibilityResultModeDisabled || [RenderPassDesc visibilityResultBuffer]);
+		[RenderCommandEncoder setVisibilityResultMode:Mode offset:Offset];
 	}
 }
 	
@@ -1089,7 +1089,7 @@ void FAGXCommandEncoder::SetShaderSamplerState(MTLFunctionType FunctionType, id<
 	}
 }
 
-void FAGXCommandEncoder::SetShaderSideTable(MTLFunctionType const FunctionType, NSUInteger const Index)
+void FAGXCommandEncoder::SetShaderSideTable(MTLFunctionType FunctionType, NSUInteger Index)
 {
 	if (Index < ML_MaxBuffers)
 	{
@@ -1113,7 +1113,7 @@ void FAGXCommandEncoder::SetComputePipelineState(FAGXShaderPipeline* State)
 
 #pragma mark - Public Ring-Buffer Accessor -
 	
-FAGXSubBufferRing& FAGXCommandEncoder::GetRingBuffer(void)
+FAGXSubBufferRing& FAGXCommandEncoder::GetRingBuffer()
 {
 	return RingBuffer;
 }

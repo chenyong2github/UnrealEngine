@@ -179,8 +179,8 @@ void FAGXRHICommandContext::ResolveTexture(UE::RHICore::FResolveTextureInfo Info
 	// Resolve required - Device must support this - Using Shader for resolve not supported amd NumSamples should be 1
 	check((!bDepthStencil && bSupportsMSAAStoreAndResolve) || (bDepthStencil && bSupportsMSAADepthResolve));
 
-	mtlpp::Origin Origin(0, 0, 0);
-	mtlpp::Size Size(0, 0, 1);
+	MTLOrigin Origin = MTLOriginMake(0, 0, 0);
+	MTLSize Size = MTLSizeMake(0, 0, 1);
 
 	if (Info.ResolveRect.IsValid())
 	{

@@ -60,25 +60,25 @@ public:
 	FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEncoderType Type);
 	
 	/** Destructor */
-	~FAGXCommandEncoder(void);
+	~FAGXCommandEncoder();
 	
 	/** Reset cached state for reuse */
-	void Reset(void);
+	void Reset();
 	
 	/** Reset cached state for reuse while in rendering */
-	void ResetLive(void);
+	void ResetLive();
 	
 	/**
 	 * Start encoding to CommandBuffer. It is an error to call this with any outstanding command encoders or current command buffer.
 	 * Instead call EndEncoding & CommitCommandBuffer before calling this.
 	 */
-	void StartCommandBuffer(void);
+	void StartCommandBuffer();
 	
 	/**
 	 * Commit the existing command buffer if there is one & optionally waiting for completion, if there isn't a current command buffer this is a no-op.
 	 * @param Flags Flags to control commit behaviour.
  	 */
-	void CommitCommandBuffer(uint32 const Flags);
+	void CommitCommandBuffer(uint32 Flags);
 
 	/** @returns the current command buffer */
 	mtlpp::CommandBuffer& GetCommandBuffer() { return CommandBuffer; }
@@ -105,13 +105,13 @@ public:
 	 * True iff the command-encoder submits immediately to the command-queue, false if it performs any buffering.
 	 * @returns True iff the command-list submits immediately to the command-queue, false if it performs any buffering.
 	 */
-	bool IsImmediate(void) const;
+	bool IsImmediate() const;
 	
 	/**
 	 * True iff the command-encoder encodes only to a child of a parallel render command encoder, false if it is standalone.
 	 * @returns True iff the command-encoder encodes only to a child of a parallel render command encoder, false if it is standalone.
 	 */
-	bool IsParallel(void) const;
+	bool IsParallel() const;
 
 	/** @returns True if and only if there is valid render pass descriptor set on the encoder, otherwise false. */
 	bool IsRenderPassDescriptorValid() const;
@@ -135,7 +135,7 @@ public:
 	id<MTLBlitCommandEncoder> GetBlitCommandEncoder() const;
 	
 	/** @returns The number of encoded passes in the command buffer. */
-	uint32 NumEncodedPasses(void) const { return EncoderNum; }
+	uint32 NumEncodedPasses() const { return EncoderNum; }
 	
 	/**
  	 * Begins encoding rendering commands into the current command buffer. No other encoder may be active & the MTLRenderPassDescriptor must previously have been set.
@@ -146,16 +146,16 @@ public:
 	/**
  	 * Begins encoding rendering commands into the current command buffer. No other encoder may be active & the MTLRenderPassDescriptor must previously have been set.
 	 */
-	void BeginRenderCommandEncoding(void);
+	void BeginRenderCommandEncoding();
 	
 	/** Begins encoding compute commands into the current command buffer. No other encoder may be active. */
 	void BeginComputeCommandEncoding(MTLDispatchType Type = MTLDispatchTypeSerial);
 	
 	/** Begins encoding blit commands into the current command buffer. No other encoder may be active. */
-	void BeginBlitCommandEncoding(void);
+	void BeginBlitCommandEncoding();
 	
 	/** Declare that all command generation from this encoder is complete, and detach from the MTLCommandBuffer if there is an encoder active or does nothing if there isn't. */
-	void EndEncoding(void);
+	void EndEncoding();
 	
 	/** Initialises a fence for the current command-buffer optionally adding a command-buffer completion handler to the command-buffer */
 	void InsertCommandBufferFence(FAGXCommandBufferFence& Fence, mtlpp::CommandBufferHandler Handler);
@@ -176,11 +176,11 @@ public:
 	void PushDebugGroup(ns::String const& String);
 	
 	/* Pop the latest named string off of the stack. */
-	void PopDebugGroup(void);
+	void PopDebugGroup();
 	
 #if ENABLE_METAL_GPUPROFILE
 	/* Get the command-buffer stats object. */
-	FAGXCommandBufferStats* GetCommandBufferStats(void);
+	FAGXCommandBufferStats* GetCommandBufferStats();
 #endif
 
 	/**
@@ -228,7 +228,7 @@ public:
 	 * @param SlopeScale The slope-scale to apply.
 	 * @param Clamp The value to clamp to.
 	 */
-	void SetDepthBias(float const DepthBias, float const SlopeScale, float const Clamp);
+	void SetDepthBias(float DepthBias, float SlopeScale, float Clamp);
 	
 	/*
 	 * Specifies a rectangle for a fragment scissor test.  All fragments outside of this rectangle are discarded.
@@ -241,13 +241,13 @@ public:
 	 * Set how to rasterize triangle and triangle strip primitives.
 	 * @param FillMode The fill mode.
 	 */
-	void SetTriangleFillMode(mtlpp::TriangleFillMode const FillMode);
+	void SetTriangleFillMode(MTLTriangleFillMode InFillMode);
 
 	/*
 	 * Set wether to clip or clamp triangles based on depth.
 	 * @param FillMode The fill mode.
 	 */
-	void SetDepthClipMode(mtlpp::DepthClipMode DepthClipMode);
+	void SetDepthClipMode(MTLDepthClipMode InDepthClipMode);
 	
 	/*
 	 * Set the constant blend color used across all blending on all render targets
@@ -256,7 +256,7 @@ public:
 	 * @param Blue The value for the blue channel in 0-1.
 	 * @param Alpha The value for the alpha channel in 0-1.
 	 */
-	void SetBlendColor(float const Red, float const Green, float const Blue, float const Alpha);
+	void SetBlendColor(float Red, float Green, float Blue, float Alpha);
 	
 	/*
 	 * Set the DepthStencil state object.
@@ -268,14 +268,14 @@ public:
 	 * Set the stencil reference value for both the back and front stencil buffers.
 	 * @param ReferenceValue The stencil ref value to use.
 	 */
-	void SetStencilReferenceValue(uint32 const ReferenceValue);
+	void SetStencilReferenceValue(uint32 ReferenceValue);
 	
 	/*
 	 * Monitor if samples pass the depth and stencil tests.
 	 * @param Mode Controls if the counter is disabled or moniters passing samples.
 	 * @param Offset The offset relative to the occlusion query buffer provided when the command encoder was created.  offset must be a multiple of 8.
 	 */
-	void SetVisibilityResultMode(mtlpp::VisibilityResultMode const Mode, NSUInteger const Offset);
+	void SetVisibilityResultMode(MTLVisibilityResultMode Mode, NSUInteger Offset);
 	
 	/*
 	 * Set a global buffer for the specified shader frequency at the given bind point index.
@@ -348,7 +348,7 @@ public:
 	 * Get the internal ring-buffer used for temporary allocations.
 	 * @returns The temporary allocation buffer for this command-encoder.
 	 */
-	FAGXSubBufferRing& GetRingBuffer(void);
+	FAGXSubBufferRing& GetRingBuffer();
 	
 	/*
 	 * Returns True if the Resource has been bound to a command encoder, otherwise false.  History will be cleared after a commit operation
