@@ -53,6 +53,7 @@ private:
 	FThreadState& GetThreadState(uint32 ThreadId);
 	uint64 ProcessBuffer(const FEventTime& EventTime, FThreadState& ThreadState, const uint8* BufferPtr, uint32 BufferSize);
 	uint64 ProcessBufferV2(const FEventTime& EventTime, FThreadState& ThreadState, const uint8* BufferPtr, uint32 BufferSize);
+	void DispatchPendingEvents(uint64& LastCycle, uint64 CurrentCycle, const FEventTime& EventTime, FThreadState& ThreadState, const FPendingEvent*& PendingCursor, int32& RemainingPending);
 
 	enum : uint16
 	{
