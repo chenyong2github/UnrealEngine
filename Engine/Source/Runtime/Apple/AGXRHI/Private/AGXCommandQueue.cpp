@@ -13,7 +13,7 @@
 #include "command_buffer.hpp"
 
 uint64 FAGXCommandQueue::Features = 0;
-extern mtlpp::VertexFormat GAGXFColorVertexFormat;
+extern MTLVertexFormat GAGXFColorVertexFormat;
 
 FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 : ParallelCommandLists(0)
@@ -51,7 +51,7 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 	}
 
 	Features |= EAGXFeaturesPrivateBufferSubAllocation | EAGXFeaturesGPUCaptureManager | EAGXFeaturesBufferSubAllocation | EAGXFeaturesParallelRenderEncoders | EAGXFeaturesPipelineBufferMutability | EAGXFeaturesMaxThreadsPerThreadgroup;
-	GAGXFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+	GAGXFColorVertexFormat = MTLVertexFormatUChar4Normalized_BGRA;
 
 #else
 	if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v1])
@@ -70,7 +70,7 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 	// These options are fine however as thye just change how we allocate small buffers
 	Features |= EAGXFeaturesBufferSubAllocation;
 	Features |= EAGXFeaturesPrivateBufferSubAllocation;
-	GAGXFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+	GAGXFColorVertexFormat = MTLVertexFormatUChar4Normalized_BGRA;
 
 	Features |= EAGXFeaturesPresentMinDuration
 		| EAGXFeaturesGPUCaptureManager
@@ -108,7 +108,7 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 			| EAGXFeaturesPrivateBufferSubAllocation
 					  | EAGXFeaturesMaxThreadsPerThreadgroup );
 		
-		GAGXFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+		GAGXFColorVertexFormat = MTLVertexFormatUChar4Normalized_BGRA;
 		
 		if ([[GMtlDevice name] rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location == NSNotFound && !FParse::Param(FCommandLine::Get(),TEXT("nometalparallelencoder")))
 		{

@@ -561,7 +561,7 @@ void FAGXRenderPass::InsertTextureBarrier()
 #endif
 }
 
-void FAGXRenderPass::CopyFromTextureToBuffer(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, MTLOrigin sourceOrigin, MTLSize sourceSize, FAGXBuffer const& toBuffer, uint32 destinationOffset, uint32 destinationBytesPerRow, uint32 destinationBytesPerImage, mtlpp::BlitOption options)
+void FAGXRenderPass::CopyFromTextureToBuffer(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, MTLOrigin sourceOrigin, MTLSize sourceSize, FAGXBuffer const& toBuffer, uint32 destinationOffset, uint32 destinationBytesPerRow, uint32 destinationBytesPerImage, MTLBlitOption options)
 {
 	ConditionalSwitchToBlit();
 	
@@ -579,13 +579,13 @@ void FAGXRenderPass::CopyFromTextureToBuffer(FAGXTexture const& Texture, uint32 
 						   destinationOffset:(NSUInteger)destinationOffset + toBuffer.GetOffset()
 					  destinationBytesPerRow:(NSUInteger)destinationBytesPerRow
 					destinationBytesPerImage:(NSUInteger)destinationBytesPerImage
-									 options:*reinterpret_cast<MTLBlitOption*>(&options)];
+									 options:options];
 	}
 	
 	ConditionalSubmit();
 }
 
-void FAGXRenderPass::CopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, MTLSize sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, MTLOrigin destinationOrigin, mtlpp::BlitOption options)
+void FAGXRenderPass::CopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, MTLSize sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, MTLOrigin destinationOrigin, MTLBlitOption options)
 {
 	ConditionalSwitchToBlit();
 	
@@ -594,7 +594,7 @@ void FAGXRenderPass::CopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 so
 	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
 	
-	if (options == mtlpp::BlitOption::None)
+	if (options == MTLBlitOptionNone)
 	{
 		[Encoder		 copyFromBuffer:Buffer.GetPtr()
 						   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
@@ -617,7 +617,7 @@ void FAGXRenderPass::CopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 so
 					   destinationSlice:(NSUInteger)destinationSlice
 					   destinationLevel:(NSUInteger)destinationLevel
 					  destinationOrigin:destinationOrigin
-								options:*reinterpret_cast<MTLBlitOption*>(&options)];
+								options:options];
 	}
 	
 	ConditionalSubmit();
@@ -744,7 +744,7 @@ void FAGXRenderPass::FillBuffer(FAGXBuffer const& Buffer, ns::Range Range, uint8
 	}
 }
 
-bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, MTLSize sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, MTLOrigin destinationOrigin, mtlpp::BlitOption options)
+bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, MTLSize sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, MTLOrigin destinationOrigin, MTLBlitOption options)
 {
 	id<MTLBlitCommandEncoder> TargetEncoder = nil;
 	bool bAsync = !CurrentEncoder.HasTextureBindingHistory(toTexture);
@@ -763,7 +763,7 @@ bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint
 	
 	check(TargetEncoder);
 	
-	if (options == mtlpp::BlitOption::None)
+	if (options == MTLBlitOptionNone)
 	{
 		[TargetEncoder		 copyFromBuffer:Buffer.GetPtr()
 							   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
@@ -786,7 +786,7 @@ bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint
 						   destinationSlice:(NSUInteger)destinationSlice
 						   destinationLevel:(NSUInteger)destinationLevel
 						  destinationOrigin:destinationOrigin
-									options:*reinterpret_cast<MTLBlitOption*>(&options)];
+									options:options];
 	}
 	
 	return bAsync;

@@ -964,11 +964,11 @@ void FAGXSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuffe
 		
 		bool const bWait = ((GetAGXDeviceContext().GetNumActiveContexts() == 1) && (GAGXMaxOutstandingAsyncTexUploads > 0) && (Count >= GAGXMaxOutstandingAsyncTexUploads));
 		
-		mtlpp::BlitOption Options = mtlpp::BlitOption::None;
+		MTLBlitOption Options = MTLBlitOptionNone;
 #if !PLATFORM_MAC
 		if ((MTLPixelFormat)Texture.GetPixelFormat() >= MTLPixelFormatPVRTC_RGB_2BPP && (MTLPixelFormat)Texture.GetPixelFormat() <= MTLPixelFormatPVRTC_RGBA_4BPP_sRGB)
 		{
-			Options = mtlpp::BlitOption::RowLinearPVRTC;
+			Options = MTLBlitOptionRowLinearPVRTC;
 		}
 #endif
 		
@@ -1088,7 +1088,7 @@ void* FAGXSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode Lo
 				auto CopyTexToBuf =
 				[this, &ArrayIndex, &MipIndex, &Region, &SourceData, &DestStride, &MipBytes](FRHICommandListImmediate& RHICmdList)
 				{
-					GetAGXDeviceContext().CopyFromTextureToBuffer(this->Texture, ArrayIndex, MipIndex, Region.origin, Region.size, SourceData, 0, DestStride, MipBytes, mtlpp::BlitOption::None);
+					GetAGXDeviceContext().CopyFromTextureToBuffer(this->Texture, ArrayIndex, MipIndex, Region.origin, Region.size, SourceData, 0, DestStride, MipBytes, MTLBlitOptionNone);
 					//kick the current command buffer.
 					GetAGXDeviceContext().SubmitCommandBufferAndWait();
 				};
@@ -1699,11 +1699,11 @@ static void InternalUpdateTexture2D(FAGXContext& Context, FRHITexture2D* Texture
 		const uint32 NumRows = UpdateRegion.Height / (uint32)FormatInfo.BlockSizeY;
 		uint32 BytesPerImage = SourcePitch * NumRows;
 		
-		mtlpp::BlitOption Options = mtlpp::BlitOption::None;
+		MTLBlitOption Options = MTLBlitOptionNone;
 #if !PLATFORM_MAC
 		if ((MTLPixelFormat)Tex.GetPixelFormat() >= MTLPixelFormatPVRTC_RGB_2BPP && (MTLPixelFormat)Tex.GetPixelFormat() <= MTLPixelFormatPVRTC_RGBA_4BPP_sRGB)
 		{
-			Options = mtlpp::BlitOption::RowLinearPVRTC;
+			Options = MTLBlitOptionRowLinearPVRTC;
 		}
 #endif
 		if(Context.AsyncCopyFromBufferToTexture(Buffer, 0, SourcePitch, BytesPerImage, Region.size, Tex, 0, MipIndex, Region.origin, Options))
@@ -1848,11 +1848,11 @@ static void InternalUpdateTexture3D(FAGXContext& Context, FRHITexture3D* Texture
 		const uint32 NumRows = UpdateRegion.Height / (uint32)FormatInfo.BlockSizeY;
 		const uint32 BytesPerImage = SourceRowPitch * NumRows;
 
-		mtlpp::BlitOption Options = mtlpp::BlitOption::None;
+		MTLBlitOption Options = MTLBlitOptionNone;
 #if !PLATFORM_MAC
 		if ((MTLPixelFormat)Tex.GetPixelFormat() >= MTLPixelFormatPVRTC_RGB_2BPP && (MTLPixelFormat)Tex.GetPixelFormat() <= MTLPixelFormatPVRTC_RGBA_4BPP_sRGB)
 		{
-			Options = mtlpp::BlitOption::RowLinearPVRTC;
+			Options = MTLBlitOptionRowLinearPVRTC;
 		}
 #endif
 		if(Context.AsyncCopyFromBufferToTexture(Buffer, 0, SourceRowPitch, BytesPerImage, Region.size, Tex, 0, MipIndex, Region.origin, Options))
@@ -2125,11 +2125,11 @@ void FAGXRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITe
 						
 						check(Buffer);
 						
-						mtlpp::BlitOption Options = mtlpp::BlitOption::None;
+						MTLBlitOption Options = MTLBlitOptionNone;
 #if !PLATFORM_MAC
 						if ((MTLPixelFormat)MetalSrcTexture->Texture.GetPixelFormat() >= MTLPixelFormatPVRTC_RGB_2BPP && (MTLPixelFormat)MetalSrcTexture->Texture.GetPixelFormat() <= MTLPixelFormatPVRTC_RGBA_4BPP_sRGB)
 						{
-							Options = mtlpp::BlitOption::RowLinearPVRTC;
+							Options = MTLBlitOptionRowLinearPVRTC;
 						}
 #endif
 						GetInternalContext().CopyFromTextureToBuffer(MetalSrcTexture->Texture, SourceSliceIndex, SourceMipIndex, SourceOrigin, SourceSize, Buffer, 0, AlignedStride, BytesPerImage, Options);

@@ -16,7 +16,7 @@
 #pragma mark - AGX RHI Vertex Declaration Globals
 
 
-mtlpp::VertexFormat GAGXFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized;
+MTLVertexFormat GAGXFColorVertexFormat = MTLVertexFormatUChar4Normalized;
 
 
 //------------------------------------------------------------------------------
@@ -24,31 +24,31 @@ mtlpp::VertexFormat GAGXFColorVertexFormat = mtlpp::VertexFormat::UChar4Normaliz
 #pragma mark - AGX RHI Vertex Declaration Support Routines
 
 
-static mtlpp::VertexFormat TranslateElementTypeToMTLType(EVertexElementType Type)
+static MTLVertexFormat TranslateElementTypeToMTLType(EVertexElementType Type)
 {
 	switch (Type)
 	{
-		case VET_Float1:		return mtlpp::VertexFormat::Float;
-		case VET_Float2:		return mtlpp::VertexFormat::Float2;
-		case VET_Float3:		return mtlpp::VertexFormat::Float3;
-		case VET_Float4:		return mtlpp::VertexFormat::Float4;
-		case VET_PackedNormal:	return mtlpp::VertexFormat::Char4Normalized;
-		case VET_UByte4:		return mtlpp::VertexFormat::UChar4;
-		case VET_UByte4N:		return mtlpp::VertexFormat::UChar4Normalized;
+		case VET_Float1:		return MTLVertexFormatFloat;
+		case VET_Float2:		return MTLVertexFormatFloat2;
+		case VET_Float3:		return MTLVertexFormatFloat3;
+		case VET_Float4:		return MTLVertexFormatFloat4;
+		case VET_PackedNormal:	return MTLVertexFormatChar4Normalized;
+		case VET_UByte4:		return MTLVertexFormatUChar4;
+		case VET_UByte4N:		return MTLVertexFormatUChar4Normalized;
 		case VET_Color:			return GAGXFColorVertexFormat;
-		case VET_Short2:		return mtlpp::VertexFormat::Short2;
-		case VET_Short4:		return mtlpp::VertexFormat::Short4;
-		case VET_Short2N:		return mtlpp::VertexFormat::Short2Normalized;
-		case VET_Half2:			return mtlpp::VertexFormat::Half2;
-		case VET_Half4:			return mtlpp::VertexFormat::Half4;
-		case VET_Short4N:		return mtlpp::VertexFormat::Short4Normalized;
-		case VET_UShort2:		return mtlpp::VertexFormat::UShort2;
-		case VET_UShort4:		return mtlpp::VertexFormat::UShort4;
-		case VET_UShort2N:		return mtlpp::VertexFormat::UShort2Normalized;
-		case VET_UShort4N:		return mtlpp::VertexFormat::UShort4Normalized;
-		case VET_URGB10A2N:		return mtlpp::VertexFormat::UInt1010102Normalized;
-		case VET_UInt:			return mtlpp::VertexFormat::UInt;
-        default:				METAL_FATAL_ERROR(TEXT("Unknown vertex element type %d!"), (uint32)Type); return mtlpp::VertexFormat::Float;
+		case VET_Short2:		return MTLVertexFormatShort2;
+		case VET_Short4:		return MTLVertexFormatShort4;
+		case VET_Short2N:		return MTLVertexFormatShort2Normalized;
+		case VET_Half2:			return MTLVertexFormatHalf2;
+		case VET_Half4:			return MTLVertexFormatHalf4;
+		case VET_Short4N:		return MTLVertexFormatShort4Normalized;
+		case VET_UShort2:		return MTLVertexFormatUShort2;
+		case VET_UShort4:		return MTLVertexFormatUShort4;
+		case VET_UShort2N:		return MTLVertexFormatUShort2Normalized;
+		case VET_UShort4N:		return MTLVertexFormatUShort4Normalized;
+		case VET_URGB10A2N:		return MTLVertexFormatUInt1010102Normalized;
+		case VET_UInt:			return MTLVertexFormatUInt;
+        default:				METAL_FATAL_ERROR(TEXT("Unknown vertex element type %u!"), (uint32)Type); return MTLVertexFormatFloat;
     };
 }
 
@@ -171,7 +171,7 @@ void FAGXVertexDeclaration::GenerateLayout(const FVertexDeclarationElementList& 
 
 		// set the format for each element
 		mtlpp::VertexAttributeDescriptor Attrib = Attributes[Element.AttributeIndex];
-		Attrib.SetFormat(TranslateElementTypeToMTLType(Element.Type));
+		Attrib.SetFormat(mtlpp::VertexFormat(TranslateElementTypeToMTLType(Element.Type)));
 		Attrib.SetOffset(Element.Offset);
 		Attrib.SetBufferIndex(ShaderBufferIndex);
 	}
