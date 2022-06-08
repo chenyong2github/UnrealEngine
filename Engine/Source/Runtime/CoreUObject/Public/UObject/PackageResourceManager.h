@@ -55,11 +55,6 @@ struct FOpenPackageResult
 	 */
 	bool bNeedsEngineVersionChecks = true;
 
-	FOpenPackageResult() = default;
-	FOpenPackageResult(const FOpenPackageResult&) = delete;
-	FOpenPackageResult(FOpenPackageResult&&) = default;
-	FOpenPackageResult& operator=(const FOpenPackageResult&) = delete;
-	FOpenPackageResult& operator=(FOpenPackageResult&&) = default;
 	void CopyMetaData(const FOpenPackageResult& Other)
 	{
 		Format = Other.Format;
@@ -88,7 +83,10 @@ struct FOpenAsyncPackageResult
 	FOpenAsyncPackageResult(FOpenAsyncPackageResult&&) = default;
 	FOpenAsyncPackageResult& operator=(const FOpenAsyncPackageResult&) = delete;
 	FOpenAsyncPackageResult& operator=(FOpenAsyncPackageResult&&) = default;
+
+	COREUOBJECT_API FOpenAsyncPackageResult(TUniquePtr<IAsyncReadFileHandle>&& InHandle, EPackageFormat InFormat, bool bInNeedsEngineVersionChecks = true);
 	COREUOBJECT_API ~FOpenAsyncPackageResult();
+
 	void CopyMetaData(const FOpenPackageResult& Other)
 	{
 		Format = Other.Format;

@@ -257,6 +257,13 @@ EPackageFormat ExtensionToPackageFormat(EPackageExtension Extension)
 	}
 }
 
+FOpenAsyncPackageResult::FOpenAsyncPackageResult(TUniquePtr<IAsyncReadFileHandle>&& InHandle, EPackageFormat InFormat, bool bInNeedsEngineVersionChecks)
+	: Handle(MoveTemp(InHandle))
+	, Format(InFormat)
+	, bNeedsEngineVersionChecks(bInNeedsEngineVersionChecks)
+{
+}
+
 FOpenAsyncPackageResult::~FOpenAsyncPackageResult()
 {
 	// Defined in CPP so we can forward declare IAsyncReadFileHandle
