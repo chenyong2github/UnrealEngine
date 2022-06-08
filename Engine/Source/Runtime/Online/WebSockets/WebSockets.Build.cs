@@ -44,6 +44,44 @@ public class WebSockets : ModuleRules
 		}
 	}
 
+	protected virtual string WebSocketsManagerPlatformInclude
+	{
+		get
+		{
+			if (PlatformSupportsLibWebsockets)
+			{
+				return "Lws/LwsWebSocketsManager.h";
+			}
+			else if (bPlatformSupportsWinHttpWebSockets)
+			{
+				return "WinHttp/WinHttpWebSocketsManager.h";
+			}
+			else
+			{
+				return "";
+			}
+		}
+	}
+
+	protected virtual string WebSocketsManagerPlatformClass
+	{
+		get
+		{
+			if (PlatformSupportsLibWebsockets)
+			{
+				return "FLwsWebSocketsManager";
+			}
+			else if (bPlatformSupportsWinHttpWebSockets)
+			{
+				return "FWinHttpWebSocketsManager";
+			}
+			else
+			{
+				return "";
+			}
+		}
+	}
+
 	public WebSockets(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDependencyModuleNames.AddRange(
@@ -82,7 +120,7 @@ public class WebSockets : ModuleRules
 					PrivateDependencyModuleNames.Add("SSL");
 				}
 			}
-			if (bPlatformSupportsWinHttpWebSockets)
+			else if (bPlatformSupportsWinHttpWebSockets)
 			{
 				// Enable WinHttp Support
 				bWithWinHttpWebSockets = true;
@@ -102,5 +140,11 @@ public class WebSockets : ModuleRules
 		PublicDefinitions.Add("WITH_WEBSOCKETS=" + (bWithWebSockets ? "1" : "0"));
 		PublicDefinitions.Add("WITH_LIBWEBSOCKETS=" + (bWithLibWebSockets ? "1" : "0"));
 		PublicDefinitions.Add("WITH_WINHTTPWEBSOCKETS=" + (bWithWinHttpWebSockets ? "1" : "0"));
+		string PlatformInclude = WebSocketsManagerPlatformInclude;
+		if (PlatformInclude.Length > 0)
+		{
+			PublicDefinitions.Add("WEBSOCKETS_MANAGER_PLATFORM_INCLUDE=\"" + WebSocketsManagerPlatformInclude + "\"");
+			PublicDefinitions.Add("WEBSOCKETS_MANAGER_PLATFORM_CLASS=" + WebSocketsManagerPlatformClass);
+		}
 	}
 }

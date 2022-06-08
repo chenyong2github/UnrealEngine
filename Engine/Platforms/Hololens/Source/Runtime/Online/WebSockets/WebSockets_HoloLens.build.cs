@@ -12,5 +12,21 @@ namespace UnrealBuildTool.Rules
 		public WebSockets_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
 		}
+
+		protected override string WebSocketsManagerPlatformInclude
+		{
+			get
+			{
+				return "HoloLensWebSocketsManager.h";
+			}
+		}
+
+		protected override string WebSocketsManagerPlatformClass
+		{
+			get
+			{
+				return "FHoloLensWebSocketsManager";
+			}
+		}
 	}
 }

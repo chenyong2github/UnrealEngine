@@ -4,28 +4,9 @@
 
 #include "HAL/Platform.h"
 
-#if WITH_LIBWEBSOCKETS
-	#if PLATFORM_SWITCH
-		#include "Lws/LwsSwitchWebSocketsManager.h"
-	#else
-		#include "Lws/LwsWebSocketsManager.h"
-	#endif //PLATFORM_SWITCH
-#elif WITH_WINHTTPWEBSOCKETS
-	#include "WinHttp/WinHttpWebSocketsManager.h"
-#elif PLATFORM_HOLOLENS
-	#include "HoloLensWebSocketsManager.h"
+#if defined(WEBSOCKETS_MANAGER_PLATFORM_INCLUDE)
+	#include WEBSOCKETS_MANAGER_PLATFORM_INCLUDE
+	typedef WEBSOCKETS_MANAGER_PLATFORM_CLASS FPlatformWebSocketsManager;
 #else
 	#error "Web Sockets not implemented on this platform yet"
-#endif
-
-#if WITH_LIBWEBSOCKETS
-	#if PLATFORM_SWITCH
-		typedef FLwsSwitchWebSocketsManager FPlatformWebSocketsManager;
-	#else
-		typedef FLwsWebSocketsManager FPlatformWebSocketsManager;
-	#endif // !PLATFORM_SWITCH
-#elif WITH_WINHTTPWEBSOCKETS
-	typedef FWinHttpWebSocketsManager FPlatformWebSocketsManager;
-#elif PLATFORM_HOLOLENS
-	typedef FHoloLensWebSocketsManager FPlatformWebSocketsManager;
 #endif
