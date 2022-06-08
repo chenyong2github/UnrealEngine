@@ -118,46 +118,4 @@ namespace Horde.Build.Issues
 			return false;
 		}
 	}
-
-	/// <summary>
-	/// Interface for issue matchers
-	/// </summary>
-	interface IIssueHandler
-	{
-		/// <summary>
-		/// Identifier for the type of issue
-		/// </summary>
-		string Type { get; }
-
-		/// <summary>
-		/// Priority of this matcher
-		/// </summary>
-		int Priority { get; }
-
-		/// <summary>
-		/// Match the given event and produce a fingerprint
-		/// </summary>
-		/// <param name="job">The job that spawned the event</param>
-		/// <param name="node">Node that was executed</param>
-		/// <param name="annotations"></param>
-		/// <param name="eventData">The event data</param>
-		/// <param name="fingerprint">Receives the fingerprint on success</param>
-		/// <returns>True if the match is successful</returns>
-		bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint);
-
-		/// <summary>
-		/// Rank all the suspect changes for a given fingerprint
-		/// </summary>
-		/// <param name="fingerprint">The issue fingerprint</param>
-		/// <param name="suspects">Potential suspects</param>
-		void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects);
-
-		/// <summary>
-		/// Gets the summary text for an issue
-		/// </summary>
-		/// <param name="fingerprint">The fingerprint</param>
-		/// <param name="severity">Severity of the issue</param>
-		/// <returns>The summary text</returns>
-		string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity);
-	}
 }

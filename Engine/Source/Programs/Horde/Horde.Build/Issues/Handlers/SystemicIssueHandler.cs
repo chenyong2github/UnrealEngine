@@ -16,13 +16,13 @@ namespace Horde.Build.Issues.Handlers
 	/// <summary>
 	/// Instance of a particular systemic error
 	/// </summary>
-	class SystemicIssueHandler : IIssueHandler
+	class SystemicIssueHandler : IssueHandler
 	{
 		/// <inheritdoc/>
-		public string Type => "Systemic";
+		public override string Type => "Systemic";
 
 		/// <inheritdoc/>
-		public int Priority => 10;
+		public override int Priority => 10;
 
 		/// <summary>
 		///  Known systemic errors
@@ -40,15 +40,23 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <inheritdoc/>
-		public void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
+		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
-			fingerprint = null;
+			foreach (IssueEvent stepEvent in stepEvents)
+			{
+				if (stepEvent.EventId != null && MatchEvent(stepEvent.EventData))
+				{
+				}
+			}
+		}
 
+		static bool MatchEvent(ILogEventData eventData)
+		{
 			if (eventData.EventId == KnownLogEvents.ExitCode)
 			{
 				for (int i = 0; i < eventData.Lines.Count; i++)
@@ -61,24 +69,17 @@ namespace Horde.Build.Issues.Handlers
 					{
 						if (message.Contains(systemicExitMessages[j], StringComparison.InvariantCultureIgnoreCase))
 						{
-							fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null, null);
 							return true;
 						}
 					}
 				}
 			}
 
-			if (eventData.EventId == null || !IsMatchingEventId(eventData.EventId.Value))
-			{				
-				return false;
-			}
-
-			fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null, null);
-			return true;
+			return eventData.EventId != null && IsMatchingEventId(eventData.EventId.Value);
 		}
 
 		/// <inheritdoc/>
-		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
+		public override string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
 			string type = (severity == IssueSeverity.Warning) ? "Systemic warnings" : "Systemic errors";
 			string nodeName = fingerprint.Keys.FirstOrDefault() ?? "(unknown)";
