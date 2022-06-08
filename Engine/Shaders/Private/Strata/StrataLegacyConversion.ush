@@ -231,7 +231,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Anisotropy = Anisotropy;
 		Top.SSSMFP = max(1e-05f, MFPInCm); // Ensure the MFP is not null to force the material as have SSS
 		Top.SSSMFPScale = 1.0f;
-		Top.SSSPhaseAniso = 1.0f - Opacity; // Opaque-Thick: isotropic phase function, Thin: forward phase scattering function
+		Top.SSSPhaseAniso = saturate(1.f - Opacity); // Opaque-Thick: isotropic phase function, Thin: forward phase scattering function
 		Top.Emissive = Emissive;
 		Top.UseSSSDiffusion = false;
 		Top.Thickness = ThicknessInCm;
@@ -260,7 +260,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		const float3 MFPInCm = float3(1.0f, 0.088964f, 0.072095f) * 2.6748f * 0.1f;
 
 		// Legacy material uses Subsurface color as transmission 'tinting', but we can represent that with a single layer. So instead we take 
-		// the max color of SubSurfaceColro & BaseColor
+		// the max color of SubSurfaceColor & BaseColor
 		Top.BaseColor = max(SubSurfaceColor, BaseColor); 
 		Top.Specular = Specular;
 		Top.Metallic = Metallic;
@@ -366,7 +366,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.SSSProfileID = 0.f;
 		Top.SSSMFP = max(1e-05f, MFPInCm); // Ensure the MFP is not null to force the material as have SSS
 		Top.SSSMFPScale = 1.0f;
-		Top.SSSPhaseAniso = 1.0f - Opacity; // Opaque-Thick: isotropic phase function, Thin: forward phase scattering function
+		Top.SSSPhaseAniso = 1.0f - saturate(Opacity); // Opaque-Thick: isotropic phase function, Thin: forward phase scattering function
 		Top.Emissive = Emissive;
 		Top.UseSSSDiffusion = false;
 		Top.Thickness = Thickness;
