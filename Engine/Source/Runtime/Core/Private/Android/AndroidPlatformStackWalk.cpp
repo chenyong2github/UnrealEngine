@@ -340,34 +340,33 @@ static FAutoConsoleVariableRef CVarAndroidPlatformThreadCallStackRequestMaxWait(
 	GThreadCallStackRequestMaxWait,
 	TEXT("The number of seconds to spin before an individual back trace has timed out."));
 
-static float GThreadCallStackMaxWait = 5.0f;
+float GThreadCallStackMaxWait = 5.0f;
 static TAutoConsoleVariable<float> CVarAndroidPlatformThreadCallStackMaxWait(
 	TEXT("AndroidPlatformThreadStackWalk.MaxWait"),
 	GThreadCallStackMaxWait,
 	TEXT("The number of seconds allowed to spin before killing the process, with the assumption the back trace handler has hung."));
 
 #if ANDROID_HAS_RTSIGNALS
-/** Passed in through sigqueue for gathering of a callstack from a signal */
-struct ThreadStackUserData
-{
-	uint64* BackTrace;
-	int32 BackTraceCount;
-	SIZE_T CallStackSize;
-};
-
-int32 ThreadStackBackTraceStatus = 0;
-static const int32 ThreadStackBackTraceCurrentStatus_RUNNING = -2;
-static const int32 ThreadStackBackTraceCurrentStatus_DONE = -3;
-
-static ThreadStackUserData SignalThreadStackUserData;
+static FAsyncThreadBackTrace SignalThreadStackUserData;
+/*Async stack backtracing capturing works needs to work in two modes:
+ * 1. Serial - when we fire a request and wait for it (or time out) before firing next request.
+ *    In case of a time out, serial request uses static SignalThreadStackUserData, so it's possible we can send a second request
+ *    after the one that timed out and first request will be processed at this time, providing a wrong data to the second request.
+ *    To prevent this from happening, we check if there's no serial request in flight before firing one
+ * 2. Broadcast - when we fire a bunch of requests one ofter the other and then wait on all of them.
+ *    This mode is not immune to an issue described before, but this is called only in a crash handler, so we are not going to fire a new request afterwards.
+ */ 
+static std::atomic<FAsyncThreadBackTrace*> InFlightSerialRequest(nullptr);
 
 // the callback when THREAD_CALLSTACK_GENERATOR is being processed.
 void FAndroidPlatformStackWalk::HandleBackTraceSignal(siginfo* Info, void* Context)
 {
-	if (FPlatformAtomics::InterlockedCompareExchange(&ThreadStackBackTraceStatus, ThreadStackBackTraceCurrentStatus_RUNNING, Info->si_value.sival_int) == Info->si_value.sival_int)
+	FAsyncThreadBackTrace* BackTrace = (FAsyncThreadBackTrace*)Info->si_value.sival_ptr;
+	BackTrace->Depth = FPlatformStackWalk::CaptureStackBackTrace(BackTrace->BackTrace, BackTrace->StackTraceMaxDepth, Context);
+	BackTrace->Flag.store(1, std::memory_order_release);
+	if (InFlightSerialRequest.load(std::memory_order_relaxed) == BackTrace)
 	{
-		SignalThreadStackUserData.BackTraceCount = FPlatformStackWalk::CaptureStackBackTrace(SignalThreadStackUserData.BackTrace, SignalThreadStackUserData.CallStackSize, Context);
-		FPlatformAtomics::AtomicStore(&ThreadStackBackTraceStatus, ThreadStackBackTraceCurrentStatus_DONE);
+		InFlightSerialRequest.store(nullptr, std::memory_order_release);
 	}
 }
 
@@ -387,68 +386,65 @@ uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
 		bHasReentered = false;
 	};
 
-	auto GatherCallstackFromThread = [](uint64 TargetThreadId)
+	if (InFlightSerialRequest.load(std::memory_order_acquire) != nullptr)
 	{
-		static int32 ThreadStackBackTraceNextRequest = 0;
-		int32 CurrentThreadStackBackTrace = ThreadStackBackTraceNextRequest++;
+		return 0;
+	}
 
-		auto WaitForSignalHandlerToFinishOrCrash = [CurrentThreadStackBackTrace]()
+	SignalThreadStackUserData.Depth = 0;
+	SignalThreadStackUserData.ThreadID = ThreadId;
+	SignalThreadStackUserData.Flag.store(0, std::memory_order_release);
+
+	auto WaitForSignalHandlerToFinishOrCrash = [BackTrace]()
+	{
+		const float PollTime = 0.001f;
+
+		for (float CurrentTime = 0; CurrentTime <= GThreadCallStackRequestMaxWait; CurrentTime += PollTime)
 		{
-			const float PollTime = 0.001f;
-
-			for (float CurrentTime = 0; CurrentTime <= GThreadCallStackMaxWait; CurrentTime += PollTime)
+			if (SignalThreadStackUserData.Flag.load(std::memory_order_acquire))
 			{
-				if (FPlatformAtomics::InterlockedCompareExchange(&ThreadStackBackTraceStatus, ThreadStackBackTraceNextRequest, ThreadStackBackTraceCurrentStatus_DONE) == ThreadStackBackTraceCurrentStatus_DONE)
-				{
-					// success 
-					return SignalThreadStackUserData.BackTraceCount;
-				}
-
-				// signal timed out
-				if (CurrentTime > GThreadCallStackRequestMaxWait && FPlatformAtomics::InterlockedCompareExchange(&ThreadStackBackTraceStatus, ThreadStackBackTraceNextRequest, CurrentThreadStackBackTrace) == CurrentThreadStackBackTrace)
-				{
-					// request not yet started, skip it.
-					return 0;
-				}
-				FPlatformProcess::SleepNoStats(PollTime);
+				FMemory::Memcpy(BackTrace, SignalThreadStackUserData.BackTrace, SignalThreadStackUserData.Depth * sizeof(*BackTrace));
+				return SignalThreadStackUserData.Depth;
 			}
 
-			// We have waited for as long as we should for the signal handler to finish. Assume it has hang and we need to kill our selfs
-			*(int*)0x10 = 0x0;
-			return 0;
-		};
-
-		sigval UserData;
-		UserData.sival_int = CurrentThreadStackBackTrace;
-
-		siginfo_t info;
-		memset(&info, 0, sizeof(siginfo_t));
-		info.si_signo = THREAD_CALLSTACK_GENERATOR;
-		info.si_code = SI_QUEUE;
-		info.si_pid = syscall(SYS_getpid);
-		info.si_uid = syscall(SYS_getuid);
-		info.si_value = UserData;
-
-		// Avoid using sigqueue here as if the ThreadId is already blocked and in a signal handler
-		// sigqueue will try a different thread signal handler and report the wrong callstack
-		if (syscall(SYS_rt_tgsigqueueinfo, info.si_pid, TargetThreadId, THREAD_CALLSTACK_GENERATOR, &info) == 0)
-		{
-			return WaitForSignalHandlerToFinishOrCrash();
-		}
-		else
-		{
-			// we failed to send the signal, update the current status.
-			FPlatformAtomics::AtomicStore(&ThreadStackBackTraceStatus, ThreadStackBackTraceNextRequest);
+			FPlatformProcess::SleepNoStats(PollTime);
 		}
 
+		// Time out
 		return 0;
 	};
 
-	SignalThreadStackUserData.CallStackSize = MaxDepth;
-	SignalThreadStackUserData.BackTrace = BackTrace;
-	SignalThreadStackUserData.BackTraceCount = 0;
+	InFlightSerialRequest.store(&SignalThreadStackUserData, std::memory_order_relaxed);
+	if (CaptureThreadStackBackTraceAsync(&SignalThreadStackUserData))
+	{
+		return WaitForSignalHandlerToFinishOrCrash();
+	}
+	
+	InFlightSerialRequest.store(nullptr, std::memory_order_relaxed);
+	return 0;
+}
 
-	return GatherCallstackFromThread(ThreadId);
+int FAndroidPlatformStackWalk::CaptureThreadStackBackTraceAsync(FAsyncThreadBackTrace* BackTrace)
+{
+	sigval UserData;
+	UserData.sival_ptr = BackTrace;
+
+	siginfo_t info;
+	memset(&info, 0, sizeof(siginfo_t));
+	info.si_signo = THREAD_CALLSTACK_GENERATOR;
+	info.si_code = SI_QUEUE;
+	info.si_pid = syscall(SYS_getpid);
+	info.si_uid = syscall(SYS_getuid);
+	info.si_value = UserData;
+
+	// Avoid using sigqueue here as if the ThreadId is already blocked and in a signal handler
+	// sigqueue will try a different thread signal handler and report the wrong callstack
+	if (syscall(SYS_rt_tgsigqueueinfo, info.si_pid, BackTrace->ThreadID, THREAD_CALLSTACK_GENERATOR, &info) == 0)
+	{
+		return 1;
+	}
+
+	return 0;
 }
 #else
 uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context)

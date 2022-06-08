@@ -40,6 +40,9 @@ public:
 	*/
 	void RemoveThread(class FRunnableThread* Thread);
 
+	/** Get the number of registered threads */
+	int32 NumThreads() const { return Threads.Num(); }
+
 	/** Ticks all fake threads and their runnable objects. */
 	void Tick();
 

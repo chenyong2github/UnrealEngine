@@ -1136,7 +1136,7 @@ private:
 		FPlatformAtomics::AtomicStore(&handling_signal, 0);
 	}
 
-	static void HandleTargetSignal(int Signal, siginfo* Info, void* Context)
+	static void HandleTargetSignal(int Signal, siginfo* Info, void* Context, uint32 CrashingThreadId)
 	{
 		FPlatformStackWalk::HandleBackTraceSignal(Info, Context);
 	}
@@ -1255,8 +1255,8 @@ FString FAndroidMisc::GetFatalSignalMessage(int Signal, siginfo* Info)
 }
 
 // Making the signal handler available to track down issues with failing crash handler.
-static void (*GFatalSignalHandlerOverrideFunc)(int Signal, struct siginfo* Info, void* Context) = nullptr;
-void FAndroidMisc::OverrideFatalSignalHandler(void (*FatalSignalHandlerOverrideFunc)(int Signal, struct siginfo* Info, void* Context))
+static void (*GFatalSignalHandlerOverrideFunc)(int Signal, struct siginfo* Info, void* Context, uint32 CrashingThreadId) = nullptr;
+void FAndroidMisc::OverrideFatalSignalHandler(void (*FatalSignalHandlerOverrideFunc)(int Signal, struct siginfo* Info, void* Context, uint32 CrashingThreadId))
 {
 	GFatalSignalHandlerOverrideFunc = FatalSignalHandlerOverrideFunc;
 }
@@ -1309,11 +1309,11 @@ protected:
 		raise(Signal);
 	}
 
-	static void HandleTargetSignal(int Signal, siginfo* Info, void* Context)
+	static void HandleTargetSignal(int Signal, siginfo* Info, void* Context, uint32 CrashingThreadId)
 	{
 		if (GFatalSignalHandlerOverrideFunc)
 		{
-			GFatalSignalHandlerOverrideFunc(Signal, Info, Context);
+			GFatalSignalHandlerOverrideFunc(Signal, Info, Context, CrashingThreadId);
 		}
 		else
 		{
@@ -1323,7 +1323,7 @@ protected:
 			FString Message = FAndroidMisc::GetFatalSignalMessage(Signal, Info);
 			FAndroidCrashContext CrashContext(ECrashContextType::Crash, *Message);
 
-			CrashContext.InitFromSignal(Signal, Info, Context);
+			CrashContext.InitFromSignal(Signal, Info, Context, CrashingThreadId);
 			CrashContext.CaptureCrashInfo();
 			if (GCrashHandlerPointer)
 			{

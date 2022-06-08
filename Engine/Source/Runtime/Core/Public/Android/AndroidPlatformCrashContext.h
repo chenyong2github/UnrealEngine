@@ -9,6 +9,9 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 {
 	/** Signal number */
 	int32 Signal;
+
+	/** Id of a thread that crashed */
+	uint32 CrashingThreadId;
 	
 	/** Additional signal info */
 	siginfo* Info;
@@ -29,9 +32,10 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 	 * @param InInfo additional info (e.g. address we tried to read, etc)
 	 * @param InContext thread context
 	 */
-	void InitFromSignal(int32 InSignal, siginfo* InInfo, void* InContext)
+	void InitFromSignal(int32 InSignal, siginfo* InInfo, void* InContext, uint32 InCrashingThreadId)
 	{
 		Signal = InSignal;
+		CrashingThreadId = InCrashingThreadId;
 		Info = InInfo;
 		Context = InContext;
 	}
@@ -60,7 +64,8 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 	// generate an absolute path to a crash report folder.
 	static void GenerateReportDirectoryName(char(&DirectoryNameOUT)[CrashReportMaxPathSize]);
 
-	void DumpAllThreadCallstacks() const;
+	// expects externally allocated memory for all threads found in FThreadManager + main thread
+	void DumpAllThreadCallstacks(FAsyncThreadBackTrace* BackTrace, int NumThreads) const;
 
 	/** Async-safe ItoA */
 	static const ANSICHAR* ItoANSI(uint64 Val, uint64 Base, uint32 Len = 0);

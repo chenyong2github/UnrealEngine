@@ -219,7 +219,7 @@ public:
 
 	// To help track down issues with failing crash handler.
 	static FString GetFatalSignalMessage(int Signal, siginfo* Info);
-	static void OverrideFatalSignalHandler(void (*FatalSignalHandlerOverrideFunc)(int Signal, struct siginfo* Info, void* Context));
+	static void OverrideFatalSignalHandler(void (*FatalSignalHandlerOverrideFunc)(int Signal, struct siginfo* Info, void* Context, uint32 CrashingThreadId));
 	// To help track down issues with failing crash handler.
 
 	static bool IsInSignalHandler();

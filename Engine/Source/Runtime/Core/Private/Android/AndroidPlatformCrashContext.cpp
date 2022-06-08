@@ -226,14 +226,18 @@ void FAndroidCrashContext::StoreCrashInfo(bool bWriteLog) const
 
 //Create a separate file containing thread context info (callstacks etc) in xml form
 // This is added to the crash report xml at during pre-processing time.
-void FAndroidCrashContext::DumpAllThreadCallstacks() const
+void FAndroidCrashContext::DumpAllThreadCallstacks(FAsyncThreadBackTrace* BackTrace, int NumThreads) const
 {
+	if (NumThreads == 0)
+	{
+		return;
+	}
+
 	char FilePath[FAndroidCrashContext::CrashReportMaxPathSize] = { 0 };
 	FCStringAnsi::Strcpy(FilePath, ReportDirectory);
 	FCStringAnsi::Strcat(FilePath, FAndroidCrashContext::CrashReportMaxPathSize, "/AllThreads.txt");
 	TArray<FCrashStackFrame> CrashStackFrames;
 	CrashStackFrames.Empty(32);
-	uint32 CallstacksRecorded = 0;
 	int DestHandle = open(FilePath, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 	if (DestHandle >= 0)
 	{
@@ -248,29 +252,28 @@ void FAndroidCrashContext::DumpAllThreadCallstacks() const
 			write(FileHandle, "\n", 1);
 		};
 
-		auto WriteThreadEntry = [Writeln, Write, this, DestHandle, &CrashStackFrames, &CallstacksRecorded, CurrentThreadID](uint32 ThreadID, const char* ThreadName)
+		auto CaptureCallstack = [CurrentThreadID](FAsyncThreadBackTrace* BackTrace)
 		{
-			// Capture the stack trace
-			static const int StackTraceMaxDepth = 100;
-			uint64 StackTrace[StackTraceMaxDepth];
-			FMemory::Memzero(StackTrace);
-			uint32 Depth = 0;
-			if (CurrentThreadID == ThreadID)
+			if (CurrentThreadID == BackTrace->ThreadID)
 			{
-				Depth = FPlatformStackWalk::CaptureStackBackTrace(StackTrace, StackTraceMaxDepth);
+				BackTrace->Depth = FPlatformStackWalk::CaptureStackBackTrace(BackTrace->BackTrace, BackTrace->StackTraceMaxDepth);
+				BackTrace->Flag.store(1, std::memory_order_release);
 			}
 			else
 			{
-				Depth = FPlatformStackWalk::CaptureThreadStackBackTrace(ThreadID, StackTrace, StackTraceMaxDepth);
+				FPlatformStackWalk::CaptureThreadStackBackTraceAsync(BackTrace);
 			}
+		};
 
-			if (Depth)
+		auto WriteThreadEntry = [Writeln, Write, this, DestHandle, &CrashStackFrames](FAsyncThreadBackTrace* BackTrace)
+		{
+			if (BackTrace->Depth)
 			{
 				ANSICHAR Line[256];
 				Writeln(DestHandle, "<Thread>");
 				Write(DestHandle, "<CallStack>");
 				// Write stack
-				GetPortableCallStack(StackTrace, Depth, CrashStackFrames);
+				GetPortableCallStack(BackTrace->BackTrace, BackTrace->Depth, CrashStackFrames);
 				for (const FCrashStackFrame& CrashStackFrame : CrashStackFrames)
 				{
 					FCStringAnsi::Strncpy(Line, TCHAR_TO_UTF8(*CrashStackFrame.ModuleName), UE_ARRAY_COUNT(Line));
@@ -284,33 +287,77 @@ void FAndroidCrashContext::DumpAllThreadCallstacks() const
 				Writeln(DestHandle, "<IsCrashed>false</IsCrashed>");
 				Writeln(DestHandle, "<Registers/>");
 				// write Thread Id
-				FCStringAnsi::Strncpy(Line, ItoANSI((uint64)ThreadID, (uint64)10), UE_ARRAY_COUNT(Line));
+				FCStringAnsi::Strncpy(Line, ItoANSI((uint64)BackTrace->ThreadID, (uint64)10), UE_ARRAY_COUNT(Line));
 				Write(DestHandle, "<ThreadID>");
 				Write(DestHandle, Line);
 				Writeln(DestHandle, "</ThreadID>");
 
 				// write Thread Name
 				Write(DestHandle, "<ThreadName>");
-				FCStringAnsi::Strncpy(Line, ThreadName, UE_ARRAY_COUNT(Line));
+				FMemory::Memcpy(Line, BackTrace->ThreadName, FAsyncThreadBackTrace::MaxThreadName);
+				Line[FAsyncThreadBackTrace::MaxThreadName] = 0;
 				Write(DestHandle, Line);
 				Writeln(DestHandle, "</ThreadName>");
 
 				Writeln(DestHandle, "</Thread>");
-				CallstacksRecorded++;
 			}
 		};
 
 		Writeln(DestHandle, "<Threads>");
 
+		uint32 CaptureCallstacks = 0;
+		uint32 CallstacksRecorded = 0;
+		for (int i = 0; i < NumThreads; ++i)
+		{
+			BackTrace[i].Flag.store(0, std::memory_order_relaxed);
+			BackTrace[i].Depth = 0;
+		}
+
 		// On android the Game thread is that which calls android_main entry point. 
 		// Explicitly call it here as the thread manager is not aware of it.
-		WriteThreadEntry(GGameThreadId, "GameThread");
-
-		// For each thread append it's info to the file.
-		FThreadManager::Get().ForEachThread([WriteThreadEntry, this, DestHandle, &CrashStackFrames, &CallstacksRecorded](uint32 ThreadID, FRunnableThread* Runnable)
+		if (CrashingThreadId != GGameThreadId)
 		{
-			WriteThreadEntry(ThreadID, TCHAR_TO_UTF8(*Runnable->GetThreadName()));
+			BackTrace[0].ThreadID = GGameThreadId;
+			FCStringAnsi::Strcpy(BackTrace[0].ThreadName, "GameThread");
+			CaptureCallstack(&BackTrace[0]);
+			++CaptureCallstacks;
+		}
+
+		FThreadManager::Get().ForEachThread([CaptureCallstack, BackTrace, &CaptureCallstacks, &NumThreads, &CrashingThreadId = CrashingThreadId](uint32 ThreadID, FRunnableThread* Runnable)
+		{
+			if ((CaptureCallstacks < NumThreads) && (CrashingThreadId != ThreadID))
+			{
+				FAsyncThreadBackTrace* Trace = &BackTrace[CaptureCallstacks];
+				Trace->ThreadID = ThreadID;
+				const FString& ThreadName = Runnable->GetThreadName();
+				FMemory::Memcpy(Trace->ThreadName, TCHAR_TO_UTF8(*ThreadName), FMath::Min(ThreadName.Len() + 1, FAsyncThreadBackTrace::MaxThreadName));
+
+				CaptureCallstack(Trace);
+				++CaptureCallstacks;
+			}
 		});
+
+		const float PollTime = 0.001f;
+		extern float GThreadCallStackMaxWait;
+
+		for (float CurrentTime = 0; CurrentTime <= GThreadCallStackMaxWait; CurrentTime += PollTime)
+		{
+			CallstacksRecorded = 0;
+			for (int i = 0; i < CaptureCallstacks; ++i)
+			{
+				CallstacksRecorded += BackTrace[i].Flag.load(std::memory_order_acquire);
+			}
+			if (CallstacksRecorded == CaptureCallstacks)
+			{
+				break;
+			}
+			FPlatformProcess::SleepNoStats(PollTime);
+		}
+
+		for (int i = 0; i < CaptureCallstacks; ++i)
+		{
+			WriteThreadEntry(&BackTrace[i]);
+		}
 
 		Writeln(DestHandle, "</Threads>");
 		close(DestHandle);

@@ -93,6 +93,7 @@ protected:
 			FPlatformProcess::SleepNoStats(0.0f);
 		}
 		SignalParams.Signal = InSignal;
+		SignalParams.ThreadID = FPlatformTLS::GetCurrentThreadId();
 		SignalParams.Info = InInfo;
 		SignalParams.Context = InContext;
 
@@ -166,13 +167,14 @@ private:
 			pthread_exit(0);
 			return;
 		}
-		Derived::HandleTargetSignal(SignalParams.Signal, SignalParams.Info, SignalParams.Context);
+		Derived::HandleTargetSignal(SignalParams.Signal, SignalParams.Info, SignalParams.Context, SignalParams.ThreadID);
 		FPlatformAtomics::AtomicStore(&SignalThreadStatus, (int32)ESignalThreadStatus::Complete);
 	}
 
 	struct FSignalParams
 	{
 		int Signal;
+		uint32 ThreadID;
 		siginfo* Info;
 		void* Context;
 	};
