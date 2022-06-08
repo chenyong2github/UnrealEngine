@@ -19,7 +19,7 @@ class FAGXSuballocatedUniformBuffer : public FRHIUniformBuffer
     friend class FAGXStateCache;
 public:
     // The last render thread frame this uniform buffer updated or pushed contents to the GPU backing
-    int32 LastFrameUpdated;
+    uint32 LastFrameUpdated;
     // Offset within the GPU backing this uniform buffer owns
     uint32 Offset;
     // The GPU backing buffer for this uniform buffer. Many FAGXMobileUniformBuffers can own regions.
@@ -38,22 +38,21 @@ private:
 public:
     // Creates a uniform buffer.
     // If Usage is SingleDraw or MultiFrame we will keep a copy of the data
-    FAGXSuballocatedUniformBuffer(const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
+    FAGXSuballocatedUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
     ~FAGXSuballocatedUniformBuffer();
-    
-	void Update(const void* Contents, TArray<TRefCountPtr<FRHIResource> > const& InResourceTable);
-    
+
+	void Update(const void* Contents);
+
     // Prepares this uniform buffer for binding.
     // You MUST call this before binding it.
     // If this is a UB that was created before the current frame the data on the GPU will
     // not be correct until this function returns.
     void PrepareToBind();
 
-	// Copies the RDG resources to a resource table for a deferred update on the RHI thread.
-	void CopyResourceTable_RenderThread(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable);
-
 private:
-    
+	// Copies the RDG resources to a resource table for a deferred update on the RHI thread.
+	void CopyResourceTable(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable) const;
+
     // Pushes the data in Contents to the gpu.
     // Updates the frame counter to FrameNumber.
     // (this is to support the case where we create buffer and reuse it many frames later).
@@ -61,8 +60,6 @@ private:
     // and copies Contents into that backing.
     // The amount of data is determined by the Layout
     void PushToGPUBacking(const void* Contents);
-    
-    bool HasShadow();
 };
 
 typedef FAGXSuballocatedUniformBuffer FAGXUniformBuffer;

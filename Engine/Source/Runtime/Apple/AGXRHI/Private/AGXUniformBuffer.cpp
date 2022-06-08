@@ -11,49 +11,33 @@
 
 #pragma mark Suballocated Uniform Buffer Implementation
 
-FAGXSuballocatedUniformBuffer::FAGXSuballocatedUniformBuffer(const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation InValidation)
+FAGXSuballocatedUniformBuffer::FAGXSuballocatedUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation InValidation)
     : FRHIUniformBuffer(Layout)
     , LastFrameUpdated(0)
     , Offset(0)
-    , Backing(nil)
-    , Shadow(nullptr)
+	, Backing(nil)
+	, Shadow(FMemory::Malloc(GetSize()))
     , ResourceTable()
 #if METAL_UNIFORM_BUFFER_VALIDATION
     , Validation(InValidation)
 #endif // METAL_UNIFORM_BUFFER_VALIDATION
 {
-    // Slate can create SingleDraw uniform buffers and use them several frames later. So it must be included.
-    if (Usage == UniformBuffer_SingleDraw || Usage == UniformBuffer_MultiFrame)
-    {
-        Shadow = FMemory::Malloc(GetSize());
-    }
+	FMemory::Memcpy(Shadow, Contents, GetSize());
+	CopyResourceTable(Contents, ResourceTable);
 }
 
 FAGXSuballocatedUniformBuffer::~FAGXSuballocatedUniformBuffer()
 {
-    if (HasShadow())
-    {
-        FMemory::Free(Shadow);
-    }
+    FMemory::Free(Shadow);
 
     // Note: this object does NOT own a reference
     // to the uniform buffer backing store
 }
 
-bool FAGXSuballocatedUniformBuffer::HasShadow()
+void FAGXSuballocatedUniformBuffer::Update(const void* Contents)
 {
-    return Shadow != nullptr;
-}
-
-void FAGXSuballocatedUniformBuffer::Update(const void* Contents, TArray<TRefCountPtr<FRHIResource> > const& InResourceTable)
-{
-    if (HasShadow())
-    {
-        FMemory::Memcpy(Shadow, Contents, GetSize());
-    }
-
-	ResourceTable = InResourceTable;
-
+	FMemory::Memcpy(Shadow, Contents, GetSize());
+	CopyResourceTable(Contents, ResourceTable);
 	PushToGPUBacking(Contents);
 }
 
@@ -62,8 +46,6 @@ void FAGXSuballocatedUniformBuffer::Update(const void* Contents, TArray<TRefCoun
 // The amount of data read from Contents is given by the Layout
 void FAGXSuballocatedUniformBuffer::PushToGPUBacking(const void* Contents)
 {
-    check(IsInRenderingThread() ^ IsRunningRHIInSeparateThread());
-    
     FAGXDeviceContext& DeviceContext = GetAGXDeviceContext();
     
     FAGXFrameAllocator* Allocator = DeviceContext.GetUniformAllocator();
@@ -82,13 +64,13 @@ void FAGXSuballocatedUniformBuffer::PushToGPUBacking(const void* Contents)
 void FAGXSuballocatedUniformBuffer::PrepareToBind()
 {
     FAGXDeviceContext& DeviceContext = GetAGXDeviceContext();
-    if(Shadow && LastFrameUpdated < DeviceContext.GetFrameNumberRHIThread())
+    if(!LastFrameUpdated || LastFrameUpdated < DeviceContext.GetFrameNumberRHIThread())
     {
         PushToGPUBacking(Shadow);
     }
 }
 
-void FAGXSuballocatedUniformBuffer::CopyResourceTable_RenderThread(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable)
+void FAGXSuballocatedUniformBuffer::CopyResourceTable(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable) const
 {
 #if METAL_UNIFORM_BUFFER_VALIDATION
 	if (Validation == EUniformBufferValidation::ValidateResources)

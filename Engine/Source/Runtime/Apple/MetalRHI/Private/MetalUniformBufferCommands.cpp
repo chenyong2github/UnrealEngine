@@ -7,44 +7,33 @@
 static void DoUpdateUniformBuffer(FMetalUniformBuffer* UB, const void* Contents)
 {
     check(IsInRenderingThread() || IsInRHIThread());
-    
+
     FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
     // The only way we can be on the RHI thread here is if we're in the process of creating a FLocalUniformBuffer.
     bool bUpdateImmediately = RHICmdList.Bypass() || IsInRHIThread();
 
-	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
-
-	UB->CopyResourceTable_RenderThread(Contents, ResourceTable);
-
     if(bUpdateImmediately)
     {
-        UB->Update(Contents, ResourceTable);
+        UB->Update(Contents);
     }
     else
     {
         const uint32 NumBytes = UB->GetLayout().ConstantBufferSize;
         void* Data = RHICmdList.Alloc(NumBytes, 16);
         FMemory::Memcpy(Data, Contents, NumBytes);
-        
-        RHICmdList.EnqueueLambda([Data, UB, NewResourceTable = MoveTemp(ResourceTable)](FRHICommandListImmediate& RHICmdList)
+
+        RHICmdList.EnqueueLambda([Data, UB](FRHICommandListImmediate& RHICmdList)
         {
-            UB->Update(Data, NewResourceTable);
+            UB->Update(Data);
         });
-        
+
         RHICmdList.RHIThreadFence(true);
     }
 }
 
 FUniformBufferRHIRef FMetalDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
-    FMetalDeviceContext& DeviceContext = (FMetalDeviceContext&)GetMetalDeviceContext();
-    FMetalFrameAllocator* UniformAllocator = DeviceContext.GetUniformAllocator();
-    
-    FMetalUniformBuffer* UB = new FMetalUniformBuffer(Layout, Usage, Validation);
-    
-    DoUpdateUniformBuffer(UB, Contents);
-    
-    return UB;
+	return new FMetalUniformBuffer(Contents, Layout, Usage, Validation);
 }
 
 void FMetalDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
