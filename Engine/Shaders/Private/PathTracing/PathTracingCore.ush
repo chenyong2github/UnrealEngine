@@ -572,7 +572,7 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 	}
 
 	float3 SSSColor = Payload.GetSubsurfaceColor();
-	float3 SSSRadius = Payload.GetSubsurfaceRadius();
+	float3 SSSRadius = Payload.SubsurfaceRadius;
 
 	if (SimplifySSS || all(SSSRadius == 0) || all(SSSColor == 0) || MaxSSSBounces == 0)
 	{

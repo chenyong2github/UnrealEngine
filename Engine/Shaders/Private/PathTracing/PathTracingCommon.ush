@@ -135,6 +135,7 @@ struct FPathTracingPayload : FMinimalPayload
 	float4 CustomData;
 	float3 CustomVector;
 	float3 WorldTangent;
+	float3 SubsurfaceRadius;
 	float  Anisotropy;
 	float3 TranslatedWorldPos;
 
@@ -151,12 +152,11 @@ struct FPathTracingPayload : FMinimalPayload
 	void SetClearCoatRoughness(float ClearCoatRoughness) { CustomData.y = ClearCoatRoughness; }
 	float3 GetClearCoatBottomNormal() { return CustomVector; }
 
+	uint GetSubsurfaceProfileId() { return uint(CustomData.a * 255.0 + 0.5); }
+
 	float3 GetSubsurfaceColor() { return CustomData.xyz; }
 	void SetSubsurfaceColor(float3 SubsurfaceColor) { CustomData.xyz = SubsurfaceColor; }
 	
-	float3 GetSubsurfaceRadius() { return CustomVector.xyz; }
-	void SetSubsurfaceRadius(float3 SubsurfaceRadius) { CustomVector.xyz = SubsurfaceRadius; }
-
 	// Steal an unused float3 (the only material with dual specular does not support anisotropy)
 	// Data is encoded as (x: roughness 0, y: roughness 1, z: roughness mix)
 	float3 GetDualRoughnessSpecular() { return WorldTangent; }
@@ -185,7 +185,8 @@ struct FPathTracingPayload : FMinimalPayload
 	{
 		return ShadingModelID == SHADINGMODELID_SUBSURFACE ||
 			   ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN ||
-			   ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
+			   ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE ||
+			   ShadingModelID == SHADINGMODELID_EYE;
 	}
 };
 
