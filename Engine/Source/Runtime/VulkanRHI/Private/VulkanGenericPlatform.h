@@ -133,4 +133,8 @@ public:
 
 	// Return VK_FALSE if platform wants to suppress the given debug report from the validation layers, VK_TRUE to print it.
 	static VkBool32 DebugReportFunction(VkDebugReportFlagsEXT MsgFlags, VkDebugReportObjectTypeEXT ObjType, uint64_t SrcObject, size_t Location, int32 MsgCode, const ANSICHAR* LayerPrefix, const ANSICHAR* Msg, void* UserData) { return VK_TRUE; }
+
+	// Setup platform to use AFBC workaround to reduce uncompressed textures memory requirements
+	static void SetupAFBCWorkaround(const FVulkanDevice& InDevice) {};
+	static void SetImageAFBCWorkaround(VkImageCreateInfo& ImageCreateInfo) {};
 };

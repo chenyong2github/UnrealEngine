@@ -492,6 +492,10 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 	// OpenGL ES has F32 textures but doesn't allow linear filtering unless OES_texture_float_linear
 	const bool bSupportFilteredFloat32Textures = false;
 
+	// optionaly compress landscape weightmaps for a mobile rendering
+	static const auto CompressLandscapeWeightMapsVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.CompressLandscapeWeightMaps"));
+	static const bool bCompressLandscapeWeightMaps = (CompressLandscapeWeightMapsVar && CompressLandscapeWeightMapsVar->GetValueOnAnyThread() != 0);
+
 	TArray<FName>& LayerFormats = OutFormats.AddDefaulted_GetRef();
 	int32 BlockSize = 1; // this looks wrong? should be 4 for FAndroid_DXTTargetPlatform ? - it is wrong, but BlockSize is ignored
 	GetDefaultTextureFormatNamePerLayer(LayerFormats, this, Texture, bSupportCompressedVolumeTexture, BlockSize, bSupportFilteredFloat32Textures);
@@ -502,6 +506,10 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 		{
 			// forward rendering only needs one channel for shadow maps
 			TextureFormatName = FName(TEXT("G8"));
+		}
+		else if (Texture->LODGroup == TEXTUREGROUP_Terrain_Weightmap && bCompressLandscapeWeightMaps)
+		{
+			TextureFormatName = AndroidTexFormat::NameAutoDXT;
 		}
 		
 		if (Texture->IsA(UTextureCube::StaticClass()))

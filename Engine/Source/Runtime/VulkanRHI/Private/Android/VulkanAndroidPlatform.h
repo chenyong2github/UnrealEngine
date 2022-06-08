@@ -143,6 +143,11 @@ public:
 		OutFallbackFormat1 = VK_FORMAT_B8G8R8A8_UNORM;
 		return VK_FORMAT_R5G5B5A1_UNORM_PACK16; 
 	};
+
+	// Setup platform to use AFBC workaround to reduce uncompressed textures memory requirements
+	static void SetupAFBCWorkaround(const FVulkanDevice& InDevice);
+	static void SetImageAFBCWorkaround(VkImageCreateInfo& ImageCreateInfo);
+
 protected:
 	static void* VulkanLib;
 	static bool bAttemptedLoad;
@@ -160,6 +165,8 @@ protected:
 	static int32 UnsuccessfulRefreshRateFrames;
 	static TArray<TArray<ANSICHAR>> DebugVulkanDeviceLayers;
 	static TArray<TArray<ANSICHAR>> DebugVulkanInstanceLayers;
+
+	static int32 AFBCWorkaroundOption;
 };
 
 #if VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING

@@ -53,6 +53,7 @@ int32 FVulkanAndroidPlatform::SuccessfulRefreshRateFrames = 1;
 int32 FVulkanAndroidPlatform::UnsuccessfulRefreshRateFrames = 0;
 TArray<TArray<ANSICHAR>> FVulkanAndroidPlatform::DebugVulkanDeviceLayers;
 TArray<TArray<ANSICHAR>> FVulkanAndroidPlatform::DebugVulkanInstanceLayers;
+int32 FVulkanAndroidPlatform::AFBCWorkaroundOption = 0;
 
 #define CHECK_VK_ENTRYPOINTS(Type,Func) if (VulkanDynamicAPI::Func == NULL) { bFoundAllEntryPoints = false; UE_LOG(LogRHI, Warning, TEXT("Failed to find entry point for %s"), TEXT(#Func)); }
 
@@ -612,4 +613,96 @@ bool FAndroidVulkanFramePacer::SupportsFramePace(int32 QueryFramePace)
 {
 	int32 TempRefreshRate, TempSyncInterval;
 	return SupportsFramePaceInternal(QueryFramePace, TempRefreshRate, TempSyncInterval);
+}
+
+//
+// Test whether we should enable a workaround for uncompressed textures
+// Arm GPUs use an optimization "Arm FrameBuffer Compression - AFBC" that can significanly inflate (~5x) uncompressed texture memory requirements
+// For now AFBC and similar optimizations can be disabled by using VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT or VK_IMAGE_USAGE_STORAGE_BIT flags on a texture
+//
+void FVulkanAndroidPlatform::SetupAFBCWorkaround(const FVulkanDevice& InDevice)
+{
+	AFBCWorkaroundOption = 0;
+
+	const VkFormat FormatAFBC = VK_FORMAT_B8G8R8A8_UNORM;
+	const VkFormatFeatureFlags FormatFlags = InDevice.GetFormatProperties()[FormatAFBC].optimalTilingFeatures;
+
+	VkImageCreateInfo ImageCreateInfo;
+	ZeroVulkanStruct(ImageCreateInfo, VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
+	ImageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+	ImageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	ImageCreateInfo.format = FormatAFBC;
+	ImageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	ImageCreateInfo.arrayLayers = 1;
+	ImageCreateInfo.extent = {128, 128, 1};
+	ImageCreateInfo.mipLevels = 8;
+	ImageCreateInfo.flags = 0;// VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+	ImageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	ImageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	ImageCreateInfo.queueFamilyIndexCount = 0;
+	ImageCreateInfo.pQueueFamilyIndices = nullptr;
+	ImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkImage Image0;
+	VkMemoryRequirements Image0Mem;
+	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &Image0));
+	VulkanRHI::vkGetImageMemoryRequirements(InDevice.GetInstanceHandle(), Image0, &Image0Mem);
+	VulkanRHI::vkDestroyImage(InDevice.GetInstanceHandle(), Image0, VULKAN_CPU_ALLOCATOR);
+
+	VkImage ImageMutable;
+	VkMemoryRequirements ImageMutableMem;
+	ImageCreateInfo.flags = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &ImageMutable));
+	VulkanRHI::vkGetImageMemoryRequirements(InDevice.GetInstanceHandle(), ImageMutable, &ImageMutableMem);
+	VulkanRHI::vkDestroyImage(InDevice.GetInstanceHandle(), ImageMutable, VULKAN_CPU_ALLOCATOR);
+
+	VkImage ImageStorage;
+	VkMemoryRequirements ImageStorageMem;
+	if ((FormatFlags & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) != 0)
+	{
+		ImageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+		ImageCreateInfo.flags = 0;
+	}
+	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &ImageStorage));
+	VulkanRHI::vkGetImageMemoryRequirements(InDevice.GetInstanceHandle(), ImageStorage, &ImageStorageMem);
+	VulkanRHI::vkDestroyImage(InDevice.GetInstanceHandle(), ImageStorage, VULKAN_CPU_ALLOCATOR);
+
+	const float MEM_SIZE_THRESHOLD = 1.5f;
+	const float IMAGE0_SIZE = (float)Image0Mem.size;
+
+	if (ImageMutableMem.size * MEM_SIZE_THRESHOLD < IMAGE0_SIZE)
+	{
+		AFBCWorkaroundOption = 1;
+	}
+	else if (ImageStorageMem.size * MEM_SIZE_THRESHOLD < IMAGE0_SIZE)
+	{
+		AFBCWorkaroundOption = 2;
+	}
+
+	if (AFBCWorkaroundOption != 0)
+	{
+		UE_LOG(LogRHI, Display, TEXT("Enabling workaround to reduce memory requrement for BGRA textures (%s flag). 128x128 - 8 Mips BGRA texture: %u KiB -> %u KiB"), 
+			AFBCWorkaroundOption == 1 ? TEXT("MUTABLE") : TEXT("STORAGE"),
+			Image0Mem.size / 1024,
+			AFBCWorkaroundOption == 1 ? ImageMutableMem.size / 1024 : ImageStorageMem.size / 1024
+		);
+	}
+}
+
+void FVulkanAndroidPlatform::SetImageAFBCWorkaround(VkImageCreateInfo& ImageCreateInfo)
+{
+	if (AFBCWorkaroundOption != 0 &&
+		ImageCreateInfo.imageType == VK_IMAGE_TYPE_2D && 
+		ImageCreateInfo.format == VK_FORMAT_B8G8R8A8_UNORM && 
+		ImageCreateInfo.mipLevels >= 8) // its worth enabling for 128x128 and up
+	{
+		if (AFBCWorkaroundOption == 1)
+		{
+			ImageCreateInfo.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+		}
+		else if (AFBCWorkaroundOption == 2)
+		{
+			ImageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+		}
+	}
 }

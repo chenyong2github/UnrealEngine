@@ -438,6 +438,8 @@ void FVulkanTexture::GenerateImageCreateInfo(
 		checkf(0, TEXT("Unsupported number of samples %d"), NumSamples);
 		break;
 	}
+
+	FVulkanPlatform::SetImageAFBCWorkaround(ImageCreateInfo);
 		
 	const VkFormatFeatureFlags FormatFlags = ImageCreateInfo.tiling == VK_IMAGE_TILING_LINEAR ? 
 		InDevice.GetFormatProperties()[ImageCreateInfo.format].linearTilingFeatures : 

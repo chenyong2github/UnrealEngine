@@ -603,6 +603,14 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 		TextureFormatNames.Init(NameG8, NumLayers);
 	}
 
+	// optionaly compress landscape weightmaps for a mobile rendering
+	static const auto CompressLandscapeWeightMapsVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.CompressLandscapeWeightMaps"));
+	static const bool bCompressLandscapeWeightMaps = (CompressLandscapeWeightMapsVar && CompressLandscapeWeightMapsVar->GetValueOnAnyThread() != 0);
+	if (Texture->LODGroup == TEXTUREGROUP_Terrain_Weightmap && bCompressLandscapeWeightMaps)
+	{
+		TextureFormatNames.Init(FName(TEXT("AutoDXT")), NumLayers);
+	}
+
 	// if we didn't assign anything specially, then use the defaults
 	if (TextureFormatNames.Num() == 0)
 	{
