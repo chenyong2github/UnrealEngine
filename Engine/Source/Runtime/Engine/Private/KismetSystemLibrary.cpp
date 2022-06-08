@@ -3269,4 +3269,69 @@ void UKismetSystemLibrary::GetPrimaryAssetsWithBundleState(const TArray<FName>& 
 		Manager->GetPrimaryAssetsWithBundleState(OutPrimaryAssetIdList, ValidTypes, RequiredBundles, ExcludedBundles, bForceCurrentState);
 	}
 }
+
+FARFilter UKismetSystemLibrary::MakeARFilter(const TArray<FName>& PackageNames, const TArray<FName>& PackagePaths, const TArray<FName>& ObjectPaths, const TArray<FTopLevelAssetPath>& ClassPaths, const TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet, const TArray<FName>& ClassNames, const TSet<FName>& RecursiveClassesExclusionSet, const bool bRecursivePaths, const bool bRecursiveClasses, const bool bIncludeOnlyOnDiskAssets)
+{
+	FARFilter NewFilter;
+	NewFilter.PackageNames = PackageNames;
+	NewFilter.PackagePaths = PackagePaths;
+	NewFilter.ObjectPaths = ObjectPaths;
+	NewFilter.bRecursivePaths = bRecursivePaths;
+	NewFilter.bRecursiveClasses = bRecursiveClasses;
+	NewFilter.bIncludeOnlyOnDiskAssets = bIncludeOnlyOnDiskAssets;
+
+	NewFilter.ClassPaths = ClassPaths;
+	NewFilter.RecursiveClassPathsExclusionSet = RecursiveClassPathsExclusionSet;
+
+	// Fixup to move to FTopLevelAssetPath
+	for (const FName& ClassName : ClassNames)
+	{
+		FTopLevelAssetPath ClassPathName;
+		if (!ClassName.IsNone())
+		{
+			FString ShortClassName = ClassName.ToString();
+			ClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(*ShortClassName, ELogVerbosity::Warning, TEXT("MakeARFilter should use ClassPaths, ClassNames is deprecated."));
+			UE_CLOG(ClassPathName.IsNull(), LogClass, Error, TEXT("Failed to convert short class name %s to class path name."), *ShortClassName);
+		}
+		
+		NewFilter.ClassPaths.Add(ClassPathName);
+	}
+	for (const FName& RecursiveClassToExclude : RecursiveClassesExclusionSet)
+	{
+		FTopLevelAssetPath ClassPathName;
+		if (!RecursiveClassToExclude.IsNone())
+		{
+			FString ShortClassName = RecursiveClassToExclude.ToString();
+			ClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(*ShortClassName, ELogVerbosity::Warning, TEXT("MakeARFilter should use RecursiveClassPathsExclusionSet, RecursiveClassesExclusionSet is deprecated."));
+			UE_CLOG(ClassPathName.IsNull(), LogClass, Error, TEXT("Failed to convert short class name %s to class path name."), *ShortClassName);
+		}
+		
+		NewFilter.RecursiveClassPathsExclusionSet.Add(ClassPathName);
+	}
+
+	return NewFilter;
+}
+
+void UKismetSystemLibrary::BreakARFilter(FARFilter InARFilter, TArray<FName>& PackageNames, TArray<FName>& PackagePaths, TArray<FName>& ObjectPaths, TArray<FTopLevelAssetPath>& ClassPaths, TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet, TArray<FName>& ClassNames, TSet<FName>& RecursiveClassesExclusionSet, bool& bRecursivePaths, bool& bRecursiveClasses, bool& bIncludeOnlyOnDiskAssets)
+{
+	PackageNames = InARFilter.PackageNames;
+	PackagePaths = InARFilter.PackagePaths;
+	ObjectPaths = InARFilter.ObjectPaths;
+	ClassPaths = InARFilter.ClassPaths;
+	RecursiveClassPathsExclusionSet = InARFilter.RecursiveClassPathsExclusionSet;
+	bRecursivePaths = InARFilter.bRecursivePaths;
+	bRecursiveClasses = InARFilter.bRecursiveClasses;
+	bIncludeOnlyOnDiskAssets = InARFilter.bIncludeOnlyOnDiskAssets;
+
+	// Fixup to move from FTopLevelAssetPath to legacy types
+	for (const FTopLevelAssetPath& ClassPath : ClassPaths)
+	{
+		ClassNames.Add(ClassPath.GetAssetName());
+	}
+	for (const FTopLevelAssetPath& RecursiveClassPathToExclude : RecursiveClassPathsExclusionSet)
+	{
+		RecursiveClassesExclusionSet.Add(RecursiveClassPathToExclude.GetAssetName());
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -2131,7 +2131,7 @@ enum class EDataValidationResult : uint8
 	NotValidated
 };
 
-USTRUCT(noexport, BlueprintType, IsAlwaysAccessible, HasDefaults)
+USTRUCT(noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, meta = (HasNativeMake = "/Script/Engine.KismetSystemLibrary.MakeARFilter", HasNativeBreak = "/Script/Engine.KismetSystemLibrary.BreakARFilter"))
 struct FARFilter
 {
 	/** The filter component for package names */
@@ -2146,8 +2146,8 @@ struct FARFilter
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
 	TArray<FName> ObjectPaths;
 
-	/** The filter component for class names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. Deprecated. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
+	/** [DEPRECATED] - Class names are now represented by path names. Please use ClassPaths instead. */
+	UPROPERTY(BlueprintReadWrite, Category = AssetRegistry)
 	TArray<FName> ClassNames;
 
 	/** The filter component for class path names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. */
@@ -2157,8 +2157,8 @@ struct FARFilter
 	/** The filter component for properties marked with the AssetRegistrySearchable flag */
 	TMultiMap<FName, TOptional<FString>> TagsAndValues;
 
-	/** Deprecated. Only if bRecursiveClasses is true, the results will exclude classes (and subclasses) in this list */
-	UPROPERTY()
+	/** [DEPRECATED] - Class names are now represented by path names. Please use RecursiveClassPathsExclusionSet instead. */
+	UPROPERTY(BlueprintReadWrite, Category = AssetRegistry)
 	TSet<FName> RecursiveClassesExclusionSet;
 
 	/** Only if bRecursiveClasses is true, the results will exclude classes (and subclasses) in this list */
