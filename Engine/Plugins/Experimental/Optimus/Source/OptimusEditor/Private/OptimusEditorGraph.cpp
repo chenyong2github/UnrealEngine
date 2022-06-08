@@ -303,7 +303,9 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 		    break;
 		}
 
-		case EOptimusGraphNotifyType::PinTypeChanged: 
+		case EOptimusGraphNotifyType::PinTypeChanged:
+		// FIXME: For now we just use the same reconstruction as type change for domain change.
+		case EOptimusGraphNotifyType::PinDataDomainChanged:
 		{
 			// The pin type has changed. We may need to reconstruct the pin, especially if it
 			// had sub-pins before but doesn't now, or the other way around. 

@@ -90,8 +90,13 @@ public:
 		IPropertyTypeCustomizationUtils& InCustomizationUtils) override
 	{ }
 
+	void SetAllowParameters(const bool bInAllowParameters);
+
 private:
+	void GenerateContextNames();
+
 	TArray<TSharedRef<TArray<FName>>> NestedContextNames;
+	bool bAllowParameters = false;
 };
 
 
@@ -174,11 +179,13 @@ class FOptimusParameterBindingArrayBuilder
 public:
 	static TSharedRef<FOptimusParameterBindingArrayBuilder> MakeInstance(
 		TSharedRef<IPropertyHandle> InPropertyHandle,
-		TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData);
+		TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData,
+		const bool bInAllowParameters);
 	
 	FOptimusParameterBindingArrayBuilder(
 		TSharedRef<IPropertyHandle> InPropertyHandle,
-		TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData);
+		TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData,
+		const bool bInAllowParameters);
 	
 	// FDetailArrayBuilder Interface
 	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override;
@@ -192,6 +199,8 @@ private:
 	TSharedPtr<IPropertyHandleArray> ArrayProperty;
 
 	TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> ColumnSizeData;
+
+	bool bAllowParameters = false;
 };
 
 

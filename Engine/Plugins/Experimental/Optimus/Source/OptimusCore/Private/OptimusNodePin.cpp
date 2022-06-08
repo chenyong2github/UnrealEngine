@@ -339,12 +339,18 @@ bool UOptimusNodePin::VerifyValue(const FString& InStringValue) const
 }
 
 
-TArray<UOptimusNodePin*> UOptimusNodePin::GetSubPinsRecursively() const
+TArray<UOptimusNodePin*> UOptimusNodePin::GetSubPinsRecursively(
+	bool bInIncludeThisPin
+	) const
 {
 	TArray<UOptimusNodePin*> CollectedPins;
 	TQueue<UOptimusNodePin*> PinQueue;
 
 	PinQueue.Enqueue(const_cast<UOptimusNodePin*>(this));
+	if (bInIncludeThisPin)
+	{
+		CollectedPins.Add(const_cast<UOptimusNodePin*>(this));
+	}
 	UOptimusNodePin *WorkingPin = nullptr;
 	while (PinQueue.Dequeue(WorkingPin))
 	{

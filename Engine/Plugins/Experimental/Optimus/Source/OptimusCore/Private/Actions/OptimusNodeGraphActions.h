@@ -376,7 +376,6 @@ private:
 	FName Category;
 	FString KernelName;
 	FIntVector GroupSize;
-	TArray<FOptimus_ShaderValuedBinding> Parameters;
 	TArray<FOptimusParameterBinding> InputBindings;
 	TArray<FOptimusParameterBinding> OutputBindings;
 	FString ShaderSource;

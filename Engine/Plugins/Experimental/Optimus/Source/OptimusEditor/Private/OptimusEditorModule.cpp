@@ -2,8 +2,8 @@
 
 #include "OptimusEditorModule.h"
 
-#include "SOptimusEditorGraphExplorer.h"
-#include "SOptimusShaderTextDocumentTextBox.h"
+#include "Widgets/SOptimusEditorGraphExplorer.h"
+#include "Widgets/SOptimusShaderTextDocumentTextBox.h"
 #include "OptimusDeformerAssetActions.h"
 #include "OptimusDetailsCustomization.h"
 #include "OptimusEditor.h"

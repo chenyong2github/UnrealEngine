@@ -28,7 +28,7 @@ public:
 	// SGraphNode overrides
 	void EndUserInteraction() const override;
 	void CreateStandardPinWidget(UEdGraphPin* CurPin) override;
-	void AddPin( const TSharedRef<SGraphPin>& PinToAdd ) override;
+	void AddPin(const TSharedRef<SGraphPin>& PinToAdd) override;
 	TSharedPtr<SGraphPin> GetHoveredPin(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const override;
 	void RefreshErrorInfo() override;
 	void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -37,6 +37,7 @@ private:
 	UOptimusEditorGraphNode *GetEditorGraphNode() const;
 	UOptimusNode* GetModelNode() const;
 	TSharedPtr<SGraphPin> GetPinWidget(UEdGraphPin* InGraphPin);
+	void UpdatePinIcon(const TSharedRef<SGraphPin>& PinToAdd) const;
 
 	void SyncPinWidgetsWithGraphPins();
 	

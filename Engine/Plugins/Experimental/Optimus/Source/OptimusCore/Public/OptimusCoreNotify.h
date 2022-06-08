@@ -54,6 +54,7 @@ enum class EOptimusGraphNotifyType
 	PinValueChanged,		/// A pin on a node has had its value changed (Subject = UOptimusNodePin)
 	PinRenamed,				/// A pin's name has changed (Subject = UOptimusNodePin)
 	PinTypeChanged,			/// A pin's underlying type has changed (Subject = UOptimusNodePin)
+	PinDataDomainChanged,	/// A pin's data domain has changed (Subject = UOptimusNodePin)
 };
 
 // A delegate for subscribing / reacting to Optimus graph local notifications.

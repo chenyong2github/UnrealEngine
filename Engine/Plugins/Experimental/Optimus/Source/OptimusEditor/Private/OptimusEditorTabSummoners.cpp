@@ -8,9 +8,9 @@
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "OptimusEditor.h"
-#include "SOptimusEditorGraphExplorer.h"
-#include "SOptimusNodePalette.h"
-#include "SOptimusShaderTextEditor.h"
+#include "Widgets/SOptimusEditorGraphExplorer.h"
+#include "Widgets/SOptimusNodePalette.h"
+#include "Widgets/SOptimusShaderTextEditor.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorTabSummoners"
 

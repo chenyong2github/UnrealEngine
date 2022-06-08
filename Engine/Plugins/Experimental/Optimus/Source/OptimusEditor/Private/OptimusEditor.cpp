@@ -9,7 +9,7 @@
 #include "OptimusEditorGraphNode.h"
 #include "OptimusEditorGraphSchema.h"
 #include "OptimusEditorModule.h"
-#include "SOptimusGraphTitleBar.h"
+#include "Widgets/SOptimusGraphTitleBar.h"
 
 #include "OptimusActionStack.h"
 #include "OptimusCoreNotify.h"

@@ -525,6 +525,8 @@ void SOptimusEditorGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 		}
 		else
 		{
+			UpdatePinIcon(*RecycledPin);
+			
 			NewPin = *RecycledPin;
 		}
 
@@ -543,42 +545,49 @@ void SOptimusEditorGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 
 void SOptimusEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 {
+	UpdatePinIcon(PinToAdd);
+	
 	PinToAdd->SetShowLabel(false);
 
-	UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
-	if (ensure(EditorGraphNode))
+	// Remove value widget from combined pin content
+	TSharedPtr<SWrapBox> LabelAndValueWidget = PinToAdd->GetLabelAndValue();
+	TSharedPtr<SHorizontalBox> FullPinHorizontalRowWidget = PinToAdd->GetFullPinHorizontalRowWidget().Pin();
+	if (LabelAndValueWidget.IsValid() && FullPinHorizontalRowWidget.IsValid())
 	{
-		const UEdGraphPin* EdPinObj = PinToAdd->GetPinObj();
+		FullPinHorizontalRowWidget->RemoveSlot(LabelAndValueWidget.ToSharedRef());
+	}
 
-		UOptimusNodePin *ModelPin = EditorGraphNode->FindModelPinFromGraphPin(EdPinObj);
-		if (ModelPin)
+	PinToAdd->SetOwner(SharedThis(this));
+}
+
+
+void SOptimusEditorGraphNode::UpdatePinIcon(
+	const TSharedRef<SGraphPin>& InPinToUpdate
+	) const
+{
+	const UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
+	if (!ensure(EditorGraphNode))
+	{
+		return;
+	}
+	const UEdGraphPin* EdPinObj = InPinToUpdate->GetPinObj();
+	if (const UOptimusNodePin *ModelPin = EditorGraphNode->FindModelPinFromGraphPin(EdPinObj))
+	{
+		switch (ModelPin->GetStorageType())
 		{
-			switch (ModelPin->GetStorageType())
-			{
-			case EOptimusNodePinStorageType::Resource:
-				PinToAdd->SetCustomPinIcon(CachedImg_Pin_Resource_Connected, CachedImg_Pin_Resource_Disconnected);
-				break;
+		case EOptimusNodePinStorageType::Resource:
+			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Resource_Connected, CachedImg_Pin_Resource_Disconnected);
+			break;
 
-			case EOptimusNodePinStorageType::Value:
-				PinToAdd->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
-				break;
-			}
+		case EOptimusNodePinStorageType::Value:
+			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
+			break;
 		}
-		else if (OptimusEditor::IsAdderPin(EdPinObj))
-		{
-			// TODO: Use a adder pin specific icon
-			PinToAdd->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
-		}
-
-		// Remove value widget from combined pin content
-		TSharedPtr<SWrapBox> LabelAndValueWidget = PinToAdd->GetLabelAndValue();
-		TSharedPtr<SHorizontalBox> FullPinHorizontalRowWidget = PinToAdd->GetFullPinHorizontalRowWidget().Pin();
-		if (LabelAndValueWidget.IsValid() && FullPinHorizontalRowWidget.IsValid())
-		{
-			FullPinHorizontalRowWidget->RemoveSlot(LabelAndValueWidget.ToSharedRef());
-		}
-
-		PinToAdd->SetOwner(SharedThis(this));
+	}
+	else if (OptimusEditor::IsAdderPin(EdPinObj))
+	{
+		// TODO: Use a adder pin specific icon
+		InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
 	}
 }
 

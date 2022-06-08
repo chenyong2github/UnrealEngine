@@ -3,9 +3,9 @@
 #include "OptimusEditorGraphNodeFactory.h"
 
 #include "OptimusEditorGraphNode.h"
-#include "SOptimusEditorGraphNode.h"
+#include "Widgets/SOptimusEditorGraphNode.h"
 
-TSharedPtr<class SGraphNode> FOptimusEditorGraphNodeFactory::CreateNode(UEdGraphNode* InNode) const
+TSharedPtr<SGraphNode> FOptimusEditorGraphNodeFactory::CreateNode(UEdGraphNode* InNode) const
 {
 	if (UOptimusEditorGraphNode* GraphNode = Cast<UOptimusEditorGraphNode>(InNode))
 	{

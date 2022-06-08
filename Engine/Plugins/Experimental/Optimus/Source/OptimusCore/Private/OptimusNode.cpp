@@ -31,7 +31,7 @@ const FName UOptimusNode::PropertyMeta::Category("Category");
 const FName UOptimusNode::PropertyMeta::Input("Input");
 const FName UOptimusNode::PropertyMeta::Output("Output");
 const FName UOptimusNode::PropertyMeta::Resource("Resource");
-
+const FName UOptimusNode::PropertyMeta::AllowParameters("AllowParameters");
 
 UOptimusNode::UOptimusNode()
 {
@@ -687,16 +687,25 @@ bool UOptimusNode::SetPinDataDomain(
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction;
 	Action->SetTitlef(TEXT("Set Pin Data Domain"));
 
-	// Disconnect all the links because they _will_ become incompatible.
-	for (UOptimusNodePin* ConnectedPin: InPin->GetConnectedPins())
+	// If we're not an output pin, or if the new domain levels are non-empty, then
+	// we need to disconnect all links, because they _will_ become incompatible.
+	if (InPin->GetDirection() == EOptimusNodePinDirection::Input || !InDataDomainLevelNames.IsEmpty())
 	{
-		if (InPin->GetDirection() == EOptimusNodePinDirection::Input)
+		// Make sure to disconnect all possible sub-pins.
+		constexpr bool bIncludeThisPin = true;
+		for (UOptimusNodePin* Pin: InPin->GetSubPinsRecursively(bIncludeThisPin))
 		{
-			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(ConnectedPin, InPin);
-		}
-		else
-		{
-			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(InPin, ConnectedPin);
+			for (UOptimusNodePin* ConnectedPin: Pin->GetConnectedPins())
+			{
+				if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
+				{
+					Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(ConnectedPin, Pin);
+				}
+				else
+				{
+					Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Pin, ConnectedPin);
+				}
+			}
 		}
 	}
 	
@@ -711,7 +720,37 @@ bool UOptimusNode::SetPinDataDomainDirect(
 	const TArray<FName>& InDataDomainLevelNames
 	)
 {
+	const EOptimusNodePinStorageType OldStorageType = InPin->StorageType; 
+	InPin->StorageType = InDataDomainLevelNames.IsEmpty() ? EOptimusNodePinStorageType::Value : EOptimusNodePinStorageType::Resource;
 	InPin->DataDomain.LevelNames = InDataDomainLevelNames;
+	
+	// For value types, we want to show sub-pins.
+	if (OldStorageType != InPin->StorageType)
+	{
+		// Remove all sub-pins, if there were any.		
+		TGuardValue<bool> SuppressNotifications(bSendNotifications, false);
+
+		// Remove all existing pins, because we may be going from a non-empty domain to an empty one. 
+		InPin->ClearSubPins();
+
+		if (InPin->StorageType == EOptimusNodePinStorageType::Value)
+		{
+			// Add sub-pins, if the registered type is set to show them but only for value types.
+			if (EnumHasAllFlags(InPin->DataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
+			{
+				if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InPin->DataType->TypeObject))
+				{
+					CreatePinsFromStructLayout(Struct, InPin);
+				}
+			}
+		}
+	}
+
+	if (CanNotify())
+	{
+		InPin->Notify(EOptimusGraphNotifyType::PinDataDomainChanged);
+	}
+	
 	return true;
 }
 

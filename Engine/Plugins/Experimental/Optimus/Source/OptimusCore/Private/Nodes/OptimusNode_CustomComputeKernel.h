@@ -84,8 +84,10 @@ public:
 	FIntVector GroupSize = FIntVector(64, 1, 1);
 
 	/** Parameter bindings. Parameters are uniform values. */
-	UPROPERTY(EditAnywhere, Category=Bindings)
-	TArray<FOptimus_ShaderBinding> Parameters;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY(meta=(DeprecatedProperty))
+	TArray<FOptimus_ShaderBinding> Parameters_DEPRECATED;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	/** Input bindings. Each one is a function that should be connected to an implementation in a data interface. */
 	UPROPERTY(meta=(DeprecatedProperty))
@@ -96,7 +98,7 @@ public:
 	TArray<FOptimusParameterBinding> OutputBindings_DEPRECATED;	
 
 	/** Input bindings. Each one is a function that should be connected to an implementation in a data interface. */
-	UPROPERTY(EditAnywhere, Category = Bindings, DisplayName = "Input Bindings")
+	UPROPERTY(EditAnywhere, Category = Bindings, DisplayName = "Input Bindings", meta=(AllowParameters))
 	FOptimusParameterBindingArray InputBindingArray;
 
 	/** Output bindings. Each one is a function that should be connected to an implementation in a data interface. */
@@ -144,14 +146,13 @@ private:
 	
 	void UpdatePreamble();
 
-	TMap<FName, UOptimusNodePin*> GetFilteredPins(
-		EOptimusNodePinDirection InDirection,
-		EOptimusNodePinStorageType InStorageType) const;
-
-	static FString GetDeclarationForBinding(const FOptimus_ShaderBinding& Binding);
 	static FString GetDeclarationForBinding(const FOptimusParameterBinding& Binding, bool bIsInput);
 
-	TArray<UOptimusNodePin *> GetKernelPins(
+	TArray<UOptimusNodePin *> GetPinsByDirection(
 		EOptimusNodePinDirection InPinDirection
+		) const;
+	
+	TMap<FName, UOptimusNodePin*> GetNamedPinsByDirection(
+		EOptimusNodePinDirection InDirection
 		) const;
 };

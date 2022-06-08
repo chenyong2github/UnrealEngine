@@ -4,7 +4,7 @@
 
 #include "OptimusEditorStyle.h"
 #include "OptimusHLSLSyntaxHighlighter.h"
-#include "SOptimusDataTypeSelector.h"
+#include "Widgets/SOptimusDataTypeSelector.h"
 
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusValueContainer.h"
@@ -19,6 +19,7 @@
 #include "PropertyEditor/Private/PropertyNode.h"
 #include "PropertyEditor/Public/IPropertyUtilities.h"
 #include "OptimusComputeDataInterface.h"
+#include "OptimusNode.h"
 #include "OptimusResourceDescription.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
@@ -213,23 +214,7 @@ TSharedRef<IPropertyTypeCustomization> FOptimusMultiLevelDataDomainCustomization
 
 FOptimusMultiLevelDataDomainCustomization::FOptimusMultiLevelDataDomainCustomization()
 {
-	for (TArray<FName> Names: UOptimusComputeDataInterface::GetUniqueAllNestedContexts())
-	{
-		NestedContextNames.Add(MakeShared<TArray<FName>>(Names));
-	}
-	NestedContextNames.Sort([](const TSharedRef<TArray<FName>>& A, const TSharedRef<TArray<FName>> &B)
-	{
-		// Compare up to the point that we have same number of members to compare.
-		for (int32 Index = 0; Index < FMath::Min(A->Num(), B->Num()); Index++)
-		{
-			if ((*A)[Index] != (*B)[Index])
-			{
-				return FNameLexicalLess()((*A)[Index], (*B)[Index]);
-			}
-		}
-		// Otherwise the entry with fewer members goes first.
-		return A->Num() < B->Num();
-	});
+	GenerateContextNames();
 }
 
 
@@ -241,12 +226,43 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 {
 	auto FormatNames = [](const TArray<FName>& InNames) -> FText
 	{
+		if (InNames.IsEmpty())
+		{
+			return LOCTEXT("ParameterEntry", "Parameter Value");
+		}
+		
 		TArray<FText> NameParts;
 		for (FName Name: InNames)
 		{
 			NameParts.Add(FText::FromName(Name));
 		}
 		return FText::Join(FText::FromString(UTF8TEXT(" › ")), NameParts);
+	};
+
+	auto TryGetSingleValue = [InPropertyHandle](TArray<FName> &OutNames) -> bool
+	{
+		TArray<const void *> RawDataPtrs;
+		InPropertyHandle->AccessRawData(RawDataPtrs);
+
+		bool bItemsAreAllSame = true;
+		for (const void* RawPtr: RawDataPtrs)
+		{
+			const FOptimusMultiLevelDataDomain* DataDomain = static_cast<const FOptimusMultiLevelDataDomain*>(RawPtr);
+			// During drag & reorder, invalid binding can be created temporarily
+			if (DataDomain)
+			{
+				if (OutNames.IsEmpty())
+				{
+					OutNames = DataDomain->LevelNames;
+				}
+				else if (OutNames != DataDomain->LevelNames)
+				{
+					bItemsAreAllSame = false;
+					break;
+				}
+			}
+		}
+		return bItemsAreAllSame;
 	};
 	
 	InHeaderRow.NameContent()
@@ -266,7 +282,7 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 			{
 				return SNew(STextBlock)
 					.Text(FormatNames(*InNames))
-					.Font(IPropertyTypeCustomizationUtils::GetRegularFont());
+					.Font(InNames->IsEmpty() ? IPropertyTypeCustomizationUtils::GetBoldFont() : IPropertyTypeCustomizationUtils::GetRegularFont());
 			})
 			.OnSelectionChanged_Lambda([InPropertyHandle](TSharedPtr<TArray<FName>> InNames, ESelectInfo::Type)
 			{
@@ -295,42 +311,60 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 			[
 				SNew(STextBlock)
 				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
-				.Text_Lambda([InPropertyHandle, FormatNames]()
+				.Text_Lambda([TryGetSingleValue, FormatNames]()
 				{
-					TArray<const void *> RawDataPtrs;
-					InPropertyHandle->AccessRawData(RawDataPtrs);
-
-					bool bItemsDiffer = false;
 					TArray<FName> Names;
-					for (const void* RawPtr: RawDataPtrs)
+					if (TryGetSingleValue(Names))
 					{
-						const FOptimusMultiLevelDataDomain* DataDomain = static_cast<const FOptimusMultiLevelDataDomain*>(RawPtr);
-						// During drag & reorder, invalid binding can be created temporarily
-						if (DataDomain)
-						{
-							if (Names.IsEmpty())
-							{
-								Names = DataDomain->LevelNames;
-							}
-							else if (Names != DataDomain->LevelNames)
-							{
-								bItemsDiffer = true;
-								break;
-							}
-						}
-					}
-
-					if (bItemsDiffer)
-					{
-						return FText::FromString(TEXT("---"));
+						return FormatNames(Names);
 					}
 					else
 					{
-						return FormatNames(Names);
+						return FText::FromString(TEXT("---"));
 					}
 				})
 			]
 	];
+}
+
+
+void FOptimusMultiLevelDataDomainCustomization::SetAllowParameters(const bool bInAllowParameters)
+{
+	if (bInAllowParameters != bAllowParameters)
+	{
+		bAllowParameters = bInAllowParameters;
+		GenerateContextNames();
+	}
+}
+
+
+void FOptimusMultiLevelDataDomainCustomization::GenerateContextNames()
+{
+	NestedContextNames.Reset();
+
+	if (bAllowParameters)
+	{
+		// Add an empty set of names. We format it specifically above.
+		NestedContextNames.Add(MakeShared<TArray<FName>>());
+	}
+	
+	for (TArray<FName> Names: UOptimusComputeDataInterface::GetUniqueAllNestedContexts())
+	{
+		NestedContextNames.Add(MakeShared<TArray<FName>>(Names));
+	}
+	NestedContextNames.Sort([](const TSharedRef<TArray<FName>>& A, const TSharedRef<TArray<FName>> &B)
+	{
+		// Compare up to the point that we have same number of members to compare.
+		for (int32 Index = 0; Index < FMath::Min(A->Num(), B->Num()); Index++)
+		{
+			if ((*A)[Index] != (*B)[Index])
+			{
+				return FNameLexicalLess()((*A)[Index], (*B)[Index]);
+			}
+		}
+		// Otherwise the entry with fewer members goes first.
+		return A->Num() < B->Num();
+	});
 }
 
 
@@ -541,6 +575,12 @@ public:
 	{
 		ColumnSizeData = InData;
 	};
+
+	void SetAllowParameters(const bool bInAllowParameters)
+	{
+		TSharedPtr<FOptimusMultiLevelDataDomainCustomization> DataDomainCustomization = StaticCastSharedPtr<FOptimusMultiLevelDataDomainCustomization>(DataDomainCustomizationInstance);
+		DataDomainCustomization->SetAllowParameters(bInAllowParameters);
+	}
 	
 
 private:
@@ -590,8 +630,10 @@ FOptimusParameterBindingCustomization::FOptimusParameterBindingCustomization()
 	
 }
 
-void FOptimusParameterBindingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle,
-	FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& InCustomizationUtils)
+void FOptimusParameterBindingCustomization::CustomizeHeader(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	FDetailWidgetRow& InHeaderRow,
+	IPropertyTypeCustomizationUtils& InCustomizationUtils)
 {
 	TSharedRef<IPropertyHandle>& BindingPropertyHandle = InPropertyHandle;
 	const TSharedPtr<IPropertyHandle> NameProperty = BindingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBinding, Name));
@@ -614,8 +656,11 @@ void FOptimusParameterBindingCustomization::CustomizeHeader(TSharedRef<IProperty
 	];	
 }
 
-void FOptimusParameterBindingCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle,
-	IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& InCustomizationUtils)
+void FOptimusParameterBindingCustomization::CustomizeChildren(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	IDetailChildrenBuilder& InChildBuilder,
+	IPropertyTypeCustomizationUtils& InCustomizationUtils
+	)
 {
 	FString Declaration;
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InCustomizationUtils.GetPropertyUtilities()->GetSelectedObjects();
@@ -664,9 +709,11 @@ void FOptimusParameterBindingCustomization::CustomizeChildren(TSharedRef<IProper
 
 TSharedRef<FOptimusParameterBindingArrayBuilder> FOptimusParameterBindingArrayBuilder::MakeInstance(
 	TSharedRef<IPropertyHandle> InPropertyHandle,
-	TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData)
+	TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData,
+	const bool bInAllowParameters
+	)
 {
-	TSharedRef<FOptimusParameterBindingArrayBuilder> Builder = MakeShared<FOptimusParameterBindingArrayBuilder>(InPropertyHandle, InColumnSizeData);
+	TSharedRef<FOptimusParameterBindingArrayBuilder> Builder = MakeShared<FOptimusParameterBindingArrayBuilder>(InPropertyHandle, InColumnSizeData, bInAllowParameters);
 	
 	Builder->OnGenerateArrayElementWidget(
 		FOnGenerateArrayElementWidget::CreateSP(Builder, &FOptimusParameterBindingArrayBuilder::OnGenerateEntry));
@@ -675,10 +722,12 @@ TSharedRef<FOptimusParameterBindingArrayBuilder> FOptimusParameterBindingArrayBu
 
 FOptimusParameterBindingArrayBuilder::FOptimusParameterBindingArrayBuilder(
 	TSharedRef<IPropertyHandle> InPropertyHandle,
-	TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData)
-	: FDetailArrayBuilder(InPropertyHandle, true, false, true)
-	, ArrayProperty(InPropertyHandle->AsArray())
-	, ColumnSizeData(InColumnSizeData)
+	TSharedPtr<FOptimusParameterBindingCustomization::FColumnSizeData> InColumnSizeData,
+	const bool bInAllowParameters
+	) : FDetailArrayBuilder(InPropertyHandle, true, false, true),
+		ArrayProperty(InPropertyHandle->AsArray()),
+		ColumnSizeData(InColumnSizeData),
+		bAllowParameters(bInAllowParameters)
 {
 	if (!ColumnSizeData.IsValid())
 	{
@@ -708,7 +757,8 @@ void FOptimusParameterBindingArrayBuilder::GenerateWrapperStructHeaderRowContent
 }
 
 
-void FOptimusParameterBindingArrayBuilder::OnGenerateEntry(TSharedRef<IPropertyHandle> ElementProperty,
+void FOptimusParameterBindingArrayBuilder::OnGenerateEntry(
+	TSharedRef<IPropertyHandle> ElementProperty,
 	int32 ElementIndex, IDetailChildrenBuilder& ChildrenBuilder) const
 {
 	IDetailPropertyRow& PropertyRow = ChildrenBuilder.AddProperty(ElementProperty);
@@ -738,6 +788,7 @@ void FOptimusParameterBindingArrayBuilder::OnGenerateEntry(TSharedRef<IPropertyH
 	const TSharedPtr<SWidget> InnerValueWidget = HBox->GetSlot(0).GetWidget();
 	const TSharedPtr<SOptimusParameterBindingValueWidget> OptimusValueWidget = StaticCastSharedPtr<SOptimusParameterBindingValueWidget>(InnerValueWidget);
 	OptimusValueWidget->SetColumnSizeData(ColumnSizeData);
+	OptimusValueWidget->SetAllowParameters(bAllowParameters);
 }
 
 FOptimusParameterBindingArrayCustomization::FOptimusParameterBindingArrayCustomization()
@@ -748,9 +799,10 @@ FOptimusParameterBindingArrayCustomization::FOptimusParameterBindingArrayCustomi
 void FOptimusParameterBindingArrayCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle,
                                                                  FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& InCustomizationUtils)
 {
+	const bool bAllowParameters = InPropertyHandle->HasMetaData(UOptimusNode::PropertyMeta::AllowParameters);
 	const TSharedPtr<IPropertyHandle> ArrayHandle = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBindingArray, InnerArray), false);
 	
-	ArrayBuilder = FOptimusParameterBindingArrayBuilder::MakeInstance(ArrayHandle.ToSharedRef(), ColumnSizeData);
+	ArrayBuilder = FOptimusParameterBindingArrayBuilder::MakeInstance(ArrayHandle.ToSharedRef(), ColumnSizeData, bAllowParameters);
 	// use the top level property instead of "InnerArray"
 	ArrayBuilder->GenerateWrapperStructHeaderRowContent(InHeaderRow,InPropertyHandle->CreatePropertyNameWidget());
 }

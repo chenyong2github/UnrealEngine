@@ -14,7 +14,6 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	FName InCategory,
 	const FString& InKernelName,
 	FIntVector InGroupSize,
-	const TArray<FOptimus_ShaderValuedBinding>& InParameters,
 	const TArray<FOptimusParameterBinding>& InInputBindings,
 	const TArray<FOptimusParameterBinding>& InOutputBindings,
 	const FString& InShaderSource
@@ -32,13 +31,6 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 		return nullptr;
 	}
 
-	for (const FOptimus_ShaderValuedBinding& Parameter: InParameters)
-	{
-		if (!ensure(Parameter.IsValid()))
-		{
-			return nullptr;
-		}
-	}
 	for (const FOptimusParameterBinding& Binding: InInputBindings)
 	{
 		if (!ensure(Binding.IsValid()))
@@ -69,7 +61,6 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	KernelClass->Category = InCategory;
 	KernelClass->KernelName = InKernelName;
 	KernelClass->GroupSize = InGroupSize;
-	KernelClass->Parameters = InParameters;
 	KernelClass->InputBindings = InInputBindings;
 	KernelClass->OutputBindings = InOutputBindings;
 	KernelClass->ShaderSource = InShaderSource;
@@ -82,23 +73,29 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	}
 
 	TMap<const FProperty*, const TArray<uint8>*> PropertyValues;
-	for (const FOptimus_ShaderValuedBinding& ParameterBinding: InParameters)
+	for (const FOptimusParameterBinding& InputBinding: InInputBindings)
 	{
-		FProperty *Property = ParameterBinding.DataType->CreateProperty(KernelClass, ParameterBinding.Name);
+		if (InputBinding.DataDomain.IsEmpty())
+		{
+			FProperty *Property = InputBinding.DataType->CreateProperty(KernelClass, InputBinding.Name);
 
-		// Update the property so that it is editable in 
-		Property->PropertyFlags |= CPF_Edit;
+			// Update the property so that it is editable in 
+			Property->PropertyFlags |= CPF_Edit;
 #if WITH_EDITOR
-		Property->SetMetaData(TEXT("Category"), InKernelName + TEXT(" Settings"));
+			Property->SetMetaData(TEXT("Category"), InKernelName + TEXT(" Settings"));
 #endif
 
-		if (!ParameterBinding.RawValue.IsEmpty())
-		{
-			PropertyValues.Add(Property, &ParameterBinding.RawValue);
-		}
+			/** FIXME: When parameter evaluation is available, update this to copy the 
+			 *  evaluated value from the binding connection.
+			if (!ParameterBinding.RawValue.IsEmpty())
+			{
+				PropertyValues.Add(Property, &ParameterBinding.RawValue);
+			}
+			*/
 
-		*NextProperty = Property;
-		NextProperty = &Property->Next;
+			*NextProperty = Property;
+			NextProperty = &Property->Next;
+		}
 	}
 
 	// Finalize the class
@@ -194,10 +191,6 @@ void UOptimusNode_ComputeKernelFunction::ConstructNode()
 {
 	UOptimusNode_ComputeKernelFunctionGeneratorClass *NodeClass = GetGeneratorClass();  
 	
-	for (const FOptimus_ShaderValuedBinding& Binding: NodeClass->Parameters)
-	{
-		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, {}, Binding.DataType);
-	}
 	for (const FOptimusParameterBinding& Binding: NodeClass->InputBindings)
 	{
 		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);

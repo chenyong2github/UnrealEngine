@@ -7,7 +7,7 @@
 #include "OptimusBindingTypes.generated.h"
 
 USTRUCT()
-struct FOptimus_ShaderBinding
+struct UE_DEPRECATED(5.1, "Replaced with FOptimusParameterBinding") FOptimus_ShaderBinding
 {
 	GENERATED_BODY()
 
@@ -24,25 +24,26 @@ struct FOptimus_ShaderBinding
 	}
 };
 
-// FIXME: Fold FOptimus_ShaderBinding into this and do a post-load fix in CustomComputeKernel.
+
 USTRUCT()
-struct FOptimusParameterBinding :
-	public FOptimus_ShaderBinding
+struct FOptimusParameterBinding
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, Category=Binding)
+	FName Name;
+
+	UPROPERTY(EditAnywhere, Category = Binding, meta=(UseInResource))
+	FOptimusDataTypeRef DataType;
+
+	/** Returns true if the binding is valid and has defined entries */
+	bool IsValid() const
+	{
+		return !Name.IsNone() && DataType.IsValid();
+	}
+	
 	UPROPERTY(EditAnywhere, Category = Binding)
 	FOptimusMultiLevelDataDomain DataDomain;
-};
-
-USTRUCT()
-struct FOptimus_ShaderValuedBinding :
-	public FOptimus_ShaderBinding
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	TArray<uint8> RawValue;
 };
 
 

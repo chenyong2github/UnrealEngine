@@ -39,7 +39,7 @@ struct FOptimusNodePinStorageConfig
 	
 	// Create a storage config for a resource pin.
 	FOptimusNodePinStorageConfig(const TArray<FName>& InDataDomainLevelNames) :
-		Type(EOptimusNodePinStorageType::Resource),
+		Type(InDataDomainLevelNames.IsEmpty() ? EOptimusNodePinStorageType::Value : EOptimusNodePinStorageType::Resource),
 		DataDomain(InDataDomainLevelNames)
 	{ }
 	
@@ -132,7 +132,7 @@ public:
 
 	/// Returns all sub-pins of this pin, recursively. In the returned list, the parent pins
 	/// are listed before their child pins.
-	TArray<UOptimusNodePin *> GetSubPinsRecursively() const;
+	TArray<UOptimusNodePin *> GetSubPinsRecursively(bool bInIncludeThisPin = false) const;
 
 	/** Returns all pins that have a _direct_ connection to this pin. If nothing is connected 
 	  * to this pin, it returns an empty array.

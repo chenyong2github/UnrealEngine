@@ -40,6 +40,7 @@ public:
 		static const FName Input;
 		static const FName Output;
 		static const FName Resource;
+		OPTIMUSCORE_API static const FName AllowParameters;
 	};
 public:
 	UOptimusNode();

@@ -626,16 +626,6 @@ FOptimusNodeGraphAction_PackageKernelFunction::FOptimusNodeGraphAction_PackageKe
 		Category = InKernelNode->Category;
 		KernelName = InKernelNode->KernelName;
 		GroupSize = InKernelNode->GroupSize;
-		for (const FOptimus_ShaderBinding& Parameter: InKernelNode->Parameters)
-		{
-			FOptimus_ShaderValuedBinding ValueParameter;
-			ValueParameter.Name = Parameter.Name;
-			ValueParameter.DataType = Parameter.DataType;
-			
-			// FIXME: Get value.
-			
-			Parameters.Add(ValueParameter);
-		}
 		InputBindings = InKernelNode->InputBindingArray.InnerArray;
 		OutputBindings = InKernelNode->OutputBindingArray.InnerArray;
 		ShaderSource = InKernelNode->ShaderSource.ShaderText;
@@ -663,7 +653,7 @@ bool FOptimusNodeGraphAction_PackageKernelFunction::Do(
 	
 	UClass *PackagedNodeClass = UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 		Graph->GetPackage(), Category, KernelName, GroupSize,
-		Parameters, InputBindings, OutputBindings, ShaderSource);
+		InputBindings, OutputBindings, ShaderSource);
 	if (!PackagedNodeClass)
 	{
 		return false;
@@ -777,13 +767,6 @@ bool FOptimusNodeGraphAction_UnpackageKernelFunction::Do(
 			KernelNode->Category = Class->Category;
 			KernelNode->KernelName = Class->KernelName;
 			KernelNode->GroupSize = Class->GroupSize;
-			for (const FOptimus_ShaderValuedBinding& ParamBinding: Class->Parameters)
-			{
-				FOptimus_ShaderBinding Parameter;
-				Parameter.Name = ParamBinding.Name;
-				Parameter.DataType = ParamBinding.DataType;
-				KernelNode->Parameters.Add(Parameter);
-			}
 			KernelNode->InputBindingArray = Class->InputBindings;
 			KernelNode->OutputBindingArray = Class->OutputBindings;
 			KernelNode->ShaderSource.ShaderText = Class->ShaderSource;

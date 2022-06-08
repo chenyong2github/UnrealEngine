@@ -7,6 +7,7 @@
 
 #include "OptimusNode_ComputeKernelFunction.generated.h"
 
+
 UCLASS()
 class UOptimusNode_ComputeKernelFunctionGeneratorClass :
 	public UClass
@@ -18,7 +19,6 @@ public:
 		FName InCategory,
 		const FString& InKernelName,
 		FIntVector InGroupSize,
-		const TArray<FOptimus_ShaderValuedBinding>& InParameters,
 		const TArray<FOptimusParameterBinding>& InInputBindings,
 		const TArray<FOptimusParameterBinding>& InOutputBindings,
 		const FString& InShaderSource
@@ -37,9 +37,6 @@ public:
 	UPROPERTY()
 	FIntVector GroupSize;
 
-	UPROPERTY()
-	TArray<FOptimus_ShaderValuedBinding> Parameters;
-	
 	UPROPERTY()
 	TArray<FOptimusParameterBinding> InputBindings;
 

@@ -222,7 +222,7 @@ FOptimusNodeAction_SetPinDataDomain::FOptimusNodeAction_SetPinDataDomain(
 	const TArray<FName>& InContextNames
 	)
 {
-	if (ensure(InPin) && ensure(!InContextNames.IsEmpty()) && ensure(InPin->GetStorageType() == EOptimusNodePinStorageType::Resource))
+	if (ensure(InPin))
 	{
 		PinPath = InPin->GetPinPath();
 		NewContextNames = InContextNames;
