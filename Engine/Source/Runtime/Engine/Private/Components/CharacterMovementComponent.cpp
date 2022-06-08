@@ -5931,6 +5931,13 @@ void UCharacterMovementComponent::PhysicsRotation(float DeltaTime)
 	{
 		DesiredRotation = CharacterOwner->Controller->GetDesiredRotation();
 	}
+	else if (!CharacterOwner->Controller && bRunPhysicsWithNoController && bUseControllerDesiredRotation)
+	{
+		if (AController* ControllerOwner = Cast<AController>(CharacterOwner->GetOwner()))
+		{
+			DesiredRotation = ControllerOwner->GetDesiredRotation();
+		}
+	}
 	else
 	{
 		return;
