@@ -134,7 +134,7 @@ class FWorldPartitionStreamingGenerator
 					return ActorDesc->GetActorIsEditorOnly();
 				}
 			}
-			return false;
+			return true;
 		};
 
 		// Create an actor descriptor view for the specified actor (modified or unsaved actors)
