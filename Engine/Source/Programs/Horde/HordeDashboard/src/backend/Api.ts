@@ -1063,6 +1063,9 @@ export type GetJobResponse = {
 	/** The preflight changelist number */
 	preflightChange?: number;
 
+	/** Description of the preflight */
+	preflightDescription?: string;
+
 	/** The template type */
 	templateId?: string;
 
