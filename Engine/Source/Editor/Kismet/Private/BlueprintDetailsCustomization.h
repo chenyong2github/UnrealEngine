@@ -219,8 +219,10 @@ private:
 	EVisibility BitmaskVisibility() const;
 	void OnBitmaskChanged(ECheckBoxState InNewState);
 
-	TSharedPtr<FString> GetBitmaskEnumTypeName() const;
-	void OnBitmaskEnumTypeChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo);
+	TSharedPtr<FTopLevelAssetPath> GetBitmaskEnumTypePath() const;
+	void OnBitmaskEnumTypeChanged(TSharedPtr<FTopLevelAssetPath> ItemSelected, ESelectInfo::Type SelectInfo);
+	TSharedRef<SWidget> GenerateBitmaskEnumTypeWidget(TSharedPtr<FTopLevelAssetPath> Item);
+	FText GetBitmaskEnumTypeName() const;
 	
 	TSharedPtr<FString> GetVariableReplicationType() const;
 	void OnChangeReplication(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo);
@@ -289,7 +291,7 @@ private:
 	TArray<TSharedPtr<FString>> ReplicationOptions;
 
 	/** Array of enum type names for integers used as bitmasks */
-	TArray<TSharedPtr<FString>> BitmaskEnumTypeNames;
+	TArray<TSharedPtr<FTopLevelAssetPath>> BitmaskEnumTypePaths;
 
 	/** The widget used when in variable name editing mode */ 
 	TSharedPtr<SEditableTextBox> VarNameEditableTextBox;

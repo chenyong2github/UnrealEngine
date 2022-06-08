@@ -736,14 +736,14 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		.ToolTip(BitmaskTooltip)
 	];
 
-	BitmaskEnumTypeNames.Empty();
-	BitmaskEnumTypeNames.Add(MakeShareable(new FString(LOCTEXT("BitmaskEnumTypeName_None", "None").ToString())));
+	BitmaskEnumTypePaths.Empty();
+	BitmaskEnumTypePaths.Add(MakeShareable(new FTopLevelAssetPath())); // option to set the bitmask to None
 	for (TObjectIterator<UEnum> EnumIt; EnumIt; ++EnumIt)
 	{
 		UEnum* CurrentEnum = *EnumIt;
 		if (UEdGraphSchema_K2::IsAllowableBlueprintVariableType(CurrentEnum) && CurrentEnum->HasMetaData(TEXT("Bitflags")))
 		{
-			BitmaskEnumTypeNames.Add(MakeShareable(new FString(CurrentEnum->GetFName().ToString())));
+			BitmaskEnumTypePaths.Add(MakeShareable(new FTopLevelAssetPath(CurrentEnum->GetPackage()->GetFName(), CurrentEnum->GetFName())));
 		}
 	}
 
@@ -760,11 +760,16 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 	]
 	.ValueContent()
 	[
-		SNew(STextComboBox)
-		.OptionsSource(&BitmaskEnumTypeNames)
-		.InitiallySelectedItem(GetBitmaskEnumTypeName())
+		SNew(SComboBox<TSharedPtr<FTopLevelAssetPath>>)
+		.OptionsSource(&BitmaskEnumTypePaths)
+		.InitiallySelectedItem(GetBitmaskEnumTypePath())
 		.OnSelectionChanged(this, &FBlueprintVarActionDetails::OnBitmaskEnumTypeChanged)
+		.OnGenerateWidget(this, &FBlueprintVarActionDetails::GenerateBitmaskEnumTypeWidget)
 		.IsEnabled(IsVariableInBlueprint() && OnBitmaskCheckboxState() == ECheckBoxState::Checked)
+		[
+			SNew(STextBlock)
+				.Text(this, &FBlueprintVarActionDetails::GetBitmaskEnumTypeName)
+		]
 	];
 
 	ReplicationOptions.Empty();
@@ -2261,23 +2266,23 @@ void FBlueprintVarActionDetails::OnBitmaskChanged(ECheckBoxState InNewState)
 	}
 }
 
-TSharedPtr<FString> FBlueprintVarActionDetails::GetBitmaskEnumTypeName() const
+TSharedPtr<FTopLevelAssetPath> FBlueprintVarActionDetails::GetBitmaskEnumTypePath() const
 {
-	TSharedPtr<FString> Result;
+	TSharedPtr<FTopLevelAssetPath> Result;
 	const FName VarName = CachedVariableName;
 
-	if (BitmaskEnumTypeNames.Num() > 0 && VarName != NAME_None)
+	if (BitmaskEnumTypePaths.Num() > 0 && VarName != NAME_None)
 	{
-		Result = BitmaskEnumTypeNames[0];
+		Result = BitmaskEnumTypePaths[0];
 
 		FString OutValue;
 		FBlueprintEditorUtils::GetBlueprintVariableMetaData(GetBlueprintObj(), VarName, nullptr, FBlueprintMetadata::MD_BitmaskEnum, OutValue);
-
-		for (int32 i = 1; i < BitmaskEnumTypeNames.Num(); ++i)
+		
+		for (int32 i = 1; i < BitmaskEnumTypePaths.Num(); ++i)
 		{
-			if (OutValue == *BitmaskEnumTypeNames[i])
+			if (OutValue == BitmaskEnumTypePaths[i]->ToString())
 			{
-				Result = BitmaskEnumTypeNames[i];
+				Result = BitmaskEnumTypePaths[i];
 				break;
 			}
 		}
@@ -2286,20 +2291,20 @@ TSharedPtr<FString> FBlueprintVarActionDetails::GetBitmaskEnumTypeName() const
 	return Result;
 }
 
-void FBlueprintVarActionDetails::OnBitmaskEnumTypeChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo)
+void FBlueprintVarActionDetails::OnBitmaskEnumTypeChanged(TSharedPtr<FTopLevelAssetPath> ItemSelected, ESelectInfo::Type SelectInfo)
 {
 	const FName VarName = CachedVariableName;
 	if (VarName != NAME_None)
 	{
 		UBlueprint* LocalBlueprint = GetBlueprintObj();
 
-		if (ItemSelected == BitmaskEnumTypeNames[0])
+		if (ItemSelected == BitmaskEnumTypePaths[0])
 		{
 			FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(LocalBlueprint, VarName, nullptr, FBlueprintMetadata::MD_BitmaskEnum);
 		}
 		else if(ItemSelected.IsValid())
 		{
-			FBlueprintEditorUtils::SetBlueprintVariableMetaData(LocalBlueprint, VarName, nullptr, FBlueprintMetadata::MD_BitmaskEnum, *ItemSelected);
+			FBlueprintEditorUtils::SetBlueprintVariableMetaData(LocalBlueprint, VarName, nullptr, FBlueprintMetadata::MD_BitmaskEnum, ItemSelected->ToString());
 		}
 
 		// Reset default value
@@ -2326,6 +2331,19 @@ void FBlueprintVarActionDetails::OnBitmaskEnumTypeChanged(TSharedPtr<FString> It
 			}
 		}
 	}
+}
+
+TSharedRef<SWidget> FBlueprintVarActionDetails::GenerateBitmaskEnumTypeWidget(TSharedPtr<FTopLevelAssetPath> Item)
+{
+	check(Item.IsValid());
+
+	return SNew(STextBlock)
+		.Text(FText::FromName(Item->GetAssetName()));
+}
+
+FText FBlueprintVarActionDetails::GetBitmaskEnumTypeName() const
+{
+	return FText::FromName(GetBitmaskEnumTypePath()->GetAssetName());
 }
 
 TSharedPtr<FString> FBlueprintVarActionDetails::GetVariableReplicationType() const

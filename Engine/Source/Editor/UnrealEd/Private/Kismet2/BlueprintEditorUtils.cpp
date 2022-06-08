@@ -6225,11 +6225,24 @@ void FBlueprintEditorUtils::FixupVariableDescription(UBlueprint* Blueprint, FBPV
 	// Remove bitflag enum type metadata if the enum type name is missing or if the enum type is no longer a bitflags type.
 	if (VarDesc.HasMetaData(FBlueprintMetadata::MD_BitmaskEnum))
 	{
-		FString BitmaskEnumTypeName = VarDesc.GetMetaData(FBlueprintMetadata::MD_BitmaskEnum);
-		if (!BitmaskEnumTypeName.IsEmpty())
+		FString BitmaskEnumTypePath = VarDesc.GetMetaData(FBlueprintMetadata::MD_BitmaskEnum);
+		if (!BitmaskEnumTypePath.IsEmpty())
 		{
-			UEnum* BitflagsEnum = UClass::TryFindTypeSlow<UEnum>(BitmaskEnumTypeName);
-			if (BitflagsEnum == nullptr || !BitflagsEnum->HasMetaData(*FBlueprintMetadata::MD_Bitflags.ToString()))
+			const UEnum* BitflagsEnum = nullptr;
+			
+			// if the enum is saved by name (deprecated), find the associated enum and reserialize it as a long asset path
+			if (FPackageName::IsShortPackageName(BitmaskEnumTypePath))
+			{
+				BitflagsEnum = FindFirstObject<UEnum>(GetData(BitmaskEnumTypePath));
+				BitmaskEnumTypePath = FTopLevelAssetPath(BitflagsEnum->GetPackage()->GetFName(), BitflagsEnum->GetFName()).ToString();
+				VarDesc.SetMetaData(FBlueprintMetadata::MD_BitmaskEnum, BitmaskEnumTypePath);
+			}
+			else
+			{
+				BitflagsEnum = FindObject<UEnum>(nullptr, GetData(BitmaskEnumTypePath));
+			}
+			
+			if (BitflagsEnum == nullptr || !BitflagsEnum->HasMetaData(*FBlueprintMetadata::MD_Bitflags.ToString()) || !UEdGraphSchema_K2::IsAllowableBlueprintVariableType(BitflagsEnum))
 			{
 				VarDesc.RemoveMetaData(FBlueprintMetadata::MD_BitmaskEnum);
 			}
