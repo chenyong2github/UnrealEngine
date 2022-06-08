@@ -9016,7 +9016,7 @@ void FBlueprintEditorUtils::FindAndSetDebuggableBlueprintInstances()
 			UBlueprint* EachBlueprint = ObjIt.Key();
 			bool bFoundItemToDebug = false;
 
-			if( Selected->Num() != 0 )
+			if( Selected )
 			{
 				for (int32 iSelected = 0; iSelected < Selected->Num() ; iSelected++)
 				{
