@@ -116,6 +116,19 @@ ENGINE_API void DrawDebugCanvasLine(UCanvas* Canvas, const FVector& Start, const
 ENGINE_API void DrawDebugCanvasCircle(UCanvas* Canvas, const FVector& Base, const FVector& X, const FVector& Y, FColor Color, float Radius, int32 NumSides);
 
 /**
+ * Draws a half circle using lines.
+ *
+ * @param	Canvas			The Canvas to draw on.
+ * @param	Base			Center of the circle.
+ * @param	X				X alignment axis to draw along.
+ * @param	Y				Y alignment axis to draw along.
+ * @param	Color			Color of the circle.
+ * @param	Radius			Radius of the circle.
+ * @param	NumSides		Numbers of sides that the circle has.
+ */
+ENGINE_API void DrawDebugCanvasHalfCircle(UCanvas* Canvas, const FVector& Base, const FVector& X, const FVector& Y, FColor Color, float Radius, int32 NumSides);
+
+/**
  * Draws a sphere using circles.
  *
  * @param	Canvas		The Canvas to draw on.
@@ -137,6 +150,27 @@ ENGINE_API void DrawDebugCanvasWireSphere(UCanvas* Canvas, const FVector& Base, 
  * @param	Color			Color of the cone.
  */
 ENGINE_API void DrawDebugCanvasWireCone(UCanvas* Canvas, const FTransform& Transform, float ConeRadius, float ConeAngle, int32 ConeSides, FColor Color);
+
+/**
+ * Draws a box using lines.
+ *
+ * @param	Canvas			The Canvas to draw on.
+ * @param	Transform		Transform to apply to the capsule.
+ * @param	Box				The box to be drawn.
+ * @param	Color			Color of the capsule.
+ */
+ENGINE_API void DrawDebugCanvasWireBox(UCanvas* Canvas, const FMatrix& Transform, const FBox& Box, FColor Color);
+
+/**
+ * Draws a capsule using lines.
+ *
+ * @param	Canvas			The Canvas to draw on.
+ * @param	Transform		Transform to apply to the capsule.
+ * @param	HalfLength		Distance from the center of the capsule to the tip (including the cap)
+ * @param	Radius			Radius of the capsule.
+ * @param	Color			Color of the capsule.
+ */
+ENGINE_API void DrawDebugCanvasCapsule(UCanvas* Canvas, const FMatrix& Transform, float HalfLength, float Radius, const FColor& LineColor);
 
 #elif !defined(SHIPPING_DRAW_DEBUG_ERROR) || !SHIPPING_DRAW_DEBUG_ERROR
 
@@ -178,8 +212,11 @@ FORCEINLINE void DrawDebugCanvas2DCircle(UCanvas* Canvas, const FVector2D& Cente
 FORCEINLINE void DrawDebugCanvas2DBox(UCanvas* Canvas, const FBox2D& Box, const FLinearColor& LineColor, const float& LineThickness = 1.f) {}
 FORCEINLINE void DrawDebugCanvasLine(UCanvas* Canvas, const FVector& Start, const FVector& End, const FLinearColor& LineColor) {}
 FORCEINLINE void DrawDebugCanvasCircle(UCanvas* Canvas, const FVector& Base, const FVector& X, const FVector& Y, FColor Color, float Radius, int32 NumSides) {}
+FORCEINLINE void DrawDebugCanvasHalfCircle(UCanvas* Canvas, const FVector& Base, const FVector& X, const FVector& Y, FColor Color, float Radius, int32 NumSides) {}
 FORCEINLINE void DrawDebugCanvasWireSphere(UCanvas* Canvas, const FVector& Base, FColor Color, float Radius, int32 NumSides) {}
 FORCEINLINE void DrawDebugCanvasWireCone(UCanvas* Canvas, const FTransform& Transform, float ConeRadius, float ConeAngle, int32 ConeSides, FColor Color) {}
+FORCEINLINE void DrawDebugCanvasWireBox(UCanvas* Canvas, const FMatrix& Transform, const FBox& Box, FColor Color) {}
+FORCEINLINE void DrawDebugCanvasCapsule(UCanvas* Canvas, const FMatrix& Transform, float HalfLength, float Radius, const FColor& LineColor) {}
 
 #else
 
