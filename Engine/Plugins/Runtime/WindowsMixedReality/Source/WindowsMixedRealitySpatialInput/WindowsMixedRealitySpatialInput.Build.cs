@@ -63,9 +63,6 @@ namespace UnrealBuildTool.Rules
             if (Target.Platform == UnrealTargetPlatform.Win64)
             {	
                 bEnableExceptions = true;
-
-                PCHUsage = PCHUsageMode.NoSharedPCHs;
-                PrivatePCHHeaderFile = "Private/WindowsMixedRealitySpatialInput.h";
             }
 
 			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.bBuildEditor == true)
