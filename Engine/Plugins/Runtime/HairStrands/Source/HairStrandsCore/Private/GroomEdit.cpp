@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "GroomEdit.h"
 #include "GroomAsset.h"
 #include "GroomBuilder.h"
