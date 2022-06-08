@@ -712,6 +712,12 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		if (IsForwardBinding(Binding.BindingType))
 		{
 			const FBindingSourceContext BindingSourceContext = CreateBindingSourceContext(BlueprintView, Class, Binding.ViewModelPath);
+			if (!IsPropertyPathValid(BindingSourceContext.PropertyPath))
+			{
+				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, Binding.ViewModelPath)));
+				bIsBindingsValid = false;
+				continue;
+			}
 			if (BindingSourceContext.bIsRootWidget && BindingSourceContext.SourceClass == nullptr)
 			{
 				AddErrorForBinding(Binding, BlueprintView, TEXT("Internal error. The binding could not find its source."));
@@ -746,6 +752,12 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 			TArray<UE::MVVM::FMVVMConstFieldVariant> SetterPath;
 			{
 				SetterPath = CreateBindingDestinationPath(BlueprintView, Class, Binding.WidgetPath);
+				if (!IsPropertyPathValid(SetterPath))
+				{
+					AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, Binding.WidgetPath)));
+					bIsBindingsValid = false;
+					continue;
+				}
 			}
 
 			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, GetterFields, SetterPath, Binding.Conversion.SourceToDestinationFunction);
@@ -768,6 +780,12 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		if (IsBackwardBinding(Binding.BindingType))
 		{
 			const FBindingSourceContext BindingSourceContext = CreateBindingSourceContext(BlueprintView, Class, Binding.WidgetPath);
+			if (!IsPropertyPathValid(BindingSourceContext.PropertyPath))
+			{
+				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, Binding.WidgetPath)));
+				bIsBindingsValid = false;
+				continue;
+			}
 			if (BindingSourceContext.bIsRootWidget && BindingSourceContext.SourceClass == nullptr)
 			{
 				AddErrorForBinding(Binding, BlueprintView, TEXT("Internal error. The binding could not find its source."));
@@ -802,6 +820,12 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 			TArray<UE::MVVM::FMVVMConstFieldVariant> SetterPath;
 			{
 				SetterPath = CreateBindingDestinationPath(BlueprintView, Class, Binding.ViewModelPath);
+				if (!IsPropertyPathValid(SetterPath))
+				{
+					AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, Binding.ViewModelPath)));
+					bIsBindingsValid = false;
+					continue;
+				}
 			}
 
 			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, GetterFields, SetterPath, Binding.Conversion.DestinationToSourceFunction);
@@ -983,25 +1007,42 @@ TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreateBindingDestinat
 }
 
 
-FString FMVVMViewBlueprintCompiler::CreatePropertyPath(FName PropertyName, FString PropertyPath) const
+FString FMVVMViewBlueprintCompiler::PropertyPathToString(const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& PropertyPath) const
 {
-	TStringBuilder<512> Builder;
-	if (PropertyName.IsNone())
+	if (PropertyPath.IsEmpty())
 	{
-		Builder << PropertyPath;
+		return FString();
+	}
+
+	TStringBuilder<512> Result;
+	if (PropertyPath.IsFromViewModel())
+	{
+		if (const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(PropertyPath.GetViewModelId()))
+		{
+			Result << SourceViewModelContext->GetViewModelName();
+		}
+		else
+		{
+			Result << TEXT("<none>");
+		}
+	}
+	else if (PropertyPath.IsFromWidget())
+	{
+		Result << PropertyPath.GetWidgetName();
 	}
 	else
 	{
-		Builder << PropertyName;
-		if (!PropertyPath.IsEmpty())
-		{
-			Builder << TEXT('.');
-			Builder << PropertyPath;
-		}
+		Result << TEXT("<none>");
 	}
-	return Builder.ToString();
-}
 
+	FString BasePropertyPath = PropertyPath.GetBasePropertyPath();
+	if (BasePropertyPath.Len())
+	{
+		Result << TEXT('.');
+		Result << MoveTemp(BasePropertyPath);
+	}
+	return Result.ToString();
+}
 
 TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreatePropertyPath(const UClass* Class, FName PropertyName, TArray<FMVVMConstFieldVariant> Properties) const
 {
@@ -1014,6 +1055,27 @@ TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreatePropertyPath(co
 	FMVVMConstFieldVariant NewProperty = BindingHelper::FindFieldByName(Class, FMVVMBindingName(PropertyName));
 	Properties.Insert(NewProperty, 0);
 	return Properties;
+}
+
+
+bool FMVVMViewBlueprintCompiler::IsPropertyPathValid(TArrayView<const FMVVMConstFieldVariant> PropertyPath) const
+{
+	for (const FMVVMConstFieldVariant& Field : PropertyPath)
+	{
+		if (Field.IsEmpty())
+		{
+			return false;
+		}
+		if (Field.IsProperty() && Field.GetProperty() == nullptr)
+		{
+			return false;
+		}
+		if (Field.IsFunction() && Field.GetFunction() == nullptr)
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 } //namespace

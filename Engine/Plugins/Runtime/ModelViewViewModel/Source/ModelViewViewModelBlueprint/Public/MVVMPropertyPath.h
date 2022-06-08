@@ -317,7 +317,7 @@ public:
 			{
 				Result << TEXT('.');
 			}
-			Result << Path.GetFieldName().ToString();
+			Result << Path.GetFieldName();
 		}
 		return Result.ToString();
 	}
