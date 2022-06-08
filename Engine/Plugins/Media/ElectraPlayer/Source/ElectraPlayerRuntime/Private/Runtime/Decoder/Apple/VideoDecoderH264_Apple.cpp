@@ -663,6 +663,7 @@ void FVideoDecoderH264::AUdataPushEOD()
  */
 void FVideoDecoderH264::AUdataClearEOD()
 {
+	NextAccessUnits.ClearEOD();
 }
 
 

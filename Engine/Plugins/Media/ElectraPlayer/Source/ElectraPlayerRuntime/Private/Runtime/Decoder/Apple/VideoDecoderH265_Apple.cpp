@@ -650,6 +650,7 @@ void FVideoDecoderH265::AUdataPushEOD()
  */
 void FVideoDecoderH265::AUdataClearEOD()
 {
+	NextAccessUnits.ClearEOD();
 }
 
 
