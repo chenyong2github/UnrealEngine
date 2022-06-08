@@ -103,9 +103,6 @@ namespace UnrealBuildTool.Rules
 					"../../../../Source/Runtime/Renderer/Private",
 					});
 
-				PCHUsage = PCHUsageMode.NoSharedPCHs;
-				PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";
-
                 if (Target.Platform == UnrealTargetPlatform.Win64)
                 {
 					RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "CoarseRelocUW.dll"));
