@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using EpicGames.Core;
 using Microsoft.Win32;
 
@@ -64,6 +65,7 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Default global environment used by Linux and MacOS, which reads settings from the registry.
 	/// </summary>
+	[SupportedOSPlatform("windows")]
 	class WindowsGlobalPerforceEnvironment : GlobalPerforceEnvironment
 	{
 		public WindowsGlobalPerforceEnvironment()

@@ -94,9 +94,11 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		public Utf8String Path { get; set; }
 
+
 		/// <summary>
 		/// Hash of the tree
 		/// </summary>
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1721:Property names should not match get methods", Justification = "Ignored")]
 		public IoHash Hash { get; set; }
 
 		#region Field names

@@ -15,9 +15,9 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Reads a node of the tree
 		/// </summary>
-		/// <param name="ref"></param>
+		/// <param name="reference"></param>
 		/// <returns></returns>
-		public abstract Task<StreamTree> ReadAsync(StreamTreeRef @ref);
+		public abstract Task<StreamTree> ReadAsync(StreamTreeRef @reference);
 	}
 
 	/// <summary>
@@ -41,9 +41,9 @@ namespace EpicGames.Perforce.Managed
 		}
 
 		/// <inheritdoc/>
-		public override Task<StreamTree> ReadAsync(StreamTreeRef @ref)
+		public override Task<StreamTree> ReadAsync(StreamTreeRef @reference)
 		{
-			return Task.FromResult(new StreamTree(@ref.Path, _hashToTree[@ref.Hash]));
+			return Task.FromResult(new StreamTree(@reference.Path, _hashToTree[@reference.Hash]));
 		}
 	}
 }

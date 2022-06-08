@@ -36,7 +36,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Returns the first error, or null.
 		/// </summary>
-		public PerforceError FirstError => Errors.FirstOrDefault();
+		public PerforceError? FirstError => Errors.FirstOrDefault();
 
 		/// <summary>
 		/// Sequence of all the data objects from the responses.
