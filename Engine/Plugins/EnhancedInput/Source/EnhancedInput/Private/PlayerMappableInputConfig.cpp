@@ -30,7 +30,7 @@ EDataValidationResult UPlayerMappableInputConfig::IsDataValid(TArray<FText>& Val
 		Result = CombineDataValidationResults(Result, EDataValidationResult::Invalid);
 	}
 	
-	// Check that every context is valid and all player bindable mappings have names
+	// Check that every context is valid and all player mappable mappings have names
 	for (const TPair<TObjectPtr<UInputMappingContext>, int32>& ContextPair : Contexts)
 	{
 		if(const UInputMappingContext* IMC = ContextPair.Key.Get())
@@ -44,7 +44,7 @@ EDataValidationResult UPlayerMappableInputConfig::IsDataValid(TArray<FText>& Val
 					Args.Add(TEXT("AssetPath"), FText::FromString(GetPathName()));
 					Args.Add(TEXT("ActionName"), FText::FromString(Mapping.Action->GetPathName()));
 
-					const FText NoMappingError = FText::Format(LOCTEXT("NoNameMappingError", "'{AssetPath}' has a player bindable key that has no name!"), Args);
+					const FText NoMappingError = FText::Format(LOCTEXT("NoNameMappingError", "'{AssetPath}' has a player mappable key that has no name!"), Args);
 					ValidationErrors.Emplace(NoMappingError);
 				}
 			}

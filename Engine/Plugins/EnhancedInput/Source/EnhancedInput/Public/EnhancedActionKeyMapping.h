@@ -77,7 +77,7 @@ struct FEnhancedActionKeyMapping
 
 	//ControllerId ControllerId;	// TODO: Controller id/player id (hybrid?) allowing binding multiple pads to a series of actions.
 
-	/** If true than this ActionKeyMapping will be exposed as a player bindable key */
+	/** If true than this ActionKeyMapping will be exposed as a player mappable key */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
 	uint8 bIsPlayerMappable : 1;
 
