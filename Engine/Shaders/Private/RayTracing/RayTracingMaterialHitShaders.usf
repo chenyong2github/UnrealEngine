@@ -248,10 +248,23 @@ void GetMaterialPayload(
   #if MATERIAL_IS_STRATA
 	const float Dither = 0.5f;
 	float3 EmissiveLuminance = 0.0f;
+	float TotalCoverage = 1.f;
 	bool bStrataSubsurfaceEnable = false;
 	const float3 WorldBentNormal0 = GetWorldBentNormalZero(MaterialParameters);
 	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
 
+	// We detect the isolated unlit BSDF node case to make sure lots of code is optimised out, when used, there can only be one.
+	// When unlit is selected as part of dynamic shading model, the SLAB model is used instead.
+	// This allows us to avoid having the unlit node case inside the general BSDF loop and 0 BSDF to process in such pixels.
+	#define STRATA_OPTIMIZED_UNLIT MATERIAL_SHADINGMODEL_UNLIT
+
+  #if STRATA_OPTIMIZED_UNLIT
+	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
+	EmissiveLuminance = BSDF_GETEMISSIVE(UnlitBSDF);
+	#if !STRATA_OPAQUE_MATERIAL
+	TotalCoverage = UnlitBSDF.Coverage;
+	#endif
+  #else // STRATA_OPTIMIZED_UNLIT
 	// Initialise a Strata header with normal in registers
 	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
 	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
@@ -286,11 +299,13 @@ void GetMaterialPayload(
 	);
 
 	Payload.StrataData.PackedTopLayerData = StrataPackTopLayerData(TopLayerData);
+  #endif // STRATA_OPTIMIZED_UNLIT
+
 	Payload.Radiance += EmissiveLuminance;
 	Payload.TranslatedWorldPos = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, ResolvedView.PreViewTranslation));
 
 	// Opacity
-	Payload.Opacity = 1.0f;
+	Payload.Opacity = TotalCoverage;
 	#if MATERIALBLENDING_MASKED
 	// regular masked mode - binary decision
 	if (GetMaterialMask(PixelMaterialInputs) < 0)

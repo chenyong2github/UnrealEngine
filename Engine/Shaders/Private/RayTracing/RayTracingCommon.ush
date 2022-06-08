@@ -561,36 +561,38 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 #endif
 };
 
-FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload Input, in FRayCone RayCone)
+FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload In, in FRayCone RayCone)
 {
-	FPackedMaterialClosestHitPayload Output = (FPackedMaterialClosestHitPayload)0;
-	Output.HitT = Input.HitT;
-	Output.SetRayCone(RayCone);
-	Output.SetFlags(Input.Flags);
-	Output.SetBlendingMode(Input.BlendingMode);
-	Output.SetPrimitiveLightingChannelMask(Input.PrimitiveLightingChannelMask);	
-	Output.SetRadiance(Input.Radiance);
-	Output.StrataData = Input.StrataData;
+	FPackedMaterialClosestHitPayload Out = (FPackedMaterialClosestHitPayload)0;
+	Out.HitT = In.HitT;
+	Out.SetRayCone(RayCone);
+	Out.SetFlags(In.Flags);
+	Out.SetBlendingMode(In.BlendingMode);
+	Out.SetPrimitiveLightingChannelMask(In.PrimitiveLightingChannelMask);
+	Out.SetRadiance(In.Radiance);
+	Out.StrataData = In.StrataData;
+	Out.SetOpacity(In.Opacity);
 
-	return Output;
+	return Out;
 }
 
-FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayload Input, RayDesc Ray)
+FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayload In, RayDesc Ray)
 {
-	FMaterialClosestHitPayload Output = (FMaterialClosestHitPayload)0;
-	Output.HitT = Input.HitT;
-	Output.RayCone = Input.GetRayCone();
-	Output.BlendingMode = Input.GetBlendingMode();
-	Output.PrimitiveLightingChannelMask = Input.GetPrimitiveLightingChannelMask();
-	Output.Flags = Input.GetFlags();
-	Output.Radiance = Input.GetRadiance();
-	Output.WorldNormal = Input.GetWorldNormal();
-	Output.ShadingModelID = Input.GetShadingModelID();
-	Output.IndirectIrradiance = Input.GetIndirectIrradiance();
-	Output.StrataData = Input.StrataData;
-	Output.TranslatedWorldPos = Ray.Origin + Output.HitT * Ray.Direction;
-	Output.RayDirection = Input.GetRayDirection();
-	return Output;
+	FMaterialClosestHitPayload Out = (FMaterialClosestHitPayload)0;
+	Out.HitT = In.HitT;
+	Out.RayCone = In.GetRayCone();
+	Out.BlendingMode = In.GetBlendingMode();
+	Out.PrimitiveLightingChannelMask = In.GetPrimitiveLightingChannelMask();
+	Out.Flags = In.GetFlags();
+	Out.Radiance = In.GetRadiance();
+	Out.WorldNormal = In.GetWorldNormal();
+	Out.ShadingModelID = In.GetShadingModelID();
+	Out.IndirectIrradiance = In.GetIndirectIrradiance();
+	Out.StrataData = In.StrataData;
+	Out.TranslatedWorldPos = Ray.Origin + Out.HitT * Ray.Direction;
+	Out.RayDirection = In.GetRayDirection();
+	Out.Opacity = In.GetOpacity();
+	return Out;
 }
 
 #else // STRATA_ENABLED
