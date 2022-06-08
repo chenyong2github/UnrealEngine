@@ -16,7 +16,7 @@ struct FOculusSplashDesc
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(config, EditAnywhere, Category = Settings, meta = (
-		AllowedClasses = "Texture",
+		AllowedClasses = "/Script/Engine.Texture",
 		ToolTip = "Texture to display"))
 	FSoftObjectPath		TexturePath;
 
