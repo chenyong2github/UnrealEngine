@@ -69,7 +69,7 @@ TAttribute<FText> FMediaIOVideoTimecodeConfigurationCustomization::GetContentTex
 	FMediaIOVideoTimecodeConfiguration* Value = GetPropertyValueFromPropertyHandle<FMediaIOVideoTimecodeConfiguration>();
 	return MakeAttributeLambda([=]
 	{
-		const bool bIsAutoDetected = GetEnforceCheckboxState() == ECheckBoxState::Unchecked; 
+		const bool bIsAutoDetected = IsAutoDetected();
 		return Value->ToText(bIsAutoDetected);
 	});
 }
