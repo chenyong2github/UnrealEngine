@@ -18,8 +18,10 @@ public:
 
 	// IPresence
 	virtual TOnlineAsyncOpHandle<FQueryPresence> QueryPresence(FQueryPresence::Params&& Params) override;
-	virtual TOnlineResult<FGetPresence> GetPresence(FGetPresence::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FBatchQueryPresence> BatchQueryPresence(FBatchQueryPresence::Params&& Params) override;
+	virtual TOnlineResult<FGetCachedPresence> GetCachedPresence(FGetCachedPresence::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FUpdatePresence> UpdatePresence(FUpdatePresence::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FPartialUpdatePresence> PartialUpdatePresence(FPartialUpdatePresence::Params&& Params) override;
 	virtual TOnlineEvent<void(const FPresenceUpdated&)> OnPresenceUpdated() override;
 
 protected:
