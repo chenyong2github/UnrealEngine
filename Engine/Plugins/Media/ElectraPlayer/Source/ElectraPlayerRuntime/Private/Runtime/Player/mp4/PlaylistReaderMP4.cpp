@@ -393,7 +393,7 @@ void FPlaylistReaderMP4::WorkerThread()
 					FURL_RFC3986::GetQueryParams(URLFragmentComponents, URLFragment, false);	// The fragment is already URL escaped, so no need to do it again.
 					Manifest->SetURLFragmentComponents(MoveTemp(URLFragmentComponents));
 
-					FErrorDetail err = Manifest->Build(MP4Parser, MasterPlaylistURL, ConnectionInfo);
+					LastErrorDetail = Manifest->Build(MP4Parser, MasterPlaylistURL, ConnectionInfo);
 
 					// Notify that the "variant playlists" are ready. There are no variants in an mp4, but this is the trigger that the playlists are all set up and are good to go now.
 					PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, &ConnectionInfo, Playlist::EListType::Variant, Playlist::ELoadType::Initial));

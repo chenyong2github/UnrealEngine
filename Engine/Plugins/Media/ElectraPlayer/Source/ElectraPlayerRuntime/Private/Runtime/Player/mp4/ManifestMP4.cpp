@@ -16,7 +16,8 @@
 #include "Player/mp4/ManifestMP4.h"
 
 
-#define ERRCODE_MANIFEST_MP4_STARTSEGMENT_NOT_FOUND		1
+#define ERRCODE_MANIFEST_MP4_NO_PLAYABLE_STREAMS		1
+#define ERRCODE_MANIFEST_MP4_STARTSEGMENT_NOT_FOUND		2
 
 
 DECLARE_CYCLE_STAT(TEXT("FPlayPeriodMP4::FindSegment"), STAT_ElectraPlayer_MP4_FindSegment, STATGROUP_ElectraPlayer);
@@ -670,6 +671,16 @@ FErrorDetail FManifestMP4Internal::FTimelineAssetMP4::Build(IPlayerSessionServic
 				return err;
 			}
 		}
+	}
+
+	// No playable content?
+	if (VideoAdaptationSets.Num() == 0 && AudioAdaptationSets.Num() == 0)
+	{
+		FErrorDetail err;
+		err.SetFacility(Facility::EFacility::MP4Playlist);
+		err.SetMessage("No playable streams in this mp4");
+		err.SetCode(ERRCODE_MANIFEST_MP4_NO_PLAYABLE_STREAMS);
+		return err;
 	}
 
 // FIXME: fragmented mp4's with a sidx and moof boxes!
