@@ -12,9 +12,9 @@ void FComputeFrameworkEditorModule::StartupModule()
 {
 	TickObject = MakeUnique<FComputeFrameworkCompilationTick>();
 
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ComputeKernel));
-	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ComputeKernelFromText));
+// 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+// 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ComputeKernel));
+// 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ComputeKernelFromText));
 }
 
 void FComputeFrameworkEditorModule::ShutdownModule()
