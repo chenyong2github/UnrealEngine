@@ -40,3 +40,5 @@ void FOpenXREditorModule::ShutdownModule()
 }
 
 IMPLEMENT_MODULE(FOpenXREditorModule, OpenXREditor);
+
+#undef LOCTEXT_NAMESPACE
