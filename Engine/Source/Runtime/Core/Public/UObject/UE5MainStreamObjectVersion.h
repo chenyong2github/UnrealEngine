@@ -233,6 +233,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// GPU none interpolated spawning no longer calls the update script
 		FixGpuAlwaysRunningUpdateScriptNoneInterpolated,
 
+		// World partition streaming policy serialization only for cooked builds
+		WorldPartitionSerializeStreamingPolicyOnCook,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

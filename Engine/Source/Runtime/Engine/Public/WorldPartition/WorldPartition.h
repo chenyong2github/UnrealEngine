@@ -136,6 +136,7 @@ public:
 	//~ End UActorDescContainer Interface
 
 	//~ Begin UObject Interface
+	virtual void Serialize(FArchive& Ar) override;
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface
@@ -269,7 +270,7 @@ private:
 	EWorldPartitionInitState InitState;
 	TOptional<FTransform> InstanceTransform;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;
 
 #if WITH_EDITORONLY_DATA
