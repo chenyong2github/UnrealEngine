@@ -15,17 +15,12 @@
 static void TraceScreenshotCommandCallback(const TArray<FString>& Args)
 {
 	FString Name;
-	if (Args.Num() > 1)
+	if (Args.Num() > 0)
 	{
 		Name = Args[0];
 	}
 
-	if (FTraceScreenshot::Get() == nullptr)
-	{
-		FTraceScreenshot::CreateInstance();
-	}
-
-	FTraceScreenshot::Get()->RequestScreenshot(Name);
+	FTraceScreenshot::RequestScreenshot(Name);
 }
 
 static FAutoConsoleCommand TraceScreenshotCmd(
@@ -36,65 +31,25 @@ static FAutoConsoleCommand TraceScreenshotCmd(
 	FConsoleCommandWithArgsDelegate::CreateStatic(TraceScreenshotCommandCallback)
 );
 
-FTraceScreenshot* FTraceScreenshot::Instance = nullptr;
-
-void FTraceScreenshot::CreateInstance()
-{
-	if (Instance == nullptr)
-	{
-		Instance = new FTraceScreenshot();
-	}
-}
-
-FTraceScreenshot::FTraceScreenshot()
-{
-	if (GEngine && GEngine->GameViewport)
-	{
-		FlushRenderingCommands();
-		GEngine->GameViewport->OnScreenshotCaptured().AddRaw(this, &FTraceScreenshot::HandleScreenshotData);
-		FWorldDelegates::LevelRemovedFromWorld.AddRaw(this, &FTraceScreenshot::WorldDestroyed);
-	}
-}
-
-FTraceScreenshot::~FTraceScreenshot()
-{
-}
+FString FTraceScreenshot::RequestedScreenshotName;
+bool FTraceScreenshot::bSuppressWritingToFile = false;
 
 void FTraceScreenshot::RequestScreenshot(FString Name)
 {
-	ScreenshotName = Name;
+	RequestedScreenshotName = Name;
 	bool bShowUI = false;
+	bSuppressWritingToFile = true;
 	FScreenshotRequest::RequestScreenshot(bShowUI);
-}
-
-void FTraceScreenshot::HandleScreenshotData(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData)
-{
-	if (SHOULD_TRACE_SCREENSHOT())
-	{
-		TraceScreenshot(InSizeX, InSizeY, InImageData, ScreenshotName, 640);
-	}
-}
-
-void FTraceScreenshot::WorldDestroyed(ULevel* InLevel, UWorld* InWorld)
-{
-	if (InLevel == nullptr && InWorld == World.Get())
-	{
-		UE_LOG(LogCore, Display, TEXT("Tracing screenshot \"%s\" skipped - level was removed from world before we got our screenshot"), *ScreenshotName);
-
-		if (Instance)
-		{
-			delete Instance;
-			Instance = nullptr;
-			GEngine->GameViewport->OnScreenshotCaptured().RemoveAll(this);
-		}
-		FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
-	}
 }
 
 void FTraceScreenshot::TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData, const FString& InScreenshotName, int32 DesiredX)
 {
 	FString ScreenshotName = InScreenshotName;
-	if (ScreenshotName.IsEmpty())
+	if (!RequestedScreenshotName.IsEmpty())
+	{
+		ScreenshotName = RequestedScreenshotName;
+	}
+	else if (ScreenshotName.IsEmpty())
 	{
 		ScreenshotName = FDateTime::Now().ToString(TEXT("Screenshot_%Y%m%d_%H%M%S"));
 	}
@@ -121,5 +76,11 @@ void FTraceScreenshot::TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArra
 		TRACE_SCREENSHOT(*ScreenshotName, Cycles, InSizeX, InSizeY, CompressedBitmap);
 	}
 
-	ScreenshotName.Empty();
+	Reset();
+}
+
+void FTraceScreenshot::Reset()
+{
+	RequestedScreenshotName.Empty();
+	bSuppressWritingToFile = false;
 }

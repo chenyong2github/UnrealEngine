@@ -2031,19 +2031,24 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 					ScreenShotName += TEXT(".png");
 				}
 
+				bool bSuppressWritingToFile = false;
 				if (SHOULD_TRACE_SCREENSHOT())
 				{
+					bSuppressWritingToFile = FTraceScreenshot::ShouldSuppressWritingToFile();
 					FTraceScreenshot::TraceScreenshot(Size.X, Size.Y, Bitmap, ScreenShotName);
 				}
 
 				// Save the contents of the array to a png file.
-				
-				FImageView Image((const FColor *)Bitmap.GetData(),Size.X,Size.Y);
-				bIsScreenshotSaved = FImageUtils::SaveImageByExtension(*ScreenShotName,Image);
+				if (!bSuppressWritingToFile)
+				{
+					FImageView Image((const FColor*)Bitmap.GetData(), Size.X, Size.Y);
+					bIsScreenshotSaved = FImageUtils::SaveImageByExtension(*ScreenShotName, Image);
+				}
 			}
 		}
 
 		FScreenshotRequest::Reset();
+		FTraceScreenshot::Reset();
 		FScreenshotRequest::OnScreenshotRequestProcessed().Broadcast();
 
 		// Reeanble screen messages - if we are NOT capturing a movie

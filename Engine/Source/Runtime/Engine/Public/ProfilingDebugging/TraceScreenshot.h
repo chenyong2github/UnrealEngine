@@ -10,11 +10,7 @@ class ULevel;
 class ENGINE_API FTraceScreenshot
 {
 public:
-	static FTraceScreenshot* Get() { return Instance; }
-	static void CreateInstance();
-	void RequestScreenshot(FString Name);
-	void HandleScreenshotData(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData);
-	void WorldDestroyed(ULevel* InLevel, UWorld* InWorld);
+	static void RequestScreenshot(FString Name);
 
 	/* 
 	* Add the provided screenshot to the trace.
@@ -25,6 +21,16 @@ public:
 	* @param DesiredX - Optionally resize the image to the desired width before tracing. Aspect ratio is preserved.
 	*/
 	static void TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData, const FString& InScreenshotName, int32 DesiredX = -1);
+
+	/**
+	* Returns true if the screenshot should not be writted to a file.
+	*/
+	static bool ShouldSuppressWritingToFile() { return bSuppressWritingToFile; }
+
+	/**
+	* Reset the internal state of the TraceScreenshot system.
+	*/
+	static void Reset();
 private:
 	FTraceScreenshot();
 	FTraceScreenshot(const FTraceScreenshot& Other) {}
@@ -34,8 +40,6 @@ private:
 	void Unbind();
 
 private:
-	static FTraceScreenshot* Instance;
-
-	FString ScreenshotName;
-	TWeakObjectPtr<UWorld> World;
+	static bool bSuppressWritingToFile;
+	static FString RequestedScreenshotName;
 };

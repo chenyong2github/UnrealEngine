@@ -5855,23 +5855,29 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 				}
 			}
 
+			bool bSuppressWritingToFile = false;
 			if (SHOULD_TRACE_SCREENSHOT())
 			{
+				bSuppressWritingToFile = FTraceScreenshot::ShouldSuppressWritingToFile();
 				FTraceScreenshot::TraceScreenshot(BitmapSize.X, BitmapSize.Y, Bitmap, FScreenshotRequest::GetFilename());
 			}
 
-			// Save the bitmap to disk
-			TFuture<bool> CompletionFuture = HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
-			if (CompletionFuture.IsValid())
+			if (!bSuppressWritingToFile)
 			{
-				// this queues it then immediately waits? what's the point of ImageWriteQueue then?
-				// just use FImageUtils::Save
-				bIsScreenshotSaved = CompletionFuture.Get();
+				// Save the bitmap to disk
+				TFuture<bool> CompletionFuture = HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
+				if (CompletionFuture.IsValid())
+				{
+					// this queues it then immediately waits? what's the point of ImageWriteQueue then?
+					// just use FImageUtils::Save
+					bIsScreenshotSaved = CompletionFuture.Get();
+				}
 			}
 		}
 
 		// Done with the request
 		FScreenshotRequest::Reset();
+		FTraceScreenshot::Reset();
 		FScreenshotRequest::OnScreenshotRequestProcessed().Broadcast();
 
 		// Re-enable screen messages - if we are NOT capturing a movie
