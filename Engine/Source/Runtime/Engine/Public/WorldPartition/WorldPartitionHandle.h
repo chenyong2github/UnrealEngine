@@ -57,8 +57,8 @@ public:
 
 		struct FContainerOps
 		{
-			TArray<FWorldPartitionActorDesc*> Registrations;
-			TArray<FWorldPartitionActorDesc*> Unregistrations;
+			TSet<FWorldPartitionActorDesc*> Registrations;
+			TSet<FWorldPartitionActorDesc*> Unregistrations;
 		};
 
 		TMap<UActorDescContainer*, FContainerOps> ContainerOps;
