@@ -13263,7 +13263,7 @@ void UMaterialFunctionInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>&
 #endif
 }
 
-namespace
+namespace MaterialFunctionInterface
 {
 	FString GetEditorOnlyDataName(const TCHAR* InMaterialName)
 	{
@@ -13278,7 +13278,7 @@ bool UMaterialFunctionInterface::Rename(const TCHAR* NewName, UObject* NewOuter,
 	// if we have EditorOnlyData, also rename it if we are changing the material's name
 	if (bRenamed && NewName && EditorOnlyData)
 	{
-		FString EditorOnlyDataName = GetEditorOnlyDataName(NewName);
+		FString EditorOnlyDataName = MaterialFunctionInterface::GetEditorOnlyDataName(NewName);
 		bRenamed = EditorOnlyData->Rename(*EditorOnlyDataName, nullptr, Flags);
 	}
 #endif
@@ -13500,7 +13500,7 @@ UMaterialFunctionInterfaceEditorOnlyData* UMaterialFunctionInterface::CreateEdit
 	check(EditorOnlyClass);
 	check(EditorOnlyClass->HasAllClassFlags(CLASS_Optional));
 
-	const FString EditorOnlyName = GetEditorOnlyDataName(*GetName());
+	const FString EditorOnlyName = MaterialFunctionInterface::GetEditorOnlyDataName(*GetName());
 	const EObjectFlags EditorOnlyFlags = GetMaskedFlags(RF_PropagateToSubObjects);
 	return NewObject<UMaterialFunctionInterfaceEditorOnlyData>(this, EditorOnlyClass, *EditorOnlyName, EditorOnlyFlags);
 }
