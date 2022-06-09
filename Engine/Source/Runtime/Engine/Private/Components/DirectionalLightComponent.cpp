@@ -1352,9 +1352,10 @@ void UDirectionalLightComponent::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		// Reset to older defaults if the light was created with a previous version of the engine.
-		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::UpdatedDirectionalLightShadowDefaults)
-		{
+		// Reset to older defaults if the light was created with a previous version of the engine & not set up by a blueprint.
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::UpdatedDirectionalLightShadowDefaults 
+			&& !GetArchetype()->IsInBlueprint())
+		{			
 			DynamicShadowDistanceMovableLight = 20000.0f;
 			DistanceFieldShadowDistance = 30000.0f;
 			DynamicShadowCascades = 3;
