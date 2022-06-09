@@ -549,4 +549,68 @@ void PackStrataOut(
 
 }
 
+#if STRATA_MATERIAL_EXPORT_TYPE > 0
+
+void StrataMaterialExportOut(
+	in FStrataIntegrationSettings Settings,
+	in FStrataPixelHeader StrataPixelHeader,
+	in FStrataData StrataData,
+	in float3 SurfaceWorldNormal,
+	inout float  OutCoverage, 
+	inout float3 OutTransmittancePreCoverage, 
+	inout float3 OutBaseColorPostCoverage, 
+	inout float3 OutWorldNormal,
+	inout float3 OutEmissiveLuminance)
+{
+	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;
+
+	// Align V with N to not have any view dependent effect when exporting material data.
+	const float3 FakeV = SurfaceWorldNormal;
+
+	OutCoverage = 0.0f;
+	OutTransmittancePreCoverage = 0.0f;
+	OutBaseColorPostCoverage = 0.0f;
+	OutWorldNormal = 0.0f;
+	OutEmissiveLuminance = 0.0f;
+	
+	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
+	if (StrataTree.BSDFCount > 0)
+	{
+		// Update tree (coverage/transmittance/luminace weights)
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, FakeV, Settings, OutCoverage, OutTransmittancePreCoverage);
+
+		//
+		// Forward lighting
+		//
+		STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
+		for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
+		{
+		#define CurrentBSDF StrataTree.BSDFs[BSDFIdx]
+
+			if (StrataIsBSDFVisible(CurrentBSDF))
+			{
+				// Starting with environment lighting, the context does not specify a light
+				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, FakeV);
+
+				const float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
+				const float3 N = TangentBasis[2];
+
+				const float GreyScaleWeight = dot(CurrentBSDF.LuminanceWeightV * CurrentBSDF.TransmittanceAboveAlongN, (1.0/3.0).xxx);
+
+				// Simply sum all BaseColors according to transmittance and coverage.
+				OutBaseColorPostCoverage += StrataGetBSDFBaseColor(CurrentBSDF) * CurrentBSDF.LuminanceWeightV * CurrentBSDF.TransmittanceAboveAlongN;
+
+				OutWorldNormal += N * GreyScaleWeight;
+
+				OutEmissiveLuminance += BSDF_GETEMISSIVE(CurrentBSDF) * CurrentBSDF.LuminanceWeightV;
+			}
+		#undef CurrentBSDF
+		}
+
+		OutWorldNormal = all(OutWorldNormal == 0) ? float3(0.0, 0.0, 0.0) : normalize(OutWorldNormal);
+	}
+}
+
+#endif // STRATA_MATERIAL_EXPORT_TYPE
+
 #endif // STRATA_ENABLED

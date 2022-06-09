@@ -58,6 +58,23 @@ enum class EMaterialCompilerType
 	MaterialProxy, /** Flat material proxy compiler */
 };
 
+
+/** Whether we need some data export from a Strata material from spatially varying properties, e.g. diffuse color for Lighmass to generate lightmaps. */
+enum EStrataMaterialExport : uint8
+{
+	SME_None			= 0,
+	SME_Diffuse			= 1,
+	SME_Normal			= 2,
+	SME_Emissive		= 3,
+	SME_Transmittance	= 4,
+};
+/** Exported materials are all opaque unlit. This is used to give some context to the export logic.*/
+enum EStrataMaterialExportContext : uint8
+{
+	SMEC_Opaque = 0,
+	SMEC_Translucent = 1
+};
+
 struct FStrataRegisteredSharedLocalBasis
 {
 	int32 NormalCodeChunk;
@@ -198,6 +215,16 @@ public:
 	virtual EMaterialCompilerType GetCompilerType() const { return EMaterialCompilerType::Standard; }
 	inline bool IsMaterialProxyCompiler() const { return GetCompilerType() == EMaterialCompilerType::MaterialProxy; }
 	inline bool IsLightmassCompiler() const { return GetCompilerType() == EMaterialCompilerType::Lightmass; }
+
+	inline void SetStrataMaterialExportType(EStrataMaterialExport InStrataMaterialExport, EStrataMaterialExportContext InStrataMaterialExportContext, uint8 InStrataMaterialExportLegacyBlendMode)
+	{
+		StrataMaterialExport = InStrataMaterialExport; 
+		StrataMaterialExportContext = InStrataMaterialExportContext;
+		StrataMaterialExportLegacyBlendMode = InStrataMaterialExportLegacyBlendMode;
+	}
+	inline EStrataMaterialExport GetStrataMaterialExportType() const { return StrataMaterialExport; }
+	inline EStrataMaterialExportContext GetStrataMaterialExportContext() const { return StrataMaterialExportContext; }
+	inline uint8 GetStrataMaterialExportLegacyBlendMode() const { return StrataMaterialExportLegacyBlendMode; }
 
 	inline bool IsVertexInterpolatorBypass() const
 	{
@@ -609,6 +636,11 @@ public:
 	// If possible we should re-factor this to avoid having to deal with compiler state
 	virtual bool IsCurrentlyCompilingForPreviousFrame() const { return false; }
 	virtual bool IsDevelopmentFeatureEnabled(const FName& FeatureName) const { return true; }
+
+private:
+	EStrataMaterialExport StrataMaterialExport = SME_None;
+	EStrataMaterialExportContext StrataMaterialExportContext = SMEC_Opaque;
+	uint8 StrataMaterialExportLegacyBlendMode = 0;
 };
 
 /** 

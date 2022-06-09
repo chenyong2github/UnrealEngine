@@ -173,13 +173,13 @@ struct FShadingOcclusion
 
 #define MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING (MATERIAL_IS_STRATA && STRATA_ENABLED && STRATA_OPAQUE_DEFERRED)
 
-#if STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING || MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
+#if STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING || MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING || STRATA_MATERIAL_EXPORT_EXECUTED
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #endif
 #if STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING
 #include "/Engine/Private/Strata/StrataForwardLighting.ush"
 #endif
-#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
+#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING || STRATA_MATERIAL_EXPORT_EXECUTED
 #include "/Engine/Private/Strata/StrataExport.ush"
 #endif
 
@@ -1588,7 +1588,7 @@ void FPixelShaderInOut_MainPS(
 	#endif
 #endif
 
-#if MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING || STRATA_TRANSLUCENT_MATERIAL || STRATA_FORWARD_SHADING
+#if MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING || STRATA_TRANSLUCENT_MATERIAL || STRATA_FORWARD_SHADING || STRATA_MATERIAL_EXPORT_EXECUTED
 	float3 DualBlendSurfaceLuminancePostCoverage	= 0.0f;
 	float3 DualBlendSurfaceTransmittancePreCoverage = 1.0f;
 	float DualBlendSurfaceCoverage					= 1.0f;
@@ -1672,6 +1672,9 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif // MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 
+#if STRATA_MATERIAL_EXPORT_EXECUTED
+	float4 StrataMaterialExport = float4(0, 0, 0, 0);
+#endif
 
 	bool bStrataSubsurfaceEnable = false;
 #if STRATA_ENABLED && !STRATA_OPTIMIZED_UNLIT
@@ -1689,6 +1692,71 @@ void FPixelShaderInOut_MainPS(
 		}
 	}
 #endif
+
+	// Export non-unlit materials (opaque or translucent)
+#if STRATA_MATERIAL_EXPORT_EXECUTED
+
+	float  Coverage = 0;
+	float3 TransmittancePreCoverage = 0;
+	float3 BaseColorPostCoverage = 0;
+	float3 WorldNormal = 0;
+	float3 EmissiveLuminance = 0;
+
+	FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(true /*bForceFullyRough*/, false /*StrataStruct.bRoughDiffuse*/, StrataStruct.PeelLayersAboveDepth);
+
+	const float3 SurfaceWorldNormal = MaterialParameters.TangentToWorld[2].xyz;
+	StrataMaterialExportOut(
+		Settings,
+		StrataPixelHeader,
+		StrataData,
+		SurfaceWorldNormal,
+		Coverage,
+		TransmittancePreCoverage,
+		BaseColorPostCoverage,
+		WorldNormal,
+		EmissiveLuminance);
+
+	#if STRATA_MATERIAL_EXPORT_FROM_OPAQUE
+		#if	  STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_DIFFUSE_COLOR
+			StrataMaterialExport = float4(BaseColorPostCoverage, 1.0);
+		#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_NORMAL
+			StrataMaterialExport = float4(WorldNormal * 0.5 + 0.5, 1.0);
+		#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_EMISSIVE
+			StrataMaterialExport = float4(EmissiveLuminance, 1.0);
+		#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
+			StrataMaterialExport = float4(PixelMaterialInputs.OpacityMask.xxx, 1.0f); // when not masked, OpacityMask default to 1.
+		#endif
+	#elif STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT
+		#if STRATA_USES_CONVERSION_FROM_LEGACY
+			#if	  STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_DIFFUSE_COLOR
+				StrataMaterialExport = float4(0.0, 0.0, 0.0, 1.0);
+			#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_NORMAL
+				StrataMaterialExport = float4(0.0, 0.0, 0.0, 1.0);
+			#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_EMISSIVE
+				StrataMaterialExport = float4(EmissiveLuminance, 1.0);
+			#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
+				#if STRATA_MATERIAL_EXPORT_LEGACY_BLEND_MODE == STRATA_MATERIAL_EXPORT_LEGACY_BLEND_MODULATE
+					StrataMaterialExport = float4(BaseColorPostCoverage, 1.0f);
+				#else
+					StrataMaterialExport = float4(BaseColorPostCoverage + saturate(1.0f - Coverage), 1.0f);
+				#endif
+			#endif
+		#else
+			#if	  STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_DIFFUSE_COLOR
+				StrataMaterialExport = float4(BaseColorPostCoverage, 1.0);
+			#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_NORMAL
+				StrataMaterialExport = float4(WorldNormal * 0.5 + 0.5, 1.0);
+			#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_EMISSIVE
+				StrataMaterialExport = float4(EmissiveLuminance, 1.0);
+			#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
+				StrataMaterialExport = float4(TransmittancePreCoverage * Coverage + (1.0f - Coverage), 1.0f);
+			#endif
+		#endif
+	#else
+	#error Unhandled STRATA_MATERIAL_EXPORT
+	#endif
+
+#else // STRATA_MATERIAL_EXPORT_EXECUTED
 
 #if STRATA_OPAQUE_DEFERRED
 
@@ -1850,20 +1918,61 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif // STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING
 
+#endif // STRATA_MATERIAL_EXPORT_EXECUTED
+
 #elif STRATA_ENABLED && STRATA_OPTIMIZED_UNLIT
 
 	// Unlit forces a single BSDF
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 
-#if STRATA_OPAQUE_DEFERRED || (STRATA_OPAQUE_MATERIAL && STRATA_FORWARD_SHADING)
+#if ((STRATA_OPAQUE_DEFERRED || (STRATA_OPAQUE_MATERIAL && STRATA_FORWARD_SHADING))) && !STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT
 	Color = BSDF_GETEMISSIVE(UnlitBSDF);
 	Opacity = 1.0f;
-#else // STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING
+
+#if   STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_DIFFUSE_COLOR
+	StrataMaterialExport = float4(0.0, 0.0, 0.0, 1.0);
+#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_NORMAL
+	StrataMaterialExport = float4(0.0, 0.0, 0.0, 1.0);
+#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_EMISSIVE
+	StrataMaterialExport = float4(Color, 1.0);
+#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
+	StrataMaterialExport = float4(PixelMaterialInputs.OpacityMask.xxx, 1.0f); // when not masked, OpacityMask default to 1.
+#endif
+
+#else // STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING || STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT
 	DualBlendSurfaceLuminancePostCoverage		= BSDF_GETEMISSIVE(UnlitBSDF);
 	DualBlendSurfaceTransmittancePreCoverage	= UNLIT_TRANSMITTANCE(UnlitBSDF);
 	DualBlendSurfaceCoverage					= UnlitBSDF.Coverage;
 	Color = 0.0f;
 	Opacity = 1.0f;
+
+#if STRATA_USES_CONVERSION_FROM_LEGACY
+	#if   STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_DIFFUSE_COLOR
+		StrataMaterialExport = float4(0.0, 0.0, 0.0, 1.0);
+	#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_NORMAL
+		StrataMaterialExport = float4(0.0, 0.0, 0.0, 1.0);
+	#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_EMISSIVE
+		StrataMaterialExport = float4(DualBlendSurfaceLuminancePostCoverage, 1.0);
+	#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
+		#if STRATA_MATERIAL_EXPORT_LEGACY_BLEND_MODE == STRATA_MATERIAL_EXPORT_LEGACY_BLEND_MODULATE
+		StrataMaterialExport = float4(DualBlendSurfaceLuminancePostCoverage, 1.0f);
+		#else
+		StrataMaterialExport = float4(DualBlendSurfaceLuminancePostCoverage + saturate(1.0 - DualBlendSurfaceCoverage.xxx), 1.0f);
+		#endif
+	#endif
+#else // STRATA_USES_CONVERSION_FROM_LEGACY
+	// The legacy unlit to lightmass conversion is weird and very specialized.
+	#if   STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_DIFFUSE_COLOR
+		StrataMaterialExport = float4(0.0, 0.0, 0.0, 1.0);
+	#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_NORMAL
+		StrataMaterialExport = float4(0.0, 0.0, 0.0, 1.0);
+	#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_EMISSIVE
+		StrataMaterialExport = float4(DualBlendSurfaceLuminancePostCoverage, 1.0);
+	#elif STRATA_MATERIAL_EXPORT_TYPE == STRATA_MATERIAL_EXPORT_TRANSMITTANCE
+		StrataMaterialExport = float4(DualBlendSurfaceTransmittancePreCoverage * DualBlendSurfaceCoverage + (1.0 - DualBlendSurfaceCoverage), 1.0f);
+	#endif
+#endif // STRATA_USES_CONVERSION_FROM_LEGACY
+
 #endif
 	
 #endif
@@ -2147,6 +2256,11 @@ void FPixelShaderInOut_MainPS(
 		View.VTFeedbackBuffer
 	);
 #endif
+
+#if STRATA_MATERIAL_EXPORT_EXECUTED
+	Out.MRT[0] = StrataMaterialExport;
+#endif
+
 }
 
 #if STRATA_OPAQUE_DEFERRED
