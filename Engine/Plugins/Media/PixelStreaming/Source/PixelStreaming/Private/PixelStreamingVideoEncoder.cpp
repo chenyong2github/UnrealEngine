@@ -8,6 +8,7 @@
 #include "PixelStreamingStats.h"
 #include "UnrealEngine.h"
 #include "HAL/PlatformFilemanager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
 #include "PixelStreamingSettings.h"
 #include "LatencyTester.h"
