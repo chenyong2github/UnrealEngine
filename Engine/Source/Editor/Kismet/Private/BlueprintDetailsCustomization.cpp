@@ -2343,7 +2343,8 @@ TSharedRef<SWidget> FBlueprintVarActionDetails::GenerateBitmaskEnumTypeWidget(TS
 
 FText FBlueprintVarActionDetails::GetBitmaskEnumTypeName() const
 {
-	return FText::FromName(GetBitmaskEnumTypePath()->GetAssetName());
+	const TSharedPtr<FTopLevelAssetPath> BitmaskEnumTypePath = GetBitmaskEnumTypePath();
+	return BitmaskEnumTypePath? FText::FromName(BitmaskEnumTypePath->GetAssetName()) : FText();
 }
 
 TSharedPtr<FString> FBlueprintVarActionDetails::GetVariableReplicationType() const
