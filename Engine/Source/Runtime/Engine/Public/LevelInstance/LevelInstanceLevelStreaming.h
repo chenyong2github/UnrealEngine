@@ -42,6 +42,9 @@ private:
 	void OnLoadedActorRemovedFromLevel(AActor& InActor);
 
 	TWeakObjectPtr<ALevelInstanceEditorInstanceActor> LevelInstanceEditorInstanceActor;
+
+	mutable FTransform CachedTransform;
+	mutable FBox CachedBounds;
 #endif
 	FLevelInstanceID LevelInstanceID;
 };
