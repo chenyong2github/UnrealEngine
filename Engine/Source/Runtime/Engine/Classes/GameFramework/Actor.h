@@ -1241,7 +1241,7 @@ public:
 	bool HasDataLayers() const;
 
 private:
-	TArray<const UDataLayerInstance*> GetDataLayerInstancesInternal(bool bUseLevelContext) const;
+	TArray<const UDataLayerInstance*> GetDataLayerInstancesInternal(bool bUseLevelContext, bool bIncludeParentDataLayers = true) const;
 	bool UseWorldPartitionRuntimeCellDataLayers() const;
 
 	//~=============================================================================
@@ -2372,7 +2372,7 @@ public:
 	virtual void EditorKeyPressed(FKey Key, EInputEvent Event) {}
 
 	/** Called by ReplaceSelectedActors to allow a new actor to copy properties from an old actor when it is replaced */
-	virtual void EditorReplacedActor(AActor* OldActor) {}
+	virtual void EditorReplacedActor(AActor* OldActor);
 
 	/**
 	 * Function that gets called from within Map_Check to allow this actor to check itself

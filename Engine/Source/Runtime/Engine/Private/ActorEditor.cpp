@@ -31,11 +31,14 @@
 #include "Editor.h"
 #include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "Folder.h"
 #include "ActorFolder.h"
 #include "WorldPersistentFolders.h"
+#include "Algo/Transform.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
@@ -1212,6 +1215,34 @@ void AActor::SetFolderPath_Recursively(const FName& NewFolderPath)
 		InActor->SetFolderPath(NewFolderPath);
 		return true;
 	});
+}
+
+// Transfers some properties from the old actor
+// Ideally, this should be revisited to implement something more generic.
+void AActor::EditorReplacedActor(AActor* OldActor)
+{
+	SetActorLabel(OldActor->GetActorLabel());
+	Tags = OldActor->Tags;
+	
+	SetFolderPath(OldActor->GetFolderPath());
+	
+	if (CanChangeIsSpatiallyLoadedFlag())
+	{
+		SetIsSpatiallyLoaded(OldActor->bIsSpatiallyLoaded);
+	}
+
+	SetRuntimeGrid(OldActor->RuntimeGrid);
+
+	const bool bUseLevelContext = true;
+	const bool bIncludeParentDataLayers = false;
+	TArray<const UDataLayerInstance*> ConstDataLayerInstances = OldActor->GetDataLayerInstancesInternal(bUseLevelContext, bIncludeParentDataLayers);
+	if (!ConstDataLayerInstances.IsEmpty())
+	{
+		TArray<UDataLayerInstance*> DataLayerInstances;
+		Algo::Transform(ConstDataLayerInstances, DataLayerInstances, [](const UDataLayerInstance* ConstDataLayerInstance) { return const_cast<UDataLayerInstance*>(ConstDataLayerInstance); });
+		IDataLayerEditorModule& EditorModule = FModuleManager::LoadModuleChecked<IDataLayerEditorModule>("DataLayerEditor");
+		EditorModule.AddActorToDataLayers(this, DataLayerInstances);
+	}
 }
 
 void AActor::CheckForDeprecated()

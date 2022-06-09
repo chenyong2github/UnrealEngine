@@ -11,6 +11,7 @@
 #include "DataLayer/DataLayerPropertyTypeCustomization.h"
 #include "DataLayer/SDataLayerBrowser.h"
 #include "DataLayer/DataLayerNameEditSink.h"
+#include "DataLayer/DataLayerEditorSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 IMPLEMENT_MODULE(FDataLayerEditorModule, DataLayerEditor );
@@ -49,4 +50,9 @@ void FDataLayerEditorModule::SyncDataLayerBrowserToDataLayer(const UDataLayerIns
 		TSharedRef<SDataLayerBrowser> Browser = StaticCastSharedRef<SDataLayerBrowser>(DataLayerBrowser.Pin().ToSharedRef());
 		Browser->SyncDataLayerBrowserToDataLayer(DataLayerInstance);
 	}
+}
+
+bool FDataLayerEditorModule::AddActorToDataLayers(AActor* Actor, const TArray<UDataLayerInstance*>& DataLayers)
+{
+	return UDataLayerEditorSubsystem::Get()->AddActorToDataLayers(Actor, DataLayers);
 }

@@ -40,6 +40,9 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<FExtender>, FDataLayersMenuExtender, const TSharedRef<FUICommandList>);
 	virtual TArray<FDataLayersMenuExtender>& GetAllDataLayersMenuExtenders() {return DataLayersMenuExtenders;}
 
+	/* Implement IDataLayerEditorModule */
+	virtual bool AddActorToDataLayers(AActor* Actor, const TArray<UDataLayerInstance*>& DataLayers) override;
+
 private:
 	TWeakPtr<SWidget> DataLayerBrowser;
 

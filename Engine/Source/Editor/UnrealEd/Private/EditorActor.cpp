@@ -1357,9 +1357,6 @@ AActor* UUnrealEdEngine::ReplaceActor( AActor* CurrentActor, UClass* NewActorCla
 
 			LayersSubsystem->AddActorToLayers( NewActor, CurrentActor->Layers );
 
-			NewActor->SetActorLabel( CurrentActor->GetActorLabel() );
-			NewActor->Tags = CurrentActor->Tags;
-
 			NewActor->EditorReplacedActor( CurrentActor );
 		}
 

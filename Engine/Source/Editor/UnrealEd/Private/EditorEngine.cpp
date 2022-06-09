@@ -5168,10 +5168,6 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 			ULayersSubsystem* LayersSubsystem = GetEditorSubsystem<ULayersSubsystem>();
 			LayersSubsystem->AddActorToLayers( NewActor, OldActor->Layers );
 
-			// Preserve the label and tags from the old actor
-			NewActor->SetActorLabel( OldActor->GetActorLabel() );
-			NewActor->Tags = OldActor->Tags;
-
 			// Allow actor derived classes a chance to replace properties.
 			NewActor->EditorReplacedActor(OldActor);
 

@@ -5951,7 +5951,7 @@ TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances() const
 // Returns all valid DataLayerInstances for this actor including those inherited from their parent level instance actor.
 // If bUseLevelContext is true, the actor level will be passed down to the DataLayerSubsystem which will use it 
 // to narrow down the resolving of valid datalayers for this particular level.
-TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesInternal(bool bUseLevelContext) const
+TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesInternal(bool bUseLevelContext, bool bIncludeParentDataLayers) const
 {
 	if (UseWorldPartitionRuntimeCellDataLayers())
 	{
@@ -5973,13 +5973,16 @@ TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesInternal(bool bUs
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
-		// Add parent container Data Layer Instances
-		ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetWorld());
-		if (AActor* ParentActor = LevelInstanceSubsystem ? Cast<AActor>(LevelInstanceSubsystem->GetParentLevelInstance(this)) : nullptr)
+		if (bIncludeParentDataLayers)
 		{
-			for (const UDataLayerInstance* DataLayerInstance : ParentActor->GetDataLayerInstancesInternal(bUseLevelContext))
+			// Add parent container Data Layer Instances
+			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(GetWorld());
+			if (AActor* ParentActor = LevelInstanceSubsystem ? Cast<AActor>(LevelInstanceSubsystem->GetParentLevelInstance(this)) : nullptr)
 			{
-				DataLayerInstances.AddUnique(DataLayerInstance);
+				for (const UDataLayerInstance* DataLayerInstance : ParentActor->GetDataLayerInstancesInternal(bUseLevelContext, bIncludeParentDataLayers))
+				{
+					DataLayerInstances.AddUnique(DataLayerInstance);
+				}
 			}
 		}
 		return DataLayerInstances;
