@@ -211,9 +211,11 @@ public:
 	 * This object is using our img sequence.
 	 *
 	 * @param InActor Object using our img sequence.
-	 * @param Width Width of the object. If < 0, then get the width automatically.
+	 * @param LODBias Bias used for mip-level calculations (Note: must be mirrored in a material manually).
+	 * @param MeshType Plane, sphere or none mesh type for mip-tile calculations.
+	 * @param MeshHorizontalRange Arc size in degrees used for visible tiles calculations, specific to the sphere.
 	 */
-	void AddObject(AActor* InActor, float Width, float LODBias, EMediaTextureVisibleMipsTiles MeshType = EMediaTextureVisibleMipsTiles::None);
+	void AddObject(AActor* InActor, float LODBias = 0.0f, EMediaTextureVisibleMipsTiles MeshType = EMediaTextureVisibleMipsTiles::None, float MeshHorizontalRange = 360.0f);
 
 	/**
 	 * This object is no longer using our img sequence.

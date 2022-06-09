@@ -97,11 +97,8 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
 	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
 
-	/**
-	 * Horizontal size of the mesh used for visible mips and tiles calculations.
-	 * For a sphere, this is the horizontal arc size in degrees.
-	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
+	/** Horizontal arc size in degrees used for visible mips and tiles calculations, specific to the sphere. */
+	UPROPERTY(BlueprintReadOnly, Category = "MediaPlate")
 	float MeshHorizontalRange = 360.0f;
 
 	/**

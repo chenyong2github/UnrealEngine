@@ -110,10 +110,9 @@ public:
 	 * This object is using our img sequence.
 	 *
 	 * @param InActor Object using our img sequence.
-	 * @param Width Width of the object. If < 0, then get the width automatically.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
-	void AddTargetObject(AActor* InActor, float Width = -1.0f);
+	void AddTargetObject(AActor* InActor);
 
 	/**
 	 * This object is no longer using our img sequence.

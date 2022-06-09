@@ -57,9 +57,9 @@ void UImgMediaSource::SetSequencePath(const FString& Path)
 }
 
 
-void UImgMediaSource::AddTargetObject(AActor* InActor, float Width)
+void UImgMediaSource::AddTargetObject(AActor* InActor)
 {
-	MipMapInfo->AddObject(InActor, Width, 0.0f);
+	MipMapInfo->AddObject(InActor);
 }
 
 
