@@ -44,7 +44,8 @@ private:
 		UEdGraph* InGraphToEdit,
 		SGraphEditor::FGraphEditorEvents GraphEvents,
 		bool InAutoExpandActionMenu,
-		UEdGraph* InGraphToDiff,
+		TSharedPtr<TArray<FDiffSingleResult>> DiffResults,
+		TAttribute<int32> FocusedDiffResult,
 		FSimpleDelegate InOnNavigateHistoryBack,
 		FSimpleDelegate InOnNavigateHistoryForward,
 		TAttribute<bool> ShowGraphStateOverlay);

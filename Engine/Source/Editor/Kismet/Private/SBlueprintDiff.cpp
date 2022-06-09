@@ -646,6 +646,7 @@ struct FGraphToDiff	: public TSharedFromThis<FGraphToDiff>, IDiffControl
 
 	/** Source for list view */
 	TArray<TSharedPtr<FDiffResultItem>> DiffListSource;
+	TSharedPtr<TArray<FDiffSingleResult>> FoundDiffs;
 
 private:
 	/** Get tooltip for category */
@@ -677,7 +678,7 @@ private:
 };
 
 FGraphToDiff::FGraphToDiff(SBlueprintDiff* InDiffWidget, UEdGraph* InGraphOld, UEdGraph* InGraphNew, const FRevisionInfo& InRevisionOld, const FRevisionInfo& InRevisionNew)
-	: DiffWidget(InDiffWidget), GraphOld(InGraphOld), GraphNew(InGraphNew), RevisionOld(InRevisionOld), RevisionNew(InRevisionNew)
+	: FoundDiffs(MakeShared<TArray<FDiffSingleResult>>()), DiffWidget(InDiffWidget), GraphOld(InGraphOld), GraphNew(InGraphNew), RevisionOld(InRevisionOld), RevisionNew(InRevisionNew)
 {
 	check(InGraphOld || InGraphNew); //one of them needs to exist
 
@@ -793,24 +794,24 @@ void FGraphToDiff::GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTr
 
 void FGraphToDiff::BuildDiffSourceArray()
 {
-	TArray<FDiffSingleResult> FoundDiffs;
-	FGraphDiffControl::DiffGraphs(GraphOld, GraphNew, FoundDiffs);
-
-	DiffListSource.Empty();
-	for (const FDiffSingleResult& Diff : FoundDiffs)
-	{
-		DiffListSource.Add(MakeShared<FDiffResultItem>(Diff));
-	}
+	FoundDiffs->Empty();
+	FGraphDiffControl::DiffGraphs(GraphOld, GraphNew, *FoundDiffs);
 
 	struct SortDiff
 	{
-		bool operator () (const TSharedPtr<FDiffResultItem>& A, const TSharedPtr<FDiffResultItem>& B) const
+		bool operator () (const FDiffSingleResult& A, const FDiffSingleResult& B) const
 		{
-			return A->Result.Diff < B->Result.Diff;
+			return A.Diff < B.Diff;
 		}
 	};
 
-	Sort(DiffListSource.GetData(), DiffListSource.Num(), SortDiff());
+	Sort(FoundDiffs->GetData(), FoundDiffs->Num(), SortDiff());
+
+	DiffListSource.Empty();
+	for (const FDiffSingleResult& Diff : *FoundDiffs)
+	{
+		DiffListSource.Add(MakeShared<FDiffResultItem>(Diff));
+	}
 }
 
 void FGraphToDiff::OnGraphChanged( const FEdGraphEditAction& Action )
@@ -821,7 +822,6 @@ void FGraphToDiff::OnGraphChanged( const FEdGraphEditAction& Action )
 FDiffPanel::FDiffPanel()
 {
 	Blueprint = nullptr;
-	LastFocusedPin = nullptr;
 }
 
 void FDiffPanel::InitializeDiffPanel()
@@ -1314,18 +1314,19 @@ void SBlueprintDiff::ResetGraphEditors()
 	}
 }
 
-void FDiffPanel::GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff )
+void FDiffPanel::GeneratePanel(UEdGraph* NewGraph, UEdGraph* OldGraph )
+{
+	const TSharedPtr<TArray<FDiffSingleResult>> Diff = MakeShared<TArray<FDiffSingleResult>>();
+	FGraphDiffControl::DiffGraphs(OldGraph, NewGraph, *Diff);
+	GeneratePanel(NewGraph, Diff, {});
+}
+
+void FDiffPanel::GeneratePanel(UEdGraph* Graph, TSharedPtr<TArray<FDiffSingleResult>> DiffResults, TAttribute<int32> FocusedDiffResult)
 {
 	if( GraphEditor.IsValid() && GraphEditor.Pin()->GetCurrentGraph() == Graph )
 	{
 		return;
 	}
-
-	if( LastFocusedPin )
-	{
-		LastFocusedPin->bIsDiffing = false;
-	}
-	LastFocusedPin = nullptr;
 
 	TSharedPtr<SWidget> Widget = SNew(SBorder)
 								.HAlign(HAlign_Center)
@@ -1369,7 +1370,9 @@ void FDiffPanel::GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff )
 		TSharedRef<SGraphEditor> Editor = SNew(SGraphEditor)
 			.AdditionalCommands(GraphEditorCommands)
 			.GraphToEdit(Graph)
-			.GraphToDiff(GraphToDiff)
+			.GraphToDiff(nullptr)
+			.DiffResults(DiffResults)
+			.FocusedDiffResult(FocusedDiffResult)
 			.IsEditable(false)
 			.GraphEvents(InEvents);
 
@@ -1423,24 +1426,11 @@ bool FDiffPanel::CanCopyNodes() const
 
 void FDiffPanel::FocusDiff(UEdGraphPin& Pin)
 {
-	if( LastFocusedPin )
-	{
-		LastFocusedPin->bIsDiffing = false;
-	}
-	Pin.bIsDiffing = true;
-	LastFocusedPin = &Pin;
-
 	GraphEditor.Pin()->JumpToPin(&Pin);
 }
 
 void FDiffPanel::FocusDiff(UEdGraphNode& Node)
 {
-	if (LastFocusedPin)
-	{
-		LastFocusedPin->bIsDiffing = false;
-	}
-	LastFocusedPin = nullptr;
-
 	if (GraphEditor.IsValid())
 	{
 		GraphEditor.Pin()->JumpToNode(&Node, false);
@@ -1468,32 +1458,30 @@ void SBlueprintDiff::HandleGraphChanged( const FString& GraphPath )
 {
 	SetCurrentMode(GraphMode);
 	
-	TArray<UEdGraph*> GraphsOld, GraphsNew;
-	PanelOld.Blueprint->GetAllGraphs(GraphsOld);
-	PanelNew.Blueprint->GetAllGraphs(GraphsNew);
-
 	UEdGraph* GraphOld = nullptr;
-	for (UEdGraph* OldGraph : GraphsOld)
-	{
-		if (GraphPath.Equals(FGraphDiffControl::GetGraphPath(OldGraph)))
-		{
-			GraphOld = OldGraph;
-			break;
-		}
-	}
-
 	UEdGraph* GraphNew = nullptr;
-	for (UEdGraph* NewGraph : GraphsNew)
+	TSharedPtr<TArray<FDiffSingleResult>> DiffResults;
+	TAttribute<int32> FocusedDiffResult;
+	for (const TSharedPtr<FGraphToDiff>& GraphToDiff : Graphs)
 	{
+		UEdGraph* NewGraph = GraphToDiff->GetGraphNew();
+		UEdGraph* OldGraph = GraphToDiff->GetGraphOld();
 		if (GraphPath.Equals(FGraphDiffControl::GetGraphPath(NewGraph)))
 		{
 			GraphNew = NewGraph;
+			GraphOld = OldGraph;
+			DiffResults = GraphToDiff->FoundDiffs;
+			FocusedDiffResult = TAttribute<int32>::CreateLambda(
+				[DifferencesTreeView = DifferencesTreeView.ToSharedRef(), &RealDifferences = RealDifferences]()
+				{
+					return DiffTreeView::CurrentDifference(DifferencesTreeView, RealDifferences);
+				});
 			break;
 		}
 	}
 
-	PanelOld.GeneratePanel(GraphOld, GraphNew);
-	PanelNew.GeneratePanel(GraphNew, GraphOld);
+	PanelOld.GeneratePanel(GraphOld, DiffResults, FocusedDiffResult);
+	PanelNew.GeneratePanel(GraphNew, DiffResults, FocusedDiffResult);
 }
 
 void SBlueprintDiff::GenerateDifferencesList()

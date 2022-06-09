@@ -96,7 +96,6 @@ public:
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SConversationDiff::Construct( const FArguments& InArgs )
 {
-	LastPinTarget = nullptr;
 	LastOtherPinTarget = nullptr;
 
 	FDiffListCommands::Register();
@@ -329,8 +328,6 @@ TSharedRef<ITableRow> SConversationDiff::OnGenerateRow(FSharedDiffOnGraph Item, 
 
 void SConversationDiff::OnSelectionChanged(FSharedDiffOnGraph Item, ESelectInfo::Type SelectionType)
 {
-	DisablePinDiffFocus();
-
 	if(!Item.IsValid())
 	{
 		return;
@@ -347,9 +344,6 @@ void SConversationDiff::OnSelectionChanged(FSharedDiffOnGraph Item, ESelectInfo:
 		{
 			if (InPin)
 			{
-				LastPinTarget = InPin;
-				InPin->bIsDiffing = true;
-
 				UEdGraph* NodeGraph = InPin->GetOwningNode()->GetGraph();
 				SGraphEditor* NodeGraphEditor = GetGraphEditorForGraph(NodeGraph);
 				NodeGraphEditor->JumpToPin(InPin);
@@ -416,19 +410,6 @@ SGraphEditor* SConversationDiff::GetGraphEditorForGraph(UEdGraph* Graph) const
 	checkNoEntry();
 	return nullptr;
 }
-
-void SConversationDiff::DisablePinDiffFocus()
-{
-	if(LastPinTarget)
-	{
-		LastPinTarget->bIsDiffing = false;
-	}
-	if(LastOtherPinTarget)
-	{
-		LastOtherPinTarget->bIsDiffing = false;
-	}
-}
-
 
 //////////////////////////////////////////////////////////////////////////
 // FConversationDiffPanel

@@ -66,7 +66,7 @@ void SConversationPin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 FSlateColor SConversationPin::GetPinColor() const
 {
 	return 
-		GraphPinObj->bIsDiffing ? ConversationEditorColors::Pin::Diff :
+		bIsDiffHighlighted ? ConversationEditorColors::Pin::Diff :
 		IsHovered() ? ConversationEditorColors::Pin::Hover :
 		(GraphPinObj->PinType.PinCategory == UConversationGraphTypes::PinCategory_SingleComposite) ? ConversationEditorColors::Pin::CompositeOnly :
 		(GraphPinObj->PinType.PinCategory == UConversationGraphTypes::PinCategory_SingleTask) ? ConversationEditorColors::Pin::TaskOnly :

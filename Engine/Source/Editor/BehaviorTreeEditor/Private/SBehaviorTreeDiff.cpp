@@ -95,6 +95,7 @@ void SBehaviorTreeDiff::Construct( const FArguments& InArgs )
 {
 	LastPinTarget = NULL;
 	LastOtherPinTarget = NULL;
+	FoundDiffs = MakeShared<TArray<FDiffSingleResult>>();
 
 	FDiffListCommands::Register();
 
@@ -179,8 +180,8 @@ void SBehaviorTreeDiff::Construct( const FArguments& InArgs )
 		]
 	];
 
-	PanelOld.GeneratePanel(PanelOld.BehaviorTree->BTGraph, PanelNew.BehaviorTree->BTGraph);
-	PanelNew.GeneratePanel(PanelNew.BehaviorTree->BTGraph, PanelOld.BehaviorTree->BTGraph);
+	PanelOld.GeneratePanel(PanelOld.BehaviorTree->BTGraph, FoundDiffs);
+	PanelNew.GeneratePanel(PanelNew.BehaviorTree->BTGraph, FoundDiffs);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -264,11 +265,11 @@ TSharedRef<SWidget> SBehaviorTreeDiff::GenerateDiffListWidget()
 
 void SBehaviorTreeDiff::BuildDiffSourceArray()
 {
-	TArray<FDiffSingleResult> FoundDiffs;
-	FGraphDiffControl::DiffGraphs(PanelOld.BehaviorTree->BTGraph, PanelNew.BehaviorTree->BTGraph, FoundDiffs);
+	FoundDiffs->Empty();
+	FGraphDiffControl::DiffGraphs(PanelOld.BehaviorTree->BTGraph, PanelNew.BehaviorTree->BTGraph, *FoundDiffs);
 
 	DiffListSource.Empty();
-	for (auto DiffIt(FoundDiffs.CreateConstIterator()); DiffIt; ++DiffIt)
+	for (auto DiffIt(FoundDiffs->CreateConstIterator()); DiffIt; ++DiffIt)
 	{
 		DiffListSource.Add(FSharedDiffOnGraph(new FTreeDiffResultItem(*DiffIt)));
 	}
@@ -322,8 +323,6 @@ TSharedRef<ITableRow> SBehaviorTreeDiff::OnGenerateRow(FSharedDiffOnGraph Item, 
 
 void SBehaviorTreeDiff::OnSelectionChanged(FSharedDiffOnGraph Item, ESelectInfo::Type SelectionType)
 {
-	DisablePinDiffFocus();
-
 	if(!Item.IsValid())
 	{
 		return;
@@ -341,7 +340,6 @@ void SBehaviorTreeDiff::OnSelectionChanged(FSharedDiffOnGraph Item, ESelectInfo:
 			if (InPin)
 			{
 				LastPinTarget = InPin;
-				InPin->bIsDiffing = true;
 
 				UEdGraph* NodeGraph = InPin->GetOwningNode()->GetGraph();
 				SGraphEditor* NodeGraphEditor = GetGraphEditorForGraph(NodeGraph);
@@ -410,18 +408,6 @@ SGraphEditor* SBehaviorTreeDiff::GetGraphEditorForGraph(UEdGraph* Graph) const
 	return NULL;
 }
 
-void SBehaviorTreeDiff::DisablePinDiffFocus()
-{
-	if(LastPinTarget)
-	{
-		LastPinTarget->bIsDiffing = false;
-	}
-	if(LastOtherPinTarget)
-	{
-		LastOtherPinTarget->bIsDiffing = false;
-	}
-}
-
 
 //////////////////////////////////////////////////////////////////////////
 // FBehaviorTreeDiffPanel
@@ -432,7 +418,7 @@ SBehaviorTreeDiff::FBehaviorTreeDiffPanel::FBehaviorTreeDiffPanel()
 	BehaviorTree = NULL;
 }
 
-void SBehaviorTreeDiff::FBehaviorTreeDiffPanel::GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff)
+void SBehaviorTreeDiff::FBehaviorTreeDiffPanel::GeneratePanel(UEdGraph* Graph, TSharedPtr<TArray<FDiffSingleResult>> DiffResults)
 {
 	TSharedPtr<SWidget> Widget = SNew(SBorder)
 		.HAlign(HAlign_Center)
@@ -469,7 +455,7 @@ void SBehaviorTreeDiff::FBehaviorTreeDiffPanel::GeneratePanel(UEdGraph* Graph, U
 		auto Editor = SNew(SGraphEditor)
 			.AdditionalCommands(GraphEditorCommands)
 			.GraphToEdit(Graph)
-			.GraphToDiff(GraphToDiff)
+			.DiffResults(DiffResults)
 			.IsEditable(false)
 			.TitleBar(SNew(SBorder).HAlign(HAlign_Center)
 			[

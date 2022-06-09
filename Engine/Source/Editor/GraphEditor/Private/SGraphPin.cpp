@@ -108,6 +108,8 @@ SGraphPin::SGraphPin()
 
 	static const FName NAME_Pin_Background("Graph.Pin.Background");
 	static const FName NAME_Pin_BackgroundHovered("Graph.Pin.BackgroundHovered");
+	
+	static const FName NAME_Pin_DiffOutline("Graph.Pin.DiffHighlight");
 
 	static const FName NAME_PosePin_Connected("Graph.PosePin.Connected");
 	static const FName NAME_PosePin_Disconnected("Graph.PosePin.Disconnected");
@@ -1059,7 +1061,7 @@ const FSlateBrush* SGraphPin::GetPinBorder() const
 		}
 	}
 	UEdGraphPin* GraphPin = GetPinObj();
-	return (IsHovered() || bIsMarkedPin || (GraphPin && GraphPin->bIsDiffing) || bOnlyShowDefaultValue) ? CachedImg_Pin_BackgroundHovered : CachedImg_Pin_Background;
+	return (IsHovered() || bIsMarkedPin || bIsDiffHighlighted || bOnlyShowDefaultValue) ? CachedImg_Pin_BackgroundHovered : CachedImg_Pin_Background;
 }
 
 
@@ -1068,7 +1070,7 @@ FSlateColor SGraphPin::GetPinColor() const
 	UEdGraphPin* GraphPin = GetPinObj();
 	if (GraphPin && !GraphPin->IsPendingKill())
 	{
-		if (GraphPin->bIsDiffing)
+		if (bIsDiffHighlighted)
 		{
 			return FSlateColor(FLinearColor(0.9f, 0.2f, 0.15f));
 		}

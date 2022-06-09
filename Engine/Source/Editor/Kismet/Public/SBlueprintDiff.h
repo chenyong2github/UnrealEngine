@@ -51,8 +51,11 @@ struct KISMET_API FDiffPanel
 	/** Initializes the panel, can be moved into constructor if diff and merge clients are made more uniform: */
 	void InitializeDiffPanel();
 
-	/** Generate this panel based on the specified graph */
-	void GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff);
+	/** Generate a panel for NewGraph diffed against OldGraph */
+	void GeneratePanel(UEdGraph* NewGraph, UEdGraph* OldGraph);
+	
+	/** Generate a panel that displays the Graph and reflects the items in the DiffResults */
+	void GeneratePanel(UEdGraph* Graph, TSharedPtr<TArray<FDiffSingleResult>> DiffResults, TAttribute<int32> FocusedDiffResult);
 
 	/** Generate the 'MyBlueprint' widget, which is private to this module */
 	TSharedRef<class SWidget> GenerateMyBlueprintWidget();
@@ -90,9 +93,6 @@ struct KISMET_API FDiffPanel
 
 	/** True if we should show a name identifying which asset this panel is displaying */
 	bool							bShowAssetName;
-
-	/** The panel stores the last pin that was focused on by the user, so that it can clear the visual style when selection changes */
-	UEdGraphPin*					LastFocusedPin;
 
 	/** The widget that contains the revision info in graph mode */
 	TSharedPtr<SWidget>				OverlayGraphRevisionInfo;

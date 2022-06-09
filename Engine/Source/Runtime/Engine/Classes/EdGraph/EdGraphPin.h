@@ -331,9 +331,9 @@ public:
 	/** If true, the default value on this pin is ignored and should not be set. */
 	uint8 bDefaultValueIsIgnored:1;
 
-	/** If true, this pin is the focus of a diff. This is transient. */
-	uint8 bIsDiffing:1;
-
+	UE_DEPRECATED(5.0, "bIsDiffing is deprecated. Please use SGraphPanel::DiffResults and SGraphPanel::FocusedDiffResult instead")
+	uint32 bIsDiffing:1;
+	
 	/** If true, the pin may be hidden by user. */
 	uint8 bAdvancedView:1;
 
@@ -669,10 +669,6 @@ class UEdGraphPin_Deprecated : public UObject
 	/** If true, the default value on this pin is ignored and should not be set */
 	UPROPERTY()
 	uint32 bDefaultValueIsIgnored:1;
-
-	/** If true, this pin is the focus of a diff */
-	UPROPERTY(transient)
-	uint32 bIsDiffing:1;
 
 	/** If true, the pin may be hidden by user */
 	UPROPERTY()

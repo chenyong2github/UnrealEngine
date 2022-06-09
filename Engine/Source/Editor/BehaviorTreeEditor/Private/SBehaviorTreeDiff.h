@@ -43,11 +43,11 @@ private:
 		FBehaviorTreeDiffPanel();
 
 		/** 
-		 * Generates the slate for this panel
-		 * @param Graph        The Left side graph.
-		 * @param GraphToDiff  The right side graph to diff against
+		 * Generate a panel that displays the Graph and reflects the items in the DiffResults
+		 * @param Graph        Graph Being Displayed
+		 * @param DiffResults  Attribute for obtaining the list of differences
 		 */
-		void GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff);
+		void GeneratePanel(UEdGraph* Graph, TSharedPtr<TArray<FDiffSingleResult>> DiffResults);
 
 		/**
 		 * Returns title for this panel
@@ -181,6 +181,9 @@ private:
 
 	// Source for list view 
 	TArray<FSharedDiffOnGraph> DiffListSource;
+
+	// result from FGraphDiffControl::DiffGraphs
+	TSharedPtr<TArray<FDiffSingleResult>> FoundDiffs;
 
 	// Key commands processed by this widget
 	TSharedPtr<FUICommandList> KeyCommands;

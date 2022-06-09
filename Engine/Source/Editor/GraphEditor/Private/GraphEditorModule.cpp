@@ -64,7 +64,8 @@ TSharedRef<SGraphEditor> FGraphEditorModule::PRIVATE_MakeGraphEditor(
 	UEdGraph* InGraphToEdit,
 	SGraphEditor::FGraphEditorEvents InGraphEvents,
 	bool InAutoExpandActionMenu,
-	UEdGraph* InGraphToDiff,
+	TSharedPtr<TArray<FDiffSingleResult>> DiffResults,
+	TAttribute<int32> FocusedDiffResult,
 	FSimpleDelegate InOnNavigateHistoryBack,
 	FSimpleDelegate InOnNavigateHistoryForward,
 	TAttribute<bool> ShowGraphStateOverlay)
@@ -79,7 +80,8 @@ TSharedRef<SGraphEditor> FGraphEditorModule::PRIVATE_MakeGraphEditor(
 		.GraphToEdit(InGraphToEdit)
 		.GraphEvents(InGraphEvents)
 		.AutoExpandActionMenu(InAutoExpandActionMenu)
-		.GraphToDiff(InGraphToDiff)
+		.DiffResults(DiffResults)
+		.FocusedDiffResult(FocusedDiffResult)
 		.OnNavigateHistoryBack(InOnNavigateHistoryBack)
 		.OnNavigateHistoryForward(InOnNavigateHistoryForward)
 		.ShowGraphStateOverlay(ShowGraphStateOverlay);

@@ -28,7 +28,8 @@ void SGraphEditor::ConstructImplementation( const FArguments& InArgs )
 		InArgs._GraphToEdit,
 		InArgs._GraphEvents,
 		InArgs._AutoExpandActionMenu,
-		InArgs._GraphToDiff,
+		InArgs._DiffResults,
+		InArgs._FocusedDiffResult,
 		InArgs._OnNavigateHistoryBack,
 		InArgs._OnNavigateHistoryForward,
 		InArgs._ShowGraphStateOverlay

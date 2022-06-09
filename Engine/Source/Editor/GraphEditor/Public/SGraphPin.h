@@ -170,6 +170,11 @@ public:
 		PinColorModifier = InColor;
 	}
 
+	void SetDiffHighlighted(bool bHighlighted)
+	{
+		bIsDiffHighlighted = bHighlighted;
+	}
+
 	/** Set this pin to only be used to display default value */
 	void SetOnlyShowDefaultValue(bool bNewOnlyShowDefaultValue);
 
@@ -354,4 +359,7 @@ protected:
 
 	/** TRUE if the pin should allow any drag and drop */
 	bool bDragAndDropEnabled;
+
+	/** True if this pin is being diffed and it's currently selected in the diff view. Highlights this pin */
+	bool bIsDiffHighlighted;
 };

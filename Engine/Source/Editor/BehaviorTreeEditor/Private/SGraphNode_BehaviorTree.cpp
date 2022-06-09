@@ -67,7 +67,7 @@ void SBehaviorTreePin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 FSlateColor SBehaviorTreePin::GetPinColor() const
 {
 	return 
-		GraphPinObj->bIsDiffing ? BehaviorTreeColors::Pin::Diff :
+		bIsDiffHighlighted ? BehaviorTreeColors::Pin::Diff :
 		IsHovered() ? BehaviorTreeColors::Pin::Hover :
 		(GraphPinObj->PinType.PinCategory == UBehaviorTreeEditorTypes::PinCategory_SingleComposite) ? BehaviorTreeColors::Pin::CompositeOnly :
 		(GraphPinObj->PinType.PinCategory == UBehaviorTreeEditorTypes::PinCategory_SingleTask) ? BehaviorTreeColors::Pin::TaskOnly :

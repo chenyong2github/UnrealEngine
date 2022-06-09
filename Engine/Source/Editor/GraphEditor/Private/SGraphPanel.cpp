@@ -46,7 +46,8 @@ void SGraphPanel::Construct( const SGraphPanel::FArguments& InArgs )
 
 	this->OnGetContextMenuFor = InArgs._OnGetContextMenuFor;
 	this->GraphObj = InArgs._GraphObj;
-	this->GraphObjToDiff = InArgs._GraphObjToDiff;
+	this->DiffResults = InArgs._DiffResults;
+	this->FocusedDiffResult = InArgs._FocusedDiffResult;
 	this->SelectionManager.OnSelectionChanged = InArgs._OnSelectionChanged;
 	this->IsEditable = InArgs._IsEditable;
 	this->DisplayAsReadOnly = InArgs._DisplayAsReadOnly;
@@ -141,6 +142,41 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 	const FVector2D NodeShadowSize = GetDefault<UGraphEditorSettings>()->GetShadowDeltaSize();
 	const UEdGraphSchema* Schema = GraphObj->GetSchema();
 
+	
+	// If we were provided diff results, organize those by owner
+	TMap<UEdGraphNode*, FDiffSingleResult> NodeDiffResults;
+	TMap<UEdGraphPin*, FDiffSingleResult> PinDiffResults;
+	if (DiffResults.IsValid())
+	{
+		// diffs with Node1/Pin1 get precedence so set those first
+		for (const FDiffSingleResult& Result : *DiffResults)
+		{
+			if (Result.Pin1)
+			{
+				PinDiffResults.FindOrAdd(Result.Pin1, Result);
+				NodeDiffResults.FindOrAdd(Result.Pin1->GetOwningNode(), Result);
+			}
+			else if (Result.Node1)
+			{
+				NodeDiffResults.FindOrAdd(Result.Node1, Result);
+			}
+		}
+
+		// only diffs with Node2/Pin2 if those nodes don't already have a diff result
+		for (const FDiffSingleResult& Result : *DiffResults)
+		{
+			if (Result.Pin2)
+			{
+				PinDiffResults.FindOrAdd(Result.Pin2, Result);
+				NodeDiffResults.FindOrAdd(Result.Pin2->GetOwningNode(), Result);
+			}
+			else if (Result.Node2)
+			{
+				NodeDiffResults.FindOrAdd(Result.Node2, Result);
+			}
+		}
+	}
+
 	// Draw the child nodes
 	{
 		// When drawing a marquee, need a preview of what the selection will be.
@@ -155,7 +191,6 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 		// Context for rendering node infos
 		FKismetNodeInfoContext Context(GraphObj);
 
-		TArray<FGraphDiffControl::FNodeMatch> NodeMatches;
 		for (int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num(); ++ChildIndex)
 		{
 			FArrangedWidget& CurWidget = ArrangedChildren[ChildIndex];
@@ -195,6 +230,27 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 						ChildNode->ApplyRename();
 					}
 				}
+				
+				/** Highlight Pins that are focused by the diff view */
+				for (UEdGraphPin* Pin : NodeObj->Pins)
+				{
+					if (TSharedPtr<SGraphPin> PinWidget = ChildNode->FindWidgetForPin(Pin))
+					{
+						if (FDiffSingleResult* DiffResult = PinDiffResults.Find(Pin))
+						{
+							// if the diff result associated with this pin is focused, highlight the pin
+							if (DiffResults.IsValid() && FocusedDiffResult.IsSet())
+							{
+								const FDiffSingleResult& Focused = (*DiffResults)[FocusedDiffResult.Get()];
+								PinWidget->SetDiffHighlighted(*DiffResult == Focused);
+							}
+						}
+						else
+						{
+							PinWidget->SetDiffHighlighted(false);
+						}
+					}
+				}
 
 				// Draw the node's shadow.
 				if (bDrawShadowsThisFrame || bSelected)
@@ -230,23 +286,24 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 
 				int32 CurWidgetsMaxLayerId;
 				{
-					/** When diffing nodes, nodes that are different between revisions are opaque, nodes that have not changed are faded */
-					FGraphDiffControl::FNodeMatch NodeMatch = FGraphDiffControl::FindNodeMatch(GraphObjToDiff, NodeObj, NodeMatches);
-					if (NodeMatch.IsValid())
-					{
-						NodeMatches.Add(NodeMatch);
-					}
-					const bool bNodeIsDifferent = (!GraphObjToDiff || NodeMatch.Diff(FGraphDiffControl::FNodeDiffContext()));
-
 					/* When dragging off a pin, we want to duck the alpha of some nodes */
 					TSharedPtr< SGraphPin > OnlyStartPin = (1 == PreviewConnectorFromPins.Num()) ? PreviewConnectorFromPins[0].FindInGraphPanel(*this) : TSharedPtr< SGraphPin >();
 					const bool bNodeIsNotUsableInCurrentContext = Schema->FadeNodeWhenDraggingOffPin(NodeObj, OnlyStartPin.IsValid() ? OnlyStartPin.Get()->GetPinObj() : nullptr);
 					
-					const FWidgetStyle& NodeStyle = (bNodeIsDifferent && !bNodeIsNotUsableInCurrentContext)? InWidgetStyle : FadedStyle;
-					FWidgetStyle NodeStyleToUse = NodeStyle;
+					const bool bCleanDiff = DiffResults.IsValid() && !NodeDiffResults.Contains(NodeObj);
+					
+					FWidgetStyle NodeStyleToUse = InWidgetStyle;
+					if (bNodeIsNotUsableInCurrentContext)
+					{
+						NodeStyleToUse = FadedStyle;
+					}
+					else if (bCleanDiff)
+					{
+						NodeStyleToUse = FadedStyle;
+					}
 					NodeStyleToUse.BlendColorAndOpacityTint(FLinearColor(1.0f, 1.0f, 1.0f, Alpha));
 
-					// Draw the node.O
+					// Draw the node.
 					CurWidgetsMaxLayerId = CurWidget.Widget->Paint(NewArgs, CurWidget.Geometry, MyCullingRect, OutDrawElements, ChildLayerId, NodeStyleToUse, !DisplayAsReadOnly.Get() && ShouldBeEnabled( bParentEnabled ) );
 				}
 
@@ -1881,7 +1938,6 @@ void SGraphPanel::NotifyGraphChanged(const FEdGraphEditAction& EditAction)
 void SGraphPanel::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject( GraphObj );
-	Collector.AddReferencedObject( GraphObjToDiff );
 }
 
 FString SGraphPanel::GetReferencerName() const

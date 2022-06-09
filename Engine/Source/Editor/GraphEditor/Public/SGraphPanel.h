@@ -55,7 +55,6 @@ public:
 		, _OnSelectionChanged()
 		, _OnNodeDoubleClicked()
 		, _GraphObj( static_cast<UEdGraph*>(NULL) )
-		, _GraphObjToDiff( static_cast<UEdGraph*>(NULL) )
 		, _InitialZoomToFit( false )
 		, _IsEditable( true )
 		, _DisplayAsReadOnly( false )
@@ -71,7 +70,8 @@ public:
 		SLATE_EVENT( SGraphEditor::FOnDropActor, OnDropActor )
 		SLATE_EVENT( SGraphEditor::FOnDropStreamingLevel, OnDropStreamingLevel )
 		SLATE_ARGUMENT( class UEdGraph*, GraphObj )
-		SLATE_ARGUMENT( class UEdGraph*, GraphObjToDiff )
+		SLATE_ARGUMENT( TSharedPtr<TArray<FDiffSingleResult>>, DiffResults )
+		SLATE_ATTRIBUTE( int32, FocusedDiffResult )
 		SLATE_ARGUMENT( bool, InitialZoomToFit )
 		SLATE_ATTRIBUTE( bool, IsEditable )
 		SLATE_ATTRIBUTE( bool, DisplayAsReadOnly )
@@ -220,7 +220,11 @@ private:
 
 protected:
 	UEdGraph* GraphObj;
-	UEdGraph* GraphObjToDiff;//if it exists, this is 
+	
+	// if this graph is displaying the results of a diff, this will provide info
+	// on how to display the nodes
+	TSharedPtr<TArray<FDiffSingleResult>> DiffResults;
+	TAttribute<int32> FocusedDiffResult;
 
 	// Should we ignore the OnStopMakingConnection unless forced?
 	bool bPreservePinPreviewConnection;

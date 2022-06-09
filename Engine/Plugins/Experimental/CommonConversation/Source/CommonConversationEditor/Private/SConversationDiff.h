@@ -169,10 +169,6 @@ private:
 	 */
 	SGraphEditor* GetGraphEditorForGraph(UEdGraph* Graph) const;
 
-	/**
-	 * Removes focus of the pin in the graph viewer
-	 */
-	void DisablePinDiffFocus();
 
 private:
 
@@ -190,9 +186,6 @@ private:
 
 	// ListView of differences
 	TSharedPtr<SListViewType> DiffList;
-
-	// The last pin the user clicked on
-	UEdGraphPin* LastPinTarget;
 
 	// The last other pin the user clicked on
 	UEdGraphPin* LastOtherPinTarget;

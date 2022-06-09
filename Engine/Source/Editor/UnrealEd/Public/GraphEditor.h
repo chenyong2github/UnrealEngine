@@ -137,7 +137,6 @@ public:
 		, _DisplayAsReadOnly(false)
 		, _IsEmpty(false)
 		, _GraphToEdit(NULL)
-		, _GraphToDiff(NULL)
 		, _AutoExpandActionMenu(false)
 		, _ShowGraphStateOverlay(true)
 		{}
@@ -150,7 +149,15 @@ public:
 		SLATE_ATTRIBUTE( FGraphAppearanceInfo, Appearance )
 		SLATE_EVENT( FEdGraphEvent, OnGraphModuleReloaded )
 		SLATE_ARGUMENT( UEdGraph*, GraphToEdit )
+	
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		UE_DEPRECATED(5.1, "GraphToDiff is no longer supported. Use DiffResults instead")
 		SLATE_ARGUMENT( UEdGraph*, GraphToDiff )
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+		SLATE_ARGUMENT( TSharedPtr<TArray<FDiffSingleResult>>, DiffResults )
+		SLATE_ATTRIBUTE( int32, FocusedDiffResult )
+	
 		SLATE_ARGUMENT( FGraphEditorEvents, GraphEvents)
 		SLATE_ARGUMENT( bool, AutoExpandActionMenu )
 		SLATE_ARGUMENT( TWeakPtr<FAssetEditorToolkit>, AssetEditorToolkit)
