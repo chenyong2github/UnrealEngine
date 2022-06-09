@@ -84,7 +84,7 @@ struct TStructOpsTypeTraits<FIntVector4> : public TStructOpsTypeTraitsBase2<FInt
 		WithSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(IntVector4);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntVector4);
 
 template<typename T>
 struct TVector2StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
