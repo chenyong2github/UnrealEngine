@@ -592,7 +592,7 @@ public:
 	FGameplayCueNotify_PlacementInfo PlacementInfoOverride;
 
 	// Camera lens effect to play.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (MustImplement = "CameraLensEffectInterface"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (MustImplement = "/Script/Engine.CameraLensEffectInterface"))
 	TSubclassOf<AActor> CameraLensEffect;
 
 	// If enabled, use the spawn condition override and not the default one.

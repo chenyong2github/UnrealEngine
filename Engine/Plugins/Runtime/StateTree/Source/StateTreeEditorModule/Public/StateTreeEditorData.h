@@ -130,7 +130,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = Common)
 	FStateTreeStateParameters RootParameters;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Evaluators", meta = (BaseStruct = "StateTreeEvaluatorBase", BaseClass = "StateTreeEvaluatorBlueprintBase"))
+	UPROPERTY(EditDefaultsOnly, Category = "Evaluators", meta = (BaseStruct = "/Script/StateTreeModule.StateTreeEvaluatorBase", BaseClass = "/Script/StateTreeModule.StateTreeEvaluatorBlueprintBase"))
 	TArray<FStateTreeEditorNode> Evaluators;
 
 	UPROPERTY(meta = (ExcludeFromHash))

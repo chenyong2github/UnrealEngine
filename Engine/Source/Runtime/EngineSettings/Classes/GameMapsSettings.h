@@ -74,11 +74,11 @@ struct FTemplateMapInfoOverride
 	GENERATED_USTRUCT_BODY()
 
 	/** The thumbnail to display in the new level dialog */
-	UPROPERTY(config, EditAnywhere, Category = DefaultMaps, meta = (AllowedClasses = "Texture2D"))
+	UPROPERTY(config, EditAnywhere, Category = DefaultMaps, meta = (AllowedClasses = "/Script/Engine.Texture2D"))
 	FSoftObjectPath Thumbnail;
 
 	/** The path to the template map */
-	UPROPERTY(config, EditAnywhere, Category = DefaultMaps, meta = (AllowedClasses = "World"))
+	UPROPERTY(config, EditAnywhere, Category = DefaultMaps, meta = (AllowedClasses = "/Script/Engine.World"))
 	FSoftObjectPath Map;
 
 	/** The display name of the map template in the level dialog. If this is empty the thumbnail name will be used */

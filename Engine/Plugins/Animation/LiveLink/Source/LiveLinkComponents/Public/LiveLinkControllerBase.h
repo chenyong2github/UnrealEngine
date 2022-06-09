@@ -97,7 +97,7 @@ protected:
 	/**
 	 * A component reference (customized) that allows the user to specify a component that this controller should control
 	 */
-	UPROPERTY(EditInstanceOnly, Category = "ComponentToControl", meta = (UseComponentPicker, AllowedClasses = "ActorComponent", DisallowedClasses = "LiveLinkComponentController"))
+	UPROPERTY(EditInstanceOnly, Category = "ComponentToControl", meta = (UseComponentPicker, AllowedClasses = "/Script/Engine.ActorComponent", DisallowedClasses = "/Script/LiveLinkComponents.LiveLinkComponentController"))
 	FComponentReference ComponentPicker;
 
 protected:

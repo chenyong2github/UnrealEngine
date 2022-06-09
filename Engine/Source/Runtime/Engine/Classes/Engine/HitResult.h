@@ -15,7 +15,7 @@ class UPrimitiveComponent;
 /**
  * Structure containing information about one hit of a trace, such as point of impact and surface normal at that point.
  */
-USTRUCT(BlueprintType, meta = (HasNativeBreak = "Engine.GameplayStatics.BreakHitResult", HasNativeMake = "Engine.GameplayStatics.MakeHitResult"))
+USTRUCT(BlueprintType, meta = (HasNativeBreak = "/Script/Engine.GameplayStatics.BreakHitResult", HasNativeMake = "/Script/Engine.GameplayStatics.MakeHitResult"))
 struct ENGINE_API FHitResult
 {
 	GENERATED_BODY()

@@ -19,11 +19,11 @@ struct FTemplateMapInfo
 	TSoftObjectPtr<class UTexture2D> ThumbnailTexture;
 
 	/** The Texture associated with this map template */
-	UPROPERTY(config, meta = (AllowedClasses = "Texture2D"))
+	UPROPERTY(config, meta = (AllowedClasses = "/Script/Engine.Texture2D"))
 	FSoftObjectPath Thumbnail;
 
 	/** The object path to the template map */
-	UPROPERTY(config, meta = (AllowedClasses = "World"))
+	UPROPERTY(config, meta = (AllowedClasses = "/Script/Engine.World"))
 	FSoftObjectPath Map;
 
 	/** Optional display name override for this map template  */
