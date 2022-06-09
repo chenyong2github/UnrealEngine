@@ -85,9 +85,13 @@ public:
 
 
 	/**
-	 * Enable the matching attributes and overlay layers as the reference Copy set, but do not copy any data across
+	 * Enable the matching attributes and overlay layers as the reference Copy set, but do not copy any data across.
+	 * By default, clears existing attributes, so that there will be an exact match
+	 * If bClearExisting is passed as false, attribute sets will grow if necessary, and new sets are cleared,
+	 * but existing attributes are not removed/cleared.
+	 * @note Currently SkinWeightAttributes and GenericAttributes are always fully cleared regardless of bClearExisting value
 	 */
-	void EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch);
+	void EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch, bool bClearExisting = true);
 
 	/** @return the parent mesh for this overlay */
 	const FDynamicMesh3* GetParentMesh() const { return ParentMesh; }

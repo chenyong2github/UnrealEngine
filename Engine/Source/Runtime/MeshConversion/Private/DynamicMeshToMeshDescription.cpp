@@ -985,11 +985,19 @@ void FDynamicMeshToMeshDescription::ConvertPolygroupLayers(const FDynamicMesh3* 
 
 	TAttributesSet<FTriangleID>& TriAttribsSet = MeshOut.TriangleAttributes();
 
+	TSet<FName> UniqueNames;
+	int32 UniqueIDGenerator = 0;
 	for (int32 li = 0; li < MeshIn->Attributes()->NumPolygroupLayers(); ++li)
 	{
 		const FDynamicMeshPolygroupAttribute* Polygroups = MeshIn->Attributes()->GetPolygroupLayer(li);
 		FName LayerName = Polygroups->GetName();
-	
+		while (LayerName == NAME_None || UniqueNames.Contains(LayerName))
+		{
+			FString BaseName = (Polygroups->GetName() == NAME_None) ? TEXT("Groups") : LayerName.ToString();
+			LayerName = FName( FString::Printf(TEXT("%s_%d"), *BaseName, UniqueIDGenerator++) );
+		}
+		UniqueNames.Add(LayerName);	
+
 		// Find existing attribute with the same name. If not found, create a new one.
 		TTriangleAttributesRef<int32> Attribute;
 		if (TriAttribsSet.HasAttribute(LayerName))
@@ -1024,10 +1032,18 @@ void FDynamicMeshToMeshDescription::ConvertWeightLayers(const FDynamicMesh3* Mes
 
 	TAttributesSet<FVertexID>& VertexAttribsSet = MeshOut.VertexAttributes();
 
+	TSet<FName> UniqueNames;
+	int32 UniqueIDGenerator = 0;
 	for (int32 LayerIndex = 0; LayerIndex < MeshIn->Attributes()->NumWeightLayers(); ++LayerIndex)
 	{
 		const FDynamicMeshWeightAttribute* Weights = MeshIn->Attributes()->GetWeightLayer(LayerIndex);
 		FName LayerName = Weights->GetName();
+		while (LayerName == NAME_None || UniqueNames.Contains(LayerName))
+		{
+			FString BaseName = (Weights->GetName() == NAME_None) ? TEXT("Weights") : LayerName.ToString();
+			LayerName = FName( FString::Printf(TEXT("%s_%d"), *BaseName, UniqueIDGenerator++) );
+		}
+		UniqueNames.Add(LayerName);
 
 		// Find existing attribute with the same name. If not found, create a new one.
 		TVertexAttributesRef<float> Attribute;

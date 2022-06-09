@@ -274,47 +274,70 @@ void FDynamicMeshAttributeSet::SplitAllBowties(bool bParallel)
 
 
 
-void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch)
+void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch, bool bClearExisting)
 {
-	SetNumUVLayers(ToMatch.NumUVLayers());
-	for (int UVIdx = 0; UVIdx < NumUVLayers(); UVIdx++)
+	int32 ExistingUVLayers = NumUVLayers();
+	int32 RequiredUVLayers = (bClearExisting) ? ToMatch.NumUVLayers() : FMath::Max(ExistingUVLayers, ToMatch.NumUVLayers());
+	SetNumUVLayers(RequiredUVLayers);
+	for (int32 k = bClearExisting ? 0 : ExistingUVLayers; k < NumUVLayers(); k++)
 	{
-		UVLayers[UVIdx].ClearElements();
+		UVLayers[k].ClearElements();
 	}
-	SetNumNormalLayers(ToMatch.NumNormalLayers());
-	for (int NormalLayerIndex = 0; NormalLayerIndex < NumNormalLayers(); NormalLayerIndex++)
+
+	int32 ExistingNormalLayers = NumNormalLayers();
+	int32 RequiredNormalLayers = (bClearExisting) ? ToMatch.NumUVLayers() : FMath::Max(ExistingNormalLayers, ToMatch.NumNormalLayers());
+	SetNumNormalLayers(RequiredNormalLayers);
+	for (int32 k = bClearExisting ? 0 : ExistingNormalLayers; k < NumNormalLayers(); k++)
 	{
-		NormalLayers[NormalLayerIndex].ClearElements();
+		NormalLayers[k].ClearElements();
 	}
-	if (ToMatch.ColorLayer)
-	{
-		EnablePrimaryColors();
-	}
-	else
+
+	bool bWantColorLayer = ToMatch.HasPrimaryColors() || (this->HasPrimaryColors() && bClearExisting == false);
+	if (bClearExisting || bWantColorLayer == false)
 	{
 		DisablePrimaryColors();
 	}
-
-	if (ToMatch.MaterialIDAttrib)
+	if (bWantColorLayer)
 	{
-		EnableMaterialID();
+		EnablePrimaryColors();
 	}
-	else
+
+	bool bWantMaterialID = ToMatch.HasMaterialID() || (this->HasMaterialID() && bClearExisting == false);
+	if (bClearExisting || bWantMaterialID == false)
 	{
 		DisableMaterialID();
 	}
-
-	SetNumPolygroupLayers(ToMatch.NumPolygroupLayers());
-	for (int GroupIdx = 0; GroupIdx < NumPolygroupLayers(); ++GroupIdx)
+	if (bWantMaterialID)
 	{
-		PolygroupLayers[GroupIdx].Initialize((int32)0);
+		EnableMaterialID();
 	}
 
-	SetNumWeightLayers(ToMatch.NumWeightLayers());
-	for (int WeightLayerIdx = 0; WeightLayerIdx < NumWeightLayers(); ++WeightLayerIdx)
+
+	int32 ExistingPolygroupLayers = NumPolygroupLayers();
+	int32 RequiredPolygroupLayers = (bClearExisting) ? ToMatch.NumPolygroupLayers() : FMath::Max(ExistingPolygroupLayers, ToMatch.NumPolygroupLayers());
+	SetNumPolygroupLayers(RequiredPolygroupLayers);
+	for (int32 k = bClearExisting ? 0 : ExistingPolygroupLayers; k < NumPolygroupLayers(); k++)
 	{
-		WeightLayers[WeightLayerIdx].Initialize(0.0f);
+		PolygroupLayers[k].Initialize((int32)0);
+		if (PolygroupLayers[k].GetName() == NAME_None && k < ToMatch.NumPolygroupLayers())
+		{
+			PolygroupLayers[k].SetName( ToMatch.GetPolygroupLayer(k)->GetName() );
+		}
 	}
+
+	int32 ExistingWeightLayers = NumWeightLayers();
+	int32 RequiredWeightLayers = (bClearExisting) ? ToMatch.NumWeightLayers() : FMath::Max(ExistingWeightLayers, ToMatch.NumWeightLayers());
+	SetNumWeightLayers(RequiredWeightLayers);
+	for (int32 k = bClearExisting ? 0 : ExistingWeightLayers; k < NumWeightLayers(); k++)
+	{
+		WeightLayers[k].Initialize(0.0f);
+		if (WeightLayers[k].GetName() == NAME_None && k < ToMatch.NumWeightLayers())
+		{
+			WeightLayers[k].SetName( ToMatch.GetWeightLayer(k)->GetName() );
+		}
+	}
+
+	// currently SkinWeightAttributes and generic attributes do not respect bClearExisting, ie they are always cleared
 
 	ResetRegisteredAttributes();
 	
