@@ -148,6 +148,11 @@ UWorld* FDataLayerHierarchy::GetOwningWorld() const
 
 void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
 {
+	if (!GetOwningWorld()->GetWorldDataLayers())
+	{
+		return;
+	}
+
 	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetOwningWorld());
 
 	auto IsDataLayerShown = [this](const UDataLayerInstance* DataLayerInstance)

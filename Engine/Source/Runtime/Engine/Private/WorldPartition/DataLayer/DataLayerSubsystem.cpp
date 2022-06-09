@@ -512,10 +512,6 @@ void UDataLayerSubsystem::ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*
 		{
 			WorldDataLayers->ForEachDataLayer(Func);
 		}
-		else
-		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Iterating over Data Layers without a World Partition"));
-		}
 	}
 	else if (const AWorldDataLayers* CurrentLevelWorldDataLayers = (InLevelContext && !InLevelContext->IsPersistentLevel()) ? InLevelContext->GetWorldDataLayers() : nullptr)
 	{
