@@ -14,7 +14,24 @@ AWorldPartitionMiniMap::AWorldPartitionMiniMap(const FObjectInitializer& ObjectI
 	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(TEXT("Sprite")))
 	, MiniMapWorldBounds(ForceInit)
 	, MiniMapTexture(nullptr)
+	, WorldUnitsPerPixel(50)
+	, BuilderCellSize(102400)
+	, CaptureSource(ESceneCaptureSource::SCS_BaseColor)
+	, CaptureWarmupFrames(5)
 {
+}
+
+void AWorldPartitionMiniMap::PostLoad()
+{
+	Super::PostLoad();
+
+	if (MiniMapTileSize_DEPRECATED != 0)
+	{
+		const int32 MinimapBuilderIterativeCellSize = 102400;
+		WorldUnitsPerPixel = MinimapBuilderIterativeCellSize / MiniMapTileSize_DEPRECATED;
+		WorldUnitsPerPixel = FMath::Clamp(WorldUnitsPerPixel, 10, 100000);
+		MiniMapTileSize_DEPRECATED = 0;
+	}
 }
 
 #if WITH_EDITOR
@@ -38,10 +55,6 @@ void AWorldPartitionMiniMap::CheckForErrors()
 	}
 }
 
-void AWorldPartitionMiniMap::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	MiniMapTileSize = FMath::Clamp<uint32>(FMath::RoundUpToPowerOfTwo(MiniMapTileSize), 256, 8192);
-}
 #endif
 
 #undef LOCTEXT_NAMESPACE
