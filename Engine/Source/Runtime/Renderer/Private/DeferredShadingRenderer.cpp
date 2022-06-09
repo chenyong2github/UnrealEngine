@@ -265,6 +265,7 @@ namespace Nanite
 	extern bool IsStatFilterActive(const FString& FilterName);
 	extern void ListStatFilters(FSceneRenderer* SceneRenderer);
 }
+extern bool ShouldVisualizeLightGrid();
 
 DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intentional_Stall, STATGROUP_InitViews);
 
@@ -2300,7 +2301,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			VolumetricCloudWantsToSampleLocalLights(Scene, ViewFamily.EngineShowFlags) ||
 			ViewFamily.ViewMode != VMI_Lit ||
 			bAnyLumenEnabled ||
-			VirtualShadowMapArray.IsEnabled());
+			VirtualShadowMapArray.IsEnabled() ||
+			ShouldVisualizeLightGrid());
 	}
 
 	// force using occ queries for wireframe if rendering is parented or frozen in the first view
