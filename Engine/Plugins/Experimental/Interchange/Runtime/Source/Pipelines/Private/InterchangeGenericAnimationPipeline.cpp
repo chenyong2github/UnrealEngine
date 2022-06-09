@@ -70,6 +70,14 @@ void UInterchangeGenericAnimationPipeline::AdjustSettingsForReimportType(EInterc
 
 void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
+	if (!InBaseNodeContainer)
+	{
+		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericAnimationPipeline: Cannot execute pre-import pipeline because InBaseNodeContrainer is null"));
+		return;
+	}
+
+	BaseNodeContainer = InBaseNodeContainer;
+
 	if (!bImportAnimations)
 	{
 		//Nothing to import
@@ -77,19 +85,12 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 	}
 
 	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
-	if (!InBaseNodeContainer)
-	{
-		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericAnimationPipeline: Cannot execute pre-import pipeline because InBaseNodeContrainer is null"));
-		return;
-	}
 
 	if (CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations && CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull())
 	{
 		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericAnimationPipeline: Cannot execute pre-import pipeline because we cannot import animation only but not specify any valid skeleton"));
 		return;
 	}
-
-	BaseNodeContainer = InBaseNodeContainer;
 	SourceDatas.Empty(InSourceDatas.Num());
 	for (const UInterchangeSourceData* SourceData : InSourceDatas)
 	{
