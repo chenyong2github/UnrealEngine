@@ -3,6 +3,9 @@
 
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
+#if WITH_EDITOR
+#include "WorldPartition/WorldPartitionLevelHelper.h"
+#endif
 #include "WorldPartitionRuntimeLevelStreamingCell.generated.h"
 
 UCLASS()
@@ -37,6 +40,7 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	virtual void DumpStateLog(FHierarchicalLogArchive& Ar) override;
 	// Cook methods
 	virtual bool PrepareCellForCook(UPackage* InPackage) override;
+	virtual bool LoadCellObjectsForCook(TArray<UObject*>& OutLoadedObjects) override;
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage) override;
 	virtual FString GetPackageNameToCreate() const override;
 	//~End UWorldPartitionRuntimeCell Interface
@@ -56,6 +60,9 @@ private:
 #if WITH_EDITOR
 	void MoveAlwaysLoadedContentToPersistentLevel();
 	class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
+
+	FWorldPartitionLevelHelper::FPackageReferencer CookPackageReferencer;
+	TArray<TWeakObjectPtr<AActor>> CookLoadedActors;
 #endif
 
 #if WITH_EDITORONLY_DATA

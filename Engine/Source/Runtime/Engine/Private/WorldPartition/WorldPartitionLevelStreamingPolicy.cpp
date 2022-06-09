@@ -77,6 +77,11 @@ void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 	// Build Actor-to-Cell remapping
 	for (const UWorldPartitionRuntimeCell* Cell : StreamingCells)
 	{
+		if (!Cell->NeedsActorToCellRemapping())
+		{
+			continue;
+		}
+
 		const UWorldPartitionRuntimeLevelStreamingCell* StreamingCell = Cast<const UWorldPartitionRuntimeLevelStreamingCell>(Cell);
 		check(StreamingCell);
 		for (const FWorldPartitionRuntimeCellObjectMapping& CellObjectMap : StreamingCell->GetPackages())

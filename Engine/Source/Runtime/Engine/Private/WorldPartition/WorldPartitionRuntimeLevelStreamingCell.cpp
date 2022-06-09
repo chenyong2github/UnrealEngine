@@ -13,6 +13,7 @@
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "Engine/LevelStreamingAlwaysLoaded.h"
+#include "Algo/ForEach.h"
 #endif
 
 UWorldPartitionRuntimeLevelStreamingCell::UWorldPartitionRuntimeLevelStreamingCell(const FObjectInitializer& ObjectInitializer)
@@ -135,22 +136,43 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 	return nullptr;
 }
 
+bool UWorldPartitionRuntimeLevelStreamingCell::LoadCellObjectsForCook(TArray<UObject*>& OutLoadedObjects)
+{
+	if (GetActorCount() > 0)
+	{
+		const bool bLoadAsync = false;
+		UWorld* OuterWorld = GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
+		verify(FWorldPartitionLevelHelper::LoadActors(OuterWorld, nullptr, Packages, CookPackageReferencer, [](bool) {}, bLoadAsync, FLinkerInstancingContext()));
+
+		for (const FWorldPartitionRuntimeCellObjectMapping& Mapping : Packages)
+		{
+			if (AActor* Actor = FindObject<AActor>(nullptr, *Mapping.LoadedPath.ToString()))
+			{
+				OutLoadedObjects.Add(Actor);
+				CookLoadedActors.Add(Actor);
+			}
+		}
+	}
+	return true;
+}
+
 void UWorldPartitionRuntimeLevelStreamingCell::MoveAlwaysLoadedContentToPersistentLevel()
 {
 	check(IsAlwaysLoaded());
 	if (GetActorCount() > 0)
 	{
-		FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
-		const bool bLoadAsync = false;
+		// At this point actors should be loaded
+		Algo::ForEach(CookLoadedActors, [](const TWeakObjectPtr<AActor>& Actor) { check(Actor.Get()); });
 
 		UWorld* OuterWorld = GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
-		verify(FWorldPartitionLevelHelper::LoadActors(OuterWorld, nullptr, Packages, PackageReferencer, [](bool) {}, bLoadAsync, FLinkerInstancingContext()));
-				
 		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, OuterWorld->PersistentLevel);
 
 		// Empty cell's package list (this ensures that no one can rely on cell's content).
 		Packages.Empty();
 	}
+
+	CookLoadedActors.Empty();
+	CookPackageReferencer.RemoveReferences();
 }
 
 // Do all necessary work to prepare cell object for cook.
@@ -186,15 +208,12 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 			return false;
 		}
 
-		// Load cell Actors
+		// At this point actors should be loaded
+		Algo::ForEach(CookLoadedActors, [](const TWeakObjectPtr<AActor>& Actor) { check(Actor.Get()); });
+
+		// Create a level and move loaded actors in it
 		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
-
-		FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
-		const bool bLoadAsync = false;
-		verify(FWorldPartitionLevelHelper::LoadActors(OuterWorld, nullptr, Packages, PackageReferencer, [](bool) {}, bLoadAsync, FLinkerInstancingContext()));
-
-		// Create a level and move these actors in it
 		ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(this, OuterWorld, LevelStreaming->GetWorldAsset().ToString(), InPackage);
 		check(NewLevel->GetPackage() == InPackage);
 		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, NewLevel);
@@ -202,6 +221,10 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 		// Remap Level's SoftObjectPaths
 		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(NewLevel, WorldPartition);
 	}
+
+	CookLoadedActors.Empty();
+	CookPackageReferencer.RemoveReferences();
+
 	return true;
 }
 

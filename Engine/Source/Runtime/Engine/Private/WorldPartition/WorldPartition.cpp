@@ -1245,6 +1245,18 @@ void UWorldPartition::DrawRuntimeHashPreview()
 	RuntimeHash->DrawPreview();
 }
 
+bool UWorldPartition::LoadGeneratorPackageObjectsForCook(TArray<UObject*>& OutLoadedObjects)
+{
+	check(RuntimeHash);
+	return RuntimeHash->LoadGeneratorPackageObjectsForCook(OutLoadedObjects);
+}
+
+bool UWorldPartition::LoadGeneratedPackageObjectsForCook(const FString& InPackageRelativePath, TArray<UObject*>& OutLoadedObjects)
+{
+	check(RuntimeHash);
+	return RuntimeHash->LoadGeneratedPackageObjectsForCook(InPackageRelativePath, OutLoadedObjects);
+}
+
 bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath)
 {
 	check(RuntimeHash);

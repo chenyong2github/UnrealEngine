@@ -126,7 +126,13 @@ bool FWorldPartitionCookPackageSplitter::TryPopulatePackage(const UPackage* Owne
 	const UWorld* ConstPartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorld* PartitionedWorld = const_cast<UWorld*>(ConstPartitionedWorld);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-	bool bResult = WorldPartition->PopulateGeneratedPackageForCook(GeneratedPackage.Package, GeneratedPackage.RelativePath);
+
+	TArray<UObject*> LoadedObjects;
+	bool bResult = WorldPartition->LoadGeneratedPackageObjectsForCook(GeneratedPackage.RelativePath, LoadedObjects);
+	if (bResult)
+	{
+		bResult = WorldPartition->PopulateGeneratedPackageForCook(GeneratedPackage.Package, GeneratedPackage.RelativePath);
+	}
 	return bResult;
 }
 
@@ -135,7 +141,12 @@ void FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* Owner
 {
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-	WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
+
+	TArray<UObject*> LoadedObjects;
+	if (WorldPartition->LoadGeneratorPackageObjectsForCook(LoadedObjects))
+	{
+		WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
+	}
 }
 
 #endif
