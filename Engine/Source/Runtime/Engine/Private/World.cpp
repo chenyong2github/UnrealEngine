@@ -1556,7 +1556,7 @@ void UWorld::RepairSingletonActorOfClass(TSubclassOf<AActor> ActorClass)
 			{
 				if (FoundActor)
 				{
-					UE_LOG(LogWorld, Warning, TEXT("Extra '%s' actor found. Resave level %s or actors to clean up."), *CurrentActor->GetPathName(), *PersistentLevel->GetPathName());
+					UE_LOG(LogWorld, Log, TEXT("Extra '%s' actor found. Resave level %s or actors to clean up."), *CurrentActor->GetPathName(), *PersistentLevel->GetPathName());
 
 					if (FoundActor == CurrentActor)
 					{
