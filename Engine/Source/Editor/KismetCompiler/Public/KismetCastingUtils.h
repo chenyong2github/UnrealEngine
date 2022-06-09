@@ -7,6 +7,7 @@
 
 struct FBPTerminal;
 struct FKismetFunctionContext;
+class UEdGraphNode;
 class UEdGraphPin;
 
 namespace UE::KismetCompiler::CastingUtils
