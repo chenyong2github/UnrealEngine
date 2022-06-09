@@ -94,4 +94,12 @@ class ENGINESETTINGS_API UGeneralProjectSettings
 	/** Should a minimize button be shown for the game's window, when not using full screen */
 	UPROPERTY(config, EditAnywhere, Category = Settings)
 	bool bAllowMinimize;
+
+	/*Determines the Eye offset of the virtual stereo device created when " -emulatestereo" command line arg is detected*/
+	UPROPERTY(config, EditAnywhere, Category = Settings)
+	float EyeOffsetForFakeStereoRenderingDevice;
+
+	/*Determines the Field Of View of the virtual stereo device created when " -emulatestereo" command line arg is detected*/
+	UPROPERTY(config, EditAnywhere, Category = Settings)
+	float FOVForFakeStereoRenderingDevice;
 };

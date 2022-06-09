@@ -3475,7 +3475,7 @@ class FFakeStereoRenderingDevice : public IStereoRendering
 {
 public:
 	FFakeStereoRenderingDevice() 
-		: FOVInDegrees(100)
+		: FOVInDegrees(GetDefault<UGeneralProjectSettings>()->FOVForFakeStereoRenderingDevice)
 		, Width(640)
 		, Height(480)
 		, NumViews(2)
@@ -3544,7 +3544,7 @@ public:
 	virtual void CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override
 	{
 		// 32mm, 1/2 average interpupillary distance
-		float EyeOffset = .0320000005f * WorldToMeters;
+		float EyeOffset = GetDefault<UGeneralProjectSettings>()->EyeOffsetForFakeStereoRenderingDevice * WorldToMeters;
 
 		if (ViewIndex == eSSE_MONOSCOPIC)
 		{
