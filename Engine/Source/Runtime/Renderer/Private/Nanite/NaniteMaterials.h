@@ -12,9 +12,6 @@ static constexpr uint32 NANITE_MAX_MATERIALS = 64;
 // is actually worse (forces a context roll per unique material draw, back to back).
 #define NANITE_MATERIAL_STENCIL 0
 
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteMaterials, TEXT("Nanite Materials"));
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteDepth, TEXT("Nanite Depth"));
-
 struct FNaniteMaterialPassCommand;
 struct FLumenMeshCaptureMaterialPass;
 class  FLumenCardPassUniformParameters;

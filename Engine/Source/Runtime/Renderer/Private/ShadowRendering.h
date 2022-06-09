@@ -43,6 +43,8 @@ class FVirtualShadowMapCacheEntry;
 class FLightTileIntersectionParameters;
 class FDistanceFieldCulledObjectBufferParameters;
 
+DECLARE_GPU_STAT_NAMED_EXTERN(ShadowDepths, TEXT("Shadow Depths"));
+
 /** Renders a cone with a spherical cap, used for rendering spot lights in deferred passes. */
 extern void DrawStencilingCone(const FMatrix& ConeToWorld, float ConeAngle, float SphereRadius, const FVector& PreViewTranslation);
 

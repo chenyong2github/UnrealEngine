@@ -305,6 +305,8 @@ DEFINE_GPU_DRAWCALL_STAT(VirtualTextureUpdate);
 DECLARE_GPU_STAT(UploadDynamicBuffers);
 DECLARE_GPU_STAT(PostOpaqueExtensions);
 
+DECLARE_GPU_STAT_NAMED(NaniteVisbuffer, TEXT("Nanite VisBuffer"));
+
 CSV_DEFINE_CATEGORY(LightCount, true);
 
 /*-----------------------------------------------------------------------------
@@ -2432,138 +2434,142 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
-	if (bNaniteEnabled && Views.Num() > 0)
 	{
-		LLM_SCOPE_BYTAG(Nanite);
-		TRACE_CPUPROFILER_EVENT_SCOPE(InitNaniteRaster);
+		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteVisbuffer);
+		RDG_EVENT_SCOPE(GraphBuilder, "Nanite VisBuffer");
 
-		NaniteRasterResults.AddDefaulted(Views.Num());
-
-		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteRaster);
-		const FIntPoint RasterTextureSize = SceneTextures.Depth.Target->Desc.Extent;
-		
-		// Primary raster view
+		if (bNaniteEnabled && Views.Num() > 0)
 		{
-			Nanite::FSharedContext SharedContext{};
-			SharedContext.FeatureLevel = Scene->GetFeatureLevel();
-			SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
-			SharedContext.Pipeline = Nanite::EPipeline::Primary;
+			LLM_SCOPE_BYTAG(Nanite);
+			TRACE_CPUPROFILER_EVENT_SCOPE(InitNaniteRaster);
 
-			Nanite::FRasterState RasterState;
-			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, RasterTextureSize, ViewFamily.EngineShowFlags.VisualizeNanite);
+			NaniteRasterResults.AddDefaulted(Views.Num());
 
-			Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
-			CullingConfig.bTwoPassOcclusion					= true;
-			CullingConfig.bUpdateStreaming					= true;
-			CullingConfig.bPrimaryContext					= true;
-			CullingConfig.bForceHWRaster					= RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
-			CullingConfig.bProgrammableRaster				= GNaniteProgrammableRasterPrimary != 0;
+			const FIntPoint RasterTextureSize = SceneTextures.Depth.Target->Desc.Extent;
 
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			// Primary raster view
 			{
-				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+				Nanite::FSharedContext SharedContext{};
+				SharedContext.FeatureLevel = Scene->GetFeatureLevel();
+				SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+				SharedContext.Pipeline = Nanite::EPipeline::Primary;
 
-				const FViewInfo& View = Views[ViewIndex];
-				CullingConfig.SetViewFlags(View);
+				Nanite::FRasterState RasterState;
+				Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, RasterTextureSize, ViewFamily.EngineShowFlags.VisualizeNanite);
 
-				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
-					GraphBuilder,
-					SharedContext,
-					*Scene,
-					!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
-					View.ViewRect,
-					CullingConfig
-				);
+				Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+				CullingConfig.bTwoPassOcclusion = true;
+				CullingConfig.bUpdateStreaming = true;
+				CullingConfig.bPrimaryContext = true;
+				CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+				CullingConfig.bProgrammableRaster = GNaniteProgrammableRasterPrimary != 0;
 
-				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
-				const bool bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
-
-				float LODScaleFactor = 1.0f;
-				if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale &&
-					CVarNaniteViewMeshLODBiasEnable.GetValueOnRenderThread() != 0)
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
-					float TemporalUpscaleFactor = float(View.GetSecondaryViewRectSize().X) / float(View.ViewRect.Width());
+					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
-					LODScaleFactor = TemporalUpscaleFactor * FMath::Exp2(-CVarNaniteViewMeshLODBiasOffset.GetValueOnRenderThread());
-					LODScaleFactor = FMath::Min(LODScaleFactor, FMath::Exp2(-CVarNaniteViewMeshLODBiasMin.GetValueOnRenderThread()));
-				}
+					const FViewInfo& View = Views[ViewIndex];
+					CullingConfig.SetViewFlags(View);
 
-				FIntRect HZBTestRect(0, 0, View.PrevViewInfo.ViewRect.Width(), View.PrevViewInfo.ViewRect.Height());
-				Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
-					View,
-					RasterTextureSize,
-					NANITE_VIEW_FLAG_HZBTEST | NANITE_VIEW_FLAG_NEAR_CLIP,
-					/* StreamingPriorityCategory = */ 3,
-					/* MinBoundsRadius = */ 0.0f,
-					LODScaleFactor,
-					/* viewport rect in HZB space. HZB is built per view and is always 0,0-based */
-					&HZBTestRect
-					);
-
-				Nanite::CullRasterize(
-					GraphBuilder,
-					Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-					*Scene,
-					View,
-					{ PackedView },
-					SharedContext,
-					CullingContext,
-					RasterContext,
-					RasterState,
-					/*OptionalInstanceDraws*/ nullptr,
-					bExtractStats
-				);
-
-				Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
-
-				if (bNeedsPrePass)
-				{
-					// Emit velocity with depth if not writing it in base pass.
-					FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
-
-					const bool bEmitStencilMask = NANITE_MATERIAL_STENCIL != 0;
-
-					Nanite::EmitDepthTargets(
+					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 						GraphBuilder,
+						SharedContext,
 						*Scene,
-						Views[ViewIndex],
-						CullingContext.PageConstants,
-						CullingContext.VisibleClustersSWHW,
-						CullingContext.ViewsBuffer,
-						SceneTextures.Depth.Target,
-						RasterContext.VisBuffer64,
-						VelocityBuffer,
-						RasterResults.MaterialDepth,
-						RasterResults.MaterialResolve,
-						bNeedsPrePass,
-						bEmitStencilMask
+						!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
+						View.ViewRect,
+						CullingConfig
 					);
-				}
 
-				if (!bIsEarlyDepthComplete && CullingConfig.bTwoPassOcclusion && View.ViewState)
-				{
-					// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
-					RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BuildHZB");
+					static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
+					const bool bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
 
-					FRDGTextureRef SceneDepth = SystemTextures.Black;
-					FRDGTextureRef GraphHZB = nullptr;
+					float LODScaleFactor = 1.0f;
+					if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale &&
+						CVarNaniteViewMeshLODBiasEnable.GetValueOnRenderThread() != 0)
+					{
+						float TemporalUpscaleFactor = float(View.GetSecondaryViewRectSize().X) / float(View.ViewRect.Width());
 
-					const FIntRect PrimaryViewRect = View.GetPrimaryView()->ViewRect;
+						LODScaleFactor = TemporalUpscaleFactor * FMath::Exp2(-CVarNaniteViewMeshLODBiasOffset.GetValueOnRenderThread());
+						LODScaleFactor = FMath::Min(LODScaleFactor, FMath::Exp2(-CVarNaniteViewMeshLODBiasMin.GetValueOnRenderThread()));
+					}
 
-					BuildHZBFurthest(
+					FIntRect HZBTestRect(0, 0, View.PrevViewInfo.ViewRect.Width(), View.PrevViewInfo.ViewRect.Height());
+					Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
+						View,
+						RasterTextureSize,
+						NANITE_VIEW_FLAG_HZBTEST | NANITE_VIEW_FLAG_NEAR_CLIP,
+						/* StreamingPriorityCategory = */ 3,
+						/* MinBoundsRadius = */ 0.0f,
+						LODScaleFactor,
+						/* viewport rect in HZB space. HZB is built per view and is always 0,0-based */
+						&HZBTestRect
+					);
+
+					Nanite::CullRasterize(
 						GraphBuilder,
-						SceneDepth,
-						RasterContext.VisBuffer64,
-						PrimaryViewRect,
-						FeatureLevel,
-						ShaderPlatform,
-						TEXT("Nanite.HZB"),
-						/* OutFurthestHZBTexture = */ &GraphHZB );
-					
-					GraphBuilder.QueueTextureExtraction( GraphHZB, &View.ViewState->PrevFrameViewInfo.NaniteHZB );
-				}
+						Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+						*Scene,
+						View,
+						{ PackedView },
+						SharedContext,
+						CullingContext,
+						RasterContext,
+						RasterState,
+						/*OptionalInstanceDraws*/ nullptr,
+						bExtractStats
+					);
 
-				Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, RasterResults);
+					Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
+
+					if (bNeedsPrePass)
+					{
+						// Emit velocity with depth if not writing it in base pass.
+						FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
+
+						const bool bEmitStencilMask = NANITE_MATERIAL_STENCIL != 0;
+
+						Nanite::EmitDepthTargets(
+							GraphBuilder,
+							*Scene,
+							Views[ViewIndex],
+							CullingContext.PageConstants,
+							CullingContext.VisibleClustersSWHW,
+							CullingContext.ViewsBuffer,
+							SceneTextures.Depth.Target,
+							RasterContext.VisBuffer64,
+							VelocityBuffer,
+							RasterResults.MaterialDepth,
+							RasterResults.MaterialResolve,
+							bNeedsPrePass,
+							bEmitStencilMask
+						);
+					}
+
+					if (!bIsEarlyDepthComplete && CullingConfig.bTwoPassOcclusion && View.ViewState)
+					{
+						// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
+						RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BuildHZB");
+
+						FRDGTextureRef SceneDepth = SystemTextures.Black;
+						FRDGTextureRef GraphHZB = nullptr;
+
+						const FIntRect PrimaryViewRect = View.GetPrimaryView()->ViewRect;
+
+						BuildHZBFurthest(
+							GraphBuilder,
+							SceneDepth,
+							RasterContext.VisBuffer64,
+							PrimaryViewRect,
+							FeatureLevel,
+							ShaderPlatform,
+							TEXT("Nanite.HZB"),
+							/* OutFurthestHZBTexture = */ &GraphHZB );
+
+						GraphBuilder.QueueTextureExtraction( GraphHZB, &View.ViewState->PrevFrameViewInfo.NaniteHZB );
+					}
+
+					Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, RasterResults);
+				}
 			}
 		}
 	}
@@ -2776,17 +2782,17 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				}
 			}
 
-			if (bVisualizeNanite)
-			{
-				Nanite::AddVisualizationPasses(
-					GraphBuilder,
-					Scene,
-					SceneTextures,
+		if (bVisualizeNanite)
+		{
+			Nanite::AddVisualizationPasses(
+				GraphBuilder,
+				Scene,
+				SceneTextures,
 					ViewFamily.EngineShowFlags,
-					Views,
-					NaniteRasterResults
-				);
-			}
+				Views,
+				NaniteRasterResults
+			);
+		}
 		}
 
 		// VisualizeVirtualShadowMap TODO
@@ -2857,6 +2863,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			if (VirtualShadowMapArray.IsEnabled())
 			{
+				// TODO: actually move this inside RenderShadowDepthMaps instead of this extra scope to make it 1:1 with profiling captures/traces
+				RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);
+
 				ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
 				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, NaniteRasterResults, *Scene);
 			}

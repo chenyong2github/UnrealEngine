@@ -135,6 +135,8 @@ DECLARE_CYCLE_STAT(TEXT("AfterAnisotropyPass"), STAT_CLM_AfterAnisotropyPass, ST
 
 DECLARE_CYCLE_STAT(TEXT("BasePass"), STAT_CLP_BasePass, STATGROUP_ParallelCommandListMarkers);
 
+DECLARE_GPU_STAT_NAMED(NaniteBasePass, TEXT("Nanite BasePass"));
+
 static bool IsBasePassWaitForTasksEnabled()
 {
 	return CVarRHICmdFlushRenderThreadTasksBasePass.GetValueOnRenderThread() > 0 || CVarRHICmdFlushRenderThreadTasks.GetValueOnRenderThread() > 0;
@@ -1155,6 +1157,8 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 		// Emit Nanite depth if there was not an earlier depth pre-pass
 		if (!ShouldRenderPrePass())
 		{
+			RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteBasePass);
+
 			Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
 
 			// Emit velocity with depth if not writing it in base pass.
@@ -1201,6 +1205,8 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 		else
 	#endif
 		{
+			RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteBasePass);
+
 			Nanite::DrawBasePass(
 				GraphBuilder,
 				View.NaniteMaterialPassCommands,

@@ -16,8 +16,6 @@
 #include "Lumen/LumenSceneRendering.h"
 #include "Strata/Strata.h"
 
-DEFINE_GPU_STAT(NaniteMaterials);
-DEFINE_GPU_STAT(NaniteDepth);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDummyDepthDecompressParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
@@ -376,7 +374,6 @@ void DrawBasePass(
 
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BasePass");
-	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteMaterials);
 
 	const int32 ViewWidth		= View.ViewRect.Max.X - View.ViewRect.Min.X;
 	const int32 ViewHeight		= View.ViewRect.Max.Y - View.ViewRect.Min.Y;
@@ -632,7 +629,6 @@ void EmitDepthTargets(
 {
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::EmitDepthTargets");
-	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDepth);
 
 #if WITH_EDITORONLY_DATA
 	// Hide all Nanite meshes when the isolate invalid coarse mesh batch debug mode is active.

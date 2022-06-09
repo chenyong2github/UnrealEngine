@@ -17,14 +17,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 
-DEFINE_GPU_STAT(NaniteRaster);
-
 DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, STATGROUP_Nanite);
-
-DECLARE_GPU_STAT_NAMED(NanitePrimitiveFilter, TEXT("Nanite Primitive Filter"));
-DECLARE_GPU_STAT_NAMED(NaniteInstanceCull, TEXT("Nanite Instance Cull"));
-DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM, TEXT("Nanite Instance Cull VSM"));
-DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
 
 #define CULLING_PASS_NO_OCCLUSION		0
 #define CULLING_PASS_OCCLUSION_MAIN		1
@@ -1463,7 +1456,6 @@ void AddPass_PrimitiveFilter(
 			);
 		}
 
-		RDG_GPU_STAT_SCOPE(GraphBuilder, NanitePrimitiveFilter);
 		FPrimitiveFilter_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPrimitiveFilter_CS::FParameters>();
 
 		PassParameters->NumPrimitives = PrimitiveCount;
@@ -1657,7 +1649,6 @@ static void AddPass_NodeAndClusterCull(
 	bool bMultiView
 	)
 {
-	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteClusterCull);
 	if (GNanitePersistentThreadsCulling)
 	{
 		AddPass_NodeAndClusterCull( GraphBuilder,
@@ -1742,8 +1733,6 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 
 	if (VirtualShadowMapArray && (CullingPass != CULLING_PASS_OCCLUSION_POST))
 	{
-		RDG_GPU_STAT_SCOPE( GraphBuilder, NaniteInstanceCullVSM );
-
 		FInstanceCullVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCullVSM_CS::FParameters >();
 
 		PassParameters->NumInstances						= CullingContext.NumInstancesPreCull;
@@ -1796,7 +1785,6 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 	}
 	else if (CullingContext.NumInstancesPreCull > 0 || CullingPass == CULLING_PASS_OCCLUSION_POST)
 	{
-		RDG_GPU_STAT_SCOPE( GraphBuilder, NaniteInstanceCull );
 		FInstanceCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCull_CS::FParameters >();
 
 		PassParameters->NumInstances						= CullingContext.NumInstancesPreCull;
@@ -2953,8 +2941,6 @@ void CullRasterize(
 	
 	if (VirtualShadowMapArray != nullptr)
 	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteInstanceCullVSM);
-
 		// Compact the views to remove needless (empty) mip views - need to do on GPU as that is where we know what mips have pages.
 		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
 		FRDGBufferRef CompactedViews = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedView), ViewsBufferElements), TEXT("Shadow.Virtual.CompactedViews"));

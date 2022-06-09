@@ -6,8 +6,6 @@
 
 class FVirtualShadowMapArray;
 
-DECLARE_GPU_STAT_NAMED_EXTERN(NaniteRaster, TEXT("Nanite Raster"));
-
 BEGIN_SHADER_PARAMETER_STRUCT(FRasterParameters,)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>,			OutDepthBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>,	OutDepthBufferArray)
