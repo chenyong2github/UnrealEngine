@@ -129,6 +129,7 @@ enum class EEditMeshPolygonsToolActions
 	WeldEdges,
 	StraightenEdge,
 	FillHole,
+	BridgeEdges,
 	BevelEdges,
 
 	PlanarProjectionUV,
@@ -368,7 +369,9 @@ public:
 
 	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Bevel", DisplayPriority = 4))
 	void Bevel() { PostAction(EEditMeshPolygonsToolActions::BevelEdges); }
-
+	
+	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Bridge", DisplayPriority = 5))
+	void Bridge() { PostAction(EEditMeshPolygonsToolActions::BridgeEdges); }
 };
 
 
@@ -631,6 +634,7 @@ protected:
 	void ApplyWeldEdges();
 	void ApplyStraightenEdges();
 	void ApplyFillHole();
+	void ApplyBridgeEdges();
 
 	void ApplyFlipSingleEdge();
 	void ApplyCollapseSingleEdge();
