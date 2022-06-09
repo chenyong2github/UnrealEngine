@@ -1,0 +1,26 @@
+{
+	"FileVersion": 3,
+	"Version": 0,
+	"VersionName": "0.1",
+	"FriendlyName": "Media Source Manager",
+	"Description": "Manager to handle media sources.",
+	"Category": "Media",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"DocsURL": "https://docs.unrealengine.com/en-US/Engine/MediaFramework/Overview",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"EnabledByDefault": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": 
+	[
+		{
+			"Name": "MediaSourceManager",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}
