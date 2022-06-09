@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "DatasmithMaxWriter.h"
 
+#include "DatasmithMaxDirectLink.h"
+
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneExporter.h"
 #include "DatasmithMaxSceneParser.h"
@@ -483,6 +485,11 @@ void FDatasmithMaxMatWriter::GetRegularTexmap(TSharedRef< IDatasmithScene > Data
 		{
 			TextureElement->SetRGBCurve(Gamma);
 		}
+	}
+	
+	if (!FPaths::FileExists(*Path))
+	{
+		DatasmithMaxDirectLink::LogWarning(FString::Printf(TEXT("Bitmap texture '%s' has missing external file '%s'"), InBitmapTex->GetName().data(), *Path));
 	}
 
 	TextureElement->SetFile(*Path);
