@@ -4656,7 +4656,7 @@ bool FBaseBlueprintGraphActionDetails::OnVerifyPinRename(UK2Node_EditablePinBase
 
 		ERenamePinResult RenameResult = InTargetNode->RenameUserDefinedPin(InOldName, NewFName, true);
 
-		if (RenameResult == ERenamePinResult_Success)
+		if (RenameResult != ERenamePinResult_NameCollision)
 		{
 			UK2Node_EditablePinBase* OtherNode = (InTargetNode == EntryNode) ? ResultNode : EntryNode;
 
@@ -4666,8 +4666,6 @@ bool FBaseBlueprintGraphActionDetails::OnVerifyPinRename(UK2Node_EditablePinBase
 				RenameResult = OtherNode->RenameUserDefinedPin(InOldName, NewFName, true);
 			}
 		}
-
-		check(RenameResult != ERenamePinResult_NoSuchPin);
 
 		if (RenameResult == ERenamePinResult_NameCollision)
 		{
