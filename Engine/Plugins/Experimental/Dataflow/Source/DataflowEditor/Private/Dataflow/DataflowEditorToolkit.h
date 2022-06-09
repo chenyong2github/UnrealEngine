@@ -36,8 +36,8 @@ public:
 	UDataflow* GetDataflow() { return Dataflow; }
 	const UDataflow* GetDataflow() const { return Dataflow; }
 
-	TSharedPtr<IDetailsView> GetPropertiesEditor() {return PropertiesEditor;}
-	const TSharedPtr<IDetailsView> GetPropertiesEditor() const { return PropertiesEditor; }
+	TSharedPtr<IStructureDetailsView> GetPropertiesEditor() {return PropertiesEditor;}
+	const TSharedPtr<IStructureDetailsView> GetPropertiesEditor() const { return PropertiesEditor; }
 
 	TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; }
 	const TSharedPtr<SGraphEditor> GetGraphEditor() const { return GraphEditor; }
@@ -52,6 +52,6 @@ private:
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit);
 
 	static const FName PropertiesTabId;
-	TSharedPtr<IDetailsView> PropertiesEditor;
-	TSharedPtr<IDetailsView> CreatePropertiesEditorWidget(UObject* ObjectToEdit);
+	TSharedPtr<IStructureDetailsView> PropertiesEditor;
+	TSharedPtr<IStructureDetailsView> CreatePropertiesEditorWidget(UObject* ObjectToEdit);
 };

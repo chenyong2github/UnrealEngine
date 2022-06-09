@@ -47,15 +47,15 @@ namespace Dataflow
 	{
 
 		FGuid  Guid;
-		TArray< TSharedPtr<FNode> > Nodes;
+		TArray< TSharedPtr<FDataflowNode> > Nodes;
 		TArray< FLink > Connections;
 		TSet< FName > DisabledNodes;
 	public:
 		FGraph(FGuid InGuid = FGuid::NewGuid());
 		virtual ~FGraph() {}
 
-		const TArray< TSharedPtr<FNode> >& GetNodes() const {return Nodes;}
-		TArray< TSharedPtr<FNode> >& GetNodes() { return Nodes; }
+		const TArray< TSharedPtr<FDataflowNode> >& GetNodes() const {return Nodes;}
+		TArray< TSharedPtr<FDataflowNode> >& GetNodes() { return Nodes; }
 		int NumNodes() { return Nodes.Num(); }
 
 		template<class T> TSharedPtr<T> AddNode(T* InNode)
@@ -65,20 +65,20 @@ namespace Dataflow
 			return NewNode;
 		}
 
-		TSharedPtr<FNode> FindBaseNode(FGuid InGuid)
+		TSharedPtr<FDataflowNode> FindBaseNode(FGuid InGuid)
 		{
-			for (TSharedPtr<FNode> Node : Nodes)
+			for (TSharedPtr<FDataflowNode> Node : Nodes)
 			{
 				if (Node->GetGuid() == InGuid)
 				{
 					return Node;
 				}
 			}
-			return TSharedPtr<FNode>(nullptr);
+			return TSharedPtr<FDataflowNode>(nullptr);
 		}
 
 
-		void RemoveNode(TSharedPtr<FNode> Node);
+		void RemoveNode(TSharedPtr<FDataflowNode> Node);
 
 		void ClearConnections(FConnection*);
 		void Connect(FConnection* Input, FConnection* Output);

@@ -24,7 +24,7 @@ void UDataflowEdNode::AllocateDefaultPins()
 	{
 		if (DataflowNodeGuid.IsValid())
 		{
-			if (TSharedPtr<Dataflow::FNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+			if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
 			{
 				for (const Dataflow::FPin& Pin : DataflowNode->GetPins())
 				{
@@ -54,7 +54,7 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 {
 	if (ensure(IsBound()))
 	{
-		if (TSharedPtr<Dataflow::FNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+		if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
 		{
 			if (Dataflow::FConnection* ConnectionInput = DataflowNode->FindInput(FName(Pin->GetName())) )
 			{
@@ -65,7 +65,7 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 					{
 						if (ensure(LinkedNode->IsBound()))
 						{
-							if (TSharedPtr<Dataflow::FNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
+							if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
 							{
 								if (Dataflow::FConnection* LinkedConBase = LinkedDataflowNode->FindOutput(FName(LinkedCon->GetName())))
 								{
@@ -87,7 +87,7 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 						{
 							if (ensure(LinkedNode->IsBound()))
 							{
-								if (TSharedPtr<Dataflow::FNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
+								if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
 								{
 									if (Dataflow::FConnection* LinkedConBase = LinkedDataflowNode->FindInput(FName(LinkedCon->GetName())))
 									{

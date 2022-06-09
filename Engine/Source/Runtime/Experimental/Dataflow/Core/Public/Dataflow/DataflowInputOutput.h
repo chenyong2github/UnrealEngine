@@ -17,14 +17,14 @@ namespace Dataflow
 
 	template<class T>
 	struct DATAFLOWCORE_API TInputParameters {
-		TInputParameters(FName InName, FNode* InOwner, T InDefault = T())
+		TInputParameters(FName InName, FDataflowNode* InOwner, T InDefault = T())
 			: Type(GraphConnectionTypeName<T>())
 			, Name(InName)
 			, Owner(InOwner)
 			, Default(InDefault) {}
 		FName Type;
 		FName Name;
-		FNode* Owner = nullptr;
+		FDataflowNode* Owner = nullptr;
 		T Default;
 	};
 
@@ -113,13 +113,13 @@ namespace Dataflow
 
 	template<class T>
 	struct DATAFLOWCORE_API TOutputParameters {
-		TOutputParameters(FName InName, FNode * InOwner) 
+		TOutputParameters(FName InName, FDataflowNode * InOwner) 
 			: Type(GraphConnectionTypeName<T>())
 			, Name(InName)
 			, Owner(InOwner) {}
 		FName Type;
 		FName Name;
-		FNode* Owner = nullptr;
+		FDataflowNode* Owner = nullptr;
 	};
 
 	template<class T>

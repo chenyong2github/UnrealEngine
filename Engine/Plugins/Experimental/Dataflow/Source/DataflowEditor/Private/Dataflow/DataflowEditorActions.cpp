@@ -5,6 +5,7 @@
 #include "Dataflow/DataflowEPropertyCustomizations.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
+#include "IStructureDetailsView.h"
 
 
 #define LOCTEXT_NAMESPACE "DataflowEditorCommands"
@@ -58,7 +59,7 @@ void FDataflowEditorCommands::EvaluateNodes(const FGraphPanelSelectionSet& Selec
 		{
 			if (const TSharedPtr<Dataflow::FGraph> DataflowGraph = EdNode->GetDataflowGraph())
 			{
-				if (const TSharedPtr<Dataflow::FNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
+				if (const TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
 				{
 					if (DataflowNode->GetOutputs().Num())
 					{
@@ -85,7 +86,7 @@ void FDataflowEditorCommands::DeleteNodes(UDataflow* Graph, const FGraphPanelSel
 		{
 			if (const TSharedPtr<Dataflow::FGraph> DataflowGraph = EdNode->GetDataflowGraph())
 			{
-				if (TSharedPtr<Dataflow::FNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
+				if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
 				{
 					Graph->RemoveNode(EdNode);
 					DataflowGraph->RemoveNode(DataflowNode);
@@ -95,14 +96,15 @@ void FDataflowEditorCommands::DeleteNodes(UDataflow* Graph, const FGraphPanelSel
 	}
 }
 
-void FDataflowEditorCommands::OnSelectedNodesChanged(TSharedPtr<IDetailsView> PropertiesEditor, UObject* Asset, UDataflow* Graph, const TSet<UObject*>& NewSelection)
+void FDataflowEditorCommands::OnSelectedNodesChanged(TSharedPtr<IStructureDetailsView> PropertiesEditor, UObject* Asset, UDataflow* Graph, const TSet<UObject*>& NewSelection)
 {
+	PropertiesEditor->SetStructureData(nullptr);
+
 	if (Graph && PropertiesEditor)
 	{
 		if (const TSharedPtr<Dataflow::FGraph> DataflowGraph = Graph->GetDataflow())
 		{
-			PropertiesEditor->SetObject(Asset);
-			FGraphPanelSelectionSet SelectedNodes = NewSelection;//GetSelectedNodes();
+			FGraphPanelSelectionSet SelectedNodes = NewSelection;
 			if (SelectedNodes.Num())
 			{
 				TArray<UObject*> Objects;
@@ -110,17 +112,14 @@ void FDataflowEditorCommands::OnSelectedNodesChanged(TSharedPtr<IDetailsView> Pr
 				{
 					if (UDataflowEdNode* EdNode = Cast<UDataflowEdNode>(SelectedObject))
 					{
-						if (TSharedPtr<Dataflow::FNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
+						if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
 						{
-							const FName NodeName = MakeUniqueObjectName(Graph, UDataflow::StaticClass(), DataflowNode->GetName());
-							UDataflowSEditorObject* Object = NewObject<UDataflowSEditorObject>(Asset, NodeName);
-							Object->Node = DataflowNode;
-							Object->Graph = Graph;
-							Objects.Add(Object);
+							TSharedPtr<FStructOnScope> Struct(DataflowNode->NewScructOnScope());
+							PropertiesEditor->SetStructureData(Struct);
 						}
 					}
 				}
-				PropertiesEditor->SetObjects(Objects);
+				
 			}
 		}
 	}

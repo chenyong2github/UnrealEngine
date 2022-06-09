@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowGraph.h"
 
+struct FDataflowNode;
+
 namespace Dataflow
 {
-	class FNode;
 	class FConnection;
 
 	struct DATAFLOWCORE_API FNewNodeParameters {
@@ -21,7 +22,7 @@ namespace Dataflow
 	//
 	class DATAFLOWCORE_API FNodeFactory
 	{
-		typedef TFunction<FNode* (const FNewNodeParameters&)> FNewNodeFunction;
+		typedef TFunction<FDataflowNode* (const FNewNodeParameters&)> FNewNodeFunction;
 
 		TMap<FName, FNewNodeFunction > ClassMap;
 
@@ -48,7 +49,7 @@ namespace Dataflow
 			}
 		}
 
-		TSharedPtr<FNode> NewNodeFromRegisteredType(FGraph& Graph, const FNewNodeParameters& Param);
+		TSharedPtr<FDataflowNode> NewNodeFromRegisteredType(FGraph& Graph, const FNewNodeParameters& Param);
 
 		template<class T> TSharedPtr<T> NewNode(FGraph& Graph, const FNewNodeParameters& Param)
 		{

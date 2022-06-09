@@ -9,9 +9,8 @@
 
 #include "DataflowEPropertyCustomizations.generated.h"
 
-namespace Dataflow {
-	class FNode;
-}
+struct FDataflowNode;
+
 class UDataflow;
 
 UCLASS()
@@ -19,7 +18,7 @@ class DATAFLOWEDITOR_API UDataflowSEditorObject : public UObject
 {
 	GENERATED_BODY()
 public:
-	TSharedPtr<Dataflow::FNode> Node = nullptr;
+	TSharedPtr<FDataflowNode> Node = nullptr;
 	UDataflow* Graph = nullptr;
 
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

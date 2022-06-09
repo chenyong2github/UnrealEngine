@@ -3,167 +3,69 @@
 #include "Dataflow/DataflowNode.h"
 
 #include "Dataflow/DataflowNode.h"
-#include "Dataflow/DataflowProperty.h"
 #include "Dataflow/DataflowArchive.h"
 
-namespace Dataflow
+void FDataflowNode::AddInput(Dataflow::FConnection* InPtr)
 {
-
-	void FNode::AddProperty(FProperty* InPtr)
+	for (Dataflow::FConnection* In : Inputs)
 	{
-		for (FProperty* In : Properties)
-		{
-			ensureMsgf(!In->GetName().IsEqual(InPtr->GetName()), TEXT("Add Property Failed: Existing Node property already defined with name (%s)"), *InPtr->GetName().ToString());
-		}
-		Properties.Add(InPtr);
+		ensureMsgf(!In->GetName().IsEqual(InPtr->GetName()), TEXT("Add Input Failed: Existing Node input already defined with name (%s)"), *InPtr->GetName().ToString());
 	}
-
-	void FNode::AddInput(FConnection* InPtr)
-	{ 
-		for (FConnection* In : Inputs)
-		{
-			ensureMsgf(!In->GetName().IsEqual(InPtr->GetName()), TEXT("Add Input Failed: Existing Node input already defined with name (%s)"), *InPtr->GetName().ToString());
-		}
-		Inputs.Add(InPtr); 
-	}
-
-	void FNode::AddOutput(FConnection* InPtr)
-	{ 
-		for (FConnection* Out : Outputs)
-		{
-			ensureMsgf(!Out->GetName().IsEqual(InPtr->GetName()), TEXT("Add Output Failed: Existing Node output already defined with name (%s)"), *InPtr->GetName().ToString());
-		}
-		Outputs.Add(InPtr);
-	}
-
-
-
-	TArray<FPin> FNode::GetPins() const
-	{
-		TArray<FPin> RetVal;
-		for (FConnection* Con : Inputs)
-			RetVal.Add({ FPin::EDirection::INPUT,Con->GetType(), Con->GetName() });
-		for (FConnection* Con : Outputs)
-			RetVal.Add({ FPin::EDirection::OUTPUT,Con->GetType(), Con->GetName() });
-		return RetVal;
-	}
-
-	void FNode::InvalidateOutputs()
-	{
-		for(FConnection * Output :  Outputs)
-		{
-			Output->Invalidate();
-		}
-	}
-
-	FConnection* FNode::FindInput(FName InName) const
-	{
-		for (FConnection* Input : Inputs)
-		{
-			if (Input->GetName().IsEqual(InName))
-			{
-				return Input;
-			}
-		}
-		return nullptr;
-	}
-
-	FConnection* FNode::FindOutput(FName InName) const
-	{
-		for (FConnection* Output : Outputs)
-		{
-			if (Output->GetName().IsEqual(InName))
-			{
-				return Output;
-			}
-		}
-		return nullptr;
-	}
-
-	TMap<FName, FProperty*> FNode::GetPropertyMap()
-	{
-		TMap<FName, FProperty*> Map;
-		for (FProperty* Prop : GetProperties())
-		{
-			Map.Add(TTuple<FName, FProperty*>(Prop->GetName(),Prop));
-		}
-		return Map;
-	}
-
-	const TMap<FName, const FProperty*> FNode::GetPropertyMap() const
-	{
-		TMap<FName, const FProperty*> Map;
-		for (FProperty* Prop : GetProperties())
-		{
-			Map.Add(TTuple<FName, const FProperty*>(Prop->GetName(), Prop));
-		}
-		return Map;
-	}
-
-	void FNode::SerializeInternal(FArchive& Ar)
-	{
-		TMap<FName, FProperty*> Map = GetPropertyMap();
-		TArray< FProperty* >& CurrentProperties = GetProperties();
-		uint8 NumProperties = CurrentProperties.Num();
-		Ar << NumProperties;
-
-		for (int32 i = NumProperties - 1; i >= 0; i--)
-		{
-			uint8 Type;
-			FString StrName;
-			int64 PropertySizeOf = 0, PropertyDataSize = 0;
-
-			if (Ar.IsSaving())
-			{
-				FProperty* Prop = CurrentProperties[i];
-				Type = (uint8)Prop->GetType();
-				StrName = Prop->GetName().ToString();
-				PropertySizeOf = Prop->SizeOf();
-				Ar << Type << StrName;
-
-				DATAFLOW_OPTIONAL_BLOCK_WRITE_BEGIN()
-				{
-					Prop->Serialize(Ar);
-				}
-				DATAFLOW_OPTIONAL_BLOCK_WRITE_END()
-
-			}
-			else if (Ar.IsLoading())
-			{
-
-				Ar << Type << StrName;
-				FName PropName(StrName);
-
-				FProperty* NewProperty = FProperty::NewProperty((FProperty::EType)Type, PropName);
-				DATAFLOW_OPTIONAL_BLOCK_READ_BEGIN(NewProperty != nullptr)
-				{
-					if (Map.Contains(PropName) && Map[PropName]->GetType() == (FProperty::EType)Type)
-					{
-						Map[PropName]->Serialize(Ar);
-						delete NewProperty;
-					}
-					else
-					{
-						NewProperty->Serialize(Ar);
-
-						if (!Map.Contains(PropName))
-						{
-							AddProperty(NewProperty);
-						}
-						else
-						{
-							delete NewProperty;
-						}
-					}
-				}
-				DATAFLOW_OPTIONAL_BLOCK_READ_ELSE()
-				{
-					// Silently skip
-				}
-				DATAFLOW_OPTIONAL_BLOCK_READ_END()
-			}
-		}
-	}
-
+	Inputs.Add(InPtr);
 }
+
+void FDataflowNode::AddOutput(Dataflow::FConnection* InPtr)
+{
+	for (Dataflow::FConnection* Out : Outputs)
+	{
+		ensureMsgf(!Out->GetName().IsEqual(InPtr->GetName()), TEXT("Add Output Failed: Existing Node output already defined with name (%s)"), *InPtr->GetName().ToString());
+	}
+	Outputs.Add(InPtr);
+}
+
+
+
+TArray<Dataflow::FPin> FDataflowNode::GetPins() const
+{
+	TArray<Dataflow::FPin> RetVal;
+	for (Dataflow::FConnection* Con : Inputs)
+		RetVal.Add({ Dataflow::FPin::EDirection::INPUT,Con->GetType(), Con->GetName() });
+	for (Dataflow::FConnection* Con : Outputs)
+		RetVal.Add({ Dataflow::FPin::EDirection::OUTPUT,Con->GetType(), Con->GetName() });
+	return RetVal;
+}
+
+void FDataflowNode::InvalidateOutputs()
+{
+	for (Dataflow::FConnection* Output : Outputs)
+	{
+		Output->Invalidate();
+	}
+}
+
+Dataflow::FConnection* FDataflowNode::FindInput(FName InName) const
+{
+	for (Dataflow::FConnection* Input : Inputs)
+	{
+		if (Input->GetName().IsEqual(InName))
+		{
+			return Input;
+		}
+	}
+	return nullptr;
+}
+
+Dataflow::FConnection* FDataflowNode::FindOutput(FName InName) const
+{
+	for (Dataflow::FConnection* Output : Outputs)
+	{
+		if (Output->GetName().IsEqual(InName))
+		{
+			return Output;
+		}
+	}
+	return nullptr;
+}
+
+
 

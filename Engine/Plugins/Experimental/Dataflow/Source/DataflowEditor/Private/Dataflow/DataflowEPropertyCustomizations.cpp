@@ -2,11 +2,9 @@
 #include "Dataflow/DataflowEPropertyCustomizations.h"
 
 #include "Dataflow/DataflowNode.h"
-#include "Dataflow/DataflowProperty.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Dataflow/DataflowEPropertyFactories.h"
 
 #define LOCTEXT_NAMESPACE "DataflowEProprty_Customizations"
 
@@ -32,10 +30,11 @@ void FDataflowSEditorCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 	{
 		if (UDataflowSEditorObject* DataflowSObj = Cast< UDataflowSEditorObject>(Obj))
 		{
-			if (TSharedPtr<Dataflow::FNode> Node = DataflowSObj->Node)
+			if (TSharedPtr<FDataflowNode> Node = DataflowSObj->Node)
 			{
 				if (UDataflow* Graph = DataflowSObj->Graph)
 				{
+					/*
 					for (Dataflow::FProperty* Property : Node->GetProperties())
 					{
 						IDetailPropertyRow& PropertyRow = Category.AddProperty(FName("CustomProperty"));
@@ -66,6 +65,7 @@ void FDataflowSEditorCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 						}
 						UE_LOG(LogCDataflowEProprtyCustomizations, Verbose, TEXT("FFloatObjectDetails::CustomizeDetails"));
 					}
+					*/
 				}
 			}
 		}

@@ -19,7 +19,7 @@ namespace Dataflow
 	}
 
 
-	void FGraph::RemoveNode(TSharedPtr<FNode> Node)
+	void FGraph::RemoveNode(TSharedPtr<FDataflowNode> Node)
 	{
 		for (FConnection* Output : Node->GetOutputs())
 		{
@@ -106,7 +106,7 @@ namespace Dataflow
 			int32 ArNum = Nodes.Num();
 
 			Ar << ArNum;
-			for (TSharedPtr<FNode> Node : Nodes)
+			for (TSharedPtr<FDataflowNode> Node : Nodes)
 			{
 				ArGuid = Node->GetGuid();
 				ArType = Node->GetType();
@@ -126,6 +126,7 @@ namespace Dataflow
 						ArName = Conn->GetName();
 						Ar << ArGuid << ArType << ArName;
 					}
+
 					Node->SerializeInternal(Ar);
 				}
 				DATAFLOW_OPTIONAL_BLOCK_WRITE_END();
@@ -140,7 +141,7 @@ namespace Dataflow
 			FName ArType, ArName;
 			int32 ArNum = 0;
 
-			TMap<FGuid, TSharedPtr<FNode> > NodeGuidMap;
+			TMap<FGuid, TSharedPtr<FDataflowNode> > NodeGuidMap;
 			TMap<FGuid, FConnection* > ConnectionGuidMap;
 
 			Ar << ArNum;
@@ -148,7 +149,7 @@ namespace Dataflow
 			{
 				Ar << ArGuid << ArType << ArName;
 
-				TSharedPtr<FNode> Node = FNodeFactory::GetInstance()->NewNodeFromRegisteredType(*this, { ArGuid,ArType,ArName });
+				TSharedPtr<FDataflowNode> Node = FNodeFactory::GetInstance()->NewNodeFromRegisteredType(*this, { ArGuid,ArType,ArName });
 				DATAFLOW_OPTIONAL_BLOCK_READ_BEGIN(Node != nullptr)
 				{
 					ensure(!NodeGuidMap.Contains(ArGuid));

@@ -20,6 +20,7 @@
 #include "PropertyEditorModule.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "IStructureDetailsView.h"
 
 #define LOCTEXT_NAMESPACE "GeometryCollectionEditorToolkit"
 
@@ -27,7 +28,8 @@
 
 
 const FName FGeometryCollectionEditorToolkit::GraphCanvasTabId(TEXT("GeometryCollectionEditor_GraphCanvas"));
-const FName FGeometryCollectionEditorToolkit::PropertiesTabId(TEXT("GeometryCollectionEditor_Properties"));
+const FName FGeometryCollectionEditorToolkit::AssetDetailsTabId(TEXT("GeometryCollectionEditor_AssetDetails"));
+const FName FGeometryCollectionEditorToolkit::NodeDetailsTabId(TEXT("GeometryCollectionEditor_NodeDetails"));
 
 void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
 {
@@ -44,10 +46,11 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 		Dataflow = GeometryCollection->Dataflow;
 		GeometryCollection->Dataflow->Schema = UDataflowSchema::StaticClass();
 
-		PropertiesEditor = CreatePropertiesEditorWidget(ObjectToEdit);
-		GraphEditor = CreateGraphEditorWidget(Dataflow, PropertiesEditor);
+		NodeDetailsEditor = CreateNodeDetailsEditorWidget(ObjectToEdit);
+		AssetDetailsEditor = CreateAssetDetailsEditorWidget(GeometryCollection);
+		GraphEditor = CreateGraphEditorWidget(Dataflow, NodeDetailsEditor);
 
-		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("GeometryCollectionDataflowEditor_Layout")
+		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("GeometryCollectionDataflowEditor_Layout.V1")
 			->AddArea
 			(
 				FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -72,7 +75,7 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 							(
 								FTabManager::NewStack()
 								->SetSizeCoefficient(0.7f)
-								->AddTab(PropertiesTabId, ETabState::OpenedTab)
+								->AddTab(AssetDetailsTabId, ETabState::OpenedTab)
 							)
 						)
 					)
@@ -85,13 +88,13 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 	}
 }
 
-TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IDetailsView> InPropertiesEditor)
+TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IStructureDetailsView> InNodeDetailsEditor)
 {
 	ensure(DataflowToEdit);
 	using namespace Dataflow;
 	IDataflowEditorPlugin& DataflowEditorModule = FModuleManager::LoadModuleChecked<IDataflowEditorPlugin>(TEXT("DataflowEditor"));
 
-	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [&](Dataflow::FNode* Node, Dataflow::FConnection* Out)
+	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [&](FDataflowNode* Node, Dataflow::FConnection* Out)
 	{
 		float EvalTime = FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds();
 		return Node->Evaluate(FEngineContext(GeometryCollection, Dataflow, EvalTime, FName("UGeometryCollection")), Out);
@@ -99,27 +102,63 @@ TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidg
 
 	return SNew(SDataflowGraphEditor, GeometryCollection)
 		.GraphToEdit(DataflowToEdit)
-		.DetailsView(InPropertiesEditor)
+		.DetailsView(InNodeDetailsEditor)
 		.EvaluateGraph(Evaluate);
 }
 
-TSharedPtr<IDetailsView> FGeometryCollectionEditorToolkit::CreatePropertiesEditorWidget(UObject* ObjectToEdit)
+TSharedPtr<IStructureDetailsView> FGeometryCollectionEditorToolkit::CreateNodeDetailsEditorWidget(UObject* ObjectToEdit)
 {
 	ensure(ObjectToEdit);
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 
 	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.bAllowSearch = true;
-	DetailsViewArgs.bLockable = false;
-	DetailsViewArgs.bUpdatesFromSelection = false;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.NotifyHook = this;
+	{
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.bLockable = false;
+		DetailsViewArgs.bSearchInitialKeyFocus = true;
+		DetailsViewArgs.bUpdatesFromSelection = false;
+		DetailsViewArgs.NotifyHook = nullptr;
+		DetailsViewArgs.bShowOptions = true;
+		DetailsViewArgs.bShowModifiedPropertiesOption = false;
+		DetailsViewArgs.bShowScrollBar = false;
+	}
+
+	FStructureDetailsViewArgs StructureViewArgs;
+	{
+		StructureViewArgs.bShowObjects = true;
+		StructureViewArgs.bShowAssets = true;
+		StructureViewArgs.bShowClasses = true;
+		StructureViewArgs.bShowInterfaces = true;
+	}
+	TSharedPtr<IStructureDetailsView> DetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr);
+	DetailsView->GetDetailsView()->SetObject(ObjectToEdit);
+
+	return DetailsView;
+
+}
+
+
+TSharedPtr<IDetailsView> FGeometryCollectionEditorToolkit::CreateAssetDetailsEditorWidget(UObject* ObjectToEdit)
+{
+	ensure(ObjectToEdit);
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+
+	FDetailsViewArgs DetailsViewArgs;
+	{
+		DetailsViewArgs.bAllowSearch = true;
+		DetailsViewArgs.bLockable = false;
+		DetailsViewArgs.bUpdatesFromSelection = false;
+		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+		DetailsViewArgs.NotifyHook = this;
+	}
 
 	TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetObject(ObjectToEdit);
 	return DetailsView;
 
 }
+
 
 
 TSharedRef<SDockTab> FGeometryCollectionEditorToolkit::SpawnTab_GraphCanvas(const FSpawnTabArgs& Args)
@@ -135,14 +174,25 @@ TSharedRef<SDockTab> FGeometryCollectionEditorToolkit::SpawnTab_GraphCanvas(cons
 	return SpawnedTab;
 }
 
-TSharedRef<SDockTab> FGeometryCollectionEditorToolkit::SpawnTab_Properties(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FGeometryCollectionEditorToolkit::SpawnTab_AssetDetails(const FSpawnTabArgs& Args)
 {
-	check(Args.GetTabId() == PropertiesTabId);
+	check(Args.GetTabId() == AssetDetailsTabId);
 
 	return SNew(SDockTab)
-		.Label(LOCTEXT("GeometryCollectionEditor_Properties_TabTitle", "Details"))
+		.Label(LOCTEXT("GeometryCollectionEditor_AssetDetails_TabTitle", "Asset Details"))
 		[
-			PropertiesEditor.ToSharedRef()
+			AssetDetailsEditor.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FGeometryCollectionEditorToolkit::SpawnTab_NodeDetails(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == NodeDetailsTabId);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("GeometryCollectionEditor_NodeDetails_TabTitle", "Node Details"))
+		[
+			NodeDetailsEditor->GetWidget()->AsShared()
 		];
 }
 
@@ -156,8 +206,13 @@ void FGeometryCollectionEditorToolkit::RegisterTabSpawners(const TSharedRef<FTab
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 
-	InTabManager->RegisterTabSpawner(PropertiesTabId, FOnSpawnTab::CreateSP(this, &FGeometryCollectionEditorToolkit::SpawnTab_Properties))
-		.SetDisplayName(LOCTEXT("PropertiesTab", "Details"))
+	InTabManager->RegisterTabSpawner(AssetDetailsTabId, FOnSpawnTab::CreateSP(this, &FGeometryCollectionEditorToolkit::SpawnTab_AssetDetails))
+		.SetDisplayName(LOCTEXT("AssetDetailsTab", "Asset Details"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	InTabManager->RegisterTabSpawner(NodeDetailsTabId, FOnSpawnTab::CreateSP(this, &FGeometryCollectionEditorToolkit::SpawnTab_NodeDetails))
+		.SetDisplayName(LOCTEXT("NodeDetailsTab", "Node Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 

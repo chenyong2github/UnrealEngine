@@ -5,9 +5,12 @@
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowNodeParameters.h"
 
+
+struct FDataflowNode;
+
+
 namespace Dataflow
 {
-	class FNode;
 
 	template<class T> inline DATAFLOWCORE_API FName GraphConnectionTypeName();
 	template<class T> inline DATAFLOWCORE_API T DeepCopy(const T&);
@@ -36,19 +39,19 @@ namespace Dataflow
 		FName Type;
 		FName Name;
 		FGuid  Guid;
-		FNode* OwningNode = nullptr;
+		FDataflowNode* OwningNode = nullptr;
 
-		friend class FNode;
-		static void BindInput(FNode* InNode, FConnection*);
-		static void BindOutput(FNode* InNode, FConnection*);
+		friend struct FDataflowNode;
+		static void BindInput(FDataflowNode* InNode, FConnection*);
+		static void BindOutput(FDataflowNode* InNode, FConnection*);
 
 
 	public:
-		FConnection(FPin::EDirection Direction, FName InType, FName InName, FNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
+		FConnection(FPin::EDirection Direction, FName InType, FName InName, FDataflowNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
 		virtual ~FConnection() {};
 
-		FNode* GetOwningNode() { return OwningNode; }
-		const FNode* GetOwningNode() const { return OwningNode; }
+		FDataflowNode* GetOwningNode() { return OwningNode; }
+		const FDataflowNode* GetOwningNode() const { return OwningNode; }
 
 		FPin::EDirection GetDirection() const { return Direction; }
 

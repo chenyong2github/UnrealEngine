@@ -5,8 +5,6 @@
 #include "Dataflow/DataflowObject.h"
 #include "HAL/IConsoleManager.h"
 
-bool bDataflowEnableCreation = false;
-FAutoConsoleVariableRef CVarDataflowEnableCreation(TEXT("c.DataflowEnableCreation"), bDataflowEnableCreation, TEXT("Enable creation for the dataflow system (Curently Dev-Only)"));
 
 
 UDataflowAssetFactory::UDataflowAssetFactory()
@@ -16,7 +14,7 @@ UDataflowAssetFactory::UDataflowAssetFactory()
 
 bool UDataflowAssetFactory::CanCreateNew() const
 {
-	return bDataflowEnableCreation;
+	return true;
 }
 
 bool UDataflowAssetFactory::FactoryCanImport(const FString& Filename)
@@ -32,7 +30,7 @@ UObject* UDataflowAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InPar
 
 bool UDataflowAssetFactory::ShouldShowInNewMenu() const
 {
-	return bDataflowEnableCreation;
+	return true;
 }
 
 bool UDataflowAssetFactory::ConfigureProperties()

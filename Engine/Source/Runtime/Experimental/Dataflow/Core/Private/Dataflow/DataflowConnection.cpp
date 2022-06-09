@@ -7,7 +7,7 @@
 
 namespace Dataflow
 {
-	FConnection::FConnection(FPin::EDirection InDirection, FName InType, FName InName, FNode* InOwningNode, FGuid InGuid)
+	FConnection::FConnection(FPin::EDirection InDirection, FName InType, FName InName, FDataflowNode* InOwningNode, FGuid InGuid)
 		: Direction(InDirection)
 		, Type(InType)
 		, Name(InName)
@@ -15,9 +15,9 @@ namespace Dataflow
 		, OwningNode(InOwningNode)
 	{}
 
-	void FConnection::BindInput(FNode* InNode, FConnection* That) 
+	void FConnection::BindInput(FDataflowNode* InNode, FConnection* That) 
 	{ InNode->AddInput(That); }
-	void FConnection::BindOutput(FNode* InNode, FConnection* That) 
+	void FConnection::BindOutput(FDataflowNode* InNode, FConnection* That) 
 	{ InNode->AddOutput(That); }
 
 }

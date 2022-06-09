@@ -30,6 +30,9 @@ void FDataflowAssetActions::GetActions(const TArray<UObject*>& InObjects,
 void FDataflowAssetActions::OpenAssetEditor(
 	const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {
+	FAssetTypeActions_Base::OpenAssetEditor(InObjects, EditWithinLevelEditor);
+
+	/*
 	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
@@ -39,6 +42,7 @@ void FDataflowAssetActions::OpenAssetEditor(
 			DataflowEditorPlugin->CreateDataflowAssetEditor(Mode, EditWithinLevelEditor, Object);
 		}
 	}
+	*/
 }
 
 

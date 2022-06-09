@@ -9,12 +9,13 @@
 namespace Dataflow 
 {
 	class FConnection;
-	class FNode;
 }
 
-class IDetailsView;
+class IStructureDetailsView;
 class UDataflow;
 class UDataflowEdNode;
+struct FDataflowNode;
+
 typedef TSet<class UObject*> FGraphPanelSelectionSet;
 
 /*
@@ -43,7 +44,7 @@ public:
 class DATAFLOWEDITOR_API FDataflowEditorCommands
 {
 public:
-	typedef TFunction<void(Dataflow::FNode*, Dataflow::FConnection*)> FGraphEvaluationCallback;
+	typedef TFunction<void(FDataflowNode*, Dataflow::FConnection*)> FGraphEvaluationCallback;
 	typedef TFunction<void(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)> FOnDragDropEventCallback;
 
 	static void Register();
@@ -64,6 +65,6 @@ public:
 	/*
 	*  OnSelectedNodesChanged
 	*/
-	static void OnSelectedNodesChanged(TSharedPtr<IDetailsView> PropertiesEditor, UObject* Asset, UDataflow* Graph, const TSet<UObject*>& NewSelection);
+	static void OnSelectedNodesChanged(TSharedPtr<IStructureDetailsView> PropertiesEditor, UObject* Asset, UDataflow* Graph, const TSet<UObject*>& NewSelection);
 
 };

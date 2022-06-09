@@ -34,7 +34,8 @@ public:
 	// Tab spawners 
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
 
 	UDataflow* GetDataflow() { return Dataflow; }
 	const UDataflow* GetDataflow() const { return Dataflow; }
@@ -42,8 +43,11 @@ public:
 	UGeometryCollection* GetGeometryCollection() { return GeometryCollection; }
 	const UGeometryCollection* GetGeometryCollection() const { return GeometryCollection; }
 
-	TSharedPtr<IDetailsView> GetPropertiesEditor() { return PropertiesEditor; }
-	const TSharedPtr<IDetailsView> GetPropertiesEditor() const { return PropertiesEditor; }
+	TSharedPtr<IDetailsView> GetAssetDetailsEditor() { return AssetDetailsEditor; }
+	const TSharedPtr<IDetailsView> GetAssetDetailsEditor() const { return AssetDetailsEditor; }
+
+	TSharedPtr<IStructureDetailsView> GetNodeDetailsEditor() { return NodeDetailsEditor; }
+	const TSharedPtr<IStructureDetailsView> GetNodeDetailsEditor() const { return NodeDetailsEditor; }
 
 	TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; }
 	const TSharedPtr<SGraphEditor> GetGraphEditor() const { return GraphEditor; }
@@ -51,11 +55,15 @@ public:
 private:
 	static const FName GraphCanvasTabId;
 	TSharedPtr<SGraphEditor> GraphEditor;
-	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit, TSharedPtr<IDetailsView> PropertiesEditor);
+	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit, TSharedPtr<IStructureDetailsView> PropertiesEditor);
 
-	static const FName PropertiesTabId;
-	TSharedPtr<IDetailsView> PropertiesEditor;
-	TSharedPtr<IDetailsView> CreatePropertiesEditorWidget(UObject* ObjectToEdit);
+	static const FName AssetDetailsTabId;
+	TSharedPtr<IDetailsView> AssetDetailsEditor;
+	TSharedPtr<IDetailsView> CreateAssetDetailsEditorWidget(UObject* ObjectToEdit);
+
+	static const FName NodeDetailsTabId;
+	TSharedPtr<IStructureDetailsView> NodeDetailsEditor;
+	TSharedPtr<IStructureDetailsView> CreateNodeDetailsEditorWidget(UObject* ObjectToEdit);
 
 	UDataflow* Dataflow = nullptr;
 	UGeometryCollection* GeometryCollection = nullptr;

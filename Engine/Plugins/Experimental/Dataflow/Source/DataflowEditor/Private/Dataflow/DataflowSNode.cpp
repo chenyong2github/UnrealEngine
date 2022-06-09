@@ -62,7 +62,7 @@ UEdGraphNode* FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode::PerformActi
 
 			if (Dataflow::FNodeFactory* Factory = Dataflow::FNodeFactory::GetInstance())
 			{
-				if (TSharedPtr<Dataflow::FNode> DataflowNode = Factory->NewNodeFromRegisteredType(*Dataflow->GetDataflow(), { FGuid::NewGuid(),NodeTypeName,NodeName}))
+				if (TSharedPtr<FDataflowNode> DataflowNode = Factory->NewNodeFromRegisteredType(*Dataflow->GetDataflow(), { FGuid::NewGuid(),NodeTypeName,NodeName}))
 				{
 					EdNode->SetDataflowGraph(Dataflow->GetDataflow());
 					EdNode->SetDataflowNodeGuid(DataflowNode->GetGuid());

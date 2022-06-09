@@ -44,7 +44,7 @@ public:
 	SLATE_ATTRIBUTE(FGraphAppearanceInfo, Appearance)
 	SLATE_ARGUMENT(UEdGraph*, GraphToEdit)
 	SLATE_ARGUMENT(FGraphEditorEvents, GraphEvents)
-	SLATE_ARGUMENT(TSharedPtr<IDetailsView>, DetailsView)
+	SLATE_ARGUMENT(TSharedPtr<IStructureDetailsView>, DetailsView)
 	SLATE_ARGUMENT(FDataflowEditorCommands::FGraphEvaluationCallback, EvaluateGraph)
 	SLATE_ARGUMENT(FDataflowEditorCommands::FOnDragDropEventCallback, OnDragDropEvent)
 	SLATE_END_ARGS()
@@ -88,5 +88,5 @@ private:
 	static TSharedPtr<FDataflowSNodeFactory> NodeFactory;
 
 	/** The details view that responds to this widget. */
-	TSharedPtr<IDetailsView> DetailsView;
+	TSharedPtr<IStructureDetailsView> DetailsView;
 };
