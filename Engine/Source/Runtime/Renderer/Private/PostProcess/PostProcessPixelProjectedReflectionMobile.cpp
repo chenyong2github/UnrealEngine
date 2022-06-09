@@ -135,8 +135,7 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ProjectionTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, ProjectionTextureSampler)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint>, ProjectionTextureSRV)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProjectionBuffer)
 		SHADER_PARAMETER(FVector4f, ReflectionPlane)
 		SHADER_PARAMETER_EX(FVector4f, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
@@ -203,6 +202,7 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 	const FIntPoint BufferSize = PlanarReflectionSceneProxy->RenderTarget->GetSizeXY();
 	
 	FRDGTextureRef ProjectionTexture = nullptr;
+	FRDGTextureSRVRef ProjectionTextureSRV = nullptr;
 	FRDGTextureUAVRef ProjectionTextureUAV = nullptr;
 
 	FRDGBufferRef ProjectionBuffer = nullptr;
@@ -214,6 +214,7 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 	if (bProjectionOutputTexture)
 	{
 		ProjectionTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BufferSize, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("ProjectionTexture"));
+		ProjectionTextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(ProjectionTexture));
 		ProjectionTextureUAV = GraphBuilder.CreateUAV(ProjectionTexture);
 		uint32 ClearColor[4] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
 		AddClearUAVPass(GraphBuilder, ProjectionTextureUAV, ClearColor);
@@ -295,8 +296,7 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 
 		if (bProjectionOutputTexture)
 		{
-			PSShaderParameters->ProjectionTexture = ProjectionTexture;
-			PSShaderParameters->ProjectionTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PSShaderParameters->ProjectionTextureSRV = ProjectionTextureSRV;
 		}
 		else
 		{

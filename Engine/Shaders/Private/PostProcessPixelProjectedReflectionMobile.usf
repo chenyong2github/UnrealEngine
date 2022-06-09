@@ -222,8 +222,7 @@ void ReflectionPassVS(
 #if REFLECTION_PASS_PIXEL_SHADER
 
 #if PROJECTION_OUTPUT_TYPE_TEXTURE
-Texture2D<uint> ProjectionTexture;
-SamplerState ProjectionTextureSampler;
+Texture2D<uint> ProjectionTextureSRV;
 #else
 Buffer<uint> ProjectionBuffer;
 #endif
@@ -231,11 +230,7 @@ Buffer<uint> ProjectionBuffer;
 uint GetEncodeValue(int2 ReflectingPixel)
 {
 #if PROJECTION_OUTPUT_TYPE_TEXTURE
-#if COMPILER_GLSL_ES3_1 // Force to use a point sampler for Texture2D<uint> on OpenGLES platform
-	uint EncodeValue = ProjectionTexture.SampleLevel(ProjectionTextureSampler, (ReflectingPixel + float2(0.5f, 0.5f)) * BufferSizeAndInvSize.zw, 0).x;
-#else
-	uint EncodeValue = ProjectionTexture.Load(int3(ReflectingPixel, 0));
-#endif
+	uint EncodeValue = ProjectionTextureSRV.Load(int3(ReflectingPixel, 0));
 #else
 	uint EncodeValue = ProjectionBuffer[ReflectingPixel.x + ReflectingPixel.y * int(BufferSizeAndInvSize.x)];
 #endif
@@ -251,7 +246,7 @@ void DecodeProjectionBufferValue(uint EncodeValue, out int2 PixelOffset)
 	EncodeValue = EncodeValue >> 2;
 
 	// unpack whole part
-	PixelOffset.x = ((EncodeValue & 1) == 1 ? 1 : -1) * ((EncodeValue >> 1) & 2047);
+	PixelOffset.x = ((EncodeValue & 1) == 1 ? 1 : -1) * int(((EncodeValue >> 1) & 2047));
 	EncodeValue = EncodeValue >> 12;
 	PixelOffset.y = EncodeValue;
 
