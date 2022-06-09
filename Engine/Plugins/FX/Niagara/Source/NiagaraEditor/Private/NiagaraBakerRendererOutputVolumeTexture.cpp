@@ -594,6 +594,18 @@ void FNiagaraBakerRendererOutputVolumeTexture::BakeFrame(UNiagaraBakerOutput* In
 			}
 
 			const FString FilePath = OutputVolumeTexture->GetExportPath(OutputVolumeTexture->FramesExportPathFormat, FrameIndex);
+			const FString FileDirectory = FString(FPathViews::GetPath(FilePath));
+
+			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+			if (!PlatformFile.DirectoryExists(*FileDirectory))
+			{
+				if (!PlatformFile.CreateDirectoryTree(*FileDirectory))
+				{
+					UE_LOG(LogNiagaraBaker, Warning, TEXT("Cannot Create Directory : %s"), *FileDirectory);
+					return;
+				}
+			}
+
 			FNiagaraBakerRenderer::ExportVolume(FilePath, TextureSize, TextureData);
 		}
 	}

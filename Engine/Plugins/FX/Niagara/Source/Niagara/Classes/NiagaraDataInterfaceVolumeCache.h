@@ -53,8 +53,9 @@ public:
 	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 	void SetFrame(FVectorVMExternalFunctionContext& Context);
-	void ReadFile(FVectorVMExternalFunctionContext& Context);
-	
+	void ReadFile(FVectorVMExternalFunctionContext& Context);	
+	void GetNumCells(FVectorVMExternalFunctionContext& Context);
+
 	FString GetAssetPath(FString PathFormat, int32 FrameIndex) const;
 
 protected:
@@ -66,6 +67,7 @@ protected:
 
 	static const FName SetFrameName;
 	static const FName ReadFileName;
+	static const FName GetNumCellsName;
 	static const FName SampleCurrentFrameValueName;
 	static const FName GetCurrentFrameValue;
 	static const FName GetCurrentFrameNumCells;
