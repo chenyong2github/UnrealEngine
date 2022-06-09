@@ -293,7 +293,7 @@ namespace Horde.Build.Tests
 			// Expected: Default issues is created
 			{
 				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
-				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning), message = "" }, EventSeverity.Warning);
 				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
 				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
@@ -307,9 +307,9 @@ namespace Horde.Build.Tests
 			// Expected: Nodes are NOT added to issue
 			{
 				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
-				await AddEvent(job, 0, 1, new { });
+				await AddEvent(job, 0, 1, new { message = "" });
 				await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Failure);
-				await AddEvent(job, 0, 2, new { });
+				await AddEvent(job, 0, 2, new { message = "" });
 				await UpdateCompleteStep(job, 0, 2, JobStepOutcome.Failure);
 
 				List<IIssue> issues = (await IssueCollection.FindIssuesAsync()).OrderBy(x => x.Summary).ToList();
@@ -325,7 +325,7 @@ namespace Horde.Build.Tests
 			// Expected: Nodes are added to issue, but change outcome to error
 			{
 				IJob job = CreateJob(_mainStreamId, 110, "Test Build", _graph);
-				await AddEvent(job, 0, 0, new { });
+				await AddEvent(job, 0, 0, new { message = "" });
 				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
 				List<IIssue> issues = (await IssueCollection.FindIssuesAsync()).OrderBy(x => x.Summary).ToList();
@@ -341,7 +341,7 @@ namespace Horde.Build.Tests
 			// Expected: Additional error is created
 			{
 				IJob job = CreateJob(_mainStreamId, 110, "Test Build", _graph);
-				await AddEvent(job, 0, 3, new { });
+				await AddEvent(job, 0, 3, new { message = "" });
 				await UpdateCompleteStep(job, 0, 3, JobStepOutcome.Warnings);
 
 				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
@@ -915,6 +915,61 @@ namespace Horde.Build.Tests
 				Assert.AreEqual(1, primarySuspects.Count);
 				Assert.AreEqual(_jerryId, primarySuspects[0]); // 115
 			}
+		}
+
+		[TestMethod]
+		public async Task HashedIssueTest()
+		{
+			IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
+
+			await ParseEventsAsync(job, 0, 0, new[] { "LogSomething: Warning: This is a warning from the editor" });
+			await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+			await ParseEventsAsync(job, 0, 1, new[] { "LogSomething: Warning: This is a warning from the editor" });
+			await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Failure);
+
+			List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+			Assert.AreEqual(1, issues.Count);
+
+			IIssue issue = issues[0];
+			Assert.AreEqual("Warnings in Update Version Files and Compile UnrealHeaderTool Win64", issue.Summary);
+		}
+
+		[TestMethod]
+		public async Task HashedIssueTest2()
+		{
+			IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
+
+			await ParseEventsAsync(job, 0, 0, new[] { "LogSomething: Warning: This is a warning from the editor" });
+			await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+			await ParseEventsAsync(job, 0, 1, new[] { "LogSomething: Warning: This is a warning from the editor2" });
+			await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Failure);
+
+			List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+			issues.SortBy(x => x.Id);
+			Assert.AreEqual(2, issues.Count);
+
+			Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
+			Assert.AreEqual("Warnings in Compile UnrealHeaderTool Win64", issues[1].Summary);
+		}
+
+		[TestMethod]
+		public async Task HashedIssueTest3()
+		{
+			IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
+
+			await ParseEventsAsync(job, 0, 0, new[] { "LogSomething: Warning: This is a warning from the editor", "warning: some generic thing that will be ignored" });
+			await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+			await ParseEventsAsync(job, 0, 1, new[] { "LogSomething: Warning: This is a warning from the editor" });
+			await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Failure);
+
+			List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+			Assert.AreEqual(1, issues.Count);
+
+			IIssue issue = issues[0];
+			Assert.AreEqual("Warnings in Update Version Files and Compile UnrealHeaderTool Win64", issue.Summary);
 		}
 
 		[TestMethod]
