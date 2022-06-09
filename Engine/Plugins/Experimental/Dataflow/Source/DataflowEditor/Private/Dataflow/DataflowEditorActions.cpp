@@ -16,20 +16,20 @@ void FDataflowEditorCommandsImpl::RegisterCommands()
 
 	if (Dataflow::FNodeFactory* Factory = Dataflow::FNodeFactory::GetInstance())
 	{
-		for (FName NodeName : Factory->RegisteredNodes())
+		for (Dataflow::FFactoryParameters Parameters : Factory->RegisteredParameters())
 		{
 			TSharedPtr< FUICommandInfo > AddNode;
 			FUICommandInfo::MakeCommandInfo(
 				this->AsShared(),
 				AddNode,
-				NodeName, //FName("UseCreationFormToggle"),
-				NSLOCTEXT("DataFlow1", "DataflowButton", "New Dataflow Node"),
-				NSLOCTEXT("DataFlow2", "NewDataflowNodeTooltip", "New Dataflow Node Tooltip"),
+				Parameters.TypeName,
+				LOCTEXT("DataflowButton", "New Dataflow Node"),
+				LOCTEXT("NewDataflowNodeTooltip", "New Dataflow Node Tooltip"),
 				FSlateIcon(),
 				EUserInterfaceActionType::Button,
 				FInputChord()
 			);
-			CreateNodesMap.Add(NodeName, AddNode);
+			CreateNodesMap.Add(Parameters.TypeName, AddNode);
 		}
 	}
 }

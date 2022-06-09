@@ -46,15 +46,16 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	virtual ~FDataflowNode() {}
 
+	FGuid GetGuid() const { return Guid; }
 	FName GetName() const { return Name; }
 	void SetName(FName InName) { Name = InName; }
 
-	virtual FString GetDisplayName() { return ""; }
-	virtual FString GetCatagory() { return ""; }
-	virtual FString GetTags() { return ""; }
-
 	virtual FName GetType() const { check(true); return FName("invalid"); }
-	FGuid GetGuid() const { return Guid; }
+	virtual FName GetDisplayName() const { return ""; }
+	virtual FName GetCategory() const { return ""; }
+	virtual FString GetTags() const { return ""; }
+	virtual FString GetToolTip() const { return ""; }
+
 
 	TArray<Dataflow::FPin> GetPins() const;
 	Dataflow::FConnection* FindInput(FName Name) const;
@@ -81,27 +82,32 @@ namespace Dataflow
 	// Used these macros to register dataflow nodes. 
 	//
 
-#define DATAFLOW_NODE_REGISTER_CREATION_FACTORY(A)						\
-	FNodeFactory::GetInstance()->RegisterNode(							\
-		A::StaticType(),													\
-		[](const FNewNodeParameters& InParam)							\
+#define DATAFLOW_NODE_REGISTER_CREATION_FACTORY(A)								\
+	FNodeFactory::GetInstance()->RegisterNode(									\
+		{A::StaticType(),A::StaticDisplay(),A::StaticCategory(),				\
+			A::StaticTags(),A::StaticToolTip()},								\
+		[](const FNewNodeParameters& InParam)									\
 			{return new A({InParam.Name}, InParam.Guid); });
 
-#define DATAFLOW_NODE_DEFINE_INTERNAL(TYPE, DISPLAY_NAME, CATAGORY, TAGS)\
-public:																	\
-	static FName StaticType() {return #TYPE;}							\
-	static FName StaticDisplay() {return DISPLAY_NAME;}					\
-	virtual FName GetType() const { return #TYPE; }						\
-	virtual FStructOnScope* NewScructOnScope() override {				\
-	   return new FStructOnScope(TYPE::StaticStruct(), (uint8*)this);}	\
-	virtual void SerializeInternal(FArchive& Ar) override {				\
-		UScriptStruct* const Struct = TYPE::StaticStruct();				\
-		Struct->SerializeTaggedProperties(Ar, (uint8*)this,				\
-		Struct, nullptr);}												\
-	virtual FString GetDisplayName() override { return DISPLAY_NAME; }	\
-	virtual FString GetCatagory() override { return CATAGORY; }			\
-	virtual FString GetTags() override { return TAGS; }					\
-	TYPE() {}															\
+#define DATAFLOW_NODE_DEFINE_INTERNAL(TYPE, DISPLAY_NAME, CATEGORY, TAGS)		\
+public:																			\
+	static FName StaticType() {return #TYPE;}									\
+	static FName StaticDisplay() {return DISPLAY_NAME;}							\
+	static FName StaticCategory() {return CATEGORY;}							\
+	static FString StaticTags() {return TAGS;}									\
+	static FString StaticToolTip() {return FString("Create a dataflow node.");}	\
+	virtual FName GetType() const { return #TYPE; }								\
+	virtual FStructOnScope* NewScructOnScope() override {						\
+	   return new FStructOnScope(TYPE::StaticStruct(), (uint8*)this);}			\
+	virtual void SerializeInternal(FArchive& Ar) override {						\
+		UScriptStruct* const Struct = TYPE::StaticStruct();						\
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this,						\
+		Struct, nullptr);}														\
+	virtual FName GetDisplayName() const override { return TYPE::StaticDisplay(); }	\
+	virtual FName GetCategory() const override { return TYPE::StaticCategory(); }	\
+	virtual FString GetTags() const override { return TYPE::StaticTags(); }			\
+	virtual FString GetToolTip() const override { return TYPE::StaticToolTip(); }	\
+	TYPE() {}																		\
 private:
 
 
