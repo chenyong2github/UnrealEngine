@@ -749,6 +749,13 @@ void UBehaviorTreeComponent::ResumeBranchActions()
 				case EBTBranchAction::DecoratorEvaluate:
 				{
 					const UBTDecorator* RequestedBy = CastChecked<UBTDecorator>(Info.Node);
+
+					// Since we have been queued up, decorator might have been removed from active nodes, need to make sure it is still there.
+					if (!IsAuxNodeActive(RequestedBy))
+					{
+						break;
+					}
+
 					EvaluateBranch(*RequestedBy);
 					break;
 				}
@@ -757,12 +764,26 @@ void UBehaviorTreeComponent::ResumeBranchActions()
 				case EBTBranchAction::DecoratorActivate_EvenIfExecuting:
 				{
 					const UBTDecorator* RequestedBy = CastChecked<UBTDecorator>(Info.Node);
+
+					// Since we have been queued up, decorator might have been removed from active nodes, need to make sure it is still there.
+					if (!IsAuxNodeActive(RequestedBy))
+					{
+						break;
+					}
+
 					ActivateBranch(*RequestedBy, Info.Action == EBTBranchAction::DecoratorActivate_EvenIfExecuting /*bForceRequestEvenIfExecuting*/);
 					break;
 				}
 				case EBTBranchAction::DecoratorDeactivate:
 				{
 					const UBTDecorator* RequestedBy = CastChecked<UBTDecorator>(Info.Node);
+
+					// Since we have been queued up, decorator might have been removed from active nodes, need to make sure it is still there.
+					if (!IsAuxNodeActive(RequestedBy))
+					{
+						break;
+					}
+
 					DeactivateBranch(*RequestedBy);
 					break;
 				}
