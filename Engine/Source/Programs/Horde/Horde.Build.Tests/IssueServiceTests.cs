@@ -819,6 +819,30 @@ namespace Horde.Build.Tests
 		}
 
 		[TestMethod]
+		public async Task MaskedEventTest()
+		{
+			string[] lines =
+			{
+				FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+				"Error executing d:\\build\\AutoSDK\\Sync\\HostWin64\\Win64\\VS2019\\14.29.30145\\bin\\HostX64\\x64\\cl.exe (tool returned code: 2)",
+				"BUILD FAILED: Command failed (Result:1): C:\\Program Files (x86)\\IncrediBuild\\xgConsole.exe \"d:\\build\\++UE5\\Sync\\Engine\\Programs\\AutomationTool\\Saved\\Logs\\UAT_XGE.xml\" /Rebuild /NoLogo /ShowAgent /ShowTime /no_watchdog_thread. See logfile for details: 'xgConsole-2022.06.09-15.14.03.txt'",
+				"BUILD FAILED",
+			};
+
+			IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
+			await ParseEventsAsync(job, 0, 0, lines);
+			await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+			List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+			Assert.AreEqual(1, issues.Count);
+
+			IIssueFingerprint fingerprint = issues[0].Fingerprints[0];
+			Assert.AreEqual("Compile", fingerprint.Type);
+			Assert.AreEqual(1, fingerprint.Keys.Count);
+			Assert.AreEqual("foo.cpp", fingerprint.Keys.First());
+		}
+
+		[TestMethod]
 		public async Task DeprecationTest()
 		{
 			// #1

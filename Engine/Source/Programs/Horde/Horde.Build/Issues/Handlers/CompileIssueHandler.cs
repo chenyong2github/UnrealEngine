@@ -39,37 +39,49 @@ namespace Horde.Build.Issues.Handlers
 		/// </summary>
 		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? eventId)
+		public static bool IsMatchingEventId(EventId eventId)
 		{
 			return eventId == KnownLogEvents.Compiler || eventId == KnownLogEvents.AutomationTool_SourceFileLine || eventId == KnownLogEvents.MSBuild;
 		}
 
+		static bool IsMaskedEventId(EventId id) => id == KnownLogEvents.Generic || id == KnownLogEvents.ExitCode || id == KnownLogEvents.Systemic_Xge_BuildFailed;
+
 		/// <inheritdoc/>
 		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
+			bool hasMatches = false;
 			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				if (stepEvent.EventId.HasValue && IsMatchingEventId(stepEvent.EventId))
+				if (stepEvent.EventId.HasValue)
 				{
-					List<string> newFileNames = new List<string>();
-					GetSourceFiles(stepEvent.EventData, newFileNames);
-
-					string compileType = "Compile";
-					if (annotations.TryGetValue(CompileTypeAnnotation, out string? type))
+					EventId eventId = stepEvent.EventId.Value;
+					if (IsMatchingEventId(eventId))
 					{
-						compileType = type;
-					}
+						List<string> newFileNames = new List<string>();
+						GetSourceFiles(stepEvent.EventData, newFileNames);
 
-					string fingerprintType = Type;
-					if (annotations.TryGetValue(CompileGroupAnnotation, out string? group))
+						string compileType = "Compile";
+						if (annotations.TryGetValue(CompileTypeAnnotation, out string? type))
+						{
+							compileType = type;
+						}
+
+						string fingerprintType = Type;
+						if (annotations.TryGetValue(CompileGroupAnnotation, out string? group))
+						{
+							fingerprintType = $"{fingerprintType}:{group}";
+						}
+
+						List<string> newMetadata = new List<string>();
+						newMetadata.Add($"{CompileTypeAnnotation}={compileType}");
+
+						stepEvent.Fingerprint = new NewIssueFingerprint(fingerprintType, newFileNames, null, newMetadata);
+						hasMatches = true;
+					}
+					else if (hasMatches && IsMaskedEventId(eventId))
 					{
-						fingerprintType = $"{fingerprintType}:{group}";
+						stepEvent.Ignored = true;
 					}
-
-					List<string> newMetadata = new List<string>();
-					newMetadata.Add($"{CompileTypeAnnotation}={compileType}");
-
-					stepEvent.Fingerprint = new NewIssueFingerprint(fingerprintType, newFileNames, null, newMetadata);
 				}
 			}
 		}
