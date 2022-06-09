@@ -37,6 +37,9 @@ struct FReferenceNodeInfo
 
 	int32 OverflowCount;
 
+	// Denote when all children have been manually expanded and the breadth limit should be ignored
+	bool bExpandAllChildren;
+
 	FReferenceNodeInfo(const FAssetIdentifier& InAssetId, bool InbReferencers);
 
 	bool IsFirstParent(const FAssetIdentifier& InParentId) const;
@@ -133,6 +136,8 @@ private:
 		int32 InMaxDepth, 
 		bool bIsRoot = false
 	);
+
+	void ExpandNode(bool bReferencers, const FAssetIdentifier& InAssetIdentifier);
 
 	/** Removes all nodes from the graph */
 	void RemoveAllNodes();

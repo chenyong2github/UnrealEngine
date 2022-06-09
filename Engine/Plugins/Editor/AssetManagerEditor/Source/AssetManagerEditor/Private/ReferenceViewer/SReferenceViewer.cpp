@@ -518,9 +518,46 @@ void SReferenceViewer::SetCurrentRegistrySource(const FAssetManagerEditorRegistr
 
 void SReferenceViewer::OnNodeDoubleClicked(UEdGraphNode* Node)
 {
-	TSet<UObject*> Nodes;
-	Nodes.Add(Node);
-	ReCenterGraphOnNodes( Nodes );
+
+	bool bFoundOverflow = false;
+	if (UEdGraphNode_Reference* ReferenceNode = Cast<UEdGraphNode_Reference>(Node))
+	{
+		// Overflow nodes have no identifiers
+		if (!ReferenceNode->GetIdentifier().IsValid()) 
+		{
+			if (ReferenceNode->GetReferencerPin()->LinkedTo.Num() > 0)
+			{
+				if (UEdGraphNode* ParentNode = ReferenceNode->GetReferencerPin()->LinkedTo[0]->GetOwningNode())
+				{
+					if (UEdGraphNode_Reference* ParentReferenceNode = Cast<UEdGraphNode_Reference>(ParentNode))
+					{
+						FAssetIdentifier ParentID = ParentReferenceNode->GetIdentifier();
+						GraphObj->ExpandNode(false, ParentID);
+						bFoundOverflow = true;
+					}
+				}
+			}
+			else if (ReferenceNode->GetDependencyPin()->LinkedTo.Num() > 0)
+			{
+				if (UEdGraphNode* ParentNode = ReferenceNode->GetDependencyPin()->LinkedTo[0]->GetOwningNode())
+				{
+					if (UEdGraphNode_Reference* ParentReferenceNode = Cast<UEdGraphNode_Reference>(ParentNode))
+					{
+						FAssetIdentifier ParentID = ParentReferenceNode->GetIdentifier();
+						GraphObj->ExpandNode(true, ParentID);
+						bFoundOverflow = true;
+					}
+				}
+			}
+		}
+	}
+
+	if (!bFoundOverflow)
+	{
+		TSet<UObject*> Nodes;
+		Nodes.Add(Node);
+		ReCenterGraphOnNodes( Nodes );
+	}
 }
 
 void SReferenceViewer::RebuildGraph()

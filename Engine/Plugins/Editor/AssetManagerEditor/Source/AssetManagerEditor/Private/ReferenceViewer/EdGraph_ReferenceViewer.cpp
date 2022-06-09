@@ -20,6 +20,7 @@ FReferenceNodeInfo::FReferenceNodeInfo(const FAssetIdentifier& InAssetId, bool I
 	: AssetId(InAssetId)
 	, bReferencers(InbReferencers)
 	, OverflowCount(0)
+	, bExpandAllChildren(false)
 	, ChildProvisionSize(0)
 	, PassedFilters(true)
 {}
@@ -330,7 +331,7 @@ void UEdGraph_ReferenceViewer::RecursivelyFilterNodeInfos(const FAssetIdentifier
 
 			if (ChildProvSize > 0)
 			{
-				if (!ExceedsMaxSearchBreadth(Breadth))
+				if (!ExceedsMaxSearchBreadth(Breadth) || InNodeInfos[InAssetId].bExpandAllChildren)
 				{
 					NewProvisionSize += ChildProvSize;
 					Breadth++;
@@ -552,7 +553,7 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyCreateNodes(bool bI
 
 		for (const TPair<FAssetIdentifier, EDependencyPinCategory>& Pair : InNodeInfos[InAssetId].Children)
 		{
-			if (ExceedsMaxSearchBreadth(Breadth))
+			if (ExceedsMaxSearchBreadth(Breadth) && !InNodeInfos[InAssetId].bExpandAllChildren)
 			{
 				break;
 			}
@@ -617,6 +618,21 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyCreateNodes(bool bI
 	}
 
 	return NewNode;
+}
+
+void UEdGraph_ReferenceViewer::ExpandNode(bool bReferencers, const FAssetIdentifier& InAssetIdentifier)
+{
+	if (!bReferencers && DependencyNodeInfos.Contains(InAssetIdentifier))
+	{
+		DependencyNodeInfos[InAssetIdentifier].bExpandAllChildren = true;
+		RefilterGraph();
+	}
+
+	else if (bReferencers && ReferencerNodeInfos.Contains(InAssetIdentifier))
+	{
+		ReferencerNodeInfos[InAssetIdentifier].bExpandAllChildren = true;
+		RefilterGraph();
+	}
 }
 
 const TSharedPtr<FAssetThumbnailPool>& UEdGraph_ReferenceViewer::GetAssetThumbnailPool() const
