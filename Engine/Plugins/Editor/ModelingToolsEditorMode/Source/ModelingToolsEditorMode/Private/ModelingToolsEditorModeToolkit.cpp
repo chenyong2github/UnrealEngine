@@ -1108,10 +1108,10 @@ void FModelingToolsEditorModeToolkit::UpdateObjectCreationOptionsFromSettings()
 	const UModelingToolsEditorModeSettings* Settings = GetDefault<UModelingToolsEditorModeSettings>();
 
 	// enable/disable dynamic mesh actors
-	UCreateMeshObjectTypeProperties::bEnableDynamicMeshActorSupport = Settings->GetEnableDynamicMeshActors();
+	UCreateMeshObjectTypeProperties::bEnableDynamicMeshActorSupport = true;
 
 	// set configured default type
-	if (Settings->DefaultMeshObjectType == EModelingModeDefaultMeshObjectType::DynamicMeshActor && Settings->GetEnableDynamicMeshActors())
+	if (Settings->DefaultMeshObjectType == EModelingModeDefaultMeshObjectType::DynamicMeshActor)
 	{
 		UCreateMeshObjectTypeProperties::DefaultObjectTypeIdentifier = UCreateMeshObjectTypeProperties::DynamicMeshActorIdentifier;
 	}
