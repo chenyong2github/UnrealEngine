@@ -10,6 +10,82 @@
 
 namespace Chaos
 {
+	/**
+	 * @brief Convert the cartesian coordinate into a barycentric corrdinate.
+	 * Compute barycentric coordinates/weights of Point inside 3D triangle (V0,V1,V2).
+	 * If point is in triangle plane and inside triangle, coords will be positive and sum to 1.
+	 * ie if result is a, then vPoint = a.x*V0 + a.y*V1 + a.z*V2.
+	 * 
+	 * @note For points outside the triangle it will return negative barycentric coordinates that should still sum to 1. However,
+	 * if the triangle is degenerate and the point is not on the line/vertex, it will return (1,0,0) with no way to detect this condition.
+	 * 
+	 * @see FromBarycentric()
+	 */
+	template <typename RealType>
+	inline TVec3<RealType> ToBarycentric(const TVec3<RealType>& Point, const TVec3<RealType>& V0, const TVec3<RealType>& V1, const TVec3<RealType>& V2)
+	{
+		const TVec3<RealType> V02 = V0 - V2;
+		const TVec3<RealType> V12 = V1 - V2;
+		const TVec3<RealType> PV2 = Point - V2;
+		const RealType M00 = V02.Dot(V02);
+		const RealType M01 = V02.Dot(V12);
+		const RealType M11 = V12.Dot(V12);
+		const RealType R0 = V02.Dot(PV2);
+		const RealType R1 = V12.Dot(PV2);
+		const RealType Det = M00 * M11 - M01 * M01;
+		RealType Bary1, Bary2, Bary3;
+		if (Det > UE_SMALL_NUMBER)
+		{
+			// Non-degenerate triangle
+			const RealType InvDet = RealType(1) / Det;
+			Bary1 = (M11 * R0 - M01 * R1) * InvDet;
+			Bary2 = (M00 * R1 - M01 * R0) * InvDet;
+			Bary3 = RealType(1) - Bary1 - Bary2;
+		}
+		else
+		{
+			const bool bHaveLine02 = (M00 > UE_SMALL_NUMBER);
+			const bool bHaveLine12 = (M11 > UE_SMALL_NUMBER);
+			const bool bInsideLine02 = ((M00 > UE_SMALL_NUMBER) && (R0 >= 0) && (R0 <= M00));
+			const bool bInsideLine12 = ((M11 > UE_SMALL_NUMBER) && (R1 >= 0) && (R1 <= M11));
+			if (bInsideLine02 || (bHaveLine02 && !bInsideLine12))
+			{
+				// Line-degenerate and point on line segment V02
+				const RealType Alpha02 = R0 / M00;
+				Bary1 = Alpha02;
+				Bary2 = RealType(0);
+				Bary3 = RealType(1) - Alpha02;
+			}
+			else if (bHaveLine12)
+			{
+				// Line-degenerate and point on line segment V12
+				const RealType Alpha12 = R1 / M11;
+				Bary1 = RealType(0);
+				Bary2 = Alpha12;
+				Bary3 = RealType(1) - Alpha12;
+			}
+			else
+			{
+				// Point-degenerate, or line-degenerate and point not on line
+				Bary1 = RealType(1);
+				Bary2 = RealType(0);
+				Bary3 = RealType(0);
+			}
+		}
+		return TVec3<RealType>(Bary1, Bary2, Bary3);
+	}
+
+	/**
+	 * @brief Convert the barycentric coordinate into a cartesian corrdinate
+	 * @see ToBarycentric()
+	*/
+	template <typename RealType>
+	inline TVec3<RealType> FromBarycentric(const TVec3<RealType>& Barycentric, const TVec3<RealType>& V0, const TVec3<RealType>& V1, const TVec3<RealType>& V2)
+	{
+		return Barycentric.X * V0 + Barycentric.Y * V1 + Barycentric.Z * V2;
+	}
+
+
 	template<typename T>
 	class TTriangle
 	{
@@ -62,6 +138,11 @@ namespace Chaos
 		{
 			OutN = GetNormal();
 			OutX = ABC[0];
+		}
+
+		FORCEINLINE TVec3<T> GetCentroid() const
+		{
+			return (GetVertex(0) + GetVertex(1) + GetVertex(2)) / T(3.0);
 		}
 
 		// Get the nearest point on an edge and the edge vertices

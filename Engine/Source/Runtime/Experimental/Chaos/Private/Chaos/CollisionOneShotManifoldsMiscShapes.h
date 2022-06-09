@@ -76,11 +76,10 @@ namespace Chaos
 			const FReal Dt,
 			FPBDCollisionConstraint& Constraint);
 
-		template <typename TriMeshType>
 		void ConstructCapsuleTriMeshOneShotManifold(
 			const FCapsule& Capsule, 
 			const FRigidTransform3& CapsuleWorldTransform, 
-			const TriMeshType& TriangleMesh, 
+			const FImplicitObject& TriangleMesh, 
 			const FRigidTransform3& TriMeshWorldTransform, 
 			const FReal Dt, 
 			FPBDCollisionConstraint& Constraint);
@@ -93,15 +92,6 @@ namespace Chaos
 			const FReal Dt, 
 			FPBDCollisionConstraint& Constraint);
 
-		template<typename ConvexType = FConvex>
-		void ConstructConvexHeightFieldOneShotManifold(
-			const FImplicitObject& Convex,
-			const FRigidTransform3& ConvexTransform,
-			const FHeightField& HeightField,
-			const FRigidTransform3& HeightFieldTransform,
-			const FReal Dt,
-			FPBDCollisionConstraint& Constraint);
-
 		/**
 		 * @brief Build the contact manifold between a Planar Convex shape and a TriMesh
 		 * @param Convex an ImplicitObject that must be a box, convex, or a wrapper around it. Asserts if not
@@ -111,6 +101,18 @@ namespace Chaos
 			const FImplicitObject& Convex, 
 			const FRigidTransform3& ConvexTransform, 
 			const FImplicitObject& TriangleMesh, 
+			const FRigidTransform3& TriangleMeshTransform, 
+			FPBDCollisionConstraint& Constraint);
+
+
+		/**
+		 * @brief Build the contact manifold between a Planar Convex shape and a HeightField
+		 * @param Convex an ImplicitObject that must be a box, convex, or a wrapper around it. Asserts if not
+		*/
+		void ConstructPlanarConvexHeightFieldOneShotManifold(
+			const FImplicitObject& Convex, 
+			const FRigidTransform3& ConvexTransform, 
+			const FHeightField& HeightField, 
 			const FRigidTransform3& TriangleMeshTransform, 
 			FPBDCollisionConstraint& Constraint);
 

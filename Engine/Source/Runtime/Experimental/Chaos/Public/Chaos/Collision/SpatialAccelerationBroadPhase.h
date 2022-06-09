@@ -168,13 +168,13 @@ namespace Chaos
 				const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicSleepingView = Particles.GetNonDisabledDynamicView();
 				const TParticleView<TKinematicGeometryParticles<FReal, 3>>& DynamicMovingKinematicView = Particles.GetActiveDynamicMovingKinematicParticlesView();
 
-				if(DynamicSleepingView.Num() > DynamicMovingKinematicView.Num())
+				if(DynamicSleepingView.Num() < DynamicMovingKinematicView.Num())
 				{
-					ComputeParticlesOverlaps<false,false>(DynamicMovingKinematicView, Dt, InSpatialAcceleration, NarrowPhase);
+					ComputeParticlesOverlaps<false, true>(DynamicSleepingView, Dt, InSpatialAcceleration, NarrowPhase);
 				}
 				else
 				{
-					ComputeParticlesOverlaps<false,true>(DynamicSleepingView, Dt, InSpatialAcceleration, NarrowPhase);
+					ComputeParticlesOverlaps<false, false>(DynamicMovingKinematicView, Dt, InSpatialAcceleration, NarrowPhase);
 				}
 			}
 			else

@@ -324,15 +324,15 @@ namespace Chaos
 			const FAABB3 WorldQueryBounds = FAABB3(WorldQueryCenter - FVec3(WorldQueryRadius), WorldQueryCenter + FVec3(WorldQueryRadius));
 			const FAABB3 LocalQueryBounds = WorldQueryBounds.InverseTransformedAABB(ShapeTransform);
 
-			Shape->VisitTriangles(LocalQueryBounds, [&](const FTriangle& Tri)
-				{
-					FVec3 A = ShapeTransform.TransformPosition(Tri[0]);
-					FVec3 B = ShapeTransform.TransformPosition(Tri[1]);
-					FVec3 C = ShapeTransform.TransformPosition(Tri[2]);
-					FDebugDrawQueue::GetInstance().DrawDebugLine(A, B, Color, false, Duration, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
-					FDebugDrawQueue::GetInstance().DrawDebugLine(B, C, Color, false, Duration, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
-					FDebugDrawQueue::GetInstance().DrawDebugLine(C, A, Color, false, Duration, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
-				});
+			Shape->VisitTriangles(LocalQueryBounds, ShapeTransform, [&](const FTriangle& Tri, const int32 TriangleIndex, const int32 VertexIndex0, const int32 VertexIndex1, const int32 VertexIndex2)
+			{
+				const FVec3& A = Tri[0];
+				const FVec3& B = Tri[1];
+				const FVec3& C = Tri[2];
+				FDebugDrawQueue::GetInstance().DrawDebugLine(A, B, Color, false, Duration, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(B, C, Color, false, Duration, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(C, A, Color, false, Duration, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+			});
 		}
 
 		void DrawShapesTriangleMeshImpl(const TGeometryParticleHandle<FReal, 3>* Particle, const FRigidTransform3& ShapeTransform, const FTriangleMeshImplicitObject* Shape, const FColor& Color, const FRealSingle Duration, const FChaosDebugDrawSettings& Settings)
@@ -342,11 +342,11 @@ namespace Chaos
 			const FAABB3 WorldQueryBounds = FAABB3(WorldQueryCenter - FVec3(WorldQueryRadius), WorldQueryCenter + FVec3(WorldQueryRadius));
 			const FAABB3 LocalQueryBounds = WorldQueryBounds.InverseTransformedAABB(ShapeTransform);
 
-			Shape->VisitTriangles(LocalQueryBounds, [&](const FTriangle& Tri)
+			Shape->VisitTriangles(LocalQueryBounds, ShapeTransform, [&](const FTriangle& Tri, const int32 TriangleIndex, const int32 VertexIndex0, const int32 VertexIndex1, const int32 VertexIndex2)
 			{
-				FVec3 A = ShapeTransform.TransformPosition(Tri[0]);
-				FVec3 B = ShapeTransform.TransformPosition(Tri[1]);
-				FVec3 C = ShapeTransform.TransformPosition(Tri[2]);
+				const FVec3& A = Tri[0];
+				const FVec3& B = Tri[1];
+				const FVec3& C = Tri[2];
 				FDebugDrawQueue::GetInstance().DrawDebugLine(A, B, Color, false, Duration, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
 				FDebugDrawQueue::GetInstance().DrawDebugLine(B, C, Color, false, Duration, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
 				FDebugDrawQueue::GetInstance().DrawDebugLine(C, A, Color, false, Duration, 0, Settings.ShapeThicknesScale * Settings.LineThickness);

@@ -4,6 +4,7 @@
 
 #include "Chaos/Box.h"
 #include "Chaos/CollisionResolution.h"
+#include "Chaos/Collision/ContactTriangles.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Defines.h"
@@ -78,14 +79,15 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarChaos_Collision_EnableEdgePrune(TEXT("p.Chaos.Collision.EnableEdgePrune"), bChaos_Collision_EnableEdgePrune, TEXT(""));
 	FAutoConsoleVariableRef CVarChaos_Collision_EdgePrunePlaneDistance(TEXT("p.Chaos.Collision.EdgePrunePlaneDistance"), Chaos_Collision_EdgePrunePlaneDistance, TEXT(""));
 
-	// Whether to use the new index-less GJK. This should be enabled full time once tested
-	bool bChaos_Collision_UseGJK2 = false;
+	// Whether to use the new index-less GJK. 
+	// @todo(chaos): This should be removed once soaked for a bit (enabled 7 June 2022)
+	bool bChaos_Collision_UseGJK2 = true;
 	FAutoConsoleVariableRef CVarChaos_Collision_UseGJK2(TEXT("p.Chaos.Collision.UseGJK2"), bChaos_Collision_UseGJK2, TEXT(""));
 
 	bool bChaos_Collision_OneSidedTriangleMesh = true;
-	bool bChaos_Collision_OneSidedHeightfield = true;
+	bool bChaos_Collision_OneSidedHeightField = true;
 	FAutoConsoleVariableRef CVarChaos_Collision_OneSidedTriangleMesh(TEXT("p.Chaos.Collision.OneSidedTriangleMesh"), bChaos_Collision_OneSidedTriangleMesh, TEXT(""));
-	FAutoConsoleVariableRef CVarChaos_Collision_OneSidedHeightfield(TEXT("p.Chaos.Collision.OneSidedHeightfield"), bChaos_Collision_OneSidedHeightfield, TEXT(""));
+	FAutoConsoleVariableRef CVarChaos_Collision_OneSidedHeightfield(TEXT("p.Chaos.Collision.OneSidedHeightField"), bChaos_Collision_OneSidedHeightField, TEXT(""));
 
 	namespace Collisions
 	{
@@ -272,165 +274,6 @@ namespace Chaos
 			}
 
 			return OutPointCount; // This should always be 4
-		}
-
-		// Remove spurious edge contact by removing edge-edge contact that are in the plane of another vertex-plane contact.
-		// Note: this assumes that the first shape in the contacts is the same convex shape (e.g., a box), and the second
-		// can be from any other shape(s), e.g., triangles of a non-convex shape.
-		// We treat PlaneVertex contacts the same because these are contacts on the convex face with a vertex of the triangle
-		// which require the same culling rule be applied.
-		template<bool bMaintainOrder>
-		void PruneEdgeContactPointsImp(TArray<FContactPoint>& ContactPoints, const FReal MaxPlaneDistance)
-		{
-			if (!bChaos_Collision_EnableEdgePrune)
-			{
-				return;
-			}
-
-			int32 NumContactPoints = ContactPoints.Num();
-			for (int32 EdgeContactIndex = 0; EdgeContactIndex < NumContactPoints; ++EdgeContactIndex)
-			{
-				const FContactPoint& EdgeContactPoint = ContactPoints[EdgeContactIndex];
-				const bool bIsTriangleEdgeOrVertex = (EdgeContactPoint.ContactType == EContactPointType::EdgeEdge) || (EdgeContactPoint.ContactType == EContactPointType::PlaneVertex);
-
-				if (bIsTriangleEdgeOrVertex)
-				{
-					for (int32 PlaneContactIndex = 0; PlaneContactIndex < NumContactPoints; ++PlaneContactIndex)
-					{
-						const FContactPoint PlaneContactPoint = ContactPoints[PlaneContactIndex];
-						const bool bIsTriangleFace = (PlaneContactPoint.ContactType == EContactPointType::VertexPlane);
-
-						// If this is a triangle face contact, does the edge/vertex contact lie in the plane?
-						if (bIsTriangleFace)
-						{
-							const int32 PlaneShapeIndex = 1;
-							const FVec3 DeltaPos = PlaneContactPoint.ShapeContactPoints[PlaneShapeIndex] - EdgeContactPoint.ShapeContactPoints[PlaneShapeIndex];
-							const FReal PlaneDistance = FVec3::DotProduct(DeltaPos, PlaneContactPoint.ShapeContactNormal);
-							if (FMath::Abs(PlaneDistance) < MaxPlaneDistance)
-							{
-								// @todo(chaos): Pretty sure we'll need to do an absolute distance check here too so we don;t reject edge
-								// contacts because of plane contacts a long way away.
-
-								// Note: Cannot use RemoveAtSwap unless we re-sort at the end. See ReduceManifoldContactPointsTriangeMesh
-								const bool bAllowShrinking = false;
-								if (bMaintainOrder)
-								{
-									ContactPoints.RemoveAt(EdgeContactIndex, 1, bAllowShrinking);
-								}
-								else
-								{
-									ContactPoints.RemoveAtSwap(EdgeContactIndex, 1, bAllowShrinking);
-								}
-								--EdgeContactIndex;
-								--NumContactPoints;
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
-
-		void PruneEdgeContactPointsOrdered(TArray<FContactPoint>& ContactPoints, const FReal MaxPlaneDistance)
-		{
-			PruneEdgeContactPointsImp<true>(ContactPoints, MaxPlaneDistance);
-		}
-
-		void PruneEdgeContactPointsUnordered(TArray<FContactPoint>& ContactPoints, const FReal MaxPlaneDistance)
-		{
-			PruneEdgeContactPointsImp<false>(ContactPoints, MaxPlaneDistance);
-		}
-
-		// Reduce the number of contact points (in place)
-		// Prerequisites to calling this function:
-		// ContactPoints are sorted on phi (ascending)
-		void ReduceManifoldContactPointsTriangeMesh(TArray<FContactPoint>& ContactPoints)
-		{
-			if (ContactPoints.Num() <= 4)
-			{
-				return;
-			}
-
-			// Point 1) is the deepest contact point
-			// It is already in position
-			
-			//
-			// @todo(chaos): actually this isn't really good enough. We want to take the outer 4 points for the most stable manifold, but also
-			// must take the deepest for correct behaviour. We also have a problem right now where if we have a number of contacts at the same 
-			// depth, the "deepest" one is arbitrary and may be a poor choice as the anchor of the manifold building. E.g., Consider 5 contact 
-			// points in a X config where the center point is first in the list - this leads to a triangular/unstable manifold.
-			// 
-			// Maybe we should do this:
-			//	- build the manifold using the current process
-			//	- revisit point 0 at the end and replace with the best choice for stability if the depth is similar
-			// Or this:
-			//	- build manifold for best stabilty (largest convex area)
-			//	- if manifold does not contain deepest point, replace one point so minimize area reduction
-			//
-			
-			// Point 2) Find the point with the largest distance to the deepest contact point
-			{
-				uint32 FarthestPointIndex = 1;
-				FReal FarthestPointDistanceSQR = -1.0f;
-				for (int32 PointIndex = 1; PointIndex < ContactPoints.Num(); PointIndex++)
-				{
-					FReal PointAToPointBSizeSQR = (ContactPoints[PointIndex].ShapeContactPoints[1] - ContactPoints[0].ShapeContactPoints[1]).SizeSquared();
-					if (PointAToPointBSizeSQR > FarthestPointDistanceSQR)
-					{
-						FarthestPointIndex = PointIndex;
-						FarthestPointDistanceSQR = PointAToPointBSizeSQR;
-					}
-				}
-				// Farthest point will be added now
-				Swap(ContactPoints[1], ContactPoints[FarthestPointIndex]);
-			}
-
-			// Point 3) Largest triangle area
-			{
-				uint32 LargestTrianglePointIndex = 2;
-				FReal LargestTrianglePointSignedArea = 0.0f; // This will actually be double the signed area
-				FVec3 P0to1 = ContactPoints[1].ShapeContactPoints[1] - ContactPoints[0].ShapeContactPoints[1];
-				for (int32 PointIndex = 2; PointIndex < ContactPoints.Num(); PointIndex++)
-				{
-					FReal TriangleSignedArea = FVec3::DotProduct(FVec3::CrossProduct(P0to1, ContactPoints[PointIndex].ShapeContactPoints[1] - ContactPoints[0].ShapeContactPoints[1]), ContactPoints[0].ShapeContactNormal);
-					if (FMath::Abs(TriangleSignedArea) > FMath::Abs(LargestTrianglePointSignedArea))
-					{
-						LargestTrianglePointIndex = PointIndex;
-						LargestTrianglePointSignedArea = TriangleSignedArea;
-					}
-				}
-				// Point causing the largest triangle will be added now
-				Swap(ContactPoints[2], ContactPoints[LargestTrianglePointIndex]);
-				// Ensure the winding order is consistent
-				if (LargestTrianglePointSignedArea < 0)
-				{
-					Swap(ContactPoints[0], ContactPoints[1]);
-				}
-			}
-
-			// Point 4) Find the largest triangle connecting with our current triangle
-			{
-				uint32 LargestTrianglePointIndex = 3;
-				FReal LargestPositiveTrianglePointSignedArea = 0.0f;
-				for (int32 PointIndex = 3; PointIndex < ContactPoints.Num(); PointIndex++)
-				{
-					for (uint32 EdgeIndex = 0; EdgeIndex < 3; EdgeIndex++)
-					{
-						FReal TriangleSignedArea = FVec3::DotProduct(FVec3::CrossProduct(ContactPoints[PointIndex].ShapeContactPoints[1] - ContactPoints[EdgeIndex].ShapeContactPoints[1], ContactPoints[(EdgeIndex + 1) % 3].ShapeContactPoints[1] - ContactPoints[EdgeIndex].ShapeContactPoints[1]), ContactPoints[0].ShapeContactNormal);
-						if (TriangleSignedArea > LargestPositiveTrianglePointSignedArea)
-						{
-							LargestTrianglePointIndex = PointIndex;
-							LargestPositiveTrianglePointSignedArea = TriangleSignedArea;
-						}
-					}
-				}
-				// Point causing the largest positive triangle area will be added now
-				Swap(ContactPoints[3], ContactPoints[LargestTrianglePointIndex]);
-			}
-
-			// Revisit Point 0 - if we have a choice that increases area at similar depth, use it
-
-			ContactPoints.SetNum(4); // Will end up with 4 points
 		}
 
 		// This function will clip the input vertices by a reference shape's planes
@@ -651,7 +494,7 @@ namespace Chaos
 		// GJK contact point between two GJKShape wrapped implicits
 		// This assumes that the both shapes are in the same space
 		template <typename GJKShapeA, typename GJKShapeB>
-		FContactPoint GJKContactPointSameSpace(const GJKShapeA& A, const GJKShapeB& B, FReal& OutMaxMarginDelta, int32& VertexIndexA, int32& VertexIndexB)
+		FContactPoint GJKContactPointSameSpace(const GJKShapeA& A, const GJKShapeB& B, FReal& OutMaxMarginDelta, int32& VertexIndexA, int32& VertexIndexB, const FVec3 InitialGJKDir = FVec3(-1,0,0))
 		{
 			SCOPE_CYCLE_COUNTER_MANIFOLD_GJK();
 
@@ -667,11 +510,11 @@ namespace Chaos
 			bool bHaveContact = false;
 			if (bChaos_Collision_UseGJK2)
 			{
-				bHaveContact = GJKPenetrationSameSpace2(A, B, Penetration, ClosestA, ClosestB, Normal, VertexIndexA, VertexIndexB, OutMaxMarginDelta, GJKEpsilon, EPAEpsilon);
+				bHaveContact = GJKPenetrationSameSpace2(A, B, Penetration, ClosestA, ClosestB, Normal, VertexIndexA, VertexIndexB, OutMaxMarginDelta, InitialGJKDir, GJKEpsilon, EPAEpsilon);
 			}
 			else
 			{
-				bHaveContact = GJKPenetrationSameSpace(A, B, Penetration, ClosestA, ClosestB, Normal, VertexIndexA, VertexIndexB, OutMaxMarginDelta, GJKEpsilon, EPAEpsilon);
+				bHaveContact = GJKPenetrationSameSpace(A, B, Penetration, ClosestA, ClosestB, Normal, VertexIndexA, VertexIndexB, OutMaxMarginDelta, InitialGJKDir, GJKEpsilon, EPAEpsilon);
 			}
 
 			if (bHaveContact)
@@ -1356,9 +1199,22 @@ namespace Chaos
 			}
 		}
 
-		// @todo(chaos): don't use GJK/EPA for triangle-convex so we can avoid using margains and avoid errors related to misidentifying edge contacts
+		void ConstructCapsuleTriangleOneShotManifold(const FImplicitCapsule3& Capsule, const FTriangle& Triangle, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
+		{
+			// @todo(chaos): make custom capsule-triangle manifold function.
+			// NOTE: ConstructCapsuleConvexOneShotManifold could be used but it has issues when we collide a triangle edge with the capsule cylinder - that needs fixing...
+			FPBDCollisionConstraint Constraint = FPBDCollisionConstraint::MakeTriangle(&Capsule);
+			ConstructConvexConvexOneShotManifold(Capsule, FRigidTransform3::Identity, Triangle, FRigidTransform3::Identity, 0.0f, Constraint);
+			for (const FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
+			{
+				OutContactPoints.Add(ManifoldPoint.ContactPoint);
+			}
+			return;
+		}
+
+		// @todo(chaos): don't use GJK/EPA for triangle-convex so we can avoid using margins and errors related to misidentifying edge contacts
 		template <typename ConvexType>
-		void ConstructPlanarConvexTriangleOneShotManifold(const ConvexType& Convex, const FTriangle& Triangle, const bool bOneSided, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
+		void ConstructPlanarConvexTriangleOneShotManifold(const ConvexType& Convex, const FTriangle& Triangle, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
 		{
 			SCOPE_CYCLE_COUNTER_MANIFOLD();
 			check(OutContactPoints.Num() == 0);
@@ -1371,7 +1227,8 @@ namespace Chaos
 			int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
 			const TGJKCoreShape<ConvexType> GJKConvex(Convex, ConvexMargin);
 			const TGJKShape<FTriangle> GJKTriangle(Triangle);
-			FContactPoint GJKContactPoint = GJKContactPointSameSpace(GJKConvex, GJKTriangle, MaxMarginDelta, VertexIndexA, VertexIndexB);
+			const FVec3 InitialGJKDir = -Triangle.GetCentroid();
+			FContactPoint GJKContactPoint = GJKContactPointSameSpace(GJKConvex, GJKTriangle, MaxMarginDelta, VertexIndexA, VertexIndexB, InitialGJKDir);
 
 			PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumManifoldsGJKCalled, 1, ECsvCustomStatOp::Accumulate);
 
@@ -1391,12 +1248,6 @@ namespace Chaos
 			const FVec3 TrianglePlaneNormal = Triangle.GetNormal();
 			const FVec3 TrianglePlanePosition = Triangle[0];
 			const FReal TrianglePlaneNormalDotContactNormal = FVec3::DotProduct(TrianglePlaneNormal, GJKContactPoint.ShapeContactNormal);
-
-			// One sided triangles ignore collisions with the inside face
-			if (bOneSided && (TrianglePlaneNormalDotContactNormal < FReal(0)))
-			{
-				return;
-			}
 
 			// Find the best opposing plane on the convex
 			// @todo(chaos): handle zero margins...
@@ -1767,7 +1618,6 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const FImplicitConvex3& Convex, 
 			const FTriangle& Triangle,
-			const bool bOneSided,
 			const FReal CullDistance, 
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1775,7 +1625,6 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const TImplicitObjectInstanced<FImplicitConvex3>& Convex,
 			const FTriangle& Triangle,
-			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1783,7 +1632,6 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const TImplicitObjectScaled<FImplicitConvex3>& Convex,
 			const FTriangle& Triangle,
-			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1791,7 +1639,6 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const FImplicitBox3& Convex,
 			const FTriangle& Triangle,
-			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1799,7 +1646,6 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const TImplicitObjectScaled<FImplicitBox3>& Convex,
 			const FTriangle& Triangle,
-			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1807,7 +1653,6 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const TImplicitObjectInstanced<FImplicitBox3>& Convex,
 			const FTriangle& Triangle,
-			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 

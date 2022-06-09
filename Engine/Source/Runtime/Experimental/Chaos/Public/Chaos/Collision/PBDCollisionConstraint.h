@@ -488,6 +488,7 @@ namespace Chaos
 
 		void AddIncrementalManifoldContact(const FContactPoint& ContactPoint);
 
+		// @todo(chaos): remove this and use SetOneShotManifoldContacts
 		inline void AddOneshotManifoldContact(const FContactPoint& ContactPoint)
 		{
 			if (ContactPoint.IsSet() && !ManifoldPoints.IsFull())
@@ -504,6 +505,35 @@ namespace Chaos
 			}
 		}
 
+		/**
+		 * @brief Replace the current manifold points with the input.
+		 * The input array should contain no more than MaxManifoldPoints contacts (any extra will be ignored).
+		 * We assume that all input contacts have been initialized and will not return false from IsSet().
+		 * Ignores contacts deeper than the CullDistance for this constraint.
+		*/
+		inline void SetOneShotManifoldContacts(const TArrayView<const FContactPoint>& ContactPoints)
+		{
+			ResetActiveManifoldContacts();
+
+			// Disable the incremental flag to prevent calling collision detection again
+			Flags.bUseIncrementalManifold = false;
+
+			FReal MinPhi = TNumericLimits<FReal>::Max();
+			const int32 NumContacts = FMath::Min(ContactPoints.Num(), MaxManifoldPoints);
+			for (int32 ContactIndex = 0; ContactIndex < NumContacts; ++ContactIndex)
+			{
+				const FContactPoint& ContactPoint = ContactPoints[ContactIndex];
+				if (ContactPoint.Phi < CullDistance)
+				{
+					int32 ManifoldPointIndex = AddManifoldPoint(ContactPoint);
+					if (ContactPoint.Phi < MinPhi)
+					{
+						ClosestManifoldPointIndex = ManifoldPointIndex;
+						MinPhi = ContactPoint.Phi;
+					}
+				}
+			}
+		}
 
 		void UpdateManifoldContacts();
 

@@ -93,18 +93,67 @@ namespace Chaos
 		bool GJKContactPoint(const TImplicitObjectScaled<FCapsule>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const;
 		bool GJKContactPoint(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const;
 
-		bool ContactManifold(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-		bool ContactManifold(const FCapsule& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-		bool ContactManifold(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-		bool ContactManifold(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-		bool ContactManifold(const TImplicitObjectScaled<FCapsule>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-		bool ContactManifold(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-
 
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
 		virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const override;
 
-		void VisitTriangles(const FAABB3& InQueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const;
+		/**
+		 * @param QueryBounds Bounding box in which we want to produce triangles, in HeightField space
+		 * @param QueryTransform Transforms from HeightField space to query space (usually the other object's space)
+		 * @param CullDistance The distance at which we can ignore triangles
+		 * @param Visitor void(const FTriangle& Triangle, const int32 TriangleIndex, const int32 VertexIndex0, const int32 VertexIndex1, const int32 OutVertexIndex2)
+		*/
+		template<typename TriangleVisitor>
+		void VisitTriangles(const FAABB3& QueryBounds, const FRigidTransform3& QueryTransform, const TriangleVisitor& Visitor) const
+		{
+			FBounds2D GridQueryBounds;
+			GridQueryBounds.Min = FVec2(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+			GridQueryBounds.Max = FVec2(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+
+			// @todo(chaos): could we do the 3D bounds test here?
+			TArray<TVec2<int32>> Intersections;
+			GetGridIntersections(GridQueryBounds, Intersections);
+
+			FVec3 Points[4];
+
+			for (const TVec2<int32>& Cell : Intersections)
+			{
+				const int32 CellVertexIndex = Cell[1] * GeomData.NumCols + Cell[0];	// First vertex in cell
+				const int32 CellIndex = Cell[1] * (GeomData.NumCols - 1) + Cell[0];
+
+				// Check for holes and skip checking if we'll never collide
+				if (GeomData.MaterialIndices.IsValidIndex(CellIndex) && GeomData.MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max())
+				{
+					continue;
+				}
+
+				// The triangle is solid so proceed to test it
+				FAABB3 CellBounds;
+				GeomData.GetPointsAndBoundsScaled(CellVertexIndex, Points, CellBounds);
+
+				if (CellBounds.Intersects(QueryBounds))
+				{
+					// Transform points into the space of the query
+					// @todo(chaos): duplicate work here when we overlap lots of cells. We could generate the transformed verts for the full query once...
+					Points[0] = QueryTransform.TransformPositionNoScale(Points[0]);
+					Points[1] = QueryTransform.TransformPositionNoScale(Points[1]);
+					Points[2] = QueryTransform.TransformPositionNoScale(Points[2]);
+					Points[3] = QueryTransform.TransformPositionNoScale(Points[3]);
+
+					// @todo(chaos): utility function for this
+					const int32 VertexIndex0 = CellVertexIndex;
+					const int32 VertexIndex1 = CellVertexIndex + 1;
+					const int32 VertexIndex2 = CellVertexIndex + GeomData.NumCols;
+					const int32 VertexIndex3 = CellVertexIndex + GeomData.NumCols + 1;
+
+					// Generate contacts if overlapping
+					const int32 FaceIndex0 = CellIndex * 2 + 0;
+					const int32 FaceIndex1 = CellIndex * 2 + 1;
+					Visitor(FTriangle(Points[0], Points[1], Points[3]), FaceIndex0, VertexIndex0, VertexIndex1, VertexIndex3);
+					Visitor(FTriangle(Points[0], Points[3], Points[2]), FaceIndex1, VertexIndex0, VertexIndex3, VertexIndex2);
+				}
+			}
+		}
 
 		struct FClosestFaceData
 		{
@@ -773,15 +822,6 @@ namespace Chaos
 
 		template <typename GeomType>
 		bool GJKContactPointImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const;
-
-		// @todo(chaos): remove ContactManifoldNonPlanarConvexImp and ContactManifoldPlanarConvexImp and move collision detection code out of this class.
-		// Instead, provide an API for generating triangles in a query bounds in some space.
-
-		template <typename GeomType>
-		bool ContactManifoldNonPlanarConvexImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-
-		template <typename GeomType>
-		bool ContactManifoldPlanarConvexImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-
 	};
+
 }

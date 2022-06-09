@@ -236,12 +236,6 @@ public:
 		return MObject->GJKContactPoint(A, AToBTM, Thickness, Location, Normal, Penetration);
 	}
 
-	template <typename QueryGeomType>
-	bool ContactManifold(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		return MObject->ContactManifold(A, AToBTM, Thickness, ContactPoints);
-	}
-
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const
 	{
 		return MObject->GetMaterialIndex(HintIndex);
@@ -721,20 +715,6 @@ public:
 
 		auto ScaledA = MakeScaledHelper(A, MInvScale);
 		return MObject->GJKContactPoint(ScaledA, AToBTMNoScale, UnscaledThickness, Location, Normal, Penetration, MScale);
-	}
-
-	template <typename QueryGeomType>
-	bool ContactManifold(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		TRigidTransform<T, d> AToBTMNoScale(AToBTM.GetLocation() * MInvScale, AToBTM.GetRotation());
-
-		// Thickness is a culling distance which cannot be non-uniformly scaled. This gets passed into the ImplicitObject API unscaled so that
-		// if can do the right thing internally if possible, but it makes the API a little confusing. (This is only exists used TriMesh and Heightfield.)
-		// See FTriangleMeshImplicitObject::GJKContactPointImp
-		const FReal UnscaledThickness = Thickness;
-
-		auto ScaledA = MakeScaledHelper(A, MInvScale);
-		return MObject->ContactManifold(ScaledA, AToBTMNoScale, UnscaledThickness, ContactPoints, MScale);
 	}
 
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */

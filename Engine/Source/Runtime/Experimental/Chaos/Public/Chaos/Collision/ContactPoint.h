@@ -12,13 +12,17 @@ namespace Chaos
 {
 	/**
 	 * @brief Used in FContactPoint to indicate whether the contact is vertex-plane, edge-edge, etc
+	 * 
+	 * @note the order here is the order of preference in the solver. I.e., we like to solve Plane contacts before edge contacts before vertex contacts.
+	 * This is most impotant for collisions against triangle meshes (or any concave shape) where the second shape is always the triangle, and so a PlaneVertex collision 
+	 * counts as a vertex collision.
 	*/
 	enum class EContactPointType : int8
 	{
 		Unknown,
 		VertexPlane,
-		PlaneVertex,
 		EdgeEdge,
+		PlaneVertex,
 		VertexVertex,
 	};
 

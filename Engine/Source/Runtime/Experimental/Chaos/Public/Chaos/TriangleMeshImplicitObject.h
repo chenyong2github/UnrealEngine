@@ -442,12 +442,19 @@ namespace Chaos
 
 	template <typename IdxType, typename ParticlesType>
 	inline void TriangleMeshTransformVertsHelper(const FRigidTransform3& Transform, int32 TriIdx, const ParticlesType& Particles,
-		const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)
+		const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC,
+		int32& OutVertexIndexA, int32& OutVertexIndexB, int32& OutVertexIndexC)
 	{
-		// Note: deliberately using scaled transform
-		OutA = Transform.TransformPosition(FVector(Particles.X(Elements[TriIdx][0])));
-		OutB = Transform.TransformPosition(FVector(Particles.X(Elements[TriIdx][1])));
-		OutC = Transform.TransformPosition(FVector(Particles.X(Elements[TriIdx][2])));
+		const int32 VertexIndexA = Elements[TriIdx][0];
+		const int32 VertexIndexB = Elements[TriIdx][1];
+		const int32 VertexIndexC = Elements[TriIdx][2];
+		// Note: deliberately using scaled transform here. See VisitTriangles
+		OutA = Transform.TransformPosition(FVector(Particles.X(VertexIndexA)));
+		OutB = Transform.TransformPosition(FVector(Particles.X(VertexIndexB)));
+		OutC = Transform.TransformPosition(FVector(Particles.X(VertexIndexC)));
+		OutVertexIndexA = VertexIndexA;
+		OutVertexIndexB = VertexIndexB;
+		OutVertexIndexC = VertexIndexC;
 	}
 
 
@@ -546,14 +553,6 @@ namespace Chaos
 		bool GJKContactPoint(const TImplicitObjectScaled < TBox<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale = FVec3(1.0f)) const;
 		bool GJKContactPoint(const TImplicitObjectScaled < FCapsule >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale = FVec3(1.0f)) const;
 		bool GJKContactPoint(const TImplicitObjectScaled < FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale = FVec3(1.0f)) const;
-
-
-		bool ContactManifold(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-		bool ContactManifold(const FCapsule& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-		bool ContactManifold(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
-		bool ContactManifold(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints, FVec3 TriMeshScale = FVec3(1.0f)) const;
-		bool ContactManifold(const TImplicitObjectScaled<FCapsule>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints, FVec3 TriMeshScale = FVec3(1.0f)) const;
-		bool ContactManifold(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints, FVec3 TriMeshScale = FVec3(1.0f)) const;
 
 		// Returns -1 if InternalFaceIndex is not in map, or map is invalid.
 		int32 GetExternalFaceIndexFromInternal(int32 InternalFaceIndex) const;
@@ -700,22 +699,18 @@ namespace Chaos
 
 		void UpdateVertices(const TArray<FVector>& Positions);
 
-		void VisitTriangles(const FAABB3& InQueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const;
-
-		void VisitTriangle(const int32 TriangleIndex, const TFunction<void(const FTriangle& Triangle)>& Visitor) const;
-
 		/**
 		 * @brief Generate the triangle at the specified index with the specified transform (including scale)
 		*/
-		void GetTransformedTriangle(const int32 TriangleIndex, const FRigidTransform3& Transform, FTriangle& OutTriangle) const
+		void GetTransformedTriangle(const int32 TriangleIndex, const FRigidTransform3& Transform, FTriangle& OutTriangle, int32& OutVertexIndex0, int32& OutVertexIndex1, int32& OutVertexIndex2) const
 		{
 			if (MElements.RequiresLargeIndices())
 			{
-				TriangleMeshTransformVertsHelper(Transform, TriangleIndex, MParticles, MElements.GetLargeIndexBuffer(), OutTriangle[0], OutTriangle[1], OutTriangle[2]);
+				TriangleMeshTransformVertsHelper(Transform, TriangleIndex, MParticles, MElements.GetLargeIndexBuffer(), OutTriangle[0], OutTriangle[1], OutTriangle[2], OutVertexIndex0, OutVertexIndex1, OutVertexIndex2);
 			}
 			else
 			{
-				TriangleMeshTransformVertsHelper(Transform, TriangleIndex, MParticles, MElements.GetSmallIndexBuffer(), OutTriangle[0], OutTriangle[1], OutTriangle[2]);
+				TriangleMeshTransformVertsHelper(Transform, TriangleIndex, MParticles, MElements.GetSmallIndexBuffer(), OutTriangle[0], OutTriangle[1], OutTriangle[2], OutVertexIndex0, OutVertexIndex1, OutVertexIndex2);
 			}
 		}
 
@@ -726,6 +721,28 @@ namespace Chaos
 		void FindOverlappingTriangles(const FAABB3& QueryBounds, TArray<int32>& OutTriangleIndices) const
 		{
 			OutTriangleIndices = FastBVH.FindAllIntersections(QueryBounds);
+		}
+
+		/**
+		 * @param QueryBounds Bounding box in which we want to produce triangles, in unscaled TriMesh space
+		 * @param QueryTransform Transforms from TriMesh space to desired space (e.g., could be trimesh world transform including scale to get world-space triangles)
+		 * @param CullDistance The distance at which we can ignore triangles
+		 * @param Visitor void(const FTriangle& Triangle, const int32 TriangleIndex, const int32 VertexIndex0, const int32 VertexIndex1, const int32 OutVertexIndex2)
+		*/
+		template<typename TriangleVisitor>
+		void VisitTriangles(const FAABB3& QueryBounds, const FRigidTransform3& QueryTransform, const TriangleVisitor& Visitor) const
+		{
+			TArray<int32> OverlapIndices;
+			FindOverlappingTriangles(QueryBounds, OverlapIndices);
+
+			for (int32 OverlapIndex = 0; OverlapIndex < OverlapIndices.Num(); ++OverlapIndex)
+			{
+				const int32 TriangleIndex = OverlapIndices[OverlapIndex];
+				FTriangle Triangle;
+				int32 VertexIndex0, VertexIndex1, VertexIndex2;
+				GetTransformedTriangle(TriangleIndex, QueryTransform, Triangle, VertexIndex0, VertexIndex1, VertexIndex2);
+				Visitor(Triangle, TriangleIndex, VertexIndex0, VertexIndex1, VertexIndex2);
+			}
 		}
 
 	private:
@@ -839,9 +856,6 @@ namespace Chaos
 		template <typename QueryGeomType>
 		bool GJKContactPointImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, FVec3 TriMeshScale = FVec3(1.0)) const;
 
-		template <typename GeomType>
-		bool ContactManifoldImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints, FVec3 TriMeshScale) const;
-
 		template<typename QueryGeomType>
 		bool OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD = nullptr, FVec3 TriMeshScale = FVec3(1.0f)) const;
 
@@ -865,62 +879,6 @@ namespace Chaos
 
 		template <typename IdxType>
 		TUniquePtr<FTriangleMeshImplicitObject> CopySlowImpl(const TArray < TVector<IdxType, 3>>& InElements) const;
-	};
-
-
-	/**
-	 * @brief A helper for iterating over FTriangleMeshImplicitObject triangles in a bounding box
-	*/
-	class FTriangleMeshTriangleProducer
-	{
-	public:
-		FTriangleMeshTriangleProducer()
-			: NextIndex(0)
-			, TriangleIndices()
-		{
-		}
-
-		/**
-		 * @brief Find the set of triangle indices that overlap the query bounds
-		 * @param InQueryBounds The query bounds in triangle mesh space
-		*/
-		inline void Reset(const FTriangleMeshImplicitObject& InTriMesh, const FAABB3& InQueryBounds)
-		{
-			InTriMesh.FindOverlappingTriangles(InQueryBounds, TriangleIndices);
-			NextIndex = 0;
-		}
-
-		/**
-		 * @brief Whether we are done producing triangles
-		 * @return
-		*/
-		inline const bool IsDone() const
-		{
-			return (NextIndex >= TriangleIndices.Num());
-		}
-
-		/**
-		 * @brief Get the next triangle with its index and transform the vertices
-		 * @return true if we produced a triangle, false if we are done with the triangle list
-		*/
-		inline bool NextTriangle(const FTriangleMeshImplicitObject& InTriMesh, const FRigidTransform3& Transform, FTriangle& OutTriangle, int32& OutTriangleIndex)
-		{
-			if (IsDone())
-			{
-				return false;
-			}
-
-			const int32 TriIndex = TriangleIndices[NextIndex++];
-
-			InTriMesh.GetTransformedTriangle(TriIndex, Transform, OutTriangle);
-			OutTriangleIndex = TriIndex;
-
-			return true;
-		}
-
-	private:
-		int32 NextIndex;
-		TArray<int32> TriangleIndices;
 	};
 
 }

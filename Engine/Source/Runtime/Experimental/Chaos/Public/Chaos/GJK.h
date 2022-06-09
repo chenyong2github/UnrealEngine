@@ -730,7 +730,7 @@ namespace Chaos
 	 * @return true always
 	*/
 	template <typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetrationSameSpace(const TGeometryA& A, const TGeometryB& B, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutVertexA, int32& OutVertexB, T& OutMaxSupportDelta, const T Epsilon = T(1.e-3), const T EPAEpsilon = T(1.e-2))
+	bool GJKPenetrationSameSpace(const TGeometryA& A, const TGeometryB& B, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutVertexA, int32& OutVertexB, T& OutMaxSupportDelta, const TVec3<T>& InitialDir, const T Epsilon = T(1.e-3), const T EPAEpsilon = T(1.e-2))
 	{
 		TGJKSimplexData<T> SimplexData;
 		T SupportDeltaA = 0;
@@ -753,7 +753,7 @@ namespace Chaos
 		};
 
 		// V and Simplex are in A-local space
-		TVec3<T> V = TVec3<T>(-1, 0, 0);
+		TVec3<T> V = InitialDir;
 		TVec3<T> Simplex[4];
 		FSimplex SimplexIDs;
 		T Distance = FLT_MAX;
@@ -882,7 +882,7 @@ namespace Chaos
 	}
 
 	template <typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetrationSameSpace2(const TGeometryA& A, const TGeometryB& B, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutVertexA, int32& OutVertexB, T& OutMaxSupportDelta, const T Epsilon = T(1.e-3), const T EPAEpsilon = T(1.e-2))
+	bool GJKPenetrationSameSpace2(const TGeometryA& A, const TGeometryB& B, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutVertexA, int32& OutVertexB, T& OutMaxSupportDelta, const TVec3<T>& InitialDir, const T Epsilon = T(1.e-3), const T EPAEpsilon = T(1.e-2))
 	{
 		TGJKSimplexData<T> SimplexData;
 		T SupportDeltaA = 0;
@@ -905,7 +905,7 @@ namespace Chaos
 		};
 
 		// V and Simplex are in A-local space
-		TVec3<T> V = TVec3<T>(-1, 0, 0);
+		TVec3<T> V = InitialDir;
 		TVec3<T> Simplex[4];
 		int32 NumVerts = 0;
 		T Distance = FLT_MAX;

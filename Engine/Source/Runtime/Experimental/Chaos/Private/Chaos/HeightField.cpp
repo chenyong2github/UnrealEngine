@@ -3,6 +3,7 @@
 #include "Chaos/HeightField.h"
 #include "Chaos/Collision/ContactPoint.h"
 #include "Chaos/Collision/ContactPointsMiscShapes.h"
+#include "Chaos/Collision/ContactTriangles.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/CollisionOneShotManifolds.h"
 #include "Chaos/Core.h"
@@ -28,14 +29,7 @@ namespace Chaos
 
 	extern FRealSingle Chaos_Collision_EdgePrunePlaneDistance;
 
-	extern bool bChaos_Collision_OneSidedHeightfield;
-
-	int32 bOneSidedHeightField = 1;
-	static FAutoConsoleVariableRef CVarOneSidedHeightField(TEXT("p.Chaos.OneSidedHeightField"), bOneSidedHeightField, TEXT("When enabled, extra steps will ensure that FHeightField::GJKContactPointImp never results in internal-facing contact data."));
-
-	int32 bOneSidedHeightfieldAlwaysSweep = 1;
-	static FAutoConsoleVariableRef CVarOneSidedHeightfieldAlwaysSweep(TEXT("p.Chaos.OneSidedHeightfieldAlwaysSweep"), bOneSidedHeightfieldAlwaysSweep, TEXT("When enabled, always use a sweep to ensure FHeightField::GJKContactPointImp never results \
-	in internal-facing contact data. Else, we only sweep if we detect an inward facing normal. Note that the sweep results can be inaccurate in some cases."));
+	extern bool bChaos_Collision_OneSidedHeightField;
 
 	class FHeightfieldRaycastVisitor
 	{
@@ -602,55 +596,6 @@ namespace Chaos
 		VectorRegister4Float RotationSimd;
 		VectorRegister4Float ParallelSimd;
 		VectorRegister4Float Inflation3DSimd;
-	};
-
-	/**
-	 * Call the triangle visitor on all the triangles that are swept through by the InQueryBounds along the vector InDir. Bounds and direction
-	 * are in heightfield space.
-	 * 
-	 * The visitor signature must be:
-	 * 
-	 *		bool(int32 FaceIndex, const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& C, FRealSingle& CurrentDistance)
-	 * 
-	 * The visitor must return true if we should continue processing other triangles. It must update the current hit distance if the
-	 * passed in triangle is accepted and closer. The vertex positions passed to the triangle visitor are in heightfield space.
-	*/
-	template<typename TriangleVisitor>
-	class THeightfieldTriangleGenerator
-	{
-	public:
-		THeightfieldTriangleGenerator(const typename FHeightField::FDataType* InData, const TriangleVisitor& InTriangleVisitor)
-			: HfData(InData)
-			, TriangleVisitor(InTriangleVisitor)
-		{
-		}
-
-		bool VisitSweep(int32 CellIndex, FReal& CurrentLength)
-		{
-			const int32 VertexIndex = HfData->CellIndexToVertexIndex(CellIndex);
-			VectorRegister4Float Points[4];
-			FAABBVectorized CellBounds;
-			HfData->GetPointsAndBoundsScaledSimd(VertexIndex, Points, CellBounds);
-
-			const int32 TriIndex0 = CellIndex * 2 + 0;
-			const int32 TriIndex1 = CellIndex * 2 + 1;
-
-			if (!InTriangleVisitor(TriIndex0, Points[0], Points[1], Points[3], CurrentLength))
-			{
-				return false;
-			}
-
-			if (!InTriangleVisitor(TriIndex1, Points[0], Points[3], Points[2], CurrentLength))
-			{
-				return false;
-			}
-
-			return true;
-		}
-
-	private:
-		const typename FHeightField::FDataType* HfData;
-		TriangleVisitor InTriangleVisitor;
 	};
 
 
@@ -1672,278 +1617,6 @@ namespace Chaos
 	}
 
 	template <typename GeomType>
-	bool FHeightField::ContactManifoldNonPlanarConvexImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C,
-			FPBDCollisionConstraint& Constraint)
-		{
-			const FVec3 AB = B - A;
-			const FVec3 AC = C - A;
-
-			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
-
-			FTriangle TriangleConvex(A, B, C);
-			Collisions::ConstructConvexConvexOneShotManifold(QueryGeom, QueryTM, TriangleConvex, FRigidTransform3::Identity, 0, Constraint);
-		};
-
-		auto InsertSorted = [&](const FContactPoint& ContactPoint)
-		{
-			int32 PointIndex = 0;
-			bool done = false;
-			const FReal SamePointErrorMarginSqr = 0.01f;
-
-			int32 ContactPointsNum = ContactPoints.Num();
-			for (; PointIndex < ContactPointsNum; PointIndex++)
-			{
-				FVec3 DiffVector = ContactPoint.ShapeContactPoints[1] - ContactPoints[PointIndex].ShapeContactPoints[1];
-				// Check if point is the same (or close)
-				if (DiffVector.SizeSquared() < SamePointErrorMarginSqr)
-				{
-					done = true;
-					break;
-				}
-
-				if (ContactPoint.Phi < ContactPoints[PointIndex].Phi)
-				{
-					ContactPoints.Insert(ContactPoint, PointIndex);
-					done = true;
-					break;
-				}
-			}
-
-			if (!done)
-			{
-				ContactPoints.Add(ContactPoint);
-			}
-		};
-
-		bool bResult = false;
-		FAABB3 QueryBounds = QueryGeom.BoundingBox();
-		QueryBounds.Thicken(Thickness);
-		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
-
-		FBounds2D FlatQueryBounds;
-		FlatQueryBounds.Min = FVec2(QueryBounds.Min()[0], QueryBounds.Min()[1]);
-		FlatQueryBounds.Max = FVec2(QueryBounds.Max()[0], QueryBounds.Max()[1]);
-
-		TArray<TVec2<int32>> Intersections;
-		FVec3 Points[4];
-
-		GetGridIntersections(FlatQueryBounds, Intersections);
-
-		FReal MinContactPhi = FLT_MAX;
-		FVec3 LocalContactLocation, LocalContactNormal;
-		for (const TVec2<int32>& Cell : Intersections)
-		{
-			const int32 SingleIndex = Cell[1] * GeomData.NumCols + Cell[0];
-			const int32 CellIndex = Cell[1] * (GeomData.NumCols - 1) + Cell[0];
-
-			// Check for holes and skip checking if we'll never collide
-			if (GeomData.MaterialIndices.IsValidIndex(CellIndex) && GeomData.MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max())
-			{
-				continue;
-			}
-
-			// @todo(chaos): we should not be creating constraints just for collecting contacts...
-			FPBDCollisionConstraint Constraint = FPBDCollisionConstraint::MakeTriangle(&QueryGeom);
-
-			// The triangle is solid so proceed to test it
-			FAABB3 CellBounds;
-			GeomData.GetPointsAndBoundsScaled(SingleIndex, Points, CellBounds);
-			if (CellBounds.Intersects(QueryBounds))
-			{
-				// First Triangle
-				{
-					Constraint.ResetManifold();
-					Constraint.GetGJKWarmStartData().Reset();
-					OverlapTriangle(Points[0], Points[1], Points[3], Constraint);
-					for (FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
-					{
-						ManifoldPoint.ContactPoint.FaceIndex = CellIndex * 2;
-						InsertSorted(ManifoldPoint.ContactPoint);
-					}
-				}
-				// Second Triangle
-				{
-					Constraint.ResetManifold();
-					Constraint.GetGJKWarmStartData().Reset();
-					OverlapTriangle(Points[0], Points[3], Points[2], Constraint);
-					for (FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
-					{
-						ManifoldPoint.ContactPoint.FaceIndex = CellIndex * 2 + 1;
-						InsertSorted(ManifoldPoint.ContactPoint);
-					}
-				}
-			}
-		}
-
-		// Remove edge contacts that are "hidden" by face contacts
-		// EdgePruneDistance should be some fraction of the convex margin...
-		const FReal EdgePruneDistance = Chaos_Collision_EdgePrunePlaneDistance;
-		Collisions::PruneEdgeContactPointsOrdered(ContactPoints, EdgePruneDistance);
-
-		// Remove all points (except for the deepest one, and ones with phis similar to it)
-		const FReal CullMargin = 0.1f;
-		int32 NewContactPointCount = ContactPoints.Num() > 0 ? 1 : 0;
-		for (int32 Index = 1; Index < ContactPoints.Num(); Index++)
-		{
-			if (ContactPoints[Index].Phi < 0 || ContactPoints[Index].Phi - ContactPoints[0].Phi < CullMargin)
-			{
-				NewContactPointCount++;
-			}
-			else
-			{
-				break;
-			}
-		}
-		ContactPoints.SetNum(NewContactPointCount, false);
-
-		// Reduce to only 4 contact points from here
-		Collisions::ReduceManifoldContactPointsTriangeMesh(ContactPoints);
-
-		return true;
-	}
-
-	template <typename GeomType>
-	bool FHeightField::ContactManifoldPlanarConvexImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		// @todo(chaos): should be an option on the Heightfield?
-		const bool bOneSidedCollision = bChaos_Collision_OneSidedHeightfield;
-
-		auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C, TCArray<FContactPoint, 4>& TriangleContactPoints)
-		{
-			// Create triangle in query space
-			FTriangle TriangleConvex(
-				QueryTM.InverseTransformPositionNoScale(A), 
-				QueryTM.InverseTransformPositionNoScale(B), 
-				QueryTM.InverseTransformPositionNoScale(C));
-
-			Collisions::ConstructPlanarConvexTriangleOneShotManifold(QueryGeom, TriangleConvex, bOneSidedCollision, Thickness, TriangleContactPoints);
-
-			// Convert back to shape-local space
-			for (FContactPoint& ContactPoint : TriangleContactPoints)
-			{
-				ContactPoint.ShapeContactPoints[1] = QueryTM.TransformPositionNoScale(ContactPoint.ShapeContactPoints[1]);
-				ContactPoint.ShapeContactNormal = QueryTM.TransformVectorNoScale(ContactPoint.ShapeContactNormal);
-			}
-		};
-
-		auto InsertSorted = [&](const FContactPoint& ContactPoint)
-		{
-			int32 PointIndex = 0;
-			bool done = false;
-			const FReal SamePointErrorMarginSqr = 0.01f;
-			
-			int32 ContactPointsNum = ContactPoints.Num();
-			for( ; PointIndex < ContactPointsNum; PointIndex++ )
-			{
-				FVec3 DiffVector = ContactPoint.ShapeContactPoints[1] - ContactPoints[PointIndex].ShapeContactPoints[1];
-				// Check if point is the same (or close)
-				if (DiffVector.SizeSquared() < SamePointErrorMarginSqr)
-				{
-					done = true;
-					break;
-				}
-
-				if (ContactPoint.Phi < ContactPoints[PointIndex].Phi)
-				{
-					ContactPoints.Insert(ContactPoint, PointIndex);
-					done = true;
-					break;
-				}
-			}
-
-			if (!done)
-			{
-				ContactPoints.Add(ContactPoint);
-			}
-		};		
-		
-		bool bResult = false;
-		FAABB3 QueryBounds = QueryGeom.BoundingBox();
-		QueryBounds.Thicken(Thickness);
-		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
-
-		FBounds2D FlatQueryBounds;
-		FlatQueryBounds.Min = FVec2(QueryBounds.Min()[0], QueryBounds.Min()[1]);
-		FlatQueryBounds.Max = FVec2(QueryBounds.Max()[0], QueryBounds.Max()[1]);
-
-		TArray<TVec2<int32>> Intersections;
-		FVec3 Points[4];
-
-		GetGridIntersections(FlatQueryBounds, Intersections);
-
-		FReal MinContactPhi = FLT_MAX;
-		FVec3 LocalContactLocation, LocalContactNormal;
-		TCArray<FContactPoint, 4> TriangleContactPoints;
-
-		for (const TVec2<int32>& Cell : Intersections)
-		{
-			const int32 SingleIndex = Cell[1] * GeomData.NumCols + Cell[0];
-			const int32 CellIndex = Cell[1] * (GeomData.NumCols - 1) + Cell[0];
-
-			// Check for holes and skip checking if we'll never collide
-			if (GeomData.MaterialIndices.IsValidIndex(CellIndex) && GeomData.MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max())
-			{
-				continue;
-			}
-
-			// The triangle is solid so proceed to test it
-			FAABB3 CellBounds;
-			GeomData.GetPointsAndBoundsScaled(SingleIndex, Points, CellBounds);
-			if (CellBounds.Intersects(QueryBounds))
-			{
-				// First Triangle
-				{
-					TriangleContactPoints.Reset();
-					OverlapTriangle(Points[0], Points[1], Points[3], TriangleContactPoints);
-					for (FContactPoint& ContactPoint : TriangleContactPoints)
-					{
-						ContactPoint.FaceIndex = CellIndex * 2;
-						InsertSorted(ContactPoint);
-					}
-				}
-				// Second Triangle
-				{
-					TriangleContactPoints.Reset();
-					OverlapTriangle(Points[0], Points[3], Points[2], TriangleContactPoints);
-					for (FContactPoint& ContactPoint : TriangleContactPoints)
-					{
-						ContactPoint.FaceIndex = CellIndex * 2 + 1;
-						InsertSorted(ContactPoint);
-					}
-				}
-			}
-		}
-
-		// Remove edge contacts that are "hidden" by face contacts
-		// EdgePruneDistance should be some fraction of the convex margin...
-		const FReal EdgePruneDistance = Chaos_Collision_EdgePrunePlaneDistance;
-		Collisions::PruneEdgeContactPointsOrdered(ContactPoints, EdgePruneDistance);
-
-		// Remove all points (except for the deepest one, and ones with phis similar to it)
-		const FReal CullMargin = 0.1f;
-		int32 NewContactPointCount = ContactPoints.Num() > 0 ? 1 : 0;
-		for (int32 Index = 1; Index < ContactPoints.Num(); Index++)
-		{
-			if (ContactPoints[Index].Phi < 0 || ContactPoints[Index].Phi - ContactPoints[0].Phi < CullMargin)
-			{
-				NewContactPointCount++;
-			}
-			else
-			{
-				break;
-			}
-		}
-		ContactPoints.SetNum(NewContactPointCount, false);
-
-		// Reduce to only 4 contact points from here
-		Collisions::ReduceManifoldContactPointsTriangeMesh(ContactPoints);
-
-		return true;
-	}
-
-	template <typename GeomType>
 	bool FHeightField::GJKContactPointImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness,
 		FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
@@ -1961,64 +1634,14 @@ namespace Chaos
 				MakeVectorRegisterFloatFromDouble(MakeVectorRegister(B.X, B.Y, B.Z, 0.0f)),
 				MakeVectorRegisterFloatFromDouble(MakeVectorRegister(C.X, C.Y, C.Z, 0.0f)));
 
-
 			FReal Penetration;
 			FVec3 ClosestA, ClosestB, Normal;
-
-			auto SweepAgainstTriangle = [&]() -> bool
+			int32 ClosestVertexIndexA, ClosestVertexIndexB;
+			if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, (FReal)0))
 			{
-				//
-				// BUG: This does not detect collisions when we specify a cull distance. It is as if
-				// Thickness is always zero...
-				//
-
-				const FAABB3 Bounds = QueryGeom.BoundingBox();
-				const FReal ApproximateSizeOfObject = Bounds.Extents()[Bounds.LargestAxis()];
-				const FReal ApproximateDistToObject = FVec3::DistSquared(QueryTM.GetLocation(), A);
-				const FReal SweepLength = ApproximateSizeOfObject + ApproximateDistToObject;
-				const FRigidTransform3 QueryStartTM(QueryTM.GetLocation() + TriNormal * SweepLength, QueryTM.GetRotation());
-				if (GJKRaycast2(TriangleConvexReg, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestA, Normal, (FReal)0., true))
-				{
-					LocalContactPhi = Penetration - SweepLength;
-					LocalContactLocation = ClosestA + LocalContactPhi * Normal;
-					LocalContactNormal = TriNormal;
-					return true;
-				}
-				return false;
-			};
-
-			if (bOneSidedHeightField)
-			{
-				// HACK:
-				// The regular penetration calculation vs a triangle may result in inward facing normals.
-				// To protect against this, we sweep against the triangle from a distance to ensure an outward
-				// facing normal and MTD.
-
-				if (bOneSidedHeightfieldAlwaysSweep)
-				{
-					return SweepAgainstTriangle();
-				}
-				else
-				{
-					int32 ClosestVertexIndexA, ClosestVertexIndexB;
-					if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, (FReal)0))
-					{
-						if (FVec3::DotProduct(TriNormal, Normal) < 0)
-						{
-							return SweepAgainstTriangle();
-						}
-						LocalContactLocation = ClosestB;
-						LocalContactNormal = Normal;
-						LocalContactPhi = -Penetration;
-						return true;
-					}
-				}
-				
-			}
-			else
-			{
-				int32 ClosestVertexIndexA, ClosestVertexIndexB;
-				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, (FReal)0))
+				const bool bOneSidedCollision = bChaos_Collision_OneSidedHeightField;
+				const bool bSkipOneSided = (bOneSidedCollision && (FVec3::DotProduct(TriNormal, Normal) < 0));
+				if (!bSkipOneSided)
 				{
 					LocalContactLocation = ClosestB;
 					LocalContactNormal = Normal; 
@@ -2124,41 +1747,6 @@ namespace Chaos
 	bool FHeightField::GJKContactPoint(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const
 	{
 		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
-	}
-
-	bool FHeightField::ContactManifold(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		return ContactManifoldPlanarConvexImp(QueryGeom, QueryTM, Thickness, ContactPoints);
-	}
-
-	/*bool FHeightField::ContactManifold(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints);
-	}*/
-
-	bool FHeightField::ContactManifold(const FCapsule& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		return ContactManifoldNonPlanarConvexImp(QueryGeom, QueryTM, Thickness, ContactPoints);
-	}
-
-	bool FHeightField::ContactManifold(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		return ContactManifoldPlanarConvexImp(QueryGeom, QueryTM, Thickness, ContactPoints);
-	}
-
-	bool FHeightField::ContactManifold(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		return ContactManifoldPlanarConvexImp(QueryGeom, QueryTM, Thickness, ContactPoints);
-	}
-
-	bool FHeightField::ContactManifold(const TImplicitObjectScaled<FCapsule>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		return ContactManifoldNonPlanarConvexImp(QueryGeom, QueryTM, Thickness, ContactPoints);
-	}
-
-	bool FHeightField::ContactManifold(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
-	{
-		return ContactManifoldPlanarConvexImp(QueryGeom, QueryTM, Thickness, ContactPoints);
 	}
 
 	template <typename QueryGeomType>
@@ -2460,28 +2048,6 @@ namespace Chaos
 	bool FHeightField::SweepGeomCCD(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal) const
 	{
 		return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex);
-	}
-
-	void FHeightField::VisitTriangles(const FAABB3& QueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const
-	{
-		FBounds2D FlatQueryBounds;
-		FlatQueryBounds.Min = TVector<FReal, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
-		FlatQueryBounds.Max = TVector<FReal, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
-
-		TArray<TVector<int32, 2>> Intersections;
-		FVec3 Points[4];
-
-		GetGridIntersections(FlatQueryBounds, Intersections);
-
-		bool bOverlaps = false;
-		for (const TVector<int32, 2>&Cell : Intersections)
-		{
-			const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
-			GeomData.GetPointsScaled(SingleIndex, Points);
-
-			Visitor(FTriangle(Points[0], Points[1], Points[3]));
-			Visitor(FTriangle(Points[0], Points[3], Points[2]));
-		}
 	}
 
 	int32 FHeightField::FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
