@@ -854,6 +854,9 @@ protected:
 	/** Reset data about a movie scene when pushing or popping a movie scene. */
 	void ResetPerMovieSceneData();
 
+	/** Forcibly refresh the UI */
+	void RefreshUI();
+
 	/** Update the time bounds to the focused movie scene */
 	void UpdateTimeBoundsToFocusedMovieScene();
 

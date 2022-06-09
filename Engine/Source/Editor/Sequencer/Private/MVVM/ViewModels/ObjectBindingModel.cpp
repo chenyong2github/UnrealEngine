@@ -21,6 +21,7 @@
 #include "Sequencer.h"
 #include "SequencerNodeTree.h"
 #include "SequencerCommands.h"
+#include "SequencerSettings.h"
 #include "SequencerUtilities.h"
 #include "ISequencerTrackEditor.h"
 #include "SObjectBindingTag.h"
@@ -188,10 +189,16 @@ void FObjectBindingModel::OnConstruct()
 {
 	if (!LayerBar)
 	{
-		LayerBar = MakeShared<FLayerBarModel>(AsShared());
-		LayerBar->SetLinkedOutlinerItem(AsShared());
+		TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
+		TSharedPtr<FSequencer> Sequencer = EditorViewModel->GetSequencerImpl();
 
-		GetChildrenForList(&TrackAreaList).AddChild(LayerBar);
+		if (Sequencer->GetSequencerSettings()->GetShowLayerBars())
+		{
+			LayerBar = MakeShared<FLayerBarModel>(AsShared());
+			LayerBar->SetLinkedOutlinerItem(AsShared());
+
+			GetChildrenForList(&TrackAreaList).AddChild(LayerBar);
+		}
 	}
 
 	UMovieScene* MovieScene = OwnerModel->GetMovieScene();

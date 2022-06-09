@@ -343,8 +343,8 @@ public:
 	/** Finds the viewed sequence asset in the content browser. */
 	TSharedPtr< FUICommandInfo > FindInContentBrowser;
 
-	/** Toggles whether to show combined keys at the top node level. */
-	TSharedPtr< FUICommandInfo > ToggleCombinedKeyframes;
+	/** Toggles whether to show layer bars to edit keyframes in bulk. */
+	TSharedPtr< FUICommandInfo > ToggleLayerBars;
 
 	/** Toggles whether to show channel colors in the track area. */
 	TSharedPtr< FUICommandInfo > ToggleChannelColors;

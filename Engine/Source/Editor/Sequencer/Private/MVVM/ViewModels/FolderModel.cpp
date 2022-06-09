@@ -17,6 +17,7 @@
 
 #include "Sequencer.h"
 #include "SequencerNodeTree.h"
+#include "SequencerSettings.h"
 #include "SequencerUtilities.h"
 #include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -96,10 +97,16 @@ void FFolderModel::RepopulateChildren()
 	// Only need to every create a layer bar once
 	if (!LayerBar)
 	{
-		LayerBar = MakeShared<FLayerBarModel>(This);
-		LayerBar->SetLinkedOutlinerItem(AsShared());
+		TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
+		TSharedPtr<FSequencer> Sequencer = EditorViewModel->GetSequencerImpl();
 
-		TrackAreaChildren.AddChild(LayerBar);
+		if (Sequencer->GetSequencerSettings()->GetShowLayerBars())
+		{
+			LayerBar = MakeShared<FLayerBarModel>(This);
+			LayerBar->SetLinkedOutlinerItem(AsShared());
+
+			TrackAreaChildren.AddChild(LayerBar);
+		}
 	}
 
 	// Keep our existing children alive

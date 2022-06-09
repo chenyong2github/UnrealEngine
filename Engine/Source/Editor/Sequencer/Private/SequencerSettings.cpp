@@ -44,7 +44,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bLeftMouseDragDoesMarquee = false;
 	ZeroPadFrames = 0;
 	JumpFrameIncrement = FFrameNumber(5);
-	bShowCombinedKeyframes = true;
+	bShowLayerBars = true;
 	bInfiniteKeyAreas = false;
 	bShowChannelColors = false;
 	bShowStatusBar = true;
@@ -538,16 +538,16 @@ void USequencerSettings::SetJumpFrameIncrement(FFrameNumber InJumpFrameIncrement
 	}
 }
 
-bool USequencerSettings::GetShowCombinedKeyframes() const
+bool USequencerSettings::GetShowLayerBars() const
 {
-	return bShowCombinedKeyframes;
+	return bShowLayerBars;
 }
 
-void USequencerSettings::SetShowCombinedKeyframes(bool InbShowCombinedKeyframes)
+void USequencerSettings::SetShowLayerBars(bool InbShowLayerBars)
 {
-	if (bShowCombinedKeyframes != InbShowCombinedKeyframes)
+	if (bShowLayerBars != InbShowLayerBars)
 	{
-		bShowCombinedKeyframes = InbShowCombinedKeyframes;
+		bShowLayerBars = InbShowLayerBars;
 		SaveConfig();
 	}
 }

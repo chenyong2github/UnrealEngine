@@ -4419,6 +4419,22 @@ void FSequencer::ResetPerMovieSceneData()
 	//  needed for audio track decompression
 }
 
+void FSequencer::RefreshUI()
+{
+	using namespace UE::Sequencer;
+
+	Selection.Empty();
+
+	UMovieSceneSequence* FocusedSequence = GetFocusedMovieSceneSequence();
+	FMovieSceneSequenceID SequenceID = GetFocusedTemplateID();
+
+	TSharedPtr<FSequenceModel> RootSequenceModel = ViewModel->GetRootModel().ImplicitCast();
+	RootSequenceModel->SetSequence(nullptr, MovieSceneSequenceID::Root);
+	RootSequenceModel->SetSequence(FocusedSequence, SequenceID);
+
+	RefreshTree();
+}
+
 TSharedRef<SWidget> FSequencer::MakeTransportControls(bool bExtended)
 {
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::Get().LoadModuleChecked<FEditorWidgetsModule>( "EditorWidgets" );
@@ -12746,12 +12762,13 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP( this, &FSequencer::FindInContentBrowser ) );
 
 	SequencerCommandBindings->MapAction(
-		Commands.ToggleCombinedKeyframes,
+		Commands.ToggleLayerBars,
 		FExecuteAction::CreateLambda( [this]{
-			Settings->SetShowCombinedKeyframes( !Settings->GetShowCombinedKeyframes() );
+			Settings->SetShowLayerBars( !Settings->GetShowLayerBars() );
+			RefreshUI();
 		} ),
 		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->GetShowCombinedKeyframes(); } ) );
+		FIsActionChecked::CreateLambda( [this]{ return Settings->GetShowLayerBars(); } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleChannelColors,
@@ -13335,22 +13352,7 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.RefreshUI,
-		FExecuteAction::CreateLambda(
-			[this]
-			{
-				this->Selection.Empty();
-
-				UMovieSceneSequence*  FocusedSequence = GetFocusedMovieSceneSequence();
-				FMovieSceneSequenceID SequenceID      = GetFocusedTemplateID();
-
-				TSharedPtr<FSequenceModel> RootSequenceModel = this->ViewModel->GetRootModel().ImplicitCast();
-				RootSequenceModel->SetSequence(nullptr, MovieSceneSequenceID::Root);
-				RootSequenceModel->SetSequence(FocusedSequence, SequenceID);
-
-				RefreshTree();
-			}
-		),
-		FCanExecuteAction());
+		FExecuteAction::CreateSP( this, &FSequencer::RefreshUI));
 
 	// We want a subset of the commands to work in the Curve Editor too, but bound to our functions. This minimizes code duplication
 	// while also freeing us up from issues that result from Sequencer already using two lists (for which our commands might be spread

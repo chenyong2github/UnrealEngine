@@ -269,10 +269,10 @@ public:
 	/** Set the number of frames to increment when jumping forwards/backwards */
 	void SetJumpFrameIncrement(FFrameNumber InJumpFrameIncrement);
 
-	/** @return true if showing combined keyframes at the top node */
-	bool GetShowCombinedKeyframes() const;
-	/** Set whether to show combined keyframes at the top node */ 
-	void SetShowCombinedKeyframes(bool bInShowCombinedKeyframes);
+	/** @return true if showing layer bars */
+	bool GetShowLayerBars() const;
+	/** Set whether to show layer bars */ 
+	void SetShowLayerBars(bool bInShowLayerBars);
 
 	/** @return true if key areas are infinite */
 	bool GetInfiniteKeyAreas() const;
@@ -526,9 +526,9 @@ protected:
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
 	FFrameNumber JumpFrameIncrement;
 
-	/** Enable or disable the combined keyframes at the top node level. Disabling can improve editor performance. */
+	/** Enable or disable the layer bars to edit keyframes in bulk. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
-	bool bShowCombinedKeyframes;
+	bool bShowLayerBars;
 
 	/** Enable or disable setting key area sections as infinite by default. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
