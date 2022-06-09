@@ -411,9 +411,7 @@ namespace
 			{
 				if (!InOutUniqueSources.Contains(Source))
 				{
-					TArray<UComputeSource*> AdditionalSources;
-					Source->GetAdditionalSources(AdditionalSources);
-					AddSourcesRecursive(AdditionalSources, InOutUniqueSources);
+					AddSourcesRecursive(Source->AdditionalSources, InOutUniqueSources);
 
 					InOutUniqueSources.AddUnique(Source);
 				}
@@ -550,7 +548,7 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 				continue;
 			}
 
-			TMap<FString, FString> AdditionalSources = GatherAdditionalSources(Kernel->AdditionalSources);
+			TMap<FString, FString> AdditionalSources = GatherAdditionalSources(Kernel->KernelSource->AdditionalSources);
 
 			FString ShaderHashKey;
 			TUniquePtr <FComputeKernelDefinitionSet> ShaderDefinitionSet = MakeUnique<FComputeKernelDefinitionSet>();
@@ -666,7 +664,7 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 
 		if (ShaderFormats.Num() > 0)
 		{
-			TMap<FString, FString> AdditionalSources = GatherAdditionalSources(KernelInvocations[KernelIndex]->AdditionalSources);
+			TMap<FString, FString> AdditionalSources = GatherAdditionalSources(KernelInvocations[KernelIndex]->KernelSource->AdditionalSources);
 
 			FString ShaderHashKey;
 			TUniquePtr <FComputeKernelDefinitionSet> ShaderDefinitionSet = MakeUnique<FComputeKernelDefinitionSet>();

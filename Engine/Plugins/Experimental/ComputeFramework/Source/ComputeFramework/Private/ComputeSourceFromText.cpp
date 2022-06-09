@@ -5,12 +5,6 @@
 #include "Internationalization/Regex.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Misc/ScopeExit.h"
-
-UComputeSourceFromText::UComputeSourceFromText()
-{
-	UniqueId = FGuid::NewGuid();
-}
 
 #if WITH_EDITOR
 

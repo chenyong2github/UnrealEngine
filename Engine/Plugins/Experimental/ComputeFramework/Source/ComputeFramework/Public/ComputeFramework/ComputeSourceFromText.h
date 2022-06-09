@@ -15,15 +15,9 @@ class COMPUTEFRAMEWORK_API UComputeSourceFromText : public UComputeSource
 	GENERATED_BODY()
 
 public:
-	UComputeSourceFromText();
-
 	/** Filepath to the source file containing the kernel entry points and all options for parsing. */
 	UPROPERTY(EditDefaultsOnly, AssetRegistrySearchable, meta = (ContentDir, RelativeToGameContentDir, FilePathFilter = "Unreal Shader File (*.usf)|*.usf"), Category = "Kernel")
 	FFilePath SourceFile;
-
-	/** A unique id for the asset. */
-	UPROPERTY()
-	FGuid UniqueId;
 
 #if WITH_EDITOR
 	/** Parse the source to get metadata. */

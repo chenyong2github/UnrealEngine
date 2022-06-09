@@ -6,7 +6,6 @@
 #include "ComputeKernel.generated.h"
 
 class UComputeKernelSource;
-class UComputeSource;
 
 /** Flags that convey kernel behavior to aid compilation/optimizations. */
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
@@ -41,10 +40,6 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, meta = (ShowOnlyInnerProperties), Category = "Kernel")
 	TObjectPtr<UComputeKernelSource> KernelSource = nullptr;
-
-	/** An array of additional independent source assets that the kernel source depends on. */
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, meta = (ShowOnlyInnerProperties), Category = "Kernel")
-	TArray<TObjectPtr<UComputeSource>> AdditionalSources;
 
 	/** Specifying certain memory access flags allows for optimizations such as kernel fusing. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (Bitmask, BitmaskEnum = "/Script/ComputeFramework.EComputeKernelFlags"), Category = "Kernel")

@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComputeFramework/ComputeKernelFromText.h"
-#include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeFramework.h"
 #include "Internationalization/Regex.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Misc/ScopeExit.h"
 
 #if WITH_EDITOR
 
