@@ -63,6 +63,15 @@ namespace Horde.Build.Issues
 			EventData = stepEventData;
 		}
 
+		/// <summary>
+		/// Tests whether this is a systemic event id
+		/// </summary>
+		/// <returns>True if this is a systemic event id</returns>
+		public bool IsSystemic()
+		{
+			return EventId.HasValue && (EventId.Value.Id >= KnownLogEvents.Systemic.Id && EventId.Value.Id <= KnownLogEvents.Systemic_Max.Id);
+		}
+
 		/// <inheritdoc/>
 		public override string ToString()
 		{
