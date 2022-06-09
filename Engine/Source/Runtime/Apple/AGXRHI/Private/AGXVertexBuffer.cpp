@@ -200,7 +200,7 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBuffe
 				Backing.Buffer = FAGXBuffer(MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(AllocSize, mtlpp::ResourceOptions(Options))), false);
 				
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-				AGXLLM::LogAllocBuffer(Backing.Buffer);
+				AGXLLM::LogAllocBuffer(Backing.Buffer.GetPtr());
 #endif
 				INC_MEMORY_STAT_BY(STAT_AGXDeviceBufferMemory, Backing.Buffer.GetLength());
 				

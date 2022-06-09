@@ -143,19 +143,19 @@ static EPixelFormat MetalToRHIPixelFormat(MTLPixelFormat Format)
 	return PF_MAX;
 }
 
-void AGXLLM::LogAllocTexture(mtlpp::TextureDescriptor const& Desc, mtlpp::Texture const& Texture)
+void AGXLLM::LogAllocTexture(MTLTextureDescriptor* Desc, id<MTLTexture> Texture)
 {
 	MTLSizeAndAlign SizeAlign;
 	if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesGPUCaptureManager))
 	{
-		SizeAlign = [GMtlDevice heapTextureSizeAndAlignWithDescriptor:Desc.GetPtr()];
+		SizeAlign = [GMtlDevice heapTextureSizeAndAlignWithDescriptor:Desc];
 	}
 	
-	void* Ptr = (void*)Texture.GetPtr();
+	void* Ptr = (void*)Texture;
 	uint64 Size = static_cast<uint64>(SizeAlign.size);
 	
 #if PLATFORM_IOS
-	bool bMemoryless = ([Texture.GetPtr() storageMode] == MTLStorageModeMemoryless);
+	bool bMemoryless = ([Texture storageMode] == MTLStorageModeMemoryless);
 	if (!bMemoryless)
 #endif
 	{
@@ -168,9 +168,9 @@ void AGXLLM::LogAllocTexture(mtlpp::TextureDescriptor const& Desc, mtlpp::Textur
 	{
 		LLM_SCOPED_PAUSE_TRACKING(ELLMAllocType::System);
 		
-		if ([Desc.GetPtr() usage] & MTLTextureUsageRenderTarget)
+		if ([Desc usage] & MTLTextureUsageRenderTarget)
 		{
-			objc_setAssociatedObject(Texture.GetPtr(), (void*)&AGXLLM::LogAllocTexture,
+			objc_setAssociatedObject(Texture, (void*)&AGXLLM::LogAllocTexture,
 			[[[FAGXDeallocHandler alloc] initWithBlock:^{
 				LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::RenderTargets);
 				
@@ -188,7 +188,7 @@ void AGXLLM::LogAllocTexture(mtlpp::TextureDescriptor const& Desc, mtlpp::Textur
 		}
 		else
 		{
-			objc_setAssociatedObject(Texture.GetPtr(), (void*)&AGXLLM::LogAllocTexture,
+			objc_setAssociatedObject(Texture, (void*)&AGXLLM::LogAllocTexture,
 			[[[FAGXDeallocHandler alloc] initWithBlock:^{
 				LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::Textures);
 			
@@ -207,10 +207,10 @@ void AGXLLM::LogAllocTexture(mtlpp::TextureDescriptor const& Desc, mtlpp::Textur
 	}
 }
 
-void AGXLLM::LogAllocBuffer(mtlpp::Buffer const& Buffer)
+void AGXLLM::LogAllocBuffer(id<MTLBuffer> Buffer)
 {
-	void* Ptr = (void*)Buffer.GetPtr();
-	uint64 Size = Buffer.GetLength();
+	void* Ptr = (void*)Buffer;
+	uint64 Size = [Buffer length];
 	
 	INC_MEMORY_STAT_BY(STAT_AGXBufferMemory, Size);
 	INC_DWORD_STAT(STAT_AGXBufferCount);
@@ -220,7 +220,7 @@ void AGXLLM::LogAllocBuffer(mtlpp::Buffer const& Buffer)
 	{
 		LLM_SCOPED_PAUSE_TRACKING(ELLMAllocType::System);
 		
-		objc_setAssociatedObject(Buffer.GetPtr(), (void*)&AGXLLM::LogAllocBuffer,
+		objc_setAssociatedObject(Buffer, (void*)&AGXLLM::LogAllocBuffer,
 		[[[FAGXDeallocHandler alloc] initWithBlock:^{
 			LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::Buffers);
 			
@@ -232,15 +232,3 @@ void AGXLLM::LogAllocBuffer(mtlpp::Buffer const& Buffer)
 		OBJC_ASSOCIATION_RETAIN);
 	}
 }
-
-void AGXLLM::LogAliasTexture(mtlpp::Texture const& Texture)
-{
-	objc_setAssociatedObject(Texture.GetPtr(), (void*)&AGXLLM::LogAllocTexture, nil, OBJC_ASSOCIATION_RETAIN);
-}
-
-void AGXLLM::LogAliasBuffer(mtlpp::Buffer const& Buffer)
-{
-	objc_setAssociatedObject(Buffer.GetPtr(), (void*)&AGXLLM::LogAllocBuffer, nil, OBJC_ASSOCIATION_RETAIN);
-}
-
-

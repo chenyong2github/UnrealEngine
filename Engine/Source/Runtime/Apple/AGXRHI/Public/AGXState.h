@@ -69,8 +69,10 @@ public:
 
 	struct FBlendPerMRT
 	{
-		mtlpp::RenderPipelineColorAttachmentDescriptor BlendState;
-		uint8 BlendStateKey;
+		MTLRenderPipelineColorAttachmentDescriptor* BlendState = nil;
+		uint8 BlendStateKey = 0;
+
+		FBlendPerMRT() = default;
 	};
 	FBlendPerMRT RenderTargetStates[MaxSimultaneousRenderTargets];
 	bool bUseIndependentRenderTargetBlendStates;

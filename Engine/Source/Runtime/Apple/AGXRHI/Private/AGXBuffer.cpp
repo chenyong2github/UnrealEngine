@@ -182,7 +182,7 @@ FAGXSubBufferHeap::FAGXSubBufferHeap(NSUInteger Size, NSUInteger Alignment, MTLR
 	check(ParentBuffer.GetPtr());
 	check(ParentBuffer.GetLength() >= FullSize);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-	AGXLLM::LogAllocBuffer(ParentBuffer);
+	AGXLLM::LogAllocBuffer(ParentBuffer.GetPtr());
 #endif
 	FreeRanges.Add(ns::Range(0, FullSize));
 
@@ -414,7 +414,7 @@ FAGXSubBufferLinear::FAGXSubBufferLinear(NSUInteger Size, NSUInteger Alignment, 
 	check(ParentBuffer.GetPtr());
 	check(ParentBuffer.GetLength() >= FullSize);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-	AGXLLM::LogAllocBuffer(ParentBuffer);
+	AGXLLM::LogAllocBuffer(ParentBuffer.GetPtr());
 #endif
 	INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, FullSize);
 	INC_MEMORY_STAT_BY(STAT_AGXLinearBufferUnusedMemory, FullSize);
@@ -534,7 +534,7 @@ FAGXSubBufferMagazine::FAGXSubBufferMagazine(NSUInteger Size, NSUInteger ChunkSi
 	check(ParentBuffer.GetLength() >= FullSize);
 	METAL_FATAL_ASSERT(ParentBuffer, TEXT("Failed to create heap of size %u and resource options %u"), Size, (uint32)Options);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-	AGXLLM::LogAllocBuffer(ParentBuffer);
+	AGXLLM::LogAllocBuffer(ParentBuffer.GetPtr());
 #endif
 	
 	INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, FullSize);
@@ -906,7 +906,7 @@ FAGXBuffer FAGXBufferPoolPolicyData::CreateResource(CreationArguments Args)
 	FAGXBuffer NewBuf(MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(BufferSize, mtlpp::ResourceOptions(Args.Options)), true));
 
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-	AGXLLM::LogAllocBuffer(NewBuf);
+	AGXLLM::LogAllocBuffer(NewBuf.GetPtr());
 #endif
 	INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, NewBuf.GetLength());
 	INC_MEMORY_STAT_BY(STAT_AGXPooledBufferUnusedMemory, NewBuf.GetLength());
@@ -970,7 +970,7 @@ FAGXTexture FAGXTexturePool::CreateTexture(mtlpp::TextureDescriptor Desc)
 		METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocTexture: %s"), TEXT("")/**FString([Desc.GetPtr() description])*/)));
 		Texture = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTexture(Desc));
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-		AGXLLM::LogAllocTexture(Desc, Texture);
+		AGXLLM::LogAllocTexture(Desc.GetPtr(), Texture.GetPtr());
 #endif
 	}
 	return Texture;
@@ -1273,7 +1273,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 		mtlpp::Buffer MtlppBuffer([GMtlDevice newBufferWithLength:BlockSize options:Options], nullptr, ns::Ownership::Assign);
 		Buffer = FAGXBuffer(MoveTemp(MtlppBuffer), false);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-		AGXLLM::LogAllocBuffer(Buffer);
+		AGXLLM::LogAllocBuffer(Buffer.GetPtr());
 #endif
 		INC_MEMORY_STAT_BY(STAT_AGXDeviceBufferMemory, Buffer.GetLength());
 	}

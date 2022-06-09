@@ -446,7 +446,7 @@ FAGXBlendState::FAGXBlendState(FBlendStateInitializerRHI const& Initializer)
 			[BlendState release];
 		}
 
-		RenderTargetStates[RenderTargetIndex].BlendState = mtlpp::RenderPipelineColorAttachmentDescriptor(BlendState);
+		RenderTargetStates[RenderTargetIndex].BlendState = BlendState;
 
 		// get the unique key
 		uint32 BlendBitMask =

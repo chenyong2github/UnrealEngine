@@ -46,11 +46,6 @@ namespace AGXLLM
 // These work without the LLM module
 namespace AGXLLM
 {
-	void LogAllocTexture(mtlpp::TextureDescriptor const& Desc, mtlpp::Texture const& Texture);
-	void LogAllocBuffer(mtlpp::Buffer const& Buffer);
-	
-	void LogAliasTexture(mtlpp::Texture const& Texture);
-	void LogAliasBuffer(mtlpp::Buffer const& Buffer);
+	void LogAllocTexture(MTLTextureDescriptor* Desc, id<MTLTexture> Texture);
+	void LogAllocBuffer(id<MTLBuffer> Buffer);
 }
-
-
