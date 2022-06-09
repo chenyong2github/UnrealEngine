@@ -478,7 +478,7 @@ TSharedRef<SWidget> SRewindDebugger::MakeFilterMenu()
 	
 	Builder.AddMenuEntry(
 		LOCTEXT("DisplayEmptyTracks", "Show Empty Object Tracks"),
-		LOCTEXT("DisplayEmptyTracks", "Show Object/Component tracks which have no sub tracks with any debug data"),
+		LOCTEXT("DisplayEmptyTracksToolTip", "Show Object/Component tracks which have no sub tracks with any debug data"),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &SRewindDebugger::ToggleDisplayEmptyTracks),
