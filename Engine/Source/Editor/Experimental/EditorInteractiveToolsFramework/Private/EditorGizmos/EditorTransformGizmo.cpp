@@ -13,7 +13,7 @@ void UEditorTransformGizmo::ApplyTranslateDelta(const FVector& InTranslateDelta)
 
 	if (UEditorTransformProxy* EditorTransformProxy = Cast<UEditorTransformProxy>(ActiveTarget))
 	{
-		EditorTransformProxy->InputTranslateDelta(InTranslateDelta, InteractionAxisType);
+		EditorTransformProxy->InputTranslateDelta(InTranslateDelta, InteractionAxisList);
 
 		// Update the cached current transform
 		CurrentTransform.AddToTranslation(InTranslateDelta);
@@ -32,10 +32,10 @@ void UEditorTransformGizmo::ApplyScaleDelta(const FVector& InScaleDelta)
 	{
 		FVector StartScale = CurrentTransform.GetScale3D();
 
-		EditorTransformProxy->InputScaleDelta(InScaleDelta, InteractionAxisType);
+		EditorTransformProxy->InputScaleDelta(InScaleDelta, InteractionAxisList);
 
 		// Update the cached current transform
-		FVector NewScale = StartScale + InScaleDelta * InteractionAxis;
+		FVector NewScale = StartScale + InScaleDelta;
 		CurrentTransform.SetScale3D(NewScale);
 	}
 	else

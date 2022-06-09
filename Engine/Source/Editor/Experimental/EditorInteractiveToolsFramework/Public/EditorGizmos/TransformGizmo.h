@@ -428,6 +428,18 @@ protected:
 	/** Handle click release for translate and scale planar */
 	virtual void OnClickReleasePlanar(const FInputDeviceRay& PressPos);
 
+	/** Compute translate axis delta based on start/end params */
+	virtual void ComputeAxisTranslateDelta(double InStartParam, double InEndParam, FVector& OutDelta);
+
+	/** Compute scale axis delta based on start/end params */
+	virtual void ComputeAxisScaleDelta(double InStartParam, double InEndParam, FVector& OutDelta);
+
+	/** Compute translate planar delta based on world space start/end points */
+	virtual void ComputePlanarTranslateDelta(const FVector& InStartPoint, const FVector& InEndPoint, FVector& OutDelta);
+
+	/** Compute scale planar delta based on world space start/end points */
+	virtual void ComputePlanarScaleDelta(const FVector& InStartPoint, const FVector& InEndPoint, FVector& OutDelta);
+
 	/** Apply translate delta to transform proxy */
 	virtual void ApplyTranslateDelta(const FVector& InTranslateDelta);
 
@@ -491,43 +503,47 @@ protected:
 	// They otherwise should be considered uninitialized
 	//
 
+	/** Active axis type (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	TEnumAsByte<EAxisList::Type> InteractionAxisList;
+
 	/** Active world space axis origin (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
 	FVector InteractionAxisOrigin;
 
 	/** Active world space axis (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
-	FVector InteractionAxis;
+	FVector InteractionAxisDirection;
+
+	/** Active interaction start hit param (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	float InteractionAxisStartParam;
+
+	/** Active interaction current hit param (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	float InteractionAxisCurrParam;
+
+	/** Active world space planar origin (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector InteractionPlanarOrigin;
 
 	/** Active world space normal used for planar (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
-	FVector InteractionNormal;
+	FVector InteractionPlanarNormal;
 
 	/** Active world space axis X used for planar (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
-	FVector InteractionAxisX;
+	FVector InteractionPlanarAxisX;
 
 	/** Active world space axis Y used for planar (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
-	FVector InteractionAxisY;
-
-	/** Active axis type (only valid between state target BeginModify/EndModify) */
-	UPROPERTY()
-	TEnumAsByte<EAxisList::Type> InteractionAxisType;
-
-	/** Active interaction start point (only valid between state target BeginModify/EndModify) */
-	UPROPERTY()
-	FVector InteractionStartPoint;
-
-	/** Active interaction current point (only valid between state target BeginModify/EndModify) */
-	UPROPERTY()
-	FVector InteractionCurrPoint;
+	FVector InteractionPlanarAxisY;
 
 	/** Active interaction start point planar (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
-	FVector2D InteractionStartPoint2D;
+	FVector InteractionPlanarStartPoint;
 
 	/** Active interaction current point planar (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
-	FVector2D InteractionCurrPoint2D;
+	FVector InteractionPlanarCurrPoint;
 };
