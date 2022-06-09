@@ -43,6 +43,18 @@ public:
 	/** Only merge unambiguous pairs that have unique duplicate-edge matches */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bOnlyUnique = false;
+
+	/** If enabled, after an initial attempt at Welding, attempt to resolve remaining open edges in T-junction configurations via edge splits, and then retry Weld */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bResolveTJunctions = false;
+
+	/** Initial number of open boundary edges */
+	UPROPERTY(VisibleAnywhere, Category = Statistics)
+	int32 InitialEdges;
+
+	/** Number of remaining open boundary edges */
+	UPROPERTY(VisibleAnywhere, Category = Statistics)
+	int32 RemainingEdges;
 };
 
 

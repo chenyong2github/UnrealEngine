@@ -10,6 +10,7 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
+#include "Operations/MeshResolveTJunctions.h"
 
 using namespace UE::Geometry;
 
@@ -35,6 +36,10 @@ public:
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SourceMesh;
 	double Tolerance;
 	bool bOnlyUnique;
+	bool bResolveTJunctions;
+
+	int32 InitialNumBoundaryEdges = 0;
+	int32 FinalNumBoundaryEdges = 0;
 
 public:
 	FWeldMeshEdgesOp() : FDynamicMeshOperator() {}
@@ -52,19 +57,53 @@ public:
 		}
 
 		ResultMesh->Copy(*SourceMesh, true, true, true, true);
-	
+
+		// If we had bowties or broken normals on input, we will probably still have them on output...
+		bool bWasCleanMesh = ResultMesh->CheckValidity(FDynamicMesh3::FValidityOptions(), EValidityCheckFailMode::ReturnOnly);
+
+		InitialNumBoundaryEdges = 0;
+		for (int eid : SourceMesh->BoundaryEdgeIndicesItr())
+		{
+			InitialNumBoundaryEdges++;
+		}
+		FinalNumBoundaryEdges = InitialNumBoundaryEdges;
+
 		FMergeCoincidentMeshEdges Merger(ResultMesh.Get());
 		Merger.MergeVertexTolerance = Tolerance;
 		Merger.MergeSearchTolerance = 2 * Merger.MergeVertexTolerance;
 		Merger.OnlyUniquePairs = bOnlyUnique;
 
-		if (Merger.Apply() == false)
+		bool bOK = Merger.Apply();
+		FinalNumBoundaryEdges = Merger.FinalNumBoundaryEdges;
+
+		if (bOK && Merger.FinalNumBoundaryEdges > 0 && bResolveTJunctions)
 		{
-			ResultMesh->Copy(*SourceMesh, true, true, true, true);
+			FMeshResolveTJunctions Resolver(ResultMesh.Get());
+			Resolver.DistanceTolerance = 2 * Tolerance;
+			bool bResolveOK = Resolver.Apply();
+
+			if (bResolveOK && Resolver.NumSplitEdges > 0)
+			{
+				FMergeCoincidentMeshEdges SecondPassMerger(ResultMesh.Get());
+				SecondPassMerger.MergeVertexTolerance = Tolerance;
+				SecondPassMerger.MergeSearchTolerance = 2 * SecondPassMerger.MergeVertexTolerance;
+				SecondPassMerger.OnlyUniquePairs = bOnlyUnique;
+				bOK = SecondPassMerger.Apply();
+				FinalNumBoundaryEdges = SecondPassMerger.FinalNumBoundaryEdges;
+			}
 		}
-		else if (ResultMesh->CheckValidity(true, EValidityCheckFailMode::ReturnOnly) == false)
+
+		FDynamicMesh3::FValidityOptions UseValidityCheck = (bWasCleanMesh) ?
+			FDynamicMesh3::FValidityOptions() : FDynamicMesh3::FValidityOptions::Permissive();
+		if (bOK == false)
 		{
 			ResultMesh->Copy(*SourceMesh, true, true, true, true);
+			FinalNumBoundaryEdges = InitialNumBoundaryEdges;
+		}
+		else if (ResultMesh->CheckValidity(UseValidityCheck, EValidityCheckFailMode::ReturnOnly) == false)
+		{
+			ResultMesh->Copy(*SourceMesh, true, true, true, true);
+			FinalNumBoundaryEdges = InitialNumBoundaryEdges;
 		}
 	}
 
@@ -133,6 +172,7 @@ void UWeldMeshEdgesTool::Setup()
 	AddToolPropertySource(Settings);
 	Settings->WatchProperty(Settings->Tolerance, [this](float) { PreviewCompute->InvalidateResult(); });
 	Settings->WatchProperty(Settings->bOnlyUnique, [this](bool) { PreviewCompute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->bResolveTJunctions, [this](bool) { PreviewCompute->InvalidateResult(); });
 
 	// create mesh display
 	MeshElementsDisplay = NewObject<UMeshElementsVisualizer>(this);
@@ -158,6 +198,11 @@ void UWeldMeshEdgesTool::Setup()
 		});
 	});
 
+	PreviewCompute->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator* Op)
+	{
+		Settings->InitialEdges = ((FWeldMeshEdgesOp*)(Op))->InitialNumBoundaryEdges;
+		Settings->RemainingEdges = ((FWeldMeshEdgesOp*)(Op))->FinalNumBoundaryEdges;
+	});
 
 	PreviewCompute->InvalidateResult();
 
@@ -218,6 +263,7 @@ void UWeldMeshEdgesTool::OnTick(float DeltaTime)
 void UWeldMeshEdgesTool::UpdateOpParameters(FWeldMeshEdgesOp& Op) const
 {
 	Op.bOnlyUnique = Settings->bOnlyUnique;
+	Op.bResolveTJunctions = Settings->bResolveTJunctions;
 	Op.Tolerance = Settings->Tolerance;
 	Op.SourceMesh = SourceMesh;
 

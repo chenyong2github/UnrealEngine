@@ -54,8 +54,11 @@ bool FMergeCoincidentMeshEdges::Apply()
 
 	// @todo equivalence sets should be symmetric. this neither enforces that,
 	// nor takes advantage of it.
+	InitialNumBoundaryEdges = 0;
 	for (int eid : Mesh->BoundaryEdgeIndicesItr()) 
 	{
+		InitialNumBoundaryEdges++;
+
 		FVector3d midpt = Mesh->GetEdgePoint(eid, 0.5);
 
 		// find all other edges with same midpoint in query sphere
@@ -195,6 +198,12 @@ bool FMergeCoincidentMeshEdges::Apply()
 		//	RemainingEdges.Remove(eid);
 		//}
 
+	}
+
+	FinalNumBoundaryEdges = 0;
+	for (int eid : Mesh->BoundaryEdgeIndicesItr())
+	{
+		FinalNumBoundaryEdges++;
 	}
 
 	return true;

@@ -45,6 +45,12 @@ public:
 	  */
 	double MergeSearchTolerance = 0;
 
+
+	/** Number of mesh boundary edges before merging */
+	int32 InitialNumBoundaryEdges = 0;
+	/** Number of mesh boundary edges after merging */
+	int32 FinalNumBoundaryEdges = 0;
+
 public:
 	FMergeCoincidentMeshEdges(FDynamicMesh3* mesh) : Mesh(mesh)
 	{
