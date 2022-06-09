@@ -16,7 +16,7 @@
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
-struct FWheeledVehicleDebugParams
+struct CHAOSVEHICLES_API FWheeledVehicleDebugParams
 {
 	bool ShowWheelCollisionNormal = false;
 	bool ShowSuspensionRaycasts = false;
@@ -49,7 +49,7 @@ struct FWheeledVehicleDebugParams
  * Advance through pages using p.Vehicles.NextDebugPage | p.Vehicles.PrevDebugPage which can be hooked
  * up to the keyboard or a controller in blueprint using execCommand
  */
-enum EDebugPages : uint8
+enum CHAOSVEHICLES_API EDebugPages : uint8
 {
 	BasicPage = 0,
 	PerformancePage,
@@ -161,7 +161,7 @@ struct CHAOSVEHICLES_API FWheelStatus
 };
 
 USTRUCT()
-struct FVehicleDifferentialConfig
+struct CHAOSVEHICLES_API FVehicleDifferentialConfig
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -201,7 +201,7 @@ struct FVehicleDifferentialConfig
 };
 
 USTRUCT()
-struct FVehicleEngineConfig
+struct CHAOSVEHICLES_API FVehicleEngineConfig
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -290,7 +290,7 @@ private:
 };
 
 USTRUCT()
-struct FVehicleTransmissionConfig
+struct CHAOSVEHICLES_API FVehicleTransmissionConfig
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -420,7 +420,7 @@ enum class ESteeringType : uint8
 
 
 USTRUCT()
-struct FVehicleSteeringConfig
+struct CHAOSVEHICLES_API FVehicleSteeringConfig
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -542,7 +542,7 @@ struct CHAOSVEHICLES_API FWheelState
 
 //////////////////////////////////////////////////////////////////////////
 
-class UChaosWheeledVehicleSimulation : public UChaosVehicleSimulation
+class CHAOSVEHICLES_API UChaosWheeledVehicleSimulation : public UChaosVehicleSimulation
 {
 public:
 

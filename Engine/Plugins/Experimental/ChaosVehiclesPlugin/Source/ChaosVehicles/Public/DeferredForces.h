@@ -24,7 +24,7 @@ namespace Chaos
 }
 
 
-class FDeferredForces
+class CHAOSVEHICLES_API FDeferredForces
 {
 public:
 

@@ -7,7 +7,7 @@
 
 
 USTRUCT(BlueprintType)
-struct FBaseSnapshotData //: public UObject
+struct CHAOSVEHICLES_API FBaseSnapshotData //: public UObject
 {
 public:
 	GENERATED_BODY()
@@ -31,7 +31,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct FWheelSnapshot
+struct CHAOSVEHICLES_API FWheelSnapshot
 {
 	GENERATED_BODY()
 
@@ -61,7 +61,7 @@ struct FWheelSnapshot
 };
 
 USTRUCT(BlueprintType)
-struct FWheeledSnaphotData : public FBaseSnapshotData
+struct CHAOSVEHICLES_API FWheeledSnaphotData : public FBaseSnapshotData
 {
 public:
 	GENERATED_BODY()
