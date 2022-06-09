@@ -4,7 +4,6 @@
 
 #include "MessageLog/Public/MessageLogModule.h"
 #include "Modules/ModuleManager.h"
-#include "TraceServices/AnalysisService.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"

@@ -8,6 +8,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformTime.h"
 #include "Rendering/DrawElements.h"
+#include "TraceServices/Model/Frames.h"
 #include "TraceServices/Model/NetProfiler.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Layout/SScrollBar.h"

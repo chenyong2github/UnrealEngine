@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Frames.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Common/PagedArray.h"
 
 namespace TraceServices
 {
+
+class IAnalysisSession;
 
 class FFrameProvider
 	: public IFrameProvider

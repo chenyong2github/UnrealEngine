@@ -8,7 +8,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateBrush.h"
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/LoadTimeProfiler.h"
 
 // Insights
 #include "Insights/Common/InsightsMenuBuilder.h"

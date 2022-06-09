@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "TraceServices/Model/Counters.h"
 #include "TraceServices/Model/LoadTimeProfiler.h"
-#include "TraceServices/AnalysisService.h"
 #include "Common/SlabAllocator.h"
 #include "Common/PagedArray.h"
 #include "Common/StringStore.h"

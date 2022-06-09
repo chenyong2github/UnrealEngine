@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Containers/Tables.h"
 #include "Templates/Function.h"
 #include "Common/PagedArray.h"
 #include "Common/SlabAllocator.h"

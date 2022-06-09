@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Log.h"
 #include "Templates/SharedPointer.h"
 #include "Common/PagedArray.h"
 #include "Model/Tables.h"

@@ -7,6 +7,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "TraceServices/Model/Counters.h"
 #include "TraceServices/Model/Frames.h"
+#include "TraceServices/Model/Threads.h"
 
 namespace TraceServices
 {

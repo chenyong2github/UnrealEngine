@@ -4,7 +4,6 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
-#include "TraceServices/AnalysisService.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"

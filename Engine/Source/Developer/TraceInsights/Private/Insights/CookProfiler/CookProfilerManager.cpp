@@ -5,7 +5,6 @@
 #include "Features/IModularFeatures.h"
 #include "Framework/Docking/TabManager.h"
 #include "Modules/ModuleManager.h"
-#include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/CookProfilerProvider.h"
 #include "Widgets/Docking/SDockTab.h"
 

@@ -8,7 +8,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Counters.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SSearchBox.h"

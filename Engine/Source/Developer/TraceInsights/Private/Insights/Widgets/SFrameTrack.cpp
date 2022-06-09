@@ -10,7 +10,7 @@
 #include "Misc/StringBuilder.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Frames.h"
 #include "Widgets/Layout/SScrollBar.h"
 
 // Insights

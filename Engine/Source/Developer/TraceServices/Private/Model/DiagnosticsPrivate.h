@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/Diagnostics.h"
 
 namespace TraceServices

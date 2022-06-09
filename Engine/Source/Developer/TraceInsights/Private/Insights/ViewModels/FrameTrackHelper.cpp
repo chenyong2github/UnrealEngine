@@ -6,7 +6,7 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Frames.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"

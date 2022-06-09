@@ -5,6 +5,7 @@
 #include "Analyzers/LoadTimeTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
 #include "Model/FileActivity.h"
+#include "TraceServices/Model/Bookmarks.h"
 #include "HAL/FileManager.h"
 
 namespace TraceServices

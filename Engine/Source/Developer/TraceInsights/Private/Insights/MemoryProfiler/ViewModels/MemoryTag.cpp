@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemoryTag.h"
-#include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/Memory.h"
 
 // Insights

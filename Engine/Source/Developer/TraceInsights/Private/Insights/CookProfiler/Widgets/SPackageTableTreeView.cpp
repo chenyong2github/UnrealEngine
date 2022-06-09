@@ -4,7 +4,6 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
-#include "TraceServices/AnalysisService.h"
 
 // Insights
 #include "Insights/InsightsStyle.h"

@@ -2,8 +2,9 @@
 
 #include "CsvProfilerModule.h"
 #include "Analyzers/CsvProfilerTraceAnalysis.h"
-#include "AnalysisServicePrivate.h"
-#include "TraceServices/ModuleService.h"
+#include "TraceServices/Model/Counters.h"
+#include "TraceServices/Model/Frames.h"
+#include "TraceServices/Model/Threads.h"
 
 namespace TraceServices
 {

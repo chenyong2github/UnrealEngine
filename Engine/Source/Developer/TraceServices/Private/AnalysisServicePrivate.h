@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AnalysisCache.h"
+#include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/AnalysisService.h"
 #include "Containers/HashTable.h"
 #include "Common/StringStore.h"

@@ -9,7 +9,7 @@
 #include "IImageWrapperModule.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Log.h"
 #include "TraceServices/Model/Screenshot.h"
 
 // Insights

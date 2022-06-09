@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
 #include "Templates/SharedPointer.h"
 #include "TraceServices/Model/Screenshot.h"
 

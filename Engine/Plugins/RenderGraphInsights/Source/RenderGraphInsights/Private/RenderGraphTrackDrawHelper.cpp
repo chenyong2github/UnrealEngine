@@ -7,7 +7,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
-#include "TraceServices/AnalysisService.h"
 
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"

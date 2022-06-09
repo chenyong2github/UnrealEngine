@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Model/MonotonicTimeline.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Containers/Timelines.h"
 #include "TraceServices/Containers/Tables.h"

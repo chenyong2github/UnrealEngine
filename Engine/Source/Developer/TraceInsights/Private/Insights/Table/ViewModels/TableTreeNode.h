@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "TraceServices/AnalysisService.h"
 
 // Insights
 #include "Insights/Table/ViewModels/BaseTreeNode.h"

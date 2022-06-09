@@ -17,7 +17,6 @@
 #include "Misc/ConfigContext.h"
 
 #include "TraceServices/ModuleService.h"
-#include "TraceServices/AnalysisService.h"
 #include "TraceServices/ITraceServicesModule.h"
 #include "Insights/IUnrealInsightsModule.h"
 

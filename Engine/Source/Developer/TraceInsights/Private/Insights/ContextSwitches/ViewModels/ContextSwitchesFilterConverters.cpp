@@ -3,6 +3,7 @@
 #include "ContextSwitchesFilterConverters.h"
 
 #include "TraceServices/Model/ContextSwitches.h"
+#include "TraceServices/Model/Threads.h"
 
 #include "Insights/InsightsManager.h"
 

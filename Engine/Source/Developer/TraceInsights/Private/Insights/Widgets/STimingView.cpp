@@ -23,7 +23,6 @@
 #include "Styling/SlateBrush.h"
 #include "Styling/StyleColors.h"
 #include "Styling/ToolBarStyle.h"
-#include "TraceServices/AnalysisService.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"

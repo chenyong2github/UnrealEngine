@@ -9,7 +9,6 @@
 #include "Layout/Geometry.h"
 #include "Styling/SlateTypes.h"
 #include "Templates/Function.h"
-#include "TraceServices/AnalysisService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWidget.h"

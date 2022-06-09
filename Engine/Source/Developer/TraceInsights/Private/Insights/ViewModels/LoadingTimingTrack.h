@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/LoadTimeProfiler.h"
 
 // Insights
 #include "Insights/ITimingViewExtender.h"

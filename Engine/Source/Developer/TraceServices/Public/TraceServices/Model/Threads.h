@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/PlatformAffinity.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Templates/Function.h"
 

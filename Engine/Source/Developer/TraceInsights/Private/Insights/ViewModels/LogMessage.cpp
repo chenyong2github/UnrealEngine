@@ -4,7 +4,7 @@
 
 #include "Misc/OutputDeviceHelper.h"
 #include "Misc/ScopeLock.h"
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Log.h"
 
 // Insights
 #include "Insights/Common/TimeUtils.h"

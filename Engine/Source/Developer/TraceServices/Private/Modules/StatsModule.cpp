@@ -2,8 +2,7 @@
 
 #include "StatsModule.h"
 #include "Analyzers/StatsTraceAnalysis.h"
-#include "AnalysisServicePrivate.h"
-#include "TraceServices/ModuleService.h"
+#include "TraceServices/Model/Counters.h"
 
 namespace TraceServices
 {

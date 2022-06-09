@@ -7,7 +7,6 @@
 #include "Common/PagedArray.h"
 #include "Model/AsyncEnumerateTask.h"
 #include "Model/MonotonicTimelineData.h"
-#include "TraceServices/AnalysisService.h"
 #include "TraceServices/Containers/Timelines.h"
 
 namespace TraceServices

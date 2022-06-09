@@ -6,8 +6,6 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Input/DragAndDrop.h"
-#include "TraceServices/AnalysisService.h"
-#include "TraceServices/ModuleService.h"
 
 // Insights
 #include "Insights/Common/Stopwatch.h"

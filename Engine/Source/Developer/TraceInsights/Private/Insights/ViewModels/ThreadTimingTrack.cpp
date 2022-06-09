@@ -9,7 +9,9 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Serialization/MemoryReader.h"
 #include "Styling/SlateBrush.h"
+#include "TraceServices/Model/LoadTimeProfiler.h"
 #include "TraceServices/Model/TasksProfiler.h"
+#include "TraceServices/Model/Threads.h"
 #include "Async/TaskGraphInterfaces.h"
 
 // Insights

@@ -7,7 +7,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateBrush.h"
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Threads.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"

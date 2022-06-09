@@ -4,7 +4,7 @@
 
 #include <limits>
 
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Frames.h"
 #include "TraceServices/Model/TimingProfiler.h"
 #include "TraceServices/Model/Counters.h"
 

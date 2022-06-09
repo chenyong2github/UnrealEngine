@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TraceServices/AnalysisService.h"
+#include "TraceServices/Model/Bookmarks.h"
 #include "Templates/SharedPointer.h"
 
 namespace TraceServices

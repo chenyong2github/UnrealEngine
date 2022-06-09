@@ -2,6 +2,7 @@
 
 #include "Insights/Tests/TimingProfilerTests.h"
 
+#include "TraceServices/Model/Threads.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 

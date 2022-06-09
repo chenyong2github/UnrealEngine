@@ -3,6 +3,7 @@
 #include "TimingExporter.h"
 #include "HAL/PlatformFileManager.h"
 #include "Logging/MessageLog.h"
+#include "TraceServices/Model/Threads.h"
 
 // Insights
 #include "Insights/Common/Stopwatch.h"

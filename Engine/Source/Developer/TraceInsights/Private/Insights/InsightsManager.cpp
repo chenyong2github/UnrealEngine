@@ -14,6 +14,7 @@
 #include "Modules/ModuleManager.h"
 #include "Templates/UniquePtr.h"
 #include "Trace/StoreClient.h"
+#include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/Diagnostics.h"
 #include "TraceServices/Model/NetProfiler.h"
 #include "WorkspaceMenuStructure.h"

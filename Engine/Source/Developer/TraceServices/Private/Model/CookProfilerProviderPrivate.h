@@ -3,7 +3,6 @@
 #pragma once
 
 #include "TraceServices/Model/CookProfilerProvider.h"
-#include "TraceServices/AnalysisService.h"
 
 namespace TraceServices
 {
