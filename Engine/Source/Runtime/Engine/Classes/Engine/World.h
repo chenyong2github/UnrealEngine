@@ -1597,8 +1597,15 @@ private:
 	/** Finish Async Trace Buffer **/
 	void FinishAsyncTrace();
 
+	/** Utility function that is used to ensure that a World has the correct singleton actor of the provided class */
+	void RepairSingletonActorOfClass(TSubclassOf<AActor> ActorClass);	
+	template <class T> void RepairSingletonActorOfClass() { RepairSingletonActorOfClass(T::StaticClass()); }
+
 	/** Utility function that is used to ensure that a World has the correct WorldSettings */
 	void RepairWorldSettings();
+
+	/** Utility function that is used to ensure that a World has the correct singleton actors*/
+	void RepairSingletonActors();
 
 	/** Utility function to cleanup streaming levels that point to invalid level packages */
 	void RepairStreamingLevels();
