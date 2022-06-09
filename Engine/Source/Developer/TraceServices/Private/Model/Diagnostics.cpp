@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "TraceServices/Model/Diagnostics.h"
 #include "Model/DiagnosticsPrivate.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
