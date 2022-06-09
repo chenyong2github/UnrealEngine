@@ -82,7 +82,10 @@ public:
 	inline bool GetIsSpatiallyLoaded() const { return bIsForcedNonSpatiallyLoaded ? false : bIsSpatiallyLoaded; }
 	inline bool GetIsSpatiallyLoadedRaw() const { return bIsSpatiallyLoaded; }
 	inline bool GetActorIsEditorOnly() const { return bActorIsEditorOnly; }
-	inline bool GetLevelBoundsRelevant() const { return bLevelBoundsRelevant; }
+
+	UE_DEPRECATED(5.1, "GetLevelBoundsRelevant is deprecated.")
+	inline bool GetLevelBoundsRelevant() const { return false; }
+
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
 	inline FName GetHLODLayer() const { return HLODLayer; }
 	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
@@ -223,7 +226,6 @@ protected:
 	FName							RuntimeGrid;
 	bool							bIsSpatiallyLoaded;
 	bool							bActorIsEditorOnly;
-	bool							bLevelBoundsRelevant;
 	bool							bActorIsHLODRelevant;
 	bool							bIsUsingDataLayerAsset; // Used to know if DataLayers array represents DataLayers Asset paths or the FNames of the deprecated version of Data Layers
 	FName							HLODLayer;

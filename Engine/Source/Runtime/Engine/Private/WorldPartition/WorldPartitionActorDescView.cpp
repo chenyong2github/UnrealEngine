@@ -63,11 +63,6 @@ bool FWorldPartitionActorDescView::GetIsSpatiallyLoaded() const
 	return bIsForcedNonSpatiallyLoaded ? false : ActorDesc->GetIsSpatiallyLoaded();
 }
 
-bool FWorldPartitionActorDescView::GetLevelBoundsRelevant() const
-{
-	return ActorDesc->GetLevelBoundsRelevant();
-}
-
 bool FWorldPartitionActorDescView::GetActorIsHLODRelevant() const
 {
 	return ActorDesc->GetActorIsHLODRelevant();

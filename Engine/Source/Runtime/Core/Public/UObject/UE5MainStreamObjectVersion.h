@@ -236,6 +236,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// World partition streaming policy serialization only for cooked builds
 		WorldPartitionSerializeStreamingPolicyOnCook,
 
+		// Remove serialization of bounds relevant from  WorldPartitionActorDesc
+		WorldPartitionActorDescRemoveBoundsRelevantSerialization,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

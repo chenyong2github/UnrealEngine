@@ -58,7 +58,6 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	RuntimeGrid = InActor->GetRuntimeGrid();
 	bIsSpatiallyLoaded = InActor->GetIsSpatiallyLoaded();
 	bActorIsEditorOnly = InActor->IsEditorOnly();
-	bLevelBoundsRelevant = InActor->IsLevelBoundsRelevant();
 	bActorIsHLODRelevant = InActor->IsHLODRelevant();
 	HLODLayer = InActor->GetHLODLayer() ? FName(InActor->GetHLODLayer()->GetPathName()) : FName();
 	
@@ -164,7 +163,6 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		BoundsExtent.Equals(Other->BoundsExtent, 0.1f) &&
 		RuntimeGrid == Other->RuntimeGrid &&
 		bActorIsEditorOnly == Other->bActorIsEditorOnly &&
-		bLevelBoundsRelevant == Other->bLevelBoundsRelevant &&
 		bActorIsHLODRelevant == Other->bActorIsHLODRelevant &&
 		bIsUsingDataLayerAsset == Other->bIsUsingDataLayerAsset &&
 		HLODLayer == Other->HLODLayer &&
@@ -220,7 +218,7 @@ FString FWorldPartitionActorDesc::ToString() const
 	};
 
 	return FString::Printf(
-		TEXT("Guid:%s BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s LevelBoundsRelevant:%s HLODRelevant:%s FolderPath:%s FolderGuid:%s Parent:%s"), 
+		TEXT("Guid:%s BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s HLODRelevant:%s FolderPath:%s FolderGuid:%s Parent:%s"), 
 		*Guid.ToString(), 
 		*BaseClass.ToString(), 
 		*NativeClass.ToString(), 
@@ -230,7 +228,6 @@ FString FWorldPartitionActorDesc::ToString() const
 		*GetBounds().ToString(),
 		*RuntimeGrid.ToString(),
 		GetBoolStr(bActorIsEditorOnly),
-		GetBoolStr(bLevelBoundsRelevant),
 		GetBoolStr(bActorIsHLODRelevant),
 		*FolderPath.ToString(),
 		*FolderGuid.ToString(),
@@ -278,7 +275,13 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 		Ar << bIsSpatiallyLoaded;
 	}
 		
-	Ar << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant;
+	Ar << RuntimeGrid << bActorIsEditorOnly;
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescRemoveBoundsRelevantSerialization)
+	{
+		bool bLevelBoundsRelevant;
+		Ar << bLevelBoundsRelevant;
+	}
 	
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeDataLayers)
 	{
