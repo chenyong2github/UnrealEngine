@@ -9,6 +9,12 @@
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
+static TAutoConsoleVariable<bool> CVarBPEnableDeprecatedWarningForComponentDelegateNodes(
+	TEXT("bp.EnableDeprecatedWarningForComponentDelegateNodes"),
+	true,
+	TEXT("Show Deprecated warning for component delegate event nodes"),
+	ECVF_Cheat);
+
 // @TODO_BH: Remove the CVar for validity checking when we can get all the errors sorted out
 namespace PinValidityCheck
 {
@@ -143,6 +149,35 @@ bool UK2Node_ComponentBoundEvent::IsDelegateValid() const
 		// either from a native base class or a BP multicast delegate. The Delegate could have been 
 		// renamed/redirected, so also check for a remapped field if we need to
 		&& (GetTargetDelegateProperty() || FMemberReference::FindRemappedField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName));
+}
+
+bool UK2Node_ComponentBoundEvent::HasDeprecatedReference() const
+{
+	if (CVarBPEnableDeprecatedWarningForComponentDelegateNodes.GetValueOnGameThread())
+	{
+		if (const FMulticastDelegateProperty* DelegateProperty = GetTargetDelegateProperty())
+		{
+			return DelegateProperty->HasAnyPropertyFlags(EPropertyFlags::CPF_Deprecated);	
+		}
+	}
+	return false;
+}
+
+FEdGraphNodeDeprecationResponse UK2Node_ComponentBoundEvent::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
+{
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
+	{
+		const UFunction* Function = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode());
+		if (ensureMsgf(Function != nullptr, TEXT("This node should not be able to report having a deprecated reference if the event override cannot be resolved.")))
+		{
+			Response.MessageType = EEdGraphNodeDeprecationMessageType::Warning;
+			const FText DetailedMessage = FText::FromString(Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
+			Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(DelegatePropertyDisplayName, DetailedMessage);
+		}
+	}
+
+	return Response;
 }
 
 bool UK2Node_ComponentBoundEvent::IsUsedByAuthorityOnlyDelegate() const
