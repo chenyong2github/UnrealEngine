@@ -244,16 +244,25 @@ namespace UE::PoseSearch
 		// Main Sequence
 		AddRawSequenceToWriter(DbSequence.Sequence, InOutWriter);
 		InOutWriter.Update(&DbSequence.SamplingRange, sizeof(DbSequence.SamplingRange));
-		InOutWriter.Update(&DbSequence.bLoopAnimation, sizeof(DbSequence.bLoopAnimation));
+		if (DbSequence.Sequence)
+		{
+			InOutWriter.Update(&DbSequence.Sequence->bLoop, sizeof(DbSequence.Sequence->bLoop));
+		}
 		InOutWriter.Update(&DbSequence.MirrorOption, sizeof(DbSequence.MirrorOption));
 
 		// Lead in sequence
 		AddRawSequenceToWriter(DbSequence.LeadInSequence, InOutWriter);
-		InOutWriter.Update(&DbSequence.bLoopLeadInAnimation, sizeof(DbSequence.bLoopLeadInAnimation));
+		if (DbSequence.LeadInSequence)
+		{
+			InOutWriter.Update(&DbSequence.LeadInSequence->bLoop, sizeof(DbSequence.LeadInSequence->bLoop));
+		}
 
 		// Follow up sequence
 		AddRawSequenceToWriter(DbSequence.FollowUpSequence, InOutWriter);
-		InOutWriter.Update(&DbSequence.bLoopFollowUpAnimation, sizeof(DbSequence.bLoopFollowUpAnimation));
+		if (DbSequence.FollowUpSequence)
+		{
+			InOutWriter.Update(&DbSequence.FollowUpSequence->bLoop, sizeof(DbSequence.FollowUpSequence->bLoop));
+		}
 
 		// Tags
 		InOutWriter.Update(&DbSequence.GroupTags, sizeof(DbSequence.GroupTags));
@@ -323,7 +332,7 @@ namespace UE::PoseSearch
 				InOutWriter.Update(&Sample.RateScale, sizeof(Sample.RateScale));
 			}
 
-			InOutWriter.Update(&DbBlendSpace.bLoopAnimation, sizeof(DbBlendSpace.bLoopAnimation));
+			InOutWriter.Update(&DbBlendSpace.BlendSpace->bLoop, sizeof(DbBlendSpace.BlendSpace->bLoop));
 			InOutWriter.Update(&DbBlendSpace.MirrorOption, sizeof(DbBlendSpace.MirrorOption));
 			InOutWriter.Update(&DbBlendSpace.bUseGridForSampling, sizeof(DbBlendSpace.bUseGridForSampling));
 			InOutWriter.Update(&DbBlendSpace.NumberOfHorizontalSamples, sizeof(DbBlendSpace.NumberOfHorizontalSamples));

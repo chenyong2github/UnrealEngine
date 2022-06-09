@@ -5,6 +5,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/MotionTrajectoryTypes.h"
 #include "Animation/AnimRootMotionProvider.h"
 #include "DynamicPlayRate/DynamicPlayRateLibrary.h"
@@ -120,7 +121,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 			const FPoseSearchDatabaseSequence& ResultDbSequence = Database->GetSequenceSourceAsset(SearchIndexAsset);
 			SequencePlayerNode.SetAccumulatedTime(MotionMatchingState.AssetPlayerTime);
 			SequencePlayerNode.SetSequence(ResultDbSequence.Sequence);
-			SequencePlayerNode.SetLoopAnimation(ResultDbSequence.bLoopAnimation);
+			SequencePlayerNode.SetLoopAnimation(ResultDbSequence.Sequence->bLoop);
 			SequencePlayerNode.SetPlayRate(1.0f);
 		}
 		else if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
@@ -130,7 +131,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 			const FPoseSearchDatabaseBlendSpace& ResultDbBlendSpace = Database->GetBlendSpaceSourceAsset(SearchIndexAsset);
 			BlendSpacePlayerNode.SetAccumulatedTime(MotionMatchingState.AssetPlayerTime);
 			BlendSpacePlayerNode.SetBlendSpace(ResultDbBlendSpace.BlendSpace);
-			BlendSpacePlayerNode.SetLoop(ResultDbBlendSpace.bLoopAnimation);
+			BlendSpacePlayerNode.SetLoop(ResultDbBlendSpace.BlendSpace->bLoop);
 			BlendSpacePlayerNode.SetPlayRate(1.0f);
 			BlendSpacePlayerNode.SetPosition(SearchIndexAsset->BlendParameters);
 		}

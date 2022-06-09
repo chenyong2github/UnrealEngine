@@ -1174,11 +1174,11 @@ const bool UPoseSearchDatabase::IsSourceAssetLooping(const FPoseSearchIndexAsset
 {
 	if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
 	{
-		return GetSequenceSourceAsset(SearchIndexAsset).bLoopAnimation;
+		return GetSequenceSourceAsset(SearchIndexAsset).Sequence->bLoop;
 	}
 	else if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
 	{
-		return GetBlendSpaceSourceAsset(SearchIndexAsset).bLoopAnimation;
+		return GetBlendSpaceSourceAsset(SearchIndexAsset).BlendSpace->bLoop;
 	}
 	else
 	{
