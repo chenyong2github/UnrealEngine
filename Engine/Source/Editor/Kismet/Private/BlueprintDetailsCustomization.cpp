@@ -4650,10 +4650,26 @@ bool FBaseBlueprintGraphActionDetails::OnVerifyPinRename(UK2Node_EditablePinBase
 
 	if (InTargetNode)
 	{
-		// Check if the name conflicts with any of the other internal UFunction's property names (local variables and parameters).
-		const UFunction* FoundFunction = FFunctionFromNodeHelper::FunctionFromNode(InTargetNode);
-		const FProperty* ExistingProperty = FindFProperty<const FProperty>(FoundFunction, *InNewName);
-		if (ExistingProperty)
+		UK2Node_EditablePinBase* EntryNode = FunctionEntryNodePtr.Get();
+		UK2Node_EditablePinBase* ResultNode = FunctionResultNodePtr.Get();
+		const FName NewFName = *InNewName;
+
+		ERenamePinResult RenameResult = InTargetNode->RenameUserDefinedPin(InOldName, NewFName, true);
+
+		if (RenameResult == ERenamePinResult_Success)
+		{
+			UK2Node_EditablePinBase* OtherNode = (InTargetNode == EntryNode) ? ResultNode : EntryNode;
+
+			// OtherNode can be null if the function, macro, etc. doesn't return a value.
+			if (OtherNode)
+			{
+				RenameResult = OtherNode->RenameUserDefinedPin(InOldName, NewFName, true);
+			}
+		}
+
+		check(RenameResult != ERenamePinResult_NoSuchPin);
+
+		if (RenameResult == ERenamePinResult_NameCollision)
 		{
 			OutErrorMessage = LOCTEXT("ConflictsWithProperty", "Conflicts with another local variable or function parameter!");
 			return false;
