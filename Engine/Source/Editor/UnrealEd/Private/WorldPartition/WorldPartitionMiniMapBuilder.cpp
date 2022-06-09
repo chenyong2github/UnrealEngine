@@ -9,6 +9,7 @@
 #include "AssetCompilingManager.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Factories/TextureFactory.h"
 #include "SourceControlHelpers.h"
 #include "UObject/SavePackage.h"
@@ -28,6 +29,7 @@
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
+#include "WorldPartition/WorldPartitionMiniMapVolume.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionMiniMapBuilder, All, All);
@@ -56,8 +58,21 @@ bool UWorldPartitionMiniMapBuilder::PreRun(UWorld* World, FPackageSourceControlH
 
 		WorldMiniMap->MiniMapTexture = nullptr;
 
-		UWorldPartition* WorldPartition = World->GetWorldPartition();
-		FBox WorldBounds = WorldPartition->GetEditorWorldBounds();
+		FBox WorldBounds(ForceInit);
+
+		// Override the minimap bounds it a world partiion minimap volume exists
+		for (TActorIterator<AWorldPartitionMiniMapVolume> It(World); It; ++It)
+		{
+			if (AWorldPartitionMiniMapVolume* WorldPartitionMiniMapVolume = *It)
+			{
+				WorldBounds += WorldPartitionMiniMapVolume->GetBounds().GetBox();
+			}
+		}
+
+		if (!WorldBounds.IsValid)
+		{
+			WorldBounds = World->GetWorldPartition()->GetEditorWorldBounds();
+		}
 
 		MinimapImageSizeX = WorldBounds.GetSize().X / WorldMiniMap->WorldUnitsPerPixel;
 		MinimapImageSizeY = WorldBounds.GetSize().Y / WorldMiniMap->WorldUnitsPerPixel;

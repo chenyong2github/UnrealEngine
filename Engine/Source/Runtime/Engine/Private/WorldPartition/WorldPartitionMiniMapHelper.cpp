@@ -52,18 +52,6 @@ AWorldPartitionMiniMap* FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(U
 	return nullptr;
 }
 
-void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld, UObject* InOuterForTexture, uint32 InMiniMapSize, UTexture2D*& InOutMiniMapTexture, const FString& InTextureName, FBox& OutWorldBounds)
-{
-	//Calculate bounds of the World
-	OutWorldBounds = InWorld->GetWorldPartition()->GetEditorWorldBounds();
-
-	CaptureBoundsMiniMapToTexture(InWorld, InOuterForTexture, InMiniMapSize, InOutMiniMapTexture, InTextureName, OutWorldBounds);
-
-	InOutMiniMapTexture->AdjustMinAlpha = 1.f;
-	InOutMiniMapTexture->LODGroup = TEXTUREGROUP_UI;
-	InOutMiniMapTexture->UpdateResource();
-}
-
 void FWorldPartitionMiniMapHelper::CaptureBoundsMiniMapToTexture(UWorld* InWorld, UObject* InOuterForTexture, uint32 InMiniMapSize, UTexture2D*& InOutMiniMapTexture, const FString& InTextureName, const FBox& InBounds)
 {
 	const uint32 DefaultNumWarmupFrames = 5;
