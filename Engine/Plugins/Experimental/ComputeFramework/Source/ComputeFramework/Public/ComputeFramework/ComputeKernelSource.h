@@ -16,6 +16,14 @@ class COMPUTEFRAMEWORK_API UComputeKernelSource : public UObject
 	GENERATED_BODY()
 
 public:
+	/** Kernel entry point. */
+	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Kernel")
+	FString EntryPoint;
+
+	/** Kernel group size. */
+	UPROPERTY(VisibleAnywhere, Category = "Kernel")
+	FIntVector GroupSize = FIntVector(64, 1, 1);
+
 	/** Base permutations exposed by the kernel. These will be extended by further permutations declared in any linked data providers. */
 	UPROPERTY(VisibleAnywhere, meta = (ShowOnlyInnerProperties), Category = "Kernel")
 	FComputeKernelPermutationSet PermutationSet;
@@ -32,10 +40,6 @@ public:
 	UPROPERTY(VisibleAnywhere, EditFixedSize, Category = "External")
 	TArray<FShaderFunctionDefinition> ExternalOutputs;
 
-	/** Get kernel entry point name. */
-	virtual FString GetEntryPoint() const PURE_VIRTUAL(UComputeKernelSource::GetEntryPoint, return {};);
-	/** Get kernel group size. Note that this must be known and fixed for all permutations of the kernel. */
-	virtual FIntVector GetGroupSize() const PURE_VIRTUAL(UComputeKernelSource::GetGroupSize, return {};);
 	/** Get kernel source code. */
 	virtual FString GetSource() const PURE_VIRTUAL(UComputeKernelSource::GetSource, return {};);
 };

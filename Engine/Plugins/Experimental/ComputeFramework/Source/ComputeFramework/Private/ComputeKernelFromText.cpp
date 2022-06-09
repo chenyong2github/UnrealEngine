@@ -8,11 +8,6 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopeExit.h"
 
-UComputeKernelFromText::UComputeKernelFromText()
-{
-	UniqueId = FGuid::NewGuid();
-}
-
 #if WITH_EDITOR
 
 void UComputeKernelFromText::PostLoad()
@@ -49,7 +44,7 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 {
 	if (SourceFile.FilePath.IsEmpty())
 	{
-		EntryPointName = FString();
+		EntryPoint = FString();
 		GroupSize = FIntVector(1, 1, 1);
 		KernelSourceText = FString();
 		PermutationSet = FComputeKernelPermutationSet();
@@ -93,7 +88,7 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 		FRegexMatcher Matcher(KernelEntryPointPattern, KernelSourceText);
 		if (Matcher.FindNext())
 		{
-			EntryPointName = Matcher.GetCaptureGroup(1);
+			EntryPoint = Matcher.GetCaptureGroup(1);
 		}
 	}
 

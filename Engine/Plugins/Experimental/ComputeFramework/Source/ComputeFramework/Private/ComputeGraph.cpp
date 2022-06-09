@@ -327,8 +327,8 @@ FComputeGraphRenderProxy* UComputeGraph::CreateRenderProxy() const
 		{
 			FComputeGraphRenderProxy::FKernelInvocation& Invocation = Proxy->KernelInvocations.AddDefaulted_GetRef();
 
-			Invocation.KernelName = Kernel->KernelSource->GetEntryPoint();
-			Invocation.KernelGroupSize = Kernel->KernelSource->GetGroupSize();
+			Invocation.KernelName = Kernel->KernelSource->EntryPoint;
+			Invocation.KernelGroupSize = Kernel->KernelSource->GroupSize;
 			Invocation.KernelResource = KernelResource;
 			Invocation.ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *Proxy->ShaderParameterMetadataAllocations);
 
@@ -557,7 +557,7 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 			TUniquePtr <FComputeKernelPermutationVector> ShaderPermutationVector = MakeUnique<FComputeKernelPermutationVector>();
 			TUniquePtr <FShaderParametersMetadataAllocations> ShaderParameterMetadataAllocations = MakeUnique<FShaderParametersMetadataAllocations>();
 
-			FString ShaderEntryPoint = Kernel->KernelSource->GetEntryPoint();
+			FString ShaderEntryPoint = Kernel->KernelSource->EntryPoint;
 			FString ShaderSource = BuildKernelSource(KernelIndex, *Kernel->KernelSource, AdditionalSources, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
 			FShaderParametersMetadata* ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *ShaderParameterMetadataAllocations);
 
@@ -672,7 +672,7 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 			TUniquePtr <FComputeKernelDefinitionSet> ShaderDefinitionSet = MakeUnique<FComputeKernelDefinitionSet>();
 			TUniquePtr <FComputeKernelPermutationVector> ShaderPermutationVector = MakeUnique<FComputeKernelPermutationVector>();
 
-			FString ShaderEntryPoint = KernelSource->GetEntryPoint();
+			FString ShaderEntryPoint = KernelSource->EntryPoint;
 			FString ShaderSource = BuildKernelSource(KernelIndex, *KernelSource, AdditionalSources, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
 
 			TArray< TUniquePtr<FComputeKernelResource> >& Resources = KernelResources[KernelIndex].CachedKernelResourcesForCooking.FindOrAdd(TargetPlatform);

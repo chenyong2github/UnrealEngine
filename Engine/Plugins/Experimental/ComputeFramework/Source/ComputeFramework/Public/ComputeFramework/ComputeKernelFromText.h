@@ -15,23 +15,9 @@ class COMPUTEFRAMEWORK_API UComputeKernelFromText : public UComputeKernelSource
 	GENERATED_BODY()
 
 public:
-	UComputeKernelFromText();
-
 	/** Filepath to the source file containing the kernel entry points and all options for parsing. */
 	UPROPERTY(EditDefaultsOnly, AssetRegistrySearchable, meta = (ContentDir, RelativeToGameContentDir, FilePathFilter = "Unreal Shader File (*.usf)|*.usf"), Category = "Kernel")
 	FFilePath SourceFile;
-
-	/** Kernel entry point. */
-	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Kernel")
-	FString EntryPointName;
-
-	/** Kernel group size. */
-	UPROPERTY(VisibleAnywhere, Category = "Kernel")
-	FIntVector GroupSize;
-
-	/** A unique id for the asset. */
-	UPROPERTY()
-	FGuid UniqueId;
 
 #if WITH_EDITOR
 	/** Parse the kernel source to get the kernel external functions and other data. */
@@ -40,16 +26,6 @@ public:
 
 protected:
 	//~ Begin UComputeKernelSource Interface.
-	FString GetEntryPoint() const override
-	{
-		return EntryPointName;
-	}
-
-	FIntVector GetGroupSize() const override
-	{
-		return GroupSize;
-	}
-
 	FString GetSource() const override
 	{
 #if WITH_EDITOR
