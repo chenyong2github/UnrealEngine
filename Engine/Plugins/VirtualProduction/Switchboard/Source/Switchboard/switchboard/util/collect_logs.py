@@ -62,11 +62,14 @@ def execute_zip_logs_workflow(config: Config, devices: typing.List[DeviceUnreal]
         return file_path
 
     if should_skip_because_running_devices():
-        return
+        return False
 
     zip_destination = ask_log_zip_name()
     if zip_destination is not None:
         zip_logs(zip_destination=zip_destination, config=config, devices=devices)
+        return True
+
+    return False
 
 
 def zip_logs(zip_destination: str, config: Config, devices: typing.List[DeviceUnreal]):

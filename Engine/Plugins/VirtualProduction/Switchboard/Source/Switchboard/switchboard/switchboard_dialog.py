@@ -562,14 +562,15 @@ class SwitchboardDialog(QtCore.QObject):
         ''' Registers convenience "Open Logs Folder" menu item '''
         action = self.register_tools_menu_action("&Open Logs Folder")
         action.triggered.connect(collect_logs.open_logs_folder)
-     
+
     def register_zip_logs_menuitem(self):
         def save_logs():
-            collect_logs.execute_zip_logs_workflow(
+            status = collect_logs.execute_zip_logs_workflow(
                 CONFIG,
                 [device for device in self.device_manager.devices() if isinstance(device, DeviceUnreal)]
             )
-            collect_logs.open_logs_folder()
+            if status:
+                collect_logs.open_logs_folder()
         action = self.register_tools_menu_action("&Zip Logs")
         action.triggered.connect(save_logs)
 
