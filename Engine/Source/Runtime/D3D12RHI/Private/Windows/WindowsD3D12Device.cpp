@@ -633,17 +633,15 @@ void FD3D12DynamicRHIModule::FindAdapter()
 
 				// Simple heuristic but without profiling it's hard to do better
 				bool bIsNonLocalMemoryPresent = false;
-				if (bIsIntel)
+				TRefCountPtr<IDXGIAdapter3> TempDxgiAdapter3;
+				DXGI_QUERY_VIDEO_MEMORY_INFO NonLocalVideoMemoryInfo;
+				if (SUCCEEDED(TempAdapter->QueryInterface(_uuidof(IDXGIAdapter3), (void**)TempDxgiAdapter3.GetInitReference())) &&
+					TempDxgiAdapter3.IsValid() && SUCCEEDED(TempDxgiAdapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &NonLocalVideoMemoryInfo)))
 				{
-					TRefCountPtr<IDXGIAdapter3> TempDxgiAdapter3;
-					DXGI_QUERY_VIDEO_MEMORY_INFO NonLocalVideoMemoryInfo;
-					if (SUCCEEDED(TempAdapter->QueryInterface(_uuidof(IDXGIAdapter3), (void**)TempDxgiAdapter3.GetInitReference())) &&
-						TempDxgiAdapter3.IsValid() && SUCCEEDED(TempDxgiAdapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &NonLocalVideoMemoryInfo)))
-					{
-						bIsNonLocalMemoryPresent = NonLocalVideoMemoryInfo.Budget != 0;
-					}
+					bIsNonLocalMemoryPresent = NonLocalVideoMemoryInfo.Budget != 0;
 				}
-				const bool bIsIntegrated = bIsIntel && !bIsNonLocalMemoryPresent;
+				// TODO: Using GPUDetect for Intel GPUs to check for integrated vs discrete status, pending GPUDetect update
+				const bool bIsIntegrated = !bIsNonLocalMemoryPresent;
 
 				// PerfHUD is for performance profiling
 				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description, TEXT("NVIDIA PerfHUD"));
