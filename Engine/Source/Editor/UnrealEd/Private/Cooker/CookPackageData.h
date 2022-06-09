@@ -16,6 +16,7 @@
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/Optional.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
 #include "UObject/NameTypes.h"
@@ -357,8 +358,6 @@ public:
 	void CheckObjectCacheEmpty() const;
 	/** Populate CachedObjectsInOuter if not already populated. Invalid to call except when in the save state. */
 	void CreateObjectCache();
-	/** Clear CachedObjectsInOuter and recompute it. */
-	void RecreateObjectCache();
 	/** Clear the CachedObjectsInOuter list, when e.g. leaving the save state. */
 	void ClearObjectCache();
 
@@ -391,9 +390,12 @@ public:
 	/** Check whether savestate contracts on the PackageData were invalidated by by e.g. garbage collection. */
 	bool IsSaveInvalidated() const;
 
-	/** Get/Set the flag for whether BeginPrepareSave has been called and returned an error. */
-	bool GetHasBeginPrepareSaveFailed() const { return static_cast<bool>(bHasBeginPrepareSaveFailed); }
-	void SetHasBeginPrepareSaveFailed(bool bValue) { bHasBeginPrepareSaveFailed = bValue != 0; }
+	/** Get/Set the flag for whether PrepareSave has been called and returned an error. */
+	bool HasPrepareSaveFailed() const { return static_cast<bool>(bPrepareSaveFailed); }
+	void SetHasPrepareSaveFailed(bool bValue) { bPrepareSaveFailed = bValue != 0; }
+
+	bool IsPrepareSaveRequiresGC() const { return bPrepareSaveRequiresGC; }
+	void SetIsPrepareSaveRequiresGC(bool bValue) { bPrepareSaveRequiresGC = bValue != 0; }
 
 	/** Validate that the BeginCacheForCookedPlatformData-dependent fields are empty, when entering save. */
 	void CheckCookedPlatformDataEmpty() const;
@@ -427,11 +429,6 @@ public:
 	bool HasCompletedGeneration() const { return static_cast<bool>(bCompletedGeneration); }
 	/** Set whether the PackageData has done any necessary Generator steps and is ready for BeginCache calls. */
 	void SetCompletedGeneration(bool Value) { bCompletedGeneration = Value != 0; }
-	/** Return whether the package is a Generator package and has started but not completed generation */
-	bool IsGenerating() const
-	{
-		return GetGeneratorPackage() != nullptr && HasInitializedGeneratorSave() && !HasCompletedGeneration();
-	}
 	/** Get whether the PackageData has completed the check for whether it is a Generator. */
 	bool HasInitializedGeneratorSave() const { return static_cast<bool>(bInitializedGeneratorSave); }
 	/** Set whether the PackageData has completed the check for whether it is a Generator. */
@@ -444,11 +441,6 @@ public:
 	void SetGeneratedOwner(FGeneratorPackage* InGeneratedOwner);
 	/** Return the owning generator PackageData. Will be null if not a generated package or if orphaned. */
 	FGeneratorPackage* GetGeneratedOwner() const { return GeneratedOwner; }
-	/** Mark that the package has finished generation+saving, and should generate again if it needs resaving. */
-	void ResetGenerationProgress();
-
-	/** Return whether a GC is required by a generator package as soon as possible. */
-	bool GeneratorPackageRequiresGC() const;
 
 	/**
 	 * Return the instigator for this package. The Instigator is the first code location or
@@ -564,7 +556,8 @@ private:
 	uint32 bIsPreloadAttempted : 1;
 	uint32 bIsPreloaded : 1;
 	uint32 bHasSaveCache : 1;
-	uint32 bHasBeginPrepareSaveFailed : 1;
+	uint32 bPrepareSaveFailed : 1;
+	uint32 bPrepareSaveRequiresGC : 1;
 	uint32 bCookedPlatformDataStarted : 1;
 	uint32 bCookedPlatformDataCalled : 1;
 	uint32 bCookedPlatformDataComplete : 1;
@@ -573,6 +566,30 @@ private:
 	uint32 bCompletedGeneration : 1;
 	uint32 bGenerated : 1;
 	uint32 bKeepReferencedDuringGC : 1;
+};
+
+/** A single object in athe save of a package that might have had BeginCacheForCookedPlatformData called already */
+struct FBeginCacheObject
+{
+	FWeakObjectPtr Object;
+	bool bHasFinishedRound = false;
+};
+
+/**
+ * Collection of the known objects in the save of a package that might have had BeginCacheForCookedPlatformData called already
+ * and will have it called on them in the next round of calls if not.
+ */
+struct FBeginCacheObjects
+{
+	TArray<FBeginCacheObject> Objects;
+	TArray<FWeakObjectPtr> ObjectsInRound;
+	int32 NextIndexInRound = 0;
+
+	void Reset();
+	void SetObjects(TMap<UObject*, TOptional<bool>>& InObjectSet);
+
+	void StartRound();
+	void EndRound();
 };
 
 /**
@@ -608,7 +625,7 @@ public:
 	/** Return CookPackageSplitter. */
 	ICookPackageSplitter* GetCookPackageSplitterInstance() const { return CookPackageSplitterInstance.Get(); }
 	/** Return owner FPackageData. */
-	const UE::Cook::FPackageData& GetOwner() const { return Owner; }
+	UE::Cook::FPackageData& GetOwner() { return Owner; }
 	/** Return the SplitDataObject's FullObjectPath. */
 	const FName GetSplitDataObjectName() const { return SplitDataObjectName; }
 	/**
@@ -630,15 +647,37 @@ public:
 	 */
 	UObject* FindSplitDataObject() const;
 
-	/** State variables for reentrant SplitPackage calls */
-	bool HasGeneratedList() const { return bGeneratedList; }
-	void SetGeneratedList() { bGeneratedList = true; }
-	bool HasClearedOldPackages() { return bClearedOldPackages; }
-	void SetClearedOldPackages() { bClearedOldPackages = true; }
-	bool HasClearedOldPackagesWithGC() { return bClearedOldPackagesWithGC; }
-	void SetClearedOldPackagesWithGC() { bClearedOldPackagesWithGC = true; }
-	bool HasQueuedGeneratedPackages() const { return bQueuedGeneratedPackages; }
-	void SetQueuedGeneratedPackages() { bQueuedGeneratedPackages = true; }
+	/** State variable for reentrant SplitPackage calls */
+	enum class ESaveState : uint8
+	{
+		Start = 0,
+
+		GenerateList = Start,
+		ClearOldPackagesFirstAttempt,
+		ClearOldPackagesLastAttempt,
+		QueueGeneratedPackages,
+
+		StartGeneratorSave,
+		FinishCachePreObjectsToMove = StartGeneratorSave,
+		CallObjectsToMoveIntoGenerator,
+		BeginCacheObjectsToMove,
+		FinishCacheObjectsToMove,
+		CallPreSaveGeneratorPackage,
+		CallGetPostMoveObjects,
+		BeginCachePostMove,
+		FinishCachePostMove,
+
+		ReadyForSave,
+		Last = ReadyForSave,
+	};
+	ESaveState GetGeneratorSaveState() const { return GeneratorSaveState; }
+	void SetGeneratorSaveState(ESaveState InValue) { GeneratorSaveState = InValue; }
+	void SetGeneratorSaveStateComplete(ESaveState CompletedState);
+	bool HasTakenOverCachedCookedPlatformData() const { return bTakenOverCachedCookedPlatformData; }
+	void SetHasTakenOverCachedCookedPlatformData() { bTakenOverCachedCookedPlatformData = true; }
+	bool HasIssuedUndeclaredMovedObjectsWarning() const { return bIssuedUndeclaredMovedObjectsWarning; }
+	void SetHasIssuedUndeclaredMovedObjectsWarning() { bIssuedUndeclaredMovedObjectsWarning = true; }
+
 	int32& GetNextPopulateIndex() { return NextPopulateIndex; }
 
 	/** Callback during garbage collection */
@@ -656,25 +695,33 @@ public:
 	void SetGeneratedSaved(FPackageData& PackageData);
 	/** Return whether list has been generated and all generated packages have been populated */
 	bool IsComplete() const;
+	FBeginCacheObjects& GetGeneratorBeginCacheObjects() { return GeneratorBeginCacheObjects; }
+
+	void SetObjectsToMoveIntoGenerator(UPackage* Package, UObject* SplitDataObject,
+		ICookPackageSplitter* Splitter, TArray<FWeakObjectPtr>& CachedObjectsInOuter,
+		TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackagesForPresave);
+	void SetPostMoveObjects(UPackage* Package);
+	void ResetGeneratorSaveState(UPackage* Package, UE::Cook::EReleaseSaveReason ReleaseSaveReason);
 
 private:
 	void ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown Status);
 
 	/** PackageData for the package that is being split */
-	const UE::Cook::FPackageData& Owner;
+	UE::Cook::FPackageData& Owner;
 	/** Name of the object that prompted the splitter creation */
 	FName SplitDataObjectName;
 	/** Cached CookPackageSplitter */
 	TUniquePtr<ICookPackageSplitter> CookPackageSplitterInstance;
 	/** Recorded list of packages to generate from the splitter, and data we need about them */
 	TArray<FGeneratedStruct> PackagesToGenerate;
+	FBeginCacheObjects GeneratorBeginCacheObjects;
 
 	int32 NextPopulateIndex = 0;
 	int32 RemainingToPopulate = 0;
-	bool bGeneratedList = false;
-	bool bClearedOldPackages = false;
-	bool bClearedOldPackagesWithGC = false;
-	bool bQueuedGeneratedPackages = false;
+	ESaveState GeneratorSaveState = ESaveState::Start;
+	bool bTakenOverCachedCookedPlatformData = false;
+	bool bIssuedUndeclaredMovedObjectsWarning = false;
+
 	bool bWasOwnerReloaded = false;
 	bool bOwnerHasSaved = false;
 	bool bNotifiedCompletion = false;
