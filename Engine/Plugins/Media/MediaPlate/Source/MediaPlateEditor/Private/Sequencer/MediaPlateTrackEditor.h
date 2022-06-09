@@ -51,6 +51,7 @@ public:
 public:
 
 	//~ FMovieSceneTrackEditor interface
+	virtual void BuildObjectBindingContextMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> TrackClass) const override;
 	//~ ISequencerTrackEditor interface
@@ -69,6 +70,11 @@ private:
 	 * Adds a track for this component.
 	 */
 	void AddTrackForComponent(UMediaPlateComponent* Component);
+
+	/**
+	 * Adds tracks from an object binding.
+	 */
+	void ImportObjectBinding(const TArray<FGuid> ObjectBindings);
 
 	/** Handle to our delegate. */
 	FDelegateHandle OnActorAddedToSequencerHandle;

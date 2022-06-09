@@ -33,6 +33,23 @@ FMediaPlateTrackEditor::~FMediaPlateTrackEditor()
 {
 }
 
+void FMediaPlateTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
+{
+	if ((ObjectClass != nullptr) && (ObjectClass->IsChildOf(AMediaPlate::StaticClass())))
+	{
+		MenuBuilder.BeginSection("Media Plate", LOCTEXT("MediaPlate", "Media Plate"));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("Import", "Import"),
+			LOCTEXT("ImportTooltip", "Import tracks from the Media Plate object."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this,
+				&FMediaPlateTrackEditor::ImportObjectBinding, ObjectBindings)));
+	
+		MenuBuilder.EndSection();
+	}
+}
+
 void FMediaPlateTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
 	// Is this a media plate?
@@ -143,5 +160,26 @@ void FMediaPlateTrackEditor::OnRelease()
 
 	FMovieSceneTrackEditor::OnRelease();
 }
+
+void FMediaPlateTrackEditor::ImportObjectBinding(const TArray<FGuid> ObjectBindings)
+{
+	// Get actor.
+	const TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+	for (const FGuid ObjectBinding : ObjectBindings)
+	{
+		UObject* BoundObject = SequencerPtr.IsValid() ? SequencerPtr->FindSpawnedObjectOrTemplate(ObjectBinding) : nullptr;
+		AActor* Actor = Cast<AActor>(BoundObject);
+		if (Actor != nullptr)
+		{
+			// Get media plate componnent.
+			if (UMediaPlateComponent* MediaPlateComponent = Actor->FindComponentByClass<UMediaPlateComponent>())
+			{
+				// Add tracks for this.
+				AddTrackForComponent(MediaPlateComponent);
+			}
+		}
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE
