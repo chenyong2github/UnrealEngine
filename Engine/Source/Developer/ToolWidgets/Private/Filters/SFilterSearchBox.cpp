@@ -1,0 +1,255 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Filters/SFilterSearchBox.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
+
+#define LOCTEXT_NAMESPACE "CustomTextFilter"
+
+void SFilterSearchBox::Construct( const FArguments& InArgs )
+{
+	MaxSearchHistory = InArgs._MaxSearchHistory;
+	OnTextChanged = InArgs._OnTextChanged;
+	OnTextCommitted = InArgs._OnTextCommitted;
+
+	// Default text shown when there are no items in the search history
+	EmptySearchHistoryText = MakeShareable(new FText(LOCTEXT("EmptySearchHistoryText", "The Search History is Empty")));
+	SearchHistory.Add(EmptySearchHistoryText);
+	
+	ChildSlot
+	[
+		SAssignNew(SearchHistoryBox, SMenuAnchor)
+		.Placement(EMenuPlacement::MenuPlacement_ComboBoxRight)
+		[
+			SNew(SOverlay)
+			
+			+ SOverlay::Slot()
+			[
+				SAssignNew(SearchBox, SSearchBox)
+				.InitialText(InArgs._InitialText)
+				.HintText(InArgs._HintText)
+				.OnTextChanged(this, &SFilterSearchBox::HandleTextChanged)
+				.OnTextCommitted(this, &SFilterSearchBox::HandleTextCommitted)
+				.SelectAllTextWhenFocused( false )
+			]
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Right)
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					// Button to save the currently occuring search 
+					SNew(SButton)
+					.Visibility_Lambda([this]()
+					{
+						// Only visible if there is a search active currently, and the 
+						return this->GetText().IsEmpty() || !this->OnClickedAddSearchHistoryButton.IsBound() ? EVisibility::Collapsed : EVisibility::Visible;
+					})
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
+					.OnClicked_Lambda([this]()
+					{
+						this->OnClickedAddSearchHistoryButton.ExecuteIfBound(this->GetText());
+						return FReply::Handled();
+					})
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+					]
+				]
+
+				+SHorizontalBox::Slot()
+				[
+					// Chevron to open the search history dropdown
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
+					.ClickMethod(EButtonClickMethod::MouseDown)
+					.OnClicked(this, &SFilterSearchBox::OnClickedSearchHistory)
+					.ToolTipText(LOCTEXT("SearchHistoryToolTipText", "Click to show the Search History"))
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.ChevronDown"))
+					]
+				]
+			]
+		]
+		.MenuContent
+		(
+			SNew(SBorder)
+			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
+			.Padding( FMargin(2) )
+			[
+				SAssignNew(SearchHistoryListView, SListView< TSharedPtr<FText> >)
+				.ListItemsSource(&SearchHistory)
+				.SelectionMode( ESelectionMode::Single )							// Ideally the mouse over would not highlight while keyboard controls the UI
+				.OnGenerateRow(this, &SFilterSearchBox::MakeSearchHistoryRowWidget)
+				.OnSelectionChanged( this, &SFilterSearchBox::OnSelectionChanged)
+				.ItemHeight(18)
+				.ScrollbarDragFocusCause(EFocusCause::SetDirectly) // Use SetDirect so that clicking the scrollbar doesn't close the suggestions list
+			]
+		)
+	];
+}
+
+/** Handler for when text in the editable text box changed */
+void SFilterSearchBox::HandleTextChanged(const FText& NewText)
+{
+	OnTextChanged.ExecuteIfBound(NewText);
+}
+
+/** Handler for when text in the editable text box changed */
+void SFilterSearchBox::HandleTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
+{
+	// Set the text and execute the delegate
+	SetText(NewText);
+	OnTextCommitted.ExecuteIfBound(NewText, CommitType);
+	
+	UpdateSearchHistory(NewText);
+}
+
+void SFilterSearchBox::SetText(const TAttribute< FText >& InNewText)
+{
+	SearchBox->SetText(InNewText);
+}
+
+FText SFilterSearchBox::GetText() const
+{
+	return SearchBox->GetText();
+}
+
+void SFilterSearchBox::SetError( const FText& InError )
+{
+	SearchBox->SetError(InError);
+}
+
+void SFilterSearchBox::SetError( const FString& InError )
+{
+	SearchBox->SetError(InError);
+}
+
+void SFilterSearchBox::OnFocusLost(const FFocusEvent& InFocusEvent)
+{
+	// Update the search history on focus loss (for cases with SearchBoxes that don't commit on Enter)
+	UpdateSearchHistory(SearchBox->GetText());
+}
+
+/** Called by SListView when the selection changes in the search history list */
+void SFilterSearchBox::OnSelectionChanged( TSharedPtr<FText> NewValue, ESelectInfo::Type SelectInfo )
+{
+	/* Make sure the user can only select an item in the history using the mouse, and that they cannot select the
+	 * Placeholder text for empty search history
+	 */
+	if(SelectInfo != ESelectInfo::OnNavigation && NewValue && NewValue != EmptySearchHistoryText)
+	{
+		SearchBox->SetText(*NewValue);
+		SearchHistoryBox->SetIsOpen(false);
+	}
+}
+
+TSharedRef<ITableRow> SFilterSearchBox::MakeSearchHistoryRowWidget(TSharedPtr<FText> SearchText, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	bool bIsEmptySearchHistory = (SearchText == EmptySearchHistoryText);
+	EHorizontalAlignment TextAlignment = (bIsEmptySearchHistory) ? HAlign_Center : HAlign_Left;
+
+	TSharedPtr<SHorizontalBox> RowWidget = SNew(SHorizontalBox);
+
+	// The actual search text
+	RowWidget->AddSlot()
+	.HAlign(TextAlignment)
+	.VAlign(VAlign_Center)
+	.FillWidth(1.0)
+	[
+		SNew(STextBlock)
+		.Text(*SearchText.Get())
+	];
+
+	// If the Search History is not empty, add the button to save the search history
+	if(!bIsEmptySearchHistory)
+	{
+		RowWidget->AddSlot()
+		.HAlign(HAlign_Right)
+		[
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
+			.OnClicked_Lambda([this, SearchText]()
+			{
+				this->OnClickedAddSearchHistoryButton.ExecuteIfBound(*SearchText.Get());
+				return FReply::Handled();
+			})
+			.Visibility_Lambda([this]()
+			{
+				return this->OnClickedAddSearchHistoryButton.IsBound() ? EVisibility::Visible : EVisibility::Collapsed;
+			})
+			.ToolTipText(LOCTEXT("SearchHistoryToolTipText", "Save this search as a custom filter"))
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+			]
+		];
+	}
+
+	return SNew(STableRow< TSharedPtr<FString> >, OwnerTable)
+			.ShowSelection(!bIsEmptySearchHistory)
+			[
+				RowWidget.ToSharedRef()
+			];
+}
+
+void SFilterSearchBox::UpdateSearchHistory(const FText &NewText)
+{
+	// Don't save empty searches
+	if(NewText.IsEmpty())
+	{
+		return;
+	}
+
+	// If there is only one item, and it is the placeholder empty search text, remove it
+	if(SearchHistory.Num() == 1 && SearchHistory[0] == EmptySearchHistoryText)
+	{
+		SearchHistory.Empty();
+	}
+
+	// Remove any existing occurances of the current search text, we will re-add it to the top if so
+	SearchHistory.RemoveAll([&NewText](TSharedPtr<FText> SearchHistoryText)
+	{
+		if(SearchHistoryText->CompareTo(NewText) == 0)
+		{
+			return true;
+		}
+		return false;
+	});
+
+	// Insert the current search as the most recent in the history
+	SearchHistory.Insert(MakeShareable(new FText(NewText)), 0);
+
+	// Prune old entries until we are at the Max Search History limit
+	while( SearchHistory.Num() > MaxSearchHistory)
+	{
+		SearchHistory.RemoveAt( SearchHistory.Num()-1 );
+	}
+
+	SearchHistoryListView->RequestListRefresh();
+}
+
+FReply SFilterSearchBox::OnClickedSearchHistory()
+{
+	if(SearchHistoryBox->ShouldOpenDueToClick() && !SearchHistory.IsEmpty())
+	{
+		SearchHistoryBox->SetIsOpen(true);
+		SearchHistoryListView->ClearSelection();
+	}
+	else
+	{
+		SearchHistoryBox->SetIsOpen(false);
+	}
+	
+	return FReply::Handled();
+}
+
+#undef LOCTEXT_NAMESPACE

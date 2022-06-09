@@ -16,6 +16,12 @@
 #include "Widgets/SBoxPanel.h"
 #include "Misc/FilterCollection.h"
 #include "UObject/Object.h"
+#include "Core/Public/Misc/TextFilter.h"
+#include "Widgets/SWindow.h"
+#include "Filters/SCustomTextFilterDialog.h"
+#include "SSimpleButton.h"
+#include "Styling/StyleColors.h"
+#include "Filters/SFilterSearchBox.h"
 
 #include "SBasicFilterBar.generated.h"
 
@@ -60,6 +66,9 @@ public:
 	/** Delegate for when filters have changed */
 	DECLARE_DELEGATE_OneParam( FOnExtendAddFilterMenu, UToolMenu* );
 	
+	/** Delegate to create a TTextFilter used to compare FilterType with text queries */
+    DECLARE_DELEGATE_RetVal( TSharedPtr<TTextFilter<FilterType>>, FCreateTextFilter);
+	
  	SLATE_BEGIN_ARGS( SBasicFilterBar<FilterType> ){}
 
  		/** Delegate for when filters have changed */
@@ -70,6 +79,17 @@ public:
 
 		/** Initial List of Custom Filters that will be added to the AddFilter Menu */
 		SLATE_ARGUMENT( TArray<TSharedRef<FFilterBase<FilterType>>>, CustomFilters)
+
+		/** A delegate to create a TTextFilter for FilterType items. If provided, will allow creation of custom text filters
+		 *  from the filter dropdown menu.
+		 */
+		SLATE_ARGUMENT(FCreateTextFilter, CreateTextFilter)
+		
+		/** An SFilterSearchBox that can be attached to this filter bar. When provided along with a CreateTextFilter
+		 *  delegate, allows the user to save searches from the Search Box as text filters for the filter bar.
+		 *	NOTE: Will bind a delegate to SFilterSearchBox::OnClickedAddSearchHistoryButton
+		 */
+        SLATE_ARGUMENT(TSharedPtr<SFilterSearchBox>, FilterSearchBox)
 	
  	SLATE_END_ARGS()
 
@@ -77,6 +97,9 @@ public:
  	{
 		OnFilterChanged = InArgs._OnFilterChanged;
  		OnExtendAddFilterMenu = InArgs._OnExtendAddFilterMenu;
+ 		CreateTextFilter = InArgs._CreateTextFilter;
+
+ 		AttachFilterSearchBox(InArgs._FilterSearchBox);
 
  		// A subclass could be using an external filter collection (SFilterList in ContentBrowser)
  		if(!ActiveFilters)
@@ -126,6 +149,18 @@ public:
 					.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				];
+ 	}
+
+	/** Attach an SFilterSearchBox to this filter bar, overriding theSFilterSearchBox:: OnClickedAddSearchHistoryButton
+	 *  event to save a search as a filter
+	 */
+	void AttachFilterSearchBox(TSharedPtr<SFilterSearchBox> InFilterSearchBox)
+ 	{
+		if(InFilterSearchBox)
+		{
+			InFilterSearchBox->SetOnClickedAddSearchHistoryButton(
+				 SFilterSearchBox::FOnClickedAddSearchHistoryButton::CreateSP(this, &SBasicFilterBar<FilterType>::CreateCustomTextFilterFromSearch));
+		}
  	}
 
 private:
@@ -1042,6 +1077,232 @@ protected:
  			}
  		}
  	}
+ 	
+ 	/** Handler for when a checkbox next to a custom text filter is clicked */
+    void CustomTextFilterClicked(ECheckBoxState CheckBoxState, TSharedRef<FCustomTextFilter<FilterType>> FrontendFilter)
+    {
+    	if (CheckBoxState == ECheckBoxState::Unchecked)
+    	{
+    		RemoveFilter(FrontendFilter);
+    	}
+    	else
+    	{
+    		TSharedRef<SFilter> NewFilter = AddFilterToBar(FrontendFilter);
+    		NewFilter->SetEnabled(true);
+    	}
+    }
+
+	/** Handler for when a custom text filter is created */
+	void OnCreateCustomTextFilter(const FCustomTextFilterData& InFilterData, bool bApplyFilter)
+	{
+		// Create a TTextFilter for the current filter we are making using the provided delegate
+		TSharedRef<TTextFilter<FilterType>> NewTextFilter = CreateTextFilter.Execute().ToSharedRef();
+		
+		// Create the actual text filter
+		TSharedRef<FCustomTextFilter<FilterType>> NewFilter = MakeShared<FCustomTextFilter<FilterType>>(NewTextFilter);
+
+		// Fill in the data the widget gives us
+		NewFilter->SetDisplayName(InFilterData.FilterLabel);
+		NewFilter->SetColor(InFilterData.FilterColor);
+		NewFilter->SetFilterString(InFilterData.FilterString);
+
+		CustomTextFilters.Add(NewFilter);
+		TSharedRef<SFilter> AddedFilter = AddFilterToBar(NewFilter);
+		AddedFilter->SetEnabled(bApplyFilter);
+
+		// Close the create custom filter dialog 		
+		OnCancelCustomTextFilterDialog();
+	}
+
+	/** Handler for when a custom text filter is modified */
+	void OnModifyCustomTextFilter(const FCustomTextFilterData& InFilterData, TSharedPtr<FCustomTextFilter<FilterType>> InFilter)
+	{
+		// Update the filter with the data the widget has given us
+		if(InFilter)
+		{
+			InFilter->SetDisplayName(InFilterData.FilterLabel);
+			InFilter->SetColor(InFilterData.FilterColor);
+			InFilter->SetFilterString(InFilterData.FilterString);
+		}
+
+		// If the filter we modified is active in the bar, remove and re-add it to update the data
+		for (const TSharedRef<SFilter>& Filter : Filters)
+		{
+			if (Filter->GetFrontendFilter() == InFilter)
+			{
+				bool bWasEnabled = Filter->IsEnabled();
+				
+				RemoveFilter(InFilter.ToSharedRef());
+
+				TSharedRef<SFilter> AddedFilter = AddFilterToBar(InFilter.ToSharedRef());
+				AddedFilter->SetEnabled(bWasEnabled);
+			}
+		}
+
+		OnCancelCustomTextFilterDialog();
+	}
+
+	/** Handler for when a custom text filter is deleted */
+	void OnDeleteCustomTextFilter(const TSharedPtr<FCustomTextFilter<FilterType>> InFilter)
+	{
+		if(InFilter)
+		{
+			CustomTextFilters.RemoveSingle(InFilter.ToSharedRef());
+			RemoveFilter(InFilter.ToSharedRef());
+		}
+		
+		OnCancelCustomTextFilterDialog();
+	}
+
+	/** Handler to close the custom text filter dialog */
+	void OnCancelCustomTextFilterDialog()
+	{
+		if(CustomTextFilterWindow.IsValid())
+		{
+			CustomTextFilterWindow.Pin()->RequestDestroyWindow();
+		}
+	}
+
+	/** Creates a dialog box with the SCustomTextFilterDialog Widget */
+	void CreateCustomTextFilterWindow(const FCustomTextFilterData& CustomTextFilterData, TSharedPtr<FCustomTextFilter<FilterType>> InFilter)
+	{
+		/** If we already have a window, delete it */
+		OnCancelCustomTextFilterDialog();
+
+		// If we have a filter to edit, we are in edit mode
+		bool bInEditMode = InFilter.IsValid();
+		
+		FText WindowTitle = bInEditMode ? LOCTEXT("ModifyCustomTextFilterWindow", "Modify Custom Filter") : LOCTEXT("CreateCustomTextFilterWindow", "Create Custom Filter");
+		
+		TSharedPtr<SWindow> NewTextFilterWindow = SNew(SWindow)
+			.Title(WindowTitle)
+			.HasCloseButton(true)
+			.SupportsMaximize(false)
+			.SupportsMinimize(false)
+			.ClientSize(FVector2D(724, 183));
+		
+		TSharedPtr<SCustomTextFilterDialog> CustomTextFilterDialog =
+			SNew(SCustomTextFilterDialog)
+			.FilterData(CustomTextFilterData)
+			.InEditMode(bInEditMode)
+			.OnCreateFilter(this, &SBasicFilterBar<FilterType>::OnCreateCustomTextFilter)
+			.OnDeleteFilter(this, &SBasicFilterBar<FilterType>::OnDeleteCustomTextFilter, InFilter)
+			.OnModifyFilter(this, &SBasicFilterBar<FilterType>::OnModifyCustomTextFilter, InFilter)
+			.OnCancelClicked(this, &SBasicFilterBar<FilterType>::OnCancelCustomTextFilterDialog);
+
+		NewTextFilterWindow->SetContent(CustomTextFilterDialog.ToSharedRef());
+		FSlateApplication::Get().AddWindow(NewTextFilterWindow.ToSharedRef());
+		
+		CustomTextFilterWindow = NewTextFilterWindow;
+	}
+
+	/** Creates a dialog box to Add a custom text filter */
+	void CreateAddCustomTextFilterWindow()
+	{
+		CreateCustomTextFilterWindow(FCustomTextFilterData(), nullptr);
+	}
+
+	/** Creates a dialog box to Edit an existing custom text filter */
+	void CreateEditCustomTextFilterWindow(TSharedPtr<FCustomTextFilter<FilterType>> InFilter)
+	{
+		if(!InFilter)
+		{
+			return;
+		}
+
+		FCustomTextFilterData CustomTextFilterData;
+		CustomTextFilterData.FilterLabel = InFilter->GetDisplayName();
+		CustomTextFilterData.FilterColor = InFilter->GetColor();
+		CustomTextFilterData.FilterString = InFilter->GetFilterString();
+
+		CreateCustomTextFilterWindow(CustomTextFilterData, InFilter);
+	}
+
+	/** Creates a dialog to add a custom text filter from the given search text */
+	void CreateCustomTextFilterFromSearch(const FText& InSearchText)
+	{
+		FCustomTextFilterData CustomTextFilterData;
+		CustomTextFilterData.FilterLabel = InSearchText;
+		CustomTextFilterData.FilterString = InSearchText;
+
+		CreateCustomTextFilterWindow(CustomTextFilterData, nullptr);
+	}
+	
+	/** Populate the Custom Filters submenu in the Add Filter dropdown */
+	void CreateTextFiltersMenu(UToolMenu* InMenu)
+	{
+		FToolMenuSection& Section = InMenu->AddSection("FilterBarTextFiltersSubmenu");
+		
+		Section.AddMenuEntry(
+			"CreateNewTextFilter",
+			LOCTEXT("CreateNewTextFilter", "Create New Filter"),
+			LOCTEXT("CreateNewTextFilterTooltip", "Create a new text filter"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.PlusCircle"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SBasicFilterBar<FilterType>::CreateAddCustomTextFilterWindow)
+				)
+		);
+
+		FToolMenuSection& CustomFiltersSection = InMenu->AddSection("FilterBarCustomTextFiltersSection");
+		
+		for (const TSharedRef<FCustomTextFilter<FilterType>>& FrontendFilter : CustomTextFilters)
+		{
+			bool bIsFilterChecked = IsFrontendFilterInUse(FrontendFilter);
+			
+			TSharedPtr<SHorizontalBox> CustomTextFilterWidget = SNew(SHorizontalBox);
+			
+			// Checkbox for the filter
+			CustomTextFilterWidget->AddSlot()
+			.AutoWidth()
+			.Padding(16, 0, 0, 0)
+			[
+				SNew(SCheckBox)
+				.Style(FAppStyle::Get(), "Menu.CheckBox")
+				.OnCheckStateChanged(FOnCheckStateChanged::CreateSP(this, &SBasicFilterBar<FilterType>::CustomTextFilterClicked, FrontendFilter))
+				.IsChecked(bIsFilterChecked)
+			];
+
+			// A button showing the filter name, that checks it when clicked on
+			CustomTextFilterWidget->AddSlot()
+			.FillWidth(1.0)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.ForegroundColor(FStyleColors::White)
+				.Text(FrontendFilter->GetDisplayName())
+				.OnClicked_Lambda([this, &FrontendFilter]()
+				{
+					this->FrontendFilterClicked(FrontendFilter);
+					FSlateApplication::Get().DismissAllMenus();
+					return FReply::Handled();
+				})
+			];
+
+			// An edit button to open the edit custom text filter dialog
+			CustomTextFilterWidget->AddSlot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.Padding(0, 0, 16, 0)
+			[
+				SNew(SSimpleButton)
+				.Icon(FAppStyle::GetBrush("Icons.Edit"))
+				.OnClicked_Lambda([this, &FrontendFilter]()
+				{
+					this->CreateEditCustomTextFilterWindow(FrontendFilter);
+					return FReply::Handled();
+				})
+			];
+
+			CustomFiltersSection.AddEntry(
+			FToolMenuEntry::InitWidget(
+				NAME_None,
+				CustomTextFilterWidget.ToSharedRef(),
+				FText::GetEmpty(),
+				true,
+				true
+			));
+		}
+	}
 
 	/** Helper function to add common sections to the Add Filter Menu */
 	void PopulateCommonFilterSections(UToolMenu* Menu)
@@ -1056,6 +1317,19 @@ protected:
 				FExecuteAction::CreateSP(this, &SBasicFilterBar<FilterType>::OnResetFilters),
 				FCanExecuteAction::CreateLambda([this]() { return HasAnyFilters(); }))
 		);
+
+		// Only add the custom text filter submenu if we have a valid CreateTextFilter delegate to use
+		if(CreateTextFilter.IsBound())
+		{
+			FToolMenuSection& CustomFiltersSection = Menu->AddSection("FilterBarTextFilters");
+
+			CustomFiltersSection.AddSubMenu(
+					"CustomFiltersSubMenu",
+					LOCTEXT("FilterBarTextFilters", "Custom Filters"),
+					LOCTEXT("FilterBarTextFiltersTooltip", "Custom Filters"),
+					FNewToolMenuDelegate::CreateSP(this, &SBasicFilterBar<FilterType>::CreateTextFiltersMenu)
+					);
+		}
 		
 		OnExtendAddFilterMenu.ExecuteIfBound(Menu);
 	}
@@ -1143,6 +1417,15 @@ protected:
 	/** Delegate to extend the AddFilter Menu */
 	FOnExtendAddFilterMenu OnExtendAddFilterMenu;
 
+	/** A delegate used to create a TTextFilter for FilterType */
+	FCreateTextFilter CreateTextFilter;
+	
+	/** Custom text filters that a user can create */
+	TArray< TSharedRef< FCustomTextFilter<FilterType> > > CustomTextFilters;
+
+	/** The window containing the custom text filter dialog */
+	TWeakPtr<SWindow> CustomTextFilterWindow;
+	
 	friend struct FFrontendFilterExternalActivationHelper<FilterType>;
 };
 

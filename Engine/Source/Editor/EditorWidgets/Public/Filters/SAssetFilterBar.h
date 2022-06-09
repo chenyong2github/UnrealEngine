@@ -78,6 +78,7 @@ public:
 	
 	using FOnFilterChanged = typename SBasicFilterBar<FilterType>::FOnFilterChanged;
 	using FOnExtendAddFilterMenu = typename SBasicFilterBar<FilterType>::FOnExtendAddFilterMenu;
+	using FCreateTextFilter = typename SBasicFilterBar<FilterType>::FCreateTextFilter;
 
 	SLATE_BEGIN_ARGS( SAssetFilterBar<FilterType> )
 		: _UseDefaultAssetFilters(true)
@@ -97,6 +98,17 @@ public:
 		/** Initial List of Custom Class filters that will be added to the AddFilter Menu */
 		SLATE_ARGUMENT( TArray<TSharedRef<FCustomClassFilterData>>, CustomClassFilters)
 
+		/** A delegate to create a TTextFilter for FilterType items. If provided, will allow creation of custom text filters
+		 *  from the filter dropdown menu.
+		 */
+		SLATE_ARGUMENT(FCreateTextFilter, CreateTextFilter)
+			
+		/** An SFilterSearchBox that can be attached to this filter bar. When provided along with a CreateTextFilter
+		 *  delegate, allows the user to save searches from the Search Box as text filters for the filter bar.
+		 *	NOTE: Will bind a delegate to SFilterSearchBox::OnClickedAddSearchHistoryButton
+		 */
+		SLATE_ARGUMENT(TSharedPtr<SFilterSearchBox>, FilterSearchBox)
+
 		/** Whether the filter bar should provide the default asset filters */
 		SLATE_ARGUMENT(bool, UseDefaultAssetFilters)
 	
@@ -112,6 +124,8 @@ public:
 		Args._OnFilterChanged = InArgs._OnFilterChanged;
 		Args._CustomFilters = InArgs._CustomFilters;
 		Args._OnExtendAddFilterMenu = InArgs._OnExtendAddFilterMenu;
+		Args._CreateTextFilter = InArgs._CreateTextFilter;
+		Args._FilterSearchBox = InArgs._FilterSearchBox;
 		
 		SBasicFilterBar<FilterType>::Construct(Args);
 		

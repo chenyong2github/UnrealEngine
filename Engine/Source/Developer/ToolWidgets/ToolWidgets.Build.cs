@@ -23,6 +23,7 @@ public class ToolWidgets : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AppFramework",
 				"ApplicationCore"
 			}
 		);
