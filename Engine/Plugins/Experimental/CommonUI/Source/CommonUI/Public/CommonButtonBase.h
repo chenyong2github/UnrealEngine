@@ -542,6 +542,9 @@ protected:
 	void OnTriggeredInputActionChanged(const FDataTableRowHandle& NewTriggeredAction);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Common Button")
+	void OnTriggeringInputActionChanged(const FDataTableRowHandle& NewTriggeredAction);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Common Button")
 	void OnActionProgress(float HeldPercent);
 	
 	UFUNCTION()

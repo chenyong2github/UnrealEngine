@@ -914,6 +914,8 @@ void UCommonButtonBase::SetTriggeredInputAction(const FDataTableRowHandle &Input
 	{
 		TriggeredInputAction = InputActionRow;
 		UpdateInputActionWidget();
+
+		OnTriggeredInputActionChanged(InputActionRow);
 	}
 
 }
@@ -933,6 +935,8 @@ void UCommonButtonBase::SetTriggeringInputAction(const FDataTableRowHandle & Inp
 
 		// Update the Input action widget whenever the triggering input action changes
 		UpdateInputActionWidget();
+
+		OnTriggeringInputActionChanged(InputActionRow);
 	}
 }
 
