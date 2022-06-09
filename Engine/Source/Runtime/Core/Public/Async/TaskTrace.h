@@ -40,6 +40,7 @@ namespace TaskTrace
 	void CORE_API NestedAdded(FId TaskId, FId NestedId);
 	void CORE_API Finished(FId TaskId);
 	void CORE_API Completed(FId TaskId);
+	void CORE_API Destroyed(FId TaskId);
 
 	struct CORE_API FWaitingScope
 	{
@@ -70,6 +71,7 @@ namespace TaskTrace
 	inline void NestedAdded(FId TaskId, FId NestedId) {}
 	inline void Finished(FId TaskId) {}
 	inline void Completed(FId TaskId) {}
+	inline void Destroyed(FId TaskId) {}
 	inline FWaitingScope::FWaitingScope(const TArray<FId>& Tasks) {}
 	inline FWaitingScope::FWaitingScope(FId TaskId) {}
 	inline FWaitingScope::~FWaitingScope() {}

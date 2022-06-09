@@ -39,6 +39,9 @@ public:
 	double GetCompletedTimestamp() const { return CompletedTimestamp; }
 	uint32 GetCompletedThreadId() const { return CompletedThreadId; }
 
+	double GetDestroyedTimestamp() const { return DestroyedTimestamp; }
+	uint32 GetDestroyedThreadId() const { return DestroyedThreadId; }
+
 	uint32 GetNumNested() const { return NumNested; }
 	uint32 GetNumPrerequisites() const { return NumPrerequisites; }
 	uint32 GetNumSubsequents() const { return NumSubsequents; }
@@ -68,6 +71,9 @@ private:
 
 	double CompletedTimestamp;
 	uint32 CompletedThreadId;
+
+	double DestroyedTimestamp;
+	uint32 DestroyedThreadId;
 
 	uint32 NumNested;
 	uint32 NumSubsequents;

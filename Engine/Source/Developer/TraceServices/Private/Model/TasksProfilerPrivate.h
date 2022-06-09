@@ -30,6 +30,7 @@ namespace TraceServices
 		void NestedAdded(TaskTrace::FId TaskId, TaskTrace::FId NestedId, double Timestamp, uint32 ThreadId);
 		void TaskFinished(TaskTrace::FId TaskId, double Timestamp);
 		void TaskCompleted(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId);
+		void TaskDestroyed(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId);
 
 		void WaitingStarted(TArray<TaskTrace::FId> Tasks, double Timestamp, uint32 ThreadId);
 		void WaitingFinished(double Timestamp, uint32 ThreadId);

@@ -105,6 +105,9 @@ private:
 	bool ContextMenu_GoToTask_CanExecute() const;
 	void ContextMenu_GoToTask_Execute();
 
+	bool ContextMenu_OpenInIDE_CanExecute() const;
+	void ContextMenu_OpenInIDE_Execute();
+
 private:
 	double QueryStartTime = 0.0f;
 	double QueryEndTime = 0.0f;

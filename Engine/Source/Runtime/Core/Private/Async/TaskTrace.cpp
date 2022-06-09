@@ -62,6 +62,11 @@ namespace TaskTrace
 		UE_TRACE_EVENT_FIELD(uint64, TaskId)
 	UE_TRACE_EVENT_END()
 
+	UE_TRACE_EVENT_BEGIN(TaskTrace, Destroyed)
+		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
+		UE_TRACE_EVENT_FIELD(uint64, TaskId)
+	UE_TRACE_EVENT_END()
+
 	UE_TRACE_EVENT_BEGIN(TaskTrace, WaitingStarted)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
 		UE_TRACE_EVENT_FIELD(uint64[], Tasks)
@@ -97,7 +102,6 @@ namespace TaskTrace
 	{
 		check(bGTaskTraceInitialized);
 		check(TaskId != InvalidId);
-		check(TaskId != 0);
 
 		UE_TRACE_LOG(TaskTrace, Created, TaskChannel)
 			<< Created.Timestamp(FPlatformTime::Cycles64())
@@ -189,6 +193,15 @@ namespace TaskTrace
 		UE_TRACE_LOG(TaskTrace, Completed, TaskChannel)
 			<< Completed.Timestamp(FPlatformTime::Cycles64())
 			<< Completed.TaskId(TaskId);
+	}
+
+	void Destroyed(FId TaskId)
+	{
+		check(bGTaskTraceInitialized);
+
+		UE_TRACE_LOG(TaskTrace, Destroyed, TaskChannel)
+			<< Destroyed.Timestamp(FPlatformTime::Cycles64())
+			<< Destroyed.TaskId(TaskId);
 	}
 
 	FWaitingScope::FWaitingScope(const TArray<FId>& Tasks)

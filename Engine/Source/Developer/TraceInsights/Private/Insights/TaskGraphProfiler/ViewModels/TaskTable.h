@@ -27,9 +27,11 @@ struct FTaskTableColumns
 	static const FName ScheduledThreadIdColumnId;
 	static const FName StartedTimestampColumnId;
 	static const FName StartedThreadIdColumnId;
+	static const FName FinishedTimestampColumnId;
 	static const FName CompletedTimestampColumnId;
 	static const FName CompletedThreadIdColumnId;
-	static const FName FinishedTimestampColumnId;
+	static const FName DestroyedTimestampColumnId;
+	static const FName DestroyedThreadIdColumnId;
 	static const FName NumNestedColumnId;
 	static const FName NumSubsequentsColumnId;
 	static const FName NumPrerequisitesColumnId;

@@ -218,6 +218,12 @@ namespace TraceServices
 		FTaskInfo* Task = TryGetTask(TaskId);
 		check(Task != nullptr);
 
+		if (Task->ScheduledTimestamp == FTaskInfo::InvalidTimestamp) // "inline" tasks or task events are never scheduled
+		{
+			Task->ScheduledTimestamp = Timestamp;
+			Task->ScheduledThreadId = ThreadId;
+		}
+
 		if (!bCountersCreated)
 		{
 			CreateCounters();
@@ -285,7 +291,23 @@ namespace TraceServices
 
 		Task->Id = TaskId;
 
+		if (Task->ScheduledTimestamp == FTaskInfo::InvalidTimestamp) // task events are never scheduled or executed
+		{
+			// pretend scheduling and execution happened at the moment of completion
+			Task->ScheduledTimestamp = Timestamp;
+			Task->ScheduledThreadId = ThreadId;
+			Task->StartedTimestamp = Timestamp;
+			Task->StartedThreadId = ThreadId;
+			Task->FinishedTimestamp = Timestamp;
+		}
+
 		TryRegisterEvent(TEXT("TaskCompleted"), TaskId, &FTaskInfo::CompletedTimestamp, Timestamp, &FTaskInfo::CompletedThreadId, ThreadId);
+	}
+
+	void FTasksProvider::TaskDestroyed(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId)
+	{
+		InitTaskIdToIndexConversion(TaskId);
+		TryRegisterEvent(TEXT("TaskDestroyed"), TaskId, &FTaskInfo::DestroyedTimestamp, Timestamp, &FTaskInfo::DestroyedThreadId, ThreadId);
 	}
 
 	void FTasksProvider::WaitingStarted(TArray<TaskTrace::FId> InTasks, double Timestamp, uint32 ThreadId)

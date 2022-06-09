@@ -29,6 +29,7 @@ void FTasksAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_NestedAdded, "TaskTrace", "NestedAdded");
 	Builder.RouteEvent(RouteId_Finished, "TaskTrace", "Finished");
 	Builder.RouteEvent(RouteId_Completed, "TaskTrace", "Completed");
+	Builder.RouteEvent(RouteId_Destroyed, "TaskTrace", "Destroyed");
 
 	Builder.RouteEvent(RouteId_WaitingStarted, "TaskTrace", "WaitingStarted");
 	Builder.RouteEvent(RouteId_WaitingFinished, "TaskTrace", "WaitingFinished");
@@ -120,6 +121,13 @@ bool FTasksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 			double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Timestamp"));
 			TaskTrace::FId TaskId = EventData.GetValue<TaskTrace::FId>("TaskId");
 			TasksProvider.TaskCompleted(TaskId, Timestamp, ThreadId);
+			break;
+		}
+		case RouteId_Destroyed:
+		{
+			double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Timestamp"));
+			TaskTrace::FId TaskId = EventData.GetValue<TaskTrace::FId>("TaskId");
+			TasksProvider.TaskDestroyed(TaskId, Timestamp, ThreadId);
 			break;
 		}
 		case RouteId_WaitingStarted:

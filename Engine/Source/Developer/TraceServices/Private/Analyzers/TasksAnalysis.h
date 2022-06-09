@@ -29,6 +29,7 @@ namespace TraceServices
 			RouteId_NestedAdded,
 			RouteId_Finished,
 			RouteId_Completed,
+			RouteId_Destroyed,
 
 			RouteId_WaitingStarted,
 			RouteId_WaitingFinished,

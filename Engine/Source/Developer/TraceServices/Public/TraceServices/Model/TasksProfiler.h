@@ -42,6 +42,9 @@ namespace TraceServices
 		// execution done and all nested tasks are completed
 		double CompletedTimestamp = InvalidTimestamp;
 		uint32 CompletedThreadId;
+		// the last reference is released and the task is destroyed
+		double DestroyedTimestamp = InvalidTimestamp;
+		uint32 DestroyedThreadId;
 
 		//  relation with another task, when and where it was established
 		struct FRelationInfo

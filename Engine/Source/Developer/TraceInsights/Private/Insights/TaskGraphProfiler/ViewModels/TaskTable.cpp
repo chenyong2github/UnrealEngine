@@ -27,9 +27,11 @@ const FName FTaskTableColumns::ScheduledTimestampColumnId(TEXT("ScheduledTimesta
 const FName FTaskTableColumns::ScheduledThreadIdColumnId(TEXT("ScheduledThreadId"));
 const FName FTaskTableColumns::StartedTimestampColumnId(TEXT("StartedTimestamp"));
 const FName FTaskTableColumns::StartedThreadIdColumnId(TEXT("StartedThreadId"));
+const FName FTaskTableColumns::FinishedTimestampColumnId(TEXT("FinishedTimestamp"));
 const FName FTaskTableColumns::CompletedTimestampColumnId(TEXT("CompletedTimestamp"));
 const FName FTaskTableColumns::CompletedThreadIdColumnId(TEXT("CompletedThreadId"));
-const FName FTaskTableColumns::FinishedTimestampColumnId(TEXT("FinishedTimestamp"));
+const FName FTaskTableColumns::DestroyedTimestampColumnId(TEXT("DestroyedTimestamp"));
+const FName FTaskTableColumns::DestroyedThreadIdColumnId(TEXT("DestroyedThreadId"));
 const FName FTaskTableColumns::NumNestedColumnId(TEXT("NumNested"));
 const FName FTaskTableColumns::NumSubsequentsColumnId(TEXT("NumSubsequents"));
 const FName FTaskTableColumns::NumPrerequisitesColumnId(TEXT("NumPrerequisites"));
@@ -83,10 +85,13 @@ struct DefaultTaskFieldGetterFuncts
 	static FTableCellValue GetStartedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetStartedTimestamp()); }
 	static FTableCellValue GetStartedThreadId(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetStartedThreadId()); }
 
+	static FTableCellValue GetFinishedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetFinishedTimestamp()); }
+
 	static FTableCellValue GetCompletedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetCompletedTimestamp()); }
 	static FTableCellValue GetCompletedThreadId(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetCompletedThreadId()); }
 
-	static FTableCellValue GetFinishedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetFinishedTimestamp()); }
+	static FTableCellValue GetDestroyedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetDestroyedTimestamp()); }
+	static FTableCellValue GetDestroyedThreadId(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetDestroyedThreadId()); }
 
 	static FTableCellValue GetNumNested(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetNumNested());	}
 	static FTableCellValue GetNumSubsequents(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetNumSubsequents()); }
@@ -114,6 +119,7 @@ struct RelativeToPreviousTaskFieldGetterFuncts
 			return FTableCellValue(Task.GetCompletedTimestamp());
 		}
 	}
+	static FTableCellValue GetDestroyedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetDestroyedTimestamp() - Task.GetCompletedTimestamp()); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,6 +143,7 @@ struct RelativeToCreatedTaskFieldGetterFuncts
 			return FTableCellValue(Task.GetCompletedTimestamp());
 		}
 	}
+	static FTableCellValue GetDestroyedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetDestroyedTimestamp() - Task.GetCreatedTimestamp()); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -549,6 +556,68 @@ void FTaskTable::AddDefaultColumns()
 		Column.SetDataType(ETableCellDataType::Int64);
 
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetCompletedThreadId>>();
+		Column.SetValueGetter(Getter);
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		AddColumn(ColumnRef);
+	}
+	//////////////////////////////////////////////////
+	// Destroyed Timestamp Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FTaskTableColumns::DestroyedTimestampColumnId);
+		FTableColumn& Column = *ColumnRef;
+
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("DestroyedTimestampColumnName", "Destroyed"));
+		Column.SetTitleName(LOCTEXT("DestroyedTimestampColumnTitle", "Destroyed"));
+		Column.SetDescription(LOCTEXT("DestroyedTimestampColumnDesc", "The time when the task was Destroyed."));
+
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetInitialWidth(100.0f);
+
+		Column.SetDataType(ETableCellDataType::Double);
+
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetDestroyedTimestamp>>();
+		Column.SetValueGetter(Getter);
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FDoubleValueFormatterAsTimeAuto>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		Column.SetAggregation(ETableColumnAggregation::Min);
+
+		AddColumn(ColumnRef);
+	}
+	//////////////////////////////////////////////////
+	// Destroyed Thread Id Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FTaskTableColumns::DestroyedThreadIdColumnId);
+		FTableColumn& Column = *ColumnRef;
+
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("DestroyedThreadIdColumnName", "Destroyed Thread Id"));
+		Column.SetTitleName(LOCTEXT("DestroyedThreadIdColumnTitle", "Completed Thread Id"));
+		Column.SetDescription(LOCTEXT("DestroyedThreadIdColumnDesc", "The thread the task was Destroyed on."));
+
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetInitialWidth(100.0f);
+
+		Column.SetDataType(ETableCellDataType::Int64);
+
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetDestroyedThreadId>>();
 		Column.SetValueGetter(Getter);
 
 		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();

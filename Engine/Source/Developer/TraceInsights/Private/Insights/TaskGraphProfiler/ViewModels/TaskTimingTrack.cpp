@@ -670,10 +670,8 @@ void FTaskTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builde
 	Builder.AddEvent(Task->LaunchedTimestamp, Task->ScheduledTimestamp, 0, TEXT("Launched"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Launched));
 	Builder.AddEvent(Task->ScheduledTimestamp, Task->StartedTimestamp, 0, TEXT("Scheduled"), 0,  FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Scheduled));
 	Builder.AddEvent(Task->StartedTimestamp, Task->FinishedTimestamp, 0, TEXT("Executing"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Started));
-	if (Task->CompletedTimestamp > Task->FinishedTimestamp)
-	{
-		Builder.AddEvent(Task->FinishedTimestamp, Task->CompletedTimestamp, 0, TEXT("Finished"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Finished));
-	}
+	Builder.AddEvent(Task->FinishedTimestamp, Task->CompletedTimestamp, 0, TEXT("Finished"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Finished));
+	Builder.AddEvent(Task->CompletedTimestamp, Task->DestroyedTimestamp, 0, TEXT("Completed"), 0, FTaskGraphProfilerManager::Get()->GetColorForTaskEventAsPackedARGB(ETaskEventType::Completed));
 
 	if (bShowDetailInfoOnTaskTrack)
 	{
@@ -858,9 +856,14 @@ const TSharedPtr<const ITimingEvent> FTaskTimingTrack::GetEvent(float InPosX, fl
 			{
 				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->ScheduledTimestamp, Task->StartedTimestamp, 0, ETaskEventType::Scheduled);
 			}
+			// the unusual order of `if`s here is intended to give priority to smaller events
 			else if (IsEventTimeBetween(Task->FinishedTimestamp, Task->CompletedTimestamp))
 			{
 				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->FinishedTimestamp, Task->CompletedTimestamp, 0, ETaskEventType::Finished);
+			}
+			else if (IsEventTimeBetween(Task->CompletedTimestamp, Task->DestroyedTimestamp))
+			{
+				TimingEvent = MakeShared<FTaskTrackEvent>(SharedThis(this), Task->CompletedTimestamp >= Task->FinishedTimestamp ? Task->CompletedTimestamp : Task->FinishedTimestamp, Task->DestroyedTimestamp, 0, ETaskEventType::Completed);
 			}
 			else if (IsEventTimeBetween(Task->StartedTimestamp, Task->FinishedTimestamp))
 			{
@@ -976,6 +979,8 @@ void FTaskTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimin
 		break;
 	case ETaskEventType::Finished:
 		InOutTooltip.AddNameValueTextLine(TEXT("Subsequent tasks:"), FString::Printf(TEXT("%d"), Task->Subsequents.Num()));
+		break;
+	case ETaskEventType::Completed:
 		break;
 	default:
 		checkf(false, TEXT("Unknown task event type"));

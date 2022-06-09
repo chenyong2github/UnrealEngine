@@ -42,6 +42,7 @@ enum class ETaskEventType : uint32
 	Scheduled,
 	Started,
 	Finished,
+	Completed,
 	PrerequisiteStarted,
 	NestedStarted,
 	NestedCompleted,
