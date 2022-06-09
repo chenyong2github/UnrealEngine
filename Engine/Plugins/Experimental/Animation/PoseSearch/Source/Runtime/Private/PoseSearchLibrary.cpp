@@ -200,7 +200,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 
 		float SteppedTime = AssetPlayerTime;
 		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
-			DbSequence.bLoopAnimation,
+			DbSequence.Sequence->bLoop,
 			DeltaTime,
 			SteppedTime,
 			AssetLength);
@@ -265,7 +265,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 		float RealTime = AssetPlayerTime * PlayLength;
 		float SteppedTime = RealTime;
 		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
-			DbBlendSpace.bLoopAnimation,
+			DbBlendSpace.BlendSpace->bLoop,
 			DeltaTime,
 			SteppedTime,
 			PlayLength);

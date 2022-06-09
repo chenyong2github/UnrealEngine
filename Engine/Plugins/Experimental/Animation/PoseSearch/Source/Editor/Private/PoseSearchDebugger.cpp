@@ -950,7 +950,7 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 				Row->AssetTime = Time;
 				Row->AnimFrame = DbSequence.Sequence->GetFrameAtTime(Time);
 				Row->bMirrored = SearchIndexAsset.bMirrored;
-				Row->bLooping = DbSequence.bLoopAnimation;
+				Row->bLooping = DbSequence.Sequence->bLoop;
 				Row->BlendParameters = FVector::Zero();
 			}
 		}
@@ -971,7 +971,7 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 				Row->AssetTime = Time;
 				Row->AnimFrame = 0; // There is no frame index associated with a blendspace
 				Row->bMirrored = SearchIndexAsset.bMirrored;
-				Row->bLooping = DbBlendSpace.bLoopAnimation;
+				Row->bLooping = DbBlendSpace.BlendSpace->bLoop;
 				Row->BlendParameters = SearchIndexAsset.BlendParameters;
 			}
 		}
@@ -2413,7 +2413,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 			UpdateContext.StartTime = Skeletons[SelectedPose].Time;
 			UpdateContext.Time = Skeletons[SelectedPose].Time;
 			UpdateContext.bMirrored = Skeletons[SelectedPose].bMirrored;
-			UpdateContext.bLoop = DatabaseSequence->bLoopAnimation;
+			UpdateContext.bLoop = DatabaseSequence->Sequence->bLoop;
 		}
 		else if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::BlendSpace)
 		{
@@ -2424,7 +2424,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 			UpdateContext.StartTime = Skeletons[SelectedPose].Time;
 			UpdateContext.Time = Skeletons[SelectedPose].Time;
 			UpdateContext.bMirrored = Skeletons[SelectedPose].bMirrored;
-			UpdateContext.bLoop = DatabaseBlendSpace->bLoopAnimation;
+			UpdateContext.bLoop = DatabaseBlendSpace->BlendSpace->bLoop;
 			UpdateContext.BlendParameters = Skeletons[SelectedPose].BlendParameters;
 		}
 		else
@@ -2450,7 +2450,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 			UpdateContext.StartTime = Skeletons[Asset].Time;
 			UpdateContext.Time = Skeletons[Asset].Time;
 			UpdateContext.bMirrored = Skeletons[Asset].bMirrored;
-			UpdateContext.bLoop = DatabaseSequence->bLoopAnimation;
+			UpdateContext.bLoop = DatabaseSequence->Sequence->bLoop;
 		}
 		else if (Skeletons[SelectedPose].Type == ESearchIndexAssetType::BlendSpace)
 		{
@@ -2461,7 +2461,7 @@ void FDebuggerViewModel::OnDraw(FSkeletonDrawParams& DrawParams)
 			UpdateContext.StartTime = Skeletons[Asset].Time;
 			UpdateContext.Time = Skeletons[Asset].Time;
 			UpdateContext.bMirrored = Skeletons[Asset].bMirrored;
-			UpdateContext.bLoop = DatabaseBlendSpace->bLoopAnimation;
+			UpdateContext.bLoop = DatabaseBlendSpace->BlendSpace->bLoop;
 			UpdateContext.BlendParameters = Skeletons[Asset].BlendParameters;
 		}
 		else
@@ -2578,13 +2578,13 @@ void FDebuggerViewModel::UpdateAsset()
 	{
 		const FPoseSearchDatabaseSequence* DatabaseSequence = GetAnimSequence(AssetSkeleton.AssetIdx);
 		AnimAsset = DatabaseSequence->Sequence;
-		bAssetLooping = DatabaseSequence->bLoopAnimation;
+		bAssetLooping = DatabaseSequence->Sequence->bLoop;
 	}
 	else if (AssetSkeleton.Type == ESearchIndexAssetType::BlendSpace)
 	{
 		const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = GetBlendSpace(AssetSkeleton.AssetIdx);
 		AnimAsset = DatabaseBlendSpace->BlendSpace;
-		bAssetLooping = DatabaseBlendSpace->bLoopAnimation;
+		bAssetLooping = DatabaseBlendSpace->BlendSpace->bLoop;
 	}
 	else
 	{

@@ -4588,17 +4588,17 @@ void FDatabaseIndexingContext::PrepareSamplers()
 	{
 		if (DbSequence.Sequence)
 		{
-			AddSequenceSampler(DbSequence.Sequence, DbSequence.bLoopAnimation);
+			AddSequenceSampler(DbSequence.Sequence, DbSequence.Sequence->bLoop);
 		}
 
 		if (DbSequence.LeadInSequence)
 		{
-			AddSequenceSampler(DbSequence.LeadInSequence, DbSequence.bLoopLeadInAnimation);
+			AddSequenceSampler(DbSequence.LeadInSequence, DbSequence.LeadInSequence->bLoop);
 		}
 
 		if (DbSequence.FollowUpSequence)
 		{
-			AddSequenceSampler(DbSequence.FollowUpSequence, DbSequence.bLoopFollowUpAnimation);
+			AddSequenceSampler(DbSequence.FollowUpSequence, DbSequence.FollowUpSequence->bLoop);
 		}
 	}
 
@@ -4648,7 +4648,7 @@ void FDatabaseIndexingContext::PrepareSamplers()
 						Input.SamplingContext = &SamplingContext;
 						Input.ExtrapolationParameters = Database->ExtrapolationParameters;
 						Input.BlendSpace = DbBlendSpace.BlendSpace;
-						Input.bLoopable = DbBlendSpace.bLoopAnimation;
+						Input.bLoopable = DbBlendSpace.BlendSpace->bLoop;
 						Input.BlendParameters = BlendParameters;
 
 						BlendSpaceSamplers[BlendSpaceSamplerIdx].Init(Input);

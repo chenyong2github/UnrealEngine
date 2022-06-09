@@ -855,9 +855,6 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
 
-	UPROPERTY(EditAnywhere, Category="Sequence")
-	bool bLoopAnimation = false;
-
 	UPROPERTY(EditAnywhere, Category = "Sequence")
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
@@ -868,18 +865,12 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	TObjectPtr<UAnimSequence> LeadInSequence = nullptr;
 
-	UPROPERTY(EditAnywhere, Category="Sequence")
-	bool bLoopLeadInAnimation = false;
-
 	// Used for sampling future pose information at the end of the main sequence.
 	// This setting is intended for transitions between cycles. It is optional and only used
 	// for one shot anims with future sampling. When future sampling is used without a follow up sequence,
 	// the sampling range of the main sequence will be clamped if necessary.
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	TObjectPtr<UAnimSequence> FollowUpSequence = nullptr;
-
-	UPROPERTY(EditAnywhere, Category="Sequence")
-	bool bLoopFollowUpAnimation = false;
 
 	UPROPERTY(EditAnywhere, Category = "Group")
 	FGameplayTagContainer GroupTags;
@@ -895,9 +886,6 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace
 
 	UPROPERTY(EditAnywhere, Category = "BlendSpace")
 	TObjectPtr<UBlendSpace> BlendSpace = nullptr;
-
-	UPROPERTY(EditAnywhere, Category = "BlendSpace")
-	bool bLoopAnimation = false;
 
 	UPROPERTY(EditAnywhere, Category = "BlendSpace")
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
