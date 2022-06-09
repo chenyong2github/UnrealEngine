@@ -732,6 +732,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = SampleSmoothing, meta = (DisplayName = "Smoothing"))
 	bool bTargetWeightInterpolationEaseInOut = true;
 
+	/** 
+	* The default looping behavior of this blend space.
+	* Asset players can override this
+	*/
+	UPROPERTY(EditAnywhere, Category=Animation)
+	bool bLoop = true;
+
 #if WITH_EDITORONLY_DATA
 	/** Preview Base pose for additive BlendSpace **/
 	UPROPERTY(EditAnywhere, Category = AdditiveSettings)

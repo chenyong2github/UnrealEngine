@@ -169,6 +169,21 @@ bool FAnimNode_SequenceEvaluator::SetExplicitTime(float InTime)
 	return false;
 }
 
+bool FAnimNode_SequenceEvaluator::SetShouldLoop(bool bInShouldLoop)
+{
+#if WITH_EDITORONLY_DATA
+	bShouldLoop = bInShouldLoop;
+#endif
+
+	if (bool* bShouldLoopPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(bool, bShouldLoop))
+	{
+		*bShouldLoopPtr = bInShouldLoop;
+		return true;
+	}
+
+	return false;
+}
+
 bool FAnimNode_SequenceEvaluator::GetShouldLoop() const
 {
 	return GET_ANIM_NODE_DATA(bool, bShouldLoop);

@@ -79,6 +79,9 @@ public:
 	/** This only works if bTeleportToExplicitTime is false OR this node is set to use SyncGroup */
 	virtual bool GetShouldLoop() const { return true; }
 
+	// Set the animation to continue looping when it reaches the end
+	virtual bool SetShouldLoop(bool bInShouldLoop) { return false; }
+
 	/** If true, teleport to explicit time, does NOT advance time (does not trigger notifies, does not extract Root Motion, etc.)
 	If false, will advance time (will trigger notifies, extract root motion if applicable, etc.)
 	Note: using a sync group forces advancing time regardless of what this option is set to. */
@@ -151,6 +154,7 @@ public:
 	virtual float GetExplicitTime() const override;
 	virtual bool SetExplicitTime(float InTime) override;
 	virtual bool GetShouldLoop() const override;
+	virtual bool SetShouldLoop(bool bInShouldLoop) override;
 	virtual bool GetTeleportToExplicitTime() const override;
 	virtual TEnumAsByte<ESequenceEvalReinit::Type> GetReinitializationBehavior() const override;
 	virtual float GetStartPosition() const override;

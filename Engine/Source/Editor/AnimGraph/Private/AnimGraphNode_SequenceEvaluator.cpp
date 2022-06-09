@@ -128,6 +128,14 @@ void UAnimGraphNode_SequenceEvaluator::SetAnimationAsset(UAnimationAsset* Asset)
 	}
 }
 
+void UAnimGraphNode_SequenceEvaluator::CopySettingsFromAnimationAsset(UAnimationAsset* Asset)
+{
+	if (UAnimSequenceBase* Seq = Cast<UAnimSequence>(Asset))
+	{
+		Node.SetShouldLoop(Seq->bLoop);
+	}
+}
+
 void UAnimGraphNode_SequenceEvaluator::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
 {
 	if(InContext.GetAssets().Num() > 0)

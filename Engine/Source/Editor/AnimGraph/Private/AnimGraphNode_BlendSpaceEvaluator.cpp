@@ -95,6 +95,14 @@ void UAnimGraphNode_BlendSpaceEvaluator::SetAnimationAsset(UAnimationAsset* Asse
 	}
 }
 
+void UAnimGraphNode_BlendSpaceEvaluator::CopySettingsFromAnimationAsset(UAnimationAsset* Asset)
+{
+	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset))
+	{
+		Node.SetLoop(BlendSpace->bLoop);
+	}
+}
+
 void UAnimGraphNode_BlendSpaceEvaluator::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
 {
 	if(InContext.GetAssets().Num() > 0)

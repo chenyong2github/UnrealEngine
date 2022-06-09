@@ -109,6 +109,14 @@ void UAnimGraphNode_BlendSpacePlayer::SetAnimationAsset(UAnimationAsset* Asset)
 	}
 }
 
+void UAnimGraphNode_BlendSpacePlayer::CopySettingsFromAnimationAsset(UAnimationAsset* Asset)
+{
+	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset))
+	{
+		Node.SetLoop(BlendSpace->bLoop);
+	}
+}
+
 void UAnimGraphNode_BlendSpacePlayer::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
 {
 	if(InContext.GetAssets().Num() > 0)

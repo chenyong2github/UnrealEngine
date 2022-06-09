@@ -53,6 +53,13 @@ public:
 	UPROPERTY(EditAnywhere, Category=Animation)
 	float RateScale;
 	
+	/** 
+	 * The default looping behavior of this animation.
+	 * Asset players can override this
+	 */
+	UPROPERTY(EditAnywhere, Category=Animation)
+	bool bLoop;
+
 	/**
 	 * Raw uncompressed float curve data 
 	 */

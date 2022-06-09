@@ -186,6 +186,14 @@ void UAnimGraphNode_SequencePlayer::SetAnimationAsset(UAnimationAsset* Asset)
 	}
 }
 
+void UAnimGraphNode_SequencePlayer::CopySettingsFromAnimationAsset(UAnimationAsset* Asset)
+{
+	if (UAnimSequenceBase* Seq = Cast<UAnimSequenceBase>(Asset))
+	{
+		Node.SetLoopAnimation(Seq->bLoop);
+	}
+}
+
 void UAnimGraphNode_SequencePlayer::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
 {
 	if(InContext.GetAssets().Num() > 0)

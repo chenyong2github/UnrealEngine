@@ -32,6 +32,7 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 UAnimSequenceBase::UAnimSequenceBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, RateScale(1.0f)
+	, bLoop(true)
 #if WITH_EDITORONLY_DATA
 	, DataModel(nullptr)
 	, bPopulatingDataModel(false)

@@ -579,6 +579,7 @@ void UAnimationGraphSchema::SpawnNodeFromAsset(UAnimationAsset* Asset, const FVe
 
 			UAnimGraphNode_AssetPlayerBase* NewNode = NewObject<UAnimGraphNode_AssetPlayerBase>(GetTransientPackage(), NewNodeClass);
 			NewNode->SetAnimationAsset(Asset);
+			NewNode->CopySettingsFromAnimationAsset(Asset);
 			Action.NodeTemplate = NewNode;
 
 			Action.PerformAction(Graph, PinIfAvailable, GraphPosition);

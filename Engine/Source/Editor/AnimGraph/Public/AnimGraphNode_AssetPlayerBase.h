@@ -43,6 +43,9 @@ public:
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
 	virtual void SetAnimationAsset(UAnimationAsset* Asset) { check(false); /*Base function called*/ }
 
+	// Override this to copy any relevant settings from the animation asset used when creating a node with a drag/drop operation
+	virtual void CopySettingsFromAnimationAsset(UAnimationAsset* Asset) {}
+
 	// Helper function to gather menu actions from specific asset types supported by this node
 	static void GetMenuActionsHelper(
 		FBlueprintActionDatabaseRegistrar& InActionRegistrar,
