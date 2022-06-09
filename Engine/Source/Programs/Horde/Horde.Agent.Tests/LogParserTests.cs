@@ -793,6 +793,39 @@ namespace Horde.Agent.Tests
 			Assert.IsFalse(buffer.IsHanging(4, firstIndentedLine));
 		}
 
+		[TestMethod]
+		public void MsTestEventMatcher()
+		{
+			string[] lines =
+			{
+				@"Microsoft (R) Test Execution Command Line Tool Version 17.2.0 (x64)",
+				@"Copyright (c) Microsoft Corporation.  All rights reserved.",
+				@"Starting test execution, please wait...",
+				@"A total of 1 test files matched the specified pattern.",
+				@"",
+				@"  Failed ExplicitGroupingTest [219 ms]",
+				@"  Error Message:",
+				@"   Assert.AreEqual failed. Expected:<2>. Actual:<1>.",
+				@"  Stack Trace:",
+				@"     at Horde.Build.Tests.IssueServiceTests.ExplicitGroupingTest() in /app/Source/Programs/Horde/Horde.Build.Tests/IssueServiceTests.cs:line 1382",
+				@"   at Microsoft.VisualStudio.TestPlatform.MSTestAdapter.PlatformServices.ThreadOperations.ExecuteWithAbortSafety(Action action)",
+				@"",
+				@"  Standard Output Messages:",
+				@" info: Horde.Build.Issues.IssueService[0]",
+				@"       Updating issues for 62a21de84f3b4344e94f3f10:0000:0004",
+				@" info: Horde.Build.Logs.LogEventCollection[0]",
+				@"       Querying for log events for log 62a21de84f3b4344e94f3f15 creation time 06/09/2022 16:20:56",
+				@" info: Horde.Build.Auditing.AuditLog[0]",
+				@"       Created issue 1",
+				@" info: Horde.Build.Auditing.AuditLog[0]",
+				@"       Changed severity to Error",
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			Assert.AreEqual(6, logEvents.Count);
+			CheckEventGroup(logEvents, 5, 6, LogLevel.Error, KnownLogEvents.MSTest);
+		}
+
 		static List<LogEvent> Parse(IEnumerable<string> lines)
 		{
 			return Parse(String.Join("\n", lines));

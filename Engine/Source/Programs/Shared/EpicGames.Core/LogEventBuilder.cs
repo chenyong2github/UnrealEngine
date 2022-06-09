@@ -360,7 +360,7 @@ namespace EpicGames.Core
 			}
 			else
 			{
-				return _lines[^1]._message;
+				return _lines[0]._message;
 			}
 		}
 

@@ -116,6 +116,11 @@ namespace EpicGames.Core
 		public static EventId MSBuild { get; } = new EventId(500);
 
 		/// <summary>
+		/// Microsoft: Generic MSTest error
+		/// </summary>
+		public static EventId MSTest { get; } = new EventId(540);
+
+		/// <summary>
 		/// Microsoft: Generic Visual Studio error
 		/// </summary>
 		public static EventId Microsoft { get; } = new EventId(550);

@@ -229,6 +229,30 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Tests if a line consists only of whitespace
+		/// </summary>
+		/// <param name="cursor">The log cursor</param>
+		/// <param name="offset">Offset of the line to check</param>
+		/// <returns></returns>
+		public static bool IsBlank(this ILogCursor cursor, int offset)
+		{
+			if (!cursor.TryGetLine(offset, out string? line))
+			{
+				return false;
+			}
+
+			for (int idx = 0; idx < line.Length; idx++)
+			{
+				if (!Char.IsWhiteSpace(line[idx]))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		/// <summary>
 		/// Check if a line at a given offset is left-aligned with at least this indent of another line
 		/// </summary>
 		/// <param name="cursor">The log cursor</param>

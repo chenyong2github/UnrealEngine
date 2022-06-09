@@ -10,6 +10,7 @@ using System.Xml;
 using AutomationTool;
 using UnrealBuildBase;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace AutomationTool.Tasks
 {
@@ -172,9 +173,13 @@ namespace AutomationTool.Tasks
 				}
 				
 				string WorkingDir = isStagingEnabled ? StagingDir.FullName : BaseDir.FullName;
-				await SpawnTaskBase.ExecuteAsync("docker", Arguments.ToString(), EnvVars: EnvVars, WorkingDir: WorkingDir);
+				await SpawnTaskBase.ExecuteAsync("docker", Arguments.ToString(), EnvVars: EnvVars, WorkingDir: WorkingDir, SpewFilterCallback: FilterOutput);
 			}
 		}
+
+		static Regex FilterOutputPattern = new Regex(@"^#\d+ (?:\d+\.\d+ )?");
+
+		static string FilterOutput(string Line) => FilterOutputPattern.Replace(Line, "");
 
 		/// <summary>
 		/// Output this task out to an XML writer.
