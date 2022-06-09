@@ -16,7 +16,9 @@
 	#include "UnrealEdGlobals.h"
 	#include "Editor/UnrealEdEngine.h"
 	#include "Editor/TransBuffer.h"
+	#include "Engine/Selection.h"
 #endif
+
 
 #define LOCTEXT_NAMESPACE "ConcertClientTransactionBridge"
 
@@ -113,7 +115,27 @@ struct FEditorTransactionNotification
 		, TransBuffer(GUnrealEd ? Cast<UTransBuffer>(GUnrealEd->Trans) : nullptr)
 		, bOrigSquelchTransactionNotification(GEditor && GEditor->bSquelchTransactionNotification)
 		, bOrigNotifyUndoRedoSelectionChange(GEditor && GEditor->bNotifyUndoRedoSelectionChange)
+		, bOrigIgnoreSelectionChange(GEditor && GEditor->bIgnoreSelectionChange)
+		, bOrigSuspendBroadcastPostUndoRedo(GEditor && GEditor->bSuspendBroadcastPostUndoRedo)
 	{
+	}
+
+	bool IsTransactionBufferObjectsInSelection() const
+	{
+		if (!TransBuffer || !GEditor)
+		{
+			return false;
+		}
+
+		USelection* SelectedActors = GEditor->GetSelectedActors();
+		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+		{
+			if (TransBuffer->IsObjectInTransactionBuffer(*Iter))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	void PreUndo()
@@ -124,6 +146,12 @@ struct FEditorTransactionNotification
 			GEditor->bNotifyUndoRedoSelectionChange = true;
 			if (TransBuffer)
 			{
+				if (ConcertSyncClientUtil::IsUserEditing() && !IsTransactionBufferObjectsInSelection())
+				{
+					GEditor->bIgnoreSelectionChange = true;
+					GEditor->bSuspendBroadcastPostUndoRedo = true;
+				}
+
 				TransBuffer->OnBeforeRedoUndo().Broadcast(TransactionContext);
 			}
 		}
@@ -139,6 +167,8 @@ struct FEditorTransactionNotification
 			}
 			GEditor->bSquelchTransactionNotification = bOrigSquelchTransactionNotification;
 			GEditor->bNotifyUndoRedoSelectionChange = bOrigNotifyUndoRedoSelectionChange;
+			GEditor->bIgnoreSelectionChange = bOrigIgnoreSelectionChange;
+			GEditor->bSuspendBroadcastPostUndoRedo = bOrigSuspendBroadcastPostUndoRedo;
 		}
 	}
 
@@ -174,6 +204,8 @@ struct FEditorTransactionNotification
 	UTransBuffer* TransBuffer;
 	bool bOrigSquelchTransactionNotification;
 	bool bOrigNotifyUndoRedoSelectionChange;
+	bool bOrigIgnoreSelectionChange;
+	bool bOrigSuspendBroadcastPostUndoRedo;
 };
 #endif
 

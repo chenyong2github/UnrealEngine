@@ -67,7 +67,9 @@ namespace ConcertSyncClientUtil
 		EGetObjectResultFlags Flags;
 	};
 
-	bool UserIsEditing();
+	bool IsUserEditing();
+
+	bool ShouldDelayTransaction();
 
 	bool CanPerformBlockingAction(const bool bBlockDuringInteraction = true);
 

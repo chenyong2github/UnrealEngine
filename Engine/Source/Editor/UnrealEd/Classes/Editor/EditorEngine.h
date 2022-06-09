@@ -412,6 +412,14 @@ public:
 	UPROPERTY()
 	uint32 bRequestEndPlayMapQueued:1;
 
+	/** True if we should ignore noting any changes to selection on undo/redo */
+	UPROPERTY()
+	uint32 bIgnoreSelectionChange:1;
+
+	/** True if we should suspend notifying clients post undo/redo */
+	UPROPERTY()
+	uint32 bSuspendBroadcastPostUndoRedo:1;
+
 	/** True if we should not display notifications about undo/redo */
 	UPROPERTY()
 	uint32 bSquelchTransactionNotification:1;
@@ -427,7 +435,7 @@ public:
 	/** When Simulating In Editor, a pointer to the original (non-simulating) editor world */
 	UPROPERTY()
 	TObjectPtr<class UWorld> EditorWorld;
-	
+
 	/** When Simulating In Editor, an array of all actors that were selected when it began*/
 	UPROPERTY()
 	TArray<TWeakObjectPtr<class AActor> > ActorsThatWereSelected;

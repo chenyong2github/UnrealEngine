@@ -1704,7 +1704,7 @@ void UTransBuffer::SetPrimaryUndoObject(UObject* PrimaryObject)
 	}
 }
 
-bool UTransBuffer::IsObjectInTransationBuffer( const UObject* Object ) const
+bool UTransBuffer::IsObjectInTransactionBuffer( const UObject* Object ) const
 {
 	TArray<UObject*> TransactionObjects;
 	for( const TSharedRef<FTransaction>& Transaction : UndoBuffer )

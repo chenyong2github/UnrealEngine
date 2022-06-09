@@ -1198,14 +1198,20 @@ void UEditorEngine::HandleTransactorBeforeRedoUndo(const FTransactionContext& Tr
 
 void UEditorEngine::HandleTransactorRedoUndo(const FTransactionContext& TransactionContext, bool Succeeded, bool WasUndo)
 {
-	NoteSelectionChange(bNotifyUndoRedoSelectionChange);
+	if (!bIgnoreSelectionChange)
+	{
+		NoteSelectionChange(bNotifyUndoRedoSelectionChange);
+	}
 	PostUndo(Succeeded);
 
 	// Broadcast only if you have an actual transaction context
 	if (Succeeded)
 	{
 		check(CurrentUndoRedoContext.OuterOperationId.IsValid() && CurrentUndoRedoContext.OperationDepth > 0);
-		BroadcastPostUndoRedo(TransactionContext, WasUndo);
+		if (!bSuspendBroadcastPostUndoRedo)
+		{
+			BroadcastPostUndoRedo(TransactionContext, WasUndo);
+		}
 
 		if (--CurrentUndoRedoContext.OperationDepth == 0)
 		{
@@ -1450,7 +1456,7 @@ FText UEditorEngine::GetTransactionName() const
 
 bool UEditorEngine::IsObjectInTransactionBuffer( const UObject* Object ) const
 {
-	return Trans && Trans->IsObjectInTransationBuffer(Object);
+	return Trans && Trans->IsObjectInTransactionBuffer(Object);
 }
 
 bool UEditorEngine::Map_Select( UWorld* InWorld, const TCHAR* Str, FOutputDevice& Ar)

@@ -392,8 +392,10 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 				SetPreviewPlatform(FPreviewPlatformInfo(GMaxRHIFeatureLevel), false);
 			}
 		});
-		
+
 	bNotifyUndoRedoSelectionChange = true;
+	bIgnoreSelectionChange = false;
+	bSuspendBroadcastPostUndoRedo = false;
 
 	EditorWorldExtensionsManager = nullptr;
 

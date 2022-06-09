@@ -155,7 +155,7 @@ protected:
 		}
 
 		// Validate that the transactor works as expected otherwise the test would be broken
-		check(GEditor->Trans->IsObjectInTransationBuffer(InReferencer));
+		check(GEditor->Trans->IsObjectInTransactionBuffer(InReferencer));
 
 		// The reference has been set to nullptr, only the transactor should now have a reference
 		TestGatherObjectReferencersForDeletion(

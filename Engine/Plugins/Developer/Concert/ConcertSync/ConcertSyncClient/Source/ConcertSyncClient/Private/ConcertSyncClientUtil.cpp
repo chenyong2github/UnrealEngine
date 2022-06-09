@@ -55,7 +55,32 @@ static TAutoConsoleVariable<int32> CVarDelayApplyingTransactionsWaitTimeout(
 	TEXT("Concert.DelayTransactionsWhileEditingTimeout"), 5,
 	TEXT("When Concert.DelayTransactionsWhileEditing is enabled we make sure the user has not been idle too long to prevent transactions from stacking up. The timeout value is specified in seconds."));
 
-bool UserIsEditing()
+bool IsUserEditing()
+{
+	static FName SEditableTextType(TEXT("SEditableText"));
+	static FName SMultiLineEditableTextType(TEXT("SMultiLineEditableText"));
+
+#if WITH_EDITOR
+	if (GUnrealEd)
+	{
+		auto IsUserEditingWidget = [] () {
+			bool bIsEditing = false;
+			FSlateApplication& App = FSlateApplication::Get();
+			App.ForEachUser([&bIsEditing](FSlateUser& User) {
+				TSharedPtr<SWidget> FocusedWidget = User.GetFocusedWidget();
+				bool bTextWidgetHasFocus = FocusedWidget && (FocusedWidget->GetType() == SEditableTextType || FocusedWidget->GetType() == SMultiLineEditableTextType);
+				bIsEditing |= bTextWidgetHasFocus;
+			});
+			return bIsEditing;
+		};
+		return GUnrealEd->IsUserInteracting() || IsUserEditingWidget();
+	}
+#endif
+
+	return false;
+}
+
+bool ShouldDelayTransaction()
 {
 #if WITH_EDITOR
 	if (CVarDelayApplyingTransactionsWhileEditing.GetValueOnAnyThread() > 0)
@@ -63,16 +88,10 @@ bool UserIsEditing()
 		static FName SEditableTextType(TEXT("SEditableText"));
 		static FName SMultiLineEditableTextType(TEXT("SMultiLineEditableText"));
 
-		bool bEditable = false;
-		FSlateApplication& App = FSlateApplication::Get();
-		App.ForEachUser([&bEditable](FSlateUser& User) {
-			TSharedPtr<SWidget> FocusedWidget = User.GetFocusedWidget();
-
-			bool bCanEdit = FocusedWidget && (FocusedWidget->GetType() == SEditableTextType || FocusedWidget->GetType() == SMultiLineEditableTextType);
-			bEditable |= bCanEdit;
-		});
-		if (bEditable)
+		const bool bIsEditing = IsUserEditing();
+		if (bIsEditing)
 		{
+			FSlateApplication& App = FSlateApplication::Get();
 			double LastUpdateTime = App.GetLastUserInteractionTime();
 			double Duration = App.GetCurrentTime() - LastUpdateTime;
 			if (static_cast<int32>(Duration) > CVarDelayApplyingTransactionsWaitTimeout.GetValueOnAnyThread())
@@ -80,7 +99,7 @@ bool UserIsEditing()
 				return false;
 			}
 		}
-		return bEditable;
+		return bIsEditing;
 	}
 #endif
 	return false;

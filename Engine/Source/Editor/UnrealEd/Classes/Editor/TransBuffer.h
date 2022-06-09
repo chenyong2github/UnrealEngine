@@ -165,7 +165,7 @@ public:
 	virtual bool DisableObjectSerialization() override;
 	virtual bool IsObjectSerializationEnabled() override { return DisallowObjectSerialization == 0; }
 	virtual void SetPrimaryUndoObject( UObject* Object ) override;
-	virtual bool IsObjectInTransationBuffer( const UObject* Object ) const override;
+	virtual bool IsObjectInTransactionBuffer( const UObject* Object ) const override;
 	virtual bool IsObjectTransacting(const UObject* Object) const override;
 	virtual bool ContainsPieObjects() const override;
 	virtual bool IsActive() override
