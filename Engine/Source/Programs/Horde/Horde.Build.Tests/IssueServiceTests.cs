@@ -175,6 +175,11 @@ namespace Horde.Build.Tests
 			staticAnalysisAnnotations.Add("CompileType", "Static analysis");
 			nodes.Add(MockNode("Static Analysis Win64", staticAnalysisAnnotations));
 
+			NodeAnnotations staticAnalysisAnnotations2 = new NodeAnnotations();
+			staticAnalysisAnnotations2.Add("CompileType", "Static analysis");
+			staticAnalysisAnnotations2.Add("IssueGroup", "StaticAnalysis");
+			nodes.Add(MockNode("Static Analysis Win64 v2", staticAnalysisAnnotations2));
+
 			Mock<INodeGroup> grp = new Mock<INodeGroup>(MockBehavior.Strict);
 			grp.SetupGet(x => x.Nodes).Returns(nodes);
 
@@ -1321,6 +1326,40 @@ namespace Horde.Build.Tests
 				Assert.AreEqual(2, newSpansB.Count);
 				Assert.AreEqual(newIssueB.Id, newSpansB[0].IssueId);
 				Assert.AreEqual(newIssueB.Id, newSpansB[1].IssueId);
+			}
+		}
+
+		[TestMethod]
+		public async Task ExplicitGroupingTest()
+		{
+			string[] lines =
+			{
+				FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
+			};
+
+			IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
+
+			// Create the first issue
+			{
+				await ParseEventsAsync(job, 0, 4, lines);
+				await UpdateCompleteStep(job, 0, 4, JobStepOutcome.Failure);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual("Compile", issues[0].Fingerprints[0].Type);
+			}
+
+			// Create the same error in a different group, check they don't merge
+			{
+				await ParseEventsAsync(job, 0, 5, lines);
+				await UpdateCompleteStep(job, 0, 5, JobStepOutcome.Failure);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(2, issues.Count);
+
+				issues.SortBy(x => x.Id);
+				Assert.AreEqual("Compile", issues[0].Fingerprints[0].Type);
+				Assert.AreEqual("Compile:StaticAnalysis", issues[1].Fingerprints[0].Type);
 			}
 		}
 

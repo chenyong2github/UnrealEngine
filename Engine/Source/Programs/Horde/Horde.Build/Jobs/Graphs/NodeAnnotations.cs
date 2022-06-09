@@ -40,6 +40,11 @@ namespace Horde.Build.Jobs.Graphs
 		/// Whether to notify all submitters between a build suceeding and failing, allowing them to step forward and take ownership of an issue.
 		/// </summary>
 		bool? NotifySubmitters { get; }
+
+		/// <summary>
+		/// Key to use for grouping issues together, preventing them being merged with other groups
+		/// </summary>
+		string? IssueGroup { get; }
 	}
 
 	/// <summary>
@@ -66,6 +71,9 @@ namespace Horde.Build.Jobs.Graphs
 
 		/// <inheritdoc cref="IReadOnlyNodeAnnotations.NotifySubmitters"/>
 		public const string NotifySubmittersKeyName = "NotifySubmitters";
+
+		/// <inheritdoc cref="IReadOnlyNodeAnnotations.IssueGroup"/>
+		public const string IssueGroupKeyName = "IssueGroup";
 
 		/// <summary>
 		/// Constructor
@@ -124,6 +132,13 @@ namespace Horde.Build.Jobs.Graphs
 		{
 			get => GetBoolValue(NotifySubmittersKeyName);
 			set => SetBoolValue(NotifySubmittersKeyName, value);
+		}
+
+		/// <inheritdoc/>
+		public string? IssueGroup
+		{
+			get => GetStringValue(IssueGroupKeyName);
+			set => SetStringValue(IssueGroupKeyName, value);
 		}
 
 		private bool? GetBoolValue(string key)
