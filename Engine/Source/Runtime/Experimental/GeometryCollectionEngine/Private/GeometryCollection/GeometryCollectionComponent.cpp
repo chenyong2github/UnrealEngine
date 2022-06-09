@@ -1916,6 +1916,7 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 			{ 
 				IncrementSleepTimer(DeltaTime);
 			}
+			IncrementBreakTimer(DeltaTime);
 
 			if (RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
 			{
@@ -2048,14 +2049,62 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 				}
 			}
 
-			if (!DynamicCollection->HasAttribute("RemovalDuration", FGeometryCollection::TransformGroup))
+			if (!DynamicCollection->HasAttribute("SleepRemovalDuration", FGeometryCollection::TransformGroup))
 			{
 				float MinTime = FMath::Max(0.0f, RestCollection->RemovalDuration.X);
 				float MaxTime = FMath::Max(MinTime, RestCollection->RemovalDuration.Y);
-				TManagedArray<float>& RemovalDuration = DynamicCollection->AddAttribute<float>("RemovalDuration", FGeometryCollection::TransformGroup);
-				for (int32 Idx = 0; Idx < RemovalDuration.Num(); ++Idx)
+				TManagedArray<float>& SleepRemovalDuration = DynamicCollection->AddAttribute<float>("SleepRemovalDuration", FGeometryCollection::TransformGroup);
+				for (int32 Idx = 0; Idx < SleepRemovalDuration.Num(); ++Idx)
 				{
-					RemovalDuration[Idx] = FMath::RandRange(MinTime, MaxTime);
+					SleepRemovalDuration[Idx] = FMath::RandRange(MinTime, MaxTime);
+				}
+			}
+		}
+		
+		// Remove on break feature related dynamic attribute arrays
+		if (const TManagedArray<FVector4f>* RemoveOnBreak = RestCollection->GetGeometryCollection()->FindAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup))
+		{
+			// Needs to be checked here too because remove on sleep and remove on break features are orthogonal
+			if (!DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup))
+			{
+				TManagedArray<float>& Decay = DynamicCollection->AddAttribute<float>("Decay", FGeometryCollection::TransformGroup);
+				Decay.Fill(0);
+			}
+
+			if (!DynamicCollection->HasAttribute("UniformScale", FGeometryCollection::TransformGroup))
+			{
+				TManagedArray<FTransform>& UniformScale = DynamicCollection->AddAttribute<FTransform>("UniformScale", FGeometryCollection::TransformGroup);
+				UniformScale.Fill(FTransform::Identity);
+			}
+		
+			if (!DynamicCollection->HasAttribute("BreakTimer", FGeometryCollection::TransformGroup))
+			{
+				TManagedArray<float>& BreakTimer = DynamicCollection->AddAttribute<float>("BreakTimer", FGeometryCollection::TransformGroup);
+				BreakTimer.Fill(-1); // disabled timer , waiting for the break event
+			}
+			
+			if (!DynamicCollection->HasAttribute("PostBreakDuration", FGeometryCollection::TransformGroup))
+			{
+				TManagedArray<float>& PostBreakDuration = DynamicCollection->AddAttribute<float>("PostBreakDuration", FGeometryCollection::TransformGroup);
+				for (int32 Idx = 0; Idx < PostBreakDuration.Num(); ++Idx)
+				{
+					const FVector4f RemoveOnBreakData = (*RemoveOnBreak)[Idx];
+					const bool bRemoveOnBreakEnabled = RemoveOnBreakData.X >= 0;
+					const float MinTime = FMath::Max(0.0f, RemoveOnBreakData.X);
+					const float MaxTime = FMath::Max(MinTime, RemoveOnBreakData.Y);
+					PostBreakDuration[Idx] = bRemoveOnBreakEnabled? FMath::RandRange(MinTime, MaxTime): -1;
+				}
+			}
+
+			if (!DynamicCollection->HasAttribute("BreakRemovalDuration", FGeometryCollection::TransformGroup))
+			{
+				TManagedArray<float>& BreakRemovalDuration = DynamicCollection->AddAttribute<float>("BreakRemovalDuration", FGeometryCollection::TransformGroup);
+				for (int32 Idx = 0; Idx < BreakRemovalDuration.Num(); ++Idx)
+				{
+					const FVector4f RemoveOnBreakData = (*RemoveOnBreak)[Idx];
+					const float MinTime = FMath::Max(0.0f, RemoveOnBreakData.Z);
+					const float MaxTime = FMath::Max(MinTime, RemoveOnBreakData.W);
+					BreakRemovalDuration[Idx] = FMath::RandRange(MinTime, MaxTime);
 				}
 			}
 		}
@@ -3185,14 +3234,11 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 		{
 			// Have to fully rebuild
 			if (DynamicCollection 
-				&& RestCollection->bRemoveOnMaxSleep 
 				&& DynamicCollection->HasAttribute("UniformScale", FGeometryCollection::TransformGroup)
 				&& DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup))
 			{
 				const TManagedArray<float>& Decay = DynamicCollection->GetAttribute<float>("Decay", FGeometryCollection::TransformGroup);
 				TManagedArray<FTransform>& UniformScale = DynamicCollection->ModifyAttribute<FTransform>("UniformScale", FGeometryCollection::TransformGroup);
-				const TManagedArray<FBox>& BoundingBoxes = RestCollection->GetGeometryCollection()->BoundingBox;
-				const TManagedArray<int32>& TransformToGeom = RestCollection->GetGeometryCollection()->TransformToGeometryIndex;
 
 				const FTransform InverseComponentTransform = GetComponentTransform().Inverse();
 				const FTransform ZeroScaleTransform(FQuat::Identity, FVector::Zero(), FVector(0, 0, 0));
@@ -3220,10 +3266,6 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 							const FVector LocalDown = LocalRotation.RotateVector(FVector(0.f, 0.f, ShrinkRadius));
 							const FVector CenterOfMass = DynamicCollection->MassToLocal[Idx].GetTranslation();
 							const FVector ScaleCenter = LocalDown + CenterOfMass;
-							//const FTransform ToScaleCenter(ScaleCenter);
-							//const FTransform ToScaleCenterInverse(-ScaleCenter);
-							//UniformScale[Idx] = ToCOM.Inverse() * LocalDown.Inverse() * FTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), FVector(Scale)) * LocalDown * ToCOM;
-							//UniformScale[Idx] = ToScaleCenterInverse * FTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), FVector(Scale)) * ToScaleCenter;
 							UniformScale[Idx] = FTransform(FQuat::Identity, ScaleCenter * (FVector::FReal)(1.f - Scale), FVector(Scale));
 						}
 					}
@@ -3457,17 +3499,16 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 	if (DynamicCollection && PhysicsProxy 
 		&& DynamicCollection->HasAttribute("SleepTimer", FGeometryCollection::TransformGroup) 
 		&& DynamicCollection->HasAttribute("MaxSleepTime", FGeometryCollection::TransformGroup)
-		&& DynamicCollection->HasAttribute("RemovalDuration", FGeometryCollection::TransformGroup)
+		&& DynamicCollection->HasAttribute("SleepRemovalDuration", FGeometryCollection::TransformGroup)
 		&& DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup)
 		&& DynamicCollection->HasAttribute("LastPosition", FGeometryCollection::TransformGroup))
 	{
 		TManagedArray<float>& SleepTimer = DynamicCollection->ModifyAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
-		const TManagedArray<float>& RemovalDuration = DynamicCollection->GetAttribute<float>("RemovalDuration", FGeometryCollection::TransformGroup);
+		const TManagedArray<float>& SleepRemovalDuration = DynamicCollection->GetAttribute<float>("SleepRemovalDuration", FGeometryCollection::TransformGroup);
 		const TManagedArray<float>& MaxSleepTime = DynamicCollection->GetAttribute<float>("MaxSleepTime", FGeometryCollection::TransformGroup);
 		TManagedArray<float>& Decay = DynamicCollection->ModifyAttribute<float>("Decay", FGeometryCollection::TransformGroup);
 		TManagedArray<FVector>& LastPosition = DynamicCollection->ModifyAttribute<FVector>("LastPosition", FGeometryCollection::TransformGroup);
 		const TManagedArray<uint8>& InternalClusterParentType = DynamicCollection->GetAttribute<uint8>("InternalClusterParentTypeArray", FGeometryCollection::TransformGroup);
-		const TManagedArray<bool>& Active = DynamicCollection->Active;
 		const TManagedArray<int32>& Parents = DynamicCollection->Parent;
 		
 		TArray<int32> ToDisable;
@@ -3495,12 +3536,10 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 				}
 			
 				// update the decay and disable the particle when decay has completed 
-				const bool bZeroRemovalDuration = (RemovalDuration[TransformIdx] < UE_SMALL_NUMBER);
-				const float UpdatedDecay = bZeroRemovalDuration? 1.f: FMath::Clamp<float>((SleepTimer[TransformIdx] - MaxSleepTime[TransformIdx]) / RemovalDuration[TransformIdx], 0.f, 1.f);
-				if (UpdatedDecay != Decay[TransformIdx])
+				const bool bZeroRemovalDuration = (SleepRemovalDuration[TransformIdx] < UE_SMALL_NUMBER);
+				const float UpdatedDecay = bZeroRemovalDuration? 1.f: FMath::Clamp<float>((SleepTimer[TransformIdx] - MaxSleepTime[TransformIdx]) / SleepRemovalDuration[TransformIdx], 0.f, 1.f);
+				if (UpdatedDecay > Decay[TransformIdx])
 				{
-					ensure(UpdatedDecay > Decay[TransformIdx]);
-
 					// if parent is internal and dynamic we need to break it before decaying 
 					if (InternalClusterParentType[TransformIdx] == (uint8)Chaos::EInternalClusterType::Dynamic)
 					{
@@ -3530,6 +3569,62 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 		}
 	}
 }
+
+void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
+{
+	if (DeltaTime <= 0)
+	{
+		return;
+	}
+	
+	if (DynamicCollection && PhysicsProxy 
+		&& DynamicCollection->HasAttribute("BreakTimer", FGeometryCollection::TransformGroup) 
+		&& DynamicCollection->HasAttribute("PostBreakDuration", FGeometryCollection::TransformGroup)
+		&& DynamicCollection->HasAttribute("BreakRemovalDuration", FGeometryCollection::TransformGroup)
+		&& DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup)
+		)
+	{
+		TManagedArray<float>& BreakTimer = DynamicCollection->ModifyAttribute<float>("BreakTimer", FGeometryCollection::TransformGroup);
+		const TManagedArray<float>& PostBreakDuration = DynamicCollection->GetAttribute<float>("PostBreakDuration", FGeometryCollection::TransformGroup);
+		const TManagedArray<float>& BreakRemovalDuration = DynamicCollection->GetAttribute<float>("BreakRemovalDuration", FGeometryCollection::TransformGroup);
+		TManagedArray<float>& Decay = DynamicCollection->ModifyAttribute<float>("Decay", FGeometryCollection::TransformGroup);
+		
+		TArray<int32> ToDisable;
+		for (int32 TransformIdx = 0; TransformIdx < BreakTimer.Num(); ++TransformIdx)
+		{
+			const bool bIsBroken = DynamicCollection->Active[TransformIdx];
+			const bool bIsRemovedFromBreakEnabled = (PostBreakDuration[TransformIdx] >= 0);
+			
+			const int32 State = DynamicCollection->DynamicState[TransformIdx];
+			const bool bIsDynamicOrSleeping = (State == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping) || (State == (int)EObjectStateTypeEnum::Chaos_Object_Dynamic);
+			
+			if (bIsBroken && bIsRemovedFromBreakEnabled && bIsDynamicOrSleeping)
+			{
+				BreakTimer[TransformIdx] += DeltaTime;
+				const bool bZeroRemovalDuration = (BreakRemovalDuration[TransformIdx] < UE_SMALL_NUMBER);
+				const float UpdatedBreakDecay = bZeroRemovalDuration? 1.f: FMath::Clamp<float>((BreakTimer[TransformIdx] - PostBreakDuration[TransformIdx]) / BreakRemovalDuration[TransformIdx], 0.f, 1.f);
+				if (UpdatedBreakDecay > Decay[TransformIdx])
+				{
+					DynamicCollection->MakeDirty();
+					Decay[TransformIdx] = UpdatedBreakDecay;
+
+					if (Decay[TransformIdx] >= 1.0f)
+					{
+						// Disable the particle if it has decayed  the requisite time
+						Decay[TransformIdx] = 1.0f;
+						ToDisable.Add(TransformIdx);
+					}
+				}
+			}
+		}
+
+		if (ToDisable.Num())
+		{
+			PhysicsProxy->DisableParticles(MoveTemp(ToDisable));
+		}
+	}
+}
+
 
 bool UGeometryCollectionComponent::CalculateInnerSphere(int32 TransformIndex, FSphere& SphereOut) const
 {

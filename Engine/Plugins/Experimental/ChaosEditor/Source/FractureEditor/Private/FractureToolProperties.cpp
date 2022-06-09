@@ -75,8 +75,122 @@ void UFractureToolSetInitialDynamicState::Execute(TWeakPtr<FFractureEditorModeTo
 				}
 			}
 		}
+		InToolkit.Pin()->RefreshOutliner();
 	}
 }
-			
+
+//==============================================================================================================
+
+UFractureToolSetRemoveOnBreak::UFractureToolSetRemoveOnBreak(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	RemoveOnBreakSettings = NewObject<UFractureRemoveOnBreakSettings>(GetTransientPackage(), UFractureRemoveOnBreakSettings::StaticClass());
+	RemoveOnBreakSettings->OwnerTool = this;
+}
+
+FText UFractureToolSetRemoveOnBreak::GetDisplayText() const
+{
+	return FText(NSLOCTEXT("Fracture", "FractureToolSetRemoveOnBreak", "Set Remove-On-Break"));
+}
+
+FText UFractureToolSetRemoveOnBreak::GetTooltipText() const
+{
+	return FText(NSLOCTEXT("Fracture", "FractureToolSetRemoveOnBreakToolTip", "Set removal-on-break parameters"));
+}
+
+FText UFractureToolSetRemoveOnBreak::GetApplyText() const
+{
+	return FText(NSLOCTEXT("Fracture", "ExecuteSetRemoveOnBreak", "Apply removal-on-break parameters"));
+}
+
+FSlateIcon UFractureToolSetRemoveOnBreak::GetToolIcon() const
+{
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.SetRemoveOnBreak");
+}
+
+TArray<UObject*> UFractureToolSetRemoveOnBreak::GetSettingsObjects() const
+{
+	TArray<UObject*> Settings;
+	Settings.Add(RemoveOnBreakSettings);
+	return Settings;
+}
+
+void UFractureToolSetRemoveOnBreak::RegisterUICommand(FFractureEditorCommands* BindingContext)
+{
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SetRemoveOnBreak", "Set Remove On Break", "Set removal-on-break parameters.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	BindingContext->SetRemoveOnBreak = UICommandInfo;
+}
+
+void UFractureToolSetRemoveOnBreak::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	if (InToolkit.IsValid())
+	{
+	 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	 	GetSelectedGeometryCollectionComponents(GeomCompSelection);
+	 	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+	 	{
+	 		FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysics, true /*bShapeIsUnchanged*/);
+	 		if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
+	 		{
+	 			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
+	 			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
+	 			{
+	 				TArray<int32> SelectedBones = GeometryCollectionComponent->GetSelectedBones();
+	 				if (SelectedBones.Num())
+	 				{
+	 					const FVector4f DisabledRemoveOnBreakData{ -1, -1, -1, -1 }; 
+	 					if (!GeometryCollection->HasAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup))
+	 					{
+	 						TManagedArray<FVector4f>& NewRemoveOnBreak = GeometryCollection->AddAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
+	 						NewRemoveOnBreak.Fill(DisabledRemoveOnBreakData);
+	 					}
+	 					
+	 					TManagedArray<FVector4f>& RemoveOnBreak = GeometryCollection->ModifyAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
+	 					
+	 					FVector4f RemoveOnBreakParameters{DisabledRemoveOnBreakData};
+	 					if (RemoveOnBreakSettings->Enabled)
+	 					{
+	 						RemoveOnBreakParameters.X = RemoveOnBreakSettings->PostBreakTimer.X;
+	 						RemoveOnBreakParameters.Y = RemoveOnBreakSettings->PostBreakTimer.Y;
+	 						RemoveOnBreakParameters.Z = RemoveOnBreakSettings->RemovalTimer.X;
+	 						RemoveOnBreakParameters.W = RemoveOnBreakSettings->RemovalTimer.Y;
+	 					}
+
+	 					for (int32 Index : SelectedBones)
+	 					{
+	 						RemoveOnBreak[Index] = RemoveOnBreakParameters;
+	 					}
+	 				}
+	 			}
+	 		}
+	 	}
+		InToolkit.Pin()->RefreshOutliner();
+	}
+}
+
+void UFractureToolSetRemoveOnBreak::DeleteRemoveOnBreakData()
+{
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	GetSelectedGeometryCollectionComponents(GeomCompSelection);
+	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+	{
+		FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysics, true /*bShapeIsUnchanged*/);
+		if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
+		{
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
+			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
+			{
+				GeometryCollection->RemoveAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup);
+			}
+		}
+	}
+}
+
+
+void UFractureRemoveOnBreakSettings::DeleteRemoveOnBreakData()
+{
+	UFractureToolSetRemoveOnBreak* RemoveOnBreakTool = Cast<UFractureToolSetRemoveOnBreak>(OwnerTool.Get());
+	RemoveOnBreakTool->DeleteRemoveOnBreakData();
+}
 
 #undef LOCTEXT_NAMESPACE

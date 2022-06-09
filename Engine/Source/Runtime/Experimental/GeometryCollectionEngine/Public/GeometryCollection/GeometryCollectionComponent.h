@@ -893,6 +893,7 @@ private:
 	void ClearEmbeddedGeometry();
 
 	void IncrementSleepTimer(float DeltaTime);
+	void IncrementBreakTimer(float DeltaTime);
 	bool CalculateInnerSphere(int32 TransformIndex, FSphere& SphereOut) const;
 	void ProcessRepData();
 

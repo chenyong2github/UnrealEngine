@@ -195,6 +195,10 @@ TSharedRef<SWidget> SGeometryCollectionOutlinerRow::GenerateWidgetForColumn(cons
 		return Item->MakeDamageThresholdColumnWidget();
 	if (ColumnName == SGeometryCollectionOutlinerColumnID::Broken)
 		return Item->MakeBrokenColumnWidget();
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::PostBreakTime)
+		return Item->MakePostBreakTimecolumnWidget();
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::RemovalTime)
+		return Item->MakeRemovalTimeColumnWidget();
 	return Item->MakeEmptyColumnWidget();
 }
 
@@ -245,13 +249,15 @@ void SGeometryCollectionOutliner::RegenerateHeader()
 		HeaderRowWidget->AddColumn(
 			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::RelativeSize)
 				.DefaultLabel(LOCTEXT("GCOutliner_Column_RelativeSize", "Relative Size"))
-				.HAlignHeader(EHorizontalAlignment::HAlign_Right)
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_RelativeSize_ToolTip", "Relative size ( Used for size specific data )"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
 				.FillWidth(CustomFillWidth)
 		);
 		HeaderRowWidget->AddColumn(
 			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::InitialState)
 				.DefaultLabel(LOCTEXT("GCOutliner_Column_InitialState", "Initial State"))
-				.HAlignHeader(EHorizontalAlignment::HAlign_Left)
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_InitialState_ToolTip", "Initial state override"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
 				.FillWidth(CustomFillWidth)
 		);
 		break;
@@ -259,23 +265,43 @@ void SGeometryCollectionOutliner::RegenerateHeader()
 	case EOutlinerColumnMode::Damage:
 		HeaderRowWidget->AddColumn(
 			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Damage)
-				.DefaultLabel(LOCTEXT("GCOutliner_Column_Damage", "Damage"))
-	 			.HAlignHeader(EHorizontalAlignment::HAlign_Right)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_Damage", "Max damage"))
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_Damage_ToolTip", "Maximum amount of damage recorded ( through collision )"))
+	 			.HAlignHeader(EHorizontalAlignment::HAlign_Center)
 	 			.FillWidth(CustomFillWidth)
 		);
 		HeaderRowWidget->AddColumn(
 			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::DamageThreshold)
 				.DefaultLabel(LOCTEXT("GCOutliner_Column_DamageThreshold", "Damage Threshold"))
-				 .HAlignHeader(EHorizontalAlignment::HAlign_Right)
-				 .FillWidth(CustomFillWidth)
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_DamageThreshold_ToolTip", "Current damage threshold ( equivalent to internal strain )"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+				.FillWidth(CustomFillWidth)
 		);
 		HeaderRowWidget->AddColumn(
 			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Broken)
 				.DefaultLabel(LOCTEXT("GCOutliner_Column_Broken", "Broken"))
-				 .HAlignHeader(EHorizontalAlignment::HAlign_Center)
-				 .FillWidth(1.0)
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_Broken_ToolTip", "Whether the piece has broken off"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+				.FillWidth(1.0)
 		);
 		break;
+	case EOutlinerColumnMode::Removal:
+		HeaderRowWidget->AddColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::PostBreakTime)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_PostBreakTime", "Post Break Time"))
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_PostBreakTime_ToolTip", "Min/Max time after break until removal starts"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+				.FillWidth(CustomFillWidth)
+		);
+		HeaderRowWidget->AddColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::RemovalTime)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_RemovalTime", "Removal Time"))
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_RemovalTime_ToolTip", "Min/Max time for removal"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+				.FillWidth(CustomFillWidth)
+		);
+		break;
+		
 	}
 }
 
@@ -721,6 +747,8 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 	DamageThreshold = 0;
 	Broken = false;
 	InitialState = INDEX_NONE;
+	RemoveOnBreakAvailable = false;
+	RemoveOnBreak = FVector4f{-1};
 	
 	// Name / ItemText
 	UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
@@ -739,6 +767,7 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = RestCollection->GetGeometryCollection();
 		const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
 		const TManagedArray<float>* RelativeSizes = GeometryCollectionPtr->FindAttribute<float>("Size", FTransformCollection::TransformGroup);
+		const TManagedArray<FVector4f>* RemoveOnBreakArray = GeometryCollectionPtr->FindAttribute<FVector4f>("RemoveOnBreak", FTransformCollection::TransformGroup);
 		
 		if (ensure(ItemBoneIndex >= 0 && ItemBoneIndex < SimulationType.Num()))
 		{
@@ -789,6 +818,12 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 				Damage = DamageData.MaxDamages;
 				DamageThreshold = DamageData.DamageThreshold;
 				Broken = DamageData.bIsBroken;
+			}
+
+			RemoveOnBreakAvailable = (RemoveOnBreakArray != nullptr); 
+			if (RemoveOnBreakAvailable)
+			{
+				RemoveOnBreak = (*RemoveOnBreakArray)[ItemBoneIndex];
 			}
 		}
 	}
@@ -886,6 +921,45 @@ TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeBrokenColumnWidget() co
 				.Text(FText::FromString(Broken? TEXT("Broken"): TEXT("")))
 				.ColorAndOpacity(ItemColor)
 			];
+}
+
+static FText FormatRemoveOnBreakTimeData(bool bDataAvailable, float MinTime, float MaxTime)
+{
+	if (bDataAvailable)
+	{
+		if (MinTime>=0)
+		{
+			return FText::Format(LOCTEXT("RemoveOnBreakFormat", "[{0}s, {1}s]"),MinTime, MaxTime);
+		}
+		return FText(LOCTEXT("RemoveOnBreakEmpty", "[-, -]"));
+	}
+	return FText();
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakePostBreakTimecolumnWidget() const
+{
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			.Padding(12.f, 0.f)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(FormatRemoveOnBreakTimeData(RemoveOnBreakAvailable, RemoveOnBreak.X, RemoveOnBreak.Y))
+				.ColorAndOpacity(ItemColor)
+			];
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeRemovalTimeColumnWidget() const
+{
+	return SNew(SHorizontalBox)
+	+ SHorizontalBox::Slot()
+		.Padding(12.f, 0.f)
+		.HAlign(HAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(FormatRemoveOnBreakTimeData(RemoveOnBreakAvailable, RemoveOnBreak.Z, RemoveOnBreak.W))
+			.ColorAndOpacity(ItemColor)
+		];
 }
 
 TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeInitialStateColumnWidget() const

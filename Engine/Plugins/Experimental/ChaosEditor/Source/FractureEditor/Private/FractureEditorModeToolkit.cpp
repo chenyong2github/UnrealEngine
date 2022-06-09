@@ -613,8 +613,12 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawn
 					.AutoHeight()
 					[
 						SNew(SButton)
-						.OnClicked(this, &FFractureEditorModeToolkit::RefreshOutliner)
-						.Text(LOCTEXT("Refresh", "Refresh"))
+						.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
+						.ContentPadding(FMargin(2, 0))
+						.HAlign(HAlign_Center)
+						.OnClicked(this, &FFractureEditorModeToolkit::OnRefreshOutlinerButtonClicked)
+						.Text(LOCTEXT("GCOUtliner_Refresh_Button_Text", "Refresh"))
+						.ToolTipText(LOCTEXT("GCOUtliner_Refresh_Button_ToolTip", "Refresh the outliner"))
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
@@ -635,13 +639,18 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawn
 	return CreatedTab.ToSharedRef();
 }
 
-FReply FFractureEditorModeToolkit::RefreshOutliner()
+FReply FFractureEditorModeToolkit::OnRefreshOutlinerButtonClicked()
+{
+	RefreshOutliner();
+	return FReply::Handled();
+}
+
+void FFractureEditorModeToolkit::RefreshOutliner()
 {
 	if (OutlinerView)
 	{
 		OutlinerView->RegenerateItems();
 	}
-	return FReply::Handled();
 }
 
 TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateStatisticsTab(const FSpawnTabArgs& Args)
@@ -861,6 +870,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.MakeConvex);
 		ToolbarBuilder.AddToolBarButton(Commands.FixTinyGeo);
 		ToolbarBuilder.AddToolBarButton(Commands.SetInitialDynamicState);
+		ToolbarBuilder.AddToolBarButton(Commands.SetRemoveOnBreak);
 	}
 }
 

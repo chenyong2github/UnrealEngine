@@ -179,6 +179,8 @@ public:
 
 	void UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const;
 
+	void RefreshOutliner();
+	
 	void RegenerateOutliner();
 	void RegenerateHistogram();
 
@@ -213,7 +215,7 @@ private:
 	/** Callback for map changes. */
 	void HandleMapChanged(UWorld* NewWorld, EMapChangeType MapChangeType);
 
-	FReply RefreshOutliner();
+	FReply OnRefreshOutlinerButtonClicked();
 	
 private:
 	UFractureModalTool* ActiveTool;

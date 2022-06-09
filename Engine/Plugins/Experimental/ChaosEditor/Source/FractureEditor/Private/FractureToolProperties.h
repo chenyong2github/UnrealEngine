@@ -60,3 +60,62 @@ public:
 	TObjectPtr<UFractureInitialDynamicStateSettings> StateSettings;
 
 };
+
+UCLASS(config = EditorPerProjectUserSettings)
+class UFractureRemoveOnBreakSettings : public UFractureToolSettings
+{
+public:
+
+	GENERATED_BODY()
+
+	UFractureRemoveOnBreakSettings(const FObjectInitializer& ObjInit)
+		: Super(ObjInit)
+		, Enabled(false)
+		, PostBreakTimer(0,0)
+		, RemovalTimer(2,3)
+	{}
+
+	/** whether or not the remove on fracture is enabled */
+	UPROPERTY(EditAnywhere, Category = SetRemoveOnBreak, meta = (DisplayName = "Enabled"))
+	bool Enabled;
+
+	/** Min/Max time after break before removal starts */
+	UPROPERTY(EditAnywhere, Category = SetRemoveOnBreak, meta = (DisplayName = "Post Break Timer", EditCondition="Enabled"))
+	FVector2f PostBreakTimer;  
+
+	/** Min/Max time for how long removal lasts */
+	UPROPERTY(EditAnywhere, Category = SetRemoveOnBreak, meta = (DisplayName = "Removal Timer", EditCondition="Enabled"))
+	FVector2f RemovalTimer;
+
+	/** remove the remove on break attribute from the geometry collection, usefull to save memory on the asset if not needed */
+	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Delete Remove-On-Break Data"))
+	void DeleteRemoveOnBreakData();
+};
+
+UCLASS(DisplayName = "RemoveOnBreak", Category = "FractureTools")
+class UFractureToolSetRemoveOnBreak : public UFractureModalTool
+{
+public:
+	GENERATED_BODY()
+
+	UFractureToolSetRemoveOnBreak(const FObjectInitializer& ObjInit);
+
+	using FGeometryCollectionPtr = TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>;
+
+	// UFractureTool Interface
+	virtual FText GetDisplayText() const override;
+	virtual FText GetTooltipText() const override;
+	virtual FText GetApplyText() const override;
+	virtual FSlateIcon GetToolIcon() const override;
+	virtual TArray<UObject*> GetSettingsObjects() const override;
+
+	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
+
+	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
+
+	void DeleteRemoveOnBreakData();
+	
+	UPROPERTY(EditAnywhere, Category = InitialDynamicState)
+	TObjectPtr<UFractureRemoveOnBreakSettings> RemoveOnBreakSettings;
+
+};

@@ -39,7 +39,8 @@ UENUM(BlueprintType)
 enum class EOutlinerColumnMode : uint8
 {
 	StateAndSize = 0		UMETA(DisplayName = "State And Size"),
-	Damage = 2				UMETA(DisplayName = "Damage"),
+	Damage = 1				UMETA(DisplayName = "Damage"),
+	Removal = 2				UMETA(DisplayName = "Removal"),
 };
 
 /** Settings for Outliner configuration. **/
@@ -147,7 +148,9 @@ public:
 		, InitialState(INDEX_NONE)
 		, Damage(0)
 		, DamageThreshold(0)
-		, Broken(false) 
+		, Broken(false)
+		, RemoveOnBreakAvailable(false)
+		, RemoveOnBreak(-1)
 	{}
 
 	/** FGeometryCollectionTreeItem interface */
@@ -158,6 +161,8 @@ public:
 	TSharedRef<SWidget> MakeDamageThresholdColumnWidget() const;
 	TSharedRef<SWidget> MakeBrokenColumnWidget() const;
 	TSharedRef<SWidget> MakeInitialStateColumnWidget() const;
+	TSharedRef<SWidget> MakePostBreakTimecolumnWidget() const;
+	TSharedRef<SWidget> MakeRemovalTimeColumnWidget() const;
 	TSharedRef<SWidget> MakeEmptyColumnWidget() const;
 	virtual void GetChildren(FGeometryCollectionTreeItemList& OutChildren) override;
 	virtual int32 GetBoneIndex() const override { return BoneIndex; }
@@ -185,6 +190,8 @@ private:
 	float Damage;
 	float DamageThreshold;
 	bool Broken;
+	bool RemoveOnBreakAvailable;
+	FVector4f RemoveOnBreak;
 };
 
 typedef TSharedPtr<class FGeometryCollectionTreeItemBone> FGeometryCollectionTreeItemBonePtr;
@@ -199,6 +206,9 @@ namespace SGeometryCollectionOutlinerColumnID
 	const FName Damage("Damage");
 	const FName DamageThreshold("DamageThreshold");
 	const FName Broken("Broken");
+	// Removal Column Mode
+	const FName PostBreakTime("PostBreakTime");
+	const FName RemovalTime("RemovalTime");
 }
 
 class SGeometryCollectionOutlinerRow : public SMultiColumnTableRow<FGeometryCollectionTreeItemBonePtr>

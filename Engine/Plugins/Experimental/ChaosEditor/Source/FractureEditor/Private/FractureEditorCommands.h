@@ -92,6 +92,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 
 		// Property Commands
 		TSharedPtr< FUICommandInfo > SetInitialDynamicState;
+		TSharedPtr< FUICommandInfo > SetRemoveOnBreak;
 		
 };
 
