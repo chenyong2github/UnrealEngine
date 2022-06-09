@@ -444,6 +444,8 @@ public:
 	UE::Anim::FStackAttributeContainer CustomAttributes;
 
 public:
+	friend class FScopedExpectsAdditiveOverride;
+	
 	// This constructor allocates a new uninitialized pose for the specified anim instance
 	FPoseContext(FAnimInstanceProxy* InAnimInstanceProxy, bool bInExpectsAdditivePose = false)
 		: FAnimationBaseContext(InAnimInstanceProxy)
@@ -517,6 +519,27 @@ private:
 	// Is this pose expected to be an additive pose
 	bool bExpectsAdditivePose;
 };
+
+// Helper for modifying and resetting ExpectsAdditivePose on a FPoseContext
+class FScopedExpectsAdditiveOverride
+{
+public:
+	FScopedExpectsAdditiveOverride(FPoseContext& InContext, bool bInExpectsAdditive)
+		: Context(InContext)
+	{
+		bPreviousValue = Context.ExpectsAdditivePose();
+		Context.bExpectsAdditivePose = bInExpectsAdditive;
+	}
+	
+	~FScopedExpectsAdditiveOverride()
+	{
+		Context.bExpectsAdditivePose = bPreviousValue;
+	}
+private:
+	FPoseContext& Context;
+	bool bPreviousValue;
+};
+	
 
 
 /** Evaluation context passed around during animation tree evaluation */
