@@ -1818,6 +1818,10 @@ public:
 				ConvertFromArithmeticValue<double>(Slot, Data, Tag);
 				return EConvertFromTypeResult::Converted;
 
+			case NAME_BoolProperty:
+				this->SetPropertyValue_InContainer(Data, (TCppType)Tag.BoolVal, Tag.ArrayIndex);
+				return EConvertFromTypeResult::Converted;
+
 			default:
 				// We didn't convert it
 				break;

@@ -186,6 +186,11 @@ struct TConvertIntToEnumProperty
 		OldIntType OldValue;
 		Slot << OldValue;
 
+		ConvertValue(OldValue, Property, Enum, Obj, Tag);
+	}
+
+	static void ConvertValue(OldIntType OldValue, FByteProperty* Property, UEnum* Enum, void* Obj, const FPropertyTag& Tag)
+	{
 		uint8 NewValue = (uint8)OldValue;
 		if (OldValue > (OldIntType)TNumericLimits<uint8>::Max() || !Enum->IsValidEnumValue(NewValue))
 		{
@@ -318,6 +323,17 @@ EConvertFromTypeResult FByteProperty::ConvertFromType(const FPropertyTag& Tag, F
 		else
 		{
 			ConvertFromArithmeticValue<uint64>(Slot, Data, Tag);
+		}
+	}
+	else if (Tag.Type == NAME_BoolProperty)
+	{
+		if (Enum)
+		{
+			TConvertIntToEnumProperty<uint64>::ConvertValue(Tag.BoolVal, this, Enum, Data, Tag);
+		}
+		else
+		{
+			SetPropertyValue_InContainer(Data, Tag.BoolVal, Tag.ArrayIndex);
 		}
 	}
 	else

@@ -15,11 +15,8 @@
 namespace UEEnumProperty_Private
 {
 	template <typename OldIntType>
-	void ConvertIntToEnumProperty(FStructuredArchive::FSlot Slot, FEnumProperty* EnumProp, FNumericProperty* UnderlyingProp, UEnum* Enum, void* Obj)
+	void ConvertIntValueToEnumProperty(OldIntType OldValue, FEnumProperty* EnumProp, FNumericProperty* UnderlyingProp, UEnum* Enum, void* Obj)
 	{
-		OldIntType OldValue;
-		Slot << OldValue;
-
 		using LargeIntType = typename TChooseClass<TIsSigned<OldIntType>::Value, int64, uint64>::Result;
 
 		LargeIntType NewValue = OldValue;
@@ -39,6 +36,15 @@ namespace UEEnumProperty_Private
 		}
 
 		UnderlyingProp->SetIntPropertyValue(Obj, NewValue);
+	}
+
+	template <typename OldIntType>
+	void ConvertIntToEnumProperty(FStructuredArchive::FSlot Slot, FEnumProperty* EnumProp, FNumericProperty* UnderlyingProp, UEnum* Enum, void* Obj)
+	{
+		OldIntType OldValue;
+		Slot << OldValue;
+
+		ConvertIntValueToEnumProperty(OldValue, EnumProp, UnderlyingProp, Enum, Obj);
 	}
 }
 
@@ -494,6 +500,10 @@ EConvertFromTypeResult FEnumProperty::ConvertFromType(const FPropertyTag& Tag, F
 	else if (Tag.Type == NAME_UInt64Property)
 	{
 		UEEnumProperty_Private::ConvertIntToEnumProperty<uint64>(Slot, this, UnderlyingProp, Enum, ContainerPtrToValuePtr<void>(Data, Tag.ArrayIndex));
+	}
+	else if (Tag.Type == NAME_BoolProperty)
+	{
+		UEEnumProperty_Private::ConvertIntValueToEnumProperty<uint8>(Tag.BoolVal, this, UnderlyingProp, Enum, ContainerPtrToValuePtr<void>(Data, Tag.ArrayIndex));
 	}
 	else
 	{
