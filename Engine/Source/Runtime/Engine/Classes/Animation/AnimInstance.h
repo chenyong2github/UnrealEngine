@@ -238,16 +238,19 @@ struct FQueuedMontageBlendingOutEvent
 struct FQueuedMontageEndedEvent
 {
 	class UAnimMontage* Montage;
+	int32 MontageInstanceID;
 	bool bInterrupted;
 	FOnMontageEnded Delegate;
 
 	FQueuedMontageEndedEvent()
 		: Montage(NULL)
+		, MontageInstanceID(INDEX_NONE)
 		, bInterrupted(false)
 	{}
 
-	FQueuedMontageEndedEvent(class UAnimMontage* InMontage, bool InbInterrupted, FOnMontageEnded InDelegate)
+	FQueuedMontageEndedEvent(class UAnimMontage* InMontage, int32 InInstanceID, bool InbInterrupted, FOnMontageEnded InDelegate)
 		: Montage(InMontage)
+		, MontageInstanceID(InInstanceID)
 		, bInterrupted(InbInterrupted)
 		, Delegate(InDelegate)
 	{}

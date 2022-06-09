@@ -33,6 +33,7 @@
 #include "Animation/AnimSubsystem.h"
 #include "Animation/AnimSubsystem_Tag.h"
 #include "Animation/AnimStateMachineTypes.h"
+#include "Animation/ActiveMontageInstanceScope.h"
 #if WITH_EDITOR
 #include "Animation/DebugSkelMeshComponent.h"
 #endif
@@ -1841,7 +1842,16 @@ void UAnimInstance::TriggerMontageEndedEvent(const FQueuedMontageEndedEvent& Mon
 			const FAnimNotifyEventReference& EventReference = ActiveAnimNotifyEventReference[Index];
 			UAnimMontage* NotifyMontage = Cast<UAnimMontage>(AnimNotifyEvent.NotifyStateClass->GetOuter());
 
-			if (NotifyMontage && (NotifyMontage == MontageEndedEvent.Montage))
+			// Grab the montage instance ID from the notify's event context
+			int32 EventReferenceMontageInstanceID = INDEX_NONE;
+			const UE::Anim::FAnimNotifyMontageInstanceContext* ActiveMontageContext = EventReference.GetContextData<UE::Anim::FAnimNotifyMontageInstanceContext>();
+			if (ActiveMontageContext)
+			{
+				EventReferenceMontageInstanceID = ActiveMontageContext->MontageInstanceID;
+			}
+
+			// Compare against the montage instance ID to prevent ending notify states from other instances of the same montage
+			if (NotifyMontage && (EventReferenceMontageInstanceID == MontageEndedEvent.MontageInstanceID))
 			{
 				if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 				{

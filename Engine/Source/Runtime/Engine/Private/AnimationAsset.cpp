@@ -182,6 +182,11 @@ void FAnimGroupInstance::Prepare(const FAnimGroupInstance* PreviousGroup)
 	}
 }
 
+void FAnimTickRecord::AllocateContextDataContainer()
+{
+	ContextData = MakeShared<TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>>();
+}
+
 FAnimTickRecord::FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord)
 {
 	SourceAsset = InSequence;
@@ -240,9 +245,9 @@ void FAnimTickRecord::GatherContextData(const FAnimationUpdateContext& InContext
 		InContext.GetSharedContext()->MessageStack.MakeEventContextData(NewContextData);
 		if(NewContextData.Num())
 		{
-			if(!ContextData.IsValid())
+			if (!ContextData.IsValid())
 			{
-				ContextData = MakeShared<TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>>();
+				AllocateContextDataContainer();
 			}
 
 			ContextData->Append(MoveTemp(NewContextData));

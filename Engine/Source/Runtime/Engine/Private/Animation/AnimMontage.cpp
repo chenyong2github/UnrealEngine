@@ -19,6 +19,7 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Engine/Engine.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/ActiveMontageInstanceScope.h"
 
 DEFINE_LOG_CATEGORY(LogAnimMontage);
 
@@ -1620,7 +1621,7 @@ void FAnimMontageInstance::Terminate()
 		ActiveStateBranchingPoints.Empty();
 
 		// terminating, trigger end
-		AnimInstance->QueueMontageEndedEvent(FQueuedMontageEndedEvent(OldMontage, bInterrupted, OnMontageEnded));
+		AnimInstance->QueueMontageEndedEvent(FQueuedMontageEndedEvent(OldMontage, InstanceID, bInterrupted, OnMontageEnded));
 
 		// Clear references to this MontageInstance. Needs to happen before Montage is cleared to nullptr, as TMaps can use that as a key.
 		AnimInstance->ClearMontageInstanceReferences(*this);
@@ -2539,6 +2540,10 @@ void FAnimMontageInstance::HandleEvents(float PreviousTrackPos, float CurrentTra
 	{
 		TMap<FName, TArray<FAnimNotifyEventReference>> NotifyMap;
 		FAnimTickRecord TickRecord;
+
+		// Add instance ID to context to differentiate notifies between different instances of the same montage
+		TickRecord.MakeContextData<UE::Anim::FAnimNotifyMontageInstanceContext>(InstanceID);
+
 		FAnimNotifyContext NotifyContext(TickRecord);
 		// We already break up AnimMontage update to handle looping, so we guarantee that PreviousPos and CurrentPos are contiguous.
 		Montage->GetAnimNotifiesFromDeltaPositions(PreviousTrackPos, CurrentTrackPos, NotifyContext);

@@ -392,6 +392,9 @@ struct FAnimTickRecord
 	// Return the root motion weight for this tick record
 	float GetRootMotionWeight() const { return EffectiveBlendWeight * RootMotionWeightModifier; }
 
+private:
+	void AllocateContextDataContainer();
+
 public:
 	FAnimTickRecord()
 		: SourceAsset(nullptr)
@@ -428,6 +431,19 @@ public:
 	// Gather any data from the current update context
 	ENGINE_API void GatherContextData(const FAnimationUpdateContext& InContext);
 	
+	// Explicitly add typed context data to the tick record
+	template<typename Type, typename... TArgs>
+	void MakeContextData(TArgs&&... Args)
+	{
+		static_assert(TPointerIsConvertibleFromTo<Type, const UE::Anim::IAnimNotifyEventContextDataInterface>::Value, "'Type' template parameter to MakeContextData must be derived from IAnimNotifyEventContextDataInterface");
+		if (!ContextData.IsValid())
+		{
+			AllocateContextDataContainer();
+		}
+
+		ContextData->Add(MakeUnique<Type>(Forward<TArgs>(Args)...));
+	}
+
 	/** This can be used with the Sort() function on a TArray of FAnimTickRecord to sort from higher leader score */
 	ENGINE_API bool operator <(const FAnimTickRecord& Other) const { return LeaderScore > Other.LeaderScore; }
 };
