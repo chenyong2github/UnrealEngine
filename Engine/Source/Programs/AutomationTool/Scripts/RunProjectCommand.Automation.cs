@@ -665,6 +665,10 @@ namespace AutomationScripts
 			{
 				TempCmdLine += Params.TraceFile + " ";
 			}
+			if (!String.IsNullOrEmpty(Params.SessionLabel))
+			{
+				TempCmdLine += Params.SessionLabel + " ";
+			}
 
 			TempCmdLine += SC.StageTargetPlatform.GetLaunchExtraCommandLine(Params);
 
