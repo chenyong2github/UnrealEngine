@@ -530,6 +530,33 @@ namespace NiagaraStackModuleItemIssues {
 		UNiagaraNodeFunctionCall* MovedNode;
 		FNiagaraStackGraphUtilities::MoveModule(*SourceScript, *ModuleToMove, *TargetSystem, DependentEmitterHandleId, TargetUsage, TargetUsageId, TargetMoveIndex, false, MovedNode);
 	}
+	
+	ENiagaraModuleDependencyUsage ConvertScriptUsageToDependencyUsage(ENiagaraScriptUsage ScriptUsage)
+	{
+		if (ScriptUsage == ENiagaraScriptUsage::ParticleEventScript)
+		{
+			return ENiagaraModuleDependencyUsage::Event;
+		}
+		if (ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript)
+		{
+			return ENiagaraModuleDependencyUsage::SimulationStage;
+		}
+		if (ScriptUsage == ENiagaraScriptUsage::EmitterSpawnScript || ScriptUsage == ENiagaraScriptUsage::SystemSpawnScript || ScriptUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated || ScriptUsage == ENiagaraScriptUsage::ParticleSpawnScript)
+		{
+			return ENiagaraModuleDependencyUsage::Spawn;
+		}
+		if (ScriptUsage == ENiagaraScriptUsage::EmitterUpdateScript || ScriptUsage == ENiagaraScriptUsage::SystemUpdateScript || ScriptUsage == ENiagaraScriptUsage::ParticleUpdateScript)
+		{
+			return ENiagaraModuleDependencyUsage::Update;
+		}
+		return ENiagaraModuleDependencyUsage::None;
+	}
+
+	bool IsUsageAllowed(ENiagaraScriptUsage ModuleUsage, int32 AllowedUsageBitmask)
+	{
+		ENiagaraModuleDependencyUsage Usage = ConvertScriptUsageToDependencyUsage(ModuleUsage);
+		return AllowedUsageBitmask & (1 << static_cast<int32>(Usage));
+	}
 
 	void GenerateFixesForReorderingModules(
 		TSharedRef<FNiagaraSystemViewModel> DependentSystemViewModel,
@@ -694,7 +721,7 @@ namespace NiagaraStackModuleItemIssues {
 		UNiagaraScript& SourceScript,
 		UNiagaraNodeFunctionCall& SourceModuleNode,
 		FString SourceStackEditorDataKey,
-		UNiagaraNodeOutput& SourceOutputNode,
+		const UNiagaraNodeOutput& SourceOutputNode,
 		const TArray<FNiagaraStackModuleData>& SourceStackModuleData,
 		TArray<UNiagaraStackEntry::FStackIssue>& NewIssues)
 	{
@@ -710,6 +737,10 @@ namespace NiagaraStackModuleItemIssues {
 		{
 			for (const FNiagaraModuleDependency& SourceRequiredDependency : SourceModuleNode.GetScriptData()->RequiredDependencies)
 			{
+				if (!IsUsageAllowed(SourceOutputNode.GetUsage(), SourceRequiredDependency.OnlyEvaluateInScriptUsage))
+				{
+					continue;
+				}
 				TArray<int32> DependencyProviderIndices;
 				for (int32 StackModuleDataIndex = 0; StackModuleDataIndex < SourceStackModuleData.Num(); StackModuleDataIndex++)
 				{

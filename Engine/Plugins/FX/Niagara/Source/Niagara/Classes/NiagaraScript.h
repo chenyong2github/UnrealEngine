@@ -89,6 +89,22 @@ enum class ENiagaraScriptTemplateSpecification : uint8
 	Behavior UMETA(DisplayName = "Behavior Example")
 };
 
+/** Defines different usages for a niagara script's module dependecies. */
+UENUM()
+enum class ENiagaraModuleDependencyUsage : uint8
+{
+	/** Default entry to catch invalid usages */
+	None UMETA(Hidden),
+	/** Evaluate when the script is called during the spawn phase. */
+	Spawn,
+	/** Evaluate when the script is called during the update phase. */
+	Update,
+	/** Evaluate when the script is called in an event context. */
+	Event,
+	/** Evaluate when the script is called in a simulation stage. */
+	SimulationStage
+};
+
 USTRUCT()
 struct FNiagaraModuleDependency
 {
@@ -113,6 +129,10 @@ public:
 	// '1.2-2.0' requires any version between 1.2 and 2.0
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	FString RequiredVersion;
+
+	/** This property can limit where the dependency is evaluated. By default, the dependency is enforced in all script usages */
+	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script, meta = (Bitmask, BitmaskEnum = "/Script/Niagara.ENiagaraModuleDependencyUsage"))
+	int32 OnlyEvaluateInScriptUsage;
 	
 	/** Detailed description of the dependency */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script, meta = (MultiLine = true))
@@ -122,6 +142,10 @@ public:
 	{
 		Type = ENiagaraModuleDependencyType::PreDependency;
 		ScriptConstraint = ENiagaraModuleDependencyScriptConstraint::SameScript;
+		OnlyEvaluateInScriptUsage = 1 << static_cast<int32>(ENiagaraModuleDependencyUsage::Spawn) |
+									1 << static_cast<int32>(ENiagaraModuleDependencyUsage::Update) |
+									1 << static_cast<int32>(ENiagaraModuleDependencyUsage::Event) |
+									1 << static_cast<int32>(ENiagaraModuleDependencyUsage::SimulationStage);
 	}
 
 #if WITH_EDITOR
