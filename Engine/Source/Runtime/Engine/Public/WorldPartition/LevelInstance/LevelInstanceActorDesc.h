@@ -46,5 +46,7 @@ protected:
 private:
 	void RegisterContainerInstance(UWorld* InWorld);
 	void UnregisterContainerInstance();
+	void OnLevelInstanceChanged(FName PackageName);
+	void UpdateBounds();
 #endif
 };

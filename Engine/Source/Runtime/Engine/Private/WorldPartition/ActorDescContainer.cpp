@@ -208,6 +208,7 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 					// Transfer any internal values not coming from the actor
 					NewActorDesc->TransferFrom(ExistingActorDesc->Get());
 
+					// This moves the TUniquePtr (not the content of the actor desc)
 					*ExistingActorDesc = MoveTemp(NewActorDesc);
 
 					OnActorDescUpdated(ExistingActorDesc->Get());

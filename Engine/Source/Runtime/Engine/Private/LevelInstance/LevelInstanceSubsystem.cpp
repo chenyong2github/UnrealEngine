@@ -2108,6 +2108,12 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 	// Wait for Level Instances to be loaded
 	BlockOnLoading();
 
+	// Send out Event if changes were committed
+	if (bChangesCommitted)
+	{
+		LevelInstanceChangedEvent.Broadcast(FName(*EditPackage));
+	}
+
 	GEngine->BroadcastLevelActorListChanged();
 
 	// Restore actor editor context

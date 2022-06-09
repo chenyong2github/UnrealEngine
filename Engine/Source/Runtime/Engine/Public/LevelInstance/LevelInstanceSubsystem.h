@@ -117,6 +117,10 @@ public:
 	static bool CheckForLoop(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo = nullptr, const ILevelInstanceInterface** LoopStart = nullptr);
 	static bool CanUseWorldAsset(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, FString* OutReason);
 	static bool CanUsePackage(FName InPackageName);
+
+	/** Editor-only event triggered when level instance is committed with changes */
+	DECLARE_EVENT_OneParam(ULevelInstanceSubsystem, FLevelInstanceChanged, FName);
+	FLevelInstanceChanged& OnLevelInstanceChanged() { return LevelInstanceChangedEvent; }
 #endif
 
 private:
@@ -223,6 +227,8 @@ private:
 #if WITH_EDITOR
 	bool bIsCreatingLevelInstance;
 	bool bIsCommittingLevelInstance;
+
+	FLevelInstanceChanged LevelInstanceChangedEvent;
 #endif
 
 	struct FLevelInstance

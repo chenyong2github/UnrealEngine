@@ -63,6 +63,26 @@ bool FLevelInstanceActorDesc::Equals(const FWorldPartitionActorDesc* Other) cons
 	return false;
 }
 
+void FLevelInstanceActorDesc::UpdateBounds()
+{
+	ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(LevelInstanceContainer->GetWorld());
+	check(LevelInstanceSubsystem);
+
+	FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelPackage));
+	FTransform FinalLevelTransform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
+	FBox ContainerBounds = LevelInstanceSubsystem->GetContainerBounds(LevelPackage).TransformBy(FinalLevelTransform);
+
+	ContainerBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+}
+
+void FLevelInstanceActorDesc::OnLevelInstanceChanged(FName PackageName)
+{
+	if (LevelInstanceContainer.IsValid() && (LevelInstanceContainer->GetContainerPackage() == PackageName))
+	{
+		UpdateBounds();
+	}
+}
+
 void FLevelInstanceActorDesc::RegisterContainerInstance(UWorld* InWorld)
 {
 	if (InWorld)
@@ -73,15 +93,12 @@ void FLevelInstanceActorDesc::RegisterContainerInstance(UWorld* InWorld)
 		{
 			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(InWorld);
 			check(LevelInstanceSubsystem);
+			LevelInstanceSubsystem->OnLevelInstanceChanged().AddRaw(this, &FLevelInstanceActorDesc::OnLevelInstanceChanged);
 
 			LevelInstanceContainer = LevelInstanceSubsystem->RegisterContainer(LevelPackage);
 			check(LevelInstanceContainer.IsValid());
 
-			FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelPackage));
-			FTransform FinalLevelTransform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
-			FBox ContainerBounds = LevelInstanceSubsystem->GetContainerBounds(LevelPackage).TransformBy(FinalLevelTransform);
-
-			ContainerBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+			UpdateBounds();
 		}
 	}
 }
@@ -92,6 +109,8 @@ void FLevelInstanceActorDesc::UnregisterContainerInstance()
 	{
 		ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(LevelInstanceContainer->GetWorld());
 		check(LevelInstanceSubsystem);
+
+		LevelInstanceSubsystem->OnLevelInstanceChanged().RemoveAll(this);
 
 		LevelInstanceSubsystem->UnregisterContainer(LevelInstanceContainer.Get());
 		LevelInstanceContainer.Reset();
@@ -165,8 +184,13 @@ void FLevelInstanceActorDesc::TransferFrom(const FWorldPartitionActorDesc* From)
 	FWorldPartitionActorDesc::TransferFrom(From);
 
 	FLevelInstanceActorDesc* FromLevelInstanceActorDesc = (FLevelInstanceActorDesc*)From;
-	LevelInstanceContainer = FromLevelInstanceActorDesc->LevelInstanceContainer;
-	FromLevelInstanceActorDesc->LevelInstanceContainer = nullptr;
+
+	// Use the Register/Unregister so callbacks are added/removed
+	if (FromLevelInstanceActorDesc->LevelInstanceContainer.IsValid())
+	{
+		RegisterContainerInstance(Container->World);
+		FromLevelInstanceActorDesc->UnregisterContainerInstance();
+	}
 }
 
 void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
