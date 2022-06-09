@@ -371,14 +371,23 @@ void FSlateAsyncTaskNotificationImpl::UpdateNotification()
 		// Update the notification UI only if the state hasn't changed (i.e this notification will not be deleted)
 		if(OwningNotification && State == PreviousCompletionState)
 		{
-			OwningNotification->SetText(TitleText);
-			OwningNotification->SetSubText(ProgressText);
-			OwningNotification->SetHyperlink(Hyperlink, HyperlinkText);
+			/* Slate requries the notification to be updated from the main thread, so we add a one frame ticker for it */
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FSlateAsyncTaskNotificationImpl::UpdateNotificationDeferred, OwningNotification, TitleText, ProgressText, Hyperlink, HyperlinkText));
 		}
 
 		// Set the Pending Completion State in case the notification has to change
 		SetPendingCompletionState(State);
 	}
+}
+
+bool FSlateAsyncTaskNotificationImpl::UpdateNotificationDeferred(float InDeltaTime, TSharedPtr<SNotificationItem> OwningNotification, FText TitleText, FText ProgressText, FSimpleDelegate Hyperlink, FText HyperlinkText)
+{
+	OwningNotification->SetText(TitleText);
+	OwningNotification->SetSubText(ProgressText);
+	OwningNotification->SetHyperlink(Hyperlink, HyperlinkText);
+
+	// We only want this function to tick once
+	return false;
 }
 
 EAsyncTaskNotificationPromptAction FSlateAsyncTaskNotificationImpl::GetPromptAction() const

@@ -96,6 +96,9 @@ private:
 	/* Cleanly destroy the current notification */
 	void DestroyCurrentNotification();
 
+	/* Static function to update the notification from the main thread */
+	static bool UpdateNotificationDeferred(float InDeltaTime, TSharedPtr<SNotificationItem> OwningNotification, FText TitleText, FText ProgressText, FSimpleDelegate Hyperlink, FText HyperlinkText);
+
 private:
 
 	/** The Config used for all notifications */
