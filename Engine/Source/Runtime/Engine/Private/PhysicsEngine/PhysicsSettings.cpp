@@ -3,7 +3,9 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "GameFramework/MovementComponent.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectIterator.h"
 
 #include "Framework/Threading.h"
 

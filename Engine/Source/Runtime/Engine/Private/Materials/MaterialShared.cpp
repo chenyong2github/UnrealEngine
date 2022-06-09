@@ -3469,11 +3469,13 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 	return nullptr;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FUniformExpressionCache::~FUniformExpressionCache()
 {
 	ResetAllocatedVTs();
 	UniformBuffer.SafeRelease();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FUniformExpressionCache::ResetAllocatedVTs()
 {

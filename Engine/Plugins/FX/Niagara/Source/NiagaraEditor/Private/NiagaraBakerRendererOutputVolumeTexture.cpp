@@ -12,6 +12,7 @@
 
 #include "Engine/Canvas.h"
 #include "Engine/VolumeTexture.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/PathViews.h"
 #include "Modules/ModuleManager.h"
 #include "Factories/VolumeTextureFactory.h"

@@ -5,6 +5,7 @@
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/MiscTrace.h"
 #include "TraceServices/Model/Counters.h"
 
 #include <limits>
