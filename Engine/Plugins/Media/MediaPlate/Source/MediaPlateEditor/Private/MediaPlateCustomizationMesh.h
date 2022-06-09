@@ -47,5 +47,8 @@ private:
 	 * Gets the path for the mesh asset.
 	 */
 	FString GetAssetPath(UMediaPlateComponent* MediaPlate);
+
+	/** Reference count for our generated meshes. */
+	static TMap<UStaticMesh*, int32> MeshRefCount;
 };
 
