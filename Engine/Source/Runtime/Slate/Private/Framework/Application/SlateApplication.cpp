@@ -2069,6 +2069,9 @@ void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const
 				Renderer->EndFrame();
 			}
 
+			// Make sure every fake frame of our modal dialog has a chance to free its resources
+			Renderer->FlushCommands();
+
 			// Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
 			Renderer->Sync();
 		}
