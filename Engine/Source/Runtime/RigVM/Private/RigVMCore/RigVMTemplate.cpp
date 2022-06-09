@@ -649,6 +649,7 @@ FLinearColor FRigVMTemplate::GetColor(const TArray<int32>& InPermutationIndices)
 		static const FName NodeColorName = TEXT("NodeColor");
 		FString NodeColorMetadata;
 
+		// if we can't find one permutation we are not going to find any, so it's ok to return false here
 		const FRigVMFunction* ResolvedFunction = GetPermutation(InPermutationIndex);
 		if(ResolvedFunction == nullptr)
 		{
@@ -710,6 +711,7 @@ FText FRigVMTemplate::GetTooltipText(const TArray<int32>& InPermutationIndices) 
 			return false;
 		}
 		
+		// if we can't find one permutation we are not going to find any, so it's ok to return false here
 		const FRigVMFunction* ResolvedFunction = GetPermutation(InPermutationIndex);
 		if(ResolvedFunction == nullptr)
 		{
@@ -765,6 +767,7 @@ FText FRigVMTemplate::GetDisplayNameForArgument(const FName& InArgumentName, con
 
 		auto VisitPermutation = [InArgumentName, &ResolvedDisplayName, this](int32 InPermutationIndex) -> bool
 		{
+			// if we can't find one permutation we are not going to find any, so it's ok to return false here
 			const FRigVMFunction* ResolvedFunction = GetPermutation(InPermutationIndex);
 			if(ResolvedFunction == nullptr)
 			{
@@ -814,6 +817,66 @@ FText FRigVMTemplate::GetDisplayNameForArgument(const FName& InArgumentName, con
 		return ResolvedDisplayName;
 	}
 	return FText();
+}
+
+FString FRigVMTemplate::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey, const TArray<int32>& InPermutationIndices) const
+{
+	if(const FRigVMTemplateArgument* Argument = FindArgument(InArgumentName))
+	{
+		FString ResolvedMetaData;
+
+		auto VisitPermutation = [InArgumentName, &ResolvedMetaData, InMetaDataKey, this](int32 InPermutationIndex) -> bool
+		{
+			// if we can't find one permutation we are not going to find any, so it's ok to return false here
+			const FRigVMFunction* ResolvedFunction = GetPermutation(InPermutationIndex);
+			if(ResolvedFunction == nullptr)
+			{
+				return false;
+			}
+			
+			if(const FProperty* Property = ResolvedFunction->Struct->FindPropertyByName(InArgumentName))
+			{
+				const FString MetaData = Property->GetMetaData(InMetaDataKey);
+				if (!ResolvedMetaData.IsEmpty())
+				{
+					if(!ResolvedMetaData.Equals(MetaData))
+					{
+						ResolvedMetaData = FString();
+						return false;
+					}
+				}
+				else
+				{
+					ResolvedMetaData = MetaData;
+				}
+			}
+			return true;
+		};
+
+		if(InPermutationIndices.IsEmpty())
+		{
+			for(int32 PermutationIndex = 0; PermutationIndex < Permutations.Num(); PermutationIndex++)
+			{
+				if(!VisitPermutation(PermutationIndex))
+				{
+					break;
+				}
+			}
+		}
+		else
+		{
+			for(const int32 PermutationIndex : InPermutationIndices)
+			{
+				if(!VisitPermutation(PermutationIndex))
+				{
+					break;
+				}
+			}
+		}
+
+		return ResolvedMetaData;
+	}
+	return FString();
 }
 
 #endif

@@ -328,6 +328,9 @@ public:
 	// Returns the display name text for an argument 
 	FText GetDisplayNameForArgument(const FName& InArgumentName, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
+	// Returns meta data on the property of the permutations 
+	FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
+
 	FString GetCategory() const;
 	FString GetKeywords() const;
 

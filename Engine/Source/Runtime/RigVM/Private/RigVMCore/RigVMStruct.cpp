@@ -581,7 +581,7 @@ FString FRigVMStruct::ExportToFullyQualifiedText(const FProperty* InMemberProper
 	return DefaultValue;
 }
 
-FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InStruct, const uint8* InStructMemoryPtr)
+FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InStruct, const uint8* InStructMemoryPtr, bool bUseQuotes)
 {
 	check(InStruct);
 	check(InStructMemoryPtr);
@@ -596,7 +596,7 @@ FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InStruct, 
 		
 		FString PropertyName = It->GetName();
 		const uint8* StructMemberMemoryPtr = It->ContainerPtrToValuePtr<uint8>(InStructMemoryPtr);
-		FString DefaultValue = ExportToFullyQualifiedText(*It, StructMemberMemoryPtr);
+		FString DefaultValue = ExportToFullyQualifiedText(*It, StructMemberMemoryPtr, bUseQuotes);
 		FieldValues.Add(FString::Printf(TEXT("%s=%s"), *PropertyName, *DefaultValue));
 	}
 
@@ -608,7 +608,7 @@ FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InStruct, 
 	return FString::Printf(TEXT("(%s)"), *FString::Join(FieldValues, TEXT(",")));
 }
 
-FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InScriptStruct, const FName& InPropertyName, const uint8* InStructMemoryPointer) const
+FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InScriptStruct, const FName& InPropertyName, const uint8* InStructMemoryPointer, bool bUseQuotes) const
 {
 	check(InScriptStruct);
 	if(InStructMemoryPointer == nullptr)
@@ -623,7 +623,7 @@ FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InScriptSt
 	}
 
 	const uint8* StructMemberMemoryPtr = Property->ContainerPtrToValuePtr<uint8>(InStructMemoryPointer);
-	return ExportToFullyQualifiedText(Property, StructMemberMemoryPtr);
+	return ExportToFullyQualifiedText(Property, StructMemberMemoryPtr, bUseQuotes);
 }
 
 FName FRigVMStruct::GetNextAggregateName(const FName& InLastAggregatePinName) const

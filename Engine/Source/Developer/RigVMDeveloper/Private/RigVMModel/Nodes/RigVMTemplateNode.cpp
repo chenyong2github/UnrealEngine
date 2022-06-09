@@ -352,21 +352,22 @@ FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinN
 	for(const int32 PermutationIndex : PermutationIndices)
 	{
 		FString NewDefaultValue;
-		
-		if(const FRigVMFunction* Permutation = GetTemplate()->GetPermutation(PermutationIndex))
+
+		const FRigVMTemplate* Template = GetTemplate();
+		const FRigVMTemplateArgument* Argument = Template->FindArgument(InRootPinName);
+		const FRigVMTemplateArgumentType Type = Argument->GetTypes()[PermutationIndex];
+
+		if(const FRigVMFunction* Permutation = Template->GetPermutation(PermutationIndex))
 		{
 			const TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Permutation->Struct));
 			const FRigVMStruct* DefaultStruct = (const FRigVMStruct*)StructOnScope->GetStructMemory();
 
+			const bool bUseQuotes = Type.CPPType != RigVMTypeUtils::FStringType && Type.CPPType != RigVMTypeUtils::FNameType;
 			NewDefaultValue = DefaultStruct->ExportToFullyQualifiedText(
-				Cast<UScriptStruct>(StructOnScope->GetStruct()), InRootPinName);
+				Cast<UScriptStruct>(StructOnScope->GetStruct()), InRootPinName, nullptr, bUseQuotes);
 		}
 		else
 		{
-			const FRigVMTemplate* Template = GetTemplate();
-			const FRigVMTemplateArgument* Argument = Template->FindArgument(InRootPinName);
-			const FRigVMTemplateArgumentType Type = Argument->GetTypes()[PermutationIndex];
-
 			if (Type.IsArray())
 			{
 				NewDefaultValue = TEXT("()");

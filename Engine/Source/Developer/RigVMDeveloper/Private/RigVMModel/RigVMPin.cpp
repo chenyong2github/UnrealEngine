@@ -985,6 +985,35 @@ FName URigVMPin::GetCustomWidgetName() const
 	{
 		return GetParentPin()->GetCustomWidgetName();
 	}
+
+#if WITH_EDITOR
+	if(CustomWidgetName.IsNone())
+	{
+		if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetNode()))
+		{
+			if(const UScriptStruct* Struct = UnitNode->GetScriptStruct())
+			{
+				if(const FProperty* Property = Struct->FindPropertyByName(GetFName()))
+				{
+					const FString MetaData = Property->GetMetaData(FRigVMStruct::CustomWidgetMetaName);
+					if(!MetaData.IsEmpty())
+					{
+						return *MetaData;
+					}
+				}
+			}
+			else if(const FRigVMTemplate* Template = UnitNode->GetTemplate())
+			{
+				const FString MetaData = Template->GetArgumentMetaData(GetFName(), FRigVMStruct::CustomWidgetMetaName);
+				if(!MetaData.IsEmpty())
+				{
+					return *MetaData;
+				}
+			}
+		}
+	}
+#endif
+	
 	return CustomWidgetName;
 }
 
