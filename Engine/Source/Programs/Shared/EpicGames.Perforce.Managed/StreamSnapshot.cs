@@ -22,9 +22,9 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Lookup a directory by reference
 		/// </summary>
-		/// <param name="reference">The reference</param>
+		/// <param name="ref">The reference</param>
 		/// <returns></returns>
-		public abstract StreamTree Lookup(StreamTreeRef @reference);
+		public abstract StreamTree Lookup(StreamTreeRef @ref);
 	}
 
 	/// <summary>

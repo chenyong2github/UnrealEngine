@@ -41,22 +41,22 @@ namespace EpicGames.Perforce.Managed
 			FileInfo info = new FileInfo(location.FullName);
 			if (!info.Exists)
 			{
-				logger.LogWarning("warning: {Location} was missing from cache.", location);
+				logger.LogWarning("warning: {0} was missing from cache.", location);
 				return false;
 			}
 			if (info.Length != Length)
 			{
-				logger.LogWarning("warning: {Location} was {Bytes:n} bytes; expected {ExpectedBytes:n} bytes", location, info.Length, Length);
+				logger.LogWarning("warning: {0} was {1:n} bytes; expected {2:n} bytes", location, info.Length, Length);
 				return false;
 			}
 			if (info.LastWriteTimeUtc.Ticks != LastModifiedTicks)
 			{
-				logger.LogWarning("warning: {Location} was last modified at {LastWriteTime}; expected {ExpectedLastWriteTime}", location, info.LastWriteTimeUtc, new DateTime(LastModifiedTicks, DateTimeKind.Utc));
+				logger.LogWarning("warning: {0} was last modified at {1}; expected {2}", location, info.LastWriteTimeUtc, new DateTime(LastModifiedTicks, DateTimeKind.Utc));
 				return false;
 			}
 			if (info.Attributes.HasFlag(FileAttributes.ReadOnly) != BReadOnly)
 			{
-				logger.LogWarning("warning: {Location} readonly flag is {ReadOnly}; expected {ExpectedReadOnly}", location, info.Attributes.HasFlag(FileAttributes.ReadOnly), BReadOnly);
+				logger.LogWarning("warning: {0} readonly flag is {1}; expected {2}", info.Attributes.HasFlag(FileAttributes.ReadOnly), BReadOnly);
 				return false;
 			}
 
