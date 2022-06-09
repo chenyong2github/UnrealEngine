@@ -68,7 +68,7 @@ namespace IncludeTool
 	/// </summary>
 	public enum TargetConfiguration
 	{
-		Debug, 
+		Debug,
 		Development,
 		Test,
 		Shipping
@@ -299,7 +299,7 @@ namespace IncludeTool
 					InputDir = new DirectoryReference(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "..\\..\\..\\.."));
 				}
 
-				// Generate the exported task list 
+				// Generate the exported task list
 				FileReference TaskListFile = FileReference.Combine(WorkingDir, "Targets", String.Format("{0} {1} {2}.xml", Options.Target, Options.Platform, Options.Configuration));
 				if (Options.CleanTaskList || !FileReference.Exists(TaskListFile))
 				{
@@ -576,7 +576,7 @@ namespace IncludeTool
 					// Warn about any files that appear to be PCHs but actually include declarations
 					foreach (SourceFile PreprocessedFile in PreprocessedFiles)
 					{
-						if(PreprocessedFile.Location.HasExtension("PCH.h") && 
+						if(PreprocessedFile.Location.HasExtension("PCH.h") &&
 						   (PreprocessedFile.Flags & SourceFileFlags.Aggregate) == 0)
 						{
 							Log.WriteWarning(PreprocessedFile.Location, "file appears to be PCH but also contains declarations, will not be optimized out.");
@@ -586,9 +586,9 @@ namespace IncludeTool
 					// Test for any headers with old-style include guards
 					foreach(SourceFile PreprocessedFile in PreprocessedFiles)
 					{
-						if(PreprocessedFile.HasHeaderGuard && 
-						   PreprocessedFile.BodyMaxIdx < PreprocessedFile.Markup.Length && 
-						   (PreprocessedFile.Flags & SourceFileFlags.External) == 0 && 
+						if(PreprocessedFile.HasHeaderGuard &&
+						   PreprocessedFile.BodyMaxIdx < PreprocessedFile.Markup.Length &&
+						   (PreprocessedFile.Flags & SourceFileFlags.External) == 0 &&
 						   !Rules.IgnoreOldStyleHeaderGuards(PreprocessedFile.Location))
 						{
 							int LineIdx = PreprocessedFile.Markup[0].Location.LineIdx;
@@ -599,9 +599,9 @@ namespace IncludeTool
 					// Test for any headers without include guards
 					foreach(SourceFile PreprocessedFile in PreprocessedFiles)
 					{
-						if(!PreprocessedFile.HasHeaderGuard && 
-						   (PreprocessedFile.Flags & (SourceFileFlags.TranslationUnit | SourceFileFlags.Inline | SourceFileFlags.External | SourceFileFlags.GeneratedHeader)) == 0 && 
-						   PreprocessedFile.Counterpart == null && 
+						if(!PreprocessedFile.HasHeaderGuard &&
+						   (PreprocessedFile.Flags & (SourceFileFlags.TranslationUnit | SourceFileFlags.Inline | SourceFileFlags.External | SourceFileFlags.GeneratedHeader)) == 0 &&
+						   PreprocessedFile.Counterpart == null &&
 						   PreprocessedFile.Location.HasExtension(".h") &&
 						   !PreprocessedFile.Location.GetFileName().Equals("MonolithicHeaderBoilerplate.h", StringComparison.OrdinalIgnoreCase))
 						{
@@ -612,7 +612,7 @@ namespace IncludeTool
 					// Test for any headers that include files after the first block of code
 					foreach(SourceFile PreprocessedFile in PreprocessedFiles)
 					{
-						if((PreprocessedFile.Flags & SourceFileFlags.TranslationUnit) == 0 && 
+						if((PreprocessedFile.Flags & SourceFileFlags.TranslationUnit) == 0 &&
 						   (PreprocessedFile.Flags & SourceFileFlags.AllowMultipleFragments) == 0)
 						{
 							int FirstTextIdx = Array.FindIndex(PreprocessedFile.Markup, x => x.Type == PreprocessorMarkupType.Text);
@@ -905,12 +905,12 @@ namespace IncludeTool
 				}
 			}
 
-			if (Utility.Run(Unreal.DotnetPath, String.Format("{0} -Mode=JsonExport {1} {2} {3}{4} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1 -execcodegenactions -outputfile=\"{5}\"", 
+			if (Utility.Run(Unreal.DotnetPath, String.Format("{0} -Mode=JsonExport {1} {2} {3}{4} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1 -execcodegenactions -outputfile=\"{5}\"",
 				Unreal.UnrealBuildToolDllPath, Target, Configuration, Platform, Precompile? " -precompile" : "", TaskListFile.ChangeExtension(".json").FullName), Unreal.EngineDirectory, Log) != 0)
 			{
 				throw new Exception("UnrealBuildTool failed");
 			}
-			if (Utility.Run(Unreal.DotnetPath, String.Format("{0} {1} {2} {3}{4} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1", 
+			if (Utility.Run(Unreal.DotnetPath, String.Format("{0} {1} {2} {3}{4} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1",
 				Unreal.UnrealBuildToolDllPath, Target, Configuration, Platform, Precompile? " -precompile" : ""), Unreal.EngineDirectory, Log) != 0)
 			{
 				throw new Exception("UnrealBuildTool failed");
@@ -930,7 +930,7 @@ namespace IncludeTool
 		}
 
 		/// <summary>
-		/// Class used to record 
+		/// Class used to record
 		/// </summary>
 		class MarkupState
 		{
@@ -1063,6 +1063,7 @@ namespace IncludeTool
 							&& !File.Location.GetFileName().Contains("FramePro")
 							&& !File.Location.GetFileName().Contains("Recast")
 							&& !File.Location.FullName.Contains("libSampleRate")
+							&& !File.Location.FullName.Contains("libav")
 							&& !File.Location.FullName.Contains("lz4")
 							&& !File.Location.FullName.Contains("NeuralNetworkInference")
 							&& !File.Location.FullName.Contains("NNI")
@@ -1398,7 +1399,7 @@ namespace IncludeTool
 			// Keep track of the number of failures and successes
 			int NumFailed = 0;
 			int NumSucceeded = 0;
-			
+
 			// Create the work queue outside a try/finally block, to clean them up on abnormal termination
 			List<SequenceProbe> ActiveProbes = new List<SequenceProbe>();
 			try
@@ -1448,7 +1449,7 @@ namespace IncludeTool
 								Progress[Idx] = '.';
 							}
 							Log.WriteLine("[{0}] Optimize <{1}> {2}/{3} probes, {4}{5} active, {6}/{7} fragments ({8}%)", Timer.Elapsed.ToString(@"hh\:mm\:ss"), new string(Progress), NumCompletedProbes, FragmentToProbe.Count, (NumFailed == 0)? "" : String.Format("{0} failed, ", NumFailed), ActiveProbes.Count, NumCompletedFragments, TotalFragments, (TotalFragments == 0)? 100 : (NumCompletedFragments * 100) / TotalFragments);
-							
+
 							// Check the time limit
 							if(TimeLimit > 0 && Timer.Elapsed.TotalHours > TimeLimit)
 							{
