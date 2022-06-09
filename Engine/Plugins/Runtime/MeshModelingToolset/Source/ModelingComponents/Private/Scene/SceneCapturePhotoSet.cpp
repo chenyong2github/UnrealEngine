@@ -54,7 +54,9 @@ void FSceneCapturePhotoSet::AddStandardExteriorCapturesFromBoundingBox(
 	double NearPlaneDist,
 	bool bFaces,
 	bool bUpperCorners,
-	bool bLowerCorners)
+	bool bLowerCorners,
+	bool bUpperEdges,
+	bool bSideEdges)
 {
 	TArray<FVector3d> Directions;
 
@@ -81,6 +83,20 @@ void FSceneCapturePhotoSet::AddStandardExteriorCapturesFromBoundingBox(
 		Directions.Add(Normalized(FVector3d(1, -1, 1)));
 		Directions.Add(Normalized(FVector3d(-1, -1, 1)));
 	}
+	if (bUpperEdges)
+	{
+		Directions.Add(Normalized(FVector3d(-1, 0, -1)));
+		Directions.Add(Normalized(FVector3d(1, 0, -1)));
+		Directions.Add(Normalized(FVector3d(0, -1, -1)));
+		Directions.Add(Normalized(FVector3d(0, 1, -1)));
+	}
+	if (bSideEdges)
+	{
+		Directions.Add(Normalized(FVector3d(1, 1, 0)));
+		Directions.Add(Normalized(FVector3d(-1, 1, 0)));
+		Directions.Add(Normalized(FVector3d(1, -1, 0)));
+		Directions.Add(Normalized(FVector3d(-1, -1, 0)));
+	}
 	AddExteriorCaptures(PhotoDimensions, HorizontalFOVDegrees, NearPlaneDist, Directions);
 }
 
@@ -97,16 +113,18 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 	FScopedSlowTask Progress(Directions.Num(), LOCTEXT("ComputingViewpoints", "Computing Viewpoints..."));
 	Progress.MakeDialog(bAllowCancel);
 
-	// Workaround for Nanite scene proxies visibility
-	// Unregister all components to remove unwanted proxies from the scene. This is currently the only way to "hide" nanite meshes.
+	// Unregister all components to remove unwanted proxies from the scene. This was previously the only way to "hide" nanite meshes, now optional.
 	TSet<AActor*> VisibleActorsSet(VisibleActors);
 	TArray<AActor*> ActorsToRegister;
-	for (TActorIterator<AActor> Actor(TargetWorld); Actor; ++Actor)
+	if (bEnforceVisibilityViaUnregister)
 	{
-		if (!VisibleActorsSet.Contains(*Actor))
+		for (TActorIterator<AActor> Actor(TargetWorld); Actor; ++Actor)
 		{
-			Actor->UnregisterAllComponents();
-			ActorsToRegister.Add(*Actor);
+			if (!VisibleActorsSet.Contains(*Actor))
+			{
+				Actor->UnregisterAllComponents();
+				ActorsToRegister.Add(*Actor);
+			}
 		}
 	}
 
@@ -351,6 +369,12 @@ bool FSceneCapturePhotoSet::ComputeSample(
 	}
 
 	return true;
+}
+
+
+void FSceneCapturePhotoSet::SetEnableVisibilityByUnregisterMode(bool bEnable)
+{
+	bEnforceVisibilityViaUnregister = bEnable;
 }
 
 void FSceneCapturePhotoSet::SetEnableWriteDebugImages(bool bEnable, FString FolderName)

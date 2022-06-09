@@ -59,7 +59,9 @@ public:
 		double NearPlaneDist,
 		bool bFaces,
 		bool bUpperCorners,
-		bool bLowerCorners);
+		bool bLowerCorners,
+		bool bUpperEdges,
+		bool bSideEdges);
 
 	/**
 	 * Add captures on the "view sphere", ie a sphere centered/sized such that the target actors
@@ -141,6 +143,14 @@ public:
 	 */
 	void SetEnableWriteDebugImages(bool bEnable, FString FolderName = FString());
 
+	/**
+	 * If enabled, any Component Scene Proxies in the level that are not meant to be included in
+	 * the capture (ie not added via SetCaptureSceneActors), will be unregistered to hide them.
+	 * This is generally not necessary, and disabled by default, but in some cases the Renderer
+	 * may not be able to fully exclude the effects of an object via hidden/visible flags.
+	 */
+	void SetEnableVisibilityByUnregisterMode(bool bEnable);
+
 	void SetAllowCancel(bool bAllowCancelIn)
 	{
 		bAllowCancel = bAllowCancelIn;
@@ -154,6 +164,8 @@ public:
 protected:
 	UWorld* TargetWorld = nullptr;
 	TArray<AActor*> VisibleActors;
+
+	bool bEnforceVisibilityViaUnregister = false;
 
 	bool bEnableBaseColor = true;
 	bool bEnableRoughness = false;

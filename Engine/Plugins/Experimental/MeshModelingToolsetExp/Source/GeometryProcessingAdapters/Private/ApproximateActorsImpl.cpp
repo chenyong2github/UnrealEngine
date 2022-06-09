@@ -112,7 +112,7 @@ static TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 
 	SceneCapture->AddStandardExteriorCapturesFromBoundingBox(
 		CaptureDimensions, FieldOfView, NearPlaneDist,
-		true, true, true);
+		true, true, true, true, true);
 	
 	return SceneCapture;
 }
