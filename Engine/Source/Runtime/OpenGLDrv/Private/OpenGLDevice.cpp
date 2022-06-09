@@ -23,6 +23,7 @@
 #include "SceneUtils.h"
 
 #include "HardwareInfo.h"
+#include "OpenGLProgramBinaryFileCache.h"
 
 #if PLATFORM_ANDROID
 #include <jni.h>

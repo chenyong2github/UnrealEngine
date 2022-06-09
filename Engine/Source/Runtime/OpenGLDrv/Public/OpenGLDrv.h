@@ -939,6 +939,10 @@ private:
 
 	void PrepareGFXBoundShaderState(const FGraphicsPipelineStateInitializer& Initializer);
 
+
+	/** called once per frame, used for resource processing */
+	void EndFrameTick();
+
 	/** Counter incremented each time RHIBeginScene is called. */
 	uint32 SceneFrameCounter;
 

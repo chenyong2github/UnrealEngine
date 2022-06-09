@@ -160,3 +160,26 @@ inline bool ShouldRunGLRenderContextOpOnThisThread(FRHICommandListImmediate& RHI
 {
 	return (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread() || IsInRHIThread());
 }
+
+
+// Program Binary helpers.
+namespace UE
+{
+	namespace OpenGL
+	{
+		bool IsStoringCompressedBinaryPrograms();
+
+		struct FCompressedProgramBinaryHeader
+		{
+			static const uint32 NotCompressed = 0xFFFFFFFF;
+			uint32 UncompressedSize;
+		};
+
+		bool GetProgramBinaryFromGLProgram(GLuint Program, TArray<uint8>& ProgramBinaryOUT);
+		bool GetUncompressedProgramBinaryFromGLProgram(GLuint Program, TArray<uint8>& ProgramBinaryOUT);
+		bool GetCompressedProgramBinaryFromGLProgram(GLuint Program, TArray<uint8>& ProgramBinaryOUT);
+		void CompressProgramBinary(const TArray<uint8>& UncompressedProgramBinary, TArray<uint8>& ProgramBinaryOUT);
+		bool UncompressCompressedBinaryProgram(const TArray<uint8>& CompressedProgramBinary, TArray<uint8>& UncompressedProgramBinaryOUT);
+	}
+}
+
