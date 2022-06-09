@@ -403,7 +403,7 @@ void FWindowsMMDeviceCache::OnDeviceRemoved(const FString& DeviceId, bool)
 {
 	FWriteScopeLock WriteLock(CacheMutationLock);
 	FName DeviceIdName = *DeviceId;
-	check(Cache.Contains(DeviceIdName));
+	UE_CLOG(!Cache.Contains(DeviceIdName), LogAudioMixer, Warning, TEXT("FWindowsMMDeviceCache::OnDeviceRemoved: DeviceId='%s' was not in the cache. "));
 	Cache.Remove(DeviceIdName);
 }
 
