@@ -517,6 +517,7 @@ family=clang-cl
 include_path01=..\include
 include_path02=..\include\c++\v1
 include_path03=..\lib\clang\*\include
+include_path04=..\usr\include
 
 [files]
 main=clang++.exe
