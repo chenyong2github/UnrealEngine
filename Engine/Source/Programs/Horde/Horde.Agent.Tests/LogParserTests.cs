@@ -720,9 +720,9 @@ namespace Horde.Agent.Tests
 		{
 			string[] lines =
 			{
-				@"[2022.05.31-04.25.40:235][  0]LogGatherTextFromSourceCommandlet: Warning: Engine/Plugins/Enterprise/VariantManager/Source/VariantManager/Private/SVariantManager.cpp(3717): LOCTEXT macro has an empty identifier and cannot be gathered.",
-				@"[2022.06.01-04.29.09:630][  0]LogLocTextHelper: Warning: Engine/Plugins/Experimental/UVEditor/Source/UVEditor/Private/UVEditorCommands.cpp(39): Text conflict from UI_COMMAND macro for namespace ""UICommands.FUVEditorCommands"" and key ""SplitAction_ToolTip"". The conflicting sources are ""Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie vertices. Given a triangle selection, split along selection boundaries."" and ""Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie vertices."".",
-				@"[2022.06.01-04.29.09:630][  0]LogLocTextHelper: Warning: Engine/Content/Localization/Engine/Engine.manifest: See conflicting location.",
+				@"[2022.05.31-04.25.40:235][  0]LogGatherTextFromSourceCommandlet: Warning: Plugins/Enterprise/VariantManager/Source/VariantManager/Private/SVariantManager.cpp(3717): LOCTEXT macro has an empty identifier and cannot be gathered.",
+				@"[2022.06.01-04.29.09:630][  0]LogLocTextHelper: Warning: Plugins/Experimental/UVEditor/Source/UVEditor/Private/UVEditorCommands.cpp(39): Text conflict from UI_COMMAND macro for namespace ""UICommands.FUVEditorCommands"" and key ""SplitAction_ToolTip"". The conflicting sources are ""Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie vertices. Given a triangle selection, split along selection boundaries."" and ""Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie vertices."".",
+				@"[2022.06.01-04.29.09:630][  0]LogLocTextHelper: Warning: Content/Localization/Engine/Engine.manifest: See conflicting location.",
 			};
 
 			{

@@ -55,7 +55,7 @@ namespace AutomationUtils.Matchers
 		{
 			builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
 			builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
-			builder.AnnotateSourceFile(match.Groups["file"], null);
+			builder.AnnotateSourceFile(match.Groups["file"], "Engine");
 			builder.Annotate(match.Groups["line"], LogEventMarkup.LineNumber);
 		}
 	}
