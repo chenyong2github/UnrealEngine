@@ -4,6 +4,9 @@ using System;
 using System.Buffers.Binary;
 using System.Buffers.Text;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 
@@ -42,6 +45,22 @@ namespace EpicGames.Perforce
 		public PerforceValue(ReadOnlyMemory<byte> data)
 		{
 			Data = data;
+		}
+
+		/// <summary>
+		/// Create a value from a string
+		/// </summary>
+		/// <param name="text">String value to serialize</param>
+		public PerforceValue(string text)
+		{
+			int length = Encoding.UTF8.GetByteCount(text);
+
+			byte[] buffer = new byte[1 + 4 + length];
+			buffer[0] = (byte)'s';
+			BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(1, 4), length);
+			Encoding.UTF8.GetBytes(text, buffer.AsSpan(5));
+
+			Data = buffer;
 		}
 
 		/// <summary>
@@ -218,6 +237,40 @@ namespace EpicGames.Perforce
 		public List<KeyValuePair<Utf8String, PerforceValue>> Rows { get; } = new List<KeyValuePair<Utf8String, PerforceValue>>();
 
 		/// <summary>
+		/// Create a record from a set of fields
+		/// </summary>
+		/// <param name="fields">Fields to serialize</param>
+		/// <param name="numberedListElements">Whether to number list elements when flattening the record</param>
+		/// <returns>Record containing the given fields</returns>
+		public static PerforceRecord FromFields(IEnumerable<KeyValuePair<string, object>> fields, bool numberedListElements)
+		{
+			PerforceRecord record = new PerforceRecord();
+			foreach ((string name, object value) in fields)
+			{
+				if (value is string str)
+				{
+					record.Rows.Add(new KeyValuePair<Utf8String, PerforceValue>(name, new PerforceValue(str)));
+				}
+				else if (value is List<string> list)
+				{
+					if (numberedListElements)
+					{
+						record.Rows.AddRange(Enumerable.Range(0, list.Count).Select(x => new KeyValuePair<Utf8String, PerforceValue>($"{name}{x}", new PerforceValue(list[x]))));
+					}
+					else
+					{
+						record.Rows.AddRange(list.Select(x => new KeyValuePair<Utf8String, PerforceValue>(name, new PerforceValue(x))));
+					}
+				}
+				else
+				{
+					throw new PerforceException("Unsupported formatting type for {0}", name);
+				}
+			}
+			return record;
+		}
+
+		/// <summary>
 		/// Copy this record into the given array of values. This method is O(n) if every record key being in the list of keys in the same order, but O(n^2) if not.
 		/// </summary>
 		/// <param name="keys">List of keys to parse</param>
@@ -259,6 +312,64 @@ namespace EpicGames.Perforce
 					rowIdx++;
 				}
 			}
+		}
+
+		/// <summary>
+		/// Serialize to a single block of data
+		/// </summary>
+		/// <returns>Serialized data</returns>
+		public byte[] Serialize()
+		{
+			MemoryStream stream = new MemoryStream();
+			using (BinaryWriter writer = new BinaryWriter(stream))
+			{
+				writer.Write((byte)'{');
+				foreach ((Utf8String name, PerforceValue value) in Rows)
+				{
+					writer.Write('s');
+					writer.Write((int)name.Length);
+					writer.Write(name.Span);
+					writer.Write(value.Data.Span);
+				}
+				writer.Write((byte)'0');
+			}
+			return stream.ToArray();
+		}
+
+
+		/// <summary>
+		/// Serializes a list of key/value pairs into binary format.
+		/// </summary>
+		/// <param name="keyValuePairs">List of key value pairs</param>
+		/// <returns>Serialized record data</returns>
+		public static byte[] Serialize(List<KeyValuePair<string, object>> keyValuePairs)
+		{
+			MemoryStream stream = new MemoryStream();
+			using (BinaryWriter writer = new BinaryWriter(stream))
+			{
+				writer.Write((byte)'{');
+				foreach (KeyValuePair<string, object> keyValuePair in keyValuePairs)
+				{
+					writer.Write('s');
+					byte[] keyBytes = Encoding.UTF8.GetBytes(keyValuePair.Key);
+					writer.Write((int)keyBytes.Length);
+					writer.Write(keyBytes);
+
+					if (keyValuePair.Value is string str)
+					{
+						writer.Write('s');
+						byte[] valueBytes = Encoding.UTF8.GetBytes(str);
+						writer.Write((int)valueBytes.Length);
+						writer.Write(valueBytes);
+					}
+					else
+					{
+						throw new PerforceException("Unsupported formatting type for {0}", keyValuePair.Key);
+					}
+				}
+				writer.Write((byte)'0');
+			}
+			return stream.ToArray();
 		}
 	}
 }

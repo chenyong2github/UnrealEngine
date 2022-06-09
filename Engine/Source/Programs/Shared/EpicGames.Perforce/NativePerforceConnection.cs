@@ -580,5 +580,8 @@ namespace EpicGames.Perforce
 
 			return result.ToString();
 		}
+
+		/// <inheritdoc/>
+		public PerforceRecord CreateRecord(List<KeyValuePair<string, object>> fields) => PerforceRecord.FromFields(fields, false);
 	}
 }

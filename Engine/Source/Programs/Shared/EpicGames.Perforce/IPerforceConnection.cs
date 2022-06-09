@@ -41,5 +41,12 @@ namespace EpicGames.Perforce
 		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
 		Task<IPerforceOutput> LoginCommandAsync(string password, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Creates a record from a set of input fields
+		/// </summary>
+		/// <param name="fields">Fields for the record</param>
+		/// <returns>Serialized record data</returns>
+		PerforceRecord CreateRecord(List<KeyValuePair<string, object>> fields);
 	}
 }

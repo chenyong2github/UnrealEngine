@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Perforce
@@ -360,6 +361,9 @@ namespace EpicGames.Perforce
 			}
 		}
 
+		/// <inheritdoc/>
+		public PerforceRecord CreateRecord(List<KeyValuePair<string, object>> fields) => PerforceRecord.FromFields(fields, true);
+
 		#endregion
 	}
 
@@ -487,41 +491,6 @@ namespace EpicGames.Perforce
 			{
 				await response.ReadRecordsAsync(handleRecord, cancellationToken);
 			}
-		}
-
-		/// <summary>
-		/// Serializes a list of key/value pairs into binary format.
-		/// </summary>
-		/// <param name="keyValuePairs">List of key value pairs</param>
-		/// <returns>Serialized record data</returns>
-		static byte[] SerializeRecord(List<KeyValuePair<string, object>> keyValuePairs)
-		{
-			MemoryStream stream = new MemoryStream();
-			using (BinaryWriter writer = new BinaryWriter(stream))
-			{
-				writer.Write((byte)'{');
-				foreach (KeyValuePair<string, object> keyValuePair in keyValuePairs)
-				{
-					writer.Write('s');
-					byte[] keyBytes = Encoding.UTF8.GetBytes(keyValuePair.Key);
-					writer.Write((int)keyBytes.Length);
-					writer.Write(keyBytes);
-
-					if (keyValuePair.Value is string str)
-					{
-						writer.Write('s');
-						byte[] valueBytes = Encoding.UTF8.GetBytes(str);
-						writer.Write((int)valueBytes.Length);
-						writer.Write(valueBytes);
-					}
-					else
-					{
-						throw new PerforceException("Unsupported formatting type for {0}", keyValuePair.Key);
-					}
-				}
-				writer.Write((byte)'0');
-			}
-			return stream.ToArray();
 		}
 
 		/// <summary>
@@ -745,7 +714,7 @@ namespace EpicGames.Perforce
 				throw new PerforceException("'Number' field should be set to -1 to create a new changelist.");
 			}
 
-			PerforceResponse response = await SingleResponseCommandAsync(connection, "change", new List<string> { "-i" }, SerializeRecord(record), null, cancellationToken);
+			PerforceResponse response = await SingleResponseCommandAsync(connection, "change", new List<string> { "-i" }, SerializeRecord(connection, record), null, cancellationToken);
 
 			PerforceError? error = response.Error;
 			if (error != null)
@@ -808,7 +777,7 @@ namespace EpicGames.Perforce
 				arguments.Add("-u");
 			}
 
-			return SingleResponseCommandAsync(connection, "change", arguments, SerializeRecord(record), null, cancellationToken);
+			return SingleResponseCommandAsync(connection, "change", arguments, connection.SerializeRecord(record), null, cancellationToken);
 		}
 
 		/// <summary>
@@ -887,9 +856,10 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Serializes a change record to a byte array
 		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
 		/// <param name="input">The record to serialize</param>
 		/// <returns>Serialized record</returns>
-		static byte[] SerializeRecord(ChangeRecord input)
+		static byte[] SerializeRecord(this IPerforceConnection connection, ChangeRecord input)
 		{
 			List<KeyValuePair<string, object>> nameToValue = new List<KeyValuePair<string, object>>();
 			if (input.Number == -1)
@@ -916,11 +886,11 @@ namespace EpicGames.Perforce
 			{
 				nameToValue.Add(new KeyValuePair<string, object>("Description", input.Description));
 			}
-			foreach(string file in input.Files)
+			if (input.Files.Count > 0)
 			{
-				nameToValue.Add(new KeyValuePair<string, object>("Files", file));
+				nameToValue.Add(new KeyValuePair<string, object>("Files", input.Files));
 			}
-			return SerializeRecord(nameToValue);
+			return connection.CreateRecord(nameToValue).Serialize();
 		}
 
 		#endregion
@@ -1182,7 +1152,7 @@ namespace EpicGames.Perforce
 		/// <returns>Response from the server</returns>
 		public static Task<PerforceResponse> TryUpdateClientAsync(this IPerforceConnection connection, ClientRecord record, CancellationToken cancellationToken = default)
 		{
-			return SingleResponseCommandAsync(connection, "client", new List<string> { "-i" }, SerializeRecord(record), null, cancellationToken);
+			return SingleResponseCommandAsync(connection, "client", new List<string> { "-i" }, connection.SerializeRecord(record), null, cancellationToken);
 		}
 
 		/// <summary>
@@ -1348,9 +1318,10 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Serializes a client record to a byte array
 		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
 		/// <param name="input">The input record</param>
 		/// <returns>Serialized record data</returns>
-		static byte[] SerializeRecord(ClientRecord input)
+		static byte[] SerializeRecord(this IPerforceConnection connection, ClientRecord input)
 		{
 			List<KeyValuePair<string, object>> nameToValue = new List<KeyValuePair<string, object>>();
 			if (input.Name != null)
@@ -1393,11 +1364,11 @@ namespace EpicGames.Perforce
 			{
 				nameToValue.Add(new KeyValuePair<string, object>("Stream", input.Stream));
 			}
-			for (int idx = 0; idx < input.View.Count; idx++)
+			if (input.View.Count > 0)
 			{
-				nameToValue.Add(new KeyValuePair<string, object>(String.Format("View{0}", idx), input.View[idx]));
+				nameToValue.Add(new KeyValuePair<string, object>("View", input.View));
 			}
-			return SerializeRecord(nameToValue);
+			return connection.CreateRecord(nameToValue).Serialize();
 		}
 
 		#endregion
