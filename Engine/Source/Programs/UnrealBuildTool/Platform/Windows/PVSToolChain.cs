@@ -360,7 +360,7 @@ namespace UnrealBuildTool
 			if (!FileReference.Exists(AnalyzerFile))
 			{
 				FileReference InstalledAnalyzerFile = FileReference.Combine(new DirectoryReference(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)), "PVS-Studio", "x64", "PVS-Studio.exe");
-				if (FileReference.Exists(AnalyzerFile))
+				if (FileReference.Exists(InstalledAnalyzerFile))
 				{
 					AnalyzerFile = InstalledAnalyzerFile;
 				}
