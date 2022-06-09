@@ -283,6 +283,19 @@ UPCGNode* UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, U
 	return To;
 }
 
+TObjectPtr<UPCGNode> UPCGGraph::ReconstructNewNode(const UPCGNode* InNode)
+{
+	TObjectPtr<UPCGSettings> NewSettings = DuplicateObject(InNode->DefaultSettings, nullptr);
+	TObjectPtr<UPCGNode> NewNode = AddNode(NewSettings);
+	NewSettings->Rename(nullptr, NewNode);
+
+#if WITH_EDITOR
+	InNode->TransferEditorProperties(NewNode);
+#endif // WITH_EDITOR
+
+	return NewNode;
+}
+
 bool UPCGGraph::Contains(UPCGNode* Node) const
 {
 	return Node == InputNode || Node == OutputNode || Nodes.Contains(Node);

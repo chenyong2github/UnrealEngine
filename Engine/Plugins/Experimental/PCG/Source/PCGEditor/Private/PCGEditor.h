@@ -13,6 +13,9 @@ class SPCGEditorGraphNodePalette;
 class UPCGEditorGraph;
 class UPCGGraph;
 
+// Logs
+DECLARE_LOG_CATEGORY_EXTERN(LogPCGEditor, Log, All);
+
 class FPCGEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient
 {
 public:
@@ -88,6 +91,11 @@ private:
 	void DuplicateNodes();
 	/** Whether we are able to duplicate the currently selected nodes */
 	bool CanDuplicateNodes() const;
+
+	/** Collapse the currently selected nodes in a subgraph */
+	void OnCollapseNodesInSubgraph();
+	/** Whether we can collapse nodes in a subgraph */
+	bool CanCollapseNodesInSubgraph();
 
 	void OnAlignTop();
 	void OnAlignMiddle();

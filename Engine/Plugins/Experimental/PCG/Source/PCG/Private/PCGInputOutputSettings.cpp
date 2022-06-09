@@ -63,3 +63,23 @@ TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::OutputPinProperties() co
 {
 	return GetPinProperties();
 }
+
+bool UPCGGraphInputOutputSettings::IsPinAdvanced(const UPCGPin* Pin) const
+{
+	return Pin != nullptr ? StaticAdvancedLabels().Contains(Pin->Properties.Label) : false;
+}
+
+void UPCGGraphInputOutputSettings::SetShowAdvancedPins(bool bValue)
+{
+	if (bValue != bShowAdvancedPins)
+	{
+		Modify();
+		bShowAdvancedPins = bValue;
+	}
+}
+
+void UPCGGraphInputOutputSettings::AddCustomPin(const FPCGPinProperties& NewCustomPinProperties)
+{
+	Modify();
+	CustomPins.Add(NewCustomPinProperties);
+}

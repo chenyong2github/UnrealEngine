@@ -80,6 +80,11 @@ public:
 	const TArray<TObjectPtr<UPCGPin>>& GetInputPins() const { return InputPins; }
 	const TArray<TObjectPtr<UPCGPin>>& GetOutputPins() const { return OutputPins; }
 
+#if WITH_EDITOR
+	/** Transfer all editor only properties to the other node */
+	void TransferEditorProperties(UPCGNode* OtherNode) const;
+#endif // WITH_EDITOR
+
 	/** Note: do not set this property directly from code, use SetDefaultSettings instead */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node, meta=(EditInline))
 	TObjectPtr<UPCGSettings> DefaultSettings;

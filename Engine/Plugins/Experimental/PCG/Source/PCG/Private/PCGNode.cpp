@@ -390,6 +390,15 @@ void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType Change
 	}
 }
 
+void UPCGNode::TransferEditorProperties(UPCGNode* OtherNode) const
+{
+	OtherNode->PositionX = PositionX;
+	OtherNode->PositionY = PositionY;
+	OtherNode->bCommentBubblePinned = bCommentBubblePinned;
+	OtherNode->bCommentBubbleVisible = bCommentBubbleVisible;
+	OtherNode->NodeComment = NodeComment;
+}
+
 #endif // WITH_EDITOR
 
 void UPCGNode::UpdateAfterSettingsChangeDuringCreation()

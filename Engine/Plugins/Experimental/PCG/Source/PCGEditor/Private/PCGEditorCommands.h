@@ -15,4 +15,5 @@ public:
 	// ~End TCommands<> interface
 
 	TSharedPtr<FUICommandInfo> Find;
+	TSharedPtr<FUICommandInfo> CollapseNodes;
 };

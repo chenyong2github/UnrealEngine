@@ -18,6 +18,7 @@
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
 #include "Widgets/Colors/SColorPicker.h"
+#include "PCGEditorCommands.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphNodeBase"
 
@@ -75,6 +76,7 @@ void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class U
 	{
 		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsHeader", "Node Actions"));
 		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+		Section.AddMenuEntry(FPCGEditorCommands::Get().CollapseNodes);
 	}
 
 	{

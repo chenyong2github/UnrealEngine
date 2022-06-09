@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"ApplicationCore",
 					"AssetTools",
 					"DesktopWidgets",
+					"EditorScriptingUtilities",
 					"EditorStyle",
 					"EditorSubsystem",
 					"GraphEditor",

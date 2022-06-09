@@ -63,6 +63,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Graph)
 	UPCGNode* GetOutputNode() const { return OutputNode; }
 
+	/** Duplicate a given node by creating a new node with the same settings and properties, but without any edges and add it to the graph */
+	TObjectPtr<UPCGNode> ReconstructNewNode(const UPCGNode* InNode);
+
 	bool Contains(UPCGNode* Node) const;
 	const TArray<UPCGNode*>& GetNodes() const { return Nodes; }
 	void AddNode(UPCGNode* InNode);

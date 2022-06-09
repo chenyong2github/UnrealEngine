@@ -45,6 +45,11 @@ public:
 
 	void SetInput(bool bInIsInput) { bIsInput = bInIsInput; }
 
+	bool IsPinAdvanced(const UPCGPin* Pin) const;
+	void SetShowAdvancedPins(bool bValue);
+
+	void AddCustomPin(const FPCGPinProperties& NewCustomPinProperties);
+
 protected:
 	virtual FPCGElementPtr CreateElement() const override { return MakeShared<FPCGInputOutputElement>(); }
 	// ~End UPCGSettings interface
