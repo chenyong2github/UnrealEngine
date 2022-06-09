@@ -22,6 +22,7 @@
 #include "SSimpleButton.h"
 #include "Styling/StyleColors.h"
 #include "Filters/SFilterSearchBox.h"
+#include "Framework/Application/SlateApplication.h"
 
 #include "SBasicFilterBar.generated.h"
 
