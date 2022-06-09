@@ -2406,7 +2406,7 @@ struct FUniformExpressionCache
 {
 	/** Material uniform buffer. */
 	FUniformBufferRHIRef UniformBuffer;
-	/** Material uniform buffer. */
+	UE_DEPRECATED(5.1, "Local uniform buffers have been deprecated.")
 	FLocalUniformBuffer LocalUniformBuffer;
 	/** Allocated virtual textures, one for each entry in FUniformExpressionSet::VTStacks */
 	TArray<IAllocatedVirtualTexture*> AllocatedVTs;

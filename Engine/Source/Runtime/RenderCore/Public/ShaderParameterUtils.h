@@ -496,6 +496,7 @@ inline void FRWShaderParameter::UnsetUAV(TRHICmdList& RHICmdList, FRHIComputeSha
 
 /** Sets the value of a shader uniform buffer parameter to a uniform buffer containing the struct. */
 template<typename TShaderRHIRef, typename TRHICmdList>
+UE_DEPRECATED(5.1, "Local uniform buffers are now deprecated. Use SetUniformBufferParameter instead.")
 inline void SetLocalUniformBufferParameter(
 	TRHICmdList& RHICmdList,
 	const TShaderRHIRef& Shader,
@@ -507,7 +508,9 @@ inline void SetLocalUniformBufferParameter(
 	checkSlow(Parameter.IsInitialized());
 	if(Parameter.IsBound())
 	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetLocalShaderUniformBuffer(Shader, Parameter.GetBaseIndex(), LocalUniformBuffer);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -581,13 +584,11 @@ inline void SetUniformBufferParameterImmediate(
 	checkSlow(Parameter.IsInitialized());
 	if(Parameter.IsBound())
 	{
-		const FRHIUniformBufferLayout* UniformBufferLayout = TBufferStruct::StaticStructMetadata.GetLayoutPtr();
-		FLocalUniformBuffer UniformBuffer = RHICmdList.BuildLocalUniformBuffer(&UniformBufferValue, UniformBufferLayout->ConstantBufferSize, UniformBufferLayout);
-
-		RHICmdList.SetLocalShaderUniformBuffer(
+		RHICmdList.SetShaderUniformBuffer(
 			Shader,
 			Parameter.GetBaseIndex(),
-			UniformBuffer);
+			RHICreateUniformBuffer(&UniformBufferValue, &TBufferStruct::StaticStructMetadata.GetLayout(), UniformBuffer_SingleDraw)
+		);
 	}
 }
 
@@ -604,12 +605,10 @@ inline void SetUniformBufferParameterImmediate(
 	checkSlow(Parameter.IsInitialized());
 	if(Parameter.IsBound())
 	{
-		const FRHIUniformBufferLayout* UniformBufferLayout = TBufferStruct::StaticStructMetadata.GetLayoutPtr();
-		FLocalUniformBuffer UniformBuffer = RHICmdList.BuildLocalUniformBuffer(&UniformBufferValue, UniformBufferLayout->ConstantBufferSize, UniformBufferLayout);
-
-		RHICmdList.SetLocalShaderUniformBuffer(
+		RHICmdList.SetShaderUniformBuffer(
 			Shader,
 			Parameter.GetBaseIndex(),
-			UniformBuffer);
+			RHICreateUniformBuffer(&UniformBufferValue, &TBufferStruct::StaticStructMetadata.GetLayout(), UniformBuffer_SingleDraw)
+		);
 	}
 }

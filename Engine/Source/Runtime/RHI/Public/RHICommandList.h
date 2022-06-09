@@ -2426,6 +2426,7 @@ public:
 		SetShaderUniformBuffer(Shader.GetReference(), BaseIndex, UniformBuffer);
 	}
 
+	UE_DEPRECATED(5.1, "Local uniform buffers are now deprecated. Use RHICreateUniformBuffer instead.")
 	FORCEINLINE_DEBUGGABLE FLocalUniformBuffer BuildLocalUniformBuffer(const void* Contents, uint32 ContentsSize, const FRHIUniformBufferLayout* Layout)
 	{
 		FLocalUniformBuffer Result;
@@ -2445,10 +2446,13 @@ public:
 	UE_DEPRECATED(5.0, "Use Layout pointers instead")
 	FORCEINLINE_DEBUGGABLE FLocalUniformBuffer BuildLocalUniformBuffer(const void* Contents, uint32 ContentsSize, const FRHIUniformBufferLayout& Layout)
 	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return BuildLocalUniformBuffer(Contents, ContentsSize, &Layout);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	template <typename TRHIShader>
+	UE_DEPRECATED(5.1, "Local uniform buffers are now deprecated. Use RHICreateUniformBuffer instead.")
 	FORCEINLINE_DEBUGGABLE void SetLocalShaderUniformBuffer(TRHIShader* Shader, uint32 BaseIndex, const FLocalUniformBuffer& UniformBuffer)
 	{
 		ValidateBoundShader(Shader);
