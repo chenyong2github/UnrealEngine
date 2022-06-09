@@ -107,6 +107,11 @@ FText UOptimusNodePin::GetDisplayName() const
 FText UOptimusNodePin::GetTooltipText() const
 {
 	// FIXME: We probably want a specialized widget for this in SOptimusEditorGraphNode::MakeTableRowWidget
+	if (bIsGroupingPin)
+	{
+		return FText::GetEmpty();
+	}
+	
 	if (StorageType == EOptimusNodePinStorageType::Value)
 	{
 		if (DataType->ShaderValueType.IsValid())
@@ -393,7 +398,7 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	}
 
 	// Check connection at the node level
-	if (!GetOwningNode()->CanConnect(InOtherPin, Direction, OutReason))
+	if (!GetOwningNode()->CanConnect(*this, *InOtherPin, OutReason))
 	{
 		return false;
 	}
@@ -457,19 +462,7 @@ bool UOptimusNodePin::GetIsExpanded() const
 }
 
 
-void UOptimusNodePin::PostLoad()
-{
-	Super::PostLoad();
-
-	if (DataDomain.LevelNames.IsEmpty() && !ResourceContext_DEPRECATED.IsNone())
-	{
-		DataDomain = FOptimusMultiLevelDataDomain(ResourceContext_DEPRECATED);
-		ResourceContext_DEPRECATED = NAME_None;
-	}
-}
-
-
-void UOptimusNodePin::Initialize(
+void UOptimusNodePin::InitializeWithData(
     EOptimusNodePinDirection InDirection,
     FOptimusNodePinStorageConfig InStorageConfig,
     FOptimusDataTypeRef InDataTypeRef
@@ -482,6 +475,15 @@ void UOptimusNodePin::Initialize(
 		DataDomain = InStorageConfig.DataDomain;
 	}
 	DataType = InDataTypeRef;
+}
+
+
+void UOptimusNodePin::InitializeWithGrouping(
+	EOptimusNodePinDirection InDirection
+	)
+{
+	Direction = InDirection;
+	bIsGroupingPin = true;
 }
 
 

@@ -20,6 +20,8 @@ class UOptimusEditorGraphNode : public UEdGraphNode
 	GENERATED_BODY()
 
 public:
+	static FName GroupTypeName;
+	
 	void Construct(UOptimusNode* InNode);
 
 	UOptimusNodePin* FindModelPinFromGraphPin(const UEdGraphPin* InGraphPin) const;

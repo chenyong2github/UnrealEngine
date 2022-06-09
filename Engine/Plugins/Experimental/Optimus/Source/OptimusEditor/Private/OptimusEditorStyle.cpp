@@ -68,6 +68,16 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 
 	// Graph styles
 	{
+		Set( "Node.PinLabel", FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+			.SetFont( DEFAULT_FONT( "Regular", 9 ) )
+			.SetColorAndOpacity( FLinearColor(218.0f/255.0f,218.0f/255.0f,218.0f/255.0f) )
+			.SetShadowOffset( FVector2D::ZeroVector )
+			.SetShadowColorAndOpacity( FLinearColor(0.8f,0.8f,0.8f, 0.5) )
+		);
+		Set( "Node.GroupLabel", FTextBlockStyle(GetWidgetStyle<FTextBlockStyle>("Node.PinLabel"))
+			.SetFont( DEFAULT_FONT( "Bold", 9 ) )
+		);
+		
 		const FTableViewStyle NodePinTreeViewStyle = FTableViewStyle();
 		Set("Node.PinTreeView", NodePinTreeViewStyle);		
 		
@@ -76,6 +86,8 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 
 		Set("Node.Pin.Value_Connected", new IMAGE_BRUSH_SVG("Icons/Value_Pin_Connected", IconSize16x12, DefaultForeground));
 		Set("Node.Pin.Value_Disconnected", new IMAGE_BRUSH_SVG("Icons/Value_Pin_Disconnected", IconSize16x12, DefaultForeground));		
+
+		Set("Node.Pin.Grouping", new IMAGE_BRUSH_SVG("Icons/Grouping_Pin", IconSize16x12, DefaultForeground));
 
 		Set("Node.PinTree.Arrow_Collapsed_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Left", IconSize10x10, DefaultForeground));
 		Set("Node.PinTree.Arrow_Collapsed_Hovered_Left", new IMAGE_BRUSH_SVG("Icons/TreeArrow_Collapsed_Hovered_Left", IconSize10x10, DefaultForeground));

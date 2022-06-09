@@ -584,7 +584,7 @@ FReply SGraphPin::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEv
 
 void SGraphPin::OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	if (!IsHovered() && ensure(!bGraphDataInvalid))
+	if (!IsHovered() && ensure(!bGraphDataInvalid) && GetIsConnectable())
 	{
 		UEdGraphPin* MyPin = GetPinObj();
 		if (MyPin && !MyPin->IsPendingKill() && MyPin->GetOuter() && MyPin->GetOuter()->IsA(UEdGraphNode::StaticClass()))
@@ -676,7 +676,7 @@ void SGraphPin::OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& 
 	}
 
 	// Is someone dragging a connection?
-	if (Operation->IsOfType<FGraphEditorDragDropAction>())
+	if (Operation->IsOfType<FGraphEditorDragDropAction>() && GetIsConnectable())
 	{
 		// Ensure that the pin is valid before using it
 		if(GraphPinObj != NULL && !GraphPinObj->IsPendingKill() && GraphPinObj->GetOuter() != NULL && GraphPinObj->GetOuter()->IsA(UEdGraphNode::StaticClass()))
@@ -700,7 +700,7 @@ void SGraphPin::OnDragLeave( const FDragDropEvent& DragDropEvent )
 	}
 
 	// Is someone dragging a connection?
-	if (Operation->IsOfType<FGraphEditorDragDropAction>())
+	if (Operation->IsOfType<FGraphEditorDragDropAction>() && GetIsConnectable())
 	{
 		// Inform the Drag and Drop operation that we are not hovering any pins
 		TSharedPtr<FGraphEditorDragDropAction> DragConnectionOp = StaticCastSharedPtr<FGraphEditorDragDropAction>(Operation);
@@ -775,7 +775,7 @@ FReply SGraphPin::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dra
 	}
 
 	// Is someone dropping a connection onto this pin?
-	if (Operation->IsOfType<FGraphEditorDragDropAction>())
+	if (Operation->IsOfType<FGraphEditorDragDropAction>() && GetIsConnectable())
 	{
 		TSharedPtr<FGraphEditorDragDropAction> DragConnectionOp = StaticCastSharedPtr<FGraphEditorDragDropAction>(Operation);
 

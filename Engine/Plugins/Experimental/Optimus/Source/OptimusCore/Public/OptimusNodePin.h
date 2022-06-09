@@ -65,6 +65,10 @@ public:
 	/// @return The direction of this pin.
 	EOptimusNodePinDirection GetDirection() const { return Direction; }
 
+	/// Returns \c true if this pin is a grouping pin. A grouping pin accepts no connections
+	/// but just acts as a grouping mechanism for other sub-pins.
+	bool IsGroupingPin() const { return bIsGroupingPin; }
+
 	/// Returns the parent pin of this pin, or nullptr if it is the top-most pin.
 	UOptimusNodePin* GetParentPin();
 	const UOptimusNodePin* GetParentPin() const;
@@ -166,20 +170,21 @@ public:
 
 	/** Returns the stored expansion state */
 	bool GetIsExpanded() const;
-
-	// UObject overloads
-	void PostLoad() override;
 	
 protected:
 	friend class UOptimusNode;
 
 	// Initialize the pin data from the given direction and property.
-	void Initialize(
+	void InitializeWithData(
 		EOptimusNodePinDirection InDirection, 
 		FOptimusNodePinStorageConfig InStorageConfig,
 		FOptimusDataTypeRef InDataTypeRef
 		);
 
+	void InitializeWithGrouping(
+		EOptimusNodePinDirection InDirection 
+		);
+	
 	void AddSubPin(
 		UOptimusNodePin* InSubPin,
 		UOptimusNodePin* InBeforePin = nullptr);
@@ -203,14 +208,13 @@ private:
 	bool VerifyValue(const FString& InStringValue) const;
 
 	UPROPERTY()
+	bool bIsGroupingPin = false;
+	
+	UPROPERTY()
 	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
 
 	UPROPERTY()
 	EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Value;
-
-	// TODO: Delete once all known graphs are updated.
-	UPROPERTY()
-	FName ResourceContext_DEPRECATED;
 
 	UPROPERTY()
 	FOptimusMultiLevelDataDomain DataDomain;

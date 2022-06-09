@@ -20,6 +20,10 @@
 
 #define LOCTEXT_NAMESPACE "OptimusEditorGraphNode"
 
+/** Used when identifying a pin as a grouping pin */
+FName UOptimusEditorGraphNode::GroupTypeName("group");
+
+
 static void CreateAdderPins(UEdGraphNode* InGraphNode)
 {
 	FEdGraphPinType PinType;
@@ -184,14 +188,6 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
 	const UOptimusNodePin* InModelPin
 	)
 {
-	FOptimusDataTypeHandle DataType = InModelPin->GetDataType();
-	if (!ensure(DataType.IsValid()))
-	{
-		return;
-	}
-
-	FEdGraphPinType PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(DataType);
-
 	// If the pin has sub-pins, we may need to remove or rebuild the sub-pins.
 	UEdGraphPin* GraphPin = FindGraphPinFromModelPin(InModelPin);
 	if (ensure(GraphPin))
@@ -207,9 +203,23 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
 				CreateGraphPinFromModelPin(ModelSubPin, GraphPin->Direction, GraphPin);
 			}
 		}
-		
-		GraphPin->PinType = PinType;
 
+		if (InModelPin->IsGroupingPin())
+		{
+			GraphPin->PinType.PinCategory = GroupTypeName;
+			GraphPin->bNotConnectable = true;
+		}
+		else
+		{
+			const FOptimusDataTypeHandle DataType = InModelPin->GetDataType();
+			if (!ensure(DataType.IsValid()))
+			{
+				return;
+			}
+
+			GraphPin->PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(DataType);
+		}
+		
 		// Notify the node widget that the pins have changed.
 		(void)NodePinsChanged.ExecuteIfBound();
 	}
@@ -301,18 +311,29 @@ bool UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 	UEdGraphPin* InParentPin
 )
 {
-	FOptimusDataTypeHandle DataType = InModelPin->GetDataType();
-	if (!ensure(DataType.IsValid()))
+	FEdGraphPinType PinType;
+
+	if (InModelPin->IsGroupingPin())
 	{
-		return false;
+		PinType.PinCategory = GroupTypeName;
+	}
+	else
+	{
+		const FOptimusDataTypeHandle DataType = InModelPin->GetDataType();
+		if (!ensure(DataType.IsValid()))
+		{
+			return false;
+		}
+
+		PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(DataType);
 	}
 
-	FEdGraphPinType PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(DataType);
 
-	FName PinPath = InModelPin->GetUniqueName();
+	const FName PinPath = InModelPin->GetUniqueName();
 	UEdGraphPin *GraphPin = CreatePin(InDirection, PinType, PinPath);
 
 	GraphPin->PinFriendlyName = InModelPin->GetDisplayName();
+	GraphPin->bNotConnectable = InModelPin->IsGroupingPin();
 
 	if (InParentPin)
 	{

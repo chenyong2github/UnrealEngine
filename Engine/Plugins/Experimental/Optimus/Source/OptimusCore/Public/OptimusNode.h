@@ -105,7 +105,22 @@ public:
 	const TArray<UOptimusNodePin*>& GetPins() const { return Pins; }
 
 	/**
-	 * Preliminary check for whether valid connection can be made
+	 * Preliminary check for whether valid connection can be made between two existing pins.
+	 * Can be overridden by derived nodes to add their own additional checks. 
+	 * @param InThisNodesPin The pin on this node that about to be connected
+	 * @param InOtherNodesPin The pin that is about to be connect to this node
+	 * @param OutReason The reason that the connection is cannot be made if it is invalid
+	 * @return true if the other Pin can be connected to the specified side of the node.
+	 */
+	virtual bool CanConnect(
+		const UOptimusNodePin& InThisNodesPin,
+		const UOptimusNodePin& InOtherNodesPin,
+		FString* OutReason = nullptr
+		) const;
+
+	/**
+	 * Preliminary check for whether valid connection can be made between an existing pin and
+	 * a potentially existing pin on this node. 
 	 * @param InOtherPin The pin that is about to be connect to this node
 	 * @param InConnectionDirection The input/output side of the node to connect
 	 * @param OutReason The reason that the connection is cannot be made if it is invalid
@@ -201,6 +216,15 @@ protected:
 		UOptimusNodePin* InBeforePin = nullptr
 		);
 
+	/** Add a new grouping pin. This is a pin that takes no connections but is shown as
+	  * collapsible in the node UI. */ 
+	UOptimusNodePin* AddGroupingPinDirect(
+		FName InName,
+		EOptimusNodePinDirection InDirection,
+		UOptimusNodePin* InBeforePin = nullptr,
+		UOptimusNodePin* InParentPin = nullptr
+		);
+
 	// Remove a pin.
 	bool RemovePin(
 		UOptimusNodePin* InPin
@@ -262,6 +286,12 @@ protected:
 	bool bSendNotifications = true;
 	
 private:
+	void InsertPinIntoHierarchy(
+		UOptimusNodePin* InNewPin, 
+		UOptimusNodePin* InParentPin,
+		UOptimusNodePin* InInsertBeforePin
+		);
+	
 	void Notify(
 		EOptimusGraphNotifyType InNotifyType
 		);

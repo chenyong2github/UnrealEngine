@@ -126,6 +126,16 @@ UOptimusNodeGraph* UOptimusNode::GetOwningGraph() const
 }
 
 bool UOptimusNode::CanConnect(
+	const UOptimusNodePin& InThisNodesPin,
+	const UOptimusNodePin& InOtherNodesPin,
+	FString* OutReason
+	) const
+{
+	return CanConnect(&InOtherNodesPin, InThisNodesPin.GetDirection(), OutReason);
+}
+
+
+bool UOptimusNode::CanConnect(
 	const UOptimusNodePin* InOtherPin,
 	EOptimusNodePinDirection InConnectionDirection,
 	FString* OutReason) const
@@ -424,21 +434,7 @@ UOptimusNodePin* UOptimusNode::AddPinDirect(
 	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
 	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName);
 
-	Pin->Initialize(InDirection, InStorageConfig, InDataType);
-
-	if (InParentPin)
-	{
-		InParentPin->AddSubPin(Pin, InBeforePin);
-	}
-	else
-	{
-		int32 Index = Pins.Num();
-		if (InBeforePin && ensure(Pins.IndexOfByKey(InBeforePin) != INDEX_NONE))
-		{
-			Index = Pins.IndexOfByKey(InBeforePin); 
-		}
-		Pins.Insert(Pin, Index);
-	}
+	Pin->InitializeWithData(InDirection, InStorageConfig, InDataType);
 
 	// Add sub-pins, if the registered type is set to show them but only for value types.
 	if (InStorageConfig.Type == EOptimusNodePinStorageType::Value &&
@@ -449,12 +445,9 @@ UOptimusNodePin* UOptimusNode::AddPinDirect(
 			CreatePinsFromStructLayout(Struct, Pin);
 		}
 	}
-
-	if (CanNotify())
-	{
-		Pin->Notify(EOptimusGraphNotifyType::PinAdded);
-	}
-
+	
+	InsertPinIntoHierarchy(Pin, InParentPin, InBeforePin);
+	
 	return Pin;
 }
 
@@ -473,6 +466,50 @@ UOptimusNodePin* UOptimusNode::AddPinDirect(
 		StorageConfig.DataDomain = InBinding.DataDomain;
 	}
 	return AddPinDirect(InBinding.Name, InDirection, StorageConfig, InBinding.DataType, InBeforePin);
+}
+
+
+UOptimusNodePin* UOptimusNode::AddGroupingPinDirect(
+	FName InName,
+	EOptimusNodePinDirection InDirection,
+	UOptimusNodePin* InBeforePin,
+	UOptimusNodePin* InParentPin
+	)
+{
+	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
+	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName);
+
+	Pin->InitializeWithGrouping(InDirection);
+
+	InsertPinIntoHierarchy(Pin, InParentPin, InBeforePin);
+	
+	return Pin;
+}
+
+void UOptimusNode::InsertPinIntoHierarchy(
+	UOptimusNodePin* InNewPin, 
+	UOptimusNodePin* InParentPin,
+	UOptimusNodePin* InInsertBeforePin
+	)
+{
+	if (InParentPin)
+	{
+		InParentPin->AddSubPin(InNewPin, InInsertBeforePin);
+	}
+	else
+	{
+		int32 Index = Pins.Num();
+		if (InInsertBeforePin && ensure(Pins.IndexOfByKey(InInsertBeforePin) != INDEX_NONE))
+		{
+			Index = Pins.IndexOfByKey(InInsertBeforePin); 
+		}
+		Pins.Insert(InNewPin, Index);
+	}
+
+	if (CanNotify())
+	{
+		InNewPin->Notify(EOptimusGraphNotifyType::PinAdded);
+	}
 }
 
 
@@ -852,6 +889,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 
 	return AddPinDirect(InProperty->GetFName(), InDirection, StorageConfig, DataType, nullptr, InParentPin);
 }
+
 
 UOptimusActionStack* UOptimusNode::GetActionStack() const
 {

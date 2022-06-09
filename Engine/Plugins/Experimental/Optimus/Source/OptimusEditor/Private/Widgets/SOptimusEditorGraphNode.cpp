@@ -31,11 +31,16 @@ static const FName NAME_Pin_Resource_Connected("Node.Pin.Resource_Connected");
 static const FName NAME_Pin_Resource_Disconnected("Node.Pin.Resource_Disconnected");
 static const FName NAME_Pin_Value_Connected("Node.Pin.Value_Connected");
 static const FName NAME_Pin_Value_Disconnected("Node.Pin.Value_Disconnected");
+static const FName NAME_Pin_Grouping("Node.Pin.Grouping");
+
+static const FName NAME_PinLabel_TextStyle("Node.PinLabel");
+static const FName NAME_GroupLabel_TextStyle("Node.GroupLabel");
 
 static const FSlateBrush* CachedImg_Pin_Resource_Connected = nullptr;
 static const FSlateBrush* CachedImg_Pin_Resource_Disconnected = nullptr;
 static const FSlateBrush* CachedImg_Pin_Value_Connected = nullptr;
 static const FSlateBrush* CachedImg_Pin_Value_Disconnected = nullptr;
+static const FSlateBrush* CachedImg_Pin_Grouping = nullptr;
 
 
 class SOptimusEditorExpanderArrow : public SExpanderArrow
@@ -140,10 +145,13 @@ public:
 		const bool bIsLeaf = InGraphPin->SubPins.Num() == 0;
 		const bool bIsInput = InGraphPin->Direction == EGPD_Input;
 		const bool bLeftAligned = bIsInput;
+
+		const FName TextStyle =
+			InGraphPin->PinType.PinCategory == UOptimusEditorGraphNode::GroupTypeName ? NAME_GroupLabel_TextStyle : NAME_PinLabel_TextStyle;
 		
 		const TSharedRef<SWidget> LabelWidget = SNew(STextBlock)
 			.Text(InArgs._PinLabel)
-			.TextStyle(FAppStyle::Get(), NAME_DefaultPinLabelStyle)
+			.TextStyle(FOptimusEditorStyle::Get(), TextStyle)
 			.ColorAndOpacity(FLinearColor::White)
 			// .ColorAndOpacity(this, &SOptimusEditorGraphNode::GetPinTextColor, WeakPin)
 			;
@@ -182,7 +190,6 @@ public:
 		// To allow the label to be a part of the hoverable set of widgets for the pin.
 		// HoverWidgetLabels.Add(LabelWidget);
 		// HoverWidgetPins.Add(PinWidget.ToSharedRef());
-
 
 		const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
 		FMargin InputPadding = Settings->GetInputPinPadding();
@@ -351,6 +358,7 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 		CachedImg_Pin_Resource_Disconnected = FOptimusEditorStyle::Get().GetBrush(NAME_Pin_Resource_Disconnected);
 		CachedImg_Pin_Value_Connected = FOptimusEditorStyle::Get().GetBrush(NAME_Pin_Value_Connected);
 		CachedImg_Pin_Value_Disconnected = FOptimusEditorStyle::Get().GetBrush(NAME_Pin_Value_Disconnected);
+		CachedImg_Pin_Grouping = FOptimusEditorStyle::Get().GetBrush(NAME_Pin_Grouping);
 	}
 
 	GraphNode = InArgs._GraphNode;
@@ -573,15 +581,22 @@ void SOptimusEditorGraphNode::UpdatePinIcon(
 	const UEdGraphPin* EdPinObj = InPinToUpdate->GetPinObj();
 	if (const UOptimusNodePin *ModelPin = EditorGraphNode->FindModelPinFromGraphPin(EdPinObj))
 	{
-		switch (ModelPin->GetStorageType())
+		if (ModelPin->IsGroupingPin())
 		{
-		case EOptimusNodePinStorageType::Resource:
-			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Resource_Connected, CachedImg_Pin_Resource_Disconnected);
-			break;
+			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Grouping, CachedImg_Pin_Grouping);
+		}
+		else
+		{
+			switch (ModelPin->GetStorageType())
+			{
+			case EOptimusNodePinStorageType::Resource:
+				InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Resource_Connected, CachedImg_Pin_Resource_Disconnected);
+				break;
 
-		case EOptimusNodePinStorageType::Value:
-			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
-			break;
+			case EOptimusNodePinStorageType::Value:
+				InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
+				break;
+			}
 		}
 	}
 	else if (OptimusEditor::IsAdderPin(EdPinObj))
@@ -782,11 +797,12 @@ TSharedRef<ITableRow> SOptimusEditorGraphNode::MakeTableRowWidget(
 	TSharedPtr<SOptimusEditorGraphPinTreeRow> RowWidget;
 
 	SAssignNew(RowWidget, SOptimusEditorGraphPinTreeRow, OwnerTable)
-	.ToolTipText_UObject(InModelPin, &UOptimusNodePin::GetTooltipText)
-	.Content()[
+	.ToolTipText_UObject(InModelPin, &UOptimusNodePin::GetTooltipText);
+
+	RowWidget->SetContent(
 		SNew(SOptimusEditorGraphPinWidget, PinWidget.ToSharedRef(), bIsValue, RowWidget)
 		.PinLabel(this, &SOptimusEditorGraphNode::GetPinLabel, WeakPin)
-	];
+	);
 	
 	return RowWidget.ToSharedRef();
 }
