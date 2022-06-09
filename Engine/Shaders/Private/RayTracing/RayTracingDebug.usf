@@ -156,9 +156,9 @@ float4 DebugRayTracingMaterial(RayDesc Ray, bool bIsFarField)
 
 struct FRayTracingDebugPayload : FMinimalPayload
 {
-	float3 WorldNormal;
 	uint InstanceHash;
 	uint TriangleHash;
+	float3 WorldNormal;
 };
 
 float4 DebugRayTracingInstance(RayDesc Ray)
