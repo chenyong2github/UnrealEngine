@@ -137,7 +137,7 @@ namespace ChaosTest
 			MirrorScale = FVec3(-1, -1, -1);
 			EXPECT_EQ(Tri->FindMostOpposingFaceScaled(FVec3(0, 0, 0), FVec3(0, 0, 1), INDEX_NONE, 100.0, MirrorScale), 2);
 
-			MirrorScale = FVec3(-1, -1, 0);
+			MirrorScale = FVec3(-1, -1, 1);
 			EXPECT_EQ(Tri->FindMostOpposingFaceScaled(FVec3(0, 0, 0), FVec3(0, 0, -1), INDEX_NONE, 100.0, MirrorScale), 2);		
 
 		}
