@@ -64,6 +64,7 @@ namespace UnrealBuildTool.Rules
 				|| Target.Platform == UnrealTargetPlatform.Mac
 				|| Target.Platform == UnrealTargetPlatform.IOS
 				|| Target.IsInPlatformGroup(UnrealPlatformGroup.Android)
+				|| Target.IsInPlatformGroup(UnrealPlatformGroup.Unix)
 				;
 		}
     }

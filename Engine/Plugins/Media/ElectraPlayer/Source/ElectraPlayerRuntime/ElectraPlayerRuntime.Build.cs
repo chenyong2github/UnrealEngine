@@ -154,9 +154,12 @@ namespace UnrealBuildTool.Rules
 					PublicDefinitions.Add("CURL_ENABLE_NO_TIMEOUTS_OPTION=1");
 				}
 
-				PublicIncludePaths.Add("$(ModuleDir)/Public/Unix");
+				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
 
-				PrivateIncludePaths.Add("ElectraPlayerRuntime/Private/Runtime/Decoder/GStreamer");
+				PublicIncludePaths.Add("$(ModuleDir)/Public/Linux");
+				PrivateIncludePaths.Add("ElectraPlayerRuntime/Private/Runtime/Decoder/Linux");
+
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "libav");
 			}
 		}
 

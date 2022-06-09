@@ -17,6 +17,8 @@
 #include "MediaSampleQueue.h"
 #include "Templates/SharedPointer.h"
 #include "Logging/LogMacros.h"
+#include "ElectraTextureSample.h"
+#include "ElectraPlayerAudioSample.h"
 
 class IElectraPlayerRuntimeModule;
 class IElectraSafeMediaOptionInterface;
@@ -24,11 +26,6 @@ class FElectraPlayerResourceDelegate;
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogElectraPlayerPlugin, Log, All);
-
-//-----------------------------------------------------------------------------
-
-#include "ElectraTextureSample.h"
-#include "ElectraPlayerAudioSample.h"
 
 //-----------------------------------------------------------------------------
 
@@ -203,4 +200,3 @@ private:
 
 	TSharedPtr<IElectraPlayerResourceDelegate,ESPMode::ThreadSafe> PlayerResourceDelegate;
 };
-

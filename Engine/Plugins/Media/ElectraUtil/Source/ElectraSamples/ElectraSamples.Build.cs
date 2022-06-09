@@ -80,9 +80,9 @@ namespace UnrealBuildTool.Rules
 				string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
 				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "ElectraSamples_UPL.xml"));
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux)
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
-				PublicIncludePaths.Add("$(ModuleDir)/Public/GStreamer");
+				PublicIncludePaths.Add("$(ModuleDir)/Public/Linux");
 			}
 		}
 	}
