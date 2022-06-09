@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using P4VUtils.Perforce;
 
 namespace P4VUtils.Commands
 {
@@ -27,32 +28,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			// these are used to find out which integrate action are the source
-			IntegrateAction[] IntegrateFromActions =
-			{
-				IntegrateAction.BranchFrom,
-				IntegrateAction.MergeFrom,
-				IntegrateAction.MovedFrom,
-				IntegrateAction.CopyFrom,
-				IntegrateAction.DeleteFrom,
-				IntegrateAction.EditFrom,
-				IntegrateAction.AddFrom
-			};
 
-			// consider these 'edit' actions, stop searching
-			FileAction[] EditActions =
-			{
-				FileAction.Add,
-				FileAction.Edit,
-				FileAction.MoveAdd
-			};
-
-			// consider these 'integrate' actions, keep searching
-			FileAction[] IntegrateActions =
-			{
-				FileAction.Integrate,
-				FileAction.Branch,
-			};
 
 			// the first file log record is what we're interested in
 			// because we're not following integrations, it should be the only one anyway
@@ -69,12 +45,12 @@ namespace P4VUtils.Commands
 				}
 
 				// is it an 'integration'?
-				if (IntegrateActions.Contains(RevisionRecord.Action))
+				if (P4ActionGroups.IntegrateActions.Contains(RevisionRecord.Action))
 				{
 					// where did we integrate from?
 					foreach (IntegrationRecord IntegrationRecord in RevisionRecord.Integrations)
 					{
-						if (IntegrateFromActions.Contains(IntegrationRecord.Action))
+						if (P4ActionGroups.IntegrateFromActions.Contains(IntegrationRecord.Action))
 						{
 							// we need to start the search at the integrated revision # otherwise we might loop forever. 
 							string NewFile = IntegrationRecord.OtherFile + "#" + IntegrationRecord.EndRevisionNumber;
@@ -85,7 +61,7 @@ namespace P4VUtils.Commands
 					break;
 				}
 				// is it an 'edit'?
-				else if (EditActions.Contains(RevisionRecord.Action))
+				else if (P4ActionGroups.EditActions.Contains(RevisionRecord.Action))
 				{
 					// we found the perp so stop here
 
