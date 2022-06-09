@@ -66,7 +66,7 @@ bool FRewindDebuggerObjectTrack::UpdateInternal()
 
 	ExistenceRange = GameplayProvider->GetObjectRecordingLifetime(ObjectId);
 
-	if (Icon.IsSet())
+	if (!Icon.IsSet())
 	{
 		if (const FObjectInfo* ObjectInfo = GameplayProvider->FindObjectInfo(ObjectId))
 		{

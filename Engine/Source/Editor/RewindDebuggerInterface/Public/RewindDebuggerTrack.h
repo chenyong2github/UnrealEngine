@@ -15,7 +15,7 @@ namespace RewindDebugger
 class FRewindDebuggerTrack
 {
 public:
-	FRewindDebuggerTrack(): bExpanded(true)
+	FRewindDebuggerTrack(): bExpanded(true), bVisible(true)
 	{
 	}
 
@@ -81,6 +81,15 @@ public:
 		IterateSubTracksInternal(IteratorFunction);
 	}
 
+	// returns true for tracks that contain debug data (used for filtering out parts of the hierarchy with no useful information in them)
+	bool HasDebugData() const
+	{
+		return HasDebugDataInternal();
+	}
+
+	bool IsVisible() const { return bVisible; }
+	void SetIsVisible(bool bInIsVisible) { bVisible = bInIsVisible; }
+
 private:
 
 	virtual bool UpdateInternal() { return false; }
@@ -90,9 +99,11 @@ private:
 	virtual FName GetNameInternal() const { return ""; }
 	virtual FText GetDisplayNameInternal() const { return FText(); }
 	virtual uint64 GetObjectIdInternal() const { return 0; }
-	virtual void IterateSubTracksInternal(TFunction<void(TSharedPtr<FRewindDebuggerTrack> SubTrack)> IteratorFunction) { } 
+	virtual bool HasDebugDataInternal() const { return true; }
+	virtual void IterateSubTracksInternal(TFunction<void(TSharedPtr<FRewindDebuggerTrack> SubTrack)> IteratorFunction) { }
 
 	bool bExpanded;
+	bool bVisible;
 };
 	
 }

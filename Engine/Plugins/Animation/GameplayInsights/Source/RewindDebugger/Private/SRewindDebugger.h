@@ -13,6 +13,9 @@
 
 class SDockTab;
 
+class SSearchBox;
+class SCheckBox;
+
 class SRewindDebugger : public SCompoundWidget
 {
 	typedef TBindablePropertyInitializer<FString, BindingType_Out> DebugTargetInitializer;
@@ -61,8 +64,10 @@ public:
 private:
 	void SetViewRange(TRange<double> NewRange);
 
-	
 	void MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow);
+
+	void ToggleDisplayEmptyTracks() { bDisplayEmptyTracks = !bDisplayEmptyTracks; RefreshDebugComponents(); }
+	bool ShouldDisplayEmptyTracks() { return bDisplayEmptyTracks; }
 	
 	// Time Slider
 	TAttribute<double> ScrubTimeAttribute;
@@ -83,6 +88,7 @@ private:
 	void TraceTimeChanged(double Time);
 
 	TSharedRef<SWidget> MakeMainMenu();
+	TSharedRef<SWidget> MakeFilterMenu();
 	void MakeViewsMenu(FMenuBuilder& MenuBuilder);
 	
 	// component tree view
@@ -95,6 +101,9 @@ private:
 	TSharedPtr<SRewindDebuggerComponentTree> ComponentTreeView;
 	TSharedPtr<SRewindDebuggerTimelines> TimelinesView;
 	TSharedPtr<SWidget> OnContextMenuOpening();
-
+	
+	TSharedPtr<SSearchBox> TrackFilterBox;
+	
 	bool bInSelectionChanged = false;
+	bool bDisplayEmptyTracks = false;
 };

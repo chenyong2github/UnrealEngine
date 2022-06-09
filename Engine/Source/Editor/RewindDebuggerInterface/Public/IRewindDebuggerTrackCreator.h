@@ -21,7 +21,9 @@ class FRewindDebuggerTrack;
 // Interface class which creates tracks
 class REWINDDEBUGGERINTERFACE_API IRewindDebuggerTrackCreator : public IModularFeature
 {
-	public: 
+	public:
+	virtual ~IRewindDebuggerTrackCreator() {};
+	
 	static const FName ModularFeatureName;
 
 	// returns the type of UObject this track creator can create tracks for

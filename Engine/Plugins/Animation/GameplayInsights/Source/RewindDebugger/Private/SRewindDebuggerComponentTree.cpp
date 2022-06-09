@@ -47,7 +47,10 @@ void ComponentTreeViewGetChildren(TSharedPtr<RewindDebugger::FRewindDebuggerTrac
 {
 	InItem->IterateSubTracks([&OutChildren](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> Track)
 	{
-		OutChildren.Add(Track);
+		if (Track->IsVisible())
+		{
+			OutChildren.Add(Track);
+		}
 	});
 }
 

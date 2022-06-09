@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SRewindDebugger.h"
+
 #include "ActorPickerMode.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -19,11 +20,11 @@
 #include "ToolMenu.h"
 #include "ToolMenus.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "IRewindDebuggerDoubleClickHandler.h"
 
 #define LOCTEXT_NAMESPACE "SRewindDebugger"
 
@@ -196,6 +197,12 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	TraceTime.Initialize(InArgs._TraceTime);
 	RecordingDuration.Initialize(InArgs._RecordingDuration);
 	DebugTargetActor.Initialize(InArgs._DebugTargetActor);
+
+	
+	TrackFilterBox = SNew(SSearchBox).HintText(LOCTEXT("Filter Tracks","Filter Tracks")).OnTextChanged_Lambda([this](const FText&)
+	{
+		RefreshDebugComponents();
+	});
 	
 	FSlimHorizontalToolBarBuilder ToolBarBuilder(CommandList, FMultiBoxCustomization::None, nullptr, true);
 
@@ -366,6 +373,17 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 							.Image(FRewindDebuggerStyle::Get().GetBrush("RewindDebugger.SelectActor"))
 						]
 					]
+					+SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(SComboButton)
+							.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+							.OnGetMenuContent(this, &SRewindDebugger::MakeFilterMenu)
+							.ButtonContent()
+						[
+							SNew(SImage)
+							.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+						]
+					]
 				]
 				+SVerticalBox::Slot().FillHeight(1.0f)
 				[
@@ -416,8 +434,33 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	];
 }
 
+bool FilterTrack(TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& Track, const FString& FilterString, bool bRemoveNoData, bool bParentFilterPassed = false)
+{
+	const bool bStringFilterEmpty =  FilterString.IsEmpty();
+	const bool bStringFilterPassed = bParentFilterPassed || bStringFilterEmpty || Track->GetDisplayName().ToString().Contains(FilterString);
+
+	const bool bThisFilterPassed = (!bStringFilterEmpty && bStringFilterPassed);
+
+	bool bAnyChildVisible = false;
+	Track->IterateSubTracks([&bAnyChildVisible, bThisFilterPassed, FilterString, bRemoveNoData](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> ChildTrack)
+	{
+		const bool bChildIsVisible = FilterTrack(ChildTrack, FilterString, bRemoveNoData, bThisFilterPassed);
+		bAnyChildVisible |= bChildIsVisible;
+	});
+
+	bool bVisible = bAnyChildVisible || ((!bRemoveNoData || Track->HasDebugData()) && bStringFilterPassed);
+
+	Track->SetIsVisible(bVisible);
+	return bVisible;
+}
+
 void SRewindDebugger::RefreshDebugComponents()
 {
+	if (DebugComponents && DebugComponents->Num() > 0)
+	{
+		FilterTrack((*DebugComponents)[0], TrackFilterBox->GetText().ToString(), !ShouldDisplayEmptyTracks());
+	}
+	
 	ComponentTreeView->Refresh();
 	TimelinesView->Refresh();
 }
@@ -425,6 +468,27 @@ void SRewindDebugger::RefreshDebugComponents()
 TSharedRef<SWidget> SRewindDebugger::MakeMainMenu()
 {
 	return UToolMenus::Get()->GenerateWidget("RewindDebugger.MainMenu", FToolMenuContext());
+}
+
+TSharedRef<SWidget> SRewindDebugger::MakeFilterMenu()
+{
+	FMenuBuilder Builder(true, nullptr);
+	Builder.AddWidget(TrackFilterBox.ToSharedRef(), FText(), true, false);
+	Builder.AddSeparator();
+	
+	Builder.AddMenuEntry(
+		LOCTEXT("DisplayEmptyTracks", "Show Empty Object Tracks"),
+		LOCTEXT("DisplayEmptyTracks", "Show Object/Component tracks which have no sub tracks with any debug data"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &SRewindDebugger::ToggleDisplayEmptyTracks),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateRaw(this, &SRewindDebugger::ShouldDisplayEmptyTracks)),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+	
+	return Builder.MakeWidget();
 }
 
 void SRewindDebugger::ComponentSelectionChanged(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedItem, ESelectInfo::Type SelectInfo)

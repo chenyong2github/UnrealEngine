@@ -28,6 +28,7 @@ private:
 	virtual FSlateIcon GetIconInternal() override { return Icon; }
 	virtual FText GetDisplayNameInternal() const override { return FText::FromString(ObjectName); }
 	virtual uint64 GetObjectIdInternal() const override { return ObjectId; }
+	virtual bool HasDebugDataInternal() const override { return false; }
 	
 	FString ObjectName;
 	FSlateIcon Icon;
