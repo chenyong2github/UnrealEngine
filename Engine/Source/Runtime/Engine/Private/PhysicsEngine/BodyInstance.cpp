@@ -1399,7 +1399,7 @@ void FInitBodiesHelperBase::InitBodies()
 						{
 							for (int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 							{
-								Body_External.SetShapeCollisionTraceType(ShapeIndex, ChaosInterface::ConvertCollisionTraceFlag(BI->BodySetup->CollisionTraceFlag)) ;
+								Body_External.SetShapeCollisionTraceType(ShapeIndex, ChaosInterface::ConvertCollisionTraceFlag(BI->BodySetup->GetCollisionTraceFlag())) ;
 							}
 						}
 					}

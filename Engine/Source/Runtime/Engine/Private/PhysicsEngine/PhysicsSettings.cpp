@@ -114,6 +114,20 @@ void UPhysicsSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	{
 		ChaosSettings.OnSettingsUpdated();
 	}
+
+	if(PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UPhysicsSettingsCore, DefaultShapeComplexity))
+	{
+		for(TObjectIterator<UBodySetup> It; It; ++It)
+		{
+			UBodySetup* Setup = *It;
+			check(Setup);
+
+			if(Setup->bCreatedPhysicsMeshes)
+			{
+				Setup->InvalidatePhysicsData();
+			}
+		}
+	}
 }
 
 void UPhysicsSettings::LoadSurfaceType()
