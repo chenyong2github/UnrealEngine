@@ -19,7 +19,7 @@ struct FNiagaraCulledComponentInfo
 /**
 A specialization of UNiagaraComponent that can act as a proxy for many other NiagaraComponents that have been culled by scalability. 
 */
-UCLASS()
+UCLASS(NotBlueprintable)
 class UNiagaraCullProxyComponent : public UNiagaraComponent
 {
 	GENERATED_UCLASS_BODY()
