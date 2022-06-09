@@ -759,10 +759,10 @@ bool FKConvexElem::HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<F
 
 		const FVector3f Base = FVector3f(InPlanes[i] * InPlanes[i].W);
 
-		new(Polygon.Vertices) FVector3f(Base + AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
-		new(Polygon.Vertices) FVector3f(Base - AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
-		new(Polygon.Vertices) FVector3f(Base - AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
-		new(Polygon.Vertices) FVector3f(Base + AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
+		new(Polygon.Vertices) FVector3f(Base + AxisX * UE_OLD_HALF_WORLD_MAX + AxisY * UE_OLD_HALF_WORLD_MAX);
+		new(Polygon.Vertices) FVector3f(Base - AxisX * UE_OLD_HALF_WORLD_MAX + AxisY * UE_OLD_HALF_WORLD_MAX);
+		new(Polygon.Vertices) FVector3f(Base - AxisX * UE_OLD_HALF_WORLD_MAX - AxisY * UE_OLD_HALF_WORLD_MAX);
+		new(Polygon.Vertices) FVector3f(Base + AxisX * UE_OLD_HALF_WORLD_MAX - AxisY * UE_OLD_HALF_WORLD_MAX);
 
 		for(int32 j=0; j<InPlanes.Num(); j++)
 		{

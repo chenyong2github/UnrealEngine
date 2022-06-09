@@ -1751,10 +1751,10 @@ float FNiagaraSystemInstance::GetLODDistance()
 	if (WorldManager->GetCachedViewInfo().Num() > 0)
 	{
 		// We are being ticked inside the WorldManager and can safely use the list of cached player view locations
-		float LODDistanceSqr = FMath::Square(WORLD_MAX);
+		FVector::FReal LODDistanceSqr = FMath::Square(WORLD_MAX);
 		for (const FNiagaraCachedViewInfo& ViewInfo : WorldManager->GetCachedViewInfo())
 		{
-			const float DistanceToEffectSqr = FVector(ViewInfo.ViewToWorld.GetOrigin() - EffectLocation).SizeSquared();
+			const FVector::FReal DistanceToEffectSqr = FVector(ViewInfo.ViewToWorld.GetOrigin() - EffectLocation).SizeSquared();
 			LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
 		}
 		LODDistance = FMath::Sqrt(LODDistanceSqr);
@@ -1785,10 +1785,10 @@ float FNiagaraSystemInstance::GetLODDistance()
 
 		if (PlayerViewLocations.Num() > 0)
 		{
-			float LODDistanceSqr = FMath::Square(WORLD_MAX);
+			FVector::FReal LODDistanceSqr = FMath::Square(WORLD_MAX);
 			for (const FVector& ViewLocation : PlayerViewLocations)
 			{
-				const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
+				const FVector::FReal DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
 				LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
 			}
 			LODDistance = FMath::Sqrt(LODDistanceSqr);

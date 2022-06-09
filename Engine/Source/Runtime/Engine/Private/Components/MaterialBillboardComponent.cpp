@@ -298,19 +298,19 @@ FPrimitiveSceneProxy* UMaterialBillboardComponent::CreateSceneProxy()
 
 FBoxSphereBounds UMaterialBillboardComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	float BoundsSize = 1.0f;
+	FTransform::FReal BoundsSize = 1.0f;
 	for (int32 i = 0; i < Elements.Num(); ++i)
 	{
 		if (Elements[i].bSizeIsInScreenSpace)
 		{
 			// Workaround static bounds by disabling culling. Still allows override such as 'use parent bounds', etc.
 			// Note: Bounds are dynamically calculated at draw time per view, so difficult to cull correctly. (UE-4725)
-			BoundsSize = float(HALF_WORLD_MAX); 
+			BoundsSize = HALF_WORLD_MAX; 
 			break;
 		}
 		else
 		{
-			BoundsSize = FMath::Max3(BoundsSize, Elements[i].BaseSizeX, Elements[i].BaseSizeY);
+			BoundsSize = FMath::Max3<FTransform::FReal>(BoundsSize, Elements[i].BaseSizeX, Elements[i].BaseSizeY);
 		}
 	}
 	BoundsSize *= LocalToWorld.GetMaximumAxisScale();

@@ -257,14 +257,14 @@ static FMatrix BuildOrthoMatrix(float InOrthoWidth, float InOrthoHeight)
 {
 	check((int32)ERHIZBuffer::IsInverted);
 
-	const float OrthoWidth = InOrthoWidth / 2.0f;
-	const float OrthoHeight = InOrthoHeight / 2.0f;
+	const FMatrix::FReal OrthoWidth = InOrthoWidth / 2.0f;
+	const FMatrix::FReal OrthoHeight = InOrthoHeight / 2.0f;
 
-	const float NearPlane = 0.f;
-	const float FarPlane = WORLD_MAX / 8.0f;
+	const FMatrix::FReal NearPlane = 0.f;
+	const FMatrix::FReal FarPlane = UE_FLOAT_HUGE_DISTANCE / 4.0f;
 
-	const float ZScale = 1.0f / (FarPlane - NearPlane);
-	const float ZOffset = 0;
+	const FMatrix::FReal ZScale = 1.0f / (FarPlane - NearPlane);
+	const FMatrix::FReal ZOffset = 0;
 
 	return FReversedZOrthoMatrix(
 		OrthoWidth,

@@ -903,12 +903,12 @@ FVector4f FNiagaraRenderer::CalcMacroUVParameters(const FSceneView& View, FVecto
 		const FVector4 RightPostProjectionPosition = ViewProjMatrix.TransformPosition(MacroUVPosition + MacroUVRadius * ViewMatrix.GetColumn(0));
 		const FVector4 UpPostProjectionPosition = ViewProjMatrix.TransformPosition(MacroUVPosition + MacroUVRadius * ViewMatrix.GetColumn(1));
 
-		const float RightNDCPosX = RightPostProjectionPosition.X / FMath::Max(RightPostProjectionPosition.W, 0.0001f);
-		const float UpNDCPosY = UpPostProjectionPosition.Y / FMath::Max(UpPostProjectionPosition.W, 0.0001f);
-		const float DX = FMath::Min<float>(RightNDCPosX - ObjectNDCPosition.X, WORLD_MAX);
-		const float DY = FMath::Min<float>(UpNDCPosY - ObjectNDCPosition.Y, WORLD_MAX);
+		const FVector4::FReal RightNDCPosX = RightPostProjectionPosition.X / FMath::Max(RightPostProjectionPosition.W, 0.0001f);
+		const FVector4::FReal UpNDCPosY = UpPostProjectionPosition.Y / FMath::Max(UpPostProjectionPosition.W, 0.0001f);
+		const FVector4::FReal DX = FMath::Min(RightNDCPosX - ObjectNDCPosition.X, WORLD_MAX);
+		const FVector4::FReal DY = FMath::Min(UpNDCPosY - ObjectNDCPosition.Y, WORLD_MAX);
 
-		MacroUVParameters.X = float(ObjectNDCPosition.X);
+		MacroUVParameters.X = float(ObjectNDCPosition.X);	// LWC_TODO: Precision loss?
 		MacroUVParameters.Y = float(ObjectNDCPosition.Y);
 		if (DX != 0.0f && DY != 0.0f && !FMath::IsNaN(DX) && FMath::IsFinite(DX) && !FMath::IsNaN(DY) && FMath::IsFinite(DY))
 		{

@@ -958,7 +958,7 @@ static bool ExportLandscapeMaterial(const ALandscapeProxy* InLandscape, const TS
 							FPlane(0,	0,	-1,	0),
 							FPlane(0,	0,	0,	1));
 				
-	const float ZOffset = WORLD_MAX;
+	const FMatrix::FReal ZOffset = UE_OLD_WORLD_MAX;
 	FMatrix ProjectionMatrix =  FReversedZOrthoMatrix(
 		LandscapeExtent.X,
 		LandscapeExtent.Y,
@@ -1481,7 +1481,7 @@ bool FMaterialUtilities::ExportBaseColor(ULandscapeComponent* LandscapeComponent
 		FPlane(0, 0, -1, 0),
 		FPlane(0, 0, 0, 1));
 
-	const float ZOffset = WORLD_MAX;
+	const FMatrix::FReal ZOffset = UE_OLD_WORLD_MAX;
 	FMatrix ProjectionMatrix = FReversedZOrthoMatrix(
 		LandscapeExtent.X,
 		LandscapeExtent.Y,

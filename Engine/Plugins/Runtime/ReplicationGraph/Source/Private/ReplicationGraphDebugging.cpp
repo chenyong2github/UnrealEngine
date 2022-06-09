@@ -622,7 +622,7 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetDebugActorConnectionCmd(TEXT("
 		}
 		else
 		{
-			float ClosestMatchDistSq = WORLD_MAX;
+			FVector::FReal ClosestMatchDistSq = WORLD_MAX;
 			AActor* ClosestMatchActor = nullptr;
 			FVector CamLoc;
 			FRotator CamRot;
@@ -649,7 +649,7 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetDebugActorConnectionCmd(TEXT("
 
 				if (Class)
 				{
-					float DistSq = (Actor->GetActorLocation() - CamLoc).SizeSquared2D();
+					FVector::FReal DistSq = (Actor->GetActorLocation() - CamLoc).SizeSquared2D();
 					if (DistSq < ClosestMatchDistSq)
 					{
 						ClosestMatchDistSq = DistSq;

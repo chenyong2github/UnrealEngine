@@ -6765,11 +6765,11 @@ void FParticleSystemSceneProxy::GetObjectPositionAndScale(const FSceneView& View
 		// Scales to transform the view space positions corresponding to SystemPositionForMacroUVs +- SystemRadiusForMacroUVs into [0, 1] in xy
 		// Scales to transform the screen space positions corresponding to SystemPositionForMacroUVs +- SystemRadiusForMacroUVs into [0, 1] in zw
 
-		const float RightNDCPosX = (float)(RightPostProjectionPosition.X / RightPostProjectionPosition.W); // LWC_TODO: precision loss
-		const float UpNDCPosY = (float)(UpPostProjectionPosition.Y / UpPostProjectionPosition.W); // LWC_TODO: precision loss
-		float DX = FMath::Min<float>(RightNDCPosX - ObjectNDCPosition.X, WORLD_MAX);
-		float DY = FMath::Min<float>(UpNDCPosY - ObjectNDCPosition.Y, WORLD_MAX);
-		if (DX != 0.0f && DY != 0.0f && !FMath::IsNaN(DX) && FMath::IsFinite(DX) && !FMath::IsNaN(DY) && FMath::IsFinite(DY))
+		const FVector4::FReal RightNDCPosX = RightPostProjectionPosition.X / RightPostProjectionPosition.W;
+		const FVector4::FReal UpNDCPosY = UpPostProjectionPosition.Y / UpPostProjectionPosition.W;
+		FVector4::FReal DX = FMath::Min(RightNDCPosX - ObjectNDCPosition.X, WORLD_MAX);
+		FVector4::FReal DY = FMath::Min(UpNDCPosY - ObjectNDCPosition.Y, WORLD_MAX);
+		if (DX != 0 && DY != 0 && !FMath::IsNaN(DX) && FMath::IsFinite(DX) && !FMath::IsNaN(DY) && FMath::IsFinite(DY))
 		{
 			ObjectMacroUVScales = FVector2D(1.0f / DX, -1.0f / DY);
 		}

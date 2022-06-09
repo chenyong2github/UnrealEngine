@@ -121,7 +121,7 @@ struct FMinimalViewInfo
 		, DesiredFOV(90.0f)
 		, OrthoWidth(512.0f)
 		, OrthoNearClipPlane(0.0f)
-		, OrthoFarClipPlane(WORLD_MAX)
+		, OrthoFarClipPlane(UE_OLD_WORLD_MAX)
 		, PerspectiveNearClipPlane(-1.0f)
 		, AspectRatio(1.33333333f)
 		, bConstrainAspectRatio(false)

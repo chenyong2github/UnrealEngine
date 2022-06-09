@@ -7086,10 +7086,10 @@ int32 UParticleSystemComponent::DetermineLODLevelForLocation(const FVector& Effe
 		}
 
 		// This will now put everything in LODLevel 0 (high detail) by default
-		float LODDistanceSqr = (PlayerViewLocations.Num() ? FMath::Square(WORLD_MAX) : 0.0f);
+		FVector::FReal LODDistanceSqr = (PlayerViewLocations.Num() ? FMath::Square(WORLD_MAX) : 0.0f);
 		for (const FVector& ViewLocation : PlayerViewLocations)
 		{
-			const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
+			const FVector::FReal DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
 			if (DistanceToEffectSqr < LODDistanceSqr)
 			{
 				LODDistanceSqr = DistanceToEffectSqr;

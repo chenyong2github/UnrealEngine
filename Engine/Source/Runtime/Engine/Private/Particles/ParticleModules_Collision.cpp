@@ -225,7 +225,7 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 		else
 		{
 			// If the MaxCollisionDistance is greater than WORLD_MAX, they obviously want the check disabled...
-			if (MaxCollisionDistance < WORLD_MAX)
+			if (MaxCollisionDistance < UE_OLD_WORLD_MAX)	// LWC_TODO: Fix needed to handle WORLD_MAX increase. Remove?
 			{
 				// If we have at least a few particles, do a simple check vs. the bounds
 				if (Owner->ActiveParticles > 7)
@@ -255,7 +255,7 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 							// bounds rather than shorten the distance checked as it is usually used for.
 							float InvDistanceFactor = 1.0f / PlayerLODDistanceFactor[PlyrIdx];
 							FBox CheckBounds = BoundingBox;
-							float BoxExpansionValue = MaxCollisionDistance * InvDistanceFactor;
+							FBox::FReal BoxExpansionValue = MaxCollisionDistance * InvDistanceFactor;
 							BoxExpansionValue += BoxExpansionValue * 0.075f;
 							// Expand it by the max collision distance (and a little bit extra)
 							CheckBounds = CheckBounds.ExpandBy(BoxExpansionValue);
@@ -302,7 +302,7 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 		}
 	}
 
-	float SquaredMaxCollisionDistance = FMath::Square(MaxCollisionDistance);
+	FVector::FReal SquaredMaxCollisionDistance = FMath::Square<FVector::FReal>(MaxCollisionDistance);
 	BEGIN_UPDATE_LOOP;
 	{
 		if ((Particle.Flags & STATE_Particle_CollisionIgnoreCheck) != 0)
@@ -359,7 +359,7 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 
 		FVector End = Location + Direction * Size / DirScalar;
 
-		if ((World->IsGameWorld() == true) && (MaxCollisionDistance < WORLD_MAX))
+		if ((World->IsGameWorld() == true) && (MaxCollisionDistance < UE_OLD_WORLD_MAX))	// LWC_TODO: Fix needed to handle WORLD_MAX increase.
 		{
 			// LOD collision by distance
 			bool bCloseEnough = false;

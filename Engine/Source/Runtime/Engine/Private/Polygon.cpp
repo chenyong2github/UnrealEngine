@@ -834,10 +834,10 @@ FPoly FPoly::BuildInfiniteFPoly(const FPlane& InPlane)
 	EdPoly.Normal.Y    = InPlane.Y;
 	EdPoly.Normal.Z    = InPlane.Z;
 	EdPoly.Base        = EdPoly.Normal * InPlane.W;
-	EdPoly.Vertices.Add( EdPoly.Base + (FVector3f)Axis1*HALF_WORLD_MAX + (FVector3f)Axis2*HALF_WORLD_MAX );
-	EdPoly.Vertices.Add( EdPoly.Base - (FVector3f)Axis1*HALF_WORLD_MAX + (FVector3f)Axis2*HALF_WORLD_MAX );
-	EdPoly.Vertices.Add( EdPoly.Base - (FVector3f)Axis1*HALF_WORLD_MAX - (FVector3f)Axis2*HALF_WORLD_MAX );
-	EdPoly.Vertices.Add( EdPoly.Base + (FVector3f)Axis1*HALF_WORLD_MAX - (FVector3f)Axis2*HALF_WORLD_MAX );
+	EdPoly.Vertices.Add( EdPoly.Base + (FVector3f)Axis1*UE_OLD_HALF_WORLD_MAX + (FVector3f)Axis2*UE_OLD_HALF_WORLD_MAX );
+	EdPoly.Vertices.Add( EdPoly.Base - (FVector3f)Axis1*UE_OLD_HALF_WORLD_MAX + (FVector3f)Axis2*UE_OLD_HALF_WORLD_MAX );
+	EdPoly.Vertices.Add( EdPoly.Base - (FVector3f)Axis1*UE_OLD_HALF_WORLD_MAX - (FVector3f)Axis2*UE_OLD_HALF_WORLD_MAX );
+	EdPoly.Vertices.Add( EdPoly.Base + (FVector3f)Axis1*UE_OLD_HALF_WORLD_MAX - (FVector3f)Axis2*UE_OLD_HALF_WORLD_MAX );
 
 	return EdPoly;
 }

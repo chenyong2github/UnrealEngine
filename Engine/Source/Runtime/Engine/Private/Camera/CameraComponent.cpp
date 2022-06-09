@@ -45,7 +45,7 @@ UCameraComponent::UCameraComponent(const FObjectInitializer& ObjectInitializer)
 	AspectRatio = 1.777778f;
 	OrthoWidth = 512.0f;
 	OrthoNearClipPlane = 0.0f;
-	OrthoFarClipPlane = WORLD_MAX;
+	OrthoFarClipPlane = UE_OLD_WORLD_MAX;
 	bConstrainAspectRatio = false;
 	bUseFieldOfViewForLOD = true;
 	PostProcessBlendWeight = 1.0f;

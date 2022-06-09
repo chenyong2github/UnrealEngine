@@ -359,7 +359,7 @@ FEditorCommonDrawHelper::FEditorCommonDrawHelper()
 	, GridColorAxis(70, 70, 70)
 	, GridColorMajor(40, 40, 40)
 	, GridColorMinor(20, 20, 20)
-	, PerspectiveGridSize(HALF_WORLD_MAX1)
+	, PerspectiveGridSize(UE_OLD_HALF_WORLD_MAX1)
 	, PivotColor(FColor::Red)
 	, PivotSize(0.02f)
 	, NumCells(64)
@@ -424,15 +424,12 @@ void FEditorCommonDrawHelper::DrawBaseInfo(const FSceneView* View,FPrimitiveDraw
 // @todo UE - reimplement with new component attachment system
 }
 
-#define GRID_WORLD_MAX (2097152.0*0.5)
-
 void FEditorCommonDrawHelper::DrawOldGrid(const FSceneView* View,FPrimitiveDrawInterface* PDI)
 {
 	ESceneDepthPriorityGroup eDPG = (ESceneDepthPriorityGroup)DepthPriorityGroup;
 
 	bool bIsPerspective = ( View->ViewMatrices.GetProjectionMatrix().M[3][3] < 1.0f );
 
-	// LWC_TODO - replace with LWC version of HALF_WORLD_MAX once we have it
 	static double MaxGridExtent = 8.0 * 1024 * 1024 * 1024;
 
 	// Draw 3D perspective grid

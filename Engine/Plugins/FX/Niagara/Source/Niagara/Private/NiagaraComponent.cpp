@@ -166,10 +166,10 @@ static FAutoConsoleVariableRef CVarNiagaraCanPreventScalabilityCullingOnPlayerFX
 
 bool FitsIntoFloat(FVector InValue)
 {
-	// copied from PlayerCameraManager, 1048576 is HALF_WORLD_MAX for float precision vectors
-	return (InValue.X < 1048576.0f && InValue.X > -1048576.0f &&
-			InValue.Y < 1048576.0f && InValue.Y > -1048576.0f &&
-			InValue.Z < 1048576.0f && InValue.Z > -1048576.0f);
+	// copied from PlayerCameraManager,use HALF_WORLD_MAX for float precision vectors
+	return (InValue.X < UE_OLD_HALF_WORLD_MAX  && InValue.X > -UE_OLD_HALF_WORLD_MAX &&
+			InValue.Y < UE_OLD_HALF_WORLD_MAX && InValue.Y > -UE_OLD_HALF_WORLD_MAX &&
+			InValue.Z < UE_OLD_HALF_WORLD_MAX && InValue.Z > -UE_OLD_HALF_WORLD_MAX);
 }
 
 FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)

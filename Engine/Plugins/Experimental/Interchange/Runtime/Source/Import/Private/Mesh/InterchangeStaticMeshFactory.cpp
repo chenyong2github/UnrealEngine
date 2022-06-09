@@ -1247,10 +1247,10 @@ bool UInterchangeStaticMeshFactory::GenerateKDopCollision(const FCreateAssetPara
 
 		FVector3f Base = Planes[PlaneIndex] * Planes[PlaneIndex].W;
 
-		Polygon.Vertices.Emplace(Base + AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
-		Polygon.Vertices.Emplace(Base + AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
-		Polygon.Vertices.Emplace(Base - AxisX * HALF_WORLD_MAX - AxisY * HALF_WORLD_MAX);
-		Polygon.Vertices.Emplace(Base - AxisX * HALF_WORLD_MAX + AxisY * HALF_WORLD_MAX);
+		Polygon.Vertices.Emplace(Base + AxisX * UE_OLD_HALF_WORLD_MAX + AxisY * UE_OLD_HALF_WORLD_MAX);
+		Polygon.Vertices.Emplace(Base + AxisX * UE_OLD_HALF_WORLD_MAX - AxisY * UE_OLD_HALF_WORLD_MAX);
+		Polygon.Vertices.Emplace(Base - AxisX * UE_OLD_HALF_WORLD_MAX - AxisY * UE_OLD_HALF_WORLD_MAX);
+		Polygon.Vertices.Emplace(Base - AxisX * UE_OLD_HALF_WORLD_MAX + AxisY * UE_OLD_HALF_WORLD_MAX);
 
 		for (int32 OtherPlaneIndex = 0; OtherPlaneIndex < Planes.Num(); OtherPlaneIndex++)
 		{

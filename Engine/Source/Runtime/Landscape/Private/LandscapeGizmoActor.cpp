@@ -741,7 +741,7 @@ void ALandscapeGizmoActiveActor::FitMinMaxHeight()
 {
 	if (TargetLandscapeInfo)
 	{
-		float MinZ = HALF_WORLD_MAX, MaxZ = -HALF_WORLD_MAX;
+		FVector::FReal MinZ = UE_OLD_HALF_WORLD_MAX, MaxZ = -UE_OLD_HALF_WORLD_MAX;
 		// Change MinRelativeZ and RelativeZScale to fit Gizmo Box
 		for (auto It = SelectedData.CreateConstIterator(); It; ++It )
 		{
@@ -750,7 +750,7 @@ void ALandscapeGizmoActiveActor::FitMinMaxHeight()
 			MaxZ = FMath::Max(MaxZ, Data.HeightData);
 		}
 
-		if (MinZ != HALF_WORLD_MAX && MaxZ > MinZ + KINDA_SMALL_NUMBER)
+		if (MinZ != UE_OLD_HALF_WORLD_MAX && MaxZ > MinZ + KINDA_SMALL_NUMBER)
 		{
 			MinRelativeZ = MinZ;
 			RelativeScaleZ = 1.f / (MaxZ - MinZ);

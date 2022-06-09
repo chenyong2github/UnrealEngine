@@ -86,7 +86,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bGenerateSingleClusterForLevel = false;
 #endif
 
-	KillZ = -HALF_WORLD_MAX1;
+	KillZ = -UE_OLD_HALF_WORLD_MAX1;	// LWC_TODO: HALF_WORLD_MAX1? Something else?
 	KillZDamageType = ConstructorStatics.DmgType_Environmental_Object.Object;
 
 #if WITH_EDITORONLY_DATA

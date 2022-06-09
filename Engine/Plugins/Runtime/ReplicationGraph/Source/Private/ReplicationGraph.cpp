@@ -4325,7 +4325,7 @@ bool UReplicationGraphNode_ConnectionDormancyNode::IsNodeObsolete(uint32 Current
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
-float UReplicationGraphNode_DormancyNode::MaxZForConnection = WORLD_MAX;
+FVector::FReal UReplicationGraphNode_DormancyNode::MaxZForConnection = WORLD_MAX;
 
 void UReplicationGraphNode_DormancyNode::CallFunctionOnValidConnectionNodes(FConnectionDormancyNodeFunction Function)
 {

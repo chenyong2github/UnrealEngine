@@ -1604,7 +1604,7 @@ FAnimationAssetViewportClient::FAnimationAssetViewportClient(FPreviewScene& InPr
 	DrawHelper.GridColorAxis = FColor(70, 70, 70);
 	DrawHelper.GridColorMajor = FColor(40, 40, 40);
 	DrawHelper.GridColorMinor = FColor(20, 20, 20);
-	DrawHelper.PerspectiveGridSize = HALF_WORLD_MAX1;
+	DrawHelper.PerspectiveGridSize = UE_OLD_HALF_WORLD_MAX1;
 	bDrawAxes = false;
 }
 

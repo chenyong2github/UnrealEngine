@@ -1827,9 +1827,9 @@ FPoly* CreateHugeTrianglePolygonOnPlane( const FPlane* InPlane )
 	FPoly* Triangle = new FPoly();
 
 	FVector Center = FVector( InPlane->X, InPlane->Y, InPlane->Z ) * InPlane->W;
-	FVector V0 = Center + (A * WORLD_MAX);
-	FVector V1 = Center + (B * WORLD_MAX);
-	FVector V2 = Center - (((A + B) / 2.0f) * WORLD_MAX);
+	FVector V0 = Center + (A * UE_OLD_WORLD_MAX);	// LWC_TODO: WORLD_MAX misuse?
+	FVector V1 = Center + (B * UE_OLD_WORLD_MAX);
+	FVector V2 = Center - (((A + B) / 2.0f) * UE_OLD_WORLD_MAX);
 
 	// Create a triangle that lays on InPlane
 

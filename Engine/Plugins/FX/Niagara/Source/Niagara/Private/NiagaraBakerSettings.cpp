@@ -118,7 +118,7 @@ FMatrix UNiagaraBakerSettings::GetProjectionMatrix() const
 	}
 	else
 	{
-		const float ZRange = WORLD_MAX;
+		const FMatrix::FReal ZRange = UE_OLD_WORLD_MAX;
 		return FReversedZOrthoMatrix(CurrentCamera.OrthoWidth / 2.0f, CurrentCamera.OrthoWidth * AspectRatioY / 2.0f, 0.5f / ZRange, ZRange);
 	}
 }

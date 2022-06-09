@@ -37,7 +37,7 @@ UWorldComposition::UWorldComposition(const FObjectInitializer& ObjectInitializer
 	, TilesStreamingTimeThreshold(1.0)
 	, bLoadAllTilesDuringCinematic(false)
 	, bRebaseOriginIn3DSpace(false)
-	, RebaseOriginDistance(HALF_WORLD_MAX1*0.5f)
+	, RebaseOriginDistance(UE_OLD_HALF_WORLD_MAX1*0.5f)
 {
 }
 

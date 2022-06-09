@@ -1826,82 +1826,82 @@ static void BuildGiantAlignedBrush( ABrush& OutGiantBrush, const FPlane& InPlane
 	OutGiantBrush.Brush->Polys->Element.Empty();
 
 	// Create a list of vertices that can be used for the new brush
-	FVector vtxs[8];
+	FVector3f vtxs[8];
 
 	FPlane FlippedPlane = InPlane.Flip();
 	FPoly TempPoly = FPoly::BuildInfiniteFPoly( FlippedPlane );
 	TempPoly.Finalize(&OutGiantBrush,0);
-	vtxs[0] = (FVector)TempPoly.Vertices[0];
-	vtxs[1] = (FVector)TempPoly.Vertices[1];
-	vtxs[2] = (FVector)TempPoly.Vertices[2];
-	vtxs[3] = (FVector)TempPoly.Vertices[3];
+	vtxs[0] = TempPoly.Vertices[0];
+	vtxs[1] = TempPoly.Vertices[1];
+	vtxs[2] = TempPoly.Vertices[2];
+	vtxs[3] = TempPoly.Vertices[3];
 
 	FlippedPlane = FlippedPlane.Flip();
 	FPoly TempPoly2 = FPoly::BuildInfiniteFPoly( FlippedPlane );
-	vtxs[4] = FVector(TempPoly2.Vertices[0] + (TempPoly2.Normal * -(WORLD_MAX)));	vtxs[5] = FVector(TempPoly2.Vertices[1] + (TempPoly2.Normal * -(WORLD_MAX)));
-	vtxs[6] = FVector(TempPoly2.Vertices[2] + (TempPoly2.Normal * -(WORLD_MAX)));	vtxs[7] = FVector(TempPoly2.Vertices[3] + (TempPoly2.Normal * -(WORLD_MAX)));
+	vtxs[4] = FVector3f(TempPoly2.Vertices[0] + (TempPoly2.Normal * -(UE_OLD_WORLD_MAX)));	vtxs[5] = FVector3f(TempPoly2.Vertices[1] + (TempPoly2.Normal * -(UE_OLD_WORLD_MAX)));
+	vtxs[6] = FVector3f(TempPoly2.Vertices[2] + (TempPoly2.Normal * -(UE_OLD_WORLD_MAX)));	vtxs[7] = FVector3f(TempPoly2.Vertices[3] + (TempPoly2.Normal * -(UE_OLD_WORLD_MAX)));
 
 	// Create the polys for the new brush.
 	FPoly newPoly;
 
 	// TOP
 	newPoly.Init();
-	newPoly.Base = (FVector3f)vtxs[0];
-	newPoly.Vertices.Add( (FVector3f)vtxs[0] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[1] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[2] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[3] );
+	newPoly.Base = vtxs[0];
+	newPoly.Vertices.Add( vtxs[0] );
+	newPoly.Vertices.Add( vtxs[1] );
+	newPoly.Vertices.Add( vtxs[2] );
+	newPoly.Vertices.Add( vtxs[3] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// BOTTOM
 	newPoly.Init();
-	newPoly.Base = (FVector3f)vtxs[4];
-	newPoly.Vertices.Add( (FVector3f)vtxs[4] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[5] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[6] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[7] );
+	newPoly.Base = vtxs[4];
+	newPoly.Vertices.Add( vtxs[4] );
+	newPoly.Vertices.Add( vtxs[5] );
+	newPoly.Vertices.Add( vtxs[6] );
+	newPoly.Vertices.Add( vtxs[7] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// SIDES
 	// 1
 	newPoly.Init();
-	newPoly.Base = (FVector3f)vtxs[1];
-	newPoly.Vertices.Add( (FVector3f)vtxs[1] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[0] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[7] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[6] );
+	newPoly.Base = vtxs[1];
+	newPoly.Vertices.Add( vtxs[1] );
+	newPoly.Vertices.Add( vtxs[0] );
+	newPoly.Vertices.Add( vtxs[7] );
+	newPoly.Vertices.Add( vtxs[6] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// 2
 	newPoly.Init();
-	newPoly.Base = (FVector3f)vtxs[2];
-	newPoly.Vertices.Add( (FVector3f)vtxs[2] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[1] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[6] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[5] );
+	newPoly.Base = vtxs[2];
+	newPoly.Vertices.Add( vtxs[2] );
+	newPoly.Vertices.Add( vtxs[1] );
+	newPoly.Vertices.Add( vtxs[6] );
+	newPoly.Vertices.Add( vtxs[5] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// 3
 	newPoly.Init();
-	newPoly.Base = (FVector3f)vtxs[3];
-	newPoly.Vertices.Add( (FVector3f)vtxs[3] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[2] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[5] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[4] );
+	newPoly.Base = vtxs[3];
+	newPoly.Vertices.Add( vtxs[3] );
+	newPoly.Vertices.Add( vtxs[2] );
+	newPoly.Vertices.Add( vtxs[5] );
+	newPoly.Vertices.Add( vtxs[4] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// 4
 	newPoly.Init();
-	newPoly.Base = (FVector3f)vtxs[0];
-	newPoly.Vertices.Add( (FVector3f)vtxs[0] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[3] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[4] );
-	newPoly.Vertices.Add( (FVector3f)vtxs[7] );
+	newPoly.Base = vtxs[0];
+	newPoly.Vertices.Add( vtxs[0] );
+	newPoly.Vertices.Add( vtxs[3] );
+	newPoly.Vertices.Add( vtxs[4] );
+	newPoly.Vertices.Add( vtxs[7] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 

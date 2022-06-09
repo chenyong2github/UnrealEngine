@@ -3728,7 +3728,7 @@ bool ULandscapeInfo::GetSelectedExtent(int32& MinX, int32& MinY, int32& MaxX, in
 FVector ULandscapeInfo::GetLandscapeCenterPos(float& LengthZ, int32 MinX /*= MAX_INT*/, int32 MinY /*= MAX_INT*/, int32 MaxX /*= MIN_INT*/, int32 MaxY /*= MIN_INT*/)
 {
 	// MinZ, MaxZ is Local coordinate
-	float MaxZ = -HALF_WORLD_MAX, MinZ = HALF_WORLD_MAX;
+	float MaxZ = -UE_OLD_HALF_WORLD_MAX, MinZ = UE_OLD_HALF_WORLD_MAX;
 	const float ScaleZ = DrawScale.Z;
 
 	if (MinX == MAX_int32)

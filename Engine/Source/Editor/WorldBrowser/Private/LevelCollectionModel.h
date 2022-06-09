@@ -296,7 +296,7 @@ public:
 	void BroadcastPostLevelsUnloaded();
 	
 	/** Editable world axis length  */
-	static float EditableAxisLength();
+	static double EditableAxisLength();
 
 	/** Editable world bounds */
 	static FBox EditableWorldArea();

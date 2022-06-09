@@ -507,7 +507,7 @@ class REPLICATIONGRAPH_API UReplicationGraphNode_DormancyNode : public UReplicat
 public:
 
 	/** Connection Z location has to be < this for ConnectionsNodes to be made. */
-	static float MaxZForConnection; 
+	static FVector::FReal MaxZForConnection; 
 
 public:
 

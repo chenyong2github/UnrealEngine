@@ -2304,7 +2304,7 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 static float GPerspFrustumAngle=90.f;
 static float GPerspFrustumAspectRatio=1.77777f;
 static float GPerspFrustumStartDist=GNearClippingPlane;
-static float GPerspFrustumEndDist=HALF_WORLD_MAX;
+static float GPerspFrustumEndDist=UE_FLOAT_HUGE_DISTANCE;
 static FMatrix GPerspViewMatrix;
 
 
@@ -2331,7 +2331,7 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 		GPerspFrustumAspectRatio=AspectRatio;
 		GPerspFrustumStartDist=GetNearClipPlane();
 
-		GPerspFrustumEndDist= HALF_WORLD_MAX;
+		GPerspFrustumEndDist= UE_FLOAT_HUGE_DISTANCE;
 
 		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 			Viewport,

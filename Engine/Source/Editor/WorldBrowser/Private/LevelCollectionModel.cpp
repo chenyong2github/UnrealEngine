@@ -1150,14 +1150,14 @@ void FLevelCollectionModel::BroadcastPostLevelsUnloaded()
 	PostLevelsUnloaded.Broadcast();
 }
 
-float FLevelCollectionModel::EditableAxisLength()
+double FLevelCollectionModel::EditableAxisLength()
 { 
 	return HALF_WORLD_MAX; 
 };
 
 FBox FLevelCollectionModel::EditableWorldArea()
 {
-	float AxisLength = EditableAxisLength();
+	FVector::FReal AxisLength = EditableAxisLength();
 	
 	return FBox(	
 		FVector(-AxisLength, -AxisLength, -AxisLength), 

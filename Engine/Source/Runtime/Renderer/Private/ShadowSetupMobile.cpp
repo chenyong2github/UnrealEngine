@@ -145,7 +145,6 @@ static bool MobileDetermineStaticMeshesCSMVisibilityStateInner(
 	const FLightSceneInfo& LightSceneInfo = ProjectedShadowInfo->GetLightSceneInfo();
 	FLightSceneProxy* RESTRICT LightProxy = LightSceneInfo.Proxy;
 	FVector LightDir = LightProxy->GetDirection();
-	const float ShadowCastLength = WORLD_MAX;
 
 	FPrimitiveSceneInfo* RESTRICT	PrimitiveSceneInfo = PrimitiveSceneInfoCompact.PrimitiveSceneInfo;
 	FPrimitiveSceneProxy* RESTRICT	PrimitiveProxy = PrimitiveSceneInfoCompact.Proxy;
@@ -157,10 +156,10 @@ static bool MobileDetermineStaticMeshesCSMVisibilityStateInner(
 		const FVector LightDirection = LightProxy->GetDirection();
 		const FVector PrimitiveToShadowCenter = ProjectedShadowInfo->ShadowBounds.Center - PrimitiveBounds.Origin;
 		// Project the primitive's bounds origin onto the light vector
-		const float ProjectedDistanceFromShadowOriginAlongLightDir = PrimitiveToShadowCenter | LightDirection;
+		const FVector::FReal ProjectedDistanceFromShadowOriginAlongLightDir = PrimitiveToShadowCenter | LightDirection;
 		// Calculate the primitive's squared distance to the cylinder's axis
-		const float PrimitiveDistanceFromCylinderAxisSq = (-LightDirection * ProjectedDistanceFromShadowOriginAlongLightDir + PrimitiveToShadowCenter).SizeSquared();
-		const float CombinedRadiusSq = FMath::Square(ProjectedShadowInfo->ShadowBounds.W + PrimitiveBounds.SphereRadius);
+		const FVector::FReal PrimitiveDistanceFromCylinderAxisSq = (-LightDirection * ProjectedDistanceFromShadowOriginAlongLightDir + PrimitiveToShadowCenter).SizeSquared();
+		const FVector::FReal CombinedRadiusSq = FMath::Square(ProjectedShadowInfo->ShadowBounds.W + PrimitiveBounds.SphereRadius);
 
 		// Include all primitives for movable lights, but only statically shadowed primitives from a light with static shadowing,
 		// Since lights with static shadowing still create per-object shadows for primitives without static shadowing.
@@ -231,7 +230,7 @@ static void VisualizeMobileDynamicCSMSubjectCapsules(FViewInfo& View, FLightScen
 	FVisibleLightViewInfo& VisibleLightViewInfo = View.VisibleLightInfos[LightSceneInfo->Id];
 	FMobileCSMSubjectPrimitives& MobileCSMSubjectPrimitives = VisibleLightViewInfo.MobileCSMSubjectPrimitives;
 	FVector LightDir = LightSceneInfo->Proxy->GetDirection();
-	const float ShadowCastLength = WORLD_MAX;
+	const FVector::FReal ShadowCastLength = WORLD_MAX;
 	const uint32 CullingMethod = CVarsCsmShaderCullingMethod.GetValueOnRenderThread() & 0xF;
 	const bool bSphereTest = (CVarsCsmShaderCullingMethod.GetValueOnRenderThread() & 0x10) != 0;
 

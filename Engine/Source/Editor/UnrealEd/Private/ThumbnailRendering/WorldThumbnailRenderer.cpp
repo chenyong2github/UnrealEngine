@@ -256,13 +256,13 @@ FSceneView* UWorldThumbnailRenderer::CreateView(UWorld* World, FSceneViewFamily*
 		WorldSize2D.X = FMath::Abs(WorldSize2D.X);
 		WorldSize2D.Y = FMath::Abs(WorldSize2D.Y);
 		const bool bUseXAxis = (WorldSize2D.X / WorldSize2D.Y) > 1.f;
-		const float WorldAxisSize = bUseXAxis ? WorldSize2D.X : WorldSize2D.Y;
+		const FVector2D::FReal WorldAxisSize = bUseXAxis ? WorldSize2D.X : WorldSize2D.Y;
 		const uint32 ViewportAxisSize = bUseXAxis ? SizeX : SizeY;
-		const float OrthoZoom = WorldAxisSize / ViewportAxisSize / 2.f;
+		const FVector2D::FReal OrthoZoom = WorldAxisSize / ViewportAxisSize / 2.f;
 		const float OrthoWidth = FMath::Max(1.f, SizeX * OrthoZoom);
 		const float OrthoHeight = FMath::Max(1.f, SizeY * OrthoZoom);
 
-		const float ZOffset = HALF_WORLD_MAX;
+		const FMatrix::FReal ZOffset = UE_OLD_HALF_WORLD_MAX;
 		ProjectionMatrix = FReversedZOrthoMatrix(
 			OrthoWidth,
 			OrthoHeight,

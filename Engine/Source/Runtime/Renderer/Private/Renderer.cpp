@@ -437,7 +437,7 @@ void FRendererModule::GPUBenchmark(FSynthBenchmarkResults& InOut, float WorkScal
 	FSceneViewInitOptions ViewInitOptions;
 	FIntRect ViewRect(0, 0, 1, 1);
 
-	FBox LevelBox(FVector(-WORLD_MAX), FVector(+WORLD_MAX));
+	FBox LevelBox(FVector(-UE_OLD_WORLD_MAX), FVector(+UE_OLD_WORLD_MAX));	// LWC_TODO: Scale to renderable world bounds?
 	ViewInitOptions.SetViewRectangle(ViewRect);
 
 	// Initialize Projection Matrix and ViewMatrix since FSceneView initialization is doing some math on them.
@@ -450,7 +450,7 @@ void FRendererModule::GPUBenchmark(FSynthBenchmarkResults& InOut, float WorkScal
 		FPlane(0, 0, -1, 0),
 		FPlane(0, 0, 0, 1));
 
-	const float ZOffset = WORLD_MAX;
+	const FVector::FReal ZOffset = UE_OLD_WORLD_MAX;
 	ViewInitOptions.ProjectionMatrix = FReversedZOrthoMatrix(
 		LevelBox.GetSize().X / 2.f,
 		LevelBox.GetSize().Y / 2.f,

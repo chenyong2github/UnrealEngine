@@ -1353,7 +1353,7 @@ void FParticleEmitterInstance::UpdateBoundingBox(float DeltaTime)
 				NewRotation = Particle.Rotation;
 			}
 
-			float LocalMax(0.0f);
+			FVector::FReal LocalMax(0.0f);
 
 			if (bUpdateBox)
 			{	
@@ -1390,12 +1390,12 @@ void FParticleEmitterInstance::UpdateBoundingBox(float DeltaTime)
 
 				// Treat each particle as a cube whose sides are the length of the maximum component
 				// This handles the particle's extents changing due to being camera facing
-				MinVal[0] = FMath::Min<float>(MinVal[0], PositionForBounds.X - LocalMax);
-				MaxVal[0] = FMath::Max<float>(MaxVal[0], PositionForBounds.X + LocalMax);
-				MinVal[1] = FMath::Min<float>(MinVal[1], PositionForBounds.Y - LocalMax);
-				MaxVal[1] = FMath::Max<float>(MaxVal[1], PositionForBounds.Y + LocalMax);
-				MinVal[2] = FMath::Min<float>(MinVal[2], PositionForBounds.Z - LocalMax);
-				MaxVal[2] = FMath::Max<float>(MaxVal[2], PositionForBounds.Z + LocalMax);
+				MinVal[0] = FMath::Min(MinVal[0], PositionForBounds.X - LocalMax);
+				MaxVal[0] = FMath::Max(MaxVal[0], PositionForBounds.X + LocalMax);
+				MinVal[1] = FMath::Min(MinVal[1], PositionForBounds.Y - LocalMax);
+				MaxVal[1] = FMath::Max(MaxVal[1], PositionForBounds.Y + LocalMax);
+				MinVal[2] = FMath::Min(MinVal[2], PositionForBounds.Z - LocalMax);
+				MaxVal[2] = FMath::Max(MaxVal[2], PositionForBounds.Z + LocalMax);
 			}
 		}
 
@@ -1439,7 +1439,7 @@ void FParticleEmitterInstance::ForceUpdateBoundingBox()
 		{
 			DECLARE_PARTICLE(Particle, ParticleData + ParticleStride * ParticleIndices[i]);
 
-			float LocalMax(0.0f);
+			FVector::FReal LocalMax(0.0f);
 
 			if (OrbitOffsetValue == -1)
 			{
@@ -1463,12 +1463,12 @@ void FParticleEmitterInstance::ForceUpdateBoundingBox()
 
 			// Treat each particle as a cube whose sides are the length of the maximum component
 			// This handles the particle's extents changing due to being camera facing
-			MinVal[0] = FMath::Min<float>(MinVal[0], PositionForBounds.X - LocalMax);
-			MaxVal[0] = FMath::Max<float>(MaxVal[0], PositionForBounds.X + LocalMax);
-			MinVal[1] = FMath::Min<float>(MinVal[1], PositionForBounds.Y - LocalMax);
-			MaxVal[1] = FMath::Max<float>(MaxVal[1], PositionForBounds.Y + LocalMax);
-			MinVal[2] = FMath::Min<float>(MinVal[2], PositionForBounds.Z - LocalMax);
-			MaxVal[2] = FMath::Max<float>(MaxVal[2], PositionForBounds.Z + LocalMax);
+			MinVal[0] = FMath::Min(MinVal[0], PositionForBounds.X - LocalMax);
+			MaxVal[0] = FMath::Max(MaxVal[0], PositionForBounds.X + LocalMax);
+			MinVal[1] = FMath::Min(MinVal[1], PositionForBounds.Y - LocalMax);
+			MaxVal[1] = FMath::Max(MaxVal[1], PositionForBounds.Y + LocalMax);
+			MinVal[2] = FMath::Min(MinVal[2], PositionForBounds.Z - LocalMax);
+			MaxVal[2] = FMath::Max(MaxVal[2], PositionForBounds.Z + LocalMax);
 		}
 
 		ParticleBoundingBox = FBox(MinVal, MaxVal);
@@ -3548,12 +3548,12 @@ void FParticleMeshEmitterInstance::UpdateBoundingBox(float DeltaTime)
 					PositionForBounds = ComponentToWorld.TransformPosition(NewLocation);
 				}
 
-				MinVal[0] = FMath::Min<float>(MinVal[0], PositionForBounds.X - LocalExtent.X);
-				MaxVal[0] = FMath::Max<float>(MaxVal[0], PositionForBounds.X + LocalExtent.X);
-				MinVal[1] = FMath::Min<float>(MinVal[1], PositionForBounds.Y - LocalExtent.Y);
-				MaxVal[1] = FMath::Max<float>(MaxVal[1], PositionForBounds.Y + LocalExtent.Y);
-				MinVal[2] = FMath::Min<float>(MinVal[2], PositionForBounds.Z - LocalExtent.Z);
-				MaxVal[2] = FMath::Max<float>(MaxVal[2], PositionForBounds.Z + LocalExtent.Z);
+				MinVal[0] = FMath::Min(MinVal[0], PositionForBounds.X - LocalExtent.X);
+				MaxVal[0] = FMath::Max(MaxVal[0], PositionForBounds.X + LocalExtent.X);
+				MinVal[1] = FMath::Min(MinVal[1], PositionForBounds.Y - LocalExtent.Y);
+				MaxVal[1] = FMath::Max(MaxVal[1], PositionForBounds.Y + LocalExtent.Y);
+				MinVal[2] = FMath::Min(MinVal[2], PositionForBounds.Z - LocalExtent.Z);
+				MaxVal[2] = FMath::Max(MaxVal[2], PositionForBounds.Z + LocalExtent.Z);
 			}
 		}
 

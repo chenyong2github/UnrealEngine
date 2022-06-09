@@ -47,9 +47,9 @@ static TAutoConsoleVariable<float> CVarPerObjectCastDistanceRadiusScale(
 	);
 static TAutoConsoleVariable<float> CVarPerObjectCastDistanceMin(
 	TEXT("r.Shadow.PerObjectCastDistanceMin"),
-	(float)HALF_WORLD_MAX / 32.0f,
+	(float)UE_FLOAT_HUGE_DISTANCE / 32.0f,
 	TEXT("Minimum cast distance for Per-Object shadows, i.e., CastDistDance = Max(r.Shadow.PerObjectCastDistanceRadiusScale * object-radius, r.Shadow.PerObjectCastDistanceMin).\n")
-	TEXT("  Default: HALF_WORLD_MAX / 32.0f"),
+	TEXT("  Default: UE_FLOAT_HUGE_DISTANCE / 32.0f"),
 	ECVF_RenderThreadSafe
 	);
 static TAutoConsoleVariable<int32> CVarMaxNumFarShadowCascades(

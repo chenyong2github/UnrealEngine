@@ -152,10 +152,10 @@ FPoly FBSPOps::BuildInfiniteFPoly( UModel* Model, int32 iNode )
 	EdPoly.Init();
 	EdPoly.Normal      = (FVector3f)Normal;
 	EdPoly.Base        = (FVector3f)Base;
-	new(EdPoly.Vertices) FVector3f(Base + Axis1*WORLD_MAX + Axis2*WORLD_MAX);
-	new(EdPoly.Vertices) FVector3f(Base - Axis1*WORLD_MAX + Axis2*WORLD_MAX);
-	new(EdPoly.Vertices) FVector3f(Base - Axis1*WORLD_MAX - Axis2*WORLD_MAX);
-	new(EdPoly.Vertices) FVector3f(Base + Axis1*WORLD_MAX - Axis2*WORLD_MAX);
+	new(EdPoly.Vertices) FVector3f(Base + Axis1*UE_OLD_WORLD_MAX + Axis2*UE_OLD_WORLD_MAX);
+	new(EdPoly.Vertices) FVector3f(Base - Axis1*UE_OLD_WORLD_MAX + Axis2*UE_OLD_WORLD_MAX);
+	new(EdPoly.Vertices) FVector3f(Base - Axis1*UE_OLD_WORLD_MAX - Axis2*UE_OLD_WORLD_MAX);
+	new(EdPoly.Vertices) FVector3f(Base + Axis1*UE_OLD_WORLD_MAX - Axis2*UE_OLD_WORLD_MAX);
 
 	return EdPoly;
 }
@@ -182,8 +182,8 @@ static void FilterBound
 	FVector3f&	Normal	= Model->Vectors[Surf.vNormal];
 	FBox		Bound(ForceInit);
 
-	Bound.Min.X = Bound.Min.Y = Bound.Min.Z = +WORLD_MAX;
-	Bound.Max.X = Bound.Max.Y = Bound.Max.Z = -WORLD_MAX;
+	Bound.Min.X = Bound.Min.Y = Bound.Min.Z = +UE_OLD_WORLD_MAX;	// LWC_TODO: Should be HALF_WORLD_MAX
+	Bound.Max.X = Bound.Max.Y = Bound.Max.Z = -UE_OLD_WORLD_MAX;
 
 	// Split bound into front half and back half.
 	FPoly** FrontList = new(FMemStack::Get(),nPolys*2+16)FPoly*; int32 nFront=0;

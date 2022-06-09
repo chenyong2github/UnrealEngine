@@ -654,7 +654,7 @@ static void BuildOrthoMatrix(FIntPoint InRenderTargetSize, float InOrthoWidth, i
 	const float OrthoHeight = InOrthoWidth / 2.0f * XAxisMultiplier / YAxisMultiplier;
 
 	const float NearPlane = 0;
-	const float FarPlane = WORLD_MAX / 8.0f;
+	const float FarPlane = UE_FLOAT_HUGE_DISTANCE / 4.0f;
 
 	const float ZScale = 1.0f / (FarPlane - NearPlane);
 	const float ZOffset = -NearPlane;
