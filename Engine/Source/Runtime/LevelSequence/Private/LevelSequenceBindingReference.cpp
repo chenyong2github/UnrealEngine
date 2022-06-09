@@ -77,18 +77,12 @@ UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, FName Strea
 		TempPath.PreSavePath();
 
 	#if WITH_EDITORONLY_DATA
-		int32 ContextPlayInEditorID = InContext ? InContext->GetOutermost()->GetPIEInstanceID() : INDEX_NONE;
-
-		if (ContextPlayInEditorID != INDEX_NONE)
-		{
-			// We have an override PIE id, so set the global before entering
-			TGuardValue<int32> PIEGuard(GPlayInEditorID, ContextPlayInEditorID);
-			TempPath.FixupForPIE();
-		}
-		else
-		{
-			TempPath.FixupForPIE();
-		}
+		// Sequencer is explicit about providing a resolution context for its bindings. We never want to resolve to objects
+		// with a different PIE instance ID, even if the current callstack is being executed inside a different GPlayInEditorID
+		// scope. Since ResolveObject will always call FixupForPIE in editor based on GPlayInEditorID, we always override the current
+		// GPlayInEditorID to be the current PIE instance of the provided context.
+		const int32 ContextPlayInEditorID = InContext ? InContext->GetOutermost()->GetPIEInstanceID() : INDEX_NONE;
+		TGuardValue<int32> PIEGuard(GPlayInEditorID, ContextPlayInEditorID);
 	#endif
 
 		return TempPath.ResolveObject();
