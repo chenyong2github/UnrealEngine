@@ -74,7 +74,6 @@ URigVM::URigVM()
 	, NumExecutions(0)
 #if WITH_EDITOR
 	, DebugInfo(nullptr)
-	, HaltedAtBreakpoint(nullptr)
 	, HaltedAtBreakpointHit(INDEX_NONE)
 #endif
     , FunctionNamesPtr(&FunctionNamesStorage)
@@ -894,14 +893,14 @@ bool URigVM::CanExecuteEntry(const FName& InEntryName) const
 
 bool URigVM::ResumeExecution()
 {
-	HaltedAtBreakpoint = nullptr;
+	HaltedAtBreakpoint.Reset();
 	HaltedAtBreakpointHit = INDEX_NONE;
 	if (DebugInfo)
 	{
-		if (const TSharedPtr<FRigVMBreakpoint> CurrentBreakpoint = DebugInfo->GetCurrentActiveBreakpoint())
+		if (const FRigVMBreakpoint& CurrentBreakpoint = DebugInfo->GetCurrentActiveBreakpoint())
 		{
 			DebugInfo->IncrementBreakpointActivationOnHit(CurrentBreakpoint);
-			DebugInfo->SetCurrentActiveBreakpoint(nullptr);
+			DebugInfo->SetCurrentActiveBreakpoint(FRigVMBreakpoint());
 			return true;
 		}
 	}
@@ -1258,10 +1257,20 @@ void URigVM::RebuildByteCodeOnLoad()
 #if WITH_EDITOR
 bool URigVM::ShouldHaltAtInstruction(const FName& InEventName, const uint16 InstructionIndex)
 {
+	if(DebugInfo == nullptr)
+	{
+		return false;
+	}
+
+	if(DebugInfo->IsEmpty())
+	{
+		return false;
+	}
+	
 	FRigVMByteCode& ByteCode = GetByteCode();
 
-	TArray<TSharedPtr<FRigVMBreakpoint>> BreakpointsAtInstruction = DebugInfo->FindBreakpointsAtInstruction(InstructionIndex);
-	for (TSharedPtr<FRigVMBreakpoint> Breakpoint : BreakpointsAtInstruction)
+	TArray<FRigVMBreakpoint> BreakpointsAtInstruction = DebugInfo->FindBreakpointsAtInstruction(InstructionIndex);
+	for (FRigVMBreakpoint Breakpoint : BreakpointsAtInstruction)
 	{
 		if (DebugInfo->IsActive(Breakpoint))
 		{
@@ -1281,9 +1290,9 @@ bool URigVM::ShouldHaltAtInstruction(const FName& InEventName, const uint16 Inst
 						const TArray<UObject*>* FullCallstack = ByteCode.GetCallstackForInstruction(Context.PublicData.InstructionIndex);
 						if (FullCallstack)
 						{
-							DebugInfo->SetCurrentActiveBreakpointCallstack(TArray<UObject*>(FullCallstack->GetData(), FullCallstack->Find((UObject*)Breakpoint->Subject)+1));
+							DebugInfo->SetCurrentActiveBreakpointCallstack(TArray<UObject*>(FullCallstack->GetData(), FullCallstack->Find((UObject*)Breakpoint.Subject)+1));
 						}
-						ExecutionHalted().Broadcast(Context.PublicData.InstructionIndex, Breakpoint->Subject, InEventName);
+						ExecutionHalted().Broadcast(Context.PublicData.InstructionIndex, Breakpoint.Subject, InEventName);
 					}
 					return true;
 				}
@@ -1315,7 +1324,7 @@ bool URigVM::ShouldHaltAtInstruction(const FName& InEventName, const uint16 Inst
 						// We want to keep the callstack up to the node that produced the halt
 						if (FullCallstack)
 						{
-							DebugInfo->SetCurrentActiveBreakpointCallstack(TArray<UObject*>(FullCallstack->GetData(), FullCallstack->Find((UObject*)DebugInfo->GetCurrentActiveBreakpoint()->Subject)+1));
+							DebugInfo->SetCurrentActiveBreakpointCallstack(TArray<UObject*>(FullCallstack->GetData(), FullCallstack->Find((UObject*)DebugInfo->GetCurrentActiveBreakpoint().Subject)+1));
 						}
 					}							
 					
@@ -1402,7 +1411,7 @@ bool URigVM::ShouldHaltAtInstruction(const FName& InEventName, const uint16 Inst
 				}
 
 				// Create new temporary breakpoint
-				TSharedPtr<FRigVMBreakpoint> NewBreakpoint = DebugInfo->AddBreakpoint(Context.PublicData.InstructionIndex, NewBreakpointNode, 0, true);
+				const FRigVMBreakpoint& NewBreakpoint = DebugInfo->AddBreakpoint(Context.PublicData.InstructionIndex, NewBreakpointNode, 0, true);
 				DebugInfo->SetBreakpointHits(NewBreakpoint, GetInstructionVisitedCount(Context.PublicData.InstructionIndex));
 				DebugInfo->SetBreakpointActivationOnHit(NewBreakpoint, GetInstructionVisitedCount(Context.PublicData.InstructionIndex));
 				CurrentBreakpointAction = ERigVMBreakpointAction::None;					
@@ -1757,7 +1766,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	while (Instructions.IsValidIndex(Context.PublicData.InstructionIndex))
 	{
 #if WITH_EDITOR
-		if (DebugInfo && ShouldHaltAtInstruction(InEntryName, Context.PublicData.InstructionIndex))
+		if (ShouldHaltAtInstruction(InEntryName, Context.PublicData.InstructionIndex))
 		{
 			// we'll recursively exit all invoked
 			// entries here.
@@ -2020,10 +2029,10 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 #endif
 					ExecutionReachedExit().Broadcast(InEntryName);
 #if WITH_EDITOR					
-					if (HaltedAtBreakpoint != nullptr)
+					if (HaltedAtBreakpoint.IsValid())
 					{
-						HaltedAtBreakpoint = nullptr;
-						DebugInfo->SetCurrentActiveBreakpoint(nullptr);
+						HaltedAtBreakpoint.Reset();
+						DebugInfo->SetCurrentActiveBreakpoint(FRigVMBreakpoint());
 						ExecutionHalted().Broadcast(INDEX_NONE, nullptr, InEntryName);
 					}
 #endif
@@ -2602,7 +2611,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 
 #if WITH_EDITOR
 					// if we are halted at a break point we need to exit here
-					if (DebugInfo && ShouldHaltAtInstruction(InEntryName, Context.PublicData.InstructionIndex))
+					if (ShouldHaltAtInstruction(InEntryName, Context.PublicData.InstructionIndex))
 					{
 						return true;
 					}
@@ -2642,10 +2651,10 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 #if WITH_EDITOR
 	if(bIsRootEntry)
 	{
-		if (HaltedAtBreakpoint != nullptr)
+		if (HaltedAtBreakpoint.IsValid())
 		{
-			DebugInfo->SetCurrentActiveBreakpoint(nullptr);
-			HaltedAtBreakpoint = nullptr;
+			DebugInfo->SetCurrentActiveBreakpoint(FRigVMBreakpoint());
+			HaltedAtBreakpoint.Reset();
 			ExecutionHalted().Broadcast(INDEX_NONE, nullptr, InEntryName);
 		}
 	}

@@ -1371,7 +1371,7 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 			{
 				if(URigVM* SnapShotVM = GetSnapshotVM(false)) // don't create it for normal runs
 				{
-					if (VM->GetHaltedAtBreakpoint() != nullptr)
+					if (VM->GetHaltedAtBreakpoint().IsValid())
 					{
 						VM->CopyFrom(SnapShotVM, false, false, false, true, true);	
 					}
@@ -2885,7 +2885,7 @@ void UControlRig::AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode, uint
 
 bool UControlRig::ExecuteBreakpointAction(const ERigVMBreakpointAction BreakpointAction)
 {
-	if (VM->GetHaltedAtBreakpoint() != nullptr)
+	if (VM->GetHaltedAtBreakpoint().IsValid())
 	{
 		VM->SetBreakpointAction(BreakpointAction);
 		return true;

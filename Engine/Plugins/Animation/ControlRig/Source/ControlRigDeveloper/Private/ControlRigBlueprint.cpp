@@ -1700,7 +1700,7 @@ void UControlRigBlueprint::RefreshControlRigBreakpoints()
 {
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false));
-	CDO->GetDebugInfo().Clear();
+	CDO->GetDebugInfo().Reset();
 	for (URigVMNode* Node : RigVMBreakpointNodes)
 	{
 		AddBreakpointToControlRig(Node);

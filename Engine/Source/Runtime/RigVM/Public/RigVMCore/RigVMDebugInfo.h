@@ -18,11 +18,12 @@ struct RIGVM_API FRigVMBreakpoint
 	, Subject(nullptr)
 	, Depth(0)
 	{
-
+		Guid.Invalidate();
 	}
 	
 	FRigVMBreakpoint(const uint16 InInstructionIndex, UObject* InNode, const uint16 InDepth)
 	: bIsActive(true)
+	, Guid(FGuid::NewGuid())
 	, InstructionIndex(InInstructionIndex)
 	, Subject(InNode)
 	, Depth(InDepth)
@@ -30,17 +31,31 @@ struct RIGVM_API FRigVMBreakpoint
 
 	}
 
-	FORCEINLINE void Clear()
+	FORCEINLINE bool IsValid() const
+	{
+		return InstructionIndex != INDEX_NONE && Guid.IsValid();
+	}
+
+	FORCEINLINE void Reset()
 	{
 		bIsActive = true;
 		InstructionIndex = INDEX_NONE;
+		Guid.Invalidate();
 		Subject = nullptr;
 		Depth = 0;
+	}
+
+	FORCEINLINE operator bool() const
+	{
+		return IsValid();
 	}
 
 	// Whether or not the breakpoint is active
 	bool bIsActive;
 
+	// guid used to identify the breakpoint
+	FGuid Guid;
+	
 	// Instruction where this breakpoint is set
 	uint16 InstructionIndex;
 
@@ -52,7 +67,12 @@ struct RIGVM_API FRigVMBreakpoint
 
 	bool operator==(const FRigVMBreakpoint& Other) const
 	{
-		return InstructionIndex == Other.InstructionIndex && Subject == Other.Subject;
+		return Guid == Other.Guid;
+	}
+
+	bool operator!=(const FRigVMBreakpoint& Other) const
+	{
+		return Guid != Other.Guid;
 	}
 };
 
@@ -62,8 +82,6 @@ struct RIGVM_API FRigVMDebugInfo
 	GENERATED_BODY()
 
 	FORCEINLINE FRigVMDebugInfo()
-		: TemporaryBreakpoint(nullptr)
-	, CurrentActiveBreakpoint(nullptr)		
 	{
 	}
 
@@ -71,33 +89,39 @@ struct RIGVM_API FRigVMDebugInfo
 
 	void StartExecution();
 
-	FORCEINLINE void Clear()
+	FORCEINLINE void Reset()
 	{
-		Breakpoints.Empty();
+		Breakpoints.Reset();
 		// Do not remove state
 	}
 
-	TSharedPtr<FRigVMBreakpoint> FindBreakpoint(const uint16 InInstructionIndex, const UObject* InSubject);
-	TArray<TSharedPtr<FRigVMBreakpoint>> FindBreakpointsAtInstruction(const uint16 InInstructionIndex);
+	FORCEINLINE bool IsEmpty() const
+	{
+		return GetBreakpoints().IsEmpty() && !TemporaryBreakpoint.IsValid();
+	}
+
+	const FRigVMBreakpoint& FindBreakpoint(const uint16 InInstructionIndex, const UObject* InSubject) const;
+	TArray<FRigVMBreakpoint> FindBreakpointsAtInstruction(const uint16 InInstructionIndex) const;
+	const FRigVMBreakpoint& FindBreakpoint(const FGuid& InGuid) const;
 	
-	TSharedPtr<FRigVMBreakpoint> AddBreakpoint(const uint16 InstructionIndex, UObject* InNode, const uint16 InDepth, const bool bIsTemporary = false);
+	const FRigVMBreakpoint& AddBreakpoint(const uint16 InstructionIndex, UObject* InNode, const uint16 InDepth, const bool bIsTemporary = false);
 
-	bool RemoveBreakpoint(const TSharedPtr<FRigVMBreakpoint> Breakpoint);
+	bool RemoveBreakpoint(const FRigVMBreakpoint& Breakpoint);
 
-	TArray<TSharedRef<FRigVMBreakpoint>> GetBreakpoints() const { return Breakpoints; }
+	const TArray<FRigVMBreakpoint>& GetBreakpoints() const { return Breakpoints; }
 
-	void SetBreakpoints(const TArray<TSharedRef<FRigVMBreakpoint>>& InBreakpoints)
+	void SetBreakpoints(const TArray<FRigVMBreakpoint>& InBreakpoints)
 	{
 		Breakpoints = InBreakpoints;
 
-		if (CurrentActiveBreakpoint.IsValid() && !Breakpoints.Contains(CurrentActiveBreakpoint))
+		if (CurrentActiveBreakpoint.IsValid() && !FindBreakpoint(CurrentActiveBreakpoint).IsValid())
 		{
-			CurrentActiveBreakpoint = nullptr;
+			CurrentActiveBreakpoint.Invalidate();
 			CurrentActiveBreakpointCallstack.Reset();
 		}
 	}
 
-	bool IsTemporaryBreakpoint(TSharedPtr<FRigVMBreakpoint> Breakpoint) const
+	bool IsTemporaryBreakpoint(FRigVMBreakpoint Breakpoint) const
 	{
 		if (Breakpoint.IsValid())
 		{
@@ -106,32 +130,42 @@ struct RIGVM_API FRigVMDebugInfo
 		return false;
 	}
 
-	bool IsActive(const TSharedPtr<FRigVMBreakpoint> InBreakpoint) const;
+	bool IsActive(const FRigVMBreakpoint& InBreakpoint) const;
 
-	void SetBreakpointHits(const TSharedPtr<FRigVMBreakpoint> InBreakpoint, const uint16 InBreakpointHits);
+	void SetBreakpointHits(const FRigVMBreakpoint& InBreakpoint, const uint16 InBreakpointHits);
 
-	void HitBreakpoint(const TSharedPtr<FRigVMBreakpoint> InBreakpoint);
+	void HitBreakpoint(const FRigVMBreakpoint& InBreakpoint);
 
-	void SetBreakpointActivationOnHit(const TSharedPtr<FRigVMBreakpoint> InBreakpoint, const uint16 InActivationOnHit);
+	void SetBreakpointActivationOnHit(const FRigVMBreakpoint& InBreakpoint, const uint16 InActivationOnHit);
 
-	void IncrementBreakpointActivationOnHit(const TSharedPtr<FRigVMBreakpoint> InBreakpoint);
+	void IncrementBreakpointActivationOnHit(const FRigVMBreakpoint& InBreakpoint);
 
-	uint16 GetBreakpointHits(const TSharedPtr<FRigVMBreakpoint> InBreakpoint) const;
+	uint16 GetBreakpointHits(const FRigVMBreakpoint& InBreakpoint) const;
 
-	TSharedPtr<FRigVMBreakpoint> GetCurrentActiveBreakpoint() const { return CurrentActiveBreakpoint; }
+	const FRigVMBreakpoint& GetCurrentActiveBreakpoint() const { return FindBreakpoint(CurrentActiveBreakpoint); }
 
-	void SetCurrentActiveBreakpoint(TSharedPtr<FRigVMBreakpoint> Breakpoint) { CurrentActiveBreakpoint = Breakpoint; }
+	FORCEINLINE void SetCurrentActiveBreakpoint(const FRigVMBreakpoint& InBreakpoint)
+	{
+		if(InBreakpoint.IsValid())
+		{
+			CurrentActiveBreakpoint = InBreakpoint.Guid;
+		}
+		else
+		{
+			CurrentActiveBreakpoint.Invalidate();
+		}
+	}
 
 	TArray<UObject*>& GetCurrentActiveBreakpointCallstack() { return CurrentActiveBreakpointCallstack; }
 
 	void SetCurrentActiveBreakpointCallstack(TArray<UObject*> Callstack) { CurrentActiveBreakpointCallstack = Callstack; }
 
 private:
-	TArray<TSharedRef<FRigVMBreakpoint>> Breakpoints;
-	TSharedPtr<FRigVMBreakpoint> TemporaryBreakpoint;
-	TMap<TSharedPtr<FRigVMBreakpoint> , uint16> BreakpointActivationOnHit; // After how many instruction executions, this breakpoint becomes active
-	TMap<TSharedPtr<FRigVMBreakpoint> , uint16> BreakpointHits; // How many times this instruction has been executed
+	TArray<FRigVMBreakpoint> Breakpoints;
+	FRigVMBreakpoint TemporaryBreakpoint;
+	TMap<FGuid, uint16> BreakpointActivationOnHit; // After how many instruction executions, this breakpoint becomes active
+	TMap<FGuid, uint16> BreakpointHits; // How many times this instruction has been executed
 
-	TSharedPtr<FRigVMBreakpoint> CurrentActiveBreakpoint;
+	FGuid CurrentActiveBreakpoint;
 	TArray<UObject*> CurrentActiveBreakpointCallstack;
 };
