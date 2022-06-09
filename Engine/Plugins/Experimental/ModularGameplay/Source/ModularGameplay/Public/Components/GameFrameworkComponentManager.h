@@ -16,11 +16,6 @@ class AActor;
 class UActorComponent;
 class UGameFrameworkComponent;
 
-/** Native delegate called when an actor feature changes init state */
-DECLARE_DELEGATE_FourParams(FActorInitStateChangedDelegate, AActor* /* OwningActor */, FName /* FeatureName */, UObject* /* Implementer */, FGameplayTag /* FeatureState */);
-
-/** Blueprint delegate called when an actor feature changes init state */
-DECLARE_DYNAMIC_DELEGATE_FourParams(FActorInitStateChangedBPDelegate, AActor*, OwningActor, FName, FeatureName, UObject*, Implementer, FGameplayTag, FeatureState);
 
 /** 
  * A handle for a request to put components or call a delegate for an extensible actor class.
@@ -58,6 +53,49 @@ private:
 	/** A handle to an extension delegate to run */
 	FDelegateHandle ExtensionHandle;
 };
+
+
+/** Parameters struct for Init State change functions */
+USTRUCT(BlueprintType)
+struct FActorInitStateChangedParams
+{
+	GENERATED_BODY()
+
+	FActorInitStateChangedParams()
+		: OwningActor(nullptr)
+		, Implementer(nullptr)
+	{}
+
+	FActorInitStateChangedParams(AActor* InOwningActor, FName InFeatureName, UObject* InImplementer, FGameplayTag InFeatureState)
+		: OwningActor(InOwningActor)
+		, FeatureName(InFeatureName)
+		, Implementer(InImplementer)
+		, FeatureState(InFeatureState)
+	{}
+
+	/** The actor owning the feature that changed */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Default)
+	AActor* OwningActor;
+
+	/** Name of the feature that changed */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Default)
+	FName FeatureName;
+
+	/** The object (often a component) that implements the feature */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Default)
+	UObject* Implementer;
+
+	/** The new state of the feature */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Default)
+	FGameplayTag FeatureState;
+};
+
+/** Native delegate called when an actor feature changes init state */
+DECLARE_DELEGATE_OneParam(FActorInitStateChangedDelegate, const FActorInitStateChangedParams&);
+
+/** Blueprint delegate called when an actor feature changes init state */
+DECLARE_DYNAMIC_DELEGATE_OneParam(FActorInitStateChangedBPDelegate, const FActorInitStateChangedParams&, Params);
+
 
 /** 
  * GameFrameworkComponentManager
@@ -261,8 +299,10 @@ private:
 
 	friend struct FComponentRequestHandle;
 
-	// TODO work in progress for new actor feature ini state system
 
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// The init state system can be used by components to coordinate their initialization using game-specific states specified as gameplay tags
+	// IGameFrameworkInitStateInterface provides a simple implementation that can be inherted by components
 
 public:
 
@@ -289,6 +329,9 @@ public:
 
 	/** Changes the current actor feature state, this will call registered callbacks and return true if anything changed */
 	bool ChangeFeatureInitState(AActor* Actor, FName FeatureName, UObject* Implementer, FGameplayTag FeatureState);
+
+	/** Registers an implementer for a given feature, this will create a feature if required and set the implementer object but will not change the current state */
+	bool RegisterFeatureImplementer(AActor* Actor, FName FeatureName, UObject* Implementer);
 
 	/** Removes an actor and all of it's state information */
 	void RemoveActorFeatureData(AActor* Actor);
@@ -453,74 +496,4 @@ private:
 	/** Searches an array of delegates for the one with the specified handle, returns -1 if not found */
 	int32 GetIndexForRegisteredDelegate(TArray<FActorFeatureRegisteredDelegate>& DelegatesToSearch, FDelegateHandle SearchHandle) const;
 	int32 GetIndexForRegisteredDelegate(TArray<FActorFeatureRegisteredDelegate>& DelegatesToSearch, FActorInitStateChangedBPDelegate SearchDelegate) const;
-};
-
-
-// TODO Move into different header and see if we can make this pure virtual
-/** Interface that can be implemented by actors/components to make interacting with the feature state system easier */
-UINTERFACE(MinimalAPI, NotBlueprintable)
-class UGameFrameworkInitStateInterface : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class MODULARGAMEPLAY_API IGameFrameworkInitStateInterface
-{
-	GENERATED_BODY()
-public:
-
-	/** Returns the Actor this object is bound to, might be this object */
-	virtual AActor* GetOwningActor() const;
-
-	/** Gets the component manager corresponding to this object based on owning actor */
-	UGameFrameworkComponentManager* GetComponentManager() const;
-
-	/** Returns the feature this object implements, this interface is only meant for simple objects with a single feature like Actor */
-	virtual FName GetFeatureName() const { return NAME_None; }
-
-	/** Returns the current feature state of this object, the default behavior is to query the manager */
-	virtual FGameplayTag GetInitState() const;
-
-	/** Checks the component manager to see if we have already reached the desired state or a later one */
-	virtual bool HasReachedInitState(FGameplayTag DesiredState) const;
-
-	/** Should be overridden to perform class-specific checks to see if the desired state can be reached */
-	virtual bool CanChangeInitState(UGameFrameworkComponentManager* Manager, FGameplayTag CurrentState, FGameplayTag DesiredState) const { return true; }
-
-	/** Should be overridden to perform class-specific state changes, this is called right before notifying the component manager */
-	virtual void HandleChangeInitState(UGameFrameworkComponentManager* Manager, FGameplayTag CurrentState, FGameplayTag DesiredState) {}
-
-	/** Checks to see if a change is possible, then calls execute and notify */
-	virtual bool TryToChangeInitState(FGameplayTag DesiredState);
-
-	/** Tries to follow a chain of connected init states, will progress states in order and returns the final state reached */
-	virtual FGameplayTag ContinueInitStateChain(const TArray<FGameplayTag>& InitStateChain);
-
-	/** Override to try and progress the default initialization path, likely using ContinueInitStateChain */
-	virtual void CheckDefaultInitialization() {}
-
-	/** This will call CheckDefaultInitialization on all other feature implementers using this interface, useful to update the state of any dependencies */
-	virtual void CheckDefaultInitializationForImplementers();
-
-	/** Signature for handling a game feature state, this is not registered by default */
-	virtual void OnActorInitStateChanged(AActor* OwningActor, FName FeatureName, UObject* Implementer, FGameplayTag FeatureState) {}
-
-	/** Call to bind the OnActorInitStateChanged function to the appropriate delegate on the component manager */
-	virtual void BindOnActorInitStateChanged(FName FeatureName, FGameplayTag RequiredState, bool bCallIfReached);
-
-	/** Unregisters state and delegate binding with component manager */
-	virtual void UnregisterInitStateData();
-
-	/** Binds a BP delegate to get called on a state change for this feature */
-	UFUNCTION(BlueprintCallable, Category = "InitState")
-	virtual bool RegisterAndCallForInitStateChange(FGameplayTag RequiredState, FActorInitStateChangedBPDelegate Delegate, bool bCallImmediately = true);
-
-	/** Unbinds a BP delegate from changes to this feature */
-	UFUNCTION(BlueprintCallable, Category = "InitState")
-	virtual bool UnregisterInitStateDelegate(FActorInitStateChangedBPDelegate Delegate);
-
-protected:
-	/** Default handle created from calling BindOnActorInitStateChanged */
-	FDelegateHandle ActorInitStateChangedHandle;
-
 };
