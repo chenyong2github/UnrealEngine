@@ -131,7 +131,6 @@ class FNaniteMultiViewMaterialVS : public FNaniteGlobalShader
 	: FNaniteGlobalShader(Initializer)
 	{
 		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
-		NaniteUniformBuffer.Bind(Initializer.ParameterMap, TEXT("Nanite"), SPF_Mandatory);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -150,7 +149,6 @@ class FNaniteMultiViewMaterialVS : public FNaniteGlobalShader
 		const FMeshMaterialShaderElementData& ShaderElementData,
 		FMeshDrawSingleShaderBindings& ShaderBindings) const
 	{
-		ShaderBindings.Add(NaniteUniformBuffer, DrawRenderState.GetNaniteUniformBuffer());
 	}
 
 	void GetElementShaderBindings(
@@ -171,7 +169,6 @@ class FNaniteMultiViewMaterialVS : public FNaniteGlobalShader
 
 private:
 	LAYOUT_FIELD(FShaderParameter, MaterialDepth);
-	LAYOUT_FIELD(FShaderUniformBufferParameter, NaniteUniformBuffer);
 };
 
 class FNaniteIndirectMaterialVS : public FNaniteGlobalShader
@@ -190,7 +187,6 @@ class FNaniteIndirectMaterialVS : public FNaniteGlobalShader
 	: FNaniteGlobalShader(Initializer)
 	{
 		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
-		NaniteUniformBuffer.Bind(Initializer.ParameterMap, TEXT("Nanite"), SPF_Mandatory);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -209,7 +205,6 @@ class FNaniteIndirectMaterialVS : public FNaniteGlobalShader
 		const FMeshMaterialShaderElementData& ShaderElementData,
 		FMeshDrawSingleShaderBindings& ShaderBindings) const
 	{
-		ShaderBindings.Add(NaniteUniformBuffer, DrawRenderState.GetNaniteUniformBuffer());
 	}
 
 	void GetElementShaderBindings(
@@ -230,7 +225,6 @@ class FNaniteIndirectMaterialVS : public FNaniteGlobalShader
 
 private:
 	LAYOUT_FIELD(FShaderParameter, MaterialDepth);
-	LAYOUT_FIELD(FShaderUniformBufferParameter, NaniteUniformBuffer);
 };
 
 struct FNaniteMaterialEntry

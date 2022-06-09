@@ -2596,8 +2596,6 @@ public:
 	void Initialize();
 	void Clear();
 
-	TUniformBufferRef<FNaniteUniformParameters> NaniteUniformBuffer;
-	TUniformBufferRef<FViewUniformShaderParameters> LumenCardCaptureViewUniformBuffer;
 
 	/** Mobile Directional Lighting uniform buffers, one for each lighting channel 
 	  * The first is used for primitives with no lighting channels set.

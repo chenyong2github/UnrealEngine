@@ -62,7 +62,7 @@ class FRayTracingBarycentricsCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FNaniteUniformParameters, NaniteUniformBuffer)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FNaniteUniformParameters, NaniteUniformBuffer)
 
 		SHADER_PARAMETER(float, RTDebugVisualizationNaniteCutError)
 	END_SHADER_PARAMETER_STRUCT()
@@ -100,7 +100,7 @@ void RenderRayTracingBarycentricsCS(FRDGBuilder& GraphBuilder, const FScene& Sce
 	PassParameters->TLAS = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 	PassParameters->Output = GraphBuilder.CreateUAV(SceneColor);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->NaniteUniformBuffer = Scene.UniformBuffers.NaniteUniformBuffer;
+	PassParameters->NaniteUniformBuffer = CreateDebugNaniteUniformBuffer(GraphBuilder, Scene.GPUScene.InstanceSceneDataSOAStride);
 
 	PassParameters->RTDebugVisualizationNaniteCutError = 0.0f;
 

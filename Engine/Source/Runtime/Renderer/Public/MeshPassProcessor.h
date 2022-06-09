@@ -1171,6 +1171,9 @@ public:
 	/** Returns the pipeline state sort key, which can be used for sorting material draws to reduce context switches. */
 	uint64 GetPipelineStateSortingKey(FRHICommandList& RHICmdList, const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo) const;
 
+	/** Returns the pipeline state sort key, which can be used for sorting material draws to reduce context switches. This variant will not attempt to create a PSO if it doesn't exist yet and will just return the fallback. */
+	uint64 GetPipelineStateSortingKey(const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo) const;
+
 	FORCENOINLINE friend uint32 GetTypeHash( const FMeshDrawCommand& Other )
 	{
 		return Other.CachedPipelineId.GetId();
@@ -1838,11 +1841,13 @@ public:
 		return PassUniformBuffer;
 	}
 
+	UE_DEPRECATED(5.1, "GetNaniteUniformBuffer is deprecated. Use a static uniform buffer and bind on an RDG pass instead.")
 	FORCEINLINE_DEBUGGABLE void SetNaniteUniformBuffer(FRHIUniformBuffer* InNaniteUniformBuffer)
 	{
 		NaniteUniformBuffer = InNaniteUniformBuffer;
 	}
 
+	UE_DEPRECATED(5.1, "GetNaniteUniformBuffer is deprecated. Use a static uniform buffer and bind on an RDG pass instead.")
 	FORCEINLINE_DEBUGGABLE FRHIUniformBuffer* GetNaniteUniformBuffer() const
 	{
 		return NaniteUniformBuffer;

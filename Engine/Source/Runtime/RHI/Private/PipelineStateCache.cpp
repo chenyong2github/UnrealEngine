@@ -1719,10 +1719,8 @@ void StatsEndPrecompile(uint64 TimeToComplete)
 
 #endif
 
-FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipelineStateInitializer& Initializer, EApplyRendertargetOption ApplyFlags)
+inline void ValidateGraphicsPipelineStateInitializer(const FGraphicsPipelineStateInitializer& Initializer)
 {
-	LLM_SCOPE(ELLMTag::PSO);
-
 	if (GRHISupportsMeshShadersTier0)
 	{
 		checkf(Initializer.BoundShaderState.VertexShaderRHI || Initializer.BoundShaderState.GetMeshShader(), TEXT("GraphicsPipelineState must include a vertex or mesh shader"));
@@ -1730,10 +1728,15 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 	else
 	{
 		checkf(Initializer.BoundShaderState.VertexShaderRHI, TEXT("GraphicsPipelineState must include a vertex shader"));
-
 	}
 
 	check(Initializer.DepthStencilState && Initializer.BlendState && Initializer.RasterizerState);
+}
+
+FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipelineStateInitializer& Initializer, EApplyRendertargetOption ApplyFlags)
+{
+	LLM_SCOPE(ELLMTag::PSO);
+	ValidateGraphicsPipelineStateInitializer(Initializer);
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 	if (ApplyFlags == EApplyRendertargetOption::CheckApply)
@@ -1865,6 +1868,16 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 
 	// return the state pointer
 	return OutCachedState;
+}
+
+FGraphicsPipelineState* PipelineStateCache::FindGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
+{
+	LLM_SCOPE(ELLMTag::PSO);
+	ValidateGraphicsPipelineStateInitializer(Initializer);
+
+	FGraphicsPipelineState* PipelineState = nullptr;
+	GGraphicsPipelineCache.Find(Initializer, PipelineState);
+	return (PipelineState && PipelineState->IsComplete()) ? PipelineState : nullptr;
 }
 
 FRHIGraphicsPipelineState* ExecuteSetGraphicsPipelineState(FGraphicsPipelineState* GraphicsPipelineState)

@@ -8,6 +8,7 @@
 
 struct MeshDrawCommandKeyFuncs;
 class FParallelCommandListBindings;
+class FRDGParallelCommandListSet;
 
 class FNaniteDrawListContext : public FMeshPassDrawListContext
 {
@@ -146,18 +147,19 @@ FMeshPassProcessor* CreateNaniteMeshProcessor(
 	FMeshPassDrawListContext* InDrawListContext
 );
 
+void BuildNaniteMaterialPassCommands(
+	const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo,
+	const FNaniteMaterialCommands& MaterialCommands,
+	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands);
+
 void DrawNaniteMaterialPasses(
-	const FRDGPass* Pass,
-	const FSceneRenderer& SceneRenderer,
-	const FScene& Scene,
-	const FViewInfo& View,
+	FRDGParallelCommandListSet* ParallelCommandListSet,
+	FRHICommandList& RHICmdList,
+	const FIntRect ViewRect,
 	const uint32 TileCount,
-	const bool bParallelBuild,
-	const FParallelCommandListBindings& ParallelBindings,
 	TShaderMapRef<FNaniteIndirectMaterialVS> VertexShader,
-	FRHICommandListImmediate& RHICmdListImmediate,
-	FRHIBuffer* MaterialIndirectArgs,
-	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& MaterialPassCommands
+	FRDGBuffer* MaterialIndirectArgs,
+	TArrayView<FNaniteMaterialPassCommand const> MaterialPassCommands
 );
 
 void SubmitNaniteIndirectMaterial(

@@ -192,6 +192,18 @@ public:
 	FRDGBufferRef RENDERER_API GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement);
 	FRDGBufferRef RENDERER_API GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement);
 
+	template <typename T>
+	FRDGBufferRef GetDefaultBuffer(FRDGBuilder& GraphBuilder)
+	{
+		return GetDefaultBuffer(GraphBuilder, sizeof(T));
+	}
+
+	template <typename T>
+	FRDGBufferRef GetDefaultStructuredBuffer(FRDGBuilder& GraphBuilder)
+	{
+		return GetDefaultStructuredBuffer(GraphBuilder, sizeof(T));
+	}
+
 	// Create a default buffer initialized with a reference element.
 	FRDGBufferRef RENDERER_API GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, float Value);
 	FRDGBufferRef RENDERER_API GetDefaultBuffer(FRDGBuilder& GraphBuilder, uint32 NumBytePerElement, uint32 Value);

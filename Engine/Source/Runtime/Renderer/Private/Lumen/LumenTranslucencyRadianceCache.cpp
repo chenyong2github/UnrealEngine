@@ -330,7 +330,7 @@ void LumenTranslucencyReflectionsMarkUsedProbes(
 		RDG_EVENT_NAME("TranslucentSurfacesMarkPass"),
 		PassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale, DownsampledViewRect](FRHICommandListImmediate& RHICmdList)
+		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale, DownsampledViewRect](FRHICommandList& RHICmdList)
 	{
 		FRHIRenderPassInfo RPInfo;
 		RPInfo.ResolveRect = FResolveRect(DownsampledViewRect);

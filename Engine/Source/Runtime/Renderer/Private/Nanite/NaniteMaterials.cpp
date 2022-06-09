@@ -17,6 +17,8 @@
 #include "Strata/Strata.h"
 
 
+DECLARE_CYCLE_STAT(TEXT("NaniteBasePass"), STAT_CLP_NaniteBasePass, STATGROUP_ParallelCommandListMarkers);
+
 BEGIN_SHADER_PARAMETER_STRUCT(FDummyDepthDecompressParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 END_SHADER_PARAMETER_STRUCT()
@@ -322,39 +324,41 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitDepthRectsParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
-	SHADER_PARAMETER(FIntVector4,	VisualizeConfig)
-	SHADER_PARAMETER(FIntVector4,	PageConstants)
-	SHADER_PARAMETER(uint32,		MaxVisibleClusters)
-	SHADER_PARAMETER(uint32,		MaxNodes)
-	SHADER_PARAMETER(uint32,		RenderFlags)
-	SHADER_PARAMETER(float,			RayTracingCutError)
-	SHADER_PARAMETER(uint32,		MaterialRemapCount)
-	SHADER_PARAMETER(FIntPoint,		GridSize)
-
-	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, HierarchyBuffer)
-
-	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
-
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>,  DbgBuffer32)
-
 	RDG_BUFFER_ACCESS(MaterialIndirectArgs, ERHIAccess::IndirectArgs)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaterialTileRemap)
-
-	// Multi view
-	SHADER_PARAMETER(uint32, MultiViewEnabled)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MultiViewIndices)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, MultiViewRectScaleOffsets)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)	// To access VTFeedbackBuffer
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FNaniteUniformParameters, Nanite)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
 
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
+
+TRDGUniformBufferRef<FNaniteUniformParameters> CreateDebugNaniteUniformBuffer(FRDGBuilder& GraphBuilder, uint32 InstanceSceneDataSOAStride)
+{
+	FNaniteUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FNaniteUniformParameters>();
+	UniformParameters->PageConstants.X           = InstanceSceneDataSOAStride;
+	UniformParameters->PageConstants.Y           = Nanite::GStreamingManager.GetMaxStreamingPages();
+	UniformParameters->MaxNodes                  = Nanite::FGlobalResources::GetMaxNodes();
+	UniformParameters->MaxVisibleClusters        = Nanite::FGlobalResources::GetMaxVisibleClusters();
+	UniformParameters->RayTracingCutError        = GRayTracingCutError;
+
+	UniformParameters->ClusterPageData           = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+	UniformParameters->HierarchyBuffer           = Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
+	UniformParameters->VisibleClustersSWHW       = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder));
+	UniformParameters->MaterialTileRemap         = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder), PF_R32_UINT);
+
+	const FRDGSystemTextures& SystemTextures     = FRDGSystemTextures::Get(GraphBuilder);
+	UniformParameters->VisBuffer64               = SystemTextures.Black;
+	UniformParameters->DbgBuffer64               = SystemTextures.Black;
+	UniformParameters->DbgBuffer32               = SystemTextures.Black;
+
+	UniformParameters->MultiViewIndices          = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<uint32>(GraphBuilder));
+	UniformParameters->MultiViewRectScaleOffsets = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FVector4>(GraphBuilder));
+	UniformParameters->InViews                   = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FPackedNaniteView>(GraphBuilder));
+
+	return GraphBuilder.CreateUniformBuffer(UniformParameters);
+}
 
 namespace Nanite
 {
@@ -487,44 +491,61 @@ void DrawBasePass(
 		}
 	}
 
-	// Emit GBuffer Values
+	const FNaniteMaterialCommands& MaterialCommands = Scene.NaniteMaterials[ENaniteMeshPass::BasePass];
+	const int32 NumMaterialCommands = MaterialCommands.GetCommands().Num();
+	MaterialPassCommands.Reset(NumMaterialCommands);
+
+	if (NumMaterialCommands > 0)
 	{
 		FNaniteEmitGBufferParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitGBufferParameters>();
-
-		PassParameters->PageConstants		= RasterResults.PageConstants;
-		PassParameters->MaxVisibleClusters	= RasterResults.MaxVisibleClusters;
-		PassParameters->MaxNodes			= RasterResults.MaxNodes;
-		PassParameters->RenderFlags			= RasterResults.RenderFlags;
-		PassParameters->RayTracingCutError	= GRayTracingCutError;
-		PassParameters->MaterialRemapCount	= TileRemaps;
-			
-		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-		PassParameters->HierarchyBuffer		= Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
-
-		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
-
-		PassParameters->MaterialTileRemap = GraphBuilder.CreateSRV(MaterialTileRemap, PF_R32_UINT);
 		PassParameters->MaterialIndirectArgs = MaterialIndirectArgs;
 
-		PassParameters->MultiViewEnabled = 0;
-		PassParameters->MultiViewIndices = GraphBuilder.CreateSRV(MultiViewIndices);
-		PassParameters->MultiViewRectScaleOffsets = GraphBuilder.CreateSRV(MultiViewRectScaleOffsets);
-		PassParameters->InViews = GraphBuilder.CreateSRV(ViewsBuffer);
+		{
+			const FIntPoint ScaledSize = TileGridSize * 64;
+			const FVector4f RectScaleOffset(
+				float(ScaledSize.X) / float(View.ViewRect.Max.X - View.ViewRect.Min.X),
+				float(ScaledSize.Y) / float(View.ViewRect.Max.Y - View.ViewRect.Min.Y),
+				0.0f,
+				0.0f
+			);
 
-		PassParameters->VisBuffer64 = VisBuffer64;
-		PassParameters->DbgBuffer64 = DbgBuffer64;
-		PassParameters->DbgBuffer32 = DbgBuffer32;
-		PassParameters->RenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
+			const FIntVector4 MaterialConfig(1 /* Indirect */, TileGridSize.X, TileGridSize.Y, 0);
+
+			FNaniteUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FNaniteUniformParameters>();
+			UniformParameters->PageConstants            = RasterResults.PageConstants;
+			UniformParameters->MaxNodes                 = RasterResults.MaxNodes;
+			UniformParameters->MaxVisibleClusters       = RasterResults.MaxVisibleClusters;
+			UniformParameters->RenderFlags              = RasterResults.RenderFlags;
+			UniformParameters->RayTracingCutError       = GRayTracingCutError;
+
+			UniformParameters->MaterialConfig           = MaterialConfig;
+			UniformParameters->RectScaleOffset          = RectScaleOffset;
+
+			UniformParameters->ClusterPageData          = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+			UniformParameters->HierarchyBuffer          = Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
+			UniformParameters->VisibleClustersSWHW      = GraphBuilder.CreateSRV(VisibleClustersSWHW);
+			UniformParameters->MaterialTileRemap        = GraphBuilder.CreateSRV(MaterialTileRemap, PF_R32_UINT);
+
+			UniformParameters->VisBuffer64              = VisBuffer64;
+			UniformParameters->DbgBuffer64              = DbgBuffer64;
+			UniformParameters->DbgBuffer32              = DbgBuffer32;
+
+			UniformParameters->MultiViewEnabled          = 0;
+			UniformParameters->MultiViewIndices          = GraphBuilder.CreateSRV(MultiViewIndices);
+			UniformParameters->MultiViewRectScaleOffsets = GraphBuilder.CreateSRV(MultiViewRectScaleOffsets);
+			UniformParameters->InViews                   = GraphBuilder.CreateSRV(ViewsBuffer);
+
+			PassParameters->Nanite = GraphBuilder.CreateUniformBuffer(UniformParameters);
+		}
 
 		PassParameters->View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
 		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures, nullptr);
-		PassParameters->GridSize = FMath::DivideAndRoundUp(View.ViewRect.Max - View.ViewRect.Min, { 64, 64 });
-
 
 		const FExclusiveDepthStencil MaterialDepthStencil = UseComputeDepthExport()
 			? FExclusiveDepthStencil::DepthWrite_StencilNop
 			: FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
+		PassParameters->RenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			MaterialDepth,
 			ERenderTargetLoadAction::ELoad,
@@ -532,80 +553,39 @@ void DrawBasePass(
 			MaterialDepthStencil
 		);
 
-		TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(View.ShaderMap);
-				
-		ERDGPassFlags RDGPassFlags = ERDGPassFlags::Raster;
-
-		// Skip render pass when parallel because that's taken care of by the FRDGParallelCommandListSet
-		bool bParallelBasePassBuild = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePassBuild.GetValueOnRenderThread() != 0 && FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled();
-		if (bParallelBasePassBuild)
+		GraphBuilder.AddSetupTask([PassParameters, &MaterialCommands, &MaterialPassCommands]
 		{
-			RDGPassFlags |= ERDGPassFlags::SkipRenderPass;
-		}
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Emit GBuffer"),
-			PassParameters,
-			RDGPassFlags,
-			[PassParameters, &SceneRenderer, &Scene, NaniteVertexShader, &View, &MaterialPassCommands, bParallelBasePassBuild](const FRDGPass* InPass, FRHICommandListImmediate& RHICmdListImmediate)
-		{
-			RHICmdListImmediate.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-
-			FNaniteUniformParameters UniformParams;
-			UniformParams.PageConstants = PassParameters->PageConstants;
-			UniformParams.MaxVisibleClusters= PassParameters->MaxVisibleClusters;
-			UniformParams.MaxNodes = PassParameters->MaxNodes;
-			UniformParams.RenderFlags = PassParameters->RenderFlags;
-			UniformParams.RayTracingCutError = PassParameters->RayTracingCutError;
-
-			UniformParams.MaterialConfig.X = 1; // Indirect
-			UniformParams.MaterialConfig.Y = PassParameters->GridSize.X;
-			UniformParams.MaterialConfig.Z = PassParameters->GridSize.Y;
-			UniformParams.MaterialConfig.W = 0;
-
-			FIntPoint ScaledSize = PassParameters->GridSize * 64;
-			UniformParams.RectScaleOffset = FVector4f(
-				float(ScaledSize.X) / float(View.ViewRect.Max.X - View.ViewRect.Min.X),
-				float(ScaledSize.Y) / float(View.ViewRect.Max.Y - View.ViewRect.Min.Y),
-				0.0f,
-				0.0f
-			);
-
-			UniformParams.ClusterPageData = PassParameters->ClusterPageData->GetRHI();
-			UniformParams.HierarchyBuffer = PassParameters->HierarchyBuffer->GetRHI();
-
-			UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
-
-			UniformParams.MaterialTileRemap = PassParameters->MaterialTileRemap->GetRHI();
-
-			UniformParams.MultiViewEnabled = PassParameters->MultiViewEnabled;
-			UniformParams.MultiViewIndices = PassParameters->MultiViewIndices->GetRHI();
-			UniformParams.MultiViewRectScaleOffsets = PassParameters->MultiViewRectScaleOffsets->GetRHI();
-			UniformParams.InViews = PassParameters->InViews->GetRHI();
-
-			UniformParams.VisBuffer64 = PassParameters->VisBuffer64->GetRHI();
-			UniformParams.DbgBuffer64 = PassParameters->DbgBuffer64->GetRHI();
-			UniformParams.DbgBuffer32 = PassParameters->DbgBuffer32->GetRHI();
-			const_cast<FScene&>(Scene).UniformBuffers.NaniteUniformBuffer.UpdateUniformBufferImmediate(UniformParams);
-
-			const uint32 TileCount = UniformParams.MaterialConfig.Y * UniformParams.MaterialConfig.Z; // (W * H)
-
-			PassParameters->MaterialIndirectArgs->MarkResourceAsUsed();
-
-			DrawNaniteMaterialPasses(
-				InPass,
-				SceneRenderer,
-				Scene,
-				View,
-				TileCount,
-				bParallelBasePassBuild,
-				FParallelCommandListBindings(PassParameters),
-				NaniteVertexShader,
-				RHICmdListImmediate,
-				PassParameters->MaterialIndirectArgs->GetIndirectRHICallBuffer(),
-				MaterialPassCommands
-			);
+			BuildNaniteMaterialPassCommands(ExtractRenderTargetsInfo(PassParameters->RenderTargets), MaterialCommands, MaterialPassCommands);
 		});
+
+		TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(View.ShaderMap);
+
+		const bool bParallelDispatch = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePassBuild.GetValueOnRenderThread() != 0 && FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled();
+
+		if (bParallelDispatch)
+		{
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("EmitGBufferParallel"),
+				PassParameters,
+				ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+				[&SceneRenderer, &View, PassParameters, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandListImmediate& RHICmdList)
+			{
+				FRDGParallelCommandListSet ParallelCommandListSet(Pass, RHICmdList, GET_STATID(STAT_CLP_NaniteBasePass), SceneRenderer, View, FParallelCommandListBindings(PassParameters));
+				ParallelCommandListSet.SetHighPriority();
+				DrawNaniteMaterialPasses(&ParallelCommandListSet, RHICmdList, View.ViewRect, TileCount, NaniteVertexShader, MaterialIndirectArgs, MaterialPassCommands);
+			});
+		}
+		else
+		{
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("EmitGBuffer"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[ViewRect = View.ViewRect, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandList& RHICmdList)
+			{
+				DrawNaniteMaterialPasses(nullptr, RHICmdList, ViewRect, TileCount, NaniteVertexShader, MaterialIndirectArgs, MaterialPassCommands);
+			});
+		}
 	}
 
 	ExtractShadingStats(GraphBuilder, View, MaterialIndirectArgs, HighestMaterialSlot);
@@ -960,6 +940,7 @@ void DrawLumenMeshCapturePass(
 
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::DrawLumenMeshCapturePass");
+	TRACE_CPUPROFILER_EVENT_SCOPE(NaniteDraw_LumenMeshCapturePass);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
@@ -1061,7 +1042,7 @@ void DrawLumenMeshCapturePass(
 
 		// Build list of unique materials
 		{
-			FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo = ExtractRenderTargetsInfo(FRDGParameterStruct(PassParameters, FNaniteEmitGBufferParameters::FTypeInfo::GetStructMetadata()));
+			FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo = ExtractRenderTargetsInfo(PassParameters->RenderTargets);
 
 			Experimental::TRobinHoodHashSet<FLumenMeshCaptureMaterialPassIndex> MaterialPassSet;
 
@@ -1162,31 +1143,36 @@ void DrawLumenMeshCapturePass(
 			PackedViews.GetData(),
 			PackedViews.Num() * PackedViews.GetTypeSize());
 
-		PassParameters->PageConstants = CullingContext.PageConstants;
-		PassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
-		PassParameters->MaxNodes = Nanite::FGlobalResources::GetMaxNodes();
-		PassParameters->RenderFlags = CullingContext.RenderFlags;
-		PassParameters->RayTracingCutError = GRayTracingCutError;
+		{
+			FNaniteUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FNaniteUniformParameters>();
+			UniformParameters->PageConstants            = CullingContext.PageConstants;
+			UniformParameters->MaxNodes                 = Nanite::FGlobalResources::GetMaxNodes();
+			UniformParameters->MaxVisibleClusters       = Nanite::FGlobalResources::GetMaxVisibleClusters();
+			UniformParameters->RenderFlags              = CullingContext.RenderFlags;
+			UniformParameters->RayTracingCutError       = GRayTracingCutError;
 
-		PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-		PassParameters->HierarchyBuffer = Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
+			UniformParameters->MaterialConfig           = FIntVector4(0, 1, 1, 0); // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
+			UniformParameters->RectScaleOffset          = FVector4f(1.0f, 1.0f, 0.0f, 0.0f); // This will be overridden in vertex shader
 
-		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
+			UniformParameters->ClusterPageData          = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+			UniformParameters->HierarchyBuffer          = Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
+			UniformParameters->VisibleClustersSWHW      = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
+			UniformParameters->MaterialTileRemap        = GraphBuilder.CreateSRV(MaterialTileRemap, PF_R32_UINT);
 
-		PassParameters->GridSize = { 1u, 1u };
+			UniformParameters->VisBuffer64              = RasterContext.VisBuffer64;
+			UniformParameters->DbgBuffer64              = SystemTextures.Black;
+			UniformParameters->DbgBuffer32              = SystemTextures.Black;
 
-		PassParameters->MaterialTileRemap = GraphBuilder.CreateSRV(MaterialTileRemap, PF_R32_UINT); // Dummy
+			UniformParameters->MultiViewEnabled          = 1;
+			UniformParameters->MultiViewIndices          = GraphBuilder.CreateSRV(ViewIndexBuffer);
+			UniformParameters->MultiViewRectScaleOffsets = GraphBuilder.CreateSRV(ViewRectScaleOffsetBuffer);
+			UniformParameters->InViews                   = GraphBuilder.CreateSRV(PackedViewBuffer);
 
-		PassParameters->MultiViewEnabled = 1;
-		PassParameters->MultiViewIndices = GraphBuilder.CreateSRV(ViewIndexBuffer);
-		PassParameters->MultiViewRectScaleOffsets = GraphBuilder.CreateSRV(ViewRectScaleOffsetBuffer);
-		PassParameters->InViews = GraphBuilder.CreateSRV(PackedViewBuffer);
+			PassParameters->Nanite = GraphBuilder.CreateUniformBuffer(UniformParameters);
+		}
 
-		PassParameters->VisBuffer64 = RasterContext.VisBuffer64;
-		PassParameters->DbgBuffer64 = SystemTextures.Black;
-		PassParameters->DbgBuffer32 = SystemTextures.Black;
-
-		PassParameters->View = Scene.UniformBuffers.LumenCardCaptureViewUniformBuffer;
+		CardPagesToRender[0].PatchView(&Scene, SharedView);
+		PassParameters->View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 		PassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
 
 		TShaderMapRef<FNaniteMultiViewMaterialVS> NaniteVertexShader(SharedView->ShaderMap);
@@ -1198,43 +1184,10 @@ void DrawLumenMeshCapturePass(
 			ERDGPassFlags::Raster,
 			[PassParameters, 
 				&Scene, 
-				&FirstCardPage = CardPagesToRender[0],
 				MaterialPassArray = TArrayView<const FLumenMeshCaptureMaterialPass>(MaterialPasses),
-				NaniteVertexShader, 
-				SharedView,
-				ViewportSize](FRHICommandListImmediate& RHICmdList)
+				NaniteVertexShader](FRHICommandList& RHICmdList)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(LumenEmitGBuffer);
-
-				FirstCardPage.PatchView(&Scene, SharedView);
-				Scene.UniformBuffers.LumenCardCaptureViewUniformBuffer.UpdateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters);
-
-				FNaniteUniformParameters UniformParams;
-				UniformParams.PageConstants = PassParameters->PageConstants;
-				UniformParams.MaxVisibleClusters = PassParameters->MaxVisibleClusters;
-				UniformParams.MaxNodes = PassParameters->MaxNodes;
-				UniformParams.RenderFlags = PassParameters->RenderFlags;
-				UniformParams.RayTracingCutError = PassParameters->RayTracingCutError;
-				UniformParams.MaterialConfig = FIntVector4(0, 1, 1, 0); // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
-				UniformParams.RectScaleOffset = FVector4f(1.0f, 1.0f, 0.0f, 0.0f); // This will be overridden in vertex shader
-
-				UniformParams.ClusterPageData = PassParameters->ClusterPageData->GetRHI();
-				UniformParams.HierarchyBuffer = PassParameters->HierarchyBuffer->GetRHI();
-
-				UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
-
-				UniformParams.MaterialTileRemap = PassParameters->MaterialTileRemap->GetRHI();
-
-				UniformParams.MultiViewEnabled = PassParameters->MultiViewEnabled;
-				UniformParams.MultiViewIndices = PassParameters->MultiViewIndices->GetRHI();
-				UniformParams.MultiViewRectScaleOffsets = PassParameters->MultiViewRectScaleOffsets->GetRHI();
-				UniformParams.InViews = PassParameters->InViews->GetRHI();
-
-				UniformParams.VisBuffer64 = PassParameters->VisBuffer64->GetRHI();
-				UniformParams.DbgBuffer64 = PassParameters->DbgBuffer64->GetRHI();
-				UniformParams.DbgBuffer32 = PassParameters->DbgBuffer32->GetRHI();
-
-				Scene.UniformBuffers.NaniteUniformBuffer.UpdateUniformBufferImmediate(UniformParams);
 
 				FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 				FMeshDrawCommandStateCache StateCache;

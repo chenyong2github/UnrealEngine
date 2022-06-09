@@ -794,8 +794,6 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 	LLM_SCOPE_BYTAG(Lumen);
 
 	FMeshPassProcessorRenderState PassState;
-	PassState.SetNaniteUniformBuffer(Scene->UniformBuffers.NaniteUniformBuffer);
-
 	PassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal, true, CF_Equal>::GetRHI());
 	PassState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead);
 	PassState.SetStencilRef(STENCIL_SANDBOX_MASK);
@@ -2290,7 +2288,8 @@ void ClearLumenCardCapture(
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardPassParameters, )
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	// An RDG View uniform buffer is used as an optimization to move creation off the render thread.
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -2483,10 +2482,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 		{
 			FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 			FInstanceCullingResult InstanceCullingResult;
-			TUniquePtr<FInstanceCullingContext> InstanceCullingContext;
+			FInstanceCullingContext* InstanceCullingContext = nullptr;
 			if (Scene->GPUScene.IsEnabled())
 			{
-				InstanceCullingContext = MakeUnique<FInstanceCullingContext>(Views[0].GetFeatureLevel(), nullptr, TArrayView<const int32>(&Views[0].GPUSceneViewId, 1), nullptr);
+				InstanceCullingContext = GraphBuilder.AllocObject<FInstanceCullingContext>(Views[0].GetFeatureLevel(), nullptr, TArrayView<const int32>(&Views[0].GPUSceneViewId, 1), nullptr);
 				
 				int32 MaxInstances = 0;
 				int32 VisibleMeshDrawCommandsNum = 0;
@@ -2569,16 +2568,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 			PassUniformParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, Views[0]);
 
 			{
-				FLumenCardPassParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardPassParameters>();
-				PassParameters->View = Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer;
-				PassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(CardCaptureAtlas.Albedo, ERenderTargetLoadAction::ELoad);
-				PassParameters->RenderTargets[1] = FRenderTargetBinding(CardCaptureAtlas.Normal, ERenderTargetLoadAction::ELoad);
-				PassParameters->RenderTargets[2] = FRenderTargetBinding(CardCaptureAtlas.Emissive, ERenderTargetLoadAction::ELoad);
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(CardCaptureAtlas.DepthStencil, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
-
-				InstanceCullingResult.GetDrawParameters(PassParameters->InstanceCullingDrawParams);
-
 				uint32 NumPages = 0;
 				uint32 NumDraws = 0;
 				uint32 NumInstances = 0;
@@ -2624,56 +2613,70 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				}
 				#endif
 
-				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("MeshCardCapture Pages:%u Draws:%u Instances:%u Tris:%u", NumPages, NumDraws, NumInstances, NumTris),
-					PassParameters,
-					ERDGPassFlags::Raster,
-					[this, Scene = Scene, PrimitiveIdVertexBuffer, SharedView, &CardPagesToRender, PassParameters, InstanceCullingContext = MoveTemp(InstanceCullingContext)](FRHICommandListImmediate& RHICmdList)
+				TRACE_CPUPROFILER_EVENT_SCOPE(CardPageRenderPasses);
+
+				FLumenCardPassParameters* CommonPassParameters = GraphBuilder.AllocParameters<FLumenCardPassParameters>();
+				CommonPassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
+				CommonPassParameters->RenderTargets[0] = FRenderTargetBinding(CardCaptureAtlas.Albedo, ERenderTargetLoadAction::ELoad);
+				CommonPassParameters->RenderTargets[1] = FRenderTargetBinding(CardCaptureAtlas.Normal, ERenderTargetLoadAction::ELoad);
+				CommonPassParameters->RenderTargets[2] = FRenderTargetBinding(CardCaptureAtlas.Emissive, ERenderTargetLoadAction::ELoad);
+				CommonPassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(CardCaptureAtlas.DepthStencil, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
+
+				InstanceCullingResult.GetDrawParameters(CommonPassParameters->InstanceCullingDrawParams);
+
+				for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+				{
+					RDG_EVENT_SCOPE(GraphBuilder, "MeshCardCapture Pages:%u Draws:%u Instances:%u Tris:%u", NumPages, NumDraws, NumInstances, NumTris);
+
+					if (CardPageRenderData.NumMeshDrawCommands > 0)
 					{
-						QUICK_SCOPE_CYCLE_COUNTER(MeshPass);
+						CardPageRenderData.PatchView(Scene, SharedView);
 
-						for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+						FLumenCardPassParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardPassParameters>(CommonPassParameters);
+						PassParameters->View = GraphBuilder.CreateUniformBuffer(GraphBuilder.AllocParameters(SharedView->CachedViewUniformShaderParameters.Get()));
+
+						GraphBuilder.AddPass(
+							RDG_EVENT_NAME("CardPage Commands:%u", CardPageRenderData.NumMeshDrawCommands),
+							PassParameters,
+							ERDGPassFlags::Raster,
+							[this, Scene = Scene, PrimitiveIdVertexBuffer, &CardPageRenderData, PassParameters, InstanceCullingContext](FRHICommandList& RHICmdList)
 						{
-							if (CardPageRenderData.NumMeshDrawCommands > 0)
+							QUICK_SCOPE_CYCLE_COUNTER(MeshPass);
+
+							const FIntRect ViewRect = CardPageRenderData.CardCaptureAtlasRect;
+							RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+
+							FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+							if (Scene->GPUScene.IsEnabled())
 							{
-								const FIntRect ViewRect = CardPageRenderData.CardCaptureAtlasRect;
-								RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+								FInstanceCullingDrawParams& InstanceCullingDrawParams = PassParameters->InstanceCullingDrawParams;
 
-								CardPageRenderData.PatchView(Scene, SharedView);
-								Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer.UpdateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters);
-
-								FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-								if (Scene->GPUScene.IsEnabled())
-								{
-									FInstanceCullingDrawParams& InstanceCullingDrawParams = PassParameters->InstanceCullingDrawParams;
-
-									InstanceCullingContext->SubmitDrawCommands(
-										LumenCardRenderer.MeshDrawCommands,
-										GraphicsMinimalPipelineStateSet,
-										GetMeshDrawCommandOverrideArgs(PassParameters->InstanceCullingDrawParams),
-										CardPageRenderData.StartMeshDrawCommandIndex,
-										CardPageRenderData.NumMeshDrawCommands,
-										1,
-										RHICmdList);
-								}
-								else
-								{
-									SubmitMeshDrawCommandsRange(
-										LumenCardRenderer.MeshDrawCommands,
-										GraphicsMinimalPipelineStateSet,
-										PrimitiveIdVertexBuffer,
-										FInstanceCullingContext::GetInstanceIdBufferStride(Scene->GetFeatureLevel()),
-										0,
-										false,
-										CardPageRenderData.StartMeshDrawCommandIndex,
-										CardPageRenderData.NumMeshDrawCommands,
-										1,
-										RHICmdList);
-								}
+								InstanceCullingContext->SubmitDrawCommands(
+									LumenCardRenderer.MeshDrawCommands,
+									GraphicsMinimalPipelineStateSet,
+									GetMeshDrawCommandOverrideArgs(PassParameters->InstanceCullingDrawParams),
+									CardPageRenderData.StartMeshDrawCommandIndex,
+									CardPageRenderData.NumMeshDrawCommands,
+									1,
+									RHICmdList);
 							}
-						}
+							else
+							{
+								SubmitMeshDrawCommandsRange(
+									LumenCardRenderer.MeshDrawCommands,
+									GraphicsMinimalPipelineStateSet,
+									PrimitiveIdVertexBuffer,
+									FInstanceCullingContext::GetInstanceIdBufferStride(Scene->GetFeatureLevel()),
+									0,
+									false,
+									CardPageRenderData.StartMeshDrawCommandIndex,
+									CardPageRenderData.NumMeshDrawCommands,
+									1,
+									RHICmdList);
+							}
+						});
 					}
-				);
+				}
 			}
 
 			bool bAnyNaniteMeshes = false;

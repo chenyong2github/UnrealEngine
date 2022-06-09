@@ -10,7 +10,8 @@
 DEFINE_LOG_CATEGORY(LogNanite);
 DEFINE_GPU_STAT(NaniteDebug);
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, "Nanite");
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(Nanite);
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FNaniteUniformParameters, "Nanite", Nanite);
 
 extern float GNaniteMaxPixelsPerEdge;
 extern float GNaniteMinPixelsPerEdgeHW;

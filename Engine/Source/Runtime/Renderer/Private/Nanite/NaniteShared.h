@@ -197,19 +197,23 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER(uint32,						RenderFlags)
 	SHADER_PARAMETER(float,							RayTracingCutError)
 	SHADER_PARAMETER(FVector4f,						RectScaleOffset) // xy: scale, zw: offset
-	SHADER_PARAMETER_SRV(ByteAddressBuffer,			ClusterPageData)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer,			VisibleClustersSWHW)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer,			HierarchyBuffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer<uint>,	MaterialTileRemap)
-	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	VisBuffer64)
-	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	DbgBuffer64)
-	SHADER_PARAMETER_TEXTURE(Texture2D<uint>,		DbgBuffer32)
+
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,		ClusterPageData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,		VisibleClustersSWHW)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,		HierarchyBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaterialTileRemap)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>,		VisBuffer64)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>,		DbgBuffer64)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>,			DbgBuffer32)
+
 	// Multi view
-	SHADER_PARAMETER(uint32,									MultiViewEnabled)
-	SHADER_PARAMETER_SRV(StructuredBuffer<uint>,				MultiViewIndices)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>,				MultiViewRectScaleOffsets)
-	SHADER_PARAMETER_SRV(StructuredBuffer<FPackedNaniteView>,	InViews)
+	SHADER_PARAMETER(uint32,												MultiViewEnabled)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>,					MultiViewIndices)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>,				MultiViewRectScaleOffsets)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedNaniteView>,	InViews)
 END_SHADER_PARAMETER_STRUCT()
+
+extern TRDGUniformBufferRef<FNaniteUniformParameters> CreateDebugNaniteUniformBuffer(FRDGBuilder& GraphBuilder, uint32 InstanceSceneDataSOAStride);
 
 class FNaniteGlobalShader : public FGlobalShader
 {
