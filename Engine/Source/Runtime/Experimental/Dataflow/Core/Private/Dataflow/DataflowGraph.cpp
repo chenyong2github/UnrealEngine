@@ -185,11 +185,11 @@ namespace Dataflow
 			Ar << LocalConnections;
 			for (const FLink& Con : LocalConnections)
 			{
-				if (ensure(NodeGuidMap.Contains(Con.InputNode) && NodeGuidMap.Contains(Con.OutputNode)))
+				if (NodeGuidMap.Contains(Con.InputNode) && NodeGuidMap.Contains(Con.OutputNode))
 				{
-					if (ensure(ConnectionGuidMap.Contains(Con.Input) && ConnectionGuidMap.Contains(Con.Output)))
+					if (ConnectionGuidMap.Contains(Con.Input) && ConnectionGuidMap.Contains(Con.Output))
 					{
-						if (ensure(ConnectionGuidMap[Con.Input]->GetType() == ConnectionGuidMap[Con.Output]->GetType()))
+						if (ConnectionGuidMap[Con.Input]->GetType() == ConnectionGuidMap[Con.Output]->GetType())
 						{
 							Connect(ConnectionGuidMap[Con.Input], ConnectionGuidMap[Con.Output]);
 						}
