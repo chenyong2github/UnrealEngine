@@ -323,6 +323,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 
 						+SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
+						.AutoWidth()
 						.Padding(2.f)
 						[
 							SNew(STextBlock)
@@ -331,6 +332,18 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 															UICommands.IncreaseBreadth->GetInputText().ToUpper(),
 															UICommands.DecreaseBreadth->GetInputText().ToUpper(),
 															UICommands.SetBreadth->GetInputText().ToUpper()))
+						]
+
+						+SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						.FillWidth(1.0)
+						.Padding(2.f, 0.f, 8.f, 0.f)
+						[
+							SNew(SImage)
+							.ToolTipText(LOCTEXT("BreadthLimitToolTip", "The Breadth Limit was reached."))
+							.Image(FAppStyle::GetBrush("Icons.WarningWithColor"))
+							.Visibility_Lambda([this] { return GraphObj && GraphObj->BreadthLimitExceeded() ? EVisibility::Visible : EVisibility::Hidden; })
 						]
 
 						+SHorizontalBox::Slot()
@@ -523,7 +536,7 @@ void SReferenceViewer::OnNodeDoubleClicked(UEdGraphNode* Node)
 	if (UEdGraphNode_Reference* ReferenceNode = Cast<UEdGraphNode_Reference>(Node))
 	{
 		// Overflow nodes have no identifiers
-		if (!ReferenceNode->GetIdentifier().IsValid()) 
+		if (ReferenceNode->IsOverflow())
 		{
 			if (ReferenceNode->GetReferencerPin()->LinkedTo.Num() > 0)
 			{

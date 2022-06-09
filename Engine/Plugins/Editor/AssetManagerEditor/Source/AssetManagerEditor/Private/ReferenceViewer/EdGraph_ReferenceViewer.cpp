@@ -274,6 +274,8 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RefilterGraph()
 {
 	RemoveAllNodes();
 	UEdGraphNode_Reference* RootNode = NULL;
+
+	bBreadthLimitReached = false;
 	if (CurrentGraphRootIdentifiers.Num() > 0)
 	{
 		FAssetIdentifier FirstGraphRootIdentifier = CurrentGraphRootIdentifiers[0];
@@ -350,6 +352,7 @@ void UEdGraph_ReferenceViewer::RecursivelyFilterNodeInfos(const FAssetIdentifier
 	if (InNodeInfos[InAssetId].OverflowCount > 0)
 	{
 		NewProvisionSize++;
+		bBreadthLimitReached = true;
 	}
 
 	bool PassedAllFilters = FilterCollection && Settings->GetFiltersEnabled() ? FilterCollection->PassesAllFilters(InNodeInfos[InAssetId]) : true;

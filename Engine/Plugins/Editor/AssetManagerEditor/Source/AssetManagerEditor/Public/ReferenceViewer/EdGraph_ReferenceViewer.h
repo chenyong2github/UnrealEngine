@@ -104,6 +104,9 @@ public:
 	/* Returns a set of unique asset types as UClass* */
 	const TSet<FTopLevelAssetPath>& GetAssetTypes() const { return CurrentClasses; }
 
+	/* Returns true if the current graph has overflow nodes */
+	bool BreadthLimitExceeded() const { return bBreadthLimitReached; };
+
 private:
 	void SetReferenceViewer(TSharedPtr<SReferenceViewer> InViewer);
 	UEdGraphNode_Reference* ConstructNodes(const TArray<FAssetIdentifier>& GraphRootIdentifiers, const FIntPoint& GraphRootOrigin);
@@ -159,6 +162,9 @@ private:
 	FIntPoint CurrentGraphRootOrigin;
 
 	int32 MaxSearchBreadth;
+
+	/** Stores if the breadth limit was reached on the last refilter*/
+	bool bBreadthLimitReached;
 
 	/** Current collection filter. NAME_None for no filter */
 	FName CurrentCollectionFilter;

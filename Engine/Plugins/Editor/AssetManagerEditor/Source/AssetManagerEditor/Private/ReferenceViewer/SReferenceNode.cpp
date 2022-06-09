@@ -147,11 +147,13 @@ void SReferenceNode::UpdateGraphNode()
 						]
 						+ SHorizontalBox::Slot()
 						.FillWidth(1.0)
+						.VAlign(VAlign_Center)
 						[
 							SNew(SVerticalBox)
 							+SVerticalBox::Slot()
 							.AutoHeight()
 							.Padding(FMargin(0.f))
+							.VAlign(VAlign_Center)
 							[
 								SAssignNew(InlineEditableText, SInlineEditableTextBlock)
 								.Style( FReferenceViewerStyle::Get(), "Graph.Node.NodeTitleInlineEditableText" )

@@ -51,6 +51,8 @@ class ASSETMANAGEREDITOR_API UEdGraphNode_Reference : public UEdGraphNode
 	void SetIsFiltered(bool bInFiltered);
 	bool GetIsFiltered() const;
 
+	bool IsOverflow() const { return bIsOverflow; }
+
 	FAssetData GetAssetData() const;
 
 	UEdGraphPin* GetDependencyPin();
@@ -72,6 +74,7 @@ private:
 	bool bIsCollapsed;
 	bool bIsADuplicate;
 	bool bIsFiltered;
+	bool bIsOverflow;
 
 	FAssetData CachedAssetData;
 	FLinearColor AssetTypeColor;

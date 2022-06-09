@@ -26,6 +26,8 @@ UEdGraphNode_Reference::UEdGraphNode_Reference(const FObjectInitializer& ObjectI
 	bUsesThumbnail = false;
 	bAllowThumbnail = true;
 	AssetTypeColor = FLinearColor(0.55f, 0.55f, 0.55f);
+	bIsFiltered = false;
+	bIsOverflow = false;
 }
 
 void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const TArray<FAssetIdentifier>& NewIdentifiers, const FAssetData& InAssetData, bool bInAllowThumbnail, bool bInIsADuplicate)
@@ -110,6 +112,8 @@ void UEdGraphNode_Reference::SetReferenceNodeCollapsed(const FIntPoint& NodeLoc,
 	Identifiers.Empty();
 	bIsCollapsed = true;
 	bUsesThumbnail = false;
+	bIsOverflow = true;
+	AssetBrush = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.WarningWithColor");
 
 	NodeTitle = FText::Format( LOCTEXT("ReferenceNodeCollapsedTitle", "{0} Collapsed nodes"), FText::AsNumber(InNumReferencesExceedingMax));
 	CacheAssetData(FAssetData());
@@ -200,7 +204,7 @@ FText UEdGraphNode_Reference::GetTooltipText() const
 
 FSlateIcon UEdGraphNode_Reference::GetIconAndTint(FLinearColor& OutColor) const
 {
-	OutColor = AssetTypeColor;
+	OutColor = bIsOverflow ? FLinearColor::White : AssetTypeColor;
 	return AssetBrush;
 }
 
