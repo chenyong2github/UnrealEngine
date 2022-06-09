@@ -147,28 +147,7 @@ int32 UUnitTestCommandlet::Main(const FString& Params)
 		// NOTE: This main loop is partly based off of FileServerCommandlet
 		while (GIsRunning && !IsEngineExitRequested())
 		{
-			GEngine->UpdateTimeAndHandleMaxTickRate();
-			GEngine->Tick(FApp::GetDeltaTime(), false);
-
-			if (FSlateApplication::IsInitialized())
-			{
-				FSlateApplication::Get().PumpMessages();
-				FSlateApplication::Get().Tick();
-			}
-
-			// Required for FTimerManager to function - as it blocks ticks, if the frame counter doesn't change
-			GFrameCounter++;
-
-			FTSTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
-
-			// Execute deferred commands
-			for (int32 DeferredCommandsIndex=0; DeferredCommandsIndex<GEngine->DeferredCommands.Num(); DeferredCommandsIndex++)
-			{
-				GEngine->Exec(UnitTestWorld, *GEngine->DeferredCommands[DeferredCommandsIndex], *GLog);
-			}
-
-			GEngine->DeferredCommands.Empty();
-
+			CommandletHelpers::TickEngine(UnitTestWorld);
 
 			FPlatformProcess::Sleep(0);
 

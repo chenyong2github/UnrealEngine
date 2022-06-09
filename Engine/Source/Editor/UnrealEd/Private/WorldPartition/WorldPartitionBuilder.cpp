@@ -264,23 +264,15 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 
 					LoaderAdapters.Emplace_GetRef(MakeUnique<FLoaderAdapterShape>(World, BoundsToLoad, TEXT("Loaded Region")))->Load();
 
+					// Simulate an engine tick
+					FWorldPartitionHelpers::FakeEngineTick(World);
+
 					bResult = RunInternal(World, CellInfo, PackageHelper);
 
 					if (FWorldPartitionHelpers::HasExceededMaxMemory())
 					{
 						LoaderAdapters.Empty();
 						FWorldPartitionHelpers::DoCollectGarbage();
-					}
-
-					// When running with -AllowCommandletRendering we want to simulate an engine tick
-					if (IsAllowCommandletRendering())
-					{
-						FWorldPartitionHelpers::FakeEngineTick(World);
-
-						ENQUEUE_RENDER_COMMAND(VirtualTextureScalability_Release)([](FRHICommandList& RHICmdList)
-						{
-							GetRendererModule().ReleaseVirtualTexturePendingResources();
-						});
 					}
 				}
 			}

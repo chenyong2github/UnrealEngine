@@ -161,5 +161,12 @@ class UCommandlet : public UObject
 
 };
 
-
-
+namespace CommandletHelpers
+{
+	/**
+	 * Simulate an engine frame tick.
+	 * Can be used by commandlets to tick various subsystems. If running with -AllowCommandletRendering, this will
+	 * also tick rendering for the provided world scene(s).
+	 */
+	ENGINE_API void TickEngine(class UWorld* InWorld = nullptr);
+}

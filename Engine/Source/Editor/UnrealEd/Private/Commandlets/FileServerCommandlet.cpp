@@ -109,12 +109,7 @@ int32 UFileServerCommandlet::Main( const FString& Params )
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 
 		// execute deferred commands
-		for (int32 DeferredCommandsIndex=0; DeferredCommandsIndex<GEngine->DeferredCommands.Num(); DeferredCommandsIndex++)
-		{
-			GEngine->Exec( GWorld, *GEngine->DeferredCommands[DeferredCommandsIndex], *GLog);
-		}
-
-		GEngine->DeferredCommands.Empty();
+		GEngine->TickDeferredCommands();
 
 		// handle server timeout
 		if (InstanceId.IsValid())
