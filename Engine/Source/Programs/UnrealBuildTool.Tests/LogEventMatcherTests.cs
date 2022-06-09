@@ -332,6 +332,54 @@ namespace UnrealBuildToolTests
 		}
 
 		[TestMethod]
+		public void ClangEventMatcher6()
+		{
+			string[] lines =
+			{
+				@"[19884/26184] Compile KismetCastingUtils.cpp",
+				@"In file included from Editor/KismetCompiler/Private/KismetCastingUtils.cpp:3:",
+				@"/Users/build/Build/++UE5/Sync/Engine/Source/Editor/KismetCompiler/Public/KismetCastingUtils.h:33:3: error: unknown type name 'UEdGraphNode'; did you mean 'UEdGraphPin'?",
+				@"                UEdGraphNode* TargetNode = nullptr;",
+				@"                ^~~~~~~~~~~~",
+				@"                UEdGraphPin",
+				@"/Users/build/Build/++UE5/Sync/Engine/Source/Editor/KismetCompiler/Public/KismetCastingUtils.h:10:7: note: 'UEdGraphPin' declared here",
+				@"class UEdGraphPin;",
+				@"      ^",
+				@"/Users/build/Build/++UE5/Sync/Engine/Source/Editor/KismetCompiler/Public/KismetCastingUtils.h:47:110: error: unknown type name 'UEdGraphNode'; did you mean 'UEdGraphPin'?",
+				@"        KISMETCOMPILER_API FBPTerminal* MakeImplicitCastTerminal(FKismetFunctionContext& Context, UEdGraphPin* Net, UEdGraphNode* SourceNode = nullptr);",
+				@"                                                                                                                    ^~~~~~~~~~~~",
+				@"                                                                                                                    UEdGraphPin",
+				@"/Users/build/Build/++UE5/Sync/Engine/Source/Editor/KismetCompiler/Public/KismetCastingUtils.h:10:7: note: 'UEdGraphPin' declared here",
+				@"class UEdGraphPin;",
+				@"      ^",
+				@"/Users/build/Build/++UE5/Sync/Engine/Source/Editor/KismetCompiler/Private/KismetCastingUtils.cpp:34:88: error: cannot initialize a member subobject of type 'UEdGraphPin *' with an lvalue of type 'UEdGraphNode *'",
+				@"                Context.ImplicitCastMap.Add(DestinationPin, FImplicitCastParams{Conversion, NewTerm, OwningNode});",
+				@"                                                                                                     ^~~~~~~~~~",
+				@"/Users/build/Build/++UE5/Sync/Engine/Source/Editor/KismetCompiler/Private/KismetCastingUtils.cpp:121:78: error: cannot initialize a parameter of type 'UEdGraphNode *' with an lvalue of type 'UEdGraphPin *const'",
+				@"        FBlueprintCompiledStatement& CastStatement = Context.AppendStatementForNode(CastParams.TargetNode);",
+				@"                                                                                    ^~~~~~~~~~~~~~~~~~~~~",
+				@"/Users/build/Build/++UE5/Sync/Engine/Source/Editor/KismetCompiler/Public/KismetCompiledFunctionContext.h:265:68: note: passing argument to parameter 'Node' here",
+				@"        FBlueprintCompiledStatement& AppendStatementForNode(UEdGraphNode* Node)",
+				@"                                                                          ^",
+				@"/Users/build/Build/++UE5/Sync/Engine/Source/Editor/KismetCompiler/Private/KismetCastingUtils.cpp:121:31: error: non-const lvalue reference to type 'FBlueprintCompiledStatement' cannot bind to a temporary of type 'FBlueprintCompiledStatement'",
+				@"        FBlueprintCompiledStatement& CastStatement = Context.AppendStatementForNode(CastParams.TargetNode);",
+				@"                                     ^               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+				@"5 errors generated."
+			};
+
+			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+			CheckEventGroup(logEvents.Slice(0, 9), 0, 9, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents.Slice(9, 7), 9, 7, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents.Slice(16, 3), 16, 3, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents.Slice(19, 6), 19, 6, LogLevel.Error, KnownLogEvents.Compiler);
+			CheckEventGroup(logEvents.Slice(25, 3), 25, 3, LogLevel.Error, KnownLogEvents.Compiler);
+
+			LogValue fileProperty = (LogValue)logEvents[1].GetProperty("file");
+			Assert.AreEqual(@"Editor/KismetCompiler/Private/KismetCastingUtils.cpp", fileProperty.Text);
+			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
+		}
+
+		[TestMethod]
 		public void IOSCompileErrorMatcher()
 		{
 			string[] lines =

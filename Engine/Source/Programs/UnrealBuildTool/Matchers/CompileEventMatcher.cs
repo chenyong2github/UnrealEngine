@@ -47,11 +47,12 @@ namespace UnrealBuildTool.Matchers
 
 		static readonly Regex s_baseFilePattern = new Regex(@"^\s*(?:\[[\d/]+\] Compile |[^/\ :]+\\.cpp\s*(?:\([^\)]*\))?$)");
 		static readonly Regex s_preludePattern = new Regex(@"^\s*(?:In (member )?function|In file included from)");
+		static readonly Regex s_preludeFilePattern = new Regex($"^\\s*In file included from {FilePattern}:");
 		static readonly Regex s_blankLinePattern = new Regex(@"^\s*$");
 		static readonly Regex s_errorWarningPattern = new Regex("error|warning");
 		static readonly Regex s_clangDiagnosticPattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:");
 		static readonly Regex s_clangNotePattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*note:");
-		static readonly Regex s_clangMarkerPattern = new Regex(@"^(\s*)\^~*$");
+		static readonly Regex s_clangMarkerPattern = new Regex(@"^(\s*)\^\s*~*$");
 
 		static readonly string[] s_invalidExtensions =
 		{
@@ -80,7 +81,17 @@ namespace UnrealBuildTool.Matchers
 			// produce many false positives, making them very slow to execute.
 			if (input.IsMatch(maxOffset, s_errorWarningPattern))
 			{
-				LogEventBuilder builder = new LogEventBuilder(input, maxOffset + 1);
+				// Tag any files in the prelude with their source files
+				LogEventBuilder builder = new LogEventBuilder(input);
+				for (int idx = 0; idx < maxOffset; idx++)
+				{
+					Match? fileMatch;
+					if (builder.Current.TryMatch(s_preludeFilePattern, out fileMatch))
+					{
+						builder.AnnotateSourceFile(fileMatch.Groups["file"], DefaultSourceFileBaseDir);
+					}
+					builder.MoveNext();
+				}
 
 				// Try to match a Visual C++ diagnostic
 				LogEventMatch? eventMatch;
@@ -120,7 +131,7 @@ namespace UnrealBuildTool.Matchers
 				{
 					LogLevel level = GetLogLevelFromSeverity(match);
 
-					builder.AnnotateSourceFile(match.Groups["file"], "Engine/Source");
+					builder.AnnotateSourceFile(match.Groups["file"], DefaultSourceFileBaseDir);
 					builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
 					builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 					builder.TryAnnotate(match.Groups["column"], LogEventMarkup.ColumnNumber);
