@@ -131,7 +131,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = SmartObject)
-	bool bBuildOnDemand = false;
+	bool bBuildOnDemand = true;
 
 	bool bBuildingForWorldPartition = false;
 #endif // WITH_EDITORONLY_DATA
