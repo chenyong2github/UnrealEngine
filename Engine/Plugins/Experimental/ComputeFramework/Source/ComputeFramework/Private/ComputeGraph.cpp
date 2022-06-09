@@ -12,6 +12,7 @@
 #include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeKernelShared.h"
 #include "ComputeFramework/ComputeKernelSource.h"
+#include "ComputeFramework/ComputeSource.h"
 #include "ComputeFramework/ShaderParameterMetadataAllocation.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -400,90 +401,136 @@ namespace
 
 		InOutHLSL += StringBuilder.ToString();
 	}
-}
 
-FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FString& OutHashKey, FComputeKernelDefinitionSet& OutDefinitionSet, FComputeKernelPermutationVector& OutPermutationVector) const
-{
-	FString HLSL;
-
-	if (KernelInvocations[KernelIndex] != nullptr)
+	/** Add source includes to unique list, recursively adding additional sources. */
+	void AddSourcesRecursive(TArray<UComputeSource*> const& InSources, TArray<UComputeSource const*>& InOutUniqueSources)
 	{
-		UComputeKernelSource* KernelSource = KernelInvocations[KernelIndex]->KernelSource;
-		if (KernelSource != nullptr)
+		for (UComputeSource const* Source : InSources)
 		{
-			// Add defines and permutations.
-			OutDefinitionSet = KernelSource->DefinitionsSet;
-			OutPermutationVector.AddPermutationSet(KernelSource->PermutationSet);
-
-			// Find associated data interfaces.
-			TArray<int32> RelevantEdgeIndices;
-			TArray<int32> DataProviderIndices;
-			for (int32 GraphEdgeIndex = 0; GraphEdgeIndex < GraphEdges.Num(); ++GraphEdgeIndex)
+			if (Source != nullptr)
 			{
-				if (GraphEdges[GraphEdgeIndex].KernelIndex == KernelIndex)
+				if (!InOutUniqueSources.Contains(Source))
 				{
-					RelevantEdgeIndices.Add(GraphEdgeIndex);
-					DataProviderIndices.AddUnique(GraphEdges[GraphEdgeIndex].DataInterfaceIndex);
+					TArray<UComputeSource*> AdditionalSources;
+					Source->GetAdditionalSources(AdditionalSources);
+					AddSourcesRecursive(AdditionalSources, InOutUniqueSources);
+
+					InOutUniqueSources.AddUnique(Source);
 				}
 			}
-
-			// Collect data interface shader code.
-			for (int32 DataProviderIndex : DataProviderIndices)
-			{
-				UComputeDataInterface* DataInterface = DataInterfaces[DataProviderIndex];
-				if (DataInterface != nullptr)
-				{
-					// Add a unique prefix to generate unique names in the data interface shader code.
-					FString NamePrefix = GetUniqueDataInterfaceName(DataInterface, DataProviderIndex);
-					HLSL += FString::Printf(TEXT("#define DI_UID %s_\n"), *NamePrefix);
-					DataInterface->GetHLSL(HLSL);
-					HLSL += TEXT("#undef DI_UID\n");
-
-					// Get define and permutation info for each data provider.
-					DataInterface->GetDefines(OutDefinitionSet);
-					DataInterface->GetPermutations(OutPermutationVector);
-
-					// Accumulate the hash key contribution from the data provider.
-					DataInterface->GetShaderHash(OutHashKey);
-				}
-			}
-
-			// Bind every external kernel function to the associated data input function.
-			for (int32 GraphEdgeIndex : RelevantEdgeIndices)
-			{
-				FComputeGraphEdge const& GraphEdge = GraphEdges[GraphEdgeIndex];
-				if (DataInterfaces[GraphEdge.DataInterfaceIndex] != nullptr)
-				{
-					FString NamePrefix = GetUniqueDataInterfaceName(DataInterfaces[GraphEdge.DataInterfaceIndex], GraphEdge.DataInterfaceIndex);
-
-					TCHAR const* WrapNameOverride = GraphEdge.BindingFunctionNameOverride.IsEmpty() ? nullptr : *GraphEdge.BindingFunctionNameOverride; 
-					if (GraphEdge.bKernelInput)
-					{
-						TArray<FShaderFunctionDefinition> DataProviderFunctions;
-						DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
-						FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
-						FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalInputs[GraphEdge.KernelBindingIndex];
-						GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, HLSL);
-					}
-					else
-					{
-						TArray<FShaderFunctionDefinition> DataProviderFunctions;
-						DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
-						FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
-						FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalOutputs[GraphEdge.KernelBindingIndex];
-						GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, HLSL);
-					}
-				}
-			}
-
-			// Add the kernel code.
-			HLSL += KernelSource->GetSource();
 		}
 	}
-	
-	// Accumulate the hash key contribution from the HLSL.
+
+	/** Get source includes as map of include file name to HLSL source. */
+	TMap<FString, FString> GatherAdditionalSources(TArray<UComputeSource*> const& InSources)
+	{
+		TMap<FString, FString> Result;
+
+		TArray<UComputeSource const*> UniqueSources;
+		AddSourcesRecursive(InSources, UniqueSources);
+
+		for (UComputeSource const* Source : UniqueSources)
+		{
+			Result.Add(TPair<FString, FString>(
+				FString::Printf(TEXT("/Engine/Generated/%s.ush"), *Source->GetName()),
+				Source->GetSource()));
+		}
+
+		return Result;
+	}
+}
+
+FString UComputeGraph::BuildKernelSource(
+	int32 KernelIndex, 
+	UComputeKernelSource const& InKernelSource,
+	TMap<FString, FString> const& InAdditionalSources,
+	FString& OutHashKey,
+	FComputeKernelDefinitionSet& OutDefinitionSet, 
+	FComputeKernelPermutationVector& OutPermutationVector) const
+{
+	FString HLSL;
 	FSHA1 HashState;
+
+	// Add virtual source includes from the additional sources.
+	for (TPair<FString, FString> const& AdditionalSource : InAdditionalSources)
+	{
+		HLSL += FString::Printf(TEXT("#include \"%s\"\n"), *AdditionalSource.Key);
+
+		// Accumulate the source HLSL to the local hash state.
+		HashState.UpdateWithString(*AdditionalSource.Value, AdditionalSource.Value.Len());
+	}
+
+	// Add defines and permutations.
+	OutDefinitionSet = InKernelSource.DefinitionsSet;
+	OutPermutationVector.AddPermutationSet(InKernelSource.PermutationSet);
+
+	// Find associated data interfaces.
+	TArray<int32> RelevantEdgeIndices;
+	TArray<int32> DataProviderIndices;
+	for (int32 GraphEdgeIndex = 0; GraphEdgeIndex < GraphEdges.Num(); ++GraphEdgeIndex)
+	{
+		if (GraphEdges[GraphEdgeIndex].KernelIndex == KernelIndex)
+		{
+			RelevantEdgeIndices.Add(GraphEdgeIndex);
+			DataProviderIndices.AddUnique(GraphEdges[GraphEdgeIndex].DataInterfaceIndex);
+		}
+	}
+
+	// Collect data interface shader code.
+	for (int32 DataProviderIndex : DataProviderIndices)
+	{
+		UComputeDataInterface* DataInterface = DataInterfaces[DataProviderIndex];
+		if (DataInterface != nullptr)
+		{
+			// Add a unique prefix to generate unique names in the data interface shader code.
+			FString NamePrefix = GetUniqueDataInterfaceName(DataInterface, DataProviderIndex);
+			HLSL += FString::Printf(TEXT("#define DI_UID %s_\n"), *NamePrefix);
+			DataInterface->GetHLSL(HLSL);
+			HLSL += TEXT("#undef DI_UID\n");
+
+			// Get define and permutation info for each data provider.
+			DataInterface->GetDefines(OutDefinitionSet);
+			DataInterface->GetPermutations(OutPermutationVector);
+
+			// Add contribution from the data provider to the final hash key.
+			DataInterface->GetShaderHash(OutHashKey);
+		}
+	}
+
+	// Bind every external kernel function to the associated data input function.
+	for (int32 GraphEdgeIndex : RelevantEdgeIndices)
+	{
+		FComputeGraphEdge const& GraphEdge = GraphEdges[GraphEdgeIndex];
+		if (DataInterfaces[GraphEdge.DataInterfaceIndex] != nullptr)
+		{
+			FString NamePrefix = GetUniqueDataInterfaceName(DataInterfaces[GraphEdge.DataInterfaceIndex], GraphEdge.DataInterfaceIndex);
+
+			TCHAR const* WrapNameOverride = GraphEdge.BindingFunctionNameOverride.IsEmpty() ? nullptr : *GraphEdge.BindingFunctionNameOverride; 
+			if (GraphEdge.bKernelInput)
+			{
+				TArray<FShaderFunctionDefinition> DataProviderFunctions;
+				DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
+				FShaderFunctionDefinition const& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
+				FShaderFunctionDefinition const& KernelFunction = InKernelSource.ExternalInputs[GraphEdge.KernelBindingIndex];
+				GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, HLSL);
+			}
+			else
+			{
+				TArray<FShaderFunctionDefinition> DataProviderFunctions;
+				DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
+				FShaderFunctionDefinition const&  DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
+				FShaderFunctionDefinition const& KernelFunction = InKernelSource.ExternalOutputs[GraphEdge.KernelBindingIndex];
+				GetFunctionShimHLSL(DataProviderFunction, KernelFunction, *NamePrefix, WrapNameOverride, HLSL);
+			}
+		}
+	}
+
+	// Add the kernel code.
+	HLSL += InKernelSource.GetSource();
+	
+	// Accumulate the source HLSL to the local hash state.
 	HashState.UpdateWithString(*HLSL, HLSL.Len());
+	// Finalize hash state and add to the final hash key.
 	HashState.Finalize().AppendString(OutHashKey);
 
 	return HLSL;
@@ -503,13 +550,15 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 				continue;
 			}
 
+			TMap<FString, FString> AdditionalSources = GatherAdditionalSources(Kernel->AdditionalSources);
+
 			FString ShaderHashKey;
 			TUniquePtr <FComputeKernelDefinitionSet> ShaderDefinitionSet = MakeUnique<FComputeKernelDefinitionSet>();
 			TUniquePtr <FComputeKernelPermutationVector> ShaderPermutationVector = MakeUnique<FComputeKernelPermutationVector>();
 			TUniquePtr <FShaderParametersMetadataAllocations> ShaderParameterMetadataAllocations = MakeUnique<FShaderParametersMetadataAllocations>();
 
 			FString ShaderEntryPoint = Kernel->KernelSource->GetEntryPoint();
-			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
+			FString ShaderSource = BuildKernelSource(KernelIndex, *Kernel->KernelSource, AdditionalSources, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
 			FShaderParametersMetadata* ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *ShaderParameterMetadataAllocations);
 
 			const ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
@@ -523,6 +572,7 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 				ShaderEntryPoint, 
 				ShaderHashKey,
 				ShaderSource,
+				AdditionalSources,
 				ShaderDefinitionSet,
 				ShaderPermutationVector,
 				ShaderParameterMetadataAllocations,
@@ -616,12 +666,14 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 
 		if (ShaderFormats.Num() > 0)
 		{
+			TMap<FString, FString> AdditionalSources = GatherAdditionalSources(KernelInvocations[KernelIndex]->AdditionalSources);
+
 			FString ShaderHashKey;
 			TUniquePtr <FComputeKernelDefinitionSet> ShaderDefinitionSet = MakeUnique<FComputeKernelDefinitionSet>();
 			TUniquePtr <FComputeKernelPermutationVector> ShaderPermutationVector = MakeUnique<FComputeKernelPermutationVector>();
 
 			FString ShaderEntryPoint = KernelSource->GetEntryPoint();
-			FString ShaderSource = BuildKernelSource(KernelIndex, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
+			FString ShaderSource = BuildKernelSource(KernelIndex, *KernelSource, AdditionalSources, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
 
 			TArray< TUniquePtr<FComputeKernelResource> >& Resources = KernelResources[KernelIndex].CachedKernelResourcesForCooking.FindOrAdd(TargetPlatform);
 
@@ -640,6 +692,7 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 					ShaderEntryPoint, 
 					ShaderHashKey,
 					ShaderSource,
+					AdditionalSources,
 					ShaderDefinitionSet,
 					ShaderPermutationVector,
 					ShaderParameterMetadataAllocations,

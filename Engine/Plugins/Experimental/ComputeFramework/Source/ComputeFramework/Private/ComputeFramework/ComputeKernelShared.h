@@ -417,6 +417,7 @@ public:
 		FString const& InShaderEntryPoint,
 		FString const& InShaderHashKey,
 		FString& InShaderSource,
+		TMap<FString, FString>& InAdditionalSources,
 		TUniquePtr<FComputeKernelDefinitionSet>& InShaderDefinitionSet,
 		TUniquePtr<FComputeKernelPermutationVector>& InShaderPermutationVector,
 		TUniquePtr<FShaderParametersMetadataAllocations>& InShaderParameterMetadataAllocations,
@@ -480,6 +481,9 @@ private:
 	 * the same output, same shader resource will be shared 
 	 */
 	uint64 ShaderCodeHash = 0;
+
+	/** Additional source code. Stored as a map from a virtual source file name to the shader source.  */
+	TMap<FString, FString> AdditionalSources;
 
 	/** Defines used when compiling shaders. */
 	TUniquePtr<FComputeKernelDefinitionSet> ShaderDefinitionSet;

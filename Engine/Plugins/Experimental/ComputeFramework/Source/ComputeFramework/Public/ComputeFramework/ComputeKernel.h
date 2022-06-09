@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeKernel.generated.h"
 
 class UComputeKernelSource;
+class UComputeSource;
 
 /** Flags that convey kernel behavior to aid compilation/optimizations. */
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
@@ -17,7 +17,7 @@ enum class EComputeKernelFlags : uint32
 	 * It also implies that this will be compiled synchronously. Other than a pass
 	 * through kernel, default shouldn't be used.
 	 */
-	IsDefaultKernel = 1 << 0, // KERNEL_FLAG(IS_DEFAUL_KERNEL)
+	IsDefaultKernel = 1 << 0, // KERNEL_FLAG(IS_DEFAULT_KERNEL)
 
 	/*
 	 * Promise from the author that all memory writes will be unique per shader
@@ -35,30 +35,25 @@ class COMPUTEFRAMEWORK_API UComputeKernel : public UObject
 	GENERATED_BODY()
 
 public:
-	/* 
+	/** 
 	 * The compute kernel source asset.
 	 * A kernel's source may be authored by different mechanisms; e.g. HLSL text, VPL graph, ML Meta Lang, etc
 	 */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, meta = (ShowOnlyInnerProperties), Category = "Kernel")
 	TObjectPtr<UComputeKernelSource> KernelSource = nullptr;
 
+	/** An array of additional independent source assets that the kernel source depends on. */
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, meta = (ShowOnlyInnerProperties), Category = "Kernel")
+	TArray<TObjectPtr<UComputeSource>> AdditionalSources;
+
 	/** Specifying certain memory access flags allows for optimizations such as kernel fusing. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (Bitmask, BitmaskEnum = "/Script/ComputeFramework.EComputeKernelFlags"), Category = "Kernel")
 	int32 KernelFlags = 0;
-
-	/** Permutation overrides on the kernel. */
-	UPROPERTY(EditDefaultsOnly, meta = (ShowOnlyInnerProperties), Category = "Kernel")
-	FComputeKernelPermutationSet PermutationSetOverrides;
-
-	/** Shader compilation environment overrides on the kernel. */
-	UPROPERTY(EditDefaultsOnly, meta = (ShowOnlyInnerProperties), Category = "Kernel")
-	FComputeKernelDefinitionSet DefinitionSetOverrides;
 
 protected:
 #if WITH_EDITOR
 	//~ Begin UObject Interface.
 	void PostLoad() override;
-	void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface.
 #endif
 };

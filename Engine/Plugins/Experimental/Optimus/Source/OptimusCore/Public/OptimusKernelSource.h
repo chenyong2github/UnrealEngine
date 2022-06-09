@@ -21,7 +21,6 @@ public:
 		GroupSize = InGroupSize;
 		Source = InSource;
 		EntryPoint = InEntryPoint;
-		Hash = GetTypeHash(InSource);
 	}
 	
 	FString GetEntryPoint() const override
@@ -39,11 +38,6 @@ public:
 		return Source;
 	}
 	
-	uint64 GetSourceCodeHash() const override
-	{
-		return Hash;
-	}
-
 private:
 	UPROPERTY()
 	FString EntryPoint;
@@ -53,7 +47,4 @@ private:
 	
 	UPROPERTY()
 	FString Source;
-
-	UPROPERTY()
-	uint64 Hash;
 };

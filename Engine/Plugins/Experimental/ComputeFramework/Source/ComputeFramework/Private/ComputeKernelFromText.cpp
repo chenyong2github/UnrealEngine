@@ -198,16 +198,7 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 		ExternalOutputs = MoveTemp(ExternalWriteFunctions);
 	}
 
-	uint64 NewHash = 0;
-	NewHash = HashCombine(GetTypeHash(UniqueId), NewHash);
-	NewHash = HashCombine(GetTypeHash(SourceFile.FilePath), NewHash);
-	NewHash = HashCombine(GetTypeHash(KernelSourceText), NewHash);
-
-	if (SourceHash != NewHash)
-	{
-		SourceHash = NewHash;
-		// todo[CF]: Notify graphs for recompilation
-	}
+	// todo[CF]: Notify graphs for recompilation
 }
 
 #endif

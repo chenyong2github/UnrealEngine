@@ -10,10 +10,11 @@ class FArchive;
 struct FComputeKernelDefinitionSet;
 struct FComputeKernelPermutationVector;
 class FComputeKernelResource;
+class UComputeKernelSource;
 class FComputeGraphRenderProxy;
+class ITargetPlatform;
 class FShaderParametersMetadata;
 struct FShaderParametersMetadataAllocations;
-class ITargetPlatform;
 class UComputeDataInterface;
 class UComputeDataProvider;
 class UComputeKernel;
@@ -146,7 +147,13 @@ private:
 
 #if WITH_EDITOR
 	/** Build the HLSL source for a kernel with its linked data interfaces. */
-	FString BuildKernelSource(int32 KernelIndex, FString& OutHashKey, FComputeKernelDefinitionSet& OutDefinitionSet, FComputeKernelPermutationVector& OutPermutationVector) const;
+	FString BuildKernelSource(
+		int32 KernelIndex, 
+		UComputeKernelSource const& InKernelSource,
+		TMap<FString, FString> const& InAdditionalSources,
+		FString& OutHashKey,
+		FComputeKernelDefinitionSet& OutDefinitionSet, 
+		FComputeKernelPermutationVector& OutPermutationVector) const;
 
 	/** Cache shader resources for all kernels in the graph. */
 	void CacheResourceShadersForRendering(uint32 CompilationFlags);

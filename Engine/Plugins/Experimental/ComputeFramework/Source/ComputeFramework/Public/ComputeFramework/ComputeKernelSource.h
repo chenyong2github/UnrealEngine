@@ -38,6 +38,4 @@ public:
 	virtual FIntVector GetGroupSize() const PURE_VIRTUAL(UComputeKernelSource::GetGroupSize, return {};);
 	/** Get kernel source code. */
 	virtual FString GetSource() const PURE_VIRTUAL(UComputeKernelSource::GetSource, return {};);
-	/** Get a hash of the kernel source code. */
-	virtual uint64 GetSourceCodeHash() const PURE_VIRTUAL(UComputeKernelSource::GetSourceCodeHash, return 0;);
 };

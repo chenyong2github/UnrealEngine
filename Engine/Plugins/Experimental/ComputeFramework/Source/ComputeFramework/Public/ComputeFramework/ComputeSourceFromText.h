@@ -2,63 +2,45 @@
 
 #pragma once
 
-#include "ComputeKernelSource.h"
+#include "ComputeSource.h"
 #include "Engine/EngineTypes.h"
-#include "ComputeKernelFromText.generated.h"
+#include "ComputeSourceFromText.generated.h"
 
 /**
- * Class responsible for loading HLSL text and parsing the options available.
+ * Class responsible for loading HLSL text and parsing any metadata available.
  */
 UCLASS(BlueprintType)
-class COMPUTEFRAMEWORK_API UComputeKernelFromText : public UComputeKernelSource
+class COMPUTEFRAMEWORK_API UComputeSourceFromText : public UComputeSource
 {
 	GENERATED_BODY()
 
 public:
-	UComputeKernelFromText();
+	UComputeSourceFromText();
 
 	/** Filepath to the source file containing the kernel entry points and all options for parsing. */
 	UPROPERTY(EditDefaultsOnly, AssetRegistrySearchable, meta = (ContentDir, RelativeToGameContentDir, FilePathFilter = "Unreal Shader File (*.usf)|*.usf"), Category = "Kernel")
 	FFilePath SourceFile;
-
-	/** Kernel entry point. */
-	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Kernel")
-	FString EntryPointName;
-
-	/** Kernel group size. */
-	UPROPERTY(VisibleAnywhere, Category = "Kernel")
-	FIntVector GroupSize;
 
 	/** A unique id for the asset. */
 	UPROPERTY()
 	FGuid UniqueId;
 
 #if WITH_EDITOR
-	/** Parse the kernel source to get the kernel external functions and other data. */
-	void ReparseKernelSourceText();
+	/** Parse the source to get metadata. */
+	void ReparseSourceText();
 #endif
 
 protected:
-	//~ Begin UComputeKernelSource Interface.
-	FString GetEntryPoint() const override
-	{
-		return EntryPointName;
-	}
-
-	FIntVector GetGroupSize() const override
-	{
-		return GroupSize;
-	}
-
+	//~ Begin UComputeSource Interface.
 	FString GetSource() const override
 	{
 #if WITH_EDITOR
-		return KernelSourceText;
+		return SourceText;
 #else
 		return {};
 #endif
 	}
-	//~ End UComputeKernelSource Interface.
+	//~ End UComputeSource Interface.
 
 #if WITH_EDITOR
 	//~ Begin UObject Interface.
@@ -70,7 +52,7 @@ protected:
 
 private:
 #if WITH_EDITOR
-	FString KernelSourceText;
+	FString SourceText;
 	FFilePath PrevSourceFile;
 #endif
 };
