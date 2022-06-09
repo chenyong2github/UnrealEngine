@@ -4,7 +4,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "UObject/PropertyPortFlags.h"
 
-IMPLEMENT_STRUCT(AssetBundleData);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", AssetBundleData);
 
 
 namespace UE { namespace AssetBundleEntry { namespace Private

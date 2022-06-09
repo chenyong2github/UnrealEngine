@@ -65,7 +65,7 @@
 DEFINE_LOG_CATEGORY(LogScriptSerialization);
 DEFINE_LOG_CATEGORY(LogClass);
 
-IMPLEMENT_STRUCT(TestUninitializedScriptStructMembersTest);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TestUninitializedScriptStructMembersTest);
 
 #if defined(_MSC_VER) && _MSC_VER == 1900
 	#ifdef PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
@@ -2376,9 +2376,9 @@ struct TStructOpsTypeTraits<FTestStruct> : public TStructOpsTypeTraitsBase2<FTes
 /** Used to hold virtual methods to construct, destruct, etc native structs in a generic and dynamic fashion 
  * singleton-style to avoid issues with static constructor order
 **/
-static TMap<FName,UScriptStruct::ICppStructOps*>& GetDeferredCppStructOps()
+static TMap<FTopLevelAssetPath,UScriptStruct::ICppStructOps*>& GetDeferredCppStructOps()
 {
-	static struct TMapWithAutoCleanup : public TMap<FName, UScriptStruct::ICppStructOps*>
+	static struct TMapWithAutoCleanup : public TMap<FTopLevelAssetPath, UScriptStruct::ICppStructOps*>
 	{
 		~TMapWithAutoCleanup()
 		{
@@ -2518,9 +2518,9 @@ UScriptStruct::UScriptStruct(const FObjectInitializer& ObjectInitializer)
 	* @param Target Name of the struct 
 	* @param InCppStructOps Cpp ops for this struct
 **/
-void UScriptStruct::DeferCppStructOps(FName Target, ICppStructOps* InCppStructOps)
+void UScriptStruct::DeferCppStructOps(FTopLevelAssetPath Target, ICppStructOps* InCppStructOps)
 {
-	TMap<FName,UScriptStruct::ICppStructOps*>& DeferredStructOps = GetDeferredCppStructOps();
+	TMap<FTopLevelAssetPath, UScriptStruct::ICppStructOps*>& DeferredStructOps = GetDeferredCppStructOps();
 
 	if (UScriptStruct::ICppStructOps* ExistingOps = DeferredStructOps.FindRef(Target))
 	{
@@ -2537,11 +2537,11 @@ void UScriptStruct::DeferCppStructOps(FName Target, ICppStructOps* InCppStructOp
 		}
 		// in reload, we will just leak these...they may be in use.
 	}
-	DeferredStructOps.Add(Target,InCppStructOps);
+	DeferredStructOps.Add(Target, InCppStructOps);
 }
 
 #if HACK_HEADER_GENERATOR
-UScriptStruct::ICppStructOps* UScriptStruct::FindDeferredCppStructOps(FName StructName)
+UScriptStruct::ICppStructOps* UScriptStruct::FindDeferredCppStructOps(FTopLevelAssetPath StructName)
 {
 	return GetDeferredCppStructOps().FindRef(StructName);
 }
@@ -2555,13 +2555,18 @@ void UScriptStruct::PrepareCppStructOps()
 		return;
 	}
 	if (!CppStructOps)
-	{
-		CppStructOps = GetDeferredCppStructOps().FindRef(GetFName());
+	{	
+		// RobM: the use of GetFlattenedStructPathName() is a bit of a hack to make AnimBPs work as they create nested structs.
+		// Theoretically we could just wrap the line below in if (StructFlags&STRUCT_Native) but the native flag is set after
+		// CppStructOps struct is actually found (see below).
+		// It's also confusing why PrepareCppStructOps is being called from UScriptStruct::Serialize when loading since serialized
+		// structs are not native and they should not implement CppStructOps
+		CppStructOps = GetDeferredCppStructOps().FindRef(GetFlattenedStructPathName());
 		if (!CppStructOps)
 		{
 			if (!GIsUCCMakeStandaloneHeaderGenerator && (StructFlags&STRUCT_Native))
 			{
-				UE_LOG(LogClass, Fatal,TEXT("Couldn't bind to native struct %s. Headers need to be rebuilt, or a noexport class is missing a IMPLEMENT_STRUCT."),*GetName());
+				UE_LOG(LogClass, Fatal, TEXT("Couldn't bind to native struct %s. Headers need to be rebuilt, or a noexport class is missing a IMPLEMENT_STRUCT."),*GetName());
 			}
 			check(!bPrepareCppStructOpsCompleted); // recursion is unacceptable
 			bPrepareCppStructOpsCompleted = true;

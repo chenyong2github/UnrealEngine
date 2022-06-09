@@ -711,7 +711,7 @@ void RegisterCompiledInInfo(const TCHAR* PackageName, const FClassRegisterCompil
 		RegisterCompiledInInfo(Info.OuterRegister, PackageName, Info.Name, *Info.Info, Info.VersionInfo);
 		if (Info.CreateCppStructOps != nullptr)
 		{
-			UScriptStruct::DeferCppStructOps(FName(Info.Name), (UScriptStruct::ICppStructOps*)Info.CreateCppStructOps());
+			UScriptStruct::DeferCppStructOps(FTopLevelAssetPath(FName(PackageName), FName(Info.Name)), (UScriptStruct::ICppStructOps*)Info.CreateCppStructOps());
 		}
 	}
 

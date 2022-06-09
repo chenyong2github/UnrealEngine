@@ -14,9 +14,9 @@
 // The reason behind HACK_HEADER_GENERATOR is that without it UHT is going to 'see' cppstructops for TopLevelAssetPath
 // and will not generate temp FTopLevelAssetPath struct for codegen purposes where it can access all of its members
 // which are public in the temp struct and private in the actual FTopLevelAssetPath.
-// If UHT compiles with IMPLEMENT_STRUCT(TopLevelAssetPath) the generated code will fail to compile trying to access private struct members
+// If UHT compiles with UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TopLevelAssetPath) the generated code will fail to compile trying to access private struct members
 #if !HACK_HEADER_GENERATOR
-IMPLEMENT_STRUCT(TopLevelAssetPath)
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TopLevelAssetPath)
 #endif
 
 FTopLevelAssetPath::FTopLevelAssetPath(const UObject* InObject)

@@ -1356,13 +1356,16 @@ public:
 	template<class CPPSTRUCT>
 	struct TAutoCppStructOps
 	{
-		TAutoCppStructOps(FName InName)
+		TAutoCppStructOps(FTopLevelAssetPath InName)
 		{
 			DeferCppStructOps(InName,new TCppStructOps<CPPSTRUCT>);
 		}
 	};
 	#define IMPLEMENT_STRUCT(BaseName) \
-		static UScriptStruct::TAutoCppStructOps<F##BaseName> BaseName##_Ops(TEXT(#BaseName)); 
+		DEPRECATED_MACRO(5.1, "IMPLEMENT_STRUCT has been deprecated. Use UE_IMPLEMENT_STRUCT and provide struct package name as well as struct name") static UScriptStruct::TAutoCppStructOps<F##BaseName> BaseName##_Ops(FTopLevelAssetPath(TEXT("/Script/CoreUObject"), TEXT(#BaseName))); 
+
+	#define UE_IMPLEMENT_STRUCT(PackageNameText, BaseName) \
+		static UScriptStruct::TAutoCppStructOps<F##BaseName> BaseName##_Ops(FTopLevelAssetPath(TEXT(PackageNameText), TEXT(#BaseName))); 
 
 	DECLARE_CASTED_CLASS_INTRINSIC_NO_CTOR(UScriptStruct, UStruct, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"), CASTCLASS_UScriptStruct, COREUOBJECT_API)
 
@@ -1380,7 +1383,7 @@ public:
 	// Required by UHT makefiles for internal data serialization.
 	friend struct FScriptStructArchiveProxy;
 
-	static COREUOBJECT_API ICppStructOps* FindDeferredCppStructOps(FName StructName);
+	static COREUOBJECT_API ICppStructOps* FindDeferredCppStructOps(FTopLevelAssetPath StructName);
 #endif
 
 protected:
@@ -1388,6 +1391,17 @@ protected:
 	bool bPrepareCppStructOpsCompleted;
 	/** Holds the Cpp ctors and dtors, sizeof, etc. Is not owned by this and is not released. **/
 	ICppStructOps* CppStructOps;
+
+	/** 
+	* Similar to GetStructPathName() but works with nested structs by using just the package name and struct name
+	* so a struct path name /Package/Name.Object:Struct will be flattened to /Package/Name.Struct.
+	* This function is used only for generating keys for DeferredCppStructOps
+	*/
+	FTopLevelAssetPath GetFlattenedStructPathName() const
+	{
+		return FTopLevelAssetPath(GetOutermost()->GetFName(), GetFName());
+	}
+
 public:
 
 	// UObject Interface
@@ -1409,15 +1423,15 @@ public:
 	 * @param Target Name of the struct 
 	 * @param InCppStructOps Cpp ops for this struct
 	 */
-	static COREUOBJECT_API void DeferCppStructOps(FName Target, ICppStructOps* InCppStructOps);
+	static COREUOBJECT_API void DeferCppStructOps(FTopLevelAssetPath Target, ICppStructOps* InCppStructOps);
 
 	template<class CPPSTRUCT>
-	static typename TEnableIf<!DISABLE_ABSTRACT_CONSTRUCT>::Type DeferCppStructOps(FName Target)
+	static typename TEnableIf<!DISABLE_ABSTRACT_CONSTRUCT>::Type DeferCppStructOps(FTopLevelAssetPath Target)
 	{
 		DeferCppStructOps(Target, new UScriptStruct::TCppStructOps<CPPSTRUCT>);
 	}
 	template<class CPPSTRUCT>
-	static typename TEnableIf<DISABLE_ABSTRACT_CONSTRUCT>::Type DeferCppStructOps(FName Target)
+	static typename TEnableIf<DISABLE_ABSTRACT_CONSTRUCT>::Type DeferCppStructOps(FTopLevelAssetPath Target)
 	{
 		DeferCppStructOps(Target, nullptr);
 	}

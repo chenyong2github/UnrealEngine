@@ -248,12 +248,12 @@ int32 FMaterialCompiler::VectorParameter(FName ParameterName, const FLinearColor
 	return NumericParameter(EMaterialParameterType::Vector, ParameterName, DefaultValue);
 }
 
-IMPLEMENT_STRUCT(ExpressionInput);
-IMPLEMENT_STRUCT(ColorMaterialInput);
-IMPLEMENT_STRUCT(ScalarMaterialInput);
-IMPLEMENT_STRUCT(VectorMaterialInput);
-IMPLEMENT_STRUCT(Vector2MaterialInput);
-IMPLEMENT_STRUCT(MaterialAttributesInput);
+UE_IMPLEMENT_STRUCT("/Script/Engine", ExpressionInput);
+UE_IMPLEMENT_STRUCT("/Script/Engine", ColorMaterialInput);
+UE_IMPLEMENT_STRUCT("/Script/Engine", ScalarMaterialInput);
+UE_IMPLEMENT_STRUCT("/Script/Engine", VectorMaterialInput);
+UE_IMPLEMENT_STRUCT("/Script/Engine", Vector2MaterialInput);
+UE_IMPLEMENT_STRUCT("/Script/Engine", MaterialAttributesInput);
 
 #if WITH_EDITOR
 int32 FExpressionInput::Compile(class FMaterialCompiler* Compiler)

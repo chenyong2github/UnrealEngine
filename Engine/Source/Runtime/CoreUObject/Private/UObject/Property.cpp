@@ -43,9 +43,9 @@ struct TVector3StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 };
 template<> struct TStructOpsTypeTraits<FVector3f> : public TVector3StructOpsTypeTraits<FVector3f> {};
 template<> struct TStructOpsTypeTraits<FVector3d> : public TVector3StructOpsTypeTraits<FVector3d> {};
-IMPLEMENT_STRUCT(Vector3f);
-IMPLEMENT_STRUCT(Vector3d);
-IMPLEMENT_STRUCT(Vector);	// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector3f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector3d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector);	// Aliased
 
 template<>
 struct TStructOpsTypeTraits<FIntPoint> : public TStructOpsTypeTraitsBase2<FIntPoint>
@@ -58,7 +58,7 @@ struct TStructOpsTypeTraits<FIntPoint> : public TStructOpsTypeTraitsBase2<FIntPo
 		WithSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(IntPoint);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntPoint);
 
 template<>
 struct TStructOpsTypeTraits<FIntVector> : public TStructOpsTypeTraitsBase2<FIntVector>
@@ -71,7 +71,7 @@ struct TStructOpsTypeTraits<FIntVector> : public TStructOpsTypeTraitsBase2<FIntV
 		WithSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(IntVector);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", IntVector);
 
 template<>
 struct TStructOpsTypeTraits<FIntVector4> : public TStructOpsTypeTraitsBase2<FIntVector4>
@@ -102,9 +102,9 @@ struct TVector2StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 };
 template<> struct TStructOpsTypeTraits<FVector2f> : public TVector2StructOpsTypeTraits<FVector2f> {};
 template<> struct TStructOpsTypeTraits<FVector2d> : public TVector2StructOpsTypeTraits<FVector2d> {};
-IMPLEMENT_STRUCT(Vector2f);
-IMPLEMENT_STRUCT(Vector2d);
-IMPLEMENT_STRUCT(Vector2D);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector2f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector2d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector2D);
 
 template<typename T>
 struct TVector4StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
@@ -120,9 +120,9 @@ struct TVector4StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 };
 template<> struct TStructOpsTypeTraits<FVector4f> : public TVector4StructOpsTypeTraits<FVector4f> {};
 template<> struct TStructOpsTypeTraits<FVector4d> : public TVector4StructOpsTypeTraits<FVector4d> {};
-IMPLEMENT_STRUCT(Vector4f);
-IMPLEMENT_STRUCT(Vector4d);
-IMPLEMENT_STRUCT(Vector4);	// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector4f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector4d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Vector4);	// Aliased
 
 template<typename T>
 struct TPlaneStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
@@ -140,9 +140,9 @@ struct TPlaneStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 };
 template<> struct TStructOpsTypeTraits<FPlane4f> : public TPlaneStructOpsTypeTraits<FPlane4f> {};
 template<> struct TStructOpsTypeTraits<FPlane4d> : public TPlaneStructOpsTypeTraits<FPlane4d> {};
-IMPLEMENT_STRUCT(Plane4f);
-IMPLEMENT_STRUCT(Plane4d);
-IMPLEMENT_STRUCT(Plane);	// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Plane4f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Plane4d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Plane);	// Aliased
 
 template<typename T>
 struct TRotatorStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
@@ -161,9 +161,9 @@ struct TRotatorStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 
 template<> struct TStructOpsTypeTraits<FRotator3f> : public TRotatorStructOpsTypeTraits<FRotator3f> {};
 template<> struct TStructOpsTypeTraits<FRotator3d> : public TRotatorStructOpsTypeTraits<FRotator3d> {};
-IMPLEMENT_STRUCT(Rotator3f);
-IMPLEMENT_STRUCT(Rotator3d);
-IMPLEMENT_STRUCT(Rotator);	// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Rotator3f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Rotator3d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Rotator);	// Aliased
 
 template<typename T>
 struct TBox3StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
@@ -179,9 +179,9 @@ struct TBox3StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 };
 template<> struct TStructOpsTypeTraits<FBox3f> : public TBox3StructOpsTypeTraits<FBox3f> {};
 template<> struct TStructOpsTypeTraits<FBox3d> : public TBox3StructOpsTypeTraits<FBox3d> {};
-IMPLEMENT_STRUCT(Box3f);
-IMPLEMENT_STRUCT(Box3d);
-IMPLEMENT_STRUCT(Box);		// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Box3f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Box3d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Box);		// Aliased
 
 template<typename T>
 struct TBox2StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
@@ -196,9 +196,9 @@ struct TBox2StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 };
 template<> struct TStructOpsTypeTraits<FBox2f> : public TBox2StructOpsTypeTraits<FBox2f> {};
 template<> struct TStructOpsTypeTraits<FBox2d> : public TBox2StructOpsTypeTraits<FBox2d> {};
-IMPLEMENT_STRUCT(Box2f);
-IMPLEMENT_STRUCT(Box2d);
-IMPLEMENT_STRUCT(Box2D);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Box2f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Box2d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Box2D);
 
 template<typename T>
 struct TMatrixStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
@@ -215,9 +215,9 @@ struct TMatrixStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 
 template<> struct TStructOpsTypeTraits<FMatrix44f> : public TMatrixStructOpsTypeTraits<FMatrix44f> {};
 template<> struct TStructOpsTypeTraits<FMatrix44d> : public TMatrixStructOpsTypeTraits<FMatrix44d> {};
-IMPLEMENT_STRUCT(Matrix44f);
-IMPLEMENT_STRUCT(Matrix44d);
-IMPLEMENT_STRUCT(Matrix);	// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Matrix44f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Matrix44d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Matrix);	// Aliased
 
 template<typename T>
 struct TBoxSphereBoundsStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
@@ -232,15 +232,15 @@ struct TBoxSphereBoundsStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 };
 template<> struct TStructOpsTypeTraits<FBoxSphereBounds3f> : public TBoxSphereBoundsStructOpsTypeTraits<FBoxSphereBounds3f> {};
 template<> struct TStructOpsTypeTraits<FBoxSphereBounds3d> : public TBoxSphereBoundsStructOpsTypeTraits<FBoxSphereBounds3d> {};
-IMPLEMENT_STRUCT(BoxSphereBounds3f);
-IMPLEMENT_STRUCT(BoxSphereBounds3d);
-IMPLEMENT_STRUCT(BoxSphereBounds);	// Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", BoxSphereBounds3f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", BoxSphereBounds3d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", BoxSphereBounds);	// Aliased
 
 template<>
 struct TStructOpsTypeTraits<FOrientedBox> : public TStructOpsTypeTraitsBase2<FOrientedBox>
 {
 };
-IMPLEMENT_STRUCT(OrientedBox);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", OrientedBox);
 
 template<>
 struct TStructOpsTypeTraits<FLinearColor> : public TStructOpsTypeTraitsBase2<FLinearColor>
@@ -253,7 +253,7 @@ struct TStructOpsTypeTraits<FLinearColor> : public TStructOpsTypeTraitsBase2<FLi
 		WithStructuredSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(LinearColor);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", LinearColor);
 
 template<>
 struct TStructOpsTypeTraits<FColor> : public TStructOpsTypeTraitsBase2<FColor>
@@ -266,7 +266,7 @@ struct TStructOpsTypeTraits<FColor> : public TStructOpsTypeTraitsBase2<FColor>
 		WithSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(Color);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Color);
 
 
 template<typename T>
@@ -285,9 +285,9 @@ struct TQuatStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 };
 template<> struct TStructOpsTypeTraits<FQuat4f> : public TQuatStructOpsTypeTraits<FQuat4f> {};
 template<> struct TStructOpsTypeTraits<FQuat4d> : public TQuatStructOpsTypeTraits<FQuat4d> {};
-IMPLEMENT_STRUCT(Quat4f);
-IMPLEMENT_STRUCT(Quat4d);
-IMPLEMENT_STRUCT(Quat);		// Aliased to one of FQuat4f/FQuat4d
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Quat4f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Quat4d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Quat);		// Aliased to one of FQuat4f/FQuat4d
 
 template<>
 struct TStructOpsTypeTraits<FTwoVectors> : public TStructOpsTypeTraitsBase2<FTwoVectors>
@@ -300,7 +300,7 @@ struct TStructOpsTypeTraits<FTwoVectors> : public TStructOpsTypeTraitsBase2<FTwo
 		WithNoDestructor = true,
 	};
 };
-IMPLEMENT_STRUCT(TwoVectors);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TwoVectors);
 
 template<>
 struct TStructOpsTypeTraits<FInterpCurvePointFloat> : public TStructOpsTypeTraitsBase2<FInterpCurvePointFloat>
@@ -310,7 +310,7 @@ struct TStructOpsTypeTraits<FInterpCurvePointFloat> : public TStructOpsTypeTrait
 		WithNoInitConstructor = true,
 	};
 };
-IMPLEMENT_STRUCT(InterpCurvePointFloat);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", InterpCurvePointFloat);
 
 template<>
 struct TStructOpsTypeTraits<FInterpCurvePointVector2D> : public TStructOpsTypeTraitsBase2<FInterpCurvePointVector2D>
@@ -320,7 +320,7 @@ struct TStructOpsTypeTraits<FInterpCurvePointVector2D> : public TStructOpsTypeTr
 		WithNoInitConstructor = true,
 	};
 };
-IMPLEMENT_STRUCT(InterpCurvePointVector2D);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", InterpCurvePointVector2D);
 
 template<>
 struct TStructOpsTypeTraits<FInterpCurvePointVector> : public TStructOpsTypeTraitsBase2<FInterpCurvePointVector>
@@ -330,7 +330,7 @@ struct TStructOpsTypeTraits<FInterpCurvePointVector> : public TStructOpsTypeTrai
 		WithNoInitConstructor = true,
 	};
 };
-IMPLEMENT_STRUCT(InterpCurvePointVector);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", InterpCurvePointVector);
 
 template<>
 struct TStructOpsTypeTraits<FInterpCurvePointQuat> : public TStructOpsTypeTraitsBase2<FInterpCurvePointQuat>
@@ -340,7 +340,7 @@ struct TStructOpsTypeTraits<FInterpCurvePointQuat> : public TStructOpsTypeTraits
 		WithNoInitConstructor = true,
 	};
 };
-IMPLEMENT_STRUCT(InterpCurvePointQuat);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", InterpCurvePointQuat);
 
 template<>
 struct TStructOpsTypeTraits<FInterpCurvePointTwoVectors> : public TStructOpsTypeTraitsBase2<FInterpCurvePointTwoVectors>
@@ -350,7 +350,7 @@ struct TStructOpsTypeTraits<FInterpCurvePointTwoVectors> : public TStructOpsType
 		WithNoInitConstructor = true,
 	};
 };
-IMPLEMENT_STRUCT(InterpCurvePointTwoVectors);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", InterpCurvePointTwoVectors);
 
 template<>
 struct TStructOpsTypeTraits<FInterpCurvePointLinearColor> : public TStructOpsTypeTraitsBase2<FInterpCurvePointLinearColor>
@@ -360,7 +360,7 @@ struct TStructOpsTypeTraits<FInterpCurvePointLinearColor> : public TStructOpsTyp
 		WithNoInitConstructor = true,
 	};
 };
-IMPLEMENT_STRUCT(InterpCurvePointLinearColor);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", InterpCurvePointLinearColor);
 
 template<>
 struct TStructOpsTypeTraits<FGuid> : public TStructOpsTypeTraitsBase2<FGuid>
@@ -375,7 +375,7 @@ struct TStructOpsTypeTraits<FGuid> : public TStructOpsTypeTraitsBase2<FGuid>
 		WithStructuredSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(Guid);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Guid);
 
 template<typename T>
 struct TTransformStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
@@ -389,9 +389,9 @@ struct TTransformStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 };
 template<> struct TStructOpsTypeTraits<FTransform3f> : public TTransformStructOpsTypeTraits<FTransform3f> {};
 template<> struct TStructOpsTypeTraits<FTransform3d> : public TTransformStructOpsTypeTraits<FTransform3d> {};
-IMPLEMENT_STRUCT(Transform3f);
-IMPLEMENT_STRUCT(Transform3d);
-IMPLEMENT_STRUCT(Transform); // Aliased
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Transform3f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Transform3d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Transform); // Aliased
 
 template<>
 struct TStructOpsTypeTraits<FRandomStream> : public TStructOpsTypeTraitsBase2<FRandomStream>
@@ -403,7 +403,7 @@ struct TStructOpsTypeTraits<FRandomStream> : public TStructOpsTypeTraitsBase2<FR
 		WithZeroConstructor = true,
 	};
 };
-IMPLEMENT_STRUCT(RandomStream);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", RandomStream);
 
 template<>
 struct TStructOpsTypeTraits<FDateTime> : public TStructOpsTypeTraitsBase2<FDateTime>
@@ -419,7 +419,7 @@ struct TStructOpsTypeTraits<FDateTime> : public TStructOpsTypeTraitsBase2<FDateT
 		WithIdenticalViaEquality = true,
 	};
 };
-IMPLEMENT_STRUCT(DateTime);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", DateTime);
 
 template<>
 struct TStructOpsTypeTraits<FTimespan> : public TStructOpsTypeTraitsBase2<FTimespan>
@@ -436,7 +436,7 @@ struct TStructOpsTypeTraits<FTimespan> : public TStructOpsTypeTraitsBase2<FTimes
 		WithIdenticalViaEquality = true,
 	};
 };
-IMPLEMENT_STRUCT(Timespan);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Timespan);
 
 template<>
 struct TStructOpsTypeTraits<FFrameNumber> : public TStructOpsTypeTraitsBase2<FFrameNumber>
@@ -447,7 +447,7 @@ struct TStructOpsTypeTraits<FFrameNumber> : public TStructOpsTypeTraitsBase2<FFr
 		WithIdenticalViaEquality = true
 	};
 };
-IMPLEMENT_STRUCT(FrameNumber);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", FrameNumber);
 
 template<>
 struct TStructOpsTypeTraits<FSoftObjectPath> : public TStructOpsTypeTraitsBase2<FSoftObjectPath>
@@ -463,7 +463,7 @@ struct TStructOpsTypeTraits<FSoftObjectPath> : public TStructOpsTypeTraitsBase2<
 		WithStructuredSerializeFromMismatchedTag = true,
 	};
 };
-IMPLEMENT_STRUCT(SoftObjectPath);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", SoftObjectPath);
 
 template<>
 struct TStructOpsTypeTraits<FSoftClassPath> : public TStructOpsTypeTraitsBase2<FSoftClassPath>
@@ -479,7 +479,7 @@ struct TStructOpsTypeTraits<FSoftClassPath> : public TStructOpsTypeTraitsBase2<F
 		WithStructuredSerializeFromMismatchedTag = true,
 	};
 };
-IMPLEMENT_STRUCT(SoftClassPath);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", SoftClassPath);
 
 template<>
 struct TStructOpsTypeTraits<FPrimaryAssetType> : public TStructOpsTypeTraitsBase2<FPrimaryAssetType>
@@ -494,7 +494,7 @@ struct TStructOpsTypeTraits<FPrimaryAssetType> : public TStructOpsTypeTraitsBase
 		WithStructuredSerializeFromMismatchedTag = true,
 	};
 };
-IMPLEMENT_STRUCT(PrimaryAssetType);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", PrimaryAssetType);
 
 template<>
 struct TStructOpsTypeTraits<FPrimaryAssetId> : public TStructOpsTypeTraitsBase2<FPrimaryAssetId>
@@ -509,13 +509,13 @@ struct TStructOpsTypeTraits<FPrimaryAssetId> : public TStructOpsTypeTraitsBase2<
 		WithStructuredSerializeFromMismatchedTag = true,
 	};
 };
-IMPLEMENT_STRUCT(PrimaryAssetId);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", PrimaryAssetId);
 
 template<>
 struct TStructOpsTypeTraits<FFallbackStruct> : public TStructOpsTypeTraitsBase2<FFallbackStruct>
 {
 };
-IMPLEMENT_STRUCT(FallbackStruct);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", FallbackStruct);
 
 /*-----------------------------------------------------------------------------
 	Helpers.

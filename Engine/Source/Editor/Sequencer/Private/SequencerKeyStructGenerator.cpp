@@ -100,7 +100,7 @@ void FSequencerKeyStructGenerator::FinalizeNewKeyStruct(UMovieSceneKeyStructType
 	InStruct->Bind();
 	InStruct->StaticLink(true);
 
-	UMovieSceneKeyStructType::DeferCppStructOps(InStruct->GetFName(), new UScriptStruct::TCppStructOps<FGeneratedMovieSceneKeyStruct>);
+	UMovieSceneKeyStructType::DeferCppStructOps(InStruct->GetStructPathName(), new UScriptStruct::TCppStructOps<FGeneratedMovieSceneKeyStruct>);
 
 	check(InStruct->IsComplete());
 }

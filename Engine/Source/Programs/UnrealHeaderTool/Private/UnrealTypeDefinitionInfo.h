@@ -462,6 +462,11 @@ public:
 	virtual void GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const = 0;
 
 	/**
+	 * Returns the fully qualified pathname for this object as an FTopLevelAssetPath
+	 */
+	virtual FTopLevelAssetPath GetStructPathName() const = 0;
+
+	/**
 	 * Walks up the chain of packages until it reaches the top level, which it ignores.
 	 *
 	 * @param	bStartWithOuter		whether to include this object's name in the returned string
@@ -715,6 +720,15 @@ public:
 	 */
 	virtual FString GetPathName(FUnrealObjectDefinitionInfo* StopOuter = nullptr) const override;
 	virtual void GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const override;
+
+	/**
+	 * Returns the fully qualified pathname for this object as an FTopLevelAssetPath
+	 */
+	virtual FTopLevelAssetPath GetStructPathName() const override
+	{
+		checkf(false, TEXT("Proeprties do not support GetStructPathName()"));
+		return FTopLevelAssetPath();
+	}
 
 	/**
 	 * Walks up the chain of packages until it reaches the top level, which it ignores.
@@ -1348,6 +1362,11 @@ public:
 	 */
 	virtual FString GetPathName(FUnrealObjectDefinitionInfo* StopOuter = nullptr) const override;
 	virtual void GetPathName(FUnrealObjectDefinitionInfo* StopOuter, FStringBuilderBase& ResultString) const override;
+
+	/**
+	 * Returns the fully qualified pathname for this object as an FTopLevelAssetPath
+	 */
+	virtual FTopLevelAssetPath GetStructPathName() const override;
 
 	/**
 	 * Walks up the chain of packages until it reaches the top level, which it ignores.
@@ -2480,7 +2499,7 @@ public:
 	 */
 	bool HasDefaults() const
 	{
-		return UScriptStruct::FindDeferredCppStructOps(GetFName()) != nullptr;
+		return UScriptStruct::FindDeferredCppStructOps(GetStructPathName()) != nullptr;
 	}
 
 

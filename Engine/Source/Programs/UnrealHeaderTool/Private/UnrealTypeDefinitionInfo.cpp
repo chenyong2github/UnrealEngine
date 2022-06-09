@@ -1166,6 +1166,11 @@ void FUnrealObjectDefinitionInfo::GetPathName(FUnrealObjectDefinitionInfo* StopO
 		ResultString << TEXT("None");
 	}
 }
+FTopLevelAssetPath FUnrealObjectDefinitionInfo::GetStructPathName() const
+{
+	checkf(GetOuter() && !GetOuter()->GetOuter(), TEXT("GetStructPathName can only be used with top level objects (current: \"%s\")"), *GetPathName());
+	return FTopLevelAssetPath(GetOuter()->GetFName(), GetFName());
+}
 
 FString FUnrealObjectDefinitionInfo::GetFullGroupName(bool bStartWithOuter) const
 {
@@ -1991,7 +1996,7 @@ void FUnrealScriptStructDefinitionInfo::SetHasInstancedReference()
 
 bool FUnrealScriptStructDefinitionInfo::HasNoOpConstructor() const
 {
-	UScriptStruct::ICppStructOps* CppStructOps = UScriptStruct::FindDeferredCppStructOps(GetFName());
+	UScriptStruct::ICppStructOps* CppStructOps = UScriptStruct::FindDeferredCppStructOps(GetStructPathName());
 	return CppStructOps ? CppStructOps->HasNoopConstructor() : false;
 }
 

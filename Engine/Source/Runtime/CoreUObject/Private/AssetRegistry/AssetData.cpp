@@ -14,8 +14,8 @@
 
 DEFINE_LOG_CATEGORY(LogAssetData);
 
-IMPLEMENT_STRUCT(ARFilter);
-IMPLEMENT_STRUCT(AssetData);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", ARFilter);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", AssetData);
 
 // Register Asset Registry version
 const FGuid FAssetRegistryVersion::GUID(0x717F9EE7, 0xE9B0493A, 0x88B39132, 0x1B388107);

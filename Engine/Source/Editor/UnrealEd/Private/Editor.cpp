@@ -167,7 +167,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Globals.
 -----------------------------------------------------------------------------*/
 
-IMPLEMENT_STRUCT(SlatePlayInEditorInfo);
+UE_IMPLEMENT_STRUCT("/Script/UnrealEd", SlatePlayInEditorInfo);
 
 //////////////////////////////////////////////////////////////////////////
 // FReimportManager

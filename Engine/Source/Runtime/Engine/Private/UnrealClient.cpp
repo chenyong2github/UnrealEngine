@@ -33,7 +33,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogClient, Log, All);
 
-IMPLEMENT_STRUCT(PostProcessSettings);
+UE_IMPLEMENT_STRUCT("/Script/Engine", PostProcessSettings);
 
 bool FViewport::bIsGameRenderingEnabled = true;
 int32 FViewport::PresentAndStopMovieDelay = 0;
