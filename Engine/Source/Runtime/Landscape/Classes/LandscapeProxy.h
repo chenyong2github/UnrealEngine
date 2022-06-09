@@ -892,6 +892,8 @@ public:
 	/* Invalidate the precomputed grass and baked texture data on all components */
 	LANDSCAPE_API void InvalidateGeneratedComponentData(bool bInvalidateLightingCache = false);
 
+	LANDSCAPE_API void UpdateRenderingMethod();
+
 #if WITH_EDITOR
 	/** Update Grass maps */
 	void UpdateGrassData(bool bInShouldMarkDirty = false, struct FScopedSlowTask* InSlowTask = nullptr);
@@ -1095,8 +1097,15 @@ public:
 	/** Generate mobile platform data if it's missing or outdated */
 	LANDSCAPE_API void CheckGenerateMobilePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 
-	/** Generate Nanite platform data if it's missing or outdated */
-	LANDSCAPE_API void CheckGenerateNanitePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
+	/** Update Nanite representation if it's missing or outdated */
+	LANDSCAPE_API void UpdateNaniteRepresentation();
+
+	/** 
+	* Invalidate and disable Nanite representation until a subsequent rebuild occurs
+	*
+	* @param bCheckContentId - If true, only invalidate when the content Id of the proxy mismatches with the Nanite representation
+	*/
+	LANDSCAPE_API void InvalidateNaniteRepresentation(bool bCheckContentId = true);
 	
 	/** @return Current size of bounding rectangle in quads space */
 	LANDSCAPE_API FIntRect GetBoundingRect() const;
@@ -1212,9 +1221,6 @@ private:
 #if WITH_EDITOR
 	void UpdateGrassDataStatus(TSet<UTexture2D*>* OutCurrentForcedStreamedTextures, TSet<UTexture2D*>* OutDesiredForcedStreamedTextures, TSet<ULandscapeComponent*>* OutComponentsNeedingGrassMapRender, TSet<ULandscapeComponent*>* OutOutdatedComponents, bool bInEnableForceResidentFlag, int32* OutOutdatedGrassMaps = nullptr) const;
 #endif
-
-protected:
-	void UpdateRenderingMethod();
 
 #if WITH_EDITORONLY_DATA
 public:

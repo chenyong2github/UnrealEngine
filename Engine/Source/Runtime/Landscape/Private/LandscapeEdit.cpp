@@ -104,6 +104,8 @@ LANDSCAPE_API bool GDisableUpdateLandscapeMaterialInstances = false;
 // Channel remapping
 extern const size_t ChannelOffsets[4];
 
+extern int32 LiveRebuildNaniteOnModification;
+
 ULandscapeLayerInfoObject* ALandscapeProxy::VisibilityLayer = nullptr;
 
 void ULandscapeComponent::Init(int32 InBaseX, int32 InBaseY, int32 InComponentSizeQuads, int32 InNumSubsections, int32 InSubsectionSizeQuads)
@@ -5100,7 +5102,15 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 	if (GIsEditor && PropertyName == FName(TEXT("bEnableNanite")))
 	{
-		CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+		if (LiveRebuildNaniteOnModification != 0)
+		{
+			UpdateNaniteRepresentation();
+		}
+		else
+		{
+			InvalidateNaniteRepresentation();
+		}
+
 		UpdateRenderingMethod();
 		MarkComponentsRenderStateDirty();
 	}
@@ -5215,11 +5225,16 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 					}
 				}
 
-				if (UseNaniteLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+				if (LiveRebuildNaniteOnModification != 0)
 				{
-					CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
-					UpdateRenderingMethod();
+					UpdateNaniteRepresentation();
 				}
+				else
+				{
+					InvalidateNaniteRepresentation();
+				}
+
+				UpdateRenderingMethod();
 			}
 		}
 	}
@@ -5588,7 +5603,15 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 		// Generate Nanite data for a landscape with components on it, and recreate render state
 		// Streaming proxies won't be built here, but the bPropagateToProxies path will.
-		CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+		if (LiveRebuildNaniteOnModification != 0)
+		{
+			UpdateNaniteRepresentation();
+		}
+		else
+		{
+			InvalidateNaniteRepresentation();
+		}
+
 		UpdateRenderingMethod();
 		MarkComponentsRenderStateDirty();
 	}
@@ -5660,11 +5683,16 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 						}
 					}
 
-					if (UseNaniteLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+					if (LiveRebuildNaniteOnModification != 0)
 					{
-						CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
-						UpdateRenderingMethod();
+						UpdateNaniteRepresentation();
 					}
+					else
+					{
+						InvalidateNaniteRepresentation();
+					}
+
+					UpdateRenderingMethod();
 				}
 			}
 		}

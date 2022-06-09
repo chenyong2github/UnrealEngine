@@ -14,6 +14,8 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Misc/MessageDialog.h"
 #include "Editor.h"
+#include "LandscapeInfo.h"
+#include "LandscapeStreamingProxy.h"
 
 #define LOCTEXT_NAMESPACE "FLandscapeUIDetails"
 
@@ -48,16 +50,16 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 			TSharedRef<IPropertyHandle> ComponentScreenSizeToUseSubSectionsProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscapeProxy, ComponentScreenSizeToUseSubSections));
 			DetailBuilder.HideProperty(ComponentScreenSizeToUseSubSectionsProp);
 		}
-							   
-		TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bCanHaveLayersContent));
-		DetailBuilder.HideProperty(PropertyHandle);
+
+		TSharedRef<IPropertyHandle> CanHaveLayersPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bCanHaveLayersContent));
+		DetailBuilder.HideProperty(CanHaveLayersPropertyHandle);
 		const FText DisplayAndFilterText(LOCTEXT("LandscapeToggleLayerName", "Enable Edit Layers"));
 		const FText ToolTipText(LOCTEXT("LandscapeToggleLayerToolTip", "Toggle whether or not to support edit layers on this Landscape. Toggling this will clear the undo stack."));
-		DetailBuilder.AddCustomRowToCategory(PropertyHandle, DisplayAndFilterText)
+		DetailBuilder.AddCustomRowToCategory(CanHaveLayersPropertyHandle, DisplayAndFilterText)
 		.RowTag(TEXT("EnableEditLayers"))
 		.NameContent()
 		[
-			PropertyHandle->CreatePropertyNameWidget(DisplayAndFilterText, ToolTipText)
+			CanHaveLayersPropertyHandle->CreatePropertyNameWidget(DisplayAndFilterText, ToolTipText)
 		]
 		.ValueContent()
 		[
@@ -77,6 +79,35 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 				}
 			})
 		];
+
+		TSharedRef<IPropertyHandle> EnableNanitePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bEnableNanite));
+		DetailBuilder.AddCustomRowToCategory(EnableNanitePropertyHandle, LOCTEXT("RebuildNaniteData", "Rebuild Data"))
+			.ValueContent()
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("RebuildNaniteData", "Rebuild Data"))
+				.HAlign(HAlign_Center)
+				.ToolTipText(LOCTEXT("RebuildNaniteDataTooltip", "Rebuilds the Nanite mesh representation from the Landscape data"))
+				.OnClicked_Lambda([Landscape]()
+				{
+					if (Landscape.IsValid())
+					{
+						Landscape->UpdateNaniteRepresentation();
+						Landscape->UpdateRenderingMethod();
+
+						ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+						if (LandscapeInfo != nullptr)
+						{
+							for (ALandscapeProxy* Proxy : LandscapeInfo->Proxies)
+							{
+								Proxy->UpdateNaniteRepresentation();
+								Proxy->UpdateRenderingMethod();
+							}
+						}
+					}
+					return FReply::Handled();
+				})
+			];
 	}
 }
 

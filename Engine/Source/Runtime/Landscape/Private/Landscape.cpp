@@ -172,6 +172,16 @@ static FAutoConsoleVariableRef CVarRenderCaptureNextHeightmapRenders(
 	RenderCaptureNextHeightmapRenders,
 	TEXT("Trigger a render capture during the next N RenderHeightmap draws"));
 
+#if WITH_EDITOR
+
+int32 LiveRebuildNaniteOnModification = 0;
+static FAutoConsoleVariableRef CVarLiveRebuildNaniteOnModification(
+	TEXT("landscape.LiveRebuildNaniteOnModification"),
+	LiveRebuildNaniteOnModification,
+	TEXT("Trigger a rebuild of Nanite representation immediately when a modification is performed"));
+
+#endif
+
 
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -294,11 +304,11 @@ void ALandscapeProxy::CheckGenerateMobilePlatformData(bool bIsCooking, const ITa
 	}
 }
 
-void ALandscapeProxy::CheckGenerateNanitePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
+void ALandscapeProxy::UpdateNaniteRepresentation()
 {
-	if (IsNaniteEnabled())
+	if (IsNaniteEnabled() && LandscapeComponents.Num() > 0)
 	{
-		FGuid NaniteContentId = GetNaniteContentId();
+		const FGuid NaniteContentId = GetNaniteContentId();
 		if (NaniteComponent == nullptr)
 		{
 			NaniteComponent = NewObject<ULandscapeNaniteComponent>(this);
@@ -321,11 +331,22 @@ void ALandscapeProxy::CheckGenerateNanitePlatformData(bool bIsCooking, const ITa
 
 		NaniteComponent->UpdatedSharedPropertiesFromActor();
 	}
-	else if (NaniteComponent != nullptr)
+	else
 	{
-		NaniteComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-		NaniteComponent->DestroyComponent();
-		NaniteComponent = nullptr;
+		InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
+	}
+}
+
+void ALandscapeProxy::InvalidateNaniteRepresentation(bool bCheckContentId)
+{
+	if (NaniteComponent != nullptr)
+	{
+		if (!bCheckContentId || NaniteComponent->GetProxyContentId() != GetNaniteContentId())
+		{
+			NaniteComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+			NaniteComponent->DestroyComponent();
+			NaniteComponent = nullptr;
+		}
 	}
 }
 
@@ -2866,11 +2887,11 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 #endif
 
 #if WITH_EDITOR
-	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
+	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		//if (UseNaniteLandscapeMesh(Ar.CookingTarget())) // TODO: WIP
+		if (Ar.IsCooking() || (Ar.IsSaving() && !Ar.IsTransacting()))
 		{
-			CheckGenerateNanitePlatformData(Ar.IsCooking(), Ar.CookingTarget());
+			UpdateNaniteRepresentation();
 		}
 	}
 #endif
@@ -3285,11 +3306,7 @@ void ALandscapeProxy::PostLoad()
 
 	if (World && !HasAnyFlags(RF_ClassDefaultObject) && !FPlatformProperties::RequiresCookedData())
 	{
-		// If we're loading on a platform that doesn't require cooked data, but defaults to a Nanite feature level, generate or preload data from the DDC
-		if (UseNaniteLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel.GetValue()]))
-		{
-			CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
-		}
+		UpdateNaniteRepresentation();
 	}
 #endif // WITH_EDITOR
 
@@ -5088,7 +5105,14 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeCo
 		Iter.Key()->FlushGrassComponents(&Iter.Value());
 
 	#if WITH_EDITOR
-		Iter.Key()->CheckGenerateNanitePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+		if (LiveRebuildNaniteOnModification != 0)
+		{
+			Iter.Key()->UpdateNaniteRepresentation();
+		}
+		else
+		{
+			Iter.Key()->InvalidateNaniteRepresentation();
+		}
 
 		FLandscapeProxyComponentDataChangedParams ChangeParams(Iter.Value());
 		Iter.Key()->OnComponentDataChanged.Broadcast(Iter.Key(), ChangeParams);
@@ -5105,6 +5129,11 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComp
 
 void ALandscapeProxy::UpdateRenderingMethod()
 {
+	if (LandscapeComponents.Num() == 0)
+	{
+		return;
+	}
+
 	bool bAllowNanite = false;
 	if (ALandscape* LandscapeActor = GetLandscapeActor())
 	{
