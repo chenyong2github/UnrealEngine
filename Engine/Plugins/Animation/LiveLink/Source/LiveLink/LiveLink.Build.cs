@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 			{
 				"HeadMountedDisplay",
 				"InputCore",
+				"LiveLinkAnimationCore", //Adding dependency to make sure this runtime module is pulled when packaging if LiveLink plugin is enabled. 
 				"Media",
 				"Projects",
 				"SlateCore",
