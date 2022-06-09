@@ -11,6 +11,7 @@ public class CommonUI : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"ApplicationCore",
                 "Engine",
 				"InputCore",
 				"Slate",
