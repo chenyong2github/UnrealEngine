@@ -710,7 +710,7 @@ CADINTERFACES_API A3DStatus TUniqueTSObj<A3DUTF8Char*>::GetData(const A3DEntity*
 template<>
 CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DUTF8Char*>::GetDefaultIndexerValue() const;
 
-CADINTERFACES_API class FTechSoftDefaultValue
+class CADINTERFACES_API FTechSoftDefaultValue
 {
 public:
 	static const uint32 Material;
