@@ -121,8 +121,7 @@ namespace DetailedCookStats
 	extern double TickCookOnTheSideLoadPackagesTimeSec;
 	extern double TickCookOnTheSideResolveRedirectorsTimeSec;
 	extern double TickCookOnTheSideSaveCookedPackageTimeSec;
-	extern double TickCookOnTheSideBeginPrepareSaveTimeSec;
-	extern double TickCookOnTheSideFinishPrepareSaveTimeSec;
+	extern double TickCookOnTheSidePrepareSaveTimeSec;
 	extern double GameCookModificationDelegateTimeSec;
 	extern double TickLoopShaderProcessAsyncResultsTimeSec;
 	extern double TickLoopProcessDeferredCommandsTimeSec;

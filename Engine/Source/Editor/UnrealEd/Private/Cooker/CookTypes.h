@@ -91,6 +91,27 @@ namespace UE::Cook
 		Skipped     /* For reporting the ECookResults specific to a request: the package was skipped due to e.g. already being cooked or being in NeverCook packages. */
 	};
 
+	/** Return type for functions called reentrantly that can succeed,fail,or be incomplete */
+	enum class EPollStatus : uint8
+	{
+		Success,
+		Error,
+		Incomplete,
+	};
+
+	/**
+	 * The possible reasons that the save-state data on an FPackageData might be released.
+	 * Different levels of teardown will happen based on the reason.
+	 */
+	enum class EReleaseSaveReason : uint8
+	{
+		Completed,
+		DoneForNow,
+		Demoted,
+		AbortSave,
+		RecreateObjectCache,
+	};
+
 	/** The type of callback for External Requests that needs to be executed within the Scheduler's lock. */
 	typedef TUniqueFunction<void()> FSchedulerCallback;
 
