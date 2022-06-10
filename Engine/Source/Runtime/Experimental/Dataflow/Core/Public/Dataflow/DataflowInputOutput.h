@@ -6,6 +6,7 @@
 #include "Dataflow/DataflowNodeParameters.h"
 #include "Dataflow/DataflowNode.h"
 #include "Dataflow/DataflowConnection.h"
+#include "Templates/Function.h"
 
 namespace Dataflow
 {
@@ -25,7 +26,7 @@ namespace Dataflow
 		FName Type;
 		FName Name;
 		FDataflowNode* Owner = nullptr;
-		T Default;
+		T Default = T();
 	};
 
 	template<class T>
@@ -34,7 +35,7 @@ namespace Dataflow
 		typedef FConnection Super;
 		friend class FConnection;
 
-		T Default;
+		T Default = T();
 		TOutput<T>* Connection;
 	public:
 		TInput(const TInputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid())
@@ -112,29 +113,47 @@ namespace Dataflow
 	//
 
 	template<class T>
-	struct DATAFLOWCORE_API TOutputParameters {
-		TOutputParameters(FName InName, FDataflowNode * InOwner) 
+	struct DATAFLOWCORE_API TOutputParameters 
+	{
+		typedef TFunction<void(const  Dataflow::FContext& Context, Dataflow::FConnection*)> PassthroughCallback;
+
+		TOutputParameters(FName InName, FDataflowNode* InOwner, T InDefault = T())
 			: Type(GraphConnectionTypeName<T>())
 			, Name(InName)
-			, Owner(InOwner) {}
+			, Owner(InOwner)
+			, Default(InDefault){}
+
+		TOutputParameters(FName InName, FDataflowNode* InOwner, T InDefault, PassthroughCallback InPassthrough)
+			: Type(GraphConnectionTypeName<T>())
+			, Name(InName)
+			, Owner(InOwner)
+			, Default(InDefault)
+			, Passthrough(InPassthrough) {}
 		FName Type;
 		FName Name;
 		FDataflowNode* Owner = nullptr;
+		T Default = T();
+		PassthroughCallback Passthrough;
 	};
 
 	template<class T>
 	class DATAFLOWCORE_API TOutput : public FConnection
 	{
+		typedef TFunction<void(const  Dataflow::FContext& Context, Dataflow::FConnection*)> PassthroughCallback;
 		typedef FConnection Super;
 		friend class FConnection;
 
 		uint32 CacheKey = UINT_MAX;
 		TCacheValue<T> Cache;
 		TArray< TInput<T>* > Connections;
-	
+		PassthroughCallback Passthrough;
+		T Default = T();
+
 	public:
 		TOutput(const TOutputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid())
 			: FConnection(FPin::EDirection::OUTPUT, Param.Type, Param.Name, Param.Owner, InGuid)
+			, Passthrough(Param.Passthrough)
+			, Default(Param.Default)
 		{
 			Super::BindOutput(Param.Owner, this);
 		}
@@ -174,7 +193,18 @@ namespace Dataflow
 		{
 			if (CacheKey != Context.GetTypeHash())
 			{
-				OwningNode->Evaluate(Context, this);
+				if (OwningNode->bActive)
+				{
+					OwningNode->Evaluate(Context, this);
+				}
+				else
+				{
+					SetValue(Default, Context);
+					if (Passthrough)
+					{
+						Passthrough(Context, this);
+					}
+				}
 			}
 			ensure(CacheKey == Context.GetTypeHash());
 			return DeepCopy<T>(Cache.Data);

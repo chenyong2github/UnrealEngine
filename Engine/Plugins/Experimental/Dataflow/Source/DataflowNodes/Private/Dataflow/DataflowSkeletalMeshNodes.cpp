@@ -20,12 +20,16 @@ namespace Dataflow
 void FGetSkeletalMeshDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
 {
 	SkeletalMeshOut->SetValue(nullptr, Context);
-	if (const Dataflow::FEngineContext* EngineContext = (const Dataflow::FEngineContext*)(&Context))
+	if (SkeletalMesh)
 	{
-		if (const USkeletalMesh* SkeletalMesh = Dataflow::Reflection::FindObjectPtrProperty<USkeletalMesh>(
-			EngineContext->Owner, SkeletalMeshAttributeName))
+		SkeletalMeshOut->SetValue(SkeletalMesh, Context);
+	}
+	else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>(FName("UFleshAsset")))
+	{
+		if (const USkeletalMesh* SkeletalMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<USkeletalMesh>(
+			EngineContext->Owner, PropertyName))
 		{
-			SkeletalMeshOut->SetValue(SkeletalMesh, Context);
+			SkeletalMeshOut->SetValue(SkeletalMeshFromOwner, Context);
 		}
 	}
 }

@@ -34,6 +34,9 @@ struct DATAFLOWCORE_API FDataflowNode
 	TArray< Dataflow::FConnection* > Inputs;
 	TArray< Dataflow::FConnection* > Outputs;
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	bool bActive = true;
+
 	FDataflowNode()
 		: Guid(FGuid())
 		, Name("Invalid")

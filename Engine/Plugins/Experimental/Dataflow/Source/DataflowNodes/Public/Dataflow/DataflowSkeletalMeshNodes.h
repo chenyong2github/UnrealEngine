@@ -23,10 +23,13 @@ struct DATAFLOWNODES_API FGetSkeletalMeshDataflowNode: public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FGetSkeletalMeshDataflowNode, "SkeletalMesh", "Dataflow", "Skeletal Mesh")
 
 public:
-
-
+	
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
-	FName SkeletalMeshAttributeName;
+	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
+
+
+	UPROPERTY(EditAnywhere, Category = "Dataflow" )
+	FName PropertyName = "SkeletalMesh";
 
 	TSharedPtr< class Dataflow::TOutput<Dataflow::USkeletalMeshPtr> > SkeletalMeshOut;
 
@@ -55,7 +58,7 @@ public:
 	FSkeletalMeshBoneDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 		, SkeletalMeshIn(new Dataflow::TInput<Dataflow::USkeletalMeshPtr>(Dataflow::TInputParameters<Dataflow::USkeletalMeshPtr>({ FName("SkeletalMeshIn"), this })))
-		, BoneIndexOut(new Dataflow::TOutput<int>(Dataflow::TOutputParameters<int>({ FName("BoneIndexOut"), this })))
+		, BoneIndexOut(new Dataflow::TOutput<int>(Dataflow::TOutputParameters<int>({ FName("BoneIndexOut"), this, INDEX_NONE })))
 	{}
 
 

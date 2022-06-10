@@ -61,16 +61,19 @@ void FDataflowEditorCommands::EvaluateNodes(const FGraphPanelSelectionSet& Selec
 			{
 				if (const TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
 				{
-					if (DataflowNode->GetOutputs().Num())
+					if (DataflowNode->bActive)
 					{
-						for (Dataflow::FConnection* NodeOutput : DataflowNode->GetOutputs())
+						if (DataflowNode->GetOutputs().Num())
 						{
-							Evaluate(DataflowNode.Get(),NodeOutput);
+							for (Dataflow::FConnection* NodeOutput : DataflowNode->GetOutputs())
+							{
+								Evaluate(DataflowNode.Get(), NodeOutput);
+							}
 						}
-					}
-					else
-					{
-						Evaluate(DataflowNode.Get(), nullptr);
+						else
+						{
+							Evaluate(DataflowNode.Get(), nullptr);
+						}
 					}
 				}
 			}
