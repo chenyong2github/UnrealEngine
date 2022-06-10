@@ -1240,11 +1240,11 @@ namespace Horde.Build.Notifications.Sinks
 		/// <inheritdoc/>
 		public async Task SendIssueReportAsync(IssueReport report)
 		{
-			if (report.Workflow.ReportChannel != null)
+			if (report.Channel != null)
 			{
 				List<BlockBase> blocks = new List<BlockBase>();
 				blocks.Add(new HeaderBlock(AddEnvironmentAnnotation($"{report.Stream.Name}: {report.Time:d}")));
-				await SendMessageAsync(report.Workflow.ReportChannel, blocks: blocks.ToArray(), withEnvironment: false);
+				await SendMessageAsync(report.Channel, blocks: blocks.ToArray(), withEnvironment: false);
 
 				StringBuilder body = new StringBuilder();
 				if (report.Issues.Count == 0)
@@ -1293,8 +1293,8 @@ namespace Horde.Build.Notifications.Sinks
 					}
 
 					body.Append($"\n\u2022 *Issue <{issueUrl}|{issue.Id}>");
-					
-					string? triageChannel = report.Workflow.TriageChannel;
+
+					string? triageChannel = report.TriageChannel;
 					if (triageChannel != null)
 					{
 						MessageStateDocument? state = await GetMessageStateAsync(triageChannel, GetTriageThreadEventId(issue.Id));
@@ -1320,7 +1320,7 @@ namespace Horde.Build.Notifications.Sinks
 					body.Append($"\n\n{report.WorkflowStats.NumPassingSteps:n0} of {report.WorkflowStats.NumSteps:n0} (*{totalPct:0.0}%*) build steps succeeded since last status update.");
 				}
 
-				await SendMessageAsync(report.Workflow.ReportChannel, text: body.ToString(), withEnvironment: false);
+				await SendMessageAsync(report.Channel, text: body.ToString(), withEnvironment: false);
 			}
 		}
 

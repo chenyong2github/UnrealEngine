@@ -31,19 +31,21 @@ namespace Horde.Build.Issues
 
 	public class IssueReport
 	{
+		public string Channel { get; }
 		public DateTimeOffset Time { get; }
 		public IStream Stream { get; }
-		public WorkflowConfig Workflow { get; }
 		public WorkflowStats WorkflowStats { get; }
+		public string? TriageChannel { get; }
 		public List<IIssue> Issues { get; } = new List<IIssue>();
 		public List<IIssueSpan> IssueSpans { get; } = new List<IIssueSpan>();
 
-		public IssueReport(DateTimeOffset time, IStream stream, WorkflowConfig workflow, WorkflowStats workflowStats)
+		public IssueReport(string channel, DateTimeOffset time, IStream stream, WorkflowStats workflowStats, string? triageChannel)
 		{
+			Channel = channel;
 			Time = time;
 			Stream = stream;
-			Workflow = workflow;
 			WorkflowStats = workflowStats;
+			TriageChannel = triageChannel;
 		}
 	}
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
@@ -117,6 +119,11 @@ namespace Horde.Build.Issues
 
 					foreach (WorkflowConfig workflow in config.Workflows)
 					{
+						if (workflow.ReportChannel == null)
+						{
+							continue;
+						}
+
 						string key = $"{stream.Id}:{workflow.Id}";
 						invalidKeys.Remove(key);
 
@@ -146,7 +153,7 @@ namespace Horde.Build.Issues
 							workflowStats = new WorkflowStats();
 						}
 
-						IssueReport report = new IssueReport(currentTime, stream, workflow, workflowStats);
+						IssueReport report = new IssueReport(workflow.ReportChannel, currentTime, stream, workflowStats, workflow.TriageChannel);
 						foreach (IIssueSpan span in spans)
 						{
 							if (span.LastSuccess != null && span.LastFailure.Annotations.WorkflowId == workflow.Id)
@@ -158,7 +165,7 @@ namespace Horde.Build.Issues
 						HashSet<int> issueIds = new HashSet<int>(report.IssueSpans.Select(x => x.IssueId));
 						report.Issues.AddRange(issues.Where(x => issueIds.Contains(x.Id)));
 
-						_notificationService.SendIssueReport(report);
+						await _notificationService.SendIssueReportAsync(report);
 
 						state = await _state.UpdateAsync(s => s.KeyToLastReportTime[key] = currentTime);
 					}

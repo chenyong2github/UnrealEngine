@@ -733,9 +733,12 @@ namespace Horde.Build.Notifications
 		}
 
 		/// <inheritdoc/>
-		public void SendIssueReport(IssueReport report)
+		public async Task SendIssueReportAsync(IssueReport report)
 		{
-			EnqueueTasks(sink => sink.SendIssueReportAsync(report));
+			foreach (INotificationSink sink in _sinks)
+			{
+				await sink.SendIssueReportAsync(report);
+			}
 		}
 	}
 }
