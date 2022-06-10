@@ -444,8 +444,6 @@ bool FDatasmithMaxMatHelper::IsSRGB(Bitmap& InBitmap)
 	return true;
 }
 
-bool FDatasmithMaxMatExport::bForceReexport = false;
-
 // todo: need wa wya to return created texture element(if there was one), maybe use 'last' in DatasmithScene(check that count changed)
 //   verify that only one texture created!
 void FDatasmithMaxMatExport::GetXMLTexture(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexMap, const TCHAR* AssetsPath, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements)
@@ -531,29 +529,18 @@ bool FDatasmithMaxMatExport::UseFirstSubMapOnly(EDSMaterialType MaterialType, Mt
 
 TSharedPtr< IDatasmithBaseMaterialElement > FDatasmithMaxMatExport::ExportUniqueMaterial(TSharedRef< IDatasmithScene > DatasmithScene, Mtl* Material, const TCHAR* AssetsPath)
 {
-	if (!bForceReexport)
+	if (!Material)
 	{
-		// Names should be unique prior to this
-		FString MaterialName(FDatasmithUtils::SanitizeObjectName(Material->GetName().data()));
-		for (int i = 0; i < DatasmithScene->GetMaterialsCount(); i++)
-		{
-			if (FString(DatasmithScene->GetMaterial(i)->GetName()) == MaterialName)
-			{
-				return DatasmithScene->GetMaterial(i);
-			}
-		}
+		return {};
 	}
-	else
+
+	FString MaterialName(FDatasmithMaxMaterialsToUEPbrManager::GetDatasmithMaterialName(Material));
+
+	for (int i = 0; i < DatasmithScene->GetMaterialsCount(); i++)
 	{
-		// Names should be unique prior to this
-		FString MaterialName(FDatasmithUtils::SanitizeObjectName(Material->GetName().data()));
-		for (int i = 0; i < DatasmithScene->GetMaterialsCount(); i++)
+		if (FString(DatasmithScene->GetMaterial(i)->GetName()) == MaterialName)
 		{
-			if (FString(DatasmithScene->GetMaterial(i)->GetName()) == MaterialName)
-			{
-				DatasmithScene->RemoveMaterial(DatasmithScene->GetMaterial(i));
-				break;
-			}
+			return DatasmithScene->GetMaterial(i);
 		}
 	}
 
@@ -563,17 +550,15 @@ TSharedPtr< IDatasmithBaseMaterialElement > FDatasmithMaxMatExport::ExportUnique
 
 		MaterialConverter->Convert( DatasmithScene, UEPbrMaterial, Material, AssetsPath );
 
-		if ( UEPbrMaterial )
-		{
-			DatasmithScene->AddMaterial( UEPbrMaterial );
-		}
+		FDatasmithMaxMaterialsToUEPbrManager::AddDatasmithMaterial(DatasmithScene, Material, UEPbrMaterial);
 
 		return UEPbrMaterial;
 	}
 	else
 	{
-		TSharedRef< IDatasmithMaterialElement > MaterialElement = FDatasmithSceneFactory::CreateMaterial( (TCHAR*)Material->GetName().data() );
-		DatasmithScene->AddMaterial( MaterialElement );
+		TSharedRef< IDatasmithMaterialElement > MaterialElement = FDatasmithSceneFactory::CreateMaterial( *MaterialName );
+		
+		FDatasmithMaxMaterialsToUEPbrManager::AddDatasmithMaterial(DatasmithScene, Material, MaterialElement);
 
 		WriteXMLMaterial( DatasmithScene, MaterialElement, Material );
 

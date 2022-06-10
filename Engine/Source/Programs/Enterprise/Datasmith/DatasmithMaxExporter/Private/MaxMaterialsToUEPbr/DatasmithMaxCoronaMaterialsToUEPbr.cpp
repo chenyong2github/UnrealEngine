@@ -747,8 +747,8 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 	{
 		return;
 	}
-
-	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial( Material->GetName().data() );
+	
+	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial( GetMaterialName(Material) );
 	FScopedConvertState ScopedConvertState(ConvertState);
 	ConvertState.DatasmithScene = DatasmithScene;
 	ConvertState.MaterialElement = PbrMaterialElement;
@@ -1087,7 +1087,7 @@ void FDatasmithMaxCoronaBlendMaterialToUEPbr::Convert( TSharedRef<IDatasmithScen
 {
 	using namespace DatasmithMaxCoronaMaterialsToUEPbrImpl;
 
-	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(Material->GetName().data());
+	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(GetMaterialName(Material));
 	FScopedConvertState ScopedConvertState(ConvertState);
 	ConvertState.DatasmithScene = DatasmithScene;
 	ConvertState.MaterialElement = PbrMaterialElement;
@@ -1097,6 +1097,7 @@ void FDatasmithMaxCoronaBlendMaterialToUEPbr::Convert( TSharedRef<IDatasmithScen
 
 	//Exporting the base material.
 	IDatasmithMaterialExpressionFunctionCall* BaseMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+
 	if (TSharedPtr<IDatasmithBaseMaterialElement> ExportedMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(DatasmithScene, CoronaBlendMaterialProperties.BaseMaterial, AssetsPath))
 	{
 		BaseMaterialFunctionCall->SetFunctionPathName(ExportedMaterial->GetName());
@@ -1169,7 +1170,7 @@ void FDatasmithMaxCoronaLightMaterialToUEPbr::Convert(TSharedRef<IDatasmithScene
 		return;
 	}
 
-	TSharedRef<IDatasmithUEPbrMaterialElement> PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(Material->GetName().data());
+	TSharedRef<IDatasmithUEPbrMaterialElement> PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(GetMaterialName(Material));
 	FScopedConvertState ScopedConvertState(ConvertState);
 	ConvertState.DatasmithScene = DatasmithScene;
 	ConvertState.MaterialElement = PbrMaterialElement;
@@ -1208,7 +1209,7 @@ void FDatasmithMaxCoronaPhysicalMaterialToUEPbr::Convert(TSharedRef<IDatasmithSc
 		return;
 	}
 
-	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial( Material->GetName().data() );
+	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial( GetMaterialName(Material) );
 	FScopedConvertState ScopedConvertState(ConvertState);
 	ConvertState.DatasmithScene = DatasmithScene;
 	ConvertState.MaterialElement = PbrMaterialElement;

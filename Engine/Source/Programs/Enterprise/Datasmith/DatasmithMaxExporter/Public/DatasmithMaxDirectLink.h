@@ -9,6 +9,7 @@
 
 #include "IDatasmithSceneElements.h"
 #include "DatasmithMesh.h"
+#include "DatasmithUtils.h"
 
 #include "Logging/LogMacros.h"
 
@@ -582,6 +583,14 @@ public:
 
 	FMaterialTracker* AddMaterial(Mtl* Material); // Add material to track its changes
 
+	void AddActualMaterial(FMaterialTracker& MaterialTracker, Mtl* Material); // Add material used in a tracked material's graph
+	const TCHAR* GetMaterialName(Mtl* SubMaterial); // Get name used for Datasmith material. Datasmith material names must be unique(used to identify elements)
+
+	void AssignMeshMaterials(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* Material, const TSet<uint16>& SupportedChannels);
+	void AssignMeshActorMaterials(const TSharedPtr<IDatasmithMeshActorElement>& MeshActor, Mtl* Material, TSet<uint16>& SupportedChannels, const FVector3f& RandomSeed);
+
+	void AddDatasmithMaterialForUsedMaterial(TSharedRef<IDatasmithScene> DatasmithScene, Mtl* Material, TSharedPtr<IDatasmithBaseMaterialElement> DatasmithMaterial); // Record which Datasmith material was created for a Max material, not only for tracked(assigned) materials
+
 	void InvalidateMaterial(Mtl* Material); // Mark changed
 
 	void UpdateMaterial(FMaterialTracker* MaterialTracker); // Reparse source material
@@ -617,11 +626,15 @@ public:
 	TMap<Mtl*, TSet<FMaterialTracker*>> UsedMaterialToMaterialTracker; // Materials uses by nodes keep set of assigned materials they are used for
 	TMap<Mtl*, TSharedPtr<IDatasmithBaseMaterialElement>> UsedMaterialToDatasmithMaterial;
 
+	TMap<Mtl*, FString> UsedMaterialToDatasmithMaterialName;
+
 	TMap<Texmap*, TSet<FMaterialTracker*>> UsedTextureToMaterialTracker; // Materials uses by nodes keep set of assigned textures they are used for
 	TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>> UsedTextureToDatasmithElement; // Keep track of Datasmith Element created for texmap to simplify update/removal(no need to search DatasmithScene)
 	// note: each texmap can create multiple texture elements
 
 	FSceneUpdateStats& Stats;
+
+	FDatasmithUniqueNameProvider MaterialNameProvider;
 };
 
 //----

@@ -1703,7 +1703,8 @@ IDatasmithMaterialExpression* FDatasmithMaxBakeableToUEPbr::Convert( FDatasmithM
 
 	if ( BakedTextureElement )
 	{
-		MaxMaterialToUEPbr->TexmapsConverted->FindOrAdd(InTexmap).Add(BakedTextureElement);
+		MaxMaterialToUEPbr->AddConvertedMapDatasmithElement(InTexmap, BakedTextureElement);
+
 		IDatasmithMaterialExpression* MaterialExpression = MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression( EDatasmithMaterialExpressionType::Texture );
 
 		if ( MaterialExpression )

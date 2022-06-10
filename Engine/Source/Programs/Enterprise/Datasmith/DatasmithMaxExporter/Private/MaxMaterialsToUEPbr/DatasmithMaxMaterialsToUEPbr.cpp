@@ -15,6 +15,8 @@
 #include "MaxMaterialsToUEPbr/DatasmithMaxMentalMaterialToUEPbr.h"
 
 
+DatasmithMaxDirectLink::FMaterialConversionContext* FDatasmithMaxMaterialsToUEPbrManager::Context = nullptr;
+
 FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( Mtl* Material )
 {
 	if (Material == nullptr)
@@ -98,9 +100,36 @@ FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterial
 
 	if ( MaterialConverter && MaterialConverter->IsSupported( Material ) )
 	{
+		ensure(Context);
+		MaterialConverter->Context = Context;
 		return MaterialConverter;
 	}
 	return nullptr;
+}
+
+void FDatasmithMaxMaterialsToUEPbrManager::AddDatasmithMaterial(TSharedRef<IDatasmithScene> DatasmithScene, Mtl* Material, TSharedPtr<IDatasmithBaseMaterialElement> DatasmithMaterial)
+{
+	if (!DatasmithMaterial)
+	{
+		return;
+	}
+
+	if (!Context)
+	{
+		return;
+	}
+
+	Context->MaterialsCollectionTracker.AddDatasmithMaterialForUsedMaterial(DatasmithScene, Material, DatasmithMaterial);
+
+}
+
+const TCHAR* FDatasmithMaxMaterialsToUEPbrManager::GetDatasmithMaterialName(Mtl* Material)
+{
+	if (Context)
+	{
+		return Context->MaterialsCollectionTracker.GetMaterialName(Material);
+	}
+	return Material->GetName().data();
 }
 
 FDatasmithMaxMaterialsToUEPbr::FDatasmithMaxMaterialsToUEPbr()
@@ -163,6 +192,14 @@ bool FDatasmithMaxMaterialsToUEPbr::IsTexmapSupported( Texmap* InTexmap ) const
 	return bIsTexmapSupported;
 }
 
+void FDatasmithMaxMaterialsToUEPbr::AddConvertedMap(const DatasmithMaxTexmapParser::FMapParameter& MapParameter)
+{
+	if (Context)
+	{
+		Context->TexmapsConverted.FindOrAdd(MapParameter.Map);
+	}
+}
+
 IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbr::ConvertTexmap( const DatasmithMaxTexmapParser::FMapParameter& MapParameter )
 {
 	if ( !MapParameter.bEnabled || !MapParameter.Map || FMath::IsNearlyZero( MapParameter.Weight ) )
@@ -187,10 +224,7 @@ IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbr::ConvertTexmap( cons
 		return nullptr;
 	}
 
-	if (TexmapsConverted)
-	{
-		TexmapsConverted->FindOrAdd(MapParameter.Map);
-	}
+	AddConvertedMap(MapParameter);
 
 	// Check if the texmap has a texture ouput
 	TextureOutput* TexOutput = nullptr;

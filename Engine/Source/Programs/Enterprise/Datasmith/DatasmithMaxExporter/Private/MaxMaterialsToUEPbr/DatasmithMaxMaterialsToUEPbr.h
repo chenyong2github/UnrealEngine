@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DatasmithDefinitions.h"
+#include "DatasmithMaxDirectLink.h"
 #include "Containers/IndirectArray.h"
 #include "Templates/SharedPointer.h"
 
@@ -24,10 +25,28 @@ namespace DatasmithMaxTexmapParser
 	struct FMapParameter;
 }
 
+namespace DatasmithMaxDirectLink
+{
+	class FMaterialsCollectionTracker;
+
+	struct FMaterialConversionContext
+	{
+		// Used to record texmaps that were asked for conversion whil ematerial conversion is performed
+		// recordking also datasmith elements created for those maps.
+		// Baked texmaps currently create datasmith elements during material convertion
+		TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>>& TexmapsConverted;
+		FMaterialsCollectionTracker& MaterialsCollectionTracker;
+	};
+}
+
+
 class FDatasmithMaxMaterialsToUEPbrManager
 {
 public:
 	static FDatasmithMaxMaterialsToUEPbr* GetMaterialConverter( Mtl* Material );
+	static void AddDatasmithMaterial(TSharedRef<IDatasmithScene> DatasmithScene, Mtl* Material, TSharedPtr<IDatasmithBaseMaterialElement> DatasmithMaterial);
+	static const TCHAR* GetDatasmithMaterialName(Mtl* Material);
+	static DatasmithMaxDirectLink::FMaterialConversionContext* Context;
 };
 
 class FDatasmithMaxMaterialsToUEPbr
@@ -60,10 +79,22 @@ public:
 
 	} ConvertState;
 
-	// Used to record texmaps that were asked for conversion whil ematerial conversion is performed
-	// recordking also datasmith elements created for those maps.
-	// Baked texmaps currently create datasmith elements during material convertion
-	TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>>* TexmapsConverted = nullptr;
+	void AddConvertedMap(const DatasmithMaxTexmapParser::FMapParameter& MapParameter);
+
+	void AddConvertedMapDatasmithElement(Texmap* InTexmap, TSharedPtr<IDatasmithTextureElement> TextureElement)
+	{
+		if (Context)
+		{
+			Context->TexmapsConverted.FindOrAdd(InTexmap).Add(TextureElement);
+		}
+	}
+
+	const TCHAR* GetMaterialName(Mtl* Material) const
+	{
+		return Context->MaterialsCollectionTracker.GetMaterialName(Material);
+	}
+
+	DatasmithMaxDirectLink::FMaterialConversionContext* Context = nullptr;
 
 protected:
 	TIndirectArray< IDatasmithMaxTexmapToUEPbr > TexmapConverters;

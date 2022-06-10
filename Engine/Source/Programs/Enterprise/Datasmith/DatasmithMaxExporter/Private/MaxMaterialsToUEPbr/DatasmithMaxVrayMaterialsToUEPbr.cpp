@@ -520,7 +520,7 @@ void FDatasmithMaxVRayMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > D
 		return;
 	}
 
-	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial( Material->GetName().data() );
+	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial( GetMaterialName(Material) );
 	FScopedConvertState ScopedConvertState(ConvertState);
 	ConvertState.DatasmithScene = DatasmithScene;
 	ConvertState.MaterialElement = PbrMaterialElement;
@@ -940,7 +940,7 @@ void FDatasmithMaxVRay2SidedMaterialsToUEPbr::Convert( TSharedRef<IDatasmithScen
 
 			if ( MaterialElement )
 			{
-				MaterialElement->SetName( Material->GetName().data() ); // Name it with the main material not the front material
+				MaterialElement->SetName( GetMaterialName(Material) ); // Name it with the main material not the front material
 
 				if ( MaterialElement->IsA( EDatasmithElementType::UEPbrMaterial ) )
 				{
@@ -980,7 +980,7 @@ void FDatasmithMaxVRayWrapperMaterialsToUEPbr::Convert( TSharedRef<IDatasmithSce
 
 			if ( MaterialElement )
 			{
-				MaterialElement->SetName( Material->GetName().data() ); // Name it with the main material not the base material
+				MaterialElement->SetName( GetMaterialName(Material) ); // Name it with the main material not the base material
 			}
 		}
 	}
@@ -1023,7 +1023,7 @@ void FDatasmithMaxVRayBlendMaterialToUEPbr::Convert( TSharedRef<IDatasmithScene>
 {
 	using namespace DatasmithMaxVRayMaterialsToUEPbrImpl;
 
-	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(Material->GetName().data());
+	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(GetMaterialName(Material));
 	FScopedConvertState ScopedConvertState(ConvertState);
 	ConvertState.DatasmithScene = DatasmithScene;
 	ConvertState.MaterialElement = PbrMaterialElement;
@@ -1113,7 +1113,7 @@ void FDatasmithMaxVRayLightMaterialToUEPbr::Convert(TSharedRef<IDatasmithScene> 
 		return;
 	}
 
-	TSharedRef<IDatasmithUEPbrMaterialElement> PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(Material->GetName().data());
+	TSharedRef<IDatasmithUEPbrMaterialElement> PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(GetMaterialName(Material));
 	FScopedConvertState ScopedConvertState(ConvertState);
 	ConvertState.DatasmithScene = DatasmithScene;
 	ConvertState.MaterialElement = PbrMaterialElement;

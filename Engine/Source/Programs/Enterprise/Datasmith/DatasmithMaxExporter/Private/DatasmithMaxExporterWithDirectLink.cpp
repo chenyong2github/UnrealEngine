@@ -178,10 +178,10 @@ struct FInstances: FNoncopyable
 		return Converted.DatasmithMeshElement->GetName();
 	}
 
-	void AssignMaterialToStaticMesh(Mtl* InMaterial)
+	void AssignMaterialToStaticMesh(FMaterialsCollectionTracker& MaterialsCollectionTracker,  Mtl* InMaterial)
 	{
 		Material = InMaterial;
-		AssignMeshMaterials(Converted.DatasmithMeshElement, Material, Converted.SupportedChannels);
+		MaterialsCollectionTracker.AssignMeshMaterials(Converted.DatasmithMeshElement, Material, Converted.SupportedChannels);
 	}
 };
 
@@ -1571,16 +1571,24 @@ public:
 				return FormatStatsUpdateMaterials();
 			};
 			PROGRESS_STAGE_COUNTER(ActualMaterialToUpdate.Num());
+
 			for (Mtl* ActualMaterial: ActualMaterialToUpdate)
 			{
 				ProgressCounter.Next();
 				if(GetCancel())
 				{
-					return false;	
+					break;	
 				}
+
 
 				MaterialsCollectionTracker.ConvertMaterial(ActualMaterial, ExportedScene.GetDatasmithScene().ToSharedRef(), ExportedScene.GetSceneExporter().GetAssetsOutputPath(), ActualTexmapsToUpdate);
 			}
+
+			if(GetCancel())
+			{
+				return false;	
+			}
+
 		}
 
 		{
@@ -2386,7 +2394,7 @@ public:
 			static_cast<FMeshNodeConverter&>(NodeTracker.GetConverter()).bMaterialsAssignedToStaticMesh = true;
 			if (Mtl* Material = UpdateGeometryNodeMaterial(*this, Instances, NodeTracker))
 			{
-				Instances.AssignMaterialToStaticMesh(Material);
+				Instances.AssignMaterialToStaticMesh(MaterialsCollectionTracker, Material);
 			}
 			break;
 		}
@@ -2714,8 +2722,7 @@ public:
 			{
 				if (Instances.Material != Material)
 				{
-					TSharedRef<IDatasmithMeshActorElement> DatasmithMeshActorRef = NodeTracker.GetConverted().DatasmithMeshActor.ToSharedRef();
-					FDatasmithMaxSceneExporter::ParseMaterialForMeshActor(Material, DatasmithMeshActorRef, Instances.Converted.SupportedChannels, FVector3f(NodeTracker.GetConverted().DatasmithMeshActor->GetTranslation()));
+					MaterialsCollectionTracker.AssignMeshActorMaterials(NodeTracker.GetConverted().DatasmithMeshActor, Material, Instances.Converted.SupportedChannels, FVector3f(NodeTracker.GetConverted().DatasmithMeshActor->GetTranslation()));
 				}
 			}
 		}
@@ -2817,6 +2824,7 @@ public:
 	class FMeshes
 	{
 	public:
+		FORCENOINLINE
 		static void AddMesh(FSceneTracker& Scene, FMeshConverterSource& MeshSource, FMeshConverted& MeshConverted, TFunction<void(bool, FMeshConverted&)> CompletionCallback)
 		{
 			// Reset old mesh
@@ -2846,7 +2854,7 @@ public:
 				NodeConverter.Meshes.Add(MeshConverted);
 
 				RegisterNodeForMaterial(NodeTracker, Material);
-				AssignMeshMaterials(MeshConverted.DatasmithMeshElement, Material, MeshConverted.SupportedChannels);
+				MaterialsCollectionTracker.AssignMeshMaterials(MeshConverted.DatasmithMeshElement, Material, MeshConverted.SupportedChannels);
 
 				FString MeshLabel = NodeTrackersNames.GetNodeName(NodeTracker) + (TEXT("_") + FString::FromInt(MeshIndex));
 				MeshConverted.DatasmithMeshElement->SetLabel(*MeshLabel);

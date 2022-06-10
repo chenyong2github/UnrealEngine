@@ -148,7 +148,7 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 		return;
 	}
 
-	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial( Material->GetName().data() );
+	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial( GetMaterialName(Material) );
 	FScopedConvertState ScopedConvertState(ConvertState);
 	ConvertState.DatasmithScene = DatasmithScene;
 	ConvertState.MaterialElement = PbrMaterialElement;
@@ -344,7 +344,7 @@ void FDatasmithMaxBlendMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > 
 		ParamBlock2->ReleaseDesc();
 	}
 
-	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(Material->GetName().data());
+	TSharedRef< IDatasmithUEPbrMaterialElement > PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(GetMaterialName(Material));
 	FScopedConvertState ScopedConvertState(ConvertState);
 	ConvertState.DatasmithScene = DatasmithScene;
 	ConvertState.MaterialElement = PbrMaterialElement;

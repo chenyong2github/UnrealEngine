@@ -109,8 +109,6 @@ public:
 	static TSharedPtr< IDatasmithBaseMaterialElement > ExportUniqueMaterial(TSharedRef< IDatasmithScene > DatasmithScene, Mtl* Material, const TCHAR* AssetsPath);
 	static void WriteXMLMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement > MaterialElement, Mtl* Material);
 
-	static bool bForceReexport; // todo: ExportUniqueMaterial calls go deep into composite materials export - need to fix this for DirectLink Sync
-
 private:
 	static bool UseFirstSubMapOnly(EDSMaterialType MaterialType, Mtl* Material);
 };
