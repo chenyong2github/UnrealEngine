@@ -6396,7 +6396,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	TOptional<FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
 	
 	bool bNewMesh = true;
-	if (GetRenderData())
+	if (AreRenderingResourcesInitialized())
 	{
 		bNewMesh = false;
 		const bool bInvalidateLighting = true;
