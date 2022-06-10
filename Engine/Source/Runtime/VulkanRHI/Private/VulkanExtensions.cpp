@@ -903,6 +903,50 @@ private:
 };
 
 
+// ***** VK_EXT_subgroup_size_control
+class FVulkanEXTSubgroupSizeControlExtension : public FVulkanDeviceExtension
+{
+public:
+
+	FVulkanEXTSubgroupSizeControlExtension(FVulkanDevice* InDevice)
+		: FVulkanDeviceExtension(InDevice, VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VK_API_VERSION_1_3)
+	{
+	}
+
+	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
+	{
+		ZeroVulkanStruct(SubgroupSizeControlFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES);
+		AddToPNext(PhysicalDeviceFeatures2, SubgroupSizeControlFeatures);
+	}
+
+	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
+	{
+ 		bSupportsSubgroupSizeControl = (SubgroupSizeControlFeatures.subgroupSizeControl == VK_TRUE);
+	}
+
+	virtual void PrePhysicalDeviceProperties(VkPhysicalDeviceProperties2KHR& PhysicalDeviceProperties2) override final
+	{
+		if (bSupportsSubgroupSizeControl)
+		{
+			ZeroVulkanStruct(SubgroupSizeControlProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES);
+			AddToPNext(PhysicalDeviceProperties2, SubgroupSizeControlProperties);
+		}
+	}
+
+	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
+	{
+		if (bSupportsSubgroupSizeControl)
+		{
+			GRHIMinimumWaveSize = SubgroupSizeControlProperties.minSubgroupSize;
+			GRHIMaximumWaveSize = SubgroupSizeControlProperties.maxSubgroupSize;
+		}
+	}
+
+private:
+	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT SubgroupSizeControlFeatures;
+	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT SubgroupSizeControlProperties;
+	bool bSupportsSubgroupSizeControl = false;
+};
 
 
 
@@ -976,6 +1020,7 @@ FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensio
 	ADD_CUSTOM_EXTENSION(FVulkanKHRGetMemoryRequirements2Extension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTDescriptorIndexingExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTHostQueryResetExtension);
+	ADD_CUSTOM_EXTENSION(FVulkanEXTSubgroupSizeControlExtension);
 
 	// Needed for Raytracing
 	ADD_CUSTOM_EXTENSION(FVulkanKHRBufferDeviceAddressExtension);

@@ -872,7 +872,23 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsWaveOperations = VKHasAllFlags(Device->GetDeviceSubgroupProperties().supportedStages, VulkanDeviceShaderStageBits) &&
 			VKHasAllFlags(Device->GetDeviceSubgroupProperties().supportedOperations, RequiredSubgroupFlags);
 
-		UE_LOG(LogVulkanRHI, Display, TEXT("Wave Operations have been %s."), GRHISupportsWaveOperations ? TEXT("ENABLED") : TEXT("DISABLED"));
+		if (GRHISupportsWaveOperations)
+		{
+			// Use default size if VK_EXT_subgroup_size_control didn't fill them
+			if (!GRHIMinimumWaveSize || !GRHIMaximumWaveSize)
+			{
+				GRHIMinimumWaveSize = GRHIMaximumWaveSize = Device->GetDeviceSubgroupProperties().subgroupSize;
+			}
+
+			UE_LOG(LogVulkanRHI, Display, TEXT("Wave Operations have been ENABLED (wave size: min=%d max=%d)."), GRHIMinimumWaveSize, GRHIMaximumWaveSize);
+		}
+		else
+		{
+			const uint32 MissingStageFlags = (Device->GetDeviceSubgroupProperties().supportedStages & VulkanDeviceShaderStageBits) ^ VulkanDeviceShaderStageBits;
+			const uint32 MissingOperationFlags = (Device->GetDeviceSubgroupProperties().supportedOperations & RequiredSubgroupFlags) ^ RequiredSubgroupFlags;
+			UE_LOG(LogVulkanRHI, Display, TEXT("Wave Operations have been DISABLED (missing stages=0x%x operations=0x%x)."), MissingStageFlags, MissingOperationFlags);
+		}
+
 
 		if (GGPUCrashDebuggingEnabled && !Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
 		{
