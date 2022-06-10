@@ -776,8 +776,6 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		}	
 	}
 
-	// Warnings are supressed until all internal projects are updated
-#if 0
 	// Check for any legacy settings and print them out (easier to do this in one block rather than one and time)
 	if (const FConfigSection* LegacySection = ConfigFile.Find(TEXT("Core.ContentVirtualization")))
 	{
@@ -794,7 +792,6 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 			}
 		}
 	}
-#endif
 }
 
 void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()
