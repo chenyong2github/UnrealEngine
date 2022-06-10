@@ -21,6 +21,7 @@
 #include "UObject/ObjectVersion.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/ScopeRWLock.h"
+#include "ProfilingDebugging/StringsTrace.h"
 #include "Containers/Set.h"
 #include "Internationalization/Text.h"
 #include "Internationalization/Internationalization.h"
@@ -301,6 +302,107 @@ FArchive& operator<<(FArchive& Ar, FNameEntryId& Id)
 
 	return Ar;
 }
+
+
+template<uint32 NumBits>
+class TNameAtomicBitSet
+{
+	using WordType = uint64;
+	static constexpr uint32 BitsPerWord = 8 * sizeof(WordType);
+	static constexpr uint32 NumWords = NumBits / BitsPerWord;
+	static constexpr uint32 BitIndexMask = BitsPerWord - 1;
+	static_assert((NumBits % BitsPerWord) == 0);
+	
+public:
+	/**
+	 * Atomically set a bit in the bit set.
+	 * @param Index Index of bit to set
+	 * @return Previous value of bit
+	 */
+	bool SetBitAtomic(uint32 Index)
+	{
+		const uint32 WordIndex = Index / BitsPerWord;
+		const uint32 BitIndex = Index & BitIndexMask;
+		const WordType ValueMask = WordType(1) << BitIndex;
+		volatile WordType* DestDword = GetBuffer() + WordIndex;
+		checkSlow(DestDword >= GetBuffer() && DestDword < (GetBuffer() + NumWords));
+		const WordType PrevDwordValue = std::atomic_fetch_or((std::atomic<WordType>*)DestDword, ValueMask);
+		return !!(PrevDwordValue & ValueMask);
+	}
+	
+	/**
+	 * Atomically clear a bit in the bit set.
+	 * @param Index Index of bit to clear
+	 * @return Previous value of bit
+	 */
+	bool ClearBitAtomic(uint32 Index)
+	{
+		const uint32 WordIndex = Index / BitsPerWord;
+		const uint32 BitIndex = Index & BitIndexMask;
+		const WordType ValueMask = WordType(1) << BitIndex;
+		volatile WordType* DestDword = GetBuffer() + WordIndex;
+		checkSlow(DestDword >= GetBuffer() && DestDword < (GetBuffer() + NumWords));
+		const WordType PrevDwordValue = std::atomic_fetch_and((std::atomic<WordType>*)DestDword, ~ValueMask);
+		return !!(PrevDwordValue & ValueMask);
+	}
+
+	/**
+	 * Iterates over the set and issues the lambda for each index that is set.
+	 * @param Func Functor to call
+	 */
+	template<typename Lambda>
+	void ForEachSetBit(Lambda Func) const
+	{
+		const WordType* Words = Data.load(std::memory_order_relaxed);
+		if (!Words)
+		{
+			return;
+		}
+
+		uint32 WordIndex(0);
+		for (std::atomic<WordType> AtomicWord : MakeArrayView(Words, NumWords))
+		{
+			const WordType Word = AtomicWord.load();
+			for (uint32 BitIdx = 0; BitIdx < BitsPerWord; ++BitIdx)
+			{
+				if (Word & (WordType(1) << BitIdx))
+				{
+					Func(BitIdx + (WordIndex * BitsPerWord));
+				}
+			}
+			++WordIndex;
+		}
+	}
+	
+private:
+
+
+	/**
+	 * Returns or create the buffer.
+	 * @return Pointer to buffer
+	 */
+	WordType* GetBuffer()
+	{
+		WordType* Buffer = Data.load(std::memory_order_relaxed);
+		if (!Buffer)
+		{
+			LLM_SCOPE(ELLMTag::FName);
+			constexpr uint32 BufferSizeBytes = NumWords * sizeof(WordType);
+			Buffer = (WordType*) FMemory::MallocZeroed(BufferSizeBytes, alignof(WordType));
+			WordType* Expected = nullptr;
+			if (UNLIKELY(!Data.compare_exchange_strong(Expected, Buffer)))
+			{
+				// Another thread assigned the value before us. Free our buffer and use
+				// the buffer from the other thread.
+				FMemory::Free(Buffer);
+				Buffer = Expected;
+			}
+		}
+		return Buffer;
+	}
+	
+	std::atomic<WordType*> Data;
+};
 
 struct FNameSlot
 {
@@ -1466,6 +1568,11 @@ public:
 	void IterateNumberedNames(TFunctionRef<void(FName)> Func) const;
 #endif
 
+#if UE_TRACE_ENABLED
+	UE::Trace::FEventRef32 Trace(const FNameEntryId& EntryId);
+	void RetraceAll() const;
+#endif
+
 private:
 	enum { MaxENames = 512 };
 
@@ -1476,6 +1583,11 @@ private:
 #endif
 	FNamePoolShard<ENameCase::IgnoreCase> ComparisonShards[FNamePoolShards];
 
+#if UE_TRACE_ENABLED
+	using FTracedBitSet = TNameAtomicBitSet<(1 << FNameBlockOffsetBits)>;
+	FTracedBitSet TracedNames[FNameMaxBlocks];
+#endif
+	
 	// Put constant lookup on separate cache line to avoid it being constantly invalidated by insertion
 	alignas(PLATFORM_CACHE_LINE_SIZE) FNameEntryId ENameToEntry[(uint32)EName::MaxHardcodedNameIndex] = {};
 	uint32 LargestEnameUnstableId;
@@ -1760,14 +1872,75 @@ uint32 FNamePool::NumSlots() const
 	return SlotCapacity;
 }
 
+#if UE_TRACE_ENABLED
+UE::Trace::FEventRef32 FNamePool::Trace(const FNameEntryId& EntryId)
+{
+	const FNameEntryHandle Handle(EntryId);
+	const uint32 DefinitionId = EntryId.ToUnstableInt();
+	if (!TracedNames[Handle.Block].SetBitAtomic(Handle.Offset))
+	{
+		const FNameEntry& DisplayEntry = Resolve(Handle);
+
+		if (DisplayEntry.IsWide())
+		{
+			TCHAR Chars[NAME_SIZE];
+			DisplayEntry.GetUnterminatedName(Chars, NAME_SIZE);
+			const uint32 Size = DisplayEntry.GetNameLength();
+			const auto Ref = UE_TRACE_LOG_DEFINITION(Strings, FName, DefinitionId, true)
+				 << FName.DisplayWide(Chars, Size);
+			return Ref;
+		}
+		else
+		{
+			ANSICHAR Chars[NAME_SIZE];
+			DisplayEntry.GetAnsiName(Chars);
+			const uint32 Size = DisplayEntry.GetNameLength();
+			const auto Ref = UE_TRACE_LOG_DEFINITION(Strings, FName, DefinitionId, true)
+				 << FName.DisplayAnsi(Chars, Size);
+			return Ref;
+		}
+	}
+	return UE::Trace::MakeEventRef(DefinitionId, UE_TRACE_GET_DEFINITION_TYPE_ID(Strings, FName));
+}
+
+void FNamePool::RetraceAll() const
+{
+	uint32 Block = 0;
+	for (const FTracedBitSet& Set : TracedNames)
+	{
+		++Block;
+		Set.ForEachSetBit([&](uint32 Index)
+		{
+			const FNameEntryHandle Handle(Block, Index);
+			const FNameEntry& DisplayEntry = Resolve(Handle);
+			const FNameEntryId EntryId = Handle;
+			const uint32 DefinitionId = EntryId.ToUnstableInt(); 
+				
+			if (DisplayEntry.IsWide())
+			{
+				 TCHAR Chars[NAME_SIZE];
+				 DisplayEntry.GetUnterminatedName(Chars, NAME_SIZE);
+				 const uint32 Size = DisplayEntry.GetNameLength();
+				 const auto Ref = UE_TRACE_LOG_DEFINITION(Strings, FNameNoSync, DefinitionId, true)
+					  << FNameNoSync.DisplayWide(Chars, Size);
+			}
+			else
+			{
+				 ANSICHAR Chars[NAME_SIZE];
+				 DisplayEntry.GetAnsiName(Chars);
+				 const uint32 Size = DisplayEntry.GetNameLength();
+				 const auto Ref = UE_TRACE_LOG_DEFINITION(Strings, FNameNoSync, DefinitionId, true)
+					  << FNameNoSync.DisplayAnsi(Chars, Size);
+			}
+		});
+
+	}
+}
+#endif //UE_TRACE_ENABLED
+
 void FNamePool::LogStats(FOutputDevice& Ar) const
 {
-	Ar.Logf(TEXT("%i FNames using in %" SIZE_T_FMT " bytes fixed + %.2f kB entries + %.2f kB slots"),
-		NumEntries(), 
-		sizeof(FNamePool), 
-		Entries.NumBlocks() * FNameEntryAllocator::BlockSizeBytes / 1024.0, 
-		NumSlots() * sizeof(FNameSlot) / 1024.0
-	);
+	Ar.Logf(TEXT("%i FNames using in %ikB + %ikB"), NumEntries(), sizeof(FNamePool), Entries.NumBlocks() * FNameEntryAllocator::BlockSizeBytes / 1024);
 	Ar.Logf(TEXT("%d ansi FNames"), NumAnsiEntries());
 	Ar.Logf(TEXT("%d wide FNames"), NumWideEntries());
 #if UE_FNAME_OUTLINE_NUMBER
@@ -2259,6 +2432,20 @@ FNameEntry const* FName::GetEntry(FNameEntryId Id)
 	// Public interface, recurse to the actual string entry if necessary
 	return ResolveEntryRecursive(Id);
 }
+
+#if UE_TRACE_ENABLED
+UE::Trace::FEventRef32 FName::TraceName(const FName& Name)
+{
+	const FNameEntryId DisplayId = Name.GetDisplayIndexFast();
+	return GetNamePool().Trace(DisplayId);
+}
+
+void FName::TraceNamesOnConnection()
+{
+	const FNamePool& Pool = GetNamePool();
+	Pool.RetraceAll();
+}
+#endif // UE_TRACE_ENABLED
 
 FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIsBool )
 {
@@ -3657,6 +3844,34 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		check(Id == OldId);
 	}
 #endif
+
+	{
+		TNameAtomicBitSet<1024> TestSet;
+		uint32 SetBits[] = { 0, 3, 34, 35, 53, 65, 523, 534, 654, 1001, 1023 };
+		for (uint32 Index : SetBits)
+		{
+			const bool bWasSet = TestSet.SetBitAtomic(Index);
+			check(bWasSet == false);
+		}
+
+		const bool b32WasSet = TestSet.SetBitAtomic(34);
+		check(b32WasSet);
+
+		uint32 Expected = 0;
+		TestSet.ForEachSetBit([&](uint32 Index)
+		{
+			check(Index == SetBits[Expected]);
+			++Expected;
+		});
+		check(Expected == UE_ARRAY_COUNT(SetBits));
+
+		const bool b1023WasSet = TestSet.ClearBitAtomic(1023);
+		check(b1023WasSet == true);
+		TestSet.ForEachSetBit([&](uint32 Index)
+		{
+			check(Index != 1023);
+		});
+	}
 #endif // DO_CHECK
 }
 

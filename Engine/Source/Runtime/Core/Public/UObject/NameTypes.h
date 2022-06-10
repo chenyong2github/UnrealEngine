@@ -15,6 +15,7 @@
 #include "Templates/Atomic.h"
 #include "Serialization/MemoryLayout.h"
 #include "Misc/StringBuilder.h"
+#include "Trace/Trace.h"
 
 /*----------------------------------------------------------------------------
 	Definitions.
@@ -1029,6 +1030,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	static FNameEntry const* GetEntry(EName Ename);
 	static FNameEntry const* GetEntry(FNameEntryId Id);
+
+#if UE_TRACE_ENABLED
+	static UE::Trace::FEventRef32 TraceName(const FName& Name);
+	static void TraceNamesOnConnection();
+#endif
 
 	//@}
 

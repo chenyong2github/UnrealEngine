@@ -1315,6 +1315,9 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	// specified by the commandline, UE::Trace::Initialize will reset all channels.
 	GTraceAuxiliary.EnableCommandlineChannelsPostInitialize();
 	
+	// Setup known on connection callbacks
+	OnConnection.AddStatic(FStringTrace::OnConnection);
+
 	// Always register end frame updates. This path is short circuited if a worker thread exists.
 	GTraceAuxiliary.StartEndFramePump();
 	if (!FForkProcessHelper::IsForkRequested())
