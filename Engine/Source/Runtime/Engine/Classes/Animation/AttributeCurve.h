@@ -189,7 +189,6 @@ protected:
 	const UE::Anim::IAttributeBlendOperator* Operator;
 
 	friend class UAnimSequence;
-	friend class UAnimDataController;
 	friend struct UE::Anim::Attributes;
 };
 

@@ -51,7 +51,7 @@ public:
 		}
 	}
 
-	bool GetBoneReductionData(const USkeletalMesh* SkeletalMesh, int32 DesiredLOD, TMap<FBoneIndexType, FBoneIndexType>& OutBonesToReplace, const TArray<FName>* BoneNamesToRemove = NULL) override
+	bool GetBoneReductionData(const USkeletalMesh* SkeletalMesh, int32 DesiredLOD, TMap<FBoneIndexType, FBoneIndexType>& OutBonesToReplace, const TArray<FName>* BoneNamesToRemove = nullptr) override
 	{
 		if (!SkeletalMesh)
 		{
@@ -320,14 +320,20 @@ public:
 			Pose.SetBoneContainer(&RequiredBones);
 			Pose.ResetToRefPose();
 
+			FBlendedCurve TempCurve;
+			TempCurve.InitFrom(RequiredBones);
+			UE::Anim::FStackAttributeContainer TempAttributes;
+
+			FAnimationPoseData AnimPoseData(Pose, TempCurve, TempAttributes);
+
 			// Get component space retarget base pose, will be equivalent of ref-pose if not edited
 			TArray<FTransform> ComponentSpaceRefPose;
-			FAnimationRuntime::FillUpComponentSpaceTransformsRetargetBasePose(SkeletalMesh, ComponentSpaceRefPose);
+			FAnimationRuntime::FillUpComponentSpaceTransforms(SkeletalMesh->GetRefSkeleton(), SkeletalMesh->GetRefSkeleton().GetRefBonePose(), ComponentSpaceRefPose);
 			
 			// Retrieve animated pose from anim sequence (including retargeting)
 			const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
 			const FName RetargetSource = Skeleton->GetRetargetSourceForMesh(SkeletalMesh);
-			UE::Anim::BuildPoseFromModel(BakePoseAnim->GetDataModel(), Pose, 0.f, EAnimInterpolationType::Step, RetargetSource, Skeleton->GetRefLocalPoses(RetargetSource));
+			UE::Anim::BuildPoseFromModel(BakePoseAnim->GetDataModel(), AnimPoseData, 0.0, EAnimInterpolationType::Step, RetargetSource, Skeleton->GetRefLocalPoses(RetargetSource));
 			
 			// Calculate component space animated pose matrices
 			TArray<FMatrix> ComponentSpaceAnimatedPose;

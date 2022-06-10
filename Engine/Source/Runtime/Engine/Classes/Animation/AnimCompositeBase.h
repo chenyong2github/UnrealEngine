@@ -39,7 +39,7 @@ struct FRootMotionExtractionStep
 	float EndPosition;
 
 	FRootMotionExtractionStep() 
-		: AnimSequence(NULL)
+		: AnimSequence(nullptr)
 		, StartPosition(0.f)
 		, EndPosition(0.f)
 		{
@@ -348,6 +348,10 @@ class UAnimCompositeBase : public UAnimSequenceBase
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	//~ End UObject Interface
+	
+	//~ Begin UAnimSequenceBase Interface
+	virtual FFrameRate GetSamplingFrameRate() const override;
+	//~ End UAnimSequenceBase Interface
 
 	// Extracts root motion from the supplied FAnimTrack between the Start End range specified
 	ENGINE_API void ExtractRootMotionFromTrack(const FAnimTrack &SlotAnimTrack, float StartTrackPosition, float EndTrackPosition, FRootMotionMovementParams &RootMotion) const;
@@ -362,5 +366,9 @@ class UAnimCompositeBase : public UAnimSequenceBase
 	virtual bool ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumulatedList) PURE_VIRTUAL(UAnimCompositeBase::ContainRecursive, return false; );
 
 	virtual void SetCompositeLength(float InLength) PURE_VIRTUAL(UAnimCompositeBase::SetCompositeLength, );
+
+#if WITH_EDITOR
+	virtual void PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> ExistingDataModel) override;
+#endif // WITH_EDITOR
 };
 

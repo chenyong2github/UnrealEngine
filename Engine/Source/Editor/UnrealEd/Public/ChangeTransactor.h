@@ -42,7 +42,7 @@ struct FChangeTransactor
 		CheckTransactionObject();
 		checkf(!IsTransactionPending(), TEXT("A transaction is already pending"));
 		
-		if (GEngine && GEngine->CanTransact() && ensure(!GIsTransacting))
+		if (CanTransactChanges())
 		{
 			CompoundChangeData = MakeUnique<FCompoundChangeInput>();
 			PendingTransactionIndex = GEngine->BeginTransaction(TEXT("FChangeTransactor"), TransactionDescription, TransactionObject.Get());
@@ -100,7 +100,7 @@ struct FChangeTransactor
 
 		CheckTransactionObject();
 
-		if (GEngine && GEngine->CanTransact() && ensure(!GIsTransacting))
+		if (CanTransactChanges())
 		{
 			checkf(IsTransactionPending(), TEXT("No transaction was previously opened"));
 
@@ -118,6 +118,11 @@ struct FChangeTransactor
 			}
 		}
 	}
+	
+	static bool CanTransactChanges()
+	{
+		return GEngine && GEngine->CanTransact() && !GIsTransacting;
+	};
 private:	
 	void CheckTransactionObject()
 	{
@@ -134,6 +139,29 @@ private:
 
 	/** Number of non-FSwapChange based changes which have been transacted */
 	int32 TransactedChanges;
+};
+
+struct FScopedCompoundTransaction
+{
+	FScopedCompoundTransaction(FChangeTransactor& InTransactor, const FText& InDescription) : Transactor(InTransactor), bCreated(false)
+	{
+		if (FChangeTransactor::CanTransactChanges() && !Transactor.IsTransactionPending())
+		{
+			Transactor.OpenTransaction(InDescription);
+			bCreated = true;
+		}
+	}
+
+	~FScopedCompoundTransaction()
+	{
+		if (bCreated)
+		{
+			Transactor.CloseTransaction();
+		}
+	}
+
+	FChangeTransactor& Transactor;
+	bool bCreated;
 };
 
 }

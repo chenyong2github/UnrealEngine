@@ -31,7 +31,7 @@ void UMotionWarpingUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Ani
 	FBlendedCurve Curve;
 	Curve.InitFrom(BoneContainer);
 
-	FAnimExtractContext Context(Time, bExtractRootMotion);
+	FAnimExtractContext Context(static_cast<double>(Time), bExtractRootMotion);
 
 	UE::Anim::FStackAttributeContainer Attributes;
 	FAnimationPoseData AnimationPoseData(OutPose, Curve, Attributes);

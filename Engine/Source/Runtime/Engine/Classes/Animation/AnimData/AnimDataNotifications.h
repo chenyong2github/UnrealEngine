@@ -13,7 +13,7 @@
 
 #include "AnimDataNotifications.generated.h"
 
-class UAnimDataModel;
+class IAnimationDataModel;
 
 UENUM(BlueprintType)
 enum class EAnimDataModelNotifyType : uint8
@@ -122,17 +122,40 @@ struct FSequenceLengthChangedPayload : public FEmptyPayload
 {
 	GENERATED_BODY()
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FSequenceLengthChangedPayload() = default;
+	FSequenceLengthChangedPayload(const FSequenceLengthChangedPayload&) = default;
+	FSequenceLengthChangedPayload(FSequenceLengthChangedPayload&&) = default;
+	FSequenceLengthChangedPayload& operator=(const FSequenceLengthChangedPayload&) = default;
+	FSequenceLengthChangedPayload& operator=(FSequenceLengthChangedPayload&&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** Previous playable length for the Model */
+	UE_DEPRECATED(5.0, "Time in seconds is deprecated use FFrameNumber members (PreviousNumberOfFrames) instead")
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
 	float PreviousLength = 0.f;
 
 	/** Time at which the change in length has been made */
+	UE_DEPRECATED(5.0, "Time in seconds is deprecated use FFrameNumber members (Frame0) instead")
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
 	float T0 = 0.f;
 
 	/** Length of time which is inserted or removed starting at T0 */
+	UE_DEPRECATED(5.0, "Time in seconds is deprecated use FFrameNumber members (Frame1) instead")
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
 	float T1 = 0.f;
+
+	/** Previous playable number of frames for the Model */
+    UPROPERTY(BlueprintReadOnly, Category = Payload)
+    FFrameNumber PreviousNumberOfFrames;
+
+    /** Frame number at which the change in frames has been made */
+    UPROPERTY(BlueprintReadOnly, Category = Payload)
+    FFrameNumber Frame0;
+
+    /** Amount of frames which is inserted or removed starting at Frame0 */
+    UPROPERTY(BlueprintReadOnly, Category = Payload)
+	FFrameNumber Frame1;
 };
 
 USTRUCT(BlueprintType)
@@ -257,5 +280,5 @@ public:
 #endif // WITH_EDITOR
 };
 
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FAnimDataModelModifiedEvent, const EAnimDataModelNotifyType& /* type */, UAnimDataModel* /* Model */, const FAnimDataModelNotifPayload& /* payload */);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FAnimDataModelModifiedDynamicEvent, EAnimDataModelNotifyType, NotifType, UAnimDataModel*, Model, const FAnimDataModelNotifPayload&, Payload);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FAnimDataModelModifiedEvent, const EAnimDataModelNotifyType& /* type */, IAnimationDataModel* /* Model */, const FAnimDataModelNotifPayload& /* payload */);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FAnimDataModelModifiedDynamicEvent, EAnimDataModelNotifyType, NotifType, TScriptInterface<IAnimationDataModel>, Model, const FAnimDataModelNotifPayload&, Payload);

@@ -239,6 +239,8 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Remove serialization of bounds relevant from  WorldPartitionActorDesc
 		WorldPartitionActorDescRemoveBoundsRelevantSerialization,
 
+		// Add IAnimationDataModel interface and replace UObject based representation for Animation Assets
+		AnimationDataModelInterface,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

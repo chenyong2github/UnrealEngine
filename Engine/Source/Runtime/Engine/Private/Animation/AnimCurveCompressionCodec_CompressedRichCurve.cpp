@@ -45,8 +45,8 @@ bool UAnimCurveCompressionCodec_CompressedRichCurve::Compress(const FCompressibl
 	int32 KeyDataOffset = 0;
 	KeyDataOffset += sizeof(FCurveDesc) * NumCurves;
 
-	const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.NumberOfKeys);
-	const float SampleRate = UseAnimSequenceSampleRate ? Helper.KeysPerSecond() : ErrorSampleRate;
+	const FFrameRate& SamplingFrameRate = AnimSeq.SampledFrameRate;
+	const double SampleRate = AnimSeq.SampledFrameRate.AsDecimal();
 
 	TArray<uint8> KeyData;
 
@@ -78,15 +78,15 @@ bool UAnimCurveCompressionCodec_CompressedRichCurve::Compress(const FCompressibl
 			for (int32 KeyIndex = 0; KeyIndex < SamplesToTake; ++KeyIndex)
 			{
 				// Evaluated RawCurve and Compressed Curve
-				const float EvalTime = KeyIndex * Helper.TimePerKey();
-				const float RawValue = RawCurve.Eval(EvalTime);
+				const double EvalTime = SamplingFrameRate.AsSeconds(KeyIndex);
+				const float RawValue = Curve.FloatCurve.Eval(EvalTime);
 				const float CompressedValue = CompressedCurve.Eval(EvalTime);
 
 				const float AbsDelta = FMath::Abs(CompressedValue - RawValue);
-				if (AbsDelta > MaxCurveError)
+				if (!FMath::IsNearlyZero(AbsDelta, MaxCurveError + UE_KINDA_SMALL_NUMBER))
 				{
 					// Delta larger than tolerated error value
-					UE_LOG(LogAnimationCompression, Warning, TEXT("Curve %s: delta too large %f at %f"), *Curve.Name.DisplayName.ToString(), AbsDelta, EvalTime);
+					UE_LOG(LogAnimationCompression, Warning, TEXT("Curve %s: delta too large %f, between %f and %f, at %f"), *Curve.Name.DisplayName.ToString(), AbsDelta, RawValue, CompressedValue, EvalTime);
 				}
 			}
 		}

@@ -8,7 +8,7 @@
 #include "Delegates/IDelegateInstance.h"
 
 class UAnimSequence;
-class UAnimDataModel;
+class IAnimationDataModel;
 class UAnimDataController;
 class IAnimationDataController;
 class FName;
@@ -17,6 +17,7 @@ struct FRawCurveTracks;
 struct FRawAnimSequenceTrack;
 struct FBoneAnimationTrack;
 struct FRawAnimSequenceTrack;
+struct FAnimationPoseData;
 class IAnimationDataController;
 
 enum class EAnimInterpolationType : uint8;
@@ -27,7 +28,7 @@ namespace Anim {
 
 #if WITH_EDITOR
 	/**
-	* Populates a FCompactPose according to the data stored within a UAnimDataModel provided a time to sample.
+	* Populates a FCompactPose according to the data stored within a IAnimationDataModel provided a time to sample.
 	*
 	* @param	Model				Model to sample from
 	* @param	OutPose				[out] Pose to be populated using the model
@@ -36,29 +37,42 @@ namespace Anim {
 	* @param	RetargetSource		Name of the retarget source to retrieve from the skeleton
 	* @param	RetargetTransforms	Base transforms to use when retargetting the pose
 	*/
-	ENGINE_API void BuildPoseFromModel(const UAnimDataModel* Model, FCompactPose& OutPose, const float Time, const EAnimInterpolationType& InterpolationType, const FName& RetargetSource, const TArray<FTransform>& RetargetTransforms);
+	UE_DEPRECATED(5.1, "Use BuildPoseFromModel with different signature instead")
+	ENGINE_API void BuildPoseFromModel(const IAnimationDataModel* Model, FCompactPose& OutPose, const float Time, const EAnimInterpolationType& InterpolationType, const FName& RetargetSource, const TArray<FTransform>& RetargetTransforms);
 
 	/**
-	* Populates float curves according to the data stored within a UAnimDataModel provided a time to sample.
+	* Populates a FAnimationPoseData according to the data stored within a IAnimationDataModel provided a time to sample.
+	*
+	* @param	Model				Model to sample from
+	* @param	OutPoseData			[out] Pose data to be populated using the model
+	* @param	Time				Time value to sample at
+	* @param	InterpolationType	Method to be used to interpolate between different sample points
+	* @param	RetargetSource		Name of the retarget source to retrieve from the skeleton
+	* @param	RetargetTransforms	Base transforms to use when retargetting the pose
+	*/
+	ENGINE_API void BuildPoseFromModel(const IAnimationDataModel* Model, FAnimationPoseData& OutPoseData, const double Time, const EAnimInterpolationType& InterpolationType, const FName& RetargetSource, const TArray<FTransform>& RetargetTransforms);
+
+	/**
+	* Populates float curves according to the data stored within a IAnimationDataModel provided a time to sample.
 	*
 	* @param	Model				Model to sample from
 	* @param	OutCurves			[out] Curves to be populated using the model
 	* @param	Time				Time value to sample at
 	*/
-	ENGINE_API void EvaluateFloatCurvesFromModel(const UAnimDataModel* Model, FBlendedCurve& OutCurves, float Time);
+	ENGINE_API void EvaluateFloatCurvesFromModel(const IAnimationDataModel* Model, FBlendedCurve& OutCurves, double Time);
 
 	/**
-	* Populates transform curves according to the data stored within a UAnimDataModel provided a time to sample.
+	* Populates transform curves according to the data stored within a IAnimationDataModel provided a time to sample.
 	*
 	* @param	Model				Model to sample from
 	* @param	OutCurves			[out] Curves which were sampled from the model, key-ed with their equivalent name
 	* @param	Time				Time value to sample at
 	* @param	BlendWeight			Blending weight to apply when sampling
 	*/
-	ENGINE_API void EvaluateTransformCurvesFromModel(const UAnimDataModel* Model, TMap<FName, FTransform>& OutCurves, float Time, float BlendWeight);
+	ENGINE_API void EvaluateTransformCurvesFromModel(const IAnimationDataModel* Model, TMap<FName, FTransform>& OutCurves, double Time, float BlendWeight);
 
 	/**
-	* Retrieves a single bone transform according to the data stored within a UAnimDataModel provided a time and track to sample.
+	* Retrieves a single bone transform according to the data stored within a IAnimationDataModel provided a time and track to sample.
 	*
 	* @param	Model				Model to sample from
 	* @param	OutTransform		[out] Transform which was sampled from the model
@@ -66,20 +80,20 @@ namespace Anim {
 	* @param	Time				Time value to sample at
 	* @param	InterpolationType	Method to be used to interpolate between different sample points
 	*/
-	ENGINE_API void GetBoneTransformFromModel(const UAnimDataModel* Model, FTransform& OutTransform, int32 TrackIndex, float Time, const EAnimInterpolationType& Interpolation);
+	ENGINE_API void GetBoneTransformFromModel(const IAnimationDataModel* Model, FTransform& OutTransform, int32 TrackIndex, double Time, const EAnimInterpolationType& Interpolation);
 	
 	/**
-	* Retrieves a single bone transform according to the data stored within a UAnimDataModel provided a key and track to sample.
+	* Retrieves a single bone transform according to the data stored within a IAnimationDataModel provided a key and track to sample.
 	*
 	* @param	Model				Model to sample from
 	* @param	OutTransform		[out] Transform which was sampled from the model
 	* @param	TrackIndex			Track / bone index which should be sampld
 	* @param	KeyIndex			Specific key index to sample
 	*/
-	ENGINE_API void GetBoneTransformFromModel(const UAnimDataModel* Model, FTransform& OutTransform, int32 TrackIndex, int32 KeyIndex);
+	ENGINE_API void GetBoneTransformFromModel(const IAnimationDataModel* Model, FTransform& OutTransform, int32 TrackIndex, int32 KeyIndex);
 
 	/**
-	* Copies over any individual curve from FRawCurveTracks to a UAnimDataModel instance targeted by the provided controller.
+	* Copies over any individual curve from FRawCurveTracks to a IAnimationDataModel instance targeted by the provided controller.
 	*
 	* @param	CurveData			Container of the curves to be copied over
 	* @param	Skeleton			Skeleton to use for verifying and or add the curve names
@@ -88,7 +102,7 @@ namespace Anim {
 	ENGINE_API void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Skeleton, IAnimationDataController& Controller);
 
 	/**
-	* Copies over any individual curve from FRawCurveTracks to a UAnimDataModel instance targeted by the provided controller.
+	* Copies over any individual curve from FRawCurveTracks to a IAnimationDataModel instance targeted by the provided controller.
 	*
 	* @param	SourceAnimSeq				Animation Sequence to copy the notifies from
 	* @param	DestAnimSeq					Animation Sequence to copy the notifies to
@@ -212,8 +226,30 @@ namespace Anim {
 #endif // WITH_EDITOR
 	}
 
+	namespace DataModel { struct FEvaluationContext; }
 	namespace Retargeting
 	{
+		struct ENGINE_API FRetargetTracking
+		{
+			const FCompactPoseBoneIndex PoseBoneIndex;
+			const int32 SkeletonBoneIndex;
+
+			FRetargetTracking(const FCompactPoseBoneIndex InPoseBoneIndex, const int32 InSkeletonBoneIndex) : PoseBoneIndex(InPoseBoneIndex), SkeletonBoneIndex(InSkeletonBoneIndex) {}
+		};
+
+		struct ENGINE_API FRetargetingScope
+		{
+			FRetargetingScope(FCompactPose& ToRetargetPose, const DataModel::FEvaluationContext& InEvaluationContext);
+			~FRetargetingScope();
+			
+			void AddTrackedBone(FCompactPoseBoneIndex CompactBoneIndex, int32 SkeletonBoneIndex) const;
+		private:
+			FCompactPose& RetargetPose;
+			const DataModel::FEvaluationContext& EvaluationContext;
+			TArray<FRetargetTracking>& RetargetTracking;
+			bool bShouldRetarget;
+		};
+		
 		/**
 		* Retargeting the provided pose using the retarget source or transforms
 		*
@@ -221,8 +257,15 @@ namespace Anim {
 		* @param	RetargetSource		Name of the retarget source to retrieve data for
 		* @param	RetargetTransforms	Set of transforms to use as the ref skeleton bone transforms
 		*/
+		UE_DEPRECATED(5.1, "UE::Anim::Retargeting::RetargetPose has been deprecated as retargeting while evaluating pose data from a DataModel is now handled/performed implicitly")
 		ENGINE_API void RetargetPose(FCompactPose& InOutPose, const FName& RetargetSource, const TArray<FTransform>& RetargetTransforms);
 	}
+
+	struct ENGINE_API FBuildRawPoseScratchArea : public TThreadSingleton<FBuildRawPoseScratchArea>
+	{
+		TArray<Retargeting::FRetargetTracking> RetargetTracking;
+		TArray<FVirtualBoneCompactPoseData> VirtualBoneCompactPoseData;
+	};
 
 } // namespace Anim	
 

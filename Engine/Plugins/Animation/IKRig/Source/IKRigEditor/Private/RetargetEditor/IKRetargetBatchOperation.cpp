@@ -186,6 +186,7 @@ void FIKRetargetBatchOperation::RetargetAssets(
 			// set the retarget source to the target skeletal mesh
 			AnimSequenceToRetarget->RetargetSource = NAME_None;
 			AnimSequenceToRetarget->RetargetSourceAsset = Context.TargetMesh;
+			Controller.UpdateWithSkeleton(NewSkeleton);
 			// done editing sequence data, close bracket
 			Controller.CloseBracket(ShouldTransactAnimEdits);
 		}
