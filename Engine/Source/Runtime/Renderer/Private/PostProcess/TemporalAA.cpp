@@ -365,22 +365,48 @@ static_assert(UE_ARRAY_COUNT(kTAAPassNames) == int32(ETAAPassConfig::MAX), "Miss
 static_assert(UE_ARRAY_COUNT(kTAAQualityNames) == int32(ETAAQuality::MAX), "Missing TAA quality name.");
 } //! namespace
 
-FVector ComputePixelFormatQuantizationError(EPixelFormat PixelFormat)
+FVector3f ComputePixelFormatQuantizationError(EPixelFormat PixelFormat)
 {
-	FVector Error;
-	if (PixelFormat == PF_FloatRGBA || PixelFormat == PF_FloatR11G11B10)
+	FIntVector ColorMantissaBits = FIntVector(1, 1, 1);
+	switch (PixelFormat)
 	{
-		FIntVector HistoryColorMantissaBits = PixelFormat == PF_FloatR11G11B10 ? FIntVector(6, 6, 5) : FIntVector(10, 10, 10);
+	case PF_FloatR11G11B10:
+		ColorMantissaBits = FIntVector(6, 6, 5);
+		break;
 
-		Error.X = FMath::Pow(0.5f, HistoryColorMantissaBits.X);
-		Error.Y = FMath::Pow(0.5f, HistoryColorMantissaBits.Y);
-		Error.Z = FMath::Pow(0.5f, HistoryColorMantissaBits.Z);
-	}
-	else
-	{
-		check(0);
+	case PF_FloatRGBA:
+		ColorMantissaBits = FIntVector(10, 10, 10);
+		break;
+
+	case PF_A32B32G32R32F:
+		ColorMantissaBits = FIntVector(23, 23, 23);
+		break;
+
+	case PF_R5G6B5_UNORM:
+		ColorMantissaBits = FIntVector(5, 6, 5);
+		break;
+
+	case PF_B8G8R8A8:
+	case PF_R8G8B8A8:
+		ColorMantissaBits = FIntVector(8, 8, 8);
+		break;
+
+	case PF_A2B10G10R10:
+		ColorMantissaBits = FIntVector(10, 10, 10);
+		break;
+
+	case PF_A16B16G16R16:
+		ColorMantissaBits = FIntVector(16, 16, 16);
+		break;
+
+	default:
+		unimplemented();
 	}
 
+	FVector3f Error;
+	Error.X = FMath::Pow(0.5f, ColorMantissaBits.X);
+	Error.Y = FMath::Pow(0.5f, ColorMantissaBits.Y);
+	Error.Z = FMath::Pow(0.5f, ColorMantissaBits.Z);
 	return Error;
 }
 

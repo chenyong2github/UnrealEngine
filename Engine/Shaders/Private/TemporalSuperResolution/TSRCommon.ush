@@ -208,10 +208,12 @@ static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 7, 5 };
 #if CONFIG_SCENE_COLOR_APLHA
 	#define tsr_halfC tsr_half4
 	#define tsr_halfCx2 tsr_half4x2
+	#define CONFIG_CHANNEL_COUNT 4
 
 #else
 	#define tsr_halfC tsr_half3
 	#define tsr_halfCx2 tsr_half3x2
+	#define CONFIG_CHANNEL_COUNT 3
 
 #endif
 
@@ -1036,6 +1038,18 @@ tsr_half UncompressParallaxFactor(tsr_subpixel_payload CompressedParallaxFactor)
 		tsr_half(CompressedParallaxFactor & SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK) *
 		tsr_half(MAX_PARALLAX_FACTOR / float(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK)) +
 		tsr_half(1.0);
+}
+
+CALL_SITE_DEBUGLOC
+tsr_half3x2 QuantizeForUNormRenderTarget(tsr_half3x2 Color, tsr_half E, const float3 QuantizationError)
+{
+	return Color + dpv_interleave_mono_registers(tsr_half3(QuantizationError)) * (E - tsr_half(0.5));
+}
+
+CALL_SITE_DEBUGLOC
+tsr_half3 QuantizeForUNormRenderTarget(tsr_half3 Color, tsr_half E, const float3 QuantizationError)
+{
+	return dpv_lo(QuantizeForUNormRenderTarget(dpv_interleave_mono_registers(Color), E, QuantizationError));
 }
 
 CALL_SITE_DEBUGLOC

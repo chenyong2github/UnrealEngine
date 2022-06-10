@@ -13,7 +13,6 @@
 
 Texture2D<tsr_halfC> History_LowFrequency;
 Texture2D<tsr_halfC> History_HighFrequency;
-Texture2D<tsr_halfC> History_HighFrequencyHalfRes;
 Texture2D<tsr_half2> History_Metadata;
 Texture2D<tsr_half3> History_Translucency;
 Texture2D<tsr_half>  History_TranslucencyAlpha;
@@ -21,7 +20,6 @@ Texture2D<tsr_subpixel_details> History_SubpixelDetails;
 
 Texture2D<tsr_halfC> PrevHistory_LowFrequency;
 Texture2D<tsr_halfC> PrevHistory_HighFrequency;
-Texture2D<tsr_halfC> PrevHistory_HighFrequencyHalfRes;
 Texture2D<tsr_half2> PrevHistory_Metadata;
 Texture2D<tsr_half3> PrevHistory_Translucency;
 Texture2D<tsr_half>  PrevHistory_TranslucencyAlpha;

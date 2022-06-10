@@ -10,14 +10,26 @@
 #include "Platform.ush"
 
 
-#ifdef COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN
-	#define PLATFORM_SUPPORTS_WAVE_BROADCAST (COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN)
+#if COMPILER_SUPPORTS_WAVE_PERMUTE
+	#define PLATFORM_SUPPORTS_WAVE_READ_AT 1
+#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM6
+	#define PLATFORM_SUPPORTS_WAVE_READ_AT 1
+#else
+	#define PLATFORM_SUPPORTS_WAVE_READ_AT 0
+#endif
+
+#if COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN
+	#define PLATFORM_SUPPORTS_WAVE_BROADCAST 1
+#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM6
+	#define PLATFORM_SUPPORTS_WAVE_BROADCAST 1
 #else
 	#define PLATFORM_SUPPORTS_WAVE_BROADCAST 0
 #endif
 
-#ifdef COMPILER_SUPPORTS_WAVE_SWIZZLE_RDNA
-	#define PLATFORM_SUPPORTS_WAVE_ROTATE (COMPILER_SUPPORTS_WAVE_SWIZZLE_RDNA)
+#if defined(COMPILER_SUPPORTS_WAVE_SWIZZLE_RDNA) && COMPILER_SUPPORTS_WAVE_SWIZZLE_RDNA
+	#define PLATFORM_SUPPORTS_WAVE_ROTATE 1
+#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM6
+	#define PLATFORM_SUPPORTS_WAVE_ROTATE 1
 #else
 	#define PLATFORM_SUPPORTS_WAVE_ROTATE 0
 #endif
@@ -25,32 +37,64 @@
 
 /** Different instruction available for WaveBroadcast() */
 	#define WAVE_BROADCAST_NOP 0
-	#if PLATFORM_SUPPORTS_WAVE_BROADCAST
-		#define WAVE_BROADCAST_GCN_SWIZZLE 1
-	#endif
-	#if PLATFORM_SUPPORTS_WAVE_ROTATE
-		#define WAVE_BROADCAST_RDNA_ROTATE 2
-	#endif
+	#define WAVE_BROADCAST_READ_LANE_AT 1
+	#define WAVE_BROADCAST_READ_LDS_AT 2
+	#define WAVE_BROADCAST_GCN_SWIZZLE 3
+	#define WAVE_BROADCAST_RDNA_ROTATE 4
 
 /** Compile time structure to choose which broadcasting should be done. */
 struct FWaveBroadcastSettings
 {
 	// Broadcast operations.
 	uint Operation;
+	
+	// Lane index to read from
+	uint SourceLaneIndex;
+	
+	// index of the thread.
+	uint GroupThreadIndex;
 
 	// Informations about the broadcast for GCN's ds_swizzle.
-	#if PLATFORM_SUPPORTS_WAVE_BROADCAST
-		uint SwizzleAnd;
-		uint SwizzleOr;
-		uint SwizzleXor;
-	#endif
+	uint SwizzleAnd;
+	uint SwizzleOr;
+	uint SwizzleXor;
 	
 	// Information about the broadcast for RDNA's ds_swizzle's rotate functionality
-	#if PLATFORM_SUPPORTS_WAVE_ROTATE
-		int Rotate;
-		uint RotateFixMask;
-	#endif
+	int Rotate;
+	uint RotateFixMask;
 };
+
+/** Group shared memory . */
+#if defined(WAVE_BROADCAST_GROUPSIZE)
+groupshared uint SharedBroadcastLDS[WAVE_BROADCAST_GROUPSIZE];
+#endif
+
+/** Returns the index of the source lane for a dest lane index. */
+CALL_SITE_DEBUGLOC
+uint GetWaveBroadcastSourceLaneIndex(const FWaveBroadcastSettings Settings, uint DestLaneIndex)
+{
+	if (0)
+	{
+		 return DestLaneIndex;
+	}
+	else if (Settings.Operation == WAVE_BROADCAST_READ_LANE_AT)
+	{
+		return Settings.SourceLaneIndex;
+	}
+	else if (Settings.Operation == WAVE_BROADCAST_READ_LDS_AT)
+	{
+		return Settings.SourceLaneIndex;
+	}
+	else if (Settings.Operation == WAVE_BROADCAST_GCN_SWIZZLE)
+	{
+		return (((DestLaneIndex & Settings.SwizzleAnd) | Settings.SwizzleOr) ^ Settings.SwizzleXor) % 32;
+	}
+	else if (Settings.Operation == WAVE_BROADCAST_RDNA_ROTATE)
+	{
+		return ((Settings.RotateFixMask & DestLaneIndex) | ((~Settings.RotateFixMask) & uint(DestLaneIndex + Settings.Rotate))) % 32;
+	}
+	return DestLaneIndex;
+}
 
 /** Generic broadcast instruction. */
 CALL_SITE_DEBUGLOC
@@ -60,16 +104,68 @@ uint WaveBroadcast(const FWaveBroadcastSettings Settings, uint x)
 	{
 		 return x;
 	}
+	
+	#if PLATFORM_SUPPORTS_WAVE_READ_AT
+	else if (Settings.Operation == WAVE_BROADCAST_READ_LANE_AT)
+	{
+		#if COMPILER_SUPPORTS_WAVE_PERMUTE
+		{
+			return WaveReadLaneAtVarying(x, Settings.SourceLaneIndex);
+		}
+		#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM6
+		{
+			return WaveReadLaneAt(x, Settings.SourceLaneIndex);
+		}
+		#else
+			#error Unimplemented
+		#endif
+	}
+	#endif
+
+	#if defined(WAVE_BROADCAST_GROUPSIZE)
+	else if (Settings.Operation == WAVE_BROADCAST_READ_LDS_AT)
+	{
+		GroupMemoryBarrierWithGroupSync();
+
+		SharedBroadcastLDS[Settings.GroupThreadIndex] = x;
+		
+		GroupMemoryBarrierWithGroupSync();
+
+		return SharedBroadcastLDS[Settings.SourceLaneIndex];
+	}
+	#endif
+
 	#if PLATFORM_SUPPORTS_WAVE_BROADCAST
 	else if (Settings.Operation == WAVE_BROADCAST_GCN_SWIZZLE)
 	{
-		return WaveLaneSwizzleGCN(x, Settings.SwizzleAnd, Settings.SwizzleOr, Settings.SwizzleXor);
+		#if COMPILER_SUPPORTS_WAVE_SWIZZLE_GCN
+		{
+			return WaveLaneSwizzleGCN(x, Settings.SwizzleAnd, Settings.SwizzleOr, Settings.SwizzleXor);
+		}
+		#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM6
+		{
+			return WaveReadLaneAt(x, GetWaveBroadcastSourceLaneIndex(Settings, WaveGetLaneIndex()));
+		}
+		#else
+			#error Unimplemented
+		#endif
 	}
 	#endif
+
 	#if PLATFORM_SUPPORTS_WAVE_ROTATE
 	else if (Settings.Operation == WAVE_BROADCAST_RDNA_ROTATE)
 	{
-		return WaveLaneRotateSwizzleRDNA(x, /* rotate_amount = */ Settings.Rotate, Settings.RotateFixMask);
+		#if defined(COMPILER_SUPPORTS_WAVE_SWIZZLE_RDNA) && COMPILER_SUPPORTS_WAVE_SWIZZLE_RDNA
+		{
+			return WaveLaneRotateSwizzleRDNA(x, /* rotate_amount = */ Settings.Rotate, Settings.RotateFixMask);
+		}
+		#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM6
+		{
+			return WaveReadLaneAt(x, GetWaveBroadcastSourceLaneIndex(Settings, WaveGetLaneIndex()));
+		}
+		#else
+			#error Unimplemented
+		#endif
 	}
 	#endif
 
@@ -262,7 +358,7 @@ half4 WaveBroadcast(const FWaveBroadcastSettings Settings, half4 v)
 	return asfloat16(WaveBroadcast(Settings, asuint16(v)));
 }
 
-#endif
+#endif // PLATFORM_SUPPORTS_REAL_TYPES
 
 
 
@@ -272,22 +368,74 @@ FWaveBroadcastSettings InitNopBroadcast()
 {
 	FWaveBroadcastSettings Settings;
 	Settings.Operation  = WAVE_BROADCAST_NOP;
-	#if PLATFORM_SUPPORTS_WAVE_BROADCAST
-		Settings.SwizzleAnd = 0x00;
-		Settings.SwizzleOr  = 0x00;
-		Settings.SwizzleXor = 0x00;
-	#endif
-	#if PLATFORM_SUPPORTS_WAVE_ROTATE
-		Settings.Rotate        = +0;
-		Settings.RotateFixMask = 0x00;
-	#endif
+	Settings.SourceLaneIndex  = 0;
+	Settings.GroupThreadIndex = 0;
+	Settings.SwizzleAnd = 0x00;
+	Settings.SwizzleOr  = 0x00;
+	Settings.SwizzleXor = 0x00;
+	Settings.Rotate        = +0;
+	Settings.RotateFixMask = 0x00;
 	return Settings;
 }
 
 
-#if PLATFORM_SUPPORTS_WAVE_BROADCAST
+/**  Dynamically read another lane's register
+ *
+ *	Requires PLATFORM_SUPPORTS_WAVE_READ_AT.
+ *
+ *	return src[SourceLaneIndex];
+ *
+ *  Note the SourceLaneIndex can be dynamic according to SM 6.0's WaveReadLaneAt()
+ */
+CALL_SITE_DEBUGLOC
+FWaveBroadcastSettings InitWaveReadLaneAt(uint SourceLaneIndex)
+{
+	FWaveBroadcastSettings Settings = InitNopBroadcast();
+	Settings.Operation  = WAVE_BROADCAST_READ_LANE_AT;
+	Settings.SourceLaneIndex = SourceLaneIndex;
+	return Settings;
+}
+
+/**  Dynamically read another group thread's register through LDS
+ *
+ *	Requires setting WAVE_BROADCAST_GROUPSIZE to allocate groupshared memory.
+ *
+ *	LDS[GroupThreadIndex] = src;
+ *	return LDS[SourceLaneIndex];
+ */
+CALL_SITE_DEBUGLOC
+FWaveBroadcastSettings InitWaveReadLDS(uint SourceLaneIndex, uint GroupThreadIndex)
+{
+	FWaveBroadcastSettings Settings = InitNopBroadcast();
+	Settings.Operation  = WAVE_BROADCAST_READ_LDS_AT;
+	Settings.SourceLaneIndex = SourceLaneIndex;
+	Settings.GroupThreadIndex  = GroupThreadIndex;
+	return Settings;
+}
+
+/**  Converts a broadcast operation to be performed in SM5.
+ *
+ *	Requires setting WAVE_BROADCAST_GROUPSIZE to allocate groupshared memory.
+ *
+ *	Returns the exact sames data as Settings would otherwise return, but through LDS. Example:
+ *
+ *		const FWaveBroadcastSettings BroadcastSettings = InitWaveReadLaneAt(SourceLaneIndex);
+ *
+ *		#if PLATFORM_SUPPORTS_WAVE_READ_AT
+ *			uint Desc = WaveBroadcast(BroadcastSettings, Src);
+ *		#else
+ *			uint Desc = WaveBroadcast(ConvertWaveBroadcastToLDS(BroadcastSettings, GroupThreadIndex), Src);
+ *		#endif
+ */
+CALL_SITE_DEBUGLOC
+FWaveBroadcastSettings ConvertWaveBroadcastToLDS(const FWaveBroadcastSettings Settings, uint GroupThreadIndex)
+{
+	return InitWaveReadLDS(GetWaveBroadcastSourceLaneIndex(Settings, /* DestLaneIndex = */ GroupThreadIndex), GroupThreadIndex);
+}
 
 /**  Broadcast in butterfly pattern.
+ *
+ *	Requires PLATFORM_SUPPORTS_WAVE_BROADCAST.
  *
  *	return src[laneId ^ XorButterFly];
  */
@@ -303,6 +451,8 @@ FWaveBroadcastSettings InitWaveXorButterfly(const uint XorButterFly)
 }
 
 /** Swap left lane with righ lanes within lane group (size is power of two in [2; 64]). 
+ *
+ *	Requires PLATFORM_SUPPORTS_WAVE_BROADCAST.
  *
  *  If a lane is not active, the VGPR value returned is 0.
  *
@@ -321,6 +471,8 @@ FWaveBroadcastSettings InitWaveSwapWithinLaneGroup(const uint LaneGroupSize)
 }
 
 /**  Broadcast inner lane group over a lane group (size is power of two in [2; 64]).
+ *
+ *	Requires PLATFORM_SUPPORTS_WAVE_BROADCAST.
  *
  *  If a lane is not active, the VGPR value returned is 0.
  *
@@ -346,11 +498,9 @@ FWaveBroadcastSettings InitWaveBroadcastLaneGroup(const uint LaneGroupSize, cons
 	return Settings;
 }
 
-#endif // PLATFORM_SUPPORTS_WAVE_BROADCAST
-
-#if PLATFORM_SUPPORTS_WAVE_ROTATE
-
 /**  Rotate lane (-31 to +31) over a lane group (size is power of two in [2; 32]).
+ *
+ *	Requires PLATFORM_SUPPORTS_WAVE_ROTATE.
  *
  *  If a lane is not active, the VGPR value returned is 0.
  *
@@ -374,5 +524,3 @@ FWaveBroadcastSettings InitWaveRotateLaneGroup(const uint LaneGroupSize, const i
 	Settings.RotateFixMask = RotateFixMask;
 	return Settings;
 }
-
-#endif // PLATFORM_SUPPORTS_WAVE_ROTATE

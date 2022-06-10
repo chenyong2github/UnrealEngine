@@ -903,8 +903,8 @@ struct FTSRHistory
 	// Non-filterable output resolution
 	TRefCountPtr<IPooledRenderTarget> SubpixelDetails;
 
-	// Filterable half-res output resolution
-	TRefCountPtr<IPooledRenderTarget> HighFrequencyHalfRes;
+	// Filterable input resolution representation of the output
+	TRefCountPtr<IPooledRenderTarget> Guide;
 
 	FIntRect InputViewportRect;
 	FIntRect OutputViewportRect;

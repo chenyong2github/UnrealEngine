@@ -31,7 +31,7 @@ void MainCS(
 	// Fetch center of the kernel
 	tsr_half HistoryRejectionInfo = HistoryRejectionTexture[RejectionPixelPos];
 
-	const int KernelSize = 2;
+	const int KernelSize = 1;
 
 	// Fetch neighborhood of the kernel
 	UNROLL

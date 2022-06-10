@@ -1,0 +1,448 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+//------------------------------------------------------- CONFIG WAVE SIZE
+
+#define WAVE_SIZE 32
+#if !DIM_USE_WAVE_OPS
+	#define WAVE_BROADCAST_GROUPSIZE (WAVE_SIZE)
+#endif
+
+//------------------------------------------------------- INCLUDES
+
+#include "TSRCommon.ush"
+#include "/Engine/Public/LaneVectorization.ush"
+
+
+//------------------------------------------------------- CONFIG
+
+#define DEBUG_ARRAY_SIZE 8
+
+/** Size of the entire group loaded into memory including overscan. */
+#define GROUP_TILE_SIZE 16
+
+/** Size of the overscan. */
+#define TILE_OVERSCAN_PADDING 2
+
+/** Size of of the output tile. */
+#define TILE_SIZE (GROUP_TILE_SIZE - 2 * TILE_OVERSCAN_PADDING)
+
+/** Whether should remove firefliers from input and history before comparison to improve stability. */
+#define CONFIG_FIREFLY_REMOVAL 1
+
+
+//------------------------------------------------------- DERIVED
+
+/** Pixel coordinate stride between each lane in the GROUP_TILE_SIZE. */
+#define LANE_STRIDE_X 4
+#define LANE_STRIDE_Y 2
+
+/** Number of lane the GROUP_TILE_SIZE. */
+#define LANE_COUNT_X (GROUP_TILE_SIZE / LANE_STRIDE_X)
+#define LANE_COUNT_Y (GROUP_TILE_SIZE / LANE_STRIDE_Y)
+
+/** Size of the SIMD per lane that also number of input pixel loaded into each individual lanes. */
+#define SIMD_SIZE (LANE_STRIDE_X * LANE_STRIDE_Y)
+
+
+//------------------------------------------------------- TYPEDEFS
+
+#define tsr_simd_half  TLaneVector<tsr_half, 1, SIMD_SIZE>
+#define tsr_simd_halfC TLaneVector<tsr_half, CONFIG_CHANNEL_COUNT, SIMD_SIZE>
+#define tsr_simd_bool  TLaneVector<bool, 1, SIMD_SIZE>
+
+
+//------------------------------------------------------- PARAMETERS
+
+float3 HistoryGuideQuantizationError;
+
+Texture2D<tsr_halfC> InputTexture;
+Texture2D<tsr_halfC> ReprojectedHistoryGuideTexture;
+Texture2D<tsr_half> ParallaxRejectionMaskTexture;
+
+RWTexture2D<tsr_halfC> HistoryGuideOutput;
+RWTexture2D<tsr_half> HistoryRejectionOutput;
+RWTexture2D<tsr_half> InputSceneColorLdrLumaOutput;
+
+
+//------------------------------------------------------- GENERAL TEXEL SWIZZLING & NEIGHBOR ACCESS
+
+CALL_SITE_DEBUGLOC
+tsr_short2 GetSimdIndexPixelCoordinateInLane(const uint SimdIndex)
+{
+	return tsr_short2(SimdIndex % uint(LANE_STRIDE_X), SimdIndex / uint(LANE_STRIDE_X));
+}
+
+CALL_SITE_DEBUGLOC
+tsr_short2 GetLaneSimdPixelOffset(const uint LaneIndex, const uint SimdIndex)
+{
+	return (
+		tsr_short2(LaneIndex % uint(LANE_COUNT_X), LaneIndex / uint(LANE_COUNT_X)) * tsr_short2(LANE_STRIDE_X, LANE_STRIDE_Y) +
+		GetSimdIndexPixelCoordinateInLane(SimdIndex)
+	);
+}
+
+CALL_SITE_DEBUGLOC
+template<typename ScalarType, uint VectorSize, uint SimdSize>
+TLaneVector<ScalarType, VectorSize, SimdSize> AccessNeighborTexel(TLaneVector<ScalarType, VectorSize, SimdSize> Input, const tsr_short2 Offset, uint GroupThreadIndex)
+{
+	TLaneVector<ScalarType, VectorSize, SimdSize> Return;
+	
+	UNROLL_N(SIMD_SIZE)
+	for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+	{
+		const uint2 SimdPixelCoord = uint2(GetSimdIndexPixelCoordinateInLane(SimdIndex));
+
+		// Compute the simd index of the neighbor.
+		const uint2 NeigborSimdPixelCoord = (SimdPixelCoord + uint2(Offset)) % uint2(LANE_STRIDE_X, LANE_STRIDE_Y);
+		const uint NeigborSimdIndex = dot(NeigborSimdPixelCoord, uint2(1, LANE_STRIDE_X));
+
+		// Compute the lane rotaton of the neighbor.
+		const bool2 bNeedsLaneRotation = (SimdPixelCoord + uint2(Offset)) >= uint2(LANE_STRIDE_X, LANE_STRIDE_Y);
+		const int LaneRotation = dot(select(bNeedsLaneRotation, int2(Offset), 0), int2(1, LANE_COUNT_X));
+		
+		// Access the lement.
+		vector<ScalarType, VectorSize> SimdElement = Input.GetElement(NeigborSimdIndex);
+		vector<ScalarType, VectorSize> ReturnSimdElement = SimdElement;
+		if (LaneRotation != 0)
+		{
+			// Only uses wave intrinsics on platforms that provides RDNA's ds_swizzle because we know the wave size of this platforms. 
+			#if DIM_USE_WAVE_OPS
+				#if !PLATFORM_SUPPORTS_WAVE_ROTATE
+					//#error InitWaveRotateLaneGroup() isn't supported.
+				#endif
+				const FWaveBroadcastSettings BroadcastSettings = InitWaveRotateLaneGroup(/* LaneGroupSize = */ WAVE_SIZE, LaneRotation);
+			#else
+				const FWaveBroadcastSettings BroadcastSettings = ConvertWaveBroadcastToLDS(InitWaveRotateLaneGroup(/* LaneGroupSize = */ WAVE_SIZE, LaneRotation), GroupThreadIndex);
+			#endif
+			ReturnSimdElement = WaveBroadcast(BroadcastSettings, SimdElement);
+		}
+
+		Return.SetElement(SimdIndex, ReturnSimdElement);
+	}
+
+	return Return;
+}
+
+
+//------------------------------------------------------- CONVOLUTION ACCUMULATORS
+
+template<typename Type>
+struct TAccumulatorAvg
+{
+	Type Value;
+	tsr_simd_half Weight;
+	
+	CALL_SITE_DEBUGLOC
+	void Start(Type CenterSample)
+	{
+		Value = CenterSample;
+		Weight = tsr_simd_half::Const(1.0);
+	}
+	
+	CALL_SITE_DEBUGLOC
+	static Type PreprocessNeighborSample(Type Sample, tsr_simd_half InWeight)
+	{
+		return Sample;
+	}
+	
+	CALL_SITE_DEBUGLOC
+	void Accumulate(const tsr_short2 Offset, Type Sample, tsr_simd_half InWeight)
+	{
+		const tsr_half SampleSpatialWeight = tsr_half(rcp(abs(tsr_half(Offset.x)) + 1.0) * rcp(abs(tsr_half(Offset.y)) + 1.0));
+		
+		Value = Value + Sample * Type::Vectorize(InWeight * SampleSpatialWeight);
+		Weight = Weight + InWeight * tsr_simd_half::Const(SampleSpatialWeight);
+	}
+	
+	CALL_SITE_DEBUGLOC
+	void Finish(const uint SampleCount)
+	{
+		Value = Value * Type::Vectorize(rcp(Weight));
+	}
+};
+
+template<typename Type>
+struct TAccumulatorMin
+{
+	Type Value;
+	
+	CALL_SITE_DEBUGLOC
+	void Start(Type CenterSample)
+	{
+		Value = CenterSample;
+	}
+	
+	CALL_SITE_DEBUGLOC
+	static Type PreprocessNeighborSample(Type Sample, tsr_simd_half InWeight)
+	{
+		return Sample;
+	}
+	
+	CALL_SITE_DEBUGLOC
+	void Accumulate(const tsr_short2 Offset, Type Sample, tsr_simd_half Weight)
+	{
+		Value = min(Value, Sample);
+	}
+	
+	CALL_SITE_DEBUGLOC
+	void Finish(const uint SampleCount)
+	{
+		// NOP
+	}
+};
+
+template<typename Type>
+struct TAccumulatorMax
+{
+	Type Value;
+	
+	CALL_SITE_DEBUGLOC
+	void Start(Type CenterSample)
+	{
+		Value = CenterSample;
+	}
+	
+	CALL_SITE_DEBUGLOC
+	static Type PreprocessNeighborSample(Type Sample, tsr_simd_half InWeight)
+	{
+		return Sample;
+	}
+	
+	CALL_SITE_DEBUGLOC
+	void Accumulate(const tsr_short2 Offset, Type Sample, tsr_simd_half Weight)
+	{
+		Value = max(Value, Sample);
+	}
+	
+	CALL_SITE_DEBUGLOC
+	void Finish(const uint SampleCount)
+	{
+		// NOP
+	}
+};
+
+
+//------------------------------------------------------- CONVOLUTIONS
+
+CALL_SITE_DEBUGLOC
+template<class FAccumulator, typename FSampleType>
+FAccumulator Convole3x1(FSampleType Color, tsr_simd_half Weight, const tsr_short2 Offset, uint GroupThreadIndex)
+{
+	FAccumulator Accumulator;
+	Accumulator.Start(Color);
+	
+	FSampleType PreprocessedNeighborColor = FAccumulator::PreprocessNeighborSample(Color, Weight);
+
+	FSampleType Sample0 = AccessNeighborTexel(PreprocessedNeighborColor, +Offset, GroupThreadIndex);
+	tsr_simd_half Weight0 = AccessNeighborTexel(Weight, +Offset, GroupThreadIndex);
+	Accumulator.Accumulate(+Offset, Sample0, Weight0);
+	
+	const tsr_short2 OffsetN = tsr_short2(-int2(Offset)); // work arround a shader compiler bug
+	FSampleType Sample1 = AccessNeighborTexel(PreprocessedNeighborColor, OffsetN, GroupThreadIndex);
+	tsr_simd_half Weight1 = AccessNeighborTexel(Weight, OffsetN, GroupThreadIndex);
+	Accumulator.Accumulate(OffsetN, Sample1, Weight1);
+
+	Accumulator.Finish(3);
+	return Accumulator;
+}
+
+CALL_SITE_DEBUGLOC
+template<class FAccumulator, typename FSampleType>
+FSampleType Convolve3x3HV(FSampleType Color, tsr_simd_half Weight, uint GroupThreadIndex)
+{
+	FSampleType HorizontalColor = Convole3x1<FAccumulator, FSampleType>(Color, Weight, tsr_short2(1, 0), GroupThreadIndex).Value;
+	return Convole3x1<FAccumulator, FSampleType>(HorizontalColor, Weight, tsr_short2(0, 1), GroupThreadIndex).Value;
+}
+
+
+//------------------------------------------------------- GENERAL OPERATIONS
+
+tsr_simd_halfC ClampFireFliersWithGuide(tsr_simd_halfC ToClamp, tsr_simd_halfC Guide, tsr_simd_half Weight, uint GroupThreadIndex)
+{
+	tsr_simd_halfC ToClampMin = Convolve3x3HV<TAccumulatorMin<tsr_simd_halfC>, tsr_simd_halfC>(ToClamp, Weight, GroupThreadIndex);
+	tsr_simd_halfC ToClampMax = Convolve3x3HV<TAccumulatorMax<tsr_simd_halfC>, tsr_simd_halfC>(ToClamp, Weight, GroupThreadIndex);
+
+	tsr_simd_halfC ClampedGuide = clamp(Guide, ToClampMin, ToClampMax);
+	
+	tsr_simd_halfC ClampedGuideMin = Convolve3x3HV<TAccumulatorMin<tsr_simd_halfC>, tsr_simd_halfC>(ClampedGuide, Weight, GroupThreadIndex);
+	tsr_simd_halfC ClampedGuideMax = Convolve3x3HV<TAccumulatorMax<tsr_simd_halfC>, tsr_simd_halfC>(ClampedGuide, Weight, GroupThreadIndex);
+	
+	return clamp(ToClamp, ClampedGuideMin, ClampedGuideMax);
+}
+
+
+//------------------------------------------------------- ENTRY POINT
+
+[numthreads(WAVE_SIZE, 1, 1)]
+void MainCS(
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	tsr_simd_halfC Debug[DEBUG_ARRAY_SIZE];
+	UNROLL_N(DEBUG_ARRAY_SIZE)
+	for (uint DebugId = 0; DebugId < DEBUG_ARRAY_SIZE; DebugId++)
+	{
+		Debug[DebugId].SetAllElements(0.0);
+	}
+
+	const uint LaneIndex = GroupThreadIndex;
+	const tsr_short2 GroupPixelOffset = (
+		tsr_short2(InputPixelPosMin) +
+		tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE) +
+		tsr_short(-TILE_OVERSCAN_PADDING).xx);
+		
+	// Load
+	tsr_simd_halfC OriginalInput;
+	tsr_simd_halfC OriginalHistory;
+	tsr_simd_half bIsValid;
+	ISOLATE
+	{
+		UNROLL_N(SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+		{
+			tsr_short2 ClampedFetchPixelPos = GroupPixelOffset + GetLaneSimdPixelOffset(LaneIndex, SimdIndex);
+			ClampedFetchPixelPos = ClampPixelOffset(ClampedFetchPixelPos, InputPixelPosMin, InputPixelPosMax);
+
+			OriginalInput.SetElement(SimdIndex, InputTexture[ClampedFetchPixelPos]);
+			OriginalHistory.SetElement(SimdIndex, ReprojectedHistoryGuideTexture[ClampedFetchPixelPos]);
+			bIsValid.SetElement(SimdIndex, ParallaxRejectionMaskTexture[ClampedFetchPixelPos] > tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD) ? tsr_half(1.0) : tsr_half(0.0));
+		}
+	}
+		
+	// Compute AA Luma
+	tsr_simd_half CenterLumaLDR;
+	{
+		const tsr_half SpatialAAExposure = tsr_half(0.5);
+		UNROLL_N(SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+		{
+			tsr_half CenterLuma = dot(OriginalInput.GetElement(SimdIndex).rgb, tsr_half3(0.299f, 0.587f, 0.114f));
+			CenterLumaLDR.SetElement(SimdIndex, CenterLuma / (SpatialAAExposure + CenterLuma));
+		}
+	}
+	
+	// Convert input to LDR
+	OriginalInput = OriginalInput * rcp(OriginalInput + tsr_simd_halfC::Const(1.0));
+	
+	tsr_simd_halfC ClampedInput = OriginalInput;
+	tsr_simd_halfC ClampedHistory = OriginalHistory;
+	#if CONFIG_FIREFLY_REMOVAL
+	{
+		ClampedInput   = ClampFireFliersWithGuide(OriginalInput  , /* Guide = */ OriginalHistory, bIsValid, GroupThreadIndex);
+		ClampedHistory = ClampFireFliersWithGuide(OriginalHistory, /* Guide = */ OriginalInput  , bIsValid, GroupThreadIndex);
+	}
+	#endif
+
+	// Filter clamped input and history to increase quantization of the rejection detection
+	tsr_simd_halfC FilteredInput   = Convolve3x3HV<TAccumulatorAvg<tsr_simd_halfC>, tsr_simd_halfC>(ClampedInput  , bIsValid, GroupThreadIndex);
+	tsr_simd_halfC FilteredHistory = Convolve3x3HV<TAccumulatorAvg<tsr_simd_halfC>, tsr_simd_halfC>(ClampedHistory, bIsValid, GroupThreadIndex);
+	
+	Debug[0] = OriginalInput;
+	Debug[1] = AccessNeighborTexel(OriginalInput, tsr_short2(1, 0), GroupThreadIndex);
+	Debug[2] = FilteredInput;
+
+	// Measure rejection
+	tsr_simd_half Rejection;
+	Rejection.SetAllElements(tsr_half(1.0));
+	#if 1
+	{
+		tsr_simd_halfC BackbufferError = tsr_simd_halfC::Const(MeasureBackbufferLDRQuantizationError());
+
+		tsr_simd_halfC FilteredBoxMin = Convolve3x3HV<TAccumulatorMin<tsr_simd_halfC>, tsr_simd_halfC>(FilteredInput, bIsValid, GroupThreadIndex) - BackbufferError;
+		tsr_simd_halfC FilteredBoxMax = Convolve3x3HV<TAccumulatorMax<tsr_simd_halfC>, tsr_simd_halfC>(FilteredInput, bIsValid, GroupThreadIndex) + BackbufferError;
+		tsr_simd_halfC ClampedFilteredHistory = clamp(FilteredHistory, FilteredBoxMin, FilteredBoxMax);
+		
+		tsr_simd_halfC OriginalBoxMin = Convolve3x3HV<TAccumulatorMin<tsr_simd_halfC>, tsr_simd_halfC>(OriginalInput, bIsValid, GroupThreadIndex);
+		tsr_simd_halfC OriginalBoxMax = Convolve3x3HV<TAccumulatorMax<tsr_simd_halfC>, tsr_simd_halfC>(OriginalInput, bIsValid, GroupThreadIndex);
+		tsr_simd_halfC BoxSize = (OriginalBoxMax - OriginalBoxMin + (BackbufferError + BackbufferError)) * rcp(tsr_half(1.0 + 4 * 0.5 + 4 * 0.25));
+		
+		UNROLL_N(SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+		{
+			Rejection.SetElement(SimdIndex, MeasureRejectionFactor(
+				FilteredHistory.GetElement(SimdIndex), ClampedFilteredHistory.GetElement(SimdIndex),
+				FilteredInput.GetElement(SimdIndex), tsr_half(0.0), BoxSize.GetElement(SimdIndex),
+				MeasureBackbufferLDRQuantizationError()));
+		}
+		
+		Rejection = saturate(Rejection + tsr_simd_half::Const(1.0) - bIsValid);
+	}
+	#endif
+	
+	// Update the guide for next frame.
+	tsr_simd_halfC FinalGuide;
+	{
+		const tsr_half CurrentFrameSampleCount = tsr_half(1.0);
+		const tsr_half PrevLowFrequencySampleCount = tsr_half(24.0);
+		
+		// Reject the history based on the low frequencies.
+		tsr_simd_half PrevLowFrequencyRejectionFactor;
+		#if 1
+		{
+			PrevLowFrequencyRejectionFactor = saturate(Rejection * ((CurrentFrameSampleCount + PrevLowFrequencySampleCount) * rcp(PrevLowFrequencySampleCount)));
+		}
+		#endif
+		
+		tsr_simd_half BlendFinal = rcp(PrevLowFrequencyRejectionFactor * PrevLowFrequencySampleCount + CurrentFrameSampleCount) * CurrentFrameSampleCount;
+		
+		// Completely discard the history
+		UNROLL_N(SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+		{
+			bool bIsOffScreen = false;
+			bool bIsDisoccluded = bIsValid.GetElement(SimdIndex) == tsr_half(0.0);
+			tsr_half TotalBlend = select(or(bIsOffScreen, bIsDisoccluded), tsr_half(1.0), saturate(tsr_half(1.0) - Rejection.GetElement(SimdIndex) * tsr_half(4.0)));
+
+			BlendFinal.SetElement(SimdIndex, max(BlendFinal.GetElement(SimdIndex), TotalBlend));
+		}
+		
+		FinalGuide = OriginalInput * tsr_simd_halfC::Vectorize(BlendFinal) - OriginalHistory * tsr_simd_halfC::Vectorize(BlendFinal - 1.0);
+	}
+
+	// Mark the top left corner of the tile for debugging purposes.
+	#if DEBUG_OUTPUT
+	if (GroupThreadIndex == 0)
+	{
+		UNROLL_N(DEBUG_ARRAY_SIZE)
+		for (uint DebugId = 0; DebugId < DEBUG_ARRAY_SIZE; DebugId++)
+		{
+			Debug[DebugId].SetElement(/* SimdIndex = */ 0, 1.0);
+		}
+	}
+	#endif
+
+	// Output data.
+	ISOLATE
+	{
+		UNROLL_N(SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+		{
+			tsr_short2 LaneSimdPixelOffset = GetLaneSimdPixelOffset(LaneIndex, SimdIndex);
+			tsr_short2 OutputPixelPos = GroupPixelOffset + LaneSimdPixelOffset;
+			OutputPixelPos.x = select(all(and(LaneSimdPixelOffset >= TILE_OVERSCAN_PADDING, LaneSimdPixelOffset < TILE_SIZE + TILE_OVERSCAN_PADDING)), OutputPixelPos.x, ~0);
+		
+			tsr_halfC FinalGuideColor = FinalGuide.GetElement(SimdIndex);
+
+			#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
+			{
+				uint2 Random = Rand3DPCG16(int3(LaneSimdPixelOffset, View.StateFrameIndexMod8)).xy;
+				tsr_half E = tsr_half(Hammersley16(0, 1, Random).x);
+		
+				FinalGuideColor.rgb = QuantizeForUNormRenderTarget(FinalGuideColor.rgb, E.x, HistoryGuideQuantizationError);
+			}
+			#endif
+
+			HistoryGuideOutput[OutputPixelPos] = FinalGuideColor;
+			HistoryRejectionOutput[OutputPixelPos] = Rejection.GetElement(SimdIndex);
+			InputSceneColorLdrLumaOutput[OutputPixelPos] = CenterLumaLDR.GetElement(SimdIndex);
+			
+			#if DEBUG_OUTPUT
+			UNROLL_N(DEBUG_ARRAY_SIZE)
+			for (uint DebugId = 0; DebugId < DEBUG_ARRAY_SIZE; DebugId++)
+			{
+				DebugOutput[tsr_short3(OutputPixelPos, DebugId)] = float4(Debug[DebugId].GetElement(SimdIndex), 0.0);
+			}
+			#endif
+		}
+	}
+}
