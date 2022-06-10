@@ -401,7 +401,7 @@ namespace UE::Tasks
 			return true;
 		}
 
-		return CompletionEvent->Wait(Timeout.GetRemainingTime());
+		return CompletionEvent->Wait((uint32)FMath::Clamp<int64>(Timeout.GetRemainingTime().GetTicks() / ETimespan::TicksPerMillisecond, 0, MAX_uint32));
 	}
 
 	// wait for multiple tasks while executing other tasks
