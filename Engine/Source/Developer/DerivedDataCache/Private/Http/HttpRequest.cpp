@@ -777,7 +777,7 @@ void FHttpRequest::EnqueueAsyncPost(
 
 	CURL* const LocalCurl = static_cast<CURL*>(Curl);
 	curl_easy_setopt(LocalCurl, CURLOPT_POST, 1L);
-	curl_easy_setopt(LocalCurl, CURLOPT_INFILESIZE, Buffer.GetSize());
+	curl_easy_setopt(LocalCurl, CURLOPT_POSTFIELDSIZE, Buffer.GetSize());
 	curl_easy_setopt(LocalCurl, CURLOPT_READDATA, this);
 	curl_easy_setopt(LocalCurl, CURLOPT_READFUNCTION, Http::Private::FHttpRequestStatics::StaticReadFn);
 	AddContentTypeHeader(TEXTVIEW("Content-Type"), ContentType);

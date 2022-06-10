@@ -2,6 +2,7 @@
 
 #include "HttpClient.h"
 
+#include "Algo/RemoveIf.h"
 #include "Misc/AsciiSet.h"
 #include "Misc/ScopeRWLock.h"
 #include "Tasks/Task.h"
@@ -93,7 +94,7 @@ FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FHttpA
 	return Builder.Append(Token.Header);
 }
 
-FHttpSharedData::FHttpSharedData()
+FHttpSharedData::FHttpSharedData(uint32 OverrideMaxConnections)
 	: PendingRequestEvent(EEventMode::AutoReset)
 {
 	Internals = MakePimpl<Http::Private::FHttpSharedDataInternals>();
@@ -104,7 +105,7 @@ FHttpSharedData::FHttpSharedData()
 	curl_share_setopt(Internals->CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
 	curl_share_setopt(Internals->CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
 	Internals->CurlMulti = curl_multi_init();
-	curl_multi_setopt(Internals->CurlMulti, CURLMOPT_MAX_TOTAL_CONNECTIONS, Http::Private::MaxTotalConnections);
+	curl_multi_setopt(Internals->CurlMulti, CURLMOPT_MAX_TOTAL_CONNECTIONS, OverrideMaxConnections ? OverrideMaxConnections : Http::Private::MaxTotalConnections);
 	curl_multi_setopt(Internals->CurlMulti, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
 }
 
@@ -129,7 +130,7 @@ void FHttpSharedData::AddRequest(void* Curl)
 
 	if (!bAsyncThreadStarting.load(std::memory_order_relaxed) && !bAsyncThreadStarting.exchange(true, std::memory_order_relaxed))
 	{
-		AsyncServiceThread = FThread(TEXT("HttpCacheStore"), [this] { ProcessAsyncRequests(); }, 64 * 1024, TPri_Normal);
+		AsyncServiceThread = FThread(TEXT("HttpService"), [this] { ProcessAsyncRequests(); }, 64 * 1024, TPri_Normal);
 	}
 }
 
@@ -141,8 +142,10 @@ void* FHttpSharedData::GetCurlShare() const
 void FHttpSharedData::ProcessAsyncRequests()
 {
 	int ActiveTransfers = 0;
+	TArray<Tasks::TTask<void>> PendingCompletionTasks;
+	PendingCompletionTasks.Reserve(128);
 
-	auto ProcessPendingRequests = [this, &ActiveTransfers]
+	auto ProcessPendingRequests = [this, &ActiveTransfers, &PendingCompletionTasks]
 	{
 		int CurrentActiveTransfers = -1;
 
@@ -183,10 +186,10 @@ void FHttpSharedData::ProcessAsyncRequests()
 							// It is important that the CompleteAsync call doesn't happen on this thread as it is possible it will block waiting
 							// for a free HTTP request, and if that happens on this thread, we can deadlock as no HTTP requests will become 
 							// available while this thread is blocked.
-							Tasks::Launch(TEXT("FHttpRequest::CompleteAsync"), [CompletedRequest, Result = Message->data.result]() mutable
+							PendingCompletionTasks.Emplace(Tasks::Launch(TEXT("FHttpRequest::CompleteAsync"), [CompletedRequest, Result = Message->data.result]() mutable
 							{
 								CompletedRequest->CompleteAsync(Result);
-							});
+							}));
 						}
 					}
 				}
@@ -204,7 +207,16 @@ void FHttpSharedData::ProcessAsyncRequests()
 	do
 	{
 		ProcessPendingRequests();
-		PendingRequestEvent.Wait(100);
+
+		PendingCompletionTasks.SetNum(Algo::StableRemoveIf(PendingCompletionTasks, [](const Tasks::TTask<void>& Task) { return Task.IsCompleted(); }), false);
+		if (!PendingCompletionTasks.IsEmpty())
+		{
+			Tasks::Wait(PendingCompletionTasks, FTimespan::FromMilliseconds(100));
+		}
+		else
+		{
+			PendingRequestEvent.Wait(100);
+		}
 	}
 	while (!FHttpSharedData::bAsyncThreadShutdownRequested.load(std::memory_order_relaxed));
 
@@ -275,7 +287,7 @@ FHttpRequest* FHttpRequestPool::GetFreeRequest(bool bUnboundedOverflow)
 
 FHttpRequest* FHttpRequestPool::WaitForFreeRequest(bool bUnboundedOverflow)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_WaitForConnection);
+	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_WaitForFreeRequest);
 
 	FHttpRequest* Request = GetFreeRequest(bUnboundedOverflow);
 	if (Request == nullptr)

@@ -105,7 +105,7 @@ private:
 class FHttpSharedData
 {
 public:
-	FHttpSharedData();
+	FHttpSharedData(uint32 OverrideMaxConnections = 0);
 	~FHttpSharedData();
 
 private:

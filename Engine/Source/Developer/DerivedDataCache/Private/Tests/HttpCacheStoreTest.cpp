@@ -598,8 +598,8 @@ TArray<FValue> CreateTestCacheValues(ICacheStore* InTestBackend, uint32 InNumVal
 }
 
 // Tests basic functionality for structured cache operations
-IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(CacheStore, TEXT(".CacheStore"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-bool CacheStore::RunTest(const FString& Parameters)
+IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FHttpCacheStoreTest, TEXT(".CacheStore"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FHttpCacheStoreTest::RunTest(const FString& Parameters)
 {
 	using namespace UE::DerivedData;
 	ILegacyCacheStore* TestBackend = GetTestBackend();
