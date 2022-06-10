@@ -160,7 +160,7 @@ namespace AutomationTool.Tasks
 				}
 			}
 			// Upload the tree to Jupiter
-			Dictionary<FileReference, List<string>> Mapping = await FileTree.UploadToJupiter(new Uri(Parameters.JupiterUrl), Parameters.JupiterNamespace, Parameters.JupiterKey, Metadata);
+			Dictionary<FileReference, List<string>> Mapping = await FileTree.UploadToJupiter(Parameters.JupiterUrl, Parameters.JupiterNamespace, Parameters.JupiterKey, Metadata);
 
 			// Debug output of which files mapped to which blobs, can be useful to determine which files are constantly being uploaded
 			// Json.Save(FileReference.Combine(AutomationTool.Unreal.RootDirectory, "JupiterUpload.json"), Mapping);

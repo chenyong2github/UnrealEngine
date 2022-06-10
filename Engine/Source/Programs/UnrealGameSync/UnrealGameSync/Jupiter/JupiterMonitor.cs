@@ -244,7 +244,7 @@ namespace UnrealGameSync
 
 					DirectoryReference RootDirectory = LocalRootPath;
 					JupiterFileTree FileTree = new JupiterFileTree(RootDirectory, InDeferReadingFiles: true);
-					Task<List<FileReference>> DownloadTask = FileTree.DownloadFromJupiter(JupiterManifestFileReference, new Uri(JupiterUrl), JupiterNamespace, ArchiveKey, ProgressCallback);
+					Task<List<FileReference>> DownloadTask = FileTree.DownloadFromJupiter(JupiterManifestFileReference, JupiterUrl, JupiterNamespace, ArchiveKey, ProgressCallback);
 					DownloadTask.Wait();
 
 					List<FileReference> WrittenFiles = DownloadTask.Result;

@@ -4,7 +4,6 @@ using AutomationTool;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Jupiter;
-using System;
 
 namespace BuildScripts.Automation
 {
@@ -22,7 +21,7 @@ namespace BuildScripts.Automation
 			JupiterFileTree Tree = new JupiterFileTree(TargetDirectory, true);
 			
 			FileReference LocalManifest = FileReference.Combine(TargetDirectory, "Jupiter-Manifest.json");
-			Task DownloadTask = Tree.DownloadFromJupiter(LocalManifest, new Uri(JupiterUrl), Namespace, Key);
+			Task DownloadTask = Tree.DownloadFromJupiter(LocalManifest, JupiterUrl, Namespace, Key);
 			DownloadTask.Wait();
 		}
 	}
