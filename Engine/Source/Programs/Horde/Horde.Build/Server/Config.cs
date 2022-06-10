@@ -350,6 +350,11 @@ namespace Horde.Build.Server
 		public string? ReportChannel { get; set; }
 
 		/// <summary>
+		/// Whether to group issues by template in the report
+		/// </summary>
+		public bool GroupIssuesByTemplate { get; set; } = true;
+
+		/// <summary>
 		/// Channel to post threads for triaging new issues
 		/// </summary>
 		public string? TriageChannel { get; set; }
