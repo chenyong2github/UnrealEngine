@@ -148,6 +148,8 @@ public:
 	TMap<const FD3D12RayTracingPipelineState*, FD3D12RayTracingShaderTable*> ShaderTables[MAX_NUM_GPUS];
 
 	uint64 LastCommandListID = 0;
+
+	bool bBuilt = false;
 };
 
 // Manages all the pending BLAS compaction requests
