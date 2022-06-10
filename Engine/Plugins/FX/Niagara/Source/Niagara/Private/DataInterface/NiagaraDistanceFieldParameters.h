@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Renderer/Private/DistanceFieldLightingShared.h"
+#include "NiagaraRenderer.h"
 
 class FDistanceFieldParameters
 {
