@@ -486,15 +486,31 @@ FRigVMTemplate::FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplat
 	, Notation(NAME_None)
 {
 	TArray<FString> ArgumentNotations;
+
+	// create the arguments sorted by super -> child struct.
+	TArray<UStruct*> Structs = GetSuperStructs(InStruct, true);
+	for(UStruct* Struct : Structs)
+	{
+		// only iterate on this struct's fields, not the super structs'
+		for (TFieldIterator<FProperty> It(Struct, EFieldIterationFlags::None); It; ++It)
+		{
+			FRigVMTemplateArgument Argument(*It);
+			Argument.Index = Arguments.Num();
+
+			if(IsValidArgumentForTemplate(Argument))
+			{
+				Arguments.Add(Argument);
+			}
+		}
+	}
+
+	// the template notation needs to be in the same order as the C++ implementation,
+	// which is the order of child -> super class members
 	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
 	{
-		FRigVMTemplateArgument Argument(*It);
-		Argument.Index = Arguments.Num();
-
-		if(IsValidArgumentForTemplate(Argument))
+		if(const FRigVMTemplateArgument* Argument = FindArgument(It->GetFName()))
 		{
-			Arguments.Add(Argument);
-			ArgumentNotations.Add(GetArgumentNotation(Argument));
+			ArgumentNotations.Add(GetArgumentNotation(*Argument));
 		}
 	}
 
@@ -584,6 +600,30 @@ FString FRigVMTemplate::GetArgumentNotation(const FRigVMTemplateArgument& InArgu
 	return FString::Printf(TEXT("%s%s"),
 		*GetArgumentNotationPrefix(InArgument),
 		*InArgument.GetName().ToString());
+}
+
+TArray<UStruct*> FRigVMTemplate::GetSuperStructs(UStruct* InStruct, bool bIncludeLeaf)
+{
+	// Create an array of structs, ordered super -> child struct
+	TArray<UStruct*> SuperStructs = {InStruct};
+	while(true)
+	{
+		if(UStruct* SuperStruct = SuperStructs[0]->GetSuperStruct())
+		{
+			SuperStructs.Insert(SuperStruct, 0);
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	if(!bIncludeLeaf)
+	{
+		SuperStructs.Remove(SuperStructs.Last());
+	}
+
+	return SuperStructs;
 }
 
 bool FRigVMTemplate::IsValid() const

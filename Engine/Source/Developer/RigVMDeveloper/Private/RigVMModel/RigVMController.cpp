@@ -13114,75 +13114,81 @@ void URigVMController::AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, U
 		}
 	}
 
-	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
+	TArray<UStruct*> StructsToVisit = FRigVMTemplate::GetSuperStructs(InStruct, true);
+	for(UStruct* StructToVisit : StructsToVisit)
 	{
-		FName PropertyName = It->GetFName();
-
-		URigVMPin* Pin = NewObject<URigVMPin>(InParentPin == nullptr ? Cast<UObject>(InNode) : Cast<UObject>(InParentPin), PropertyName);
-		ConfigurePinFromProperty(*It, Pin, InPinDirection);
-
-		if (InParentPin)
+		// using EFieldIterationFlags::None excludes the
+		// properties of the super struct in this iterator.
+		for (TFieldIterator<FProperty> It(StructToVisit, EFieldIterationFlags::None); It; ++It)
 		{
-			AddSubPin(InParentPin, Pin);
-		}
-		else
-		{
-			AddNodePin(InNode, Pin);
-		}
+			FName PropertyName = It->GetFName();
 
-		FString* DefaultValuePtr = MemberValues.Find(Pin->GetFName());
+			URigVMPin* Pin = NewObject<URigVMPin>(InParentPin == nullptr ? Cast<UObject>(InNode) : Cast<UObject>(InParentPin), PropertyName);
+			ConfigurePinFromProperty(*It, Pin, InPinDirection);
 
-		FStructProperty* StructProperty = CastField<FStructProperty>(*It);
-		if (StructProperty)
-		{
-			if (ShouldStructBeUnfolded(StructProperty->Struct))
+			if (InParentPin)
 			{
-				FString DefaultValue;
-				if (DefaultValuePtr != nullptr)
-				{
-					DefaultValue = *DefaultValuePtr;
-				}
-				CreateDefaultValueForStructIfRequired(StructProperty->Struct, DefaultValue);
-
-				AddPinsForStruct(StructProperty->Struct, InNode, Pin, Pin->GetDirection(), DefaultValue, bAutoExpandArrays);
+				AddSubPin(InParentPin, Pin);
 			}
-			else if(DefaultValuePtr != nullptr)
+			else
 			{
-				Pin->DefaultValue = *DefaultValuePtr;
+				AddNodePin(InNode, Pin);
 			}
-		}
 
-		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(*It);
-		if (ArrayProperty)
-		{
-			ensure(Pin->IsArray());
+			FString* DefaultValuePtr = MemberValues.Find(Pin->GetFName());
 
-			if (DefaultValuePtr)
+			FStructProperty* StructProperty = CastField<FStructProperty>(*It);
+			if (StructProperty)
 			{
-				if (ShouldPinBeUnfolded(Pin))
+				if (ShouldStructBeUnfolded(StructProperty->Struct))
 				{
-					TArray<FString> ElementDefaultValues = URigVMPin::SplitDefaultValue(*DefaultValuePtr);
-					AddPinsForArray(ArrayProperty, InNode, Pin, Pin->Direction, ElementDefaultValues, bAutoExpandArrays);
+					FString DefaultValue;
+					if (DefaultValuePtr != nullptr)
+					{
+						DefaultValue = *DefaultValuePtr;
+					}
+					CreateDefaultValueForStructIfRequired(StructProperty->Struct, DefaultValue);
+
+					AddPinsForStruct(StructProperty->Struct, InNode, Pin, Pin->GetDirection(), DefaultValue, bAutoExpandArrays);
 				}
-				else
+				else if(DefaultValuePtr != nullptr)
 				{
-					FString DefaultValue = *DefaultValuePtr;
-					PostProcessDefaultValue(Pin, DefaultValue);
 					Pin->DefaultValue = *DefaultValuePtr;
 				}
 			}
-		}
-		
-		if (!Pin->IsArray() && !Pin->IsStruct() && DefaultValuePtr != nullptr)
-		{
-			FString DefaultValue = *DefaultValuePtr;
-			PostProcessDefaultValue(Pin, DefaultValue);
-			Pin->DefaultValue = DefaultValue;
-		}
 
-		if (bNotify)
-		{
-			Notify(ERigVMGraphNotifType::PinAdded, Pin);
+			FArrayProperty* ArrayProperty = CastField<FArrayProperty>(*It);
+			if (ArrayProperty)
+			{
+				ensure(Pin->IsArray());
+
+				if (DefaultValuePtr)
+				{
+					if (ShouldPinBeUnfolded(Pin))
+					{
+						TArray<FString> ElementDefaultValues = URigVMPin::SplitDefaultValue(*DefaultValuePtr);
+						AddPinsForArray(ArrayProperty, InNode, Pin, Pin->Direction, ElementDefaultValues, bAutoExpandArrays);
+					}
+					else
+					{
+						FString DefaultValue = *DefaultValuePtr;
+						PostProcessDefaultValue(Pin, DefaultValue);
+						Pin->DefaultValue = *DefaultValuePtr;
+					}
+				}
+			}
+			
+			if (!Pin->IsArray() && !Pin->IsStruct() && DefaultValuePtr != nullptr)
+			{
+				FString DefaultValue = *DefaultValuePtr;
+				PostProcessDefaultValue(Pin, DefaultValue);
+				Pin->DefaultValue = DefaultValue;
+			}
+
+			if (bNotify)
+			{
+				Notify(ERigVMGraphNotifType::PinAdded, Pin);
+			}
 		}
 	}
 }
@@ -14978,21 +14984,25 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 	// find all missing pins which are not arguments for the template
 	if(ResolvedFunction)
 	{
-		for (TFieldIterator<FProperty> It(ResolvedFunction->Struct); It; ++It)
+		TArray<UStruct*> StructsToVisit = FRigVMTemplate::GetSuperStructs(ResolvedFunction->Struct, true);
+		for(UStruct* StructToVisit : StructsToVisit)
 		{
-			const FRigVMTemplateArgument ExpectedArgument(*It);
-			const FRigVMTemplateArgumentType ExpectedType = ExpectedArgument.GetSupportedTypes()[0];
+			for (TFieldIterator<FProperty> It(StructToVisit, EFieldIterationFlags::None); It; ++It)
+			{
+				const FRigVMTemplateArgument ExpectedArgument(*It);
+				const FRigVMTemplateArgumentType ExpectedType = ExpectedArgument.GetSupportedTypes()[0];
 
-			if(URigVMPin* Pin = InNode->FindPin(It->GetFName().ToString()))
-			{
-				if(Pin->GetCPPType() != ExpectedType.CPPType)
+				if(URigVMPin* Pin = InNode->FindPin(It->GetFName().ToString()))
 				{
-					PinTypesToChange.Add(Pin, ExpectedType);
+					if(Pin->GetCPPType() != ExpectedType.CPPType)
+					{
+						PinTypesToChange.Add(Pin, ExpectedType);
+					}
 				}
-			}
-			else
-			{
-				MissingPins.Add(ExpectedArgument);
+				else
+				{
+					MissingPins.Add(ExpectedArgument);
+				}
 			}
 		}
 	}

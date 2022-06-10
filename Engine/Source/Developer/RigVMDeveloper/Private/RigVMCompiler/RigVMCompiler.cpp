@@ -791,8 +791,20 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 	else
 	{
 		TArray<FRigVMOperand> Operands;
-		for (FRigVMExprAST* ChildExpr : *InExpr)
+
+		// iterate over the child expressions in the order of the arguments on the function
+		const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(UnitNode->GetScriptStruct(), *UnitNode->GetMethodName().ToString());
+		check(Function);
+		
+		for(const FRigVMFunctionArgument& Argument : Function->GetArguments())
 		{
+			const FRigVMExprAST* ChildExpr = InExpr->FindExprWithPinName(Argument.Name);
+			if(ChildExpr == nullptr)
+			{
+				// opaque arguments don't have a matching child expression
+				continue;
+			}
+			
 			if (ChildExpr->GetType() == FRigVMExprAST::EType::CachedValue)
 			{
 				Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ChildExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr())));

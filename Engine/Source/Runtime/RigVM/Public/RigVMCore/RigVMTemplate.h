@@ -317,6 +317,9 @@ public:
 	// returns the notation of an argument
 	static FString GetArgumentNotation(const FRigVMTemplateArgument& InArgument);
 
+	// returns an array of structs in the inheritance order of a given struct
+	static TArray<UStruct*> GetSuperStructs(UStruct* InStruct, bool bIncludeLeaf = true);
+
 #if WITH_EDITOR
 
 	// Returns the color based on the permutation's metadata

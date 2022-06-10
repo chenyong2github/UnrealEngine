@@ -274,7 +274,7 @@ protected:
 	// @param InReplacement the expression to replace this one
 	void ReplaceBy(FRigVMExprAST* InReplacement);
 
-private:
+protected:
 
 	// returns a string containing an indented tree structure
 	// for debugging purposes. this is only used by the parser
@@ -288,6 +288,7 @@ private:
 	const FRigVMParserAST* ParserPtr;
 	TArray<FRigVMExprAST*> Parents;
 	TArray<FRigVMExprAST*> Children;
+	TMap<FName, int32> PinNameToChildIndex;
 
 	friend class FRigVMParserAST;
 	friend class URigVMCompiler;
@@ -544,6 +545,7 @@ public:
 	URigVMNode* GetNode() const { return GetProxy().GetSubjectChecked<URigVMNode>(); }
 
 	virtual bool IsConstant() const override;
+	const FRigVMExprAST* FindExprWithPinName(const FName& InPinName) const;
 	const FRigVMVarExprAST* FindVarWithPinName(const FName& InPinName) const;
 
 protected:

@@ -260,6 +260,23 @@ void FRigVMExprAST::RemoveParent(FRigVMExprAST* InParent)
 	
 	if (Parents.Remove(InParent) > 0)
 	{
+		const int32 ExistingIndex = InParent->Children.Find(this);
+		if(ExistingIndex != INDEX_NONE)
+		{
+			FName NameToRemove(NAME_None);
+			for(TPair<FName, int32>& Pair: InParent->PinNameToChildIndex)
+			{
+				if(Pair.Value > ExistingIndex)
+				{
+					Pair.Value--;
+				}
+				else if(Pair.Value == ExistingIndex)
+				{
+					NameToRemove = Pair.Key;
+				}
+			}
+			InParent->PinNameToChildIndex.Remove(NameToRemove);
+		}
 		InParent->Children.Remove(this);
 	}
 }
@@ -426,25 +443,33 @@ bool FRigVMNodeExprAST::IsConstant() const
 	return FRigVMExprAST::IsConstant();
 }
 
-const FRigVMVarExprAST* FRigVMNodeExprAST::FindVarWithPinName(const FName& InPinName) const
+const FRigVMExprAST* FRigVMNodeExprAST::FindExprWithPinName(const FName& InPinName) const
 {
+	if(const int32* PinIndex = PinNameToChildIndex.Find(InPinName))
+	{
+		return ChildAt(*PinIndex);
+	}
+	
 	if(URigVMNode* CurrentNode = GetNode())
 	{
-		for(URigVMPin* Pin : CurrentNode->GetPins())
+		if(const URigVMPin* Pin = CurrentNode->FindPin(InPinName.ToString()))
 		{
-			if(Pin->GetFName() == InPinName)
+			const int32 PinIndex = Pin->GetPinIndex();
+			if(PinIndex <= NumChildren())
 			{
-				const int32 PinIndex = Pin->GetPinIndex();
-				if(PinIndex <= NumChildren())
-				{
-					const FRigVMExprAST* Child = ChildAt(PinIndex);
-					if (Child->IsA(FRigVMExprAST::Var))
-					{
-						return Child->To<FRigVMVarExprAST>();
-					}
-				}
+				return ChildAt(PinIndex);
 			}
 		}
+	}
+	return nullptr;
+}
+
+const FRigVMVarExprAST* FRigVMNodeExprAST::FindVarWithPinName(const FName& InPinName) const
+{
+	const FRigVMExprAST* Child = FindExprWithPinName(InPinName);
+	if (Child->IsA(FRigVMExprAST::Var))
+	{
+		return Child->To<FRigVMVarExprAST>();
 	}
 	return nullptr;
 }
@@ -1014,11 +1039,15 @@ TArray<FRigVMExprAST*> FRigVMParserAST::TraversePins(const FRigVMASTProxy& InNod
 	{
 		if(UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct())
 		{
-			for (TFieldIterator<FProperty> PropertyIt(ScriptStruct); PropertyIt; ++PropertyIt)
+			TArray<UStruct*> Structs = FRigVMTemplate::GetSuperStructs(ScriptStruct, true);
+			for(const UStruct* Struct : Structs)
 			{
-				if(URigVMPin* Pin = UnitNode->FindPin(PropertyIt->GetName()))
+				for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIterationFlags::None); PropertyIt; ++PropertyIt)
 				{
-					Pins.Add(Pin);
+					if(URigVMPin* Pin = UnitNode->FindPin(PropertyIt->GetName()))
+					{
+						Pins.Add(Pin);
+					}
 				}
 			}
 		}
@@ -1042,13 +1071,26 @@ TArray<FRigVMExprAST*> FRigVMParserAST::TraversePins(const FRigVMASTProxy& InNod
 				for (URigVMPin* CasePin : CasePins)
 				{
 					FRigVMASTProxy CasePinProxy = PinProxy.GetSibling(CasePin);
+
 					PinExpressions.Add(TraversePin(CasePinProxy, InParentExpr));
+
+					if(InParentExpr)
+					{
+						const FString PinName = FString::Printf(TEXT("%s_%s"), *Pin->GetName(), *CasePin->GetName());
+						const int32 ChildIndex = InParentExpr->Children.Find(PinExpressions.Last());
+						InParentExpr->PinNameToChildIndex.FindOrAdd(*PinName) = ChildIndex;
+					}
 				}
 				continue;
 			}
 		}
 
 		PinExpressions.Add(TraversePin(PinProxy, InParentExpr));
+		if(InParentExpr)
+		{
+			const int32 ChildIndex = InParentExpr->Children.Find(PinExpressions.Last());
+			InParentExpr->PinNameToChildIndex.FindOrAdd(Pin->GetFName()) = ChildIndex;
+		}
 	}
 
 	return PinExpressions;
