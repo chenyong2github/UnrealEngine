@@ -474,7 +474,7 @@ export class Backend {
                 let graphCalls: { jobResponse: JobData, call: any }[] = [];
                 Object.values(timingsWrapper.timings).forEach(timing => {
                     if (!timing.jobResponse.graphHash) {
-                        return reject(`Job ${timing.job.id} has undefined graph hash`);
+                        return reject(`Job ${timing.jobResponse.id} has undefined graph hash`);
                     }
                     graphCalls.push({ jobResponse: timing.jobResponse, call: graphCache.get({ graphHash: timing.jobResponse.graphHash, jobId: timing.jobResponse.id }) });
                 });

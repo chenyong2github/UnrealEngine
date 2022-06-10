@@ -2512,11 +2512,12 @@ export type GetGraphResponse = {
 
 }
 
-/**The timing info for  */
+/**The timing info for a job*/
 export type GetJobTimingResponse = {
-
-	job: JobData;
+	
+	/** The job response */
 	jobResponse: JobData;
+
 	/**Timing info for each step */
 	steps: { [key: string]: GetStepTimingInfoResponse };
 

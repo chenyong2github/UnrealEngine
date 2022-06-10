@@ -582,7 +582,7 @@ namespace Horde.Build.Jobs
 				jobResponse = await CreateJobResponseAsync(job, graph, true, true, false, true);
 			}
 
-			return new GetJobTimingResponse(job, jobResponse, steps, labels);
+			return new GetJobTimingResponse(jobResponse, steps, labels);
 		}
 		
 		/// <summary>

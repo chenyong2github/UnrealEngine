@@ -386,17 +386,12 @@ namespace Horde.Build.Jobs
 	}
 
 	/// <summary>
-	/// The timing info for 
+	/// The timing info for a job
 	/// </summary>
 	public class GetJobTimingResponse
-	{
+	{		
 		/// <summary>
-		/// The job object
-		/// </summary>
-		public IJob? Job { get; set; }
-		
-		/// <summary>
-		/// A full job response
+		/// The job response
 		/// </summary>
 		public GetJobResponse? JobResponse { get; set; }
 		
@@ -412,14 +407,12 @@ namespace Horde.Build.Jobs
 
 		/// <summary>
 		/// Constructor
-		/// </summary>
-		/// <param name="job">The job object</param>
+		/// </summary>		
 		/// <param name="jobResponse">The job response</param>
 		/// <param name="steps">Timing info for each steps</param>
 		/// <param name="labels">Timing info for each label</param>
-		public GetJobTimingResponse(IJob? job, GetJobResponse? jobResponse, Dictionary<string, GetStepTimingInfoResponse> steps, List<GetLabelTimingInfoResponse> labels)
-		{
-			Job = job;
+		public GetJobTimingResponse(GetJobResponse? jobResponse, Dictionary<string, GetStepTimingInfoResponse> steps, List<GetLabelTimingInfoResponse> labels)
+		{			
 			JobResponse = jobResponse;
 			Steps = steps;
 			Labels = labels;
