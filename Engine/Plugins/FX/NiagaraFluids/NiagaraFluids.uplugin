@@ -25,6 +25,10 @@
         {
             "Name": "Niagara",			
             "Enabled": true
+        },
+        {
+            "Name": "HairStrands",			
+            "Enabled": true
         }
 	]
 }
