@@ -665,6 +665,13 @@ bool UNiagaraSimCache::ReadFrame(int32 FrameIndex, FNiagaraSystemInstance* Syste
 			Helper.ReadDataBuffer(CacheLayout.EmitterLayouts[i], CacheEmitterFrame.ParticleDataBuffers, EmitterInstance.GetData());
 		}
 	}
+	for(TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& DataInterfacePair : SystemInstance->DataInterfaceInstanceDataOffsets)
+	{
+		if (UNiagaraDataInterface* Interface = DataInterfacePair.Key.Get())
+		{
+			Interface->SimCachePostReadFrame(&SystemInstance->DataInterfaceInstanceData[DataInterfacePair.Value], SystemInstance);
+		}
+	}
 	return true;
 }
 

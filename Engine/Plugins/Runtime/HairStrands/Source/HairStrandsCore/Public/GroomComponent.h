@@ -187,6 +187,10 @@ public:
 	/* Reset the simulation, if enabled */
 	UFUNCTION(BlueprintCallable, Category = "Simulation")
 	void ResetSimulation();
+	
+	/* Given the group index return the matching niagara component */
+	UFUNCTION(BlueprintCallable, Category = "Simulation")
+	UNiagaraComponent* GetNiagaraComponent(const int32 GroupIndex) {return NiagaraComponents.IsValidIndex(GroupIndex) ? NiagaraComponents[GroupIndex] : nullptr;}
 
 	/* Accessor function for changing hair length scale from blueprint/sequencer */
 	UFUNCTION(BlueprintCallable, Category = "Groom")

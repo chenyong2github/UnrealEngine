@@ -385,6 +385,37 @@ void FNDIHairStrandsBuffer::InitRHI()
 			SourceDatas->CurveOffsets.Unlock();
 		}
 		{
+			// First retrieve the curves offsets from the bulk datas
+			TArray<FHairStrandsRootIndexFormat::Type> CurvesOffsets;
+			const uint32 InDataSize = SourceDatas->CurveOffsets.GetBulkDataSize();
+			const uint32 ElementCount = InDataSize / sizeof(FHairStrandsRootIndexFormat::BulkType);
+			CurvesOffsets.SetNum(ElementCount);
+
+			const uint8* InData = (const uint8*)SourceDatas->CurveOffsets.LockReadOnly();
+			FMemory::Memcpy(CurvesOffsets.GetData(), InData, InDataSize);
+			SourceDatas->CurveOffsets.Unlock();
+			
+			TArray<uint32> PointsCurve;
+			PointsCurve.SetNum(SourceDatas->GetNumPoints());
+
+			// Build the curve index array for each points using the curve offsets array
+			for (uint32 CurveIndex = 0; CurveIndex < SourceDatas->GetNumCurves(); ++CurveIndex)
+			{
+				for (uint32 PointIndex = CurvesOffsets[CurveIndex]; PointIndex < CurvesOffsets[CurveIndex+1]; ++PointIndex)
+				{
+					PointsCurve[PointIndex] = CurveIndex;
+				}
+			}
+			const uint32 OffsetCount = SourceDatas->GetNumPoints();
+			const uint32 OffsetBytes = sizeof(uint32)*OffsetCount;
+
+			// Copy the points buffer data to gpu for interpolation
+			PointsCurveBuffer.Initialize(TEXT("PointsCurveBuffer"), sizeof(uint32), OffsetCount, EPixelFormat::PF_R32_UINT, BUF_Static);
+			void* OffsetBufferData = RHILockBuffer(PointsCurveBuffer.Buffer, 0, OffsetBytes, RLM_WriteOnly);
+			FMemory::Memcpy(OffsetBufferData, PointsCurve.GetData(), OffsetBytes);
+			RHIUnlockBuffer(PointsCurveBuffer.Buffer);
+		}
+		{
 			static const TArray<uint32> ZeroData = { UINT_MAX,UINT_MAX,UINT_MAX,0,0,0,
 													 UINT_MAX,UINT_MAX,UINT_MAX,0,0,0,
 													 UINT_MAX,UINT_MAX,UINT_MAX,0,0,0,
@@ -1206,6 +1237,201 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 	}
 	InstanceData->Update(this, SystemInstance, StrandsRestResource ? &StrandsRestResource->BulkData : nullptr, GroomAsset, GroupIndex, LODIndex, LocalToWorld, InDeltaSeconds);
 	return false;
+}
+
+//------------------------------------------------------------------------------------------------------------
+
+#define NIAGARA_HAIR_STRANDS_THREAD_COUNT_INTERPOLATE 32
+
+/** Compute shader to interpolate the groom position from the sim cache */
+class FInterpolateGroomGuidesCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FInterpolateGroomGuidesCS, Global)
+	
+	class FInterpolationType : SHADER_PERMUTATION_INT("PERMUTATION_INTERPOLATION", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FInterpolationType>;
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); }
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT_INTERPOLATE);
+	}
+
+	FInterpolateGroomGuidesCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		RestTrianglePositionABuffer.Bind(Initializer.ParameterMap, TEXT("RestTrianglePositionABuffer"));
+		RestTrianglePositionBBuffer.Bind(Initializer.ParameterMap, TEXT("RestTrianglePositionBBuffer"));
+		RestTrianglePositionCBuffer.Bind(Initializer.ParameterMap, TEXT("RestTrianglePositionCBuffer"));
+		DeformedTrianglePositionABuffer.Bind(Initializer.ParameterMap, TEXT("DeformedTrianglePositionABuffer"));
+		DeformedTrianglePositionBBuffer.Bind(Initializer.ParameterMap, TEXT("DeformedTrianglePositionBBuffer"));
+		DeformedTrianglePositionCBuffer.Bind(Initializer.ParameterMap, TEXT("DeformedTrianglePositionCBuffer"));
+		RootBarycentricCoordinatesBuffer.Bind(Initializer.ParameterMap, TEXT("RootBarycentricCoordinatesBuffer"));
+		
+		VertexToCurveIndexBuffer.Bind(Initializer.ParameterMap, TEXT("VertexToCurveIndexBuffer"));
+		CurvesOffsetsBuffer.Bind(Initializer.ParameterMap, TEXT("CurvesOffsetsBuffer"));
+		
+		DeformedPositionOffset.Bind(Initializer.ParameterMap, TEXT("DeformedPositionOffset"));
+		RestPositionOffset.Bind(Initializer.ParameterMap, TEXT("RestPositionOffset"));
+		DeformedPositionBuffer.Bind(Initializer.ParameterMap, TEXT("DeformedPositionBuffer"));
+		RestPositionBuffer.Bind(Initializer.ParameterMap, TEXT("RestPositionBuffer"));
+		
+		StrandsSize.Bind(Initializer.ParameterMap, TEXT("StrandsSize"));
+		NumPoints.Bind(Initializer.ParameterMap, TEXT("NumPoints"));
+		
+		NiagaraFloatBuffer.Bind(Initializer.ParameterMap, TEXT("NiagaraFloatBuffer"));
+		NiagaraFloatStride.Bind(Initializer.ParameterMap, TEXT("NiagaraFloatStride"));
+		NodePositionComponent.Bind(Initializer.ParameterMap, TEXT("NodePositionComponent"));
+		RestPositionComponent.Bind(Initializer.ParameterMap, TEXT("RestPositionComponent"));
+	}
+
+	FInterpolateGroomGuidesCS()
+	{}
+
+	LAYOUT_FIELD(FShaderResourceParameter, RestTrianglePositionABuffer)
+	LAYOUT_FIELD(FShaderResourceParameter, RestTrianglePositionBBuffer)
+	LAYOUT_FIELD(FShaderResourceParameter, RestTrianglePositionCBuffer)
+	LAYOUT_FIELD(FShaderResourceParameter, DeformedTrianglePositionABuffer)
+	LAYOUT_FIELD(FShaderResourceParameter, DeformedTrianglePositionBBuffer)
+	LAYOUT_FIELD(FShaderResourceParameter, DeformedTrianglePositionCBuffer)
+	LAYOUT_FIELD(FShaderResourceParameter, RootBarycentricCoordinatesBuffer)
+	
+	LAYOUT_FIELD(FShaderResourceParameter, VertexToCurveIndexBuffer)
+	LAYOUT_FIELD(FShaderResourceParameter, CurvesOffsetsBuffer)
+	
+	LAYOUT_FIELD(FShaderResourceParameter, DeformedPositionOffset)
+	LAYOUT_FIELD(FShaderParameter,RestPositionOffset)
+	LAYOUT_FIELD(FShaderResourceParameter, DeformedPositionBuffer)
+	LAYOUT_FIELD(FShaderResourceParameter, RestPositionBuffer)
+	
+	LAYOUT_FIELD(FShaderParameter, StrandsSize)
+	LAYOUT_FIELD(FShaderParameter, NumPoints)
+
+	LAYOUT_FIELD(FShaderResourceParameter, NiagaraFloatBuffer)
+	LAYOUT_FIELD(FShaderParameter, NiagaraFloatStride)
+	LAYOUT_FIELD(FShaderParameter, NodePositionComponent)
+	LAYOUT_FIELD(FShaderParameter, RestPositionComponent)
+};
+
+IMPLEMENT_SHADER_TYPE(, FInterpolateGroomGuidesCS, TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraInterpolateGroomGuides.usf"), TEXT("MainCS"), SF_Compute);
+
+//------------------------------------------------------------------------------------------------------------
+
+DECLARE_GPU_STAT(InterpolateGroomGuidesCS);
+
+static void InterpolateGroomGuides(FRHICommandListImmediate& RHICmdList, FNiagaraDataBuffer* ParticlesBuffer,
+	const uint32 NodePositionComponent,  const uint32 RestPositionComponent, FNDIHairStrandsBuffer* HairStrandsBuffer,
+	const uint32 StrandsSize, const bool bHasSkinningBinding, const bool bHasValidGeometry)
+{
+	const uint32 NumPoints = HairStrandsBuffer->SourceRestResources->GetVertexCount();
+
+	const bool bIsHairValid = HairStrandsBuffer && HairStrandsBuffer->IsInitialized();
+	const bool bIsRestValid = bIsHairValid && HairStrandsBuffer->SourceRestResources && HairStrandsBuffer->SourceRestResources->IsInitialized();
+	const bool bIsDeformedValid = bIsHairValid && HairStrandsBuffer->SourceDeformedResources && HairStrandsBuffer->SourceDeformedResources->IsInitialized();
+
+	if(bIsRestValid && bIsDeformedValid && bHasValidGeometry)
+	{
+		SCOPED_GPU_STAT(RHICmdList, InterpolateGroomGuidesCS);
+		SCOPED_DRAW_EVENT(RHICmdList, InterpolateGroomGuidesCS);
+		
+		bool bIsRootValid = bIsHairValid && HairStrandsBuffer->SourceDeformedRootResources && HairStrandsBuffer->SourceDeformedRootResources->IsInitialized() &&
+											HairStrandsBuffer->SourceRestRootResources && HairStrandsBuffer->SourceRestRootResources->IsInitialized() && bHasSkinningBinding;;
+
+		FInterpolateGroomGuidesCS::FPermutationDomain InterpolationDomain;
+		InterpolationDomain.Set<FInterpolateGroomGuidesCS::FInterpolationType>(!bIsRootValid);
+		
+		TShaderMapRef<FInterpolateGroomGuidesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), InterpolationDomain);
+		SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
+		
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+		
+		const int32 MeshLODIndex = bIsRootValid ? HairStrandsBuffer->SourceDeformedRootResources->MeshLODIndex : -1;
+		bIsRootValid = bIsRootValid && HairStrandsBuffer->SourceDeformedRootResources->IsValid(MeshLODIndex);
+		
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->StrandsSize, StrandsSize);
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumPoints, NumPoints);
+
+		SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->NiagaraFloatBuffer, ParticlesBuffer->GetGPUBufferFloat().SRV);
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NiagaraFloatStride, ParticlesBuffer->GetFloatStride() / sizeof(float));
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NodePositionComponent, NodePositionComponent);
+		SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->RestPositionComponent, RestPositionComponent);
+
+		const int32 BufferIndex = HairStrandsBuffer->SourceDeformedResources->GetIndex(FHairStrandsDeformedResource::Current);
+
+		SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->DeformedPositionOffset, HairStrandsBuffer->SourceDeformedResources->DeformedOffsetBuffer[BufferIndex].SRV);
+        SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->RestPositionOffset, FVector3f(HairStrandsBuffer->SourceRestResources->GetPositionOffset()));
+        SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DeformedPositionBuffer, HairStrandsBuffer->SourceDeformedResources->DeformedPositionBuffer[BufferIndex].UAV);
+        SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->RestPositionBuffer, HairStrandsBuffer->SourceRestResources->PositionBuffer.SRV);
+	
+		SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->VertexToCurveIndexBuffer, HairStrandsBuffer->PointsCurveBuffer.SRV);
+		SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->CurvesOffsetsBuffer, HairStrandsBuffer->CurvesOffsetsBuffer.SRV);
+		
+		if(bIsRootValid)
+		{
+			const FHairStrandsRestRootResource::FLOD* RestMeshProjection = &(HairStrandsBuffer->SourceRestRootResources->LODs[MeshLODIndex]) ;
+			const FHairStrandsDeformedRootResource::FLOD* DeformedMeshProjection =  &(HairStrandsBuffer->SourceDeformedRootResources->LODs[MeshLODIndex]);
+
+			SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->RestTrianglePositionABuffer, RestMeshProjection->RestRootTrianglePosition0Buffer.SRV);
+			SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->RestTrianglePositionBBuffer, RestMeshProjection->RestRootTrianglePosition1Buffer.SRV);
+			SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->RestTrianglePositionCBuffer, RestMeshProjection->RestRootTrianglePosition2Buffer.SRV);
+			SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->DeformedTrianglePositionABuffer, DeformedMeshProjection->DeformedRootTrianglePosition0Buffer.SRV);
+			SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->DeformedTrianglePositionBBuffer, DeformedMeshProjection->DeformedRootTrianglePosition1Buffer.SRV);
+			SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->DeformedTrianglePositionCBuffer, DeformedMeshProjection->DeformedRootTrianglePosition2Buffer.SRV);
+			SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->RootBarycentricCoordinatesBuffer, RestMeshProjection->RootTriangleBarycentricBuffer.SRV);
+		}
+		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_INTERPOLATE;
+		const uint32 DispatchCount = FMath::DivideAndRoundUp(NumPoints, GroupSize);
+		
+		RHICmdList.Transition(FRHITransitionInfo(HairStrandsBuffer->SourceDeformedResources->DeformedPositionBuffer[BufferIndex].UAV,
+			ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
+		
+		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), DispatchCount, 1, 1);
+		
+		RHICmdList.Transition(FRHITransitionInfo(HairStrandsBuffer->SourceDeformedResources->DeformedPositionBuffer[BufferIndex].UAV,
+			ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+	}
+}
+
+void UNiagaraDataInterfaceHairStrands::SimCachePostReadFrame(void* OptionalPerInstanceData, FNiagaraSystemInstance* SystemInstance)
+{
+	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInst : SystemInstance->GetEmitters())
+	{
+		FNiagaraDataSet& EmitterDatas  = EmitterInst->GetData();
+
+		const FNiagaraVariableBase NodePositionVariable(FNiagaraDataSetAccessorTypeInfo<FVector3f>::GetFloatType(), FName("NodePosition"));
+		const int32 NodePositionIndex = EmitterDatas.GetCompiledData().Variables.IndexOfByKey(NodePositionVariable);
+
+		const FNiagaraVariableBase RestPositionVariable(FNiagaraDataSetAccessorTypeInfo<FVector3f>::GetFloatType(), FName("RestPosition"));
+		const int32 RestPositionIndex = EmitterDatas.GetCompiledData().Variables.IndexOfByKey(RestPositionVariable);
+				
+		if (RestPositionIndex != INDEX_NONE && NodePositionIndex != INDEX_NONE)
+		{
+			const FNDIHairStrandsData* InstanceData = static_cast<FNDIHairStrandsData*>(OptionalPerInstanceData);
+			if( EmitterDatas.GetCompiledData().VariableLayouts.IsValidIndex(NodePositionIndex) &&
+				EmitterDatas.GetCompiledData().VariableLayouts.IsValidIndex(RestPositionIndex) )
+			{
+				const uint32 NodePositionComponent = EmitterDatas.GetCompiledData().VariableLayouts[NodePositionIndex].FloatComponentStart;
+				const uint32 RestPositionComponent = EmitterDatas.GetCompiledData().VariableLayouts[RestPositionIndex].FloatComponentStart;
+				
+				FNiagaraDataBuffer* ParticlesBuffer = EmitterDatas.GetCurrentData();
+				FNDIHairStrandsBuffer* HairstrandsBuffer = InstanceData->HairStrandsBuffer;
+
+				const uint32 StrandsSize = InstanceData->StrandsSize;
+				const bool bHasSkinningBinding = InstanceData->HairGroupInstance->BindingType == EHairBindingType::Skinning;
+				const bool bHasValidGeometry = InstanceData->HairGroupInstance->GeometryType != EHairGeometryType::NoneGeometry;
+				
+				ENQUEUE_RENDER_COMMAND(NiagaraInterpolateGroomSimCache)(
+				[ParticlesBuffer, HairstrandsBuffer, NodePositionComponent, RestPositionComponent, StrandsSize, bHasSkinningBinding, bHasValidGeometry](FRHICommandListImmediate& RHICmdList)
+				{
+					InterpolateGroomGuides(RHICmdList, ParticlesBuffer,
+							NodePositionComponent, RestPositionComponent, HairstrandsBuffer, StrandsSize, bHasSkinningBinding, bHasValidGeometry);
+				});
+			}
+		}
+	}
 }
 
 bool UNiagaraDataInterfaceHairStrands::CopyToInternal(UNiagaraDataInterface* Destination) const

@@ -1,0 +1,143 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+NiagaraInterpolateGroomGuides.usf 
+=============================================================================*/
+
+#pragma once
+
+#define LOCAL_INTERPOLATION 0
+#define WORLD_INTERPOLATION 1
+
+#include "/Engine/Public/Platform.ush"
+
+#if PERMUTATION_INTERPOLATION == LOCAL_INTERPOLATION
+
+#include "NiagaraGroomInterpolationUtils.ush"
+
+Buffer<float4>		RestTrianglePositionABuffer;
+Buffer<float4>		RestTrianglePositionBBuffer;
+Buffer<float4>		RestTrianglePositionCBuffer;
+Buffer<float4>		DeformedTrianglePositionABuffer;
+Buffer<float4>		DeformedTrianglePositionBBuffer;
+Buffer<float4>		DeformedTrianglePositionCBuffer;
+Buffer<uint>		RootBarycentricCoordinatesBuffer;
+
+#endif
+
+Buffer<uint>		VertexToCurveIndexBuffer;
+RWBuffer<uint4>		DeformedPositionBuffer;
+Buffer<uint4>		RestPositionBuffer;
+Buffer<uint>		CurvesOffsetsBuffer;
+Buffer<float4>		DeformedPositionOffset;
+float3				RestPositionOffset;
+
+int					StrandsSize;
+int					NumPoints;
+
+Buffer<float>		NiagaraFloatBuffer;
+int					NiagaraFloatStride;
+
+int					NodePositionComponent;
+int					RestPositionComponent;
+
+#if PERMUTATION_INTERPOLATION == LOCAL_INTERPOLATION
+
+// Get the deformed triangle
+void DIHairStrands_BuildDeformedTriangle(in float2 ProjectionUV, in int StrandIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
+{
+	DIHairStrands_ComputeProjectionTriangle(ProjectionUV, DeformedTrianglePositionABuffer[StrandIndex].xyz,
+		DeformedTrianglePositionBBuffer[StrandIndex].xyz, 
+		DeformedTrianglePositionCBuffer[StrandIndex].xyz, 
+		float3(0,0,0), OutTrianglePosition, OutTriangleRotation);
+}
+
+// Get the rest triangle
+void DIHairStrands_BuildRestTriangle(in float2 ProjectionUV, in int StrandIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
+{
+	DIHairStrands_ComputeProjectionTriangle(ProjectionUV, RestTrianglePositionABuffer[StrandIndex].xyz,
+		RestTrianglePositionBBuffer[StrandIndex].xyz,
+		RestTrianglePositionCBuffer[StrandIndex].xyz,
+		float3(0,0,0), OutTrianglePosition, OutTriangleRotation);
+}
+
+#endif
+
+[numthreads(THREAD_COUNT, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (DispatchThreadId.x < NumPoints)
+	{
+		const int StrandIndex = VertexToCurveIndexBuffer[DispatchThreadId.x];
+		
+		const int PointCount = CurvesOffsetsBuffer[StrandIndex + 1] - CurvesOffsetsBuffer[StrandIndex];
+		const int PointIndex = DispatchThreadId.x - CurvesOffsetsBuffer[StrandIndex];
+		
+		const float PointCoord = (float) (PointIndex) / (PointCount - 1.0);
+		const float PointNode = PointCoord * (StrandsSize - 2);
+
+		int NodePrev = (PointIndex == 0) ? 0 : (PointIndex == (PointCount - 1.0)) ? StrandsSize - 3 : floor(PointNode);
+		const int NodeNext = NodePrev + 1;
+
+		const float PointAlpha = PointNode - (float) NodePrev;
+		
+		const int NodePositionXOffset = NodePositionComponent * NiagaraFloatStride + StrandIndex * StrandsSize;
+		const int NodePositionYOffset = NodePositionXOffset + NiagaraFloatStride;
+		const int NodePositionZOffset = NodePositionYOffset + NiagaraFloatStride;
+		
+		const float3 WorldPrevNodePosition = float3(NiagaraFloatBuffer[NodePositionXOffset+NodePrev],
+		                                   NiagaraFloatBuffer[NodePositionYOffset+NodePrev],
+		                                   NiagaraFloatBuffer[NodePositionZOffset+NodePrev]);
+
+		const float3 WorldNextNodePosition = float3(NiagaraFloatBuffer[NodePositionXOffset+NodeNext],
+										   NiagaraFloatBuffer[NodePositionYOffset+NodeNext],
+										   NiagaraFloatBuffer[NodePositionZOffset+NodeNext]);
+
+		const int RestPositionXOffset = RestPositionComponent * NiagaraFloatStride + StrandIndex * StrandsSize;
+		const int RestPositionYOffset = RestPositionXOffset + NiagaraFloatStride;
+		const int RestPositionZOffset = RestPositionYOffset + NiagaraFloatStride;
+		
+		const float3 WorldPrevRestPosition = float3(NiagaraFloatBuffer[RestPositionXOffset+NodePrev],
+										   NiagaraFloatBuffer[RestPositionYOffset+NodePrev],
+										   NiagaraFloatBuffer[RestPositionZOffset+NodePrev]);
+
+		const float3 WorldNextRestPosition = float3(NiagaraFloatBuffer[RestPositionXOffset+NodeNext],
+										   NiagaraFloatBuffer[RestPositionYOffset+NodeNext],
+										   NiagaraFloatBuffer[RestPositionZOffset+NodeNext]);
+
+#if PERMUTATION_INTERPOLATION == LOCAL_INTERPOLATION
+		
+		const float2 ProjectionUV = ExtractBarycentrics(RootBarycentricCoordinatesBuffer[StrandIndex]);
+
+		float3 RestTrianglePosition = float3(0, 0, 0), DeformedTrianglePosition = float3(0, 0, 0);
+		float4 RestTriangleOrientation = QUATERNION_IDENTITY, DeformedTriangleOrientation = QUATERNION_IDENTITY;
+		
+		DIHairStrands_BuildRestTriangle(ProjectionUV, StrandIndex, RestTrianglePosition, RestTriangleOrientation);
+		DIHairStrands_BuildDeformedTriangle(ProjectionUV, StrandIndex, DeformedTrianglePosition, DeformedTriangleOrientation);
+		
+		const float3 LocalPrevRestPosition = DIHairStrands_TriangleLocalPosition(RestTrianglePosition, RestTriangleOrientation, WorldPrevRestPosition);
+		const float3 LocalPrevNodePosition = DIHairStrands_TriangleLocalPosition(DeformedTrianglePosition, DeformedTriangleOrientation, WorldPrevNodePosition);
+			
+		const float3 LocalNextRestPosition = DIHairStrands_TriangleLocalPosition(RestTrianglePosition, RestTriangleOrientation, WorldNextRestPosition);
+		const float3 LocalNextNodePosition = DIHairStrands_TriangleLocalPosition(DeformedTrianglePosition, DeformedTriangleOrientation, WorldNextNodePosition);
+
+		const float3 LocalPointDisplace = (LocalPrevNodePosition - LocalPrevRestPosition)  * (1.0 - PointAlpha) + (LocalNextNodePosition - LocalNextRestPosition) * PointAlpha;
+		
+		const float3 LocalTrianglePosition = DIHairStrands_TriangleLocalPosition(RestTrianglePosition, RestTriangleOrientation, 
+					f16tof32(RestPositionBuffer[DispatchThreadId.x].xyz) + RestPositionOffset) + LocalPointDisplace;
+		
+		const float3 LocalComponentPosition = DIHairStrands_TriangleWorldPosition(DeformedTrianglePosition, DeformedTriangleOrientation, LocalTrianglePosition) - DeformedPositionOffset[0].xyz;
+		DeformedPositionBuffer[DispatchThreadId.x] = uint4(f32tof16(LocalComponentPosition), RestPositionBuffer[DispatchThreadId.x].w);
+
+#endif
+		
+#if PERMUTATION_INTERPOLATION == WORLD_INTERPOLATION
+		
+		const float3 WorldPointDisplace = (WorldPrevNodePosition - WorldPrevRestPosition)  * (1.0 - PointAlpha) + (WorldNextNodePosition - WorldNextRestPosition) * PointAlpha;
+
+		const float3 WorldComponentPosition = f16tof32(RestPositionBuffer[DispatchThreadId.x].xyz) + WorldPointDisplace + RestPositionOffset - DeformedPositionOffset[0].xyz;
+		DeformedPositionBuffer[DispatchThreadId.x] = uint4(f32tof16(WorldComponentPosition), RestPositionBuffer[DispatchThreadId.x].w);
+		
+#endif
+	}
+}

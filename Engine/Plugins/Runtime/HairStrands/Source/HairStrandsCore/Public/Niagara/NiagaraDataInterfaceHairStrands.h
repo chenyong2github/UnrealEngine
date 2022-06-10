@@ -61,6 +61,9 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** Params scale buffer */
 	FRWBuffer ParamsScaleBuffer;
 
+	/** Points curve index for fast query */
+	FRWBuffer PointsCurveBuffer;
+
 	/** The strand asset resource from which to sample */
 	const FHairStrandsRestResource* SourceRestResources;
 
@@ -411,6 +414,7 @@ public:
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool HasTickGroupPrereqs() const override { return true; }
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
+	virtual void SimCachePostReadFrame(void* OptionalPerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 
 	/** GPU simulation  functionality */
 #if WITH_EDITORONLY_DATA
