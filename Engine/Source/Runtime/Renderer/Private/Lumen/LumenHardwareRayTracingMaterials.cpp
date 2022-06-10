@@ -135,19 +135,10 @@ FRayTracingLocalShaderBindings* FDeferredShadingSceneRenderer::BuildLumenHardwar
 	return Bindings;
 }
 
-FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTracingMaterialPipeline(FRHICommandList& RHICmdList, FRayTracingLocalShaderBindings* Bindings, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable, FRHIBuffer* OutHitGroupDataBuffer)
+FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateLumenHardwareRayTracingMaterialPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
 	
-	const FViewInfo& ReferenceView = Views[0];
-	const int32 NumTotalBindings = ReferenceView.VisibleRayTracingMeshCommands.Num();	
-
-	// If we haven't build bindings before we need to build them here
-	if (Bindings == nullptr)
-	{
-		Bindings = BuildLumenHardwareRayTracingMaterialBindings(RHICmdList, View, OutHitGroupDataBuffer, false);
-	}
-
 	FRayTracingPipelineStateInitializer Initializer;
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
@@ -166,14 +157,25 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTra
 
 	FRayTracingPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 
+	return PipelineState;
+}
+
+void FDeferredShadingSceneRenderer::BindLumenHardwareRayTracingMaterialPipeline(FRHICommandListImmediate& RHICmdList, FRayTracingLocalShaderBindings* Bindings, const FViewInfo& View, FRayTracingPipelineState* PipelineState, FRHIBuffer* OutHitGroupDataBuffer)
+{
+	// If we haven't build bindings before we need to build them here
+	if (Bindings == nullptr)
+	{
+		Bindings = BuildLumenHardwareRayTracingMaterialBindings(RHICmdList, View, OutHitGroupDataBuffer, false);
+	}
+
+	const int32 NumTotalBindings = View.VisibleRayTracingMeshCommands.Num();	
+
 	const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
 	RHICmdList.SetRayTracingHitGroups(
 		View.GetRayTracingSceneChecked(),
 		PipelineState,
 		NumTotalBindings, Bindings,
 		bCopyDataToInlineStorage);
-
-	return PipelineState;
 }
 
 #endif // RHI_RAYTRACING

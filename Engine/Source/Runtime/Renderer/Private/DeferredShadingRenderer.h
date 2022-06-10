@@ -1008,9 +1008,17 @@ private:
 
 	bool SetupRayTracingPipelineStates(FRDGBuilder& GraphBuilder);
 	bool DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder, FRDGBufferRef& OutDynamicGeometryScratchBuffer);
-	FRayTracingPipelineState* BindRayTracingMaterialPipeline(FRHICommandList& RHICmdList, FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable);
-	FRayTracingPipelineState* BindRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable);
-	FRayTracingPipelineState* BindLumenHardwareRayTracingMaterialPipeline(FRHICommandList& RHICmdList, FRayTracingLocalShaderBindings* Bindings, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable, FRHIBuffer* OutHitGroupDataBuffer);
+
+	/** Functions to create ray tracing pipeline state objects for various effects */
+	FRayTracingPipelineState* CreateRayTracingMaterialPipeline(FRHICommandList& RHICmdList, FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable);
+	FRayTracingPipelineState* CreateRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable);
+	FRayTracingPipelineState* CreateLumenHardwareRayTracingMaterialPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable);
+
+	/** Functions to bind parameters to the ray tracing scene (fill the shader binding tables, etc.) */
+	void BindRayTracingMaterialPipeline(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FRayTracingPipelineState* PipelineState);
+	void BindRayTracingDeferredMaterialGatherPipeline(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRayTracingPipelineState* PipelineState);
+	void BindLumenHardwareRayTracingMaterialPipeline(FRHICommandListImmediate& RHICmdList, FRayTracingLocalShaderBindings* Bindings, const FViewInfo& View, FRayTracingPipelineState* PipelineState, FRHIBuffer* OutHitGroupDataBuffer);
+
 	FRayTracingLocalShaderBindings* BuildLumenHardwareRayTracingMaterialBindings(FRHICommandList& RHICmdList, const FViewInfo& View, FRHIBuffer* OutHitGroupDataBuffer, bool bInlineOnly);
 	void SetupLumenHardwareRayTracingHitGroupBuffer(FViewInfo& View);
 

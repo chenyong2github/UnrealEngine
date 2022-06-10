@@ -66,7 +66,7 @@ class FRayTracingDeferredMaterialMS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialMS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialMS", SF_RayMiss);
 
-FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable)
+FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
 
@@ -87,9 +87,12 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredM
 
 	FRayTracingPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 
-	const FViewInfo& ReferenceView = Views[0];
+	return PipelineState;
+}
 
-	const int32 NumTotalBindings = ReferenceView.VisibleRayTracingMeshCommands.Num();
+void FDeferredShadingSceneRenderer::BindRayTracingDeferredMaterialGatherPipeline(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRayTracingPipelineState* PipelineState)
+{
+	const int32 NumTotalBindings = View.VisibleRayTracingMeshCommands.Num();
 
 	const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
 	FRayTracingLocalShaderBindings* Bindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
@@ -98,7 +101,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredM
 
 	uint32 BindingIndex = 0;
 
-	for (const FVisibleRayTracingMeshCommand VisibleMeshCommand : ReferenceView.VisibleRayTracingMeshCommands)
+	for (const FVisibleRayTracingMeshCommand VisibleMeshCommand : View.VisibleRayTracingMeshCommands)
 	{
 		const FRayTracingMeshCommand& MeshCommand = *VisibleMeshCommand.RayTracingMeshCommand;
 
@@ -117,8 +120,6 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredM
 		PipelineState,
 		NumTotalBindings, Bindings,
 		bCopyDataToInlineStorage);
-
-	return PipelineState;
 }
 
 class FMaterialSortCS : public FGlobalShader
