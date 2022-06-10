@@ -742,7 +742,12 @@ namespace Chaos
 				HasResweptConstraint = true;
 			}
 		}
-
+		
+		for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
+		{ 
+			CCDConstraint->SweptConstraint->SetCCDResults(CCDConstraint->NetImpulse);
+		}
+		
 		return HasResweptConstraint;
 	}
 
