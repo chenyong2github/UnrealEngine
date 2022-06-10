@@ -71,13 +71,29 @@ namespace UnrealGameSync
 			{
 				await Task.Delay(TimeSpan.FromMinutes(5.0), CancellationToken);
 
-				using (IPerforceConnection Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger))
+				IPerforceConnection? Perforce = null;
+				try
 				{
+					Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+
 					PerforceResponseList<ChangesRecord> Changes = await Perforce.TryGetChangesAsync(ChangesOptions.None, -1, ChangeStatus.Submitted, WatchPath, CancellationToken);
 					if (Changes.Succeeded && Changes.Data.Count > 0)
 					{
 						TriggerUpdate(UpdateType.Background, null);
 					}
+				}
+				catch (PerforceException ex)
+				{
+					Logger.LogInformation(ex, "Perforce exception while attempting to poll for updates.");
+				}
+				catch (Exception ex)
+				{
+					Logger.LogWarning(ex, "Exception while attempting to poll for updates.");
+					Program.CaptureException(ex);
+				}
+				finally
+				{
+					Perforce?.Dispose();
 				}
 			}
 		}

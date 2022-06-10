@@ -36,6 +36,14 @@ namespace UnrealGameSync
 
 		public static string? SyncVersion = null;
 
+		public static void CaptureException(Exception exception)
+		{
+			if (DeploymentSettings.SentryDsn != null)
+			{
+				SentrySdk.CaptureException(exception);
+			}
+		}
+
 		[STAThread]
 		static void Main(string[] Args)
 		{
