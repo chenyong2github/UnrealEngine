@@ -93,43 +93,6 @@ public:
 		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimeGet,) Requests, Owner, MoveTemp(OnComplete), &ICacheStore::GetChunks);
 	}
 
-	virtual void LegacyPut(
-		TConstArrayView<FLegacyCachePutRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCachePutComplete&& OnComplete) override
-	{
-		if (MemoryCache)
-		{
-			MemoryCache->LegacyPut(Requests, Owner, [](auto&&){});
-			Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner,
-				[this, OnComplete = MoveTemp(OnComplete)](FLegacyCachePutResponse&& Response)
-				{
-					MemoryCache->LegacyDelete(Response.Key);
-					OnComplete(MoveTemp(Response));
-				}, &ILegacyCacheStore::LegacyPut);
-		}
-		else
-		{
-			Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ILegacyCacheStore::LegacyPut);
-		}
-	}
-
-	virtual void LegacyGet(
-		TConstArrayView<FLegacyCacheGetRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheGetComplete&& OnComplete) override
-	{
-		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimeGet,) Requests, Owner, MoveTemp(OnComplete), &ILegacyCacheStore::LegacyGet);
-	}
-
-	virtual void LegacyDelete(
-		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheDeleteComplete&& OnComplete) override
-	{
-		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ILegacyCacheStore::LegacyDelete);
-	}
-
 	virtual void LegacyStats(FDerivedDataCacheStatsNode& OutNode) override;
 
 	virtual bool LegacyDebugOptions(FBackendDebugOptions& Options) override

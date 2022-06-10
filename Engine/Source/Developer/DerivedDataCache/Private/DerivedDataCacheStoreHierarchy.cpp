@@ -64,21 +64,6 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) final;
 
-	void LegacyPut(
-		TConstArrayView<FLegacyCachePutRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCachePutComplete&& OnComplete) final;
-
-	void LegacyGet(
-		TConstArrayView<FLegacyCacheGetRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheGetComplete&& OnComplete) final;
-
-	void LegacyDelete(
-		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheDeleteComplete&& OnComplete) final;
-
 	void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final;
 
 	bool LegacyDebugOptions(FBackendDebugOptions& Options) final;
@@ -86,7 +71,6 @@ public:
 	template <typename PutRequestType, typename GetRequestType> struct TBatchParams;
 	using FCacheRecordBatchParams = TBatchParams<FCachePutRequest, FCacheGetRequest>;
 	using FCacheValueBatchParams = TBatchParams<FCachePutValueRequest, FCacheGetValueRequest>;
-	using FLegacyCacheBatchParams = TBatchParams<FLegacyCachePutRequest, FLegacyCacheGetRequest>;
 
 private:
 	// Caller must hold a write lock on CacheStoresLock.
@@ -99,7 +83,6 @@ private:
 	template <typename Params> class TGetBatch;
 
 	class FGetChunksBatch;
-	class FLegacyDeleteBatch;
 
 	enum class ECacheStoreNodeFlags : uint32;
 	FRIEND_ENUM_CLASS_FLAGS(ECacheStoreNodeFlags);
@@ -1067,194 +1050,6 @@ void FCacheStoreHierarchy::GetChunks(
 	FOnCacheGetChunkComplete&& OnComplete)
 {
 	FGetChunksBatch::Begin(*this, Requests, Owner, MoveTemp(OnComplete));
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <>
-auto FCacheStoreHierarchy::FLegacyCacheBatchParams::Put() -> PutFunctionType
-{
-	return &ILegacyCacheStore::LegacyPut;
-};
-
-template <>
-auto FCacheStoreHierarchy::FLegacyCacheBatchParams::Get() -> GetFunctionType
-{
-	return &ILegacyCacheStore::LegacyGet;
-};
-
-template <>
-bool FCacheStoreHierarchy::FLegacyCacheBatchParams::HasResponseData(const FLegacyCacheGetResponse& Response)
-{
-	return Response.Value.HasData();
-}
-
-template <>
-void FCacheStoreHierarchy::FLegacyCacheBatchParams::FilterResponseByRequest(
-	FLegacyCacheGetResponse& Response,
-	const FLegacyCacheGetRequest& Request)
-{
-	if (Response.Value && EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData))
-	{
-		Response.Value.Reset();
-	}
-}
-
-template <>
-FLegacyCachePutRequest FCacheStoreHierarchy::FLegacyCacheBatchParams::MakePutRequest(
-	const FLegacyCacheGetResponse& Response,
-	const FLegacyCacheGetRequest& Request)
-{
-	return {Response.Name, Response.Key, Response.Value, Request.Policy};
-}
-
-template <>
-FLegacyCacheGetRequest FCacheStoreHierarchy::FLegacyCacheBatchParams::MakeGetRequest(
-	const FLegacyCachePutRequest& Request,
-	const uint64 UserData)
-{
-	return {Request.Name, Request.Key, AddPolicy(Request.Policy, ECachePolicy::SkipData), UserData};
-}
-
-void FCacheStoreHierarchy::LegacyPut(
-	const TConstArrayView<FLegacyCachePutRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCachePutComplete&& OnComplete)
-{
-	TPutBatch<FLegacyCacheBatchParams>::Begin(*this, Requests, Owner, MoveTemp(OnComplete));
-}
-
-void FCacheStoreHierarchy::LegacyGet(
-	const TConstArrayView<FLegacyCacheGetRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCacheGetComplete&& OnComplete)
-{
-	TGetBatch<FLegacyCacheBatchParams>::Begin(*this, Requests, Owner, MoveTemp(OnComplete));
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FCacheStoreHierarchy::FLegacyDeleteBatch final : public FBatchBase
-{
-public:
-	static void Begin(
-		const FCacheStoreHierarchy& Hierarchy,
-		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheDeleteComplete&& OnComplete);
-
-private:
-	FLegacyDeleteBatch(
-		const FCacheStoreHierarchy& InHierarchy,
-		const TConstArrayView<FLegacyCacheDeleteRequest> InRequests,
-		IRequestOwner& InOwner,
-		FOnLegacyCacheDeleteComplete&& InOnComplete)
-		: Hierarchy(InHierarchy)
-		, Requests(InRequests)
-		, BatchOwner(InOwner)
-		, OnComplete(MoveTemp(InOnComplete))
-	{
-		States.SetNum(Requests.Num());
-	}
-
-	void DispatchRequests();
-	void CompleteRequest(FLegacyCacheDeleteResponse&& Response);
-
-	struct FRequestState
-	{
-		bool bOk = false;
-	};
-
-	const FCacheStoreHierarchy& Hierarchy;
-	TArray<FLegacyCacheDeleteRequest, TInlineAllocator<1>> Requests;
-	IRequestOwner& BatchOwner;
-	FOnLegacyCacheDeleteComplete OnComplete;
-
-	TArray<FRequestState, TInlineAllocator<1>> States;
-	FCounterEvent RemainingRequestCount;
-	int32 NodeIndex = 0;
-};
-
-void FCacheStoreHierarchy::FLegacyDeleteBatch::Begin(
-	const FCacheStoreHierarchy& InHierarchy,
-	const TConstArrayView<FLegacyCacheDeleteRequest> InRequests,
-	IRequestOwner& InOwner,
-	FOnLegacyCacheDeleteComplete&& InOnComplete)
-{
-	if (InRequests.IsEmpty() || !EnumHasAnyFlags(InHierarchy.CombinedNodeFlags, ECacheStoreNodeFlags::HasStoreNode))
-	{
-		return CompleteWithStatus(InRequests, InOnComplete, EStatus::Error);
-	}
-
-	TRefCountPtr<FLegacyDeleteBatch> State = new FLegacyDeleteBatch(InHierarchy, InRequests, InOwner, MoveTemp(InOnComplete));
-	State->DispatchRequests();
-}
-
-void FCacheStoreHierarchy::FLegacyDeleteBatch::DispatchRequests()
-{
-	FReadScopeLock Lock(Hierarchy.NodesLock);
-
-	TArray<FLegacyCacheDeleteRequest, TInlineAllocator<1>> NodeRequests;
-	NodeRequests.Reserve(Requests.Num());
-	for (const int32 NodeCount = Hierarchy.Nodes.Num(); NodeIndex < NodeCount && !BatchOwner.IsCanceled(); ++NodeIndex)
-	{
-		const FCacheStoreNode& Node = Hierarchy.Nodes[NodeIndex];
-
-		uint64 RequestIndex = 0;
-		for (const FLegacyCacheDeleteRequest& Request : Requests)
-		{
-			if (CanStore(Request.Policy, Node.CacheFlags))
-			{
-				NodeRequests.Add_GetRef(Request).UserData = RequestIndex;
-			}
-			++RequestIndex;
-		}
-
-		if (const int32 NodeRequestsCount = NodeRequests.Num())
-		{
-			RemainingRequestCount.Reset(NodeRequestsCount + 1);
-			Node.Cache->LegacyDelete(NodeRequests, BatchOwner,
-				[State = TRefCountPtr(this)](FLegacyCacheDeleteResponse&& Response)
-				{
-					State->CompleteRequest(MoveTemp(Response));
-				});
-			NodeRequests.Reset();
-			if (!RemainingRequestCount.Signal())
-			{
-				return;
-			}
-		}
-	}
-
-	int32 RequestIndex = 0;
-	for (const FLegacyCacheDeleteRequest& Request : Requests)
-	{
-		const bool bOk = States[RequestIndex].bOk;
-		const EStatus Status = bOk ? EStatus::Ok : BatchOwner.IsCanceled() ? EStatus::Canceled : EStatus::Error;
-		OnComplete(Request.MakeResponse(Status));
-		++RequestIndex;
-	}
-}
-
-void FCacheStoreHierarchy::FLegacyDeleteBatch::CompleteRequest(FLegacyCacheDeleteResponse&& Response)
-{
-	if (Response.Status == EStatus::Ok)
-	{
-		States[int32(Response.UserData)].bOk = true;
-	}
-	if (RemainingRequestCount.Signal())
-	{
-		++NodeIndex;
-		DispatchRequests();
-	}
-}
-
-void FCacheStoreHierarchy::LegacyDelete(
-	const TConstArrayView<FLegacyCacheDeleteRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCacheDeleteComplete&& OnComplete)
-{
-	FLegacyDeleteBatch::Begin(*this, Requests, Owner, MoveTemp(OnComplete));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

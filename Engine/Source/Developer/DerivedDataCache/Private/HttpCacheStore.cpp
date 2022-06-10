@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DerivedDataBackendInterface.h"
 #include "DerivedDataLegacyCacheStore.h"
 #include "Templates/Tuple.h"
 
@@ -8,7 +9,6 @@
 #include "Compression/CompressedBuffer.h"
 #include "Containers/StringView.h"
 #include "Containers/Ticker.h"
-#include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"

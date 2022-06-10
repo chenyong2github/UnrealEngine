@@ -33,17 +33,17 @@ using FOnLegacyCacheDeleteComplete = TUniqueFunction<void (FLegacyCacheDeleteRes
 class ILegacyCacheStore : public ICacheStore
 {
 public:
-	virtual void LegacyPut(
+	void LegacyPut(
 		TConstArrayView<FLegacyCachePutRequest> Requests,
 		IRequestOwner& Owner,
 		FOnLegacyCachePutComplete&& OnComplete);
 
-	virtual void LegacyGet(
+	void LegacyGet(
 		TConstArrayView<FLegacyCacheGetRequest> Requests,
 		IRequestOwner& Owner,
 		FOnLegacyCacheGetComplete&& OnComplete);
 
-	virtual void LegacyDelete(
+	void LegacyDelete(
 		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
 		IRequestOwner& Owner,
 		FOnLegacyCacheDeleteComplete&& OnComplete);

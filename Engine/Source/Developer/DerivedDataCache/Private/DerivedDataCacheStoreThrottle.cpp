@@ -120,58 +120,6 @@ public:
 
 	}
 
-	void LegacyPut(
-		const TConstArrayView<FLegacyCachePutRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCachePutComplete&& OnComplete) final
-	{
-		struct FValueSize
-		{
-			FCacheKey Key;
-			uint64 Size;
-		};
-		TArray<FValueSize, TInlineAllocator<1>> ValueSizes;
-		ValueSizes.Reserve(Requests.Num());
-		Algo::Transform(Requests, ValueSizes, [](const FLegacyCachePutRequest& Request) -> FValueSize
-		{
-			return {Request.Key.GetKey(), Request.Value.GetRawSize()};
-		});
-
-		InnerCache->LegacyPut(Requests, Owner,
-			[this, ValueSizes = MoveTemp(ValueSizes), State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FLegacyCachePutResponse&& Response)
-			{
-				const FValueSize* Size = Algo::FindBy(ValueSizes, Response.Key.GetKey(), &FValueSize::Key);
-				CloseThrottlingScope(State, FThrottlingState(this, Size ? Size->Size : 0));
-				OnComplete(MoveTemp(Response));
-			});
-	}
-
-	void LegacyGet(
-		const TConstArrayView<FLegacyCacheGetRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheGetComplete&& OnComplete) final
-	{
-		InnerCache->LegacyGet(Requests, Owner,
-			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FLegacyCacheGetResponse&& Response)
-			{
-				CloseThrottlingScope(State, FThrottlingState(this, Response.Value.GetRawSize()));
-				OnComplete(MoveTemp(Response));
-			});
-	}
-
-	void LegacyDelete(
-		const TConstArrayView<FLegacyCacheDeleteRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheDeleteComplete&& OnComplete) final
-	{
-		InnerCache->LegacyDelete(Requests, Owner,
-			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FLegacyCacheDeleteResponse&& Response)
-			{
-				CloseThrottlingScope(State, FThrottlingState(this, 0));
-				OnComplete(MoveTemp(Response));
-			});
-	}
-
 	void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final
 	{
 		InnerCache->LegacyStats(OutNode);

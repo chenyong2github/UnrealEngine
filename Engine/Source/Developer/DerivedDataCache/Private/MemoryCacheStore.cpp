@@ -55,19 +55,6 @@ public:
 
 	// ILegacyCacheStore Interface
 
-	void LegacyPut(
-		TConstArrayView<FLegacyCachePutRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCachePutComplete&& OnComplete) final;
-	void LegacyGet(
-		TConstArrayView<FLegacyCacheGetRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheGetComplete&& OnComplete) final;
-	void LegacyDelete(
-		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheDeleteComplete&& OnComplete) final;
-
 	void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final;
 	bool LegacyDebugOptions(FBackendDebugOptions& Options) final;
 
@@ -75,7 +62,6 @@ public:
 
 	void Delete(const FCacheKey& Key) final;
 	void DeleteValue(const FCacheKey& Key) final;
-	void LegacyDelete(const FLegacyCacheKey& Key) final;
 
 	void Disable() final;
 
@@ -91,8 +77,6 @@ private:
 	/** Name of this cache (used for debugging) */
 	FString Name;
 
-	/** Set of legacy values in this cache. */
-	TMap<FCacheKey, FLegacyCacheValue> LegacyCacheValues;
 	/** Set of records in this cache. */
 	TMap<FCacheKey, FCacheRecordComponents> CacheRecords;
 	/** Set of values in this cache. */
@@ -156,7 +140,6 @@ void FMemoryCacheStore::Disable()
 	bDisabled = true;
 	CacheRecords.Empty();
 	CacheValues.Empty();
-	LegacyCacheValues.Empty();
 	CurrentCacheSize = 0;
 }
 
@@ -627,148 +610,6 @@ void FMemoryCacheStore::GetChunks(
 			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
-}
-
-void FMemoryCacheStore::LegacyPut(
-	const TConstArrayView<FLegacyCachePutRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCachePutComplete&& OnComplete)
-{
-	if (bDisabled)
-	{
-		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
-	}
-
-	for (const FLegacyCachePutRequest& Request : Requests)
-	{
-		EStatus Status = EStatus::Error;
-		ON_SCOPE_EXIT
-		{
-			OnComplete(Request.MakeResponse(Status));
-		};
-
-		const FCacheKey& Key = Request.Key.GetKey();
-		const FLegacyCacheValue& Value = Request.Value;
-
-		if (!Value.HasData())
-		{
-			continue;
-		}
-
-		if (bCanBeDisabled && DebugOptions.ShouldSimulatePutMiss(Key))
-		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
-				*Name, *WriteToString<96>(Key), *Request.Name);
-			continue;
-		}
-
-		COOK_STAT(auto Timer = UsageStats.TimePut());
-		const int64 ValueSize = Value.GetRawSize();
-		const bool bReplaceExisting = !EnumHasAnyFlags(Request.Policy, ECachePolicy::QueryLocal);
-
-		FWriteScopeLock ScopeLock(SynchronizationObject);
-		FLegacyCacheValue* const ExistingValue = LegacyCacheValues.Find(Key);
-
-		if (ExistingValue && !bReplaceExisting)
-		{
-			Status = EStatus::Ok;
-			continue;
-		}
-
-		const int64 ExistingValueSize = ExistingValue ? ExistingValue->GetRawSize() : 0;
-		const int64 RequiredSize = ValueSize - ExistingValueSize;
-
-		if (MaxCacheSize > 0 && (CurrentCacheSize + RequiredSize) > MaxCacheSize)
-		{
-			UE_CLOG(!bMaxSizeExceeded, LogDerivedDataCache, Display,
-				TEXT("Failed to cache data. Maximum cache size reached. ")
-				TEXT("CurrentSize %" UINT64_FMT " KiB / MaxSize: %" UINT64_FMT " KiB"),
-				CurrentCacheSize / 1024, MaxCacheSize / 1024);
-			bMaxSizeExceeded = true;
-			continue;
-		}
-
-		CurrentCacheSize += RequiredSize;
-		if (ExistingValue)
-		{
-			*ExistingValue = Value;
-		}
-		else
-		{
-			LegacyCacheValues.Add(Key, Value);
-		}
-
-		COOK_STAT(Timer.AddHit(ValueSize));
-		Status = EStatus::Ok;
-	}
-}
-
-void FMemoryCacheStore::LegacyGet(
-	const TConstArrayView<FLegacyCacheGetRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCacheGetComplete&& OnComplete)
-{
-	if (bDisabled)
-	{
-		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
-	}
-
-	for (const FLegacyCacheGetRequest& Request : Requests)
-	{
-		const FCacheKey& Key = Request.Key.GetKey();
-		const bool bExistsOnly = EnumHasAllFlags(Request.Policy, ECachePolicy::SkipData);
-		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
-
-		FLegacyCacheValue Value;
-		EStatus Status = EStatus::Error;
-		if (bCanBeDisabled && DebugOptions.ShouldSimulateGetMiss(Key))
-		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
-				*Name, *WriteToString<96>(Key), *Request.Name);
-		}
-		else if (bExistsOnly && bCanBeDisabled)
-		{
-		}
-		else if (FReadScopeLock ScopeLock(SynchronizationObject); const FLegacyCacheValue* CacheValue = LegacyCacheValues.Find(Key))
-		{
-			Status = EStatus::Ok;
-			if (!bExistsOnly)
-			{
-				Value = *CacheValue;
-			}
-			COOK_STAT(Timer.AddHit(Value.GetRawSize()));
-		}
-
-		OnComplete({Request.Name, Request.Key, MoveTemp(Value), Request.UserData, Status});
-	}
-}
-
-void FMemoryCacheStore::LegacyDelete(const FLegacyCacheKey& Key)
-{
-	FWriteScopeLock ScopeLock(SynchronizationObject);
-	FLegacyCacheValue Value;
-	if (LegacyCacheValues.RemoveAndCopyValue(Key.GetKey(), Value))
-	{
-		CurrentCacheSize -= Value.GetRawSize();
-		bMaxSizeExceeded = false;
-	}
-}
-
-void FMemoryCacheStore::LegacyDelete(
-	const TConstArrayView<FLegacyCacheDeleteRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCacheDeleteComplete&& OnComplete)
-{
-	if (bDisabled)
-	{
-		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
-	}
-
-	for (const FLegacyCacheDeleteRequest& Request : Requests)
-	{
-		LegacyDelete(Request.Key);
-	}
-	CompleteWithStatus(Requests, OnComplete, EStatus::Ok);
 }
 
 IMemoryCacheStore* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled)

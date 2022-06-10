@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Algo/Compare.h"
-#include "Compression/OodleDataCompression.h"
 #include "Containers/Set.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheKeyFilter.h"
@@ -90,24 +89,6 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) final;
 
-	void LegacyPut(
-		TConstArrayView<FLegacyCachePutRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCachePutComplete&& OnComplete) final;
-
-	void LegacyGet(
-		TConstArrayView<FLegacyCacheGetRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheGetComplete&& OnComplete) final;
-
-	void LegacyDelete(
-		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
-		IRequestOwner& Owner,
-		FOnLegacyCacheDeleteComplete&& OnComplete) final
-	{
-		InnerCache->LegacyDelete(Requests, Owner, MoveTemp(OnComplete));
-	}
-
 	void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final
 	{
 		InnerCache->LegacyStats(OutNode);
@@ -137,15 +118,6 @@ private:
 		FRWLock Lock;
 	};
 
-	struct FVerifyLegacyPutState
-	{
-		TArray<FLegacyCachePutRequest> ForwardRequests;
-		TArray<FLegacyCachePutRequest> VerifyRequests;
-		FOnLegacyCachePutComplete OnComplete;
-		int32 ActiveRequests = 0;
-		FRWLock Lock;
-	};
-
 	void GetMetaComplete(IRequestOwner& Owner, FVerifyPutState* State, FCacheGetResponse&& Response);
 	void GetDataComplete(IRequestOwner& Owner, FVerifyPutState* State, FCacheGetResponse&& Response);
 	void GetComplete(IRequestOwner& Owner, FVerifyPutState* State);
@@ -153,10 +125,6 @@ private:
 	void GetMetaComplete(IRequestOwner& Owner, FVerifyPutValueState* State, FCacheGetValueResponse&& Response);
 	void GetDataComplete(IRequestOwner& Owner, FVerifyPutValueState* State, FCacheGetValueResponse&& Response);
 	void GetComplete(IRequestOwner& Owner, FVerifyPutValueState* State);
-
-	void GetMetaComplete(IRequestOwner& Owner, FVerifyLegacyPutState* State, FLegacyCacheGetResponse&& Response);
-	void GetDataComplete(IRequestOwner& Owner, FVerifyLegacyPutState* State, FLegacyCacheGetResponse&& Response);
-	void GetComplete(IRequestOwner& Owner, FVerifyLegacyPutState* State);
 
 	static bool CompareRecords(const FCacheRecord& PutRecord, const FCacheRecord& GetRecord, const FSharedString& Name);
 
@@ -528,139 +496,6 @@ void FCacheStoreVerify::GetChunks(
 	if (!ForwardRequests.IsEmpty())
 	{
 		InnerCache->GetChunks(ForwardRequests, Owner, MoveTemp(OnComplete));
-	}
-}
-
-void FCacheStoreVerify::LegacyPut(
-	const TConstArrayView<FLegacyCachePutRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCachePutComplete&& OnComplete)
-{
-	TUniquePtr<FVerifyLegacyPutState> State = MakeUnique<FVerifyLegacyPutState>();
-	State->VerifyRequests.Reserve(Requests.Num());
-	{
-		FScopeLock Lock(&AlreadyTestedLock);
-		for (const FLegacyCachePutRequest& Request : Requests)
-		{
-			const FCacheKey& Key = Request.Key.GetKey();
-			bool bForward = !Filter.IsMatch(Key);
-			if (!bForward)
-			{
-				AlreadyTested.Add(Key, &bForward);
-			}
-			(bForward ? State->ForwardRequests : State->VerifyRequests).Add(Request);
-		}
-	}
-
-	if (State->VerifyRequests.IsEmpty())
-	{
-		return InnerCache->LegacyPut(State->ForwardRequests, Owner, MoveTemp(OnComplete));
-	}
-
-	TArray<FLegacyCacheGetRequest> GetDataRequests;
-	GetDataRequests.Reserve(State->VerifyRequests.Num());
-	{
-		uint64 PutIndex = 0;
-		const ECachePolicy GetPolicy = ECachePolicy::Query;
-		for (const FLegacyCachePutRequest& PutRequest : State->VerifyRequests)
-		{
-			GetDataRequests.Add({PutRequest.Name, PutRequest.Key, GetPolicy, PutIndex++});
-		}
-	}
-
-	State->OnComplete = MoveTemp(OnComplete);
-	State->ActiveRequests = GetDataRequests.Num();
-	InnerCache->LegacyGet(GetDataRequests, Owner, [this, &Owner, State = State.Release()](FLegacyCacheGetResponse&& MetaResponse)
-	{
-		GetDataComplete(Owner, State, MoveTemp(MetaResponse));
-	});
-}
-
-void FCacheStoreVerify::GetDataComplete(IRequestOwner& Owner, FVerifyLegacyPutState* State, FLegacyCacheGetResponse&& Response)
-{
-	FLegacyCachePutRequest& Request = State->VerifyRequests[int32(Response.UserData)];
-
-	if (Response.Status == EStatus::Ok)
-	{
-		const FLegacyCacheValue& NewValue = Request.Value;
-		const FLegacyCacheValue& OldValue = Response.Value;
-		if (NewValue.GetRawHash() == OldValue.GetRawHash())
-		{
-			UE_LOG(LogDerivedDataCache, Verbose,
-				TEXT("Verify: Data in the cache matches newly generated data for %s from '%s'."),
-				*WriteToString<96>(Request.Key.GetKey()), *Request.Name);
-			State->OnComplete(Request.MakeResponse(EStatus::Ok));
-		}
-		else
-		{
-			LogChangedValue(Request.Name, Request.Key.GetKey(), FValueId::Null,
-				NewValue.GetRawHash(), OldValue.GetRawHash(),
-				NewValue.GetRawData(), OldValue.GetRawData());
-			if (bPutOnError)
-			{
-				// Ask to overwrite existing values to potentially eliminate the mismatch.
-				UE_LOG(LogDerivedDataCache, Display,
-					TEXT("Verify: Writing newly generated data to the cache for %s from '%s'."),
-					*WriteToString<96>(Request.Key.GetKey()), *Request.Name);
-				Request.Policy &= ~ECachePolicy::Query;
-				FWriteScopeLock Lock(State->Lock);
-				State->ForwardRequests.Add(MoveTemp(Request));
-			}
-			else
-			{
-				State->OnComplete(Request.MakeResponse(EStatus::Ok));
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogDerivedDataCache, Display,
-			TEXT("Verify: Cache did not contain a value for %s from '%s'."),
-			*WriteToString<96>(Request.Key.GetKey()), *Request.Name);
-		FWriteScopeLock Lock(State->Lock);
-		State->ForwardRequests.Add(MoveTemp(Request));
-	}
-
-	GetComplete(Owner, State);
-}
-
-void FCacheStoreVerify::GetComplete(IRequestOwner& Owner, FVerifyLegacyPutState* State)
-{
-	if (FWriteScopeLock Lock(State->Lock); --State->ActiveRequests > 0)
-	{
-		return;
-	}
-	if (!State->ForwardRequests.IsEmpty())
-	{
-		InnerCache->LegacyPut(State->ForwardRequests, Owner, MoveTemp(State->OnComplete));
-	}
-	delete State;
-}
-
-void FCacheStoreVerify::LegacyGet(
-	const TConstArrayView<FLegacyCacheGetRequest> Requests,
-	IRequestOwner& Owner,
-	FOnLegacyCacheGetComplete&& OnComplete)
-{
-	TArray<FLegacyCacheGetRequest, TInlineAllocator<8>> ForwardRequests;
-	TArray<FLegacyCacheGetRequest, TInlineAllocator<8>> VerifyRequests;
-	ForwardRequests.Reserve(Requests.Num());
-	VerifyRequests.Reserve(Requests.Num());
-	{
-		FScopeLock Lock(&AlreadyTestedLock);
-		for (const FLegacyCacheGetRequest& Request : Requests)
-		{
-			const FCacheKey& Key = Request.Key.GetKey();
-			const bool bForward = !Filter.IsMatch(Key) || AlreadyTested.Contains(Key);
-			(bForward ? ForwardRequests : VerifyRequests).Add(Request);
-		}
-	}
-
-	CompleteWithStatus(VerifyRequests, OnComplete, EStatus::Error);
-
-	if (!ForwardRequests.IsEmpty())
-	{
-		InnerCache->LegacyGet(ForwardRequests, Owner, MoveTemp(OnComplete));
 	}
 }
 
