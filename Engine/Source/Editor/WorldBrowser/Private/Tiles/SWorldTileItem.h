@@ -70,6 +70,7 @@ public:
 	virtual UObject* GetObjectBeingDisplayed() const override;
 	virtual FVector2D GetPosition() const override;
 	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
+	virtual void GetDiffHighlightBrushes(const FSlateBrush*& BackgroundOut, const FSlateBrush*& ForegroundOut) const override;
 	// SNodePanel::SNode interface end
 	
 	/** @return Deferred item refresh */

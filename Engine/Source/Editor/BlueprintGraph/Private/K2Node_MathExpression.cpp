@@ -2877,7 +2877,7 @@ void UK2Node_MathExpression::FindDiffs(class UEdGraphNode* OtherNode, struct FDi
 		Args.Add(TEXT("Expression2"), Expression2);
 
 		Diff.ToolTip =  FText::Format(LOCTEXT("DIF_MathExpressionToolTip", "Math Expression '{Expression1}' changed to '{Expression2}'"), Args);
-		Diff.DisplayColor = FLinearColor(0.85f,0.71f,0.25f);
+		Diff.Category = EDiffType::MODIFICATION;
 		Diff.DisplayString = FText::Format(LOCTEXT("DIF_MathExpression", "Math Expression '{Expression1}' changed to '{Expression2}'"), Args);
 		Results.Add(Diff);
 	}

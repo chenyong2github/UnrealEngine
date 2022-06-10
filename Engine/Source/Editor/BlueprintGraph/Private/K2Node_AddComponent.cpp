@@ -427,7 +427,7 @@ void UK2Node_AddComponent::FindDiffs(class UEdGraphNode* OtherNode, struct FDiff
 			Diff.Node1 = this;
 			Diff.Node2 = OtherNode;
 			Diff.ToolTip = LOCTEXT("DIF_ComponentTemplatePropertyToolTip", "A property of the component template has changed");
-			Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+			Diff.Category = EDiffType::MODIFICATION;
 
 			DiffProperties(MyComponent->GetClass(), OtherComponent->GetClass(), MyComponent, OtherComponent, Results, Diff);
 		}

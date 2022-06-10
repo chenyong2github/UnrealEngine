@@ -221,7 +221,7 @@ static TArray< FMergeGraphEntry > GenerateDiffListItems(const FBlueprintRevPair&
 							, ConflictingDifference ? (*ConflictingDifference)->Pin2 : nullptr /*UEdGraphPin* LocalPin*/
 							, Difference.Pin1 /*UEdGraphPin* BasePin*/
 							, Difference.Pin2 /*UEdGraphPin* RemotePin*/
-							, Difference.DisplayColor
+							, Difference.GetDisplayColor()
 							, ConflictingDifference ? true : false
 						};
 
@@ -246,7 +246,7 @@ static TArray< FMergeGraphEntry > GenerateDiffListItems(const FBlueprintRevPair&
 								, Difference.Pin2 /*UEdGraphPin* LocalPin*/
 								, Difference.Pin1 /*UEdGraphPin* BasePin*/
 								, nullptr
-								, Difference.DisplayColor
+								, Difference.GetDisplayColor()
 								, false
 							};
 

@@ -150,6 +150,9 @@ public:
 	/** @return whether this pin is connected to another pin */
 	bool IsConnected() const;
 
+	/** @return whether to fade out the pin's connections */
+	bool AreConnectionsFaded() const;
+
 	/** Tries to handle making a connection to another pin, depending on the schema and the pins it may do:  
 		 - Nothing
 		 - Break existing links on either side while making the new one
@@ -173,6 +176,18 @@ public:
 	void SetDiffHighlighted(bool bHighlighted)
 	{
 		bIsDiffHighlighted = bHighlighted;
+	}
+
+	/** Allows Diff to highlight pins */
+	void SetPinDiffColor(TOptional<FLinearColor> InColor)
+	{
+		PinDiffColor = InColor;
+	}
+
+	/** Makes Pin Connection Wires transparent */
+	void SetFadeConnections(bool bInFadeConnections)
+	{
+		bFadeConnections = bInFadeConnections;
 	}
 
 	/** Set this pin to only be used to display default value */
@@ -256,6 +271,11 @@ protected:
 	/** @return The color that we should use to draw this pin */
 	virtual FSlateColor GetPinColor() const;
 
+	/** @return The color that we should use to draw the highlight for this pin */
+	virtual FSlateColor GetHighlightColor() const;
+
+	virtual FSlateColor GetPinDiffColor() const;
+
 	/** @return The secondary color that we should use to draw this pin (e.g. value color for Map pins) */
 	FSlateColor GetSecondaryPinColor() const;
 
@@ -321,6 +341,9 @@ protected:
 	/** Set of pins that are currently being hovered */
 	TSet< FEdGraphPinReference > HoverPinSet;
 
+	/** If set, this will change the color of the pin's background highlight */
+	TOptional<FLinearColor> PinDiffColor;
+
 	//@TODO: Want to cache these once for all SGraphPins, but still handle slate style updates
 	const FSlateBrush* CachedImg_ArrayPin_Connected;
 	const FSlateBrush* CachedImg_ArrayPin_Disconnected;
@@ -338,6 +361,8 @@ protected:
 
 	const FSlateBrush* CachedImg_Pin_Background;
 	const FSlateBrush* CachedImg_Pin_BackgroundHovered;
+	
+	const FSlateBrush* CachedImg_Pin_DiffOutline;
 
 	const FSlateBrush* Custom_Brush_Connected;
 	const FSlateBrush* Custom_Brush_Disconnected;
@@ -362,4 +387,7 @@ protected:
 
 	/** True if this pin is being diffed and it's currently selected in the diff view. Highlights this pin */
 	bool bIsDiffHighlighted;
+
+	/** TRUE if the connections from this pin should be drawn at a lower opacity */
+	bool bFadeConnections;
 };

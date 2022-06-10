@@ -781,7 +781,7 @@ void UEdGraphNode::FindDiffs(UEdGraphNode* OtherNode, struct FDiffResults& Resul
 		Diff.Node1 = this;
 		Diff.Node2 = OtherNode;
 		Diff.ToolTip = LOCTEXT("DIF_NodePropertyToolTip", "A Property of the node has changed");
-		Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+		Diff.Category = EDiffType::MODIFICATION;
 
 		// Diff the properties between the nodes
 		DiffProperties(GetClass(), OtherNode->GetClass(), this, OtherNode, Results, Diff);

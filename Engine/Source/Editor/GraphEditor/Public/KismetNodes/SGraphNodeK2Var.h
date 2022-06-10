@@ -19,6 +19,8 @@ public:
 
 	virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
 
+	virtual void GetDiffHighlightBrushes(const FSlateBrush*& BackgroundOut, const FSlateBrush*& ForegroundOut) const override;
+
 	// SGraphNode interface
 	virtual void UpdateGraphNode() override;
 	// End of SGraphNode interface

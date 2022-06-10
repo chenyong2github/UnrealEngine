@@ -104,7 +104,7 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 
 	//Style used for objects that are the same between revisions
 	FWidgetStyle FadedStyle = InWidgetStyle;
-	FadedStyle.BlendColorAndOpacityTint(FLinearColor(0.45f,0.45f,0.45f,0.45f));
+	FadedStyle.BlendColorAndOpacityTint(FLinearColor(0.45f,0.45f,0.45f,0.30f));
 
 	// First paint the background
 	const UEditorExperimentalSettings& Options = *GetDefault<UEditorExperimentalSettings>();
@@ -128,6 +128,8 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 	// Save LayerId for comment boxes to ensure they always appear below nodes & wires
 	const int32 CommentNodeShadowLayerId = LayerId++;
 	const int32 CommentNodeLayerId = LayerId++;
+
+	const int32 NodeDiffHighlightLayerID = LayerId++;
 
 	// Save a LayerId for wires, which appear below nodes but above comments
 	// We will draw them later, along with the arrows which appear above nodes.
@@ -154,7 +156,12 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 			if (Result.Pin1)
 			{
 				PinDiffResults.FindOrAdd(Result.Pin1, Result);
-				NodeDiffResults.FindOrAdd(Result.Pin1->GetOwningNode(), Result);
+
+				// when zoomed out, make it easier to see diffed pins by also highlighting the node
+				if(ZoomLevel <= 6)
+				{
+					NodeDiffResults.FindOrAdd(Result.Pin1->GetOwningNode(), Result);
+				}
 			}
 			else if (Result.Node1)
 			{
@@ -168,9 +175,14 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 			if (Result.Pin2)
 			{
 				PinDiffResults.FindOrAdd(Result.Pin2, Result);
-				NodeDiffResults.FindOrAdd(Result.Pin2->GetOwningNode(), Result);
+
+				// when zoomed out, make it easier to see diffed pins by also highlighting the node
+				if(ZoomLevel <= 6)
+				{
+					NodeDiffResults.FindOrAdd(Result.Pin2->GetOwningNode(), Result);
+				}
 			}
-			else if (Result.Node2)
+			else if (!Result.Pin1 && Result.Node2)
 			{
 				NodeDiffResults.FindOrAdd(Result.Node2, Result);
 			}
@@ -252,6 +264,58 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 					}
 				}
 
+				/** if this graph is being diffed, highlight the changes in the graph */
+				if(DiffResults.IsValid())
+				{
+					/** When diffing nodes, color code shadow based on diff result */
+					if (NodeDiffResults.Contains(NodeObj))
+					{
+						const FDiffSingleResult& DiffResult = NodeDiffResults[NodeObj];
+						for (const SNode::DiffHighlightInfo& Highlight : ChildNode->GetDiffHighlights(DiffResult))
+						{
+							FSlateDrawElement::MakeBox(
+								OutDrawElements,
+								NodeDiffHighlightLayerID,
+								CurWidget.Geometry.ToInflatedPaintGeometry(NodeShadowSize),
+								Highlight.Brush,
+								ESlateDrawEffect::None,
+								Highlight.Tint
+								);
+						}
+					}
+					
+					/** When diffing, set the backround of the differing pins to their diff colors */
+					for (UEdGraphPin* Pin : NodeObj->Pins)
+					{
+						if (TSharedPtr<SGraphPin> PinWidget = ChildNode->FindWidgetForPin(Pin))
+						{
+							if (PinDiffResults.Contains(Pin))
+							{
+								// if the diff result associated with this pin is focused, highlight the pin
+								const FDiffSingleResult& DiffResult = PinDiffResults[Pin];
+								if (DiffResults.IsValid() && FocusedDiffResult.IsSet())
+								{
+									const FDiffSingleResult& Focused = (*DiffResults.Get())[FocusedDiffResult.Get()];
+									PinWidget->SetDiffHighlighted(DiffResult == Focused);
+								}
+							
+								FLinearColor PinDiffColor = DiffResult.GetDisplayColor();
+								PinDiffColor.A = 0.7f;
+								PinWidget->SetPinDiffColor(PinDiffColor);
+								PinWidget->SetFadeConnections(false);
+							}
+							else
+							{
+								PinWidget->SetDiffHighlighted(false);
+								PinWidget->SetPinDiffColor(TOptional<FLinearColor>());
+
+								// when zoomed out, fade out pin connections that aren't involved in a diff
+								PinWidget->SetFadeConnections(ZoomLevel <= 6 && (!NodeDiffResults.Contains(NodeObj) || NodeDiffResults[NodeObj].Pin1));
+							}
+						}
+					}
+				}
+
 				// Draw the node's shadow.
 				if (bDrawShadowsThisFrame || bSelected)
 				{
@@ -297,7 +361,7 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 					{
 						NodeStyleToUse = FadedStyle;
 					}
-					else if (bCleanDiff)
+					else if (ZoomLevel <= 6 && bCleanDiff)
 					{
 						NodeStyleToUse = FadedStyle;
 					}

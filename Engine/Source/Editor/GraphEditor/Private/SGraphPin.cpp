@@ -147,6 +147,8 @@ SGraphPin::SGraphPin()
 
 	CachedImg_Pin_Background = FAppStyle::GetBrush( NAME_Pin_Background );
 	CachedImg_Pin_BackgroundHovered = FAppStyle::GetBrush( NAME_Pin_BackgroundHovered );
+
+	CachedImg_Pin_DiffOutline = FAppStyle::GetBrush( NAME_Pin_DiffOutline );
 }
 
 SGraphPin::~SGraphPin()
@@ -304,21 +306,27 @@ void SGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 	}
 
 	// Set up a hover for pins that is tinted the color of the pin.
+	
 	SBorder::Construct(SBorder::FArguments()
 		.BorderImage(this, &SGraphPin::GetPinBorder)
-		.BorderBackgroundColor(this, &SGraphPin::GetPinColor)
+		.BorderBackgroundColor(this, &SGraphPin::GetHighlightColor)
 		.OnMouseButtonDown(this, &SGraphPin::OnPinNameMouseDown)
 		[
-			SNew(SLevelOfDetailBranchNode)
-			.UseLowDetailSlot(this, &SGraphPin::UseLowDetailPinNames)
-			.LowDetail()
+			SNew(SBorder)
+			.BorderImage(CachedImg_Pin_DiffOutline)
+			.BorderBackgroundColor(this, &SGraphPin::GetPinDiffColor)
 			[
-				//@TODO: Try creating a pin-colored line replacement that doesn't measure text / call delegates but still renders
-				PinWidgetRef
-			]
-			.HighDetail()
-			[
-				PinContent.ToSharedRef()
+				SNew(SLevelOfDetailBranchNode)
+				.UseLowDetailSlot(this, &SGraphPin::UseLowDetailPinNames)
+				.LowDetail()
+				[
+					//@TODO: Try creating a pin-colored line replacement that doesn't measure text / call delegates but still renders
+					PinWidgetRef
+				]
+				.HighDetail()
+				[
+					PinContent.ToSharedRef()
+				]
 			]
 		]
 	);
@@ -952,6 +960,11 @@ bool SGraphPin::IsConnected() const
 	return GraphPin? GraphPin->LinkedTo.Num() > 0 : false;
 }
 
+bool SGraphPin::AreConnectionsFaded() const
+{
+	return bFadeConnections;
+}
+
 /** @return The brush with which to pain this graph pin's incoming/outgoing bullet point */
 const FSlateBrush* SGraphPin::GetPinIcon() const
 {
@@ -1090,6 +1103,24 @@ FSlateColor SGraphPin::GetPinColor() const
 	}
 
 	return FLinearColor::White;
+}
+
+FSlateColor SGraphPin::GetHighlightColor() const
+{
+	if (PinDiffColor.IsSet())
+	{
+		return PinDiffColor.GetValue();
+	}
+	return GetPinColor();
+}
+
+FSlateColor SGraphPin::GetPinDiffColor() const
+{
+	if (PinDiffColor.IsSet())
+	{
+		return PinDiffColor.GetValue();
+	}
+	return FLinearColor(0.f,0.f,0.f,0.f);
 }
 
 FSlateColor SGraphPin::GetSecondaryPinColor() const

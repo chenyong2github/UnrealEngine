@@ -53,7 +53,7 @@ const FName GraphMode = FName(TEXT("GraphMode"));
 TSharedRef<SWidget>	FDiffResultItem::GenerateWidget() const
 {
 	FText ToolTip = Result.ToolTip;
-	FLinearColor Color = Result.DisplayColor;
+	FLinearColor Color = Result.GetDisplayColor();
 	FText Text = Result.DisplayString;
 	if (Text.IsEmpty())
 	{
@@ -1480,6 +1480,7 @@ void SBlueprintDiff::HandleGraphChanged( const FString& GraphPath )
 		}
 	}
 
+	
 	PanelOld.GeneratePanel(GraphOld, DiffResults, FocusedDiffResult);
 	PanelNew.GeneratePanel(GraphNew, DiffResults, FocusedDiffResult);
 }

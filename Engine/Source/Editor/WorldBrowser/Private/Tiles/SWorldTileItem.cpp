@@ -223,6 +223,12 @@ const FSlateBrush* SWorldTileItem::GetShadowBrush(bool bSelected) const
 	return bSelected ? FAppStyle::GetBrush(TEXT("Graph.CompactNode.ShadowSelected")) : FAppStyle::GetBrush(TEXT("Graph.Node.Shadow"));
 }
 
+void SWorldTileItem::GetDiffHighlightBrushes(const FSlateBrush*& BackgroundOut, const FSlateBrush*& ForegroundOut) const
+{
+	BackgroundOut = FAppStyle::GetBrush(TEXT("Graph.CompactNode.DiffHighlight"));
+	ForegroundOut = FAppStyle::GetBrush(TEXT("Graph.CompactNode.DiffHighlightShading"));
+}
+
 FOptionalSize SWorldTileItem::GetItemWidth() const
 {
 	return FOptionalSize(TileModel->GetLevelSize2D().X);

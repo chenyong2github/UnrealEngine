@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DiffResults.h"
 #include "Misc/Attribute.h"
 #include "Misc/Guid.h"
 #include "Layout/Visibility.h"
@@ -565,6 +566,22 @@ public:
 		virtual const FSlateBrush* GetShadowBrush(bool bSelected) const
 		{
 			return bSelected ? FAppStyle::GetBrush(TEXT("Graph.Node.ShadowSelected")) : FAppStyle::GetBrush(TEXT("Graph.Node.Shadow"));
+		}
+
+		struct DiffHighlightInfo
+		{
+			const FSlateBrush* Brush;
+			const FLinearColor Tint;
+		};
+		
+		/** @return Collection of brushes layered to outline node with the DiffResult color */
+		TArray<SNodePanel::SNode::DiffHighlightInfo> GetDiffHighlights(const FDiffSingleResult& DiffResult) const;
+
+		/** used by GetDiffHighlights to generate outlines for diffed nodes */
+		virtual void GetDiffHighlightBrushes(const FSlateBrush*& BackgroundOut, const FSlateBrush*& ForegroundOut) const
+		{
+			BackgroundOut = FAppStyle::GetBrush(TEXT("Graph.Node.DiffHighlight"));
+			ForegroundOut = FAppStyle::GetBrush(TEXT("Graph.Node.DiffHighlightShading"));
 		}
 
 		/** Populate the brushes array with any overlay brushes to render */

@@ -43,7 +43,7 @@ struct FTreeDiffResultItem : public TSharedFromThis<FTreeDiffResultItem>
 	TSharedRef<SWidget>	GenerateWidget() const
 	{
 		FText ToolTip = Result.ToolTip;
-		FLinearColor Color = Result.DisplayColor;
+		FSlateColor Color = Result.GetDisplayColor();
 		FText Text = Result.DisplayString;
 		if(Text.IsEmpty())
 		{

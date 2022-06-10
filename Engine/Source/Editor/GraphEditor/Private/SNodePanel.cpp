@@ -228,6 +228,36 @@ void SNodePanel::SNode::FNodeSlot::Construct(const FChildren& SlotOwner, FSlotAr
 	}
 }
 
+TArray<SNodePanel::SNode::DiffHighlightInfo> SNodePanel::SNode::GetDiffHighlights(
+	const FDiffSingleResult& DiffResult) const
+{
+	FLinearColor BackgroundColor = DiffResult.GetDisplayColor();
+	BackgroundColor.A = 1.f; // give highlight some transparency so it's not so 'in your face'
+		
+	FLinearColor ShadingColorHSV = BackgroundColor.LinearRGBToHSV();
+	ShadingColorHSV.R -= 15.f; // shift hue
+	if (ShadingColorHSV.R < 0.f)
+	{
+		ShadingColorHSV.R += 360.f;
+	}
+	ShadingColorHSV.B *= 0.2f; // darken
+
+	const FSlateBrush* BackgroundBrush;
+	const FSlateBrush* ForegroundBrush;
+	GetDiffHighlightBrushes(BackgroundBrush, ForegroundBrush);
+
+	return {
+		{
+			BackgroundBrush,
+			BackgroundColor
+		},
+		{
+			ForegroundBrush,
+			ShadingColorHSV.HSVToLinearRGB()
+		},
+	};
+}
+
 SNodePanel::SNodePanel()
 	: Children(this)
 	, VisibleChildren(this)

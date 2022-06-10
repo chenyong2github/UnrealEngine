@@ -489,6 +489,10 @@ void FConnectionDrawingPolicy::DrawPinGeometries(TMap<TSharedRef<SWidget>, FArra
 				{
 					FConnectionParams Params;
 					DetermineWiringStyle(ThePin, TargetPin, /*inout*/ Params);
+					if ( PinWidget.AreConnectionsFaded() && PinToPinWidgetMap[TargetPin]->AreConnectionsFaded() )
+					{
+						Params.WireColor.A = 0.2f;
+					}
 					DrawSplineWithArrow(LinkStartWidgetGeometry->Geometry, LinkEndWidgetGeometry->Geometry, Params);
 				}
 			}

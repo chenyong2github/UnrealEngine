@@ -260,7 +260,7 @@ void UAIGraphNode::FindDiffs(UEdGraphNode* OtherNode, FDiffResults& Results)
 			Diff.Node1 = this;
 			Diff.Node2 = OtherNode;
 			Diff.ToolTip = LOCTEXT("DIF_NodeInstancePropertyToolTip", "A property of the node instance has changed");
-			Diff.DisplayColor = FLinearColor(0.25f, 0.71f, 0.85f);
+			Diff.Category = EDiffType::MODIFICATION;
 
 			DiffProperties(NodeInstance->GetClass(), OtherGraphNode->NodeInstance->GetClass(), NodeInstance, OtherGraphNode->NodeInstance, Results, Diff);
 		}

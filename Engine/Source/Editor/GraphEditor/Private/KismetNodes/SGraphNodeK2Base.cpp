@@ -669,6 +669,22 @@ const FSlateBrush* SGraphNodeK2Base::GetShadowBrush(bool bSelected) const
 	}
 }
 
+void SGraphNodeK2Base::GetDiffHighlightBrushes(const FSlateBrush*& BackgroundOut, const FSlateBrush*& ForegroundOut) const
+{
+	const UK2Node* K2Node = CastChecked<UK2Node>(GraphNode);
+	
+	if (K2Node->ShouldDrawCompact())
+	{
+		BackgroundOut = FAppStyle::GetBrush(TEXT("Graph.VarNode.DiffHighlight"));
+		ForegroundOut = FAppStyle::GetBrush(TEXT("Graph.VarNode.DiffHighlightShading"));
+	}
+	else
+	{
+		BackgroundOut = FAppStyle::GetBrush(TEXT("Graph.Node.DiffHighlight"));
+		ForegroundOut = FAppStyle::GetBrush(TEXT("Graph.Node.DiffHighlightShading"));
+	}
+}
+
 void SGraphNodeK2Base::PerformSecondPassLayout(const TMap< UObject*, TSharedRef<SNode> >& NodeToWidgetLookup) const
 {
 	TSet<UEdGraphNode*> PrevNodes;

@@ -461,7 +461,7 @@ void FindExactTimelineDifference(struct FDiffResults& Results, FDiffSingleResult
 
 		Result.Diff = EDiffType::TIMELINE_NUM_TRACKS;
 		Result.ToolTip =  FText::Format(LOCTEXT("DIF_TimelineNumTracksToolTip", "The number of {TrackType} tracks in Timeline '{NodeName}' has changed"), Args);
-		Result.DisplayColor = FLinearColor(0.05f,0.261f,0.775f);
+		Result.Category = EDiffType::MODIFICATION;
 		Result.DisplayString = FText::Format(LOCTEXT("DIF_TimelineNumTracks", "{TrackType} Track Count '{NodeName}'"), Args);
 		Results.Add(Result);
 		return;
@@ -480,7 +480,7 @@ void FindExactTimelineDifference(struct FDiffResults& Results, FDiffSingleResult
 
 			Result.Diff = EDiffType::TIMELINE_TRACK_MODIFIED;
 			Result.ToolTip =  FText::Format(LOCTEXT("DIF_TimelineTrackModifiedToolTip", "Track '{TrackName}' of Timeline '{NodeName}' was Modified"), Args);
-			Result.DisplayColor = FLinearColor(0.75f,0.1f,0.15f);
+			Result.Category = EDiffType::MODIFICATION;
 			Result.DisplayString = FText::Format(LOCTEXT("DIF_TimelineTrackModified", "Track Modified '{TrackName}'"), Args);
 			Results.Add(Result);
 			break;
@@ -516,7 +516,7 @@ void UK2Node_Timeline::FindDiffs( class UEdGraphNode* OtherNode, struct FDiffRes
 			Args.Add(TEXT("NodeName"), NodeName);
 
 			Diff.ToolTip =  FText::Format(LOCTEXT("DIF_TimelineAutoPlayToolTip", "Timeline '{NodeName}' had its AutoPlay state changed"), Args);
-			Diff.DisplayColor = FLinearColor(0.15f,0.61f,0.15f);
+			Diff.Category = EDiffType::MODIFICATION;
 			Diff.DisplayString = FText::Format(LOCTEXT("DIF_TimelineAutoPlay", "Timeline AutoPlay Changed '{NodeName}'"), Args);
 			Results.Add(Diff);
 		}
@@ -529,7 +529,7 @@ void UK2Node_Timeline::FindDiffs( class UEdGraphNode* OtherNode, struct FDiffRes
 			Args.Add(TEXT("NodeName"), NodeName);
 
 			Diff.ToolTip =  FText::Format(LOCTEXT("DIF_TimelineLoopingToolTip", "Timeline '{NodeName}' had its looping state changed"), Args);
-			Diff.DisplayColor = FLinearColor(0.75f,0.1f,0.75f);
+			Diff.Category = EDiffType::MODIFICATION;
 			Diff.DisplayString =  FText::Format(LOCTEXT("DIF_TimelineLooping", "Timeline Loop Changed '{NodeName}'"), Args);
 			Results.Add(Diff);
 		}
@@ -544,7 +544,7 @@ void UK2Node_Timeline::FindDiffs( class UEdGraphNode* OtherNode, struct FDiffRes
 
 			Diff.Diff = EDiffType::TIMELINE_LENGTH;
 			Diff.ToolTip = FText::Format(LOCTEXT("DIF_TimelineLengthToolTip", "Length of Timeline '{NodeName}' has changed. Was {TimelineLength1}, but is now {TimelineLength2}"), Args);
-			Diff.DisplayColor = FLinearColor(0.25f,0.1f,0.15f);
+			Diff.Category = EDiffType::MODIFICATION;
 			Diff.DisplayString =  FText::Format(LOCTEXT("DIF_TimelineLength", "Timeline Length '{NodeName}' [{TimelineLength1} -> {TimelineLength2}]"), Args);
 			Results.Add(Diff);
 		}
@@ -557,7 +557,7 @@ void UK2Node_Timeline::FindDiffs( class UEdGraphNode* OtherNode, struct FDiffRes
 			Args.Add(TEXT("NodeName"), NodeName);
 
 			Diff.ToolTip = FText::Format(LOCTEXT("DIF_TimelineIgnoreDilationToolTip", "Timeline '{NodeName}' had its ignore time dilation state changed"), Args);
-			Diff.DisplayColor = FLinearColor(0.75f, 0.1f, 0.75f);
+			Diff.Category = EDiffType::MODIFICATION;
 			Diff.DisplayString = FText::Format(LOCTEXT("DIF_TimelineIgnoreDilation", "Timeline IgnoreTimeDilation Changed '{NodeName}'"), Args);
 			Results.Add(Diff);
 		}
