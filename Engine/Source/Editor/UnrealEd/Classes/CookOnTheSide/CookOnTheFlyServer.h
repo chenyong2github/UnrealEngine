@@ -1228,8 +1228,10 @@ private:
 	bool bPollablesInTick = false;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
+	double SaveBusyStartTimeSeconds = MAX_flt;
 	double SaveBusyRetryTimeSeconds = MAX_flt;
 	double SaveBusyWarnTimeSeconds = MAX_flt;
+	double LoadBusyStartTimeSeconds = MAX_flt;
 	double LoadBusyRetryTimeSeconds = MAX_flt;
 	double LoadBusyWarnTimeSeconds = MAX_flt;
 	/** Tracking for the ticking of tickable cook objects */
