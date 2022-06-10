@@ -1155,6 +1155,8 @@ public class IOSPlatform : Platform
 							idx += "<string>".Length;
 							UUID = AllText.Substring(idx, AllText.IndexOf("</string>", idx) - idx);
 							Arguments += " PROVISIONING_PROFILE_SPECIFIER=" + UUID;
+
+							LogInformation("Extracted Provision UUID {0} from {1}", UUID, Provision);
 						}
 					}
 				}
