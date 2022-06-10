@@ -1037,7 +1037,7 @@ void DrawLumenMeshCapturePass(
 		);
 
 		int32 NumMaterialQuads = 0;
-		TArray<FLumenMeshCaptureMaterialPass, SceneRenderingAllocator> MaterialPasses;
+		TArray<FLumenMeshCaptureMaterialPass, FRDGArrayAllocator> MaterialPasses;
 		MaterialPasses.Reserve(CardPagesToRender.Num());
 
 		// Build list of unique materials
@@ -1177,15 +1177,14 @@ void DrawLumenMeshCapturePass(
 
 		TShaderMapRef<FNaniteMultiViewMaterialVS> NaniteVertexShader(SharedView->ShaderMap);
 
+		const int32 NumMaterialPasses = MaterialPasses.Num();
+
 		GraphBuilder.AddPass
 		(
-			RDG_EVENT_NAME("Lumen Emit GBuffer %d materials %d quads", MaterialPasses.Num(), NumMaterialQuads),
+			RDG_EVENT_NAME("Lumen Emit GBuffer %d materials %d quads", NumMaterialPasses, NumMaterialQuads),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, 
-				&Scene, 
-				MaterialPassArray = TArrayView<const FLumenMeshCaptureMaterialPass>(MaterialPasses),
-				NaniteVertexShader](FRHICommandList& RHICmdList)
+			[PassParameters, &Scene, MaterialPasses = MoveTemp(MaterialPasses), NaniteVertexShader](FRHICommandList& RHICmdList)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(LumenEmitGBuffer);
 
@@ -1193,7 +1192,7 @@ void DrawLumenMeshCapturePass(
 				FMeshDrawCommandStateCache StateCache;
 
 				const FNaniteMaterialCommands& LumenMaterialCommands = Scene.NaniteMaterials[ENaniteMeshPass::LumenCardCapture];
-				for (const FLumenMeshCaptureMaterialPass& MaterialPass : MaterialPassArray)
+				for (const FLumenMeshCaptureMaterialPass& MaterialPass : MaterialPasses)
 				{
 					// One instance per card page
 					const uint32 InstanceFactor = MaterialPass.ViewIndices.Num();
