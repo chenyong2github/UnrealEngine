@@ -7,7 +7,6 @@
 #include "Containers/ArrayView.h"
 #include "Containers/RingBuffer.h"
 #include "CookOnTheSide/CookLog.h"
-#include "CookPackageSplitter.h"
 #include "Engine/ICookInfo.h"
 #include "INetworkFileSystemModule.h"
 #include "IPlatformFileSandboxWrapper.h"
@@ -127,8 +126,6 @@ namespace UE::Cook
 	class FSaveCookedPackageContext;
 	class ICookOnTheFlyRequestManager;
 	class ICookOnTheFlyNetworkServer;
-	enum class EPollStatus : uint8;
-	enum class EReleaseSaveReason : uint8;
 	struct FConstructPackageData;
 	struct FCookByTheBookOptions;
 	struct FCookOnTheFlyOptions;
@@ -1000,23 +997,27 @@ private:
 	 * for this UObject.
 	 *
 	 * @param PackageData the PackageData used to gather all uobjects from
-	 * @param bIsPrecaching true if called for precaching
+	 * @param bIsPreCaching true if called for precaching
 	 * @return false if time slice was reached, true if all objects have had BeginCacheForCookedPlatformData called
 	 */
-	UE::Cook::EPollStatus PrepareSave(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer, bool bPrecaching);
-	UE::Cook::EPollStatus PrepareSaveInternal(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer, bool bPrecaching);
-	/** Call BeginCacheForCookedPlatformData on all of the objects in a PackageData or a GeneratorPackage's current round. */
-	UE::Cook::EPollStatus CallBeginCacheOnObjects(UE::Cook::FPackageData& PackageData, UPackage* Package,
-		TArray<FWeakObjectPtr>& Objects, int32& NextIndex, UE::Cook::FCookerTimer& Timer);
+	bool BeginPrepareSave(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer, bool bIsPreCaching);
+	
+	/**
+	 * Returns true when all objects in package have all their cooked platform data loaded
+	 *	confirms that BeginCacheForCookedPlatformData is called and will return true after all objects return IsCachedCookedPlatformDataLoaded true
+	 *
+	 * @param PackageData the PackageData used to gather all uobjects from
+	 * @return false if time slice was reached, true if all return true for IsCachedCookedPlatformDataLoaded 
+	 */
+	bool FinishPrepareSave(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
 
 	/**
 	 * Frees all the memory used to call BeginCacheForCookedPlatformData on all the objects in PackageData.
 	 * If the calls were incomplete because the PackageData's save was cancelled, handles canceling them and leaving any required CancelManagers in GetPendingCookedPlatformDatas
 	 * 
 	 * @param bCompletedSave If false, data that can not be efficiently recomputed will be preserved to try the save again. If true, all data will be wiped.
-	 * @param ReleaseSaveReason Why the save data is being released, allows specifying how much to tear down
 	 */
-	void ReleaseCookedPlatformData(UE::Cook::FPackageData& PackageData, UE::Cook::EReleaseSaveReason ReleaseSaveReason);
+	void ReleaseCookedPlatformData(UE::Cook::FPackageData& PackageData, bool bCompletedSave);
 
 	/**
 	 * Poll the GetPendingCookedPlatformDatas and release their resources when they are complete.
@@ -1166,27 +1167,33 @@ private:
 	/** Generates long package names for all files to be cooked */
 	void GenerateLongPackageNames(TArray<FName>& FilesInPath, TMap<FName, UE::Cook::FInstigator>& Instigators);
 
-	UE::Cook::EPollStatus ConditionalCreateGeneratorPackage(UE::Cook::FPackageData& PackageData);
+	/**
+	* Try to find a registered CookPackageSplitter to split the given package.
+	*
+	* @param PackageData			Package to be potentially split
+	* @param OutSplitDataObject		Return package's object to handle splitting
+	* @param bOutHasError			Return True if function fails
+	*/
+	UE::Cook::Private::FRegisteredCookPackageSplitter* TryGetRegisteredCookPackageSplitter(UE::Cook::FPackageData& PackageData, UObject*& OutSplitDataObject, bool& bOutError);
 
-	/** Generate the list of cook-time-created packages created by the Generator. */
-	UE::Cook::EPollStatus QueueGeneratedPackages(UE::Cook::FGeneratorPackage& Generator,
-		UE::Cook::FPackageData& PackageData);
-	/** Run additional steps in PrepareSave that are required when the package has a Generator. */
-	UE::Cook::EPollStatus PrepareSaveGeneratorPackage(UE::Cook::FGeneratorPackage& Generator,
-		UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
-	/** Call BeginCacheForCookedPlatformData on the objects the Generator plans to move into its main UPackage. */
-	UE::Cook::EPollStatus BeginCacheObjectsToMove(UE::Cook::FGeneratorPackage& Generator,
-		UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer,
-		TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackagesForPresave);
-	/** Call the Generator's PreSaveGeneratorPackage to create/move objects into its main UPackage. */
-	UE::Cook::EPollStatus PreSaveGeneratorPackage(UE::Cook::FPackageData& PackageData,
-		UE::Cook::FGeneratorPackage& Generator, TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackagesForPresave);
-	/** Construct the list of generated packages that is required for some of the CookPackageSplitter interface calls. */
-	void ConstructGeneratedPackagesForPresave(UE::Cook::FPackageData& PackageData, UE::Cook::FGeneratorPackage& Generator,
-		TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackagesForPresave);
-	/** Call BeginCacheForCookedPlatformData on any undeclared objects in the Generator's main UPackage after the move. */
-	UE::Cook::EPollStatus BeginCachePostMove(UE::Cook::FGeneratorPackage& Generator,
-		UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer);
+	/**
+	* Generate a creator package helper object that will be used to split package.
+	*
+	* @param PackageData			Package to split
+	* @param SplitDataObject		Package's object to handle splitting
+	* @param Splitter				Registered CookPackageSplitter to be used for splitting the package
+	*/
+	UE::Cook::FGeneratorPackage* CreateGeneratorPackage(UE::Cook::FPackageData& PackageData, UObject* SplitDataObject, UE::Cook::Private::FRegisteredCookPackageSplitter* Splitter);
+
+	/**
+	* Split the package and generate other packages.
+	*
+	* @param PackageData			Package to be split
+	* @param SplitDataObject		Package's object to handle splitting
+	* @param bOutCompleted			Return true is function is done splitting
+	* @param bOutError				Return true if function fails
+	*/
+	void SplitPackage(UE::Cook::FPackageData& PackageData, UE::Cook::FGeneratorPackage* Generator, bool& bCompleted, bool& bOutError);
 
 	/** Try calling the splitter's populate to create the package */
 	UPackage* TryPopulateGeneratedPackage(UE::Cook::FPopulatePackageContext& Context);
@@ -1274,5 +1281,4 @@ private:
 	friend UE::Cook::FPendingCookedPlatformData;
 	friend UE::Cook::FPlatformManager;
 	friend UE::Cook::FRequestCluster;
-	friend UE::Cook::FGeneratorPackage;
 };

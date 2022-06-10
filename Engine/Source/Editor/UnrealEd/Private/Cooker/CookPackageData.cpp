@@ -54,8 +54,8 @@ FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageNa
 	: GeneratedOwner(nullptr), PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas)
 	, Instigator(EInstigator::NotYetRequested), bIsUrgent(0)
 	, bIsVisited(0), bIsPreloadAttempted(0)
-	, bIsPreloaded(0), bHasSaveCache(0), bPrepareSaveFailed(0), bPrepareSaveRequiresGC(0)
-	, bCookedPlatformDataStarted(0), bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
+	, bIsPreloaded(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0)
+	, bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
 	, bInitializedGeneratorSave(0), bCompletedGeneration(0), bGenerated(0), bKeepReferencedDuringGC(0)
 {
 	SetState(EPackageState::Idle);
@@ -726,17 +726,16 @@ void FPackageData::OnEnterSave()
 {
 	check(GetPackage() != nullptr && GetPackage()->IsFullyLoaded());
 
-	check(!HasPrepareSaveFailed());
+	check(!GetHasBeginPrepareSaveFailed());
 	CheckObjectCacheEmpty();
 	CheckCookedPlatformDataEmpty();
 }
 
 void FPackageData::OnExitSave()
 {
-	PackageDatas.GetCookOnTheFlyServer().ReleaseCookedPlatformData(*this, EReleaseSaveReason::Demoted);
+	PackageDatas.GetCookOnTheFlyServer().ReleaseCookedPlatformData(*this, false /* bCompletedSave */);
 	ClearObjectCache();
-	SetHasPrepareSaveFailed(false);
-	SetIsPrepareSaveRequiresGC(false);
+	SetHasBeginPrepareSaveFailed(false);
 }
 
 void FPackageData::OnEnterInProgress()
@@ -990,6 +989,19 @@ void FPackageData::CreateObjectCache()
 	}
 }
 
+void FPackageData::RecreateObjectCache()
+{
+	check(GetPackage());
+	if (GetHasSaveCache())
+	{
+		// It is not valid to recreate the ObjectCache when we have already started calling BeginCacheForCookedPlatformData on the objects in it.
+		// ReleaseCookedPlatformData must be called first to tear down all of the calls and reset GetCookedPlatformDataNextIndex to 0
+		check(GetCookedPlatformDataNextIndex() == 0);
+		ClearObjectCache();
+	}
+	CreateObjectCache();
+}
+
 void FPackageData::ClearObjectCache()
 {
 	CachedObjectsInOuter.Empty();
@@ -1022,8 +1034,6 @@ void FPackageData::CheckCookedPlatformDataEmpty() const
 	check(!GetCookedPlatformDataStarted());
 	check(!GetCookedPlatformDataCalled());
 	check(!GetCookedPlatformDataComplete());
-	check(!GetGeneratorPackage() ||
-		GetGeneratorPackage()->GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::StartGeneratorSave);
 }
 
 void FPackageData::ClearCookedPlatformData()
@@ -1033,6 +1043,12 @@ void FPackageData::ClearCookedPlatformData()
 	SetCookedPlatformDataStarted(false);
 	SetCookedPlatformDataCalled(false);
 	SetCookedPlatformDataComplete(false);
+}
+
+void FPackageData::ResetGenerationProgress()
+{
+	SetInitializedGeneratorSave(false);
+	SetCompletedGeneration(false);
 }
 
 void FPackageData::OnRemoveSessionPlatform(const ITargetPlatform* Platform)
@@ -1104,19 +1120,20 @@ void FPackageData::SetGeneratedOwner(FGeneratorPackage* InGeneratedOwner)
 	GeneratedOwner = InGeneratedOwner;
 }
 
+bool FPackageData::GeneratorPackageRequiresGC() const
+{
+	// We consider that if a FPackageData has valid GeneratorPackage helper object,
+	// this means that COTFS's process of generating packages was not completed 
+	// either due to an error or because it has exceeded a maximum memory threshold. 
+	return IsGenerating() && !GetHasBeginPrepareSaveFailed();
+}
+
 UE::Cook::FGeneratorPackage* FPackageData::CreateGeneratorPackage(const UObject* InSplitDataObject,
 	ICookPackageSplitter* InCookPackageSplitterInstance)
 {
-	if (!GetGeneratorPackage())
-	{
-		GeneratorPackage.Reset(new UE::Cook::FGeneratorPackage(*this, InSplitDataObject,
-			InCookPackageSplitterInstance));
-	}
-	else
-	{
-		// The earlier exit from SaveState should have reset the progress back to StartGeneratorSave or earlier
-		check(GetGeneratorPackage()->GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::StartGeneratorSave);
-	}
+	check(!GetGeneratorPackage());
+	GeneratorPackage.Reset(new UE::Cook::FGeneratorPackage(*this, InSplitDataObject,
+		InCookPackageSplitterInstance));
 	return GetGeneratorPackage();
 }
 	
@@ -1238,6 +1255,10 @@ UObject* FGeneratorPackage::FindSplitDataObject() const
 
 void FGeneratorPackage::PostGarbageCollect()
 {
+	if (!bGeneratedList)
+	{
+		return;
+	}
 	if (Owner.GetState() == EPackageState::Save)
 	{
 		// UCookOnTheFlyServer::PreCollectGarbage adds references for the Generator package and all its public
@@ -1312,6 +1333,16 @@ UPackage* FGeneratorPackage::CreateGeneratedUPackage(FGeneratorPackage::FGenerat
 
 void FGeneratorPackage::SetGeneratorSaved(UPackage* GeneratorUPackage)
 {
+	UObject* SplitObject = FindSplitDataObject();
+	if (!SplitObject || !GeneratorUPackage)
+	{
+		UE_LOG(LogCook, Error, TEXT("PackageSplitter: %s was GarbageCollected before we finished saving it. This will cause a failure later when we attempt to save it again and generate a second time. Splitter=%s."),
+			(!GeneratorUPackage ? TEXT("UPackage") : TEXT("SplitDataObject")), *GetSplitDataObjectName().ToString());
+	}
+	else
+	{
+		GetCookPackageSplitterInstance()->PostSaveGeneratorPackage(GeneratorUPackage, SplitObject);
+	}
 	bOwnerHasSaved = true;
 	if (IsComplete())
 	{
@@ -1344,7 +1375,7 @@ void FGeneratorPackage::SetGeneratedSaved(FPackageData& PackageData)
 
 bool FGeneratorPackage::IsComplete() const
 {
-	return bOwnerHasSaved && RemainingToPopulate == 0;
+	return bGeneratedList && RemainingToPopulate == 0;
 }
 
 void FGeneratorPackage::GetIntermediateMountPoint(FString& OutPackagePath, FString& OutLocalFilePath) const
@@ -1365,164 +1396,6 @@ FString FGeneratorPackage::GetIntermediateLocalPath(const FGeneratorPackage::FGe
 		true /* bIncludeDot */);
 	return FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("%s/%s%s"),
 		*MountLocalFilePath, *GeneratedStruct.RelativePath, *Extension));
-}
-
-void FGeneratorPackage::SetGeneratorSaveStateComplete(ESaveState CompletedState)
-{
-	GeneratorSaveState = CompletedState;
-	if (GeneratorSaveState < ESaveState::Last)
-	{
-		GeneratorSaveState = static_cast<ESaveState>(static_cast<uint8>(GeneratorSaveState) + 1);
-	}
-}
-
-void FGeneratorPackage::SetObjectsToMoveIntoGenerator(UPackage* Package, UObject* SplitDataObject,
-	ICookPackageSplitter* Splitter, TArray<FWeakObjectPtr>& CachedObjectsInOuter,
-	TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackagesForPresave)
-{
-	TArray<UObject*> ObjectsToMove;
-	Splitter->GetObjectsToMoveIntoGenerator(Package, SplitDataObject, GeneratedPackagesForPresave, ObjectsToMove);
-
-	TMap<UObject*, TOptional<bool>> ObjectSet;
-	for (FWeakObjectPtr& ObjectInOuter : CachedObjectsInOuter)
-	{
-		UObject* Object = ObjectInOuter.Get();
-		if (Object)
-		{
-			TOptional<bool>& HasFinishedRound = ObjectSet.FindOrAdd(Object);
-			HasFinishedRound = true;
-		}
-	}
-	for (UObject* Object : ObjectsToMove)
-	{
-		TOptional<bool>& HasFinishedRound = ObjectSet.FindOrAdd(Object);
-		if (!HasFinishedRound.IsSet())
-		{
-			HasFinishedRound = false;
-		}
-	}
-
-	GeneratorBeginCacheObjects.SetObjects(ObjectSet);
-	GeneratorBeginCacheObjects.StartRound();
-
-	CachedObjectsInOuter.Reset();
-	SetHasTakenOverCachedCookedPlatformData();
-}
-
-void FGeneratorPackage::SetPostMoveObjects(UPackage* Package)
-{
-	TArray<UObject*> ObjectsInOuter;
-	GetObjectsWithOuter(Package, ObjectsInOuter);
-
-	TMap<UObject*, TOptional<bool>> ObjectSet;
-	ObjectSet.Reserve(GeneratorBeginCacheObjects.Objects.Num());
-	for (FBeginCacheObject& ExistingObject : GeneratorBeginCacheObjects.Objects)
-	{
-		UObject* Object = ExistingObject.Object.Get();
-		if (Object)
-		{
-			TOptional<bool>& HasFinishedRound = ObjectSet.FindOrAdd(Object);
-			if (!HasFinishedRound.IsSet() || ExistingObject.bHasFinishedRound)
-			{
-				HasFinishedRound = ExistingObject.bHasFinishedRound;
-			}
-		}
-	}
-	for (UObject* Object : ObjectsInOuter)
-	{
-		TOptional<bool>& HasFinishedRound = ObjectSet.FindOrAdd(Object);
-		if (!HasFinishedRound.IsSet())
-		{
-			HasFinishedRound = false;
-		}
-	}
-
-	GeneratorBeginCacheObjects.SetObjects(ObjectSet);
-	GeneratorBeginCacheObjects.StartRound();
-}
-
-void FGeneratorPackage::ResetGeneratorSaveState(UPackage* Package, UE::Cook::EReleaseSaveReason ReleaseSaveReason)
-{
-	if (GeneratorSaveState > ESaveState::CallPreSaveGeneratorPackage)
-	{
-		UObject* SplitObject = FindSplitDataObject();
-		if (!SplitObject || !Package)
-		{
-			UE_LOG(LogCook, Error, TEXT("PackageSplitter: %s was GarbageCollected before we finished saving it. This will cause a failure later when we attempt to save it again and generate a second time. Splitter=%s."),
-				(!Package ? TEXT("UPackage") : TEXT("SplitDataObject")), *GetSplitDataObjectName().ToString());
-		}
-		else
-		{
-			check(GeneratorSaveState > ESaveState::CallPreSaveGeneratorPackage); // SetGeneratorSaved should only be called on a completed save, which means we passed the state
-			GetCookPackageSplitterInstance()->PostSaveGeneratorPackage(Package, SplitObject);
-		}
-	}
-
-	if (ReleaseSaveReason == EReleaseSaveReason::RecreateObjectCache ||
-		ReleaseSaveReason == EReleaseSaveReason::Demoted ||
-		ReleaseSaveReason == EReleaseSaveReason::DoneForNow)
-	{
-		if (GeneratorSaveState >= ESaveState::FinishCachePreObjectsToMove)
-		{
-			GeneratorSaveState = ESaveState::FinishCachePreObjectsToMove;
-		}
-		else
-		{
-			// Redo all the steps since we didn't make it to the FinishCachePreObjectsToMove.
-			// Restarting in the middle of that flow after a GarbageCollect is not robust
-			GeneratorSaveState = ESaveState::Start;
-		}
-	}
-	else
-	{
-		GeneratorSaveState = ESaveState::Start;
-	}
-	GeneratorBeginCacheObjects.Reset();
-	bTakenOverCachedCookedPlatformData = false;
-	bIssuedUndeclaredMovedObjectsWarning = false;
-}
-
-void FBeginCacheObjects::Reset()
-{
-	Objects.Reset();
-	ObjectsInRound.Reset();
-	NextIndexInRound = 0;
-}
-
-void FBeginCacheObjects::SetObjects(TMap<UObject*, TOptional<bool>>& InObjectSet)
-{
-	Objects.Reset(InObjectSet.Num());
-	for (TPair<UObject*, TOptional<bool>>& Pair : InObjectSet)
-	{
-		FBeginCacheObject& BeginCacheObject = Objects.Emplace_GetRef();
-		BeginCacheObject.bHasFinishedRound = Pair.Value.IsSet() && *Pair.Value;
-		BeginCacheObject.Object = Pair.Key;
-	}
-}
-
-
-void FBeginCacheObjects::StartRound()
-{
-	ObjectsInRound.Reset(Objects.Num());
-	for (FBeginCacheObject& Object : Objects)
-	{
-		if (!Object.bHasFinishedRound)
-		{
-			ObjectsInRound.Add(Object.Object);
-		}
-	}
-	NextIndexInRound = 0;
-}
-
-void FBeginCacheObjects::EndRound()
-{
-	check(NextIndexInRound == ObjectsInRound.Num());
-	ObjectsInRound.Reset();
-	NextIndexInRound = 0;
-	for (FBeginCacheObject& Object : Objects)
-	{
-		Object.bHasFinishedRound = true;
-	}
 }
 
 //////////////////////////////////////////////////////////////////////////

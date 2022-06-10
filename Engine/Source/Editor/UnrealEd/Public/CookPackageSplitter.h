@@ -100,13 +100,6 @@ public:
 		bool bCreatedAsMap = false;
 	};
 	/**
-	 * Return a list of all the objects that will be moved into the Generator package during its save, so the cooker
-	 * can call BeginCacheForCookedPlatformData on them before the move
-	 */
-	virtual void GetObjectsToMoveIntoGenerator(UPackage* OwnerPackage, UObject* OwnerObject,
-		const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages, TArray<UObject*>& OutObjectsToMove) {}
-
-	/**
 	 * Called before saving the parent generator package, which itself occurs before TryPopulatePackage is called on the generated packages.
 	 * Make any required adjustments to the parent package before it is saved into the target domain.
 	 */
