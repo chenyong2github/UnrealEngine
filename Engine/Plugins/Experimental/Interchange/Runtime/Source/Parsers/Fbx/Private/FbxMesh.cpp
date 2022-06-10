@@ -18,6 +18,9 @@
 #include "SkeletalMeshAttributes.h"
 #include "StaticMeshAttributes.h"
 
+#if WITH_ENGINE
+#include "InterchangeProjectSettings.h"
+#endif
 #define LOCTEXT_NAMESPACE "InterchangeFbxMesh"
 
 namespace UE::Interchange::Private {
@@ -293,6 +296,14 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 
 	FStaticMeshAttributes Attributes(*MeshDescription);
 	Attributes.Register();
+
+	bool bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing = true;
+
+#if WITH_ENGINE
+	//Get the default hard/smooth edges from the project settings
+	const UInterchangeProjectSettings* InterchangeProjectSettings = GetDefault<UInterchangeProjectSettings>();
+	bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing = InterchangeProjectSettings->bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing;
+#endif
 
 	//Get the base layer of the mesh
 	FbxLayer* BaseLayer = Mesh->GetLayer(0);
@@ -916,7 +927,7 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 							else
 							{
 								//When there is no smoothing group we set all edge to: hard (faceted mesh) for static mesh and smooth for skinned and rigid
-								EdgeHardnesses[MatchEdgeId] = MeshType == EMeshType::Static ? true : false;
+								EdgeHardnesses[MatchEdgeId] = MeshType == EMeshType::Static ? !bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing : false;
 							}
 						}
 					}

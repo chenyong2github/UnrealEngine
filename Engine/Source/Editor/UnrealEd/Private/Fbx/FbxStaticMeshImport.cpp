@@ -31,6 +31,7 @@
 #include "FbxImporter.h"
 #include "GeomFitUtils.h"
 #include "ImportUtils/StaticMeshImportUtils.h"
+#include "InterchangeProjectSettings.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/FbxErrors.h"
@@ -370,7 +371,6 @@ float UnFbx::FFbxImporter::GetTriangleAreaThreshold() const
 	return (ImportOptions->bRemoveDegenerates && !ImportOptions->bBuildNanite) ? SMALL_NUMBER : 0.0f;
 }
 
-
 bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh* StaticMesh, TArray<FFbxMaterial>& MeshMaterials, int32 LODIndex,
 	EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector3f, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor)
 {
@@ -402,6 +402,10 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 		StaticMesh->SetLightMapCoordinateIndex(FBXNamedLightMapCoordinateIndex);
 	}
 	
+	//Get the default hard/smooth edges from the project settings
+	const UInterchangeProjectSettings* InterchangeProjectSettings = GetDefault<UInterchangeProjectSettings>();
+	const bool bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing = InterchangeProjectSettings->bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing;
+
 	//
 	// create materials
 	//
@@ -1097,8 +1101,8 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 							}
 							else
 							{
-								//When there is no smoothing group we set all edge to hard (faceted mesh)
-								EdgeHardnesses[MatchEdgeId] = true;
+								//When there is no smoothing group we set all edge to hard (faceted mesh) or false depending on the project settings
+								EdgeHardnesses[MatchEdgeId] = !bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing;
 							}
 						}
 					}

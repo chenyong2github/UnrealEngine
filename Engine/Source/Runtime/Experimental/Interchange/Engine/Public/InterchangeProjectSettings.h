@@ -56,4 +56,12 @@ public:
 	/** This tell interchange which pipeline to select when importing scenes.*/
 	UPROPERTY(EditAnywhere, config, Category = "Interchange (Experimental)")
 	FName DefaultScenePipelineStack;
+
+	/**
+	 * If checked, interchange translators and legacy importer will default static mesh geometry to smooth edge when the smoothing information is missing.
+	 * This option exist to allows old project to import the same way as before if their workflows need static mesh edges to be hard when the smoothing
+	 * info is missing.
+	 */
+	UPROPERTY(EditAnywhere, config, Category = "Import")
+	bool bStaticMeshUseSmoothEdgesIfSmoothingInformationIsMissing = true;
 };
