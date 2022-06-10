@@ -41,6 +41,7 @@ enum class EOutlinerColumnMode : uint8
 	StateAndSize = 0		UMETA(DisplayName = "State And Size"),
 	Damage = 1				UMETA(DisplayName = "Damage"),
 	Removal = 2				UMETA(DisplayName = "Removal"),
+	Collision = 3			UMETA(DisplayName = "Collision"),
 };
 
 /** Settings for Outliner configuration. **/
@@ -151,6 +152,8 @@ public:
 		, Broken(false)
 		, RemoveOnBreakAvailable(false)
 		, RemoveOnBreak(-1)
+		, ImportedCollisionsAvailable(false)
+		, ImportedCollisionsUsed(false)
 	{}
 
 	/** FGeometryCollectionTreeItem interface */
@@ -163,6 +166,7 @@ public:
 	TSharedRef<SWidget> MakeInitialStateColumnWidget() const;
 	TSharedRef<SWidget> MakePostBreakTimecolumnWidget() const;
 	TSharedRef<SWidget> MakeRemovalTimeColumnWidget() const;
+	TSharedRef<SWidget> MakeImportedCollisionsColumnWidget() const;
 	TSharedRef<SWidget> MakeEmptyColumnWidget() const;
 	virtual void GetChildren(FGeometryCollectionTreeItemList& OutChildren) override;
 	virtual int32 GetBoneIndex() const override { return BoneIndex; }
@@ -192,6 +196,8 @@ private:
 	bool Broken;
 	bool RemoveOnBreakAvailable;
 	FVector4f RemoveOnBreak;
+	bool ImportedCollisionsAvailable;
+	bool ImportedCollisionsUsed;
 };
 
 typedef TSharedPtr<class FGeometryCollectionTreeItemBone> FGeometryCollectionTreeItemBonePtr;
@@ -209,6 +215,8 @@ namespace SGeometryCollectionOutlinerColumnID
 	// Removal Column Mode
 	const FName PostBreakTime("PostBreakTime");
 	const FName RemovalTime("RemovalTime");
+	// Collision Column Mode
+	const FName ImportedCollisions("ImportedCollisions");
 }
 
 class SGeometryCollectionOutlinerRow : public SMultiColumnTableRow<FGeometryCollectionTreeItemBonePtr>

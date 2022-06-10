@@ -25,7 +25,7 @@ static FText GettextFromInitialDynamicState(int32 InitialDynamicState)
 {
 	switch (InitialDynamicState)
 	{
-	case 0: return NSLOCTEXT("Fracture", "FractureToolInitialDynamicStateNoOverride", "No Override");
+	case 0: return NSLOCTEXT("Fracture", "FractureToolInitialDynamicStateNoOverride", "-");
 	case 1: return NSLOCTEXT("Fracture", "FractureToolInitialDynamicStateSleeping", "Sleeping");
 	case 2: return NSLOCTEXT("Fracture", "FractureToolInitialDynamicStateKinematic", "Kinematic");
 	case 3: return NSLOCTEXT("Fracture", "FractureToolInitialDynamicStateStatic", "Static");
@@ -199,6 +199,8 @@ TSharedRef<SWidget> SGeometryCollectionOutlinerRow::GenerateWidgetForColumn(cons
 		return Item->MakePostBreakTimecolumnWidget();
 	if (ColumnName == SGeometryCollectionOutlinerColumnID::RemovalTime)
 		return Item->MakeRemovalTimeColumnWidget();
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::ImportedCollisions)
+		return Item->MakeImportedCollisionsColumnWidget();
 	return Item->MakeEmptyColumnWidget();
 }
 
@@ -302,6 +304,15 @@ void SGeometryCollectionOutliner::RegenerateHeader()
 		);
 		break;
 		
+	case EOutlinerColumnMode::Collision:
+		HeaderRowWidget->AddColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::ImportedCollisions)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_ImportedCollisions", "Imported Collisions"))
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_ImportedCollisions_ToolTip", "Status of imported Collision [available, used, nothing])"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+				.FillWidth(CustomFillWidth)
+		);
+		break;
 	}
 }
 
@@ -749,6 +760,8 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 	InitialState = INDEX_NONE;
 	RemoveOnBreakAvailable = false;
 	RemoveOnBreak = FVector4f{-1};
+	ImportedCollisionsAvailable = false;
+	ImportedCollisionsUsed = false;
 	
 	// Name / ItemText
 	UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
@@ -768,6 +781,9 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 		const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
 		const TManagedArray<float>* RelativeSizes = GeometryCollectionPtr->FindAttribute<float>("Size", FTransformCollection::TransformGroup);
 		const TManagedArray<FVector4f>* RemoveOnBreakArray = GeometryCollectionPtr->FindAttribute<FVector4f>("RemoveOnBreak", FTransformCollection::TransformGroup);
+
+		using FImplicitGeom = FGeometryDynamicCollection::FSharedImplicit;
+		const TManagedArray<FImplicitGeom>* ExternalCollisions = GeometryCollectionPtr->FindAttribute<FImplicitGeom>("ExternalCollisions", FTransformCollection::TransformGroup);
 		
 		if (ensure(ItemBoneIndex >= 0 && ItemBoneIndex < SimulationType.Num()))
 		{
@@ -824,6 +840,12 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 			if (RemoveOnBreakAvailable)
 			{
 				RemoveOnBreak = (*RemoveOnBreakArray)[ItemBoneIndex];
+			}
+
+			ImportedCollisionsUsed = RestCollection->bImportCollisionFromSource;
+			if (ExternalCollisions)
+			{
+				ImportedCollisionsAvailable = (*ExternalCollisions)[ItemBoneIndex] != nullptr;
 			}
 		}
 	}
@@ -958,6 +980,31 @@ TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeRemovalTimeColumnWidget
 		[
 			SNew(STextBlock)
 			.Text(FormatRemoveOnBreakTimeData(RemoveOnBreakAvailable, RemoveOnBreak.Z, RemoveOnBreak.W))
+			.ColorAndOpacity(ItemColor)
+		];
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeImportedCollisionsColumnWidget() const
+{
+	FText ImportedCollisionText = LOCTEXT("GCOutliner_ImportedCollision_NotAvailable", "-");
+	if (ImportedCollisionsAvailable)
+	{
+		if (ImportedCollisionsUsed)
+		{
+			ImportedCollisionText = LOCTEXT("GCOutliner_ImportedCollision_Used", "Used");
+		}
+		else
+		{
+			ImportedCollisionText = LOCTEXT("GCOutliner_ImportedCollision_Available", "Available");
+		}
+	}
+	return SNew(SHorizontalBox)
+	+ SHorizontalBox::Slot()
+		.Padding(12.f, 0.f)
+		.HAlign(HAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(ImportedCollisionText)
 			.ColorAndOpacity(ItemColor)
 		];
 }
