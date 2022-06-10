@@ -89,7 +89,7 @@ struct FScreenPassTexture;
 class FViewport;
 
 
-/** This is used to add more flexibility to Post Processing, so that users can subscribe to any after Post Porocessing Pass events. */
+/** This is used to add more flexibility to Post Processing, so that users can subscribe to any after Post Processing Pass events. */
 FUNC_DECLARE_DELEGATE(FAfterPassCallbackDelegate, FScreenPassTexture /*ReturnSceneColor*/, FRDGBuilder& /*GraphBuilder*/, const FSceneView& /*View*/, const FPostProcessMaterialInputs& /*Inputs*/)
 using FAfterPassCallbackDelegateArray = TArray<FAfterPassCallbackDelegate, SceneRenderingAllocator>;
 
@@ -100,6 +100,7 @@ public:
 
 	enum class EPostProcessingPass : uint32
 	{
+		SSRInput,
 		MotionBlur,
 		Tonemap,
 		FXAA,
