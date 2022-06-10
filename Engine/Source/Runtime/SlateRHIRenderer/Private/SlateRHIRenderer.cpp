@@ -1551,9 +1551,7 @@ void FSlateRHIRenderer::BeginFrame() const
 	ENQUEUE_RENDER_COMMAND(SlateRHIBeginFrame)(
 	   [](FRHICommandListImmediate& RHICmdList)
 	   {
-			GFrameNumberRenderThread++;
-			GPU_STATS_BEGINFRAME(RHICmdList);
-			RHICmdList.BeginFrame();
+		   RHICmdList.BeginFrame();
 	   }
 	);
 }
@@ -1564,8 +1562,7 @@ void FSlateRHIRenderer::EndFrame() const
 	   [](FRHICommandListImmediate& RHICmdList)
 	   {
 		   RHICmdList.EndFrame();
-		   GPU_STATS_ENDFRAME(RHICmdList);
-		}
+	   }
 	);
 }
 
