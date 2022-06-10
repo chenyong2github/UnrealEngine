@@ -12,12 +12,19 @@
 #include "Data/PCGVolumeData.h"
 #include "Tests/PCGTestsCommon.h"
 
+#include "GameFramework/Actor.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 namespace PCGDeterminismTests
 {
 	FTestData::FTestData(int32 RandomSeed) :
 		Seed(RandomSeed),
 		RandomStream(Seed)
 	{
+#if WITH_EDITOR
 		check(GEditor);
 		UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
 		check(EditorWorld);
@@ -38,6 +45,11 @@ namespace PCGDeterminismTests
 		UPCGGraph* TestGraph = NewObject<UPCGGraph>(TestComponent, FName(TEXT("PCG Test Graph")), RF_Transient);
 		check(TestGraph);
 		TestComponent->SetGraph(TestGraph);
+#else
+		TestActor = nullptr;
+		TestComponent = nullptr;
+		Settings = nullptr;
+#endif
 	}
 
 	void FTestData::Reset()
