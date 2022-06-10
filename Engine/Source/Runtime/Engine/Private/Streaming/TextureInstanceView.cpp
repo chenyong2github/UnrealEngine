@@ -526,7 +526,7 @@ void FRenderAssetInstanceAsyncView::ProcessElement(
 		else
 		{
 			check(AssetType == EStreamableRenderAssetType::StaticMesh || AssetType == EStreamableRenderAssetType::SkeletalMesh);
-			check(-TexelFactor <= MAX_MESH_LOD_COUNT);
+			check(-TexelFactor <= (float)MAX_MESH_LOD_COUNT);
 			MaxNumForcedLODs = FMath::Max(MaxNumForcedLODs, static_cast<int32>(-TexelFactor));
 		}
 

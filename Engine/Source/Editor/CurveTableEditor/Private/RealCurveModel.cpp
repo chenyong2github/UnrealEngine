@@ -42,7 +42,7 @@ void FRealCurveModel::DrawCurve(const FCurveEditor& CurveEditor, const FCurveEdi
 		double LastKeyValue =  double(RealCurve->GetKeyValue(LastKeyHandle));
 		double LastInterpMode = RealCurve->GetKeyInterpMode(LastKeyHandle);
 
-		if (LastInterpMode == RCIM_Constant)
+		if (LastInterpMode == (double)RCIM_Constant)
 		{
 			InterpolatingPoints.Add(MakeTuple( LastKeyTime, LastKeyValue));
 		}
@@ -52,7 +52,7 @@ void FRealCurveModel::DrawCurve(const FCurveEditor& CurveEditor, const FCurveEdi
 			auto KeyPair = RealCurve->GetKeyTimeValuePair(*It);
 
 			// if  constant , add another point to mark the end of the previous' key reign
-			if (LastInterpMode == RCIM_Constant)
+			if (LastInterpMode == (double)RCIM_Constant)
 			{
 				InterpolatingPoints.Add(MakeTuple( double(KeyPair.Key), LastKeyValue));
 			}
@@ -64,7 +64,7 @@ void FRealCurveModel::DrawCurve(const FCurveEditor& CurveEditor, const FCurveEdi
 			LastInterpMode = RealCurve->GetKeyInterpMode(LastKeyHandle);
 		}
 
-		if (LastInterpMode == RCIM_Constant)
+		if (LastInterpMode == (double)RCIM_Constant)
 		{
 			InterpolatingPoints.Add(MakeTuple( double(ScreenSpace.GetInputMax()), LastKeyValue));
 		}

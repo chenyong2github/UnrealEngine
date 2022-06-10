@@ -289,7 +289,7 @@ EPluginAuthorizationState FPluginWardenAuthorizer::UpdateAuthorizationState(floa
 		case EPluginAuthorizationState::IsUserSignedIn_Waiting:
 		case EPluginAuthorizationState::SigninRequired_Waiting:
 		{
-			if ( WaitingTime > GeneralWaitingTimeout)
+			if ( WaitingTime > (float)GeneralWaitingTimeout)
 			{
 				NewState = EPluginAuthorizationState::Timeout;
 			}
@@ -297,7 +297,7 @@ EPluginAuthorizationState FPluginWardenAuthorizer::UpdateAuthorizationState(floa
 		}
 		case EPluginAuthorizationState::Signin_Waiting:
 		{
-			if ( WaitingTime > SigninWaitingTimeout )
+			if ( WaitingTime > (float)SigninWaitingTimeout )
 			{
 				NewState = EPluginAuthorizationState::SigninFailed;
 			}

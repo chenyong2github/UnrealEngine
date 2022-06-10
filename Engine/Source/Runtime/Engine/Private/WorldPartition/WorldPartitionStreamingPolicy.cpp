@@ -763,7 +763,7 @@ float FStreamingSourceVelocity::GetAverageVelocity(const FVector& NewPosition, c
 	VelocitiesHistory[LastIndex] = Velocity;
 
 	// return average
-	return (VelocitiesHistorySum / VELOCITY_HISTORY_SAMPLE_COUNT);
+	return (VelocitiesHistorySum / (float)VELOCITY_HISTORY_SAMPLE_COUNT);
 }
 
 #undef LOCTEXT_NAMESPACE

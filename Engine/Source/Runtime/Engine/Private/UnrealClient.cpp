@@ -841,7 +841,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 		const float OutOfBudgetMarginHeight = (bSmallGraph ? 1 : 3);
 
 		const float GraphTotalWidth = GraphHorizPixelsPerFrame * NumberOfSamples;
-		const float GraphTotalHeight = TargetTimeMSHeight + (OutOfBudgetMarginHeight + EGS_UnboundedHighValueCount) * AlertPrintHeight;
+		const float GraphTotalHeight = TargetTimeMSHeight + (OutOfBudgetMarginHeight + (float)EGS_UnboundedHighValueCount) * AlertPrintHeight;
 
 		// Scale MS axis so that TargetTimeMS stays at fixed ordinate.
 		const float GraphVerticalPixelsPerMS = TargetTimeMSHeight / TargetTimeMS;

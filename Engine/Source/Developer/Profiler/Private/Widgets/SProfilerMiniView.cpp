@@ -495,8 +495,8 @@ FReply SProfilerMiniView::OnMouseMove( const FGeometry& MyGeometry, const FPoint
 			const float StartEdgeDistance = FrameIndexToPosition(SelectionBoxFrameStart) - MousePosition.X;
 			const float EndEdgeDistance = MousePosition.X - FrameIndexToPosition(SelectionBoxFrameEnd);
 
-			bCanBeStartDragged = StartEdgeDistance < MOUSE_SNAP_DISTANCE && StartEdgeDistance > 0.0f;
-			bCanBeEndDragged = EndEdgeDistance < MOUSE_SNAP_DISTANCE && EndEdgeDistance > 0.0f;
+			bCanBeStartDragged = StartEdgeDistance < (float)MOUSE_SNAP_DISTANCE && StartEdgeDistance > 0.0f;
+			bCanBeEndDragged = EndEdgeDistance < (float)MOUSE_SNAP_DISTANCE && EndEdgeDistance > 0.0f;
 
 			if( StartEdgeDistance <= 0.0f && EndEdgeDistance <= 0.0f )
 			{

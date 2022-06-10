@@ -304,7 +304,7 @@ bool WriteFixedCompressedFloat(const T Value, FArchive& Ar)
 	else
 	{
 		// We will scale up to get extra precision. But keep is a whole number preserve whole values
-		enum { Scale = Details::MaxBitValue / MaxValue };
+		constexpr int32 Scale = Details::MaxBitValue / MaxValue;
 		ScaledValue = FMath::RoundToInt( Scale * Value );
 	}
 

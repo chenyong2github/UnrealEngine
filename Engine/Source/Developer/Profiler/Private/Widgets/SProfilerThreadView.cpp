@@ -430,7 +430,7 @@ void SProfilerThreadView::DrawUIStackNodes_Recursively( const FProfilerUIStackNo
 		static const FSlateColorBrush SolidWhiteBrush = FSlateColorBrush( FColorList::White );
 		const FColor GameThreadColor = FColorList::Red;
 	
-		const FVector2D Position = FVector2D( UIStackNode.PositionXPx /*- PositionXMS*/, UIStackNode.PositionY*NUM_PIXELS_PER_ROW );
+		const FVector2D Position = FVector2D( UIStackNode.PositionXPx /*- PositionXMS*/, UIStackNode.PositionY*(double)NUM_PIXELS_PER_ROW );
 		const FVector2D Size = FVector2D( UIStackNode.WidthPx, NUM_PIXELS_PER_ROW );
 
 		// Draw a cycle counter for this profiler UI stack node.
@@ -607,7 +607,7 @@ FReply SProfilerThreadView::OnMouseWheel( const FGeometry& MyGeometry, const FPo
 	const bool bZoomIn = MouseEvent.GetWheelDelta() < 0.0f;
 	const double Center = PositionXMS + RangeXMS*0.5f;
 
-	const double MinVisibleRangeMS = 1.0f / INV_MIN_VISIBLE_RANGE_X;
+	const double MinVisibleRangeMS = 1.0f / (double)INV_MIN_VISIBLE_RANGE_X;
 	const double NewUnclampedRange = bZoomIn ? RangeXMS*1.25f : RangeXMS / 1.25f;
 	const double NewRange = FMath::Clamp( NewUnclampedRange, MinVisibleRangeMS, FMath::Min( TotalRangeXMS, (double)MAX_VISIBLE_RANGE_X ) );
 
@@ -738,7 +738,7 @@ void SProfilerThreadView::UpdateInternalConstants()
 	ZoomFactorX = (double)NUM_MILLISECONDS_PER_WINDOW / RangeXMS;
 	RangeY = FMath::RoundToFloat(ThisGeometry.GetLocalSize().Y / (double)NUM_PIXELS_PER_ROW);
 
-	const double Aspect = ThisGeometry.GetLocalSize().X / NUM_MILLISECONDS_PER_WINDOW * ZoomFactorX;
+	const double Aspect = ThisGeometry.GetLocalSize().X / (double)NUM_MILLISECONDS_PER_WINDOW * ZoomFactorX;
 	NumMillisecondsPerWindow = (double)ThisGeometry.GetLocalSize().X / Aspect;
 	NumPixelsPerMillisecond = (double)ThisGeometry.GetLocalSize().X / NumMillisecondsPerWindow;
 	NumMillisecondsPerSample = NumMillisecondsPerWindow / (double)ThisGeometry.GetLocalSize().X * (double)MIN_NUM_PIXELS_PER_SAMPLE;

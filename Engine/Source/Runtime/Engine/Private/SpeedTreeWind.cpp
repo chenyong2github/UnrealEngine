@@ -213,7 +213,7 @@ void FSpeedTreeWind::Advance(bool bEnabled, double fTime)
 		m_afRollingOffset[1] += m_afDirection[1] * m_fCombinedStrength * m_sParams.m_fRollingNoiseSpeed * m_fElapsedTime;
 
 		// compute oscillation indices
-		float fIndex = m_fCombinedStrength * (FSpeedTreeWind::NUM_WIND_POINTS_IN_CURVE - 1.0f);
+		float fIndex = m_fCombinedStrength * ((float)FSpeedTreeWind::NUM_WIND_POINTS_IN_CURVE - 1.0f);
 		int32 nBefore = static_cast<int>(fIndex);
 		int32 nAfter = nBefore + 1;
 		float fInterpolate;

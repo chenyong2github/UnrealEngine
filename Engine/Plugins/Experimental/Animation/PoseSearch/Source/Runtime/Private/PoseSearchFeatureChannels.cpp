@@ -34,7 +34,7 @@ static FLinearColor GetColorForFeature(FPoseSearchFeatureDesc Feature, const FPo
 	const float FeatureIdx = Layout->Features.IndexOfByKey(Feature);
 	const float FeatureCountIdx = Layout->Features.Num() - 1;
 	const float FeatureCountIdxHalf = FeatureCountIdx / 2.f;
-	check(FeatureIdx != INDEX_NONE);
+	check(FeatureIdx != (float)INDEX_NONE);
 
 	const float Hue = FeatureIdx < FeatureCountIdxHalf
 		? FMath::GetMappedRangeValueUnclamped({ 0.f, FeatureCountIdxHalf }, FVector2f(60.f, 0.f), FeatureIdx)
