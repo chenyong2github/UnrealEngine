@@ -166,24 +166,11 @@ static EColorWriteMask TranslateWriteMask(MTLColorWriteMask WriteMask)
 	return (EColorWriteMask)Result;
 }
 
-struct FObjCWrapperRetained
-{
-	FObjCWrapperRetained(id InObject = nil)
-		: Object([InObject retain])
-	{
-	}
-
-	~FObjCWrapperRetained()
-	{
-		[Object release];
-	}
-
-	id Object;
-};
-
 template <typename InitializerType>
 class FAGXStateObjectCache
 {
+	using RetainedObjectType = FObjCWrapperRetained< id >;
+
 public:
 	FAGXStateObjectCache()
 	{
@@ -200,7 +187,7 @@ public:
 			Mutex.ReadLock();
 		}
 		
-		TUniquePtr<FObjCWrapperRetained>* State = Cache.Find(Init);
+		TUniquePtr<RetainedObjectType>* State = Cache.Find(Init);
 
 		if (IsRunningRHIInSeparateThread())
 		{
@@ -217,7 +204,7 @@ public:
 			Mutex.WriteLock();
 		}
 		
-		Cache.Add(Init, MakeUnique<FObjCWrapperRetained>(State));
+		Cache.Add(Init, MakeUnique<RetainedObjectType>(State));
 		
 		if (IsRunningRHIInSeparateThread())
 		{
@@ -226,7 +213,7 @@ public:
 	}
 	
 private:
-	TMap<InitializerType, TUniquePtr<FObjCWrapperRetained> > Cache;
+	TMap<InitializerType, TUniquePtr<RetainedObjectType>> Cache;
 	FRWLock Mutex;
 };
 

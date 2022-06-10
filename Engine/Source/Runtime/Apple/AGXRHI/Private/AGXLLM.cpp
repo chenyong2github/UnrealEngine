@@ -145,11 +145,7 @@ static EPixelFormat MetalToRHIPixelFormat(MTLPixelFormat Format)
 
 void AGXLLM::LogAllocTexture(MTLTextureDescriptor* Desc, id<MTLTexture> Texture)
 {
-	MTLSizeAndAlign SizeAlign;
-	if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesGPUCaptureManager))
-	{
-		SizeAlign = [GMtlDevice heapTextureSizeAndAlignWithDescriptor:Desc];
-	}
+	MTLSizeAndAlign SizeAlign= [GMtlDevice heapTextureSizeAndAlignWithDescriptor:Desc];
 	
 	void* Ptr = (void*)Texture;
 	uint64 Size = static_cast<uint64>(SizeAlign.size);

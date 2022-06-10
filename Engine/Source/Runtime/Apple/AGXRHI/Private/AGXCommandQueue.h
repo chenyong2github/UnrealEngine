@@ -52,7 +52,7 @@ typedef NS_OPTIONS(uint64, EAGXFeatures)
     /** Supports minimum on-glass duration for drawables */
     EAGXFeaturesPresentMinDuration = 1llu << 16llu,
     /** Supports programmatic frame capture API */
-    EAGXFeaturesGPUCaptureManager = 1llu << 17llu,
+    EAGXFeaturesGPUCaptureManager_REMOVED = 1llu << 17llu,
 	/** Supports efficient buffer-blits */
 	EAGXFeaturesEfficientBufferBlits = 1llu << 18llu,
 	/** Supports any kind of buffer sub-allocation */

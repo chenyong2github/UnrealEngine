@@ -2,12 +2,6 @@
 
 #pragma once
 
-#include <Metal/Metal.h>
-#include "capture_scope.hpp"
-#include "device.hpp"
-
-class FAGXCommandQueue;
-
 class FAGXCaptureManager
 {
 public:
@@ -19,14 +13,15 @@ public:
 	
 	// Programmatic captures without an Xcode capture scope.
 	// Use them to instrument the code manually to debug issues.
-	void BeginCapture(void);
-	void EndCapture(void);
+	void BeginCapture();
+	void EndCapture();
 	
 private:
 	FAGXCommandQueue& Queue;
-	bool bSupportsCaptureManager;
 	
 private:
+	using RetainedCaptureScopeType = FObjCWrapperRetained< id<MTLCaptureScope> >;
+
 	enum EAGXCaptureType
 	{
 		EAGXCaptureTypeUnknown,
@@ -40,7 +35,31 @@ private:
 		EAGXCaptureType Type;
 		uint32 StepCount;
 		uint32 LastTrigger;
-		mtlpp::CaptureScope MTLScope;
+		TUniquePtr<RetainedCaptureScopeType> CaptureScope;
+
+		FAGXCaptureScope()
+		: Type(EAGXCaptureTypeUnknown)
+		, StepCount(0)
+		, LastTrigger(0)
+		, CaptureScope()
+		{
+		}
+
+		FAGXCaptureScope(const FAGXCaptureScope& Other)
+		: Type(Other.Type)
+		, StepCount(Other.StepCount)
+		, LastTrigger(Other.LastTrigger)
+		, CaptureScope(MakeUnique<RetainedCaptureScopeType>(Other.CaptureScope.Get()->Object))
+		{
+		}
+
+		FAGXCaptureScope(FAGXCaptureScope&& Other)
+		: Type(Other.Type)
+		, StepCount(Other.StepCount)
+		, LastTrigger(Other.LastTrigger)
+		, CaptureScope(MoveTemp(Other.CaptureScope))
+		{
+		}
 	};
 	
 	TArray<FAGXCaptureScope> ActiveScopes;

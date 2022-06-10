@@ -50,7 +50,7 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 		Features |= EAGXFeaturesCountingQueries | EAGXFeaturesBaseVertexInstance | EAGXFeaturesIndirectBuffer | EAGXFeaturesMSAADepthResolve | EAGXFeaturesMSAAStoreAndResolve;
 	}
 
-	Features |= EAGXFeaturesPrivateBufferSubAllocation | EAGXFeaturesGPUCaptureManager | EAGXFeaturesBufferSubAllocation | EAGXFeaturesParallelRenderEncoders | EAGXFeaturesPipelineBufferMutability | EAGXFeaturesMaxThreadsPerThreadgroup;
+	Features |= EAGXFeaturesPrivateBufferSubAllocation | EAGXFeaturesBufferSubAllocation | EAGXFeaturesParallelRenderEncoders | EAGXFeaturesPipelineBufferMutability | EAGXFeaturesMaxThreadsPerThreadgroup;
 	GAGXFColorVertexFormat = MTLVertexFormatUChar4Normalized_BGRA;
 
 #else
@@ -73,7 +73,6 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 	GAGXFColorVertexFormat = MTLVertexFormatUChar4Normalized_BGRA;
 
 	Features |= EAGXFeaturesPresentMinDuration
-		| EAGXFeaturesGPUCaptureManager
 		| EAGXFeaturesBufferSubAllocation
 		| EAGXFeaturesParallelRenderEncoders
 		| EAGXFeaturesPipelineBufferMutability;
@@ -123,7 +122,7 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
     
     if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v3])
 	{
-		Features |= EAGXFeaturesMultipleViewports | EAGXFeaturesPipelineBufferMutability | EAGXFeaturesGPUCaptureManager;
+		Features |= EAGXFeaturesMultipleViewports | EAGXFeaturesPipelineBufferMutability;
 	}
 #endif
 	

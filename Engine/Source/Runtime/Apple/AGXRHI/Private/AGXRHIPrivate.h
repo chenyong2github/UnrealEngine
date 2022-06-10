@@ -127,8 +127,28 @@ enum EMTLTextureType
 #define METAL_SUPPORTS_INDIRECT_ARGUMENT_BUFFERS 1
 #define METAL_SUPPORTS_CAPTURE_MANAGER 1
 #define METAL_SUPPORTS_TILE_SHADERS 1
-// In addition to compile-time SDK checks we also need a way to check if these are available on runtime
-extern bool GAGXSupportsCaptureManager;
+
+template<typename ReferenceType>
+struct FObjCWrapperRetained
+{
+	using Type = ReferenceType;
+
+	FObjCWrapperRetained() = delete;
+	FObjCWrapperRetained(const FObjCWrapperRetained&) = delete;
+	FObjCWrapperRetained(FObjCWrapperRetained&&) = delete;
+
+	explicit FObjCWrapperRetained(Type InObject = nil)
+		: Object([InObject retain])
+	{
+	}
+
+	~FObjCWrapperRetained()
+	{
+		[Object release];
+	}
+
+	Type Object;
+};
 
 struct FAGXBufferFormat
 {
