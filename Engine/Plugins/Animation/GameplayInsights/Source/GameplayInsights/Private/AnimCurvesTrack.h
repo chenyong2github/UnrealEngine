@@ -49,7 +49,7 @@ public:
 
 private:
 	virtual bool UpdateInternal() override;
-	TSharedPtr<SWidget> GetDetailsViewInternal() override;
+	virtual TSharedPtr<SWidget> GetDetailsViewInternal() override;
 	
 	virtual FSlateIcon GetIconInternal() override { return Icon; }
 	virtual FName GetNameInternal() const override { return "AnimationCurves"; }
@@ -67,7 +67,7 @@ private:
 class FAnimationCurvesTrackCreator : public IRewindDebuggerTrackCreator
 {
 private:
-	virtual FName GetTargetTypeNameInternal() const;
+	virtual FName GetTargetTypeNameInternal() const override;
 	virtual FName GetNameInternal() const override;
 	virtual TSharedPtr<FRewindDebuggerTrack> CreateTrackInternal(uint64 ObjectId) const override;
 	virtual bool HasDebugInfoInternal(uint64 ObjectId) const override;

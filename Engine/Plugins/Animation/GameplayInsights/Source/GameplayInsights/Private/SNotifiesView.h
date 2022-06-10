@@ -12,15 +12,13 @@ class SNotifiesView : public SPropertiesDebugViewBase
 public:
 	virtual void GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 	virtual FName GetName() const override;
-};
 
-class FNotifiesViewCreator : public IRewindDebuggerViewCreator
-{
-	public:
-		virtual FName GetTargetTypeName() const;
-		virtual FName GetName() const override;
-		virtual FText GetTitle() const override;
-		virtual FSlateIcon GetIcon() const override;
-		virtual TSharedPtr<IRewindDebuggerView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
-		virtual bool HasDebugInfo(uint64 ObjectId) const override;
+	void SetNotifyFilter(uint64 NameId)
+	{
+		FilterNotifyNameId = NameId;
+		bFilterIsSet = true;
+	}
+private:
+	uint64 FilterNotifyNameId = 0;
+	bool bFilterIsSet = false;
 };

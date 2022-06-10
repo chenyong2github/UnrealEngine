@@ -51,8 +51,6 @@ bool FAnimCurvesTrack::UpdateInternal()
 	const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	const FAnimationProvider* AnimationProvider = AnalysisSession->ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 
-	int CurveCount = 0;
-
 	if(GameplayProvider && AnimationProvider)
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
@@ -76,15 +74,15 @@ bool FAnimCurvesTrack::UpdateInternal()
 
 		UniqueTrackIds.StableSort();
 		
-		CurveCount = UniqueTrackIds.Num();
+		const int32 CurveCount = UniqueTrackIds.Num();
 
-		if (Children.Num()!=CurveCount)
+		if (Children.Num() != UniqueTrackIds.Num())
 			bChanged = true;
 		
 		Children.SetNum(CurveCount);
 		for(int i = 0; i < CurveCount; i++)
 		{
-			if (!Children[i].IsValid() || static_cast<FAnimCurveTrack*>(Children[i].Get())->GetCurveId() != UniqueTrackIds[i])
+			if (!Children[i].IsValid() || Children[i].Get()->GetCurveId() != UniqueTrackIds[i])
 			{
 				Children[i] = MakeShared<FAnimCurveTrack>(ObjectId, UniqueTrackIds[i]);
 				bChanged = true;

@@ -202,8 +202,9 @@ UE_TRACE_EVENT_BEGIN(Animation, Name, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Animation, Notify)
+UE_TRACE_EVENT_BEGIN(Animation, Notify2)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(double, RecordingTime)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(uint64, AssetId)
 	UE_TRACE_EVENT_FIELD(uint64, NotifyId)
@@ -213,8 +214,9 @@ UE_TRACE_EVENT_BEGIN(Animation, Notify)
 	UE_TRACE_EVENT_FIELD(uint8, NotifyEventType)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Animation, SyncMarker)
+UE_TRACE_EVENT_BEGIN(Animation, SyncMarker2)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(double, RecordingTime)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, NameId)
 UE_TRACE_EVENT_END()
@@ -1071,15 +1073,16 @@ void FAnimTrace::OutputAnimNotify(UAnimInstance* InAnimInstance, const FAnimNoti
 
 	const uint32 NameId = OutputName(InNotifyEvent.NotifyName);
 
-	UE_TRACE_LOG(Animation, Notify, AnimationChannel)
-		<< Notify.Cycle(FPlatformTime::Cycles64())
-		<< Notify.AnimInstanceId(FObjectTrace::GetObjectId(InAnimInstance))
-		<< Notify.AssetId(FObjectTrace::GetObjectId(NotifyAsset))
-		<< Notify.NotifyId(FObjectTrace::GetObjectId(NotifyObject))
-		<< Notify.NameId(NameId)
-		<< Notify.Time(InNotifyEvent.GetTime())
-		<< Notify.Duration(InNotifyEvent.GetDuration())
-		<< Notify.NotifyEventType((uint8)InEventType);
+	UE_TRACE_LOG(Animation, Notify2, AnimationChannel)
+		<< Notify2.Cycle(FPlatformTime::Cycles64())
+		<< Notify2.RecordingTime(FObjectTrace::GetWorldElapsedTime(InAnimInstance->GetWorld()))
+		<< Notify2.AnimInstanceId(FObjectTrace::GetObjectId(InAnimInstance))
+		<< Notify2.AssetId(FObjectTrace::GetObjectId(NotifyAsset))
+		<< Notify2.NotifyId(FObjectTrace::GetObjectId(NotifyObject))
+		<< Notify2.NameId(NameId)
+		<< Notify2.Time(InNotifyEvent.GetTime())
+		<< Notify2.Duration(InNotifyEvent.GetDuration())
+		<< Notify2.NotifyEventType((uint8)InEventType);
 }
 
 void FAnimTrace::OutputAnimSyncMarker(UAnimInstance* InAnimInstance, const FPassedMarker& InPassedSyncMarker)
@@ -1099,10 +1102,11 @@ void FAnimTrace::OutputAnimSyncMarker(UAnimInstance* InAnimInstance, const FPass
 
 	const uint32 NameId = OutputName(InPassedSyncMarker.PassedMarkerName);
 
-	UE_TRACE_LOG(Animation, SyncMarker, AnimationChannel)
-		<< SyncMarker.Cycle(FPlatformTime::Cycles64())
-		<< SyncMarker.AnimInstanceId(FObjectTrace::GetObjectId(InAnimInstance))
-		<< SyncMarker.NameId(NameId);
+	UE_TRACE_LOG(Animation, SyncMarker2, AnimationChannel)
+		<< SyncMarker2.Cycle(FPlatformTime::Cycles64())
+		<< SyncMarker2.AnimInstanceId(FObjectTrace::GetObjectId(InAnimInstance))
+		<< SyncMarker2.RecordingTime(FObjectTrace::GetWorldElapsedTime(InAnimInstance->GetWorld()))
+		<< SyncMarker2.NameId(NameId);
 }
 
 void FAnimTrace::OutputMontage(UAnimInstance* InAnimInstance, const FAnimMontageInstance& InMontageInstance)

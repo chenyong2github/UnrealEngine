@@ -218,6 +218,7 @@ struct FAnimNotifyMessage
 	uint64 NotifyId = 0;
 	const TCHAR* Name = nullptr;
 	uint32 NameId = 0;
+	double RecordingTime = 0.0f;
 	float Time = 0.0f; 
 	float Duration = 0.0f;
 	EAnimNotifyMessageType NotifyEventType = EAnimNotifyMessageType::Event;

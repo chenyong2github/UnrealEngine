@@ -1100,7 +1100,7 @@ void FAnimationProvider::AppendStateMachineState(uint64 InAnimInstanceId, double
 	Session.UpdateDurationSeconds(InTime);
 }
 
-void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, uint64 InAssetId, uint64 InNotifyId, uint32 InNameId, float InNotifyTime, float InNotifyDuration, EAnimNotifyMessageType InNotifyEventType)
+void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, double InRecordingTime, uint64 InAssetId, uint64 InNotifyId, uint32 InNameId, float InNotifyTime, float InNotifyDuration, EAnimNotifyMessageType InNotifyEventType)
 {
 	Session.WriteAccessCheck();
 
@@ -1139,6 +1139,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 		if(InNotifyEventType == EAnimNotifyMessageType::Begin)
 		{
 			FAnimNotifyMessage Message;
+			Message.RecordingTime = InRecordingTime;
 			Message.AnimInstanceId = InAnimInstanceId;
 			Message.AssetId = InAssetId;
 			Message.NotifyId = InNotifyId;
@@ -1172,6 +1173,7 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 
 		FAnimNotifyMessage Message;
 		Message.AnimInstanceId = InAnimInstanceId;
+		Message.RecordingTime = InRecordingTime;
 		Message.AssetId = InAssetId;
 		Message.NotifyId = InNotifyId;
 		Message.NameId = InNameId;

@@ -42,7 +42,9 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_StateMachineState, "Animation", "StateMachineState");
 	Builder.RouteEvent(RouteId_Name, "Animation", "Name");
 	Builder.RouteEvent(RouteId_Notify, "Animation", "Notify");
+	Builder.RouteEvent(RouteId_Notify2, "Animation", "Notify2");
 	Builder.RouteEvent(RouteId_SyncMarker, "Animation", "SyncMarker");
+	Builder.RouteEvent(RouteId_SyncMarker2, "Animation", "SyncMarker2");
 	Builder.RouteEvent(RouteId_Montage, "Animation", "Montage");
 	Builder.RouteEvent(RouteId_Montage2, "Animation", "Montage2");
 	Builder.RouteEvent(RouteId_Sync, "Animation", "Sync");
@@ -330,8 +332,22 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		break;
 	}
 	case RouteId_Notify:
+		{
+			uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+			uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+			uint64 AssetId = EventData.GetValue<uint64>("AssetId");
+			uint64 NotifyId = EventData.GetValue<uint64>("NotifyId");
+			uint32 NameId = EventData.GetValue<uint32>("NameId");
+			float Time = EventData.GetValue<float>("Time");
+			float Duration = EventData.GetValue<float>("Duration");
+			uint8 NotifyEventType = EventData.GetValue<uint8>("NotifyEventType");
+			AnimationProvider.AppendNotify(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), 0.0, AssetId, NotifyId, NameId, Time, Duration, (EAnimNotifyMessageType)NotifyEventType);
+			break;
+		}
+	case RouteId_Notify2:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		double RecordingTime = EventData.GetValue<double>("RecordingTime");
 		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
 		uint64 AssetId = EventData.GetValue<uint64>("AssetId");
 		uint64 NotifyId = EventData.GetValue<uint64>("NotifyId");
@@ -339,7 +355,7 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		float Time = EventData.GetValue<float>("Time");
 		float Duration = EventData.GetValue<float>("Duration");
 		uint8 NotifyEventType = EventData.GetValue<uint8>("NotifyEventType");
-		AnimationProvider.AppendNotify(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), AssetId, NotifyId, NameId, Time, Duration, (EAnimNotifyMessageType)NotifyEventType);
+		AnimationProvider.AppendNotify(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), RecordingTime, AssetId, NotifyId, NameId, Time, Duration, (EAnimNotifyMessageType)NotifyEventType);
 		break;
 	}
 	case RouteId_SyncMarker:
@@ -347,7 +363,16 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
 		uint32 NameId = EventData.GetValue<uint32>("NameId");
-		AnimationProvider.AppendNotify(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), 0, 0, NameId, 0.0f, 0.0f, EAnimNotifyMessageType::SyncMarker);
+		AnimationProvider.AppendNotify(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), 0.0, 0, 0, NameId, 0.0f, 0.0f, EAnimNotifyMessageType::SyncMarker);
+		break;
+	}
+	case RouteId_SyncMarker2:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		double RecordingTime = EventData.GetValue<double>("RecordingTime");
+		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+		uint32 NameId = EventData.GetValue<uint32>("NameId");
+		AnimationProvider.AppendNotify(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), RecordingTime, 0, 0, NameId, 0.0f, 0.0f, EAnimNotifyMessageType::SyncMarker);
 		break;
 	}
 	case RouteId_Montage:

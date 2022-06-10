@@ -16,13 +16,12 @@
 #include "Trace/StoreClient.h"
 #include "Stats/Stats.h"
 #include "ObjectPropertyTrace.h"
-#include "SBlendWeightsView.h"
 #include "SMontageView.h"
 #include "SObjectPropertiesView.h"
-#include "SNotifiesView.h"
 #include "AnimCurvesTrack.h"
 #include "BlendWeightsTrack.h"
 #include "MontagesTrack.h"
+#include "NotifiesTrack.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
@@ -77,8 +76,6 @@ void FGameplayInsightsModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &ObjectPropertiesViewCreator);
 	static FAnimGraphSchematicViewCreator AnimGraphSchematicViewCreator;
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &AnimGraphSchematicViewCreator);
-	static FNotifiesViewCreator NotifiesViewCreator;
-	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &NotifiesViewCreator);
 	
 	static RewindDebugger::FAnimationCurvesTrackCreator AnimationCurvesTrackCreator;
 	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &AnimationCurvesTrackCreator);
@@ -86,6 +83,8 @@ void FGameplayInsightsModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &BlendWeightsTrackCreator);
 	static RewindDebugger::FMontagesTrackCreator MontagesTrackCreator;
 	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &MontagesTrackCreator);
+	static RewindDebugger::FNotifiesTrackCreator NotifiesTrackCreator;
+	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &NotifiesTrackCreator);
 
 
 	if (!IsRunningCommandlet())

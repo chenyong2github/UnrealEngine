@@ -73,6 +73,11 @@ void SNotifiesView::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TAr
 		bool bForEvent = true;
 		auto ProcessEvent = [this, &AnimationProvider, &GameplayProvider, &Header, &bForEvent](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNotifyMessage& InMessage)
 		{
+			if (bFilterIsSet && InMessage.NameId != FilterNotifyNameId)
+			{
+				return TraceServices::EEventEnumerate::Continue;
+			}
+			
 			const TCHAR* Name = AnimationProvider->GetName(InMessage.NameId);
 			TSharedRef<FVariantTreeNode> NotifyHeader = Header->AddChild(FVariantTreeNode::MakeHeader(FText::FromString(Name), InMessage.NameId));
 
@@ -112,53 +117,5 @@ FName SNotifiesView::GetName() const
 {
 	return NotifiesName;
 }
-
-FName FNotifiesViewCreator::GetTargetTypeName() const
-{
-	static FName TargetTypeName = "AnimInstance";
-	return TargetTypeName;
-}
-
-FName FNotifiesViewCreator::GetName() const
-{
-	return NotifiesName;
-}
-
-FText FNotifiesViewCreator::GetTitle() const
-{
-	return LOCTEXT("Notifies", "Notifies");
-}
-
-FSlateIcon FNotifiesViewCreator::GetIcon() const
-{
-#if WITH_EDITOR
-	return FSlateIconFinder::FindIconForClass(UAnimInstance::StaticClass());
-#else
-	return FSlateIcon();
-#endif
-}
-
-TSharedPtr<IRewindDebuggerView> FNotifiesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
-{
-	return SNew(SNotifiesView, ObjectId, CurrentTime, AnalysisSession);
-}
-
-bool FNotifiesViewCreator::HasDebugInfo(uint64 ObjectId) const
-{
-	const TraceServices::IAnalysisSession* AnalysisSession = IRewindDebugger::Instance()->GetAnalysisSession();
-	
-	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
-	bool bHasData = false;
-	if (const FAnimationProvider* AnimationProvider = AnalysisSession->ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName))
-	{
-		AnimationProvider->ReadNotifyTimeline(ObjectId, [&bHasData](const FAnimationProvider::AnimNotifyTimeline& InTimeline)
-		{
-			bHasData = true;
-		});
-	}
-
-	return bHasData;
-}
-
 
 #undef LOCTEXT_NAMESPACE
