@@ -515,18 +515,6 @@ struct FLightMapCoefficients
 	uint8 Coefficients[NUM_STORED_LIGHTMAP_COEF][4];
 	uint8 SkyOcclusion[4];
 	uint8 AOMaterialMask;
-
-	/** Equality operator */
-	bool operator==( const FLightMapCoefficients& RHS ) const
-	{
-		return Coverage == RHS.Coverage &&
-			   Coefficients == RHS.Coefficients &&
-			   SkyOcclusion[0] == RHS.SkyOcclusion[0] &&
-			   SkyOcclusion[1] == RHS.SkyOcclusion[1] &&
-			   SkyOcclusion[2] == RHS.SkyOcclusion[2] &&
-			   SkyOcclusion[3] == RHS.SkyOcclusion[3] &&
-			   AOMaterialMask == RHS.AOMaterialMask;
-	}
 };
 
 struct FQuantizedLightmapData
