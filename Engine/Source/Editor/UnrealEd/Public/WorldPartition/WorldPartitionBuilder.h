@@ -83,6 +83,8 @@ protected:
 
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;
+	FBox  IterativeWorldBounds;
+
 	TSet<FName> DataLayerShortNames;
 	TSet<FName> ExcludedDataLayerShortNames;
 	bool bLoadNonDynamicDataLayers = true;
