@@ -171,7 +171,9 @@ public:
 public:
 	/** Element Data to display */
 	FRigElementKey Key;
+	FName ChannelName;
 	bool bIsTransient;
+	bool bIsAnimationChannel;
 	bool bSupportsRename;
 	TArray<TSharedPtr<FRigTreeElement>> Children;
 
@@ -206,6 +208,7 @@ public:
  	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
 	static TPair<const FSlateBrush*, FSlateColor> GetBrushForElementType(const URigHierarchy* InHierarchy, const FRigElementKey& InKey);
+	static FLinearColor GetColorForControlType(ERigControlType InControlType, UEnum* InControlEnum);
 
 private:
 	TWeakPtr<FRigTreeElement> WeakRigTreeElement;

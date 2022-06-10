@@ -1106,11 +1106,12 @@ public:
 	}
 
 	template<typename BuilderType = IDetailCategoryBuilder>
-	static void ConstructGroupedTransformRows(
+	static FDetailWidgetRow& ConstructGroupedTransformRows(
 		BuilderType& InBuilder,
 		const FText& InLabel,
 		const FText& InTooltip,
-		typename SAdvancedTransformInputBox<TransformType>::FArguments WidgetArgs
+		typename SAdvancedTransformInputBox<TransformType>::FArguments WidgetArgs,
+		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>()
 		)
 	{
 		auto ConstructComponentWidgetRow = [WidgetArgs](FDetailWidgetRow& WidgetRow, ESlateTransformComponent::Type InComponent)
@@ -1180,14 +1181,19 @@ public:
 		FDetailWidgetRow& HeaderRow = Group.HeaderRow();
 		ConstructComponentWidgetRow(HeaderRow, ESlateTransformComponent::Max);
 
+		if(!NameContent.IsValid())
+		{
+			SAssignNew(NameContent, STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(InLabel)
+			.ToolTipText(InTooltip);
+		}
+		
 		HeaderRow
 		.Visibility(WidgetArgs._Visibility)
 		.NameContent()
 		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(InLabel)
-			.ToolTipText(InTooltip)
+			NameContent.ToSharedRef()
 		];
 
 		if(WidgetArgs._ConstructLocation)
@@ -1207,6 +1213,8 @@ public:
 			FDetailWidgetRow& WidgetRow = Group.AddWidgetRow();
 			ConstructComponentWidgetRow(WidgetRow, ESlateTransformComponent::Scale);
 		}
+
+		return HeaderRow;
 	}
 
 #endif

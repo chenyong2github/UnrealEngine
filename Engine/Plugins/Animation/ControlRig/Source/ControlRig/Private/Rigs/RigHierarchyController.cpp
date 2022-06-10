@@ -329,6 +329,11 @@ FRigElementKey URigHierarchyController::AddControl(
 		{
 			NewElement->Settings.SetupLimitArrayForType();
 		}
+
+		if(!NewElement->Settings.DisplayName.IsNone())
+		{
+			NewElement->Settings.DisplayName = Hierarchy->GetSafeNewDisplayName(InParent, NewElement->Settings.DisplayName.ToString()); 
+		}
 		AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), false);
 		
 		NewElement->Offset.Set(ERigTransformType::InitialLocal, InOffsetTransform);  
@@ -364,6 +369,26 @@ FRigElementKey URigHierarchyController::AddControl(
 	Hierarchy->EnsureCacheValidity();
 
 	return NewElement->Key;
+}
+
+FRigElementKey URigHierarchyController::AddAnimationChannel(FName InName, FRigElementKey InParentControl,
+	FRigControlSettings InSettings, bool bSetupUndo, bool bPrintPythonCommand)
+{
+	if(!IsValid())
+	{
+		return FRigElementKey();
+	}
+
+	if(const FRigControlElement* ParentControl = Hierarchy->Find<FRigControlElement>(InParentControl))
+	{
+		InSettings.AnimationType = ERigControlAnimationType::AnimationChannel;
+		InSettings.bGroupWithParentControl = true;
+
+		return AddControl(InName, ParentControl->GetKey(), InSettings, InSettings.GetIdentityValue(),
+			FTransform::Identity, FTransform::Identity, bSetupUndo, bPrintPythonCommand);
+	}
+
+	return FRigElementKey();
 }
 
 FRigElementKey URigHierarchyController::AddCurve(FName InName, float InValue, bool bSetupUndo, bool bPrintPythonCommand)
@@ -1838,6 +1863,57 @@ FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, 
 	return bRenamed ? Element->GetKey() : FRigElementKey();
 }
 
+FName URigHierarchyController::SetDisplayName(FRigElementKey InControl, FName InDisplayName, bool bRenameElement, bool bSetupUndo,
+	bool bPrintPythonCommand)
+{
+	if(!IsValid())
+	{
+		return NAME_None;
+	}
+
+	FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(InControl);
+	if(ControlElement == nullptr)
+	{
+		ReportWarningf(TEXT("Cannot Rename Control: '%s' not found."), *InControl.ToString());
+		return NAME_None;
+	}
+
+#if WITH_EDITOR
+	TSharedPtr<FScopedTransaction> TransactionPtr;
+	if(bSetupUndo)
+	{
+		TransactionPtr = MakeShared<FScopedTransaction>(NSLOCTEXT("RigHierarchyController", "Set Display Name on Control", "Set Display Name on Control"));
+		Hierarchy->Modify();
+	}
+#endif
+
+	const FName NewDisplayName = SetDisplayName(ControlElement, InDisplayName, bRenameElement);
+	const bool bDisplayNameChanged = !NewDisplayName.IsNone();
+
+#if WITH_EDITOR
+	if(!bDisplayNameChanged && TransactionPtr.IsValid())
+	{
+		TransactionPtr->Cancel();
+	}
+	TransactionPtr.Reset();
+
+	if (bDisplayNameChanged && bPrintPythonCommand && !bSuspendPythonPrinting)
+	{
+		UBlueprint* Blueprint = GetTypedOuter<UBlueprint>();
+		if (Blueprint)
+		{
+			RigVMPythonUtils::Print(Blueprint->GetFName().ToString(), 
+				FString::Printf(TEXT("hierarchy_controller.set_display_name(%s, '%s', %s)"),
+				*InControl.ToPythonString(),
+				*InDisplayName.ToString(),
+				(bRenameElement) ? TEXT("True") : TEXT("False")));
+		}
+	}
+#endif
+
+	return NewDisplayName;
+}
+
 bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FName &InName, bool bClearSelection)
 {
 	if(InElement == nullptr)
@@ -1921,6 +1997,36 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 	return true;
 }
 
+FName URigHierarchyController::SetDisplayName(FRigControlElement* InControlElement, const FName& InDisplayName, bool bRenameElement)
+{
+	if(InControlElement == nullptr)
+	{
+		return NAME_None;
+	}
+
+	if (InControlElement->Settings.DisplayName.IsEqual(InDisplayName, ENameCase::CaseSensitive))
+	{
+		return NAME_None;
+	}
+
+	if(const FRigBaseElement* ParentElement = Hierarchy->GetFirstParent(InControlElement))
+	{
+		const FString DesiredDisplayName = InDisplayName.IsNone() ? FString() : InDisplayName.ToString();
+		const FName DisplayName = Hierarchy->GetSafeNewDisplayName(ParentElement->GetKey(), DesiredDisplayName);
+		InControlElement->Settings.DisplayName = DisplayName;
+	}
+	
+	Hierarchy->IncrementTopologyVersion();
+	Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
+
+	if(bRenameElement)
+	{
+		RenameElement(InControlElement, InControlElement->Settings.DisplayName, false);
+	}
+
+	return InControlElement->Settings.DisplayName;
+}
+
 bool URigHierarchyController::AddParent(FRigElementKey InChild, FRigElementKey InParent, float InWeight, bool bMaintainGlobalTransform, bool bSetupUndo)
 {
 	if(!IsValid())
@@ -1995,9 +2101,24 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 	// we can only parent things to controls which are not animation channels (animation channels are not 3D things)
 	if(FRigControlElement* ParentControlElement = Cast<FRigControlElement>(InParent))
 	{
-		if(ParentControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
+		if(ParentControlElement->IsAnimationChannel())
 		{
 			return false;
+		}
+	}
+
+	// we can only reparent animation channels - we cannot add a parent to them
+	if(FRigControlElement* ChildControlElement = Cast<FRigControlElement>(InChild))
+	{
+		if(ChildControlElement->IsAnimationChannel())
+		{
+			if(!bRemoveAllParents)
+			{
+				ReportErrorf(TEXT("Cannot add multiple parents to animation channel '%s'."), *InChild->Key.ToString());
+				return false;
+			}
+
+			bMaintainGlobalTransform = false;
 		}
 	}
 
@@ -2071,6 +2192,17 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 	}
 	else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
+		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InChild))
+		{
+			if(!ControlElement->Settings.DisplayName.IsNone())
+			{
+				ControlElement->Settings.DisplayName =
+					Hierarchy->GetSafeNewDisplayName(
+						InParent->GetKey(),
+						ControlElement->Settings.DisplayName.ToString());
+			}
+		}
+		
 		AddElementToDirty(Constraint.ParentElement, MultiParentElement);
 
 		const int32 ParentIndex = MultiParentElement->ParentConstraints.Add(Constraint);

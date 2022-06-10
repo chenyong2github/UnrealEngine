@@ -25,6 +25,7 @@ LLM_DEFINE_TAG(Animation_ControlRig);
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "Algo/Transform.h"
 
 static FCriticalSection GRigHierarchyStackTraceMutex;
 static char GRigHierarchyStackTrace[65536];
@@ -805,7 +806,7 @@ FName URigHierarchy::GetSanitizedName(const FString& InName)
 
 bool URigHierarchy::IsNameAvailable(const FString& InPotentialNewName, ERigElementType InType, FString* OutErrorMessage) const
 {
-	FString UnsanitizedName = InPotentialNewName;
+	const FString UnsanitizedName = InPotentialNewName;
 	if (UnsanitizedName.Len() > GetMaxNameLength())
 	{
 		if (OutErrorMessage)
@@ -855,6 +856,66 @@ bool URigHierarchy::IsNameAvailable(const FString& InPotentialNewName, ERigEleme
 	return true;
 }
 
+bool URigHierarchy::IsDisplayNameAvailable(const FRigElementKey& InParentElement,
+	const FString& InPotentialNewDisplayName, FString* OutErrorMessage) const
+{
+	const FString UnsanitizedName = InPotentialNewDisplayName;
+	if (UnsanitizedName.Len() > GetMaxNameLength())
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = TEXT("Name too long.");
+		}
+		return false;
+	}
+
+	if (UnsanitizedName == TEXT("None"))
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = TEXT("None is not a valid name.");
+		}
+		return false;
+	}
+
+	FString SanitizedName = UnsanitizedName;
+	SanitizeName(SanitizedName);
+
+	if (SanitizedName != UnsanitizedName)
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = TEXT("Name contains invalid characters.");
+		}
+		return false;
+	}
+
+	if(InParentElement.IsValid())
+	{
+		const TArray<FRigElementKey> ChildKeys = GetChildren(InParentElement);
+		if(ChildKeys.ContainsByPredicate([SanitizedName, this](const FRigElementKey& InChildKey) -> bool
+		{
+			if(const FRigBaseElement* BaseElement = Find(InChildKey))
+			{
+				if(BaseElement->GetDisplayName().ToString() == SanitizedName)
+				{
+					return true;
+				}
+			}
+			return false;
+		}))
+		{
+			if (OutErrorMessage)
+			{
+				*OutErrorMessage = TEXT("Name already used.");
+			}
+			return false;
+		}
+	}
+
+	return true;
+}
+
 FName URigHierarchy::GetSafeNewName(const FString& InPotentialNewName, ERigElementType InType) const
 {
 	FString SanitizedName = InPotentialNewName;
@@ -872,6 +933,46 @@ FName URigHierarchy::GetSafeNewName(const FString& InPotentialNewName, ERigEleme
 		Name = *FString::Printf(TEXT("%s_%d"), *BaseString, ++Suffix);
 	}
 	return *Name;
+}
+
+FName URigHierarchy::GetSafeNewDisplayName(const FRigElementKey& InParentElement, const FString& InPotentialNewDisplayName) const
+{
+	if(InPotentialNewDisplayName.IsEmpty())
+	{
+		return NAME_None;
+	}
+	
+	if(InParentElement.IsValid())
+	{
+		FString SanitizedName = InPotentialNewDisplayName;
+		SanitizeName(SanitizedName);
+		FString Name = SanitizedName;
+
+		const TArray<FRigElementKey> ChildKeys = GetChildren(InParentElement);
+		TArray<FString> DisplayNames;
+		Algo::Transform(ChildKeys, DisplayNames, [this](const FRigElementKey& InKey) -> FString
+		{
+			if(const FRigBaseElement* BaseElement = Find(InKey))
+			{
+				return BaseElement->GetDisplayName().ToString();
+			}
+			return FString();
+		});
+
+		int32 Suffix = 1;
+		while (DisplayNames.Contains(Name))
+		{
+			FString BaseString = SanitizedName;
+			if (BaseString.Len() > GetMaxNameLength() - 4)
+			{
+				BaseString.LeftChopInline(BaseString.Len() - (GetMaxNameLength() - 4));
+			}
+			Name = *FString::Printf(TEXT("%s_%d"), *BaseString, ++Suffix);
+		}
+
+		return *Name;
+	}
+	return *InPotentialNewDisplayName;
 }
 
 FEdGraphPinType URigHierarchy::GetControlPinType(FRigControlElement* InControlElement) const
@@ -3949,15 +4050,25 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 
 	const ERigTransformType::Type LocalType = bInitial ? ERigTransformType::InitialLocal : ERigTransformType::CurrentLocal;
 	const ERigTransformType::Type GlobalType = bInitial ? ERigTransformType::InitialGlobal : ERigTransformType::CurrentGlobal;
-	const ERigTransformType::Type TypeToCompute = bAffectChildren ? LocalType : GlobalType;
-	const ERigTransformType::Type TypeToDirty = SwapLocalAndGlobal(TypeToCompute);
 
 	if(bComputeOpposed)
 	{
 		for(const FRigTransformElement::FElementToDirty& ElementToDirty : InTransformElement->ElementsToDirty)
 		{
+			ERigTransformType::Type TypeToCompute = bAffectChildren ? LocalType : GlobalType;
+			ERigTransformType::Type TypeToDirty = SwapLocalAndGlobal(TypeToCompute);
+			
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementToDirty.Element))
 			{
+				// animation channels never dirty their local value
+				if(ControlElement->IsAnimationChannel())
+				{
+					if(ERigTransformType::IsLocal(TypeToDirty))
+					{
+						Swap(TypeToDirty, TypeToCompute);
+					}
+				}
+				
 				if(ERigTransformType::IsGlobal(TypeToDirty))
 				{
 					if(ControlElement->Offset.IsDirty(TypeToDirty) &&
@@ -4000,8 +4111,20 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 	{
 		for(const FRigTransformElement::FElementToDirty& ElementToDirty : InTransformElement->ElementsToDirty)
 		{
+			ERigTransformType::Type TypeToCompute = bAffectChildren ? LocalType : GlobalType;
+			ERigTransformType::Type TypeToDirty = SwapLocalAndGlobal(TypeToCompute);
+
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementToDirty.Element))
 			{
+				// animation channels never dirty their local value
+				if(ControlElement->IsAnimationChannel())
+				{
+					if(ERigTransformType::IsLocal(TypeToDirty))
+					{
+						Swap(TypeToDirty, TypeToCompute);
+					}
+				}
+
 				if(ERigTransformType::IsGlobal(TypeToDirty))
 				{
 					if(ControlElement->Offset.IsDirty(TypeToDirty) &&
@@ -4839,7 +4962,7 @@ bool URigHierarchy::IsAnimatable(const FRigControlElement* InControlElement) con
 		}
 
 		// animation channels are dependent on the control they are under.
-		if(InControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
+		if(InControlElement->IsAnimationChannel())
 		{
 			if(const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(GetFirstParent(InControlElement)))
 			{

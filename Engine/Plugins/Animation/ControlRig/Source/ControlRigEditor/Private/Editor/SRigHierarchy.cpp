@@ -298,13 +298,17 @@ void SRigHierarchy::BindCommands()
 	const FControlRigHierarchyCommands& Commands = FControlRigHierarchyCommands::Get();
 
 	CommandList->MapAction(Commands.AddBoneItem,
-		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Bone));
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Bone, false));
 
 	CommandList->MapAction(Commands.AddControlItem,
-		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Control));
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Control, false));
+
+	CommandList->MapAction(Commands.AddAnimationChannelItem,
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Control, true),
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected));
 
 	CommandList->MapAction(Commands.AddNullItem,
-		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Null));
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Null, false));
 
 	CommandList->MapAction(Commands.DuplicateItem,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleDuplicateItem),
@@ -761,11 +765,8 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 					TSharedPtr<FRigTreeElement> TreeElement = TreeView->FindElement(InElement->GetKey(), TreeView->RootElements[RootIndex]);
 					if (TreeElement.IsValid())
 					{
-						if(URigHierarchy* Hierarchy = GetDebuggedHierarchy())
-						{
-							const FRigTreeDisplaySettings& Settings = TreeView->GetRigTreeDelegates().GetDisplaySettings();
-							TreeElement->RefreshDisplaySettings(Hierarchy, Settings);
-						}
+						const FRigTreeDisplaySettings& Settings = TreeView->GetRigTreeDelegates().GetDisplaySettings();
+						TreeElement->RefreshDisplaySettings(InHierarchy, Settings);
 					}
 				}
 			}
@@ -1097,6 +1098,10 @@ void SRigHierarchy::CreateContextMenu() const
 								DefaultSection.AddMenuEntry(Commands.AddBoneItem);
 							}
 							DefaultSection.AddMenuEntry(Commands.AddControlItem);
+							if(SelectedKey.Type == ERigElementType::Control)
+							{
+								DefaultSection.AddMenuEntry(Commands.AddAnimationChannelItem);
+							}
 							DefaultSection.AddMenuEntry(Commands.AddNullItem);
 						})
 					);
@@ -1544,7 +1549,7 @@ bool SRigHierarchy::CanDeleteItem() const
 }
 
 /** Create Item */
-void SRigHierarchy::HandleNewItem(ERigElementType InElementType)
+void SRigHierarchy::HandleNewItem(ERigElementType InElementType, bool bIsAnimationChannel)
 {
 	if(!ControlRigEditor.IsValid())
 	{
@@ -1585,6 +1590,12 @@ void SRigHierarchy::HandleNewItem(ERigElementType InElementType)
 		else
 		{
 			NewNameTemplate = FString::Printf(TEXT("New%s"), *StaticEnum<ERigElementType>()->GetNameStringByValue((int64)InElementType));
+
+			if(bIsAnimationChannel)
+			{
+				static const FString NewAnimationChannel = TEXT("Channel");
+				NewNameTemplate = NewAnimationChannel;
+			}
 		}
 		
 		const FName NewElementName = CreateUniqueName(*NewNameTemplate, InElementType);
@@ -1600,14 +1611,27 @@ void SRigHierarchy::HandleNewItem(ERigElementType InElementType)
 				case ERigElementType::Control:
 				{
 					FRigControlSettings Settings;
-					Settings.ControlType = ERigControlType::EulerTransform;
 
-					FEulerTransform Identity = FEulerTransform::Identity;
-					FRigControlValue ValueToSet = FRigControlValue::Make<FEulerTransform>(Identity);
-					Settings.MinimumValue = ValueToSet;
-					Settings.MaximumValue = ValueToSet;
-						
-					NewItemKey = Controller->AddControl(NewElementName, ParentKey, Settings, Settings.GetIdentityValue(), FTransform::Identity, FTransform::Identity, true, true);
+					if(bIsAnimationChannel)
+					{
+						Settings.AnimationType = ERigControlAnimationType::AnimationChannel;
+						Settings.ControlType = ERigControlType::Float;
+						Settings.MinimumValue = FRigControlValue::Make<float>(0.f);
+						Settings.MaximumValue = FRigControlValue::Make<float>(1.f);
+						Settings.DisplayName = Hierarchy->GetSafeNewDisplayName(ParentKey, *NewNameTemplate);
+
+						NewItemKey = Controller->AddAnimationChannel(NewElementName, ParentKey, Settings, true, true);
+					}
+					else
+					{
+						Settings.ControlType = ERigControlType::EulerTransform;
+						FEulerTransform Identity = FEulerTransform::Identity;
+						FRigControlValue ValueToSet = FRigControlValue::Make<FEulerTransform>(Identity);
+						Settings.MinimumValue = ValueToSet;
+						Settings.MaximumValue = ValueToSet;
+
+						NewItemKey = Controller->AddControl(NewElementName, ParentKey, Settings, Settings.GetIdentityValue(), FTransform::Identity, FTransform::Identity, true, true);
+					}						
 					break;
 				}
 				case ERigElementType::Null:
@@ -2123,11 +2147,6 @@ FName SRigHierarchy::HandleRenameElement(const FRigElementKey& OldKey, const FSt
 {
 	ClearDetailPanel();
 
-	if (OldKey.Name.ToString().Equals(NewName, ESearchCase::CaseSensitive))	
-	{
-		return NAME_None;
-	}
-
 	// make sure there is no duplicate
 	if (ControlRigBlueprint.IsValid())
 	{
@@ -2142,7 +2161,23 @@ FName SRigHierarchy::HandleRenameElement(const FRigElementKey& OldKey, const FSt
 		const FName SanitizedName = *SanitizedNameStr;
 		FName ResultingName = NAME_None;
 
-		ResultingName = Controller->RenameElement(OldKey, SanitizedName, true, true, false).Name;
+		bool bUseDisplayName = false;
+		if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(OldKey))
+		{
+			if(ControlElement->IsAnimationChannel())
+			{
+				bUseDisplayName = true;
+			}
+		}
+
+		if(bUseDisplayName)
+		{
+			ResultingName = Controller->SetDisplayName(OldKey, SanitizedName, true, true, true);
+		}
+		else
+		{
+			ResultingName = Controller->RenameElement(OldKey, SanitizedName, true, true, false).Name;
+		}
 		ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
 		return ResultingName;
 	}
@@ -2152,9 +2187,30 @@ FName SRigHierarchy::HandleRenameElement(const FRigElementKey& OldKey, const FSt
 
 bool SRigHierarchy::HandleVerifyNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage)
 {
-	if (OldKey.Name.ToString() == NewName)
+	bool bIsAnimationChannel = false;
+	if (ControlRigBlueprint.IsValid())
 	{
-		return true;
+		URigHierarchy* Hierarchy = GetHierarchy();
+		if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(OldKey))
+		{
+			if(ControlElement->IsAnimationChannel())
+			{
+				bIsAnimationChannel = true;
+
+				if(ControlElement->GetDisplayName().ToString() == NewName)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	if(!bIsAnimationChannel)
+	{
+		if (OldKey.Name.ToString() == NewName)
+		{
+			return true;
+		}
 	}
 
 	if (NewName.IsEmpty())
@@ -2168,11 +2224,29 @@ bool SRigHierarchy::HandleVerifyNameChanged(const FRigElementKey& OldKey, const 
 	{
 		URigHierarchy* Hierarchy = GetHierarchy();
 
-		FString OutErrorString;
-		if (!Hierarchy->IsNameAvailable(NewName, OldKey.Type, &OutErrorString))
+		if(bIsAnimationChannel)
 		{
-			OutErrorMessage = FText::FromString(OutErrorString);
-			return false;
+			if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(OldKey))
+			{
+				if(const FRigBaseElement* ParentElement = Hierarchy->GetFirstParent(ControlElement))
+				{
+					FString OutErrorString;
+					if (!Hierarchy->IsDisplayNameAvailable(ParentElement->GetKey(), NewName, &OutErrorString))
+					{
+						OutErrorMessage = FText::FromString(OutErrorString);
+						return false;
+					}
+				}
+			}
+		}
+		else
+		{
+			FString OutErrorString;
+			if (!Hierarchy->IsNameAvailable(NewName, OldKey.Type, &OutErrorString))
+			{
+				OutErrorMessage = FText::FromString(OutErrorString);
+				return false;
+			}
 		}
 	}
 	return true;

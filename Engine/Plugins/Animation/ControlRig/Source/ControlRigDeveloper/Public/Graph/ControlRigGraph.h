@@ -95,6 +95,12 @@ public:
 private:
 
 	template<class T>
+	static bool IncludeElementInNameList(const T* InElement)
+	{
+		return true;
+	}
+
+	template<class T>
 	void CacheNameListForHierarchy(URigHierarchy* InHierarchy, TArray<TSharedPtr<FString>>& OutNameList)
 	{
         TArray<FString> Names;
@@ -102,7 +108,10 @@ private:
 		{
 			if(Element->IsA<T>())
 			{
-				Names.Add(Element->GetName().ToString());
+				if(IncludeElementInNameList<T>(Cast<T>(Element)))
+				{
+					Names.Add(Element->GetName().ToString());
+				}
 			}
 		}
 		Names.Sort();
@@ -184,3 +193,8 @@ private:
 	friend class UControlRigBlueprint;
 };
 
+template<>
+inline bool UControlRigGraph::IncludeElementInNameList<FRigControlElement>(const FRigControlElement* InElement)
+{
+	return !InElement->IsAnimationChannel();
+}

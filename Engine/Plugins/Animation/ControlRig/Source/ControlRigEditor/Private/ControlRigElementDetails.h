@@ -53,8 +53,14 @@ protected:
 	/** Helper buttons. */
 	TSharedPtr<SButton> UseSelectedButton;
 	TSharedPtr<SButton> SelectElementButton;
-	FSlateColor OnGetWidgetForeground(const TSharedPtr<SButton> Button) const;
-	FSlateColor OnGetWidgetBackground(const TSharedPtr<SButton> Button) const;
+
+public:
+	
+	static FSlateColor OnGetWidgetForeground(const TSharedPtr<SButton> Button);
+	static FSlateColor OnGetWidgetBackground(const TSharedPtr<SButton> Button);
+	
+protected:
+	
 	FReply OnGetSelectedClicked();
 	FReply OnSelectInHierarchyClicked();
 	
@@ -119,33 +125,51 @@ public:
 	void OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
 	bool IsSetupModeEnabled() const;
 
+	FText GetParentElementName() const;
+
 	TArray<FRigElementKey> GetElementKeys() const;
 
 	template<typename T>
-	TArray<T> GetElementsInDetailsView() const
+	TArray<T> GetElementsInDetailsView(const TArray<FRigElementKey>& InFilter = TArray<FRigElementKey>()) const
 	{
 		TArray<T> Elements;
 		for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 		{
 			if(ObjectBeingCustomized.IsValid())
 			{
-				Elements.Add(ObjectBeingCustomized->GetContent<T>());
+				T Content = ObjectBeingCustomized->GetContent<T>();
+				if(!InFilter.IsEmpty() && !InFilter.Contains(Content.GetKey()))
+				{
+					continue;
+				}
+				Elements.Add(Content);
 			}
 		}
 		return Elements;
 	}
 
 	template<typename T>
-	TArray<T*> GetElementsInHierarchy() const
+	TArray<T*> GetElementsInHierarchy(const TArray<FRigElementKey>& InFilter = TArray<FRigElementKey>()) const
 	{
 		TArray<T*> Elements;
 		if(HierarchyBeingCustomized)
 		{
-			for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+			if(InFilter.IsEmpty())
 			{
-				if(ObjectBeingCustomized.IsValid())
+				for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 				{
-					Elements.Add(HierarchyBeingCustomized->Find<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>().GetKey()));
+					if(ObjectBeingCustomized.IsValid())
+					{
+						const FRigElementKey Key = ObjectBeingCustomized->GetContent<FRigBaseElement>().GetKey();
+						Elements.Add(HierarchyBeingCustomized->Find<T>(Key));
+					}
+				}
+			}
+			else
+			{
+				for(const FRigElementKey& FilterKey : InFilter)
+				{
+					Elements.Add(HierarchyBeingCustomized->Find<T>(FilterKey));
 				}
 			}
 		}
@@ -162,11 +186,15 @@ public:
 	static void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule);
 	virtual void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass);
 
+	FReply OnSelectParentElementInHierarchyClicked();
+	FReply OnSelectElementClicked(const FRigElementKey& InKey);
+
 protected:
 
 	UControlRigBlueprint* BlueprintBeingCustomized;
 	URigHierarchy* HierarchyBeingCustomized;
 	TArray<TWeakObjectPtr<UDetailsViewWrapperObject>> ObjectsBeingCustomized;
+	TSharedPtr<SButton> SelectParentElementButton;
 };
 
 namespace ERigTransformElementDetailsTransform
@@ -202,7 +230,8 @@ protected:
 
 protected:
 
-	void CreateEulerTransformValueWidgetRow(
+	FDetailWidgetRow& CreateTransformComponentValueWidgetRow(
+		ERigControlType InControlType,
 		URigHierarchy* HierarchyBeingDebugged,
 		const TArray<FRigElementKey>& Keys,
 		SAdvancedTransformInputBox<FEulerTransform>::FArguments TransformWidgetArgs,
@@ -210,7 +239,21 @@ protected:
 		const FText& Label, 
 		const FText& Tooltip,
 		ERigTransformElementDetailsTransform::Type CurrentTransformType,
-		ERigControlValueType ValueType);
+		ERigControlValueType ValueType,
+		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>());
+
+	FDetailWidgetRow& CreateEulerTransformValueWidgetRow(
+		URigHierarchy* HierarchyBeingDebugged,
+		const TArray<FRigElementKey>& Keys,
+		SAdvancedTransformInputBox<FEulerTransform>::FArguments TransformWidgetArgs,
+		IDetailCategoryBuilder& CategoryBuilder, 
+		const FText& Label, 
+		const FText& Tooltip,
+		ERigTransformElementDetailsTransform::Type CurrentTransformType,
+		ERigControlValueType ValueType,
+		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>());
+
+	static ERigTransformElementDetailsTransform::Type GetTransformTypeFromValueType(ERigControlValueType InValueType);
 
 private:
 
@@ -249,6 +292,7 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	void CustomizeValue(IDetailLayoutBuilder& DetailBuilder);
 	void CustomizeControl(IDetailLayoutBuilder& DetailBuilder);
+	void CustomizeAnimationChannels(IDetailLayoutBuilder& DetailBuilder);
 	void CustomizeShape(IDetailLayoutBuilder& DetailBuilder);
 	virtual void BeginDestroy() override;
 
@@ -261,44 +305,56 @@ public:
 
 	FText GetDisplayName() const;
 	void SetDisplayName(const FText& InNewText, ETextCommit::Type InCommitType);
+	void SetDisplayNameForElement(const FText& InNewText, ETextCommit::Type InCommitType, const FRigElementKey& InKeyToRename);
+	bool OnVerifyDisplayNameChanged(const FText& InText, FText& OutErrorMessage, const FRigElementKey& InKeyToRename);
 
 	void OnCopyShapeProperties();
 	void OnPasteShapeProperties();
 
-	void CreateBoolValueWidgetRow(
+	FDetailWidgetRow& CreateBoolValueWidgetRow(
+		const TArray<FRigElementKey>& Keys,
 		IDetailCategoryBuilder& CategoryBuilder, 
 		const FText& Label, 
 		const FText& Tooltip, 
 		ERigControlValueType ValueType,
-		TAttribute<EVisibility> Visibility = EVisibility::Visible);
+		TAttribute<EVisibility> Visibility = EVisibility::Visible,
+		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>());
 
-	void CreateFloatValueWidgetRow(
+	FDetailWidgetRow& CreateFloatValueWidgetRow(
+		const TArray<FRigElementKey>& Keys,
 		IDetailCategoryBuilder& CategoryBuilder, 
 		const FText& Label, 
 		const FText& Tooltip, 
 		ERigControlValueType ValueType,
-		TAttribute<EVisibility> Visibility = EVisibility::Visible);
+		TAttribute<EVisibility> Visibility = EVisibility::Visible,
+		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>());
 
-	void CreateIntegerValueWidgetRow(
+	FDetailWidgetRow& CreateIntegerValueWidgetRow(
+		const TArray<FRigElementKey>& Keys,
 		IDetailCategoryBuilder& CategoryBuilder, 
 		const FText& Label, 
 		const FText& Tooltip, 
 		ERigControlValueType ValueType,
-		TAttribute<EVisibility> Visibility = EVisibility::Visible);
+		TAttribute<EVisibility> Visibility = EVisibility::Visible,
+		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>());
 
-	void CreateEnumValueWidgetRow(
+	FDetailWidgetRow& CreateEnumValueWidgetRow(
+		const TArray<FRigElementKey>& Keys,
 		IDetailCategoryBuilder& CategoryBuilder, 
 		const FText& Label, 
 		const FText& Tooltip, 
 		ERigControlValueType ValueType,
-		TAttribute<EVisibility> Visibility = EVisibility::Visible);
+		TAttribute<EVisibility> Visibility = EVisibility::Visible,
+		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>());
 
-	void CreateVector2DValueWidgetRow(
+	FDetailWidgetRow& CreateVector2DValueWidgetRow(
+		const TArray<FRigElementKey>& Keys,
 		IDetailCategoryBuilder& CategoryBuilder, 
 		const FText& Label, 
 		const FText& Tooltip, 
 		ERigControlValueType ValueType,
-		TAttribute<EVisibility> Visibility = EVisibility::Visible);
+		TAttribute<EVisibility> Visibility = EVisibility::Visible,
+		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>());
 
 
 	// this is a template since we specialize it further down for
@@ -312,21 +368,21 @@ public:
 private:
 
 	template<typename T>
-	void CreateNumericValueWidgetRow(
+	FDetailWidgetRow& CreateNumericValueWidgetRow(
+		const TArray<FRigElementKey>& Keys,
 		IDetailCategoryBuilder& CategoryBuilder, 
 		const FText& Label, 
 		const FText& Tooltip, 
 		ERigControlValueType ValueType,
-		TAttribute<EVisibility> Visibility = EVisibility::Visible)
+		TAttribute<EVisibility> Visibility = EVisibility::Visible,
+		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>())
 	{
 		const bool bCurrent = ValueType == ERigControlValueType::Current;
 		const bool bInitial = ValueType == ERigControlValueType::Initial;
 		const bool bShowToggle = (ValueType == ERigControlValueType::Minimum) || (ValueType == ERigControlValueType::Maximum);
 		
-		TArray<FRigElementKey> Keys = GetElementKeys();
 		URigHierarchy* HierarchyBeingDebugged = GetHierarchyBeingDebugged();
 		URigHierarchy* HierarchyToChange = bCurrent ? HierarchyBeingDebugged : HierarchyBeingCustomized;
-		Keys = HierarchyBeingDebugged->SortKeys(Keys);
 
 		TSharedPtr<SNumericEntryBox<T>> NumericEntryBox;
 		
@@ -425,14 +481,21 @@ private:
 				}
 			};
 
+		if(!NameContent.IsValid())
+		{
+			SAssignNew(NameContent, STextBlock)
+			.Text(Label)
+			.ToolTipText(Tooltip)
+			.Font(IDetailLayoutBuilder::GetDetailFont());
+		}
+
 		WidgetRow
 		.Visibility(Visibility)
 		.NameContent()
+		.MinDesiredWidth(200.f)
+		.MaxDesiredWidth(800.f)
 		[
-			SNew(STextBlock)
-			.Text(Label)
-			.ToolTipText(Tooltip)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
+			NameContent.ToSharedRef()
 		]
 		.ValueContent()
 		[
@@ -548,7 +611,15 @@ private:
 				})
 			));
 		}
+
+		return WidgetRow;
 	}
+
+	// animation channel related callbacks
+	FReply OnAddAnimationChannelClicked();
+	TSharedRef<ITableRow> HandleGenerateAnimationChannelTypeRow(TSharedPtr<ERigControlType> ControlType, const TSharedRef<STableViewBase>& OwnerTable, FRigElementKey ControlKey);
+	void HandleControlTypeChanged(TSharedPtr<ERigControlType> ControlType, ESelectInfo::Type SelectInfo, FRigElementKey ControlKey, const TSharedRef<IPropertyUtilities> PropertyUtilities);
+	void HandleControlTypeChanged(ERigControlType ControlType, TArray<FRigElementKey> ControlKeys, const TSharedRef<IPropertyUtilities> PropertyUtilities);
 
 	TArray<TSharedPtr<FString>> ShapeNameList;
 	TSharedPtr<FRigInfluenceEntryModifier> InfluenceModifier;

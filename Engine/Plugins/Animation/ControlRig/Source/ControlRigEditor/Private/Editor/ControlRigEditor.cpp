@@ -54,6 +54,7 @@
 #include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_GetControlTransform.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_SetControlTransform.h"
+#include "ControlRig/Private/Units/Hierarchy/RigUnit_ControlChannel.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_Collection.h"
 #include "ControlRig/Private/Units/Highlevel/Hierarchy/RigUnit_TransformConstraint.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_GetControlTransform.h"
@@ -5415,11 +5416,30 @@ void FControlRigEditor::CreateRigHierarchyToGraphDragAndDropMenu() const
 					}
 			
 					uint8 DraggedTypes = 0;
+					uint8 DraggedAnimationTypes = 2;
 					for (const FRigElementKey& DraggedKey : DragDropContext.DraggedElementKeys)
 					{
 						if (DraggedKey.Type != LastType)
 						{
 							bMultipleTypeSelected = true;
+						}
+						else if(DraggedKey.Type == ERigElementType::Control)
+						{
+							if(const FRigControlElement* ControlElement = Blueprint->Hierarchy->Find<FRigControlElement>(DraggedKey))
+							{
+								const uint8 DraggedAnimationType = ControlElement->IsAnimationChannel() ? 1 : 0; 
+								if(DraggedAnimationTypes == 2)
+								{
+									DraggedAnimationTypes = DraggedAnimationType;
+								}
+								else
+								{
+									if(DraggedAnimationTypes != DraggedAnimationType)
+									{
+										bMultipleTypeSelected = true;
+									}
+								}
+							}
 						}
 				
 						DraggedTypes = DraggedTypes | (uint8)DraggedKey.Type;
@@ -5459,10 +5479,20 @@ void FControlRigEditor::CreateRigHierarchyToGraphDragAndDropMenu() const
 						}
 						else if ((DraggedTypes & (uint8)ERigElementType::Control) != 0)
 						{
-							GetterLabel = LOCTEXT("GetControl","Get Control");
-							GetterTooltip = LOCTEXT("GetControl_ToolTip", "Getter For Control");
-							SetterLabel = LOCTEXT("SetControl","Set Control");
-							SetterTooltip = LOCTEXT("SetControl_ToolTip", "Setter For Control");
+							if(DraggedAnimationTypes == 0)
+							{
+								GetterLabel = LOCTEXT("GetControl","Get Control");
+								GetterTooltip = LOCTEXT("GetControl_ToolTip", "Getter For Control");
+								SetterLabel = LOCTEXT("SetControl","Set Control");
+								SetterTooltip = LOCTEXT("SetControl_ToolTip", "Setter For Control");
+							}
+							else
+							{
+								GetterLabel = LOCTEXT("GetAnimationChannel","Get Animation Channel");
+								GetterTooltip = LOCTEXT("GetAnimationChannel_ToolTip", "Getter For Animation Channel");
+								SetterLabel = LOCTEXT("SetAnimationChannel","Set Animation Channel");
+								SetterTooltip = LOCTEXT("SetAnimationChannel_ToolTip", "Setter For Animation Channel");
+							}
 						}
 					}
 
@@ -5724,9 +5754,140 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 		TArray<FName> ItemPins;
 		ItemPins.Add(TEXT("Item"));
 
+		FName NameValue = Key.Name;
+		FName ChannelValue = Key.Name;
 		TArray<FName> NamePins;
+		TArray<FName> ChannelPins;
+		TMap<FName, FRigVMTemplateArgumentType> PinsToResolve; 
 
-		if (bIsGetter)
+		if(FRigControlElement* ControlElement = Blueprint->Hierarchy->Find<FRigControlElement>(Key))
+		{
+			if(ControlElement->IsAnimationChannel())
+			{
+				if(const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Blueprint->Hierarchy->GetFirstParent(ControlElement)))
+				{
+					NameValue = ParentControlElement->GetName();
+				}
+				else
+				{
+					NameValue = NAME_None;
+				}
+
+				ItemPins.Reset();
+				NamePins.Add(TEXT("Control"));
+				ChannelPins.Add(TEXT("Channel"));
+				static const FName ValueName = GET_MEMBER_NAME_CHECKED(FRigUnit_GetBoolAnimationChannel, Value);
+
+				switch (ControlElement->Settings.ControlType)
+				{
+					case ERigControlType::Bool:
+					{
+						if(bIsGetter)
+						{
+							StructTemplate = FRigUnit_GetBoolAnimationChannel::StaticStruct();
+						}
+						else
+						{
+							StructTemplate = FRigUnit_SetBoolAnimationChannel::StaticStruct();
+						}
+						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(RigVMTypeUtils::BoolType));
+						break;
+					}
+					case ERigControlType::Float:
+					{
+						if(bIsGetter)
+						{
+							StructTemplate = FRigUnit_GetFloatAnimationChannel::StaticStruct();
+						}
+						else
+						{
+							StructTemplate = FRigUnit_SetFloatAnimationChannel::StaticStruct();
+						}
+						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(RigVMTypeUtils::FloatType));
+						break;
+					}
+					case ERigControlType::Integer:
+					{
+						if(bIsGetter)
+						{
+							StructTemplate = FRigUnit_GetIntAnimationChannel::StaticStruct();
+						}
+						else
+						{
+							StructTemplate = FRigUnit_SetIntAnimationChannel::StaticStruct();
+						}
+						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type));
+						break;
+					}
+					case ERigControlType::Vector2D:
+					{
+						if(bIsGetter)
+						{
+							StructTemplate = FRigUnit_GetVector2DAnimationChannel::StaticStruct();
+						}
+						else
+						{
+							StructTemplate = FRigUnit_SetVector2DAnimationChannel::StaticStruct();
+						}
+
+						UScriptStruct* ValueStruct = TBaseStructure<FVector2D>::Get();
+						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(ValueStruct->GetStructCPPName(), ValueStruct));
+						break;
+					}
+					case ERigControlType::Position:
+					case ERigControlType::Scale:
+					{
+						if(bIsGetter)
+						{
+							StructTemplate = FRigUnit_GetVectorAnimationChannel::StaticStruct();
+						}
+						else
+						{
+							StructTemplate = FRigUnit_SetVectorAnimationChannel::StaticStruct();
+						}
+						UScriptStruct* ValueStruct = TBaseStructure<FVector>::Get();
+						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(ValueStruct->GetStructCPPName(), ValueStruct));
+						break;
+					}
+					case ERigControlType::Rotator:
+					{
+						if(bIsGetter)
+						{
+							StructTemplate = FRigUnit_GetRotatorAnimationChannel::StaticStruct();
+						}
+						else
+						{
+							StructTemplate = FRigUnit_SetRotatorAnimationChannel::StaticStruct();
+						}
+						UScriptStruct* ValueStruct = TBaseStructure<FRotator>::Get();
+						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(ValueStruct->GetStructCPPName(), ValueStruct));
+						break;
+					}
+					case ERigControlType::Transform:
+					case ERigControlType::TransformNoScale:
+					case ERigControlType::EulerTransform:
+					{
+						if(bIsGetter)
+						{
+							StructTemplate = FRigUnit_GetTransformAnimationChannel::StaticStruct();
+						}
+						else
+						{
+							StructTemplate = FRigUnit_SetTransformAnimationChannel::StaticStruct();
+						}
+						UScriptStruct* ValueStruct = TBaseStructure<FTransform>::Get();
+						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(ValueStruct->GetStructCPPName(), ValueStruct));
+						break;
+					}
+					default:
+					{
+						break;
+					}
+				}
+			}
+		}
+
+		if (bIsGetter && StructTemplate == nullptr)
 		{
 			switch (Type)
 			{
@@ -5814,7 +5975,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 				}
 			}
 		}
-		else
+		else if(StructTemplate == nullptr)
 		{
 			switch (Type)
 			{
@@ -5956,7 +6117,15 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 			FString ItemTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)Key.Type).ToString();
 			NewNode.Name = ModelNode->GetFName();
 			NewNodes.Add(NewNode);
-			
+
+			for (const TPair<FName, FRigVMTemplateArgumentType>& PinToResolve : PinsToResolve)
+			{
+				if(URigVMPin* Pin = ModelNode->FindPin(PinToResolve.Key.ToString()))
+				{
+					GetFocusedController()->ResolveWildCardPin(Pin, PinToResolve.Value, true, true);
+				}
+			}
+
 			for (const FName& ItemPin : ItemPins)
 			{
 				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s.Name"), *ModelNode->GetName(), *ItemPin.ToString()), Key.Name.ToString(), true, true, false, true);
@@ -5965,7 +6134,14 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 
 			for (const FName& NamePin : NamePins)
 			{
-				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NamePin.ToString()), Key.Name.ToString(), true, true, false, true);
+				const FString PinPath = FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NamePin.ToString());
+				GetFocusedController()->SetPinDefaultValue(PinPath, NameValue.ToString(), true, true, false, true);
+			}
+
+			for (const FName& ChannelPin : ChannelPins)
+			{
+				const FString PinPath = FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *ChannelPin.ToString());
+				GetFocusedController()->SetPinDefaultValue(PinPath, ChannelValue.ToString(), true, true, false, true);
 			}
 
 			if (!NewNode.ValuePinName.IsNone())

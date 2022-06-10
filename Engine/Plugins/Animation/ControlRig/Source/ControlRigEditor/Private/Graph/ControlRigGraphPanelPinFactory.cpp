@@ -100,6 +100,103 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 				{
 					return SNew(SControlRigGraphPinVariableName, InPin);
 				}
+				else if (CustomWidgetName == TEXT("AnimationChannelName"))
+				{
+					struct FCachedAnimationChannelNames
+					{
+						int32 TopologyVersion;
+						TSharedPtr<TArray<TSharedPtr<FString>>> Names;
+						
+						FCachedAnimationChannelNames()
+						: TopologyVersion(INDEX_NONE)
+						{}
+					};
+					
+					return SNew(SControlRigGraphPinNameList, InPin)
+						.ModelPin(ModelPin)
+						.OnGetNameListContent_Lambda([RigGraph](const URigVMPin* InPin)
+						{
+							if (const UControlRigBlueprint* Blueprint = RigGraph->GetTypedOuter<UControlRigBlueprint>())
+							{
+								FRigElementKey ControlKey;
+
+								// find the pin that holds the control
+								for(URigVMPin* Pin : InPin->GetRootPin()->GetNode()->GetPins())
+								{
+									if(Pin->GetCPPType() == RigVMTypeUtils::FNameType && Pin->GetCustomWidgetName() == TEXT("ControlName"))
+									{
+										const FString DefaultValue = Pin->GetDefaultValue();
+										const FName ControlName = DefaultValue.IsEmpty() ? FName(NAME_None) : FName(*DefaultValue);
+										ControlKey = FRigElementKey(ControlName, ERigElementType::Control);
+										break;
+									}
+
+									if(Pin->GetCPPType() == FRigElementKey::StaticStruct()->GetStructCPPName())
+									{
+										const FString DefaultValue = Pin->GetDefaultValue();
+										if(!DefaultValue.IsEmpty())
+										{
+											FRigElementKey::StaticStruct()->ImportText(*DefaultValue, &ControlKey, nullptr, EPropertyPortFlags::PPF_None, nullptr, FRigElementKey::StaticStruct()->GetName(), true);
+										}
+										break;
+									}
+								}
+
+								if(Blueprint->Hierarchy->Find<FRigControlElement>(ControlKey) == nullptr)
+								{
+									ControlKey.Reset();
+								}
+
+								const FString MapHash = ControlKey.IsValid() ?
+									Blueprint->GetPathName() + TEXT("|") + ControlKey.Name.ToString() :
+									FName(NAME_None).ToString();
+
+								static TMap<FString, FCachedAnimationChannelNames> ChannelNameLists;
+								FCachedAnimationChannelNames& ChannelNames = ChannelNameLists.FindOrAdd(MapHash);
+
+								bool bRefreshList = !ChannelNames.Names.IsValid();
+
+								if(!bRefreshList)
+								{
+									const int32 TopologyVersion = Blueprint->Hierarchy->GetTopologyVersion();
+									if(ChannelNames.TopologyVersion != TopologyVersion)
+									{
+										bRefreshList = true;
+										ChannelNames.TopologyVersion = TopologyVersion;
+									}
+								}
+
+								if(bRefreshList)
+								{
+									if(!ChannelNames.Names.IsValid())
+									{
+										ChannelNames.Names = MakeShareable(new TArray<TSharedPtr<FString>>());
+									}
+									ChannelNames.Names->Reset();
+									ChannelNames.Names->Add(MakeShareable(new FString(FName(NAME_None).ToString())));
+
+									if(const FRigControlElement* ControlElement = Blueprint->Hierarchy->Find<FRigControlElement>(ControlKey))
+									{
+										FRigBaseElementChildrenArray Children = Blueprint->Hierarchy->GetChildren(ControlElement);
+										for(const FRigBaseElement* Child : Children)
+										{
+											if(const FRigControlElement* ChildControl = Cast<FRigControlElement>(Child))
+											{
+												if(ChildControl->IsAnimationChannel())
+												{
+													ChannelNames.Names->Add(MakeShareable(new FString(ChildControl->GetDisplayName().ToString())));
+												}
+											}
+										}
+									}
+								}
+								return ChannelNames.Names.Get();
+							}
+
+							static TArray<TSharedPtr<FString>> EmptyNameList;
+							return &EmptyNameList;
+						});
+				}
 			}
 
 			if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)

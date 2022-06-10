@@ -2635,7 +2635,7 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 				{
 					ControlsToReset.Add(Control->GetKey());
 					if(Control->Settings.AnimationType == ERigControlAnimationType::AnimationControl ||
-						Control->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
+						Control->IsAnimationChannel())
 					{
 						ControlsInteracting.Add(Control->GetKey());
 					}
@@ -3342,7 +3342,7 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 									ControlRig->GetHierarchy()->ForEach<FRigControlElement>(
 										[this, ControlRig, ControlElement, DrivenKeys, bSelected](FRigControlElement* AnimationChannelControl) -> bool
 										{
-											if(AnimationChannelControl->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
+											if(AnimationChannelControl->IsAnimationChannel())
 											{
 												if(const FRigControlElement* ParentControlElement =
 													Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(AnimationChannelControl)))

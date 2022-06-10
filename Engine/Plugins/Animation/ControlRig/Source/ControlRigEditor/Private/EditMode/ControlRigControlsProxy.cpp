@@ -801,7 +801,7 @@ void UControlRigDetailPanelControlProxies::AddProxy(UControlRig* ControlRig, con
 		if (Proxy)
 		{
 			Proxy->bIsIndividual =
-				(ControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationChannel) ||
+				(ControlElement->IsAnimationChannel()) ||
 				(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl) ;
 			Proxy->SetFlags(RF_Transactional);
 			Proxy->SetName(Name);

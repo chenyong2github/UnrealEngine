@@ -996,7 +996,7 @@ struct CONTROLRIG_API FRigControlSettings
 	TArray<FRigElementKey> PreviouslyDrivenControls;
 
 	/**
-	 * If set to true the control will be grouped with the parent control in sequencer
+	 * If set to true the animation channel will be grouped with the parent control in sequencer
 	 */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
 	bool bGroupWithParentControl;
@@ -1129,6 +1129,8 @@ struct CONTROLRIG_API FRigControlElement : public FRigMultiParentElement
 		}
 		return FRigMultiParentElement::GetDisplayName();
 	}
+
+	FORCEINLINE bool IsAnimationChannel() const { return Settings.AnimationType == ERigControlAnimationType::AnimationChannel; }
 
 	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;

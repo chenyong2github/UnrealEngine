@@ -104,7 +104,7 @@ private:
 	void HandleDeleteItem();
 
 	/** Create a new item */
-	void HandleNewItem(ERigElementType InElementType);
+	void HandleNewItem(ERigElementType InElementType, bool bIsAnimationChannel);
 
 	/** Check whether we can deleting the selected item(s) */
 	bool CanDuplicateItem() const;

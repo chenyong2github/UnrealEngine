@@ -32,7 +32,9 @@ FRigTreeDisplaySettings FRigTreeDelegates::DefaultDisplaySettings;
 FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchyTreeView> InTreeView, bool InSupportsRename, ERigTreeFilterResult InFilterResult)
 {
 	Key = InKey;
+	ChannelName = NAME_None;
 	bIsTransient = false;
+	bIsAnimationChannel = false;
 	bSupportsRename = InSupportsRename;
 	FilterResult = InFilterResult;
 
@@ -43,6 +45,11 @@ FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHiera
 			if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Key))
 			{
 				bIsTransient = ControlElement->Settings.bIsTransientControl;
+				bIsAnimationChannel = ControlElement->IsAnimationChannel();
+				if(bIsAnimationChannel)
+				{
+					ChannelName = ControlElement->GetDisplayName();
+				}
 			}
 
 			const FRigTreeDisplaySettings& Settings = InTreeView.Pin()->GetRigTreeDelegates().GetDisplaySettings();
@@ -174,6 +181,10 @@ FText SRigHierarchyItem::GetName() const
 	{
 		static const FText TemporaryControl = FText::FromString(TEXT("Temporary Control"));
 		return TemporaryControl;
+	}
+	if(WeakRigTreeElement.Pin()->bIsAnimationChannel)
+	{
+		return FText::FromName(WeakRigTreeElement.Pin()->ChannelName);
 	}
 	return (FText::FromName(WeakRigTreeElement.Pin()->Key.Name));
 }
@@ -703,63 +714,7 @@ TPair<const FSlateBrush*, FSlateColor> SRigHierarchyItem::GetBrushForElementType
 				{
 					static FName TypeIcon(TEXT("Kismet.VariableList.TypeIcon"));
 					Brush = FAppStyle::GetBrush(TypeIcon);
-
-					FEdGraphPinType PinType;
-					switch(Control->Settings.ControlType)
-					{
-						case ERigControlType::Bool:
-						{
-							PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::BoolType, nullptr);
-							break;
-						}
-						case ERigControlType::Float:
-						{
-							PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::FloatType, nullptr);
-							break;
-						}
-						case ERigControlType::Integer:
-						{
-							if(Control->Settings.ControlEnum)
-							{
-								PinType = RigVMTypeUtils::PinTypeFromCPPType(FString(), Control->Settings.ControlEnum);
-							}
-							else
-							{
-								PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::Int32Type, nullptr);
-							}
-							break;
-						}
-						case ERigControlType::Vector2D:
-						{
-							UScriptStruct* Struct = TBaseStructure<FVector2D>::Get(); 
-							PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
-							break;
-						}
-						case ERigControlType::Position:
-						case ERigControlType::Scale:
-						{
-							UScriptStruct* Struct = TBaseStructure<FVector>::Get(); 
-							PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
-							break;
-						}
-						case ERigControlType::Rotator:
-						{
-							UScriptStruct* Struct = TBaseStructure<FRotator>::Get(); 
-							PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
-							break;
-						}
-						case ERigControlType::Transform:
-						case ERigControlType::TransformNoScale:
-						case ERigControlType::EulerTransform:
-						default:
-						{
-							UScriptStruct* Struct = TBaseStructure<FTransform>::Get(); 
-							PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
-							break;
-						}
-					}
-					const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
-					ShapeColor = Schema->GetPinTypeColor(PinType);
+					ShapeColor = GetColorForControlType(Control->Settings.ControlType, Control->Settings.ControlEnum);
 				}
 				
 				// ensure the alpha is always visible
@@ -820,6 +775,66 @@ TPair<const FSlateBrush*, FSlateColor> SRigHierarchyItem::GetBrushForElementType
 	}
 
 	return TPair<const FSlateBrush*, FSlateColor>(Brush, Color);
+}
+
+FLinearColor SRigHierarchyItem::GetColorForControlType(ERigControlType InControlType, UEnum* InControlEnum)
+{
+	FEdGraphPinType PinType;
+	switch(InControlType)
+	{
+		case ERigControlType::Bool:
+		{
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::BoolType, nullptr);
+			break;
+		}
+		case ERigControlType::Float:
+		{
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::FloatType, nullptr);
+			break;
+		}
+		case ERigControlType::Integer:
+		{
+			if(InControlEnum)
+			{
+				PinType = RigVMTypeUtils::PinTypeFromCPPType(FString(), InControlEnum);
+			}
+			else
+			{
+				PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::Int32Type, nullptr);
+			}
+			break;
+		}
+		case ERigControlType::Vector2D:
+		{
+			UScriptStruct* Struct = TBaseStructure<FVector2D>::Get(); 
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
+			break;
+		}
+		case ERigControlType::Position:
+		case ERigControlType::Scale:
+		{
+			UScriptStruct* Struct = TBaseStructure<FVector>::Get(); 
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
+			break;
+		}
+		case ERigControlType::Rotator:
+		{
+			UScriptStruct* Struct = TBaseStructure<FRotator>::Get(); 
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
+			break;
+		}
+		case ERigControlType::Transform:
+		case ERigControlType::TransformNoScale:
+		case ERigControlType::EulerTransform:
+		default:
+		{
+			UScriptStruct* Struct = TBaseStructure<FTransform>::Get(); 
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
+			break;
+		}
+	}
+	const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+	return Schema->GetPinTypeColor(PinType);
 }
 
 void SRigHierarchyItem::OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const

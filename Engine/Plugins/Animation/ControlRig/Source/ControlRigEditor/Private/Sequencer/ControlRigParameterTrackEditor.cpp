@@ -1999,7 +1999,7 @@ void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* Control
 					{
 						if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 						{
-							if(ControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationChannel)
+							if(ControlElement->IsAnimationChannel())
 							{
 								if(const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Hierarchy->GetFirstParent(ControlElement)))
 								{

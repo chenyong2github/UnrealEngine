@@ -24,6 +24,9 @@ public:
 	/** Add Item at origin */
 	TSharedPtr< FUICommandInfo > AddControlItem;
 
+	/** Add an animation channel */
+	TSharedPtr< FUICommandInfo > AddAnimationChannelItem;
+
 	/** Add Item at origin */
 	TSharedPtr< FUICommandInfo > AddNullItem;
 

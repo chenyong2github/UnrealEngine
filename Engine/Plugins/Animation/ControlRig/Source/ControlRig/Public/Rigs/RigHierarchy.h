@@ -870,12 +870,29 @@ public:
 	bool IsNameAvailable(const FString& InPotentialNewName, ERigElementType InType, FString* OutErrorMessage = nullptr) const;
 
 	/**
+	 * Returns true if a given display name is available.
+	 * @param InParentElement The element to check the display name under
+	 * @param InPotentialNewDisplayName The name to test for availability
+	 * @param OutErrorMessage An optional pointer to return a potential error message 
+	 * @return Returns true if the name is available.
+	 */
+	bool IsDisplayNameAvailable(const FRigElementKey& InParentElement, const FString& InPotentialNewDisplayName, FString* OutErrorMessage = nullptr) const;
+
+	/**
 	 * Returns a valid new name for a to-be-added element.
 	 * @param InPotentialNewName The name to be sanitized and adjusted for availability
 	 * @param InType The type of the to-be-added element
 	 * @return Returns the name to use for the to-be-added element.
 	 */
 	FName GetSafeNewName(const FString& InPotentialNewName, ERigElementType InType) const;
+
+	/**
+	 * Returns a valid new display name for a control
+	 * @param InParentElement The element to check the display name under
+	 * @param InPotentialNewDisplayName The name to be sanitized and adjusted for availability
+	 * @return Returns the name to use for the to-be-added element.
+	 */
+	FName GetSafeNewDisplayName(const FRigElementKey& InParentElement, const FString& InPotentialNewDisplayName) const;
 
 	/**
 	 * Returns the modified event, which can be used to 
