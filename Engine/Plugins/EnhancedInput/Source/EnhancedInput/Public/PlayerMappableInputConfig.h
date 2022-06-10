@@ -60,7 +60,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
 	FText ConfigDisplayName = FText::GetEmpty();
 
-	/**  */
+	/** A flag that can be used to mark this Input Config as deprecated to your player/designers. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
 	bool bIsDeprecated = false;
 

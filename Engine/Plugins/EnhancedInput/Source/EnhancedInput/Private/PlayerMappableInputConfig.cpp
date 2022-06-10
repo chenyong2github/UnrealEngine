@@ -6,6 +6,7 @@
 #define LOCTEXT_NAMESPACE "PlayerMappableInputConfig"
 
 UPlayerMappableInputConfig::UPlayerMappableInputConfig(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	ResetToDefault();
 }
