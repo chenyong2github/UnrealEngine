@@ -50,8 +50,8 @@ public:
 	TUniquePtr<class FSkeletalMeshRenderData> NextCachedRenderData;
 #endif
 
-	FSkeletalMeshRenderData();
-	~FSkeletalMeshRenderData();
+	ENGINE_API FSkeletalMeshRenderData();
+	ENGINE_API ~FSkeletalMeshRenderData();
 
 #if WITH_EDITOR
 	void Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner, class FSkeletalMeshCompilationContext* ContextPtr);
@@ -64,7 +64,7 @@ public:
 	void Serialize(FArchive& Ar, USkeletalMesh* Owner);
 
 	/** Initializes rendering resources. */
-	void InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner);
+	ENGINE_API void InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner);
 
 	/** Releases rendering resources. */
 	ENGINE_API void ReleaseResources();
