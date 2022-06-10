@@ -2134,6 +2134,31 @@ EPixelFormat FTexturePlatformData::GetLayerPixelFormat(uint32 LayerIndex) const
 	return PixelFormat;
 }
 
+int64 FTexturePlatformData::GetPayloadSize() const
+{
+	int64 PayloadSize = 0;
+	if (VTData)
+	{
+		for (int32 ChunkIndex = 0; ChunkIndex < VTData->Chunks.Num(); ChunkIndex++)
+		{
+			PayloadSize += VTData->Chunks[ChunkIndex].SizeInBytes;
+		}
+	}
+	else
+	{
+		for (int32 MipIndex = 0; MipIndex < Mips.Num(); MipIndex++)
+		{
+			int32 BlockSizeX = FMath::DivideAndRoundUp(FMath::Max(Mips[MipIndex].SizeX, 1), GPixelFormats[PixelFormat].BlockSizeX);
+			int32 BlockSizeY = FMath::DivideAndRoundUp(FMath::Max(Mips[MipIndex].SizeY, 1), GPixelFormats[PixelFormat].BlockSizeY);
+			// for TextureCube and TextureCubeArray all the mipmaps contain the same number of slices, which is encoded in the PackedData member
+			// at the same time we can not just use SizeZ of a TextureCube mipmap, because for compatibility reasons it is always set to 1 and not 6 (which is the actual number of slices)
+			int32 BlockSizeZ = FMath::DivideAndRoundUp(FMath::Max(IsCubemap() ? GetNumSlices() : Mips[MipIndex].SizeZ, 1), GPixelFormats[PixelFormat].BlockSizeZ);
+			PayloadSize += (int64)GPixelFormats[PixelFormat].BlockBytes * BlockSizeX * BlockSizeY * BlockSizeZ;
+		}
+	}
+	return PayloadSize;
+}
+
 bool FTexturePlatformData::CanUseCookedDataPath() const
 {
 #if WITH_IOSTORE_IN_EDITOR
