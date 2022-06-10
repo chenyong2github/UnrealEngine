@@ -90,7 +90,7 @@ void InternalCommonDrawPass(
 		}
 		else
 		{
-			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Max, BF_One, BF_Zero>::GetRHI();
+			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Max, BF_One, BF_One>::GetRHI();
 		}
 
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
