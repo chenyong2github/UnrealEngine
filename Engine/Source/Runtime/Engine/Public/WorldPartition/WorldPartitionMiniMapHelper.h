@@ -11,6 +11,7 @@
 #if WITH_EDITOR
 #include "Math/Box.h"
 #include "Math/Matrix.h"
+#include "Engine/EngineTypes.h"
 
 class AWorldPartitionMiniMap;
 class UWorld;
