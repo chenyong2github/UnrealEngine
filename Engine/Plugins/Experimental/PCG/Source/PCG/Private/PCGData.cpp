@@ -156,6 +156,11 @@ bool FPCGDataCollection::operator==(const FPCGDataCollection& Other) const
 	return true;
 }
 
+bool FPCGDataCollection::operator!=(const FPCGDataCollection& Other) const
+{
+	return !operator==(Other);
+}
+
 void FPCGDataCollection::AddToRootSet(FPCGRootSet& RootSet) const
 {
 	for (const FPCGTaggedData& Data : TaggedData)

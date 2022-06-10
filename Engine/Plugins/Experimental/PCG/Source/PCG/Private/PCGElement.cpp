@@ -23,6 +23,10 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 	}
 
 	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
+
+
+
+
 	if (Settings && Settings->ExecutionMode == EPCGSettingsExecutionMode::Disabled)
 	{
 		//Pass-through
@@ -181,9 +185,10 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 				{
 					PCGE_LOG(Warning, "Output generated for pin %s but cannot be routed", *TaggedData.Pin.ToString());
 				}
-				else if(TaggedData.Data && !(OutputPinProperties[MatchIndex].AllowedTypes & TaggedData.Data->GetDataType()))
+				// TODO: Temporary fix for Settings directly from InputData (ie. from elements with code and not PCG nodes)
+				else if(TaggedData.Data && !(OutputPinProperties[MatchIndex].AllowedTypes & TaggedData.Data->GetDataType()) && TaggedData.Data->GetDataType() != EPCGDataType::Settings)
 				{
-					PCGE_LOG(Warning, "Output generated for pin %s does not have a compatible type", *TaggedData.Pin.ToString());
+					PCGE_LOG(Warning, "Output generated for pin %s does not have a compatible type: %s", *TaggedData.Pin.ToString(), *UEnum::GetValueAsString(TaggedData.Data->GetDataType()));
 				}
 			}
 		}

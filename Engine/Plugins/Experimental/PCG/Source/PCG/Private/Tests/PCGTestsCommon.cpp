@@ -6,9 +6,9 @@
 #include "PCGSettings.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGPolyLineData.h"
+#include "Data/PCGPrimitiveData.h"
 #include "Data/PCGSurfaceData.h"
 #include "Data/PCGVolumeData.h"
-#include "Data/PCGPrimitiveData.h"
 
 #include "GameFramework/Actor.h"
 
@@ -133,8 +133,16 @@ namespace PCGTestsCommon
 
 	bool PointsAreIdentical(const FPCGPoint& FirstPoint, const FPCGPoint& SecondPoint)
 	{
-		// TODO: should do a full point comparison, not only on a positional basis
-		return (FirstPoint.Transform.GetLocation() - SecondPoint.Transform.GetLocation()).SquaredLength() < KINDA_SMALL_NUMBER;
+		// Trivial checks first for pruning
+		if (FirstPoint.Density != SecondPoint.Density || FirstPoint.Steepness != SecondPoint.Steepness ||
+			FirstPoint.BoundsMin != SecondPoint.BoundsMin || FirstPoint.BoundsMax != SecondPoint.BoundsMax ||
+			FirstPoint.Color != SecondPoint.Color)
+		{
+			return false;
+		}
+
+		// Transform checks with epsilon
+		return FirstPoint.Transform.Equals(SecondPoint.Transform);
 	}
 }
 
@@ -178,7 +186,8 @@ bool FPCGTestBaseClass::SmokeTestAnyValidInput(UPCGSettings* InSettings, TFuncti
 
 	check(InputIndices.Num() == InputsPerProperties.Num());
 
-	while (1)
+	bool bDone = false;
+	while (!bDone)
 	{
 		// Prepare input
 		FPCGDataCollection InputData;
@@ -187,17 +196,18 @@ bool FPCGTestBaseClass::SmokeTestAnyValidInput(UPCGSettings* InSettings, TFuncti
 			InputData.TaggedData.Append(InputsPerProperties[PinIndex][InputIndices[PinIndex]].TaggedData);
 		}
 
-		// Perform execution
-		FPCGContext* Context = Element->Initialize(InputData, nullptr, nullptr);
+		TUniquePtr<FPCGContext> Context(Element->Initialize(InputData, nullptr, nullptr));
 		Context->NumAvailableTasks = 1;
-		Element->Execute(Context);
+		
+		// Execute element until done
+		while (!Element->Execute(Context.Get()))
+		{
+		}
 
 		if (ValidationFn)
 		{
 			TestTrue("Validation", ValidationFn(Context->InputData, Context->OutputData));
 		}
-
-		delete Context;
 
 		// Bump indices
 		int BumpIndex = 0;
@@ -217,7 +227,7 @@ bool FPCGTestBaseClass::SmokeTestAnyValidInput(UPCGSettings* InSettings, TFuncti
 
 		if (BumpIndex == InputIndices.Num())
 		{
-			break;
+			bDone = true;
 		}
 	}
 

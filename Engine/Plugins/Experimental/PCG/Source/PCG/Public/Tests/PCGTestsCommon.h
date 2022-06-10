@@ -4,17 +4,18 @@
 
 #include "Misc/AutomationTest.h"
 #include "Tests/AutomationCommon.h"
-#include "PCGPoint.h"
 
 class AActor;
+class UPCGParamData;
 class UPCGPointData;
 class UPCGPolyLineData;
+class UPCGPrimitiveData;
 class UPCGSurfaceData;
 class UPCGVolumeData;
-class UPCGPrimitiveData;
-class UPCGParamData;
 class UPCGSettings;
 struct FPCGDataCollection;
+struct FPCGPinProperties;
+struct FPCGPoint;
 
 namespace PCGTestsCommon
 {
@@ -34,6 +35,9 @@ namespace PCGTestsCommon
 	UPCGVolumeData* CreateVolumeData(const FBox& InBounds = FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector * 100));
 	UPCGPrimitiveData* CreatePrimitiveData();
 
+	TArray<FPCGDataCollection> GenerateAllowedData(const FPCGPinProperties& PinProperties);
+
+	/** Validates that two Spatial Points are identical */
 	bool PointsAreIdentical(const FPCGPoint& FirstPoint, const FPCGPoint& SecondPoint);
 }
 

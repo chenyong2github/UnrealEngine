@@ -75,6 +75,7 @@ struct PCG_API FPCGDataCollection
 	const UPCGSettings* GetSettings(const UPCGSettings* InDefaultSettings) const;
 
 	bool operator==(const FPCGDataCollection& Other) const;
+	bool operator!=(const FPCGDataCollection& Other) const;
 	void AddToRootSet(FPCGRootSet& RootSet) const;
 	void RemoveFromRootSet(FPCGRootSet& RootSet) const;
 
