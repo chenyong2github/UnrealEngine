@@ -457,12 +457,7 @@ namespace UnrealGameSync
 				int Idx = Path.IndexOf('/');
 				if (Idx == -1)
 				{
-					long OldSize;
-					if (IncludedFiles.TryGetValue(Path, out OldSize))
-					{
-						Logger.LogWarning("File {FullPath} added twice to sync tree (old size {OldSize}, new size {Size})", FullPath, OldSize, Size);
-					}
-					else
+					if (!IncludedFiles.ContainsKey(Path))
 					{
 						IncludedFiles.Add(Path, Size);
 					}
