@@ -74,7 +74,6 @@ struct FAsyncPhysicsDesiredState
 	FVector LinearVelocity;
 	FVector AngularVelocity;
 	Chaos::FSingleParticlePhysicsProxy* Proxy;
-	Chaos::EObjectStateType ObjectState;
 	TOptional<ErrorCorrectionData> ErrorCorrection;
 	bool bShouldSleep;
 	int32 ServerFrame;
