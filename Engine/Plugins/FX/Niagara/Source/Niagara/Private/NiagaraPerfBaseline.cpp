@@ -4,6 +4,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Components/TextRenderComponent.h"
+#include "Engine/Engine.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "RenderingThread.h"
 #include "HAL/IConsoleManager.h"
