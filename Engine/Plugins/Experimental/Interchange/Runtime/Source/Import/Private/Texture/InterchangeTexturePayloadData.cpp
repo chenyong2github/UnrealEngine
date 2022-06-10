@@ -87,15 +87,11 @@ void UE::Interchange::FImportImage::Init2DWithMips(int32 InSizeX, int32 InSizeY,
 
 int64 UE::Interchange::FImportImage::GetMipSize(int32 InMipIndex) const
 {
-#if WITH_EDITOR
 	check(InMipIndex >= 0);
 	check(InMipIndex < NumMips);
 	const int32 MipSizeX = FMath::Max(SizeX >> InMipIndex, 1);
 	const int32 MipSizeY = FMath::Max(SizeY >> InMipIndex, 1);
 	return (int64)MipSizeX * MipSizeY * FTextureSource::GetBytesPerPixel(Format);
-#else
-	return 0;
-#endif
 }
 
 int64 UE::Interchange::FImportImage::ComputeBufferSize() const

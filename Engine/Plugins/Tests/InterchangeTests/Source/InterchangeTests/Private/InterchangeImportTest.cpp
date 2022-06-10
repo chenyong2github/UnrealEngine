@@ -239,19 +239,22 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 
 						Data.TestPlan->Steps[StepIndex]->FinishStep(Data, ExecutionInfo);
 
-						// Populate the automation test execution info with the interchange import results
-						for (UInterchangeResult* Result : Data.InterchangeResults->GetResults())
+						if (Data.InterchangeResults)
 						{
-							switch (Result->GetResultType())
+							// Populate the automation test execution info with the interchange import results
+							for (UInterchangeResult* Result : Data.InterchangeResults->GetResults())
 							{
-							case EInterchangeResultType::Error:
-								ExecutionInfo.AddError(Result->GetText().ToString());
-								bSuccess = false;
-								break;
+								switch (Result->GetResultType())
+								{
+								case EInterchangeResultType::Error:
+									ExecutionInfo.AddError(Result->GetText().ToString());
+									bSuccess = false;
+									break;
 
-							case EInterchangeResultType::Warning:
-								ExecutionInfo.AddWarning(Result->GetText().ToString());
-								break;
+								case EInterchangeResultType::Warning:
+									ExecutionInfo.AddWarning(Result->GetText().ToString());
+									break;
+								}
 							}
 						}
 

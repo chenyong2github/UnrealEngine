@@ -342,7 +342,7 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 				if (MaterialInstanceFactoryNode->GetCustomParent(ParentPath))
 				{
 					FSoftObjectPath ParentMaterial(ParentPath);
-					Material = UMaterialInstanceDynamic::Create(Cast<UMaterialInterface>(ParentMaterial.TryLoad()), Arguments.Parent);
+					Material = UMaterialInstanceDynamic::Create(Cast<UMaterialInterface>(ParentMaterial.TryLoad()), Arguments.Parent, *Arguments.AssetName);
 				}
 			}
 		}
@@ -457,13 +457,12 @@ void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPre
 	check(IsInGameThread());
 	Super::PreImportPreCompletedCallback(Arguments);
 
-	//TODO make sure this work at runtime
-#if WITH_EDITORONLY_DATA
 	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
 	{
 		//We must call the Update of the asset source file in the main thread because UAssetImportData::Update execute some delegate we do not control
 		UMaterialInterface* ImportedMaterialInterface = CastChecked<UMaterialInterface>(Arguments.ImportedObject);
 
+#if WITH_EDITOR
 		//Update the samplers type in case the textures were changed during their PreImportPreCompletedCallback
 		if (UMaterial* ImportedMaterial = Cast<UMaterial>(ImportedMaterialInterface))
 		{
@@ -475,12 +474,15 @@ void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPre
 				}
 			}
 		}
-		else if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(ImportedMaterialInterface))
+		else
+#endif // WITH_EDITOR
+		if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(ImportedMaterialInterface))
 		{
 			// Material instances expect their parameters to only be updated from the game thread
 			SetupMaterialInstance(MaterialInstance, Arguments.NodeContainer, Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.FactoryNode));
 		}
 
+#if WITH_EDITORONLY_DATA
 		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(ImportedMaterialInterface
 																										  , ImportedMaterialInterface->AssetImportData
 																										  , Arguments.SourceData
@@ -489,8 +491,8 @@ void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPre
 																										  , Arguments.Pipelines);
 
 		ImportedMaterialInterface->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
+#endif // WITH_EDITORONLY_DATA
 	}
-#endif
 }
 
 bool UInterchangeMaterialFactory::GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const

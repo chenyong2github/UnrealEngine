@@ -259,228 +259,239 @@ void UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterch
 		AnimationPipeline->ScriptedExecutePostImportPipeline(InBaseNodeContainer, NodeKey, CreatedAsset, bIsAReimport);
 	}
 
+#if WITH_EDITORONLY_DATA
+	AddPackageMetaData(CreatedAsset, InBaseNodeContainer->GetNode(NodeKey));
+#endif
+}
+
+#if WITH_EDITORONLY_DATA
+void UInterchangeGenericAssetsPipeline::AddPackageMetaData(UObject* CreatedAsset, const UInterchangeBaseNode* Node)
+{
+	if (!CreatedAsset || !Node)
+	{
+		return;
+	}
+
 	const FString InterchangeMetaDataPrefix = TEXT("INTERCHANGE.");
 
-	if (const UInterchangeBaseNode* Node = InBaseNodeContainer->GetNode(NodeKey))
+	//Add UObject package meta data
+	if (UMetaData* MetaData = CreatedAsset->GetOutermost()->GetMetaData())
 	{
-		//Add UObject package meta data
-		if (UMetaData* MetaData = CreatedAsset->GetOutermost()->GetMetaData())
+		//Cleanup existing INTERCHANGE_ prefix metadata name for this object (in casse we re-import)
 		{
-			//Cleanup existing INTERCHANGE_ prefix metadata name for this object (in casse we re-import)
+			TArray<FName> InterchangeMetaDataKeys;
+			if(TMap<FName, FString>* MetaDataMapPtr = MetaData->GetMapForObject(CreatedAsset))
 			{
-				TArray<FName> InterchangeMetaDataKeys;
-				if(TMap<FName, FString>* MetaDataMapPtr = MetaData->GetMapForObject(CreatedAsset))
+				for (const TPair<FName, FString>& ObjectMetadata : *MetaDataMapPtr)
 				{
-					for (const TPair<FName, FString>& ObjectMetadata : *MetaDataMapPtr)
+					if (ObjectMetadata.Key.ToString().StartsWith(InterchangeMetaDataPrefix))
 					{
-						if (ObjectMetadata.Key.ToString().StartsWith(InterchangeMetaDataPrefix))
-						{
-							InterchangeMetaDataKeys.Add(ObjectMetadata.Key);
-						}
+						InterchangeMetaDataKeys.Add(ObjectMetadata.Key);
 					}
-					for (const FName& MetaDataKey : InterchangeMetaDataKeys)
-					{
-						MetaData->RemoveValue(CreatedAsset, MetaDataKey);
-					}
+				}
+				for (const FName& MetaDataKey : InterchangeMetaDataKeys)
+				{
+					MetaData->RemoveValue(CreatedAsset, MetaDataKey);
 				}
 			}
-			TArray<FInterchangeUserDefinedAttributeInfo> UserAttributeInfos;
-			UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttributeInfos(Node, UserAttributeInfos);
-			//We must convert all different type to String since meta data only support string
-			for (const FInterchangeUserDefinedAttributeInfo& UserAttributeInfo : UserAttributeInfos)
+		}
+		TArray<FInterchangeUserDefinedAttributeInfo> UserAttributeInfos;
+		UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttributeInfos(Node, UserAttributeInfos);
+		//We must convert all different type to String since meta data only support string
+		for (const FInterchangeUserDefinedAttributeInfo& UserAttributeInfo : UserAttributeInfos)
+		{
+			if (UserAttributeInfo.PayloadKey.IsSet())
 			{
-				if (UserAttributeInfo.PayloadKey.IsSet())
+				//Skip animated attributes
+				continue;
+			}
+			TOptional<FString> MetaDataValue;
+			TOptional<FString> PayloadKey;
+			switch (UserAttributeInfo.Type)
+			{
+				case UE::Interchange::EAttributeTypes::Bool:
 				{
-					//Skip animated attributes
-					continue;
+					bool Value = false;
+					if(UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
 				}
-				TOptional<FString> MetaDataValue;
-				TOptional<FString> PayloadKey;
-				switch (UserAttributeInfo.Type)
+				break;
+				case UE::Interchange::EAttributeTypes::Int8:
 				{
-					case UE::Interchange::EAttributeTypes::Bool:
+					int8 Value = 0;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
 					{
-						bool Value = false;
-						if(UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
 					}
-					break;
-					case UE::Interchange::EAttributeTypes::Int8:
-					{
-						int8 Value = 0;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Int16:
-					{
-						int16 Value = 0;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Int32:
-					{
-						int32 Value = 0;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Int64:
-					{
-						int64 Value = 0;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::UInt8:
-					{
-						uint8 Value = 0;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::UInt16:
-					{
-						uint16 Value = 0;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::UInt32:
-					{
-						uint32 Value = 0;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::UInt64:
-					{
-						uint64 Value = 0;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Float:
-					{
-						float Value = 0.0f;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Float16:
-					{
-						FFloat16 Value = 0.0f;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Vector2f:
-					{
-						FVector2f Value(0.0f);
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Vector3f:
-					{
-						FVector3f Value(0.0f);
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Vector4f:
-					{
-						FVector4f Value(0.0f);
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Double:
-					{
-						double Value = 0.0;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Vector2d:
-					{
-						FVector2D Value(0.0);
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Vector3d:
-					{
-						FVector3d Value(0.0);
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::Vector4d:
-					{
-						FVector4d Value(0.0);
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
-					case UE::Interchange::EAttributeTypes::String:
-					{
-						FString Value;
-						if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
-						{
-							MetaDataValue = UE::Interchange::AttributeValueToString(Value);
-						}
-					}
-					break;
 				}
-				if (MetaDataValue.IsSet())
+				break;
+				case UE::Interchange::EAttributeTypes::Int16:
 				{
-					const FString& MetaDataStringValue = MetaDataValue.GetValue();
-					const FName& MetaDataKey = FName(InterchangeMetaDataPrefix + UserAttributeInfo.Name);
-					//SetValue either add the key or set the new value
-					MetaData->SetValue(CreatedAsset, MetaDataKey, *MetaDataStringValue);
+					int16 Value = 0;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
 				}
+				break;
+				case UE::Interchange::EAttributeTypes::Int32:
+				{
+					int32 Value = 0;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Int64:
+				{
+					int64 Value = 0;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::UInt8:
+				{
+					uint8 Value = 0;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::UInt16:
+				{
+					uint16 Value = 0;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::UInt32:
+				{
+					uint32 Value = 0;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::UInt64:
+				{
+					uint64 Value = 0;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Float:
+				{
+					float Value = 0.0f;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Float16:
+				{
+					FFloat16 Value = 0.0f;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Vector2f:
+				{
+					FVector2f Value(0.0f);
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Vector3f:
+				{
+					FVector3f Value(0.0f);
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Vector4f:
+				{
+					FVector4f Value(0.0f);
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Double:
+				{
+					double Value = 0.0;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Vector2d:
+				{
+					FVector2D Value(0.0);
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Vector3d:
+				{
+					FVector3d Value(0.0);
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::Vector4d:
+				{
+					FVector4d Value(0.0);
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+				case UE::Interchange::EAttributeTypes::String:
+				{
+					FString Value;
+					if (UInterchangeUserDefinedAttributesAPI::GetUserDefinedAttribute(Node, UserAttributeInfo.Name, Value, PayloadKey))
+					{
+						MetaDataValue = UE::Interchange::AttributeValueToString(Value);
+					}
+				}
+				break;
+			}
+			if (MetaDataValue.IsSet())
+			{
+				const FString& MetaDataStringValue = MetaDataValue.GetValue();
+				const FName& MetaDataKey = FName(InterchangeMetaDataPrefix + UserAttributeInfo.Name);
+				//SetValue either add the key or set the new value
+				MetaData->SetValue(CreatedAsset, MetaDataKey, *MetaDataStringValue);
 			}
 		}
 	}
 }
+#endif // WITH_EDITORONLY_DATA
 
 void UInterchangeGenericAssetsPipeline::SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex)
 {

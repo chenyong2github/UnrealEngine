@@ -49,12 +49,6 @@ UClass* UInterchangeStaticMeshFactory::GetFactoryClass() const
 
 UObject* UInterchangeStaticMeshFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
 {
-#if !WITH_EDITOR || !WITH_EDITORONLY_DATA
-
-	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import StaticMesh asset in runtime, this is an editor only feature."));
-	return nullptr;
-
-#else
 	UStaticMesh* StaticMesh = nullptr;
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
@@ -79,6 +73,16 @@ UObject* UInterchangeStaticMeshFactory::CreateEmptyAsset(const FCreateAssetParam
 	{
 		//This is a reimport, we are just re-updating the source data
 		StaticMesh = Cast<UStaticMesh>(ExistingAsset);
+
+		// Clear the render resources on the static mesh from the game thread so that we're ready to update it
+		if (StaticMesh && StaticMesh->AreRenderingResourcesInitialized())
+		{
+			const bool bInvalidateLighting = true;
+			const bool bRefreshBounds = true;
+			FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(StaticMesh, bInvalidateLighting, bRefreshBounds);
+			StaticMesh->ReleaseResources();
+			StaticMesh->ReleaseResourcesFence.Wait();
+		}
 	}
 	
 	if (!StaticMesh)
@@ -90,20 +94,15 @@ UObject* UInterchangeStaticMeshFactory::CreateEmptyAsset(const FCreateAssetParam
 	// create the BodySetup on the game thread
 	StaticMesh->CreateBodySetup();
 	
+#if WITH_EDITOR
 	StaticMesh->PreEditChange(nullptr);	
+#endif // WITH_EDITOR
+
 	return StaticMesh;
-#endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
 UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Arguments)
 {
-#if !WITH_EDITOR || !WITH_EDITORONLY_DATA
-
-	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import static mesh asset in runtime, this is an editor only feature."));
-	return nullptr;
-
-#else
-
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
@@ -149,22 +148,16 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
-			
+
+	ensure(!StaticMesh->AreRenderingResourcesInitialized());
+
 	const int32 LodCount = StaticMeshFactoryNode->GetLodDataCount();
 	const int32 PrevLodCount = StaticMesh->GetNumLODs();
 	const int32 FinalLodCount = FMath::Max(PrevLodCount, LodCount);
 
+#if WITH_EDITOR
 	StaticMesh->SetNumSourceModels(FinalLodCount);
-
-	// Make sure that mesh descriptions for added LODs are kept as is when the mesh is built
-	for (int32 LodIndex = PrevLodCount; LodIndex < FinalLodCount; ++LodIndex)
-	{
-		FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LodIndex);
-
-		SrcModel.ReductionSettings.MaxDeviation = 0.0f;
-		SrcModel.ReductionSettings.PercentTriangles = 1.0f;
-		SrcModel.ReductionSettings.PercentVertices = 1.0f;
-	}
+#endif // WITH_EDITOR
 
 	// If we are reimporting, cache the existing vertex colors so they can be optionally reapplied after reimport
 	TMap<FVector3f, FColor> ExisitingVertexColorData;
@@ -180,7 +173,11 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 
 		if (MaterialSlotIndex == INDEX_NONE)
 		{
-			StaticMesh->GetStaticMaterials().Emplace(MaterialInterface, MaterialSlotName);
+			MaterialSlotIndex = StaticMesh->GetStaticMaterials().Emplace(MaterialInterface, MaterialSlotName);
+#if !WITH_EDITOR
+			// UV density is not supported to be generated at runtime for now. We fake that it has been initialized so that we don't trigger ensures.
+			StaticMesh->GetStaticMaterials()[MaterialSlotIndex].UVChannelData = FMeshUVChannelInfo(1.f);
+#endif
 		}
 		else
 		{
@@ -210,6 +207,9 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 	StaticMeshFactoryNode->GetLodDataUniqueIds(LodDataUniqueIds);
 	ensure(LodDataUniqueIds.Num() == LodCount);
 
+	TArray<FMeshDescription> LodMeshDescriptions;
+	LodMeshDescriptions.SetNum(LodCount);
+
 	bool bImportedCustomCollision = false;
 	int32 CurrentLodIndex = 0;
 	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
@@ -223,7 +223,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		}
 
 		// Add the lod mesh data to the static mesh
-		FMeshDescription* LodMeshDescription = StaticMesh->CreateMeshDescription(CurrentLodIndex);
+		FMeshDescription& LodMeshDescription = LodMeshDescriptions[CurrentLodIndex];
 
 		FStaticMeshOperations::FAppendSettings AppendSettings;
 		for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_NUM_UV_CHANNELS; ++ChannelIdx)
@@ -252,20 +252,20 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			if (!bFirstValidMoved)
 			{
 				FMeshDescription& MeshDescription = const_cast<FMeshDescription&>(LodMeshPayload->MeshDescription);
-				*LodMeshDescription = MoveTemp(MeshDescription);
+				LodMeshDescription = MoveTemp(MeshDescription);
 				bFirstValidMoved = true;
 
 				// Bake the payload mesh, with the provided transform
 				if (!MeshPayload.Transform.Equals(FTransform::Identity))
 				{
-					FStaticMeshOperations::ApplyTransform(*LodMeshDescription, MeshPayload.Transform);
+					FStaticMeshOperations::ApplyTransform(LodMeshDescription, MeshPayload.Transform);
 				}
 			}
 			else
 			{
 				// Bake the payload mesh, with the provided transform
 				AppendSettings.MeshTransform = MeshPayload.Transform;
-				FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, *LodMeshDescription, AppendSettings);
+				FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, LodMeshDescription, AppendSettings);
 			}
 		}
 
@@ -275,7 +275,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		// Override -> replace the vertex color by the override color
 		// @todo: new mesh description attribute for painted vertex colors?
 		{
-			FStaticMeshAttributes Attributes(*LodMeshDescription);
+			FStaticMeshAttributes Attributes(LodMeshDescription);
 			TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 			bool bReplaceVertexColor = false;
 			StaticMeshFactoryNode->GetCustomVertexColorReplace(bReplaceVertexColor);
@@ -285,12 +285,12 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 				StaticMeshFactoryNode->GetCustomVertexColorIgnore(bIgnoreVertexColor);
 				if (bIgnoreVertexColor)
 				{
-					for (const FVertexInstanceID& VertexInstanceID : LodMeshDescription->VertexInstances().GetElementIDs())
+					for (const FVertexInstanceID& VertexInstanceID : LodMeshDescription.VertexInstances().GetElementIDs())
 					{
 						//If we have old vertex color (reimport), we want to keep it if the option is ignore
 						if (ExisitingVertexColorData.Num() > 0)
 						{
-							const FVector3f& VertexPosition = LodMeshDescription->GetVertexPosition(LodMeshDescription->GetVertexInstanceVertex(VertexInstanceID));
+							const FVector3f& VertexPosition = LodMeshDescription.GetVertexPosition(LodMeshDescription.GetVertexInstanceVertex(VertexInstanceID));
 							const FColor* PaintedColor = ExisitingVertexColorData.Find(VertexPosition);
 							if (PaintedColor)
 							{
@@ -315,7 +315,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 					FColor OverrideVertexColor;
 					if (StaticMeshFactoryNode->GetCustomVertexColorOverride(OverrideVertexColor))
 					{
-						for (const FVertexInstanceID& VertexInstanceID : LodMeshDescription->VertexInstances().GetElementIDs())
+						for (const FVertexInstanceID& VertexInstanceID : LodMeshDescription.VertexInstances().GetElementIDs())
 						{
 							VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor(OverrideVertexColor));
 						}
@@ -324,15 +324,11 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			}
 		}
 
-		UStaticMesh::FCommitMeshDescriptionParams CommitMeshDescriptionParams;
-		CommitMeshDescriptionParams.bMarkPackageDirty = false; // Marking packages dirty isn't threadsafe
-		StaticMesh->CommitMeshDescription(CurrentLodIndex, CommitMeshDescriptionParams);
-
 		// Build section info map from materials
-		FStaticMeshConstAttributes StaticMeshAttributes(*LodMeshDescription);
+		FStaticMeshConstAttributes StaticMeshAttributes(LodMeshDescription);
 		TPolygonGroupAttributesRef<const FName> SlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
 		int32 SectionIndex = 0;
-		for (FPolygonGroupID PolygonGroupID : LodMeshDescription->PolygonGroups().GetElementIDs())
+		for (FPolygonGroupID PolygonGroupID : LodMeshDescription.PolygonGroups().GetElementIDs())
 		{
 			int32 MaterialSlotIndex = StaticMesh->GetMaterialIndexFromImportedMaterialSlotName(SlotNames[PolygonGroupID]);
 					
@@ -340,12 +336,17 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			if (MaterialSlotIndex == INDEX_NONE)
 			{
 				MaterialSlotIndex = StaticMesh->GetStaticMaterials().Emplace(UMaterial::GetDefaultMaterial(MD_Surface), SlotNames[PolygonGroupID]);
+#if !WITH_EDITOR
+				StaticMesh->GetStaticMaterials()[MaterialSlotIndex].UVChannelData = FMeshUVChannelInfo(1.f);
+#endif
 			}
 
+#if WITH_EDITOR
 			FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(CurrentLodIndex, SectionIndex);
 			Info.MaterialIndex = MaterialSlotIndex;
 			StaticMesh->GetSectionInfoMap().Remove(CurrentLodIndex, SectionIndex);
 			StaticMesh->GetSectionInfoMap().Set(CurrentLodIndex, SectionIndex, Info);
+#endif
 
 			SectionIndex++;
 		}
@@ -359,22 +360,17 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			bImportedCustomCollision |= ImportConvexCollision(Arguments, StaticMesh, LodDataNode);
 		}
 
-		if (!Arguments.ReimportObject)
-		{
-			FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(CurrentLodIndex);
-
-			const int32 NumUVChannels = StaticMeshAttributes.GetVertexInstanceUVs().GetNumChannels();
-			const int32 FirstOpenUVChannel = NumUVChannels >= MAX_MESH_TEXTURE_COORDS_MD ? 1 : NumUVChannels;
-			SrcModel.BuildSettings.DstLightmapIndex = FirstOpenUVChannel;
-
-			if (CurrentLodIndex == 0)
-			{
-				StaticMesh->SetLightMapCoordinateIndex(FirstOpenUVChannel);
-			}
-		}
-
 		CurrentLodIndex++;
 	}
+
+#if WITH_EDITOR
+	{
+		const bool bIsAReimport = Arguments.ReimportObject != nullptr;
+		SetupSourceModelsSettings(*StaticMesh, LodMeshDescriptions, PrevLodCount, FinalLodCount, bIsAReimport);
+	}
+#endif // WITH_EDITOR
+
+	CommitMeshDescriptions(*StaticMesh, MoveTemp(LodMeshDescriptions));
 
 	ImportSockets(Arguments, StaticMesh, StaticMeshFactoryNode);
 
@@ -383,6 +379,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		// Apply all StaticMeshFactoryNode custom attributes to the static mesh asset
 		StaticMeshFactoryNode->ApplyAllCustomAttributeToObject(StaticMesh);
 	}
+#if WITH_EDITOR
 	else
 	{
 		//Apply the re import strategy 
@@ -397,24 +394,91 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		CurrentNode->FillAllCustomAttributeFromObject(StaticMesh);
 		UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(StaticMesh, PreviousNode, CurrentNode, StaticMeshFactoryNode);
 	}
-	
+#endif // WITH_EDITOR
+
 	if (!bImportedCustomCollision)
 	{
 		GenerateKDopCollision(Arguments, StaticMesh);
 	}
+#if WITH_EDITORONLY_DATA
 	else
 	{
 		StaticMesh->bCustomizedCollision = true;
 	}
+#endif // WITH_EDITORONLY_DATA
 
 	// Getting the file Hash will cache it into the source data
 	Arguments.SourceData->GetFileContentHash();
 
 	return StaticMeshObject;
-
-#endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
+void UInterchangeStaticMeshFactory::CommitMeshDescriptions(UStaticMesh& StaticMesh, TArray<FMeshDescription>&& LodMeshDescriptions)
+{
+#if WITH_EDITOR
+	for (int32 LodIndex = 0; LodIndex < LodMeshDescriptions.Num(); ++LodIndex)
+	{
+		FMeshDescription* StaticMeshDescription = StaticMesh.CreateMeshDescription(LodIndex);
+		check(StaticMeshDescription);
+		*StaticMeshDescription = MoveTemp(LodMeshDescriptions[LodIndex]);
+
+		UStaticMesh::FCommitMeshDescriptionParams CommitMeshDescriptionParams;
+		CommitMeshDescriptionParams.bMarkPackageDirty = false; // Marking packages dirty isn't threadsafe
+		StaticMesh.CommitMeshDescription(LodIndex, CommitMeshDescriptionParams);
+	}
+#else // WITH_EDITOR
+	TArray<const FMeshDescription*> MeshDescriptionPointers;
+	MeshDescriptionPointers.Reserve(LodMeshDescriptions.Num());
+
+	for (const FMeshDescription& MeshDescription : LodMeshDescriptions)
+	{
+		MeshDescriptionPointers.Add(&MeshDescription);
+	}
+
+	UStaticMesh::FBuildMeshDescriptionsParams BuildMeshDescriptionsParams;
+	BuildMeshDescriptionsParams.bUseHashAsGuid = true;
+	// Do not mark the package dirty since MarkPackageDirty is not thread safe
+	BuildMeshDescriptionsParams.bMarkPackageDirty = false;
+	BuildMeshDescriptionsParams.bBuildSimpleCollision = false;
+	// Do not commit since we only need the render data and commit is slow
+	BuildMeshDescriptionsParams.bCommitMeshDescription = false;
+	BuildMeshDescriptionsParams.bFastBuild = true;
+
+	StaticMesh.BuildFromMeshDescriptions(MeshDescriptionPointers, BuildMeshDescriptionsParams);
+#endif // !WITH_EDITOR
+}
+
+#if WITH_EDITORONLY_DATA
+void UInterchangeStaticMeshFactory::SetupSourceModelsSettings(UStaticMesh& StaticMesh, const TArray<FMeshDescription>& LodMeshDescriptions, int32 PreviousLodCount, int32 FinalLodCount, bool bIsAReimport)
+{
+	for (int32 LodIndex = 0; LodIndex < FinalLodCount; ++LodIndex)
+	{
+		FStaticMeshSourceModel& SrcModel = StaticMesh.GetSourceModel(LodIndex);
+
+		// Make sure that mesh descriptions for added LODs are kept as is when the mesh is built
+		if (LodIndex >= PreviousLodCount)
+		{
+			SrcModel.ReductionSettings.MaxDeviation = 0.0f;
+			SrcModel.ReductionSettings.PercentTriangles = 1.0f;
+			SrcModel.ReductionSettings.PercentVertices = 1.0f;
+		}
+
+		if (!bIsAReimport && LodMeshDescriptions.IsValidIndex(LodIndex))
+		{
+			FStaticMeshConstAttributes StaticMeshAttributes(LodMeshDescriptions[LodIndex]);
+			const int32 NumUVChannels = StaticMeshAttributes.GetVertexInstanceUVs().GetNumChannels();
+			const int32 FirstOpenUVChannel = NumUVChannels >= MAX_MESH_TEXTURE_COORDS_MD ? 1 : NumUVChannels;
+
+			SrcModel.BuildSettings.DstLightmapIndex = FirstOpenUVChannel;
+
+			if (LodIndex == 0)
+			{
+				StaticMesh.SetLightMapCoordinateIndex(FirstOpenUVChannel);
+			}
+		}
+	}
+}
+#endif // WITH_EDITORONLY_DATA
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets */
 void UInterchangeStaticMeshFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)

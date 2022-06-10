@@ -12,6 +12,8 @@
 #include "Engine/TextureDefines.h"
 #include "Engine/TextureLightProfile.h"
 #include "HAL/FileManagerGeneric.h"
+#include "ImageCoreUtils.h"
+#include "ImageUtils.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
@@ -29,6 +31,7 @@
 #include "InterchangeTranslatorBase.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Serialization/EditorBulkData.h"
 #include "Texture/InterchangeBlockedTexturePayloadInterface.h"
 #include "Texture/InterchangeSlicedTexturePayloadInterface.h"
 #include "Texture/InterchangeTextureLightProfilePayloadInterface.h"
@@ -521,8 +524,10 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return {};
 	}
 
-#if WITH_EDITORONLY_DATA
-	void SetupTextureSourceData(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTextureSourceData(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId);
+
+#if WITH_EDITOR
+	void SetupTextureSourceDataEditor(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		Texture->Source.InitWithCompressedSourceData(
 			Image.SizeX,
@@ -544,7 +549,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 	}
 
-	void SetupTexture2DSourceData(UTexture2D* Texture2D, const FImportBlockedImage& BlockedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTexture2DSourceDataEditor(UTexture2D* Texture2D, const FImportBlockedImage& BlockedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		if (BlockedImage.BlocksData.Num() > 1)
 		{
@@ -580,11 +585,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			Image.SizeY = Block.SizeY;
 			Image.NumMips = Block.NumMips;
 
-			SetupTextureSourceData(Texture2D, Image, MoveTemp(BufferAndId));
+			SetupTextureSourceDataEditor(Texture2D, Image, MoveTemp(BufferAndId));
 		}
 	}
 
-	void SetupTextureSourceData(UTexture* Texture, const FImportSlicedImage& SlicedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTextureSourceDataEditor(UTexture* Texture, const FImportSlicedImage& SlicedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		Texture->Source.InitLayered(
 			SlicedImage.SizeX,
@@ -603,108 +608,6 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		{
 			// if the source has mips we keep the mips by default, unless the user changes that
 			Texture->MipGenSettings = SlicedImage.MipGenSettings.GetValue();
-		}
-	}
-
-	void SetupTextureSourceData(UTextureLightProfile* TextureLightProfile, const FImportLightProfile& LightProfile, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
-	{
-		const FImportImage& ImportImage = LightProfile;
-		SetupTextureSourceData(TextureLightProfile, ImportImage, MoveTemp(BufferAndId));
-
-		TextureLightProfile->Brightness = LightProfile.Brightness;
-		TextureLightProfile->TextureMultiplier = LightProfile.TextureMultiplier;
-	}
-
-	bool CanSetupTexture2DSourceData(FTexturePayloadVariant& TexturePayload)
-	{
-		static_assert(TVariantSize<FTexturePayloadVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
-
-		if (TOptional<FImportBlockedImage>* BlockedImage = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
-		{
-			if (BlockedImage->IsSet())
-			{
-				return (*BlockedImage)->IsValid();
-			}
-		}
-		else if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
-		{
-			if (Image->IsSet())
-			{
-				return (*Image)->IsValid();
-			}
-		}
-		else if (TOptional<FImportLightProfile>* LightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
-		{
-			if (LightProfile->IsSet())
-			{
-				return (*LightProfile)->IsValid();
-			}
-		}
-
-		return false;
-	}
-
-	void SetupTexture2DSourceData(UTexture2D* Texture2D, FProcessedPayload& ProcessedPayload)
-	{
-		if (TOptional<FImportBlockedImage>* BlockedImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportBlockedImage>>())
-		{
-			if (BlockedImage->IsSet())
-			{
-				SetupTexture2DSourceData(Texture2D, BlockedImage->GetValue(), MoveTemp(ProcessedPayload.PayloadAndId));
-			}
-		}
-		else if (TOptional<FImportImage>* Image = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportImage>>())
-		{
-			if (Image->IsSet())
-			{
-				SetupTextureSourceData(Texture2D, Image->GetValue(), MoveTemp(ProcessedPayload.PayloadAndId));
-			}
-		}
-		else if (TOptional<FImportLightProfile>* OptionalLightProfile = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportLightProfile>>())
-		{
-			if (OptionalLightProfile->IsSet())
-			{
-				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
-
-				if (UTextureLightProfile* TextureLightProfile = Cast<UTextureLightProfile>(Texture2D))
-				{
-					SetupTextureSourceData(TextureLightProfile, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
-				}
-				else
-				{
-					SetupTextureSourceData(Texture2D, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
-				}
-			}
-		}
-		else
-		{
-			// The TexturePayload should be validated before calling this function
-			checkNoEntry();
-		}
-
-		// The texture has been imported and has no editor specific changes applied so we clear the painted flag.
-		Texture2D->bHasBeenPaintedInEditor = false;
-
-		// If the texture is larger than a certain threshold make it VT. This is explicitly done after the
-		// application of the existing settings above, so if a texture gets reimported at a larger size it will
-		// still be properly flagged as a VT (note: What about reimporting at a lower resolution?)
-		static const TConsoleVariableData<int32>* CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
-		check(CVarVirtualTexturesEnabled);
-
-		if (CVarVirtualTexturesEnabled->GetValueOnGameThread())
-		{
-			const int VirtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
-			const int VirtualTextureAutoEnableThresholdPixels = VirtualTextureAutoEnableThreshold * VirtualTextureAutoEnableThreshold;
-
-			// We do this in pixels so a 8192 x 128 texture won't get VT enabled 
-			// We use the Source size instead of simple Texture2D->GetSizeX() as this uses the size of the platform data
-			// however for a new texture platform data may not be generated yet, and for an reimport of a texture this is the size of the
-			// old texture. 
-			// Using source size gives one small caveat. It looks at the size before mipmap power of two padding adjustment.
-			if (Texture2D->Source.GetSizeX() * Texture2D->Source.GetSizeY() >= VirtualTextureAutoEnableThresholdPixels)
-			{
-				Texture2D->VirtualTextureStreaming = true;
-			}
 		}
 	}
 
@@ -748,7 +651,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 				// Cube texture always have six slice
 				if (SlicedImage.NumSlice == 6)
 				{
-					SetupTextureSourceData(TextureCube, SlicedImage, MoveTemp(ProcessedPayload.PayloadAndId));
+					SetupTextureSourceDataEditor(TextureCube, SlicedImage, MoveTemp(ProcessedPayload.PayloadAndId));
 				}
 			}
 		}
@@ -836,84 +739,6 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			// The TexturePayload should be validated before calling this function
 			checkNoEntry();
 		}
-	}
-
-	void LogErrorInvalidPayload(const FString& TextureClass, const FString& ObjectName)
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a %s. (%s)"), *TextureClass, *ObjectName);
-	}
-
-	FSharedBuffer MoveRawDataToSharedBuffer(FTexturePayloadVariant& TexturePayload)
-	{
-		static_assert(TVariantSize<FTexturePayloadVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
-
-		if (TOptional<FImportBlockedImage>* BlockedImage = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
-		{
-			return (*BlockedImage)->RawData.MoveToShared();
-		}
-		else if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
-		{
-			return (*Image)->RawData.MoveToShared();
-		}
-		else if (TOptional<FImportSlicedImage>* SlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
-		{
-			return (*SlicedImage)->RawData.MoveToShared();
-		}
-		else if (TOptional<FImportLightProfile>* LightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
-		{
-			return (*LightProfile)->RawData.MoveToShared();
-		}
-
-		// The TexturePayload should be validated before calling this function
-		checkNoEntry();
-		return {};
-	}
-
-	FProcessedPayload& FProcessedPayload::operator=(UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant&& InPayloadVariant)
-	{
-		SettingsFromPayload = MoveTemp(InPayloadVariant);
-		PayloadAndId = MoveRawDataToSharedBuffer(SettingsFromPayload);
-
-		return *this;
-	}
-
-	bool FProcessedPayload::IsValid() const
-	{
-		if (SettingsFromPayload.IsType<FEmptyVariantState>())
-		{
-			return false;
-		}
-
-		return true;
-	}
-
-
-	TArray<FString> GetFilesToHash(const FTextureFactoryNodeVariant& TextureFactoryNodeVariant, const FTexturePayloadVariant& TexturePayload)
-	{
-		TArray<FString> FilesToHash;
-		// Standard texture 2D payload
-		if (const UInterchangeTexture2DFactoryNode* const* TextureNode = TextureFactoryNodeVariant.TryGet<UInterchangeTexture2DFactoryNode*>())
-		{
-			using namespace UE::Interchange;
-			if (const TOptional<FImportBlockedImage>* OptionalBlockedPayload = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
-			{
-				if (OptionalBlockedPayload->IsSet())
-				{
-					const FImportBlockedImage& BlockImage = OptionalBlockedPayload->GetValue();
-					TMap<int32, FString> BlockAndFiles = (*TextureNode)->GetSourceBlocks();
-					FilesToHash.Reserve(BlockAndFiles.Num());
-					for (const FTextureSourceBlock& BlockData : BlockImage.BlocksData)
-					{
-						if (FString* FilePath = BlockAndFiles.Find(UE::TextureUtilitiesCommon::GetUDIMIndex(BlockData.BlockX, BlockData.BlockY)))
-						{
-							FilesToHash.Add(*FilePath);
-						}
-					}
-				}
-
-			}
-		}
-		return FilesToHash;
 	}
 
 	FGraphEventArray GenerateHashSourceFilesTasks(const UInterchangeSourceData* SourceData, TArray<FString>&& FilesToHash, TArray<FAssetImportInfo::FSourceFile>& OutSourceFiles)
@@ -1020,8 +845,255 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 
 		return TasksToDo;
 	}
+#else // WITH_EDITOR
+	void SetupTexture2DSourceDataRuntime(UTexture2D* Texture2D, const FImportImage& ImportImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	{
+		Texture2D->SRGB = ImportImage.bSRGB;
+		ERawImageFormat::Type PixelFormatRawFormat;
+		const EPixelFormat PixelFormat = FImageCoreUtils::GetPixelFormatForRawImageFormat(FImageCoreUtils::ConvertToRawImageFormat(ImportImage.Format), &PixelFormatRawFormat);
 
+		UE::Serialization::FEditorBulkData BulkData;
+		BulkData.UpdatePayload(MoveTemp(BufferAndId));
+		TFuture<FSharedBuffer> Payload = BulkData.GetPayload();
+
+		const EGammaSpace GammaSpace = ImportImage.bSRGB ? EGammaSpace::sRGB : EGammaSpace::Linear;
+		constexpr int32 NumSlices = 1;
+		FImageView SourceImageView(const_cast<void*>(Payload.Get().GetData()), ImportImage.SizeX, ImportImage.SizeY, NumSlices, PixelFormatRawFormat, GammaSpace);
+
+		FImage DecompressedSourceImage;
+		if (ImportImage.RawDataCompressionFormat != TSCF_None)
+		{
+			if (FImageUtils::DecompressImage(Payload.Get().GetData(), Payload.Get().GetSize(), DecompressedSourceImage))
+			{
+				SourceImageView = DecompressedSourceImage;
+			}
+		}
+
+		{
+			Texture2D->SetPlatformData(new FTexturePlatformData());
+			Texture2D->GetPlatformData()->SizeX = ImportImage.SizeX;
+			Texture2D->GetPlatformData()->SizeY = ImportImage.SizeY;
+			Texture2D->GetPlatformData()->PixelFormat = PixelFormat;
+
+			// Allocate first mipmap.
+			int32 NumBlocksX = ImportImage.SizeX / GPixelFormats[PixelFormat].BlockSizeX;
+			int32 NumBlocksY = ImportImage.SizeY / GPixelFormats[PixelFormat].BlockSizeY;
+			FTexture2DMipMap* Mip = new FTexture2DMipMap();
+			Texture2D->GetPlatformData()->Mips.Add(Mip);
+			Mip->SizeX = ImportImage.SizeX;
+			Mip->SizeY = ImportImage.SizeY;
+			Mip->BulkData.Lock(LOCK_READ_WRITE);
+			Mip->BulkData.Realloc(NumBlocksX * NumBlocksY * GPixelFormats[PixelFormat].BlockBytes);
+			Mip->BulkData.Unlock();
+		}
+
+		{
+
+			Texture2D->bNotOfflineProcessed = true;
+
+			uint8* MipData = static_cast<uint8*>(Texture2D->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
+			check(MipData != nullptr);
+			int64 MipDataSize = Texture2D->GetPlatformData()->Mips[0].BulkData.GetBulkDataSize();
+
+			FImageView MipImageView(MipData, ImportImage.SizeX, ImportImage.SizeY, NumSlices, PixelFormatRawFormat, GammaSpace);
+
+			// copy into texture and convert if necessary :
+			FImageCore::CopyImage(SourceImageView, MipImageView);
+
+			Texture2D->GetPlatformData()->Mips[0].BulkData.Unlock();
+
+			Texture2D->UpdateResource();
+		}
+	}
+#endif // !WITH_EDITOR
+
+	FSharedBuffer MoveRawDataToSharedBuffer(FTexturePayloadVariant& TexturePayload)
+	{
+		static_assert(TVariantSize<FTexturePayloadVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+
+		if (TOptional<FImportBlockedImage>* BlockedImage = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
+		{
+			return (*BlockedImage)->RawData.MoveToShared();
+		}
+		else if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
+		{
+			return (*Image)->RawData.MoveToShared();
+		}
+		else if (TOptional<FImportSlicedImage>* SlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
+		{
+			return (*SlicedImage)->RawData.MoveToShared();
+		}
+		else if (TOptional<FImportLightProfile>* LightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			return (*LightProfile)->RawData.MoveToShared();
+		}
+
+		// The TexturePayload should be validated before calling this function
+		checkNoEntry();
+		return {};
+	}
+
+	FProcessedPayload& FProcessedPayload::operator=(UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant&& InPayloadVariant)
+	{
+		SettingsFromPayload = MoveTemp(InPayloadVariant);
+		PayloadAndId = MoveRawDataToSharedBuffer(SettingsFromPayload);
+
+		return *this;
+	}
+
+	bool FProcessedPayload::IsValid() const
+	{
+		if (SettingsFromPayload.IsType<FEmptyVariantState>())
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+
+	TArray<FString> GetFilesToHash(const FTextureFactoryNodeVariant& TextureFactoryNodeVariant, const FTexturePayloadVariant& TexturePayload)
+	{
+		TArray<FString> FilesToHash;
+		// Standard texture 2D payload
+		if (const UInterchangeTexture2DFactoryNode* const* TextureNode = TextureFactoryNodeVariant.TryGet<UInterchangeTexture2DFactoryNode*>())
+		{
+			using namespace UE::Interchange;
+			if (const TOptional<FImportBlockedImage>* OptionalBlockedPayload = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
+			{
+				if (OptionalBlockedPayload->IsSet())
+				{
+					const FImportBlockedImage& BlockImage = OptionalBlockedPayload->GetValue();
+					TMap<int32, FString> BlockAndFiles = (*TextureNode)->GetSourceBlocks();
+					FilesToHash.Reserve(BlockAndFiles.Num());
+					for (const FTextureSourceBlock& BlockData : BlockImage.BlocksData)
+					{
+						if (FString* FilePath = BlockAndFiles.Find(UE::TextureUtilitiesCommon::GetUDIMIndex(BlockData.BlockX, BlockData.BlockY)))
+						{
+							FilesToHash.Add(*FilePath);
+						}
+					}
+				}
+
+			}
+		}
+		return FilesToHash;
+	}
+
+	void LogErrorInvalidPayload(const FString& TextureClass, const FString& ObjectName)
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a %s. (%s)"), *TextureClass, *ObjectName);
+	}
+
+	bool CanSetupTexture2DSourceData(FTexturePayloadVariant& TexturePayload)
+	{
+		static_assert(TVariantSize<FTexturePayloadVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+
+#if WITH_EDITOR
+		if (TOptional<FImportBlockedImage>* BlockedImage = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
+		{
+			if (BlockedImage->IsSet())
+			{
+				return (*BlockedImage)->IsValid();
+			}
+		}
+		else
+#endif // WITH_EDITOR
+		if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (Image->IsSet())
+			{
+				return (*Image)->IsValid();
+			}
+		}
+		else if (TOptional<FImportLightProfile>* LightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (LightProfile->IsSet())
+			{
+				return (*LightProfile)->IsValid();
+			}
+		}
+
+		return false;
+	}
+
+	void SetupTextureSourceData(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	{
+#if WITH_EDITOR
+		SetupTextureSourceDataEditor(Texture, Image, MoveTemp(BufferAndId));
+#else
+		SetupTexture2DSourceDataRuntime(Cast<UTexture2D>(Texture), Image, MoveTemp(BufferAndId));
+#endif
+	}
+
+	void SetupTexture2DSourceData(UTexture2D* Texture2D, FProcessedPayload& ProcessedPayload)
+	{
+#if WITH_EDITOR
+		if (TOptional<FImportBlockedImage>* BlockedImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportBlockedImage>>())
+		{
+			if (BlockedImage->IsSet())
+			{
+				SetupTexture2DSourceDataEditor(Texture2D, BlockedImage->GetValue(), MoveTemp(ProcessedPayload.PayloadAndId));
+			}
+		}
+		else
+#endif // WITH_EDITOR
+		if (TOptional<FImportImage>* Image = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (Image->IsSet())
+			{
+				SetupTextureSourceData(Texture2D, Image->GetValue(), MoveTemp(ProcessedPayload.PayloadAndId));
+			}
+		}
+		else if (TOptional<FImportLightProfile>* OptionalLightProfile = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (OptionalLightProfile->IsSet())
+			{
+				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
+
+				if (UTextureLightProfile* TextureLightProfile = Cast<UTextureLightProfile>(Texture2D))
+				{
+					SetupTextureSourceData(TextureLightProfile, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
+				}
+				else
+				{
+					SetupTextureSourceData(Texture2D, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
+				}
+			}
+		}
+		else
+		{
+			// The TexturePayload should be validated before calling this function
+			checkNoEntry();
+		}
+
+#if WITH_EDITORONLY_DATA
+		// The texture has been imported and has no editor specific changes applied so we clear the painted flag.
+		Texture2D->bHasBeenPaintedInEditor = false;
+
+		// If the texture is larger than a certain threshold make it VT. This is explicitly done after the
+		// application of the existing settings above, so if a texture gets reimported at a larger size it will
+		// still be properly flagged as a VT (note: What about reimporting at a lower resolution?)
+		static const TConsoleVariableData<int32>* CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
+		check(CVarVirtualTexturesEnabled);
+
+		if (CVarVirtualTexturesEnabled->GetValueOnGameThread())
+		{
+			const int VirtualTextureAutoEnableThreshold = GetDefault<UTextureImportSettings>()->AutoVTSize;
+			const int VirtualTextureAutoEnableThresholdPixels = VirtualTextureAutoEnableThreshold * VirtualTextureAutoEnableThreshold;
+
+			// We do this in pixels so a 8192 x 128 texture won't get VT enabled 
+			// We use the Source size instead of simple Texture2D->GetSizeX() as this uses the size of the platform data
+			// however for a new texture platform data may not be generated yet, and for an reimport of a texture this is the size of the
+			// old texture. 
+			// Using source size gives one small caveat. It looks at the size before mipmap power of two padding adjustment.
+			if (Texture2D->Source.GetSizeX() * Texture2D->Source.GetSizeY() >= VirtualTextureAutoEnableThresholdPixels)
+			{
+				Texture2D->VirtualTextureStreaming = true;
+			}
+		}
 #endif // WITH_EDITORONLY_DATA
+	}
  }
 
 
@@ -1036,7 +1108,6 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 
 	UObject* Texture = nullptr;
 
-#if WITH_EDITORONLY_DATA
 	if (!Arguments.AssetNode)
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is null."));
@@ -1086,7 +1157,9 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 		{
 			LightProfile->AddressX = TA_Clamp;
 			LightProfile->AddressY = TA_Clamp;
+#if WITH_EDITORONLY_DATA
 			LightProfile->MipGenSettings = TMGS_NoMipmaps;
+#endif
 			LightProfile->LODGroup = TEXTUREGROUP_IESLightProfile;
 		}
 	}
@@ -1102,20 +1175,12 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 		return nullptr;
 	}
 
-#endif //WITH_EDITORONLY_DATA
 	return Texture;
 }
 
 // The payload fetching and the heavy operations are done here
 UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Arguments)
 {
-#if !WITH_EDITORONLY_DATA
-
-	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import texture asset in runtime, this is an editor only feature."));
-	return nullptr;
-
-#else
-
 	TRACE_CPUPROFILER_EVENT_SCOPE(UInterchangeTextureFactory::CreateAsset);
 
 	using namespace  UE::Interchange::Private::InterchangeTextureFactory;
@@ -1198,6 +1263,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 	{
 		bCanSetup = CanSetupTexture2DSourceData(TexturePayload);
 	}
+#if WITH_EDITOR
 	else if (UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
 	{
 		bCanSetup = CanSetupTextureCubeSourceData(TexturePayload);
@@ -1206,6 +1272,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 	{
 		bCanSetup = CanSetupTexture2DArraySourceData(TexturePayload);
 	}
+#endif // WITH_EDITOR
 
 	if (!bCanSetup)
 	{
@@ -1213,7 +1280,11 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 		return Texture;
 	}
 
-	FGraphEventArray TasksToDo = GenerateHashSourceFilesTasks(Arguments.SourceData, GetFilesToHash(TextureFactoryNodeVariant, TexturePayload), SourceFiles);
+	FGraphEventArray TasksToDo;
+
+#if WITH_EDITORONLY_DATA
+	TasksToDo = GenerateHashSourceFilesTasks(Arguments.SourceData, GetFilesToHash(TextureFactoryNodeVariant, TexturePayload), SourceFiles);
+#endif
 
 	// Hash the payload while we hash the source files
 
@@ -1227,7 +1298,6 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 	//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all texture in parallel
 
 	return Texture;
-#endif
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
@@ -1239,13 +1309,12 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 
 	UTexture* Texture = Cast<UTexture>(Arguments.ImportedObject);
 
-#if WITH_EDITOR
-
 	// Finish the import on the game thread by doing the setup on the texture here
 	if (Texture && ProcessedPayload.IsValid())
 	{
+#if WITH_EDITOR
 		Texture->PreEditChange(nullptr);
-
+#endif
 		using namespace UE::Interchange::Private::InterchangeTextureFactory;
 
 		// Setup source data
@@ -1253,6 +1322,7 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 		{
 			SetupTexture2DSourceData(Texture2D, ProcessedPayload);
 		}
+#if WITH_EDITOR
 		else if (UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
 		{
 			SetupTextureCubeSourceData(TextureCube, ProcessedPayload);
@@ -1289,6 +1359,7 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 			//Apply reimport strategy
 			UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Texture, PreviousNode, CurrentNode, TextureFactoryNode);
 		}
+#endif // WITH_EDITOR
 	}
 	else
 	{
@@ -1300,7 +1371,6 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 			Texture->MarkAsGarbage();
 		}
 	}
-#endif //WITH_EDITOR
 
 	Super::PreImportPreCompletedCallback(Arguments);
 

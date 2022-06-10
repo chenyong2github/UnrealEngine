@@ -35,6 +35,7 @@ namespace UnrealBuildTool.Rules
 					"InterchangeDispatcher",
 					"InterchangeMessages",
 					"Json",
+					"RenderCore",
 					"RHI",
 					"TextureUtilitiesCommon",
 				}

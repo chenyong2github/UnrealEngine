@@ -217,7 +217,7 @@ FInterchangeTestFunctionResult FInterchangeTestFunction::Invoke(const TArray<UOb
 	UClass* ExpectedClass = AssetClass;
 	for (UObject* Asset : AssetsToTest)
 	{
-		if (Asset->GetClass()->IsChildOf(ExpectedClass))
+		if (Asset && Asset->GetClass()->IsChildOf(ExpectedClass))
 		{
 			// If the asset is of the expected class, add it if the name matches the supplied optional asset name,
 			// or if we are not checking a specific name.

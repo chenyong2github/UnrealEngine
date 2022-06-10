@@ -94,6 +94,14 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 		SourceNode->GetCustomImportUnusedMaterial(bImportUnusedMaterial);
 	}
 
+#if !WITH_EDITOR
+	// Can't import materials at runtime, fallback to instances
+	if (MaterialImport == EInterchangeMaterialImportOption::ImportAsMaterials)
+	{
+		MaterialImport = EInterchangeMaterialImportOption::ImportAsMaterialInstances;
+	}
+#endif // !WITH_EDITOR
+
 	if (MaterialImport == EInterchangeMaterialImportOption::ImportAsMaterials)
 	{
 		for (const UInterchangeShaderGraphNode* ShaderGraphNode : MaterialNodes)

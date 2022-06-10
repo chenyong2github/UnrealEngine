@@ -104,6 +104,13 @@ private:
 	 */
 	void ImplementUseSourceNameForAssetOption();
 
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Adds the user defined attributes (UInterchangeUserDefinedAttributesAPI) to the package meta data (UMetaData)
+	 */
+	void AddPackageMetaData(UObject* CreatedAsset, const UInterchangeBaseNode* Node);
+#endif // WITH_EDITORONLY_DATA
+
 	UInterchangeBaseNodeContainer* BaseNodeContainer;
 	TArray<const UInterchangeSourceData*> SourceDatas;
 	
