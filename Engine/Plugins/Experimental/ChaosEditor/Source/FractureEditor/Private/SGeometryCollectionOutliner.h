@@ -164,7 +164,7 @@ public:
 	TSharedRef<SWidget> MakeDamageThresholdColumnWidget() const;
 	TSharedRef<SWidget> MakeBrokenColumnWidget() const;
 	TSharedRef<SWidget> MakeInitialStateColumnWidget() const;
-	TSharedRef<SWidget> MakePostBreakTimecolumnWidget() const;
+	TSharedRef<SWidget> MakePostBreakTimeColumnWidget() const;
 	TSharedRef<SWidget> MakeRemovalTimeColumnWidget() const;
 	TSharedRef<SWidget> MakeImportedCollisionsColumnWidget() const;
 	TSharedRef<SWidget> MakeEmptyColumnWidget() const;
