@@ -116,9 +116,9 @@ void FMediaIOCorePlayerBase::Close()
 		Samples->FlushSamples();
 		EventSink.ReceiveMediaEvent(EMediaEvent::TracksChanged);
 		EventSink.ReceiveMediaEvent(EMediaEvent::MediaClosed);
-
-		ITimeManagementModule::Get().GetTimedDataInputCollection().Remove(this);
 	}
+
+	ITimeManagementModule::Get().GetTimedDataInputCollection().Remove(this);
 }
 
 FString FMediaIOCorePlayerBase::GetInfo() const
