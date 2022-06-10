@@ -1180,14 +1180,14 @@ void DrawDebugCanvasWireBox(UCanvas* Canvas, const FMatrix& Transform, const FBo
 {
 	const FVector Vertices[] =
 	{
-		FVector(Box.Min.X, Box.Min.Y, Box.Min.Z),
-		FVector(Box.Min.X, Box.Min.Y, Box.Max.Z),
-		FVector(Box.Min.X, Box.Max.Y, Box.Min.Z),
-		FVector(Box.Min.X, Box.Max.Y, Box.Max.Z),
-		FVector(Box.Max.X, Box.Min.Y, Box.Min.Z),
-		FVector(Box.Max.X, Box.Min.Y, Box.Max.Z),
-		FVector(Box.Max.X, Box.Max.Y, Box.Min.Z),
-		FVector(Box.Max.X, Box.Max.Y, Box.Max.Z)
+		Transform.TransformPosition(FVector(Box.Min.X, Box.Min.Y, Box.Min.Z)),
+		Transform.TransformPosition(FVector(Box.Min.X, Box.Min.Y, Box.Max.Z)),
+		Transform.TransformPosition(FVector(Box.Min.X, Box.Max.Y, Box.Min.Z)),
+		Transform.TransformPosition(FVector(Box.Min.X, Box.Max.Y, Box.Max.Z)),
+		Transform.TransformPosition(FVector(Box.Max.X, Box.Min.Y, Box.Min.Z)),
+		Transform.TransformPosition(FVector(Box.Max.X, Box.Min.Y, Box.Max.Z)),
+		Transform.TransformPosition(FVector(Box.Max.X, Box.Max.Y, Box.Min.Z)),
+		Transform.TransformPosition(FVector(Box.Max.X, Box.Max.Y, Box.Max.Z))
 	};
 
 	const FIntVector2 Edges[] =

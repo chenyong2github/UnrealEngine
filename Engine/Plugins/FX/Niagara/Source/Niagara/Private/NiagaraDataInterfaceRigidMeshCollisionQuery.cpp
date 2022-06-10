@@ -1724,7 +1724,7 @@ bool UNiagaraDataInterfaceRigidMeshCollisionQuery::FilterActor(const AActor* Act
 		return true;
 	}
 
-	if (!ActorTags.ContainsByPredicate([&](const FName& Tag) { return Tag == NAME_None || Actor->Tags.Contains(Tag); }))
+	if (!ActorTags.IsEmpty() && !ActorTags.ContainsByPredicate([&](const FName& Tag) { return Tag == NAME_None || Actor->Tags.Contains(Tag); }))
 	{
 		return true;
 	}

@@ -2634,7 +2634,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 								{
 									if (UserVariable.IsDataInterface())
 									{
-										UNiagaraDataInterface* DataInterface = ParameterStore->GetDataInterfaces()[UserVariable.Offset];
+										UNiagaraDataInterface* DataInterface = ParameterStore->GetDataInterface(UserVariable);
 										FString DataInterfaceString;
 										if ( DataInterface != nullptr && Settings.DataInterfaceVerbosity != ENiagaraDebugHudVerbosity::None )
 										{
