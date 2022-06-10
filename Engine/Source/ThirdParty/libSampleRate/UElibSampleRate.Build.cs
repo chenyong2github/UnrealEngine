@@ -12,7 +12,5 @@ public class UELibSampleRate : ModuleRules
                     "Core"
                 }
             );
-
-		PublicDefinitions.Add("PLATFORM_CONSOLE_DYNAMIC_LINK=0");
 	}
 }
