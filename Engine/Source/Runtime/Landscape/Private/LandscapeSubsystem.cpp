@@ -16,6 +16,7 @@
 #include "Math/IntRect.h"
 #include "LandscapeConfigHelper.h"
 #include "Engine/Canvas.h"
+#include "EngineUtils.h"
 
 static int32 GUseStreamingManagerForCameras = 1;
 static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
@@ -168,6 +169,7 @@ void ULandscapeSubsystem::BuildAll()
 	BuildGrassMaps();
 	BuildGIBakedTextures();
 	BuildPhysicalMaterial();
+	BuildNanite();
 }
 
 void ULandscapeSubsystem::BuildGrassMaps()
@@ -198,6 +200,21 @@ void ULandscapeSubsystem::BuildPhysicalMaterial()
 int32 ULandscapeSubsystem::GetOudatedPhysicalMaterialComponentsCount()
 {
 	return PhysicalMaterialBuilder->GetOudatedPhysicalMaterialComponentsCount();
+}
+
+void ULandscapeSubsystem::BuildNanite()
+{
+	UWorld* World = GetWorld();
+	if (!World || World->IsGameWorld())
+	{
+		return;
+	}
+
+	for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
+	{
+		ProxyIt->UpdateNaniteRepresentation();
+		ProxyIt->UpdateRenderingMethod();
+	}
 }
 
 bool ULandscapeSubsystem::IsGridBased() const

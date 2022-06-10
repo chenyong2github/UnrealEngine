@@ -75,7 +75,8 @@ void ULandscapeNaniteComponent::UpdatedSharedPropertiesFromActor()
 
 void ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId)
 {
-	UStaticMesh* NaniteStaticMesh = NewObject<UStaticMesh>(this /* Outer */);
+	UStaticMesh* NaniteStaticMesh = NewObject<UStaticMesh>(this /* Outer */, TEXT("LandscapeNaniteMesh"), RF_Transactional);
+
 	FMeshDescription* MeshDescription = nullptr;
 
 	// Mesh

@@ -306,12 +306,12 @@ void ALandscapeProxy::CheckGenerateMobilePlatformData(bool bIsCooking, const ITa
 
 void ALandscapeProxy::UpdateNaniteRepresentation()
 {
-	if (IsNaniteEnabled() && LandscapeComponents.Num() > 0)
+	if (IsNaniteEnabled() && !HasAnyFlags(RF_ClassDefaultObject) && LandscapeComponents.Num() > 0)
 	{
 		const FGuid NaniteContentId = GetNaniteContentId();
 		if (NaniteComponent == nullptr)
 		{
-			NaniteComponent = NewObject<ULandscapeNaniteComponent>(this);
+			NaniteComponent = NewObject<ULandscapeNaniteComponent>(this, TEXT("LandscapeNaniteComponent"), RF_Transactional);
 
 			NaniteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			NaniteComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -326,6 +326,9 @@ void ALandscapeProxy::UpdateNaniteRepresentation()
 
 		if (NaniteComponent->GetProxyContentId() != NaniteContentId)
 		{
+			FScopedSlowTask ProgressDialog(1, LOCTEXT("BuildingLandscapeNanite", "Building Landscape Nanite Data"));
+			ProgressDialog.MakeDialog();
+
 			NaniteComponent->InitializeForLandscape(this, NaniteContentId);
 		}
 
@@ -2852,6 +2855,9 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 			});
 		}
 	}
+
+	UpdateNaniteRepresentation();
+	UpdateRenderingMethod();
 #endif // WITH_EDITOR
 }
 
@@ -2882,16 +2888,6 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 				LOD0DistributionSetting = LOD0SquareRootDistributionSettingMigrationTable[FMath::RoundToInt(LODDistanceFactor_DEPRECATED)];
 				LODDistributionSetting = LODDSquareRootDistributionSettingMigrationTable[FMath::RoundToInt(LODDistanceFactor_DEPRECATED)];
 			}
-		}
-	}
-#endif
-
-#if WITH_EDITOR
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		if (Ar.IsCooking() || (Ar.IsSaving() && !Ar.IsTransacting()))
-		{
-			UpdateNaniteRepresentation();
 		}
 	}
 #endif

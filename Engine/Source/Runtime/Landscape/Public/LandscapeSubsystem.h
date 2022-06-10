@@ -37,6 +37,7 @@ public:
 	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount();
 	LANDSCAPE_API void BuildPhysicalMaterial();
 	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount();
+	LANDSCAPE_API void BuildNanite();
 	LANDSCAPE_API bool IsGridBased() const;
 	LANDSCAPE_API void ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 NewGridSizeInComponents);
 	LANDSCAPE_API ALandscapeProxy* FindOrAddLandscapeProxy(ULandscapeInfo* LandscapeInfo, const FIntPoint& SectionBase);
