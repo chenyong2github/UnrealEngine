@@ -30,11 +30,13 @@ public:
 public:
 	
 	/** The text content for this editable text box widget */
-	UPROPERTY(EditAnywhere, Category=Content, meta=(MultiLine="true"))
+	UE_DEPRECATED(5.1, "Direct access to Text is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetText", BlueprintSetter = "SetText", Category = Content, meta=(MultiLine="true"))
 	FText Text;
 
 	/** Hint text that appears when there is no text in the text box */
-	UPROPERTY(EditAnywhere, Category=Content, meta=(MultiLine="true"))
+	UE_DEPRECATED(5.1, "Direct access to HintText is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetHintText", BlueprintSetter = "SetHintText", Category = Content, meta = (MultiLine = "true"))
 	FText HintText;
 
 	/** A bindable delegate to allow logic to drive the hint text of the widget */
@@ -50,8 +52,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetTextStyle, Category="Style", meta=(DisplayName="Text Style"))
 	FTextBlockStyle TextStyle;
 
-	/** Sets whether this text block can be modified interactively by the user */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Appearance")
+	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
+	UE_DEPRECATED(5.1, "Direct access to IsReadOnly is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = GetIsReadOnly, Setter = SetIsReadOnly, Category = Appearance)
 	bool bIsReadOnly;
 
 	/** Whether the context menu can be opened */
@@ -79,27 +82,41 @@ public:
 
 public:
 
-	/**  */
+	/**
+	 * Gets the widget text
+	 * @return The widget text
+	 */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="GetText (Multi-Line Text Box)"))
 	FText GetText() const;
 
-	/**  */
+	/**
+	 * Directly sets the widget text.
+	 * Warning: This will wipe any binding created for the Text property!
+	 * @param InText The text to assign to the widget
+	 */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetText (Multi-Line Text Box)"))
 	void SetText(FText InText);
 
-	/**  */
-	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="GetHintText (Multi-Line Text Box)"))
+	/** Returns the Hint text that appears when there is no text in the text box */
+	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "GetHintText (Multi-Line Text Box)"))
 	FText GetHintText() const;
 
-	/**  */
+	/**
+	* Sets the Hint text that appears when there is no text in the text box
+	* @param InHintText The text that appears when there is no text in the text box
+	*/
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetHintText (Multi-Line Text Box)"))
 	void SetHintText(FText InHintText);
 
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetError (Multi-Line Text Box)"))
 	void SetError(FText InError);
 
-	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetIsReadOnly (Multi-Line Text Box)"))
-	void SetIsReadOnly(bool bReadOnly);
+	/** Return true when this text cannot be modified interactively by the user */
+	bool GetIsReadOnly() const;
+
+	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
+	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "SetIsReadOnly (Multi-Line Text Box)"))
+	void SetIsReadOnly(UPARAM(DisplayName = "ReadyOnly") bool bReadOnly);
 
 	UFUNCTION(BlueprintSetter)
 	void SetTextStyle(const FTextBlockStyle& InTextStyle);

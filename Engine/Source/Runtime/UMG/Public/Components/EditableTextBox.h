@@ -35,7 +35,7 @@ public:
 public:
 	/** The text content for this editable text box widget */
 	UE_DEPRECATED(5.1, "Direct access to Text is deprecated. Please use the getter or setter.")
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetText", BlueprintSetter = "SetText", Category = "Content")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetText", BlueprintSetter = "SetText", FieldNotify, Category = "Content")
 	FText Text;
 
 	/** A bindable delegate to allow logic to drive the text of the widget */
@@ -57,7 +57,7 @@ public:
 	UPROPERTY()
 	FGetText HintTextDelegate;
 
-	/** Sets whether this text box can actually be modified interactively by the user */
+	/** Sets the Text Box as Readonly to prevent it from being modified interactively by the user */
 	UE_DEPRECATED(5.1, "Direct access to IsReadOnly is deprecated. Please use the getter or setter.")
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = Appearance)
 	bool IsReadOnly;
@@ -180,8 +180,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget",  meta=(DisplayName="SetError (Text Box)"))
 	void SetError(FText InError);
 
+	/** Return true when this text cannot be modified interactively by the user */
 	bool GetIsReadOnly() const;
 
+	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "SetIsReadOnly (Editable Text)"))
 	void SetIsReadOnly(UPARAM(DisplayName = "ReadyOnly") bool bReadOnly);
 

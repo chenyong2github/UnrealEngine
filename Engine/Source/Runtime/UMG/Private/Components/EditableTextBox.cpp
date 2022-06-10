@@ -139,7 +139,16 @@ FText UEditableTextBox::GetText() const
 
 void UEditableTextBox::SetText(FText InText)
 {
+	// We detect if the Text is internal pointing to the same thing if so, nothing to do.
+	if (Text.IdenticalTo(InText))
+	{
+		return;
+	}
+
 	Text = InText;
+
+	BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Text);
+
 	if ( MyEditableTextBlock.IsValid() )
 	{
 		MyEditableTextBlock->SetText(Text);
@@ -201,9 +210,9 @@ bool UEditableTextBox::GetIsReadOnly() const
 	return IsReadOnly;
 }
 
-void UEditableTextBox::SetIsReadOnly(bool bReadOnly)
+void UEditableTextBox::SetIsReadOnly(bool bIsReadOnly)
 {
-	IsReadOnly = bReadOnly;
+	IsReadOnly = bIsReadOnly;
 	if ( MyEditableTextBlock.IsValid() )
 	{
 		MyEditableTextBlock->SetIsReadOnly(IsReadOnly);

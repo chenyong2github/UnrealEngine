@@ -18,6 +18,7 @@ static FTextBlockStyle* DefaultMultiLineEditableTextStyle = nullptr;
 static FTextBlockStyle* EditorMultiLineEditableTextStyle = nullptr;
 #endif 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UMultiLineEditableText::UMultiLineEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -146,7 +147,16 @@ FText UMultiLineEditableText::GetText() const
 
 void UMultiLineEditableText::SetText(FText InText)
 {
+	// We detect if the Text is internal pointing to the same thing if so, nothing to do.
+	if (Text.IdenticalTo(InText))
+	{
+		return;
+	}
+
 	Text = InText;
+
+	BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Text);
+
 	if ( MyMultiLineEditableText.IsValid() )
 	{
 		MyMultiLineEditableText->SetText(Text);
@@ -174,6 +184,11 @@ void UMultiLineEditableText::SetHintText(FText InHintText)
 	}
 }
 
+bool UMultiLineEditableText::GetIsReadOnly() const
+{
+	return bIsReadOnly;
+}
+
 void UMultiLineEditableText::SetIsReadOnly(bool bReadOnly)
 {
 	bIsReadOnly = bReadOnly;
@@ -183,6 +198,7 @@ void UMultiLineEditableText::SetIsReadOnly(bool bReadOnly)
 		MyMultiLineEditableText->SetIsReadOnly(bIsReadOnly);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UMultiLineEditableText::SetWidgetStyle(const FTextBlockStyle& InWidgetStyle)
 {

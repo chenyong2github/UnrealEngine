@@ -20,6 +20,7 @@ static FEditableTextBoxStyle* EditorMultiLineEditableTextBoxStyle = nullptr;
 static FTextBlockStyle* EditorMultiLineEditableTextBoxTextStyle = nullptr;
 #endif 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -184,6 +185,11 @@ void UMultiLineEditableTextBox::SetError(FText InError)
 	}
 }
 
+bool UMultiLineEditableTextBox::GetIsReadOnly() const
+{
+	return bIsReadOnly;
+}
+
 void UMultiLineEditableTextBox::SetIsReadOnly(bool bReadOnly)
 {
 	bIsReadOnly = bReadOnly;
@@ -193,6 +199,8 @@ void UMultiLineEditableTextBox::SetIsReadOnly(bool bReadOnly)
 		MyEditableTextBlock->SetIsReadOnly(bIsReadOnly);
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UMultiLineEditableTextBox::SetTextStyle(const FTextBlockStyle& InTextStyle)
 {
