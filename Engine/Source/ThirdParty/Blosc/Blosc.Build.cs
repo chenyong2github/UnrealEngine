@@ -36,5 +36,15 @@ public class Blosc : ModuleRules
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libblosc" + LibPostfix + ".a"));
 		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"Unix",
+				Target.Architecture,
+				"lib");
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libblosc" + LibPostfix + ".a"));
+		}
 	}
 }
