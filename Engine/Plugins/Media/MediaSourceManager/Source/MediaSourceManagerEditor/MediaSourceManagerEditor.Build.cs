@@ -13,6 +13,8 @@ public class MediaSourceManagerEditor : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"MediaSourceManager",
+				"UnrealEd",
 			}
 			);
 	}

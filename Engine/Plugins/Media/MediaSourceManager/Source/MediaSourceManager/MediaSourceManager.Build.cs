@@ -8,16 +8,11 @@ public class MediaSourceManager : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core",
-			}
-			);
-		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"Core",
+				"CoreUObject",
 			}
 			);
 	}
