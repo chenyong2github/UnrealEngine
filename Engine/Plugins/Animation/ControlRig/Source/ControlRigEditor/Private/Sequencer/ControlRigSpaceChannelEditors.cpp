@@ -1526,10 +1526,11 @@ void FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(	UControlRig* Control
 	for (int32 Index = 0; Index < NumChannels; ++Index, ++ChannelIndex)
 	{
 		TMovieSceneChannelData<FMovieSceneFloatValue> ChannelInterface = FloatChannels[ChannelIndex]->GetData();
+		TArrayView<FMovieSceneFloatValue> Values = ChannelInterface.GetValues();
 		const int32 KeyIndex = ChannelInterface.FindKey(Time);
 		if (KeyIndex != INDEX_NONE)
 		{
-			FMovieSceneFloatValue Value = ChannelInterface.GetValues()[KeyIndex];
+			FMovieSceneFloatValue& Value = Values[KeyIndex];
 			Value.Tangent.ArriveTangent = InTangents[Index].ArriveTangent;
 			Value.Tangent.LeaveTangent = InTangents[Index].LeaveTangent;
 			Value.TangentMode = RCTM_Break;	
