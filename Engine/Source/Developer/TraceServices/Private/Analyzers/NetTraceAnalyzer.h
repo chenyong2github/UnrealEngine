@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Trace/Analyzer.h"
+#include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "Model/NetProfilerProvider.h"
 
