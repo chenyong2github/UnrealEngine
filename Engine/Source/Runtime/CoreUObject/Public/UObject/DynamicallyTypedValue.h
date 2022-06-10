@@ -18,7 +18,7 @@ namespace UE
 			Maybe,
 		};
 
-		constexpr FDynamicallyTypedValueType(SIZE_T InNumBytes, SIZE_T InMinAlignmentLogTwo, EContainsReferences InContainsReferences)
+		constexpr FDynamicallyTypedValueType(SIZE_T InNumBytes, uint8 InMinAlignmentLogTwo, EContainsReferences InContainsReferences)
 			: NumBytes(InNumBytes)
 			, MinAlignmentLogTwo(InMinAlignmentLogTwo)
 			, ContainsReferences(InContainsReferences)
