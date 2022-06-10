@@ -2088,23 +2088,27 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 				TManagedArray<float>& PostBreakDuration = DynamicCollection->AddAttribute<float>("PostBreakDuration", FGeometryCollection::TransformGroup);
 				for (int32 Idx = 0; Idx < PostBreakDuration.Num(); ++Idx)
 				{
-					const FVector4f RemoveOnBreakData = (*RemoveOnBreak)[Idx];
-					const bool bRemoveOnBreakEnabled = RemoveOnBreakData.X >= 0;
-					const float MinTime = FMath::Max(0.0f, RemoveOnBreakData.X);
-					const float MaxTime = FMath::Max(MinTime, RemoveOnBreakData.Y);
-					PostBreakDuration[Idx] = bRemoveOnBreakEnabled? FMath::RandRange(MinTime, MaxTime): -1;
+					const FRemoveOnBreakData RemoveOnBreakData{ (*RemoveOnBreak)[Idx] };
+					const FVector2f PostBreakTimer = RemoveOnBreakData.GetBreakTimer();
+					const float MinTime = FMath::Max(0.0f, PostBreakTimer.X);
+					const float MaxTime = FMath::Max(MinTime, PostBreakTimer.Y);
+					PostBreakDuration[Idx] = RemoveOnBreakData.IsEnabled()? FMath::RandRange(MinTime, MaxTime): -1;
 				}
 			}
 
 			if (!DynamicCollection->HasAttribute("BreakRemovalDuration", FGeometryCollection::TransformGroup))
 			{
+				const TManagedArray<TSet<int32>>& Children = DynamicCollection->Children;
 				TManagedArray<float>& BreakRemovalDuration = DynamicCollection->AddAttribute<float>("BreakRemovalDuration", FGeometryCollection::TransformGroup);
 				for (int32 Idx = 0; Idx < BreakRemovalDuration.Num(); ++Idx)
 				{
-					const FVector4f RemoveOnBreakData = (*RemoveOnBreak)[Idx];
-					const float MinTime = FMath::Max(0.0f, RemoveOnBreakData.Z);
-					const float MaxTime = FMath::Max(MinTime, RemoveOnBreakData.W);
-					BreakRemovalDuration[Idx] = FMath::RandRange(MinTime, MaxTime);
+					const FRemoveOnBreakData RemoveOnBreakData{ (*RemoveOnBreak)[Idx] };
+					const FVector2f RemovalTimer = RemoveOnBreakData.GetRemovalTimer();
+					const float MinTime = FMath::Max(0.0f, RemovalTimer.X);
+					const float MaxTime = FMath::Max(MinTime, RemovalTimer.Y);
+					const bool bIsCluster = (Children[Idx].Num() > 0);
+					const bool bUseClusterCrumbling = (bIsCluster && RemoveOnBreakData.GetClusterCrumbling());
+					BreakRemovalDuration[Idx] = bUseClusterCrumbling? -1: FMath::RandRange(MinTime, MaxTime);
 				}
 			}
 		}
@@ -3561,7 +3565,7 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 
 		if (ToBreakParent.Num())
 		{
-			PhysicsProxy->BreakInternalClusterParent(MoveTemp(ToBreakParent));
+			PhysicsProxy->BreakInternalClusterParents(MoveTemp(ToBreakParent));
 		}
 		if (ToDisable.Num())
 		{
@@ -3590,6 +3594,7 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 		TManagedArray<float>& Decay = DynamicCollection->ModifyAttribute<float>("Decay", FGeometryCollection::TransformGroup);
 		
 		TArray<int32> ToDisable;
+		TArray<int32> ToCrumble;
 		for (int32 TransformIdx = 0; TransformIdx < BreakTimer.Num(); ++TransformIdx)
 		{
 			const bool bIsBroken = DynamicCollection->Active[TransformIdx];
@@ -3601,23 +3606,41 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 			if (bIsBroken && bIsRemovedFromBreakEnabled && bIsDynamicOrSleeping)
 			{
 				BreakTimer[TransformIdx] += DeltaTime;
+				const bool bPostBreakTimeExpired = (BreakTimer[TransformIdx] >= PostBreakDuration[TransformIdx]);
 				const bool bZeroRemovalDuration = (BreakRemovalDuration[TransformIdx] < UE_SMALL_NUMBER);
-				const float UpdatedBreakDecay = bZeroRemovalDuration? 1.f: FMath::Clamp<float>((BreakTimer[TransformIdx] - PostBreakDuration[TransformIdx]) / BreakRemovalDuration[TransformIdx], 0.f, 1.f);
+				float UpdatedBreakDecay = 0;
+				if (bPostBreakTimeExpired)
+				{
+					UpdatedBreakDecay = bZeroRemovalDuration? 1.f: FMath::Clamp<float>((BreakTimer[TransformIdx] - PostBreakDuration[TransformIdx]) / BreakRemovalDuration[TransformIdx], 0.f, 1.f);
+				}
 				if (UpdatedBreakDecay > Decay[TransformIdx])
 				{
 					DynamicCollection->MakeDirty();
 					Decay[TransformIdx] = UpdatedBreakDecay;
 
-					if (Decay[TransformIdx] >= 1.0f)
+					const bool bUseClusterCrumbling = (BreakRemovalDuration[TransformIdx] < 0);
+					if (bUseClusterCrumbling)
 					{
-						// Disable the particle if it has decayed  the requisite time
-						Decay[TransformIdx] = 1.0f;
-						ToDisable.Add(TransformIdx);
+						ToCrumble.AddUnique(TransformIdx);
+						Decay[TransformIdx] = 0;
+					}
+					else
+					{
+						if (Decay[TransformIdx] >= 1.0f)
+						{
+							// Disable the particle if it has decayed  the requisite time
+							Decay[TransformIdx] = 1.0f;
+							ToDisable.Add(TransformIdx);
+						}
 					}
 				}
 			}
 		}
 
+		if (ToCrumble.Num())
+		{
+			PhysicsProxy->BreakClusters(MoveTemp(ToCrumble));
+		}
 		if (ToDisable.Num())
 		{
 			PhysicsProxy->DisableParticles(MoveTemp(ToDisable));

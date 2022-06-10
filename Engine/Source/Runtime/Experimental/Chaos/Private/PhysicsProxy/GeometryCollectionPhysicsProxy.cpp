@@ -1527,7 +1527,7 @@ void FGeometryCollectionPhysicsProxy::DisableParticles(TArray<int32>&& Transform
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::BreakInternalClusterParent(TArray<int32>&& TransformGroupIndices)
+void FGeometryCollectionPhysicsProxy::BreakInternalClusterParents(TArray<int32>&& TransformGroupIndices)
 {
 	check(IsInGameThread());
 
@@ -1560,7 +1560,29 @@ void FGeometryCollectionPhysicsProxy::BreakInternalClusterParent(TArray<int32>&&
 			}
 		});
 	}
-	
+}
+
+void FGeometryCollectionPhysicsProxy::BreakClusters(TArray<int32>&& TransformGroupIndices)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, IndicesToBreakParent = MoveTemp(TransformGroupIndices)]()
+		{
+			Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
+			for (int32 TransformIdx : IndicesToBreakParent)
+			{
+				if (Chaos::FPBDRigidClusteredParticleHandle* ClusterHandle = SolverParticleHandles[TransformIdx])
+				{
+					if (!ClusterHandle->Disabled() && Clustering.GetChildrenMap().Contains(ClusterHandle))
+					{
+						Clustering.ReleaseClusterParticles(ClusterHandle, true /* bForceRelease */);
+					}
+				}
+			}
+		});
+	}
 }
 
 int32 FGeometryCollectionPhysicsProxy::CalculateHierarchyLevel(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex)

@@ -151,7 +151,7 @@ public:
 		, DamageThreshold(0)
 		, Broken(false)
 		, RemoveOnBreakAvailable(false)
-		, RemoveOnBreak(-1)
+		, RemoveOnBreak(FRemoveOnBreakData::DisabledPackedData)
 		, ImportedCollisionsAvailable(false)
 		, ImportedCollisionsUsed(false)
 	{}
@@ -195,7 +195,8 @@ private:
 	float DamageThreshold;
 	bool Broken;
 	bool RemoveOnBreakAvailable;
-	FVector4f RemoveOnBreak;
+	bool IsCluster;
+	FRemoveOnBreakData RemoveOnBreak;
 	bool ImportedCollisionsAvailable;
 	bool ImportedCollisionsUsed;
 };

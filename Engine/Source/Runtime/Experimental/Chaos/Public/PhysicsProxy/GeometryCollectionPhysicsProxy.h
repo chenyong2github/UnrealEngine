@@ -242,7 +242,8 @@ public:
 	bool GetIsObjectDynamic() const { return IsObjectDynamic; }
 
 	void DisableParticles(TArray<int32>&& TransformGroupIndices);
-	void BreakInternalClusterParent(TArray<int32>&& TransformGroupIndices);
+	void BreakInternalClusterParents(TArray<int32>&& TransformGroupIndices);
+	void BreakClusters(TArray<int32>&& TransformGroupIndices);
 
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
@@ -295,6 +296,7 @@ protected:
 	void PrepareBufferData(Chaos::FDirtyGeometryCollectionData& BufferData, const FGeometryDynamicCollection& ThreadCollection,  Chaos::FReal SolverLastDt = 0.0);
 
 	void CreateNonClusteredParticles(Chaos::FPBDRigidsSolver* RigidsSolver,	const FGeometryCollection& RestCollection, const FGeometryDynamicCollection& DynamicCollection);
+
 private:
 
 	FSimulationParameters Parameters;

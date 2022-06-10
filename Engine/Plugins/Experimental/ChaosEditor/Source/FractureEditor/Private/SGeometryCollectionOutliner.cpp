@@ -25,10 +25,10 @@ static FText GettextFromInitialDynamicState(int32 InitialDynamicState)
 {
 	switch (InitialDynamicState)
 	{
-	case 0: return NSLOCTEXT("Fracture", "FractureToolInitialDynamicStateNoOverride", "-");
-	case 1: return NSLOCTEXT("Fracture", "FractureToolInitialDynamicStateSleeping", "Sleeping");
-	case 2: return NSLOCTEXT("Fracture", "FractureToolInitialDynamicStateKinematic", "Kinematic");
-	case 3: return NSLOCTEXT("Fracture", "FractureToolInitialDynamicStateStatic", "Static");
+	case 0: return LOCTEXT("GCOutliner_InitialState_NoOverride_Text", "-");
+	case 1: return LOCTEXT("GCOutliner_InitialState_Sleeping_Text", "Sleeping");
+	case 2: return LOCTEXT("GCOutliner_InitialState_Kinematic_Text", "Kinematic");
+	case 3: return LOCTEXT("GCOutliner_InitialState_Static_Text", "Static");
 	default:
 		return FText();
 	}
@@ -847,6 +847,8 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 			{
 				ImportedCollisionsAvailable = (*ExternalCollisions)[ItemBoneIndex] != nullptr;
 			}
+
+			IsCluster = (GeometryCollectionPtr->Children[ItemBoneIndex].Num() > 0);
 		}
 	}
 }
@@ -945,13 +947,13 @@ TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeBrokenColumnWidget() co
 			];
 }
 
-static FText FormatRemoveOnBreakTimeData(bool bDataAvailable, float MinTime, float MaxTime)
+static FText FormatRemoveOnBreakTimeData(bool bDataAvailable, bool bEnabled, const FVector2f& Timer)
 {
 	if (bDataAvailable)
 	{
-		if (MinTime>=0)
+		if (bEnabled)
 		{
-			return FText::Format(LOCTEXT("RemoveOnBreakFormat", "[{0}s, {1}s]"),MinTime, MaxTime);
+			return FText::Format(LOCTEXT("RemoveOnBreakFormat", "[{0}s, {1}s]"),Timer.X, Timer.Y);
 		}
 		return FText(LOCTEXT("RemoveOnBreakEmpty", "[-, -]"));
 	}
@@ -966,20 +968,21 @@ TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakePostBreakTimecolumnWidg
 			.HAlign(HAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(FormatRemoveOnBreakTimeData(RemoveOnBreakAvailable, RemoveOnBreak.X, RemoveOnBreak.Y))
+				.Text(FormatRemoveOnBreakTimeData(RemoveOnBreakAvailable, RemoveOnBreak.IsEnabled(), RemoveOnBreak.GetBreakTimer()))
 				.ColorAndOpacity(ItemColor)
 			];
 }
 
 TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeRemovalTimeColumnWidget() const
 {
+	const bool EnableRemovalTimer = RemoveOnBreak.IsEnabled() && !(IsCluster && RemoveOnBreak.GetClusterCrumbling());  
 	return SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot()
 		.Padding(12.f, 0.f)
 		.HAlign(HAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(FormatRemoveOnBreakTimeData(RemoveOnBreakAvailable, RemoveOnBreak.Z, RemoveOnBreak.W))
+			.Text(FormatRemoveOnBreakTimeData(RemoveOnBreakAvailable, EnableRemovalTimer,  RemoveOnBreak.GetRemovalTimer()))
 			.ColorAndOpacity(ItemColor)
 		];
 }

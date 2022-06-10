@@ -70,9 +70,10 @@ public:
 
 	UFractureRemoveOnBreakSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit)
-		, Enabled(false)
+		, Enabled(true)
 		, PostBreakTimer(0,0)
 		, RemovalTimer(2,3)
+		, ClusterCrumbling(false)
 	{}
 
 	/** whether or not the remove on fracture is enabled */
@@ -86,6 +87,10 @@ public:
 	/** Min/Max time for how long removal lasts */
 	UPROPERTY(EditAnywhere, Category = SetRemoveOnBreak, meta = (DisplayName = "Removal Timer", EditCondition="Enabled"))
 	FVector2f RemovalTimer;
+	
+	/** When set, clusters will crumble when post break timer expires, non clusters will simply use the removal timer */
+	UPROPERTY(EditAnywhere, Category = SetRemoveOnBreak, meta = (DisplayName = "Cluster Crumbling"))
+	bool ClusterCrumbling;
 
 	/** remove the remove on break attribute from the geometry collection, usefull to save memory on the asset if not needed */
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Delete Remove-On-Break Data"))
@@ -117,5 +122,7 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = InitialDynamicState)
 	TObjectPtr<UFractureRemoveOnBreakSettings> RemoveOnBreakSettings;
-
+	
+private:
+	TWeakPtr<FFractureEditorModeToolkit> Toolkit;
 };

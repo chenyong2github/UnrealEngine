@@ -123,6 +123,7 @@ void UFractureToolSetRemoveOnBreak::RegisterUICommand(FFractureEditorCommands* B
 
 void UFractureToolSetRemoveOnBreak::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
+	Toolkit = InToolkit;
 	if (InToolkit.IsValid())
 	{
 	 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
@@ -138,27 +139,21 @@ void UFractureToolSetRemoveOnBreak::Execute(TWeakPtr<FFractureEditorModeToolkit>
 	 				TArray<int32> SelectedBones = GeometryCollectionComponent->GetSelectedBones();
 	 				if (SelectedBones.Num())
 	 				{
-	 					const FVector4f DisabledRemoveOnBreakData{ -1, -1, -1, -1 }; 
 	 					if (!GeometryCollection->HasAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup))
 	 					{
 	 						TManagedArray<FVector4f>& NewRemoveOnBreak = GeometryCollection->AddAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
-	 						NewRemoveOnBreak.Fill(DisabledRemoveOnBreakData);
+	 						NewRemoveOnBreak.Fill(FRemoveOnBreakData::DisabledPackedData);
 	 					}
 	 					
 	 					TManagedArray<FVector4f>& RemoveOnBreak = GeometryCollection->ModifyAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
-	 					
-	 					FVector4f RemoveOnBreakParameters{DisabledRemoveOnBreakData};
-	 					if (RemoveOnBreakSettings->Enabled)
-	 					{
-	 						RemoveOnBreakParameters.X = RemoveOnBreakSettings->PostBreakTimer.X;
-	 						RemoveOnBreakParameters.Y = RemoveOnBreakSettings->PostBreakTimer.Y;
-	 						RemoveOnBreakParameters.Z = RemoveOnBreakSettings->RemovalTimer.X;
-	 						RemoveOnBreakParameters.W = RemoveOnBreakSettings->RemovalTimer.Y;
-	 					}
+
+	 					const FVector2f BreakTimer{ RemoveOnBreakSettings->PostBreakTimer.X, RemoveOnBreakSettings->PostBreakTimer.Y };
+	 					const FVector2f RemovalTimer{ RemoveOnBreakSettings->RemovalTimer.X, RemoveOnBreakSettings->RemovalTimer.Y };
+	 					const FRemoveOnBreakData RemoveOnBreakData(RemoveOnBreakSettings->Enabled,  BreakTimer, RemoveOnBreakSettings->ClusterCrumbling, RemovalTimer);
 
 	 					for (int32 Index : SelectedBones)
 	 					{
-	 						RemoveOnBreak[Index] = RemoveOnBreakParameters;
+	 						RemoveOnBreak[Index] = RemoveOnBreakData.GetPackedData();
 	 					}
 	 				}
 	 			}
@@ -183,6 +178,10 @@ void UFractureToolSetRemoveOnBreak::DeleteRemoveOnBreakData()
 				GeometryCollection->RemoveAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup);
 			}
 		}
+	}
+	if (Toolkit.IsValid())
+	{
+		Toolkit.Pin()->RefreshOutliner();
 	}
 }
 
