@@ -33,10 +33,6 @@ bool FStringsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventConte
 			FWideStringView DisplayWide;
 			FAnsiStringView DisplayAnsi;
 			const TCHAR* Display = nullptr;
-			if (DisplayAnsi.Compare("LyraTestAssetName1") == 0)
-			{
-				UE_DEBUG_BREAK();
-			}
 			if (EventData.GetString("DisplayWide", DisplayWide) && DisplayWide.Len() > 0)
 			{
 				Display = Session.StoreString(DisplayWide);
@@ -58,10 +54,6 @@ bool FStringsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventConte
 			if (RouteId == RouteId_FName)
 			{
 				auto Id = EventData.GetDefinitionId<uint32>();
-				if (Id.Id == 1651656)
-				{
-					UE_DEBUG_BREAK();
-				}
 				// Overwrite type id of Strings.FNameNoSync to Strings.FNames type id.
 				//Id.RefTypeId = ???;
 				DefinitionProvider->Register<FStringDefinition>(Instance, Id);

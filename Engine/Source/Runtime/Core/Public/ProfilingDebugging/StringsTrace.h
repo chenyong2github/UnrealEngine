@@ -16,6 +16,8 @@ CORE_API UE_TRACE_EVENT_BEGIN_EXTERN(Strings, FName, Definition32bit)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, DisplayAnsi)
 UE_TRACE_EVENT_END()
 
+// The following events are used when on connection callback is triggered. Do not use or reference
+
 UE_TRACE_EVENT_BEGIN_EXTERN(Strings, StaticStringNoSync, Definition64bit | NoSync)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DisplayWide)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, DisplayAnsi)
