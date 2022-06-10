@@ -2389,6 +2389,7 @@ void FRDGBuilder::CreateUniformBuffers(FGraphEventArray* AsyncCompileEvents)
 		AsyncCompileEvents->Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
 			[CreateUniformBuffersFunction](ENamedThreads::Type, const FGraphEventRef&)
 		{
+			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			CreateUniformBuffersFunction();
 
 		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
