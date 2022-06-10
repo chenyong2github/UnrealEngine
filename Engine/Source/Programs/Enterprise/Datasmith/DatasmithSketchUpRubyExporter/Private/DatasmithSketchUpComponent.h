@@ -126,6 +126,7 @@ namespace DatasmithSketchUp
 		virtual void CreateActor(FExportContext& Context, FNodeOccurence& Node) = 0; // Create Datasmith actor for node occurrence
 		virtual void UpdateGeometry(FExportContext& Context) = 0; // Convert definition's Entities geometry to Datasmith Mesh
 		virtual void UpdateMetadata(FExportContext& Context) = 0; 
+		virtual void BuildNodeNames(FNodeOccurence& Node) = 0;
 
 		void EntityVisible(FEntity* Entity, bool bVisible);
 
@@ -152,7 +153,6 @@ namespace DatasmithSketchUp
 		void UpdateDefinition(FExportContext& Context);
 
 	protected:
-		virtual void BuildNodeNames(FNodeOccurence& Node) = 0;
 
 		TSharedPtr<DatasmithSketchUp::FEntities> Entities;
 
@@ -172,19 +172,19 @@ namespace DatasmithSketchUp
 		);
 
 		// Begin FDefinition
-		void Parse(FExportContext& Context);
-		void CreateActor(FExportContext& Context, FNodeOccurence& Node) override;
-		void BuildNodeNames(FNodeOccurence& Node) override;
-		void UpdateGeometry(FExportContext& Context) override;
-		void UpdateMetadata(FExportContext& Context) override;
+		virtual void Parse(FExportContext& Context) override;
+		virtual void CreateActor(FExportContext& Context, FNodeOccurence& Node) override;
+		virtual void BuildNodeNames(FNodeOccurence& Node) override;
+		virtual void UpdateGeometry(FExportContext& Context) override;
+		virtual void UpdateMetadata(FExportContext& Context) override;
 
-		void AddInstance(FExportContext& Context, TSharedPtr<FComponentInstance> Instance);
-		void InvalidateInstancesGeometry(FExportContext& Context) override;
-		void InvalidateInstancesMetadata(FExportContext& Context) override;
-		void FillOccurrenceActorMetadata(FNodeOccurence& Node) override;
+		virtual void AddInstance(FExportContext& Context, TSharedPtr<FComponentInstance> Instance) override;
+		virtual void InvalidateInstancesGeometry(FExportContext& Context) override;
+		virtual void InvalidateInstancesMetadata(FExportContext& Context) override;
+		virtual void FillOccurrenceActorMetadata(FNodeOccurence& Node) override;
 
-		FString GetSketchupSourceGUID() override;
-		FString GetSketchupSourceName()  override;
+		virtual FString GetSketchupSourceGUID() override;
+		virtual FString GetSketchupSourceName()  override;
 		// End FDefinition
 
 
@@ -213,19 +213,19 @@ namespace DatasmithSketchUp
 		FModelDefinition(SUModelRef Model);
 
 		// Being FDefinition
-		void Parse(FExportContext& Context);
-		void CreateActor(FExportContext& Context, FNodeOccurence& Node) override;
-		void BuildNodeNames(FNodeOccurence& Node) override;
-		void UpdateGeometry(FExportContext& Context) override;
-		void UpdateMetadata(FExportContext& Context) override;
+		virtual void Parse(FExportContext& Context) override;
+		virtual void CreateActor(FExportContext& Context, FNodeOccurence& Node) override;
+		virtual void BuildNodeNames(FNodeOccurence& Node) override;
+		virtual void UpdateGeometry(FExportContext& Context) override;
+		virtual void UpdateMetadata(FExportContext& Context) override;
 
-		void AddInstance(FExportContext& Context, TSharedPtr<FComponentInstance> Instance);
-		void InvalidateInstancesGeometry(FExportContext& Context) override;
-		void InvalidateInstancesMetadata(FExportContext& Context) override;
-		void FillOccurrenceActorMetadata(FNodeOccurence& Node) override;
+		virtual void AddInstance(FExportContext& Context, TSharedPtr<FComponentInstance> Instance) override;
+		virtual void InvalidateInstancesGeometry(FExportContext& Context) override;
+		virtual void InvalidateInstancesMetadata(FExportContext& Context) override;
+		virtual void FillOccurrenceActorMetadata(FNodeOccurence& Node) override;
 
-		FString GetSketchupSourceGUID() override;
-		FString GetSketchupSourceName()  override;
+		virtual FString GetSketchupSourceGUID() override;
+		virtual FString GetSketchupSourceName()  override;
 		// End FDefinition
 
 	private:

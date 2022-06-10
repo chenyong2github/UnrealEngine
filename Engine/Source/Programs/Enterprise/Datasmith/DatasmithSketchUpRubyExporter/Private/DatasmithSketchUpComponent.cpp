@@ -111,7 +111,7 @@ void FNodeOccurence::UpdateMeshActors(FExportContext& Context)
 	MeshActors.Reset(EntitiesGeometry->GetMeshCount());
 
 	FString ComponentActorName = GetActorName();
-	FString MeshActorLabel = GetActorLabel();
+	
 	for (int32 MeshIndex = 0; MeshIndex < EntitiesGeometry->GetMeshCount(); ++MeshIndex)
 	{
 		FString MeshActorName = FString::Printf(TEXT("%ls_%d"), *ComponentActorName, MeshIndex + 1); // Count meshes/mesh actors from 1
@@ -120,9 +120,6 @@ void FNodeOccurence::UpdateMeshActors(FExportContext& Context)
 		TSharedPtr<IDatasmithMeshActorElement> DMeshActorPtr = FDatasmithSceneFactory::CreateMeshActor(*MeshActorName);
 
 		MeshActors.Add(DMeshActorPtr);
-
-		// Set the mesh actor label used in the Unreal UI.
-		DMeshActorPtr->SetLabel(*MeshActorLabel);
 
 		// Add the Datasmith actor component depth tag.
 		// We use component depth + 1 to factor in the added Datasmith scene root once imported in Unreal.
@@ -608,10 +605,13 @@ void FEntity::UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node)
 		Node.InheritedMaterialID = Node.ParentNode->InheritedMaterialID;
 	}
 
+
+	FString MeshActorLabel = Node.GetActorLabel();
 	// Update Datasmith Mesh Actors
 	for (int32 MeshIndex = 0; MeshIndex < Node.MeshActors.Num(); ++MeshIndex)
 	{
 		const TSharedPtr<IDatasmithMeshActorElement>& MeshActor = Node.MeshActors[MeshIndex];
+		MeshActor->SetLabel(*MeshActorLabel);
 		MeshActor->SetLayer(*EffectiveLayerName);
 
 		// Update Override(Inherited)  Material
@@ -698,6 +698,11 @@ void FComponentInstance::UpdateOccurrence(FExportContext& Context, FNodeOccurenc
 
 	SUComponentInstanceRef InSComponentInstanceRef = GetComponentInstanceRef();
 
+	if (FDefinition* EntityDefinition = GetDefinition())
+	{
+		EntityDefinition->BuildNodeNames(Node);
+	}
+
 	// Set the actor label used in the Unreal UI.
 	Node.DatasmithActorElement->SetLabel(*Node.DatasmithActorLabel);
 
@@ -727,8 +732,6 @@ void FComponentInstance::UpdateOccurrence(FExportContext& Context, FNodeOccurenc
 		MeshActor->SetRotation(Node.DatasmithActorElement->GetRotation());
 		MeshActor->SetTranslation(Node.DatasmithActorElement->GetTranslation());
 	}
-
-	
 
 	Super::UpdateOccurrence(Context, Node);
 }
