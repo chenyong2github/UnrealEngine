@@ -1790,7 +1790,6 @@ FControlRigGraphMathTypeDetails::FControlRigGraphMathTypeDetails()
 : ScriptStruct(nullptr)
 , BlueprintBeingCustomized(nullptr)
 , GraphBeingCustomized(nullptr)
-, bEnabled(true)
 {
 }
 
@@ -1802,7 +1801,7 @@ void FControlRigGraphMathTypeDetails::CustomizeHeader(TSharedRef<IPropertyHandle
 
 	for (UObject* Object : Objects)
 	{
-		ObjectsBeingCustomized.Add(MakeWeakObjectPtr(Object));
+		ObjectsBeingCustomized.Add(Object);
 
 		if(BlueprintBeingCustomized == nullptr)
 		{
@@ -1818,26 +1817,6 @@ void FControlRigGraphMathTypeDetails::CustomizeHeader(TSharedRef<IPropertyHandle
 	FProperty* Property = InPropertyHandle->GetProperty();
 	const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 	ScriptStruct = StructProperty->Struct;
-
-	TSharedPtr<class IPropertyHandle> ChainHandle = InPropertyHandle;
-	do
-	{
-		PropertyChain.AddHead(ChainHandle->GetProperty());
-		PropertyArrayIndices.Insert(ChainHandle->GetIndexInArray(), 0);
-		ChainHandle = ChainHandle->GetParentHandle();
-
-		if(ChainHandle.IsValid())
-		{
-			if(ChainHandle->GetProperty() == nullptr)
-			{
-				break;
-			}
-		}
-	}
-	while (ChainHandle.IsValid());
-	PropertyChain.SetActiveMemberPropertyNode(PropertyChain.GetTail()->GetValue());
-
-	bEnabled = !PropertyChain.GetHead()->GetValue()->HasAnyPropertyFlags(CPF_EditConst);
 }
 
 void FControlRigGraphMathTypeDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle,
@@ -1876,6 +1855,16 @@ void FControlRigGraphMathTypeDetails::CustomizeChildren(TSharedRef<IPropertyHand
 	{
 		CustomizeTransform<FEulerTransform>(InPropertyHandle, StructBuilder, StructCustomizationUtils);
 	}
+}
+
+void FControlRigGraphMathTypeDetails::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObjects(ObjectsBeingCustomized);
+}
+
+FString FControlRigGraphMathTypeDetails::GetReferencerName() const
+{
+	return TEXT("FControlRigGraphMathTypeDetails:") + ObjectsBeingCustomized[0]->GetPathName();
 }
 
 #undef LOCTEXT_NAMESPACE
