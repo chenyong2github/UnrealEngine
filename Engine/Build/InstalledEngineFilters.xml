@@ -559,13 +559,4 @@
 	<Property Name="CopyLuminExceptions">
 	</Property>
 
-	<!-- HoloLens -->
-	<Property Name="CopyHoloLensFilter">
-		<!-- Build Files -->
-		Engine/Build/HoloLens/...
-	</Property>
-
-	<Property Name="CopyHoloLensExceptions">
-	</Property>
-
 </BuildGraph>
