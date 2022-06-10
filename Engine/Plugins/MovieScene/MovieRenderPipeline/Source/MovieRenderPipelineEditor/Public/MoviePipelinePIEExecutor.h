@@ -29,13 +29,7 @@ class MOVIERENDERPIPELINEEDITOR_API UMoviePipelinePIEExecutor : public UMoviePip
 	GENERATED_BODY()
 	
 public:
-	UMoviePipelinePIEExecutor()
-		: UMoviePipelineLinearExecutorBase()
-		, RemainingInitializationFrames(-1)
-		, bPreviousUseFixedTimeStep(false)
-		, PreviousFixedTimeStepDelta(1/30.0)
-	{
-	}
+	UMoviePipelinePIEExecutor();
 
 public:
 	/** Deprecated. Use OnIndividualJobWorkFinished instead. */
@@ -66,6 +60,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetInitializationTime(const FDateTime& InInitializationTime) { CustomInitializationTime = InInitializationTime; }
 
+	/** Should it render without any UI elements showing up (such as the rendering progress window)? */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetIsRenderingOffscreen(const bool bInRenderOffscreen) { bRenderOffscreen = bInRenderOffscreen; }
+
+	/** Will it render without any UI elements showing up (such as the rendering progress window)? */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	bool IsRenderingOffscreen() const { return bRenderOffscreen; }
+
 protected:
 	virtual void Start(const UMoviePipelineExecutorJob* InJob) override;
 
@@ -95,6 +97,7 @@ private:
 	/** Called a short period of time after OnPIEMoviePipelineFinished to allow Editor the time to fully close PIE before we make a new request. */
 	void DelayedFinishNotification();
 private:
+	bool bRenderOffscreen;
 	/** If using delayed initialization, how many frames are left before we call Initialize. Will be -1 if not actively counting down. */
 	int32 RemainingInitializationFrames;
 	bool bPreviousUseFixedTimeStep;

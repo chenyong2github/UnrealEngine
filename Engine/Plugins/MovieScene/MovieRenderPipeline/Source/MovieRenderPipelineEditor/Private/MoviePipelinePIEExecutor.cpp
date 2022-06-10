@@ -58,6 +58,19 @@ void UMoviePipelinePIEExecutor::FValidationMessageGatherer::Serialize(const TCHA
 	}
 }
 
+UMoviePipelinePIEExecutor::UMoviePipelinePIEExecutor()
+	: UMoviePipelineLinearExecutorBase()
+	, bRenderOffscreen(false)
+	, RemainingInitializationFrames(-1)
+	, bPreviousUseFixedTimeStep(false)
+	, PreviousFixedTimeStepDelta(1 / 30.0)
+{
+	if (!FApp::CanEverRender() || FSlateApplication::Get().IsRenderingOffScreen())
+	{
+		SetIsRenderingOffscreen(true);
+	}
+}
+
 void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 {
 	Super::Start(InJob);
@@ -66,8 +79,11 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 	ULevelSequence* LevelSequence = Cast<ULevelSequence>(InJob->Sequence.TryLoad());
 	if (!LevelSequence)
 	{
-		FText FailureReason = LOCTEXT("InvalidSequenceFailureDialog", "One or more jobs in the queue has an invalid/null sequence.");
-		FMessageDialog::Open(EAppMsgType::Ok, FailureReason);
+		if(!IsRenderingOffscreen())
+		{
+			FText FailureReason = LOCTEXT("InvalidSequenceFailureDialog", "One or more jobs in the queue has an invalid/null sequence.");
+			FMessageDialog::Open(EAppMsgType::Ok, FailureReason);
+		}
 
 		OnExecutorFinishedImpl();
 		return;
@@ -79,8 +95,11 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 	const bool bAllMapsValid = UMoviePipelineEditorBlueprintLibrary::IsMapValidForRemoteRender(Queue->GetJobs());
 	if (!bAllMapsValid)
 	{
-		FText FailureReason = LOCTEXT("UnsavedMapFailureDialog", "One or more jobs in the queue have an unsaved map as their target map. Maps must be saved at least once before rendering.");
-		FMessageDialog::Open(EAppMsgType::Ok, FailureReason);
+		if(!IsRenderingOffscreen())
+		{
+			FText FailureReason = LOCTEXT("UnsavedMapFailureDialog", "One or more jobs in the queue have an unsaved map as their target map. Maps must be saved at least once before rendering.");
+			FMessageDialog::Open(EAppMsgType::Ok, FailureReason);
+		}
 
 		OnExecutorFinishedImpl();
 		return;
@@ -102,7 +121,7 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 		.SizingRule(ESizingRule::UserSized);
 
 	WeakCustomWindow = CustomWindow;
-	FSlateApplication::Get().AddWindow(CustomWindow);
+	FSlateApplication::Get().AddWindow(CustomWindow, !IsRenderingOffscreen());
 
 	// Initialize our own copy of the Editor Play settings which we will adjust defaults on.
 	ULevelEditorPlaySettings* PlayInEditorSettings = NewObject<ULevelEditorPlaySettings>();
