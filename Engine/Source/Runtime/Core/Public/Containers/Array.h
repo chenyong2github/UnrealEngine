@@ -679,8 +679,8 @@ public:
 	}
 
 	/**
-	 * Checks array invariants: if array size is greater than zero and less
-	 * than maximum.
+	 * Checks array invariants: if array size is greater than or equal to zero and less
+	 * than or equal to the maximum.
 	 */
 	FORCEINLINE void CheckInvariants() const
 	{
@@ -748,7 +748,7 @@ public:
 	}
 
 	/**
-	 * Array bracket operator. Returns reference to element at give index.
+	 * Array bracket operator. Returns reference to element at given index.
 	 *
 	 * @returns Reference to indexed element.
 	 */
@@ -759,7 +759,7 @@ public:
 	}
 
 	/**
-	 * Array bracket operator. Returns reference to element at give index.
+	 * Array bracket operator. Returns reference to element at given index.
 	 *
 	 * Const version of the above.
 	 *
@@ -1126,7 +1126,7 @@ public:
 	}
 
 	/**
-	 * Checks if this array contains element for which the predicate is true.
+	 * Checks if this array contains an element for which the predicate is true.
 	 *
 	 * @param Predicate to use
 	 * @returns	True if found. False otherwise.
