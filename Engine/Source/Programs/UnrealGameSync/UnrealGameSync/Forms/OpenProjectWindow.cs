@@ -29,8 +29,9 @@ namespace UnrealGameSync
 		IPerforceSettings DefaultSettings;
 		IServiceProvider ServiceProvider;
 		UserSettings Settings;
+		ILogger Logger;
 
-		private OpenProjectWindow(UserSelectedProjectSettings? Project, UserSettings Settings, IPerforceSettings DefaultSettings, IServiceProvider ServiceProvider)
+		private OpenProjectWindow(UserSelectedProjectSettings? Project, UserSettings Settings, IPerforceSettings DefaultSettings, IServiceProvider ServiceProvider, ILogger Logger)
 		{
 			InitializeComponent();
 
@@ -38,6 +39,7 @@ namespace UnrealGameSync
 			this.OpenProjectInfo = null;
 			this.DefaultSettings = DefaultSettings;
 			this.ServiceProvider = ServiceProvider;
+			this.Logger = Logger;
 
 			if (Project == null)
 			{
@@ -90,9 +92,9 @@ namespace UnrealGameSync
 			get => Utility.OverridePerforceSettings(DefaultSettings, ServerAndPortOverride, UserNameOverride);
 		}
 
-		public static OpenProjectInfo? ShowModal(IWin32Window Owner, UserSelectedProjectSettings? Project, UserSettings Settings, DirectoryReference DataFolder, DirectoryReference CacheFolder, IPerforceSettings DefaultPerforceSettings, IServiceProvider ServiceProvider)
+		public static OpenProjectInfo? ShowModal(IWin32Window Owner, UserSelectedProjectSettings? Project, UserSettings Settings, DirectoryReference DataFolder, DirectoryReference CacheFolder, IPerforceSettings DefaultPerforceSettings, IServiceProvider ServiceProvider, ILogger Logger)
 		{
-			OpenProjectWindow Window = new OpenProjectWindow(Project, Settings, DefaultPerforceSettings, ServiceProvider);
+			OpenProjectWindow Window = new OpenProjectWindow(Project, Settings, DefaultPerforceSettings, ServiceProvider, Logger);
 			if(Window.ShowDialog(Owner) == DialogResult.OK)
 			{
 				return Window.OpenProjectInfo;
@@ -344,7 +346,7 @@ namespace UnrealGameSync
 				string FullName = Path.GetFullPath(Dialog.FileName);
 
 				Settings.FilterIndex = Dialog.FilterIndex;
-				Settings.Save();
+				Settings.Save(Logger);
 
 				LocalFileTextBox.Text = FullName;
 				UpdateOkButton();

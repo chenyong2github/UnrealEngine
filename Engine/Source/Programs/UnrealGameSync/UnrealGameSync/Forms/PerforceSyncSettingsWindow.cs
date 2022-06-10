@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Windows.Forms;
 
@@ -8,10 +9,13 @@ namespace UnrealGameSync
 	partial class PerforceSyncSettingsWindow : Form
 	{
 		UserSettings Settings;
+		ILogger Logger;
 
-		public PerforceSyncSettingsWindow(UserSettings Settings)
+		public PerforceSyncSettingsWindow(UserSettings Settings, ILogger Logger)
 		{
 			this.Settings = Settings;
+			this.Logger = Logger;
+
 			InitializeComponent();
 		}
 
@@ -34,7 +38,7 @@ namespace UnrealGameSync
 			Settings.SyncOptions.MaxCommandsPerBatch = (int)numericUpDownMaxCommandsPerBatch.Value;
 			Settings.SyncOptions.MaxSizePerBatch = (int)numericUpDownMaxSizePerBatch.Value * 1024 * 1024;
 			Settings.SyncOptions.NumSyncErrorRetries = (int)numericUpDownRetriesOnSyncError.Value;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			DialogResult = System.Windows.Forms.DialogResult.OK;
 			Close();

@@ -150,7 +150,7 @@ namespace UnrealGameSync
 				WorkspaceUpdateContext Context = Update.Context;
 
 				State.SetLastSyncState(Result, Context, StatusMessage);
-				State.Save();
+				State.Save(Logger);
 
 				OnUpdateComplete?.Invoke(Context, Result, StatusMessage);
 				CurrentUpdate = null;

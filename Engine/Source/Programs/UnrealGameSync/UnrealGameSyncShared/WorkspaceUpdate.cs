@@ -709,7 +709,7 @@ namespace UnrealGameSync
 							{
 								// Clear the current sync filter hash. If the sync is canceled, we'll be in an indeterminate state, and we should always clean next time round.
 								State.CurrentSyncFilterHash = "INVALID";
-								State.Save();
+								State.Save(Logger);
 
 								// Find all the depot paths that will be synced
 								HashSet<string> RemainingDepotPathsToRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -728,7 +728,7 @@ namespace UnrealGameSync
 
 							// Update the sync filter hash. We've removed any files we need to at this point.
 							State.CurrentSyncFilterHash = NextSyncFilterHash;
-							State.Save();
+							State.Save(Logger);
 						}
 					}
 
@@ -871,7 +871,7 @@ namespace UnrealGameSync
 					{
 						State.CurrentChangeNumber = -1;
 						State.AdditionalChangeNumbers.Clear();
-						State.Save();
+						State.Save(Logger);
 					}
 
 					// Find all the depot paths that will be synced
@@ -1069,7 +1069,7 @@ namespace UnrealGameSync
 						State.CurrentChangeNumber = Context.ChangeNumber;
 						State.CurrentCodeChangeNumber = VersionChangeNumber;
 					}
-					State.Save();
+					State.Save(Logger);
 
 					// Update the timing info
 					Times.Add(new Tuple<string, TimeSpan>("Sync", SyncTelemetryStopwatch.Stop("Success")));
@@ -1130,7 +1130,7 @@ namespace UnrealGameSync
 
 					// Update the state
 					State.ExpandedArchiveTypes = Context.ArchiveTypeToArchive.Where(x => x.Value != null).Select(x => x.Key).ToArray();
-					State.Save();
+					State.Save(Logger);
 
 					// Add the finish time
 					Times.Add(new Tuple<string, TimeSpan>("Archive", Stopwatch.Stop("Success")));
@@ -1372,7 +1372,7 @@ namespace UnrealGameSync
 				if (Context.CustomBuildSteps == null || Context.CustomBuildSteps.Count == 0)
 				{
 					State.LastBuiltChangeNumber = State.CurrentChangeNumber;
-					State.Save();
+					State.Save(Logger);
 				}
 			}
 

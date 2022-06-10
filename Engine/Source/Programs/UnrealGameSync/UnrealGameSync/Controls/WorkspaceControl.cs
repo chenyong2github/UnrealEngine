@@ -308,7 +308,7 @@ namespace UnrealGameSync
 			Settings = InSettings;
 			this.WorkspaceSettings = OpenProjectInfo.WorkspaceSettings;
 			this.WorkspaceState = OpenProjectInfo.WorkspaceState;
-			ProjectSettings = InSettings.FindOrAddProjectSettings(OpenProjectInfo.ProjectInfo, OpenProjectInfo.WorkspaceSettings);
+			ProjectSettings = InSettings.FindOrAddProjectSettings(OpenProjectInfo.ProjectInfo, OpenProjectInfo.WorkspaceSettings, Logger);
 
 			DesiredTaskbarState = Tuple.Create(TaskbarState.NoProgress, 0.0f);
 
@@ -1020,7 +1020,7 @@ namespace UnrealGameSync
 				WorkspaceState.LastSyncResultMessage = null;
 				WorkspaceState.LastSyncTime = null;
 				WorkspaceState.LastSyncDurationSeconds = 0;
-				WorkspaceState.Save();
+				WorkspaceState.Save(Logger);
 
 				Workspace.CancelUpdate();
 
@@ -3658,7 +3658,7 @@ namespace UnrealGameSync
 			string? BuildHealthProject;
 			TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject);
 
-			IssueSettingsWindow IssueSettings = new IssueSettingsWindow(Settings, BuildHealthProject ?? "");
+			IssueSettingsWindow IssueSettings = new IssueSettingsWindow(Settings, BuildHealthProject ?? "", Logger);
 			if (IssueSettings.ShowDialog(this) == DialogResult.OK)
 			{
 				Owner.UpdateAlertWindows();
@@ -4296,7 +4296,7 @@ namespace UnrealGameSync
 			{
 				ArchiveSettings.bEnabled = false;
 			}
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateSelectedArchives();
 		}
@@ -4319,7 +4319,7 @@ namespace UnrealGameSync
 			{
 				ArchiveSettings.bEnabled = false;
 			}
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateSelectedArchives();
 		}
@@ -4412,7 +4412,7 @@ namespace UnrealGameSync
 		private void BuildAfterSyncCheckBox_CheckedChanged(object sender, EventArgs e)
 		{
 			Settings.bBuildAfterSync = BuildAfterSyncCheckBox.Checked;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateSyncActionCheckboxes();
 		}
@@ -4420,7 +4420,7 @@ namespace UnrealGameSync
 		private void RunAfterSyncCheckBox_CheckedChanged(object sender, EventArgs e)
 		{
 			Settings.bRunAfterSync = RunAfterSyncCheckBox.Checked;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateSyncActionCheckboxes();
 		}
@@ -4428,7 +4428,7 @@ namespace UnrealGameSync
 		private void OpenSolutionAfterSyncCheckBox_CheckedChanged(object sender, EventArgs e)
 		{
 			Settings.bOpenSolutionAfterSync = OpenSolutionAfterSyncCheckBox.Checked;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateSyncActionCheckboxes();
 		}
@@ -4833,7 +4833,7 @@ namespace UnrealGameSync
 		private void Splitter_OnVisibilityChanged(bool bVisible)
 		{
 			Settings.bShowLogWindow = bVisible;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateStatusPanel();
 		}
@@ -4842,7 +4842,7 @@ namespace UnrealGameSync
 		{
 			OptionsContextMenu_AutoResolveConflicts.Checked ^= true;
 			Settings.bAutoResolveConflicts = OptionsContextMenu_AutoResolveConflicts.Checked;
-			Settings.Save();
+			Settings.Save(Logger);
 		}
 
 		private void OptionsContextMenu_EditorArguments_Click(object sender, EventArgs e)
@@ -4857,7 +4857,7 @@ namespace UnrealGameSync
 			{
 				Settings.EditorArguments = Arguments.GetItems();
 				Settings.bEditorArgumentsPrompt = Arguments.PromptBeforeLaunch;
-				Settings.Save();
+				Settings.Save(Logger);
 				return true;
 			}
 			return false;
@@ -4921,7 +4921,7 @@ namespace UnrealGameSync
 		void UpdateBuildConfig(BuildConfig NewConfig)
 		{
 			Settings.CompiledEditorBuildConfig = NewConfig;
-			Settings.Save();
+			Settings.Save(Logger);
 			UpdateCheckedBuildConfig();
 		}
 
@@ -5087,7 +5087,7 @@ namespace UnrealGameSync
 		private void BuildListContextMenu_ShowServerTimes_Click(object sender, EventArgs e)
 		{
 			Settings.bShowLocalTimes = false;
-			Settings.Save();
+			Settings.Save(Logger);
 			BuildList.Items.Clear(); // Need to clear list to rebuild groups, populate time column again
 			UpdateBuildList();
 		}
@@ -5095,7 +5095,7 @@ namespace UnrealGameSync
 		private void BuildListContextMenu_ShowLocalTimes_Click(object sender, EventArgs e)
 		{
 			Settings.bShowLocalTimes = true;
-			Settings.Save();
+			Settings.Save(Logger);
 			BuildList.Items.Clear(); // Need to clear list to rebuild groups, populate time column again
 			UpdateBuildList();
 		}
@@ -5315,7 +5315,7 @@ namespace UnrealGameSync
 
 				// Save the settings
 				ProjectSettings.BuildSteps = ModifiedBuildSteps;
-				ProjectSettings.Save();
+				ProjectSettings.Save(Logger);
 
 				// Update the custom tools menu, because we might have changed it
 				UpdateBuildSteps();
@@ -5421,10 +5421,10 @@ namespace UnrealGameSync
 			if (Filter.ShowDialog() == DialogResult.OK)
 			{
 				Settings.Global.Filter = Filter.GlobalFilter;
-				Settings.Save();
+				Settings.Save(Logger);
 
 				WorkspaceSettings.Filter = Filter.WorkspaceFilter;
-				WorkspaceSettings.Save();
+				WorkspaceSettings.Save(Logger);
 			}
 		}
 
@@ -5489,7 +5489,7 @@ namespace UnrealGameSync
 		private void SyncContextMenu_LatestChangeType_Click(object? sender, EventArgs e, string SyncTypeID)
 		{
 			Settings.SyncTypeID = SyncTypeID;
-			Settings.Save();
+			Settings.Save(Logger);
 		}
 
 		private void SyncContextMenu_EnterChangelist_Click(object sender, EventArgs e)
@@ -5565,13 +5565,13 @@ namespace UnrealGameSync
 		private void RecentMenu_ClearList_Click(object sender, EventArgs e)
 		{
 			Settings.RecentProjects.Clear();
-			Settings.Save();
+			Settings.Save(Logger);
 		}
 
 		private void OptionsContextMenu_ShowChanges_ShowUnreviewed_Click(object sender, EventArgs e)
 		{
 			Settings.bShowUnreviewedChanges ^= true;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateBuildList();
 			ShrinkNumRequestedBuilds();
@@ -5580,7 +5580,7 @@ namespace UnrealGameSync
 		private void OptionsContextMenu_ShowChanges_ShowAutomated_Click(object sender, EventArgs e)
 		{
 			Settings.bShowAutomatedChanges ^= true;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateBuildListFilter();
 		}
@@ -5788,7 +5788,7 @@ namespace UnrealGameSync
 				ChangeNumberToBisectState[ChangeNumberToBisectState.Keys.Max()] = BisectState.Fail;
 
 				WorkspaceState.BisectChanges = ChangeNumberToBisectState.Select(x => new BisectEntry {  Change = x.Key, State = x.Value }).ToList();
-				WorkspaceState.Save();
+				WorkspaceState.Save(Logger);
 
 				UpdateBuildList();
 				UpdateStatusPanel();
@@ -5798,7 +5798,7 @@ namespace UnrealGameSync
 		private void CancelBisectMode()
 		{
 			WorkspaceState.BisectChanges.Clear();
-			WorkspaceState.Save();
+			WorkspaceState.Save(Logger);
 
 			UpdateBuildList();
 			UpdateStatusPanel();
@@ -5815,7 +5815,7 @@ namespace UnrealGameSync
 				}
 			}
 
-			WorkspaceState.Save();
+			WorkspaceState.Save(Logger);
 
 			ChangeNumberToLayoutInfo.Clear();
 			BuildList.Invalidate();
@@ -5944,7 +5944,7 @@ namespace UnrealGameSync
 			{
 				ProjectSettings.FilterBadges.Add(BadgeName);
 			}
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateBuildListFilter();
 		}
@@ -5953,10 +5953,10 @@ namespace UnrealGameSync
 		{
 			ProjectSettings.FilterBadges.Clear();
 			ProjectSettings.FilterType = FilterType.None;
-			ProjectSettings.Save();
+			ProjectSettings.Save(Logger);
 
 			Settings.bShowAutomatedChanges = false;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateBuildListFilter();
 		}
@@ -5964,7 +5964,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_ShowBuildMachineChanges_Click(object sender, EventArgs e)
 		{
 			Settings.bShowAutomatedChanges ^= true;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			UpdateBuildListFilter();
 		}
@@ -5972,28 +5972,28 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Robomerge_ShowAll_Click(object sender, EventArgs e)
 		{
 			Settings.ShowRobomerge = UserSettings.RobomergeShowChangesOption.All;	
-			Settings.Save();
+			Settings.Save(Logger);
 			UpdateBuildListFilter();
 		}
 
 		private void FilterContextMenu_Robomerge_ShowBadged_Click(object sender, EventArgs e)
 		{
 			Settings.ShowRobomerge = UserSettings.RobomergeShowChangesOption.Badged;
-			Settings.Save();
+			Settings.Save(Logger);
 			UpdateBuildListFilter();
 		}
 
 		private void FilterContextMenu_Robomerge_ShowNone_Click(object sender, EventArgs e)
 		{
 			Settings.ShowRobomerge = UserSettings.RobomergeShowChangesOption.None;
-			Settings.Save();
+			Settings.Save(Logger);
 			UpdateBuildListFilter();
 		}
 
 		private void FilterContextMenu_Robomerge_Annotate_Click(object sender, EventArgs e)
 		{
 			Settings.bAnnotateRobmergeChanges ^= true;
-			Settings.Save();
+			Settings.Save(Logger);
 			BuildList.Items.Clear();	// need to reload to update user names
 
 			UpdateBuildListFilter();
@@ -6045,7 +6045,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Type_ShowAll_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.None;
-			ProjectSettings.Save();
+			ProjectSettings.Save(Logger);
 
 			UpdateBuildListFilter();
 		}
@@ -6053,7 +6053,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Type_Code_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.Code;
-			ProjectSettings.Save();
+			ProjectSettings.Save(Logger);
 
 			UpdateBuildListFilter();
 		}
@@ -6061,7 +6061,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Type_Content_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.Content;
-			ProjectSettings.Save();
+			ProjectSettings.Save(Logger);
 
 			UpdateBuildListFilter();
 		}

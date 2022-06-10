@@ -375,7 +375,21 @@ namespace UnrealGameSync
 
 		static object SyncRoot = new object();
 
-		public void Save()
+		public bool Save(ILogger Logger)
+		{
+			try
+			{
+				SaveInternal();
+				return true;
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogError(Ex, "Unable to save {ConfigFile}: {Message}", ConfigFile, Ex.Message);
+				return false;
+			}
+		}
+
+		private void SaveInternal()
 		{
 			lock (SyncRoot)
 			{
@@ -499,7 +513,21 @@ namespace UnrealGameSync
 
 		static object SyncRoot = new object();
 
-		public void Save()
+		public bool Save(ILogger Logger)
+		{
+			try
+			{
+				SaveInternal();
+				return true;
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogError(Ex, "Unable to save {ConfigFile}: {Message}", ConfigFile, Ex.Message);
+				return false;
+			}
+		}
+
+		private void SaveInternal()
 		{
 			lock (SyncRoot)
 			{
@@ -544,7 +572,21 @@ namespace UnrealGameSync
 			return false;
 		}
 
-		public void Save()
+		public bool Save(ILogger Logger)
+		{
+			try
+			{
+				SaveInternal();
+				return true;
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogError(Ex, "Unable to save {ConfigFile}: {Message}", ConfigFile, Ex.Message);
+				return false;
+			}
+		}
+		
+		void SaveInternal()
 		{
 			lock (SyncRoot)
 			{
@@ -1098,9 +1140,12 @@ namespace UnrealGameSync
 			CurrentProject.FilterBadges.UnionWith(ProjectSection.GetValues("FilterBadges", new string[0]));
 		}
 
-		public override void Save()
+		public override bool Save(ILogger Logger)
 		{
-			base.Save();
+			if (!base.Save(Logger))
+			{
+				return false;
+			}
 
 			// General settings
 			ConfigSection GeneralSection = ConfigFile.FindOrAddSection("General");
@@ -1230,7 +1275,16 @@ namespace UnrealGameSync
 			}
 
 			// Save the file
-			ConfigFile.Save(FileName);
+			try
+			{
+				ConfigFile.Save(FileName);
+				return true;
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogError(Ex, "Unable to save config file {FileName}: {Message}", FileName, Ex.Message);
+				return false;
+			}
 		}
 
 		[return: NotNullIfNotNull("Text")]

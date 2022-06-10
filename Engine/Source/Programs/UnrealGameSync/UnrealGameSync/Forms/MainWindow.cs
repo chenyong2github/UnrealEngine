@@ -670,7 +670,7 @@ namespace UnrealGameSync
 				Settings.WindowBounds = RestoreBounds;
 			}
 
-			Settings.Save();
+			Settings.Save(Logger);
 		}
 
 		private void SetupDefaultControl()
@@ -781,7 +781,7 @@ namespace UnrealGameSync
 				Activate();
 
 				Settings.bWindowVisible = Visible;
-				Settings.Save();
+				Settings.Save(Logger);
 			}
 		}
 
@@ -877,7 +877,7 @@ namespace UnrealGameSync
 			if(Schedule.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 			{
 				Schedule.CopySettings(out Settings.bScheduleEnabled, out Settings.ScheduleTime, out Settings.ScheduleAnyOpenProject, out Settings.ScheduleProjects);
-				Settings.Save();
+				Settings.Save(Logger);
 			}
 
 			StartScheduleTimer();
@@ -1009,7 +1009,7 @@ namespace UnrealGameSync
 				DefaultControl.Hide();
 			}
 
-			Settings.Save();
+			Settings.Save(Logger);
 
 			if(CurrentTabPanel != null)
 			{
@@ -1045,7 +1045,7 @@ namespace UnrealGameSync
 
 		public void OpenNewProject()
 		{
-			OpenProjectInfo? OpenProjectInfo = OpenProjectWindow.ShowModal(this, null, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
+			OpenProjectInfo? OpenProjectInfo = OpenProjectWindow.ShowModal(this, null, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider, Logger);
 			if(OpenProjectInfo != null)
 			{
 				int NewTabIdx = TryOpenProject(OpenProjectInfo, -1, OpenProjectOptions.None);
@@ -1069,7 +1069,7 @@ namespace UnrealGameSync
 				Settings.RecentProjects.RemoveRange(MaxRecentProjects, Settings.RecentProjects.Count - MaxRecentProjects);
 			}
 
-			Settings.Save();
+			Settings.Save(Logger);
 		}
 
 		public void EditSelectedProject(int TabIdx)
@@ -1107,7 +1107,7 @@ namespace UnrealGameSync
 
 		public void EditSelectedProject(int TabIdx, UserSelectedProjectSettings SelectedProject)
 		{
-			OpenProjectInfo? OpenProjectInfo = OpenProjectWindow.ShowModal(this, SelectedProject, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
+			OpenProjectInfo? OpenProjectInfo = OpenProjectWindow.ShowModal(this, SelectedProject, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider, Logger);
 			if(OpenProjectInfo != null)
 			{
 				int NewTabIdx = TryOpenProject(OpenProjectInfo, TabIdx, OpenProjectOptions.None);
@@ -1255,7 +1255,7 @@ namespace UnrealGameSync
 				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(TabIdx)!;
 				Settings.OpenProjects.Add(TabPanel.SelectedProject);
 			}
-			Settings.Save();
+			Settings.Save(Logger);
 		}
 
 		void TabControl_OnNewTabClick(Point Location, MouseButtons Buttons)
@@ -1302,7 +1302,7 @@ namespace UnrealGameSync
 			if(Settings.TabLabels != NewTabNames)
 			{
 				Settings.TabLabels = NewTabNames;
-				Settings.Save();
+				Settings.Save(Logger);
 
 				for(int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)
 				{
@@ -1349,7 +1349,7 @@ namespace UnrealGameSync
 		private void TabMenu_RecentProjects_ClearList_Click(object sender, EventArgs e)
 		{
 			Settings.RecentProjects.Clear();
-			Settings.Save();
+			Settings.Save(Logger);
 		}
 
 		private void TabMenu_Closed(object sender, ToolStripDropDownClosedEventArgs e)
@@ -1360,7 +1360,7 @@ namespace UnrealGameSync
 		private void RecentMenu_ClearList_Click(object sender, EventArgs e)
 		{
 			Settings.RecentProjects.Clear();
-			Settings.Save();
+			Settings.Save(Logger);
 		}
 
 		public void UpdateProgress()

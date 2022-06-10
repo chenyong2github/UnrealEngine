@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -15,10 +16,12 @@ namespace UnrealGameSync
 	partial class IssueSettingsWindow : Form
 	{
 		UserSettings Settings;
+		ILogger Logger;
 
-		public IssueSettingsWindow(UserSettings Settings, string CurrentProject)
+		public IssueSettingsWindow(UserSettings Settings, string CurrentProject, ILogger Logger)
 		{
 			this.Settings = Settings;
+			this.Logger = Logger;
 
 			InitializeComponent();
 
@@ -145,7 +148,7 @@ namespace UnrealGameSync
 			Settings.NotifyUnresolvedMinutes = NewNotifyUnresolvedMinutes;
 			Settings.NotifyUnacknowledgedMinutes = NewNotifyUnacknowledgedMinutes;
 			Settings.NotifyUnassignedMinutes = NewNotifyUnassignedMinutes;
-			Settings.Save();
+			Settings.Save(Logger);
 
 			DialogResult = DialogResult.OK;
 			Close();

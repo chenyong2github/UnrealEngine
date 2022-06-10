@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -59,7 +60,7 @@ namespace UnrealGameSync
 		public FileReference File { get; }
 		public GlobalSettings Global { get; }
 
-		public UserProjectSettings FindOrAddProjectSettings(ProjectInfo ProjectInfo, UserWorkspaceSettings Settings)
+		public UserProjectSettings FindOrAddProjectSettings(ProjectInfo ProjectInfo, UserWorkspaceSettings Settings, ILogger Logger)
 		{
 			FileReference ConfigFile;
 			if (ProjectInfo.LocalFileName.HasExtension(".uprojectdirs"))
@@ -78,7 +79,7 @@ namespace UnrealGameSync
 			{
 				ProjectSettings = new UserProjectSettings(ConfigFile);
 				ImportProjectSettings(ProjectInfo, ProjectSettings);
-				ProjectSettings.Save();
+				ProjectSettings.Save(Logger);
 			}
 			return ProjectSettings;
 		}
@@ -111,17 +112,26 @@ namespace UnrealGameSync
 			return new GlobalSettingsFile(File, Data);
 		}
 
-		public virtual void Save()
+		public virtual bool Save(ILogger Logger)
 		{
-			Utility.SaveJson(File, Global);
+			try
+			{
+				Utility.SaveJson(File, Global);
+				return true;
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogError(Ex, "Unable to save {File}: {Message}", File, Ex.Message);
+				return false;
+			}
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(UserWorkspaceSettings Settings)
+		public UserWorkspaceState FindOrAddWorkspaceState(UserWorkspaceSettings Settings, ILogger Logger)
 		{
-			return FindOrAddWorkspaceState(Settings.RootDir, Settings.ClientName, Settings.BranchPath);
+			return FindOrAddWorkspaceState(Settings.RootDir, Settings.ClientName, Settings.BranchPath, Logger);
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath)
+		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath, ILogger Logger)
 		{
 			UserWorkspaceState? State;
 			if (!UserWorkspaceState.TryLoad(RootDir, out State))
@@ -129,14 +139,14 @@ namespace UnrealGameSync
 				State = new UserWorkspaceState();
 				State.RootDir = RootDir;
 				ImportWorkspaceState(RootDir, ClientName, BranchPath, State);
-				State.Save();
+				State.Save(Logger);
 			}
 			return State;
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(ProjectInfo ProjectInfo, UserWorkspaceSettings Settings)
+		public UserWorkspaceState FindOrAddWorkspaceState(ProjectInfo ProjectInfo, UserWorkspaceSettings Settings, ILogger Logger)
 		{
-			UserWorkspaceState State = FindOrAddWorkspaceState(ProjectInfo.LocalRootPath, ProjectInfo.ClientName, ProjectInfo.BranchPath);
+			UserWorkspaceState State = FindOrAddWorkspaceState(ProjectInfo.LocalRootPath, ProjectInfo.ClientName, ProjectInfo.BranchPath, Logger);
 			if (!State.IsValid(ProjectInfo))
 			{
 				State = new UserWorkspaceState();
@@ -145,7 +155,7 @@ namespace UnrealGameSync
 			return State;
 		}
 
-		public UserWorkspaceSettings FindOrAddWorkspaceSettings(DirectoryReference RootDir, string? ServerAndPort, string? UserName, string ClientName, string BranchPath, string ProjectPath)
+		public UserWorkspaceSettings FindOrAddWorkspaceSettings(DirectoryReference RootDir, string? ServerAndPort, string? UserName, string ClientName, string BranchPath, string ProjectPath, ILogger Logger)
 		{
 			ProjectInfo.ValidateBranchPath(BranchPath);
 			ProjectInfo.ValidateProjectPath(ProjectPath);
@@ -159,7 +169,7 @@ namespace UnrealGameSync
 			}
 
 			Settings.Init(ServerAndPort, UserName, ClientName, BranchPath, ProjectPath);
-			Settings.Save();
+			Settings.Save(Logger);
 
 			return Settings;
 		}

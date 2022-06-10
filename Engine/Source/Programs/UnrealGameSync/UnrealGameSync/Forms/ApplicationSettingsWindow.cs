@@ -225,7 +225,7 @@ namespace UnrealGameSync
 			{
 				Settings.SyncOptions.NumThreads = (int)ParallelSyncThreadsSpinner.Value;
 				Settings.bKeepInTray = KeepInTrayCheckBox.Checked;
-				Settings.Save();
+				Settings.Save(Logger);
 			}
 
 			List<Guid> NewEnabledTools = new List<Guid>();
@@ -239,7 +239,7 @@ namespace UnrealGameSync
 			if (!NewEnabledTools.SequenceEqual(Settings.EnabledTools))
 			{
 				Settings.EnabledTools = NewEnabledTools.ToArray();
-				Settings.Save();
+				Settings.Save(Logger);
 				ToolUpdateMonitor.UpdateNow();
 			}
 
@@ -275,7 +275,7 @@ namespace UnrealGameSync
 
 		private void AdvancedBtn_Click(object sender, EventArgs e)
 		{
-			PerforceSyncSettingsWindow Window = new PerforceSyncSettingsWindow(Settings);
+			PerforceSyncSettingsWindow Window = new PerforceSyncSettingsWindow(Settings, Logger);
 			Window.ShowDialog();
 		}
 	}

@@ -295,13 +295,13 @@ namespace UnrealGameSyncCmd
 
 		public static async Task<UserWorkspaceState> ReadWorkspaceState(IPerforceConnection PerforceClient, UserWorkspaceSettings Settings, GlobalSettingsFile UserSettings, ILogger Logger)
 		{
-			UserWorkspaceState State = UserSettings.FindOrAddWorkspaceState(Settings);
+			UserWorkspaceState State = UserSettings.FindOrAddWorkspaceState(Settings, Logger);
 			if (State.SettingsTimeUtc != Settings.LastModifiedTimeUtc)
 			{
 				Logger.LogDebug("Updating state due to modified settings timestamp");
 				ProjectInfo Info = await ProjectInfo.CreateAsync(PerforceClient, Settings, CancellationToken.None);
 				State.UpdateCachedProjectInfo(Info, Settings.LastModifiedTimeUtc);
-				State.Save();
+				State.Save(Logger);
 			}
 			return State;
 		}
@@ -464,7 +464,7 @@ namespace UnrealGameSyncCmd
 				Settings.RootDir = ClientDir;
 				Settings.Init(Perforce.Settings.ServerAndPort, Perforce.Settings.UserName, ClientName, BranchPath, ProjectPath);
 				Options.ApplyTo(Settings);
-				Settings.Save();
+				Settings.Save(Logger);
 
 				Logger.LogInformation("Initialized {ClientName} with root at {RootDir}", ClientName, ClientDir);
 			}
@@ -523,7 +523,7 @@ namespace UnrealGameSyncCmd
 				Settings.RootDir = ClientDir;
 				Settings.Init(Perforce.Settings.ServerAndPort, Perforce.Settings.UserName, ClientName, BranchPath, ProjectPath);
 				Options.ApplyTo(Settings);
-				Settings.Save();
+				Settings.Save(Logger);
 
 				Logger.LogInformation("Initialized workspace at {RootDir} for {ClientProject}", ClientDir, Settings.ClientProjectPath);
 			}
@@ -629,7 +629,7 @@ namespace UnrealGameSyncCmd
 				Options |= WorkspaceUpdateOptions.RemoveFilteredFiles;
 
 				ProjectInfo ProjectInfo = State.CreateProjectInfo();
-				UserProjectSettings ProjectSettings = Context.UserSettings.FindOrAddProjectSettings(ProjectInfo, Settings);
+				UserProjectSettings ProjectSettings = Context.UserSettings.FindOrAddProjectSettings(ProjectInfo, Settings, Logger);
 
 				ConfigFile ProjectConfig = await ConfigUtils.ReadProjectConfigFileAsync(PerforceClient, ProjectInfo, Logger, CancellationToken.None);
 				string[] SyncFilter = ReadSyncFilter(Settings, Context.UserSettings, ProjectConfig);
@@ -653,7 +653,7 @@ namespace UnrealGameSyncCmd
 				}
 
 				State.SetLastSyncState(Result, UpdateContext, Message);
-				State.Save();
+				State.Save(Logger);
 			}
 		}
 
@@ -828,7 +828,7 @@ namespace UnrealGameSyncCmd
 					Context.Arguments.CheckAllArgumentsUsed(Context.Logger);
 
 					Options.ApplyTo(Settings);
-					Settings.Save();
+					Settings.Save(Logger);
 
 					Logger.LogInformation("Updated {ConfigFile}", Settings.ConfigFile);
 				}
@@ -892,12 +892,12 @@ namespace UnrealGameSyncCmd
 				if (Options.Global)
 				{
 					ApplyCommandOptions(Context.UserSettings.Global.Filter, Options, SyncCategories.Values, Logger);
-					Context.UserSettings.Save();
+					Context.UserSettings.Save(Logger);
 				}
 				else
 				{
 					ApplyCommandOptions(WorkspaceSettings.Filter, Options, SyncCategories.Values, Logger);
-					WorkspaceSettings.Save();
+					WorkspaceSettings.Save(Logger);
 				}
 
 				Dictionary<Guid, bool> GlobalCategories = GlobalFilter.GetCategories();
@@ -1150,7 +1150,7 @@ namespace UnrealGameSyncCmd
 			public async Task SwitchProjectAsync(IPerforceConnection PerforceClient, UserWorkspaceSettings Settings, string ProjectName, ILogger Logger)
 			{
 				Settings.ProjectPath = await FindProjectPathAsync(PerforceClient, Settings.ClientName, Settings.BranchPath, ProjectName);
-				Settings.Save();
+				Settings.Save(Logger);
 				Logger.LogInformation("Switched to project {ProjectPath}", Settings.ClientProjectPath);
 			}
 		}

@@ -116,7 +116,7 @@ namespace UnrealGameSync
 
 				// Save the new settings
 				Settings.Version = UserSettingsVersion.Latest;
-				Settings.Save();
+				Settings.Save(Logger);
 			}
 
 			// Register the update listener
