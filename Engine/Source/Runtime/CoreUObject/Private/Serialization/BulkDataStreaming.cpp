@@ -471,6 +471,7 @@ bool OpenReadBulkData(
 	const FBulkDataChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
+	EAsyncIOPriorityAndFlags Priority,
 	TFunction<void(FArchive& Ar)>&& Read)
 {
 	if (BulkChunkId.IsValid() == false)
@@ -483,7 +484,7 @@ bool OpenReadBulkData(
 		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, PackageId);
 		FIoBatch Batch = FIoDispatcher::Get().NewBatch();
 
-		FIoRequest Request = Batch.Read(ChunkId, FIoReadOptions(Offset, Size), IoDispatcherPriority_Medium);
+		FIoRequest Request = Batch.Read(ChunkId, FIoReadOptions(Offset, Size), ConvertToIoDispatcherPriority(Priority));
 		FEventRef Event;
 		Batch.IssueAndTriggerEvent(Event.Get());
 		Event->Wait();
@@ -580,7 +581,7 @@ TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, PackageId);
 
 		FChunkBulkDataRequest* Request = new FChunkBulkDataRequest(Callback, MoveTemp(Buffer));
-		Request->Issue(ChunkId, FIoReadOptions(Offset, Size), Priority);
+		Request->Issue(ChunkId, FIoReadOptions(Offset, Size), ConvertToIoDispatcherPriority(Priority));
 		
 		return TUniquePtr<IBulkDataIORequest>(Request);
 	}
@@ -725,6 +726,7 @@ bool StartAsyncLoad(
 	const FBulkDataChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
+	EAsyncIOPriorityAndFlags Priority,
 	TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
 {
 	if (TUniquePtr<IAsyncReadFileHandle> FileHandle = OpenAsyncReadBulkData(BulkMeta, BulkChunkId))
@@ -746,7 +748,7 @@ bool StartAsyncLoad(
 				}
 			};
 		
-		if (IAsyncReadRequest* Request = FileHandle->ReadRequest(Offset, Size, AIOP_Normal, &FileReadCallback))
+		if (IAsyncReadRequest* Request = FileHandle->ReadRequest(Offset, Size, Priority, &FileReadCallback))
 		{
 			FAsyncBulkDataRequests::Get().AddPendingRequest(Owner, MoveTemp(FileHandle), TUniquePtr<IAsyncReadRequest>(Request));
 			return true;

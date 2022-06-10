@@ -83,6 +83,7 @@ bool OpenReadBulkData(
 	const FBulkDataChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
+	EAsyncIOPriorityAndFlags Priority,
 	TFunction<void(FArchive& Ar)>&& Read);
 
 /** Open async read file handle for the specified bulk data chunk ID. */
@@ -115,7 +116,8 @@ bool StartAsyncLoad(
 	const FBulkMetaData& BulkMeta,
 	const FBulkDataChunkId& BulkChunkId,
 	int64 Offset,
-	int64 Size, 
+	int64 Size,
+	EAsyncIOPriorityAndFlags Priority,
 	TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback);
 
 /** Flush pending async load. */
@@ -1083,6 +1085,7 @@ bool FBulkData::LoadBulkDataWithFileReader()
 			BulkChunkId,
 			BulkDataOffset,
 			BulkDataSizeOnDisk,
+			AIOP_High,
 			[this](FArchive& Ar)
 			{
 				const int64 BulkDataSize = GetBulkDataSize();
@@ -1158,6 +1161,7 @@ bool FBulkData::StartAsyncLoading()
 		BulkChunkId,
 		BulkMeta.GetOffset(), 
 		BulkMeta.GetSize(),
+		AIOP_Low,
 		[this](TIoStatusOr<FIoBuffer> Result)
 	{
 		if (Result.IsOk())
@@ -1981,6 +1985,7 @@ bool FBulkData::TryLoadDataIntoMemory(FIoBuffer Dest)
 		BulkChunkId,
 		BulkDataOffset,
 		BulkDataSizeOnDisk,
+		AIOP_High,
 		[this, BulkDataSize, &Dest](FArchive& Ar)
 		{
 			SerializeBulkData(Ar, Dest.GetData(), BulkDataSize, BulkMeta.GetFlags());
