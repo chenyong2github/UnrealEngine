@@ -49,16 +49,18 @@ class FChannel;
 	bool(ChannelsExpr)
 
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
-	UE::Trace::Private::FEventNode LoggerName##EventName##Event;
+	static UE::Trace::Private::FEventNode LoggerName##EventName##Event##Impl;\
+	UE::Trace::Private::FEventNode& LoggerName##EventName##Event = LoggerName##EventName##Event##Impl;
 
 #define TRACE_PRIVATE_EVENT_BEGIN(LoggerName, EventName, ...) \
-	TRACE_PRIVATE_EVENT_BEGIN_IMPL(static, LoggerName, EventName, ##__VA_ARGS__)
+	TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName); \
+	TRACE_PRIVATE_EVENT_BEGIN_IMPL(LoggerName, EventName, ##__VA_ARGS__)
 
 #define TRACE_PRIVATE_EVENT_BEGIN_EXTERN(LoggerName, EventName, ...) \
-	TRACE_PRIVATE_EVENT_BEGIN_IMPL(extern, LoggerName, EventName, ##__VA_ARGS__)
+	extern UE::Trace::Private::FEventNode& LoggerName##EventName##Event; \
+	TRACE_PRIVATE_EVENT_BEGIN_IMPL(LoggerName, EventName, ##__VA_ARGS__)
 
-#define TRACE_PRIVATE_EVENT_BEGIN_IMPL(LinkageType, LoggerName, EventName, ...) \
-	LinkageType TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
+#define TRACE_PRIVATE_EVENT_BEGIN_IMPL(LoggerName, EventName, ...) \
 	struct F##LoggerName##EventName##Fields \
 	{ \
 		enum \
@@ -113,7 +115,7 @@ class FChannel;
 
 #define TRACE_PRIVATE_EVENT_REFFIELD(RefLogger, RefEventType, FieldName) \
 		F##RefLogger##RefEventType##Fields::DefinitionType> FieldName##_Meta; \
-		FieldName##_Meta const FieldName##_Field = FieldName##_Meta(UE::Trace::FLiteralName(#FieldName), &RefLogger##RefEventType##Event); \
+		FieldName##_Meta const FieldName##_Field = FieldName##_Meta(UE::Trace::FLiteralName(#FieldName), RefLogger##RefEventType##Event.GetUid()); \
 		template <typename DefinitionType> auto FieldName(UE::Trace::TEventRef<DefinitionType> Reference) const { \
 			checkfSlow(Reference.RefTypeId == F##RefLogger##RefEventType##Fields::GetUid(), TEXT("Incorrect reference type passed to event. Field expected %s with uid %u but got a reference with uid %u"), TEXT(#RefEventType), F##RefLogger##RefEventType##Fields::GetUid(), Reference.RefTypeId);\
 			LogScopeType::FFieldSet<FieldName##_Meta, F##RefLogger##RefEventType##Fields::DefinitionType>::Impl((LogScopeType*)this, Reference); \
@@ -188,12 +190,14 @@ class FChannel;
 #define TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr) \
 	false
 
-#define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName)
+#define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
+	int8* LoggerName##EventName##DummyPtr = nullptr;\
 
 #define TRACE_PRIVATE_EVENT_BEGIN(LoggerName, EventName, ...) \
 	TRACE_PRIVATE_EVENT_BEGIN_IMPL(LoggerName, EventName)
 
 #define TRACE_PRIVATE_EVENT_BEGIN_EXTERN(LoggerName, EventName, ...) \
+	extern int8* LoggerName##EventName##DummyPtr;\
 	TRACE_PRIVATE_EVENT_BEGIN_IMPL(LoggerName, EventName)
 
 #define TRACE_PRIVATE_EVENT_BEGIN_IMPL(LoggerName, EventName) \

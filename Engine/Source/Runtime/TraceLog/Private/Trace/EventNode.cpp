@@ -170,14 +170,14 @@ void FEventNode::Describe() const
 			Out.DefinitionId.Offset = Field.ValueOffset;
 			Out.DefinitionId.TypeInfo = Field.TypeInfo;
 		}
-		else if (Field.Reference)
+		else if (Field.Reference != 0)
 		{
 			Out.FieldType = EFieldFamily::Reference;
 			// todo: What if the referenced type has not been initialized yet?
 			Out.Reference.Offset = Field.ValueOffset;
 			Out.Reference.TypeInfo = Field.TypeInfo;
 			Out.Reference.NameSize = Field.NameSize;
-			Out.Reference.RefUid = uint16(Field.Reference->GetUid()) >> EKnownEventUids::_UidShift;
+			Out.Reference.RefUid = uint16(Field.Reference) >> EKnownEventUids::_UidShift;
 		}
 		else
 		{

@@ -96,13 +96,13 @@ struct FLiteralName
 ////////////////////////////////////////////////////////////////////////////////
 struct FFieldDesc
 {
-	FFieldDesc(const FLiteralName& Name, uint8 Type, uint16 Offset, uint16 Size, Private::FEventNode* ReferenceEvent = nullptr)
+	FFieldDesc(const FLiteralName& Name, uint8 Type, uint16 Offset, uint16 Size, uint32 ReferencedUid = 0)
 	: Name(Name.Ptr)
 	, ValueOffset(Offset)
 	, ValueSize(Size)
 	, NameSize(Name.Length)
 	, TypeInfo(Type)
-	, Reference(ReferenceEvent)
+	, Reference(ReferencedUid)
 	{
 	}
 
@@ -111,7 +111,7 @@ struct FFieldDesc
 	uint16			ValueSize;
 	uint8			NameSize;
 	uint8			TypeInfo;
-	Private::FEventNode* Reference;
+	uint32			Reference;
 };
 
 
@@ -181,9 +181,10 @@ struct TField<InIndex, InOffset, TEventRef<DefinitionType>>
 {
 	TRACE_PRIVATE_FIELD(InIndex, InOffset, DefinitionType);
 public:
-	TField(const FLiteralName& Name, Private::FEventNode* ReferenceEvent)
-		: FieldDesc(Name, Tid, Offset, Size, ReferenceEvent)
+	TField(const FLiteralName& Name, uint32 ReferencedUid)
+		: FieldDesc(Name, Tid, Offset, Size, ReferencedUid)
 	{
+		check(ReferencedUid != 0);
 	}
 };
 	
