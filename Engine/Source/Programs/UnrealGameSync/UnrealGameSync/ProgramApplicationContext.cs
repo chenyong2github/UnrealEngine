@@ -191,7 +191,7 @@ namespace UnrealGameSync
 				Task<OpenProjectInfo> StartupTask = Task.Run(() => OpenProjectInfo.CreateAsync(DefaultPerforceSettings, ProjectSettings, Settings, Logger, StartupCancellationSource.Token), StartupCancellationSource.Token);
 				StartupTasks.Add((ProjectSettings, new ModalTask<OpenProjectInfo>(StartupTask)));
 			}
-			StartupTask = Task.WhenAll(StartupTasks.Select(x => x.Item2.Task));
+			StartupTask = Task.Run(() => WaitForStartupTasks(StartupTasks));
 
 			StartupWindow = new ModalTaskWindow("Opening Projects", "Opening projects, please wait...", FormStartPosition.CenterScreen, StartupTask, StartupCancellationSource);
 			Components.Add(StartupWindow);
@@ -209,6 +209,24 @@ namespace UnrealGameSync
 				StartupWindow.Activate();
 			}
 			StartupWindow.FormClosed += (s, e) => OnStartupComplete(StartupTasks);
+		}
+
+		static async Task WaitForStartupTasks(List<(UserSelectedProjectSettings, ModalTask<OpenProjectInfo>)> StartupTasks)
+		{
+			foreach ((_, ModalTask<OpenProjectInfo> ModalTask) in StartupTasks)
+			{
+				try
+				{
+					await ModalTask.Task;
+				}
+				catch (PerforceException)
+				{
+				}
+				catch (Exception ex)
+				{
+					Program.CaptureException(ex);
+				}
+			}
 		}
 
 		private UserSelectedProjectSettings UpgradeSelectedProjectSettings(UserSelectedProjectSettings Project)
