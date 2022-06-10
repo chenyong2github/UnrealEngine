@@ -5,6 +5,7 @@
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSurfaceData.h"
+#include "Elements/PCGSplineSampler.h"
 
 #include "Components/SplineComponent.h"
 
@@ -30,17 +31,27 @@ void UPCGSplineData::Initialize(USplineComponent* InSpline)
 
 int UPCGSplineData::GetNumSegments() const
 {
-	return 1;
+	return Spline ? Spline->GetNumberOfSplineSegments() : 0;
 }
 
-float UPCGSplineData::GetSegmentLength(int SegmentIndex) const
+FVector::FReal UPCGSplineData::GetSegmentLength(int SegmentIndex) const
 {
-	return Spline->GetSplineLength();
+	return Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex + 1) - Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex);
 }
 
-FVector UPCGSplineData::GetLocationAtDistance(int SegmentIndex, float Distance) const
+FVector UPCGSplineData::GetLocationAtDistance(int SegmentIndex, FVector::FReal Distance) const
 {
-	return Spline->GetLocationAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::World);
+	return Spline->GetLocationAtDistanceAlongSpline(Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, ESplineCoordinateSpace::World);
+}
+
+FTransform UPCGSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FReal Distance, FBox* OutBounds) const
+{
+	if (OutBounds)
+	{
+		*OutBounds = FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector);
+	}
+
+	return Spline->GetTransformAtDistanceAlongSpline(Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, ESplineCoordinateSpace::World, /*bUseScale=*/true);
 }
 
 const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContext* Context) const
@@ -49,29 +60,12 @@ const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContext* Context) const
 	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGSplineData*>(this));
 	Data->InitializeFromData(this);
 
-	// TODO: introduce settings to sample, 
-	// should be part of the settings passed in param.
-	float SplineLength = Spline->GetSplineLength();
-	float Offset = (SplineLength - FMath::Floor(SplineLength)) / 2.0f;
+	FPCGSplineSamplerParams SamplerParams;
+	SamplerParams.Mode = EPCGSplineSamplingMode::Distance;
 
-	TArray<FPCGPoint>& Points = Data->GetMutablePoints();
-	int NumPoints = int(SplineLength) + 1;
-	Points.SetNum(NumPoints);
+	PCGSplineSampler::SampleLineData(this, this, SamplerParams, Data);
 
-	int Index = 0;
-	float Distance = Offset;
-	while (Distance < SplineLength)
-	{
-		Points[Index].Transform = Spline->GetTransformAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::World);
-		// Exception: considering the spline holds size data in its scale, we'll reset it to identity here
-		Points[Index].Transform.SetScale3D(FVector::One());
-		Points[Index].Seed = PCGHelpers::ComputeSeed((int)Distance);
-		Points[Index].Density = 1.0f;
-		++Index;
-		Distance += 1.0f;
-	}
-
-	UE_LOG(LogPCG, Verbose, TEXT("Spline %s generated %d points"), *Spline->GetFName().ToString(), Points.Num());
+	UE_LOG(LogPCG, Verbose, TEXT("Spline %s generated %d points"), *Spline->GetFName().ToString(), Data->GetPoints().Num());
 
 	return Data;
 }
@@ -102,7 +96,7 @@ bool UPCGSplineData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 	else
 	{
 		OutPoint.Transform = NearestTransform;
-		OutPoint.Transform.SetLocation(LocalPoint);
+		OutPoint.Transform.SetLocation(InPosition);
 		OutPoint.SetLocalBounds(InBounds);
 		OutPoint.Density = 1.0f - Distance;
 
@@ -200,7 +194,7 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 	const FVector& SurfaceNormal = GetSurface()->GetNormal();
 
 	// Project to 2D space
-	const FTransform LocalTransform = Spline->GetComponentTransform().Inverse() * InTransform;
+	const FTransform LocalTransform = InTransform * Spline->GetComponentTransform().Inverse();
 	FVector2D LocalPosition2D = Project(LocalTransform.GetLocation());
 	float Dummy;
 	// Find nearest key on 2D spline
@@ -212,7 +206,28 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 	const FVector PointOnLine = FMath::ClosestPointOnInfiniteLine(InPosition, InPosition + SurfaceNormal, NearestPointOnSpline);
 
 	// TODO: this is super inefficient
-	return GetSpline()->SamplePoint(FTransform(PointOnLine), InBounds, OutPoint, OutMetadata);
+	FPCGPoint SplinePoint;
+	if (GetSpline()->SamplePoint(FTransform(PointOnLine), InBounds, SplinePoint, OutMetadata))
+	{
+		FPCGPoint SurfacePoint;
+		if (GetSurface()->SamplePoint(SplinePoint.Transform, InBounds, SurfacePoint, OutMetadata))
+		{
+			OutPoint = SplinePoint;
+			OutPoint.Transform = SurfacePoint.Transform;
+			OutPoint.Density *= SurfacePoint.Density;
+			OutPoint.Color *= SurfacePoint.Color;
+
+			if (OutMetadata)
+			{
+				//TODO review op
+				OutMetadata->MergePointAttributes(SplinePoint, SurfacePoint, OutPoint, EPCGMetadataOp::Max);
+			}
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 const UPCGSplineData* UPCGSplineProjectionData::GetSpline() const

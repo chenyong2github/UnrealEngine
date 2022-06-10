@@ -4,6 +4,7 @@
 
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
+#include "Elements/PCGSplineSampler.h"
 
 #include "Landscape.h"
 #include "LandscapeSplinesComponent.h"
@@ -37,6 +38,7 @@ void UPCGLandscapeSplineData::Initialize(ULandscapeSplinesComponent* InSplineCom
 {
 	check(InSplineComponent);
 	Spline = InSplineComponent;
+	TargetActor = InSplineComponent->GetOwner();
 }
 
 int UPCGLandscapeSplineData::GetNumSegments() const
@@ -45,14 +47,14 @@ int UPCGLandscapeSplineData::GetNumSegments() const
 	return Spline->GetSegments().Num();
 }
 
-float UPCGLandscapeSplineData::GetSegmentLength(int SegmentIndex) const
+FVector::FReal UPCGLandscapeSplineData::GetSegmentLength(int SegmentIndex) const
 {
 	check(Spline);
 	check(SegmentIndex >= 0 && SegmentIndex < Spline->GetSegments().Num());
 	
 	const ULandscapeSplineSegment* Segment = Spline->GetSegments()[SegmentIndex];
 	const TArray<FLandscapeSplineInterpPoint>& InterpPoints = Segment->GetPoints();
-	float Length = 0;
+	FVector::FReal Length = 0;
 
 	for (int PointIndex = 1; PointIndex < InterpPoints.Num(); ++PointIndex)
 	{
@@ -62,21 +64,49 @@ float UPCGLandscapeSplineData::GetSegmentLength(int SegmentIndex) const
 	return Length;
 }
 
-FVector UPCGLandscapeSplineData::GetLocationAtDistance(int SegmentIndex, float Distance) const
+FTransform UPCGLandscapeSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FReal Distance, FBox* OutBounds) const
 {
 	check(Spline);
 	check(SegmentIndex >= 0 && SegmentIndex < Spline->GetSegments().Num());
 
 	const ULandscapeSplineSegment* Segment = Spline->GetSegments()[SegmentIndex];
+	check(Segment);
+
+	const FLandscapeSplineSegmentConnection& Start = Segment->Connections[0];
+	const FLandscapeSplineSegmentConnection& End = Segment->Connections[1];
+
 	const TArray<FLandscapeSplineInterpPoint>& InterpPoints = Segment->GetPoints();
-	float Length = Distance;
+	FVector::FReal Length = FMath::Max(0, Distance);
 
 	for (int PointIndex = 1; PointIndex < InterpPoints.Num(); ++PointIndex)
 	{
-		const float SegmentLength = (InterpPoints[PointIndex].Center - InterpPoints[PointIndex - 1].Center).Length();
-		if (SegmentLength > Length)
+		const FLandscapeSplineInterpPoint& PreviousPoint = InterpPoints[PointIndex - 1];
+		const FLandscapeSplineInterpPoint& CurrentPoint = InterpPoints[PointIndex];
+
+		const FVector::FReal SegmentLength = (CurrentPoint.Center - PreviousPoint.Center).Length();
+		if (SegmentLength > Length || PointIndex == InterpPoints.Num() - 1)
 		{
-			return InterpPoints[PointIndex - 1].Center + (InterpPoints[PointIndex].Center - InterpPoints[PointIndex - 1].Center) * (Length / SegmentLength);
+			const FVector XAxis = CurrentPoint.Center - PreviousPoint.Center;
+			const FVector PreviousYAxis = PreviousPoint.Right - PreviousPoint.Center;
+			const FVector CurrentYAxis = CurrentPoint.Right - CurrentPoint.Center;
+			const FVector PreviousZAxis = (XAxis ^ PreviousYAxis).GetSafeNormal(UE_SMALL_NUMBER, FVector::ZAxisVector);
+			const FVector CurrentZAxis = (XAxis ^ CurrentYAxis).GetSafeNormal(UE_SMALL_NUMBER, FVector::ZAxisVector);
+
+			FTransform PreviousTransform = FTransform(XAxis, PreviousYAxis, PreviousZAxis, PreviousPoint.Center);
+			FTransform CurrentTransform = FTransform(XAxis, CurrentYAxis, CurrentZAxis, CurrentPoint.Center);
+
+			const FVector::FReal BlendRatio = ((SegmentLength > Length) ? (Length / SegmentLength) : 1.0);
+			PreviousTransform.BlendWith(CurrentTransform, BlendRatio);
+
+			if (OutBounds)
+			{
+				// Important note: the box here is going to be useful to be able to specify the relative sizes of the falloffs
+				*OutBounds = FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector);
+				OutBounds->Min.Y *= (CurrentPoint.FalloffLeft - CurrentPoint.Center).Length() / (CurrentPoint.Left - CurrentPoint.Center).Length();
+				OutBounds->Max.Y *= (CurrentPoint.FalloffRight - CurrentPoint.Center).Length() / (CurrentPoint.Right - CurrentPoint.Center).Length();
+			}
+
+			return PreviousTransform * Spline->GetComponentTransform();
 		}
 		else
 		{
@@ -85,7 +115,7 @@ FVector UPCGLandscapeSplineData::GetLocationAtDistance(int SegmentIndex, float D
 	}
 	
 	check(0);
-	return FVector::Zero();
+	return FTransform();
 }
 
 const UPCGPointData* UPCGLandscapeSplineData::CreatePointData(FPCGContext* Context) const
@@ -97,97 +127,13 @@ const UPCGPointData* UPCGLandscapeSplineData::CreatePointData(FPCGContext* Conte
 	Data->InitializeFromData(this);
 	TArray<FPCGPoint>& Points = Data->GetMutablePoints();
 
-	// TODO: replace all the logic with sampling settings; currently it uses the landscape scaling as a basis
-	const FTransform SplineTransform = Spline->GetComponentTransform();
-	const FTransform LandscapeTransform = Spline->GetSplineOwner()->LandscapeActorToWorld();
-	const FTransform SplineToLandscape = SplineTransform.GetRelativeTransform(LandscapeTransform);
-	ULandscapeInfo* LandscapeInfo = Spline->GetSplineOwner()->GetLandscapeInfo();
+	FPCGSplineSamplerParams SamplerParams;
+	SamplerParams.Mode = EPCGSplineSamplingMode::Distance;
+	SamplerParams.Dimension = EPCGSplineSamplingDimension::OnHorizontal;
 
-	auto AddPoints = [&Points, &SplineTransform, &LandscapeTransform, &SplineToLandscape, LandscapeInfo](const FVector& A, const FVector& B, const FVector& C, const FVector& D, bool bComputeDensity, bool bAddA, bool bAddB) {
+	PCGSplineSampler::SampleLineData(this, this, SamplerParams, Data);
 
-		auto AddPoint = [&Points](const FVector& P, float Density) {
-			FPCGPoint& Point = Points.Emplace_GetRef();
-			Point.Transform = FTransform(P); // pass in segment vector as orientation?
-			Point.Seed = PCGHelpers::ComputeSeed((int)P.X, (int)P.Y, (int)P.Z);
-			Point.Density = Density;
-		};
-
-		if (bAddA)
-		{
-			AddPoint(SplineTransform.TransformPosition(A), 1.0f);
-		}
-
-		// Interpolate points in the ABCD quad based on the given scales, computing density based on ratio from the A->B segment if the bComputeDensity flag is on, and 1.0f otherwise
-		if (LandscapeInfo && LandscapeInfo->LandscapeActor.IsValid())
-		{
-			FBox QuadBoxOnLandscape(EForceInit::ForceInit);
-			QuadBoxOnLandscape += SplineToLandscape.TransformPosition(A);
-			QuadBoxOnLandscape += SplineToLandscape.TransformPosition(B);
-			QuadBoxOnLandscape += SplineToLandscape.TransformPosition(C);
-			QuadBoxOnLandscape += SplineToLandscape.TransformPosition(D);
-
-			int32 MinX = FMath::CeilToInt(QuadBoxOnLandscape.Min.X);
-			int32 MinY = FMath::CeilToInt(QuadBoxOnLandscape.Min.Y);
-			int32 MaxX = FMath::FloorToInt(QuadBoxOnLandscape.Max.X);
-			int32 MaxY = FMath::FloorToInt(QuadBoxOnLandscape.Max.Y);
-
-			const FVector QuadNormal = (C - B).Cross(B - A).GetSafeNormal();
-
-			for (int X = MinX; X <= MaxX; ++X)
-			{
-				for (int Y = MinY; Y <= MaxY; ++Y)
-				{
-					FVector TentativeLocation = LandscapeTransform.TransformPosition(FVector(X, Y, 0));
-					const FVector TentativeLocationInSplineSpace = SplineTransform.InverseTransformPosition(TentativeLocation);
-
-					const FVector::FReal ComputedDensity = PCGLandscapeDataHelpers::GetDensityInQuad(A, B, C, D, TentativeLocationInSplineSpace);
-
-					// Check if the point would be in the quad
-					if (ComputedDensity >= 0)
-					{
-						// TODO: note that we can't call GetHeight on the ULandscapeHEightfieldCollisionComponent, as it is not exported
-						// so we have to resort to calling the method from the landscape actor
-						TOptional<float> HeightAtVertex = LandscapeInfo->LandscapeActor->GetHeightAtLocation(TentativeLocation);
-						if (HeightAtVertex.IsSet())
-						{
-							TentativeLocation.Z = HeightAtVertex.GetValue();
-							AddPoint(TentativeLocation, bComputeDensity ? ComputedDensity : 1.0f);
-						}
-					}
-				}
-			}
-		}
-
-		if (bAddB)
-		{
-			AddPoint(SplineTransform.TransformPosition(B), 1.0f);
-		}
-	};
-	
-	const TArray<TObjectPtr<ULandscapeSplineSegment>>& Segments = Spline->GetSegments();
-
-	// For each segment on the spline,
-	for (int SegmentIndex = 0; SegmentIndex < Segments.Num(); ++SegmentIndex)
-	{
-		// Sample points on and between points
-		const TArray<FLandscapeSplineInterpPoint>& InterpPoints = Segments[SegmentIndex]->GetPoints();
-		bool bIsLastSegment = (SegmentIndex == Segments.Num() - 1);
-
-		for (int PointIndex = 1; PointIndex < InterpPoints.Num(); ++PointIndex)
-		{
-			bool bIsLastPointInSpline = (bIsLastSegment && PointIndex == InterpPoints.Num() - 1);
-
-			const FLandscapeSplineInterpPoint& Start = InterpPoints[PointIndex - 1];
-			const FLandscapeSplineInterpPoint& End = InterpPoints[PointIndex];
-
-			AddPoints(Start.Center, End.Center, End.Left, Start.Left, /*bComputeDensity=*/false, /*bAddA=*/true, /*bAddB=*/false);
-			AddPoints(Start.Left, End.Left, End.FalloffLeft, Start.FalloffLeft, /*bComputeDensity=*/true, /*bAddA=*/true, /*bAddB=*/bIsLastPointInSpline);
-			AddPoints(End.Center, Start.Center, Start.Right, End.Right, /*bComputeDensity=*/false, /*bAddA=*/bIsLastPointInSpline, /*bAddB=*/false);
-			AddPoints(End.Right, Start.Right, Start.FalloffRight, End.FalloffRight, /*bComputeDensity=*/true, /*bAddA=*/bIsLastPointInSpline, /*bAddB=*/true);
-		}
-	}
-
-	UE_LOG(LogPCG, Verbose, TEXT("Landscape spline %s generated %d points on %d segments"), *Spline->GetFName().ToString(), Points.Num(), Segments.Num());
+	UE_LOG(LogPCG, Verbose, TEXT("Landscape spline %s generated %d points"), *Spline->GetFName().ToString(), Points.Num());
 
 	return Data;
 }
@@ -242,10 +188,11 @@ bool UPCGLandscapeSplineData::SamplePoint(const FTransform& InTransform, const F
 			// Considering that the points on a given control point are probably aligned, we could do an early check
 			// in the original quad (start left falloff -> start right falloff -> end right falloff -> end left falloff)
 			// TODO: this sequence here can be optimized knowing that some checks will be redundant.
+			// Important note: the order and selection of points is important to the density computation. This assumes the first 2 points are the "1" density edge
 			Density = FMath::Max(Density, PCGLandscapeDataHelpers::GetDensityInQuad(Start.Center, End.Center, End.Left, Start.Left, Position) >= 0 ? 1.0f : 0.0f);
 			Density = FMath::Max(Density, PCGLandscapeDataHelpers::GetDensityInQuad(Start.Left, End.Left, End.FalloffLeft, Start.FalloffLeft, Position));
-			Density = FMath::Max(Density, PCGLandscapeDataHelpers::GetDensityInQuad(Start.Center, Start.Right, End.Right, End.Center, Position) >= 0 ? 1.0f : 0.0f);
-			Density = FMath::Max(Density, PCGLandscapeDataHelpers::GetDensityInQuad(Start.Right, Start.FalloffRight, End.FalloffRight, End.Right, Position));
+			Density = FMath::Max(Density, PCGLandscapeDataHelpers::GetDensityInQuad(End.Center, Start.Center, Start.Right, End.Right, Position) >= 0 ? 1.0f : 0.0f);
+			Density = FMath::Max(Density, PCGLandscapeDataHelpers::GetDensityInQuad(End.Right, Start.Right, Start.FalloffRight, End.FalloffRight, Position));
 
 			if (Density > SegmentDensity)
 			{
