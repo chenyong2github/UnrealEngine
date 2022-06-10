@@ -861,6 +861,8 @@ class FRenderVolumetricCloudRenderViewCS : public FMeshMaterialShader
 		// This shader takes a very long time to compile with FXC, so we pre-compile it with DXC first and then forward the optimized HLSL to FXC.
 		OutEnvironment.CompilerFlags.Add(CFLAG_PrecompileWithDXC);
 
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 	}
 };
