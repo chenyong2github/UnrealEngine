@@ -18,7 +18,7 @@ void FGetStaticMeshDataflowNode::Evaluate(const Dataflow::FContext& Context, Dat
 	{
 		StaticMeshOut->SetValue(StaticMesh, Context);
 	}
-	else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>(FName("UFleshAsset")))
+	else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 	{
 		if (const UStaticMesh* StaticMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<UStaticMesh>(
 			EngineContext->Owner, PropertyName))

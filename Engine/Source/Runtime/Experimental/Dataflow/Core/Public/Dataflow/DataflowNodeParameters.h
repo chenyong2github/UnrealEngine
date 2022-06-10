@@ -11,12 +11,14 @@ namespace Dataflow
 	class DATAFLOWCORE_API FContext
 	{
 	public:
-		FContext(float InTime, FName InType = FName("Unknown"))
-		: Timestamp(InTime) 
-		, Type(InType){}
+		FContext(float InTime, FString InType = FString(""))
+		: Timestamp(InTime)
+		, Type(StaticType().Append(InType))
+		{}
 
 		float Timestamp = 0.f;
-		FName Type = FName("Unknown");
+		FString Type;
+		static FString StaticType() { return "FContext"; }
 
 		uint32 GetTypeHash() const
 		{
@@ -24,9 +26,9 @@ namespace Dataflow
 		}
 
 		template<class T>
-		const T* AsType(FName InType) const
+		const T* AsType() const
 		{
-			if (Type.IsEqual(InType))
+			if (Type.Contains(T::StaticType()))
 			{
 				return (T*)this;
 			}

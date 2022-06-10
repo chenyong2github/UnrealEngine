@@ -27,7 +27,7 @@ void FGetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context
 {
 	if (Output.Get() == Out)
 	{
-		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>(FName("UGeometryCollection")))
+		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
 			if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
 			{
@@ -63,7 +63,7 @@ void FSetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context
 	if (Out == nullptr)
 	{
 		DataType Collection = Input->GetValue(Context);
-		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>(FName("UGeometryCollection")))
+		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
 			if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
 			{
@@ -79,7 +79,7 @@ void FResetGeometryCollectionDataflowNode::Evaluate(const Dataflow::FContext& Co
 {
 	ManagedArrayOut->SetValue(TSharedPtr<FManagedArrayCollection>(nullptr), Context);
 
-	if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>(FName("UGeometryCollection")))
+	if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 	{
 		if (UGeometryCollection* GeometryCollectionObject = Cast<UGeometryCollection>(EngineContext->Owner))
 		{

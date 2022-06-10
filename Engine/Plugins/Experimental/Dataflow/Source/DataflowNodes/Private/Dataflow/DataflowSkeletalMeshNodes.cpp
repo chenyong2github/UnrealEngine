@@ -24,7 +24,7 @@ void FGetSkeletalMeshDataflowNode::Evaluate(const Dataflow::FContext& Context, D
 	{
 		SkeletalMeshOut->SetValue(SkeletalMesh, Context);
 	}
-	else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>(FName("UFleshAsset")))
+	else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 	{
 		if (const USkeletalMesh* SkeletalMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<USkeletalMesh>(
 			EngineContext->Owner, PropertyName))
