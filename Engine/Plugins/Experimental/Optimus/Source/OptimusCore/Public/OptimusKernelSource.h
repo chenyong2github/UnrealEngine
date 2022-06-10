@@ -12,21 +12,18 @@ class OPTIMUSCORE_API UOptimusKernelSource :
 	GENERATED_BODY()
 
 public:
-	void SetSourceAndEntryPoint(
-		const FIntVector& InGroupSize,
-		const FString& InSource,
-		const FString& InEntryPoint)
+	void SetSource(FString const& InSource)
 	{
-		GroupSize = InGroupSize;
 		Source = InSource;
-		EntryPoint = InEntryPoint;
 	}
 	
+	//~ Begin UComputeKernelSource Interface.
 	FString GetSource() const override
 	{
 		return Source;
 	}
-	
+	//~ End UComputeKernelSource Interface.
+
 protected:
 	UPROPERTY()
 	FString Source;

@@ -19,16 +19,6 @@ UOptimusNode_CustomComputeKernel::UOptimusNode_CustomComputeKernel()
 }
 
 
-FString UOptimusNode_CustomComputeKernel::GetKernelName() const
-{
-	return KernelName;
-}
-
-FIntVector UOptimusNode_CustomComputeKernel::GetGroupSize() const
-{
-	return GroupSize;
-}
-
 FString UOptimusNode_CustomComputeKernel::GetKernelSourceText() const
 {
 	return GetCookedKernelSource(GetPathName(), ShaderSource.ShaderText, KernelName, GroupSize);
@@ -291,7 +281,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 			StorageConfig = FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex});
 		}
 
-		if (ensure(Binding))
+		if (Binding != nullptr)
 		{
 			Binding->Name = Optimus::GetUniqueNameForScope(this, Name);
 			Binding->DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
@@ -323,10 +313,12 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 			}
 		}
 
-		if (ensure(RemovedPins.Num() == 1))
+		if (RemovedPins.Num())
 		{
-			RemovePin(RemovedPins.CreateIterator().Value());
-
+			for (TMap<FName, UOptimusNodePin*>::TIterator It = RemovedPins.CreateIterator(); It; ++It)
+			{
+				RemovePin(It.Value());
+			}
 			UpdatePreamble();
 		}
 	}

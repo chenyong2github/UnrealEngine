@@ -37,6 +37,7 @@ private:
 	TSharedPtr<FOptimusEditorGraphPinFactory> GraphPinFactory;
 
 	TArray<FName> CustomizedProperties;
+	TArray<FName> CustomizedClasses;
 
 	TSharedRef<FOptimusEditorClipboard> Clipboard;
 };

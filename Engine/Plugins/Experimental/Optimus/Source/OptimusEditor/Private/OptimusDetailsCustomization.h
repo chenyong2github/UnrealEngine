@@ -2,16 +2,19 @@
 
 #pragma once
 
-#include "OptimusDataType.h"
-
-#include "IPropertyTypeCustomization.h"
+#include "IDetailCustomization.h"
 #include "IDetailCustomNodeBuilder.h"
+#include "IPropertyTypeCustomization.h"
+#include "OptimusDataType.h"
 #include "PropertyCustomizationHelpers.h"
-
+#include "PropertyHandle.h"
 
 class FOptimusHLSLSyntaxHighlighter;
+class SExpandableArea;
 class SMultiLineEditableText;
+class SOptimusShaderTextDocumentTextBox;
 class SScrollBar;
+class UOptimusSource;
 
 
 class FOptimusDataTypeRefCustomization : 
@@ -121,12 +124,12 @@ public:
 
 private:
 	TSharedRef<FOptimusHLSLSyntaxHighlighter> SyntaxHighlighter;
-	TSharedRef<FOptimusHLSLSyntaxHighlighter> SyntaxHighlighterMain;
 
 	TSharedPtr<IPropertyHandle> DeclarationsProperty;
 	TSharedPtr<IPropertyHandle> ShaderTextProperty;
 	TSharedPtr<IPropertyHandle> DiagnosticsProperty;
 
+	TSharedPtr<SExpandableArea> ExpandableArea;
 	TSharedPtr<SScrollBar> HorizontalScrollbar;
 	TSharedPtr<SScrollBar> VerticalScrollbar;
 
@@ -139,6 +142,7 @@ private:
 
 	TArray<UObject *> InspectedObjects;
 };
+
 
 class FOptimusParameterBindingCustomization : public IPropertyTypeCustomization
 {
@@ -171,6 +175,7 @@ public:
 		IDetailChildrenBuilder& InChildBuilder,
 		IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
 };
+
 
 class FOptimusParameterBindingArrayBuilder
 	: public FDetailArrayBuilder
@@ -230,6 +235,7 @@ private:
 	TSharedRef<FOptimusParameterBindingCustomization::FColumnSizeData> ColumnSizeData;	
 };
 
+
 class FOptimusValueContainerCustomization : public IPropertyTypeCustomization
 {
 public:
@@ -251,4 +257,28 @@ public:
 		IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
 private:
 	TSharedPtr<IPropertyHandle> InnerPropertyHandle;
+};
+
+
+/** UI customization for UOptimusSource */
+class FOptimusSourceDetailsCustomization : public IDetailCustomization
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+protected:
+	FOptimusSourceDetailsCustomization();
+
+	//~ Begin IDetailCustomization Interface.
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	//~ End IDetailCustomization Interface.
+
+private:
+	UOptimusSource* OptimusSource = nullptr;
+
+ 	TSharedRef<FOptimusHLSLSyntaxHighlighter> SyntaxHighlighter;
+ 	TSharedPtr<SOptimusShaderTextDocumentTextBox> SourceTextBox;
+
+	FText GetText() const;
+	void OnTextChanged(const FText& InValue);
 };

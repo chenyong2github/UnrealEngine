@@ -10,7 +10,7 @@
 #include "OptimusNode_ComputeKernelBase.generated.h"
 
 struct FOptimusCompilerDiagnostic;
-
+class UComputeSource;
 
 
 UCLASS(Abstract)
@@ -29,6 +29,9 @@ public:
 
 	/** Implement this to return the complete HLSL code for this kernel */
 	virtual FString GetKernelSourceText() const PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetKernelSourceText, return FString();)
+
+	/** Implement this to return additional source code that the kernel requires. */
+	virtual TArray<TObjectPtr<UComputeSource>> GetAdditionalSources() const { return {}; }
 	
 	// IOptimusComputeKernelProvider
 	UOptimusKernelSource* CreateComputeKernel(

@@ -2,8 +2,11 @@
 
 #include "OptimusEditorModule.h"
 
-#include "Widgets/SOptimusEditorGraphExplorer.h"
-#include "Widgets/SOptimusShaderTextDocumentTextBox.h"
+#include "AssetToolsModule.h"
+#include "EdGraphUtilities.h"
+#include "IAssetTools.h"
+#include "OptimusBindingTypes.h"
+#include "OptimusDataType.h"
 #include "OptimusDeformerAssetActions.h"
 #include "OptimusDetailsCustomization.h"
 #include "OptimusEditor.h"
@@ -13,17 +16,14 @@
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorStyle.h"
-
-#include "OptimusDataType.h"
-#include "OptimusValueContainer.h"
 #include "OptimusResourceDescription.h"
 #include "OptimusShaderText.h"
-#include "OptimusBindingTypes.h"
-
+#include "OptimusSource.h"
+#include "OptimusSourceAssetActions.h"
+#include "OptimusValueContainer.h"
 #include "PropertyEditorModule.h"
-#include "AssetToolsModule.h"
-#include "EdGraphUtilities.h"
-#include "IAssetTools.h"
+#include "Widgets/SOptimusEditorGraphExplorer.h"
+#include "Widgets/SOptimusShaderTextDocumentTextBox.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
@@ -41,6 +41,10 @@ void FOptimusEditorModule::StartupModule()
 	TSharedRef<IAssetTypeActions> OptimusDeformerAssetAction = MakeShared<FOptimusDeformerAssetActions>();
 	AssetTools.RegisterAssetTypeActions(OptimusDeformerAssetAction);
 	RegisteredAssetTypeActions.Add(OptimusDeformerAssetAction);
+
+	TSharedRef<IAssetTypeActions> OptimusSourceAssetAction = MakeShared<FOptimusSourceAssetActions>();
+	AssetTools.RegisterAssetTypeActions(OptimusSourceAssetAction);
+	RegisteredAssetTypeActions.Add(OptimusSourceAssetAction);
 
 	FOptimusEditorCommands::Register();
 	FOptimusEditorGraphCommands::Register();
@@ -112,6 +116,17 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	RegisterPropertyCustomization(FOptimusParameterBinding::StaticStruct()->GetFName(), &FOptimusParameterBindingCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusParameterBindingArray::StaticStruct()->GetFName(), &FOptimusParameterBindingArrayCustomization::MakeInstance);
 	RegisterPropertyCustomization(UOptimusValueContainer::StaticClass()->GetFName(), &FOptimusValueContainerCustomization::MakeInstance);
+
+	auto RegisterDetailCustomization = [&](FName InStructName, auto InCustomizationFactory)
+	{
+		PropertyModule.RegisterCustomClassLayout(
+			InStructName,
+			FOnGetDetailCustomizationInstance::CreateStatic(InCustomizationFactory)
+		);
+		CustomizedClasses.Add(InStructName);
+	};
+
+	RegisterDetailCustomization(UOptimusSource::StaticClass()->GetFName(), &FOptimusSourceDetailsCustomization::MakeInstance);
 }
 
 void FOptimusEditorModule::UnregisterPropertyCustomizations()
@@ -121,6 +136,10 @@ void FOptimusEditorModule::UnregisterPropertyCustomizations()
 		for (const FName& PropertyName: CustomizedProperties)
 		{
 			PropertyModule->UnregisterCustomPropertyTypeLayout(PropertyName);
+		}
+		for (const FName& ClassName : CustomizedClasses)
+		{
+			PropertyModule->UnregisterCustomClassLayout(ClassName);
 		}
 	}
 }

@@ -94,7 +94,10 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 	CookedSource += "\n\n";
 	CookedSource += GetKernelSourceText();
 	
-	KernelSource->SetSourceAndEntryPoint(GetGroupSize(), CookedSource, GetKernelName());
+	KernelSource->SetSource(CookedSource);
+	KernelSource->EntryPoint = GetKernelName();
+	KernelSource->GroupSize = GetGroupSize();
+	KernelSource->AdditionalSources = GetAdditionalSources();
 
 #if 0
 	UE_LOG(LogOptimusCore, Log, TEXT("Kernel: %s [%s]"), *GetNodePath(), *GetNodeName().ToString());

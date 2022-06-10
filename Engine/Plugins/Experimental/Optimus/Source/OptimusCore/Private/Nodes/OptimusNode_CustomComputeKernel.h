@@ -35,9 +35,10 @@ public:
 	}
 
 	// UOptimusNode_ComputeKernelBase overrides
-	FString GetKernelName() const override;
-	FIntVector GetGroupSize() const override;
+	FString GetKernelName() const override { return KernelName; }
+	FIntVector GetGroupSize() const override { return GroupSize; }
 	FString GetKernelSourceText() const override;
+	TArray<TObjectPtr<UComputeSource>> GetAdditionalSources() const override { return AdditionalSources; }
 
 	// IOptiusComputeKernelProvider overrides
 	void SetCompilationDiagnostics(
@@ -104,12 +105,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** Output bindings. Each one is a function that should be connected to an implementation in a data interface. */
 	UPROPERTY(EditAnywhere, Category = Bindings, DisplayName = "Output Bindings")
 	FOptimusParameterBindingArray OutputBindingArray;
-	
+
+	/** Additional source includes. */
+	UPROPERTY(EditAnywhere, Category = Source)
+	TArray<TObjectPtr<UComputeSource>> AdditionalSources;
+
 	/** 
 	 * The kernel source code. 
 	 * If the code contains more than just the kernel entry function, then place the kernel entry function inside a KERNEL {} block.
 	 */
-	UPROPERTY(EditAnywhere, Category = ShaderSource)
+	UPROPERTY(EditAnywhere, Category = Source, meta = (DisplayName = "Kernel Source"))
 	FOptimusShaderText ShaderSource;
 
 #if WITH_EDITOR

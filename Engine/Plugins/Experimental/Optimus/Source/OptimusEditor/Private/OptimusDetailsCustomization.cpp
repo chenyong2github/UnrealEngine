@@ -2,33 +2,35 @@
 
 #include "OptimusDetailsCustomization.h"
 
+#include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "IDetailChildrenBuilder.h"
+#include "IOptimusParameterBindingProvider.h"
+#include "IPropertyTypeCustomization.h"
+#include "OptimusBindingTypes.h"
+#include "OptimusComputeDataInterface.h"
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusEditorStyle.h"
 #include "OptimusHLSLSyntaxHighlighter.h"
-#include "Widgets/SOptimusDataTypeSelector.h"
-
-#include "OptimusDataTypeRegistry.h"
-#include "OptimusValueContainer.h"
-#include "OptimusShaderText.h"
-#include "OptimusBindingTypes.h"
-#include "IOptimusParameterBindingProvider.h"
-
-#include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "DetailWidgetRow.h"
-#include "IPropertyTypeCustomization.h"
-#include "IDetailChildrenBuilder.h"
-#include "PropertyEditor/Private/PropertyNode.h"
-#include "PropertyEditor/Public/IPropertyUtilities.h"
-#include "OptimusComputeDataInterface.h"
 #include "OptimusNode.h"
 #include "OptimusResourceDescription.h"
+#include "OptimusShaderText.h"
+#include "OptimusSource.h"
+#include "OptimusValueContainer.h"
+#include "PropertyEditor/Private/PropertyNode.h"
+#include "PropertyEditor/Public/IPropertyUtilities.h"
 #include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Widgets/SOptimusDataTypeSelector.h"
+#include "Widgets/SOptimusShaderTextDocumentTextBox.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusDetailCustomization"
@@ -375,14 +377,11 @@ TSharedRef<IPropertyTypeCustomization> FOptimusShaderTextCustomization::MakeInst
 	return MakeShared<FOptimusShaderTextCustomization>();
 }
 
-
 FOptimusShaderTextCustomization::FOptimusShaderTextCustomization() :
-	SyntaxHighlighter(FOptimusHLSLSyntaxHighlighter::Create()),
-	SyntaxHighlighterMain(FOptimusHLSLSyntaxHighlighter::Create())
+	SyntaxHighlighter(FOptimusHLSLSyntaxHighlighter::Create())
 {
 	
 }
-
 
 void FOptimusShaderTextCustomization::CustomizeHeader(
 	TSharedRef<IPropertyHandle> InPropertyHandle, 
@@ -415,39 +414,48 @@ void FOptimusShaderTextCustomization::CustomizeHeader(
 	const FTextBlockStyle &TextStyle = FOptimusEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("TextEditor.NormalText");
 	const FSlateFontInfo &Font = TextStyle.Font;
 
+	const FText ShaderTextTitle = LOCTEXT("OptimusShaderTextTitle", "Shader Text");
+
 	InHeaderRow
 	.WholeRowContent()
 	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
+		SAssignNew(ExpandableArea, SExpandableArea)
+		.AreaTitle(ShaderTextTitle)
+		.InitiallyCollapsed(true)
+		.AllowAnimatedTransition(false)
+		.BodyContent()
 		[
-			SNew(SBorder)
-			.BorderImage(FOptimusEditorStyle::Get().GetBrush("TextEditor.Border"))
-			.BorderBackgroundColor(FLinearColor::Black)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
 			[
-				SNew(SGridPanel)
-				.FillColumn(0, 1.0f)
-				.FillRow(0, 1.0f)
-				+SGridPanel::Slot(0, 0)
+				SNew(SBorder)
+				.BorderImage(FOptimusEditorStyle::Get().GetBrush("TextEditor.Border"))
+				.BorderBackgroundColor(FLinearColor::Black)
 				[
-					SAssignNew(ShaderEditor, SMultiLineEditableText)
-					.Font(Font)
-					.TextStyle(&TextStyle)
-					.Text(this, &FOptimusShaderTextCustomization::GetShaderText)
-					.AutoWrapText(false)
-					.IsReadOnly(true)
-					.Marshaller(SyntaxHighlighterMain)
-					.HScrollBar(HorizontalScrollbar)
-					.VScrollBar(VerticalScrollbar)
-				]
-				+SGridPanel::Slot(1, 0)
-				[
-					VerticalScrollbar.ToSharedRef()
-				]
-				+SGridPanel::Slot(0, 1)
-				[
-					HorizontalScrollbar.ToSharedRef()
+					SNew(SGridPanel)
+					.FillColumn(0, 1.0f)
+					.FillRow(0, 1.0f)
+					+SGridPanel::Slot(0, 0)
+					[
+						SAssignNew(ShaderEditor, SMultiLineEditableText)
+						.Font(Font)
+						.TextStyle(&TextStyle)
+						.Text(this, &FOptimusShaderTextCustomization::GetShaderText)
+						.AutoWrapText(false)
+						.IsReadOnly(true)
+						.Marshaller(SyntaxHighlighter)
+						.HScrollBar(HorizontalScrollbar)
+						.VScrollBar(VerticalScrollbar)
+					]
+					+SGridPanel::Slot(1, 0)
+					[
+						VerticalScrollbar.ToSharedRef()
+					]
+					+SGridPanel::Slot(0, 1)
+					[
+						HorizontalScrollbar.ToSharedRef()
+					]
 				]
 			]
 		]
@@ -468,7 +476,7 @@ void FOptimusShaderTextCustomization::UpdateDiagnostics()
 	if (ensure(RawData.Num() > 0))
 	{
 		const TArray<FOptimusCompilerDiagnostic>* DiagnosticsPtr = static_cast<const TArray<FOptimusCompilerDiagnostic>*>(RawData[0]);
-		SyntaxHighlighterMain->SetCompilerMessages(*DiagnosticsPtr);
+		SyntaxHighlighter->SetCompilerMessages(*DiagnosticsPtr);
 
 		if (ShaderEditor)
 		{
@@ -477,7 +485,6 @@ void FOptimusShaderTextCustomization::UpdateDiagnostics()
 	}	
 }
 
-
 void FOptimusShaderTextCustomization::OnPropertyChanged(UObject* InObject, FPropertyChangedEvent& InChangedEvent)
 {
 	if (InspectedObjects.Contains(InObject) && InChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FOptimusShaderText, Diagnostics))
@@ -485,6 +492,7 @@ void FOptimusShaderTextCustomization::OnPropertyChanged(UObject* InObject, FProp
 		UpdateDiagnostics();
 	}
 }
+
 
 class SOptimusParameterBindingValueWidget : public SCompoundWidget
 {
@@ -854,6 +862,58 @@ void FOptimusValueContainerCustomization::CustomizeChildren(TSharedRef<IProperty
 			InChildBuilder.AddProperty(InnerPropertyHandle->GetChildHandle(Index).ToSharedRef());
 		}
 	}
+}
+
+
+FOptimusSourceDetailsCustomization::FOptimusSourceDetailsCustomization()
+	: SyntaxHighlighter(FOptimusHLSLSyntaxHighlighter::Create())
+{
+}
+
+TSharedRef<IDetailCustomization> FOptimusSourceDetailsCustomization::MakeInstance()
+{
+	return MakeShareable(new FOptimusSourceDetailsCustomization);
+}
+
+void FOptimusSourceDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
+	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
+	if (ObjectsBeingCustomized.Num() > 1)
+	{
+		return;
+	}
+	OptimusSource = Cast<UOptimusSource>(ObjectsBeingCustomized[0].Get());
+	if (OptimusSource == nullptr)
+	{
+		return;
+	}
+
+	TSharedRef<IPropertyHandle> SourcePropertyHandle = DetailBuilder.GetProperty(TEXT("SourceText"));
+	DetailBuilder.EditDefaultProperty(SourcePropertyHandle)->CustomWidget()
+	.WholeRowContent()
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		[
+			SAssignNew(SourceTextBox, SOptimusShaderTextDocumentTextBox)
+			.Text(this, &FOptimusSourceDetailsCustomization::GetText)
+			.IsReadOnly(false)
+			.Marshaller(SyntaxHighlighter)
+			.OnTextChanged(this, &FOptimusSourceDetailsCustomization::OnTextChanged)
+		]
+	];
+}
+
+FText FOptimusSourceDetailsCustomization::GetText() const
+{
+	return FText::FromString(OptimusSource->GetSource());
+}
+
+void FOptimusSourceDetailsCustomization::OnTextChanged(const FText& InValue)
+{
+	OptimusSource->SetSource(InValue.ToString());
 }
 
 #undef LOCTEXT_NAMESPACE
