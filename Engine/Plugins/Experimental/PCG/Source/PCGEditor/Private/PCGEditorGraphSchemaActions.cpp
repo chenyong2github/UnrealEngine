@@ -6,6 +6,7 @@
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNode.h"
+#include "PCGEditorModule.h"
 #include "PCGGraph.h"
 #include "PCGSettings.h"
 #include "PCGSubgraph.h"
@@ -23,12 +24,14 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewNativeElement::PerformAction(UEdGra
 	UPCGEditorGraph* EditorGraph = Cast<UPCGEditorGraph>(ParentGraph);
 	if (!EditorGraph)
 	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid EditorGraph"));
 		return nullptr;
 	}
 
 	UPCGGraph* PCGGraph = EditorGraph->GetPCGGraph();
 	if (!PCGGraph)
 	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid PCGGraph"));
 		return nullptr;
 	}
 
@@ -61,12 +64,14 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewBlueprintElement::PerformAction(UEd
 	UPCGEditorGraph* EditorGraph = Cast<UPCGEditorGraph>(ParentGraph);
 	if (!EditorGraph)
 	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid EditorGraph"));
 		return nullptr;
 	}
 
 	UPCGGraph* PCGGraph = EditorGraph->GetPCGGraph();
 	if (!PCGGraph)
 	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid PCGGraph"));
 		return nullptr;
 	}
 
@@ -106,18 +111,21 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewSubgraphElement::PerformAction(UEdG
 	UPCGEditorGraph* EditorGraph = Cast<UPCGEditorGraph>(ParentGraph);
 	if (!EditorGraph)
 	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid EditorGraph"));
 		return nullptr;
 	}
 
 	UPCGGraph* PCGGraph = EditorGraph->GetPCGGraph();
 	if (!PCGGraph)
 	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid PCGGraph"));
 		return nullptr;
 	}
 
 	UPCGGraph* Subgraph = CastChecked<UPCGGraph>(SubgraphObjectPath.TryLoad());
 	if (Subgraph == PCGGraph)
 	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid Subgraph"));
 		return nullptr;
 	}
 
@@ -154,6 +162,7 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewComment::PerformAction(class UEdGra
 	UPCGEditorGraph* EditorGraph = Cast<UPCGEditorGraph>(ParentGraph);
 	if (!EditorGraph)
 	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid EditorGraph"));
 		return nullptr;
 	}
 

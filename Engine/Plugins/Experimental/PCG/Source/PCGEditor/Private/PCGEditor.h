@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PCGEditorModule.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "EditorUndoClient.h"
 
@@ -12,9 +13,6 @@ class SPCGEditorGraphFind;
 class SPCGEditorGraphNodePalette;
 class UPCGEditorGraph;
 class UPCGGraph;
-
-// Logs
-DECLARE_LOG_CATEGORY_EXTERN(LogPCGEditor, Log, All);
 
 class FPCGEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient
 {

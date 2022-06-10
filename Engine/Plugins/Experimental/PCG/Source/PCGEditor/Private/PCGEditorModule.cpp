@@ -190,4 +190,6 @@ void FPCGEditorModule::UnregisterSettings()
 
 IMPLEMENT_MODULE(FPCGEditorModule, PCGEditor);
 
+DEFINE_LOG_CATEGORY(LogPCGEditor);
+
 #undef LOCTEXT_NAMESPACE

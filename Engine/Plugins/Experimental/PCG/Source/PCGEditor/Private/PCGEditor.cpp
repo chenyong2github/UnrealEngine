@@ -51,8 +51,6 @@
 
 #define LOCTEXT_NAMESPACE "PCGGraphEditor"
 
-DEFINE_LOG_CATEGORY(LogPCGEditor);
-
 namespace FPCGEditor_private
 {
 	const FName GraphEditorID = FName(TEXT("GraphEditor"));

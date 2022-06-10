@@ -7,6 +7,9 @@
 #include "Modules/ModuleInterface.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
+// Logs
+DECLARE_LOG_CATEGORY_EXTERN(LogPCGEditor, Log, All);
+
 class FMenuBuilder;
 class FPCGEditorGraphNodeFactory;
 

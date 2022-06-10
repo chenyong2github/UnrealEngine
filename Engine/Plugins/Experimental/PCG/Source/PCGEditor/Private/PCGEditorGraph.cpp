@@ -7,6 +7,7 @@
 #include "PCGEditorGraphNode.h"
 #include "PCGEditorGraphNodeInput.h"
 #include "PCGEditorGraphNodeOutput.h"
+#include "PCGEditorModule.h"
 
 #include "EdGraph/EdGraphPin.h"
 
@@ -91,6 +92,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 
 			if (!InPin)
 			{
+				UE_LOG(LogPCGEditor, Error, TEXT("Invalid InputPin for %s"), *InputPin->Properties.Label.ToString());
 				continue;
 			}
 
@@ -98,6 +100,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 			{
 				if (!InboundEdge->IsValid())
 				{
+					UE_LOG(LogPCGEditor, Error, TEXT("Invalid inbound edge for %s"), *InputPin->Properties.Label.ToString());
 					continue;
 				}
 
@@ -110,6 +113,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 					}
 					else
 					{
+						UE_LOG(LogPCGEditor, Error, TEXT("Could not create link to InputPin %s from Node %s"), *InputPin->Properties.Label.ToString(), *InboundNode->GetFName().ToString());
 						continue;
 					}
 				}
@@ -125,6 +129,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 
 			if (!OutPin)
 			{
+				UE_LOG(LogPCGEditor, Error, TEXT("Invalid OutputPin for %s"), *OutputPin->Properties.Label.ToString());
 				continue;
 			}
 
@@ -132,6 +137,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 			{
 				if (!OutboundEdge->IsValid())
 				{
+					UE_LOG(LogPCGEditor, Error, TEXT("Invalid outbound edge for %s"), *OutputPin->Properties.Label.ToString());
 					continue;
 				}
 
@@ -144,6 +150,7 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 					}
 					else
 					{
+						UE_LOG(LogPCGEditor, Error, TEXT("Could not create link from OutputPin %s to Node %s"), *OutputPin->Properties.Label.ToString(), *OutboundNode->GetFName().ToString());
 						continue;
 					}
 				}
