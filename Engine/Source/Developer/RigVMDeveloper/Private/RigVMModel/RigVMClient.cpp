@@ -213,7 +213,7 @@ URigVMController* FRigVMClient::GetOrCreateController(const UObject* InEditorSid
 	return nullptr;
 }
 
-URigVMGraph* FRigVMClient::AddModel(const FName& InName, bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer)
+URigVMGraph* FRigVMClient::AddModel(const FName& InName, bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer, bool bCreateController)
 {
 #if WITH_EDITOR
 	TSharedPtr<FScopedTransaction> Transaction;
@@ -234,7 +234,7 @@ URigVMGraph* FRigVMClient::AddModel(const FName& InName, bool bSetupUndoRedo, co
 	{
 		Model = NewObject<URigVMGraph>(GetOuter(), SafeGraphName);
 	}
-	AddModel(Model, true);
+	AddModel(Model, bCreateController);
 
 	if(bSetupUndoRedo)
 	{
@@ -242,7 +242,7 @@ URigVMGraph* FRigVMClient::AddModel(const FName& InName, bool bSetupUndoRedo, co
 		UndoRedoIndex++;
 
 		FRigVMClientAction Action;
-		Action.Type = ERigVMClientAction_AddModel;
+		Action.Type = ERigVMClientAction::ERigVMClientAction_AddModel;
 		Action.NodePath = Model->GetNodePath();
 		UndoStack.Push(Action);
 		RedoStack.Reset();
@@ -291,7 +291,7 @@ void FRigVMClient::AddModel(URigVMGraph* InModel, bool bCreateController)
 
 }
 
-URigVMFunctionLibrary* FRigVMClient::GetOrCreateFunctionLibrary(bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer)
+URigVMFunctionLibrary* FRigVMClient::GetOrCreateFunctionLibrary(bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer, bool bCreateController)
 {
 	if(FunctionLibrary)
 	{
@@ -318,7 +318,7 @@ URigVMFunctionLibrary* FRigVMClient::GetOrCreateFunctionLibrary(bool bSetupUndoR
 	{
 		NewFunctionLibrary = NewObject<URigVMFunctionLibrary>(GetOuter(), SafeGraphName);
 	}
-	AddModel(NewFunctionLibrary, true);
+	AddModel(NewFunctionLibrary, bCreateController);
 	return NewFunctionLibrary;
 }
 

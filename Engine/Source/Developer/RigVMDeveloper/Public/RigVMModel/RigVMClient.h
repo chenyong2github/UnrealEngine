@@ -102,10 +102,10 @@ public:
 	URigVMController* GetOrCreateController(const URigVMGraph* InModel);
 	URigVMController* GetOrCreateController(const UObject* InEditorSideObject);
 	URigVMFunctionLibrary* GetFunctionLibrary() const { return FunctionLibrary; }
-	URigVMFunctionLibrary* GetOrCreateFunctionLibrary(bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr);
+	URigVMFunctionLibrary* GetOrCreateFunctionLibrary(bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr, bool bCreateController = true);
 	TArray<FName> GetEntryNames() const;
 
-	URigVMGraph* AddModel(const FName& InName, bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr);
+	URigVMGraph* AddModel(const FName& InName, bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr, bool bCreateController = true);
 	void AddModel(URigVMGraph* InModel, bool bCreateController);
 	bool RemoveModel(const FString& InNodePathOrName, bool bSetupUndoRedo);
 	FName RenameModel(const FString& InNodePathOrName, const FName& InNewName, bool bSetupUndoRedo);

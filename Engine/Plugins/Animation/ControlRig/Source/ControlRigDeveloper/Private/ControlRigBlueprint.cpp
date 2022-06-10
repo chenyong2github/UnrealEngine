@@ -124,8 +124,8 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, RigVMClient));
 	{
 		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
-		RigVMClient.AddModel(RigVMModelPrefix, false, &ObjectInitializer);
-		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer);
+		RigVMClient.AddModel(RigVMModelPrefix, false, &ObjectInitializer, false);
+		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer, false);
 	}
 	
 	FunctionLibraryEdGraph = ObjectInitializer.CreateDefaultSubobject<UControlRigGraph>(this, TEXT("RigVMFunctionLibraryEdGraph"));
