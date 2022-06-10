@@ -740,6 +740,7 @@ public:
 	 * @param Hit Result describing the landing that resulted in a valid landing spot.
 	 * @see OnMovementModeChanged()
 	 */
+	UPROPERTY(BlueprintAssignable, Category=Character)
 	FLandedSignature LandedDelegate;
 
 	/**
