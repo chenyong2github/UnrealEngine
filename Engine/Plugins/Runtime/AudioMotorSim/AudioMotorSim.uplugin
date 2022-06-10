@@ -19,6 +19,11 @@
 			"Name": "AudioMotorSim",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "AudioMotorSimStandardComponents",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
