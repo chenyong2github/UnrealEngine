@@ -49,7 +49,7 @@ namespace UnrealGameSync
 
 				foreach (ParameterInfo Param in Info.GetParameters())
 				{					
-					string? Value = Query.Get(Param.Name);
+					string Value = Query.Get(Param.Name);
 
 					if (Value == null)
 					{
@@ -296,7 +296,7 @@ namespace UnrealGameSync
 
 		public static string CurrentProcessFilePath
 		{
-			get { return Path.GetFullPath(Process.GetCurrentProcess().MainModule!.FileName!); }
+			get { return Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName); }
 		}
 
 		static List<RegistrySetting> GetRegistrySettings()

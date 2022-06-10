@@ -915,7 +915,7 @@ namespace UnrealGameSync
 
 			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.Global.Filter, WorkspaceSettings.Filter);
 
-			ConfigSection? PerforceSection = PerforceMonitor.LatestProjectConfigFile.FindSection("Perforce");
+			ConfigSection PerforceSection = PerforceMonitor.LatestProjectConfigFile.FindSection("Perforce");
 			if (PerforceSection != null)
 			{
 				IEnumerable<string> AdditionalPaths = PerforceSection.GetValues("AdditionalPathsToSync", new string[0]);
@@ -949,7 +949,7 @@ namespace UnrealGameSync
 					string[]? ZippedBinariesSyncFilter;
 					if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "ZippedBinariesSyncFilter", out ZippedBinariesSyncFilter) && ZippedBinariesSyncFilter.Length > 0)
 					{
-						Context.SyncFilter = Enumerable.Concat(Context.SyncFilter!, ZippedBinariesSyncFilter).ToArray();
+						Context.SyncFilter = Enumerable.Concat(Context.SyncFilter, ZippedBinariesSyncFilter).ToArray();
 					}
 
 					Context.ArchiveTypeToArchive[Archive.Type] = new Tuple<IArchiveInfo, string>(Archive, ArchivePath);
@@ -1720,7 +1720,7 @@ namespace UnrealGameSync
 				try
 				{
 					string JsonString = File.ReadAllText(UncontrolledChangelistPersistencyFilePath);
-					UncontrolledChangelistPersistency UCLPersistency = JsonSerializer.Deserialize<UncontrolledChangelistPersistency>(JsonString, Utility.DefaultJsonSerializerOptions)!;
+					UncontrolledChangelistPersistency UCLPersistency = JsonSerializer.Deserialize<UncontrolledChangelistPersistency>(JsonString, Utility.DefaultJsonSerializerOptions);
 
 					foreach (UncontrolledChangelist UCL in UCLPersistency.Changelists)
 					{
@@ -2149,7 +2149,7 @@ namespace UnrealGameSync
 
 		private void BuildList_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
 		{
-			ChangesRecord Change = (ChangesRecord)e.Item!.Tag;
+			ChangesRecord Change = (ChangesRecord)e.Item.Tag;
 			if (Change == null)
 			{
 				return;
@@ -2207,7 +2207,7 @@ namespace UnrealGameSync
 						int FirstPass, FirstFail;
 						GetRemainingBisectRange(out FirstPass, out FirstFail);
 
-						BisectEntry? Entry = WorkspaceState.BisectChanges.FirstOrDefault(x => x.Change == Change.Number);
+						BisectEntry Entry = WorkspaceState.BisectChanges.FirstOrDefault(x => x.Change == Change.Number);
 						if (Entry == null || Entry.State == BisectState.Exclude)
 						{
 							QualityIcon = new Rectangle(0, 0, 0, 0);
@@ -2258,11 +2258,11 @@ namespace UnrealGameSync
 			}
 			else if (e.ColumnIndex == ChangeColumn.Index || e.ColumnIndex == TimeColumn.Index)
 			{
-				TextRenderer.DrawText(e.Graphics, e.SubItem!.Text, CurrentFont, e.Bounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+				TextRenderer.DrawText(e.Graphics, e.SubItem.Text, CurrentFont, e.Bounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 			}
 			else if (e.ColumnIndex == AuthorColumn.Index)
 			{
-				TextRenderer.DrawText(e.Graphics, e.SubItem!.Text, CurrentFont, e.Bounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+				TextRenderer.DrawText(e.Graphics, e.SubItem.Text, CurrentFont, e.Bounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 			}
 			else if (e.ColumnIndex == DescriptionColumn.Index)
 			{
@@ -2282,7 +2282,7 @@ namespace UnrealGameSync
 					RemainingBounds = new Rectangle(RemainingBounds.Left, RemainingBounds.Top, ListLocation.X - RemainingBounds.Left - (int)(2 * DpiScaleX), RemainingBounds.Height);
 				}
 
-				TextRenderer.DrawText(e.Graphics, e.SubItem!.Text, CurrentFont, RemainingBounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+				TextRenderer.DrawText(e.Graphics, e.SubItem.Text, CurrentFont, RemainingBounds, TextColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 			}
 			else if (e.ColumnIndex == TypeColumn.Index)
 			{
@@ -2311,7 +2311,7 @@ namespace UnrealGameSync
 			}
 			else if (e.ColumnIndex == StatusColumn.Index)
 			{
-				float MaxX = e.SubItem!.Bounds.Right;
+				float MaxX = e.SubItem.Bounds.Right;
 
 				if (Change.Number == Workspace.PendingChangeNumber && Workspace.IsBusy())
 				{
@@ -2613,7 +2613,7 @@ namespace UnrealGameSync
 				ProcessStartInfo StartInfo = new ProcessStartInfo();
 				StartInfo.FileName = Url;
 				StartInfo.UseShellExecute = true;
-				using Process? _ = Process.Start(StartInfo);
+				using Process _ = Process.Start(StartInfo);
 			}
 			catch
 			{
@@ -2629,7 +2629,7 @@ namespace UnrealGameSync
 				StartInfo.FileName = Url;
 				StartInfo.Arguments = Arguments;
 				StartInfo.UseShellExecute = true;
-				using Process? _ = Process.Start(StartInfo);
+				using Process _ = Process.Start(StartInfo);
 			}
 			catch
 			{
@@ -2646,7 +2646,7 @@ namespace UnrealGameSync
 				StartInfo.Arguments = Arguments;
 				StartInfo.WorkingDirectory = WorkingDir;
 				StartInfo.UseShellExecute = true;
-				using Process? _ = Process.Start(StartInfo);
+				using Process _ = Process.Start(StartInfo);
 			}
 			catch
 			{
@@ -4090,14 +4090,14 @@ namespace UnrealGameSync
 						bool bIsBusy = Workspace.IsBusy();
 						bool bIsCurrentChange = (ContextMenuChange.Number == Workspace.CurrentChangeNumber);
 						BuildListContextMenu_Sync.Visible = !bIsBusy;
-						BuildListContextMenu_Sync.Font = new Font(SystemFonts.MenuFont!, bIsCurrentChange ? FontStyle.Regular : FontStyle.Bold);
+						BuildListContextMenu_Sync.Font = new Font(SystemFonts.MenuFont, bIsCurrentChange ? FontStyle.Regular : FontStyle.Bold);
 						BuildListContextMenu_SyncContentOnly.Visible = !bIsBusy && ShouldSyncPrecompiledEditor;
 						BuildListContextMenu_SyncOnlyThisChange.Visible = !bIsBusy && !bIsCurrentChange && ContextMenuChange.Number > Workspace.CurrentChangeNumber && Workspace.CurrentChangeNumber != -1;
 						BuildListContextMenu_Build.Visible = !bIsBusy && bIsCurrentChange && !ShouldSyncPrecompiledEditor;
 						BuildListContextMenu_Rebuild.Visible = !bIsBusy && bIsCurrentChange && !ShouldSyncPrecompiledEditor;
 						BuildListContextMenu_GenerateProjectFiles.Visible = !bIsBusy && bIsCurrentChange;
 						BuildListContextMenu_LaunchEditor.Visible = !bIsBusy && ContextMenuChange.Number == Workspace.CurrentChangeNumber;
-						BuildListContextMenu_LaunchEditor.Font = new Font(SystemFonts.MenuFont!, FontStyle.Bold);
+						BuildListContextMenu_LaunchEditor.Font = new Font(SystemFonts.MenuFont, FontStyle.Bold);
 						BuildListContextMenu_OpenVisualStudio.Visible = !bIsBusy && bIsCurrentChange;
 						BuildListContextMenu_Cancel.Visible = bIsBusy;
 
@@ -4271,7 +4271,7 @@ namespace UnrealGameSync
 			Dictionary<string, KeyValuePair<IArchiveInfo, int>> ArchiveTypeToSelection = new Dictionary<string, KeyValuePair<IArchiveInfo, int>>();
 			foreach (IArchiveInfo Archive in Archives)
 			{
-				ArchiveSettings? ArchiveSettings = Settings.Archives.FirstOrDefault(x => x.Type == Archive.Type);
+				ArchiveSettings ArchiveSettings = Settings.Archives.FirstOrDefault(x => x.Type == Archive.Type);
 				if (ArchiveSettings != null && ArchiveSettings.bEnabled)
 				{
 					int Preference = ArchiveSettings.Order.IndexOf(Archive.Name);
@@ -4303,7 +4303,7 @@ namespace UnrealGameSync
 
 		private void SetSelectedArchive(IArchiveInfo Archive, bool bSelected)
 		{
-			ArchiveSettings? ArchiveSettings = Settings.Archives.FirstOrDefault(x => x.Type == Archive.Type);
+			ArchiveSettings ArchiveSettings = Settings.Archives.FirstOrDefault(x => x.Type == Archive.Type);
 			if (ArchiveSettings == null)
 			{
 				ArchiveSettings = new ArchiveSettings(bSelected, Archive.Type, new string[] { Archive.Name });
@@ -4950,7 +4950,7 @@ namespace UnrealGameSync
 			{
 				// Check the project config if they have a scheduled setting selected.
 				string? ScheduledSyncTypeID = null;
-				UserSelectedProjectSettings? ProjectSetting = Settings.ScheduleProjects.FirstOrDefault(x => x.LocalPath != null && x.LocalPath.Equals(SelectedProject.LocalPath, StringComparison.OrdinalIgnoreCase));
+				UserSelectedProjectSettings ProjectSetting = Settings.ScheduleProjects.FirstOrDefault(x => x.LocalPath != null && x.LocalPath.Equals(SelectedProject.LocalPath, StringComparison.OrdinalIgnoreCase));
 				if (ProjectSetting != null)
 				{
 					ScheduledSyncTypeID = ProjectSetting.ScheduledSyncTypeID;
@@ -5234,7 +5234,7 @@ namespace UnrealGameSync
 						while (Stack.Count > 0)
 						{
 							Guid Id = Stack.Pop();
-							BuildStep? NextStep = AllSteps.FirstOrDefault(x => x.UniqueId == Id);
+							BuildStep NextStep = AllSteps.FirstOrDefault(x => x.UniqueId == Id);
 							if (NextStep != null)
 							{
 								foreach (Guid RequiresId in NextStep.Requires)
@@ -5382,7 +5382,7 @@ namespace UnrealGameSync
 		{
 			if (OptionsContextMenu_SyncPrecompiledBinaries.DropDownItems.Count == 0)
 			{
-				IArchiveInfo? EditorArchive = GetArchives().FirstOrDefault(x => x.Type == IArchiveInfo.EditorArchiveType);
+				IArchiveInfo EditorArchive = GetArchives().FirstOrDefault(x => x.Type == IArchiveInfo.EditorArchiveType);
 				if (EditorArchive != null)
 				{
 					SetSelectedArchive(EditorArchive, !OptionsContextMenu_SyncPrecompiledBinaries.Checked);
@@ -6111,7 +6111,7 @@ namespace UnrealGameSync
 			ConfigFile Config = new ConfigFile();
 			Config.Load(NewConfigFile);
 
-			ConfigSection? Section = Config.FindSection("/Script/EditorStyle.EditorStyleSettings");
+			ConfigSection Section = Config.FindSection("/Script/EditorStyle.EditorStyleSettings");
 			if (Section == null)
 			{
 				return null;
@@ -6151,7 +6151,7 @@ namespace UnrealGameSync
 			ConfigFile Config = new ConfigFile();
 			Config.Load(FileName);
 
-			ConfigSection? Section = Config.FindSection("/Script/EditorStyle.EditorStyleSettings");
+			ConfigSection Section = Config.FindSection("/Script/EditorStyle.EditorStyleSettings");
 			if (Section == null)
 			{
 				return null;

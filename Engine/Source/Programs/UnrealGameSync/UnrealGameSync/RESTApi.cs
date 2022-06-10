@@ -76,7 +76,7 @@ namespace UnrealGameSync
 
 		public static async Task<T> GetAsync<T>(string Url, CancellationToken CancellationToken)
 		{
-			return JsonSerializer.Deserialize<T>(await GetAsync(Url, CancellationToken), Utility.DefaultJsonSerializerOptions)!;
+			return JsonSerializer.Deserialize<T>(await GetAsync(Url, CancellationToken), Utility.DefaultJsonSerializerOptions);
 		}
 
 		public static Task<string> PutAsync<T>(string Url, T Object, CancellationToken CancellationToken)

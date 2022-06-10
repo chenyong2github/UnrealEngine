@@ -49,7 +49,7 @@ namespace UnrealGameSync
 
 		protected Font CaptionFont
 		{
-			get { return SystemFonts.IconTitleFont!; }
+			get { return SystemFonts.IconTitleFont; }
 		}
 
 		protected override void OnCreateControl()
@@ -68,7 +68,7 @@ namespace UnrealGameSync
 			Invalidate();
 		}
 
-		public void OnSplitterMoved(object? Obj, EventArgs Args)
+		public void OnSplitterMoved(object Obj, EventArgs Args)
 		{
 			bSplitterMoved = true;
 

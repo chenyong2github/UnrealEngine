@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <DefineConstants>UGS_LAUNCHER</DefineConstants>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <RootNamespace>UnrealGameSyncLauncher</RootNamespace>
@@ -13,7 +14,6 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RuntimeIdentifiers>win10-x64</RuntimeIdentifiers>
     <Nullable>enable</Nullable>
-    <NoWarn>CA1416</NoWarn> <!-- Suppress warnings about functions only available on Windows -->
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\UnrealGameSync\Forms\ModalTaskWindow.cs">

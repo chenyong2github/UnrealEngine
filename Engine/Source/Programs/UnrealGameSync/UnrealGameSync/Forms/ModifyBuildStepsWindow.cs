@@ -149,7 +149,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				BuildStep Task = (BuildStep)e.Item!.Tag;
+				BuildStep Task = (BuildStep)e.Item.Tag;
 
 				bool bEnabled;
 				if(e.ColumnIndex == 1)

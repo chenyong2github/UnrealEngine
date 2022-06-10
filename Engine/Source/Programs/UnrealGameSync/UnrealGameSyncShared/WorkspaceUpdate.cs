@@ -612,7 +612,7 @@ namespace UnrealGameSync
 
 					// Check if the new sync filter matches the previous one. If not, we'll enumerate all files in the workspace and make sure there's nothing extra there.
 					string? NextSyncFilterHash = null;
-					using (SHA1 SHA = SHA1.Create())
+					using (SHA1Managed SHA = new SHA1Managed())
 					{
 						StringBuilder CombinedFilter = new StringBuilder();
 						foreach (string RelativeSyncPath in RelativeSyncPaths)
@@ -1774,7 +1774,7 @@ namespace UnrealGameSync
 				return null;
 			}
 
-			return Response.Data.Contents!.Select(x => x.Trim()).Where(x => x.Length > 0).ToList().AsReadOnly();
+			return Response.Data.Contents.Select(x => x.Trim()).Where(x => x.Length > 0).ToList().AsReadOnly();
 		}
 
 		static string FormatTime(long Seconds)
@@ -1895,7 +1895,7 @@ namespace UnrealGameSync
 
 		static string UpdateBuildVersion(string Text, int Changelist, int CodeChangelist, string BranchOrStreamName, bool bIsLicenseeVersion)
 		{
-			Dictionary<string, object> Object = JsonSerializer.Deserialize<Dictionary<string, object>>(Text, Utility.DefaultJsonSerializerOptions)!;
+			Dictionary<string, object> Object = JsonSerializer.Deserialize<Dictionary<string, object>>(Text, Utility.DefaultJsonSerializerOptions);
 
 			int PrevCompatibleChangelist = 0;
 			if (Object.TryGetValue("CompatibleChangelist", out object? PrevCompatibleChangelistObj))
@@ -1937,7 +1937,7 @@ namespace UnrealGameSync
 				}
 				else
 				{
-					Directory.CreateDirectory(Path.GetDirectoryName(LocalPath)!);
+					Directory.CreateDirectory(Path.GetDirectoryName(LocalPath));
 					Utility.ForceDeleteFile(LocalPath);
 					if (DepotPath != null)
 					{

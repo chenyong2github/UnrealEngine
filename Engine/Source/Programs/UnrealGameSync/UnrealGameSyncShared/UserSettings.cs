@@ -463,7 +463,7 @@ namespace UnrealGameSync
 
 		public void SetBisectState(int Change, BisectState State)
 		{
-			BisectEntry? Entry = BisectChanges.FirstOrDefault(x => x.Change == Change);
+			BisectEntry Entry = BisectChanges.FirstOrDefault(x => x.Change == Change);
 			if (Entry == null)
 			{
 				Entry = new BisectEntry();
@@ -882,7 +882,7 @@ namespace UnrealGameSync
 			SyncOptions.NumSyncErrorRetries = ConfigFile.GetValue("Perforce.NumSyncErrorRetries", PerforceSyncOptions.DefaultNumSyncErrorRetries);
 		}
 
-		static Dictionary<Guid, bool> GetCategorySettings(ConfigSection? Section, string IncludedKey, string ExcludedKey)
+		static Dictionary<Guid, bool> GetCategorySettings(ConfigSection Section, string IncludedKey, string ExcludedKey)
 		{
 			Dictionary<Guid, bool> Result = new Dictionary<Guid, bool>();
 			if (Section != null)
@@ -967,7 +967,7 @@ namespace UnrealGameSync
 		protected override void ImportWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath, UserWorkspaceState CurrentWorkspace)
 		{
 			// Read the workspace settings
-			ConfigSection? WorkspaceSection = ConfigFile.FindSection(ClientName + BranchPath);
+			ConfigSection WorkspaceSection = ConfigFile.FindSection(ClientName + BranchPath);
 			if(WorkspaceSection == null)
 			{
 				string LegacyBranchAndClientKey = ClientName + BranchPath;
@@ -1066,7 +1066,7 @@ namespace UnrealGameSync
 
 		protected override void ImportWorkspaceSettings(DirectoryReference RootDir, string ClientName, string BranchPath, UserWorkspaceSettings CurrentWorkspace)
 		{
-			ConfigSection? WorkspaceSection = ConfigFile.FindSection(ClientName + BranchPath);
+			ConfigSection WorkspaceSection = ConfigFile.FindSection(ClientName + BranchPath);
 			if (WorkspaceSection != null)
 			{
 				CurrentWorkspace.Filter.View = WorkspaceSection.GetValues("SyncFilter", new string[0]).ToList();

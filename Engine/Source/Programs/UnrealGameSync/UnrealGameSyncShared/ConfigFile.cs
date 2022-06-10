@@ -310,9 +310,9 @@ namespace UnrealGameSync
 			{
 				while (Reader.Read() && Reader.TokenType == JsonTokenType.PropertyName)
 				{
-					string Name = Reader.GetString()!;
+					string Name = Reader.GetString();
 					Reader.Read();
-					string Value = Reader.GetString()!;
+					string Value = Reader.GetString();
 					Object.Pairs.Add(KeyValuePair.Create(Name, Value));
 				}
 			}
@@ -591,14 +591,14 @@ namespace UnrealGameSync
 			FileReference.Move(TempFileName, FileName);
 		}
 
-		public ConfigSection? FindSection(string Name)
+		public ConfigSection FindSection(string Name)
 		{
 			return Sections.FirstOrDefault(x => String.Compare(x.Name, Name, true) == 0);
 		}
 
 		public ConfigSection FindOrAddSection(string Name)
 		{
-			ConfigSection? Section = FindSection(Name);
+			ConfigSection Section = FindSection(Name);
 			if(Section == null)
 			{
 				Section = new ConfigSection(Name);
@@ -638,14 +638,14 @@ namespace UnrealGameSync
 		public bool GetValue(string Key, bool DefaultValue)
 		{
 			int DotIdx = Key.IndexOf('.');
-			ConfigSection? Section = FindSection(Key.Substring(0, DotIdx));
+			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
 			return (Section == null)? DefaultValue : Section.GetValue(Key.Substring(DotIdx + 1), DefaultValue);
 		}
 
 		public int GetValue(string Key, int DefaultValue)
 		{
 			int DotIdx = Key.IndexOf('.');
-			ConfigSection? Section = FindSection(Key.Substring(0, DotIdx));
+			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
 			return (Section == null)? DefaultValue : Section.GetValue(Key.Substring(DotIdx + 1), DefaultValue);
 		}
 
@@ -653,7 +653,7 @@ namespace UnrealGameSync
 		public string? GetValue(string Key, string? DefaultValue)
 		{
 			int DotIdx = Key.IndexOf('.');
-			ConfigSection? Section = FindSection(Key.Substring(0, DotIdx));
+			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
 			return (Section == null)? DefaultValue : Section.GetValue(Key.Substring(DotIdx + 1), DefaultValue);
 		}
 
@@ -661,7 +661,7 @@ namespace UnrealGameSync
 		public string[]? GetValues(string Key, string[]? DefaultValue)
 		{
 			int DotIdx = Key.IndexOf('.');
-			ConfigSection? Section = FindSection(Key.Substring(0, DotIdx));
+			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
 			return (Section == null)? DefaultValue : Section.GetValues(Key.Substring(DotIdx + 1), DefaultValue);
 		}
 
@@ -669,7 +669,7 @@ namespace UnrealGameSync
 		public Guid[]? GetGuidValues(string Key, Guid[]? DefaultValue)
 		{
 			int DotIdx = Key.IndexOf('.');
-			ConfigSection? Section = FindSection(Key.Substring(0, DotIdx));
+			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
 			return (Section == null)? DefaultValue : Section.GetValues(Key.Substring(DotIdx + 1), DefaultValue);
 		}
 	}

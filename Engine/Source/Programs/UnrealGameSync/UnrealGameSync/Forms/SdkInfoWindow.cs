@@ -147,13 +147,13 @@ namespace UnrealGameSync
 		{
 			if(e.ColumnIndex != columnHeader3.Index)
 			{
-				TextRenderer.DrawText(e.Graphics, e.SubItem!.Text, SdkListView.Font, e.Bounds, SdkListView.ForeColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+				TextRenderer.DrawText(e.Graphics, e.SubItem.Text, SdkListView.Font, e.Bounds, SdkListView.ForeColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 			}
 			else
 			{
 				e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-				List<BadgeInfo> Badges = GetBadges(e.Item!, e.SubItem!);
+				List<BadgeInfo> Badges = GetBadges(e.Item, e.SubItem);
 				for(int Idx = 0; Idx < Badges.Count; Idx++)
 				{
 					Color BadgeColor = (HoverBadgeUniqueId == Badges[Idx].UniqueId)? Color.FromArgb(140, 180, 230) : Color.FromArgb(112, 146, 190);

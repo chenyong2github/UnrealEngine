@@ -767,7 +767,7 @@ namespace UnrealGameSync
 				}
 				if(Alert != null)
 				{
-					e.Graphics.DrawLine(AlertDividerPen!, 0, AlertDividerY, Width, AlertDividerY);
+					e.Graphics.DrawLine(AlertDividerPen, 0, AlertDividerY, Width, AlertDividerY);
 					Alert.Draw(e.Graphics, Resources!);
 				}
 			}

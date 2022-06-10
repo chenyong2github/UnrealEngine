@@ -26,7 +26,6 @@ namespace UnrealGameSyncLauncher
 		{
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
-			Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
 			bool bFirstInstance;
 			using(Mutex InstanceMutex = new Mutex(true, "UnrealGameSyncRunning", out bFirstInstance))

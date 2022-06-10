@@ -368,7 +368,7 @@ namespace UnrealGameSync
 				}
 
 				// Add in additional paths property
-				ConfigSection? ProjectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
+				ConfigSection ProjectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
 				if (ProjectConfigSection != null)
 				{
 					IEnumerable<string> AdditionalPaths = ProjectConfigSection.GetValues("AdditionalPathsToSync", new string[0]);
@@ -580,7 +580,7 @@ namespace UnrealGameSync
 			List<PerforceArchiveInfo> NewArchives = new List<PerforceArchiveInfo>();
 
 			// Find all the zipped binaries under this stream
-			ConfigSection? ProjectConfigSection = LatestProjectConfigFile.FindSection(SelectedProjectIdentifier);
+			ConfigSection ProjectConfigSection = LatestProjectConfigFile.FindSection(SelectedProjectIdentifier);
 			if (ProjectConfigSection != null)
 			{
 				// Legacy
