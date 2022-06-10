@@ -253,8 +253,12 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 							// if the diff result associated with this pin is focused, highlight the pin
 							if (DiffResults.IsValid() && FocusedDiffResult.IsSet())
 							{
-								const FDiffSingleResult& Focused = (*DiffResults)[FocusedDiffResult.Get()];
-								PinWidget->SetDiffHighlighted(*DiffResult == Focused);
+								const int32 Index = FocusedDiffResult.Get();
+								if (DiffResults->IsValidIndex(Index))
+								{
+									const FDiffSingleResult& Focused = (*DiffResults)[Index];
+									PinWidget->SetDiffHighlighted(*DiffResult == Focused);
+								}
 							}
 						}
 						else
