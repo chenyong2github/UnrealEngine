@@ -11,7 +11,6 @@
 #include "/Engine/Generated/Material.ush"
 #include "NaniteVertexFactory.ush"
 
-#define REQUIRES_PER_PIXEL_EVAL		(MATERIALBLENDING_MASKED)	//TODO: Also test depth offset when it is supported
 
 #ifndef NANITE_MESH_SHADER
 #define NANITE_MESH_SHADER 0
@@ -21,7 +20,7 @@
 #define NANITE_PRIM_SHADER 0
 #endif
 
-#define NANITE_VERT_REUSE_BATCH (COMPILER_SUPPORTS_WAVE_PERMUTE && IS_NANITE_PROGRAMMABLE && (NANITE_PRIM_SHADER || (COMPUTESHADER && REQUIRES_PER_PIXEL_EVAL)))
+#define NANITE_VERT_REUSE_BATCH (COMPILER_SUPPORTS_WAVE_PERMUTE && ((NANITE_PRIM_SHADER && NANITE_VERTEX_PROGRAMMABLE) || (COMPUTESHADER && NANITE_PIXEL_PROGRAMMABLE)))
 
 #if NANITE_VERT_REUSE_BATCH
 // HWRasterizePS doesn't seem to work well in wave32 mode
@@ -29,7 +28,7 @@
 	#pragma argument(wavemode=wave32)
 #endif
 	#define SWRASTER_NUM_THREADS 32
-#elif IS_NANITE_PROGRAMMABLE && REQUIRES_PER_PIXEL_EVAL
+#elif NANITE_PIXEL_PROGRAMMABLE
 	// Use a larger thread group when programmable, as it seems to provide the best occupancy
 	#define SWRASTER_NUM_THREADS 128
 #else
@@ -146,7 +145,7 @@ struct FRaster
 struct FRasterInterpData
 {
 	float3 InvW;
-#if IS_NANITE_PROGRAMMABLE
+#if NANITE_VERTEX_PROGRAMMABLE || NANITE_PIXEL_PROGRAMMABLE
 	FNaniteTransformedTri TransformedTri;
 #endif
 };
@@ -191,7 +190,7 @@ FBarycentrics CalculateBarycentrics(FRasterTri Tri, float3 C)
 	FBarycentrics Barycentrics = (FBarycentrics)0;
 
 	// For now, micropoly barycentrics are only required for the programmable raster path, so help DCE out as much as possible
-#if IS_NANITE_PROGRAMMABLE
+#if NANITE_PIXEL_PROGRAMMABLE
 	const float3 OffsetX	= { -Tri.Edge12.y, -Tri.Edge20.y, -Tri.Edge01.y };
 	const float3 OffsetY	= {  Tri.Edge12.x,  Tri.Edge20.x,  Tri.Edge01.x };
 	const float3 UVW		= GetPerspectiveCorrectBarycentrics(C, Tri.InterpData.InvW);
@@ -221,7 +220,7 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, boo
 	float MaterialMask = 1.0f;
 	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
-#if IS_NANITE_PROGRAMMABLE && REQUIRES_PER_PIXEL_EVAL
+#if NANITE_PIXEL_PROGRAMMABLE
 	// Material parameter inputs
 	float4 SvPosition = float4(float(PixelPos.x) + 0.5f, float(PixelPos.y) + 0.5f, DeviceZ, 1.0f);
 	
@@ -778,7 +777,7 @@ bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 	return (bReverseInstanceCull != bRasterStateReverseCull);
 }
 
-#if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
+#if NANITE_VERTEX_PROGRAMMABLE
 float3 EvaluateWorldPositionOffset(FNaniteView NaniteView, FInstanceSceneData InstanceData, FInstanceDynamicData InstanceDynamicData, FCluster Cluster, uint VertIndex, float3 PointLocal)
 {
 	float3 WorldPositionOffset = 0.0f;
@@ -916,7 +915,7 @@ void MicropolyRasterize(
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
-#if IS_NANITE_PROGRAMMABLE
+#if NANITE_VERTEX_PROGRAMMABLE || NANITE_PIXEL_PROGRAMMABLE
 	ResolvedView = ResolveView(NaniteView);
 #endif
 	
@@ -1021,11 +1020,11 @@ void MicropolyRasterize(
 		{
 			// Transform vertex and store in group shared memory.
 			float3 PointLocal = DecodePosition(VertIndex, Cluster);
-		#if IS_NANITE_PROGRAMMABLE && REQUIRES_PER_PIXEL_EVAL
+		#if NANITE_PIXEL_PROGRAMMABLE
 			GroupVerts[VertIndex] = PointLocal;
 		#else
 			float3 WorldPositionOffset = 0.0f;
-		#if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
+		#if NANITE_VERTEX_PROGRAMMABLE
 			WorldPositionOffset = EvaluateWorldPositionOffset(NaniteView, InstanceData, InstanceDynamicData, Cluster, VertIndex, PointLocal);
 		#endif
 			float3 PointWorld = mul(float4(PointLocal, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz + WorldPositionOffset;
@@ -1061,7 +1060,7 @@ void MicropolyRasterize(
 
 		float3 Verts[3];
 		FRasterInterpData InterpData;
-	#if IS_NANITE_PROGRAMMABLE && REQUIRES_PER_PIXEL_EVAL
+	#if NANITE_PIXEL_PROGRAMMABLE
 		// Transform the triangle from local space points
 		const float3 PointLocal[3] =
 		{
@@ -1137,14 +1136,15 @@ void MicropolyRasterize(
 #endif // NANITE_VERT_REUSE_BATCH
 }
 
-#define VERTEX_TO_TRIANGLE_MASKS	(NANITE_PRIM_SHADER && !DEPTH_ONLY)
+#define VERTEX_TO_TRIANGLE_MASKS			(NANITE_PRIM_SHADER && (!DEPTH_ONLY || NANITE_PIXEL_PROGRAMMABLE))
+
 
 // Use barycentric intrinsics when available, otherwise prefer SV_Barycentrics.
 // If all else fails export them explicitly (incompatible with vertex reuse).
-#define BARYCENTRIC_MODE_INTRINSICS			((NANITE_MESH_SHADER || NANITE_PRIM_SHADER) && COMPILER_SUPPORTS_BARYCENTRIC_INTRINSICS)
-#define BARYCENTRIC_MODE_SV_BARYCENTRICS	(NANITE_MESH_SHADER && !COMPILER_SUPPORTS_BARYCENTRIC_INTRINSICS)
-#define BARYCENTRIC_MODE_EXPORT				(!BARYCENTRIC_MODE_INTRINSICS && !BARYCENTRIC_MODE_SV_BARYCENTRICS)
-
+#define BARYCENTRIC_MODE_NONE				(!NANITE_PIXEL_PROGRAMMABLE)
+#define BARYCENTRIC_MODE_INTRINSICS			(!BARYCENTRIC_MODE_NONE && (NANITE_MESH_SHADER || NANITE_PRIM_SHADER) && COMPILER_SUPPORTS_BARYCENTRIC_INTRINSICS)
+#define BARYCENTRIC_MODE_SV_BARYCENTRICS	(!BARYCENTRIC_MODE_NONE && NANITE_MESH_SHADER && !COMPILER_SUPPORTS_BARYCENTRIC_INTRINSICS)
+#define BARYCENTRIC_MODE_EXPORT				(!BARYCENTRIC_MODE_NONE && !BARYCENTRIC_MODE_INTRINSICS && !BARYCENTRIC_MODE_SV_BARYCENTRICS)
 
 struct VSOut
 {
@@ -1162,12 +1162,12 @@ struct VSOut
 #endif
 #endif
 
-#if IS_NANITE_PROGRAMMABLE
 #if BARYCENTRIC_MODE_INTRINSICS
 	CUSTOM_INTERPOLATION uint VertexID			: TEXCOORD4;
+#elif BARYCENTRIC_MODE_SV_BARYCENTRICS && PIXELSHADER
+	float3 Barycentrics							: SV_Barycentrics;
 #elif BARYCENTRIC_MODE_EXPORT
 	float2 BarycentricsUV						: TEXCOORD4;
-#endif
 #endif
 
 #if NANITE_MESH_SHADER_INTERP
@@ -1183,7 +1183,7 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	const float3 PointLocal = DecodePosition( VertIndex, Cluster );
 
 	float3 WorldPositionOffset = 0.0f;
-#if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
+#if NANITE_VERTEX_PROGRAMMABLE
 	const FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 	WorldPositionOffset = EvaluateWorldPositionOffset(NaniteView, InstanceData, InstanceDynamicData, Cluster, VertIndex, PointLocal);
 #endif
@@ -1238,7 +1238,7 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	Out.InterpPosition = Out.Position;
 #endif
 
-#if IS_NANITE_PROGRAMMABLE && BARYCENTRIC_MODE_INTRINSICS
+#if BARYCENTRIC_MODE_INTRINSICS
 	Out.VertexID = VertIndex;
 #endif
 
@@ -1361,7 +1361,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
-#if IS_NANITE_PROGRAMMABLE
+#if NANITE_VERTEX_PROGRAMMABLE
 	ResolvedView = ResolveView(NaniteView);
 #endif
 
@@ -1606,7 +1606,7 @@ void HWRasterizeMS(
 
 	FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
 
-#if IS_NANITE_PROGRAMMABLE
+#if NANITE_VERTEX_PROGRAMMABLE
 	ResolvedView = ResolveView(NaniteView);
 #endif
 
@@ -1706,7 +1706,7 @@ VSOut HWRasterizeVS(
 
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
-#if IS_NANITE_PROGRAMMABLE
+#if NANITE_VERTEX_PROGRAMMABLE
 	ResolvedView = ResolveView(NaniteView);
 #endif
 
@@ -1725,7 +1725,7 @@ VSOut HWRasterizeVS(
 		
 			const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
 			Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, TriangleIndices[VertexID], PixelValue);
-	#if IS_NANITE_PROGRAMMABLE && BARYCENTRIC_MODE_EXPORT
+	#if BARYCENTRIC_MODE_EXPORT
 			Out.BarycentricsUV = float2(
 				VertexID == 0 ? 1 : 0,
 				VertexID == 1 ? 1 : 0
@@ -1743,9 +1743,6 @@ VSOut HWRasterizeVS(
 void HWRasterizePS(VSOut In
 #if NANITE_MESH_SHADER	
 	, PrimitiveAttributes Primitive
-#if IS_NANITE_PROGRAMMABLE && BARYCENTRIC_MODE_SV_BARYCENTRICS
-	, float3 InBarycentrics : SV_Barycentrics
-#endif
 #endif
 )
 {
@@ -1813,7 +1810,7 @@ void HWRasterizePS(VSOut In
 		float MaterialMask = 1.0f; // TODO: PROG_RASTER
 		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
-	#if IS_NANITE_PROGRAMMABLE
+	#if NANITE_PIXEL_PROGRAMMABLE
 		ResolvedView = ResolveView(NaniteView);
 
 		const uint DepthInt = asuint(DeviceZ);
@@ -1856,8 +1853,8 @@ void HWRasterizePS(VSOut In
 							TriangleIndices;
 		
 		bCalcTriangleIndices = false;
-	#elif BARYCENTRIC_MODE_SV_BARYCENTRICS
-		Barycentrics.UVW = InBarycentrics;
+	#elif BARYCENTRIC_MODE_SV_BARYCENTRICS && PIXELSHADER
+		Barycentrics.UVW = In.Barycentrics;
 	#elif BARYCENTRIC_MODE_EXPORT
 		Barycentrics.UVW = float3(In.BarycentricsUV, 1.0f - In.BarycentricsUV.x - In.BarycentricsUV.y);
 	#endif
