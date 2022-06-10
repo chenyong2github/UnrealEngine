@@ -176,8 +176,13 @@ public:
 	/** Creates code project files for a new game project. On failure, OutFailReason and OutFailLog will be populated. */
 	static bool GenerateCodeProjectFiles(const FString& ProjectFilename, FText& OutFailReason, FText& OutFailLog);
 
-	/** Returns true if there are starter content files available for instancing into new projects. */
-	static bool IsStarterContentAvailableForNewProjects();
+	/** Returns true if there are engine starter content files available for instancing into new projects. */
+	static bool IsEngineStarterContentAvailable();
+
+	/** Returns true if the given project is referencing engine starter content pack. */
+	static bool IsUsingEngineStarterContent(const FProjectInformation& ProjectInfo);
+
+	/** Returns true if there are any starter content packs are available for given project. */
 	static bool IsStarterContentAvailableForProject(const FProjectInformation& ProjectInfo);
 
 	/**

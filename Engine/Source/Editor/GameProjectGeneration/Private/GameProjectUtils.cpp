@@ -185,11 +185,10 @@ namespace
 	{
 		if (InProjectInfo.bIsBlankTemplate &&
 			InProjectInfo.bCopyStarterContent &&
-			GameProjectUtils::IsStarterContentAvailableForNewProjects())
+			GameProjectUtils::IsUsingEngineStarterContent(InProjectInfo) &&
+			GameProjectUtils::IsEngineStarterContentAvailable() )
 		{
-			const FString DefaultMap = InProjectInfo.TargetedHardware == EHardwareClass::Mobile ?
-				TEXT("/Game/MobileStarterContent/Maps/Minimal_Default") :
-				TEXT("/Game/StarterContent/Maps/Minimal_Default");
+			const FString DefaultMap = TEXT("/Game/StarterContent/Maps/Minimal_Default");
 
 			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
 				TEXT("/Script/EngineSettings.GameMapsSettings"),
@@ -766,24 +765,23 @@ bool GameProjectUtils::OpenCodeIDE(const FString& ProjectFile, FText& OutFailRea
 	return true;
 }
 
-bool GameProjectUtils::IsStarterContentAvailableForNewProjects()
+bool GameProjectUtils::IsEngineStarterContentAvailable()
 {
 	TArray<FString> OutFilenames;
 	IFileManager::Get().FindFilesRecursive(OutFilenames, *FPaths::FeaturePackDir(), TEXT("*StarterContent.upack"), /*Files=*/true, /*Directories=*/false);
 	return OutFilenames.Num() > 0;
 }
 
+bool GameProjectUtils::IsUsingEngineStarterContent(const FProjectInformation& InProjectInfo)
+{
+	return InProjectInfo.StarterContent.IsEmpty();
+}
 
 FString GameProjectUtils::GetStarterContentName(const FProjectInformation& InProjectInfo)
 {
 	if (!InProjectInfo.StarterContent.IsEmpty())
 	{
 		return InProjectInfo.StarterContent;
-	}
-
-	if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
-	{
-		return TEXT("MobileStarterContent");
 	}
 
 	return TEXT("StarterContent");
@@ -2065,18 +2063,10 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 			FileContents += LINE_TERMINATOR;
 			FileContents += TEXT("[/Script/EngineSettings.GameMapsSettings]") LINE_TERMINATOR;
 
-			if (GameProjectUtils::IsStarterContentAvailableForNewProjects())
+			if (GameProjectUtils::IsEngineStarterContentAvailable() && GameProjectUtils::IsUsingEngineStarterContent(InProjectInfo)) // if use Engine StarterContent
 			{
-				if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
-				{
-					FileContents += TEXT("EditorStartupMap=/Game/MobileStarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
-					FileContents += TEXT("GameDefaultMap=/Game/MobileStarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
-				}
-				else
-				{
-					FileContents += TEXT("EditorStartupMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
-					FileContents += TEXT("GameDefaultMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
-				}
+				FileContents += TEXT("EditorStartupMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
+				FileContents += TEXT("GameDefaultMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
 			}
 
 			if (InProjectInfo.bShouldGenerateCode)

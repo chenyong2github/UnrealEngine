@@ -787,6 +787,7 @@ TSharedRef<SWidget> SProjectDialog::MakeHybridView(EProjectDialogModeMode Mode)
 
 	SelectedHardwareClassTarget = EHardwareClass::Desktop;
 	SelectedGraphicsPreset = EGraphicsPreset::Maximum;
+	bIsStarterContentAvailable = true;
 
 	// Find all template projects
 	Templates = FindTemplateProjects();
@@ -1011,15 +1012,15 @@ TSharedRef<SWidget> SProjectDialog::MakeProjectOptionsWidget()
 	if (!HiddenSettings.Contains(ETemplateSetting::StarterContent))
 	{
 		FProjectInformation ProjectInfo = CreateProjectInfo();
+		bIsStarterContentAvailable = GameProjectUtils::IsStarterContentAvailableForProject(ProjectInfo);
 
-		const bool bIsStarterContentAvailable = GameProjectUtils::IsStarterContentAvailableForProject(ProjectInfo);
 		ProjectOptionsBox->AddSlot()
 			.Padding(0.0f, 8.0f, 0.0f, 0.0f)
 			.AutoHeight()
 			[
 				SNew(SHorizontalBox)
 				.ToolTipText(LOCTEXT("CopyStarterContent_ToolTip", "Enable to include an additional content pack containing simple placeable meshes with basic materials and textures.\nYou can also add the Starter Content to your project later using the Content Browser."))
-				.IsEnabled(bIsStarterContentAvailable)
+				.IsEnabled(this, &SProjectDialog::IsStarterContentAvailable)
 				+ SHorizontalBox::Slot()
 				.Padding(0.0f, 0.0f, 8.0f, 0.0f)
 				.VAlign(VAlign_Center)
@@ -1259,6 +1260,9 @@ void SProjectDialog::OnSetBlueprintOrCppIndex(int32 Index)
 {
 	bShouldGenerateCode = Index == 1;
 	UpdateProjectFileValidity();
+	FProjectInformation ProjectInfo = CreateProjectInfo();
+	bIsStarterContentAvailable = GameProjectUtils::IsStarterContentAvailableForProject(ProjectInfo);
+	bCopyStarterContent &= bIsStarterContentAvailable;
 }
 
 void SProjectDialog::SetHardwareClassTarget(EHardwareClass InHardwareClass)
@@ -1631,21 +1635,18 @@ FProjectInformation SProjectDialog::CreateProjectInfo() const
 	ProjectInfo.bIsBlankTemplate = SelectedTemplate->bIsBlankTemplate;
 	ProjectInfo.bForceExtendedLuminanceRange = SelectedTemplate->bIsBlankTemplate;
 
-	if (bCopyStarterContent)
+	if (bShouldGenerateCode)
 	{
-		if (bShouldGenerateCode)
+		if (SelectedTemplate->CodeTemplateDefs != nullptr)
 		{
-			if (SelectedTemplate->CodeTemplateDefs != nullptr)
-			{
-				ProjectInfo.StarterContent = SelectedTemplate->CodeTemplateDefs->StarterContent;
-			}
+			ProjectInfo.StarterContent = SelectedTemplate->CodeTemplateDefs->StarterContent;
 		}
-		else
+	}
+	else
+	{
+		if (SelectedTemplate->BlueprintTemplateDefs != nullptr)
 		{
-			if (SelectedTemplate->BlueprintTemplateDefs != nullptr)
-			{
-				ProjectInfo.StarterContent = SelectedTemplate->BlueprintTemplateDefs->StarterContent;
-			}
+			ProjectInfo.StarterContent = SelectedTemplate->BlueprintTemplateDefs->StarterContent;
 		}
 	}
 

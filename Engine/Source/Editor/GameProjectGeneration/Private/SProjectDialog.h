@@ -146,6 +146,9 @@ private:
 	FReply OnCancel() const;
 
 	ECheckBoxState OnGetRaytracingEnabledCheckState() const { return bEnableRaytracing ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }
+	
+	bool IsStarterContentAvailable() const {return bIsStarterContentAvailable; }
+
 	void OnSetRaytracingEnabled(ECheckBoxState NewState);
 
 	int32 OnGetBlueprintOrCppIndex() const { return bShouldGenerateCode ? 1 : 0; }
@@ -223,6 +226,9 @@ private:
 	SVerticalBox::FSlot* ProjectOptionsSlot;
 	/** True if user has selected to copy starter content. */
 	bool bCopyStarterContent;
+
+	/** True if starter content is available for current project. */
+	bool bIsStarterContentAvailable;
 
 	/** Whether or not to enable XR in the created project. */
 	bool bEnableXR;
