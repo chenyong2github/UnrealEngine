@@ -477,6 +477,8 @@ namespace Metasound
 					InterfaceComboBox->RefreshOptions();
 					MetaSoundAsset->SetUpdateDetailsOnSynchronization();
 					MetaSoundAsset->SetSynchronizationRequired();
+					FGraphBuilder::RegisterGraphWithFrontend(*MetaSound.Get());
+
 				}), LOCTEXT("RemoveInterfaceTooltip2", "Removes the associated interface from the MetaSound."));
 
 				TSharedRef<SWidget> EntryWidget = SNew(SHorizontalBox)
