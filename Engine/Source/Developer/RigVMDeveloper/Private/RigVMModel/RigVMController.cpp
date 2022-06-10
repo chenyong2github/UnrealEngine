@@ -16064,6 +16064,9 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 	TArray<URigVMPin*> AllPins = InPin->GetNode()->GetAllPinsRecursively();
 	int32 RemainingWildCardPins = Algo::CountIf(AllPins, WildCardPinCountPredicate);
 	const bool bPinWasWildCard = InPin->IsWildCard();
+
+	const FPinState PreviousPinState = GetPinState(InPin);
+	const FString PreviousCPPType = InPin->CPPType;
 	
 	InPin->CPPType = CPPType;
 	InPin->CPPTypeObjectPath = CPPTypeObjectPath;
@@ -16104,6 +16107,12 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 			}
 			ChangePinType(SubPin, BaseCPPType, InCPPTypeObject, bSetupUndoRedo, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
 		}
+	}
+
+	// if the pin didn't change type - let's maintain the pin state
+	if(PreviousCPPType == InPin->CPPType && !InPin->IsWildCard())
+	{
+		ApplyPinState(InPin, PreviousPinState, false);
 	}
 
 	// if this is a template clear its caches
