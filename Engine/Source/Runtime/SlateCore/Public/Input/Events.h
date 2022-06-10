@@ -177,6 +177,7 @@ public:
 		: ModifierKeys(InModifierKeys)
 		, bIsRepeat(bInIsRepeat)
 		, UserIndex(InUserIndex)
+		, InputDeviceId(FInputDeviceId::CreateFromInternalId(InUserIndex))
 		, EventPath(nullptr)
 	{ }
 
