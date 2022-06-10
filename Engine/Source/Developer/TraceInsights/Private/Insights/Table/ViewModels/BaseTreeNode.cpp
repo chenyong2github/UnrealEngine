@@ -5,10 +5,12 @@
 // Insights
 #include "Insights/Table/ViewModels/TableCellValueSorter.h"
 
-#define LOCTEXT_NAMESPACE "Insights_TreeNode"
+#define LOCTEXT_NAMESPACE "Insights::FBaseTreeNode"
 
 namespace Insights
 {
+
+INSIGHTS_IMPLEMENT_RTTI(FBaseTreeNode)
 
 FBaseTreeNode::FGroupNodeData FBaseTreeNode::DefaultGroupData;
 

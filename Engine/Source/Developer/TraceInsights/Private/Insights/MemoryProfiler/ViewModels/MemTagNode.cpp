@@ -5,9 +5,9 @@
 // Insights
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
 
-#define LOCTEXT_NAMESPACE "MemTagNode"
+#define LOCTEXT_NAMESPACE "FMemTagNode"
 
-const FName FMemTagNode::TypeName(TEXT("FMemTagNode"));
+INSIGHTS_IMPLEMENT_RTTI(FMemTagNode)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

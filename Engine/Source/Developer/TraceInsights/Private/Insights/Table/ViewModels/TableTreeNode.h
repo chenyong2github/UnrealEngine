@@ -47,8 +47,7 @@ typedef TWeakPtr<class FTableTreeNode> FTableTreeNodeWeak;
  */
 class FTableTreeNode : public FBaseTreeNode
 {
-public:
-	static const FName TypeName;
+	INSIGHTS_DECLARE_RTTI(FTableTreeNode, FBaseTreeNode)
 
 public:
 	/** Initialization constructor for a table record node. */
@@ -73,8 +72,6 @@ public:
 	{
 		CleanupAggregatedValues();
 	}
-
-	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	const TWeakPtr<FTable>& GetParentTable() const { return ParentTable; }
 	FTableRowId GetRowId() const { return RowId; }

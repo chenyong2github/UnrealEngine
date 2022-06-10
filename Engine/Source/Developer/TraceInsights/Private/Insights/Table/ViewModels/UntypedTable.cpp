@@ -26,7 +26,7 @@ public:
 
 	virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
 	{
-		ensure(Node.GetTypeName() == FTableTreeNode::TypeName);
+		ensure(Node.Is<FTableTreeNode>());
 		const FTableTreeNode& TableTreeNode = static_cast<const FTableTreeNode&>(Node);
 
 		if (!Node.IsGroup()) // Table Row Node

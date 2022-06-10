@@ -2,12 +2,12 @@
 
 #include "PackageNode.h"
 
-#define LOCTEXT_NAMESPACE "PackageNode"
+#define LOCTEXT_NAMESPACE "Insights::FPackageNode"
 
 namespace Insights
 {
 
-const FName FPackageNode::TypeName(TEXT("FPackageNode"));
+INSIGHTS_IMPLEMENT_RTTI(FPackageNode)
 
 } // namespace Insights
 

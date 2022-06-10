@@ -2,12 +2,12 @@
 
 #include "TableTreeNode.h"
 
-#define LOCTEXT_NAMESPACE "Insights_TableTreeNode"
+#define LOCTEXT_NAMESPACE "Insights::FTableTreeNode"
 
 namespace Insights
 {
 
-const FName FTableTreeNode::TypeName(TEXT("FTableTreeNode"));
+INSIGHTS_IMPLEMENT_RTTI(FTableTreeNode)
 
 } // namespace Insights
 

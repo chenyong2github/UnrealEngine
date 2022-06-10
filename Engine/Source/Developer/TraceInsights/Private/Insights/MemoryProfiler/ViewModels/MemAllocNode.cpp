@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemAllocNode.h"
+
+// Insights
 #include "Insights/MemoryProfiler/ViewModels/CallstackFormatting.h"
 
-#define LOCTEXT_NAMESPACE "MemAllocNode"
+#define LOCTEXT_NAMESPACE "Insights::FMemAllocNode"
 
 namespace Insights
 {
 
-const FName FMemAllocNode::TypeName(TEXT("FMemAllocNode"));
+INSIGHTS_IMPLEMENT_RTTI(FMemAllocNode)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

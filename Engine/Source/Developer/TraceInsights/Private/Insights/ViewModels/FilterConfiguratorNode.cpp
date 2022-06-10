@@ -7,14 +7,12 @@
 // Insights
 #include "Insights/ViewModels/Filters.h"
 
-#define LOCTEXT_NAMESPACE "FilterConfiguratorNode"
+#define LOCTEXT_NAMESPACE "FFilterConfiguratorNode"
 
 namespace Insights
 {
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const FName FFilterConfiguratorNode::TypeName(TEXT("FFilterConfiguratorNode"));
+INSIGHTS_IMPLEMENT_RTTI(FFilterConfiguratorNode)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

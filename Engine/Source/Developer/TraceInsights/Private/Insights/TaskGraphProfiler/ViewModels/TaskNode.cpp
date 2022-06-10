@@ -2,12 +2,12 @@
 
 #include "TaskNode.h"
 
-#define LOCTEXT_NAMESPACE "TaskNodeNode"
+#define LOCTEXT_NAMESPACE "Insights::FTaskNode"
 
 namespace Insights
 {
 
-const FName FTaskNode::TypeName(TEXT("FTaskNode"));
+INSIGHTS_IMPLEMENT_RTTI(FTaskNode)
 
 } // namespace Insights
 

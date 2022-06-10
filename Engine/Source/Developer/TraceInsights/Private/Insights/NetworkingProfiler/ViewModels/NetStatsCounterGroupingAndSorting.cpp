@@ -32,10 +32,10 @@ void FNetStatsCounterNodeSortingByEventType::Sort(TArray<Insights::FBaseTreeNode
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FNetStatsCounterNode::TypeName);
+			ensure(A.IsValid() && A->Is<FNetStatsCounterNode>());
 			const FNetStatsCounterNodePtr NetStatsCounterNodeA = StaticCastSharedPtr<FNetStatsCounterNode, Insights::FBaseTreeNode>(A);
 
-			ensure(B.IsValid() && B->GetTypeName() == FNetStatsCounterNode::TypeName);
+			ensure(B.IsValid() && B->Is<FNetStatsCounterNode>());
 			const FNetStatsCounterNodePtr NetStatsCounterNodeB = StaticCastSharedPtr<FNetStatsCounterNode, Insights::FBaseTreeNode>(B);
 
 			if (NetStatsCounterNodeA->GetType() == NetStatsCounterNodeB->GetType())
@@ -53,10 +53,10 @@ void FNetStatsCounterNodeSortingByEventType::Sort(TArray<Insights::FBaseTreeNode
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FNetStatsCounterNode::TypeName);
+			ensure(A.IsValid() && A->Is<FNetStatsCounterNode>());
 			const FNetStatsCounterNodePtr NetStatsCounterNodeA = StaticCastSharedPtr<FNetStatsCounterNode, Insights::FBaseTreeNode>(A);
 
-			ensure(B.IsValid() && B->GetTypeName() == FNetStatsCounterNode::TypeName);
+			ensure(B.IsValid() && B->Is<FNetStatsCounterNode>());
 			const FNetStatsCounterNodePtr NetStatsCounterNodeB = StaticCastSharedPtr<FNetStatsCounterNode, Insights::FBaseTreeNode>(B);
 
 			if (NetStatsCounterNodeA->GetType() == NetStatsCounterNodeB->GetType())
@@ -94,11 +94,11 @@ void FNetStatsCounterNodeSortingBySum::Sort(TArray<Insights::FBaseTreeNodePtr>& 
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FNetStatsCounterNode::TypeName);
+			ensure(A.IsValid() && A->Is<FNetStatsCounterNode>());
 			const FNetStatsCounterNodePtr NetStatsCounterNodeA = StaticCastSharedPtr<FNetStatsCounterNode, Insights::FBaseTreeNode>(A);
 			const uint32 ValueA = NetStatsCounterNodeA->GetAggregatedStats().Sum;
 
-			ensure(B.IsValid() && B->GetTypeName() == FNetStatsCounterNode::TypeName);
+			ensure(B.IsValid() && B->Is<FNetStatsCounterNode>());
 			const FNetStatsCounterNodePtr NetStatsCounterNodeB = StaticCastSharedPtr<FNetStatsCounterNode, Insights::FBaseTreeNode>(B);
 			const uint32 ValueB = NetStatsCounterNodeB->GetAggregatedStats().Sum;
 
@@ -117,11 +117,11 @@ void FNetStatsCounterNodeSortingBySum::Sort(TArray<Insights::FBaseTreeNodePtr>& 
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FNetStatsCounterNode::TypeName);
+			ensure(A.IsValid() && A->Is<FNetStatsCounterNode>());
 			const FNetStatsCounterNodePtr NetStatsCounterNodeA = StaticCastSharedPtr<FNetStatsCounterNode, Insights::FBaseTreeNode>(A);
 			const uint32 ValueA = NetStatsCounterNodeA->GetAggregatedStats().Sum;
 
-			ensure(B.IsValid() && B->GetTypeName() == FNetStatsCounterNode::TypeName);
+			ensure(B.IsValid() && B->Is<FNetStatsCounterNode>());
 			const FNetStatsCounterNodePtr NetStatsCounterNodeB = StaticCastSharedPtr<FNetStatsCounterNode, Insights::FBaseTreeNode>(B);
 			const uint32 ValueB = NetStatsCounterNodeB->GetAggregatedStats().Sum;
 

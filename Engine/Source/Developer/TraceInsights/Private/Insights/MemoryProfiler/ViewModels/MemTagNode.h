@@ -60,8 +60,7 @@ typedef TWeakPtr<class FMemTagNode> FMemTagNodeWeak;
  */
 class FMemTagNode : public Insights::FBaseTreeNode
 {
-public:
-	static const FName TypeName;
+	INSIGHTS_DECLARE_RTTI(FMemTagNode, FBaseTreeNode)
 
 public:
 	/** Initialization constructor for the MemTag node. */
@@ -81,8 +80,6 @@ public:
 	{
 		ResetAggregatedStats();
 	}
-
-	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	/**
 	 * @return a type of this MemTag node or EMemTagNodeType::Group for group nodes.

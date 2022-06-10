@@ -51,8 +51,9 @@ typedef TWeakPtr<class FTimerNode> FTimerNodeWeak;
  */
 class FTimerNode : public Insights::FBaseTreeNode
 {
+	INSIGHTS_DECLARE_RTTI(FTimerNode, FBaseTreeNode)
+
 public:
-	static const FName TypeName;
 	static constexpr uint32 InvalidTimerId = uint32(-1);
 
 	static const FName GpuGroup;
@@ -66,8 +67,6 @@ public:
 	explicit FTimerNode(const FName InGroupName);
 
 	virtual ~FTimerNode();
-
-	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	/**
 	 * @return the timer id as provided by analyzer. It can be used as an index.

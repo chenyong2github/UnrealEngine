@@ -131,8 +131,9 @@ typedef TWeakPtr<class FStatsNode> FStatsNodeWeak;
  */
 class FStatsNode : public Insights::FBaseTreeNode
 {
+	INSIGHTS_DECLARE_RTTI(FStatsNode, FBaseTreeNode)
+
 public:
-	static const FName TypeName;
 	static constexpr uint32 InvalidCounterId = uint32(-1);
 
 public:
@@ -165,8 +166,6 @@ public:
 	{
 		ResetAggregatedStats();
 	}
-
-	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	/**
 	 * @return the counter id as provided by analyzer.

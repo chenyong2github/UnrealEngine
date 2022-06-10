@@ -8,9 +8,9 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/ViewModels/TimingEvent.h"
 
-#define LOCTEXT_NAMESPACE "TimerNode"
+#define LOCTEXT_NAMESPACE "FTimerNode"
 
-const FName FTimerNode::TypeName(TEXT("FTimerNode"));
+INSIGHTS_IMPLEMENT_RTTI(FTimerNode)
 
 const FName FTimerNode::GpuGroup(TEXT("GPU"));
 const FName FTimerNode::CpuGroup(TEXT("CPU"));

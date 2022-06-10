@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "Insights/Common/SimpleRtti.h"
+
 namespace Insights
 {
 
@@ -29,6 +31,8 @@ typedef TWeakPtr<class FBaseTreeNode> FBaseTreeNodeWeak;
 
 class FBaseTreeNode : public TSharedFromThis<FBaseTreeNode>
 {
+	INSIGHTS_DECLARE_RTTI_BASE(FBaseTreeNode)
+
 protected:
 	struct FGroupNodeData
 	{
@@ -66,10 +70,14 @@ public:
 		}
 	}
 
-	virtual const FName& GetTypeName() const = 0;
-
-	uint32 GetDefaultSortOrder() const { return DefaultSortOrder; }
-	void SetDefaultSortOrder(uint32 Order) { DefaultSortOrder = Order; }
+	uint32 GetDefaultSortOrder() const
+	{
+		return DefaultSortOrder;
+	}
+	void SetDefaultSortOrder(uint32 Order)
+	{
+		DefaultSortOrder = Order;
+	}
 
 	/**
 	 * @return a name of this node.
@@ -94,22 +102,40 @@ public:
 	/**
 	 * @return a descriptive text for this node to display in a tooltip.
 	 */
-	virtual const FText GetTooltip() const { return IsGroup() ? GroupData->Tooltip : FText::GetEmpty(); }
+	virtual const FText GetTooltip() const
+	{
+		return GroupData->Tooltip;
+	}
 
 	/**
 	 * Sets a descriptive text for this node to display in a tooltip.
 	 */
-	virtual void SetTooltip(const FText& InTooltip) { if (IsGroup()) { GroupData->Tooltip = InTooltip; } }
+	virtual void SetTooltip(const FText& InTooltip)
+	{
+		if (IsGroup())
+		{
+			GroupData->Tooltip = InTooltip;
+		}
+	}
 
 	/**
 	 * @return a pointer to a data context for this node.
 	 */
-	virtual void* GetContext() const { return IsGroup() ? GroupData->Context : nullptr; }
+	virtual void* GetContext() const
+	{
+		return GroupData->Context;
+	}
 
 	/**
 	 * Sets a pointer to a data context for this node.
 	 */
-	virtual void SetContext(void* InContext) { if (IsGroup()) { GroupData->Context = InContext; } }
+	virtual void SetContext(void* InContext)
+	{
+		if (IsGroup())
+		{
+			GroupData->Context = InContext;
+		}
+	}
 
 	/**
 	 * @return true, if this node is a group node.
@@ -117,6 +143,17 @@ public:
 	bool IsGroup() const
 	{
 		return GroupData != &DefaultGroupData;
+	}
+
+	/**
+	 * Initializes the group data, allowing this node to accept children.
+	 */
+	void InitGroupData()
+	{
+		if (GroupData == &DefaultGroupData)
+		{
+			GroupData = new FGroupNodeData();
+		}
 	}
 
 	/**
@@ -220,8 +257,17 @@ public:
 		GroupData->FilteredChildren.Reset(NewSize);
 	}
 
-	bool IsExpanded() const { return GroupData->bIsExpanded; }
-	void SetExpansion(bool bOnOff) { GroupData->bIsExpanded = bOnOff; }
+	bool IsExpanded() const
+	{
+		return GroupData->bIsExpanded;
+	}
+	void SetExpansion(bool bOnOff)
+	{
+		if (IsGroup())
+		{
+			GroupData->bIsExpanded = bOnOff;
+		}
+	}
 
 protected:
 	/**

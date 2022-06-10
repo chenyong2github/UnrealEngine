@@ -48,11 +48,12 @@ typedef TWeakPtr<class FNetStatsCounterNode> FNetStatsCounterNodeWeak;
  */
 class FNetStatsCounterNode : public Insights::FBaseTreeNode
 {
+	INSIGHTS_DECLARE_RTTI(FNetStatsCounterNode, FBaseTreeNode)
+
 public:
 	using FNetProfilerAggregatedStatsCounterStats = TraceServices::FNetProfilerAggregatedStatsCounterStats;
 	using ENetProfilerStatsCounterType = TraceServices::ENetProfilerStatsCounterType;
 
-	static const FName TypeName;
 	static constexpr uint32 InvalidCounterIndex = uint32(-1);
 
 public:
@@ -73,8 +74,6 @@ public:
 		AggregatedStats.StatsCounterTypeIndex = InvalidCounterIndex;
 		ResetAggregatedStats();
 	}
-
-	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	/**
 	 * @return the counter id as provided by analyzer.

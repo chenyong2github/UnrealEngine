@@ -48,8 +48,7 @@ typedef TWeakPtr<class FTaskNode> FTaskNodeWeak;
  */
 class FTaskNode : public FTableTreeNode
 {
-public:
-	static const FName TypeName;
+	INSIGHTS_DECLARE_RTTI(FTaskNode, FTableTreeNode)
 
 public:
 	/** Initialization constructor for the Task node. */
@@ -65,8 +64,6 @@ public:
 		, Type(ETaskNodeType::Group)
 	{
 	}
-
-	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	/**
 	 * @return a type of this Task node or ETaskNodeType::Group for group nodes.

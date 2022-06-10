@@ -45,7 +45,7 @@ typedef TWeakPtr<class FFilterConfiguratorNode> FFilterConfiguratorNodeWeak;
  */
 class FFilterConfiguratorNode : public Insights::FBaseTreeNode
 {
-	static const FName TypeName;
+	INSIGHTS_DECLARE_RTTI(FFilterConfiguratorNode, FBaseTreeNode)
 
 public:
 	/** Initialization constructor for the filter configurator node. */
@@ -56,8 +56,6 @@ public:
 	bool operator==(const FFilterConfiguratorNode& Other);
 
 	virtual ~FFilterConfiguratorNode() {}
-
-	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	void SetAvailableFilters(TSharedPtr<TArray<TSharedPtr<struct FFilter>>> InAvailableFilters);
 	TSharedPtr<TArray<TSharedPtr<struct FFilter>>> GetAvailableFilters() { return AvailableFilters; }

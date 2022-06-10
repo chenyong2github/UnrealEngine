@@ -2,9 +2,9 @@
 
 #include "NetEventNode.h"
 
-#define LOCTEXT_NAMESPACE "NetEventNode"
+#define LOCTEXT_NAMESPACE "FNetEventNode"
 
-const FName FNetEventNode::TypeName(TEXT("FNetEventNode"));
+INSIGHTS_IMPLEMENT_RTTI(FNetEventNode)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

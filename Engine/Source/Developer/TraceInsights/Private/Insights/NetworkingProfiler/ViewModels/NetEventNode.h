@@ -47,8 +47,9 @@ typedef TWeakPtr<class FNetEventNode> FNetEventNodeWeak;
  */
 class FNetEventNode : public Insights::FBaseTreeNode
 {
+	INSIGHTS_DECLARE_RTTI(FNetEventNode, FBaseTreeNode)
+
 public:
-	static const FName TypeName;
 	static constexpr uint32 InvalidEventTypeIndex = uint32(-1);
 
 public:
@@ -71,8 +72,6 @@ public:
 	{
 		ResetAggregatedStats();
 	}
-
-	virtual const FName& GetTypeName() const override { return TypeName; }
 
 	uint32 GetEventTypeIndex() const { return EventTypeIndex; }
 

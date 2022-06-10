@@ -5,9 +5,9 @@
 // Insights
 #include "Insights/Common/TimeUtils.h"
 
-#define LOCTEXT_NAMESPACE "NetStatsNode"
+#define LOCTEXT_NAMESPACE "FNetStatsCounterNode"
 
-const FName FNetStatsCounterNode::TypeName(TEXT("FNetStatsCounterNode"));
+INSIGHTS_IMPLEMENT_RTTI(FNetStatsCounterNode)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
