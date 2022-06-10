@@ -12,11 +12,11 @@ UCLASS(ClassGroup = Synth, meta = (BlueprintSpawnableComponent))
 class MOTOSYNTH_API USynthComponentMoto : public USynthComponent
 {
 	GENERATED_BODY()
+public:
 
 	USynthComponentMoto(const FObjectInitializer& ObjInitializer);
 	virtual ~USynthComponentMoto();
 
-public:
 	/* The moto synth preset to use for the moto synth component. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MotoSynth")
 	TObjectPtr<UMotoSynthPreset> MotoSynthPreset;
