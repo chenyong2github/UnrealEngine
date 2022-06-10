@@ -199,10 +199,10 @@ void UFractureToolMeshCut::FractureContextChanged()
 	}
 }
 
-class FMeshFractureOp : public FGeometryCollectionOperator
+class FMeshFractureOp : public FGeometryCollectionFractureOperator
 {
 public:
-	FMeshFractureOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionOperator(SourceCollection)
+	FMeshFractureOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionFractureOperator(SourceCollection)
 	{}
 
 	virtual ~FMeshFractureOp() = default;
@@ -289,7 +289,7 @@ int32 UFractureToolMeshCut::ExecuteFracture(const FFractureToolContext& Fracture
 		MeshCutOp->CuttingMesh = ConvertMeshDescriptionToCuttingDynamicMesh(MeshDescription, FractureContext.GetGeometryCollection()->NumUVLayers());
 
 		int Result = RunCancellableGeometryCollectionOp<FMeshFractureOp>(*(FractureContext.GetGeometryCollection()),
-			MoveTemp(MeshCutOp), LOCTEXT("ComputingVoronoiFractureMessage", "Computing Mesh Fracture"));
+			MoveTemp(MeshCutOp), LOCTEXT("ComputingMeshFractureMessage", "Computing Mesh Fracture"));
 		return Result;
 	}
 

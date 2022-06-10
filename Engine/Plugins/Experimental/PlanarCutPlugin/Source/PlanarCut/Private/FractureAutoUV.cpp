@@ -26,6 +26,7 @@
 #include "Image/ImageOccupancyMap.h"
 #include "VectorUtil.h"
 #include "FrameTypes.h"
+#include "Util/ProgressCancel.h"
 
 #include "Templates/PimplPtr.h"
 
@@ -136,7 +137,7 @@ namespace {
  * Shared helper method to set 'active' subset of triangles for a collection, to be considered for texturing
  * @return number of active triangles
  */
-int32 SetActiveTriangles(FGeometryCollection* Collection, TArray<bool>& ActiveTrianglesOut,
+int32 SetActiveTriangles(const FGeometryCollection* Collection, TArray<bool>& ActiveTrianglesOut,
 	bool bActivateInsideTriangles, EUseMaterials MaterialsPattern, TArrayView<int32> WhichMaterialsAreInside)
 {
 	TSet<int32> InsideMaterials;
@@ -446,9 +447,12 @@ bool UVLayout(
 	float GutterSize,
 	EUseMaterials MaterialsPattern,
 	TArrayView<int32> WhichMaterials,
-	bool bRecreateUVsForDegenerateIslands
+	bool bRecreateUVsForDegenerateIslands,
+	FProgressCancel* Progress
 )
 {
+	FProgressCancel::FProgressScope InitScope = FProgressCancel::CreateScopeTo(Progress, .2);
+
 	TArray<bool> ActiveTriangles;
 	int32 NumActive = SetActiveTriangles(&Collection, ActiveTriangles, true, MaterialsPattern, WhichMaterials);
 	FGeomMesh UVMesh(TargetUVLayer, &Collection, ActiveTriangles, NumActive);
@@ -456,8 +460,17 @@ bool UVLayout(
 	TArray<TArray<int32>> UVIslands;
 	UE::UVPacking::CreateUVIslandsFromMeshTopology<FGeomMesh>(UVMesh, UVIslands);
 
+	InitScope.Done();
+
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
 	if (bRecreateUVsForDegenerateIslands)
 	{
+		FProgressCancel::FProgressScope ForDegenerateIslandsScope = FProgressCancel::CreateScopeTo(Progress, .5);
+
 		TArray<int> IslandVert; IslandVert.SetNumUninitialized(UVMesh.MaxVertexID());
 
 		const int32 NumIslands = UVIslands.Num();
@@ -556,6 +569,12 @@ bool UVLayout(
 		}
 	}
 
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+	FProgressCancel::FProgressScope FinalScope = FProgressCancel::CreateScopeTo(Progress, 1);
+
 	UE::Geometry::FUVPacker Packer;
 	Packer.bScaleIslandsByWorldSpaceTexelRatio = true; // let packer scale islands separately to have consistent texel-to-world ratio
 	Packer.bAllowFlips = false;
@@ -568,7 +587,7 @@ bool UVLayout(
 }
 
 
-void TextureInternalSurfaces(
+bool TextureInternalSurfaces(
 	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	int32 GutterSize,
@@ -576,7 +595,8 @@ void TextureInternalSurfaces(
 	const FTextureAttributeSettings& AttributeSettings,
 	TImageBuilder<FVector4f>& TextureOut,
 	EUseMaterials MaterialsPattern,
-	TArrayView<int32> WhichMaterials
+	TArrayView<int32> WhichMaterials,
+	FProgressCancel* Progress
 )
 {
 	TArray<bool> ToTextureTriangles;
@@ -615,9 +635,21 @@ void TextureInternalSurfaces(
 	{
 		for (int32 GeomIdx = 0; GeomIdx < Collection.TransformIndex.Num(); GeomIdx++)
 		{
-			TransformIndices.Add(Collection.TransformIndex[GeomIdx]);
+			int32 TransformIdx = Collection.TransformIndex[GeomIdx];
+			if (Collection.IsVisible(TransformIdx))
+			{
+				TransformIndices.Add(TransformIdx);
+			}
 		}
 	}
+
+	const float AmbientWorkPer = 1, CurvatureWorkPer = 10;
+	const float NumMeshes = TransformIndices.Num();
+	const float AmountOfWork = 
+		float(AmbientIdx > -1) * AmbientWorkPer * NumMeshes +
+		float(CurvatureIdx > -1) * CurvatureWorkPer * NumMeshes;
+	const float WorkIncr = AmountOfWork > 0 ? .9 / AmountOfWork : 0;
+
 	FDynamicMeshCollection CollectionMeshes(&Collection, TransformIndices, FTransform::Identity, false);
 	if (bNeedsDynamicMeshes)
 	{
@@ -648,6 +680,11 @@ void TextureInternalSurfaces(
 		}
 	}
 
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
 	TArray64<float> CurvatureValues; // buffer to fill with curvature values
 	if (CurvatureIdx > -1)
 	{
@@ -657,6 +694,11 @@ void TextureInternalSurfaces(
 		CurvatureValues.SetNumZeroed(TexelsNum);
 		for (int MeshIdx = 0; MeshIdx < CollectionMeshes.Meshes.Num(); MeshIdx++)
 		{
+			if (Progress && Progress->Cancelled())
+			{
+				return false;
+			}
+			FProgressCancel::FProgressScope CurvatureScope(Progress, CurvatureWorkPer * WorkIncr);
 
 			int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
 			FDynamicMesh3& Mesh = CollectionMeshes.Meshes[MeshIdx].AugMesh;
@@ -730,6 +772,12 @@ void TextureInternalSurfaces(
 		AmbientValues.Init(1.0f, TexelsNum);
 		for (int MeshIdx = 0; MeshIdx < CollectionMeshes.Meshes.Num(); MeshIdx++)
 		{
+			if (Progress && Progress->Cancelled())
+			{
+				return false;
+			}
+			FProgressCancel::FProgressScope CurvatureScope(Progress, AmbientWorkPer * WorkIncr);
+
 			int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
 			FDynamicMesh3& Mesh = CollectionMeshes.Meshes[MeshIdx].AugMesh;
 
@@ -766,6 +814,12 @@ void TextureInternalSurfaces(
 			}
 		}
 	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+	FProgressCancel::FProgressScope EndBake = FProgressCancel::CreateScopeTo(Progress, 1);
 
 	ParallelFor(OccupancyMap.Dimensions.GetHeight(),
 		[&AttributeSettings, &TextureOut, &UVMesh, &OccupancyMap, &ToTextureMesh, &OutsideSpatial,
@@ -839,6 +893,11 @@ void TextureInternalSurfaces(
 		}
 	});
 
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
 	auto CopyValuesToChannel = [&TextureOut, &OccupancyMap](int ChannelIdx, TArray64<float>& Values)
 	{
 		if (ChannelIdx > -1)
@@ -872,6 +931,8 @@ void TextureInternalSurfaces(
 			TextureOut.CopyPixel(GutterToInside.Value, GutterToInside.Key);
 		}
 	}
+
+	return true;
 }
 
 }} // namespace UE::PlanarCut

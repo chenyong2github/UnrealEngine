@@ -354,10 +354,10 @@ void UFractureToolVoronoiCutterBase::FractureContextChanged()
 }
 
 
-class FVoronoiFractureOp : public FGeometryCollectionOperator
+class FVoronoiFractureOp : public FGeometryCollectionFractureOperator
 {
 public:
-	FVoronoiFractureOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionOperator(SourceCollection)
+	FVoronoiFractureOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionFractureOperator(SourceCollection)
 	{}
 
 	virtual ~FVoronoiFractureOp() = default;

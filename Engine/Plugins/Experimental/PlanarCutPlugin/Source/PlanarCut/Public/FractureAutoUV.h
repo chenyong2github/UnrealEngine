@@ -6,6 +6,8 @@
 
 #include "Image/ImageBuilder.h"
 
+class FProgressCancel;
+
 namespace UE { namespace PlanarCut {
 
 enum class EUseMaterials
@@ -50,7 +52,8 @@ bool PLANARCUT_API UVLayout(
 	float GutterSize = 1,
 	EUseMaterials MaterialsPattern = EUseMaterials::OddMaterials,
 	TArrayView<int32> WhichMaterials = TArrayView<int32>(),
-	bool bRecreateUVsForDegenerateIslands = true
+	bool bRecreateUVsForDegenerateIslands = true,
+	FProgressCancel* Progress = nullptr
 );
 
 
@@ -102,7 +105,7 @@ struct FTextureAttributeSettings
  * @param MaterialsPattern	Which pattern of material IDs to apply texture to
  * @param WhichMaterials	If non-empty, apply texture to the listed material IDs
  */
-void PLANARCUT_API TextureInternalSurfaces(
+bool PLANARCUT_API TextureInternalSurfaces(
 	int32 TargetUVLayer,
 	FGeometryCollection& Collection,
 	int32 GutterSize,
@@ -110,7 +113,8 @@ void PLANARCUT_API TextureInternalSurfaces(
 	const FTextureAttributeSettings& AttributeSettings,
 	UE::Geometry::TImageBuilder<FVector4f>& TextureOut,
 	EUseMaterials MaterialsPattern = EUseMaterials::OddMaterials,
-	TArrayView<int32> WhichMaterials = TArrayView<int32>()
+	TArrayView<int32> WhichMaterials = TArrayView<int32>(),
+	FProgressCancel* Progress = nullptr
 );
 
 }} // namespace UE::PlanarCut

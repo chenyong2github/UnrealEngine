@@ -376,10 +376,10 @@ void UFractureToolBrick::AddBoxEdges(const FVector& Min, const FVector& Max)
 	Edges.Emplace(MakeTuple(FVector(Min.X, Max.Y, Max.Z), Max));
 }
 
-class FCellsFractureOp : public FGeometryCollectionOperator
+class FCellsFractureOp : public FGeometryCollectionFractureOperator
 {
 public:
-	FCellsFractureOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionOperator(SourceCollection)
+	FCellsFractureOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionFractureOperator(SourceCollection)
 	{}
 
 	virtual ~FCellsFractureOp() = default;

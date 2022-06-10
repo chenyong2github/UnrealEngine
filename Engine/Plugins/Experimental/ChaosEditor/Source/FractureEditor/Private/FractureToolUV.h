@@ -254,5 +254,5 @@ protected:
 	bool SaveGeneratedTexture(UE::Geometry::TImageBuilder<FVector4f>& ImageBuilder, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bAllowReplace);
 
 	bool LayoutUVsForComponent(UGeometryCollectionComponent* Component);
-	void BakeTextureForComponent(UGeometryCollectionComponent* Component, TFunction<void(int32, const FText&)> Progress = nullptr);
+	void BakeTextureForComponent(UGeometryCollectionComponent* Component);
 };

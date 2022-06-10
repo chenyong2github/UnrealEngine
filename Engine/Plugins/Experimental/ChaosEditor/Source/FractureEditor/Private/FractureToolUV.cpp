@@ -19,12 +19,14 @@
 #include "Misc/ScopedSlowTask.h"
 #include "ScopedTransaction.h"
 
+#include "FractureToolBackgroundTask.h"
+
 #include "FractureAutoUV.h"
 
 #define LOCTEXT_NAMESPACE "FractureToolAutoUV"
 
 using namespace UE::Geometry;
-
+using namespace UE::Fracture;
 
 void UFractureAutoUVSettings::SetNumUVChannels(int32 NumUVChannels)
 {
@@ -395,6 +397,36 @@ namespace
 	}
 }
 
+ class FLayoutUVOp : public FGeometryCollectionOperator
+ {
+ public:
+ 	FLayoutUVOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionOperator(SourceCollection)
+ 	{}
+
+ 	virtual ~FLayoutUVOp() = default;
+
+	int32 UVLayer;
+	int32 OutputRes;
+	int32 GutterSize;
+	UE::PlanarCut::EUseMaterials UseMaterialIDs;
+	TArray<int32> MaterialIDs;
+
+ 	// TGenericDataOperator interface:
+ 	virtual void CalculateResult(FProgressCancel* Progress) override
+ 	{
+		bool bLayoutSuccess =
+			UE::PlanarCut::UVLayout(UVLayer, *CollectionCopy, OutputRes, GutterSize,
+				UseMaterialIDs, MaterialIDs, true, Progress);
+		
+		if (bLayoutSuccess)
+		{
+			SetSuccessIndex();
+			SetResult(MoveTemp(CollectionCopy));
+		}
+ 	}
+ };
+
+
 void UFractureToolAutoUV::LayoutUVs()
 {
 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
@@ -415,20 +447,56 @@ void UFractureToolAutoUV::LayoutUVs()
 
 bool UFractureToolAutoUV::LayoutUVsForComponent(UGeometryCollectionComponent* Component)
 {
-	int32 OutputRes = (int32)AutoUVSettings->Resolution;
+	FGeometryCollection& Collection = *Component->GetRestCollection()->GetGeometryCollection();
+
+	TUniquePtr<FLayoutUVOp> LayoutOp = MakeUnique<FLayoutUVOp>(Collection);
+	LayoutOp->OutputRes = (int32)AutoUVSettings->Resolution;
 	TArray<int32> EmptyMaterialIDs;
+	LayoutOp->MaterialIDs = AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs;
 
-	int32 UVLayer = AutoUVSettings->GetSelectedChannelIndex();
+	LayoutOp->OutputRes = (int32)AutoUVSettings->Resolution;
+	LayoutOp->UVLayer = AutoUVSettings->GetSelectedChannelIndex();
+	LayoutOp->GutterSize = AutoUVSettings->GutterSize;
+	LayoutOp->UseMaterialIDs = GetUseMaterials(AutoUVSettings->TargetMaterialIDs);
 
-	UE::PlanarCut::EUseMaterials UseMaterialIDs = GetUseMaterials(AutoUVSettings->TargetMaterialIDs);
-
-	bool bLayoutSuccess =
-		UE::PlanarCut::UVLayout(UVLayer, *Component->GetRestCollection()->GetGeometryCollection(), OutputRes, AutoUVSettings->GutterSize,
-			UseMaterialIDs,
-			AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs);
-	
-	return bLayoutSuccess;
+	int Result = RunCancellableGeometryCollectionOp<FLayoutUVOp>(Collection,
+		MoveTemp(LayoutOp), LOCTEXT("ComputingUVLayoutMessage", "Computing UV Layout"));
+	return Result != -1;
 }
+
+
+class FBakeTextureOp : public TGeometryCollectionOperator<UE::Geometry::TImageBuilder<FVector4f>>
+{
+public:
+	FBakeTextureOp(const FGeometryCollection& SourceCollection) : TGeometryCollectionOperator<UE::Geometry::TImageBuilder<FVector4f>>(SourceCollection)
+	{}
+
+	virtual ~FBakeTextureOp() = default;
+
+	int32 UVLayer;
+	int32 GutterSize;
+	FIndex4i Attributes;
+	UE::PlanarCut::FTextureAttributeSettings AttribSettings;
+	TUniquePtr<UE::Geometry::TImageBuilder<FVector4f>> ImageBuilder;
+	UE::PlanarCut::EUseMaterials UseMaterialIDs;
+	TArray<int32> MaterialIDs;
+
+	// TGenericDataOperator interface:
+	virtual void CalculateResult(FProgressCancel* Progress) override
+	{
+		bool bBakeSuccess = UE::PlanarCut::TextureInternalSurfaces(
+			UVLayer, *CollectionCopy, GutterSize, Attributes, AttribSettings, *ImageBuilder,
+			UseMaterialIDs, MaterialIDs, Progress);
+
+		if (!bBakeSuccess || (Progress && Progress->Cancelled()))
+		{
+			return;
+		}
+
+		SetResult(MoveTemp(ImageBuilder));
+		SetSuccessIndex();
+	}
+};
 
 
 void UFractureToolAutoUV::BakeTexture()
@@ -443,30 +511,32 @@ void UFractureToolAutoUV::BakeTexture()
 	}
 }
 
-void UFractureToolAutoUV::BakeTextureForComponent(UGeometryCollectionComponent* Component, TFunction<void(int32, const FText&)> Progress)
+void UFractureToolAutoUV::BakeTextureForComponent(UGeometryCollectionComponent* Component)
 {
+	using FImageType = UE::Geometry::TImageBuilder<FVector4f>;
+
 	FGeometryCollection& Collection = *Component->GetRestCollection()->GetGeometryCollection();
 
-	int32 OutputRes = (int32)AutoUVSettings->Resolution;
+	TUniquePtr<FBakeTextureOp> BakeOp = MakeUnique<FBakeTextureOp>(Collection);
 	TArray<int32> EmptyMaterialIDs;
+	BakeOp->MaterialIDs = AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs;
 
-	int32 UVLayer = AutoUVSettings->GetSelectedChannelIndex();
+	BakeOp->UVLayer = AutoUVSettings->GetSelectedChannelIndex();
+	BakeOp->GutterSize = AutoUVSettings->GutterSize;
+	BakeOp->UseMaterialIDs = GetUseMaterials(AutoUVSettings->TargetMaterialIDs);
 
-	UE::PlanarCut::EUseMaterials UseMaterialIDs = GetUseMaterials(AutoUVSettings->TargetMaterialIDs);
-
+	int32 OutputRes = (int32)AutoUVSettings->Resolution;
 	FImageDimensions Dimensions(OutputRes, OutputRes);
-
-	UE::Geometry::TImageBuilder<FVector4f> ImageBuilder;
-	ImageBuilder.SetDimensions(Dimensions);
-	ImageBuilder.Clear(FVector4f(0, 0, 0, 0));
+	BakeOp->ImageBuilder = MakeUnique<FImageType>();
+	BakeOp->ImageBuilder->SetDimensions(Dimensions);
+	BakeOp->ImageBuilder->Clear(FVector4f(0, 0, 0, 0));
 
 	typedef UE::PlanarCut::EBakeAttributes EBakeAttributes;
-	FIndex4i Attributes;
 	// Note: Ordering of these attributes should match the order and comments in the AutoUVSettings struct
 	//		 Update the order and comments there if you change the ordering here.
 	if (AutoUVSettings->BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes)
 	{
-		Attributes = FIndex4i(
+		BakeOp->Attributes = FIndex4i(
 			AutoUVSettings->bDistToOuter ? (int32)EBakeAttributes::DistanceToExternal : 0,
 			AutoUVSettings->bAmbientOcclusion ? (int32)EBakeAttributes::AmbientOcclusion : 0,
 			AutoUVSettings->bSmoothedCurvature ? (int32)EBakeAttributes::Curvature : 0,
@@ -475,7 +545,7 @@ void UFractureToolAutoUV::BakeTextureForComponent(UGeometryCollectionComponent* 
 	}
 	else if (AutoUVSettings->BakeTextureType == ETextureType::SpatialGradients)
 	{
-		Attributes = FIndex4i(
+		BakeOp->Attributes = FIndex4i(
 			(int32)EBakeAttributes::PositionX,
 			(int32)EBakeAttributes::PositionY,
 			(int32)EBakeAttributes::PositionZ,
@@ -484,30 +554,34 @@ void UFractureToolAutoUV::BakeTextureForComponent(UGeometryCollectionComponent* 
 	}
 	else // ETextureType::Normals
 	{
-		Attributes = FIndex4i(
+		BakeOp->Attributes = FIndex4i(
 			(int32)EBakeAttributes::NormalX,
 			(int32)EBakeAttributes::NormalY,
 			(int32)EBakeAttributes::NormalZ,
 			0
 		);
 	}
-	UE::PlanarCut::FTextureAttributeSettings AttribSettings;
-	AttribSettings.ToExternal_MaxDistance = AutoUVSettings->MaxDistance;
-	AttribSettings.AO_Rays = AutoUVSettings->OcclusionRays;
-	AttribSettings.AO_BlurRadius = AutoUVSettings->OcclusionBlurRadius;
-	AttribSettings.Curvature_BlurRadius = AutoUVSettings->CurvatureBlurRadius;
-	AttribSettings.Curvature_SmoothingSteps = AutoUVSettings->SmoothingIterations;
-	AttribSettings.Curvature_VoxelRes = AutoUVSettings->VoxelResolution;
-	AttribSettings.Curvature_ThicknessFactor = AutoUVSettings->ThicknessFactor;
-	AttribSettings.Curvature_MaxValue = AutoUVSettings->MaxCurvature;
-	AttribSettings.ClearGutterChannel = 3; // default clear the gutters for the alpha channel, so it shows more clearly the island boundaries
-	UE::PlanarCut::TextureInternalSurfaces(UVLayer, Collection, AutoUVSettings->GutterSize, Attributes, AttribSettings, ImageBuilder,
-		UseMaterialIDs,
-		AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs);
+	BakeOp->AttribSettings.ToExternal_MaxDistance = AutoUVSettings->MaxDistance;
+	BakeOp->AttribSettings.AO_Rays = AutoUVSettings->OcclusionRays;
+	BakeOp->AttribSettings.AO_BlurRadius = AutoUVSettings->OcclusionBlurRadius;
+	BakeOp->AttribSettings.Curvature_BlurRadius = AutoUVSettings->CurvatureBlurRadius;
+	BakeOp->AttribSettings.Curvature_SmoothingSteps = AutoUVSettings->SmoothingIterations;
+	BakeOp->AttribSettings.Curvature_VoxelRes = AutoUVSettings->VoxelResolution;
+	BakeOp->AttribSettings.Curvature_ThicknessFactor = AutoUVSettings->ThicknessFactor;
+	BakeOp->AttribSettings.Curvature_MaxValue = AutoUVSettings->MaxCurvature;
+	BakeOp->AttribSettings.ClearGutterChannel = 3; // default clear the gutters for the alpha channel, so it shows more clearly the island boundaries
 
-	if (Progress)
+	FImageType ImageResult;
+	int Result = RunCancellableGeometryCollectionOpGeneric<FBakeTextureOp, FImageType>(
+		ImageResult, [](FImageType& ToUpdate, FImageType& Result)
+		{
+			ToUpdate = MoveTemp(Result);
+		},
+		MoveTemp(BakeOp), LOCTEXT("ComputingBakeTextureMessage", "Baking Textures"));
+	if (Result == -1)
 	{
-		Progress(1, LOCTEXT("SavingTexture", "Saving result"));
+		// Bake failed or was cancelled
+		return;
 	}
 
 	// choose default texture name based on corresponding geometry collection name
@@ -522,8 +596,10 @@ void UFractureToolAutoUV::BakeTextureForComponent(UGeometryCollectionComponent* 
 		Suffix = "_AutoUV_Normals";
 	}
 	Suffix = FPaths::MakeValidFileName(Suffix);
-	SaveGeneratedTexture(ImageBuilder, FString::Printf(TEXT("%s%s"), *BaseName, *Suffix), Component->GetRestCollection(), AutoUVSettings->bPromptToSave, AutoUVSettings->bReplaceExisting);
+	SaveGeneratedTexture(ImageResult, FString::Printf(TEXT("%s%s"), *BaseName, *Suffix), Component->GetRestCollection(), AutoUVSettings->bPromptToSave, AutoUVSettings->bReplaceExisting);
 }
+
+
 
 int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureContext)
 {
@@ -531,19 +607,17 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 	{
 		bool bDoUVLayout = true;
 
-		FScopedSlowTask UVTask(bDoUVLayout ? 3 : 2, LOCTEXT("StartingAutoUV", "Automatically laying out and texturing internal surfaces"));
-		UVTask.MakeDialog();
-
 		UGeometryCollectionComponent* Component = FractureContext.GetGeometryCollectionComponent();
 
 		if (bDoUVLayout)
 		{
-			UVTask.EnterProgressFrame(1, LOCTEXT("LayOutUVIslands", "Laying out UV islands"));
-			LayoutUVsForComponent(Component);
+			if (!LayoutUVsForComponent(Component))
+			{
+				return INDEX_NONE; // Early out if layout failed or was cancelled
+			}
 		}
 
-		UVTask.EnterProgressFrame(1, LOCTEXT("TexturingSurfaces", "Texturing internal surfaces"));
-		BakeTextureForComponent(Component, [&](int32 AmtWork, const FText& Msg) { UVTask.EnterProgressFrame(AmtWork, Msg); });
+		BakeTextureForComponent(Component);
 	}
 
 	return INDEX_NONE;

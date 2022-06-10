@@ -14,27 +14,53 @@ namespace Fracture
 {
 
 // Base class for background operators that update geometry collections (e.g. to fracture in a background thread)
-class FGeometryCollectionOperator : public UE::Geometry::TGenericDataOperator<FGeometryCollection>
+template<typename ResultType>
+class TGeometryCollectionOperator : public UE::Geometry::TGenericDataOperator<ResultType>
 {
 public:
 	int ResultGeometryIndex = -1;
 	TUniquePtr<FGeometryCollection> CollectionCopy;
 
-	FGeometryCollectionOperator(const FGeometryCollection& SourceCollection)
+	TGeometryCollectionOperator(const FGeometryCollection& SourceCollection)
 	{
 		CollectionCopy = MakeUnique<FGeometryCollection>();
 		CollectionCopy->CopyMatchingAttributesFrom(SourceCollection, nullptr);
 	}
 
-	virtual ~FGeometryCollectionOperator() = default;
+	virtual ~TGeometryCollectionOperator() = default;
 
 	virtual int GetResultGeometryIndex()
 	{
 		return ResultGeometryIndex;
 	}
 
-	// Post-process the geometry collection on success -- by default, clears proximity data
-	virtual void OnSuccess(FGeometryCollection& Collection)
+	// Post-process the geometry collection on success
+	virtual void OnSuccess(ResultType& Collection)
+	{
+
+	}
+
+	// For operators where there is no geometry index to report, set a generic success value
+	virtual void SetSuccessIndex()
+	{
+		ResultGeometryIndex = 0;
+	}
+};
+
+// Most operators will also have FGeometryCollection as their result
+using FGeometryCollectionOperator = TGeometryCollectionOperator<FGeometryCollection>;
+
+// Fracture-specific operators also clear proximity on success
+class FGeometryCollectionFractureOperator : public FGeometryCollectionOperator
+{
+public:
+	FGeometryCollectionFractureOperator(const FGeometryCollection& SourceCollection) : FGeometryCollectionOperator(SourceCollection)
+	{
+	}
+
+	virtual ~FGeometryCollectionFractureOperator() = default;
+
+	virtual void OnSuccess(FGeometryCollection& Collection) override
 	{
 		// Invalidate proximity
 		if (Collection.HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
@@ -44,9 +70,10 @@ public:
 	}
 };
 
+
 // Run a blocking geometry collection op, but with a responsive cancel option
-template<class GeometryCollectionOpType>
-int RunCancellableGeometryCollectionOp(FGeometryCollection& ToUpdate, TUniquePtr<GeometryCollectionOpType>&& NewOp, FText DefaultMessage, float DialogDelay = .5)
+template<class GeometryCollectionOpType, typename ResultType>
+int RunCancellableGeometryCollectionOpGeneric(ResultType& ToUpdate, TFunctionRef<void(ResultType&, ResultType&)> AssignResult, TUniquePtr<GeometryCollectionOpType>&& NewOp, FText DefaultMessage, float DialogDelay = .5)
 {
 	using FGeometryCollectionTask = UE::Geometry::TModelingOpTask<GeometryCollectionOpType>;
 	using FExecuter = UE::Geometry::FAsyncTaskExecuterWithProgressCancel<FGeometryCollectionTask>;
@@ -59,15 +86,15 @@ int RunCancellableGeometryCollectionOp(FGeometryCollection& ToUpdate, TUniquePtr
 	bool bSuccess = false;
 	while (true)
 	{
-		if (BackgroundTask->IsDone())
-		{
-			bSuccess = !BackgroundTask->GetTask().IsAborted();
-			break;
-		}
 		if (SlowTask.ShouldCancel())
 		{
 			// Release ownership to the TDeleterTask that is spawned by CancelAndDelete()
 			BackgroundTask.Release()->CancelAndDelete();
+			break;
+		}
+		if (BackgroundTask->IsDone())
+		{
+			bSuccess = !BackgroundTask->GetTask().IsAborted();
 			break;
 		}
 		FPlatformProcess::Sleep(.2); // SlowTask::ShouldCancel will throttle any updates faster than .2 seconds
@@ -90,18 +117,30 @@ int RunCancellableGeometryCollectionOp(FGeometryCollection& ToUpdate, TUniquePtr
 	{
 		check(BackgroundTask != nullptr && BackgroundTask->IsDone());
 		TUniquePtr<GeometryCollectionOpType> Op = BackgroundTask->GetTask().ExtractOperator();
-		TUniquePtr<FGeometryCollection> Result = Op->ExtractResult();
+
+		TUniquePtr<ResultType> Result = Op->ExtractResult();
 		if (!Result.IsValid())
 		{
 			return -1;
 		}
 
-		ToUpdate.CopyMatchingAttributesFrom(*Result, nullptr);
+		AssignResult(ToUpdate, *Result);
+
 		Op->OnSuccess(ToUpdate);
 		return Op->GetResultGeometryIndex();
 	}
 
 	return -1;
+}
+
+template<class GeometryCollectionOpType>
+int RunCancellableGeometryCollectionOp(FGeometryCollection& ToUpdate, TUniquePtr<GeometryCollectionOpType>&& NewOp, FText DefaultMessage, float DialogDelay = .5)
+{
+	return RunCancellableGeometryCollectionOpGeneric<GeometryCollectionOpType, FGeometryCollection>(
+		ToUpdate, [](FGeometryCollection& ToUpdateIn, FGeometryCollection& ResultIn)
+		{
+			ToUpdateIn.CopyMatchingAttributesFrom(ResultIn, nullptr);
+		}, MoveTemp(NewOp), DefaultMessage, DialogDelay);
 }
 
 } // end namespace UE::Fracture
