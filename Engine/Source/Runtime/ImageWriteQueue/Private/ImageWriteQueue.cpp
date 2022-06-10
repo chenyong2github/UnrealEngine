@@ -33,6 +33,14 @@ static TAutoConsoleVariable<int32> CVarImageWriteQueueMaxQueueSize(
  */
 struct FImageWriteFence
 {
+	FImageWriteFence(uint32 InID, uint32 InCount, TPromise<void>&& InCompleted, TFunction<void()> InOnCompleted)
+		: ID(InID)
+		, Count(InCount)
+		, Completed(MoveTemp(InCompleted))
+		, OnCompleted(MoveTemp(InOnCompleted))
+	{
+	}
+
 	FImageWriteFence(FImageWriteFence&&) = default;
 	FImageWriteFence(const FImageWriteFence&) = delete;
 
@@ -389,7 +397,7 @@ TFuture<void> FImageWriteQueue::CreateFence(const TFunction<void()>& InOnFenceRe
 	else
 	{
 		// Move the promise into the write fence
-		PendingFences.Add(FImageWriteFence{CurrentFenceID, CurrentFenceCount, MoveTemp(Promise), InOnFenceReached});
+		PendingFences.Emplace(CurrentFenceID, CurrentFenceCount, MoveTemp(Promise), CopyTemp(InOnFenceReached));
 
 		// Reset the current fence context
 		++CurrentFenceID;

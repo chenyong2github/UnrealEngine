@@ -84,6 +84,31 @@ struct FSavePackageArgs
 	FSavePackageArgs(FSavePackageArgs&&) = default;
 	FSavePackageArgs& operator=(const FSavePackageArgs&) = default;
 	FSavePackageArgs& operator=(FSavePackageArgs&&) = default;
+
+	FSavePackageArgs(
+		const ITargetPlatform* InTargetPlatform,
+		FArchiveCookData* InArchiveCookData,
+		EObjectFlags InTopLevelFlags,
+		uint32 InSaveFlags,
+		bool bInForceByteSwapping,
+		bool bInWarnOfLongFilename,
+		bool bInSlowTask,
+		FDateTime InFinalTimeStamp,
+		FOutputDevice* InError,
+		FSavePackageContext* InSavePackageContext = nullptr
+	)
+	: TargetPlatform(InTargetPlatform)
+	, ArchiveCookData(InArchiveCookData)
+	, TopLevelFlags(InTopLevelFlags)
+	, SaveFlags(InSaveFlags)
+	, bForceByteSwapping(bInForceByteSwapping)
+	, bWarnOfLongFilename(bInWarnOfLongFilename)
+	, bSlowTask(bInSlowTask)
+	, FinalTimeStamp(InFinalTimeStamp)
+	, Error(InError)
+	, SavePackageContext(InSavePackageContext)
+	{
+	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 };
 
