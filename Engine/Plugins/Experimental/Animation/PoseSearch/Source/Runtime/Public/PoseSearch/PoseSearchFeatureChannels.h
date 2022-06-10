@@ -46,7 +46,9 @@ public:
 	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const override;
 	virtual TArrayView<const float> GetSampleOffsets () const override { return SampleTimes; }
 	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const override;
-	virtual bool BuildQuery(UE::PoseSearch::FQueryBuildingContext& Context) const override;
+	virtual bool BuildQuery(
+		FPoseSearchContext& SearchContext,
+		FPoseSearchFeatureVectorBuilder& InOutQuery) const override;
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, const UE::PoseSearch::FFeatureVectorReader& Reader) const override;
 
 protected:
@@ -90,7 +92,9 @@ public:
 	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const override;
 	virtual TArrayView<const float> GetSampleOffsets () const override { return SampleOffsets; }
 	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const override;
-	virtual bool BuildQuery(UE::PoseSearch::FQueryBuildingContext& Context) const override;
+	virtual bool BuildQuery(
+		FPoseSearchContext& SearchContext,
+		FPoseSearchFeatureVectorBuilder& InOutQuery) const override;
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, const UE::PoseSearch::FFeatureVectorReader& Reader) const override;
 
 protected:

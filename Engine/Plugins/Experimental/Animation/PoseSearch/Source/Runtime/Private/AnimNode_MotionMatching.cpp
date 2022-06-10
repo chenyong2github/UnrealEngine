@@ -24,15 +24,9 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	MotionMatchingState.InitNewDatabaseSearch(Database, nullptr /*OutError*/);
-
 	CurrentAssetPlayerNode = &SequencePlayerNode;
 
 	MirrorNode.SetSourceLinkNode(CurrentAssetPlayerNode);
-	if (Database && Database->Schema)
-	{
-		MirrorNode.SetMirrorDataTable(Database->Schema->MirrorDataTable.Get());
-	}
 
 	BlendSpacePlayerNode.SetResetPlayTimeWhenBlendSpaceChanges(false /*!bReset*/);
 
@@ -76,10 +70,6 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		UpdateCounter.HasEverBeenUpdated() &&
 		!UpdateCounter.WasSynchronizedCounter(Context.AnimInstanceProxy->GetUpdateCounter());
 
-#if WITH_EDITOR
-	bNeedsReset = bNeedsReset || MotionMatchingState.HasSearchIndexChanged();
-#endif
-
 	// If we just became relevant and haven't been initialized yet, then reset motion matching state, otherwise update the asset time using the player node.
 	if (bNeedsReset)
 	{
@@ -97,16 +87,19 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	// Execute core motion matching algorithm
 	UpdateMotionMatchingState(
 		Context,
-		Database,
+		Searchable,
 		bUseDatabaseTagQuery ? &DatabaseTagQuery : nullptr,
+		&ActiveTagsContainer,
 		Trajectory,
 		Settings,
 		MotionMatchingState
 	);
 
-	if (MotionMatchingState.CurrentDatabase.IsValid() && MotionMatchingState.CurrentDatabase->Schema)
+
+	if (MotionMatchingState.CurrentSearchResult.Database.IsValid() && 
+		MotionMatchingState.CurrentSearchResult.Database->Schema)
 	{
-		MirrorNode.SetMirrorDataTable(MotionMatchingState.CurrentDatabase->Schema->MirrorDataTable.Get());
+		MirrorNode.SetMirrorDataTable(MotionMatchingState.CurrentSearchResult.Database->Schema->MirrorDataTable.Get());
 	}
 
 	const FPoseSearchIndexAsset* SearchIndexAsset = MotionMatchingState.GetCurrentSearchIndexAsset();
@@ -114,6 +107,8 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	// If a new pose is requested, jump to the pose by updating the embedded sequence player node
 	if (SearchIndexAsset && (MotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
 	{
+		const UPoseSearchDatabase* Database = MotionMatchingState.CurrentSearchResult.Database.Get();
+
 		if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
 		{
 			CurrentAssetPlayerNode = &SequencePlayerNode;
@@ -182,18 +177,18 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 
 		UE::PoseSearch::FDebugDrawParams DrawParams;
 		DrawParams.RootTransform = SkeletalMeshComponent->GetComponentTransform();
-		DrawParams.Database = Database;
+		DrawParams.Database = MotionMatchingState.CurrentSearchResult.Database.Get();
 		DrawParams.World = SkeletalMeshComponent->GetWorld();
 		DrawParams.DefaultLifeTime = 0.0f;
 
 		if (bDebugDrawMatch)
 		{
-			DrawParams.PoseIdx = MotionMatchingState.DbPoseIdx;
+			DrawParams.PoseIdx = MotionMatchingState.CurrentSearchResult.PoseIdx;
 		}
 
 		if (bDebugDrawQuery)
 		{
-			DrawParams.PoseVector = MotionMatchingState.ComposedQuery.GetValues();
+			DrawParams.PoseVector = MotionMatchingState.CurrentSearchResult.ComposedQuery.GetValues();
 		}
 
 		UE::PoseSearch::Draw(DrawParams);

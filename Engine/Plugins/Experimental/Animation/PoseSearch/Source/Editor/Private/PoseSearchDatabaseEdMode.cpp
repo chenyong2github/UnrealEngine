@@ -26,9 +26,15 @@ namespace UE::PoseSearch
 
 		FDatabaseViewportClient* PoseSearchDbViewportClient =
 			static_cast<FDatabaseViewportClient*>(ViewportClient);
-		if (!ViewModel && PoseSearchDbViewportClient)
+		if (PoseSearchDbViewportClient)
 		{
-			ViewModel = PoseSearchDbViewportClient->GetAssetEditor()->GetViewModel();
+			// ensure we redraw even if PIE is active
+			PoseSearchDbViewportClient->Invalidate();
+
+			if (!ViewModel)
+			{
+				ViewModel = PoseSearchDbViewportClient->GetAssetEditor()->GetViewModel();
+			}
 		}
 
 		if (ViewModel)

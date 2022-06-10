@@ -53,9 +53,6 @@ struct POSESEARCH_API FMotionMatchingState
 {
 	GENERATED_BODY()
 
-	// Initializes the minimum required motion matching state
-	bool InitNewDatabaseSearch(const UPoseSearchDatabase* Database, FText* OutError);
-
 	// Reset the state to a default state using the current Database
 	void Reset();
 
@@ -76,35 +73,7 @@ struct POSESEARCH_API FMotionMatchingState
 
 	float ComputeJumpBlendTime(const UE::PoseSearch::FSearchResult& Result, const FMotionMatchingSettings& Settings) const;
 
-	bool IsCompatibleDatabase(const UPoseSearchDatabase* Database) const;
-
-#if WITH_EDITOR
-	bool HasSearchIndexChanged() const;
-#endif 
-
-	// The current pose we're playing from the database
-	UPROPERTY(Transient)
-	int32 DbPoseIdx = INDEX_NONE;
-
-	// The current animation we're playing from the database
-	UPROPERTY(Transient)
-	int32 SearchIndexAssetIdx = INDEX_NONE;
-
-	// The current query feature vector used to search the database for pose candidates
-	UPROPERTY(Transient)
-	FPoseSearchFeatureVectorBuilder ComposedQuery;
-
-	// Precomputed runtime weights
-	UPROPERTY(Transient)
-	FPoseSearchWeightsContext WeightsContext;
-
-	// When the database changes, the search parameters are reset
-	UPROPERTY(Transient)
-	TWeakObjectPtr<const UPoseSearchDatabase> CurrentDatabase = nullptr;
-
-#if WITH_EDITOR
-	FIoHash CurrentSearchIndexHash = FIoHash::Zero;
-#endif // _DEBUG
+	UE::PoseSearch::FSearchResult CurrentSearchResult;
 
 	// Time since the last pose jump
 	UPROPERTY(Transient)
@@ -133,10 +102,28 @@ struct POSESEARCH_API FMotionMatchingState
 * @param Settings					Input motion matching algorithm configuration settings
 * @param InOutMotionMatchingState	Input/Output encapsulated motion matching algorithm and state
 */
-POSESEARCH_API void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
-	, const UPoseSearchDatabase* Database
-	, const FGameplayTagQuery* DatabaseTagQuery
-	, const FTrajectorySampleRange& Trajectory
-	, const FMotionMatchingSettings& Settings
-	, FMotionMatchingState& InOutMotionMatchingState
+POSESEARCH_API void UpdateMotionMatchingState(
+	const FAnimationUpdateContext& Context,
+	const UPoseSearchSearchableAsset* Searchable,
+	const FGameplayTagQuery* DatabaseTagQuery,
+	const FGameplayTagContainer* ActiveTagsContainer,
+	const FTrajectorySampleRange& Trajectory,
+	const FMotionMatchingSettings& Settings,
+	FMotionMatchingState& InOutMotionMatchingState
 );
+
+UCLASS(DisplayName = "Bias")
+class POSESEARCH_API UPoseSearchPostProcessor_Bias : public UPoseSearchPostProcessor
+{
+	GENERATED_BODY()
+
+public:
+	virtual EPoseSearchPostSearchStatus PostProcess_Implementation(FPoseSearchCost& InOutCost) const override;
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	float Multiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	float Addend = 0.0f;
+};
+

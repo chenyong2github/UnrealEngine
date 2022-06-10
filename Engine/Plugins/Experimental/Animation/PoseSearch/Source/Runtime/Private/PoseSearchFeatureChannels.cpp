@@ -272,11 +272,23 @@ void UPoseSearchFeatureChannel_Pose::GenerateDDCKey(FBlake3& InOutKeyHasher) con
 	InOutKeyHasher.Update(MakeMemoryView(SampleTimes));
 }
 
-bool UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FQueryBuildingContext& Context) const
+bool UPoseSearchFeatureChannel_Pose::BuildQuery(
+	FPoseSearchContext& SearchContext,
+	FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
-	check(Context.Schema);
-	
-	if (!Context.History)
+	const bool bSkip =
+		SearchContext.CurrentResult.IsValid() &&
+		SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
+
+	if (bSkip)
+	{
+		// todo: instead of skipping because the pose should have been copied already (that's currently happening in
+		// UPoseSearchSchema::BuildIndex()), consider making the copy here, but only copy the right values, not the
+		// whole query
+		return true;
+	}
+
+	if (!SearchContext.History)
 	{
 		return false;
 	}
@@ -296,27 +308,27 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FQueryBuildingCo
 		}
 
 		float SecondsAgo = -SampleTime;
-		if (!Context.History->TrySamplePose(SecondsAgo, Context.Schema->Skeleton->GetReferenceSkeleton(), Context.Schema->BoneIndicesWithParents))
+		if (!SearchContext.History->TrySamplePose(SecondsAgo, InOutQuery.GetSchema()->Skeleton->GetReferenceSkeleton(), InOutQuery.GetSchema()->BoneIndicesWithParents))
 		{
 			return false;
 		}
 
-		TArrayView<const FTransform> ComponentPose = Context.History->GetComponentPoseSample();
-		TArrayView<const FTransform> ComponentPrevPose = Context.History->GetPrevComponentPoseSample();
-		FTransform RootTransform = Context.History->GetRootTransformSample();
-		FTransform RootTransformPrev = Context.History->GetPrevRootTransformSample();
+		TArrayView<const FTransform> ComponentPose = SearchContext.History->GetComponentPoseSample();
+		TArrayView<const FTransform> ComponentPrevPose = SearchContext.History->GetPrevComponentPoseSample();
+		FTransform RootTransform = SearchContext.History->GetRootTransformSample();
+		FTransform RootTransformPrev = SearchContext.History->GetPrevRootTransformSample();
 		for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
 		{
 			Feature.ChannelFeatureId = SampledBoneIdx;
 
 			int32 SchemaBoneIdx = FeatureParams[SampledBoneIdx].SchemaBoneIdx;
 
-			int32 SkeletonBoneIndex = Context.Schema->BoneIndices[SchemaBoneIdx];
+			int32 SkeletonBoneIndex = InOutQuery.GetSchema()->BoneIndices[SchemaBoneIdx];
 
 			const FTransform& Transform = ComponentPose[SkeletonBoneIndex];
 			const FTransform& PrevTransform = ComponentPrevPose[SkeletonBoneIndex] * (RootTransformPrev * RootTransform.Inverse());
-			Context.Query.SetTransform(Feature, Transform);
-			Context.Query.SetTransformVelocity(Feature, Transform, PrevTransform, Context.History->GetSampleTimeInterval());
+			InOutQuery.SetTransform(Feature, Transform);
+			InOutQuery.SetTransformVelocity(Feature, Transform, PrevTransform, SearchContext.History->GetSampleTimeInterval());
 		}
 	}
 
@@ -642,9 +654,11 @@ void UPoseSearchFeatureChannel_Trajectory::GenerateDDCKey(FBlake3& InOutKeyHashe
 	InOutKeyHasher.Update(MakeMemoryView(SampleOffsets));
 }
 
-bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FQueryBuildingContext& Context) const
+bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(
+	FPoseSearchContext& SearchContext,
+	FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
-	if (!Context.Trajectory)
+	if (!SearchContext.Trajectory)
 	{
 		return false;
 	}
@@ -671,14 +685,18 @@ bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FQueryBuil
 	for (int32 Idx = 0, NextIterStartIdx = 0, Num = SampleOffsets.Num(); Idx < Num; ++Idx)
 	{
 		const float SampleOffset = SampleOffsets[Idx];
-		const FTrajectorySample Sample = FTrajectorySampleRange::IterSampleTrajectory(Context.Trajectory->Samples, SampleDomain, SampleOffset, NextIterStartIdx);
+		const FTrajectorySample Sample = FTrajectorySampleRange::IterSampleTrajectory(
+			SearchContext.Trajectory->Samples,
+			SampleDomain, 
+			SampleOffset, 
+			NextIterStartIdx);
 
 		Feature.SubsampleIdx = Idx;
 
 		Feature.Type = EPoseSearchFeatureType::LinearVelocity;
-		Context.Query.SetVector(Feature, Sample.LinearVelocity);
+		InOutQuery.SetVector(Feature, Sample.LinearVelocity);
 
-		Context.Query.SetTransform(Feature, Sample.Transform);
+		InOutQuery.SetTransform(Feature, Sample.Transform);
 	}
 
 	return true;

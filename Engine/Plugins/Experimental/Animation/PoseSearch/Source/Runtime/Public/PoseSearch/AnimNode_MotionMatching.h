@@ -24,7 +24,7 @@ public:
 
 	// Collection of animations for motion matching
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
-	TObjectPtr<const UPoseSearchDatabase> Database = nullptr;
+	TObjectPtr<const UPoseSearchSearchableAsset> Searchable = nullptr;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
@@ -33,6 +33,9 @@ public:
 	// Query used to filter database groups which can be searched
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinShownByDefault))
 	FGameplayTagQuery DatabaseTagQuery;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinShownByDefault))
+	FGameplayTagContainer ActiveTagsContainer;
 
 	// Motion trajectory samples for pose search queries
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))

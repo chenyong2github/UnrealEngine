@@ -552,6 +552,33 @@ void UPoseSearchSchema::ResolveBoneReferences()
 }
 
 
+bool UPoseSearchSchema::BuildQuery(
+	FPoseSearchContext& SearchContext,
+	FPoseSearchFeatureVectorBuilder& InOutQuery) const
+{
+	InOutQuery.Init(this);
+
+	// Copy search query directly from the database if we have an active pose
+	const bool bCopySearchResult = 
+		SearchContext.CurrentResult.IsValid() &&
+		SearchContext.CurrentResult.Database->Schema == this;
+
+	if (bCopySearchResult)
+	{
+		InOutQuery.CopyFromSearchIndex(
+			*SearchContext.CurrentResult.Database->GetSearchIndex(),
+			SearchContext.CurrentResult.PoseIdx);
+	}
+
+	bool bSuccess = true;
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
+	{
+		bool bChannelSuccess = Channel->BuildQuery(SearchContext, InOutQuery);
+		bSuccess &= bChannelSuccess;
+	}
+
+	return bSuccess;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchChannelWeightParams
@@ -889,6 +916,7 @@ const FPoseSearchWeights* FPoseSearchWeightsContext::GetGroupWeights(int32 Weigh
 	return nullptr;
 }
 
+
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchIndexAsset
 // 
@@ -1085,6 +1113,86 @@ bool UPoseSearchSequenceMetaData::IsValidForIndexing() const
 bool UPoseSearchSequenceMetaData::IsValidForSearch() const
 {
 	return IsValidForIndexing() && SearchIndex.IsValid() && !SearchIndex.IsEmpty();
+}
+
+UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(FPoseSearchContext& SearchContext) const
+{
+	using namespace UE::PoseSearch;
+
+	FSearchResult Result;
+
+	if (!ensure(SearchIndex.IsValid() && !SearchIndex.IsEmpty()))
+	{
+		return Result;
+	}
+
+	Schema->BuildQuery(SearchContext, Result.ComposedQuery);
+	Result.ComposedQuery.Normalize(SearchIndex);
+	TArrayView<const float> NormalizedQueryValues = Result.ComposedQuery.GetNormalizedValues();
+
+	if (!ensure(NormalizedQueryValues.Num() == SearchIndex.Schema->Layout.NumFloats))
+	{
+		return Result;
+	}
+
+	FPoseSearchCost BestPoseCost;
+	int32 BestPoseIdx = INDEX_NONE;
+	for (const FPoseSearchIndexAsset& Asset : SearchIndex.Assets)
+	{
+		const int32 EndIndex = Asset.FirstPoseIdx + Asset.NumPoses;
+		for (int32 PoseIdx = Asset.FirstPoseIdx; PoseIdx < EndIndex; ++PoseIdx)
+		{
+			const FPoseSearchPoseMetadata& Metadata = SearchIndex.PoseMetadata[PoseIdx];
+
+			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
+			{
+				continue;
+			}
+
+			FPoseSearchCost PoseCost = ComparePoses(PoseIdx, NormalizedQueryValues);
+
+			if (PoseCost < BestPoseCost)
+			{
+				BestPoseCost = PoseCost;
+				BestPoseIdx = PoseIdx;
+			}
+		}
+	}
+
+	Result.PoseCost = BestPoseCost;
+	Result.PoseIdx = BestPoseIdx;
+	Result.SearchIndexAsset = SearchIndex.FindAssetForPose(BestPoseIdx);
+	Result.AssetTime = SearchIndex.GetAssetTime(BestPoseIdx, Result.SearchIndexAsset);
+	Result.Database = nullptr;
+	Result.Sequence = nullptr;
+
+	SearchContext.DebugDrawParams.PoseVector = NormalizedQueryValues;
+	SearchContext.DebugDrawParams.PoseIdx = Result.PoseIdx;
+	Draw(SearchContext.DebugDrawParams);
+
+	return Result;
+}
+
+FPoseSearchCost UPoseSearchSequenceMetaData::ComparePoses(
+	int32 PoseIdx, 
+	const TArrayView<const float>& QueryValues) const
+{
+	using namespace UE::PoseSearch;
+
+	FPoseSearchCost Result;
+
+	TArrayView<const float> PoseValues = SearchIndex.GetPoseValues(PoseIdx);
+	if (!ensure(PoseValues.Num() == QueryValues.Num()))
+	{
+		return Result;
+	}
+
+	Result.SetDissimilarity(CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), QueryValues.GetData()));
+
+	const FPoseSearchPoseMetadata& PoseMetadata = SearchIndex.PoseMetadata[PoseIdx];
+	Result.SetCostAddend(PoseMetadata.CostAddend);
+
+	return Result;
 }
 
 
@@ -1850,6 +1958,502 @@ bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform
 
 #endif // WITH_EDITOR
 
+FPoseSearchCost UPoseSearchDatabase::ComparePoses(
+	FPoseSearchContext& SearchContext,
+	FPoseSearchWeightsContext& WeightsContext,
+	int32 PoseIdx,
+	int32 GroupIdx,
+	const TArrayView<const float>& QueryValues) const
+{
+	using namespace UE::PoseSearch;
+
+	FPoseSearchCost Result;
+
+	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
+	if (!ensure(SearchIndex))
+	{
+		return Result;
+	}
+
+	TArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
+	if (!ensure(PoseValues.Num() == QueryValues.Num()))
+	{
+		return Result;
+	}
+
+	if (GroupIdx == INDEX_NONE)
+	{
+		const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex->FindAssetForPose(PoseIdx);
+		if (!ensure(SearchIndexAsset))
+		{
+			return Result;
+		}
+
+		GroupIdx = SearchIndexAsset->SourceGroupIdx;
+	}
+
+	const FPoseSearchWeights* WeightsSet =
+		WeightsContext.GetGroupWeights(GroupIdx);
+	Result.SetDissimilarity(CompareFeatureVectors(
+		PoseValues.Num(),
+		PoseValues.GetData(),
+		QueryValues.GetData(),
+		WeightsSet->Weights.GetData()));
+
+	float NotifyAddend = 0.0f;
+	float MirrorMismatchAddend = 0.0f;
+	ComputePoseCostAddends(PoseIdx, SearchContext, NotifyAddend, MirrorMismatchAddend);
+	Result.SetCostAddend(NotifyAddend + MirrorMismatchAddend);
+
+	return Result;
+}
+
+FPoseSearchCost UPoseSearchDatabase::ComparePoses(
+	FPoseSearchContext& SearchContext,
+	FPoseSearchWeightsContext& WeightsContext,
+	int32 PoseIdx,
+	const TArrayView<const float>& QueryValues,
+	UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const
+{
+	using namespace Eigen;
+	using namespace UE::PoseSearch;
+
+	FPoseSearchCost Result;
+
+	TArrayView<const float> PoseValues = GetSearchIndex()->GetPoseValues(PoseIdx);
+	const int32 Dims = PoseValues.Num();
+	if (!ensure(Dims == QueryValues.Num()))
+	{
+		return Result;
+	}
+
+	OutPoseCostDetails.CostVector.SetNum(Dims);
+
+	// Setup Eigen views onto our vectors
+	auto OutCostVector = Map<ArrayXf>(OutPoseCostDetails.CostVector.GetData(), Dims);
+	auto PoseVector = Map<const ArrayXf>(PoseValues.GetData(), Dims);
+	auto QueryVector = Map<const ArrayXf>(QueryValues.GetData(), Dims);
+
+	// Compute weighted squared difference vector
+	const FPoseSearchIndexAsset* SearchIndexAsset = GetSearchIndex()->FindAssetForPose(PoseIdx);
+	const FPoseSearchWeights* WeightsSet =
+		WeightsContext.GetGroupWeights(SearchIndexAsset->SourceGroupIdx);
+	check(WeightsSet);
+	check(WeightsSet->Weights.Num() == Dims);
+	auto WeightsVector = Map<const ArrayXf>(WeightsSet->Weights.GetData(), Dims);
+
+	OutCostVector = WeightsVector * (PoseVector - QueryVector).square();
+	Result.SetDissimilarity(OutCostVector.sum());
+
+	// Output result
+	float NotifyAddend = 0.0f;
+	float MirrorMismatchAddend = 0.0f;
+	ComputePoseCostAddends(PoseIdx, SearchContext, NotifyAddend, MirrorMismatchAddend);
+	Result.SetCostAddend(NotifyAddend + MirrorMismatchAddend);
+
+	// Output cost details
+	OutPoseCostDetails.NotifyCostAddend = NotifyAddend;
+	OutPoseCostDetails.MirrorMismatchCostAddend = MirrorMismatchAddend;
+	OutPoseCostDetails.PoseCost = Result;
+	CalcChannelCosts(
+		GetSearchIndex()->Schema,
+		OutPoseCostDetails.CostVector,
+		OutPoseCostDetails.ChannelCosts);
+
+#if DO_GUARD_SLOW
+	{
+		// Verify details pose comparator agrees with runtime pose comparator
+		FPoseSearchCost RuntimeComparatorCost = ComparePoses(
+			SearchContext, 
+			WeightsContext, 
+			PoseIdx, 
+			SearchIndexAsset->SourceGroupIdx,
+			QueryValues);
+		checkSlow(FMath::IsNearlyEqual(Result.GetTotalCost(), RuntimeComparatorCost.GetTotalCost(), 1e-3f));
+
+		// Verify channel cost decomposition agrees with runtime pose comparator
+		auto OutChannelCosts = Map<const ArrayXf>(
+			OutPoseCostDetails.ChannelCosts.GetData(), 
+			OutPoseCostDetails.ChannelCosts.Num());
+		checkSlow(FMath::IsNearlyEqual(OutChannelCosts.sum(), RuntimeComparatorCost.GetDissimilarity(), 1e-3f));
+	}
+#endif
+
+	return Result;
+}
+
+void UPoseSearchDatabase::ComputePoseCostAddends(
+	int32 PoseIdx,
+	FPoseSearchContext& SearchContext,
+	float& OutNotifyAddend,
+	float& OutMirrorMismatchAddend) const
+{
+	OutNotifyAddend = 0.0f;
+	OutMirrorMismatchAddend = 0.0f;
+
+	if (SearchContext.QueryMirrorRequest != EPoseSearchBooleanRequest::Indifferent)
+	{
+		const FPoseSearchIndexAsset* IndexAsset = GetSearchIndex()->FindAssetForPose(PoseIdx);
+		const bool bMirroringMismatch =
+			(IndexAsset->bMirrored && SearchContext.QueryMirrorRequest == EPoseSearchBooleanRequest::FalseValue) ||
+			(!IndexAsset->bMirrored && SearchContext.QueryMirrorRequest == EPoseSearchBooleanRequest::TrueValue);
+		if (bMirroringMismatch)
+		{
+			OutMirrorMismatchAddend = MirroringMismatchCost;
+		}
+	}
+
+	const FPoseSearchPoseMetadata& PoseMetadata = GetSearchIndex()->PoseMetadata[PoseIdx];
+	OutNotifyAddend = PoseMetadata.CostAddend;
+}
+
+UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(FPoseSearchContext& SearchContext) const
+{
+	using namespace UE::PoseSearch;
+
+	FSearchResult Result;
+
+#if WITH_EDITOR
+	if (IsDerivedDataBuildPending())
+	{
+		return Result;
+	}
+#endif
+
+	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
+	if (!SearchIndex)
+	{
+		return Result;
+	}
+
+	if (!ensure(SearchIndex->IsValid() && !SearchIndex->IsEmpty()))
+	{
+		return Result;
+	}
+
+	if (PoseSearchMode != EPoseSearchMode::BruteForce)
+	{
+		Result = SearchPCAKDTree(SearchContext);
+	}
+
+	if (PoseSearchMode == EPoseSearchMode::BruteForce || PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
+	{
+		Result = SearchBruteForce(SearchContext);
+	}
+
+	SearchContext.DebugDrawParams.PoseVector = Result.ComposedQuery.GetNormalizedValues();
+	SearchContext.DebugDrawParams.PoseIdx = Result.PoseIdx;
+	Draw(SearchContext.DebugDrawParams);
+
+	return Result;
+}
+
+UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(FPoseSearchContext& SearchContext) const
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_PCA_KNN);
+	SCOPE_CYCLE_COUNTER(STAT_PoseSearchPCAKNN);
+
+	using namespace UE::PoseSearch;
+
+	FSearchResult Result;
+
+	const int32 NumDimensions = Schema->Layout.NumFloats;
+	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
+	check(SearchIndex);
+
+	const uint32 ClampedNumberOfPrincipalComponents = GetNumberOfPrincipalComponents();
+	const uint32 ClampedKDTreeQueryNumNeighbors = FMath::Clamp<uint32>(KDTreeQueryNumNeighbors, 1, SearchIndex->NumPoses);
+
+	//stack allocated temporaries
+	TArrayView<size_t> ResultIndexes((size_t*)FMemory_Alloca((ClampedKDTreeQueryNumNeighbors + 1) * sizeof(size_t)), ClampedKDTreeQueryNumNeighbors + 1);
+	TArrayView<float> ResultDistanceSqr((float*)FMemory_Alloca((ClampedKDTreeQueryNumNeighbors + 1) * sizeof(float)), ClampedKDTreeQueryNumNeighbors + 1);
+	RowMajorVectorMap WeightedQueryValues((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
+	RowMajorVectorMap CenteredQueryValues((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
+	RowMajorVectorMap ProjectedQueryValues((float*)FMemory_Alloca(ClampedNumberOfPrincipalComponents * sizeof(float)), 1, ClampedNumberOfPrincipalComponents);
+
+	// KDTree in PCA space search
+	if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
+	{
+		for (const FGroupSearchIndex& GroupSearchIndex : SearchIndex->Groups)
+		{
+			const RowMajorVectorMapConst MapWeights(GroupSearchIndex.Weights.GetData(), 1, NumDimensions);
+
+			// testing the KDTree is returning the proper searches for all the original points transformed in pca space
+			for (int32 PoseIdx = GroupSearchIndex.StartPoseIndex; PoseIdx < GroupSearchIndex.EndPoseIndex; ++PoseIdx)
+			{
+				FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
+				TArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
+
+				const RowMajorVectorMapConst Mean(GroupSearchIndex.Mean.GetData(), 1, NumDimensions);
+				const ColMajorMatrixMapConst PCAProjectionMatrix(GroupSearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, ClampedNumberOfPrincipalComponents);
+
+				const RowMajorVectorMapConst QueryValues(PoseValues.GetData(), 1, NumDimensions);
+				WeightedQueryValues = QueryValues.array() * MapWeights.array();
+				CenteredQueryValues.noalias() = WeightedQueryValues - Mean;
+				ProjectedQueryValues.noalias() = CenteredQueryValues * PCAProjectionMatrix;
+
+				GroupSearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
+
+				size_t ResultIndex = 0;
+				for (; ResultIndex < ResultSet.Num(); ++ResultIndex)
+				{
+					if ((PoseIdx - GroupSearchIndex.StartPoseIndex) == ResultIndexes[ResultIndex])
+					{
+						check(ResultDistanceSqr[ResultIndex] < UE_KINDA_SMALL_NUMBER);
+						break;
+					}
+				}
+				check(ResultIndex < ResultSet.Num());
+			}
+		}
+	}
+
+	// @todo: implement support for DatabaseTagQuery
+	FPoseSearchCost BestPoseCost;
+	int32 BestPoseIdx = INDEX_NONE;
+
+	BuildQuery(SearchContext, Result.ComposedQuery);
+
+	FPoseSearchWeightsContext WeightsContext;
+	WeightsContext.Update(this);
+
+	TArrayView<const float> NormalizedQueryValues = Result.ComposedQuery.GetNormalizedValues();
+
+	if (SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this)
+	{
+		Result.ContinuityPoseCost = ComparePoses(
+			SearchContext,
+			WeightsContext,
+			SearchContext.CurrentResult.PoseIdx,
+			SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
+			NormalizedQueryValues);
+	}
+
+	for (const FGroupSearchIndex& GroupSearchIndex : SearchIndex->Groups)
+	{
+		const RowMajorVectorMapConst MapWeights(GroupSearchIndex.Weights.GetData(), 1, NumDimensions);
+		FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
+
+		check(NormalizedQueryValues.Num() == NumDimensions);
+
+		const RowMajorVectorMapConst Mean(GroupSearchIndex.Mean.GetData(), 1, NumDimensions);
+		const ColMajorMatrixMapConst PCAProjectionMatrix(GroupSearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, ClampedNumberOfPrincipalComponents);
+
+		// transforming query values into PCA space to query the KDTree
+		const RowMajorVectorMapConst QueryValues(NormalizedQueryValues.GetData(), 1, NumDimensions);
+		WeightedQueryValues = QueryValues.array() * MapWeights.array();
+		CenteredQueryValues.noalias() = WeightedQueryValues - Mean;
+		ProjectedQueryValues.noalias() = CenteredQueryValues * PCAProjectionMatrix;
+
+		GroupSearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
+
+		for (size_t ResultIndex = 0; ResultIndex < ResultSet.Num(); ++ResultIndex)
+		{
+			const int32 PoseIdx = ResultIndexes[ResultIndex] + GroupSearchIndex.StartPoseIndex;
+
+			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
+
+			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
+			{
+				continue;
+			}
+
+			FPoseSearchCost PoseCost = ComparePoses(
+				SearchContext, 
+				WeightsContext, 
+				PoseIdx, 
+				GroupSearchIndex.GroupIndex,
+				NormalizedQueryValues);
+
+			if (PoseCost < BestPoseCost)
+			{
+				BestPoseCost = PoseCost;
+				BestPoseIdx = PoseIdx;
+			}
+		}
+	}
+
+	Result.PoseCost = BestPoseCost;
+	Result.PoseIdx = BestPoseIdx;
+	Result.SearchIndexAsset = SearchIndex->FindAssetForPose(BestPoseIdx);
+	Result.AssetTime = SearchIndex->GetAssetTime(BestPoseIdx, Result.SearchIndexAsset);
+	Result.Database = this;
+	Result.Sequence = nullptr;
+#if WITH_EDITOR
+	Result.SearchIndexHash = GetSearchIndexHash();
+#endif // WITH_EDITOR
+
+	return Result;
+}
+
+UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(FPoseSearchContext& SearchContext) const
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_Brute_Force);
+	SCOPE_CYCLE_COUNTER(STAT_PoseSearchBruteForce);
+	
+	using namespace UE::PoseSearch;
+	
+	FSearchResult Result;
+
+	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
+	check(SearchIndex);
+
+	BuildQuery(SearchContext, Result.ComposedQuery);
+	TArrayView<const float> NormalizedQueryValues = Result.ComposedQuery.GetNormalizedValues();
+
+	FPoseSearchWeightsContext WeightsContext;
+	WeightsContext.Update(this);
+	
+	if (SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this)
+	{
+		Result.ContinuityPoseCost = ComparePoses(
+			SearchContext,
+			WeightsContext,
+			SearchContext.CurrentResult.PoseIdx,
+			SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
+			NormalizedQueryValues);
+	}
+
+	FPoseSearchCost BestPoseCost;
+	int32 BestPoseIdx = INDEX_NONE;
+	for (const FPoseSearchIndexAsset& Asset : SearchIndex->Assets)
+	{
+		if (SearchContext.DatabaseTagQuery)
+		{
+			if (!SearchContext.DatabaseTagQuery->Matches(*GetSourceAssetGroupTags(&Asset)))
+			{
+				continue;
+			}
+		}
+
+		const int32 EndIndex = Asset.FirstPoseIdx + Asset.NumPoses;
+		for (int32 PoseIdx = Asset.FirstPoseIdx; PoseIdx < EndIndex; ++PoseIdx)
+		{
+			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
+
+			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
+			{
+				continue;
+			}
+
+			FPoseSearchCost PoseCost = ComparePoses(
+				SearchContext,
+				WeightsContext,
+				PoseIdx, 
+				Asset.SourceGroupIdx,
+				NormalizedQueryValues);
+
+			if (PoseCost < BestPoseCost)
+			{
+				BestPoseCost = PoseCost;
+				BestPoseIdx = PoseIdx;
+			}
+		}
+	}
+
+	Result.PoseCost = BestPoseCost;
+	Result.PoseIdx = BestPoseIdx;
+	Result.SearchIndexAsset = SearchIndex->FindAssetForPose(BestPoseIdx);
+	Result.AssetTime = SearchIndex->GetAssetTime(BestPoseIdx, Result.SearchIndexAsset);
+	Result.Database = this;
+	Result.Sequence = nullptr;
+#if WITH_EDITOR
+	Result.SearchIndexHash = GetSearchIndexHash();
+#endif // WITH_EDITOR
+
+	return Result;
+}
+
+void UPoseSearchDatabase::BuildQuery(
+	FPoseSearchContext& SearchContext, 
+	FPoseSearchFeatureVectorBuilder& OutQuery) const
+{
+	Schema->BuildQuery(SearchContext, OutQuery);
+	OutQuery.Normalize(*GetSearchIndex());
+}
+
+UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(FPoseSearchContext& SearchContext) const
+{
+	using namespace UE::PoseSearch;
+
+	FSearchResult Result;
+	FPoseSearchCost ContinuityCost;
+
+	TArray<const FPoseSearchDatabaseSetEntry*, TInlineAllocator<8>> FallBackEntries;
+
+	auto ProcessActiveEntry = 
+		[&SearchContext, &Result, &ContinuityCost](const FPoseSearchDatabaseSetEntry& Entry) 
+		-> EPoseSearchPostSearchStatus
+	{
+		EPoseSearchPostSearchStatus PostSearchStatus = EPoseSearchPostSearchStatus::Continue;
+		FSearchResult EntryResult = Entry.Searchable->Search(SearchContext);
+		if (EntryResult.IsValid())
+		{
+			if (IsValid(Entry.PostProcessor))
+			{
+				PostSearchStatus = Entry.PostProcessor->PostProcess(EntryResult.PoseCost);
+				if (EntryResult.ContinuityPoseCost.IsValid())
+				{
+					Entry.PostProcessor->PostProcess(EntryResult.ContinuityPoseCost);
+				}
+			}
+
+			if (!Result.IsValid() || EntryResult.PoseCost.GetTotalCost() < Result.PoseCost.GetTotalCost())
+			{
+				Result = EntryResult;
+			}
+
+			if (EntryResult.ContinuityPoseCost.IsValid())
+			{
+				if (!ContinuityCost.IsValid() ||
+					EntryResult.ContinuityPoseCost.GetTotalCost() < ContinuityCost.GetTotalCost())
+				{
+					ContinuityCost = EntryResult.ContinuityPoseCost;
+				}
+			}
+		}
+
+		return PostSearchStatus;
+	};
+
+	for (const FPoseSearchDatabaseSetEntry& Entry : AssetsToSearch)
+	{
+		if (!IsValid(Entry.Searchable))
+		{
+			UE_LOG(LogPoseSearch, Warning, TEXT("Invalid entry in Database Set %s"), *GetName());
+			continue;
+		}
+
+		const bool bSearchEntry =
+			!Entry.Tag.IsValid() ||
+			SearchContext.ActiveTagsContainer == nullptr ||
+			SearchContext.ActiveTagsContainer->IsEmpty() ||
+			SearchContext.ActiveTagsContainer->HasTag(Entry.Tag);
+
+		if (bSearchEntry)
+		{
+			EPoseSearchPostSearchStatus PostSearchStatus = ProcessActiveEntry(Entry);
+			if (PostSearchStatus == EPoseSearchPostSearchStatus::Stop)
+			{
+				break;
+			}
+		}
+	}
+
+	if (Result.IsValid())
+	{
+		Result.ContinuityPoseCost = ContinuityCost;
+	}
+	else
+	{
+		UE_LOG(
+			LogPoseSearch, 
+			Error, 
+			TEXT("Invalid result searching %s"), *GetName());
+	}
+
+	return Result;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchFeatureVectorBuilder
@@ -2078,6 +2682,7 @@ void FPoseSearchFeatureVectorBuilder::Normalize(const FPoseSearchIndex& ForSearc
 	ValuesNormalized = Values;
 	ForSearchIndex.Normalize(ValuesNormalized);
 }
+
 
 namespace UE { namespace PoseSearch {
 
@@ -2443,52 +3048,89 @@ const UPoseSearchSchema* FDebugDrawParams::GetSchema() const
 	return nullptr;
 }
 
-
 //////////////////////////////////////////////////////////////////////////
-// FSearchContext
+// FSearchResult
+// 
 
-void FSearchContext::SetSource(const UPoseSearchDatabase* InSourceDatabase)
+void FSearchResult::Update(float NewAssetTime)
 {
-	SearchIndex = nullptr;
-	DebugDrawParams.Database = nullptr;
-	DebugDrawParams.SequenceMetaData = nullptr;
-
-	SourceDatabase = InSourceDatabase;
-	if (SourceDatabase)
+	if (!IsValid())
 	{
-		if (ensure(SourceDatabase->IsValidForSearch()))
+		Reset();
+		return;
+	}
+
+	if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
+	{
+		const FPoseSearchDatabaseSequence& DbSequence = Database->GetSequenceSourceAsset(SearchIndexAsset);
+
+		if (SearchIndexAsset->SamplingInterval.Contains(NewAssetTime))
 		{
-			SearchIndex = SourceDatabase->GetSearchIndex();
-			DebugDrawParams.Database = SourceDatabase;
-			MirrorMismatchCost = SourceDatabase->MirroringMismatchCost;
+			PoseIdx = Database->GetPoseIndexFromTime(NewAssetTime, SearchIndexAsset);
+			AssetTime = NewAssetTime;
+		}
+		else
+		{
+			Reset();
 		}
 	}
-}
-
-void FSearchContext::SetSource(const UAnimSequenceBase* InSourceSequence)
-{
-	SearchIndex = nullptr;
-	DebugDrawParams.Database = nullptr;
-	DebugDrawParams.SequenceMetaData = nullptr;
-
-	SourceSequence = InSourceSequence;
-	const UPoseSearchSequenceMetaData* MetaData =
-		SourceSequence->FindMetaDataByClass<UPoseSearchSequenceMetaData>();
-	if (MetaData && MetaData->IsValidForSearch())
+	else if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
 	{
-		SearchIndex = &MetaData->SearchIndex;
-		DebugDrawParams.SequenceMetaData = MetaData;
+		const FPoseSearchDatabaseBlendSpace& DbBlendSpace = Database->GetBlendSpaceSourceAsset(SearchIndexAsset);
+
+		TArray<FBlendSampleData> BlendSamples;
+		int32 TriangulationIndex = 0;
+		DbBlendSpace.BlendSpace->GetSamplesFromBlendInput(SearchIndexAsset->BlendParameters, BlendSamples, TriangulationIndex, true);
+
+		float PlayLength = DbBlendSpace.BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+
+		// Asset player time for blendspaces is normalized [0, 1] so we need to convert 
+		// to a real time before we advance it
+		float RealTime = NewAssetTime * PlayLength;
+
+		if (SearchIndexAsset->SamplingInterval.Contains(RealTime))
+		{
+			PoseIdx = Database->GetPoseIndexFromTime(RealTime, SearchIndexAsset);
+			AssetTime = NewAssetTime;
+		}
+		else
+		{
+			Reset();
+		}
+	}
+	else
+	{
+		checkNoEntry();
 	}
 }
 
-const FPoseSearchIndex* FSearchContext::GetSearchIndex() const
+bool FSearchResult::IsValid() const
 {
-	return SearchIndex;
+	bool bIsValid =
+		PoseIdx != INDEX_NONE &&
+		Database.IsValid();
+
+#if WITH_EDITOR
+	bIsValid = bIsValid &&
+		!Database->IsDerivedDataBuildPending() &&
+		Database->GetSearchIndexHash() == SearchIndexHash;
+#endif // WITH_EDITOR
+
+	return bIsValid;
 }
 
-float FSearchContext::GetMirrorMismatchCost() const
+void FSearchResult::Reset()
 {
-	return MirrorMismatchCost;
+	PoseIdx = INDEX_NONE;
+	SearchIndexAsset = nullptr;
+	Database = nullptr;
+	Sequence = nullptr;
+	ComposedQuery.Reset();
+	AssetTime = 0.0f;
+
+#if WITH_EDITOR
+	SearchIndexHash = FIoHash::Zero;
+#endif // WITH_EDITOR
 }
 
 
@@ -4405,7 +5047,7 @@ static void PreprocessGroupSearchIndexKDTree(FGroupSearchIndex& GroupSearchIndex
 		{
 			constexpr size_t NumResults = 10;
 			size_t ResultIndexes[NumResults + 1] = { 0 };
-			float ResultDistanceSqr[NumResults + 1] = { 0.0f };
+			float ResultDistanceSqr[NumResults + 1] = { 0 };
 			FKDTree::KNNResultSet ResultSet(NumResults, ResultIndexes, ResultDistanceSqr);
 			GroupSearchIndex.KDTree.FindNeighbors(ResultSet, &GroupPCAValues[PointIndex * NumberOfPrincipalComponents]);
 
@@ -4427,7 +5069,7 @@ static void PreprocessGroupSearchIndexKDTree(FGroupSearchIndex& GroupSearchIndex
 		{
 			constexpr size_t NumResults = 10;
 			size_t ResultIndexes[NumResults + 1] = { 0 };
-			float ResultDistanceSqr[NumResults + 1] = { 0.0f };
+			float ResultDistanceSqr[NumResults + 1] = { 0 };
 			FKDTree::KNNResultSet ResultSet(NumResults, ResultIndexes, ResultDistanceSqr);
 
 			const RowMajorVectorMapConst MapGroupValues(&GroupValues[PointIndex * NumDimensions], 1, NumDimensions);
@@ -4847,375 +5489,6 @@ bool BuildIndex(UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex)
 	return bSuccess;
 }
 
-bool FQueryBuildingContext::IsInitialized() const
-{
-	return Schema && Schema->IsValid() && Query.IsInitializedForSchema(Schema);
-}
-
-bool BuildQuery(FQueryBuildingContext& QueryBuildingContext)
-{
-	if (!QueryBuildingContext.IsInitialized())
-	{
-		return false;
-	}
-
-	bool bSuccess = true;
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : QueryBuildingContext.Schema->Channels)
-	{
-		bool bChannelSuccess = Channel->BuildQuery(QueryBuildingContext);
-		bSuccess &= bChannelSuccess;
-	}
-
-	return bSuccess;
-}
-
-FSearchResult SearchPCAKDTree(FSearchContext& SearchContext)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_PCA_KNN);
-	SCOPE_CYCLE_COUNTER(STAT_PoseSearchPCAKNN);
-
-	FSearchResult Result;
-
-	const UPoseSearchDatabase* Database = SearchContext.GetSourceDatabase();
-	check(Database);
-
-	const int32 NumDimensions = Database->Schema->Layout.NumFloats;
-	const FPoseSearchIndex* SearchIndex = SearchContext.GetSearchIndex();
-	check(SearchIndex);
-
-	const uint32 NumberOfPrincipalComponents = Database->GetNumberOfPrincipalComponents();
-	const uint32 KDTreeQueryNumNeighbors = FMath::Clamp<uint32>(Database->KDTreeQueryNumNeighbors, 1, SearchIndex->NumPoses);
-
-	//stack allocated temporaries
-	TArrayView<size_t> ResultIndexes((size_t*)FMemory_Alloca((KDTreeQueryNumNeighbors + 1) * sizeof(size_t)), KDTreeQueryNumNeighbors + 1);
-	TArrayView<float> ResultDistanceSqr((float*)FMemory_Alloca((KDTreeQueryNumNeighbors + 1) * sizeof(float)), KDTreeQueryNumNeighbors + 1);
-	RowMajorVectorMap WeightedQueryValues((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
-	RowMajorVectorMap CenteredQueryValues((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
-	RowMajorVectorMap ProjectedQueryValues((float*)FMemory_Alloca(NumberOfPrincipalComponents * sizeof(float)), 1, NumberOfPrincipalComponents);
-
-	// KDTree in PCA space search
-	if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
-	{
-		for (const FGroupSearchIndex& GroupSearchIndex : SearchIndex->Groups)
-		{
-			const RowMajorVectorMapConst MapWeights(GroupSearchIndex.Weights.GetData(), 1, NumDimensions);
-
-			// testing the KDTree is returning the proper searches for all the original points transformed in pca space
-			for (int32 PoseIdx = GroupSearchIndex.StartPoseIndex; PoseIdx < GroupSearchIndex.EndPoseIndex; ++PoseIdx)
-			{
-				FKDTree::KNNResultSet ResultSet(Database->KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
-				TArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
-
-				const RowMajorVectorMapConst Mean(GroupSearchIndex.Mean.GetData(), 1, NumDimensions);
-				const ColMajorMatrixMapConst PCAProjectionMatrix(GroupSearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, NumberOfPrincipalComponents);
-
-				const RowMajorVectorMapConst QueryValues(PoseValues.GetData(), 1, NumDimensions);
-				WeightedQueryValues = QueryValues.array() * MapWeights.array();
-				CenteredQueryValues.noalias() = WeightedQueryValues - Mean;
-				ProjectedQueryValues.noalias() = CenteredQueryValues * PCAProjectionMatrix;
-
-				GroupSearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
-
-				size_t ResultIndex = 0;
-				for (; ResultIndex < ResultSet.Num(); ++ResultIndex)
-				{
-					if ((PoseIdx - GroupSearchIndex.StartPoseIndex) == ResultIndexes[ResultIndex])
-					{
-						check(ResultDistanceSqr[ResultIndex] < UE_KINDA_SMALL_NUMBER);
-						break;
-					}
-				}
-				check(ResultIndex < ResultSet.Num());
-			}
-		}
-	}
-
-	// @todo: implement support for DatabaseTagQuery
-	FPoseCost BestPoseCost;
-	int32 BestPoseIdx = INDEX_NONE;
-	for (const FGroupSearchIndex& GroupSearchIndex : SearchIndex->Groups)
-	{
-		const RowMajorVectorMapConst MapWeights(GroupSearchIndex.Weights.GetData(), 1, NumDimensions);
-		FKDTree::KNNResultSet ResultSet(KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
-
-		check(SearchContext.QueryValues.Num() == NumDimensions);
-
-		const RowMajorVectorMapConst Mean(GroupSearchIndex.Mean.GetData(), 1, NumDimensions);
-		const ColMajorMatrixMapConst PCAProjectionMatrix(GroupSearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, NumberOfPrincipalComponents);
-
-		// transforming query values into PCA space to query the KDTree
-		const RowMajorVectorMapConst QueryValues(SearchContext.QueryValues.GetData(), 1, NumDimensions);
-		WeightedQueryValues = QueryValues.array() * MapWeights.array();
-		CenteredQueryValues.noalias() = WeightedQueryValues - Mean;
-		ProjectedQueryValues.noalias() = CenteredQueryValues * PCAProjectionMatrix;
-
-		GroupSearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
-
-		for (size_t ResultIndex = 0; ResultIndex < ResultSet.Num(); ++ResultIndex)
-		{
-			const int32 PoseIdx = ResultIndexes[ResultIndex] + GroupSearchIndex.StartPoseIndex;
-
-			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
-
-			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
-			{
-				continue;
-			}
-
-			FPoseCost PoseCost = ComparePoses(PoseIdx, SearchContext, GroupSearchIndex.GroupIndex);
-
-			if (PoseCost < BestPoseCost)
-			{
-				BestPoseCost = PoseCost;
-				BestPoseIdx = PoseIdx;
-			}
-		}
-	}
-
-	Result.PoseCost = BestPoseCost;
-	Result.PoseIdx = BestPoseIdx;
-	Result.SearchIndexAsset = SearchIndex->FindAssetForPose(BestPoseIdx);
-	Result.AssetTime = SearchIndex->GetAssetTime(BestPoseIdx, Result.SearchIndexAsset);
-
-	return Result;
-}
-
-FSearchResult SearchBruteForce(FSearchContext& SearchContext)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_Brute_Force);
-	SCOPE_CYCLE_COUNTER(STAT_PoseSearchBruteForce);
-
-	FSearchResult Result;
-
-	const FPoseSearchIndex* SearchIndex = SearchContext.GetSearchIndex();
-	check(SearchIndex);
-	const UPoseSearchDatabase* Database = SearchContext.GetSourceDatabase();
-
-	FPoseCost BestPoseCost;
-	int32 BestPoseIdx = INDEX_NONE;
-	for (const FPoseSearchIndexAsset& Asset : SearchIndex->Assets)
-	{
-		if (Database && SearchContext.DatabaseTagQuery)
-		{
-			if (!SearchContext.DatabaseTagQuery->Matches(*Database->GetSourceAssetGroupTags(&Asset)))
-			{
-				continue;
-			}
-		}
-
-		const int32 EndIndex = Asset.FirstPoseIdx + Asset.NumPoses;
-		for (int32 PoseIdx = Asset.FirstPoseIdx; PoseIdx < EndIndex; ++PoseIdx)
-		{
-			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
-
-			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
-			{
-				continue;
-			}
-
-			FPoseCost PoseCost = ComparePoses(PoseIdx, SearchContext, Asset.SourceGroupIdx);
-
-			if (PoseCost < BestPoseCost)
-			{
-				BestPoseCost = PoseCost;
-				BestPoseIdx = PoseIdx;
-			}
-		}
-	}
-
-	Result.PoseCost = BestPoseCost;
-	Result.PoseIdx = BestPoseIdx;
-	Result.SearchIndexAsset = SearchIndex->FindAssetForPose(BestPoseIdx);
-	Result.AssetTime = SearchIndex->GetAssetTime(BestPoseIdx, Result.SearchIndexAsset);
-
-	return Result;
-}
-
-FSearchResult Search(FSearchContext& SearchContext)
-{
-	FSearchResult Result;
-
-	const FPoseSearchIndex* SearchIndex = SearchContext.GetSearchIndex();
-	if (!SearchIndex)
-	{
-		return Result;
-	}
-
-	if (!ensure(SearchIndex->IsValid() && !SearchIndex->IsEmpty()))
-	{
-		return Result;
-	}
-
-	if (!ensure(SearchContext.QueryValues.Num() == SearchIndex->Schema->Layout.NumFloats))
-	{
-		return Result;
-	}
-
-	const UPoseSearchDatabase* Database = SearchContext.GetSourceDatabase();
-	if (Database && Database->PoseSearchMode != EPoseSearchMode::BruteForce)
-	{
-		Result = SearchPCAKDTree(SearchContext);
-	}
-
-	if (!Database || Database->PoseSearchMode == EPoseSearchMode::BruteForce || Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
-	{
-		Result = SearchBruteForce(SearchContext);
-	}
-
-	SearchContext.DebugDrawParams.PoseVector = SearchContext.QueryValues;
-	SearchContext.DebugDrawParams.PoseIdx = Result.PoseIdx;
-	Draw(SearchContext.DebugDrawParams);
-
-	return Result;
-}
-
-static void ComputePoseCostAddends(
-	int32 PoseIdx, 
-	FSearchContext& SearchContext, 
-	float& OutNotifyAddend, 
-	float& OutMirrorMismatchAddend)
-{
-	OutNotifyAddend = 0.0f;
-	OutMirrorMismatchAddend = 0.0f;
-
-	if (SearchContext.QueryMirrorRequest != EPoseSearchBooleanRequest::Indifferent)
-	{
-		const FPoseSearchIndexAsset* IndexAsset = SearchContext.GetSearchIndex()->FindAssetForPose(PoseIdx);
-		const bool bMirroringMismatch =
-			(IndexAsset->bMirrored && SearchContext.QueryMirrorRequest == EPoseSearchBooleanRequest::FalseValue) ||
-			(!IndexAsset->bMirrored && SearchContext.QueryMirrorRequest == EPoseSearchBooleanRequest::TrueValue);
-		if (bMirroringMismatch)
-		{
-			OutMirrorMismatchAddend = SearchContext.GetMirrorMismatchCost();
-		}
-	}
-
-	const FPoseSearchPoseMetadata& PoseMetadata = SearchContext.GetSearchIndex()->PoseMetadata[PoseIdx];
-	OutNotifyAddend = PoseMetadata.CostAddend;
-}
-
-
-FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, int32 GroupIdx)
-{
-	FPoseCost Result;
-
-	const FPoseSearchIndex* SearchIndex = SearchContext.GetSearchIndex();
-	if (!ensure(SearchIndex))
-	{
-		return Result;
-	}
-
-	TArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
-	if (!ensure(PoseValues.Num() == SearchContext.QueryValues.Num()))
-	{
-		return Result;
-	}
-
-	if (SearchContext.WeightsContext)
-	{
-		if (GroupIdx == INDEX_NONE)
-		{
-			const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex->FindAssetForPose(PoseIdx);
-			if (!ensure(SearchIndexAsset))
-			{
-				return Result;
-			}
-
-			GroupIdx = SearchIndexAsset->SourceGroupIdx;
-		}
-
-		const FPoseSearchWeights* WeightsSet =
-			SearchContext.WeightsContext->GetGroupWeights(GroupIdx);
-		Result.Dissimilarity = CompareFeatureVectors(
-			PoseValues.Num(),
-			PoseValues.GetData(),
-			SearchContext.QueryValues.GetData(),
-			WeightsSet->Weights.GetData());
-	}
-	else
-	{
-		Result.Dissimilarity = CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), SearchContext.QueryValues.GetData());
-	}
-
-	float NotifyAddend = 0.0f;
-	float MirrorMismatchAddend = 0.0f;
-	ComputePoseCostAddends(PoseIdx, SearchContext, NotifyAddend, MirrorMismatchAddend);
-	Result.CostAddend = NotifyAddend + MirrorMismatchAddend;
-	Result.TotalCost = Result.Dissimilarity + Result.CostAddend;
-
-	return Result;
-}
-
-
-FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, FPoseCostDetails& OutPoseCostDetails)
-{
-	using namespace Eigen;
-
-	FPoseCost Result;
-
-	TArrayView<const float> PoseValues = SearchContext.GetSearchIndex()->GetPoseValues(PoseIdx);
-	const int32 Dims = PoseValues.Num();
-	if (!ensure(Dims == SearchContext.QueryValues.Num()))
-	{
-		return Result;
-	}
-
-	OutPoseCostDetails.CostVector.SetNum(Dims);
-
-	// Setup Eigen views onto our vectors
-	auto OutCostVector = Map<ArrayXf>(OutPoseCostDetails.CostVector.GetData(), Dims);
-	auto PoseVector = Map<const ArrayXf>(PoseValues.GetData(), Dims);
-	auto QueryVector = Map<const ArrayXf>(SearchContext.QueryValues.GetData(), Dims);
-	
-	// Compute weighted squared difference vector
-	const FPoseSearchIndexAsset* SearchIndexAsset = SearchContext.GetSearchIndex()->FindAssetForPose(PoseIdx);
-	if (SearchContext.WeightsContext)
-	{
-		const FPoseSearchWeights* WeightsSet = 
-			SearchContext.WeightsContext->GetGroupWeights(SearchIndexAsset->SourceGroupIdx);
-		check(WeightsSet);
-		check(WeightsSet->Weights.Num() == Dims);
-		auto WeightsVector = Map<const ArrayXf>(WeightsSet->Weights.GetData(), Dims);
-
-		OutCostVector = WeightsVector * (PoseVector - QueryVector).square();
-		Result.Dissimilarity = OutCostVector.sum();
-	}
-	else
-	{
-		OutCostVector = (PoseVector - QueryVector).square();
-		Result.Dissimilarity = OutCostVector.sum();
-	}
-
-	// Output result
-	float NotifyAddend = 0.0f;
-	float MirrorMismatchAddend = 0.0f;
-	ComputePoseCostAddends(PoseIdx, SearchContext, NotifyAddend, MirrorMismatchAddend);
-	Result.CostAddend = NotifyAddend + MirrorMismatchAddend;
-	Result.TotalCost = Result.Dissimilarity + Result.CostAddend;
-
-	// Output cost details
-	OutPoseCostDetails.NotifyCostAddend = NotifyAddend;
-	OutPoseCostDetails.MirrorMismatchCostAddend = MirrorMismatchAddend;
-	OutPoseCostDetails.PoseCost = Result;
-	CalcChannelCosts(SearchContext.GetSearchIndex()->Schema, OutPoseCostDetails.CostVector, OutPoseCostDetails.ChannelCosts);
-
-
-#if DO_GUARD_SLOW
-	{
-		// Verify details pose comparator agrees with runtime pose comparator
-		FPoseCost RuntimeComparatorCost = ComparePoses(PoseIdx, SearchContext, SearchIndexAsset->SourceGroupIdx);
-		checkSlow(FMath::IsNearlyEqual(Result.TotalCost, RuntimeComparatorCost.TotalCost, 1e-3f));
-
-		// Verify channel cost decomposition agrees with runtime pose comparator
-		auto OutChannelCosts = Map<const ArrayXf>(OutPoseCostDetails.ChannelCosts.GetData(), OutPoseCostDetails.ChannelCosts.Num());
-		checkSlow(FMath::IsNearlyEqual(OutChannelCosts.sum(), RuntimeComparatorCost.Dissimilarity, 1e-3f));
-	}
-#endif
-
-	return Result;
-}
-
-
 //////////////////////////////////////////////////////////////////////////
 // FModule
 
@@ -5257,6 +5530,8 @@ UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBas
 {
 	UE::Anim::IPoseSearchProvider::FSearchResult ProviderResult;
 
+	using namespace UE::PoseSearch;
+
 	const UPoseSearchSequenceMetaData* MetaData = Sequence ? Sequence->FindMetaDataByClass<UPoseSearchSequenceMetaData>() : nullptr;
 	if (!MetaData || !MetaData->IsValidForSearch())
 	{
@@ -5270,27 +5545,15 @@ UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBas
 	}
 
 	FPoseHistory& PoseHistory = PoseHistoryProvider->GetPoseHistory();
-	FPoseSearchFeatureVectorBuilder& QueryBuilder = PoseHistory.GetQueryBuilder();
-	QueryBuilder.Init(MetaData->Schema);
 
-	UE::PoseSearch::FQueryBuildingContext QueryBuildingContext(QueryBuilder);
-	QueryBuildingContext.Schema = MetaData->Schema;
-	QueryBuildingContext.History = &PoseHistory;
-	QueryBuildingContext.Trajectory = nullptr;
+	FPoseSearchContext SearchContext;
+	SearchContext.OwningComponent = GraphContext.AnimInstanceProxy->GetSkelMeshComponent();
+	SearchContext.BoneContainer = &GraphContext.AnimInstanceProxy->GetRequiredBones();
+	SearchContext.History = &PoseHistoryProvider->GetPoseHistory();
 
-	if (!UE::PoseSearch::BuildQuery(QueryBuildingContext))
-	{
-		return ProviderResult;
-	}
+	UE::PoseSearch::FSearchResult Result = MetaData->Search(SearchContext);
 
-	QueryBuilder.Normalize(MetaData->SearchIndex);
-
-	::UE::PoseSearch::FSearchContext SearchContext;
-	SearchContext.SetSource(Sequence);
-	SearchContext.QueryValues = QueryBuilder.GetNormalizedValues();
-	::UE::PoseSearch::FSearchResult Result = ::UE::PoseSearch::Search(SearchContext);
-
-	ProviderResult.Dissimilarity = Result.PoseCost.TotalCost;
+	ProviderResult.Dissimilarity = Result.PoseCost.GetTotalCost();
 	ProviderResult.PoseIdx = Result.PoseIdx;
 	ProviderResult.TimeOffsetSeconds = Result.AssetTime;
 	return ProviderResult;
@@ -5386,6 +5649,13 @@ void FModule::OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveCont
 #endif // WITH_EDITOR
 
 }} // namespace UE::PoseSearch
+
+EPoseSearchPostSearchStatus UPoseSearchPostProcessor::PostProcess_Implementation(
+	FPoseSearchCost& InOutCost) const
+{
+	return EPoseSearchPostSearchStatus::Continue;
+}
+
 
 #undef LOCTEXT_NAMESPACE
 

@@ -288,7 +288,7 @@ public:
 
 	void CalculateColors(FChannelCostRange TotalCostRange, TArrayView<const FChannelCostRange> ChannelCostRanges)
 	{
-		const float CostColorBlend = (PoseCostDetails.PoseCost.TotalCost - TotalCostRange.Min) / TotalCostRange.Delta;
+		const float CostColorBlend = (PoseCostDetails.PoseCost.GetTotalCost() - TotalCostRange.Min) / TotalCostRange.Delta;
 		CostColor = LinearColorBlend(FLinearColor::Green, FLinearColor::Red, CostColorBlend);
 
 		ChannelCostColors.SetNum(ChannelCostRanges.Num());
@@ -509,7 +509,7 @@ namespace DebuggerDatabaseColumns
 		
 		virtual FText GetRowText(const FRowDataRef& Row) const override
         {
-        	return FText::AsNumber(Row->PoseCostDetails.PoseCost.TotalCost);
+        	return FText::AsNumber(Row->PoseCostDetails.PoseCost.GetTotalCost());
         }
 
 		virtual FSlateColor GetColorAndOpacity(const FRowDataRef& Row) const override
@@ -1003,10 +1003,11 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	FPoseSearchWeightsContext StateWeights;
 	StateWeights.Update(&Database);
 
-	UE::PoseSearch::FSearchContext SearchContext;
-	SearchContext.SetSource(&Database);
-	SearchContext.QueryValues = State.QueryVectorNormalized;
-	SearchContext.WeightsContext = &StateWeights;
+	FPoseSearchContext SearchContext;
+
+	FPoseSearchWeightsContext WeightsContext;
+	WeightsContext.Update(&Database);
+
 	if (const FPoseSearchIndexAsset* CurrentIndexAsset = Database.GetSearchIndex()->FindAssetForPose(State.DbPoseIdx))
 	{
 		SearchContext.QueryMirrorRequest = CurrentIndexAsset->bMirrored ? 
@@ -1021,7 +1022,12 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 		{
 			const int32 PoseIdx = Row->PoseIdx;
 
-			ComparePoses(PoseIdx, SearchContext, Row->PoseCostDetails);
+			Database.ComparePoses(
+				SearchContext, 
+				WeightsContext, 
+				PoseIdx, 
+				State.QueryVectorNormalized, 
+				Row->PoseCostDetails);
 
 			// If we are on the active pose for the frame
 			if (PoseIdx == State.DbPoseIdx)
@@ -1068,7 +1074,7 @@ void SDebuggerDatabaseView::ComputeFilteredDatabaseRowsColors()
 	TArray<FChannelCostRange> ChannelCostRanges;
 	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : FilteredDatabaseView.Rows)
 	{
-		const float Cost = Row->PoseCostDetails.PoseCost.TotalCost;
+		const float Cost = Row->PoseCostDetails.PoseCost.GetTotalCost();
 		CostRange.Min = FMath::Min(CostRange.Min, Cost);
 		CostRange.Max = FMath::Max(CostRange.Max, Cost);
 

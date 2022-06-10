@@ -34,6 +34,7 @@ void FPoseSearchDatabaseDerivedData::Cache(UPoseSearchDatabase& Database, bool b
 		SearchIndex.Reset();
 		SearchIndex.Schema = Database.Schema;
 		DerivedDataKey = { UE::DerivedData::FCacheBucket(), FIoHash::Zero };
+		PendingDerivedDataKey = FIoHash::Zero;
 	}
 }
 
