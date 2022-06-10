@@ -1022,7 +1022,7 @@ bool FEOSVoiceChatUser::RemoveLobbyRoom(const FString& LobbyId)
 	return false;
 }
 
-void FEOSVoiceChatUser::RtcRegisterUser(const FString& UserId)
+void FEOSVoiceChatUser::RtcRegisterUser(const FString& UserId, const FOnVoiceChatUserRtcRegisterUserCompleteDelegate& Delegate)
 {
 	const FTCHARToUTF8 Utf8UserId(*UserId);
 
@@ -1033,10 +1033,16 @@ void FEOSVoiceChatUser::RtcRegisterUser(const FString& UserId)
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EOSVoiceChat);
 	QUICK_SCOPE_CYCLE_COUNTER(EOS_RTC_RegisterAudioUser);
-	EOS_RTCAudio_RegisterPlatformAudioUser(EOS_RTC_GetAudioInterface(GetRtcInterface()), &Options);
+	const EOS_EResult EosResult = EOS_RTCAudio_RegisterPlatformAudioUser(EOS_RTC_GetAudioInterface(GetRtcInterface()), &Options);
+	if (EosResult != EOS_EResult::EOS_Success)
+	{
+		EOSVOICECHATUSER_LOG(Warning, TEXT("RtcRegisterUser failed: %s"), *LexToString(EosResult));
+	}
+
+	Delegate.ExecuteIfBound(EosResult);
 }
 
-void FEOSVoiceChatUser::RtcUnregisterUser(const FString& UserId)
+void FEOSVoiceChatUser::RtcUnregisterUser(const FString& UserId, const FOnVoiceChatUserRtcUnregisterUserCompleteDelegate& Delegate)
 {
 	const FTCHARToUTF8 Utf8UserId(*UserId);
 
@@ -1047,7 +1053,13 @@ void FEOSVoiceChatUser::RtcUnregisterUser(const FString& UserId)
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EOSVoiceChat);
 	QUICK_SCOPE_CYCLE_COUNTER(EOS_RTC_UnregisterAudioUser);
-	EOS_RTCAudio_UnregisterPlatformAudioUser(EOS_RTC_GetAudioInterface(GetRtcInterface()), &Options);
+	const EOS_EResult EosResult = EOS_RTCAudio_UnregisterPlatformAudioUser(EOS_RTC_GetAudioInterface(GetRtcInterface()), &Options);
+	if (EosResult != EOS_EResult::EOS_Success)
+	{
+		EOSVOICECHATUSER_LOG(Warning, TEXT("RtcUnregisterUser failed: %s"), *LexToString(EosResult));
+	}
+
+	Delegate.ExecuteIfBound(EosResult);
 }
 
 void FEOSVoiceChatUser::SetHardwareAECEnabled(bool bEnabled)

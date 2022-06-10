@@ -305,8 +305,12 @@ protected:
 	void LeaveChannelInternal(const FString& ChannelName, const FOnVoiceChatChannelLeaveCompleteDelegate& Delegate);
 	void LogoutInternal(const FOnVoiceChatLogoutCompleteDelegate& Delegate);
 	void ClearLoginSession();
-	void RtcRegisterUser(const FString& UserId);
-	void RtcUnregisterUser(const FString& UserId);
+
+	DECLARE_DELEGATE_OneParam(FOnVoiceChatUserRtcRegisterUserCompleteDelegate, const EOS_EResult /* Result */);
+	void RtcRegisterUser(const FString& UserId, const FOnVoiceChatUserRtcRegisterUserCompleteDelegate& Delegate);
+	DECLARE_DELEGATE_OneParam(FOnVoiceChatUserRtcUnregisterUserCompleteDelegate, const EOS_EResult /* Result */);
+	void RtcUnregisterUser(const FString& UserId, const FOnVoiceChatUserRtcUnregisterUserCompleteDelegate& Delegate);
+	
 	void SetHardwareAECEnabled(bool bEnabled);
     
 	// EOS operation callbacks
