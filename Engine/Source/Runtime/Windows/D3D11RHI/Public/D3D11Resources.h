@@ -373,17 +373,19 @@ public:
 	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
 
 	/** Initialization constructor. */
-	FD3D11UniformBuffer(class FD3D11DynamicRHI* InD3D11RHI, const FRHIUniformBufferLayout* InLayout, ID3D11Buffer* InResource,const FRingAllocation& InRingAllocation)
+	FD3D11UniformBuffer(class FD3D11DynamicRHI* InD3D11RHI, const FRHIUniformBufferLayout* InLayout, ID3D11Buffer* InResource,const FRingAllocation& InRingAllocation, bool bInAllocatedFromPool)
 	: FRHIUniformBuffer(InLayout)
 	, Resource(InResource)
 	, RingAllocation(InRingAllocation)
 	, D3D11RHI(InD3D11RHI)
+	, bAllocatedFromPool(bInAllocatedFromPool)
 	{}
 
 	virtual ~FD3D11UniformBuffer();
 
 private:
 	class FD3D11DynamicRHI* D3D11RHI;
+	bool bAllocatedFromPool;
 };
 
 /** Buffer resource class. */
