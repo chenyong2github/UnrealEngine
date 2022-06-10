@@ -3,10 +3,12 @@
 
 #if LOGTRACE_ENABLED
 
-#include "Trace/Trace.inl"
-#include "Templates/Function.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/VarArgs.h"
+#include "Templates/Function.h"
+#include "Trace/Trace.inl"
 
 UE_TRACE_CHANNEL_DEFINE(LogChannel)
 
@@ -62,4 +64,21 @@ void FLogTrace::OutputLogMessageInternal(const void* LogPoint, uint16 EncodedFor
 		<< LogMessage.FormatArgs(EncodedFormatArgs, EncodedFormatArgsSize);
 }
 
-#endif
+#if LOGTRACE_RUNTIME_FORMATTING_ENABLED
+static FCriticalSection* GetLogTraceStaticBufferGuard()
+{
+	static FCriticalSection CS;
+	return &CS;
+}
+
+static TCHAR LogTraceStaticBuffer[8192];
+
+void FLogTrace::OutputLogMessageSimple(const void* LogPoint, const TCHAR* Fmt, ...)
+{
+	FScopeLock MsgLock(GetLogTraceStaticBufferGuard());
+	GET_VARARGS(LogTraceStaticBuffer, UE_ARRAY_COUNT(LogTraceStaticBuffer), UE_ARRAY_COUNT(LogTraceStaticBuffer) - 1, Fmt, Fmt);
+	FLogTrace::OutputLogMessage(LogPoint, LogTraceStaticBuffer);
+}
+#endif // LOGTRACE_RUNTIME_FORMATTING_ENABLED
+
+#endif // LOGTRACE_ENABLED
