@@ -438,6 +438,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
 	static FSourceControlState QueryFileState(const FString& InFile, bool bSilent = false);
 
+	//Delegate to broadcast FileState upon AsyncQueryFileState completion
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FQueryFileStateDelegate, FSourceControlState, FileStateOut);
+	/**
+	* Query the source control state of the specified file, asynchronously.
+	*
+	* @param	FileStateCallback Source control state - see USourceControlState. It will have bIsValid set to false if it could not have its values set.
+	* @param	InFile			  The file to query - can be either fully qualified path, relative path, long package name, asset path or export text path (often stored on clipboard)
+	* @param	bSilent			  if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	static void AsyncQueryFileState(FQueryFileStateDelegate FileStateCallback, const FString& InFile, bool bSilent = false);
+
 	/**
 	 * Use currently set source control provider to query the list of files in the depot under a certain path.
 	 * @note	Blocks until action is complete.
