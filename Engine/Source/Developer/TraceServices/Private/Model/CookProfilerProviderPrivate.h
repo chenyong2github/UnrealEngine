@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "TraceServices/Model/CookProfilerProvider.h"
 
 namespace TraceServices

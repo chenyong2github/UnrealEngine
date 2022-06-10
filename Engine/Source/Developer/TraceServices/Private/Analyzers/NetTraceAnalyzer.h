@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "Trace/Analyzer.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
+#include "Templates/SharedPointer.h"
+
 #include "Model/NetProfilerProvider.h"
+#include "Trace/Analyzer.h"
 
 namespace TraceServices
 {
@@ -133,7 +135,7 @@ private:
 
 	void FlushPacketEvents(FNetTraceConnectionState& ConnectionState, FNetProfilerConnectionData& ConnectionData, const ENetProfilerConnectionMode ConnectionMode);
 
-	void FlushFrameStatsCounters(FNetTraceAnalyzer::FNetTraceGameInstanceState& GameInstanceState);
+	void FlushFrameStatsCounters(FNetTraceGameInstanceState& GameInstanceState);
 	uint32 GetCurrentNetProfilerFrameIndexAndFlushFrameStatsCountersIfNeeded(uint32 GameInstanceId, uint32 EngineFrameIndex);
 
 	void HandlePacketEvent(const FOnEventContext& Context, const FEventData& EventData);	

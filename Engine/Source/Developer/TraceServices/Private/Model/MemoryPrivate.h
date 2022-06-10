@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "TraceServices/Model/Memory.h"
+#include "Containers/Map.h"
+#include "UObject/NameTypes.h"
+
 #include "Common/PagedArray.h"
+#include "TraceServices/Model/Memory.h"
 
 namespace TraceServices
 {
