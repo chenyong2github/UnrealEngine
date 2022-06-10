@@ -10,6 +10,7 @@
 #include "Editor.h"
 #include "SnappingUtils.h"
 #include "CanvasTypes.h"
+#include "Settings/EditorStyleSettings.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -77,6 +78,7 @@ void FDragTool_Measure::Render(const FSceneView* View, FCanvas* Canvas)
 	if (View != nullptr && Canvas != nullptr && Length >= 1.f)
 	{
 		FCanvasLineItem LineItem( PixelStart, PixelEnd );
+		LineItem.SetColor(GetDefault<UEditorStyleSettings>()->SelectionColor);
 		Canvas->DrawItem( LineItem );
 
 		const FVector2D PixelMid = FVector2D(PixelStart + ((PixelEnd - PixelStart) / 2));
