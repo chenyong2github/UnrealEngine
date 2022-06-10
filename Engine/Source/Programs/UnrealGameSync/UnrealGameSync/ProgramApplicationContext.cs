@@ -222,6 +222,9 @@ namespace UnrealGameSync
 				catch (PerforceException)
 				{
 				}
+				catch (OperationCanceledException)
+				{
+				}
 				catch (UserErrorException)
 				{
 				}
