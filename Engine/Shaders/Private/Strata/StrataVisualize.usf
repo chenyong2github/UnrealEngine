@@ -111,11 +111,13 @@ void PrintBool(inout FShaderPrintContext Ctx, bool In, FFontColor InColor)
 	}
 }
 
-void PrintPixelType(inout FShaderPrintContext Ctx, bool bIsSimpleMaterial, bool bIsSingleMaterial, FFontColor InColor)
+void PrintPixelType(inout FShaderPrintContext Ctx, in FStrataPixelHeader Header, FFontColor InColor)
 {
-		 if (bIsSimpleMaterial)	Print(Ctx, TEXT("Simple  "), InColor);
-	else if (bIsSingleMaterial)	Print(Ctx, TEXT("Single  "), InColor);
-	else						Print(Ctx, TEXT("Complex "), InColor);
+	if (IsSimpleMaterial(Header))			Print(Ctx, TEXT("Simple  "), InColor);
+	else if (IsSingleMaterial(Header))		Print(Ctx, TEXT("Single  "), InColor);
+	else if (IsComplexMaterial(Header))		Print(Ctx, TEXT("Complex "), InColor);
+	else if (IsSingleLayerWater(Header))	Print(Ctx, TEXT("SLWater "), InColor);
+	else									Print(Ctx, TEXT("!ERROR! "), FontRed);
 }
 
 void PrintSSSType(inout FShaderPrintContext Ctx, uint SSSType, FFontColor InColor)
@@ -365,10 +367,10 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 		Print(Context, Header.BSDFCount, FontBSDFCount, 2, 0);
 		Print(Context, TEXT("BSDF"), FontBSDFCount);
 		Print(Context, TEXT(" - "), FontWhite);
-		PrintPixelType(Context, bIsSimpleMaterial, bIsSingleMaterial, FontLightRed);
+		PrintPixelType(Context, Header, FontLightRed);
 		Newline(Context);
 
-		Print(Context, TEXT(" AO    IndIrr TopRoughness PreShadow ZeroShadow ContacShadow Ind.Occluder IsWater HasSSS"), FontHeaderStateName);
+		Print(Context, TEXT(" AO    IndIrr TopRoughness PreShadow ZeroShadow ContacShadow Ind.Occluder HasSSS"), FontHeaderStateName);
 		Newline(Context);
 
 		Print(Context, TEXT(" "));
@@ -379,7 +381,6 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 		PrintBool(Context, HasZeroPrecShadowMask(Header), FontHeaderPropValue);							Print(Context, TEXT("      "));
 		PrintBool(Context, DoesCastContactShadow(Header), FontHeaderPropValue);							Print(Context, TEXT("        "));
 		PrintBool(Context, HasDynamicIndirectShadowCasterRepresentation(Header), FontHeaderPropValue);	Print(Context, TEXT("        "));
-		PrintBool(Context, IsSingleLayerWater(Header), FontHeaderPropValue);							Print(Context, TEXT("   "));
 		PrintBool(Context, HasSubsurface(Header), FontHeaderPropValue);
 		Newline(Context);
 		Newline(Context);

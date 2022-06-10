@@ -196,13 +196,11 @@ struct FStrataBSDF
 // Bit count for each component stored in a Strata header
 // 
 // State bit masks
-#define HEADER_MASK_ISSIMPLEMATERIAL			(1u << 0)
-#define HEADER_MASK_ISSINGLEMATERIAL			(1u << 1)
-#define HEADER_MASK_HASPRECSHADOWMASK			(1u << 2)
-#define HEADER_MASK_ZEROPRECSHADOWMASK			(1u << 3)
-#define HEADER_MASK_CASTCONTACTSHADOW			(1u << 4)
-#define HEADER_MASK_HASDYNINDIRECTSHADOWCASTER	(1u << 5)
-#define HEADER_MASK_ISSINGLELAYERWATER			(1u << 6)	// Used to avoid loading BSDF or Categorisation data when generating tiles containing SLW material. Avoid running another categorisation.
+#define HEADER_MASK_MATERIALMODE				(0x7)
+#define HEADER_MASK_HASPRECSHADOWMASK			(1u << 3)
+#define HEADER_MASK_ZEROPRECSHADOWMASK			(1u << 4)
+#define HEADER_MASK_CASTCONTACTSHADOW			(1u << 5)
+#define HEADER_MASK_HASDYNINDIRECTSHADOWCASTER	(1u << 6)
 #define HEADER_MASK_HASSUBSURFACE				(1u << 7)
 #define HEADER_MASK_BIT_COUNT					8
 
@@ -262,6 +260,13 @@ struct FStrataBSDF
 
 #define HEADER_GETSHAREDLOCALBASESTYPE(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE)
 #define HEADER_SETSHAREDLOCALBASESTYPE(X, NewValue)	WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE, NewValue)
+
+#define HEADER_MATERIALMODE_SIMPLE				0
+#define HEADER_MATERIALMODE_SINGLE				1
+#define HEADER_MATERIALMODE_COMPLEX				2
+#define HEADER_MATERIALMODE_SLWATER				3
+// Up to 8 material modes: 4 remains.
+// STRATA_TODO: I believe we could merge ShadingModels & MaterialModes together with slab simple, slab single, slab complex, water, hair, etc.
 
 ///////////////////////////////////////////////////////////////////////////////
 // BSDF State
@@ -1646,11 +1651,14 @@ struct FStrataPixelHeader
 	uint State;
 };
 
-bool IsSimpleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_ISSIMPLEMATERIAL) != 0 || STRATA_FASTPATH; }
-bool IsSingleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_ISSINGLEMATERIAL) != 0 || STRATA_SINGLEPATH; }
+void SetMaterialMode(inout FStrataPixelHeader Out, int MateralMode)							{ Out.State = (Out.State & ~HEADER_MASK_MATERIALMODE) | (MateralMode & HEADER_MASK_MATERIALMODE); }
+bool IsSimpleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SIMPLE || STRATA_FASTPATH; }
+bool IsSingleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SINGLE || STRATA_SINGLEPATH; }
+bool IsComplexMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_COMPLEX && !STRATA_FASTPATH && !STRATA_SINGLEPATH; }
+bool IsSingleLayerWater(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SLWATER; }
+
 bool HasPrecShadowMask(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_HASPRECSHADOWMASK) != 0; }
 bool HasZeroPrecShadowMask(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_ZEROPRECSHADOWMASK) != 0; }
-bool IsSingleLayerWater(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_ISSINGLELAYERWATER) != 0; }
 bool DoesCastContactShadow(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_CASTCONTACTSHADOW) != 0; }
 uint GetShadingModels(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_SHADINGMODELS)>>HEADER_BIT_OFFSET_SHADINGMODELS; }
 bool IsStrataMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_SHADINGMODELS) > 0 || IsSimpleMaterial(In); }
@@ -1659,18 +1667,12 @@ bool HasDynamicIndirectShadowCasterRepresentation(const FStrataPixelHeader In)		
 
 bool StrataHasShadingModel(const FStrataPixelHeader In, uint ShadingModel)					{ return StrataHasShadingModel(GetShadingModels(In), ShadingModel); }
 
-void SetIsSimpleMaterial(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_ISSIMPLEMATERIAL : 0u); }
-void SetIsSingleMaterial(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_ISSINGLEMATERIAL : 0u); }
 void SetHasPrecShadowMask(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_HASPRECSHADOWMASK : 0u); }
 void SetZeroPrecShadowMask(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_ZEROPRECSHADOWMASK : 0u); }
-void SetIsSingleLayerWater(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_ISSINGLELAYERWATER : 0u); }
 void SetCastContactShadow (inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_CASTCONTACTSHADOW : 0u); }
 void SetDynamicIndirectShadowCasterRepresentation(inout FStrataPixelHeader Out, bool bIn)	{ Out.State |= (bIn ? HEADER_MASK_HASDYNINDIRECTSHADOWCASTER : 0u); }
 void SetHasSubsurface(inout FStrataPixelHeader Out, bool bIn)								{ Out.State |= (bIn ? HEADER_MASK_HASSUBSURFACE : 0u); }
-
 void AddShadingModels(inout FStrataPixelHeader Out, uint bIn)								{ Out.State |= ((bIn<<HEADER_BIT_OFFSET_SHADINGMODELS) & HEADER_MASK_SHADINGMODELS); }
-void AndIsSimpleMaterial(inout FStrataPixelHeader Out, bool bIn)							{ Out.State = (Out.State & ~HEADER_MASK_ISSIMPLEMATERIAL) | ((Out.State & HEADER_MASK_ISSIMPLEMATERIAL) & (bIn ? HEADER_MASK_ISSIMPLEMATERIAL : 0u)); }
-void AndIsSingleMaterial(inout FStrataPixelHeader Out, bool bIn)							{ Out.State = (Out.State & ~HEADER_MASK_ISSINGLEMATERIAL) | ((Out.State & HEADER_MASK_ISSINGLEMATERIAL) & (bIn ? HEADER_MASK_ISSINGLEMATERIAL : 0u)); }
 
 FStrataPixelHeader InitialiseStrataPixelHeader()
 {
@@ -1687,6 +1689,7 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	Out.PackedTopLayerData = 0;
 #endif
 	Out.State = 0;
+	SetMaterialMode(Out, HEADER_MATERIALMODE_SIMPLE); // Should be a NOP since SIMPLE=0. This is for non strata material or sky pixels to be considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
 	return Out;
 }
 
@@ -3159,8 +3162,8 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 	Out.State		= HEADER_GETCOMMONSTATES(PackedHeader);	// Unpack state and AO data at the same time 
 	Out.BSDFCount   = HEADER_GETBSDFCOUNT(PackedHeader);
 
-	const bool bIsSimpleMaterial = (PackedHeader & HEADER_MASK_ISSIMPLEMATERIAL) > 0;
-	const bool bIsSingleMaterial = (PackedHeader & HEADER_MASK_ISSINGLEMATERIAL) > 0;
+	const bool bIsSimpleMaterial = IsSimpleMaterial(Out);
+	const bool bIsSingleMaterial = IsSingleMaterial(Out);
 
 	// Use simple or single layout for decoding data
 	BRANCH

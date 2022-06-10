@@ -1106,7 +1106,7 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 #if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER
-	SetIsSingleLayerWater(StrataPixelHeader, true);
+	SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_SLWATER);
 
 	// Override GBuffer data with Strata SLW water BSDF to run forward shadfing code.
 	// STRATA_TODO: run the shading through a strata path? (by adding a special BSDF?)

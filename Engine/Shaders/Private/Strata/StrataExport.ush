@@ -135,9 +135,6 @@ void PackStrataOut(
 	TopLayerData = (FStrataTopLayerData)0;
 	OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
 
-	SetIsSimpleMaterial(StrataPixelHeader, true); // non strata material or sky pixels are considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
-	SetIsSingleMaterial(StrataPixelHeader, true); // non strata material or sky pixels are considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
-
 	uint BSDFVisibleCount = 0;
 	
 	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
@@ -165,8 +162,11 @@ void PackStrataOut(
 			const float StandardDeviationCmForThickness = StandardDeviationCm * RootOperator.OpaqueRoughRefractThicknessCm;
 			OpaqueRoughRefractionData.VarianceCm = StandardDeviationCmForThickness * StandardDeviationCmForThickness;
 		}
-		
-		int SimpleMaterial_BSDFIndex = 0;
+
+		bool bIsSimpleMaterial = true;
+		bool bIsSingleMaterial = true;
+		bool bIsOnlySlab = true;
+		int OneBSDFMaterial_Index = 0; // Use for simple and single material modes. Represent the last visible BSDF index.
 		float TopLayerTotalWeight = 0.0f;
 		
 		{
@@ -185,8 +185,6 @@ void PackStrataOut(
 					// Sanitize happening after will clamp values that could have gone above and below valid range.
 					StrataDitherBSDF(BSDF, Dither);
 
-					bool bIsSimpleMaterial = true;
-					bool bIsSingleMaterial = true;
 					switch (BSDF_GETTYPE(BSDF))
 					{
 					case STRATA_BSDF_TYPE_SLAB:
@@ -197,11 +195,11 @@ void PackStrataOut(
 						const bool LuminanceWeightEqualOne = all(BSDF.LuminanceWeightV == 1.0f);
 
 						// Update simple material compatibility
-						bIsSimpleMaterial = IsStrataSlabFastPathCompatible(BSDF) && LuminanceWeightEqualOne;
+						bIsSimpleMaterial &= IsStrataSlabFastPathCompatible(BSDF) && LuminanceWeightEqualOne;
 
 						// Update single material compatibility. For now, single materials don't support anisotropy, 
 						// they use the complex pass, as the toplayer data does not contain the full frame basis, only the top normal.
-						bIsSingleMaterial = BSDF_GETHASANISOTROPY(BSDF) == 0 && LuminanceWeightEqualOne;
+						bIsSingleMaterial &= BSDF_GETHASANISOTROPY(BSDF) == 0 && LuminanceWeightEqualOne;
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
@@ -219,6 +217,7 @@ void PackStrataOut(
 
 					case STRATA_BSDF_TYPE_HAIR:
 					{
+						bIsOnlySlab = false;
 						bIsSimpleMaterial = false;
 						bIsSingleMaterial = false;
 
@@ -230,6 +229,7 @@ void PackStrataOut(
 
 					case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 					{
+						bIsOnlySlab = false;
 						bIsSimpleMaterial = false;
 						bIsSingleMaterial = false;
 						EmissiveColor += BSDF_GETEMISSIVE(BSDF) * BSDF.LuminanceWeightV;
@@ -248,10 +248,8 @@ void PackStrataOut(
 					TopLayerData.WorldNormal += N * BSDF.TopLayerDataWeight;
 
 					AddShadingModels(StrataPixelHeader, StrataShadingModelBit(BSDF_GETTYPE(BSDF)));
-					AndIsSimpleMaterial(StrataPixelHeader, bIsSimpleMaterial);
-					AndIsSingleMaterial(StrataPixelHeader, bIsSingleMaterial);
 
-					SimpleMaterial_BSDFIndex = BSDFIdx;
+					OneBSDFMaterial_Index = BSDFIdx;
 
 					// Notify that the BSDF is at the top for SSR to only affect reflection there and not on the lower layers
 					BSDF_SETISTOPLAYER(BSDF, BSDF.bIsTop ? 1 : 0);
@@ -268,8 +266,12 @@ void PackStrataOut(
 		TopLayerData.BaseColor	= TopLayerTotalWeight > 0.0f	? TopLayerData.BaseColor / TopLayerTotalWeight	: 0.0f;
 
 		// Set storage layout as either: fast(0), single(1), or complex(2)
-		AndIsSimpleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
-		AndIsSingleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
+		if (bIsOnlySlab)
+		{
+			bIsSimpleMaterial &= BSDFVisibleCount == 1;
+			bIsSingleMaterial &= BSDFVisibleCount == 1;
+			SetMaterialMode(StrataPixelHeader, bIsSimpleMaterial ? HEADER_MATERIALMODE_SIMPLE : bIsSingleMaterial ? HEADER_MATERIALMODE_SINGLE : HEADER_MATERIALMODE_COMPLEX);
+		}
 
 		// Now evaluate Specular Occlusion and Indirect Irradiance.
 		{
@@ -377,7 +379,7 @@ void PackStrataOut(
 					BSDF_SETHASTRANSABOVE(BSDF, bTransmittanceAboveAlongNRequired);
 
 					// A. Layout0 - Simple encoding (aka. fast-path): store header & data
-					const bool bFastEncodedBSDF = bHasFastEncoding && BSDFIdx == SimpleMaterial_BSDFIndex;
+					const bool bFastEncodedBSDF = bHasFastEncoding && BSDFIdx == OneBSDFMaterial_Index;
 					if (bFastEncodedBSDF)
 					{
 						// Now we pack diffuse and F0 in a special way: both encoded as R7G7B6 with gamma 2.0. The low bit cound will be hidden by dithering and TAA.
@@ -410,7 +412,7 @@ void PackStrataOut(
 						BSDF.State = 0;
 					}
 					// B. Layout1 - Simple encoding: single BSDF, whose header & BSDF state are merged
-					else if (bHasSingleEncoding && BSDFIdx == SimpleMaterial_BSDFIndex)
+					else if (bHasSingleEncoding && BSDFIdx == OneBSDFMaterial_Index)
 					{
 						// Data0 (Header_State|Header_AO|Header_BSDFTypes|BSDF_State)
 						{
