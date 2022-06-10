@@ -103,7 +103,7 @@ public:
 	
 	void SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice, uint32 Level);
 	
-	void SynchronizeResource(mtlpp::Resource const& Resource);
+	void SynchronizeResource(id<MTLResource> Resource);
 	
 	void FillBuffer(FAGXBuffer const& Buffer, ns::Range Range, uint8 Value);
 
@@ -165,7 +165,7 @@ void FAGXContext::TransitionRHIResource(T* InResource)
 	auto Resource = ResourceCast(InResource);
 	if (Resource->GetCurrentBufferOrNil())
 	{
-		RenderPass.TransitionResources(Resource->GetCurrentBuffer());
+		RenderPass.TransitionResources(Resource->GetCurrentBuffer().GetPtr());
 	}
 }
 

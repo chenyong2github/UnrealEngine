@@ -887,10 +887,6 @@ void FAGXCommandEncoder::SetShaderBuffer(MTLFunctionType FunctionType, FAGXBuffe
 	check(index < ML_MaxBuffers);
     if(GetAGXDeviceContext().SupportsFeature(EAGXFeaturesSetBufferOffset) && Buffer && (ShaderBuffers[uint32(FunctionType)].Bound & (1 << index)) && ShaderBuffers[uint32(FunctionType)].Buffers[index] == Buffer)
     {
-		if (FunctionType == MTLFunctionTypeVertex || FunctionType == MTLFunctionTypeKernel)
-		{
-			FenceResource(Buffer);
-		}
 		SetShaderBufferOffset(FunctionType, Offset, Length, index);
 		ShaderBuffers[uint32(FunctionType)].Usage[index] = Usage;
 		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GAGXBufferFormats[Format].DataFormat, ElementRowPitch);
@@ -1032,7 +1028,6 @@ void FAGXCommandEncoder::SetShaderTexture(MTLFunctionType FunctionType, FAGXText
 	{
 		case MTLFunctionTypeVertex:
 			check (RenderCommandEncoder);
-			FenceResource(Texture);
 			[RenderCommandEncoder setVertexTexture:Texture.GetPtr() atIndex:index];
 			break;
 		case MTLFunctionTypeFragment:
@@ -1041,7 +1036,6 @@ void FAGXCommandEncoder::SetShaderTexture(MTLFunctionType FunctionType, FAGXText
 			break;
 		case MTLFunctionTypeKernel:
 			check (ComputeCommandEncoder);
-			FenceResource(Texture);
 			[ComputeCommandEncoder setTexture:Texture.GetPtr() atIndex:index];
 			break;
 		default:
@@ -1097,7 +1091,7 @@ void FAGXCommandEncoder::SetShaderSideTable(MTLFunctionType FunctionType, NSUInt
 	}
 }
 
-void FAGXCommandEncoder::TransitionResources(mtlpp::Resource const& Resource)
+void FAGXCommandEncoder::TransitionResources(id<MTLResource> Resource)
 {
 }
 
@@ -1132,14 +1126,6 @@ bool FAGXCommandEncoder::HasBufferBindingHistory(FAGXBuffer const& Buffer) const
 
 #pragma mark - Private Functions -
 
-void FAGXCommandEncoder::FenceResource(mtlpp::Texture const& Resource)
-{
-}
-
-void FAGXCommandEncoder::FenceResource(mtlpp::Buffer const& Resource)
-{
-}
-
 void FAGXCommandEncoder::SetShaderBufferInternal(MTLFunctionType Function, uint32 Index)
 {
 	FAGXBufferBindings& Binding = ShaderBuffers[uint32(Function)];
@@ -1173,7 +1159,6 @@ void FAGXCommandEncoder::SetShaderBufferInternal(MTLFunctionType Function, uint3
 			case MTLFunctionTypeVertex:
 				Binding.Bound |= (1 << Index);
 				check(RenderCommandEncoder);
-				FenceResource(Buffer);
 				[RenderCommandEncoder setVertexBuffer:Buffer.GetPtr() offset:(Offset + Buffer.GetOffset()) atIndex:Index];
 				break;
 
@@ -1186,7 +1171,6 @@ void FAGXCommandEncoder::SetShaderBufferInternal(MTLFunctionType Function, uint3
 			case MTLFunctionTypeKernel:
 				Binding.Bound |= (1 << Index);
 				check(ComputeCommandEncoder);
-				FenceResource(Buffer);
 				[ComputeCommandEncoder setBuffer:Buffer.GetPtr() offset:(Offset + Buffer.GetOffset()) atIndex:Index];
 				break;
 

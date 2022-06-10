@@ -699,7 +699,7 @@ void FAGXRenderPass::SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice
 #endif
 }
 
-void FAGXRenderPass::SynchronizeResource(mtlpp::Resource const& Resource)
+void FAGXRenderPass::SynchronizeResource(id<MTLResource> Resource)
 {
 	check(Resource);
 #if PLATFORM_MAC
@@ -709,7 +709,7 @@ void FAGXRenderPass::SynchronizeResource(mtlpp::Resource const& Resource)
 	check(Encoder);
 	
 	// METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
-	[Encoder synchronizeResource:Resource.GetPtr()];
+	[Encoder synchronizeResource:Resource];
 
 	ConditionalSubmit();
 #endif
@@ -935,7 +935,7 @@ void FAGXRenderPass::AddAsyncCommandBufferHandlers(mtlpp::CommandBufferHandler S
 	}
 }
 
-void FAGXRenderPass::TransitionResources(mtlpp::Resource const& Resource)
+void FAGXRenderPass::TransitionResources(id<MTLResource> Resource)
 {
 	PrologueEncoder.TransitionResources(Resource);
 	CurrentEncoder.TransitionResources(Resource);

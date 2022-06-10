@@ -336,7 +336,7 @@ public:
 	 * Transition resource so that we can barrier fragment->vertex stages.
 	 * @param Resource The resource we are going to make readable having been written.
 	 */
-	void TransitionResources(mtlpp::Resource const& Resource);
+	void TransitionResources(id<MTLResource> Resource);
 	
 	/*
 	 * Set the compute pipeline state that will be used.
@@ -368,9 +368,6 @@ private:
 	void SetShaderBufferOffset(MTLFunctionType FunctionType, NSUInteger Offset, NSUInteger Length, NSUInteger Index);
 	
 	void SetShaderBufferInternal(MTLFunctionType Function, uint32 Index);
-	
-	void FenceResource(mtlpp::Texture const& Resource);
-	void FenceResource(mtlpp::Buffer const& Resource);
 	
 private:
 	static const uint32 NUM_SHADER_FREQUENCIES = uint32(MTLFunctionTypeKernel) + 1;
@@ -451,7 +448,7 @@ private:
 	TSet<ns::AutoReleased<FAGXBuffer>> BufferBindingHistory;
 	TSet<ns::AutoReleased<FAGXTexture>> TextureBindingHistory;
 	
-	TMap<mtlpp::Resource::Type, MTLResourceUsage> ResourceUsage;
+	TMap<id<MTLResource>, MTLResourceUsage> ResourceUsage;
 	
 	uint32 EncoderNum;
 	uint32 CmdBufIndex;

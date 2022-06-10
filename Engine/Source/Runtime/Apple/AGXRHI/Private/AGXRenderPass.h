@@ -60,7 +60,7 @@ public:
     
     void SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice, uint32 Level);
     
-	void SynchronizeResource(mtlpp::Resource const& Resource);
+	void SynchronizeResource(id<MTLResource> Resource);
     
 	void FillBuffer(FAGXBuffer const& Buffer, ns::Range Range, uint8 Value);
 	
@@ -86,7 +86,7 @@ public:
 	
 	void AddAsyncCommandBufferHandlers(mtlpp::CommandBufferHandler Scheduled, mtlpp::CommandBufferHandler Completion);
 	
-	void TransitionResources(mtlpp::Resource const& Resource);
+	void TransitionResources(id<MTLResource> Resource);
 
 #pragma mark - Public Debug Support -
 	

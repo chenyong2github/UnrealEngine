@@ -1036,17 +1036,17 @@ void FAGXContext::TransitionResource(FRHIUnorderedAccessView* InResource)
 		FAGXSurface* Surface = UAV->GetSourceTexture();
 		if (Surface->Texture)
 		{
-			RenderPass.TransitionResources(Surface->Texture);
+			RenderPass.TransitionResources(Surface->Texture.GetPtr());
 			if (Surface->MSAATexture)
 			{
-				RenderPass.TransitionResources(Surface->MSAATexture);
+				RenderPass.TransitionResources(Surface->MSAATexture.GetPtr());
 			}
 		}
 	}
 	else
 	{
 		FAGXResourceMultiBuffer* Buffer = UAV->GetSourceBuffer();
-		RenderPass.TransitionResources(Buffer->GetCurrentBuffer());
+		RenderPass.TransitionResources(Buffer->GetCurrentBuffer().GetPtr());
 	}
 }
 
@@ -1056,10 +1056,10 @@ void FAGXContext::TransitionResource(FRHITexture* InResource)
 
 	if ((Surface != nullptr) && Surface->Texture)
 	{
-		RenderPass.TransitionResources(Surface->Texture);
+		RenderPass.TransitionResources(Surface->Texture.GetPtr());
 		if (Surface->MSAATexture)
 		{
-			RenderPass.TransitionResources(Surface->MSAATexture);
+			RenderPass.TransitionResources(Surface->MSAATexture.GetPtr());
 		}
 	}
 }
@@ -1471,7 +1471,7 @@ void FAGXContext::SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice, u
 	RenderPass.SynchronizeTexture(Texture, Slice, Level);
 }
 
-void FAGXContext::SynchronizeResource(mtlpp::Resource const& Resource)
+void FAGXContext::SynchronizeResource(id<MTLResource> Resource)
 {
 	RenderPass.SynchronizeResource(Resource);
 }
