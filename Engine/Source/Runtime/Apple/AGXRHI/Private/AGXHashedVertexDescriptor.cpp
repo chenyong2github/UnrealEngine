@@ -14,16 +14,9 @@
 #pragma mark - AGX RHI Hashed Vertex Descriptor
 
 
-FAGXHashedVertexDescriptor::FAGXHashedVertexDescriptor()
-	: VertexDescHash(0)
-	, VertexDesc(nil)
-{
-	// void
-}
-
-FAGXHashedVertexDescriptor::FAGXHashedVertexDescriptor(mtlpp::VertexDescriptor Desc, uint32 Hash)
+FAGXHashedVertexDescriptor::FAGXHashedVertexDescriptor(MTLVertexDescriptor* Desc, uint32 Hash)
 	: VertexDescHash(Hash)
-	, VertexDesc(Desc)
+	, VertexDesc([Desc retain])
 {
 	// void
 }
@@ -37,7 +30,7 @@ FAGXHashedVertexDescriptor::FAGXHashedVertexDescriptor(FAGXHashedVertexDescripto
 
 FAGXHashedVertexDescriptor::~FAGXHashedVertexDescriptor()
 {
-	// void
+	[VertexDesc release];
 }
 
 FAGXHashedVertexDescriptor& FAGXHashedVertexDescriptor::operator=(FAGXHashedVertexDescriptor const& Other)
@@ -45,7 +38,8 @@ FAGXHashedVertexDescriptor& FAGXHashedVertexDescriptor::operator=(FAGXHashedVert
 	if (this != &Other)
 	{
 		VertexDescHash = Other.VertexDescHash;
-		VertexDesc = Other.VertexDesc;
+		[VertexDesc release];
+		VertexDesc = [Other.VertexDesc retain];
 	}
 	return *this;
 }
@@ -59,39 +53,26 @@ bool FAGXHashedVertexDescriptor::operator==(FAGXHashedVertexDescriptor const& Ot
 		if (VertexDescHash == Other.VertexDescHash)
 		{
 			bEqual = true;
-			if (VertexDesc.GetPtr() != Other.VertexDesc.GetPtr())
+			if (VertexDesc != Other.VertexDesc)
 			{
-				ns::Array<mtlpp::VertexBufferLayoutDescriptor> Layouts = VertexDesc.GetLayouts();
-				ns::Array<mtlpp::VertexAttributeDescriptor> Attributes = VertexDesc.GetAttributes();
-
-				ns::Array<mtlpp::VertexBufferLayoutDescriptor> OtherLayouts = Other.VertexDesc.GetLayouts();
-				ns::Array<mtlpp::VertexAttributeDescriptor> OtherAttributes = Other.VertexDesc.GetAttributes();
-				check(Layouts && Attributes && OtherLayouts && OtherAttributes);
-
-				for (uint32 i = 0; bEqual && i < MaxVertexElementCount; i++)
+				for (uint32 Index = 0; bEqual && (Index < MaxVertexElementCount); ++Index)
 				{
-					mtlpp::VertexBufferLayoutDescriptor LayoutDesc = Layouts[(NSUInteger)i];
-					mtlpp::VertexBufferLayoutDescriptor OtherLayoutDesc = OtherLayouts[(NSUInteger)i];
+					bEqual &= ((VertexDesc.layouts[Index] != nil) == (Other.VertexDesc.layouts[Index] != nil));
 
-					bEqual &= ((LayoutDesc != nil) == (OtherLayoutDesc != nil));
-
-					if (LayoutDesc && OtherLayoutDesc)
+					if (bEqual && (VertexDesc.layouts[Index] != nil))
 					{
-						bEqual &= (LayoutDesc.GetStride() == OtherLayoutDesc.GetStride());
-						bEqual &= (LayoutDesc.GetStepFunction() == OtherLayoutDesc.GetStepFunction());
-						bEqual &= (LayoutDesc.GetStepRate() == OtherLayoutDesc.GetStepRate());
+						bEqual &= (VertexDesc.layouts[Index].stride         == Other.VertexDesc.layouts[Index].stride);
+						bEqual &= (VertexDesc.layouts[Index].stepFunction   == Other.VertexDesc.layouts[Index].stepFunction);
+						bEqual &= (VertexDesc.layouts[Index].stepRate       == Other.VertexDesc.layouts[Index].stepRate);
 					}
 
-					mtlpp::VertexAttributeDescriptor AttrDesc = Attributes[(NSUInteger)i];
-					mtlpp::VertexAttributeDescriptor OtherAttrDesc = OtherAttributes[(NSUInteger)i];
+					bEqual &= ((VertexDesc.attributes[Index] != nil) == (Other.VertexDesc.attributes[Index] != nil));
 
-					bEqual &= ((AttrDesc != nil) == (OtherAttrDesc != nil));
-
-					if (AttrDesc && OtherAttrDesc)
+					if (bEqual && (VertexDesc.attributes[Index] != nil))
 					{
-						bEqual &= (AttrDesc.GetFormat() == OtherAttrDesc.GetFormat());
-						bEqual &= (AttrDesc.GetOffset() == OtherAttrDesc.GetOffset());
-						bEqual &= (AttrDesc.GetBufferIndex() == OtherAttrDesc.GetBufferIndex());
+						bEqual &= (VertexDesc.attributes[Index].format      == Other.VertexDesc.attributes[Index].format);
+						bEqual &= (VertexDesc.attributes[Index].offset      == Other.VertexDesc.attributes[Index].offset);
+						bEqual &= (VertexDesc.attributes[Index].bufferIndex == Other.VertexDesc.attributes[Index].bufferIndex);
 					}
 				}
 			}

@@ -19,11 +19,11 @@
  */
 struct FAGXHashedVertexDescriptor
 {
-	NSUInteger VertexDescHash;
-	mtlpp::VertexDescriptor VertexDesc;
+	uint32 VertexDescHash = 0;
+	MTLVertexDescriptor* VertexDesc = nil;
 
-	FAGXHashedVertexDescriptor();
-	FAGXHashedVertexDescriptor(mtlpp::VertexDescriptor Desc, uint32 Hash);
+	FAGXHashedVertexDescriptor() = default;
+	FAGXHashedVertexDescriptor(MTLVertexDescriptor* Desc, uint32 Hash);
 	FAGXHashedVertexDescriptor(FAGXHashedVertexDescriptor const& Other);
 	~FAGXHashedVertexDescriptor();
 

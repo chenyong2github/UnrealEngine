@@ -106,10 +106,7 @@ bool FAGXVertexDeclaration::GetInitializer(FVertexDeclarationElementList& Init)
 
 void FAGXVertexDeclaration::GenerateLayout(const FVertexDeclarationElementList& InElements)
 {
-	mtlpp::VertexDescriptor NewLayout;
-
-	ns::Array<mtlpp::VertexBufferLayoutDescriptor> Layouts = NewLayout.GetLayouts();
-	ns::Array<mtlpp::VertexAttributeDescriptor> Attributes = NewLayout.GetAttributes();
+	MTLVertexDescriptor* NewLayout = [[MTLVertexDescriptor alloc] init];;
 
 	BaseHash = 0;
 	uint32 StrideHash = BaseHash;
@@ -138,8 +135,8 @@ void FAGXVertexDeclaration::GenerateLayout(const FVertexDeclarationElementList& 
 		if (ExistingStride == NULL)
 		{
 			// handle 0 stride buffers
-			mtlpp::VertexStepFunction Function = (Element.Stride == 0 ? mtlpp::VertexStepFunction::Constant : (Element.bUseInstanceIndex ? mtlpp::VertexStepFunction::PerInstance : mtlpp::VertexStepFunction::PerVertex));
-			uint32 StepRate = (Element.Stride == 0 ? 0 : 1);
+			const MTLVertexStepFunction StepFunction = (Element.Stride == 0 ? MTLVertexStepFunctionConstant : (Element.bUseInstanceIndex ? MTLVertexStepFunctionPerInstance : MTLVertexStepFunctionPerVertex));
+			const uint32 StepRate = (Element.Stride == 0 ? 0 : 1);
 
 			// even with MTLVertexStepFunctionConstant, it needs a non-zero stride (not sure why)
 			if (Element.Stride == 0)
@@ -155,10 +152,9 @@ void FAGXVertexDeclaration::GenerateLayout(const FVertexDeclarationElementList& 
 			}
 
 			// set the stride once per buffer
-			mtlpp::VertexBufferLayoutDescriptor VBLayout = Layouts[ShaderBufferIndex];
-			VBLayout.SetStride(Stride);
-			VBLayout.SetStepFunction(Function);
-			VBLayout.SetStepRate(StepRate);
+			NewLayout.layouts[ShaderBufferIndex].stride       = Stride;
+			NewLayout.layouts[ShaderBufferIndex].stepFunction = StepFunction;
+			NewLayout.layouts[ShaderBufferIndex].stepRate     = StepRate;
 
 			// track this buffer and stride
 			BufferStrides.Add(ShaderBufferIndex, Element.Stride);
@@ -170,11 +166,12 @@ void FAGXVertexDeclaration::GenerateLayout(const FVertexDeclarationElementList& 
 		}
 
 		// set the format for each element
-		mtlpp::VertexAttributeDescriptor Attrib = Attributes[Element.AttributeIndex];
-		Attrib.SetFormat(mtlpp::VertexFormat(TranslateElementTypeToMTLType(Element.Type)));
-		Attrib.SetOffset(Element.Offset);
-		Attrib.SetBufferIndex(ShaderBufferIndex);
+		NewLayout.attributes[Element.AttributeIndex].format      = TranslateElementTypeToMTLType(Element.Type);
+		NewLayout.attributes[Element.AttributeIndex].offset      = Element.Offset;
+		NewLayout.attributes[Element.AttributeIndex].bufferIndex = ShaderBufferIndex;
 	}
 
 	Layout = FAGXHashedVertexDescriptor(NewLayout, HashCombine(BaseHash, StrideHash));
+
+	[NewLayout release];
 }

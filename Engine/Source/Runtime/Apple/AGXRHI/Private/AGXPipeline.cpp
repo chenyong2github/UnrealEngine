@@ -495,7 +495,7 @@ static MTLVertexDescriptor* GetMaskedVertexDescriptor(MTLVertexDescriptor* Input
 {
 	for (uint32 Attr = 0; Attr < MaxMetalStreams; Attr++)
 	{
-		if (!InOutMask.IsFieldEnabled((int32)Attr) && [InputDesc.attributes objectAtIndexedSubscript:Attr] != nil)
+		if (!InOutMask.IsFieldEnabled((int32)Attr) && (InputDesc.attributes[Attr] != nil))
 		{
 			MTLVertexDescriptor* Desc = [[InputDesc copy] autorelease];
 			CrossCompiler::FShaderBindingInOutMask BuffersUsed;
@@ -503,18 +503,18 @@ static MTLVertexDescriptor* GetMaskedVertexDescriptor(MTLVertexDescriptor* Input
 			{
 				if (!InOutMask.IsFieldEnabled(MetalStreamIndex))
 				{
-					[Desc.attributes setObject:nil atIndexedSubscript:MetalStreamIndex];
+					Desc.attributes[MetalStreamIndex] = nil;
 				}
 				else
 				{
-					BuffersUsed.EnableField([Desc.attributes objectAtIndexedSubscript : MetalStreamIndex].bufferIndex);
+					BuffersUsed.EnableField(Desc.attributes[MetalStreamIndex].bufferIndex);
 				}
 			}
 			for (int32 BufferIndex = 0; BufferIndex < ML_MaxBuffers; ++BufferIndex)
 			{
 				if (!BuffersUsed.IsFieldEnabled(BufferIndex))
 				{
-					[Desc.layouts setObject:nil atIndexedSubscript:BufferIndex];
+					Desc.layouts[BufferIndex] = nil;
 				}
 			}
 			return Desc;
@@ -570,7 +570,7 @@ static bool ConfigureRenderPipelineDescriptor(MTLRenderPipelineDescriptor* Rende
 			MetalFormat = (MTLPixelFormat)AGXToSRGBFormat((MTLPixelFormat)MetalFormat);
 		}
 		
-		MTLRenderPipelineColorAttachmentDescriptor* Attachment = [ColorAttachments objectAtIndexedSubscript:ActiveTargetIndex];
+		MTLRenderPipelineColorAttachmentDescriptor* Attachment = ColorAttachments[ActiveTargetIndex];
 		[Attachment setPixelFormat:MetalFormat];
 		
 		MTLRenderPipelineColorAttachmentDescriptor* Blend = BlendState->RenderTargetStates[ActiveTargetIndex].BlendState;
@@ -668,12 +668,12 @@ static bool ConfigureRenderPipelineDescriptor(MTLRenderPipelineDescriptor* Rende
 				
 				if (Index < ML_MaxBuffers)
 				{
-					[[VertexPipelineBuffers objectAtIndexedSubscript:Index] setMutability:MTLMutabilityImmutable];
+					VertexPipelineBuffers[Index].mutability = MTLMutabilityImmutable;
 				}
 			}
 			if (VertexSideTable > 0)
 			{
-				[[VertexPipelineBuffers objectAtIndexedSubscript:VertexSideTable] setMutability:MTLMutabilityImmutable];
+				VertexPipelineBuffers[VertexSideTable].mutability = MTLMutabilityImmutable;
 			}
 		}
 		
@@ -688,12 +688,12 @@ static bool ConfigureRenderPipelineDescriptor(MTLRenderPipelineDescriptor* Rende
 				
 				if (Index < ML_MaxBuffers)
 				{
-					[[FragmentPipelineBuffers objectAtIndexedSubscript:Index] setMutability:MTLMutabilityImmutable];
+					FragmentPipelineBuffers[Index].mutability = MTLMutabilityImmutable;
 				}
 			}
 			if (PixelShader->SideTableBinding > 0)
 			{
-				[[FragmentPipelineBuffers objectAtIndexedSubscript:PixelShader->SideTableBinding] setMutability:MTLMutabilityImmutable];
+				FragmentPipelineBuffers[PixelShader->SideTableBinding].mutability = MTLMutabilityImmutable;
 			}
 		}
 	}
