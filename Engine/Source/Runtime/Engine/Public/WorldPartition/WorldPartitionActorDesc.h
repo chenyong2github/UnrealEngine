@@ -147,12 +147,6 @@ protected:
 		return --HardRefCount;
 	}
 
-	virtual void SetContainer(UActorDescContainer* InContainer)
-	{
-		check(!Container || !InContainer);
-		Container = InContainer;
-	}
-
 public:
 	inline uint32 GetSoftRefCount() const
 	{
@@ -172,6 +166,12 @@ public:
 	UActorDescContainer* GetContainer() const
 	{
 		return Container;
+	}
+
+	virtual void SetContainer(UActorDescContainer* InContainer)
+	{
+		check(!Container || !InContainer);
+		Container = InContainer;
 	}
 
 	FString ToString() const;

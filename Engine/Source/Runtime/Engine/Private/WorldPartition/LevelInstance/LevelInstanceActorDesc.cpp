@@ -158,12 +158,6 @@ bool FLevelInstanceActorDesc::IsContainerInstance() const
 
 bool FLevelInstanceActorDesc::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
-	if (!LevelInstanceContainer.IsValid() && IsLoaded())
-	{
-		// Lazy initialization of LevelInstanceContainer (used by ModifiedActorsDescList)
-		const_cast<FLevelInstanceActorDesc*>(this)->RegisterContainerInstance(GetActor()->GetWorld());
-	}
-
 	if (LevelInstanceContainer.IsValid())
 	{
 		OutLevelContainer = LevelInstanceContainer.Get();
