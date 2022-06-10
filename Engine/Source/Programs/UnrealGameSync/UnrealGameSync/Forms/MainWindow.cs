@@ -1650,13 +1650,16 @@ namespace UnrealGameSync
 
 		private void SetAlertWindowPositions()
 		{
-			Rectangle NewPrimaryWorkArea = Screen.PrimaryScreen.WorkingArea;
-			if(NewPrimaryWorkArea != PrimaryWorkArea)
+			if (Screen.PrimaryScreen != null)
 			{
-				PrimaryWorkArea = NewPrimaryWorkArea;
-				for(int Idx = 0; Idx < AlertWindows.Count; Idx++)
+				Rectangle NewPrimaryWorkArea = Screen.PrimaryScreen.WorkingArea;
+				if (NewPrimaryWorkArea != PrimaryWorkArea)
 				{
-					SetAlertWindowPosition(Idx);
+					PrimaryWorkArea = NewPrimaryWorkArea;
+					for (int Idx = 0; Idx < AlertWindows.Count; Idx++)
+					{
+						SetAlertWindowPosition(Idx);
+					}
 				}
 			}
 		}
