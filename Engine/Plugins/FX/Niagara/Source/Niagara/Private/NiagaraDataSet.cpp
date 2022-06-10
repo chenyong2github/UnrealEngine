@@ -1187,11 +1187,10 @@ void FNiagaraDataBuffer::SetInputShaderParams(FRHICommandList& RHICmdList, class
 {
 	check(IsInRenderingThread());
 
+	FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
 	if (Buffer != nullptr)
 	{
 		const uint32 SafeBufferSize = Buffer->GetFloatStride() / sizeof(float);
-		FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
-
 		const bool InstancesAllocated = Buffer->GetNumInstancesAllocated() > 0;
 
 		SetSRVParameter(RHICmdList, ComputeShader, Shader->FloatInputBufferParam, InstancesAllocated ? Buffer->GetGPUBufferFloat().SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer());
@@ -1201,10 +1200,16 @@ void FNiagaraDataBuffer::SetInputShaderParams(FRHICommandList& RHICmdList, class
 	}
 	else
 	{
-		check(!Shader->FloatInputBufferParam.IsBound());
-		check(!Shader->IntInputBufferParam.IsBound());
-		check(!Shader->HalfInputBufferParam.IsBound());
-		check(Shader->ComponentBufferSizeReadParam.GetNumBytes() == 0);
+		ensureMsgf(
+			!Shader->FloatInputBufferParam.IsBound() && !Shader->IntInputBufferParam.IsBound() && !Shader->HalfInputBufferParam.IsBound() && (Shader->ComponentBufferSizeReadParam.GetNumBytes() == 0),
+			TEXT("InputBuffer(%d,%d,%d,%d) is bound but we have no input data, dummy data will be set"),
+			Shader->FloatInputBufferParam.IsBound(), Shader->IntInputBufferParam.IsBound(), Shader->HalfInputBufferParam.IsBound(), Shader->ComponentBufferSizeReadParam.GetNumBytes()
+		);
+
+		SetSRVParameter(RHICmdList, ComputeShader, Shader->FloatInputBufferParam, FNiagaraRenderer::GetDummyFloatBuffer());
+		SetSRVParameter(RHICmdList, ComputeShader, Shader->IntInputBufferParam, FNiagaraRenderer::GetDummyIntBuffer());
+		SetSRVParameter(RHICmdList, ComputeShader, Shader->HalfInputBufferParam, FNiagaraRenderer::GetDummyHalfBuffer());
+		SetShaderValue(RHICmdList, ComputeShader, Shader->ComponentBufferSizeReadParam, 0);
 	}
 }
 
