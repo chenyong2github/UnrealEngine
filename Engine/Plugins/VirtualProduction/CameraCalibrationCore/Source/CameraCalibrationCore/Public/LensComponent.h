@@ -76,6 +76,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Lens Component")
 	void SetApplyNodalOffsetOnTick(bool bApplyNodalOffset);
 
+	/** Returns true if nodal offset was applied during the current tick, false otherwise */
+	UFUNCTION(BlueprintPure, Category = "Lens Component")
+	bool WasNodalOffsetAppliedThisTick() const;
+
 	/** 
 	 * Manually apply nodal offset to the specified component. 
 	 * If bUseManualInputs is true, the input Focus and Zoom values will be used to evaluate the LensFile .
@@ -206,4 +210,7 @@ private:
 
 	/** Latest LiveLink FIZ data, used to evaluate the LensFile */
 	FLensFileEvalData LiveLinkFIZ;
+
+	/** Whether or not nodal offset was applied to a tracked component this tick */
+	bool bWasNodalOffsetAppliedThisTick = false;
 };

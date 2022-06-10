@@ -16,6 +16,7 @@
 #include "Input/Events.h"
 #include "Internationalization/Text.h"
 #include "Layout/Geometry.h"
+#include "LensComponent.h"
 #include "LensDistortionModelHandlerBase.h"
 #include "LensFile.h"
 #include "Math/Vector.h"
@@ -347,7 +348,7 @@ double UCameraNodalOffsetAlgoPoints::MinimizeReprojectionError(FTransform& InOut
 
 	FTransform ExistingOffset = FTransform::Identity;
 
-	if (FirstRow->CameraData.LensFileEvalData.NodalOffset.bWasApplied)
+	if (FirstRow->CameraData.bWasNodalOffsetApplied)
 	{
 		FNodalPointOffset NodalPointOffset;
 		const float Focus = FirstRow->CameraData.LensFileEvalData.Input.Focus;
@@ -483,7 +484,7 @@ double UCameraNodalOffsetAlgoPoints::ComputeReprojectionError(const FTransform& 
 
 	FTransform ExistingOffset = FTransform::Identity;
 
-	if (FirstRow->CameraData.LensFileEvalData.NodalOffset.bWasApplied)
+	if (FirstRow->CameraData.bWasNodalOffsetApplied)
 	{
 		FNodalPointOffset NodalPointOffset;
 		const float Focus = FirstRow->CameraData.LensFileEvalData.Input.Focus;
@@ -607,6 +608,7 @@ void UCameraNodalOffsetAlgoPoints::Tick(float DeltaTime)
 			}
 
 			LastCameraData.Pose = CameraComponent->GetComponentToWorld();
+			LastCameraData.bWasNodalOffsetApplied = DoesCameraPoseIncludeNodalOffset(Camera);
 			LastCameraData.UniqueId = Camera->GetUniqueID();
 			LastCameraData.LensFileEvalData = *LensFileEvalData;
 
@@ -913,7 +915,7 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData
 	//
 	// It can't change because we need to know if the camera pose is being affected or not by the current nodal offset evaluation.
 	// And we need to know that because the offset we calculate will need to either subtract or not the current evaluation when adding it to the LUT.
-	if (FirstRow->CameraData.LensFileEvalData.NodalOffset.bWasApplied != Row->CameraData.LensFileEvalData.NodalOffset.bWasApplied)
+	if (FirstRow->CameraData.bWasNodalOffsetApplied != Row->CameraData.bWasNodalOffsetApplied)
 	{
 		OutErrorMessage = LOCTEXT("ApplyNodalOffsetChanged", "Apply nodal offset changed");
 		return false;
@@ -1255,7 +1257,7 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffsetSinglePose(
 
 	FTransform ExistingOffset = FTransform::Identity;
 
-	if (FirstRow->CameraData.LensFileEvalData.NodalOffset.bWasApplied)
+	if (FirstRow->CameraData.bWasNodalOffsetApplied)
 	{
 		FNodalPointOffset NodalPointOffset;
 
@@ -1611,6 +1613,38 @@ void UCameraNodalOffsetAlgoPoints::OnCalibrationComponentSelected(const UCalibra
 bool UCameraNodalOffsetAlgoPoints::IsCalibrationComponentSelected(const UCalibrationPointComponent* const SelectedComponent) const
 {
 	return ActiveCalibratorComponents.Contains(SelectedComponent);
+}
+
+bool UCameraNodalOffsetAlgoPoints::DoesCameraPoseIncludeNodalOffset(const ACameraActor* Camera) const
+{
+	bool bResult = false;
+
+	if (const FCameraCalibrationStepsController* StepsController = NodalOffsetTool->GetCameraCalibrationStepsController())
+	{
+		const ULensFile* LensFile = StepsController->GetLensFile();
+
+		if (LensFile)
+		{
+			TInlineComponentArray<ULensComponent*> LensComponents;
+			Camera->GetComponents(LensComponents);
+
+			for (const ULensComponent* LensComponent : LensComponents)
+			{
+				if (LensComponent->GetLensFile() == LensFile)
+				{
+					bResult = LensComponent->WasNodalOffsetAppliedThisTick();
+				}
+				else if (LensComponent->WasNodalOffsetAppliedThisTick())
+				{
+					UE_LOG(LogCameraCalibrationEditor, VeryVerbose,
+						TEXT("The camera pose includes a nodal offset from a different lens file than the one currently being calibrated." \
+							"If you see this warning, you should disable the application of nodal offset from other lens components before continuing calibration."))
+				}
+			}
+		}
+	}
+
+	return bResult;
 }
 
 bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibrator()

@@ -255,7 +255,7 @@ bool UCameraNodalOffsetAlgoOpticalAxis::GetNodalOffset(FNodalPointOffset& OutNod
 	// Cache the existing nodal offset, if one exists
 	CachedNodalOffset = FTransform::Identity;
 
-	if (FirstRow->CameraData.LensFileEvalData.NodalOffset.bWasApplied)
+	if (FirstRow->CameraData.bWasNodalOffsetApplied)
 	{
 		FNodalPointOffset NodalPointOffset;
 

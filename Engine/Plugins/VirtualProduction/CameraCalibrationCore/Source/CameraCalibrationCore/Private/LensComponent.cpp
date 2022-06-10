@@ -368,6 +368,8 @@ void ULensComponent::ApplyNodalOffset()
 	TrackedComponent.Get()->AddLocalOffset(Offset.LocationOffset);
 	TrackedComponent.Get()->AddLocalRotation(Offset.RotationOffset);
 
+	bWasNodalOffsetAppliedThisTick = true;
+
 	// Reset so that nodal offset will only be applied again next tick if new tracking data was applied between now and then
 	TrackedComponent.Reset();
 }
@@ -431,6 +433,11 @@ bool ULensComponent::ShouldApplyNodalOffsetOnTick() const
 void ULensComponent::SetApplyNodalOffsetOnTick(bool bApplyNodalOffset)
 {
 	bApplyNodalOffsetOnTick = bApplyNodalOffset;
+}
+
+bool ULensComponent::WasNodalOffsetAppliedThisTick() const 
+{
+	return bWasNodalOffsetAppliedThisTick;
 }
 
 void ULensComponent::InitDefaultCamera()
@@ -550,6 +557,9 @@ void ULensComponent::UpdateTrackedComponent(const ULiveLinkComponentController* 
 			if (bIsLocationRotationSupported)
 			{
 				TrackedComponent = Cast<USceneComponent>(TransformController->GetAttachedComponent());
+
+				// At this point, we know that the tracked component's transform was just set by LiveLink, and therefore has no nodal offset applied
+				bWasNodalOffsetAppliedThisTick = false;
 			}
 		}
 	}
