@@ -18,7 +18,9 @@
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
+	#include "pxr/base/tf/token.h"
 	#include "pxr/usd/usdShade/material.h"
+	#include "pxr/usd/usdShade/tokens.h"
 #include "USDIncludesEnd.h"
 
 
@@ -33,7 +35,11 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdShadeMaterialTranslator::CreateAssets );
 
-	FString MaterialHashString = UsdUtils::HashShadeMaterial( ShadeMaterial ).ToString();
+	const pxr::TfToken RenderContextToken =
+		Context->RenderContext.IsNone() ?
+			pxr::UsdShadeTokens->universalRenderContext :
+			UnrealToUsd::ConvertToken( *Context->RenderContext.ToString() ).Get();
+	FString MaterialHashString = UsdUtils::HashShadeMaterial( ShadeMaterial, RenderContextToken ).ToString();
 
 	UMaterialInterface* ConvertedMaterial = nullptr;
 

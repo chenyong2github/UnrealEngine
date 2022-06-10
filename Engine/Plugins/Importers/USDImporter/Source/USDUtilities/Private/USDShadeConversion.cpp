@@ -44,6 +44,7 @@
 #endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
+	#include "pxr/base/tf/token.h"
 	#include "pxr/usd/ar/ar.h"
 	#include "pxr/usd/ar/asset.h"
 	#include "pxr/usd/ar/resolvedPath.h"
@@ -2528,11 +2529,11 @@ bool UsdUtils::IsMaterialUsingUDIMs( const pxr::UsdShadeMaterial& UsdShadeMateri
 	return false;
 }
 
-FSHAHash UsdUtils::HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial )
+FSHAHash UsdUtils::HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, const pxr::TfToken& RenderContext )
 {
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
+	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource( { RenderContext } );
 	if ( !SurfaceShader )
 	{
 		return {};
