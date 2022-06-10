@@ -43,7 +43,7 @@ URenderPagesMoviePipelineRenderJob* URenderPagesMoviePipelineRenderJob::Create(c
 	{
 		if (UMoviePipelinePIEExecutor* ActiveExecutorPIE = Cast<UMoviePipelinePIEExecutor>(RenderJob->ActiveExecutor))
 		{
-			//TODO: when it becomes available on ue5-main, uncomment:  ActiveExecutorPIE->SetIsRenderingOffscreen(true);
+			ActiveExecutorPIE->SetIsRenderingOffscreen(true);
 		}
 	}
 
@@ -114,7 +114,10 @@ URenderPagesMoviePipelineRenderJob* URenderPagesMoviePipelineRenderJob::Create(c
 			}
 			if (Args.bForceOutputImage && !bFound)
 			{
-				NewJob->GetConfiguration()->FindOrAddSettingByClass(UMoviePipelineImageSequenceOutput_PNG::StaticClass());
+				if(UMoviePipelineImageSequenceOutput_PNG* NewSetting = Cast<UMoviePipelineImageSequenceOutput_PNG>(NewJob->GetConfiguration()->FindOrAddSettingByClass(UMoviePipelineImageSequenceOutput_PNG::StaticClass())))
+				{
+					NewSetting->bWriteAlpha = false;
+				}
 			}
 		}
 

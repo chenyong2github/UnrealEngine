@@ -86,7 +86,7 @@ bool URenderPage::SetSequenceStartFrame(const int32 NewCustomStartFrame)
 	while (SequenceStartFrame.IsSet() && (SequenceStartFrame.Get(0) > NewCustomStartFrame))
 	{
 		StartFrame--;
-		if (StartFrame <= -2147483648)
+		if (StartFrame <= INT32_MIN)
 		{
 			return false;
 		}
@@ -96,7 +96,7 @@ bool URenderPage::SetSequenceStartFrame(const int32 NewCustomStartFrame)
 	while (SequenceStartFrame.IsSet() && (SequenceStartFrame.Get(0) < NewCustomStartFrame))
 	{
 		StartFrame++;
-		if (StartFrame >= 2147483647)
+		if (StartFrame >= INT32_MAX)
 		{
 			return false;
 		}
@@ -116,7 +116,7 @@ bool URenderPage::SetSequenceEndFrame(const int32 NewCustomStartFrame)
 	while (SequenceEndFrame.IsSet() && (SequenceEndFrame.Get(0) > NewCustomStartFrame))
 	{
 		EndFrame--;
-		if (EndFrame <= -2147483648)
+		if (EndFrame <= INT32_MIN)
 		{
 			return false;
 		}
@@ -126,7 +126,7 @@ bool URenderPage::SetSequenceEndFrame(const int32 NewCustomStartFrame)
 	while (SequenceEndFrame.IsSet() && (SequenceEndFrame.Get(0) < NewCustomStartFrame))
 	{
 		EndFrame++;
-		if (EndFrame >= 2147483647)
+		if (EndFrame >= INT32_MAX)
 		{
 			return false;
 		}

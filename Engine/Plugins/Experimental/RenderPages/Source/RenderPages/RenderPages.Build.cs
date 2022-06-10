@@ -27,6 +27,7 @@ public class RenderPages : ModuleRules
 				"MovieRenderPipelineCore",
 				"MovieRenderPipelineEditor",
 				"MovieRenderPipelineRenderPasses",
+				"MovieScene",
 				"Serialization",
 			}
 		);
