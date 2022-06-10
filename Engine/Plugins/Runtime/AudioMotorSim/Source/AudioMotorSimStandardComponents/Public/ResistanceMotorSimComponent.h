@@ -3,6 +3,7 @@
 
 #include "AudioMotorSimTypes.h"
 #include "IAudioMotorSim.h"
+#include "Curves/CurveFloat.h"
 #include "ResistanceMotorSimComponent.generated.h"
 
 // Applys additional surface friction based on the angle of the vehicle's velocity

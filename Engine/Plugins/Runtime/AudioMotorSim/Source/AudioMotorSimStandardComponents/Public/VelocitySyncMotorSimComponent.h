@@ -3,6 +3,7 @@
 
 #include "AudioMotorSimTypes.h"
 #include "IAudioMotorSim.h"
+#include "Curves/CurveFloat.h"
 #include "VelocitySyncMotorSimComponent.generated.h"
 
 // Sets Rpm directly from speed using a curve, if under a speed threshold or if the throttle is released for a period of time

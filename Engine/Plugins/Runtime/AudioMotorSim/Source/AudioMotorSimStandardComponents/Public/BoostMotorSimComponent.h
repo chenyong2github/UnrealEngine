@@ -3,6 +3,7 @@
 
 #include "AudioMotorSimTypes.h"
 #include "IAudioMotorSim.h"
+#include "Curves/CurveFloat.h"
 #include "BoostMotorSimComponent.generated.h"
 
 // Uses Boost input to momentarily scale throttle input and pitch output

@@ -3,6 +3,7 @@
 
 #include "AudioMotorSimTypes.h"
 #include "IAudioMotorSim.h"
+#include "Curves/CurveFloat.h"
 #include "RpmCurveMotorSimComponent.generated.h"
 
 USTRUCT(BlueprintType)
