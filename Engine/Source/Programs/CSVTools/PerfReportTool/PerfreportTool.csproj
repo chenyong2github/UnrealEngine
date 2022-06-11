@@ -35,6 +35,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -69,6 +70,10 @@
     <ProjectReference Include="..\CsvStats\CSVStats.csproj">
       <Project>{75c595cc-83ba-4ffd-a772-17b2343d1061}</Project>
       <Name>CSVStats</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\CsvToSvgLib\CsvToSvgLib.csproj">
+      <Project>{75c595cc-83ba-4ffd-abcd-17b2343d1061}</Project>
+      <Name>CsvToSvgLib</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
