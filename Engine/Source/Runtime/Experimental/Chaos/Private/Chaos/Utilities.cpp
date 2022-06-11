@@ -2,6 +2,7 @@
 #include "Chaos/Utilities.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/Rotation.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 
 namespace Chaos
 {
@@ -145,4 +146,12 @@ namespace Chaos
 		TRotation<FReal, 3> R1 = InR0 + (TRotation<FReal, 3>::FromElements(InW.X, InW.Y, InW.Z, 0.f) * InR0) * decltype(InR0.X)(InDt * 0.5f);
 		return R1.GetNormalized();
 	}
+
+namespace Utilities
+{
+	FReal GetSolverPhysicsResultsTime(FPhysicsSolverBase* Solver)
+	{
+		return Solver->GetPhysicsResultsTime_External();
+	}
+}
 }

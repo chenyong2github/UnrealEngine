@@ -11,6 +11,11 @@ namespace Chaos
 class FPhysicsSolverBase;
 class FCollisionContactModifier;
 
+namespace Utilities
+{
+	CHAOS_API FReal GetSolverPhysicsResultsTime(FPhysicsSolverBase*);
+}
+
 /**
  * Callback API used for executing code at different points in the simulation.
  * The external thread pushes input data at its own rate (typically once per game thread tick)
@@ -256,7 +261,7 @@ public:
 	*/
 	TSimCallbackOutputHandle<TOutputType> PopOutputData_External()
 	{
-		const FReal ResultsTime = GetSolver()->GetPhysicsResultsTime_External();
+		const FReal ResultsTime = Utilities::GetSolverPhysicsResultsTime(GetSolver());
 		if(!CurrentOutput_External)
 		{
 			OutputQueue.Dequeue(CurrentOutput_External);
