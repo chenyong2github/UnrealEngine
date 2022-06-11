@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "GenericPlatform/GenericPlatformAffinity.h"
+#include "Templates/Function.h"
 
 class IQueuedWork;
 

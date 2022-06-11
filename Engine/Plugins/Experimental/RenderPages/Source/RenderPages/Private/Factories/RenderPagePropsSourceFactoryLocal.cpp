@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "Factories/RenderPagePropsSourceFactoryLocal.h"
 #include "RenderPage/RenderPagePropsSource.h"
 
