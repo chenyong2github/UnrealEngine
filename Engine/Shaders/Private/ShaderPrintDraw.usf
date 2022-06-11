@@ -28,7 +28,7 @@ RWBuffer<uint> RWIndirectDrawArgsBuffer;
 // Other shaders should only print debug values after this pass
 
 [numthreads(1, 1, 1)]
-void InitValueBufferCS()
+void ClearCounterCS()
 {
 	// Symbol/print Counter
 	ClearCounters(RWValuesBuffer);

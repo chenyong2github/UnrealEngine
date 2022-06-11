@@ -107,17 +107,6 @@ void ShaderDrawDebugPS(
 }
 #endif
 
-#if GPU_DEBUG_RENDERING_CLEAR_CS
-
-RWStructuredBuffer<uint> RWElementBuffer;
-
-[numthreads(1, 1, 1)]
-void ShaderDrawDebugClearCS(uint3 DispatchThreadId : SV_DispatchThreadID)
-{
-	ClearCounters(RWElementBuffer);
-}
-#endif
-
 #if GPU_DEBUG_RENDERING_COPY_CS
 
 StructuredBuffer<uint> ElementBuffer;

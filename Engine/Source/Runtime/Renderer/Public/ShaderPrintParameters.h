@@ -40,8 +40,7 @@ namespace ShaderPrint
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, ShaderPrint_StateBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, ShaderPrint_RWValuesBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, ShaderPrint_RWPrimitivesBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, ShaderPrint_RWEntryBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	// Does the platform support the ShaderPrint system?
@@ -150,9 +149,8 @@ struct RENDERER_API FShaderPrintData
 	ShaderPrint::FShaderPrintSetup Setup;
 	TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> UniformBuffer;
 
-	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
+	FRDGBufferRef ShaderPrintEntryBuffer = nullptr;
 	FRDGBufferRef ShaderPrintStateBuffer = nullptr;
-	FRDGBufferRef ShaderPrintPrimitiveBuffer = nullptr;
 };
 
 /**
@@ -165,7 +163,6 @@ struct RENDERER_API FFrozenShaderPrintData
 {
 	ShaderPrint::FShaderPrintSetup Setup;
 
-	TRefCountPtr<FRDGPooledBuffer> ShaderPrintValueBuffer;
+	TRefCountPtr<FRDGPooledBuffer> ShaderPrintEntryBuffer;
 	TRefCountPtr<FRDGPooledBuffer> ShaderPrintStateBuffer;
-	TRefCountPtr<FRDGPooledBuffer> ShaderPrintPrimitiveBuffer;
 };

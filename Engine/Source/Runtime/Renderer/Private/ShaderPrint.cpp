@@ -178,8 +178,7 @@ namespace ShaderPrint
 	{
 		OutParameters.Common = InData.UniformBuffer;
 		OutParameters.ShaderPrint_StateBuffer = GraphBuilder.CreateSRV(InData.ShaderPrintStateBuffer);
-		OutParameters.ShaderPrint_RWValuesBuffer = GraphBuilder.CreateUAV(InData.ShaderPrintValueBuffer);
-		OutParameters.ShaderPrint_RWPrimitivesBuffer = GraphBuilder.CreateUAV(InData.ShaderPrintPrimitiveBuffer);
+		OutParameters.ShaderPrint_RWEntryBuffer = GraphBuilder.CreateUAV(InData.ShaderPrintEntryBuffer);
 	}
 
 	void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters)
@@ -255,11 +254,11 @@ namespace ShaderPrint
 	// Widget/Characters Shaders
 	 
 	// Shader to initialize the output value buffer
-	class FShaderInitValueBufferCS : public FGlobalShader
+	class FShaderPrintClearCounterCS : public FGlobalShader
 	{
 	public:
-		DECLARE_GLOBAL_SHADER(FShaderInitValueBufferCS);
-		SHADER_USE_PARAMETER_STRUCT(FShaderInitValueBufferCS, FGlobalShader);
+		DECLARE_GLOBAL_SHADER(FShaderPrintClearCounterCS);
+		SHADER_USE_PARAMETER_STRUCT(FShaderPrintClearCounterCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWValuesBuffer)
@@ -271,7 +270,7 @@ namespace ShaderPrint
 		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FShaderInitValueBufferCS, "/Engine/Private/ShaderPrintDraw.usf", "InitValueBufferCS", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(FShaderPrintClearCounterCS, "/Engine/Private/ShaderPrintDraw.usf", "ClearCounterCS", SF_Compute);
 
 	// Shader to fill the indirect parameter arguments ready for the value->symbol compute pass
 	class FShaderBuildIndirectDispatchArgsCS : public FGlobalShader
@@ -406,30 +405,6 @@ namespace ShaderPrint
 	//////////////////////////////////////////////////////////////////////////
 	// Line Shaders
 
-	class FShaderDrawDebugClearCS : public FGlobalShader
-	{
-		DECLARE_GLOBAL_SHADER(FShaderDrawDebugClearCS);
-		SHADER_USE_PARAMETER_STRUCT(FShaderDrawDebugClearCS, FGlobalShader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, RWElementBuffer)
-		END_SHADER_PARAMETER_STRUCT()
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return IsSupported(Parameters.Platform);
-		}
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING"), 1);
-			OutEnvironment.SetDefine(TEXT("GPU_DEBUG_RENDERING_CLEAR_CS"), 1);
-		}
-	};
-
-	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugClearCS, "/Engine/Private/ShaderPrintDrawPrimitive.usf", "ShaderDrawDebugClearCS", SF_Compute);
-	
 	class FShaderDrawDebugCopyCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(FShaderDrawDebugCopyCS);
@@ -582,19 +557,23 @@ namespace ShaderPrint
 		// This is in case some debug shader code is still active and accessing the buffer.
 		if (!InSetup.bEnabled)
 		{
-			ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
+			ShaderPrintData.ShaderPrintEntryBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
-			ShaderPrintData.ShaderPrintPrimitiveBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			return ShaderPrintData;
 		}
 
-		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
-		// Characters/Widgets
+		// Characters/Widgets/Primitives/Lines
 		{
-			// Initialize output buffer and store in the view info
-			const uint32 UintElementCount = GetCountersUintSize() + GetPackedSymbolUintSize() * InSetup.MaxValueCount;
-			ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, UintElementCount), TEXT("ShaderPrint.ValueBuffer"));
+			const bool bLockBufferThisFrame = IsDrawLocked() && InViewState != nullptr && !InViewState->ShaderPrintStateData.bIsLocked;
+			ERDGBufferFlags Flags = bLockBufferThisFrame ? ERDGBufferFlags::MultiFrame : ERDGBufferFlags::None;
+
+			const uint32 UintElementCount = 
+				GetCountersUintSize() + 
+				GetPackedSymbolUintSize() * InSetup.MaxValueCount +
+				GetPackedLineUintSize() * InSetup.MaxLineCount + 
+				GetPackedTriangleUintSize() * InSetup.MaxTriangleCount;
+			ShaderPrintData.ShaderPrintEntryBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, UintElementCount), TEXT("ShaderPrint.EntryBuffer"), Flags);
 
 			// State buffer is retrieved from the view state, or created if it does not exist
 			if (InViewState != nullptr)
@@ -615,38 +594,17 @@ namespace ShaderPrint
 				ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			}
 
-			// Clear the output buffer internal counter ready for use
-			TShaderMapRef< FShaderInitValueBufferCS > ComputeShader(GlobalShaderMap);
-
-			auto* PassParameters = GraphBuilder.AllocParameters<FShaderInitValueBufferCS::FParameters>();
-			PassParameters->RWValuesBuffer = GraphBuilder.CreateUAV(ShaderPrintData.ShaderPrintValueBuffer);
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("ShaderPrint::CreateShaderPrintData (Clear characters)"),
-				ComputeShader,
-				PassParameters,
-				FIntVector(1, 1, 1));
-		}
-
-		// Primitives/Lines
-		{
-			const bool bLockBufferThisFrame = IsDrawLocked() && InViewState != nullptr && !InViewState->ShaderPrintStateData.bIsLocked;
-			ERDGBufferFlags Flags = bLockBufferThisFrame ? ERDGBufferFlags::MultiFrame : ERDGBufferFlags::None;
-
-			const uint32 UintElementCount = GetCountersUintSize() + GetPackedLineUintSize() * InSetup.MaxLineCount + GetPackedTriangleUintSize() * InSetup.MaxTriangleCount;
-			ShaderPrintData.ShaderPrintPrimitiveBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, UintElementCount), TEXT("ShaderPrint.PrimitiveBuffer"), Flags);
-
-			// Clear buffer counter
+			// Clear counters
 			{
-				TShaderMapRef<FShaderDrawDebugClearCS> ComputeShader(GlobalShaderMap);
+				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+				TShaderMapRef<FShaderPrintClearCounterCS> ComputeShader(GlobalShaderMap);
 
-				FShaderDrawDebugClearCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FShaderDrawDebugClearCS::FParameters>();
-				PassParameters->RWElementBuffer = GraphBuilder.CreateUAV(ShaderPrintData.ShaderPrintPrimitiveBuffer);
+				FShaderPrintClearCounterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FShaderPrintClearCounterCS::FParameters>();
+				PassParameters->RWValuesBuffer = GraphBuilder.CreateUAV(ShaderPrintData.ShaderPrintEntryBuffer);
 				ClearUnusedGraphResources(ComputeShader, PassParameters);
 
 				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("ShaderPrint::CreateShaderPrintData (Clear primitives)"),
+					RDG_EVENT_NAME("ShaderPrint::ClearCounters"),
 					PassParameters,
 					ERDGPassFlags::Compute,
 					[PassParameters, ComputeShader](FRHICommandList& RHICmdList)
@@ -659,14 +617,14 @@ namespace ShaderPrint
 			{
 				if (IsDrawLocked() && !InViewState->ShaderPrintStateData.bIsLocked)
 				{
-					InViewState->ShaderPrintStateData.PrimitiveBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintPrimitiveBuffer);
+					InViewState->ShaderPrintStateData.EntryBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintEntryBuffer);
 					InViewState->ShaderPrintStateData.PreViewTranslation = InSetup.PreViewTranslation;
 					InViewState->ShaderPrintStateData.bIsLocked = true;
 				}
 
 				if (!IsDrawLocked() && InViewState->ShaderPrintStateData.bIsLocked)
 				{
-					InViewState->ShaderPrintStateData.PrimitiveBuffer = nullptr;
+					InViewState->ShaderPrintStateData.EntryBuffer = nullptr;
 					InViewState->ShaderPrintStateData.PreViewTranslation = FVector::ZeroVector;
 					InViewState->ShaderPrintStateData.bIsLocked = false;
 				}
@@ -687,9 +645,8 @@ namespace ShaderPrint
 
 		Out.Setup = ShaderPrintData.Setup;
 
-		Out.ShaderPrintValueBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintValueBuffer);
+		Out.ShaderPrintEntryBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintEntryBuffer);
 		Out.ShaderPrintStateBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintStateBuffer);
-		Out.ShaderPrintPrimitiveBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintPrimitiveBuffer);
 
 		return Out;
 	}
@@ -701,9 +658,8 @@ namespace ShaderPrint
 		Out.Setup = FrozenShaderPrintData.Setup;
 		Out.UniformBuffer = CreateUniformBuffer(Out.Setup);
 
-		Out.ShaderPrintValueBuffer = GraphBuilder.RegisterExternalBuffer(FrozenShaderPrintData.ShaderPrintValueBuffer);
+		Out.ShaderPrintEntryBuffer = GraphBuilder.RegisterExternalBuffer(FrozenShaderPrintData.ShaderPrintEntryBuffer);
 		Out.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(FrozenShaderPrintData.ShaderPrintStateBuffer);
-		Out.ShaderPrintPrimitiveBuffer = GraphBuilder.RegisterExternalBuffer(FrozenShaderPrintData.ShaderPrintPrimitiveBuffer);
 
 		return Out;
 	}
@@ -753,7 +709,7 @@ namespace ShaderPrint
 		FRDGBufferRef IndirectDrawArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("ShaderPrint.IndirectDrawArgs"));
 
 		// Non graph managed resources
-		FRDGBufferSRVRef ValueBuffer = GraphBuilder.CreateSRV(ShaderPrintData.ShaderPrintValueBuffer);
+		FRDGBufferSRVRef ValueBuffer = GraphBuilder.CreateSRV(ShaderPrintData.ShaderPrintEntryBuffer);
 		FRDGBufferSRVRef StateBuffer = GraphBuilder.CreateSRV(ShaderPrintData.ShaderPrintStateBuffer);
 		FTextureRHIRef FontTexture = GSystemTextures.AsciiTexture->GetRHI();
 
@@ -979,13 +935,13 @@ namespace ShaderPrint
 
 		// Lines
 		{
-			FRDGBufferRef DataBuffer = ShaderPrintData.ShaderPrintPrimitiveBuffer;
+			FRDGBufferRef DataBuffer = ShaderPrintData.ShaderPrintEntryBuffer;
 			InternalDrawView_Primitives(GraphBuilder, ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), PreViewTranslation, true /*bLines*/, false /*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
 		}
 
 		// Triangles
 		{
-			FRDGBufferRef DataBuffer = ShaderPrintData.ShaderPrintPrimitiveBuffer;
+			FRDGBufferRef DataBuffer = ShaderPrintData.ShaderPrintEntryBuffer;
 			InternalDrawView_Primitives(GraphBuilder, ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), PreViewTranslation, false /*bLines*/, false /*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
 		}
 
@@ -993,7 +949,7 @@ namespace ShaderPrint
 		if (View.ViewState && View.ViewState->ShaderPrintStateData.bIsLocked)
 		{
 			const FVector LockedPreViewTranslation = View.ViewMatrices.GetPreViewTranslation() - View.ViewState->ShaderPrintStateData.PreViewTranslation;
-			FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(View.ViewState->ShaderPrintStateData.PrimitiveBuffer);
+			FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(View.ViewState->ShaderPrintStateData.EntryBuffer);
 			InternalDrawView_Primitives(GraphBuilder, ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), LockedPreViewTranslation, true  /*bLines*/, true/*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
 			InternalDrawView_Primitives(GraphBuilder, ShaderPrintData, DataBuffer, SourceViewRect, OutputViewRect, View.ViewMatrices.GetTranslatedViewProjectionMatrix(), LockedPreViewTranslation, false /*bLines*/, true/*bLocked*/, OutputTexture.Texture, DepthTexture.Texture);
 		}

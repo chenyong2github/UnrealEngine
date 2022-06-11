@@ -129,8 +129,8 @@
 #define SHADER_PRINT_COUNTER_COUNT           4
 
 uint GetSymbolOffset(uint InIndex)				{ return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_SYMBOL * InIndex; }
-uint GetPrimitiveLineOffset(uint InIndex)		{ return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_LINE * InIndex; }
-uint GetPrimitiveTriangleOffset(uint InIndex)	{ return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_LINE * ShaderPrintData.MaxLineCount + SHADER_PRINT_UINT_COUNT_TRIANGLE * InIndex; }
+uint GetPrimitiveLineOffset(uint InIndex)		{ return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_SYMBOL * ShaderPrintData.MaxValueCount + SHADER_PRINT_UINT_COUNT_LINE * InIndex; }
+uint GetPrimitiveTriangleOffset(uint InIndex)	{ return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_SYMBOL * ShaderPrintData.MaxValueCount + SHADER_PRINT_UINT_COUNT_LINE * ShaderPrintData.MaxLineCount + SHADER_PRINT_UINT_COUNT_TRIANGLE * InIndex; }
 
 void ClearCounters(RWStructuredBuffer<uint> InRWBuffer)
 {
@@ -159,21 +159,13 @@ void ClearCounters(RWStructuredBuffer<uint> InRWBuffer)
 
 StructuredBuffer<uint> ShaderPrint_StateBuffer;
 
-// Symbols
-//  ----------------------------------------------------------------------------------------------
-// ||  Line    | Triangle |  Symbol |  Empty  ||  Symb0  |  Symb1  |  Symb2  |  Symb3  |  ...  ...
-// || Counter  | Counter  | Counter | Counter ||         |         |         |         |  ...  ...
-// || (1uint)  | (1uint)  | (1uint) | (1uint) || (4uint) | (4uint) | (4uint) | (4uint) |  ...  ...
-//  ----------------------------------------------------------------------------------------------
-RWStructuredBuffer<uint> ShaderPrint_RWValuesBuffer;
-
-// Primitive buffer layout
-//  ------------------------------------------------------------------------------------------------------------------------------------------------
-// ||  Line    | Triangle |  Empty  |  Empty  ||  Line0  |  Line1  |  Line2  |  Line3  |  ...  | Triangle0 | Triangle1 | Triangle2 | Triangle3 | ...
-// || Counter  | Counter  | Counter | Counter ||         |         |         |         |  ...  |           |           |           |           | ...
-// || (1uint)  | (1uint)  | (1uint) | (1uint) || (8uint) | (8uint) | (8uint) | (8uint) |  ...  | (12uint)  | (12uint)  | (12uint)  | (12uint)  | ...
-//  ------------------------------------------------------------------------------------------------------------------------------------------------
-RWStructuredBuffer<uint> ShaderPrint_RWPrimitivesBuffer;
+// Primitive & Symbols layout
+//  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// ||  Line    | Triangle |  Symbol |  Empty  ||  Symb0  |  Symb1  |  Symb2  |  Symb3  |  ...  |  Line0  |  Line1  |  Line2  |  Line3  |  ...  | Triangle0 | Triangle1 | Triangle2 | Triangle3 | ...
+// || Counter  | Counter  | Counter | Counter ||         |         |         |         |  ...  |         |         |         |         |  ...  |           |           |           |           | ...
+// || (1uint)  | (1uint)  | (1uint) | (1uint) || (4uint) | (4uint) | (4uint) | (4uint) |  ...  | (8uint) | (8uint) | (8uint) | (8uint) |  ...  | (12uint)  | (12uint)  | (12uint)  | (12uint)  | ...
+//  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+RWStructuredBuffer<uint> ShaderPrint_RWEntryBuffer;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Font Color
@@ -356,7 +348,7 @@ void ShaderPrint_Internal(in FShaderPrintItem Item)
 
 	// Buffer counter is stored in first element .Value
 	int IndexToStore = 0;
-	InterlockedAdd(ShaderPrint_RWValuesBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL], 1, IndexToStore);
+	InterlockedAdd(ShaderPrint_RWEntryBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL], 1, IndexToStore);
 
 	// Prevent writing off the buffer
 	// Note that counter still increases so need clamp when reading it in later passes
@@ -365,7 +357,7 @@ void ShaderPrint_Internal(in FShaderPrintItem Item)
 		return;
 	}
 
-	WriteSymbol(IndexToStore, Item, ShaderPrint_RWValuesBuffer);
+	WriteSymbol(IndexToStore, Item, ShaderPrint_RWEntryBuffer);
 }
 
 void ShaderPrint_Internal(in float2 ScreenPos, in int Value, in FFontColor FontColor, in uint Metadata, in int Type)
@@ -433,7 +425,7 @@ float2 ShaderPrintText_Internal(bool bIsActive, float2 InPos, FShaderPrintText I
 		// Prevent writing off the buffer
 		// Note that counter still increases so need clamp when reading it in later passes
 		int IndexToStore = 0;
-		InterlockedAdd(ShaderPrint_RWValuesBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL], Count, IndexToStore);
+		InterlockedAdd(ShaderPrint_RWEntryBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL], Count, IndexToStore);
 		if (uint(IndexToStore + Count) < ShaderPrintData.MaxValueCount)
 		{
 			for (uint i = Begin; i < End; ++i)
@@ -445,7 +437,7 @@ float2 ShaderPrintText_Internal(bool bIsActive, float2 InPos, FShaderPrintText I
 				Item.Color = InColor.Color;
 				Item.Metadata = 0u;
 
-				WriteSymbol(IndexToStore, Item, ShaderPrint_RWValuesBuffer);
+				WriteSymbol(IndexToStore, Item, ShaderPrint_RWEntryBuffer);
 
 				++IndexToStore;
 				InPos.x += ShaderPrintData.FontSpacing.x;
@@ -876,7 +868,7 @@ bool AllocateTriangleElement(uint Count, inout uint OutIndex)
 		return false;
 	}
 
-	InterlockedAdd(ShaderPrint_RWPrimitivesBuffer[SHADER_PRINT_COUNTER_OFFSET_TRIANGLE], Count, OutIndex);
+	InterlockedAdd(ShaderPrint_RWEntryBuffer[SHADER_PRINT_COUNTER_OFFSET_TRIANGLE], Count, OutIndex);
 	return (OutIndex + Count) < ShaderPrintData.MaxTriangleCount;
 }
 
@@ -885,20 +877,20 @@ void AddTriangleElement(FTriangleElement In, uint Index)
 	const uint Index12 = GetPrimitiveTriangleOffset(Index);
 
 	FPackedTriangleElement Out = PackTriangleElement(In);
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 0] = Out.Packed0.x;
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 1] = Out.Packed0.y;
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 2] = Out.Packed0.z;
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 3] = Out.Packed0.w;
+	ShaderPrint_RWEntryBuffer[Index12 + 0] = Out.Packed0.x;
+	ShaderPrint_RWEntryBuffer[Index12 + 1] = Out.Packed0.y;
+	ShaderPrint_RWEntryBuffer[Index12 + 2] = Out.Packed0.z;
+	ShaderPrint_RWEntryBuffer[Index12 + 3] = Out.Packed0.w;
 
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 4] = Out.Packed1.x;
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 5] = Out.Packed1.y;
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 6] = Out.Packed1.z;
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 7] = Out.Packed1.w;
+	ShaderPrint_RWEntryBuffer[Index12 + 4] = Out.Packed1.x;
+	ShaderPrint_RWEntryBuffer[Index12 + 5] = Out.Packed1.y;
+	ShaderPrint_RWEntryBuffer[Index12 + 6] = Out.Packed1.z;
+	ShaderPrint_RWEntryBuffer[Index12 + 7] = Out.Packed1.w;
 
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 8] = Out.Packed2.x;
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 9] = Out.Packed2.y;
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 10]= Out.Packed2.z;
-	ShaderPrint_RWPrimitivesBuffer[Index12 + 11]= Out.Packed2.w;
+	ShaderPrint_RWEntryBuffer[Index12 + 8] = Out.Packed2.x;
+	ShaderPrint_RWEntryBuffer[Index12 + 9] = Out.Packed2.y;
+	ShaderPrint_RWEntryBuffer[Index12 + 10]= Out.Packed2.z;
+	ShaderPrint_RWEntryBuffer[Index12 + 11]= Out.Packed2.w;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1050,7 +1042,7 @@ bool AllocateLineElement(uint Count, inout uint OutIndex)
 		return false;
 	}
 
-	InterlockedAdd(ShaderPrint_RWPrimitivesBuffer[SHADER_PRINT_COUNTER_OFFSET_LINE], Count, OutIndex);
+	InterlockedAdd(ShaderPrint_RWEntryBuffer[SHADER_PRINT_COUNTER_OFFSET_LINE], Count, OutIndex);
 	return (OutIndex + Count) < ShaderPrintData.MaxLineCount;
 }
 
@@ -1059,15 +1051,15 @@ void AddLineElement(FLineElement In, uint Index)
 	const uint Index8 = GetPrimitiveLineOffset(Index);
 
 	FPackedLineElement Out = PackLineElement(In);
-	ShaderPrint_RWPrimitivesBuffer[Index8 + 0] = Out.Packed0.x;
-	ShaderPrint_RWPrimitivesBuffer[Index8 + 1] = Out.Packed0.y;
-	ShaderPrint_RWPrimitivesBuffer[Index8 + 2] = Out.Packed0.z;
-	ShaderPrint_RWPrimitivesBuffer[Index8 + 3] = Out.Packed0.w;
+	ShaderPrint_RWEntryBuffer[Index8 + 0] = Out.Packed0.x;
+	ShaderPrint_RWEntryBuffer[Index8 + 1] = Out.Packed0.y;
+	ShaderPrint_RWEntryBuffer[Index8 + 2] = Out.Packed0.z;
+	ShaderPrint_RWEntryBuffer[Index8 + 3] = Out.Packed0.w;
 
-	ShaderPrint_RWPrimitivesBuffer[Index8 + 4] = Out.Packed1.x;
-	ShaderPrint_RWPrimitivesBuffer[Index8 + 5] = Out.Packed1.y;
-	ShaderPrint_RWPrimitivesBuffer[Index8 + 6] = Out.Packed1.z;
-	ShaderPrint_RWPrimitivesBuffer[Index8 + 7] = Out.Packed1.w;
+	ShaderPrint_RWEntryBuffer[Index8 + 4] = Out.Packed1.x;
+	ShaderPrint_RWEntryBuffer[Index8 + 5] = Out.Packed1.y;
+	ShaderPrint_RWEntryBuffer[Index8 + 6] = Out.Packed1.z;
+	ShaderPrint_RWEntryBuffer[Index8 + 7] = Out.Packed1.w;
 }
 
 int2 GetCursorPos()
