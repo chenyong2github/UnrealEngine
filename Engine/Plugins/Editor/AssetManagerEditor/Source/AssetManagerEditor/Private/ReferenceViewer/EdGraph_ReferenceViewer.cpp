@@ -276,13 +276,13 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RefilterGraph()
 	UEdGraphNode_Reference* RootNode = NULL;
 
 	bBreadthLimitReached = false;
-	if (CurrentGraphRootIdentifiers.Num() > 0)
+	if (CurrentGraphRootIdentifiers.Num() > 0 && (!ReferencerNodeInfos.IsEmpty() || !DependencyNodeInfos.IsEmpty()))
 	{
 		FAssetIdentifier FirstGraphRootIdentifier = CurrentGraphRootIdentifiers[0];
 
 		// Create the root node
-		bool bRootIsDuplicated = (Settings->IsShowDependencies() && DependencyNodeInfos[FirstGraphRootIdentifier].IsADuplicate()) || 
-								  (Settings->IsShowReferencers() && ReferencerNodeInfos[FirstGraphRootIdentifier].IsADuplicate());
+		bool bRootIsDuplicated = (Settings->IsShowDependencies() && DependencyNodeInfos.Contains(FirstGraphRootIdentifier) && DependencyNodeInfos[FirstGraphRootIdentifier].IsADuplicate()) || 
+								  (Settings->IsShowReferencers() && ReferencerNodeInfos.Contains(FirstGraphRootIdentifier) && ReferencerNodeInfos[FirstGraphRootIdentifier].IsADuplicate());
 		const FReferenceNodeInfo& NodeInfo = Settings->IsShowReferencers() ? ReferencerNodeInfos[FirstGraphRootIdentifier] : DependencyNodeInfos[FirstGraphRootIdentifier];
 		RootNode = CreateReferenceNode();
 		RootNode->SetupReferenceNode(CurrentGraphRootOrigin, CurrentGraphRootIdentifiers, NodeInfo.AssetData, /*bInAllowThumbnail = */ !Settings->IsCompactMode(), /*bIsDuplicate*/ bRootIsDuplicated);
@@ -355,7 +355,10 @@ void UEdGraph_ReferenceViewer::RecursivelyFilterNodeInfos(const FAssetIdentifier
 		bBreadthLimitReached = true;
 	}
 
-	bool PassedAllFilters = FilterCollection && Settings->GetFiltersEnabled() ? FilterCollection->PassesAllFilters(InNodeInfos[InAssetId]) : true;
+	bool PassedAssetTypeFilter = FilterCollection && Settings->GetFiltersEnabled() ? FilterCollection->PassesAllFilters(InNodeInfos[InAssetId]) : true;
+	bool PassedSearchTextFilter = IsAssetPassingSearchTextFilter(InAssetId);
+
+	bool PassedAllFilters = PassedAssetTypeFilter && PassedSearchTextFilter;	
 
 	InNodeInfos[InAssetId].ChildProvisionSize = NewProvisionSize > 0 ? NewProvisionSize : (PassedAllFilters ? 1 : 0);
 	InNodeInfos[InAssetId].PassedFilters = PassedAllFilters;
@@ -457,10 +460,16 @@ bool UEdGraph_ReferenceViewer::IsPackageIdentifierPassingFilter(const FAssetIden
 			return false;
 		}
 
-		if (Settings->IsShowFilteredPackagesOnly() && IsPackageNamePassingFilterCallback.IsSet() && !(*IsPackageNamePassingFilterCallback)(InAssetIdentifier.PackageName))
-		{
-			return false;
-		}
+	}
+
+	return true;
+}
+
+bool UEdGraph_ReferenceViewer::IsAssetPassingSearchTextFilter(const FAssetIdentifier& InAssetIdentifier) const
+{
+	if (Settings->IsShowFilteredPackagesOnly() && IsAssetIdentifierPassingSearchFilterCallback.IsSet() && !(*IsAssetIdentifierPassingSearchFilterCallback)(InAssetIdentifier))
+	{
+		return false;
 	}
 
 	return true;
