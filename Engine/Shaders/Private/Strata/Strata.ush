@@ -1157,18 +1157,26 @@ struct FStrataPixelFootprint
 	float PixelRadiusInWorldSpace; // In cm
 };
 
+FStrataPixelFootprint StrataGetPixelFootprint(float3 dPdx, float3 dPdy)
+{
+	const float dX = lengthFast(dPdx);
+	const float dY = lengthFast(dPdy);
+
+	FStrataPixelFootprint Out;
+	Out.PixelRadiusInWorldSpace = min(dX, dY) * 0.5f;
+	return Out;
+}
+
 FStrataPixelFootprint StrataGetPixelFootprint(float3 InWorldPosition)
 {
 #if CLOUD_LAYER_PIXEL_SHADER==1
 	// Clouds materials feature dynamic loops and thus cannot support derivatives.
-	FStrataPixelFootprint Out = (FStrataPixelFootprint)0;
+	return (FStrataPixelFootprint)0;
 #else
-	const float dX = lengthFast(ddx(InWorldPosition));
-	const float dY = lengthFast(ddy(InWorldPosition));
-	FStrataPixelFootprint Out;
-	Out.PixelRadiusInWorldSpace = min(dX, dY) * 0.5f;
+	const float3 dPdx = ddx(InWorldPosition);
+	const float3 dPdy = ddy(InWorldPosition);
+	return StrataGetPixelFootprint(dPdx, dPdy);
 #endif
-	return Out;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
