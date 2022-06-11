@@ -195,11 +195,11 @@ void PackStrataOut(
 						const bool LuminanceWeightEqualOne = all(BSDF.LuminanceWeightV == 1.0f);
 
 						// Update simple material compatibility
-						bIsSimpleMaterial &= IsStrataSlabFastPathCompatible(BSDF) && LuminanceWeightEqualOne;
+						bIsSimpleMaterial = bIsSimpleMaterial && IsStrataSlabFastPathCompatible(BSDF) && LuminanceWeightEqualOne;
 
 						// Update single material compatibility. For now, single materials don't support anisotropy, 
 						// they use the complex pass, as the toplayer data does not contain the full frame basis, only the top normal.
-						bIsSingleMaterial &= BSDF_GETHASANISOTROPY(BSDF) == 0 && LuminanceWeightEqualOne;
+						bIsSingleMaterial = bIsSingleMaterial && BSDF_GETHASANISOTROPY(BSDF) == 0 && LuminanceWeightEqualOne;
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
@@ -268,8 +268,8 @@ void PackStrataOut(
 		// Set storage layout as either: fast(0), single(1), or complex(2)
 		if (bIsOnlySlab)
 		{
-			bIsSimpleMaterial &= BSDFVisibleCount == 1;
-			bIsSingleMaterial &= BSDFVisibleCount == 1;
+			bIsSimpleMaterial = bIsSimpleMaterial && BSDFVisibleCount == 1;
+			bIsSingleMaterial = bIsSingleMaterial && BSDFVisibleCount == 1;
 			SetMaterialMode(StrataPixelHeader, bIsSimpleMaterial ? HEADER_MATERIALMODE_SIMPLE : bIsSingleMaterial ? HEADER_MATERIALMODE_SINGLE : HEADER_MATERIALMODE_COMPLEX);
 		}
 

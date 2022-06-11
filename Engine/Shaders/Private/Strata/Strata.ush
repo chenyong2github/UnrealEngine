@@ -1651,7 +1651,10 @@ struct FStrataPixelHeader
 	uint State;
 };
 
-void SetMaterialMode(inout FStrataPixelHeader Out, int MateralMode)							{ Out.State = (Out.State & ~HEADER_MASK_MATERIALMODE) | (MateralMode & HEADER_MASK_MATERIALMODE); }
+// Workaround for legacy shader compiler, claiming FStrataPixelHeader has uninitialized state when passed as a 'inout' parameter
+void InternalSetMaterialMode(inout uint OutState, uint MaterialMode)						{ OutState = (OutState & ~HEADER_MASK_MATERIALMODE) | (MaterialMode & HEADER_MASK_MATERIALMODE); }
+#define SetMaterialMode(InHeader, InMode)													InternalSetMaterialMode(InHeader.State, InMode)
+
 bool IsSimpleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SIMPLE || STRATA_FASTPATH; }
 bool IsSingleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SINGLE || STRATA_SINGLEPATH; }
 bool IsComplexMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_COMPLEX && !STRATA_FASTPATH && !STRATA_SINGLEPATH; }
