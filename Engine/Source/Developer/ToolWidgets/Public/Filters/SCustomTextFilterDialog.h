@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "Widgets/SCompoundWidget.h"
 #include "Filters/FilterBase.h"
 #include "Core/Public/Misc/TextFilter.h"
