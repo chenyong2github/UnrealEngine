@@ -14,6 +14,7 @@
 #include "Evaluation/MovieSceneRootOverridePath.h"
 
 #include "IMovieScenePlayer.h"
+#include "MovieSceneSequence.h"
 #include "MovieSceneSequencePlayer.h"
 #include "MovieSceneTimeHelpers.h"
 
@@ -78,6 +79,11 @@ FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMov
 	// bHasEverUpdated since a sequence instance can be Finished and restarted multiple times
 	bFinished = true;
 	bHasEverUpdated = false;
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	UMovieSceneSequence* RootSequence = Player->GetEvaluationTemplate().GetRootSequence();
+	RootSequenceName = RootSequence->GetPathName();
+#endif
 
 	CompiledDataID = Player->GetEvaluationTemplate().GetCompiledDataID();
 

@@ -269,6 +269,11 @@ private:
 
 	FMovieSceneContext Context;
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	/** Name of the root sequence */
+	FString RootSequenceName;
+#endif
+
 	/** For top-level sequences only - legacy track template evaluator for the entire sequence */
 	TUniquePtr<FMovieSceneTrackEvaluator> LegacyEvaluator;
 	/** For top-level sequences only - interface for either a flat or hierarchical entity updater */
