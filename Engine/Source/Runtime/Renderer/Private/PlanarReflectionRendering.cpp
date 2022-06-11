@@ -505,7 +505,8 @@ extern void SetupViewFamilyForSceneCapture(
 	bool bIsPlanarReflection,
 	FPostProcessSettings* PostProcessSettings,
 	float PostProcessBlendWeight,
-	const AActor* ViewActor);
+	const AActor* ViewActor,
+	int32 CubemapFaceIndex);
 
 void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureComponent, FSceneRenderer& MainSceneRenderer)
 {
@@ -634,7 +635,8 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 			SceneCaptureViewInfo, CaptureComponent->MaxViewDistanceOverride,
 			/* bUseFauxOrthoViewPos = */ false, /* bCaptureSceneColor = */ true, /* bIsPlanarReflection = */ true,
 			&PostProcessSettings, 1.0f,
-			/*ViewActor =*/ nullptr);
+			/*ViewActor =*/ nullptr,
+			/*CubemapFaceIndex =*/ INDEX_NONE);
 
 		// Fork main renderer's screen percentage interface to have exactly same settings.
 		ViewFamily.EngineShowFlags.ScreenPercentage = MainSceneRenderer.ViewFamily.EngineShowFlags.ScreenPercentage;

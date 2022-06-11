@@ -63,13 +63,13 @@ FVector2f JitterOffsets[4] =
 };
 
 extern float GAOConeHalfAngle;
-extern int32 GAOUseHistory;
+extern bool DistanceFieldAOUseHistory(const FViewInfo& View);
 
-FVector2f GetJitterOffset(int32 SampleIndex)
+FVector2f GetJitterOffset(const FViewInfo& View)
 {
-	if (GAOUseJitter && GAOUseHistory)
+	if (GAOUseJitter && DistanceFieldAOUseHistory(View))
 	{
-		return JitterOffsets[SampleIndex] * GConeTraceDownsampleFactor;
+		return JitterOffsets[View.GetDistanceFieldTemporalSampleIndex()] * GConeTraceDownsampleFactor;
 	}
 
 	return FVector2f(0, 0);
@@ -122,7 +122,7 @@ static FScreenGridParameters SetupScreenGridParameters(const FViewInfo& View, FR
 	ShaderParameters.DistanceFieldNormalTexture = DistanceFieldNormal;
 	ShaderParameters.DistanceFieldNormalSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 	ShaderParameters.BaseLevelTexelSize = FVector2f(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
-	ShaderParameters.JitterOffset = GetJitterOffset(View.GetDistanceFieldTemporalSampleIndex());
+	ShaderParameters.JitterOffset = GetJitterOffset(View);
 
 	return ShaderParameters;
 }

@@ -85,8 +85,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 FGeometryAwareUpsampleParameters SetupGeometryAwareUpsampleParameters(const FViewInfo& View, FRDGTextureRef DistanceFieldNormal, FRDGTextureRef DistanceFieldAOBentNormal)
 {
-	extern FVector2f GetJitterOffset(int32 SampleIndex);
-	FVector2f const JitterOffsetValue = GetJitterOffset(View.GetDistanceFieldTemporalSampleIndex());
+	extern FVector2f GetJitterOffset(const FViewInfo& View);
+	FVector2f const JitterOffsetValue = GetJitterOffset(View);
 
 	const FIntPoint DownsampledBufferSize = GetBufferSizeForAO(View);
 	const FVector2f BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
@@ -271,6 +271,36 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 	});
 }
 
+bool DistanceFieldAOUseHistory(const FViewInfo& View)
+{
+	// Disable AO history for cube map captures to save memory.  AO history (DistanceFieldAOHistoryRT) is sized to the scene texture extents, meaning
+	// the size is proportional to the front buffer resolution, regardless of the resolution of the cube map capture itself.  This then gets multiplied
+	// by 6 for cube map faces.  This totals around 25 MB at 1080p or 100 MB at 4K resolution.
+	//
+	// JHOERNER_TODO:  Ideally, the code would be rewritten so DistanceFieldAOHistoryRT is sized to the view rectangle, rather than scene texture extents.
+	// The goal of scene texture extents is to reuse render target memory on platforms like PC, by making all scene renders use the same sized render
+	// targets for things like gbuffers.  This advantage doesn't apply to temporal history buffers, since these persist across frames and are unique per
+	// scene view state, and never shared.  As an example, temporal volumetric cloud buffers (VolumetricCloudRenderTarget) are scaled to the view rect,
+	// and so don't involve a similar memory waste.
+	//
+	// I did investigate fixing the memory waste myself, and started attempting it, but it's an involved process due to the number of places in the code
+	// you'd need to touch.  I figured it would be better if someone that has worked with the code before did the changes, to make sure nothing relevant
+	// was missed, and hopefully they'd be able to visually tell if it was working correctly.
+	//
+	// At a basic level, you'd modify UpdateHistory below so instead of using "View.GetSceneTexturesConfig().Extent" to determine the history dimensions,
+	// you'd use the view rect (multiple places in that function).  You'd eliminate "HistoryScreenPositionScaleBiasValue" and "HistoryUVMinMaxValue" scale
+	// and clamping factors when reading from the history in shaders.  The input scene textures (VelocityTexture, etc) would still be in scene texture
+	// space, so there would be a mix of UV math going on, depending on what textures you were sampling from.
+	//
+	// If it was just the shaders in UpdateHistory, I'd give it a shot, but there are additional shaders referencing "BentNormalAOTexture", including from
+	// DistanceFieldAOShared.ush and DistanceFieldLightingPost.usf.  You'd need to update all the shaders, and possibly add extra parameters to make
+	// information available about the resolution of the history (can't use View.BufferSizeAndInvSize).  Any typos could cause artifacts which will only
+	// be visually obvious if you set up a synthetic test where the scene texture extents don't match the view rect (you should be able to accomplish
+	// this for debug purposes by modifying FSceneTextureExtentState::Compute to add some padding to the scene textures).
+	//
+	return GAOUseHistory && !View.bIsSceneCaptureCube;
+}
+
 void UpdateHistory(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
@@ -290,7 +320,7 @@ void UpdateHistory(
 
 	const FIntPoint SceneTextureExtent = View.GetSceneTexturesConfig().Extent;
 
-	if (BentNormalHistoryState && GAOUseHistory)
+	if (BentNormalHistoryState && DistanceFieldAOUseHistory(View))
 	{
 #if WITH_MGPU
 		RDG_GPU_STAT_SCOPE(GraphBuilder, AFRWaitForDistanceFieldAOHistory);

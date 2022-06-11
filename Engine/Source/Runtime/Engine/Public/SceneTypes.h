@@ -92,7 +92,7 @@ class FSceneViewStateReference
 {
 public:
 	FSceneViewStateReference()
-	: Reference(nullptr)
+	: World(nullptr), Reference(nullptr), ShareOriginTarget(nullptr), ShareOriginRefCount(0)
 	{
 	}
 
@@ -109,6 +109,14 @@ public:
 
 	UE_DEPRECATED(5.0, "Allocate must be called with an appropriate RHI Feature Level")
 	ENGINE_API void Allocate();
+
+	/**
+	  * Mark that a view state shares an origin with another view state, allowing sharing of some internal state, saving memory and performance.
+	  * Typically used for cube map faces.  Must be called before "Allocate" is called on the source view state (best practice is to call
+	  * immediately after creating the view state).  Multiple view states can point to the same shared origin (for example, the first face of a
+	  * cube map), but sharing can't be nested.  Sharing view states must be destroyed before the Target is destroyed.
+	  */
+	ENGINE_API void ShareOrigin(FSceneViewStateReference* Target);
 
 	/** Destorys the Scene view state. */
 	ENGINE_API void Destroy();
@@ -132,7 +140,14 @@ private:
 	FSceneViewStateInterface* Reference;
 	TLinkedList<FSceneViewStateReference*> GlobalListLink;
 
+	FSceneViewStateReference* ShareOriginTarget;
+
+	/** Number of other view states that share this view state's origin. */
+	int32 ShareOriginRefCount;
+
 	static TLinkedList<FSceneViewStateReference*>*& GetSceneViewStateList();
+
+	void AllocateInternal(ERHIFeatureLevel::Type FeatureLevel);
 };
 
 /** different light component types */

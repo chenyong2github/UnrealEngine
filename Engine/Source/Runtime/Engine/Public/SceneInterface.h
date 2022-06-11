@@ -571,7 +571,7 @@ public:
 	virtual bool RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPrimitiveDirtyState PrimitiveDirtyState) { return false; }
 
 protected:
-	virtual FSceneViewStateInterface* AllocateViewState() = 0;
+	virtual FSceneViewStateInterface* AllocateViewState(FSceneViewStateInterface* ShareOriginTarget = nullptr) = 0;
 
 	virtual ~FSceneInterface() {}
 

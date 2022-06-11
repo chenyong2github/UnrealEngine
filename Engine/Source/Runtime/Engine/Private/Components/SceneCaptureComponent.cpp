@@ -311,6 +311,12 @@ FSceneViewStateInterface* USceneCaptureComponent::GetViewState(int32 ViewIndex)
 	while (ViewIndex >= ViewStates.Num())
 	{
 		ViewStates.Add(new FSceneViewStateReference());
+
+		// Cube map view states can share an origin, saving memory and performance
+		if ((ViewIndex > 0) && IsCube())
+		{
+			ViewStates.Last().ShareOrigin(&ViewStates[0]);
+		}
 	}
 
 	FSceneViewStateInterface* ViewStateInterface = ViewStates[ViewIndex].GetReference();
@@ -441,6 +447,14 @@ void USceneCaptureComponent::OnUnregister()
 	{
 		ViewStates[ViewIndex].Destroy();
 	}
+
+	// Manually destroy the view state array here.  To account for the possibility of "FSceneViewStateReference::ShareOrigin" being used,
+	// where later view states reference the first item in the array, we delete the later items first.
+	if (ViewStates.Num() > 1)
+	{
+		ViewStates.RemoveAt(1, ViewStates.Num() - 1);
+	}
+	ViewStates.Empty();
 
 	Super::OnUnregister();
 }

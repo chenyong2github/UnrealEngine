@@ -344,7 +344,34 @@ ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrimitiveUn
 
 FSceneViewStateReference::~FSceneViewStateReference()
 {
+	checkf(ShareOriginRefCount == 0, TEXT("FSceneViewStateReference:  ShareOrigin view states must be destroyed before their target."));
+
+	if (ShareOriginTarget)
+	{
+		ShareOriginTarget->ShareOriginRefCount--;
+		ShareOriginTarget = nullptr;
+	}
+
 	Destroy();
+}
+
+void FSceneViewStateReference::AllocateInternal(ERHIFeatureLevel::Type FeatureLevel)
+{
+	FSceneViewStateInterface* ShareOriginInterface = nullptr;
+	if (ShareOriginTarget)
+	{
+		check(ShareOriginTarget->Reference);
+		ShareOriginInterface = ShareOriginTarget->Reference;
+	}
+
+	if (World && World->Scene)
+	{
+		Reference = World->Scene->AllocateViewState(ShareOriginInterface);
+	}
+	else
+	{
+		Reference = GetRendererModule().AllocateViewState(FeatureLevel, ShareOriginInterface);
+	}
 }
 
 void FSceneViewStateReference::Allocate(ERHIFeatureLevel::Type FeatureLevel, const UWorld* InWorld)
@@ -352,14 +379,7 @@ void FSceneViewStateReference::Allocate(ERHIFeatureLevel::Type FeatureLevel, con
 	check(!Reference);
 	World = InWorld;
 
-	if (World && World->Scene)
-	{
-		Reference = World->Scene->AllocateViewState();
-	}
-	else
-	{
-		Reference = GetRendererModule().AllocateViewState(FeatureLevel);
-	}
+	AllocateInternal(FeatureLevel);
 
 	GlobalListLink = TLinkedList<FSceneViewStateReference*>(this);
 	GlobalListLink.LinkHead(GetSceneViewStateList());
@@ -373,6 +393,16 @@ void FSceneViewStateReference::Allocate(ERHIFeatureLevel::Type FeatureLevel)
 void FSceneViewStateReference::Allocate()
 {
 	Allocate(GMaxRHIFeatureLevel, nullptr);
+}
+
+ENGINE_API void FSceneViewStateReference::ShareOrigin(FSceneViewStateReference* Target)
+{
+	checkf(ShareOriginTarget == nullptr, TEXT("FSceneViewStateReference:  Cannot call ShareOrigin twice."));
+	checkf(ShareOriginRefCount == 0 && Target->ShareOriginTarget == nullptr, TEXT("FSceneViewStateReference:  ShareOrigin references cannot nest."));
+	checkf(Reference == nullptr, TEXT("FSceneViewStateReference:  Must call ShareOrigin before calling Allocate."));
+
+	ShareOriginTarget = Target;
+	Target->ShareOriginRefCount++;
 }
 
 void FSceneViewStateReference::Destroy()
@@ -401,13 +431,18 @@ void FSceneViewStateReference::AllocateAll(ERHIFeatureLevel::Type FeatureLevel)
 	for(TLinkedList<FSceneViewStateReference*>::TIterator ViewStateIt(FSceneViewStateReference::GetSceneViewStateList());ViewStateIt;ViewStateIt.Next())
 	{
 		FSceneViewStateReference* ViewStateReference = *ViewStateIt;
-		if (ViewStateReference->World && ViewStateReference->World->Scene)
+
+		// This view state reference may already have been allocated
+		if (!ViewStateReference->Reference)
 		{
-			ViewStateReference->Reference = ViewStateReference->World->Scene->AllocateViewState();
-		}
-		else
-		{
-			ViewStateReference->Reference = GetRendererModule().AllocateViewState(FeatureLevel);
+			// If we have a shared origin target, we need to make sure its view state gets allocated first
+			// (don't want to assume the iterator processes references in the correct order).
+			if (ViewStateReference->ShareOriginTarget && !ViewStateReference->ShareOriginTarget->Reference)
+			{
+				ViewStateReference->ShareOriginTarget->AllocateInternal(FeatureLevel);
+			}
+
+			ViewStateReference->AllocateInternal(FeatureLevel);
 		}
 	}
 }
@@ -726,6 +761,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, bIsGameView(false)
 	, bIsViewInfo(false)
 	, bIsSceneCapture(false)
+	, bIsSceneCaptureCube(false)
 	, bSceneCaptureUsesRayTracing(false)
 	, bIsReflectionCapture(false)
 	, bIsPlanarReflection(false)

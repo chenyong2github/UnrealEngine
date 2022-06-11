@@ -79,6 +79,9 @@ public:
 
 	void UpdateSceneCaptureContents(FSceneInterface* Scene) override;
 
+	/** Whether this component is a USceneCaptureComponentCube */
+	virtual bool IsCube() const override { return true; }
+
 #if WITH_EDITORONLY_DATA
 	void UpdateDrawFrustum();
 

@@ -738,9 +738,13 @@ void SetupViewFamilyForSceneCapture(
 	bool bIsPlanarReflection,
 	FPostProcessSettings* PostProcessSettings,
 	float PostProcessBlendWeight,
-	const AActor* ViewActor)
+	const AActor* ViewActor,
+	int32 CubemapFaceIndex)
 {
 	check(!ViewFamily.GetScreenPercentageInterface());
+
+	// For cube map capture, CubeMapFaceIndex takes precedence over view index, so we must have only one view for that case
+	check(CubemapFaceIndex == INDEX_NONE || Views.Num() == 1);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
@@ -755,7 +759,7 @@ void SetupViewFamilyForSceneCapture(
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
 		ViewInitOptions.OverrideFarClippingPlaneDistance = MaxViewDistance;
 		ViewInitOptions.StereoPass = SceneCaptureViewInfo.StereoPass;
-		ViewInitOptions.SceneViewStateInterface = SceneCaptureComponent->GetViewState(ViewIndex);
+		ViewInitOptions.SceneViewStateInterface = SceneCaptureComponent->GetViewState(CubemapFaceIndex != INDEX_NONE ? CubemapFaceIndex : ViewIndex);
 		ViewInitOptions.ProjectionMatrix = SceneCaptureViewInfo.ProjectionMatrix;
 		ViewInitOptions.LODDistanceFactor = FMath::Clamp(SceneCaptureComponent->LODDistanceFactor, .01f, 100.0f);
 		ViewInitOptions.bUseFauxOrthoViewPos = bUseFauxOrthoViewPos;
@@ -775,6 +779,7 @@ void SetupViewFamilyForSceneCapture(
 		FSceneView* View = new FSceneView(ViewInitOptions);
 
 		View->bIsSceneCapture = true;
+		View->bIsSceneCaptureCube = SceneCaptureComponent->IsCube();
 		View->bSceneCaptureUsesRayTracing = SceneCaptureComponent->bUseRayTracingIfEnabled;
 		// Note: this has to be set before EndFinalPostprocessSettings
 		View->bIsPlanarReflection = bIsPlanarReflection;
@@ -871,6 +876,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 	FPostProcessSettings* PostProcessSettings,
 	float PostProcessBlendWeight,
 	const AActor* ViewActor, 
+	int32 CubemapFaceIndex = INDEX_NONE,
 	const float StereoIPD = 0.0f)
 {
 	FSceneCaptureViewInfo SceneCaptureViewInfo;
@@ -902,7 +908,8 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 		/* bIsPlanarReflection = */ false,
 		PostProcessSettings, 
 		PostProcessBlendWeight,
-		ViewActor);
+		ViewActor,
+		CubemapFaceIndex);
 
 	// Screen percentage is still not supported in scene capture.
 	ViewFamily.EngineShowFlags.ScreenPercentage = false;
@@ -1236,7 +1243,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 				FSceneRenderer* SceneRenderer = CreateSceneRendererForSceneCapture(this, CaptureComponent,
 					TextureTarget->GameThread_GetRenderTargetResource(), CaptureSize, ViewRotationMatrix,
 					Location, ProjectionMatrix, false, CaptureComponent->MaxViewDistanceOverride,
-					bCaptureSceneColor, &PostProcessSettings, 0, CaptureComponent->GetViewOwner(), StereoIPD);
+					bCaptureSceneColor, &PostProcessSettings, 0, CaptureComponent->GetViewOwner(), faceidx, StereoIPD);
 
 				SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;
 

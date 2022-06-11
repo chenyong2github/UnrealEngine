@@ -306,7 +306,7 @@ TRefCountPtr<IPooledRenderTarget> FPersistentSkyAtmosphereData::GetCurrentCamera
 }
 
 /** Default constructor. */
-FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel)
+FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneViewState* ShareOriginTarget)
 	: OcclusionQueryPool(RHICreateRenderQueryPool(RQT_Occlusion))
 {
 	// Set FeatureLevel to a valid value, so we get Init/ReleaseDynamicRHI calls on FeatureLevel changes
@@ -360,9 +360,14 @@ FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel)
 		TranslucencyLightingCacheAllocations[CascadeIndex] = NULL;
 	}
 
-	bInitializedGlobalDistanceFieldOrigins = false;
-	GlobalDistanceFieldUpdateIndex = 0;
-	GlobalDistanceFieldCameraVelocityOffset = FVector::ZeroVector;
+	if (ShareOriginTarget)
+	{
+		GlobalDistanceFieldData = ShareOriginTarget->GlobalDistanceFieldData;
+	}
+	else
+	{
+		GlobalDistanceFieldData = new FPersistentGlobalDistanceFieldData;
+	}
 
 	ShadowOcclusionQueryMaps.Empty(FOcclusionQueryHelpers::MaxBufferedOcclusionFrames);
 	ShadowOcclusionQueryMaps.AddZeroed(FOcclusionQueryHelpers::MaxBufferedOcclusionFrames);	
@@ -430,9 +435,11 @@ FSceneViewState::~FSceneViewState()
 	}
 }
 
-FSceneViewStateInterface* FScene::AllocateViewState()
+FSceneViewStateInterface* FScene::AllocateViewState(FSceneViewStateInterface* ShareOriginTarget)
 {
-	FSceneViewState* Result = new FSceneViewState(FeatureLevel);
+	check(!ShareOriginTarget || (((FSceneViewState*)ShareOriginTarget)->Scene == this));
+
+	FSceneViewState* Result = new FSceneViewState(FeatureLevel, (FSceneViewState*)ShareOriginTarget);
 	Result->Scene = this;
 	ViewStates.Add(Result);
 	return Result;
@@ -5535,9 +5542,9 @@ public:
 	virtual bool HasAnyLights() const override { return false; }
 
 protected:
-	virtual FSceneViewStateInterface* AllocateViewState() override
+	virtual FSceneViewStateInterface* AllocateViewState(FSceneViewStateInterface* ShareOriginTarget) override
 	{
-		return new FSceneViewState(FeatureLevel);
+		return new FSceneViewState(FeatureLevel, (FSceneViewState*)ShareOriginTarget);
 	}
 
 private:
@@ -5655,7 +5662,12 @@ void FRendererModule::UpdateStaticDrawListsForMaterials(const TArray<const FMate
 
 FSceneViewStateInterface* FRendererModule::AllocateViewState(ERHIFeatureLevel::Type FeatureLevel)
 {
-	return new FSceneViewState(FeatureLevel);
+	return new FSceneViewState(FeatureLevel, nullptr);
+}
+
+FSceneViewStateInterface* FRendererModule::AllocateViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneViewStateInterface* ShareOriginTarget)
+{
+	return new FSceneViewState(FeatureLevel, (FSceneViewState*)ShareOriginTarget);
 }
 
 void FRendererModule::InvalidatePathTracedOutput()

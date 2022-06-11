@@ -13,6 +13,7 @@
 #include "Math/RandomStream.h"
 #include "Engine/EngineTypes.h"
 #include "Templates/PimplPtr.h"
+#include "Templates/RefCounting.h"
 #include "RHI.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
@@ -607,6 +608,31 @@ private:
 	uint8 CameraAerialPerspectiveVolumeIndex;
 };
 
+struct FPersistentGlobalDistanceFieldData : public FThreadSafeRefCountedObject
+{
+	// Array of ClipmapIndex
+	TArray<int32> DeferredUpdates[GDF_Num];
+
+	int32	UpdateFrame = 0;
+	bool	bFirstFrame = true;
+
+	bool	bInitializedOrigins = false;
+	bool	bPendingReset = false;
+	FGlobalDistanceFieldClipmapState ClipmapState[GlobalDistanceField::MaxClipmaps];
+	int32	UpdateIndex = 0;
+	FVector	CameraVelocityOffset = FVector(0);
+	bool	bUpdateViewOrigin = true;
+	FVector	LastViewOrigin = FVector(0);
+
+	TRefCountPtr<FRDGPooledBuffer> PageFreeListAllocatorBuffer;
+	TRefCountPtr<FRDGPooledBuffer> PageFreeListBuffer;
+	TRefCountPtr<IPooledRenderTarget> PageAtlasTexture;
+	TRefCountPtr<IPooledRenderTarget> CoverageAtlasTexture;
+	TRefCountPtr<IPooledRenderTarget> PageTableCombinedTexture;
+	TRefCountPtr<IPooledRenderTarget> PageTableLayerTextures[GDF_Num];
+	TRefCountPtr<IPooledRenderTarget> MipTexture;
+};
+
 /**
  * The scene manager's private implementation of persistent view state.
  * This class is associated with a particular camera across multiple frames by the game thread.
@@ -712,9 +738,6 @@ public:
 	FIndirectLightingCacheAllocation* TranslucencyLightingCacheAllocations[TVC_MAX];
 
 	TMap<int32, FIndividualOcclusionHistory> PlanarReflectionOcclusionHistories;
-
-	// Array of ClipmapIndex
-	TArray<int32> DeferredGlobalDistanceFieldUpdates[GDF_Num];
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Are we currently in the state of freezing rendering? (1 frame where we gather what was rendered) */
@@ -971,21 +994,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> LightScatteringHistory;
 	TRefCountPtr<IPooledRenderTarget> PrevLightScatteringConservativeDepthTexture;
 
-	bool bInitializedGlobalDistanceFieldOrigins;
-	bool bGlobalDistanceFieldPendingReset = false;
-	FGlobalDistanceFieldClipmapState GlobalDistanceFieldClipmapState[GlobalDistanceField::MaxClipmaps];
-	int32 GlobalDistanceFieldUpdateIndex;
-	FVector GlobalDistanceFieldCameraVelocityOffset;
-	bool bGlobalDistanceFieldUpdateViewOrigin = true;
-	FVector GlobalDistanceFieldLastViewOrigin = FVector(0);
-
-	TRefCountPtr<FRDGPooledBuffer> GlobalDistanceFieldPageFreeListAllocatorBuffer;
-	TRefCountPtr<FRDGPooledBuffer> GlobalDistanceFieldPageFreeListBuffer;
-	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageAtlasTexture;
-	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldCoverageAtlasTexture;
-	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableCombinedTexture;
-	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableLayerTextures[GDF_Num];
-	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldMipTexture;
+	/** Potentially shared to save memory in cases where multiple view states share a common origin, such as cube map capture faces. */
+	TRefCountPtr<FPersistentGlobalDistanceFieldData> GlobalDistanceFieldData;
 
 	/** This is float since it is derived off of UWorld::RealTimeSeconds, which is relative to BeginPlay time. */
 	float LastAutoDownsampleChangeTime;
@@ -1069,7 +1079,7 @@ public:
 	}
 
 	/** Default constructor. */
-	FSceneViewState(ERHIFeatureLevel::Type FeatureLevel);
+	FSceneViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneViewState* ShareOriginTarget);
 
 	virtual ~FSceneViewState();
 
@@ -3356,7 +3366,7 @@ private:
 	/**
 	 * Internal view state allocation interface, used by FSceneViewState
 	 */
-	virtual FSceneViewStateInterface* AllocateViewState() override;
+	virtual FSceneViewStateInterface* AllocateViewState(FSceneViewStateInterface* ShareOriginTarget) override;
 	void RemoveViewState(FSceneViewStateInterface*);
 
 	/**

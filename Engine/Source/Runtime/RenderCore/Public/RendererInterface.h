@@ -780,6 +780,7 @@ public:
 
 	/** Allocates a new instance of the private scene manager implementation of FSceneViewStateInterface */
 	virtual class FSceneViewStateInterface* AllocateViewState(ERHIFeatureLevel::Type FeatureLevel) = 0;
+	virtual class FSceneViewStateInterface* AllocateViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneViewStateInterface* ShareOriginTarget) = 0;
 
 	UE_DEPRECATED(5.0, "AllocateViewState must be called with an appropriate RHI Feature Level")
 	inline FSceneViewStateInterface* AllocateViewState()

@@ -650,13 +650,14 @@ static bool ShouldUpdateClipmapThisFrame(int32 ClipmapIndex, int32 NumClipmaps, 
 	return GlobalDistanceFieldUpdateIndex % Frequency == Phase;
 }
 
-void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View, bool bLumenEnabled)
+static void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View, bool bLumenEnabled)
 {
-	if (View.ViewState)
+	// Don't update origin if it has already been updated this frame
+	if (View.ViewState && (View.ViewState->GlobalDistanceFieldData->bFirstFrame || View.ViewState->GlobalDistanceFieldData->UpdateFrame != View.Family->FrameNumber))
 	{
 		if (GAOGlobalDistanceFieldFastCameraMode != 0)
 		{
-			FVector& CameraVelocityOffset = View.ViewState->GlobalDistanceFieldCameraVelocityOffset;
+			FVector& CameraVelocityOffset = View.ViewState->GlobalDistanceFieldData->CameraVelocityOffset;
 			const FVector CameraVelocity = View.ViewMatrices.GetViewOrigin() - View.PrevViewInfo.ViewMatrices.GetViewOrigin();
 			// Framerate independent decay
 			CameraVelocityOffset = CameraVelocityOffset * FMath::Pow(GAOGlobalDistanceFieldCameraPositionVelocityOffsetDecay, View.Family->Time.GetDeltaWorldTimeSeconds()) + CameraVelocity;
@@ -676,7 +677,7 @@ void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View, bool bLumenEnabl
 		}
 		else
 		{
-			View.ViewState->GlobalDistanceFieldCameraVelocityOffset = FVector(0.0f, 0.0f, 0.0f);
+			View.ViewState->GlobalDistanceFieldData->CameraVelocityOffset = FVector(0.0f, 0.0f, 0.0f);
 		}
 	}
 }
@@ -687,7 +688,7 @@ FVector GetGlobalDistanceFieldViewOrigin(const FViewInfo& View, int32 ClipmapInd
 
 	if (View.ViewState)
 	{
-		FVector CameraVelocityOffset = View.ViewState->GlobalDistanceFieldCameraVelocityOffset;
+		FVector CameraVelocityOffset = View.ViewState->GlobalDistanceFieldData->CameraVelocityOffset;
 
 		const FScene* Scene = (const FScene*)View.Family->Scene;
 
@@ -703,9 +704,9 @@ FVector GetGlobalDistanceFieldViewOrigin(const FViewInfo& View, int32 ClipmapInd
 
 		CameraOrigin += CameraVelocityOffset;
 
-		if (!View.ViewState->bGlobalDistanceFieldUpdateViewOrigin)
+		if (!View.ViewState->GlobalDistanceFieldData->bUpdateViewOrigin)
 		{
-			CameraOrigin = View.ViewState->GlobalDistanceFieldLastViewOrigin;
+			CameraOrigin = View.ViewState->GlobalDistanceFieldData->LastViewOrigin;
 		}
 	}
 
@@ -736,11 +737,20 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 	if (View.ViewState)
 	{
-		View.ViewState->GlobalDistanceFieldUpdateIndex++;
+		FSceneViewState& ViewState = *View.ViewState;
+		FPersistentGlobalDistanceFieldData& GlobalDistanceFieldData = *ViewState.GlobalDistanceFieldData;
 
-		if (View.ViewState->GlobalDistanceFieldUpdateIndex > 128)
+		bool bUpdatedThisFrame = !GlobalDistanceFieldData.bFirstFrame && GlobalDistanceFieldData.UpdateFrame == View.Family->FrameNumber;
+
+		// Don't advance update counter if we've already been updated
+		if (!bUpdatedThisFrame)
 		{
-			View.ViewState->GlobalDistanceFieldUpdateIndex = 0;
+			GlobalDistanceFieldData.UpdateIndex++;
+
+			if (GlobalDistanceFieldData.UpdateIndex > 128)
+			{
+				GlobalDistanceFieldData.UpdateIndex = 0;
+			}
 		}
 
 		int32 NumClipmapUpdateRequests = 0;
@@ -754,28 +764,25 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		GlobalDistanceFieldInfo.PageAtlasTexture = nullptr;
 		GlobalDistanceFieldInfo.CoverageAtlasTexture = nullptr;
 
-		if (View.ViewState)
 		{
-			FSceneViewState& ViewState = *View.ViewState;
-
 			const int32 MaxPageNum = GlobalDistanceField::GetMaxPageNum(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance);
 			const FIntVector PageAtlasTextureSize = GlobalDistanceField::GetPageAtlasSize(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance);
 
-			if (!ViewState.GlobalDistanceFieldPageFreeListAllocatorBuffer)
+			if (!GlobalDistanceFieldData.PageFreeListAllocatorBuffer)
 			{
-				ViewState.GlobalDistanceFieldPageFreeListAllocatorBuffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("PageFreeListAllocator"));
+				GlobalDistanceFieldData.PageFreeListAllocatorBuffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("PageFreeListAllocator"));
 			}
 
-			if (!ViewState.GlobalDistanceFieldPageFreeListBuffer
-				|| ViewState.GlobalDistanceFieldPageFreeListBuffer->Desc.NumElements != MaxPageNum)
+			if (!GlobalDistanceFieldData.PageFreeListBuffer
+				|| GlobalDistanceFieldData.PageFreeListBuffer->Desc.NumElements != MaxPageNum)
 			{
-				ViewState.GlobalDistanceFieldPageFreeListBuffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxPageNum), TEXT("PageFreeList"));
+				GlobalDistanceFieldData.PageFreeListBuffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxPageNum), TEXT("PageFreeList"));
 			}
 
-			if (!ViewState.GlobalDistanceFieldPageAtlasTexture
-				|| ViewState.GlobalDistanceFieldPageAtlasTexture->GetDesc().Extent.X != PageAtlasTextureSize.X
-				|| ViewState.GlobalDistanceFieldPageAtlasTexture->GetDesc().Extent.Y != PageAtlasTextureSize.Y
-				|| ViewState.GlobalDistanceFieldPageAtlasTexture->GetDesc().Depth != PageAtlasTextureSize.Z)
+			if (!GlobalDistanceFieldData.PageAtlasTexture
+				|| GlobalDistanceFieldData.PageAtlasTexture->GetDesc().Extent.X != PageAtlasTextureSize.X
+				|| GlobalDistanceFieldData.PageAtlasTexture->GetDesc().Extent.Y != PageAtlasTextureSize.Y
+				|| GlobalDistanceFieldData.PageAtlasTexture->GetDesc().Depth != PageAtlasTextureSize.Z)
 			{
 				FPooledRenderTargetDesc VolumeDesc = FPooledRenderTargetDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
 					PageAtlasTextureSize.X,
@@ -791,7 +798,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				GRenderTargetPool.FindFreeElement(
 					RHICmdList,
 					VolumeDesc,
-					ViewState.GlobalDistanceFieldPageAtlasTexture,
+					GlobalDistanceFieldData.PageAtlasTexture,
 					TEXT("GlobalDistanceFieldPageAtlas")
 				);
 
@@ -801,10 +808,10 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 			const FIntVector CoverageAtlasTextureSize = GlobalDistanceField::GetCoverageAtlasSize(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance);
 
 			if (bLumenEnabled
-				&& (!ViewState.GlobalDistanceFieldCoverageAtlasTexture
-				|| ViewState.GlobalDistanceFieldCoverageAtlasTexture->GetDesc().Extent.X != CoverageAtlasTextureSize.X
-				|| ViewState.GlobalDistanceFieldCoverageAtlasTexture->GetDesc().Extent.Y != CoverageAtlasTextureSize.Y
-				|| ViewState.GlobalDistanceFieldCoverageAtlasTexture->GetDesc().Depth != CoverageAtlasTextureSize.Z))
+				&& (!GlobalDistanceFieldData.CoverageAtlasTexture
+				|| GlobalDistanceFieldData.CoverageAtlasTexture->GetDesc().Extent.X != CoverageAtlasTextureSize.X
+				|| GlobalDistanceFieldData.CoverageAtlasTexture->GetDesc().Extent.Y != CoverageAtlasTextureSize.Y
+				|| GlobalDistanceFieldData.CoverageAtlasTexture->GetDesc().Depth != CoverageAtlasTextureSize.Z))
 			{
 				FPooledRenderTargetDesc VolumeDesc = FPooledRenderTargetDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
 					CoverageAtlasTextureSize.X,
@@ -819,23 +826,23 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				GRenderTargetPool.FindFreeElement(
 					RHICmdList,
 					VolumeDesc,
-					ViewState.GlobalDistanceFieldCoverageAtlasTexture,
+					GlobalDistanceFieldData.CoverageAtlasTexture,
 					TEXT("GlobalDistanceFieldCoverageAtlas")
 				);
 
 				bSharedDataReallocated = true;
 			}
 
-			GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer = ViewState.GlobalDistanceFieldPageFreeListAllocatorBuffer;
-			GlobalDistanceFieldInfo.PageFreeListBuffer = ViewState.GlobalDistanceFieldPageFreeListBuffer;
-			GlobalDistanceFieldInfo.PageAtlasTexture = ViewState.GlobalDistanceFieldPageAtlasTexture;
-			GlobalDistanceFieldInfo.CoverageAtlasTexture = ViewState.GlobalDistanceFieldCoverageAtlasTexture;
+			GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer = GlobalDistanceFieldData.PageFreeListAllocatorBuffer;
+			GlobalDistanceFieldInfo.PageFreeListBuffer = GlobalDistanceFieldData.PageFreeListBuffer;
+			GlobalDistanceFieldInfo.PageAtlasTexture = GlobalDistanceFieldData.PageAtlasTexture;
+			GlobalDistanceFieldInfo.CoverageAtlasTexture = GlobalDistanceFieldData.CoverageAtlasTexture;
 		}
 
 		if(GAOGlobalDistanceFieldCacheMostlyStaticSeparately)
 		{
 			const FIntVector PageTableTextureResolution = GlobalDistanceField::GetPageTableTextureResolution(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance);
-			TRefCountPtr<IPooledRenderTarget>& PageTableTexture = View.ViewState->GlobalDistanceFieldPageTableCombinedTexture;
+			TRefCountPtr<IPooledRenderTarget>& PageTableTexture = GlobalDistanceFieldData.PageTableCombinedTexture;
 
 			if (!PageTableTexture
 					|| PageTableTexture->GetDesc().Extent.X != PageTableTextureResolution.X
@@ -868,7 +875,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		{
 			const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution(bLumenEnabled);
 			const FIntVector MipTextureResolution = FIntVector(ClipmapMipResolution, ClipmapMipResolution, ClipmapMipResolution * GetNumGlobalDistanceFieldClipmaps(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance));
-			TRefCountPtr<IPooledRenderTarget>& MipTexture = View.ViewState->GlobalDistanceFieldMipTexture;
+			TRefCountPtr<IPooledRenderTarget>& MipTexture = GlobalDistanceFieldData.MipTexture;
 
 			if (!MipTexture
 				|| MipTexture->GetDesc().Extent.X != MipTextureResolution.X
@@ -901,7 +908,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		for (uint32 CacheType = 0; CacheType < GDF_Num; CacheType++)
 		{
 			const FIntVector PageTableTextureResolution = GlobalDistanceField::GetPageTableTextureResolution(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance);
-			TRefCountPtr<IPooledRenderTarget>& PageTableTexture = View.ViewState->GlobalDistanceFieldPageTableLayerTextures[CacheType];
+			TRefCountPtr<IPooledRenderTarget>& PageTableTexture = GlobalDistanceFieldData.PageTableLayerTextures[CacheType];
 
 			if (CacheType == GDF_Full || GAOGlobalDistanceFieldCacheMostlyStaticSeparately)
 			{
@@ -936,7 +943,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 		for (int32 ClipmapIndex = 0; ClipmapIndex < NumClipmaps; ClipmapIndex++)
 		{
-			FGlobalDistanceFieldClipmapState& ClipmapViewState = View.ViewState->GlobalDistanceFieldClipmapState[ClipmapIndex];
+			FGlobalDistanceFieldClipmapState& ClipmapViewState = GlobalDistanceFieldData.ClipmapState[ClipmapIndex];
 
 			const int32 ClipmapResolution = GlobalDistanceField::GetClipmapResolution(bLumenEnabled);
 			const float ClipmapExtent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene, bLumenEnabled);
@@ -952,7 +959,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 			}
 
 			const bool bForceFullUpdate = bSharedDataReallocated
-				|| !View.ViewState->bInitializedGlobalDistanceFieldOrigins
+				|| !GlobalDistanceFieldData.bInitializedOrigins
 				// Detect when max occlusion distance has changed
 				|| ClipmapViewState.CachedClipmapExtent != ClipmapExtent
 				|| ClipmapViewState.CacheMostlyStaticSeparately != GAOGlobalDistanceFieldCacheMostlyStaticSeparately
@@ -960,14 +967,14 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				|| GAOGlobalDistanceFieldForceFullUpdate
 				|| GDFReadbackRequest != nullptr;
 
-			const bool bUpdateRequested = GAOUpdateGlobalDistanceField != 0 && ShouldUpdateClipmapThisFrame(ClipmapIndex, NumClipmaps, View.ViewState->GlobalDistanceFieldUpdateIndex);
+			const bool bUpdateRequested = GAOUpdateGlobalDistanceField != 0 && ShouldUpdateClipmapThisFrame(ClipmapIndex, NumClipmaps, GlobalDistanceFieldData.UpdateIndex);
 
-			if (bUpdateRequested)
+			if (bUpdateRequested && !bUpdatedThisFrame)
 			{
 				NumClipmapUpdateRequests++;
 			}
 
-			if (bUpdateRequested || bForceFullUpdate)
+			if ((bUpdateRequested || bForceFullUpdate) && !bUpdatedThisFrame)
 			{
 				const FVector GlobalDistanceFieldViewOrigin = GetGlobalDistanceFieldViewOrigin(View, ClipmapIndex, bLumenEnabled);
 
@@ -986,8 +993,8 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				{
 					// Store the location of the full update
 					ClipmapViewState.FullUpdateOriginInPages = PageGridCenter;
-					View.ViewState->bInitializedGlobalDistanceFieldOrigins = true;
-					View.ViewState->bGlobalDistanceFieldPendingReset = true;
+					GlobalDistanceFieldData.bInitializedOrigins = true;
+					GlobalDistanceFieldData.bPendingReset = true;
 					ClipmapViewState.LastUsedSceneDataForFullUpdate = &Scene->DistanceFieldSceneData;
 				}
 
@@ -1080,9 +1087,9 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					if (bHasPendingStreaming)
 					{
 						// Mark a pending update for this height field. It will get processed when all pending texture streaming affecting it will be completed.
-						View.ViewState->DeferredGlobalDistanceFieldUpdates[CacheType].AddUnique(ClipmapIndex);
+						GlobalDistanceFieldData.DeferredUpdates[CacheType].AddUnique(ClipmapIndex);
 					}
-					else if (View.ViewState->DeferredGlobalDistanceFieldUpdates[CacheType].Remove(ClipmapIndex) > 0)
+					else if (GlobalDistanceFieldData.DeferredUpdates[CacheType].Remove(ClipmapIndex) > 0)
 					{
 						// Push full update
 						Clipmap.UpdateBounds.Reset();
@@ -1804,7 +1811,7 @@ void UpdateGlobalDistanceFieldVolume(
 				}
 			}
 
-			if (View.ViewState && View.ViewState->bGlobalDistanceFieldPendingReset)
+			if (View.ViewState && View.ViewState->GlobalDistanceFieldData->bPendingReset)
 			{
 				// Reset all allocators to default
 
@@ -1844,7 +1851,7 @@ void UpdateGlobalDistanceFieldVolume(
 						GroupSize);
 				}
 
-				View.ViewState->bGlobalDistanceFieldPendingReset = false;
+				View.ViewState->GlobalDistanceFieldData->bPendingReset = false;
 			}
 
 			for (int32 CacheType = StartCacheType; CacheType < GDF_Num; CacheType++)
@@ -2562,6 +2569,13 @@ void UpdateGlobalDistanceFieldVolume(
 		// Read back a clipmap
 		ReadbackDistanceFieldClipmap(GraphBuilder.RHICmdList, GlobalDistanceFieldInfo);
 	}
+
+	// Mark that we've update this global distance field data this frame
+	if (View.ViewState)
+	{
+		View.ViewState->GlobalDistanceFieldData->bFirstFrame = false;
+		View.ViewState->GlobalDistanceFieldData->UpdateFrame = View.Family->FrameNumber;
+	}
 }
 
 void GlobalDistanceField::ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds)
@@ -2571,7 +2585,7 @@ void GlobalDistanceField::ExpandDistanceFieldUpdateTrackingBounds(const FSceneVi
 	const int32 NumClipmaps = FMath::Clamp<int32>(GetNumGlobalDistanceFieldClipmaps(false, 1.0f), 0, GlobalDistanceField::MaxClipmaps);
 	for (int32 ClipmapIndex = 0; ClipmapIndex < NumClipmaps; ClipmapIndex++)
 	{
-		const FGlobalDistanceFieldClipmapState& ClipmapViewState = ViewState->GlobalDistanceFieldClipmapState[ClipmapIndex];
+		const FGlobalDistanceFieldClipmapState& ClipmapViewState = ViewState->GlobalDistanceFieldData->ClipmapState[ClipmapIndex];
 
 		const FVector3f ClipmapCenter = ClipmapViewState.CachedClipmapCenter;
 		const float ClipmapExtent = ClipmapViewState.CachedClipmapExtent + ClipmapViewState.CacheClipmapInfluenceRadius;

@@ -200,7 +200,7 @@ FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex)
 
 	if (View.ViewState)
 	{
-		FVector CameraVelocityOffset = View.ViewState->GlobalDistanceFieldCameraVelocityOffset;
+		FVector CameraVelocityOffset = View.ViewState->GlobalDistanceFieldData->CameraVelocityOffset;
 
 		if (ClipmapIndex > 0)
 		{
@@ -219,20 +219,20 @@ FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex)
 	{
 		if (Lumen::ShouldUpdateLumenSceneViewOrigin())
 		{
-			View.ViewState->bGlobalDistanceFieldUpdateViewOrigin = true;
+			View.ViewState->GlobalDistanceFieldData->bUpdateViewOrigin = true;
 		}
 		else
 		{
-			if (View.ViewState->bGlobalDistanceFieldUpdateViewOrigin)
+			if (View.ViewState->GlobalDistanceFieldData->bUpdateViewOrigin)
 			{
-				View.ViewState->GlobalDistanceFieldLastViewOrigin = View.ViewMatrices.GetViewOrigin();
-				View.ViewState->bGlobalDistanceFieldUpdateViewOrigin = false;
+				View.ViewState->GlobalDistanceFieldData->LastViewOrigin = View.ViewMatrices.GetViewOrigin();
+				View.ViewState->GlobalDistanceFieldData->bUpdateViewOrigin = false;
 			}
 		}
 
-		if (!View.ViewState->bGlobalDistanceFieldUpdateViewOrigin)
+		if (!View.ViewState->GlobalDistanceFieldData->bUpdateViewOrigin)
 		{
-			CameraOrigin = View.ViewState->GlobalDistanceFieldLastViewOrigin;
+			CameraOrigin = View.ViewState->GlobalDistanceFieldData->LastViewOrigin;
 		}
 	}
 

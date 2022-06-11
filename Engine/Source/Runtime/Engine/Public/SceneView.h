@@ -1132,6 +1132,9 @@ public:
 	/** Whether this view is being used to render a scene capture. */
 	bool bIsSceneCapture;
 
+	/** Whether the scene capture is a cube map (bIsSceneCapture will also be set). */
+	bool bIsSceneCaptureCube;
+
 	/** Whether this view uses ray tracing, for views that are used to render a scene capture. */
 	bool bSceneCaptureUsesRayTracing;
 
