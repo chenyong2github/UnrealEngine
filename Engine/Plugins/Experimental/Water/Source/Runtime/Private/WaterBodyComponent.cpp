@@ -200,6 +200,12 @@ bool UWaterBodyComponent::AffectsWaterMesh() const
 	return ShouldGenerateWaterMeshTile();
 }
 
+bool UWaterBodyComponent::AffectsWaterInfo() const
+{
+	// Currently only water bodies which are rendered by the water mesh can render into the water info texture
+	return ShouldGenerateWaterMeshTile();
+}
+
 #if WITH_EDITOR
 ETextureRenderTargetFormat UWaterBodyComponent::GetBrushRenderTargetFormat() const
 {
@@ -830,12 +836,17 @@ void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterMeshRebuild)
 	 		Component->SetHiddenInGame(bLocalHiddenInGame);
 	 	}
 
-		// If the component is being or can be rendered by the water mesh, rebuild it in case its visibility has changed : 
-		if (bAllowWaterMeshRebuild && (GetWaterBodyType() != EWaterBodyType::Transition))
+		if (AWaterZone* WaterZone = GetWaterZone())
 		{
-			if (AWaterZone* WaterZone = GetWaterZone())
+			// If the component is being or can be rendered by the water mesh or renders into the water info texture, rebuild it in case its visibility has changed : 
+			if (bAllowWaterMeshRebuild && AffectsWaterMesh())
 			{
-				WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::All);
+				WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterMesh);
+			}
+
+			if (AffectsWaterInfo())
+			{
+				WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
 			}
 		}
 	}
@@ -1506,12 +1517,15 @@ AWaterZone* UWaterBodyComponent::GetWaterZone() const
 
 void UWaterBodyComponent::UpdateWaterBodyRenderData()
 {
-	GenerateWaterBodyMesh();
-	MarkRenderStateDirty();
-
-	if (AWaterZone* WaterZone = GetWaterZone())
+	if (AffectsWaterInfo())
 	{
-		WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
+		GenerateWaterBodyMesh();
+		MarkRenderStateDirty();
+
+		if (AWaterZone* WaterZone = GetWaterZone())
+		{
+			WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
+		}
 	}
 }
 

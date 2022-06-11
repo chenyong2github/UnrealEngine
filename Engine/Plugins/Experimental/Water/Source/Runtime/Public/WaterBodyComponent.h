@@ -86,6 +86,7 @@ class WATER_API UWaterBodyComponent : public UPrimitiveComponent
 public:
 	virtual bool AffectsLandscape() const;
 	virtual bool AffectsWaterMesh() const;
+	virtual bool AffectsWaterInfo() const;
 	virtual bool CanAffectWaterMesh() const { return false; }
 
 	void UpdateAll(bool bShapeOrPositionChanged);

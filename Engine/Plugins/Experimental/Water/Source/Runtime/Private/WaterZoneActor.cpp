@@ -243,6 +243,12 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		TArray<UWaterBodyComponent*> WaterBodies;
 		ForEachWaterBodyComponent([World, &WaterBodies, &WaterZMax, &WaterZMin, &bHasIncompleteShaderMaps](UWaterBodyComponent* Component)
 		{
+			// skip components which don't affect the water info texture
+			if (!Component->AffectsWaterInfo())
+			{
+				return true;
+			}
+
 			if (UMaterialInterface* WaterInfoMaterial = Component->GetWaterInfoMaterialInstance())
 			{
 				if (FMaterialResource* MaterialResource = WaterInfoMaterial->GetMaterialResource(World->Scene->GetFeatureLevel()))
