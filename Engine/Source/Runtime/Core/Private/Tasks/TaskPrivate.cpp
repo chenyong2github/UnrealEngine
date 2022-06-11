@@ -13,6 +13,8 @@ namespace UE::Tasks
 	{
 		void FTaskBase::Schedule()
 		{
+			TaskTrace::Scheduled(GetTraceId());
+
 #if TASKGRAPH_NEW_FRONTEND
 			if (IsNamedThreadTask())
 			{

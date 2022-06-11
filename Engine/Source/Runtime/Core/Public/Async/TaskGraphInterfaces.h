@@ -648,7 +648,7 @@ public:
 		template<typename...T>
 		FORCEINLINE_DEBUGGABLE FGraphEventRef ConstructAndDispatchWhenReady(T&&... Args)
 		{
-			FGraphEventRef Ref{ ConstructAndHold(Forward<T>(Args)...) };
+			FGraphEventRef Ref{ ConstructAndHoldImpl(Forward<T>(Args)...) };
 			Ref->TryLaunch();
 			return Ref;
 		}
@@ -656,6 +656,15 @@ public:
 		/** Passthrough internal task constructor and hold. */
 		template<typename...T>
 		FORCEINLINE_DEBUGGABLE TGraphTask* ConstructAndHold(T&&... Args)
+		{
+			TGraphTask* Task = ConstructAndHoldImpl(Forward<T>(Args)...);
+			TaskTrace::Created(Task->GetTraceId());
+			return Task;
+		}
+
+	private:
+		template<typename...T>
+		FORCEINLINE_DEBUGGABLE TGraphTask* ConstructAndHoldImpl(T&&... Args)
 		{
 			TGraphTask* Task = new TGraphTask(Prerequisites);
 			TTask* TaskObject = new(&Task->TaskStorage) TTask(Forward<T>(Args)...);
