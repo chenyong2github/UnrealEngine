@@ -2724,11 +2724,21 @@ float4 UnpackRGBA8(uint rgba)
 	return Out;
 }
 
-uint PackR7G7B6Gamma2(float3 rgb)
+uint PackR7G7B6Gamma2(float3 rgb, float Dither)
 {
-	uint r = (uint(sqrt(saturate(rgb.r)) * 127.0f) << 0);
-	uint g = (uint(sqrt(saturate(rgb.g)) * 127.0f) << 7);
-	uint b = (uint(sqrt(saturate(rgb.b)) *  63.0f) << 14);
+	// We execute a dither that can go in positive/negative direction to avoid surfaces to looks overall brighter.
+	const float CenteredDither = Dither - 0.5f;
+	const float Dither8bits = CenteredDither * 1.0f / 255.0f;
+	const float Dither7bits = CenteredDither * 1.0f / 127.0f;
+	const float Dither6bits = CenteredDither * 1.0f / 63.0f;
+	const float3 Dither776 = float3(Dither7bits, Dither7bits, Dither6bits);
+
+	// Dither value to hide more aggressive bit reduction.
+	const float3 dithered_rgb = DitherIfNonBlack(sqrt(saturate(rgb.r)), Dither776);
+
+	uint r = (uint(dithered_rgb.r * 127.0f) << 0);
+	uint g = (uint(dithered_rgb.g * 127.0f) << 7);
+	uint b = (uint(dithered_rgb.b *  63.0f) << 14);
 	return r | g | b;
 }
 

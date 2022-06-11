@@ -181,10 +181,6 @@ void PackStrataOut(
 				{
 					BSDFVisibleCount++;
 
-					// Dither BSDF data to hide more aggressive bit reduction.
-					// Sanitize happening after will clamp values that could have gone above and below valid range.
-					StrataDitherBSDF(BSDF, Dither);
-
 					switch (BSDF_GETTYPE(BSDF))
 					{
 					case STRATA_BSDF_TYPE_SLAB:
@@ -384,10 +380,10 @@ void PackStrataOut(
 					{
 						// Now we pack diffuse and F0 in a special way: both encoded as R7G7B6 with gamma 2.0. The low bit cound will be hidden by dithering and TAA.
 						// We pack 32 bits in the first uint and the remaining bits are pack is the lowest significant bit of the second uint.
-						const uint PackedDiffuse20Bits = PackR7G7B6Gamma2(SLAB_DIFFUSEALBEDO(BSDF));
+						const uint PackedDiffuse20Bits = PackR7G7B6Gamma2(SLAB_DIFFUSEALBEDO(BSDF), Dither);
 						const uint PackedDiffuse12Bits = PackedDiffuse20Bits & 0xFFF;
 						const uint PackedDiffuse8Bits = (PackedDiffuse20Bits >> 12) & 0xFF;
-						const uint PackedF020Bits = PackR7G7B6Gamma2(SLAB_F0(BSDF));
+						const uint PackedF020Bits = PackR7G7B6Gamma2(SLAB_F0(BSDF), Dither);
 						const uint PackedRoughness8bits = PackR8(SLAB_ROUGHNESS(BSDF));
 
 						// Data0 (Header_State|Header_AO|Roughness|Diffuse8bits)
@@ -451,8 +447,8 @@ void PackStrataOut(
 						{
 							// Now we pack diffuse and F0 in a special way: both encoded as R7G7B6 with gamma 2.0. The low bit cound will be hidden by dithering and TAA.
 							// We pack 32 bits in the first uint and the remaining bits are pack is the lowest significant bit of the second uint.
-							const uint PackedDiffuse20Bits = PackR7G7B6Gamma2(SLAB_DIFFUSEALBEDO(BSDF));
-							const uint PackedF020Bits = PackR7G7B6Gamma2(SLAB_F0(BSDF));
+							const uint PackedDiffuse20Bits = PackR7G7B6Gamma2(SLAB_DIFFUSEALBEDO(BSDF), Dither);
+							const uint PackedF020Bits = PackR7G7B6Gamma2(SLAB_F0(BSDF), Dither);
 							const uint PackedData32Bits = ((PackedDiffuse20Bits << 12) & 0xFFFFF000) | (PackedF020Bits & 0xFFF);
 							const uint PackedData8Bits = (PackedF020Bits >> 12) & 0xFF;
 
