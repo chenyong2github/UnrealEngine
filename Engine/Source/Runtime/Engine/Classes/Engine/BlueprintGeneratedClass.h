@@ -799,9 +799,8 @@ protected:
 	* @param	InStruct			the current scope for which the given property list applies
 	* @param	DataPtr				destination address (where to start copying values to)
 	* @param	DefaultDataPtr		source address (where to start copying the defaults data from)
-	* @param	bSkipEditorOnly		whether to skip editor-only properties
 	*/
-	static void InitPropertiesFromCustomList(const FCustomPropertyListNode* InPropertyList, UStruct* InStruct, uint8* DataPtr, const uint8* DefaultDataPtr, bool bSkipEditorOnly = false);
+	static void InitPropertiesFromCustomList(const FCustomPropertyListNode* InPropertyList, UStruct* InStruct, uint8* DataPtr, const uint8* DefaultDataPtr);
 
 	/**
 	* Helper method to assist with initializing from an array property with an explicit item list.
@@ -810,9 +809,8 @@ protected:
 	* @param	InPropertyList		only these properties (indices) will be copied from defaults
 	* @param	DataPtr				destination address (where to start copying values to)
 	* @param	DefaultDataPtr		source address (where to start copying the defaults data from)
-	* @param	bSkipEditorOnly		whether to skip editor-only properties
 	*/
-	static void InitArrayPropertyFromCustomList(const FArrayProperty* ArrayProperty, const FCustomPropertyListNode* InPropertyList, uint8* DataPtr, const uint8* DefaultDataPtr, bool bSkipEditorOnly = false);
+	static void InitArrayPropertyFromCustomList(const FArrayProperty* ArrayProperty, const FCustomPropertyListNode* InPropertyList, uint8* DataPtr, const uint8* DefaultDataPtr);
 
 
 	/**

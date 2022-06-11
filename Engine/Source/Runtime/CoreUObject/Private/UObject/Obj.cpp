@@ -1160,8 +1160,12 @@ void UObject::PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph/*=N
 		ClearFlags(RF_NeedPostLoadSubobjects);
 
 		// Cooked data will already have its subobjects fully instanced as uninstanced subobjects are only due to newly introduced subobjects in
-		// an archetype that an instance of that object hasn't been saved with
-		if (!FPlatformProperties::RequiresCookedData() && !GetPackage()->HasAnyPackageFlags(PKG_Cooked))
+		// an archetype that an instance of that object hasn't been saved with. Platforms that include editor-only data still require this step
+		// if the outer package is cooked in order to properly instance any editor-only subobjects that will not have otherwise been serialized.
+		// 
+		// @todo_LoadPerf - Consider modifying to bypass this for cooked packages if the class doesn't include any instanced editor-only fields.
+		// Currently we do not have a flag that indicates this scenario, and it might be expensive to iterate over the linked property chain here.
+		if (!FPlatformProperties::RequiresCookedData())
 		{
 			FObjectInstancingGraph CurrentInstanceGraph;
 
