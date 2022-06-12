@@ -148,10 +148,13 @@ bool USkeleton::IsCompatibleSkeletonByAssetString(const FString& SkeletonAssetSt
 	FString CompatibleName;
 	for (const auto& CompatibleSkeleton : CompatibleSkeletons)
 	{
-		CompatibleName = FObjectPropertyBase::GetExportPath(CompatibleSkeleton.Get());
-		if (CompatibleName == SkeletonAssetString)
+		if (CompatibleSkeleton.IsValid())
 		{
-			return true;
+			CompatibleName = FObjectPropertyBase::GetExportPath(CompatibleSkeleton.Get());
+			if (CompatibleName == SkeletonAssetString)
+			{
+				return true;
+			}
 		}
 	}
 
