@@ -137,7 +137,12 @@ void FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* Owner
 {
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-	WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
+
+	TArray<UObject*> LoadedObjects;
+	if (WorldPartition->LoadGeneratorPackageObjectsForCook(LoadedObjects))
+	{
+		WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
+	}
 }
 
 void FWorldPartitionCookPackageSplitter::OnOwnerReloaded(UPackage* OwnerPackage, UObject* OwnerObject)
