@@ -12,6 +12,7 @@
 #include "UObject/CoreNet.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
+#include "PropertyPairsMap.h"
 #include "ComponentInstanceDataCache.h"
 #include "Components/ChildActorComponent.h"
 #include "RenderCommandFence.h"
@@ -936,7 +937,7 @@ public:
 	/**
 	 * Add properties to the actor desc.
 	 */
-	virtual void GetActorDescProperties(TMap<FName, FName>& Properties) const;
+	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const;
 
 	/**
 	 * Creates an uninitialized actor descriptor from a specific class.

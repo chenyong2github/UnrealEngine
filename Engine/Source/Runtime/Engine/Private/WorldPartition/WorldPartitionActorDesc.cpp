@@ -98,7 +98,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 
 	Tags = InActor->Tags;
 
-	Properties.Empty();
+	check(Properties.IsEmpty());
 	InActor->GetActorDescProperties(Properties);
 
 	ActorPackage = InActor->GetPackage()->GetFName();
@@ -172,7 +172,7 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		CompareUnsortedArrays(DataLayers, Other->DataLayers) &&
 		CompareUnsortedArrays(References, Other->References) &&
 		CompareUnsortedArrays(Tags, Other->Tags) &&
-		Properties.OrderIndependentCompareEqual(Other->Properties);
+		Properties == Other->Properties;
 }
 
 void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)

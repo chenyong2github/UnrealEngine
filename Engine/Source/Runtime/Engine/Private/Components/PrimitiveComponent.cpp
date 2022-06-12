@@ -1208,11 +1208,17 @@ void UPrimitiveComponent::CheckForErrors()
 	}
 }
 
-void UPrimitiveComponent::GetActorDescProperties(TMap<FName, FName>& Properties) const
+void UPrimitiveComponent::GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const
 {
-	if (RuntimeVirtualTextures.Num())
+	Super::GetActorDescProperties(PropertyPairsMap);
+
+	for (URuntimeVirtualTexture* RuntimeVirtualTexture : RuntimeVirtualTextures)
 	{
-		Properties.Add(UPrimitiveComponent::RVTActorDescProperty, NAME_None);
+		if (RuntimeVirtualTexture)
+		{
+			PropertyPairsMap.AddProperty(UPrimitiveComponent::RVTActorDescProperty);
+			return;
+		}
 	}
 }
 

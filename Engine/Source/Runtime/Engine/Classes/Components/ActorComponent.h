@@ -14,6 +14,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "UObject/StructOnScope.h"
+#include "PropertyPairsMap.h"
 #include "ComponentInstanceDataCache.h"
 #include "ActorComponent.generated.h"
 
@@ -843,7 +844,7 @@ public:
 	/**
 	 * Add properties to the component owner's actor desc.
 	 */
-	virtual void GetActorDescProperties(TMap<FName, FName>& Properties) const { }
+	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const {}
 #endif // WITH_EDITOR
 
 	/**

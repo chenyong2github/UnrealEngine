@@ -2165,7 +2165,7 @@ public:
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 #if WITH_EDITOR
 	virtual void CheckForErrors() override;
-	virtual void GetActorDescProperties(TMap<FName, FName>& Properties) const;
+	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const;
 #endif // WITH_EDITOR	
 	//~ End UActorComponent Interface
 

@@ -2,11 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetRegistry/AssetData.h"
+#include "PropertyPairsMap.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
-#include "GameFramework/Actor.h"
-#include "Containers/Set.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "UObject/WeakObjectPtr.h"
 #include "Misc/Guid.h"
 
 #if WITH_EDITOR
@@ -19,6 +19,7 @@ struct FWorldPartitionActorDescInitData
 	TArray<uint8> SerializedData;
 };
 
+class AActor;
 class UActorDescContainer;
 struct FActorContainerID;
 
@@ -57,7 +58,7 @@ inline bool CompareUnsortedArrays(const TArray<FName>& Array1, const TArray<FNam
 /**
  * Represents a potentially unloaded actor (editor-only)
  */
-class ENGINE_API FWorldPartitionActorDesc 
+class ENGINE_API FWorldPartitionActorDesc
 {
 #if WITH_EDITOR
 	friend class AActor;
@@ -100,8 +101,8 @@ public:
 	FBox GetBounds() const;
 	inline const FGuid& GetParentActor() const { return ParentActor; }
 	inline bool IsUsingDataLayerAsset() const { return bIsUsingDataLayerAsset; }
-	inline FName GetProperty(FName PropertyName) const { return Properties.FindRef(PropertyName); }
-	inline bool HasProperty(FName PropertyName) const { return Properties.Contains(PropertyName); }
+	inline bool GetProperty(FName PropertyName, FName* PropertyValue) const { return Properties.GetProperty(PropertyName, PropertyValue); }
+	inline bool HasProperty(FName PropertyName) const { return Properties.HasProperty(PropertyName); }
 
 	FName GetActorName() const;
 	FName GetActorLabelOrName() const;
@@ -232,7 +233,7 @@ protected:
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
 	TArray<FName>					Tags;
-	TMap<FName, FName>				Properties;
+	FPropertyPairsMap				Properties;
 	FName							FolderPath;
 	FGuid							FolderGuid;
 

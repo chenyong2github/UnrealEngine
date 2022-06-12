@@ -874,11 +874,11 @@ TUniquePtr<FWorldPartitionActorDesc> AActor::CreateActorDesc() const
 	return ActorDesc;
 }
 
-void AActor::GetActorDescProperties(TMap<FName, FName>& Properties) const
+void AActor::GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const
 {
-	ForEachComponent<UActorComponent>(false, [&Properties](UActorComponent* Component)
+	ForEachComponent<UActorComponent>(false, [&PropertyPairsMap](UActorComponent* Component)
 	{
-		Component->GetActorDescProperties(Properties);
+		Component->GetActorDescProperties(PropertyPairsMap);
 	});
 }
 
