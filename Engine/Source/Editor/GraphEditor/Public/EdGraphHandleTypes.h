@@ -62,14 +62,22 @@ public:
 
 	FORCEINLINE FEdGraphPinHandle(const UEdGraphPin* InPin)
 		: FEdGraphNodeHandle(InPin ? InPin->GetOwningNode() : nullptr)
-		, PinName(InPin ? InPin->GetFName() : NAME_None)
-		, PinDirection(InPin ? InPin->Direction.GetValue() : EEdGraphPinDirection::EGPD_Input)
-		, PersistentPinGuid(InPin ? InPin->PersistentGuid : FGuid())
 		, PinIndex(INDEX_NONE)
 	{
-		if(const UEdGraphNode* Node = InPin->GetOwningNode())
+		if (InPin)
 		{
-			PinIndex = Node->Pins.Find((UEdGraphPin*)InPin);
+			PinName = InPin->GetFName();
+			PinDirection = InPin->Direction.GetValue();
+			PersistentPinGuid = InPin->PersistentGuid;
+			
+			if (const UEdGraphNode* Node = InPin->GetOwningNode())
+			{
+				PinIndex = Node->Pins.Find((UEdGraphPin*)InPin);
+			}
+		}
+		else
+		{
+			PinDirection = EEdGraphPinDirection::EGPD_Input;
 		}
 	}
 		

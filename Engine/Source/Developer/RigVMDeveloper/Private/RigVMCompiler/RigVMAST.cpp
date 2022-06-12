@@ -1062,8 +1062,9 @@ TArray<FRigVMExprAST*> FRigVMParserAST::TraversePins(const FRigVMASTProxy& InNod
 	{
 		FRigVMASTProxy PinProxy = InNodeProxy.GetSibling(Pin);
 
-		if (Pin->GetDirection() == ERigVMPinDirection::Input &&
-			InParentExpr->IsA(FRigVMExprAST::EType::Select))
+		if (InParentExpr &&
+		    Pin->GetDirection() == ERigVMPinDirection::Input &&
+		    InParentExpr->IsA(FRigVMExprAST::EType::Select))
 		{
 			if (Pin->GetName() == URigVMSelectNode::ValueName)
 			{
@@ -1074,12 +1075,9 @@ TArray<FRigVMExprAST*> FRigVMParserAST::TraversePins(const FRigVMASTProxy& InNod
 
 					PinExpressions.Add(TraversePin(CasePinProxy, InParentExpr));
 
-					if(InParentExpr)
-					{
-						const FString PinName = FString::Printf(TEXT("%s_%s"), *Pin->GetName(), *CasePin->GetName());
-						const int32 ChildIndex = InParentExpr->Children.Find(PinExpressions.Last());
-						InParentExpr->PinNameToChildIndex.FindOrAdd(*PinName) = ChildIndex;
-					}
+					const FString PinName = FString::Printf(TEXT("%s_%s"), *Pin->GetName(), *CasePin->GetName());
+					const int32 ChildIndex = InParentExpr->Children.Find(PinExpressions.Last());
+					InParentExpr->PinNameToChildIndex.FindOrAdd(*PinName) = ChildIndex;
 				}
 				continue;
 			}
