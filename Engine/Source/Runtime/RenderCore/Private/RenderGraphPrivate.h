@@ -20,6 +20,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogRDG, Log, All);
 #define RDG_BREAKPOINT_PASS_COMPILE 2
 #define RDG_BREAKPOINT_PASS_EXECUTE 3
 
+#define RDG_RECURSION_COUNTER_SCOPE(Counter) Counter++; ON_SCOPE_EXIT { Counter--; }
+
 #if RDG_ENABLE_DEBUG
 extern int32 GRDGAsyncCompute;
 extern int32 GRDGClobberResources;

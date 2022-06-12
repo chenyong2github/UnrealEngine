@@ -18,7 +18,7 @@
 #include "RenderGraphUtils.h"
 #include "GlobalShader.h"
 #include "RHIValidation.h"
-
+#include "RenderGraphPrivate.h"
 
 IDumpGPUUploadServiceProvider* IDumpGPUUploadServiceProvider::GProvider = nullptr;
 
@@ -1898,7 +1898,7 @@ static const TCHAR* GetPassEventNameWithGPUMask(const FRDGPass* Pass, FString& O
 
 void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 {
-	if (bInDumpPassOutputs)
+	if (!AuxiliaryPasses.IsDumpAllowed())
 	{
 		return;
 	}
@@ -1914,7 +1914,7 @@ void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 		return;
 	}
 
-	bInDumpPassOutputs = true;
+	RDG_RECURSION_COUNTER_SCOPE(AuxiliaryPasses.Dump);
 
 	TArray<TSharedPtr<FJsonValue>> InputResourceNames;
 	TArray<TSharedPtr<FJsonValue>> OutputResourceNames;
@@ -2165,8 +2165,6 @@ void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 	}
 
 	GRDGResourceDumpContext->PassesCount++;
-
-	bInDumpPassOutputs = false;
 }
 
 #if RDG_DUMP_RESOURCES_AT_EACH_DRAW

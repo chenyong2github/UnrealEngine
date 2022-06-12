@@ -694,13 +694,22 @@ private:
 	FRDGBarrierValidation BarrierValidation;
 #endif
 
-	/** Tracks whether we are in a scope of adding passes to the builder. Used to avoid recursion. */
-	bool bInClobberPassOutputs = false;
-	bool bInVisualizePassOutputs = false;
-	bool bInDumpPassOutputs = false;
-	bool bInFlushExternalAccess = false;
+	/** Tracks stack counters of auxiliary passes to avoid calling them recursively. */
+	struct FAuxiliaryPass
+	{
+		uint8 Clobber = 0;
+		uint8 Visualize = 0;
+		uint8 Dump = 0;
+		uint8 FlushAccessModeQueue = 0;
 
-	bool InAuxiliaryPass() const { return bInClobberPassOutputs || bInVisualizePassOutputs || bInDumpPassOutputs || bInFlushExternalAccess; }
+		bool IsDumpAllowed() const { return Dump == 0; }
+		bool IsVisualizeAllowed() const { return Visualize == 0; }
+		bool IsClobberAllowed() const { return Clobber == 0; }
+		bool IsFlushAccessModeQueueAllowed() const { return FlushAccessModeQueue == 0; }
+
+		bool IsActive() const { return Clobber > 0 || Visualize > 0 || Dump > 0 || FlushAccessModeQueue > 0; }
+
+	} AuxiliaryPasses;
 
 #if WITH_MGPU
 	/** Name for the temporal effect used to synchronize multi-frame resources. */

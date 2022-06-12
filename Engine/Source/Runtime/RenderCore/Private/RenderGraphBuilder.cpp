@@ -673,12 +673,14 @@ void FRDGBuilder::UseInternalAccessMode(FRDGViewableResource* Resource)
 
 void FRDGBuilder::FlushAccessModeQueue()
 {
-	if (AccessModeQueue.IsEmpty() || bInFlushExternalAccess)
+	if (AccessModeQueue.IsEmpty() || !AuxiliaryPasses.IsFlushAccessModeQueueAllowed())
 	{
 		return;
 	}
 
-	bInFlushExternalAccess = true;
+	// Don't allow Dump GPU to dump access mode passes. We rely on FlushAccessQueue in dump GPU to transition things back to external access.
+	RDG_RECURSION_COUNTER_SCOPE(AuxiliaryPasses.Dump);
+	RDG_RECURSION_COUNTER_SCOPE(AuxiliaryPasses.FlushAccessModeQueue);
 
 	FAccessModePassParameters* ParametersByPipeline[] =
 	{
@@ -761,8 +763,6 @@ void FRDGBuilder::FlushAccessModeQueue()
 	}
 
 	AccessModeQueue.Reset();
-
-	bInFlushExternalAccess = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1676,8 +1676,6 @@ void FRDGBuilder::Execute()
 
 	EndFlushResourcesRHI();
 
-	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = bParallelExecuteEnabled);
-
 	FGraphEventRef DispatchParallelExecuteEvent;
 
 	if (bParallelExecuteEnabled)
@@ -1692,6 +1690,7 @@ void FRDGBuilder::Execute()
 
 	SubmitBufferUploads();
 
+	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = bParallelExecuteEnabled);
 	IF_RDG_ENABLE_TRACE(Trace.OutputGraphBegin());
 
 	const ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread_Local();
@@ -1854,7 +1853,7 @@ void FRDGBuilder::Execute()
 
 FRDGPass* FRDGBuilder::SetupPass(FRDGPass* Pass)
 {
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(Pass, InAuxiliaryPass()));
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(Pass, AuxiliaryPasses.IsActive()));
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGBuilder_SetupPass, GRDGVerboseCSVStats != 0);
 
 	const FRDGParameterStruct PassParameters = Pass->GetParameters();
@@ -3477,12 +3476,12 @@ void FRDGBuilder::EndResourceRHI(FRDGPassHandle PassHandle, FRDGBufferRef Buffer
 void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 {
 #if SUPPORTS_VISUALIZE_TEXTURE
-	if (bInVisualizePassOutputs)
+	if (!AuxiliaryPasses.IsVisualizeAllowed())
 	{
 		return;
 	}
 
-	bInVisualizePassOutputs = true;
+	RDG_RECURSION_COUNTER_SCOPE(AuxiliaryPasses.Visualize);
 
 	Pass->GetParameters().EnumerateTextures([&](FRDGParameter Parameter)
 	{
@@ -3548,19 +3547,17 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 		break;
 		}
 	});
-
-	bInVisualizePassOutputs = false;
 #endif
 }
 
 void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 {
-	if (!GRDGClobberResources || bInClobberPassOutputs)
+	if (!GRDGClobberResources || !AuxiliaryPasses.IsClobberAllowed())
 	{
 		return;
 	}
 
-	bInClobberPassOutputs = true;
+	RDG_RECURSION_COUNTER_SCOPE(AuxiliaryPasses.Clobber);
 
 	RDG_EVENT_SCOPE(*this, "RDG ClobberResources");
 
@@ -3654,8 +3651,6 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 		break;
 		}
 	});
-
-	bInClobberPassOutputs = false;
 }
 
 #endif //! RDG_ENABLE_DEBUG
