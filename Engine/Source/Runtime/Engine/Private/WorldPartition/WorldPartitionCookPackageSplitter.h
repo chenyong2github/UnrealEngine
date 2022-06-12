@@ -20,10 +20,11 @@ public:
 	virtual void Teardown(ETeardown Status) override;
 	virtual bool UseInternalReferenceToAvoidGarbageCollect() override { return true; }
 	virtual TArray<ICookPackageSplitter::FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) override;
-	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject,
-		const ICookPackageSplitter::FGeneratedPackageForPopulate& GeneratedPackage, bool bWasOwnerReloaded) override;
+	virtual bool TryPopulatePackage(UPackage* OwnerPackage, UObject* OwnerObject,
+		const ICookPackageSplitter::FGeneratedPackageForPopulate& GeneratedPackage) override;
 	virtual void PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
 		const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages) override;
+	virtual void OnOwnerReloaded(UPackage* OwnerPackage, UObject* OwnerObject) override;
 	//~ End of ICookPackageSplitter
 
 private:
@@ -34,7 +35,7 @@ private:
 	const UWorld* ValidateDataObject(const UObject* SplitData);
 	UWorld* ValidateDataObject(UObject* SplitData);
 	
-	TObjectPtr<UWorld> ReferencedWorld;
+	TObjectPtr<UWorld> ReferencedWorld = nullptr;
 
 	bool bInitializedWorldPartition = false;
 	bool bForceInitializedWorld = false;

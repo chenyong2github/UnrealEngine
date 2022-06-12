@@ -66,9 +66,10 @@ public:
 		UPackage* Package = nullptr;
 		/** *GetCreateAsMap returned from GetGenerateList. The package filename extension has already been set based on this. */
 		bool bCreatedAsMap = false;
-		/** Whether the Package was populated by PreSave or constructed empty */
-		bool bPopulatedByPreSave = false;
 	};
+
+	virtual void GetObjectsToMoveIntoPackage(UPackage* OwnerPackage, UObject* OwnerObject,
+		const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove) {}
 	/**
 	 * Try to populate a generated package.
 	 *
@@ -80,12 +81,18 @@ public:
 	 * @param OwnerPackage				The parent package being split
 	 * @param OwnerObject				The SplitDataClass instance that this CookPackageSplitter instance was created for
 	 * @param GeneratedPackage			Pointer and information about the package to populate
-	 * @param bWasOwnerReloaded			True iff the OwnerPackage was garbage collected and reloaded since the previous call
-	 *                                  to GetGenerateList or TryPopulatePackage
 	 * @return							True if successfully populates,  false on error (this will cause a cook error).
 	 */
-	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject,
-		const FGeneratedPackageForPopulate& GeneratedPackage, bool bWasOwnerReloaded) = 0;
+	virtual bool TryPopulatePackage(UPackage* OwnerPackage, UObject* OwnerObject,
+		const FGeneratedPackageForPopulate& GeneratedPackage) = 0;
+	/**
+	 * Called after saving the generated package. Undo any required adjustments to the parent package that
+	 * were made in TryPopulatePackage, so that the package is once again ready for use in the editor or in
+	 * future GetGenerateList or TryPopulatePackage calls
+	 */
+	virtual void PostSaveGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
+		const FGeneratedPackageForPopulate& GeneratedPackage) {}
+
 
 	struct FGeneratedPackageForPreSave
 	{
@@ -118,6 +125,9 @@ public:
 	 * future GetGenerateList or TryPopulatePackage calls
 	 */
 	virtual void PostSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject) {}
+
+	/** Called when the Owner package needs to be reloaded after a garbage collect in order to populate a generated package. */
+	virtual void OnOwnerReloaded(UPackage* OwnerPackage, UObject* OwnerObject) {}
 };
 
 namespace UE

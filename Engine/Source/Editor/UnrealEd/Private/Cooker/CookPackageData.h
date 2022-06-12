@@ -593,22 +593,85 @@ struct FBeginCacheObjects
 };
 
 /**
+ * Struct uses with ICookPackageSplitter, which contains the state information for the save of either the
+ * Generator package or one of its Generated packages.
+ */
+struct FCookGenerationInfo
+{
+public:
+	/** State variable for reentrant SplitPackage calls */
+	enum class ESaveState : uint8
+	{
+		StartGenerate = 0,
+
+		GenerateList = StartGenerate,
+		ClearOldPackagesFirstAttempt,
+		ClearOldPackagesLastAttempt,
+		QueueGeneratedPackages,
+
+		StartPopulate,
+		FinishCachePreMove = StartPopulate,
+		CallObjectsToMove,
+		BeginCacheObjectsToMove,
+		FinishCacheObjectsToMove,
+		CallPopulate,
+		CallGetPostMoveObjects,
+		BeginCachePostMove,
+		FinishCachePostMove,
+
+		ReadyForSave,
+		Last = ReadyForSave,
+	};
+
+	FCookGenerationInfo(FPackageData& InPackageData, bool bInGenerator);
+
+	ESaveState GetSaveState() const { return GeneratorSaveState; }
+	void SetSaveState(ESaveState InValue) { GeneratorSaveState = InValue; }
+	void SetSaveStateComplete(ESaveState CompletedState);
+
+	bool IsCreateAsMap() const { return bCreateAsMap; }
+	void SetIsCreateAsMap(bool bValue) { bCreateAsMap = bValue; }
+	bool HasCreatedPackage() const { return bHasCreatedPackage; }
+	void SetHasCreatedPackage(bool bValue) { bHasCreatedPackage = bValue; }
+	bool HasSaved() const { return bHasSaved; }
+	void SetHasSaved(bool bValue) { bHasSaved = bValue; }
+	bool HasTakenOverCachedCookedPlatformData() const { return bTakenOverCachedCookedPlatformData; }
+	void SetHasTakenOverCachedCookedPlatformData(bool bValue) { bTakenOverCachedCookedPlatformData = bValue; }
+	bool HasIssuedUndeclaredMovedObjectsWarning() const { return bIssuedUndeclaredMovedObjectsWarning; }
+	void SetHasIssuedUndeclaredMovedObjectsWarning(bool bValue) { bIssuedUndeclaredMovedObjectsWarning = bValue; }
+	bool IsGenerator() const { return bGenerator; }
+	void SetIsGenerator(bool bValue) { bGenerator = bValue; }
+
+	/**
+	 * Steal the list of cached objects to call BeginCacheForCookedPlatformData on from the PackageData,
+	 * and add them to this. Also add the list of NewObjects reported by the splitter that will be moved into the package.
+	 */
+	void TakeOverCachedObjectsAndAddNew(TArray<FWeakObjectPtr>& CachedObjectsInOuter, TArray<UObject*>& NewObjects);
+	/** Fetch all the objects currently in the package and add them the list of objects that need BeginCacheForCookedPlatformData. */
+	void RefreshPackageObjects(UPackage* Package);
+
+public:
+	FBeginCacheObjects BeginCacheObjects;
+	FString RelativePath;
+	TArray<FName> Dependencies;
+	FPackageData* PackageData = nullptr;
+private:
+	ESaveState GeneratorSaveState = ESaveState::StartGenerate;
+	bool bCreateAsMap : 1;
+	bool bHasCreatedPackage : 1;
+	bool bHasSaved : 1;
+	bool bTakenOverCachedCookedPlatformData : 1;
+	bool bIssuedUndeclaredMovedObjectsWarning : 1;
+	bool bGenerator : 1;
+};
+
+/**
  * Helper that wraps a ICookPackageSplitter, gets/caches packages to generate and provide
  * the necessary to iterate over all of them iteratively.
  */
 struct FGeneratorPackage
 {
 public:
-	struct FGeneratedStruct
-	{
-		FString RelativePath;
-		TArray<FName> Dependencies;
-		FPackageData* PackageData = nullptr;
-		bool bCreateAsMap = false;
-		bool bHasCreatedPackage = false;
-		bool bHasSaved = false;
-	};
-
 	/** Store the provided CookPackageSplitter and prepare the packages to generate. */
 	FGeneratorPackage(UE::Cook::FPackageData& InOwner, const UObject* InSplitDataObject,
 		ICookPackageSplitter* InCookPackageSplitterInstance);
@@ -620,110 +683,63 @@ public:
 	bool TryGenerateList(UObject* OwnerObject, FPackageDatas& PackageDatas);
 
 	/** Accessor for the packages to generate */
-	TArrayView<FGeneratedStruct> GetPackagesToGenerate() { return PackagesToGenerate; }
+	TArrayView<UE::Cook::FCookGenerationInfo> GetPackagesToGenerate() { return PackagesToGenerate; }
+	/** Return the GenerationInfo used to save the Generator's UPackage */
+	UE::Cook::FCookGenerationInfo& GetOwnerInfo() { return OwnerInfo; }
+	/** Return owner FPackageData. */
+	UE::Cook::FPackageData& GetOwner() { return *OwnerInfo.PackageData; }
+	/** Return the GenerationInfo for the given PackageData, or null if not found. */
+	UE::Cook::FCookGenerationInfo* FindInfo(const FPackageData& PackageData);
+	const UE::Cook::FCookGenerationInfo* FindInfo(const FPackageData& PackageData) const;
 
 	/** Return CookPackageSplitter. */
 	ICookPackageSplitter* GetCookPackageSplitterInstance() const { return CookPackageSplitterInstance.Get(); }
-	/** Return owner FPackageData. */
-	UE::Cook::FPackageData& GetOwner() { return Owner; }
 	/** Return the SplitDataObject's FullObjectPath. */
 	const FName GetSplitDataObjectName() const { return SplitDataObjectName; }
-	/**
-	 * Return the packagepath and localpath to the owner's mount point used for loading generated packages,
-	 * if we need to save them to disk.
-	 */
-	void GetIntermediateMountPoint(FString& OutPackagePath, FString& OutLocalPath) const;
-	/**
-	 * Return the standard path to the temporary file (including extension) where we store the given
-	 * generated package, if we need to save it to disk for later retrieval in the cook session.
-	 */
-	FString GetIntermediateLocalPath(const FGeneratorPackage::FGeneratedStruct& GeneratedStruct) const;
-
-	/** Return the FGeneratedStruct with the given PackageData, or null if not found. */
-	FGeneratedStruct* FindGeneratedStruct(FPackageData* PackageData);
 	/**
 	 * Find again the split object from its name, or return null if no longer in memory.
 	 * It may have been GC'd and reloaded since the last time we used it.
 	 */
 	UObject* FindSplitDataObject() const;
 
-	/** State variable for reentrant SplitPackage calls */
-	enum class ESaveState : uint8
-	{
-		Start = 0,
-
-		GenerateList = Start,
-		ClearOldPackagesFirstAttempt,
-		ClearOldPackagesLastAttempt,
-		QueueGeneratedPackages,
-
-		StartGeneratorSave,
-		FinishCachePreObjectsToMove = StartGeneratorSave,
-		CallObjectsToMoveIntoGenerator,
-		BeginCacheObjectsToMove,
-		FinishCacheObjectsToMove,
-		CallPreSaveGeneratorPackage,
-		CallGetPostMoveObjects,
-		BeginCachePostMove,
-		FinishCachePostMove,
-
-		ReadyForSave,
-		Last = ReadyForSave,
-	};
-	ESaveState GetGeneratorSaveState() const { return GeneratorSaveState; }
-	void SetGeneratorSaveState(ESaveState InValue) { GeneratorSaveState = InValue; }
-	void SetGeneratorSaveStateComplete(ESaveState CompletedState);
-	bool HasTakenOverCachedCookedPlatformData() const { return bTakenOverCachedCookedPlatformData; }
-	void SetHasTakenOverCachedCookedPlatformData() { bTakenOverCachedCookedPlatformData = true; }
-	bool HasIssuedUndeclaredMovedObjectsWarning() const { return bIssuedUndeclaredMovedObjectsWarning; }
-	void SetHasIssuedUndeclaredMovedObjectsWarning() { bIssuedUndeclaredMovedObjectsWarning = true; }
+	void ResetSaveState(FCookGenerationInfo& Info, UPackage* Package, UE::Cook::EReleaseSaveReason ReleaseSaveReason);
 
 	int32& GetNextPopulateIndex() { return NextPopulateIndex; }
 
-	/** Callback during garbage collection */
+	/** Callbacks during garbage collection */
+	void PreGarbageCollect(FCookGenerationInfo& Info, TArray<UObject*>& GCKeepObjects,
+		TArray<UPackage*>& GCKeepPackages, TArray<FPackageData*>& GCKeepPackageDatas, bool& bOutShouldDemote);
 	void PostGarbageCollect();
 
-	/** Get/Clear whether the Owner was garbage collected since the previous call to TryPopulatePackage */
-	bool GetWasOwnerReloaded() const { return bWasOwnerReloaded; }
-	void ClearWasOwnerReloaded() { bWasOwnerReloaded = false; }
 	/** Call CreatePackage and set PackageData for deterministic generated packages, and update status. */
-	UPackage* CreateGeneratedUPackage(FGeneratedStruct& GeneratedStruct,
+	UPackage* CreateGeneratedUPackage(FCookGenerationInfo& GenerationInfo,
 		const UPackage* OwnerPackage, const TCHAR* GeneratedPackageName);
-	/** Mark that the generator package has saved, to keep track of when *this is no longer needed. */
-	void SetGeneratorSaved(UPackage* GeneratorUPackage);
-	/** Mark that the generated package has saved, to keep track of when *this is no longer needed. */
-	void SetGeneratedSaved(FPackageData& PackageData);
+	/** Mark that the generator or a generated package has saved, to keep track of when *this is no longer needed. */
+	void SetPackageSaved(FCookGenerationInfo& Info, FPackageData& PackageData);
 	/** Return whether list has been generated and all generated packages have been populated */
 	bool IsComplete() const;
-	FBeginCacheObjects& GetGeneratorBeginCacheObjects() { return GeneratorBeginCacheObjects; }
 
-	void SetObjectsToMoveIntoGenerator(UPackage* Package, UObject* SplitDataObject,
-		ICookPackageSplitter* Splitter, TArray<FWeakObjectPtr>& CachedObjectsInOuter,
-		TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackagesForPresave);
-	void SetPostMoveObjects(UPackage* Package);
-	void ResetGeneratorSaveState(UPackage* Package, UE::Cook::EReleaseSaveReason ReleaseSaveReason);
+	bool IsSaveInvalidated(const FPackageData& PackageData) const;
+
+	UPackage* GetOwnerPackage() const { return OwnerPackage.Get(); };
+	void SetOwnerPackage(UPackage* InPackage) { OwnerPackage = InPackage; }
 
 private:
 	void ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown Status);
 
 	/** PackageData for the package that is being split */
-	UE::Cook::FPackageData& Owner;
+	FCookGenerationInfo OwnerInfo;
 	/** Name of the object that prompted the splitter creation */
 	FName SplitDataObjectName;
 	/** Cached CookPackageSplitter */
 	TUniquePtr<ICookPackageSplitter> CookPackageSplitterInstance;
 	/** Recorded list of packages to generate from the splitter, and data we need about them */
-	TArray<FGeneratedStruct> PackagesToGenerate;
-	FBeginCacheObjects GeneratorBeginCacheObjects;
+	TArray<FCookGenerationInfo> PackagesToGenerate;
+	TWeakObjectPtr<UPackage> OwnerPackage;
 
 	int32 NextPopulateIndex = 0;
 	int32 RemainingToPopulate = 0;
-	ESaveState GeneratorSaveState = ESaveState::Start;
-	bool bTakenOverCachedCookedPlatformData = false;
-	bool bIssuedUndeclaredMovedObjectsWarning = false;
 
-	bool bWasOwnerReloaded = false;
-	bool bOwnerHasSaved = false;
 	bool bNotifiedCompletion = false;
 };
 

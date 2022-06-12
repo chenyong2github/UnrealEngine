@@ -117,14 +117,10 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 	return PackagesToGenerate;
 }
 
-bool FWorldPartitionCookPackageSplitter::TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject,
-	const FGeneratedPackageForPopulate& GeneratedPackage, bool bWasOwnerReloaded)
+bool FWorldPartitionCookPackageSplitter::TryPopulatePackage(UPackage* OwnerPackage, UObject* OwnerObject,
+	const FGeneratedPackageForPopulate& GeneratedPackage)
 {
-	check(!bWasOwnerReloaded);
-
-	// TODO: Make PopulateGeneratedPackageForCook const so we can honor the constness of the OwnerObject in this API function
-	const UWorld* ConstPartitionedWorld = ValidateDataObject(OwnerObject);
-	UWorld* PartitionedWorld = const_cast<UWorld*>(ConstPartitionedWorld);
+	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
 
 	TArray<UObject*> LoadedObjects;
@@ -141,12 +137,12 @@ void FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* Owner
 {
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-
-	TArray<UObject*> LoadedObjects;
-	if (WorldPartition->LoadGeneratorPackageObjectsForCook(LoadedObjects))
-	{
-		WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
-	}
+	WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
 }
 
+void FWorldPartitionCookPackageSplitter::OnOwnerReloaded(UPackage* OwnerPackage, UObject* OwnerObject)
+{
+	// It should not be possible for the owner to reload due to garbage collection while we are active and keeping it referenced
+	check(!ReferencedWorld); 
+}
 #endif

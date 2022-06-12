@@ -2420,29 +2420,6 @@ void UCookOnTheFlyServer::PumpPreloadStarts()
 	}
 }
 
-namespace UE::Cook
-{
-struct FPopulatePackageContext
-{
-	explicit FPopulatePackageContext(FGeneratorPackage* InGeneratorStruct, UPackage* InOwnerPackage)
-		: GeneratorStruct(InGeneratorStruct)
-		, OwnerPackage(InOwnerPackage)
-	{
-	}
-
-	// Input variables
-	FGeneratorPackage* GeneratorStruct = nullptr;
-	const UPackage* OwnerPackage = nullptr;
-	FGeneratorPackage::FGeneratedStruct* GeneratedStruct = nullptr;
-
-	// Cache of initialized-on-demand variables
-	UObject* OwnerObject = nullptr;
-	FString GeneratorPackagePath;
-	FString GeneratorPackageShortName;
-	FString GeneratedCookedRootPath;
-};
-
-}
 void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData, uint32& ResultFlags, int32& OutNumPushed)
 {
 	using namespace UE::Cook;
@@ -2484,35 +2461,48 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 	}
 	else
 	{
-		FGeneratorPackage* GeneratorStruct = PackageData.GetGeneratedOwner();
-		if (!GeneratorStruct)
+		FGeneratorPackage* Generator = PackageData.GetGeneratedOwner();
+		if (!Generator)
 		{
 			UE_LOG(LogCook, Error, TEXT("Package %s is an out-of-date generated package with a no-longer-available generator. It can not be loaded."), *PackageFileName.ToString());
 			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"));
 			return;
 		}
-		FGeneratorPackage::FGeneratedStruct* GeneratedStruct = GeneratorStruct->FindGeneratedStruct(&PackageData);
-		if (!GeneratedStruct)
+		FCookGenerationInfo* Info = Generator->FindInfo(PackageData);
+		if (!Info)
 		{
 			UE_LOG(LogCook, Error, TEXT("Package %s is a generated package but its generator no longer has a record of it. It can not be loaded."), *PackageFileName.ToString());
 			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"));
 			return;
 		}
 
-		FPackageData& OwnerPackageData = const_cast<FPackageData&>(GeneratorStruct->GetOwner());
-		UPackage* OwnerPackage;
-		bool bLoadFullySuccessful = LoadPackageForCooking(OwnerPackageData, OwnerPackage, &PackageData);
-		if (!bLoadFullySuccessful)
+		FPackageData& OwnerPackageData = Generator->GetOwner();
+		UPackage* OwnerPackage = Generator->GetOwnerPackage();
+		if (!OwnerPackage)
 		{
-			ResultFlags |= COSR_ErrorLoadingPackage;
-			UE_LOG(LogCook, Error, TEXT("Package %s is a generated package and we could not load its generator package %s. It can not be loaded."),
-				*PackageFileName.ToString(), *OwnerPackageData.GetFileName().ToString());
-			RejectPackageToLoad(PackageData, TEXT("is a generated package which could not load its generator"));
-			return;
+			OwnerPackage = FindObject<UPackage>(nullptr, *OwnerPackageData.GetPackageName().ToString());
 		}
-		FPopulatePackageContext Context(GeneratorStruct, OwnerPackage);
-		Context.GeneratedStruct = GeneratedStruct;
-		LoadedPackage = TryPopulateGeneratedPackage(Context);
+		if (!OwnerPackage || !OwnerPackage->IsFullyLoaded())
+		{
+			bool bLoadFullySuccessful = LoadPackageForCooking(OwnerPackageData, OwnerPackage, &PackageData);
+			UObject* SplitterDataObject = nullptr;
+			if (bLoadFullySuccessful)
+			{
+				SplitterDataObject = Generator->FindSplitDataObject();
+			}
+			if (!SplitterDataObject)
+			{
+				ResultFlags |= COSR_ErrorLoadingPackage;
+				UE_LOG(LogCook, Error, TEXT("Package %s is a generated package and we could not load its generator package %s. It can not be loaded."),
+					*PackageFileName.ToString(), *OwnerPackageData.GetFileName().ToString());
+				RejectPackageToLoad(PackageData, TEXT("is a generated package which could not load its generator"));
+				return;
+			}
+			Generator->GetCookPackageSplitterInstance()->OnOwnerReloaded(OwnerPackage, SplitterDataObject);
+			Generator->SetOwnerPackage(OwnerPackage);
+		}
+
+		LoadedPackage = TryCreateGeneratedPackage(*Generator, *Info);
 		if (!LoadedPackage)
 		{
 			RejectPackageToLoad(PackageData, TEXT("is a generated package which could not be populated"));
@@ -2762,136 +2752,178 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::QueueGeneratedPackages(UE::Cook::FGen
 
 	ICookPackageSplitter* Splitter = Generator.GetCookPackageSplitterInstance();
 	UObject* SplitObject = Generator.FindSplitDataObject();
+	FCookGenerationInfo& Info = Generator.GetOwnerInfo();
 	if (!SplitObject)
 	{
 		UE_LOG(LogCook, Error, TEXT("Could not find SplitDataObject %s"), *Generator.GetSplitDataObjectName().ToString());
 		return EPollStatus::Error;
 	}
 
-	if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::GenerateList)
+	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::GenerateList)
 	{
 		// Call the splitter to generate the list
 		if (!Generator.TryGenerateList(SplitObject, *PackageDatas))
 		{
 			return EPollStatus::Error;
 		}
-		Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::GenerateList);
+		Generator.SetOwnerPackage(PackageData.GetPackage());
+		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::GenerateList);
 	}
 
-	if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::ClearOldPackagesLastAttempt)
+	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::ClearOldPackagesLastAttempt)
 	{
-		for (const FGeneratorPackage::FGeneratedStruct& GeneratedStruct : Generator.GetPackagesToGenerate())
+		for (const FCookGenerationInfo& ChildInfo: Generator.GetPackagesToGenerate())
 		{
-			const FString GeneratedPackageName = GeneratedStruct.PackageData->GetPackageName().ToString();
+			const FString GeneratedPackageName = ChildInfo.PackageData->GetPackageName().ToString();
 			if (FindObject<UPackage>(nullptr, *GeneratedPackageName))
 			{
-				if (Generator.GetGeneratorSaveState() < FGeneratorPackage::ESaveState::ClearOldPackagesLastAttempt)
+				if (Info.GetSaveState() < FCookGenerationInfo::ESaveState::ClearOldPackagesLastAttempt)
 				{
 					PackageData.SetIsPrepareSaveRequiresGC(true);
-					Generator.SetGeneratorSaveState(FGeneratorPackage::ESaveState::ClearOldPackagesLastAttempt);
+					Info.SetSaveState(FCookGenerationInfo::ESaveState::ClearOldPackagesLastAttempt);
 					return EPollStatus::Incomplete;
 				}
 				else
 				{
 					UE_LOG(LogCook, Error, TEXT("PackageSplitter was unable to construct new generated packages because an old version of the package is already in memory and GC did not remove it. Splitter=%s, Generated=%s."),
-						*Generator.GetSplitDataObjectName().ToString(), *GeneratedStruct.RelativePath);
+						*Generator.GetSplitDataObjectName().ToString(), *ChildInfo.RelativePath);
 					return EPollStatus::Error;
 				}
 			}
 		}
 
-		Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::ClearOldPackagesLastAttempt);
+		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::ClearOldPackagesLastAttempt);
 	}
 
 	UPackage* Owner = PackageData.GetPackage();
 	FName OwnerName = Owner->GetFName();
-	if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::QueueGeneratedPackages)
+	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::QueueGeneratedPackages)
 	{
-		for (const FGeneratorPackage::FGeneratedStruct& GeneratedStruct : Generator.GetPackagesToGenerate())
+		for (const FCookGenerationInfo& ChildInfo: Generator.GetPackagesToGenerate())
 		{
-			FPackageData* GeneratedPackageData = GeneratedStruct.PackageData;
-			GeneratedPackageData->ClearCookedPlatformData();
-			QueueDiscoveredPackageData(*GeneratedPackageData, FInstigator(EInstigator::GeneratedPackage, OwnerName));
+			FPackageData* ChildPackageData = ChildInfo.PackageData;
+			ChildPackageData->ClearCookedPlatformData();
+			QueueDiscoveredPackageData(*ChildPackageData, FInstigator(EInstigator::GeneratedPackage, OwnerName));
 		}
-		Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::QueueGeneratedPackages);
+		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::QueueGeneratedPackages);
 	}
 	return EPollStatus::Success;
 }
 
-UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveGeneratorPackage(UE::Cook::FGeneratorPackage& Generator,
-	UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer)
+UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveGeneratedPackage(UE::Cook::FGeneratorPackage& Generator,
+	UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer, bool bPrecaching)
 {
 	using namespace UE::Cook;
 
-	if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::FinishCachePreObjectsToMove)
+	FCookGenerationInfo* InfoPtr = Generator.FindInfo(PackageData);
+	if (!InfoPtr)
+	{
+		UE_LOG(LogCook, Error, TEXT("Generated package %s is missing its generation data and cannot be saved."),
+			*PackageData.GetPackageName().ToString());
+		return EPollStatus::Error;
+	}
+	FCookGenerationInfo& Info(*InfoPtr);
+
+	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::FinishCachePreMove)
 	{
 		if (PackageData.GetNumPendingCookedPlatformData() > 0)
 		{
 			return EPollStatus::Incomplete;
 		}
-		Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::FinishCachePreObjectsToMove);
+		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::FinishCachePreMove);
 	}
 
 	// GeneratedPackagesForPresave is used by multiple steps, recreate it when needed each time we come in to this function
 	TArray<ICookPackageSplitter::FGeneratedPackageForPreSave> GeneratedPackagesForPresave;
-	if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::FinishCacheObjectsToMove)
+	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::FinishCacheObjectsToMove)
 	{
-		if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::BeginCacheObjectsToMove)
+		if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::BeginCacheObjectsToMove)
 		{
-			EPollStatus Result = BeginCacheObjectsToMove(Generator, PackageData, Timer, GeneratedPackagesForPresave);
+			EPollStatus Result = BeginCacheObjectsToMove(Generator, Info, Timer, GeneratedPackagesForPresave);
 			if (Result != EPollStatus::Success)
 			{
 				return Result;
 			}
-			Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::BeginCacheObjectsToMove);
+			Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::BeginCacheObjectsToMove);
 		}
-		check(Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::FinishCacheObjectsToMove);
+		check(Info.GetSaveState() <= FCookGenerationInfo::ESaveState::FinishCacheObjectsToMove);
 		if (PackageData.GetNumPendingCookedPlatformData() > 0)
 		{
 			return EPollStatus::Incomplete;
 		}
-		Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::FinishCacheObjectsToMove);
+		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::FinishCacheObjectsToMove);
 	}
 
-	if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::CallPreSaveGeneratorPackage)
+	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::CallPopulate)
 	{
-		EPollStatus Result = PreSaveGeneratorPackage(PackageData, Generator, GeneratedPackagesForPresave);
+		if (bPrecaching)
+		{
+			// We're not allowed to populate when precaching, because we want to avoid 
+			// garbagecollection in between Populating and PostSaving the populates package,
+			// so we need to not Populate until we're ready to save
+			return EPollStatus::Incomplete;
+		}
+
+		EPollStatus Result;
+		if (Info.IsGenerator())
+		{
+			Result = PreSaveGeneratorPackage(PackageData, Generator, GeneratedPackagesForPresave);
+		}
+		else
+		{
+			Result = TryPopulateGeneratedPackage(Generator, Info);
+		}
 		if (Result != EPollStatus::Success)
 		{
 			return Result;
 		}
-		Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::CallPreSaveGeneratorPackage);
+		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::CallPopulate);
 	}
 
-	if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::FinishCachePostMove)
+	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::FinishCachePostMove)
 	{
-		if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::BeginCachePostMove)
+		if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::BeginCachePostMove)
 		{
-			EPollStatus Result = BeginCachePostMove(Generator, PackageData, Timer);
+			EPollStatus Result = BeginCachePostMove(Generator, Info, Timer);
 			if (Result != EPollStatus::Success)
 			{
 				return Result;
 			}
-			Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::BeginCachePostMove);
+			Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::BeginCachePostMove);
 		}
-		check(Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::FinishCachePostMove);
+		check(Info.GetSaveState() <= FCookGenerationInfo::ESaveState::FinishCachePostMove);
 		if (PackageData.GetNumPendingCookedPlatformData() > 0)
 		{
 			return EPollStatus::Incomplete;
 		}
-		Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::FinishCachePostMove);
+		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::FinishCachePostMove);
 	}
-	check(Generator.GetGeneratorSaveState() == FGeneratorPackage::ESaveState::ReadyForSave);
+	check(Info.GetSaveState() == FCookGenerationInfo::ESaveState::ReadyForSave);
 
 	return EPollStatus::Success;
 }
 
+/** Find all subobjects of all objects in RootObjects and add them to the end of InObjects */
+static void ExtendWithSubObjects(TArray<UObject*>& InObjects)
+{
+	TArray<UObject*> ObjectsInOuter;
+	int32 OriginalNum = InObjects.Num();
+	for (int32 Index = 0; Index < OriginalNum; ++Index)
+	{
+		ObjectsInOuter.Reset();
+		GetObjectsWithOuter(InObjects[Index], ObjectsInOuter);
+		InObjects.Append(ObjectsInOuter);
+	}
+}
+
 UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGeneratorPackage& Generator,
-	UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer,
+	UE::Cook::FCookGenerationInfo& Info, UE::Cook::FCookerTimer& Timer,
 	TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackagesForPresave)
 {
 	using namespace UE::Cook;
 
+	check(Info.PackageData); // Caller validated this
+	FPackageData& PackageData(*Info.PackageData);
 	UPackage* Package = PackageData.GetPackage();
 	ICookPackageSplitter* Splitter = Generator.GetCookPackageSplitterInstance();
 	UObject* SplitDataObject = Generator.FindSplitDataObject();
@@ -2903,22 +2935,31 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGe
 		return EPollStatus::Error;
 	}
 
-	if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::CallObjectsToMoveIntoGenerator)
+	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::CallObjectsToMove)
 	{
-		ConstructGeneratedPackagesForPresave(PackageData, Generator, GeneratedPackagesForPresave);
-		Generator.SetObjectsToMoveIntoGenerator(Package, SplitDataObject, Splitter, PackageData.GetCachedObjectsInOuter(),
-			GeneratedPackagesForPresave);
-		Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::CallObjectsToMoveIntoGenerator);
+		TArray<UObject*> ObjectsToMove;
+		if (Info.IsGenerator())
+		{
+			ConstructGeneratedPackagesForPresave(PackageData, Generator, GeneratedPackagesForPresave);
+			Splitter->GetObjectsToMoveIntoGenerator(Package, SplitDataObject, GeneratedPackagesForPresave, ObjectsToMove);
+		}
+		else
+		{
+			ICookPackageSplitter::FGeneratedPackageForPopulate SplitterInfo{ Info.RelativePath, Package, Info.IsCreateAsMap() };
+			Splitter->GetObjectsToMoveIntoPackage(Package, SplitDataObject, SplitterInfo, ObjectsToMove);
+		}
+		ExtendWithSubObjects(ObjectsToMove);
+		Info.TakeOverCachedObjectsAndAddNew(PackageData.GetCachedObjectsInOuter(), ObjectsToMove);
+		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::CallObjectsToMove);
 	}
 
-	FBeginCacheObjects& BeginCacheObjects = Generator.GetGeneratorBeginCacheObjects();
-	EPollStatus Result = CallBeginCacheOnObjects(PackageData, Package, BeginCacheObjects.ObjectsInRound,
-		BeginCacheObjects.NextIndexInRound, Timer);
+	EPollStatus Result = CallBeginCacheOnObjects(PackageData, Package, Info.BeginCacheObjects.ObjectsInRound,
+		Info.BeginCacheObjects.NextIndexInRound, Timer);
 	if (Result != EPollStatus::Success)
 	{
 		return Result;
 	}
-	BeginCacheObjects.EndRound(PackageData.GetNumRequestedPlatforms());
+	Info.BeginCacheObjects.EndRound(PackageData.GetNumRequestedPlatforms());
 	return EPollStatus::Success;
 }
 
@@ -2958,30 +2999,31 @@ void UCookOnTheFlyServer::ConstructGeneratedPackagesForPresave(UE::Cook::FPackag
 
 	// We need to find or (create empty stub packages for) each of the PackagesToGenerate so that PreSaveGeneratorPackage
 	// can refer to them to create hardlinks in the cooked Generator package
-	TArrayView<FGeneratorPackage::FGeneratedStruct> PackagesToGenerate = Generator.GetPackagesToGenerate();
+	TArrayView<FCookGenerationInfo> PackagesToGenerate = Generator.GetPackagesToGenerate();
 	TArray<ICookPackageSplitter::FGeneratedPackageForPreSave> SplitterDatas;
 	SplitterDatas.Reserve(PackagesToGenerate.Num());
-	for (FGeneratorPackage::FGeneratedStruct& GeneratedStruct : PackagesToGenerate)
+	for (FCookGenerationInfo& Info : PackagesToGenerate)
 	{
 		ICookPackageSplitter::FGeneratedPackageForPreSave& SplitterData = GeneratedPackagesForPresave.Emplace_GetRef();
-		SplitterData.RelativePath = GeneratedStruct.RelativePath;
-		SplitterData.bCreatedAsMap = GeneratedStruct.bCreateAsMap;
+		SplitterData.RelativePath = Info.RelativePath;
+		SplitterData.bCreatedAsMap = Info.IsCreateAsMap();
 
-		const FString GeneratedPackageName = GeneratedStruct.PackageData->GetPackageName().ToString();
+		const FString GeneratedPackageName = Info.PackageData->GetPackageName().ToString();
 		SplitterData.Package = FindObject<UPackage>(nullptr, *GeneratedPackageName);
 		if (!SplitterData.Package)
 		{
-			SplitterData.Package = Generator.CreateGeneratedUPackage(GeneratedStruct, Package, *GeneratedPackageName);
+			SplitterData.Package = Generator.CreateGeneratedUPackage(Info, Package, *GeneratedPackageName);
 		}
 	}
 }
 
-
 UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGeneratorPackage& Generator,
-	UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer)
+	UE::Cook::FCookGenerationInfo& Info, UE::Cook::FCookerTimer& Timer)
 {
 	using namespace UE::Cook;
 
+	check(Info.PackageData); // Caller has validated
+	UE::Cook::FPackageData& PackageData(*Info.PackageData);
 	UPackage* Package = PackageData.GetPackage();
 	ICookPackageSplitter* Splitter = Generator.GetCookPackageSplitterInstance();
 	UObject* SplitDataObject = Generator.FindSplitDataObject();
@@ -2993,16 +3035,15 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 		return EPollStatus::Error;
 	}
 
-	if (Generator.GetGeneratorSaveState() <= FGeneratorPackage::ESaveState::CallGetPostMoveObjects)
+	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::CallGetPostMoveObjects)
 	{
-		Generator.SetPostMoveObjects(Package);
-		Generator.SetGeneratorSaveStateComplete(FGeneratorPackage::ESaveState::CallGetPostMoveObjects);
+		Info.RefreshPackageObjects(Package);
+		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::CallGetPostMoveObjects);
 	}
 
-	FBeginCacheObjects& BeginCacheObjects = Generator.GetGeneratorBeginCacheObjects();
-	EPollStatus Result = CallBeginCacheOnObjects(PackageData, Package, BeginCacheObjects.ObjectsInRound,
-		BeginCacheObjects.NextIndexInRound, Timer);
-	if (PackageData.GetNumPendingCookedPlatformData() > 0 && !Generator.HasIssuedUndeclaredMovedObjectsWarning())
+	EPollStatus Result = CallBeginCacheOnObjects(PackageData, Package, Info.BeginCacheObjects.ObjectsInRound,
+		Info.BeginCacheObjects.NextIndexInRound, Timer);
+	if (PackageData.GetNumPendingCookedPlatformData() > 0 && !Info.HasIssuedUndeclaredMovedObjectsWarning())
 	{
 		UObject* FirstPendingObject = nullptr;
 		FString FirstPendingObjectName;
@@ -3018,66 +3059,47 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 				}
 			}
 		}
-		UE_LOG(LogCook, Warning, TEXT("CookPackageSplitter created or moved objects during PreSaveGeneratorPackage that are not yet ready to save. This will cause an error if garbage collection runs before the package is saved.\n")
-			TEXT("Change the splitter's GetObjectsToMoveIntoGenerator to construct new objects and declare existing objects that will be moved from other packages.\n")
-			TEXT("SplitterObject: %s. NumPendingObjects: %d. FirstPendingObject: %s"),
-			*SplitDataObject->GetFullName(), PackageData.GetNumPendingCookedPlatformData(),
+		UE_LOG(LogCook, Warning, TEXT("CookPackageSplitter created or moved objects during %s that are not yet ready to save. This will cause an error if garbage collection runs before the package is saved.\n")
+			TEXT("Change the splitter's %s to construct new objects and declare existing objects that will be moved from other packages.\n")
+			TEXT("SplitterObject: %s%s\n")
+			TEXT("NumPendingObjects: %d, FirstPendingObject: %s"),
+			Info.IsGenerator() ? TEXT("PreSaveGeneratorPackage") : TEXT("TryPopulatePackage"),
+			Info.IsGenerator() ? TEXT("GetObjectsToMoveIntoGenerator") : TEXT("GetObjectsToMoveIntoPackage"),
+			*SplitDataObject->GetFullName(),
+			Info.IsGenerator() ? TEXT("") : *FString::Printf(TEXT("\nGeneratedPackage: %s"), *PackageData.GetPackageName().ToString()),
+			PackageData.GetNumPendingCookedPlatformData(),
 			FirstPendingObject ? *FirstPendingObject->GetFullName() : TEXT("<unknown>"));
-		Generator.SetHasIssuedUndeclaredMovedObjectsWarning();
+		Info.SetHasIssuedUndeclaredMovedObjectsWarning(true);
 	}
 	if (Result != EPollStatus::Success)
 	{
 		return Result;
 	}
-	BeginCacheObjects.EndRound(PackageData.GetNumRequestedPlatforms());
+	Info.BeginCacheObjects.EndRound(PackageData.GetNumRequestedPlatforms());
 
 	return EPollStatus::Success;
 }
 
-UPackage* UCookOnTheFlyServer::TryPopulateGeneratedPackage(UE::Cook::FPopulatePackageContext& Context)
+UPackage* UCookOnTheFlyServer::TryCreateGeneratedPackage(UE::Cook::FGeneratorPackage& Generator, UE::Cook::FCookGenerationInfo& Info)
 {
 	using namespace UE::Cook;
+	// Caller is responsible for validating OwnerPackage and Generated PackageData
+	check(Info.PackageData); // Caller is responsible for validating
+	UE::Cook::FPackageData& GeneratedPackageData = *Info.PackageData;
+	UPackage* OwnerPackage = Generator.GetOwnerPackage();
+	check(OwnerPackage); // Caller is responsible for validating
 
-	FGeneratorPackage* GeneratorStruct = Context.GeneratorStruct;
-	FGeneratorPackage::FGeneratedStruct& GeneratedStruct = *Context.GeneratedStruct;
-	const UPackage* OwnerPackage = Context.OwnerPackage;
-	UE::Cook::FPackageData* GeneratedPackageData = Context.GeneratedStruct->PackageData;
-	const FString GeneratedPackageName = GeneratedPackageData->GetPackageName().ToString();
-
-	if (Context.OwnerObject == nullptr)
-	{
-		Context.OwnerObject = GeneratorStruct->FindSplitDataObject();
-		if (!Context.OwnerObject)
-		{
-			UE_LOG(LogCook, Error, TEXT("PopulateGeneratedPacakge could not find the original splitting object. Generated package can not be created. Splitter=%s, Generated=%s."),
-				*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
-			return nullptr;
-		}
-	}
-
-	if (Context.GeneratorPackagePath.IsEmpty())
-	{
-		Context.GeneratorPackagePath = FPackageName::GetLongPackagePath(Context.OwnerPackage->GetPathName());
-		Context.GeneratorPackageShortName = FPackageName::GetShortName(Context.OwnerPackage->GetName());
-		Context.GeneratedCookedRootPath = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s/%s/%s/"),
-			*Context.GeneratorPackagePath, *Context.GeneratorPackageShortName, UE::Cook::GeneratedPackageSubPath));
-	}
-
-	check(GeneratedPackageData); // Caller already checked this
-
-	ICookPackageSplitter* Splitter = GeneratorStruct->GetCookPackageSplitterInstance();
-
-	// Create package
+	const FString GeneratedPackageName = GeneratedPackageData.GetPackageName().ToString();
 	UPackage* GeneratedPackage = FindObject<UPackage>(nullptr, *GeneratedPackageName);
 	bool bPopulatedByPreSave = false;
 	if (GeneratedPackage)
 	{
-		if (!GeneratedStruct.bHasCreatedPackage)
+		if (!Info.HasCreatedPackage())
 		{
 			UE_LOG(LogCook, Error, TEXT("PackageSplitter found an existing copy of a package it was trying to populate;")
 				TEXT("this is unexpected since garbage has been collected and the package should have been unreferenced so it should have been collected.")
 				TEXT("Splitter=%s, Generated=%s."),
-				*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+				*Generator.GetSplitDataObjectName().ToString(), *GeneratedPackageName);
 			EReferenceChainSearchMode SearchMode = EReferenceChainSearchMode::Shortest
 				| EReferenceChainSearchMode::PrintAllResults
 				| EReferenceChainSearchMode::FullChain;
@@ -3090,35 +3112,55 @@ UPackage* UCookOnTheFlyServer::TryPopulateGeneratedPackage(UE::Cook::FPopulatePa
 	}
 	else
 	{
-		GeneratedPackage = GeneratorStruct->CreateGeneratedUPackage(GeneratedStruct, OwnerPackage, *GeneratedPackageName);
+		GeneratedPackage = Generator.CreateGeneratedUPackage(Info, OwnerPackage, *GeneratedPackageName);
 	}
+	return GeneratedPackage;
+}
+
+UE::Cook::EPollStatus UCookOnTheFlyServer::TryPopulateGeneratedPackage(UE::Cook::FGeneratorPackage& Generator,
+	UE::Cook::FCookGenerationInfo& GeneratedInfo)
+{
+	using namespace UE::Cook;
+
+	UPackage* OwnerPackage = Generator.GetOwnerPackage();
+	check(GeneratedInfo.PackageData); // Caller already checked this
+	UE::Cook::FPackageData& GeneratedPackageData = *GeneratedInfo.PackageData;
+	const FString GeneratedPackageName = GeneratedPackageData.GetPackageName().ToString();
+	UPackage* GeneratedPackage = GeneratedPackageData.GetPackage();
+	check(GeneratedPackage); // We would have been kicked out of save if the package were gone
+
+	UObject* OwnerObject = Generator.FindSplitDataObject();
+	if (!OwnerObject)
+	{
+		UE_LOG(LogCook, Error, TEXT("PopulateGeneratedPacakge could not find the original splitting object. Generated package can not be created. Splitter=%s, Generated=%s."),
+			*Generator.GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+		return EPollStatus::Error;
+	}
+
+	ICookPackageSplitter* Splitter = Generator.GetCookPackageSplitterInstance();
 
 	// Populate package using CookPackageSplitterInstance and pass GeneratedPackage's cooked name for it to
 	// properly setup any internal reference to this package (SoftObjectPaths or others)
 	ICookPackageSplitter::FGeneratedPackageForPopulate PopulateData;
-	PopulateData.RelativePath = GeneratedStruct.RelativePath;
+	PopulateData.RelativePath = GeneratedInfo.RelativePath;
 	PopulateData.Package = GeneratedPackage;
-	PopulateData.bPopulatedByPreSave = bPopulatedByPreSave;
-	PopulateData.bCreatedAsMap = GeneratedStruct.bCreateAsMap;
-	bool bWasOwnerReloaded = GeneratorStruct->GetWasOwnerReloaded();
-	GeneratorStruct->ClearWasOwnerReloaded();
-	if (!Splitter->TryPopulatePackage(OwnerPackage, Context.OwnerObject, PopulateData, bWasOwnerReloaded))
+	PopulateData.bCreatedAsMap = GeneratedInfo.IsCreateAsMap();
+	if (!Splitter->TryPopulatePackage(OwnerPackage, OwnerObject, PopulateData))
 	{
 		UE_LOG(LogCook, Error, TEXT("PackageSplitter returned false from TryPopulatePackage. Splitter=%s, Generated=%s."),
-			*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
-		return nullptr;
+			*Generator.GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+		return EPollStatus::Error;
 	}
 	bool bPackageIsMap = GeneratedPackage->ContainsMap();
-	if (bPackageIsMap != GeneratedStruct.bCreateAsMap)
+	if (bPackageIsMap != GeneratedInfo.IsCreateAsMap())
 	{
 		UE_LOG(LogCook, Error, TEXT("PackageSplitter specified generated package is %s in GetGenerateList results, but then in TryPopulatePackage created it as %s. Splitter=%s, Generated=%s."),
-			(GeneratedStruct.bCreateAsMap ? TEXT("map") : TEXT("uasset")), (bPackageIsMap ? TEXT("map") : TEXT("uasset")),
-			*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
-		return nullptr;
+			(GeneratedInfo.IsCreateAsMap() ? TEXT("map") : TEXT("uasset")), (bPackageIsMap ? TEXT("map") : TEXT("uasset")),
+			*Generator.GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+		return EPollStatus::Error;
 	}
-	GeneratedPackage->MarkAsFullyLoaded();
 
-	return GeneratedPackage;
+	return EPollStatus::Success;
 }
 
 UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSave(UE::Cook::FPackageData& PackageData,
@@ -3207,12 +3249,6 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveInternal(UE::Cook::FPackag
 		Generator = PackageData.GetGeneratorPackage();
 		if (Generator)
 		{
-			if (bPrecaching)
-			{
-				// We're not allowed to split the package while precaching, so don't progress any farther
-				// with PrepareSave while precaching
-				return EPollStatus::Incomplete;
-			}
 			Result = QueueGeneratedPackages(*Generator, PackageData);
 			if (Result != EPollStatus::Success)
 			{
@@ -3229,13 +3265,23 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveInternal(UE::Cook::FPackag
 
 	if (Generator)
 	{
-		if (bPrecaching)
+		EPollStatus Result = PrepareSaveGeneratedPackage(*Generator, PackageData, Timer, bPrecaching);
+		if (Result != EPollStatus::Success)
 		{
-			// We're not allowed to split the package while precaching, so don't progress any farther
-			// with PrepareSave while precaching
-			return EPollStatus::Incomplete;
+			return Result;
 		}
-		EPollStatus Result = PrepareSaveGeneratorPackage(*Generator, PackageData, Timer);
+	}
+	else if (PackageData.IsGenerated())
+	{
+		FGeneratorPackage* ParentGenerator = PackageData.GetGeneratedOwner();
+		if (!ParentGenerator)
+		{
+			UE_LOG(LogCook, Error, TEXT("Generated package %s is missing its Parent GeneratorPackage and cannot be saved."),
+				*PackageData.GetPackageName().ToString());
+			return EPollStatus::Error;
+		}
+
+		EPollStatus Result = PrepareSaveGeneratedPackage(*ParentGenerator, PackageData, Timer, bPrecaching);
 		if (Result != EPollStatus::Success)
 		{
 			return Result;
@@ -3343,6 +3389,11 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 	}
 
 	FGeneratorPackage* Generator = PackageData.GetGeneratorPackage();
+	if (!Generator)
+	{
+		Generator = PackageData.GetGeneratedOwner();
+	}
+	FCookGenerationInfo* GenerationInfo = Generator ? Generator->FindInfo(PackageData) : nullptr;
 
 	// For every Object on which we called BeginCacheForCookedPlatformData, we need to call ClearAllCachedCookedPlatformData
 	if (ReleaseSaveReason == EReleaseSaveReason::Completed)
@@ -3351,13 +3402,12 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 		if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData and WillNeverCacheCookedPlatformDataAgain calls are only used when not in editor
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(ClearAllCachedCookedPlatformData);
-			if (Generator)
+			if (GenerationInfo)
 			{
-				check(Generator->HasTakenOverCachedCookedPlatformData());
+				check(GenerationInfo->HasTakenOverCachedCookedPlatformData());
 				check(PackageData.GetCachedObjectsInOuter().Num() == 0);
 
-				FBeginCacheObjects& BeginCacheObjects = Generator->GetGeneratorBeginCacheObjects();
-				for (FBeginCacheObject& BeginCacheObject : BeginCacheObjects.Objects)
+				for (FBeginCacheObject& BeginCacheObject : GenerationInfo->BeginCacheObjects.Objects)
 				{
 					UObject* Object = BeginCacheObject.Object.Get();
 					if (Object)
@@ -3417,15 +3467,14 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 				TArray<UObject*> ObjectsToClear;
 				TArray<FWeakObjectPtr>* CachedObjects = &PackageData.GetCachedObjectsInOuter();
 				int32 NumIndexes = PackageData.GetCookedPlatformDataNextIndex();
-				if (Generator)
+				if (GenerationInfo)
 				{
-					FBeginCacheObjects& BeginCacheObjects = Generator->GetGeneratorBeginCacheObjects();
-					if (Generator->HasTakenOverCachedCookedPlatformData())
+					if (GenerationInfo->HasTakenOverCachedCookedPlatformData())
 					{
 						check(PackageData.GetCachedObjectsInOuter().Num() == 0);
 
 						// Add all objects that were cached in previous rounds
-						for (FBeginCacheObject& BeginCacheObject : BeginCacheObjects.Objects)
+						for (FBeginCacheObject& BeginCacheObject : GenerationInfo->BeginCacheObjects.Objects)
 						{
 							UObject* Object = BeginCacheObject.Object.Get();
 							if (Object && BeginCacheObject.bHasFinishedRound)
@@ -3434,12 +3483,12 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 							}
 						}
 						// Add all objects cached in the latest round
-						CachedObjects = &BeginCacheObjects.ObjectsInRound;
-						NumIndexes = BeginCacheObjects.NextIndexInRound;
+						CachedObjects = &GenerationInfo->BeginCacheObjects.ObjectsInRound;
+						NumIndexes = GenerationInfo->BeginCacheObjects.NextIndexInRound;
 					}
 					else
 					{
-						check(BeginCacheObjects.Objects.Num() == 0);
+						check(GenerationInfo->BeginCacheObjects.Objects.Num() == 0);
 					}
 				}
 				check(NumIndexes <= NumPlatforms * CachedObjects->Num());
@@ -3484,35 +3533,34 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 		}
 	}
 
-	if (Generator)
+	if (GenerationInfo)
 	{
-		Generator->ResetGeneratorSaveState(PackageData.GetPackage(), ReleaseSaveReason);
-		PackageData.SetInitializedGeneratorSave(false);
+		Generator->ResetSaveState(*GenerationInfo, PackageData.GetPackage(), ReleaseSaveReason);
+		if (GenerationInfo->IsGenerator())
+		{
+			PackageData.SetInitializedGeneratorSave(false);
+		}
 
 		if (ReleaseSaveReason == EReleaseSaveReason::Completed)
 		{
-			Generator->SetGeneratorSaved(PackageData.GetPackage());
+			Generator->SetPackageSaved(*GenerationInfo, PackageData);
 			if (Generator->IsComplete())
 			{
-				PackageData.DestroyGeneratorPackage();
-				Generator = nullptr; // Destroyed
+				if (GenerationInfo->IsGenerator())
+				{
+					PackageData.DestroyGeneratorPackage();
+				}
+				else
+				{
+					Generator->GetOwner().DestroyGeneratorPackage();
+				}
+				// Clear now-dangling pointers
+				Generator = nullptr;
+				GenerationInfo = nullptr;
 			}
 		}
 	}
 
-	FGeneratorPackage* OwnerGeneratorPackage = PackageData.GetGeneratedOwner();
-	if (OwnerGeneratorPackage)
-	{
-		if (ReleaseSaveReason == EReleaseSaveReason::Completed)
-		{
-			OwnerGeneratorPackage->SetGeneratedSaved(PackageData);
-			if (OwnerGeneratorPackage->IsComplete())
-			{
-				OwnerGeneratorPackage->GetOwner().DestroyGeneratorPackage();
-				OwnerGeneratorPackage = nullptr; // Destroyed
-			}
-		}
-	}
 	PackageData.ClearCookedPlatformData();
 
 	if (ReleaseSaveReason != EReleaseSaveReason::RecreateObjectCache)
@@ -4475,6 +4523,27 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 	TArray<UPackage*> GCKeepPackages;
 	TArray<FPackageData*> GCKeepPackageDatas;
 
+	// Demote any Generated/Generator packages we called PreSave on so they call their PostSave before the GC
+	// or prevent them from being garbage collected if the splitter wants to keep them referenced
+	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
+	{
+		FGeneratorPackage* Generator = PackageData->GetGeneratorPackage();
+		if (!Generator)
+		{
+			Generator = PackageData->GetGeneratedOwner();
+		}
+		FCookGenerationInfo* Info = Generator ? Generator->FindInfo(*PackageData) : nullptr;
+		if (Info)
+		{
+			bool bShouldDemote;
+			Generator->PreGarbageCollect(*Info, GCKeepObjects, GCKeepPackages, GCKeepPackageDatas, bShouldDemote);
+			if (bShouldDemote)
+			{
+				ReleaseCookedPlatformData(*PackageData, UE::Cook::EReleaseSaveReason::Demoted);
+			}
+		}
+	}
+	
 	// Find the packages that are waiting on async jobs to finish cooking data
 	// and make sure that they are not garbage collected until the jobs have
 	// completed.
@@ -4496,6 +4565,17 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 		{
 			GCKeepPackages.Add(Pair.Value);
 			GCKeepPackageDatas.Add(Pair.Key);
+		}
+	}
+
+	// Prevent GC of any objects on which we are still waiting for IsCachedCookedPlatformData
+	for (UE::Cook::FPendingCookedPlatformData& Pending : PackageDatas->GetPendingCookedPlatformDatas())
+	{
+		if (!Pending.PollIsComplete())
+		{
+			UObject* Object = Pending.Object.Get();
+			check(Object); // Otherwise PollIsComplete would have returned true
+			GCKeepObjects.Add(Object);
 		}
 	}
 
