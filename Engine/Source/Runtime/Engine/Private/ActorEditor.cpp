@@ -925,10 +925,9 @@ const FString& AActor::GetActorLabel(bool bCreateIfNone) const
 		if (!FActorSpawnUtils::IsGloballyUniqueName(GetFName()))
 		{
 			// Don't bother adding a suffix for number '0'
-			const int32 NameNumber = NAME_INTERNAL_TO_EXTERNAL( GetFName().GetNumber() );
-			if( NameNumber != 0 )
+			if (const int32 NameNumber = GetFName().GetNumber(); NameNumber != NAME_NO_NUMBER_INTERNAL)
 			{
-				DefaultActorLabel.AppendInt(NameNumber);
+				DefaultActorLabel.AppendInt(NAME_INTERNAL_TO_EXTERNAL(NameNumber));
 			}
 		}
 
