@@ -23,10 +23,6 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 	}
 
 	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
-
-
-
-
 	if (Settings && Settings->ExecutionMode == EPCGSettingsExecutionMode::Disabled)
 	{
 		//Pass-through
