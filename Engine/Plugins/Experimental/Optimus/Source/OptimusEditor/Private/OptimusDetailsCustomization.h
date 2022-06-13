@@ -127,7 +127,6 @@ private:
 
 	TSharedPtr<IPropertyHandle> DeclarationsProperty;
 	TSharedPtr<IPropertyHandle> ShaderTextProperty;
-	TSharedPtr<IPropertyHandle> DiagnosticsProperty;
 
 	TSharedPtr<SExpandableArea> ExpandableArea;
 	TSharedPtr<SScrollBar> HorizontalScrollbar;
@@ -136,11 +135,6 @@ private:
 	TSharedPtr<SMultiLineEditableText> ShaderEditor;
 
 	FText GetShaderText() const;
-
-	void UpdateDiagnostics();
-	void OnPropertyChanged(UObject *InObject, FPropertyChangedEvent& InChangedEvent);
-
-	TArray<UObject *> InspectedObjects;
 };
 
 

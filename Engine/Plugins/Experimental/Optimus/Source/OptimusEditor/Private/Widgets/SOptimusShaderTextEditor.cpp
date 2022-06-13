@@ -20,8 +20,9 @@ const FName SOptimusShaderTextEditor::DocumentTabId = TEXT("Document");
 struct FOptimusShaderTextEditorDocumentTabSummoner : public FDocumentTabFactory
 {
 public:
-	FOptimusShaderTextEditorDocumentTabSummoner(TSharedPtr<class FAssetEditorToolkit> InHostingApp)
-		: FDocumentTabFactory(SOptimusShaderTextEditor::DocumentTabId, InHostingApp)
+	FOptimusShaderTextEditorDocumentTabSummoner(TWeakPtr<FOptimusEditor> InEditor)
+		: FDocumentTabFactory(SOptimusShaderTextEditor::DocumentTabId, InEditor.Pin())
+		, EditorPtr(InEditor)
 	{
 	}	
 
@@ -59,8 +60,11 @@ protected:
 
 		TSharedRef<SDockTab> DocumentHostTab = Info.TabInfo->GetTab().Pin().ToSharedRef();
 		
-		return SNew(SOptimusShaderTextDocumentTab, ProviderObject, DocumentHostTab);
+		return SNew(SOptimusShaderTextDocumentTab, ProviderObject, EditorPtr, DocumentHostTab);
 	}
+
+private:
+	TWeakPtr<FOptimusEditor> EditorPtr;
 };
 
 
@@ -84,7 +88,7 @@ void SOptimusShaderTextEditor::Construct(const FArguments& InArgs, TWeakPtr<FOpt
 	DocumentTracker = MakeShareable(new FDocumentTracker);
 	// DocumentTracker holds a weak ptr to the editor
 	DocumentTracker->Initialize(OwningEditor.Pin());
-	const TSharedRef<FDocumentTabFactory> ShaderTextDocumentTabFactory = MakeShareable(new FOptimusShaderTextEditorDocumentTabSummoner(OwningEditor.Pin()));
+	const TSharedRef<FDocumentTabFactory> ShaderTextDocumentTabFactory = MakeShareable(new FOptimusShaderTextEditorDocumentTabSummoner(OwningEditor));
 	DocumentTracker->RegisterDocumentFactory(ShaderTextDocumentTabFactory);
 	DocumentTracker->SetTabManager(TabManager.ToSharedRef());
 

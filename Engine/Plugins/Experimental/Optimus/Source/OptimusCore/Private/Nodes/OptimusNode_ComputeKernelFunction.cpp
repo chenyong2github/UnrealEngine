@@ -204,22 +204,6 @@ void UOptimusNode_ComputeKernelFunction::ConstructNode()
 }
 
 
-void UOptimusNode_ComputeKernelFunction::SetCompilationDiagnostics(
-	const TArray<FOptimusCompilerDiagnostic>& InDiagnostics
-	)
-{
-	EOptimusDiagnosticLevel NodeLevel = EOptimusDiagnosticLevel::None;
-	for (const FOptimusCompilerDiagnostic& Diagnostic: InDiagnostics)
-	{
-		if (Diagnostic.Level > NodeLevel)
-		{
-			NodeLevel = Diagnostic.Level;
-		}
-	}
-	SetDiagnosticLevel(NodeLevel);
-}
-
-
 UOptimusNode_ComputeKernelFunctionGeneratorClass* UOptimusNode_ComputeKernelFunction::GetGeneratorClass() const
 {
 	return Cast<UOptimusNode_ComputeKernelFunctionGeneratorClass>(GetClass());

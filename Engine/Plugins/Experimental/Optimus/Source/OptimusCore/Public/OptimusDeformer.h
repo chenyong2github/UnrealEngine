@@ -24,13 +24,13 @@ class UOptimusComputeGraph;
 class UOptimusDeformer;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
-enum class EOptimusDiagnosticLevel : uint8;
+struct FOptimusCompilerDiagnostic;
 struct FOptimusCompoundAction;
 
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, const TSharedRef<FTokenizedMessage>&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, FOptimusCompilerDiagnostic const&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOptimusConstantValueUpdate, FString const&, TArray<uint8> const&);
 
 
@@ -347,7 +347,7 @@ private:
 	
 	// Compile a node graph to a compute graph. Returns either a completed compute graph, or
 	// the error message to pass back, if the compilation failed.
-	using FOptimusCompileResult = TVariant<FEmptyVariantState, UOptimusComputeGraph*, TSharedRef<FTokenizedMessage>>;
+	using FOptimusCompileResult = TVariant<FEmptyVariantState, UOptimusComputeGraph*, FOptimusCompilerDiagnostic>;
 	FOptimusCompileResult CompileNodeGraphToComputeGraph(
 		const UOptimusNodeGraph *InNodeGraph
 		);

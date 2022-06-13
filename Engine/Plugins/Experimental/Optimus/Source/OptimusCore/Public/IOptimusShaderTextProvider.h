@@ -3,41 +3,30 @@
 #pragma once
 
 #include "UObject/Interface.h"
-
 #include "IOptimusShaderTextProvider.generated.h"
 
-struct FOptimusShaderText;
-struct FOptimusCompilerDiagnostic;
-
 UINTERFACE()
-class OPTIMUSCORE_API UOptimusShaderTextProvider :
-	public UInterface
+class OPTIMUSCORE_API UOptimusShaderTextProvider : public UInterface
 {
 	GENERATED_BODY()
 };
 
 /**
-* Interface that provides a mechanism to retrieve shader text.
+* Interface for shader text edit widgets including the gathering of compilation diagnostics for display.
 */
 class OPTIMUSCORE_API IOptimusShaderTextProvider
 {
 	GENERATED_BODY()
 
-public:
-
-
-	virtual FString GetNameForShaderTextEditor() const = 0;
-
-	virtual FString GetDeclarations() const = 0;
-
-	virtual FString GetShaderText() const = 0;
-
-	virtual void SetShaderText(const FString& NewText) = 0;
-
-	virtual const TArray<FOptimusCompilerDiagnostic>& GetCompilationDiagnostics() const = 0;
-	
 #if WITH_EDITOR	
-	DECLARE_EVENT(IOptimusShaderTextProvider, FOnDiagnosticsUpdated);
-	virtual FOnDiagnosticsUpdated& OnDiagnosticsUpdated() = 0;
+public:
+	/** Get title for text editor tab. */
+	virtual FString GetNameForShaderTextEditor() const = 0;
+	/** Get test for declaration pane. */
+	virtual FString GetDeclarations() const = 0;
+	/** Get shader text for editor pane. */
+	virtual FString GetShaderText() const = 0;
+	/** Set shader text after edit modifications. */
+	virtual void SetShaderText(const FString& NewText) = 0;
 #endif
 };

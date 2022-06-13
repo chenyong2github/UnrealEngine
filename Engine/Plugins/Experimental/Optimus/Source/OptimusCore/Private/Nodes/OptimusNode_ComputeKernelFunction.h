@@ -60,7 +60,6 @@ class OPTIMUSCORE_API UOptimusNode_ComputeKernelFunction :
 public:
 	UOptimusNode_ComputeKernelFunction();
 
-	
 	// UOptimusNode overrides
 	FText GetDisplayName() const override;
 	FName GetNodeCategory() const override; 
@@ -72,11 +71,6 @@ public:
 
 	void ConstructNode() override;
 
-	// IOptiusComputeKernelProvider overrides
-	void SetCompilationDiagnostics(
-		const TArray<FOptimusCompilerDiagnostic>& InDiagnostics
-		) override;
-	
 private:
 	UOptimusNode_ComputeKernelFunctionGeneratorClass *GetGeneratorClass() const;
 };

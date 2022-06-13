@@ -134,6 +134,11 @@ public:
 	 */
 	EOptimusDiagnosticLevel GetDiagnosticLevel() const { return DiagnosticLevel; }
 
+	/**
+	 * Sets the node diagnostic level (e.g. error state).
+	 */
+	void SetDiagnosticLevel(EOptimusDiagnosticLevel InDiagnosticLevel);
+
 	/** Find the pin associated with the given dot-separated pin path.
 	 * @param InPinPath The path of the pin.
 	 * @return The pin object, if found, otherwise nullptr.
@@ -278,9 +283,6 @@ protected:
 	
 	void SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded);
 	bool GetPinExpanded(const UOptimusNodePin* InPin) const;
-
-	// Set the current error state
-	void SetDiagnosticLevel(EOptimusDiagnosticLevel InDiagnosticLevel);
 
 	// A sentinel to indicate whether sending notifications is allowed.
 	bool bSendNotifications = true;

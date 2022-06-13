@@ -24,34 +24,7 @@ FString UOptimusNode_CustomComputeKernel::GetKernelSourceText() const
 	return GetCookedKernelSource(GetPathName(), ShaderSource.ShaderText, KernelName, GroupSize);
 }
 
-
-void UOptimusNode_CustomComputeKernel::SetCompilationDiagnostics(
-	const TArray<FOptimusCompilerDiagnostic>& InDiagnostics
-	)
-{
-	ShaderSource.Diagnostics = InDiagnostics;
-	
-	EOptimusDiagnosticLevel NodeLevel = EOptimusDiagnosticLevel::None;
-	for (const FOptimusCompilerDiagnostic& Diagnostic: InDiagnostics)
-	{
-		if (Diagnostic.Level > NodeLevel)
-		{
-			NodeLevel = Diagnostic.Level;
-		}
-	}
-	SetDiagnosticLevel(NodeLevel);
-
 #if WITH_EDITOR
-	FProperty* DiagnosticsProperty = FOptimusShaderText::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(FOptimusShaderText, Diagnostics));
-	if (ensure(DiagnosticsProperty))
-	{
-		FPropertyChangedEvent PropertyChangedEvent(DiagnosticsProperty, EPropertyChangeType::ValueSet, {this});
-		PostEditChangeProperty(PropertyChangedEvent);
-	}
-
-	OnDiagnosticsUpdatedEvent.Broadcast();
-#endif
-}
 
 FString UOptimusNode_CustomComputeKernel::GetNameForShaderTextEditor() const
 {
@@ -68,21 +41,13 @@ FString UOptimusNode_CustomComputeKernel::GetShaderText() const
 	return ShaderSource.ShaderText;
 }
 
-
-void UOptimusNode_CustomComputeKernel::SetShaderText(
-	const FString& NewText
-	) 
+void UOptimusNode_CustomComputeKernel::SetShaderText(const FString& NewText) 
 {
 	Modify();
 	ShaderSource.ShaderText = NewText;
 }
 
-
-const TArray<FOptimusCompilerDiagnostic>& UOptimusNode_CustomComputeKernel::GetCompilationDiagnostics() const
-{
-	return ShaderSource.Diagnostics;
-}
-
+#endif // WITH_EDITOR
 
 FString UOptimusNode_CustomComputeKernel::GetBindingDeclaration(
 	FName BindingName

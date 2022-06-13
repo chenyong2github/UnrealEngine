@@ -28,6 +28,7 @@ class UOptimusNodeGraph;
 class USkeletalMesh;
 enum class EOptimusGlobalNotifyType;
 struct FGraphAppearanceInfo;
+struct FOptimusCompilerDiagnostic;
 
 
 class FOptimusEditor :
@@ -112,7 +113,7 @@ private:
 	void CompileEnd(UOptimusDeformer* InDeformer);
 
 	// Called for every compilation result. There may be multiple calls for each Compile.
-	void OnCompileMessage(const TSharedRef<FTokenizedMessage>& InMessage);
+	void OnCompileMessage(FOptimusCompilerDiagnostic const& Diagnostic);
 	
 	void InstallDataProviders();
 	void RemoveDataProviders();
@@ -168,8 +169,15 @@ private:
 public:
 	// ----------------------------------------------------------------------------------------
 	// Broadcast Graph Event
-	DECLARE_EVENT_OneParam( FOptimusEditor, FOnSelectedNodesChanged, const TArray<TWeakObjectPtr<UObject>>&);
+	DECLARE_EVENT_OneParam(FOptimusEditor, FOnSelectedNodesChanged, const TArray<TWeakObjectPtr<UObject>>&);
 	FOnSelectedNodesChanged& OnSelectedNodesChanged() { return SelectedNodesChangedEvent; }
+
+	// Broadcast Diagnostic Event
+	DECLARE_EVENT(FOptimusEditor, FOnDiagnosticsUpdated);
+	FOnDiagnosticsUpdated& OnDiagnosticsUpdated() { return DiagnosticsUpdatedEvent; }
+	
+	virtual void AddCompilationDiagnostic(const FOptimusCompilerDiagnostic& InDiagnostic) {}
+	virtual const TArray<FOptimusCompilerDiagnostic>& GetCompilationDiagnostics() const { return Diagnostics; }
 
 private:
 	// Toolbar and command helpers
@@ -238,7 +246,10 @@ private:
 	};
 
 	TArray<FCapsuleInfo> CapsuleInfos;
+	
+	TArray<FOptimusCompilerDiagnostic> Diagnostics;
 
 	FOnRefreshEvent RefreshEvent;
 	FOnSelectedNodesChanged SelectedNodesChangedEvent;
+	FOnDiagnosticsUpdated DiagnosticsUpdatedEvent;
 };

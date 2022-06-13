@@ -1,12 +1,11 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #include "SOptimusShaderTextDocumentTab.h"
+
 #include "IOptimusShaderTextProvider.h"
-#include "SOptimusShaderTextDocumentTextBox.h"
-
+#include "OptimusEditor.h"
 #include "OptimusHLSLSyntaxHighlighter.h"
-
+#include "SOptimusShaderTextDocumentTextBox.h"
 #include "Styling/AppStyle.h"
-
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -20,8 +19,8 @@
 #define LOCTEXT_NAMESPACE "OptimusShaderTextDocumentTab"
 
 SOptimusShaderTextDocumentTab::SOptimusShaderTextDocumentTab()
-	:SyntaxHighlighterDeclarations(FOptimusHLSLSyntaxHighlighter::Create())
-	,SyntaxHighlighterShaderText(FOptimusHLSLSyntaxHighlighter::Create())
+	: SyntaxHighlighterDeclarations(FOptimusHLSLSyntaxHighlighter::Create())
+	, SyntaxHighlighterShaderText(FOptimusHLSLSyntaxHighlighter::Create())
 {
 }
 
@@ -29,17 +28,24 @@ SOptimusShaderTextDocumentTab::~SOptimusShaderTextDocumentTab()
 {
 	if (HasValidShaderTextProvider())
 	{
-		GetProviderInterface()->OnDiagnosticsUpdated().RemoveAll(this);
+		if (TSharedPtr<FOptimusEditor> Editor = OwningEditor.Pin())
+		{
+			Editor->OnDiagnosticsUpdated().RemoveAll(this);
+		}
 	}
 }
 
-void SOptimusShaderTextDocumentTab::Construct(const FArguments& InArgs, UObject* InShaderTextProviderObject, TSharedRef<SDockTab> InDocumentHostTab)
+void SOptimusShaderTextDocumentTab::Construct(const FArguments& InArgs, UObject* InShaderTextProviderObject, TWeakPtr<FOptimusEditor> InEditor, TSharedRef<SDockTab> InDocumentHostTab)
 {
 	ShaderTextProviderObject = InShaderTextProviderObject;
+	OwningEditor = InEditor;
 
 	check(HasValidShaderTextProvider());
 
-	GetProviderInterface()->OnDiagnosticsUpdated().AddSP(this, &SOptimusShaderTextDocumentTab::OnDiagnosticsUpdated);
+	if (TSharedPtr<FOptimusEditor> Editor = OwningEditor.Pin())
+	{
+		Editor->OnDiagnosticsUpdated().AddSP(this, &SOptimusShaderTextDocumentTab::OnDiagnosticsUpdated);
+	}
 
 	const FText DeclarationsTitle =	LOCTEXT("OptimusShaderTextDocumentTab_Declarations_Title", "Declarations (Read-Only)");
 	const FText ShaderTextTitle = LOCTEXT("OptimusShaderTextDocumentTab_ShaderText_Title", "Shader Text");
@@ -89,6 +95,9 @@ void SOptimusShaderTextDocumentTab::Construct(const FArguments& InArgs, UObject*
 			]
 		]
 	];
+
+	// Init any diagnostics.
+	OnDiagnosticsUpdated();
 }
 
 TSharedRef<SWidget> SOptimusShaderTextDocumentTab::ConstructNonExpandableHeaderWidget(const SExpandableArea::FArguments& InArgs) const
@@ -181,8 +190,20 @@ void SOptimusShaderTextDocumentTab::OnShaderTextChanged(const FText& InText) con
 
 void SOptimusShaderTextDocumentTab::OnDiagnosticsUpdated() const
 {
-	SyntaxHighlighterShaderText->SetCompilerMessages(GetProviderInterface()->GetCompilationDiagnostics());
-	ShaderTextTextBox->Refresh();
+	if (TSharedPtr<FOptimusEditor> Editor = OwningEditor.Pin())
+	{
+		TArray<FOptimusCompilerDiagnostic> Diagnostics;
+		for (FOptimusCompilerDiagnostic const& Diagnostic : Editor->GetCompilationDiagnostics())
+		{
+			if (Diagnostic.Object == ShaderTextProviderObject)
+			{
+				Diagnostics.Add(Diagnostic);
+			}
+		}
+
+		SyntaxHighlighterShaderText->SetCompilerMessages(Diagnostics);
+		ShaderTextTextBox->Refresh();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

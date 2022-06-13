@@ -9,7 +9,6 @@
 
 #include "OptimusNode_ComputeKernelBase.generated.h"
 
-struct FOptimusCompilerDiagnostic;
 class UComputeSource;
 
 
@@ -43,10 +42,6 @@ public:
 		const UComputeDataInterface* GraphDataInterface,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings, FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const override;
-
-	void SetCompilationDiagnostics(
-		const TArray<FOptimusCompilerDiagnostic>& InDiagnostics
-	) override PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::SetCompilationDiagnostics);
 
 protected:
 	static TArray<FString> GetIndexNamesFromDataDomainLevels(

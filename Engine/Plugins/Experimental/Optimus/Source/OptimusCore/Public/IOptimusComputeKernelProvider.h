@@ -13,7 +13,6 @@ class UOptimusKernelSource;
 class UOptimusNode;
 class UOptimusNodePin;
 struct FOptimusPinTraversalContext;
-struct FOptimusCompilerDiagnostic;
 
 
 // Maps the data interface's data binding index to the function we would like to have present
@@ -84,11 +83,4 @@ public:
 		FOptimus_InterfaceBindingMap& OutInputDataBindings,
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const = 0;
-
-	/** Set the diagnostics resulting from the kernel compilation.
-	 *  @param InDiagnostics The diagnostics to set for the node. 
-	 */
-	virtual void SetCompilationDiagnostics(
-		const TArray<FOptimusCompilerDiagnostic>& InDiagnostics
-		) = 0;
 };

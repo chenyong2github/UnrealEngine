@@ -886,9 +886,12 @@ bool UOptimusDeformer::Compile()
 {
 	if (!GetUpdateGraph())
 	{
+		FOptimusCompilerDiagnostic Diagnostic;
+		Diagnostic.Level = EOptimusDiagnosticLevel::Error;
+		Diagnostic.Diagnostic = LOCTEXT("NoGraphFound", "No update graph found. Compilation aborted.").ToString();
+
 		CompileBeginDelegate.Broadcast(this);
-		CompileMessageDelegate.Broadcast(
-			FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("NoGraphFound", "No update graph found. Compilation aborted.")));
+		CompileMessageDelegate.Broadcast(Diagnostic);
 		CompileEndDelegate.Broadcast(this);
 		return false;
 	}
@@ -911,10 +914,10 @@ bool UOptimusDeformer::Compile()
 			Info.ComputeGraph = Result.Get<UOptimusComputeGraph*>();
 			ComputeGraphs.Add(Info);
 		}
-		else if (Result.IsType<TSharedRef<FTokenizedMessage>>())
+		else if (Result.IsType<FOptimusCompilerDiagnostic>())
 		{
 			ComputeGraphs.Reset();
-			CompileMessageDelegate.Broadcast(Result.Get<TSharedRef<FTokenizedMessage>>());
+			CompileMessageDelegate.Broadcast(Result.Get<FOptimusCompilerDiagnostic>());
 			break;
 		}
 	}
@@ -998,9 +1001,10 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 
 	if (TerminalNodes.IsEmpty())
 	{
-		Result.Set<TSharedRef<FTokenizedMessage>>(FTokenizedMessage::Create(
-			EMessageSeverity::Error,
-			LOCTEXT("NoOutputDataInterfaceFound", "No connected output data interface nodes found. Compilation aborted.")));
+		FOptimusCompilerDiagnostic Diagnostic;
+		Diagnostic.Level = EOptimusDiagnosticLevel::Error;
+		Diagnostic.Diagnostic = LOCTEXT("NoOutputDataInterfaceFound", "No connected output data interface nodes found. Compilation aborted.").ToString();
+		Result.Set<FOptimusCompilerDiagnostic>(Diagnostic);
 		return Result;
 	}
 
@@ -1115,19 +1119,21 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 			);
 			if (!KernelSource)
 			{
-				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error,
-					LOCTEXT("CantCreateKernel", "Unable to create compute kernel from kernel node. Compilation aborted."));
-				Message->AddToken(FUObjectToken::Create(ConnectedNode.Node));
-				Result.Set<TSharedRef<FTokenizedMessage>>(Message);
+				FOptimusCompilerDiagnostic Diagnostic;
+				Diagnostic.Level = EOptimusDiagnosticLevel::Error;
+				Diagnostic.Diagnostic = LOCTEXT("CantCreateKernel", "Unable to create compute kernel from kernel node. Compilation aborted.").ToString();
+				Diagnostic.Object = ConnectedNode.Node;
+				Result.Set<FOptimusCompilerDiagnostic>(Diagnostic);
 				return Result;
 			}
 
 			if (BoundKernel.InputDataBindings.IsEmpty() || BoundKernel.OutputDataBindings.IsEmpty())
 			{
-				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error,
-					LOCTEXT("KernelHasNoBindings", "Kernel has either no input or output bindings. Compilation aborted."));
-				Message->AddToken(FUObjectToken::Create(ConnectedNode.Node));
-				Result.Set<TSharedRef<FTokenizedMessage>>(Message);
+				FOptimusCompilerDiagnostic Diagnostic;
+				Diagnostic.Level = EOptimusDiagnosticLevel::Error;
+				Diagnostic.Diagnostic = LOCTEXT("KernelHasNoBindings", "Kernel has either no input or output bindings. Compilation aborted.").ToString();
+				Diagnostic.Object = ConnectedNode.Node;
+				Result.Set<FOptimusCompilerDiagnostic>(Diagnostic);
 				return Result;
 			}
 			

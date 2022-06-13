@@ -11,6 +11,7 @@ class IOptimusShaderTextProvider;
 class FOptimusHLSLSyntaxHighlighter;
 
 class SVerticalBox;
+class FOptimusEditor;
 class FSpawnTabArgs;
 class FTabManager;
 class SOptimusShaderTextDocumentTextBox;
@@ -26,7 +27,7 @@ public:
 	SLATE_BEGIN_ARGS(SOptimusShaderTextDocumentTab) {};
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UObject* InShaderTextProviderObject, TSharedRef<SDockTab> InDocumentHostTab);
+	void Construct(const FArguments& InArgs, UObject* InShaderTextProviderObject, TWeakPtr<FOptimusEditor> InEditor, TSharedRef<SDockTab> InDocumentHostTab);
 	
 private:
 	TSharedRef<SWidget> ConstructNonExpandableHeaderWidget(const SExpandableArea::FArguments& InArgs) const;
@@ -45,6 +46,7 @@ private:
 	TSharedPtr<FTabManager> TabManager;
 	
 	TWeakObjectPtr<UObject> ShaderTextProviderObject;
+	TWeakPtr<FOptimusEditor> OwningEditor;
 
 	TSharedPtr<SExpandableArea> DeclarationsExpandableArea;
 	// ptr needed for text search

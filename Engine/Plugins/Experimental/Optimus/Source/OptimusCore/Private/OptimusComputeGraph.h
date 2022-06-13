@@ -9,9 +9,6 @@
 
 class UOptimusDeformer;
 class UOptimusNode;
-class UOptimusNode_ConstantValue;
-
-DECLARE_DELEGATE_ThreeParams(FOptimusKernelCompilationComplete, UComputeGraph* InComputeGraph, int32 InKernelIndex, const TArray<FString>& InCompileErrors);
 
 UCLASS()
 class UOptimusComputeGraph :
@@ -25,20 +22,12 @@ public:
 	void PostLoad() override;
 
 	// UComputeGraph overrides
-	void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) override;
+	void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileOutputMessages) override;
 
-	FOptimusCompilerDiagnostic ProcessCompilationMessage(
-			UOptimusDeformer* InOwner,
-			const UOptimusNode* InKernelNode,
-			const FString& InMessage
-			);
-	
-	FOptimusKernelCompilationComplete OnKernelCompilationCompleteDelegate;
-
+protected:
 	// Lookup into Graphs array from the UComputeGraph kernel index. 
 	UPROPERTY()
 	TArray<TWeakObjectPtr<const UOptimusNode>> KernelToNode;
 
-protected:
 	friend class UOptimusDeformer;
 };

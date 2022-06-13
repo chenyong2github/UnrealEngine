@@ -40,6 +40,7 @@
 #include "PersonaTabs.h"
 #include "SkeletalRenderPublic.h"
 #include "ToolMenus.h"
+#include "OptimusShaderText.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
@@ -298,6 +299,10 @@ bool FOptimusEditor::CanCompile() const
 void FOptimusEditor::CompileBegin(UOptimusDeformer* InDeformer)
 {
 	RemoveDataProviders();
+	
+	Diagnostics.Reset();
+	OnDiagnosticsUpdated().Broadcast();
+
 	CompilerResultsListing->ClearMessages();
 }
 
@@ -308,9 +313,62 @@ void FOptimusEditor::CompileEnd(UOptimusDeformer* InDeformer)
 }
 
 
-void FOptimusEditor::OnCompileMessage(const TSharedRef<FTokenizedMessage>& InMessage)
+void FOptimusEditor::OnCompileMessage(FOptimusCompilerDiagnostic const& Diagnostic)
 {
-	CompilerResultsListing->AddMessage(InMessage);
+	EMessageSeverity::Type Severity = EMessageSeverity::Info;
+	if (Diagnostic.Level == EOptimusDiagnosticLevel::Warning)
+	{
+		Severity = EMessageSeverity::Warning;
+	}
+	else if (Diagnostic.Level == EOptimusDiagnosticLevel::Error)
+	{
+		Severity = EMessageSeverity::Error;
+	}
+
+	if (Diagnostic.Line != INDEX_NONE)
+	{
+		// Create message with line number.
+		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(
+			Severity,
+			FText::Format(LOCTEXT("LineMessage", "{0} (line {1})"), FText::FromString(Diagnostic.Diagnostic), FText::AsNumber(Diagnostic.Line)));
+
+		if (UObject const* TokenObject = Diagnostic.Object.Get())
+		{
+			// Add activation which opens a text editor tab for the text provider.
+			auto Activation = [Event = OnSelectedNodesChanged(), TabManagerPtr = GetTabManager(), TokenObject](const TSharedRef<class IMessageToken>&)
+			{
+				TabManagerPtr->TryInvokeTab(FOptimusEditorShaderTextEditorTabSummoner::TabId);
+
+				UObject* MutableTokenObject = const_cast<UObject*>(TokenObject);
+				Event.Broadcast({ MutableTokenObject });
+			};
+			Message->AddToken(FUObjectToken::Create(TokenObject)->OnMessageTokenActivated(FOnMessageTokenActivated::CreateLambda(Activation)));
+		}
+
+		CompilerResultsListing->AddMessage(Message);
+	}
+	else
+	{
+		// Create message.
+		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(
+			Severity,
+			FText::Format(LOCTEXT("LineMessage", "{0}"), FText::FromString(Diagnostic.Diagnostic)));
+
+		if (UObject const* TokenObject = Diagnostic.Object.Get())
+		{
+			// Add a dummy activation since default behavior opens content browser.
+			// Could improve this to select node?
+			static auto DummyActivation = [](const TSharedRef<class IMessageToken>&) {};
+			Message->AddToken(FUObjectToken::Create(TokenObject)->OnMessageTokenActivated(FOnMessageTokenActivated::CreateLambda(DummyActivation)));
+		}
+	
+		CompilerResultsListing->AddMessage(Message);
+	}
+
+	// Add to diagnostic list which is referenced by syntax highlighters.
+	Diagnostics.Add(Diagnostic);
+	// Broadcast change to UI. For efficiency we could do this once at end of compilation.
+	OnDiagnosticsUpdated().Broadcast();
 }
 
 

@@ -2,15 +2,15 @@
 
 #include "OptimusComputeGraph.h"
 
+#include "Components/MeshComponent.h"
+#include "Internationalization/Regex.h"
 #include "IOptimusComputeKernelProvider.h"
+#include "IOptimusShaderTextProvider.h"
 #include "IOptimusValueProvider.h"
 #include "OptimusDeformer.h"
 #include "OptimusCoreModule.h"
 #include "OptimusNode.h"
 #include "OptimusObjectVersion.h"
-
-#include "Components/MeshComponent.h"
-#include "Internationalization/Regex.h"
 #include "Misc/UObjectToken.h"
 
 #define LOCTEXT_NAMESPACE "OptimusComputeGraph"
@@ -33,7 +33,60 @@ void UOptimusComputeGraph::PostLoad()
 	}
 }
 
-void UOptimusComputeGraph::OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors)
+static EOptimusDiagnosticLevel ProcessCompilationMessage(UOptimusDeformer* InOwner,	UOptimusNode const* InKernelNode, FString const& InMessage)
+{
+	FOptimusCompilerDiagnostic Diagnostic;
+
+	// "/Engine/Generated/ComputeFramework/Kernel_LinearBlendSkinning.usf(19,39-63):  error X3013: 'DI000_ReadNumVertices': no matching 1 parameter function"	
+	// "OptimusNode_ComputeKernel_2(1,42):  error X3004: undeclared identifier 'a'"
+
+	// TODO: Parsing diagnostics rightfully belongs at the shader compiler level, especially if the shader compiler is rewriting.
+	static const FRegexPattern MessagePattern(TEXT(R"(^\s*(.*?)\((\d+),(\d+)(-(\d+))?\):\s*(error|warning)\s+[A-Z0-9]+:\s*(.*)$)"));
+	FRegexMatcher Matcher(MessagePattern, InMessage);
+
+	if (!Matcher.FindNext())
+	{
+		Diagnostic.Level = EOptimusDiagnosticLevel::Info;
+		Diagnostic.Diagnostic = InMessage;
+		//Diagnostic.Object = InKernelNode;
+	}
+	else
+	{
+		const FString SeverityStr = Matcher.GetCaptureGroup(6);
+		if (SeverityStr == TEXT("warning"))
+		{
+			Diagnostic.Level = EOptimusDiagnosticLevel::Warning;
+		}
+		else if (SeverityStr == TEXT("error"))
+		{
+			Diagnostic.Level = EOptimusDiagnosticLevel::Error;
+		}
+
+		const FString Path = Matcher.GetCaptureGroup(1);
+		Diagnostic.Object = StaticFindObject(nullptr, nullptr, *Path, true);
+
+		const FString MessageStr = Matcher.GetCaptureGroup(7);
+		const bool bShowPathInMessage = Diagnostic.Object == nullptr;
+		Diagnostic.Diagnostic = bShowPathInMessage ? FString::Printf(TEXT("%s: %s"), *Path, *MessageStr) : MessageStr;
+
+		const int32 LineNumber = FCString::Atoi(*Matcher.GetCaptureGroup(2));
+		const int32 ColumnStart = FCString::Atoi(*Matcher.GetCaptureGroup(3));
+		const FString ColumnEndStr = Matcher.GetCaptureGroup(5);
+		const int32 ColumnEnd = ColumnEndStr.IsEmpty() ? ColumnStart : FCString::Atoi(*ColumnEndStr);
+		Diagnostic.Line = LineNumber;
+		Diagnostic.ColumnStart = ColumnStart;
+		Diagnostic.ColumnEnd = ColumnEnd;
+	}
+
+	if (InOwner)
+	{
+		InOwner->GetCompileMessageDelegate().Broadcast(Diagnostic);
+	}
+
+	return Diagnostic.Level;
+}
+
+void UOptimusComputeGraph::OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileOutputMessages)
 {
 	// Find the Optimus objects from the raw kernel index.
 	if (KernelToNode.IsValidIndex(InKernelIndex))
@@ -43,76 +96,20 @@ void UOptimusComputeGraph::OnKernelCompilationComplete(int32 InKernelIndex, cons
 		// Make sure the node hasn't been GC'd.
 		if (UOptimusNode* Node = const_cast<UOptimusNode*>(KernelToNode[InKernelIndex].Get()))
 		{
-			IOptimusComputeKernelProvider* KernelProvider = Cast<IOptimusComputeKernelProvider>(Node);
-			if (ensure(KernelProvider != nullptr))
+			EOptimusDiagnosticLevel DiagnosticLevel = EOptimusDiagnosticLevel::None;
+
+			for (FString const& CompileOutputMessage : InCompileOutputMessages)
 			{
-				TArray<FOptimusCompilerDiagnostic>  Diagnostics;
-
-				// This is a compute kernel as expected so broadcast the compile errors.
-				for (FString const& CompileError : InCompileErrors)
+				EOptimusDiagnosticLevel MessageDiagnosticLevel = ProcessCompilationMessage(Owner, Node, CompileOutputMessage);
+				if (MessageDiagnosticLevel > DiagnosticLevel)
 				{
-					FOptimusCompilerDiagnostic Diagnostic = ProcessCompilationMessage(Owner, Node, CompileError);
-					if (Diagnostic.Level != EOptimusDiagnosticLevel::None)
-					{
-						Diagnostics.Add(Diagnostic);
-					}
+					DiagnosticLevel = MessageDiagnosticLevel;
 				}
-
-				KernelProvider->SetCompilationDiagnostics(Diagnostics);
 			}
+
+			Node->SetDiagnosticLevel(DiagnosticLevel);
 		}
 	}
-}
-
-FOptimusCompilerDiagnostic UOptimusComputeGraph::ProcessCompilationMessage(
-	UOptimusDeformer* InOwner,
-	const UOptimusNode* InKernelNode,
-	const FString& InMessage
-	)
-{
-	// "/Engine/Generated/ComputeFramework/Kernel_LinearBlendSkinning.usf(19,39-63):  error X3013: 'DI000_ReadNumVertices': no matching 1 parameter function"	
-	// "OptimusNode_ComputeKernel_2(1,42):  error X3004: undeclared identifier 'a'"
-
-	// TODO: Parsing diagnostics rightfully belongs at the shader compiler level, especially if
-	// the shader compiler is rewriting.
-	static const FRegexPattern MessagePattern(TEXT(R"(^\s*(.*?)\((\d+),(\d+)(-(\d+))?\):\s*(error|warning)\s+[A-Z0-9]+:\s*(.*)$)"));
-
-	FRegexMatcher Matcher(MessagePattern, InMessage);
-	if (!Matcher.FindNext())
-	{
-		UE_LOG(LogOptimusCore, Warning, TEXT("Cannot parse message from shader compiler: [%s]"), *InMessage);
-		return {};
-	}
-
-	// FString NodeName = Matcher.GetCaptureGroup(1);
-	const int32 LineNumber = FCString::Atoi(*Matcher.GetCaptureGroup(2));
-	const int32 ColumnStart = FCString::Atoi(*Matcher.GetCaptureGroup(3));
-	const FString ColumnEndStr = Matcher.GetCaptureGroup(5);
-	const int32 ColumnEnd = ColumnEndStr.IsEmpty() ? ColumnStart : FCString::Atoi(*ColumnEndStr);
-	const FString SeverityStr = Matcher.GetCaptureGroup(6);
-	const FString MessageStr = Matcher.GetCaptureGroup(7);
-
-	EMessageSeverity::Type Severity = EMessageSeverity::Error; 
-	EOptimusDiagnosticLevel Level = EOptimusDiagnosticLevel::Error;
-	if (SeverityStr == TEXT("warning"))
-	{
-		Level = EOptimusDiagnosticLevel::Warning;
-		Severity = EMessageSeverity::Warning;
-	}
-
-	if (InOwner)
-	{
-		// Set a dummy lambda for token activation because the default behavior for FUObjectToken is
-		// to pop up the asset browser :-/
-		static auto DummyActivation = [](const TSharedRef<class IMessageToken>&) {};
-		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(
-			Severity, 
-			FText::Format(LOCTEXT("LineMessage", "{0} (line {1})"), FText::FromString(MessageStr), FText::AsNumber(LineNumber)));
-		Message->AddToken(FUObjectToken::Create(InKernelNode)->OnMessageTokenActivated(FOnMessageTokenActivated::CreateLambda(DummyActivation)));
-		InOwner->GetCompileMessageDelegate().Broadcast(Message);
-	}
-
-	return FOptimusCompilerDiagnostic(Level, MessageStr, LineNumber, ColumnStart, ColumnEnd);
 }
 
 #undef LOCTEXT_NAMESPACE

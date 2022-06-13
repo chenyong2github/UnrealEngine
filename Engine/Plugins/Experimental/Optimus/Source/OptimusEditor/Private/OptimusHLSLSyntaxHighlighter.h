@@ -6,7 +6,7 @@
 
 // TEMP
 #include "Text/HLSLSyntaxHighlighterMarshaller.h"
-#include "OptimusShaderText.h"
+#include "OptimusDiagnostic.h"
 
 class FTextLayout;
 

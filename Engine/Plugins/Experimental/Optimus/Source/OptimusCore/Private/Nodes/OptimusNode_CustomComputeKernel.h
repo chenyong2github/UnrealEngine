@@ -40,22 +40,15 @@ public:
 	FString GetKernelSourceText() const override;
 	TArray<TObjectPtr<UComputeSource>> GetAdditionalSources() const override { return AdditionalSources; }
 
-	// IOptiusComputeKernelProvider overrides
-	void SetCompilationDiagnostics(
-		const TArray<FOptimusCompilerDiagnostic>& InDiagnostics
-		) override;
-
+#if WITH_EDITOR
 	// IOptimusShaderTextProvider overrides
-	virtual FString GetNameForShaderTextEditor() const override;
+	FString GetNameForShaderTextEditor() const override;
+	FString GetDeclarations() const override;
+	FString GetShaderText() const override;
+	void SetShaderText(const FString& NewText) override;
+	// IOptimusShaderTextProvider overrides
+#endif
 	
-	virtual FString GetDeclarations() const override;
-	
-	virtual FString GetShaderText() const override;
-
-	virtual void SetShaderText(const FString& NewText) override;
-
-	virtual const TArray<FOptimusCompilerDiagnostic>& GetCompilationDiagnostics() const override;
-
 	// IOptimusParameterBindingProvider
 	virtual FString GetBindingDeclaration(FName BindingName) const override;
 
@@ -118,10 +111,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FOptimusShaderText ShaderSource;
 
 #if WITH_EDITOR
-	// IOptimusShaderTextProvider overrides
-	FOnDiagnosticsUpdated OnDiagnosticsUpdatedEvent;
-	virtual FOnDiagnosticsUpdated& OnDiagnosticsUpdated() override {return OnDiagnosticsUpdatedEvent; };
-	
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
