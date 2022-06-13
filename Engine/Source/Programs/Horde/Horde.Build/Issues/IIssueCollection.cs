@@ -425,7 +425,7 @@ namespace Horde.Build.Issues
 		/// Searches for open issues
 		/// </summary>
 		/// <param name="ids">Set of issue ids to find</param>
-		/// <param name="userId">The user to find issues for</param>
+		/// <param name="ownerId">The user to find issues for</param>
 		/// <param name="streamId">The stream affected by the issue</param>
 		/// <param name="minChange">Minimum changelist affected by the issue</param>
 		/// <param name="maxChange">Maximum changelist affected by the issue</param>
@@ -434,7 +434,7 @@ namespace Horde.Build.Issues
 		/// <param name="index">Index within the results to return</param>
 		/// <param name="count">Number of results</param>
 		/// <returns>List of streams open in the given stream at the given changelist</returns>
-		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? ids = null, UserId? userId = null, StreamId? streamId = null, int? minChange = null, int? maxChange = null, bool? resolved = null, bool? promoted = null, int? index = null, int? count = null);
+		Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? ids = null, UserId? ownerId = null, StreamId? streamId = null, int? minChange = null, int? maxChange = null, bool? resolved = null, bool? promoted = null, int? index = null, int? count = null);
 
 		/// <summary>
 		/// Searches for open issues
@@ -612,13 +612,13 @@ namespace Horde.Build.Issues
 		/// <param name="stepId"></param>
 		/// <param name="batchId"></param>
 		/// <param name="labelIdx"></param>
-		/// <param name="userId"></param>
+		/// <param name="ownerId"></param>
 		/// <param name="resolved">Whether to include results that are resolved</param>
 		/// <param name="promoted">Whether to filter by promoted issues</param>
 		/// <param name="index">Index within the results to return</param>
 		/// <param name="count">Number of results</param>
 		/// <returns></returns>
-		public static async Task<List<IIssue>> FindIssuesForJobAsync(this IIssueCollection issueCollection, IJob job, IGraph graph, SubResourceId? stepId = null, SubResourceId? batchId = null, int? labelIdx = null, UserId? userId = null, bool? resolved = null, bool? promoted = null, int? index = null, int? count = null)
+		public static async Task<List<IIssue>> FindIssuesForJobAsync(this IIssueCollection issueCollection, IJob job, IGraph graph, SubResourceId? stepId = null, SubResourceId? batchId = null, int? labelIdx = null, UserId? ownerId = null, bool? resolved = null, bool? promoted = null, int? index = null, int? count = null)
 		{
 			List<IIssueStep> steps = await issueCollection.FindStepsAsync(job.Id, batchId, stepId);
 			List<IIssueSpan> spans = await issueCollection.FindSpansAsync(steps.Select(x => x.SpanId));
@@ -635,7 +635,7 @@ namespace Horde.Build.Issues
 				return new List<IIssue>();
 			}
 
-			return await issueCollection.FindIssuesAsync(ids: issueIds, userId: userId, resolved: resolved, promoted: promoted, index: index, count: count);
+			return await issueCollection.FindIssuesAsync(ids: issueIds, ownerId: ownerId, resolved: resolved, promoted: promoted, index: index, count: count);
 		}
 
 

@@ -192,7 +192,7 @@ namespace Horde.Build.Issues
 		/// <param name="batchId">The batch to filter by</param>
 		/// <param name="stepId">The step to filter by</param>
 		/// <param name="labelIdx">The label within the job to filter by</param>
-		/// <param name="userId">User to filter issues for</param>
+		/// <param name="ownerId">User to filter issues for</param>
 		/// <param name="resolved">Whether to include resolved issues</param>
 		/// <param name="promoted">Whether to include promoted issues</param>
 		/// <param name="index">Starting offset of the window of results to return</param>
@@ -202,17 +202,17 @@ namespace Horde.Build.Issues
 		[HttpGet]
 		[Route("/api/v1/issues")]
 		[ProducesResponseType(typeof(List<GetIssueResponse>), 200)]
-		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? ids = null, [FromQuery] string? streamId = null, [FromQuery] int? change = null, [FromQuery] int? minChange = null, [FromQuery] int? maxChange = null, [FromQuery] JobId? jobId = null, [FromQuery] string? batchId = null, [FromQuery] string? stepId = null, [FromQuery(Name = "label")] int? labelIdx = null, [FromQuery] string? userId = null, [FromQuery] bool? resolved = null, [FromQuery] bool? promoted = null, [FromQuery] int index = 0, [FromQuery] int count = 10, [FromQuery] PropertyFilter? filter = null)
+		public async Task<ActionResult<object>> FindIssuesAsync([FromQuery(Name = "Id")] int[]? ids = null, [FromQuery] string? streamId = null, [FromQuery] int? change = null, [FromQuery] int? minChange = null, [FromQuery] int? maxChange = null, [FromQuery] JobId? jobId = null, [FromQuery] string? batchId = null, [FromQuery] string? stepId = null, [FromQuery(Name = "label")] int? labelIdx = null, [FromQuery] string? ownerId = null, [FromQuery] bool? resolved = null, [FromQuery] bool? promoted = null, [FromQuery] int index = 0, [FromQuery] int count = 10, [FromQuery] PropertyFilter? filter = null)
 		{
 			if(ids != null && ids.Length == 0)
 			{
 				ids = null;
 			}
 
-			UserId? userIdValue = null;
-			if (userId != null)
+			UserId? ownerIdValue = null;
+			if (ownerId != null)
 			{
-				userIdValue = new UserId(userId);
+				ownerIdValue = new UserId(ownerId);
 			}
 
 			List<IIssue> issues;
@@ -224,7 +224,7 @@ namespace Horde.Build.Issues
 					streamIdValue = new StreamId(streamId);
 				}
 
-				issues = await _issueService.Collection.FindIssuesAsync(ids, userIdValue, streamIdValue, minChange ?? change, maxChange ?? change, resolved, promoted, index, count);
+				issues = await _issueService.Collection.FindIssuesAsync(ids, ownerIdValue, streamIdValue, minChange ?? change, maxChange ?? change, resolved, promoted, index, count);
 			}
 			else
 			{
@@ -239,7 +239,7 @@ namespace Horde.Build.Issues
 				}
 
 				IGraph graph = await _jobService.GetGraphAsync(job);
-				issues = await _issueService.Collection.FindIssuesForJobAsync(job, graph, stepId?.ToSubResourceId(), batchId?.ToSubResourceId(), labelIdx, userIdValue, resolved, promoted, index, count);
+				issues = await _issueService.Collection.FindIssuesForJobAsync(job, graph, stepId?.ToSubResourceId(), batchId?.ToSubResourceId(), labelIdx, ownerIdValue, resolved, promoted, index, count);
 			}
 
 			StreamPermissionsCache permissionsCache = new StreamPermissionsCache();

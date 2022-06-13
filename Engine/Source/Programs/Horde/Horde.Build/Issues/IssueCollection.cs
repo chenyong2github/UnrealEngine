@@ -694,42 +694,20 @@ namespace Horde.Build.Issues
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? ids = null, UserId? userId = null, StreamId? streamId = null, int? minChange = null, int? maxChange = null, bool? resolved = null, bool? promoted = null, int? index = null, int? count = null)
+		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? ids = null, UserId? ownerId = null, StreamId? streamId = null, int? minChange = null, int? maxChange = null, bool? resolved = null, bool? promoted = null, int? index = null, int? count = null)
 		{
-			List<Issue> results = await FilterIssuesByUserIdAsync(ids, userId, streamId, minChange, maxChange, resolved ?? false, promoted, index ?? 0, count);
-			return results.ConvertAll<IIssue>(x => x);
-		}
+			List<Issue> results;
 
-		async Task<List<Issue>> FilterIssuesByUserIdAsync(IEnumerable<int>? ids, UserId? userId, StreamId? streamId, int? minChange, int? maxChange, bool? resolved, bool? promoted, int index, int? count)
-		{
-			if (userId == null)
+			if (ownerId == null)
 			{
-				return await FilterIssuesByStreamIdAsync(ids, streamId, minChange, maxChange, resolved, promoted, index, count);
+				results = await FilterIssuesByStreamIdAsync(ids, streamId, minChange, maxChange, resolved, promoted, index ?? 0, count);
 			}
 			else
 			{
-				FilterDefinition<IssueSuspect> filter = Builders<IssueSuspect>.Filter.Eq(x => x.AuthorId, userId);
-				if (ids != null)
-				{
-					filter &= Builders<IssueSuspect>.Filter.In(x => x.IssueId, ids);
-				}
-				if (resolved != null)
-				{
-					if (resolved.Value)
-					{
-						filter &= Builders<IssueSuspect>.Filter.Ne(x => x.ResolvedAt, null);
-					}
-					else
-					{
-						filter &= Builders<IssueSuspect>.Filter.Eq(x => x.ResolvedAt, null);
-					}
-				}
-
-				using (IAsyncCursor<ProjectedIssueId> cursor = await _issueSuspects.Aggregate().Match(filter).Group(x => x.IssueId, x => new ProjectedIssueId { _id = x.Key }).SortByDescending(x => x._id).ToCursorAsync())
-				{
-					return await PaginatedJoinAsync(cursor, (nextIds, nextIndex, nextCount) => FilterIssuesByStreamIdAsync(nextIds, streamId, minChange, maxChange, null, promoted, nextIndex, nextCount), index, count);
-				}
+				results = await _issues.Find(x => x.OwnerId == ownerId).ToListAsync();
 			}
+
+			return results.ConvertAll<IIssue>(x => x);
 		}
 
 		async Task<List<Issue>> FilterIssuesByStreamIdAsync(IEnumerable<int>? ids, StreamId? streamId, int? minChange, int? maxChange, bool? resolved, bool? promoted, int index, int? count)
