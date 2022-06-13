@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Experimental/Misc/ExecutionResource.h"
+#include "Containers/Array.h"
 
 namespace ExecutionResourceImpl
 {

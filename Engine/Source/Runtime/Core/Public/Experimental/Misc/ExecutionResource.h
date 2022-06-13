@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Templates/RefCounting.h"
+
 /**
  * Simple ref-counted interface that represents a resource that is held or required for the execution of some task item.
  */
