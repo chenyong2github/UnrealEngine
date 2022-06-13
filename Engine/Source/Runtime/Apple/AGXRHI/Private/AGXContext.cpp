@@ -707,7 +707,7 @@ void FAGXDeviceContext::ReleaseTexture(FAGXTexture& Texture)
 	}
 }
 
-FAGXTexture FAGXDeviceContext::CreateTexture(FAGXSurface* Surface, mtlpp::TextureDescriptor Descriptor)
+FAGXTexture FAGXDeviceContext::CreateTexture(FAGXSurface* Surface, MTLTextureDescriptor* Descriptor)
 {
 	FAGXTexture Tex = Heap.CreateTexture(Descriptor, Surface);
 #if METAL_DEBUG_OPTIONS

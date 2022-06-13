@@ -282,38 +282,39 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AGXTexturePageOffTime);
 		
+		id<MTLTexture> MetalTexture = Texture.GetPtr();
 		FAGXTexture TempTexture = nil;
-		if ([Texture.GetPtr() storageMode] == MTLStorageModePrivate)
+		if (MetalTexture.storageMode == MTLStorageModePrivate)
 		{
 #if PLATFORM_MAC
 			MTLResourceOptions ResourceStorageMode = MTLResourceStorageModeManaged;
 #else
 			MTLResourceOptions ResourceStorageMode = MTLResourceStorageModeShared;
 #endif
-			MTLPixelFormat MetalFormat = (MTLPixelFormat)GPixelFormats[Surface->GetDesc().Format].PlatformFormat;
-			mtlpp::TextureDescriptor Desc;
-			Desc.SetTextureType(Texture.GetTextureType());
-			Desc.SetPixelFormat(Texture.GetPixelFormat());
-			Desc.SetWidth(SizeX);
-			Desc.SetHeight(SizeY);
-			Desc.SetDepth(1);
-			Desc.SetMipmapLevelCount(1); // Only consider a single subresource and not the whole texture (like in the other RHIs)
-			Desc.SetSampleCount(Texture.GetSampleCount());
-			Desc.SetArrayLength(Texture.GetArrayLength());
+			MTLTextureDescriptor* TextureDescriptor = [[MTLTextureDescriptor alloc] init];
+			TextureDescriptor.textureType      = MetalTexture.textureType;
+			TextureDescriptor.pixelFormat      = MetalTexture.pixelFormat;
+			TextureDescriptor.width            = SizeX;
+			TextureDescriptor.height           = SizeY;
+			TextureDescriptor.depth            = 1;
+			TextureDescriptor.mipmapLevelCount = 1; // Only consider a single subresource and not the whole texture (like in the other RHIs)
+			TextureDescriptor.sampleCount      = MetalTexture.sampleCount;
+			TextureDescriptor.arrayLength      = MetalTexture.arrayLength;
+			TextureDescriptor.resourceOptions  = ((MetalTexture.resourceOptions & ~MTLResourceStorageModeMask) | ResourceStorageMode);
+			TextureDescriptor.usage            = MetalTexture.usage;
 			
-			Desc.SetResourceOptions(mtlpp::ResourceOptions(([Texture.GetPtr() resourceOptions] & ~MTLResourceStorageModeMask) | ResourceStorageMode));
-			
-			Desc.SetUsage(Texture.GetUsage());
-			
-			TempTexture = GMtlppDevice.NewTexture(Desc);
+			TempTexture = FAGXTexture([GMtlDevice newTextureWithDescriptor:TextureDescriptor], ns::Ownership::Assign);
 			
 			ImmediateContext.Context->CopyFromTextureToTexture(Texture, 0, InFlags.GetMip(), Region.origin, Region.size, TempTexture, 0, 0, MTLOriginMake(0, 0, 0));
 			
 			Texture = TempTexture;
+			MetalTexture = Texture.GetPtr();
 			Region = MTLRegionMake2D(0, 0, SizeX, SizeY);
+
+			[TextureDescriptor release];
 		}
 #if PLATFORM_MAC
-		if ([Texture.GetPtr() storageMode] == MTLStorageModeManaged)
+		if (MetalTexture.storageMode == MTLStorageModeManaged)
 		{
 			// Synchronise the texture with the CPU
 			ImmediateContext.Context->SynchronizeTexture(Texture, 0, InFlags.GetMip());
@@ -329,12 +330,12 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 		TArray<uint8> Data;
 		Data.AddUninitialized(BytesPerImage);
 		
-		[Texture.GetPtr() getBytes:(void*)Data.GetData()
-					   bytesPerRow:Stride
-					 bytesPerImage:BytesPerImage
-						fromRegion:Region
-					   mipmapLevel:0
-							 slice:0];
+		[MetalTexture getBytes:(void*)Data.GetData()
+				   bytesPerRow:Stride
+				 bytesPerImage:BytesPerImage
+					fromRegion:Region
+				   mipmapLevel:0
+						 slice:0];
 		
 		ConvertSurfaceDataToFColor(Surface->GetDesc().Format, SizeX, SizeY, (uint8*)Data.GetData(), Stride, OutDataPtr, InFlags);
 		

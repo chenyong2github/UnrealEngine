@@ -304,20 +304,25 @@ void FAGXSurface::PrepareTextureView()
 
 FAGXTexture FAGXSurface::Reallocate(FAGXTexture InTexture, MTLTextureUsage UsageModifier)
 {
-	mtlpp::TextureDescriptor Desc;
-	Desc.SetTextureType(InTexture.GetTextureType());
-	Desc.SetPixelFormat(InTexture.GetPixelFormat());
-	Desc.SetWidth(InTexture.GetWidth());
-	Desc.SetHeight(InTexture.GetHeight());
-	Desc.SetDepth(InTexture.GetDepth());
-	Desc.SetMipmapLevelCount(InTexture.GetMipmapLevelCount());
-	Desc.SetSampleCount(InTexture.GetSampleCount());
-	Desc.SetArrayLength(InTexture.GetArrayLength());
-	Desc.SetResourceOptions(mtlpp::ResourceOptions([InTexture.GetPtr() resourceOptions]));
-	Desc.SetUsage(mtlpp::TextureUsage([InTexture.GetPtr() usage] | UsageModifier));
+	id<MTLTexture> InMetalTexture = InTexture.GetPtr();
+
+	MTLTextureDescriptor* TextureDescriptor = [[MTLTextureDescriptor alloc] init];
+	TextureDescriptor.textureType      = InMetalTexture.textureType;
+	TextureDescriptor.pixelFormat      = InMetalTexture.pixelFormat;
+	TextureDescriptor.width            = InMetalTexture.width;
+	TextureDescriptor.height           = InMetalTexture.height;
+	TextureDescriptor.depth            = InMetalTexture.depth;
+	TextureDescriptor.mipmapLevelCount = InMetalTexture.mipmapLevelCount;
+	TextureDescriptor.sampleCount      = InMetalTexture.sampleCount;
+	TextureDescriptor.arrayLength      = InMetalTexture.arrayLength;
+	TextureDescriptor.resourceOptions  = InMetalTexture.resourceOptions;
+	TextureDescriptor.usage            = (InMetalTexture.usage | UsageModifier);
 	
-	FAGXTexture NewTex = GetAGXDeviceContext().CreateTexture(this, Desc);
+	FAGXTexture NewTex = GetAGXDeviceContext().CreateTexture(this, TextureDescriptor);
 	check(NewTex);
+	
+	[TextureDescriptor release];
+	
 	return NewTex;
 }
 
@@ -368,61 +373,78 @@ uint8 AGXGetMetalPixelFormatKey(MTLPixelFormat Format)
 	return PixelFormatKeyMap.Get(Format);
 }
 
-FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
+FAGXTextureDesc::FAGXTextureDesc(const FRHITextureDesc& InDesc)
 	: bIsRenderTarget(IsRenderTarget(InDesc.Flags))
 {
-	MTLFormat = (MTLPixelFormat)GPixelFormats[InDesc.Format].PlatformFormat;
+	PixelFormat = (MTLPixelFormat)GPixelFormats[InDesc.Format].PlatformFormat;
+
 	if (EnumHasAnyFlags(InDesc.Flags, TexCreate_SRGB))
 	{
-		MTLFormat = AGXToSRGBFormat(MTLFormat);
+		PixelFormat = AGXToSRGBFormat(PixelFormat);
 	}
 
 	// get a unique key for this surface's format
-	FormatKey = AGXGetMetalPixelFormatKey(MTLFormat);
+	FormatKey = AGXGetMetalPixelFormatKey(PixelFormat);
 
 	if (InDesc.IsTextureCube())
 	{
-		Desc = mtlpp::TextureDescriptor::TextureCubeDescriptor((mtlpp::PixelFormat)MTLFormat, InDesc.Extent.X, (InDesc.NumMips > 1));
+		Desc = MakeUnique<ReferencedTextureDescriptorType>(
+				[MTLTextureDescriptor textureCubeDescriptorWithPixelFormat:PixelFormat
+																	  size:InDesc.Extent.X
+																 mipmapped:(InDesc.NumMips > 1)]);
 	}
 	else if (InDesc.IsTexture3D())
 	{
-		Desc.SetTextureType(mtlpp::TextureType::Texture3D);
-		Desc.SetWidth(InDesc.Extent.X);
-		Desc.SetHeight(InDesc.Extent.Y);
-		Desc.SetDepth(InDesc.Depth);
-		Desc.SetPixelFormat((mtlpp::PixelFormat)MTLFormat);
-		Desc.SetArrayLength(1);
-		Desc.SetMipmapLevelCount(1);
-		Desc.SetSampleCount(1);
+		MTLTextureDescriptor* TextureDescriptor = [[MTLTextureDescriptor alloc] init];
+		TextureDescriptor.textureType      = MTLTextureType3D;
+		TextureDescriptor.width            = InDesc.Extent.X;
+		TextureDescriptor.height           = InDesc.Extent.Y;
+		TextureDescriptor.depth            = InDesc.Depth;
+		TextureDescriptor.pixelFormat      = PixelFormat;;
+		TextureDescriptor.arrayLength      = 1;
+		TextureDescriptor.mipmapLevelCount = 1;
+		TextureDescriptor.sampleCount      = 1;
+
+		Desc = MakeUnique<ReferencedTextureDescriptorType>(TextureDescriptor);
+
+		[TextureDescriptor release];
 	}
 	else
 	{
-		Desc = mtlpp::TextureDescriptor::Texture2DDescriptor((mtlpp::PixelFormat)MTLFormat, InDesc.Extent.X, InDesc.Extent.Y, (InDesc.NumMips > 1));
-		Desc.SetArrayLength(InDesc.ArraySize);
+		Desc = MakeUnique<ReferencedTextureDescriptorType>(
+				[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:PixelFormat
+																   width:InDesc.Extent.X
+																  height:InDesc.Extent.Y
+															   mipmapped:(InDesc.NumMips > 1)]);
+		[Desc.Get()->Object setArrayLength:InDesc.ArraySize];
 	}
+	check(Desc.IsValid());
+
+	MTLTextureDescriptor* TextureDescriptor = Desc.Get()->Object;
 
 	// flesh out the descriptor
 	if (InDesc.IsTextureArray())
 	{
-		Desc.SetArrayLength(InDesc.ArraySize);
+		TextureDescriptor.arrayLength = InDesc.ArraySize;
 		if (InDesc.IsTextureCube())
 		{
 			if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesCubemapArrays))
 			{
-				Desc.SetTextureType(mtlpp::TextureType::TextureCubeArray);
+				TextureDescriptor.textureType = MTLTextureTypeCubeArray;
 			}
 			else
 			{
-				Desc.SetTextureType(mtlpp::TextureType::Texture2DArray);
-				Desc.SetArrayLength(InDesc.ArraySize * 6);
+				TextureDescriptor.textureType = MTLTextureType2DArray;
+				TextureDescriptor.arrayLength = (InDesc.ArraySize * 6);
 			}
 		}
 		else
 		{
-			Desc.SetTextureType(mtlpp::TextureType::Texture2DArray);
+			TextureDescriptor.textureType = MTLTextureType2DArray;
 		}
 	}
-	Desc.SetMipmapLevelCount(InDesc.NumMips);
+
+	TextureDescriptor.mipmapLevelCount = InDesc.NumMips;
 
 	{
 		MTLResourceOptions ResourceStorageMode;
@@ -503,8 +525,8 @@ FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 		}
 #endif
 
-		Desc.SetResourceOptions(mtlpp::ResourceOptions(MTLResourceCPUCacheModeDefaultCache | ResourceStorageMode | MTLResourceHazardTrackingModeDefault));
-		Desc.SetUsage(mtlpp::TextureUsage(ConvertFlagsToUsage(InDesc.Flags)));
+		TextureDescriptor.resourceOptions = (MTLResourceCPUCacheModeDefaultCache | ResourceStorageMode | MTLResourceHazardTrackingModeDefault);
+		TextureDescriptor.usage = ConvertFlagsToUsage(InDesc.Flags);
 	}
 	
 	if (!FParse::Param(FCommandLine::Get(), TEXT("nomsaa")))
@@ -512,17 +534,17 @@ FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 		if (InDesc.NumSamples > 1)
 		{
 			check(bIsRenderTarget);
-			Desc.SetTextureType(mtlpp::TextureType::Texture2DMultisample);
+			TextureDescriptor.textureType = MTLTextureType2DMultisample;
 
 			// allow commandline to override
 			uint32 NewNumSamples;
 			if (FParse::Value(FCommandLine::Get(), TEXT("msaa="), NewNumSamples))
 			{
-				Desc.SetSampleCount(NewNumSamples);
+				TextureDescriptor.sampleCount = NewNumSamples;
 			}
 			else
 			{
-				Desc.SetSampleCount(InDesc.NumSamples);
+				TextureDescriptor.sampleCount = InDesc.NumSamples;
 			}
 		}
 	}
@@ -548,6 +570,8 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 		return;
 	}
 
+	MTLTextureDescriptor* TextureDescriptor = CreateDesc.Desc.Get()->Object;
+
 	FResourceBulkDataInterface* BulkData = CreateDesc.BulkData;
 
 	// The bulk data interface can be used to create external textures for VR and media player.
@@ -567,7 +591,7 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 #else
 				Texture = CVMetalTextureGetTexture((CVMetalTextureRef)ImageSurfaceRef);
 #endif
-				METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([CreateDesc.Desc.GetPtr() description]));
+				METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([TextureDescriptor description]));
 
 				BulkData->Discard();
 				BulkData = nullptr;
@@ -580,16 +604,19 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 				ImageSurfaceRef = (CFTypeRef)BulkData->GetResourceBulkData();
 				CFRetain(ImageSurfaceRef);
 
-				mtlpp::TextureDescriptor DescCopy([CreateDesc.Desc.GetPtr() copy], ns::Ownership::Assign);
-				[DescCopy.GetPtr() setResourceOptions:(([DescCopy.GetPtr() resourceOptions] & ~MTLResourceStorageModeMask) | MTLResourceStorageModeManaged)];
+				MTLTextureDescriptor* DescCopy = [TextureDescriptor copy];
+				DescCopy.resourceOptions = ((DescCopy.resourceOptions & ~MTLResourceStorageModeMask) | MTLResourceStorageModeManaged);
 
-				ns::IOSurface MtlppIOSurface((IOSurfaceRef)ImageSurfaceRef, ns::Ownership::AutoRelease);
-				Texture = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTextureWithDescriptor(DescCopy, MtlppIOSurface, 0));
+				Texture = mtlpp::Texture([GMtlDevice newTextureWithDescriptor:DescCopy
+																   iosurface:(IOSurfaceRef)ImageSurfaceRef
+																	   plane:0], nullptr, ns::Ownership::Assign);
 				
-				METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([DescCopy.GetPtr() description]));
+				METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([DescCopy description]));
 
 				BulkData->Discard();
 				BulkData = nullptr;
+
+				[DescCopy release];
 			}
 			break;
 #endif
@@ -601,29 +628,31 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 		// Non VR/media texture case (i.e. a regular texture).
 		// Create the actual texture resource.
 
-		const bool bBufferCompatibleOption = 	(CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::Texture2D || CreateDesc.Desc.GetTextureType() == mtlpp::TextureType::TextureBuffer) &&
-												CreateDesc.NumMips == 1 && CreateDesc.ArraySize == 1 && CreateDesc.NumSamples == 1 && CreateDesc.Desc.GetDepth() == 1;
+		const bool bBufferCompatibleOption = (TextureDescriptor.textureType == MTLTextureType2D || TextureDescriptor.textureType == MTLTextureTypeTextureBuffer) &&
+											  CreateDesc.NumMips == 1 && CreateDesc.ArraySize == 1 && CreateDesc.NumSamples == 1 && TextureDescriptor.depth == 1;
 
-		if(bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)))
+		if (bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)))
 		{
-			const uint32 MinimumByteAlignment = GMtlppDevice.GetMinimumLinearTextureAlignmentForPixelFormat((mtlpp::PixelFormat)CreateDesc.MTLFormat);
-			const NSUInteger BytesPerRow = Align(CreateDesc.Desc.GetWidth() * GPixelFormats[CreateDesc.Format].BlockBytes, MinimumByteAlignment);
+			const uint32 MinimumByteAlignment = [GMtlDevice minimumLinearTextureAlignmentForPixelFormat:CreateDesc.PixelFormat];
+			const NSUInteger BytesPerRow = Align(TextureDescriptor.width * GPixelFormats[CreateDesc.Format].BlockBytes, MinimumByteAlignment);
 
 			// Backing buffer resource options must match the texture we are going to create from it
-			FAGXPooledBufferArgs Args(BytesPerRow * CreateDesc.Desc.GetHeight(), BUF_Dynamic, FAGXPooledBufferArgs::PrivateStorageResourceOptions);
+			FAGXPooledBufferArgs Args(BytesPerRow * TextureDescriptor.height, BUF_Dynamic, FAGXPooledBufferArgs::PrivateStorageResourceOptions);
 			FAGXBuffer Buffer = GetAGXDeviceContext().CreatePooledBuffer(Args);
 
-			Texture = Buffer.NewTexture(CreateDesc.Desc, 0, BytesPerRow);
+			Texture = mtlpp::Texture([Buffer.GetPtr() newTextureWithDescriptor:TextureDescriptor
+																		offset:Buffer.GetOffset()
+																   bytesPerRow:BytesPerRow], nullptr, ns::Ownership::Assign);
 		}
 		else
 		{
 			// If we are in here then either the texture description is not buffer compatable or these flags were not set
 			// assert that these flag combinations are not set as they require a buffer backed texture and the texture description is not compatible with that
-			checkf(!EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible), TEXT("Requested buffer backed texture that breaks Metal linear texture limitations: %s"), *FString([CreateDesc.Desc description]));
-			Texture = GetAGXDeviceContext().CreateTexture(this, CreateDesc.Desc);
+			checkf(!EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible), TEXT("Requested buffer backed texture that breaks Metal linear texture limitations: %s"), *FString([TextureDescriptor description]));
+			Texture = GetAGXDeviceContext().CreateTexture(this, TextureDescriptor);
 		}
 		
-		METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([CreateDesc.Desc description]));
+		METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([TextureDescriptor description]));
 	}
 
 	if (BulkData)
@@ -652,7 +681,7 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 
 	if (CreateDesc.NumSamples > 1 && !FParse::Param(FCommandLine::Get(), TEXT("nomsaa")))
 	{
-		MSAATexture = GetAGXDeviceContext().CreateTexture(this, CreateDesc.Desc);
+		MSAATexture = GetAGXDeviceContext().CreateTexture(this, TextureDescriptor);
 
 		//device doesn't support HW depth resolve.  This case only valid on mobile renderer or
 		//on Mac where RHISupportsSeparateMSAAAndResolveTextures is true.
@@ -693,7 +722,7 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 
 		if (MSAATexture.GetPtr() == nil)
 		{
-			UE_LOG(LogAGX, Warning, TEXT("Failed to create MSAA texture with descriptor: %s"), *FString([CreateDesc.Desc.GetPtr() description]));
+			UE_LOG(LogAGX, Warning, TEXT("Failed to create MSAA texture with descriptor: %s"), *FString([TextureDescriptor description]));
 		}
 	}
 

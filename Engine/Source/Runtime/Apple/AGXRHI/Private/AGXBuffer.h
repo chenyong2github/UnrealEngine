@@ -332,7 +332,7 @@ public:
 	FAGXTexturePool(FCriticalSection& PoolMutex);
 	~FAGXTexturePool();
 	
-	FAGXTexture CreateTexture(mtlpp::TextureDescriptor Desc);
+	FAGXTexture CreateTexture(MTLTextureDescriptor* Desc);
 	void ReleaseTexture(FAGXTexture& Texture);
 	
 	void Drain(bool const bForce);
@@ -411,7 +411,7 @@ public:
 	void Init(FAGXCommandQueue& Queue);
 	
     FAGXBuffer CreateBuffer(uint32 InSize, uint32 InAlignment, EBufferUsageFlags InFlags, MTLResourceOptions InOptions, bool bForceUnique = false);
-	FAGXTexture CreateTexture(mtlpp::TextureDescriptor Desc, FAGXSurface* Surface);
+	FAGXTexture CreateTexture(MTLTextureDescriptor* Desc, FAGXSurface* Surface);
 	
 	void ReleaseBuffer(FAGXBuffer& Buffer);
 	void ReleaseTexture(FAGXSurface* Surface, FAGXTexture& Texture);

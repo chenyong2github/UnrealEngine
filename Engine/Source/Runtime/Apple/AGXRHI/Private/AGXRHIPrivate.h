@@ -150,6 +150,31 @@ struct FObjCWrapperRetained
 	Type Object;
 };
 
+struct FAGXTextureDesc
+{
+	using ReferencedTextureDescriptorType = FObjCWrapperRetained<MTLTextureDescriptor*>;
+
+	FAGXTextureDesc(const FRHITextureDesc& InDesc);
+	
+	TUniquePtr<ReferencedTextureDescriptorType> Desc;
+	MTLPixelFormat PixelFormat = MTLPixelFormatInvalid;
+	bool bMemoryless = false;
+	bool bIsRenderTarget = false;
+	uint8 FormatKey = 0;
+};
+
+struct FAGXTextureCreateDesc : public FRHITextureCreateDesc, public FAGXTextureDesc
+{
+	FAGXTextureCreateDesc(FRHITextureCreateDesc const& CreateDesc)
+		: FRHITextureCreateDesc(CreateDesc)
+		, FAGXTextureDesc(CreateDesc)
+	{
+		// @todo: texture type unification - Metal can override NumSamples based on command line options.
+		// We should instead require the renderer to do this.
+		NumSamples = [Desc.Get()->Object sampleCount];
+	}
+};
+
 struct FAGXBufferFormat
 {
 	// Valid linear texture pixel formats - potentially different than the actual texture formats

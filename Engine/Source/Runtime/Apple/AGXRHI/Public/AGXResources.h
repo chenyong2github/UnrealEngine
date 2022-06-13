@@ -133,29 +133,6 @@ public:
 	}
 };
 
-struct FAGXTextureDesc
-{
-	FAGXTextureDesc(FRHITextureDesc const& InDesc);
-	
-	mtlpp::TextureDescriptor Desc;
-	MTLPixelFormat MTLFormat;
-	bool bMemoryless = false;
-	bool bIsRenderTarget = false;
-	uint8 FormatKey = 0;
-};
-
-struct FAGXTextureCreateDesc : public FRHITextureCreateDesc, public FAGXTextureDesc
-{
-	FAGXTextureCreateDesc(FRHITextureCreateDesc const& CreateDesc)
-		: FRHITextureCreateDesc(CreateDesc)
-		, FAGXTextureDesc(CreateDesc)
-	{
-		// @todo: texture type unification - Metal can override NumSamples based on command line options.
-		// We should instead require the renderer to do this.
-		NumSamples = Desc.GetSampleCount();
-	}
-};
-
 // AGX RHI texture resource
 class AGXRHI_API FAGXSurface : public FRHITexture
 {
@@ -164,7 +141,7 @@ public:
 	/** 
 	 * Constructor that will create Texture and Color/DepthBuffers as needed
 	 */
-	FAGXSurface(FAGXTextureCreateDesc const& CreateDesc);
+	FAGXSurface(const struct FAGXTextureCreateDesc& CreateDesc);
 	
 	/**
 	 * Destructor

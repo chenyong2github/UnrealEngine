@@ -934,19 +934,19 @@ FAGXTexturePool::~FAGXTexturePool()
 {
 }
 
-FAGXTexture FAGXTexturePool::CreateTexture(mtlpp::TextureDescriptor Desc)
+FAGXTexture FAGXTexturePool::CreateTexture(MTLTextureDescriptor* Desc)
 {
 	FAGXTexturePool::Descriptor Descriptor;
-	Descriptor.textureType = (NSUInteger)Desc.GetTextureType();
-	Descriptor.pixelFormat = (NSUInteger)Desc.GetPixelFormat();
-	Descriptor.width = Desc.GetWidth();
-	Descriptor.height = Desc.GetHeight();
-	Descriptor.depth = Desc.GetDepth();
-	Descriptor.mipmapLevelCount = Desc.GetMipmapLevelCount();
-	Descriptor.sampleCount = Desc.GetSampleCount();
-	Descriptor.arrayLength = Desc.GetArrayLength();
-	Descriptor.resourceOptions = Desc.GetResourceOptions();
-	Descriptor.usage = Desc.GetUsage();
+	Descriptor.textureType = Desc.textureType;
+	Descriptor.pixelFormat = Desc.pixelFormat;
+	Descriptor.width = Desc.width;
+	Descriptor.height = Desc.height;
+	Descriptor.depth = Desc.depth;
+	Descriptor.mipmapLevelCount = Desc.mipmapLevelCount;
+	Descriptor.sampleCount = Desc.sampleCount;
+	Descriptor.arrayLength = Desc.arrayLength;
+	Descriptor.resourceOptions = Desc.resourceOptions;
+	Descriptor.usage = Desc.usage;
 	if (Descriptor.usage == MTLTextureUsageUnknown)
 	{
 		Descriptor.usage = (MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite | MTLTextureUsageRenderTarget | MTLTextureUsagePixelFormatView);
@@ -970,7 +970,7 @@ FAGXTexture FAGXTexturePool::CreateTexture(mtlpp::TextureDescriptor Desc)
 		METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocTexture: %s"), TEXT("")/**FString([Desc.GetPtr() description])*/)));
 		Texture = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTexture(Desc));
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-		AGXLLM::LogAllocTexture(Desc.GetPtr(), Texture.GetPtr());
+		AGXLLM::LogAllocTexture(Desc, Texture.GetPtr());
 #endif
 	}
 	return Texture;
@@ -1333,12 +1333,12 @@ void FAGXResourceHeap::ReleaseBuffer(FAGXBuffer& Buffer)
 	}
 }
 
-FAGXTexture FAGXResourceHeap::CreateTexture(mtlpp::TextureDescriptor Desc, FAGXSurface* Surface)
+FAGXTexture FAGXResourceHeap::CreateTexture(MTLTextureDescriptor* Desc, FAGXSurface* Surface)
 {
 	LLM_SCOPE_METAL(ELLMTagAGX::Textures);
 	LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::Textures);
 	
-	if ([Desc.GetPtr() usage] & MTLTextureUsageRenderTarget)
+	if (Desc.usage & MTLTextureUsageRenderTarget)
 	{
 		LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::RenderTargets);
 		return TargetPool.CreateTexture(Desc);

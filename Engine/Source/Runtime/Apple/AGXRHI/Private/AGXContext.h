@@ -181,7 +181,7 @@ public:
 	
 	inline FAGXResourceHeap& GetResourceHeap(void) { return Heap; }
 	
-	FAGXTexture CreateTexture(FAGXSurface* Surface, mtlpp::TextureDescriptor Descriptor);
+	FAGXTexture CreateTexture(FAGXSurface* Surface, MTLTextureDescriptor* Descriptor);
 	FAGXBuffer CreatePooledBuffer(FAGXPooledBufferArgs const& Args);
 	void ReleaseBuffer(FAGXBuffer& Buf);
 	void ReleaseObject(id Object);

@@ -293,7 +293,7 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 		
 		MTLPixelFormat MTLFormat = (MTLPixelFormat)GAGXBufferFormats[InFormat].LinearTextureFormat;
 		
-		mtlpp::TextureDescriptor Desc;
+		MTLTextureDescriptor* Desc = nil;
 		MTLTextureUsage TexUsage = MTLTextureUsageUnknown;
 		if (EnumHasAnyFlags(Usage, BUF_ShaderResource))
 		{
@@ -323,15 +323,20 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 
 		{
 			MTLResourceOptions Options = MTLResourceCPUCacheModeDefaultCache | (StorageMode << MTLResourceStorageModeShift) | MTLResourceHazardTrackingModeDefault;
-			Desc = mtlpp::TextureDescriptor::TextureBufferDescriptor((mtlpp::PixelFormat)MTLFormat, NumElements, mtlpp::ResourceOptions(Options), mtlpp::TextureUsage(TexUsage));
-			Desc.SetAllowGPUOptimisedContents(false);
+			Desc = [MTLTextureDescriptor textureBufferDescriptorWithPixelFormat:MTLFormat
+																		  width:NumElements
+																resourceOptions:Options
+																		  usage:TexUsage];
+			Desc.allowGPUOptimizedContents = NO;
 		}
 
 		for(FAGXBufferAndViews& Backing : BufferPool)
 		{
 			FAGXBuffer& Buffer = Backing.Buffer;
-			FAGXTexture NewTexture = MTLPP_VALIDATE(mtlpp::Buffer, Buffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTexture(Desc, Offset, RowBytes));
-			METAL_FATAL_ASSERT(NewTexture, TEXT("Failed to create linear texture, desc %s from buffer %s"), *FString([Desc description]), *FString([Buffer description]));
+			FAGXTexture NewTexture([Buffer.GetPtr() newTextureWithDescriptor:Desc
+																	  offset:(Offset + Buffer.GetOffset())
+																 bytesPerRow:RowBytes], ns::Ownership::Assign);
+			METAL_FATAL_ASSERT(NewTexture, TEXT("Failed to create linear texture, desc %s from buffer %s"), *FString([Desc description]), *FString([Buffer.GetPtr() description]));
 			
 			check(GAGXBufferFormats[InFormat].LinearTextureFormat == MTLPixelFormatRG11B10Float || GAGXBufferFormats[InFormat].LinearTextureFormat == (MTLPixelFormat)NewTexture.GetPixelFormat());
 			Backing.Views.Add(InLinearTextureMapKey, NewTexture);
