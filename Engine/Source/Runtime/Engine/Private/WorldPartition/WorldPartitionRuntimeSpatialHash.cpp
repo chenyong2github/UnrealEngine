@@ -1225,7 +1225,10 @@ bool UWorldPartitionRuntimeSpatialHash::FinalizeGeneratorPackageForCook(const TA
 	for (UWorldPartitionRuntimeCell* Cell : GetAlwaysLoadedCells())
 	{
 		check(Cell->IsAlwaysLoaded());
-		Cell->MoveAlwaysLoadedContentToPersistentLevel();
+		if (!Cell->MoveAlwaysLoadedContentToPersistentLevel())
+		{
+			return false;
+		}
 	}
 	
 	for (const ICookPackageSplitter::FGeneratedPackageForPreSave& GeneratedPackage : InGeneratedPackages)

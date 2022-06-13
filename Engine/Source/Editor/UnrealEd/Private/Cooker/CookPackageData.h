@@ -387,8 +387,11 @@ public:
 	 */
 	bool GetCookedPlatformDataComplete() const { return static_cast<bool>(bCookedPlatformDataComplete); }
 	void SetCookedPlatformDataComplete(bool bValue) { bCookedPlatformDataComplete = bValue != 0; }
-	/** Check whether savestate contracts on the PackageData were invalidated by by e.g. garbage collection. */
-	bool IsSaveInvalidated() const;
+	/**
+	 * Check whether savestate contracts on the PackageData were invalidated by by e.g. garbage collection.
+	 * Request demotion if so unless we have a contract to keep it, in which case it is fixed up.
+	 */
+	void UpdateSaveAfterGarbageCollect(bool& bOutDemote);
 
 	/** Get/Set the flag for whether PrepareSave has been called and returned an error. */
 	bool HasPrepareSaveFailed() const { return static_cast<bool>(bPrepareSaveFailed); }
@@ -719,7 +722,7 @@ public:
 	/** Return whether list has been generated and all generated packages have been populated */
 	bool IsComplete() const;
 
-	bool IsSaveInvalidated(const FPackageData& PackageData) const;
+	void UpdateSaveAfterGarbageCollect(const FPackageData& PackageData, bool& bInOutDemote);
 
 	UPackage* GetOwnerPackage() const { return OwnerPackage.Get(); };
 	void SetOwnerPackage(UPackage* InPackage) { OwnerPackage = InPackage; }

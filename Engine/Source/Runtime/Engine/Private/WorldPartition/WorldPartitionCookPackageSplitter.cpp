@@ -117,19 +117,28 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 	return PackagesToGenerate;
 }
 
+void FWorldPartitionCookPackageSplitter::GetObjectsToMoveIntoGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
+	const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove)
+{
+	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
+	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
+	WorldPartition->LoadGeneratedPackageObjectsForCook(GeneratedPackage.RelativePath, OutObjectsToMove);
+}
+
 bool FWorldPartitionCookPackageSplitter::TryPopulatePackage(UPackage* OwnerPackage, UObject* OwnerObject,
 	const FGeneratedPackageForPopulate& GeneratedPackage)
 {
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
+	return WorldPartition->PopulateGeneratedPackageForCook(GeneratedPackage.Package, GeneratedPackage.RelativePath);
+}
 
-	TArray<UObject*> LoadedObjects;
-	bool bResult = WorldPartition->LoadGeneratedPackageObjectsForCook(GeneratedPackage.RelativePath, LoadedObjects);
-	if (bResult)
-	{
-		bResult = WorldPartition->PopulateGeneratedPackageForCook(GeneratedPackage.Package, GeneratedPackage.RelativePath);
-	}
-	return bResult;
+void FWorldPartitionCookPackageSplitter::GetObjectsToMoveIntoGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
+	const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages, TArray<UObject*>& OutObjectsToMove)
+{
+	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
+	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
+	WorldPartition->LoadGeneratorPackageObjectsForCook(OutObjectsToMove);
 }
 
 void FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
@@ -137,12 +146,7 @@ void FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* Owner
 {
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-
-	TArray<UObject*> LoadedObjects;
-	if (WorldPartition->LoadGeneratorPackageObjectsForCook(LoadedObjects))
-	{
-		WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
-	}
+	WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
 }
 
 void FWorldPartitionCookPackageSplitter::OnOwnerReloaded(UPackage* OwnerPackage, UObject* OwnerObject)

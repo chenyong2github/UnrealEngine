@@ -10,6 +10,19 @@
 namespace UE::Cook
 {
 
+const TCHAR* LexToString(EReleaseSaveReason Reason)
+{
+	switch (Reason)
+	{
+	case EReleaseSaveReason::Completed: return TEXT("Completed");
+	case EReleaseSaveReason::DoneForNow: return TEXT("DoneForNow");
+	case EReleaseSaveReason::Demoted: return TEXT("Demoted");
+	case EReleaseSaveReason::AbortSave: return TEXT("AbortSave");
+	case EReleaseSaveReason::RecreateObjectCache: return TEXT("RecreateObjectCache");
+	default: return TEXT("Invalid");
+	}
+}
+
 FCookerTimer::FCookerTimer(float InTimeSlice)
 	: StartTime(FPlatformTime::Seconds()), TimeSlice(InTimeSlice)
 {

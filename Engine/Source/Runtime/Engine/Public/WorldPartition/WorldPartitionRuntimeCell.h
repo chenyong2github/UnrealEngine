@@ -204,7 +204,7 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 	virtual bool PrepareCellForCook(UPackage* InPackage) { return false; }
 	virtual bool LoadCellObjectsForCook(TArray<UObject*>& OutLoadedObjects) PURE_VIRTUAL(UWorldPartitionRuntimeCell::LoadCellObjectsForCook, return false;);
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratedPackageForCook, return false;);
-	virtual void MoveAlwaysLoadedContentToPersistentLevel() PURE_VIRTUAL(UWorldPartitionRuntimeCell::MoveAlwaysLoadedContentToPersistentLevel);
+	virtual bool MoveAlwaysLoadedContentToPersistentLevel() PURE_VIRTUAL(UWorldPartitionRuntimeCell::MoveAlwaysLoadedContentToPersistentLevel, return false;);
 	virtual FString GetPackageNameToCreate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetPackageNameToCreate, return FString(""););
 
 	void SetIsHLOD(bool bInIsHLOD) { bIsHLOD = bInIsHLOD; }

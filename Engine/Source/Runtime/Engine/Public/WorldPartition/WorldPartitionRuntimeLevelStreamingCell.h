@@ -42,6 +42,7 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	virtual bool PrepareCellForCook(UPackage* InPackage) override;
 	virtual bool LoadCellObjectsForCook(TArray<UObject*>& OutLoadedObjects) override;
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage) override;
+	virtual bool MoveAlwaysLoadedContentToPersistentLevel() override;
 	virtual FString GetPackageNameToCreate() const override;
 	//~End UWorldPartitionRuntimeCell Interface
 
@@ -58,11 +59,11 @@ private:
 	class UWorldPartitionLevelStreamingDynamic* GetOrCreateLevelStreaming() const;
 
 #if WITH_EDITOR
-	void MoveAlwaysLoadedContentToPersistentLevel();
 	class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
 
 	FWorldPartitionLevelHelper::FPackageReferencer CookPackageReferencer;
-	TArray<TWeakObjectPtr<AActor>> CookLoadedActors;
+	TArray<TWeakObjectPtr<UObject>> CookLoadedObjects;
+	bool bCookHasLoadedCellObjects = false;
 #endif
 
 #if WITH_EDITORONLY_DATA

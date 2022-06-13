@@ -68,7 +68,7 @@ public:
 		bool bCreatedAsMap = false;
 	};
 
-	virtual void GetObjectsToMoveIntoPackage(UPackage* OwnerPackage, UObject* OwnerObject,
+	virtual void GetObjectsToMoveIntoGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
 		const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove) {}
 	/**
 	 * Try to populate a generated package.
@@ -110,7 +110,7 @@ public:
 	 * Return a list of all the objects that will be moved into the Generator package during its save, so the cooker
 	 * can call BeginCacheForCookedPlatformData on them before the move
 	 */
-	virtual void GetObjectsToMoveIntoGenerator(UPackage* OwnerPackage, UObject* OwnerObject,
+	virtual void GetObjectsToMoveIntoGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
 		const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages, TArray<UObject*>& OutObjectsToMove) {}
 
 	/**

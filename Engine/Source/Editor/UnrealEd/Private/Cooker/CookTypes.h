@@ -111,6 +111,7 @@ namespace UE::Cook
 		AbortSave,
 		RecreateObjectCache,
 	};
+	const TCHAR* LexToString(UE::Cook::EReleaseSaveReason Reason);
 
 	/** The type of callback for External Requests that needs to be executed within the Scheduler's lock. */
 	typedef TUniqueFunction<void()> FSchedulerCallback;
@@ -345,7 +346,6 @@ struct FBeginCookContext
 	/** The list of platforms by themselves, for passing to functions that need just a list of platforms */
 	TArray<ITargetPlatform*> TargetPlatforms;
 };
-
 
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
 LLM_DECLARE_TAG(Cooker);

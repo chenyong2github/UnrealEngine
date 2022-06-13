@@ -1084,11 +1084,12 @@ void FPackageData::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlat
 	PlatformDatas = MoveTemp(NewPlatformDatas);
 }
 
-bool FPackageData::IsSaveInvalidated() const
+void FPackageData::UpdateSaveAfterGarbageCollect(bool& bOutDemote)
 {
+	bOutDemote = false;
 	if (GetState() != EPackageState::Save)
 	{
-		return false;
+		return;
 	}
 
 	if (GetPackage() == nullptr || !GetPackage()->IsFullyLoaded() ||
@@ -1101,27 +1102,24 @@ bool FPackageData::IsSaveInvalidated() const
 				return WeakPtr.Get() == nullptr;
 			}))
 	{
-		return true;
+		bOutDemote = true;
+		return;
 	}
 	if (GeneratorPackage)
 	{
-		if (GeneratorPackage->IsSaveInvalidated(*this))
-		{
-			return true;
-		}
+		GeneratorPackage->UpdateSaveAfterGarbageCollect(*this, bOutDemote);
 	}
 	else if (IsGenerated())
 	{
 		if (!GeneratedOwner)
 		{
-			return true;
+			bOutDemote = true;
 		}
-		if (GeneratedOwner->IsSaveInvalidated(*this))
+		else
 		{
-			return true;
+			GeneratedOwner->UpdateSaveAfterGarbageCollect(*this, bOutDemote);
 		}
 	}
-	return false;
 }
 
 void FPackageData::SetGeneratedOwner(FGeneratorPackage* InGeneratedOwner)
@@ -1324,7 +1322,7 @@ void FGeneratorPackage::PostGarbageCollect()
 	FPackageData& Owner = GetOwner();
 	if (Owner.GetState() == EPackageState::Save)
 	{
-		// UCookOnTheFlyServer::PreCollectGarbage adds references for the Generator package and all its public
+		// UCookOnTheFlyServer::PreGarbageCollect adds references for the Generator package and all its public
 		// objects, so it should still be loaded
 		if (!Owner.GetPackage() || !FindSplitDataObject())
 		{
@@ -1463,25 +1461,28 @@ void FGeneratorPackage::ResetSaveState(FCookGenerationInfo& Info, UPackage* Pack
 	{
 		Info.SetSaveState(FCookGenerationInfo::ESaveState::StartPopulate);
 	}
+	if (Info.BeginCacheObjects.Objects.Num() != 0 &&
+		GetCookPackageSplitterInstance()->UseInternalReferenceToAvoidGarbageCollect() &&
+		(ReleaseSaveReason == EReleaseSaveReason::Demoted || ReleaseSaveReason == EReleaseSaveReason::RecreateObjectCache))
+	{
+		UE_LOG(LogCook, Error, TEXT("CookPackageSplitter failure: We are demoting a generated package from save and removing our references that keep its objects loaded.\n")
+			TEXT("This will allow the objects to be garbage collected and cause failures in the splitter which expects them to remain loaded.\n")
+			TEXT("Package=%s, Splitter=%s, ReleaseSaveReason=%s"),
+			Info.PackageData ? *Info.PackageData->GetPackageName().ToString() : *Info.RelativePath,
+			*GetSplitDataObjectName().ToString(), LexToString(ReleaseSaveReason));
+	}
 	Info.BeginCacheObjects.Reset();
 	Info.SetHasTakenOverCachedCookedPlatformData(false);
 	Info.SetHasIssuedUndeclaredMovedObjectsWarning(false);
 }
 
-bool FGeneratorPackage::IsSaveInvalidated(const FPackageData& PackageData) const
+void FGeneratorPackage::UpdateSaveAfterGarbageCollect(const FPackageData& PackageData, bool& bInOutDemote)
 {
-	const FCookGenerationInfo* Info = FindInfo(PackageData);
+	FCookGenerationInfo* Info = FindInfo(PackageData);
 	if (!Info)
 	{
-		return true;
-	}
-
-	for (const FBeginCacheObject& Object : Info->BeginCacheObjects.Objects)
-	{
-		if (!Object.Object.IsValid())
-		{
-			return true;
-		}
+		bInOutDemote = true;
+		return;
 	}
 
 	if (!Info->IsGenerator())
@@ -1489,10 +1490,34 @@ bool FGeneratorPackage::IsSaveInvalidated(const FPackageData& PackageData) const
 		UPackage* LocalPackage = OwnerPackage.Get();
 		if (!LocalPackage || !LocalPackage->IsFullyLoaded())
 		{
-			return true;
+			bInOutDemote = true;
+			return;
 		}
 	}
-	return false;
+
+	for (TArray<FBeginCacheObject>::TIterator Iter(Info->BeginCacheObjects.Objects); Iter; ++Iter)
+	{
+		const FBeginCacheObject& Object = *Iter;
+		if (!Object.Object.IsValid())
+		{
+			if (GetCookPackageSplitterInstance()->UseInternalReferenceToAvoidGarbageCollect())
+			{
+				// No objects should be allowed to be deleted; we are supposed to keep them referenced
+				// But allowing demotion will break things for sure.
+				// Log a cook error but remove the invalidated object.
+				UE_LOG(LogCook, Error, TEXT("PackageSplitter found an object returned from %s that was removed from memory during garbage collection. This will cause errors during save of the package.")
+					TEXT("\n\tSplitter=%s%s."),
+					Info->IsGenerator() ? TEXT("GetObjectsToMoveIntoGeneratorPackage") : TEXT("GetObjectsToMoveIntoGeneratedPackage"),
+					*GetSplitDataObjectName().ToString(),
+					Info->IsGenerator() ? TEXT("") : *FString::Printf(TEXT(", Generated=%s."), *Info->PackageData->GetPackageName().ToString()));
+				Iter.RemoveCurrent();
+			}
+			else
+			{
+				bInOutDemote = true;
+			}
+		}
+	}
 }
 
 FCookGenerationInfo::FCookGenerationInfo(FPackageData& InPackageData, bool bInGenerator)

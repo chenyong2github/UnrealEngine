@@ -2904,15 +2904,33 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveGeneratedPackage(UE::Cook:
 }
 
 /** Find all subobjects of all objects in RootObjects and add them to the end of InObjects */
-static void ExtendWithSubObjects(TArray<UObject*>& InObjects)
+static void ValidateAndExtendObjectsToMove(TArray<UObject*>& InObjects, UE::Cook::FGeneratorPackage& Generator, UE::Cook::FCookGenerationInfo& Info)
 {
 	TArray<UObject*> ObjectsInOuter;
 	int32 OriginalNum = InObjects.Num();
 	for (int32 Index = 0; Index < OriginalNum; ++Index)
 	{
 		ObjectsInOuter.Reset();
-		GetObjectsWithOuter(InObjects[Index], ObjectsInOuter);
-		InObjects.Append(ObjectsInOuter);
+		UObject* OriginalObject = InObjects[Index];
+		if (!IsValid(OriginalObject))
+		{
+			UE_LOG(LogCook, Warning, TEXT("CookPackageSplitter found non-valid object %s returned from %s on Splitter %s%s. Ignoring it."),
+				OriginalObject ? *OriginalObject->GetFullName() : TEXT("<null>"),
+				Info.IsGenerator() ? TEXT("GetObjectsToMoveIntoGeneratorPackage") : TEXT("GetObjectsToMoveIntoGeneratedPackage"),
+				*Generator.GetSplitDataObjectName().ToString(),
+				Info.IsGenerator() ? TEXT("") : *FString::Printf(TEXT(", Package %s"), *Info.PackageData->GetPackageName().ToString()));
+			--OriginalNum;
+			--Index;
+			InObjects.RemoveAt(Index);
+			continue;
+		}
+		GetObjectsWithOuter(OriginalObject, ObjectsInOuter, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
+		InObjects.Reserve(InObjects.Num() + ObjectsInOuter.Num());
+		for (UObject* Object : ObjectsInOuter)
+		{
+			check(IsValid(Object));
+			InObjects.Add(Object);
+		}
 	}
 }
 
@@ -2941,14 +2959,14 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGe
 		if (Info.IsGenerator())
 		{
 			ConstructGeneratedPackagesForPresave(PackageData, Generator, GeneratedPackagesForPresave);
-			Splitter->GetObjectsToMoveIntoGenerator(Package, SplitDataObject, GeneratedPackagesForPresave, ObjectsToMove);
+			Splitter->GetObjectsToMoveIntoGeneratorPackage(Package, SplitDataObject, GeneratedPackagesForPresave, ObjectsToMove);
 		}
 		else
 		{
 			ICookPackageSplitter::FGeneratedPackageForPopulate SplitterInfo{ Info.RelativePath, Package, Info.IsCreateAsMap() };
-			Splitter->GetObjectsToMoveIntoPackage(Package, SplitDataObject, SplitterInfo, ObjectsToMove);
+			Splitter->GetObjectsToMoveIntoGeneratedPackage(Package, SplitDataObject, SplitterInfo, ObjectsToMove);
 		}
-		ExtendWithSubObjects(ObjectsToMove);
+		ValidateAndExtendObjectsToMove(ObjectsToMove, Generator, Info);
 		Info.TakeOverCachedObjectsAndAddNew(PackageData.GetCachedObjectsInOuter(), ObjectsToMove);
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::CallObjectsToMove);
 	}
@@ -3064,7 +3082,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 			TEXT("SplitterObject: %s%s\n")
 			TEXT("NumPendingObjects: %d, FirstPendingObject: %s"),
 			Info.IsGenerator() ? TEXT("PreSaveGeneratorPackage") : TEXT("TryPopulatePackage"),
-			Info.IsGenerator() ? TEXT("GetObjectsToMoveIntoGenerator") : TEXT("GetObjectsToMoveIntoPackage"),
+			Info.IsGenerator() ? TEXT("GetObjectsToMoveIntoGeneratorPackage") : TEXT("GetObjectsToMoveIntoGeneratedPackage"),
 			*SplitDataObject->GetFullName(),
 			Info.IsGenerator() ? TEXT("") : *FString::Printf(TEXT("\nGeneratedPackage: %s"), *PackageData.GetPackageName().ToString()),
 			PackageData.GetNumPendingCookedPlatformData(),
@@ -4680,7 +4698,9 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 	TArray<FPackageData*> Demotes;
 	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
 	{
-		if (PackageData->IsSaveInvalidated())
+		bool bOutDemote;
+		PackageData->UpdateSaveAfterGarbageCollect(bOutDemote);
+		if (bOutDemote)
 		{
 			Demotes.Add(PackageData);
 		}
