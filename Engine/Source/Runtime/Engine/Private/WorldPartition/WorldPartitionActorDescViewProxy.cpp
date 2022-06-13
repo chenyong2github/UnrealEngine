@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
+#include "GameFramework/Actor.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorDesc.h"

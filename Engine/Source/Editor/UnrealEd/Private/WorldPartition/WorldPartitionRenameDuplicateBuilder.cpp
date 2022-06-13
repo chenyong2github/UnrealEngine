@@ -12,7 +12,9 @@
 #include "GameFramework/Actor.h"
 #include "EditorWorldUtils.h"
 #include "UObject/SavePackage.h"
+#include "UObject/Linker.h"
 #include "UObject/MetaData.h"
+#include "UObject/ObjectRedirector.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "HAL/FileManager.h"
 
