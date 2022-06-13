@@ -133,9 +133,9 @@ bool TSpatialPhotoSet<PixelType, RealType>::ComputeSampleLocation(
 	double MinDot = 1.0;
 
 	int32 NumPhotos = Num();
-	for (int32 pi = 0; pi < NumPhotos; ++pi)
+	for (int32 Index = 0; Index < NumPhotos; ++Index)
 	{
-		const TSpatialPhoto<PixelType>& Photo = *Photos[pi];
+		const TSpatialPhoto<PixelType>& Photo = *Photos[Index];
 		check(Photo.Dimensions.IsSquare());
 
 		FVector3d ViewDirection = Photo.Frame.X();
@@ -170,7 +170,7 @@ bool TSpatialPhotoSet<PixelType, RealType>::ComputeSampleLocation(
 				{
 					PhotoCoords.X = (u/2.0 + 0.5) * (double)Photo.Dimensions.GetWidth();
 					PhotoCoords.Y = (v/2.0 + 0.5) * (double)Photo.Dimensions.GetHeight();
-					PhotoIndex = pi;
+					PhotoIndex = Index;
 					MinDot = ViewDot;
 				}
 			}

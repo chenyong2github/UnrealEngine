@@ -321,9 +321,9 @@ bool FSceneCapturePhotoSet::ComputeSampleLocation(
 	double MinDot = 1.0;
 
 	int32 NumPhotos = PhotoSetParams.Num();
-	for (int32 pi = 0; pi < NumPhotos; ++pi)
+	for (int32 Index = 0; Index < NumPhotos; ++Index)
 	{
-		const FSpatialPhotoParams& Params = PhotoSetParams[pi];
+		const FSpatialPhotoParams& Params = PhotoSetParams[Index];
 		check(Params.Dimensions.IsSquare());
 
 		FVector3d ViewDirection = Params.Frame.X();
@@ -358,7 +358,7 @@ bool FSceneCapturePhotoSet::ComputeSampleLocation(
 				{
 					PhotoCoords.X = (u/2.0 + 0.5) * (double)Params.Dimensions.GetWidth();
 					PhotoCoords.Y = (v/2.0 + 0.5) * (double)Params.Dimensions.GetHeight();
-					PhotoIndex = pi;
+					PhotoIndex = Index;
 					MinDot = ViewDot;
 				}
 			}
