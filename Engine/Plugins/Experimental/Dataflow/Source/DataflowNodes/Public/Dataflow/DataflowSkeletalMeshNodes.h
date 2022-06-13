@@ -31,11 +31,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow" )
 	FName PropertyName = "SkeletalMesh";
 
-	TSharedPtr< class Dataflow::TOutput<Dataflow::USkeletalMeshPtr> > SkeletalMeshOut;
+	Dataflow::TOutput<Dataflow::USkeletalMeshPtr> SkeletalMeshOut;
 
 	FGetSkeletalMeshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, SkeletalMeshOut(new Dataflow::TOutput<Dataflow::USkeletalMeshPtr>(Dataflow::TOutputParameters<Dataflow::USkeletalMeshPtr>({ FName("SkeletalMeshOut"), this })))
+		, SkeletalMeshOut({ FName("SkeletalMeshOut"), this })
 	{}
 
 
@@ -52,13 +52,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	FName BoneName;
 
-	TSharedPtr< class Dataflow::TInput<Dataflow::USkeletalMeshPtr> > SkeletalMeshIn;
-	TSharedPtr< class Dataflow::TOutput<int> > BoneIndexOut;
+	Dataflow::TInput<Dataflow::USkeletalMeshPtr> SkeletalMeshIn;
+	Dataflow::TOutput<int> BoneIndexOut;
 
 	FSkeletalMeshBoneDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, SkeletalMeshIn(new Dataflow::TInput<Dataflow::USkeletalMeshPtr>(Dataflow::TInputParameters<Dataflow::USkeletalMeshPtr>({ FName("SkeletalMeshIn"), this })))
-		, BoneIndexOut(new Dataflow::TOutput<int>(Dataflow::TOutputParameters<int>({ FName("BoneIndexOut"), this, INDEX_NONE })))
+		, SkeletalMeshIn({ FName("SkeletalMeshIn"), this })
+		, BoneIndexOut({ FName("BoneIndexOut"), this, INDEX_NONE })
 	{}
 
 

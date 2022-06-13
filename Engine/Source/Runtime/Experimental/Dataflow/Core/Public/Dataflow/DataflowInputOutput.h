@@ -18,7 +18,7 @@ namespace Dataflow
 
 	template<class T>
 	struct DATAFLOWCORE_API TInputParameters {
-		TInputParameters(FName InName, FDataflowNode* InOwner, T InDefault = T())
+		TInputParameters(FName InName = FName(""), FDataflowNode * InOwner = nullptr, T InDefault = T())
 			: Type(GraphConnectionTypeName<T>())
 			, Name(InName)
 			, Owner(InOwner)
@@ -38,7 +38,7 @@ namespace Dataflow
 		T Default = T();
 		TOutput<T>* Connection;
 	public:
-		TInput(const TInputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid())
+		TInput(const TInputParameters<T>& Param = {}, FGuid InGuid = FGuid::NewGuid())
 			: FConnection(FPin::EDirection::INPUT, Param.Type, Param.Name, Param.Owner, InGuid)
 			, Default(Param.Default)
 			, Connection(nullptr)
@@ -117,7 +117,7 @@ namespace Dataflow
 	{
 		typedef TFunction<T(const  Dataflow::FContext& Context, Dataflow::FConnection*)> PassthroughCallback;
 
-		TOutputParameters(FName InName, FDataflowNode* InOwner, T InDefault = T())
+		TOutputParameters(FName InName = FName(""), FDataflowNode * InOwner = nullptr, T InDefault = T())
 			: Type(GraphConnectionTypeName<T>())
 			, Name(InName)
 			, Owner(InOwner)
@@ -143,14 +143,15 @@ namespace Dataflow
 		typedef FConnection Super;
 		friend class FConnection;
 
-		uint32 CacheKey = UINT_MAX;
-		TCacheValue<T> Cache;
+		mutable uint32 CacheKey = UINT_MAX;
+		mutable TCacheValue<T> Cache;
+
 		TArray< TInput<T>* > Connections;
 		PassthroughCallback Passthrough;
 		T Default = T();
 
 	public:
-		TOutput(const TOutputParameters<T>& Param, FGuid InGuid = FGuid::NewGuid())
+		TOutput(const TOutputParameters<T>& Param = {}, FGuid InGuid = FGuid::NewGuid())
 			: FConnection(FPin::EDirection::OUTPUT, Param.Type, Param.Name, Param.Owner, InGuid)
 			, Passthrough(Param.Passthrough)
 			, Default(Param.Default)
@@ -182,7 +183,7 @@ namespace Dataflow
 		
 		virtual bool RemoveConnection(FConnection* InInput) override { Connections.RemoveSwap((TInput<T>*)InInput); return true; }
 
-		void SetValue(T InVal, const FContext& Context)
+		void SetValue(T InVal, const FContext& Context) const
 		{
 			CacheKey = Context.GetTypeHash();
 			Cache.Data = InVal;

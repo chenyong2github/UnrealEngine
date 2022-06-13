@@ -32,11 +32,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 		FName PropertyName = "StaticMesh";
 
-	TSharedPtr< class Dataflow::TOutput<Dataflow::UStaticMeshPtr> > StaticMeshOut;
+	Dataflow::TOutput<Dataflow::UStaticMeshPtr> StaticMeshOut;
 
 	FGetStaticMeshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, StaticMeshOut(new Dataflow::TOutput<Dataflow::UStaticMeshPtr>(Dataflow::TOutputParameters<Dataflow::UStaticMeshPtr>({ FName("StaticMeshOut"), this })))
+		, StaticMeshOut({ FName("StaticMeshOut"), this })
 	{}
 
 

@@ -13,17 +13,17 @@ namespace Dataflow
 
 void FGetStaticMeshDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
 {
-	StaticMeshOut->SetValue(nullptr, Context);
+	StaticMeshOut.SetValue(nullptr, Context);
 	if (StaticMesh)
 	{
-		StaticMeshOut->SetValue(StaticMesh, Context);
+		StaticMeshOut.SetValue(StaticMesh, Context);
 	}
 	else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 	{
 		if (const UStaticMesh* StaticMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<UStaticMesh>(
 			EngineContext->Owner, PropertyName))
 		{
-			StaticMeshOut->SetValue(StaticMeshFromOwner, Context);
+			StaticMeshOut.SetValue(StaticMeshFromOwner, Context);
 		}
 	}
 }

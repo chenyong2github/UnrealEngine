@@ -25,7 +25,7 @@ namespace Dataflow
 
 void FGetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
 {
-	if (Output.Get() == Out)
+	if (&Output == Out)
 	{
 		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
@@ -34,7 +34,7 @@ void FGetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context
 				if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = CollectionAsset->GetGeometryCollection())
 				{
 					FManagedArrayCollection* NewCollection = AssetCollection->NewCopy<FManagedArrayCollection>();
-					Output->SetValue(DataType(NewCollection), Context);
+					Output.SetValue(DataType(NewCollection), Context);
 				}
 			}
 		}
@@ -43,9 +43,9 @@ void FGetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context
 
 void FExampleCollectionEditDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
 {
-	if (Output.Get() == Out)
+	if (&Output == Out)
 	{
-		DataType Collection = Input->GetValue(Context);
+		DataType Collection = Input.GetValue(Context);
 		if (Active)
 		{
 			TManagedArray<FVector3f>* Vertex = Collection->FindAttribute<FVector3f>("Vertex", "Vertices");
@@ -54,7 +54,7 @@ void FExampleCollectionEditDataflowNode::Evaluate(const Dataflow::FContext& Cont
 				(*Vertex)[i][1] *= Scale;
 			}
 		}
-		Output->SetValue(Collection, Context);
+		Output.SetValue(Collection, Context);
 	}
 }
 
@@ -62,7 +62,7 @@ void FSetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context
 {
 	if (Out == nullptr)
 	{
-		DataType Collection = Input->GetValue(Context);
+		DataType Collection = Input.GetValue(Context);
 		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
 			if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
@@ -77,7 +77,7 @@ void FSetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context
 
 void FResetGeometryCollectionDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
 {
-	ManagedArrayOut->SetValue(TSharedPtr<FManagedArrayCollection>(nullptr), Context);
+	ManagedArrayOut.SetValue(TSharedPtr<FManagedArrayCollection>(nullptr), Context);
 
 	if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 	{
@@ -133,7 +133,7 @@ void FResetGeometryCollectionDataflowNode::Evaluate(const Dataflow::FContext& Co
 			if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = GeometryCollectionObject->GetGeometryCollection())
 			{
 				FManagedArrayCollection* NewCollection = AssetCollection->NewCopy<FManagedArrayCollection>();
-				ManagedArrayOut->SetValue(DataType(NewCollection), Context);
+				ManagedArrayOut.SetValue(DataType(NewCollection), Context);
 			}
 		}
 	}

@@ -16,9 +16,13 @@ namespace Dataflow
 	{}
 
 	void FConnection::BindInput(FDataflowNode* InNode, FConnection* That) 
-	{ InNode->AddInput(That); }
-	void FConnection::BindOutput(FDataflowNode* InNode, FConnection* That) 
-	{ InNode->AddOutput(That); }
+	{
+		if (InNode && That) { InNode->AddInput(That); }
+	}
+	void FConnection::BindOutput(FDataflowNode* InNode, FConnection* That)
+	{
+		if (InNode && That) { InNode->AddOutput(That); }
+	}
 
 }
 

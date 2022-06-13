@@ -18,11 +18,11 @@ struct FGetCollectionAssetDataflowNode : public FDataflowNode
 public:
 	typedef Dataflow::FManagedArrayCollectionSharedPtr DataType;
 
-	TSharedPtr< class Dataflow::TOutput<DataType> > Output;
+	Dataflow::TOutput<DataType> Output;
 
 	FGetCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, Output(new Dataflow::TOutput<DataType>(Dataflow::TOutputParameters<DataType>({ FName("CollectionOut"), this })))
+		, Output({ FName("CollectionOut"), this })
 	{}
 
 	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
@@ -42,13 +42,13 @@ public:
 	float Scale = 1.0;
 
 	typedef Dataflow::FManagedArrayCollectionSharedPtr DataType;
-	TSharedPtr< class Dataflow::TInput<DataType> > Input;
-	TSharedPtr< class Dataflow::TOutput<DataType> > Output;
+	Dataflow::TInput<DataType> Input;
+	Dataflow::TOutput<DataType> Output;
 
 	FExampleCollectionEditDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, Input(new Dataflow::TInput<DataType>(Dataflow::TInputParameters<DataType>({ FName("CollectionIn"), this })))
-		, Output(new Dataflow::TOutput<DataType>(Dataflow::TOutputParameters<DataType>({ FName("CollectionOut"), this })))
+		, Input({ FName("CollectionIn"), this })
+		, Output({ FName("CollectionOut"), this })
 	{}
 
 	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
@@ -63,11 +63,11 @@ struct FSetCollectionAssetDataflowNode : public FDataflowNode
 
 public:
 	typedef Dataflow::FManagedArrayCollectionSharedPtr DataType;
-	TSharedPtr< class Dataflow::TInput<DataType> > Input;
+	Dataflow::TInput<DataType> Input;
 
 	FSetCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, Input(new Dataflow::TInput<DataType>(Dataflow::TInputParameters<DataType>({ FName("CollectionIn"), this })))
+		, Input({ FName("CollectionIn"), this })
 	{}
 
 	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
@@ -83,11 +83,11 @@ struct FResetGeometryCollectionDataflowNode : public FDataflowNode
 public:
 	typedef Dataflow::FManagedArrayCollectionSharedPtr DataType;
 
-	TSharedPtr< class Dataflow::TOutput<DataType> > ManagedArrayOut;
+	Dataflow::TOutput<DataType> ManagedArrayOut;
 
 	FResetGeometryCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, ManagedArrayOut(new Dataflow::TOutput<DataType>(Dataflow::TOutputParameters<DataType>({ FName("ManagedArrayOut"), this })))
+		, ManagedArrayOut({ FName("ManagedArrayOut"), this })
 	{}
 
 

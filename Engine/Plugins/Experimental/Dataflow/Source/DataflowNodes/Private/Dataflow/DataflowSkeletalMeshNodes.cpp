@@ -19,29 +19,29 @@ namespace Dataflow
 }
 void FGetSkeletalMeshDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
 {
-	SkeletalMeshOut->SetValue(nullptr, Context);
+	SkeletalMeshOut.SetValue(nullptr, Context);
 	if (SkeletalMesh)
 	{
-		SkeletalMeshOut->SetValue(SkeletalMesh, Context);
+		SkeletalMeshOut.SetValue(SkeletalMesh, Context);
 	}
 	else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 	{
 		if (const USkeletalMesh* SkeletalMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<USkeletalMesh>(
 			EngineContext->Owner, PropertyName))
 		{
-			SkeletalMeshOut->SetValue(SkeletalMeshFromOwner, Context);
+			SkeletalMeshOut.SetValue(SkeletalMeshFromOwner, Context);
 		}
 	}
 }
 
 void FSkeletalMeshBoneDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
 {
-	BoneIndexOut->SetValue(INDEX_NONE, Context);
+	BoneIndexOut.SetValue(INDEX_NONE, Context);
 
-	if (const USkeletalMesh* SkeletalMesh = SkeletalMeshIn->GetValue(Context))
+	if (const USkeletalMesh* SkeletalMesh = SkeletalMeshIn.GetValue(Context))
 	{
 		int32 Index = SkeletalMesh->GetRefSkeleton().FindBoneIndex(BoneName);
-		BoneIndexOut->SetValue(Index, Context);
+		BoneIndexOut.SetValue(Index, Context);
 	}
 }
 
