@@ -6,6 +6,10 @@
 
 #include "Misc/AssertionMacros.h"
 
+#if !defined(MDL_MSVC_EDITCONTINUE_WORKAROUND)
+	#define MDL_MSVC_EDITCONTINUE_WORKAROUND 0
+#endif
+
 namespace Mdl
 {
 	enum class EValueType
@@ -47,8 +51,14 @@ namespace Mdl
 
 #define MDL_TOKENPASTE(x, y) x##y
 #define MDL_TOKENPASTE2(x, y) MDL_TOKENPASTE(x, y)
-#define MDL_CHECK_RESULT() const Mdl::Detail::FCheckRes<__LINE__> MDL_TOKENPASTE2(res, __LINE__)
-#define MDL_CHECK_RESULT_MSG(msg) const Mdl::Detail::FCheckRes<__LINE__> MDL_TOKENPASTE2(res, __LINE__)
+#if MDL_MSVC_EDITCONTINUE_WORKAROUND
+	// MSVC does not allow __LINE__ in template parameters when edit & continue is enabled (see C2975 @ MSDN)
+	#define MDL_CHECK_RESULT() const Mdl::Detail::FCheckRes<0> MDL_TOKENPASTE2(res, __LINE__)
+	#define MDL_CHECK_RESULT_MSG(msg) const Mdl::Detail::FCheckRes<0> MDL_TOKENPASTE2(res, __LINE__)
+#else
+	#define MDL_CHECK_RESULT() const Mdl::Detail::FCheckRes<__LINE__> MDL_TOKENPASTE2(res, __LINE__)
+	#define MDL_CHECK_RESULT_MSG(msg) const Mdl::Detail::FCheckRes<__LINE__> MDL_TOKENPASTE2(res, __LINE__)
+#endif
 
 	namespace Detail
 	{

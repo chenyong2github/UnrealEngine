@@ -4,6 +4,7 @@ using UnrealBuildTool;
 using System;
 using System.IO;
 using System.Collections.Generic;
+using EpicGames.Core;
 
 namespace UnrealBuildTool.Rules
 {
@@ -67,8 +68,14 @@ namespace UnrealBuildTool.Rules
                     PublicDelayLoadDLLs.Add(RuntimeModuleName);
                     RuntimeDependencies.Add(ModulePath);
                 }
-            }
-            else if (Target.Platform == UnrealTargetPlatform.Mac)
+
+				// MSVC does not allow __LINE__ in template parameters when edit & continue is enabled (see C2975 @ MSDN)
+				if (Target.bSupportEditAndContinue && Target.WindowsPlatform.Compiler.IsMSVC())
+				{
+					PrivateDefinitions.Add("MDL_MSVC_EDITCONTINUE_WORKAROUND=1");
+				}
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Mac)
             {
                 RuntimeModuleNames.Add("libmdl_sdk.so");
                 RuntimeModuleNames.Add("nv_freeimage.so");
