@@ -32,6 +32,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gears")
 	bool bUseInfiniteGears = false;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gears")
+	bool bAlwaysDownshiftToZerothGear = false;
+	
 	// how much to scale gear ratio per gear past the max gear
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gears")
 	float InfiniteGearRatio = 0.9f;

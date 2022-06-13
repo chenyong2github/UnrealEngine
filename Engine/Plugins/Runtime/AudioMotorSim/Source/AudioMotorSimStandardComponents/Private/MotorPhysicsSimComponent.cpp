@@ -49,9 +49,9 @@ void UMotorPhysicsSimComponent::Update(FAudioMotorSimInputContext& Input, FAudio
 		Rpm = CalcRpm(GetGearRatio(Gear, Input.bClutchEngaged), VirtualSpeedKmh);
 	}
 	// If the RPM that we'd be at if we downshift is below DownShiftRPM, then it makes sense to downshift.
-	else if (Gear >= 1 && DownShiftStartRpm > CalcRpm(GearRatios[Gear - 1], VirtualSpeedKmh))
+	else if (Gear >= 1 && DownShiftStartRpm > CalcRpm(GetGearRatio(Gear - 1, Input.bClutchEngaged), VirtualSpeedKmh))
 	{
-		Gear = 0;
+		Gear = bAlwaysDownshiftToZerothGear ? 0 : Gear - 1;
 		Rpm = DownShiftStartRpm;
 	}
 
