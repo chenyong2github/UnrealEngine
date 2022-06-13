@@ -281,10 +281,10 @@ public:
 
 	/** Execute */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	void Execute(const EControlRigState State, const FName& InEventName);
+	bool Execute(const EControlRigState State, const FName& InEventName);
 
 	/** ExecuteUnits */
-	virtual void ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName);
+	virtual bool ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName);
 
 	/** Returns true if this rig contains a given event */
 	UFUNCTION(BlueprintPure, Category = "Control Rig")
@@ -326,8 +326,8 @@ public:
 
 	virtual TArray<FRigControlElement*> AvailableControls() const;
 	virtual FRigControlElement* FindControl(const FName& InControlName) const;
-	virtual bool ShouldApplyLimits() const { return !bSetupModeEnabled; }
-	virtual bool IsSetupModeEnabled() const { return bSetupModeEnabled; }
+	virtual bool ShouldApplyLimits() const { return !IsSetupModeEnabled(); }
+	virtual bool IsSetupModeEnabled() const;
 	virtual FTransform SetupControlFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform);
 	virtual FTransform GetControlGlobalTransform(const FName& InControlName) const;
 
@@ -705,7 +705,6 @@ private:
 protected:
 	bool bRequiresInitExecution;
 	bool bRequiresSetupEvent;
-	bool bSetupModeEnabled;
 	bool bCopyHierarchyBeforeSetup;
 	bool bResetInitialTransformsBeforeSetup;
 	bool bManipulationEnabled;

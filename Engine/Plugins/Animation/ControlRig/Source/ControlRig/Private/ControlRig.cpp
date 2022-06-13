@@ -74,7 +74,6 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 #endif
 	, bRequiresInitExecution(false)
 	, bRequiresSetupEvent(false)
-	, bSetupModeEnabled(false)
 	, bCopyHierarchyBeforeSetup(true)
 	, bResetInitialTransformsBeforeSetup(true)
 	, bManipulationEnabled(false)
@@ -279,7 +278,7 @@ void UControlRig::Evaluate_AnyThread()
 	// create a copy since we need to change it here temporarily,
 	// and UI / the rig may change the event queue while it is running
 	TArray<FName> EventQueueToRun = EventQueue;
-	
+
 	if(InteractionType != (uint8)EControlRigInteractionType::None)
 	{
 		if(EventQueueToRun.IsEmpty())
@@ -294,6 +293,14 @@ void UControlRig::Evaluate_AnyThread()
 		}
 	}
 
+	// execute the setup event prior to everything else
+	if(bRequiresSetupEvent)
+	{
+		if(!EventQueueToRun.Contains(FRigUnit_PrepareForExecution::EventName))
+		{
+			EventQueueToRun.Insert(FRigUnit_PrepareForExecution::EventName, 0);
+		}
+	}
 	
 	for (const FName& EventName : EventQueueToRun)
 	{
@@ -308,7 +315,6 @@ void UControlRig::Evaluate_AnyThread()
 			}
 		}
 #endif
-			
 	}
 }
 
@@ -609,16 +615,21 @@ void UControlRig::CopyExternalVariableDefaultValuesFromCDO()
 	}
 }
 
-void UControlRig::Execute(const EControlRigState InState, const FName& InEventName)
+bool UControlRig::Execute(const EControlRigState InState, const FName& InEventName)
 {
 	if(!CanExecute())
 	{
-		return;
+		return false;
 	}
 	
 	const bool bIsEventInQueue = GetEventQueue().Contains(InEventName);
 	const bool bIsEventFirstInQueue = !GetEventQueue().IsEmpty() && GetEventQueue()[0] == InEventName; 
-	const bool bIsEventLastInQueue = !GetEventQueue().IsEmpty() && GetEventQueue().Last() == InEventName; 
+	const bool bIsEventLastInQueue = !GetEventQueue().IsEmpty() && GetEventQueue().Last() == InEventName;
+	const bool bIsInitializingMemory = InState == EControlRigState::Init;
+	const bool bIsExecutingInstructions = InState == EControlRigState::Update;
+	const bool bIsSetupEvent = InEventName == FRigUnit_PrepareForExecution::EventName;
+	const bool bIsForwardSolve = InEventName == FRigUnit_BeginExecution::EventName;
+	const bool bIsInteractionEvent = InEventName == FRigUnit_InteractionExecution::EventName;
 
 	ensure(!HasAnyFlags(RF_ClassDefaultObject));
 	
@@ -634,7 +645,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			InstantiateVMFromCDO();
 		}
 
-		if (InState == EControlRigState::Init)
+		if (bIsInitializingMemory)
 		{
 			VM->ClearExternalVariables();
 
@@ -703,21 +714,27 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	{
 		bRequiresInitExecution = false;
 
-		if (InState != EControlRigState::Init)
+		if (!bIsInitializingMemory)
 		{
-			Execute(EControlRigState::Init, InEventName);
+			// if init is required we'll run init on the whole bytecode
+			if(!Execute(EControlRigState::Init, NAME_None))
+			{
+				return false;
+			}
 			bJustRanInit = true;
 		}
 	}
 
 	FRigUnitContext Context;
 
+	// setup the draw interface for debug drawing
 	if(!bIsEventInQueue || bIsEventFirstInQueue)
 	{
 		DrawInterface.Reset();
 	}
 	Context.DrawInterface = &DrawInterface;
 
+	// setup the animation attribute container
 	Context.AnimAttributeContainer = ExternalAnimAttributeContainer;
 
 	// draw container contains persistent draw instructions, 
@@ -727,29 +744,34 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	{
 		DrawContainer = CDO->DrawContainer;
 	}
-
 	Context.DrawContainer = &DrawContainer;
+
+	// setup the data source registry
 	Context.DataSourceRegistry = GetDataSourceRegistry();
 
-	if (InState == EControlRigState::Init)
+	// reset the time and caches during init
+	if (bIsInitializingMemory)
 	{
 		AbsoluteTime = DeltaTime = 0.f;
 		NameCache.Reset();
 	}
 
+	// setup the context with further fields
 	Context.DeltaTime = DeltaTime;
 	Context.AbsoluteTime = AbsoluteTime;
 	Context.FramesPerSecond = GetCurrentFramesPerSecond();
 	Context.InteractionType = InteractionType;
 	Context.ElementsBeingInteracted = ElementsBeingInteracted;
 	Context.State = InState;
-	
+
+	// allow access to the hierarchy
 	Context.Hierarchy = GetHierarchy();
 	check(Context.Hierarchy);
 
 	// for now we'll disable any controller access during the run of a control rig
 	FRigHierarchyEnableControllerBracket DisableHierarchyController(Context.Hierarchy, false);
 
+	// setup the context with further fields
 	Context.ToWorldSpaceTransform = FTransform::Identity;
 	Context.OwningComponent = nullptr;
 	Context.OwningActor = nullptr;
@@ -781,6 +803,8 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		}
 	}
 
+	// given the outer scene component configure
+	// the transform lookups to map transforms from rig space to world space
 	if (OuterSceneComponent.IsValid())
 	{
 		Context.ToWorldSpaceTransform = OuterSceneComponent->GetComponentToWorld();
@@ -813,13 +837,14 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		}
 	}
 
+	// if we have any referenced elements dirty them
 	if(GetHierarchy())
 	{
-		// if we have any referenced elements dirty them
 		GetHierarchy()->UpdateReferences(&Context);
 	}
 
 #if WITH_EDITOR
+	// setup the log and VM settings
 	Context.Log = ControlRigLog;
 	if (ControlRigLog != nullptr)
 	{
@@ -828,75 +853,64 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	}
 #endif
 
-	// execute units
-	if (bRequiresSetupEvent && InState != EControlRigState::Init)
+	// guard against recursion
+	if(IsExecuting())
 	{
-		if(!IsRunningPreSetup() && !IsRunningPostSetup())
+		UE_LOG(LogControlRig, Warning, TEXT("%s: Execute is being called recursively."), *GetPathName());
+		return false;
+	}
+	if(bIsSetupEvent)
+	{
+		if(IsRunningPreSetup() || IsRunningPostSetup())
 		{
-			bRequiresSetupEvent = bSetupModeEnabled;
+			UE_LOG(LogControlRig, Warning, TEXT("%s: Setup is being called recursively."), *GetPathName());
+			return false;
+		}
+	}
+
+	bool bSuccess = true;
+
+	// we'll special case the setup event here
+	if (bIsSetupEvent && !bIsInitializingMemory)
+	{
+		// construction mode means that we are running the construction event
+		// constantly for testing purposes.
+		const bool bSetupModeEnabled = IsSetupModeEnabled();
+		{
+			// save the current state of all pose elements to preserve user intention, since setup event can
+			// run in between forward events
+			// the saved pose is reapplied to the rig after setup event as the pose scope goes out of scope
+			TUniquePtr<UControlRig::FPoseScope> PoseScope;
+			if (!bSetupModeEnabled)
 			{
-				// save the current state of all pose elements to preserve user intention, since setup event can
-				// run in between forward events
-				// the saved pose is reapplied to the rig after setup event as the pose scope goes out of scope
-				TUniquePtr<UControlRig::FPoseScope> PoseScope;
-				if (!bSetupModeEnabled)
+				// only do this in non-setup mode because 
+				// when setup mode is enabled, the control values are cleared before reaching here (too late to save them)
+				PoseScope = MakeUnique<UControlRig::FPoseScope>(this, ERigElementType::ToResetAfterSetupEvent);
+			}
+
+			// Copy the hierarchy from the default object onto this one
+			if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
+			{
+				if(bCopyHierarchyBeforeSetup && !bSetupModeEnabled)
 				{
-					// only do this in non-setup mode because 
-					// when setup mode is enabled, the control values are cleared before reaching here (too late to save them)
-					PoseScope = MakeUnique<UControlRig::FPoseScope>(this, ERigElementType::ToResetAfterSetupEvent);
+					if(CDO->GetHierarchy()->GetTopologyVersion()!= GetHierarchy()->GetTopologyVersion())
+					{
+#if WITH_EDITOR
+						FTransientControlScope TransientControlScope(GetHierarchy());
+#endif
+						GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
+					}
 				}
 				
-				if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
+				if (bResetInitialTransformsBeforeSetup && !bSetupModeEnabled)
 				{
-					if(bCopyHierarchyBeforeSetup && !bSetupModeEnabled)
-					{
-						if(CDO->GetHierarchy()->GetTopologyVersion()!= GetHierarchy()->GetTopologyVersion())
-						{
-#if WITH_EDITOR
-							FTransientControlScope TransientControlScope(GetHierarchy());
-#endif
-							GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
-						}
-					}
-					
-					if (bResetInitialTransformsBeforeSetup && !bSetupModeEnabled)
-					{
-						// when copying the pose from the default we don't copy the weights over,
-						// since we don't want to reset the topology in case it has diverged from the
-						// CDO.
-						GetHierarchy()->CopyPose(CDO->GetHierarchy(), false, true, false);
-					}
-				}
-
-				{
-#if WITH_EDITOR
-					TUniquePtr<FTransientControlPoseScope> TransientControlPoseScope;
-					if (bSetupModeEnabled)
-					{
-						// save the transient control value, it should not be constantly reset in setup mode
-						TransientControlPoseScope = MakeUnique<FTransientControlPoseScope>(this);
-					}
-#endif
-					// reset the pose to initial such that setup event can run from a deterministic initial state
-					GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
-				}
-
-				if (PreSetupEvent.IsBound())
-				{
-					FControlRigBracketScope BracketScope(PreSetupBracket);
-					PreSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
-				}
-
-				ExecuteUnits(Context, FRigUnit_PrepareForExecution::EventName);
-
-				if (PostSetupEvent.IsBound())
-				{
-					FControlRigBracketScope BracketScope(PostSetupBracket);
-					PostSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+					// when copying the pose from the default we don't copy the weights over,
+					// since we don't want to reset the topology in case it has diverged from the
+					// CDO.
+					GetHierarchy()->CopyPose(CDO->GetHierarchy(), false, true, false);
 				}
 			}
 
-			if (bSetupModeEnabled)
 			{
 #if WITH_EDITOR
 				TUniquePtr<FTransientControlPoseScope> TransientControlPoseScope;
@@ -906,108 +920,124 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					TransientControlPoseScope = MakeUnique<FTransientControlPoseScope>(this);
 				}
 #endif
-				GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
-			}			
+				// reset the pose to initial such that setup event can run from a deterministic initial state
+				GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
+			}
+
+			if (PreSetupEvent.IsBound())
+			{
+				FControlRigBracketScope BracketScope(PreSetupBracket);
+				PreSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+			}
+
+			bSuccess = ExecuteUnits(Context, FRigUnit_PrepareForExecution::EventName);
+
+			if (PostSetupEvent.IsBound())
+			{
+				FControlRigBracketScope BracketScope(PostSetupBracket);
+				PostSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+			}
 		}
-		else
+
+		if (bSetupModeEnabled)
 		{
-			UE_LOG(LogControlRig, Warning, TEXT("%s: Setup is being called recursively."), *GetPathName());
+#if WITH_EDITOR
+			TUniquePtr<FTransientControlPoseScope> TransientControlPoseScope;
+			if (bSetupModeEnabled)
+			{
+				// save the transient control value, it should not be constantly reset in setup mode
+				TransientControlPoseScope = MakeUnique<FTransientControlPoseScope>(this);
+			}
+#endif
+			GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
+		}			
+	}
+	else
+	{
+#if WITH_EDITOR
+		// only set a valid first entry event when execution
+		// has passed the initialization stage and there are multiple events present
+		if (EventQueue.Num() >= 2 && VM && !bIsInitializingMemory)
+		{
+			VM->SetFirstEntryEventInEventQueue(EventQueue[0]);
+		}
+
+		// Transform Overrride is generated using a Transient Control 
+		ApplyTransformOverrideForUserCreatedBones();
+
+		if (bEnableAnimAttributeTrace && ExternalAnimAttributeContainer != nullptr)
+		{
+			InputAnimAttributeSnapshot.CopyFrom(*ExternalAnimAttributeContainer);
+		}
+#endif
+		
+		if (bIsExecutingInstructions && bIsForwardSolve)
+		{
+			if (PreForwardsSolveEvent.IsBound())
+			{
+				FControlRigBracketScope BracketScope(PreForwardsSolveBracket);
+				PreForwardsSolveEvent.Broadcast(this, EControlRigState::Update, FRigUnit_BeginExecution::EventName);
+			}
+		}
+
+		bSuccess = ExecuteUnits(Context, InEventName);
+
+#if WITH_EDITOR
+		if (bEnableAnimAttributeTrace && ExternalAnimAttributeContainer != nullptr)
+		{
+			OutputAnimAttributeSnapshot.CopyFrom(*ExternalAnimAttributeContainer);
+		}
+#endif
+
+		if (bIsExecutingInstructions && bIsForwardSolve)
+		{
+			if (PostForwardsSolveEvent.IsBound())
+			{
+				FControlRigBracketScope BracketScope(PostForwardsSolveBracket);
+				PostForwardsSolveEvent.Broadcast(this, EControlRigState::Update, FRigUnit_BeginExecution::EventName);
+			}
+		}
+		
+		if (bIsInitializingMemory && !bIsForwardSolve)
+		{
+			bSuccess = ExecuteUnits(Context, FRigUnit_BeginExecution::EventName);
 		}
 	}
 
-	if (!bSetupModeEnabled)
+#if WITH_EDITOR
+
+	// for the last event in the queue - clear the log message queue
+	if (ControlRigLog != nullptr && bEnableControlRigLogging && !bIsInitializingMemory)
 	{
-		if(!IsExecuting())
-		{ 
-
-#if WITH_EDITOR
-			// only set a valid first entry event when execution
-			// has passed the initialization stage and there are multiple events present
-			if (EventQueue.Num() >= 2 && VM && InState != EControlRigState::Init)
+		if (bJustRanInit)
+		{
+			ControlRigLog->KnownMessages.Reset();
+			LoggedMessages.Reset();
+		}
+		else if(bIsEventLastInQueue)
+		{
+			for (const FControlRigLog::FLogEntry& Entry : ControlRigLog->Entries)
 			{
-				VM->SetFirstEntryEventInEventQueue(EventQueue[0]);
-			}
-
-			// Transform Overrride is generated using a Transient Control 
-			ApplyTransformOverrideForUserCreatedBones();
-#endif
-			
-#if WITH_EDITOR
-			if (bEnableAnimAttributeTrace && ExternalAnimAttributeContainer != nullptr)
-			{
-				InputAnimAttributeSnapshot.CopyFrom(*ExternalAnimAttributeContainer);
-			}
-#endif
-			
-			if (InState == EControlRigState::Update && InEventName == FRigUnit_BeginExecution::EventName)
-			{
-				if (PreForwardsSolveEvent.IsBound())
+				if (Entry.FunctionName == NAME_None || Entry.InstructionIndex == INDEX_NONE || Entry.Message.IsEmpty())
 				{
-					FControlRigBracketScope BracketScope(PreForwardsSolveBracket);
-					PreForwardsSolveEvent.Broadcast(this, EControlRigState::Update, FRigUnit_BeginExecution::EventName);
+					continue;
 				}
-			}
 
-			ExecuteUnits(Context, InEventName);
+				FString PerInstructionMessage = 
+					FString::Printf(
+						TEXT("Instruction[%d] '%s': '%s'"),
+						Entry.InstructionIndex,
+						*Entry.FunctionName.ToString(),
+						*Entry.Message
+					);
 
-#if WITH_EDITOR
-			if (bEnableAnimAttributeTrace && ExternalAnimAttributeContainer != nullptr)
-			{
-				OutputAnimAttributeSnapshot.CopyFrom(*ExternalAnimAttributeContainer);
-			}
-#endif
-
-			if (InState == EControlRigState::Update && InEventName == FRigUnit_BeginExecution::EventName)
-			{
-				if (PostForwardsSolveEvent.IsBound())
-				{
-					FControlRigBracketScope BracketScope(PostForwardsSolveBracket);
-					PostForwardsSolveEvent.Broadcast(this, EControlRigState::Update, FRigUnit_BeginExecution::EventName);
-				}
-			}
-			
-			if (InState == EControlRigState::Init && InEventName != FRigUnit_BeginExecution::EventName)
-			{
-				ExecuteUnits(Context, FRigUnit_BeginExecution::EventName);
+				LogOnce(Entry.Severity, Entry.InstructionIndex, PerInstructionMessage);
 			}
 		}
-		else
-		{
-			UE_LOG(LogControlRig, Warning, TEXT("%s: Update is being called recursively."), *GetPathName());
-		}
-	}
-
-#if WITH_EDITOR
-	if (ControlRigLog != nullptr && bEnableControlRigLogging && InState != EControlRigState::Init && !bJustRanInit)
-	{
-		for (const FControlRigLog::FLogEntry& Entry : ControlRigLog->Entries)
-		{
-			if (Entry.FunctionName == NAME_None || Entry.InstructionIndex == INDEX_NONE || Entry.Message.IsEmpty())
-			{
-				continue;
-			}
-
-			FString PerInstructionMessage = 
-				FString::Printf(
-					TEXT("Instruction[%d] '%s': '%s'"),
-					Entry.InstructionIndex,
-					*Entry.FunctionName.ToString(),
-					*Entry.Message
-				);
-
-			LogOnce(Entry.Severity, Entry.InstructionIndex, PerInstructionMessage);
-		}
-	}
-
-	if (bJustRanInit && ControlRigLog != nullptr)
-	{
-		ControlRigLog->KnownMessages.Reset();
-		LoggedMessages.Reset();
 	}
 #endif
 
-
-	if (InState == EControlRigState::Init)
+	if (bIsInitializingMemory)
 	{
 		if (InitializedEvent.IsBound())
 		{
@@ -1015,7 +1045,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			InitializedEvent.Broadcast(this, EControlRigState::Init, InEventName);
 		}
 	}
-	else if (InState == EControlRigState::Update)
+	else if (bIsExecutingInstructions)
 	{
 		if(!bIsEventInQueue || bIsEventLastInQueue) 
 		{
@@ -1039,7 +1069,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		HandleHierarchyEvent(GetHierarchy(), EventContext);
 	}
 
-	if (Context.DrawInterface && Context.DrawContainer && bIsEventLastInQueue) 
+	if (Context.DrawInterface && Context.DrawContainer && bIsEventLastInQueue && bIsExecutingInstructions) 
 	{
 		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
 
@@ -1268,13 +1298,23 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		});
 	}
 
-	if(InEventName == FRigUnit_InteractionExecution::EventName)
+	if(bIsInteractionEvent)
 	{
 		bInteractionJustBegan = false;
 	}
+
+	if(bSuccess)
+	{
+		if(bIsSetupEvent)
+		{
+			bRequiresSetupEvent = false;
+		}
+	}
+
+	return bSuccess;
 }
 
-void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
+bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
 {
 	if (VM)
 	{
@@ -1285,7 +1325,7 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 				!VM->IsValidLowLevel())
 			{
 				UE_LOG(LogControlRig, Warning, InvalidatedVMFormat, *GetClass()->GetName());
-				return;
+				return false;
 			}
 		}
 		else
@@ -1297,7 +1337,7 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 				!VM->GetWorkMemory()->IsValidLowLevel())
 			{
 				UE_LOG(LogControlRig, Warning, InvalidatedVMFormat, *GetClass()->GetName());
-				return;
+				return false;
 			}
 		}
 		
@@ -1314,6 +1354,8 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 		TArray<URigVMMemoryStorage*> LocalMemory = VM->GetLocalMemoryArray();
 		TArray<void*> AdditionalArguments;
 		AdditionalArguments.Add(&InOutContext);
+
+		bool bSuccess = true;
 
 		if (InOutContext.State == EControlRigState::Init)
 		{
@@ -1361,7 +1403,7 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 			}
 			else
 			{
-				VM->Initialize(LocalMemory, AdditionalArguments);
+				bSuccess = VM->Initialize(LocalMemory, AdditionalArguments);
 			}
 		}
 		else
@@ -1405,7 +1447,7 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 #endif
 			FRigHierarchyExecuteContextBracket HierarchyContextGuard(Hierarchy, &VM->GetContext());
 
-			VM->Execute(LocalMemory, AdditionalArguments, InEventName);
+			bSuccess = VM->Execute(LocalMemory, AdditionalArguments, InEventName);
 		}
 
 #if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
@@ -1420,7 +1462,9 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 		}
 #endif
 
+		return bSuccess;
 	}
+	return false;
 }
 
 bool UControlRig::ContainsEvent(const FName& InEventName) const
@@ -1699,6 +1743,11 @@ FRigControlElement* UControlRig::FindControl(const FName& InControlName) const
 		return nullptr;
 	}
 	return DynamicHierarchy->Find<FRigControlElement>(FRigElementKey(InControlName, ERigElementType::Control));
+}
+
+bool UControlRig::IsSetupModeEnabled() const
+{
+	return EventQueue.Contains(FRigUnit_PrepareForExecution::EventName);
 }
 
 FTransform UControlRig::SetupControlFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)

@@ -267,6 +267,7 @@ private:
 
 	TArray<FName> GetEventQueue() const;
 	void SetEventQueue(TArray<FName> InEventQueue);
+	void SetEventQueue(TArray<FName> InEventQueue, bool bCompile);
 	int32 GetEventQueueComboValue() const;
 	FText GetEventQueueLabel() const;
 	static FSlateIcon GetEventQueueIcon(const TArray<FName>& InEventQueue);
@@ -450,9 +451,6 @@ protected:
 
 	void OnAnimInitialized();
 
-	/** Are we currently in setup mode */
-	bool bSetupModeEnabled;
-
 	/** Are we currently compiling through the user interface */
 	bool bIsCompilingThroughUI;
 
@@ -466,7 +464,7 @@ protected:
 	void SetPinControlNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/);
 	void OnPinControlNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	void OnPinControlNameListComboBox(const TArray<TSharedPtr<FString>>* InNameList);
-	void ToggleSetupMode();
+	bool IsSetupModeEnabled() const;
 
 	bool bAnyErrorsLeft;
 

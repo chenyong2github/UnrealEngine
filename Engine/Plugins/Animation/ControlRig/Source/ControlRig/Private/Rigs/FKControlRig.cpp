@@ -68,11 +68,13 @@ FName UFKControlRig::GetControlTargetName(const FName& InName, const ERigElement
 	return NAME_None;
 }
 
-void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
+bool UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
 {
 	if (InOutContext.State != EControlRigState::Update)
 	{
-		return;
+		// we don't need any initialization so
+		// it's fine to consider this done here and return true.
+		return true;
 	}
 
 #if WITH_EDITOR
@@ -224,7 +226,9 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 			Hierarchy->DumpTransformStackToFile();
 		}
 	}
-#endif	
+#endif
+	
+	return true;
 }
 
 void UFKControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp,

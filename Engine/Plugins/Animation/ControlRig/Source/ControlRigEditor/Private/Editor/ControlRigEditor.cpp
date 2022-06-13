@@ -216,7 +216,6 @@ FControlRigEditor::FControlRigEditor()
 	, bControlRigEditorInitialized(false)
 	, bIsSettingObjectBeingDebugged(false)
 	, bExecutionControlRig(true)
-	, bSetupModeEnabled(false)
 	, bIsCompilingThroughUI(false)
 	, bAnyErrorsLeft(false)
 	, LastEventQueue(SetupEventQueue)
@@ -954,11 +953,6 @@ TArray<FName> FControlRigEditor::GetEventQueue() const
 {
 	if (ControlRig)
 	{
-		if (bSetupModeEnabled)
-		{
-			return SetupEventQueue;
-		}
-
 		return ControlRig->GetEventQueue();
 	}
 
@@ -966,6 +960,11 @@ TArray<FName> FControlRigEditor::GetEventQueue() const
 }
 
 void FControlRigEditor::SetEventQueue(TArray<FName> InEventQueue)
+{
+	return SetEventQueue(InEventQueue, false);
+}
+
+void FControlRigEditor::SetEventQueue(TArray<FName> InEventQueue, bool bCompile)
 {
 	if (GetEventQueue() == InEventQueue)
 	{
@@ -976,19 +975,34 @@ void FControlRigEditor::SetEventQueue(TArray<FName> InEventQueue)
 
 	SetHaltedNode(nullptr);
 
+	TArray<FRigElementKey> PreviousSelection;
+	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
+	{
+		if(bCompile)
+		{
+			if (RigBlueprint->bAutoRecompileVM)
+			{
+				RigBlueprint->RequestAutoVMRecompilation();
+			}
+			RigBlueprint->Validator->SetControlRig(ControlRig);
+		}
+		
+		// need to clear selection before remove transient control
+		// because active selection will trigger transient control recreation after removal	
+		PreviousSelection = RigBlueprint->Hierarchy->GetSelectedKeys();
+		RigBlueprint->GetHierarchyController()->ClearSelection();
+		
+		// need to copy here since the removal changes the iterator
+		if (ControlRig)
+		{
+			RigBlueprint->ClearTransientControls();
+		}
+	}
+
 	if (ControlRig)
 	{
 		if (InEventQueue.Num() > 0)
 		{
-			if(InEventQueue == SetupEventQueue)
-			{
-				if (!bSetupModeEnabled)
-				{
-					ToggleSetupMode();
-				}
-				return;
-			}
-			
 			ControlRig->SetEventQueue(InEventQueue);
 
 			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
@@ -997,17 +1011,32 @@ void FControlRigEditor::SetEventQueue(TArray<FName> InEventQueue)
 			}
 		}
 
-		if (bSetupModeEnabled)
-		{
-			ToggleSetupMode();
-		}
-
 		// Reset transforms only for setup and forward solve to not inturrupt any animation that might be playing
 		if (InEventQueue.Contains(FRigUnit_PrepareForExecution::EventName) ||
 			InEventQueue.Contains(FRigUnit_BeginExecution::EventName))
 		{
 			ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
 		}
+	}
+
+	if (FControlRigEditMode* EditMode = GetEditMode())
+	{
+		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
+		{
+			EditMode->RecreateControlShapeActors(RigBlueprint->Hierarchy->GetSelectedKeys());
+		}
+
+		UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
+		Settings->bDisplayNulls = IsSetupModeEnabled();
+	}
+
+	if (PreviousSelection.Num() > 0)
+	{
+		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
+		{
+			RigBlueprint->GetHierarchyController()->SetSelection(PreviousSelection);
+		}
+		SetDetailViewForRigElements();
 	}
 }
 
@@ -1142,63 +1171,6 @@ FSlateIcon FControlRigEditor::GetExecutionModeIcon(EControlRigExecutionModeType 
 FSlateIcon FControlRigEditor::GetExecutionModeIcon() const
 {
 	return GetExecutionModeIcon(ExecutionMode);
-}
-
-void FControlRigEditor::ToggleSetupMode()
-{
-	bSetupModeEnabled = !bSetupModeEnabled;
-
-	TArray<FRigElementKey> PreviousSelection;
-	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
-	{
-		if (RigBlueprint->bAutoRecompileVM)
-		{
-			RigBlueprint->RequestAutoVMRecompilation();
-		}
-
-		RigBlueprint->Validator->SetControlRig(ControlRig);
-		
-		// need to clear selection before remove transient control
-		// because active selection will trigger transient control recreation after removal	
-		PreviousSelection = RigBlueprint->Hierarchy->GetSelectedKeys();
-		RigBlueprint->GetHierarchyController()->ClearSelection();
-		
-		// need to copy here since the removal changes the iterator
-		if (ControlRig)
-		{
-			RigBlueprint->ClearTransientControls();
-		}
-	}
-
-	if (ControlRig)
-	{
-		ControlRig->bSetupModeEnabled = bSetupModeEnabled;
-		if (bSetupModeEnabled)
-		{
-			ControlRig->Initialize(true);
-			ControlRig->RequestSetup();
-		}
-	}
-
-	if (FControlRigEditMode* EditMode = GetEditMode())
-	{
-		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
-		{
-			EditMode->RecreateControlShapeActors(RigBlueprint->Hierarchy->GetSelectedKeys());
-		}
-
-		UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
-		Settings->bDisplayNulls = bSetupModeEnabled;
-	}
-
-	if (PreviousSelection.Num() > 0)
-	{
-		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
-		{
-			RigBlueprint->GetHierarchyController()->SetSelection(PreviousSelection);
-		}
-		SetDetailViewForRigElements();
-	}
 }
 
 void FControlRigEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const
@@ -1606,7 +1578,7 @@ void FControlRigEditor::SetDetailViewForRigElements()
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
 	URigHierarchy* Hierarchy = RigBlueprint->Hierarchy;
 	
-	if (!bSetupModeEnabled)
+	if (!IsSetupModeEnabled())
 	{
 		if (UControlRig* DebuggedControlRig = Cast<UControlRig>(RigBlueprint->GetObjectBeingDebugged()))
 		{
@@ -1944,9 +1916,9 @@ void FControlRigEditor::Compile()
 			}
 		}
 
-		if (bSetupModeEnabled)
+		if(IsSetupModeEnabled())
 		{
-			bSetupModeEnabled = false;
+			SetEventQueue(ForwardsSolveEventQueue, false);
 		}
 
 		// clear transient controls such that we don't leave
@@ -2944,7 +2916,7 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 		}
 
 		URigHierarchy* Hierarchy = ControlRigBP->Hierarchy; 
-		if(!bSetupModeEnabled)
+		if(!IsSetupModeEnabled())
 		{
 			if(DebuggedControlRig)
 			{
@@ -3948,6 +3920,11 @@ void FControlRigEditor::OnPinControlNameListComboBox(const TArray<TSharedPtr<FSt
 	PinControlNameList->SetSelectedItem(CurrentlySelected);
 }
 
+bool FControlRigEditor::IsSetupModeEnabled() const
+{
+	return LastEventQueue.Contains(FRigUnit_PrepareForExecution::EventName);
+}
+
 void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -4048,7 +4025,6 @@ void FControlRigEditor::UpdateControlRig()
  			}
 
 			ControlRig->PreviewInstance = PreviewInstance;
-			ControlRig->bSetupModeEnabled = bSetupModeEnabled;
 
 #if WITH_EDITOR
 			ControlRig->bIsInDebugMode = ExecutionMode == EControlRigExecutionModeType_Debug;
@@ -4550,7 +4526,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 				const ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
 				bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
 				
-				if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
+				if(ERigTransformType::IsInitial(TransformType) || IsSetupModeEnabled())
 				{
 					Hierarchy = ControlRigBP->Hierarchy;
 				}
@@ -4570,7 +4546,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 					FRigControlValue Value;
 					Value.SetFromTransform(Transform, ControlElement->Settings.ControlType, ControlElement->Settings.PrimaryAxis);
 							
-					if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
+					if(ERigTransformType::IsInitial(TransformType) || IsSetupModeEnabled())
 					{
 						Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Initial, true, true, true);
 					}
@@ -4624,7 +4600,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 				ControlRigBP->Hierarchy->SetControlSettings(ControlElement, Settings, true, false, true);
 			}
 
-			if(bSetupModeEnabled || bIsInitial)
+			if(IsSetupModeEnabled() || bIsInitial)
 			{
 				ControlRigBP->PropagatePoseFromBPToInstances();
 				ControlRigBP->Modify();
@@ -6275,7 +6251,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 				Blueprint->Hierarchy->SetLocalTransform(ElementKey, Transform);
 				Hierarchy->SetLocalTransform(ElementKey, Transform);
 
-				if (bSetupModeEnabled)
+				if (IsSetupModeEnabled())
 				{
 					Blueprint->Hierarchy->SetInitialLocalTransform(ElementKey, Transform);
 					Hierarchy->SetInitialLocalTransform(ElementKey, Transform);
@@ -6295,7 +6271,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 			}
 		}
 	}
-	else if (bSetupModeEnabled)
+	else if (IsSetupModeEnabled())
 	{
 		FRigControlElement* SourceControlElement = Hierarchy->Find<FRigControlElement>(ControlElement->GetKey());
 		FRigControlElement* TargetControlElement = Blueprint->Hierarchy->Find<FRigControlElement>(ControlElement->GetKey());

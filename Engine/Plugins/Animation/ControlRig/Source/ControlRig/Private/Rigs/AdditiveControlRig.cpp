@@ -39,11 +39,13 @@ FName UAdditiveControlRig::GetNullName(const FName& InBoneName)
 	return NAME_None;
 }
 
-void UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
+bool UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
 {
 	if (InEventName != FRigUnit_BeginExecution::EventName)
 	{
-		return;
+		// still return true - we want the evaluation code
+		// to simply carry on for other events.
+		return true;
 	}
 
 	for (FRigUnit_AddBoneTransform& Unit : AddBoneRigUnits)
@@ -55,6 +57,8 @@ void UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FNam
 		Unit.ExecuteContext.EventName = InEventName;
 		Unit.Execute(InOutContext);
 	}
+
+	return true;
 }
 
 void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
