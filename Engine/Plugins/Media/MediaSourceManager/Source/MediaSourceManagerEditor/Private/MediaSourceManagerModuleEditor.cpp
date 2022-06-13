@@ -41,7 +41,17 @@ protected:
 	{
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-		TSharedRef<IAssetTypeActions> Action = MakeShared<FMediaSourceManagerActions>();
+		RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaSourceManagerActions()));
+	}
+
+	/**
+	 * Registers a single asset type action.
+	 *
+	 * @param AssetTools	The asset tools object to register with.
+	 * @param Action		The asset type action to register.
+	 */
+	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
+	{
 		AssetTools.RegisterAssetTypeActions(Action);
 		RegisteredAssetTypeActions.Add(Action);
 	}

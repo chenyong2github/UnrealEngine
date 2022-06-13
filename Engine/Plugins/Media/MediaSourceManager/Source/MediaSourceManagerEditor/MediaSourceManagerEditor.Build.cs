@@ -14,6 +14,8 @@ public class MediaSourceManagerEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"MediaSourceManager",
+				"Slate",
+				"SlateCore",
 				"UnrealEd",
 			}
 			);

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AssetTypeActions_Base.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Implements an action for MediaSourceManager assets.
@@ -18,4 +19,5 @@ public:
 	virtual FText GetName() const override;
 	virtual UClass* GetSupportedClass() const override;
 	virtual FColor GetTypeColor() const override;
+	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
 };

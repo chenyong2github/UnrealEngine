@@ -4,6 +4,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "MediaSourceManager.h"
+#include "Toolkits/MediaSourceManagerEditorToolkit.h"
 
 #define LOCTEXT_NAMESPACE "MediaSourceManagerActions"
 
@@ -35,6 +36,24 @@ UClass* FMediaSourceManagerActions::GetSupportedClass() const
 FColor FMediaSourceManagerActions::GetTypeColor() const
 {
 	return FColor::White;
+}
+
+void FMediaSourceManagerActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor)
+{
+	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid()
+		? EToolkitMode::WorldCentric
+		: EToolkitMode::Standalone;
+
+	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+	{
+		UMediaSourceManager* MediaSourceManager = Cast<UMediaSourceManager>(*ObjIt);
+
+		if (MediaSourceManager != nullptr)
+		{
+			TSharedRef<FMediaSourceManagerEditorToolkit> EditorToolkit = MakeShareable(new FMediaSourceManagerEditorToolkit());
+			EditorToolkit->Initialize(MediaSourceManager, Mode, EditWithinLevelEditor);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
