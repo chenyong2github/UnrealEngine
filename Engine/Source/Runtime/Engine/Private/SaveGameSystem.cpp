@@ -2,6 +2,7 @@
 
 #include "SaveGameSystem.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/ThreadHeartBeat.h"
 #include "Containers/Ticker.h"
 
 
@@ -169,4 +170,125 @@ void ISaveGameSystem::OnAsyncComplete(TFunction<void()> Callback)
 			return false;
 		}
 	));
+}
+
+
+
+
+
+
+
+
+ISaveGameSystem::ESaveExistsResult FBaseAsyncSaveGameSystem::DoesSaveGameExistWithResult(const TCHAR* Name, const int32 UserIndex)
+{
+	TSharedPtr<ESaveExistsResult> Result = MakeShared<ESaveExistsResult>(ESaveExistsResult::UnspecifiedError);
+
+	const FPlatformUserId PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(UserIndex);
+
+	UE::Tasks::FTask Op = InternalDoesSaveGameExistAsync(Name, PlatformUserId, nullptr, Result);
+	WaitForAsyncTask(Op);
+
+	return *Result;
+}
+
+bool FBaseAsyncSaveGameSystem::SaveGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex, const TArray<uint8>& Data)
+{
+	TSharedPtr<bool> Result = MakeShared<bool>(false);
+	TSharedRef<const TArray<uint8>> DataPtr = MakeShared<const TArray<uint8>>(Data); // have to take a copy
+
+	const FPlatformUserId PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(UserIndex);
+	UE::Tasks::FTask Op = InternalSaveGameAsync(bAttemptToUseUI, Name, PlatformUserId, DataPtr, nullptr, Result);
+	WaitForAsyncTask(Op);
+
+	return *Result;
+}
+
+bool FBaseAsyncSaveGameSystem::LoadGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex, TArray<uint8>& Data)
+{
+	TSharedPtr<bool> Result = MakeShared<bool>(false);
+	TSharedRef<TArray<uint8>> DataPtr = MakeShared<TArray<uint8>>(Data); // have to take a copy
+
+	const FPlatformUserId PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(UserIndex);
+	UE::Tasks::FTask Op = InternalLoadGameAsync(bAttemptToUseUI, Name, PlatformUserId, DataPtr, nullptr, Result);
+	WaitForAsyncTask(Op);
+
+	Data = MoveTemp(*DataPtr);
+	return  *Result;
+}
+
+bool FBaseAsyncSaveGameSystem::DeleteGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex)
+{
+	TSharedPtr<bool> Result = MakeShared<bool>(false);
+
+	const FPlatformUserId PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(UserIndex);
+	UE::Tasks::FTask Op = InternalDeleteGameAsync(bAttemptToUseUI, Name, PlatformUserId, nullptr, Result);
+	WaitForAsyncTask(Op);
+
+	return *Result;
+}
+
+bool FBaseAsyncSaveGameSystem::GetSaveGameNames(TArray<FString>& FoundSaves, const int32 UserIndex)
+{
+	TSharedPtr<bool> Result = MakeShared<bool>(false);
+	TSharedRef<TArray<FString>> FoundSavesPtr = MakeShared<TArray<FString>>();
+
+	const FPlatformUserId PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(UserIndex);
+	UE::Tasks::FTask Op = InternalGetSaveGameNamesAsync(PlatformUserId, FoundSavesPtr, nullptr, Result);
+	WaitForAsyncTask(Op);
+
+	FoundSaves = MoveTemp(*FoundSavesPtr);
+	return *Result;
+}
+
+
+
+void FBaseAsyncSaveGameSystem::DoesSaveGameExistAsync(const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncExistsCallback Callback)
+{
+	InternalDoesSaveGameExistAsync(Name, PlatformUserId, Callback);
+}
+
+void FBaseAsyncSaveGameSystem::SaveGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, TSharedRef<const TArray<uint8>> Data, FSaveGameAsyncOpCompleteCallback Callback)
+{
+	InternalSaveGameAsync(bAttemptToUseUI, Name, PlatformUserId, Data, Callback);
+}
+
+void FBaseAsyncSaveGameSystem::LoadGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncLoadCompleteCallback Callback)
+{
+	TSharedRef<TArray<uint8>> Data = MakeShared<TArray<uint8>>();
+	InternalLoadGameAsync(bAttemptToUseUI, Name, PlatformUserId, Data, Callback);
+}
+
+void FBaseAsyncSaveGameSystem::DeleteGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncOpCompleteCallback Callback)
+{
+	InternalDeleteGameAsync(bAttemptToUseUI, Name, PlatformUserId, Callback);
+}
+
+void FBaseAsyncSaveGameSystem::GetSaveGameNamesAsync(FPlatformUserId PlatformUserId, FSaveGameAsyncGetNamesCallback Callback)
+{
+	TSharedRef<TArray<FString>> FoundSavesPtr = MakeShared<TArray<FString>>();
+	InternalGetSaveGameNamesAsync(PlatformUserId, FoundSavesPtr, Callback);
+}
+
+
+
+
+void FBaseAsyncSaveGameSystem::WaitForAsyncTask(UE::Tasks::FTask AsyncSaveTask)
+{
+	// need to pump messages on the game thread
+	if (IsInGameThread())
+	{
+		// Suspend the hang and hitch heartbeats, as this is a long running task.
+		FSlowHeartBeatScope SuspendHeartBeat;
+		FDisableHitchDetectorScope SuspendGameThreadHitch;
+
+		while (!AsyncSaveTask.IsCompleted())
+		{
+			FPlatformMisc::PumpMessagesOutsideMainLoop();
+		}
+	}
+	else
+	{
+		// not running on the game thread, so just block until the async operation comes back
+		AsyncSaveTask.BusyWait();
+	}
 }
