@@ -1028,6 +1028,8 @@ public:
 
 	FShadingEnergyConservationStateData ShadingEnergyConservationData;
 
+	bool bVirtualShadowMapCacheAdded;
+
 	FVirtualShadowMapArrayCacheManager* ViewVirtualShadowMapCache;
 
 	// call after OnFrameRenderingSetup()
@@ -3367,7 +3369,7 @@ private:
 	 * Internal view state allocation interface, used by FSceneViewState
 	 */
 	virtual FSceneViewStateInterface* AllocateViewState(FSceneViewStateInterface* ShareOriginTarget) override;
-	void RemoveViewState(FSceneViewStateInterface*);
+	void RemoveViewState_RenderThread(FSceneViewStateInterface*);
 
 	/**
 	 * Ensures the packed primitive arrays contain the same number of elements.

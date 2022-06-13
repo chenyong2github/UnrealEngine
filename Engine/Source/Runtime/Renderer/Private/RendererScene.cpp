@@ -385,6 +385,7 @@ FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneView
 	GatherPointsResolution = FIntVector(0, 0, 0);
 #endif
 
+	bVirtualShadowMapCacheAdded = false;
 	ViewVirtualShadowMapCache = nullptr;
 }
 
@@ -427,11 +428,12 @@ FSceneViewState::~FSceneViewState()
 	{
 		delete ViewVirtualShadowMapCache;
 		ViewVirtualShadowMapCache = nullptr;
+		bVirtualShadowMapCacheAdded = false;
 	}
 
 	if (Scene)
 	{
-		Scene->RemoveViewState(this);
+		Scene->RemoveViewState_RenderThread(this);
 	}
 }
 
@@ -441,11 +443,19 @@ FSceneViewStateInterface* FScene::AllocateViewState(FSceneViewStateInterface* Sh
 
 	FSceneViewState* Result = new FSceneViewState(FeatureLevel, (FSceneViewState*)ShareOriginTarget);
 	Result->Scene = this;
-	ViewStates.Add(Result);
+
+	// Modification of scene structure needs to happen on render thread
+	FScene* Scene = this;
+	ENQUEUE_RENDER_COMMAND(SceneViewStateAdd)(
+		[Scene, Result](FRHICommandList&)
+		{
+			Scene->ViewStates.Add(Result);
+		});
+
 	return Result;
 }
 
-void FScene::RemoveViewState(FSceneViewStateInterface* ViewState)
+void FScene::RemoveViewState_RenderThread(FSceneViewStateInterface* ViewState)
 {
 	for (int32 ViewStateIndex = 0; ViewStateIndex < ViewStates.Num(); ViewStateIndex++)
 	{
@@ -760,9 +770,12 @@ void FSceneViewState::AddVirtualShadowMapCache()
 	// Can only allocate a virtual shadow map cache if we have a scene pointer available
 	if (Scene)
 	{
-		// Don't allocate if one already exists
-		if (ViewVirtualShadowMapCache == nullptr)
+		// Don't add the cache if one has already been added.  We have a separate bool since the write to the cache
+		// pointer is deferred to the render thread.
+		if (!bVirtualShadowMapCacheAdded)
 		{
+			bVirtualShadowMapCacheAdded = true;
+
 			FVirtualShadowMapArrayCacheManager* ViewCache = new FVirtualShadowMapArrayCacheManager(Scene);
 
 			// Need to add reference to virtual shadow map cache in render thread
