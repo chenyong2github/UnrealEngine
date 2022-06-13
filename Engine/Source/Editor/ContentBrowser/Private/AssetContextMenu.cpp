@@ -162,15 +162,28 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 			ContextObject->CommonClass = CommonClass;
 
 			ContextObject->bCanBeModified = true;
-
-			if (WritableFolderFilter->HasFiltering())
+			for (const UObject* SelectedObject : SelectedObjects)
 			{
-				for (const UObject* SelectedObject : SelectedObjects)
+				if (SelectedObject)
 				{
-					if (SelectedObject)
+					if (const UPackage* SelectedObjectPackage = SelectedObject->GetOutermost())
 					{
-						UPackage* SelectedObjectPackage = SelectedObject->GetOutermost();
-						if (SelectedObjectPackage && !WritableFolderFilter->PassesStartsWithFilter(SelectedObjectPackage->GetFName()))
+						if (WritableFolderFilter->HasFiltering() && !WritableFolderFilter->PassesStartsWithFilter(SelectedObjectPackage->GetFName()))
+						{
+							ContextObject->bCanBeModified = false;
+							break;
+						}
+
+						if (SelectedObjectPackage->HasAnyPackageFlags(PKG_Cooked | PKG_FilterEditorOnly))
+						{
+							ContextObject->bCanBeModified = false;
+							break;
+						}
+					}
+
+					if (const UClass* AssetClass = SelectedObject->GetClass())
+					{
+						if (AssetClass->IsChildOf<UClass>())
 						{
 							ContextObject->bCanBeModified = false;
 							break;

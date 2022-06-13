@@ -160,7 +160,27 @@ bool CanModifyAssetFolderItem(IAssetTools* InAssetTools, const FContentBrowserAs
 
 bool CanModifyAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFileItemDataPayload& InAssetPayload, FText* OutErrorMsg)
 {
-	return CanModifyPath(InAssetTools, InAssetPayload.GetAssetData().PackageName, OutErrorMsg);
+	if (!CanModifyPath(InAssetTools, InAssetPayload.GetAssetData().PackageName, OutErrorMsg))
+	{
+		return false;
+	}
+
+	if (const UClass* AssetClass = InAssetPayload.GetAssetData().GetClass())
+	{
+		if (AssetClass->IsChildOf<UClass>())
+		{
+			SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotModifyGeneratedClasses", "Cannot modify generated classes"));
+			return false;
+		}
+	}
+
+	if (InAssetPayload.GetAssetData().HasAnyPackageFlags(PKG_Cooked | PKG_FilterEditorOnly))
+	{
+		SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotModifyCookedAssets", "Cannot modify cooked assets"));
+		return false;
+	}
+
+	return true;
 }
 
 bool CanEditItem(IAssetTools* InAssetTools, const UContentBrowserDataSource* InOwnerDataSource, const FContentBrowserItemData& InItem, FText* OutErrorMsg)
@@ -177,12 +197,6 @@ bool CanEditAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetF
 {
 	if (!CanModifyAssetFileItem(InAssetTools, InAssetPayload, OutErrorMsg))
 	{
-		return false;
-	}
-
-	if (InAssetPayload.GetAssetData().PackageFlags & PKG_FilterEditorOnly)
-	{
-		SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotEditCookedPackages", "Cannot edit cooked packages"));
 		return false;
 	}
 
@@ -330,6 +344,15 @@ bool CanDuplicateAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserA
 		return false;
 	}
 
+	if (const UClass* AssetClass = InAssetPayload.GetAssetData().GetClass())
+	{
+		if (AssetClass->IsChildOf<UClass>())
+		{
+			SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotDuplicateGeneratedClasses", "Cannot duplicate generated classes"));
+			return false;
+		}
+	}
+
 	if (TSharedPtr<IAssetTypeActions> AssetTypeActions = InAssetPayload.GetAssetTypeActions())
 	{
 		if (!AssetTypeActions->CanDuplicate(InAssetPayload.GetAssetData(), OutErrorMsg))
@@ -434,12 +457,6 @@ bool CanSaveAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetF
 {
 	if (!CanModifyAssetFileItem(InAssetTools, InAssetPayload, OutErrorMsg))
 	{
-		return false;
-	}
-
-	if (InAssetPayload.GetAssetData().PackageFlags & PKG_FilterEditorOnly)
-	{
-		SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotSaveCookedPackages", "Cannot save cooked packages"));
 		return false;
 	}
 
@@ -689,12 +706,6 @@ bool CanRenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAsse
 	if (InAssetPayload.GetAssetData().IsRedirector())
 	{
 		SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotRenameRedirectors", "Cannot rename redirectors"));
-		return false;
-	}
-
-	if (InAssetPayload.GetAssetData().PackageFlags & PKG_FilterEditorOnly)
-	{
-		SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotRenameCookedPackages", "Cannot rename cooked packages"));
 		return false;
 	}
 
