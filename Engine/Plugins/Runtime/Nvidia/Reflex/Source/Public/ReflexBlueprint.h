@@ -16,7 +16,7 @@ enum class EReflexMode : uint8
 
 
 UCLASS()
-class UReflexBlueprintLibrary : public UBlueprintFunctionLibrary
+class REFLEX_API UReflexBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
