@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Types/SlateEnums.h"
+#include "Types/SlateVector2.h"
 #include "Margin.generated.h"
 
 
@@ -47,7 +48,7 @@ public:
 	{ }
 
 	/** Construct a Margin with uniform space on all sides */
-	FMargin( float UniformMargin )
+	FMargin(float UniformMargin)
 		: Left(UniformMargin)
 		, Top(UniformMargin)
 		, Right(UniformMargin)
@@ -55,7 +56,7 @@ public:
 	{ }
 	
 	/** Construct a Margin where Horizontal describes Left and Right spacing while Vertical describes Top and Bottom spacing */
-	FMargin( float Horizontal, float Vertical )
+	FMargin(float Horizontal, float Vertical)
 		: Left(Horizontal)
 		, Top(Vertical)
 		, Right(Horizontal)
@@ -63,7 +64,15 @@ public:
 	{ }
 
 	/** Construct a Margin where Horizontal describes Left and Right spacing while Vertical describes Top and Bottom spacing */
-	FMargin(const FVector2D& InVector)
+	FMargin(const FVector2f InVector)
+		: Left(InVector.X)
+		, Top(InVector.Y)
+		, Right(InVector.X)
+		, Bottom(InVector.Y)
+	{ }
+
+	/** Construct a Margin where Horizontal describes Left and Right spacing while Vertical describes Top and Bottom spacing */
+	FMargin(const FVector2d InVector)
 		: Left(UE_REAL_TO_FLOAT(InVector.X))
 		, Top(UE_REAL_TO_FLOAT(InVector.Y))
 		, Right(UE_REAL_TO_FLOAT(InVector.X))
@@ -71,7 +80,7 @@ public:
 	{ }
 	
 	/** Construct a Margin where the spacing on each side is individually specified. */
-	FMargin( float InLeft, float InTop, float InRight, float InBottom )
+	FMargin(float InLeft, float InTop, float InRight, float InBottom)
 		: Left(InLeft)
 		, Top(InTop)
 		, Right(InRight)
@@ -79,7 +88,15 @@ public:
 	{ }
 
 	/** Construct a Margin where the margins are coming from a FVector4 */
-	FMargin(const FVector4& InVector)
+	FMargin(const FVector4f InVector)
+		: Left(InVector.X)
+		, Top(InVector.Y)
+		, Right(InVector.Z)
+		, Bottom(InVector.W)
+	{ }
+
+	/** Construct a Margin where the margins are coming from a FVector4 */
+	FMargin(const FVector4d InVector)
 		: Left(UE_REAL_TO_FLOAT(InVector.X))
 		, Top(UE_REAL_TO_FLOAT(InVector.Y))
 		, Right(UE_REAL_TO_FLOAT(InVector.Z))
@@ -161,9 +178,13 @@ public:
 	 *
 	 * @return The top left offset.
 	 */
-	FVector2D GetTopLeft() const
+	UE::Slate::FDeprecateVector2D GetTopLeft() const
 	{
-		return FVector2D(Left, Top);
+		return UE::Slate::FDeprecateVector2D(Left, Top);
+	}
+	FVector2f GetTopLeft2f() const
+	{
+		return FVector2f(Left, Top);
 	}
 
 	/**
@@ -171,9 +192,13 @@ public:
 	 *
 	 * @return Cumulative margin size.
 	 */
-	FVector2D GetDesiredSize( ) const
+	UE::Slate::FDeprecateVector2D GetDesiredSize() const
 	{
-		return FVector2D(Left + Right, Top + Bottom);
+		return UE::Slate::FDeprecateVector2D(GetDesiredSize2f());
+	}
+	FVector2f GetDesiredSize2f() const
+	{
+		return FVector2f(Left + Right, Top + Bottom);
 	}
 
 	/**

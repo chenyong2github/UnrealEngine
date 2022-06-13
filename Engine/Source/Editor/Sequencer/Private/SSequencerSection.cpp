@@ -643,7 +643,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 			if (bExistingEmptySpace)
 			{
-				FPaintGeometry PaintGeom = SectionGeometry.MakeChild(CurrentArea->GetSize(), FSlateLayoutTransform(CurrentArea->GetTopLeft())).ToPaintGeometry();
+				FPaintGeometry PaintGeom = SectionGeometry.MakeChild(CurrentArea->GetSize(), FSlateLayoutTransform(CurrentArea->GetTopLeft2f())).ToPaintGeometry();
 				FSlateDrawElement::MakeBox(DrawElements, LayerId, PaintGeom, EmptySpaceBrush, DrawEffects);
 				CurrentArea.Reset();
 			}
@@ -656,7 +656,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 		if (CurrentArea.IsSet())
 		{
-			FPaintGeometry PaintGeom = SectionGeometry.MakeChild(CurrentArea->GetSize(), FSlateLayoutTransform(CurrentArea->GetTopLeft())).ToPaintGeometry();
+			FPaintGeometry PaintGeom = SectionGeometry.MakeChild(CurrentArea->GetSize(), FSlateLayoutTransform(CurrentArea->GetTopLeft2f())).ToPaintGeometry();
 			FSlateDrawElement::MakeBox(DrawElements, LayerId, PaintGeom, EmptySpaceBrush, DrawEffects);
 		}
 

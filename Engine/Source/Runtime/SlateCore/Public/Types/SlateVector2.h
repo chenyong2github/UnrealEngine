@@ -24,87 +24,197 @@ FORCEINLINE static FVector2f CastToVector2f(FVector2d InValue)
  */
 struct FDeprecateVector2D
 {
+public:
 	FDeprecateVector2D() = default;
-	FDeprecateVector2D(FVector2f InValue)
-		: Data(InValue)
+	explicit FDeprecateVector2D(FVector2f InValue)
+		: X(InValue.X)
+		, Y(InValue.Y)
 	{
 	}
+	explicit FDeprecateVector2D(float InX, float InY)
+		: X(InX)
+		, Y(InY)
+	{
+	}
+
+public:
+	union
+	{
+		struct
+		{
+			float X;
+			float Y;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		float XY[2];
+	};
 
 public:
 	operator FVector2d() const
 	{
-		return FVector2d(Data);
+		return FVector2d(X, Y);
 	}
 
 	operator FVector2f() const
 	{
-		return Data;
+		return AsVector2f();
 	}
 
 public:
-	FORCEINLINE FVector2f operator+(const FVector2d V) const
+	/**  Get the length (magnitude) of this vector. */
+	float Size() const
 	{
-		return Data + CastToVector2f(V);
+		return AsVector2f().Size();
 	}
 
-	FORCEINLINE FVector2f operator+(const FVector2f V) const
+	/** Get the length (magnitude) of this vector. */
+	float Length() const
 	{
-		return Data + V;
+		return AsVector2f().Length();
 	}
 
-	FORCEINLINE FVector2f operator-(const FVector2d V) const
+	/** Get the squared length of this vector. */
+	float SizeSquared() const
 	{
-		return Data - CastToVector2f(V);
+		return AsVector2f().SizeSquared();
 	}
 
-	FORCEINLINE FVector2f operator-(const FVector2f V) const
+	/**  Get the squared length of this vector. */
+	float SquaredLength() const
 	{
-		return Data - V;
+		return AsVector2f().SquaredLength();
 	}
 
-	FORCEINLINE FVector2f operator+(float Scale) const
+	/** Checks whether all components of the vector are exactly zero. */
+	bool IsZero() const
 	{
-		return Data + Scale;
+		return AsVector2f().IsZero();
 	}
 
-	FORCEINLINE FVector2f operator-(float Scale) const
+	/** Get this vector as an Int Point. */
+	FIntPoint IntPoint() const
 	{
-		return Data - Scale;
+		return AsVector2f().IntPoint();
 	}
 
-	FORCEINLINE FVector2f operator*(float Scale) const
+	/** Get this vector as a vector where each component has been rounded to the nearest int. */
+	FDeprecateVector2D RoundToVector() const
 	{
-		return Data * Scale;
+		return FDeprecateVector2D(AsVector2f().RoundToVector());
 	}
 
-	FORCEINLINE FVector2f operator/(float Scale) const
+	/** Gets a specific component of the vector. */
+	float Component(int32 Index) const
 	{
-		return Data / Scale;
+		return AsVector2f().Component(Index);
 	}
 
 public:
-	bool operator==(FVector2d V) const
+	FORCEINLINE FDeprecateVector2D operator+(const FVector2f V) const
 	{
-		return CastToVector2f(V) == Data;
+		return FDeprecateVector2D(AsVector2f() + V);
+	}
+	FORCEINLINE FDeprecateVector2D operator+(const FVector2d V) const
+	{
+		return FDeprecateVector2D(AsVector2f() + CastToVector2f(V));
+	}
+	FORCEINLINE FDeprecateVector2D operator+(const FDeprecateVector2D V) const
+	{
+		return FDeprecateVector2D(AsVector2f() + V.AsVector2f());
 	}
 
+	FORCEINLINE FDeprecateVector2D operator-(const FVector2f V) const
+	{
+		return FDeprecateVector2D(AsVector2f() - V);
+	}
+	FORCEINLINE FDeprecateVector2D operator-(const FVector2d V) const
+	{
+		return FDeprecateVector2D(AsVector2f() - CastToVector2f(V));
+	}
+	FORCEINLINE FDeprecateVector2D operator-(const FDeprecateVector2D V) const
+	{
+		return FDeprecateVector2D(AsVector2f() - V.AsVector2f());
+	}
+
+	FORCEINLINE FDeprecateVector2D operator*(const FVector2f V) const
+	{
+		return FDeprecateVector2D(AsVector2f() * V);
+	}
+	FORCEINLINE FDeprecateVector2D operator*(const FVector2d V) const
+	{
+		return FDeprecateVector2D(AsVector2f() * CastToVector2f(V));
+	}
+	FORCEINLINE FDeprecateVector2D operator*(const FDeprecateVector2D V) const
+	{
+		return FDeprecateVector2D(AsVector2f() * V.AsVector2f());
+	}
+
+	FORCEINLINE FDeprecateVector2D operator/(const FVector2f V) const
+	{
+		return FDeprecateVector2D(AsVector2f() / V);
+	}
+	FORCEINLINE FDeprecateVector2D operator/(const FVector2d V) const
+	{
+		return FDeprecateVector2D(AsVector2f() / CastToVector2f(V));
+	}
+	FORCEINLINE FDeprecateVector2D operator/(const FDeprecateVector2D V) const
+	{
+		return FDeprecateVector2D(AsVector2f() / V.AsVector2f());
+	}
+
+	FORCEINLINE FDeprecateVector2D operator+(float Scale) const
+	{
+		return FDeprecateVector2D(AsVector2f() + Scale);
+	}
+
+	FORCEINLINE FDeprecateVector2D operator-(float Scale) const
+	{
+		return FDeprecateVector2D(AsVector2f() - Scale);
+	}
+
+	FORCEINLINE FDeprecateVector2D operator*(float Scale) const
+	{
+		return FDeprecateVector2D(AsVector2f() * Scale);
+	}
+
+	FORCEINLINE FDeprecateVector2D operator/(float Scale) const
+	{
+		return FDeprecateVector2D(AsVector2f() / Scale);
+	}
+
+public:
 	bool operator==(FVector2f V) const
 	{
-		return V == Data;
+		return V == AsVector2f();
 	}
-
-	bool operator!=(FVector2d V) const
+	bool operator==(FVector2d V) const
 	{
-		return CastToVector2f(V) != Data;
+		return CastToVector2f(V) == AsVector2f();
+	}
+	bool operator==(FDeprecateVector2D V) const
+	{
+		return X == V.X && Y == V.Y;
 	}
 
 	bool operator!=(FVector2f V) const
 	{
-		return V != Data;
+		return V != AsVector2f();
+	}
+	bool operator!=(FVector2d V) const
+	{
+		return CastToVector2f(V) != AsVector2f();
+	}
+	bool operator!=(FDeprecateVector2D V) const
+	{
+		return X != V.X || Y != V.Y;
 	}
 
 private:
-	FVector2f Data;
+	FVector2f AsVector2f() const
+	{
+		return FVector2f(X, Y);
+	}
 };
 
 } // namespace

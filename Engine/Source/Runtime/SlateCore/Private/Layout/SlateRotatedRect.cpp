@@ -21,44 +21,49 @@ FSlateRect FSlateRotatedRect::ToBoundingRect() const
 		);
 }
 
-bool FSlateRotatedRect::IsUnderLocation(const FVector2D& Location) const
+bool FSlateRotatedRect::IsUnderLocation(const FVector2f Location) const
 {
-	const FVector2D Offset = Location - FVector2D(TopLeft);
-	const float Det = FVector2D::CrossProduct(FVector2D(ExtentX), FVector2D(ExtentY));
+	const FVector2f Offset = Location - TopLeft;
+	const float Det = FVector2f::CrossProduct(ExtentX, ExtentY);
 
 	// Not exhaustively efficient. Could optimize the checks for [0..1] to short circuit faster.
-	const float S = -FVector2D::CrossProduct(Offset, FVector2D(ExtentX)) / Det;
+	const float S = -FVector2f::CrossProduct(Offset, ExtentX) / Det;
 	if (FMath::IsWithinInclusive(S, 0.0f, 1.0f))
 	{
-		const float T = FVector2D::CrossProduct(Offset, FVector2D(ExtentY)) / Det;
+		const float T = FVector2f::CrossProduct(Offset, ExtentY) / Det;
 		return FMath::IsWithinInclusive(T, 0.0f, 1.0f);
 	}
 	return false;
 }
 
-FSlateRotatedRect FSlateRotatedRect::MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2D& LayoutToRenderTransform)
+bool FSlateRotatedRect::IsUnderLocation(const FVector2D Location) const
+{
+	return IsUnderLocation(UE::Slate::CastToVector2f(Location));
+}
+
+FSlateRotatedRect FSlateRotatedRect::MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2f& LayoutToRenderTransform)
 {
 	const FSlateRotatedRect RotatedRect = TransformRect(LayoutToRenderTransform, FSlateRotatedRect(ClipRectInLayoutWindowSpace));
 
-	const FVector2D TopRight = FVector2D(RotatedRect.TopLeft) + FVector2D(RotatedRect.ExtentX);
-	const FVector2D BottomLeft = FVector2D(RotatedRect.TopLeft) + FVector2D(RotatedRect.ExtentY);
+	const FVector2f TopRight = RotatedRect.TopLeft + RotatedRect.ExtentX;
+	const FVector2f BottomLeft = RotatedRect.TopLeft + RotatedRect.ExtentY;
 
 	return FSlateRotatedRect(
-		FVector2D(RotatedRect.TopLeft),
-		TopRight - FVector2D(RotatedRect.TopLeft),
-		BottomLeft - FVector2D(RotatedRect.TopLeft));
+		RotatedRect.TopLeft,
+		TopRight - RotatedRect.TopLeft,
+		BottomLeft - RotatedRect.TopLeft);
 }
 
-FSlateRotatedRect FSlateRotatedRect::MakeSnappedRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2D& LayoutToRenderTransform)
+FSlateRotatedRect FSlateRotatedRect::MakeSnappedRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2f& LayoutToRenderTransform)
 {
 	const FSlateRotatedRect RotatedRect = TransformRect(LayoutToRenderTransform, FSlateRotatedRect(ClipRectInLayoutWindowSpace));
 
 	// Pixel snapping is done here by rounding the resulting floats to ints, we do this before
 	// calculating the final extents of the clip box otherwise we'll get a smaller clip rect than a visual
 	// rect where each point is individually snapped.
-	const FVector2D SnappedTopLeft = ( FVector2D(RotatedRect.TopLeft) ).RoundToVector();
-	const FVector2D SnappedTopRight = ( FVector2D(RotatedRect.TopLeft) + FVector2D(RotatedRect.ExtentX) ).RoundToVector();
-	const FVector2D SnappedBottomLeft = ( FVector2D(RotatedRect.TopLeft) + FVector2D(RotatedRect.ExtentY) ).RoundToVector();
+	const FVector2f SnappedTopLeft = ( (RotatedRect.TopLeft) ).RoundToVector();
+	const FVector2f SnappedTopRight = ( (RotatedRect.TopLeft) + (RotatedRect.ExtentX) ).RoundToVector();
+	const FVector2f SnappedBottomLeft = ( (RotatedRect.TopLeft) + (RotatedRect.ExtentY) ).RoundToVector();
 
 	//NOTE: We explicitly do not re-snap the extent x/y, it wouldn't be correct to snap again in distance space
 	// even if two points are snapped, their distance wont necessarily be a whole number if those points are not

@@ -304,7 +304,7 @@ public:
 
 	FORCEINLINE UE::Slate::FDeprecateVector2D GetPosition() const
 	{
-		return Position;
+		return UE::Slate::FDeprecateVector2D(Position);
 	}
 
 	UE_DEPRECATED(5.1, "Slate rendering uses float instead of double. Use SetPosition(FVector2f)")
@@ -319,7 +319,7 @@ public:
 
 	FORCEINLINE UE::Slate::FDeprecateVector2D GetLocalSize() const
 	{
-		return LocalSize;
+		return UE::Slate::FDeprecateVector2D(LocalSize);
 	}
 
 	FORCEINLINE float GetScale() const { return Scale; }
@@ -564,7 +564,7 @@ public:
 	/** @return Get the window size that we will be painting */
 	UE::Slate::FDeprecateVector2D GetWindowSize() const
 	{
-		return WindowSize;
+		return UE::Slate::FDeprecateVector2D(WindowSize);
 	}
 
 	template<typename PayloadType>

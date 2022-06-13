@@ -6,6 +6,7 @@
 #include "Layout/SlateRect.h"
 #include "Rendering/SlateLayoutTransform.h"
 #include "Rendering/SlateRenderTransform.h"
+#include "Types/SlateVector2.h"
 
 /**
  * Stores a rectangle that has been transformed by an arbitrary render transform.
@@ -27,10 +28,18 @@ public:
 	}
 
 	/** Per-element constructor. */
-	FSlateRotatedRect(const FVector2D& InTopLeft, const FVector2D& InExtentX, const FVector2D& InExtentY)
+	FSlateRotatedRect(const FVector2f InTopLeft, const FVector2f InExtentX, const FVector2f InExtentY)
 		: TopLeft(InTopLeft)
 		, ExtentX(InExtentX)
 		, ExtentY(InExtentY)
+	{
+	}
+
+	/** Per-element constructor. */
+	FSlateRotatedRect(const FVector2d InTopLeft, const FVector2d InExtentX, const FVector2d InExtentY)
+		: TopLeft(UE::Slate::CastToVector2f(InTopLeft))
+		, ExtentX(UE::Slate::CastToVector2f(InExtentX))
+		, ExtentY(UE::Slate::CastToVector2f(InExtentY))
 	{
 	}
 
@@ -58,14 +67,15 @@ public:
 	FSlateRect ToBoundingRect() const;
 
 	/** Point-in-rect test. */
-	bool IsUnderLocation(const FVector2D& Location) const;
+	bool IsUnderLocation(const FVector2f Location) const;
+	bool IsUnderLocation(const FVector2d Location) const;
 
 	static FSlateRotatedRect MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FSlateLayoutTransform& InverseLayoutTransform, const FSlateRenderTransform& RenderTransform)
 	{
 		return MakeRotatedRect(ClipRectInLayoutWindowSpace, Concatenate(InverseLayoutTransform, RenderTransform));
 	}
 
-	static FSlateRotatedRect MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2D& LayoutToRenderTransform);
+	static FSlateRotatedRect MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2f& LayoutToRenderTransform);
 
 	static FSlateRotatedRect MakeSnappedRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FSlateLayoutTransform& InverseLayoutTransform, const FSlateRenderTransform& RenderTransform)
 	{
@@ -75,7 +85,7 @@ public:
 	/**
 	* Used to construct a rotated rect from an aligned clip rect and a set of layout and render transforms from the geometry, snapped to pixel boundaries. Returns a float or float16 version of the rect based on the typedef.
 	*/
-	static FSlateRotatedRect MakeSnappedRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2D& LayoutToRenderTransform);
+	static FSlateRotatedRect MakeSnappedRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2f& LayoutToRenderTransform);
 };
 
 /**
@@ -86,8 +96,8 @@ FSlateRotatedRect TransformRect(const TransformType& Transform, const FSlateRota
 {
 	return FSlateRotatedRect
 	(
-		TransformPoint(Transform, FVector2D(Rect.TopLeft)),
-		TransformVector(Transform, FVector2D(Rect.ExtentX)),
-		TransformVector(Transform, FVector2D(Rect.ExtentY))
+		TransformPoint(Transform, Rect.TopLeft),
+		TransformVector(Transform, Rect.ExtentX),
+		TransformVector(Transform, Rect.ExtentY)
 	);
 }

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Layout/Margin.h"
+#include "Types/SlateVector2.h"
 
 /** 
  * A rectangle defined by upper-left and lower-right corners.
@@ -37,13 +38,6 @@ public:
 		, Bottom(InBottom)
 	{ }
 
-	FSlateRect( const FVector2D& InStartPos, const FVector2D& InEndPos )
-		: Left(UE_REAL_TO_FLOAT(InStartPos.X))
-		, Top(UE_REAL_TO_FLOAT(InStartPos.Y))
-		, Right(UE_REAL_TO_FLOAT(InEndPos.X))
-		, Bottom(UE_REAL_TO_FLOAT(InEndPos.Y))
-	{ }
-
 	FSlateRect(FVector2f InStartPos, FVector2f InEndPos)
 		: Left(InStartPos.X)
 		, Top(InStartPos.Y)
@@ -51,13 +45,24 @@ public:
 		, Bottom(InEndPos.Y)
 	{ }
 
+	FSlateRect( const FVector2d InStartPos, const FVector2d InEndPos )
+		: Left(UE_REAL_TO_FLOAT(InStartPos.X))
+		, Top(UE_REAL_TO_FLOAT(InStartPos.Y))
+		, Right(UE_REAL_TO_FLOAT(InEndPos.X))
+		, Bottom(UE_REAL_TO_FLOAT(InEndPos.Y))
+	{ }
+
 	/**
 	 * Creates a rect from a top left point and extent. Provided as a factory function to not conflict
 	 * with the TopLeft + BottomRight ctor.
 	 */
-	static FSlateRect FromPointAndExtent(const FVector2D& TopLeft, const FVector2D& Size)
+	static FSlateRect FromPointAndExtent(const FVector2f TopLeft, const FVector2f Size)
 	{
 		return FSlateRect(TopLeft, TopLeft + Size);
+	}
+	static FSlateRect FromPointAndExtent(const FVector2d TopLeft, const FVector2d Size)
+	{
+		return FromPointAndExtent(UE::Slate::CastToVector2f(TopLeft), UE::Slate::CastToVector2f(Size));
 	}
 	
 public:
@@ -83,9 +88,13 @@ public:
 	 *
 	 * @return The size as a vector.
 	 */
-	FORCEINLINE FVector2D GetSize() const
+	FORCEINLINE UE::Slate::FDeprecateVector2D GetSize() const
 	{
-		return FVector2D( Right - Left, Bottom - Top );
+		return UE::Slate::FDeprecateVector2D(GetSize2f());
+	}
+	FORCEINLINE FVector2f GetSize2f() const
+	{
+		return FVector2f(Right - Left, Bottom - Top);
 	}
 
 	/**
@@ -101,9 +110,13 @@ public:
 	 * 
 	 * @return The center point.
 	 */
-	FORCEINLINE FVector2D GetCenter() const
+	FORCEINLINE UE::Slate::FDeprecateVector2D GetCenter() const
 	{
-		return FVector2D( Left, Top ) + GetSize() * 0.5f;
+		return UE::Slate::FDeprecateVector2D(GetCenter2f());
+	}
+	FORCEINLINE FVector2f GetCenter2f() const
+	{
+		return FVector2f(Left, Top) + GetSize() * 0.5f;
 	}
 
 	/**
@@ -111,9 +124,13 @@ public:
 	 * 
 	 * @return The top-left position.
 	 */
-	FORCEINLINE FVector2D GetTopLeft() const
+	FORCEINLINE UE::Slate::FDeprecateVector2D GetTopLeft() const
 	{
-		return FVector2D( Left, Top );
+		return UE::Slate::FDeprecateVector2D(GetTopLeft2f());
+	}
+	FORCEINLINE FVector2f GetTopLeft2f() const
+	{
+		return FVector2f(Left, Top);
 	}
 
 	/**
@@ -121,9 +138,13 @@ public:
 	 *
 	 * @return The top-right position.
 	 */
-	FORCEINLINE FVector2D GetTopRight() const
+	FORCEINLINE UE::Slate::FDeprecateVector2D GetTopRight() const
 	{
-		return FVector2D(Right, Top);
+		return UE::Slate::FDeprecateVector2D(GetTopRight2f());
+	}
+	FORCEINLINE FVector2f GetTopRight2f() const
+	{
+		return FVector2f(Right, Top);
 	}
 
 	/**
@@ -131,9 +152,13 @@ public:
 	 * 
 	 * @return The bottom-right position.
 	 */
-	FORCEINLINE FVector2D GetBottomRight() const
+	FORCEINLINE UE::Slate::FDeprecateVector2D GetBottomRight() const
 	{
-		return FVector2D( Right, Bottom );
+		return UE::Slate::FDeprecateVector2D(GetBottomRight2f());
+	}
+	FORCEINLINE FVector2f GetBottomRight2f() const
+	{
+		return FVector2f(Right, Bottom);
 	}
 
 	/**
@@ -141,9 +166,13 @@ public:
 	 * 
 	 * @return The bottom-left position.
 	 */
-	FORCEINLINE FVector2D GetBottomLeft() const
+	FORCEINLINE UE::Slate::FDeprecateVector2D GetBottomLeft() const
 	{
-		return FVector2D( Left, Bottom );
+		return UE::Slate::FDeprecateVector2D(GetBottomLeft2f());
+	}
+	FORCEINLINE FVector2f GetBottomLeft2f() const
+	{
+		return FVector2f(Left, Bottom);
 	}
 
 	/**
@@ -177,9 +206,13 @@ public:
 	 *
 	 * @return An offset rectangle.
 	 */
-	FORCEINLINE FSlateRect OffsetBy( const FVector2D& OffsetAmount ) const
+	FORCEINLINE FSlateRect OffsetBy( const FVector2f OffsetAmount ) const
 	{
-		return FSlateRect(GetTopLeft() + OffsetAmount, GetBottomRight() + OffsetAmount);
+		return FSlateRect(GetTopLeft2f() + OffsetAmount, GetBottomRight2f() + OffsetAmount);
+	}
+	FORCEINLINE FSlateRect OffsetBy( const FVector2d OffsetAmount ) const
+	{
+		return OffsetBy(UE::Slate::CastToVector2f(OffsetAmount));
 	}
 
 	/**
@@ -191,7 +224,7 @@ public:
 	 */
 	FORCEINLINE FSlateRect ScaleBy(float ScaleBy) const
 	{
-		const FVector2D Delta = GetSize() * 0.5f * ScaleBy;
+		const FVector2f Delta = GetSize() * 0.5f * ScaleBy;
 		return ExtendBy(FMargin(Delta));
 	}
 
@@ -262,9 +295,13 @@ public:
 	 * @param Point	The point to check
 	 * @return True if the point is inside the rectangle
 	 */
-	FORCEINLINE bool ContainsPoint( const FVector2D& Point ) const
+	FORCEINLINE bool ContainsPoint( const FVector2f Point ) const
 	{
 		return Point.X >= Left && Point.X <= Right && Point.Y >= Top && Point.Y <= Bottom;
+	}
+	FORCEINLINE bool ContainsPoint( const FVector2d Point ) const
+	{
+		return ContainsPoint(UE::Slate::CastToVector2f(Point));
 	}
 
 	bool operator==( const FSlateRect& Other ) const
@@ -348,8 +385,8 @@ public:
 template <typename TransformType>
 FSlateRect TransformRect(const TransformType& Transform, const FSlateRect& Rect)
 {
-	FVector2D TopLeftTransformed = TransformPoint(Transform, FVector2D(Rect.Left, Rect.Top));
-	FVector2D BottomRightTransformed = TransformPoint(Transform, FVector2D(Rect.Right, Rect.Bottom));
+	FVector2f TopLeftTransformed = TransformPoint(Transform, FVector2f(Rect.Left, Rect.Top));
+	FVector2f BottomRightTransformed = TransformPoint(Transform, FVector2f(Rect.Right, Rect.Bottom));
 
 	if (TopLeftTransformed.X > BottomRightTransformed.X)
 	{

@@ -7,11 +7,11 @@ FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& Po
 	const bool bAdjustmentNeeded = PopupRect.IntersectionWith(RectToFit) != PopupRect;
 	if (bAdjustmentNeeded)
 	{
-		const FVector2D PopupPosition = PopupRect.GetTopLeft();
-		const FVector2D& PopupSize = PopupRect.GetSize();
+		const FVector2f PopupPosition = PopupRect.GetTopLeft2f();
+		const FVector2f PopupSize = PopupRect.GetSize2f();
 
 		// In the direction we are opening, see if there is enough room. If there is not, flip the opening direction along the same axis.
-		FVector2D NewPosition = FVector2D::ZeroVector;
+		FVector2f NewPosition = FVector2f::ZeroVector;
 		if (Orientation == Orient_Horizontal)
 		{
 			const bool bFitsRight = InAnchor.Right + PopupSize.X < RectToFit.Right;
@@ -20,12 +20,12 @@ FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& Po
 			if (bFitsRight || !bFitsLeft)
 			{
 				// The menu fits to the right of the anchor or it does not fit to the left, display to the right
-				NewPosition = FVector2D(InAnchor.Right, InAnchor.Top);
+				NewPosition = FVector2f(InAnchor.Right, InAnchor.Top);
 			}
 			else
 			{
 				// The menu does not fit to the right of the anchor but it does fit to the left, display to the left
-				NewPosition = FVector2D(InAnchor.Left - PopupSize.X, InAnchor.Top);
+				NewPosition = FVector2f(InAnchor.Left - PopupSize.X, InAnchor.Top);
 			}
 		}
 		else
@@ -36,12 +36,12 @@ FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& Po
 			if (bFitsDown || !bFitsUp)
 			{
 				// The menu fits below the anchor or it does not fit above, display below
-				NewPosition = FVector2D(InAnchor.Left, InAnchor.Bottom);
+				NewPosition = FVector2f(InAnchor.Left, InAnchor.Bottom);
 			}
 			else
 			{
 				// The menu does not fit below the anchor but it does fit above, display above
-				NewPosition = FVector2D(InAnchor.Left, InAnchor.Top - PopupSize.Y);
+				NewPosition = FVector2f(InAnchor.Left, InAnchor.Top - PopupSize.Y);
 			}
 
 			if (!bFitsDown && !bFitsUp)
@@ -54,9 +54,9 @@ FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& Po
 		// This can happen along the opposite axis that we are opening with
 		// Assumes this window has a valid size
 		// Adjust any menus that my not fit on the screen where they are opened
-		FVector2D StartPos = NewPosition;
-		FVector2D EndPos = NewPosition + PopupSize;
-		FVector2D Adjust = FVector2D::ZeroVector;
+		FVector2f StartPos = NewPosition;
+		FVector2f EndPos = NewPosition + PopupSize;
+		FVector2f Adjust = FVector2f::ZeroVector;
 		if (StartPos.X < RectToFit.Left)
 		{
 			// Window is clipped by the left side of the work area
@@ -83,10 +83,10 @@ FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& Po
 
 		NewPosition += Adjust;
 
-		return NewPosition;
+		return FVector2D(NewPosition);
 	}
 	else
 	{
-		return PopupRect.GetTopLeft();
+		return FVector2D(PopupRect.GetTopLeft());
 	}
 }

@@ -221,7 +221,7 @@ void FSlateDrawElement::ApplyPositionOffset(FVector2d InOffset)
 
 void FSlateDrawElement::ApplyPositionOffset(FVector2f InOffset)
 {
-	SetPosition(GetPosition() + InOffset);
+	SetPosition(Position + InOffset);
 	RenderTransform = Concatenate(RenderTransform, InOffset);
 
 	// Recompute cached layout to render transform
