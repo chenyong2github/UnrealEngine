@@ -43,33 +43,12 @@
 
 #define LOCTEXT_NAMESPACE "ReferenceViewer"
 
-bool IsPackageNamePassingFilter(FName InPackageName, const TArray<FString>& InSearchWords)
+bool IsAssetIdentifierPassingSearchTextFilter(const FAssetIdentifier& InNode, const TArray<FString>& InSearchWords)
 {
-	// package name must match all words
+	FString NodeString = InNode.ToString();
 	for (const FString& Word : InSearchWords)
 	{
-		if (!InPackageName.ToString().Contains(Word))
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-bool IsReferenceNodePassingFilter(const UEdGraphNode_Reference& InNode, const TArray<FString>& InSearchWords)
-{
-	if (InSearchWords.Num() == 0)
-	{
-		return true;
-	}
-
-	TArray<FName> NodePackageNames;
-	InNode.GetAllPackageNames(NodePackageNames);
-
-	for (const FName& PackageName : NodePackageNames)
-	{
-		if (!IsPackageNamePassingFilter(PackageName, InSearchWords))
+		if (!NodeString.Contains(Word))
 		{
 			return false;
 		}
@@ -497,7 +476,7 @@ void SReferenceViewer::SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& N
 	{
 		Settings->SetShowFilteredPackagesOnlyEnabled(ReferenceViewerParams.bShowFilteredPackagesOnly.GetValue());
 	}
-	UpdateIsPassingFilterPackageCallback();
+	
 
 	bShowCompactMode = ReferenceViewerParams.bShowCompactMode;
 	if (ReferenceViewerParams.bCompactMode.IsSet())
@@ -511,6 +490,8 @@ void SReferenceViewer::SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& N
 	}
 
 	RebuildGraph();
+
+	UpdateIsPassingSearchFilterCallback();
 
 	// Zoom once this frame to make sure widgets are visible, then zoom again so size is correct
 	TriggerZoomToFit(0, 0);
@@ -987,7 +968,7 @@ bool SReferenceViewer::IsShowHardReferencesChecked() const
 void SReferenceViewer::OnShowFilteredPackagesOnlyChanged()
 {
 	Settings->SetShowFilteredPackagesOnlyEnabled(!Settings->IsShowFilteredPackagesOnly());
-	UpdateIsPassingFilterPackageCallback();
+	UpdateIsPassingSearchFilterCallback();
 }
 
 
@@ -996,11 +977,11 @@ bool SReferenceViewer::IsShowFilteredPackagesOnlyChecked() const
 	return Settings->IsShowFilteredPackagesOnly();
 }
 
-void SReferenceViewer::UpdateIsPassingFilterPackageCallback()
+void SReferenceViewer::UpdateIsPassingSearchFilterCallback()
 {
 	if (GraphObj)
 	{
-		TOptional<UEdGraph_ReferenceViewer::FIsPackageNamePassingFilterCallback> IsAssetPassingFilterCallback;
+		TOptional<UEdGraph_ReferenceViewer::FIsAssetIdentifierPassingSearchFilterCallback> IsAssetIdentifierPassingSearchFilterCallback;
 		FString SearchString = SearchBox->GetText().ToString();
 		TArray<FString> SearchWords;
 		SearchString.ParseIntoArrayWS(SearchWords);
@@ -1009,13 +990,13 @@ void SReferenceViewer::UpdateIsPassingFilterPackageCallback()
 			{
 				if (SearchWords.Num() > 0)
 				{
-					IsAssetPassingFilterCallback = [=](FName InName) { return IsPackageNamePassingFilter(InName, SearchWords); };
+					IsAssetIdentifierPassingSearchFilterCallback = [=](const FAssetIdentifier& InAssetIdentifier) { return IsAssetIdentifierPassingSearchTextFilter(InAssetIdentifier, SearchWords); };
 				}
 			}
 
-			GraphObj->SetIsPackageNamePassingFilterCallback(IsAssetPassingFilterCallback);
+			GraphObj->SetIsAssetIdentifierPassingSearchFilterCallback(IsAssetIdentifierPassingSearchFilterCallback);
 		}
-		RebuildGraph();
+		GraphObj->RefilterGraph();
 	}
 }
 
@@ -1865,7 +1846,7 @@ void SReferenceViewer::HandleOnSearchTextChanged(const FText& SearchText)
 
 	GraphEditorPtr->ClearSelectionSet();
 
-	UpdateIsPassingFilterPackageCallback();
+	UpdateIsPassingSearchFilterCallback();
 
 	if (SearchText.IsEmpty())
 	{
@@ -1881,7 +1862,7 @@ void SReferenceViewer::HandleOnSearchTextChanged(const FText& SearchText)
 
 	for (UEdGraphNode_Reference* Node : AllNodes)
 	{
-		if (IsReferenceNodePassingFilter(*Node, SearchWords))
+		if (IsAssetIdentifierPassingSearchTextFilter(Node->GetIdentifier(), SearchWords))
 		{
 			GraphEditorPtr->SetNodeSelection(Node, true);
 		}
