@@ -1044,7 +1044,7 @@ public:
 		UsdPluginsPath /= FPaths::Combine( TEXT( "Linux" ), TEXT( "plugins" ) );
 #elif PLATFORM_MAC
 		UsdPluginsPath /= FPaths::Combine( TEXT( "Mac" ), TEXT( "plugins" ) );
-#endif
+#endif // PLATFORM_WINDOWS
 
 #ifdef USE_LIBRARIES_FROM_PLUGIN_FOLDER
 		// e.g. "../../../Engine/Plugins/Importers/USDImporter/Source/ThirdParty"
@@ -1060,7 +1060,15 @@ public:
 
 #else
 		FString TargetDllFolder = FPlatformProcess::BaseDir();
-#endif // USD_DLL_LOCATION_OVERRIDE
+#endif // USE_LIBRARIES_FROM_PLUGIN_FOLDER
+
+		// Path to the MaterialX standard data libraries.
+		FString MaterialXStdDataLibsPath = FPaths::Combine( FPaths::EngineDir(), TEXT( "Binaries" ), TEXT("ThirdParty"), TEXT("MaterialX"), TEXT("libraries"));
+		MaterialXStdDataLibsPath = FPaths::ConvertRelativePathToFull( MaterialXStdDataLibsPath );
+		if (FPaths::DirectoryExists(MaterialXStdDataLibsPath))
+		{
+			FPlatformMisc::SetEnvironmentVar(TEXT("PXR_MTLX_STDLIB_SEARCH_PATHS"), *MaterialXStdDataLibsPath);
+		}
 
 		// Have to do this in USDClasses as we need the Json module, which is RTTI == false
 		IUsdClassesModule::UpdatePlugInfoFiles(UsdPluginsPath, TargetDllFolder);

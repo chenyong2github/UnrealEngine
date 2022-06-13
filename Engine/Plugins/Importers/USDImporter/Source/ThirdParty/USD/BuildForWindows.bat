@@ -11,6 +11,10 @@ rem     git clone --branch v22.05a https://github.com/PixarAnimationStudios/USD.
 rem Note that a small patch to the USD CMake build is currently necessary for
 rem the usdAbc plugin to require and link against Imath instead of OpenEXR:
 rem     git apply USD_v2205a_usdAbc_Imath.patch
+rem We also apply a patch for the usdMtlx plugin to ensure that we do not
+rem bake a hard-coded path to the MaterialX standard data libraries into the
+rem built plugin:
+rem     git apply USD_v2205a_usdMtlx_undef_stdlib_dir.patch
 rem This patch ensures that SdfFileFormat objects are returned correctly from
 rem the registry, particularly on Linux when using clang/libc++ which
 rem implements dynamic_cast differently from libstdc++.
@@ -40,6 +44,8 @@ set IMATH_CMAKE_LOCATION=%IMATH_LIB_LOCATION%\lib\cmake\Imath
 set ALEMBIC_LOCATION=%UE_THIRD_PARTY_LOCATION%\Alembic\Deploy\alembic-1.8.2
 set ALEMBIC_INCLUDE_LOCATION=%ALEMBIC_LOCATION%\include
 set ALEMBIC_LIB_LOCATION=%ALEMBIC_LOCATION%\%COMPILER_VERSION_NAME%\%ARCH_NAME%
+set MATERIALX_LOCATION=%UE_THIRD_PARTY_LOCATION%\MaterialX\Deploy\MaterialX-1.38.1
+set MATERIALX_LIB_LOCATION=%MATERIALX_LOCATION%\%COMPILER_VERSION_NAME%\%ARCH_NAME%\lib
 
 set PYTHON_BINARIES_LOCATION=%UE_ENGINE_LOCATION%\Binaries\ThirdParty\Python3\Win64
 set PYTHON_EXECUTABLE_LOCATION=%PYTHON_BINARIES_LOCATION%\python.exe
@@ -80,6 +86,9 @@ cmake -G "Visual Studio 16 2019" %USD_SOURCE_LOCATION%^
     -DPXR_ENABLE_HDF5_SUPPORT=OFF^
     -DALEMBIC_INCLUDE_DIR="%ALEMBIC_INCLUDE_LOCATION%"^
     -DALEMBIC_DIR="%ALEMBIC_LIB_LOCATION%"^
+    -DPXR_ENABLE_MATERIALX_SUPPORT=ON^
+    -DMATERIALX_ROOT="%MATERIALX_LOCATION%"^
+    -DMATERIALX_LIB_DIRS="%MATERIALX_LIB_LOCATION%"^
     -DBUILD_SHARED_LIBS=ON^
     -DPXR_BUILD_TESTS=OFF^
     -DPXR_BUILD_EXAMPLES=OFF^
