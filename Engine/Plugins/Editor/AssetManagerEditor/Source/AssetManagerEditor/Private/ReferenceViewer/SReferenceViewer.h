@@ -137,7 +137,7 @@ private:
 
 	void OnShowFilteredPackagesOnlyChanged();
 	bool IsShowFilteredPackagesOnlyChecked() const;
-	void UpdateIsPassingSearchFilterCallback();
+	void UpdateIsPassingFilterPackageCallback();
 
 	void OnCompactModeChanged();
 	bool IsCompactModeChecked() const;

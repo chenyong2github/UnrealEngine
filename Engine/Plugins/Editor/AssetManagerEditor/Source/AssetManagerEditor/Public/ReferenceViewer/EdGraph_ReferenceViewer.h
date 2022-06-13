@@ -89,8 +89,8 @@ public:
 	 * the presentation or filtering */
 	class UEdGraphNode_Reference* RefilterGraph();
 
-	using FIsAssetIdentifierPassingSearchFilterCallback = TFunction<bool(const FAssetIdentifier&)>;
-	void SetIsAssetIdentifierPassingSearchFilterCallback(const TOptional<FIsAssetIdentifierPassingSearchFilterCallback>& InIsAssetIdentifierPassingSearchFilterCallback) { IsAssetIdentifierPassingSearchFilterCallback = InIsAssetIdentifierPassingSearchFilterCallback; }
+	using FIsPackageNamePassingFilterCallback = TFunction<bool(FName)>;
+	void SetIsPackageNamePassingFilterCallback(const TOptional<FIsPackageNamePassingFilterCallback>& InIsPackageNamePassingFilterCallback) { IsPackageNamePassingFilterCallback = InIsPackageNamePassingFilterCallback; }
 
 	FName GetCurrentCollectionFilter() const;
 	void SetCurrentCollectionFilter(FName NewFilter);
@@ -150,7 +150,6 @@ private:
 
 	void GetSortedLinks(const TArray<FAssetIdentifier>& Identifiers, bool bReferencers, const FAssetManagerDependencyQuery& Query, TMap<FAssetIdentifier, EDependencyPinCategory>& OutLinks) const;
 	bool IsPackageIdentifierPassingFilter(const FAssetIdentifier& InAssetIdentifier) const;
-	bool IsAssetPassingSearchTextFilter(const FAssetIdentifier& InAssetIdentifier) const;
 
 private:
 	/** Pool for maintaining and rendering thumbnails */
@@ -180,7 +179,7 @@ private:
 	TMap<FAssetIdentifier, FReferenceNodeInfo> ReferencerNodeInfos;
 	TMap<FAssetIdentifier, FReferenceNodeInfo> DependencyNodeInfos;
 
-	TOptional<FIsAssetIdentifierPassingSearchFilterCallback> IsAssetIdentifierPassingSearchFilterCallback;
+	TOptional<FIsPackageNamePassingFilterCallback> IsPackageNamePassingFilterCallback;
 
 	/** List of packages the current collection filter allows */
 	TSet<FName> CurrentCollectionPackages;
