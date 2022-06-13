@@ -17,6 +17,7 @@ AWaterBodyOcean::AWaterBodyOcean(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITORONLY_DATA
 	CollisionExtents_DEPRECATED = FVector(50000.f, 50000.f, 10000.f);
+	bIsSpatiallyLoaded = false;
 #endif // WITH_EDITORONLY_DATA
 }
 

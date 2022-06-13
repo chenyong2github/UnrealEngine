@@ -58,6 +58,10 @@ AWaterZone::AWaterZone(const FObjectInitializer& Initializer)
 
 	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterZoneActorSprite"));
 #endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+#endif
 }
 
 void AWaterZone::SetZoneExtent(FVector2D NewExtent)
