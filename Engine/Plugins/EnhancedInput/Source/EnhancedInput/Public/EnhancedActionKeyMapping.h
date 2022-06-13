@@ -67,32 +67,9 @@ struct FEnhancedActionKeyMapping
 {
 	GENERATED_BODY()
 
-	/** Action to be affected by the key  */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<const UInputAction> Action = nullptr;
-
-	/** Key that affect the action. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	FKey Key;
-
-	//ControllerId ControllerId;	// TODO: Controller id/player id (hybrid?) allowing binding multiple pads to a series of actions.
-
-	/** If true than this ActionKeyMapping will be exposed as a player mappable key */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
-	uint8 bIsPlayerMappable : 1;
-
 	/** Options for making this a player mappable keymapping */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable", meta = (editCondition = "bIsPlayerMappable"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable", meta = (editCondition = "bIsPlayerMappable", DisplayAfter = "bIsPlayerMappable"))
 	FPlayerMappableKeyOptions PlayerMappableOptions;
-	
-	/**
-	 * If true, then this Key Mapping should be ignored. This is set to true if the key is down
-	 * during a rebuild of it's owning PlayerInput ControlMappings.
-	 * 
-	 * @see IEnhancedInputSubsystemInterface::RebuildControlMappings
-	 */
-	UPROPERTY(Transient)
-	uint8 bShouldBeIgnored : 1;
 	
 	/**
 	* Trigger qualifiers. If any trigger qualifiers exist the mapping will not trigger unless:
@@ -108,7 +85,28 @@ struct FEnhancedActionKeyMapping
 	*/
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Input")
 	TArray<TObjectPtr<UInputModifier>> Modifiers;
+	
+	/** Action to be affected by the key  */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<const UInputAction> Action = nullptr;
 
+	/** Key that affect the action. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	FKey Key;
+
+	/** If true than this ActionKeyMapping will be exposed as a player mappable key */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
+	uint8 bIsPlayerMappable : 1;
+
+	/**
+	 * If true, then this Key Mapping should be ignored. This is set to true if the key is down
+	 * during a rebuild of it's owning PlayerInput ControlMappings.
+	 * 
+	 * @see IEnhancedInputSubsystemInterface::RebuildControlMappings
+	 */
+	UPROPERTY(Transient)
+	uint8 bShouldBeIgnored : 1;
+	
 	bool operator==(const FEnhancedActionKeyMapping& Other) const
 	{
 		return (Action == Other.Action &&
@@ -118,10 +116,10 @@ struct FEnhancedActionKeyMapping
 	}
 
 	FEnhancedActionKeyMapping(const UInputAction* InAction = nullptr, const FKey InKey = EKeys::Invalid)
-		: Action(InAction)
+		: PlayerMappableOptions(InAction)
+		, Action(InAction)
 		, Key(InKey)
 		, bIsPlayerMappable(false)
-		, PlayerMappableOptions(InAction)
 		, bShouldBeIgnored(false)
 	{}
 

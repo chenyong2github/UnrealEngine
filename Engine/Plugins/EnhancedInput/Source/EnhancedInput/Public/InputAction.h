@@ -32,6 +32,18 @@ public:
 	ETriggerEventsSupported GetSupportedTriggerEvents() const;
 #endif
 
+	/**
+	* Trigger qualifiers. If any trigger qualifiers exist the action will not trigger unless:
+	* At least one Explicit trigger in this list is be met.
+	* All Implicit triggers in this list are met.
+	*/
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action)
+	TArray<TObjectPtr<UInputTrigger>> Triggers;
+	
+	// A localized descriptor of this input action
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Description")
+	FText ActionDescription = FText::GetEmpty();
+
 	// Should this action swallow any inputs bound to it or allow them to pass through to affect lower priority bound actions?
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action)
 	bool bConsumeInput = true;
@@ -47,25 +59,13 @@ public:
 	// The type that this action returns from a GetActionValue query or action event
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action)
 	EInputActionValueType ValueType = EInputActionValueType::Boolean;
-
-	// A localized descriptor of this input action
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Description")
-	FText ActionDescription = FText::GetEmpty();
 	
-	/**
-	* Trigger qualifiers. If any trigger qualifiers exist the action will not trigger unless:
-	* At least one Explicit trigger in this list is be met.
-	* All Implicit triggers in this list are met.
-	*/
-	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action)
-	TArray<TObjectPtr<UInputTrigger>> Triggers;
-
 	/**
 	* Modifiers are applied to the final action value.
 	* These are applied sequentially in array order.
 	* They are applied on top of any FEnhancedActionKeyMapping modifiers that drove the initial input
 	*/
-	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action)
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action, meta=(DisplayAfter="Triggers"))
 	TArray<TObjectPtr<UInputModifier>> Modifiers;
 };
 
@@ -126,21 +126,23 @@ private:
 	// Internal trigger states
 	ETriggerState LastTriggerState = ETriggerState::None;
 	FTriggerStateTracker TriggerStateTracker;
-	ETriggerEventInternal TriggerEventInternal = ETriggerEventInternal(0);	// TODO: Expose access to ETriggerEventInternal?
+	ETriggerEventInternal TriggerEventInternal = ETriggerEventInternal(0);
 
 protected:
-	// TODO: Just hold a duplicate of the UInputAction in here?
-	// TODO: Restrict blueprint access to triggers and modifiers?
+
+	// Trigger state
+	UPROPERTY(BlueprintReadOnly, Transient, Category = Action)
+	ETriggerEvent TriggerEvent = ETriggerEvent::None;
+
+	// The last time that this evaluated to a Triggered State
+	UPROPERTY(BlueprintReadOnly, Transient, Category = Action)
+	float LastTriggeredWorldTime = 0.0f;
+
 	UPROPERTY(Instanced, BlueprintReadOnly, Category = Config)
 	TArray<TObjectPtr<UInputTrigger>> Triggers;
 
 	UPROPERTY(Instanced, BlueprintReadOnly, Category = Config)
 	TArray<TObjectPtr<UInputModifier>> Modifiers;
-	
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Moved to Modifiers."))
-	TArray<TObjectPtr<UInputModifier>> PerInputModifiers_DEPRECATED;
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Moved to Modifiers."))
-	TArray<TObjectPtr<UInputModifier>> FinalValueModifiers_DEPRECATED;
 
 	// Combined value of all inputs mapped to this action
 	FInputActionValue Value;
@@ -152,14 +154,6 @@ protected:
 	// Triggered time (How long this action has been in event Triggered only)
 	UPROPERTY(BlueprintReadOnly, Category = Action)
 	float ElapsedTriggeredTime = 0.f;
-
-	// The last time that this evaluated to a Triggered State
-	UPROPERTY(BlueprintReadOnly, Category = Action)
-	float LastTriggeredWorldTime = 0.0f;
-
-	// Trigger state
-	UPROPERTY(BlueprintReadOnly, Category = Action)
-	ETriggerEvent TriggerEvent = ETriggerEvent::None;
 
 public:
 	FInputActionInstance() = default;
@@ -182,9 +176,6 @@ public:
 
 	const TArray<UInputTrigger*>& GetTriggers() const { return Triggers; }
 	const TArray<UInputModifier*>& GetModifiers() const { return Modifiers; }
-
-	UE_DEPRECATED(4.26, "GetModifiers(EModifierExecutionPhase) is deprecated. Use GetModifiers()")
-	const TArray<UInputModifier*>& GetModifiers(EModifierExecutionPhase ForPhase) const { return Modifiers; }
 
 	// The source action that this instance is created from
 	const UInputAction* GetSourceAction() const { return SourceAction; }

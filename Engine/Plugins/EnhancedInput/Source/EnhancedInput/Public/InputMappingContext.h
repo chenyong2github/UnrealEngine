@@ -23,16 +23,16 @@ class ENHANCEDINPUT_API UInputMappingContext : public UDataAsset
 {
 	GENERATED_BODY()
 
+protected:
+	// List of key to action mappings.
+	UPROPERTY(config, BlueprintReadOnly, EditAnywhere, Category = "Mappings")
+	TArray<FEnhancedActionKeyMapping> Mappings;
+
 public:
 
 	// Localized context descriptor
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Description", DisplayName = "Description")
 	FText ContextDescription;
-
-protected:
-	// List of key to action mappings.
-	UPROPERTY(config, BlueprintReadOnly, EditAnywhere, Category = "Mappings")
-	TArray<FEnhancedActionKeyMapping> Mappings;
 
 	friend class FInputContextDetails;
 
