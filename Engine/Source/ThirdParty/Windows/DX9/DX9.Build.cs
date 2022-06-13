@@ -20,7 +20,6 @@ public class DX9 : ModuleRules
 					LibDir + "d3d9.lib",
 					LibDir + "dxguid.lib",
 					LibDir + "dinput8.lib",
-					LibDir + "X3DAudio.lib",
 					LibDir + "xapobase.lib",
 					LibDir + "XAPOFX.lib"
 				}

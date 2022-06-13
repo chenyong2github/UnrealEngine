@@ -22,7 +22,6 @@ public class DX11 : ModuleRules
 					LibDir + "d3d11.lib",
 					LibDir + "dxguid.lib",
 					LibDir + "dinput8.lib",
-					LibDir + "X3DAudio.lib",
 					LibDir + "xapobase.lib",
 					LibDir + "XAPOFX.lib"
 					// do not add d3dcompiler to the list - the engine must explicitly load 
