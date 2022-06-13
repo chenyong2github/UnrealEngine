@@ -592,6 +592,7 @@ TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUnifo
 	const FForwardBasePassTextures& ForwardBasePassTextures,
 	const FDBufferTextures& DBufferTextures,
 	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures,
+	const FCustomDepthTextures* CustomDepth,
 	bool bLumenGIEnabled)
 {
 	FOpaqueBasePassUniformParameters& BasePassParameters = *GraphBuilder.AllocParameters<FOpaqueBasePassUniformParameters>();
@@ -629,31 +630,36 @@ TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUnifo
 
 	// Single Layer Water
 	const bool bShouldUseBilinearSamplerForDepth = SceneWithoutWaterTextures && ShouldUseBilinearSamplerForDepthWithoutSingleLayerWater(SceneWithoutWaterTextures->DepthTexture->Desc.Format);
-	BasePassParameters.SceneWithoutSingleLayerWaterMinMaxUV = FVector4f(0.0f, 0.0f, 1.0f, 1.0f);
+	const bool bDepthTextureProduced = CustomDepth && HasBeenProduced(CustomDepth->Depth);
 	BasePassParameters.SceneColorWithoutSingleLayerWaterTexture = SystemTextures.Black;
-	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = SystemTextures.Black;
 	BasePassParameters.SceneColorWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = SystemTextures.Black;
 	BasePassParameters.SceneDepthWithoutSingleLayerWaterSampler = bShouldUseBilinearSamplerForDepth ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
+	BasePassParameters.CustomDepthTexture = bDepthTextureProduced ? CustomDepth->Depth : SystemTextures.DepthDummy;
+	BasePassParameters.CustomStencilTexture = bDepthTextureProduced ? CustomDepth->Stencil : SystemTextures.StencilDummySRV;
+	BasePassParameters.CustomDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	BasePassParameters.SceneWithoutSingleLayerWaterMinMaxUV = FVector4f(0.0f, 0.0f, 1.0f, 1.0f);
+	SetupDistortionParams(BasePassParameters.DistortionParams, View);
+	BasePassParameters.SceneWithoutSingleLayerWaterTextureSize = FVector2f(0.0f, 0.0f);
+	BasePassParameters.SceneWithoutSingleLayerWaterInvTextureSize = FVector2f(0.0f, 0.0f);
 
 	if (SceneWithoutWaterTextures)
 	{
 		FIntVector DepthTextureSize = SceneWithoutWaterTextures->DepthTexture->Desc.GetSize();
-		
+
+		BasePassParameters.SceneColorWithoutSingleLayerWaterTexture = SceneWithoutWaterTextures->ColorTexture;
+		BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = SceneWithoutWaterTextures->DepthTexture;
 		BasePassParameters.SceneWithoutSingleLayerWaterMinMaxUV = SceneWithoutWaterTextures->Views[ViewIndex].MinMaxUV;
 		BasePassParameters.SceneWithoutSingleLayerWaterTextureSize = FVector2f(DepthTextureSize.X, DepthTextureSize.Y);
 		BasePassParameters.SceneWithoutSingleLayerWaterInvTextureSize = FVector2f(1.0f / DepthTextureSize.X, 1.0f / DepthTextureSize.Y);
-		BasePassParameters.SceneColorWithoutSingleLayerWaterTexture = SceneWithoutWaterTextures->ColorTexture;
-		BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = SceneWithoutWaterTextures->DepthTexture;
 	}
-
-	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRHI();
-	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	SetupDistortionParams(BasePassParameters.DistortionParams, View);
 
 	// Strata
 	Strata::BindStrataBasePassUniformParameters(GraphBuilder, View, BasePassParameters.Strata);
 
 	// Misc
+	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRHI();
+	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	BasePassParameters.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 
 	return GraphBuilder.CreateUniformBuffer(&BasePassParameters);
@@ -1274,7 +1280,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				FOpaqueBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
 				PassParameters->View = View.GetShaderParameters();
 				PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
-				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr, bLumenGIEnabled);
+				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr, nullptr, bLumenGIEnabled);
 				PassParameters->RenderTargets = BasePassRenderTargets;
 
 				const bool bShouldRenderView = View.ShouldRenderView();
@@ -1340,7 +1346,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				FOpaqueBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
 				PassParameters->View = View.GetShaderParameters();
 				PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
-				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr, bLumenGIEnabled);
+				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr, nullptr, bLumenGIEnabled);
 				PassParameters->RenderTargets = BasePassRenderTargets;
 
 				const bool bShouldRenderView = View.ShouldRenderView();

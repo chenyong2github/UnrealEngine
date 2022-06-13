@@ -88,14 +88,17 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FOpaqueBasePassUniformParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorWithoutSingleLayerWaterSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthWithoutSingleLayerWaterTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthWithoutSingleLayerWaterSampler)
-	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGFTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CustomDepthTexture)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint2>, CustomStencilTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, CustomDepthSampler)
 	SHADER_PARAMETER(FVector4f, SceneWithoutSingleLayerWaterMinMaxUV)
 	SHADER_PARAMETER(FVector4f, DistortionParams)
 	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterTextureSize)
 	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterInvTextureSize)
-	SHADER_PARAMETER(int32, Is24BitUnormDepthStencil)
 	// Misc
+	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGFTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
+	SHADER_PARAMETER(int32, Is24BitUnormDepthStencil)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -149,6 +152,7 @@ extern TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePa
 	const FForwardBasePassTextures& ForwardBasePassTextures = {},
 	const FDBufferTextures& DBufferTextures = {},
 	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures = nullptr,
+	const FCustomDepthTextures* CustomDepth = nullptr,
 	bool bLumenGIEnabled = false);
 
 extern TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(

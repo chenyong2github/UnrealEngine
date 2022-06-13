@@ -2158,6 +2158,18 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 		return 0.0f;
 	}
 #else
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	if (SceneTextureId == PPI_CustomDepth)
+	{
+		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.CustomDepthTexture, MobileSceneTextures.CustomDepthTextureSampler, UV).r);
+		return MaterialFloat4(Depth.rrr, 0.f);
+	}
+	else if (SceneTextureId == PPI_CustomStencil)
+	{
+		MaterialFloat Stencil = MobileSceneTextures.CustomStencilTexture.Load(int3(Parameters.SvPosition.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
+		return MaterialFloat4(Stencil, Stencil, Stencil, 0.f);
+	}
+#else // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	if (SceneTextureId == PPI_SceneDepth)
 	{
 		MaterialFloat Depth = CalcSceneDepth(UV);
@@ -2192,7 +2204,8 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 		MaterialFloat Stencil = MobileSceneTextures.CustomStencilTexture.Load(int3(Parameters.SvPosition.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
 		return MaterialFloat4(Stencil, Stencil, Stencil, 0.f);
 	}
-#endif// SCENE_TEXTURES_DISABLED
+#endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#endif // SCENE_TEXTURES_DISABLED
 
 	return MaterialFloat4(0.0f, 0.0f, 0.0f, 0.0f);
 }
@@ -2243,6 +2256,20 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 	}
 
 #else // !SCENE_TEXTURES_DISABLED
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	if (SceneTextureIndex == PPI_CustomDepth)
+	{
+		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(OpaqueBasePass.CustomDepthTexture, OpaqueBasePass.CustomDepthSampler, UV).r);
+		return MaterialFloat4(Depth.rrr, 0.f);
+	}
+	else if (SceneTextureIndex == PPI_CustomStencil)
+	{
+		MaterialFloat Stencil = OpaqueBasePass.CustomStencilTexture.Load(int3(UV * View.BufferSizeAndInvSize.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
+		return MaterialFloat4(Stencil, Stencil, Stencil, 0.f);
+	}
+
+	return float4(0, 0, 0, 0);
+#else // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #if STRATA_ENABLED
 
 	const uint2 PixelPos = uint2(UV * View.BufferSizeAndInvSize.xy);
@@ -2378,6 +2405,7 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 			return float4(0, 0, 0, 0);
 	}
 #endif // STRATA_ENABLED
+#endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #endif // SCENE_TEXTURES_DISABLED
 }
 

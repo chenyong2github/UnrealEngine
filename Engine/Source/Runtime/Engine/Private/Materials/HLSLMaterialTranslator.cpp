@@ -1157,10 +1157,10 @@ bool FHLSLMaterialTranslator::Translate()
 		{
 			if (Domain != MD_DeferredDecal && Domain != MD_PostProcess)
 			{
-				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
+				if (!MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater) && (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked))
 				{
 					// In opaque pass, none of the textures are available
-					Errorf(TEXT("SceneTexture expressions cannot be used in opaque materials"));
+					Errorf(TEXT("SceneTexture expressions cannot be used in opaque materials except if used with the Single Layer Water shading model."));
 				}
 				else if (bNeedsSceneTexturePostProcessInputs)
 				{
@@ -6417,6 +6417,13 @@ int32 FHLSLMaterialTranslator::SceneDepth(int32 Offset, int32 ViewportUV, bool b
 int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSceneTextureId, bool bFiltered)
 {
 	ESceneTextureId SceneTextureId = (ESceneTextureId)InSceneTextureId;
+
+	// Guard against using unsupported textures with SLW
+	const bool bHasSingleLayerWaterSM = GetMaterialShadingModels().HasShadingModel(MSM_SingleLayerWater);
+	if (bHasSingleLayerWaterSM && SceneTextureId != PPI_CustomDepth && SceneTextureId != PPI_CustomStencil)
+	{
+		return Error(TEXT("Only custom depth and custom stencil can be sampled with SceneTexture when used with the Single Layer Water shading model."));
+	}
 
 	const bool bSupportedOnMobile = SceneTextureId == PPI_PostProcessInput0 ||
 									SceneTextureId == PPI_CustomDepth ||
