@@ -604,6 +604,7 @@ public:
 	virtual int32 StrataThinFilmParameterBlending(int32 A, int32 Thickness, int32 IOR, int32 BSDFNormalCodeChunk, FStrataOperator* PromoteToOperator) = 0;
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) = 0;
 	virtual int32 StrataMetalnessToDiffuseAlbedoF0(int32 BaseColor, int32 Specular, int32 Metallic, int32 OutputIndex) = 0;
+	virtual int32 StrataHazinessToSecondaryRoughness(int32 BaseRoughness, int32 Haziness, int32 OutputIndex) = 0;
 	
 	/**
 	 * Register an operator of the tree representation the Strata material and its topology.
@@ -1247,6 +1248,11 @@ public:
 	virtual int32 StrataMetalnessToDiffuseAlbedoF0(int32 BaseColor, int32 Specular, int32 Metallic, int32 OutputIndex) override
 	{
 		return Compiler->StrataMetalnessToDiffuseAlbedoF0(BaseColor, Specular, Metallic, OutputIndex);
+	}
+
+	virtual int32 StrataHazinessToSecondaryRoughness(int32 BaseRoughness, int32 Haziness, int32 OutputIndex) override
+	{
+		return Compiler->StrataHazinessToSecondaryRoughness(BaseRoughness, Haziness, OutputIndex);
 	}
 
 	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending = false) override

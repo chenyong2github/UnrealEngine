@@ -10769,6 +10769,30 @@ int32 FHLSLMaterialTranslator::StrataMetalnessToDiffuseAlbedoF0(int32 BaseColor,
 	return INDEX_NONE;
 }
 
+int32 FHLSLMaterialTranslator::StrataHazinessToSecondaryRoughness(int32 BaseRoughness, int32 Haziness, int32 OutputIndex)
+{
+	if (OutputIndex == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	switch (OutputIndex)
+	{
+	case 0:
+		return AddCodeChunk(MCT_Float1,
+			TEXT("StrataComputeHazeRoughness(saturate(%s))"),
+			*GetParameterCode(BaseRoughness));
+		break;
+	case 1:
+		return AddCodeChunk(MCT_Float1,
+			TEXT("StrataComputeHazeWeight(saturate(%s), saturate(%s))"),
+			*GetParameterCode(BaseRoughness),
+			*GetParameterCode(Haziness));
+		break;
+	}
+	return INDEX_NONE;
+}
+
 int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)
 {
 	if (UV == INDEX_NONE)

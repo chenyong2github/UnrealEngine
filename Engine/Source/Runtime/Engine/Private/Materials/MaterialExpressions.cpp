@@ -23998,6 +23998,108 @@ void UMaterialExpressionStrataMetalnessToDiffuseAlbedoF0::GetExpressionToolTip(T
 #endif // WITH_EDITOR
 
 
+
+UMaterialExpressionStrataHazinessToSecondaryRoughness::UMaterialExpressionStrataHazinessToSecondaryRoughness(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Helpers", "Strata Helpers")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Second Roughness")));
+	Outputs.Add(FExpressionOutput(TEXT("Second Roughness Weight")));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataHazinessToSecondaryRoughness::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->StrataHazinessToSecondaryRoughness(
+		BaseRoughness.GetTracedInput().Expression ? BaseRoughness.Compile(Compiler) : Compiler->Constant(0.1f),
+		Haziness.GetTracedInput().Expression ? Haziness.Compile(Compiler) : Compiler->Constant(0.5f),
+		OutputIndex);
+}
+
+void UMaterialExpressionStrataHazinessToSecondaryRoughness::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Haziness-To-Secondary-Roughness"));
+}
+
+uint32 UMaterialExpressionStrataHazinessToSecondaryRoughness::GetOutputType(int32 OutputIndex)
+{
+	switch (OutputIndex)
+	{
+	case 0:
+		return MCT_Float1; // Second Roughness
+		break;
+	case 1:
+		return MCT_Float1; // Second Roughness Weight
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+uint32 UMaterialExpressionStrataHazinessToSecondaryRoughness::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float1; // BaseRoughness
+		break;
+	case 1:
+		return MCT_Float1; // Haziness
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+void UMaterialExpressionStrataHazinessToSecondaryRoughness::GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip)
+{
+	if (InputIndex != INDEX_NONE)
+	{
+		switch (InputIndex)
+		{
+		case 0:
+			ConvertToMultilineToolTip(TEXT("The base roughness of the surface. It represented the smoothest part of the reflection."), 80, OutToolTip);
+			break;
+		case 1:
+			ConvertToMultilineToolTip(TEXT("Haziness represent the amount of irregularity of the surface. A high value will lead to a second rough specular lobe causing the surface too look `milky`."), 80, OutToolTip);
+			break;
+		}
+	}
+	else if (OutputIndex != INDEX_NONE)
+	{
+		switch (OutputIndex)
+		{
+		case 0:
+			ConvertToMultilineToolTip(TEXT("The roughness of the second lobe."), 80, OutToolTip);
+			break;
+		case 1:
+			ConvertToMultilineToolTip(TEXT("The weight of the secondary specular lobe, while the primary specular lobe will have a weight of (1 - SecondRoughnessWeight)."), 80, OutToolTip);
+			break;
+		}
+	}
+}
+
+void UMaterialExpressionStrataHazinessToSecondaryRoughness::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Compute a second specular lobe roughness from a base surface roughness and haziness. This parameterisation ensure that the haziness makes physically and is perceptually easy to author."), 80, OutToolTip);
+
+}
+#endif // WITH_EDITOR
+
+
 UMaterialExpressionExecBegin::UMaterialExpressionExecBegin(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

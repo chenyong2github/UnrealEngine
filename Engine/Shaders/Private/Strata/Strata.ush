@@ -872,56 +872,55 @@ bool StrataHasGreyScaleWeight(in float3 Weight)
 	return Weight.x == Weight.y && Weight.y == Weight.z;
 }
 
-// STRATA_TODO: move this code to be a Haziness node. So keeping this code here for now.
-////////void StrataComputeHazeRoughnessAndWeight(
-////////	float Roughness0,
-////////	float Haziness,
-////////	inout float Roughness1,
-////////	inout float MixLobe)
-////////{	
-////////	// Fade out Haziness as the roughness reaches 0.5f, as otherwise it create
-////////	//       27 |\
-////////	// Extent   | \
-////////	//          |  \
-////////	//        3 |    ----
-////////	//          0  0.25  1
-////////	//           Rougness
-////////
-////////	// Lerp factor for adapting haziness parameters
-////////	const float S2 = saturate(2 * Roughness0);
-////////	const float S4 = saturate(4 * Roughness0);
-////////
-////////	// For low roughness, the haze extent is larger, and the core highlight is lower. 
-////////	// This allows to emphase the haze effect at low roughness, and fade out haze as roughness increase.
-////////	const float HazeExtent = lerp(27.0f, 3.0f, S4);
-////////	const float HazeCore   = lerp(0.01f, 0.5f, S2);
-////////
-////////	// Reference "A Composite BRDF Model for Hazy Gloss"
-////////	 
-////////	// Compute wide roughness
-////////	float alpha_n = Square(Roughness0); 
-////////	float lambda_h = HazeExtent;
-////////	const float alpha_w = alpha_n * (1 + lambda_h); // Eq.8
-////////	Roughness1 = sqrtFast(alpha_w);
-////////
-////////	// Compute mix weights
-////////	const float beta_h = Haziness;
-////////	const float r_c = HazeCore;
-////////	const float w = alpha_w;
-////////
-////////	const float p = 1.0 / Square(1 + lambda_h); // Table 2, GGX
-////////	const float b = 2 * (r_c * (1 - w) + w * p);
-////////	const float D = Square(b) - 4 * (b - 1) * r_c;
-////////	const float u = (b - sqrtFast(D)) / (2 * b - 2); // Eq. 12, 13, 14
-////////	const float u2 = u * u;
-////////	const float w2 = 2 * w;
-////////	const float k_h = ((u - u2) * w2 * beta_h) / (Square(1 - u) + (u - u2) * w2 + u2); // Eq. 15
-////////	const float r = r_c + (1 - p) * k_h; // Eq. 5
-////////	MixLobe = k_h / r; // Eq. 4
-////////}
-////////
-////////float StrataComputeHazeRoughness(float Roughness0) { float Roughness1=0; float MixLobe=0; StrataComputeHazeRoughnessAndWeight(Roughness0, 1.0f, Roughness1, MixLobe); return Roughness1; }
-////////float StrataComputeHazeWeight(float Roughness0, float Haziness)    { float Roughness1=0; float MixLobe=0; StrataComputeHazeRoughnessAndWeight(Roughness0, Haziness, Roughness1, MixLobe); return MixLobe; }
+void StrataComputeHazeRoughnessAndWeight(
+	float Roughness0,
+	float Haziness,
+	inout float Roughness1,
+	inout float MixLobe)
+{	
+	// Fade out Haziness as the roughness reaches 0.5f, as otherwise it create
+	//       27 |\
+	// Extent   | \
+	//          |  \
+	//        3 |    ----
+	//          0  0.25  1
+	//           Rougness
+
+	// Lerp factor for adapting haziness parameters
+	const float S2 = saturate(2 * Roughness0);
+	const float S4 = saturate(4 * Roughness0);
+
+	// For low roughness, the haze extent is larger, and the core highlight is lower. 
+	// This allows to emphase the haze effect at low roughness, and fade out haze as roughness increase.
+	const float HazeExtent = lerp(27.0f, 3.0f, S4);
+	const float HazeCore   = lerp(0.01f, 0.5f, S2);
+
+	// Reference "A Composite BRDF Model for Hazy Gloss"
+	 
+	// Compute wide roughness
+	float alpha_n = Square(Roughness0); 
+	float lambda_h = HazeExtent;
+	const float alpha_w = alpha_n * (1 + lambda_h); // Eq.8
+	Roughness1 = sqrtFast(alpha_w);
+
+	// Compute mix weights
+	const float beta_h = Haziness;
+	const float r_c = HazeCore;
+	const float w = alpha_w;
+
+	const float p = 1.0 / Square(1 + lambda_h); // Table 2, GGX
+	const float b = 2 * (r_c * (1 - w) + w * p);
+	const float D = Square(b) - 4 * (b - 1) * r_c;
+	const float u = (b - sqrtFast(D)) / (2 * b - 2); // Eq. 12, 13, 14
+	const float u2 = u * u;
+	const float w2 = 2 * w;
+	const float k_h = ((u - u2) * w2 * beta_h) / (Square(1 - u) + (u - u2) * w2 + u2); // Eq. 15
+	const float r = r_c + (1 - p) * k_h; // Eq. 5
+	MixLobe = k_h / r; // Eq. 4
+}
+
+float StrataComputeHazeRoughness(float Roughness0)				{ float Roughness1=0; float MixLobe=0; StrataComputeHazeRoughnessAndWeight(Roughness0, 1.0f,     Roughness1, MixLobe);	return Roughness1; }
+float StrataComputeHazeWeight(float Roughness0, float Haziness)	{ float Roughness1=0; float MixLobe=0; StrataComputeHazeRoughnessAndWeight(Roughness0, Haziness, Roughness1, MixLobe);	return MixLobe; }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Material & BSDF description
