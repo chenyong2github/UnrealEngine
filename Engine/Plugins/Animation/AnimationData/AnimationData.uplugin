@@ -18,7 +18,7 @@
 	[
 		{
 			"Name": "AnimationData",
-			"Type": "Editor",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault"
 		}
 	],

@@ -2087,6 +2087,13 @@ void UAnimDataController::PopulateWithExistingModel(TScriptInterface<IAnimationD
 	Model->NumberOfKeys = InModel->GetNumberOfFrames() + 1;
 	Model->CurveData = InModel->GetCurveData();
 	Model->AnimatedBoneAttributes = InModel->GetAttributes();
+
+	// Ensure curve name UIDs are validated against the outer skeleton as they are not copied over through FSmartName
+	if (const UAnimSequenceBase* AnimSequenceBase = Cast<UAnimSequenceBase>(InModel.GetObject()->GetOuter()))
+	{
+		FindOrAddCurveNamesOnSkeleton(AnimSequenceBase->GetSkeleton(), ERawCurveTrackTypes::RCT_Float);
+		FindOrAddCurveNamesOnSkeleton(AnimSequenceBase->GetSkeleton(), ERawCurveTrackTypes::RCT_Transform);
+	}
 }
 
 #endif // WITH_EDITOR
