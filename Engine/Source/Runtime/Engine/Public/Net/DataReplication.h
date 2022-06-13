@@ -205,13 +205,19 @@ public:
 
 	FORCEINLINE UObject* GetObject() const
 	{
-		return ObjectPtr;
+		// If this replicator is dormant we have released our strong ref but the object may still be alive.
+		return ObjectPtr ? ObjectPtr : WeakObjectPtr.Get();
 	}
 
 	FORCEINLINE void SetObject(UObject* NewObj)
 	{
 		ObjectPtr = NewObj;
 		WeakObjectPtr = NewObj;
+	}
+
+	void ReleaseStrongReference()
+	{
+		ObjectPtr = nullptr;
 	}
 
 	FORCEINLINE void PreNetReceive()

@@ -4618,6 +4618,7 @@ void UNetConnection::FlushDormancy(class AActor* Actor)
 	{
 		FlushDormancyForObject( Actor );
 
+		// TODO: Is this set of objects sufficient? Should we query the dormancy map from the connection instead?
 		for ( UActorComponent* ActorComp : Actor->GetReplicatedComponents() )
 		{
 			if ( ActorComp && ActorComp->GetIsReplicated() )
@@ -4846,6 +4847,31 @@ void UNetConnection::DestroyIgnoredActor(AActor* Actor)
 	{
 		Driver->World->DestroyActor(Actor, true);
 	}
+}
+
+void UNetConnection::AddDormantReplicator(UObject* Object, const TSharedRef<FObjectReplicator>& Replicator)
+{
+	Replicator->ReleaseStrongReference();
+	DormantReplicatorMap.Add(Object, Replicator);
+}
+
+TSharedPtr<FObjectReplicator> UNetConnection::FindAndRemoveDormantReplicator(UObject* Object)
+{
+	FObjectKey Key(Object);
+	
+	if (DormantReplicatorMap.Contains(Key))
+	{
+		TSharedRef<FObjectReplicator> Ref = DormantReplicatorMap.FindAndRemoveChecked(Key);
+
+		// Only return the replicator if the object is still valid, otherwise just remove it from the cache and allow the caller to create a new one
+		if (UObject* StrongPtr = Ref->GetWeakObjectPtr().Get())
+		{
+			// Reassign the strong pointer for GC/faster resolve
+			Ref->SetObject(StrongPtr);
+			return Ref;
+		}
+	}
+	return {};
 }
 
 void UNetConnection::CleanupDormantReplicatorsForActor(AActor* Actor)

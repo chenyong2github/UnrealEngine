@@ -763,9 +763,7 @@ public:
 	TMap<FNetworkGUID, TArray<class UActorChannel*>> KeepProcessingActorChannelBunchesMap;
 
 	/** A list of replicators that belong to recently dormant actors/objects */
-	TMap< UObject*, TSharedRef< FObjectReplicator > > DormantReplicatorMap;
-
-	
+	TMap<FObjectKey, TSharedRef<FObjectReplicator>> DormantReplicatorMap;	
 
 	ENGINE_API FName GetClientWorldPackageName() const { return ClientWorldPackageName; }
 
@@ -1296,7 +1294,12 @@ public:
 	/** Returns the OutgoingBunches array, only to be used by UChannel::SendBunch */
 	TArray<FOutBunch *>& GetOutgoingBunches() { return OutgoingBunches; }
 
-	/** Removes Actor and its replicated components from DormantReplicatorMap. */
+	/** Add a replicator to the dormancy map and release its strong pointer to its object */
+	void AddDormantReplicator(UObject* Object, const TSharedRef<FObjectReplicator>& Replicator);
+	
+	/** Find a dormant replicator for the channel actor or one of its subobjects. Removes it from the map if found. */
+	TSharedPtr<FObjectReplicator> FindAndRemoveDormantReplicator(UObject* Object);
+
 	void CleanupDormantReplicatorsForActor(AActor* Actor);
 
 	/** Removes stale entries from DormantReplicatorMap. */
