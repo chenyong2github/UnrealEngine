@@ -518,7 +518,7 @@ FReply SWorldPartitionEditorGrid2D::OnMouseWheel(const FGeometry& MyGeometry, co
 	FVector2D MousePosLocalSpace = MouseCursorPos - MyGeometry.GetLocalSize() * 0.5f;
 	FVector2D P0 = MousePosLocalSpace / Scale;
 	float Delta = 1.0f + FMath::Abs(MouseEvent.GetWheelDelta() / 4.0f);
-	Scale = FMath::Clamp(Scale * (MouseEvent.GetWheelDelta() > 0 ? Delta : (1.0f / Delta)), 0.0001f, 10.0f);
+	Scale = FMath::Clamp(Scale * (MouseEvent.GetWheelDelta() > 0 ? Delta : (1.0f / Delta)), 0.00000001f, 10.0f);
 	FVector2D P1 = MousePosLocalSpace / Scale;
 	Trans += (P1 - P0);
 	UpdateTransform();
@@ -1073,8 +1073,8 @@ void SWorldPartitionEditorGrid2D::FocusBox(const FBox& Box) const
 
 void SWorldPartitionEditorGrid2D::UpdateTransform() const
 {
-	FTransform2D T(1.0f, Trans);
-	FTransform2D V(Scale, FVector2D(ScreenRect.GetSize().X * 0.5f, ScreenRect.GetSize().Y * 0.5f));
+	FTransform2d T(1.0f, Trans);
+	FTransform2d V(Scale, FVector2D(ScreenRect.GetSize().X * 0.5f, ScreenRect.GetSize().Y * 0.5f));
 	WorldToScreen = T.Concatenate(V);
 	ScreenToWorld = WorldToScreen.Inverse();
 }

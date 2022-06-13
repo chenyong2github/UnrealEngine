@@ -81,7 +81,7 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 	inline FCellCoord GetCellCoords(const FVector& InPos, int32 Level) const
 	{
 		check(Level >= 0);
-		const int32 CellSizeForLevel = CellSize * (1 << Level);
+		const int64 CellSizeForLevel = (int64)CellSize * (1LL << Level);
 		return FCellCoord(
 			FMath::FloorToInt(InPos.X / CellSizeForLevel),
 			FMath::FloorToInt(InPos.Y / CellSizeForLevel),
@@ -93,7 +93,7 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 	inline FBox GetCellBounds(const FCellCoord& InCellCoord) const
 	{
 		check(InCellCoord.Level >= 0);
-		const int32 CellSizeForLevel = CellSize * (1 << InCellCoord.Level);
+		const int64 CellSizeForLevel = (int64)CellSize * (1LL << InCellCoord.Level);
 		const FVector Min = FVector(
 			InCellCoord.X * CellSizeForLevel, 
 			InCellCoord.Y * CellSizeForLevel, 

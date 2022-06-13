@@ -77,7 +77,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
 	
 	// Found the best cell size depending on the current zoom
-	int32 EffectiveCellSize = EditorSpatialHash->CellSize;
+	int64 EffectiveCellSize = EditorSpatialHash->CellSize;
 	for (const UWorldPartitionEditorSpatialHash::FCellNodeHashLevel& HashLevel : EditorSpatialHash->HashLevels)
 	{
 		const FVector2D CellScreenSize = WorldToScreen.TransformVector(FVector2D(EffectiveCellSize, EffectiveCellSize));
@@ -172,12 +172,12 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 	{
 		const FLinearColor Color = FLinearColor(0.1f, 0.1f, 0.1f, 1.f);
 
-		FIntVector2 TopLeftW(
+		UE::Math::TIntVector2<int64> TopLeftW(
 			FMath::FloorToFloat(VisibleGridRectWorld.Min.X / EffectiveCellSize) * EffectiveCellSize,
 			FMath::FloorToFloat(VisibleGridRectWorld.Min.Y / EffectiveCellSize) * EffectiveCellSize
 		);
 
-		FIntVector2 BottomRightW(
+		UE::Math::TIntVector2<int64> BottomRightW(
 			FMath::CeilToFloat(VisibleGridRectWorld.Max.X / EffectiveCellSize) * EffectiveCellSize,
 			FMath::CeilToFloat(VisibleGridRectWorld.Max.Y / EffectiveCellSize) * EffectiveCellSize
 		);
@@ -186,7 +186,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 		LinePoints.SetNum(2);
 
 		// Horizontal
-		for (int32 i=TopLeftW.Y; i<=BottomRightW.Y; i+=EffectiveCellSize)
+		for (int64 i=TopLeftW.Y; i<=BottomRightW.Y; i+=EffectiveCellSize)
 		{
 			FVector2D LineStartH(TopLeftW.X, i);
 			FVector2D LineEndH(BottomRightW.X, i);
@@ -198,7 +198,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 		}
 
 		// Vertical
-		for (int32 i=TopLeftW.X; i<=BottomRightW.X; i+=EffectiveCellSize)
+		for (int64 i=TopLeftW.X; i<=BottomRightW.X; i+=EffectiveCellSize)
 		{
 			FVector2D LineStartH(i, TopLeftW.Y);
 			FVector2D LineEndH(i, BottomRightW.Y);
@@ -218,10 +218,12 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 			FSlateFontInfo CoordsFont;
 			FVector2D DefaultCoordTextSize;
 			bool bNeedsGradient = true;
+			// Use top-left coordinate as default coord text
+			const FString DefaultCoordText(FString::Printf(TEXT("(%lld,%lld)"), TopLeftW.X / EffectiveCellSize, TopLeftW.Y / EffectiveCellSize));
 			for(int32 DesiredFontSize = 24; DesiredFontSize >= 8; DesiredFontSize -= 2)
 			{
 				CoordsFont = FCoreStyle::GetDefaultFontStyle("Bold", DesiredFontSize);
-				DefaultCoordTextSize = FontMeasure->Measure(TEXT("(-99,-99)"), CoordsFont);				
+				DefaultCoordTextSize = FontMeasure->Measure(DefaultCoordText, CoordsFont);
 
 				if (CellScreenSize.X > DefaultCoordTextSize.X)
 				{
@@ -236,18 +238,18 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 				float ColorGradient = bNeedsGradient ? FMath::Min((CellScreenSize.X - DefaultCoordTextSize.X) / GradientDistance, 1.0f) : 1.0f;
 				const FLinearColor CoordTextColor(1.0f, 1.0f, 1.0f, ColorGradient);
 
-				for (int32 y = TopLeftW.Y; y < BottomRightW.Y; y += EffectiveCellSize)
+				for (int64 y = TopLeftW.Y; y < BottomRightW.Y; y += EffectiveCellSize)
 				{
-					for (int32 x = TopLeftW.X; x < BottomRightW.X; x += EffectiveCellSize)
+					for (int64 x = TopLeftW.X; x < BottomRightW.X; x += EffectiveCellSize)
 					{
-						const FString CoordText(FString::Printf(TEXT("(%d,%d)"), x / EffectiveCellSize, y / EffectiveCellSize));
+						const FString CoordText(FString::Printf(TEXT("(%lld,%lld)"), x / EffectiveCellSize, y / EffectiveCellSize));
 						const FVector2D CoordTextSize = FontMeasure->Measure(CoordText, CoordsFont);
 
 						FSlateDrawElement::MakeText(
 							OutDrawElements,
 							++LayerId,
 							AllottedGeometry.ToPaintGeometry(WorldToScreen.TransformPoint(FVector2D(x + EffectiveCellSize / 2, y + EffectiveCellSize / 2)) - CoordTextSize / 2, FVector2D(1,1)),
-							FString::Printf(TEXT("(%d,%d)"), x / EffectiveCellSize, y / EffectiveCellSize),
+							FString::Printf(TEXT("(%lld,%lld)"), x / EffectiveCellSize, y / EffectiveCellSize),
 							CoordsFont,
 							ESlateDrawEffect::None,
 							CoordTextColor

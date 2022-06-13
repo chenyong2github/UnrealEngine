@@ -80,8 +80,8 @@ protected:
 	mutable FVector2D Trans;
 	
 	mutable FBox2D ScreenRect;
-	mutable FTransform2D WorldToScreen;
-	mutable FTransform2D ScreenToWorld;
+	mutable FTransform2d WorldToScreen;
+	mutable FTransform2d ScreenToWorld;
 
 	bool bIsSelecting;
 	bool bIsDragging;
