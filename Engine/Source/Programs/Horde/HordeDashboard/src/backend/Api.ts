@@ -333,7 +333,7 @@ export type IssueQuery = {
 	maxChange?: number;
 	index?: number;
 	count?: number;
-	userId?: string;
+	ownerId?: string;
 	resolved?: boolean;
 	promoted?: boolean;
 }
