@@ -1578,7 +1578,7 @@ void FEOSVoiceChatUser::LogoutInternal(const FOnVoiceChatLogoutCompleteDelegate&
 
 void FEOSVoiceChatUser::ClearLoginSession()
 {
-	for (TPair<FString, FChannelSession> Pair : LoginSession.ChannelSessions)
+	for (TPair<FString, FChannelSession>& Pair : LoginSession.ChannelSessions)
 	{
 		UnbindChannelCallbacks(Pair.Value);
 	}
