@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "CoreMinimal.h"
 #include "ComputeSource.generated.h"
 
 /** 
@@ -17,6 +17,8 @@ class COMPUTEFRAMEWORK_API UComputeSource : public UObject
 public:
 	/** Get source code ready for HLSL compilation. */
 	virtual FString GetSource() const { return FString(); }
+	/** Get virtual file path for the source code. This will be the file name shown in any compilation errors. */
+	virtual FString GetVirtualPath() const { return GetPathName(); }
 
 public:
 	/** Array of additional source objects. This allows us to specify source dependencies. */

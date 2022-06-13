@@ -92,7 +92,7 @@ public:
 	virtual ~UComputeGraph();
 
 	/** Called each time that a single kernel shader compilation is completed. */
-	virtual void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) {}
+	virtual void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileOutputMessages) {}
 
 	/** 
 	 * Returns true if graph is valid. 

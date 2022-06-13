@@ -51,8 +51,9 @@ bool FComputeKernelResource::ShouldCache(EShaderPlatform InPlatform, const FShad
 	return true;
 }
 
-void FComputeKernelResource::NotifyCompilationFinished()
+void FComputeKernelResource::NotifyCompilationFinished(FString const& ResultMessage)
 {
+	CompileOutputMessages.Add(ResultMessage);
 	OnCompilationCompleteDelegate.ExecuteIfBound(this);
 }
 
@@ -62,9 +63,12 @@ void FComputeKernelResource::CancelCompilation()
 	if (IsInGameThread())
 	{
 		FComputeKernelShaderMap::RemovePending(this);
-
-		UE_LOG(LogShaders, Log, TEXT("CancelCompilation %p."), this);
 		OutstandingCompileShaderMapIds.Empty();
+
+		FString Message = FString::Printf(TEXT("%s: Compilation cancelled."), *GetFriendlyName());
+		UE_LOG(LogShaders, Log, TEXT("%s"), *Message);
+
+		NotifyCompilationFinished(Message);
 	}
 #endif
 }
@@ -232,7 +236,7 @@ void FComputeKernelResource::SetupResource(
 	ShaderPermutationVector = MoveTemp(InShaderPermutationVector);
 	ShaderParameterMetadataAllocations = MoveTemp(InShaderParameterMetadataAllocations);
 	ShaderParameterMetadata = InShaderParameterMetadata;
-	CompileErrors.Reset();
+	CompileOutputMessages.Reset();
 #if WITH_EDITOR
 	AssetPath = InAssetPath;
 #endif
@@ -321,7 +325,9 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 				FComputeKernelShaderMap::LoadFromDerivedDataCache(this, InShaderMapId, InPlatform, GameThreadShaderMap);
 				if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
 				{
-					UE_LOG(LogTemp, Display, TEXT("Loaded shader %s for kernel %s from DDC"), *GameThreadShaderMap->GetFriendlyName(), *GetFriendlyName());
+					FString Message = FString::Printf(TEXT("Loaded shaders for %s from DDC."), *GetFriendlyName());
+					UE_LOG(LogTemp, Display, TEXT("%s"), *Message);
+					CompileOutputMessages.Add(Message);
 				}
 				else
 				{
@@ -370,6 +376,7 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 	}
 	else
 	{
+		NotifyCompilationFinished(FString::Printf(TEXT("%s: Loaded shaders from DDC."), *GetFriendlyName()));
 		bSucceeded = true;
 	}
 

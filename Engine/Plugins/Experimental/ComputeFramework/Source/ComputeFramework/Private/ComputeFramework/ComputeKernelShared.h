@@ -280,7 +280,7 @@ private:
 };
 
 /** Delegate for kernel compile completion. */
-DECLARE_DELEGATE_OneParam(FOnComputeKernelCompilationComplete, class FComputeKernelResource const*);
+DECLARE_DELEGATE_OneParam(FOnComputeKernelCompilationComplete, FComputeKernelResource const*);
 
 /**
  * FComputeKernelResource represents a UComputeKernel to the shader compilation process
@@ -329,7 +329,7 @@ public:
 	/**
 	 * Called when compilation finishes, after the GameThreadShaderMap is set and the render command to set the RenderThreadShaderMap is queued
 	 */
-	virtual void NotifyCompilationFinished();
+	virtual void NotifyCompilationFinished(FString const& ResultMessage);
 
 	/**
 	 * Cancels all outstanding compilation jobs
@@ -349,8 +349,8 @@ public:
 	bool IsCompilationFinished() const;
 
 	// Accessors.
-	const TArray<FString>& GetCompileErrors() const { return CompileErrors; }
-	void SetCompileErrors(const TArray<FString>& InCompileErrors) { CompileErrors = InCompileErrors; }
+	const TArray<FString>& GetCompileOutputMessages() const { return CompileOutputMessages; }
+	void SetCompileOutputMessages(TArray<FString> const& InCompileOutputMessages) { CompileOutputMessages = InCompileOutputMessages; }
 
 	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
 
@@ -427,11 +427,6 @@ public:
 
 	void SetupCompileEnvironment(int32 InPermutationId, FShaderCompilerEnvironment& OutShaderEnvironment) const;
 
-	void SetCompileErrors(TArray<FString> &InErrors)
-	{
-		CompileErrors = InErrors;
-	}
-
 	const FShaderParametersMetadata* GetShaderParamMetadata() const
 	{
 		return ShaderParameterMetadata;
@@ -454,7 +449,7 @@ protected:
 	void GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& OutShaderMapIds);
 
 private:
-	TArray<FString> CompileErrors;
+	TArray<FString> CompileOutputMessages;
 
 	/** 
 	 * Game thread tracked shader map, which is ref counted and manages shader map lifetime. 

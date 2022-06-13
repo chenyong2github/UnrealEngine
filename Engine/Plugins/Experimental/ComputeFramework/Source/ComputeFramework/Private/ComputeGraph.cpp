@@ -429,9 +429,7 @@ namespace
 
 		for (UComputeSource const* Source : UniqueSources)
 		{
-			Result.Add(TPair<FString, FString>(
-				FString::Printf(TEXT("/Engine/Generated/%s.ush"), *Source->GetName()),
-				Source->GetSource()));
+			Result.Add(Source->GetVirtualPath(), Source->GetSource());
 		}
 
 		return Result;
@@ -556,6 +554,7 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 			TUniquePtr <FShaderParametersMetadataAllocations> ShaderParameterMetadataAllocations = MakeUnique<FShaderParametersMetadataAllocations>();
 
 			FString ShaderEntryPoint = Kernel->KernelSource->EntryPoint;
+			FString ShaderFriendlyName = GetOuter()->GetName() + TEXT("_") + ShaderEntryPoint;
 			FString ShaderSource = BuildKernelSource(KernelIndex, *Kernel->KernelSource, AdditionalSources, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
 			FShaderParametersMetadata* ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *ShaderParameterMetadataAllocations);
 
@@ -566,7 +565,7 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 			// Now we have all the information that the KernelResource will need for compilation.
 			KernelResource->SetupResource(
 				CacheFeatureLevel, 
-				GetName(), 
+				ShaderFriendlyName,
 				ShaderEntryPoint, 
 				ShaderHashKey,
 				ShaderSource,
@@ -626,11 +625,9 @@ void UComputeGraph::CacheShadersForResource(
 			*LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString()
 		);
 
-		auto& CompilationErrors = KernelResource->GetCompileErrors();
-		uint32 ErrorCount = CompilationErrors.Num();
-		for (uint32 i = 0; i < ErrorCount; ++i)
+		for (FString const& Message : KernelResource->GetCompileOutputMessages())
 		{
-			UE_LOG(LogComputeFramework, Warning, TEXT("      [Error] - %s"), *CompilationErrors[i]);
+			UE_LOG(LogComputeFramework, Warning, TEXT("   %s"), *Message);
 		}
 	}
 }
@@ -642,7 +639,7 @@ void UComputeGraph::ShaderCompileCompletionCallback(FComputeKernelResource const
 	{
 		if (KernelResource == KernelResources[KernelIndex].Get())
 		{
-			OnKernelCompilationComplete(KernelIndex, KernelResource->GetCompileErrors());
+			OnKernelCompilationComplete(KernelIndex, KernelResource->GetCompileOutputMessages());
 		}
 	}
 }
@@ -671,6 +668,7 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 			TUniquePtr <FComputeKernelPermutationVector> ShaderPermutationVector = MakeUnique<FComputeKernelPermutationVector>();
 
 			FString ShaderEntryPoint = KernelSource->EntryPoint;
+			FString ShaderFriendlyName = GetOuter()->GetName() + TEXT("_") + ShaderEntryPoint;
 			FString ShaderSource = BuildKernelSource(KernelIndex, *KernelSource, AdditionalSources, ShaderHashKey, *ShaderDefinitionSet, *ShaderPermutationVector);
 
 			TArray< TUniquePtr<FComputeKernelResource> >& Resources = KernelResources[KernelIndex].CachedKernelResourcesForCooking.FindOrAdd(TargetPlatform);
@@ -686,7 +684,7 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 				TUniquePtr<FComputeKernelResource> KernelResource = MakeUnique<FComputeKernelResource>();
 				KernelResource->SetupResource(
 					TargetFeatureLevel, 
-					GetName(), 
+					ShaderFriendlyName,
 					ShaderEntryPoint, 
 					ShaderHashKey,
 					ShaderSource,

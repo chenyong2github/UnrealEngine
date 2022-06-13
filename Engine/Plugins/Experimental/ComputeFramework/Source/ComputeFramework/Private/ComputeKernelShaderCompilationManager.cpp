@@ -15,7 +15,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogComputeKernelShaderCompiler, All, All);
 
-static int32 GShowComputeKernelShaderWarnings = 1;
+static int32 GShowComputeKernelShaderWarnings = 0;
 static FAutoConsoleVariableRef CVarShowComputeKernelShaderWarnings(
 	TEXT("ComputeKernel.ShowShaderCompilerWarnings"),
 	GShowComputeKernelShaderWarnings,
@@ -319,7 +319,6 @@ void FComputeKernelShaderCompilationManager::ProcessCompiledComputeKernelShaderM
 				bShaderMapComplete = ShaderMap->ProcessCompilationResults(ResultArray, CompileResults.FinalizeJobIndex, TimeBudget);
 			}
 
-
 			if (bShaderMapComplete)
 			{
 				ShaderMap->SetCompiledSuccessfully(bSuccess);
@@ -356,7 +355,7 @@ void FComputeKernelShaderCompilationManager::ProcessCompiledComputeKernelShaderM
 						if (!bSuccess)
 						{
 							// Propagate error messages
-							Kernel->SetCompileErrors(Errors);
+							Kernel->SetCompileOutputMessages(Errors);
 							KernelsToUpdate.Add(Kernel, nullptr);
 
 							for (int32 ErrorIndex = 0; ErrorIndex < Errors.Num(); ErrorIndex++)
@@ -386,6 +385,8 @@ void FComputeKernelShaderCompilationManager::ProcessCompiledComputeKernelShaderM
 								{
 									UE_LOG(LogComputeKernelShaderCompiler, Warning, TEXT("	%s"), *Errors[ErrorIndex]);
 								}
+
+								Kernel->SetCompileOutputMessages(Errors);
 							}
 						}
 					}
@@ -393,7 +394,10 @@ void FComputeKernelShaderCompilationManager::ProcessCompiledComputeKernelShaderM
 					{
 						if (CompletedShaderMap->IsComplete(Kernel, true))
 						{
-							Kernel->NotifyCompilationFinished();
+							const FString SuccessMessage = FString::Printf(TEXT("%s: Shader compilation success!"), *Kernel->GetFriendlyName());
+							const FString FailMessage = FString::Printf(TEXT("%s: Shader compilation failed."), *Kernel->GetFriendlyName());
+
+							Kernel->NotifyCompilationFinished(bSuccess ? SuccessMessage : FailMessage);
 						}
 					}
 				}
@@ -425,8 +429,11 @@ void FComputeKernelShaderCompilationManager::ProcessCompiledComputeKernelShaderM
 					Kernel->SetRenderingThreadShaderMap(ShaderMap);
 				});
 
+			const bool bSuccess = ShaderMap && ShaderMap->CompiledSuccessfully();
+			const FString SuccessMessage = FString::Printf(TEXT("%s: Shader compilation success!"), *Kernel->GetFriendlyName());
+			const FString FailMessage = FString::Printf(TEXT("%s: Shader compilation failed."), *Kernel->GetFriendlyName());
 
-			Kernel->NotifyCompilationFinished();
+			Kernel->NotifyCompilationFinished(bSuccess ? SuccessMessage : FailMessage);
 		}
 	}
 #endif

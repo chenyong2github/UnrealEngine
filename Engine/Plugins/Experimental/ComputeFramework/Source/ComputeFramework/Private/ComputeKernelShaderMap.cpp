@@ -428,9 +428,12 @@ void FComputeKernelShaderMap::Compile(
 				}
 				else if (ShaderType)
 				{
-					UE_LOG(LogShaders, Display, TEXT("Skipping compilation of %s as it isn't supported on this target type."), *InKernel->GetFriendlyName());
 					InKernel->RemoveOutstandingCompileId(CompilingId);
-					InKernel->NotifyCompilationFinished();
+
+					FString Message = FString::Printf(TEXT("%s: Skipping compilation because it isn't supported on this target type."), *InKernel->GetFriendlyName());
+					UE_LOG(LogShaders, Display, TEXT("%s"), *Message);
+					
+					InKernel->NotifyCompilationFinished(Message);
 				}
 			}
   
@@ -717,7 +720,7 @@ void FComputeKernelShaderMap::RemovePending(FComputeKernelResource* InKernel)
 		if (Result)
 		{
 			InKernel->RemoveOutstandingCompileId(It.Key()->CompilingId);
-			InKernel->NotifyCompilationFinished();
+			InKernel->NotifyCompilationFinished(FString::Printf(TEXT("%s: Removing compilation."), *InKernel->GetFriendlyName()));
 		}
 #if DEBUG_INFINITESHADERCOMPILE
 		if ( Result )
