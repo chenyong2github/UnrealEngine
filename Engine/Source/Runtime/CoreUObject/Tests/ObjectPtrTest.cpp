@@ -41,7 +41,6 @@ static_assert(std::is_trivially_move_constructible<FMutableObjectPtr>::value, "T
 static_assert(std::is_trivially_copy_assignable<FMutableObjectPtr>::value, "TObjectPtr must be trivially copy assignable");
 static_assert(std::is_trivially_move_assignable<FMutableObjectPtr>::value, "TObjectPtr must be trivially move assignable");
 static_assert(std::is_trivially_destructible<FMutableObjectPtr>::value, "TObjectPtr must be trivially destructible");
-static_assert(std::is_trivially_default_constructible<FMutableObjectPtr>::value, "TObjectPtr must be trivially default constructible");
 
 // Ensure that raw pointers can be used to construct wrapped object pointers and that const-ness isn't stripped when constructing or converting with raw pointers
 static_assert(std::is_constructible<FMutableObjectPtr, UObject*>::value, "TObjectPtr<UObject> must be constructible from a raw UObject*");

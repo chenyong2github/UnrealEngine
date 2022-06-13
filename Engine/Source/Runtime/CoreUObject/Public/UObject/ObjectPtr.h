@@ -45,7 +45,14 @@ struct TObjectPtr;
 struct FObjectPtr
 {
 public:
-	FObjectPtr() = default;
+	FObjectPtr()
+		: Handle(MakeObjectHandle(nullptr))
+	{
+	}
+
+	explicit FObjectPtr(ENoInit)
+	{
+	}
 
 	FORCEINLINE FObjectPtr(TYPE_OF_NULLPTR)
 		: Handle(MakeObjectHandle(nullptr))
@@ -200,6 +207,11 @@ public:
 	TObjectPtr() = default;
 	TObjectPtr(TObjectPtr<T>&&) = default;
 	TObjectPtr(const TObjectPtr<T>&) = default;
+
+	explicit FORCEINLINE TObjectPtr(ENoInit)
+		: FObjectPtr(NoInit)
+	{
+	}
 
 	FORCEINLINE TObjectPtr(TYPE_OF_NULLPTR)
 		: FObjectPtr(nullptr)
