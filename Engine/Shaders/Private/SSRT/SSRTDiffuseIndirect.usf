@@ -106,7 +106,7 @@
 #include "../BRDF.ush"
 #include "../MonteCarlo.ush"
 #include "../SceneTextureParameters.ush"
-
+#include "../Strata/Strata.ush"
 
 //------------------------------------------------------- PARAMETERS
 
@@ -189,10 +189,11 @@ uint2 ComputePixelPosition(uint2 GroupId, uint2 GroupPixelOffset)
 
 void UpdateLane2DCoordinateInformations(
 	uint2 PixelPosition,
-	out float2 BufferUV,
-	out float2 ScreenPos)
+	inout float2 BufferUV,
+	inout float2 ScreenPos,
+	inout float2 FullResPixelPosition)
 {
-	float2 FullResPixelPosition = PixelPosition * PixelPositionToFullResPixel + FullResPixelOffset;
+	FullResPixelPosition = PixelPosition * PixelPositionToFullResPixel + FullResPixelOffset;
 
 	// TODO: split screen
 	BufferUV = FullResPixelPosition * View.BufferSizeAndInvSize.zw;
@@ -267,21 +268,33 @@ void MainCS(
 			uint2 GroupPixelOffset = DecodeGroupPixelOffset(GroupPixelId);
             uint2 PixelPosition = ComputePixelPosition(GroupId, GroupPixelOffset);
 				
-			float2 BufferUV;
-			float2 ScreenPos;
-			UpdateLane2DCoordinateInformations(PixelPosition, /* out */ BufferUV, /* out */ ScreenPos);
+			float2 BufferUV = 0;
+			float2 ScreenPos = 0;
+			float2 FullResPixelPosition = 0;
+			UpdateLane2DCoordinateInformations(PixelPosition, /* out */ BufferUV, /* out */ ScreenPos, /* out */ FullResPixelPosition);
 	
+		#if STRATA_ENABLED
+			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(FullResPixelPosition, 0)));
+			const float Roughness = TopLayerData.Roughness;
+			const float3 WorldNormal = TopLayerData.WorldNormal;
+			const bool bIsValid = IsStrataMaterial(TopLayerData);
+		#else // STRATA_ENABLED
 			FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+			const float Roughness = GBuffer.Roughness;
+			const float3 WorldNormal = GBuffer.WorldNormal;
+			const bool bIsValid = GBuffer.ShadingModelID != SHADINGMODELID_UNLIT;
+		#endif // STRATA_ENABLED
+
 			float DeviceZ = SceneDepthTexture.SampleLevel(SceneDepthTextureSampler, BufferUV, 0).r;
 
 			float ProbeOcclusionDistance = ProbeOcclusionDistanceTexture.Load(int3(PixelPosition, 0)).x;
 
-			bool bTraceRay = GBuffer.ShadingModelID != SHADINGMODELID_UNLIT;
+			bool bTraceRay = bIsValid;
 				
 			#if CONFIG_LDS_STORE_VIEW_N
-				SharedMemory0[TILE_PIXEL_COUNT * 0 | GroupPixelId] = CompressN(mul(float4(GBuffer.WorldNormal, 0), View.TranslatedWorldToView).xyz);
+				SharedMemory0[TILE_PIXEL_COUNT * 0 | GroupPixelId] = CompressN(mul(float4(WorldNormal, 0), View.TranslatedWorldToView).xyz);
 			#else
-				SharedMemory0[TILE_PIXEL_COUNT * 0 | GroupPixelId] = CompressN(GBuffer.WorldNormal);
+				SharedMemory0[TILE_PIXEL_COUNT * 0 | GroupPixelId] = CompressN(WorldNormal);
 			#endif
 			SharedMemory0[TILE_PIXEL_COUNT * 1 | GroupPixelId] = asuint(bTraceRay ? DeviceZ : -1.0);
 
@@ -291,7 +304,7 @@ void MainCS(
 			}
 			#elif DIM_LIGHTING_TERM == SPECULAR_TERM
 			{
-				SharedMemory1[GroupPixelId] = asuint(GBuffer.Roughness);
+				SharedMemory1[GroupPixelId] = asuint(Roughness);
 			}
 			#else
 				#error Unnimplemented
@@ -383,9 +396,10 @@ void MainCS(
 			uint2 GroupPixelOffset = DecodeGroupPixelOffset(GroupPixelId);
 			uint2 PixelPosition = ComputePixelPosition(GroupId, GroupPixelOffset);
 	
-			float2 BufferUV;
-			float2 ScreenPos;
-			UpdateLane2DCoordinateInformations(PixelPosition, /* out */ BufferUV, /* out */ ScreenPos);
+			float2 BufferUV = 0;
+			float2 ScreenPos = 0;
+			float2 FullResPixelPosition = 0;
+			UpdateLane2DCoordinateInformations(PixelPosition, /* out */ BufferUV, /* out */ ScreenPos, /* out */ FullResPixelPosition); 
 	
 			float3 PositionTranslatedWorld = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 			float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);

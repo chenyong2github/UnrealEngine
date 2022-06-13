@@ -7,7 +7,7 @@
 
 //------------------------------------------------------- CONFIGS
 
-#if DIM_APPLY_DIFFUSE_INDIRECT == 1 // Denoised lighting buffer
+#if DIM_APPLY_DIFFUSE_INDIRECT == 1 // Denoised lighting buffer (SSGI)
 	#define CONFIG_SIGNAL_PROCESSING SIGNAL_PROCESSING_SSGI
 	#define COMPILE_SIGNAL_COLOR 1
 	#define MAX_SIGNAL_BATCH_SIZE 1
@@ -50,7 +50,7 @@
 #define COMPILE_MOMENT1_ACCUMULATOR 1
 #define COMPILE_BOX_KERNEL 1
 
-#if STRATA_ENABLED && DIM_APPLY_DIFFUSE_INDIRECT == 4  
+#if STRATA_ENABLED && (DIM_APPLY_DIFFUSE_INDIRECT == 1 || DIM_APPLY_DIFFUSE_INDIRECT == 4)
   #if STRATA_TILETYPE == 0
 	#define STRATA_FASTPATH 1
   #elif STRATA_TILETYPE == 1
@@ -209,13 +209,15 @@ float GetSSSCheckerboadSpecularScale(uint2 PixelPos, bool bNeedsSeparateLightAcc
 // Lumen diffuse evaluation for strata material.
 
 #if STRATA_ENABLED
-FStrataDeferredLighting StrataLumenLighting(
+FStrataDeferredLighting StrataIndirectLighting(
 	uint2 PixelPos,
 	FStrataMaterialContainer MaterialBuffer,
 	inout FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader,
 	in float3 V,
-	in float  InAO)
+	in float  InAO,
+	in float3 InputDiffuseLighting,
+	in float3 InputSpecularLighting)
 {
 	FStrataDeferredLighting Out = GetInitialisedStrataDeferredLighting();
 	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
@@ -226,12 +228,20 @@ FStrataDeferredLighting StrataLumenLighting(
 
 	Strata_for(uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
 	{
+		// * Lumen integration output indirect lighting per BSDF
+		// * SSGI  integration output a single indirect lighting value for all BSDF
+	#if DIM_APPLY_DIFFUSE_INDIRECT == 4
 		const uint2 TileCoord = GetTilePositionFlatten(Tile0, Tile0Coord, BSDFIndex);
 		const uint2 InCoord   = TileCoord * STRATA_TILE_SIZE + LocalTileCoord;
 
 		const float3 InDiffuseLighting			= DiffuseIndirect_Textures_0.Load(uint3(InCoord, 0)).rgb;
 		const float3 InRoughSpecularLighting	= DiffuseIndirect_Textures_1.Load(uint3(InCoord, 0)).rgb;
 		const float3 InSpecularLighting			= DiffuseIndirect_Textures_2.Load(uint3(InCoord, 0)).rgb;
+	#else
+		const float3 InDiffuseLighting			= InputDiffuseLighting;
+		const float3 InRoughSpecularLighting	= InputSpecularLighting;
+		const float3 InSpecularLighting			= InputSpecularLighting;
+	#endif
 
 		// STRATA_TODO: Override the BSDF F0/DiffuseColor when bVisualizeDiffuseIndirect is set
 		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
@@ -414,13 +424,15 @@ void MainPS(
 				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 				const FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 
-				const FStrataDeferredLighting IndirectLighting_Strata = StrataLumenLighting(
+				const FStrataDeferredLighting IndirectLighting_Strata = StrataIndirectLighting(
 					PixelPos,
 					Strata.MaterialTextureArray,
 					StrataAddressing,
 					StrataPixelHeader,
 					V,
-					FinalAmbientOcclusion);
+					FinalAmbientOcclusion,
+					DiffuseIndirectLighting,
+					SpecularIndirectLighting);
 
 				OutAddColor = IndirectLighting_Strata.SceneColor;
 			  #if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
