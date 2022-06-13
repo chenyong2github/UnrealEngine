@@ -89,7 +89,7 @@ private:
 
 	IManifest::FResult FindSegment(TSharedPtrTS<FStreamSegmentRequestHLSfmp4>& OutRequest, TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> InPlaylist, TSharedPtrTS<FManifestHLSInternal::FMediaStream> InStream, uint32 StreamUniqueID, EStreamType StreamType, const FSegSearchParam& SearchParam, IManifest::ESearchType SearchType);
 
-	void RefreshBlacklistState();
+	void RefreshDenylistState();
 
 	TSharedPtrTS<FManifestHLSInternal>			InternalManifest;
 	IPlayerSessionServices* 					SessionServices;
@@ -490,10 +490,10 @@ IManifest::FResult FPlayPeriodHLS::GetMediaStreamForID(TSharedPtrTS<FManifestHLS
 				{
 					OutPlaylist = Playlist;
 
-					// Playlist currently blacklisted?
-					if (Playlist->Internal.Blacklisted.IsValid())
+					// Playlist currently denylisted?
+					if (Playlist->Internal.Denylisted.IsValid())
 					{
-						// Return and assume a non-blacklisted stream will be selected.
+						// Return and assume a allowlist stream will be selected.
 						return IManifest::FResult().RetryAfterMilliseconds(50);
 					}
 					// Check the load state
@@ -834,7 +834,7 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 {
 	FManifestHLSInternal::ScopedLockPlaylists lock(InternalManifest);
 
-	RefreshBlacklistState();
+	RefreshDenylistState();
 
 	TSharedPtrTS<FManifestHLSInternal::FPlaylistBase>	VideoPlaylist;
 	TSharedPtrTS<FManifestHLSInternal::FPlaylistBase>	AudioPlaylist;
@@ -1095,7 +1095,7 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
 		return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage(FString::Printf(TEXT("Cannot get next segment stream type \"%s\" since no stream is actively selected!"), GetStreamTypeName(CurrentRequest->GetType()))));
 	}
 
-	RefreshBlacklistState();
+	RefreshDenylistState();
 
 	TSharedPtrTS<FManifestHLSInternal::FMediaStream>	Stream;
 	TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> Playlist;
@@ -1207,9 +1207,9 @@ IManifest::FResult FPlayPeriodHLS::GetRetrySegment(TSharedPtrTS<IStreamSegment>&
 
 
 /**
- * Checks if any potentially blacklisted stream can be used again.
+ * Checks if any potentially denylisted stream can be used again.
  */
-void FPlayPeriodHLS::RefreshBlacklistState()
+void FPlayPeriodHLS::RefreshDenylistState()
 {
 	FTimeValue Now = SessionServices->GetSynchronizedUTCTime()->GetTime();
 
@@ -1219,9 +1219,9 @@ void FPlayPeriodHLS::RefreshBlacklistState()
 		TSharedPtrTS<FManifestHLSInternal::FRendition::FPlaylistBase> Stream = It.Value().Pin();
 		if (Stream.IsValid())
 		{
-			if (Stream->Internal.Blacklisted.IsValid())
+			if (Stream->Internal.Denylisted.IsValid())
 			{
-				if (Now >= Stream->Internal.Blacklisted->BecomesAvailableAgainAtUTC)
+				if (Now >= Stream->Internal.Denylisted->BecomesAvailableAgainAtUTC)
 				{
 					Stream->Internal.LoadState  	  = FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::NotLoaded;
 					Stream->Internal.bReloadTriggered = false;
@@ -1230,10 +1230,10 @@ void FPlayPeriodHLS::RefreshBlacklistState()
 
 					// Tell the stream selector that this stream is available again.
 					TSharedPtrTS<IAdaptiveStreamSelector> StreamSelector(SessionServices->GetStreamSelector());
-					StreamSelector->MarkStreamAsAvailable(Stream->Internal.Blacklisted->AssetIDs);
+					StreamSelector->MarkStreamAsAvailable(Stream->Internal.Denylisted->AssetIDs);
 
-					Stream->Internal.Blacklisted.Reset();
-					LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("Lifting blacklist of playlist \"%s\""), *Stream->Internal.PlaylistLoadRequest.URL));
+					Stream->Internal.Denylisted.Reset();
+					LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("Lifting denylist of playlist \"%s\""), *Stream->Internal.PlaylistLoadRequest.URL));
 				}
 			}
 		}
@@ -1399,7 +1399,7 @@ TSharedPtrTS<ITimelineMediaAsset> FPlayPeriodHLS::GetMediaAsset() const
 
 void FPlayPeriodHLS::SelectStream(const FString& AdaptationSetID, const FString& RepresentationID)
 {
-	RefreshBlacklistState();
+	RefreshDenylistState();
 
 	// The representation ID is the unique ID of the stream as a string. Convert it back
 	uint32 UniqueID;

@@ -119,13 +119,13 @@ public:
 	// The ABR may take internal action to switch quality when this is called!
 	virtual FRebufferAction GetRebufferAction(const FParamDict& CurrentPlayerOptions) = 0;
 
-	struct FBlacklistedStream
+	struct FDenylistedStream
 	{
 		FString		AssetUniqueID;
 		FString		AdaptationSetUniqueID;
 		FString		RepresentationUniqueID;
 		FString		CDN;
-		bool operator == (const FBlacklistedStream& rhs) const
+		bool operator == (const FDenylistedStream& rhs) const
 		{
 			return AssetUniqueID == rhs.AssetUniqueID &&
 				   AdaptationSetUniqueID == rhs.AdaptationSetUniqueID &&
@@ -133,8 +133,8 @@ public:
 				   CDN == rhs.CDN;
 		}
 	};
-	virtual void MarkStreamAsUnavailable(const FBlacklistedStream& BlacklistedStream) = 0;
-	virtual void MarkStreamAsAvailable(const FBlacklistedStream& NoLongerBlacklistedStream) = 0;
+	virtual void MarkStreamAsUnavailable(const FDenylistedStream& DenylistedStream) = 0;
+	virtual void MarkStreamAsAvailable(const FDenylistedStream& NoLongerDenylistedStream) = 0;
 
 
 	virtual FABRDownloadProgressDecision ReportDownloadProgress(const Metrics::FSegmentDownloadStats& SegmentDownloadStats) = 0;

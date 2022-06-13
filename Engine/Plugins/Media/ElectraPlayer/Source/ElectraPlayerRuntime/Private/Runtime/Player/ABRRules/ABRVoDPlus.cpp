@@ -827,7 +827,7 @@ IAdaptiveStreamSelector::ESegmentAction FABROnDemandPlus::PerformSelection(const
 	}
 	else
 	{
-		// Note: Are there representations we could lift the temporary blacklist from?
+		// Note: Are there representations we could lift the temporary denylist from?
 		if (bSkipWithFiller)
 		{
 			return IAdaptiveStreamSelector::ESegmentAction::Fill;

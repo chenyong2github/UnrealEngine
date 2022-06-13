@@ -997,9 +997,9 @@ void FPlaylistReaderHLS::HandleCompletedPlaylistDownloads(FTimeValue& TimeNow)
 
 						if (bFail)
 						{
-							int32 BlacklistForMilliseconds = 1000 * 15;
-							Builder->SetVariantPlaylistFailure(Manifest, Request->GetPlaylistLoadRequest(), ConnInfo, RetryInfo, TimeNow + FTimeValue().SetFromMilliseconds(BlacklistForMilliseconds));
-							LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("Failed %s playlist \"%s\" (%s), blacklisting for %d milliseconds"), ParseError.IsSet() ? TEXT("parsing") : TEXT("downloading"), *ConnInfo->EffectiveURL, ParseError.IsSet() ? *ParseError.GetPrintable() : *ConnInfo->StatusInfo.ErrorDetail.GetMessage(), BlacklistForMilliseconds));
+							int32 DenylistForMilliseconds = 1000 * 15;
+							Builder->SetVariantPlaylistFailure(Manifest, Request->GetPlaylistLoadRequest(), ConnInfo, RetryInfo, TimeNow + FTimeValue().SetFromMilliseconds(DenylistForMilliseconds));
+							LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("Failed %s playlist \"%s\" (%s), denylisting for %d milliseconds"), ParseError.IsSet() ? TEXT("parsing") : TEXT("downloading"), *ConnInfo->EffectiveURL, ParseError.IsSet() ? *ParseError.GetPrintable() : *ConnInfo->StatusInfo.ErrorDetail.GetMessage(), DenylistForMilliseconds));
 						}
 					}
 					else

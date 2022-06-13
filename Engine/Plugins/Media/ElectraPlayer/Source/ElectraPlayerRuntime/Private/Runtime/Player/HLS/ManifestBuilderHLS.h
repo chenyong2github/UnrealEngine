@@ -151,11 +151,11 @@ struct FManifestHLSInternal
 	};
 
 
-	struct FBlacklist
+	struct FDenylist
 	{
 		TSharedPtrTS<HTTP::FRetryInfo>					PreviousAttempts;
 		FTimeValue										BecomesAvailableAgainAtUTC;
-		IAdaptiveStreamSelector::FBlacklistedStream		AssetIDs;
+		IAdaptiveStreamSelector::FDenylistedStream		AssetIDs;
 	};
 
 
@@ -182,7 +182,7 @@ struct FManifestHLSInternal
 			FInternal() : LoadState(ELoadState::NotLoaded), UniqueID(0), bReloadTriggered(false), bNewlySelected(true), bHasVideo(false), bHasAudio(false) {}
 			FPlaylistLoadRequestHLS			PlaylistLoadRequest;
 			TSharedPtrTS<FMediaStream>		MediaStream;
-			TSharedPtrTS<FBlacklist>		Blacklisted;
+			TSharedPtrTS<FDenylist>		Denylisted;
 			FTimeValue						ExpiresAtTime;							//!< Synchronized UTC time (from session service GetSynchronizedUTCTime()) at which this list expires. Set to infinite if it does not.
 			ELoadState						LoadState;
 			uint32							UniqueID;
@@ -433,12 +433,12 @@ public:
 	 *                 Failed request for which an alterative shall be returned.
 	 * @param ConnectionInfo
 	 * @param PreviousAttempts
-	 * @param BlacklistUntilUTC
+	 * @param DenylistUntilUTC
 	 * @param Manifest
 	 *
 	 * @return UEMEDIA_ERROR_OK if an alternative was found or UEMEDIA_ERROR_END_OF_STREAM if no further alternatives exist.
 	 */
-	virtual UEMediaError UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest) = 0;
+	virtual UEMediaError UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& DenylistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest) = 0;
 
 
 	/**
@@ -462,9 +462,9 @@ public:
 	 * @param SourceRequest
 	 * @param ConnectionInfo
 	 * @param PreviousAttempts
-	 * @param BlacklistUntilUTC
+	 * @param DenylistUntilUTC
 	 */
-	virtual void SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInternal> InHLSPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC) = 0;
+	virtual void SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInternal> InHLSPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& DenylistUntilUTC) = 0;
 };
 
 

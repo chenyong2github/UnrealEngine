@@ -33,8 +33,8 @@ namespace Electra
 		FTimeValue GetMinBufferTimeForPlayback(EMinBufferType InBufferingType, FTimeValue InDefaultMBT) override;
 		FRebufferAction GetRebufferAction(const FParamDict& CurrentPlayerOptions) override;
 		EHandlingAction PeriodicHandle() override;
-		void MarkStreamAsUnavailable(const FBlacklistedStream& BlacklistedStream) override;
-		void MarkStreamAsAvailable(const FBlacklistedStream& NoLongerBlacklistedStream) override;
+		void MarkStreamAsUnavailable(const FDenylistedStream& DenylistedStream) override;
+		void MarkStreamAsAvailable(const FDenylistedStream& NoLongerDenylistedStream) override;
 		int64 GetLastBandwidth() override;
 		int64 GetAverageBandwidth() override;
 		int64 GetAverageThroughput() override;
@@ -128,7 +128,7 @@ namespace Electra
 		FString												CurrentVideoAdaptationSetID;
 		FString												CurrentAudioAdaptationSetID;
 
-		TArray<FBlacklistedStream>							BlacklistedExternally;
+		TArray<FDenylistedStream>							DenylistedExternally;
 
 		FStreamCodecInformation::FResolution				MaxStreamResolution;
 		int32												BandwidthCeiling = 0x7fffffff;
@@ -380,12 +380,12 @@ namespace Electra
 	 * This is used in formats like HLS when a dedicated stream playlist is in error
 	 * and thus segment information for this stream is not available.
 	 *
-	 * @param InBlacklistedStream
+	 * @param InDenylistedStream
 	 */
-	void FAdaptiveStreamSelector::MarkStreamAsUnavailable(const FBlacklistedStream& InBlacklistedStream)
+	void FAdaptiveStreamSelector::MarkStreamAsUnavailable(const FDenylistedStream& InDenylistedStream)
 	{
 		FScopeLock lock(&AccessMutex);
-		BlacklistedExternally.Push(InBlacklistedStream);
+		DenylistedExternally.Push(InDenylistedStream);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -393,12 +393,12 @@ namespace Electra
 	 * Marks a previously set to unavailable stream as being available again.
 	 * Usually when the stream specific playlist (in HLS) has become available again.
 	 *
-	 * @param InNoLongerBlacklistedStream
+	 * @param InNoLongerDenylistedStream
 	 */
-	void FAdaptiveStreamSelector::MarkStreamAsAvailable(const FBlacklistedStream& InNoLongerBlacklistedStream)
+	void FAdaptiveStreamSelector::MarkStreamAsAvailable(const FDenylistedStream& InNoLongerDenylistedStream)
 	{
 		FScopeLock lock(&AccessMutex);
-		BlacklistedExternally.Remove(InNoLongerBlacklistedStream);
+		DenylistedExternally.Remove(InNoLongerDenylistedStream);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -624,16 +624,16 @@ namespace Electra
 			}
 		}
 
-		// Remove those that have been externally blacklisted. This may include all of them.
+		// Remove those that have been externally denylisted. This may include all of them.
 		AccessMutex.Lock();
-		if (BlacklistedExternally.Num())
+		if (DenylistedExternally.Num())
 		{
 			for(int32 j=0; j<CandidateRepresentations.Num(); ++j)
 			{
-				for(int32 i=0, iMax=BlacklistedExternally.Num(); i<iMax; ++i)
+				for(int32 i=0, iMax=DenylistedExternally.Num(); i<iMax; ++i)
 				{
-					if (CandidateRepresentations[j]->AdaptationSetUniqueID == BlacklistedExternally[i].AdaptationSetUniqueID &&
-						CandidateRepresentations[j]->RepresentationUniqueID == BlacklistedExternally[i].RepresentationUniqueID)
+					if (CandidateRepresentations[j]->AdaptationSetUniqueID == DenylistedExternally[i].AdaptationSetUniqueID &&
+						CandidateRepresentations[j]->RepresentationUniqueID == DenylistedExternally[i].RepresentationUniqueID)
 					{
 						CandidateRepresentations.RemoveAt(j);
 						--j;

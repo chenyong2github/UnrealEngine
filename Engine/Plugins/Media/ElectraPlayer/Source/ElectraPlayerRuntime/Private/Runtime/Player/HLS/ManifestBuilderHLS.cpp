@@ -142,10 +142,10 @@ public:
 	virtual FErrorDetail BuildFromMasterPlaylist(TSharedPtrTS<FManifestHLSInternal>& OutHLSPlaylist, const HLSPlaylistParser::FPlaylist& Playlist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo) override;
 
 	virtual FErrorDetail GetInitialPlaylistLoadRequests(TArray<FPlaylistLoadRequestHLS>& OutRequests, TSharedPtrTS<FManifestHLSInternal> Manifest) override;
-	virtual UEMediaError UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest) override;
+	virtual UEMediaError UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& DenylistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest) override;
 
 	virtual FErrorDetail UpdateFromVariantPlaylist(TSharedPtrTS<FManifestHLSInternal> InOutHLSPlaylist, const HLSPlaylistParser::FPlaylist& VariantPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, uint32 ResponseCRC) override;
-	virtual void SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInternal> InHLSPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC) override;
+	virtual void SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInternal> InHLSPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& DenylistUntilUTC) override;
 
 private:
 	FErrorDetail SetupRenditions(FManifestHLSInternal* Manifest, const HLSPlaylistParser::FPlaylist& Playlist);
@@ -418,7 +418,7 @@ FErrorDetail FManifestBuilderHLS::SetupRenditions(FManifestHLSInternal* Manifest
 
 	return FErrorDetail();
 }
-
+
 
 FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, const HLSPlaylistParser::FPlaylist& Playlist)
 {
@@ -1128,7 +1128,7 @@ FErrorDetail FManifestBuilderHLS::GetInitialPlaylistLoadRequests(TArray<FPlaylis
 	return FErrorDetail();
 }
 
-UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest)
+UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& DenylistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest)
 {
 	// Is the failed request a video variant?
 	for(int32 i=0, iMax=Manifest->VariantStreams.Num(); i<iMax; ++i)
@@ -1159,7 +1159,7 @@ UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlayli
 				{
 					if (!AlternateVariantStream.IsValid() || AlternateVariantStream->Bandwidth < Manifest->VariantStreams[nVariant]->Bandwidth)
 					{
-						if (!Manifest->VariantStreams[nVariant]->Internal.Blacklisted.Get())
+						if (!Manifest->VariantStreams[nVariant]->Internal.Denylisted.Get())
 						{
 							AlternateVariantStream = Manifest->VariantStreams[nVariant];
 						}
@@ -1177,30 +1177,30 @@ UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlayli
 					}
 					if (!AlternateVariantStream.IsValid() || AlternateVariantStream->Bandwidth > Manifest->VariantStreams[nVariant]->Bandwidth)
 					{
-						if (!Manifest->VariantStreams[nVariant]->Internal.Blacklisted.Get())
+						if (!Manifest->VariantStreams[nVariant]->Internal.Denylisted.Get())
 						{
 							AlternateVariantStream = Manifest->VariantStreams[nVariant];
 						}
 					}
 				}
 			}
-			// FIXME: We could also check if there is any variant that isn't blacklisted yet (or whose blacklist can be lifted again).
+			// FIXME: We could also check if there is any variant that isn't denylisted yet (or whose denylist can be lifted again).
 			if (!AlternateVariantStream.IsValid())
 			{
 				return UEMEDIA_ERROR_END_OF_STREAM;
 			}
 
-			// Blacklist the failed variant only when we have found an alternative. Otherwise we may want to retry the failed stream.
-			VideoVariant->Internal.Blacklisted = MakeSharedTS<FManifestHLSInternal::FBlacklist>();
-			VideoVariant->Internal.Blacklisted->PreviousAttempts				= PreviousAttempts;
-			VideoVariant->Internal.Blacklisted->BecomesAvailableAgainAtUTC  	= BlacklistUntilUTC;
-			VideoVariant->Internal.Blacklisted->AssetIDs.AssetUniqueID  		= DefaultAssetNameHLS;
-			VideoVariant->Internal.Blacklisted->AssetIDs.AdaptationSetUniqueID  = InOutFailedRequest.AdaptationSetUniqueID;
-			VideoVariant->Internal.Blacklisted->AssetIDs.RepresentationUniqueID = InOutFailedRequest.RepresentationUniqueID;
-			VideoVariant->Internal.Blacklisted->AssetIDs.CDN					= InOutFailedRequest.CDN;
+			// Denylist the failed variant only when we have found an alternative. Otherwise we may want to retry the failed stream.
+			VideoVariant->Internal.Denylisted = MakeSharedTS<FManifestHLSInternal::FDenylist>();
+			VideoVariant->Internal.Denylisted->PreviousAttempts				= PreviousAttempts;
+			VideoVariant->Internal.Denylisted->BecomesAvailableAgainAtUTC  	= DenylistUntilUTC;
+			VideoVariant->Internal.Denylisted->AssetIDs.AssetUniqueID  		= DefaultAssetNameHLS;
+			VideoVariant->Internal.Denylisted->AssetIDs.AdaptationSetUniqueID  = InOutFailedRequest.AdaptationSetUniqueID;
+			VideoVariant->Internal.Denylisted->AssetIDs.RepresentationUniqueID = InOutFailedRequest.RepresentationUniqueID;
+			VideoVariant->Internal.Denylisted->AssetIDs.CDN					= InOutFailedRequest.CDN;
 			// Tell the stream selector that this stream is temporarily unavailable.
 			TSharedPtrTS<IAdaptiveStreamSelector> StreamSelector(PlayerSessionServices->GetStreamSelector());
-			StreamSelector->MarkStreamAsUnavailable(VideoVariant->Internal.Blacklisted->AssetIDs);
+			StreamSelector->MarkStreamAsUnavailable(VideoVariant->Internal.Denylisted->AssetIDs);
 
 			FURL_RFC3986 UrlBuilder;
 			UrlBuilder.Parse(Manifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
@@ -1237,17 +1237,17 @@ UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlayli
 			return UEMEDIA_ERROR_END_OF_STREAM;
 		// Implement this later when there actually are different auiod variants to choose from.
 			#if 0
-				// Blacklist the failed variant only when we have found an alternative. Otherwise we may want to retry the failed stream.
-				AudioRendition->Internal.Blacklisted = MakeSharedTS<FManifestHLSInternal::FBlacklist>();
-				AudioRendition->Internal.Blacklisted->PreviousAttempts  			  = PreviousAttempts;
-				AudioRendition->Internal.Blacklisted->BecomesAvailableAgainAtUTC	  = BlacklistUntilUTC;
-				AudioRendition->Internal.Blacklisted->AssetIDs.AssetUniqueID		  = DefaultAssetNameHLS;
-				AudioRendition->Internal.Blacklisted->AssetIDs.AdaptationSetUniqueID  = InOutFailedRequest.AdaptationSetUniqueID;
-				AudioRendition->Internal.Blacklisted->AssetIDs.RepresentationUniqueID = InOutFailedRequest.RepresentationUniqueID;
-				AudioRendition->Internal.Blacklisted->AssetIDs.CDN  				  = InOutFailedRequest.CDN;
+				// Denylist the failed variant only when we have found an alternative. Otherwise we may want to retry the failed stream.
+				AudioRendition->Internal.Denylisted = MakeSharedTS<FManifestHLSInternal::FDenylist>();
+				AudioRendition->Internal.Denylisted->PreviousAttempts  			  = PreviousAttempts;
+				AudioRendition->Internal.Denylisted->BecomesAvailableAgainAtUTC	  = DenylistUntilUTC;
+				AudioRendition->Internal.Denylisted->AssetIDs.AssetUniqueID		  = DefaultAssetNameHLS;
+				AudioRendition->Internal.Denylisted->AssetIDs.AdaptationSetUniqueID  = InOutFailedRequest.AdaptationSetUniqueID;
+				AudioRendition->Internal.Denylisted->AssetIDs.RepresentationUniqueID = InOutFailedRequest.RepresentationUniqueID;
+				AudioRendition->Internal.Denylisted->AssetIDs.CDN  				  = InOutFailedRequest.CDN;
 				// Tell the stream selector that this stream is temporarily unavailable.
 				TSharedPtrTS<IAdaptiveStreamSelector> StreamSelector(PlayerSessionServices->GetStreamSelector());
-				StreamSelector->MarkStreamAsUnavailable(AudioRendition->Internal.Blacklisted->AssetIDs);
+				StreamSelector->MarkStreamAsUnavailable(AudioRendition->Internal.Denylisted->AssetIDs);
 				return UEMEDIA_ERROR_OK;
 			#endif
 		}
@@ -1257,7 +1257,7 @@ UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlayli
 }
 
 
-void FManifestBuilderHLS::SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInternal> InHLSPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC)
+void FManifestBuilderHLS::SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInternal> InHLSPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& DenylistUntilUTC)
 {
 	// Find the variant or rendition this playlist updates.
 	InHLSPlaylist->LockPlaylists();
@@ -1278,18 +1278,18 @@ void FManifestBuilderHLS::SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInt
 			}
 			Playlist->Internal.ExpiresAtTime.SetToPositiveInfinity();
 
-			Playlist->Internal.Blacklisted = MakeSharedTS<FManifestHLSInternal::FBlacklist>();
-			Playlist->Internal.Blacklisted->PreviousAttempts		   = PreviousAttempts;
-			Playlist->Internal.Blacklisted->BecomesAvailableAgainAtUTC = BlacklistUntilUTC;
+			Playlist->Internal.Denylisted = MakeSharedTS<FManifestHLSInternal::FDenylist>();
+			Playlist->Internal.Denylisted->PreviousAttempts		   = PreviousAttempts;
+			Playlist->Internal.Denylisted->BecomesAvailableAgainAtUTC = DenylistUntilUTC;
 
-			Playlist->Internal.Blacklisted->AssetIDs.AssetUniqueID  		= DefaultAssetNameHLS;
-			Playlist->Internal.Blacklisted->AssetIDs.AdaptationSetUniqueID  = SourceRequest.AdaptationSetUniqueID;
-			Playlist->Internal.Blacklisted->AssetIDs.RepresentationUniqueID = SourceRequest.RepresentationUniqueID;
-			Playlist->Internal.Blacklisted->AssetIDs.CDN					= SourceRequest.CDN;
+			Playlist->Internal.Denylisted->AssetIDs.AssetUniqueID  		= DefaultAssetNameHLS;
+			Playlist->Internal.Denylisted->AssetIDs.AdaptationSetUniqueID  = SourceRequest.AdaptationSetUniqueID;
+			Playlist->Internal.Denylisted->AssetIDs.RepresentationUniqueID = SourceRequest.RepresentationUniqueID;
+			Playlist->Internal.Denylisted->AssetIDs.CDN					= SourceRequest.CDN;
 
 			// Tell the stream selector that this stream is temporarily unavailable.
 			TSharedPtrTS<IAdaptiveStreamSelector> StreamSelector(PlayerSessionServices->GetStreamSelector());
-			StreamSelector->MarkStreamAsUnavailable(Playlist->Internal.Blacklisted->AssetIDs);
+			StreamSelector->MarkStreamAsUnavailable(Playlist->Internal.Denylisted->AssetIDs);
 		}
 	}
 	InHLSPlaylist->UnlockPlaylists();
@@ -1336,7 +1336,7 @@ FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManife
 			}
 			Playlist->Internal.ExpiresAtTime	   = SourceRequest.RequestedAtTime + (Playlist->Internal.MediaStream->TargetDuration / 2);
 			Playlist->Internal.bReloadTriggered    = false;
-			Playlist->Internal.Blacklisted.Reset();
+			Playlist->Internal.Denylisted.Reset();
 		}
 		else
 		{
@@ -1705,7 +1705,7 @@ FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManife
 		Playlist->Internal.PlaylistLoadRequest.LastUpdateCRC32 = ResponseCRC;
 		Playlist->Internal.MediaStream  					   = UpdatedMediaStream;
 		Playlist->Internal.LoadState						   = FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::Loaded;
-		Playlist->Internal.Blacklisted.Reset();
+		Playlist->Internal.Denylisted.Reset();
 
 		// Set the expiration time of this playlist.
 		// A VOD or list with an end tag does not expire.
