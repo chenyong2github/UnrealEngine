@@ -731,11 +731,11 @@ FStreamingSourceVelocity::FStreamingSourceVelocity(const FName& InSourceName)
 
 float FStreamingSourceVelocity::GetAverageVelocity(const FVector& NewPosition, const float CurrentTime)
 {
-	const float TeleportDistance = 100.f;
+	const double TeleportDistance = 100;
 	const float MaxDeltaSeconds = 5.f;
 	const bool bIsFirstCall = (LastIndex == INDEX_NONE);
 	const float DeltaSeconds = bIsFirstCall ? 0.f : (CurrentTime - LastUpdateTime);
-	const float Distance = bIsFirstCall ? 0.f : ((NewPosition - LastPosition) * 0.01f).Size();
+	const double Distance = bIsFirstCall ? 0.f : ((NewPosition - LastPosition) * 0.01).Size();
 	if (bIsFirstCall)
 	{
 		UE_LOG(LogWorldPartition, Log, TEXT("New Streaming Source: %s -> Position: %s"), *SourceName.ToString(), *NewPosition.ToString());
@@ -756,7 +756,8 @@ float FStreamingSourceVelocity::GetAverageVelocity(const FVector& NewPosition, c
 	}
 
 	// Compute velocity (m/s)
-	const float Velocity = Distance / DeltaSeconds;
+	check(Distance < MAX_flt);
+	const float Velocity = (float)Distance / DeltaSeconds;
 	// Update velocities history buffer and sum
 	LastIndex = (LastIndex + 1) % VELOCITY_HISTORY_SAMPLE_COUNT;
 	VelocitiesHistorySum = FMath::Max<float>(0.f, (VelocitiesHistorySum + Velocity - VelocitiesHistory[LastIndex]));

@@ -106,6 +106,27 @@ enum class EWorldPartitionRuntimeCellState : uint8
 	Activated
 };
 
+USTRUCT()
+struct FWorldPartitionRuntimeCellDebugInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString Name;
+
+	UPROPERTY()
+	FName GridName;
+
+	UPROPERTY()
+	int64 CoordX;
+
+	UPROPERTY()
+	int64 CoordY;
+
+	UPROPERTY()
+	int64 CoordZ;
+};
+
 static_assert(EWorldPartitionRuntimeCellState::Unloaded < EWorldPartitionRuntimeCellState::Loaded && EWorldPartitionRuntimeCellState::Loaded < EWorldPartitionRuntimeCellState::Activated, "Streaming Query code is dependent on this being true");
 
 /**
@@ -142,10 +163,10 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 	virtual void SetStreamingPriority(int32 InStreamingPriority) const PURE_VIRTUAL(UWorldPartitionRuntimeCell::SetStreamingPriority,);
 	virtual EStreamingStatus GetStreamingStatus() const { return LEVEL_Unloaded; }
 	virtual bool IsLoading() const { return false; }
-	virtual const FString& GetDebugName() const { return DebugName; }
+	virtual const FString& GetDebugName() const { return DebugInfo.Name; }
 	virtual bool IsDebugShown() const;
 	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* Other) const;
-	virtual FName GetGridName() const { return GridName; }
+	virtual FName GetGridName() const { return DebugInfo.GridName; }
 	/** Caches information on streaming source that will be used later on to sort cell. Returns true if cache was reset, else returns false. */
 	virtual bool CacheStreamingSourceInfo(const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info) const;
 
@@ -175,7 +196,7 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 
 	void SetDataLayers(const TArray<const UDataLayerInstance*>& InDataLayerInstances);
 	void SetMinMaxZ(const FVector2D& InMinMaxZ);
-	void SetDebugInfo(FIntVector InCoords, FName InGridName);
+	void SetDebugInfo(int64 InCoordX, int64 InCoordY, int64 InCoordZ, FName InGridName);
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
 
@@ -216,13 +237,7 @@ private:
 
 	// Debug Info
 	UPROPERTY()
-	FIntVector Coords;
-
-	UPROPERTY()
-	FName GridName;
-
-	UPROPERTY()
-	FString DebugName;
+	FWorldPartitionRuntimeCellDebugInfo DebugInfo;
 
 	// Custom Priority
 	UPROPERTY()

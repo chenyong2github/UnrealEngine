@@ -18,9 +18,9 @@ UWorldPartitionRuntimeSpatialHashCell::UWorldPartitionRuntimeSpatialHashCell(con
 : Super(ObjectInitializer)
 , Level(0)
 , CachedIsBlockingSource(false)
-, CachedMinSquareDistanceToBlockingSource(UE_MAX_FLT)
-, CachedMinSquareDistanceToSource(UE_MAX_FLT)
-, CachedSourceSortingDistance(0.f)
+, CachedMinSquareDistanceToBlockingSource(MAX_dbl)
+, CachedMinSquareDistanceToSource(MAX_dbl)
+, CachedSourceSortingDistance(0)
 {}
 
 #if WITH_EDITOR
@@ -48,13 +48,13 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 	if (bWasCacheDirtied)
 	{
 		CachedIsBlockingSource = false;
-		CachedMinSquareDistanceToBlockingSource = UE_MAX_FLT;
-		CachedMinSquareDistanceToSource = UE_MAX_FLT;
+		CachedMinSquareDistanceToBlockingSource = MAX_dbl;
+		CachedMinSquareDistanceToSource = MAX_dbl;
 		CachedSourceModulatedDistances.Reset();
 	}
 
 	float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
-	const float SquareDistance = FVector::DistSquared2D(Info.SourceShape.GetCenter(), Position);
+	const double SquareDistance = FVector::DistSquared2D(Info.SourceShape.GetCenter(), Position);
 	float AngleFactor = 1.f;
 	if (!FMath::IsNearlyZero(AngleContribution))
 	{
@@ -89,8 +89,8 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 		AngleFactor = FMath::Pow(NormalizedAngle, AngleContribution);
 	}
 	// Modulate distance to cell by angle relative to source forward vector (to prioritize cells in front)
-	const float SquareAngleFactor = AngleFactor * AngleFactor;
-	const float ModulatedSquareDistance = SquareDistance * SquareAngleFactor;
+	const double SquareAngleFactor = AngleFactor * AngleFactor;
+	const double ModulatedSquareDistance = SquareDistance * SquareAngleFactor;
 	CachedSourceModulatedDistances.Add(ModulatedSquareDistance);
 	int32 Count = CachedSourceModulatedDistances.Num();
 	check(Count == CachedSourcePriorityWeights.Num());
@@ -100,13 +100,13 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 	}
 	else
 	{
-		float TotalSourcePriorityWeight = 0.f;
+		double TotalSourcePriorityWeight = 0.f;
 		for (int32 i = 0; i < Count; ++i)
 		{
 			TotalSourcePriorityWeight += CachedSourcePriorityWeights[i];
 		}
 		int32 HighestPrioMinDistIndex = 0;
-		float WeightedModulatedDistance = 0.f;
+		double WeightedModulatedDistance = 0.f;
 		for (int32 i = 0; i < Count; ++i)
 		{
 			WeightedModulatedDistance += CachedSourceModulatedDistances[i] * CachedSourcePriorityWeights[i] / TotalSourcePriorityWeight;
@@ -149,11 +149,11 @@ int32 UWorldPartitionRuntimeSpatialHashCell::SortCompare(const UWorldPartitionRu
 		if (Result == 0)
 		{
 			// Closest distance (lower value is higher prio)
-			const float Diff = CachedSourceSortingDistance - Other->CachedSourceSortingDistance;
+			const double Diff = CachedSourceSortingDistance - Other->CachedSourceSortingDistance;
 			if (FMath::IsNearlyZero(Diff))
 			{
-				const float RawDistanceDiff = CachedMinSquareDistanceToSource - Other->CachedMinSquareDistanceToSource;
-				Result = RawDistanceDiff < 0.f ? -1 : (RawDistanceDiff > 0.f ? 1 : 0);
+				const double RawDistanceDiff = CachedMinSquareDistanceToSource - Other->CachedMinSquareDistanceToSource;
+				Result = RawDistanceDiff < 0 ? -1 : (RawDistanceDiff > 0.f ? 1 : 0);
 			}
 			else
 			{

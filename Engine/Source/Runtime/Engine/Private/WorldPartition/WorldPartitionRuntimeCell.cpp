@@ -48,19 +48,21 @@ void UWorldPartitionRuntimeCell::SetMinMaxZ(const FVector2D& InMinMaxZ)
 	MinMaxZ = InMinMaxZ;
 }
 
-void UWorldPartitionRuntimeCell::SetDebugInfo(FIntVector InCoords, FName InGridName)
+void UWorldPartitionRuntimeCell::SetDebugInfo(int64 InCoordX, int64 InCoordY, int64 InCoordZ, FName InGridName)
 {
-	Coords = InCoords;
-	GridName = InGridName;
+	DebugInfo.CoordX = InCoordX;
+	DebugInfo.CoordY = InCoordY;
+	DebugInfo.CoordZ = InCoordZ;
+	DebugInfo.GridName = InGridName;
 	UpdateDebugName();
 }
 
 void UWorldPartitionRuntimeCell::UpdateDebugName()
 {
 	TStringBuilder<512> Builder;
-	Builder += GridName.ToString();
+	Builder += DebugInfo.GridName.ToString();
 	Builder += TEXT("_");
-	Builder += FString::Printf(TEXT("L%d_X%d_Y%d"), Coords.Z, Coords.X, Coords.Y);
+	Builder += FString::Printf(TEXT("L%d_X%d_Y%d"), DebugInfo.CoordZ, DebugInfo.CoordX, DebugInfo.CoordY);
 	int32 DataLayerCount = DataLayers.Num();
 
 	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetOuterUWorldPartition()->GetWorld());
@@ -77,7 +79,7 @@ void UWorldPartitionRuntimeCell::UpdateDebugName()
 		}
 		Builder += FString::Printf(TEXT("ID:%X]"), FDataLayersID(DataLayerObjects).GetHash());
 	}
-	DebugName = Builder.ToString();
+	DebugInfo.Name = Builder.ToString();
 }
 
 void UWorldPartitionRuntimeCell::DumpStateLog(FHierarchicalLogArchive& Ar)
@@ -116,10 +118,10 @@ int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* 
 
 bool UWorldPartitionRuntimeCell::IsDebugShown() const
 {
-	return FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(GridName) &&
+	return FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(DebugInfo.GridName) &&
 		   FWorldPartitionDebugHelper::IsDebugStreamingStatusShown(GetStreamingStatus()) &&
 		   FWorldPartitionDebugHelper::AreDebugDataLayersShown(DataLayers) &&
-		   FWorldPartitionDebugHelper::IsDebugCellNameShown(DebugName);
+		   FWorldPartitionDebugHelper::IsDebugCellNameShown(DebugInfo.Name);
 }
 
 FLinearColor UWorldPartitionRuntimeCell::GetDebugStreamingPriorityColor() const

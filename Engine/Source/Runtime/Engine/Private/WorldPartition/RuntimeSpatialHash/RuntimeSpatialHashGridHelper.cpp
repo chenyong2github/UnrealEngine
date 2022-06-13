@@ -23,40 +23,40 @@ static FAutoConsoleVariableRef CVarRuntimeSpatialHashPlaceSmallActorsUsingLocati
 	GRuntimeSpatialHashPlaceSmallActorsUsingLocation,
 	TEXT("Set RuntimeSpatialHashPlaceSmallActorsUsingLocation to true to place actors smaller than a cell size into their corresponding cell using their location instead of their bounding box."));
 
-FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVector& InOrigin, int32 InCellSize)
+FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVector& InOrigin, int64 InCellSize)
 	: WorldBounds(InWorldBounds)
 	, Origin(InOrigin)
 	, CellSize(InCellSize)
 {
 	// Compute Grid's size and level count based on World bounds
-	int32 GridSize = 1;
+	int64 GridSize = 1;
 	int32 GridLevelCount = 1;
 
 	if (WorldBounds.IsValid)
 	{
 		const FVector2D DistMin = FMath::Abs(FVector2D(WorldBounds.Min - Origin));
 		const FVector2D DistMax = FMath::Abs(FVector2D(WorldBounds.Max - Origin));
-		const float WorldBoundsMaxExtent = FMath::Max(DistMin.GetMax(), DistMax.GetMax());
+		const double WorldBoundsMaxExtent = FMath::Max(DistMin.GetMax(), DistMax.GetMax());
 
-		if (WorldBoundsMaxExtent > 0.f)
+		if (WorldBoundsMaxExtent > 0)
 		{
-			GridSize = 2.f * FMath::CeilToFloat(WorldBoundsMaxExtent / CellSize); 
+			GridSize = 2 * FMath::CeilToDouble(WorldBoundsMaxExtent / CellSize); 
 			if (!FMath::IsPowerOfTwo(GridSize))
 			{
-				GridSize = FMath::Pow(2.f, FMath::CeilToFloat(FMath::Log2(static_cast<float>(GridSize))));
+				GridSize = FMath::Pow(2, FMath::CeilToDouble(FMath::Log2(static_cast<double>(GridSize))));
 			}
-			GridLevelCount = FMath::FloorLog2(GridSize) + 1;
+			GridLevelCount = FMath::FloorLog2_64(GridSize) + 1;
 		}
 	}
 
 	check(FMath::IsPowerOfTwo(GridSize));
 
 	Levels.Reserve(GridLevelCount);
-	int32 CurrentCellSize = CellSize;
-	int32 CurrentGridSize = GridSize;
+	int64 CurrentCellSize = CellSize;
+	int64 CurrentGridSize = GridSize;
 	for (int32 Level = 0; Level < GridLevelCount; ++Level)
 	{
-		int32 LevelGridSize = CurrentGridSize;
+		int64 LevelGridSize = CurrentGridSize;
 
 		if (!GRuntimeSpatialHashUseAlignedGridLevels)
 		{
@@ -92,37 +92,37 @@ void FSquare2DGridHelper::ForEachCells(TFunctionRef<void(const FSquare2DGridHelp
 }
 #endif
 
-int32 FSquare2DGridHelper::ForEachIntersectingCells(const FBox& InBox, TFunctionRef<void(const FIntVector&)> InOperation, int32 InStartLevel) const
+int32 FSquare2DGridHelper::ForEachIntersectingCells(const FBox& InBox, TFunctionRef<void(const FGridCellCoord&)> InOperation, int32 InStartLevel) const
 {
 	int32 NumCells = 0;
 
 	for (int32 Level = InStartLevel; Level < Levels.Num(); Level++)
 	{
-		NumCells += Levels[Level].ForEachIntersectingCells(InBox, [InBox, Level, InOperation](const FIntVector2& Coord) { InOperation(FIntVector(Coord.X, Coord.Y, Level)); });
+		NumCells += Levels[Level].ForEachIntersectingCells(InBox, [InBox, Level, InOperation](const FGridCellCoord2& Coord) { InOperation(FGridCellCoord(Coord.X, Coord.Y, Level)); });
 	}
 
 	return NumCells;
 }
 
-int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphere& InSphere, TFunctionRef<void(const FIntVector&)> InOperation, int32 InStartLevel) const
+int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphere& InSphere, TFunctionRef<void(const FGridCellCoord&)> InOperation, int32 InStartLevel) const
 {
 	int32 NumCells = 0;
 
 	for (int32 Level = InStartLevel; Level < Levels.Num(); Level++)
 	{
-		NumCells += Levels[Level].ForEachIntersectingCells(InSphere, [InSphere, Level, InOperation](const FIntVector2& Coord) { InOperation(FIntVector(Coord.X, Coord.Y, Level)); });
+		NumCells += Levels[Level].ForEachIntersectingCells(InSphere, [InSphere, Level, InOperation](const FGridCellCoord2& Coord) { InOperation(FGridCellCoord(Coord.X, Coord.Y, Level)); });
 	}
 
 	return NumCells;
 }
 
-int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector&)> InOperation, int32 InStartLevel) const
+int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FGridCellCoord&)> InOperation, int32 InStartLevel) const
 {
 	int32 NumCells = 0;
 
 	for (int32 Level = InStartLevel; Level < Levels.Num(); Level++)
 	{
-		NumCells += Levels[Level].ForEachIntersectingCells(InShape, [Level, InOperation](const FIntVector2& Coord) { InOperation(FIntVector(Coord.X, Coord.Y, Level)); });
+		NumCells += Levels[Level].ForEachIntersectingCells(InShape, [Level, InOperation](const FGridCellCoord2& Coord) { InOperation(FGridCellCoord(Coord.X, Coord.Y, Level)); });
 	}
 
 	return NumCells;
@@ -154,7 +154,7 @@ void FSquare2DGridHelper::ValidateSingleActorReferer()
 
 #if WITH_EDITOR
 
-FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int32 GridCellSize)
+FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int64 GridCellSize)
 {
 	// Default grid to a minimum of 1 level and 1 cell, for always loaded actors
 	FVector GridOrigin = FVector::ZeroVector;
@@ -174,7 +174,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 	{
 		int32 IntersectingCellCount = 0;
 		FSquare2DGridHelper::FGridLevel& LastGridLevel = PartitionedActors.Levels.Last();
-		LastGridLevel.ForEachIntersectingCells(WorldBounds, [&IntersectingCellCount](const FIntVector2& Coords) { ++IntersectingCellCount; });
+		LastGridLevel.ForEachIntersectingCells(WorldBounds, [&IntersectingCellCount](const FGridCellCoord2& Coords) { ++IntersectingCellCount; });
 		if (!ensure(IntersectingCellCount == 1))
 		{
 			UE_LOG(LogWorldPartition, Warning, TEXT("Can't find grid cell that encompasses world bounds."));
@@ -194,7 +194,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			if (GRuntimeSpatialHashPlaceSmallActorsUsingLocation && (ClusterBounds.GetArea() <= CellArea))
 			{
 				// Find grid level cell that contains the actor cluster pivot and put actors in it.
-				FIntVector2 CellCoords;
+				FGridCellCoord2 CellCoords;
 				if (PartitionedActors.GetLowestLevel().GetCellCoords(ClusterBounds.GetCenter(), CellCoords))
 				{
 					GridCell = &PartitionedActors.GetLowestLevel().GetCell(CellCoords);
@@ -204,8 +204,8 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			{
 				// Find grid level cell that encompasses the actor cluster bounding box and put actors in it.
 				const FVector2D ClusterSize = ClusterBounds.GetSize();
-				const float MinRequiredCellExtent = FMath::Max(ClusterSize.X, ClusterSize.Y);
-				const int32 FirstPotentialGridLevel = FMath::Max(FMath::CeilToFloat(FMath::Log2(MinRequiredCellExtent / (float)PartitionedActors.CellSize)), 0);
+				const double MinRequiredCellExtent = FMath::Max(ClusterSize.X, ClusterSize.Y);
+				const int32 FirstPotentialGridLevel = FMath::Max(FMath::CeilToDouble(FMath::Log2(MinRequiredCellExtent / (double)PartitionedActors.CellSize)), 0);
 
 				for (int32 GridLevelIndex = FirstPotentialGridLevel; GridLevelIndex < PartitionedActors.Levels.Num(); GridLevelIndex++)
 				{
@@ -213,7 +213,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 
 					if (GridLevel.GetNumIntersectingCells(ClusterInstance->Bounds) == 1)
 					{
-						GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &GridCell](const FIntVector2& Coords)
+						GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &GridCell](const FGridCellCoord2& Coords)
 						{
 							check(!GridCell);
 							GridCell = &GridLevel.GetCell(Coords);
@@ -231,10 +231,10 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 
 		if (!GridCell)
 		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Cluster of %d actors was promoted always loaded, BV of [%d x %d] (meters)"), 
+			UE_LOG(LogWorldPartition, Warning, TEXT("Cluster of %d actors was promoted always loaded, BV of [%lld x %lld] (meters)"), 
 				ActorCluster->Actors.Num(),
-				(int)(0.01f * ClusterInstance->Bounds.GetSize().X),
-				(int)(0.01f * ClusterInstance->Bounds.GetSize().Y));
+				(int64)(0.01f * ClusterInstance->Bounds.GetSize().X),
+				(int64)(0.01f * ClusterInstance->Bounds.GetSize().Y));
 			for (const FGuid& ActorGuid : ActorCluster->Actors)
 			{
 				const FWorldPartitionActorDescView& ActorDescView = ClusterInstance->ContainerInstance->GetActorDescView(ActorGuid);
@@ -253,10 +253,10 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		{
 			if (ActorCluster->Actors.Num() > 1)
 			{
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered %d actors, generated shared BV of [%d x %d] (meters)"),
+				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered %d actors, generated shared BV of [%lld x %lld] (meters)"),
 					ActorCluster->Actors.Num(),
-					(int)(0.01f * ClusterInstance->Bounds.GetSize().X),
-					(int)(0.01f * ClusterInstance->Bounds.GetSize().Y));
+					(int64)(0.01f * ClusterInstance->Bounds.GetSize().X),
+					(int64)(0.01f * ClusterInstance->Bounds.GetSize().Y));
 
 				if (ClusterInstance->DataLayers.Num())
 				{
@@ -312,9 +312,9 @@ FORCEINLINE static bool IsPointInsideSector(const FVector2D& TestPoint, const FV
 	}
 }
 
-bool FSquare2DGridHelper::FGrid2D::DoesCircleSectorIntersectsCell(const FIntVector2& Coords, const FVector2D& SectorCenter, float SectorRadiusSquared, const FVector2D& SectorStartVector, const FVector2D& SectorEndVector, float SectorAngle) const
+bool FSquare2DGridHelper::FGrid2D::DoesCircleSectorIntersectsCell(const FGridCellCoord2& Coords, const FVector2D& SectorCenter, float SectorRadiusSquared, const FVector2D& SectorStartVector, const FVector2D& SectorEndVector, float SectorAngle) const
 {
-	const int64 CellIndex = (int64)Coords.Y * (int64)GridSize + (int64)Coords.X;
+	const int64 CellIndex = Coords.Y * GridSize + Coords.X;
 	FBox2D CellBounds;
 	GetCellBounds(CellIndex, CellBounds);
 
@@ -344,7 +344,7 @@ bool FSquare2DGridHelper::FGrid2D::DoesCircleSectorIntersectsCell(const FIntVect
 	return false;
 }
 
-int32 FSquare2DGridHelper::FGrid2D::ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector2&)> InOperation) const
+int32 FSquare2DGridHelper::FGrid2D::ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FGridCellCoord2&)> InOperation) const
 {
 	check(!InShape.IsNearlyZero());
 	const bool bIsSphere = InShape.IsSphere();
@@ -359,7 +359,7 @@ int32 FSquare2DGridHelper::FGrid2D::ForEachIntersectingCells(const FSphericalSec
 
 	int32 NumCells = 0;
 	const FSphere Sphere(InShape.GetCenter(), InShape.GetRadius());
-	ForEachIntersectingCells(Sphere, [this, bIsSphere, Center2D, SectorRadiusSquared, SectorStart2D, SectorEnd2D, SectorAngle = InShape.GetAngle(), InOperation, &NumCells](const FIntVector2& Coords)
+	ForEachIntersectingCells(Sphere, [this, bIsSphere, Center2D, SectorRadiusSquared, SectorStart2D, SectorEnd2D, SectorAngle = InShape.GetAngle(), InOperation, &NumCells](const FGridCellCoord2& Coords)
 	{
 		// If sector, filter coords that intersect sector
 		if (bIsSphere || DoesCircleSectorIntersectsCell(Coords, Center2D, SectorRadiusSquared, SectorStart2D, SectorEnd2D, SectorAngle))

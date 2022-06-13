@@ -410,11 +410,11 @@ struct ENGINE_API FWorldPartitionStreamingSource
 	{
 		const FVector Direction = Rotation.Euler();
 		return FString::Printf(
-			TEXT("Priority: %d | %s | %s | Pos: X=%d,Y=%d,Z=%d | Rot: X=%d,Y=%d,Z=%d | Vel: %3.2f m/s (%d mph)"), 
+			TEXT("Priority: %d | %s | %s | Pos: X=%lld,Y=%lld,Z=%lld | Rot: X=%d,Y=%d,Z=%d | Vel: %3.2f m/s (%d mph)"), 
 			Priority, 
 			GetStreamingSourceTargetStateName(TargetState),
 			bBlockOnSlowLoading ? TEXT("Blocking") : TEXT("NonBlocking"),
-			(int32)Location.X, (int32)Location.Y, (int32)Location.Z, 
+			(int64)Location.X, (int64)Location.Y, (int64)Location.Z, 
 			(int32)Direction.X, (int32)Direction.Y, (int32)Direction.Z, 
 			Velocity, 
 			(int32)(Velocity*2.23694f)

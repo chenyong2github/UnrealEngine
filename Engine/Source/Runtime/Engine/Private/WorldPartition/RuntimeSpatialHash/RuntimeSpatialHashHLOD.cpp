@@ -152,13 +152,13 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 	TArray<FGuid> GridHLODActors;
 	PartitionedActors.ForEachCells([&](const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell)
 	{
-		const FIntVector CellCoord = GridCell.GetCoords();
+		const FGridCellCoord CellCoord = GridCell.GetCoords();
 
 		FBox2D CellBounds2D;
 		PartitionedActors.GetCellBounds(CellCoord, CellBounds2D);
 		FBox CellBounds = FBox(FVector(CellBounds2D.Min, WorldBounds.Min.Z), FVector(CellBounds2D.Max, WorldBounds.Max.Z));
 
-		FIntVector CellGlobalCoord;
+		FGridCellCoord CellGlobalCoord;
 		verify(PartitionedActors.GetCellGlobalCoords(CellCoord, CellGlobalCoord));
 
 		for (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk& GridCellDataChunk : GridCell.GetDataChunks())

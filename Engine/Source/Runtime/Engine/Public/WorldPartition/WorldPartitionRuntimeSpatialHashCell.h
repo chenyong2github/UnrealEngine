@@ -31,10 +31,10 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 	mutable bool CachedIsBlockingSource;
 
 	// Represents the square distance from cell to the closest blocking streaming source
-	mutable float CachedMinSquareDistanceToBlockingSource;
+	mutable double CachedMinSquareDistanceToBlockingSource;
 
 	// Represents the square distance from cell to the closest streaming source
-	mutable float CachedMinSquareDistanceToSource;
+	mutable double CachedMinSquareDistanceToSource;
 
 	// Modulated distance to the different streaming sources used to sort relative priority amongst streaming cells
 	// The value is affected by :
@@ -42,9 +42,9 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 	// - The priority of each source
 	// - The distance between the cell and each source
 	// - The angle between the cell and each source orientation
-	mutable float CachedSourceSortingDistance;
+	mutable double CachedSourceSortingDistance;
 
-	mutable TArray<float> CachedSourceModulatedDistances;
+	mutable TArray<double> CachedSourceModulatedDistances;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
