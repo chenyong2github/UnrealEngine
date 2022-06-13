@@ -3248,6 +3248,9 @@ private:
 	/** Delegate handle for game viewport close requests in PIE sessions. */
 	FDelegateHandle ViewportCloseRequestedDelegateHandle;
 
+	/** Minimized Windows during PIE */
+	TArray<TWeakPtr<SWindow>> MinimizedWindowsDuringPIE;
+
 public:
 	/**
 	 * Get a Subsystem of specified type
