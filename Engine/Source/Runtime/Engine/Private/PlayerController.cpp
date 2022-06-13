@@ -3748,7 +3748,7 @@ void APlayerController::ConsoleKey(FKey Key)
 	{
 		if (LocalPlayer->ViewportClient && LocalPlayer->ViewportClient->ViewportConsole)
 		{
-			LocalPlayer->ViewportClient->ViewportConsole->InputKey(0, Key, IE_Pressed);
+			LocalPlayer->ViewportClient->ViewportConsole->InputKey(IPlatformInputDeviceMapper::Get().GetDefaultInputDevice(), Key, IE_Pressed);
 		}
 	}
 #endif // ALLOW_CONSOLE

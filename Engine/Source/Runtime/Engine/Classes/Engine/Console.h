@@ -205,7 +205,19 @@ class ENGINE_API UConsole
 	 *
 	 * @return	True to consume the character, false to pass it on.
 	 */
+	UE_DEPRECATED(5.1, "This version of InputChar_Typing is deprecated. Please use the version that takes a DeviceId instead.")
 	virtual bool InputChar_Typing( int32 ControllerId, const FString& Unicode );
+
+	/**
+	 * Process a character input event (typing) routed through unrealscript from another object. This method is assigned as the value for the
+	 * OnReceivedNativeInputKey delegate so that native input events are routed to this unrealscript function.
+	 *
+	 * @param	DeviceId		the input device that generated this character input event
+	 * @param	Unicode			the character that was typed
+	 *
+	 * @return	True to consume the character, false to pass it on.
+	 */
+	virtual bool InputChar_Typing(FInputDeviceId DeviceId, const FString& Unicode);
 	
 	/**
 	 * perform rendering of the console on the canvas
@@ -221,7 +233,13 @@ class ENGINE_API UConsole
 	/**
 	 * This state is used when the console is open.
 	 */
+	UE_DEPRECATED(5.1, "This version of InputChar_Open has been deprecated. Please use the version that takes a DeviceId instead.")
 	virtual bool InputChar_Open( int32 ControllerId, const FString& Unicode );
+
+	/**
+	 * This state is used when the console is open.
+	 */
+	virtual bool InputChar_Open( FInputDeviceId DeviceId, const FString& Unicode );
 	
 	/**
 	 * Process an input key event routed through unrealscript from another object. This method is assigned as the value for the
@@ -234,7 +252,21 @@ class ENGINE_API UConsole
 	 *
 	 * @return	true to consume the key event, false to pass it on.
 	 */
+	UE_DEPRECATED(5.1, "This version of InputKey_Open has been deprecated. Please use the version that takes a DeviceId instead.")
 	virtual bool InputKey_Open( int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false );
+
+	/**
+	 * Process an input key event routed through unrealscript from another object. This method is assigned as the value for the
+	 * OnReceivedNativeInputKey delegate so that native input events are routed to this unrealscript function.
+	 *
+	 * @param	ControllerId	the controller that generated this input key event
+	 * @param	Key				the name of the key which an event occured for (KEY_Up, KEY_Down, etc.)
+	 * @param	EventType		the type of event which occured (pressed, released, etc.)
+	 * @param	AmountDepressed	for analog keys, the depression percent.
+	 *
+	 * @return	true to consume the key event, false to pass it on.
+	 */
+	virtual bool InputKey_Open(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false);
 	
 	/** 
 	 * perform rendering of the console on the canvas
@@ -247,10 +279,21 @@ class ENGINE_API UConsole
 	/** Perform actions on transition from Open state */
 	virtual void EndState_Open(FName NextStateName);
 
+	UE_DEPRECATED(5.1, "This version of InputChar has been deprecated. Please use the version that takes an FInputDeviceId instead")
 	virtual bool InputChar(int32 ControllerId, const FString& Unicode);
+	virtual bool InputChar(FInputDeviceId DeviceId, const FString& Unicode);
+	
+	UE_DEPRECATED(5.1, "This version of InputKey has been deprecated. Please use the version that takes an FInputDeviceId instead")
 	virtual bool InputKey(int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed=1.f, bool bGamepad=false);
+	virtual bool InputKey(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed=1.f, bool bGamepad=false);
+
+	UE_DEPRECATED(5.1, "This version of InputAxis has been deprecated. Please use the version that takes an FInputDeviceId instead")
 	virtual bool InputAxis(int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples=1, bool bGamepad=false) { return false; };
+	virtual bool InputAxis(FInputDeviceId DevideId, FKey Key, float Delta, float DeltaTime, int32 NumSamples=1, bool bGamepad=false) { return false; };
+
+	UE_DEPRECATED(5.1, "This version of InputTouch has been deprecated. Please use the version that takes an FInputDeviceId instead")
 	virtual bool InputTouch(int32 ControllerId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex) { return false; }
+	virtual bool InputTouch(FInputDeviceId DevideId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex) { return false; }
 
 	/** render to the canvas based on the console state */
 	virtual void PostRender_Console(class UCanvas* Canvas);
@@ -272,7 +315,7 @@ class ENGINE_API UConsole
 
 private:
 
-	bool InputKey_InputLine( int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false );
+	bool InputKey_InputLine(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false);
 
 	// interface FOutputDevice
 	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;

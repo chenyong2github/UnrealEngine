@@ -634,7 +634,7 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 
 	if (IgnoreInput())
 	{
-		return ViewportConsole ? ViewportConsole->InputKey(EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false;
+		return ViewportConsole ? ViewportConsole->InputKey(EventArgs.InputDevice, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false;
 	}
 
 	OnInputKeyEvent.Broadcast(EventArgs);
@@ -651,7 +651,7 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 #endif
 
 	// route to subsystems that care
-	bool bResult = ( ViewportConsole ? ViewportConsole->InputKey(EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false );
+	bool bResult = ( ViewportConsole ? ViewportConsole->InputKey(EventArgs.InputDevice, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()) : false );
 
 	// Try the override callback, this may modify event args
 	if (!bResult && OnOverrideInputKeyEvent.IsBound())
@@ -693,7 +693,7 @@ bool UGameViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 	return bResult;
 }
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UGameViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
 {
 	// Remap the old int32 ControllerId value to the new InputDeviceId
@@ -704,6 +704,7 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, F
 	
 	return InputAxis(InViewport, DeviceId, Key, Delta, DeltaTime, NumSamples, bGamepad);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UGameViewportClient::InputAxis(FViewport* InViewport, FInputDeviceId InputDevice, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
 {
@@ -727,7 +728,7 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, FInputDeviceId InputD
 		// route to subsystems that care
 		if (ViewportConsole != nullptr)
 		{
-			bResult = ViewportConsole->InputAxis(EventArgs.ControllerId, EventArgs.Key, Delta, DeltaTime, NumSamples, EventArgs.IsGamepad());
+			bResult = ViewportConsole->InputAxis(EventArgs.InputDevice, EventArgs.Key, Delta, DeltaTime, NumSamples, EventArgs.IsGamepad());
 		}
 		
 		// Try the override callback, this may modify event args
@@ -746,15 +747,13 @@ bool UGameViewportClient::InputAxis(FViewport* InViewport, FInputDeviceId InputD
 		}
 
 #if WITH_EDITOR
-		const int32 NumLocalPlayers = World && World->GetGameInstance() ? World->GetGameInstance()->GetNumLocalPlayers() : 0;
-		// For PIE, let the next PIE window handle the input if none of our players did
-		// (this allows people to use multiple controllers to control each window)
-		if (!bResult && EventArgs.ControllerId > NumLocalPlayers - 1 && InViewport->IsPlayInEditorViewport())
+		// If there are multiple local players and the input has not been handled yet, we should pass it along
+		// to the next viewport so that it can check if any of its Player Controllers need it
+		if (!bResult && InViewport->IsPlayInEditorViewport())
 		{
-			UGameViewportClient *NextViewport = GEngine->GetNextPIEViewport(this);
-			if (NextViewport)
+			if (UGameViewportClient* NextViewport = GEngine->GetNextPIEViewport(this))
 			{
-				bResult = NextViewport->InputAxis(InViewport, EventArgs.ControllerId - NumLocalPlayers, EventArgs.Key, Delta, DeltaTime, NumSamples, EventArgs.IsGamepad());
+				bResult = NextViewport->InputAxis(InViewport, EventArgs.InputDevice, EventArgs.Key, Delta, DeltaTime, NumSamples, EventArgs.IsGamepad());
 			}
 		}
 #endif
@@ -777,7 +776,7 @@ bool UGameViewportClient::InputChar(FViewport* InViewport, int32 ControllerId, T
 	CharacterString += Character;
 
 	//Always route to the console
-	bool bResult = (ViewportConsole ? ViewportConsole->InputChar(ControllerId, CharacterString) : false);
+	bool bResult = (ViewportConsole ? ViewportConsole->InputChar(FInputDeviceId::CreateFromInternalId(ControllerId), CharacterString) : false);
 
 	if (IgnoreInput())
 	{
@@ -802,7 +801,7 @@ bool UGameViewportClient::InputTouch(FViewport* InViewport, int32 ControllerId, 
 	}
 
 	// route to subsystems that care
-	bool bResult = (ViewportConsole ? ViewportConsole->InputTouch(ControllerId, Handle, Type, TouchLocation, Force, DeviceTimestamp, TouchpadIndex) : false);
+	bool bResult = (ViewportConsole ? ViewportConsole->InputTouch(FInputDeviceId::CreateFromInternalId(ControllerId), Handle, Type, TouchLocation, Force, DeviceTimestamp, TouchpadIndex) : false);
 	if (!bResult)
 	{
 		ULocalPlayer* const TargetPlayer = GEngine->GetLocalPlayerFromControllerId(this, ControllerId);

@@ -204,7 +204,7 @@ bool UCommonGameViewportClient::IsKeyPriorityAboveUI(const FInputKeyEventArgs& E
 {
 #if !UE_BUILD_SHIPPING
 	// First priority goes to the viewport console regardless any state or setting
-	if (ViewportConsole && ViewportConsole->InputKey(EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()))
+	if (ViewportConsole && ViewportConsole->InputKey(EventArgs.InputDevice, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.IsGamepad()))
 	{
 		return true;
 	}

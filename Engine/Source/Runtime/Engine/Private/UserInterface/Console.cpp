@@ -799,7 +799,15 @@ void UConsole::AppendInputText(const FString& Text)
 	UpdatePrecompletedInputLine();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UConsole::InputChar_Typing(int32 ControllerId, const FString& Unicode)
+{
+	FInputDeviceId DeviceId = FInputDeviceId::CreateFromInternalId(ControllerId);
+	return InputChar_Typing(DeviceId, Unicode);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool UConsole::InputChar_Typing(FInputDeviceId DeviceId, const FString& Unicode)
 {
 	if (bCaptureKeyInput)
 	{
@@ -811,7 +819,7 @@ bool UConsole::InputChar_Typing(int32 ControllerId, const FString& Unicode)
 	return true;
 }
 
-bool UConsole::InputKey_InputLine(int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+bool UConsole::InputKey_InputLine(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
 {
 	if (Event == IE_Pressed)
 	{
@@ -1194,8 +1202,15 @@ void UConsole::EndState_Typing(FName NextStateName)
 	bAutoCompleteLocked = false;
 }
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UConsole::InputChar_Open(int32 ControllerId, const FString& Unicode)
+{
+	FInputDeviceId DeviceId = FInputDeviceId::CreateFromInternalId(ControllerId);
+	return InputChar_Open(DeviceId, Unicode);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool UConsole::InputChar_Open(FInputDeviceId DeviceId, const FString& Unicode)
 {
 	if (bCaptureKeyInput)
 	{
@@ -1207,8 +1222,15 @@ bool UConsole::InputChar_Open(int32 ControllerId, const FString& Unicode)
 	return true;
 }
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UConsole::InputKey_Open(int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+{
+	FInputDeviceId DeviceId = FInputDeviceId::CreateFromInternalId(ControllerId);
+	return InputKey_Open(DeviceId, Key, Event, AmountDepressed, bGamepad);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool UConsole::InputKey_Open(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
 {
 	if (Key == EKeys::PageUp || Key == EKeys::MouseScrollUp)
 	{
@@ -1346,22 +1368,38 @@ void UConsole::EndState_Open(FName NextStateName)
 {
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UConsole::InputChar(int32 ControllerId, const FString& Unicode)
+{
+	FInputDeviceId DeviceId = FInputDeviceId::CreateFromInternalId(ControllerId);
+	return InputChar(DeviceId, Unicode);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool UConsole::InputChar(FInputDeviceId DeviceId, const FString& Unicode)
 {
 	if (ConsoleState == NAME_Typing)
 	{
-		return InputChar_Typing(ControllerId, Unicode);
+		return InputChar_Typing(DeviceId, Unicode);
 	}
 	if (ConsoleState == NAME_Open)
 	{
-		return InputChar_Open(ControllerId, Unicode);
+		return InputChar_Open(DeviceId, Unicode);
 	}
 	return bCaptureKeyInput;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UConsole::InputKey(int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
 {
-	bool bWasConsumed = InputKey_InputLine(ControllerId, Key, Event, AmountDepressed, bGamepad);
+	FInputDeviceId DeviceId = FInputDeviceId::CreateFromInternalId(ControllerId);
+	return InputKey(DeviceId, Key, Event, AmountDepressed, bGamepad);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool UConsole::InputKey(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+{
+	bool bWasConsumed = InputKey_InputLine(DeviceId, Key, Event, AmountDepressed, bGamepad);
 
 	if (!bWasConsumed)
 	{
@@ -1372,7 +1410,7 @@ bool UConsole::InputKey(int32 ControllerId, FKey Key, EInputEvent Event, float A
 		}
 		if (ConsoleState == NAME_Open)
 		{
-			bWasConsumed = InputKey_Open(ControllerId, Key, Event, AmountDepressed, bGamepad);
+			bWasConsumed = InputKey_Open(DeviceId, Key, Event, AmountDepressed, bGamepad);
 			// if the console is open we don't want any other one to consume the input
 			return true;
 		}
