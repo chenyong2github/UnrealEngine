@@ -7,6 +7,7 @@
 #include "CustomBuildSteps.h"
 #include "LocalizationDescriptor.h"
 #include "PluginReferenceDescriptor.h"
+#include "VerseScope.h"
 
 class FJsonObject;
 class FJsonValue;
@@ -84,8 +85,8 @@ struct PROJECTS_API FPluginDescriptor
 	/** The Verse path to the root of this plugin's content directory */
 	FString VersePath;
 
-	/** If Verse code associated with this plugin is allowed to be seen by users outside of Epic */
-	bool bVersePublicApi;
+	/** Origin/visibility of Verse code in this plugin's Content/Verse folder */
+	EVerseScope::Type VerseScope = EVerseScope::User;
 
 	/** Whether this plugin should be enabled by default for all projects */
 	EPluginEnabledByDefault EnabledByDefault;

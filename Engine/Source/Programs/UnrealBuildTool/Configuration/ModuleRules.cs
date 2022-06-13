@@ -39,6 +39,27 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Describes the origin and visibility of Verse code
+	/// </summary>
+	public enum VerseScope
+	{
+		/// <summary>
+		/// Created by Epic and is entirely hidden from public users
+		/// </summary>
+		InternalAPI,
+
+		/// <summary>
+		/// Created by Epic and only public definitions will be visible to public users
+		/// </summary>
+		PublicAPI,
+
+		/// <summary>
+		/// Created by a public user
+		/// </summary>
+		User
+	}
+
+	/// <summary>
 	/// ModuleRules is a data structure that contains the rules for defining a module
 	/// </summary>
 	public class ModuleRules
@@ -1046,9 +1067,9 @@ namespace UnrealBuildTool
 		public string? VersePath;
 
 		/// <summary>
-		/// If Verse code associated with this module is allowed to be seen by users outside of Epic
+		/// Visibility of Verse code in this module's Source/Verse folder
 		/// </summary>
-		public bool bVersePublicApi;
+		public VerseScope VerseScope = VerseScope.User;
 
 		/// <summary>
 		/// Whether this module qualifies included headers from other modules relative to the root of their 'Public' folder. This reduces the number

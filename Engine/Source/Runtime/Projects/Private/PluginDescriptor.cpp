@@ -77,7 +77,7 @@ const FString& FPluginDescriptor::GetFileExtension()
 
 FPluginDescriptor::FPluginDescriptor()
 	: Version(0)
-	, bVersePublicApi(false)
+	, VerseScope(EVerseScope::User)
 	, EnabledByDefault(EPluginEnabledByDefault::Unspecified)
 	, bCanContainContent(false)
 	, bCanContainVerse(false)
@@ -212,7 +212,24 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText* OutFailReason /*=
 	}
 
 	Object.TryGetStringField(TEXT("VersePath"), VersePath);
-	Object.TryGetBoolField(TEXT("VersePublicApi"), bVersePublicApi);
+
+	// Read the Verse scope
+	TSharedPtr<FJsonValue> VerseScopeValue = Object.TryGetField(TEXT("VerseScope"));
+	if (VerseScopeValue.IsValid() && VerseScopeValue->Type == EJson::String)
+	{
+		if(TOptional<EVerseScope::Type> MaybeVerseScope = EVerseScope::FromString(*VerseScopeValue->AsString()))
+		{
+			VerseScope = *MaybeVerseScope;
+		}
+		else
+		{
+			if (OutFailReason)
+			{
+				*OutFailReason = FText::Format(LOCTEXT("PluginWithInvalidVerseScope", "Plugin entry 'VerseScope' specified an unrecognized value '{1}'"), FText::FromString(VerseScopeValue->AsString()));
+			}
+			return false;
+		}
+	}
 
 	bool bEnabledByDefault;
 	if(Object.TryGetBoolField(TEXT("EnabledByDefault"), bEnabledByDefault))
@@ -329,9 +346,9 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 		JsonObject.SetStringField(TEXT("VersePath"), VersePath);
 	}
 
-	if (bVersePublicApi)
+	if (VerseScope != EVerseScope::User)
 	{
-		JsonObject.SetBoolField(TEXT("VersePublicApi"), bVersePublicApi);
+		JsonObject.SetStringField(TEXT("VerseScope"), EVerseScope::ToString(VerseScope));
 	}
 
 	if (EnabledByDefault != EPluginEnabledByDefault::Unspecified)
