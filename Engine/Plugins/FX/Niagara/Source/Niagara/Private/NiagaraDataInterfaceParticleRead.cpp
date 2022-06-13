@@ -2530,7 +2530,9 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 									return Var.GetName() == *AttributeName;
 								};
 
-								const FNiagaraVariableBase* FoundVar = FoundSourceEmitter.GetEmitterData()->SpawnScriptProps.Script->GetVMExecutableData().Attributes.FindByPredicate(AttribFilter);
+								TArray<FNiagaraVariable> Variables;
+								FoundSourceEmitter.GetEmitterData()->GatherCompiledParticleAttributes(Variables);
+								const FNiagaraVariableBase* FoundVar = Variables.FindByPredicate(AttribFilter);
 								if (FoundVar && !CheckVariableType(FoundVar->GetType(), AttributeType))
 								{
 									FText Msg = FText::Format(LOCTEXT("SourceEmitterTypeMismatchError", "Source Emitter has attribute named, \"{0}\" but the type isn't compatible with the function \"{1}\", and will not succeed."), FText::FromName(*AttributeName), FText::FromName(Func.Name));

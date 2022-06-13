@@ -2086,6 +2086,25 @@ void UNiagaraEmitter::RebindNotifications()
 
 #endif
 
+
+void FVersionedNiagaraEmitterData::GatherCompiledParticleAttributes(TArray<FNiagaraVariable>& OutVariables) const
+{
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		OutVariables = GetGPUComputeScript()->GetVMExecutableData().Attributes;
+	}
+	else
+	{
+		OutVariables = UpdateScriptProps.Script->GetVMExecutableData().Attributes;
+
+		for (const FNiagaraVariable& Var : SpawnScriptProps.Script->GetVMExecutableData().Attributes)
+		{
+			OutVariables.AddUnique(Var);
+		}
+	}
+
+}
+
 bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InVar, const FGuid& EmitterVersion, FNiagaraTypeDefinition& OutBoundType) const
 {
 	check(!HasAnyFlags(RF_NeedPostLoad));
@@ -2110,6 +2129,7 @@ bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InV
 	}
 	return false;
 }
+
 
 bool UNiagaraEmitter::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace, FNiagaraTypeDefinition& OutBoundType) const
 {

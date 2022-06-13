@@ -2754,19 +2754,7 @@ void UNiagaraSystem::InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData&
 {
 	DataSetToInit.Empty();
 	const FVersionedNiagaraEmitterData* AssociatedEmitterData = InAssociatedEmitterHandle.GetEmitterData();
-	if (AssociatedEmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		DataSetToInit.Variables = AssociatedEmitterData->GetGPUComputeScript()->GetVMExecutableData().Attributes;
-	}
-	else
-	{
-		DataSetToInit.Variables = AssociatedEmitterData->UpdateScriptProps.Script->GetVMExecutableData().Attributes;
-
-		for (const FNiagaraVariable& Var : AssociatedEmitterData->SpawnScriptProps.Script->GetVMExecutableData().Attributes)
-		{
-			DataSetToInit.Variables.AddUnique(Var);
-		}
-	}
+	AssociatedEmitterData->GatherCompiledParticleAttributes(DataSetToInit.Variables);
 
 	DataSetToInit.bRequiresPersistentIDs = AssociatedEmitterData->RequiresPersistentIDs() || DataSetToInit.Variables.Contains(SYS_PARAM_PARTICLES_ID);
 	DataSetToInit.ID = FNiagaraDataSetID(InAssociatedEmitterHandle.GetIdName(), ENiagaraDataSetType::ParticleData);
