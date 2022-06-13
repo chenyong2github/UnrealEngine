@@ -68,7 +68,7 @@ bool UWorldPartitionMiniMapBuilder::PreRun(UWorld* World, FPackageSourceControlH
 
 		if (!WorldBounds.IsValid)
 		{
-			WorldBounds = World->GetWorldPartition()->GetEditorWorldBounds();
+			WorldBounds = World->GetWorldPartition()->GetRuntimeWorldBounds();
 		}
 
 		IterativeWorldBounds = WorldBounds;

@@ -1481,24 +1481,16 @@ void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
 	StreamingPolicy->RemapSoftObjectPath(ObjectPath);
 }
 
-FBox UWorldPartition::GetWorldBounds() const
-{
-	FBox WorldBounds(ForceInit);
-	for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
-	{
-		if (ActorDescIterator->GetIsSpatiallyLoaded())
-		{
-			WorldBounds += ActorDescIterator->GetBounds();
-		}
-	}
-	return WorldBounds;
-}
-
 FBox UWorldPartition::GetEditorWorldBounds() const
 {
-	// This is not a valid call in PIE
 	check(EditorHash);
-	return EditorHash ? EditorHash->GetEditorWorldBounds() : FBox(EForceInit::ForceInit);
+	return EditorHash->GetEditorWorldBounds();
+}
+
+FBox UWorldPartition::GetRuntimeWorldBounds() const
+{
+	check(EditorHash);
+	return EditorHash->GetRuntimeWorldBounds();
 }
 #endif
 

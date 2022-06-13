@@ -156,8 +156,11 @@ public:
 	bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath);
 	bool FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages);
 
-	FBox GetWorldBounds() const;
+	UE_DEPRECATED(5.1, "GetWorldBounds is deprecated, use GetEditorWorldBounds or GetRuntimeWorldBounds instead.")
+	FBox GetWorldBounds() const { return GetRuntimeWorldBounds(); }
+
 	FBox GetEditorWorldBounds() const;
+	FBox GetRuntimeWorldBounds() const;
 	
 	UHLODLayer* GetDefaultHLODLayer() const { return DefaultHLODLayer; }
 	void SetDefaultHLODLayer(UHLODLayer* InDefaultHLODLayer) { DefaultHLODLayer = InDefaultHLODLayer; }

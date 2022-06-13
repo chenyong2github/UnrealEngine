@@ -95,14 +95,14 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 
 	FBox VisibleGridRectWorld(
 		FVector(
-			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.X / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Min.X),
-			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.Y / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Min.Y),
-			FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.Z / EffectiveCellSize) * EffectiveCellSize
+			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->EditorBounds.Min.X / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Min.X),
+			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->EditorBounds.Min.Y / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Min.Y),
+			FMath::FloorToFloat(EditorSpatialHash->EditorBounds.Min.Z / EffectiveCellSize) * EffectiveCellSize
 		),
 		FVector(
-			FMath::Min(FMath::CeilToFloat(EditorSpatialHash->Bounds.Max.X / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Max.X),
-			FMath::Min(FMath::CeilToFloat(EditorSpatialHash->Bounds.Max.Y / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Max.Y),
-			FMath::CeilToFloat(EditorSpatialHash->Bounds.Max.Z / EffectiveCellSize) * EffectiveCellSize
+			FMath::Min(FMath::CeilToFloat(EditorSpatialHash->EditorBounds.Max.X / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Max.X),
+			FMath::Min(FMath::CeilToFloat(EditorSpatialHash->EditorBounds.Max.Y / EffectiveCellSize) * EffectiveCellSize, ViewRectWorld.Max.Y),
+			FMath::CeilToFloat(EditorSpatialHash->EditorBounds.Max.Z / EffectiveCellSize) * EffectiveCellSize
 		)
 	);
 

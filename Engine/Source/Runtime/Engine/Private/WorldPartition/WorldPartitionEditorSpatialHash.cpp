@@ -39,23 +39,35 @@ FName UWorldPartitionEditorSpatialHash::GetWorldPartitionEditorName() const
 
 FBox UWorldPartitionEditorSpatialHash::GetEditorWorldBounds() const
 {
-	return Bounds;
+	return EditorBounds;
+}
+
+FBox UWorldPartitionEditorSpatialHash::GetRuntimeWorldBounds() const
+{
+	return RuntimeBounds;
 }
 
 void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 {
 	if (bBoundsDirty)
 	{
-		FBox NewBounds(ForceInit);
+		FBox NewEditorBounds(ForceInit);
+		FBox NewRuntimeBounds(ForceInit);
+
 		for (FCell* Cell: Cells)
 		{
-			NewBounds += Cell->Bounds;
+			NewEditorBounds += Cell->Bounds;
+
+			for (const FWorldPartitionHandle& Actor : Cell->Actors)
+			{
+				NewRuntimeBounds += Actor->GetBounds();
+			}
 		}
 
-		const int32 OldLevel = GetLevelForBox(Bounds);
+		const int32 OldLevel = GetLevelForBox(EditorBounds);
 		check(OldLevel == HashLevels.Num() - 1);
 
-		const int32 NewLevel = GetLevelForBox(NewBounds);
+		const int32 NewLevel = GetLevelForBox(NewEditorBounds);
 		check(NewLevel <= OldLevel);		
 
 		if (NewLevel < OldLevel)
@@ -63,15 +75,17 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 			HashLevels.SetNum(NewLevel + 1);
 		}
 
-		Bounds = NewBounds;
+		EditorBounds = NewEditorBounds;
+		RuntimeBounds = NewRuntimeBounds;
+
 		bBoundsDirty = false;
 	}
 
 	if (CVarEnableSpatialHashValidation.GetValueOnAnyThread())
 	{
-		if (Bounds.IsValid)
+		if (EditorBounds.IsValid)
 		{
-			const int32 CurrentLevel = GetLevelForBox(Bounds);
+			const int32 CurrentLevel = GetLevelForBox(EditorBounds);
 			check(CurrentLevel == HashLevels.Num() - 1);
 
 			for (int32 HashLevel = 0; HashLevel < HashLevels.Num() - 1; HashLevel++)
@@ -105,7 +119,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 	else
 	{
 		const FBox ActorBounds = InActorHandle->GetBounds();
-		const int32 CurrentLevel = GetLevelForBox(Bounds);
+		const int32 CurrentLevel = GetLevelForBox(EditorBounds);
 		const int32 ActorLevel = GetLevelForBox(ActorBounds);
 
 		if (HashLevels.Num() <= ActorLevel)
@@ -127,7 +141,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 				Cells.Add(Cell.Get());
 
 				// Increment spatial structure bounds
-				Bounds += Cell->Bounds;
+				EditorBounds += Cell->Bounds;
 
 				// Update parent nodes
 				FCellCoord CurrentCellCoord = CellCoord;
@@ -152,7 +166,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 			Cell->Actors.Add(InActorHandle);
 		});
 
-		const int32 NewLevel = GetLevelForBox(Bounds);
+		const int32 NewLevel = GetLevelForBox(EditorBounds);
 		check(NewLevel >= CurrentLevel);
 
 		if (NewLevel > CurrentLevel)
@@ -193,6 +207,8 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 				}
 			}
 		}
+
+		RuntimeBounds += InActorHandle->GetBounds();
 	}
 }
 
@@ -207,7 +223,7 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 	else
 	{
 		const FBox ActorBounds = InActorHandle->GetBounds();
-		const int32 CurrentLevel = GetLevelForBox(Bounds);
+		const int32 CurrentLevel = GetLevelForBox(EditorBounds);
 		const int32 ActorLevel = GetLevelForBox(ActorBounds);
 
 		ForEachIntersectingCells(ActorBounds, ActorLevel, [&](const FCellCoord& CellCoord)
@@ -335,7 +351,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCell(const FBox& Box,
 
 	if (HashLevels.Num())
 	{
-		const FBox SearchBox = Box.Overlap(Bounds);
+		const FBox SearchBox = Box.Overlap(EditorBounds);
 
 		if (SearchBox.IsValid)
 		{

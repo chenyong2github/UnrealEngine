@@ -191,6 +191,7 @@ public:
 	virtual void SetDefaultValues() override;
 	virtual FName GetWorldPartitionEditorName() const override;
 	virtual FBox GetEditorWorldBounds() const override;
+	virtual FBox GetRuntimeWorldBounds() const override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	virtual void HashActor(FWorldPartitionHandle& InActorHandle) override;
@@ -216,7 +217,8 @@ private:
 	TSet<FCell*> Cells;
 	TUniquePtr<FCell> AlwaysLoadedCell;
 	
-	FBox Bounds;
+	FBox EditorBounds;
+	FBox RuntimeBounds;
 	bool bBoundsDirty;	
 
 public:

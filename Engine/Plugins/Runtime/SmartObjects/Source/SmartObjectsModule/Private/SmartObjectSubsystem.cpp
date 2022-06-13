@@ -1228,7 +1228,7 @@ void USmartObjectSubsystem::ComputeBounds(const UWorld& World, ASmartObjectColle
 
 	if (const UWorldPartition* WorldPartition = World.GetWorldPartition())
 	{
-		Bounds = WorldPartition->GetWorldBounds();
+		Bounds = WorldPartition->GetRuntimeWorldBounds();
 	}
 	else if (const ULevel* PersistentLevel = World.PersistentLevel.Get())
 	{
