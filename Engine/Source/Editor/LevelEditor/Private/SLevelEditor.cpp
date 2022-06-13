@@ -1084,7 +1084,7 @@ bool SLevelEditor::CanSpawnLevelEditorTab(const FSpawnTabArgs& Args, FName TabId
 	}
 
 	// HLOD Outliner not yet supported with World Partition
-	if (TabIdentifier == LevelEditorTabIds::LevelEditorHierarchicalLODOutliner && World->IsPartitionedWorld())
+	if (TabIdentifier == LevelEditorTabIds::LevelEditorHierarchicalLODOutliner && ensure(World) && World->IsPartitionedWorld())
 	{
 		return false;
 	}
