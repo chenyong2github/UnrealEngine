@@ -50,6 +50,7 @@ float4 PackedParams;
 
 #if TEXTURE_ARRAY
 float NumSlices;
+float SliceIndex;
 #endif
 
 void Main(
@@ -72,10 +73,13 @@ void Main(
 	float4 Sample;
 
 #if TEXTURE_ARRAY
-	// Divide up the texture array into horizontal slices.
-	float SliceSize = 1.0 / NumSlices;
-	float SliceIndex = floor(TextureCoordinate.y / SliceSize);
-	float3 SampleCoordinates = float3(TextureCoordinate.xy, SliceIndex);
+	float CurrentSliceIndex = SliceIndex;
+	if (CurrentSliceIndex < 0.0)
+	{
+		// If the slice index is not specified, display a portion of each slice from the texture array.
+		CurrentSliceIndex = floor(TextureCoordinate.y * NumSlices);
+	}
+	float3 SampleCoordinates = float3(TextureCoordinate.xy, CurrentSliceIndex);
 
 	if( MipLevel >= 0.0f )
 	{

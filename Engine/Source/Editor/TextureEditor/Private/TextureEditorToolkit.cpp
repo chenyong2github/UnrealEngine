@@ -242,6 +242,9 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 
 	SpecifiedLayer = 0;
 
+	SpecifiedSlice = 0;
+	bUseSpecifiedSlice = false;
+
 	SavedCompressionSetting = false;
 
 	// Start at whatever the last used zoom mode was
@@ -457,6 +460,11 @@ int32 FTextureEditorToolkit::GetLayer() const
 	return SpecifiedLayer;
 }
 
+int32 FTextureEditorToolkit::GetSlice() const
+{
+	return GetUseSpecifiedSlice() ? HandleSliceEntryBoxValue().Get(-1) : -1;
+}
+
 UTexture* FTextureEditorToolkit::GetTexture( ) const
 {
 	return Texture;
@@ -486,6 +494,10 @@ bool FTextureEditorToolkit::GetUseSpecifiedMip( ) const
 	return false;
 }
 
+bool FTextureEditorToolkit::GetUseSpecifiedSlice() const
+{
+	return HandleSliceCheckBoxIsEnabled() && bUseSpecifiedSlice;
+}
 
 double FTextureEditorToolkit::GetCustomZoomLevel( ) const
 {
@@ -1692,6 +1704,7 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	TSharedRef<SWidget> ChannelControl = MakeChannelControlWidget();
 	TSharedRef<SWidget> LODControl = MakeLODControlWidget();
 	TSharedRef<SWidget> LayerControl = MakeLayerControlWidget();
+	TSharedRef<SWidget> SliceControl = MakeSliceControlWidget();
 	TSharedRef<SWidget> ExposureControl = MakeExposureContolWidget();
 	TSharedPtr<SWidget> OptionalOpacityControl = IsVolumeTexture() ? TSharedPtr<SWidget>(MakeOpacityControlWidget()) : nullptr;
 	TSharedRef<SWidget> ZoomControl = MakeZoomControlWidget();
@@ -1724,6 +1737,15 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			ToolbarBuilder.BeginSection("Layers");
 			{
 				ToolbarBuilder.AddWidget(LayerControl);
+			}
+			ToolbarBuilder.EndSection();
+		}
+
+		if (HasSlices())
+		{
+			ToolbarBuilder.BeginSection("Slices");
+			{
+				ToolbarBuilder.AddWidget(SliceControl);
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -1873,6 +1895,11 @@ EPixelFormat FTextureEditorToolkit::GetPixelFormat() const
 TOptional<int32> FTextureEditorToolkit::GetMaxLayer() const
 {
 	return FMath::Max(Texture->Source.GetNumLayers() - 1, 1);
+}
+
+TOptional<int32> FTextureEditorToolkit::GetMaxSlice() const
+{
+	return FMath::Max(0, GetNumSlices() - 1);
 }
 
 bool FTextureEditorToolkit::IsCubeTexture( ) const
@@ -2157,6 +2184,48 @@ TOptional<int32> FTextureEditorToolkit::HandleLayerEntryBoxValue() const
 bool FTextureEditorToolkit::HasLayers() const
 {
 	return Texture->Source.GetNumLayers() > 1;
+}
+
+bool FTextureEditorToolkit::HasSlices() const
+{
+	// currently only supports Texture2DArray, but can be extended for other texture types which are using multiple slices
+	// slice selection should be supported even for a texture array with less than two elements, because array elements can be added dynamically
+	return Texture->IsA(UTexture2DArray::StaticClass());
+}
+
+int32 FTextureEditorToolkit::GetNumSlices() const
+{
+	if (Texture->IsA(UTexture2DArray::StaticClass()))
+	{
+		return Cast<UTexture2DArray>(Texture)->GetArraySize();
+	}
+	return 1;
+}
+
+bool FTextureEditorToolkit::HandleSliceCheckBoxIsEnabled() const
+{
+	return GetNumSlices() > 1;
+}
+
+ECheckBoxState FTextureEditorToolkit::HandleSliceCheckBoxIsChecked() const
+{
+	return GetUseSpecifiedSlice() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FTextureEditorToolkit::HandleSliceCheckBoxCheckedStateChanged(ECheckBoxState InNewState)
+{
+	bUseSpecifiedSlice = InNewState == ECheckBoxState::Checked;
+}
+
+TOptional<int32> FTextureEditorToolkit::HandleSliceEntryBoxValue() const
+{
+	return FMath::Clamp<int32>(SpecifiedSlice, 0, GetMaxSlice().Get(0));
+}
+
+void FTextureEditorToolkit::HandleSliceEntryBoxChanged(int32 NewSlice)
+{
+	SpecifiedSlice = FMath::Clamp<int32>(NewSlice, 0, GetMaxSlice().Get(0));
+	PopulateQuickInfo();
 }
 
 bool FTextureEditorToolkit::HandleReimportActionCanExecute( ) const
@@ -2657,6 +2726,47 @@ TSharedRef<SWidget> FTextureEditorToolkit::MakeLayerControlWidget()
 		];
 
 	return LayerControl;
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::MakeSliceControlWidget()
+{
+	TSharedRef<SWidget> SliceControl = SNew(SBox)
+		.WidthOverride(212.0f)
+		[
+			SNew(SHorizontalBox)
+			.IsEnabled(this, &FTextureEditorToolkit::HandleSliceCheckBoxIsEnabled)
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("TextureEditor", "Slice", "Slice"))
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f, 2.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FTextureEditorToolkit::HandleSliceCheckBoxIsChecked)
+				.OnCheckStateChanged(this, &FTextureEditorToolkit::HandleSliceCheckBoxCheckedStateChanged)
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SNumericEntryBox<int32>)
+				.IsEnabled(this, &FTextureEditorToolkit::GetUseSpecifiedSlice)
+				.AllowSpin(true)
+				.MinSliderValue(0)
+				.MaxSliderValue(this, &FTextureEditorToolkit::GetMaxSlice)
+				.Value(this, &FTextureEditorToolkit::HandleSliceEntryBoxValue)
+				.OnValueChanged(this, &FTextureEditorToolkit::HandleSliceEntryBoxChanged)
+			]
+		];
+
+	return SliceControl;
 }
 
 TSharedRef<SWidget> FTextureEditorToolkit::MakeExposureContolWidget()

@@ -32,8 +32,10 @@ public:
 	/** Accessors */ 
 	virtual int32 GetMipLevel() const = 0;
 	virtual int32 GetLayer() const = 0;
+	virtual int32 GetSlice() const = 0;
 	virtual ESimpleElementBlendMode GetColourChannelBlendMode() const = 0;
 	virtual bool GetUseSpecifiedMip() const = 0;
+	virtual bool GetUseSpecifiedSlice() const = 0;
 	virtual double GetCustomZoomLevel() const = 0;
 	virtual void SetCustomZoomLevel( double ZoomValue ) = 0;
 	virtual void ZoomIn() = 0;

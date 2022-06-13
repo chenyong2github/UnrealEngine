@@ -65,9 +65,11 @@ public:
 	virtual ESimpleElementBlendMode GetColourChannelBlendMode( ) const override;
 	virtual int32 GetMipLevel( ) const override;
 	virtual int32 GetLayer() const override;
+	virtual int32 GetSlice() const override;
 	virtual UTexture* GetTexture( ) const override;
 	virtual bool HasValidTextureResource( ) const override;
 	virtual bool GetUseSpecifiedMip( ) const override;
+	virtual bool GetUseSpecifiedSlice() const override;
 	virtual double GetCustomZoomLevel( ) const override;
 	virtual void SetCustomZoomLevel(double ZoomValue) override;
 	virtual void PopulateQuickInfo( ) override;
@@ -145,7 +147,15 @@ protected:
 	 */
 	EPixelFormat GetPixelFormat() const;
 
+	/**
+	 * Gets the highest layer index for this texture.
+	 */
 	TOptional<int32> GetMaxLayer() const;
+
+	/**
+	 * Gets the highest slice index for this texture.
+	 */
+	TOptional<int32> GetMaxSlice() const;
 
 	/**
 	 * Checks whether the texture being edited is a cube map texture.
@@ -230,6 +240,27 @@ private:
 
 	bool HasLayers() const;
 
+	// Returns true if the current texture supports slice selection.
+	bool HasSlices() const;
+
+	// Gets the number of slices that can be selected for this texture.
+	int32 GetNumSlices() const;
+
+	// Callback for determining whether the slice check box is enabled.
+	bool HandleSliceCheckBoxIsEnabled() const;
+
+	// Callback for getting the checked state of the slice check box.
+	ECheckBoxState HandleSliceCheckBoxIsChecked() const;
+
+	// Callback for changing the checked state of the slice check box.
+	void HandleSliceCheckBoxCheckedStateChanged(ECheckBoxState InNewState);
+
+	// Callback for getting the value of the slice index entry box.
+	TOptional<int32> HandleSliceEntryBoxValue() const;
+
+	// Callback for changing the value of the slice index entry box.
+	void HandleSliceEntryBoxChanged(int32 Slice);
+
 	// Callback for determining whether the Reimport action can execute.
 	bool HandleReimportActionCanExecute( ) const;
 
@@ -310,6 +341,7 @@ private:
 	TSharedRef<SWidget> MakeChannelControlWidget();
 	TSharedRef<SWidget> MakeLODControlWidget();
 	TSharedRef<SWidget> MakeLayerControlWidget();
+	TSharedRef<SWidget> MakeSliceControlWidget();
 	TSharedRef<SWidget> MakeExposureContolWidget();
 	TSharedRef<SWidget> MakeOpacityControlWidget();
 	TSharedRef<SWidget> MakeZoomControlWidget();
@@ -381,10 +413,18 @@ private:
 
 	/** Which mip level should be shown */
 	int32 SpecifiedMipLevel;
-	/* When true, the specified mip value is used. Top mip is used when false.*/
+
+	/** When true, the specified mip value is used. Top mip is used when false.*/
 	bool bUseSpecifiedMipLevel;
 
+	/** Which layer should be shown */
 	int32 SpecifiedLayer;
+
+	/** Which slice should be shown */
+	int32 SpecifiedSlice;
+
+	/** When true, the specified slice index value is used, otherwise the value of -1 is used.*/
+	bool bUseSpecifiedSlice;
 
 	/** During re-import, cache this setting so it can be restored if necessary */
 	bool SavedCompressionSetting;

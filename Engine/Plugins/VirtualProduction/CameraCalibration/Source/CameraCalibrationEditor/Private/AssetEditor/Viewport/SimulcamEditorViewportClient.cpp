@@ -50,9 +50,10 @@ void FSimulcamEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 
 	constexpr float MipLevel = 0;
 	constexpr float LayerIndex = 0;
+	constexpr float SliceIndex = 0;
 
 	TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
-	BatchedElementParameters = new FBatchedElementTexture2DPreviewParameters(MipLevel, LayerIndex, false, false, false, false, false);
+	BatchedElementParameters = new FBatchedElementTexture2DPreviewParameters(MipLevel, LayerIndex, SliceIndex, false, false, false, false, false);
 
 	if (Texture->GetResource() != nullptr)
 	{

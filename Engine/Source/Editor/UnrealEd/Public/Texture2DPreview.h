@@ -15,9 +15,10 @@
 class UNREALED_API FBatchedElementTexture2DPreviewParameters : public FBatchedElementParameters
 {
 public:
-	FBatchedElementTexture2DPreviewParameters(float InMipLevel, float InLayerIndex, bool bInIsNormalMap, bool bInIsSingleChannel, bool bInIsSingleVTPhysicalSpace, bool bInIsVirtualTexture, bool bInIsTextureArray)
+	FBatchedElementTexture2DPreviewParameters(float InMipLevel, float InLayerIndex, float InSliceIndex, bool bInIsNormalMap, bool bInIsSingleChannel, bool bInIsSingleVTPhysicalSpace, bool bInIsVirtualTexture, bool bInIsTextureArray)
 		: MipLevel(InMipLevel)
 		, LayerIndex(InLayerIndex)
+		, SliceIndex(InSliceIndex)
 		, bIsNormalMap( bInIsNormalMap )
 		, bIsSingleChannelFormat( bInIsSingleChannel )
 		, bIsSingleVTPhysicalSpace(bInIsSingleVTPhysicalSpace)
@@ -34,6 +35,7 @@ private:
 	/** Parameters that need to be passed to the shader */
 	float MipLevel;
 	float LayerIndex;
+	float SliceIndex;
 	bool bIsNormalMap;
 	bool bIsSingleChannelFormat;
 	bool bIsSingleVTPhysicalSpace;

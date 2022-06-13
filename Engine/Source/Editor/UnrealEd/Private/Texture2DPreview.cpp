@@ -47,6 +47,7 @@ public:
 		ColorWeights.Bind(Initializer.ParameterMap,TEXT("ColorWeights"));
 		PackedParameters.Bind(Initializer.ParameterMap,TEXT("PackedParams"));
 		NumSlices.Bind(Initializer.ParameterMap, TEXT("NumSlices"));
+		SliceIndex.Bind(Initializer.ParameterMap, TEXT("SliceIndex"));
 	}
 	FSimpleElementTexture2DPreviewPS() {}
 
@@ -61,57 +62,58 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Parameters.Platform);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, const FMatrix44f& ColorWeightsValue, float GammaValue, float MipLevel, float LayerIndex, bool bIsNormalMap, bool bIsSingleVTPhysicalSpace, bool bIsVirtualTexture, bool bIsTextureArray)
+	void SetParameters(FRHICommandList& InRHICmdList, const FTexture* InTextureValue, const FMatrix44f& InColorWeightsValue, float InGammaValue, float InMipLevel, float InLayerIndex, float InSliceIndex, bool bInIsNormalMap, bool bInIsSingleVTPhysicalSpace, bool bInIsVirtualTexture, bool bInIsTextureArray)
 	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-		if (bIsVirtualTexture)
+		FRHIPixelShader* ShaderRHI = InRHICmdList.GetBoundPixelShader();
+		if (bInIsVirtualTexture)
 		{
-			FVirtualTexture2DResource* VirtualTextureValue = (FVirtualTexture2DResource*)TextureValue;
+			FVirtualTexture2DResource* VirtualTextureValue = (FVirtualTexture2DResource*)InTextureValue;
 			IAllocatedVirtualTexture* AllocatedVT = VirtualTextureValue->AcquireAllocatedVT();
 	
-			FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureSRV((uint32)LayerIndex, TextureValue->bSRGB);
-			SetSRVParameter(RHICmdList, ShaderRHI, InTexture, PhysicalView);
-			SetSamplerParameter(RHICmdList, ShaderRHI, InTextureSampler, VirtualTextureValue->SamplerStateRHI);
+			FRHIShaderResourceView* PhysicalView = AllocatedVT->GetPhysicalTextureSRV((uint32)InLayerIndex, InTextureValue->bSRGB);
+			SetSRVParameter(InRHICmdList, ShaderRHI, InTexture, PhysicalView);
+			SetSamplerParameter(InRHICmdList, ShaderRHI, InTextureSampler, VirtualTextureValue->SamplerStateRHI);
 
-			SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture0, AllocatedVT->GetPageTableTexture(0u));
+			SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture0, AllocatedVT->GetPageTableTexture(0u));
 			if (AllocatedVT->GetNumPageTableTextures() > 1u)
 			{
-				SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture1, AllocatedVT->GetPageTableTexture(1u));
+				SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture1, AllocatedVT->GetPageTableTexture(1u));
 			}
 			else
 			{
-				SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture1, GBlackTexture->TextureRHI);
+				SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture1, GBlackTexture->TextureRHI);
 			}
 
 			FUintVector4 PageTableUniform[2];
 			FUintVector4 Uniform;
 
 			AllocatedVT->GetPackedPageTableUniform(PageTableUniform);
-			AllocatedVT->GetPackedUniform(&Uniform, (uint32)LayerIndex);
+			AllocatedVT->GetPackedUniform(&Uniform, (uint32)InLayerIndex);
 
-			SetShaderValueArray(RHICmdList, ShaderRHI, VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));
-			SetShaderValue(RHICmdList, ShaderRHI, VTPackedUniform, Uniform);
+			SetShaderValueArray(InRHICmdList, ShaderRHI, VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));
+			SetShaderValue(InRHICmdList, ShaderRHI, VTPackedUniform, Uniform);
 		}
 		else
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture0, GBlackTexture->TextureRHI);
-			SetTextureParameter(RHICmdList, ShaderRHI, InPageTableTexture1, GBlackTexture->TextureRHI);
-			SetTextureParameter(RHICmdList, ShaderRHI, InTexture, InTextureSampler, TextureValue);
+			SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture0, GBlackTexture->TextureRHI);
+			SetTextureParameter(InRHICmdList, ShaderRHI, InPageTableTexture1, GBlackTexture->TextureRHI);
+			SetTextureParameter(InRHICmdList, ShaderRHI, InTexture, InTextureSampler, InTextureValue);
 		}
 		
-		SetShaderValue(RHICmdList, ShaderRHI,ColorWeights,ColorWeightsValue);
-		FVector4f PackedParametersValue(GammaValue, MipLevel, bIsNormalMap ? 1.0 : -1.0f, bIsSingleVTPhysicalSpace ? 0 : LayerIndex);
-		SetShaderValue(RHICmdList, ShaderRHI, PackedParameters, PackedParametersValue);
+		SetShaderValue(InRHICmdList, ShaderRHI,ColorWeights,InColorWeightsValue);
+		FVector4f PackedParametersValue(InGammaValue, InMipLevel, bInIsNormalMap ? 1.0 : -1.0f, bInIsSingleVTPhysicalSpace ? 0 : InLayerIndex);
+		SetShaderValue(InRHICmdList, ShaderRHI, PackedParameters, PackedParametersValue);
 
-		// Store slice count for texture array
-		if (bIsTextureArray)
+		// Store slice count and selected slice index for texture array
+		if (bInIsTextureArray)
 		{
-			const float NumSlicesData = TextureValue ? TextureValue->GetSizeZ() : 1;
-			SetShaderValue(RHICmdList, ShaderRHI, NumSlices, NumSlicesData);
+			const float NumSlicesData = InTextureValue ? InTextureValue->GetSizeZ() : 1;
+			SetShaderValue(InRHICmdList, ShaderRHI, NumSlices, NumSlicesData);
+			SetShaderValue(InRHICmdList, ShaderRHI, SliceIndex, InSliceIndex);
 		}
 
-		SetShaderValue(RHICmdList, ShaderRHI, TextureComponentReplicate, (TextureValue && TextureValue->bGreyScaleFormat) ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
-		SetShaderValue(RHICmdList, ShaderRHI, TextureComponentReplicateAlpha, (TextureValue && TextureValue->bGreyScaleFormat) ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
+		SetShaderValue(InRHICmdList, ShaderRHI, TextureComponentReplicate, (InTextureValue && InTextureValue->bGreyScaleFormat) ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
+		SetShaderValue(InRHICmdList, ShaderRHI, TextureComponentReplicateAlpha, (InTextureValue && InTextureValue->bGreyScaleFormat) ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
 	}
 
 private:
@@ -126,6 +128,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, ColorWeights);
 	LAYOUT_FIELD(FShaderParameter, PackedParameters);
 	LAYOUT_FIELD(FShaderParameter, NumSlices);
+	LAYOUT_FIELD(FShaderParameter, SliceIndex);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FSimpleElementTexture2DPreviewPS, "/Engine/Private/SimpleElementTexture2DPreviewPixelShader.usf", "Main", SF_Pixel);
@@ -161,5 +164,5 @@ void FBatchedElementTexture2DPreviewParameters::BindShaders(
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, FMatrix44f(ColorWeights), InGamma, MipLevel, LayerIndex, bIsNormalMap, bIsSingleVTPhysicalSpace, bIsVirtualTexture, bIsTextureArray);
+	PixelShader->SetParameters(RHICmdList, Texture, FMatrix44f(ColorWeights), InGamma, MipLevel, LayerIndex, SliceIndex, bIsNormalMap, bIsSingleVTPhysicalSpace, bIsVirtualTexture, bIsTextureArray);
 }
