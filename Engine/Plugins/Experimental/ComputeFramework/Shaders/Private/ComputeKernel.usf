@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
+//todo[CF]: 
+// Remove these includes to keep the compute framework sandboxed as much as possible
+// Any generated uniform buffer includes need to either be removed or somehow pulled through the data interfaces that need them.
 #include "/Engine/Private/Common.ush"
-#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+#include "/Engine/Generated/UniformBuffers/ShaderPrintData.ush"
 
 [numthreads(32, 1, 1)]
-KERNEL_ENTRY_POINT(ComputeKernelNull)
+void ComputeKernelNull()
 {
 }

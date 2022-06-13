@@ -187,6 +187,8 @@ void FComputeKernelShaderType::BeginCompileShader(
 	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(virtualSourcePath, InKernel->GetHLSLSource());
 	UE_LOG(LogShaders, Verbose, TEXT("%s"), *InKernel->GetHLSLSource());
 	
+	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, InPlatform);
+
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
 
 	UE_LOG(LogShaders, Verbose, TEXT("			%s"), GetName());

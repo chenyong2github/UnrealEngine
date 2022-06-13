@@ -1,0 +1,61 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+
+//todo[CF]:
+// Only included for [FLATTEN] used by MiniFontCommon.ush
+// We need to factor MiniFontCommon.ush out of ShaderPrint.ush
+#include "/Engine/Private/Common.ush"
+
+//todo[CF]:
+// This is a temporary hack to insert our buffer name into ShaderPrint.ush
+// We need ShaderPrint to be flexible enough to take uniforms and buffers as parameters instead of using the hard coded uniform buffer.
+// Until that is done we can't support multiple of this data interface per kernel (although that would be an unusual requirement).
+#define ShaderPrint_StateBuffer		DI_LOCAL(ShaderPrint_StateBuffer)
+#define ShaderPrint_RWEntryBuffer	DI_LOCAL(ShaderPrint_RWEntryBuffer)
+
+#include "/Engine/Private/ShaderPrint.ush"
+
+float4x4 DI_LOCAL(LocalToWorld);
+
+struct FDebugDraw
+{
+	float4x4 LocalToWorld;
+
+	float3 TransformLocalToWorld(float3 P)
+	{
+		return mul(float4(P, 1), LocalToWorld).xyz;
+	}
+
+	void AddLine(float3 Pos0, float3 Pos1, float4 Color)
+	{
+		AddLineTWS(TransformLocalToWorld(Pos0), TransformLocalToWorld(Pos1), Color);
+	}
+
+	void AddCross(float3 Pos, float Size, float4 Color)
+	{
+		AddCrossTWS(TransformLocalToWorld(Pos), Size, Color);
+	}
+
+	void AddQuad(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
+	{
+		AddQuadTWS(
+			TransformLocalToWorld(Pos0),
+			TransformLocalToWorld(Pos1),
+			TransformLocalToWorld(Pos2),
+			TransformLocalToWorld(Pos3),
+			Color);
+	}
+
+	void AddAxis(float3 Pos, float3x3 InM, float Scale)
+	{
+		AddReferentialWS(TransformLocalToWorld(Pos), mul(InM, (float3x3)LocalToWorld), Scale);
+	}
+};
+
+DI_IMPL_READ(ReadDebugDraw, FDebugDraw, void)
+{
+	FDebugDraw DebugDraw;
+	DebugDraw.LocalToWorld = DI_LOCAL(LocalToWorld);
+	return DebugDraw;
+}
