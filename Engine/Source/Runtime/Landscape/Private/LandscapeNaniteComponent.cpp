@@ -22,6 +22,7 @@
 
 ULandscapeNaniteComponent::ULandscapeNaniteComponent(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
+, bEnabled(true)
 {
 }
 
@@ -69,6 +70,15 @@ void ULandscapeNaniteComponent::UpdatedSharedPropertiesFromActor()
 	CustomDepthStencilValue = LandscapeProxy->CustomDepthStencilValue;
 	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
 	LightingChannels = LandscapeProxy->LightingChannels;
+}
+
+void ULandscapeNaniteComponent::SetEnabled(bool bValue)
+{
+	if (bValue != bEnabled)
+	{
+		bEnabled = bValue;
+		MarkRenderStateDirty();
+	}
 }
 
 #if WITH_EDITOR

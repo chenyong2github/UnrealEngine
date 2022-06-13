@@ -4270,7 +4270,7 @@ FPrimitiveSceneProxy* ULandscapeMeshProxyComponent::CreateSceneProxy()
 FPrimitiveSceneProxy* ULandscapeNaniteComponent::CreateSceneProxy()
 {
 	// Is Nanite supported, and is there built Nanite data for this static mesh?
-	if (ShouldCreateNaniteProxy())
+	if (IsEnabled() && ShouldCreateNaniteProxy())
 	{
 		return Super::CreateSceneProxy();
 	}

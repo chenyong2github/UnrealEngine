@@ -182,6 +182,22 @@ static FAutoConsoleVariableRef CVarLiveRebuildNaniteOnModification(
 
 #endif
 
+int32 GRenderNaniteLandscape = 1;
+FAutoConsoleVariableRef CVarRenderNaniteLandscape(
+	TEXT("landscape.RenderNanite"),
+	GRenderNaniteLandscape,
+	TEXT("Render Landscape using Nanite."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		const bool bDisableNanite = !InVariable->GetBool();
+		ForEachObjectOfClass(ALandscapeProxy::StaticClass(), [&](UObject* Obj)
+		{
+			ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(Obj);
+			LandscapeProxy->UpdateRenderingMethod(bDisableNanite);
+		}, /* bIncludeDerivedClasses= */ true, RF_ClassDefaultObject | RF_ArchetypeObject, EInternalObjectFlags::Garbage);
+	}),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -3302,7 +3318,8 @@ void ALandscapeProxy::PostLoad()
 
 	if (World && !HasAnyFlags(RF_ClassDefaultObject) && !FPlatformProperties::RequiresCookedData())
 	{
-		UpdateNaniteRepresentation();
+		// TODO: Need to sort out occasional StaticAllocateObject problem on load
+		//UpdateNaniteRepresentation();
 	}
 #endif // WITH_EDITOR
 
@@ -5123,31 +5140,39 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComp
 	InvalidateGeneratedComponentData(Components.Array(), bInvalidateLightingCache);
 }
 
-void ALandscapeProxy::UpdateRenderingMethod()
+void ALandscapeProxy::UpdateRenderingMethod(bool bDisableNanite)
 {
 	if (LandscapeComponents.Num() == 0)
 	{
 		return;
 	}
 
-	bool bAllowNanite = false;
-	if (ALandscape* LandscapeActor = GetLandscapeActor())
+	bool bNaniteActive = false;
+
+	if (!bDisableNanite && NaniteComponent != nullptr)
 	{
-		if (UWorld* World = LandscapeActor->GetWorld())
+		if (ALandscape* LandscapeActor = GetLandscapeActor())
 		{
-			const bool bIsMobile = ((GEngine->GetDefaultWorldFeatureLevel() == ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1)));
-			const ERHIFeatureLevel::Type FeatureLevel = bIsMobile ? ERHIFeatureLevel::ES3_1 : GMaxRHIFeatureLevel;
-			bAllowNanite = UseNanite(GShaderPlatformForFeatureLevel[FeatureLevel]);
+			if (UWorld* World = LandscapeActor->GetWorld())
+			{
+				const bool bIsMobile = ((GEngine->GetDefaultWorldFeatureLevel() == ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1)));
+				const ERHIFeatureLevel::Type FeatureLevel = bIsMobile ? ERHIFeatureLevel::ES3_1 : GMaxRHIFeatureLevel;
+				bNaniteActive = UseNanite(GShaderPlatformForFeatureLevel[FeatureLevel]);
+			}
 		}
 	}
 
-	const bool bNaniteActive = bAllowNanite && (NaniteComponent && NaniteComponent->IsEnabled());
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
 		if (Component)
 		{
 			Component->SetNaniteActive(bNaniteActive);
 		}
+	}
+
+	if (NaniteComponent)
+	{
+		NaniteComponent->SetEnabled(bNaniteActive);
 	}
 }
 

@@ -37,15 +37,20 @@ public:
 
 	void UpdatedSharedPropertiesFromActor();
 
+	void SetEnabled(bool bValue);
+
 	inline bool IsEnabled() const
 	{
-		return true; // TODO: Allow component to be disabled
+		return bEnabled;
 	}
 
 private:
 	/* The landscape proxy identity this Nanite representation was generated for */
 	UPROPERTY()
 	FGuid ProxyContentId;
+
+	UPROPERTY(Transient)
+	bool bEnabled;
 
 public:
 #if WITH_EDITOR
