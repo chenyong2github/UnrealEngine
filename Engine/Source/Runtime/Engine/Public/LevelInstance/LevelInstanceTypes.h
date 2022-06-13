@@ -81,6 +81,9 @@ struct FNewLevelInstanceParams
 	TObjectPtr<AActor> PivotActor = nullptr;
 
 	UPROPERTY()
+	bool bAlwaysShowDialog = true;
+
+	UPROPERTY()
 	TObjectPtr<UWorld> TemplateWorld = nullptr;
 		
 	UPROPERTY()

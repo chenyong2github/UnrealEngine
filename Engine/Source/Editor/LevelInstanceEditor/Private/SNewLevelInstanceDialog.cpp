@@ -7,6 +7,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "PropertyEditorDelegates.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Modules/ModuleManager.h"
@@ -97,6 +98,30 @@ void SNewLevelInstanceDialog::Construct(const FArguments& InArgs)
 					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SNewLevelInstanceDialog::OnCancelClicked)
 					.Text(LOCTEXT("CancelButton", "Cancel"))
+				]
+			]
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					SNew(SCheckBox)
+					.IsChecked_Lambda([this]() -> ECheckBoxState
+					{
+						return CreationParams.bAlwaysShowDialog ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					})
+					.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+					{
+						CreationParams.bAlwaysShowDialog = State == ECheckBoxState::Checked;
+					})
+					[
+						SNew(STextBlock)
+						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
+						.Text(LOCTEXT("AlwaysShowDialog", "Always show dialog"))
+						.ToolTipText(LOCTEXT("AlwaysShowDialogToolTip", "Show this dialog everytime a level instance is created. Can be changed in editor preferences (Content Editors > Level Instance)."))
+					]
 				]
 			]
 		]

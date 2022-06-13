@@ -32,7 +32,8 @@ public class LevelInstanceEditor : ModuleRules
 				"AssetTools",
 				"ClassViewer",
 				"MessageLog",
-				"EditorWidgets"
+				"EditorWidgets",
+				"DeveloperSettings"
 			}
 		);
 
