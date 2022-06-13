@@ -443,13 +443,15 @@ namespace UE::MVVM::BindingHelper
 				const bool bBothFloatingPoint = SourceNumericProperty->IsFloatingPoint() && DestinationNumericProperty->IsFloatingPoint();
 #if UE_MVVM_ALLOW_AUTO_INTEGRAL_CONVERSION
 				const bool bBothIntegral = SourceNumericProperty->IsInteger() && DestinationNumericProperty->IsInteger();
-				return !bSameType && (bBothFloatingPoint || bBothIntegral);
+				const bool bOneIsEnum = SourceNumericProperty->IsEnum() || DestinationNumericProperty->IsEnum();
+				return !bSameType && (bBothFloatingPoint || (bBothIntegral && !bOneIsEnum));
 #else
 				return !bSameType && bBothFloatingPoint;
 #endif
 			}
 			return false;
 		}
+
 
 		void ConvertNumeric(const FProperty* Source, const FProperty* Destination, void* Data)
 		{
