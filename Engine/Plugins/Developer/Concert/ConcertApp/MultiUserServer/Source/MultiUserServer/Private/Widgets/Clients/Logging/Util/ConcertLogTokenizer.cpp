@@ -5,13 +5,15 @@
 #include "ConcertFrontendUtils.h"
 #include "ConcertTransportEvents.h"
 #include "MessageTypeUtils.h"
+#include "Math/UnitConversion.h"
 #include "Settings/ConcertTransportLogSettings.h"
 
 FConcertLogTokenizer::FConcertLogTokenizer()
 {
 	TokenizerFunctions = {
 			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, Timestamp)), [this](const FConcertLog& Log) { return TokenizeTimestamp(Log); } },
-			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, MessageTypeName)), [this](const FConcertLog& Log) { return TokenizeMessageTypeName(Log); } }
+			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, MessageTypeName)), [this](const FConcertLog& Log) { return TokenizeMessageTypeName(Log); } },
+			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize)), [this](const FConcertLog& Log) { return TokenizeCustomPayloadUncompressedByteSize(Log); } }
 		};
 }
 
@@ -32,6 +34,13 @@ FString FConcertLogTokenizer::TokenizeTimestamp(const FConcertLog& Data) const
 FString FConcertLogTokenizer::TokenizeMessageTypeName(const FConcertLog& Data) const
 {
 	return UE::MultiUserServer::MessageTypeUtils::SanitizeMessageTypeName(Data.MessageTypeName);
+}
+
+FString FConcertLogTokenizer::TokenizeCustomPayloadUncompressedByteSize(const FConcertLog& Data) const
+{
+	// So changes to the type are automatically propagated here
+	const FNumericUnit<int32> DisplayUnit = FUnitConversion::QuantizeUnitsToBestFit(Data.CustomPayloadUncompressedByteSize, EUnit::Bytes);
+	return FString::Printf(TEXT("%d %s"), DisplayUnit.Value, FUnitConversion::GetUnitDisplayString(DisplayUnit.Units));
 }
 
 FString FConcertLogTokenizer::TokenizeUsingPropertyExport(const FConcertLog& Data, const FProperty& ConcertLogProperty) const

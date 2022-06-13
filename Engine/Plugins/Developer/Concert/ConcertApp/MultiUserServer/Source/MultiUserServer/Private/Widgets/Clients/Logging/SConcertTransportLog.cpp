@@ -118,18 +118,16 @@ TSharedRef<SHeaderRow> SConcertTransportLog::CreateHeaderRow()
 			.ToolTipText(LOCTEXT("AvatarColumnToolTipText", "The colour of the avatar is affected by log"))
 		;
 
-	// The following properties are useless to the user
-	const TSet<const FProperty*> SkippedProperties = {
-		// Used by code only
-		FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize))
+	const TMap<FName, FString> ColumnNameOverrides = {
+		{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize), TEXT("Size") }
 	};
-	
 	for (TFieldIterator<const FProperty> PropertyIt(FConcertLog::StaticStruct()); PropertyIt; ++PropertyIt)
 	{
-		if (!PropertyIt->HasAnyPropertyFlags(CPF_Transient) && !SkippedProperties.Contains(*PropertyIt))
+		if (!PropertyIt->HasAnyPropertyFlags(CPF_Transient))
 		{
-			const FString PropertyName = PropertyIt->GetAuthoredName();
 			const FName ColumnId = PropertyIt->GetFName();
+			const FString* LabelOverride = ColumnNameOverrides.Find(ColumnId);
+			const FString PropertyName = LabelOverride ? *LabelOverride : PropertyIt->GetAuthoredName();
 			HeaderRow->AddColumn(SHeaderRow::FColumn::FArguments()
 				.ColumnId(ColumnId)
 				.DefaultLabel(FText::FromString(PropertyName))
@@ -143,6 +141,19 @@ TSharedRef<SHeaderRow> SConcertTransportLog::CreateHeaderRow()
 	}
 
 	TGuardValue<bool> DoNotSave(bIsUpdatingColumnVisibility, true);
+	RestoreDefaultColumnVisiblities();
+	
+	return HeaderRow.ToSharedRef();
+}
+
+TSharedRef<ITableRow> SConcertTransportLog::OnGenerateActivityRowWidget(TSharedPtr<FConcertLogEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const
+{
+	return SNew(SConcertTransportLogRow, Item, OwnerTable, LogTokenizer.ToSharedRef(), HighlightText.ToSharedRef())
+		.GetClientInfo(GetClientInfoFunc);
+}
+
+void SConcertTransportLog::RestoreDefaultColumnVisiblities()
+{
 	const TSet<FName> HiddenByDefault = {
 		GET_MEMBER_NAME_CHECKED(FConcertLog, Frame),
 		GET_MEMBER_NAME_CHECKED(FConcertLog, MessageId),
@@ -155,14 +166,6 @@ TSharedRef<SHeaderRow> SConcertTransportLog::CreateHeaderRow()
 	{
 		HeaderRow->SetShowGeneratedColumn(ColumnID, false);
 	}
-	
-	return HeaderRow.ToSharedRef();
-}
-
-TSharedRef<ITableRow> SConcertTransportLog::OnGenerateActivityRowWidget(TSharedPtr<FConcertLogEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const
-{
-	return SNew(SConcertTransportLogRow, Item, OwnerTable, LogTokenizer.ToSharedRef(), HighlightText.ToSharedRef())
-		.GetClientInfo(GetClientInfoFunc);
 }
 
 void SConcertTransportLog::ExtendViewOptions(FMenuBuilder& MenuBuilder)
@@ -197,8 +200,17 @@ void SConcertTransportLog::ExtendViewOptions(FMenuBuilder& MenuBuilder)
 			EUserInterfaceActionType::ToggleButton
 		);
 
-					
 	MenuBuilder.AddSeparator();
+	MenuBuilder.AddMenuEntry(
+			LOCTEXT("RestoreDefaultColumnVisibility", "Restore columns visibility"),
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SConcertTransportLog::RestoreDefaultColumnVisiblities),
+				FCanExecuteAction::CreateLambda([] { return true; })),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
 	UE::ConcertSharedSlate::AddEntriesForShowingHiddenRows(HeaderRow.ToSharedRef(), MenuBuilder);
 }
 

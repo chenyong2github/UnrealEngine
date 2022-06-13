@@ -8,6 +8,7 @@
 #include "ConcertFrontendLogFilter_MessageType.h"
 #include "ConcertFrontendLogFilter_TextSearch.h"
 #include "ConcertFrontendLogFilter_Time.h"
+#include "ConcertFrontendLogFilter_Size.h"
 #include "Algo/AllOf.h"
 
 #include "Algo/AnyOf.h"
@@ -93,7 +94,8 @@ namespace UE::MultiUserServer
 				MakeShared<FConcertFrontendLogFilter_MessageAction>(),
 				MakeShared<FConcertFrontendLogFilter_MessageType>(),
 				MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowAfter),
-				MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowBefore)
+				MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowBefore),
+				MakeShared<FConcertFrontendLogFilter_Size>()
 			};
 		}
 	}

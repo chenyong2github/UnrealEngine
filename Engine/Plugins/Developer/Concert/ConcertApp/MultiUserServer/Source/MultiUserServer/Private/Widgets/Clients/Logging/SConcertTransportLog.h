@@ -75,6 +75,7 @@ private:
 	TSharedRef<SHeaderRow> CreateHeaderRow();
 	TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FConcertLogEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 
+	void RestoreDefaultColumnVisiblities();
 	void ExtendViewOptions(FMenuBuilder& MenuBuilder);
 	void OnFilterMenuChecked();
 	void OnPageViewChanged(const TArray<TSharedPtr<FConcertLogEntry>>&);

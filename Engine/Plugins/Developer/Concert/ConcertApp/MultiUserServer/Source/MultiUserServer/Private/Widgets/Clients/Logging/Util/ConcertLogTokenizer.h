@@ -18,6 +18,7 @@ public:
 
 	FString TokenizeTimestamp(const FConcertLog& Data) const;
 	FString TokenizeMessageTypeName(const FConcertLog& Data) const;
+	FString TokenizeCustomPayloadUncompressedByteSize(const FConcertLog& Data) const;
 	FString TokenizeUsingPropertyExport(const FConcertLog& Data, const FProperty& ConcertLogProperty) const;
 
 private:
