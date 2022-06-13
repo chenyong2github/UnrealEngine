@@ -111,6 +111,11 @@ FBoxSphereBounds UDebugSkelMeshComponent::CalcBounds(const FTransform& LocalToWo
 	return Result;
 }
 
+FBoxSphereBounds UDebugSkelMeshComponent::CalcGameBounds(const FTransform& LocalToWorld) const
+{
+	return Super::CalcBounds(LocalToWorld);
+}
+
 bool UDebugSkelMeshComponent::IsUsingInGameBounds() const
 {
 	return bIsUsingInGameBounds;

@@ -107,6 +107,7 @@ UPersonaOptions::UPersonaOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DefaultLocalAxesSelection(2)
 	, DefaultBoneDrawSelection(1)
+	, bPauseAnimationOnCameraMove(false)
 	, bAllowPreviewMeshCollectionsToSelectFromDifferentSkeletons(true)
 {
 	AssetEditorOptions.AddUnique(FAssetEditorOptions(TEXT("SkeletonEditor")));

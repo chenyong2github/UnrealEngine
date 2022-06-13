@@ -3508,12 +3508,7 @@ void FEditorViewportClient::OnDollyPerspectiveCamera( const FInputEventState& In
 	FKey Key = InputState.GetKey();
 
 	// Scrolling the mousewheel up/down moves the perspective viewport forwards/backwards.
-	FVector Drag(0,0,0);
-
-	const FRotator& ViewRotation = GetViewRotation();
-	Drag.X = FMath::Cos( ViewRotation.Yaw * PI / 180.f ) * FMath::Cos( ViewRotation.Pitch * PI / 180.f );
-	Drag.Y = FMath::Sin( ViewRotation.Yaw * PI / 180.f ) * FMath::Cos( ViewRotation.Pitch * PI / 180.f );
-	Drag.Z = FMath::Sin( ViewRotation.Pitch * PI / 180.f );
+	FVector Drag = (GetLookAtLocation() - GetViewLocation()).GetSafeNormal();
 
 	if( Key == EKeys::MouseScrollDown )
 	{

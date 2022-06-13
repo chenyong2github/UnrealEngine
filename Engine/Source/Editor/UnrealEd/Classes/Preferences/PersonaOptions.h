@@ -30,6 +30,9 @@ enum class EAnimationViewportCameraFollowMode : uint8
 
 	/** Follow a bone or socket */
 	Bone,
+
+	/** Follow the root bone while keeping the mesh vertically centered */
+	Root
 };
 
 /** Persistent per-viewport options */
@@ -151,6 +154,10 @@ class UNREALED_API UPersonaOptions : public UObject
 
 	UPROPERTY(EditAnywhere, config, Category = "Composites and Montages")
 	FLinearColor BranchingPointTimingNodeColor;
+
+	/** Pause the preview animation if playing when moving the camera and resume when finished */
+	UPROPERTY(EditAnywhere, config, Category = "Viewport")
+	bool bPauseAnimationOnCameraMove;
 
 	/** Whether to use a socket editor that is created in-line inside the skeleton tree, or whether to use the separate details panel */
 	UPROPERTY(EditAnywhere, config, Category = "Skeleton Tree")

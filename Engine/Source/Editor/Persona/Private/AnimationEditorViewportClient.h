@@ -138,6 +138,9 @@ public:
 	/** Set the camera follow mode */
 	void SetCameraFollowMode(EAnimationViewportCameraFollowMode Mode, FName InBoneName = NAME_None);
 
+	/** Called when viewport focuses on a selection */
+	void OnFocusViewportToSelection();
+
 	/** Get the camera follow mode */
 	EAnimationViewportCameraFollowMode GetCameraFollowMode() const;
 
@@ -232,6 +235,11 @@ public:
 	/** Callback for checking the normals show flag. */
 	bool IsSetCPUSkinningChecked() const;
 
+	/** Toggles whether to lock the camera's rotation to a specified bone's orientation */
+	void ToggleRotateCameraToFollowBone();
+
+	/** Whether or not to lock the camera's rotation to a specified bone's orientation */
+	bool GetShouldRotateCameraToFollowBone() const;
 
 	/** Callback for toggling the normals show flag. */
 	void ToggleShowNormals();
@@ -346,6 +354,9 @@ private:
 
 	/** Should we auto align floor to mesh bounds */
 	bool bAutoAlignFloor;
+
+	/** Whether to lock the camera's rotation to a specified bone's orientation */
+	bool bRotateCameraToFollowBone;
 
 	/** User selected color using color picker */
 	FLinearColor SelectedHSVColor;
@@ -475,9 +486,12 @@ private:
 	/** Index (0-3) of this viewport */
 	int32 ViewportIndex;
 
-	/** Relative view location stored to match it pre/post tick */
-	FVector RelativeViewLocation;
+	/** The last location the camera was told to look at */
+	FVector LastLookAtLocation;
 
 	// Delegate Handler to allow changing of camera controller
 	void OnCameraControllerChanged();
+
+	/** True when the preview animation should resume playing upon finishing tracking */
+	bool bResumeAfterTracking;
 };

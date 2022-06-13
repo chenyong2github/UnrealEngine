@@ -418,6 +418,9 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	 */
 	bool CheckIfBoundsAreCorrrect();
 
+	/** Get the in-game bounds of the skeleton mesh */
+	FBoxSphereBounds CalcGameBounds(const FTransform& LocalToWorld) const;
+
 	/** 
 	 * Update components position based on animation root motion
 	 */

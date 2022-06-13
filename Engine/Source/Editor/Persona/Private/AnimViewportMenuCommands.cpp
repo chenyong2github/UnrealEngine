@@ -8,9 +8,12 @@ void FAnimViewportMenuCommands::RegisterCommands()
 {
 	UI_COMMAND( PreviewSceneSettings, "Preview Scene Settings...", "The Advanced Preview Settings tab will let you alter the preview scene's settings.", EUserInterfaceActionType::Button, FInputChord());
 
-	UI_COMMAND( CameraFollowNone, "Free Camera", "Camera is free to move", EUserInterfaceActionType::RadioButton, FInputChord() );
-	UI_COMMAND( CameraFollowBounds, "Follow Bounds", "Camera follows the bounbds of the mesh", EUserInterfaceActionType::RadioButton, FInputChord() );
-	UI_COMMAND( CameraFollowBone, "Follow Bone", "Camera follows a specified bone", EUserInterfaceActionType::RadioButton, FInputChord() );
+	UI_COMMAND( CameraFollowNone, "Free Camera", "Camera is free to move.", EUserInterfaceActionType::RadioButton, FInputChord() );
+	UI_COMMAND( CameraFollowBounds, "Orbit Bounds", "Camera orbits the bounds of the mesh.", EUserInterfaceActionType::RadioButton, FInputChord() );
+	UI_COMMAND( CameraFollowRoot, "Orbit Root", "Camera orbits the root bone while keeping the mesh vertically centered.", EUserInterfaceActionType::RadioButton, FInputChord() );
+	UI_COMMAND( CameraFollowBone, "Orbit Bone", "Camera focuses on a specified bone.", EUserInterfaceActionType::RadioButton, FInputChord() );
+	
+	UI_COMMAND( TogglePauseAnimationOnCameraMove, "Pause Animation On Camera Move", "Pause the preview animation when moving the camera and resume when finished.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 
 	UI_COMMAND( SetCPUSkinning, "CPU Skinning", "Toggles display of CPU skinning in the Preview Pane.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND( SetShowNormals, "Normals", "Toggles display of vertex normals in the Preview Pane.", EUserInterfaceActionType::ToggleButton, FInputChord() );

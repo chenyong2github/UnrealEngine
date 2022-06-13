@@ -65,6 +65,7 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 	: FEditorViewportClient(&InAssetEditorToolkit->GetEditorModeManager(), &InPreviewScene.Get(), StaticCastSharedRef<SEditorViewport>(InAnimationEditorViewport))
 	, PreviewScenePtr(InPreviewScene)
 	, AssetEditorToolkitPtr(InAssetEditorToolkit)
+	, bRotateCameraToFollowBone(false)
 	, AnimationPlaybackSpeedMode(EAnimationPlaybackSpeeds::Normal)
 	, bFocusOnDraw(false)
 	, bFocusUsingCustomCamera(false)
@@ -73,6 +74,8 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 	, bInitiallyFocused(false)
 	, OrbitRotation(FQuat::Identity)
 	, ViewportIndex(InViewportIndex)
+	, LastLookAtLocation(FVector::ZeroVector)
+	, bResumeAfterTracking(false)
 {
 	CachedDefaultCameraController = CameraController;
 
@@ -246,6 +249,21 @@ bool FAnimationViewportClient::IsUsingAudioAttenuation() const
 	return ConfigOption->bUseAudioAttenuation;
 }
 
+void FAnimationViewportClient::ToggleRotateCameraToFollowBone()
+{
+	bRotateCameraToFollowBone = !bRotateCameraToFollowBone;
+
+	if (!bRotateCameraToFollowBone && GetCameraFollowMode() == EAnimationViewportCameraFollowMode::Bone)
+	{
+		OrbitRotation = FQuat::Identity;
+	}
+}
+
+bool FAnimationViewportClient::GetShouldRotateCameraToFollowBone() const
+{
+	return bRotateCameraToFollowBone;
+}
+
 void FAnimationViewportClient::SetCameraFollowMode(EAnimationViewportCameraFollowMode InCameraFollowMode, FName InBoneName)
 {
 	bool bCanFollow = true;
@@ -267,26 +285,34 @@ void FAnimationViewportClient::SetCameraFollowMode(EAnimationViewportCameraFollo
 
 		if (PreviewMeshComponent != nullptr)
 		{
+			FVector LookAtLocation = LastLookAtLocation;
+
 			switch(CameraFollowMode)
 			{
 			case EAnimationViewportCameraFollowMode::Bounds:
 				{
-					FBoxSphereBounds Bound = PreviewMeshComponent->CalcBounds(PreviewMeshComponent->GetComponentTransform());
-					SetLookAtLocation(Bound.Origin, true);
-					OrbitRotation = FQuat::Identity;
+					const FBoxSphereBounds Bounds = PreviewMeshComponent->CalcGameBounds(PreviewMeshComponent->GetComponentTransform());
+					LookAtLocation = Bounds.Origin;
+				}
+				break;
+			case EAnimationViewportCameraFollowMode::Root:
+				{
+					LookAtLocation = PreviewMeshComponent->GetBoneTransform(0).GetLocation();
+					LookAtLocation.Z = PreviewMeshComponent->CalcGameBounds(PreviewMeshComponent->GetComponentTransform()).Origin.Z;
 				}
 				break;
 			case EAnimationViewportCameraFollowMode::Bone:
 				{
-					FVector BoneLocation = PreviewMeshComponent->GetBoneLocation(InBoneName);
-					SetLookAtLocation(BoneLocation, true);
-					OrbitRotation = PreviewMeshComponent->GetBoneQuaternion(InBoneName) * FQuat(FVector(0.0f, 1.0f, 0.0f), PI * 0.5f);
+					LookAtLocation = PreviewMeshComponent->GetBoneLocation(InBoneName);
 				}
 				break;
 			}
-		}
 
-		SetViewLocation(GetViewTransform().ComputeOrbitMatrix().Inverse().GetOrigin());
+			OrbitRotation = FQuat::Identity;
+			SetLookAtLocation(LookAtLocation, true);
+			LastLookAtLocation = LookAtLocation;
+			bUsingOrbitCamera = true;
+		}
 	}
 	else
 	{
@@ -300,6 +326,35 @@ void FAnimationViewportClient::SetCameraFollowMode(EAnimationViewportCameraFollo
 		FocusViewportOnPreviewMesh(false);
 		Invalidate();
 	}
+}
+
+void FAnimationViewportClient::OnFocusViewportToSelection()
+{
+	// If focusing on a bone and using a Camera Follow Mode that orbits a bone, update the bone to follow to the selected bone
+	if (CameraFollowMode == EAnimationViewportCameraFollowMode::Root
+		|| CameraFollowMode == EAnimationViewportCameraFollowMode::Bone
+		|| CameraFollowMode == EAnimationViewportCameraFollowMode::Bounds )
+	{
+		int32 SelectedBoneIndex = GetAnimPreviewScene()->GetSelectedBoneIndex();
+		if (SelectedBoneIndex != INDEX_NONE)
+		{
+			const FReferenceSkeleton& ReferenceSkeleton = GetAnimPreviewScene()->GetPreviewMeshComponent()->GetReferenceSkeleton();
+			const FName SelectedBoneName = ReferenceSkeleton.GetBoneName(SelectedBoneIndex);
+			check(SelectedBoneName != NAME_None);
+			bRotateCameraToFollowBone = false;
+			SetCameraFollowMode(EAnimationViewportCameraFollowMode::Bone, SelectedBoneName);
+		}
+		else
+		{
+			SetCameraFollowMode(EAnimationViewportCameraFollowMode::Root, FName());
+		}
+	}
+	else
+	{
+		SetCameraFollowMode(EAnimationViewportCameraFollowMode::None);
+		FocusViewportOnPreviewMesh(false);
+	}
+	
 }
 
 EAnimationViewportCameraFollowMode FAnimationViewportClient::GetCameraFollowMode() const
@@ -589,67 +644,65 @@ void FAnimationViewportClient::Tick(float DeltaSeconds)
 
 void FAnimationViewportClient::HandlePreviewScenePreTick()
 {
-	RelativeViewLocation = FVector::ZeroVector;
-
-	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
-	if (CameraFollowMode != EAnimationViewportCameraFollowMode::None && PreviewMeshComponent != nullptr)
-	{
-		switch(CameraFollowMode)
-		{
-		case EAnimationViewportCameraFollowMode::Bounds:
-			{
-				FBoxSphereBounds Bound = PreviewMeshComponent->CalcBounds(PreviewMeshComponent->GetComponentTransform());
-				RelativeViewLocation = Bound.Origin - GetViewLocation();
-			}
-			break;
-		case EAnimationViewportCameraFollowMode::Bone:
-			{
-				int32 BoneIndex = PreviewMeshComponent->GetBoneIndex(CameraFollowBoneName);
-				if(BoneIndex != INDEX_NONE)
-				{
-					FTransform BoneTransform = PreviewMeshComponent->GetBoneTransform(BoneIndex);
-					RelativeViewLocation = BoneTransform.InverseTransformVector(BoneTransform.GetLocation() - GetViewLocation());
-				}
-			}
-			break;
-		}
-	}
 }
 
 void FAnimationViewportClient::HandlePreviewScenePostTick()
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
+
+	const bool bInBoneOrbitMode = CameraFollowMode != EAnimationViewportCameraFollowMode::None;
+	if (IsTracking())
+	{
+		if (PreviewMeshComponent->IsPlaying() && GetDefault<UPersonaOptions>()->bPauseAnimationOnCameraMove)
+		{
+			PreviewMeshComponent->Stop();
+			bResumeAfterTracking = true;
+			return;
+		}
+	}
+	else if (bResumeAfterTracking)
+	{
+		PreviewMeshComponent->Play(true);
+		bResumeAfterTracking = false;
+	}
+
 	if (CameraFollowMode != EAnimationViewportCameraFollowMode::None && PreviewMeshComponent != nullptr)
 	{
+		FVector LookAtLocation = LastLookAtLocation;
+
 		switch(CameraFollowMode)
 		{
 		case EAnimationViewportCameraFollowMode::Bounds:
 			{
-				FBoxSphereBounds Bound = PreviewMeshComponent->CalcBounds(PreviewMeshComponent->GetComponentTransform());
-				SetViewLocation(Bound.Origin + RelativeViewLocation);
-				SetLookAtLocation(Bound.Origin);
+				const FBoxSphereBounds Bounds = PreviewMeshComponent->CalcGameBounds(PreviewMeshComponent->GetComponentTransform());
+				LookAtLocation = Bounds.Origin;
+			}
+			break;
+		case EAnimationViewportCameraFollowMode::Root:
+			{
+				LookAtLocation = PreviewMeshComponent->GetBoneTransform(0).GetLocation();
+				LookAtLocation.Z = PreviewMeshComponent->CalcGameBounds(PreviewMeshComponent->GetComponentTransform()).Origin.Z;
 			}
 			break;
 		case EAnimationViewportCameraFollowMode::Bone:
 			{
-				int32 BoneIndex = PreviewMeshComponent->GetBoneIndex(CameraFollowBoneName);
-				if(BoneIndex != INDEX_NONE)
+				const int32 BoneIndex = PreviewMeshComponent->GetBoneIndex(CameraFollowBoneName);
+				check(BoneIndex != INDEX_NONE);
+				LookAtLocation = PreviewMeshComponent->GetBoneTransform(BoneIndex).GetLocation();
+
+				if (GetShouldRotateCameraToFollowBone())
 				{
-					FTransform BoneTransform = PreviewMeshComponent->GetBoneTransform(BoneIndex);
-					if(IsPerspective())
-					{
-						SetViewLocation(BoneTransform.GetLocation() - BoneTransform.TransformVector(RelativeViewLocation));
-					}
-					else
-					{
-						SetViewLocation(BoneTransform.GetLocation());
-					}
-					SetLookAtLocation(BoneTransform.GetLocation());
-					OrbitRotation = BoneTransform.GetRotation() * FQuat(FVector(0.0f, 1.0f, 0.0f), PI * 0.5f);
+					const FName BoneName = PreviewMeshComponent->GetBoneName(BoneIndex);
+					check(BoneName != NAME_None);
+					OrbitRotation = PreviewMeshComponent->GetBoneQuaternion(BoneName) * FQuat(FVector(0.0f, 1.0f, 0.0f), PI * 0.5f);
 				}
 			}
 			break;
 		}
+
+		const FVector Offset = LookAtLocation - LastLookAtLocation;
+		SetLookAtLocation(GetLookAtLocation() + Offset);
+		LastLookAtLocation = LookAtLocation;
 	}
 }
 
@@ -1237,6 +1290,11 @@ void FAnimationViewportClient::SetViewportType(ELevelViewportType InViewportType
 	if(CameraFollowMode != EAnimationViewportCameraFollowMode::None)
 	{
 		bUsingOrbitCamera = true;
+	}
+
+	if (InViewportType != ELevelViewportType::LVT_Perspective)
+	{
+		SetCameraFollowMode(EAnimationViewportCameraFollowMode::None);
 	}
 }
 
@@ -1894,9 +1952,7 @@ FSphere FAnimationViewportClient::GetCameraTarget()
 		return DefaultSphere;
 	}
 
-	PreviewMeshComponent->CalcBounds(PreviewMeshComponent->GetComponentTransform());
-
-	FBoxSphereBounds Bounds = PreviewMeshComponent->CalcBounds(FTransform::Identity);
+	FBoxSphereBounds Bounds = PreviewMeshComponent->CalcGameBounds(FTransform::Identity);
 	return Bounds.GetSphere();
 }
 

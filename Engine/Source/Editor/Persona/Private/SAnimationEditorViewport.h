@@ -481,9 +481,11 @@ private:
 	/** Focus the viewport on the preview mesh */
 	void HandleFocusCamera();
 
+public:
 	/** Called to determine whether the camera mode menu options should be enabled */
 	bool CanChangeCameraMode() const;
 
+private:
 	/** Tests to see if bone move mode buttons should be visible */
 	EVisibility GetBoneMoveModeButtonVisibility() const;
 
@@ -525,7 +527,10 @@ public:
 	void SetCameraFollowMode(EAnimationViewportCameraFollowMode InCameraFollowMode, FName InBoneName);
 	bool IsCameraFollowEnabled(EAnimationViewportCameraFollowMode InCameraFollowMode) const;
 	FName GetCameraFollowBoneName() const;
-
+	void ToggleRotateCameraToFollowBone();
+	bool GetShouldRotateCameraToFollowBone() const;
+	void TogglePauseAnimationOnCameraMove();
+	bool GetShouldPauseAnimationOnCameraMove() const;
 	bool IsTurnTableSpeedSelected(int32 SpeedIndex) const;
 
 	/** 
@@ -565,6 +570,9 @@ private:
 
 	/** Whether we should always show the transform toolbar for this viewport */
 	bool bAlwaysShowTransformToolbar;
+
+	/** Whether to align the camera's rotation to the bone's orientation */
+	bool bCameraFollowLockRotation;
 
 	/** Level viewport client */
 	TSharedPtr<FEditorViewportClient> LevelViewportClient;

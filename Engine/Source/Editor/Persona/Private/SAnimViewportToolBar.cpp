@@ -372,7 +372,6 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 	// Register all the custom widgets we can use here
 	PinnedCommands->RegisterCustomWidget(IPinnedCommandList::FOnGenerateCustomWidget::CreateSP(this, &SAnimViewportToolBar::MakeFloorOffsetWidget), TEXT("FloorOffsetWidget"), LOCTEXT("FloorHeightOffset", "Floor Height Offset"));
 	PinnedCommands->RegisterCustomWidget(IPinnedCommandList::FOnGenerateCustomWidget::CreateSP(this, &SAnimViewportToolBar::MakeFOVWidget), TEXT("FOVWidget"), LOCTEXT("Viewport_FOVLabel", "Field Of View"));
-	PinnedCommands->RegisterCustomWidget(IPinnedCommandList::FOnGenerateCustomWidget::CreateSP(this, &SAnimViewportToolBar::MakeFollowBoneComboWidget), TEXT("FollowBoneWidget"), LOCTEXT("FollowBoneMenuTitle", "Follow Bone"), FMargin(2.0f, 1.0f, 2.0f, 0.0f), false);
 
 	PinnedCommands->BindCommandList(InViewport->GetCommandList().ToSharedRef());
 
@@ -454,7 +453,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFollowBoneComboWidget() const
 				}
 				else
 				{
-					return LOCTEXT("FollowBoneMenuTitle", "Follow Bone");
+					return LOCTEXT("FollowBoneMenuTitle", "Focus On Bone");
 				}
 			})
 		];
@@ -479,7 +478,6 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFollowBoneWidget(TWeakPtr<SComboBu
 		.MaxDesiredHeight(400.0f)
 		[
 			SAssignNew(BoneTreeMenu, SBoneTreeMenu)
-			.Title(FAnimViewportMenuCommands::Get().CameraFollowBone->GetLabel())
 			.bShowVirtualBones(true)
 			.OnBoneSelectionChanged_Lambda([this](FName InBoneName)
 			{
@@ -553,9 +551,11 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateViewMenu() const
 	InMenuBuilder.BeginSection("AnimViewportCamera", LOCTEXT("ViewMenu_CameraLabel", "Camera"));
 	{
 		InMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().FocusViewportToSelection);
+		InMenuBuilder.AddWidget(MakeFOVWidget(), LOCTEXT("Viewport_FOVLabel", "Field Of View"));
+		InMenuBuilder.AddMenuEntry(FAnimViewportMenuCommands::Get().TogglePauseAnimationOnCameraMove);
 
 		InMenuBuilder.AddSubMenu(
-			LOCTEXT("CameraFollowModeLabel", "Camera Follow Mode"),
+			LOCTEXT("CameraFollowModeLabel", "Follow Mode"),
 			LOCTEXT("CameraFollowModeTooltip", "Set various camera follow modes"),
 			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
 			{
@@ -564,23 +564,57 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateViewMenu() const
 					InSubMenuBuilder.PushCommandList(Viewport.Pin()->GetCommandList().ToSharedRef());
 
 					InSubMenuBuilder.AddMenuEntry(FAnimViewportMenuCommands::Get().CameraFollowNone);
+					InSubMenuBuilder.AddMenuEntry(FAnimViewportMenuCommands::Get().CameraFollowRoot);
 					InSubMenuBuilder.AddMenuEntry(FAnimViewportMenuCommands::Get().CameraFollowBounds);
-
+					InSubMenuBuilder.AddSubMenu(
+						LOCTEXT("CameraFollowBone_DisplayName", "Orbit Bone"),
+						LOCTEXT("CameraFollowBone_ToolTip", "Select a bone for the camera to follow and orbit around"),
+						FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder)
+						{
+							SubMenuBuilder.BeginSection("CameraFollowModeBoneSubmenu", LOCTEXT("CameraFollowModeBoneSubmenu_Label", "Follow Bone Options"));
+							SubMenuBuilder.AddWidget(MakeFollowBoneWidget(), FText());
+							SubMenuBuilder.AddMenuEntry(
+								LOCTEXT("LockRotation_DisplayName", "Lock Rotation"),
+								LOCTEXT("LockRotation_ToolTip", "Keep viewport camera rotation aligned to the orbited bone."),
+								FSlateIcon(),
+								FUIAction(
+									FExecuteAction::CreateLambda([this]() {
+										Viewport.Pin()->ToggleRotateCameraToFollowBone();
+									}),
+									FCanExecuteAction(),
+									FIsActionChecked::CreateLambda([this]()
+									{
+										return Viewport.Pin()->GetShouldRotateCameraToFollowBone();
+									})
+								),
+								NAME_None,
+								EUserInterfaceActionType::ToggleButton
+							);
+							SubMenuBuilder.EndSection();
+						}),
+						FUIAction(
+							FExecuteAction(),
+							FCanExecuteAction::CreateLambda([this]()
+							{
+								return Viewport.Pin()->CanChangeCameraMode();
+							}),
+							FIsActionChecked::CreateLambda([this]()
+							{
+								return Viewport.Pin()->IsCameraFollowEnabled(EAnimationViewportCameraFollowMode::Bone);
+							})
+						),
+						"CameraFollowBone",
+						EUserInterfaceActionType::RadioButton,
+						/* bInOpenSubMenuOnClick = */ false,
+						FSlateIcon()
+					);
 					InSubMenuBuilder.PopCommandList();
-				}
-				InSubMenuBuilder.EndSection();
-		
-				InSubMenuBuilder.BeginSection("AnimViewportCameraFollowBone", FText());
-				{
-					InSubMenuBuilder.AddWidget(MakeFollowBoneWidget(), FText(), true);
 				}
 				InSubMenuBuilder.EndSection();
 			}),
 			false,
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "AnimViewportMenu.CameraFollow")
 			);
-
-		InMenuBuilder.AddWidget(MakeFOVWidget(), LOCTEXT("Viewport_FOVLabel", "Field Of View"));
 	}
 	InMenuBuilder.EndSection();
 

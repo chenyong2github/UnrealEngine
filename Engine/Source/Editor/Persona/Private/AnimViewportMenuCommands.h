@@ -35,6 +35,12 @@ public:
 	/** Select camera follow mode to follow a named bone */
 	TSharedPtr< FUICommandInfo > CameraFollowBone;
 
+	/** Select camera follow mode to orbit the root bone while keeping the mesh vertically centered. */
+	TSharedPtr< FUICommandInfo > CameraFollowRoot;
+
+	/** Toggle whether or not to pause the preview animation when moving the camera */
+	TSharedPtr< FUICommandInfo > TogglePauseAnimationOnCameraMove;
+
 	/** Show vertex normals */
 	TSharedPtr< FUICommandInfo > SetCPUSkinning;
 

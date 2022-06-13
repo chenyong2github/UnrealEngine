@@ -156,8 +156,7 @@ void SAnimationEditorViewport::PostRedo( bool bSuccess )
 void SAnimationEditorViewport::OnFocusViewportToSelection()
 {
 	TSharedRef<FAnimationViewportClient> AnimViewportClient = StaticCastSharedRef<FAnimationViewportClient>(LevelViewportClient.ToSharedRef());
-	AnimViewportClient->SetCameraFollowMode(EAnimationViewportCameraFollowMode::None);
-	AnimViewportClient->FocusViewportOnPreviewMesh(false);
+	AnimViewportClient->OnFocusViewportToSelection();
 }
 
 void SAnimationEditorViewport::BindCommands()
@@ -648,6 +647,12 @@ void SAnimationEditorViewportTabBody::BindCommands()
 	const FAnimViewportMenuCommands& MenuActions = FAnimViewportMenuCommands::Get();
 
 	CommandList.MapAction(
+		MenuActions.TogglePauseAnimationOnCameraMove,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::TogglePauseAnimationOnCameraMove),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::GetShouldPauseAnimationOnCameraMove));
+
+	CommandList.MapAction(
 		MenuActions.CameraFollowNone,
 		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::SetCameraFollowMode, EAnimationViewportCameraFollowMode::None, FName()),
 		FCanExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::CanChangeCameraMode),
@@ -658,6 +663,12 @@ void SAnimationEditorViewportTabBody::BindCommands()
 		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::SetCameraFollowMode, EAnimationViewportCameraFollowMode::Bounds, FName()),
 		FCanExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::CanChangeCameraMode),
 		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsCameraFollowEnabled, EAnimationViewportCameraFollowMode::Bounds));
+
+	CommandList.MapAction(
+		MenuActions.CameraFollowRoot,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::SetCameraFollowMode, EAnimationViewportCameraFollowMode::Root, FName()),
+		FCanExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::CanChangeCameraMode),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsCameraFollowEnabled, EAnimationViewportCameraFollowMode::Root));
 
 	CommandList.MapAction(
 		MenuActions.JumpToDefaultCamera,
@@ -1957,6 +1968,28 @@ bool SAnimationEditorViewportTabBody::IsCameraFollowEnabled(EAnimationViewportCa
 	return (AnimViewportClient->GetCameraFollowMode() == InCameraFollowMode);
 }
 
+void SAnimationEditorViewportTabBody::ToggleRotateCameraToFollowBone()
+{
+	TSharedRef<FAnimationViewportClient> AnimViewportClient = StaticCastSharedRef<FAnimationViewportClient>(LevelViewportClient.ToSharedRef());
+	AnimViewportClient->ToggleRotateCameraToFollowBone();
+}
+
+bool SAnimationEditorViewportTabBody::GetShouldRotateCameraToFollowBone() const
+{
+	TSharedRef<FAnimationViewportClient> AnimViewportClient = StaticCastSharedRef<FAnimationViewportClient>(LevelViewportClient.ToSharedRef());
+	return AnimViewportClient->GetShouldRotateCameraToFollowBone();
+}
+
+void SAnimationEditorViewportTabBody::TogglePauseAnimationOnCameraMove()
+{
+	GetMutableDefault<UPersonaOptions>()->bPauseAnimationOnCameraMove = !GetMutableDefault<UPersonaOptions>()->bPauseAnimationOnCameraMove;
+}
+
+bool SAnimationEditorViewportTabBody::GetShouldPauseAnimationOnCameraMove() const
+{
+	return GetMutableDefault<UPersonaOptions>()->bPauseAnimationOnCameraMove;
+}
+
 FName SAnimationEditorViewportTabBody::GetCameraFollowBoneName() const
 {
 	TSharedRef<FAnimationViewportClient> AnimViewportClient = StaticCastSharedRef<FAnimationViewportClient>(LevelViewportClient.ToSharedRef());
@@ -2616,7 +2649,7 @@ void SAnimationEditorViewportTabBody::AddSkinWeightProfileNotification()
 void SAnimationEditorViewportTabBody::HandleFocusCamera()
 {
 	TSharedRef<FAnimationViewportClient> AnimViewportClient = StaticCastSharedRef<FAnimationViewportClient>(LevelViewportClient.ToSharedRef());
-	AnimViewportClient->SetCameraFollowMode(EAnimationViewportCameraFollowMode::None);
+	// AnimViewportClient->SetCameraFollowMode(EAnimationViewportCameraFollowMode::None);
 	AnimViewportClient->FocusViewportOnPreviewMesh(false);
 }
 
