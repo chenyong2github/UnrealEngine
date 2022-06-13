@@ -80,7 +80,7 @@ namespace AutomationTool
 		public TargetPlatformDescriptor(UnrealTargetPlatform InType, string InCookFlavor)
 		{
 			Type = InType;
-			CookFlavor = InCookFlavor;
+			CookFlavor = InCookFlavor ?? "";
 		}
 
 		public override string ToString()
