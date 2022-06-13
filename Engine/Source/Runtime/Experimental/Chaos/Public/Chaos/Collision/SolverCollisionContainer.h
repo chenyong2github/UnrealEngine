@@ -60,7 +60,8 @@ namespace Chaos
 
 		virtual void Reset(const int32 InMaxCollisions) override;
 
-		/** Set the number of collision solvers in the container
+		/** 
+		 * Set the number of collision solvers in the container
 		 * @param MaxCollisions Max number of collision solvers
 		 */
 		void SetNum(const int32 MaxCollisions);

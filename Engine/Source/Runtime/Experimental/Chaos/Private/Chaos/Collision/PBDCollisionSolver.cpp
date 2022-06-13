@@ -23,9 +23,6 @@ namespace Chaos
 	{
 		extern int32 Chaos_Collision_UseShockPropagation;
 
-		bool bChaos_PBDCollisionSolver_VectorRegister = false;
-		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_VectorRegister(TEXT("p.Chaos.PBDCollisionSolver.VectorRegister"), bChaos_PBDCollisionSolver_VectorRegister, TEXT(""));
-
 		bool bChaos_PBDCollisionSolver_Position_SolveEnabled = true;
 		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.77f;
 		float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness = 0.5f;
