@@ -21,6 +21,7 @@ public class ICU : ModuleRules
 		get
 		{
 			if (Target.Platform == UnrealTargetPlatform.IOS ||
+				Target.Platform == UnrealTargetPlatform.TVOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
 				Target.Platform == UnrealTargetPlatform.Win64 ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
@@ -106,30 +107,9 @@ public class ICU : ModuleRules
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, UseDebugLibs ? "libicud.a" : "libicu.a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.IOS)
+		else if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, UseDebugLibs ? "Debug" : "Release", "libicu.a"));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.TVOS)
-		{
-			string PlatformICULibPath = Path.Combine(ICULibPath, "lib");
-
-			string[] LibraryNameStems =
-			{
-				"data", // Data
-				"uc",   // Unicode Common
-				"i18n", // Internationalization
-				"le",   // Layout Engine
-				"lx",   // Layout Extensions
-				"io"	// Input/Output
-			};
-			string LibraryNamePostfix = (UseDebugLibs) ? "d" : string.Empty;
-
-			foreach (string Stem in LibraryNameStems)
-			{
-				string LibraryName = "libicu" + Stem + LibraryNamePostfix + ".a";
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformICULibPath, LibraryName));
-			}
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
