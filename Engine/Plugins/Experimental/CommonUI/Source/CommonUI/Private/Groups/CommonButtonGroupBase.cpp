@@ -140,7 +140,7 @@ void UCommonButtonGroupBase::SelectPreviousButton(bool bAllowWrap /*= true*/)
 	SelectPrevButtonRecursive(SelectedButtonIndex, bAllowWrap);
 }
 
-void UCommonButtonGroupBase::SelectButtonAtIndex(int32 ButtonIndex)
+void UCommonButtonGroupBase::SelectButtonAtIndex(int32 ButtonIndex, const bool bAllowSound)
 {
 	if (ButtonIndex < 0 || ButtonIndex >= Buttons.Num())
 	{
@@ -152,7 +152,7 @@ void UCommonButtonGroupBase::SelectButtonAtIndex(int32 ButtonIndex)
 		if (ButtonToSelect && !ButtonToSelect->GetSelected() && ButtonToSelect->GetIsEnabled())
 		{
 			SelectedButtonIndex = ButtonIndex;
-			ButtonToSelect->SetSelectedInternal(true);
+			ButtonToSelect->SetSelectedInternal(true, bAllowSound);
 		}
 	}
 }

@@ -54,9 +54,10 @@ public:
 	/**
 	 * Selects a button at a specific index in the group. Clears all selection if given an invalid index.
 	 * @param ButtonIndex The index of the button in the group to select
+	 * @param bAllowSound Whether the selected button should play its click sound
 	 */
 	UFUNCTION(BlueprintCallable, Category = BaseButtonGroup)
-	void SelectButtonAtIndex(int32 ButtonIndex);
+	void SelectButtonAtIndex(int32 ButtonIndex, const bool bAllowSound = true);
 
 	/**
 	 * Get the index of the currently selected button, if any.
