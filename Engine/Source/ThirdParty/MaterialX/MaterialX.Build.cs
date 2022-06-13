@@ -89,11 +89,9 @@ public class MaterialX : ModuleRules
 			}
 		}
 
-		// Install the MaterialX standard data libraries.
-		// TODO: Verify content of libraries folder is actually needed at runtime.
-		//RuntimeDependencies.Add(
-		//	Path.Combine(Target.UEThirdPartyBinariesDirectory, "MaterialX", "libraries"),
-		//	Path.Combine(DeploymentDirectory, "libraries", "...")
-		//);
+		// Add the MaterialX standard data libraries as runtime dependencies.
+		RuntimeDependencies.Add(
+			Path.Combine(Target.UEThirdPartyBinariesDirectory, "MaterialX", "libraries", "..."),
+			StagedFileType.NonUFS);
 	}
 }
