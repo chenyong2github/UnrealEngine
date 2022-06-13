@@ -3053,7 +3053,7 @@ void FEdModeLandscape::ImportHeightData(ULandscapeInfo* LandscapeInfo, const FGu
 		FScopedTransaction Transaction(LOCTEXT("Undo_ImportHeightmap", "Importing Landscape Heightmap"));
 
 		FHeightmapAccessor<false> HeightmapAccessor(LandscapeInfo);
-		HeightmapAccessor.SetData(MinX, MinY, MaxX, MaxY, Data.GetData(), PaintRestriction);
+		HeightmapAccessor.SetData(MinX, MinY, MaxX, MaxY, Data.GetData());
 	});
 }
 

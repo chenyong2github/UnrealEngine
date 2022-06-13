@@ -2402,8 +2402,6 @@ bool ULandscapeInfo::AreAllComponentsRegistered() const
 	return true;
 }
 
-#define MAX_LANDSCAPE_SUBSECTIONS 2
-
 bool ULandscapeInfo::HasUnloadedComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2) const
 {
 	bool bResult = false;
