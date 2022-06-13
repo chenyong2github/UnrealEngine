@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PropertyBag.h"
 #include "StructUtilsTestTypes.generated.h"
 
 USTRUCT()
@@ -145,4 +146,14 @@ enum class EPropertyBagTest2 : uint8
 {
 	Bingo,
 	Bongo,
+};
+
+UCLASS()
+class UTestObjectWithPropertyBag : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	FInstancedPropertyBag Bag;
 };

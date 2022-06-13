@@ -1422,6 +1422,52 @@ const UPropertyBag* UPropertyBag::GetOrCreateFromDescs(const TConstArrayView<FPr
 	return NewBag;
 }
 
+void UPropertyBag::InitializeStruct(void* Dest, int32 ArrayDim) const
+{
+	Super::InitializeStruct(Dest, ArrayDim);
+
+	// Do ref counting based on struct usage.
+	// This ensures that if the UPropertyBag is still valid in the C++ destructor of
+	// the last instance of the bag.
+	UPropertyBag* NonConstThis = const_cast<UPropertyBag*>(this);
+	const int32 OldCount = NonConstThis->RefCount.fetch_add(1, std::memory_order_acq_rel);
+	if (OldCount == 0)
+	{
+		NonConstThis->AddToRoot();
+	}
+}
+
+void UPropertyBag::DestroyStruct(void* Dest, int32 ArrayDim) const
+{
+	Super::DestroyStruct(Dest, ArrayDim);
+
+	// Do ref counting based on struct usage.
+	// This ensures that if the UPropertyBag is still valid in the C++ destructor of
+	// the last instance of the bag.
+
+	UPropertyBag* NonConstThis = const_cast<UPropertyBag*>(this);
+	const int32 OldCount = NonConstThis->RefCount.fetch_sub(1, std::memory_order_acq_rel);
+	if (OldCount == 1)
+	{
+		NonConstThis->RemoveFromRoot();
+	}
+	if (OldCount <= 0)
+	{
+		UE_LOG(LogCore, Error, TEXT("PropertyBag: DestroyStruct is called when RefCount is %d."), OldCount);
+	}
+}
+
+void UPropertyBag::FinishDestroy()
+{
+	const int32 Count = RefCount.load(); 
+	if (Count > 0)
+	{
+		UE_LOG(LogCore, Error, TEXT("PropertyBag: Expecting RefCount to be zero on destructor, but it is %d."), Count);
+	}
+	
+	Super::FinishDestroy();
+}
+
 const FPropertyBagPropertyDesc* UPropertyBag::FindPropertyDescByID(const FGuid ID) const
 {
 	return PropertyDescs.FindByPredicate([&ID](const FPropertyBagPropertyDesc& Desc) { return Desc.ID == ID; });

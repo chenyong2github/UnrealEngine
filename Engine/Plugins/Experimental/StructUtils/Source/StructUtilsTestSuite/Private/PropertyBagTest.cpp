@@ -256,6 +256,46 @@ struct FTest_Enum : FAITestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FTest_Enum, "System.StructUtils.PropertyBag.Enum");
 
+struct FTest_GC : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		static const FName EnumName(TEXT("Enum"));
+
+		UTestObjectWithPropertyBag* Obj = NewObject<UTestObjectWithPropertyBag>();
+		Obj->Bag.AddProperty(EnumName, EPropertyBagPropertyType::Enum, StaticEnum<EPropertyBagTest1>());
+
+		const UPropertyBag* BagStruct = Obj->Bag.GetPropertyBagStruct();
+		check(BagStruct);
+		
+		const FString BagStructName = BagStruct->GetName();
+		const FString ObjName = Obj->GetName();
+
+		// Obj is unreachable, it should be collected by the GC.
+		Obj = nullptr;
+		CollectGarbage(RF_NoFlags);
+
+		// The used property bag struct should exists after the GC.
+		const UPropertyBag* ExistingObj = FindObject<UPropertyBag>(GetTransientPackage(), *ObjName);
+		const UPropertyBag* ExistingBagStruct1 = FindObject<UPropertyBag>(GetTransientPackage(), *BagStructName);
+
+		AITEST_NULL(TEXT("Obj should have been released"), ExistingObj);
+		AITEST_NOT_NULL(TEXT("Bag struct should exists after Obj released"), ExistingBagStruct1);
+
+		// The next GC should collect the bag struct
+		CollectGarbage(RF_NoFlags);
+
+		const UPropertyBag* ExistingBagStruct2 = FindObject<UPropertyBag>(GetTransientPackage(), *BagStructName);
+		AITEST_NULL(TEXT("Bag struct should not exists after second GC"), ExistingBagStruct2);
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FTest_GC, "System.StructUtils.PropertyBag.GC");
+
+
+
+
 
 } // FPropertyBagTest
 

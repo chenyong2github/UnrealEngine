@@ -5,6 +5,7 @@
 #include "InstancedStruct.h"
 #include "StructView.h"
 #include "Templates/ValueOrError.h"
+#include <atomic>
 #include "PropertyBag.generated.h"
 
 /** Property bag property type, loosely based on BluePrint pin types. */
@@ -465,8 +466,15 @@ public:
 	const FPropertyBagPropertyDesc* FindPropertyDescByName(const FName Name) const;
 
 protected:
+
+	virtual void InitializeStruct(void* Dest, int32 ArrayDim = 1) const override;
+	virtual void DestroyStruct(void* Dest, int32 ArrayDim = 1) const override;
+	virtual void FinishDestroy();
+	
 	UPROPERTY()
 	TArray<FPropertyBagPropertyDesc> PropertyDescs;
 
+	std::atomic<int32> RefCount = 0;
+	
 	friend struct FInstancedPropertyBag;
 };
