@@ -73,14 +73,14 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, PreviewInstance(nullptr)
 #endif
 	, bRequiresInitExecution(false)
-	, bRequiresSetupEvent(false)
-	, bCopyHierarchyBeforeSetup(true)
-	, bResetInitialTransformsBeforeSetup(true)
+	, bRequiresConstructionEvent(false)
+	, bCopyHierarchyBeforeConstruction(true)
+	, bResetInitialTransformsBeforeConstruction(true)
 	, bManipulationEnabled(false)
 	, InitBracket(0)
 	, UpdateBracket(0)
-	, PreSetupBracket(0)
-	, PostSetupBracket(0)
+	, PreConstructionBracket(0)
+	, PostConstructionBracket(0)
 	, InteractionBracket(0)
 	, InterRigSyncBracket(0)
 	, ControlUndoBracketIndex(0)
@@ -103,8 +103,8 @@ void UControlRig::BeginDestroy()
 {
 	Super::BeginDestroy();
 	InitializedEvent.Clear();
-	PreSetupEvent.Clear();
-	PostSetupEvent.Clear();
+	PreConstructionEvent.Clear();
+	PostConstructionEvent.Clear();
 	PreForwardsSolveEvent.Clear();
 	PostForwardsSolveEvent.Clear();
 	ExecutedEvent.Clear();
@@ -216,7 +216,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	GetHierarchy()->GetController(true);
 	
 	// should refresh mapping 
-	RequestSetup();
+	RequestConstruction();
 
 	if (bInitRigUnits)
 	{
@@ -293,8 +293,8 @@ void UControlRig::Evaluate_AnyThread()
 		}
 	}
 
-	// execute the setup event prior to everything else
-	if(bRequiresSetupEvent)
+	// execute the construction event prior to everything else
+	if(bRequiresConstructionEvent)
 	{
 		if(!EventQueueToRun.Contains(FRigUnit_PrepareForExecution::EventName))
 		{
@@ -627,7 +627,7 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	const bool bIsEventLastInQueue = !GetEventQueue().IsEmpty() && GetEventQueue().Last() == InEventName;
 	const bool bIsInitializingMemory = InState == EControlRigState::Init;
 	const bool bIsExecutingInstructions = InState == EControlRigState::Update;
-	const bool bIsSetupEvent = InEventName == FRigUnit_PrepareForExecution::EventName;
+	const bool bIsConstructionEvent = InEventName == FRigUnit_PrepareForExecution::EventName;
 	const bool bIsForwardSolve = InEventName == FRigUnit_BeginExecution::EventName;
 	const bool bIsInteractionEvent = InEventName == FRigUnit_InteractionExecution::EventName;
 
@@ -859,39 +859,39 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		UE_LOG(LogControlRig, Warning, TEXT("%s: Execute is being called recursively."), *GetPathName());
 		return false;
 	}
-	if(bIsSetupEvent)
+	if(bIsConstructionEvent)
 	{
-		if(IsRunningPreSetup() || IsRunningPostSetup())
+		if(IsRunningPreConstruction() || IsRunningPostConstruction())
 		{
-			UE_LOG(LogControlRig, Warning, TEXT("%s: Setup is being called recursively."), *GetPathName());
+			UE_LOG(LogControlRig, Warning, TEXT("%s: Construction is being called recursively."), *GetPathName());
 			return false;
 		}
 	}
 
 	bool bSuccess = true;
 
-	// we'll special case the setup event here
-	if (bIsSetupEvent && !bIsInitializingMemory)
+	// we'll special case the construction event here
+	if (bIsConstructionEvent && !bIsInitializingMemory)
 	{
 		// construction mode means that we are running the construction event
 		// constantly for testing purposes.
-		const bool bSetupModeEnabled = IsSetupModeEnabled();
+		const bool bConstructionModeEnabled = IsConstructionModeEnabled();
 		{
-			// save the current state of all pose elements to preserve user intention, since setup event can
+			// save the current state of all pose elements to preserve user intention, since construction event can
 			// run in between forward events
-			// the saved pose is reapplied to the rig after setup event as the pose scope goes out of scope
+			// the saved pose is reapplied to the rig after construction event as the pose scope goes out of scope
 			TUniquePtr<UControlRig::FPoseScope> PoseScope;
-			if (!bSetupModeEnabled)
+			if (!bConstructionModeEnabled)
 			{
-				// only do this in non-setup mode because 
-				// when setup mode is enabled, the control values are cleared before reaching here (too late to save them)
-				PoseScope = MakeUnique<UControlRig::FPoseScope>(this, ERigElementType::ToResetAfterSetupEvent);
+				// only do this in non-construction mode because 
+				// when construction mode is enabled, the control values are cleared before reaching here (too late to save them)
+				PoseScope = MakeUnique<UControlRig::FPoseScope>(this, ERigElementType::ToResetAfterConstructionEvent);
 			}
 
 			// Copy the hierarchy from the default object onto this one
 			if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
 			{
-				if(bCopyHierarchyBeforeSetup && !bSetupModeEnabled)
+				if(bCopyHierarchyBeforeConstruction && !bConstructionModeEnabled)
 				{
 					if(CDO->GetHierarchy()->GetTopologyVersion()!= GetHierarchy()->GetTopologyVersion())
 					{
@@ -902,7 +902,7 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					}
 				}
 				
-				if (bResetInitialTransformsBeforeSetup && !bSetupModeEnabled)
+				if (bResetInitialTransformsBeforeConstruction && !bConstructionModeEnabled)
 				{
 					// when copying the pose from the default we don't copy the weights over,
 					// since we don't want to reset the topology in case it has diverged from the
@@ -914,38 +914,38 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			{
 #if WITH_EDITOR
 				TUniquePtr<FTransientControlPoseScope> TransientControlPoseScope;
-				if (bSetupModeEnabled)
+				if (bConstructionModeEnabled)
 				{
-					// save the transient control value, it should not be constantly reset in setup mode
+					// save the transient control value, it should not be constantly reset in construction mode
 					TransientControlPoseScope = MakeUnique<FTransientControlPoseScope>(this);
 				}
 #endif
-				// reset the pose to initial such that setup event can run from a deterministic initial state
+				// reset the pose to initial such that construction event can run from a deterministic initial state
 				GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
 			}
 
-			if (PreSetupEvent.IsBound())
+			if (PreConstructionEvent.IsBound())
 			{
-				FControlRigBracketScope BracketScope(PreSetupBracket);
-				PreSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+				FControlRigBracketScope BracketScope(PreConstructionBracket);
+				PreConstructionEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
 			}
 
 			bSuccess = ExecuteUnits(Context, FRigUnit_PrepareForExecution::EventName);
 
-			if (PostSetupEvent.IsBound())
+			if (PostConstructionEvent.IsBound())
 			{
-				FControlRigBracketScope BracketScope(PostSetupBracket);
-				PostSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+				FControlRigBracketScope BracketScope(PostConstructionBracket);
+				PostConstructionEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
 			}
 		}
 
-		if (bSetupModeEnabled)
+		if (bConstructionModeEnabled)
 		{
 #if WITH_EDITOR
 			TUniquePtr<FTransientControlPoseScope> TransientControlPoseScope;
-			if (bSetupModeEnabled)
+			if (bConstructionModeEnabled)
 			{
-				// save the transient control value, it should not be constantly reset in setup mode
+				// save the transient control value, it should not be constantly reset in construction mode
 				TransientControlPoseScope = MakeUnique<FTransientControlPoseScope>(this);
 			}
 #endif
@@ -1305,9 +1305,9 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if(bSuccess)
 	{
-		if(bIsSetupEvent)
+		if(bIsConstructionEvent)
 		{
-			bRequiresSetupEvent = false;
+			bRequiresConstructionEvent = false;
 		}
 	}
 
@@ -1499,12 +1499,12 @@ bool UControlRig::ExecuteEvent(const FName& InEventName)
 void UControlRig::RequestInit()
 {
 	bRequiresInitExecution = true;
-	RequestSetup();
+	RequestConstruction();
 }
 
-void UControlRig::RequestSetup()
+void UControlRig::RequestConstruction()
 {
-	bRequiresSetupEvent = true;
+	bRequiresConstructionEvent = true;
 }
 
 void UControlRig::SetEventQueue(const TArray<FName>& InEventNames)
@@ -1745,14 +1745,14 @@ FRigControlElement* UControlRig::FindControl(const FName& InControlName) const
 	return DynamicHierarchy->Find<FRigControlElement>(FRigElementKey(InControlName, ERigElementType::Control));
 }
 
-bool UControlRig::IsSetupModeEnabled() const
+bool UControlRig::IsConstructionModeEnabled() const
 {
 	return EventQueue.Contains(FRigUnit_PrepareForExecution::EventName);
 }
 
 FTransform UControlRig::SetupControlFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)
 {
-	if (IsSetupModeEnabled())
+	if (IsConstructionModeEnabled())
 	{
 		FRigControlElement* ControlElement = FindControl(InControlName);
 		if (ControlElement && !ControlElement->Settings.bIsTransientControl)
@@ -1807,7 +1807,7 @@ void UControlRig::HandleOnControlModified(UControlRig* Subject, FRigControlEleme
 {
 	if (Control->Settings.bIsCurve && DynamicHierarchy)
 	{
-		const FRigControlValue Value = DynamicHierarchy->GetControlValue(Control, IsSetupModeEnabled() ? ERigControlValueType::Initial : ERigControlValueType::Current);
+		const FRigControlValue Value = DynamicHierarchy->GetControlValue(Control, IsConstructionModeEnabled() ? ERigControlValueType::Initial : ERigControlValueType::Current);
 		DynamicHierarchy->SetCurveValue(FRigElementKey(Control->GetName(), ERigElementType::Curve), Value.Get<float>());
 	}	
 }
@@ -1849,7 +1849,7 @@ FTransform UControlRig::GetControlGlobalTransform(const FName& InControlName) co
 bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, bool bNotify, const FRigControlModifiedContext& Context, bool bSetupUndo, bool bPrintPythonCommands, bool bFixEulerFlips)
 {
 	FTransform GlobalTransform = InGlobalTransform;
-	if (IsSetupModeEnabled())
+	if (IsConstructionModeEnabled())
 	{
 		GlobalTransform = SetupControlFromGlobalTransform(InControlName, GlobalTransform);
 	}
@@ -2220,8 +2220,8 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
 	if (InElement.Type == ERigElementType::Bone)
 	{
 		// don't allow transient control to modify forward mode poses when we
-		// already switched to the setup mode
-		if (!IsSetupModeEnabled())
+		// already switched to the construction mode
+		if (!IsConstructionModeEnabled())
 		{
 			if(FRigBoneElement* BoneElement = DynamicHierarchy->Find<FRigBoneElement>(InElement))
 			{
@@ -2271,9 +2271,9 @@ bool UControlRig::SetTransientControlValue(const FRigElementKey& InElement)
 	{
 		if (InElement.Type == ERigElementType::Bone)
 		{
-			if (IsSetupModeEnabled())
+			if (IsConstructionModeEnabled())
 			{
-				// need to get initial because that is what setup mode uses
+				// need to get initial because that is what construction mode uses
 				// specifically, when user change the initial from the details panel
 				// this will allow the transient control to react to that change
 				const FTransform InitialLocalTransform = DynamicHierarchy->GetInitialLocalTransform(InElement);
@@ -2540,7 +2540,7 @@ void UControlRig::SetInteractionRig(UControlRig* InInteractionRig)
 
 		InteractionRig->Initialize(true);
 		InteractionRig->CopyPoseFromOtherRig(this);
-		InteractionRig->RequestSetup();
+		InteractionRig->RequestConstruction();
 		InteractionRig->Execute(EControlRigState::Update, FRigUnit_BeginExecution::EventName);
 
 		InteractionRig->ControlModified().AddUObject(this, &UControlRig::HandleInteractionRigControlModified);
@@ -3002,8 +3002,8 @@ void UControlRig::SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkelet
 		}
 		return true;
 	});
-	bResetInitialTransformsBeforeSetup = false;
-	RequestSetup();
+	bResetInitialTransformsBeforeConstruction = false;
+	RequestConstruction();
 }
 
 void UControlRig::SetBoneInitialTransformsFromCompactPose(FCompactPose* InCompactPose)
@@ -3039,8 +3039,8 @@ void UControlRig::SetBoneInitialTransformsFromCompactPose(FCompactPose* InCompac
 			return true;
 		});
 
-	bResetInitialTransformsBeforeSetup = false;
-	RequestSetup();
+	bResetInitialTransformsBeforeConstruction = false;
+	RequestConstruction();
 }
 
 const FRigControlElementCustomization* UControlRig::GetControlCustomization(const FRigElementKey& InControl) const

@@ -27,7 +27,7 @@ UControlRigEditorSettings::UControlRigEditorSettings(const FObjectInitializer& O
 	bResetControlsOnPinValueInteraction = false;
 	bEnableUndoForPoseInteraction = true;
 
-	SetupEventBorderColor = FLinearColor::Red;
+	ConstructionEventBorderColor = FLinearColor::Red;
 	BackwardsSolveBorderColor = FLinearColor::Yellow;
 	BackwardsAndForwardsBorderColor = FLinearColor::Blue;
 	DynamicHierarchyBorderColor = FLinearColor::Blue;

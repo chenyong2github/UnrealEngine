@@ -123,7 +123,7 @@ public:
 	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
 
 	void OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
-	bool IsSetupModeEnabled() const;
+	bool IsConstructionModeEnabled() const;
 
 	FText GetParentElementName() const;
 

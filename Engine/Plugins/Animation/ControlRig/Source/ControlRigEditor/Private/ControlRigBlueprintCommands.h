@@ -30,8 +30,8 @@ public:
 	/** Toggle between this and the last event queue */
 	TSharedPtr< FUICommandInfo > ToggleEventQueue;
 
-	/** Enable the setup mode for the rig */
-	TSharedPtr< FUICommandInfo > SetupEvent;
+	/** Enable the construction mode for the rig */
+	TSharedPtr< FUICommandInfo > ConstructionEvent;
 
 	/** Run the forwards solve graph */
 	TSharedPtr< FUICommandInfo > ForwardsSolveEvent;

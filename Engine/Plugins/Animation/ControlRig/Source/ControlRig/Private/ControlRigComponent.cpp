@@ -53,7 +53,7 @@ UControlRigComponent::UControlRigComponent(const FObjectInitializer& ObjectIniti
 
 	ControlRig = nullptr;
 	bResetTransformBeforeTick = true;
-	bResetInitialsBeforeSetup = true;
+	bResetInitialsBeforeConstruction = true;
 	bUpdateRigOnTick = true;
 	bUpdateInEditor = true;
 	bDrawBones = true;
@@ -283,14 +283,14 @@ void UControlRigComponent::OnPostInitialize_Implementation(UControlRigComponent*
 	OnPostInitializeDelegate.Broadcast(Component);
 }
 
-void UControlRigComponent::OnPreSetup_Implementation(UControlRigComponent* Component)
+void UControlRigComponent::OnPreConstruction_Implementation(UControlRigComponent* Component)
 {
-	OnPreSetupDelegate.Broadcast(Component);
+	OnPreConstructionDelegate.Broadcast(Component);
 }
 
-void UControlRigComponent::OnPostSetup_Implementation(UControlRigComponent* Component)
+void UControlRigComponent::OnPostConstruction_Implementation(UControlRigComponent* Component)
 {
-	OnPostSetupDelegate.Broadcast(Component);
+	OnPostConstructionDelegate.Broadcast(Component);
 }
 
 void UControlRigComponent::OnPreForwardsSolve_Implementation(UControlRigComponent* Component)
@@ -371,7 +371,7 @@ void UControlRigComponent::Update(float DeltaTime)
 		else
 		{
 			CR->SetDeltaTime(DeltaTime);
-			CR->bResetInitialTransformsBeforeSetup = bResetInitialsBeforeSetup;
+			CR->bResetInitialTransformsBeforeConstruction = bResetInitialsBeforeConstruction;
 
 			// todo: set log
 			// todo: set external data providers
@@ -676,7 +676,7 @@ void UControlRigComponent::SetBoneInitialTransformsFromSkeletalMesh(USkeletalMes
 		if (UControlRig* CR = SetupControlRigIfRequired())
 		{
 			CR->SetBoneInitialTransformsFromSkeletalMesh(InSkeletalMesh);
-			bResetInitialsBeforeSetup = false;
+			bResetInitialsBeforeConstruction = false;
 		}
 	}
 }
@@ -778,9 +778,9 @@ void UControlRigComponent::SetInitialBoneTransform(FName BoneName, FTransform In
 		const int32 BoneIndex = CR->GetHierarchy()->GetIndex(FRigElementKey(BoneName, ERigElementType::Bone));
 		if (BoneIndex != INDEX_NONE)
 		{
-			if(!CR->IsRunningPreSetup() && !CR->IsRunningPostSetup())
+			if(!CR->IsRunningPreConstruction() && !CR->IsRunningPostConstruction())
 			{
-				ReportError(TEXT("SetInitialBoneTransform should only be called during OnPreSetup / OnPostSetup."));
+				ReportError(TEXT("SetInitialBoneTransform should only be called during OnPreConstruction / OnPostConstruction."));
 				return;
 			}
 
@@ -1144,8 +1144,8 @@ UControlRig* UControlRigComponent::SetupControlRigIfRequired()
 		if (ControlRig->GetClass() != ControlRigClass)
 		{
 			ControlRig->OnInitialized_AnyThread().RemoveAll(this);
-			ControlRig->OnPreSetup_AnyThread().RemoveAll(this);
-			ControlRig->OnPostSetup_AnyThread().RemoveAll(this);
+			ControlRig->OnPreConstruction_AnyThread().RemoveAll(this);
+			ControlRig->OnPostConstruction_AnyThread().RemoveAll(this);
 			ControlRig->OnPreForwardsSolve_AnyThread().RemoveAll(this);
 			ControlRig->OnPostForwardsSolve_AnyThread().RemoveAll(this);
 			ControlRig->OnExecuted_AnyThread().RemoveAll(this);
@@ -1178,16 +1178,16 @@ void UControlRigComponent::SetControlRig(UControlRig* InControlRig)
 	if (ControlRig)
 	{
 		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
-		ControlRig->OnPreSetup_AnyThread().RemoveAll(this);
-		ControlRig->OnPostSetup_AnyThread().RemoveAll(this);
+		ControlRig->OnPreConstruction_AnyThread().RemoveAll(this);
+		ControlRig->OnPostConstruction_AnyThread().RemoveAll(this);
 		ControlRig->OnPreForwardsSolve_AnyThread().RemoveAll(this);
 		ControlRig->OnPostForwardsSolve_AnyThread().RemoveAll(this);
 		ControlRig->OnExecuted_AnyThread().RemoveAll(this);
 	}
 	ControlRig = InControlRig;
 	ControlRig->OnInitialized_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigInitializedEvent);
-	ControlRig->OnPreSetup_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPreSetupEvent);
-	ControlRig->OnPostSetup_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPostSetupEvent);
+	ControlRig->OnPreConstruction_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPreConstructionEvent);
+	ControlRig->OnPostConstruction_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPostConstructionEvent);
 	ControlRig->OnPreForwardsSolve_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPreForwardsSolveEvent);
 	ControlRig->OnPostForwardsSolve_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPostForwardsSolveEvent);
 	ControlRig->OnExecuted_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigExecutedEvent);
@@ -1617,7 +1617,7 @@ void UControlRigComponent::HandleControlRigInitializedEvent(UControlRig* InContr
 	}
 }
 
-void UControlRigComponent::HandleControlRigPreSetupEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigComponent::HandleControlRigPreConstructionEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
 {
 	TArray<USkeletalMeshComponent*> ComponentsToTick;
 
@@ -1658,27 +1658,27 @@ void UControlRigComponent::HandleControlRigPreSetupEvent(UControlRig* InControlR
 	if (bUpdateInEditor)
 	{
 		FEditorScriptExecutionGuard AllowScripts;
-		OnPreSetup(this);
+		OnPreConstruction(this);
 	}
 	else
 #endif
 	{
-		OnPreSetup(this);
+		OnPreConstruction(this);
 	}
 }
 
-void UControlRigComponent::HandleControlRigPostSetupEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigComponent::HandleControlRigPostConstructionEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
 {
 #if WITH_EDITOR
 	if (bUpdateInEditor)
 	{
 		FEditorScriptExecutionGuard AllowScripts;
-		OnPostSetup(this);
+		OnPostConstruction(this);
 	}
 	else
 #endif
 	{
-		OnPostSetup(this);
+		OnPostConstruction(this);
 	}
 }
 
@@ -1771,30 +1771,30 @@ bool UControlRigComponent::EnsureCalledOutsideOfBracket(const TCHAR* InCallingFu
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (CR->IsRunningPreSetup())
+		if (CR->IsRunningPreConstruction())
 		{
 			if (InCallingFunctionName)
 			{
-				ReportError(FString::Printf(TEXT("%s cannot be called during the PreSetupEvent - use ConstructionScript instead."), InCallingFunctionName));
+				ReportError(FString::Printf(TEXT("%s cannot be called during the PreConstructionEvent - use ConstructionScript instead."), InCallingFunctionName));
 				return false;
 			}
 			else
 			{
-				ReportError(FString::Printf(TEXT("Cannot be called during the PreSetupEvent - use ConstructionScript instead."), InCallingFunctionName));
+				ReportError(FString::Printf(TEXT("Cannot be called during the PreConstructionEvent - use ConstructionScript instead."), InCallingFunctionName));
 				return false;
 			}
 		}
 
-		if (CR->IsRunningPostSetup())
+		if (CR->IsRunningPostConstruction())
 		{
 			if (InCallingFunctionName)
 			{
-				ReportError(FString::Printf(TEXT("%s cannot be called during the PostSetupEvent - use ConstructionScript instead."), InCallingFunctionName));
+				ReportError(FString::Printf(TEXT("%s cannot be called during the PostConstructionEvent - use ConstructionScript instead."), InCallingFunctionName));
 				return false;
 			}
 			else
 			{
-				ReportError(FString::Printf(TEXT("Cannot be called during the PostSetupEvent - use ConstructionScript instead."), InCallingFunctionName));
+				ReportError(FString::Printf(TEXT("Cannot be called during the PostConstructionEvent - use ConstructionScript instead."), InCallingFunctionName));
 				return false;
 			}
 		}

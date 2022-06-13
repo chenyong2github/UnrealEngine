@@ -3,7 +3,7 @@
 #include "RigUnit_PrepareForExecution.h"
 #include "Units/RigUnitContext.h"
 
-FName FRigUnit_PrepareForExecution::EventName = TEXT("Setup");
+FName FRigUnit_PrepareForExecution::EventName = TEXT("Construction");
 
 FRigUnit_PrepareForExecution_Execute()
 {

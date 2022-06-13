@@ -302,9 +302,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void RequestInit();
 
-	/** Requests to perform a setup during the next execution */
+	/** Requests to perform construction during the next execution */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	void RequestSetup();
+	void RequestConstruction();
 
 	/** Returns the queue of events to run */
 	const TArray<FName>& GetEventQueue() const { return EventQueue; }
@@ -326,8 +326,8 @@ public:
 
 	virtual TArray<FRigControlElement*> AvailableControls() const;
 	virtual FRigControlElement* FindControl(const FName& InControlName) const;
-	virtual bool ShouldApplyLimits() const { return !IsSetupModeEnabled(); }
-	virtual bool IsSetupModeEnabled() const;
+	virtual bool ShouldApplyLimits() const { return !IsConstructionModeEnabled(); }
+	virtual bool IsConstructionModeEnabled() const;
 	virtual FTransform SetupControlFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform);
 	virtual FTransform GetControlGlobalTransform(const FName& InControlName) const;
 
@@ -424,8 +424,8 @@ public:
 
 	DECLARE_EVENT_ThreeParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState, const FName&);
 	FControlRigExecuteEvent& OnInitialized_AnyThread() { return InitializedEvent; }
-	FControlRigExecuteEvent& OnPreSetup_AnyThread() { return PreSetupEvent; }
-	FControlRigExecuteEvent& OnPostSetup_AnyThread() { return PostSetupEvent; }
+	FControlRigExecuteEvent& OnPreConstruction_AnyThread() { return PreConstructionEvent; }
+	FControlRigExecuteEvent& OnPostConstruction_AnyThread() { return PostConstructionEvent; }
 	FControlRigExecuteEvent& OnPreForwardsSolve_AnyThread() { return PreForwardsSolveEvent; }
 	FControlRigExecuteEvent& OnPostForwardsSolve_AnyThread() { return PostForwardsSolveEvent; }
 	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
@@ -586,10 +586,10 @@ private:
 	FControlRigExecuteEvent InitializedEvent;
 
 	/** Broadcasts a notification just before the controlrig is setup. */
-	FControlRigExecuteEvent PreSetupEvent;
+	FControlRigExecuteEvent PreConstructionEvent;
 
 	/** Broadcasts a notification whenever the controlrig has been setup. */
-	FControlRigExecuteEvent PostSetupEvent;
+	FControlRigExecuteEvent PostConstructionEvent;
 
 	/** Broadcasts a notification before a forward solve has been initiated */
 	FControlRigExecuteEvent PreForwardsSolveEvent;
@@ -704,15 +704,15 @@ private:
 
 protected:
 	bool bRequiresInitExecution;
-	bool bRequiresSetupEvent;
-	bool bCopyHierarchyBeforeSetup;
-	bool bResetInitialTransformsBeforeSetup;
+	bool bRequiresConstructionEvent;
+	bool bCopyHierarchyBeforeConstruction;
+	bool bResetInitialTransformsBeforeConstruction;
 	bool bManipulationEnabled;
 
 	int32 InitBracket;
 	int32 UpdateBracket;
-	int32 PreSetupBracket;
-	int32 PostSetupBracket;
+	int32 PreConstructionBracket;
+	int32 PostConstructionBracket;
 	int32 PreForwardsSolveBracket;
 	int32 PostForwardsSolveBracket;
 	int32 InteractionBracket;
@@ -734,14 +734,14 @@ protected:
 		return UpdateBracket > 0;
 	}
 
-	FORCEINLINE bool IsRunningPreSetup() const
+	FORCEINLINE bool IsRunningPreConstruction() const
 	{
-		return PreSetupBracket > 0;
+		return PreConstructionBracket > 0;
 	}
 
-	FORCEINLINE bool IsRunningPostSetup() const
+	FORCEINLINE bool IsRunningPostConstruction() const
 	{
-		return PostSetupBracket > 0;
+		return PostConstructionBracket > 0;
 	}
 
 	FORCEINLINE bool IsInteracting() const
@@ -875,7 +875,7 @@ private:
 public:
 	// Class used to temporarily cache current pose of transient controls
 	// restore them after a ResetPoseToInitial call,
-	// which allows user to move bones in setup mode
+	// which allows user to move bones in construction mode
 	class FTransientControlPoseScope
 	{
 	public:

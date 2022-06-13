@@ -833,7 +833,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						});
 				}
 
-				if (Settings->bDisplayNulls || ControlRig->IsSetupModeEnabled())
+				if (Settings->bDisplayNulls || ControlRig->IsConstructionModeEnabled())
 				{
 					TArray<FTransform> SpaceTransforms;
 					TArray<FTransform> SelectedSpaceTransforms;

@@ -107,7 +107,7 @@ FRigUnit_SwitchParent_Execute()
 				return;
 			}
 
-			// during setup event also change the initial weights
+			// during construction event also change the initial weights
 			if(ExecuteContext.GetEventName() == FRigUnit_PrepareForExecution::EventName)
 			{
 				if(!ExecuteContext.Hierarchy->SwitchToParent(ChildElement, ParentElement, true, true, EmptyDependencyMap, &FailureReason))
@@ -181,7 +181,7 @@ FRigUnit_HierarchySetParentWeights_Execute()
 
 	ExecuteContext.Hierarchy->SetParentWeightArray(ChildElement, Weights, false, true);
 
-	// during setup event also change the initial weights
+	// during construction event also change the initial weights
 	if(ExecuteContext.GetEventName() == FRigUnit_PrepareForExecution::EventName)
 	{
 		ExecuteContext.Hierarchy->SetParentWeightArray(ChildElement, Weights, true, true);

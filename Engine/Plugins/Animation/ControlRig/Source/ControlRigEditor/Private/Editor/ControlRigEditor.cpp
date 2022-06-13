@@ -207,7 +207,7 @@ struct FControlRigZoomLevelsContainer : public FZoomLevelsContainer
 
 const TArray<FName> FControlRigEditor::ForwardsSolveEventQueue = {FRigUnit_BeginExecution::EventName};
 const TArray<FName> FControlRigEditor::BackwardsSolveEventQueue = {FRigUnit_InverseExecution::EventName};
-const TArray<FName> FControlRigEditor::SetupEventQueue = {FRigUnit_PrepareForExecution::EventName};
+const TArray<FName> FControlRigEditor::ConstructionEventQueue = {FRigUnit_PrepareForExecution::EventName};
 const TArray<FName> FControlRigEditor::BackwardsAndForwardsSolveEventQueue = {FRigUnit_InverseExecution::EventName, FRigUnit_BeginExecution::EventName};
 
 FControlRigEditor::FControlRigEditor()
@@ -218,7 +218,7 @@ FControlRigEditor::FControlRigEditor()
 	, bExecutionControlRig(true)
 	, bIsCompilingThroughUI(false)
 	, bAnyErrorsLeft(false)
-	, LastEventQueue(SetupEventQueue)
+	, LastEventQueue(ConstructionEventQueue)
 	, ExecutionMode(EControlRigExecutionModeType::EControlRigExecutionModeType_Release)
 	, LastDebuggedRig()
 	, RigHierarchyTabCount(0)
@@ -660,8 +660,8 @@ void FControlRigEditor::BindCommands()
 		FCanExecuteAction());
 
 	GetToolkitCommands()->MapAction(
-		FControlRigBlueprintCommands::Get().SetupEvent,
-		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, TArray<FName>(SetupEventQueue)),
+		FControlRigBlueprintCommands::Get().ConstructionEvent,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, TArray<FName>(ConstructionEventQueue)),
 		FCanExecuteAction());
 
 	GetToolkitCommands()->MapAction(
@@ -781,7 +781,7 @@ TSharedRef<SWidget> FControlRigEditor::GenerateEventQueueMenuContent()
 	FMenuBuilder MenuBuilder(true, GetToolkitCommands());
 
 	MenuBuilder.BeginSection(TEXT("Events"));
-	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().SetupEvent, TEXT("Setup"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(SetupEventQueue));
+	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().ConstructionEvent, TEXT("Setup"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(ConstructionEventQueue));
 	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().ForwardsSolveEvent, TEXT("Forwards Solve"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(ForwardsSolveEventQueue));
 	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().BackwardsSolveEvent, TEXT("Backwards Solve"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(BackwardsSolveEventQueue));
 	MenuBuilder.EndSection();
@@ -1011,7 +1011,7 @@ void FControlRigEditor::SetEventQueue(TArray<FName> InEventQueue, bool bCompile)
 			}
 		}
 
-		// Reset transforms only for setup and forward solve to not inturrupt any animation that might be playing
+		// Reset transforms only for construction and forward solve to not inturrupt any animation that might be playing
 		if (InEventQueue.Contains(FRigUnit_PrepareForExecution::EventName) ||
 			InEventQueue.Contains(FRigUnit_BeginExecution::EventName))
 		{
@@ -1027,7 +1027,7 @@ void FControlRigEditor::SetEventQueue(TArray<FName> InEventQueue, bool bCompile)
 		}
 
 		UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
-		Settings->bDisplayNulls = IsSetupModeEnabled();
+		Settings->bDisplayNulls = IsConstructionModeEnabled();
 	}
 
 	if (PreviousSelection.Num() > 0)
@@ -1047,7 +1047,7 @@ int32 FControlRigEditor::GetEventQueueComboValue() const
 	{
 		return 0;
 	}
-	if(EventQueue == SetupEventQueue)
+	if(EventQueue == ConstructionEventQueue)
 	{
 		return 1;
 	}
@@ -1066,7 +1066,7 @@ FText FControlRigEditor::GetEventQueueLabel() const
 {
 	TArray<FName> EventQueue = GetEventQueue();
 
-	if(EventQueue == SetupEventQueue)
+	if(EventQueue == ConstructionEventQueue)
 	{
 		return FRigUnit_PrepareForExecution::StaticStruct()->GetDisplayNameText();
 	}
@@ -1099,9 +1099,9 @@ FText FControlRigEditor::GetEventQueueLabel() const
 
 FSlateIcon FControlRigEditor::GetEventQueueIcon(const TArray<FName>& InEventQueue)
 {
-	if(InEventQueue == SetupEventQueue)
+	if(InEventQueue == ConstructionEventQueue)
 	{
-		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.SetupMode");
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ConstructionMode");
 	}
 	if(InEventQueue == ForwardsSolveEventQueue)
 	{
@@ -1578,7 +1578,7 @@ void FControlRigEditor::SetDetailViewForRigElements()
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
 	URigHierarchy* Hierarchy = RigBlueprint->Hierarchy;
 	
-	if (!IsSetupModeEnabled())
+	if (!IsConstructionModeEnabled())
 	{
 		if (UControlRig* DebuggedControlRig = Cast<UControlRig>(RigBlueprint->GetObjectBeingDebugged()))
 		{
@@ -1916,7 +1916,7 @@ void FControlRigEditor::Compile()
 			}
 		}
 
-		if(IsSetupModeEnabled())
+		if(IsConstructionModeEnabled())
 		{
 			SetEventQueue(ForwardsSolveEventQueue, false);
 		}
@@ -2916,7 +2916,7 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 		}
 
 		URigHierarchy* Hierarchy = ControlRigBP->Hierarchy; 
-		if(!IsSetupModeEnabled())
+		if(!IsConstructionModeEnabled())
 		{
 			if(DebuggedControlRig)
 			{
@@ -3657,9 +3657,9 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 	{
 		FLinearColor Color = FLinearColor::Transparent;
 		const TArray<FName> EventQueue = GetEventQueue();
-		if(EventQueue == SetupEventQueue)
+		if(EventQueue == ConstructionEventQueue)
 		{
-			Color = UControlRigEditorSettings::Get()->SetupEventBorderColor;
+			Color = UControlRigEditorSettings::Get()->ConstructionEventBorderColor;
 		}
 		if(EventQueue == BackwardsSolveEventQueue)
 		{
@@ -3762,7 +3762,7 @@ bool FControlRigEditor::IsToolbarDrawNullsEnabled() const
 {
 	if (ControlRig)
 	{
-		if (!ControlRig->IsSetupModeEnabled())
+		if (!ControlRig->IsConstructionModeEnabled())
 		{
 			return true;
 		}
@@ -3920,7 +3920,7 @@ void FControlRigEditor::OnPinControlNameListComboBox(const TArray<TSharedPtr<FSt
 	PinControlNameList->SetSelectedItem(CurrentlySelected);
 }
 
-bool FControlRigEditor::IsSetupModeEnabled() const
+bool FControlRigEditor::IsConstructionModeEnabled() const
 {
 	return LastEventQueue.Contains(FRigUnit_PrepareForExecution::EventName);
 }
@@ -4526,7 +4526,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 				const ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
 				bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
 				
-				if(ERigTransformType::IsInitial(TransformType) || IsSetupModeEnabled())
+				if(ERigTransformType::IsInitial(TransformType) || IsConstructionModeEnabled())
 				{
 					Hierarchy = ControlRigBP->Hierarchy;
 				}
@@ -4546,7 +4546,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 					FRigControlValue Value;
 					Value.SetFromTransform(Transform, ControlElement->Settings.ControlType, ControlElement->Settings.PrimaryAxis);
 							
-					if(ERigTransformType::IsInitial(TransformType) || IsSetupModeEnabled())
+					if(ERigTransformType::IsInitial(TransformType) || IsConstructionModeEnabled())
 					{
 						Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Initial, true, true, true);
 					}
@@ -4600,7 +4600,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 				ControlRigBP->Hierarchy->SetControlSettings(ControlElement, Settings, true, false, true);
 			}
 
-			if(IsSetupModeEnabled() || bIsInitial)
+			if(IsConstructionModeEnabled() || bIsInitial)
 			{
 				ControlRigBP->PropagatePoseFromBPToInstances();
 				ControlRigBP->Modify();
@@ -6251,7 +6251,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 				Blueprint->Hierarchy->SetLocalTransform(ElementKey, Transform);
 				Hierarchy->SetLocalTransform(ElementKey, Transform);
 
-				if (IsSetupModeEnabled())
+				if (IsConstructionModeEnabled())
 				{
 					Blueprint->Hierarchy->SetInitialLocalTransform(ElementKey, Transform);
 					Hierarchy->SetInitialLocalTransform(ElementKey, Transform);
@@ -6271,7 +6271,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 			}
 		}
 	}
-	else if (IsSetupModeEnabled())
+	else if (IsConstructionModeEnabled())
 	{
 		FRigControlElement* SourceControlElement = Hierarchy->Find<FRigControlElement>(ControlElement->GetKey());
 		FRigControlElement* TargetControlElement = Blueprint->Hierarchy->Find<FRigControlElement>(ControlElement->GetKey());
@@ -6284,7 +6284,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 			Blueprint->Hierarchy->OnModified().Broadcast(ERigHierarchyNotification::ControlSettingChanged, Blueprint->Hierarchy, TargetControlElement);
 		}
 
-		// we copy the pose including the weights since we want the topology to align during setup mode.
+		// we copy the pose including the weights since we want the topology to align during construction mode.
 		// i.e. dynamic reparenting should be reset here.
 		TargetControlElement->CopyPose(SourceControlElement, true, true, true);
 	}

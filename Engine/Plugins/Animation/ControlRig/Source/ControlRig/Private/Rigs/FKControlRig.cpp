@@ -17,8 +17,8 @@ UFKControlRig::UFKControlRig(const FObjectInitializer& ObjectInitializer)
 	, ApplyMode(EControlRigFKRigExecuteMode::Replace)
 	, CachedToggleApplyMode(EControlRigFKRigExecuteMode::Replace)
 {
-	bCopyHierarchyBeforeSetup = false;
-	bResetInitialTransformsBeforeSetup = false;
+	bCopyHierarchyBeforeConstruction = false;
+	bResetInitialTransformsBeforeConstruction = false;
 }
 
 FName UFKControlRig::GetControlName(const FName& InName, const ERigElementType& InType)

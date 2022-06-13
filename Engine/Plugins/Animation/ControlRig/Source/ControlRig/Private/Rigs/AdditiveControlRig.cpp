@@ -13,8 +13,8 @@
 UAdditiveControlRig::UAdditiveControlRig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bCopyHierarchyBeforeSetup = false;
-	bResetInitialTransformsBeforeSetup = false;
+	bCopyHierarchyBeforeConstruction = false;
+	bResetInitialTransformsBeforeConstruction = false;
 }
 
 FName UAdditiveControlRig::GetControlName(const FName& InBoneName)

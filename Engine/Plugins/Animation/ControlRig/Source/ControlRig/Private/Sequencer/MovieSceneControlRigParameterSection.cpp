@@ -2526,7 +2526,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	FScopedSlowTask Progress(NumberOfKeys + ExtraProgress, LOCTEXT("BakingToControlRig_SlowTask", "Baking To Control Rig..."));	
 	Progress.MakeDialog(true);
 
-	//Make sure we are reset and run setup event  before evaluating
+	//Make sure we are reset and run construction event  before evaluating
 	/*
 	TArray<FRigElementKey>ControlsToReset = ControlRig->GetHierarchy()->GetAllKeys(true, ERigElementType::Control);
 	for (const FRigElementKey& ControlToReset : ControlsToReset)
@@ -2568,7 +2568,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	{
 		ControlRig->SetBoneInitialTransformsFromRefSkeleton(Skeleton->GetReferenceSkeleton());
 	}
-	ControlRig->RequestSetup();
+	ControlRig->RequestConstruction();
 	ControlRig->Evaluate_AnyThread();
 
 	for (int32 Index = 0; Index < NumberOfKeys; ++Index)

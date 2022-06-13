@@ -464,7 +464,7 @@ protected:
 	void SetPinControlNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/);
 	void OnPinControlNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	void OnPinControlNameListComboBox(const TArray<TSharedPtr<FString>>* InNameList);
-	bool IsSetupModeEnabled() const;
+	bool IsConstructionModeEnabled() const;
 
 	bool bAnyErrorsLeft;
 
@@ -485,7 +485,7 @@ protected:
 
 	static const TArray<FName> ForwardsSolveEventQueue;
 	static const TArray<FName> BackwardsSolveEventQueue;
-	static const TArray<FName> SetupEventQueue;
+	static const TArray<FName> ConstructionEventQueue;
 	static const TArray<FName> BackwardsAndForwardsSolveEventQueue;
 
 	friend class FControlRigEditorMode;

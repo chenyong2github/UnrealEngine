@@ -7,9 +7,9 @@
 #include "RigUnit_PrepareForExecution.generated.h"
 
 /**
- * Event to setup elements before all solves
+ * Event to create / configure elements before any other event
  */
-USTRUCT(meta=(DisplayName="Setup Event", Category="Events", NodeColor="1, 0, 0", Keywords="Setup,Init,Fit"))
+USTRUCT(meta=(DisplayName="Construction Event", Category="Events", NodeColor="0.6, 0, 1", Keywords="Create,Build,Spawn,Setup,Init,Fit"))
 struct CONTROLRIG_API FRigUnit_PrepareForExecution : public FRigUnit
 {
 	GENERATED_BODY()

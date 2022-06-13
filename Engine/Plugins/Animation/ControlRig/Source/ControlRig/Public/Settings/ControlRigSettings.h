@@ -93,10 +93,10 @@ public:
 	TMap<FString, FControlRigSettingsPerPinBool> RigUnitPinExpansion;
 	
 	/**
-	 * The border color of the viewport when entering "Setup Event" mode
+	 * The border color of the viewport when entering "Construction Event" mode
 	 */
 	UPROPERTY(EditAnywhere, config, Category = Viewport)
-	FLinearColor SetupEventBorderColor;
+	FLinearColor ConstructionEventBorderColor;
 	
 	/**
 	 * The border color of the viewport when entering "Backwards Solve" mode

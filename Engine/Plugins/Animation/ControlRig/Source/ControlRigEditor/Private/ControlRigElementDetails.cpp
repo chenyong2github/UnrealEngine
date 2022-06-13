@@ -630,7 +630,7 @@ URigHierarchy* FRigBaseElementDetails::GetHierarchyBeingDebugged() const
 		
 	if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 	{
-		if(!DebuggedRig->IsSetupModeEnabled())
+		if(!DebuggedRig->IsConstructionModeEnabled())
 		{
 			HierarchyBeingDebugged = DebuggedRig->GetHierarchy();
 		}
@@ -742,13 +742,13 @@ void FRigBaseElementDetails::OnStructContentsChanged(FProperty* InProperty, cons
 	PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
 }
 
-bool FRigBaseElementDetails::IsSetupModeEnabled() const
+bool FRigBaseElementDetails::IsConstructionModeEnabled() const
 {
 	if(BlueprintBeingCustomized)
 	{
 		if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 		{
-			return DebuggedRig->IsSetupModeEnabled();
+			return DebuggedRig->IsConstructionModeEnabled();
 		}
 	}
 	return false;
@@ -935,7 +935,7 @@ void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& Detai
 	URigHierarchy* HierarchyBeingDebugged = HierarchyBeingCustomized;
 	if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 	{
- 		if(!DebuggedRig->IsSetupModeEnabled())
+ 		if(!DebuggedRig->IsConstructionModeEnabled())
 		{
 			HierarchyBeingDebugged = DebuggedRig->GetHierarchy();
 		}
@@ -1741,15 +1741,15 @@ FDetailWidgetRow& FRigTransformElementDetails::CreateEulerTransformValueWidgetRo
 		const bool bCurrent = CurrentTransformType == ERigTransformElementDetailsTransform::Current; 
 		const bool bInitial = CurrentTransformType == ERigTransformElementDetailsTransform::Initial; 
 
-		bool bSetupModeEnabled = false;
+		bool bConstructionModeEnabled = false;
 		if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 		{
-			bSetupModeEnabled = DebuggedRig->IsSetupModeEnabled();
+			bConstructionModeEnabled = DebuggedRig->IsConstructionModeEnabled();
 		}
 
 		TArray<URigHierarchy*> HierarchiesToUpdate;
 		HierarchiesToUpdate.Add(HierarchyBeingDebugged);
-		if(!bCurrent || bSetupModeEnabled)
+		if(!bCurrent || bConstructionModeEnabled)
 		{
 			HierarchiesToUpdate.Add(HierarchyBeingCustomized);
 		}

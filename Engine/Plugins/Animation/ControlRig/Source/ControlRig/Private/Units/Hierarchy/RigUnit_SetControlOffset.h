@@ -7,7 +7,7 @@
 
 /**
  * SetControlOffset is used to perform a change in the hierarchy by setting a single control's transform.
- * This is typically only used during the Setup Event.
+ * This is typically only used during the Construction Event.
  */
 USTRUCT(meta=(DisplayName="Set Control Offset", Category="Controls", DocumentationPolicy="Strict", Keywords = "SetControlOffset,Initial,InitialTransform,SetInitialTransform,SetInitialControlTransform", NodeColor="0, 0.364706, 1.0"))
 struct CONTROLRIG_API FRigUnit_SetControlOffset : public FRigUnitMutable
@@ -49,7 +49,7 @@ struct CONTROLRIG_API FRigUnit_SetControlOffset : public FRigUnitMutable
 
 /**
  * GetShapeTransform is used to retrieve single control's shape transform.
- * This is typically only used during the Setup Event.
+ * This is typically only used during the Construction Event.
  */
 USTRUCT(meta=(DisplayName="Get Shape Transform", Category="Controls", DocumentationPolicy="Strict", Keywords = "GetControlShapeTransform,Gizmo,GizmoTransform,MeshTransform", NodeColor="0, 0.364706, 1.0"))
 struct CONTROLRIG_API FRigUnit_GetShapeTransform : public FRigUnit
@@ -84,7 +84,7 @@ struct CONTROLRIG_API FRigUnit_GetShapeTransform : public FRigUnit
 
 /**
  * SetShapeTransform is used to perform a change in the hierarchy by setting a single control's shape transform.
- * This is typically only used during the Setup Event.
+ * This is typically only used during the Construction Event.
  */
 USTRUCT(meta=(DisplayName="Set Shape Transform", Category="Controls", DocumentationPolicy="Strict", Keywords = "SetControlShapeTransform,Gizmo,GizmoTransform,MeshTransform", NodeColor="0, 0.364706, 1.0"))
 struct CONTROLRIG_API FRigUnit_SetShapeTransform : public FRigUnitMutable

@@ -30,7 +30,7 @@ enum class ERigElementType : uint8
 	Reference = 0x020,
 	Last = 0x040 UMETA(Hidden),
 	All = Bone | Null | Control | Curve | RigidBody | Reference,
-	ToResetAfterSetupEvent = Bone | Control | Curve UMETA(Hidden),
+	ToResetAfterConstructionEvent = Bone | Control | Curve UMETA(Hidden),
 };
 
 UENUM(BlueprintType)

@@ -1264,13 +1264,13 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 
 		FScopedTransaction Transaction(LOCTEXT("HierarchyRefresh", "Refresh Transform"));
 
-		// don't select bone if we are in setup mode.
+		// don't select bone if we are in construction mode.
 		// we do this to avoid the editmode / viewport shapes to refresh recursively,
 		// which can add an extreme slowdown depending on the number of bones (n^(n-1))
 		bool bSelectBones = true;
 		if (UControlRig* CurrentRig = ControlRigEditor.Pin()->ControlRig)
 		{
-			bSelectBones = !CurrentRig->IsSetupModeEnabled();
+			bSelectBones = !CurrentRig->IsConstructionModeEnabled();
 		}
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
@@ -1366,13 +1366,13 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 
 		FScopedTransaction Transaction(LOCTEXT("HierarchyImport", "Import Hierarchy"));
 
-		// don't select bone if we are in setup mode.
+		// don't select bone if we are in construction mode.
 		// we do this to avoid the editmode / viewport shapes to refresh recursively,
 		// which can add an extreme slowdown depending on the number of bones (n^(n-1))
 		bool bSelectBones = true;
 		if (UControlRig* CurrentRig = ControlRigEditor.Pin()->ControlRig)
 		{
-			bSelectBones = !CurrentRig->IsSetupModeEnabled();
+			bSelectBones = !CurrentRig->IsConstructionModeEnabled();
 		}
 
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
