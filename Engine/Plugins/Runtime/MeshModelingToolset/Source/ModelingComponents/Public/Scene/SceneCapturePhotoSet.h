@@ -183,6 +183,8 @@ protected:
 	FSpatialPhotoSet3f WorldNormalPhotoSet;
 	FSpatialPhotoSet3f EmissivePhotoSet;
 
+	TArray<FSpatialPhotoParams> PhotoSetParams;
+
 	bool bWriteDebugImages = false;
 	FString DebugImagesFolderName = TEXT("SceneCapturePhotoSet");
 

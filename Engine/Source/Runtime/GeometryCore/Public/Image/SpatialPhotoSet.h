@@ -13,6 +13,21 @@ namespace UE
 namespace Geometry
 {
 
+struct FSpatialPhotoParams
+{
+	/** Coordinate system of the view camera - X() is forward, Z() is up */
+	FFrame3d Frame;
+
+	/** Near-plane distance for the camera, image pixels lie on this plane */
+	double NearPlaneDist = 1.0;
+
+	/** Horizontal Field-of-View of the camera in degrees (full FOV, so generally calculations will use half this value) */
+	double HorzFOVDegrees = 90.0;
+
+	/** Pixel dimensions of the photo image */
+	FImageDimensions Dimensions;
+};
+
 /**
  * TSpatialPhoto represents a 2D image located in 3D space, ie the image plus camera parameters, 
  * which is essentially a "Photograph" of some 3D scene (hence the name)

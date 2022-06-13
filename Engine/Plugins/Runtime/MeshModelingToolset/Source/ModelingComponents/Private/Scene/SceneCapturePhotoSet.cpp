@@ -169,6 +169,13 @@ void FSceneCapturePhotoSet::AddExteriorCaptures(
 		ViewFrame.Origin = (FVector3d)RenderSphere.Center;
 		ViewFrame.Origin -= (double)RenderSphere.W * ViewFrame.X();
 
+		FSpatialPhotoParams Params;
+		Params.Frame = ViewFrame;
+		Params.NearPlaneDist = NearPlaneDist;
+		Params.HorzFOVDegrees = HorizontalFOVDegrees;
+		Params.Dimensions = PhotoDimensions;
+		PhotoSetParams.Add(Params);
+
 		FSpatialPhoto3f BasePhoto3f;
 		BasePhoto3f.Frame = ViewFrame;
 		BasePhoto3f.NearPlaneDist = NearPlaneDist;
@@ -306,7 +313,59 @@ bool FSceneCapturePhotoSet::ComputeSampleLocation(
 	int& PhotoIndex,
 	FVector2d& PhotoCoords) const
 {
-	return BaseColorPhotoSet.ComputeSampleLocation(Position, Normal, VisibilityFunction, PhotoIndex, PhotoCoords);
+	double DotTolerance = -0.1;		// dot should be negative for normal pointing towards photo
+
+	PhotoIndex = IndexConstants::InvalidID;
+	PhotoCoords = FVector2d(0., 0.);
+
+	double MinDot = 1.0;
+
+	int32 NumPhotos = PhotoSetParams.Num();
+	for (int32 pi = 0; pi < NumPhotos; ++pi)
+	{
+		const FSpatialPhotoParams& Params = PhotoSetParams[pi];
+		check(Params.Dimensions.IsSquare());
+
+		FVector3d ViewDirection = Params.Frame.X();
+		double ViewDot = ViewDirection.Dot(Normal);
+		if (ViewDot > DotTolerance || ViewDot > MinDot)
+		{
+			continue;
+		}
+
+		FFrame3d ViewPlane = Params.Frame;
+		ViewPlane.Origin += Params.NearPlaneDist * ViewDirection;
+
+		double ViewPlaneWidthWorld = Params.NearPlaneDist * FMathd::Tan(Params.HorzFOVDegrees * 0.5 * FMathd::DegToRad);
+		double ViewPlaneHeightWorld = ViewPlaneWidthWorld;
+
+		FVector3d RayOrigin = Params.Frame.Origin;
+		FVector3d RayDir = Normalized(Position - RayOrigin);
+		FVector3d HitPoint;
+		bool bHit = ViewPlane.RayPlaneIntersection(RayOrigin, RayDir, 0, HitPoint);
+		if (bHit)
+		{
+			bool bVisible = VisibilityFunction(Position, HitPoint);
+			if ( bVisible )
+			{
+				double PlaneX = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Y());
+				double PlaneY = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Z());
+
+				//FVector2d PlanePos = ViewPlane.ToPlaneUV(HitPoint, 0);
+				double u = PlaneX / ViewPlaneWidthWorld;
+				double v = -(PlaneY / ViewPlaneHeightWorld);
+				if (FMathd::Abs(u) < 1 && FMathd::Abs(v) < 1)
+				{
+					PhotoCoords.X = (u/2.0 + 0.5) * (double)Params.Dimensions.GetWidth();
+					PhotoCoords.Y = (v/2.0 + 0.5) * (double)Params.Dimensions.GetHeight();
+					PhotoIndex = pi;
+					MinDot = ViewDot;
+				}
+			}
+		}
+	}
+
+	return PhotoIndex != IndexConstants::InvalidID;
 }
 
 bool FSceneCapturePhotoSet::ComputeSample(

@@ -29,37 +29,27 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
 	TObjectPtr<UTexture2D> BaseColorMap;
 
+	/** World space normal map */
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> RoughnessMap;
+	TObjectPtr<UTexture2D> NormalMap;
+
+	/** Packed Metallic/Roughness/Specular Map */
+	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty, DisplayName = "Packed MRS Map"))
+	TObjectPtr<UTexture2D> PackedMRSMap;
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
 	TObjectPtr<UTexture2D> MetallicMap;
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> SpecularMap;
+	TObjectPtr<UTexture2D> RoughnessMap;
 
-	/** Packed Metallic/Roughness/Specular Map */
-	UPROPERTY(VisibleAnywhere, Category = Results, meta = (DisplayName = "Packed MRS Map", TransientToolProperty))
-	TObjectPtr<UTexture2D> PackedMRSMap;
+	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
+	TObjectPtr<UTexture2D> SpecularMap;
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
 	TObjectPtr<UTexture2D> EmissiveMap;
-
-	/** World space normal map */
-	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> NormalMap;
 };
 
-struct FBakeRenderCaptureResultsBuilder
-{
-	TUniquePtr<TImageBuilder<FVector4f>> RoughnessImage;
-	TUniquePtr<TImageBuilder<FVector4f>> MetallicImage; 
-	TUniquePtr<TImageBuilder<FVector4f>> SpecularImage; 
-	TUniquePtr<TImageBuilder<FVector4f>> PackedMRSImage; 
-	TUniquePtr<TImageBuilder<FVector4f>> EmissiveImage;
-	TUniquePtr<TImageBuilder<FVector4f>> ColorImage;
-	TUniquePtr<TImageBuilder<FVector4f>> NormalImage; // Tangent-space normal map
-};
 
 //
 // Tool Builder
@@ -93,42 +83,48 @@ class MESHMODELINGTOOLSEXP_API URenderCaptureProperties : public UInteractiveToo
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, DisplayName="Render Capture Resolution", meta = (ClampMin = "1", UIMin= "1"))
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault, ClampMin = "1", UIMin= "1"), DisplayName="Render Capture Resolution")
 	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution512;
 
+	// Whether to generate a texture for the Base Color property
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault))
+	bool bBaseColorMap = true;
+
 	// Whether to generate a texture for the World Normal property
-	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere)
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault, EditCondition="bEnableNormalMap == true"))
 	bool bNormalMap = true;
 
+	// Whether to generate a packed texture with Metallic, Roughness and Specular properties
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault), DisplayName="Packed MRS Map")
+	bool bPackedMRSMap = true;
+
 	// Whether to generate a texture for the Metallic property
-	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault, EditCondition="bPackedMRSMap == false"))
 	bool bMetallicMap = true;
 
 	// Whether to generate a texture for the Roughness property
-	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault, EditCondition="bPackedMRSMap == false"))
 	bool bRoughnessMap = true;
 
 	// Whether to generate a texture for the Specular property
-	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault, EditCondition="bPackedMRSMap == false"))
 	bool bSpecularMap = true;
 	
-	// Whether to generate a packed texture with Metallic, Roughness and Specular properties
-	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, DisplayName="Packed MRS Map")
-	bool bPackedMRSMap = true;
-
 	// Whether to generate a texture for the Emissive property
-	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere)
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (NoResetToDefault))
 	bool bEmissiveMap = true;
 
-	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, AdvancedDisplay, DisplayName="Field of View", meta = (ClampMin = "5.0", ClampMax = "160.0"))
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (ClampMin = "5.0", ClampMax = "160.0"), AdvancedDisplay, DisplayName="Field of View")
 	float CaptureFieldOfView = 30.0f;
 
-	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, AdvancedDisplay, meta = (ClampMin = "0.001", ClampMax = "1000.0"))
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta = (ClampMin = "0.001", ClampMax = "1000.0"), AdvancedDisplay)
 	float NearPlaneDist = 1.0f;
 
 	bool operator==(const URenderCaptureProperties& Other) const
 	{
+		// Intentionally omitted TransientToolProperty
 		return Resolution == Other.Resolution
+			&& bBaseColorMap == Other.bBaseColorMap
 			&& bNormalMap == Other.bNormalMap
 			&& bMetallicMap == Other.bMetallicMap
 			&& bRoughnessMap == Other.bRoughnessMap
@@ -153,7 +149,7 @@ class MESHMODELINGTOOLSEXP_API UBakeRenderCaptureToolProperties : public UIntera
 public:
 	
 	/** The map type to preview */
-	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(DisplayName="Preview Output Type", TransientToolProperty, GetOptions = GetMapPreviewNamesFunc))
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta = (DisplayName="Preview Output Type", TransientToolProperty, GetOptions = GetMapPreviewNamesFunc))
 	FString MapPreview;
 	
 	UFUNCTION()
@@ -169,7 +165,7 @@ public:
 	EBakeTextureSamplesPerPixel SamplesPerPixel = EBakeTextureSamplesPerPixel::Sample1;
 
 	/* Size of generated textures */
-	UPROPERTY(EditAnywhere, Category = BakeOutput, DisplayName="Results Resolution", meta=(ClampMin="1", UIMin="1"))
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta = (ClampMin="1", UIMin="1"), DisplayName="Results Resolution")
 	EBakeTextureResolution TextureSize = EBakeTextureResolution::Resolution512;
 };
 
@@ -185,9 +181,14 @@ public:
 	TObjectPtr<UStaticMesh> TargetStaticMesh = nullptr;
 
 	/** UV channel to use for the target mesh */
-	UPROPERTY(EditAnywhere, Category = BakeInput, meta = (DisplayName = "Target Mesh UV Channel",
-		GetOptions = GetTargetUVLayerNamesFunc, TransientToolProperty, NoResetToDefault))
+	UPROPERTY(EditAnywhere, Category = BakeInput, meta = (DisplayName = "Target Mesh UV Channel", GetOptions = GetTargetUVLayerNamesFunc, NoResetToDefault))
 	FString TargetUVLayer;
+
+	UFUNCTION()
+	int32 GetTargetUVLayerIndex() const
+	{
+		return TargetUVLayerNamesList.IndexOfByKey(TargetUVLayer);
+	}
 
 	UFUNCTION()
 	const TArray<FString>& GetTargetUVLayerNamesFunc() const
@@ -216,6 +217,7 @@ public:
 
 	// Begin UInteractiveTool interface
 	virtual void Setup() override;
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -256,16 +258,6 @@ protected:
 	
 	void InvalidateResults();
 
-	class FComputeFactory : public UE::Geometry::IGenericDataOperatorFactory<FBakeRenderCaptureResultsBuilder>
-	{
-	public:
-		UBakeRenderCaptureTool* Tool;
-
-		// Begin IGenericDataOperatorFactory interface
-		virtual TUniquePtr<UE::Geometry::TGenericDataOperator<FBakeRenderCaptureResultsBuilder>> MakeNewOperator() override;
-		// End IGenericDataOperatorFactory interface
-	};
-
 	// In this tool we don't call UBakeMeshAttributeMapsToolBase::OnMapsUpdated because it would require e.g, adding
 	// the render capture channels to EBakeMapType.  The implementation is simpler and leads to less coupling if we
 	// just implement custom versions of the following functions.
@@ -304,6 +296,7 @@ protected:
 	// the capture are reverted to these values
 	UPROPERTY()
 	TObjectPtr<URenderCaptureProperties> ComputedRenderCaptureProperties;
+	TMap<int, FText> TargetUVLayerToError;
 
 	//
 	// Analytics
