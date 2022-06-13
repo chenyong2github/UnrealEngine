@@ -42,6 +42,7 @@ UMovieSceneEntitySystemLinker* UCameraAnimationSequenceSubsystem::GetLinker(bool
 	if (!Linker && bAutoCreate)
 	{
 		Linker = NewObject<UMovieSceneEntitySystemLinker>(this, TEXT("CameraAnimationSequenceSubsystemLinker"));
+		Linker->SetLinkerRole(UE::MovieScene::EEntitySystemLinkerRole::CameraAnimations);
 		Runner.AttachToLinker(Linker);
 	}
 	return Linker;

@@ -143,7 +143,7 @@ UMovieSceneSequenceTickManager* UMovieSceneSequenceTickManager::Get(UObject* Pla
 	{
 		TickManager = NewObject<UMovieSceneSequenceTickManager>(World, TEXT("GlobalMovieSceneSequenceTickManager"));
 
-		TickManager->Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(World, TEXT("MovieSceneSequencePlayerEntityLinker"));
+		TickManager->Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(World, UE::MovieScene::EEntitySystemLinkerRole::LevelSequences, TEXT("MovieSceneSequencePlayerEntityLinker"));
 		check(TickManager->Linker);
 		TickManager->Runner.AttachToLinker(TickManager->Linker);
 

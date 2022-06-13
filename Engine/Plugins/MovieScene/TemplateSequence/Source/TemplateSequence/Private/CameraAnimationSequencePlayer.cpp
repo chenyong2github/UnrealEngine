@@ -250,7 +250,9 @@ UMovieSceneEntitySystemLinker* UCameraAnimationSequencePlayer::ConstructEntitySy
 			return Linker;
 		}
 	}
-	return NewObject<UMovieSceneEntitySystemLinker>(GetTransientPackage());
+	UMovieSceneEntitySystemLinker* NewLinker = NewObject<UMovieSceneEntitySystemLinker>(GetTransientPackage());
+	NewLinker->SetLinkerRole(UE::MovieScene::EEntitySystemLinkerRole::Standalone);
+	return NewLinker;
 }
 
 EMovieScenePlayerStatus::Type UCameraAnimationSequencePlayer::GetPlaybackStatus() const

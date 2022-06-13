@@ -34,6 +34,26 @@ namespace MovieScene
 		Enabled,
 		Disable,
 	};
+
+	/** Enum that describes what a sequencer ECS linker is meant for (only used for debugging reasons) */
+	enum class EEntitySystemLinkerRole : uint32
+	{
+		/** The linker's role is unknown */
+		Unknown = 0,
+		/** The linker is handling level sequences */
+		LevelSequences = 1,
+		/** The linker is handling camera animations */
+		CameraAnimations,
+		/** The linker is handling UMG animations */
+		UMG,
+		/** The linker is handling a standalone sequence, such as those with a blocking evaluation flag */
+		Standalone,
+		/** This value and any greater values are for other custom roles */
+		Custom
+	};
+
+	/** Register a new custom linker role */
+	MOVIESCENE_API EEntitySystemLinkerRole RegisterCustomEntitySystemLinkerRole();
 }
 }
 
@@ -71,8 +91,8 @@ public:
 
 	static FComponentRegistry* GetComponents();
 
-	static UMovieSceneEntitySystemLinker* FindOrCreateLinker(UObject* PreferredOuter, const TCHAR* Name = TEXT("DefaultMovieSceneEntitySystemLinker"));
-	static UMovieSceneEntitySystemLinker* CreateLinker(UObject* PreferredOuter);
+	static UMovieSceneEntitySystemLinker* FindOrCreateLinker(UObject* PreferredOuter, UE::MovieScene::EEntitySystemLinkerRole LinkerRole, const TCHAR* Name = TEXT("DefaultMovieSceneEntitySystemLinker"));
+	static UMovieSceneEntitySystemLinker* CreateLinker(UObject* PreferredOuter, UE::MovieScene::EEntitySystemLinkerRole LinkerRole);
 
 	FInstanceRegistry* GetInstanceRegistry()
 	{
@@ -113,7 +133,6 @@ public:
 		return SystemContext;
 	}
 
-
 	/**
 	 * Set the system context for this linker allowing some systems to be excluded based on the context.
 	 *
@@ -124,6 +143,21 @@ public:
 		SystemContext = InSystemContext;
 	}
 
+	/**
+	 * Gets the role of this linker
+	 */
+	UE::MovieScene::EEntitySystemLinkerRole GetLinkerRole() const
+	{
+		return Role;
+	}
+
+	/**
+	 * Gets the role of this linker
+	 */
+	void SetLinkerRole(UE::MovieScene::EEntitySystemLinkerRole InRole)
+	{
+		Role = InRole;
+	}
 
 	/**
 	 * Completely reset this linker back to its default state, abandoning all systems and destroying all entities
@@ -299,6 +333,7 @@ private:
 
 protected:
 
+	UE::MovieScene::EEntitySystemLinkerRole Role;
 	UE::MovieScene::EAutoLinkRelevantSystems AutoLinkMode;
 	UE::MovieScene::EEntitySystemContext SystemContext;
 };

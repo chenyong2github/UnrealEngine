@@ -734,7 +734,7 @@ UMovieSceneEntitySystemLinker* UMovieSceneSequencePlayer::ConstructEntitySystemL
 		return TickManager->GetLinker();
 	}
 
-	return UMovieSceneEntitySystemLinker::CreateLinker(GetPlaybackContext());
+	return UMovieSceneEntitySystemLinker::CreateLinker(GetPlaybackContext(), UE::MovieScene::EEntitySystemLinkerRole::Standalone);
 }
 
 void UMovieSceneSequencePlayer::InitializeForTick(UObject* Context)

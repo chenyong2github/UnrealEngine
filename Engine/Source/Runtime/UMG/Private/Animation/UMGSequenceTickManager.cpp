@@ -257,7 +257,7 @@ UUMGSequenceTickManager* UUMGSequenceTickManager::Get(UObject* PlaybackContext)
 	{
 		TickManager = NewObject<UUMGSequenceTickManager>(Owner, TickManagerName);
 
-		TickManager->Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(Owner, TEXT("UMGAnimationEntitySystemLinker"));
+		TickManager->Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(Owner, UE::MovieScene::EEntitySystemLinkerRole::UMG, TEXT("UMGAnimationEntitySystemLinker"));
 		check(TickManager->Linker);
 		TickManager->Runner.AttachToLinker(TickManager->Linker);
 

@@ -53,7 +53,7 @@ UMovieSceneEntitySystemLinker* UUMGSequencePlayer::ConstructEntitySystemLinker()
 		return Widget->AnimationTickManager->GetLinker();
 	}
 
-	return UMovieSceneEntitySystemLinker::CreateLinker(Widget ? Widget->GetWorld() : nullptr);
+	return UMovieSceneEntitySystemLinker::CreateLinker(Widget ? Widget->GetWorld() : nullptr, UE::MovieScene::EEntitySystemLinkerRole::UMG);
 }
 
 void UUMGSequencePlayer::Tick(float DeltaTime)

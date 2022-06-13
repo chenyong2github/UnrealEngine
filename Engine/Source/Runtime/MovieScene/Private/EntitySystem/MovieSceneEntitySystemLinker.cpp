@@ -37,6 +37,16 @@ struct FCustomEventDeleter
 
 static FComponentRegistry GComponentRegistry;
 
+EEntitySystemLinkerRole RegisterCustomEntitySystemLinkerRole()
+{
+	static EEntitySystemLinkerRole NextCustom = EEntitySystemLinkerRole::Custom;
+
+	EEntitySystemLinkerRole Result = NextCustom;
+	NextCustom = (EEntitySystemLinkerRole)((uint32)NextCustom + 1);
+	check((uint32)NextCustom != TNumericLimits<uint32>::Max());
+	return Result;
+}
+
 } // namespace MovieScene
 } // namespace UE
 
@@ -46,6 +56,7 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 {
 	using namespace UE::MovieScene;
 
+	Role = EEntitySystemLinkerRole::Unknown;
 	LastSystemLinkVersion = 0;
 	LastInstantiationVersion = 0;
 	AutoLinkMode = EAutoLinkRelevantSystems::Enabled;
@@ -92,7 +103,7 @@ void UMovieSceneEntitySystemLinker::Reset()
 	EntityManager.Destroy();
 }
 
-UMovieSceneEntitySystemLinker* UMovieSceneEntitySystemLinker::FindOrCreateLinker(UObject* PreferredOuter, const TCHAR* Name)
+UMovieSceneEntitySystemLinker* UMovieSceneEntitySystemLinker::FindOrCreateLinker(UObject* PreferredOuter, UE::MovieScene::EEntitySystemLinkerRole LinkerRole, const TCHAR* Name)
 {
 	if (!PreferredOuter)
 	{
@@ -103,18 +114,22 @@ UMovieSceneEntitySystemLinker* UMovieSceneEntitySystemLinker::FindOrCreateLinker
 	if (!Existing)
 	{
 		Existing = NewObject<UMovieSceneEntitySystemLinker>(PreferredOuter, Name);
+		Existing->SetLinkerRole(LinkerRole);
 	}
+	ensure(Existing->Role == LinkerRole);
 	return Existing;
 }
 
-UMovieSceneEntitySystemLinker* UMovieSceneEntitySystemLinker::CreateLinker(UObject* PreferredOuter)
+UMovieSceneEntitySystemLinker* UMovieSceneEntitySystemLinker::CreateLinker(UObject* PreferredOuter, UE::MovieScene::EEntitySystemLinkerRole LinkerRole)
 {
 	if (!PreferredOuter)
 	{
 		PreferredOuter = GetTransientPackage();
 	}
 
-	return NewObject<UMovieSceneEntitySystemLinker>(PreferredOuter);
+	UMovieSceneEntitySystemLinker* NewLinker = NewObject<UMovieSceneEntitySystemLinker>(PreferredOuter);
+	NewLinker->Role = LinkerRole;
+	return NewLinker;
 }
 
 UE::MovieScene::FComponentRegistry* UMovieSceneEntitySystemLinker::GetComponents()

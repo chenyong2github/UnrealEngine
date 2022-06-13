@@ -53,7 +53,7 @@ UMovieSceneEntitySystemLinker* FMovieSceneRootEvaluationTemplateInstance::Constr
 	}
 
 	UObject* PlaybackContext = Player.GetPlaybackContext();
-	return UMovieSceneEntitySystemLinker::FindOrCreateLinker(PlaybackContext, TEXT("DefaultEntitySystemLinker"));
+	return UMovieSceneEntitySystemLinker::FindOrCreateLinker(PlaybackContext, UE::MovieScene::EEntitySystemLinkerRole::Standalone, TEXT("DefaultEntitySystemLinker"));
 }
 
 void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& InRootSequence, IMovieScenePlayer& Player, UMovieSceneCompiledDataManager* InCompiledDataManager)
