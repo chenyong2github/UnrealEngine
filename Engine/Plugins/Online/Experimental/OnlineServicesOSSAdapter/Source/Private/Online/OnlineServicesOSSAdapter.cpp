@@ -7,6 +7,7 @@
 #include "Online/ConnectivityOSSAdapter.h"
 #include "Online/PrivilegesOSSAdapter.h"
 #include "Online/ExternalUIOSSAdapter.h"
+#include "Online/PresenceOSSAdapter.h"
 
 #include "OnlineSubsystem.h"
 
@@ -24,6 +25,7 @@ void FOnlineServicesOSSAdapter::RegisterComponents()
 	Components.Register<FAuthOSSAdapter>(*this);
 	Components.Register<FConnectivityOSSAdapter>(*this);
 	Components.Register<FPrivilegesOSSAdapter>(*this);
+	Components.Register<FPresenceOSSAdapter>(*this);
 
 	if (Subsystem->GetExternalUIInterface().IsValid())
 	{

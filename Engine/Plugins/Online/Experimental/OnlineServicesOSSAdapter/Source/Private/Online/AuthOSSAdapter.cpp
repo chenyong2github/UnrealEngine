@@ -386,6 +386,11 @@ FUniqueNetIdRef FAuthOSSAdapter::GetUniqueNetId(FOnlineAccountIdHandle AccountId
 	return static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().GetIdValue(AccountIdHandle);
 }
 
+FOnlineAccountIdHandle UE::Online::FAuthOSSAdapter::GetAccountIdHandle(FUniqueNetIdRef UniqueNetId) const
+{
+	return static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UniqueNetId);
+}
+
 int32 FAuthOSSAdapter::GetLocalUserNum(FOnlineAccountIdHandle AccountIdHandle) const
 {
 	FUniqueNetIdRef UniqueNetId = GetUniqueNetId(AccountIdHandle);

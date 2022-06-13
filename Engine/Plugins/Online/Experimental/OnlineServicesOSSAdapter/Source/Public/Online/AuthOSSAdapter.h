@@ -31,6 +31,7 @@ public:
 	virtual TOnlineResult<FAuthGetAccountByAccountId> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) override;
 
 	FUniqueNetIdRef GetUniqueNetId(FOnlineAccountIdHandle AccountIdHandle) const;
+	FOnlineAccountIdHandle GetAccountIdHandle(FUniqueNetIdRef UniqueNetId) const;
 	int32 GetLocalUserNum(FOnlineAccountIdHandle AccountIdHandle) const;
 
 	IOnlineIdentityPtr GetIdentityInterface() const;
