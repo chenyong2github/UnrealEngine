@@ -222,65 +222,70 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			const bool bGreyF0 = SLAB_F0(BSDF).x == SLAB_F0(BSDF).y && SLAB_F0(BSDF).x == SLAB_F0(BSDF).z;
 			if (bGreyF0)
 			{
-			Print(Context, TEXT(" F0          "), FontBSDFPropName);	Print(Context, SLAB_F0(BSDF).x, FontBSDFPropValu);					Newline(Context, RectMax);
+				Print(Context, TEXT(" F0          "), FontBSDFPropName);	Print(Context, SLAB_F0(BSDF).x, FontBSDFPropValu);				Newline(Context, RectMax);
 			}
 			else
 			{
-			Print(Context, TEXT(" F0          "), FontBSDFPropName);	Print(Context, SLAB_F0(BSDF), FontBSDFPropValu);					Newline(Context, RectMax);
+				Print(Context, TEXT(" F0          "), FontBSDFPropName);	Print(Context, SLAB_F0(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
 			}
 
 
 			if (BSDF_GETHASF90(BSDF))
 			{
-			const bool bGreyF90 = SLAB_F90(BSDF).x == SLAB_F90(BSDF).y && SLAB_F90(BSDF).x == SLAB_F90(BSDF).z;
-			if (bGreyF90)
-			{
-			Print(Context, TEXT(" F90         "), FontBSDFPropName);	Print(Context, SLAB_F90(BSDF).x, FontBSDFPropValu);					Newline(Context, RectMax);
-			}
-			else
-			{
-			Print(Context, TEXT(" F90         "), FontBSDFPropName);	Print(Context, SLAB_F90(BSDF), FontBSDFPropValu);					Newline(Context, RectMax);
-			}
+				const bool bGreyF90 = SLAB_F90(BSDF).x == SLAB_F90(BSDF).y && SLAB_F90(BSDF).x == SLAB_F90(BSDF).z;
+				if (bGreyF90)
+				{
+					Print(Context, TEXT(" F90         "), FontBSDFPropName);	Print(Context, SLAB_F90(BSDF).x, FontBSDFPropValu);			Newline(Context, RectMax);
+				}
+				else
+				{
+					Print(Context, TEXT(" F90         "), FontBSDFPropName);	Print(Context, SLAB_F90(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
+				}
 			}
 
 			Print(Context, TEXT(" Roughness   "), FontBSDFPropName);	Print(Context, SLAB_ROUGHNESS(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
 
 			if (BSDF_GETHASANISOTROPY(BSDF))
 			{
-			Print(Context, TEXT(" Anisotropy  "), FontBSDFPropName);	Print(Context, SLAB_ANISOTROPY(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
+				Print(Context, TEXT(" Anisotropy  "), FontBSDFPropName);	Print(Context, SLAB_ANISOTROPY(BSDF), FontBSDFPropValu);		Newline(Context, RectMax);
 			}
 
 			if (BSDF_GETHASHAZINESS(BSDF))
 			{
-			Print(Context, TEXT(" Haziness    "), FontBSDFPropName);	Print(Context, SLAB_HAZINESS(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
+				FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
+
+				Print(Context, TEXT(" Haziness    "),		FontBSDFPropName);																		Newline(Context, RectMax);
+				Print(Context, TEXT("     Roughness    "),	FontBSDFPropName);	Print(Context, Haziness.Roughness,				FontBSDFPropValu);	Newline(Context, RectMax);
+				Print(Context, TEXT("     Weight       "),	FontBSDFPropName);	Print(Context, Haziness.Weight,					FontBSDFPropValu);	Newline(Context, RectMax);
+				Print(Context, TEXT("     FastClearCoat"),	FontBSDFPropName);	Print(Context, Haziness.bFastClearCoat ?1u:0u,	FontBSDFPropValu);	Newline(Context, RectMax);
 			}
-			
+
 			if (BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID || BSDF_GETISSIMPLEVOLUME(BSDF) || BSDF_GETISTHIN(BSDF))
 			{
 
-			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, StrataAddressing.PixelCoords);
-			const uint SSSType = StrataSubSurfaceHeaderGetSSSType(SSSHeader);
-			const float Opacity = StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader);
-			Print(Context, TEXT(" SSS Type    "), FontBSDFPropName);	PrintSSSType(Context, SSSType, FontYellow);	Newline(Context, RectMax);
-			Print(Context, TEXT(" SSS Opacity "), FontBSDFPropName);	Print(Context, Opacity, FontBSDFPropValu);	Newline(Context, RectMax);
+				const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, StrataAddressing.PixelCoords);
+				const uint SSSType = StrataSubSurfaceHeaderGetSSSType(SSSHeader);
+				const float Opacity = StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader);
+				Print(Context, TEXT(" SSS Type    "), FontBSDFPropName);	PrintSSSType(Context, SSSType, FontYellow);	Newline(Context, RectMax);
+				Print(Context, TEXT(" SSS Opacity "), FontBSDFPropName);	Print(Context, Opacity, FontBSDFPropValu);	Newline(Context, RectMax);
 
-			if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && BSDF_GETISSIMPLEVOLUME(BSDF) == 0)
-			{
-			Print(Context, TEXT(" SSS ID.     "), FontBSDFPropName);	Print(Context, SLAB_SSSPROFILEID(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
-			Print(Context, TEXT(" SSS Radius  "), FontBSDFPropName);	Print(Context, SLAB_SSSPROFILERADIUSSCALE(BSDF), FontBSDFPropValu);	Newline(Context, RectMax);
-			}
-			else
-			{
-			Print(Context, TEXT(" SSS MFP     "), FontBSDFPropName);	Print(Context, SLAB_SSSMFP(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
-			}
+				if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && BSDF_GETISSIMPLEVOLUME(BSDF) == 0)
+				{
+					Print(Context, TEXT(" SSS ID.     "), FontBSDFPropName);	Print(Context, SLAB_SSSPROFILEID(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
+					Print(Context, TEXT(" SSS Radius  "), FontBSDFPropName);	Print(Context, SLAB_SSSPROFILERADIUSSCALE(BSDF), FontBSDFPropValu);	Newline(Context, RectMax);
+				}
+				else
+				{
+					Print(Context, TEXT(" SSS MFP     "), FontBSDFPropName);	Print(Context, SLAB_SSSMFP(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
+				}
 
-			Print(Context, TEXT(" SSS Phase   "), FontBSDFPropName);	Print(Context, SLAB_SSSPHASEANISOTROPY(BSDF), FontBSDFPropValu);	Newline(Context, RectMax);
+				Print(Context, TEXT(" SSS Phase   "), FontBSDFPropName);	Print(Context, SLAB_SSSPHASEANISOTROPY(BSDF), FontBSDFPropValu);		Newline(Context, RectMax);
 			} // SSS
 
 			if (BSDF_GETHASFUZZ(BSDF))
 			{
-			Print(Context, TEXT(" Fuzz Amount "), FontBSDFPropName);	Print(Context, SLAB_FUZZ_AMOUNT(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
-			Print(Context, TEXT(" Fuzz Color  "), FontBSDFPropName);	Print(Context, SLAB_FUZZ_COLOR(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
+				Print(Context, TEXT(" Fuzz Amount "), FontBSDFPropName);	Print(Context, SLAB_FUZZ_AMOUNT(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
+				Print(Context, TEXT(" Fuzz Color  "), FontBSDFPropName);	Print(Context, SLAB_FUZZ_COLOR(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
 			}
 		}
 		break;

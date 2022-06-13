@@ -1025,7 +1025,7 @@ protected:
 		int32 Roughness, int32 Anisotropy,
 		int32 SSSProfileId, int32 SSSMFP, int32 SSSMFPScale, int32 SSSPhaseAniso, int32 bUseSSSDiffusion,
 		int32 EmissiveColor, 
-		int32 Haziness, 
+		int32 SecondRoughness, int32 SecondRoughnessWeight,
 		int32 FuzzAmount, int32 FuzzColor, 
 		int32 Thickness,
 		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,

@@ -184,7 +184,11 @@ void StrataEnvLightingCommon(
 	// Specular component
 	const bool bIsTopLayer = BSDF_GETISTOPLAYER(BSDF);
 	SpecularLighting = 0;
+#if STRATA_FASTPATH==0
+	if (any((StrataEnvLight.SpecularWeight + StrataEnvLight.SpecularHazeWeight) > 0.0f))
+#else
 	if (any(StrataEnvLight.SpecularWeight > 0.0f))
+#endif
 	{
 		float IndirectIrradiance = StrataIrradianceAndOcclusion.IndirectIrradiance;
 	#if ENABLE_SKY_LIGHT && ALLOW_STATIC_LIGHTING

@@ -279,10 +279,16 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	FExpressionInput EmissiveColor;
 
 	/**
-	 * Haziness controls the relative roughness of a second specular lobe. 0 means disabled and 1 means the second lobe specular lobe will lerp the current roughness to fully rough. (type = float, unitless, default = 0)
+	 * Controls the roughness of a secondary specular lobe. Roughness of 0 (smooth) is a mirror reflection and 1 (rough) is completely matte or diffuse. Does not influence diffuse roughness. (type = float, unit = unitless, defaults to 0.5)
 	 */
 	UPROPERTY()
-	FExpressionInput Haziness;
+	FExpressionInput SecondRoughness;
+
+	/**
+	 * The weight of the second specular lobe using SecondRoughness. The first specular using Roughness will have a weight of (1 - SecondRoughnessWeight). (type = float, unitless, default = 0)
+	 */
+	UPROPERTY()
+	FExpressionInput SecondRoughnessWeight;
 
 	/**
 	 * The slab thickness. (type = float, centimeters, default = 0.01 centimeter = 0.1 millimeter)
@@ -330,7 +336,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 
 	bool HasEdgeColor() const;
 	bool HasFuzz() const;
-	bool HasHaziness() const;
+	bool HasSecondRoughness() const;
 	bool HasSSS() const;
 	bool HasSSSProfile() const;
 	bool HasMFPPluggedIn() const;

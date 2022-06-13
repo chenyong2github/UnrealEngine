@@ -414,7 +414,6 @@ struct FStrataBSDF
 #define SLAB_F0(X)						X.VGPRs[1].xyz
 #define SLAB_ANISOTROPY(X)				X.VGPRs[1].w
 #define SLAB_F90(X)						X.VGPRs[2].xyz
-// Haziness
 #define SLAB_HAZINESS(X)				X.VGPRs[2].w
 // Either with SSS profile
 #define SLAB_SSSPROFILEID(X)			X.VGPRs[3].x
@@ -484,6 +483,58 @@ float3 StrataUnpackNormal(uint PackedNormal);
 uint   StrataPackNormal24(in float3 Normal);
 float3 StrataUnpackNormal24(uint PackedNormal);
 bool   IsStrataSlabFastPathCompatible(in FStrataBSDF BSDF);
+
+///////////////////////////////////////////////////////////////////////////////
+// Haziness
+
+// bFastClearCoat==false means that Weight is the blend in amount of the secondary specular lob over the first specular lob.
+// bFastClearCoat==true  means fast clear coat is used, Weight is coverage of a top layer specular. 
+struct FHaziness
+{
+	bool  bFastClearCoat;
+	float Roughness;
+	float Weight;
+};
+
+FHaziness InitialiseHaziness()
+{
+	FHaziness Haziness = (FHaziness)0;
+	return Haziness;
+}
+
+// returns 16 bits: 1 bit bFastClearCoat, 7 bits Weight, 8 bits roughness
+float PackHaziness(FHaziness Haziness)
+{
+	uint High8Bits = (Haziness.bFastClearCoat ? 0x80 : 0x00) | uint(saturate(Haziness.Weight) * 127);
+	uint Data = (High8Bits << 8) | uint(saturate(Haziness.Roughness) * 255);
+	return asfloat(Data);
+}
+
+FHaziness UnpackHaziness(float FloatData)
+{
+	uint Data = asuint(FloatData);
+
+	FHaziness Haziness;
+	Haziness.bFastClearCoat = Data & 0x8000;
+	Haziness.Weight = float(uint((Data>>8) & 0x7F)) * (1.0f / 127.0f);
+	Haziness.Roughness = float(uint(Data & 0xFF)) * (1.0f / 255.0f);
+	return Haziness;
+}
+
+float LerpHazinessParameterBlending(FStrataBSDF A, FStrataBSDF B, float MixValue)
+{
+	FHaziness HazinessA = UnpackHaziness(SLAB_HAZINESS(A));
+	FHaziness HazinessB = UnpackHaziness(SLAB_HAZINESS(B));
+
+	FHaziness OutputHaziness;
+	OutputHaziness.Weight			= lerp(HazinessA.Weight,	HazinessB.Weight,		MixValue);
+	OutputHaziness.Roughness		= lerp(HazinessA.Roughness, HazinessB.Roughness,	MixValue);
+	OutputHaziness.bFastClearCoat	= HazinessA.bFastClearCoat || HazinessB.bFastClearCoat;		// Maintain the fast legacy path first
+
+	return PackHaziness(OutputHaziness);
+}
+
+//BSDF_SETHASHAZINESS(ResultBSDF, BSDF_GETHASHAZINESS(ForegroundBSDF) | BSDF_GETHASHAZINESS(BackgroundBSDF));	// TODO
 
 ///////////////////////////////////////////////////////////////////////////////
 // Irradiance and occlusion
@@ -821,55 +872,56 @@ bool StrataHasGreyScaleWeight(in float3 Weight)
 	return Weight.x == Weight.y && Weight.y == Weight.z;
 }
 
-void StrataComputeHazeRoughnessAndWeight(
-	float Roughness0,
-	float Haziness,
-	inout float Roughness1,
-	inout float MixLobe)
-{	
-	// Fade out Haziness as the roughness reaches 0.5f, as otherwise it create
-	//       27 |\
-	// Extent   | \
-	//          |  \
-	//        3 |    ----
-	//          0  0.25  1
-	//           Rougness
-
-	// Lerp factor for adapting haziness parameters
-	const float S2 = saturate(2 * Roughness0);
-	const float S4 = saturate(4 * Roughness0);
-
-	// For low roughness, the haze extent is larger, and the core highlight is lower. 
-	// This allows to emphase the haze effect at low roughness, and fade out haze as roughness increase.
-	const float HazeExtent = lerp(27.0f, 3.0f, S4);
-	const float HazeCore   = lerp(0.01f, 0.5f, S2);
-
-	// Reference "A Composite BRDF Model for Hazy Gloss"
-	 
-	// Compute wide roughness
-	float alpha_n = Square(Roughness0); 
-	float lambda_h = HazeExtent;
-	const float alpha_w = alpha_n * (1 + lambda_h); // Eq.8
-	Roughness1 = sqrtFast(alpha_w);
-
-	// Compute mix weights
-	const float beta_h = Haziness;
-	const float r_c = HazeCore;
-	const float w = alpha_w;
-
-	const float p = 1.0 / Square(1 + lambda_h); // Table 2, GGX
-	const float b = 2 * (r_c * (1 - w) + w * p);
-	const float D = Square(b) - 4 * (b - 1) * r_c;
-	const float u = (b - sqrtFast(D)) / (2 * b - 2); // Eq. 12, 13, 14
-	const float u2 = u * u;
-	const float w2 = 2 * w;
-	const float k_h = ((u - u2) * w2 * beta_h) / (Square(1 - u) + (u - u2) * w2 + u2); // Eq. 15
-	const float r = r_c + (1 - p) * k_h; // Eq. 5
-	MixLobe = k_h / r; // Eq. 4
-}
-
-float StrataComputeHazeRoughness(float Roughness0) { float Roughness1=0; float MixLobe=0; StrataComputeHazeRoughnessAndWeight(Roughness0, 1.0f, Roughness1, MixLobe); return Roughness1; }
-float StrataComputeHazeWeight(float Roughness0, float Haziness)    { float Roughness1=0; float MixLobe=0; StrataComputeHazeRoughnessAndWeight(Roughness0, Haziness, Roughness1, MixLobe); return MixLobe; }
+// STRATA_TODO: move this code to be a Haziness node. So keeping this code here for now.
+////////void StrataComputeHazeRoughnessAndWeight(
+////////	float Roughness0,
+////////	float Haziness,
+////////	inout float Roughness1,
+////////	inout float MixLobe)
+////////{	
+////////	// Fade out Haziness as the roughness reaches 0.5f, as otherwise it create
+////////	//       27 |\
+////////	// Extent   | \
+////////	//          |  \
+////////	//        3 |    ----
+////////	//          0  0.25  1
+////////	//           Rougness
+////////
+////////	// Lerp factor for adapting haziness parameters
+////////	const float S2 = saturate(2 * Roughness0);
+////////	const float S4 = saturate(4 * Roughness0);
+////////
+////////	// For low roughness, the haze extent is larger, and the core highlight is lower. 
+////////	// This allows to emphase the haze effect at low roughness, and fade out haze as roughness increase.
+////////	const float HazeExtent = lerp(27.0f, 3.0f, S4);
+////////	const float HazeCore   = lerp(0.01f, 0.5f, S2);
+////////
+////////	// Reference "A Composite BRDF Model for Hazy Gloss"
+////////	 
+////////	// Compute wide roughness
+////////	float alpha_n = Square(Roughness0); 
+////////	float lambda_h = HazeExtent;
+////////	const float alpha_w = alpha_n * (1 + lambda_h); // Eq.8
+////////	Roughness1 = sqrtFast(alpha_w);
+////////
+////////	// Compute mix weights
+////////	const float beta_h = Haziness;
+////////	const float r_c = HazeCore;
+////////	const float w = alpha_w;
+////////
+////////	const float p = 1.0 / Square(1 + lambda_h); // Table 2, GGX
+////////	const float b = 2 * (r_c * (1 - w) + w * p);
+////////	const float D = Square(b) - 4 * (b - 1) * r_c;
+////////	const float u = (b - sqrtFast(D)) / (2 * b - 2); // Eq. 12, 13, 14
+////////	const float u2 = u * u;
+////////	const float w2 = 2 * w;
+////////	const float k_h = ((u - u2) * w2 * beta_h) / (Square(1 - u) + (u - u2) * w2 + u2); // Eq. 15
+////////	const float r = r_c + (1 - p) * k_h; // Eq. 5
+////////	MixLobe = k_h / r; // Eq. 4
+////////}
+////////
+////////float StrataComputeHazeRoughness(float Roughness0) { float Roughness1=0; float MixLobe=0; StrataComputeHazeRoughnessAndWeight(Roughness0, 1.0f, Roughness1, MixLobe); return Roughness1; }
+////////float StrataComputeHazeWeight(float Roughness0, float Haziness)    { float Roughness1=0; float MixLobe=0; StrataComputeHazeRoughnessAndWeight(Roughness0, Haziness, Roughness1, MixLobe); return MixLobe; }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Material & BSDF description
@@ -1190,7 +1242,7 @@ FStrataData GetStrataSlabBSDF(
 	float Roughness, float Anisotropy,
 	float SSSProfileID, float3 SSSMFP, float SSSMFPScale, float SSSPhaseAnisotropy, float UseSSSDiffusion,
 	float3 Emissive, 
-	float Haziness, 
+	float SecondRoughness, float SecondRoughnessWeight,
 	float FuzzAmount, float3 FuzzColor,
 	float Thickness,
 	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
@@ -1206,6 +1258,8 @@ FStrataData GetStrataSlabBSDF(
 	bool bHasSSSProfile = !bIsThin && bSSSProfilePlugged && SSSMFPScale > 0.f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
 	bool bHasSSS = bMFPPlugged || bHasSSSProfile || bHasSSSWrap;
 
+	FHaziness Haziness = InitialiseHaziness();
+
 	// Derive roughness and haziness from profile data
 	if (bSSSProfilePlugged)
 	{
@@ -1214,24 +1268,22 @@ FStrataData GetStrataSlabBSDF(
 
 		float LobeRoughness0 = 0;
 		float LobeRoughness1 = 0;
-		float LobeMix = 0;
 
-		GetSubsurfaceProfileDualSpecular(SubsurfaceProfileUInt, Roughness, SSSMFPScale, LobeRoughness0, LobeRoughness1, LobeMix);
+		GetSubsurfaceProfileDualSpecular(SubsurfaceProfileUInt, Roughness, SSSMFPScale, LobeRoughness0, LobeRoughness1, Haziness.Weight);
 
 		// Convertion from roughness0/1 to roughness+haziness
 		// * This encoding is based on how roughness0 + haziness is translated to roughness1, see ComputeHazyLobeRoughness
 		// * The mix factor is hardoded to 0.5 i.e., 0.5 * Fs(roughness0) + 0.5 * Fs(roughness1)
-		Haziness = (LobeRoughness1 - LobeRoughness0) / (1.f - min(LobeRoughness0, 0.99f));
+		Haziness.Roughness = (LobeRoughness1 - LobeRoughness0) / (1.f - min(LobeRoughness0, 0.99f));
 		Roughness = LobeRoughness0;
 
 		SSSMFP = GetSubsurfaceProfileMFPInCm(SubsurfaceProfileUInt).xyz * SSSMFPScale;
 	}
 	else
 	{
-		// Convert Haziness into a mix weight
-		// Haze roughness is inexpensive to compute, unlike mix factor. This is why we comput its value here, and 
-		// store it in place of the original haziness value. This saves computation time at runtime.
-		Haziness = Haziness > 0 ? StrataComputeHazeWeight(Roughness, Haziness) : 0.f;
+		Haziness.Roughness = SecondRoughness;
+		Haziness.Weight = SecondRoughnessWeight;
+		Haziness.bFastClearCoat = false;
 	}
 
 	// If MFP is smaller than the pixel's footprint, remove SSS attributes
@@ -1253,7 +1305,7 @@ FStrataData GetStrataSlabBSDF(
 		Thickness = STRATA_SIMPLEVOLUME_THICKNESS_CM;
 	}
 
-	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
+	const uint bHasHaziness = ((Haziness.Roughness != Roughness  && Haziness.Weight > 0.0f) || Haziness.bFastClearCoat) ? 1 : 0;
 	const uint bHasAnisotropy = Anisotropy != 0 ? 1 : 0;
 	const uint bHasFuzz = FuzzAmount > 0.0f ? 1 : 0;
 	if (bHasAnisotropy)
@@ -1302,7 +1354,8 @@ FStrataData GetStrataSlabBSDF(
 
 	SLAB_ROUGHNESS			(StrataData.InlinedBSDF)		= Roughness;
 	SLAB_ANISOTROPY			(StrataData.InlinedBSDF)		= Anisotropy;
-	SLAB_HAZINESS			(StrataData.InlinedBSDF)		= Haziness;
+
+	SLAB_HAZINESS(StrataData.InlinedBSDF)					= PackHaziness(Haziness);
 
 	if (bHasSSSProfile)
 	{
@@ -1955,8 +2008,9 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	BSDF_SETTHICKNESSCM(ResultBSDF,		lerp(BSDF_GETTHICKNESSCM(BackgroundBSDF),		BSDF_GETTHICKNESSCM(ForegroundBSDF),		ForegroundOtherMixFactor));
 	SLAB_ROUGHNESS(ResultBSDF) =		lerp(SLAB_ROUGHNESS(BackgroundBSDF),			SLAB_ROUGHNESS(ForegroundBSDF),				ForegroundOtherMixFactor);
 	SLAB_ANISOTROPY(ResultBSDF) =		lerp(SLAB_ANISOTROPY(BackgroundBSDF),			SLAB_ANISOTROPY(ForegroundBSDF),			ForegroundOtherMixFactor);
-	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(BackgroundBSDF),				SLAB_HAZINESS(ForegroundBSDF),				ForegroundOtherMixFactor);
 	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BackgroundBSDF),			SLAB_FUZZ_AMOUNT(ForegroundBSDF),			ForegroundOtherMixFactor);
+	SLAB_HAZINESS(ResultBSDF) =			LerpHazinessParameterBlending(BackgroundBSDF,	ForegroundBSDF,								ForegroundOtherMixFactor);
+	
 
 	if (BSDF_GETSSSTYPE(ResultBSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 	{
@@ -2050,8 +2104,8 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	BSDF_SETTHICKNESSCM(ResultBSDF,		lerp(BSDF_GETTHICKNESSCM(BBSDF),				BSDF_GETTHICKNESSCM(ABSDF),					AMixFactor));
 	SLAB_ROUGHNESS(ResultBSDF) =		lerp(SLAB_ROUGHNESS(BBSDF),						SLAB_ROUGHNESS(ABSDF),						AMixFactor);
 	SLAB_ANISOTROPY(ResultBSDF) =		lerp(SLAB_ANISOTROPY(BBSDF),					SLAB_ANISOTROPY(ABSDF),						AMixFactor);
-	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(BBSDF),						SLAB_HAZINESS(ABSDF),						AMixFactor);
 	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BBSDF),					SLAB_FUZZ_AMOUNT(ABSDF),					AMixFactor);
+	SLAB_HAZINESS(ResultBSDF) =			LerpHazinessParameterBlending(BBSDF,			ABSDF,										AMixFactor);
 
 	if (BSDF_GETSSSTYPE(ResultBSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 	{
@@ -2158,8 +2212,8 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	SLAB_FUZZ_COLOR(ResultBSDF) =		saturate(BottomColorFactor * SLAB_FUZZ_COLOR(BaseBSDF)						+ TopFactor * SLAB_FUZZ_COLOR(TopBSDF));
 		
 	SLAB_ROUGHNESS(ResultBSDF) =		lerp(SLAB_ROUGHNESS(TopBSDF),					SLAB_ROUGHNESS(BaseBSDF),	TopToBottomLerp);
-	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(TopBSDF),					SLAB_HAZINESS(BaseBSDF),	TopToBottomLerp);
 	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(TopBSDF),					SLAB_FUZZ_AMOUNT(BaseBSDF), TopToBottomLerp);
+	SLAB_HAZINESS(ResultBSDF) =			LerpHazinessParameterBlending(TopBSDF,			BaseBSDF,					TopToBottomLerp);
 
 	// Anisotropy is disabled with vertical blending. 
 	SLAB_ANISOTROPY(ResultBSDF) =		0.f;
@@ -2280,7 +2334,7 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 	SLAB_F90(BSDF) = saturate(SLAB_F90(BSDF));
 	SLAB_ROUGHNESS(BSDF) = SanitizeRoughness(SLAB_ROUGHNESS(BSDF));
 	SLAB_ANISOTROPY(BSDF) = clamp(SLAB_ANISOTROPY(BSDF), -1.f, 1.f);
-	SLAB_HAZINESS(BSDF) = saturate(SLAB_HAZINESS(BSDF));
+	// SLAB_HAZINESS is sanitize when packed, see PackHaziness.
 #if STRATA_INLINE_SHADING
 	BSDF.TmpMFP = clamp(BSDF.TmpMFP, 0.0f, Max111110BitsFloat3);
 #endif
@@ -3042,7 +3096,8 @@ void StrataConvertFromDBuffer(
 		0.f,				// SSSPhaseAniso
 		0.f,				// UseSSSDiffusion
 		0.f,				// Emissive
-		0.f,				// Haziness
+		0.f,				// SecondRoughness
+		0.f,				// SecondRoughnessWeight
 		0.f,				// FuzzAmount
 		0.f,				// FuzzColor
 		DefaultThickness,
@@ -3360,7 +3415,8 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		const bool bHasF90 = BSDF_GETHASF90(OutBSDF);
 		if (bHasF90 || BSDF_GETHASHAZINESS(OutBSDF))
 		{
-			float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
+			uint RawData = StrataLoadUint1(StrataBuffer, StrataAddressing);
+			float2 Data = UnpackRGBA8(RawData).xy;
 
 			const float F90Co = Data.x;
 			const float F90Cg = Data.y;
@@ -3374,7 +3430,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 			F90 = Divisor > 0.0f ? F90 / Divisor : F90;
 			SLAB_F90(OutBSDF) = F90;
 
-			SLAB_HAZINESS(OutBSDF) = Data.w;
+			SLAB_HAZINESS(OutBSDF) = asfloat(RawData >> 16); // Keeping the top 16 bits reinterpreted as float.
 		}
 
 		const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(OutBSDF);

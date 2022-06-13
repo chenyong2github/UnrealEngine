@@ -22000,7 +22000,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 
 	const bool bHasEdgeColor = HasEdgeColor(); // This accounts for EdgeColor and also F90 when the non metalness workflow is selected.
 	const bool bHasFuzz = HasFuzz();
-	const bool bHasHaziness = HasHaziness();
+	const bool bHasSecondRoughness = HasSecondRoughness();
 	const bool bHasMFPPluggedIn = HasMFPPluggedIn();
 	int32 SSSProfileCodeChunk = INDEX_NONE;
 	const bool bHasSSS = HasSSS();
@@ -22045,7 +22045,8 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat1(Compiler, SSSPhaseAnisotropy, 0.0f),
 		bUseSSSDiffusion ? Compiler->Constant(1.0f) : Compiler->Constant(0.0f),
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
-		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
+		CompileWithDefaultFloat1(Compiler, SecondRoughness, 0.0f),
+		CompileWithDefaultFloat1(Compiler, SecondRoughnessWeight, 0.0f),
 		CompileWithDefaultFloat1(Compiler, FuzzAmount, 0.0f),
 		CompileWithDefaultFloat3(Compiler, FuzzColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Thickness, STRATA_LAYER_DEFAULT_THICKNESS_CM),
@@ -22082,7 +22083,8 @@ const TArray<FExpressionInput*> UMaterialExpressionStrataSlabBSDF::GetInputs()
 	Result.Add(&SSSMFPScale);
 	Result.Add(&SSSPhaseAnisotropy);
 	Result.Add(&EmissiveColor);
-	Result.Add(&Haziness);
+	Result.Add(&SecondRoughness);
+	Result.Add(&SecondRoughnessWeight);
 	Result.Add(&Thickness);
 	Result.Add(&FuzzAmount);
 	Result.Add(&FuzzColor);
@@ -22221,17 +22223,21 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	}
 	else if (InputIndex == (12 + SkipDisabledInputOffset))
 	{
-		return MCT_Float1; // Haziness
+		return MCT_Float1; // SecondRoughness
 	}
 	else if (InputIndex == (13 + SkipDisabledInputOffset))
 	{
-		return MCT_Float1; // Thickness
+		return MCT_Float1; // SecondRoughnessWeight
 	}
 	else if (InputIndex == (14 + SkipDisabledInputOffset))
 	{
-		return MCT_Float1; // FuzzAmount
+		return MCT_Float1; // Thickness
 	}
 	else if (InputIndex == (15 + SkipDisabledInputOffset))
+	{
+		return MCT_Float1; // FuzzAmount
+	}
+	else if (InputIndex == (16 + SkipDisabledInputOffset))
 	{
 		return MCT_Float3; // FuzzColor
 	}
@@ -22313,17 +22319,21 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == (12 + SkipDisabledInputOffset))
 	{
-		return TEXT("Haziness");
+		return TEXT("Second Roughness");
 	}
 	else if (InputIndex == (13 + SkipDisabledInputOffset))
 	{
-		return TEXT("Thickness");
+		return TEXT("Second Roughness Weight");
 	}
 	else if (InputIndex == (14 + SkipDisabledInputOffset))
 	{
-		return TEXT("FuzzAmount");
+		return TEXT("Thickness");
 	}
 	else if (InputIndex == (15 + SkipDisabledInputOffset))
+	{
+		return TEXT("FuzzAmount");
+	}
+	else if (InputIndex == (16 + SkipDisabledInputOffset))
 	{
 		return TEXT("FuzzColor");
 	}
@@ -22427,6 +22437,10 @@ void UMaterialExpressionStrataSlabBSDF::GetConnectorToolTip(int32 InputIndex, in
 	{
 		Super::GetConnectorToolTip(19, INDEX_NONE, OutToolTip);
 	}
+	else if (InputIndex == (17 + SkipDisabledInputOffset))
+	{
+		Super::GetConnectorToolTip(20, INDEX_NONE, OutToolTip);
+	}
 }
 
 bool UMaterialExpressionStrataSlabBSDF::IsResultStrataMaterial(int32 OutputIndex)
@@ -22476,7 +22490,7 @@ FStrataOperator* UMaterialExpressionStrataSlabBSDF::StrataGenerateMaterialTopolo
 	StrataOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
 	StrataOperator.bBSDFHasEdgeColor = HasEdgeColor();
 	StrataOperator.bBSDFHasFuzz = HasFuzz();
-	StrataOperator.bBSDFHasHaziness = HasHaziness();
+	StrataOperator.bBSDFHasSecondRoughness = HasSecondRoughness();
 	StrataOperator.bBSDFHasSSS = HasSSS();
 	StrataOperator.bBSDFHasMFPPluggedIn = HasMFPPluggedIn();
 	StrataOperator.bBSDFHasAnisotropy = HasAnisotropy();
@@ -22508,9 +22522,9 @@ bool UMaterialExpressionStrataSlabBSDF::HasFuzz() const
 	return FuzzAmount.IsConnected();
 }
 
-bool UMaterialExpressionStrataSlabBSDF::HasHaziness() const
+bool UMaterialExpressionStrataSlabBSDF::HasSecondRoughness() const
 {
-	return Haziness.IsConnected();
+	return SecondRoughnessWeight.IsConnected();
 }
 
 bool UMaterialExpressionStrataSlabBSDF::HasAnisotropy() const

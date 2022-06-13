@@ -463,7 +463,9 @@ void PackStrataOut(
 								F90 = Divisor > 0.0f ? F90 / Divisor : 1.0f;
 								float3 F90YCoCg = LinearRGB_2_NormalisedYCoCg(F90);
 
-								STRATA_STORE_UINT1(PackRGBA8(float4(F90YCoCg.y, F90YCoCg.z, 0, SLAB_HAZINESS(BSDF))));
+								uint F90Data = PackRGBA8(float4(F90YCoCg.y, F90YCoCg.z, 0, 0));
+								uint HazinessData = asuint(SLAB_HAZINESS(BSDF));
+								STRATA_STORE_UINT1(HazinessData << 16 | F90Data);
 							}
 
 							const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);

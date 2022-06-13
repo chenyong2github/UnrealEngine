@@ -95,7 +95,8 @@ FStrataData CreateLegacySlab(
 			In.SSSPhaseAniso,	// SSSPhaseAniso
 			In.UseSSSDiffusion, // UseSSSDiffusion
 			In.Emissive,		// Emissive
-			0.f,				// Haziness
+			0.f,				// SecondRoughness
+			0.f,				// SecondRoughnessWeight
 			In.FuzzAmount,		// FuzzAmount
 			In.FuzzColor,		// FuzzColor
 			In.Thickness,
