@@ -330,7 +330,7 @@ void FOptimusEditor::OnCompileMessage(FOptimusCompilerDiagnostic const& Diagnost
 		// Create message with line number.
 		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(
 			Severity,
-			FText::Format(LOCTEXT("LineMessage", "{0} (line {1})"), FText::FromString(Diagnostic.Diagnostic), FText::AsNumber(Diagnostic.Line)));
+			FText::Format(LOCTEXT("CompileMessageWithLine", "{0} (line {1})"), FText::FromString(Diagnostic.Diagnostic), FText::AsNumber(Diagnostic.Line)));
 
 		if (UObject const* TokenObject = Diagnostic.Object.Get())
 		{
@@ -352,7 +352,7 @@ void FOptimusEditor::OnCompileMessage(FOptimusCompilerDiagnostic const& Diagnost
 		// Create message.
 		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(
 			Severity,
-			FText::Format(LOCTEXT("LineMessage", "{0}"), FText::FromString(Diagnostic.Diagnostic)));
+			FText::FromString(Diagnostic.Diagnostic));
 
 		if (UObject const* TokenObject = Diagnostic.Object.Get())
 		{
