@@ -75,11 +75,11 @@ export enum JobStepOutcome {
 /// Systemic error codes for a job failing
 export enum JobStepError {
 	/// No systemic error
-	None,
+	None = "None",
 	/// Step did not complete in the required amount of time
-	TimedOut,
+	TimedOut = "TimedOut",
 	/// Step is in paused state so was skipped
-	Paused
+	Paused = "Paused"
 }
 
 // The state of a particular run
