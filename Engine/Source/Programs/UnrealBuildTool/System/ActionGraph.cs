@@ -775,7 +775,7 @@ namespace UnrealBuildTool
 		{
 			if (PrerequisiteAction.bProducesImportLibrary)
 			{
-				return PrerequisiteAction.ProducedItems.All(I => I.Location.HasExtension(".lib") || !RootAction.PrerequisiteItems.Contains(I));
+				return PrerequisiteAction.ProducedItems.All(I => IsLibraryFile(I.Location) || !RootAction.PrerequisiteItems.Contains(I));
 			}
 			else
 			{
@@ -791,7 +791,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the only dependency between two actions is for an import library</returns>
 		static bool IsImportLibraryDependency(LinkedAction RootAction, FileItem PrerequisiteItem)
 		{
-			if (PrerequisiteItem.Location.HasExtension(".lib"))
+			if (IsLibraryFile(PrerequisiteItem.Location))
 			{
 				foreach (LinkedAction PrerequisiteAction in RootAction.PrerequisiteActions)
 				{
@@ -803,6 +803,16 @@ namespace UnrealBuildTool
 			}
 
 			return false;
+		}
+
+		/// <summary>
+		/// Test to see if the given file is a library file (or in the case of linux/mac, a dynamic library)
+		/// </summary>
+		/// <param name="Location">File to test</param>
+		/// <returns>True if the file is a library file</returns>
+		static bool IsLibraryFile(FileReference Location)
+		{
+			return Location.HasExtension(".lib") || Location.HasExtension(".so") || Location.HasExtension(".dylib");
 		}
 
 		/// <summary>
