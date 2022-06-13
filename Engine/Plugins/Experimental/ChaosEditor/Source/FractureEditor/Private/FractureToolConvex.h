@@ -32,6 +32,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Automatic, meta = (ClampMin = "0"))
 	double SimplificationDistanceThreshold = 10.0;
 
+	/** Whether to automatically cut away overlapping parts of the convex hulls, to avoid the simulation 'popping' to fix the overlaps */
+	UPROPERTY(EditAnywhere, Category = Automatic)
+	bool bRemoveOverlaps = true;
+
 	/** Delete convex hulls from selected clusters.  Does not affect hulls on leaves. */
 	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Delete From Selected"))
 	void DeleteFromSelected();

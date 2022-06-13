@@ -293,6 +293,7 @@ int32 UFractureToolConvex::ExecuteFracture(const FFractureToolContext& FractureC
 		Properties.FractionRemove = ConvexSettings->FractionAllowRemove;
 		Properties.SimplificationThreshold = ConvexSettings->SimplificationDistanceThreshold;
 		Properties.CanExceedFraction = ConvexSettings->CanExceedFraction;
+		Properties.bRemoveOverlaps = ConvexSettings->bRemoveOverlaps;
 		FractureContext.GetGeometryCollection()->SetConvexProperties(Properties);
 	}
 

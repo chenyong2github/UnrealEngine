@@ -320,7 +320,8 @@ void CreateNonoverlappingConvexHulls(
 	const TManagedArray<float>* Volume,
 	double FracAllowRemove,
 	double SimplificationDistanceThreshold,
-	double CanExceedFraction
+	double CanExceedFraction,
+	bool bRemoveOverlaps
 )
 {
 	int32 NumBones = TransformToConvexIndices.Num();
@@ -566,7 +567,7 @@ void CreateNonoverlappingConvexHulls(
 		Depths[HullIdx] = Depth;
 		MaxDepth = FMath::Max(Depth, MaxDepth);
 
-		if (!HasCustomConvexFn(HullIdx) && TransformToConvexIndices[HullIdx].Num() > 0)
+		if (bRemoveOverlaps && !HasCustomConvexFn(HullIdx) && TransformToConvexIndices[HullIdx].Num() > 0)
 		{
 			const TSet<int32>& Neighbors = LeafProximity[HullIdx];
 			for (int32 NbrIdx : Neighbors)
@@ -632,76 +633,79 @@ void CreateNonoverlappingConvexHulls(
 	// Use initial leaf proximity to compute which cluster bones are in proximity to which neighbors at the same level of the bone hierarchy
 
 	TArray<TSet<int32>> SameDepthClusterProximity;
-	SameDepthClusterProximity.SetNum(NumBones);
-	for (int32 Bone = 0; Bone < NumBones; Bone++)
+	if (bRemoveOverlaps)
 	{
-		for (int32 NbrBone : LeafProximity[Bone])
+		SameDepthClusterProximity.SetNum(NumBones);
+		for (int32 Bone = 0; Bone < NumBones; Bone++)
 		{
-			if (Bone > NbrBone)
+			for (int32 NbrBone : LeafProximity[Bone])
 			{
-				continue;
-			}
-
-			auto FindCommonParent = [&Parents](int32 BoneA, int32 BoneB)
-			{
-				int AParent = Parents[BoneA];
-				int BParent = Parents[BoneB];
-				if (AParent == BParent) // early out if they're in the same cluster
+				if (Bone > NbrBone)
 				{
-					return AParent;
+					continue;
 				}
 
-				TSet<int32> AParents;
-				while (AParent != INDEX_NONE)
+				auto FindCommonParent = [&Parents](int32 BoneA, int32 BoneB)
 				{
-					AParents.Add(AParent);
-					AParent = Parents[AParent];
-				}
-
-				while (BParent != INDEX_NONE && !AParents.Contains(BParent))
-				{
-					BParent = Parents[BParent];
-				}
-				return BParent;
-			};
-			int32 CommonParent = FindCommonParent(Bone, NbrBone);
-
-			auto ConnectAtMatchingDepth = [&SameDepthClusterProximity, &Parents, CommonParent, &Depths](int32 BoneA, int32 BoneToWalkParents)
-			{
-				if (BoneA == INDEX_NONE || BoneToWalkParents == INDEX_NONE)
-				{
-					return;
-				}
-
-				int32 DepthA = Depths[BoneA];
-				int32 DepthB = Depths[BoneToWalkParents];
-				while (BoneToWalkParents != INDEX_NONE && BoneToWalkParents != CommonParent && DepthB >= DepthA)
-				{
-					if (DepthB == DepthA)
+					int AParent = Parents[BoneA];
+					int BParent = Parents[BoneB];
+					if (AParent == BParent) // early out if they're in the same cluster
 					{
-						bool bWasInSet = false;
-						SameDepthClusterProximity[BoneToWalkParents].Add(BoneA, &bWasInSet);
-						if (bWasInSet)
-						{
-							break;
-						}
-						SameDepthClusterProximity[BoneA].Add(BoneToWalkParents);
+						return AParent;
 					}
 
-					BoneToWalkParents = Parents[BoneToWalkParents];
-					DepthB--;
+					TSet<int32> AParents;
+					while (AParent != INDEX_NONE)
+					{
+						AParents.Add(AParent);
+						AParent = Parents[AParent];
+					}
+
+					while (BParent != INDEX_NONE && !AParents.Contains(BParent))
+					{
+						BParent = Parents[BParent];
+					}
+					return BParent;
+				};
+				int32 CommonParent = FindCommonParent(Bone, NbrBone);
+
+				auto ConnectAtMatchingDepth = [&SameDepthClusterProximity, &Parents, CommonParent, &Depths](int32 BoneA, int32 BoneToWalkParents)
+				{
+					if (BoneA == INDEX_NONE || BoneToWalkParents == INDEX_NONE)
+					{
+						return;
+					}
+
+					int32 DepthA = Depths[BoneA];
+					int32 DepthB = Depths[BoneToWalkParents];
+					while (BoneToWalkParents != INDEX_NONE && BoneToWalkParents != CommonParent && DepthB >= DepthA)
+					{
+						if (DepthB == DepthA)
+						{
+							bool bWasInSet = false;
+							SameDepthClusterProximity[BoneToWalkParents].Add(BoneA, &bWasInSet);
+							if (bWasInSet)
+							{
+								break;
+							}
+							SameDepthClusterProximity[BoneA].Add(BoneToWalkParents);
+						}
+
+						BoneToWalkParents = Parents[BoneToWalkParents];
+						DepthB--;
+					}
+				};
+
+				// connect bone to neighboring bone's clusters
+				ConnectAtMatchingDepth(Bone, Parents[NbrBone]);
+
+				// walk chain of parents of bone and connect each to the chain of neighboring bone + its parents
+				int32 BoneParent = Parents[Bone];
+				while (BoneParent != INDEX_NONE && BoneParent != CommonParent)
+				{
+					ConnectAtMatchingDepth(BoneParent, NbrBone);
+					BoneParent = Parents[BoneParent];
 				}
-			};
-
-			// connect bone to neighboring bone's clusters
-			ConnectAtMatchingDepth(Bone, Parents[NbrBone]);
-
-			// walk chain of parents of bone and connect each to the chain of neighboring bone + its parents
-			int32 BoneParent = Parents[Bone];
-			while (BoneParent != INDEX_NONE && BoneParent != CommonParent)
-			{
-				ConnectAtMatchingDepth(BoneParent, NbrBone);
-				BoneParent = Parents[BoneParent];
 			}
 		}
 	}
@@ -709,7 +713,10 @@ void CreateNonoverlappingConvexHulls(
 	// Compute initial hulls at all levels and filter out any that are too large relative to the geometry they contain
 
 	TArray<TSet<int32>> ClusterProximity;
-	ClusterProximity.SetNum(NumBones);
+	if (bRemoveOverlaps)
+	{
+		ClusterProximity.SetNum(NumBones);
+	}
 	TArrayView<int32> DepthOrderView(ByDepthOrder);
 
 	for (int32 Idx = 0, SliceEndIdx = Idx + 1; Idx < ByDepthOrder.Num(); Idx = SliceEndIdx)
@@ -771,6 +778,11 @@ void CreateNonoverlappingConvexHulls(
 			}
 		});
 
+		if (!bRemoveOverlaps)
+		{
+			continue;
+		}
+
 		// Compute cluster proximity
 		for (int32 BoneA : SameDepthSlice)
 		{
@@ -808,6 +820,10 @@ void CreateNonoverlappingConvexHulls(
 		}
 	}
 
+	if (!bRemoveOverlaps)
+	{
+		return; // rest of function is just for removing overlaps
+	}
 
 
 	// Compute all initial non-leaf hull volumes
@@ -1145,7 +1161,7 @@ double ComputeGeometryVolume(
 
 }
 
-FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FracAllowRemove, double SimplificationDistanceThreshold, double CanExceedFraction)
+FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FracAllowRemove, double SimplificationDistanceThreshold, double CanExceedFraction, bool bRemoveOverlaps)
 {
 	check(GeometryCollection);
 
@@ -1170,7 +1186,7 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, GlobalTransformArray);
 	HullsFromGeometry(*GeometryCollection, GlobalTransformArray, HasCustomConvexFn, Convexes, TransformToConvexIndexArr, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, SimplificationDistanceThreshold);
 
-	CreateNonoverlappingConvexHulls(Convexes, TransformToConvexIndexArr, HasCustomConvexFn, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None, GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, Volume, FracAllowRemove, SimplificationDistanceThreshold, CanExceedFraction);
+	CreateNonoverlappingConvexHulls(Convexes, TransformToConvexIndexArr, HasCustomConvexFn, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None, GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, Volume, FracAllowRemove, SimplificationDistanceThreshold, CanExceedFraction, bRemoveOverlaps);
 
 	TransformHullsToLocal(GlobalTransformArray, Convexes, TransformToConvexIndexArr);
 
