@@ -68,9 +68,13 @@ namespace SlateAttributePrivate
 			{
 				ensureMsgf(FMath::IsFinite(Value), TEXT("Value contains a NaN. Initialize your double properly"));
 			}
-			else if constexpr (std::is_same<FVector2D, InObjectType>::value)
+			else if constexpr (std::is_same<FVector2f, InObjectType>::value)
 			{
-				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector2D properly (see FVector2D::EForceInit)"));
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector2f properly (see FVector2D::EForceInit)"));
+			}
+			else if constexpr (std::is_same<FVector2d, InObjectType>::value)
+			{
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector2d properly (see FVector2D::EForceInit)"));
 			}
 			else if constexpr (std::is_same<FVector3f, InObjectType>::value)
 			{
@@ -80,9 +84,13 @@ namespace SlateAttributePrivate
 			{
 				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector3d properly (see FVector::EForceInit)"));
 			}
-			else if constexpr (std::is_same<FVector4, InObjectType>::value)
+			else if constexpr (std::is_same<FVector4f, InObjectType>::value)
 			{
-				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector4 properly"));
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector4f properly"));
+			}
+			else if constexpr (std::is_same<FVector4d, InObjectType>::value)
+			{
+				ensureMsgf(!Value.ContainsNaN(), TEXT("Value contains a NaN. Initialize your FVector4d properly"));
 			}
 			else if constexpr (std::is_same<FLinearColor, InObjectType>::value)
 			{

@@ -966,7 +966,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			}
 
 			RHICmdList.BeginDrawingViewport(ViewportInfo.ViewportRHI, FTextureRHIRef());
-			RHICmdList.SetViewport(0, 0, 0, ViewportWidth, ViewportHeight, 0.0f);
+			RHICmdList.SetViewport(0.f, 0.f, 0.f, (float)ViewportWidth, (float)ViewportHeight, 0.0f);
 
 			bool bHdrTarget = ViewportInfo.bSceneHDREnabled && !bCompositeUI;
 			RenderSlateBatch(BackBuffer, bClear, bHdrTarget, ViewportInfo, ViewMatrix, BatchData, RHICmdList, ViewportWidth, ViewportHeight, DrawCommandParams, RenderingPolicy, PostProcessBuffer);
@@ -1088,10 +1088,10 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 						RendererModule.DrawRectangle(
 							RHICmdList,
-							0, 0,
-							ViewportWidth, ViewportHeight,
-							0, 0,
-							ViewportWidth, ViewportHeight,
+							0.f, 0.f,
+							(float)ViewportWidth, (float)ViewportHeight,
+							0.f, 0.f,
+							(float)ViewportWidth, (float)ViewportHeight,
 							FIntPoint(ViewportWidth, ViewportHeight),
 							FIntPoint(ViewportWidth, ViewportHeight),
 							VertexShader,
@@ -1139,10 +1139,10 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 				RendererModule.DrawRectangle(
 					RHICmdList,
-					0, 0,
-					ViewportWidth, ViewportHeight,
-					0, 0,
-					ViewportWidth, ViewportHeight,
+					0.f, 0.f,
+					(float)ViewportWidth, (float)ViewportHeight,
+					0.f, 0.f,
+					(float)ViewportWidth, (float)ViewportHeight,
 					FIntPoint(ViewportWidth, ViewportHeight),
 					FIntPoint(ViewportWidth, ViewportHeight),
 					VertexShader,
@@ -1386,8 +1386,8 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 					Params.bClear = false;
 #endif	
 					Params.Time = FGameTime::CreateDilated(
-						FPlatformTime::Seconds() - GStartTime, FApp::GetDeltaTime(),
-						FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime());
+						FPlatformTime::Seconds() - GStartTime, (float)FApp::GetDeltaTime(),
+						FApp::GetCurrentTime() - GStartTime, (float)FApp::GetDeltaTime());
 
 					// Skip the actual draw if we're in a headless execution environment
 					bool bLocalTakingAScreenShot = bTakingAScreenShot;

@@ -85,10 +85,10 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 	RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-	RHICmdList.SetViewport(0, 0, 0, DestTextureWidth, DestTextureHeight, 0.0f);
+	RHICmdList.SetViewport(0.f, 0.f, 0.f, (float)DestTextureWidth, (float)DestTextureHeight, 0.0f);
 	
-	const FVector2D InvBufferSize = FVector2D(1.0f / DestTextureWidth, 1.0f / DestTextureHeight);
-	const FVector2D HalfTexelOffset = FVector2D(0.5f/ DestTextureWidth, 0.5f/ DestTextureHeight);
+	const FVector2f InvBufferSize = FVector2f(1.0f / (float)DestTextureWidth, 1.0f / (float)DestTextureHeight);
+	const FVector2f HalfTexelOffset = FVector2f(0.5f/ (float)DestTextureWidth, 0.5f/ (float)DestTextureHeight);
 
 	for (int32 PassIndex = 0; PassIndex < 2; ++PassIndex)
 	{
@@ -117,15 +117,15 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 
 				if (bDownsample)
 				{
-					PixelShader->SetUVBounds(RHICmdList, FVector4f(FVector2f::ZeroVector, FVector2f((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - FVector2f(HalfTexelOffset)));
-					PixelShader->SetBufferSizeAndDirection(RHICmdList, InvBufferSize, FVector2D(1, 0));
+					PixelShader->SetUVBounds(RHICmdList, FVector4f(FVector2f::ZeroVector, FVector2f((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
+					PixelShader->SetBufferSizeAndDirection(RHICmdList, InvBufferSize, FVector2f(1.f, 0.f));
 
 					RendererModule.DrawRectangle(
 						RHICmdList,
+						0.f, 0.f,
+						(float)DownsampleSize.X, (float)DownsampleSize.Y,
 						0, 0,
-						DownsampleSize.X, DownsampleSize.Y,
-						0, 0,
-						DownsampleSize.X, DownsampleSize.Y,
+						(float)DownsampleSize.X, (float)DownsampleSize.Y,
 						FIntPoint(DestTextureWidth, DestTextureHeight),
 						FIntPoint(DestTextureWidth, DestTextureHeight),
 						VertexShader,
@@ -140,12 +140,12 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 					const FVector2f SizeUV = UVEnd - UVStart;
 
 					PixelShader->SetUVBounds(RHICmdList, FVector4f(UVStart, UVEnd));
-					PixelShader->SetBufferSizeAndDirection(RHICmdList, FVector2D(InvSrcTextureSize), FVector2D(1, 0));
+					PixelShader->SetBufferSizeAndDirection(RHICmdList, InvSrcTextureSize, FVector2f(1.f, 0.f));
 
 					RendererModule.DrawRectangle(
 						RHICmdList,
-						0, 0,
-						RequiredSize.X, RequiredSize.Y,
+						0.f, 0.f,
+						(float)RequiredSize.X, (float)RequiredSize.Y,
 						UVStart.X, UVStart.Y,
 						SizeUV.X, SizeUV.Y,
 						FIntPoint(DestTextureWidth, DestTextureHeight),
@@ -176,16 +176,16 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 				PixelShader->SetWeightsAndOffsets(RHICmdList, WeightsAndOffsets, SampleCount);
-				PixelShader->SetUVBounds(RHICmdList, FVector4f(FVector2f::ZeroVector, FVector2f((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - FVector2f(HalfTexelOffset)));
+				PixelShader->SetUVBounds(RHICmdList, FVector4f(FVector2f::ZeroVector, FVector2f((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
 				PixelShader->SetTexture(RHICmdList, SourceTexture, BilinearClamp);
-				PixelShader->SetBufferSizeAndDirection(RHICmdList, InvBufferSize, FVector2D(0, 1));
+				PixelShader->SetBufferSizeAndDirection(RHICmdList, InvBufferSize, FVector2f(0.f, 1.f));
 
 				RendererModule.DrawRectangle(
 					RHICmdList,
-					0, 0,
-					DownsampleSize.X, DownsampleSize.Y,
-					0, 0,
-					DownsampleSize.X, DownsampleSize.Y,
+					0.f, 0.f,
+					(float)DownsampleSize.X, (float)DownsampleSize.Y,
+					0.f, 0.f,
+					(float)DownsampleSize.X, (float)DownsampleSize.Y,
 					FIntPoint(DestTextureWidth, DestTextureHeight),
 					FIntPoint(DestTextureWidth, DestTextureHeight),
 					VertexShader,
@@ -236,7 +236,7 @@ void FSlatePostProcessor::ColorDeficiency(FRHICommandListImmediate& RHICmdList, 
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
 	RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-	RHICmdList.SetViewport(0, 0, 0, DestTextureWidth, DestTextureHeight, 0.0f);
+	RHICmdList.SetViewport(0.f, 0.f, 0.f, (float)DestTextureWidth, (float)DestTextureHeight, 0.0f);
 
 	// 
 	{
@@ -263,10 +263,10 @@ void FSlatePostProcessor::ColorDeficiency(FRHICommandListImmediate& RHICmdList, 
 
 			RendererModule.DrawRectangle(
 				RHICmdList,
-				0, 0,
-				RequiredSize.X, RequiredSize.Y,
-				0, 0,
-				1, 1,
+				0.f, 0,
+				(float)RequiredSize.X, (float)RequiredSize.Y,
+				0.f, 0.f,
+				1.f, 1.f,
 				FIntPoint(DestTextureWidth, DestTextureHeight),
 				FIntPoint(1, 1),
 				VertexShader,
@@ -326,7 +326,7 @@ void FSlatePostProcessor::DownsampleRect(FRHICommandListImmediate& RHICmdList, I
 		const FVector2f UVEnd = FVector2f(DestRect.Right, DestRect.Bottom) * InvSrcTextureSize;
 		const FVector2f SizeUV = UVEnd - UVStart;
 		
-		RHICmdList.SetViewport(0, 0, 0, DestTextureWidth, DestTextureHeight, 0.0f);
+		RHICmdList.SetViewport(0.f, 0.f, 0.f, (float)DestTextureWidth, (float)DestTextureHeight, 0.0f);
 		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 
 		FRHIRenderPassInfo RPInfo(DestTexture, ERenderTargetActions::Load_Store);
@@ -350,8 +350,8 @@ void FSlatePostProcessor::DownsampleRect(FRHICommandListImmediate& RHICmdList, I
 
 			RendererModule.DrawRectangle(
 				RHICmdList,
-				0, 0,
-				DownsampleSize.X, DownsampleSize.Y,
+				0.f, 0.f,
+				(float)DownsampleSize.X, (float)DownsampleSize.Y,
 				UVStart.X, UVStart.Y,
 				SizeUV.X, SizeUV.Y,
 				FIntPoint(DestTextureWidth, DestTextureHeight),
@@ -372,7 +372,7 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 {
 	SCOPED_DRAW_EVENT(RHICmdList, SlatePostProcessUpsample);
 
-	const FVector4 Zero(0, 0, 0, 0);
+	const FVector4f Zero(0.f, 0.f, 0.f, 0.f);
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	GraphicsPSOInit.BlendState = Params.CornerRadius == Zero ? TStaticBlendState<>::GetRHI() : TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
@@ -398,7 +398,7 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 
-	RHICmdList.SetViewport(0, 0, 0, DestTextureWidth, DestTextureHeight, 0.0f);
+	RHICmdList.SetViewport(0.f, 0.f, 0.f, (float)DestTextureWidth, (float)DestTextureHeight, 0.0f);
 
 	// Perform Writable transitions first
 
@@ -431,7 +431,7 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 			);
 
 		const FVector2f Size(DestRect.Right - DestRect.Left, DestRect.Bottom - DestRect.Top);
-		FShaderParams ShaderParams = FShaderParams::MakePixelShaderParams(FVector4f(Size, SizeUV), (FVector4f)Params.CornerRadius); // LWC_TODO: precision loss
+		FShaderParams ShaderParams = FShaderParams::MakePixelShaderParams(FVector4f(Size, SizeUV), Params.CornerRadius);
 
 
 		PixelShader->SetShaderParams(RHICmdList, ShaderParams);
@@ -488,7 +488,7 @@ static float GetWeight(float Dist, float Strength)
 	return (1.0f / FMath::Sqrt(2 * PI*Strength2))*FMath::Exp(-(Dist*Dist) / (2 * Strength2));
 }
 
-static FVector2D GetWeightAndOffset(float Dist, float Sigma)
+static FVector2f GetWeightAndOffset(float Dist, float Sigma)
 {
 	float Offset1 = Dist;
 	float Weight1 = GetWeight(Offset1, Sigma);
@@ -505,7 +505,7 @@ static FVector2D GetWeightAndOffset(float Dist, float Sigma)
 	}
 
 
-	return FVector2D(TotalWeight, Offset);
+	return FVector2f(TotalWeight, Offset);
 }
 
 static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4f>& OutWeightsAndOffsets)
@@ -516,11 +516,11 @@ static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4f>& Ou
 
 	OutWeightsAndOffsets.AddUninitialized(NumSamples%2 == 0 ? NumSamples / 2 : NumSamples/2+1);
 
-	OutWeightsAndOffsets[0] = FVector4f(FVector2f(GetWeight(0,Sigma), 0), FVector2f(GetWeightAndOffset(1, Sigma)) );
+	OutWeightsAndOffsets[0] = FVector4f(FVector2f(GetWeight(0,Sigma), 0), GetWeightAndOffset(1, Sigma) );
 	int32 SampleIndex = 1;
 	for (int32 X = 3; X < KernelSize; X += 4)
 	{
-		OutWeightsAndOffsets[SampleIndex] = FVector4f(FVector2f(GetWeightAndOffset(X, Sigma)), FVector2f(GetWeightAndOffset(X + 2, Sigma)));
+		OutWeightsAndOffsets[SampleIndex] = FVector4f(GetWeightAndOffset((float)X, Sigma), GetWeightAndOffset((float)(X + 2), Sigma));
 
 		++SampleIndex;
 	}

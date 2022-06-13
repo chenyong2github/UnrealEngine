@@ -27,7 +27,7 @@ class FSlateMaterialShaderVS;
 struct FSlateRenderingParams
 {
 	FMatrix44f ViewProjectionMatrix;
-	FVector2D ViewOffset;
+	FVector2f ViewOffset;
 	FGameTime Time;
 	bool bAllowSwitchVerticalAxis;
 	bool bWireFrame;
@@ -35,7 +35,7 @@ struct FSlateRenderingParams
 
 	FSlateRenderingParams(const FMatrix& InViewProjectionMatrix, FGameTime InTime)
 		: ViewProjectionMatrix(InViewProjectionMatrix)
-		, ViewOffset(0, 0)
+		, ViewOffset(0.f, 0.f)
 		, Time(InTime)
 		, bAllowSwitchVerticalAxis(true)
 		, bWireFrame(false)

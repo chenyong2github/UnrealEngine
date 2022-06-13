@@ -31,10 +31,10 @@ class FSlateVectorGraphicsCache;
 struct FMaterialKey
 {
 	TWeakObjectPtr<const UMaterialInterface> Material;
-	const FVector2D ImageSize;
+	const FVector2f ImageSize;
 	int32 MaskKey;
 
-	FMaterialKey(const UMaterialInterface* InMaterial, const FVector2D& InImageSize, int32 InMaskKey)
+	FMaterialKey(const UMaterialInterface* InMaterial, const FVector2f InImageSize, int32 InMaskKey)
 		: Material(InMaterial)
 		, ImageSize(InImageSize)
 		, MaskKey(InMaskKey)

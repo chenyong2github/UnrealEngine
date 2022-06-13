@@ -14,7 +14,7 @@ struct FPostProcessRectParams
 	FTextureRHIRef SourceTexture;
 	FSlateRect SourceRect;
 	FSlateRect DestRect;
-	FVector4 CornerRadius;
+	FVector4f CornerRadius;
 	FIntPoint SourceTextureSize;
 	TFunction<void(FRHICommandListImmediate&, FGraphicsPipelineStateInitializer&)> RestoreStateFunc;
 	uint32 StencilRef{};

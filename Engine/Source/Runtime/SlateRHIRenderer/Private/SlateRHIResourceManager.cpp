@@ -24,6 +24,7 @@
 #include "SlateMaterialResource.h"
 #include "Slate/SlateTextureAtlasInterface.h"
 #include "SlateAtlasedTextureResource.h"
+#include "Types/SlateVector2.h"
 #include "ImageUtils.h"
 #include "Async/ParallelFor.h"
 #include "Rendering/SlateVectorGraphicsCache.h"
@@ -397,7 +398,7 @@ FAtlasSlotInfo FSlateRHIResourceManager::GetAtlasSlotInfoAtPosition(FIntPoint In
 		const FAtlasedTextureSlot* Slot = Atlas->GetSlotAtPosition(InPosition);
 		if (Slot)
 		{
-			NewInfo.AtlasSlotRect = FSlateRect(FVector2D(Slot->X, Slot->Y), FVector2D(Slot->X + Slot->Width, Slot->Y + Slot->Height));
+			NewInfo.AtlasSlotRect = FSlateRect(FVector2f((float)Slot->X, (float)Slot->Y), FVector2f((float)(Slot->X + Slot->Width), (float)(Slot->Y + Slot->Height)));
 
 			NewInfo.TextureName = AtlasDebugData.FindRef(Slot);
 
@@ -797,7 +798,7 @@ TSharedPtr<FSlateUTextureResource> FSlateRHIResourceManager::MakeDynamicUTexture
 			TextureResource = MakeShareable(new FSlateUTextureResource(InTextureObject));
 		}
 
-		TextureResource->Proxy->ActualSize = FIntPoint(InTextureObject->GetSurfaceWidth(), InTextureObject->GetSurfaceHeight());
+		TextureResource->Proxy->ActualSize = FIntPoint(FMath::TruncToInt32(InTextureObject->GetSurfaceWidth()), FMath::TruncToInt32(InTextureObject->GetSurfaceHeight()));
 	}
 	else
 	{
@@ -909,7 +910,7 @@ FSlateMaterialResource* FSlateRHIResourceManager::GetMaterialResource(const UObj
 
 	const UMaterialInterface* Material = CastChecked<UMaterialInterface>(InMaterial);
 
-	FVector2D ImageSize = InBrush ? InBrush->ImageSize : FVector2D::ZeroVector;
+	FVector2f ImageSize = InBrush ? UE::Slate::CastToVector2f(InBrush->ImageSize) : FVector2f::ZeroVector;
 	FMaterialKey Key(Material, ImageSize, InMaskKey);
 
 	TSharedPtr<FSlateMaterialResource> MaterialResource = DynamicResourceMap.GetMaterialResource(Key);
@@ -989,7 +990,7 @@ void FSlateRHIResourceManager::ReleaseDynamicResource( const FSlateBrush& InBrus
 			{
 				UMaterialInterface* Material = Cast<UMaterialInterface>(ResourceObject);
 
-				FMaterialKey Key(Material, InBrush.ImageSize, 0);
+				FMaterialKey Key(Material, UE::Slate::CastToVector2f(InBrush.ImageSize), 0);
 
 				TSharedPtr<FSlateMaterialResource> MaterialResource = DynamicResourceMap.GetMaterialResource(Key);
 				

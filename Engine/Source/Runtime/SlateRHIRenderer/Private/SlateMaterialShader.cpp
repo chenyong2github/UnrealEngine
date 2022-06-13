@@ -136,7 +136,7 @@ void FSlateMaterialShaderPS::SetDisplayGammaAndContrast(FRHICommandList& RHICmdL
 
 void FSlateMaterialShaderPS::SetDrawFlags(FRHICommandList& RHICmdList, bool bDrawDisabledEffect)
 {
-	FVector4f InDrawFlags(bDrawDisabledEffect ? 1 : 0, 0, 0, 0);
+	FVector4f InDrawFlags((bDrawDisabledEffect ? 1.f : 0.f), 0.f, 0.f, 0.f);
 
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), DrawFlags, InDrawFlags);
 }

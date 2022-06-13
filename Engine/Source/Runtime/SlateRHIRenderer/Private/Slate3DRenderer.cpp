@@ -6,6 +6,7 @@
 #include "SceneUtils.h"
 #include "SlateRHIRenderer.h"
 #include "Rendering/ElementBatcher.h"
+#include "Types/SlateVector2.h"
 
 DECLARE_GPU_STAT_NAMED(Slate3D, TEXT("Slate 3D"));
 
@@ -117,7 +118,7 @@ void FSlate3DRenderer::DrawWindow_GameThread(FSlateDrawBuffer& DrawBuffer)
 		if (Window)
 		{
 			const FVector2D WindowSize = Window->GetSizeInScreen();
-			if (WindowSize.X > 0 && WindowSize.Y > 0)
+			if (WindowSize.X > 0.0 && WindowSize.Y > 0.0)
 			{
 				// Add all elements for this window to the element batcher
 				ElementBatcher->AddElements(ElementList);
@@ -177,7 +178,7 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 			FVector2D DrawOffset = Context.WindowDrawBuffer->ViewOffset;
 
 			FMatrix ProjectionMatrix = FSlateRHIRenderer::CreateProjectionMatrix(RTTextureRHI->GetSizeX(), RTTextureRHI->GetSizeY());
-			FMatrix ViewOffset = FTranslationMatrix::Make(FVector(DrawOffset, 0));
+			FMatrix ViewOffset = FTranslationMatrix::Make(FVector(DrawOffset, 0.0));
 			ProjectionMatrix = ViewOffset * ProjectionMatrix;
 
 			FSlateBackBuffer BackBufferTarget(Context.RenderTarget->GetRenderTargetTexture(), FIntPoint(RTTextureRHI->GetSizeX(), RTTextureRHI->GetSizeY()));
@@ -185,7 +186,7 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 			FSlateRenderingParams DrawOptions(ProjectionMatrix, FGameTime::CreateDilated(Context.RealTimeSeconds, Context.DeltaRealTimeSeconds, Context.WorldTimeSeconds, Context.DeltaTimeSeconds));
 			// The scene renderer will handle it in this case
 			DrawOptions.bAllowSwitchVerticalAxis = false;
-			DrawOptions.ViewOffset = DrawOffset;
+			DrawOptions.ViewOffset = UE::Slate::CastToVector2f(DrawOffset);
 
 			FTexture2DRHIRef ColorTarget = Context.RenderTarget->GetRenderTargetTexture();
 

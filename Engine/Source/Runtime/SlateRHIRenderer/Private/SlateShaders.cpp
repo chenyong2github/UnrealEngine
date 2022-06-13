@@ -73,7 +73,7 @@ TGlobalResource<FSlateMaskingVertexDeclaration> GSlateMaskingVertexDeclaration;
 void FSlateVertexDeclaration::InitRHI()
 {
 	FVertexDeclarationElementList Elements;
-	uint32 Stride = sizeof(FSlateVertex);
+	uint16 Stride = sizeof(FSlateVertex);
 	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FSlateVertex, TexCoords), VET_Float4, 0, Stride));
 	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FSlateVertex, MaterialTexCoords), VET_Float2, 1, Stride));
 	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FSlateVertex, Position), VET_Float2, 2, Stride));
@@ -96,7 +96,7 @@ void FSlateVertexDeclaration::ReleaseRHI()
 void FSlateInstancedVertexDeclaration::InitRHI()
 {
 	FVertexDeclarationElementList Elements;
-	uint32 Stride = sizeof(FSlateVertex);
+	uint16 Stride = sizeof(FSlateVertex);
 	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FSlateVertex, TexCoords), VET_Float4, 0, Stride));
 	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FSlateVertex, MaterialTexCoords), VET_Float2, 1, Stride));
 	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FSlateVertex, Position), VET_Float2, 2, Stride));
@@ -120,7 +120,7 @@ void FSlateElementPS::ModifyCompilationEnvironment(const FGlobalShaderPermutatio
 void FSlateMaskingVertexDeclaration::InitRHI()
 {
 	FVertexDeclarationElementList Elements;
-	uint32 Stride = sizeof(uint32);
+	uint16 Stride = sizeof(uint32);
 	Elements.Add(FVertexElement(0, 0, VET_UByte4, 0, Stride));
 
 	VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
@@ -194,10 +194,9 @@ void FSlateMaskingVS::SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, flo
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), SwitchVerticalAxisMultiplier, InMultiplier );
 }
 
-void FSlateMaskingVS::SetMaskRect(FRHICommandList& RHICmdList, const FVector2D& TopLeft, const FVector2D& TopRight, const FVector2D& BotLeft, const FVector2D& BotRight)
+void FSlateMaskingVS::SetMaskRect(FRHICommandList& RHICmdList, const FVector2f TopLeft, const FVector2f TopRight, const FVector2f BotLeft, const FVector2f BotRight)
 {
-	//FVector4f MaskRectVal[4] = { FVector4f(TopLeft, FVector2D::ZeroVector), FVector4f(TopRight, FVector2D::ZeroVector), FVector4f(BotLeft, FVector2D::ZeroVector), FVector4f(BotRight, FVector2D::ZeroVector) };
-	FVector4f MaskRectVal[2] = { FVector4f(FVector2f(TopLeft), FVector2f(TopRight)), FVector4f(FVector2f(BotLeft), FVector2f(BotRight)) };	// LWC_TODO: Precision loss
+	FVector4f MaskRectVal[2] = { FVector4f(TopLeft, TopRight), FVector4f(BotLeft, BotRight) };
 
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), MaskRect, MaskRectVal);
 }

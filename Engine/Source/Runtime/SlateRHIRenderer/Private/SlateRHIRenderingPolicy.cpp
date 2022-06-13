@@ -267,7 +267,7 @@ static bool UpdateScissorRect(
 	FTexture2DRHIRef& ColorTarget,
 	FTexture2DRHIRef& DepthStencilTarget,
 	const FSlateClippingState*& LastClippingState,
-	const FVector2D& ViewTranslation2D, 
+	const FVector2f ViewTranslation2D, 
 	bool bSwitchVerticalAxis,
 	FGraphicsPipelineStateInitializer& InGraphicsPSOInit,
 	FSlateStencilClipVertexBuffer& StencilVertexBuffer,
@@ -308,11 +308,11 @@ static bool UpdateScissorRect(
 				const FSlateClippingZone& ScissorRect = ClipState.ScissorRect.GetValue();
 
 				const FIntPoint SizeXY = BackBuffer.GetSizeXY();
-				const FVector2D ViewSize((float) SizeXY.X, (float) SizeXY.Y);
+				const FVector2f ViewSize((float) SizeXY.X, (float) SizeXY.Y);
 
 				// Clamp scissor rect to BackBuffer size
-				const FVector2D TopLeft     = FMath::Min(FMath::Max(FVector2D(ScissorRect.TopLeft)     + ViewTranslation2D, FVector2D(0.0f, 0.0f)), ViewSize);
-				const FVector2D BottomRight = FMath::Min(FMath::Max(FVector2D(ScissorRect.BottomRight) + ViewTranslation2D, FVector2D(0.0f, 0.0f)), ViewSize);
+				const FVector2f TopLeft     = FMath::Min(FMath::Max(ScissorRect.TopLeft     + ViewTranslation2D, FVector2f(0.0f, 0.0f)), ViewSize);
+				const FVector2f BottomRight = FMath::Min(FMath::Max(ScissorRect.BottomRight + ViewTranslation2D, FVector2f(0.0f, 0.0f)), ViewSize);
 				
 				if (bSwitchVerticalAxis)
 				{
@@ -368,7 +368,7 @@ static bool UpdateScissorRect(
 					const FSlateClippingZone& MaskQuad = StencilQuads.Last();
 					const FSlateRect LastStencilBoundingBox = MaskQuad.GetBoundingBox().Round();
 
-					FSlateRect ScissorRect = LastStencilBoundingBox.OffsetBy(ViewTranslation2D);
+					FSlateRect ScissorRect = LastStencilBoundingBox.OffsetBy(FVector2D(ViewTranslation2D));
 
 					// Chosen stencil quad might have some coordinates outside the viewport.
 					// After turning it into a bounding box, this box must be clamped to the current viewport,
@@ -459,7 +459,7 @@ static bool UpdateScissorRect(
 					{
 						const FSlateClippingZone& MaskQuad = StencilQuads[0];
 
-						VertexShader->SetMaskRect(RHICmdList, FVector2D(MaskQuad.TopLeft), FVector2D(MaskQuad.TopRight), FVector2D(MaskQuad.BottomLeft), FVector2D(MaskQuad.BottomRight));
+						VertexShader->SetMaskRect(RHICmdList, MaskQuad.TopLeft, MaskQuad.TopRight, MaskQuad.BottomLeft, MaskQuad.BottomRight);
 
 						RHICmdList.SetStreamSource(0, StencilVertexBuffer.VertexBufferRHI, 0);
 						RHICmdList.DrawPrimitive(0, 2, 1);
@@ -502,7 +502,7 @@ static bool UpdateScissorRect(
 				{
 					const FSlateClippingZone& MaskQuad = StencilQuads[MaskIndex];
 
-					VertexShader->SetMaskRect(RHICmdList, FVector2D(MaskQuad.TopLeft), FVector2D(MaskQuad.TopRight), FVector2D(MaskQuad.BottomLeft), FVector2D(MaskQuad.BottomRight));
+					VertexShader->SetMaskRect(RHICmdList, MaskQuad.TopLeft, MaskQuad.TopRight, MaskQuad.BottomLeft, MaskQuad.BottomRight);
 
 					RHICmdList.SetStreamSource(0, StencilVertexBuffer.VertexBufferRHI, 0);
 					RHICmdList.DrawPrimitive(0, 2, 1);
@@ -593,7 +593,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 	// and re-gammatization of the resulting blending operation in the 8/10 bit RGBA path.
 	// For Editor running in HDR then the gamma needs to be 2.2 and have a float back buffer format.
 
-	const float EngineGamma = (!GIsEditor && (BackBuffer.GetRenderTargetTexture()->GetFormat() == PF_FloatRGBA) && (Params.bIsHDR==false)) ? 1.0 : GEngine ? GEngine->GetDisplayGamma() : 2.2f;
+	const float EngineGamma = (!GIsEditor && (BackBuffer.GetRenderTargetTexture()->GetFormat() == PF_FloatRGBA) && (Params.bIsHDR==false)) ? 1.0f : GEngine ? GEngine->GetDisplayGamma() : 2.2f;
 	const float DisplayGamma = bGammaCorrect ? EngineGamma : 1.0f;
 	const float DisplayContrast = GSlateContrast;
 
@@ -679,7 +679,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 	// Disable depth/stencil testing by default
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
-	FVector2D ViewTranslation2D = Params.ViewOffset;
+	FVector2f ViewTranslation2D = Params.ViewOffset;
 
 	// Draw each element
 #if WITH_SLATE_DEBUGGING
@@ -717,7 +717,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("RestartingSlateDrawElements"));
 
 			// Something may have messed with the viewport size so set it back to the full target.
-			RHICmdList.SetViewport(0, 0, 0, BackBuffer.GetSizeXY().X, BackBuffer.GetSizeXY().Y, 0.0f);
+			RHICmdList.SetViewport(0.f, 0.f, 0.f, (float)BackBuffer.GetSizeXY().X, (float)BackBuffer.GetSizeXY().Y, 0.0f);
 
 			// Re-apply render target states to the PSO initializer, since we've changed the depth/stencil target.
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -1185,10 +1185,10 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 				FPostProcessRectParams RectParams;
 				RectParams.SourceTexture = PostProcessTexture;
-				RectParams.SourceRect = FSlateRect(0, 0, PostProcessTexture->GetSizeX(), PostProcessTexture->GetSizeY());
+				RectParams.SourceRect = FSlateRect(0.f, 0.f, (float)PostProcessTexture->GetSizeX(), (float)PostProcessTexture->GetSizeY());
 				RectParams.DestRect = FSlateRect(QuadPositionData.X, QuadPositionData.Y, QuadPositionData.Z, QuadPositionData.W);
 				RectParams.SourceTextureSize = PostProcessTexture->GetSizeXY();
-				RectParams.CornerRadius = (FVector4)ShaderParams.PixelParams3;
+				RectParams.CornerRadius = ShaderParams.PixelParams3;
 
 				RectParams.RestoreStateFunc = [&](FRHICommandListImmediate&InRHICmdList, FGraphicsPipelineStateInitializer& InGraphicsPSOInit) {
 					return UpdateScissorRect(
@@ -1263,7 +1263,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 		RectParams.SourceRect = FSlateRect(0, 0, BackBuffer.GetSizeXY().X, BackBuffer.GetSizeXY().Y);
 		RectParams.DestRect = FSlateRect(0, 0, BackBuffer.GetSizeXY().X, BackBuffer.GetSizeXY().Y);
 		RectParams.SourceTextureSize = BackBuffer.GetSizeXY();
-		RectParams.CornerRadius = FVector4(0, 0, 0, 0);
+		RectParams.CornerRadius = FVector4f(0.f, 0.f, 0.f, 0.f);
 
 		PostProcessor->ColorDeficiency(RHICmdList, RendererModule, RectParams);
 
