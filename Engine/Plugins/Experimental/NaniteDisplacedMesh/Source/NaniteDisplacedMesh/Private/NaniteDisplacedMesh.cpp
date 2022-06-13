@@ -15,6 +15,7 @@
 #include "MeshAttributes.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshBuilder.h"
+#include "Experimental/Misc/ExecutionResource.h"
 #include "MeshDescriptionHelper.h"
 #include "NaniteBuilder.h"
 #include "NaniteDisplacedMeshAlgo.h"
@@ -110,6 +111,7 @@ private:
 	FNaniteData* Data;
 	TWeakObjectPtr<UNaniteDisplacedMesh> WeakDisplacedMesh;
 	UE::DerivedData::FRequestOwner Owner;
+	TRefCountPtr<IExecutionResource> ExecutionResource;
 };
 
 FNaniteBuildAsyncCacheTask::FNaniteBuildAsyncCacheTask(
@@ -133,6 +135,10 @@ void FNaniteDisplacedMeshAsyncBuildWorker::DoWork()
 	using namespace UE::DerivedData;
 	if (UNaniteDisplacedMesh* DisplacedMesh = Owner->WeakDisplacedMesh.Get())
 	{
+		// Grab any execution resources currently assigned to this worker so that we maintain
+		// concurrency limit and memory pressure until the whole multi-step task is done.
+		Owner->ExecutionResource = FExecutionResourceContext::Get();
+
 		static const FCacheBucket Bucket("NaniteDisplacedMesh");
 		GetCache().GetValue({ {{DisplacedMesh->GetPathName()}, {Bucket, IoHash}} }, Owner->Owner,
 			  [Task = Owner](FCacheGetValueResponse&& Response) { Task->EndCache(MoveTemp(Response)); });
@@ -166,6 +172,9 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 	{
 		((IRequestOwner&)Owner).LaunchTask(TEXT("NaniteDisplacedMeshSerialize"), [this, Value = MoveTemp(Response.Value)]
 		{
+			// Release execution resource as soon as the task is done
+			ON_SCOPE_EXIT { ExecutionResource = nullptr; };
+
 			if (UNaniteDisplacedMesh* DisplacedMesh = WeakDisplacedMesh.Get())
 			{
 				FSharedBuffer RecordData = Value.GetData().Decompress();
@@ -181,6 +190,9 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 	{
 		((IRequestOwner&)Owner).LaunchTask(TEXT("NaniteDisplacedMeshBuild"), [this, Name = Response.Name, Key = Response.Key]
 		{
+			// Release execution resource as soon as the task is done
+			ON_SCOPE_EXIT { ExecutionResource = nullptr; };
+
 			if (!BuildData(Name, Key))
 			{
 				return;
@@ -197,6 +209,11 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 				InitResources();
 			}
 		});
+	}
+	else
+	{
+		// Release execution resource as soon as the task is done
+		ExecutionResource = nullptr;
 	}
 }
 

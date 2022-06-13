@@ -21,6 +21,7 @@ LLM_DEFINE_TAG(AssetCompilation, NAME_None, NAME_None, GET_STATFNAME(STAT_AssetC
 #include "Materials/MaterialInstance.h"
 #include "ObjectCacheContext.h"
 #include "AsyncCompilationHelpers.h"
+#include "Experimental/Misc/ExecutionResource.h"
 #include "SkeletalMeshCompiler.h"
 #include "Algo/TopologicalSort.h"
 #include "Algo/Find.h"
@@ -140,6 +141,18 @@ public:
 		return RequiredMemory;
 	}
 
+	class FMemoryBoundScheduledWork : public FQueuedThreadPoolWrapper::FScheduledWork
+	{
+	public:
+		// Used to make sure this value remains constant between OnScheduled and OnUnscheduled
+		int64 RequiredMemory = 0;
+	};
+
+	FScheduledWork* AllocateScheduledWork() override
+	{
+		return new FMemoryBoundScheduledWork();
+	}
+
 	void UpdateCounters()
 	{
 		TRACE_COUNTER_SET(AsyncCompilationTotalMemoryLimit, GetMemoryLimit());
@@ -149,13 +162,16 @@ public:
 
 	void OnScheduled(const IQueuedWork* InWork) override
 	{
-		TotalEstimatedMemory += GetRequiredMemory(InWork);
+		FMemoryBoundScheduledWork* Work = (FMemoryBoundScheduledWork*)InWork;
+		Work->RequiredMemory = GetRequiredMemory(InWork);
+		TotalEstimatedMemory += Work->RequiredMemory;
 		UpdateCounters();
 	}
 
 	void OnUnscheduled(const IQueuedWork* InWork) override
 	{
-		TotalEstimatedMemory -= GetRequiredMemory(InWork);
+		FMemoryBoundScheduledWork* Work = (FMemoryBoundScheduledWork*)InWork;
+		TotalEstimatedMemory -= Work->RequiredMemory;
 		check(TotalEstimatedMemory >= 0);
 		UpdateCounters();
 	}
@@ -221,12 +237,12 @@ FQueuedThreadPool* FAssetCompilingManager::GetThreadPool() const
 		// Recently found out that GThreadPool and GLargeThreadPool have the same amount of workers, so can't rely on GThreadPool to be our limiter here.
 		// FPlatformMisc::NumberOfCores() and FPlatformMisc::NumberOfCoresIncludingHyperthreads() also return the same value when -corelimit is used so we can't use FPlatformMisc::NumberOfCores()
 		// if we want to keep the same 1:2 relationship with worker count.
-		FQueuedThreadPoolWrapper* LimitedThreadPool = new FQueuedThreadPoolWrapper(GLargeThreadPool, FMath::Max(GLargeThreadPool->GetNumThreads() / 2, 1));
+		const int32 MaxConcurrency = FMath::Max(GLargeThreadPool->GetNumThreads() / 2, 1);
 
 		// All asset priorities will resolve to a Low priority once being scheduled.
 		// Any asset supporting being built async should be scheduled lower than Normal to let non-async stuff go first
 		// However, we let Highest and Blocking priority pass-through as it to benefit from going to foreground threads when required (i.e. Game-thread is waiting on some assets)
-		GAssetThreadPool = new FMemoryBoundQueuedThreadPoolWrapper(LimitedThreadPool, -1, [](EQueuedWorkPriority Priority) { return Priority <= EQueuedWorkPriority::Highest ? Priority : EQueuedWorkPriority::Low; });
+		GAssetThreadPool = new FMemoryBoundQueuedThreadPoolWrapper(GLargeThreadPool, MaxConcurrency, [](EQueuedWorkPriority Priority) { return Priority <= EQueuedWorkPriority::Highest ? Priority : EQueuedWorkPriority::Low; });
 
 		AsyncCompilationHelpers::BindThreadPoolToCVar(
 			GAssetThreadPool,

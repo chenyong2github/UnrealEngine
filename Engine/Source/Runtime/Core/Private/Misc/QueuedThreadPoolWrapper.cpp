@@ -3,62 +3,26 @@
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/IQueuedWork.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/PlatformProcess.h"
 
-struct FQueuedThreadPoolWrapper::FScheduledWork : public IQueuedWork
+TRACE_DECLARE_INT_COUNTER(QueuedThreadPoolWrapperScheduledWorkAllocs, TEXT("QueuedThreadPoolWrapper/ScheduledWorkAllocs"));
+
+namespace QueuedThreadPoolWrapperImpl
 {
-	FScheduledWork(FQueuedThreadPoolWrapper* InParentPool, IQueuedWork* InWork, EQueuedWorkPriority InPriority)
-		: ParentPool(InParentPool)
-		, Work(InWork)
-		, Priority(InPriority)
-		, RequiredMemory(InWork->GetRequiredMemory())
-	{
-	}
+	static std::atomic<int64> ScheduledWorkAllocs {0};
+}
 
-	void DoThreadedWork() override
-	{
-		Work->DoThreadedWork();
-		ParentPool->Schedule(this);
-	}
+FQueuedThreadPoolWrapper::FScheduledWork::FScheduledWork()
+{
+	TRACE_COUNTER_SET(QueuedThreadPoolWrapperScheduledWorkAllocs, ++QueuedThreadPoolWrapperImpl::ScheduledWorkAllocs);
+}
 
-	void Abandon() override
-	{
-		Work->Abandon();
-		ParentPool->Schedule(this);
-	}
-
-	EQueuedWorkFlags GetQueuedWorkFlags() const override 
-	{
-		return Work->GetQueuedWorkFlags();
-	}
-
-	int64 GetRequiredMemory() const override 
-	{
-		return RequiredMemory;
-	}
-
-	IQueuedWork* GetInnerWork() const
-	{
-		return Work;
-	}
-	
-	EQueuedWorkPriority GetPriority() const
-	{
-		return Priority;
-	}
-
-	void Reset()
-	{
-		Work = nullptr;
-	}
-private:
-	FQueuedThreadPoolWrapper* ParentPool;
-	IQueuedWork* Work;
-	EQueuedWorkPriority Priority;
-	
-	// Store the memory of the inner task to ensure it stays constant
-	int64 RequiredMemory;
-};
+FQueuedThreadPoolWrapper::FScheduledWork::~FScheduledWork()
+{
+	check(NumRefs.GetValue() == 0);
+	TRACE_COUNTER_SET(QueuedThreadPoolWrapperScheduledWorkAllocs, --QueuedThreadPoolWrapperImpl::ScheduledWorkAllocs);
+}
 
 FQueuedThreadPoolWrapper::FQueuedThreadPoolWrapper(FQueuedThreadPool* InWrappedQueuedThreadPool, int32 InMaxConcurrency, TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> InPriorityMapper)
 	: PriorityMapper(InPriorityMapper)
@@ -82,7 +46,8 @@ bool FQueuedThreadPoolWrapper::Create(uint32 InNumQueuedThreads, uint32 StackSiz
 void FQueuedThreadPoolWrapper::Destroy()
 {
 	{
-		FRWScopeLock ScopeLock(Lock, SLT_Write);
+		FScopeLock ScopeLock(&Lock);
+
 		// Clean up all queued objects
 		while (IQueuedWork* WorkItem = QueuedWork.Dequeue())
 		{
@@ -118,7 +83,7 @@ void FQueuedThreadPoolWrapper::Destroy()
 	}
 
 	{
-		FRWScopeLock ScopeLock(Lock, SLT_Write);
+		FScopeLock ScopeLock(&Lock);
 		for (FScheduledWork* Work : WorkPool)
 		{
 			check(Work->GetInnerWork() == nullptr);
@@ -138,14 +103,14 @@ void FQueuedThreadPoolWrapper::SetMaxConcurrency(int32 InMaxConcurrency)
 
 void FQueuedThreadPoolWrapper::Pause()
 {
-	FRWScopeLock ScopeLock(Lock, SLT_Write);
+	FScopeLock ScopeLock(&Lock);
 	MaxTaskToSchedule = 0;
 }
 
 void FQueuedThreadPoolWrapper::Resume(int32 InNumQueuedWork)
 {
 	{
-		FRWScopeLock ScopeLock(Lock, SLT_Write);
+		FScopeLock ScopeLock(&Lock);
 		MaxTaskToSchedule = InNumQueuedWork;
 	}
 
@@ -155,7 +120,7 @@ void FQueuedThreadPoolWrapper::Resume(int32 InNumQueuedWork)
 void FQueuedThreadPoolWrapper::AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority)
 {
 	{
-		FRWScopeLock ScopeLock(Lock, SLT_Write);
+		FScopeLock ScopeLock(&Lock);
 		QueuedWork.Enqueue(InQueuedWork, InPriority);
 	}
 
@@ -166,7 +131,7 @@ bool FQueuedThreadPoolWrapper::RetractQueuedWork(IQueuedWork* InQueuedWork)
 {
 	FScheduledWork* Retracted = nullptr;
 	{
-		FRWScopeLock ScopeLock(Lock, SLT_Write);
+		FScopeLock ScopeLock(&Lock);
 		if (QueuedWork.Retract(InQueuedWork))
 		{
 			return true;
@@ -181,7 +146,9 @@ bool FQueuedThreadPoolWrapper::RetractQueuedWork(IQueuedWork* InQueuedWork)
 
 	if (Retracted)
 	{
-		Schedule(Retracted);
+		// When we retract a task, there should be no external refs on it
+		check(Retracted->GetRefCount() == 1);
+		Retracted->Release();
 	}
 	return Retracted != nullptr;
 }
@@ -193,11 +160,13 @@ int32 FQueuedThreadPoolWrapper::GetNumThreads() const
 
 void FQueuedThreadPoolWrapper::ReleaseWorkNoLock(FScheduledWork* Work)
 {
+	check(Work->GetRefCount() == 0);
 	CurrentConcurrency--;
 	OnUnscheduled(Work);
 	
 	ScheduledWork.Remove(Work->GetInnerWork());
 	Work->Reset();
+	check(Work->GetRefCount() == 0);
 	WorkPool.Push(Work);
 }
 
@@ -208,14 +177,18 @@ bool FQueuedThreadPoolWrapper::CanSchedule(EQueuedWorkPriority Priority) const
 
 FQueuedThreadPoolWrapper::FScheduledWork* FQueuedThreadPoolWrapper::AllocateWork(IQueuedWork* InnerWork, EQueuedWorkPriority Priority)
 {
+	FScheduledWork* Work = nullptr;
 	if (WorkPool.Num() > 0)
 	{
-		FScheduledWork* Work = WorkPool.Pop(false);
-		*Work = FScheduledWork(this, InnerWork, Priority);
-		return Work;
+		Work = WorkPool.Pop(false);
 	}
-	
-	return new FScheduledWork(this, InnerWork, Priority);
+	else
+	{
+		Work = AllocateScheduledWork();
+	}
+
+	Work->Assign(this, InnerWork, Priority);
+	return Work;
 }
 
 bool FQueuedThreadPoolWrapper::TryRetractWorkNoLock(EQueuedWorkPriority InPriority)
@@ -229,8 +202,10 @@ bool FQueuedThreadPoolWrapper::TryRetractWorkNoLock(EQueuedWorkPriority InPriori
 		{
 			if (WrappedQueuedThreadPool->RetractQueuedWork(Pair.Value))
 			{
+				// When we retract a task, there should be no external refs on it
+				check(Pair.Value->GetRefCount() == 1);
 				QueuedWork.Enqueue(Pair.Key, Pair.Value->GetPriority());
-				ReleaseWorkNoLock(Pair.Value);
+				Pair.Value->Release();
 
 				if (MaxTaskToSchedule != -1)
 				{
@@ -247,7 +222,7 @@ bool FQueuedThreadPoolWrapper::TryRetractWorkNoLock(EQueuedWorkPriority InPriori
 
 void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 {
-	FRWScopeLock ScopeLock(Lock, SLT_Write);
+	FScopeLock ScopeLock(&Lock);
 
 	// It's important to reduce the current concurrency before entering the loop
 	// especially when MaxConcurrency is 1 to ensure new work is scheduled and don't 
@@ -256,6 +231,17 @@ void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 	{
 		ReleaseWorkNoLock(Work);
 	}
+
+	// In case we call Release on lower priority tasks we retract as part of the scheduling loop,
+	// we might end up calling Schedule recursively. We avoid reentrancy on the scheduling loop once the work item has
+	// been released in ReleaseWorkNoLock by early exiting once we reach the loop part as there is nothing more we can do.
+	if (bIsScheduling)
+	{
+		return;
+	}
+
+	// We are now entering the scheduling loop
+	TGuardValue<bool> SchedulingScope(bIsScheduling, true);
 
 	// If a higher priority task comes in, try to retract lower priority ones if possible to make room
 	EQueuedWorkPriority NextWorkPriority;
