@@ -120,6 +120,16 @@ void UMediaPlateComponent::Stop()
 	}
 }
 
+void UMediaPlateComponent::SetMeshHorizontalRange(float InMeshHorizontalRange)
+{
+	MeshHorizontalRange = InMeshHorizontalRange;
+
+	if (MediaTextureTrackerObject != nullptr)
+	{
+		MediaTextureTrackerObject->MeshHorizontalRange = MeshHorizontalRange;
+	}
+}
+
 void UMediaPlateComponent::RegisterWithMediaTextureTracker()
 {
 	// Set up object.

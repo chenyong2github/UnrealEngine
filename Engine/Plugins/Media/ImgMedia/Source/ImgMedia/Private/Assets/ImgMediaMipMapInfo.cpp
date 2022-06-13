@@ -289,14 +289,14 @@ namespace {
 	}
 
 	// Approximates hardware mip level selection.
-	bool CalculateMipLevel(const FImgMediaViewInfo& ViewInfo, const FVector& TexelWS, const FVector& OffsetXWS, const FVector& OffsetYWS, float& OutMipLevel)
+	bool CalculateMipLevel(const FImgMediaViewInfo& ViewInfo, const FVector& TexelWS, const FVector& TexelOffXWS, const FVector& TexelOffYWS, float& OutMipLevel)
 	{
 		FVector2D TexelScreenSpace[3];
 
 		bool bValid = true;
 		bValid &= ProjectWorldToScreenFast(TexelWS, ViewInfo.ViewportRect, ViewInfo.ViewProjectionMatrix, TexelScreenSpace[0]);
-		bValid &= ProjectWorldToScreenFast(TexelWS + OffsetXWS, ViewInfo.ViewportRect, ViewInfo.ViewProjectionMatrix, TexelScreenSpace[1]);
-		bValid &= ProjectWorldToScreenFast(TexelWS + OffsetYWS, ViewInfo.ViewportRect, ViewInfo.ViewProjectionMatrix, TexelScreenSpace[2]);
+		bValid &= ProjectWorldToScreenFast(TexelOffXWS, ViewInfo.ViewportRect, ViewInfo.ViewProjectionMatrix, TexelScreenSpace[1]);
+		bValid &= ProjectWorldToScreenFast(TexelOffYWS, ViewInfo.ViewportRect, ViewInfo.ViewProjectionMatrix, TexelScreenSpace[2]);
 
 		if (bValid)
 		{
@@ -359,7 +359,7 @@ namespace {
 				FConvexVolume ViewFrustum;
 				GetViewFrustumBounds(ViewFrustum, ViewInfo.OverscanViewProjectionMatrix, false, false);
 
-				int32 MaxLevel = InSequenceInfo.NumMipLevels - 1;
+				const int32 MaxLevel = InSequenceInfo.NumMipLevels - 1;
 				int MipLevelDiv = 1 << MaxLevel;
 
 				FIntPoint CurrentNumTiles;
@@ -432,7 +432,7 @@ namespace {
 									float CornerStepY = TileCornerY / (float)CurrentNumTiles.Y;
 									FVector CornersWS = PlaneCornerWS + (DirXWS * CornerStepX + DirYWS * CornerStepY);
 
-									if (CalculateMipLevel(ViewInfo, CornersWS, TexelOffsetXWS, TexelOffsetYWS, CalculatedLevel))
+									if (CalculateMipLevel(ViewInfo, CornersWS, CornersWS + TexelOffsetXWS, CornersWS + TexelOffsetYWS, CalculatedLevel))
 									{
 										CalculatedLevel += LODBias + ViewInfo.MaterialTextureMipBias;
 
@@ -550,7 +550,26 @@ namespace {
 				return;
 			}
 
+			const FTransform MeshTransform = Mesh->GetComponentTransform();
 			const float DefaultSphereRadius = 50.0f;
+			const int32 MaxLevel = InSequenceInfo.NumMipLevels - 1;
+
+			// Include all tiles containted in the visible UV region
+			int32 NumX = InSequenceInfo.NumTiles.X;
+			int32 NumY = InSequenceInfo.NumTiles.Y;
+			float PixelDimX = 1.0f / InSequenceInfo.Dim.X;
+			float PixelDimY = 1.0f / InSequenceInfo.Dim.Y;
+
+			FVector ApproxTileSizeWS = MeshTransform.GetScale3D() * (UE_TWO_PI * DefaultSphereRadius) / FMath::Max((float)NumX, (float)NumY);
+			float ApproxTileRadiusInWS = 0.5f * (float)FMath::Sqrt(2 * FMath::Square(ApproxTileSizeWS.GetAbsMax()));
+
+			auto TransformSphericalUVsToLocationWS = [this, &MeshTransform, DefaultSphereRadius](const FVector2D& InUV) -> FVector
+			{
+				// Convert from latlong UV to spherical coordinates
+				FVector2D TileCornerSpherical = FVector2D(UE_PI * InUV.Y, FMath::DegreesToRadians(MeshHorizontalRange) * (1.0f - InUV.X));
+				FVector CornersWS = TileCornerSpherical.SphericalToUnitCartesian() * DefaultSphereRadius;
+				return MeshTransform.TransformPosition(CornersWS);
+			};
 
 			for (const FImgMediaViewInfo& ViewInfo : InViewInfos)
 			{
@@ -562,71 +581,60 @@ namespace {
 				// Analytical derivation of visible tiles from the view frustum, given a sphere presumed to be infinitely large
 				FConvexVolume ViewFrustum;
 				GetViewFrustumBounds(ViewFrustum, ViewInfo.OverscanViewProjectionMatrix, false, false);
-				
-				// Include all tiles containted in the visible UV region
-				int32 NumX = InSequenceInfo.NumTiles.X;
-				int32 NumY = InSequenceInfo.NumTiles.Y;
+
 				for (int32 TileY = 0; TileY < NumY; ++TileY)
 				{
 					for (int32 TileX = 0; TileX < NumX; ++TileX)
 					{
-						FVector2D TileCornerUV = FVector2D((float)TileX / NumX, (float)TileY / NumY);
-						
-						// Convert from latlong UV to spherical coordinates
-						FVector2D TileCornerSpherical = FVector2D(UE_PI * TileCornerUV.Y, FMath::DegreesToRadians(MeshHorizontalRange) * (1.0f - TileCornerUV.X));
-
-						FVector TileCorner = TileCornerSpherical.SphericalToUnitCartesian() * DefaultSphereRadius;
-						TileCorner = Mesh->GetComponentTransform().TransformPosition(TileCorner);
+						FVector2D TileCenterUV = FVector2D(((float)TileX + 0.5f ) / NumX, ((float)TileY + 0.5f) / NumY);
+						FVector TileCenterWS = TransformSphericalUVsToLocationWS(TileCenterUV);
 
 						// For each tile corner, we include all adjacent tiles
-						if (ViewFrustum.IntersectPoint(TileCorner))
+						if (ViewFrustum.IntersectSphere(TileCenterWS, ApproxTileRadiusInWS))
 						{
-							if (!VisibleTiles.Contains(0))
+							float CalculatedLevel;
+							FIntVector2 MipLevelRange;
+
+							FVector TexelOffXWS = TransformSphericalUVsToLocationWS(TileCenterUV + FVector2D(PixelDimX, 0));
+							FVector TexelOffYWS = TransformSphericalUVsToLocationWS(TileCenterUV + FVector2D(0, PixelDimY));
+
+							if (CalculateMipLevel(ViewInfo, TileCenterWS, TexelOffXWS, TexelOffYWS, CalculatedLevel))
 							{
-								VisibleTiles.Emplace(0, FImgMediaTileSelection(NumX, NumY));
+								CalculatedLevel += LODBias + ViewInfo.MaterialTextureMipBias;
+
+								MipLevelRange[0] = FMath::Clamp((int32)CalculatedLevel, 0, MaxLevel);
+								MipLevelRange[1] = FMath::CeilToInt32(CalculatedLevel);
+
+								// As a mitigation for discontinuities at the poles, we artifically increase the max calculated level.
+								// (Note: Using an icosphere would avoid this issue but conflict with the partial sphere feature.)
+								if (TileY == 0 || TileY == NumY - 1)
+								{
+									MipLevelRange[1]++;
+								}
+
+								MipLevelRange[1] = FMath::Clamp(MipLevelRange[1], 0, MaxLevel);
+
+								for (int32 Level = MipLevelRange[0]; Level <= MipLevelRange[1]; ++Level)
+								{
+									if (!VisibleTiles.Contains(Level))
+									{
+										VisibleTiles.Emplace(Level, FImgMediaTileSelection::CreateForTargetMipLevel(InSequenceInfo.NumTiles.X, InSequenceInfo.NumTiles.Y, Level, false));
+									}
+
+									const int MipLevelDiv = 1 << Level;
+									VisibleTiles[Level].SetVisible(TileX / MipLevelDiv, TileY / MipLevelDiv);
+								}
 							}
-
-							int32 AdjacentX = TileX > 0 ? TileX - 1 : NumX - 1;
-							int32 AdjacentY = TileY > 0 ? TileY - 1 : NumY - 1;
-							VisibleTiles[0].SetVisible(TileX, TileY);
-							VisibleTiles[0].SetVisible(AdjacentX, TileY);
-							VisibleTiles[0].SetVisible(TileX, AdjacentY);
-							VisibleTiles[0].SetVisible(AdjacentX, AdjacentY);
-						}
-
 #if false
 #if WITH_EDITOR
-						// Enable this to draw a sphere where each tile is.
-						Async(EAsyncExecution::TaskGraphMainThread, [TileCorner]()
-							{
-								UWorld* World = GEditor->GetEditorWorldContext().World();
-								DrawDebugPoint(World, TileCorner, 5.0f, FColor::Red, false, 0.05f);
-							});
+							// Enable this to draw a sphere where each tile is.
+							Async(EAsyncExecution::TaskGraphMainThread, [TileCenterWS, ApproxTileRadiusInWS]()
+								{
+									UWorld* World = GEditor->GetEditorWorldContext().World();
+									DrawDebugSphere(World, TileCenterWS, ApproxTileRadiusInWS, 8, FColor::Red, false, 0.05f);
+								});
 #endif // WITH_EDITOR
 #endif // false
-					}
-				}
-
-				if (VisibleTiles.Contains(0))
-				{
-					FIntPoint BaseDim = VisibleTiles[0].GetDimensions();
-					TArray<FIntPoint> BaseVisibleCoordinates = VisibleTiles[0].GetVisibleCoordinates();
-
-					// Include tiles visible at the base level in higher mip levels.
-					for (int32 Level = 1; Level < InSequenceInfo.NumMipLevels; ++Level)
-					{
-						const int32 MipLevelDiv = 1 << Level;
-
-						if (!VisibleTiles.Contains(Level))
-						{
-							NumX = FMath::CeilToInt((float)BaseDim.X / MipLevelDiv);
-							NumY = FMath::CeilToInt((float)BaseDim.Y / MipLevelDiv);
-							VisibleTiles.Emplace(Level, FImgMediaTileSelection(NumX, NumY));
-						}
-
-						for (const FIntPoint& Coord : BaseVisibleCoordinates)
-						{
-							VisibleTiles[Level].SetVisible(Coord.X / MipLevelDiv, Coord.Y / MipLevelDiv);
 						}
 					}
 				}

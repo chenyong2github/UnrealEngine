@@ -581,9 +581,9 @@ void FMediaPlateCustomization::SetMeshHorizontalRange(float HorizontalRange)
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			if (MediaPlate->MeshHorizontalRange != HorizontalRange)
+			if (MediaPlate->GetMeshHorizontalRange() != HorizontalRange)
 			{
-				MediaPlate->MeshHorizontalRange = HorizontalRange;
+				MediaPlate->SetMeshHorizontalRange(HorizontalRange);
 				SetSphereMesh(MediaPlate);
 			}
 		}
@@ -598,7 +598,7 @@ TOptional<float> FMediaPlateCustomization::GetMeshHorizontalRange() const
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			return MediaPlate->MeshHorizontalRange;
+			return MediaPlate->GetMeshHorizontalRange();
 		}
 	}
 
