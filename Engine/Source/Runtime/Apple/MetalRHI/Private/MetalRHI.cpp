@@ -185,19 +185,26 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	mtlpp::Device Device = ImmediateContext.Context->GetDevice();
 		
 #if PLATFORM_IOS
-	// A8 can use 256 bits of MRTs
+    bool bSupportAppleA8 = false;
+    GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportAppleA8"), bSupportAppleA8, GEngineIni);
+        
+    bool bIsA8FeatureSet = false;
+        
 #if PLATFORM_TVOS
 	GRHISupportsDrawIndirect = Device.SupportsFeatureSet(mtlpp::FeatureSet::tvOS_GPUFamily2_v1);
 	GRHISupportsPixelShaderUAVs = Device.SupportsFeatureSet(mtlpp::FeatureSet::tvOS_GPUFamily2_v1);
+        
+    if (!Device.SupportsFeatureSet(mtlpp::FeatureSet::tvOS_GPUFamily2_v1))
+    {
+        bIsA8FeatureSet = true;
+    }
+        
 #else
+	if (!Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v1))
 	{
-		bool bSupportAppleA8 = false;
-		GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportAppleA8"), bSupportAppleA8, GEngineIni);
-		if (!Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v1) && !bSupportAppleA8)
-		{
-			UE_LOG(LogMetal, Fatal, TEXT("This device does not supports the Apple A9 feature set which is the minimum for this build. Please check the Support Apple A8 checkbox in the IOS Project Settings."));
-		}
-	}
+        bIsA8FeatureSet = true;
+    }
+    
 	GRHISupportsRWTextureBuffers = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1);
 	GRHISupportsDrawIndirect = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v1);
 	GRHISupportsPixelShaderUAVs = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v1);
@@ -229,6 +236,20 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	bSupportsPointLights = GSupportsVolumeTextureRendering;
 #endif
 
+    if(bIsA8FeatureSet)
+    {
+        if(!bSupportAppleA8)
+        {
+            UE_LOG(LogMetal, Fatal, TEXT("This device does not supports the Apple A8x or above feature set which is the minimum for this build. Please check the Support Apple A8 checkbox in the IOS Project Settings."));
+        }
+        
+        static auto* CVarMobileVirtualTextures = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.VirtualTextures"));
+        if(CVarMobileVirtualTextures->GetValueOnAnyThread() != 0)
+        {
+            UE_LOG(LogMetal, Fatal, TEXT("Mobile Virtual Textures require a minimum of the Apple A9 feature set."));
+        }
+    }
+        
     bool bProjectSupportsMRTs = false;
     GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsMetalMRT"), bProjectSupportsMRTs, GEngineIni);
 

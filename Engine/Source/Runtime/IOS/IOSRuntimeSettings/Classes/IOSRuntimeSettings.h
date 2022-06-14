@@ -462,7 +462,11 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Rendering, Meta = (DisplayName = "Tier of Indirect Argument Buffers to use when compiling shaders", ConfigRestartRequired = true))
 	int32 IndirectArgumentTier;
 	
-    /** Supports Apple A8 devices, disables 3d texture compression */
+    /** Supports Apple A8 devices.
+     * Disables 3d texture compression
+     * Virtual Textures are not supported on A8 devices due to missing hardware features
+     * This will disable also Base_Vertex semantics in the msl which may have negative consequences if shaders rely on it
+     */
     UPROPERTY(config, EditAnywhere, Category = Rendering, Meta = (DisplayName = "Support Apple A8", ConfigRestartRequired = true))
     bool bSupportAppleA8;
     

@@ -1621,7 +1621,9 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		bool bAllowFastIntrinsics = false;
 		bool bEnableMathOptimisations = true;
 		bool bForceFloats = false;
+        bool bSupportAppleA8 = false;
 		int32 IndirectArgumentTier = 0;
+        
 		if (IsPCPlatform(Platform))
 		{
 			GConfig->GetBool(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("UseFastIntrinsics"), bAllowFastIntrinsics, GEngineIni);
@@ -1634,6 +1636,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("EnableMathOptimisations"), bEnableMathOptimisations, GEngineIni);
 			GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("ForceFloats"), bForceFloats, GEngineIni);
 			GConfig->GetInt(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("IndirectArgumentTier"), IndirectArgumentTier, GEngineIni);
+            GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportAppleA8"), bSupportAppleA8, GEngineIni);
 		}
 		
 		if (bAllowFastIntrinsics)
@@ -1652,6 +1655,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += TEXT("_FP32");
 		}
 		
+        if(bSupportAppleA8)
+        {
+            KeyString += TEXT("_A8GPU");
+        }
+        
 		KeyString += FString::Printf(TEXT("_IAB%d"), IndirectArgumentTier);
 		
 		// Shaders built for archiving - for Metal that requires compiling the code in a different way so that we can strip it later

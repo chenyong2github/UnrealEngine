@@ -226,6 +226,13 @@ bool DoCompileMetalShader(
 	bool const bZeroInitialise = Input.Environment.CompilerFlags.Contains(CFLAG_ZeroInitialise);
 	bool const bBoundsChecks = Input.Environment.CompilerFlags.Contains(CFLAG_BoundsChecking);
 
+    bool bSupportAppleA8 = false;
+    FString const* SupportAppleA8 = Input.Environment.GetDefinitions().Find(TEXT("SUPPORT_APPLE_A8"));
+    if (SupportAppleA8)
+    {
+        LexFromString(bSupportAppleA8, *(*SupportAppleA8));
+    }
+    
 	bool bSwizzleSample = false;
 	FString const* Swizzle = Input.Environment.GetDefinitions().Find(TEXT("METAL_SWIZZLE_SAMPLES"));
 	if (Swizzle)
@@ -975,16 +982,16 @@ bool DoCompileMetalShader(
 				break;
 			case EMetalGPUSemanticsTBDRDesktop:
 				TargetDesc.Language = CrossCompiler::EShaderConductorLanguage::Metal_iOS;
-				TargetDesc.CompileFlags.SetDefine(TEXT("ios_support_base_vertex_instance"), 1);
+                TargetDesc.CompileFlags.SetDefine(TEXT("ios_support_base_vertex_instance"), !bSupportAppleA8);
 				TargetDesc.CompileFlags.SetDefine(TEXT("use_framebuffer_fetch_subpasses"), 1);
 				TargetDesc.CompileFlags.SetDefine(TEXT("emulate_cube_array"), 1);
 				break;
 			case EMetalGPUSemanticsMobile:
 			default:
 				TargetDesc.Language = CrossCompiler::EShaderConductorLanguage::Metal_iOS;
-				TargetDesc.CompileFlags.SetDefine(TEXT("use_framebuffer_fetch_subpasses"), 1);
+                TargetDesc.CompileFlags.SetDefine(TEXT("ios_support_base_vertex_instance"), !bSupportAppleA8);
+                TargetDesc.CompileFlags.SetDefine(TEXT("use_framebuffer_fetch_subpasses"), 1);
 				TargetDesc.CompileFlags.SetDefine(TEXT("emulate_cube_array"), 1);
-				TargetDesc.CompileFlags.SetDefine(TEXT("ios_support_base_vertex_instance"), 1);
 				break;
 			}
 

@@ -5722,6 +5722,8 @@ void GlobalBeginCompileShader(
 			bool bForceFloats = false;
 			FString IndirectArgumentTier;
 			bool bEnableMathOptimisations = true;
+            bool bSupportAppleA8 = false;
+            
 			if (IsPCPlatform(EShaderPlatform(Target.Platform)))
 			{
 				GConfig->GetBool(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("UseFastIntrinsics"), bAllowFastIntrinsics, GEngineIni);
@@ -5737,6 +5739,7 @@ void GlobalBeginCompileShader(
 				GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("EnableMathOptimisations"), bEnableMathOptimisations, GEngineIni);
 				GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("ForceFloats"), bForceFloats, GEngineIni);
 				GConfig->GetString(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("IndirectArgumentTier"), IndirectArgumentTier, GEngineIni);
+                GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportAppleA8"), bSupportAppleA8, GEngineIni);
                 
 				// Force no development shaders on iOS
 				bAllowDevelopmentShaderCompile = false;
@@ -5746,6 +5749,7 @@ void GlobalBeginCompileShader(
             
 			Input.Environment.SetDefine(TEXT("METAL_USE_FAST_INTRINSICS"), bAllowFastIntrinsics);
 			Input.Environment.SetDefine(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"), IndirectArgumentTier);
+            Input.Environment.SetDefine(TEXT("SUPPORT_APPLE_A8"), bSupportAppleA8);
 			
 			// Same as console-variable above, but that's global and this is per-platform, per-project
 			if (!bEnableMathOptimisations)
