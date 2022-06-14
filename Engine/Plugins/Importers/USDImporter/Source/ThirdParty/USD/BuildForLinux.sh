@@ -12,6 +12,10 @@ USD_VERSION=22.05a
 # Note that a small patch to the USD CMake build is currently necessary for
 # the usdAbc plugin to require and link against Imath instead of OpenEXR:
 #     git apply USD_v2205a_usdAbc_Imath.patch
+# We also apply a patch for the usdMtlx plugin to ensure that we do not
+# bake a hard-coded path to the MaterialX standard data libraries into the
+# built plugin:
+#     git apply USD_v2205a_usdMtlx_undef_stdlib_dir.patch
 # This patch ensures that SdfFileFormat objects are returned correctly from
 # the registry, particularly on Linux when using clang/libc++ which
 # implements dynamic_cast differently from libstdc++.
@@ -43,6 +47,8 @@ IMATH_CMAKE_LOCATION="$IMATH_LIB_LOCATION/lib/cmake/Imath"
 ALEMBIC_LOCATION="$UE_THIRD_PARTY_LOCATION/Alembic/Deploy/alembic-1.8.2"
 ALEMBIC_INCLUDE_LOCATION="$ALEMBIC_LOCATION/include"
 ALEMBIC_LIB_LOCATION="$ALEMBIC_LOCATION/Unix/$ARCH_NAME"
+MATERIALX_LOCATION="$UE_THIRD_PARTY_LOCATION/MaterialX/Deploy/MaterialX-1.38.1"
+MATERIALX_LIB_LOCATION="$MATERIALX_LOCATION/Unix/$ARCH_NAME/lib"
 
 PYTHON_BINARIES_LOCATION="$UE_ENGINE_LOCATION/Binaries/ThirdParty/Python3/Linux"
 PYTHON_EXECUTABLE_LOCATION="$PYTHON_BINARIES_LOCATION/bin/python3"
@@ -100,6 +106,9 @@ CMAKE_ARGS=(
     -DPXR_ENABLE_HDF5_SUPPORT=OFF
     -DALEMBIC_INCLUDE_DIR="$ALEMBIC_INCLUDE_LOCATION"
     -DALEMBIC_DIR="$ALEMBIC_LIB_LOCATION"
+    -DPXR_ENABLE_MATERIALX_SUPPORT=ON
+    -DMATERIALX_ROOT="$MATERIALX_LOCATION"
+    -DMATERIALX_LIB_DIRS="$MATERIALX_LIB_LOCATION"
     -DBUILD_SHARED_LIBS=ON
     -DPXR_BUILD_TESTS=OFF
     -DPXR_BUILD_EXAMPLES=OFF
