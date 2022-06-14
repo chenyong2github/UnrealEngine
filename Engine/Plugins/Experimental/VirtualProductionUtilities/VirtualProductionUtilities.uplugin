@@ -16,7 +16,7 @@
 	"Modules": [
 		{
 			"Name": "VPUtilities",
-			"Type": "UncookedOnly",
+			"Type": "Runtime",
 			"LoadingPhase": "PostDefault"
 		},
 		{
