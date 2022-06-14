@@ -357,7 +357,6 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 		return !operator==(Other);
 	}
 
-#if WITH_EDITORONLY_DATA
 private:
 	UPROPERTY()
 	TArray<bool> LayerStates_DEPRECATED;
@@ -379,7 +378,6 @@ private:
 
 	UPROPERTY()
 	TArray<FGuid> DeletedParentLayerGuids_DEPRECATED;
-#endif // WITH_EDITORONLY_DATA
 };
 
 // Don't allowing comparing a full FMaterialLayersFunctions against partial RuntimeData

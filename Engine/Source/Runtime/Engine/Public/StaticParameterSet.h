@@ -247,7 +247,6 @@ struct FStaticTerrainLayerWeightParameter
 {
 	GENERATED_USTRUCT_BODY();
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FMaterialParameterInfo ParameterInfo_DEPRECATED;
 
@@ -256,7 +255,6 @@ struct FStaticTerrainLayerWeightParameter
 
 	UPROPERTY()
 	bool bOverride_DEPRECATED = true;
-#endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY()
 	FName LayerName;
