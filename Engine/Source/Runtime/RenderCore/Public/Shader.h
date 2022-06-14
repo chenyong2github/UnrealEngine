@@ -396,6 +396,7 @@ public:
 	RENDERCORE_API void AddShaderCode(EShaderFrequency InFrequency, const FSHAHash& InHash, const FShaderCode& InCode);
 #if WITH_EDITORONLY_DATA
 	RENDERCORE_API void AddPlatformDebugData(TConstArrayView<uint8> InPlatformDebugData);
+	RENDERCORE_API void LogShaderCompilerWarnings();
 #endif
 
 	RENDERCORE_API void ToString(FStringBuilderBase& OutString) const;
@@ -406,6 +407,10 @@ public:
 #if WITH_EDITORONLY_DATA
 	TArray<TArray<uint8>> PlatformDebugData;
 	TArray<FSHAHash> PlatformDebugDataHashes;
+
+	/** An array of all the compiler warnings that were emitted when this shader was compiled.
+	 *  Does not contain errors since if there were any errors, this object wouldn't exist. */
+	TArray<FString> CompilerWarnings;
 #endif // WITH_EDITORONLY_DATA
 };
 	

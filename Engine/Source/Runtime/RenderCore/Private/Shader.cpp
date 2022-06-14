@@ -32,7 +32,6 @@
 #endif
 
 DEFINE_LOG_CATEGORY(LogShaders);
-DECLARE_LOG_CATEGORY_CLASS(LogShaderWarnings, Log, Log);
 
 IMPLEMENT_TYPE_LAYOUT(FShader);
 IMPLEMENT_TYPE_LAYOUT(FShaderParameterBindings);
@@ -92,13 +91,6 @@ static TAutoConsoleVariable<int32> CVarAllowCompilingThroughWorkers(
 	TEXT("0 - Disallows external shader compiler workers. Will run shader compilation in proc of UE process."),
 	ECVF_ReadOnly
 	);
-
-static TAutoConsoleVariable<int32> CVarShaderCompilerEmitWarningsOnLoad(
-	TEXT("r.ShaderCompiler.EmitWarningsOnLoad"),
-	0,
-	TEXT("When 1, shader compiler warnings are emitted to the log for all shaders as they are loaded."),
-	ECVF_Default
-);
 
 static TAutoConsoleVariable<int32> CVarShadersForceDXC(
 	TEXT("r.Shaders.ForceDXC"),

@@ -30,6 +30,8 @@
 #include "Interfaces/IShaderFormat.h"
 #endif
 
+DECLARE_LOG_CATEGORY_CLASS(LogShaderWarnings, Log, Log);
+
 int32 GShaderCompressionFormatChoice = 2;
 static FAutoConsoleVariableRef CVarShaderCompressionFormatChoice(
 	TEXT("r.Shaders.CompressionFormat"),
@@ -72,6 +74,14 @@ static FAutoConsoleVariableRef CVarShaderCompressionOodleAlgoChoice(
 	TEXT("  7 : Optimal3\n")
 	TEXT("  8 : Optimal4\n"),
 	ECVF_ReadOnly);
+
+static int32 GShaderCompilerEmitWarningsOnLoad = 0;
+static FAutoConsoleVariableRef CVarShaderCompilerEmitWarningsOnLoad(
+	TEXT("r.ShaderCompiler.EmitWarningsOnLoad"),
+	GShaderCompilerEmitWarningsOnLoad,
+	TEXT("When 1, shader compiler warnings are emitted to the log for all shaders as they are loaded."),
+	ECVF_Default
+);
 
 FName GetShaderCompressionFormat(const FName& ShaderFormat)
 {
@@ -264,6 +274,10 @@ void FShaderMapResourceCode::Finalize()
 	Hasher.Final();
 	Hasher.GetHash(ResourceHash.Hash);
 	ApplyResourceStats(*this);
+
+#if WITH_EDITORONLY_DATA
+	LogShaderCompilerWarnings();
+#endif
 }
 
 uint32 FShaderMapResourceCode::GetSizeBytes() const
@@ -286,6 +300,11 @@ void FShaderMapResourceCode::AddShaderCompilerOutput(const FShaderCompilerOutput
 {
 #if WITH_EDITORONLY_DATA
 	AddPlatformDebugData(Output.PlatformDebugData);
+
+	for (const FShaderCompilerError& Error : Output.Errors)
+	{
+		CompilerWarnings.Add(Error.GetErrorString());
+	}
 #endif
 	AddShaderCode(Output.Target.GetFrequency(), Output.OutputHash, Output.ShaderCode);
 }
@@ -385,6 +404,20 @@ void FShaderMapResourceCode::AddPlatformDebugData(TConstArrayView<uint8> InPlatf
 		PlatformDebugData.EmplaceAt(Index, InPlatformDebugData.GetData(), InPlatformDebugData.Num());
 	}
 }
+
+void FShaderMapResourceCode::LogShaderCompilerWarnings()
+{
+	if (CompilerWarnings.Num() > 0 && GShaderCompilerEmitWarningsOnLoad != 0)
+	{
+		// Emit all the compiler warnings seen whilst serializing/loading this shader to the log.
+		// Since successfully compiled shaders are stored in the DDC, we'll get the compiler warnings
+		// even if we didn't compile the shader this run.
+		for (const FString& CompilerWarning : CompilerWarnings)
+		{
+			UE_LOG(LogShaderWarnings, Warning, TEXT("%s"), *CompilerWarning);
+		}
+	}
+}
 #endif // WITH_EDITORONLY_DATA
 
 void FShaderMapResourceCode::ToString(FStringBuilderBase& OutString) const
@@ -405,14 +438,22 @@ void FShaderMapResourceCode::Serialize(FArchive& Ar, bool bLoadedByCookedMateria
 	Ar << ShaderEntries;
 	check(ShaderEntries.Num() == ShaderHashes.Num());
 #if WITH_EDITORONLY_DATA
-	const bool bSerializePlatformData = !bLoadedByCookedMaterial && (!Ar.IsCooking() || Ar.CookingTarget()->HasEditorOnlyData());
-	if (bSerializePlatformData)
+	const bool bSerializeEditorOnlyData = !bLoadedByCookedMaterial && (!Ar.IsCooking() || Ar.CookingTarget()->HasEditorOnlyData());
+	if (bSerializeEditorOnlyData)
 	{
 		Ar << PlatformDebugDataHashes;
 		Ar << PlatformDebugData;
+		Ar << CompilerWarnings;
 	}
 #endif // WITH_EDITORONLY_DATA
 	ApplyResourceStats(*this);
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading())
+	{
+		LogShaderCompilerWarnings();
+	}
+#endif
 }
 
 #if WITH_EDITORONLY_DATA
