@@ -62,6 +62,7 @@ enum class EPoseSearchFeatureType : int8
 	LinearVelocity,
 	AngularVelocity,
 	ForwardVector,
+	Phase,
 
 	Num UMETA(Hidden),
 	Invalid = Num UMETA(Hidden)
@@ -195,6 +196,9 @@ struct POSESEARCH_API FPoseSearchBone
 
 	UPROPERTY(EditAnywhere, Category = Config)
 	bool bUseRotation = false;
+
+	UPROPERTY(EditAnywhere, Category = Config)
+	bool bUsePhase = false;
 
 	// this function will return a mask out of EPoseSearchFeatureType based on which features were selected for
 	// the bone.
@@ -592,6 +596,11 @@ struct POSESEARCH_API FPoseSearchIndexPreprocessInfo
 		TransformationMatrix.Reset();
 		InverseTransformationMatrix.Reset();
 		SampleMean.Reset();
+	}
+
+	bool IsValid() const
+	{
+		return NumDimensions > 0;
 	}
 };
 
@@ -1028,6 +1037,7 @@ public:
 	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector);
+	void SetPhase(FPoseSearchFeatureDesc Feature, const FVector2D& Phase);
 
 	void CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx);
 	void CopyFeature(const FPoseSearchFeatureVectorBuilder& OtherBuilder, int32 FeatureIdx);
@@ -1117,6 +1127,9 @@ struct POSESEARCH_API FDebugDrawParams
 
 	// Optional prefix for sample labels
 	FStringView LabelPrefix;
+
+	// Optional Mesh for gathering SocketTransform(s)
+	TWeakObjectPtr<const USkinnedMeshComponent> Mesh = nullptr;
 
 	bool CanDraw() const;
 	const FPoseSearchIndex* GetSearchIndex() const;
@@ -1414,6 +1427,7 @@ public:
 	bool GetLinearVelocity(FPoseSearchFeatureDesc Feature, FVector* OutLinearVelocity) const;
 	bool GetAngularVelocity(FPoseSearchFeatureDesc Feature, FVector* OutAngularVelocity) const;
 	bool GetVector(FPoseSearchFeatureDesc Feature, FVector* OutVector) const;
+	bool GetPhase(FPoseSearchFeatureDesc Element, FVector2D* OutPhase) const;
 
 	const FPoseSearchFeatureVectorLayout* GetLayout() const { return Layout; }
 

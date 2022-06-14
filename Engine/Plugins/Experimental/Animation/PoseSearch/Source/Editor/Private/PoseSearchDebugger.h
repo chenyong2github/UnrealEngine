@@ -90,6 +90,9 @@ struct FPoseSearchDebuggerPoseVectorChannel
 	UPROPERTY(VisibleDefaultsOnly, Category = "Channel")
 	bool bShowFacingDirections = false;
 
+	UPROPERTY(VisibleDefaultsOnly, Category = "Channel")
+	bool bShowPhases = false;
+
     UPROPERTY(VisibleAnywhere, EditFixedSize, Category="Channel", meta=(EditCondition="bShowPositions", EditConditionHides))
 	TArray<FVector> Positions;
 
@@ -98,6 +101,9 @@ struct FPoseSearchDebuggerPoseVectorChannel
 	
     UPROPERTY(VisibleAnywhere, EditFixedSize, Category="Channel", meta=(EditCondition="bShowFacingDirections", EditConditionHides))
 	TArray<FVector> FacingDirections;
+
+	UPROPERTY(VisibleAnywhere, EditFixedSize, Category = "Channel", meta = (EditCondition = "bShowPhases", EditConditionHides))
+	TArray<FVector2D> Phases;
 
 	void Reset();
 	bool IsEmpty() const { return Positions.IsEmpty() && LinearVelocities.IsEmpty() && FacingDirections.IsEmpty(); }
@@ -444,7 +450,7 @@ public:
 
 private:
 	/** Called each frame to draw features of the query vector & database selections */
-	void DrawFeatures(const UWorld& DebuggerWorld, const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database, const FTransform& Transform) const;
+	void DrawFeatures(const UWorld& DebuggerWorld, const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database, const FTransform& Transform, const USkinnedMeshComponent* Mesh) const;
 	
 	/** Check if a node selection was made, true if a node is selected */
 	bool UpdateSelection();
@@ -590,6 +596,8 @@ public:
 
 	/** Updates the current playing asset */
 	void UpdateAsset();
+
+	const USkinnedMeshComponent* GetMeshComponent() const;
 
 private:
 	/** Update the list of states for this frame */

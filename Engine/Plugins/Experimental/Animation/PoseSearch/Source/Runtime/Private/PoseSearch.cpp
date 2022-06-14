@@ -186,6 +186,7 @@ static constexpr FFeatureTypeTraits FeatureTypeTraits[] =
 	{ EPoseSearchFeatureType::LinearVelocity, 3 },
 	{ EPoseSearchFeatureType::AngularVelocity, 3 },
 	{ EPoseSearchFeatureType::ForwardVector, 3 },
+	{ EPoseSearchFeatureType::Phase, 2 },
 };
 
 static FFeatureTypeTraits GetFeatureTypeTraits(EPoseSearchFeatureType Type)
@@ -304,7 +305,7 @@ bool FPoseSearchFeatureVectorLayout::EnumerateBy(int32 ChannelIdx, EPoseSearchFe
 
 	for (int32 Size = Features.Num(); ++InOutFeatureIdx < Size; )
 	{
-		const FPoseSearchFeatureDesc& Feature = Features[InOutFeatureIdx];
+		const FPoseSearchFeatureDesc& Feature = Features[InOutFeatureIdx]; 
 
 		bool bChannelMatch = IsChannelMatch(ChannelIdx, Feature);
 		bool bTypeMatch = IsTypeMatch(Type, Feature);
@@ -337,6 +338,10 @@ uint32 FPoseSearchBone::GetTypeMask() const
 	if (bUseRotation)
 	{
 		Mask |= 1 << static_cast<int>(EPoseSearchFeatureType::Rotation);
+	}
+	if (bUsePhase)
+	{
+		Mask |= 1 << static_cast<int>(EPoseSearchFeatureType::Phase);
 	}
 
 	return Mask;
@@ -2508,6 +2513,26 @@ void FPoseSearchFeatureVectorBuilder::SetPosition(FPoseSearchFeatureDesc Feature
 	SetVector(Feature, Position);
 }
 
+void FPoseSearchFeatureVectorBuilder::SetPhase(FPoseSearchFeatureDesc Feature, const FVector2D& Phase)
+{
+	Feature.Type = EPoseSearchFeatureType::Phase;
+	
+	int32 ElementIndex = Schema->Layout.Features.Find(Feature);
+	if (ElementIndex >= 0)
+	{
+		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex];
+
+		Values[FoundElement.ValueOffset + 0] = Phase.X;
+		Values[FoundElement.ValueOffset + 1] = Phase.Y;
+
+		if (!FeaturesAdded[ElementIndex])
+		{
+			FeaturesAdded[ElementIndex] = true;
+			++NumFeaturesAdded;
+		}
+	}
+}
+
 void FPoseSearchFeatureVectorBuilder::SetRotation(FPoseSearchFeatureDesc Feature, const FQuat& Rotation)
 {
 	Feature.Type = EPoseSearchFeatureType::Rotation;
@@ -2977,6 +3002,23 @@ bool FFeatureVectorReader::GetAngularVelocity(FPoseSearchFeatureDesc Element, FV
 {
 	Element.Type = EPoseSearchFeatureType::AngularVelocity;
 	return GetVector(Element, OutAngularVelocity);
+}
+
+bool FFeatureVectorReader::GetPhase(FPoseSearchFeatureDesc Element, FVector2D* OutPhase) const
+{
+	Element.Type = EPoseSearchFeatureType::Phase;
+	int32 ElementIndex = IsValid() ? Layout->Features.Find(Element) : -1;
+	if (ElementIndex >= 0)
+	{
+		const FPoseSearchFeatureDesc& FoundElement = Layout->Features[ElementIndex];
+
+		OutPhase->X = Values[FoundElement.ValueOffset + 0];
+		OutPhase->Y = Values[FoundElement.ValueOffset + 1];
+		return true;
+	}
+
+	*OutPhase = FVector2D::ZeroVector;
+	return false;
 }
 
 bool FFeatureVectorReader::GetVector(FPoseSearchFeatureDesc Element, FVector* OutVector) const
@@ -4091,6 +4133,10 @@ void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext)
 
 bool FAssetIndexer::Process()
 {
+	check(IndexingContext.Schema);
+	check(IndexingContext.Schema->IsValid());
+	check(IndexingContext.MainSampler);
+
 	FMemMark Mark(FMemStack::Get());
 
 	IndexingContext.BeginSampleIdx = Output.FirstIndexedSample;
@@ -4493,10 +4539,14 @@ void Draw(const FDebugDrawParams& DebugDrawParams)
 			const FPoseSearchIndex* SearchIndex = DebugDrawParams.GetSearchIndex();
 			check(SearchIndex);
 
-			TArray<float> PoseVector;
-			PoseVector = SearchIndex->GetPoseValues(DebugDrawParams.PoseIdx);
-			SearchIndex->InverseNormalize(PoseVector);
-			DrawFeatureVector(DebugDrawParams, PoseVector);
+			// PreprocessInfo happens to be invalid when updating the database
+			if (SearchIndex->PreprocessInfo.IsValid())
+			{
+				TArray<float> PoseVector;
+				PoseVector = SearchIndex->GetPoseValues(DebugDrawParams.PoseIdx);
+				SearchIndex->InverseNormalize(PoseVector);
+				DrawFeatureVector(DebugDrawParams, PoseVector);
+			}
 		}
 		if (!DebugDrawParams.PoseVector.IsEmpty())
 		{
@@ -4939,7 +4989,7 @@ static void PreprocessSearchIndex(FPoseSearchIndex* SearchIndex)
 
 static void PreprocessGroupSearchIndexWeights(FGroupSearchIndex& GroupSearchIndex, const UPoseSearchDatabase* Database)
 {
-	const FPoseSearchWeightParams& WeightParams = GroupSearchIndex.GroupIndex == INDEX_NONE ? Database->DefaultWeights : Database->Groups[GroupSearchIndex.GroupIndex].Weights;
+	const FPoseSearchWeightParams& WeightParams = (GroupSearchIndex.GroupIndex == INDEX_NONE || Database->Groups.IsEmpty())  ? Database->DefaultWeights : Database->Groups[GroupSearchIndex.GroupIndex].Weights;
 	FPoseSearchWeights Weights;
 	Weights.Init(WeightParams, Database->Schema);
 	GroupSearchIndex.Weights = Weights.Weights;

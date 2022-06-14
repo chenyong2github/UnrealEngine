@@ -69,23 +69,47 @@ void FPoseSearchDebuggerPoseVector::ExtractFeatures(const UE::PoseSearch::FFeatu
 			continue;
 		}
 
-		FVector Vector;
-		if (Reader.GetVector(Feature, &Vector))
+		switch (Feature.Type)
 		{
-			if (Feature.Type == EPoseSearchFeatureType::Position)
+		case EPoseSearchFeatureType::Position:
+		{
+			FVector Vector;
+			if (Reader.GetVector(Feature, &Vector))
 			{
 				Channels[Feature.ChannelIdx]->Positions.Add(Vector);
 			}
-			else if (Feature.Type == EPoseSearchFeatureType::LinearVelocity)
+			break;
+		}
+		case EPoseSearchFeatureType::LinearVelocity:
+		{
+			FVector Vector;
+			if (Reader.GetVector(Feature, &Vector))
 			{
 				Channels[Feature.ChannelIdx]->LinearVelocities.Add(Vector);
 			}
-			else if (Feature.Type == EPoseSearchFeatureType::ForwardVector)
+			break;
+
+		}
+		case EPoseSearchFeatureType::ForwardVector:
+		{
+			FVector Vector;
+			if (Reader.GetVector(Feature, &Vector))
 			{
 				Channels[Feature.ChannelIdx]->FacingDirections.Add(Vector);
 			}
+			break;
 		}
-		
+
+		case EPoseSearchFeatureType::Phase:
+		{
+			FVector2D Phase;
+			if (Reader.GetPhase(Feature, &Phase))
+			{
+				Channels[Feature.ChannelIdx]->Phases.Add(Phase);
+			}
+			break;
+		}
+		}
 	}
 
 	for (FPoseSearchDebuggerPoseVectorChannel* Channel : Channels)
@@ -93,6 +117,7 @@ void FPoseSearchDebuggerPoseVector::ExtractFeatures(const UE::PoseSearch::FFeatu
 		Channel->bShowPositions = !Channel->Positions.IsEmpty();
 		Channel->bShowLinearVelocities = !Channel->LinearVelocities.IsEmpty();
 		Channel->bShowFacingDirections = !Channel->FacingDirections.IsEmpty();
+		Channel->bShowPhases = !Channel->Phases.IsEmpty();
 	}
 
 	bShowPose = !Pose.IsEmpty();
@@ -1783,7 +1808,7 @@ void SDebuggerView::DrawVisualization() const
 	const FTransform* Transform = ViewModel.Get()->GetRootTransform();
 	if (State && Database && Transform)
 	{
-		DrawFeatures(*DebuggerWorld, *State, *Database, *Transform);
+		DrawFeatures(*DebuggerWorld, *State, *Database, *Transform, ViewModel.Get()->GetMeshComponent());
 	}
 }
 
@@ -1801,7 +1826,8 @@ void SDebuggerView::DrawFeatures(
 	const UWorld& DebuggerWorld,
 	const FTraceMotionMatchingStateMessage& State,
 	const UPoseSearchDatabase& Database,
-	const FTransform& Transform
+	const FTransform& Transform,
+	const USkinnedMeshComponent* Mesh
 ) const
 {
 	// Set shared state
@@ -1812,7 +1838,7 @@ void SDebuggerView::DrawFeatures(
 	DrawParams.RootTransform = Transform;
 	// Single frame render
 	DrawParams.DefaultLifeTime = 0.0f;
-
+	DrawParams.Mesh = Mesh;
 	const TObjectPtr<UPoseSearchDebuggerReflection>& Reflection = DetailsView->GetReflection();
 
 	auto SetDrawFlags = [](FDebugDrawParams& InDrawParams, const FPoseSearchDebuggerFeatureDrawOptions& Options)
@@ -2652,6 +2678,15 @@ void FDebuggerViewModel::UpdateAsset()
 			}
 		}
 	}
+}
+
+const USkinnedMeshComponent* FDebuggerViewModel::GetMeshComponent() const
+{
+	if (Skeletons.Num() > FDebuggerViewModel::Asset)
+	{
+		return Skeletons[FDebuggerViewModel::Asset].Component;
+	}
+	return nullptr;
 }
 
 void FDebuggerViewModel::FillCompactPoseAndComponentRefRotations()

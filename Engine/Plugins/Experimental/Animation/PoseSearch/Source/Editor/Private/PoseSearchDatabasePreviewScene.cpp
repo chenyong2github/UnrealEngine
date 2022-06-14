@@ -72,6 +72,8 @@ namespace UE::PoseSearch
 					DrawParams.DefaultLifeTime = 0.0f;
 					DrawParams.PoseIdx = PreviewActor.CurrentPoseIndex;
 					DrawParams.PointSize = 5.0f;
+					DrawParams.Mesh = PreviewActor.Mesh;
+
 					EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawFast);
 
 					UE::PoseSearch::Draw(DrawParams);
