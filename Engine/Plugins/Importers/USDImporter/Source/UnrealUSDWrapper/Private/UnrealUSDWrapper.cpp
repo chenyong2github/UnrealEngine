@@ -107,10 +107,14 @@ namespace UnrealIdentifiers
 	const TfToken UnrealNaniteOverrideDisable = TfToken("disable");
 
 	const TfToken LiveLinkAPI = TfToken("LiveLinkAPI");
-	const TfToken UnrealLiveLinkAnimBlueprintPath = TfToken("unrealLiveLink:animBlueprintPath");
-	const TfToken UnrealLiveLinkSubjectName = TfToken("unrealLiveLink:subjectName");
-	const TfToken UnrealLiveLinkEnabled = TfToken("unrealLiveLink:enabled");
-
+	const TfToken ControlRigAPI = TfToken("ControlRigAPI");
+	const TfToken UnrealAnimBlueprintPath = TfToken("unreal:liveLink:animBlueprintPath");
+	const TfToken UnrealLiveLinkSubjectName = TfToken("unreal:liveLink:subjectName");
+	const TfToken UnrealLiveLinkEnabled = TfToken("unreal:liveLink:enabled");
+	const TfToken UnrealControlRigPath = TfToken("unreal:controlRig:controlRigPath");
+	const TfToken UnrealUseFKControlRig = TfToken("unreal:controlRig:useFKControlRig");
+	const TfToken UnrealControlRigReduceKeys = TfToken("unreal:controlRig:reduceKeys");
+	const TfToken UnrealControlRigReductionTolerance = TfToken("unreal:controlRig:reductionTolerance");
 	const TfToken DiffuseColor = TfToken("diffuseColor");
 	const TfToken EmissiveColor = TfToken("emissiveColor");
 	const TfToken Metallic = TfToken("metallic");

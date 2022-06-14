@@ -3,6 +3,7 @@
 #include "USDPrimViewModel.h"
 
 #include "USDConversionUtils.h"
+#include "USDIntegrationUtils.h"
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
@@ -24,10 +25,96 @@
 	#include "pxr/usd/usd/modelAPI.h"
 	#include "pxr/usd/usd/prim.h"
 	#include "pxr/usd/usd/references.h"
+	#include "pxr/usd/usd/tokens.h"
 	#include "pxr/usd/usdGeom/xform.h"
 #include "USDIncludesEnd.h"
 
 #endif // #if USE_USD_SDK
+
+namespace UE::USDPrimViewModel::Private
+{
+#if USE_USD_SDK
+	bool CanAddOrRemoveCustomSchema( pxr::UsdPrim Prim, pxr::TfToken SchemaName, bool bAddSchema )
+	{
+		if ( !Prim )
+		{
+			return false;
+		}
+
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( SchemaName );
+		if ( !ensure( static_cast< bool >( Schema ) ) )
+		{
+			return false;
+		}
+
+		// Check if the schema is compatible with this prim
+		if ( bAddSchema && !Prim.CanApplyAPI( Schema ) )
+		{
+			return false;
+		}
+
+		pxr::UsdStageRefPtr Stage = Prim.GetStage();
+		pxr::SdfLayerRefPtr EditTarget = Stage->GetEditTarget().GetLayer();
+		if ( !Stage || !EditTarget )
+		{
+			return false;
+		}
+
+		bool bAlreadyHasSchema = false;
+		if ( EditTarget == Stage->GetRootLayer() )
+		{
+			bAlreadyHasSchema = Prim.HasAPI( Schema );
+		}
+		else
+		{
+			// In the future we'll have better layer editing facilities. For now, lets make sure that
+			// we only show that we can setup/remove a schema for a prim if it can be done *at that
+			// particular edit target*, which is what will happen when clicking the button anyway.
+			// For example, a user could:
+			//  - Add the schema on a sublayer;
+			//  - Remove the schema on the root layer;
+			//  - Select the sublayer as the edit target;
+			// If we always just queried the existing stage, the user would see that he can add the schema
+			// (because the composed prim does not have the schema) but clicking the button would do nothing,
+			// as the sublayer prim spec already has the schema...
+
+			pxr::SdfPrimSpecHandle PrimSpecOnLayer = EditTarget->GetPrimAtPath( Prim.GetPath() );
+			if( !PrimSpecOnLayer )
+			{
+				// We can always just make a new 'over' on this layer
+				return true;
+			}
+
+			// We can only add the schema if its not present on this layer, but we should let USD sort the
+			// Ops out because we could have Ops to add/delete/prepend/append the same schema on the same prim...
+			pxr::SdfListOp<pxr::TfToken> Ops = PrimSpecOnLayer->GetInfo( pxr::UsdTokens->apiSchemas ).Get<pxr::SdfTokenListOp>();
+			std::vector<pxr::TfToken> AppliedOps;
+			Ops.ApplyOperations(&AppliedOps);
+			bAlreadyHasSchema = std::find( AppliedOps.begin(), AppliedOps.end(), SchemaName ) != AppliedOps.end();
+		}
+
+		return bAddSchema != bAlreadyHasSchema;
+	}
+
+	void RemoveCustomSchema( pxr::UsdPrim Prim, pxr::TfToken SchemaName )
+	{
+		if ( !Prim )
+		{
+			return;
+		}
+
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( SchemaName );
+		ensure( static_cast< bool >( Schema ) );
+
+		ensure( Prim.RemoveAPI( Schema ) );
+	}
+
+#endif // #if USE_USD_SDK
+}
 
 FUsdPrimViewModel::FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const UE::FUsdPrim& InUsdPrim )
 	: FUsdPrimViewModel( InParentItem, InUsdStage )
@@ -240,74 +327,17 @@ void FUsdPrimViewModel::TogglePayload()
 void FUsdPrimViewModel::SetUpLiveLink()
 {
 #if USE_USD_SDK
-
-	FScopedUsdAllocs Allocs;
-
-	pxr::UsdPrim Prim{ UsdPrim };
-	if ( !Prim )
-	{
-		return;
-	}
-
-	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
-	ensure( static_cast< bool >( Schema ) );
-
-	if ( Prim.HasAPI( Schema ) )
-	{
-		return;
-	}
-
-	ensure( Prim.ApplyAPI( Schema ) );
-
-	// It seems codeless schemas can't have fallback values, so just create the attributes here, and set some
-	// sensible defaults
-	const bool bCustom = false;
-
-	if ( pxr::UsdAttribute SubjectNameAttr = Prim.CreateAttribute( UnrealIdentifiers::UnrealLiveLinkSubjectName, pxr::SdfValueTypeNames->String, bCustom, pxr::SdfVariabilityUniform ) )
-	{
-		if ( !SubjectNameAttr.HasAuthoredValue() )
-		{
-			SubjectNameAttr.Set( UnrealToUsd::ConvertString( TEXT( "root" ) ).Get(), pxr::UsdTimeCode::Default() );
-		}
-	}
-
-	if ( pxr::UsdAttribute AnimBPPathAttr = Prim.CreateAttribute( UnrealIdentifiers::UnrealLiveLinkAnimBlueprintPath, pxr::SdfValueTypeNames->String, bCustom, pxr::SdfVariabilityUniform ) )
-	{
-		if ( !AnimBPPathAttr.HasAuthoredValue() )
-		{
-			AnimBPPathAttr.Set( UnrealToUsd::ConvertString( TEXT( "/USDImporter/Blueprint/DefaultLiveLinkAnimBP.DefaultLiveLinkAnimBP" ) ).Get(), pxr::UsdTimeCode::Default() );
-		}
-	}
-
-	if ( pxr::UsdAttribute EnabledAttr = Prim.CreateAttribute( UnrealIdentifiers::UnrealLiveLinkEnabled, pxr::SdfValueTypeNames->Bool, bCustom, pxr::SdfVariabilityUniform ) )
-	{
-		if ( !EnabledAttr.HasAuthoredValue() )
-		{
-			EnabledAttr.Set( true, pxr::UsdTimeCode::Default() );
-		}
-	}
-
+	UsdUtils::ApplyLiveLinkSchema( UsdPrim );
 #endif // #if USE_USD_SDK
 }
 
 bool FUsdPrimViewModel::CanSetUpLiveLink() const
 {
 #if USE_USD_SDK
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::UsdPrim Prim{ UsdPrim };
-	if ( !Prim )
-	{
-		return false;
-	}
-
-	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
-	if ( !ensure( static_cast< bool >( Schema ) ) )
-	{
-		return false;
-	}
-
-	return !Prim.HasAPI( Schema ) && Prim.CanApplyAPI( Schema );
+	const bool bAddSchema = true;
+	return UsdPrim
+		&& !UsdPrim.IsPseudoRoot()
+		&& UE::USDPrimViewModel::Private::CanAddOrRemoveCustomSchema( UsdPrim, UnrealIdentifiers::LiveLinkAPI, bAddSchema );
 #else
 	return false;
 #endif // #if USE_USD_SDK
@@ -316,33 +346,55 @@ bool FUsdPrimViewModel::CanSetUpLiveLink() const
 void FUsdPrimViewModel::RemoveLiveLink()
 {
 #if USE_USD_SDK
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
-	ensure( static_cast< bool >( Schema ) );
-
-	ensure( pxr::UsdPrim( UsdPrim ).RemoveAPI( Schema ) );
+	UE::USDPrimViewModel::Private::RemoveCustomSchema( UsdPrim, UnrealIdentifiers::LiveLinkAPI );
 #endif // #if USE_USD_SDK
 }
 
 bool FUsdPrimViewModel::CanRemoveLiveLink() const
 {
 #if USE_USD_SDK
-	FScopedUsdAllocs UsdAllocs;
+	const bool bAddSchema = false;
+	return UsdPrim
+		&& !UsdPrim.IsPseudoRoot()
+		&& UE::USDPrimViewModel::Private::CanAddOrRemoveCustomSchema( UsdPrim, UnrealIdentifiers::LiveLinkAPI, bAddSchema );
+#else
+	return false;
+#endif // #if USE_USD_SDK
+}
 
-	pxr::UsdPrim Prim{ UsdPrim };
-	if ( !Prim )
-	{
-		return false;
-	}
+void FUsdPrimViewModel::SetUpControlRig()
+{
+#if USE_USD_SDK
+	UsdUtils::ApplyControlRigSchema( UsdPrim );
+#endif // #if USE_USD_SDK
+}
 
-	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
-	if ( !ensure( static_cast< bool >( Schema ) ) )
-	{
-		return false;
-	}
+bool FUsdPrimViewModel::CanSetUpControlRig() const
+{
+#if USE_USD_SDK
+	const bool bAddSchema = true;
+	return UsdPrim
+		&& !UsdPrim.IsPseudoRoot()
+		&& UE::USDPrimViewModel::Private::CanAddOrRemoveCustomSchema( UsdPrim, UnrealIdentifiers::ControlRigAPI, bAddSchema );
+#else
+	return false;
+#endif // #if USE_USD_SDK
+}
 
-	return Prim.HasAPI( Schema );
+void FUsdPrimViewModel::RemoveControlRig()
+{
+#if USE_USD_SDK
+	UE::USDPrimViewModel::Private::RemoveCustomSchema( UsdPrim, UnrealIdentifiers::ControlRigAPI );
+#endif // #if USE_USD_SDK
+}
+
+bool FUsdPrimViewModel::CanRemoveControlRig() const
+{
+#if USE_USD_SDK
+	const bool bAddSchema = false;
+	return UsdPrim
+		&& !UsdPrim.IsPseudoRoot()
+		&& UE::USDPrimViewModel::Private::CanAddOrRemoveCustomSchema( UsdPrim, UnrealIdentifiers::ControlRigAPI, bAddSchema );
 #else
 	return false;
 #endif // #if USE_USD_SDK

@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"CinematicCamera",
+					"ControlRig",
 					"Engine",
 					"Foliage",
 					"GeometryCache", // Just so that we can fetch its AssetImportData

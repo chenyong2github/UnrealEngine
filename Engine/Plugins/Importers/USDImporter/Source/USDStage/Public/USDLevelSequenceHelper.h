@@ -66,6 +66,8 @@ public:
 	/** Removes any track associated with this prim */
 	void RemovePrim(const UUsdPrimTwin& PrimTwin);
 
+	void UpdateControlRigTracks( UUsdPrimTwin& PrimTwin );
+
 	/** Blocks updating the level sequences & tracks from object changes. */
 	void StartMonitoringChanges();
 	void StopMonitoringChanges();
@@ -73,6 +75,9 @@ public:
 
 	ULevelSequence* GetMainLevelSequence() const;
 	TArray< ULevelSequence* > GetSubSequences() const;
+
+	DECLARE_EVENT_OneParam( FUsdLevelSequenceHelper, FOnSkelAnimationBaked, const FString& /*SkelRootPrimPath*/ );
+	FOnSkelAnimationBaked& GetOnSkelAnimationBaked();
 
 private:
 	friend class FScopedBlockMonitoringChangesForTransaction;

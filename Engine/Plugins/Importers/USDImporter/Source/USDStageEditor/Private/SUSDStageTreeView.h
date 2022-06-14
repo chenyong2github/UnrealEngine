@@ -56,11 +56,15 @@ private:
 	void OnClearReferences();
 	void OnSetUpLiveLink();
 	void OnRemoveLiveLink();
+	void OnSetUpControlRig();
+	void OnRemoveControlRig();
 
 	bool CanAddPrim() const;
 	bool CanExecutePrimAction() const;
 	bool CanSetUpLiveLink() const;
 	bool CanRemoveLiveLink() const;
+	bool CanSetUpControlRig() const;
+	bool CanRemoveControlRig() const;
 
 	/** Uses TreeItemExpansionStates to travel the tree and call SetItemExpansion */
 	void RestoreExpansionStates();

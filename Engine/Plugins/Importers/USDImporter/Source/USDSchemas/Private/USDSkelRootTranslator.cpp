@@ -16,6 +16,7 @@
 #include "USDMemory.h"
 #include "USDSkeletalDataConversion.h"
 #include "USDTypesConversion.h"
+#include "USDValueConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
@@ -985,7 +986,7 @@ namespace UsdSkelRootTranslatorImpl
 				}
 			}
 
-			if ( pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealIdentifiers::UnrealLiveLinkAnimBlueprintPath ) )
+			if ( pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealIdentifiers::UnrealAnimBlueprintPath ) )
 			{
 				std::string PathString;
 				if ( Attr.Get( &PathString ) )
@@ -1227,6 +1228,8 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	UE::FUsdPrim Prim = GetPrim();
 
 	const bool bPrimHasLiveLinkSchema = UsdUtils::PrimHasLiveLinkSchema( Prim );
+	const bool bPrimHasControlRigSchema = UsdUtils::PrimHasControlRigSchema( Prim );
+
 	bool bPrimHasLiveLinkEnabled = bPrimHasLiveLinkSchema;
 	if ( bPrimHasLiveLinkSchema )
 	{
@@ -1242,18 +1245,18 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 		}
 	}
 
-	UE::FUsdPrim SkelAnimPrim;
-	if ( SkeletalMeshComponent->AnimationData.AnimToPlay == nullptr )
+	UE::FUsdPrim SkelAnimPrim = UsdUtils::FindFirstAnimationSource( Prim );
+	if ( SkelAnimPrim )
 	{
-		SkelAnimPrim = UsdUtils::FindFirstAnimationSource( Prim );
-		if ( SkelAnimPrim )
+		UAnimSequence* TargetAnimSequence = Cast< UAnimSequence >( Context->AssetCache->GetAssetForPrim( SkelAnimPrim.GetPrimPath().GetString() ) );
+		if ( TargetAnimSequence != SkeletalMeshComponent->AnimationData.AnimToPlay )
 		{
-			if ( UAnimSequence* TargetAnimSequence = Cast< UAnimSequence >( Context->AssetCache->GetAssetForPrim( SkelAnimPrim.GetPrimPath().GetString() ) ) )
+			SkeletalMeshComponent->AnimationData.AnimToPlay = TargetAnimSequence;
+			SkeletalMeshComponent->AnimationData.bSavedLooping = false;
+			SkeletalMeshComponent->AnimationData.bSavedPlaying = false;
+
+			if ( SkeletalMeshComponent->GetAnimationMode() == EAnimationMode::AnimationSingleNode )
 			{
-				SkeletalMeshComponent->AnimationData.AnimToPlay = TargetAnimSequence;
-				SkeletalMeshComponent->AnimationData.bSavedLooping = false;
-				SkeletalMeshComponent->AnimationData.bSavedPlaying = false;
-				SkeletalMeshComponent->SetUpdateAnimationInEditor( true );
 				SkeletalMeshComponent->SetAnimation( TargetAnimSequence );
 			}
 		}
@@ -1300,7 +1303,9 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	}
 
 	// Update the animation state
-	if ( SkeletalMeshComponent->SkeletalMesh && !bPrimHasLiveLinkEnabled )
+	// Don't try animating ourselves if the sequencer is animating as it will just overwrite the animation state on next
+	// tick anyway, and all this would do is lead to flickering and other issues
+	if ( !Context->bSequencerIsAnimating && SkeletalMeshComponent->SkeletalMesh && !bPrimHasLiveLinkEnabled )
 	{
 		if ( UAnimSequence* AnimSequence = Cast<UAnimSequence>( SkeletalMeshComponent->AnimationData.AnimToPlay.Get() ) )
 		{

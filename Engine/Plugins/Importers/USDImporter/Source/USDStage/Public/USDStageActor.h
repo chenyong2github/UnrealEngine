@@ -188,6 +188,7 @@ public:
 	UUsdAssetCache* GetAssetCache() { return AssetCache; }
 	TSharedPtr<FUsdInfoCache> GetInfoCache() { return InfoCache; }
 	TMap< FString, TMap< FString, int32 > > GetMaterialToPrimvarToUVIndex() { return MaterialToPrimvarToUVIndex; }
+	const UsdUtils::FBlendShapeMap& GetBlendShapeMap() { return BlendShapesByPath; }
 
 public:
 #if WITH_EDITOR
@@ -235,6 +236,7 @@ private:
 	void OnObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
 	void HandlePropertyChangedEvent( FPropertyChangedEvent& PropertyChangedEvent );
 	bool HasAuthorityOverStage() const;
+	void OnSkelAnimationBaked( const FString& SkelRootPrimPath );
 
 private:
 	// Note: This cannot be instanced: Read the comment in the constructor

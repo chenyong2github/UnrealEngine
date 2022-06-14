@@ -348,9 +348,14 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealNaniteOverrideDisable;
 
 	extern UNREALUSDWRAPPER_API const pxr::TfToken LiveLinkAPI;
-	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealLiveLinkAnimBlueprintPath;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken ControlRigAPI;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealAnimBlueprintPath;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealLiveLinkSubjectName;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealLiveLinkEnabled;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealControlRigPath;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealUseFKControlRig;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealControlRigReduceKeys;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealControlRigReductionTolerance;
 
 	extern UNREALUSDWRAPPER_API const pxr::TfToken DiffuseColor;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken EmissiveColor;

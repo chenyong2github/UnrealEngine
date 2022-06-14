@@ -54,6 +54,12 @@ public:
 	void RemoveLiveLink();
 	bool CanRemoveLiveLink() const;
 
+	void SetUpControlRig();
+	bool CanSetUpControlRig() const;
+
+	void RemoveControlRig();
+	bool CanRemoveControlRig() const;
+
 	void DefinePrim( const TCHAR* PrimName );
 
 	/** Delegate for hooking up an inline editable text block to be notified that a rename is requested. */

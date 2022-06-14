@@ -9,21 +9,25 @@
 #include "USDTypesConversion.h"
 #include "USDValueConversion.h"
 
+#include "UsdWrappers/SdfChangeBlock.h"
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/VtValue.h"
 
-#include "Styling/AppStyle.h"
 #include "ISinglePropertyView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkTransformRole.h"
+#include "ScopedTransaction.h"
 #include "SLiveLinkSubjectRepresentationPicker.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Views/SHeaderRow.h"
 
 #define LOCTEXT_NAMESPACE "SUSDIntegrationsPanel"
@@ -55,21 +59,43 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 
 	FName AttributeName = Attribute->GetName();
 
+	using DisplayTextForPropertiesEntry = TPairInitializer<const FName&, const FText&>;
+	const static TMap<FName, FText> DisplayTextForProperties
+	({
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealAnimBlueprintPath ), LOCTEXT( "AnimBlueprintPathText", "Anim Blueprint asset" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigPath ), LOCTEXT( "ControlRigPathText", "Control Rig asset" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealUseFKControlRig ), LOCTEXT( "UseFKControlRigText", "Use FKControlRig" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReduceKeys ), LOCTEXT( "ControlRigReduceKeysText", "Control Rig key reduction" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReductionTolerance ), LOCTEXT( "ControlRigReduceToleranceText", "Control Rig key reduction tolerance" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkSubjectName ), LOCTEXT( "SubjectNameText", "Live Link subject name" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkEnabled ), LOCTEXT( "LiveLinkEnabledText", "Enable LiveLink" ) ),
+	});
+
+	const static TMap<FName, FText> ToolTipTextForProperties
+	({
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealAnimBlueprintPath ), LOCTEXT( "AnimBlueprintPathToolTip", "Anim Blueprint asset to use on the component to connect with Live Link" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigPath ), LOCTEXT( "ControlRigPathToolTip", "Control Rig Blueprint asset to use" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealUseFKControlRig ), LOCTEXT( "UseFKControlRigToolTip", "Whether to use a generated FKControlRig instead of the Control Rig Blueprint asset" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReduceKeys ), LOCTEXT( "ControlRigReduceKeysToolTip", "Whether to enable key reduction when generating Control Rig tracks from the USD animation data" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReductionTolerance ), LOCTEXT( "ControlRigReduceToleranceToolTip", "Tolerance to use for the key reduction pass" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkSubjectName ), LOCTEXT( "SubjectNameToolTip", "Which Live Link subject to use for this component" ) ),
+		DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkEnabled ), LOCTEXT( "LiveLinkEnabledToolTip", "If checked will cause the component to be animated with the pose data coming from the Anim Blueprint. If unchecked will cause the component to be animated with the regular skeleton animation data coming from the USD Stage" ) ),
+	});
+
+	const FText* ToolTipText = ToolTipTextForProperties.Find( AttributeName );
+	if ( !ToolTipText )
+	{
+		ToolTipText = &FText::GetEmpty();
+	}
+
 	if ( ColumnName == TEXT("PropertyName") )
 	{
-		using DisplayTextForPropertiesEntry = TPairInitializer<const FName&, const FText&>;
-		const static TMap<FName, FText> DisplayTextForProperties
-		({
-			DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkAnimBlueprintPath ), LOCTEXT( "AnimBlueprintPathText", "AnimBlueprint asset" ) ),
-			DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkSubjectName ), LOCTEXT( "SubjectNameText", "LiveLink subject name" ) ),
-			DisplayTextForPropertiesEntry( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkEnabled ), LOCTEXT( "LiveLinkEnabledText", "Enable LiveLink" ) ),
-		});
-
 		if ( const FText* TextToDisplay = DisplayTextForProperties.Find( AttributeName ) )
 		{
 			SAssignNew( ColumnWidget, STextBlock )
 			.Text( *TextToDisplay )
-			.Font( FAppStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont ) );
+			.Font( FAppStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont ) )
+			.ToolTipText( *ToolTipText );
 		}
 		else
 		{
@@ -84,7 +110,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 		FName TypeName = Attribute->GetTypeName();
 		TSharedPtr<UE::FUsdAttribute> AttributeCopy = Attribute;
 
-		if ( AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkAnimBlueprintPath ) )
+		if ( AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealAnimBlueprintPath ) )
 		{
 			if ( UUsdIntegrationsPanelPropertyDummy* Dummy = GetMutableDefault<UUsdIntegrationsPanelPropertyDummy>() )
 			{
@@ -117,18 +143,18 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					UUsdIntegrationsPanelPropertyDummy* Dummy = GetMutableDefault<UUsdIntegrationsPanelPropertyDummy>();
 
 					FString Path = ( Dummy && Dummy->AnimBPProperty ) ? Dummy->AnimBPProperty->GetPathName() : FString{};
+					std::string UsdPath = UnrealToUsd::ConvertString(*Path).Get();
 
-					TArray< UsdUtils::FConvertedVtValueComponent > Components;
-					Components.Add( UsdUtils::FConvertedVtValueComponent( TInPlaceType<FString>(), Path ) );
-
-					UsdUtils::FConvertedVtValue Converted;
-					Converted.SourceType = UsdUtils::EUsdBasicDataTypes::String;
-					Converted.bIsArrayValued = false;
-					Converted.bIsEmpty = false;
-					Converted.Entries.Add( Components );
+					// We need transactions for these because the notices emitted for them are upgraded to resyncs by the stage
+					// actor, which means they may generate new assets and components
+					FScopedTransaction Transaction(
+						FText::Format( LOCTEXT( "AnimBluepringTransaction", "Changed AnimBluepring path to '{0}'" ),
+							FText::FromString( Path )
+						)
+					);
 
 					UE::FVtValue Value;
-					if ( UnrealToUsd::ConvertValue( Converted, Value ) && !Value.IsEmpty() )
+					if ( UsdUtils::SetUnderlyingValue( Value, UsdPath ) && !Value.IsEmpty() )
 					{
 						AttributeCopy->Set( Value );
 					}
@@ -141,6 +167,149 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 			{
 				ColumnWidget = SNullWidget::NullWidget;
 			}
+		}
+		else if ( AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigPath ) )
+		{
+			if ( UUsdIntegrationsPanelPropertyDummy* Dummy = GetMutableDefault<UUsdIntegrationsPanelPropertyDummy>() )
+			{
+				// Let the object picker row be as tall as it wants
+				RowHeight = FOptionalSize();
+
+				FSinglePropertyParams Params;
+				Params.Font = FAppStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont );
+				Params.NamePlacement = EPropertyNamePlacement::Hidden;
+
+				UE::FVtValue Value;
+				if ( AttributeCopy->Get( Value ) && !Value.IsEmpty() )
+				{
+					Dummy->ControlRigProperty = FSoftObjectPath( UsdUtils::Stringify( Value ) ).TryLoad();
+				}
+				else
+				{
+					Dummy->ControlRigProperty = nullptr;
+				}
+
+				FPropertyEditorModule& PropertyEditor = FModuleManager::LoadModuleChecked<FPropertyEditorModule>( TEXT( "PropertyEditor" ) );
+				TSharedPtr<class ISinglePropertyView> PropertyView = PropertyEditor.CreateSingleProperty(
+					Dummy,
+					GET_MEMBER_NAME_CHECKED( UUsdIntegrationsPanelPropertyDummy, ControlRigProperty ),
+					Params
+				);
+
+				FSimpleDelegate PropertyChanged = FSimpleDelegate::CreateLambda( [AttributeCopy]()
+				{
+					UUsdIntegrationsPanelPropertyDummy* Dummy = GetMutableDefault<UUsdIntegrationsPanelPropertyDummy>();
+
+					FString Path = ( Dummy && Dummy->ControlRigProperty ) ? Dummy->ControlRigProperty->GetPathName() : FString{};
+					std::string UsdPath = UnrealToUsd::ConvertString( *Path ).Get();
+
+					FScopedTransaction Transaction(
+						FText::Format( LOCTEXT( "ControlRigPathTransaction", "Changed ControlRig blueprint path to '{0}'" ),
+							FText::FromString( Path )
+						)
+					);
+
+					UE::FVtValue Value;
+					if ( UsdUtils::SetUnderlyingValue( Value, UsdPath ) && !Value.IsEmpty() )
+					{
+						AttributeCopy->Set( Value );
+					}
+				} );
+				PropertyView->SetOnPropertyValueChanged( PropertyChanged );
+
+				ColumnWidget = PropertyView.ToSharedRef();
+
+				// Disable the widget if we're using an FKControlRig instead
+				if ( UE::FUsdAttribute FKEnabledAttr = Attribute->GetPrim().GetAttribute( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealUseFKControlRig ) ) )
+				{
+					UE::FVtValue FKEnabledValue;
+					if ( FKEnabledAttr.Get( FKEnabledValue ) )
+					{
+						const bool bDefaultValue = false;
+						if ( UsdUtils::GetUnderlyingValue<bool>( FKEnabledValue ).Get( bDefaultValue ) )
+						{
+							ColumnWidget->SetEnabled( false );
+						}
+					}
+				}
+			}
+			else
+			{
+				ColumnWidget = SNullWidget::NullWidget;
+			}
+		}
+		else if ( AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReduceKeys ) )
+		{
+			SAssignNew( ColumnWidget, SBox )
+			.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+			.VAlign( VAlign_Center )
+			[
+				SNew(SCheckBox)
+				.IsChecked_Lambda( [AttributeCopy]() ->ECheckBoxState
+				{
+					UE::FVtValue Value;
+					if ( AttributeCopy->Get( Value ) )
+					{
+						if ( TOptional<bool> UnderlyingValue = UsdUtils::GetUnderlyingValue<bool>( Value ) )
+						{
+							return UnderlyingValue.GetValue() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						}
+					}
+
+					return ECheckBoxState::Undetermined;
+				})
+				.OnCheckStateChanged_Lambda( [AttributeCopy]( ECheckBoxState NewValue )
+				{
+					FScopedTransaction Transaction(
+						FText::Format( LOCTEXT( "ControlRigReduceKeysTransaction", "Changed ControlRig reduce keys property to '{0}'" ),
+							FText::FromString( NewValue == ECheckBoxState::Checked ? TEXT( "true" ) : TEXT( "false" ) )
+						)
+					);
+
+					UE::FVtValue Value;
+					if ( UsdUtils::SetUnderlyingValue( Value, NewValue == ECheckBoxState::Checked ) && !Value.IsEmpty() )
+					{
+						AttributeCopy->Set( Value );
+					}
+				})
+			];
+		}
+		else if ( AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReductionTolerance ) )
+		{
+			SAssignNew( ColumnWidget, SBox )
+			.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+			.VAlign( VAlign_Center )
+			[
+				SNew(SNumericEntryBox<float>)
+				.Font( FAppStyle::GetFontStyle( UE::SUsdIntergrationsPanel::Private::NormalFont ) )
+				.OnValueCommitted_Lambda( [AttributeCopy]( float NewValue, ETextCommit::Type CommitType )
+				{
+					FScopedTransaction Transaction(
+						FText::Format( LOCTEXT( "ControlRigReduceToleranceTransaction", "Changed ControlRig reduce tolerance to '{0}'" ),
+							NewValue
+						)
+					);
+
+					UE::FVtValue Value;
+					if ( UsdUtils::SetUnderlyingValue( Value, NewValue ) && !Value.IsEmpty() )
+					{
+						AttributeCopy->Set( Value );
+					}
+				})
+				.Value_Lambda( [AttributeCopy]() -> float
+				{
+					UE::FVtValue Value;
+					if ( AttributeCopy->Get( Value ) )
+					{
+						if ( TOptional<float> UnderlyingValue = UsdUtils::GetUnderlyingValue<float>( Value ) )
+						{
+							return UnderlyingValue.GetValue();
+						}
+					}
+
+					return 0.0f;
+				})
+			];
 		}
 		else if ( AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkSubjectName ) )
 		{
@@ -159,31 +328,42 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					? ULiveLinkAnimationRole::StaticClass()
 					: ULiveLinkTransformRole::StaticClass();
 
+				FString SubjectName;
+
 				UE::FVtValue Value;
-				AttributeCopy->Get( Value );
-				Result.Subject = FLiveLinkSubjectName{ FName{*UsdUtils::Stringify( Value )} };
+				if ( AttributeCopy->Get( Value ) )
+				{
+					if ( TOptional<std::string> UnderlyingValue = UsdUtils::GetUnderlyingValue<std::string>( Value ) )
+					{
+						SubjectName = UsdToUnreal::ConvertString( UnderlyingValue.GetValue() );
+					}
+				}
+
+				Result.Subject = FLiveLinkSubjectName{ FName{*SubjectName} };
 
 				return Result;
 			})
 			.OnValueChanged_Lambda( [AttributeCopy]( SLiveLinkSubjectRepresentationPicker::FLiveLinkSourceSubjectRole NewValue )
 			{
-				TArray< UsdUtils::FConvertedVtValueComponent > Components;
-				Components.Add( UsdUtils::FConvertedVtValueComponent( TInPlaceType<FString>(), NewValue.Subject.ToString() ) );
+				FScopedUsdAllocs UsdAllocs;
 
-				UsdUtils::FConvertedVtValue Converted;
-				Converted.SourceType = UsdUtils::EUsdBasicDataTypes::String;
-				Converted.bIsArrayValued = false;
-				Converted.bIsEmpty = false;
-				Converted.Entries.Add( Components );
+				std::string UsdValue = UnrealToUsd::ConvertString( *( NewValue.Subject.ToString() ) ).Get();
+
+				FScopedTransaction Transaction(
+					FText::Format( LOCTEXT( "SubjectNameTransaction", "Changed Live Link subject name to '{0}'" ),
+						FText::FromString( *( NewValue.Subject.ToString() ) )
+					)
+				);
 
 				UE::FVtValue Value;
-				if ( UnrealToUsd::ConvertValue( Converted, Value ) && !Value.IsEmpty() )
+				if ( UsdUtils::SetUnderlyingValue( Value, UsdValue ) && !Value.IsEmpty() )
 				{
 					AttributeCopy->Set( Value );
 				}
 			});
 		}
-		else if ( AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkEnabled ) )
+		else if ( AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkEnabled )
+				|| AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealUseFKControlRig ) )
 		{
 			SAssignNew( ColumnWidget, SBox )
 			.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
@@ -193,33 +373,27 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 				.IsChecked_Lambda( [AttributeCopy]()
 				{
 					UE::FVtValue Value;
-					AttributeCopy->Get( Value );
-
-					UsdUtils::FConvertedVtValue Converted;
-
-					if ( UsdToUnreal::ConvertValue( Value, Converted ) && Converted.SourceType == UsdUtils::EUsdBasicDataTypes::Bool && !Converted.bIsEmpty )
+					if ( AttributeCopy->Get( Value ) )
 					{
-						if ( bool* bBoolValue = Converted.Entries[ 0 ][ 0 ].TryGet<bool>() )
+						if ( TOptional<bool> UnderlyingValue = UsdUtils::GetUnderlyingValue<bool>( Value ) )
 						{
-							return *bBoolValue ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+							return UnderlyingValue.GetValue() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 						}
 					}
 
 					return ECheckBoxState::Undetermined;
 				})
-				.OnCheckStateChanged_Lambda( [AttributeCopy]( ECheckBoxState NewState )
+				.OnCheckStateChanged_Lambda( [AttributeCopy, AttributeName]( ECheckBoxState NewState )
 				{
-					TArray< UsdUtils::FConvertedVtValueComponent > Components;
-					Components.Add( UsdUtils::FConvertedVtValueComponent( TInPlaceType<bool>(), NewState == ECheckBoxState::Checked ) );
-
-					UsdUtils::FConvertedVtValue Converted;
-					Converted.SourceType = UsdUtils::EUsdBasicDataTypes::Bool;
-					Converted.bIsArrayValued = false;
-					Converted.bIsEmpty = false;
-					Converted.Entries.Add( Components );
+					FScopedTransaction Transaction(
+						FText::Format( LOCTEXT( "IntegrationBoolTransaction", "Changed attribute '{0}' to " ),
+							FText::FromName( AttributeName ),
+							FText::FromString( NewState == ECheckBoxState::Checked ? TEXT( "true" ) : TEXT( "false" ) )
+						)
+					);
 
 					UE::FVtValue Value;
-					if ( UnrealToUsd::ConvertValue( Converted, Value ) && !Value.IsEmpty() )
+					if ( UsdUtils::SetUnderlyingValue( Value, NewState == ECheckBoxState::Checked ) && !Value.IsEmpty() )
 					{
 						AttributeCopy->Set( Value );
 					}
@@ -277,39 +451,59 @@ void SUsdIntegrationsPanel::SetPrimPath( const UE::FUsdStageWeak& InUsdStage, co
 
 	Attributes.Reset();
 
-	EVisibility NewVisibility = EVisibility::Collapsed;
+	EVisibility PanelVisibility = EVisibility::Collapsed;
+
+	// Important as this function may be reentrant in case our ApplyXSchema calls create attributes
+	UE::FSdfChangeBlock Block;
 
 	if ( InUsdStage )
 	{
 		if ( UE::FUsdPrim Prim = InUsdStage.GetPrimAtPath( UE::FSdfPath{ InPrimPath } ) )
 		{
-			if ( UsdUtils::PrimHasLiveLinkSchema( Prim ) )
+			if ( !Prim.IsPseudoRoot() )
 			{
-				NewVisibility = EVisibility::Visible;
+				const bool bHasLiveLink = UsdUtils::PrimHasLiveLinkSchema( Prim );
+				const bool bHasControlRig = UsdUtils::PrimHasControlRigSchema( Prim );
+				const bool bIsSkelRoot = Prim.IsA( TEXT( "SkelRoot" ) );
 
-				// Only show the dedicated AnimBlueprint picker for SkelRoots
-				if ( Prim.IsA( TEXT( "SkelRoot" ) ) )
+				TArray<FString> AttributeNames;
+
+				if ( bHasLiveLink )
 				{
-					if ( UE::FUsdAttribute Attr = Prim.GetAttribute( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkAnimBlueprintPath ) ) )
+					if ( bIsSkelRoot )
+					{
+						AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealAnimBlueprintPath ) );
+					}
+
+					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkSubjectName ) );
+					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkEnabled ) );
+				}
+
+				if( bHasControlRig && bIsSkelRoot )
+				{
+					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigPath ) );
+					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealUseFKControlRig ) );
+					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReduceKeys ) );
+					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReductionTolerance ) );
+				}
+
+				if ( bHasLiveLink || bHasControlRig )
+				{
+					PanelVisibility = EVisibility::Visible;
+				}
+
+				for ( const FString& AttributeName : AttributeNames )
+				{
+					if ( UE::FUsdAttribute Attr = Prim.GetAttribute( *AttributeName ) )
 					{
 						Attributes.Add( MakeShared<UE::FUsdAttribute>( Attr ) );
 					}
-				}
-
-				if ( UE::FUsdAttribute Attr = Prim.GetAttribute( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkSubjectName ) ) )
-				{
-					Attributes.Add( MakeShared<UE::FUsdAttribute>( Attr ) );
-				}
-
-				if ( UE::FUsdAttribute Attr = Prim.GetAttribute( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkEnabled ) ) )
-				{
-					Attributes.Add( MakeShared<UE::FUsdAttribute>( Attr ) );
 				}
 			}
 		}
 	}
 
-	SetVisibility( NewVisibility );
+	SetVisibility( PanelVisibility );
 	RequestListRefresh();
 }
 

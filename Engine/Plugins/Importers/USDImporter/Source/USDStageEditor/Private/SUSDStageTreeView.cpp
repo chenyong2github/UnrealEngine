@@ -690,6 +690,30 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
+
+		PrimOptions.AddMenuEntry(
+			LOCTEXT( "SetUpControlRig", "Set up Control Rig" ),
+			LOCTEXT( "SetUpControlRig_ToolTip", "Sets up the generated component for Control Rig integration and store the connection details to the USD Stage" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnSetUpControlRig ),
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanSetUpControlRig )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		PrimOptions.AddMenuEntry(
+			LOCTEXT( "RemoveControlRig", "Remove Control Rig" ),
+			LOCTEXT( "RemoveControlRig_ToolTip", "Reverses the Control Rig configuration on the component and removes the connection details from the USD Stage" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRemoveControlRig ),
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanRemoveControlRig )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
 	}
 	PrimOptions.EndSection();
 
@@ -855,6 +879,44 @@ void SUsdStageTreeView::OnRemoveLiveLink()
 	}
 }
 
+void SUsdStageTreeView::OnSetUpControlRig()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "SetUpControlRigTransaction", "Set up Control Rig for selected prims" ) );
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	UE::FSdfChangeBlock Block;
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		SelectedItem->SetUpControlRig();
+	}
+}
+
+void SUsdStageTreeView::OnRemoveControlRig()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "RemoveControlRigTransaction", "Reverses the Live Link configuration for selected prims" ) );
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	UE::FSdfChangeBlock Block;
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		SelectedItem->RemoveControlRig();
+	}
+}
+
 bool SUsdStageTreeView::CanAddPrim() const
 {
 	if ( !UsdStageActor.IsValid() )
@@ -945,6 +1007,58 @@ bool SUsdStageTreeView::CanRemoveLiveLink() const
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
 		if ( SelectedItem->CanRemoveLiveLink() )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SUsdStageTreeView::CanSetUpControlRig() const
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return false;
+	}
+
+	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
+	{
+		return false;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->CanSetUpControlRig() )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SUsdStageTreeView::CanRemoveControlRig() const
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return false;
+	}
+
+	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
+	{
+		return false;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->CanRemoveControlRig() )
 		{
 			return true;
 		}

@@ -70,6 +70,7 @@
 #include "Editor/TransBuffer.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/Selection.h"
+#include "ILevelSequenceEditorToolkit.h"
 #include "LevelEditor.h"
 #include "PropertyEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -77,6 +78,12 @@
 #endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "USDStageActor"
+
+static bool GRegenerateSkeletalAssetsOnControlRigBake = true;
+static FAutoConsoleVariableRef CVarRegenerateSkeletalAssetsOnControlRigBake(
+	TEXT( "USD.RegenerateSkeletalAssetsOnControlRigBake" ),
+	GRegenerateSkeletalAssetsOnControlRigBake,
+	TEXT( "Whether to regenerate the assets associated with a SkelRoot (mesh, skeleton, anim sequence, etc.) whenever we modify Control Rig tracks. The USD Stage itself is always updated however." ) );
 
 static const EObjectFlags DefaultObjFlag = EObjectFlags::RF_Transactional | EObjectFlags::RF_Transient;
 
@@ -712,6 +719,8 @@ AUsdStageActor::AUsdStageActor()
 			}
 		}
 
+		LevelSequenceHelper.GetOnSkelAnimationBaked().AddUObject( this, &AUsdStageActor::OnSkelAnimationBaked );
+
 #endif // WITH_EDITOR
 
 		OnTimeChanged.AddUObject( this, &AUsdStageActor::AnimatePrims );
@@ -753,6 +762,7 @@ AUsdStageActor::AUsdStageActor()
 
 void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& InfoChanges, const UsdUtils::FObjectChangesByPath& ResyncChanges )
 {
+#if USE_USD_SDK
 	if ( !IsListeningToUsdNotices() )
 	{
 		return;
@@ -807,20 +817,33 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 			continue;
 		}
 
-		// Some stage info should trigger some resyncs (even though technically info changes) because they should trigger reparsing of geometry
+		// Upgrade some info changes into resync changes
 		bool bIsResync = false;
-		if ( PrimPath.IsAbsoluteRootPath() )
+		for ( const UsdUtils::FObjectChangeNotice& ObjectChange : InfoChange.Value )
 		{
-			for ( const UsdUtils::FObjectChangeNotice& ObjectChange : InfoChange.Value )
+			for ( const UsdUtils::FAttributeChange& AttributeChange : ObjectChange.AttributeChanges )
 			{
-				for ( const UsdUtils::FAttributeChange& AttributeChange : ObjectChange.AttributeChanges )
+				static const TSet<FString> StageResyncProperties = {
+					TEXT( "metersPerUnit" ),
+					TEXT( "upAxis" )
+				};
+
+				// Upgrade these to resync so that the prim twins are regenerated, which clears all the existing
+				// animation tracks and adds new ones, automatically re-baking to control rig
+				static const TSet<FString> PrimResyncProperties = {
+					*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigPath ),
+					*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealUseFKControlRig ),
+					*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReduceKeys ),
+					*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReductionTolerance )
+				};
+
+				// Some stage info should trigger some resyncs because they should trigger reparsing of geometry
+				if ( ( PrimPath.IsAbsoluteRootPath() && StageResyncProperties.Contains( AttributeChange.PropertyName ) )
+					|| PrimResyncProperties.Contains( AttributeChange.PropertyName ) )
 				{
-					static const TSet<FString> ResyncProperties = { TEXT( "metersPerUnit" ), TEXT( "upAxis" ) };
-					if ( ResyncProperties.Contains( AttributeChange.PropertyName ) )
-					{
-						bIsResync = true;
-						bHasResync = true;
-					}
+					bIsResync = true;
+					bHasResync = true;
+					break;
 				}
 			}
 		}
@@ -998,7 +1021,6 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 
 					UMaterialInterface* NewMaterial = Cast<UMaterialInterface>( AssetCache->GetAssetForPrim( AssetsPrimPath.GetString() ) );
 
-#if USE_USD_SDK
 					// For UE-120185: If we recreated a material for a prim path we also need to update all components that were using it.
 					// This could be fleshed out further if other asset types require this refresh of "dependent components" but materials
 					// seem to be the only ones that do at the moment
@@ -1010,7 +1032,6 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 							UpdateComponents( UE::FSdfPath{ *MaterialUserPrim }, bResyncComponent );
 						}
 					}
-#endif // USE_USD_SDK
 
 					// Resyncing also includes "updating" the prim
 					UpdatedAssets.Add( AssetsPrimPath );
@@ -1032,6 +1053,7 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 			OnPrimChanged.Broadcast( PrimChangedInfo.Key, PrimChangedInfo.Value );
 		}
 	}
+#endif // USE_USD_SDK
 }
 
 USDSTAGE_API void AUsdStageActor::Reset()
@@ -1107,6 +1129,8 @@ UUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const UE::FSdfPath& UsdPrimPa
 
 UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext )
 {
+	UUsdPrimTwin* UsdPrimTwin = nullptr;
+#if USE_USD_SDK
 	// "Active" is the non-destructive deletion used in USD. Sometimes when we rename/remove a prim in a complex stage it may remain in
 	// an inactive state, but its otherwise effectively deleted
 	if ( !Prim || !Prim.IsActive() )
@@ -1116,7 +1140,7 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTr
 
 	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::ExpandPrim );
 
-	UUsdPrimTwin* UsdPrimTwin = GetOrCreatePrimTwin( Prim.GetPrimPath() );
+	UsdPrimTwin = GetOrCreatePrimTwin( Prim.GetPrimPath() );
 
 	if ( !UsdPrimTwin )
 	{
@@ -1177,8 +1201,8 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTr
 	}
 
 	// Update the prim animated status
-#if USE_USD_SDK
-	if ( UsdUtils::IsAnimated( Prim ) )
+	const bool bIsAnimated = UsdUtils::IsAnimated( Prim );
+	if ( bIsAnimated )
 	{
 		if ( !PrimsToAnimate.Contains( UsdPrimTwin->PrimPath ) )
 		{
@@ -1213,7 +1237,6 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTr
 		}
 	}
 	else
-#endif // USE_USD_SDK
 	{
 		if ( PrimsToAnimate.Contains( UsdPrimTwin->PrimPath ) )
 		{
@@ -1222,6 +1245,31 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTr
 		}
 	}
 
+	// Setup Control Rig tracks if we need to. This must be done after adding regular skeletal animation tracks
+	// if we have any as if will properly deactivate them like the usual "Bake to Control Rig" workflow.
+	if ( Prim.IsA( TEXT( "SkelRoot" ) ) )
+	{
+		if ( UsdUtils::PrimHasControlRigSchema( Prim ) )
+		{
+			LevelSequenceHelper.UpdateControlRigTracks( *UsdPrimTwin );
+
+			// If our prim wasn't originally considered animated and we just added a new track, it should be
+			// considered animated too, so lets add it to the proper locations. This will also ensure that
+			// we can close the sequencer after creating a new animation in this way and see it animate on
+			// the level
+			if ( !bIsAnimated )
+			{
+				PrimsToAnimate.Add( UsdPrimTwin->PrimPath );
+				LevelSequenceHelper.AddPrim( *UsdPrimTwin );
+
+				// Prevent register/unregister spam when calling FUsdGeomXformableTranslator::UpdateComponents later
+				// during sequencer animation (which can cause the Sequencer UI to glitch out a bit)
+				UsdPrimTwin->SceneComponent->SetMobility( EComponentMobility::Movable );
+			}
+		}
+	}
+
+#endif // USE_USD_SDK
 	return UsdPrimTwin;
 }
 
@@ -2696,6 +2744,60 @@ bool AUsdStageActor::HasAuthorityOverStage() const
 	return !IsTemplate();
 }
 
+void AUsdStageActor::OnSkelAnimationBaked( const FString& SkelRootPrimPath )
+{
+#if USE_USD_SDK
+	if ( !UsdStage || !GRegenerateSkeletalAssetsOnControlRigBake )
+	{
+		return;
+	}
+
+	UE::FUsdPrim SkelRootPrim = UsdStage.GetPrimAtPath( UE::FSdfPath{ *SkelRootPrimPath } );
+	if ( !SkelRootPrim || !SkelRootPrim.IsA( TEXT( "SkelRoot" ) ) )
+	{
+		return;
+	}
+
+	UUsdPrimTwin* RootTwin = GetRootPrimTwin();
+	if ( !RootTwin )
+	{
+		return;
+	}
+
+	UUsdPrimTwin* Twin = RootTwin->Find(SkelRootPrimPath);
+	if ( !Twin )
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>( Twin->GetSceneComponent() );
+	if ( !SkeletalMeshComponent )
+	{
+		return;
+	}
+
+	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, SkelRootPrimPath );
+	// The only way we could have baked a skel animation is via the sequencer, so we know its playing
+	TranslationContext->bSequencerIsAnimating = true;
+
+	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT( "USDSchemas" ) );
+	if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( SkelRootPrim ) ) )
+	{
+		if ( TSharedPtr< FUsdSkelRootTranslator > SkelRootTranslator = StaticCastSharedPtr<FUsdSkelRootTranslator>( SchemaTranslator ) )
+		{
+			// For now we're regenerating all asset types (including skeletal meshes) but we could
+			// eventually just split off the anim sequence generation and call exclusively that from
+			// here
+			SkelRootTranslator->CreateAssets();
+			TranslationContext->CompleteTasks();
+
+			// Have to update the components to assign the new assets
+			SkelRootTranslator->UpdateComponents( SkeletalMeshComponent );
+		}
+	}
+#endif // #if USE_USD_SDK
+}
+
 void AUsdStageActor::LoadAsset( FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& Prim )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::LoadAsset );
@@ -2804,6 +2906,16 @@ void AUsdStageActor::AnimatePrims()
 
 	TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, GetRootPrimTwin()->PrimPath );
 
+	// c.f. comment on bSequencerIsAnimating's declaration
+#if WITH_EDITOR
+	const bool bFocusIfOpen = false;
+	IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset( LevelSequence, bFocusIfOpen );
+	if ( ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast< ILevelSequenceEditorToolkit* >( AssetEditor ) )
+	{
+		TranslationContext->bSequencerIsAnimating = true;
+	}
+#endif // WITH_EDITOR
+
 	for ( const FString& PrimToAnimate : PrimsToAnimate )
 	{
 		UE::FSdfPath PrimPath( *PrimToAnimate );
@@ -2826,7 +2938,7 @@ void AUsdStageActor::AnimatePrims()
 		GEditor->BroadcastLevelActorListChanged();
 		GEditor->RedrawLevelEditingViewports();
 	}
-#endif
+#endif // WITH_EDITOR
 }
 
 FScopedBlockNoticeListening::FScopedBlockNoticeListening( AUsdStageActor* InStageActor )

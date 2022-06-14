@@ -19,7 +19,9 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AnimationCore",
 					"CinematicCamera",
+					"ControlRig",
 					"Core",
 					"CoreUObject",
 					"Engine",
@@ -44,10 +46,12 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.AddRange(
 					new string[]
 					{
+						"ControlRigDeveloper",
 						"DeveloperToolSettings",
 						"EditorStyle", // For the font style on the stage actor customization
 						"InputCore", // For keyboard control on the widget in the stage actor customization
 						"LevelSequenceEditor",
+						"MovieSceneTools",
 						"PropertyEditor", // For the stage actor's details customization
 						"Sequencer",
 						"UnrealEd",

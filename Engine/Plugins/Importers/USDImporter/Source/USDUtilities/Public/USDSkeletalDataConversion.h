@@ -29,9 +29,13 @@ PXR_NAMESPACE_OPEN_SCOPE
 PXR_NAMESPACE_CLOSE_SCOPE
 
 class FSkeletalMeshImportData;
+class IMovieScenePlayer;
 class UAnimSequence;
+class UMovieScene;
+class UMovieSceneControlRigParameterSection;
 class USkeletalMesh;
 struct FUsdStageInfo;
+struct FMovieSceneSequenceTransform;
 namespace SkeletalMeshImportData
 {
 	struct FBone;
@@ -233,6 +237,35 @@ namespace UnrealToUsd
 	 * @return Whether the conversion was successful or not.
 	 */
 	USDUTILITIES_API bool ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim& SkelAnimPrim );
+
+	/**
+	 * Plays the provided Section in the background, driving its ControlRig and baking to USD the animated bones and
+	 * curves end result.
+	 * @param InSection - The section to bake;
+	 * @param InTransform - A time transform to apply to the baked data before writing out;
+	 * @param InMovieScene - The MovieScene that contains InSection (we can't access via the Outer chain from this RTTI
+	 *                       module);
+	 * @param IMovieScenePlayer - The player to drive the InSection with (e.g. a Sequencer instance);
+	 * @param InRefSkeleton - Skeleton that describes the target Skeleton prim bone structure to use (the control rig
+	 *                        may have an arbitrary bone hierarchy, but we always want to write bones compatible with
+	 *                        the target UsdSkelRoot and its child prims);
+	 * @param InSkelRoot - The SkelRoot that we're writing to (in some cases we need to update Mesh prims, and only
+	 *                     the meshes within this SkelRoot will be updated);
+	 * @param OutSkelAnimPrim - The SkelAnimation prim to receive the baked data;
+	 * @param InBlendShapeMap - Optional map describing the stage blend shapes, in case baking of the rig's animation
+	 *                          curves is desired;
+	 * @return Whether the conversion was successful or not.
+	 */
+	USDUTILITIES_API bool ConvertControlRigSection(
+		UMovieSceneControlRigParameterSection* InSection,
+		const FMovieSceneSequenceTransform& InTransform,
+		UMovieScene* InMovieScene,
+		IMovieScenePlayer* InPlayer,
+		const FReferenceSkeleton& InRefSkeleton,
+		pxr::UsdPrim& InSkelRoot,
+		pxr::UsdPrim& OutSkelAnimPrim,
+		const UsdUtils::FBlendShapeMap* InBlendShapeMap = nullptr
+	);
 }
 
 #endif // #if USE_USD_SDK && WITH_EDITOR

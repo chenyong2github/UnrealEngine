@@ -31,6 +31,51 @@ bool UsdUtils::PrimHasLiveLinkSchema( const pxr::UsdPrim& Prim )
     return Prim.HasAPI( Schema );
 }
 
+bool UsdUtils::PrimHasControlRigSchema( const pxr::UsdPrim& Prim )
+{
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::ControlRigAPI );
+	return Prim.HasAPI( Schema );
+}
+
+bool UsdUtils::ApplyControlRigSchema( const pxr::UsdPrim& Prim )
+{
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::ControlRigAPI );
+	ensure( static_cast< bool >( Schema ) );
+
+	ensure( Prim.ApplyAPI( Schema ) );
+	return true;
+}
+
+bool UsdUtils::ApplyLiveLinkSchema( const pxr::UsdPrim& Prim )
+{
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
+	ensure( static_cast< bool >( Schema ) );
+
+	ensure( Prim.ApplyAPI( Schema ) );
+	return true;
+}
+
 void UnrealToUsd::ConvertLiveLinkProperties( const UActorComponent* InComponent, pxr::UsdPrim& InOutPrim )
 {
 #if WITH_EDITOR
@@ -46,7 +91,7 @@ void UnrealToUsd::ConvertLiveLinkProperties( const UActorComponent* InComponent,
 	// Skeletal LiveLink case
 	if ( const USkeletalMeshComponent* SkeletalComponent = Cast<USkeletalMeshComponent>( InComponent ) )
 	{
-		if ( pxr::UsdAttribute Attr = InOutPrim.CreateAttribute( UnrealIdentifiers::UnrealLiveLinkAnimBlueprintPath, pxr::SdfValueTypeNames->String ) )
+		if ( pxr::UsdAttribute Attr = InOutPrim.CreateAttribute( UnrealIdentifiers::UnrealAnimBlueprintPath, pxr::SdfValueTypeNames->String ) )
 		{
 			FString AnimBPPath = SkeletalComponent->AnimClass && SkeletalComponent->AnimClass->ClassGeneratedBy
 				? SkeletalComponent->AnimClass->ClassGeneratedBy->GetPathName()

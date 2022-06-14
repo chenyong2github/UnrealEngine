@@ -6,6 +6,7 @@
 #include "USDAssetImportData.h"
 #include "USDAttributeUtils.h"
 #include "USDConversionUtils.h"
+#include "USDIntegrationUtils.h"
 #include "USDLayerUtils.h"
 #include "USDListener.h"
 #include "USDLog.h"
@@ -18,6 +19,7 @@
 #include "UsdWrappers/SdfChangeBlock.h"
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdAttribute.h"
+#include "UsdWrappers/UsdEditContext.h"
 #include "UsdWrappers/UsdGeomXformable.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
@@ -36,13 +38,19 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "ControlRigObjectBinding.h"
 #include "CoreMinimal.h"
 #include "LevelSequence.h"
+#include "LevelSequenceActor.h"
+#include "LevelSequencePlayer.h"
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneTrack.h"
+#include "Rigs/FKControlRig.h"
 #include "Sections/MovieSceneFloatSection.h"
 #include "Sections/MovieSceneSubSection.h"
+#include "Sequencer/MovieSceneControlRigParameterSection.h"
+#include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Templates/SharedPointer.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Tracks/MovieSceneBoolTrack.h"
@@ -55,10 +63,15 @@
 #include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
+#include "ControlRigBlueprint.h"
 #include "Editor.h"
 #include "Editor/TransBuffer.h"
+#include "EditorModeManager.h"
+#include "EditorModes.h"
+#include "Exporters/AnimSeqExportOption.h"
 #include "ILevelSequenceEditorToolkit.h"
 #include "ISequencer.h"
+#include "MovieSceneToolHelpers.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif // WITH_EDITOR
 
@@ -182,6 +195,238 @@ namespace UsdLevelSequenceHelperImpl
 
 		return nullptr;
 	}
+
+	void MuteTrack( UMovieSceneTrack* Track, UMovieScene* MovieScene, const FString& ComponentBindingString, const FString& TrackName, bool bMute )
+	{
+		if ( !Track || !MovieScene )
+		{
+			return;
+		}
+
+		if ( Track->IsEvalDisabled() == bMute )
+		{
+			return;
+		}
+
+#if WITH_EDITOR
+		// We need to update the MovieScene too, because if MuteNodes disagrees with Track->IsEvalDisabled() the sequencer
+		// will chose in favor of MuteNodes
+		MovieScene->Modify();
+
+		const FString MuteNode = FString::Printf( TEXT( "%s.%s" ), *ComponentBindingString, *TrackName );
+		if ( bMute )
+		{
+			MovieScene->GetMuteNodes().AddUnique( MuteNode );
+		}
+		else
+		{
+			MovieScene->GetMuteNodes().Remove( MuteNode );
+		}
+#endif // WITH_EDITOR
+
+		Track->Modify();
+		Track->SetEvalDisabled( bMute );
+	}
+
+	TSharedPtr< ISequencer > GetOpenedSequencerForLevelSequence( ULevelSequence* LevelSequence )
+	{
+		const bool bFocusIfOpen = false;
+		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset( LevelSequence, bFocusIfOpen );
+		ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast< ILevelSequenceEditorToolkit* >( AssetEditor );
+		return LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
+	}
+
+#if WITH_EDITOR
+	// Rough copy of UControlRigSequencerEditorLibrary::BakeToControlRig, except that it allows us to control which
+	// sequence player is used, lets us use our own existing AnimSequence for the ControlRig track, doesn't force
+	// the control rig editor mode to open and doesn't crash itself when changing the edit mode away from the
+	// control rig
+	bool BakeToControlRig(
+		UWorld* World,
+		ULevelSequence* LevelSequence,
+		UClass* InClass,
+		UAnimSequence* AnimSequence,
+		USkeletalMeshComponent* SkeletalMeshComp,
+		UAnimSeqExportOption* ExportOptions,
+		bool bReduceKeys,
+		float Tolerance,
+		const FGuid& ComponentBinding
+	)
+	{
+		UMovieScene* MovieScene = LevelSequence->GetMovieScene();
+		if ( !MovieScene || !SkeletalMeshComp || !SkeletalMeshComp->SkeletalMesh || !SkeletalMeshComp->SkeletalMesh->GetSkeleton() )
+		{
+			return false;
+		}
+
+		bool bResult = false;
+		bool bCreatedTempSequence = false;
+		ALevelSequenceActor* OutActor = nullptr;
+		UMovieSceneControlRigParameterTrack* Track = nullptr;
+		FMovieSceneSequencePlaybackSettings Settings;
+
+		// Always use a hidden player for this so that we don't affect/are affected by any Sequencer the user
+		// may have opened. Plus, if we have sublayers and subsequences its annoying to managed the Sequencer
+		// currently focused LevelSequence
+		IMovieScenePlayer* Player = nullptr;
+		ULevelSequencePlayer* LevelPlayer = nullptr;
+		{
+			Player = LevelPlayer = ULevelSequencePlayer::CreateLevelSequencePlayer( World, LevelSequence, Settings, OutActor );
+			if ( !Player || !LevelPlayer )
+			{
+				goto cleanup;
+			}
+
+			FLevelSequenceCameraSettings CameraSettings;
+			LevelPlayer->Initialize( LevelSequence, World->PersistentLevel, Settings, CameraSettings );
+			LevelPlayer->State.AssignSequence( MovieSceneSequenceID::Root, *LevelSequence, *Player );
+
+			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
+			LevelPlayer->SetPlaybackPosition( FMovieSceneSequencePlaybackParams( UE::MovieScene::DiscreteInclusiveLower( MovieScene->GetPlaybackRange() ).Value, EUpdatePositionMethod::Play ) );
+		}
+
+		MovieScene->Modify();
+
+		// We allow baking with no AnimSequence (to allow rigging with no previous animation), so if we don't
+		// have an AnimSequence yet we need to bake a temp one
+		if( !AnimSequence )
+		{
+			bCreatedTempSequence = true;
+			AnimSequence = NewObject<UAnimSequence>();
+			AnimSequence->SetSkeleton( SkeletalMeshComp->SkeletalMesh->GetSkeleton() );
+
+			FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
+			FMovieSceneSequenceTransform RootToLocalTransform;
+			bResult = MovieSceneToolHelpers::ExportToAnimSequence( AnimSequence, ExportOptions, MovieScene, Player, SkeletalMeshComp, Template, RootToLocalTransform );
+			if ( !bResult )
+			{
+				goto cleanup;
+			}
+		}
+
+		// Disable any extra existing control rig tracks for this binding.
+		// Reuse one of the control rig parameter tracks if we can
+		{
+			TArray<UMovieSceneTrack*> Tracks = MovieScene->FindTracks( UMovieSceneControlRigParameterTrack::StaticClass(), ComponentBinding, NAME_None );
+			for ( UMovieSceneTrack* AnyOleTrack : Tracks )
+			{
+				UMovieSceneControlRigParameterTrack* ValidTrack = Cast<UMovieSceneControlRigParameterTrack>( AnyOleTrack );
+				if ( ValidTrack )
+				{
+					Track = ValidTrack;
+					Track->Modify();
+					for ( UMovieSceneSection* Section : Track->GetAllSections() )
+					{
+						Section->SetIsActive( false );
+					}
+				}
+			}
+
+			if ( !Track )
+			{
+				Track = Cast<UMovieSceneControlRigParameterTrack>( MovieScene->AddTrack( UMovieSceneControlRigParameterTrack::StaticClass(), ComponentBinding ) );
+				Track->Modify();
+			}
+		}
+
+		if ( Track )
+		{
+			FString ObjectName = InClass->GetName();
+			ObjectName.RemoveFromEnd( TEXT( "_C" ) );
+			UControlRig* ControlRig = NewObject<UControlRig>( Track, InClass, FName( *ObjectName ), RF_Transactional );
+			if ( InClass != UFKControlRig::StaticClass() && !ControlRig->SupportsEvent( TEXT( "Backwards Solve" ) ) )
+			{
+				MovieScene->RemoveTrack( *Track );
+				goto cleanup;
+			}
+
+			ControlRig->Modify();
+			ControlRig->SetObjectBinding( MakeShared<FControlRigObjectBinding>() );
+			ControlRig->GetObjectBinding()->BindToObject( SkeletalMeshComp );
+			ControlRig->GetDataSourceRegistry()->RegisterDataSource( UControlRig::OwnerComponent, ControlRig->GetObjectBinding()->GetBoundObject() );
+			ControlRig->Initialize();
+			ControlRig->RequestInit();
+			ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent( SkeletalMeshComp, true );
+			ControlRig->Evaluate_AnyThread();
+
+			// Find the animation section's start frame, or else the baked control rig tracks will always be
+			// placed at the start of the movie scene playback range, instead of following where the actual
+			// animation section is
+			bool bFoundAtLeastOneSection = false;
+			FFrameNumber ControlRigSectionStartFrame = TNumericLimits<int32>::Max();
+			UMovieSceneSkeletalAnimationTrack* SkelTrack = Cast<UMovieSceneSkeletalAnimationTrack>(
+				MovieScene->FindTrack( UMovieSceneSkeletalAnimationTrack::StaticClass(), ComponentBinding, NAME_None )
+			);
+			if ( SkelTrack )
+			{
+				for ( const UMovieSceneSection* Section : SkelTrack->GetAllSections() )
+				{
+					if ( const UMovieSceneSkeletalAnimationSection* SkelSection = Cast<UMovieSceneSkeletalAnimationSection>( Section ) )
+					{
+						if ( SkelSection->Params.Animation == AnimSequence )
+						{
+							TRange<FFrameNumber> Range = SkelSection->ComputeEffectiveRange();
+							if ( Range.HasLowerBound() )
+							{
+								bFoundAtLeastOneSection = true;
+								ControlRigSectionStartFrame = FMath::Min( ControlRigSectionStartFrame, Range.GetLowerBoundValue() );
+								break;
+							}
+						}
+					}
+				}
+			}
+			if ( !bFoundAtLeastOneSection )
+			{
+				ControlRigSectionStartFrame = 0;
+			}
+
+			bool bSequencerOwnsControlRig = true;
+			UMovieSceneSection* NewSection = Track->CreateControlRigSection( ControlRigSectionStartFrame, ControlRig, bSequencerOwnsControlRig );
+			UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>( NewSection );
+
+			Track->SetTrackName( FName( *ObjectName ) );
+			Track->SetDisplayName( FText::FromString( ObjectName ) );
+
+			ParamSection->LoadAnimSequenceIntoThisSection( AnimSequence, MovieScene, SkeletalMeshComp, bReduceKeys, Tolerance, ControlRigSectionStartFrame );
+
+			// Disable Skeletal Animation Tracks
+			if ( SkelTrack )
+			{
+				SkelTrack->Modify();
+
+				for ( UMovieSceneSection* Section : SkelTrack->GetAllSections() )
+				{
+					if ( Section )
+					{
+						Section->TryModify();
+						Section->SetIsActive( false );
+					}
+				}
+			}
+
+			bResult = true;
+		}
+
+	cleanup:
+		if ( bCreatedTempSequence && AnimSequence )
+		{
+			AnimSequence->MarkAsGarbage();
+		}
+
+		if ( LevelPlayer )
+		{
+			LevelPlayer->Stop();
+		}
+
+		if ( OutActor && World )
+		{
+			World->DestroyActor( OutActor );
+		}
+
+		return bResult;
+	}
+#endif // WITH_EDITOR
 }
 
 class FUsdLevelSequenceHelperImpl : private FGCObject
@@ -245,6 +490,11 @@ public:
 		return SubSequences;
 	}
 
+	FUsdLevelSequenceHelper::FOnSkelAnimationBaked& GetOnSkelAnimationBaked()
+	{
+		return OnSkelAnimationBaked;
+	}
+
 private:
 	ULevelSequence* FindSequenceForAttribute( const UE::FUsdAttribute& Attribute );
 	ULevelSequence* FindOrAddSequenceForAttribute( const UE::FUsdAttribute& Attribute );
@@ -297,6 +547,9 @@ public:
 	void AddPrim( UUsdPrimTwin& PrimTwin, bool bForceVisibilityTracks = false );
 	void RemovePrim(const UUsdPrimTwin& PrimTwin);
 
+	// These functions assume the skeletal animation tracks (if any) were already added to the level sequence
+	void UpdateControlRigTracks( UUsdPrimTwin& PrimTwin );
+
 private:
 	// Sequence Name to Prim Path. Relationship: 1 Sequence to N Prim Path.
 	TMultiMap<FName, FString> PrimPathByLevelSequenceName;
@@ -323,6 +576,8 @@ private:
 	double GetFramesPerSecond() const;
 	double GetTimeCodesPerSecond() const;
 
+	FGuid GetOrCreateComponentBinding( const UUsdPrimTwin& PrimTwin, USceneComponent& ComponentToBind, ULevelSequence& Sequence );
+
 	TMap<FString, FLayerTimeInfo> LayerTimeInfosByLayerIdentifier; // Maps a LayerTimeInfo to a given Layer through its identifier
 
 // Changes handling
@@ -343,6 +598,7 @@ private:
 	void HandleTransactionStateChanged( const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState );
 	void HandleMovieSceneChange(UMovieScene& MovieScene);
 	void HandleSubSectionChange(UMovieSceneSubSection& Section);
+	void HandleControlRigSectionChange( UMovieSceneControlRigParameterSection& Section );
 	void HandleTrackChange( const UMovieSceneTrack& Track, bool bIsMuteChange );
 	void HandleDisplayRateChange(const double DisplayRate);
 
@@ -363,6 +619,8 @@ private:
 	static const double DefaultFramerate;
 	static const TCHAR* TimeTrackName;
 	static const double EmptySubSectionRange; // How many frames should an empty subsection cover, only needed so that the subsection is visible and the user can edit it
+
+	FUsdLevelSequenceHelper::FOnSkelAnimationBaked OnSkelAnimationBaked;
 
 	TWeakObjectPtr<AUsdStageActor> StageActor = nullptr;
 	UUsdAssetCache* AssetCache = nullptr;  // We keep a pointer to this directly because we may be called via the USDStageImporter directly, when we don't have an available actor
@@ -1656,61 +1914,7 @@ TrackType* FUsdLevelSequenceHelperImpl::AddTrack( const FName& TrackName, const 
 		return nullptr;
 	}
 
-	const FGuid ComponentBinding = [&]() -> FGuid
-	{
-		if ( TPair< ULevelSequence*, FGuid >* SceneComponentBinding = SceneComponentsBindings.Find( &PrimTwin ) )
-		{
-			return SceneComponentBinding->Value;
-		}
-		else
-		{
-			FGuid ComponentBinding;
-			FGuid ActorBinding;
-			UObject* ComponentContext = ComponentToBind.GetWorld();
-
-			FString PrimName = FPaths::GetBaseFilename( PrimTwin.PrimPath );
-
-			// Make sure we always bind the parent actor too
-			if ( AActor* Actor = ComponentToBind.GetOwner() )
-			{
-				ActorBinding = Sequence.FindBindingFromObject( Actor, Actor->GetWorld() );
-				if ( !ActorBinding.IsValid() )
-				{
-					// We use the label here because that will always be named after the prim that caused the actor
-					// to be generated. If we just used our own PrimName in here we may run into situations where a child Camera prim
-					// of a decomposed camera ends up naming the actor binding after itself, even though the parent Xform prim, and the
-					// actor on the level, maybe named something else
-					ActorBinding = MovieScene->AddPossessable(
-#if WITH_EDITOR
-						Actor->GetActorLabel(),
-#else
-						Actor->GetName(),
-#endif // WITH_EDITOR
-						Actor->GetClass()
-					);
-					Sequence.BindPossessableObject( ActorBinding, *Actor, Actor->GetWorld() );
-				}
-
-				ComponentContext = Actor;
-			}
-
-			ComponentBinding = MovieScene->AddPossessable( PrimName, ComponentToBind.GetClass() );
-
-			if ( ActorBinding.IsValid() && ComponentBinding.IsValid() )
-			{
-				if ( FMovieScenePossessable* ComponentPossessable = MovieScene->FindPossessable( ComponentBinding ) )
-				{
-					ComponentPossessable->SetParent( ActorBinding, MovieScene );
-				}
-			}
-
-			// Bind component
-			Sequence.BindPossessableObject( ComponentBinding, ComponentToBind, ComponentContext );
-
-			SceneComponentsBindings.Emplace( &PrimTwin ) = TPair< ULevelSequence*, FGuid >( &Sequence, ComponentBinding );
-			return ComponentBinding;
-		}
-	}( );
+	const FGuid ComponentBinding = GetOrCreateComponentBinding( PrimTwin, ComponentToBind, Sequence );
 
 	const bool bReadonly = false;
 	UsdLevelSequenceHelperImpl::FMovieSceneReadonlyGuard MovieSceneReadonlyGuard{ *MovieScene, bReadonly };
@@ -1740,18 +1944,7 @@ TrackType* FUsdLevelSequenceHelperImpl::AddTrack( const FName& TrackName, const 
 #endif // WITH_EDITOR
 	}
 
-	if ( bIsMuted )
-	{
-#if WITH_EDITOR
-		// We need to update the MovieScene too, because if MuteNodes disagrees with Track->IsEvalDisabled() the sequencer
-		// will chose in favor of MuteNodes
-		MovieScene->Modify();
-		MovieScene->GetMuteNodes().AddUnique( FString::Printf( TEXT( "%s.%s" ), *ComponentBinding.ToString(), *Track->GetName() ) );
-#endif // WITH_EDITOR
-
-		Track->Modify();
-		Track->SetEvalDisabled( bIsMuted );
-	}
+	UsdLevelSequenceHelperImpl::MuteTrack( Track, MovieScene, ComponentBinding.ToString(), Track->GetName(), bIsMuted );
 
 	return Track;
 }
@@ -1799,6 +1992,193 @@ void FUsdLevelSequenceHelperImpl::RemovePrim( const UUsdPrimTwin& PrimTwin )
 	}
 
 	RefreshSequencer();
+}
+
+void FUsdLevelSequenceHelperImpl::UpdateControlRigTracks( UUsdPrimTwin& PrimTwin )
+{
+#if WITH_EDITOR
+	if ( !UsdStage )
+	{
+		return;
+	}
+
+	UE::FSdfPath PrimPath( *PrimTwin.PrimPath );
+	UE::FUsdPrim UsdPrim( UsdStage.GetPrimAtPath( PrimPath ) );
+	if ( !UsdPrim )
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* ComponentToBind = Cast<USkeletalMeshComponent>( PrimTwin.GetSceneComponent() );
+	if ( !ComponentToBind )
+	{
+		return;
+	}
+
+	// Block here because USD needs to fire and respond to notices for the DefinePrim call to work,
+	// but we need UsdUtils::BindAnimationSource to run before we get in here again or else we'll
+	// repeatedly create Animation prims
+	FScopedBlockNoticeListening BlockNotices( StageActor.Get() );
+
+	UE::FSdfLayer SkelAnimationLayer;
+
+	// We'll place the skeletal animation track wherever the SkelAnimation prim is defined (not necessarily the
+	// same layer as the skel root)
+	UE::FUsdPrim SkelAnimationPrim = UsdUtils::FindFirstAnimationSource( UsdPrim );
+	if ( SkelAnimationPrim )
+	{
+		SkelAnimationLayer = UsdUtils::FindLayerForPrim( SkelAnimationPrim );
+	}
+	else
+	{
+		// If this SkelRoot doesn't have any animation, lets create a new one on the current edit target
+		SkelAnimationLayer = UsdStage.GetEditTarget();
+
+		ensure( UsdPrim.IsA( TEXT( "SkelRoot" ) ) );
+
+		FString UniqueChildName = UsdUtils::GetValidChildName( TEXT( "Animation" ), UsdPrim );
+		SkelAnimationPrim = UsdStage.DefinePrim(
+			UsdPrim.GetPrimPath().AppendChild( *UniqueChildName ),
+			TEXT( "SkelAnimation" )
+		);
+		if ( !SkelAnimationPrim )
+		{
+			return;
+		}
+
+		UsdUtils::BindAnimationSource( UsdPrim, SkelAnimationPrim );
+	}
+
+	// Fetch the UAnimSequence asset from the asset cache. Ideally we'd call AUsdStageActor::GetGeneratedAssets,
+	// but we may belong to a FUsdStageImportContext, and so there's no AUsdStageActor at all to use.
+	// At this point it doesn't matter much though, because we shouldn't need to uncollapse a SkelAnimation prim path anyway
+	FString SkelAnimationPrimPath = SkelAnimationPrim.GetPrimPath().GetString();
+	UAnimSequence* AnimSequence = Cast<UAnimSequence>( AssetCache->GetAssetForPrim( SkelAnimationPrimPath ) );
+
+	if ( !SkelAnimationLayer )
+	{
+		return;
+	}
+	UE::FUsdEditContext EditContext{ UsdStage, SkelAnimationLayer };
+	FString Identifier = SkelAnimationLayer.GetIdentifier();
+
+	// Force-create these because these are mandatory anyway (https://graphics.pixar.com/usd/release/api/_usd_skel__schemas.html#UsdSkel_SkelAnimation)
+	UE::FUsdAttribute JointsAttr = SkelAnimationPrim.CreateAttribute( TEXT( "joints" ), TEXT( "token[]" ) );
+	UE::FUsdAttribute TranslationsAttr = SkelAnimationPrim.CreateAttribute( TEXT( "translations" ), TEXT( "float3[]" ) );
+	UE::FUsdAttribute RotationsAttr = SkelAnimationPrim.CreateAttribute( TEXT( "rotations" ), TEXT( "quatf[]" ) );
+	UE::FUsdAttribute ScalesAttr = SkelAnimationPrim.CreateAttribute( TEXT( "scales" ), TEXT( "half3[]" ) );
+	UE::FUsdAttribute BlendShapeWeightsAttr = SkelAnimationPrim.GetAttribute( TEXT( "blendShapeWeights" ) );
+
+	ULevelSequence* SkelAnimationSequence = FindOrAddSequenceForLayer( SkelAnimationLayer, SkelAnimationLayer.GetIdentifier(), SkelAnimationLayer.GetDisplayName() );
+	if ( !SkelAnimationSequence )
+	{
+		return;
+	}
+
+	UMovieScene* MovieScene = SkelAnimationSequence->GetMovieScene();
+	if ( !MovieScene )
+	{
+		return;
+	}
+
+	const bool bReadonly = false;
+	UsdLevelSequenceHelperImpl::FMovieSceneReadonlyGuard MovieSceneReadonlyGuard{ *MovieScene, bReadonly };
+
+	const FGuid ComponentBinding = GetOrCreateComponentBinding( PrimTwin, *ComponentToBind, *SkelAnimationSequence );
+
+	// NOTE: We are fetching the first skel track we find, since we can't actually use SkelAnimationPrim.GetName() here at all!
+	// The property tracks do derive GetTrackName(), but the skeletal track doesn't, so FindTrack will never find them.
+	// This likely has no effect since we only ever spawn a single skeletal track per prim anyway, but its worth to keep in mind!
+	UMovieSceneSkeletalAnimationTrack* SkelTrack = MovieScene->FindTrack< UMovieSceneSkeletalAnimationTrack >( ComponentBinding );
+	UMovieSceneControlRigParameterTrack* ControlRigTrack = MovieScene->FindTrack< UMovieSceneControlRigParameterTrack >( ComponentBinding );
+
+	// We should be in control rig track mode but don't have any tracks yet --> Setup for Control Rig
+	if ( !ControlRigTrack )
+	{
+		bool bControlRigReduceKeys = false;
+		if ( UE::FUsdAttribute Attr = UsdPrim.GetAttribute( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReduceKeys ) ) )
+		{
+			UE::FVtValue Value;
+			if ( Attr.Get( Value ) && !Value.IsEmpty() )
+			{
+				if ( TOptional<bool> UnderlyingValue = UsdUtils::GetUnderlyingValue<bool>( Value ) )
+				{
+					bControlRigReduceKeys = UnderlyingValue.GetValue();
+				}
+			}
+		}
+
+		float ControlRigReduceTolerance = 0.001f;
+		if ( UE::FUsdAttribute Attr = UsdPrim.GetAttribute( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReductionTolerance ) ) )
+		{
+			UE::FVtValue Value;
+			if ( Attr.Get( Value ) && !Value.IsEmpty() )
+			{
+				if ( TOptional<float> UnderlyingValue = UsdUtils::GetUnderlyingValue<float>( Value ) )
+				{
+					ControlRigReduceTolerance = UnderlyingValue.GetValue();
+				}
+			}
+		}
+
+		bool bIsFKControlRig = false;
+		if ( UE::FUsdAttribute Attr = UsdPrim.GetAttribute( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealUseFKControlRig ) ) )
+		{
+			UE::FVtValue Value;
+			if ( Attr.Get( Value ) )
+			{
+				if (TOptional<bool> UseFKOptional = UsdUtils::GetUnderlyingValue<bool>( Value ) )
+				{
+					bIsFKControlRig = UseFKOptional.GetValue();
+				}
+			}
+		}
+
+		UClass* ControlRigClass = nullptr;
+		if ( bIsFKControlRig )
+		{
+			ControlRigClass = UFKControlRig::StaticClass();
+		}
+		else
+		{
+			FString ControlRigBPPath;
+			if ( UE::FUsdAttribute Attr = UsdPrim.GetAttribute( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigPath ) ) )
+			{
+				UE::FVtValue Value;
+				if ( Attr.Get( Value ) && !Value.IsEmpty() )
+				{
+					ControlRigBPPath = UsdUtils::Stringify( Value );
+				}
+			}
+
+			if ( UControlRigBlueprint* BP = Cast<UControlRigBlueprint>( FSoftObjectPath( ControlRigBPPath ).TryLoad() ) )
+			{
+				ControlRigClass = BP->GetControlRigClass();
+			}
+		}
+
+		if ( ControlRigClass )
+		{
+			UAnimSeqExportOption* NewOptions = NewObject< UAnimSeqExportOption >();
+
+			UsdLevelSequenceHelperImpl::BakeToControlRig(
+				ComponentToBind->GetWorld(),
+				SkelAnimationSequence,
+				ControlRigClass,
+				AnimSequence,
+				ComponentToBind,
+				NewOptions,
+				bControlRigReduceKeys,
+				ControlRigReduceTolerance,
+				ComponentBinding
+			);
+
+			RefreshSequencer();
+		}
+#endif // WITH_EDITOR
+	}
+
+	PrimPathByLevelSequenceName.AddUnique( SkelAnimationSequence->GetFName(), PrimPath.GetString() );
 }
 
 void FUsdLevelSequenceHelperImpl::RemoveSequenceForPrim( ULevelSequence& Sequence, const UUsdPrimTwin& PrimTwin )
@@ -1897,19 +2277,13 @@ void FUsdLevelSequenceHelperImpl::RefreshSequencer()
 		return;
 	}
 
-	const bool bFocusIfOpen = false;
-	IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(MainLevelSequence, bFocusIfOpen);
-	ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
-	TWeakPtr<ISequencer> WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
-
-	if ( TSharedPtr< ISequencer > Sequencer = WeakSequencer.Pin() )
+	if ( TSharedPtr< ISequencer > Sequencer = UsdLevelSequenceHelperImpl::GetOpenedSequencerForLevelSequence( MainLevelSequence ) )
 	{
 		// Don't try refreshing the sequencer if its displaying a stale sequence (e.g. during busy transitions like import) as it
 		// can crash
 		if ( UMovieSceneSequence* FocusedSequence = Sequencer->GetFocusedMovieSceneSequence() )
 		{
-			Sequencer->RefreshTree();
-			Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
+			Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::RefreshTree );
 		}
 	}
 #endif // WITH_EDITOR
@@ -2131,7 +2505,7 @@ void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const clas
 	}
 	else if ( UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Object) )
 	{
-		HandleSubSectionChange(*SubSection);
+		HandleSubSectionChange( *SubSection );
 	}
 	else if ( UMovieSceneTrack* Track = Cast<UMovieSceneTrack>(Object) )
 	{
@@ -2140,10 +2514,31 @@ void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const clas
 	}
 	else if ( UMovieSceneSection* Section = Cast<UMovieSceneSection>(Object) )
 	{
+		const bool bIsMuteChange = Event.GetChangedProperties().Contains( TEXT( "bIsActive" ) );
+
 		if ( UMovieSceneTrack* ParentTrack = Section->GetTypedOuter<UMovieSceneTrack>() )
 		{
-			const bool bIsMuteChange = Event.GetChangedProperties().Contains( TEXT( "bIsActive" ) );
 			HandleTrackChange( *ParentTrack, bIsMuteChange );
+		}
+
+		if ( !bIsMuteChange )
+		{
+			if ( UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>( Section ) )
+			{
+				if ( GEditor )
+				{
+					// We have to do this on next tick because HandleControlRigSectionChange will internally bake
+					// the sequence, repeteadly updating the ControlRig hierarchy. There is no way to silence
+					// FControlRigEditMode from here, and FControlRigEditMode::OnHierarchyModified ends up creating
+					// a brand new scoped transaction, which asserts inside UTransBuffer::CheckState when if finds
+					// out that the previous transaction wasn't fully complete (OnObjectTransacted gets called before
+					// the current transaction is fully done).
+					GEditor->GetTimerManager()->SetTimerForNextTick( [this, CRSection]( )
+					{
+						HandleControlRigSectionChange( *CRSection );
+					});
+				}
+			}
 		}
 	}
 }
@@ -2219,6 +2614,68 @@ double FUsdLevelSequenceHelperImpl::GetTimeCodesPerSecond() const
 
 	const double StageTimeCodesPerSecond = UsdStage.GetTimeCodesPerSecond();
 	return FMath::IsNearlyZero( StageTimeCodesPerSecond ) ? DefaultFramerate : StageTimeCodesPerSecond;
+}
+
+FGuid FUsdLevelSequenceHelperImpl::GetOrCreateComponentBinding( const UUsdPrimTwin& PrimTwin, USceneComponent& ComponentToBind, ULevelSequence& Sequence )
+{
+	UMovieScene* MovieScene = Sequence.GetMovieScene();
+	if ( !MovieScene )
+	{
+		return {};
+	}
+
+	if ( TPair< ULevelSequence*, FGuid >* SceneComponentBinding = SceneComponentsBindings.Find( &PrimTwin ) )
+	{
+		return SceneComponentBinding->Value;
+	}
+	else
+	{
+		FGuid ComponentBinding;
+		FGuid ActorBinding;
+		UObject* ComponentContext = ComponentToBind.GetWorld();
+
+		FString PrimName = FPaths::GetBaseFilename( PrimTwin.PrimPath );
+
+		// Make sure we always bind the parent actor too
+		if ( AActor* Actor = ComponentToBind.GetOwner() )
+		{
+			ActorBinding = Sequence.FindBindingFromObject( Actor, Actor->GetWorld() );
+			if ( !ActorBinding.IsValid() )
+			{
+				// We use the label here because that will always be named after the prim that caused the actor
+				// to be generated. If we just used our own PrimName in here we may run into situations where a child Camera prim
+				// of a decomposed camera ends up naming the actor binding after itself, even though the parent Xform prim, and the
+				// actor on the level, maybe named something else
+				ActorBinding = MovieScene->AddPossessable(
+#if WITH_EDITOR
+					Actor->GetActorLabel(),
+#else
+					Actor->GetName(),
+#endif // WITH_EDITOR
+					Actor->GetClass()
+				);
+				Sequence.BindPossessableObject( ActorBinding, *Actor, Actor->GetWorld() );
+			}
+
+			ComponentContext = Actor;
+		}
+
+		ComponentBinding = MovieScene->AddPossessable( PrimName, ComponentToBind.GetClass() );
+
+		if ( ActorBinding.IsValid() && ComponentBinding.IsValid() )
+		{
+			if ( FMovieScenePossessable* ComponentPossessable = MovieScene->FindPossessable( ComponentBinding ) )
+			{
+				ComponentPossessable->SetParent( ActorBinding, MovieScene );
+			}
+		}
+
+		// Bind component
+		Sequence.BindPossessableObject( ComponentBinding, ComponentToBind, ComponentContext );
+
+		SceneComponentsBindings.Emplace( &PrimTwin ) = TPair< ULevelSequence*, FGuid >( &Sequence, ComponentBinding );
+		return ComponentBinding;
+	}
 }
 
 void FUsdLevelSequenceHelperImpl::HandleMovieSceneChange( UMovieScene& MovieScene )
@@ -2408,6 +2865,187 @@ void FUsdLevelSequenceHelperImpl::HandleSubSectionChange( UMovieSceneSubSection&
 	}
 
 	UpdateUsdLayerOffsetFromSection(ParentSequence, &Section);
+}
+
+void FUsdLevelSequenceHelperImpl::HandleControlRigSectionChange( UMovieSceneControlRigParameterSection& Section )
+{
+	AUsdStageActor* StageActorValue = StageActor.Get();
+	if ( !StageActorValue )
+	{
+		return;
+	}
+
+	UWorld* World = StageActorValue->GetWorld();
+	if ( !World )
+	{
+		return;
+	}
+
+	ULevelSequence* LevelSequence = Section.GetTypedOuter<ULevelSequence>();
+	if ( !LevelSequence )
+	{
+		return;
+	}
+
+	UMovieScene* MovieScene = LevelSequence->GetMovieScene();
+	if ( !MovieScene )
+	{
+		return;
+	}
+
+	UMovieSceneTrack* ParentTrack = Section.GetTypedOuter<UMovieSceneTrack>();
+	if ( !ParentTrack )
+	{
+		return;
+	}
+
+	FGuid PossessableGuid;
+	const bool bFound = MovieScene->FindTrackBinding( *ParentTrack, PossessableGuid );
+	if ( !bFound )
+	{
+		return;
+	}
+
+	FMovieScenePossessable* Possessable = MovieScene->FindPossessable( PossessableGuid );
+	if ( !Possessable )
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* BoundComponent = Cast< USkeletalMeshComponent >(
+		UsdLevelSequenceHelperImpl::LocateBoundObject( *LevelSequence, *Possessable )
+	);
+	if ( !BoundComponent )
+	{
+		return;
+	}
+
+	USkeleton* Skeleton = BoundComponent->SkeletalMesh ? BoundComponent->SkeletalMesh->GetSkeleton() : nullptr;
+	if ( !Skeleton )
+	{
+		return;
+	}
+
+	UUsdPrimTwin* PrimTwin = StageActorValue->RootUsdTwin->Find( BoundComponent );
+	if ( !PrimTwin )
+	{
+		return;
+	}
+
+	UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( *PrimTwin->PrimPath ) );
+	if ( !UsdPrim )
+	{
+		return;
+	}
+
+	// We'll place the skeletal animation track wherever the SkelAnimation prim is defined (not necessarily the
+	// same layer as the skel root)
+	UE::FUsdPrim SkelAnimationPrim = UsdUtils::FindFirstAnimationSource( UsdPrim );
+	if ( !SkelAnimationPrim )
+	{
+		return;
+	}
+
+	TSharedPtr<ISequencer> PinnedSequencer = UsdLevelSequenceHelperImpl::GetOpenedSequencerForLevelSequence( MainLevelSequence );
+
+	// Fetch a sequence player we can use. We'll almost always have the sequencer opened here (we are responding to a transaction
+	// where the section was changed after all), but its possible to have a fallback too
+	IMovieScenePlayer* Player = nullptr;
+	ULevelSequencePlayer* LevelPlayer = nullptr;
+	{
+		if ( PinnedSequencer )
+		{
+			Player = PinnedSequencer.Get();
+		}
+		else
+		{
+			ALevelSequenceActor* OutActor = nullptr;
+			FMovieSceneSequencePlaybackSettings Settings;
+			Player = LevelPlayer = ULevelSequencePlayer::CreateLevelSequencePlayer( World, LevelSequence, Settings, OutActor);
+
+			FLevelSequenceCameraSettings CameraSettings;
+			LevelPlayer->Initialize( LevelSequence, World->PersistentLevel, Settings, CameraSettings );
+
+			LevelPlayer->State.AssignSequence( MovieSceneSequenceID::Root, *LevelSequence, *Player );
+		}
+
+		if ( !Player )
+		{
+			return;
+		}
+	}
+
+	// We obviously don't want to respond to the fact that the stage will be modified since we're the
+	// ones actually modifying it already
+	FScopedBlockNoticeListening BlockNotices( StageActorValue );
+
+	// Prepare for baking
+	{
+		if ( PinnedSequencer )
+		{
+			PinnedSequencer->EnterSilentMode();
+		}
+
+		FSpawnableRestoreState SpawnableRestoreState( MovieScene );
+		if ( LevelPlayer && SpawnableRestoreState.bWasChanged )
+		{
+			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
+			// Note that we never actually generate spawnables on our LevelSequence, but its a common pattern to
+			// do this and the user may have added them manually
+			LevelPlayer->SetPlaybackPosition(
+				FMovieSceneSequencePlaybackParams(
+					UE::MovieScene::DiscreteInclusiveLower( MovieScene->GetPlaybackRange() ).Value,
+					EUpdatePositionMethod::Play
+				)
+			);
+		}
+	}
+
+	FMovieSceneSequenceTransform SequenceTransform;
+	FMovieSceneSequenceID SequenceID = SequencesID.FindRef( LevelSequence );
+	if ( FMovieSceneSubSequenceData* SubSequenceData = SequenceHierarchyCache.FindSubData( SequenceID ) )
+	{
+		SequenceTransform = SubSequenceData->RootToSequenceTransform;
+	}
+
+	// Actually bake inside the UsdUtilities module as we need to manipulate USD arrays a lot
+	const UsdUtils::FBlendShapeMap& BlendShapeMap = StageActorValue->GetBlendShapeMap();
+	bool bBaked = UnrealToUsd::ConvertControlRigSection(
+		&Section,
+		SequenceTransform.InverseLinearOnly(),
+		MovieScene,
+		Player,
+		Skeleton->GetReferenceSkeleton(),
+		UsdPrim,
+		SkelAnimationPrim,
+		&BlendShapeMap
+	);
+
+	// Cleanup after baking
+	{
+		if ( LevelPlayer )
+		{
+			LevelPlayer->Stop();
+		}
+
+		if ( PinnedSequencer )
+		{
+			PinnedSequencer->ExitSilentMode();
+			PinnedSequencer->RequestEvaluate();
+		}
+	}
+
+	if ( bBaked )
+	{
+		// After we bake, both the sequencer and the USD stage have our updated tracks, but we still have the old
+		// AnimSequence asset on the component. If we closed the Sequencer and just animated via the Time attribute,
+		// we would see the old animation.
+		// This event is mostly used to have the stage actor quickly regenerate the assets and components for the
+		// skel root. Sadly we do need to regenerate the skeletal mesh too, since we may need to affect blend shapes
+		// for the correct bake. The user can disable this behavior (e.g. for costly skeletal meshes) by setting
+		// USD.RegenerateSkeletalAssetsOnControlRigBake to false.
+		GetOnSkelAnimationBaked().Broadcast( PrimTwin->PrimPath );
+	}
 }
 
 void FUsdLevelSequenceHelperImpl::HandleTrackChange( const UMovieSceneTrack& Track, bool bIsMuteChange )
@@ -2711,6 +3349,8 @@ public:
 	void AddPrim( UUsdPrimTwin& PrimTwin, bool bForceVisibilityTracks ) {}
 	void RemovePrim(const UUsdPrimTwin& PrimTwin) {}
 
+	void UpdateControlRigTracks( UUsdPrimTwin& PrimTwin ) {}
+
 	void StartMonitoringChanges() {}
 	void StopMonitoringChanges() {}
 	void BlockMonitoringChangesForThisTransaction() {}
@@ -2841,6 +3481,14 @@ void FUsdLevelSequenceHelper::RemovePrim(const UUsdPrimTwin& PrimTwin)
 	}
 }
 
+void FUsdLevelSequenceHelper::UpdateControlRigTracks( UUsdPrimTwin& PrimTwin )
+{
+	if ( UsdSequencerImpl.IsValid() )
+	{
+		UsdSequencerImpl->UpdateControlRigTracks( PrimTwin );
+	}
+}
+
 void FUsdLevelSequenceHelper::StartMonitoringChanges()
 {
 	if (UsdSequencerImpl.IsValid())
@@ -2886,6 +3534,21 @@ TArray< ULevelSequence* > FUsdLevelSequenceHelper::GetSubSequences() const
 	else
 	{
 		return {};
+	}
+}
+
+FUsdLevelSequenceHelper::FOnSkelAnimationBaked& FUsdLevelSequenceHelper::GetOnSkelAnimationBaked()
+{
+#if USE_USD_SDK
+	if ( UsdSequencerImpl.IsValid() )
+	{
+		return UsdSequencerImpl->GetOnSkelAnimationBaked();
+	}
+	else
+#endif // USE_USD_SDK
+	{
+		static FOnSkelAnimationBaked DefaultHandler;
+		return DefaultHandler;
 	}
 }
 

@@ -22,10 +22,13 @@ class UUsdIntegrationsPanelPropertyDummy : public UObject
 public:
 	GENERATED_BODY()
 
-	// Ideally this would be an FSoftObjectPath, but FPropertyEditorModule doesn't support generating
+	// Ideally these would be FSoftObjectPaths, but FPropertyEditorModule doesn't support generating
 	// widgets for those properties yet
-	UPROPERTY(EditAnywhere, Transient, Category=Dummy, meta=(AllowedClasses="/Script/Engine.AnimBlueprint" ))
+	UPROPERTY( EditAnywhere, Transient, Category = Dummy, meta = ( AllowedClasses = "/Script/Engine.AnimBlueprint" ) )
 	UObject* AnimBPProperty;
+
+	UPROPERTY( EditAnywhere, Transient, Category = Dummy, meta = ( AllowedClasses = "/Script/ControlRigDeveloper.ControlRigBlueprint" ) )
+	UObject* ControlRigProperty;
 };
 
 #if USE_USD_SDK

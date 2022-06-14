@@ -198,6 +198,17 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	/** Groom group interpolation settings */
 	TArray<FHairGroupsInterpolation> GroomInterpolationSettings;
 
+	/**
+	 * True if the Sequencer is currently opened and animating the stage level sequence.
+	 * Its relevant to know this because some translator ::UpdateComponents overloads may try to animate their components
+	 * by themselves, which could be wasteful and glitchy in case the sequencer is opened: It will likely also have an
+	 * animation track for that component and on next editor tick would override the animation with what is sampled from
+	 * the track.
+	 * In the future we'll likely get rid of the "Time" track on the generated LevelSequence, at which point we can
+	 * remove this
+	 */
+	bool bSequencerIsAnimating = false;
+
 	bool IsValid() const
 	{
 		return Level != nullptr;

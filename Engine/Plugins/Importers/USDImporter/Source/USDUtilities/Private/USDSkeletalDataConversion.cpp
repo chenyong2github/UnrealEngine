@@ -20,16 +20,25 @@
 #include "Animation/AnimCurveTypes.h"
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
+#include "ControlRig.h"
+#include "Evaluation/MovieSceneSequenceTransform.h"
+#include "IMovieScenePlayer.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "LevelSequencePlayer.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/MemStack.h"
 #include "Modules/ModuleManager.h"
+#include "MovieScene.h"
+#include "MovieSceneTimeHelpers.h"
+#include "MovieSceneTrack.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Rigs/RigHierarchyElements.h"
+#include "Sequencer/MovieSceneControlRigParameterSection.h"
 
 #if WITH_EDITOR
 #include "Animation/DebugSkelMeshComponent.h"
@@ -3119,6 +3128,383 @@ bool UnrealToUsd::ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim
 	{
 		SkelAnimPrim.GetStage()->SetEndTimeCode( NumTimeCodes - 1 );
 	}
+
+	return true;
+}
+
+bool UnrealToUsd::ConvertControlRigSection(
+	UMovieSceneControlRigParameterSection* InSection,
+	const FMovieSceneSequenceTransform& InTransform,
+	UMovieScene* InMovieScene,
+	IMovieScenePlayer* InPlayer,
+	const FReferenceSkeleton& InRefSkeleton,
+	pxr::UsdPrim& InSkelRoot,
+	pxr::UsdPrim& OutSkelAnimPrim,
+	const UsdUtils::FBlendShapeMap* InBlendShapeMap
+)
+{
+	if ( !InSection || !InPlayer || !OutSkelAnimPrim )
+	{
+		return false;
+	}
+
+	UControlRig* ControlRig = InSection->GetControlRig();
+	if ( !ControlRig )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdSkelAnimation SkelAnim{ OutSkelAnimPrim };
+	pxr::UsdStageRefPtr UsdStage = OutSkelAnimPrim.GetStage();
+	if ( !UsdStage || !SkelAnim )
+	{
+		return false;
+	}
+
+	FUsdStageInfo StageInfo( UsdStage );
+
+	double StartTime = FPlatformTime::Cycles64();
+
+	// TODO: This does not seem necessary
+	ControlRig->Initialize();
+	ControlRig->RequestInit();
+
+	// Record how the topology looks while we setup our arrays and maps. If this changes during
+	// baking we'll just drop everything and return
+	URigHierarchy* InitialHierarchy = ControlRig->GetHierarchy();
+	if ( !InitialHierarchy )
+	{
+		return false;
+	}
+	uint16 TopologyVersion = InitialHierarchy->GetTopologyVersion();
+
+	// Prepare to remap from Rig joint order to USkeleton/Skeleton prim joint order.
+	// This works because the topology won't change in here, and bone names are unique across the entire skeleton
+	// Its possible we'll be putting INDEX_NONEs into RigIndexToRefSkeletonIndex, but that's alright.
+	TArray<int32> RigJointIndexToRefSkeletonIndex;
+	TArray<FRigBoneElement*> InitialBoneElements = InitialHierarchy->GetBones();
+	for ( FRigBoneElement* RigBone : InitialBoneElements )
+	{
+		RigJointIndexToRefSkeletonIndex.Add( InRefSkeleton.FindBoneIndex( RigBone->GetName() ) );
+	}
+
+	pxr::UsdAttribute JointsAttr = SkelAnim.CreateJointsAttr();
+	UnrealToUsd::ConvertJointsAttribute( InRefSkeleton, JointsAttr );
+
+	TArray<FTransform> GlobalUEJointTransformsForFrame;
+	GlobalUEJointTransformsForFrame.SetNum( InRefSkeleton.GetNum() );
+
+	pxr::UsdAttribute TranslationsAttr = SkelAnim.CreateTranslationsAttr();
+	pxr::UsdAttribute RotationsAttr = SkelAnim.CreateRotationsAttr();
+	pxr::UsdAttribute ScalesAttr = SkelAnim.CreateScalesAttr();
+	pxr::UsdAttribute BlendShapeWeightsAttr = SkelAnim.CreateBlendShapeWeightsAttr();
+	pxr::UsdAttribute BlendShapesAttr = SkelAnim.CreateBlendShapesAttr();
+
+	TranslationsAttr.Clear();
+	RotationsAttr.Clear();
+	ScalesAttr.Clear();
+	pxr::VtVec3fArray Translations;
+	pxr::VtQuatfArray Rotations;
+	pxr::VtVec3hArray Scales;
+	Translations.resize( InRefSkeleton.GetNum() );
+	Rotations.resize( InRefSkeleton.GetNum() );
+	Scales.resize( InRefSkeleton.GetNum() );
+
+	FFrameRate TickResolution = InMovieScene->GetTickResolution();
+	FFrameRate DisplayRate = InMovieScene->GetDisplayRate();
+
+	const double StageTimeCodesPerSecond = UsdStage->GetTimeCodesPerSecond();
+	const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
+
+	TRange<FFrameNumber> PlaybackRange = InMovieScene->GetPlaybackRange();
+	TRange<FFrameNumber> BakeTickRange = InSection->ComputeEffectiveRange();
+
+	// Try our best to find the section start/end inclusive frames
+	FFrameNumber StartInclTickFrame;
+	FFrameNumber EndInclTickFrame;
+	{
+		TOptional<TRangeBound<FFrameNumber>> LowerBoundToUse;
+		if ( BakeTickRange.HasLowerBound() )
+		{
+			TRangeBound<FFrameNumber> SectionLowerBound = BakeTickRange.GetLowerBound();
+			if ( !SectionLowerBound.IsOpen() )
+			{
+				LowerBoundToUse = SectionLowerBound;
+			}
+		}
+		if ( !LowerBoundToUse.IsSet() && PlaybackRange.HasLowerBound() )
+		{
+			TRangeBound<FFrameNumber> PlaybackLowerBound = PlaybackRange.GetLowerBound();
+			if ( !PlaybackLowerBound.IsOpen() )
+			{
+				LowerBoundToUse = PlaybackLowerBound;
+			}
+		}
+		if ( !LowerBoundToUse.IsSet() )
+		{
+			return false;
+		}
+		StartInclTickFrame = LowerBoundToUse.GetValue().GetValue() + ( LowerBoundToUse.GetValue().IsInclusive() ? 0 : 1 );
+	}
+	{
+		TOptional<TRangeBound<FFrameNumber>> UpperBoundToUse;
+		if ( BakeTickRange.HasUpperBound() )
+		{
+			TRangeBound<FFrameNumber> SectionUpperBound = BakeTickRange.GetUpperBound();
+			if ( !SectionUpperBound.IsOpen() )
+			{
+				UpperBoundToUse = SectionUpperBound;
+			}
+		}
+		if ( !UpperBoundToUse.IsSet() && PlaybackRange.HasUpperBound() )
+		{
+			TRangeBound<FFrameNumber> PlaybackUpperBound = PlaybackRange.GetUpperBound();
+			if ( !PlaybackUpperBound.IsOpen() )
+			{
+				UpperBoundToUse = PlaybackUpperBound;
+			}
+		}
+		if ( !UpperBoundToUse.IsSet() )
+		{
+			return false;
+		}
+		EndInclTickFrame = UpperBoundToUse.GetValue().GetValue() + ( UpperBoundToUse.GetValue().IsInclusive() ? 0 : -1 );
+	}
+
+	pxr::VtArray<pxr::TfToken> CurveNames;
+	pxr::VtArray<float> CurvesValuesForTime;
+
+	// Prepare blend shape baking
+	// So far there doesn't seem to be any good way of handling the baking into blend shapes with inbetweens:
+	//	- We can't just pretend the Mesh prims have the flattened inbetween blend shapes (like we'd get if they were
+	//    exported) because we'd get warnings by having blend shape targets to blend shape prims that don't exist;
+	//  - We could flatten the actual BlendShape on the Mesh prim here, but that may be a bit too bold as the user likely
+	//    wants to keep his Mesh asset more or less intact when just baking out an animation section. If users do want
+	//    this behaviour we can later add it though;
+	//  - An alternative would have been to try to collect all the primary+inbetween weights, combine them back into a
+	//    single weight value, and write them back. That would work, but it would be incredibly hard to tell what is
+	//    going on from the users' perspective because that weight conversion is lossy and imperfect. Not to mention we'd
+	//    have this tricky code to test/maintain that slows down the baking process as a whole, and everything would break
+	//    if e.g. the curves were renamed;
+	//  - A slightly different approach to above would be to have the Mesh prims listen to the flattened inbetween blend
+	//    shape channels, but map them all to the single blend shape: This is not allowed in USD though, and its enough
+	//    to crash usdview. Besides, it wouldn't have added a lot of value as it would be impossible to comprehend what
+	//    was going on.
+	// The best we can do at the moment is to make one channel for each curve on the SkelAnimation prim, but maintain
+	// each Mesh prim connected only to the primary blend shape channel, if it was originally. We'll show a warning
+	// explaining the situation though.
+	if ( InBlendShapeMap && InSkelRoot )
+	{
+		TArray<FRigCurveElement*> CurveElements = InitialHierarchy->GetCurves();
+
+		CurveNames.reserve( CurveElements.Num() );
+		for ( int32 Index = 0; Index < CurveElements.Num(); ++Index )
+		{
+			FRigCurveElement* Element = CurveElements[Index];
+			const FString& CurveNameString = Element->GetNameString();
+
+			CurveNames.push_back( UnrealToUsd::ConvertToken( *CurveNameString ).Get() );
+		}
+
+		// Check if the blend shape channels on skel animation are the same names as morph target curves.
+		// Note that the actual order of the channel names within BlendShapesAttr is not important, as we'll always
+		// write out a new order that matches the rig anyway. We just want to know if all consumers of this SkelAnimation
+		// already have the processed, "one per morph target" channels
+		bool bNeedChannelUpdate = true;
+		pxr::VtArray<pxr::TfToken> SkelAnimBlendShapeChannels;
+		if ( BlendShapesAttr && BlendShapesAttr.Get( &SkelAnimBlendShapeChannels ) )
+		{
+			if ( SkelAnimBlendShapeChannels.size() == CurveNames.size() )
+			{
+				std::unordered_set<pxr::TfToken, pxr::TfToken::HashFunctor> ExistingCurveNames;
+				for ( const pxr::TfToken& Channel : SkelAnimBlendShapeChannels )
+				{
+					ExistingCurveNames.insert( Channel );
+				}
+
+				bool bFoundAllCurves = true;
+				for ( const pxr::TfToken& CurveName : CurveNames )
+				{
+					if ( ExistingCurveNames.count( CurveName ) == 0 )
+					{
+						bFoundAllCurves = false;
+						break;
+					}
+				}
+
+				bNeedChannelUpdate = !bFoundAllCurves;
+			}
+		}
+
+		// We haven't processed this SkelAnimation before, so we need to do it now.
+		// The summary is that since each MorphTarget/BlendShape has an independet curve in UE, but can share curves
+		// arbitrarily in USD, we need to replace the existing SkelAnimation channels with ones that are unique for
+		// each blend shape. This is not ideal, but the alternatives would be to: Not handle blend shape curves via
+		// control rigs; Have some morph target curves unintuitively "mirror each other" in UE, if at all possible;
+		// Try to keep the channels shared on USD's side, which would desync USD/UE and show a different result when
+		// reloading.
+		if ( bNeedChannelUpdate )
+		{
+			// We'll change the blend shape channel names, so we need to update all meshes that were using them too.
+			// For now we'll assume that they're all inside the same skel root. We could upgrade this for the stage
+			// later too, if needed
+			for ( UE::FUsdPrim& MeshPrim : UsdUtils::GetAllPrimsOfType( UE::FUsdPrim{ InSkelRoot }, TEXT( "UsdGeomMesh" ) ) )
+			{
+				pxr::UsdSkelBindingAPI SkelBindingAPI{ MeshPrim };
+				if ( !SkelBindingAPI )
+				{
+					continue;
+				}
+
+				pxr::UsdRelationship TargetsRel = SkelBindingAPI.GetBlendShapeTargetsRel();
+				pxr::UsdAttribute ChannelsAttr = SkelBindingAPI.GetBlendShapesAttr();
+
+				if ( TargetsRel && ChannelsAttr )
+				{
+					pxr::SdfPathVector BlendShapeTargets;
+					if ( TargetsRel.GetTargets( &BlendShapeTargets ) )
+					{
+						pxr::VtArray<pxr::TfToken> BlendShapeChannels;
+						ChannelsAttr.Get( &BlendShapeChannels );
+
+						BlendShapeChannels.resize( BlendShapeTargets.size() );
+
+						pxr::SdfPath MeshPath{ MeshPrim.GetPrimPath() };
+
+						bool bRenamedAChannel = false;
+						for ( int32 BlendShapeIndex = 0; BlendShapeIndex < BlendShapeTargets.size(); ++BlendShapeIndex )
+						{
+							const pxr::SdfPath& BlendShapePath = BlendShapeTargets[ BlendShapeIndex ];
+							FString PrimaryBlendShapePath = UsdToUnreal::ConvertPath( BlendShapePath.MakeAbsolutePath( MeshPath ) );
+
+							// Mesh had <blendshape1> target on channel "C" -> We have a morph target called "blendshape1" already, and
+							// we'll create a new channel on SkelAnimation called "blendshape1" -> Let's replace channel "C" with channel
+							// "blendshape1"
+							if ( const UsdUtils::FUsdBlendShape* FoundBlendShape = InBlendShapeMap->Find( PrimaryBlendShapePath ) )
+							{
+								bRenamedAChannel = true;
+								BlendShapeChannels[ BlendShapeIndex ] = UnrealToUsd::ConvertToken( *FoundBlendShape->Name ).Get();
+								UE_LOG( LogUsd, Log, TEXT( "Updating Mesh '%s' to bind BlendShape target '%s' to SkelAnimation curve '%s'" ),
+									*MeshPrim.GetPrimPath().GetString(),
+									*PrimaryBlendShapePath,
+									*FoundBlendShape->Name
+								);
+
+								if ( FoundBlendShape->Inbetweens.Num() > 0 )
+								{
+									UE_LOG( LogUsd, Warning, TEXT( "Baking Control Rig parameter sections for BlendShapes with inbetweens (like '%s') is not currently supported, so animation for mesh '%s' may look incorrect! Please flatten the inbetweens into separate BlendShapes beforehand (importing and exporting will do that)." ),
+										*FoundBlendShape->Name,
+										*MeshPrim.GetPrimPath().GetString()
+									);
+								}
+							}
+						}
+
+						if ( bRenamedAChannel )
+						{
+							ChannelsAttr.Set( BlendShapeChannels );
+						}
+					}
+				}
+			}
+		}
+
+		// Now that we updated the channel names we need to make sure we clear the previous weights as they'll
+		// make no sense
+		BlendShapeWeightsAttr.Clear();
+		BlendShapesAttr.Set( CurveNames );
+		CurvesValuesForTime.resize( CurveNames.size() );
+	}
+
+	FFrameTime TickIncr = FFrameRate::TransformTime( 1, DisplayRate, TickResolution );
+	for ( FFrameTime FrameTickTime = StartInclTickFrame; FrameTickTime <= EndInclTickFrame; FrameTickTime += TickIncr )
+	{
+		FFrameTime TransformedFrameTickTime = FrameTickTime * InTransform;
+
+		double UsdTimeCode = FFrameRate::TransformTime( TransformedFrameTickTime, TickResolution, StageFrameRate ).AsDecimal();
+
+		FMovieSceneContext Context = FMovieSceneContext(
+			FMovieSceneEvaluationRange(
+				TransformedFrameTickTime,
+				TickResolution
+			),
+			InPlayer->GetPlaybackStatus()
+		).SetHasJumped( true );
+
+		InPlayer->GetEvaluationTemplate().Evaluate( Context, *InPlayer );
+		ControlRig->Evaluate_AnyThread();
+
+		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+		if ( !Hierarchy || Hierarchy->GetTopologyVersion() != TopologyVersion )
+		{
+			UE_LOG( LogUsd, Error, TEXT( "Baking Control Rig tracks for rig '%s' failed because the rig changed topology during baking process" ), *ControlRig->GetPathName() );
+			return false;
+		}
+
+		// Sadly we have to fetch these each frame as these are regenerated on each evaluation of the Sequencer
+		// (c.f. FControlRigBindingHelper::BindToSequencerInstance, URigHierarchy::CopyHierarchy)
+		TArray<FRigBoneElement*> BoneElements = Hierarchy->GetBones();
+
+		if ( CurvesValuesForTime.size() > 0 )
+		{
+			TArray<FRigCurveElement*> CurveElements = Hierarchy->GetCurves();
+			for ( int32 ElementIndex = 0; ElementIndex < CurveElements.Num(); ++ElementIndex )
+			{
+				FRigCurveElement* Element = CurveElements[ ElementIndex ];
+				CurvesValuesForTime[ ElementIndex ] = Hierarchy->GetCurveValue( Element );
+			}
+
+			BlendShapeWeightsAttr.Set( CurvesValuesForTime, pxr::UsdTimeCode( UsdTimeCode ) );
+		}
+
+		for ( int32 RigBoneIndex = 0; RigBoneIndex < BoneElements.Num(); ++RigBoneIndex )
+		{
+			FRigBoneElement* El = BoneElements[ RigBoneIndex ];
+
+			// Our skeleton doesn't have this rig bone
+			int32 RefSkeletonBoneIndex = RigJointIndexToRefSkeletonIndex[ RigBoneIndex ];
+			if ( RefSkeletonBoneIndex == INDEX_NONE )
+			{
+				continue;
+			}
+
+			GlobalUEJointTransformsForFrame[ RefSkeletonBoneIndex ] = Hierarchy->GetTransform( El, ERigTransformType::CurrentGlobal );
+
+			FTransform UsdTransform;
+
+			// We have to calculate the local transforms ourselves since the parent element could be a control
+			int32 RefSkeletonParentBoneIndex = InRefSkeleton.GetParentIndex( RefSkeletonBoneIndex );
+			if ( RefSkeletonParentBoneIndex == INDEX_NONE )
+			{
+				UsdTransform = UsdUtils::ConvertTransformToUsdSpace( StageInfo, GlobalUEJointTransformsForFrame[ RefSkeletonBoneIndex ] );
+			}
+			else
+			{
+				const FTransform& ChildGlobal = GlobalUEJointTransformsForFrame[ RefSkeletonBoneIndex ];
+				const FTransform& ParentGlobal = GlobalUEJointTransformsForFrame[ RefSkeletonParentBoneIndex ];
+				UsdTransform = UsdUtils::ConvertTransformToUsdSpace( StageInfo, ChildGlobal.GetRelativeTransform( ParentGlobal ) );
+			}
+
+			Translations[ RefSkeletonBoneIndex ] = UnrealToUsd::ConvertVector( UsdTransform.GetTranslation() );
+			Rotations[ RefSkeletonBoneIndex ] = UnrealToUsd::ConvertQuat( UsdTransform.GetRotation() ).GetNormalized();
+			Scales[ RefSkeletonBoneIndex ] = pxr::GfVec3h( UnrealToUsd::ConvertVector( UsdTransform.GetScale3D() ) );
+		}
+
+		TranslationsAttr.Set( Translations, pxr::UsdTimeCode( UsdTimeCode ) );
+		RotationsAttr.Set( Rotations, pxr::UsdTimeCode( UsdTimeCode ) );
+		ScalesAttr.Set( Scales, pxr::UsdTimeCode( UsdTimeCode ) );
+	}
+
+	double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
+	int ElapsedMin = int( ElapsedSeconds / 60.0 );
+	ElapsedSeconds -= 60.0 * ( double ) ElapsedMin;
+	UE_LOG( LogUsd, Log, TEXT( "Baked new animation for prim '%s' in [%d min %.3f s]" ),
+		*UsdToUnreal::ConvertPath( OutSkelAnimPrim.GetPrimPath() ),
+		ElapsedMin,
+		ElapsedSeconds
+	);
 
 	return true;
 }
