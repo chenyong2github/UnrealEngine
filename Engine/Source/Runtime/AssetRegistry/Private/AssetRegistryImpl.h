@@ -26,7 +26,11 @@ struct FFileChangeData;
 class FPackageReader;
 class UAssetRegistryImpl;
 namespace UE::AssetRegistry::Impl { struct FEventContext; }
+namespace UE::AssetRegistry::Premade { enum class ELoadResult : uint8; }
 namespace UE::AssetRegistry::Premade { struct FAsyncConsumer; }
+namespace UE::AssetRegistry::Impl { struct FInitializeContext; }
+namespace UE::AssetRegistry::Impl { struct FScanPathContext; }
+namespace UE::AssetRegistry::Impl { struct FClassInheritanceContext; }
 
 #if WITH_EDITOR
 namespace UE::AssetDependencyGatherer::Private { class FRegisteredAssetDependencyGatherer; }
@@ -51,7 +55,7 @@ struct FAsyncConsumer
 	 */
 	void Wait(UAssetRegistryImpl& UARI, FWriteScopeLock& ScopeLock);
 	/** Callback from the async thread to consume the Premade ARState */
-	void Consume(UAssetRegistryImpl& UARI, UE::AssetRegistry::Impl::FEventContext& EventContext, bool bSucceeded, FAssetRegistryState&& ARState);
+	void Consume(UAssetRegistryImpl& UARI, UE::AssetRegistry::Impl::FEventContext& EventContext, ELoadResult LoadResult, FAssetRegistryState&& ARState);
 
 private:
 	/**
@@ -65,17 +69,8 @@ private:
 }
 #endif
 
-namespace UE
+namespace UE::AssetRegistry
 {
-namespace AssetRegistry
-{
-
-namespace Impl
-{
-	struct FInitializeContext;
-	struct FScanPathContext;
-	struct FClassInheritanceContext;
-}
 
 namespace Impl
 {
@@ -312,7 +307,7 @@ private:
 	void ConsumeOrDeferPreloadedPremade(UAssetRegistryImpl& UARI, Impl::FEventContext& EventContext);
 	/** Moves a premade asset registry state into this AR */
 	void LoadPremadeAssetRegistry(Impl::FEventContext& Context,
-		bool bSucceeded, FAssetRegistryState&& ARState, FAssetRegistryState::EInitializationMode Mode);
+		Premade::ELoadResult LoadResult, FAssetRegistryState&& ARState, FAssetRegistryState::EInitializationMode Mode);
 
 private:
 
@@ -583,5 +578,3 @@ void EnumerateMemoryAssets(const FARCompiledFilter& InFilter, TSet<FName>& OutPa
 }
 
 }
-}
-
