@@ -332,7 +332,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// Color
 	{
 		MetaData = 0x000000FF & (MetaData >> 24);
-		uint bSelected = bEditorView && (0x00000040 & MetaData);
+		uint bSelected = clamp(0x00000040 & MetaData, 0, 1);
 		uint Classification = 0x0000001F & (MetaData >> 1);
 
 		half3 ElevationColor = lerp(ElevationColorBottom, ElevationColorTop, clamp((Position.z + BoundsSize.z * 0.5) / BoundsSize.z, 0, 1));
@@ -340,7 +340,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		float4 ClassificationColor = ClassificationColors[Classification];
 
 		// Pick color source
-		Color = lerp(lerp(Color, lerp(lerp(PositionColor, ClassificationColor.rgb, bUseClassification), ElevationColor, bUseElevationColor), bUseColorOverride), SelectionColor, bSelected);
+		Color = lerp(Color, lerp(lerp(PositionColor, ClassificationColor.rgb, bUseClassification), ElevationColor, bUseElevationColor), bUseColorOverride);
 
 		// Mix with Intensity
 		Color = lerp(Color, Color * Intensity, IntensityInfluence);
@@ -354,6 +354,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 			Color += Offset.rgb * Offset.a;
 			Color = clamp(Color, 0, 1);
 		}
+
+		// Selection
+		Color = lerp(Color, SelectionColor, bSelected);
 
 		Intermediates.Color = half4(Color, bUseCircle);
 		Intermediates.Alpha = lerp(1, ClassificationColor.a, bUseClassification || bUseClassificationAlpha);

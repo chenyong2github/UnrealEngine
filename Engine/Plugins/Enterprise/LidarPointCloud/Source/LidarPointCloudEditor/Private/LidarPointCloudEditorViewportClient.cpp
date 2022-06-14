@@ -52,47 +52,6 @@ TArray<FVector2D> ToVectorArray(const TArray<FIntPoint>& Points)
 	return VectorPoints;
 }
 
-// Slow, O(n2), but sufficient for the current problem
-bool IsPolygonSelfIntersecting(const TArray<FVector2D>& Points, bool bAllowLooping)
-{
-	const int32 MaxIndex = bAllowLooping ? Points.Num() : Points.Num() - 1;
-
-	for (int32 i = 0; i < MaxIndex; ++i)
-	{
-		const int32 i1 = i < Points.Num() - 1 ? i + 1 : 0;
-
-		const FVector2D P1 = Points[i];
-		const FVector2D P2 = Points[i1];
-
-		for (int32 j = 0; j < MaxIndex; ++j)
-		{
-			const int32 j1 = j < Points.Num() - 1 ? j + 1 : 0;
-
-			if (j1 != i && j != i && j != i1)
-			{
-				// Modified, inlined FMath::SegmentIntersection2D
-				const FVector2D SegmentStartA = P1;
-				const FVector2D SegmentEndA = P2;
-				const FVector2D SegmentStartB = Points[j];
-				const FVector2D SegmentEndB = Points[j1];
-				const FVector2D VectorA = P2 - SegmentStartA;
-				const FVector2D VectorB = SegmentEndB - SegmentStartB;
-
-				const float S = (-VectorA.Y * (SegmentStartA.X - SegmentStartB.X) + VectorA.X * (SegmentStartA.Y - SegmentStartB.Y)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
-				const float T = (VectorB.X * (SegmentStartA.Y - SegmentStartB.Y) - VectorB.Y * (SegmentStartA.X - SegmentStartB.X)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
-
-				if (S >= 0 && S <= 1 && T >= 0 && T <= 1)
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
-
 // Copied from GeomTools.cpp and converted to work with FIntPoint
 bool IsPolygonConvex(const TArray<FIntPoint>& Points)
 {
@@ -292,7 +251,7 @@ bool FLidarPointCloudEditorViewportClient::InputKey(FViewport* InViewport, int32
 							TArray<FVector2D> VectorPoints = ToVectorArray(SelectionPoints);
 							VectorPoints.Add(NewPoint);
 
-							if (!IsPolygonSelfIntersecting(VectorPoints, false))
+							if (!FLidarPointCloudEditorHelper::IsPolygonSelfIntersecting(VectorPoints, false))
 							{
 								// Snap to first point
 								if (SelectionPoints.Num() > 1 && (NewPoint - SelectionPoints[0]).SizeSquared() < PolySnapDistanceSq)
@@ -690,7 +649,7 @@ void FLidarPointCloudEditorViewportClient::OnPolygonalSelectionEnd()
 			else
 			{
 				// Check for self-intersecting shape
-				if (!IsPolygonSelfIntersecting(VectorPoints, true))
+				if (!FLidarPointCloudEditorHelper::IsPolygonSelfIntersecting(VectorPoints, true))
 				{
 					// The separation needs points in CCW order
 					if (!FGeomTools2D::IsPolygonWindingCCW(VectorPoints))
@@ -821,7 +780,7 @@ void FLidarPointCloudEditorViewportClient::DrawSelectionPolygonal(FCanvas& Canva
 
 	// Calculate visual indication of complete polygon for the user
 	const bool bPolyComplete = DrawSelectionPoints.Num() > 2 && (DrawSelectionPoints.Last() - DrawSelectionPoints[0]).SizeSquared() < PolySnapDistanceSq;
-	const bool bSelfIntersecting = DrawSelectionPoints.Num() > 2 && IsPolygonSelfIntersecting(VectorPoints, true);
+	const bool bSelfIntersecting = DrawSelectionPoints.Num() > 2 && FLidarPointCloudEditorHelper::IsPolygonSelfIntersecting(VectorPoints, true);
 	FLinearColor SelectionColor = bSelfIntersecting ? FLinearColor::Red : bPolyComplete ? FLinearColor::Green : GetDefault<UEditorStyleSettings>()->SelectionColor;
 
 	// Selection Area

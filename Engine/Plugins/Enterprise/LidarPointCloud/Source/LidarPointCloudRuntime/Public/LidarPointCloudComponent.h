@@ -502,6 +502,17 @@ public:
 		}
 	}
 
+#if WITH_EDITOR
+	void SelectByConvexVolume(FConvexVolume ConvexVolume, bool bAdditive, bool bVisibleOnly);
+	void SelectBySphere(FSphere Sphere, bool bAdditive, bool bVisibleOnly);
+	void HideSelected();
+	void DeleteSelected();
+	void InvertSelection();
+	int64 NumSelectedPoints();
+	void GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints);
+	void ClearSelection();
+#endif
+	
 public:
 	UFUNCTION(BlueprintCallable, Category = "Components|LidarPointCloud")
 	void SetPointCloud(ULidarPointCloud *InPointCloud);

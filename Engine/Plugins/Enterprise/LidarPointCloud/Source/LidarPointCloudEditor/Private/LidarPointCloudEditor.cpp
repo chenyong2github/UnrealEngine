@@ -7,6 +7,7 @@
 #include "LidarPointCloudShared.h"
 #include "ILidarPointCloudEditorModule.h"
 #include "LidarPointCloudEditorCommands.h"
+#include "LidarPointCloudEditorHelper.h"
 
 #include "Misc/ScopedSlowTask.h"
 #include "Styling/AppStyle.h"
@@ -18,6 +19,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
 
@@ -178,8 +180,6 @@ void FLidarPointCloudEditor::AddReferencedObjects(FReferenceCollector& Collector
 
 void FLidarPointCloudEditor::InitPointCloudEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class ULidarPointCloud* InitPointCloud)
 {
-	FLidarPointCloudEditorCommands::Register();
-
 	PointCloudBeingEdited = InitPointCloud;
 
 	// Register for rebuilding events
@@ -760,7 +760,7 @@ void FLidarPointCloudEditor::Extract()
 		return;
 	}
 
-	ULidarPointCloud* NewPointCloud = CreateNewAsset();
+	ULidarPointCloud* NewPointCloud = FLidarPointCloudEditorHelper::CreateNewAsset();
 	if (NewPointCloud)
 	{
 		NewPointCloud->SetData(SelectedPoints);
@@ -777,7 +777,7 @@ void FLidarPointCloudEditor::ExtractCopy()
 		return;
 	}
 
-	ULidarPointCloud* NewPointCloud = CreateNewAsset();
+	ULidarPointCloud* NewPointCloud = FLidarPointCloudEditorHelper::CreateNewAsset();
 	if (NewPointCloud)
 	{
 		NewPointCloud->SetData(SelectedPoints);
@@ -945,45 +945,6 @@ TArray<FAssetData> FLidarPointCloudEditor::SelectAssets(const FText& Title)
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	return ContentBrowserModule.Get().CreateModalOpenAssetDialog(OpenAssetDialogConfig);
-}
-
-FString FLidarPointCloudEditor::GetSaveAsLocation()
-{
-	// Initialize SaveAssetDialog config
-	FSaveAssetDialogConfig SaveAssetDialogConfig;
-	SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SelectExtractDestination", "Select Extract Destination");
-	SaveAssetDialogConfig.DefaultPath = "/Game";
-	SaveAssetDialogConfig.AssetClassNames.Emplace(*ULidarPointCloud::StaticClass()->GetName());
-	SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
-
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	return ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);
-}
-
-ULidarPointCloud* FLidarPointCloudEditor::CreateNewAsset()
-{
-	ULidarPointCloud* NewPointCloud = nullptr;
-
-	FString SaveObjectPath = GetSaveAsLocation();
-	if (!SaveObjectPath.IsEmpty())
-	{
-		// Attempt to load existing asset first
-		NewPointCloud = FindObject<ULidarPointCloud>(nullptr, *SaveObjectPath);
-
-		// Proceed to creating a new asset, if needed
-		if (!NewPointCloud)
-		{
-			const FString PackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
-			const FString ObjectName = FPackageName::ObjectPathToObjectName(SaveObjectPath);
-
-			NewPointCloud = NewObject<ULidarPointCloud>(CreatePackage(*PackageName), ULidarPointCloud::StaticClass(), FName(*ObjectName), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone);
-
-			FAssetRegistryModule::AssetCreated(NewPointCloud);
-			NewPointCloud->MarkPackageDirty();
-		}		
-	}
-
-	return NewPointCloud;
 }
 
 #undef LOCTEXT_NAMESPACE

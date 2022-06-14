@@ -180,9 +180,9 @@ public:
 		ClassificationID = Other.ClassificationID;
 	}
 
-	FORCEINLINE FLidarPointCloudPoint Transform(const FTransform& Transform) const
+	FORCEINLINE FLidarPointCloudPoint Transform(const FTransform3f& Transform) const
 	{
-		return FLidarPointCloudPoint((FVector3f)Transform.TransformPosition((FVector)Location), Color, bVisible, ClassificationID);
+		return FLidarPointCloudPoint(Transform.TransformPosition(Location), Color, bVisible, ClassificationID);
 	}
 
 	bool operator==(const FLidarPointCloudPoint& P) const { return Location == P.Location && Color == P.Color && bVisible == P.bVisible && ClassificationID == P.ClassificationID && Normal == P.Normal; }

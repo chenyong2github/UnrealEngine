@@ -24,38 +24,50 @@ public:
 	virtual void RegisterCommands() override;
 	// End of TCommand<> interface
 
+	static TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetCommands()
+	{
+		return Get().Commands;
+	}
+
 public:
-	TSharedPtr< FUICommandInfo > SetShowGrid;
-	TSharedPtr< FUICommandInfo > SetShowBounds;
-	TSharedPtr< FUICommandInfo > SetShowCollision;
-	TSharedPtr< FUICommandInfo > SetShowNodes;
+	TSharedPtr<FUICommandInfo> SetShowGrid;
+	TSharedPtr<FUICommandInfo> SetShowBounds;
+	TSharedPtr<FUICommandInfo> SetShowCollision;
+	TSharedPtr<FUICommandInfo> SetShowNodes;
+	TSharedPtr<FUICommandInfo> ResetCamera;
+	TSharedPtr<FUICommandInfo> Center;
+	TSharedPtr<FUICommandInfo> BuildCollision;
+	TSharedPtr<FUICommandInfo> RemoveCollision;
+	TSharedPtr<FUICommandInfo> EditMode;
+	TSharedPtr<FUICommandInfo> BoxSelection;
+	TSharedPtr<FUICommandInfo> PolygonalSelection;
+	TSharedPtr<FUICommandInfo> LassoSelection;
+	TSharedPtr<FUICommandInfo> PaintSelection;
+	TSharedPtr<FUICommandInfo> InvertSelection;
+	TSharedPtr<FUICommandInfo> HideSelected;
+	TSharedPtr<FUICommandInfo> UnhideAll;
+	TSharedPtr<FUICommandInfo> DeleteSelected;
+	TSharedPtr<FUICommandInfo> DeleteHidden;
+	TSharedPtr<FUICommandInfo> CalculateNormals;
+	TSharedPtr<FUICommandInfo> CalculateNormalsSelection;
+	TSharedPtr<FUICommandInfo> Extract;
+	TSharedPtr<FUICommandInfo> ExtractCopy;
+	TSharedPtr<FUICommandInfo> Merge;
+	TSharedPtr<FUICommandInfo> Align;
 
-	TSharedPtr< FUICommandInfo > ResetCamera;
+	// TOOLKIT COMMANDS
 
-	TSharedPtr< FUICommandInfo > Center;
-	TSharedPtr< FUICommandInfo > BuildCollision;
-	TSharedPtr< FUICommandInfo > RemoveCollision;
+	TSharedPtr<FUICommandInfo> ToolkitSelect;
+	TSharedPtr<FUICommandInfo> ToolkitAlign;
+	TSharedPtr<FUICommandInfo> ToolkitMerge;
+	TSharedPtr<FUICommandInfo> ToolkitCollision;
+	TSharedPtr<FUICommandInfo> ToolkitNormals;
+	TSharedPtr<FUICommandInfo> ToolkitBoxSelection;
+	TSharedPtr<FUICommandInfo> ToolkitPolygonalSelection;
+	TSharedPtr<FUICommandInfo> ToolkitLassoSelection;
+	TSharedPtr<FUICommandInfo> ToolkitPaintSelection;
+	TSharedPtr<FUICommandInfo> ToolktitCancelSelection;
 
-	TSharedPtr< FUICommandInfo > EditMode;
-
-	TSharedPtr< FUICommandInfo > BoxSelection;
-	TSharedPtr< FUICommandInfo > PolygonalSelection;
-	TSharedPtr< FUICommandInfo > LassoSelection;
-	TSharedPtr< FUICommandInfo > PaintSelection;
-
-	TSharedPtr< FUICommandInfo > InvertSelection;
-
-	TSharedPtr< FUICommandInfo > HideSelected;
-	TSharedPtr< FUICommandInfo > UnhideAll;
-
-	TSharedPtr< FUICommandInfo > DeleteSelected;
-	TSharedPtr< FUICommandInfo > DeleteHidden;
-
-	TSharedPtr< FUICommandInfo > CalculateNormals;
-	TSharedPtr< FUICommandInfo > CalculateNormalsSelection;
-
-	TSharedPtr< FUICommandInfo > Extract;
-	TSharedPtr< FUICommandInfo > ExtractCopy;
-	TSharedPtr< FUICommandInfo > Merge;
-	TSharedPtr< FUICommandInfo > Align;
+private:
+	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> Commands;
 };

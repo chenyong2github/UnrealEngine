@@ -545,6 +545,69 @@ bool ULidarPointCloud::LineTraceSingle(FVector Origin, FVector Direction, float 
 	return false;
 }
 
+#if WITH_EDITOR
+void ULidarPointCloud::SelectByConvexVolume(FConvexVolume ConvexVolume, bool bAdditive, bool bApplyLocationOffset, bool bVisibleOnly)
+{
+	if(bApplyLocationOffset)
+	{
+		for(FPlane& Plane : ConvexVolume.Planes)
+		{
+			Plane = Plane.TranslateBy(-LocationOffset);
+		}
+
+		ConvexVolume.Init();
+	}
+
+	Octree.SelectByConvexVolume(ConvexVolume, bAdditive, bVisibleOnly);
+}
+
+void ULidarPointCloud::SelectBySphere(FSphere Sphere, bool bAdditive, bool bApplyLocationOffset, bool bVisibleOnly)
+{
+	if(bApplyLocationOffset)
+	{
+		Sphere.Center -= LocationOffset;
+	}
+
+	Octree.SelectBySphere(Sphere, bAdditive, bVisibleOnly);
+}
+
+void ULidarPointCloud::HideSelected()
+{
+	Octree.HideSelected();
+}
+
+void ULidarPointCloud::DeleteSelected()
+{
+	Octree.DeleteSelected();
+}
+
+void ULidarPointCloud::InvertSelection()
+{
+	Octree.InvertSelection();
+}
+
+int64 ULidarPointCloud::NumSelectedPoints()
+{
+	return Octree.NumSelectedPoints();
+}
+
+void ULidarPointCloud::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, FTransform Transform)
+{
+	Transform.AddToTranslation(LocationOffset);
+	Octree.GetSelectedPointsAsCopies(SelectedPoints, Transform);
+}
+
+void ULidarPointCloud::CalculateNormalsForSelection()
+{
+	Octree.CalculateNormalsForSelection(nullptr, NormalsQuality, NormalsNoiseTolerance);
+}
+
+void ULidarPointCloud::ClearSelection()
+{
+	Octree.ClearSelection();
+}
+#endif
+
 void ULidarPointCloud::SetSourcePath(const FString& NewSourcePath)
 {
 	SourcePath.FilePath = NewSourcePath;
@@ -583,6 +646,11 @@ void ULidarPointCloud::SetOptimizedForDynamicData(bool bNewOptimizedForDynamicDa
 	{
 		Octree.OptimizeForStaticData();
 	}
+}
+
+void ULidarPointCloud::SetOptimalCollisionError()
+{
+	MaxCollisionError = FMath::CeilToInt(Octree.GetEstimatedPointSpacing() * 300) * 0.01f;
 }
 
 void ULidarPointCloud::BuildCollision()
@@ -758,7 +826,7 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 				LocationOffset = bCenter ? FVector::ZeroVector : OriginalCoordinates;
 
 				// Adjust default max collision error
-				MaxCollisionError = FMath::CeilToInt(Octree.GetEstimatedPointSpacing() * 300) * 0.01f;
+				SetOptimalCollisionError();
 			}
 			else
 			{
@@ -1159,6 +1227,8 @@ void ULidarPointCloud::Merge(TArray<ULidarPointCloud*> PointCloudsToMerge, TFunc
 		ThreadResult.Get();
 	}
 
+	SetOptimalCollisionError();
+	
 	MarkPackageDirty();
 	OnPointCloudRebuiltEvent.Broadcast();
 }

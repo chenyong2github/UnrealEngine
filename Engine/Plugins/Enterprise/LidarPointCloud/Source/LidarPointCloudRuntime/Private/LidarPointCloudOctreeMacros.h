@@ -28,6 +28,19 @@
 #define ITERATE_NODES(Action, NodeTest) ITERATE_NODES_BODY(Action, NodeTest,  )
 #define ITERATE_NODES_CONST(Action, NodeTest) ITERATE_NODES_BODY(Action, NodeTest, const)
 
+#define ITERATE_SELECTED_NODES(NodeAction) \
+ITERATE_NODES(\
+{\
+	if(CurrentNode->bHasSelection) { NodeAction }\
+}, true);
+
+#define ITERATE_SELECTED(PointAction, NodeAction) \
+ITERATE_SELECTED_NODES(\
+{\
+	FOR_RO(Point, CurrentNode) { if(Point->bSelected) { PointAction } }\
+	{ NodeAction }\
+});
+
 #define POINT_IN_BOX Box.IsInsideOrOn((FVector)Point->Location)
 #define POINT_IN_SPHERE (POINT_IN_BOX && FVector3f::DistSquared(Point->Location, (FVector3f)Sphere.Center) <= RadiusSq)
 #define POINT_IN_CONVEX_VOLUME ConvexVolume.IntersectSphere((FVector)Point->Location, 0)

@@ -119,6 +119,7 @@ FLidarPointCloudOctreeNode::FLidarPointCloudOctreeNode(FLidarPointCloudOctree* T
 	, Tree(Tree)
 	, bVisibilityDirty(false)
 	, bInUse(false)
+	, bHasSelection(false)
 	, NumVisiblePoints(0)
 	, NumPoints(0)
 	, bHasData(false)
@@ -787,7 +788,11 @@ int64 FLidarPointCloudOctreeNode::GetAllocatedSize(bool bRecursive, bool bInclud
 void FLidarPointCloudOctreeNode::ReleaseData(bool bForce)
 {
 	// Check if the data can be released
-	if (bCanReleaseData || bForce)
+	if ((bCanReleaseData
+#if WITH_EDITOR
+		&& !bHasSelection
+#endif
+		) || bForce)
 	{
 		bHasDataPending = false;
 		bCanReleaseData = true;
@@ -1151,6 +1156,7 @@ void FLidarPointCloudOctree::GetPointsAsCopies_Internal(TArray<FLidarPointCloudP
 
 	if (LocalToWorld)
 	{
+		const FTransform3f Transform = (FTransform3f)*LocalToWorld;
 		ITERATE_NODES_CONST({
 			// If no data is required, quit
 			if (Count == 0)
@@ -1166,7 +1172,7 @@ void FLidarPointCloudOctree::GetPointsAsCopies_Internal(TArray<FLidarPointCloudP
 				{
 					for (FLidarPointCloudPoint* Point = CurrentNode->GetData() + StartIndex, *DataEnd = Point + StartIndex + NumPointsToCopy; Point != DataEnd; ++Point)
 					{
-						Points.Add(Point->Transform(*LocalToWorld));
+						Points.Add(Point->Transform(Transform));
 					}
 
 					StartIndex = FMath::Max(0LL, StartIndex - NumPointsToCopy);
@@ -1327,7 +1333,8 @@ void FLidarPointCloudOctree::GetPointsInSphereAsCopies_Internal(TArray<FLidarPoi
 	SelectedPoints.Reset();
 	if (LocalToWorld)
 	{
-		PROCESS_IN_SPHERE_CONST({ SelectedPoints.Add(Point->Transform(*LocalToWorld)); });
+		const FTransform3f Transform = (FTransform3f)*LocalToWorld;
+		PROCESS_IN_SPHERE_CONST({ SelectedPoints.Add(Point->Transform(Transform)); });
 	}
 	else
 	{
@@ -1341,7 +1348,8 @@ void FLidarPointCloudOctree::GetPointsInBoxAsCopies_Internal(TArray<FLidarPointC
 	SelectedPoints.Reset();
 	if (LocalToWorld)
 	{
-		PROCESS_IN_BOX_CONST({ SelectedPoints.Add(Point->Transform(*LocalToWorld)); });
+		const FTransform3f Transform = (FTransform3f)*LocalToWorld;
+		PROCESS_IN_BOX_CONST({ SelectedPoints.Add(Point->Transform(Transform)); });
 	}
 	else
 	{
@@ -1387,7 +1395,8 @@ bool FLidarPointCloudOctree::RaycastMulti(const FLidarPointCloudRay& Ray, const 
 	OutHits.Reset();
 	if (LocalToWorld)
 	{
-		PROCESS_BY_RAY_CONST({ OutHits.Add(Point->Transform(*LocalToWorld)); });
+		const FTransform3f Transform = (FTransform3f)*LocalToWorld;
+		PROCESS_BY_RAY_CONST({ OutHits.Add(Point->Transform(Transform)); });
 	}
 	else
 	{
@@ -1714,6 +1723,203 @@ void FLidarPointCloudOctree::MarkRenderDataInConvexVolumeDirty(const FConvexVolu
 {
 	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, NODE_IN_CONVEX_VOLUME);
 }
+
+#if WITH_EDITOR
+void FLidarPointCloudOctree::SelectByConvexVolume(const FConvexVolume& ConvexVolume, bool bAdditive, bool bVisibleOnly)
+{
+	ITERATE_NODES(
+	{
+		// This will be used to determine if the payload should be released once convex check is complete
+		const bool bHadData = CurrentNode->bHasData;
+		bool bModified = false;
+
+		// Proactively flag as selected to avoid async release of the node's data
+		const bool bHadSelection = CurrentNode->bHasSelection;
+		CurrentNode->bHasSelection = true;
+
+		PROCESS_IN_CONVEX_VOLUME_BODY(
+		{
+			bModified = true;
+			Point->bSelected = bAdditive;
+		}, _RO)
+
+		if(bModified)
+		{
+			CurrentNode->bRenderDataDirty = true;
+		}
+		else
+		{
+			CurrentNode->bHasSelection = bHadSelection;
+
+			// Only attempt to release payload if the node didn't have any data loaded before
+			if(!bHadData)
+			{
+				CurrentNode->ReleaseData();
+			}
+		}
+	}, NODE_IN_CONVEX_VOLUME);
+}
+
+void FLidarPointCloudOctree::SelectBySphere(const FSphere& Sphere, bool bAdditive, bool bVisibleOnly)
+{
+	const FBox Box(Sphere.Center - FVector(Sphere.W), Sphere.Center + FVector(Sphere.W));
+	const float RadiusSq = Sphere.W * Sphere.W;
+	
+	ITERATE_NODES(
+	{
+		// This will be used to determine if the payload should be released once convex check is complete
+		const bool bHadData = CurrentNode->bHasData;
+		bool bModified = false;
+
+		// Proactively flag as selected to avoid async release of the node's data
+		const bool bHadSelection = CurrentNode->bHasSelection;
+		CurrentNode->bHasSelection = true;
+
+		PROCESS_IN_SPHERE_BODY(
+		{
+			bModified = true;
+			Point->bSelected = bAdditive;
+		}, _RO)
+
+		if(bModified)
+		{
+			CurrentNode->bRenderDataDirty = true;
+		}
+		else
+		{
+			CurrentNode->bHasSelection = bHadSelection;
+
+			// Only attempt to release payload if the node didn't have any data loaded before
+			if(!bHadData)
+			{
+				CurrentNode->ReleaseData();
+			}
+		}
+	}, NODE_IN_BOX);
+}
+
+void FLidarPointCloudOctree::HideSelected()
+{
+	ITERATE_SELECTED({
+		Point->bVisible = false;
+		Point->bSelected = false;
+	}, {
+		CurrentNode->bHasSelection = false;
+		CurrentNode->bCanReleaseData = false;
+		CurrentNode->bRenderDataDirty = true;
+		CurrentNode->bVisibilityDirty = true;
+	});
+}
+
+void FLidarPointCloudOctree::DeleteSelected()
+{
+	ITERATE_SELECTED_NODES({
+		const int32 NumElements = CurrentNode->GetNumPoints();
+		FLidarPointCloudPoint* Start = CurrentNode->GetData();
+		
+		int64 NumRemoved = 0;
+
+		for (FLidarPointCloudPoint* P = Start, *DataEnd = Start + NumElements; P != DataEnd; ++P)
+		{
+			if (P->bSelected)
+			{
+				CurrentNode->Data.RemoveAtSwap(P - Start, 1, false);
+				++NumRemoved;
+				--DataEnd;
+				--P;
+			}
+		}
+
+		CurrentNode->AddPointCount(-NumRemoved);
+
+		// Reduce space usage
+		CurrentNode->Data.Shrink();
+
+		// Copy the updated array back to the BulkData
+		CurrentNode->NumPoints = CurrentNode->Data.Num();
+
+		CurrentNode->bHasSelection = false;
+		CurrentNode->bCanReleaseData = false;
+		CurrentNode->bRenderDataDirty = true;
+		CurrentNode->bVisibilityDirty = true;
+	});
+}
+
+void FLidarPointCloudOctree::InvertSelection()
+{
+	ITERATE_NODES(
+	{
+		// This will be used to determine if the payload should be released once invert is complete
+		bool bNewHasSelection = false;
+		
+		FOR_RO(Point, CurrentNode)
+		{
+			Point->bSelected = !Point->bSelected;
+			if(Point->bSelected)
+			{
+				bNewHasSelection = true;
+			}
+		}
+
+		CurrentNode->bHasSelection = bNewHasSelection;
+		CurrentNode->bRenderDataDirty = true;
+
+		// Only attempt to release payload if the node isn't also used by rendering
+		if(!bNewHasSelection && !CurrentNode->bInUse)
+		{
+			CurrentNode->ReleaseData();
+		}
+	}, true);
+}
+
+int64 FLidarPointCloudOctree::NumSelectedPoints()
+{
+	int64 Count = 0;
+	ITERATE_SELECTED({ ++Count; }, {});
+	return Count;
+}
+
+void FLidarPointCloudOctree::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform& Transform)
+{
+	const FTransform3f Transform3F = (FTransform3f)Transform;
+
+	ITERATE_SELECTED(
+	{
+		SelectedPoints.Add(Point->Transform(Transform3F));
+	},{});
+}
+
+void FLidarPointCloudOctree::CalculateNormalsForSelection(FThreadSafeBool* bCancelled, int32 Quality, float Tolerance)
+{
+	TArray64<FLidarPointCloudPoint*> SelectedPoints;
+
+	ITERATE_SELECTED({
+		SelectedPoints.Add(Point);
+		Point->Normal.Reset();
+	},{
+		CurrentNode->bCanReleaseData = false;
+		CurrentNode->bRenderDataDirty = true;
+	});
+	
+	LidarPointCloudMeshing::CalculateNormals(this, bCancelled, Quality, Tolerance, SelectedPoints);
+}
+
+void FLidarPointCloudOctree::ClearSelection()
+{
+	ITERATE_SELECTED({
+		Point->bSelected = false; 
+	}, {
+		CurrentNode->bRenderDataDirty = true;
+		CurrentNode->bHasSelection = false;
+
+		// Only attempt to release payload if the node isn't also used by rendering
+		if(!CurrentNode->bInUse)
+		{
+			CurrentNode->ReleaseData();
+		}
+	});
+}
+#endif // WITH_EDITOR
 
 void FLidarPointCloudOctree::MarkRenderDataInFrustumDirty(const FConvexVolume& Frustum)
 {

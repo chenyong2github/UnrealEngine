@@ -9,6 +9,8 @@
 #include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
+#include "LidarPointCloudEditorHelper.h"
+
 #include "Misc/ScopedSlowTask.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "PackageTools.h"
@@ -132,17 +134,8 @@ void FAssetTypeActions_LidarPointCloud::ExecuteMerge(TArray<ULidarPointCloud*> P
 		MergedCloudPackage->SetPackageFlags(PKG_NewlyCreated);
 
 		ULidarPointCloud* PC = NewObject<ULidarPointCloud>(MergedCloudPackage, FName(*FPaths::GetBaseFilename(MergedCloudPackage->GetName())), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone | EObjectFlags::RF_Transactional);
-		if (IsValid(PC))
-		{
-			FScopedSlowTask ProgressDialog(PointClouds.Num() + 2, LOCTEXT("Merge", "Merging Point Clouds..."));
-			ProgressDialog.MakeDialog();
 
-			PC->Merge(PointClouds, [&ProgressDialog]() { ProgressDialog.EnterProgressFrame(1.f); });
-
-			PC->MarkPackageDirty();
-
-			FAssetRegistryModule::AssetCreated(PC);
-		}
+		FLidarPointCloudEditorHelper::MergeLidar(PC, PointClouds);
 	}
 }
 

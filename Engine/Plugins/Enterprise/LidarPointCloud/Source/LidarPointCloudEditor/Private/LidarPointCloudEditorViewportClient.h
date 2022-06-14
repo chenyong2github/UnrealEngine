@@ -6,7 +6,7 @@
 #include "InputCoreTypes.h"
 #include "UnrealWidgetFwd.h"
 #include "EditorViewportClient.h"
-#include "Components.h"
+#include "LidarPointCloudEditorHelper.h"
 #include "LidarPointCloudShared.h"
 
 class FAdvancedPreviewScene;
@@ -15,13 +15,6 @@ class FLidarPointCloudEditor;
 class SLidarPointCloudEditorViewport;
 class ULidarPointCloud;
 class ULidarPointCloudComponent;
-
-enum class ELidarPointCloudSelectionMode : uint8
-{
-	None,
-	Add,
-	Subtract
-};
 
 enum class ELidarPointCloudSelectionMethod : uint8
 {

@@ -117,8 +117,6 @@ private:
 	TSharedRef<SWidget> GenerateSelectionMenuContent();
 
 	TArray<FAssetData> SelectAssets(const FText& Title);
-	FString GetSaveAsLocation();
-	ULidarPointCloud* CreateNewAsset();
 
 private:
 	/**	The tab ids for all the tabs used */

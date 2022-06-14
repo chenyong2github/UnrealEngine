@@ -69,6 +69,9 @@ private:
 	/** Marks the node as being used for rendering */
 	bool bInUse;
 
+	/** Marks the node as containing active selection */
+	bool bHasSelection;
+
 	/** Stores the number of visible points */
 	uint32 NumVisiblePoints;
 
@@ -466,6 +469,18 @@ public:
 	
 	/** Marks render data of all nodes within the given convex volume as dirty. */
 	void MarkRenderDataInConvexVolumeDirty(const FConvexVolume& ConvexVolume);
+
+#if WITH_EDITOR
+	void SelectByConvexVolume(const FConvexVolume& ConvexVolume, bool bAdditive, bool bVisibleOnly);
+	void SelectBySphere(const FSphere& Sphere, bool bAdditive, bool bVisibleOnly);
+	void HideSelected();
+	void DeleteSelected();
+	void InvertSelection();
+	int64 NumSelectedPoints();
+	void GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform& Transform);
+	void CalculateNormalsForSelection(FThreadSafeBool* bCancelled, int32 Quality, float Tolerance);
+	void ClearSelection();
+#endif
 
 	/** Initializes the Octree properties. */
 	void Initialize(const FVector3f& InExtent);

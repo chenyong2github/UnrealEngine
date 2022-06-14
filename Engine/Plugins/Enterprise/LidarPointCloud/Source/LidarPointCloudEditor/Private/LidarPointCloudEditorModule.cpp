@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "EditorModeRegistry.h"
 #include "ILidarPointCloudEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
@@ -10,6 +11,8 @@
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudSettings.h"
 #include "ISettingsModule.h"
+#include "LidarPointCloudEditorCommands.h"
+#include "LidarPointCloudEdMode.h"
 #include "ShowFlags.h"
 
 DEFINE_LOG_CATEGORY(LogLidarPointCloud);
@@ -44,11 +47,17 @@ class FLidarPointCloudEditorModule : public ILidarPointCloudEditorModule
 		}
 
 		FEngineShowFlags::RegisterCustomShowFlag(TEXT("LidarClippingVolume"), true, EShowFlagGroup::SFG_Transient, NSLOCTEXT("UnrealEd", "LidarClippingVolumeSF", "Lidar Clipping Volume"));
+
+		FLidarPointCloudEditorCommands::Register();
 	}
 	virtual void ShutdownModule() override
 	{
 		MenuExtensibilityManager.Reset();
 		ToolBarExtensibilityManager.Reset();
+
+		FLidarPointCloudEditorCommands::Unregister();
+
+		FEditorModeRegistry::Get().UnregisterMode(FLidarEditorModes::EM_Lidar);
 
 		if (UObjectInitialized())
 		{

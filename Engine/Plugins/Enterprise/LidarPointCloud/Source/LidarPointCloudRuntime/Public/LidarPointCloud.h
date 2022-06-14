@@ -409,6 +409,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void MarkPointVisibilityDirty() { Octree.MarkPointVisibilityDirty(); }
 
+#if WITH_EDITOR
+	/** Set of editor helper functions */
+	void SelectByConvexVolume(FConvexVolume ConvexVolume, bool bAdditive, bool bApplyLocationOffset, bool bVisibleOnly);
+	void SelectBySphere(FSphere Sphere, bool bAdditive, bool bApplyLocationOffset, bool bVisibleOnly);
+	void HideSelected();
+	void DeleteSelected();
+	void InvertSelection();
+	int64 NumSelectedPoints();
+	void GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, FTransform Transform);
+	void CalculateNormalsForSelection();
+	void ClearSelection();
+#endif
+	
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void SetSourcePath(const FString& NewSourcePath);
 
@@ -425,6 +438,9 @@ public:
 		LocationOffset = OriginalCoordinates = NewBounds.GetCenter();
 		Octree.Initialize((FVector3f)NewBounds.GetExtent());
 	}
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	void SetOptimalCollisionError();
 
 	/** Builds collision mesh for the cloud, using current collision settings */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")

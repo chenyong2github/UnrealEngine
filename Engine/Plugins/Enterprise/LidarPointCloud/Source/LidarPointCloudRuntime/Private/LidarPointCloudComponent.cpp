@@ -135,6 +135,84 @@ void ULidarPointCloudComponent::PostPointCloudSet()
 	}
 }
 
+#if WITH_EDITOR
+void ULidarPointCloudComponent::SelectByConvexVolume(FConvexVolume ConvexVolume, bool bAdditive, bool bVisibleOnly)
+{
+	if(!PointCloud)
+	{
+		return;
+	}
+	
+	const FMatrix InvTransform = GetComponentTransform().Inverse().ToMatrixNoScale().ConcatTranslation(-PointCloud->LocationOffset);
+
+	for(FPlane& Plane : ConvexVolume.Planes)
+	{
+		Plane = Plane.TransformBy(InvTransform);
+	}
+
+	ConvexVolume.Init();
+
+	PointCloud->SelectByConvexVolume(ConvexVolume, bAdditive, false, bVisibleOnly);
+}
+
+void ULidarPointCloudComponent::SelectBySphere(FSphere Sphere, bool bAdditive, bool bVisibleOnly)
+{
+	if(!PointCloud)
+	{
+		return;
+	}
+	
+	const FMatrix InvTransform = GetComponentTransform().Inverse().ToMatrixNoScale().ConcatTranslation(-PointCloud->LocationOffset);
+	
+	PointCloud->SelectBySphere(Sphere.TransformBy(InvTransform), bAdditive, false, bVisibleOnly);
+}
+
+void ULidarPointCloudComponent::HideSelected()
+{
+	if(PointCloud)
+	{
+		PointCloud->HideSelected();
+	}
+}
+
+void ULidarPointCloudComponent::DeleteSelected()
+{
+	if(PointCloud)
+	{
+		PointCloud->DeleteSelected();
+	}
+}
+
+void ULidarPointCloudComponent::InvertSelection()
+{
+	if(PointCloud)
+	{
+		PointCloud->InvertSelection();
+	}
+}
+
+int64 ULidarPointCloudComponent::NumSelectedPoints()
+{
+	return PointCloud ? PointCloud->NumSelectedPoints() : 0;
+}
+
+void ULidarPointCloudComponent::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints)
+{
+	if(PointCloud)
+	{
+		PointCloud->GetSelectedPointsAsCopies(SelectedPoints, GetComponentTransform());
+	}
+}
+
+void ULidarPointCloudComponent::ClearSelection()
+{
+	if(PointCloud)
+	{
+		PointCloud->ClearSelection();
+	}
+}
+#endif // WITH_EDITOR
+
 void ULidarPointCloudComponent::SetPointCloud(ULidarPointCloud *InPointCloud)
 {
 	if (PointCloud != InPointCloud)

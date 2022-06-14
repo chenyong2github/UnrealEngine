@@ -30,7 +30,10 @@ namespace UnrealBuildTool.Rules
                 "Engine",
                 "RenderCore",
                 "RHI",
-                "AdvancedPreviewScene"
+                "AdvancedPreviewScene",
+                "EditorInteractiveToolsFramework",
+                "InteractiveToolsFramework",
+                "StatusBar"
                 }
             );
         }
