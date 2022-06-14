@@ -21,7 +21,6 @@
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "Engine/TextureCube.h"
 #include "StereoRendering.h"
-#include "StereoRenderTargetManager.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
 #include "Engine/RendererSettings.h"
@@ -29,6 +28,7 @@
 #include "HighResScreenshot.h"
 #include "Slate/SceneViewport.h"
 #include "RenderUtils.h"
+#include "StereoRenderUtils.h"
 #include "SceneRelativeViewMatrices.h"
 #include "NaniteDefinitions.h"
 
@@ -887,7 +887,10 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 		bIsMobileMultiViewEnabled = bIsInstancedStereoEnabled = RHISupportsInstancedStereo(ShaderPlatform);
 	}
 
-	bShouldBindInstancedViewUB = bIsInstancedStereoEnabled || bIsMobileMultiViewEnabled;
+	{
+		const UE::StereoRenderUtils::FStereoShaderAspects Aspects(ShaderPlatform);
+		bShouldBindInstancedViewUB = Aspects.IsInstancedStereoEnabled() || Aspects.IsMobileMultiViewEnabled();
+	}
 
 	SetupAntiAliasingMethod();
 

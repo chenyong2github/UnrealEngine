@@ -18,6 +18,7 @@
 #include "ShaderCore.h"
 #include "ShaderCompilerCore.h"
 #include "RenderUtils.h"
+#include "StereoRenderUtils.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "UObject/RenderingObjectVersion.h"
@@ -1390,37 +1391,27 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		static const auto CVarInstancedStereo = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
-		static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
-		static const auto CVarODSCapture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.ODSCapture"));
+		const UE::StereoRenderUtils::FStereoShaderAspects Aspects(Platform);
 
-		bool bIsInstancedStereo = (RHISupportsInstancedStereo(Platform) && (CVarInstancedStereo && CVarInstancedStereo->GetValueOnGameThread() != 0));
-		const bool bIsMultiView = (RHISupportsMultiView(Platform) && bIsInstancedStereo);
-
-		bool bIsMobileMultiView = IsMobilePlatform(Platform) && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnGameThread() != 0);
-		if (bIsMobileMultiView && !RHISupportsMobileMultiView(Platform))
-		{
-			// Native mobile multi-view is not supported, fall back to instancing if available (even if disabled in settings)
-			bIsMobileMultiView = bIsInstancedStereo = RHISupportsInstancedStereo(Platform);
-		}
-
-		const bool bIsODSCapture = CVarODSCapture && (CVarODSCapture->GetValueOnGameThread() != 0);
-
-		if (bIsInstancedStereo)
+		if (Aspects.IsInstancedStereoEnabled())
 		{
 			KeyString += TEXT("_VRIS");
-			
-			if (bIsMultiView)
+
+			if (Aspects.IsInstancedMultiViewportEnabled())
 			{
 				KeyString += TEXT("_MVIEW");
 			}
 		}
 
-		if (bIsMobileMultiView)
+		if (Aspects.IsMobileMultiViewEnabled())
 		{
 			KeyString += TEXT("_MMVIEW");
 		}
+	}
 
+	{
+		static const auto CVarODSCapture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.ODSCapture"));
+		const bool bIsODSCapture = CVarODSCapture && (CVarODSCapture->GetValueOnGameThread() != 0);
 		if (bIsODSCapture)
 		{
 			KeyString += TEXT("_ODSC");
