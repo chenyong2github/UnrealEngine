@@ -454,6 +454,12 @@ void UpdateInternalArrays(TConstArrayView<AActor*> Actors, TConstArrayView<FName
 		CountCollisionPrimitives(StaticMeshView, BoxCount, SphereCount, CapsuleCount);
 		CountCollisionPrimitives(SkeletalMeshView, BoxCount, SphereCount, CapsuleCount);
 
+		if ((BoxCount + SphereCount + CapsuleCount) >= OutAssetArrays->MaxPrimitives)
+		{
+			UE_LOG(LogRigidMeshCollision, Error, TEXT("Number of Collision DI primitives is higher than the %d limit.  Please increase it."), OutAssetArrays->MaxPrimitives);
+			return;
+		}
+
 		const bool MismatchOffsets = ((OutAssetArrays->ElementOffsets.SphereOffset - OutAssetArrays->ElementOffsets.BoxOffset) != BoxCount) ||
 			((OutAssetArrays->ElementOffsets.CapsuleOffset - OutAssetArrays->ElementOffsets.SphereOffset) != SphereCount) ||
 			((OutAssetArrays->ElementOffsets.NumElements - OutAssetArrays->ElementOffsets.CapsuleOffset) != CapsuleCount);
@@ -462,18 +468,11 @@ void UpdateInternalArrays(TConstArrayView<AActor*> Actors, TConstArrayView<FName
 		check(!MismatchOffsets || bFullUpdate);
 
 		if (bFullUpdate)
-		{
-			if ((BoxCount + SphereCount + CapsuleCount) < OutAssetArrays->MaxPrimitives)
-			{
-				OutAssetArrays->ElementOffsets.BoxOffset = 0;
-				OutAssetArrays->ElementOffsets.SphereOffset = OutAssetArrays->ElementOffsets.BoxOffset + BoxCount;
-				OutAssetArrays->ElementOffsets.CapsuleOffset = OutAssetArrays->ElementOffsets.SphereOffset + SphereCount;
-				OutAssetArrays->ElementOffsets.NumElements = OutAssetArrays->ElementOffsets.CapsuleOffset + CapsuleCount;
-			}
-			else
-			{
-				UE_LOG(LogRigidMeshCollision, Warning, TEXT("Number of Collision DI primitives is higher than the %d limit.  Please increase it."), OutAssetArrays->MaxPrimitives);
-			}
+		{			
+			OutAssetArrays->ElementOffsets.BoxOffset = 0;
+			OutAssetArrays->ElementOffsets.SphereOffset = OutAssetArrays->ElementOffsets.BoxOffset + BoxCount;
+			OutAssetArrays->ElementOffsets.CapsuleOffset = OutAssetArrays->ElementOffsets.SphereOffset + SphereCount;
+			OutAssetArrays->ElementOffsets.NumElements = OutAssetArrays->ElementOffsets.CapsuleOffset + CapsuleCount;
 		}
 
 		uint32 BoxIndex = OutAssetArrays->ElementOffsets.BoxOffset;

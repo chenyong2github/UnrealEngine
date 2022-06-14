@@ -523,9 +523,8 @@ void DIRigidMeshCollision_GetClosestPointMeshDistanceFieldNoNormal(in FDIRigidMe
 	
 	OutClosestPosition = float3(0,0,0);
 	OutClosestVelocity = float3(0,0,0);
-
-	float OutClosestDistanceTmp;
-	const int ElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,WorldPosition,CollisionPosition,CollisionNormal,OutClosestDistanceTmp,TimeFraction);
+	
+	const int ElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,WorldPosition,CollisionPosition,CollisionNormal,OutClosestDistance,TimeFraction);
 
 	if (ElementIndex != -1)
 	{
@@ -536,11 +535,11 @@ void DIRigidMeshCollision_GetClosestPointMeshDistanceFieldNoNormal(in FDIRigidMe
 			// #todo(dmp): this does a dynamic branch based on intersecting the bbox.  Maybe we can factor that out due to the broadphase here?
 			MaxDistance = max(.001, MaxDistance);
 			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, WorldPosition, MaxDistance);		
-
-			const float3 PreviousPosition = mul(DIRigidMeshCollision_GetPreviousTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
-			const float3 CurrentPosition = mul(DIRigidMeshCollision_GetCurrentTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
-			OutClosestVelocity = ( CurrentPosition - PreviousPosition ) / DeltaTime;
-			OutClosestPosition = PreviousPosition + TimeFraction * (CurrentPosition-PreviousPosition);
 		}
-	}
+		
+		const float3 PreviousPosition = mul(DIRigidMeshCollision_GetPreviousTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
+		const float3 CurrentPosition = mul(DIRigidMeshCollision_GetCurrentTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
+		OutClosestVelocity = ( CurrentPosition - PreviousPosition ) / DeltaTime;
+		OutClosestPosition = PreviousPosition + TimeFraction * (CurrentPosition-PreviousPosition);
+	}	
 }
