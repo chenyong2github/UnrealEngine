@@ -10,11 +10,13 @@ UGridSlot::UGridSlot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Slot(nullptr)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	HorizontalAlignment = HAlign_Fill;
 	VerticalAlignment = VAlign_Fill;
 
 	Layer = 0;
 	Nudge = FVector2D(0, 0);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UGridSlot::ReleaseSlateResources(bool bReleaseChildren)
@@ -26,6 +28,7 @@ void UGridSlot::ReleaseSlateResources(bool bReleaseChildren)
 
 void UGridSlot::BuildSlot(TSharedRef<SGridPanel> GridPanel)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GridPanel->AddSlot(Column, Row, SGridPanel::Layer(Layer))
 		.Expose(Slot)
 		.Padding(Padding)
@@ -37,6 +40,13 @@ void UGridSlot::BuildSlot(TSharedRef<SGridPanel> GridPanel)
 		[
 			Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FMargin UGridSlot::GetPadding() const
+{
+	return Slot ? Slot->GetPadding() : Padding;
 }
 
 void UGridSlot::SetPadding(FMargin InPadding)
@@ -48,6 +58,11 @@ void UGridSlot::SetPadding(FMargin InPadding)
 	}
 }
 
+int32 UGridSlot::GetRow() const
+{
+	return Slot ? Slot->GetRow() : Row;
+}
+
 void UGridSlot::SetRow(int32 InRow)
 {
 	Row = InRow;
@@ -55,6 +70,11 @@ void UGridSlot::SetRow(int32 InRow)
 	{
 		Slot->SetRow(InRow);
 	}
+}
+
+int32 UGridSlot::GetRowSpan() const
+{
+	return Slot ? Slot->GetRowSpan() : RowSpan;
 }
 
 void UGridSlot::SetRowSpan(int32 InRowSpan)
@@ -66,6 +86,12 @@ void UGridSlot::SetRowSpan(int32 InRowSpan)
 	}
 }
 
+int32 UGridSlot::GetColumn() const
+{
+	return Slot ? Slot->GetColumn() : Column;
+}
+
+
 void UGridSlot::SetColumn(int32 InColumn)
 {
 	Column = InColumn;
@@ -73,6 +99,11 @@ void UGridSlot::SetColumn(int32 InColumn)
 	{
 		Slot->SetColumn(InColumn);
 	}
+}
+
+int32 UGridSlot::GetColumnSpan() const
+{
+	return Slot ? Slot->GetColumnSpan() : ColumnSpan;
 }
 
 void UGridSlot::SetColumnSpan(int32 InColumnSpan)
@@ -84,6 +115,11 @@ void UGridSlot::SetColumnSpan(int32 InColumnSpan)
 	}
 }
 
+int32 UGridSlot::GetLayer() const
+{
+	return Slot ? Slot->GetLayer() : Layer;
+}
+
 void UGridSlot::SetLayer(int32 InLayer)
 {
 	Layer = InLayer;
@@ -91,6 +127,11 @@ void UGridSlot::SetLayer(int32 InLayer)
 	{
 		Slot->SetLayer(InLayer);
 	}
+}
+
+FVector2D UGridSlot::GetNudge() const
+{
+	return Slot ? Slot->GetNudge() : Nudge;
 }
 
 void UGridSlot::SetNudge(FVector2D InNudge)
@@ -102,6 +143,11 @@ void UGridSlot::SetNudge(FVector2D InNudge)
 	}
 }
 
+EHorizontalAlignment UGridSlot::GetHorizontalAlignment() const
+{
+	return Slot ? Slot->GetHorizontalAlignment() : HorizontalAlignment.GetValue();
+}
+
 void UGridSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
 {
 	HorizontalAlignment = InHorizontalAlignment;
@@ -109,6 +155,11 @@ void UGridSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignmen
 	{
 		Slot->SetHorizontalAlignment(InHorizontalAlignment);
 	}
+}
+
+EVerticalAlignment UGridSlot::GetVerticalAlignment() const
+{
+	return Slot ? Slot->GetVerticalAlignment() : VerticalAlignment.GetValue();
 }
 
 void UGridSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
@@ -119,9 +170,11 @@ void UGridSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 		Slot->SetVerticalAlignment(InVerticalAlignment);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UGridSlot::SynchronizeProperties()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
 	SetPadding(Padding);
@@ -133,6 +186,7 @@ void UGridSlot::SynchronizeProperties()
 	SetNudge(Nudge);
 
 	SetLayer(Layer);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #if WITH_EDITOR
@@ -140,10 +194,10 @@ void UGridSlot::SynchronizeProperties()
 bool UGridSlot::NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize)
 {
 	const FVector2D ClampedDirection = NudgeDirection.ClampAxes(-1.0f, 1.0f);
-	const int32 NewColumn = Column + ClampedDirection.X;
-	const int32 NewRow = Row + ClampedDirection.Y;
+	const int32 NewColumn = GetColumn() + ClampedDirection.X;
+	const int32 NewRow = GetRow() + ClampedDirection.Y;
 
-	if (NewColumn < 0 || NewRow < 0 || (NewColumn == Column && NewRow == Row))
+	if (NewColumn < 0 || NewRow < 0 || (NewColumn == GetColumn() && NewRow == GetRow()))
 	{
 		return false;
 	}
@@ -159,8 +213,8 @@ bool UGridSlot::NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional
 void UGridSlot::SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot)
 {
 	const ThisClass* const TemplateGridSlot = CastChecked<ThisClass>(TemplateSlot);
-	SetRow(TemplateGridSlot->Row);
-	SetColumn(TemplateGridSlot->Column);
+	SetRow(TemplateGridSlot->GetRow());
+	SetColumn(TemplateGridSlot->GetColumn());
 }
 
 #endif

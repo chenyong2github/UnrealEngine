@@ -163,7 +163,7 @@ void STransformHandle::Resize(UCanvasPanelSlot* Slot, const FVector2D& Direction
 	}
 
 	FMargin Offsets = StartingOffsets;
-	const FAnchorData& LayoutData = Slot->LayoutData;
+	const FAnchorData LayoutData = Slot->GetLayout();
 
 	FVector2D Movement = Amount * Direction;
 	FVector2D PositionMovement = Movement * ( FVector2D(1.0f, 1.0f) - LayoutData.Alignment );

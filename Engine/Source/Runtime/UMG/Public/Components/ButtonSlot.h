@@ -21,24 +21,33 @@ class UMG_API UButtonSlot : public UPanelSlot
 public:
 	
 	/** The padding area between the slot and the content it contains. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Button Slot")
+	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPadding", Category="Layout|Button Slot")
 	FMargin Padding;
 
 	/** The alignment of the object horizontally. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Button Slot")
+	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetHorizontalAlignment", Category="Layout|Button Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
 	/** The alignment of the object vertically. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Button Slot")
+	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetVerticalAlignment", Category="Layout|Button Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 
 public:
 
+	FMargin GetPadding() const;
+
 	UFUNCTION(BlueprintCallable, Category="Layout|Button Slot")
 	void SetPadding(FMargin InPadding);
 
+	EHorizontalAlignment GetHorizontalAlignment() const;
+
 	UFUNCTION(BlueprintCallable, Category="Layout|Button Slot")
 	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	EVerticalAlignment GetVerticalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Button Slot")
 	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);

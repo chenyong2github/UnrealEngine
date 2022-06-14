@@ -225,16 +225,17 @@ EVisibility FCanvasSlotExtension::GetAnchorVisibility(EAnchorWidget AnchorType) 
 		{
 			if ( UCanvasPanelSlot* PreviewCanvasSlot = Cast<UCanvasPanelSlot>(PreviewWidget->Slot) )
 			{
+				FAnchorData PreviewLayout = PreviewCanvasSlot->GetLayout();
 				switch ( AnchorType )
 				{
 				case EAnchorWidget::Center:
-					return PreviewCanvasSlot->LayoutData.Anchors.Minimum == PreviewCanvasSlot->LayoutData.Anchors.Maximum ? EVisibility::Visible : EVisibility::Collapsed;
+					return PreviewLayout.Anchors.Minimum == PreviewLayout.Anchors.Maximum ? EVisibility::Visible : EVisibility::Collapsed;
 				case EAnchorWidget::Left:
 				case EAnchorWidget::Right:
-					return PreviewCanvasSlot->LayoutData.Anchors.Minimum.Y == PreviewCanvasSlot->LayoutData.Anchors.Maximum.Y ? EVisibility::Visible : EVisibility::Collapsed;
+					return PreviewLayout.Anchors.Minimum.Y == PreviewLayout.Anchors.Maximum.Y ? EVisibility::Visible : EVisibility::Collapsed;
 				case EAnchorWidget::Top:
 				case EAnchorWidget::Bottom:
-					return PreviewCanvasSlot->LayoutData.Anchors.Minimum.X == PreviewCanvasSlot->LayoutData.Anchors.Maximum.X ? EVisibility::Visible : EVisibility::Collapsed;
+					return PreviewLayout.Anchors.Minimum.X == PreviewLayout.Anchors.Maximum.X ? EVisibility::Visible : EVisibility::Collapsed;
 				}
 
 				return EVisibility::Visible;
@@ -254,8 +255,8 @@ FVector2D FCanvasSlotExtension::GetAnchorAlignment(EAnchorWidget AnchorType) con
 		{
 			if ( UCanvasPanelSlot* PreviewCanvasSlot = Cast<UCanvasPanelSlot>(PreviewWidget->Slot) )
 			{
-				FVector2D Minimum = PreviewCanvasSlot->LayoutData.Anchors.Minimum;
-				FVector2D Maximum = PreviewCanvasSlot->LayoutData.Anchors.Maximum;
+				FVector2D Minimum = PreviewCanvasSlot->GetLayout().Anchors.Minimum;
+				FVector2D Maximum = PreviewCanvasSlot->GetLayout().Anchors.Maximum;
 
 				switch ( AnchorType )
 				{
@@ -337,7 +338,7 @@ FReply FCanvasSlotExtension::HandleAnchorBeginDrag(const FGeometry& Geometry, co
 	MouseDownPosition = Event.GetScreenSpacePosition();
 
 	UCanvasPanelSlot* PreviewCanvasSlot = Cast<UCanvasPanelSlot>(SelectionCache[0].GetPreview()->Slot);
-	BeginAnchors = PreviewCanvasSlot->LayoutData.Anchors;
+	BeginAnchors = PreviewCanvasSlot->GetLayout().Anchors;
 
 	Designer->PushDesignerMessage(LOCTEXT("CenterAnchorControls", "Hold [Ctrl] to update widget position"));
 
@@ -389,7 +390,7 @@ FReply FCanvasSlotExtension::HandleAnchorDragging(const FGeometry& Geometry, con
 
 					FVector2D AnchorDelta = LocalPositionDelta / CanvasGeometry.GetLocalSize();
 
-					const FAnchorData OldLayoutData = PreviewCanvasSlot->LayoutData;
+					const FAnchorData OldLayoutData = PreviewCanvasSlot->GetLayout();
 					FAnchorData LayoutData = OldLayoutData;
 					
 					switch ( AnchorType )
@@ -475,11 +476,11 @@ FReply FCanvasSlotExtension::HandleAnchorDragging(const FGeometry& Geometry, con
 					// result.
 					{
 						PreviewCanvasSlot->SaveBaseLayout();
-						PreviewCanvasSlot->LayoutData = LayoutData;
+						PreviewCanvasSlot->SetLayout(LayoutData);
 						PreviewCanvasSlot->RebaseLayout();
 
-						LayoutData = PreviewCanvasSlot->LayoutData;
-						PreviewCanvasSlot->LayoutData = OldLayoutData;
+						LayoutData = PreviewCanvasSlot->GetLayout();
+						PreviewCanvasSlot->SetLayout(OldLayoutData);
 					}
 
 					// If control is pressed reset all positional offset information
@@ -569,7 +570,7 @@ void FCanvasSlotExtension::PaintDragPercentages(const TSet< FWidgetReference >& 
 
 				FVector2D CanvasSize = CanvasGeometry.GetLocalSize();
 
-				const FAnchorData LayoutData = PreviewCanvasSlot->LayoutData;
+				const FAnchorData LayoutData = PreviewCanvasSlot->GetLayout();
 				const FVector2D AnchorMin = LayoutData.Anchors.Minimum;
 				const FVector2D AnchorMax = LayoutData.Anchors.Maximum;
 

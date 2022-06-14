@@ -106,13 +106,13 @@ FReply FGridSlotExtension::HandleShiftColumn(int32 ShiftAmount)
 void FGridSlotExtension::ShiftRow(UWidget* Widget, int32 ShiftAmount)
 {
 	UGridSlot* Slot = Cast<UGridSlot>(Widget->Slot);
-	Slot->SetRow(FMath::Max(Slot->Row + ShiftAmount, 0));
+	Slot->SetRow(FMath::Max(Slot->GetRow() + ShiftAmount, 0));
 }
 
 void FGridSlotExtension::ShiftColumn(UWidget* Widget, int32 ShiftAmount)
 {
 	UGridSlot* Slot = Cast<UGridSlot>(Widget->Slot);
-	Slot->SetColumn(FMath::Max(Slot->Column + ShiftAmount, 0));
+	Slot->SetColumn(FMath::Max(Slot->GetColumn() + ShiftAmount, 0));
 }
 
 #undef LOCTEXT_NAMESPACE

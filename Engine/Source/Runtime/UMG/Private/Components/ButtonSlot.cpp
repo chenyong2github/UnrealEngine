@@ -11,10 +11,12 @@
 UButtonSlot::UButtonSlot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Padding = FMargin(4, 2);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Padding = FMargin(4.f, 2.f);
 
 	HorizontalAlignment = HAlign_Center;
 	VerticalAlignment = VAlign_Center;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UButtonSlot::ReleaseSlateResources(bool bReleaseChildren)
@@ -28,11 +30,19 @@ void UButtonSlot::BuildSlot(TSharedRef<SButton> InButton)
 {
 	Button = InButton;
 
-	Button.Pin()->SetContentPadding(Padding);
-	Button.Pin()->SetHAlign(HorizontalAlignment);
-	Button.Pin()->SetVAlign(VerticalAlignment);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	InButton->SetContentPadding(Padding);
+	InButton->SetHAlign(HorizontalAlignment);
+	InButton->SetVAlign(VerticalAlignment);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	Button.Pin()->SetContent(Content ? Content->TakeWidget() : SNullWidget::NullWidget);
+	InButton->SetContent(Content ? Content->TakeWidget() : SNullWidget::NullWidget);
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FMargin UButtonSlot::GetPadding() const
+{
+	return Padding;
 }
 
 void UButtonSlot::SetPadding(FMargin InPadding)
@@ -44,6 +54,11 @@ void UButtonSlot::SetPadding(FMargin InPadding)
 	}
 }
 
+EHorizontalAlignment UButtonSlot::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
+}
+
 void UButtonSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
 {
 	HorizontalAlignment = InHorizontalAlignment;
@@ -51,6 +66,11 @@ void UButtonSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignm
 	{
 		Button.Pin()->SetHAlign(InHorizontalAlignment);
 	}
+}
+
+EVerticalAlignment UButtonSlot::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
 }
 
 void UButtonSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
@@ -61,10 +81,13 @@ void UButtonSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 		Button.Pin()->SetVAlign(InVerticalAlignment);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UButtonSlot::SynchronizeProperties()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetPadding(Padding);
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

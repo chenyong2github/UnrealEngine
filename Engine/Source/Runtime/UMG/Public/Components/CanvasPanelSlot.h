@@ -70,15 +70,18 @@ class UMG_API UCanvasPanelSlot : public UPanelSlot
 public:
 
 	/** The anchoring information for the slot */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Canvas Slot")
+	UE_DEPRECATED(5.1, "Direct access to LayoutData is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="GetLayout", Setter="SetLayout", BlueprintGetter ="GetLayout", BlueprintSetter="SetLayout", Category = "Layout|Canvas Slot")
 	FAnchorData LayoutData;
 
 	/** When AutoSize is true we use the widget's desired size */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Canvas Slot", AdvancedDisplay, meta=( DisplayName="Size To Content" ))
+	UE_DEPRECATED(5.1, "Direct access to bAutoSize is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="GetAutoSize", Setter="SetAutoSize", BlueprintGetter="GetAutoSize", BlueprintSetter="SetAutoSize", Category = "Layout|Canvas Slot", AdvancedDisplay, meta = (DisplayName = "Size To Content"))
 	bool bAutoSize;
 
 	/** The order priority this widget is rendered in.  Higher values are rendered last (and so they will appear to be on top). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Canvas Slot")
+	UE_DEPRECATED(5.1, "Direct access to ZOrder is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter="GetZOrder", BlueprintSetter="SetZOrder", Category="Layout|Canvas Slot")
 	int32 ZOrder;
 
 public:

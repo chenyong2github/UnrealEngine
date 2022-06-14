@@ -223,7 +223,11 @@ void FCanvasSlotCustomization::FillOutChildren(TSharedRef<IPropertyHandle> Prope
 
 void FCanvasSlotCustomization::CustomizeLayoutData(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	TSharedPtr<IPropertyHandle> LayoutData = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(UCanvasPanelSlot, LayoutData));
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const FName LayoutDataName = GET_MEMBER_NAME_CHECKED(UCanvasPanelSlot, LayoutData);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	TSharedPtr<IPropertyHandle> LayoutData = PropertyHandle->GetChildHandle(LayoutDataName);
 	if ( LayoutData.IsValid() )
 	{
 		LayoutData->MarkHiddenByCustomization();
