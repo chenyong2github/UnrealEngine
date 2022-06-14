@@ -1461,7 +1461,6 @@ void SBlueprintDiff::HandleGraphChanged( const FString& GraphPath )
 	UEdGraph* GraphOld = nullptr;
 	UEdGraph* GraphNew = nullptr;
 	TSharedPtr<TArray<FDiffSingleResult>> DiffResults;
-	TAttribute<int32> FocusedDiffResult;
 	for (const TSharedPtr<FGraphToDiff>& GraphToDiff : Graphs)
 	{
 		UEdGraph* NewGraph = GraphToDiff->GetGraphNew();
@@ -1471,14 +1470,30 @@ void SBlueprintDiff::HandleGraphChanged( const FString& GraphPath )
 			GraphNew = NewGraph;
 			GraphOld = OldGraph;
 			DiffResults = GraphToDiff->FoundDiffs;
-			FocusedDiffResult = TAttribute<int32>::CreateLambda(
-				[DifferencesTreeView = DifferencesTreeView.ToSharedRef(), &RealDifferences = RealDifferences]()
-				{
-					return DiffTreeView::CurrentDifference(DifferencesTreeView, RealDifferences);
-				});
 			break;
 		}
 	}
+	
+	const TAttribute<int32> FocusedDiffResult = TAttribute<int32>::CreateLambda(
+        [this, GraphPath]()
+        {
+        	// because DifferencesTreeView has differences from several graphs, we need to find the index of the first entry in this graph
+        	// that way we can return the selected index of just this graph's entries
+        	int32 startIndex = 0;
+			for (const TSharedPtr<FGraphToDiff>& GraphToDiff : Graphs)
+			{
+				if (GraphPath.Equals(FGraphDiffControl::GetGraphPath(GraphToDiff->GetGraphNew())))
+				{
+					break;
+				}
+				if (GraphToDiff->FoundDiffs.IsValid())
+				{
+					startIndex += GraphToDiff->FoundDiffs->Num();
+				}
+			}
+			// find selected index in all the graphs, and subtract the index of the first entry in this graph
+			return DiffTreeView::CurrentDifference(DifferencesTreeView.ToSharedRef(), RealDifferences) - startIndex;
+        });
 
 	
 	PanelOld.GeneratePanel(GraphOld, DiffResults, FocusedDiffResult);

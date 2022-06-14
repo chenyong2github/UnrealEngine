@@ -242,31 +242,6 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 						ChildNode->ApplyRename();
 					}
 				}
-				
-				/** Highlight Pins that are focused by the diff view */
-				for (UEdGraphPin* Pin : NodeObj->Pins)
-				{
-					if (TSharedPtr<SGraphPin> PinWidget = ChildNode->FindWidgetForPin(Pin))
-					{
-						if (FDiffSingleResult* DiffResult = PinDiffResults.Find(Pin))
-						{
-							// if the diff result associated with this pin is focused, highlight the pin
-							if (DiffResults.IsValid() && FocusedDiffResult.IsSet())
-							{
-								const int32 Index = FocusedDiffResult.Get();
-								if (DiffResults->IsValidIndex(Index))
-								{
-									const FDiffSingleResult& Focused = (*DiffResults)[Index];
-									PinWidget->SetDiffHighlighted(*DiffResult == Focused);
-								}
-							}
-						}
-						else
-						{
-							PinWidget->SetDiffHighlighted(false);
-						}
-					}
-				}
 
 				/** if this graph is being diffed, highlight the changes in the graph */
 				if(DiffResults.IsValid())
@@ -287,35 +262,38 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 								);
 						}
 					}
-					
-					/** When diffing, set the backround of the differing pins to their diff colors */
-					for (UEdGraphPin* Pin : NodeObj->Pins)
+				}
+				
+				/** When diffing, set the backround of the differing pins to their diff colors */
+				for (UEdGraphPin* Pin : NodeObj->Pins)
+				{
+					if (TSharedPtr<SGraphPin> PinWidget = ChildNode->FindWidgetForPin(Pin))
 					{
-						if (TSharedPtr<SGraphPin> PinWidget = ChildNode->FindWidgetForPin(Pin))
+						if (FDiffSingleResult* DiffResult = PinDiffResults.Find(Pin))
 						{
-							if (PinDiffResults.Contains(Pin))
+							// if the diff result associated with this pin is focused, highlight the pin
+							if (DiffResults.IsValid() && FocusedDiffResult.IsSet())
 							{
-								// if the diff result associated with this pin is focused, highlight the pin
-								const FDiffSingleResult& DiffResult = PinDiffResults[Pin];
-								if (DiffResults.IsValid() && FocusedDiffResult.IsSet())
+								const int32 Index = FocusedDiffResult.Get();
+								if (DiffResults->IsValidIndex(Index))
 								{
-									const FDiffSingleResult& Focused = (*DiffResults.Get())[FocusedDiffResult.Get()];
-									PinWidget->SetDiffHighlighted(DiffResult == Focused);
+									const FDiffSingleResult& Focused = (*DiffResults)[Index];
+									PinWidget->SetDiffHighlighted(*DiffResult == Focused);
 								}
-							
-								FLinearColor PinDiffColor = DiffResult.GetDisplayColor();
-								PinDiffColor.A = 0.7f;
-								PinWidget->SetPinDiffColor(PinDiffColor);
-								PinWidget->SetFadeConnections(false);
 							}
-							else
-							{
-								PinWidget->SetDiffHighlighted(false);
-								PinWidget->SetPinDiffColor(TOptional<FLinearColor>());
+						
+							FLinearColor PinDiffColor = DiffResult->GetDisplayColor();
+							PinDiffColor.A = 0.7f;
+							PinWidget->SetPinDiffColor(PinDiffColor);
+							PinWidget->SetFadeConnections(false);
+						}
+						else
+						{
+							PinWidget->SetDiffHighlighted(false);
+							PinWidget->SetPinDiffColor(TOptional<FLinearColor>());
 
-								// when zoomed out, fade out pin connections that aren't involved in a diff
-								PinWidget->SetFadeConnections(ZoomLevel <= 6 && (!NodeDiffResults.Contains(NodeObj) || NodeDiffResults[NodeObj].Pin1));
-							}
+							// when zoomed out, fade out pin connections that aren't involved in a diff
+							PinWidget->SetFadeConnections(ZoomLevel <= 6 && (!NodeDiffResults.Contains(NodeObj) || NodeDiffResults[NodeObj].Pin1));
 						}
 					}
 				}
