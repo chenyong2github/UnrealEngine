@@ -272,15 +272,6 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	static int32 GetPlayerControllerID(APlayerController* Player);
 
 	/**
-	 * Gets what Platform User Id a player is using. This only works for local player controllers.
-	 *
-	 * @param Player	The player controller of the player to get the ID of
-	 * @return			The Platform User Id of the passed in player. PLATFORMUSERID_NONE if there is no physical controller assigned to the passed in player
-	 */
-	UFUNCTION(BlueprintPure, Category="Game", meta=(DisplayName="Get Local Player Platform User Id", UnsafeDuringActorConstruction="true"))
-	static FPlatformUserId GetPlayerPlatformUserId(const APlayerController* PlayerController);
-
-	/**
 	 * Sets what physical controller ID a player should be using. This only works for local player controllers.
 	 *
 	 * @param Player			The player controller of the player to change the controller ID of

@@ -394,7 +394,7 @@ APlayerController* UGameplayStatics::GetPlayerControllerFromPlatformUser(const U
 		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 		{
 			APlayerController* PlayerController = Iterator->Get();
-			FPlatformUserId PlayerControllerUserID = GetPlayerPlatformUserId(PlayerController);
+			FPlatformUserId PlayerControllerUserID = PlayerController->GetPlatformUserId();
 			if (PlayerControllerUserID.IsValid() && PlayerControllerUserID == UserId)
 			{
 				return PlayerController;
@@ -462,21 +462,8 @@ void UGameplayStatics::RemovePlayer(APlayerController* PlayerController, bool bD
 
 int32 UGameplayStatics::GetPlayerControllerID(APlayerController* PlayerController)
 {
-	FPlatformUserId UserID = GetPlayerPlatformUserId(PlayerController);
+	FPlatformUserId UserID = PlayerController ? PlayerController->GetPlatformUserId() : PLATFORMUSERID_NONE;
 	return FGenericPlatformMisc::GetUserIndexForPlatformUser(UserID);
-}
-
-FPlatformUserId UGameplayStatics::GetPlayerPlatformUserId(const APlayerController* PlayerController)
-{
-	if (PlayerController)
-	{
-		if (const ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
-		{
-			return LocalPlayer->GetPlatformUserId();
-		}
-	}
-
-	return PLATFORMUSERID_NONE;
 }
 
 void UGameplayStatics::SetPlayerControllerID(APlayerController* PlayerController, int32 ControllerId)
