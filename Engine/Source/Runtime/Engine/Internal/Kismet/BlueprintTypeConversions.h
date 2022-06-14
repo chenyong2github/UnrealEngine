@@ -62,6 +62,7 @@ public:
 	static TMap<int, int> ConvertMapType(const TMap<int, int>& InMap);
 	DECLARE_FUNCTION(execConvertMapType);
 
+
 	// Custom struct conversions
 
 	DECLARE_CONVERSION_FUNCTIONS(FVector, FVector3f, FVector3d);
@@ -71,4 +72,79 @@ public:
 
 	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
 	static int32 ConvertFVector3fToFVector3d(int32 InFromData);
+
+	// LWC_TODO - FVector2D/FVector2d have FName collisions.
+#if 0
+	DECLARE_CONVERSION_FUNCTIONS(FVector2D, FVector2f, FVector2d);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFVector2dToFVector2f(int32 InFromData);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFVector2fToFVector2d(int32 InFromData);
+#endif
+
+	DECLARE_CONVERSION_FUNCTIONS(FVector4, FVector4f, FVector4d);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFVector4dToFVector4f(int32 InFromData);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFVector4fToFVector4d(int32 InFromData);
+
+
+	DECLARE_CONVERSION_FUNCTIONS(FPlane, FPlane4f, FPlane4d);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFPlane4dToFPlane4f(int32 InFromData);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFPlane4fToFPlane4d(int32 InFromData);
+
+
+	DECLARE_CONVERSION_FUNCTIONS(FQuat, FQuat4f, FQuat4d);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFQuat4dToFQuat4f(int32 InFromData);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFQuat4fToFQuat4d(int32 InFromData);
+	
+
+	DECLARE_CONVERSION_FUNCTIONS(FRotator, FRotator3f, FRotator3d);
+	
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFRotator3dToFRotator3f(int32 InFromData);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFRotator3fToFRotator3d(int32 InFromData);
+
+
+	DECLARE_CONVERSION_FUNCTIONS(FTransform, FTransform3f, FTransform3d);
+	
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFTransform3dToFTransform3f(int32 InFromData);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFTransform3fToFTransform3d(int32 InFromData);
+
+
+	DECLARE_CONVERSION_FUNCTIONS(FMatrix, FMatrix44f, FMatrix44d);
+	
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFMatrix44dToFMatrix44f(int32 InFromData);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFMatrix44fToFMatrix44d(int32 InFromData);
+
+	// LWC_TODO - FBox2D/FBox2d have FName collisions.
+#if 0
+	DECLARE_CONVERSION_FUNCTIONS(FBox2D, FBox2f, FBox2d);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFBox2dToFBox2f(int32 InFromData);
+
+	UFUNCTION(CustomThunk, meta = (BlueprintInternalUseOnly = "true"))
+	static int32 ConvertFBox2fToFBox2d(int32 InFromData);
+#endif
 };

@@ -471,7 +471,7 @@ struct FGuid
  * A point or direction FVector in 3d space.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector.h
  */
-USTRUCT(immutable, noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType, meta = (HasNativeBreak = "/Script/Engine.KismetMathLibrary.BreakVector3f"))
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType, meta = (HasNativeBreak = "/Script/Engine.KismetMathLibrary.BreakVector3f"))
 struct FVector3f
 {
 	UPROPERTY(EditAnywhere, Category = Vector, SaveGame)
@@ -523,7 +523,7 @@ struct FVector
 * A 4-D homogeneous vector.
 * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector4.h
 */
-USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FVector4f
 {
 	UPROPERTY(EditAnywhere, Category = Vector4, SaveGame)
@@ -585,7 +585,7 @@ struct FVector4
 * A vector in 2-D space composed of components (X, Y) with floating point precision.
 * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector2D.h
 */
-USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FVector2f
 {
 	UPROPERTY(EditAnywhere, Category=Vector2D, SaveGame)
@@ -639,7 +639,7 @@ struct FTwoVectors
  * A plane definition in 3D space.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Plane.h
  */
-USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FPlane4f : public FVector3f
 {
 	UPROPERTY(EditAnywhere, Category=Plane, SaveGame)
@@ -673,7 +673,7 @@ struct FPlane : public FVector
  * An orthogonal rotation in 3d space.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Rotator.h
  */
-USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FRotator3f
 {
 	/** Pitch (degrees) around Y axis */
@@ -733,7 +733,7 @@ struct FRotator
  * Quaternion.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Quat.h
  */
-USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FQuat4f
 {
 	UPROPERTY(EditAnywhere, Category=Quat, SaveGame)
@@ -938,7 +938,7 @@ struct FLinearColor
  * A point or direction FVector in 3d space.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Box.h
  */
-USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FBox3f
 {
 	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
@@ -990,7 +990,7 @@ struct FBox
  * A rectangular 2D Box.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Box2D.h
  */
-USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FBox2f
 {
 	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
@@ -1138,7 +1138,7 @@ struct FOrientedBox
  * A 4x4 matrix.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Matrix.h
  */
-USTRUCT(immutable, noexport, HasDefaults, HasNoOpConstructor, IsCoreType)
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, HasDefaults, HasNoOpConstructor, IsCoreType)
 struct FMatrix44f
 {
 	UPROPERTY(EditAnywhere, Category=Matrix, SaveGame)
@@ -1490,7 +1490,7 @@ struct FInterpCurveLinearColor
  * Transform composed of Quat/Translation/Scale.
  * @note This is implemented in either TransformVectorized.h or TransformNonVectorized.h depending on the platform.
  */
-USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, IsCoreType)
+USTRUCT(immutable, noexport, BlueprintType, BlueprintInternalUseOnly, IsAlwaysAccessible, HasDefaults, IsCoreType)
 struct FTransform3f
 {
 	/** Rotation of this transformation, as a quaternion. */

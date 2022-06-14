@@ -5,24 +5,28 @@
 #define MAKE_CONVERSION_FUNCTION_NAME(SourceType, DestType)													\
 	Convert##SourceType##To##DestType
 
-#define DEFINE_CONVERSION_FUNCTIONS(BASETYPE, VARIANTTYPE1, VARIANTTYPE2, IMPL1TO2, IMPL2TO1)				\
-	DEFINE_FUNCTION(UBlueprintTypeConversions::MAKE_CONVERSION_EXEC_FUNCTION_NAME(VARIANTTYPE1, VARIANTTYPE2))	\
+#define DEFINE_CONVERSION_FUNCTIONS(BASETYPE, VARIANTTYPE1, VARIANTTYPE2)									\
+	DEFINE_FUNCTION(UBlueprintTypeConversions::MAKE_CONVERSION_EXEC_FUNCTION_NAME(VARIANTTYPE1, VARIANTTYPE2)) \
 	{																										\
+		using namespace UE::Kismet::BlueprintTypeConversions::Internal;										\
+																											\
 		void* DestAddr = Stack.MostRecentPropertyAddress;													\
 		Stack.MostRecentProperty = nullptr;																	\
 		Stack.StepCompiledIn(nullptr, nullptr);																\
 		const void* SourceAddr = Stack.MostRecentPropertyAddress;											\
 		P_FINISH;																							\
-		IMPL1TO2(SourceAddr, DestAddr);																		\
+		ConvertType<VARIANTTYPE1, VARIANTTYPE2>(SourceAddr, DestAddr);										\
 	}																										\
-	DEFINE_FUNCTION(UBlueprintTypeConversions::MAKE_CONVERSION_EXEC_FUNCTION_NAME(VARIANTTYPE2, VARIANTTYPE1))	\
+	DEFINE_FUNCTION(UBlueprintTypeConversions::MAKE_CONVERSION_EXEC_FUNCTION_NAME(VARIANTTYPE2, VARIANTTYPE1)) \
 	{																										\
+		using namespace UE::Kismet::BlueprintTypeConversions::Internal;										\
+																											\
 		void* DestAddr = Stack.MostRecentPropertyAddress;													\
 		Stack.MostRecentProperty = nullptr;																	\
 		Stack.StepCompiledIn(nullptr, nullptr);																\
 		const void* SourceAddr = Stack.MostRecentPropertyAddress;											\
 		P_FINISH;																							\
-		IMPL2TO1(SourceAddr, DestAddr);																		\
+		ConvertType<VARIANTTYPE2, VARIANTTYPE1>(SourceAddr, DestAddr);										\
 	}																										\
 	UE::Kismet::BlueprintTypeConversions::Internal::FStructConversionEntry BASETYPE##Entry(					\
 		&TBaseStructure<BASETYPE>::Get,																		\
@@ -31,44 +35,37 @@
 		&TVariantStructure<VARIANTTYPE2>::Get,																\
 		TEXT(PREPROCESSOR_TO_STRING(MAKE_CONVERSION_FUNCTION_NAME(VARIANTTYPE1, VARIANTTYPE2))),			\
 		TEXT(PREPROCESSOR_TO_STRING(MAKE_CONVERSION_FUNCTION_NAME(VARIANTTYPE2, VARIANTTYPE1))),			\
-		&IMPL1TO2,																							\
-		&IMPL2TO1																							\
+		&UE::Kismet::BlueprintTypeConversions::Internal::ConvertType<VARIANTTYPE1, VARIANTTYPE2>,			\
+		&UE::Kismet::BlueprintTypeConversions::Internal::ConvertType<VARIANTTYPE2, VARIANTTYPE1>			\
 	);
 
 namespace UE::Kismet::BlueprintTypeConversions::Internal
 {
 
+template <typename TFrom, typename TTo>
+FORCEINLINE_DEBUGGABLE void ConvertType(const void* InFromData, void* InToData)
+{
+	const TFrom* From = reinterpret_cast<const TFrom*>(InFromData);
+	check(From);
+	TTo* To = reinterpret_cast<TTo*>(InToData);
+	check(To);
+
+	// LWC_TODO - Ensure that we're using the correct constructor here.
+	// Specifically, we need to use a constructor or function that calls a narrowing cast for safe conversions.
+	*To = TTo(*From);
+}
+
 ConversionFunctionT FindConversionFunction(const FProperty* InFromProperty, const FProperty* InToProperty)
 {
 	ConversionFunctionT Result = nullptr;
 
-	auto ConvertFloatToDouble = [](const void* InFromData, void* InToData)
-	{
-		const float* FromFloat = reinterpret_cast<const float*>(InFromData);
-		check(FromFloat);
-		double* ToDouble = reinterpret_cast<double*>(InToData);
-		check(ToDouble);
-
-		*ToDouble = *FromFloat;
-	};
-
-	auto ConvertDoubleToFloat = [](const void* InFromData, void* InToData)
-	{
-		const double* FromDouble = reinterpret_cast<const double*>(InFromData);
-		check(FromDouble);
-		float* ToFloat = reinterpret_cast<float*>(InToData);
-		check(ToFloat);
-
-		*ToFloat = static_cast<float>(*FromDouble);
-	};
-
 	if (InFromProperty->IsA<FFloatProperty>() && InToProperty->IsA<FDoubleProperty>())
 	{
-		Result = ConvertFloatToDouble;
+		Result = &ConvertType<float, double>;
 	}
 	else if (InFromProperty->IsA<FDoubleProperty>() && InToProperty->IsA<FFloatProperty>())
 	{
-		Result = ConvertDoubleToFloat;
+		Result = &ConvertType<double, float>;
 	}
 	else if (InFromProperty->IsA<FStructProperty>() && InToProperty->IsA<FStructProperty>())
 	{
@@ -219,6 +216,8 @@ UBlueprintTypeConversions::UBlueprintTypeConversions(const FObjectInitializer& O
 {
 }
 
+// Container conversions
+
 DEFINE_FUNCTION(UBlueprintTypeConversions::execConvertArrayType)
 {
 	using namespace UE::Kismet;
@@ -344,30 +343,14 @@ DEFINE_FUNCTION(UBlueprintTypeConversions::execConvertMapType)
 	DestMap.Rehash();
 }
 
-// Container conversions
+// Custom struct conversions
 
-FORCEINLINE_DEBUGGABLE void ConvertFVector3dToFVector3fImpl(const void* InFromData, void* InToData)
-{
-	const FVector3d* From = reinterpret_cast<const FVector3d*>(InFromData);
-	check(From);
-	FVector3f* To = reinterpret_cast<FVector3f*>(InToData);
-	check(To);
-
-	float x = static_cast<float>(From->X);
-	float y = static_cast<float>(From->Y);
-	float z = static_cast<float>(From->Z);
-
-	*To = FVector3f(x, y, z);
-}
-
-FORCEINLINE_DEBUGGABLE void ConvertFVector3fToFVector3dImpl(const void* InFromData, void* InToData)
-{
-	const FVector3f* From = reinterpret_cast<const FVector3f*>(InFromData);
-	check(From);
-	FVector3d* To = reinterpret_cast<FVector3d*>(InToData);
-	check(To);
-
-	*To = FVector3d(From->X, From->Y, From->Z);
-}
-
-DEFINE_CONVERSION_FUNCTIONS(FVector, FVector3d, FVector3f, ConvertFVector3dToFVector3fImpl, ConvertFVector3fToFVector3dImpl)
+DEFINE_CONVERSION_FUNCTIONS(FVector, FVector3d, FVector3f)
+// DEFINE_CONVERSION_FUNCTIONS(FVector2D, FVector2d, FVector2f)
+DEFINE_CONVERSION_FUNCTIONS(FVector4, FVector4d, FVector4f)
+DEFINE_CONVERSION_FUNCTIONS(FPlane, FPlane4d, FPlane4f)
+DEFINE_CONVERSION_FUNCTIONS(FQuat, FQuat4d, FQuat4f)
+DEFINE_CONVERSION_FUNCTIONS(FRotator, FRotator3d, FRotator3f)
+DEFINE_CONVERSION_FUNCTIONS(FTransform, FTransform3d, FTransform3f)
+DEFINE_CONVERSION_FUNCTIONS(FMatrix, FMatrix44d, FMatrix44f)
+// DEFINE_CONVERSION_FUNCTIONS(FBox2D, FBox2d, FBox2f)
