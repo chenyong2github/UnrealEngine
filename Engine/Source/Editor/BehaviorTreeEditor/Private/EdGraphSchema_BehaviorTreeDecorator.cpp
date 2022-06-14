@@ -216,4 +216,19 @@ bool UEdGraphSchema_BehaviorTreeDecorator::ShouldHidePinDefaultValue(UEdGraphPin
 	return true;
 }
 
+bool UEdGraphSchema_BehaviorTreeDecorator::IsCacheVisualizationOutOfDate(const int32 InVisualizationCacheID) const
+{
+	return CurrentCacheRefreshID != InVisualizationCacheID;
+}
+
+int32 UEdGraphSchema_BehaviorTreeDecorator::GetCurrentVisualizationCacheID() const
+{
+	return CurrentCacheRefreshID;
+}
+
+void UEdGraphSchema_BehaviorTreeDecorator::ForceVisualizationCacheClear() const
+{
+	++CurrentCacheRefreshID;
+}
+
 #undef LOCTEXT_NAMESPACE

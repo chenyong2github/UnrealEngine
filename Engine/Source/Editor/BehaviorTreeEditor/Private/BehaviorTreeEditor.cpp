@@ -1106,7 +1106,12 @@ void FBehaviorTreeEditor::OnFinishedChangingProperties(const FPropertyChangedEve
 		MyGraph->UpdateInjectedNodes();
 		MyGraph->UpdateAsset(UBehaviorTreeGraph::ClearDebuggerFlags);
 	}
-	BehaviorTree->BTGraph->GetSchema()->ForceVisualizationCacheClear();
+
+	const TSharedPtr<SGraphEditor> FocusedGraphEd = UpdateGraphEdPtr.Pin();
+	if (FocusedGraphEd.IsValid() && FocusedGraphEd->GetCurrentGraph())
+	{
+		FocusedGraphEd->GetCurrentGraph()->GetSchema()->ForceVisualizationCacheClear();
+	}
 }
 
 void FBehaviorTreeEditor::OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
