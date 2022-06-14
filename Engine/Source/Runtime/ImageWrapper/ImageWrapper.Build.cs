@@ -65,9 +65,5 @@ public class ImageWrapper : ModuleRules
 
 		// Enable exceptions to allow error handling
 		bEnableExceptions = true;
-
-		// Disable shared PCHs to handle warning C4652
-		PCHUsage = ModuleRules.PCHUsageMode.NoSharedPCHs;
-		PrivatePCHHeaderFile = "Private/ImageWrapperPrivate.h";
 	}
 }
