@@ -70,6 +70,7 @@ void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateCo
 		else
 		{
 			InternalTimeAccumulator = CurrentExplicitTime;
+			CreateTickRecordForNode(Context, CurrentSequence, GetShouldLoop(), 0);
 		}
 	}
 
