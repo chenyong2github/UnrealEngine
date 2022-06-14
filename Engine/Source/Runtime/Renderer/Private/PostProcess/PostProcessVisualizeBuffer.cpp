@@ -196,6 +196,7 @@ TUniquePtr<FImagePixelData> ReadbackPixelData(FRHICommandListImmediate& RHICmdLi
 	}
 
 	case PF_A32B32G32R32F:
+	case PF_A2B10G10R10:
 	{
 		FReadSurfaceDataFlags ReadDataFlags(RCM_MinMax);
 		ReadDataFlags.SetLinearToGamma(false);
