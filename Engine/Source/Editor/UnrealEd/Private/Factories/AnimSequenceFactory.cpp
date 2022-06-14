@@ -72,6 +72,9 @@ UObject* UAnimSequenceFactory::FactoryCreateNew(UClass* Class, UObject* InParent
 	{
 		AnimSequence->SetSkeleton(TargetSkeleton);
 	}
+
+	AnimSequence->GetController().InitializeModel();
+	
 	if (PreviewSkeletalMesh)
 	{
 		AnimSequence->SetPreviewMesh(PreviewSkeletalMesh);

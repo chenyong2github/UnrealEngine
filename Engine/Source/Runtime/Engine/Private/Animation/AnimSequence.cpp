@@ -3774,7 +3774,6 @@ bool UAnimSequence::CreateAnimation(USkeletalMesh* Mesh)
 
 		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CreateAnimationSkeletalMesh_Bracket", "Creating Animation Sequence based up Skeletal Mesh"));
 
-		Controller->InitializeModel();
 		ResetAnimation();
 
 		Controller->SetFrameRate(UAnimationSettings::Get()->GetDefaultFrameRate());
@@ -3813,7 +3812,6 @@ bool UAnimSequence::CreateAnimation(USkeletalMeshComponent* MeshComponent)
 
 		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("CreateAnimationSkeletalMeshComponent_Bracket", "Creating Animation Sequence based up Skeletal Mesh Component"));
 
-		Controller->InitializeModel();
 		ResetAnimation();
 
 		Controller->SetFrameRate(UAnimationSettings::Get()->GetDefaultFrameRate());
