@@ -57,7 +57,7 @@ FProjectionShadingInfo GetProjectionShadingInfo(uint2 PixelPos)
 	Out.bIsSubsurface = bIsValid && !bIsProfile;
 
 	Out.bIsValid = TopLayerData.bIsValid;
-	Out.bIsHair = StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
+	Out.bIsHair = StrataGetBSDFType(StrataPixelHeader) == STRATA_BSDF_TYPE_HAIR;
 	Out.WorldNormal = TopLayerData.WorldNormal;
 #else
 	const FGBufferData GBufferData = GetGBufferDataUint(PixelPos, true);

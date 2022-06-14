@@ -252,7 +252,7 @@ void Main(
 		FStrataPixelHeader StrataHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 		if (IsStrataMaterial(StrataHeader))
 		{
-			bIsEyeOrHair				= StrataHasShadingModel(StrataHeader, STRATA_BSDF_TYPE_HAIR);
+			bIsEyeOrHair				= StrataGetBSDFType(StrataHeader) == STRATA_BSDF_TYPE_HAIR;
 			bHasSubsurface				= HasSubsurface(StrataHeader) || bIsEyeOrHair;
 			bHasSubsurfaceTransmission	= HasSubsurface(StrataHeader);
 		}

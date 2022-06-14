@@ -109,7 +109,7 @@ float3 GetWorldSpaceNormalFromAOInput(float2 UV, float4 SvPosition)
 #if STRATA_ENABLED
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(SvPosition.xy, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 		FStrataPixelHeader StrataHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-		if (!StrataHasShadingModel(StrataHeader, STRATA_BSDF_TYPE_HAIR))
+		if (StrataGetBSDFType(StrataHeader) != STRATA_BSDF_TYPE_HAIR)
 		{
 			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SvPosition.xy, 0)));
 			WorldNormal = TopLayerData.WorldNormal;

@@ -220,6 +220,7 @@ void PackStrataOut(
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * FullyRough;
 
+						SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_HAIR);
 						break;
 					}
 
@@ -233,6 +234,7 @@ void PackStrataOut(
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLW_ROUGHNESS(BSDF);
 
+						SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_SLWATER);
 						break;
 					}
 					}
@@ -242,9 +244,6 @@ void PackStrataOut(
 					float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, BSDF, StrataAddressing);
 					float3 N = TangentBasis[2];
 					TopLayerData.WorldNormal += N * BSDF.TopLayerDataWeight;
-
-					// Set shading mode to the last visible BSDF. Normally all BSDF should have the same type
-					HEADER_SETSHADINGMODELS(StrataPixelHeader.State, BSDF_GETTYPE(BSDF));
 
 					OneBSDFMaterial_Index = BSDFIdx;
 
@@ -267,11 +266,7 @@ void PackStrataOut(
 		{
 			bIsSimpleMaterial = bIsSimpleMaterial && BSDFVisibleCount == 1;
 			bIsSingleMaterial = bIsSingleMaterial && BSDFVisibleCount == 1;
-			SetMaterialMode(StrataPixelHeader, bIsSimpleMaterial ? HEADER_MATERIALMODE_SIMPLE : bIsSingleMaterial ? HEADER_MATERIALMODE_SINGLE : HEADER_MATERIALMODE_COMPLEX);
-		}		
-		else if (!IsSingleLayerWater(StrataPixelHeader))
-		{
-			SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_COMPLEX);
+			SetMaterialMode(StrataPixelHeader, bIsSimpleMaterial ? HEADER_MATERIALMODE_SLAB_SIMPLE : bIsSingleMaterial ? HEADER_MATERIALMODE_SLAB_SINGLE : HEADER_MATERIALMODE_SLAB_COMPLEX);
 		}
 
 		// Now evaluate Specular Occlusion and Indirect Irradiance.
@@ -419,8 +414,6 @@ void PackStrataOut(
 						{
 							uint Out = 0;
 							HEADER_SETCOMMONSTATES(Out, StrataPixelHeader.State);
-
-							HEADER_SETSHADINGMODELS(Out, GetShadingModels(StrataPixelHeader));
 							Out = Out & HEADER_SINGLEENCODING_MASK;
 							Out = Out | ((BSDF.State & BSDF_SINGLEENCODING_MASK) << HEADER_SINGLEENCODING_BIT_COUNT);
 							STRATA_STORE_UINT1(Out);

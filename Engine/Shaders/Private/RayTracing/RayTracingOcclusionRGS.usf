@@ -629,7 +629,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 			const bool bSSSIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
 
 			ShadingParameters.bIsValid = TopLayerData.bIsValid;
-			ShadingParameters.bIsHair = StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
+			ShadingParameters.bIsHair = StrataGetBSDFType(StrataPixelHeader) == STRATA_BSDF_TYPE_HAIR;
 			ShadingParameters.bIsSubsurface = bSSSIsValid && !bSSSIsProfile;
 			ShadingParameters.bHasSubsurfaceProfile = bSSSIsValid && bSSSIsProfile;
 			ShadingParameters.bBackfaceCulling = any(StrataSubSurfaceHeaderGetMFP(SSSHeader) > 0); // STRATA_TODO

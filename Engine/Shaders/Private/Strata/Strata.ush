@@ -145,8 +145,7 @@ struct FStrataBSDF
 // * Simple : store a single Slab BSDF (with no extra feature)
 // 
 // Header State (8bits):
-// * ISSIMPLEMATERIAL			
-// * ISSINGLEMATERIAL			
+// * MATERIALMODE
 // * HASPRECSHADOWMASK			
 // * ZEROPRECSHADOWMASK			
 // * CASTCONTACTSHADOW			
@@ -156,8 +155,8 @@ struct FStrataBSDF
 // 
 // Layouts:
 // * LAYOUT 2 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//  (Complex) HEADER        31 |  State | AO | BSDF Types | BSDF Count | Basis count | Basis type |
-//                             |  8       8    4            4            3             4           
+//  (Complex) HEADER        31 |  State | AO | BSDF Count | Basis count | Basis type |
+//                             |  8       8    4            3             4           
 //            BASIS(0)      32 |  Normal: Oct 16/16 | Tangent: 11/11/10
 //            BASIS(1)      32 |  Normal: Oct 16/16 | Tangent: 11/11/10
 //                             |
@@ -169,8 +168,8 @@ struct FStrataBSDF
 //            BSDF(1)       ?? |  Adaptive
 //                             |
 // * LAYOUT 1 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//  (Single)  HEADER        30 |  State | AO | BSDF Types | Aniso | TopLayer | SSS | SSSProfile | GreyWeighV | Haze | F90 | Simple vol. | MFP Plugged | Fuzz | Thin
-//                             |  8       8    4            1       1          1     1            1            1      1     1             1             1      1            
+//  (Single)  HEADER        30 |  State | AO | Aniso | TopLayer | SSS | SSSProfile | GreyWeighV | Haze | F90 | Simple vol. | MFP Plugged | Fuzz | Thin
+//                             |  8       8    1       1          1     1            1            1      1     1             1             1      1            
 //            BASIS(0)       0 | (Use top layer normal)
 //            BSDF(0)       ?? |  Adaptive
 // * LAYOUT 0 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------          
@@ -196,31 +195,27 @@ struct FStrataBSDF
 // Bit count for each component stored in a Strata header
 // 
 // State bit masks
-#define HEADER_MASK_MATERIALMODE				(0x7)
-#define HEADER_MASK_HASPRECSHADOWMASK			(1u << 3)
-#define HEADER_MASK_ZEROPRECSHADOWMASK			(1u << 4)
-#define HEADER_MASK_CASTCONTACTSHADOW			(1u << 5)
-#define HEADER_MASK_HASDYNINDIRECTSHADOWCASTER	(1u << 6)
-#define HEADER_MASK_HASSUBSURFACE				(1u << 7)
-#define HEADER_MASK_BIT_COUNT					8
+#define HEADER_MASK_MATERIALMODE					(0x7)
+#define HEADER_MASK_HASPRECSHADOWMASK				(1u << 3)
+#define HEADER_MASK_ZEROPRECSHADOWMASK				(1u << 4)
+#define HEADER_MASK_CASTCONTACTSHADOW				(1u << 5)
+#define HEADER_MASK_HASDYNINDIRECTSHADOWCASTER		(1u << 6)
+#define HEADER_MASK_HASSUBSURFACE					(1u << 7)
+#define HEADER_MASK_BIT_COUNT						8
 
 // For HEADER_BIT_BSDF_COUNT and  HEADER_BIT_SHAREDLOCALBASES_X, please refer to values in StrataDefinitions.h
 #define HEADER_BIT_COUNT_STATE						HEADER_MASK_BIT_COUNT
 #define HEADER_BIT_COUNT_IRRADIANCE_AO				8
-#define HEADER_BIT_COUNT_SHADINGMODELS				4
 #define HEADER_BIT_COUNT_BSDF_COUNT					4
 #define HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT		3
 #define HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE		4
-#define HEADER_BIT_COUNT___UNUSED___				1
+#define HEADER_BIT_COUNT___UNUSED___				5
 
 #define HEADER_BIT_OFFSET_STATE						0
 #define HEADER_BIT_OFFSET_IRRADIANCE_AO				(HEADER_BIT_OFFSET_STATE					+ HEADER_BIT_COUNT_STATE)
-#define HEADER_BIT_OFFSET_SHADINGMODELS				(HEADER_BIT_OFFSET_IRRADIANCE_AO			+ HEADER_BIT_COUNT_IRRADIANCE_AO)
-#define HEADER_BIT_OFFSET_BSDF_COUNT				(HEADER_BIT_OFFSET_SHADINGMODELS			+ HEADER_BIT_COUNT_SHADINGMODELS)
+#define HEADER_BIT_OFFSET_BSDF_COUNT				(HEADER_BIT_OFFSET_IRRADIANCE_AO			+ HEADER_BIT_COUNT_IRRADIANCE_AO)
 #define HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT	(HEADER_BIT_OFFSET_BSDF_COUNT				+ HEADER_BIT_COUNT_BSDF_COUNT)
 #define HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE		(HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT	+ HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT)
-
-#define HEADER_MASK_SHADINGMODELS					(((1u<<HEADER_BIT_COUNT_SHADINGMODELS)-1) << HEADER_BIT_OFFSET_SHADINGMODELS)
 
 // The different layout 'aliases' differently the material header
 // 
@@ -228,7 +223,7 @@ struct FStrataBSDF
 #define HEADER_FASTENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_IRRADIANCE_AO)
 #define HEADER_FASTENCODING_MASK					((1u<<HEADER_FASTENCODING_BIT_COUNT)-1u)
 // Layout 1 (Single BSDF)
-#define HEADER_SINGLEENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_IRRADIANCE_AO + HEADER_BIT_COUNT_SHADINGMODELS)
+#define HEADER_SINGLEENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_IRRADIANCE_AO)
 #define HEADER_SINGLEENCODING_MASK					((1u<<HEADER_SINGLEENCODING_BIT_COUNT)-1u)
 // Layout 2 (Complex)
 #define HEADER_COMPLEXENCODING_BIT_COUNT			(32u)
@@ -249,9 +244,6 @@ struct FStrataBSDF
 #define HEADER_GETIRRADIANCE_AO(X)					READ_BITS( X, HEADER_BIT_COUNT_IRRADIANCE_AO, HEADER_BIT_OFFSET_IRRADIANCE_AO)
 #define HEADER_SETIRRADIANCE_AO(X, NewValue)		WRITE_BITS(X, HEADER_BIT_COUNT_IRRADIANCE_AO, HEADER_BIT_OFFSET_IRRADIANCE_AO, NewValue)
 
-#define HEADER_GETSHADINGMODELS(X)					READ_BITS( X, HEADER_BIT_COUNT_SHADINGMODELS, HEADER_BIT_OFFSET_SHADINGMODELS)
-#define HEADER_SETSHADINGMODELS(X, NewValue)		WRITE_BITS(X, HEADER_BIT_COUNT_SHADINGMODELS, HEADER_BIT_OFFSET_SHADINGMODELS, NewValue)
-
 #define HEADER_GETBSDFCOUNT(X)						READ_BITS( X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT)
 #define HEADER_SETBSDFCOUNT(X, NewValue)			WRITE_BITS(X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT, NewValue)
 
@@ -261,12 +253,13 @@ struct FStrataBSDF
 #define HEADER_GETSHAREDLOCALBASESTYPE(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE)
 #define HEADER_SETSHAREDLOCALBASESTYPE(X, NewValue)	WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE, NewValue)
 
-#define HEADER_MATERIALMODE_SIMPLE				0
-#define HEADER_MATERIALMODE_SINGLE				1
-#define HEADER_MATERIALMODE_COMPLEX				2
-#define HEADER_MATERIALMODE_SLWATER				3
-// Up to 8 material modes: 4 remains.
-// STRATA_TODO: I believe we could merge ShadingModels & MaterialModes together with slab simple, slab single, slab complex, water, hair, etc.
+#define HEADER_MATERIALMODE_NONE				0
+#define HEADER_MATERIALMODE_SLAB_SIMPLE			1
+#define HEADER_MATERIALMODE_SLAB_SINGLE			2
+#define HEADER_MATERIALMODE_SLAB_COMPLEX		3
+#define HEADER_MATERIALMODE_SLWATER				4
+#define HEADER_MATERIALMODE_HAIR				5
+// Up to 8 material modes: 2 remains.
 
 ///////////////////////////////////////////////////////////////////////////////
 // BSDF State
@@ -1697,27 +1690,38 @@ struct FStrataPixelHeader
 void InternalSetMaterialMode(inout uint OutState, uint MaterialMode)						{ OutState = (OutState & ~HEADER_MASK_MATERIALMODE) | (MaterialMode & HEADER_MASK_MATERIALMODE); }
 #define SetMaterialMode(InHeader, InMode)													InternalSetMaterialMode(InHeader.State, InMode)
 
-bool IsSimpleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SIMPLE || STRATA_FASTPATH; }
-bool IsSingleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SINGLE || STRATA_SINGLEPATH; }
-bool IsComplexMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_COMPLEX && !STRATA_FASTPATH && !STRATA_SINGLEPATH; }
+// Material mode & BSDF type
+uint GetMaterialMode(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE); }
+bool IsSimpleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SLAB_SIMPLE || STRATA_FASTPATH; }
+bool IsSingleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SLAB_SINGLE || STRATA_SINGLEPATH; }
+bool IsComplexMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SLAB_COMPLEX && !STRATA_FASTPATH && !STRATA_SINGLEPATH; }
 bool IsSingleLayerWater(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SLWATER; }
+bool IsHair(const FStrataPixelHeader In)													{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_HAIR; }
+uint StrataGetBSDFType(const FStrataPixelHeader In)												
+{ 
+	switch (GetMaterialMode(In))
+	{
+	case HEADER_MATERIALMODE_SLAB_SIMPLE:
+	case HEADER_MATERIALMODE_SLAB_SINGLE:
+	case HEADER_MATERIALMODE_SLAB_COMPLEX:	return STRATA_BSDF_TYPE_SLAB;
+	case HEADER_MATERIALMODE_SLWATER:		return STRATA_BSDF_TYPE_SINGLELAYERWATER;
+	case HEADER_MATERIALMODE_HAIR:			return STRATA_BSDF_TYPE_HAIR;
+	default:								return STRATA_BSDF_TYPE_SLAB;
+	}
+}
 
 bool HasPrecShadowMask(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_HASPRECSHADOWMASK) != 0; }
 bool HasZeroPrecShadowMask(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_ZEROPRECSHADOWMASK) != 0; }
 bool DoesCastContactShadow(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_CASTCONTACTSHADOW) != 0; }
-uint GetShadingModels(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_SHADINGMODELS)>>HEADER_BIT_OFFSET_SHADINGMODELS; }
-bool IsStrataMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_SHADINGMODELS) > 0 || IsSimpleMaterial(In); }
+bool IsStrataMaterial(const FStrataPixelHeader In)											{ return GetMaterialMode(In) != HEADER_MATERIALMODE_NONE;  }
 bool HasSubsurface(const FStrataPixelHeader In)												{ return (In.State & HEADER_MASK_HASSUBSURFACE) != 0; }
 bool HasDynamicIndirectShadowCasterRepresentation(const FStrataPixelHeader In)				{ return (In.State & HEADER_MASK_HASDYNINDIRECTSHADOWCASTER) != 0; }
-
-bool StrataHasShadingModel(const FStrataPixelHeader In, uint ShadingModel)					{ return GetShadingModels(In) == ShadingModel; }
 
 void SetHasPrecShadowMask(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_HASPRECSHADOWMASK : 0u); }
 void SetZeroPrecShadowMask(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_ZEROPRECSHADOWMASK : 0u); }
 void SetCastContactShadow (inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_CASTCONTACTSHADOW : 0u); }
 void SetDynamicIndirectShadowCasterRepresentation(inout FStrataPixelHeader Out, bool bIn)	{ Out.State |= (bIn ? HEADER_MASK_HASDYNINDIRECTSHADOWCASTER : 0u); }
 void SetHasSubsurface(inout FStrataPixelHeader Out, bool bIn)								{ Out.State |= (bIn ? HEADER_MASK_HASSUBSURFACE : 0u); }
-void AddShadingModels(inout FStrataPixelHeader Out, uint bIn)								{ Out.State |= ((bIn<<HEADER_BIT_OFFSET_SHADINGMODELS) & HEADER_MASK_SHADINGMODELS); }
 
 FStrataPixelHeader InitialiseStrataPixelHeader()
 {
@@ -1734,7 +1738,7 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	Out.PackedTopLayerData = 0;
 #endif
 	Out.State = 0;
-	SetMaterialMode(Out, HEADER_MATERIALMODE_SIMPLE); // Should be a NOP since SIMPLE=0. This is for non strata material or sky pixels to be considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
+	SetMaterialMode(Out, HEADER_MATERIALMODE_SLAB_SIMPLE); // Should be a NOP since SIMPLE=0. This is for non strata material or sky pixels to be considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
 	return Out;
 }
 
@@ -3054,7 +3058,7 @@ void StrataConvertFromDBuffer(
 	OutHeader.IrradianceAO = InitIrradianceAndOcclusion();
 #endif
 	OutHeader.State = 0;
-	HEADER_SETSHADINGMODELS(OutHeader.State, STRATA_BSDF_TYPE_SLAB);
+	SetMaterialMode(OutHeader, HEADER_MATERIALMODE_SLAB_SIMPLE);
 
 	// Decal only support a single Slab BSDF with no-anisotropy
 	const FStrataPixelFootprint PixelFootprint = (FStrataPixelFootprint)0;
@@ -3226,19 +3230,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 	BRANCH
 	if (bIsSimpleMaterial || bIsSingleMaterial)
 	{
-		Out.BSDFCount	= 1;
-
-		if (bIsSimpleMaterial)
-		{
-			// Clear shading model, and ensurewe have only STRATA_BSDF_TYPE_SLAB
-			Out.State = Out.State & (~HEADER_MASK_SHADINGMODELS);
-			HEADER_SETSHADINGMODELS(Out.State, STRATA_BSDF_TYPE_SLAB);
-		}
-		else // if (bIsSingleMaterial)
-		{
-			const uint ShadingModels = HEADER_GETSHADINGMODELS(PackedHeader);
-			HEADER_SETSHADINGMODELS(Out.State, ShadingModels);
-		}
+		Out.BSDFCount = 1;
 
 	  #if STRATA_DEFERRED_SHADING
 		Out.StrataBuffer = StrataBuffer;
@@ -3363,7 +3355,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 	#endif
 		OutBSDF.State = (Data>>HEADER_SINGLEENCODING_BIT_COUNT) & BSDF_SINGLEENCODING_MASK;
 		OutBSDF.LuminanceWeightV = 1.0f;
-		const uint BSDFType = GetShadingModels(StrataHeader);
+		const uint BSDFType = StrataGetBSDFType(StrataHeader);
 		BSDF_SETTYPE(OutBSDF, BSDFType);
 
 		// For now, single encode doesn't support anisotropy, as the top layer data only contains the normal, not the full frame basis

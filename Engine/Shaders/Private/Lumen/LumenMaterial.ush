@@ -219,8 +219,8 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.ShadingID						= StrataHeaderIsValid(StrataPixelHeader) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion	= StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
 	Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
-	Out.bIsSLW							= StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_SINGLELAYERWATER);
-	Out.bIsHair							= StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
+	Out.bIsSLW							= StrataGetBSDFType(StrataPixelHeader) == STRATA_BSDF_TYPE_SINGLELAYERWATER;
+	Out.bIsHair							= StrataGetBSDFType(StrataPixelHeader) == STRATA_BSDF_TYPE_HAIR;
 	Out.bIsFoliage						= false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
 	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;
 	Out.bIsFrontLayerTranslucency		= false;
