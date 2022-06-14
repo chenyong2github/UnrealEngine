@@ -22,13 +22,13 @@ namespace UnrealBuildTool
 			if (RuntimePlatform.IsMac)
 			{
 				MinVersion = "12.4.0";
-				MaxVersion = "13.9.9";
+				MaxVersion = "14.9.9";
 			}
 			else
 			{
 				// @todo turnkey: these are MobileDevice .dll versions in Windows - to get the iTunes app version (12.3.4.1 etc) would need to hunt down the .exe
 				MinVersion = "1100.0.0.0";
-				MaxVersion = "1399.0";
+				MaxVersion = "1499.0";
 			}
 		}
 
