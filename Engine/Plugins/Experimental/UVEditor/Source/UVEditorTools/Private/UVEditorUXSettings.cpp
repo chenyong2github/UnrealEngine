@@ -88,7 +88,7 @@ const int32 FUVEditorUXSettings::RulerSubdivisionLevel(1);
 
 TAutoConsoleVariable<int32> FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport(
 	TEXT("modeling.UVEditor.UDIMSupport"),
-	0,
+	1,
 	TEXT("Enable experimental UDIM support in the UVEditor"));
 
 
