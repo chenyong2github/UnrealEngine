@@ -122,6 +122,10 @@ void UAnimSequenceBase::PostLoad()
 				if (DataModel != nullptr)
 				{					
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_PopulateWithExistingModel);
+					if (FLinkerLoad* DataModelLinker = DataModel->GetLinker())
+					{
+						DataModelLinker->Preload(DataModel);
+					}					
 					DataModel->PostLoad();
 					DataModel->ConditionalPostLoadSubobjects();
 					PopulateWithExistingModel(DataModel.Get());
