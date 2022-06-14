@@ -15,14 +15,16 @@
 #include "BehaviorTree/Decorators/BTDecorator_Loop.h"
 #include "BehaviorTree/Tasks/BTTask_RunBehavior.h"
 
-#include "BehaviorTree/TestBTTask_Log.h"
-#include "BehaviorTree/TestBTTask_SetFlag.h"
-#include "BehaviorTree/TestBTTask_ToggleFlag.h"
-#include "BehaviorTree/TestBTTask_SetValue.h"
-#include "BehaviorTree/TestBTTask_LatentWithFlags.h"
 #include "BehaviorTree/TestBTDecorator_Blackboard.h"
 #include "BehaviorTree/TestBTDecorator_DelayedAbort.h"
 #include "BehaviorTree/TestBTService_Log.h"
+#include "BehaviorTree/TestBTService_StopTree.h"
+#include "BehaviorTree/TestBTTask_LatentWithFlags.h"
+#include "BehaviorTree/TestBTTask_Log.h"
+#include "BehaviorTree/TestBTTask_SetFlag.h"
+#include "BehaviorTree/TestBTTask_SetValue.h"
+#include "BehaviorTree/TestBTTask_StopTree.h"
+#include "BehaviorTree/TestBTTask_ToggleFlag.h"
 
 struct FBTBuilder
 {
@@ -219,6 +221,17 @@ struct FBTBuilder
 		ParentNode.Children[ChildIdx].ChildTask = TaskNode;
 	}
 
+	static void AddTaskStopTree(UBTCompositeNode& ParentNode, int32 LogIndex, EBTNodeResult::Type NodeResult, EBTTestTaskStopTree::Type StopTimming)
+	{
+		UTestBTTask_StopTree* TaskNode = NewObject<UTestBTTask_StopTree>(ParentNode.GetTreeAsset());
+		TaskNode->LogIndex = LogIndex;
+		TaskNode->LogResult = NodeResult;
+		TaskNode->StopTimming = StopTimming;
+
+		const int32 ChildIdx = ParentNode.Children.AddZeroed(1);
+		ParentNode.Children[ChildIdx].ChildTask = TaskNode;
+	}
+
 	template<class T>
 	static T& WithDecorator(UBTCompositeNode& ParentNode, UClass* DecoratorClass = T::StaticClass())
 	{
@@ -314,6 +327,13 @@ struct FBTBuilder
 		LogService.bToggleValue = bToggleValue;
 	}
 
+	static void WithServiceStopTree(UBTCompositeNode& ParentNode, int32 LogIndex, EBTTestServiceStopTree::Type StopTimming)
+	{
+		UTestBTService_StopTree& Service = WithService<UTestBTService_StopTree>(ParentNode);
+		Service.LogIndex = LogIndex;
+		Service.StopTimming = StopTimming;
+	}
+
 	template<class T>
 	static T& WithTaskService(UBTCompositeNode& ParentNode, UClass* ServiceClass = T::StaticClass())
 	{
@@ -337,4 +357,12 @@ struct FBTBuilder
 		LogService.KeyNameCeaseRelevant = CeaseRelevantBoolKeyName;
 		LogService.bToggleValue = bToggleValue;
 	}
+
+	static void WithTaskServiceStopTree(UBTCompositeNode& ParentNode, int32 LogIndex, EBTTestServiceStopTree::Type StopTimming)
+	{
+		UTestBTService_StopTree& Service = WithTaskService<UTestBTService_StopTree>(ParentNode);
+		Service.LogIndex = LogIndex;
+		Service.StopTimming = StopTimming;
+	}
+
 };

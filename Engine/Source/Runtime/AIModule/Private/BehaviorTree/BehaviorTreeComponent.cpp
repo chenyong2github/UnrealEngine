@@ -30,29 +30,6 @@ double UBehaviorTreeComponent::FrameSearchTime = 0.;
 int32 UBehaviorTreeComponent::NumSearchTimeCalls = 0;
 #endif
 
-struct FScopedBehaviorTreeLock
-{
-	FScopedBehaviorTreeLock(UBehaviorTreeComponent& InOwnerComp, uint8 InLockFlag) : OwnerComp(InOwnerComp), LockFlag(InLockFlag)
-	{
-		OwnerComp.StopTreeLock |= LockFlag;
-	}
-
-	~FScopedBehaviorTreeLock()
-	{
-		OwnerComp.StopTreeLock &= ~LockFlag;
-	}
-
-	enum
-	{
-		LockTick = 1 << 0,
-		LockReentry = 1 << 1,
-	};
-
-private:
-	UBehaviorTreeComponent& OwnerComp;
-	uint8 LockFlag;
-};
-
 //----------------------------------------------------------------------//
 // UBehaviorTreeComponent
 //----------------------------------------------------------------------//
@@ -62,8 +39,6 @@ UBehaviorTreeComponent::UBehaviorTreeComponent(const FObjectInitializer& ObjectI
 	, SearchData(*this)
 {
 	ActiveInstanceIdx = 0;
-	StopTreeLock = 0;
-	bDeferredStopTree = false;
 	bLoopExecution = false;
 	bWaitingForLatentAborts = false;
 	bRequestedFlowUpdate = false;
@@ -285,16 +260,16 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AI_BehaviorTree_StopTree);
 
-	UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("StopTree %s, mode:%s"), *GetNameSafe(GetRootTree()), StopMode == EBTStopMode::Forced ? TEXT("Forced") : TEXT("Safe"));
-
-	if (StopTreeLock)
+	const bool bForcedStop = StopMode == EBTStopMode::Forced;
+	if ((SuspendedBranchActions & EBTBranchAction::StopTree) != EBTBranchAction::None)
 	{
-		bDeferredStopTree = true;
-		ScheduleNextTick(0.0f);
+		UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("Stop tree(%s) queued up"), bForcedStop ? TEXT("Forced") : TEXT("Safe"));
+		PendingBranchActionRequests.Emplace(nullptr, bForcedStop ? EBTBranchAction::StopTree_Forced : EBTBranchAction::StopTree_Safe);
 		return;
 	}
 
-	FScopedBehaviorTreeLock ScopedLock(*this, FScopedBehaviorTreeLock::LockReentry);
+	UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("StopTree %s, mode:%s"), *GetNameSafe(GetRootTree()), bForcedStop ? TEXT("Forced") : TEXT("Safe"));
+	FBTSuspendBranchActionsScoped ScopedSuspend(*this, EBTBranchAction::All);
 	if (!bRequestedStop)
 	{
 		bRequestedStop = true;
@@ -305,7 +280,6 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 
 			// notify active aux nodes
 			{
-				FBTSuspendBranchActionsScoped ScopedSuspend(*this, EBTBranchAction::All);
 				InstanceInfo.ExecuteOnEachAuxNode([&InstanceInfo, this](const UBTAuxiliaryNode& AuxNode)
 				{
 					uint8* NodeMemory = AuxNode.GetNodeMemory<uint8>(InstanceInfo);
@@ -388,7 +362,7 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 
 	if (bWaitingForLatentAborts)
 	{
-		if (StopMode == EBTStopMode::Safe)
+		if (!bForcedStop)
 		{
 			UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("StopTree is waiting for aborting tasks to finish..."));
 			return;
@@ -424,7 +398,6 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 	bRequestedStop = false;
 	bIsRunning = false;
 	bWaitingForLatentAborts = false;
-	bDeferredStopTree = false;
 }
 
 void UBehaviorTreeComponent::RestartTree()
@@ -792,6 +765,11 @@ void UBehaviorTreeComponent::ResumeBranchActions()
 					const UBTCompositeNode* BranchRoot = CastChecked<UBTCompositeNode>(Info.Node);
 					UnregisterAuxNodesInBranch(BranchRoot, true/*bApplyImmediately*/);
 					break;
+				}
+				case EBTBranchAction::StopTree_Safe:
+				case EBTBranchAction::StopTree_Forced:
+				{
+					StopTree(Info.Action == EBTBranchAction::StopTree_Forced ? EBTStopMode::Forced : EBTStopMode::Safe);
 				}
 			}
 		}
@@ -1556,7 +1534,7 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	// do it before processing execution request to give BP driven logic chance to accumulate execution requests
 	// newly added aux nodes are ticked as part of SearchData application
 	{
-		FBTSuspendBranchActionsScoped ScopedSuspend(*this, EBTBranchAction::UnregisterAuxNodes);
+		FBTSuspendBranchActionsScoped ScopedSuspend(*this, EBTBranchAction::UnregisterAuxNodes | EBTBranchAction::StopTree);
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
 		{
 			FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
@@ -1609,54 +1587,46 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 
 	if (InstanceStack.Num() > 0 && bIsRunning && !bIsPaused)
 	{
+		FBTSuspendBranchActionsScoped ScopedSuspend(*this, EBTBranchAction::StopTree);
+
+		// tick active parallel tasks (in execution order, before task)
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
 		{
-			FScopedBehaviorTreeLock ScopedLock(*this, FScopedBehaviorTreeLock::LockTick);
-
-			// tick active parallel tasks (in execution order, before task)
-			for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
-			{
-				FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
-				InstanceInfo.ExecuteOnEachParallelTask([&InstanceInfo, &bDoneSomething, this, DeltaTime, &NextNeededDeltaTime](const FBehaviorTreeParallelTask& ParallelTaskInfo, const int32 Index)
-					{
-						const UBTTaskNode* ParallelTask = ParallelTaskInfo.TaskNode;
-						SCOPE_CYCLE_UOBJECT(ParallelTask, ParallelTask);
-						uint8* NodeMemory = ParallelTask->GetNodeMemory<uint8>(InstanceInfo);
-						bDoneSomething |= ParallelTask->WrappedTickTask(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
-					});
-			}
-
-			// tick active task
-			if (InstanceStack.IsValidIndex(ActiveInstanceIdx))
-			{
-				FBehaviorTreeInstance& ActiveInstance = InstanceStack[ActiveInstanceIdx];
-				if (ActiveInstance.ActiveNodeType == EBTActiveNode::ActiveTask ||
-					ActiveInstance.ActiveNodeType == EBTActiveNode::AbortingTask)
+			FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
+			InstanceInfo.ExecuteOnEachParallelTask([&InstanceInfo, &bDoneSomething, this, DeltaTime, &NextNeededDeltaTime](const FBehaviorTreeParallelTask& ParallelTaskInfo, const int32 Index)
 				{
-					UBTTaskNode* ActiveTask = (UBTTaskNode*)ActiveInstance.ActiveNode;
-					uint8* NodeMemory = ActiveTask->GetNodeMemory<uint8>(ActiveInstance);
-					SCOPE_CYCLE_UOBJECT(ActiveTask, ActiveTask);
-					bDoneSomething |= ActiveTask->WrappedTickTask(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
-				}
-			}
+					const UBTTaskNode* ParallelTask = ParallelTaskInfo.TaskNode;
+					SCOPE_CYCLE_UOBJECT(ParallelTask, ParallelTask);
+					uint8* NodeMemory = ParallelTask->GetNodeMemory<uint8>(InstanceInfo);
+					bDoneSomething |= ParallelTask->WrappedTickTask(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
+				});
+		}
 
-			// tick aborting task from abandoned subtree
-			if (InstanceStack.IsValidIndex(ActiveInstanceIdx + 1))
+		// tick active task
+		if (InstanceStack.IsValidIndex(ActiveInstanceIdx))
+		{
+			FBehaviorTreeInstance& ActiveInstance = InstanceStack[ActiveInstanceIdx];
+			if (ActiveInstance.ActiveNodeType == EBTActiveNode::ActiveTask ||
+				ActiveInstance.ActiveNodeType == EBTActiveNode::AbortingTask)
 			{
-				FBehaviorTreeInstance& LastInstance = InstanceStack.Last();
-				if (LastInstance.ActiveNodeType == EBTActiveNode::AbortingTask)
-				{
-					UBTTaskNode* ActiveTask = (UBTTaskNode*)LastInstance.ActiveNode;
-					uint8* NodeMemory = ActiveTask->GetNodeMemory<uint8>(LastInstance);
-					SCOPE_CYCLE_UOBJECT(ActiveTask, ActiveTask);
-					bDoneSomething |= ActiveTask->WrappedTickTask(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
-				}
+				UBTTaskNode* ActiveTask = (UBTTaskNode*)ActiveInstance.ActiveNode;
+				uint8* NodeMemory = ActiveTask->GetNodeMemory<uint8>(ActiveInstance);
+				SCOPE_CYCLE_UOBJECT(ActiveTask, ActiveTask);
+				bDoneSomething |= ActiveTask->WrappedTickTask(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
 			}
 		}
 
-		if (bDeferredStopTree)
+		// tick aborting task from abandoned subtree
+		if (InstanceStack.IsValidIndex(ActiveInstanceIdx + 1))
 		{
-			StopTree(EBTStopMode::Safe);
-			bDoneSomething = true;
+			FBehaviorTreeInstance& LastInstance = InstanceStack.Last();
+			if (LastInstance.ActiveNodeType == EBTActiveNode::AbortingTask)
+			{
+				UBTTaskNode* ActiveTask = (UBTTaskNode*)LastInstance.ActiveNode;
+				uint8* NodeMemory = ActiveTask->GetNodeMemory<uint8>(LastInstance);
+				SCOPE_CYCLE_UOBJECT(ActiveTask, ActiveTask);
+				bDoneSomething |= ActiveTask->WrappedTickTask(*this, NodeMemory, DeltaTime, NextNeededDeltaTime);
+			}
 		}
 	}
 
@@ -2271,10 +2241,6 @@ void UBehaviorTreeComponent::ExecuteTask(UBTTaskNode* TaskNode)
 	ActiveInstance.ActiveNode = TaskNode;
 	ActiveInstance.ActiveNodeType = EBTActiveNode::ActiveTask;
 
-	// Is is now ok to resume any branch acitons as the new active instance is set.
-	// Before that, decorators evaluating the IsExecutingBranch would be wrong.
-	ResumeBranchActions();
-
 	// make a snapshot for debugger
 	StoreDebuggerExecutionStep(EBTExecutionSnap::Regular);
 
@@ -2299,6 +2265,10 @@ void UBehaviorTreeComponent::ExecuteTask(UBTTaskNode* TaskNode)
 
 		OnTaskFinished(TaskNode, TaskResult);
 	}
+
+	// It is now ok to resume any branch actions as the new active instance is set.
+	// Before that, decorators evaluating the IsExecutingBranch would be wrong.
+	ResumeBranchActions();
 }
 
 void UBehaviorTreeComponent::AbortCurrentTask()

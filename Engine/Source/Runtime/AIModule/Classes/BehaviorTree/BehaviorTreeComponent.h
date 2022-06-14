@@ -21,7 +21,6 @@ class UBTNode;
 class UBTTask_RunBehavior;
 class UBTTask_RunBehaviorDynamic;
 class UBTTaskNode;
-struct FScopedBehaviorTreeLock;
 
 struct FBTNodeExecutionInfo
 {
@@ -88,7 +87,10 @@ enum class EBTBranchAction : uint8
 	DecoratorActivate = DecoratorActivate_IfNotExecuting | DecoratorActivate_EvenIfExecuting,
 	DecoratorDeactivate = 0x8,
 	UnregisterAuxNodes = 0x10,
-	All = DecoratorEvaluate | DecoratorActivate_IfNotExecuting | DecoratorActivate_EvenIfExecuting | DecoratorDeactivate | UnregisterAuxNodes,
+	StopTree_Safe = 0x20,
+	StopTree_Forced = 0x40,
+	StopTree = StopTree_Safe | StopTree_Forced,
+	All = DecoratorEvaluate | DecoratorActivate_IfNotExecuting | DecoratorActivate_EvenIfExecuting | DecoratorDeactivate | UnregisterAuxNodes | StopTree_Safe | StopTree_Forced,
 };
 ENUM_CLASS_FLAGS(EBTBranchAction);
 
@@ -336,12 +338,6 @@ protected:
 	/** index of last active instance on stack */
 	uint16 ActiveInstanceIdx;
 
-	/** if set, StopTree calls will be deferred */
-	uint8 StopTreeLock;
-
-	/** if set, StopTree will be called at the end of tick */
-	uint8 bDeferredStopTree : 1;
-
 	/** loops tree execution */
 	uint8 bLoopExecution : 1;
 
@@ -492,7 +488,6 @@ protected:
 	friend UBTTask_RunBehaviorDynamic;
 	friend FBehaviorTreeDebugger;
 	friend FBehaviorTreeInstance;
-	friend FScopedBehaviorTreeLock;
 
 protected:
 	/** data asset defining the tree */
