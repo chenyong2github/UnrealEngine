@@ -126,7 +126,6 @@ void UNiagaraRibbonRendererProperties::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
-
 	if (MaterialUserParamBinding.Parameter.GetType().GetClass() != UMaterialInterface::StaticClass())
 	{
 		FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
@@ -149,6 +148,14 @@ void UNiagaraRibbonRendererProperties::PostLoad()
 	{
 		Material->ConditionalPostLoad();
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (MaterialParameterBindings_DEPRECATED.Num() > 0)
+	{
+		MaterialParameters.AttributeBindings = MaterialParameterBindings_DEPRECATED;
+		MaterialParameterBindings_DEPRECATED.Empty();
+	}
+#endif
 }
 
 FNiagaraBoundsCalculator* UNiagaraRibbonRendererProperties::CreateBoundsCalculator()
@@ -180,7 +187,7 @@ bool UNiagaraRibbonRendererProperties::PopulateRequiredBindings(FNiagaraParamete
 		}
 	}
 
-	for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameterBindings)
+	for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameters.AttributeBindings)
 	{
 		InParameterStore.AddParameter(MaterialParamBinding.GetParamMapBindableVariable(), false);
 		bAnyAdded = true;
@@ -194,7 +201,7 @@ void UNiagaraRibbonRendererProperties::UpdateSourceModeDerivates(ENiagaraRendere
 	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
 	if (SrcEmitter)
 	{
-		for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameterBindings)
+		for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameters.AttributeBindings)
 		{
 			MaterialParamBinding.CacheValues(SrcEmitter);
 		}
@@ -511,6 +518,14 @@ void UNiagaraRibbonRendererProperties::GetRendererFeedback(const FVersionedNiaga
 		const FNiagaraRendererFeedbackFix MultiPlaneFix = FNiagaraRendererFeedbackFix::CreateLambda([this]() { const_cast<UNiagaraRibbonRendererProperties*>(this)->MultiPlaneCount = FMath::Clamp(this->MultiPlaneCount - 1, 1, 16); });
 		OutWarnings.Add(FNiagaraRendererFeedback(ErrorDescription, ErrorSummary, ErrorFix, MultiPlaneFix, true));	
 	}	
+
+
+	if (MaterialParameters.HasAnyBindings())
+	{
+		TArray<UMaterialInterface*> Materials;
+		GetUsedMaterials(nullptr, Materials);
+		MaterialParameters.GetFeedback(Materials, OutWarnings);
+	}
 }
 
 
@@ -542,7 +557,7 @@ void UNiagaraRibbonRendererProperties::RenameVariable(const FNiagaraVariableBase
 	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
 
 	// Handle renaming material bindings
-	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameterBindings)
+	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
 	{
 		Binding.RenameVariableIfMatching(OldVariable, NewVariable, InEmitter.Emitter, GetCurrentSourceMode());
 	}
@@ -553,7 +568,7 @@ void UNiagaraRibbonRendererProperties::RemoveVariable(const FNiagaraVariableBase
 	Super::RemoveVariable(OldVariable, InEmitter);
 
 	// Handle resetting material bindings to defaults
-	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameterBindings)
+	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
 	{
 		if (Binding.Matches(OldVariable, InEmitter.Emitter, GetCurrentSourceMode()))
 		{

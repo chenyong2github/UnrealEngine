@@ -493,10 +493,12 @@ bool FNiagaraRenderer::UseLocalSpace(const FNiagaraSceneProxy* Proxy)const
 	return bLocalSpace || Proxy->GetProxyDynamicData().bUseCullProxy;
 }
 
-void FNiagaraRenderer::ProcessMaterialParameterBindings(TConstArrayView< FNiagaraMaterialAttributeBinding > InMaterialParameterBindings, const FNiagaraEmitterInstance* InEmitter, TConstArrayView<UMaterialInterface*> InMaterials) const
+void FNiagaraRenderer::ProcessMaterialParameterBindings(const FNiagaraRendererMaterialParameters& MaterialParameters, const FNiagaraEmitterInstance* InEmitter, TConstArrayView<UMaterialInterface*> InMaterials) const
 {
-	if (InMaterialParameterBindings.Num() == 0 || !InEmitter)
+	if (MaterialParameters.HasAnyBindings() == false || !InEmitter)
+	{
 		return;
+	}
 
 	FNiagaraSystemInstance* SystemInstance = InEmitter->GetParentSystemInstance();
 	if (SystemInstance)
@@ -510,7 +512,7 @@ void FNiagaraRenderer::ProcessMaterialParameterBindings(TConstArrayView< FNiagar
 				UMaterialInstanceDynamic* MatDyn = Cast<UMaterialInstanceDynamic>(Mat);
 				if (MatDyn)
 				{
-					for (const FNiagaraMaterialAttributeBinding& Binding : InMaterialParameterBindings)
+					for (const FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
 					{
 
 						if (Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetVec4Def() ||
@@ -565,6 +567,24 @@ void FNiagaraRenderer::ProcessMaterialParameterBindings(TConstArrayView< FNiagar
 									MatDyn->SetTextureParameterValue(Binding.MaterialParameterName, Tex);
 								}
 							}
+						}
+					}
+
+					for (const FNiagaraRendererMaterialScalarParameter& ScalarParameter : MaterialParameters.ScalarParameters)
+					{
+						MatDyn->SetScalarParameterValue(ScalarParameter.MaterialParameterName, ScalarParameter.Value);
+					}
+
+					for (const FNiagaraRendererMaterialVectorParameter& VectorParameter : MaterialParameters.VectorParameters)
+					{
+						MatDyn->SetVectorParameterValue(VectorParameter.MaterialParameterName, VectorParameter.Value);
+					}
+
+					for (const FNiagaraRendererMaterialTextureParameter& TextureParameter : MaterialParameters.TextureParameters)
+					{
+						if (IsValid(TextureParameter.Texture))
+						{
+							MatDyn->SetTextureParameterValue(TextureParameter.MaterialParameterName, TextureParameter.Texture);
 						}
 					}
 				}

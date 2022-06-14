@@ -184,7 +184,7 @@ public:
 	virtual void GetAdditionalVariables(TArray<FNiagaraVariableBase>& OutArray) const override;
 	virtual	void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual	void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
-	virtual void GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
+	virtual void GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const override;
 	void OnMeshChanged();
 	void OnMeshPostBuild(UStaticMesh*);
 	void OnAssetReimported(UObject*);
@@ -356,7 +356,12 @@ public:
 
 	/** If this array has entries, we will create a MaterialInstanceDynamic per Emitter instance from Material and set the Material parameters using the Niagara simulation variables listed.*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
-	TArray<FNiagaraMaterialAttributeBinding> MaterialParameterBindings;
+	FNiagaraRendererMaterialParameters MaterialParameters;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<FNiagaraMaterialAttributeBinding> MaterialParameterBindings_DEPRECATED;
+#endif
 
 	// The following bindings are not provided by the user, but are filled based on what other bindings are set to, and the value of bGenerateAccurateMotionVectors
 
@@ -409,7 +414,7 @@ protected:
 	void InitBindings();
 	void SetPreviousBindings(const FVersionedNiagaraEmitter& SrcEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
-	virtual bool NeedsMIDsForMaterials() const override { return MaterialParameterBindings.Num() > 0; }	
+	virtual bool NeedsMIDsForMaterials() const override { return MaterialParameters.HasAnyBindings(); }
 #if WITH_EDITORONLY_DATA
 	bool ChangeRequiresMeshListRebuild(const FProperty* Property);
 	void RebuildMeshList();

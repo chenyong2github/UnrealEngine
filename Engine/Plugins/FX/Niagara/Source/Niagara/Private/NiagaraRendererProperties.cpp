@@ -9,7 +9,10 @@
 #include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Materials/MaterialInterface.h"
 #include "Styling/SlateIconFinder.h"
+
+#define LOCTEXT_NAMESPACE "UNiagaraRendererProperties"
 
 void FNiagaraRendererLayout::Initialize(int32 NumVariables)
 {
@@ -99,6 +102,125 @@ void FNiagaraRendererLayout::Finalize()
 		}
 	);
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+#if WITH_EDITORONLY_DATA
+void FNiagaraRendererMaterialParameters::GetFeedback(TArrayView<UMaterialInterface*> Materials, TArray<FNiagaraRendererFeedback>& OutWarnings) const
+{
+	TArray<bool> AttributeBindingsValid;
+	TArray<bool> ScalarParametersValid;
+	TArray<bool> VectorParametersValid;
+	TArray<bool> TextureParametersValid;
+	AttributeBindingsValid.AddDefaulted(AttributeBindings.Num());
+	ScalarParametersValid.AddDefaulted(ScalarParameters.Num());
+	VectorParametersValid.AddDefaulted(VectorParameters.Num());
+	TextureParametersValid.AddDefaulted(TextureParameters.Num());
+
+	TArray<FMaterialParameterInfo> TempParameterInfo;
+	TArray<FGuid> TempParameterIds;
+	auto ContainsParameter =
+		[&TempParameterInfo](FName InName)
+		{
+			for ( const FMaterialParameterInfo& Parameter : TempParameterInfo )
+			{
+				if (Parameter.Name == InName)
+				{
+					return true;
+				}
+			}
+			return false;
+		};
+
+	for (UMaterialInterface* Material : Materials)
+	{
+		if (Material == nullptr)
+		{
+			continue;
+		}
+		
+		if (AttributeBindingsValid.Num() > 0 || ScalarParametersValid.Num() > 0)
+		{
+			Material->GetAllScalarParameterInfo(TempParameterInfo, TempParameterIds);
+			for (int32 i = 0; i < AttributeBindings.Num(); ++i)
+			{
+				AttributeBindingsValid[i] |= ContainsParameter(AttributeBindings[i].MaterialParameterName);
+			}
+			for (int32 i = 0; i < ScalarParameters.Num(); ++i)
+			{
+				ScalarParametersValid[i] |= ContainsParameter(ScalarParameters[i].MaterialParameterName);
+			}
+		}
+		if (AttributeBindingsValid.Num() > 0 || VectorParametersValid.Num() > 0)
+		{
+			Material->GetAllVectorParameterInfo(TempParameterInfo, TempParameterIds);
+			for (int32 i = 0; i < AttributeBindings.Num(); ++i)
+			{
+				AttributeBindingsValid[i] |= ContainsParameter(AttributeBindings[i].MaterialParameterName);
+			}
+			for (int32 i = 0; i < VectorParameters.Num(); ++i)
+			{
+				VectorParametersValid[i] |= ContainsParameter(VectorParameters[i].MaterialParameterName);
+			}
+		}
+		if (AttributeBindingsValid.Num() > 0 || TextureParametersValid.Num() > 0)
+		{
+			Material->GetAllTextureParameterInfo(TempParameterInfo, TempParameterIds);
+			for (int32 i=0; i < AttributeBindings.Num(); ++i)
+			{
+				AttributeBindingsValid[i] |= ContainsParameter(AttributeBindings[i].MaterialParameterName);
+			}
+			for (int32 i = 0; i < TextureParameters.Num(); ++i)
+			{
+				TextureParametersValid[i] |= ContainsParameter(TextureParameters[i].MaterialParameterName);
+			}
+		}
+	}
+
+	for (int32 i=0; i < AttributeBindingsValid.Num(); ++i)
+	{
+		if (AttributeBindingsValid[i] == false)
+		{
+			OutWarnings.Emplace(
+				FText::Format(LOCTEXT("AttributeBindingMissingDesc", "AttributeBinding '{0}' could not be found in the renderer materials.  We will still create the MID which may be unnecessary."), FText::FromName(AttributeBindings[i].MaterialParameterName)),
+				FText::Format(LOCTEXT("AttributeBindingMissing", "AttributeBinding '{0}' not found on materials."), FText::FromName(AttributeBindings[i].MaterialParameterName))
+			);
+		}
+	}
+	for (int32 i = 0; i < ScalarParametersValid.Num(); ++i)
+	{
+		if (ScalarParametersValid[i] == false)
+		{
+			OutWarnings.Emplace(
+				FText::Format(LOCTEXT("ScalarParameterMissingDesc", "ScalarParameter '{0}' could not be found in the renderer materials.  We will still create the MID which may be unnecessary."), FText::FromName(ScalarParameters[i].MaterialParameterName)),
+				FText::Format(LOCTEXT("ScalarParameterMissing", "ScalarParameter '{0}' not found on materials."), FText::FromName(ScalarParameters[i].MaterialParameterName))
+			);
+		}
+	}
+	for (int32 i = 0; i < VectorParametersValid.Num(); ++i)
+	{
+		if (VectorParametersValid[i] == false)
+		{
+			OutWarnings.Emplace(
+				FText::Format(LOCTEXT("VectorParameterMissingDesc", "VectorParameter '{0}' could not be found in the renderer materials.  We will still create the MID which may be unnecessary."), FText::FromName(VectorParameters[i].MaterialParameterName)),
+				FText::Format(LOCTEXT("VectorParameterMissing", "VectorParameter '{0}' not found on materials."), FText::FromName(VectorParameters[i].MaterialParameterName))
+			);
+		}
+	}
+	for (int32 i = 0; i < TextureParametersValid.Num(); ++i)
+	{
+		if (TextureParametersValid[i] == false)
+		{
+			OutWarnings.Emplace(
+				FText::Format(LOCTEXT("TextureParameterMissingDesc", "TextureParameter '{0}' could not be found in the renderer materials.  We will still create the MID which may be unnecessary."), FText::FromName(TextureParameters[i].MaterialParameterName)),
+				FText::Format(LOCTEXT("TextureParameterMissing", "TextureParameter '{0}' not found on materials."), FText::FromName(TextureParameters[i].MaterialParameterName))
+			);
+		}
+	}
+}
+#endif //WITH_EDITORONLY_DATA
+
+//////////////////////////////////////////////////////////////////////////
 
 #if WITH_EDITORONLY_DATA
 bool UNiagaraRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
@@ -484,3 +606,5 @@ bool UNiagaraRendererProperties::IsSortHighPrecision(ENiagaraRendererSortPrecisi
 	}
 	return SortPrecision == ENiagaraRendererSortPrecision::High;
 }
+
+#undef LOCTEXT_NAMESPACE

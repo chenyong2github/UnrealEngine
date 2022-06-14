@@ -1199,9 +1199,9 @@ FNiagaraDynamicDataBase *FNiagaraRendererSprites::GenerateDynamicData(const FNia
 			DynamicData->ParameterDataBound = ParameterData.GetParameterDataArray();
 		}
 
-		if (DynamicData && Properties->MaterialParameterBindings.Num() != 0)
+		if (DynamicData && Properties->MaterialParameters.HasAnyBindings())
 		{
-			ProcessMaterialParameterBindings(MakeArrayView(Properties->MaterialParameterBindings), Emitter, MakeArrayView(BaseMaterials_GT));
+			ProcessMaterialParameterBindings(Properties->MaterialParameters, Emitter, MakeArrayView(BaseMaterials_GT));
 		}
 	}
 

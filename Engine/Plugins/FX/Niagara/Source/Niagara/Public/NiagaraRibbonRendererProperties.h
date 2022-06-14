@@ -433,7 +433,12 @@ public:
 
 	/** If this array has entries, we will create a MaterialInstanceDynamic per Emitter instance from Material and set the Material parameters using the Niagara simulation variables listed.*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
-	TArray<FNiagaraMaterialAttributeBinding> MaterialParameterBindings;
+	FNiagaraRendererMaterialParameters MaterialParameters;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<FNiagaraMaterialAttributeBinding> MaterialParameterBindings_DEPRECATED;
+#endif
 
 	/** Implicit binding for previous position */
 	UPROPERTY(Transient)
@@ -481,7 +486,7 @@ protected:
 
 	void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit);
 
-	virtual bool NeedsMIDsForMaterials() const { return MaterialParameterBindings.Num() > 0; }
+	virtual bool NeedsMIDsForMaterials() const { return MaterialParameters.HasAnyBindings(); }
 private: 
 	static TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> RibbonRendererPropertiesToDeferredInit;
 };

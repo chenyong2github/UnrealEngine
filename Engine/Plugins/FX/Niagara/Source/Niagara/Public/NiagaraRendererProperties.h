@@ -161,6 +161,73 @@ enum class ENiagaraRendererSortPrecision : uint8
 	High,
 };
 
+USTRUCT()
+struct FNiagaraRendererMaterialScalarParameter
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	FName MaterialParameterName;
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	float Value = 0.0f;
+};
+
+USTRUCT()
+struct FNiagaraRendererMaterialVectorParameter
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	FName MaterialParameterName;
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	FLinearColor Value = FLinearColor::Black;
+};
+
+USTRUCT()
+struct FNiagaraRendererMaterialTextureParameter
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	FName MaterialParameterName;
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	TObjectPtr<UTexture> Texture;
+};
+
+/**
+* Parameters to apply to the material, these are both constant and dynamic bindings
+* Having any bindings set will cause a MID to be generated
+*/
+USTRUCT()
+struct FNiagaraRendererMaterialParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	TArray<FNiagaraMaterialAttributeBinding> AttributeBindings;
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	TArray<FNiagaraRendererMaterialScalarParameter> ScalarParameters;
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	TArray<FNiagaraRendererMaterialVectorParameter> VectorParameters;
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	TArray<FNiagaraRendererMaterialTextureParameter> TextureParameters;
+
+#if WITH_EDITORONLY_DATA
+	void GetFeedback(TArrayView<UMaterialInterface*> Materials, TArray<FNiagaraRendererFeedback>& OutWarnings) const;
+#endif
+
+	bool HasAnyBindings() const
+	{
+		return AttributeBindings.Num() > 0 || ScalarParameters.Num() > 0 || VectorParameters.Num() > 0 || TextureParameters.Num() > 0;
+	}
+};
+
 /**
 * Emitter properties base class
 * Each EmitterRenderer derives from this with its own class, and returns it in GetProperties; a copy
