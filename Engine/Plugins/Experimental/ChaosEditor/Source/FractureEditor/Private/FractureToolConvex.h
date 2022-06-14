@@ -20,7 +20,7 @@ public:
 		: Super(ObjInit)
 	{}
 
-	/** Fraction of the convex hulls for a transform that we can remove before instead using the hulls of the children */
+	/** Fraction of the convex hulls for a transform that we can remove before using the hulls of the children */
 	UPROPERTY(EditAnywhere, Category = Automatic, meta = (DisplayName = "Can Remove Fraction", ClampMin = ".01", ClampMax = "1"))
 	double FractionAllowRemove = .5;
 

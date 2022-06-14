@@ -29,7 +29,7 @@ public:
 
 public:
 
-	/** Default fraction of convex hulls for a transform that we can remove before instead using the hulls of the children */
+	/** Default fraction of convex hulls for a transform that we can remove before using the hulls of the children */
 	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults", meta = (DisplayName = "Can Remove Fraction", ClampMin = ".01", ClampMax = "1"))
 	double ConvexFractionAllowRemove = .5;
 
