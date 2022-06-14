@@ -3121,11 +3121,11 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 	for (auto RepComp = ReplicationMap.CreateIterator(); RepComp; ++RepComp)
 	{
 		TSharedRef<FObjectReplicator>& ObjectReplicator = RepComp.Value();
-		if (ObjectReplicator->GetObject() == nullptr)
+		if (!IsValid(ObjectReplicator->GetObject()))
 		{
 			if (!Connection->Driver->IsServer())
 			{
-				RepComp.RemoveCurrent();
+				RepComp.RemoveCurrent(); // This should cause the replicator to be cleaned up as there should be no outstandings refs. 
 			}
 			continue;
 		}
