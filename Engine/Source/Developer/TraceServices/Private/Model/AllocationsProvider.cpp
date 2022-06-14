@@ -380,6 +380,13 @@ uint32 IAllocationsProvider::FAllocation::GetAlignment() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+uint32 IAllocationsProvider::FAllocation::GetThreadId() const
+{
+	const auto* Inner = (const FAllocationItem*)this;
+	return Inner->ThreadId;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 uint32 IAllocationsProvider::FAllocation::GetCallstackId() const
 {
 	const auto* Inner = (const FAllocationItem*)this;
@@ -1306,10 +1313,10 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 		Allocation.EndEventIndex = (uint32)-1;
 		Allocation.StartTime = Time;
 		Allocation.EndTime = std::numeric_limits<double>::infinity();
+		Allocation.ThreadId = CurrentSystemThreadId;
 		Allocation.CallstackId = CallstackId;
 		Allocation.FreeCallstackId = 0; // no callstack yet
 		Allocation.MetadataId = MetadataId;
-		Allocation.Reserved = 0;
 		Allocation.Tag = Tag;
 		Allocation.RootHeap = RootHeap;
 		Allocation.Flags = EMemoryTraceHeapAllocationFlags::None;

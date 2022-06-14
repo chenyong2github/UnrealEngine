@@ -107,10 +107,10 @@ struct FAllocationItem
 	uint32 EndEventIndex;
 	double StartTime;
 	double EndTime;
+	uint32 ThreadId;
 	uint32 CallstackId;
 	uint32 FreeCallstackId;
 	uint32 MetadataId;
-	uint32 Reserved;
 	TagIdType Tag;
 	uint8 RootHeap;
 	EMemoryTraceHeapAllocationFlags Flags;

@@ -99,6 +99,7 @@ public:
 		uint64 GetAddress() const;
 		uint64 GetSize() const;
 		uint32 GetAlignment() const;
+		uint32 GetThreadId() const;
 		uint32 GetCallstackId() const;
 		uint32 GetFreeCallstackId() const;
 		uint32 GetMetadataId() const;

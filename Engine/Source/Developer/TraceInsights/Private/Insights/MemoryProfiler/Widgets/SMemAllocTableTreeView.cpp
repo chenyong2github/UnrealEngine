@@ -11,7 +11,10 @@
 #include "Styling/AppStyle.h"
 #include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/Callstack.h"
+#include "TraceServices/Model/Definitions.h"
+#include "TraceServices/Model/MetadataProvider.h"
 #include "TraceServices/Model/Modules.h"
+#include "TraceServices/Model/Strings.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SToolTip.h"
@@ -301,6 +304,22 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 
 	const TraceServices::ICallstacksProvider* CallstacksProvider = TraceServices::ReadCallstacksProvider(*Session.Get());
 
+	const TraceServices::IMetadataProvider* MetadataProvider = TraceServices::ReadMetadataProvider(*Session.Get());
+
+	uint16 AssetMetadataType = 0;
+	if (MetadataProvider)
+	{
+		TraceServices::IMetadataProvider::FReadScopeLock MetadataProviderReadLock(*MetadataProvider);
+		AssetMetadataType = MetadataProvider->GetRegisteredMetadataType(TEXT("Asset"));
+		if (MetadataProvider->GetRegisteredMetadataName(AssetMetadataType) == nullptr)
+		{
+			// If AssetMetadataType is not valid then we do not need to furhter check the Asset metadata for each allocation.
+			MetadataProvider = nullptr;
+		}
+	}
+
+	const TraceServices::IDefinitionProvider* DefinitionProvider = TraceServices::ReadDefinitionProvider(*Session.Get());
+
 	constexpr double MaxPollTime = 0.03; // Stop getting results after 30 ms so we don't tank the frame rate too much.
 	FStopwatch TotalStopwatch;
 	TotalStopwatch.Start();
@@ -363,8 +382,31 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.EndTime = Allocation->GetEndTime();
 					Alloc.Address = Allocation->GetAddress();
 					Alloc.Size = int64(Allocation->GetSize());
-					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
 					Alloc.TagId = Allocation->GetTag();
+					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
+					if (MetadataProvider && DefinitionProvider)
+					{
+						TraceServices::IMetadataProvider::FReadScopeLock MetadataProviderReadLock(*MetadataProvider);
+						MetadataProvider->EnumerateMetadata(Allocation->GetThreadId(), Allocation->GetMetadataId(),
+							[AssetMetadataType, &Alloc, DefinitionProvider](uint32 StackDepth, uint16 Type, const void* Data, uint32 Size) -> bool
+							{
+								if (Type == AssetMetadataType)
+								{
+									////TODO: TraceServices::IDefinitionProvider::FReadScopeLock DefinitionProviderReadLock(*DefinitionProvider);
+									//DefinitionProvider->BeginRead();
+									//const UE::Trace::TEventRef<UE::Trace::FEventRef32>& AssetNameReference = ((const UE::Trace::TEventRef<UE::Trace::FEventRef32>*)Data)[0];
+									////const UE::Trace::TEventRef<UE::Trace::FEventRef32>& ClassNameReference = ((const UE::Trace::TEventRef<UE::Trace::FEventRef32>*)Data)[1];
+									//const TraceServices::FStringDefinition* AssetNameDef = DefinitionProvider->Get<TraceServices::FStringDefinition>(AssetNameReference);
+									//if (AssetNameDef)
+									//{
+									//	Alloc.Asset = AssetNameDef->Display;
+									//}
+									//DefinitionProvider->EndRead();
+									return false;
+								}
+								return true;
+							});
+					}
 					if (CallstacksProvider)
 					{
 						Alloc.Callstack = CallstacksProvider->GetCallstack(Allocation->GetCallstackId());
@@ -767,6 +809,57 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FTagViewPreset>());
+
+	//////////////////////////////////////////////////
+	// Asset Breakdown View
+
+	class FAssetViewPreset : public IViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("Asset_PresetName", "Asset");
+		}
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("Asset_PresetToolTip", "Asset Breakdown View\nConfigure the tree view to show a breakdown of allocations by their Asset tag.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FTable::GetHierarchyColumnId();
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Ascending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const TSharedPtr<FTreeNodeGrouping>* AssetGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<FTreeNodeGroupingByPathBreakdown>() &&
+						   Grouping->As<FTreeNodeGroupingByPathBreakdown>().GetColumnId() == FMemAllocTableColumns::AssetColumnId;
+				});
+			if (AssetGrouping)
+			{
+				InOutCurrentGroupings.Add(*AssetGrouping);
+			}
+		}
+		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,     true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,      true, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId, true, 400.0f });
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FAssetViewPreset>());
 
 	//////////////////////////////////////////////////
 	// (Inverted) Callstack Breakdown View

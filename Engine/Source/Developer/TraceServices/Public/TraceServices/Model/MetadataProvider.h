@@ -57,7 +57,12 @@ public:
 	virtual void BeginRead() const = 0;
 	virtual void EndRead() const = 0;
 
-	//...
+	virtual uint16 GetRegisteredMetadataType(const TCHAR* Name) const = 0;
+	virtual const TCHAR* GetRegisteredMetadataName(uint16 Type) const = 0;
+
+	virtual uint32 GetMetadataStackSize(uint32 InThreadId, uint32 InMetadataId) const = 0;
+	virtual bool GetMetadata(uint32 InThreadId, uint32 InMetadataId, uint32 InStackDepth, uint16& OutType, const void*& OutData, uint32& OutSize) const = 0;
+	virtual void EnumerateMetadata(uint32 InThreadId, uint32 InMetadataId, TFunctionRef<bool(uint32 StackDepth, uint16 Type, const void* Data, uint32 Size)> Callback) const = 0;
 };
 
 TRACESERVICES_API FName GetMetadataProviderName();

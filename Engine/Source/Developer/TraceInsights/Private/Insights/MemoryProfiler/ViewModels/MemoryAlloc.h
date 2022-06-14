@@ -29,12 +29,14 @@ public:
 	uint64 GetAddress() const { return Address; }
 	uint64 GetPage() const { return Address & ~(4llu*1024-1); }
 	int64 GetSize() const { return Size; }
-	const TCHAR* GetTag() const { return Tag; }
 	TraceServices::TagIdType GetTagId() const { return TagId; }
+	const TCHAR* GetTag() const { return Tag; }
+	const TCHAR* GetAsset() const { return Asset; }
 	const TraceServices::FCallstack* GetCallstack() const { return Callstack; }
+	const TraceServices::FCallstack* GetFreeCallstack() const { return FreeCallstack; }
 	FText GetFullCallstack() const;
 	FText GetFullCallstackSourceFiles() const;
-	HeapId GetRootHeap() const { return RootHeap; };
+	HeapId GetRootHeap() const { return RootHeap; }
 
 private:
 	uint32 StartEventIndex;
@@ -43,8 +45,9 @@ private:
 	double EndTime;
 	uint64 Address;
 	int64 Size;
-	const TCHAR* Tag;
 	TraceServices::TagIdType TagId;
+	const TCHAR* Tag;
+	const TCHAR* Asset;
 	const TraceServices::FCallstack* Callstack;
 	const TraceServices::FCallstack* FreeCallstack;
 	HeapId RootHeap;

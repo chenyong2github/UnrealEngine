@@ -1725,6 +1725,7 @@ void STableTreeView::InternalCreateGroupings()
 	//AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByNameFirstLetter>());
 	//AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByType>());
 
+	// By Unique Value
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
 		const FTableColumn& Column = ColumnRef.Get();
@@ -1754,6 +1755,30 @@ void STableTreeView::InternalCreateGroupings()
 
 				default:
 					AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByUniqueValue>(ColumnRef));
+			}
+		}
+	}
+
+	// By Path Breakdown
+	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
+	{
+		const FTableColumn& Column = ColumnRef.Get();
+		if (!Column.IsHierarchy())
+		{
+			switch (Column.GetDataType())
+			{
+			case ETableCellDataType::Bool:
+			case ETableCellDataType::Int64:
+			case ETableCellDataType::Float:
+			case ETableCellDataType::Double:
+				break;
+
+			case ETableCellDataType::CString:
+				AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByPathBreakdown>(ColumnRef));
+				break;
+
+			default:
+				AvailableGroupings.Add(MakeShared<FTreeNodeGroupingByPathBreakdown>(ColumnRef));
 			}
 		}
 	}

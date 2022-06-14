@@ -117,12 +117,12 @@ public:
 	//////////////////////////////////////////////////
 	// Read operations
 
-	uint16 GetRegisteredMetadataType(const TCHAR* Name) const;
-	const TCHAR* GetRegisteredMetadataName(uint16 Type) const;
+	virtual uint16 GetRegisteredMetadataType(const TCHAR* Name) const override;
+	virtual const TCHAR* GetRegisteredMetadataName(uint16 Type) const override;
 
-	uint32 GetMetadataStackSize(uint32 InThreadId, uint32 InMetadataId) const;
-	bool GetMetadata(uint32 InThreadId, uint32 InMetadataId, uint32 InStackDepth, uint16& OutType, const void*& OutData, uint32& OutSize) const;
-	void EnumerateMetadata(uint32 InThreadId, uint32 InMetadataId, TFunctionRef<bool(uint32 StackDepth, uint16 Type, const void* Data, uint32 Size)> Callback) const;
+	virtual uint32 GetMetadataStackSize(uint32 InThreadId, uint32 InMetadataId) const override;
+	virtual bool GetMetadata(uint32 InThreadId, uint32 InMetadataId, uint32 InStackDepth, uint16& OutType, const void*& OutData, uint32& OutSize) const override;
+	virtual void EnumerateMetadata(uint32 InThreadId, uint32 InMetadataId, TFunctionRef<bool(uint32 StackDepth, uint16 Type, const void* Data, uint32 Size)> Callback) const override;
 
 private:
 	FMetadataThread& GetOrAddThread(uint32 ThreadId);

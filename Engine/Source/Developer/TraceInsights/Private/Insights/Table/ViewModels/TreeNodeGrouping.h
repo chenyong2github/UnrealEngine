@@ -229,4 +229,24 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/** Creates a tree hierarchy out of the path structure of string values. */
+class FTreeNodeGroupingByPathBreakdown : public FTreeNodeGrouping
+{
+	INSIGHTS_DECLARE_RTTI(FTreeNodeGroupingByPathBreakdown, FTreeNodeGrouping);
+
+public:
+	FTreeNodeGroupingByPathBreakdown(TSharedRef<FTableColumn> InColumnRef);
+	virtual ~FTreeNodeGroupingByPathBreakdown() {}
+
+	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, IAsyncOperationProgress& InAsyncOperationProgress) const override;
+
+	virtual FName GetColumnId() const override { return ColumnRef->GetId(); }
+	TSharedRef<FTableColumn> GetColumn() const { return ColumnRef; }
+
+private:
+	TSharedRef<FTableColumn> ColumnRef;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace Insights

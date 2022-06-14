@@ -16,10 +16,14 @@ FMemoryAlloc::FMemoryAlloc()
 	, EndTime(0.0)
 	, Address(0)
 	, Size(0)
+	, TagId(0)
 	, Tag(nullptr)
+	, Asset(nullptr)
 	, Callstack(nullptr)
+	, FreeCallstack(nullptr)
 	, RootHeap(0)
 	, bIsBlock(false)
+	, bIsDecline(false)
 {
 }
 
