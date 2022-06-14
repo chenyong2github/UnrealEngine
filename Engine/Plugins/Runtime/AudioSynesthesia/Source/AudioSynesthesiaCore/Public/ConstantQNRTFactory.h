@@ -3,9 +3,9 @@
 #pragma once
 
 #include "IAudioAnalyzerNRTInterface.h"
+#include "DSP/AlignedBuffer.h"
 #include "DSP/ConstantQ.h"
 #include "DSP/SlidingWindow.h"
-#include "DSP/FloatArrayMath.h"
 #include "ConstantQAnalyzer.h"
 
 namespace Audio

@@ -3,7 +3,7 @@
 #include "OculusAmbisonicSpatializer.h"
 #include "ISoundfieldFormat.h"
 #include "OculusAudioMixer.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 #include "AudioMixerDevice.h"
 #include "OculusAudioDllManager.h"
 #include "OculusAudioContextManager.h"

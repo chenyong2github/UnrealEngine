@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DSP/FloatArrayMath.h"
+#include "DSP/AlignedBuffer.h"
 #include "MetasoundGraphCoreModule.h"
 #include "MetasoundDataReferenceMacro.h"
 #include "MetasoundLog.h"
@@ -99,6 +99,27 @@ return Buffer;
 			 * WARNING: if the buffer is resized, it will cause errors.
 			 */
 			FORCEINLINE operator Audio::FAlignedFloatBuffer& ()
+			{
+#if METASOUNDGRAPHCORE_CHECKAUDIONUM
+				UE_CLOG(InitialNum != Buffer.Num(), LogMetaSound, Error, TEXT("MetaSound audio buffer size change detected.  Audio Buffers should not be resized."));
+#endif				
+				return Buffer;
+			}
+
+			/** Implicit conversion to Audio::FAlignedFloatBuffer */
+			FORCEINLINE operator TArrayView<const float> () const
+			{
+#if METASOUNDGRAPHCORE_CHECKAUDIONUM
+				UE_CLOG(InitialNum != Buffer.Num(), LogMetaSound, Error, TEXT("MetaSound audio buffer size change detected.  Audio Buffers should not be resized."));
+#endif
+return Buffer;
+			}
+
+			/** Implicit conversion to Audio::FAlignedFloatBuffer 
+			 *
+			 * WARNING: if the buffer is resized, it will cause errors.
+			 */
+			FORCEINLINE operator TArrayView<float> ()
 			{
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
 				UE_CLOG(InitialNum != Buffer.Num(), LogMetaSound, Error, TEXT("MetaSound audio buffer size change detected.  Audio Buffers should not be resized."));

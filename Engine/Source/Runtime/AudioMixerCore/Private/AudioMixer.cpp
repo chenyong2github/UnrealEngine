@@ -2,6 +2,7 @@
 
 #include "AudioMixer.h"
 #include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/IConsoleManager.h"

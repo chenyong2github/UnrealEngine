@@ -2,8 +2,8 @@
 
 #include "SourceEffects/SourceEffectConvolutionReverb.h"
 
-#include "CoreMinimal.h"
 #include "Async/Async.h"
+#include "DSP/FloatArrayMath.h"
 #include "SynthesisModule.h"
 
 FSourceEffectConvolutionReverbSettings::FSourceEffectConvolutionReverbSettings()

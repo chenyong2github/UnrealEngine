@@ -4,7 +4,8 @@
 
 #include "Algo/ForEach.h"
 #include "AudioMixerSourceManager.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/AlignedBuffer.h"
+#include "DSP/FloatArrayMath.h"
 
 namespace Audio
 {

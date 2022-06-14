@@ -9,11 +9,9 @@ namespace Audio
 {
 	/** Sum all values in an array. */
 	SIGNALPROCESSING_API void ArraySum(TArrayView<const float> InValues, float& OutSum);
-	SIGNALPROCESSING_API void ArraySum(const FAlignedFloatBuffer& InValues, float& OutSum);
 
 	/** Sums two buffers together and places the result in the resulting buffer. */
 	SIGNALPROCESSING_API void ArraySum(TArrayView<const float> InFloatBuffer1, TArrayView<const float> InFloatBuffer2, TArrayView<float> OutputBuffer);
-	SIGNALPROCESSING_API void ArraySum(const FAlignedFloatBuffer& InFloatBuffer1, const FAlignedFloatBuffer& InFloatBuffer2, FAlignedFloatBuffer& OutputBuffer);
 
 	/** Cumulative sum of array.
 	 *
@@ -38,15 +36,12 @@ namespace Audio
 
 	/** Takes an audio buffer and returns the magnitude across that buffer. */
 	SIGNALPROCESSING_API float ArrayGetMagnitude(TArrayView<const float> Buffer);
-	SIGNALPROCESSING_API float ArrayGetMagnitude(const FAlignedFloatBuffer& Buffer);
 
 	/** Takes an audio buffer and gets the average amplitude across that buffer. */
 	SIGNALPROCESSING_API float ArrayGetAverageValue(TArrayView<const float> Buffer);
-	SIGNALPROCESSING_API float ArrayGetAverageValue(const FAlignedFloatBuffer& Buffer);
 
 	/** Takes an audio buffer and gets the average absolute amplitude across that buffer. */
 	SIGNALPROCESSING_API float ArrayGetAverageAbsValue(TArrayView<const float> Buffer);
-	SIGNALPROCESSING_API float ArrayGetAverageAbsValue(const FAlignedFloatBuffer& Buffer);
 
 	/** Mean filter of array.
 	 *
@@ -117,22 +112,18 @@ namespace Audio
 
 	/** Multiply the second buffer in place by the first buffer. */
 	SIGNALPROCESSING_API void ArrayMultiplyInPlace(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToMultiply);
-	SIGNALPROCESSING_API void ArrayMultiplyInPlace(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToMultiply);
 
 	/** Multiplies two complex valued arrays element-wise. 
 	 * This assumes elements are in interleaved format [real_0, imag_0, ..., real_N, imag_N]
 	 * Stores result in InValues2
 	 */
 	SIGNALPROCESSING_API void ArrayComplexMultiplyInPlace(TArrayView<const float> InValues1, TArrayView<float> InValues2);
-	SIGNALPROCESSING_API void ArrayComplexMultiplyInPlace(const FAlignedFloatBuffer& InValues1, FAlignedFloatBuffer& InValues2);
 
 	/** Multiplies the input float buffer with the given value. */
 	SIGNALPROCESSING_API void ArrayMultiplyByConstant(TArrayView<const float> InFloatBuffer, float InValue, TArrayView<float> OutFloatBuffer);
-	SIGNALPROCESSING_API void ArrayMultiplyByConstant(const FAlignedFloatBuffer& InFloatBuffer, float InValue, FAlignedFloatBuffer& OutFloatBuffer);
 
 	/** Similar to ArrayMultiplyByConstant, but performs the multiply in place. */
 	SIGNALPROCESSING_API void ArrayMultiplyByConstantInPlace(TArrayView<float> InOutBuffer, float InGain);
-	SIGNALPROCESSING_API void ArrayMultiplyByConstantInPlace(FAlignedFloatBuffer& InOutBuffer, float InGain);
 
 	/** Add arrays element-wise in place. InAccumulateValues[i] += InValues[i]
 	 *
@@ -140,11 +131,9 @@ namespace Audio
 	 *  InAccumulateValues is the array which holds the sum.
 	 */
 	SIGNALPROCESSING_API void ArrayAddInPlace(TArrayView<const float> InValues, TArrayView<float> InAccumulateValues);
-	SIGNALPROCESSING_API void ArrayAddInPlace(const FAlignedFloatBuffer& InValues, FAlignedFloatBuffer& InAccumulateValues);
 
 	/** Adds a constant to a buffer (useful for DC offset removal) */
 	SIGNALPROCESSING_API void ArrayAddConstantInplace(TArrayView<float> InOutBuffer, float InConstant);
-	SIGNALPROCESSING_API void ArrayAddConstantInplace(FAlignedFloatBuffer& InOutBuffer, float InConstant);
 
 	/** Multiply Add arrays element-wise in place. InAccumulateValues[i] += InMultiplier * InValues[i]
 	 *
@@ -153,7 +142,6 @@ namespace Audio
 	 *  @param InAccumulateValues - The array which holds the sum.
 	 */
 	SIGNALPROCESSING_API void ArrayMultiplyAddInPlace(TArrayView<const float> InValues, float InMultiplier, TArrayView<float> InAccumulateValues);
-	SIGNALPROCESSING_API void ArrayMultiplyAddInPlace(const FAlignedFloatBuffer& InValues, float InMultiplier, FAlignedFloatBuffer& InAccumulateValues);
 
 	/** Linearly Interpolate Add arrays element-wise in place. InAccumulateValues[i] += ((1 - alpha) * InStartMultiplier + alpha * InEndMultipler) * InValues[i]
 	 * Interpolation is performed over the length of the array.
@@ -164,7 +152,6 @@ namespace Audio
 	 *  @param InAccumulateValues - The array which holds the sum.
 	 */
 	SIGNALPROCESSING_API void ArrayLerpAddInPlace(TArrayView<const float> InValues, float InStartMultiplier, float InEndMultiplier, TArrayView<float> InAccumulateValues);
-	SIGNALPROCESSING_API void ArrayLerpAddInPlace(const FAlignedFloatBuffer& InValues, float InStartMultiplier, float InEndMultiplier, FAlignedFloatBuffer& InAccumulateValues);
 
 	/** Subract arrays element-wise. OutArray = InMinuend - InSubtrahend
 	 *
@@ -173,19 +160,15 @@ namespace Audio
 	 *  OutBuffer is the array which holds the result.
 	 */
 	SIGNALPROCESSING_API void ArraySubtract(TArrayView<const float> InMinuend, TArrayView<const float> InSubtrahend, TArrayView<float> OutBuffer);
-	SIGNALPROCESSING_API void ArraySubtract(const FAlignedFloatBuffer& InMinuend, const FAlignedFloatBuffer& InSubtrahend, FAlignedFloatBuffer& OutputBuffer);
 
 	/* Performs element-wise in-place subtraction placing the result in the subtrahend. InOutSubtrahend = InMinuend - InOutSubtrahend */
 	SIGNALPROCESSING_API void ArraySubtractInPlace1(TArrayView<const float> InMinuend, TArrayView<float> InOutSubtrahend);
-	SIGNALPROCESSING_API void ArraySubtractInPlace1(const FAlignedFloatBuffer& InMinuend, FAlignedFloatBuffer& InOutSubtrahend);
 
 	/* Performs element-wise in-place subtraction placing the result in the minuend. InOutMinuend = InOutMinuend - InSubtrahend */
 	SIGNALPROCESSING_API void ArraySubtractInPlace2(TArrayView<float> InOutMinuend, TArrayView<const float> InSubtrahend);
-	SIGNALPROCESSING_API void ArraySubtractInPlace2(FAlignedFloatBuffer& InOutMinuend, const FAlignedFloatBuffer& InSubtrahend);
 
 	/** Subtract value from each element in InValues */
 	SIGNALPROCESSING_API void ArraySubtractByConstantInPlace(TArrayView<float> InValues, float InSubtrahend);
-	SIGNALPROCESSING_API void ArraySubtractByConstantInPlace(FAlignedFloatBuffer& InValues, float InSubtrahend);
 
 	/* Square values */
 	SIGNALPROCESSING_API void ArraySquare(TArrayView<const float> InValues, TArrayView<float> OutValues);
@@ -198,62 +181,47 @@ namespace Audio
 
 	/** Perform complex conjugate of array.  Assumes complex numbers are interlaves [real_0, imag_0, real_1, image_1, ..., real_N, imag_N]. */
 	SIGNALPROCESSING_API void ArrayComplexConjugate(TArrayView<const float> InValues, TArrayView<float> OutValues);
-	SIGNALPROCESSING_API void ArrayComplexConjugate(const FAlignedFloatBuffer& InValues, FAlignedFloatBuffer& OutValues);
 
 	SIGNALPROCESSING_API void ArrayComplexConjugateInPlace(TArrayView<float> InValues);
-	SIGNALPROCESSING_API void ArrayComplexConjugateInPlace(FAlignedFloatBuffer& InValues);
 
 	/** Convert magnitude values to decibel values in place. db = 20 * log10(val) */
 	SIGNALPROCESSING_API void ArrayMagnitudeToDecibelInPlace(TArrayView<float> InValues, float InMinimumDb);
-	SIGNALPROCESSING_API void ArrayMagnitudeToDecibelInPlace(FAlignedFloatBuffer& InValues, float InMinimumDb);
 
 	/** Convert power values to decibel values in place. db = 10 * log10(val) */
 	SIGNALPROCESSING_API void ArrayPowerToDecibelInPlace(TArrayView<float> InValues, float InMinimumDb);
-	SIGNALPROCESSING_API void ArrayPowerToDecibelInPlace(FAlignedFloatBuffer& InValues, float InMinimumDb);
 
 	/** Compute power of complex data. Out[i] = Complex[2 * i] * Complex[2 * i] + Complex[2 * i + 1] * Complex[2 * i + 1] */
 	SIGNALPROCESSING_API void ArrayComplexToPower(TArrayView<const float> InComplexSamples, TArrayView<float> OutPowerSamples);
-	SIGNALPROCESSING_API void ArrayComplexToPower(const FAlignedFloatBuffer& InComplexSamples, FAlignedFloatBuffer& OutPowerSamples);
 
 	/** Compute power of complex data. Out[i] = Real[i] * Real[i] + Imaginary[i] * Imaginary[i] */
 	SIGNALPROCESSING_API void ArrayComplexToPower(TArrayView<const float> InRealSamples, TArrayView<const float> InImaginarySamples, TArrayView<float> OutPowerSamples);
-	SIGNALPROCESSING_API void ArrayComplexToPower(const FAlignedFloatBuffer& InRealSamples, const FAlignedFloatBuffer& InImaginarySamples, FAlignedFloatBuffer& OutPowerSamples);
 
 	/* Sets a values to zero if value is denormal. Denormal numbers significantly slow down floating point operations. */
 	SIGNALPROCESSING_API void ArrayUnderflowClamp(TArrayView<float> InOutBuffer);
-	SIGNALPROCESSING_API void ArrayUnderflowClamp(FAlignedFloatBuffer& InOutBuffer);
 
 	/* Clamps the values in a buffer between a min and max value.*/
 	SIGNALPROCESSING_API void ArrayRangeClamp(TArrayView<float> InOutBuffer, float InMinValue, float InMaxValue);
-	SIGNALPROCESSING_API void ArrayRangeClamp(FAlignedFloatBuffer& InOutBuffer, float InMinValue, float InMaxValue);
 
 	/** Sets a constant to a buffer (useful for DC offset application) */
 	SIGNALPROCESSING_API void ArraySetToConstantInplace(TArrayView<float> InOutBuffer, float InConstant);
-	SIGNALPROCESSING_API void ArraySetToConstantInplace(FAlignedFloatBuffer& InOutBuffer, float InConstant);
 
 	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + (InBuffer2 x InGain2) */
 	SIGNALPROCESSING_API void ArrayWeightedSum(TArrayView<const float> InBuffer1, float InGain1, TArrayView<const float> InBuffer2, float InGain2, TArrayView<float> OutBuffer);
-	SIGNALPROCESSING_API void ArrayWeightedSum(const FAlignedFloatBuffer& InBuffer1, float InGain1, const FAlignedFloatBuffer& InBuffer2, float InGain2, FAlignedFloatBuffer& OutBuffer);
 
 	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + InBuffer2 */
 	SIGNALPROCESSING_API void ArrayWeightedSum(TArrayView<const float> InBuffer1, float InGain1, TArrayView<const float> InBuffer2, TArrayView<float> OutBuffer);
-	SIGNALPROCESSING_API void ArrayWeightedSum(const FAlignedFloatBuffer& InBuffer1, float InGain1, const FAlignedFloatBuffer& InBuffer2, FAlignedFloatBuffer& OutBuffer);
 
 	/* Takes a float buffer and quickly interpolates it's gain from StartValue to EndValue. */
 	/* This operation completely ignores channel counts, so avoid using this function on buffers that are not mono, stereo or quad */
 	/* if the buffer needs to fade all channels uniformly. */
 	SIGNALPROCESSING_API void ArrayFade(TArrayView<float> InOutBuffer, const float StartValue, const float EndValue);
-	SIGNALPROCESSING_API void ArrayFade(FAlignedFloatBuffer& OutFloatBuffer, const float StartValue, const float EndValue);
 
 	/** Takes buffer InFloatBuffer, optionally multiplies it by Gain, and adds it to BufferToSumTo. */
 	SIGNALPROCESSING_API void ArrayMixIn(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToSumTo, const float Gain);
-	SIGNALPROCESSING_API void ArrayMixIn(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToSumTo, const float Gain);
 	SIGNALPROCESSING_API void ArrayMixIn(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToSumTo);
-	SIGNALPROCESSING_API void ArrayMixIn(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToSumTo);
 
 	/** This version of ArrayMixIn will fade from StartGain to EndGain. */
 	SIGNALPROCESSING_API void ArrayMixIn(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToSumTo, const float StartGain, const float EndGain);
-	SIGNALPROCESSING_API void ArrayMixIn(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToSumTo, const float StartGain, const float EndGain);
 
 	SIGNALPROCESSING_API void ArrayFloatToPcm16(TArrayView<const float> InView, TArrayView<int16> OutView);
 	SIGNALPROCESSING_API void ArrayPcm16ToFloat(TArrayView<const int16> InView, TArrayView<float> OutView);

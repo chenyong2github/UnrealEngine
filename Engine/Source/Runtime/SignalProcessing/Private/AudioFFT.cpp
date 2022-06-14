@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/AudioFFT.h"
-#include "HAL/IConsoleManager.h"
+
 #include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
+#include "HAL/IConsoleManager.h"
 
 #define IFFT_PRESERVE_COMPLEX_COMPONENT 0
 
@@ -103,6 +105,71 @@ namespace Audio
 			break;
 		}
 	}
+
+	FWindow::FWindow(EWindowType InType, int32 InNumFrames, int32 InNumChannels, bool bIsPeriodic)
+		: WindowType(InType)
+		, NumSamples(InNumFrames * InNumChannels)
+	{
+		checkf(NumSamples % 4 == 0, TEXT("For performance reasons, this window's length should be a multiple of 4."));
+		Generate(InNumFrames, InNumChannels, bIsPeriodic);
+	}
+
+	// Apply this window to InBuffer, which is expected to be an interleaved buffer with the same amount of frames
+	// and channels this window was constructed with.
+	void FWindow::ApplyToBuffer(float* InBuffer)
+	{
+		if (WindowType == EWindowType::None)
+		{
+			return;
+		}
+
+		TArrayView<const float> WindowBufferView(WindowBuffer.GetData(), NumSamples);
+		TArrayView<float> InBufferView(InBuffer, NumSamples);
+		ArrayMultiplyInPlace(WindowBufferView, InBufferView);
+	}
+
+	EWindowType FWindow::GetWindowType() const
+	{
+		return WindowType;
+	}
+
+
+	// Generate the window. Called on constructor.
+	void FWindow::Generate(int32 NumFrames, int32 NumChannels, bool bIsPeriodic)
+	{
+		if (WindowType == EWindowType::None)
+		{
+			return;
+		}
+
+		WindowBuffer.Reset();
+		WindowBuffer.AddZeroed(NumSamples);
+
+		switch (WindowType)
+		{
+			case EWindowType::Hann:
+			{
+				GenerateHannWindow(WindowBuffer.GetData(), NumFrames, NumChannels, bIsPeriodic);
+				break;
+			}
+			case EWindowType::Hamming:
+			{
+				GenerateHammingWindow(WindowBuffer.GetData(), NumFrames, NumChannels, bIsPeriodic);
+				break;
+			}
+			case EWindowType::Blackman:
+			{
+				GenerateBlackmanWindow(WindowBuffer.GetData(), NumFrames, NumChannels, bIsPeriodic);
+				break;
+			}
+			default:
+			{
+				checkf(false, TEXT("Unknown window type!"));
+				break;
+			}
+		}
+	}
+
 
 	namespace FFTIntrinsics
 	{

@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "CoreMinimal.h"
-#include "DSP/FloatArrayMath.h"
 
+#include "DSP/FloatArrayMath.h"
+#include "HAL/Platform.h"
+#include "Templates/UniquePtr.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1 
+#include "CoreMinimal.h"
+#endif
 
 namespace Audio
 {

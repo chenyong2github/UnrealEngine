@@ -70,13 +70,6 @@ namespace Audio
 		}
 	}
 
-	void ArraySum(const FAlignedFloatBuffer& InValues, float& OutSum)
-	{
-		TArrayView<const float> InValuesView(InValues.GetData(), InValues.Num());
-
-		ArraySum(InValuesView, OutSum);
-	}
-
 	void ArraySum(TArrayView<const float> InFloatBuffer1, TArrayView<const float> InFloatBuffer2, TArrayView<float> OutputBuffer)
 	{
 		checkf(InFloatBuffer1.Num() == InFloatBuffer2.Num(), TEXT("Input buffers must be equal length"));
@@ -114,19 +107,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	void ArraySum(const FAlignedFloatBuffer& InFloatBuffer1, const FAlignedFloatBuffer& InFloatBuffer2, FAlignedFloatBuffer& OutputBuffer)
-	{
-		const int32 InNum = InFloatBuffer1.Num();
-		OutputBuffer.Reset(InNum);
-		OutputBuffer.AddUninitialized(InNum);
-
-		TArrayView<const float> InFloatBuffer1View(InFloatBuffer1.GetData(), InNum);
-		TArrayView<const float> InFloatBuffer2View(InFloatBuffer2.GetData(), InNum);
-		TArrayView<float> OutputBufferView(OutputBuffer.GetData(), InNum);
-
-		ArraySum(InFloatBuffer1View, InFloatBuffer2View, OutputBufferView);
 	}
 
 	void ArrayCumulativeSum(TArrayView<const float> InView, TArray<float>& OutData)
@@ -271,12 +251,6 @@ namespace Audio
 		}
 	}
 
-	float ArrayGetMagnitude(const FAlignedFloatBuffer& Buffer)
-	{
-		TArrayView<const float> BufferView(Buffer.GetData(), Buffer.Num());
-		return ArrayGetMagnitude(BufferView);
-	}
-
 	float ArrayGetAverageValue(TArrayView<const float> Buffer)
 	{
 		const int32 Num = Buffer.Num();
@@ -320,18 +294,6 @@ namespace Audio
 
 			return Sum / Num;
 		}
-	}
-
-	float ArrayGetAverageValue(const FAlignedFloatBuffer& Buffer)
-	{
-		TArrayView<const float> BufferView(Buffer.GetData(), Buffer.Num());
-		return ArrayGetAverageValue(BufferView);
-	}
-
-	float ArrayGetAverageAbsValue(const FAlignedFloatBuffer& Buffer)
-	{
-		TArrayView<const float> BufferView(Buffer.GetData(), Buffer.Num());
-		return ArrayGetAverageAbsValue(BufferView);
 	}
 
 	float ArrayGetAverageAbsValue(TArrayView<const float> Buffer)
@@ -784,15 +746,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayMultiplyInPlace(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToMultiply)
-	{
-		const int32 InNum = BufferToMultiply.Num();
-		TArrayView<const float> InFloatBufferView(InFloatBuffer.GetData(), InNum);
-		TArrayView<float> BufferToMultiplyView(BufferToMultiply.GetData(), InNum);
-
-		ArrayMultiplyInPlace(InFloatBufferView, BufferToMultiplyView);
-	}
-
 	void ArrayComplexMultiplyInPlace(TArrayView<const float> InValues1, TArrayView<float> InValues2)
 	{
 		check(InValues1.Num() == InValues2.Num());
@@ -850,14 +803,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayComplexMultiplyInPlace(const FAlignedFloatBuffer& InValues1, FAlignedFloatBuffer& InValues2)
-	{
-		TArrayView<const float> Values1View(InValues1.GetData(), InValues1.Num());
-		TArrayView<float> Values2View(InValues2.GetData(), InValues2.Num());
-
-		ArrayComplexMultiplyInPlace(Values1View, Values2View);
-	}
-
 	void ArrayMultiplyByConstant(TArrayView<const float> InFloatBuffer, float InValue, TArrayView<float> OutFloatBuffer)
 	{
 		check(InFloatBuffer.Num() == OutFloatBuffer.Num());
@@ -908,14 +853,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayMultiplyByConstant(const FAlignedFloatBuffer& InFloatBuffer, float InValue, FAlignedFloatBuffer& OutFloatBuffer)
-	{
-		TArrayView<const float> InFloatBufferView(InFloatBuffer.GetData(), InFloatBuffer.Num());
-		TArrayView<float> OutFloatBufferView(OutFloatBuffer.GetData(), OutFloatBuffer.Num());
-
-		ArrayMultiplyByConstant(InFloatBufferView, InValue, OutFloatBufferView);
-	}
-
 	void ArrayMultiplyByConstantInPlace(TArrayView<float> InOutBuffer, float InGain)
 	{
 		int32 Num = InOutBuffer.Num();
@@ -952,13 +889,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	void ArrayMultiplyByConstantInPlace(FAlignedFloatBuffer& InOutBuffer, float InGain)
-	{
-		TArrayView<float> InOutBufferView(InOutBuffer.GetData(), InOutBuffer.Num());
-
-		ArrayMultiplyByConstantInPlace(InOutBufferView, InGain);
 	}
 
 	void ArrayAddInPlace(TArrayView<const float> InValues, TArrayView<float> InAccumulateValues)
@@ -1003,14 +933,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayAddInPlace(const FAlignedFloatBuffer& InValues, FAlignedFloatBuffer& InAccumulateValues)
-	{
-		TArrayView<const float> ValuesView(InValues.GetData(), InValues.Num());
-		TArrayView<float> AccumulateView(InAccumulateValues.GetData(), InAccumulateValues.Num());
-
-		ArrayAddInPlace(ValuesView, AccumulateView);
-	}
-
 	void ArrayAddConstantInplace(TArrayView<float> InOutBuffer, float InConstant)
 	{
 		int32 Num = InOutBuffer.Num();
@@ -1049,14 +971,6 @@ namespace Audio
 		}
 	}
 
-	// Adds a constant to a buffer (useful for DC offset removal)
-	void ArrayAddConstantInplace(FAlignedFloatBuffer& InOutBuffer, float InConstant)
-	{
-		TArrayView<float> InOutBufferView(InOutBuffer.GetData(), InOutBuffer.Num());
-
-		ArrayAddConstantInplace(InOutBufferView, InConstant);
-	}
-
 	void ArrayMultiplyAddInPlace(TArrayView<const float> InValues, float InMultiplier, TArrayView<float> InAccumulateValues)
 	{
 		check(InValues.Num() == InAccumulateValues.Num());
@@ -1079,14 +993,6 @@ namespace Audio
 				InAccumulateData[i] += InData[i] * InMultiplier;
 			}
 		}
-	}
-
-	void ArrayMultiplyAddInPlace(const FAlignedFloatBuffer& InValues, float InMultiplier, FAlignedFloatBuffer& InAccumulateValues)
-	{
-		TArrayView<const float> InValuesView(InValues.GetData(), InValues.Num());
-		TArrayView<float> InAccumulateValuesView(InAccumulateValues.GetData(), InAccumulateValues.Num());
-
-		ArrayMultiplyAddInPlace(InValuesView, InMultiplier, InAccumulateValuesView);
 	}
 
 	void ArrayLerpAddInPlace(TArrayView<const float> InValues, float InStartMultiplier, float InEndMultiplier, TArrayView<float> InAccumulateValues)
@@ -1142,14 +1048,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayLerpAddInPlace(const FAlignedFloatBuffer& InValues, float InStartMultiplier, float InEndMultiplier, FAlignedFloatBuffer& InAccumulateValues)
-	{
-		TArrayView<const float> ValuesView(InValues.GetData(), InValues.Num());
-		TArrayView<float> AccumulateView(InAccumulateValues.GetData(), InAccumulateValues.Num());
-
-		ArrayLerpAddInPlace(ValuesView, InStartMultiplier, InEndMultiplier, AccumulateView);
-	}
-
 	/* Subtracts two buffers together element-wise. */
 	void ArraySubtract(TArrayView<const float> InMinuend, TArrayView<const float> InSubtrahend, TArrayView<float> OutBuffer)
 	{
@@ -1187,20 +1085,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	/* Subtracts two buffers together element-wise. */
-	void ArraySubtract(const FAlignedFloatBuffer& InMinuend, const FAlignedFloatBuffer& InSubtrahend, FAlignedFloatBuffer& OutputBuffer)
-	{
-		const int32 InNum = InMinuend.Num();
-		OutputBuffer.Reset(InNum);
-		OutputBuffer.AddUninitialized(InNum);
-
-		TArrayView<const float> InMinuendView(InMinuend.GetData(), InNum);
-		TArrayView<const float> InSubtrahendView(InSubtrahend.GetData(), InNum);
-		TArrayView<float> OutputBufferView(OutputBuffer.GetData(), InNum);
-
-		ArraySubtract(InMinuendView, InSubtrahendView, OutputBufferView);
 	}
 
 	/* Performs element-wise in-place subtraction placing the result in the subtrahend. InOutSubtrahend = InMinuend - InOutSubtrahend */
@@ -1243,17 +1127,6 @@ namespace Audio
 		}
 	}
 
-	/* Performs element-wise in-place subtraction placing the result in the subtrahend. InOutSubtrahend = InMinuend - InOutSubtrahend */
-	void ArraySubtractInPlace1(const FAlignedFloatBuffer& InMinuend, FAlignedFloatBuffer& InOutSubtrahend)
-	{
-		const int32 InNum = InMinuend.Num();
-
-		TArrayView<const float> InMinuendView(InMinuend.GetData(), InNum);
-		TArrayView<float> InOutSubtrahendView(InOutSubtrahend.GetData(), InNum);
-
-		ArraySubtractInPlace1(InMinuendView, InOutSubtrahendView);
-	}
-
 	/* Performs element-wise in-place subtraction placing the result in the minuend. InOutMinuend = InOutMinuend - InSubtrahend */
 	void ArraySubtractInPlace2(TArrayView<float> InOutMinuend, TArrayView<const float> InSubtrahend)
 	{
@@ -1294,17 +1167,6 @@ namespace Audio
 		}
 	}
 
-	/* Performs element-wise in-place subtraction placing the result in the minuend. InOutMinuend = InOutMinuend - InSubtrahend */
-	void ArraySubtractInPlace2(FAlignedFloatBuffer& InOutMinuend, const FAlignedFloatBuffer& InSubtrahend)
-	{
-		const int32 InNum = InOutMinuend.Num();
-
-		TArrayView<float> InOutMinuendView(InOutMinuend.GetData(), InNum);
-		TArrayView<const float> InSubtrahendView(InSubtrahend.GetData(), InNum);
-
-		ArraySubtractInPlace2(InOutMinuendView, InSubtrahendView);
-	}
-
 	void ArraySubtractByConstantInPlace(TArrayView<float> InValues, float InSubtrahend)
 	{
 		const int32 Num = InValues.Num();
@@ -1340,13 +1202,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	void ArraySubtractByConstantInPlace(FAlignedFloatBuffer& InValues, float InSubtrahend)
-	{
-		TArrayView<float> View(InValues.GetData(), InValues.Num());
-
-		ArraySubtractByConstantInPlace(View, InSubtrahend);
 	}
 
 	void ArraySquare(TArrayView<const float> InValues, TArrayView<float> OutValues)
@@ -1492,14 +1347,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayComplexConjugate(const FAlignedFloatBuffer& InValues, FAlignedFloatBuffer& OutValues)
-	{
-		TArrayView<const float> InView(InValues.GetData(), InValues.Num());
-		TArrayView<float> OutView(OutValues.GetData(), OutValues.Num());
-
-		ArrayComplexConjugate(InView, OutView);
-	}
-
 	void ArrayComplexConjugateInPlace(TArrayView<float> InValues)
 	{
 		check((InValues.Num() % 2) == 0);
@@ -1541,13 +1388,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	void ArrayComplexConjugateInPlace(FAlignedFloatBuffer& InValues)
-	{
-		TArrayView<float> InView(InValues.GetData(), InValues.Num());
-
-		ArrayComplexConjugateInPlace(InView);
 	}
 
 	void ArrayMagnitudeToDecibelInPlace(TArrayView<float> InValues, float InMinimumDb)
@@ -1597,13 +1437,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayMagnitudeToDecibelInPlace(FAlignedFloatBuffer& InValues, float InMinimumDb)
-	{
-		TArrayView<float> InView(InValues.GetData(), InValues.Num());
-
-		ArrayMagnitudeToDecibelInPlace(InView, InMinimumDb);
-	}
-
 	void ArrayPowerToDecibelInPlace(TArrayView<float> InValues, float InMinimumDb)
 	{
 		const int32 Num = InValues.Num();
@@ -1649,13 +1482,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	void ArrayPowerToDecibelInPlace(FAlignedFloatBuffer& InValues, float InMinimumDb)
-	{
-		TArrayView<float> InView(InValues.GetData(), InValues.Num());
-
-		ArrayPowerToDecibelInPlace(InView, InMinimumDb);
 	}
 
 	void ArrayComplexToPower(TArrayView<const float> InComplexValues, TArrayView<float> OutPowerValues)
@@ -1713,14 +1539,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayComplexToPower(const FAlignedFloatBuffer& InComplexValues, FAlignedFloatBuffer& OutPowerValues)
-	{
-		TArrayView<const float> ComplexView(InComplexValues.GetData(), InComplexValues.Num());
-		TArrayView<float> PowerView(OutPowerValues.GetData(), OutPowerValues.Num());
-
-		ArrayComplexToPower(ComplexView, PowerView);
-	}
-
 	void ArrayComplexToPower(TArrayView<const float> InRealSamples, TArrayView<const float> InImaginarySamples, TArrayView<float> OutPowerSamples)
 	{
 		checkf(InRealSamples.Num() == InImaginarySamples.Num(), TEXT("Input buffers must have equal number of elements"));
@@ -1763,20 +1581,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	void ArrayComplexToPower(const FAlignedFloatBuffer& InRealSamples, const FAlignedFloatBuffer& InImaginarySamples, FAlignedFloatBuffer& OutPowerSamples)
-	{
-		const int32 Num = InRealSamples.Num();
-
-		OutPowerSamples.Reset(Num);
-		OutPowerSamples.AddUninitialized(Num);
-
-		TArrayView<const float> InRealSamplesView(InRealSamples.GetData(), Num);
-		TArrayView<const float> InImaginarySamplesView(InImaginarySamples.GetData(), Num);
-		TArrayView<float> OutPowerSamplesView(OutPowerSamples.GetData(), Num);
-
-		ArrayComplexToPower(InRealSamplesView, InImaginarySamplesView, OutPowerSamplesView);
 	}
 
 	/* Sets a values to zero if value is denormal. Denormal numbers significantly slow down floating point operations. */
@@ -1831,13 +1635,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayUnderflowClamp(FAlignedFloatBuffer& InOutBuffer)
-	{
-		TArrayView<float> InOutBufferView(InOutBuffer.GetData(), InOutBuffer.Num());
-
-		ArrayUnderflowClamp(InOutBufferView);
-	}
-
 	/* Clamps values in the buffer to be between InMinValue and InMaxValue */
 	void ArrayRangeClamp(TArrayView<float> InOutBuffer, float InMinValue, float InMaxValue)
 	{
@@ -1886,13 +1683,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayRangeClamp(FAlignedFloatBuffer& InOutBuffer, float InMinValue, float InMaxValue)
-	{
-		TArrayView<float> InOutBufferView(InOutBuffer.GetData(), InOutBuffer.Num());
-
-		ArrayRangeClamp(InOutBufferView, InMinValue, InMaxValue);
-	}
-
 	void ArraySetToConstantInplace(TArrayView<float> InOutBuffer, float InConstant)
 	{
 		int32 Num = InOutBuffer.Num();
@@ -1927,13 +1717,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	void ArraySetToConstantInplace(FAlignedFloatBuffer& InOutBuffer, float InConstant)
-	{
-		TArrayView<float> InOutBufferView(InOutBuffer.GetData(), InOutBuffer.Num());
-
-		ArraySetToConstantInplace(InOutBufferView, InConstant);
 	}
 
 	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + (InBuffer2 x InGain2) */
@@ -1986,19 +1769,6 @@ namespace Audio
 		}
 	}
 
-	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + (InBuffer2 x InGain2) */
-	void ArrayWeightedSum(const FAlignedFloatBuffer& InBuffer1, float InGain1, const FAlignedFloatBuffer& InBuffer2, float InGain2, FAlignedFloatBuffer& OutBuffer)
-	{
-		OutBuffer.Reset();
-		OutBuffer.AddUninitialized(InBuffer1.Num());
-
-		TArrayView<const float> InBuffer1View(InBuffer1.GetData(), InBuffer1.Num());
-		TArrayView<const float> InBuffer2View(InBuffer2.GetData(), InBuffer2.Num());
-		TArrayView<float> OutBufferView(OutBuffer.GetData(), OutBuffer.Num());
-
-		ArrayWeightedSum(InBuffer1View, InGain1, InBuffer2View, InGain2, OutBufferView);
-	}
-
 	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + InBuffer2 */
 	void ArrayWeightedSum(TArrayView<const float> InBuffer1, float InGain1, TArrayView<const float> InBuffer2, TArrayView<float> OutBuffer)
 	{
@@ -2042,19 +1812,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + InBuffer2 */
-	void ArrayWeightedSum(const FAlignedFloatBuffer& InBuffer1, float InGain1, const FAlignedFloatBuffer& InBuffer2, FAlignedFloatBuffer& OutBuffer)
-	{
-		OutBuffer.Reset();
-		OutBuffer.AddUninitialized(InBuffer1.Num());
-
-		TArrayView<const float> InBuffer1View(InBuffer1.GetData(), InBuffer1.Num());
-		TArrayView<const float> InBuffer2View(InBuffer2.GetData(), InBuffer2.Num());
-		TArrayView<float> OutBufferView(OutBuffer.GetData(), OutBuffer.Num());
-
-		ArrayWeightedSum(InBuffer1View, InGain1, InBuffer2View, OutBufferView);
 	}
 
 	void ArrayFade(TArrayView<float> InOutBuffer, const float StartValue, const float EndValue)
@@ -2120,13 +1877,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayFade(FAlignedFloatBuffer& OutFloatBuffer, const float StartValue, const float EndValue)
-	{
-		TArrayView<float> OutFloatBufferView(OutFloatBuffer.GetData(), OutFloatBuffer.Num());
-
-		ArrayFade(OutFloatBufferView, StartValue, EndValue);
-	}
-
 	void ArrayMixIn(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToSumTo, const float Gain)
 	{
 		checkf(InFloatBuffer.Num() == BufferToSumTo.Num(), TEXT("Buffers must be equal size"));
@@ -2169,14 +1919,6 @@ namespace Audio
 		}
 	}
 
-	void ArrayMixIn(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToSumTo, const float Gain)
-	{
-		TArrayView<const float> InFloatBufferView(InFloatBuffer.GetData(), InFloatBuffer.Num());
-		TArrayView<float> BufferToSumToView(BufferToSumTo.GetData(), BufferToSumTo.Num());
-
-		ArrayMixIn(InFloatBufferView, BufferToSumToView, Gain);
-	}
-
 	void ArrayMixIn(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToSumTo)
 	{
 		checkf(InFloatBuffer.Num() == BufferToSumTo.Num(), TEXT("Buffers must be equal size"));
@@ -2215,14 +1957,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	void ArrayMixIn(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToSumTo)
-	{
-		TArrayView<const float> InFloatBufferView(InFloatBuffer.GetData(), InFloatBuffer.Num());
-		TArrayView<float> BufferToSumToView(BufferToSumTo.GetData(), BufferToSumTo.Num());
-
-		ArrayMixIn(InFloatBufferView, BufferToSumToView);
 	}
 
 	void ArrayMixIn(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToSumTo, const float StartGain, const float EndGain)
@@ -2289,14 +2023,6 @@ namespace Audio
 				}
 			}
 		}
-	}
-
-	void ArrayMixIn(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToSumTo, const float StartGain, const float EndGain)
-	{
-		TArrayView<const float> InFloatBufferView(InFloatBuffer.GetData(), InFloatBuffer.Num());
-		TArrayView<float> BufferToSumToView(BufferToSumTo.GetData(), BufferToSumTo.Num());
-
-		ArrayMixIn(InFloatBufferView, BufferToSumToView, StartGain, EndGain);
 	}
 
 	void ArrayFloatToPcm16(TArrayView<const float> InView, TArrayView<int16> OutView)

@@ -2,9 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "DSP/AlignedBuffer.h"
 #include "DSP/Dsp.h"
+#include "HAL/Platform.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1 
+#include "CoreMinimal.h"
 #include "DSP/FloatArrayMath.h"
+#endif
 
 namespace Audio
 {

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/SpectrumAnalyzer.h"
-#include "DSP/FFTAlgorithm.h"
-#include "DSP/ConstantQ.h"
-#include "SignalProcessingModule.h"
-#include "Algo/MinElement.h"
+
 #include "Algo/MaxElement.h"
+#include "Algo/MinElement.h"
+#include "DSP/ConstantQ.h"
+#include "DSP/FFTAlgorithm.h"
+#include "DSP/FloatArrayMath.h"
+#include "SignalProcessingModule.h"
 
 namespace Audio
 {

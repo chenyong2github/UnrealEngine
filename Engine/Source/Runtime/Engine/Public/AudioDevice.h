@@ -6,7 +6,6 @@
 #include "Components/AudioComponent.h"
 #include "CoreMinimal.h"
 #include "DSP/MultithreadedPatching.h"
-#include "DSP/SpectrumAnalyzer.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "HAL/LowLevelMemStats.h"
@@ -27,6 +26,11 @@
 #include "AudioVirtualLoop.h"
 #include "AudioMixer.h"
 #include "UObject/StrongObjectPtr.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "DSP/SpectrumAnalyzer.h"
+#endif // UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+
 
 /**
  * Forward declares

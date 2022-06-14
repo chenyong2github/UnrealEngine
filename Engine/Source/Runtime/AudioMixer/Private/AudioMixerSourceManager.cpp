@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerSourceManager.h"
+
 #include "AudioMixerSourceBuffer.h"
 #include "AudioMixerSource.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioMixerSubmix.h"
 #include "AudioThread.h"
+#include "DSP/FloatArrayMath.h"
 #include "IAudioExtensionPlugin.h"
 #include "AudioMixer.h"
 #include "Sound/SoundModulationDestination.h"

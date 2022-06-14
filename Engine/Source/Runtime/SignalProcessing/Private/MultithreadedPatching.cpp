@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/MultithreadedPatching.h"
-#include "DSP/BufferVectorOperations.h"
-#include "HAL/IConsoleManager.h"
 
+#include "DSP/FloatArrayMath.h"
+#include "HAL/IConsoleManager.h"
 
 static int32 MultithreadedPatchingPushCallsPerOutputCleanupCheckCVar = 256;
 FAutoConsoleVariableRef CVarMultithreadedPatchingPushCallsPerOutputCleanupCheck(

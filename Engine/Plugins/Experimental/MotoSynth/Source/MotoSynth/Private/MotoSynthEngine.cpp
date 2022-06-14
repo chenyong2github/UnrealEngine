@@ -3,6 +3,7 @@
 #include "MotoSynthEngine.h"
 #include "MotoSynthModule.h"
 #include "MotoSynthDataManager.h"
+#include "DSP/FloatArrayMath.h"
 
 static int32 MotosynthDisabledCVar = 0;
 FAutoConsoleVariableRef CVarDisableMotoSynth(

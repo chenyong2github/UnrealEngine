@@ -8,6 +8,7 @@
 #include "DSP/Filter.h"
 #include "DSP/DynamicsProcessor.h"
 #include "DSP/Dsp.h"
+#include "DSP/FloatArrayMath.h"
 #include "DSP/SampleRateConverter.h"
 #endif
 

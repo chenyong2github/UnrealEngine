@@ -2,7 +2,7 @@
 
 #include "DSP/AudioBufferDistanceAttenuation.h"
 #include "DSP/Dsp.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 
 namespace Audio
 {

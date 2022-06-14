@@ -5,7 +5,7 @@
 #include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSubmix.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 
 FSubmixEffectMultibandCompressor::FSubmixEffectMultibandCompressor()
 {

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 #include "DSP/SineWaveTableOsc.h"
 #include "MetasoundFacade.h"
 #include "Internationalization/Text.h"

@@ -3,7 +3,7 @@
 #include "AudioMixerSourceOutputBuffer.h"
 #include "SoundFieldRendering.h"
 #include "AudioMixerSubmix.h"
-
+#include "DSP/FloatArrayMath.h"
 
 namespace Audio
 {

@@ -4,6 +4,7 @@
 
 #include "AudioMixerDevice.h"
 #include "DSP/AudioChannelFormatConverter.h"
+#include "DSP/FloatArrayMath.h"
 #include "SynthesisModule.h"
 
 namespace Audio

@@ -4,7 +4,7 @@
 
 #include "AudioMixerDevice.h"
 #include "CoreMinimal.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 #include "DSP/ConvolutionAlgorithm.h"
 #include "DSP/SampleRateConverter.h"
 #include "SubmixChannelFormatConverter.h"

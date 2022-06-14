@@ -4,6 +4,7 @@
 
 #include "Async/Async.h"
 #include "AudioDevice.h"
+#include "DSP/FloatArrayMath.h"
 #include "Math/TransformCalculus.h"
 #include "UObject/Object.h"
 

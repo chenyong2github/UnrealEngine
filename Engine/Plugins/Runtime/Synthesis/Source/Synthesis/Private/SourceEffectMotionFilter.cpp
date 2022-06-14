@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "SourceEffects/SourceEffectMotionFilter.h"
+
 #include "AudioMixer.h"
+#include "DSP/FloatArrayMath.h"
 
 FSourceEffectMotionFilter::FSourceEffectMotionFilter()
 	: Topology(ESourceEffectMotionFilterTopology::ParallelMode)

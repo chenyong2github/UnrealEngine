@@ -2,7 +2,7 @@
 
 
 #include "SynthComponents/SynthComponentMonoWaveTable.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 
 UMonoWaveTableSynthPreset::UMonoWaveTableSynthPreset() : PresetName(TEXT("Default"))
 , LockKeyframesToGrid(16)

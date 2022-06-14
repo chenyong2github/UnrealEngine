@@ -2,13 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AudioMixerCore/Public/AudioDefines.h"
+#include "Containers/Array.h"
+#include "DSP/AlignedBuffer.h"
+#include "HAL/Platform.h"
+#include "HAL/UnrealMemory.h"
+#include "Logging/LogMacros.h"
+#include "Math/UnrealMath.h"
 #include "Misc/ScopeLock.h"
+#include "SignalProcessingModule.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
 #include "Templates/IsSigned.h"
-#include "FloatArrayMath.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1 
+#include "AudioMixerCore/Public/AudioDefines.h"
+#include "CoreMinimal.h"
+#endif
 
 // Macros which can be enabled to cause DSP sample checking
 #if 0
@@ -27,7 +36,7 @@ namespace Audio
 	{	
 		if (InSample > Threshold || InSample < -Threshold)
 		{
-			UE_LOG(LogTemp, Log, TEXT("SampleValue Was %.2f"), InSample);
+			UE_LOG(LogSignalProcessing, Log, TEXT("SampleValue Was %.2f"), InSample);
 		}
 	}
 
@@ -181,7 +190,7 @@ namespace Audio
 				PhaseSource[2] = LastPhase + 2 * PhasePerSample;
 				PhaseSource[3] = LastPhase + 3 * PhasePerSample;
 
-				VectorRegister4Float PhaseVec = VectorLoadAligned(PhaseSource);
+				VectorRegister4Float PhaseVec = VectorLoad(PhaseSource);
 				VectorRegister4Float XVector, YVector;
 
 				// We need an accurate representation of the delta
@@ -218,7 +227,6 @@ namespace Audio
 				{
 					// We've actually already calculated the next quad - it's in YVector
 					alignas(16) float YFloats[4];
-					//VectorStoreAligned(YVector, YFloats);
 					VectorStore(YVector, YFloats);
 
 					int32 Remn = BlockSampleCount & SIMD_MASK;
@@ -278,7 +286,6 @@ namespace Audio
 	static void ConvertBipolarBufferToUnipolar(float* InAlignedBuffer, int32 NumSamples)
 	{
 		// Make sure buffers are aligned and we can do a whole number of loops.
-		check(IsAligned(InAlignedBuffer, sizeof(VectorRegister4Float)));
 		check(NumSamples % 4 == 0);
 
 		const VectorRegister4Float Half = VectorSetFloat1(0.5f);
@@ -286,10 +293,10 @@ namespace Audio
 		// Process buffer 1 vector (4 floats) at a time.
 		for(int32 i = NumSamples / 4; i; --i, InAlignedBuffer += 4)
 		{
-			VectorRegister4Float V = VectorLoadAligned(InAlignedBuffer);
+			VectorRegister4Float V = VectorLoad(InAlignedBuffer);
 			V = VectorMultiply(V, Half);
 			V = VectorAdd(V, Half);
-			VectorStoreAligned(V, InAlignedBuffer);
+			VectorStore(V, InAlignedBuffer);
 		}
 	}
 

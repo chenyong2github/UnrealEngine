@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "DSP/AlignedBuffer.h"
 #include "DSP/FloatArrayMath.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "CoreMinimal.h"
+#endif
 
 namespace Audio
 {
@@ -81,6 +85,5 @@ namespace Audio
 
 		// Fills an array with the spectrum weights to apply to an FFT magnitude or power spectrum output.
 		static void FillArrayWithConstantQBand(const FPseudoConstantQBandSettings& InSettings, FAlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex);
-
 	};
 }

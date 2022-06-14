@@ -2,8 +2,9 @@
 
 #include "SoundFields.h"
 #include "CoreMinimal.h"
+#include "DSP/AlignedBuffer.h"
 #include "DSP/Dsp.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 #include "SoundFieldRendering.h"
 #include "HAL/IConsoleManager.h"
 

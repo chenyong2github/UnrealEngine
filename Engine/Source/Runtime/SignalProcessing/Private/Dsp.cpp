@@ -2,6 +2,8 @@
 
 #include "DSP/Dsp.h"
 
+#include "DSP/FloatArrayMath.h"
+
 namespace Audio
 {
 	void EncodeMidSide(
