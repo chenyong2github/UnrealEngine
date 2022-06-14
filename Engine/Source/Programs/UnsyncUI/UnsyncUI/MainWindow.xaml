@@ -7,7 +7,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:UnsyncUI"
         mc:Ignorable="d"
-        Title="UnsyncUI v1.0.10"
+        Title="UnsyncUI v1.0.11"
         Height="800"
         Width="1600"
         MinWidth="600"
