@@ -260,6 +260,7 @@ private:
 	void DoScrubShake(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult);
 	void DoStopShake(bool bImmediately);
 	bool DoGetIsFinished() const;
+	void DoTeardownShake();
 
 protected:
 
@@ -322,6 +323,7 @@ private:
 	virtual void ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult) override;
 	virtual bool IsFinishedImpl() const override;
 	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) override;
+	virtual void TeardownShakePatternImpl() override;
 };
 
 /** Backwards compatible name for the Matinee camera shake, for C++ code. */

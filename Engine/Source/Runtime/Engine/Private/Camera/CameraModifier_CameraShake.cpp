@@ -135,6 +135,7 @@ UCameraShakeBase* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCamer
 						// reliably restart the existing shake and expect it to be the same as what the caller wants. 
 						// So we forcibly stop the existing shake immediately and will create a brand new one.
 						ShakeInst->StopShake(true);
+						ShakeInst->TeardownShake();
 						// Discard it right away so the spot is free in the active shakes array.
 						ShakeInfo.ShakeInstance = nullptr;
 					}
@@ -239,9 +240,9 @@ void UCameraModifier_CameraShake::RemoveCameraShake(UCameraShakeBase* ShakeInst,
 		if (ShakeInfo.ShakeInstance == ShakeInst)
 		{
 			ShakeInst->StopShake(bImmediately);
-
 			if (bImmediately)
 			{
+				ShakeInst->TeardownShake();
 				SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 				ActiveShakes.RemoveAt(i, 1);
 				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::RemoveCameraShake %s"), *GetNameSafe(ShakeInfo.ShakeInstance));
@@ -262,6 +263,7 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClass(TSubclassOf<UCame
 			ShakeInst->StopShake(bImmediately);
 			if (bImmediately)
 			{
+				ShakeInst->TeardownShake();
 				SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 				ActiveShakes.RemoveAt(i, 1);
 				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::RemoveAllCameraShakesOfClass %s"), *GetNameSafe(ShakeInfo.ShakeInstance));
@@ -280,6 +282,7 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource(const UCameraS
 			ShakeInfo.ShakeInstance->StopShake(bImmediately);
 			if (bImmediately)
 			{
+				ShakeInfo.ShakeInstance->TeardownShake();
 				SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 				ActiveShakes.RemoveAt(i, 1);
 				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource %s"), *GetNameSafe(ShakeInfo.ShakeInstance));
@@ -300,6 +303,7 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClassFromSource(TSubcla
 			ShakeInfo.ShakeInstance->StopShake(bImmediately);
 			if (bImmediately)
 			{
+				ShakeInfo.ShakeInstance->TeardownShake();
 				SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 				ActiveShakes.RemoveAt(i, 1);
 				UE_LOG(LogCameraShake, Verbose, TEXT("UCameraModifier_CameraShake::RemoveAllCameraShakesOfClassFromSource %s"), *GetNameSafe(ShakeInfo.ShakeInstance));
@@ -320,6 +324,7 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakes(bool bImmediately)
 	{
 		for (FActiveCameraShakeInfo& ShakeInfo : ActiveShakes)
 		{
+			ShakeInfo.ShakeInstance->TeardownShake();
 			SaveShakeInExpiredPoolIfPossible(ShakeInfo);
 		}
 

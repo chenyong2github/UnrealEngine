@@ -33,7 +33,7 @@ USequenceCameraShakePattern::USequenceCameraShakePattern(const FObjectInitialize
 	, bRandomSegment(false)
 {
 	CameraStandIn = CreateDefaultSubobject<UCameraAnimationSequenceCameraStandIn>(TEXT("CameraStandIn"), true);
-	Player = CreateDefaultSubobject<UCameraAnimationSequencePlayer>(TEXT("Player"), true);
+	Player = CreateDefaultSubobject<UCameraAnimationSequencePlayer>(TEXT("CameraShakePlayer"), true);
 
 	// Make sure we have our custom accessors registered for our stand-in class.
 	UCameraAnimationSequenceCameraStandIn::RegisterCameraStandIn();
@@ -132,12 +132,9 @@ void USequenceCameraShakePattern::TeardownShakePatternImpl()
 {
 	using namespace UE::MovieScene;
 
+	// Stop if we had reached the end of the animation and the sequence needs finishing.
+	// If the shake had been stopped explicitly, this basically won't do anything.
 	Player->Stop();
-	
-	if (UMovieSceneEntitySystemLinker* Linker = Player->GetEvaluationTemplate().GetEntitySystemLinker())
-	{
-		Linker->Reset();
-	}
 }
 
 void USequenceCameraShakePattern::UpdateCamera(FFrameTime NewPosition, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& OutResult)

@@ -129,6 +129,13 @@ void UMatineeCameraShake::DoStopShake(bool bImmediately)
 			}
 		}
 	}
+	
+	if (SequenceShakePattern)
+	{
+		FCameraShakeStopParams StopParams;
+		StopParams.bImmediately = bImmediately;
+		SequenceShakePattern->StopShakePattern(StopParams);
+	}
 
 	UE_LOG(LogMatineeCameraShake, Verbose, TEXT("UMatineeCameraShake::DoStopShake %s"), *GetNameSafe(this));
 
@@ -499,6 +506,14 @@ bool UMatineeCameraShake::DoGetIsFinished() const
 		);
 }
 
+void UMatineeCameraShake::DoTeardownShake()
+{
+	if (SequenceShakePattern)
+	{
+		SequenceShakePattern->TeardownShakePattern();
+	}
+}
+
 /// @cond DOXYGEN_WARNINGS
 
 bool UMatineeCameraShake::ReceiveIsFinished_Implementation() const
@@ -574,6 +589,12 @@ bool UMatineeCameraShakePattern::IsFinishedImpl() const
 {
 	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
 	return Shake->DoGetIsFinished();
+}
+
+void UMatineeCameraShakePattern::TeardownShakePatternImpl()
+{
+	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	Shake->DoTeardownShake();
 }
 
 UMovieSceneMatineeCameraShakeEvaluator::UMovieSceneMatineeCameraShakeEvaluator(const FObjectInitializer& ObjInit)
