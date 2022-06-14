@@ -1,5 +1,5 @@
 """
-This script describes how to enable LiveLink for the components generated for a particular prim when
+This script describes how to enable Live Link for the components generated for a particular prim when
 imported in UE.
 
 After the script is executed, the stage can be saved and the connection details will persist on the USD
@@ -23,13 +23,14 @@ prim = stage.GetPrimAtPath("/cube_default")
 schema = Usd.SchemaRegistry.GetTypeFromSchemaTypeName("LiveLinkAPI")
 prim.ApplyAPI(schema)
 
+# Optional: If you want to also set the schema attribute values, you can do this:
 with Sdf.ChangeBlock():
-    anim_bp_attr = prim.CreateAttribute("unrealLiveLink:animBlueprintPath", Sdf.ValueTypeNames.String)
-    anim_bp_attr.Set("/USDImporter/Blueprint/DefaultLiveLinkAnimBP.DefaultLiveLinkAnimBP")
+    anim_bp_attr = prim.GetAttribute("unreal:liveLink:animBlueprintPath")
+    anim_bp_attr.Set("/Game/MyBlueprints/MyAnimBP.MyAnimBP")
 
-    subject_name_attr = prim.CreateAttribute("unrealLiveLink:subjectName", Sdf.ValueTypeNames.String)
+    subject_name_attr = prim.GetAttribute("unreal:liveLink:subjectName")
     subject_name_attr.Set("cube")
 
-    enabled_attr = prim.CreateAttribute("unrealLiveLink:enabled", Sdf.ValueTypeNames.Bool)
+    enabled_attr = prim.GetAttribute("unreal:liveLink:enabled")
     enabled_attr.Set(True)
 
