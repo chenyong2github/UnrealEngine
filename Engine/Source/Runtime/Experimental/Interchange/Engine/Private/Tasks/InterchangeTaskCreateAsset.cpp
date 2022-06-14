@@ -147,6 +147,20 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		{
 			Pkg = ExistingObject->GetPackage();
 			PackageName = Pkg->GetPathName();
+			//Import Asset describe by the node
+			UInterchangeFactoryBase::FCreateAssetParams CreateAssetParams;
+			CreateAssetParams.AssetName = AssetName;
+			CreateAssetParams.AssetNode = FactoryNode;
+			CreateAssetParams.Parent = Pkg;
+			CreateAssetParams.SourceData = AsyncHelper->SourceDatas[SourceIndex];
+			CreateAssetParams.Translator = AsyncHelper->Translators[SourceIndex];
+			if (AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
+			{
+				CreateAssetParams.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
+			}
+			CreateAssetParams.ReimportObject = AsyncHelper->TaskData.ReimportObject;
+			//We call CreateEmptyAsset to ensure any resource use by an existing UObject is release on the game thread
+			Factory->CreateEmptyAsset(CreateAssetParams);
 		}
 		else
 		{
