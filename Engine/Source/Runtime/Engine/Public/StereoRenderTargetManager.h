@@ -84,5 +84,16 @@ public:
 	 */
 	virtual bool AllocateShadingRateTexture(uint32 Index, uint32 RenderSizeX, uint32 RenderSizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTexture, FIntPoint& OutTextureSize) { return false; }
 
+	/**
+	 * Retrieves HDR information about the stereo device, if any is available.
+	 * The default implementation always returns false to indicate that the information from the monitor can be used instead.
+	 *
+	 * @param OutDisplayOutputFormat	(out) encoding used by the stereo device
+	 * @param OutDisplayColorGamut		(out) color space used by the stereo device
+	 * @param OutbHDRSupported			(out) whether HDR is supported by the stereo device
+	 * @return							true, if HDR information is available for the stereo device
+	 */
+	virtual bool HDRGetMetaDataForStereo(EDisplayOutputFormat& OutDisplayOutputFormat, EDisplayColorGamut& OutDisplayColorGamut, bool& OutbHDRSupported) { return false; }
+
 	static EPixelFormat GetStereoLayerPixelFormat() { return PF_B8G8R8A8; }
 };

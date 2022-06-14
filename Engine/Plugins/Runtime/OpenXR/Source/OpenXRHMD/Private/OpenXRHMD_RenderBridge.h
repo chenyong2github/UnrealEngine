@@ -50,6 +50,8 @@ public:
 
 	virtual bool Support10BitSwapchain() const { return false; }
 
+	virtual bool HDRGetMetaDataForStereo(EDisplayOutputFormat& OutDisplayOutputFormat, EDisplayColorGamut& OutDisplayColorGamut, bool& OutbHDRSupported) { return false; }
+
 protected:
 	uint64 AdapterLuid;
 

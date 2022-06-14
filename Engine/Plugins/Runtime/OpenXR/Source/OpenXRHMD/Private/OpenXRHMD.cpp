@@ -2563,6 +2563,16 @@ FXRRenderBridge* FOpenXRHMD::GetActiveRenderBridge_GameThread(bool /* bUseSepara
 	return RenderBridge;
 }
 
+bool FOpenXRHMD::HDRGetMetaDataForStereo(EDisplayOutputFormat& OutDisplayOutputFormat, EDisplayColorGamut& OutDisplayColorGamut, bool& OutbHDRSupported)
+{
+	if (RenderBridge == nullptr)
+	{
+		return false;
+	}
+
+	return RenderBridge->HDRGetMetaDataForStereo(OutDisplayOutputFormat, OutDisplayColorGamut, OutbHDRSupported);
+}
+
 FIntPoint FOpenXRHMD::GetIdealRenderTargetSize() const
 {
 	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();

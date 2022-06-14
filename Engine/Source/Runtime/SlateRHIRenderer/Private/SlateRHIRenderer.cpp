@@ -593,7 +593,8 @@ public:
 		int32 OutputGamutValue = (int32)DisplayColorGamut;
 		float Gamma = CVarOutputGamma->GetValueOnRenderThread();
 
-		if (PLATFORM_APPLE && Gamma == 0.0f)
+        // In case gamma is unspecified, fall back to 2.2 which is the most common case
+		if ((PLATFORM_APPLE || DisplayOutputFormat == EDisplayOutputFormat::SDR_ExplicitGammaMapping) && Gamma == 0.0f)
 		{
 			Gamma = 2.2f;
 		}

@@ -63,6 +63,7 @@ public:
 
 	virtual EDisplayColorGamut GetDisplayColorGamut() const { return EDisplayColorGamut::sRGB_D65; }
 	virtual EDisplayOutputFormat GetDisplayOutputFormat() const { return EDisplayOutputFormat::SDR_sRGB; }
+	virtual bool GetSceneHDREnabled() const { return false; }
 
 	/**
 	* Handles freezing/unfreezing of rendering

@@ -247,7 +247,8 @@ FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSce
 
 	float Gamma = CVarOutputGamma->GetValueOnRenderThread();
 
-	if (PLATFORM_APPLE && Gamma == 0.0f)
+    // In case gamma is unspecified, fall back to 2.2 which is the most common case
+	if ((PLATFORM_APPLE || OutputDeviceValue == EDisplayOutputFormat::SDR_ExplicitGammaMapping) && Gamma == 0.0f)
 	{
 		Gamma = 2.2f;
 	}

@@ -244,6 +244,7 @@ public:
 	virtual FIntPoint GetSize() const override { return GetSizeXY(); }
 	virtual EDisplayColorGamut GetDisplayColorGamut() const override;
 	virtual EDisplayOutputFormat GetDisplayOutputFormat() const override;
+	virtual bool GetSceneHDREnabled() const override;
 
 	void SetViewportSize(uint32 NewSizeX,uint32 NewSizeY);
 	void SetFixedViewportSize(uint32 NewSizeX, uint32 NewSizeY);
