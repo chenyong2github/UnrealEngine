@@ -1354,23 +1354,26 @@ TArray<FOptimusRoutedNodePin> UOptimusNodeGraph::GetConnectedPinsWithRouting(
 	{
 		for (UOptimusNodePin* ConnectedPin: WorkingPin.NodePin->GetConnectedPins())
 		{
-			const IOptimusNodePinRouter* RouterNode = Cast<IOptimusNodePinRouter>(ConnectedPin->GetOwningNode());
+			if (ensure(ConnectedPin != nullptr))
+			{
+				const IOptimusNodePinRouter* RouterNode = Cast<IOptimusNodePinRouter>(ConnectedPin->GetOwningNode());
 
-			// If this connection leads to a router node, find the matching pin on the other side and
-			// add it to the queue. Otherwise we're done, and we add the connected pin and the
-			// context to the result (in case the user wants to traverse further via that node through
-			// the given pin).
-			if (RouterNode)
-			{
-				const FOptimusRoutedNodePin RoutedPin = RouterNode->GetPinCounterpart(ConnectedPin, WorkingPin.TraversalContext);
-				if (RoutedPin.NodePin != nullptr)
+				// If this connection leads to a router node, find the matching pin on the other side and
+				// add it to the queue. Otherwise we're done, and we add the connected pin and the
+				// context to the result (in case the user wants to traverse further via that node through
+				// the given pin).
+				if (RouterNode)
 				{
-					PinQueue.Enqueue(RoutedPin);
+					const FOptimusRoutedNodePin RoutedPin = RouterNode->GetPinCounterpart(ConnectedPin, WorkingPin.TraversalContext);
+					if (RoutedPin.NodePin != nullptr)
+					{
+						PinQueue.Enqueue(RoutedPin);
+					}
 				}
-			}
-			else
-			{
-				RoutedNodePins.Add({ConnectedPin, WorkingPin.TraversalContext});
+				else
+				{
+					RoutedNodePins.Add({ConnectedPin, WorkingPin.TraversalContext});
+				}
 			}
 		}
 	}

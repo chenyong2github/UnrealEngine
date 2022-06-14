@@ -195,6 +195,12 @@ FComputeDataProviderRenderProxy* UOptimusTransientBufferDataProvider::GetRenderP
 
 bool UOptimusPersistentBufferDataProvider::IsValid() const
 {
+	const UOptimusDeformerInstance* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->MeshDeformerInstance);
+	if (DeformerInstance == nullptr || !DeformerInstance->GetBufferPool().IsValid())
+	{
+		return false;
+	}
+
 	return UOptimusRawBufferDataProvider::IsValid();
 }
 
