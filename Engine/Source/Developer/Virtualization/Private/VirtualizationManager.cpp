@@ -12,6 +12,7 @@
 #include "Misc/PackagePath.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeLock.h"
 #include "PackageSubmissionChecks.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -292,6 +293,14 @@ FVirtualizationManager::~FVirtualizationManager()
 bool FVirtualizationManager::Initialize(const FInitParams& InitParams)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::Initialize);
+
+	// TODO: Ideally we'd break this down further, or at least have a FScopedSlowTask for each
+	// backend initialization but the slow task system will only update the UI every 0.2 seconds
+	// so if we have too many small tasks we might show misleading data to the user, so it is 
+	// better for us to have a single scope here at the top level and rely on UnrealInsights for
+	// detailed profiling unless we do something to how FScopedSlowTask updates the UI.
+	FScopedSlowTask SlowTask(1.0f, LOCTEXT("VAInitialize", "Initializing virtualized asset system..."));
+	SlowTask.EnterProgressFrame(1.0f);
 
 	ProjectName = InitParams.ProjectName;
 
