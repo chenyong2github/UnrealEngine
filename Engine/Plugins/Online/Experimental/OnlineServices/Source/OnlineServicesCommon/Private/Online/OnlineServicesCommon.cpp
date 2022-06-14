@@ -85,6 +85,11 @@ IPrivilegesPtr FOnlineServicesCommon::GetPrivilegesInterface()
 	return IPrivilegesPtr(AsShared(), Get<IPrivileges>());
 }
 
+ITitleFilePtr FOnlineServicesCommon::GetTitleFileInterface()
+{
+	return ITitleFilePtr(AsShared(), Get<ITitleFile>());
+}
+
 TOnlineResult<FGetResolvedConnectString> FOnlineServicesCommon::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
 {
 	return TOnlineResult<FGetResolvedConnectString>(Errors::NotImplemented());
