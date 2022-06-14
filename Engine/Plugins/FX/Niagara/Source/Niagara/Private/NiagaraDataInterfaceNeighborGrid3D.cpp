@@ -35,23 +35,24 @@ static FAutoConsoleVariableRef CVarMaxNiagaraNeighborGridCells(
 	ECVF_Default
 );
 
-void NeighborGrid3DRWInstanceData::ResizeBuffers()
+//////////////////////////////////////////////////////////////////////////
+
+void NeighborGrid3DRWInstanceData::ResizeBuffers(FRDGBuilder& GraphBuilder)
 {
-	uint32 NumTotalCells = NumCells.X * NumCells.Y * NumCells.Z;
+	const uint32 NumTotalCells = NumCells.X * NumCells.Y * NumCells.Z;
+	const uint32 NumIntsInGridBuffer = NumTotalCells * MaxNeighborsPerCell;
 
-	uint32 NumIntsInGridBuffer = NumTotalCells * MaxNeighborsPerCell;
-
+	NeedsRealloc_RT = false;
 	if (NumTotalCells > (uint32)GMaxNiagaraNeighborGridCells)
+	{
 		return;
+	}
 
-	NeighborhoodCountBuffer.Initialize(TEXT("NiagaraNeighborGrid3D::NeighborCount"), sizeof(int32), NumTotalCells, EPixelFormat::PF_R32_SINT, BUF_Static);
-	NeighborhoodBuffer.Initialize(TEXT("NiagaraNeighborGrid3D::NeighborsGrid"), sizeof(int32), NumIntsInGridBuffer, EPixelFormat::PF_R32_SINT, BUF_Static);
+	NeighborhoodCountBuffer.Release();
+	NeighborhoodBuffer.Release();
 
-	#if STATS
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);
-		GPUMemory = NumTotalCells * sizeof(int32) + NumIntsInGridBuffer * sizeof(int32);
-		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);
-	#endif
+	NeighborhoodCountBuffer.Initialize(GraphBuilder, TEXT("NiagaraNeighborGrid3D::NeighborCount"), EPixelFormat::PF_R32_SINT, sizeof(int32), NumTotalCells, BUF_Static);
+	NeighborhoodBuffer.Initialize(GraphBuilder, TEXT("NiagaraNeighborGrid3D::NeighborsGrid"), EPixelFormat::PF_R32_SINT, sizeof(int32), NumIntsInGridBuffer, BUF_Static);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -64,7 +65,6 @@ UNiagaraDataInterfaceNeighborGrid3D::UNiagaraDataInterfaceNeighborGrid3D(FObject
 
 	Proxy.Reset(new FNiagaraDataInterfaceProxyNeighborGrid3D());	
 }
-
 
 void UNiagaraDataInterfaceNeighborGrid3D::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
@@ -407,9 +407,10 @@ void UNiagaraDataInterfaceNeighborGrid3D::SetShaderParameters(const FNiagaraData
 {
 	FNiagaraDataInterfaceProxyNeighborGrid3D& DIProxy = Context.GetProxy<FNiagaraDataInterfaceProxyNeighborGrid3D>();
 	NeighborGrid3DRWInstanceData* ProxyData = DIProxy.SystemInstancesToProxyData.Find(Context.GetSystemInstanceID());
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
 
 	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
-	if (ProxyData && ProxyData->NeighborhoodBuffer.Buffer.IsValid())
+	if (ProxyData && ProxyData->NeighborhoodBuffer.IsValid())
 	{
 		ShaderParameters->NumCells		= ProxyData->NumCells;
 		ShaderParameters->UnitToUV		= FVector3f(1.0f) / FVector3f(ProxyData->NumCells);
@@ -419,50 +420,19 @@ void UNiagaraDataInterfaceNeighborGrid3D::SetShaderParameters(const FNiagaraData
 		ShaderParameters->WorldBBoxSize	= FVector3f(ProxyData->WorldBBoxSize);
 		ShaderParameters->MaxNeighborsPerCellValue = ProxyData->MaxNeighborsPerCell;
 
-		TArray<FRHITransitionInfo, TInlineAllocator<4>> PendingTransitions;
 		if (Context.IsOutputStage())
 		{
-			ShaderParameters->ParticleNeighbors = FNiagaraRenderer::GetDummyIntBuffer();
-			ShaderParameters->ParticleNeighborCount = FNiagaraRenderer::GetDummyIntBuffer();
-
-			if (Context.IsResourceBound(&ShaderParameters->OutputParticleNeighbors))
-			{
-				PendingTransitions.Emplace(ProxyData->NeighborhoodBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
-				ShaderParameters->OutputParticleNeighbors = ProxyData->NeighborhoodBuffer.UAV;
-			}
-			if (Context.IsResourceBound(&ShaderParameters->OutputParticleNeighborCount))
-			{
-				PendingTransitions.Emplace(ProxyData->NeighborhoodCountBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
-				ShaderParameters->OutputParticleNeighborCount = ProxyData->NeighborhoodCountBuffer.UAV;
-			}
+			ShaderParameters->ParticleNeighbors = Context.GetComputeDispatchInterface().GetEmptyBufferSRV(GraphBuilder, PF_R32_SINT);
+			ShaderParameters->ParticleNeighborCount = Context.GetComputeDispatchInterface().GetEmptyBufferSRV(GraphBuilder, PF_R32_SINT);
+			ShaderParameters->OutputParticleNeighbors = ProxyData->NeighborhoodBuffer.GetOrCreateUAV(GraphBuilder);
+			ShaderParameters->OutputParticleNeighborCount = ProxyData->NeighborhoodCountBuffer.GetOrCreateUAV(GraphBuilder);
 		}
 		else
 		{
-			if (Context.IsResourceBound(&ShaderParameters->ParticleNeighbors))
-			{
-				PendingTransitions.Emplace(ProxyData->NeighborhoodBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute);
-				ShaderParameters->ParticleNeighbors = ProxyData->NeighborhoodBuffer.SRV;
-			}
-
-			if (Context.IsResourceBound(&ShaderParameters->ParticleNeighborCount))
-			{
-				PendingTransitions.Emplace(ProxyData->NeighborhoodCountBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute);
-				ShaderParameters->ParticleNeighborCount = ProxyData->NeighborhoodCountBuffer.SRV;
-			}
-
-			if (Context.IsResourceBound(&ShaderParameters->OutputParticleNeighbors))
-			{
-				ShaderParameters->OutputParticleNeighbors = Context.GetComputeDispatchInterface().GetEmptyUAVFromPool(Context.GetRHICmdList(), PF_R32_SINT, ENiagaraEmptyUAVType::Buffer);
-			}
-			if (Context.IsResourceBound(&ShaderParameters->OutputParticleNeighborCount))
-			{
-				ShaderParameters->OutputParticleNeighborCount = Context.GetComputeDispatchInterface().GetEmptyUAVFromPool(Context.GetRHICmdList(), PF_R32_SINT, ENiagaraEmptyUAVType::Buffer);
-			}
-		}
-
-		if (PendingTransitions.Num() > 0)
-		{
-			Context.GetRHICmdList().Transition(PendingTransitions);
+			ShaderParameters->ParticleNeighbors = ProxyData->NeighborhoodBuffer.GetOrCreateSRV(GraphBuilder);
+			ShaderParameters->ParticleNeighborCount = ProxyData->NeighborhoodCountBuffer.GetOrCreateSRV(GraphBuilder);
+			ShaderParameters->OutputParticleNeighbors = Context.GetComputeDispatchInterface().GetEmptyBufferUAV(GraphBuilder, PF_R32_SINT);
+			ShaderParameters->OutputParticleNeighborCount = Context.GetComputeDispatchInterface().GetEmptyBufferUAV(GraphBuilder, PF_R32_SINT);
 		}
 	}
 	else
@@ -473,16 +443,10 @@ void UNiagaraDataInterfaceNeighborGrid3D::SetShaderParameters(const FNiagaraData
 		ShaderParameters->WorldBBoxSize	= FVector3f::ZeroVector;
 
 		ShaderParameters->MaxNeighborsPerCellValue	= 0;
-		ShaderParameters->ParticleNeighbors			= FNiagaraRenderer::GetDummyIntBuffer();
-		ShaderParameters->ParticleNeighborCount		= FNiagaraRenderer::GetDummyIntBuffer();
-		if (Context.IsResourceBound(&ShaderParameters->OutputParticleNeighbors))
-		{
-			ShaderParameters->OutputParticleNeighbors = Context.GetComputeDispatchInterface().GetEmptyUAVFromPool(Context.GetRHICmdList(), PF_R32_SINT, ENiagaraEmptyUAVType::Buffer);
-		}
-		if (Context.IsResourceBound(&ShaderParameters->OutputParticleNeighborCount))
-		{
-			ShaderParameters->OutputParticleNeighborCount = Context.GetComputeDispatchInterface().GetEmptyUAVFromPool(Context.GetRHICmdList(), PF_R32_SINT, ENiagaraEmptyUAVType::Buffer);
-		}
+		ShaderParameters->ParticleNeighbors = Context.GetComputeDispatchInterface().GetEmptyBufferSRV(GraphBuilder, PF_R32_SINT);
+		ShaderParameters->ParticleNeighborCount = Context.GetComputeDispatchInterface().GetEmptyBufferSRV(GraphBuilder, PF_R32_SINT);
+		ShaderParameters->OutputParticleNeighbors = Context.GetComputeDispatchInterface().GetEmptyBufferUAV(GraphBuilder, PF_R32_SINT);
+		ShaderParameters->OutputParticleNeighborCount = Context.GetComputeDispatchInterface().GetEmptyBufferUAV(GraphBuilder, PF_R32_SINT);
 	}
 }
 
@@ -581,8 +545,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::InitPerInstanceData(void* PerInstanceD
 		TargetData->NumCells = RT_NumCells;
 		TargetData->MaxNeighborsPerCell = RT_MaxNeighborsPerCell;		
 		TargetData->WorldBBoxSize = RT_WorldBBoxSize;
-
-		TargetData->ResizeBuffers();
+		TargetData->NeedsRealloc_RT = true;
 	});
 
 	return true;
@@ -617,7 +580,7 @@ void UNiagaraDataInterfaceNeighborGrid3D::SetNumCells(FVectorVMExternalFunctionC
 
 			InstData->MaxNeighborsPerCell = NewMaxNeighborsPerCell;
 		
-			InstData->NeedsRealloc = OldNumCells != InstData->NumCells || OldMaxNeighborsPerCell != InstData->MaxNeighborsPerCell;
+			InstData->NeedsRealloc_GT = OldNumCells != InstData->NumCells || OldMaxNeighborsPerCell != InstData->MaxNeighborsPerCell;
 		}
 	}
 }
@@ -627,9 +590,9 @@ bool UNiagaraDataInterfaceNeighborGrid3D::PerInstanceTickPostSimulate(void* PerI
 	NeighborGrid3DRWInstanceData* InstanceData = static_cast<NeighborGrid3DRWInstanceData*>(PerInstanceData);
 	bool bNeedsReset = false;
 
-	if (InstanceData->NeedsRealloc && InstanceData->NumCells.X > 0 && InstanceData->NumCells.Y > 0 && InstanceData->NumCells.Z > 0 && InstanceData->MaxNeighborsPerCell > 0)
+	if (InstanceData->NeedsRealloc_GT && InstanceData->NumCells.X > 0 && InstanceData->NumCells.Y > 0 && InstanceData->NumCells.Z > 0 && InstanceData->MaxNeighborsPerCell > 0)
 	{
-		InstanceData->NeedsRealloc = false;
+		InstanceData->NeedsRealloc_GT = false;
 
 		InstanceData->CellSize = (InstanceData->WorldBBoxSize / FVector(InstanceData->NumCells.X, InstanceData->NumCells.Y, InstanceData->NumCells.Z))[0];
 
@@ -643,7 +606,7 @@ bool UNiagaraDataInterfaceNeighborGrid3D::PerInstanceTickPostSimulate(void* PerI
 			TargetData->NumCells = RT_NumCells;
 			TargetData->MaxNeighborsPerCell = RT_MaxNeighborsPerCell;			
 			TargetData->CellSize = RT_CellSize;
-			TargetData->ResizeBuffers();
+			TargetData->NeedsRealloc_RT = true;
 		});
 	}
 
@@ -669,23 +632,30 @@ void UNiagaraDataInterfaceNeighborGrid3D::DestroyPerInstanceData(void* PerInstan
 	);
 }
 
-void FNiagaraDataInterfaceProxyNeighborGrid3D::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
+void FNiagaraDataInterfaceProxyNeighborGrid3D::PreStage(const FNDIGpuComputePreStageContext& Context)
 {
-	if (Context.IsOutputStage)
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+	NeighborGrid3DRWInstanceData& ProxyData = SystemInstancesToProxyData.FindChecked(Context.GetSystemInstanceID());
+	if (ProxyData.NeedsRealloc_RT)
 	{
-		NeighborGrid3DRWInstanceData* ProxyData = SystemInstancesToProxyData.Find(Context.SystemInstanceID);
+		ProxyData.ResizeBuffers(GraphBuilder);
+	}
 
-		SCOPED_DRAW_EVENT(RHICmdList, NiagaraNeighborGrid3DClearNeighborInfo);
-		ERHIFeatureLevel::Type FeatureLevel = Context.ComputeDispatchInterface->GetFeatureLevel();
+	if (Context.IsOutputStage() && ProxyData.NeighborhoodBuffer.IsValid())
+	{
+		RDG_RHI_EVENT_SCOPE(GraphBuilder, NiagaraNeighborGrid3DClearNeighborInfo);
+		AddClearUAVPass(GraphBuilder, ProxyData.NeighborhoodBuffer.GetOrCreateUAV(GraphBuilder), -1);
+		AddClearUAVPass(GraphBuilder, ProxyData.NeighborhoodCountBuffer.GetOrCreateUAV(GraphBuilder), 0);
+	}
+}
 
-		FRHITransitionInfo TransitionInfos[] =
-		{
-			FRHITransitionInfo(ProxyData->NeighborhoodBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-			FRHITransitionInfo(ProxyData->NeighborhoodCountBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-		};
-		RHICmdList.Transition(MakeArrayView(TransitionInfos, UE_ARRAY_COUNT(TransitionInfos)));
-		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, ProxyData->NeighborhoodBuffer, -1);
-		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, ProxyData->NeighborhoodCountBuffer, 0);
+void FNiagaraDataInterfaceProxyNeighborGrid3D::PostSimulate(const FNDIGpuComputePostSimulateContext& Context)
+{
+	if (Context.IsFinalPostSimulate())
+	{
+		NeighborGrid3DRWInstanceData& ProxyData = SystemInstancesToProxyData.FindChecked(Context.GetSystemInstanceID());
+		ProxyData.NeighborhoodBuffer.EndGraphUsage();
+		ProxyData.NeighborhoodCountBuffer.EndGraphUsage();
 	}
 }
 

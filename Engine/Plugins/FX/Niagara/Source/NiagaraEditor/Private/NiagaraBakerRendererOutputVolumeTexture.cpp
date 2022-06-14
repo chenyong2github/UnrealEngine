@@ -214,9 +214,8 @@ void FNiagaraBakerRendererOutputVolumeTexture::RenderPreview(UNiagaraBakerOutput
 				{
 					if ( const FRenderTargetVolumeRWInstanceData_RenderThread* InstanceData_RT = Proxy_RT->SystemInstancesToProxyData_RT.Find(SystemInstanceID_RT) )
 					{
-						OutTexture = InstanceData_RT->TextureRHI;
+						OutTexture = InstanceData_RT->RenderTarget->GetRHI();
 						OutSamplerState = InstanceData_RT->SamplerStateRHI;
-			//				OutSamplerState = TStaticSamplerState<SF_Bilinear>::GetRHI();
 					}
 				}
 			);
@@ -275,7 +274,7 @@ void FNiagaraBakerRendererOutputVolumeTexture::RenderPreview(UNiagaraBakerOutput
 						{
 							if ( RT_InstanceData->CurrentData != nullptr )
 							{
-								OutTexture = RT_InstanceData->CurrentData->GridBuffer.Buffer;
+								OutTexture = RT_InstanceData->CurrentData->GetPooledTexture()->GetRHI();
 								OutSamplerState = TStaticSamplerState<SF_Bilinear>::GetRHI();
 							}
 						}
@@ -424,7 +423,7 @@ void FNiagaraBakerRendererOutputVolumeTexture::BakeFrame(UNiagaraBakerOutput* In
 				{
 					*OutTextureSize_RT = InstanceData_RT->Size;
 					RHICmdList.Read3DSurfaceFloatData(
-						InstanceData_RT->TextureRHI,
+						InstanceData_RT->RenderTarget->GetRHI(),
 						FIntRect(0, 0, InstanceData_RT->Size.X, InstanceData_RT->Size.Y),
 						FIntPoint(0, InstanceData_RT->Size.Z),
 						*OutTextureData_RT
@@ -452,7 +451,7 @@ void FNiagaraBakerRendererOutputVolumeTexture::BakeFrame(UNiagaraBakerOutput* In
 						*OutTextureSize_RT = TextureSize;
 
 						RHICmdList.Read3DSurfaceFloatData(
-							InstanceData_RT->CurrentData->GridBuffer.Buffer,
+							InstanceData_RT->CurrentData->GetPooledTexture()->GetRHI(),
 							FIntRect(0, 0, TextureSize.X, TextureSize.Y),
 							FIntPoint(0, TextureSize.Z),
 							*OutTextureData_RT

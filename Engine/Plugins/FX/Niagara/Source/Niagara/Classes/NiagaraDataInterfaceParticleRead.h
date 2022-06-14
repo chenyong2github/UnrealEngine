@@ -11,9 +11,23 @@ UCLASS(EditInlineNew, Category = "ParticleRead", meta = (DisplayName = "Particle
 class NIAGARA_API UNiagaraDataInterfaceParticleRead : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
-public:
-	DECLARE_NIAGARA_DI_PARAMETER();
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(int,				NumSpawnedParticles)
+		SHADER_PARAMETER(int,				SpawnedParticlesAcquireTag)
+		SHADER_PARAMETER(uint32,			InstanceCountOffset)
+		SHADER_PARAMETER(uint32,			ParticleStrideFloat)
+		SHADER_PARAMETER(uint32,			ParticleStrideInt)
+		SHADER_PARAMETER(uint32,			ParticleStrideHalf)
+		SHADER_PARAMETER(int,				AcquireTagRegisterIndex)
+		SHADER_PARAMETER_SRV(Buffer<int>,	SpawnedIDsBuffer)
+		SHADER_PARAMETER_SRV(Buffer<int>,	IDToIndexTable)
+		SHADER_PARAMETER_SRV(Buffer<float>,	InputFloatBuffer)
+		SHADER_PARAMETER_SRV(Buffer<int>,	InputIntBuffer)
+		SHADER_PARAMETER_SRV(Buffer<half>,	InputHalfBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
 	UPROPERTY(EditAnywhere, Category = "ParticleRead")
 	FString EmitterName;
 
@@ -33,9 +47,16 @@ public:
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	virtual FNiagaraDataInterfaceParametersCS* CreateShaderStorage(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const FShaderParameterMap& ParameterMap) const override;
+	virtual const FTypeLayoutDesc* GetShaderStorageType() const override;
+
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 #if WITH_EDITOR	
 	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;

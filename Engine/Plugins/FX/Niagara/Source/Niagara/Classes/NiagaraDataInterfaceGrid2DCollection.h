@@ -5,6 +5,7 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
+#include "NiagaraRenderGraphUtils.h"
 #include "Niagara/Private/NiagaraStats.h"
 
 #include "NiagaraDataInterfaceGrid2DCollection.generated.h"
@@ -13,35 +14,7 @@ class FNiagaraSystemInstance;
 class UTextureRenderTarget;
 class UTextureRenderTarget2DArray;
 
-class FGrid2DBuffer
-{
-public:
-	FGrid2DBuffer(int NumX, int NumY, int NumAttributes, EPixelFormat PixelFormat)
-	{
-		const FRHITextureCreateDesc Desc =
-			FRHITextureCreateDesc::Create2DArray(TEXT("FGrid2DBuffer"), NumX, NumY, NumAttributes, PixelFormat)
-			.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
-
-		GridTexture = RHICreateTexture(Desc);
-
-		FRHITextureSRVCreateInfo SRVCreateInfo;
-		GridSRV = RHICreateShaderResourceView(GridTexture, SRVCreateInfo);
-		GridUAV = RHICreateUnorderedAccessView(GridTexture);
-
-		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RHIComputeMemorySize(GridTexture));
-	}
-	~FGrid2DBuffer()
-	{
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RHIComputeMemorySize(GridTexture));
-		GridTexture.SafeRelease();
-		GridSRV.SafeRelease();
-		GridUAV.SafeRelease();
-	}
-
-	FTextureRHIRef GridTexture;
-	FShaderResourceViewRHIRef GridSRV;
-	FUnorderedAccessViewRHIRef GridUAV;
-};
+using FGrid2DBuffer = FNiagaraPooledRWTexture;
 
 struct FGrid2DCollectionRWInstanceData_GameThread
 {
@@ -83,7 +56,7 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
 
-	TArray<TUniquePtr<FGrid2DBuffer>> Buffers;
+	TArray<FGrid2DBuffer, TInlineAllocator<2>> Buffers;
 	FGrid2DBuffer* CurrentData = nullptr;
 	FGrid2DBuffer* DestinationData = nullptr;
 
@@ -103,19 +76,18 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	// overrides the render thread data, which in this case is for a grid reader
 	FNiagaraDataInterfaceProxy* OtherProxy = nullptr;
 
-	void BeginSimulate(FRHICommandList& RHICmdList);
-	void EndSimulate(FRHICommandList& RHICmdList);
+	void BeginSimulate(FRDGBuilder& GraphBuilder);
+	void EndSimulate();
 };
 
 struct FNiagaraDataInterfaceProxyGrid2DCollectionProxy : public FNiagaraDataInterfaceProxyRW
 {
 	FNiagaraDataInterfaceProxyGrid2DCollectionProxy() {}
 	
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
-	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
-	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
-
-	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+	virtual void ResetData(const FNDIGpuComputeResetContext& Context) override;
+	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override;
+	virtual void PostStage(const FNDIGpuComputePostStageContext& Context) override;
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 
 	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 

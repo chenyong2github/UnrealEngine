@@ -280,7 +280,6 @@ private:
 	uint64						GpuResultsGameFrameCounter = 0;
 
 	FSmoothedCounter<int32>		GpuTotalDispatches;
-	FSmoothedCounter<int32>		GpuTotalDispatchGroups;
 	FSmoothedCounter<uint64>	GpuTotalMicroseconds;
 
 	struct FGpuUsagePerStage

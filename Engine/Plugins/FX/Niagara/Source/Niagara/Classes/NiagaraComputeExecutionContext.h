@@ -22,43 +22,6 @@ public:
 	}
 };
 
-struct FNiagaraGpuDispatchInstance
-{
-	FNiagaraGpuDispatchInstance(const FNiagaraGPUSystemTick& InTick, const FNiagaraComputeInstanceData& InInstanceData)
-		: Tick(InTick)
-		, InstanceData(InInstanceData)
-	{
-	}
-
-	const FNiagaraGPUSystemTick& Tick;
-	const FNiagaraComputeInstanceData& InstanceData;
-	FNiagaraSimStageData SimStageData;
-};
-
-struct FNiagaraGpuDispatchGroup
-{
-	TArray<FNiagaraGPUSystemTick*>				TicksWithPerInstanceData;
-	TArray<FNiagaraGpuDispatchInstance>			DispatchInstances;
-	TArray<FNiagaraComputeExecutionContext*>	FreeIDUpdates;
-};
-
-struct FNiagaraGpuDispatchList
-{
-	void PreAllocateGroups(int32 LastGroup)
-	{
-		const int32 GroupsToAllocate = LastGroup - DispatchGroups.Num();
-		if (GroupsToAllocate > 0)
-		{
-			DispatchGroups.AddDefaulted(GroupsToAllocate);
-		}
-	}
-
-	bool HasWork() const { return DispatchGroups.Num() > 0; }
-
-	TArray<uint32>						CountsToRelease;
-	TArray<FNiagaraGpuDispatchGroup>	DispatchGroups;
-};
-
 struct FNiagaraGpuSpawnInfoParams
 {
 	float IntervalDt;

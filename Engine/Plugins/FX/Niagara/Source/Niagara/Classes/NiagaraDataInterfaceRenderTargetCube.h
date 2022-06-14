@@ -44,8 +44,11 @@ struct FRenderTargetCubeRWInstanceData_RenderThread
 	bool bNeedsTransition = false;
 
 	FSamplerStateRHIRef SamplerStateRHI;
-	FTextureCubeRHIRef TextureRHI;
-	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
+	TRefCountPtr<IPooledRenderTarget> RenderTarget;
+
+	FRDGTextureRef		TransientRDGTexture = nullptr;
+	FRDGTextureSRVRef	TransientRDGSRV = nullptr;
+	FRDGTextureUAVRef	TransientRDGUAV = nullptr;
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
 #endif
@@ -58,8 +61,7 @@ struct FRenderTargetCubeRWInstanceData_RenderThread
 struct FNiagaraDataInterfaceProxyRenderTargetCubeProxy : public FNiagaraDataInterfaceProxyRW
 {
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
-	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
-	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 
 	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 

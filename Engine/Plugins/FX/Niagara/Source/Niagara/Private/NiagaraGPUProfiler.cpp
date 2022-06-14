@@ -26,11 +26,6 @@ FNiagaraGPUProfiler::~FNiagaraGPUProfiler()
 	for (FGpuFrameData& Frame : GpuFrames)
 	{
 		Frame.EndQuery.ReleaseQuery();
-		for (FGpuStageTimer& StageTimer : Frame.StageTimers)
-		{
-			StageTimer.StartQuery.ReleaseQuery();
-			StageTimer.EndQuery.ReleaseQuery();
-		}
 
 		for (FGpuDispatchTimer& DispatchTimer : Frame.DispatchTimers)
 		{
@@ -81,33 +76,7 @@ void FNiagaraGPUProfiler::EndFrame(FRHICommandList& RHICmdList)
 	CurrentWriteFrame = (CurrentWriteFrame + 1) % NumBufferFrames;
 }
 
-void FNiagaraGPUProfiler::BeginStage(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage, int32 NumDispatchGroups)
-{
-	if (ActiveWriteFrame == nullptr)
-	{
-		return;
-	}
-
-	FGpuStageTimer& StageTimer = ActiveWriteFrame->StageTimers[TickStage];
-	StageTimer.NumDispatchGroups = NumDispatchGroups;
-	StageTimer.StartQuery = QueryPool->AllocateQuery();
-	RHICmdList.EndRenderQuery(StageTimer.StartQuery.GetQuery());
-}
-
-void FNiagaraGPUProfiler::EndStage(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage, int32 NumDispatches)
-{
-	if (ActiveWriteFrame == nullptr)
-	{
-		return;
-	}
-
-	FGpuStageTimer& StageTimer = ActiveWriteFrame->StageTimers[TickStage];
-	StageTimer.NumDispatches = NumDispatches;
-	StageTimer.EndQuery = QueryPool->AllocateQuery();
-	RHICmdList.EndRenderQuery(StageTimer.EndQuery.GetQuery());
-}
-
-void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, const FNiagaraGpuDispatchInstance& DispatchInstance)
+void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, const FNiagaraGpuProfileEvent& Event)
 {
 	if (ActiveWriteFrame == nullptr)
 	{
@@ -116,48 +85,8 @@ void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, const FNiag
 	check(bDispatchRecursionGuard == false);
 	bDispatchRecursionGuard = true;
 
-	FGpuDispatchTimer& DispatchTimer = ActiveWriteFrame->DispatchTimers.AddDefaulted_GetRef();
+	FGpuDispatchTimer& DispatchTimer = ActiveWriteFrame->DispatchTimers.Emplace_GetRef(Event);
 
-	DispatchTimer.bUniqueInstance = DispatchInstance.SimStageData.bSetDataToRender && (&DispatchInstance.InstanceData == &DispatchInstance.Tick.GetInstances()[0]);
-	DispatchTimer.OwnerComponent = DispatchInstance.InstanceData.Context->ProfilingComponentPtr;
-	DispatchTimer.OwnerEmitter = DispatchInstance.InstanceData.Context->ProfilingEmitterPtr;
-	DispatchTimer.StageName = DispatchInstance.SimStageData.StageMetaData->SimulationStageName;
-	DispatchTimer.StartQuery = QueryPool->AllocateQuery();
-	RHICmdList.EndRenderQuery(DispatchTimer.StartQuery.GetQuery());
-}
-
-void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, const struct FNiagaraComputeInstanceData& InstanceData, FName StageName)
-{
-	if (ActiveWriteFrame == nullptr)
-	{
-		return;
-	}
-	check(bDispatchRecursionGuard == false);
-	bDispatchRecursionGuard = true;
-
-	FGpuDispatchTimer& DispatchTimer = ActiveWriteFrame->DispatchTimers.AddDefaulted_GetRef();
-	DispatchTimer.bUniqueInstance = false;
-	DispatchTimer.OwnerComponent = InstanceData.Context->ProfilingComponentPtr;
-	DispatchTimer.OwnerEmitter = InstanceData.Context->ProfilingEmitterPtr;
-	DispatchTimer.StageName = StageName;
-	DispatchTimer.StartQuery = QueryPool->AllocateQuery();
-	RHICmdList.EndRenderQuery(DispatchTimer.StartQuery.GetQuery());
-}
-
-void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, FName StageName)
-{
-	if (ActiveWriteFrame == nullptr)
-	{
-		return;
-	}
-	check(bDispatchRecursionGuard == false);
-	bDispatchRecursionGuard = true;
-
-	FGpuDispatchTimer& DispatchTimer = ActiveWriteFrame->DispatchTimers.AddDefaulted_GetRef();
-	DispatchTimer.bUniqueInstance = false;
-	DispatchTimer.OwnerComponent = nullptr;
-	DispatchTimer.OwnerEmitter = FVersionedNiagaraEmitterWeakPtr();
-	DispatchTimer.StageName = StageName;
 	DispatchTimer.StartQuery = QueryPool->AllocateQuery();
 	RHICmdList.EndRenderQuery(DispatchTimer.StartQuery.GetQuery());
 }
@@ -190,30 +119,11 @@ bool FNiagaraGPUProfiler::ProcessFrame(FRHICommandListImmediate& RHICmdList, FGp
 	//-OPT: Potentially pool these
 	FNiagaraGpuFrameResultsPtr FrameResults = MakeShared<FNiagaraGpuFrameResults, ESPMode::ThreadSafe>();
 	FrameResults->OwnerContext = OwnerContext;
+	FrameResults->TotalDispatches = 0;
+	FrameResults->TotalDurationMicroseconds = 0;
 	FrameResults->DispatchResults.Reserve(ReadFrame.DispatchTimers.Num());
 
 	// Process results
-	for (int32 i = 0; i < ENiagaraGpuComputeTickStage::Max; ++i)
-	{
-		FGpuStageTimer& StageTimer = ReadFrame.StageTimers[i];
-		auto& StageResults = FrameResults->StageResults[i];
-		StageResults.NumDispatches = StageTimer.NumDispatches;
-		StageResults.NumDispatchGroups = StageTimer.NumDispatchGroups;
-		StageResults.DurationMicroseconds = 0;
-		if ( StageTimer.StartQuery.GetQuery() != nullptr )
-		{
-			uint64 StartMicroseconds = 0;
-			uint64 EndMicroseconds = 0;
-			ensure(RHICmdList.GetRenderQueryResult(StageTimer.StartQuery.GetQuery(), StartMicroseconds, false));
-			ensure(RHICmdList.GetRenderQueryResult(StageTimer.EndQuery.GetQuery(), EndMicroseconds, false));
-			StageResults.DurationMicroseconds = EndMicroseconds - StartMicroseconds;
-			StageTimer.StartQuery.ReleaseQuery();
-			StageTimer.EndQuery.ReleaseQuery();
-		}
-		StageTimer.NumDispatches = 0;
-		StageTimer.NumDispatchGroups = 0;
-	}
-
 	for (FGpuDispatchTimer& DispatchTimer : ReadFrame.DispatchTimers)
 	{
 		auto& DispatchResults = FrameResults->DispatchResults.AddDefaulted_GetRef();
@@ -225,11 +135,14 @@ bool FNiagaraGPUProfiler::ProcessFrame(FRHICommandListImmediate& RHICmdList, FGp
 		DispatchTimer.StartQuery.ReleaseQuery();
 		DispatchTimer.EndQuery.ReleaseQuery();
 
-		DispatchResults.bUniqueInstance = DispatchTimer.bUniqueInstance;
-		DispatchResults.OwnerComponent = DispatchTimer.OwnerComponent;
-		DispatchResults.OwnerEmitter = DispatchTimer.OwnerEmitter;
-		DispatchResults.StageName = DispatchTimer.StageName;
+		DispatchResults.bUniqueInstance = DispatchTimer.Event.bUniqueInstance;
+		DispatchResults.OwnerComponent = DispatchTimer.Event.OwnerComponent;
+		DispatchResults.OwnerEmitter = DispatchTimer.Event.OwnerEmitter;
+		DispatchResults.StageName = DispatchTimer.Event.StageName;
 		DispatchResults.DurationMicroseconds = EndMicroseconds - StartMicroseconds;
+
+		++FrameResults->TotalDispatches;
+		FrameResults->TotalDurationMicroseconds += DispatchResults.DurationMicroseconds;
 	}
 
 	ReadFrame.DispatchTimers.Empty();

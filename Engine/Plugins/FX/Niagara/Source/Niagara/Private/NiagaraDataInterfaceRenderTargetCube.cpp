@@ -20,8 +20,8 @@ namespace NDIRenderTargetCubeLocal
 {
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
 		SHADER_PARAMETER(int, TextureSize)
-		SHADER_PARAMETER_UAV(RWTextureCube<float4>, RWTexture)
-		SHADER_PARAMETER_TEXTURE(TextureCube<float4>, Texture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTextureCube<float4>, RWTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(TextureCube<float4>, Texture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -59,9 +59,9 @@ void FRenderTargetCubeRWInstanceData_RenderThread::UpdateMemoryStats()
 	DEC_MEMORY_STAT_BY(STAT_NiagaraRenderTargetMemory, MemorySize);
 
 	MemorySize = 0;
-	if (FRHITexture* RHITexture = TextureRHI)
+	if (RenderTarget.IsValid())
 	{
-		MemorySize = RHIComputeMemorySize(RHITexture);
+		MemorySize = RHIComputeMemorySize(RenderTarget->GetRHI());
 	}
 
 	INC_MEMORY_STAT_BY(STAT_NiagaraRenderTargetMemory, MemorySize);
@@ -377,6 +377,17 @@ void UNiagaraDataInterfaceRenderTargetCube::SetShaderParameters(const FNiagaraDa
 	FRenderTargetCubeRWInstanceData_RenderThread* InstanceData_RT = DIProxy.SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
 	check(InstanceData_RT);
 
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+
+	// Ensure RDG resources are ready to use
+	if (InstanceData_RT->TransientRDGTexture == nullptr)
+	{
+		InstanceData_RT->TransientRDGTexture = GraphBuilder.RegisterExternalTexture(InstanceData_RT->RenderTarget);
+		InstanceData_RT->TransientRDGSRV = GraphBuilder.CreateSRV(InstanceData_RT->TransientRDGTexture);
+		InstanceData_RT->TransientRDGUAV = GraphBuilder.CreateUAV(InstanceData_RT->TransientRDGTexture);
+		Context.GetRDGExternalAccessQueue().Add(InstanceData_RT->TransientRDGTexture);
+	}
+
 	NDIRenderTargetCubeLocal::FShaderParameters* Parameters = Context.GetParameterNestedStruct<NDIRenderTargetCubeLocal::FShaderParameters>();
 	Parameters->TextureSize = InstanceData_RT->Size;
 
@@ -385,38 +396,37 @@ void UNiagaraDataInterfaceRenderTargetCube::SetShaderParameters(const FNiagaraDa
 
 	if (bRTWrite)
 	{
-		Parameters->RWTexture = InstanceData_RT->UnorderedAccessViewRHI;
-		if (Parameters->RWTexture)
+		if (InstanceData_RT->RenderTarget.IsValid())
 		{
-			// FIXME: this transition needs to happen in FNiagaraDataInterfaceProxyRenderTargetCubeProxy::PreStage so it doesn't break up the overlap group,
-			// but for some reason it stops working if I move it in there.
-			Context.GetRHICmdList().Transition(FRHITransitionInfo(Parameters->RWTexture, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			//InstanceData_RT->bRebuildMips = true;
+			Parameters->RWTexture = InstanceData_RT->TransientRDGUAV;
 			InstanceData_RT->bWroteThisFrame = true;
-			InstanceData_RT->bNeedsTransition = true;
 		}
 		else
 		{
-			Parameters->RWTexture = Context.GetComputeDispatchInterface().GetEmptyUAVFromPool(Context.GetRHICmdList(), EPixelFormat::PF_A16B16G16R16, ENiagaraEmptyUAVType::TextureCube);
+			Parameters->RWTexture = Context.GetComputeDispatchInterface().GetEmptyTextureUAV(GraphBuilder, EPixelFormat::PF_A16B16G16R16, ETextureDimension::TextureCube);
 		}
 	}
 
 	if (bRTRead)
 	{
-		Parameters->Texture = GBlackTextureCube->TextureRHI;
-		Parameters->TextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		if (ensureMsgf(bRTWrite == false, TEXT("RenderTarget DataInterface is both wrote and read from in the same stage, this is not allowed, read will be invalid")))
+		ensureMsgf(bRTWrite == false, TEXT("RenderTarget DataInterface is both wrote and read from in the same stage, this is not allowed, read will be invalid"));
+		if (bRTWrite == false && InstanceData_RT->RenderTarget.IsValid())
 		{
 			InstanceData_RT->bReadThisFrame = true;
+			Parameters->Texture = InstanceData_RT->TransientRDGSRV;
+		}
+		else
+		{
+			Parameters->Texture = Context.GetComputeDispatchInterface().GetBlackTextureSRV(GraphBuilder, ETextureDimension::TextureCube);
+		}
 
-			if (InstanceData_RT->TextureRHI)
-			{
-				Parameters->Texture = InstanceData_RT->TextureRHI;
-			}
-			if (InstanceData_RT->SamplerStateRHI)
-			{
-				Parameters->TextureSampler = InstanceData_RT->SamplerStateRHI;
-			}
+		if (InstanceData_RT->SamplerStateRHI)
+		{
+			Parameters->TextureSampler = InstanceData_RT->SamplerStateRHI;
+		}
+		else
+		{
+			Parameters->TextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		}
 	}
 }
@@ -458,8 +468,8 @@ void UNiagaraDataInterfaceRenderTargetCube::DestroyPerInstanceData(void* PerInst
 #if STATS
 			if (FRenderTargetCubeRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID))
 			{
-				TargetData->SamplerStateRHI = nullptr;
-				TargetData->TextureRHI = nullptr;
+				TargetData->SamplerStateRHI.SafeRelease();
+				TargetData->RenderTarget.SafeRelease();
 				TargetData->UpdateMemoryStats();
 			}
 #endif
@@ -635,15 +645,13 @@ bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTickPostSimulate(void* Pe
 				TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 			#endif
 				TargetData->SamplerStateRHI.SafeRelease();
-				TargetData->TextureRHI.SafeRelease();
-				TargetData->UnorderedAccessViewRHI.SafeRelease();
+				TargetData->RenderTarget.SafeRelease();
 				if (RT_TargetTexture)
 				{
 					if (FTextureRenderTargetCubeResource* ResourceCube = RT_TargetTexture->GetTextureRenderTargetCubeResource())
 					{
 						TargetData->SamplerStateRHI = ResourceCube->SamplerStateRHI;
-						TargetData->TextureRHI = ResourceCube->GetTextureRHI();
-						TargetData->UnorderedAccessViewRHI = ResourceCube->GetUnorderedAccessViewRHI();
+						TargetData->RenderTarget = CreateRenderTarget(ResourceCube->GetTextureRHI(), TEXT("NiagaraRenderTargetCube"));
 					}
 				}
 			#if STATS
@@ -656,54 +664,40 @@ bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTickPostSimulate(void* Pe
 	return false;
 }
 
-void FNiagaraDataInterfaceProxyRenderTargetCubeProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
+void FNiagaraDataInterfaceProxyRenderTargetCubeProxy::PostSimulate(const FNDIGpuComputePostSimulateContext& Context)
 {
-	if (FRenderTargetCubeRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID))
-	{
-		if (ProxyData->bNeedsTransition)
-		{
-			ProxyData->bNeedsTransition = false;
-
-			if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UnorderedAccessViewRHI)
-			{
-				// FIXME: move to FNiagaraDataInterfaceProxyRenderTargetCubeProxy::PostStage, same as for the transition in Set() above.
-				RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-			}
-		}
-	}
-}
-
-void FNiagaraDataInterfaceProxyRenderTargetCubeProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
-{
-	FRenderTargetCubeRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
+	FRenderTargetCubeRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
 	if (ProxyData == nullptr)
 	{
 		return;
 	}
 
+	
 	// We only need to transfer this frame if it was written to.
 	// If also read then we need to notify that the texture is important for the simulation
 	// We also assume the texture is important for rendering, without discovering renderer bindings we don't really know
 	if (ProxyData->bWroteThisFrame)
 	{
-		Context.ComputeDispatchInterface->MultiGPUResourceModified(RHICmdList, ProxyData->TextureRHI, ProxyData->bReadThisFrame, true);
+		//-TODO:RDG:mGPU:Context.ComputeDispatchInterface->MultiGPUResourceModified(RHICmdList, ProxyData->TextureRHI, ProxyData->bReadThisFrame, true);
 	}
 
-	ProxyData->bReadThisFrame = false;
-	ProxyData->bWroteThisFrame = false;
-
 #if NIAGARA_COMPUTEDEBUG_ENABLED && WITH_EDITORONLY_DATA
-	if (ProxyData->bPreviewTexture && ProxyData->TextureRHI.IsValid())
+	if (ProxyData->bPreviewTexture && ProxyData->TransientRDGTexture)
 	{
-		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.ComputeDispatchInterface->GetGpuComputeDebug())
+		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.GetComputeDispatchInterface().GetGpuComputeDebug())
 		{
-			if ( FRHITexture* RHITexture = ProxyData->TextureRHI )
-			{
-				GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, RHITexture);
-			}
+			GpuComputeDebug->AddTexture(Context.GetGraphBuilder(), Context.GetSystemInstanceID(), SourceDIName, ProxyData->TransientRDGTexture);
 		}
 	}
 #endif
+
+	// Clean up our temporary tracking
+	ProxyData->bReadThisFrame = false;
+	ProxyData->bWroteThisFrame = false;
+
+	ProxyData->TransientRDGTexture = nullptr;
+	ProxyData->TransientRDGSRV = nullptr;
+	ProxyData->TransientRDGUAV = nullptr;
 }
 
 FIntVector FNiagaraDataInterfaceProxyRenderTargetCubeProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const

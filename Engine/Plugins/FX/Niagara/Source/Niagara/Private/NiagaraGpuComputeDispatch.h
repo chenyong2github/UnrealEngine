@@ -30,6 +30,61 @@ class FGPUSortManager;
 class FDistanceFieldSceneData;
 class FNiagaraAsyncGpuTraceHelper;
 
+//////////////////////////////////////////////////////////////////////////
+
+struct FNiagaraGpuDispatchInstance
+{
+	FNiagaraGpuDispatchInstance(const FNiagaraGPUSystemTick& InTick, const FNiagaraComputeInstanceData& InInstanceData)
+		: Tick(InTick)
+		, InstanceData(InInstanceData)
+	{
+	}
+
+	const FNiagaraGPUSystemTick& Tick;
+	const FNiagaraComputeInstanceData& InstanceData;
+	FNiagaraSimStageData SimStageData;
+};
+
+
+struct FNiagaraGpuFreeIDUpdate
+{
+	FNiagaraGpuFreeIDUpdate(FNiagaraComputeExecutionContext* InComputeContext)
+		: ComputeContext(InComputeContext)
+	{
+	}
+
+	FNiagaraComputeExecutionContext*	ComputeContext = nullptr;
+	mutable FRHIShaderResourceView*		IDToIndexSRV = nullptr;
+	mutable FRHIUnorderedAccessView*	FreeIDsUAV = nullptr;
+	mutable uint32						NumAllocatedIDs = 0;
+};
+
+struct FNiagaraGpuDispatchGroup
+{
+	TArray<FNiagaraGPUSystemTick*>				TicksWithPerInstanceData;
+	TArray<FNiagaraGpuDispatchInstance>			DispatchInstances;
+	TArray<FNiagaraGpuFreeIDUpdate>				FreeIDUpdates;
+};
+
+struct FNiagaraGpuDispatchList
+{
+	void PreAllocateGroups(int32 LastGroup)
+	{
+		const int32 GroupsToAllocate = LastGroup - DispatchGroups.Num();
+		if (GroupsToAllocate > 0)
+		{
+			DispatchGroups.AddDefaulted(GroupsToAllocate);
+		}
+	}
+
+	bool HasWork() const { return DispatchGroups.Num() > 0; }
+
+	TArray<uint32>						CountsToRelease;
+	TArray<FNiagaraGpuDispatchGroup>	DispatchGroups;
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 class FNiagaraGpuComputeDispatch : public FNiagaraGpuComputeDispatchInterface
 {
 public:
@@ -95,23 +150,21 @@ public:
 	const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameters() const;
 	const FDistanceFieldSceneData* GetMeshDistanceFieldParameters() const;
 
-	void SetDataInterfaceParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData, uint8* ParametersStructure) const;
-	void UnsetDataInterfaceParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData) const;
+	void LegacySetDataInterfaceParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData) const;
+	void LegacyUnsetDataInterfaceParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData) const;
+	void LegacyResetDataInterfaces(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData) const;
+	void LegacyPreStageInterface(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, TSet<FNiagaraDataInterfaceProxy*>& ProxiesToFinalize) const;
+	void LegacyPostStageInterface(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, TSet<FNiagaraDataInterfaceProxy*>& ProxiesToFinalize) const;
+	void LegacyPostSimulateInterface(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData) const;
 
-	/** Reset the data interfaces and check if the spawn stages are valid */
-	void ResetDataInterfaces(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData) const;
+	void ResetDataInterfaces(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData) const;
+	void SetDataInterfaceParameters(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData, uint8* ParametersStructure) const;
+	void PreStageInterface(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, TSet<FNiagaraDataInterfaceProxy*>& ProxiesToFinalize) const;
+	void PostStageInterface(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, TSet<FNiagaraDataInterfaceProxy*>& ProxiesToFinalize) const;
+	void PostSimulateInterface(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData) const;
 
 	/** Given a shader stage index, find the corresponding data interface */
 	FNiagaraDataInterfaceProxyRW* FindIterationInterface(FNiagaraComputeInstanceData* Instance, const uint32 SimulationStageIndex) const;
-
-	/** Loop over all the data interfaces and call the pre-stage methods */
-	void PreStageInterface(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, TSet<FNiagaraDataInterfaceProxy*>& ProxiesToFinalize) const;
-
-	/** Loop over all the data interfaces and call the post-stage methods */
-	void PostStageInterface(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, TSet<FNiagaraDataInterfaceProxy*>& ProxiesToFinalize) const;
-
-	/** Loop over all data interfaces and call the post-simulate methods */
-	void PostSimulateInterface(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData) const;
 
 	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
 	virtual FGPUSortManager* GetGPUSortManager() const override;
@@ -122,6 +175,9 @@ public:
 
 	/** When inside a pass returns the active scene textures for the pass, can be nullptr. */
 	class FNiagaraSceneTextureParameters* GetNiagaraSceneTextures() const { return NiagaraSceneTextures; }
+
+	/** Allows access to the current passes external access queue. */
+	FRDGExternalAccessQueue& GetCurrentPassExternalAccessQueue() const { return CurrentPassExternalAccessQueue; }
 
 	/** Debug only function to readback data. */
 	virtual void AddDebugReadback(FNiagaraSystemInstanceID InstanceID, TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo, FNiagaraComputeExecutionContext* Context) override;
@@ -138,8 +194,8 @@ private:
 	void UpdateInstanceCountManager(FRHICommandListImmediate& RHICmdList);
 	void PrepareTicksForProxy(FRHICommandListImmediate& RHICmdList, FNiagaraSystemGpuComputeProxy* ComputeProxy, FNiagaraGpuDispatchList& GpuDispatchList);
 	void PrepareAllTicks(FRHICommandListImmediate& RHICmdList);
-	void ExecuteTicks(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage);
-	void DispatchStage(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData);
+	void ExecuteTicks(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, ENiagaraGpuComputeTickStage::Type TickStage);
+	void DispatchStage(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData);
 
 	/**
 	 * Generate all the initial keys and values for a GPUSortManager sort batch.
@@ -164,9 +220,6 @@ private:
 
 	void FinishDispatches();
 
-	void UpdateFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
-	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, TConstArrayView<FNiagaraComputeExecutionContext*> Instances);
-
 	/** The shared GPUSortManager, used to register GPU sort tasks in order to generate sorted particle indices per emitter. */
 	TRefCountPtr<FGPUSortManager> GPUSortManager;
 	/** All sort tasks registered in AddSortedGPUSimulation(). Holds all the data required in GenerateSortKeys(). */
@@ -181,6 +234,7 @@ private:
 	uint32 FramesBeforeTickFlush = 0;
 
 	TConstArrayView<FViewInfo> CurrentPassViews;
+	mutable FRDGExternalAccessQueue CurrentPassExternalAccessQueue;
 
 	/** A buffer of list sizes used by UpdateFreeIDBuffers to allow overlapping several dispatches. */
 	FRWBuffer FreeIDListSizesBuffer;

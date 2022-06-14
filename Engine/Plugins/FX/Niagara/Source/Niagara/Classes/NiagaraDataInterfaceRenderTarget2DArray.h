@@ -42,11 +42,14 @@ struct FRenderTarget2DArrayRWInstanceData_RenderThread
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	bool bWroteThisFrame = false;
 	bool bReadThisFrame = false;
-	bool bNeedsTransition = false;
 
 	FSamplerStateRHIRef SamplerStateRHI;
-	FTexture2DArrayRHIRef TextureRHI;
-	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
+	TRefCountPtr<IPooledRenderTarget> RenderTarget;
+
+	FRDGTextureRef		TransientRDGTexture = nullptr;
+	FRDGTextureSRVRef	TransientRDGSRV = nullptr;
+	FRDGTextureUAVRef	TransientRDGUAV = nullptr;
+
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
 #endif
@@ -65,9 +68,7 @@ struct FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy : public FNiagaraDataI
 		return 0;
 	}
 
-	virtual void ClearBuffers(FRHICommandList& RHICmdList) {}
-	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
-	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 
 	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 

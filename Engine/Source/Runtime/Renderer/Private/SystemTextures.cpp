@@ -29,6 +29,7 @@ const FRDGSystemTextures& FRDGSystemTextures::Create(FRDGBuilder& GraphBuilder)
 	SystemTextures.White = Register(GSystemTextures.WhiteDummy);
 	SystemTextures.Black = Register(GSystemTextures.BlackDummy);
 	SystemTextures.BlackAlphaOne = Register(GSystemTextures.BlackAlphaOneDummy);
+	SystemTextures.BlackArray = Register(GSystemTextures.BlackArrayDummy);
 	SystemTextures.MaxFP16Depth = Register(GSystemTextures.MaxFP16Depth);
 	SystemTextures.DepthDummy = Register(GSystemTextures.DepthDummy);
 	SystemTextures.BlackDepthCube = Register(GSystemTextures.BlackDepthCube);
@@ -39,6 +40,8 @@ const FRDGSystemTextures& FRDGSystemTextures::Create(FRDGBuilder& GraphBuilder)
 	SystemTextures.VolumetricBlack = Register(GSystemTextures.VolumetricBlackDummy);
 	SystemTextures.VolumetricBlackAlphaOne = Register(GSystemTextures.VolumetricBlackAlphaOneDummy);
 	SystemTextures.VolumetricBlackUint = Register(GSystemTextures.VolumetricBlackUintDummy);
+	SystemTextures.CubeBlack = Register(GSystemTextures.CubeBlackDummy);
+	SystemTextures.CubeArrayBlack = Register(GSystemTextures.CubeArrayBlackDummy);
 	SystemTextures.StencilDummySRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SystemTextures.StencilDummy));
 	return SystemTextures;
 }
@@ -268,6 +271,12 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		VolumetricBlackDummy = CreateRenderTarget(GBlackVolumeTexture->TextureRHI, TEXT("VolumetricBlackDummy"));
 		VolumetricBlackAlphaOneDummy = CreateRenderTarget(GBlackAlpha1VolumeTexture->TextureRHI, TEXT("VolumetricBlackAlphaOneDummy"));
 		VolumetricBlackUintDummy = CreateRenderTarget(GBlackUintVolumeTexture->TextureRHI, TEXT("VolumetricBlackUintDummy"));
+	}
+
+	// Create Cube BlackDummy textures
+	{
+		CubeBlackDummy = CreateRenderTarget(GBlackTextureCube->TextureRHI, TEXT("CubeBlackDummy"));
+		CubeArrayBlackDummy = CreateRenderTarget(GBlackCubeArrayTexture->TextureRHI, TEXT("CubeArrayBlackDummy"));
 	}
 }
 
@@ -873,6 +882,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	BlackDummy.SafeRelease();
 	BlackArrayDummy.SafeRelease();
 	BlackAlphaOneDummy.SafeRelease();
+	BlackArrayDummy.SafeRelease();
 	PerlinNoiseGradient.SafeRelease();
 	PerlinNoise3D.SafeRelease();
 	SobolSampling.SafeRelease();
@@ -891,6 +901,8 @@ void FSystemTextures::ReleaseDynamicRHI()
 	VolumetricBlackDummy.SafeRelease();
 	VolumetricBlackAlphaOneDummy.SafeRelease();
 	VolumetricBlackUintDummy.SafeRelease();
+	CubeBlackDummy.SafeRelease();
+	CubeArrayBlackDummy.SafeRelease();
 	ZeroUIntDummy.SafeRelease();
 	ZeroUIntArrayDummy.SafeRelease();
 	MidGreyDummy.SafeRelease();
@@ -969,6 +981,16 @@ FRDGTextureRef FSystemTextures::GetVolumetricBlackDummy(FRDGBuilder& GraphBuilde
 FRDGTextureRef FSystemTextures::GetVolumetricBlackUintDummy(FRDGBuilder& GraphBuilder) const
 {
 	return GraphBuilder.RegisterExternalTexture(VolumetricBlackUintDummy, TEXT("VolumetricBlackUintDummy"), ERDGTextureFlags::SkipTracking);
+}
+
+FRDGTextureRef FSystemTextures::GetCubeBlackDummy(FRDGBuilder& GraphBuilder) const
+{
+	return GraphBuilder.RegisterExternalTexture(CubeBlackDummy, TEXT("CubeBlackDummy"), ERDGTextureFlags::SkipTracking);
+}
+
+FRDGTextureRef FSystemTextures::GetCubeArrayBlackDummy(FRDGBuilder& GraphBuilder) const
+{
+	return GraphBuilder.RegisterExternalTexture(CubeArrayBlackDummy, TEXT("CubeArrayBlackDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const

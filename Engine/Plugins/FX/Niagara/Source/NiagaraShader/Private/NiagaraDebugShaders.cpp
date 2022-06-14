@@ -66,11 +66,11 @@ class NIAGARASHADER_API FNiagaraVisualizeTexturePS : public FGlobalShader
 		SHADER_PARAMETER(uint32,		TickCounter)
 		SHADER_PARAMETER(uint32,		TextureSlice)
 
-		SHADER_PARAMETER_TEXTURE(Texture2D, Texture2DObject)
-		SHADER_PARAMETER_TEXTURE(Texture2DArray, Texture2DArrayObject)
-		SHADER_PARAMETER_TEXTURE(Texture3D, Texture3DObject)
-		SHADER_PARAMETER_TEXTURE(TextureCube, TextureCubeObject)
-		SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D,			Texture2DObject)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray,	Texture2DArrayObject)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D,			Texture3DObject)
+		SHADER_PARAMETER_RDG_TEXTURE(TextureCube,		TextureCubeObject)
+		SHADER_PARAMETER_SAMPLER(SamplerState,			TextureSampler)
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -293,11 +293,11 @@ void NiagaraDebugShaders::DrawDebugLines(
 void NiagaraDebugShaders::VisualizeTexture(
 	class FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassRenderTarget& Output,
 	const FIntPoint& Location, const int32& DisplayHeight,
-	const FIntVector4& InAttributesToVisualize, FRHITexture* Texture, const FIntVector4& NumTextureAttributes, uint32 TickCounter,
+	const FIntVector4& InAttributesToVisualize, FRDGTextureRef Texture, const FIntVector4& NumTextureAttributes, uint32 TickCounter,
 	const FVector2D& PreviewDisplayRange
 )
 {
-	FIntVector TextureSize = Texture->GetSizeXYZ();
+	FIntVector TextureSize = Texture->Desc.GetSize();
 	if (NumTextureAttributes.X > 0)
 	{
 		check(NumTextureAttributes.Y > 0);
@@ -338,26 +338,22 @@ void NiagaraDebugShaders::VisualizeTexture(
 		}
 	}
 
-	FRHITexture2D* Texture2D = Texture->GetTexture2D();
-	FRHITexture2DArray* Texture2DArray = Texture->GetTexture2DArray();
-	FRHITexture3D* Texture3D = Texture->GetTexture3D();
-	FRHITextureCube* TextureCube = Texture->GetTextureCube();
-
 	// Set Shaders & State
 	FNiagaraVisualizeTexturePS::FPermutationDomain PermutationVector;
-	if (Texture2D != nullptr)
+	if (Texture->Desc.Dimension == ETextureDimension::Texture2D)
 	{
 		PermutationVector.Set<FNiagaraVisualizeTexturePS::FTextureType>(0);
 	}
-	else if (Texture2DArray != nullptr)
+	else if (Texture->Desc.Dimension == ETextureDimension::Texture2DArray)
 	{
 		PermutationVector.Set<FNiagaraVisualizeTexturePS::FTextureType>(1);
+		TextureSize.Z = NumAttributesToVisualizeValue == 0 ? Texture->Desc.ArraySize : 1;
 	}
-	else if (Texture3D != nullptr)
+	else if (Texture->Desc.Dimension == ETextureDimension::Texture3D)
 	{
 		PermutationVector.Set<FNiagaraVisualizeTexturePS::FTextureType>(2);
 	}
-	else if (TextureCube != nullptr)
+	else if (Texture->Desc.Dimension == ETextureDimension::TextureCube)
 	{
 		PermutationVector.Set<FNiagaraVisualizeTexturePS::FTextureType>(3);
 		TextureSize.X *= 3;
@@ -368,7 +364,7 @@ void NiagaraDebugShaders::VisualizeTexture(
 		return;
 	}
 
-	switch (Texture->GetFormat())
+	switch (Texture->Desc.Format)
 	{
 		case PF_R32_UINT:
 		case PF_R32_SINT:
@@ -401,29 +397,27 @@ void NiagaraDebugShaders::VisualizeTexture(
 	const int32 SlicesWidth = FMath::Clamp(FMath::DivideAndRoundUp(AvailableWidth, DisplaySize.X + 1), 1, TextureSize.Z);
 
 	const FVector2D::FReal DisplayScale = (PreviewDisplayRange.Y > PreviewDisplayRange.X) ? (1.0f / (PreviewDisplayRange.Y - PreviewDisplayRange.X)) : 1.0f;
-	const FVector4 PerChannelScale(DisplayScale, DisplayScale, DisplayScale, DisplayScale);
-	const FVector4 PerChannelBias(-PreviewDisplayRange.X, -PreviewDisplayRange.X, -PreviewDisplayRange.X, -PreviewDisplayRange.X);
+	const FVector4f PerChannelScale(DisplayScale, DisplayScale, DisplayScale, DisplayScale);
+	const FVector4f PerChannelBias(-PreviewDisplayRange.X, -PreviewDisplayRange.X, -PreviewDisplayRange.X, -PreviewDisplayRange.X);
 
 	for (int32 iSlice = 0; iSlice < SlicesWidth; ++iSlice)
 	{
 		FNiagaraVisualizeTexturePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraVisualizeTexturePS::FParameters>();
-		{
-			PassParameters->NumTextureAttributes = NumTextureAttributes;
-			PassParameters->NumAttributesToVisualize = NumAttributesToVisualizeValue;
-			PassParameters->AttributesToVisualize = AttributesToVisualize;
-			PassParameters->TextureDimensions = TextureSize;
-			PassParameters->PerChannelScale = (FVector4f)PerChannelScale; // LWC_TODO: precision loss
-			PassParameters->PerChannelBias = (FVector4f)PerChannelBias; // LWC_TODO: precision loss
-			PassParameters->DebugFlags = GNiagaraGpuComputeDebug_ShowNaNInf != 0 ? 1 : 0;
-			PassParameters->TickCounter = TickCounter;
-			PassParameters->TextureSlice = iSlice;
-			PassParameters->Texture2DObject = Texture2D;
-			PassParameters->Texture2DArrayObject = Texture2DArray;
-			PassParameters->Texture3DObject = Texture3D;
-			PassParameters->TextureCubeObject = TextureCube;
-			PassParameters->TextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
-			PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
-		}
+		PassParameters->NumTextureAttributes		= NumTextureAttributes;
+		PassParameters->NumAttributesToVisualize	= NumAttributesToVisualizeValue;
+		PassParameters->AttributesToVisualize		= AttributesToVisualize;
+		PassParameters->TextureDimensions			= TextureSize;
+		PassParameters->PerChannelScale				= PerChannelScale;
+		PassParameters->PerChannelBias				= PerChannelBias;
+		PassParameters->DebugFlags					= GNiagaraGpuComputeDebug_ShowNaNInf != 0 ? 1 : 0;
+		PassParameters->TickCounter					= TickCounter;
+		PassParameters->TextureSlice				= iSlice;
+		PassParameters->Texture2DObject				= Texture;
+		PassParameters->Texture2DArrayObject		= Texture;
+		PassParameters->Texture3DObject				= Texture;
+		PassParameters->TextureCubeObject			= Texture;
+		PassParameters->TextureSampler				= TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->RenderTargets[0]			= Output.GetRenderTargetBinding();
 
 		const float OffsetX = float(iSlice) * DisplaySize.X + 1;
 

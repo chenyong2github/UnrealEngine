@@ -23,6 +23,7 @@ struct FRDGSystemTextures
 	FRDGTextureRef White{};
 	FRDGTextureRef Black{};
 	FRDGTextureRef BlackAlphaOne{};
+	FRDGTextureRef BlackArray{};
 	FRDGTextureRef MaxFP16Depth{};
 	FRDGTextureRef DepthDummy{};
 	FRDGTextureRef StencilDummy{};
@@ -33,6 +34,8 @@ struct FRDGSystemTextures
 	FRDGTextureRef VolumetricBlack{};
 	FRDGTextureRef VolumetricBlackAlphaOne{};
 	FRDGTextureRef VolumetricBlackUint{};
+	FRDGTextureRef CubeBlack{};
+	FRDGTextureRef CubeArrayBlack{};
 
 	FRDGTextureSRVRef StencilDummySRV{};
 };
@@ -139,7 +142,11 @@ public:
 	TRefCountPtr<IPooledRenderTarget> VolumetricBlackDummy;
 	TRefCountPtr<IPooledRenderTarget> VolumetricBlackAlphaOneDummy;
 	TRefCountPtr<IPooledRenderTarget> VolumetricBlackUintDummy;
-	
+
+	/** float4(0,0,0,0) cube textures. */
+	TRefCountPtr<IPooledRenderTarget> CubeBlackDummy;
+	TRefCountPtr<IPooledRenderTarget> CubeArrayBlackDummy;
+
 	// Dummy 0 Uint texture for RHIs that need explicit overloads
 	TRefCountPtr<IPooledRenderTarget> ZeroUIntDummy;
 	// Dummy 0 Uint texture for RHIs that need explicit overloads
@@ -169,6 +176,8 @@ public:
 	FRDGTextureRef RENDERER_API GetMidGreyDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef RENDERER_API GetVolumetricBlackDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef RENDERER_API GetVolumetricBlackUintDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetCubeBlackDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetCubeArrayBlackDummy(FRDGBuilder& GraphBuilder) const;
 
 	// Create default 2D texture (1x1) with specific format and initialize value 
 	FRDGTextureRef RENDERER_API GetDefaultTexture2D(FRDGBuilder& GraphBuilder, EPixelFormat Format, float Value);

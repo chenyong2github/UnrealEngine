@@ -210,6 +210,7 @@ struct NIAGARASHADER_API FNiagaraDataInterfaceGPUParamInfo
 	UPROPERTY()
 	FString DIClassName;
 
+	/** The offset for any shader parameters, when this member is INDEX_NONE we are in legacy mode for the data interface. */
 	UPROPERTY()
 	uint32 ShaderParametersOffset = INDEX_NONE;
 

@@ -450,9 +450,6 @@ void FNDIGeometryCollectionProxy::PreStage(FRHICommandList& RHICmdList, const FN
 	}
 }
 
-void FNDIGeometryCollectionProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
-{}
-
 //------------------------------------------------------------------------------------------------------------
 
 UNiagaraDataInterfaceGeometryCollection::UNiagaraDataInterfaceGeometryCollection(FObjectInitializer const& ObjectInitializer)

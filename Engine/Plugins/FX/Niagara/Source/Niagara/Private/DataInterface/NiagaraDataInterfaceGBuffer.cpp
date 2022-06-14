@@ -17,7 +17,7 @@
 namespace NiagaraDataInterfaceGBufferLocal
 {
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
-		SHADER_PARAMETER_TEXTURE(Texture2D, VelocityTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -173,16 +173,21 @@ void UNiagaraDataInterfaceGBuffer::BuildShaderParameters(FNiagaraShaderParameter
 
 void UNiagaraDataInterfaceGBuffer::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
 {
-	FRHITexture* VelocityTexture = GBlackTexture->TextureRHI;
-
-	if (FNiagaraSceneTextureParameters* NiagaraSceneTextures = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetNiagaraSceneTextures())	//-BATCHERTODO:
+	FRDGTextureRef VelocityTexture = nullptr;
+	NiagaraDataInterfaceGBufferLocal::FShaderParameters* Parameters = Context.GetParameterNestedStruct<NiagaraDataInterfaceGBufferLocal::FShaderParameters>();
+	if (Context.IsResourceBound(&Parameters->VelocityTexture))
 	{
-		if (FRDGTexture* VelocityRDGTexture = NiagaraSceneTextures->Velocity.GetTexture())
+		if (FNiagaraSceneTextureParameters* NiagaraSceneTextures = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetNiagaraSceneTextures())	//-BATCHERTODO:
 		{
-			VelocityTexture = VelocityRDGTexture->GetRHI();
+			VelocityTexture = NiagaraSceneTextures->Velocity.GetTexture();
+		}
+
+		if (VelocityTexture == nullptr)
+		{
+			VelocityTexture = Context.GetComputeDispatchInterface().GetBlackTexture(Context.GetGraphBuilder(), ETextureDimension::Texture2D);
 		}
 	}
-	NiagaraDataInterfaceGBufferLocal::FShaderParameters* Parameters = Context.GetParameterNestedStruct<NiagaraDataInterfaceGBufferLocal::FShaderParameters>();
+
 	Parameters->VelocityTexture = VelocityTexture;
 	Parameters->VelocityTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 }

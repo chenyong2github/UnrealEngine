@@ -34,10 +34,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNDIGrid3DShaderParameters, )
 	SHADER_PARAMETER(FVector3f,						UnitClampMax)
 	SHADER_PARAMETER(FVector3f,						WorldBBoxSize)
 
-	SHADER_PARAMETER_SRV(Texture3D<float>,			Grid)
-	SHADER_PARAMETER_SAMPLER(SamplerState,			GridSampler)
-	SHADER_PARAMETER_UAV(RWTexture3D<float>,		OutputGrid)
-	SHADER_PARAMETER_SRV(Buffer<float4>,			PerAttributeData)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture3D<float>,		Grid)
+	SHADER_PARAMETER_SAMPLER(SamplerState,					GridSampler)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>,	OutputGrid)
+	SHADER_PARAMETER_SRV(Buffer<float4>,					PerAttributeData)
 END_SHADER_PARAMETER_STRUCT()
 
 const FString UNiagaraDataInterfaceGrid3DCollection::NumTilesName(TEXT("_NumTiles"));
@@ -1798,6 +1798,8 @@ void UNiagaraDataInterfaceGrid3DCollection::SetShaderParameters(const FNiagaraDa
 	// Set parameters
 	const FVector3f HalfPixelOffset = FVector3f(0.5f / ProxyData->NumCells.X, 0.5f / ProxyData->NumCells.Y, 0.5f / ProxyData->NumCells.Z);
 
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+
 	FNDIGrid3DShaderParameters* Parameters = Context.GetParameterNestedStruct<FNDIGrid3DShaderParameters>();
 	Parameters->NumAttributes		= ProxyData->TotalNumAttributes;
 	Parameters->NumNamedAttributes	= ProxyData->TotalNumNamedAttributes;
@@ -1810,18 +1812,28 @@ void UNiagaraDataInterfaceGrid3DCollection::SetShaderParameters(const FNiagaraDa
 	Parameters->UnitClampMax		= FVector3f::OneVector - HalfPixelOffset;
 	Parameters->WorldBBoxSize		= FVector3f(ProxyData->WorldBBoxSize);
 
-	Parameters->Grid = ProxyData->CurrentData ? ProxyData->CurrentData->GridBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyTextureReadBuffer3D();
+	if (Context.IsResourceBound(&Parameters->Grid))
+	{
+		if (ProxyData->CurrentData)
+		{
+			Parameters->Grid = ProxyData->CurrentData->GetOrCreateSRV(GraphBuilder);
+		}
+		else
+		{
+			Parameters->Grid = Context.GetComputeDispatchInterface().GetBlackTextureSRV(GraphBuilder, ETextureDimension::Texture3D);
+		}
+	}
 	Parameters->GridSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	if (Context.IsResourceBound(&Parameters->OutputGrid))
 	{
 		if (Context.IsOutputStage() && ProxyData->DestinationData)
 		{
-			Parameters->OutputGrid = ProxyData->DestinationData->GridBuffer.UAV;
+			Parameters->OutputGrid = ProxyData->DestinationData->GetOrCreateUAV(GraphBuilder);
 		}
 		else
 		{
-			Parameters->OutputGrid = Context.GetComputeDispatchInterface().GetEmptyUAVFromPool(Context.GetRHICmdList(), PF_R32_FLOAT, ENiagaraEmptyUAVType::Texture3D);
+			Parameters->OutputGrid = Context.GetComputeDispatchInterface().GetEmptyTextureUAV(GraphBuilder, PF_R32_FLOAT, ETextureDimension::Texture3D);
 		}
 	}
 	Parameters->PerAttributeData = ProxyData->PerAttributeData.SRV;
@@ -2907,40 +2919,57 @@ bool FGrid3DCollectionRWInstanceData_GameThread::UpdateTargetTexture(ENiagaraGpu
 	return false;
 }
 
-void FGrid3DCollectionRWInstanceData_RenderThread::BeginSimulate(FRHICommandList& RHICmdList)
+void FGrid3DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& GraphBuilder)
 {
-	for (TUniquePtr<FGrid3DBuffer>& Buffer : Buffers)
+	for (FGrid3DBuffer& Buffer : Buffers)
 	{
 		check(Buffer.IsValid());
-		if (Buffer.Get() != CurrentData)
+		if (&Buffer != CurrentData)
 		{
-			DestinationData = Buffer.Get();
+			DestinationData = &Buffer;
 			break;
 		}
 	}
 
 	if (DestinationData == nullptr)
 	{
-		DestinationData = new FGrid3DBuffer(NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, NumCells.Z * NumTiles.Z, PixelFormat);
-		RHICmdList.Transition(FRHITransitionInfo(DestinationData->GridBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-		Buffers.Emplace(DestinationData);
+		DestinationData = &Buffers.AddDefaulted_GetRef();
+
+		const FIntVector TextureSize(NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, NumCells.Z * NumTiles.Z);
+		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create3D(TextureSize, PixelFormat, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+		DestinationData->Initialize(GraphBuilder, TEXT("FGrid3DBuffer"), TextureDesc);
 	}
 }
 
-void FGrid3DCollectionRWInstanceData_RenderThread::EndSimulate(FRHICommandList& RHICmdList)
+void FGrid3DCollectionRWInstanceData_RenderThread::EndSimulate()
 {
 	CurrentData = DestinationData;
 	DestinationData = nullptr;
 }
 
-void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
+void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::ResetData(const FNDIGpuComputeResetContext& Context)
 {
-	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-
-	// #todo(dmp): Context doesnt need to specify if a stage is output or not since we moved pre/post stage to the DI itself.  Not sure which design is better for the future
-	if (Context.IsOutputStage)
+	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
+	if (!ProxyData)
 	{
-		ProxyData->BeginSimulate(RHICmdList);
+		return;
+	}
+
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+	for (FGrid3DBuffer& Buffer : ProxyData->Buffers)
+	{
+		AddClearUAVPass(GraphBuilder, Buffer.GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
+	}
+}
+
+void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(const FNDIGpuComputePreStageContext& Context)
+{
+	// #todo(dmp): Context doesnt need to specify if a stage is output or not since we moved pre/post stage to the DI itself.  Not sure which design is better for the future
+	if (Context.IsOutputStage())
+	{
+		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
+		FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+		ProxyData->BeginSimulate(GraphBuilder);
 
 		// If we don't have an iteration stage, then we should manually clear the buffer to make sure there is no residual data.  If we are doing something like rasterizing particles into a grid, we want it to be clear before
 		// we start.  If a user wants to access data from the previous stage, then they can read from the current data.
@@ -2950,13 +2979,12 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 
 		// #todo(dmp): for now, if there is an output DI that is NOT an iteration DI AND if both the iteration DI and this DI have the same total number of instances, do not do the UAV clear prior to the stage.
 		// this isn't optimal, but should work to some degree to reduce overhead in cases where we have multiple grids of the same resolution being processed/written to in 1 stage
-		FNiagaraDataInterfaceProxyRW* IterationInterface = Context.SimStageData->AlternateIterationSource;
-		RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
-		if (!Context.IsIterationStage)
+		if (!Context.IsIterationStage())
 		{
+			FNiagaraDataInterfaceProxyRW* IterationInterface = Context.GetSimStageData().AlternateIterationSource;
 			if (IterationInterface != nullptr)
 			{
-				const FIntVector ElementCount = IterationInterface->GetElementCount(Context.SystemInstanceID);
+				const FIntVector ElementCount = IterationInterface->GetElementCount(Context.GetSystemInstanceID());
 				const uint64 TotalNumInstances = ElementCount.X * ElementCount.Y * ElementCount.Z;
 
 				if (ElementCount.X == ProxyData->NumCells.X && ElementCount.Y == ProxyData->NumCells.Y && ElementCount.Z == ProxyData->NumCells.Z)
@@ -2965,99 +2993,65 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 				}
 			}
 
-			check(ProxyData->DestinationData);
-			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4f(ForceInitToZero));
-			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+			AddClearUAVPass(GraphBuilder, ProxyData->DestinationData->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
 		}
 	}
 }
 
-void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
+void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostStage(const FNDIGpuComputePostStageContext& Context)
 {
-	if (Context.IsOutputStage)
+	if (Context.IsOutputStage())
 	{
-		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-		RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-		ProxyData->EndSimulate(RHICmdList);
+		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
+		ProxyData->EndSimulate();
 	}
 }
 
-void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
+void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(const FNDIGpuComputePostSimulateContext& Context)
 {
-	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
+	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
 
-	if (ProxyData->RenderTargetToCopyTo != nullptr && ProxyData->CurrentData != nullptr && ProxyData->CurrentData->GridBuffer.Buffer != nullptr)
+	if (ProxyData->RenderTargetToCopyTo != nullptr && ProxyData->CurrentData != nullptr && ProxyData->CurrentData->IsValid())
 	{
-		FRHITexture* Source = ProxyData->CurrentData->GridBuffer.Buffer;
-		FRHITexture* Destination = ProxyData->RenderTargetToCopyTo;
-
-		RHICmdList.Transition(
-			{
-				FRHITransitionInfo(Source, ERHIAccess::SRVMask, ERHIAccess::CopySrc),
-				FRHITransitionInfo(Destination, ERHIAccess::SRVMask, ERHIAccess::CopyDest)
-			}
-		);
-
-		FRHICopyTextureInfo CopyInfo;
-		RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->RenderTargetToCopyTo, CopyInfo);
-
-		RHICmdList.Transition(
-			{
-				FRHITransitionInfo(Source, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
-				FRHITransitionInfo(Destination, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
-			}
-		);
+		ProxyData->CurrentData->CopyToTexture(Context.GetGraphBuilder(), ProxyData->RenderTargetToCopyTo, TEXT("NiagaraRenderTargetToCopyTo"));
 	}
 
 #if WITH_EDITOR
-	if (ProxyData->bPreviewGrid && ProxyData->CurrentData)
+	if (ProxyData->bPreviewGrid && ProxyData->CurrentData && ProxyData->CurrentData->IsValid())
 	{
-		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.ComputeDispatchInterface->GetGpuComputeDebug())
+		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.GetComputeDispatchInterface().GetGpuComputeDebug())
 		{
-				if (ProxyData->PreviewAttribute[0] != INDEX_NONE)
+			FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+			if (ProxyData->PreviewAttribute[0] != INDEX_NONE)
 			{
-
-				FIntVector4 TotalNumAttributeVector = FIntVector4(ProxyData->NumTiles.X, ProxyData->NumTiles.Y, ProxyData->NumTiles.Z, 0);
-				GpuComputeDebug->AddAttributeTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, ProxyData->CurrentData->GridBuffer.Buffer, TotalNumAttributeVector, ProxyData->PreviewAttribute);
+				const FIntVector4 TotalNumAttributeVector = FIntVector4(ProxyData->NumTiles.X, ProxyData->NumTiles.Y, ProxyData->NumTiles.Z, 0);
+				GpuComputeDebug->AddAttributeTexture(GraphBuilder, Context.GetSystemInstanceID(), SourceDIName, ProxyData->CurrentData->GetOrCreateTexture(GraphBuilder), TotalNumAttributeVector, ProxyData->PreviewAttribute);
 			}
 			else
 			{
-				GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, ProxyData->CurrentData->GridBuffer.Buffer);
+				GpuComputeDebug->AddTexture(GraphBuilder, Context.GetSystemInstanceID(), SourceDIName, ProxyData->CurrentData->GetOrCreateTexture(GraphBuilder));
 			}
 		}
 	}
 #endif
-}
 
-void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
-{
-	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-	if (!ProxyData)
+	// Clear out the transient resource we cached
+	if (Context.IsFinalPostSimulate())
 	{
-		return;
-	}
-
-	for (TUniquePtr<FGrid3DBuffer>& Buffer : ProxyData->Buffers)
-	{
-		if (Buffer.IsValid())
+		for (FGrid3DBuffer& Buffer : ProxyData->Buffers)
 		{
-			ERHIAccess AccessAfter;
-			const bool bIsDestination = (ProxyData->DestinationData == Buffer.Get());
-			if (bIsDestination)
-			{
-				// The destination buffer is already in UAVCompute because PreStage() runs first. It must stay in UAVCompute after the clear
-				// because the shader is going to use it.
-				AccessAfter = ERHIAccess::UAVCompute;
-			}
-			else
-			{
-				// The other buffers are in SRVMask and must be returned to that state after the clear.
-				RHICmdList.Transition(FRHITransitionInfo(Buffer->GridBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
-				AccessAfter = ERHIAccess::SRVMask;
-			}
+			Buffer.EndGraphUsage();
+		}
 
-			RHICmdList.ClearUAVFloat(Buffer->GridBuffer.UAV, FVector4f(ForceInitToZero));
-			RHICmdList.Transition(FRHITransitionInfo(Buffer->GridBuffer.UAV, ERHIAccess::UAVCompute, AccessAfter));
+		// Readers point to data not owned by themselves so can be caching resources on the 'other' proxy
+		// Therefore we need to ensure the transient buffers are correctly cleared
+		if (FNiagaraDataInterfaceProxyGrid3DCollectionProxy* OtherGrid3DProxy = static_cast<FNiagaraDataInterfaceProxyGrid3DCollectionProxy*>(ProxyData->OtherProxy))
+		{
+			FGrid3DCollectionRWInstanceData_RenderThread& OtherProxyData = OtherGrid3DProxy->SystemInstancesToProxyData_RT.FindChecked(Context.GetSystemInstanceID());
+			for (FGrid3DBuffer& Buffer : OtherProxyData.Buffers)
+			{
+				Buffer.EndGraphUsage();
+			}
 		}
 	}
 }

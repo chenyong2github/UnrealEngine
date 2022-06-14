@@ -17,7 +17,7 @@ class NIAGARA_API UNiagaraDataInterfaceVolumeTexture : public UNiagaraDataInterf
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
 		SHADER_PARAMETER(FVector3f,				TextureSize)
-		SHADER_PARAMETER_TEXTURE(Texture3D,		Texture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D,		Texture)
 		SHADER_PARAMETER_SAMPLER(SamplerState,	TextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
 

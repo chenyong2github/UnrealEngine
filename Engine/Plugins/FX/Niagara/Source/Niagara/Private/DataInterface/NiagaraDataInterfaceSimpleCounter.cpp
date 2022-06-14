@@ -50,53 +50,72 @@ struct FNDISimpleCounterProxy : public FNiagaraDataInterfaceProxy
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override {}
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
 
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
+	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override
 	{
-		if (FNDISimpleCounterInstanceData_RenderThread* InstanceData = PerInstanceData_RenderThread.Find(Context.SystemInstanceID) )
+		if (FNDISimpleCounterInstanceData_RenderThread* InstanceData = PerInstanceData_RenderThread.Find(Context.GetSystemInstanceID()) )
 		{
 			if ( InstanceData->CountValue.IsSet() )
 			{
 				//-OPT: We could push this into the count manager and batch set as part of the clear process
-				const FNiagaraGPUInstanceCountManager& CounterManager = Context.ComputeDispatchInterface->GetGPUInstanceCounterManager();
+				const FNiagaraGPUInstanceCountManager& CounterManager = Context.GetComputeDispatchInterface().GetGPUInstanceCounterManager();
 				const FRWBuffer& CountBuffer = CounterManager.GetInstanceCountBuffer();
 
-				const TPair<uint32, int32> DataToClear(InstanceData->CountOffset, InstanceData->CountValue.GetValue());
-				RHICmdList.Transition(FRHITransitionInfo(CountBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-				NiagaraClearCounts::ClearCountsInt(RHICmdList, CountBuffer.UAV, MakeArrayView(&DataToClear, 1) );
-				RHICmdList.Transition(FRHITransitionInfo(CountBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+				//-TODO:RDG: Once the count buffer is a graph resource this can be changed
+				AddPass(
+					Context.GetGraphBuilder(),
+					RDG_EVENT_NAME("NiagaraSimpleCounter::PreStage"),
+					[CountBufferUAV=CountBuffer.UAV, CountOffset=InstanceData->CountOffset, CountValue=InstanceData->CountValue.GetValue()](FRHICommandListImmediate& RHICmdList)
+					{
+						const TPair<uint32, int32> DataToClear(CountOffset, CountValue);
+						RHICmdList.Transition(FRHITransitionInfo(CountBufferUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+						NiagaraClearCounts::ClearCountsInt(RHICmdList, CountBufferUAV, MakeArrayView(&DataToClear, 1) );
+						RHICmdList.Transition(FRHITransitionInfo(CountBufferUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+					}
+				);
+
 				InstanceData->CountValue.Reset();
 			}
 		}
 	}
 
-	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override
 	{
-		if (FNiagaraUtilities::ShouldSyncGpuToCpu(GpuSyncMode))
+		if (FNiagaraUtilities::ShouldSyncGpuToCpu(GpuSyncMode) && Context.IsFinalPostSimulate())
 		{
-			if (FNDISimpleCounterInstanceData_RenderThread* InstanceData = PerInstanceData_RenderThread.Find(Context.SystemInstanceID))
+			FNiagaraSystemInstanceID SystemInstanceID = Context.GetSystemInstanceID();
+			if (FNDISimpleCounterInstanceData_RenderThread* InstanceData = PerInstanceData_RenderThread.Find(SystemInstanceID))
 			{
-				const FNiagaraGPUInstanceCountManager& CountManager = Context.ComputeDispatchInterface->GetGPUInstanceCounterManager();
-				FNiagaraGpuReadbackManager* ReadbackManager = Context.ComputeDispatchInterface->GetGpuReadbackManager();
-				ReadbackManager->EnqueueReadback(
-					RHICmdList,
-					CountManager.GetInstanceCountBuffer().Buffer,
-					InstanceData->CountOffset * sizeof(uint32), sizeof(uint32),
-					[SystemInstanceID=Context.SystemInstanceID, WeakOwner=WeakOwner, Proxy=this](TConstArrayView<TPair<void*, uint32>> ReadbackData)
+				//-TODO:RDG: This should be done using the graph builder
+				const FNiagaraGPUInstanceCountManager& CountManager = Context.GetComputeDispatchInterface().GetGPUInstanceCounterManager();
+				FNiagaraGpuReadbackManager* ReadbackManager = Context.GetComputeDispatchInterface().GetGpuReadbackManager();
+
+				AddPass(
+					Context.GetGraphBuilder(),
+					RDG_EVENT_NAME("NiagaraSimpleCounter::PostStage"),
+					[InstanceData, SystemInstanceID, ReadbackManager, CountBuffer=CountManager.GetInstanceCountBuffer().Buffer, Proxy=this](FRHICommandListImmediate& RHICmdList)
 					{
-						const int32 CounterValue = *reinterpret_cast<const int32*>(ReadbackData[0].Key);
-						AsyncTask(
-							ENamedThreads::GameThread,
-							[SystemInstanceID, CounterValue, WeakOwner, Proxy]()
+						ReadbackManager->EnqueueReadback(
+							RHICmdList,
+							CountBuffer,
+							InstanceData->CountOffset * sizeof(uint32), sizeof(uint32),
+							[SystemInstanceID, WeakOwner=Proxy->WeakOwner, Proxy](TConstArrayView<TPair<void*, uint32>> ReadbackData)
 							{
-								// FNiagaraDataInterfaceProxy do not outlive UNiagaraDataInterface so if our Object is valid so is the proxy
-								// Equally because we do not share instance IDs (monotonically increasing number) we won't ever stomp something that has 'gone away'
-								if ( WeakOwner.Get() )
-								{
-									if ( FNDISimpleCounterInstanceData_GameThread* InstanceData_GT = Proxy->PerInstanceData_GameThread.FindRef(SystemInstanceID) )
+								const int32 CounterValue = *reinterpret_cast<const int32*>(ReadbackData[0].Key);
+								AsyncTask(
+									ENamedThreads::GameThread,
+									[SystemInstanceID, CounterValue, WeakOwner, Proxy]()
 									{
-										InstanceData_GT->Counter = CounterValue;
+										// FNiagaraDataInterfaceProxy do not outlive UNiagaraDataInterface so if our Object is valid so is the proxy
+										// Equally because we do not share instance IDs (monotonically increasing number) we won't ever stomp something that has 'gone away'
+										if ( WeakOwner.Get() )
+										{
+											if ( FNDISimpleCounterInstanceData_GameThread* InstanceData_GT = Proxy->PerInstanceData_GameThread.FindRef(SystemInstanceID) )
+											{
+												InstanceData_GT->Counter = CounterValue;
+											}
+										}
 									}
-								}
+								);
 							}
 						);
 					}

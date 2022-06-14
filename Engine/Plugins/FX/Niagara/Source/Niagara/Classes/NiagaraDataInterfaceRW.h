@@ -28,8 +28,6 @@ public:
 	// The dispatch will use the CPU count, which is potentially an over-estimation, and the value inside the buffer will be used to clip instances that are not valid
 	virtual uint32 GetGPUInstanceCountOffset(FNiagaraSystemInstanceID SystemInstanceID) const { return INDEX_NONE; }
 
-	virtual void ClearBuffers(FRHICommandList& RHICmdList) {}
-
 	virtual FNiagaraDataInterfaceProxyRW* AsIterationProxy() override { return this; }
 };
 

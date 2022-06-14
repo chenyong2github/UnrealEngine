@@ -17,7 +17,7 @@ class NIAGARA_API UNiagaraDataInterfaceCubeTexture : public UNiagaraDataInterfac
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
 		SHADER_PARAMETER(FIntPoint,				TextureSize)
-		SHADER_PARAMETER_TEXTURE(TextureCube,	Texture)
+		SHADER_PARAMETER_RDG_TEXTURE(TextureCube,	Texture)
 		SHADER_PARAMETER_SAMPLER(SamplerState,	TextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
 

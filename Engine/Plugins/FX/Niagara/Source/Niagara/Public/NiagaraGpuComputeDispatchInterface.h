@@ -7,6 +7,9 @@
 #include "NiagaraGPUInstanceCountManager.h"
 #include "FXSystem.h"
 
+class RENDERCORE_API FRDGBuilder;
+class FRDGExternalAccessQueue;
+
 class FNiagaraAsyncGpuTraceHelper;
 struct FNiagaraComputeExecutionContext;
 class FNiagaraGpuComputeDebug;
@@ -66,10 +69,27 @@ public:
 	FNiagaraGpuReadbackManager* GetGpuReadbackManager() const { return GpuReadbackManagerPtr.Get(); }
 
 	/** Get access to Niagara's GpuReadbackManager. */
+	//UE_DEPRECATED(5.1, "The UAV Pool will be removed, please update your code to support RenderGraph.")
 	FNiagaraEmptyUAVPool* GetEmptyUAVPool() const { return EmptyUAVPoolPtr.Get(); }
 
-	/** Convenience wrapped to get a UAV from the poo. */
+	/** Convenience wrapper to get a UAV from the pool. */
+	//UE_DEPRECATED(5.1, "The UAV Pool will be removed, please update your code to support RenderGraph.")
 	FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, ENiagaraEmptyUAVType Type) const { return EmptyUAVPoolPtr->GetEmptyUAVFromPool(RHICmdList, Format, Type); }
+
+	/** Helper function to return an RDG Texture where the texture contains 0 for all channels. */
+	FRDGTextureRef GetBlackTexture(FRDGBuilder& GraphBuilder, ETextureDimension TextureDimension) const;
+
+	/** Helper function to return a RDG Texture SRV where the texture contains 0 for all channels. */
+	FRDGTextureSRVRef GetBlackTextureSRV(FRDGBuilder& GraphBuilder, ETextureDimension TextureDimension) const;
+
+	/** Helper function to return a RDG Texture UAV you don't care about the contents of or the results, i.e. to use as a dummy binding. */
+	FRDGTextureUAVRef GetEmptyTextureUAV(FRDGBuilder& GraphBuilder, EPixelFormat Format, ETextureDimension TextureDimension) const;
+
+	/** Helper function to return a Buffer UAV you don't care about the contents of or the results, i.e. to use as a dummy binding. */
+	FRDGBufferUAVRef GetEmptyBufferUAV(FRDGBuilder& GraphBuilder, EPixelFormat Format) const;
+
+	/** Helper function to return a Buffer SRV which will contain 1 element of 0 value, i.e. to use as a dummy binding. */
+	FRDGBufferSRVRef GetEmptyBufferSRV(FRDGBuilder& GraphBuilder, EPixelFormat Format) const;
 
 	/**
 	Call this to force all pending ticks to be flushed from the batcher.

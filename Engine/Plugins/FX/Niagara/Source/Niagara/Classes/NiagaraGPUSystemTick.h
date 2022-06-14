@@ -7,6 +7,9 @@
 
 struct FNiagaraComputeDataInterfaceInstanceData
 {
+	UE_NONCOPYABLE(FNiagaraComputeDataInterfaceInstanceData);
+	FNiagaraComputeDataInterfaceInstanceData() {}
+
 	void* PerInstanceDataForRT = nullptr;
 	TMap<FNiagaraDataInterfaceProxy*, int32> InterfaceProxiesToOffsets;
 	uint32 PerInstanceDataSize = 0;
@@ -15,6 +18,8 @@ struct FNiagaraComputeDataInterfaceInstanceData
 
 struct FNiagaraComputeInstanceData
 {
+	UE_NONCOPYABLE(FNiagaraComputeInstanceData);
+
 	struct FPerStageInfo
 	{
 		FPerStageInfo() {}

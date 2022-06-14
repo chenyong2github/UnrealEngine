@@ -2,13 +2,13 @@
 
 #include "NiagaraDataInterfaceVolumeTexture.h"
 #include "NiagaraComputeExecutionContext.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Engine/TextureRenderTargetVolume.h"
 #include "Engine/VolumeTexture.h"
-#include "ShaderParameterUtils.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceVolumeTexture"
 
@@ -27,8 +27,9 @@ struct FNDIVolumeTextureInstanceData_RenderThread
 {
 	FSamplerStateRHIRef		SamplerStateRHI;
 	FTextureReferenceRHIRef	TextureReferenceRHI;
-	FTextureRHIRef			ResolvedTextureRHI;
 	FVector3f				TextureSize;
+
+	FRDGTextureRef			TransientRDGTexture = nullptr;
 };
 
 struct FNiagaraDataInterfaceProxyVolumeTexture : public FNiagaraDataInterfaceProxy
@@ -36,26 +37,13 @@ struct FNiagaraDataInterfaceProxyVolumeTexture : public FNiagaraDataInterfacePro
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
 
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override
 	{
-		if (FNDIVolumeTextureInstanceData_RenderThread* InstanceData = InstanceData_RT.Find(Context.SystemInstanceID))
+		if (Context.IsFinalPostSimulate())
 		{
-			// Because the underlying reference can have a switch in flight on the RHI we get the referenced texture
-			// here, ensure it's valid (as it could be queued for delete) and cache until next round.  If we were
-			// to release the reference in PostStage / PostSimulate we still stand a chance the the transition we
-			// queue will be invalid by the time it is processed on the RHI thread.
-			if (Context.SimStageData->bFirstStage && InstanceData->TextureReferenceRHI.IsValid())
+			if (FNDIVolumeTextureInstanceData_RenderThread* InstanceData = InstanceData_RT.Find(Context.GetSystemInstanceID()))
 			{
-				InstanceData->ResolvedTextureRHI = InstanceData->TextureReferenceRHI->GetReferencedTexture();
-				if (InstanceData->ResolvedTextureRHI && !InstanceData->ResolvedTextureRHI->IsValid())
-				{
-					InstanceData->ResolvedTextureRHI = nullptr;
-				}
-			}
-			if (InstanceData->ResolvedTextureRHI)
-			{
-				// Make sure the texture is readable, we don't know where it's coming from.
-				RHICmdList.Transition(FRHITransitionInfo(InstanceData->ResolvedTextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+				InstanceData->TransientRDGTexture = nullptr;
 			}
 		}
 	}
@@ -209,14 +197,15 @@ bool UNiagaraDataInterfaceVolumeTexture::PerInstanceTick(void* PerInstanceData, 
 					if (RT_Texture)
 					{
 						InstanceData.TextureReferenceRHI = RT_Texture->TextureReference.TextureReferenceRHI;
-						InstanceData.SamplerStateRHI = RT_Texture->GetResource() ? RT_Texture->GetResource()->SamplerStateRHI : nullptr;
+						InstanceData.SamplerStateRHI = RT_Texture->GetResource() ? RT_Texture->GetResource()->SamplerStateRHI.GetReference() : TStaticSamplerState<SF_Point>::GetRHI();
+						InstanceData.TextureSize = FVector3f(RT_TextureSize.X, RT_TextureSize.Y, RT_TextureSize.Z);
 					}
 					else
 					{
 						InstanceData.TextureReferenceRHI = nullptr;
 						InstanceData.SamplerStateRHI = nullptr;
+						InstanceData.TextureSize = FVector3f::ZeroVector;
 					}
-					InstanceData.TextureSize = FVector3f(RT_TextureSize.X, RT_TextureSize.Y, RT_TextureSize.Z);
 				}
 			);
 		}
@@ -305,21 +294,39 @@ void UNiagaraDataInterfaceVolumeTexture::BuildShaderParameters(FNiagaraShaderPar
 
 void UNiagaraDataInterfaceVolumeTexture::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
 {
-	const FNiagaraDataInterfaceProxyVolumeTexture& TextureProxy = Context.GetProxy<FNiagaraDataInterfaceProxyVolumeTexture>();
-	const FNDIVolumeTextureInstanceData_RenderThread* InstanceData = TextureProxy.InstanceData_RT.Find(Context.GetSystemInstanceID());
+	FNiagaraDataInterfaceProxyVolumeTexture& TextureProxy = Context.GetProxy<FNiagaraDataInterfaceProxyVolumeTexture>();
+	FNDIVolumeTextureInstanceData_RenderThread* InstanceData = TextureProxy.InstanceData_RT.Find(Context.GetSystemInstanceID());
 
 	FShaderParameters* Parameters = Context.GetParameterNestedStruct<FShaderParameters>();
-	if (InstanceData && InstanceData->ResolvedTextureRHI.IsValid())
+	if (InstanceData && InstanceData->TextureReferenceRHI.IsValid())
 	{
-		Parameters->TextureSize		= InstanceData->TextureSize;
-		Parameters->Texture			= InstanceData->ResolvedTextureRHI;
-		Parameters->TextureSampler	= InstanceData->SamplerStateRHI ? InstanceData->SamplerStateRHI : GBlackVolumeTexture->SamplerStateRHI;
+		Parameters->TextureSize = InstanceData->TextureSize;
+		Parameters->TextureSampler = InstanceData->SamplerStateRHI;
+		if (Context.IsResourceBound(&Parameters->Texture))
+		{
+			FRDGTextureRef RDGTexture = InstanceData ? InstanceData->TransientRDGTexture : nullptr;
+			if (InstanceData && RDGTexture == nullptr)
+			{
+				FTextureRHIRef ResolvedTextureRHI = InstanceData->TextureReferenceRHI->GetReferencedTexture();
+				if (ResolvedTextureRHI.IsValid())
+				{
+					InstanceData->TransientRDGTexture = Context.GetGraphBuilder().FindExternalTexture(ResolvedTextureRHI);
+					if (InstanceData->TransientRDGTexture == nullptr)
+					{
+						InstanceData->TransientRDGTexture = Context.GetGraphBuilder().RegisterExternalTexture(CreateRenderTarget(ResolvedTextureRHI, TEXT("NiagaraTextureVolume")));
+					}
+					RDGTexture = InstanceData->TransientRDGTexture;
+				}
+			}
+
+			Parameters->Texture = RDGTexture ? RDGTexture : Context.GetComputeDispatchInterface().GetBlackTexture(Context.GetGraphBuilder(), ETextureDimension::Texture3D);
+		}
 	}
 	else
 	{
-		Parameters->TextureSize		= FVector3f::ZeroVector;
-		Parameters->Texture			= GBlackVolumeTexture->TextureRHI;
-		Parameters->TextureSampler	= GBlackVolumeTexture->SamplerStateRHI;
+		Parameters->TextureSize = FVector3f::ZeroVector;
+		Parameters->TextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		Parameters->Texture = Context.GetComputeDispatchInterface().GetBlackTexture(Context.GetGraphBuilder(), ETextureDimension::Texture3D);
 	}
 }
 

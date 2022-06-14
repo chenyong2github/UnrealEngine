@@ -1,28 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-float4				TextureSizeAndInvSize_{ParameterName};
-RWTexture2D<int>	RWTextureUAV_{ParameterName};
+float4				{ParameterName}_TextureSizeAndInvSize;
+RWTexture2D<int>	{ParameterName}_RWTextureUAV;
 
 void GetValue_{ParameterName}(int X, int Y, out int CurrValue)
 {
-	CurrValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+	CurrValue = {ParameterName}_RWTextureUAV[int2(X, Y)];
 }
 
-void SetValue_{ParameterName}_UEImpureCall(int X, int Y, int Value)
+void SetValue_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int Value)
 {
-	RWTextureUAV_{ParameterName}[int2(X, Y)] = Value;
+	if ( bExecute )
+	{
+		{ParameterName}_RWTextureUAV[int2(X, Y)] = Value;
+	}
 }
 
 void AtomicAdd_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int Amount, out int CurrValue, out int PrevValue)
 {
 	if ( bExecute )
 	{
-		InterlockedAdd(RWTextureUAV_{ParameterName}[int2(X, Y)], Amount, PrevValue);
+		InterlockedAdd({ParameterName}_RWTextureUAV[int2(X, Y)], Amount, PrevValue);
 		CurrValue = PrevValue + Amount;
 	}
 	else
 	{
-		PrevValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+		PrevValue = {ParameterName}_RWTextureUAV[int2(X, Y)];
 		CurrValue = PrevValue;
 	}
 }
@@ -31,11 +34,11 @@ void AtomicCompareAndExchange_{ParameterName}_UEImpureCall(in bool bExecute, int
 {
 	if ( bExecute )
 	{
-		InterlockedCompareExchange(RWTextureUAV_{ParameterName}[int2(X, Y)], ComparisonValue, Value, OriginalValue);
+		InterlockedCompareExchange({ParameterName}_RWTextureUAV[int2(X, Y)], ComparisonValue, Value, OriginalValue);
 	}
 	else
 	{
-		OriginalValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+		OriginalValue = {ParameterName}_RWTextureUAV[int2(X, Y)];
 	}
 }
 
@@ -43,12 +46,12 @@ void AtomicMax_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int 
 {
 	if ( bExecute )
 	{
-		InterlockedMax(RWTextureUAV_{ParameterName}[int2(X, Y)], InValue, PrevValue);
+		InterlockedMax({ParameterName}_RWTextureUAV[int2(X, Y)], InValue, PrevValue);
 		CurrValue = max(PrevValue, InValue);
 	}
 	else
 	{
-		PrevValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+		PrevValue = {ParameterName}_RWTextureUAV[int2(X, Y)];
 		CurrValue = PrevValue;
 	}
 }
@@ -57,30 +60,40 @@ void AtomicMin_{ParameterName}_UEImpureCall(in bool bExecute, int X, int Y, int 
 {
 	if ( bExecute )
 	{
-		InterlockedMin(RWTextureUAV_{ParameterName}[int2(X, Y)], InValue, PrevValue);
+		InterlockedMin({ParameterName}_RWTextureUAV[int2(X, Y)], InValue, PrevValue);
 		CurrValue = min(PrevValue, InValue);
 	}
 	else
 	{
-		PrevValue = RWTextureUAV_{ParameterName}[int2(X, Y)];
+		PrevValue = {ParameterName}_RWTextureUAV[int2(X, Y)];
 		CurrValue = PrevValue;
 	}
 }
 
 void GetRenderTargetSize_{ParameterName}(out int Width, out int Height)
 {
-	Width = int(TextureSizeAndInvSize_{ParameterName}.x);
-	Height = int(TextureSizeAndInvSize_{ParameterName}.y);
+	Width = int({ParameterName}_TextureSizeAndInvSize.x);
+	Height = int({ParameterName}_TextureSizeAndInvSize.y);
 }
 
 void LinearToIndex_{ParameterName}(int Linear, out int X, out int Y)
 {
-	X = Linear % int(TextureSizeAndInvSize_{ParameterName}.x);
-	Y = Linear / int(TextureSizeAndInvSize_{ParameterName}.x);
+	X = int(uint(Linear) % uint({ParameterName}_TextureSizeAndInvSize.x));
+	Y = int(uint(Linear) / uint({ParameterName}_TextureSizeAndInvSize.x));
 }
 
 void LinearToUV_{ParameterName}(int Linear, out float2 UV)
 {
-	UV.x = (float(Linear % int(TextureSizeAndInvSize_{ParameterName}.x)) + 0.5f) * TextureSizeAndInvSize_{ParameterName}.z;
-	UV.y = (float(Linear / int(TextureSizeAndInvSize_{ParameterName}.x)) + 0.5f) * TextureSizeAndInvSize_{ParameterName}.w;
+	UV.x = (float(uint(Linear) % uint({ParameterName}_TextureSizeAndInvSize.x)) + 0.5f) * {ParameterName}_TextureSizeAndInvSize.z;
+	UV.y = (float(uint(Linear) / uint({ParameterName}_TextureSizeAndInvSize.x)) + 0.5f) * {ParameterName}_TextureSizeAndInvSize.w;
+}
+
+void ExecToIndex_{ParameterName}(out int X, out int Y)
+{
+	LinearToIndex_{ParameterName}(ExecIndex(), X, Y);
+}
+
+void ExecToUV_{ParameterName}(out float2 UV)
+{
+	LinearToUV_{ParameterName}(ExecIndex(), UV);
 }

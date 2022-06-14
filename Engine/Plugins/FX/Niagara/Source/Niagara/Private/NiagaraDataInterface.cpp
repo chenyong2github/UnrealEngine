@@ -6,6 +6,7 @@
 #include "NiagaraTypes.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraGPUSystemTick.h"
+#include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraShader.h"
 #include "NiagaraComponent.h"
 #include "ShaderCompilerCore.h"
@@ -221,6 +222,38 @@ FSimpleMulticastDelegate& UNiagaraDataInterface::OnErrorsRefreshed()
 
 #endif
 
+FRDGExternalAccessQueue& FNDIGpuComputeContext::GetRDGExternalAccessQueue() const
+{
+	return static_cast<const FNiagaraGpuComputeDispatch&>(ComputeDispatchInterface).GetCurrentPassExternalAccessQueue();
+}
+
+FNiagaraSystemInstanceID FNDIGpuComputePrePostStageContext::GetSystemInstanceID() const
+{
+	return SystemTick.SystemInstanceID;
+}
+
+FVector3f FNDIGpuComputePrePostStageContext::GetSystemLWCTile() const
+{
+	return SystemTick.SystemGpuComputeProxy->GetSystemLWCTile();
+}
+
+bool FNDIGpuComputePrePostStageContext::IsOutputStage() const
+{
+	check(DataInterfaceProxy);
+	return ComputeInstanceData.IsOutputStage(DataInterfaceProxy, SimStageData.StageIndex);
+}
+
+bool FNDIGpuComputePrePostStageContext::IsIterationStage() const
+{
+	check(DataInterfaceProxy);
+	return ComputeInstanceData.IsIterationStage(DataInterfaceProxy, SimStageData.StageIndex);
+}
+
+FRDGExternalAccessQueue& FNiagaraDataInterfaceSetShaderParametersContext::GetRDGExternalAccessQueue() const
+{
+	return static_cast<const FNiagaraGpuComputeDispatch&>(ComputeDispatchInterface).GetCurrentPassExternalAccessQueue();
+}
+
 FNiagaraSystemInstanceID FNiagaraDataInterfaceSetShaderParametersContext::GetSystemInstanceID() const
 {
 	return SystemTick.SystemInstanceID;
@@ -232,6 +265,25 @@ bool FNiagaraDataInterfaceSetShaderParametersContext::IsResourceBound(const void
 	for (const FShaderParameterBindings::FResourceParameter& ResourceParameter : ShaderRef->Bindings.ResourceParameters)
 	{
 		if ( ResourceParameter.ByteOffset == ByteOffset )
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FNiagaraDataInterfaceSetShaderParametersContext::IsParameterBound(const void* ParameterAddress) const
+{
+	const uint16 ByteOffset = uint16(uintptr_t(ParameterAddress) - uintptr_t(BaseParameters));
+	for (const FShaderParameterBindings::FParameter& Parameter : ShaderRef->Bindings.Parameters)
+	{
+		if (Parameter.ByteOffset > ByteOffset)
+		{
+			return false;
+		}
+
+		const uint16 Delta = ByteOffset - Parameter.ByteOffset;
+		if (Delta < Parameter.ByteSize)
 		{
 			return true;
 		}

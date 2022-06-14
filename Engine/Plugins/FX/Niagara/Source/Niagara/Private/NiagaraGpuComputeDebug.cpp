@@ -114,18 +114,18 @@ void FNiagaraGpuComputeDebug::OnSystemDeallocated(FNiagaraSystemInstanceID Syste
 	DebugDrawBuffers.Remove(SystemInstanceID);
 }
 
-void FNiagaraGpuComputeDebug::AddTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture, FVector2D PreviewDisplayRange)
+void FNiagaraGpuComputeDebug::AddTexture(FRDGBuilder& GraphBuilder, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRDGTextureRef Texture, FVector2D PreviewDisplayRange)
 {
-	AddAttributeTexture(RHICmdList, SystemInstanceID, SourceName, Texture, FIntPoint::ZeroValue, FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE), PreviewDisplayRange);
+	AddAttributeTexture(GraphBuilder, SystemInstanceID, SourceName, Texture, FIntPoint::ZeroValue, FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE), PreviewDisplayRange);
 }
 
-void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture, FIntPoint NumTextureAttributes, FIntVector4 AttributeIndices, FVector2D PreviewDisplayRange)
+void FNiagaraGpuComputeDebug::AddAttributeTexture(FRDGBuilder& GraphBuilder, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRDGTextureRef Texture, FIntPoint NumTextureAttributes, FIntVector4 AttributeIndices, FVector2D PreviewDisplayRange)
 {
 	FIntVector4 TextureAttributesInt4 = FIntVector4(NumTextureAttributes.X, NumTextureAttributes.Y, 0, 0);
-	AddAttributeTexture( RHICmdList, SystemInstanceID, SourceName,  Texture, TextureAttributesInt4, AttributeIndices, PreviewDisplayRange);
+	AddAttributeTexture(GraphBuilder, SystemInstanceID, SourceName, Texture, TextureAttributesInt4, AttributeIndices, PreviewDisplayRange);
 }
 
-void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture, FIntVector4 NumTextureAttributes, FIntVector4 AttributeIndices, FVector2D PreviewDisplayRange)
+void FNiagaraGpuComputeDebug::AddAttributeTexture(FRDGBuilder& GraphBuilder, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRDGTextureRef Texture, FIntVector4 NumTextureAttributes, FIntVector4 AttributeIndices, FVector2D PreviewDisplayRange)
 {
 	if (!SystemInstancesToWatch.Contains(SystemInstanceID))
 	{
@@ -137,12 +137,9 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 		return;
 	}
 
-	const FRHITextureDesc& TextureDesc = Texture->GetDesc();
+	const FRDGTextureDesc& TextureDesc = Texture->Desc;
 
 	bool bCreateTexture = false;
-
-	const FIntVector SrcSize = Texture->GetSizeXYZ();
-	const EPixelFormat SrcFormat = Texture->GetFormat();
 
 	FNiagaraVisualizeTexture* VisualizeEntry = VisualizeTextures.FindByPredicate([&SourceName, &SystemInstanceID](const FNiagaraVisualizeTexture& Texture) -> bool { return Texture.SystemInstanceID == SystemInstanceID && Texture.SourceName == SourceName; });
 	if (!VisualizeEntry)
@@ -154,14 +151,18 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 	}
 	else
 	{
-		bCreateTexture = (VisualizeEntry->Texture->GetSizeXYZ() != SrcSize) || (VisualizeEntry->Texture->GetFormat() != SrcFormat);
+		const FPooledRenderTargetDesc& EntryTextureDesc = VisualizeEntry->Texture->GetDesc();
+		bCreateTexture = 
+			(EntryTextureDesc.GetSize() != TextureDesc.GetSize()) ||
+			(EntryTextureDesc.Format != TextureDesc.Format) ||
+			(EntryTextureDesc.NumMips != TextureDesc.NumMips) ||
+			(EntryTextureDesc.ArraySize != TextureDesc.ArraySize);
 	}
 	VisualizeEntry->NumTextureAttributes = NumTextureAttributes;
 	VisualizeEntry->AttributesToVisualize = AttributeIndices;
 	VisualizeEntry->PreviewDisplayRange = PreviewDisplayRange;
 
 	// Do we need to create a texture to copy into?
-	FTextureRHIRef Destination;
 	if ( bCreateTexture )
 	{
 		// Create a minimal copy of the Texture's Desc
@@ -174,36 +175,14 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 			.SetFlags(ETextureCreateFlags::ShaderResource)
 			.SetInitialState(ERHIAccess::SRVMask);
 
-		Destination = RHICreateTexture(NewTextureDesc);
-		VisualizeEntry->Texture = Destination;
+		VisualizeEntry->Texture = CreateRenderTarget(RHICreateTexture(NewTextureDesc), TEXT("FNiagaraGpuComputeDebug"));
 	}
-	else
-	{
-		Destination = VisualizeEntry->Texture;
-		check(Destination != nullptr);
-	}
-
-	// Copy texture
-	{
-		FRHITransitionInfo TransitionsBefore[] =
-		{
-			FRHITransitionInfo(Texture, ERHIAccess::SRVMask, ERHIAccess::CopySrc),
-			FRHITransitionInfo(Destination, ERHIAccess::SRVMask, ERHIAccess::CopyDest)
-		};
-		RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
-	}
+	check(VisualizeEntry->Texture.IsValid());
 
 	FRHICopyTextureInfo CopyInfo;
-	RHICmdList.CopyTexture(Texture, Destination, CopyInfo);
-
-	{
-		FRHITransitionInfo TransitionsAfter[] =
-		{
-			FRHITransitionInfo(Texture, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
-			FRHITransitionInfo(Destination, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
-		};
-		RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
-	}
+	CopyInfo.NumMips = TextureDesc.NumMips;
+	CopyInfo.NumSlices = TextureDesc.ArraySize;
+	AddCopyTexturePass(GraphBuilder, Texture, GraphBuilder.RegisterExternalTexture(VisualizeEntry->Texture), CopyInfo);
 }
 
 FNiagaraSimulationDebugDrawData* FNiagaraGpuComputeDebug::GetSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID, bool bRequiresGpuBuffers, uint32 OverrideMaxDebugLines)
@@ -256,7 +235,7 @@ bool FNiagaraGpuComputeDebug::ShouldDrawDebug() const
 	return GNiagaraGpuComputeDebug_DrawDebugEnabled && (VisualizeTextures.Num() > 0);
 }
 
-void FNiagaraGpuComputeDebug::DrawDebug(class FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassRenderTarget& Output)
+void FNiagaraGpuComputeDebug::DrawDebug(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassRenderTarget& Output)
 {
 	if (!GNiagaraGpuComputeDebug_DrawDebugEnabled || (VisualizeTextures.Num() == 0))
 	{
@@ -275,7 +254,7 @@ void FNiagaraGpuComputeDebug::DrawDebug(class FRDGBuilder& GraphBuilder, const F
 
 	for (const FNiagaraVisualizeTexture& VisualizeEntry : VisualizeTextures)
 	{
-		FIntVector TextureSize = VisualizeEntry.Texture->GetSizeXYZ();
+		FIntVector TextureSize = VisualizeEntry.Texture->GetDesc().GetSize();
 		if ( VisualizeEntry.NumTextureAttributes.X > 0 )
 		{
 			check(VisualizeEntry.NumTextureAttributes.Y > 0);
@@ -290,7 +269,7 @@ void FNiagaraGpuComputeDebug::DrawDebug(class FRDGBuilder& GraphBuilder, const F
 
 		Location.Y -= DisplayHeight;
 
-		NiagaraDebugShaders::VisualizeTexture(GraphBuilder, View, Output, Location, DisplayHeight, VisualizeEntry.AttributesToVisualize, VisualizeEntry.Texture, VisualizeEntry.NumTextureAttributes, TickCounter, VisualizeEntry.PreviewDisplayRange);
+		NiagaraDebugShaders::VisualizeTexture(GraphBuilder, View, Output, Location, DisplayHeight, VisualizeEntry.AttributesToVisualize, GraphBuilder.RegisterExternalTexture(VisualizeEntry.Texture), VisualizeEntry.NumTextureAttributes, TickCounter, VisualizeEntry.PreviewDisplayRange);
 
 		Location.Y -= FontHeight;
 

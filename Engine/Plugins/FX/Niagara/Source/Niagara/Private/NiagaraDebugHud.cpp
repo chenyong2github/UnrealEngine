@@ -549,12 +549,8 @@ FNiagaraDebugHud::FNiagaraDebugHud(UWorld* World)
 				GpuResults = InGpuResults;
 				GpuResultsGameFrameCounter = GFrameCounter;
 
-				for (const auto& StageResults : GpuResults->StageResults )
-				{
-					GpuTotalDispatches.Accumulate(GpuResultsGameFrameCounter, StageResults.NumDispatches);
-					GpuTotalDispatchGroups.Accumulate(GpuResultsGameFrameCounter, StageResults.NumDispatchGroups);
-					GpuTotalMicroseconds.Accumulate(GpuResultsGameFrameCounter, StageResults.DurationMicroseconds);
-				}
+				GpuTotalDispatches.Accumulate(GpuResultsGameFrameCounter, GpuResults->TotalDispatches);
+				GpuTotalMicroseconds.Accumulate(GpuResultsGameFrameCounter, GpuResults->TotalDurationMicroseconds);
 
 				for ( const auto& DispatchResult : GpuResults->DispatchResults )
 				{
@@ -1903,7 +1899,6 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 
 		SimpleTable.GetColumnText(0).Appendf(TEXT("TotalMicroseconds : %llu"), GpuTotalMicroseconds.GetAverage());
 		SimpleTable.GetColumnText(1).Appendf(TEXT("TotalDispatches : %d"), GpuTotalDispatches.GetAverage());
-		SimpleTable.GetColumnText(2).Appendf(TEXT("TotalDispatchGroups : %d"), GpuTotalDispatchGroups.GetAverage());
 
 		SimpleTable.Draw(Font, DrawCanvas, TextLocation, DetailColor, BackgroundColor);
 		TextLocation.Y += fAdvanceHeight;

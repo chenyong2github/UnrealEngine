@@ -5,6 +5,7 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
+#include "NiagaraRenderGraphUtils.h"
 #include "Niagara/Private/NiagaraStats.h"
 
 #include "NiagaraDataInterfaceGrid3DCollection.generated.h"
@@ -13,23 +14,7 @@ class FNiagaraSystemInstance;
 class UTextureRenderTarget;
 class UTextureRenderTargetVolume;
 
-class FGrid3DBuffer
-{
-public:
-	FGrid3DBuffer(int NumX, int NumY, int NumZ, EPixelFormat PixelFormat)
-	{
-		GridBuffer.Initialize3D(TEXT("FGrid3DBuffer"), GPixelFormats[PixelFormat].BlockBytes, NumX, NumY, NumZ, PixelFormat);
-		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
-	}
-
-	~FGrid3DBuffer()
-	{
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
-		GridBuffer.Release();
-	}
-
-	FTextureRWBuffer GridBuffer;
-};
+using FGrid3DBuffer = FNiagaraPooledRWTexture;
 
 struct FGrid3DCollectionRWInstanceData_GameThread
 {
@@ -83,7 +68,7 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
 #endif
 
-	TArray<TUniquePtr<FGrid3DBuffer>> Buffers;
+	TArray<FGrid3DBuffer, TInlineAllocator<2>> Buffers;
 	FGrid3DBuffer* CurrentData = nullptr;
 	FGrid3DBuffer* DestinationData = nullptr;
 
@@ -98,18 +83,18 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	// overrides the render thread data, which in this case is for a grid reader
 	FNiagaraDataInterfaceProxy* OtherProxy = nullptr;
 
-	void BeginSimulate(FRHICommandList& RHICmdList);
-	void EndSimulate(FRHICommandList& RHICmdList);
+	void BeginSimulate(FRDGBuilder& GraphBuilder);
+	void EndSimulate();
 };
 
 struct FNiagaraDataInterfaceProxyGrid3DCollectionProxy : public FNiagaraDataInterfaceProxyRW
 {
 	FNiagaraDataInterfaceProxyGrid3DCollectionProxy() {}
 
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
-	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
-	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
-	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+	virtual void ResetData(const FNDIGpuComputeResetContext& Context) override;
+	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override;
+	virtual void PostStage(const FNDIGpuComputePostStageContext& Context) override;
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 
 	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 

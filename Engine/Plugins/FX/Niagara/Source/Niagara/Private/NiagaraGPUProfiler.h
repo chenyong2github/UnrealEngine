@@ -20,22 +20,13 @@ class FNiagaraGPUProfiler : public FNiagaraGPUProfilerInterface
 {
 	static constexpr int32 NumBufferFrames = 5;
 
-	struct FGpuStageTimer
-	{
-		int32					NumDispatchGroups = 0;
-		int32					NumDispatches = 0;
-		FRHIPooledRenderQuery	StartQuery;
-		FRHIPooledRenderQuery	EndQuery;
-	};
-
 	struct FGpuDispatchTimer
 	{
-		uint32									bUniqueInstance : 1;
-		TWeakObjectPtr<class USceneComponent>	OwnerComponent;
-		FVersionedNiagaraEmitterWeakPtr			OwnerEmitter;
-		FName									StageName;
-		FRHIPooledRenderQuery					StartQuery;
-		FRHIPooledRenderQuery					EndQuery;
+		explicit FGpuDispatchTimer(const FNiagaraGpuProfileEvent& InEvent) : Event(InEvent) {}
+
+		FNiagaraGpuProfileEvent	Event;
+		FRHIPooledRenderQuery	StartQuery;
+		FRHIPooledRenderQuery	EndQuery;
 	};
 
 	struct FGpuFrameData
@@ -44,7 +35,6 @@ class FNiagaraGPUProfiler : public FNiagaraGPUProfilerInterface
 		bool CanRead() const { return EndQuery.GetQuery() != nullptr; }
 
 		FRHIPooledRenderQuery		EndQuery;
-		FGpuStageTimer				StageTimers[ENiagaraGpuComputeTickStage::Max];
 		TArray<FGpuDispatchTimer>	DispatchTimers;
 	};
 
@@ -57,12 +47,7 @@ public:
 	void BeginFrame(FRHICommandListImmediate& RHICmdList);
 	void EndFrame(FRHICommandList& RHICmdList);
 
-	void BeginStage(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage, int32 NumDispatchGroups);
-	void EndStage(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage, int32 NumDispatches);
-
-	void BeginDispatch(FRHICommandList& RHICmdList, const struct FNiagaraGpuDispatchInstance& DispatchInstance);
-	void BeginDispatch(FRHICommandList& RHICmdList, const struct FNiagaraComputeInstanceData& InstanceData, FName StageName);
-	void BeginDispatch(FRHICommandList& RHICmdList, FName StageName);
+	void BeginDispatch(FRHICommandList& RHICmdList, const FNiagaraGpuProfileEvent& Event);
 	void EndDispatch(FRHICommandList& RHICmdList);
 
 private:

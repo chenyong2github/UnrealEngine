@@ -49,53 +49,32 @@ void FNiagaraGpuProfilerListener::SetHandler(TFunction<void(const FNiagaraGpuFra
 }
 
 //////////////////////////////////////////////////////////////////////////
-FNiagaraGpuProfileScope::FNiagaraGpuProfileScope(FRHICommandList& InRHICmdList, const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FName StageName)
+
+FNiagaraGpuProfileEvent::FNiagaraGpuProfileEvent(const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, const bool bFirstInstanceData)
+{
+	bUniqueInstance = SimStageData.bSetDataToRender && bFirstInstanceData;
+	OwnerComponent = InstanceData.Context->ProfilingComponentPtr;
+	OwnerEmitter = InstanceData.Context->ProfilingEmitterPtr;
+	StageName = SimStageData.StageMetaData->SimulationStageName;
+}
+
+FNiagaraGpuProfileEvent::FNiagaraGpuProfileEvent(const FNiagaraComputeInstanceData& InstanceData, FName CustomStageName)
+{
+	bUniqueInstance = false;
+	OwnerComponent = InstanceData.Context->ProfilingComponentPtr;
+	OwnerEmitter = InstanceData.Context->ProfilingEmitterPtr;
+	StageName = CustomStageName;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraGpuProfileScope::FNiagaraGpuProfileScope(FRHICommandList& InRHICmdList, const class FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, const FNiagaraGpuProfileEvent& Event)
 	: RHICmdList(InRHICmdList)
 	, GPUProfiler(static_cast<FNiagaraGPUProfiler*>(ComputeDispatchInterface->GetGPUProfiler()))
 {
 	if (GPUProfiler)
 	{
-		GPUProfiler->BeginDispatch(RHICmdList, StageName);
-	}
-}
-
-FNiagaraGpuProfileScope::FNiagaraGpuProfileScope(FRHICommandList& InRHICmdList, const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, const struct FNiagaraGpuDispatchInstance& DispatchInstance)
-	: RHICmdList(InRHICmdList)
-	, GPUProfiler(static_cast<FNiagaraGPUProfiler*>(ComputeDispatchInterface->GetGPUProfiler()))
-{
-	if (GPUProfiler)
-	{
-		GPUProfiler->BeginDispatch(RHICmdList, DispatchInstance);
-	}
-}
-
-FNiagaraGpuProfileScope::FNiagaraGpuProfileScope(FRHICommandList& InRHICmdList, const struct FNiagaraDataInterfaceArgs& Context, FName StageName)
-	: RHICmdList(InRHICmdList)
-	, GPUProfiler(static_cast<FNiagaraGPUProfiler*>(Context.ComputeDispatchInterface->GetGPUProfiler()))
-{
-	if (GPUProfiler)
-	{
-		GPUProfiler->BeginDispatch(RHICmdList, StageName);
-	}
-}
-
-FNiagaraGpuProfileScope::FNiagaraGpuProfileScope(FRHICommandList& InRHICmdList, const struct FNiagaraDataInterfaceSetArgs& Context, FName StageName)
-	: RHICmdList(InRHICmdList)
-	, GPUProfiler(static_cast<FNiagaraGPUProfiler*>(Context.ComputeDispatchInterface->GetGPUProfiler()))
-{
-	if (GPUProfiler)
-	{
-		GPUProfiler->BeginDispatch(RHICmdList, *Context.ComputeInstanceData, StageName);
-	}
-}
-
-FNiagaraGpuProfileScope::FNiagaraGpuProfileScope(FRHICommandList& InRHICmdList, const struct FNiagaraDataInterfaceStageArgs& Context, FName StageName)
-	: RHICmdList(InRHICmdList)
-	, GPUProfiler(static_cast<FNiagaraGPUProfiler*>(Context.ComputeDispatchInterface->GetGPUProfiler()))
-{
-	if (GPUProfiler)
-	{
-		GPUProfiler->BeginDispatch(RHICmdList, *Context.ComputeInstanceData, StageName);
+		GPUProfiler->BeginDispatch(RHICmdList, Event);
 	}
 }
 

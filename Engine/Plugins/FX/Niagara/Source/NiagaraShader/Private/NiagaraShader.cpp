@@ -1132,8 +1132,10 @@ FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializ
 {
 	check(!DebugDescription.IsEmpty());
 
-	// Legacy bindings
+	// Cache off requirements for later queries
 	bNeedsViewUniformBuffer = Initializer.ParameterMap.ContainsParameterAllocation(TEXT("View"));
+
+	// Legacy bindings
 	ExternalConstantBufferParam[0].Bind(Initializer.ParameterMap, TEXT("FNiagaraExternalParameters"));
 	ExternalConstantBufferParam[1].Bind(Initializer.ParameterMap, TEXT("PREV_FNiagaraExternalParameters"));
 
@@ -1145,7 +1147,6 @@ FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializ
 	
 	if (GNiagaraShaderForceBindEverything == 0)
 	{
-		bShouldBindEverything &= bNeedsViewUniformBuffer == false;
 		bShouldBindEverything &= ExternalConstantBufferParam[0].IsBound() == false;
 		bShouldBindEverything &= ExternalConstantBufferParam[1].IsBound() == false;
 

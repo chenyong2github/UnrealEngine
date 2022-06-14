@@ -135,9 +135,6 @@ namespace NDIUObjectPropertyReaderLocal
 			return sizeof(FInstanceData_GameToRender);
 		}
 	
-		virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override {}
-		virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override {}
-
 		TMap<FNiagaraSystemInstanceID, FInstanceData_RenderThread>	PerInstanceData_RenderThread;
 	};
 

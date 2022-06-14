@@ -2,12 +2,12 @@
 
 #include "/Engine/Private/Common.ush"
 
-RWBuffer<int> RWNewBuffer;
-Buffer<int> ExistingBuffer;
-uint NumNewElements;
-uint NumExistingElements;
+RWBuffer<int>	RWNewBuffer;
+Buffer<int>		ExistingBuffer;
+uint			NumNewElements;
+uint			NumExistingElements;
 
-[numthreads(THREAD_COUNT, 1, 1)]
+[numthreads(THREADGROUP_SIZE, 1, 1)]
 void InitIDBufferCS(uint Index : SV_DispatchThreadID)
 {
 	if(Index.x < NumNewElements)

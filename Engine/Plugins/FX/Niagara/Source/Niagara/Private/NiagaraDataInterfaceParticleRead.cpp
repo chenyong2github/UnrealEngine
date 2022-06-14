@@ -2,12 +2,14 @@
 
 #include "NiagaraDataInterfaceParticleRead.h"
 #include "NiagaraComputeExecutionContext.h"
-#include "NiagaraGPUSystemTick.h"
 #include "NiagaraConstants.h"
-#include "NiagaraSystemInstance.h"
-#include "ShaderParameterUtils.h"
-#include "NiagaraRenderer.h"
 #include "NiagaraDataSetAccessor.h"
+#include "NiagaraGPUSystemTick.h"
+#include "NiagaraRenderer.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraShaderParametersBuilder.h"
+
+#include "ShaderParameterUtils.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceParticleRead"
 
@@ -56,20 +58,22 @@ static const FName GetParticleIndexFromIDTableName("Get Particle Index From ID T
 
 static const FName ParticleReadIDName(TEXT("ID"));
 
-static const FString NumSpawnedParticlesBaseName(TEXT("NumSpawnedParticles_"));
-static const FString SpawnedParticlesAcquireTagBaseName(TEXT("SpawnedParticlesAcquireTag_"));
-static const FString InstanceCountOffsetBaseName(TEXT("InstanceCountOffset_"));
-static const FString SpawnedIDsBufferBaseName(TEXT("SpawnedIDsBuffer_"));
-static const FString IDToIndexTableBaseName(TEXT("IDToIndexTable_"));
-static const FString InputFloatBufferBaseName(TEXT("InputFloatBuffer_"));
-static const FString InputIntBufferBaseName(TEXT("InputIntBuffer_"));
-static const FString InputHalfBufferBaseName(TEXT("InputHalfBuffer_"));
-static const FString ParticleStrideFloatBaseName(TEXT("ParticleStrideFloat_"));
-static const FString ParticleStrideIntBaseName(TEXT("ParticleStrideInt_"));
-static const FString ParticleStrideHalfBaseName(TEXT("ParticleStrideHalf_"));
-static const FString AttributeIndicesBaseName(TEXT("AttributeIndices_"));
-static const FString AttributeCompressedBaseName(TEXT("AttributeCompressed_"));
-static const FString AcquireTagRegisterIndexBaseName(TEXT("AcquireTagRegisterIndex_"));
+static const TCHAR* NumSpawnedParticlesName = TEXT("_NumSpawnedParticles");
+static const TCHAR* SpawnedParticlesAcquireTagName = TEXT("_SpawnedParticlesAcquireTag");
+static const TCHAR* InstanceCountOffsetName = TEXT("_InstanceCountOffset");
+static const TCHAR* SpawnedIDsBufferName = TEXT("_SpawnedIDsBuffer");
+static const TCHAR* IDToIndexTableName = TEXT("_IDToIndexTable");
+static const TCHAR* InputFloatBufferName = TEXT("_InputFloatBuffer");
+static const TCHAR* InputIntBufferName = TEXT("_InputIntBuffer");
+static const TCHAR* InputHalfBufferName = TEXT("_InputHalfBuffer");
+static const TCHAR* ParticleStrideFloatName = TEXT("_ParticleStrideFloat");
+static const TCHAR* ParticleStrideIntName = TEXT("_ParticleStrideInt");
+static const TCHAR* ParticleStrideHalfName = TEXT("_ParticleStrideHalf");
+static const TCHAR* AcquireTagRegisterIndexName = TEXT("_AcquireTagRegisterIndex");
+static const TCHAR* AttributeIndicesName = TEXT("_AttributeIndices");
+static const TCHAR* AttributeCompressedName = TEXT("_AttributeCompressed");
+static const TCHAR* AttributeIndicesMetadataName = TEXT("AttributeIndices");
+static const TCHAR* AttributeCompressedMetadataName = TEXT("AttributeCompressed");
 
 enum class ENiagaraParticleDataComponentType : uint8
 {
@@ -96,6 +100,16 @@ enum class ENiagaraParticleDataValueType : uint8
 
 DECLARE_INTRINSIC_TYPE_LAYOUT(ENiagaraParticleDataValueType);
 
+struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInterfaceParametersCS
+{
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ParticleRead, NonVirtual);
+
+	LAYOUT_FIELD(TMemoryImageArray<FMemoryImageName>, AttributeNames);
+	LAYOUT_FIELD(TMemoryImageArray<ENiagaraParticleDataValueType>, AttributeTypes);
+};
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ParticleRead);
+
 static const TCHAR* NiagaraParticleDataValueTypeName(ENiagaraParticleDataValueType Type)
 {
 	switch (Type)
@@ -119,17 +133,32 @@ static bool CheckVariableType(const FNiagaraTypeDefinition& VarType, ENiagaraPar
 {
 	switch (AttributeType)
 	{
-	case ENiagaraParticleDataValueType::Int: return VarType == FNiagaraTypeDefinition::GetIntDef();
-	case ENiagaraParticleDataValueType::Bool: return VarType == FNiagaraTypeDefinition::GetBoolDef();
-	case ENiagaraParticleDataValueType::Float: return VarType == FNiagaraTypeDefinition::GetFloatDef();
-	case ENiagaraParticleDataValueType::Vec2: return VarType == FNiagaraTypeDefinition::GetVec2Def();
-	case ENiagaraParticleDataValueType::Vec3: return VarType == FNiagaraTypeDefinition::GetVec3Def() || VarType == FNiagaraTypeDefinition::GetPositionDef();
-	case ENiagaraParticleDataValueType::Vec4: return VarType == FNiagaraTypeDefinition::GetVec4Def();
-	case ENiagaraParticleDataValueType::Color: return VarType == FNiagaraTypeDefinition::GetColorDef();
-	case ENiagaraParticleDataValueType::Position: return VarType == FNiagaraTypeDefinition::GetPositionDef();
-	case ENiagaraParticleDataValueType::Quat: return VarType == FNiagaraTypeDefinition::GetQuatDef();
-	case ENiagaraParticleDataValueType::ID: return VarType == FNiagaraTypeDefinition::GetIDDef();
-	default: return false;
+		case ENiagaraParticleDataValueType::Int: return VarType == FNiagaraTypeDefinition::GetIntDef();
+		case ENiagaraParticleDataValueType::Bool: return VarType == FNiagaraTypeDefinition::GetBoolDef();
+		case ENiagaraParticleDataValueType::Float: return VarType == FNiagaraTypeDefinition::GetFloatDef();
+		case ENiagaraParticleDataValueType::Vec2: return VarType == FNiagaraTypeDefinition::GetVec2Def();
+		case ENiagaraParticleDataValueType::Vec3: return VarType == FNiagaraTypeDefinition::GetVec3Def() || VarType == FNiagaraTypeDefinition::GetPositionDef();
+		case ENiagaraParticleDataValueType::Vec4: return VarType == FNiagaraTypeDefinition::GetVec4Def();
+		case ENiagaraParticleDataValueType::Color: return VarType == FNiagaraTypeDefinition::GetColorDef();
+		case ENiagaraParticleDataValueType::Position: return VarType == FNiagaraTypeDefinition::GetPositionDef();
+		case ENiagaraParticleDataValueType::Quat: return VarType == FNiagaraTypeDefinition::GetQuatDef();
+		case ENiagaraParticleDataValueType::ID: return VarType == FNiagaraTypeDefinition::GetIDDef();
+		default: return false;
+	}
+}
+
+static bool CheckHalfVariableType(const FNiagaraTypeDefinition& VarType, ENiagaraParticleDataValueType AttributeType)
+{
+	switch (AttributeType)
+	{
+		case ENiagaraParticleDataValueType::Float: return VarType == FNiagaraTypeDefinition::GetHalfDef();
+		case ENiagaraParticleDataValueType::Vec2: return VarType == FNiagaraTypeDefinition::GetHalfVec2Def();
+		case ENiagaraParticleDataValueType::Vec3: return VarType == FNiagaraTypeDefinition::GetHalfVec3Def();
+		case ENiagaraParticleDataValueType::Vec4: return VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
+		case ENiagaraParticleDataValueType::Color: return VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
+		case ENiagaraParticleDataValueType::Position: return VarType == FNiagaraTypeDefinition::GetHalfVec3Def();
+		case ENiagaraParticleDataValueType::Quat: return VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
+		default: return false;
 	}
 }
 
@@ -178,6 +207,8 @@ struct FNDIParticleRead_RenderInstanceData
 	uint32 bSourceEmitterNotGPUErrorShown : 1;
 	uint32 bWarnFailedToFindAcquireTag : 1;
 };
+
+//////////////////////////////////////////////////////////////////////////
 
 struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProxyRW
 {
@@ -266,359 +297,95 @@ private:
 	TMap<FNiagaraSystemInstanceID, FNDIParticleRead_RenderInstanceData> SystemsRenderData;
 };
 
-struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInterfaceParametersCS
+//////////////////////////////////////////////////////////////////////////
+
+static void NDIParticleRead_FindAttributeIndices(FNDIParticleRead_RenderInstanceData* InstanceData, const FNiagaraDataSet* SourceDataSet, const FNiagaraDataInterfaceParametersCS_ParticleRead& ShaderStorage)
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ParticleRead, NonVirtual);
+	check(ShaderStorage.AttributeNames.Num() == ShaderStorage.AttributeTypes.Num());
 
-	
+	const int NumAttrIndices = Align(ShaderStorage.AttributeNames.Num(), 4);
+	InstanceData->AttributeIndices.SetNumUninitialized(NumAttrIndices);
+	InstanceData->AttributeCompressed.SetNumUninitialized(NumAttrIndices);
 
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const FShaderParameterMap& ParameterMap)
+	// Find the register index for each named attribute in the source emitter.
+	const TArray<FNiagaraVariable>& SourceEmitterVariables = SourceDataSet->GetVariables();
+	const TArray<FNiagaraVariableLayoutInfo>& SourceEmitterVariableLayouts = SourceDataSet->GetVariableLayouts();
+	for (int AttrNameIdx = 0; AttrNameIdx < ShaderStorage.AttributeNames.Num(); ++AttrNameIdx)
 	{
-		NumSpawnedParticlesParam.Bind(ParameterMap, *(NumSpawnedParticlesBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		SpawnedParticlesAcquireTagParam.Bind(ParameterMap, *(SpawnedParticlesAcquireTagBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		InstanceCountOffsetParam.Bind(ParameterMap, *(InstanceCountOffsetBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		SpawnedIDsBufferParam.Bind(ParameterMap, *(SpawnedIDsBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		IDToIndexTableParam.Bind(ParameterMap, *(IDToIndexTableBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		InputFloatBufferParam.Bind(ParameterMap, *(InputFloatBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		InputIntBufferParam.Bind(ParameterMap, *(InputIntBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		InputHalfBufferParam.Bind(ParameterMap, *(InputHalfBufferBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		ParticleStrideFloatParam.Bind(ParameterMap, *(ParticleStrideFloatBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		ParticleStrideIntParam.Bind(ParameterMap, *(ParticleStrideIntBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		ParticleStrideHalfParam.Bind(ParameterMap, *(ParticleStrideHalfBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		AttributeIndicesParam.Bind(ParameterMap, *(AttributeIndicesBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		AttributeCompressedParam.Bind(ParameterMap, *(AttributeCompressedBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-		AcquireTagRegisterIndexParam.Bind(ParameterMap, *(AcquireTagRegisterIndexBaseName + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		int32 NumFuncs = ParameterInfo.GeneratedFunctions.Num();
-		AttributeNames.SetNum(NumFuncs);
-		AttributeTypes.SetNum(NumFuncs);
-		for (int32 FuncIdx = 0; FuncIdx < NumFuncs; ++FuncIdx)
+		const FMemoryImageName& AttrName = ShaderStorage.AttributeNames[AttrNameIdx];
+		if (AttrName == NAME_None)
 		{
-			const FNiagaraDataInterfaceGeneratedFunction& Func = ParameterInfo.GeneratedFunctions[FuncIdx];
-			static const FName NAME_Attribute("Attribute");
-			const FName* AttributeName = Func.FindSpecifierValue(NAME_Attribute);
-			if (AttributeName != nullptr)
-			{
-				AttributeNames[FuncIdx] = *AttributeName;
-				AttributeTypes[FuncIdx] = GetValueTypeFromFuncName(Func.DefinitionName);
-			}
-			else
-			{
-				// This is not an error. GetNumSpawnedParticles and GetIDAtSpawnIndexFunctionName don't use specifiers,
-				// but they take up slots in the attribute indices array for simplicity. Just stick NAME_None in here to ignore them.
-				AttributeNames[FuncIdx] = NAME_None;
-				AttributeTypes[FuncIdx] = ENiagaraParticleDataValueType::Invalid;
-			}
-		}
-	}
-
-	void SetErrorParams(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader, bool bSkipSpawnInfo) const
-	{
-		// Set all the indices to -1, so that any reads return false.
-		TArray<int32, TInlineAllocator<32>> AttributeIndices;
-		TArray<int32, TInlineAllocator<32>> AttributeCompressed;
-
-		int NumAttrIndices = Align(AttributeNames.Num(), 4);
-		AttributeIndices.SetNumUninitialized(NumAttrIndices);
-		AttributeCompressed.SetNumUninitialized(NumAttrIndices);
-
-		for (int AttrIdx = 0; AttrIdx < AttributeIndices.Num(); ++AttrIdx)
-		{
-			AttributeIndices[AttrIdx] = -1;
-			AttributeCompressed[AttrIdx] = 0;
+			InstanceData->AttributeIndices[AttrNameIdx] = -1;
+			InstanceData->AttributeCompressed[AttrNameIdx] = 0;
+			continue;
 		}
 
-		int32 AcquireTagRegisterIndex = -1;
-
-		if (!bSkipSpawnInfo)
+		bool FoundVariable = false;
+		for (int VarIdx = 0; VarIdx < SourceEmitterVariables.Num(); ++VarIdx)
 		{
-			SetShaderValue(RHICmdList, ComputeShader, NumSpawnedParticlesParam, 0);
-			SetShaderValue(RHICmdList, ComputeShader, SpawnedParticlesAcquireTagParam, 0);
-			SetSRVParameter(RHICmdList, ComputeShader, SpawnedIDsBufferParam, FNiagaraRenderer::GetDummyIntBuffer());
-		}
-
-		SetShaderValue(RHICmdList, ComputeShader, InstanceCountOffsetParam, -1);
-		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, FNiagaraRenderer::GetDummyIntBuffer());
-		SetSRVParameter(RHICmdList, ComputeShader, InputFloatBufferParam, FNiagaraRenderer::GetDummyFloatBuffer());
-		SetSRVParameter(RHICmdList, ComputeShader, InputIntBufferParam, FNiagaraRenderer::GetDummyIntBuffer());
-		SetSRVParameter(RHICmdList, ComputeShader, InputHalfBufferParam, FNiagaraRenderer::GetDummyHalfBuffer());
-		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideFloatParam, 0);
-		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideIntParam, 0);
-		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideHalfParam, 0);
-		SetShaderValueArray(RHICmdList, ComputeShader, AttributeIndicesParam, AttributeIndices.GetData(), AttributeIndices.Num());
-		SetShaderValueArray(RHICmdList, ComputeShader, AttributeCompressedParam, AttributeCompressed.GetData(), AttributeCompressed.Num());
-		SetShaderValue(RHICmdList, ComputeShader, AcquireTagRegisterIndexParam, AcquireTagRegisterIndex);
-	}
-
-	
-
-	bool CheckHalfVariableType(const FNiagaraTypeDefinition& VarType, ENiagaraParticleDataValueType AttributeType) const
-	{
-		switch (AttributeType)
-		{
-			case ENiagaraParticleDataValueType::Float: return VarType == FNiagaraTypeDefinition::GetHalfDef();
-			case ENiagaraParticleDataValueType::Vec2: return VarType == FNiagaraTypeDefinition::GetHalfVec2Def();
-			case ENiagaraParticleDataValueType::Vec3: return VarType == FNiagaraTypeDefinition::GetHalfVec3Def();
-			case ENiagaraParticleDataValueType::Vec4: return VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
-			case ENiagaraParticleDataValueType::Color: return VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
-			case ENiagaraParticleDataValueType::Position: return VarType == FNiagaraTypeDefinition::GetHalfVec3Def();
-			case ENiagaraParticleDataValueType::Quat: return VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
-			default: return false;
-		}
-	}
-
-	void FindAttributeIndices(FNDIParticleRead_RenderInstanceData* InstanceData, const FNiagaraDataSet* SourceDataSet) const
-	{
-		check(AttributeNames.Num() == AttributeTypes.Num());
-
-		int NumAttrIndices = Align(AttributeNames.Num(), 4);
-		InstanceData->AttributeIndices.SetNumUninitialized(NumAttrIndices);
-		InstanceData->AttributeCompressed.SetNumUninitialized(NumAttrIndices);
-
-		// Find the register index for each named attribute in the source emitter.
-		const TArray<FNiagaraVariable>& SourceEmitterVariables = SourceDataSet->GetVariables();
-		const TArray<FNiagaraVariableLayoutInfo>& SourceEmitterVariableLayouts = SourceDataSet->GetVariableLayouts();
-		for (int AttrNameIdx = 0; AttrNameIdx < AttributeNames.Num(); ++AttrNameIdx)
-		{
-			const FMemoryImageName& AttrName = AttributeNames[AttrNameIdx];
-			if (AttrName == NAME_None)
+			const FNiagaraVariable& Var = SourceEmitterVariables[VarIdx];
+			if (Var.GetName() == AttrName)
 			{
-				InstanceData->AttributeIndices[AttrNameIdx] = -1;
-				continue;
-			}
-
-			bool FoundVariable = false;
-			for (int VarIdx = 0; VarIdx < SourceEmitterVariables.Num(); ++VarIdx)
-			{
-				const FNiagaraVariable& Var = SourceEmitterVariables[VarIdx];
-				if (Var.GetName() == AttrName)
+				ENiagaraParticleDataValueType AttributeType = ShaderStorage.AttributeTypes[AttrNameIdx];
+				if (CheckVariableType(Var.GetType(), AttributeType))
 				{
-					ENiagaraParticleDataValueType AttributeType = AttributeTypes[AttrNameIdx];
-					if (CheckVariableType(Var.GetType(), AttributeType))
-					{
-						const FNiagaraVariableLayoutInfo& Layout = SourceEmitterVariableLayouts[VarIdx];
-						InstanceData->AttributeIndices[AttrNameIdx] = 
-							(AttributeType == ENiagaraParticleDataValueType::Int || AttributeType == ENiagaraParticleDataValueType::Bool || AttributeType == ENiagaraParticleDataValueType::ID) ? Layout.Int32ComponentStart : Layout.FloatComponentStart;
-						InstanceData->AttributeCompressed[AttrNameIdx] = 0;
-					}
-					else if (CheckHalfVariableType(Var.GetType(), AttributeType))
-					{
-						const FNiagaraVariableLayoutInfo& Layout = SourceEmitterVariableLayouts[VarIdx];
-						InstanceData->AttributeIndices[AttrNameIdx] = Layout.HalfComponentStart;
-						InstanceData->AttributeCompressed[AttrNameIdx] = 1;
-					}
-					else
-					{
-						UE_LOG(LogNiagara, Error, TEXT("Variable '%s' in emitter '%s' has type '%s', but particle read DI tried to access it as '%s'."),
-							*Var.GetName().ToString(), *InstanceData->DebugSourceName, *Var.GetType().GetName(), NiagaraParticleDataValueTypeName(AttributeType)
-						);
-						InstanceData->AttributeIndices[AttrNameIdx] = -1;
-						InstanceData->AttributeCompressed[AttrNameIdx] = 0;
-					}
-					FoundVariable = true;
-					break;
+					const FNiagaraVariableLayoutInfo& Layout = SourceEmitterVariableLayouts[VarIdx];
+					InstanceData->AttributeIndices[AttrNameIdx] =
+						(AttributeType == ENiagaraParticleDataValueType::Int || AttributeType == ENiagaraParticleDataValueType::Bool || AttributeType == ENiagaraParticleDataValueType::ID) ? Layout.Int32ComponentStart : Layout.FloatComponentStart;
+					InstanceData->AttributeCompressed[AttrNameIdx] = 0;
 				}
-			}
-
-			if (!FoundVariable)
-			{
-				UE_LOG(LogNiagara, Error, TEXT("Particle read DI is trying to access inexistent variable '%s' in emitter '%s'."), *AttrName.ToString(), *InstanceData->DebugSourceName);
-				InstanceData->AttributeIndices[AttrNameIdx] = -1;
-				InstanceData->AttributeCompressed[AttrNameIdx] = 0;
-			}
-		}
-
-		// Find the register index for the AcquireTag part of the particle ID in the source emitter.
-		{
-			const FName FName_ID(TEXT("ID"));
-
-			InstanceData->AcquireTagRegisterIndex = -1;
-			for (int VarIdx = 0; VarIdx < SourceEmitterVariables.Num(); ++VarIdx)
-			{
-				const FNiagaraVariable& Var = SourceEmitterVariables[VarIdx];
-				if (Var.GetName() == FName_ID)
+				else if (CheckHalfVariableType(Var.GetType(), AttributeType))
 				{
-					InstanceData->AcquireTagRegisterIndex = SourceEmitterVariableLayouts[VarIdx].Int32ComponentStart + 1;
-					break;
+					const FNiagaraVariableLayoutInfo& Layout = SourceEmitterVariableLayouts[VarIdx];
+					InstanceData->AttributeIndices[AttrNameIdx] = Layout.HalfComponentStart;
+					InstanceData->AttributeCompressed[AttrNameIdx] = 1;
 				}
-			}
-		}
-
-		// Initialize the buffer padding too, so we don't move garbage around.
-		for (int AttrIdx = AttributeNames.Num(); AttrIdx < InstanceData->AttributeIndices.Num(); ++AttrIdx)
-		{
-			InstanceData->AttributeIndices[AttrIdx] = -1;
-			InstanceData->AttributeCompressed[AttrIdx] = 0;
-		}
-	}
-
-	FRHIShaderResourceView* GetIntSRVWithFallback(FRWBuffer& Buffer) const
-	{
-		return Buffer.SRV ? Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyIntBuffer();
-	}
-
-	FRHIShaderResourceView* GetFloatSRVWithFallback(FRWBuffer& Buffer) const
-	{
-		return Buffer.SRV ? Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
-	}
-
-	FRHIShaderResourceView* GetHalfSRVWithFallback(FRWBuffer& Buffer) const
-	{
-		return Buffer.SRV ? Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyHalfBuffer();
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShader = RHICmdList.GetBoundComputeShader();
-
-		FNiagaraDataInterfaceProxyParticleRead* Proxy = static_cast<FNiagaraDataInterfaceProxyParticleRead*>(Context.DataInterface);
-		check(Proxy);
-
-		FNDIParticleRead_RenderInstanceData* InstanceData = Proxy->GetRenderDataForSystem(Context.SystemInstanceID);
-		if (!InstanceData)
-		{
-			SetErrorParams(RHICmdList, ComputeShader, false);
-			return;
-		}
-
-		if (InstanceData->SourceEmitterGPUContext == nullptr)
-		{
-			// This means the source emitter isn't running on GPU.
-			if (!InstanceData->bSourceEmitterNotGPUErrorShown)
-			{
-				UE_LOG(LogNiagara, Error, TEXT("GPU particle read DI is set to access CPU emitter '%s'."), *InstanceData->DebugSourceName);
-				InstanceData->bSourceEmitterNotGPUErrorShown = true;
-			}
-			SetErrorParams(RHICmdList, ComputeShader, false);
-			InstanceData->CachedDataSet = nullptr;
-			InstanceData->bWarnFailedToFindAcquireTag = true;
-			return;
-		}
-
-		InstanceData->bSourceEmitterNotGPUErrorShown = false;
-
-		FNiagaraDataSet* SourceDataSet = InstanceData->SourceEmitterGPUContext->MainDataSet;
-		if (!SourceDataSet)
-		{
-			SetErrorParams(RHICmdList, ComputeShader, false);
-			InstanceData->CachedDataSet = nullptr;
-			InstanceData->bWarnFailedToFindAcquireTag = true;
-			return;
-		}
-
-		FNiagaraDataBuffer* SourceData = nullptr;
-		uint32 NumSpawnedInstances = 0;
-		uint32 IDAcquireTag = 0;
-
-		// Test for reading ourself
-		if (Context.ComputeInstanceData->Context == InstanceData->SourceEmitterGPUContext)
-		{
-			// Pull source data from SimStageData as this has the correct information until all stages are dispatched
-			// Note: In the case of an in place (aka partial update) stage this does not work as we need to bind the
-			//       same buffer as both UAV & SRV.  For the moment the user must disable partial writes.
-			//       Another option would be to read from the UAV, but that would equally race.
-			//-TODO: Automate this in some way or surface as feedback...
-			if (const FSimulationStageMetaData* StageMetaData = Context.SimStageData->StageMetaData )
-			{
-				if ( StageMetaData->bPartialParticleUpdate )
+				else
 				{
-					UE_LOG(LogNiagara, Error, TEXT("Particle read DI reading self '%s' on stage '%s' is unsafe, please disable partial writes on the stage."), *InstanceData->DebugSourceName, *StageMetaData->SimulationStageName.ToString());
-					SetErrorParams(RHICmdList, ComputeShader, true);
-					return;
+					UE_LOG(LogNiagara, Error, TEXT("Variable '%s' in emitter '%s' has type '%s', but particle read DI tried to access it as '%s'."),
+						*Var.GetName().ToString(), *InstanceData->DebugSourceName, *Var.GetType().GetName(), NiagaraParticleDataValueTypeName(AttributeType)
+					);
+					InstanceData->AttributeIndices[AttrNameIdx] = -1;
+					InstanceData->AttributeCompressed[AttrNameIdx] = 0;
 				}
-			}
-
-			SourceData = Context.SimStageData->Source;
-
-			// Pull some spawned / acquire tag from destination data as we are reading from ourselves this is what we are currently doing in this stage.
-			if (Context.SimStageData->Destination)
-			{
-				ensure(SourceData != nullptr);
-				NumSpawnedInstances = Context.SimStageData->Destination->GetNumSpawnedInstances();
-				IDAcquireTag = Context.SimStageData->Destination->GetIDAcquireTag();
-			}
-			// In cases where we do not have destination data pull from source (i.e. this is an iteration on none particle stages)
-			else if (SourceData)
-			{
-				NumSpawnedInstances = SourceData->GetNumSpawnedInstances();
-				IDAcquireTag = SourceData->GetIDAcquireTag();
-			}
-		}
-		else
-		{
-			SourceData = SourceDataSet->GetCurrentData();
-			if ( SourceData )
-			{
-				NumSpawnedInstances = SourceData->GetNumSpawnedInstances();
-				IDAcquireTag = SourceData->GetIDAcquireTag();
+				FoundVariable = true;
+				break;
 			}
 		}
 
-		SetShaderValue(RHICmdList, ComputeShader, NumSpawnedParticlesParam, NumSpawnedInstances);
-		SetShaderValue(RHICmdList, ComputeShader, SpawnedParticlesAcquireTagParam, IDAcquireTag);
-		SetSRVParameter(RHICmdList, ComputeShader, SpawnedIDsBufferParam, GetIntSRVWithFallback(SourceDataSet->GetGPUFreeIDs()));
-
-		if (!SourceData)
+		if (!FoundVariable)
 		{
-			SetErrorParams(RHICmdList, ComputeShader, true);
-			return;
-		}
-
-		if (InstanceData->CachedDataSet != SourceDataSet)
-		{
-			FindAttributeIndices(InstanceData, SourceDataSet);
-			InstanceData->CachedDataSet = SourceDataSet;
-			InstanceData->bWarnFailedToFindAcquireTag = true;
-		}
-
-		const uint32 ParticleStrideFloat = SourceData->GetFloatStride() / sizeof(float);
-		const uint32 ParticleStrideInt = SourceData->GetInt32Stride() / sizeof(int32);
-		const uint32 ParticleStrideHalf = SourceData->GetHalfStride() / sizeof(FFloat16);
-
-		// There's no need to transition the input buffers, because the grouping logic inside FNiagaraGpuComputeDispatch ensures that our source emitter has ran before us,
-		// and its buffers have been transitioned to readable.
-
-		SetShaderValue(RHICmdList, ComputeShader, InstanceCountOffsetParam, SourceData->GetGPUInstanceCountBufferOffset());
-		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, GetIntSRVWithFallback(SourceData->GetGPUIDToIndexTable()));
-		SetSRVParameter(RHICmdList, ComputeShader, InputFloatBufferParam, GetFloatSRVWithFallback(SourceData->GetGPUBufferFloat()));
-		SetSRVParameter(RHICmdList, ComputeShader, InputIntBufferParam, GetIntSRVWithFallback(SourceData->GetGPUBufferInt()));
-		SetSRVParameter(RHICmdList, ComputeShader, InputHalfBufferParam, GetHalfSRVWithFallback(SourceData->GetGPUBufferHalf()));
-		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideFloatParam, ParticleStrideFloat);
-		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideIntParam, ParticleStrideInt);
-		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideHalfParam, ParticleStrideHalf);
-		SetShaderValueArray(RHICmdList, ComputeShader, AttributeIndicesParam, InstanceData->AttributeIndices.GetData(), InstanceData->AttributeIndices.Num());
-		SetShaderValueArray(RHICmdList, ComputeShader, AttributeCompressedParam, InstanceData->AttributeCompressed.GetData(), InstanceData->AttributeCompressed.Num());
-		SetShaderValue(RHICmdList, ComputeShader, AcquireTagRegisterIndexParam, InstanceData->AcquireTagRegisterIndex);
-
-		if (InstanceData->bWarnFailedToFindAcquireTag && AcquireTagRegisterIndexParam.IsBound() && (InstanceData->AcquireTagRegisterIndex == -1))
-		{
-			InstanceData->bWarnFailedToFindAcquireTag = false;
-			UE_LOG(LogNiagara, Error, TEXT("Particle read DI cannot find ID variable in emitter '%s'."), *InstanceData->DebugSourceName);
+			UE_LOG(LogNiagara, Error, TEXT("Particle read DI is trying to access inexistent variable '%s' in emitter '%s'."), *AttrName.ToString(), *InstanceData->DebugSourceName);
+			InstanceData->AttributeIndices[AttrNameIdx] = -1;
+			InstanceData->AttributeCompressed[AttrNameIdx] = 0;
 		}
 	}
-	
-private:
-	LAYOUT_FIELD(FShaderParameter, NumSpawnedParticlesParam);
-	LAYOUT_FIELD(FShaderParameter, SpawnedParticlesAcquireTagParam);
-	LAYOUT_FIELD(FShaderParameter, InstanceCountOffsetParam);
-	LAYOUT_FIELD(FShaderResourceParameter, SpawnedIDsBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, IDToIndexTableParam);
-	LAYOUT_FIELD(FShaderResourceParameter, InputFloatBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, InputIntBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, InputHalfBufferParam);
-	LAYOUT_FIELD(FShaderParameter, ParticleStrideFloatParam);
-	LAYOUT_FIELD(FShaderParameter, ParticleStrideHalfParam);
-	LAYOUT_FIELD(FShaderParameter, ParticleStrideIntParam);
-	LAYOUT_FIELD(FShaderParameter, AttributeIndicesParam);
-	LAYOUT_FIELD(FShaderParameter, AttributeCompressedParam);
-	LAYOUT_FIELD(FShaderParameter, AcquireTagRegisterIndexParam);
-	LAYOUT_FIELD(TMemoryImageArray<FMemoryImageName>, AttributeNames);
-	LAYOUT_FIELD(TMemoryImageArray<ENiagaraParticleDataValueType>, AttributeTypes);
-};
 
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ParticleRead);
+	// Find the register index for the AcquireTag part of the particle ID in the source emitter.
+	{
+		const FName FName_ID(TEXT("ID"));
+
+		InstanceData->AcquireTagRegisterIndex = -1;
+		for (int VarIdx = 0; VarIdx < SourceEmitterVariables.Num(); ++VarIdx)
+		{
+			const FNiagaraVariable& Var = SourceEmitterVariables[VarIdx];
+			if (Var.GetName() == FName_ID)
+			{
+				InstanceData->AcquireTagRegisterIndex = SourceEmitterVariableLayouts[VarIdx].Int32ComponentStart + 1;
+				break;
+			}
+		}
+	}
+
+	// Initialize the buffer padding too, so we don't move garbage around.
+	for (int AttrIdx = ShaderStorage.AttributeNames.Num(); AttrIdx < InstanceData->AttributeIndices.Num(); ++AttrIdx)
+	{
+		InstanceData->AttributeIndices[AttrIdx] = -1;
+		InstanceData->AttributeCompressed[AttrIdx] = 0;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 UNiagaraDataInterfaceParticleRead::UNiagaraDataInterfaceParticleRead(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -1924,49 +1691,35 @@ bool UNiagaraDataInterfaceParticleRead::CopyToInternal(UNiagaraDataInterface* De
 }
 
 #if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceParticleRead::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	bSuccess &= InVisitor->UpdateShaderParameters<FShaderParameters>();
+	return bSuccess;
+}
+
 void UNiagaraDataInterfaceParticleRead::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	static const TCHAR *FormatDeclarations = TEXT(
-		"int {NumSpawnedParticlesName};\n"
-		"int {SpawnedParticlesAcquireTagName};\n"
-		"uint {InstanceCountOffsetName};\n"
-		"uint {ParticleStrideFloatName};\n"
-		"uint {ParticleStrideIntName};\n"
-		"uint {ParticleStrideHalfName};\n"
-		"int {AcquireTagRegisterIndexName};\n"
-		"Buffer<int> {SpawnedIDsBufferName};\n"
-		"Buffer<int> {IDToIndexTableName};\n"
-		"Buffer<float> {InputFloatBufferName};\n"
-		"Buffer<int> {InputIntBufferName};\n"
-		"Buffer<half> {InputHalfBufferName};\n"
-		"int4 {AttributeIndicesName}[{AttributeInt4Count}];\n"
-		"int4 {AttributeCompressedName}[{AttributeInt4Count}];\n\n"
-	);
-
 	// If we use an int array for the attribute indices, the shader compiler will actually use int4 due to the packing rules,
 	// and leave 3 elements unused. Besides being wasteful, this means that the array we send to the CS would need to be padded,
 	// which is a hassle. Instead, use int4 explicitly, and access individual components in the generated code.
 	// Note that we have to have at least one here because hlsl doesn't support arrays of size 0.
 	const int AttributeInt4Count = FMath::Max(1, FMath::DivideAndRoundUp(ParamInfo.GeneratedFunctions.Num(), 4));
 
-	TMap<FString, FStringFormatArg> ArgsDeclarations;
-	ArgsDeclarations.Add(TEXT("NumSpawnedParticlesName"), NumSpawnedParticlesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("SpawnedParticlesAcquireTagName"), SpawnedParticlesAcquireTagBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("InstanceCountOffsetName"), InstanceCountOffsetBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("ParticleStrideFloatName"), ParticleStrideFloatBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("ParticleStrideIntName"), ParticleStrideIntBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("ParticleStrideHalfName"), ParticleStrideHalfBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("AcquireTagRegisterIndexName"), AcquireTagRegisterIndexBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("SpawnedIDsBufferName"), SpawnedIDsBufferBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("IDToIndexTableName"), IDToIndexTableBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("InputFloatBufferName"), InputFloatBufferBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("InputIntBufferName"), InputIntBufferBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("InputHalfBufferName"), InputHalfBufferBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("AttributeIndicesName"), AttributeIndicesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("AttributeCompressedName"), AttributeCompressedBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	ArgsDeclarations.Add(TEXT("AttributeInt4Count"), AttributeInt4Count);
-
-	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
+	OutHLSL.Appendf(TEXT("int			%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, NumSpawnedParticlesName);
+	OutHLSL.Appendf(TEXT("int			%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, SpawnedParticlesAcquireTagName);
+	OutHLSL.Appendf(TEXT("uint			%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, InstanceCountOffsetName);
+	OutHLSL.Appendf(TEXT("uint			%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, ParticleStrideFloatName);
+	OutHLSL.Appendf(TEXT("uint			%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, ParticleStrideIntName);
+	OutHLSL.Appendf(TEXT("uint			%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, ParticleStrideHalfName);
+	OutHLSL.Appendf(TEXT("int			%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, AcquireTagRegisterIndexName);
+	OutHLSL.Appendf(TEXT("Buffer<int>	%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, SpawnedIDsBufferName);
+	OutHLSL.Appendf(TEXT("Buffer<int>	%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, IDToIndexTableName);
+	OutHLSL.Appendf(TEXT("Buffer<float>	%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, InputFloatBufferName);
+	OutHLSL.Appendf(TEXT("Buffer<int>	%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, InputIntBufferName);
+	OutHLSL.Appendf(TEXT("Buffer<half>	%s%s;"), *ParamInfo.DataInterfaceHLSLSymbol, InputHalfBufferName);
+	OutHLSL.Appendf(TEXT("int4			%s%s[%d];"), *ParamInfo.DataInterfaceHLSLSymbol, AttributeIndicesName, AttributeInt4Count);
+	OutHLSL.Appendf(TEXT("int4			%s%s[%d];"), *ParamInfo.DataInterfaceHLSLSymbol, AttributeCompressedName, AttributeInt4Count);
 }
 
 static FString GenerateFetchValueHLSL(int NumComponents, const TCHAR* ComponentNames[], const TCHAR* ComponentTypeName, const FString& InputBufferName, const FString& ParticleStrideName, bool bExtraIndent)
@@ -2024,12 +1777,12 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 	static const TCHAR* VectorComponentNames[] = { TEXT(".x"), TEXT(".y"), TEXT(".z"), TEXT(".w") };
 	static const TCHAR* IDComponentNames[] = { TEXT(".Index"), TEXT(".AcquireTag") };
 
-	const FString ParticleStrideFloatName = ParticleStrideFloatBaseName + ParamInfo.DataInterfaceHLSLSymbol;
-	const FString ParticleStrideIntName = ParticleStrideIntBaseName + ParamInfo.DataInterfaceHLSLSymbol;
-	const FString ParticleStrideHalfName = ParticleStrideHalfBaseName + ParamInfo.DataInterfaceHLSLSymbol;
-	const FString InputFloatBufferName = InputFloatBufferBaseName + ParamInfo.DataInterfaceHLSLSymbol;
-	const FString InputIntBufferName = InputIntBufferBaseName + ParamInfo.DataInterfaceHLSLSymbol;
-	const FString InputHalfBufferName = InputHalfBufferBaseName + ParamInfo.DataInterfaceHLSLSymbol;
+	const FString FullParticleStrideFloatName = ParamInfo.DataInterfaceHLSLSymbol + ParticleStrideFloatName;
+	const FString FullParticleStrideIntName = ParamInfo.DataInterfaceHLSLSymbol + ParticleStrideIntName;
+	const FString FullParticleStrideHalfName = ParamInfo.DataInterfaceHLSLSymbol + ParticleStrideHalfName;
+	const FString FullInputFloatBufferName = ParamInfo.DataInterfaceHLSLSymbol + InputFloatBufferName;
+	const FString FullInputIntBufferName = ParamInfo.DataInterfaceHLSLSymbol + InputIntBufferName;
+	const FString FullInputHalfBufferName = ParamInfo.DataInterfaceHLSLSymbol + InputHalfBufferName;
 
 	const TCHAR* ComponentTypeName;
 	FString FetchValueCode;
@@ -2055,14 +1808,14 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 				return false;
 		}
 
-		FetchValueCode = GenerateFetchValueHLSL(NumComponents, ValueComponentNames, ComponentTypeName, InputIntBufferName, ParticleStrideIntName, false);
+		FetchValueCode = GenerateFetchValueHLSL(NumComponents, ValueComponentNames, ComponentTypeName, FullInputIntBufferName, FullParticleStrideIntName, false);
 	}
 	else
 	{
 		ComponentTypeName = TEXT("float");
 		// Floats and vectors can be compressed, so we need to add extra code which checks.
-		FString FetchFloatCode = GenerateFetchValueHLSL(NumComponents, VectorComponentNames, ComponentTypeName, InputFloatBufferName, ParticleStrideFloatName, true);
-		FString FetchHalfCode = GenerateFetchValueHLSL(NumComponents, VectorComponentNames, ComponentTypeName, InputHalfBufferName, ParticleStrideHalfName, true);
+		FString FetchFloatCode = GenerateFetchValueHLSL(NumComponents, VectorComponentNames, ComponentTypeName, FullInputFloatBufferName, FullParticleStrideFloatName, true);
+		FString FetchHalfCode = GenerateFetchValueHLSL(NumComponents, VectorComponentNames, ComponentTypeName, FullInputHalfBufferName, FullParticleStrideHalfName, true);
 		FetchValueCode = FString(
 			TEXT(
 			"#if NIAGARA_COMPRESSED_ATTRIBUTES_ENABLED\n"
@@ -2115,16 +1868,16 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 	TMap<FString, FStringFormatArg> FuncTemplateArgs;
 	FuncTemplateArgs.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
 	FuncTemplateArgs.Add(TEXT("ValueType"), ValueTypeName);
-	FuncTemplateArgs.Add(TEXT("AttributeIndicesName"), AttributeIndicesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	FuncTemplateArgs.Add(TEXT("AttributeCompressedName"), AttributeCompressedBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+	FuncTemplateArgs.Add(TEXT("AttributeIndicesName"), ParamInfo.DataInterfaceHLSLSymbol + AttributeIndicesName);
+	FuncTemplateArgs.Add(TEXT("AttributeCompressedName"), ParamInfo.DataInterfaceHLSLSymbol + AttributeCompressedName);
 	FuncTemplateArgs.Add(TEXT("AttributeIndexGroup"), FunctionInstanceIndex / 4);
 	FuncTemplateArgs.Add(TEXT("AttributeIndexComponent"), VectorComponentNames[FunctionInstanceIndex % 4]);
-	FuncTemplateArgs.Add(TEXT("IDToIndexTableName"), IDToIndexTableBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	FuncTemplateArgs.Add(TEXT("InputIntBufferName"), InputIntBufferName);
-	FuncTemplateArgs.Add(TEXT("AcquireTagRegisterIndexName"), AcquireTagRegisterIndexBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-	FuncTemplateArgs.Add(TEXT("ParticleStrideIntName"), ParticleStrideIntName);
+	FuncTemplateArgs.Add(TEXT("IDToIndexTableName"),  ParamInfo.DataInterfaceHLSLSymbol + IDToIndexTableName);
+	FuncTemplateArgs.Add(TEXT("InputIntBufferName"), ParamInfo.DataInterfaceHLSLSymbol + InputIntBufferName);
+	FuncTemplateArgs.Add(TEXT("AcquireTagRegisterIndexName"), ParamInfo.DataInterfaceHLSLSymbol + AcquireTagRegisterIndexName);
+	FuncTemplateArgs.Add(TEXT("ParticleStrideIntName"), ParamInfo.DataInterfaceHLSLSymbol + ParticleStrideIntName);
 	FuncTemplateArgs.Add(TEXT("FetchValueCode"), FetchValueCode);
-	FuncTemplateArgs.Add(TEXT("InstanceCountOffsetName"), InstanceCountOffsetBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+	FuncTemplateArgs.Add(TEXT("InstanceCountOffsetName"), ParamInfo.DataInterfaceHLSLSymbol + InstanceCountOffsetName);
 
 	OutHLSL += FString::Format(*FuncTemplate, FuncTemplateArgs);
 
@@ -2147,7 +1900,7 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 
 		TMap<FString, FStringFormatArg> FuncTemplateArgs;
 		FuncTemplateArgs.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
-		FuncTemplateArgs.Add(TEXT("NumSpawnedParticlesName"), NumSpawnedParticlesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		FuncTemplateArgs.Add(TEXT("NumSpawnedParticlesName"), ParamInfo.DataInterfaceHLSLSymbol + NumSpawnedParticlesName);
 
 		OutHLSL += FString::Format(FuncTemplate, FuncTemplateArgs);
 		return true;
@@ -2175,9 +1928,9 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 
 		TMap<FString, FStringFormatArg> FuncTemplateArgs;
 		FuncTemplateArgs.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
-		FuncTemplateArgs.Add(TEXT("NumSpawnedParticlesName"), NumSpawnedParticlesBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-		FuncTemplateArgs.Add(TEXT("SpawnedParticlesAcquireTagName"), SpawnedParticlesAcquireTagBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-		FuncTemplateArgs.Add(TEXT("SpawnedIDsBufferName"), SpawnedIDsBufferBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		FuncTemplateArgs.Add(TEXT("NumSpawnedParticlesName"), ParamInfo.DataInterfaceHLSLSymbol + NumSpawnedParticlesName);
+		FuncTemplateArgs.Add(TEXT("SpawnedParticlesAcquireTagName"), ParamInfo.DataInterfaceHLSLSymbol + SpawnedParticlesAcquireTagName);
+		FuncTemplateArgs.Add(TEXT("SpawnedIDsBufferName"), ParamInfo.DataInterfaceHLSLSymbol + SpawnedIDsBufferName);
 
 		OutHLSL += FString::Format(FuncTemplate, FuncTemplateArgs);
 		return true;
@@ -2201,7 +1954,7 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 
 		TMap<FString, FStringFormatArg> FuncTemplateArgs;
 		FuncTemplateArgs.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
-		FuncTemplateArgs.Add(TEXT("InstanceCountOffsetName"), InstanceCountOffsetBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		FuncTemplateArgs.Add(TEXT("InstanceCountOffsetName"), ParamInfo.DataInterfaceHLSLSymbol + InstanceCountOffsetName);
 
 		OutHLSL += FString::Format(FuncTemplate, FuncTemplateArgs);
 		return true;
@@ -2223,10 +1976,10 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 
 		TMap<FString, FStringFormatArg> FuncTemplateArgs;
 		FuncTemplateArgs.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
-		FuncTemplateArgs.Add(TEXT("IDToIndexTableName"), IDToIndexTableBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-		FuncTemplateArgs.Add(TEXT("InputIntBufferName"), InputIntBufferBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-		FuncTemplateArgs.Add(TEXT("AcquireTagRegisterIndexName"), AcquireTagRegisterIndexBaseName + ParamInfo.DataInterfaceHLSLSymbol);
-		FuncTemplateArgs.Add(TEXT("ParticleStrideIntName"), ParticleStrideIntBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		FuncTemplateArgs.Add(TEXT("IDToIndexTableName"), ParamInfo.DataInterfaceHLSLSymbol + IDToIndexTableName);
+		FuncTemplateArgs.Add(TEXT("InputIntBufferName"), ParamInfo.DataInterfaceHLSLSymbol + InputIntBufferName);
+		FuncTemplateArgs.Add(TEXT("AcquireTagRegisterIndexName"), ParamInfo.DataInterfaceHLSLSymbol + AcquireTagRegisterIndexName);
+		FuncTemplateArgs.Add(TEXT("ParticleStrideIntName"), ParamInfo.DataInterfaceHLSLSymbol + ParticleStrideIntName);
 
 		OutHLSL += FString::Format(FuncTemplate, FuncTemplateArgs);
 		return true;
@@ -2244,7 +1997,7 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 
 		TMap<FString, FStringFormatArg> FuncTemplateArgs;
 		FuncTemplateArgs.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
-		FuncTemplateArgs.Add(TEXT("IDToIndexTableName"), IDToIndexTableBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+		FuncTemplateArgs.Add(TEXT("IDToIndexTableName"), ParamInfo.DataInterfaceHLSLSymbol + IDToIndexTableName);
 
 		OutHLSL += FString::Format(FuncTemplate, FuncTemplateArgs);
 		return true;
@@ -2360,6 +2113,210 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 	return false;
 }
 #endif
+
+void UNiagaraDataInterfaceParticleRead::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+
+	const int NumAttributesInt4 = FMath::Max(1, FMath::DivideAndRoundUp(ShaderParametersBuilder.GetGeneratedFunctions().Num(), 4));
+	ShaderParametersBuilder.AddLooseParamArray<FIntVector4>(AttributeIndicesMetadataName, NumAttributesInt4);
+	ShaderParametersBuilder.AddLooseParamArray<FIntVector4>(AttributeCompressedMetadataName, NumAttributesInt4);
+}
+
+void UNiagaraDataInterfaceParticleRead::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNiagaraDataInterfaceProxyParticleRead& DIProxy = Context.GetProxy<FNiagaraDataInterfaceProxyParticleRead>();
+
+	const FNiagaraDataInterfaceParametersCS_ParticleRead& ShaderStorage = Context.GetShaderStorage<FNiagaraDataInterfaceParametersCS_ParticleRead>();
+	const int32 NumAttributes = ShaderStorage.AttributeNames.Num();
+	const int32 NumAttributesInt4 = FMath::Max(1, FMath::DivideAndRoundUp(NumAttributes, 4));
+
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	TArrayView<FIntVector4> AttributeIndices = Context.GetParameterLooseArray<FIntVector4>(NumAttributesInt4);
+	TArrayView<FIntVector4> AttributeCompressed = Context.GetParameterLooseArray<FIntVector4>(NumAttributesInt4);
+
+	auto SetErrorParams =
+		[&](bool bClearSpawnInfo)
+		{
+			if (bClearSpawnInfo)
+			{
+				ShaderParameters->NumSpawnedParticles			= 0;
+				ShaderParameters->SpawnedParticlesAcquireTag	= 0;
+				ShaderParameters->SpawnedIDsBuffer				= FNiagaraRenderer::GetDummyIntBuffer();
+			}
+
+			ShaderParameters->InstanceCountOffset		= INDEX_NONE;
+			ShaderParameters->ParticleStrideFloat		= 0;
+			ShaderParameters->ParticleStrideInt			= 0;
+			ShaderParameters->ParticleStrideHalf		= 0;
+			ShaderParameters->AcquireTagRegisterIndex	= INDEX_NONE;
+			ShaderParameters->IDToIndexTable			= FNiagaraRenderer::GetDummyIntBuffer();
+			ShaderParameters->InputFloatBuffer			= FNiagaraRenderer::GetDummyFloatBuffer();
+			ShaderParameters->InputIntBuffer			= FNiagaraRenderer::GetDummyIntBuffer();
+			ShaderParameters->InputHalfBuffer			= FNiagaraRenderer::GetDummyHalfBuffer();
+
+			FMemory::Memset(AttributeIndices.GetData(), 0xFF, AttributeIndices.GetTypeSize());
+			FMemory::Memset(AttributeCompressed.GetData(), 0x00, AttributeCompressed.GetTypeSize());
+		};
+
+	FNDIParticleRead_RenderInstanceData* InstanceData = DIProxy.GetRenderDataForSystem(Context.GetSystemInstanceID());
+	if (InstanceData == nullptr)
+	{
+		SetErrorParams(true);
+		return;
+	}
+
+	if (InstanceData->SourceEmitterGPUContext == nullptr)
+	{
+		// This means the source emitter isn't running on GPU.
+		if (!InstanceData->bSourceEmitterNotGPUErrorShown)
+		{
+			UE_LOG(LogNiagara, Error, TEXT("GPU particle read DI is set to access CPU emitter '%s'."), *InstanceData->DebugSourceName);
+			InstanceData->bSourceEmitterNotGPUErrorShown = true;
+		}
+		SetErrorParams(true);
+		InstanceData->CachedDataSet = nullptr;
+		InstanceData->bWarnFailedToFindAcquireTag = true;
+		return;
+	}
+	InstanceData->bSourceEmitterNotGPUErrorShown = false;
+
+	FNiagaraDataSet* SourceDataSet = InstanceData->SourceEmitterGPUContext->MainDataSet;
+	if (!SourceDataSet)
+	{
+		SetErrorParams(true);
+		InstanceData->CachedDataSet = nullptr;
+		InstanceData->bWarnFailedToFindAcquireTag = true;
+		return;
+	}
+
+	FNiagaraDataBuffer* SourceData = nullptr;
+	uint32 NumSpawnedInstances = 0;
+	uint32 IDAcquireTag = 0;
+
+	// Test for reading ourself
+	if (Context.GetComputeInstanceData().Context == InstanceData->SourceEmitterGPUContext)
+	{
+		// Pull source data from SimStageData as this has the correct information until all stages are dispatched
+		// Note: In the case of an in place (aka partial update) stage this does not work as we need to bind the
+		//       same buffer as both UAV & SRV.  For the moment the user must disable partial writes.
+		//       Another option would be to read from the UAV, but that would equally race.
+		//-TODO: Automate this in some way or surface as feedback...
+		if (const FSimulationStageMetaData* StageMetaData = Context.GetSimStageData().StageMetaData)
+		{
+			if (StageMetaData->bPartialParticleUpdate)
+			{
+				UE_LOG(LogNiagara, Error, TEXT("Particle read DI reading self '%s' on stage '%s' is unsafe, please disable partial writes on the stage."), *InstanceData->DebugSourceName, *StageMetaData->SimulationStageName.ToString());
+				SetErrorParams(true);
+				return;
+			}
+		}
+
+		SourceData = Context.GetSimStageData().Source;
+
+		// Pull some spawned / acquire tag from destination data as we are reading from ourselves this is what we are currently doing in this stage.
+		if (Context.GetSimStageData().Destination)
+		{
+			ensure(SourceData != nullptr);
+			NumSpawnedInstances = Context.GetSimStageData().Destination->GetNumSpawnedInstances();
+			IDAcquireTag = Context.GetSimStageData().Destination->GetIDAcquireTag();
+		}
+		// In cases where we do not have destination data pull from source (i.e. this is an iteration on none particle stages)
+		else if (SourceData)
+		{
+			NumSpawnedInstances = SourceData->GetNumSpawnedInstances();
+			IDAcquireTag = SourceData->GetIDAcquireTag();
+		}
+	}
+	else
+	{
+		SourceData = SourceDataSet->GetCurrentData();
+		if (SourceData)
+		{
+			NumSpawnedInstances = SourceData->GetNumSpawnedInstances();
+			IDAcquireTag = SourceData->GetIDAcquireTag();
+		}
+	}
+
+	ShaderParameters->NumSpawnedParticles = NumSpawnedInstances;
+	ShaderParameters->SpawnedParticlesAcquireTag = IDAcquireTag;
+	ShaderParameters->SpawnedIDsBuffer = FNiagaraRenderer::GetSrvOrDefaultInt(SourceDataSet->GetGPUFreeIDs());
+
+	if (!SourceData)
+	{
+		SetErrorParams(false);
+		return;
+	}
+
+	if (InstanceData->CachedDataSet != SourceDataSet)
+	{
+		NDIParticleRead_FindAttributeIndices(InstanceData, SourceDataSet, ShaderStorage);
+		InstanceData->CachedDataSet = SourceDataSet;
+		InstanceData->bWarnFailedToFindAcquireTag = true;
+	}
+
+	ShaderParameters->InstanceCountOffset		= SourceData->GetGPUInstanceCountBufferOffset();
+	ShaderParameters->ParticleStrideFloat		= SourceData->GetFloatStride() / sizeof(float);
+	ShaderParameters->ParticleStrideInt			= SourceData->GetInt32Stride() / sizeof(int32);
+	ShaderParameters->ParticleStrideHalf		= SourceData->GetHalfStride() / sizeof(FFloat16);
+	ShaderParameters->AcquireTagRegisterIndex	= InstanceData->AcquireTagRegisterIndex;
+
+	// There's no need to transition the input buffers, because the grouping logic inside FNiagaraGpuComputeDispatch ensures that our source emitter has ran before us,
+	// and its buffers have been transitioned to readable.
+	ShaderParameters->IDToIndexTable	= FNiagaraRenderer::GetSrvOrDefaultInt(SourceData->GetGPUIDToIndexTable());
+	ShaderParameters->InputFloatBuffer	= FNiagaraRenderer::GetSrvOrDefaultFloat(SourceData->GetGPUBufferFloat());
+	ShaderParameters->InputIntBuffer	= FNiagaraRenderer::GetSrvOrDefaultInt(SourceData->GetGPUBufferInt());
+	ShaderParameters->InputHalfBuffer	= FNiagaraRenderer::GetSrvOrDefaultHalf(SourceData->GetGPUBufferHalf());
+
+	if (NumAttributes > 0)
+	{
+		check(InstanceData->AttributeIndices.Num() * InstanceData->AttributeIndices.GetTypeSize() == AttributeIndices.Num() * AttributeIndices.GetTypeSize());
+		check(InstanceData->AttributeCompressed.Num() * InstanceData->AttributeCompressed.GetTypeSize() == AttributeCompressed.Num() * AttributeCompressed.GetTypeSize());
+
+		FMemory::Memcpy(AttributeIndices.GetData(), InstanceData->AttributeIndices.GetData(), AttributeIndices.Num() * AttributeIndices.GetTypeSize());
+		FMemory::Memcpy(AttributeCompressed.GetData(), InstanceData->AttributeCompressed.GetData(), AttributeCompressed.Num() * AttributeCompressed.GetTypeSize());
+	}
+
+	if (InstanceData->bWarnFailedToFindAcquireTag && (InstanceData->AcquireTagRegisterIndex == -1) && Context.IsParameterBound(&ShaderParameters->AcquireTagRegisterIndex) )
+	{
+		InstanceData->bWarnFailedToFindAcquireTag = false;
+		UE_LOG(LogNiagara, Error, TEXT("Particle read DI cannot find ID variable in emitter '%s'."), *InstanceData->DebugSourceName);
+	}
+}
+
+FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceParticleRead::CreateShaderStorage(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const FShaderParameterMap& ParameterMap) const
+{
+	FNiagaraDataInterfaceParametersCS_ParticleRead* ShaderStorage = new FNiagaraDataInterfaceParametersCS_ParticleRead();
+
+	const int32 NumFuncs = ParameterInfo.GeneratedFunctions.Num();
+	ShaderStorage->AttributeNames.SetNum(NumFuncs);
+	ShaderStorage->AttributeTypes.SetNum(NumFuncs);
+	for (int32 FuncIdx = 0; FuncIdx < NumFuncs; ++FuncIdx)
+	{
+		const FNiagaraDataInterfaceGeneratedFunction& Func = ParameterInfo.GeneratedFunctions[FuncIdx];
+		static const FName NAME_Attribute("Attribute");
+		const FName* AttributeName = Func.FindSpecifierValue(NAME_Attribute);
+		if (AttributeName != nullptr)
+		{
+			ShaderStorage->AttributeNames[FuncIdx] = *AttributeName;
+			ShaderStorage->AttributeTypes[FuncIdx] = GetValueTypeFromFuncName(Func.DefinitionName);
+		}
+		else
+		{
+			// This is not an error. GetNumSpawnedParticles and GetIDAtSpawnIndexFunctionName don't use specifiers,
+			// but they take up slots in the attribute indices array for simplicity. Just stick NAME_None in here to ignore them.
+			ShaderStorage->AttributeNames[FuncIdx] = NAME_None;
+			ShaderStorage->AttributeTypes[FuncIdx] = ENiagaraParticleDataValueType::Invalid;
+		}
+	}
+
+	return ShaderStorage;
+}
+
+const FTypeLayoutDesc* UNiagaraDataInterfaceParticleRead::GetShaderStorageType() const
+{
+	return &StaticGetTypeLayoutDesc<FNiagaraDataInterfaceParametersCS_ParticleRead>();
+}
 
 void UNiagaraDataInterfaceParticleRead::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {
@@ -2619,7 +2576,5 @@ bool UNiagaraDataInterfaceParticleRead::ReadsEmitterParticleData(const FString& 
 {
 	return EmitterName == InEmitterName;
 }
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceParticleRead, FNiagaraDataInterfaceParametersCS_ParticleRead);
 
 #undef LOCTEXT_NAMESPACE

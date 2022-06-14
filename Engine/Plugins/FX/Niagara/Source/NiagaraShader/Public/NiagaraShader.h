@@ -6,18 +6,19 @@
 
 #pragma once
 
+#include "GlobalShader.h"
 #include "ShaderParameters.h"
 #include "SceneView.h"
 #include "Shader.h"
-#include "GlobalShader.h"
 #include "Math/Vector.h"
 #include "NiagaraCommon.h"
 #include "NiagaraScriptBase.h"
 #include "NiagaraShared.h"
 #include "NiagaraShaderType.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+//#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "RenderGraph.h"
 #include "SceneRenderTargetParameters.h"
-#endif
+//#endif
 
 class UClass;
 
@@ -183,6 +184,9 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSystemParameters,			SystemParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FOwnerParameters,			OwnerParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FEmitterParameters,			EmitterParameters)
+
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters,	View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters,	SceneTextures)
 	END_SHADER_PARAMETER_STRUCT()
 
 	using FPermutationParameters = FNiagaraShaderPermutationParameters;

@@ -107,8 +107,7 @@ class NIAGARACORE_API UNiagaraDataInterfaceBase : public UNiagaraMergeable
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Does this data interface require legacy shader bindings. */
-	//UE_DEPRECATED(5.1, "UseLegacyShaderBindings is deprecated and will be removed.")
+	//UE_DEPRECATED(5.1, "Support for legacy shaders bindings will be removed in a future release, please upgrade your data interface.")
 	virtual bool UseLegacyShaderBindings() const { return true; }
 
 	/**

@@ -8,11 +8,15 @@
 #include "NiagaraScriptBase.h"
 #include "NiagaraDataInterface.generated.h"
 
+class RENDERCORE_API FRDGBuilder;
+class FRDGExternalAccessQueue;
+
 class INiagaraCompiler;
 class UCurveVector;
 class UCurveLinearColor;
 class UCurveFloat;
 struct FNiagaraDataInterfaceProxy;
+struct FNiagaraDataInterfaceProxyRW;
 struct FNiagaraComputeInstanceData;
 class FNiagaraEmitterInstance;
 class FNiagaraGpuComputeDispatchInterface;
@@ -239,7 +243,87 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-struct FNiagaraDataInterfaceProxyRW;
+struct NIAGARA_API FNDIGpuComputeContext
+{
+	FNDIGpuComputeContext(FRDGBuilder& InGraphBuilder, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface)
+		: GraphBuilder(InGraphBuilder)
+		, ComputeDispatchInterface(InComputeDispatchInterface)
+	{
+	}
+
+	FRDGBuilder& GetGraphBuilder() const { return GraphBuilder; }
+	FRDGExternalAccessQueue& GetRDGExternalAccessQueue() const;
+
+	const FNiagaraGpuComputeDispatchInterface& GetComputeDispatchInterface() const { return ComputeDispatchInterface; }
+
+private:
+	FRDGBuilder& GraphBuilder;
+	const FNiagaraGpuComputeDispatchInterface& ComputeDispatchInterface;
+};
+
+struct NIAGARA_API FNDIGpuComputeResetContext : public FNDIGpuComputeContext
+{
+	FNDIGpuComputeResetContext(FRDGBuilder& InGraphBuilder, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface, FNiagaraSystemInstanceID InSystemInstanceID)
+		: FNDIGpuComputeContext(InGraphBuilder, InComputeDispatchInterface)
+		, SystemInstanceID(InSystemInstanceID)
+	{
+	}
+
+	FNiagaraSystemInstanceID GetSystemInstanceID() const { return SystemInstanceID; }
+
+private:
+	FNiagaraSystemInstanceID SystemInstanceID = FNiagaraSystemInstanceID();
+};
+
+struct NIAGARA_API FNDIGpuComputePrePostStageContext : public FNDIGpuComputeContext
+{
+	FNDIGpuComputePrePostStageContext(FRDGBuilder& InGraphBuilder, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface, const FNiagaraGPUSystemTick& InSystemTick, const FNiagaraComputeInstanceData& InComputeInstanceData, const FNiagaraSimStageData& InSimStageData)
+		: FNDIGpuComputeContext(InGraphBuilder, InComputeDispatchInterface)
+		, SystemTick(InSystemTick)
+		, ComputeInstanceData(InComputeInstanceData)
+		, SimStageData(InSimStageData)
+	{
+	}
+
+	const FNiagaraComputeInstanceData& GetComputeInstanceData() const { return ComputeInstanceData; }
+	const FNiagaraSimStageData& GetSimStageData() const { return SimStageData; }
+
+	FNiagaraSystemInstanceID GetSystemInstanceID() const;
+	FVector3f GetSystemLWCTile() const;
+	bool IsOutputStage() const;
+	bool IsIterationStage() const;
+
+	void SetDataInterfaceProxy(FNiagaraDataInterfaceProxy* InDataInterfaceProxy) { DataInterfaceProxy = InDataInterfaceProxy; }
+
+private:
+	const FNiagaraGPUSystemTick& SystemTick;
+	const FNiagaraComputeInstanceData& ComputeInstanceData;
+	const FNiagaraSimStageData& SimStageData;
+	FNiagaraDataInterfaceProxy* DataInterfaceProxy = nullptr;
+};
+
+using FNDIGpuComputePreStageContext = FNDIGpuComputePrePostStageContext;
+using FNDIGpuComputePostStageContext = FNDIGpuComputePrePostStageContext;
+
+struct NIAGARA_API FNDIGpuComputePostSimulateContext : public FNDIGpuComputeContext
+{
+	FNDIGpuComputePostSimulateContext(FRDGBuilder& InGraphBuilder, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface, FNiagaraSystemInstanceID InSystemInstanceID, bool InFinalPostSimulate)
+		: FNDIGpuComputeContext(InGraphBuilder, InComputeDispatchInterface)
+		, SystemInstanceID(InSystemInstanceID)
+		, bFinalPostSimulate(InFinalPostSimulate)
+	{
+	}
+
+	FNiagaraSystemInstanceID GetSystemInstanceID() const { return SystemInstanceID; }
+	bool IsFinalPostSimulate() const { return bFinalPostSimulate; }
+
+private:
+	FNiagaraSystemInstanceID SystemInstanceID = FNiagaraSystemInstanceID();
+	bool bFinalPostSimulate = false;
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 struct FNiagaraDataInterfaceProxy
 {
 	FNiagaraDataInterfaceProxy() {}
@@ -250,17 +334,29 @@ struct FNiagaraDataInterfaceProxy
 
 	// #todo(dmp): move all of this stuff to the RW interface to keep it out of here?
 	FName SourceDIName;
-	
+
+	// New data interface path
+	virtual void ResetData(const FNDIGpuComputeResetContext& Context) { }
+	virtual void PreStage(const FNDIGpuComputePostStageContext& Context) {}
+	virtual void PostStage(const FNDIGpuComputePostStageContext& Context) {}
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) {}
+
+	virtual bool RequiresPreStageFinalize() const { return false; }
+	virtual void FinalizePreStage(FRDGBuilder& GraphBuilder, const FNiagaraGpuComputeDispatchInterface& ComputeDispatchInterface) {}
+
+	virtual bool RequiresPostStageFinalize() const { return false; }
+	virtual void FinalizePostStage(FRDGBuilder& GraphBuilder, const FNiagaraGpuComputeDispatchInterface& ComputeDispatchInterface) {}
+
+
+	// Legacy data interface path
 	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) { }
 
 	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) {}
 	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) {}
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) {}
 
-	virtual bool RequiresPreStageFinalize() const { return false; }
 	virtual void FinalizePreStage(FRHICommandList& RHICmdList, const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface) {}
 
-	virtual bool RequiresPostStageFinalize() const { return false; }
 	virtual void FinalizePostStage(FRHICommandList& RHICmdList, const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface) {}
 
 	virtual FNiagaraDataInterfaceProxyRW* AsIterationProxy() { return nullptr; }
@@ -270,10 +366,8 @@ struct FNiagaraDataInterfaceProxy
 
 struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 {
-	friend class FNiagaraGpuComputeDispatch;
-
-	FNiagaraDataInterfaceSetShaderParametersContext(FRHICommandList& InRHICmdList, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface, const FNiagaraGPUSystemTick& InSystemTick, const FNiagaraComputeInstanceData& InComputeInstanceData, const FNiagaraSimStageData& InSimStageData, const FNiagaraShaderRef& InShaderRef, uint8* InBaseParameters)
-		: RHICmdList(InRHICmdList)
+	FNiagaraDataInterfaceSetShaderParametersContext(FRDGBuilder& InGraphBuilder, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface, const FNiagaraGPUSystemTick& InSystemTick, const FNiagaraComputeInstanceData& InComputeInstanceData, const FNiagaraSimStageData& InSimStageData, const FNiagaraShaderRef& InShaderRef, uint8* InBaseParameters)
+		: GraphBuilder(InGraphBuilder)
 		, ComputeDispatchInterface(InComputeDispatchInterface)
 		, SystemTick(InSystemTick)
 		, ComputeInstanceData(InComputeInstanceData)
@@ -283,18 +377,20 @@ struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 	{
 	}
 
+	FRDGBuilder& GetGraphBuilder() const { return GraphBuilder; }
+	FRDGExternalAccessQueue& GetRDGExternalAccessQueue() const;
+
 	template<typename T> T& GetProxy() const { check(DataInterfaceProxy); return static_cast<T&>(*DataInterfaceProxy); }
 	const FNiagaraGpuComputeDispatchInterface& GetComputeDispatchInterface() const { return ComputeDispatchInterface; }
 	const FNiagaraGPUSystemTick& GetSystemTick() const { return SystemTick; }
 	const FNiagaraComputeInstanceData& GetComputeInstanceData() const { return ComputeInstanceData; }
 	const FNiagaraSimStageData& GetSimStageData() const { return SimStageData; }
-	FRHICommandList& GetRHICmdList() const { return RHICmdList; }
 
 	FNiagaraSystemInstanceID GetSystemInstanceID() const;
 	bool IsResourceBound(const void* ResourceAddress) const;
+	bool IsParameterBound(const void* ParameterAddress) const;
 	bool IsOutputStage() const;
 	bool IsIterationStage() const;
-
 
 	template<typename T> T* GetParameterNestedStruct() const
 	{
@@ -324,7 +420,7 @@ struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 	}
 
 private:
-	FRHICommandList& RHICmdList;
+	FRDGBuilder& GraphBuilder;
 	const FNiagaraGpuComputeDispatchInterface& ComputeDispatchInterface;
 	const FNiagaraGPUSystemTick& SystemTick;
 	const FNiagaraComputeInstanceData& ComputeInstanceData;

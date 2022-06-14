@@ -18,7 +18,7 @@ uint FreeIDListIndex;
 #if USE_WAVE_INTRINSICS
 
 // This happens to be fixed on PS4 and XB1, but we'll need to configure it externally
-[numthreads(THREAD_COUNT, 1, 1)]
+[numthreads(THREADGROUP_SIZE, 1, 1)]
 void ComputeFreeIDs(uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID, uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	uint InputStart = GroupId.x * WaveGetLaneCount();
@@ -60,14 +60,14 @@ void ComputeFreeIDs(uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupTh
 #else
 
 // Temporary buffer where we compute the number of elements to write before each input element.
-groupshared uint GroupWriteOffsets[2*THREAD_COUNT];
+groupshared uint GroupWriteOffsets[2*THREADGROUP_SIZE];
 // The offset where this thread group will start writing its output.
 groupshared uint GroupWriteStart;
 
-[numthreads(THREAD_COUNT, 1, 1)]
+[numthreads(THREADGROUP_SIZE, 1, 1)]
 void ComputeFreeIDs(uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID, uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint InputStart = GroupId.x * THREAD_COUNT;
+	uint InputStart = GroupId.x * THREADGROUP_SIZE;
 	uint Thread = GroupThreadId.x;
 	uint ParticleID = InputStart + Thread;
 
@@ -87,18 +87,18 @@ void ComputeFreeIDs(uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupTh
 
 	// Compute prefix sum.
 	[unroll]
-	for(uint Offset = 1; Offset < THREAD_COUNT; Offset = Offset << 1)
+	for(uint Offset = 1; Offset < THREADGROUP_SIZE; Offset = Offset << 1)
 	{
 		// Swap the input and output buffers.
 		OutBuffer = 1 - OutBuffer;
 		InBuffer = 1 - InBuffer;
 		if(Thread >= Offset)
 		{
-			GroupWriteOffsets[OutBuffer*THREAD_COUNT + Thread] = GroupWriteOffsets[InBuffer*THREAD_COUNT + Thread - Offset] + GroupWriteOffsets[InBuffer*THREAD_COUNT + Thread];
+			GroupWriteOffsets[OutBuffer*THREADGROUP_SIZE + Thread] = GroupWriteOffsets[InBuffer*THREADGROUP_SIZE + Thread - Offset] + GroupWriteOffsets[InBuffer*THREADGROUP_SIZE + Thread];
 		}
 		else
 		{
-			GroupWriteOffsets[OutBuffer*THREAD_COUNT + Thread] = GroupWriteOffsets[InBuffer*THREAD_COUNT + Thread];
+			GroupWriteOffsets[OutBuffer*THREADGROUP_SIZE + Thread] = GroupWriteOffsets[InBuffer*THREADGROUP_SIZE + Thread];
 		}
 		GroupMemoryBarrierWithGroupSync();
 	}
@@ -106,8 +106,8 @@ void ComputeFreeIDs(uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupTh
 	if(Thread == 0)
 	{
 		// Add the value of the last predicate to get the total number of IDs that this group will write.
-		uint LastIsFree = (IDToIndexTable[InputStart + THREAD_COUNT - 1] == -1) ? 1 : 0;
-		uint NumGroupFreeIDs = GroupWriteOffsets[(OutBuffer + 1)*THREAD_COUNT - 1] + LastIsFree;
+		uint LastIsFree = (IDToIndexTable[InputStart + THREADGROUP_SIZE - 1] == -1) ? 1 : 0;
+		uint NumGroupFreeIDs = GroupWriteOffsets[(OutBuffer + 1)*THREADGROUP_SIZE - 1] + LastIsFree;
 		// Add to the global write offset. The previous offset is where we start writing in the output buffer.
 		InterlockedAdd(RWFreeIDListSizes[FreeIDListIndex], NumGroupFreeIDs, GroupWriteStart);
 	}
@@ -116,7 +116,7 @@ void ComputeFreeIDs(uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupTh
 	if(IDToIndexTable[ParticleID] == -1)
 	{
 		// This is a free ID, output it.
-		uint WriteOffset = GroupWriteStart + GroupWriteOffsets[OutBuffer*THREAD_COUNT + Thread];
+		uint WriteOffset = GroupWriteStart + GroupWriteOffsets[OutBuffer*THREADGROUP_SIZE + Thread];
 		// TODO: consider buffering the results before writing to the output UAV.
 		RWFreeIDList[WriteOffset] = ParticleID;
 	}

@@ -683,9 +683,6 @@ struct FNDIRigidMeshCollisionProxy : public FNiagaraDataInterfaceProxy
 	/** Launch all pre stage functions */
 	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
 
-	/** Reset the buffers  */
-	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
-
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FGameThreadData> SystemInstancesToProxyData;
 };
@@ -791,9 +788,6 @@ void FNDIRigidMeshCollisionProxy::PreStage(FRHICommandList& RHICmdList, const FN
 		}
 	}
 }
-
-void FNDIRigidMeshCollisionProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
-{}
 
 //------------------------------------------------------------------------------------------------------------
 

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RHI.h"
+#include "RenderGraphDefinitions.h"
 #include "NiagaraGenerateMips.generated.h"
 
 UENUM()
@@ -24,5 +24,5 @@ enum class ENiagaraMipMapGenerationType : uint8
 
 namespace NiagaraGenerateMips
 {
-	NIAGARASHADER_API void GenerateMips(FRHICommandList& RHICmdList, FRHITexture2D* TextureRHI, ENiagaraMipMapGenerationType GenType);
+	NIAGARASHADER_API void GenerateMips(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGTexture, ENiagaraMipMapGenerationType GenType);
 }
