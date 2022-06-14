@@ -1304,6 +1304,11 @@ namespace UnrealBuildTool
 								bGatherThirdPartySource = true;
 								break;
 
+							case "-NOPROGRAMS":
+								bIncludeEnginePrograms = false;
+								bIncludeDotNetPrograms = false;
+								break;
+
 							case "-GAME":
 								// Generates project files for a single game
 								bIncludeDotNetPrograms = false;
