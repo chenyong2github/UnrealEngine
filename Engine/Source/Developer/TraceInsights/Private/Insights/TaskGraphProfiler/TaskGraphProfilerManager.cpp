@@ -472,6 +472,11 @@ void FTaskGraphProfilerManager::ShowTaskRelations(TaskTrace::FId TaskId)
 
 void FTaskGraphProfilerManager::OnWindowClosedEvent()
 {
+	if (TaskTableTreeView.IsValid())
+	{
+		TaskTableTreeView->OnClose();
+	}
+
 	TSharedPtr<FTabManager> TimingTabManagerSharedPtr = TimingTabManager.Pin();
 
 	if (TimingTabManagerSharedPtr.IsValid())
