@@ -71,14 +71,12 @@ bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj
 		return false;
 	}
 
-	//@note: currently always query excluded content against the default/main save harvesting context
-	// this is because generated excluded marks are not aware of the different harvesting context yet
 	bool bExcluded = false;
-	if (SaveContext.IsExcluded(Obj))
+	if (SaveContext.GetHarvestedRealm(HarvestingContext).IsExcluded(Obj))
 	{
 		return true;
 	}
-	else if (!SaveContext.IsIncluded(Obj, HarvestingContext))
+	else if (!SaveContext.GetHarvestedRealm(HarvestingContext).IsIncluded(Obj))
 	{
 		const EObjectMark ExcludedObjectMarks = SaveContext.GetExcludedObjectMarks();
 		const ITargetPlatform* TargetPlatform = SaveContext.GetTargetPlatform();
@@ -126,7 +124,7 @@ bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj
 		}
 		if (bExcluded)
 		{
-			SaveContext.AddExcluded(Obj);
+			SaveContext.GetHarvestedRealm(HarvestingContext).AddExcluded(Obj);
 		}
 	}
 	return bExcluded;
@@ -153,18 +151,26 @@ bool DoesObjectNeedLoadForEditorGame(UObject* InObject)
 
 FPackageHarvester::FExportScope::FExportScope(FPackageHarvester& InHarvester, const FExportWithContext& InToProcess, bool bIsEditorOnlyObject)
 	: Harvester(InHarvester)
-	, PreviousContext(InHarvester.CurrentExportHarvestingRealm)
+	, PreviousRealm(InHarvester.CurrentExportHarvestingRealm)
+	, bPreviousFilterEditorOnly(InHarvester.IsFilterEditorOnly())
 {
 	check(Harvester.CurrentExportDependencies.CurrentExport == nullptr);
 	Harvester.CurrentExportDependencies = { InToProcess.Export };
 	Harvester.CurrentExportHarvestingRealm = InToProcess.HarvestedFromRealm;
 	Harvester.bIsEditorOnlyExportOnStack = bIsEditorOnlyObject;
+
+	// if we are auto generating optional package, then do no filter editor properties for that harvest
+	if (Harvester.SaveContext.IsSaveAutoOptional() && InToProcess.HarvestedFromRealm == ESaveRealm::Optional)
+	{
+		Harvester.SetFilterEditorOnly(false);
+	}
 }
 
 FPackageHarvester::FExportScope::~FExportScope()
 {
 	Harvester.AppendCurrentExportDependencies();
-	Harvester.CurrentExportHarvestingRealm = PreviousContext;
+	Harvester.CurrentExportHarvestingRealm = PreviousRealm;
+	Harvester.SetFilterEditorOnly(bPreviousFilterEditorOnly);
 }
 
 FPackageHarvester::FPackageHarvester(FSaveContext& InContext)
@@ -329,7 +335,7 @@ void FPackageHarvester::TryHarvestExport(UObject* InObject)
 		// If we have a illegal ref reason, record it
 		if (Reason != EIllegalRefReason::None)
 		{
-			SaveContext.RecordIllegalReference(CurrentExportDependencies.CurrentExport, InObject, EIllegalRefReason::ReferenceToOptional);
+			SaveContext.RecordIllegalReference(CurrentExportDependencies.CurrentExport, InObject, Reason);
 		}
 	}
 }
@@ -457,7 +463,7 @@ void FPackageHarvester::MarkSearchableName(const UObject* TypeObject, const FNam
 FArchive& FPackageHarvester::operator<<(UObject*& Obj)
 {	
 	// if the object is null or already marked excluded, we can skip the harvest
-	if (!Obj || SaveContext.IsExcluded(Obj))
+	if (!Obj || SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).IsExcluded(Obj))
 	{
 		return *this;
 	}
@@ -492,7 +498,7 @@ FArchive& FPackageHarvester::operator<<(UObject*& Obj)
 		return bIsNative;
 	};
 
-	if (SaveContext.IsIncluded(Obj, CurrentExportHarvestingRealm))
+	if (SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).IsIncluded(Obj))
 	{
 		HarvestDependency(Obj, IsObjNative(Obj));
 	}
@@ -544,7 +550,8 @@ FArchive& FPackageHarvester::operator<<(FSoftObjectPath& Value)
 			HarvestPackageHeaderName(PackageName);
 			SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetSoftPackageReferenceList().Add(PackageName);
 #if WITH_EDITORONLY_DATA
-			if (CollectType != ESoftObjectPathCollectType::EditorOnlyCollect && !bIsEditorOnlyExportOnStack)
+			if (CollectType != ESoftObjectPathCollectType::EditorOnlyCollect && !bIsEditorOnlyExportOnStack 
+				&& CurrentExportHarvestingRealm != ESaveRealm::Optional)
 #endif
 			{
 				SaveContext.GetHarvestedRealm(ESaveRealm::Game).GetSoftPackageReferenceList().Add(PackageName);

@@ -419,7 +419,7 @@ public:
 		ObjectSaveContext.Set(InPackage, GetTargetPlatform(), TargetPackagePath, SaveArgs.SaveFlags);
 
 		// Setup the harvesting flags and generate the context for harvesting the package
-		CreateHarvestingRealms();
+		SetupHarvestingRealms();
 	} 
 
 	~FSaveContext()
@@ -467,7 +467,8 @@ public:
 
 	EObjectMark GetExcludedObjectMarks() const
 	{
-		return ExcludedObjectMarks;
+		// When considering excluded objects for a platform, do not consider editor only object in the optional context as excluded
+		return (CurrentHarvestingRealm == ESaveRealm::Optional) ? (EObjectMark)(ExcludedObjectMarks & ~EObjectMark::OBJECTMARK_EditorOnly) : ExcludedObjectMarks;
 	}
 
 	EObjectFlags GetTopLevelFlags() const
@@ -575,6 +576,11 @@ public:
 		return !!(SaveArgs.SaveFlags & SAVE_Optional);
 	}
 
+	bool IsSaveAutoOptional() const
+	{
+		return bIsSaveAutoOptional;
+	}
+
 	bool IsConcurrent() const
 	{
 		return !!(SaveArgs.SaveFlags & SAVE_Concurrent);
@@ -665,6 +671,7 @@ public:
 		return CurrentHarvestingRealm;
 	}
 
+	/** Returns which save context should be saved. */
 	TArray<ESaveRealm> GetHarvestedRealmsToSave();
 
 	void MarkUnsaveable(UObject* InObject);
@@ -719,9 +726,9 @@ public:
 		return GetHarvestedRealm().IsExport(InObject);
 	}
 
-	bool IsIncluded(UObject* InObject, ESaveRealm InContext = ESaveRealm::None) const
+	bool IsIncluded(UObject* InObject) const
 	{
-		return GetHarvestedRealm(InContext).IsIncluded(InObject);
+		return GetHarvestedRealm().IsIncluded(InObject);
 	}
 
 	bool IsExcluded(UObject* InObject) const
@@ -974,15 +981,8 @@ public:
 	FSavePackageOutputFileArray AdditionalPackageFiles;
 private:
 
-	// Create the needed harvesting context depending on the save context options
-	void CreateHarvestingRealms()
-	{
-		// Create the different harvesting realms
-		HarvestedRealms.AddDefaulted((uint32)ESaveRealm::RealmCount);
-	
-		// if cooking the default harvesting context is Game, otherwise it's the editor context
-		CurrentHarvestingRealm = IsCooking() ? ESaveRealm::Game : ESaveRealm::Editor;
-	}
+	// Create the harvesting contexts and automatic optional context gathering options
+	void SetupHarvestingRealms();
 		
 	friend class FPackageHarvester;
 
@@ -1005,6 +1005,7 @@ private:
 	bool bNeedPreSaveCleanup = false;
 	bool bGenerateFileStub = false;
 	bool bIgnoreHeaderDiffs = false;
+	bool bIsSaveAutoOptional = false;
 
 	// Config classes shared with the old Save
 	FCanSkipEditorReferencedPackagesWhenCooking SkipEditorRefCookingSetting;

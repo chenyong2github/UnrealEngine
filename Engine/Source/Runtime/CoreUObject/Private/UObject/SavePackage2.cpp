@@ -310,36 +310,45 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 	EObjectFlags TopLevelFlags = SaveContext.GetTopLevelFlags();
 	UObject* Asset = SaveContext.GetAsset();
 
-	// if no top level flags are passed, process just the provided package asset
+	auto TryHarvestRootObject = [&Harvester, &SaveContext](UObject* InRoot)
+	{
+		Harvester.TryHarvestExport(InRoot);
+		// if we are automatically generating an optional package output, re-harvest objects with that realm as the default
+		if (SaveContext.IsSaveAutoOptional())
+		{
+			FSaveContext::FSetSaveRealmToSaveScope(SaveContext, ESaveRealm::Optional);
+			Harvester.TryHarvestExport(InRoot);
+		}
+	};
+
+	// if no top level flags are passed, only use the provided package asset as root
 	if (TopLevelFlags == RF_NoFlags)
 	{
-		Harvester.TryHarvestExport(Asset);
-		while (FPackageHarvester::FExportWithContext ExportContext = Harvester.PopExportToProcess())
-		{
-			Harvester.ProcessExport(ExportContext);
-		}
+		TryHarvestRootObject(Asset);
 	}
-	// Otherwise process all objects which have the relevant flags
+	// Otherwise use all objects which have the relevant flags
 	else
 	{
-		ForEachObjectWithPackage(SaveContext.GetPackage(), [&Harvester, TopLevelFlags](UObject* InObject)
+		ForEachObjectWithPackage(SaveContext.GetPackage(), [&TryHarvestRootObject, TopLevelFlags](UObject* InObject)
 			{
 				if (InObject->HasAnyFlags(TopLevelFlags))
 				{
-					Harvester.TryHarvestExport(InObject);
+					TryHarvestRootObject(InObject);
 				}
 				return true;
 			}, true/*bIncludeNestedObjects */, RF_Transient);
-		while (FPackageHarvester::FExportWithContext ExportContext = Harvester.PopExportToProcess())
-		{
-			Harvester.ProcessExport(ExportContext);
-		}
+	}
+	// Now process harvested roots
+	while (FPackageHarvester::FExportWithContext ExportContext = Harvester.PopExportToProcess())
+	{
+		Harvester.ProcessExport(ExportContext);
 	}
 
 	// If we have a valid optional context and we are saving it,
 	// transform any harvested non optional export into imports
 	// Mark other optional import package as well
-	if (SaveContext.IsSaveOptional() &&
+	if (!SaveContext.IsSaveAutoOptional() &&
+		SaveContext.IsSaveOptional() &&
 		SaveContext.IsCooking() &&
 		SaveContext.GetHarvestedRealm(ESaveRealm::Optional).GetExports().Num())
 	{
@@ -969,7 +978,15 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		SaveContext.GetLinker()->Summary.SetCustomVersionContainer(SaveContext.GetCustomVersions());
 
 		SaveContext.GetLinker()->SetPortFlags(SaveContext.GetPortFlags());
-		SaveContext.GetLinker()->SetFilterEditorOnly(SaveContext.IsFilterEditorOnly());
+		if (SaveContext.IsSaveAutoOptional() && SaveContext.GetCurrentHarvestingRealm() == ESaveRealm::Optional)
+		{
+			// Do not filter editor only data when automatically creating optional data using full uncooked objects
+			SaveContext.GetLinker()->SetFilterEditorOnly(false);
+		}
+		else
+		{
+			SaveContext.GetLinker()->SetFilterEditorOnly(SaveContext.IsFilterEditorOnly());
+		}
 		SaveContext.GetLinker()->SetCookData(SaveContext.GetCookData());
 
 		bool bUseUnversionedProperties = SaveContext.IsSaveUnversionedProperties();
@@ -1867,7 +1884,7 @@ ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 
 	if (SaveContext.IsCooking() && SaveContext.AdditionalFilesFromExports.Num() > 0)
 	{
-		checkf(SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional , TEXT("Addtional export files is currently unsupported with optional package multi output"));
+		checkf(SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional , TEXT("Addtional export files is currently unsupported with optional package multi output, Package %s"), *SaveContext.GetPackage()->GetName());
 		IPackageWriter* PackageWriter = SavePackageContext ? SavePackageContext->PackageWriter : nullptr;
 		checkf(PackageWriter, TEXT("Cooking requires a PackageWriter"));
 		for (FLargeMemoryWriter& Writer : SaveContext.AdditionalFilesFromExports)
@@ -1953,6 +1970,15 @@ ESavePackageResult UpdatePackageHeader(FStructuredArchive::FRecord& StructuredAr
 		if (!bContainsAsset)
 		{
 			PackageFlags |= PKG_ContainsNoAsset;
+		}
+		// Take the Linker FilterEditorOnlyData setting over the package flags to set this flag in the summary
+		if (Linker->IsFilterEditorOnly())
+		{
+			PackageFlags |= PKG_FilterEditorOnly;
+		}
+		else
+		{
+			PackageFlags &= ~PKG_FilterEditorOnly;
 		}
 		Linker->Summary.SetPackageFlags(PackageFlags);
 

@@ -465,6 +465,31 @@ void FLinkerSave::SetUseUnversionedPropertySerialization(bool bInUseUnversioned)
 	}
 }
 
+void FLinkerSave::SetFilterEditorOnly(bool bInFilterEditorOnly)
+{
+	FArchiveUObject::SetFilterEditorOnly(bInFilterEditorOnly);
+	if (Saver)
+	{
+		Saver->SetFilterEditorOnly(bInFilterEditorOnly);
+	}
+	if (bInFilterEditorOnly)
+	{
+		Summary.SetPackageFlags(Summary.GetPackageFlags() | PKG_FilterEditorOnly);
+		if (LinkerRoot)
+		{
+			LinkerRoot->SetPackageFlags(PKG_FilterEditorOnly);
+		}
+	}
+	else
+	{
+		Summary.SetPackageFlags(Summary.GetPackageFlags() & ~PKG_FilterEditorOnly);
+		if (LinkerRoot)
+		{
+			LinkerRoot->ClearPackageFlags(PKG_FilterEditorOnly);
+		}
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 
 static FIoChunkId CreateDerivedDataChunkId(const FPackageId PackageId, const int32 ChunkIndex)

@@ -158,6 +158,11 @@ public:
 	 * This sets it on itself, the summary, the actual Saver Archive if any and set the proper associated flag on the LinkerRoot
 	 */
 	virtual void SetUseUnversionedPropertySerialization(bool bInUseUnversioned) override;
+	/**
+	 * Sets whether we should be filtering editor only.
+	 * This sets it on itself, the summary, the actual Saver Archive if any and set the proper associated flag on the LinkerRoot
+	 */
+	virtual void SetFilterEditorOnly(bool bInFilterEditorOnly) override;
 
 
 #if WITH_EDITOR

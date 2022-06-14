@@ -2,7 +2,9 @@
 
 #include "SaveContext.h"
 
+#include "Misc/ConfigCacheIni.h"
 #include "Serialization/PackageWriter.h"
+#include "UObject/UObjectGlobals.h"
 
 
 
@@ -123,6 +125,44 @@ FSaveContext::ESaveableStatus FSaveContext::GetSaveableStatusNoOuter(UObject* Ob
 	}
 
 	return ESaveableStatus::Success;
+}
+
+namespace
+{
+	TArray<UClass*> AutomaticOptionalInclusionAssetTypeList;
+}
+
+void FSaveContext::SetupHarvestingRealms()
+{
+	// Create the different harvesting realms
+	HarvestedRealms.AddDefaulted((uint32)ESaveRealm::RealmCount);
+
+	// if cooking the default harvesting context is Game, otherwise it's the editor context
+	CurrentHarvestingRealm = IsCooking() ? ESaveRealm::Game : ESaveRealm::Editor;
+
+	// Generate the automatic optional context inclusion asset list
+	static bool bAssetListGenerated = [](TArray<UClass*>& OutAssetList)
+	{
+		TArray<FString> AssetList;
+		GConfig->GetArray(TEXT("CookSettings"), TEXT("AutomaticOptionalInclusionAssetType"), AssetList, GEditorIni);
+		for (const FString& AssetType : AssetList)
+		{
+			if (UClass* AssetClass = FindObject<UClass>(nullptr, *AssetType, true))
+			{
+				OutAssetList.Add(AssetClass);
+			}
+			else
+			{
+				UE_LOG(LogSavePackage, Warning, TEXT("The asset type '%s' was not found while building the allowlist for automatic optional data inclusion list."), *AssetType);
+			}
+		}
+		return true;
+	}(AutomaticOptionalInclusionAssetTypeList);
+
+	if (bAssetListGenerated && Asset)
+	{
+		bIsSaveAutoOptional = IsCooking() && IsSaveOptional() && AutomaticOptionalInclusionAssetTypeList.Contains(Asset->GetClass());
+	}
 }
 
 const TCHAR* LexToString(FSaveContext::ESaveableStatus Status)

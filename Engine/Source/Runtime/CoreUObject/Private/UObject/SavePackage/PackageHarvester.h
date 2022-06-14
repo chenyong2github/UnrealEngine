@@ -42,7 +42,8 @@ public:
 		~FExportScope();
 	private:
 		FPackageHarvester& Harvester;
-		ESaveRealm PreviousContext;
+		ESaveRealm PreviousRealm;
+		bool bPreviousFilterEditorOnly;
 	};
 
 	class FIgnoreDependenciesScope
