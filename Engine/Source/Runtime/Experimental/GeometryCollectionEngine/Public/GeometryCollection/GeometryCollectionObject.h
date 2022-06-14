@@ -555,17 +555,25 @@ public:
 #endif
 
 	/** Remove particle from simulation and dissolve rendered geometry once sleep threshold has been exceeded. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "RemoveOnMaxSleep"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Remove on Sleep"))
 	bool bRemoveOnMaxSleep;
 	
 	/** How long may the particle sleep before initiating removal (in seconds). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, DisplayName = "Sleep Min Max")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Sleep Min Max", EditCondition="bRemoveOnMaxSleep"))
 	FVector2D MaximumSleepTime;
 
 	/** How long does the removal process take (in seconds). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Removal Duration", EditCondition="bRemoveOnMaxSleep"))
 	FVector2D RemovalDuration;
 
+	/** when on non-sleeping, slow moving pieces will be considered as sleeping, this help removal of jittery but not really moving objects. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Slow*-Moving as sleeping", EditCondition="bRemoveOnMaxSleep"))
+	bool bSlowMovingAsSleeping;
+
+	/** When slow moving detection is on, this defines the linear velocity thresholds in cm/s to consider the object as sleeping . */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Slow*-Moving Velocity Threshold", EditCondition="bRemoveOnMaxSleep && bSlowMovingAsSleeping"))
+	float SlowMovingVelocityThreshold;
+	
 	/*
 	* Size Specfic Data reflects the default geometry to bind to rigid bodies smaller
 	* than the max size volume. This can also be empty to reflect no collision geometry

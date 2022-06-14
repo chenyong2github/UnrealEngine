@@ -77,12 +77,6 @@ static bool bChaos_BoxCalcBounds_ISPC_Enabled = CHAOS_BOX_CALC_BOUNDS_ISPC_ENABL
 static FAutoConsoleVariableRef CVarChaosBoxCalcBoundsISPCEnabled(TEXT("p.Chaos.BoxCalcBounds.ISPC"), bChaos_BoxCalcBounds_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in calculating box bounds in geometry collections"));
 #endif
 
-static bool ChaosCheckIfStillForRemoval  = false;
-static FAutoConsoleVariableRef CVarChaosCheckIfStillForRemoval(TEXT("p.Chaos.CheckIfStillForRemoval"), ChaosCheckIfStillForRemoval, TEXT("if true, non moving GC ( even non sleeping ) will be considered for removal if the feature is enabled"));
-
-static float ChaosStillCheckVelocityThreshold  = 1; // 1 cm/s
-static FAutoConsoleVariableRef CVarChaosStillCheckDistanceThreshold(TEXT("p.Chaos.ChaosStillCheckVelocityThreshold"), ChaosStillCheckVelocityThreshold, TEXT("When using ChaosStillCheckVelocityThreshold, this set the velocity threshold in cm/s "));
-
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 extern FGeometryCollectionDynamicDataPool GDynamicDataPool;
@@ -3527,14 +3521,19 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 			const bool IsRemovalActive = (MaxSleepTime[TransformIdx] >= 0) && bIsDynamicOrSleeping && bNoParent && !bHasKinematicOrStaticInternalClusterParent;
 			if (IsRemovalActive)
 			{
-				const FVector CurrentPosition = DynamicCollection->Transform[TransformIdx].GetTranslation();
-				const FVector::FReal InstantVelocity = (CurrentPosition-LastPosition[TransformIdx]).Size() / (FVector::FReal)DeltaTime; 
-				const bool bIsStill = ChaosCheckIfStillForRemoval && (InstantVelocity < ChaosStillCheckVelocityThreshold);
-				LastPosition[TransformIdx] = CurrentPosition;
+				bool bIsSlowMoving = false;
+				if (RestCollection->bSlowMovingAsSleeping)
+				{
+					const FVector CurrentPosition = DynamicCollection->Transform[TransformIdx].GetTranslation();
+					LastPosition[TransformIdx] = CurrentPosition;
+					
+					const FVector::FReal InstantVelocity = (CurrentPosition-LastPosition[TransformIdx]).Size() / (FVector::FReal)DeltaTime; 
+					bIsSlowMoving = (InstantVelocity < RestCollection->SlowMovingVelocityThreshold);
+				}
 				
 				const bool IsSleeping = (DynamicCollection->DynamicState[TransformIdx] == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping);
 				const bool HasStartedDecaying = (Decay[TransformIdx] > 0); 
-				if (IsSleeping || bIsStill || HasStartedDecaying)
+				if (IsSleeping || bIsSlowMoving || HasStartedDecaying)
 				{
 					SleepTimer[TransformIdx] += DeltaTime;
 				}

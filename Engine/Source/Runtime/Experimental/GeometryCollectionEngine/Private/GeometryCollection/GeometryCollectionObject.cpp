@@ -95,6 +95,8 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, bRemoveOnMaxSleep(false)
 	, MaximumSleepTime(5.0, 10.0)
 	, RemovalDuration(2.5, 5.0)
+	, bSlowMovingAsSleeping(true)
+	, SlowMovingVelocityThreshold(1)
 	, EnableRemovePiecesOnFracture(false)
 	, GeometryCollection(new FGeometryCollection())
 {
