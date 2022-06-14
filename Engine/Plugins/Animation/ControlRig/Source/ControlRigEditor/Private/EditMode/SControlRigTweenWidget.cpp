@@ -12,9 +12,7 @@
 #include "ScopedTransaction.h"
 #include "ControlRig.h"
 #include "UnrealEdGlobals.h"
-#include "ControlRigEditMode.h"
 #include "Tools/ControlRigPose.h"
-#include "EditorModeManager.h"
 #include "ISequencer.h"
 #include "LevelSequence.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
@@ -24,93 +22,89 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigTweenWidget"
 
-void SControlRigTweenWidget::Construct(const FArguments& InArgs)
+void SControlRigTweenSlider::Construct(const FArguments& InArgs)
 {
+
 	PoseBlendValue = 0.0f;
 	bIsBlending = false;
 	bSliderStartedTransaction = false;
-	OwningToolkit = InArgs._InOwningToolkit;
+	AnimSlider = InArgs._InAnimSlider;
+	FText Text = AnimSlider->GetText();
+	FText TooltipText = AnimSlider->GetTooltipText();
 	ChildSlot
-	[
-		SNew(SBorder)
-		.BorderImage(FAppStyle::Get().GetBrush("EditorViewport.OverlayBrush"))
-		.Padding(20.f)
+[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Center)
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Center)
-			.Padding(0.0f, 0.0f, 0.0f, 5.0f)
-			[
-				SNew(STextBlock)
-				.TextStyle(FAppStyle::Get(), "NormalText.Important")
-				.Text(LOCTEXT("TweenController", "Tween Controller"))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SSpinBox<double>)
+					.PreventThrottling(true)
+					.Value(this, &SControlRigTweenSlider::OnGetPoseBlendValue)
+					.ToolTipText(LOCTEXT("TweenTooltip", "Key at current frame between previous(-1.0) and next(1.0) poses. Use Ctrl drag for under and over shoot."))
+					.MinValue(-2.0)
+					.MaxValue(2.0)
+					.MinSliderValue(-1.0)
+					.MaxSliderValue(1.0)
+					.SliderExponent(1)
+					.Delta(0.005)
+					.MinDesiredWidth(100.0)
+					.SupportDynamicSliderMinValue(true)
+					.SupportDynamicSliderMaxValue(true)
+					.ClearKeyboardFocusOnCommit(true)
+					.OnValueChanged(this, &SControlRigTweenSlider::OnPoseBlendChanged)
+					.OnValueCommitted(this, &SControlRigTweenSlider::OnPoseBlendCommited)
+					.OnBeginSliderMovement(this, &SControlRigTweenSlider::OnBeginSliderMovement)
+					.OnEndSliderMovement(this, &SControlRigTweenSlider::OnEndSliderMovement)
+				]
 			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Center)
-			[
-				SNew(SSpinBox<float>)
-				.PreventThrottling(true)
-				.Value(this, &SControlRigTweenWidget::OnGetPoseBlendValueFloat)
-				.ToolTipText(LOCTEXT("TweenTooltip", "Key at current frame between previous(-1.0) and next(1.0) poses. Use Ctrl drag for under and over shoot."))
-				.MinValue(-2.0f)
-				.MaxValue(2.0f)
-				.MinSliderValue(-1.0f)
-				.MaxSliderValue(1.0f)
-				.SliderExponent(1)
-				.Delta(0.005f)
-				.MinDesiredWidth(100.0f)
-				.SupportDynamicSliderMinValue(true)
-				.SupportDynamicSliderMaxValue(true)
-				.OnValueChanged(this, &SControlRigTweenWidget::OnPoseBlendChanged)
-				.OnValueCommitted(this, &SControlRigTweenWidget::OnPoseBlendCommited)
-				.OnBeginSliderMovement(this, &SControlRigTweenWidget::OnBeginSliderMovement)
-				.OnEndSliderMovement(this, &SControlRigTweenWidget::OnEndSliderMovement)
-			]
-		]
+		
 	];	
 }
 
-void SControlRigTweenWidget::OnPoseBlendChanged(float ChangedVal)
+void SControlRigTweenSlider::OnPoseBlendChanged(double ChangedVal)
 {
-	TArray<UControlRig*> ControlRigs = GetControlRigs();
-	if (ControlRigs.Num() > 0 && WeakSequencer.IsValid() && bIsBlending)
+	if (WeakSequencer.IsValid() && bIsBlending)
 	{
 		PoseBlendValue = ChangedVal;
-		ControlsToTween.Blend(WeakSequencer, ChangedVal);
+		AnimSlider->Blend(WeakSequencer, ChangedVal);
 		WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 	}
 
 }
 
-void SControlRigTweenWidget::OnBeginSliderMovement()
+void SControlRigTweenSlider::OnBeginSliderMovement()
 {
 	if (bSliderStartedTransaction == false)
 	{
-		bIsBlending = true;
-		bSliderStartedTransaction = true;
-		GEditor->BeginTransaction(LOCTEXT("TweenTransaction", "Tween"));
-		SetupControls();
+		bIsBlending = bSliderStartedTransaction = Setup();
+		if (bIsBlending)
+		{
+			GEditor->BeginTransaction(LOCTEXT("AnimSliderBlend", "AnimSlider Blend"));
+
+		}
 	}
 }
 
-void SControlRigTweenWidget::SetupControls()
+bool SControlRigTweenSlider::Setup()
 {
 	//if getting sequencer from level sequence need to use the current(master), not the focused
 	ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
 	IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LevelSequence, false);
 	ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
 	WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
-	TArray<UControlRig*> ControlRigs = GetControlRigs();
-	if (ControlRigs.Num() > 0)
-	{
-		WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene()->Modify();
-		ControlsToTween.Setup(ControlRigs, WeakSequencer);
-	}
+
+	return AnimSlider->Setup(WeakSequencer);
+	
 }
 
-void SControlRigTweenWidget::OnEndSliderMovement(float NewValue)
+void SControlRigTweenSlider::OnEndSliderMovement(double NewValue)
 {
 	if (bSliderStartedTransaction)
 	{
@@ -135,13 +129,12 @@ FReply SControlRigTweenWidget::OnDragDetected(const FGeometry& MyGeometry, const
 			GetDesiredSize(),
 			OnUIDropped
 		);
+
 	if (OwningToolkit.IsValid())
 	{
 		OwningToolkit.Pin()->TryRemoveTweenOverlay();
 	}
 	return FReply::Handled().BeginDragDrop(DragDropOperation);
-
-	return FReply::Unhandled();
 }
 
 void SControlRigTweenWidget::FinishDraggingWidget(const FVector2D InLocation)
@@ -153,17 +146,16 @@ void SControlRigTweenWidget::FinishDraggingWidget(const FVector2D InLocation)
 	}
 }
 
-void SControlRigTweenWidget::OnPoseBlendCommited(float ChangedVal, ETextCommit::Type Type)
+void SControlRigTweenSlider::OnPoseBlendCommited(double ChangedVal, ETextCommit::Type Type)
 {
-	TArray<UControlRig*> ControlRigs = GetControlRigs();
-	if (ControlRigs.Num() > 0)
+	if (bIsBlending == false)
+	{
+		bIsBlending = Setup();
+
+	}
+	if(bIsBlending)
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("TweenTransaction", "Tween"));
-		if (bIsBlending == false)
-		{
-			SetupControls();
-			bIsBlending = true;
-		}
 		PoseBlendValue = ChangedVal;
 		OnPoseBlendChanged(ChangedVal);
 		bIsBlending = false;
@@ -171,19 +163,130 @@ void SControlRigTweenWidget::OnPoseBlendCommited(float ChangedVal, ETextCommit::
 	}
 }
 
-TArray<UControlRig*>SControlRigTweenWidget::GetControlRigs()
+void SControlRigTweenWidget::OnSelectSliderTool(int32 Index)
 {
-	TArray<UControlRig*> ControlRigs;
-	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
+	ActiveSlider = Index;
+	if (ActiveSlider >= 0 && ActiveSlider < AnimBlendTools.GetAnimSliders().Num())
 	{
-		TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
-		EditMode->GetAllSelectedControls(SelectedControls);
-		for (TPair<UControlRig*, TArray<FRigElementKey>>& Selected: SelectedControls)
-		{
-			ControlRigs.Add(Selected.Key);
-		}
+		SliderWidget->SetAnimSlider(AnimBlendTools.GetAnimSliders()[ActiveSlider]);
 	}
-	return ControlRigs;
+	
+}
+FText SControlRigTweenWidget::GetActiveSliderName() const
+{
+	if (ActiveSlider >= 0 && ActiveSlider < AnimBlendTools.GetAnimSliders().Num())
+	{
+		return AnimBlendTools.GetAnimSliders()[ActiveSlider].Get()->GetText();
+	}
+	return FText();
+}
+
+FText SControlRigTweenWidget::GetActiveSliderTooltip() const
+{
+	if (ActiveSlider >= 0 && ActiveSlider < AnimBlendTools.GetAnimSliders().Num())
+	{
+		return AnimBlendTools.GetAnimSliders()[ActiveSlider].Get()->GetTooltipText();
+	}
+	return FText();
+}
+
+int32 SControlRigTweenWidget::ActiveSlider = 0;
+
+
+void SControlRigTweenWidget::Construct(const FArguments& InArgs)
+{
+	TSharedPtr<FBaseAnimSlider> TweenPtr = MakeShareable(new FControlsToTween());
+	AnimBlendTools.RegisterAnimSlider(TweenPtr);
+	TSharedPtr<FBaseAnimSlider> AmplifyPtr = MakeShareable(new FAmplifySlider());
+	AnimBlendTools.RegisterAnimSlider(AmplifyPtr);
+	TSharedPtr<FBaseAnimSlider> BlendNeighborPtr = MakeShareable(new FBlendToPreviousNextSlider());
+	AnimBlendTools.RegisterAnimSlider(BlendNeighborPtr);
+
+	OwningToolkit = InArgs._InOwningToolkit;
+
+
+	// Combo Button to swap sliders 
+	TSharedRef<SComboButton> SliderComoboBtn = SNew(SComboButton)
+		.OnGetMenuContent_Lambda([this]()
+			{
+
+				FMenuBuilder MenuBuilder(true, NULL); //maybe todo look at settting these up with commands
+
+				MenuBuilder.BeginSection("Anim Sliders");
+
+				int32 Index = 0;
+				for (const TSharedPtr<FBaseAnimSlider>& SliderPtr : AnimBlendTools.GetAnimSliders())
+				{
+					FUIAction ItemAction(FExecuteAction::CreateSP(this, &SControlRigTweenWidget::OnSelectSliderTool, Index));
+					MenuBuilder.AddMenuEntry(SliderPtr.Get()->GetText(), TAttribute<FText>(), FSlateIcon(), ItemAction);
+					++Index;
+				}
+
+				MenuBuilder.EndSection();
+
+				return MenuBuilder.MakeWidget();
+			})
+			.ButtonContent()
+				[
+					SNew(SHorizontalBox)
+					/*  todo add an icon
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(FMargin(0.f, 0.f, 6.f, 0.f))
+					[
+						SNew(SBox)
+						.WidthOverride(16.f)
+						.HeightOverride(16.f)
+						[
+							SNew(SImage)
+							.Image_Static(&FLevelEditorToolBar::GetActiveModeIcon, LevelEditorPtr)
+						]
+
+					]
+					*/
+				+SHorizontalBox::Slot()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]()
+						{
+							return GetActiveSliderName();
+						})
+					.ToolTipText_Lambda([this]()
+					{
+						return GetActiveSliderTooltip();
+					})
+				]
+
+			];
+
+		TSharedRef<SHorizontalBox> MainBox = SNew(SHorizontalBox);
+		TSharedPtr<FBaseAnimSlider> SliderPtr = AnimBlendTools.GetAnimSliders()[ActiveSlider];
+		MainBox->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Padding(2.0f, 2.0f, 2.0f, 2.0f)
+		[
+			SliderComoboBtn
+		];
+		MainBox->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Padding(2.0f, 2.0f, 2.0f, 2.0f)
+		[
+			SAssignNew(SliderWidget,SControlRigTweenSlider).InAnimSlider(SliderPtr)
+		];
+	
+	ChildSlot
+	[
+		SNew(SBorder)
+		.BorderImage(FAppStyle::Get().GetBrush("EditorViewport.OverlayBrush"))
+		[
+			MainBox
+		]
+	];
+
 }
 
 #undef LOCTEXT_NAMESPACE

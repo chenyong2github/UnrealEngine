@@ -617,7 +617,7 @@ public:
 
 	void OnSelectedNodesOnlyChanged();
 
-	TSharedPtr<FCurveEditor> GetCurveEditor() const
+	virtual TSharedPtr<FCurveEditor> GetCurveEditor() const override
 	{
 		return CurveEditorModel;
 	}

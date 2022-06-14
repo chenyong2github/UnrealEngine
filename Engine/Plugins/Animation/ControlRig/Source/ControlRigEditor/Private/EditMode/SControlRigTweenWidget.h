@@ -20,13 +20,48 @@ class UControlRig;
 class ISequencer;
 class FControlRigEditModeToolkit;
 
+class SControlRigTweenSlider : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SControlRigTweenSlider) {}
+	SLATE_ARGUMENT(TSharedPtr<FBaseAnimSlider>, InAnimSlider)
+	SLATE_END_ARGS()
+	~SControlRigTweenSlider()
+	{
+	}
+
+	void Construct(const FArguments& InArgs);
+	void SetAnimSlider(TSharedPtr<FBaseAnimSlider>& InAnimSlider) { AnimSlider = InAnimSlider; }
+
+private:
+
+
+	/*
+	* Delegates and Helpers
+	*/
+	void OnPoseBlendChanged(double ChangedVal);
+	void OnPoseBlendCommited(double ChangedVal, ETextCommit::Type Type);
+	void OnBeginSliderMovement();
+	void OnEndSliderMovement(double NewValue);
+	double OnGetPoseBlendValue() const { return PoseBlendValue; }
+
+	bool Setup();
+	double PoseBlendValue;
+	bool bIsBlending;
+	bool bSliderStartedTransaction;
+
+	
+	TWeakPtr<ISequencer> WeakSequencer;
+	TSharedPtr<FBaseAnimSlider> AnimSlider;
+
+};
+
+
 class SControlRigTweenWidget : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SControlRigTweenWidget) {}
-	SLATE_ARGUMENT(UControlRigPoseAsset*, PoseAsset)
-    SLATE_ARGUMENT(TSharedPtr<FControlRigEditModeToolkit>, InOwningToolkit)
+	SLATE_ARGUMENT(TSharedPtr<FControlRigEditModeToolkit>, InOwningToolkit)
 	SLATE_END_ARGS()
-	~SControlRigTweenWidget()
+		~SControlRigTweenWidget()
 	{
 	}
 
@@ -34,16 +69,11 @@ class SControlRigTweenWidget : public SCompoundWidget
 
 private:
 
-	TArray<UControlRig*> GetControlRigs();
+	void OnSelectSliderTool(int32 Index);
+	FText GetActiveSliderName() const;
+	FText GetActiveSliderTooltip() const;
 
-	/*
-	* Delegates and Helpers
-	*/
-	void OnPoseBlendChanged(float ChangedVal);
-	void OnPoseBlendCommited(float ChangedVal, ETextCommit::Type Type);
-	void OnBeginSliderMovement();
-	void OnEndSliderMovement(float NewValue);
-	float OnGetPoseBlendValueFloat() const { return PoseBlendValue; }
+
 
 	FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
@@ -52,14 +82,11 @@ private:
 	FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	void FinishDraggingWidget(const FVector2D InLocation);
 
-	void SetupControls();
-	float PoseBlendValue;
-	bool bIsBlending;
-	bool bSliderStartedTransaction;
-
-	FControlsToTween  ControlsToTween;
-
 	TWeakPtr<ISequencer> WeakSequencer;
 	TWeakPtr<FControlRigEditModeToolkit> OwningToolkit;
-};
+	FAnimBlendTooLManager  AnimBlendTools;
 
+	TSharedPtr<SControlRigTweenSlider> SliderWidget;
+	static int32 ActiveSlider;
+
+};
