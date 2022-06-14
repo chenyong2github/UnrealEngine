@@ -75,7 +75,6 @@ LandscapeEdit.cpp: Landscape editing
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
-#include "WorldPartition/Landscape/LandscapeSplineActorDesc.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "LandscapeUtils.h"
 #include "LandscapeSplineActor.h"
@@ -100,6 +99,8 @@ static TAutoConsoleVariable<int32> CVarMobileCompressLanscapeWeightMaps(
 // Used to temporarily disable material instance updates (typically used for cases where multiple updates are called on sample component)
 // Instead, one call per component is done at the end
 LANDSCAPE_API bool GDisableUpdateLandscapeMaterialInstances = false;
+
+LANDSCAPE_API FName ALandscape::AffectsLandscapeActorDescProperty(TEXT("AffectsLandscape"));
 
 // Channel remapping
 extern const size_t ChannelOffsets[4];
@@ -5251,22 +5252,31 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 		check(LandscapeInfo);
 		if (GEditor && !GetWorld()->IsGameWorld())
 		{
-			if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+			if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition(); WorldPartition->IsInitialized())
 			{
 				const FVector ActorLocation = GetActorLocation();
-				const FBox Bounds(ActorLocation, ActorLocation + (GridSize * LandscapeInfo->DrawScale));
+				FBox Bounds(ActorLocation, ActorLocation + (GridSize * LandscapeInfo->DrawScale));
 
-				FWorldPartitionHelpers::ForEachActorDesc<ALandscapeSplineActor>(WorldPartition, [this, WorldPartition, &Bounds](const FWorldPartitionActorDesc* ActorDesc) mutable
+				// all actors that intersect Landscape in 2D need to be considered
+				Bounds.Min.Z = -HALF_WORLD_MAX;
+				Bounds.Max.Z = HALF_WORLD_MAX;
+
+				FWorldPartitionHelpers::ForEachIntersectingActorDesc(WorldPartition, Bounds, [this, WorldPartition](const FWorldPartitionActorDesc* ActorDesc) mutable
 				{
-					FLandscapeSplineActorDesc* LandscapeSplineActorDesc = (FLandscapeSplineActorDesc*)ActorDesc;
-
-					if (LandscapeSplineActorDesc->LandscapeGuid == LandscapeGuid)
+					FName PropertyValue;
+					if(ActorDesc->GetProperty(ALandscape::AffectsLandscapeActorDescProperty, &PropertyValue))
 					{
-						if (Bounds.IntersectXY(ActorDesc->GetBounds()))
+						// If no Guid specified then consider actor as affecting all landscapes
+						if (PropertyValue.IsNone())
+						{
+							ActorDescReferences.Add(FWorldPartitionReference(WorldPartition, ActorDesc->GetGuid()));
+						}
+						else if(FGuid ParsedGuid; FGuid::Parse(PropertyValue.ToString(), ParsedGuid) && ParsedGuid == LandscapeGuid)
 						{
 							ActorDescReferences.Add(FWorldPartitionReference(WorldPartition, ActorDesc->GetGuid()));
 						}
 					}
+										
 					return true;
 				});
 			}
@@ -5407,21 +5417,24 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 		{
 			FWorldPartitionHelpers::ForEachActorDesc<ALandscapeSplineActor>(WorldPartition, [this, &UndeletedSplineCount](const FWorldPartitionActorDesc* ActorDesc)
 			{
-				FLandscapeSplineActorDesc* LandscapeSplineActorDesc = (FLandscapeSplineActorDesc*)ActorDesc;
-
-				if (LandscapeSplineActorDesc->LandscapeGuid == LandscapeGuid)
+				FName AffectsLandscapeProperty;
+				if (ActorDesc->GetProperty(ALandscape::AffectsLandscapeActorDescProperty, &AffectsLandscapeProperty))
 				{
-					ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(LandscapeSplineActorDesc->GetActor());
-		
-					// If SplineActor is null then it is not loaded/deleted. If it's loaded then it needs to be pending kill.
-					if (!SplineActor)
+					FGuid ParsedLandscapeGuid;
+					if (FGuid::Parse(AffectsLandscapeProperty.ToString(), ParsedLandscapeGuid) && ParsedLandscapeGuid == LandscapeGuid)
 					{
-						++UndeletedSplineCount;
-					}
-					else
-					{
-						// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
-						check(SplineActors.Contains(SplineActor) == IsValidChecked(SplineActor));
+						ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(ActorDesc->GetActor());
+
+						// If SplineActor is null then it is not loaded/deleted. If it's loaded then it needs to be pending kill.
+						if (!SplineActor)
+						{
+							++UndeletedSplineCount;
+						}
+						else
+						{
+							// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
+							check(SplineActors.Contains(SplineActor) == IsValidChecked(SplineActor));
+						}
 					}
 				}
 

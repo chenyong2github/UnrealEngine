@@ -28,6 +28,7 @@
 #include "WaterIconHelper.h"
 #include "Components/BillboardComponent.h"
 #include "Editor/EditorEngine.h"
+#include "Landscape.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Water"
@@ -611,6 +612,16 @@ bool AWaterBody::SetIsHiddenEdLayer(bool bIsHiddenEdLayer)
 	}
 	return false;
 }
+
+void AWaterBody::GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const
+{
+	Super::GetActorDescProperties(PropertyPairsMap);
+	if (AffectsLandscape())
+	{
+		PropertyPairsMap.AddProperty(ALandscape::AffectsLandscapeActorDescProperty);
+	}
+}
+
 #endif // WITH_EDITOR
 
 void AWaterBody::UnregisterAllComponents(bool bForReregister)

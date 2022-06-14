@@ -20,6 +20,7 @@
 #include "WaterIconHelper.h"
 #include "WaterSubsystem.h"
 #include "WaterModule.h"
+#include "Landscape.h"
 #endif // WITH_EDITOR
 
 // ----------------------------------------------------------------------------------
@@ -165,6 +166,15 @@ void AWaterBodyIsland::PostLoad()
 }
 
 #if WITH_EDITOR
+void AWaterBodyIsland::GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const
+{
+	Super::GetActorDescProperties(PropertyPairsMap);
+	if (AffectsLandscape())
+	{
+		PropertyPairsMap.AddProperty(ALandscape::AffectsLandscapeActorDescProperty);
+	}
+}
+
 void AWaterBodyIsland::UpdateOverlappingWaterBodyComponents()
 {
 	TArray<FOverlapResult> Overlaps;

@@ -45,6 +45,7 @@ public:
 	virtual void PostLoad() override;
 	
 #if WITH_EDITOR
+	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const override;
 	void UpdateOverlappingWaterBodyComponents();
 	void UpdateActorIcon();
 #endif // WITH_EDITOR

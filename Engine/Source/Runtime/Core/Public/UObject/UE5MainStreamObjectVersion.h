@@ -241,6 +241,10 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Add IAnimationDataModel interface and replace UObject based representation for Animation Assets
 		AnimationDataModelInterface,
+
+		// Deprecate LandscapeSplineActorDesc
+		LandscapeSplineActorDescDeprecation,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

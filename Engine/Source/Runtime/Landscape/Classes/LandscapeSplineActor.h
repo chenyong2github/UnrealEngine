@@ -27,7 +27,7 @@ public:
 		
 #if WITH_EDITOR
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return true; }
-	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
+	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const override;
 
 	void GetSharedProperties(ULandscapeInfo* InLandscapeInfo);
 
@@ -44,5 +44,3 @@ public:
 	virtual void CreateSplineComponent(const FVector& Scale3D) override { check(false); }
 #endif
 };
-
-DEFINE_ACTORDESC_TYPE(ALandscapeSplineActor, FLandscapeSplineActorDesc);

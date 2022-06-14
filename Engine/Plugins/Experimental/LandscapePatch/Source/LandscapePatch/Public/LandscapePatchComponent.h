@@ -49,6 +49,7 @@ public:
 	virtual void OnComponentCreated() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual void OnRegister() override;
+	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const override;
 
 	// UObject
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

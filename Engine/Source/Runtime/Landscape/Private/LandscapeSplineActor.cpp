@@ -8,7 +8,6 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/Landscape/LandscapeSplineActorDesc.h"
 #endif
 
 ALandscapeSplineActor::ALandscapeSplineActor(const FObjectInitializer& ObjectInitializer)
@@ -36,9 +35,14 @@ ULandscapeInfo* ALandscapeSplineActor::GetLandscapeInfo() const
 }
 
 #if WITH_EDITOR
-TUniquePtr<FWorldPartitionActorDesc> ALandscapeSplineActor::CreateClassActorDesc() const
+void ALandscapeSplineActor::GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const
 {
-	return TUniquePtr<FWorldPartitionActorDesc>(new FLandscapeSplineActorDesc());
+	Super::GetActorDescProperties(PropertyPairsMap);
+
+	if (LandscapeGuid.IsValid())
+	{
+		PropertyPairsMap.AddProperty(ALandscape::AffectsLandscapeActorDescProperty, *LandscapeGuid.ToString());
+	}
 }
 
 void ALandscapeSplineActor::GetSharedProperties(ULandscapeInfo* InLandscapeInfo)

@@ -218,6 +218,8 @@ public:
 	//~ End ALandscapeProxy Interface
 
 #if WITH_EDITOR
+	static LANDSCAPE_API FName AffectsLandscapeActorDescProperty;
+
 	LANDSCAPE_API bool HasAllComponent(); // determine all component is in this actor
 	
 	// Include Components with overlapped vertices
