@@ -9,8 +9,9 @@
 
 class UDynamicMesh;
 
-
-
+//
+// PN Tessellate options
+//
 USTRUCT(BlueprintType, meta = (DisplayName = "PN Tessellate Options"))
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPNTessellateOptions
 {
@@ -19,6 +20,29 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bRecomputeNormals = true;
 };
+
+
+//
+// Adaptive Tessellate options
+//
+UENUM(BlueprintType)
+enum class EAdaptiveTessellatePatternType : uint8
+{
+	Uniform,
+	InnerUniform,
+	ConcentricRings
+};
+
+
+USTRUCT(BlueprintType, meta = (DisplayName = "Additional Adaptive Tessellate Options"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptAdaptiveTessellateOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bEnableMultithreading = true;
+};
+
 
 UCLASS(meta = (ScriptName = "GeometryScript_MeshSubdivide"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshSubdivideFunctions : public UBlueprintFunctionLibrary
@@ -49,4 +73,15 @@ public:
 		UDynamicMesh* TargetMesh,
 		int TessellationLevel = 3,
 		UGeometryScriptDebug* Debug = nullptr );
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Subdivide", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyAdaptiveTessellation(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptAdaptiveTessellateOptions Options,
+		FGeometryScriptIndexList IndexList,
+		int TessellationLevel = 1,
+		EAdaptiveTessellatePatternType PatternType = EAdaptiveTessellatePatternType::ConcentricRings,
+		UGeometryScriptDebug* Debug = nullptr);
+
 };

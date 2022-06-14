@@ -7,6 +7,7 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "Operations/PNTriangles.h"
 #include "Operations/UniformTessellate.h"
+#include "Operations/AdaptiveTessellate.h"
 #include "UDynamicMesh.h"
 #include "Math/UnrealMathUtility.h"
 
@@ -122,6 +123,111 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyUniformTessell
 		{
 			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("ApplyUniformTessellation_Failed", "ApplyUniformTessellation: Tessellation failed.")); 
 		}
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyAdaptiveTessellation(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptAdaptiveTessellateOptions Options,
+	FGeometryScriptIndexList IndexList,
+	int TessellationLevel,
+	EAdaptiveTessellatePatternType PatternType,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyAdapativeTessellation_InvalidInput", "ApplyAdapativeTessellation: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (TessellationLevel <= 0)
+	{
+		return TargetMesh;
+	}
+	if (PatternType != EAdaptiveTessellatePatternType::ConcentricRings)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyAdapativeTessellation_Error", "Only ConcentricRings pattern is currently supported."));
+		return TargetMesh;
+	} 
+	if (IndexList.IndexType != EGeometryScriptIndexType::Triangle)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyAdapativeTessellation_Error", "Only Triangle selection is currently supported."));
+		return TargetMesh;
+	} 
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		FAdaptiveTessellate Tessellator(&EditMesh);
+
+		TSharedPtr<TArray<int>> List = IndexList.List;
+		TUniquePtr<FTessellationPattern> Pattern; 
+		if (List == nullptr) //if list is not provided then tessellate the whole mesh
+		{	
+			switch(PatternType) 
+			{
+				case EAdaptiveTessellatePatternType::Uniform:
+				{
+					Pattern = nullptr; //TODO: implement
+					break;
+				}
+				case EAdaptiveTessellatePatternType::InnerUniform: 
+				{
+					Pattern = nullptr; //TODO: implement
+					break;
+				}
+				case EAdaptiveTessellatePatternType::ConcentricRings:
+				{
+					Pattern = FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel);
+					break;
+				} 
+				default:
+				{
+					checkSlow(false);
+				}
+			}
+		}
+		else
+		{
+			switch(PatternType) 
+			{
+				case EAdaptiveTessellatePatternType::Uniform:
+				{
+					Pattern = nullptr; //TODO: implement
+					break;
+				}
+				case EAdaptiveTessellatePatternType::InnerUniform: 
+				{
+					Pattern = nullptr; //TODO: implement
+					break;
+				}
+				case EAdaptiveTessellatePatternType::ConcentricRings:
+				{
+					Pattern = FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel, *List);
+					break;
+				} 
+				default:
+				{
+					checkSlow(false);
+				}
+			}
+		}
+
+		Tessellator.SetPattern(Pattern.Get());
+		Tessellator.bUseParallel = Options.bEnableMultithreading;
+		
+		if (Tessellator.Validate() != EOperationValidationResult::Ok)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyAdapativeTessellation_Error", "ApplyAdapativeTessellation: The inputs are invalid."));
+			return;
+		} 
+
+		if (Tessellator.Compute() == false)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("ApplyAdapativeTessellate_Failed", "ApplyAdapativeTessellate: Tessellation failed.")); 
+		}
+
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 
 	return TargetMesh;

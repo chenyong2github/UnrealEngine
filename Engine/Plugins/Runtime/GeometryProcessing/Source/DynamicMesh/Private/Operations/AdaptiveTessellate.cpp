@@ -1,0 +1,1071 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Operations/AdaptiveTessellate.h"
+#include "VectorTypes.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "Async/ParallelFor.h"
+#include "Util/ProgressCancel.h"
+#include "Distance/DistLine3Line3.h"
+#include "Misc/AssertionMacros.h"
+#include "Util/CompactMaps.h"
+
+using namespace UE::Geometry;
+
+namespace AdaptiveTessellateLocals 
+{
+	/**
+     * Manage data containing tessellation information. This includes barycentric coordinates of the new vertices,
+     * new vertex IDs and triangle indices. 
+     *
+     * Given an Edge or Triangle ID, allows to create a TArrayView for reading and writing to the data block 
+	 * containing barycentric coordinates, vertex IDs or triangle data.
+	 */
+	class FTessellationData
+	{
+	public:
+
+		// Track all of the edges and triangles that we need to tessellate. Allows for fast Contains() queries.
+		TSet<int> EdgesToTessellate;
+		TSet<int> TrianglesToTessellate;
+
+        // Array of all the new IDs for all the vertices added along the tessellated edges. Different edges 
+        // can have a different number of new vertices added. Use the EdgeCoordOffsets to figure out the starting point 
+        // and the length of the data block containing all of the vertices added along the edge. Similar logic applies 
+		// to EdgeCoord, InnerVIDs, InnerCoord, Triangles.
+		//
+		//            Edge1                Edge2              Edge50   Edge51
+		//            ---------------------------------------------------------------------
+		// EdgeVIDs   | VID1  VID2  VID3 | VID4  VID5 | ... | VID100 | VID101 VID102 |....
+		//            ---------------------------------------------------------------------
+		//           /                                      /
+		//          /                                       EdgeCoordOffsets[Edge50][0]
+		//         EdgeCoordOffsets[Edge1][0] 	
+
+		TArray<int> EdgeVIDs;     // Vertex IDs of the vertices added inside tessellated edges 
+		TArray<double> EdgeCoord; // Lerp cooefficients of the vertices added along tessellated edges		
+		TMap<int, FIndex2i> EdgeCoordOffsets;  // Maps Edge ID to tuple of (offset, length) numbers used to access a data 
+											   // block in the EdgeVIDs and EdgeCoord arrays.
+
+
+		TArray<int> InnerVIDs; 	      // Vertex IDs of the vertices added inside tessellated triangles 
+		TArray<FVector3d> InnerCoord; // Barycentric coordinates of the vertices added inside tessellated triangles 
+		TMap<int, FIndex2i> InnerCoordOffsets; // Maps Triangle ID to tuple of offset and length numbers used to access 
+											   // a data block in the InnerVIDs and InnerCoord arrays.
+
+
+		TArray<FIndex3i> Triangles; 		  // Indices of the new triangles
+		TMap<int, FIndex2i> TrianglesOffsets; // Maps Triangle ID to tuple of offset and length numbers used to access 
+											  // a data block in the Triangles array.
+		
+	protected:
+
+		const FDynamicMesh3* Mesh;
+
+	public:
+
+		FTessellationData(const FDynamicMesh3* InMesh) 
+		:
+		Mesh(InMesh)
+		{
+		}
+
+
+		void Init(const FTessellationPattern* Pattern) 
+		{
+			this->InitEdgeVertexBuffers(Pattern);
+			this->InitTriVertexBuffers(Pattern); 
+			this->InitTrianglesBuffers(Pattern);
+		}
+
+
+		/** 
+		 * @return Array view of the data block containing the barycentric coordinates for the new vertices added along 
+		 * the edge. 
+		 */
+		TArrayView<double> MapEdgeCoordBufferBlock(const int EdgeID) 
+		{
+			TArrayView<double> ArrayView(EdgeCoord);
+			const FIndex2i OffsetLength = EdgeCoordOffsets[EdgeID]; 
+			return ArrayView.Slice(OffsetLength[0], OffsetLength[1]);
+		}
+
+
+		/** @return Array view of the data block containing the vertex ids for the new vertices added along the edge. */
+		TArrayView<int> MapEdgeVIDBufferBlock(const int EdgeID) 
+		{
+			TArrayView<int> ArrayView(EdgeVIDs);
+			const FIndex2i OffsetLength = EdgeCoordOffsets[EdgeID]; 
+			return ArrayView.Slice(OffsetLength[0], OffsetLength[1]);
+		}
+
+
+		/** @return Array view of the data block containing the barycentric coordinates for new vertices added inside the triangle. */
+		TArrayView<FVector3d> MapTriangleCoordBufferBlock(const int TriangleID)
+		{
+			TArrayView<FVector3d> ArrayView(InnerCoord);
+			const FIndex2i OffsetLength = InnerCoordOffsets[TriangleID]; 
+			return ArrayView.Slice(OffsetLength[0], OffsetLength[1]);
+		}
+
+
+		/** @return Array view of a data block containing the vertex ids for new vertices added inside the triangle. */
+		TArrayView<int> MapTriangleVIDBufferBlock(const int TriangleID)
+		{
+			TArrayView<int> ArrayView(InnerVIDs);
+			const FIndex2i OffsetLength = InnerCoordOffsets[TriangleID]; 
+			return ArrayView.Slice(OffsetLength[0], OffsetLength[1]);
+		}
+
+
+		/** @return Array view of a data block containing the triangle indices for new triangles. */
+		TArrayView<FIndex3i> MapTrianglesBufferBlock(const int TriangleID)
+		{
+			TArrayView<FIndex3i> ArrayView(Triangles);
+			FIndex2i OffsetLengthPair = TrianglesOffsets[TriangleID]; 
+			return ArrayView.Slice(OffsetLengthPair[0], OffsetLengthPair[1]);
+		}
+
+	protected:
+
+		void InitEdgeVertexBuffers(const FTessellationPattern* Pattern) 
+		{
+			int BufferNumVertices = 0;
+			for (const int EdgeID : Mesh->EdgeIndicesItr())
+			{
+				const int NumNewVertices = Pattern->GetNumberOfNewVerticesForEdgePatch(EdgeID); 
+				if (NumNewVertices > 0)
+				{
+					EdgesToTessellate.Add(EdgeID);
+					EdgeCoordOffsets.Add(EdgeID, FIndex2i(BufferNumVertices, NumNewVertices));
+					BufferNumVertices += NumNewVertices;
+				}
+			}
+
+			EdgeVIDs.SetNum(BufferNumVertices);
+			
+			// IDs of the new vertices added along edges start with the max vertex ID of the input mesh.
+			const int MaxVertexID = Mesh->MaxVertexID();
+			
+			for (int Index = 0; Index < EdgeVIDs.Num(); ++Index)
+			{
+				EdgeVIDs[Index] = Index + MaxVertexID;
+			}
+			
+			// Pre-allocate memory for barycentric coordinates we will be computing
+			EdgeCoord.SetNum(BufferNumVertices);
+		}
+
+		
+		void InitTriVertexBuffers(const FTessellationPattern* Pattern) 
+		{
+			int BufferNumVertices = 0;
+			for (const int TriangleID : Mesh->TriangleIndicesItr())
+			{
+				const int NumNewVertices = Pattern->GetNumberOfNewVerticesForTrianglePatch(TriangleID); 
+				if (NumNewVertices > 0) 
+				{
+					InnerCoordOffsets.Add(TriangleID, FIndex2i(BufferNumVertices, NumNewVertices));
+					BufferNumVertices += NumNewVertices;
+				}
+			}
+
+			InnerVIDs.SetNum(BufferNumVertices);
+			
+			// IDs of the new vertices added inside triangles start with the last vertex id added along edges. It is 
+			// possible that none of the edges were tessellated in which case we start with the max vertex id of the 
+			// input mesh.
+			const int LastEdgeVIDs = EdgeVIDs.Num() > 0 ? EdgeVIDs.Last() + 1 : Mesh->MaxVertexID();
+			for (int Index = 0; Index < InnerVIDs.Num(); ++Index)
+			{
+				InnerVIDs[Index] = Index + LastEdgeVIDs;
+			}
+
+			// Pre-allocate memory for barycentric coordinates we will be computing
+			InnerCoord.SetNum(BufferNumVertices);
+		}
+
+
+		void InitTrianglesBuffers(const FTessellationPattern* Pattern) 
+		{
+			int BufferNumTriangles = 0;
+			for (const int TriangleID : Mesh->TriangleIndicesItr())
+			{
+				const int NumNewTriangles = Pattern->GetNumberOfPatchTriangles(TriangleID); 
+				if (NumNewTriangles > 0) 
+				{	
+					TrianglesToTessellate.Add(TriangleID);
+					TrianglesOffsets.Add(TriangleID, FIndex2i(BufferNumTriangles, NumNewTriangles));
+					BufferNumTriangles += NumNewTriangles;
+				}
+			}
+
+			// Pre-allocate memory for triangles we will be computing
+			Triangles.SetNum(BufferNumTriangles);
+		}
+	}; 
+
+
+
+
+	/**
+     * Pattern where the inner area is tessellated using the style of the OpenGL tessellation shader. The inner area 
+	 * consists of multiple inner rings. The original triangle we are tessellating is called the outer ring. Areas 
+	 * between rings are tessellated with the new triangles.
+	 * 
+     *                 O
+     *                / \
+     *               O. .O
+     *              /  O  \
+     *             O. / \ .O
+     *            /  O. .O  \
+     *           /  /  O  \  \
+     *          /  /  / \  \  \
+     *         O. /  /   \  \ .O
+     *        /  O. /     \ .O  \
+     *       /  /  O-------O  \  \
+     *      O. / inner ring 2  \ .O
+     *     /  O----O-------O----O  \
+     *    /   .  inner ring 1   .   \
+     *   O----O----O-------O----O----O 
+     *			 outer ring
+	 *
+     */
+	class FConcentricRingsTessellationPattern : public FTessellationPattern
+	{
+	public:
+
+		/**
+		 * FRing edge is a collection of vertices that includes two corner vertices (marked + below) plus all the 
+		 * vertices in between (marked O below).
+		 * 
+		 *                 +  
+		 *                / \ 
+		 *               O   \  
+		 *              /     \  
+		 * ring edge 3 /       O  ring edge 1
+		 *            /         \ 
+		 *           O           \  
+		 *          /             \  
+		 *         /               \ 
+		 *        +---O----O----O---+  
+		 * 			  ring edge 2
+		 
+		*/
+			
+		class FRingEdge 
+		{
+
+		public:
+			FRingEdge() 
+			{
+			}
+
+			/** FRing edge can be a single point. */
+			FRingEdge(int V1) 
+			:
+			V1(V1), VertNum(1)
+			{
+			}
+			
+			FRingEdge(int V1, int V2, TArrayView<int> InInner, bool bReverse = false) 
+			:
+			V1(V1), V2(V2), Inner(InInner), VertNum(InInner.Num() + 2), bReverse(bReverse)
+			{
+			}
+
+			FRingEdge(int V1, int V2, EdgePatch Patch)
+			:
+			FRingEdge(V1, V2, Patch.VIDs, Patch.bIsReversed)
+			{
+			}
+
+			inline int Num() const 
+			{
+				return VertNum;
+			}
+
+			int operator[](int Index) const
+			{
+				check(Index >= 0 && Index < VertNum);
+
+				if (Index == 0) 
+				{
+					return V1;
+				} 
+				else if (Index == VertNum - 1) 
+				{
+					return V2;
+				}
+				else 
+				{
+					int InnerIndex = Index - 1; // index into the Inner array
+					int ActualIndex = bReverse ? Inner.Num() - InnerIndex - 1: InnerIndex; // potentially reverse index
+					check(ActualIndex >= 0 && ActualIndex < VertNum);
+					return Inner[ActualIndex];
+				}
+			}
+
+		private:
+			
+			int V1 = IndexConstants::InvalidID;
+			int V2 = IndexConstants::InvalidID;
+			TArrayView<int> Inner;
+			int VertNum = 0; // Number of elements
+			bool bReverse = false;
+		};
+
+		/* A ring consists of 3 ring edges */
+		struct FRing 
+		{
+			FRingEdge UV;
+			FRingEdge VW;
+			FRingEdge UW;
+		};
+
+
+		FConcentricRingsTessellationPattern(const FDynamicMesh3* InMesh) 
+		:
+		FTessellationPattern(InMesh)
+		{
+		}
+
+
+		virtual ~FConcentricRingsTessellationPattern() 
+		{
+		}
+
+		
+		void Init(const TArray<int>& InEdgeTessLevels, const TArray<int>& InInnerTessLevels) 
+		{
+			EdgeTessLevels = InEdgeTessLevels;
+			InnerTessLevels = InInnerTessLevels;
+
+			// If the inner area of the triangle patch is not being tessellated but at least one of its edges is, then 
+			// we insert a single vertex in the middle and connect it to all of the edge vertices. Therefore, we find 
+			// those triangles and set their inner tessellation level to 1. This would tell the TessellatePatch function 
+			// to insert a vertex and generate the triangle fan.
+			for (const int TriangleID : Mesh->TriangleIndicesItr()) 
+			{
+				if (InnerTessLevels[TriangleID] <= 0)
+				{	
+					const FIndex3i TriEdges = Mesh->GetTriEdges(TriangleID);
+
+					if (EdgeTessLevels[TriEdges[0]] || EdgeTessLevels[TriEdges[1]] || EdgeTessLevels[TriEdges[2]])
+					{
+						InnerTessLevels[TriangleID] = 1;
+					}
+				}
+			}
+		}
+
+		/** 
+		 * Convenience method to convert an inner tessellation level from the number of vertices to the number of segments.
+		 * 
+		 * 		O---O---O  3 vertices => 2 segments
+		 */
+		inline int GetInnerLevelAsSegments(const int InTriangleID) const
+		{
+			return InnerTessLevels[InTriangleID] - 1;
+		}
+
+		virtual int GetNumberOfNewVerticesForEdgePatch(const int InEdgeID) const override 
+		{
+			if (Mesh->IsEdge(InEdgeID) == false) 
+			{
+				checkNoEntry();
+				return InvalidIndex;
+			}
+
+			return EdgeTessLevels[InEdgeID];
+		}
+
+
+		virtual int GetNumberOfNewVerticesForTrianglePatch(const int InTriangleID) const override 
+		{
+			if (Mesh->IsTriangle(InTriangleID) == false) 
+			{
+				checkNoEntry();
+				return InvalidIndex;
+			}
+
+			const int TessLevel = GetInnerLevelAsSegments(InTriangleID);
+			if (TessLevel < 0) 
+			{
+				return 0;
+			} 
+			else if (TessLevel == 0) 
+			{	
+				return 1; // one vertex in the middle
+			}
+
+			// We iterate through rings and count how many vertices we are introducing per ring
+			int NumNewTriangleVertices = 0;
+			for (int RingLevel = TessLevel; RingLevel > 0; RingLevel -= 2) // next inner ring has 2 less segments
+			{
+				// 3 corners plus TessLevel - 1 vertcies along each of the 3 edges.
+				NumNewTriangleVertices += 3 + 3 * (RingLevel - 1);
+				
+				// If the current ring only has 2 segments then we will be inserting one extra vertex in the middle
+				NumNewTriangleVertices += RingLevel == 2 ? 1 : 0;
+			}
+
+			return NumNewTriangleVertices;
+		}
+
+
+		virtual int GetNumberOfPatchTriangles(const int InTriangleID) const override 
+		{
+			if (Mesh->IsTriangle(InTriangleID) == false) 
+			{
+				checkNoEntry();
+				return InvalidIndex;
+			}
+		
+			const int TessLevel = GetInnerLevelAsSegments(InTriangleID);
+
+			// Count how many triangles are we generating when connecting outer ring with the first inner ring
+			int NumNewTrianglesPerFace = 0;
+			for (int EdgeIdx = 0; EdgeIdx < 3; ++EdgeIdx) 
+			{
+				const int EdgeID = Mesh->GetTriEdge(InTriangleID, EdgeIdx);
+				const int OuterEdgeTriangles = this->GetNumberOfNewVerticesForEdgePatch(EdgeID) + 1;
+				const int InnerEdgeTriangles = TessLevel;
+				NumNewTrianglesPerFace += OuterEdgeTriangles + InnerEdgeTriangles;
+			}
+
+			// Iterate over every pair of inner rings and count how many triangles we are generating between them
+			int RingLevel = TessLevel;
+			while (RingLevel > 0) 
+			{	
+				const int CurRingLevel = RingLevel;
+				const int NextRingLevel = RingLevel - 2;
+				
+				if (NextRingLevel < 0) 
+				{	
+					// no more rings left, so the current ring is a single triangle at the center
+					checkSlow(CurRingLevel == 1);
+					NumNewTrianglesPerFace += 1;
+				}
+				else 
+				{
+					NumNewTrianglesPerFace += 3 * (CurRingLevel + NextRingLevel);
+				}
+				
+				RingLevel -= 2;
+			}
+
+			return NumNewTrianglesPerFace;
+		}
+
+
+		virtual void TessellateEdgePatch(EdgePatch& EdgePatch) const override
+		{
+			const int EdgeTessLevel = EdgeTessLevels[EdgePatch.EdgeID];
+			
+			checkSlow(EdgeTessLevel == EdgePatch.LinearCoord.Num());
+			
+			const int NumSegments = EdgeTessLevel + 1;
+			const double Step = 1.0 / NumSegments;
+			
+			for (int Idx = 0; Idx < EdgeTessLevel; ++Idx)
+			{
+				double Value = (Idx + 1)*Step;
+				EdgePatch.LinearCoord[Idx] = Value;
+			}
+		}
+
+
+		virtual void TessellateTriPatch(TrianglePatch& TriPatch) const override
+		{   
+			FRing OuterRing;
+			OuterRing.UV = FRingEdge(TriPatch.UVWCorners[0], TriPatch.UVWCorners[1], TriPatch.UVEdge);
+			OuterRing.VW = FRingEdge(TriPatch.UVWCorners[1], TriPatch.UVWCorners[2], TriPatch.VWEdge);
+			OuterRing.UW = FRingEdge(TriPatch.UVWCorners[2], TriPatch.UVWCorners[0], TriPatch.UWEdge);
+
+			TArray<FRing> RingArray;
+			RingArray.Add(OuterRing);
+
+			// Track which vertex index we are currently working with
+			int InnerIdx = 0;
+		
+            // We are working with an abstract patch whose vertex coordinates are the same as their barycentric coordinates
+			FVector3d OuterU = FVector3d(1.0, 0.0, 0.0);
+			FVector3d OuterV = FVector3d(0.0, 1.0, 0.0);
+			FVector3d OuterW = FVector3d(0.0, 0.0, 1.0);
+
+		    // Generate inner rings. Each subsequent inner ring will have its level reduced by 2.
+            // The last inner ring can either be a single triangle or a single point.
+			FVector3d InnerU, InnerV, InnerW;
+			for (int TesLevel = GetInnerLevelAsSegments(TriPatch.TriangleID); TesLevel >= 0; TesLevel -= 2)
+			{
+				// Given the 3 corner vertices of the previous ring, compute the 3 corner vertices of this inner ring
+				this->ComputeInnerConcentricTriangle(OuterU, OuterV, OuterW, TesLevel + 1, InnerU, InnerV, InnerW);
+
+				FRing InnerRing;
+
+				int StartIdx = InnerIdx; // save the index of the U corner since we will wrap back to it
+				
+				const double Step = TesLevel == 0 ? 0.0 : 1.0 / TesLevel;
+
+				// Compute the barycentric coordinates for all vertices in the UV ring edge
+				{
+					TriPatch.BaryCoord[InnerIdx] = InnerU;
+					for (int Idx = 1; Idx < TesLevel; ++Idx)
+					{
+						TriPatch.BaryCoord[InnerIdx + Idx] = InnerU + Idx*Step*(InnerV - InnerU);
+					}
+					TriPatch.BaryCoord[InnerIdx + TesLevel] = InnerV;
+
+
+					if (TesLevel == 0) 
+					{
+						InnerRing.UV = FRingEdge(TriPatch.VIDs[InnerIdx]); // just a single vertex in the middle
+					}
+					else 
+					{
+						InnerRing.UV = FRingEdge(TriPatch.VIDs[InnerIdx], TriPatch.VIDs[InnerIdx + TesLevel], TriPatch.VIDs.Slice(InnerIdx + 1, TesLevel - 1));
+					}
+					
+					InnerIdx += TesLevel;
+				}
+
+				// Compute the barycentric coordinates for all vertices in the VW ring edge
+				{
+					TriPatch.BaryCoord[InnerIdx] = InnerV;
+					for (int Idx = 1; Idx < TesLevel; ++Idx)
+					{
+						TriPatch.BaryCoord[InnerIdx + Idx] = InnerV + Idx*Step*(InnerW - InnerV);
+					}
+					TriPatch.BaryCoord[InnerIdx + TesLevel] = InnerW;
+
+					if (TesLevel == 0) 
+					{
+						InnerRing.VW = FRingEdge(TriPatch.VIDs[InnerIdx]);
+					}
+					else 
+					{
+						InnerRing.VW = FRingEdge(TriPatch.VIDs[InnerIdx], TriPatch.VIDs[InnerIdx + TesLevel], TriPatch.VIDs.Slice(InnerIdx + 1, TesLevel - 1));
+					}
+
+					InnerIdx += TesLevel;
+				}
+
+				// Compute the barycentric coordinates for all vertices in the UW ring edge
+				{
+					TriPatch.BaryCoord[InnerIdx] = InnerW;
+					for (int Idx = 1; Idx < TesLevel; ++Idx)
+					{
+						TriPatch.BaryCoord[InnerIdx + Idx] = InnerW + Idx*Step*(InnerU - InnerW);
+					}
+
+					if (TesLevel == 0)
+					{
+						InnerRing.UW = FRingEdge(TriPatch.VIDs[InnerIdx]);
+					}
+					else 
+					{
+						InnerRing.UW = FRingEdge(TriPatch.VIDs[InnerIdx], TriPatch.VIDs[StartIdx], TriPatch.VIDs.Slice(InnerIdx + 1, TesLevel - 1));
+					}
+
+					InnerIdx += TesLevel;
+				}
+
+				OuterU = InnerU;
+				OuterV = InnerV;
+				OuterW = InnerW;
+
+				RingArray.Add(InnerRing);
+			}
+
+            // Iterate over pair of rings and tessellate the area between them
+			int TriangleIdx = 0; // Offset into TriPatch.Triangles where we will be adding new triangles
+			for (int RingIdx = 0; RingIdx < RingArray.Num() - 1; ++RingIdx)
+			{
+				TriangleIdx += this->StitchRingEdges(RingArray[RingIdx].UV, RingArray[RingIdx + 1].UV, TriangleIdx, TriPatch.Triangles);
+				TriangleIdx += this->StitchRingEdges(RingArray[RingIdx].VW, RingArray[RingIdx + 1].VW, TriangleIdx, TriPatch.Triangles);
+				TriangleIdx += this->StitchRingEdges(RingArray[RingIdx].UW, RingArray[RingIdx + 1].UW, TriangleIdx, TriPatch.Triangles);
+			}
+
+            // If the tessellation level is odd, then we need to create one more triangle with the last inner ring vertices
+			if (GetInnerLevelAsSegments(TriPatch.TriangleID)% 2 != 0) 
+			{	
+				const FRing& LastRing = RingArray.Last();
+				TriPatch.Triangles[TriangleIdx] = FIndex3i(LastRing.UV[0], LastRing.UV[1], LastRing.VW[1]);
+			}
+		}
+
+
+		/**
+		 * Given two ring edges, "stitch" them together by generating a sequence of triangles connecting all vertices.
+		 * 
+		 *    Outer ring edge         O  O                            O--O  
+		 *                                      	  ==>            /\  /\
+		 *                                                          /  \/  \
+		 *    Inner ring edge 1    O    O    O                     O----O---O 
+		 * 
+		 * @return the number of triangles generated
+		 */
+		int StitchRingEdges(const FRingEdge& InOuter, const FRingEdge& InInner, int Offset, TArrayView<FIndex3i>& OutTriangles) const 
+		{
+			const int OuterNum = InOuter.Num();
+			const int InnerNum = InInner.Num();
+			int TessDiff = InnerNum - OuterNum;
+			
+			const int NumTriangles = OuterNum - 1 + InnerNum - 1; // we know how many triangles to expect
+			
+            // Track which vertex are we currently at in the outer and inner vertex arrays
+			int OuterIdx = 0;
+			int InnerIdx = 0;
+
+		    // We move along the outer and inner vertices and generate triangles. For each triangle, we need to choose which 
+            // ring edge do we pick the third vertex from. Is it the OuterIdx + 1 or the InnerIdx + 1 vertex? We use the 
+            // updated TessDiff variable to make the choice. If it's negative we choose the outer vertex, otherwise the inner vertex.
+            // For more information see the Sec. 5.1 and Figure 8 in "Watertight Tessellation using Forward Differencing, H. Moreton, 2001."
+            //
+			//       OuterIdx	  
+			//         \
+			//          O  O     
+			//                          
+			//                          
+			//       O    O    O 
+			//      /
+			//   InnerIdx
+			
+			for (int TriIndex = 0; TriIndex < NumTriangles; ++TriIndex) 
+			{
+				// If TessDiff is negative and the next vertex along outer side is available or we simply run out of inner vertices,
+				// then use outer vertex as the third vertex to create a triangle 
+				if ((TessDiff < 0 && OuterIdx + 1 < OuterNum) || InnerIdx == InnerNum - 1) 
+				{
+					OutTriangles[Offset + TriIndex] = FIndex3i(InOuter[OuterIdx], InOuter[OuterIdx + 1], InInner[InnerIdx]);
+					TessDiff += 2*InnerNum;
+					OuterIdx += 1;
+				}
+				else
+				{
+					ensure((TessDiff >= 0 && InnerIdx + 1 < InnerNum) || OuterIdx == OuterNum - 1);
+					OutTriangles[Offset + TriIndex] = FIndex3i(InInner[InnerIdx], InOuter[OuterIdx], InInner[InnerIdx + 1]);
+					TessDiff -= 2*OuterNum;
+					InnerIdx += 1;
+				}
+			}
+			
+			return NumTriangles;
+		}
+	
+		/** An array of per triangle (inner) tessellation levels. The size must match the maximum triangle ID of the mesh. */
+		TArray<int> InnerTessLevels;
+
+		/** An array of per edge tessellation levels. The size must match the maximum edge ID of the mesh. */
+		TArray<int> EdgeTessLevels;
+	};
+
+
+
+
+	/** 
+	 * Use the tessellation pattern to tessellate the mesh and generate the tessellation data (barycentric coordinates 
+	 * of the new vertices and new triangles).
+	 */
+	void Tessellate(const FDynamicMesh3* Mesh, const FTessellationPattern* Pattern, const bool bUseParallel, FTessellationData& TessData) 
+	{	
+		// Tessellate edge patches
+		TArray<int> EdgesToTessellate = TessData.EdgesToTessellate.Array();
+		ParallelFor(EdgesToTessellate.Num(), [&](int32 Index)
+		{
+			FTessellationPattern::EdgePatch Patch;
+
+			const int EdgeID = EdgesToTessellate[Index];
+			Patch.EdgeID = EdgeID;
+			Patch.LinearCoord = TessData.MapEdgeCoordBufferBlock(EdgeID);
+			Patch.VIDs = TessData.MapEdgeVIDBufferBlock(EdgeID);
+			
+			Pattern->TessellateEdgePatch(Patch);
+		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+
+		
+		// Tessellate triangle patches
+		TArray<int> TrianglesToTessellate = TessData.TrianglesToTessellate.Array();
+		ParallelFor(TrianglesToTessellate.Num(), [&](int32 Index)
+		{
+			FTessellationPattern::TrianglePatch Patch;
+			
+			const int TriangleID = TrianglesToTessellate[Index]; 
+			
+			Patch.TriangleID = TriangleID;
+			
+			FIndex3i TriVertices = Mesh->GetTriangle(TriangleID);
+			Patch.UVWCorners = TriVertices;
+			
+			const FIndex3i& TriEdges = Mesh->GetTriEdgesRef(TriangleID);
+			
+			// UV Edge
+			if (TessData.EdgesToTessellate.Contains(TriEdges[0]))
+			{
+				Patch.UVEdge.EdgeID = TriEdges[0];
+				Patch.UVEdge.LinearCoord = TessData.MapEdgeCoordBufferBlock(TriEdges[0]);
+				Patch.UVEdge.VIDs = TessData.MapEdgeVIDBufferBlock(TriEdges[0]);
+				Patch.UVEdge.bIsReversed = Mesh->GetEdgeV(TriEdges[0])[0] != TriVertices[0];
+			}
+
+			// VW Edge
+			if (TessData.EdgesToTessellate.Contains(TriEdges[1]))
+			{
+				Patch.VWEdge.EdgeID = TriEdges[1];
+				Patch.VWEdge.LinearCoord = TessData.MapEdgeCoordBufferBlock(TriEdges[1]);
+				Patch.VWEdge.VIDs = TessData.MapEdgeVIDBufferBlock(TriEdges[1]);
+				Patch.VWEdge.bIsReversed = Mesh->GetEdgeV(TriEdges[1])[0] != TriVertices[1];
+			}
+			
+			// UW Edge
+			if (TessData.EdgesToTessellate.Contains(TriEdges[2]))
+			{
+				Patch.UWEdge.EdgeID = TriEdges[2];
+				Patch.UWEdge.LinearCoord = TessData.MapEdgeCoordBufferBlock(TriEdges[2]);
+				Patch.UWEdge.VIDs = TessData.MapEdgeVIDBufferBlock(TriEdges[2]);
+				Patch.UWEdge.bIsReversed = Mesh->GetEdgeV(TriEdges[2])[0] != TriVertices[2];
+			}
+
+			//  Inner Triangle Vertices
+			Patch.BaryCoord = TessData.MapTriangleCoordBufferBlock(TriangleID);
+			Patch.VIDs = TessData.MapTriangleVIDBufferBlock(TriangleID);
+
+			// Inner Triangles
+			Patch.Triangles = TessData.MapTrianglesBufferBlock(TriangleID);
+
+			// Tessellate the patch, i.e. generate inner vertices and triangles
+			Pattern->TessellateTriPatch(Patch);
+		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+	}
+
+
+	/**
+	 * Given the original FDynamicMesh3 and the tessellation data, construct new tessellated FDynamicMesh3 geometry and 
+	 * interpolate attributes.
+	 */
+	void ConstructTessellatedMesh(const FDynamicMesh3* Mesh, 
+								  const FTessellationData& TessData, 
+								  FDynamicMesh3* ResultMesh)  
+	{	
+		ResultMesh->Clear();
+
+		// Handle non-compact meshes
+		FCompactMaps CompactInfo;
+
+		const int ResultNumVertexIDs = Mesh->MaxVertexID() + TessData.EdgeVIDs.Num() + TessData.InnerVIDs.Num();
+		CompactInfo.ResetVertexMap(ResultNumVertexIDs, false);
+
+		for (int VertexID = 0; VertexID < Mesh->MaxVertexID(); ++VertexID)
+		{
+			if (Mesh->IsVertex(VertexID))
+			{
+				CompactInfo.SetVertexMapping(VertexID, ResultMesh->AppendVertex(Mesh->GetVertex(VertexID)));
+			}
+			else 
+			{
+				CompactInfo.SetVertexMapping(VertexID, FCompactMaps::InvalidID);
+			}
+		}
+
+		for (const int EdgeID : TessData.EdgesToTessellate)
+		{
+			const FIndex2i OffsetNum = TessData.EdgeCoordOffsets[EdgeID];
+
+			const FIndex2i EdgeV = Mesh->GetEdgeV(EdgeID);
+
+			for (int Index = 0; Index < OffsetNum[1]; ++Index)
+			{	
+				const int Offset = OffsetNum[0] + Index;
+				const double Alpha = TessData.EdgeCoord[Offset];
+				const int VertexID = TessData.EdgeVIDs[Offset]; 
+
+				const FVector3d Vertex = (1.0 - Alpha)*Mesh->GetVertex(EdgeV[0]) + Alpha*Mesh->GetVertex(EdgeV[1]);
+				
+				CompactInfo.SetVertexMapping(VertexID, ResultMesh->AppendVertex(Vertex));
+			}
+		}
+
+
+		for (const int TriangleID : TessData.TrianglesToTessellate)
+		{
+			const FIndex2i OffsetNum = TessData.InnerCoordOffsets[TriangleID];
+
+			const FIndex3i TriangleV = Mesh->GetTriangle(TriangleID);
+
+			for (int Index = 0; Index < OffsetNum[1]; ++Index)
+			{	
+				const int Offset = OffsetNum[0] + Index;	
+				
+				const FVector3d Bary = TessData.InnerCoord[Offset];
+				const int VertexID = TessData.InnerVIDs[Offset];
+
+				const FVector3d Vertex = Bary[0] * Mesh->GetVertex(TriangleV[0]) + 
+										 Bary[1] * Mesh->GetVertex(TriangleV[1]) + 
+										 Bary[2] * Mesh->GetVertex(TriangleV[2]);
+				
+				CompactInfo.SetVertexMapping(VertexID, ResultMesh->AppendVertex(Vertex));
+			}
+		}
+
+
+		for (const int TriangleID : Mesh->TriangleIndicesItr())
+		{		
+			if (TessData.TrianglesToTessellate.Contains(TriangleID)) 
+			{
+				const FIndex2i OffsetNum = TessData.TrianglesOffsets[TriangleID];
+				for (int Index = 0; Index < OffsetNum[1]; ++Index)
+				{	
+					const int Offset = OffsetNum[0] + Index;	
+					FIndex3i Tri = TessData.Triangles[Offset];
+					FIndex3i MappedTri = CompactInfo.GetVertexMapping(Tri);
+					ResultMesh->AppendTriangle(MappedTri);
+				}
+			}
+			else 
+			{	
+				FIndex3i Tri = Mesh->GetTriangle(TriangleID);
+				FIndex3i MappedTri = CompactInfo.GetVertexMapping(Tri);
+				ResultMesh->AppendTriangle(MappedTri);
+			}
+		}
+
+		//TODO: use barycentric data to interpolate attributes
+		
+		//TODO: instead of generating the mesh from scratch, we could remove triangles we are tessellating from the 
+		// input mesh and append the new ones. This can be an option when the number of triangles tessellated is small,
+		// compared to the total number of triangles.
+	}
+}
+
+
+
+
+//
+// GLSL pattern
+//
+
+TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(const FDynamicMesh3* InMesh,	
+												   											   const TArray<int>& InEdgeTessLevels,
+                                                   											   const TArray<int>& InInnerTessLevels)
+{
+	TUniquePtr<AdaptiveTessellateLocals::FConcentricRingsTessellationPattern> Pattern = MakeUnique<AdaptiveTessellateLocals::FConcentricRingsTessellationPattern>(InMesh);
+	Pattern->Init(InEdgeTessLevels, InInnerTessLevels);
+	
+	return Pattern;
+}
+
+
+TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(const FDynamicMesh3* InMesh,
+												   											   const int InTessellationLevel)
+{
+	TArray<int> InEdgeTessLevels;
+	InEdgeTessLevels.Init(InTessellationLevel, InMesh->EdgeCount());
+	
+	TArray<int> InInnerTessLevels;
+	InInnerTessLevels.Init(InTessellationLevel, InMesh->TriangleCount());
+	
+	return FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(InMesh, InEdgeTessLevels, InInnerTessLevels);
+}
+
+ 
+TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(const FDynamicMesh3* InMesh,  
+								   							  					    		   const int InTessellationLevel,
+								   							  					    		   const TArray<int>& InTriangleList) 
+{
+	TArray<int> EdgeTessLevels;
+	EdgeTessLevels.Init(0, InMesh->MaxEdgeID());
+	for (const int TriangleID : InTriangleList) 
+	{
+		const FIndex3i EdgesIdx = InMesh->GetTriEdges(TriangleID);
+		EdgeTessLevels[EdgesIdx[0]] = InTessellationLevel;
+		EdgeTessLevels[EdgesIdx[1]] = InTessellationLevel;
+		EdgeTessLevels[EdgesIdx[2]] = InTessellationLevel;
+	}
+
+	TArray<int> TriangleTessLevels;
+	TriangleTessLevels.Init(0, InMesh->MaxTriangleID());
+
+	for (const int TriangleID : InTriangleList) 
+	{
+		TriangleTessLevels[TriangleID] = InTessellationLevel; 
+	}
+
+	return FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(InMesh, EdgeTessLevels, TriangleTessLevels);	
+}
+
+
+TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(const TFunctionRef<int(const int EdgeID)> InEdgeFunc, 
+                                                               					    const TFunctionRef<int(const int TriangleID)> InTriFunc) 
+{
+
+	// TODO: not implemented yet
+	checkNoEntry();
+	return nullptr;
+}
+
+
+
+
+//
+// Inner uniform pattern
+//
+
+TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateInnerUnifromTessellationPattern(const FDynamicMesh3* InMesh,
+													  	   						 		    const TArray<int>& InEdgeTessLevels,
+                                                      	   									const TArray<int>& InInnerTessLevels)
+{
+	// TODO: not implemented yet
+	checkNoEntry();
+	return nullptr;
+}
+
+
+
+
+//
+// Uniform pattern
+//
+TUniquePtr<FTessellationPattern> CreateUniformTessellationPattern(const FDynamicMesh3* InMesh,
+																  const int InTessellationLevel,
+																  const TArray<int>& InTriangleList) 
+{
+	// TODO: not implemented yet
+	checkNoEntry();
+	return nullptr;
+}
+
+
+
+
+void FTessellationPattern::ComputeInnerConcentricTriangle(const FVector3d& V1,
+                                        				  const FVector3d& V2,
+                                        				  const FVector3d& V3,
+                                        				  const int EdgeTessLevel,
+                                        				  FVector3d& InnerU,
+                                        				  FVector3d& InnerV,
+                                        				  FVector3d& InnerW) const
+{	
+	//TODO: Handle the case where V1, V2, V3 form a degenerate triangle 
+    
+	// Given two lines defined by a point and a normal find their intersection. It is guaranteed 
+    // that both lines are on the same plane and that they are not parallel.
+	auto IntersectLines = [] (const FVector3d& V1, const FVector3d& N1, const FVector3d& V2, const FVector3d& N2) 
+	{
+		FLine3d Line1(V1, N1);
+		FLine3d Line2(V2, N2);
+		FDistLine3Line3d LineDist(Line1, Line2); 
+		LineDist.ComputeResult();
+		FVector3d OffsetPoint = 0.5 * (LineDist.Line1ClosestPoint + LineDist.Line2ClosestPoint);
+		return OffsetPoint;
+	};
+
+
+	if (EdgeTessLevel < 0) 
+	{
+		checkSlow(false);
+		return;
+	}
+
+	if (EdgeTessLevel == 0) // edges are not tessellated
+	{
+		InnerU = V1;
+		InnerV = V2;
+		InnerW = V3;
+		return;
+	}
+	else if (EdgeTessLevel == 1) // just a vertex in the middle
+	{
+		FVector3d Center = (V1 + V2 + V3)/3.0;
+		InnerU = Center;
+		InnerV = Center;
+		InnerW = Center;
+		return;
+	}
+
+	// Inserted vertices on each subdivided edge closest to the edge corners
+	FVector3d EdgeDir1 = (V2 - V1) / (EdgeTessLevel + 1);
+	FVector3d UV1 = V1 + EdgeDir1;
+	FVector3d UV2 = V1 + EdgeTessLevel*EdgeDir1;
+
+	FVector3d EdgeDir2 = (V3 - V1) / (EdgeTessLevel + 1);
+	FVector3d UW1 = V1 + EdgeDir2;
+	FVector3d UW2 = V1 + EdgeTessLevel*EdgeDir2;
+
+	FVector3d EdgeDir3 = (V3 - V2) / (EdgeTessLevel + 1);
+	FVector3d VW1 = V2 + EdgeDir3;
+	FVector3d VW2 = V2 + EdgeTessLevel*EdgeDir3;
+	
+	// Normal vector of the plane formed by the triangle
+	FVector3d PlaneNormal = Normalized(EdgeDir1.Cross(EdgeDir2));
+	
+	// Edge normal vectors
+	FVector3d OuterUVNormal = Normalized(PlaneNormal.Cross(EdgeDir1));
+	FVector3d OuterUWNormal = Normalized(EdgeDir2.Cross(PlaneNormal));
+	FVector3d OuterVWNormal = Normalized(PlaneNormal.Cross(EdgeDir3));
+
+	// Vertices of the inner triangle
+	InnerU = IntersectLines(UV1, OuterUVNormal, UW1, OuterUWNormal);
+	InnerV = IntersectLines(UV2, OuterUVNormal, VW1, OuterVWNormal);
+	InnerW = IntersectLines(UW2, OuterUWNormal, VW2, OuterVWNormal);
+}
+
+
+bool FAdaptiveTessellate::Cancelled()
+{
+	return (Progress == nullptr) ? false : Progress->Cancelled();
+}
+
+
+bool FAdaptiveTessellate::Compute()
+{	
+	if (Validate() != EOperationValidationResult::Ok) 
+	{
+		return false;
+	}
+
+	// Check for the empty meshes
+	if (bInPlace && ResultMesh->TriangleCount() == 0) 
+	{
+		return true;
+	}
+
+	if (bInPlace == false && Mesh->TriangleCount() == 0) 
+	{
+		return true;
+	}
+
+	// Make a copy of the mesh since we are tessellating in place. The copy will be used to restore the mesh to its 
+	// original state in case the user cancelled the operation.
+	TUniquePtr<FDynamicMesh3> ResultMeshCopy = nullptr;
+	if (bInPlace)
+	{
+		ResultMeshCopy = MakeUnique<FDynamicMesh3>();
+		ResultMeshCopy->Copy(*ResultMesh);
+		Mesh = ResultMeshCopy.Get();
+	}
+
+	AdaptiveTessellateLocals::FTessellationData TessData(Mesh);
+	TessData.Init(Pattern);
+
+	AdaptiveTessellateLocals::Tessellate(Mesh, Pattern, bUseParallel, TessData);
+
+	AdaptiveTessellateLocals::ConstructTessellatedMesh(Mesh, TessData, ResultMesh);
+
+	if (Cancelled()) 
+	{
+		if (bInPlace) 
+		{ 
+			// Restore the input mesh
+			checkSlow(ResultMeshCopy != nullptr);
+			*ResultMesh = MoveTemp(*ResultMeshCopy);
+		}
+		else 
+		{
+			ResultMesh->Clear();
+		}
+
+		return false;
+	}
+	
+	return true;
+}
