@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConcertFrontendStyle.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -97,9 +98,9 @@ namespace ConcertFrontendUtils
 	{
 		if (Area.IsTitleHovered())
 		{
-			return Area.IsExpanded() ? FAppStyle::Get().GetBrush("DetailsView.CategoryTop_Hovered") : FAppStyle::Get().GetBrush("DetailsView.CollapsedCategory_Hovered");
+			return Area.IsExpanded() ? FConcertFrontendStyle::Get()->GetBrush("DetailsView.CategoryTop_Hovered") : FConcertFrontendStyle::Get()->GetBrush("DetailsView.CollapsedCategory_Hovered");
 		}
-		return Area.IsExpanded() ? FAppStyle::Get().GetBrush("DetailsView.CategoryTop") : FAppStyle::Get().GetBrush("DetailsView.CollapsedCategory");
+		return Area.IsExpanded() ? FConcertFrontendStyle::Get()->GetBrush("DetailsView.CategoryTop") : FConcertFrontendStyle::Get()->GetBrush("DetailsView.CollapsedCategory");
 	}
 
 	static FText FormatRelativeTime(const FDateTime& EventTime, const FDateTime* CurrTime = nullptr)
