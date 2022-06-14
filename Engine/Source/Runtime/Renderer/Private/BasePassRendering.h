@@ -83,18 +83,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FOpaqueBasePassUniformParameters,)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedSceneDepthTexture)
 	// DBuffer decals
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDBufferParameters, DBuffer)
-	// Single Layer Water
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorWithoutSingleLayerWaterTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorWithoutSingleLayerWaterSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthWithoutSingleLayerWaterTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthWithoutSingleLayerWaterSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CustomDepthTexture)
-	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint2>, CustomStencilTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, CustomDepthSampler)
-	SHADER_PARAMETER(FVector4f, SceneWithoutSingleLayerWaterMinMaxUV)
-	SHADER_PARAMETER(FVector4f, DistortionParams)
-	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterTextureSize)
-	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterInvTextureSize)
 	// Misc
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGFTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
@@ -151,8 +139,6 @@ extern TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePa
 	const int32 ViewIndex = 0,
 	const FForwardBasePassTextures& ForwardBasePassTextures = {},
 	const FDBufferTextures& DBufferTextures = {},
-	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures = nullptr,
-	const FCustomDepthTextures* CustomDepth = nullptr,
 	bool bLumenGIEnabled = false);
 
 extern TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(

@@ -1624,9 +1624,9 @@ void FPixelShaderInOut_MainPS(
 		WaterVolumeLightingOutput WaterLighting = EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			DirectionalLightShadow,
-			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, // Scene depth texture
-			OpaqueBasePass.SceneWithoutSingleLayerWaterTextureSize,
-			OpaqueBasePass.SceneWithoutSingleLayerWaterInvTextureSize,
+			SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, // Scene depth texture
+			SingleLayerWater.SceneWithoutSingleLayerWaterTextureSize,
+			SingleLayerWater.SceneWithoutSingleLayerWaterInvTextureSize,
 			Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility, EyeIndex,
@@ -1640,13 +1640,13 @@ void FPixelShaderInOut_MainPS(
 		Color += EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			DirectionalLightShadow,
-			OpaqueBasePass.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
-			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
-			OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.xy,
-			OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.zw,
-			OpaqueBasePass.SceneWithoutSingleLayerWaterTextureSize,
-			OpaqueBasePass.SceneWithoutSingleLayerWaterInvTextureSize,
-			Specular, OpaqueBasePass.DistortionParams,
+			SingleLayerWater.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
+			SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
+			SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.xy,
+			SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.zw,
+			SingleLayerWater.SceneWithoutSingleLayerWaterTextureSize,
+			SingleLayerWater.SceneWithoutSingleLayerWaterInvTextureSize,
+			Specular, SingleLayerWater.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility, EyeIndex,
 			bSeparateWaterMainDirLightLuminance, SeparatedWaterMainDirLightLuminance).Luminance;

@@ -1657,9 +1657,9 @@ float MaterialExpressionSceneDepthWithoutWater(float2 ViewportUV, float Fallback
 {
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !SCENE_TEXTURES_DISABLED && (!SIMPLE_SINGLE_LAYER_WATER || SINGLE_LAYER_WATER_SIMPLE_FORWARD)
 
-	const float2 ClampedViewportUV = clamp(ViewportUV, OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.xy, OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.zw);
+	const float2 ClampedViewportUV = clamp(ViewportUV, SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.xy, SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.zw);
 
-	return OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+	return SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
 #else
 	return FallbackDepth;
 #endif
@@ -2259,12 +2259,12 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	if (SceneTextureIndex == PPI_CustomDepth)
 	{
-		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(OpaqueBasePass.CustomDepthTexture, OpaqueBasePass.CustomDepthSampler, UV).r);
+		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(SingleLayerWater.CustomDepthTexture, SingleLayerWater.CustomDepthSampler, UV).r);
 		return MaterialFloat4(Depth.rrr, 0.f);
 	}
 	else if (SceneTextureIndex == PPI_CustomStencil)
 	{
-		MaterialFloat Stencil = OpaqueBasePass.CustomStencilTexture.Load(int3(UV * View.BufferSizeAndInvSize.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
+		MaterialFloat Stencil = SingleLayerWater.CustomStencilTexture.Load(int3(UV * View.BufferSizeAndInvSize.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
 		return MaterialFloat4(Stencil, Stencil, Stencil, 0.f);
 	}
 

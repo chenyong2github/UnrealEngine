@@ -539,7 +539,7 @@ void DrawBasePass(
 		}
 
 		PassParameters->View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
-		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures, nullptr);
+		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures);
 
 		const FExclusiveDepthStencil MaterialDepthStencil = UseComputeDepthExport()
 			? FExclusiveDepthStencil::DepthWrite_StencilNop

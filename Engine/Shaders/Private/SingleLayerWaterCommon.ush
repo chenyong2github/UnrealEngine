@@ -19,8 +19,8 @@
 	#define SingleLayerWaterSceneDepthSampler View.SharedBilinearClampedSampler
 #endif // METAL_PROFILE
 #else
-	#define SingleLayerWaterSceneColorSampler OpaqueBasePass.SceneColorWithoutSingleLayerWaterSampler
-	#define SingleLayerWaterSceneDepthSampler OpaqueBasePass.SceneDepthWithoutSingleLayerWaterSampler
+	#define SingleLayerWaterSceneColorSampler SingleLayerWater.SceneColorWithoutSingleLayerWaterSampler
+	#define SingleLayerWaterSceneDepthSampler SingleLayerWater.SceneDepthWithoutSingleLayerWaterSampler
 #endif
 
 // We use our own refract because the HLSL one was not working on all platforms (ES3.1 preview for instance)
