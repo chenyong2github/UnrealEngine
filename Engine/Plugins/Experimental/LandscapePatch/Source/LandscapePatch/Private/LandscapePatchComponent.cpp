@@ -234,6 +234,7 @@ void ULandscapePatchComponent::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 	RequestLandscapeUpdate();
 }
+#endif
 
 void ULandscapePatchComponent::RequestLandscapeUpdate()
 {
@@ -251,7 +252,5 @@ FTransform ULandscapePatchComponent::GetLandscapeHeightmapCoordsToWorld() const
 	}
 	return FTransform::Identity;
 }
-
-#endif
 
 #undef LOCTEXT_NAMESPACE
