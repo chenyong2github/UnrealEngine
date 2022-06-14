@@ -27,7 +27,7 @@ namespace Jupiter.Common
             {
                 return new NamespacePolicy()
                 {
-                    // we grant the full storage access claim access to the internal namespace, this is typically set of admins and service accounts that can access everything
+                    // we expect the full storage access claim access to the internal namespace, this is typically set of admins and service accounts that can access everything
                     Claims = new string[] {"Storage=full" },
                     StoragePool = ""
                 };

@@ -117,5 +117,10 @@ namespace Horde.Storage
         /// The scope to request
         /// </summary>
         public string OAuthScope { get; set; } = "cache_access";
+
+        /// <summary>
+        /// The authentication scheme to use for this token
+        /// </summary>
+        public string SchemeName { get; set; } = "Bearer";
     }
 }

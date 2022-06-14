@@ -379,7 +379,7 @@ namespace Horde.Storage.Implementation
             HttpRequestMessage request = new HttpRequestMessage(httpMethod, uri);
             if (!string.IsNullOrEmpty(token))
             {
-                request.Headers.Add("Authorization", "Bearer " + token);
+                request.Headers.Add("Authorization", $"{_serviceCredentials.GetAuthenticationScheme()} {token}");
             }
 
             return request;

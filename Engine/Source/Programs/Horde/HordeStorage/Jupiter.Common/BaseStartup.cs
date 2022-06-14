@@ -7,6 +7,7 @@ using System.IO;
 using System.Net.Mime;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Amazon;
 using Datadog.Trace;
@@ -107,69 +108,71 @@ namespace Jupiter
 
             services.AddHttpContextAccessor();
 
-            // we change the name of the jwt scheme as okta uses the same name and does not allow us to reconfigure it.
-            const string JwtScheme = "JWTBearer";
-            List<string> defaultSchemes = new List<string>();
+            List<string> availableSchemes = new List<string>();
 
             AuthenticationBuilder authenticationBuilder = services.AddAuthentication(options =>
                 {
-                    switch (Auth.Method)
+                    if (Auth.Enabled)
                     {
-                        case AuthMethod.JWTBearer:
-                            options.DefaultAuthenticateScheme = JwtScheme;
-                            options.DefaultChallengeScheme = JwtScheme;
+                        options.DefaultAuthenticateScheme = Auth.DefaultScheme;
+                        options.DefaultChallengeScheme = Auth.DefaultScheme;
+                    }
+                    else
+                    {
+                        options.DefaultAuthenticateScheme = DisabledAuthenticationHandler.AuthenticateScheme;
+                        options.DefaultChallengeScheme = DisabledAuthenticationHandler.AuthenticateScheme;
+                    }
+                }
+            );
+
+            if (Auth.Enabled)
+            {
+                foreach (KeyValuePair<string, AuthSchemeEntry> schemeEntry in Auth.Schemes)
+                {
+                    AuthSchemeEntry scheme = schemeEntry.Value;
+
+                    switch (scheme.Implementation)
+                    {
+                        case SchemeImplementations.JWTBearer:
+                            availableSchemes.Add(scheme.Name);
+                            authenticationBuilder.AddJwtBearer(scheme.Name, options =>
+                            {
+                                options.Authority = scheme.JwtAuthority;
+                                options.Audience = scheme.JwtAudience;
+                            });
                             break;
-                        case AuthMethod.Okta:
-                            options.DefaultAuthenticateScheme = OktaDefaults.ApiAuthenticationScheme;
-                            options.DefaultChallengeScheme = OktaDefaults.ApiAuthenticationScheme;
-                            break;
-                        case AuthMethod.Disabled:
-                            options.DefaultAuthenticateScheme = DisabledAuthenticationHandler.AuthenticateScheme;
-                            options.DefaultChallengeScheme = DisabledAuthenticationHandler.AuthenticateScheme;
+                        case SchemeImplementations.Okta:
+                            availableSchemes.Add(scheme.Name);
+                            authenticationBuilder.AddOktaWebApi(scheme.Name, new OktaWebApiOptions
+                            {
+                                OktaDomain = scheme.OktaDomain,
+                                AuthorizationServerId = scheme.OktaAuthorizationServerId,
+                                Audience = scheme.JwtAudience,
+                            });
                             break;
                         default:
-                            throw new NotImplementedException($"Method {Auth.Method} not implemented");
+                            throw new NotSupportedException($"Unknown implementation type {scheme.Implementation}");
                     }
-                });
-            if (Auth.Method == AuthMethod.JWTBearer)
-            {
-                defaultSchemes.Add(JwtScheme);
-                authenticationBuilder.AddJwtBearer(JwtScheme, options =>
-                {
-                    options.Authority = Auth.JwtAuthority;
-                    options.Audience = Auth.JwtAudience;
-                });
+                }
             }
-
-            if (Auth.Method == AuthMethod.Okta)
+            else
             {
-                defaultSchemes.Add(OktaDefaults.ApiAuthenticationScheme);
-                authenticationBuilder.AddOktaWebApi(new OktaWebApiOptions
-                {
-                    OktaDomain = Auth.OktaDomain,
-                    AuthorizationServerId = Auth.AuthorizationServerId,
-                    Audience = Auth.JwtAudience,
-                });
-            }
-
-            if (Auth.Method == AuthMethod.Disabled)
-            {
-                defaultSchemes.Add(DisabledAuthenticationHandler.AuthenticateScheme);
+                availableSchemes.Add(DisabledAuthenticationHandler.AuthenticateScheme);
                 authenticationBuilder.AddTestAuth(options => { });
             }
 
-            defaultSchemes.Add(ServiceAccountAuthHandler.AuthenticationScheme);
+            availableSchemes.Add(ServiceAccountAuthHandler.AuthenticationScheme);
             authenticationBuilder.AddScheme<ServiceAccountAuthOptions, ServiceAccountAuthHandler>(ServiceAccountAuthHandler.AuthenticationScheme, options => { });
 
             services.AddAuthorization(options =>
             {
                 options.AddPolicy(NamespaceAccessRequirement.Name, policy =>
                 {
-                    policy.AuthenticationSchemes = defaultSchemes;
+                    policy.AuthenticationSchemes = availableSchemes;
                     policy.Requirements.Add(new NamespaceAccessRequirement());
                 });
 
-                OnAddAuthorization(options, defaultSchemes);
+                OnAddAuthorization(options, availableSchemes);
             });
             services.AddSingleton<IAuthorizationHandler, NamespaceAuthorizationHandler>();
 
@@ -410,28 +413,116 @@ namespace Jupiter
         }
     }
 
-    public enum AuthMethod
+    public enum SchemeImplementations
     {
         JWTBearer,
-        Okta,
-        Disabled
+        Okta
     };
 
-    public class AuthSettings
+    public class AuthSchemeEntry: IValidatableObject
     {
+        /// <summary>
+        /// The name of the authentication scheme. This will need to be specified by any client in the Authorization header together with the token
+        /// </summary>
+        [Required]
+        [Key]
+        public string Name { get; set; } = "Bearer";
+
+        /// <summary>
+        /// The implementation to use, this controls which other configuration values needs to be set. For most servers JWTBearer should work fine.
+        /// </summary>
         [Required] 
-        public AuthMethod Method { get; set; } = AuthMethod.JWTBearer;
+        public SchemeImplementations Implementation { get; set; } = SchemeImplementations.JWTBearer;
 
-        [Required]
+        /// <summary>
+        /// The Okta domain (url to your okta server - do not include the authorization server id)
+        /// </summary>
         public string OktaDomain { get; set; } = "";
-        public string AuthorizationServerId { get; set; } = OktaWebOptions.DefaultAuthorizationServerId;
+        /// <summary>
+        /// The Okta AuthorizationServerId, this is used if you have more then one authorization server within your Okta server. We recommend using a separate authorization server for each major set of systems to reduce blast radius of security issues.
+        /// </summary>
+        public string OktaAuthorizationServerId { get; set; } = OktaWebOptions.DefaultAuthorizationServerId;
 
-        [Required]
+        /// <summary>
+        /// The JWT Authority (url to your IdP)
+        /// </summary>
         public string JwtAuthority { get; set; } = "";
 
+        /// <summary>
+        /// The audience for the token, this is usually defined by your IdP 
+        /// </summary>
         [Required]
         public string JwtAudience { get; set; } = "";
 
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            List<ValidationResult> validationResults = new List<ValidationResult>();
+            if (Implementation == SchemeImplementations.JWTBearer)
+            {
+                if (string.IsNullOrEmpty(JwtAuthority))
+                {
+                    validationResults.Add(new ValidationResult("JWT Authority must be specified when using JWTBearer implementation"));
+                }
+                if (string.IsNullOrEmpty(JwtAudience))
+                {
+                    validationResults.Add(new ValidationResult("JWT Audience must be specified when using JWTBearer implementation"));
+                }
+            } 
+            else if (Implementation == SchemeImplementations.Okta)
+            {
+                if (string.IsNullOrEmpty(OktaDomain))
+                {
+                    validationResults.Add(new ValidationResult("Okta Domain must be specified when using Okta implementation"));
+                }
+                if (string.IsNullOrEmpty(JwtAudience))
+                {
+                    validationResults.Add(new ValidationResult("JWT Audience must be specified when using Okta implementation"));
+                }
+            }
+            else
+            {
+                throw new NotSupportedException($"Unknown auth implementation {Implementation}");
+            }
+
+            return validationResults;
+        }
+    }
+
+    public class AuthSettings : IValidatableObject
+    {
+        /// <summary>
+        /// The name of the scheme to use by default
+        /// </summary>
+        public string DefaultScheme { get; set; } = "Bearer";
+
+        /// <summary>
+        /// Used to disable authentication, not recommended to set for anything other then local use cases
+        /// </summary>
+        public bool Enabled { get; set; } = true;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
+        public Dictionary<string, AuthSchemeEntry> Schemes { get; set; } = new Dictionary<string, AuthSchemeEntry>();
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            List<ValidationResult> validationResults = new List<ValidationResult>();
+            if (!Enabled)
+            {
+                return validationResults;
+            }
+
+            if (Schemes.Count == 0)
+            {
+                validationResults.Add(new ValidationResult("You must have at least one scheme when authentication is enabled"));
+            }
+
+            if (!Schemes.ContainsKey(DefaultScheme))
+            {
+                validationResults.Add(new ValidationResult($"Expected to find a scheme with the name {DefaultScheme} as its set as the default scheme"));
+            }
+
+            return validationResults;
+        }
     }
 
     public class JupiterSettings

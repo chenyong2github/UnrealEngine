@@ -168,13 +168,6 @@ namespace Horde.Storage
 
         protected override void OnAddService(IServiceCollection services)
         {
-            // For requests served on the high-perf HTTP port there is not authn/authz.
-            // Suppressing the check below removes the warning for that case.
-            services.Configure<RouteOptions>(options =>
-            {
-                options.SuppressCheckForUnhandledSecurityMetadata = true;
-            });
-
             services.AddHttpClient();
 
             services.AddOptions<HordeStorageSettings>().Bind(Configuration.GetSection("Horde_Storage")).ValidateDataAnnotations();

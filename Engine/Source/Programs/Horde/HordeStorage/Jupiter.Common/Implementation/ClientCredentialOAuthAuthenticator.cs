@@ -9,12 +9,13 @@ namespace Jupiter.Implementation
 {
     public class ClientCredentialOAuthAuthenticator: IAuthenticator
     {
-        public ClientCredentialOAuthAuthenticator(Uri authUrl, string clientId, string clientSecret, string scope)
+        public ClientCredentialOAuthAuthenticator(Uri authUrl, string clientId, string clientSecret, string scope, string schemeName)
         {
             _authUrl = authUrl;
             _clientId = clientId;
             _clientSecret = clientSecret;
             _scope = scope;
+            _schemeName = schemeName;
         }
 
         private string? _accessToken;
@@ -23,6 +24,7 @@ namespace Jupiter.Implementation
         private readonly string _clientId;
         private readonly string _clientSecret;
         private readonly string _scope;
+        private readonly string _schemeName;
         private DateTime _expiresAt;
 
         public void Authenticate(IRestClient client, IRestRequest request)
@@ -32,7 +34,7 @@ namespace Jupiter.Implementation
                 PreAuthenticate();
             }
 
-            request.AddHeader("Authorization", $"Bearer {_accessToken}");
+            request.AddHeader("Authorization", $"{_schemeName} {_accessToken}");
         }
 
         public string? Authenticate()
