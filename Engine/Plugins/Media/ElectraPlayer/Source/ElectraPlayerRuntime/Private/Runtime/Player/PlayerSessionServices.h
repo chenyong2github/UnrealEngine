@@ -136,6 +136,19 @@ namespace Electra
 		  * Returns the DRM manager, if any.
 		  */
 		virtual TSharedPtrTS<FDRMManager> GetDRMManager() = 0;
+
+		enum class EPlayEndReason
+		{
+			EndAll,
+			NextItem,
+			ErrorCondition
+		};
+		class IPlayEndReason
+		{
+		public:
+			virtual ~IPlayEndReason() = default;
+		};
+		virtual void SetPlaybackEnd(const FTimeValue& InEndAtTime, EPlayEndReason InEndingReason, TSharedPtrTS<IPlayEndReason> InCustomManifestObject) = 0;
 	};
 
 

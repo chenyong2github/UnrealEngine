@@ -1157,6 +1157,11 @@ TSharedPtrTS<FDRMManager> FAdaptiveStreamingPlayer::GetDRMManager()
 	return DrmManager;
 }
 
+void FAdaptiveStreamingPlayer::SetPlaybackEnd(const FTimeValue& InEndAtTime, IPlayerSessionServices::EPlayEndReason InEndingReason, TSharedPtrTS<IPlayerSessionServices::IPlayEndReason> InCustomManifestObject)
+{
+	WorkerThread.SendPlaybackEndMessage(InEndAtTime, InEndingReason, InCustomManifestObject);
+}
+
 
 
 //-----------------------------------------------------------------------------
@@ -1554,6 +1559,14 @@ bool FAdaptiveStreamingPlayer::InternalHandleThreadMessages()
 			case FWorkerThreadMessages::FMessage::EType::PlayerSession:
 			{
 				HandleSessionMessage(msg.Data.Session.PlayerMessage);
+				break;
+			}
+
+			case FWorkerThreadMessages::FMessage::EType::EndPlaybackAt:
+			{
+				// With a defined end time we just play out until then.
+				PlaybackState.SetShouldPlayOnLiveEdge(false);
+				PlaybackState.SetPlaybackEndAtTime(msg.Data.EndPlaybackAt.EndAtTime);
 				break;
 			}
 
@@ -3919,6 +3932,22 @@ void FAdaptiveStreamingPlayer::CheckForStreamEnd()
 	{
 		if (StreamState == EStreamState::eStream_Running)
 		{
+			// First check if there is an end time set at which we need to stop.
+			FTimeValue EndAtTime = PlaybackState.GetPlaybackEndAtTime();
+			if (EndAtTime.IsValid())
+			{
+				if (PlaybackState.GetPlayPosition() >= EndAtTime)
+				{
+					// A forced end time is intended to stop playback. We do NOT look at the loop state here.
+					InternalSetPlaybackEnded();
+					DataBuffersCriticalSection.Lock();
+					NextDataBuffers.Empty();
+					DataBuffersCriticalSection.Unlock();
+					return;
+				}
+			}
+
+			// Check if all data has been used.
 			const bool bHaveVid = bHaveVideoReader.GetWithDefault(false);
 			const bool bHaveAud = bHaveAudioReader.GetWithDefault(false);
 			const bool bHaveTxt = bHaveTextReader.GetWithDefault(false);
@@ -4279,6 +4308,7 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 	PlaybackRate = 0.0;
 	CurrentState = EPlayerState::eState_Paused;
 	PlaybackState.SetPausedAndPlaying(false, false);
+	PlaybackState.SetPlaybackEndAtTime(FTimeValue::GetInvalid());
 
 	// Flush all access unit buffers.
 	DataBuffersCriticalSection.Lock();
@@ -4617,6 +4647,14 @@ void FAdaptiveStreamingPlayer::ABRTriggerClockSync(IAdaptiveStreamSelector::IPla
 	{
 		Manifest->TriggerClockSync(InClockSyncType == IAdaptiveStreamSelector::IPlayerLiveControl::EClockSyncType::Required ?
 									IManifest::EClockSyncType::Required : IManifest::EClockSyncType::Recommended);
+	}
+}
+
+void FAdaptiveStreamingPlayer::ABRTriggerPlaylistRefresh()
+{
+	if (Manifest.IsValid())
+	{
+		Manifest->TriggerPlaylistRefresh();
 	}
 }
 

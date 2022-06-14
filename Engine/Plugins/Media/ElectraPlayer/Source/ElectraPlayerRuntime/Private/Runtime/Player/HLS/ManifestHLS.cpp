@@ -275,12 +275,15 @@ IManifest::FResult FManifestHLS::FindNextPlayPeriod(TSharedPtrTS<IPlayPeriod>& O
 	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 }
 
-
 void FManifestHLS::TriggerClockSync(IManifest::EClockSyncType InClockSyncType)
 {
 	// No-op.
 }
 
+void FManifestHLS::TriggerPlaylistRefresh()
+{
+	// No-op.
+}
 
 /**
  * Creates a stream reader for the media segments.

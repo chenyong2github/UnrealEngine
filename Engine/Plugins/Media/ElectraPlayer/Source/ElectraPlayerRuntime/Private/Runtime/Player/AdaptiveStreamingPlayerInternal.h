@@ -189,6 +189,7 @@ struct FPlaybackState
 		CurrentPlayPosition.SetToInvalid();
 		EncoderLatency.SetToInvalid();
 		CurrentLiveLatency.SetToInvalid();
+		EndPlaybackAtTime.SetToInvalid();
 		LoopState = {};
 		bHaveMetadata = false;
 		bHasEnded = false;
@@ -208,6 +209,7 @@ struct FPlaybackState
 	FTimeValue								CurrentPlayPosition;
 	FTimeValue								EncoderLatency;
 	FTimeValue								CurrentLiveLatency;
+	FTimeValue								EndPlaybackAtTime;
 	IAdaptiveStreamingPlayer::FLoopState	LoopState;
 	bool									bHaveMetadata;
 	bool									bHasEnded;
@@ -455,6 +457,18 @@ struct FPlaybackState
 		FScopeLock lock(&Lock);
 		return bLoopStateHasChanged;
 	}
+
+	void SetPlaybackEndAtTime(const FTimeValue& InAtTime)
+	{
+		FScopeLock lock(&Lock);
+		EndPlaybackAtTime = InAtTime;
+	}
+	FTimeValue GetPlaybackEndAtTime() const
+	{
+		FScopeLock lock(&Lock);
+		return EndPlaybackAtTime;
+	}
+
 };
 
 
@@ -808,11 +822,11 @@ public:
 	FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlayer::FCreateParam& InCreateParameters);
 	virtual ~FAdaptiveStreamingPlayer();
 
-	virtual void SetStaticResourceProviderCallback(const TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe>& InStaticResourceProvider) override;
-	virtual void SetVideoDecoderResourceDelegate(const TSharedPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe>& ResourceDelegate) override;
+	void SetStaticResourceProviderCallback(const TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe>& InStaticResourceProvider) override;
+	void SetVideoDecoderResourceDelegate(const TSharedPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe>& ResourceDelegate) override;
 
-	virtual void AddMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) override;
-	virtual void RemoveMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) override;
+	void AddMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) override;
+	void RemoveMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) override;
 
 	void HandleOnce();
 
@@ -831,57 +845,57 @@ public:
 	}
 
 
-	virtual void AddAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
-	virtual void RemoveAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
+	void AddAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
+	void RemoveAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
 
-	virtual void AddSubtitleReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver> InReceiver) override;
-	virtual void RemoveSubtitleReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver> InReceiver) override;
+	void AddSubtitleReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver> InReceiver) override;
+	void RemoveSubtitleReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver> InReceiver) override;
 
-	virtual void Initialize(const FParamDict& Options) override;
-	virtual void ModifyOptions(const FParamDict& InOptionsToSetOrChange, const FParamDict& InOptionsToClear) override;
+	void Initialize(const FParamDict& Options) override;
+	void ModifyOptions(const FParamDict& InOptionsToSetOrChange, const FParamDict& InOptionsToClear) override;
 
-	virtual void SetInitialStreamAttributes(EStreamType StreamType, const FStreamSelectionAttributes& InitialSelection) override;
-	virtual void EnableFrameAccurateSeeking(bool bEnabled) override;
-	virtual void LoadManifest(const FString& manifestURL) override;
+	void SetInitialStreamAttributes(EStreamType StreamType, const FStreamSelectionAttributes& InitialSelection) override;
+	void EnableFrameAccurateSeeking(bool bEnabled) override;
+	void LoadManifest(const FString& manifestURL) override;
 
-	virtual void SeekTo(const FSeekParam& NewPosition) override;
-	virtual void Pause() override;
-	virtual void Resume() override;
-	virtual void Stop() override;
-	virtual void SetPlaybackRange(const FPlaybackRange& InPlaybackRange) override;
-	virtual void GetPlaybackRange(FPlaybackRange& OutPlaybackRange) override;
-	virtual void SetLooping(const FLoopParam& InLoopParams) override;
+	void SeekTo(const FSeekParam& NewPosition) override;
+	void Pause() override;
+	void Resume() override;
+	void Stop() override;
+	void SetPlaybackRange(const FPlaybackRange& InPlaybackRange) override;
+	void GetPlaybackRange(FPlaybackRange& OutPlaybackRange) override;
+	void SetLooping(const FLoopParam& InLoopParams) override;
 
-	virtual FErrorDetail GetError() const override;
+	FErrorDetail GetError() const override;
 
-	virtual bool HaveMetadata() const override;
-	virtual FTimeValue GetDuration() const override;
-	virtual FTimeValue GetPlayPosition() const override;
-	virtual void GetTimelineRange(FTimeRange& OutRange) const override;
-	virtual void GetSeekableRange(FTimeRange& OutRange) const override;
-	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override;
-	virtual bool HasEnded() const override;
-	virtual bool IsSeeking() const override;
-	virtual bool IsBuffering() const override;
-	virtual bool IsPlaying() const override;
-	virtual bool IsPaused() const override;
+	bool HaveMetadata() const override;
+	FTimeValue GetDuration() const override;
+	FTimeValue GetPlayPosition() const override;
+	void GetTimelineRange(FTimeRange& OutRange) const override;
+	void GetSeekableRange(FTimeRange& OutRange) const override;
+	void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override;
+	bool HasEnded() const override;
+	bool IsSeeking() const override;
+	bool IsBuffering() const override;
+	bool IsPlaying() const override;
+	bool IsPaused() const override;
 
-	virtual void GetLoopState(FLoopState& OutLoopState) const override;
-	virtual void GetTrackMetadata(TArray<FTrackMetadata>& OutTrackMetadata, EStreamType StreamType) const override;
-	//virtual void GetSelectedTrackMetadata(TOptional<FTrackMetadata>& OutSelectedTrackMetadata, EStreamType StreamType) const override;
-	virtual void GetSelectedTrackAttributes(FStreamSelectionAttributes& OutAttributes, EStreamType StreamType) const override;
+	void GetLoopState(FLoopState& OutLoopState) const override;
+	void GetTrackMetadata(TArray<FTrackMetadata>& OutTrackMetadata, EStreamType StreamType) const override;
+	//void GetSelectedTrackMetadata(TOptional<FTrackMetadata>& OutSelectedTrackMetadata, EStreamType StreamType) const override;
+	void GetSelectedTrackAttributes(FStreamSelectionAttributes& OutAttributes, EStreamType StreamType) const override;
 
-	virtual void SetBitrateCeiling(int32 highestSelectableBitrate) override;
-	virtual void SetMaxResolution(int32 MaxWidth, int32 MaxHeight) override;
+	void SetBitrateCeiling(int32 highestSelectableBitrate) override;
+	void SetMaxResolution(int32 MaxWidth, int32 MaxHeight) override;
 
-	//virtual void SelectTrackByMetadata(EStreamType StreamType, const FTrackMetadata& StreamMetadata) override;
-	virtual void SelectTrackByAttributes(EStreamType StreamType, const FStreamSelectionAttributes& Attributes) override;
-	virtual void DeselectTrack(EStreamType StreamType) override;
-	virtual bool IsTrackDeselected(EStreamType StreamType) override;
+	//void SelectTrackByMetadata(EStreamType StreamType, const FTrackMetadata& StreamMetadata) override;
+	void SelectTrackByAttributes(EStreamType StreamType, const FStreamSelectionAttributes& Attributes) override;
+	void DeselectTrack(EStreamType StreamType) override;
+	bool IsTrackDeselected(EStreamType StreamType) override;
 
 #if PLATFORM_ANDROID
-	virtual void Android_UpdateSurface(const TSharedPtr<IOptionPointerValueContainer>& Surface) override;
-	virtual void Android_SuspendOrResumeDecoder(bool bSuspend) override;
+	void Android_UpdateSurface(const TSharedPtr<IOptionPointerValueContainer>& Surface) override;
+	void Android_SuspendOrResumeDecoder(bool bSuspend) override;
 	static FParamDict& Android_Workarounds(FStreamCodecInformation::ECodec InForCodec);
 #endif
 
@@ -890,27 +904,27 @@ public:
 
 private:
 	// Methods from IPlayerSessionServices
-	virtual void PostError(const FErrorDetail& Error) override;
-	virtual void PostLog(Facility::EFacility FromFacility, IInfoLog::ELevel LogLevel, const FString& Message) override;
-	virtual void SendMessageToPlayer(TSharedPtrTS<IPlayerMessage> PlayerMessage) override;
-	virtual void GetExternalGuid(FGuid& OutExternalGuid) override;
-	virtual ISynchronizedUTCTime* GetSynchronizedUTCTime() override;
-	virtual TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> GetStaticResourceProvider() override;
-	virtual TSharedPtrTS<IElectraHttpManager> GetHTTPManager() override;
-	virtual TSharedPtrTS<IAdaptiveStreamSelector> GetStreamSelector() override;
-	virtual IPlayerStreamFilter* GetStreamFilter() override;
-	virtual const FCodecSelectionPriorities& GetCodecSelectionPriorities(EStreamType ForStream) override;
+	void PostError(const FErrorDetail& Error) override;
+	void PostLog(Facility::EFacility FromFacility, IInfoLog::ELevel LogLevel, const FString& Message) override;
+	void SendMessageToPlayer(TSharedPtrTS<IPlayerMessage> PlayerMessage) override;
+	void GetExternalGuid(FGuid& OutExternalGuid) override;
+	ISynchronizedUTCTime* GetSynchronizedUTCTime() override;
+	TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> GetStaticResourceProvider() override;
+	TSharedPtrTS<IElectraHttpManager> GetHTTPManager() override;
+	TSharedPtrTS<IAdaptiveStreamSelector> GetStreamSelector() override;
+	IPlayerStreamFilter* GetStreamFilter() override;
+	const FCodecSelectionPriorities& GetCodecSelectionPriorities(EStreamType ForStream) override;
 	virtual	TSharedPtrTS<IPlaylistReader> GetManifestReader() override;
-	virtual TSharedPtrTS<IPlayerEntityCache> GetEntityCache() override;
-	virtual TSharedPtrTS<IHTTPResponseCache> GetHTTPResponseCache() override;
-
-	virtual IAdaptiveStreamingPlayerAEMSHandler* GetAEMSEventHandler() override;
-	virtual FParamDict& GetOptions() override;
-	virtual TSharedPtrTS<FDRMManager> GetDRMManager() override;
+	TSharedPtrTS<IPlayerEntityCache> GetEntityCache() override;
+	TSharedPtrTS<IHTTPResponseCache> GetHTTPResponseCache() override;
+	IAdaptiveStreamingPlayerAEMSHandler* GetAEMSEventHandler() override;
+	FParamDict& GetOptions() override;
+	TSharedPtrTS<FDRMManager> GetDRMManager() override;
+	void SetPlaybackEnd(const FTimeValue& InEndAtTime, IPlayerSessionServices::EPlayEndReason InEndingReason, TSharedPtrTS<IPlayerSessionServices::IPlayEndReason> InCustomManifestObject) override;
 
 	// Methods from IPlayerStreamFilter
-	virtual bool CanDecodeStream(const FStreamCodecInformation& InStreamCodecInfo) const override;
-	virtual bool CanDecodeSubtitle(const FString& MimeType, const FString& Codec) const override;
+	bool CanDecodeStream(const FStreamCodecInformation& InStreamCodecInfo) const override;
+	bool CanDecodeSubtitle(const FString& MimeType, const FString& Codec) const override;
 
 
 	// Methods from IAdaptiveStreamSelector::IPlayerLiveControl
@@ -928,6 +942,7 @@ private:
 	void ABRSetRenderRateScale(double InRenderRateScale) override;
 	double ABRGetRenderRateScale() const override;
 	void ABRTriggerClockSync(IAdaptiveStreamSelector::IPlayerLiveControl::EClockSyncType InClockSyncType) override;
+	void ABRTriggerPlaylistRefresh() override;
 
 
 	enum class EPlayerState
@@ -1281,6 +1296,7 @@ private:
 				SelectTrackByMetadata,
 				SelectTrackByAttributes,
 				DeselectTrack,
+				EndPlaybackAt,
 				// Player session message
 				PlayerSession,
 				// Fragment reader messages
@@ -1349,6 +1365,12 @@ private:
 					FTrackMetadata									TrackMetadata;
 					FStreamSelectionAttributes						TrackAttributes;
 				};
+				struct FEndPlaybackAt
+				{
+					FTimeValue											EndAtTime;
+					IPlayerSessionServices::EPlayEndReason				EndingReason;
+					TSharedPtrTS<IPlayerSessionServices::IPlayEndReason> CustomManifestObject;
+				};
 
 				FLoadManifest				ManifestToLoad;
 				FStreamReader				StreamReader;
@@ -1359,6 +1381,7 @@ private:
 				FResolution					Resolution;
 				FInitialStreamSelect		InitialStreamAttribute;
 				FMetadataTrackSelection		TrackSelection;
+				FEndPlaybackAt				EndPlaybackAt;
 			};
 			EType					Type;
 			FData   				Data;
@@ -1469,6 +1492,16 @@ private:
 			FMessage Msg;
 			Msg.Type = FMessage::EType::DeselectTrack;
 			Msg.Data.TrackSelection.StreamType = StreamType;
+			TriggerSharedWorkerThread(MoveTemp(Msg));
+		}
+
+		void SendPlaybackEndMessage(const FTimeValue& InEndAtTime, IPlayerSessionServices::EPlayEndReason InEndingReason, TSharedPtrTS<IPlayerSessionServices::IPlayEndReason> InCustomManifestObject)
+		{
+			FMessage Msg;
+			Msg.Type = FMessage::EType::EndPlaybackAt;
+			Msg.Data.EndPlaybackAt.EndAtTime = InEndAtTime;
+			Msg.Data.EndPlaybackAt.EndingReason = InEndingReason;
+			Msg.Data.EndPlaybackAt.CustomManifestObject = InCustomManifestObject;
 			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 

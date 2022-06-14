@@ -367,6 +367,17 @@ void FManifestDASH::TriggerClockSync(IManifest::EClockSyncType InClockSyncType)
 	Reader->RequestClockResync();
 }
 
+void FManifestDASH::TriggerPlaylistRefresh()
+{
+	TSharedPtrTS<FManifestDASHInternal> Manifest = CurrentManifest;
+	// Trigger only when updates are not expected regularly.
+	if (Manifest.IsValid() && Manifest->AreUpdatesExpected() && (Manifest->GetMinimumUpdatePeriod() == FTimeValue::GetZero() || Manifest->GetMinimumUpdatePeriod() > FTimeValue(10.0)))
+	{
+		IPlaylistReaderDASH* Reader = static_cast<IPlaylistReaderDASH*>(PlayerSessionServices->GetManifestReader().Get());
+		Reader->RequestMPDUpdate(IPlaylistReaderDASH::EMPDRequestType::GetLatestSegment);
+	}
+}
+
 
 IStreamReader* FManifestDASH::CreateStreamReaderHandler()
 {

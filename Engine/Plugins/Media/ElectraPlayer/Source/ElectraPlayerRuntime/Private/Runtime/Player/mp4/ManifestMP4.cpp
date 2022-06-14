@@ -190,6 +190,11 @@ void FManifestMP4Internal::TriggerClockSync(IManifest::EClockSyncType InClockSyn
 	// No-op.
 }
 
+void FManifestMP4Internal::TriggerPlaylistRefresh()
+{
+	// No-op.
+}
+
 
 //-----------------------------------------------------------------------------
 /**

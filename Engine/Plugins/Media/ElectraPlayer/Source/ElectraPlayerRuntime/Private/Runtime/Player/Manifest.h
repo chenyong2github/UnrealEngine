@@ -331,6 +331,7 @@ namespace Electra
 		};
 		virtual void TriggerClockSync(EClockSyncType InClockSyncType) = 0;
 
+		virtual void TriggerPlaylistRefresh() = 0;
 
 		//-------------------------------------------------------------------------
 		// Stream fragment reader

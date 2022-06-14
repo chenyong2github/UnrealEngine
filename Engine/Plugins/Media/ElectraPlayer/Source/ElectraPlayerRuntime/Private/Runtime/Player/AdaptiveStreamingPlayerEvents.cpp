@@ -178,7 +178,7 @@ void FAdaptiveStreamingPlayerAEMSHandler::ExecutePendingEvents(FTimeValue Curren
 	if (DeltaTime >= HandlingInterval)
 	{
 		FTimeRange TriggerRange;
-		TriggerRange.Start = CurrentPlaybackTime - HandlingInterval;
+		TriggerRange.Start = LastPlayPos.IsValid() ? LastPlayPos : CurrentPlaybackTime - HandlingInterval;
 		TriggerRange.End = CurrentPlaybackTime;
 		LastPlayPos = CurrentPlaybackTime;
 		FireEventsInRange(TriggerRange);

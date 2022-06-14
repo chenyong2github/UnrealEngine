@@ -68,6 +68,8 @@ public:
 			Required
 		};
 		virtual void ABRTriggerClockSync(EClockSyncType InClockSyncType) = 0;
+
+		virtual void ABRTriggerPlaylistRefresh() = 0;
 	};
 
 

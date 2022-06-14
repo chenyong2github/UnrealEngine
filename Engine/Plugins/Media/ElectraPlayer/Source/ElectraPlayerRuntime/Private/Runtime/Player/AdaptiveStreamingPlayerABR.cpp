@@ -114,6 +114,8 @@ namespace Electra
 		{ return PlayerLiveControl->ABRGetRenderRateScale(); }
 		void ABRTriggerClockSync(IAdaptiveStreamSelector::IPlayerLiveControl::EClockSyncType InClockSyncType) override
 		{ PlayerLiveControl->ABRTriggerClockSync(InClockSyncType); }
+		void ABRTriggerPlaylistRefresh() override
+		{ PlayerLiveControl->ABRTriggerPlaylistRefresh(); }
 
 
 		IPlayerSessionServices*								PlayerSessionServices;

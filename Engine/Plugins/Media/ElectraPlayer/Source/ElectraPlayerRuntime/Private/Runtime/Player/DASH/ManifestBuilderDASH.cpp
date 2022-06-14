@@ -2370,7 +2370,7 @@ FTimeValue FManifestDASHInternal::CalculateDistanceToLiveEdge() const
 	if (!Distance.IsValid())
 	{
 		Distance = MPDRoot->GetSuggestedPresentationDelay();
-
+#if 0
 		/*
 			If the @suggestedPresentationDelay is set equal to or shorter than the @minBufferTime there is a
 			conflict. Since we have to buffer @minBufferTime worth of content, which could be arriving in real-time only
@@ -2381,6 +2381,7 @@ FTimeValue FManifestDASHInternal::CalculateDistanceToLiveEdge() const
 			bWarnedAboutTooSmallSuggestedPresentationDelay = true;
 			LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("MPD@suggestedPresentationDelay of %.3fs is less than MPD@minBufferTime of %.3fs"), Distance.GetAsSeconds(), MPDRoot->GetMinBufferTime().GetAsSeconds()));
 		}
+#endif
 	}
 	// If not set see if there is an MPD@maxSegmentDuration and use that.
 	if (!Distance.IsValid())

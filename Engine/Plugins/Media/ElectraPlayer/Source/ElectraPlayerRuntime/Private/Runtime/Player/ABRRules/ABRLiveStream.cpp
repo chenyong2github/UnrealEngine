@@ -243,6 +243,7 @@ private:
 		bool bBufferingWillCompleteOnTime = false;
 
 		FABRDownloadProgressDecision StreamReaderDecision;
+		double LastTimePlaylistRefreshRequested = -1.0;
 	};
 
 
@@ -337,6 +338,10 @@ private:
 	const double UsableBandwidthScaleFactor = 0.85;
 
 	const int32 NumQualityLevelDropsWhenAborting = 2;
+
+	const double TimeUntilNextPlaylistRefresh = 10.0;
+	const int32 TriggerPlaylistRefreshAfterNumLateSegments = 3;
+	const int32 MaxTimesToRetryLateSegment = 10;
 
 	// When not playing on the Live edge we delay loading of a segment in the lower
 	// quality range if the buffer has more data (and the distance to the Live edge is greater).
@@ -870,6 +875,13 @@ void FABRLiveStream::PrepareStreamCandidateList(TArray<TSharedPtrTS<FABRStreamIn
 IAdaptiveStreamSelector::ESegmentAction FABRLiveStream::EvaluateForError(TArray<TSharedPtrTS<FABRStreamInformation>>& InOutCandidates, EStreamType StreamType, FTimeValue& OutDelay, const TSharedPtrTS<IManifest::IPlayPeriod>& CurrentPlayPeriod, const TSharedPtrTS<const IStreamSegment>& CurrentSegment, const FTimeValue& TimeNow)
 {
 	FStreamWorkVars* WorkVars = GetWorkVars(StreamType);
+	double Now = Info->ABRGetWallclockTime().GetAsSeconds();
+
+	// Allow another playlist updates after enough time has elapsed.
+	if (WorkVars->LastTimePlaylistRefreshRequested > 0.0 && Now - WorkVars->LastTimePlaylistRefreshRequested > TimeUntilNextPlaylistRefresh)
+	{
+		WorkVars->LastTimePlaylistRefreshRequested = -1.0;
+	}
 
 	if (CurrentSegment.IsValid())
 	{
@@ -904,7 +916,13 @@ IAdaptiveStreamSelector::ESegmentAction FABRLiveStream::EvaluateForError(TArray<
 						CurrentPlayPeriod->IncreaseSegmentFetchDelay(FTimeValue(FTimeValue::MillisecondsToHNS(100)));
 					}
 					OutDelay.SetFromMilliseconds(150);
-					return IAdaptiveStreamSelector::ESegmentAction::Retry;
+
+					if (Stats.RetryNumber > TriggerPlaylistRefreshAfterNumLateSegments && WorkVars->LastTimePlaylistRefreshRequested < 0.0)
+					{
+						WorkVars->LastTimePlaylistRefreshRequested = Info->ABRGetWallclockTime().GetAsSeconds();
+						Info->ABRTriggerPlaylistRefresh();
+					}
+					return Stats.RetryNumber < MaxTimesToRetryLateSegment ? IAdaptiveStreamSelector::ESegmentAction::Retry : IAdaptiveStreamSelector::ESegmentAction::Fail;
 				}
 
 				// Too many failures already? It's unlikely that there is a way that would magically fix itself now.

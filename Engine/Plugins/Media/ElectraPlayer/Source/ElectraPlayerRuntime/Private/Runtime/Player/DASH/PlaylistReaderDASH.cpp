@@ -454,6 +454,7 @@ void FPlaylistReaderDASH::CheckForMPDUpdate()
 						}
 						if (bEventApplies)
 						{
+							PlayerSessionServices->SetPlaybackEnd(Request->ValidUntil + Request->NewDuration, IPlayerSessionServices::EPlayEndReason::EndAll, nullptr);
 							Manifest->EndPresentationAt(Request->ValidUntil + Request->NewDuration, Request->PeriodId);
 						}
 					}
@@ -1331,7 +1332,7 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 {
 	bIsMPDUpdateInProgress = false;
 
-	if (bSuccess)
+	if (bSuccess || (Request->GetConnectionInfo() && Request->GetConnectionInfo()->StatusInfo.HTTPStatus == 410))
 	{
 		if (!Request->Request.IsValid() || !Request->Request->GetResponseBuffer().IsValid())
 		{
@@ -1373,6 +1374,13 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 				NextMPDUpdateTime = MostRecentMPDUpdateTime + mup;
 				RequestsLock.Unlock();
 			}
+		}
+		// If we got a "410 - Gone" we set the end of presentation to "now"
+		else if (ConnInfo->StatusInfo.HTTPStatus == 410)
+		{
+			PlayerSessionServices->SetPlaybackEnd(FetchTime, IPlayerSessionServices::EPlayEndReason::EndAll, nullptr);
+			Manifest->GetMPDRoot()->SetFetchTime(FetchTime);
+			Manifest->EndPresentationAt(FetchTime, FString());
 		}
 		else
 		{
@@ -1621,7 +1629,12 @@ void FPlaylistReaderDASH::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStrea
 	}
 	else if (InEvent->GetSchemeIdUri().Equals(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_ttfn_2016))
 	{
-		// TBD
+		if (Manifest.IsValid())
+		{
+			// For now we do not consider the event value and just end playback.
+			PlayerSessionServices->SetPlaybackEnd(InEvent->GetPresentationTime(), IPlayerSessionServices::EPlayEndReason::EndAll, nullptr);
+			Manifest->EndPresentationAt(InEvent->GetPresentationTime(), FString());
+		}
 	}
 }
 
