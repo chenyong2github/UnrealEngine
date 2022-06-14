@@ -414,7 +414,7 @@ struct FIoStoreShaderCodeEntry
 	}
 };
 
-static_assert(sizeof(FIoStoreShaderCodeEntry) == sizeof(uint64), TEXT("To reduce memory footprint, shader code entries should be as small as possible"));
+static_assert(sizeof(FIoStoreShaderCodeEntry) == sizeof(uint64), "To reduce memory footprint, shader code entries should be as small as possible");
 
 /** Descriptor of a group of shaders compressed together. This groups already deduplicated, and possibly unrelated, shaders, so this is a distinct concept from a shader map. */
 struct FIoStoreShaderGroupEntry

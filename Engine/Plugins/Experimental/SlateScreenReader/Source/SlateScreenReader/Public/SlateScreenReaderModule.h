@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 
-static_assert(WITH_ACCESSIBILITY, TEXT("Trying to use the Slate screen reader plugin with accessibility disabled. Accessibility must be enabled to use this plugin. Either enable accessibility or disable the plugin."));
+static_assert(WITH_ACCESSIBILITY, "Trying to use the Slate screen reader plugin with accessibility disabled. Accessibility must be enabled to use this plugin. Either enable accessibility or disable the plugin.");
 
 class IScreenReaderBuilder;
 

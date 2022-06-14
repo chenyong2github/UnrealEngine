@@ -4,7 +4,7 @@
 #include "ScreenReaderLog.h"
 #include "Modules/ModuleManager.h"
 
-static_assert(WITH_ACCESSIBILITY, TEXT("Trying to use the screen reader plugin with accessibility disabled. Accessibility must be enabled to use this plugin. Either enable accessibility or disable the plugin."));
+static_assert(WITH_ACCESSIBILITY, "Trying to use the screen reader plugin with accessibility disabled. Accessibility must be enabled to use this plugin. Either enable accessibility or disable the plugin.");
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, ScreenReader);
 

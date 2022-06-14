@@ -18,7 +18,7 @@ public:
 		, RemoveNextIdx(0)
 		, NumValuesUsed(0)
 	{
-		static_assert(ArraySize > 0, TEXT("ArraySize must be greater than zero"));
+		static_assert(ArraySize > 0, "ArraySize must be greater than zero");
 	}
 
 	void PushValue(T Value)

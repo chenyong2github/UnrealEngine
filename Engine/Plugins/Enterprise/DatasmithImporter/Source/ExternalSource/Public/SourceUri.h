@@ -98,7 +98,7 @@ namespace UE::DatasmithImporter
 		template<typename TContainer>
 		static FString BuildQueryString(const TContainer& QueryContainer)
 		{
-			static_assert(std::is_same<typename TContainer::ElementType, TPair<FString, FString>>::value, TEXT("Query container must consist of a collection of TPair<FString, FString>."));
+			static_assert(std::is_same<typename TContainer::ElementType, TPair<FString, FString>>::value, "Query container must consist of a collection of TPair<FString, FString>.");
 
 			if (QueryContainer.Num() > 0)
 			{

@@ -313,7 +313,7 @@ bool FUnixPlatformProcess::SetProcessLimits(EProcessResource::Type Resource, uin
 {
 	rlimit NativeLimit;
 
-	static_assert(sizeof(long) == sizeof(NativeLimit.rlim_cur), TEXT("Platform has atypical rlimit type."));
+	static_assert(sizeof(long) == sizeof(NativeLimit.rlim_cur), "Platform has atypical rlimit type.");
 
 	// 32-bit platforms set limits as long
 	if (sizeof(NativeLimit.rlim_cur) < sizeof(Limit))

@@ -705,7 +705,7 @@ public:
 	template<int Index>
 	FORCEINLINE auto GetAccessor() const
 	{
-		static_assert(Index < sizeof...(T), TEXT("Invalid component index specified"));
+		static_assert(Index < sizeof...(T), "Invalid component index specified");
 		return Accessors.template Get<Index>();
 	}
 

@@ -289,7 +289,7 @@ static int AndroidThreadPriorityToNice(EThreadPriority NewPriority)
 		NORMAL+2,	//	TPri_SlightlyBelowNormal
 		URGENT,		//	TPri_TimeCritical
 	};
-	static_assert(UE_ARRAY_COUNT(ThreadPriorityToNiceValue) == EThreadPriority::TPri_Num, TEXT("This array is expected to be 1:1 mapping with EThreadPriority."));
+	static_assert(UE_ARRAY_COUNT(ThreadPriorityToNiceValue) == EThreadPriority::TPri_Num, "This array is expected to be 1:1 mapping with EThreadPriority.");
 	return ThreadPriorityToNiceValue[(int)NewPriority];
 }
 
