@@ -73,23 +73,28 @@ public:
 	float MinimumDesiredWidth;
 
 	/** Workaround as we lose focus when the auto completion closes. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Behavior, AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to IsCaretMovedWhenGainFocus is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Behavior, AdvancedDisplay)
 	bool IsCaretMovedWhenGainFocus;
 
 	/** Whether to select all text when the user clicks to give focus on the widget */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Behavior, AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to SelectAllTextWhenFocused is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Behavior, AdvancedDisplay)
 	bool SelectAllTextWhenFocused;
 
 	/** Whether to allow the user to back out of changes when they press the escape key */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Behavior, AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to RevertTextOnEscape is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Behavior, AdvancedDisplay)
 	bool RevertTextOnEscape;
 
 	/** Whether to clear keyboard focus when pressing enter to commit changes */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Behavior, AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to ClearKeyboardFocusOnCommit is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Behavior, AdvancedDisplay)
 	bool ClearKeyboardFocusOnCommit;
 
 	/** Whether to select all text when pressing enter to commit changes */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Behavior, AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to SelectAllTextOnCommit is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Behavior, AdvancedDisplay)
 	bool SelectAllTextOnCommit;
 
 	/** Whether the context menu can be opened */
@@ -176,6 +181,36 @@ public:
 	*  @param InMinDesiredWidth new minimum desired width
 	*/
 	void SetMinDesiredWidth(float InMinDesiredWidth);
+	
+	/** When set to true the caret is moved when gaining focus */
+	void SetIsCaretMovedWhenGainFocus(bool bIsCaretMovedWhenGainFocus);
+
+	/** Return true when the caret is moved when gaining focus */
+	bool GetIsCaretMovedWhenGainFocus() const;
+
+	/** Set to true to select all text when the user clicks to give focus on the widget */
+	void SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused);
+
+	/** Whether to select all text when the user clicks to give focus on the widget */
+	bool GetSelectAllTextWhenFocused() const;
+
+	/** Set to true to allow the user to back out of changes when they press the escape key */
+	void SetRevertTextOnEscape(bool bRevertTextOnEscape);
+
+	/** Whether to allow the user to back out of changes when they press the escape key  */
+	bool GetRevertTextOnEscape() const;
+
+	/** Set to true to clear keyboard focus when pressing enter to commit changes */
+	void SetClearKeyboardFocusOnCommit(bool bClearKeyboardFocusOnCommit);
+
+	/** Whether to clear keyboard focus when pressing enter to commit changes */
+	bool GetClearKeyboardFocusOnCommit() const;
+
+	/** Set to true to select all text when pressing enter to commit changes */
+	void SetSelectAllTextOnCommit(bool bSelectAllTextOnCommit);
+
+	/** Whether to select all text when pressing enter to commit changes */
+	bool GetSelectAllTextOnCommit() const;
 
 	UFUNCTION(BlueprintCallable, Category="Widget",  meta=(DisplayName="SetError (Text Box)"))
 	void SetError(FText InError);

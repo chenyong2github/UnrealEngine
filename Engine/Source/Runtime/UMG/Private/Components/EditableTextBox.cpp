@@ -188,6 +188,77 @@ void UEditableTextBox::SetMinDesiredWidth(float InMinDesiredWidth)
 	}
 }
 
+void UEditableTextBox::SetIsCaretMovedWhenGainFocus(bool bIsCaretMovedWhenGainFocus)
+{
+	IsCaretMovedWhenGainFocus = bIsCaretMovedWhenGainFocus;
+	if (MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetIsCaretMovedWhenGainFocus(bIsCaretMovedWhenGainFocus);
+	}
+}
+
+bool UEditableTextBox::GetIsCaretMovedWhenGainFocus() const
+{
+	return IsCaretMovedWhenGainFocus;
+}
+
+void UEditableTextBox::SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused)
+{
+	SelectAllTextWhenFocused = bSelectAllTextWhenFocused;
+	if (MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetSelectAllTextWhenFocused(bSelectAllTextWhenFocused);
+	}
+}
+
+bool UEditableTextBox::GetSelectAllTextWhenFocused() const
+{
+	return SelectAllTextWhenFocused;
+}
+
+void UEditableTextBox::SetRevertTextOnEscape(bool bRevertTextOnEscape)
+{
+	RevertTextOnEscape = bRevertTextOnEscape;
+	if (MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetRevertTextOnEscape(bRevertTextOnEscape);
+	}
+}
+
+bool UEditableTextBox::GetRevertTextOnEscape() const
+{
+	return RevertTextOnEscape;
+}
+
+void UEditableTextBox::SetClearKeyboardFocusOnCommit(bool bClearKeyboardFocusOnCommit)
+{
+	ClearKeyboardFocusOnCommit = bClearKeyboardFocusOnCommit;
+	if (MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetClearKeyboardFocusOnCommit(bClearKeyboardFocusOnCommit);
+	}
+}
+
+bool UEditableTextBox::GetClearKeyboardFocusOnCommit() const
+{
+	return ClearKeyboardFocusOnCommit;
+}
+
+void UEditableTextBox::SetSelectAllTextOnCommit(bool bSelectAllTextOnCommit)
+{
+	SelectAllTextOnCommit = bSelectAllTextOnCommit;
+	if (MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetSelectAllTextOnCommit(bSelectAllTextOnCommit);
+	}
+
+}
+
+bool UEditableTextBox::GetSelectAllTextOnCommit() const
+{
+	return SelectAllTextOnCommit;
+}
+
 void UEditableTextBox::SetForegroundColor(FLinearColor color)
 {
 	WidgetStyle.ForegroundColor = color;

@@ -184,6 +184,66 @@ void UMultiLineEditableText::SetHintText(FText InHintText)
 	}
 }
 
+void UMultiLineEditableText::SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused)
+{
+	SelectAllTextWhenFocused = bSelectAllTextWhenFocused;
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetSelectAllTextWhenFocused(bSelectAllTextWhenFocused);
+	}
+}
+
+bool UMultiLineEditableText::GetSelectAllTextWhenFocused() const
+{
+	return SelectAllTextWhenFocused;
+}
+
+void UMultiLineEditableText::SetClearTextSelectionOnFocusLoss(bool bClearTextSelectionOnFocusLoss)
+{
+	ClearTextSelectionOnFocusLoss = bClearTextSelectionOnFocusLoss;
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetClearTextSelectionOnFocusLoss(bClearTextSelectionOnFocusLoss);
+	}
+}
+
+bool UMultiLineEditableText::GetClearTextSelectionOnFocusLoss() const
+{
+	return ClearTextSelectionOnFocusLoss;
+}
+
+void UMultiLineEditableText::SetRevertTextOnEscape(bool bRevertTextOnEscape)
+{
+	RevertTextOnEscape = bRevertTextOnEscape;
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetRevertTextOnEscape(bRevertTextOnEscape);
+	}
+}
+
+bool UMultiLineEditableText::GetRevertTextOnEscape() const
+{
+	return RevertTextOnEscape;
+}
+
+void UMultiLineEditableText::SetClearKeyboardFocusOnCommit(bool bClearKeyboardFocusOnCommit)
+{
+	ClearKeyboardFocusOnCommit = bClearKeyboardFocusOnCommit;
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetClearKeyboardFocusOnCommit(bClearKeyboardFocusOnCommit);
+	}
+}
+
+bool UMultiLineEditableText::GetClearKeyboardFocusOnCommit() const
+{
+	return ClearKeyboardFocusOnCommit;
+}
+
 bool UMultiLineEditableText::GetIsReadOnly() const
 {
 	return bIsReadOnly;

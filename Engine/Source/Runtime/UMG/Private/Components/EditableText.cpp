@@ -202,6 +202,67 @@ void UEditableText::SetMinimumDesiredWidth(float InMinDesiredWidth)
 	}
 }
 
+void UEditableText::SetIsCaretMovedWhenGainFocus(bool bIsCaretMovedWhenGainFocus)
+{
+	IsCaretMovedWhenGainFocus = bIsCaretMovedWhenGainFocus;
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetIsCaretMovedWhenGainFocus(bIsCaretMovedWhenGainFocus);
+	}
+}
+
+bool UEditableText::GetIsCaretMovedWhenGainFocus() const
+{
+	return IsCaretMovedWhenGainFocus;
+}
+
+void UEditableText::SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused)
+{
+	SelectAllTextWhenFocused = bSelectAllTextWhenFocused;
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetSelectAllTextWhenFocused(bSelectAllTextWhenFocused);
+	}
+}
+
+bool UEditableText::GetSelectAllTextWhenFocused() const
+{
+	return SelectAllTextWhenFocused;
+}
+
+void UEditableText::SetRevertTextOnEscape(bool bRevertTextOnEscape)
+{
+	RevertTextOnEscape = bRevertTextOnEscape;
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetRevertTextOnEscape(bRevertTextOnEscape);
+	}
+}
+
+bool UEditableText::GetRevertTextOnEscape() const
+{
+	return RevertTextOnEscape;
+}
+
+bool UEditableText::GetClearKeyboardFocusOnCommit() const
+{
+	return ClearKeyboardFocusOnCommit;
+}
+
+void UEditableText::SetSelectAllTextOnCommit(bool bSelectAllTextOnCommit)
+{
+	SelectAllTextOnCommit = bSelectAllTextOnCommit;
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetSelectAllTextOnCommit(bSelectAllTextOnCommit);
+	}
+}
+
+bool UEditableText::GetSelectAllTextOnCommit() const
+{
+	return SelectAllTextOnCommit;
+}
+
 bool UEditableText::GetIsReadOnly() const
 {
 	return IsReadOnly;
@@ -251,13 +312,15 @@ void UEditableText::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
 	}
 }
 
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-void UEditableText::SetClearKeyboardFocusOnCommit(bool bInClearKeyboardFocusOnCommit)
+void UEditableText::SetClearKeyboardFocusOnCommit(bool bClearKeyboardFocusOnCommit)
 {
-	ClearKeyboardFocusOnCommit = bInClearKeyboardFocusOnCommit;
-	MyEditableText->SetClearKeyboardFocusOnCommit(ClearKeyboardFocusOnCommit);
+	ClearKeyboardFocusOnCommit = bClearKeyboardFocusOnCommit;
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetClearKeyboardFocusOnCommit(ClearKeyboardFocusOnCommit);
+	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UEditableText::SetKeyboardType(EVirtualKeyboardType::Type Type)
 {
