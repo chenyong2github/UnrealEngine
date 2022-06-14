@@ -77,6 +77,10 @@ CORE_API FArchive& operator<<(FArchive& Ar, FCbObject& Object);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/** Convert the object to JSON in a multi-line format with indentation. */
 CORE_API void CompactBinaryToJson(const FCbObjectView& Object, FUtf8StringBuilderBase& Builder);
+
+/** Convert the object to JSON in a compact format with no added whitespace. */
+CORE_API void CompactBinaryToCompactJson(const FCbObjectView& Object, FUtf8StringBuilderBase& Builder);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
