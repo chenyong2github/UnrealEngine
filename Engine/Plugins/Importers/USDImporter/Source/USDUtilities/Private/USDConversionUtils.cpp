@@ -1383,6 +1383,26 @@ FString UsdUtils::GetUniqueName( FString Name, const TSet<FString>& UsedNames )
 	return Result;
 }
 
+#if USE_USD_SDK
+FString UsdUtils::GetValidChildName( FString InName, const pxr::UsdPrim& ParentPrim )
+{
+	if ( !ParentPrim )
+	{
+		return {};
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	TSet<FString> UsedNames;
+	for ( const pxr::UsdPrim& Child : ParentPrim.GetChildren() )
+	{
+		UsedNames.Add( UsdToUnreal::ConvertToken( Child.GetName() ) );
+	}
+
+	return GetUniqueName( SanitizeUsdIdentifier( *InName ), UsedNames );
+}
+#endif // USE_USD_SDK
+
 FString UsdUtils::SanitizeUsdIdentifier( const TCHAR* InIdentifier )
 {
 #if USE_USD_SDK

@@ -61,6 +61,19 @@ namespace UsdUtils
 
 		return FTransform( Rotation, Translation, Scale );
 	}
+
+	FTransform ConvertTransformToUsdSpace( const FUsdStageInfo& StageInfo, const FTransform& TransformInUESpace )
+	{
+		FTransform TransformInUsdSpace = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, TransformInUESpace );
+
+		const float UEMetersPerUnit = 0.01f;
+		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
+		{
+			TransformInUsdSpace.ScaleTranslation( UEMetersPerUnit / StageInfo.MetersPerUnit );
+		}
+
+		return TransformInUsdSpace;
+	}
 }
 
 namespace UsdToUnreal
@@ -280,13 +293,7 @@ namespace UnrealToUsd
 
 	pxr::GfMatrix4d ConvertTransform( const FUsdStageInfo& StageInfo, const FTransform& Transform )
 	{
-		FTransform TransformInUsdSpace = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, Transform );
-
-		const float UEMetersPerUnit = 0.01f;
-		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
-		{
-			TransformInUsdSpace.ScaleTranslation( UEMetersPerUnit / StageInfo.MetersPerUnit );
-		}
+		FTransform TransformInUsdSpace = UsdUtils::ConvertTransformToUsdSpace( StageInfo, Transform );
 
 		return ConvertMatrix( TransformInUsdSpace.ToMatrixWithScale() );
 	}

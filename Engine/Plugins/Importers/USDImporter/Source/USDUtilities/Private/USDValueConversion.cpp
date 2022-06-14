@@ -853,6 +853,53 @@ namespace UsdUtils
 #endif // USE_USD_SDK
 	}
 
+	template<typename T>
+	TOptional<T> GetUnderlyingValue( const UE::FVtValue& InValue )
+	{
+#if USE_USD_SDK
+		const pxr::VtValue& UsdValue = InValue.GetUsdValue();
+		if ( UsdValue.IsHolding<T>() )
+		{
+			return { UsdValue.UncheckedGet<T>() };
+		}
+#endif // USE_USD_SDK
+
+		return {};
+	}
+    template USDUTILITIES_API TOptional<bool> GetUnderlyingValue<bool>( const UE::FVtValue& InValue );
+	template USDUTILITIES_API TOptional<float> GetUnderlyingValue<float>( const UE::FVtValue& InValue );
+	template USDUTILITIES_API TOptional<uint8_t> GetUnderlyingValue<uint8_t>( const UE::FVtValue& InValue );
+	template USDUTILITIES_API TOptional<int32_t> GetUnderlyingValue<int32_t>( const UE::FVtValue& InValue );
+	template USDUTILITIES_API TOptional<uint32_t> GetUnderlyingValue<uint32_t>( const UE::FVtValue& InValue );
+	template USDUTILITIES_API TOptional<int64_t> GetUnderlyingValue<int64_t>( const UE::FVtValue& InValue );
+	template USDUTILITIES_API TOptional<uint64_t> GetUnderlyingValue<uint64_t>( const UE::FVtValue& InValue );
+	template USDUTILITIES_API TOptional<std::string> GetUnderlyingValue<std::string>( const UE::FVtValue& InValue );
+
+	template<typename T>
+	bool SetUnderlyingValue( UE::FVtValue& InValue, const T& UnderlyingValue )
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		pxr::VtValue& UsdValue = InValue.GetUsdValue();
+		if ( UsdValue.IsHolding<T>() || UsdValue.IsEmpty() )
+		{
+			UsdValue = UnderlyingValue;
+			return true;
+		}
+#endif // USE_USD_SDK
+
+		return false;
+	}
+    template bool USDUTILITIES_API SetUnderlyingValue( UE::FVtValue& InValue, const bool& UnderlyingValue );
+	template bool USDUTILITIES_API SetUnderlyingValue( UE::FVtValue& InValue, const float& UnderlyingValue );
+	template bool USDUTILITIES_API SetUnderlyingValue<uint8_t>( UE::FVtValue& InValue, const uint8_t& UnderlyingValue );
+	template bool USDUTILITIES_API SetUnderlyingValue<int32_t>( UE::FVtValue& InValue, const int32_t& UnderlyingValue );
+	template bool USDUTILITIES_API SetUnderlyingValue<uint32_t>( UE::FVtValue& InValue, const uint32_t& UnderlyingValue );
+	template bool USDUTILITIES_API SetUnderlyingValue<int64_t>( UE::FVtValue& InValue, const int64_t& UnderlyingValue );
+	template bool USDUTILITIES_API SetUnderlyingValue<uint64_t>( UE::FVtValue& InValue, const uint64_t& UnderlyingValue );
+	template bool USDUTILITIES_API SetUnderlyingValue( UE::FVtValue& InValue, const std::string& UnderlyingValue );
+
 	FString GetImpliedTypeName( const UE::FVtValue& Value )
 	{
 #if USE_USD_SDK

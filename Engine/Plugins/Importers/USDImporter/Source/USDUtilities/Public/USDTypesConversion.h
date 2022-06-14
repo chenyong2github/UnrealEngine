@@ -97,6 +97,8 @@ namespace UnrealToUsd
 
 namespace UsdUtils
 {
+	USDUTILITIES_API FTransform ConvertTransformToUsdSpace( const FUsdStageInfo& StageInfo, const FTransform& TransformInUESpace );
+
 	FTransform ConvertAxes( const bool bZUp, const FTransform Transform );
 }
 #endif // #if USE_USD_SDK

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "CoreMinimal.h"
 #include "Misc/TVariant.h"
 
@@ -96,6 +98,24 @@ namespace UsdUtils
 {
 	/** Uses USD to stringify the underlying pxr::VtValue */
 	USDUTILITIES_API FString Stringify( const UE::FVtValue& Value );
+
+	/**
+	 * Uses USD to quickly fetch the underlying value of the wrapped pxr::VtValue for fundamental data types.
+	 * For complex vector/array types ConvertValue must be used instead.
+	 * Template implementation must be hidden on cpp as we can't expose USD implementation on the header files.
+	 */
+	template<typename T>
+	USDUTILITIES_API TOptional<T> GetUnderlyingValue( const UE::FVtValue& InValue );
+
+	/**
+	 * Uses USD to quickly set the underlying value of the wrapped pxr::VtValue for fundamental data types.
+	 * This will not allow changing the underlying type of InValue, i.e. you can only set a float if InValue
+	 * already contains a float or if its otherwise empty.
+	 * For complex vector/array types ConvertValue must be used instead.
+	 * Template implementation must be hidden on cpp as we can't expose USD implementation on the header files.
+	 */
+	template<typename T>
+	USDUTILITIES_API bool SetUnderlyingValue( UE::FVtValue& InValue, const T& UnderlyingValue );
 
 	/**
 	 * Returns the name of the SdfValueTypeName object for the type of Value

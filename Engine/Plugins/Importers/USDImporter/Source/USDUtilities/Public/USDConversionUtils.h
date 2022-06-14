@@ -213,6 +213,14 @@ namespace UsdUtils
 	 */
 	USDUTILITIES_API FString GetUniqueName( FString Name, const TSet<FString>& UsedNames );
 
+#if USE_USD_SDK
+	/**
+	 * Returns a sanitized, valid version of 'InName' that can be used as the name for a child prim of 'ParentPrim'.
+	 * Returns the empty string in case of an error.
+	 */
+	USDUTILITIES_API FString GetValidChildName( FString InName, const pxr::UsdPrim& ParentPrim );
+#endif // #if USE_USD_SDK
+
 	/**
 	 * Returns a modified version of InIdentifier that can be used as a USD prim or property name.
 	 * This means only allowing letters, numbers and the underscore character. All others are replaced with underscores.
