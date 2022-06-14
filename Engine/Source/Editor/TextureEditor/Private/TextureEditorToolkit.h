@@ -61,7 +61,7 @@ public:
 	virtual void UnregisterTabSpawners( const TSharedRef<class FTabManager>& TabManager ) override;
 
 	// ITextureEditorToolkit interface
-	virtual void CalculateTextureDimensions( uint32& Width, uint32& Height, uint32& Depth, uint32& ArraySize ) const override;
+	virtual void CalculateTextureDimensions(int32& OutWidth, int32& OutHeight, int32& OutDepth, int32& OutArraySize, bool bInIncludeBorderSize) const override;
 	virtual ESimpleElementBlendMode GetColourChannelBlendMode( ) const override;
 	virtual int32 GetMipLevel( ) const override;
 	virtual int32 GetLayer() const override;
@@ -408,8 +408,8 @@ private:
 	bool bIsDesaturation;
 
 	/** The maximum width/height at which the texture will render in the preview window */
-	uint32 PreviewEffectiveTextureWidth;
-	uint32 PreviewEffectiveTextureHeight;
+	int32 PreviewEffectiveTextureWidth;
+	int32 PreviewEffectiveTextureHeight;
 
 	/** Which mip level should be shown */
 	int32 SpecifiedMipLevel;

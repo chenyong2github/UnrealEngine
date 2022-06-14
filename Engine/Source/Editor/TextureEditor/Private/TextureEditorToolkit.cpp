@@ -237,6 +237,9 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 
 	bIsDesaturation = false;
 
+	PreviewEffectiveTextureWidth = 0;
+	PreviewEffectiveTextureHeight = 0;
+
 	SpecifiedMipLevel = 0;
 	bUseSpecifiedMipLevel = false;
 
@@ -310,110 +313,63 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 /* ITextureEditorToolkit interface
  *****************************************************************************/
 
-void FTextureEditorToolkit::CalculateTextureDimensions( uint32& Width, uint32& Height, uint32& Depth, uint32& ArraySize ) const
+void FTextureEditorToolkit::CalculateTextureDimensions(int32& OutWidth, int32& OutHeight, int32& OutDepth, int32& OutArraySize, bool bInIncludeBorderSize) const
 {
-	const FIntPoint LogicalSize = Texture->Source.GetLogicalSize();
-	Width = LogicalSize.X;
-	Height = LogicalSize.Y;
-	Depth = IsVolumeTexture() ? Texture->Source.GetNumLayers() : 0;
-	ArraySize = (Is2DArrayTexture() || IsCubeTexture()) ? Texture->Source.GetNumLayers() : 0;
+	OutWidth = Texture->GetSurfaceWidth();
+	OutHeight = Texture->GetSurfaceHeight();
+	OutDepth = Texture->GetSurfaceDepth();
+	OutArraySize = IsArrayTexture() ? (IsCubeTexture() ? Texture->GetSurfaceArraySize() / 6 : Texture->GetSurfaceArraySize()) : 0;
+	const int32 BorderSize = GetDefault<UTextureEditorSettings>()->TextureBorderEnabled ? 1 : 0;
 
-	if (!Width && !Height)
+	if (!PreviewEffectiveTextureWidth || !PreviewEffectiveTextureHeight)
 	{
-		Width = (uint32)Texture->GetSurfaceWidth();
-		Height = (uint32)Texture->GetSurfaceHeight();
-		Depth = (uint32)Texture->GetSurfaceDepth();
-		ArraySize = Texture->GetSurfaceArraySize();
-	}
-
-	// catch if the Width and Height are still zero for some reason
-	if ((Width == 0) || (Height == 0))
-	{
-		Width = 0;
-		Height= 0;
-		Depth = 0;
-		ArraySize = 0;
+		OutWidth = 0;
+		OutHeight = 0;
+		OutDepth = 0;
+		OutArraySize = 0;
 		return;
 	}
-
-	// See if we need to uniformly scale it to fit in viewport
-	// Cap the size to effective dimensions
-	uint32 ViewportW = TextureViewport->GetViewport()->GetSizeXY().X;
-	uint32 ViewportH = TextureViewport->GetViewport()->GetSizeXY().Y;
-	uint32 MaxWidth; 
-	uint32 MaxHeight;
 
 	// Fit is the same as fill, but doesn't scale up past 100%
 	const ETextureEditorZoomMode CurrentZoomMode = GetZoomMode();
 	if (CurrentZoomMode == ETextureEditorZoomMode::Fit || CurrentZoomMode == ETextureEditorZoomMode::Fill)
 	{
-		const UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
-		const UTextureRenderTargetVolume* VolumeTextureRT = Cast< UTextureRenderTargetVolume>(Texture);
+		const int32 MaxWidth = FMath::Max(TextureViewport->GetViewport()->GetSizeXY().X - 2 * BorderSize, 0);
+		const int32 MaxHeight = FMath::Max(TextureViewport->GetViewport()->GetSizeXY().Y - 2 * BorderSize, 0);
 
-		// Subtract off the viewport space devoted to padding (2 * PreviewPadding)
-		// so that the texture is padded on all sides
-		MaxWidth = ViewportW;
-		MaxHeight = ViewportH;
-
-		if (IsCubeTexture())
+		if (IsVolumeTexture() && GetMutableDefault<UTextureEditorSettings>()->VolumeViewMode == ETextureEditorVolumeViewMode::TextureEditorVolumeViewMode_VolumeTrace)
 		{
-			// Cubes are displayed 2:1. 2x width if the source exists and is not an unwrapped image.
-			const bool bMultipleSourceImages = Texture->Source.GetNumSlices() > 1;
-			const bool bNoSourceImage = Texture->Source.GetNumSlices() == 0;
-			Width *= (bNoSourceImage || bMultipleSourceImages) ? 2 : 1;
+			OutWidth = OutHeight = FMath::Min(MaxWidth, MaxHeight);
 		}
-		else if (VolumeTexture || VolumeTextureRT)
+		else if (MaxWidth * PreviewEffectiveTextureHeight < MaxHeight * PreviewEffectiveTextureWidth)
 		{
-			UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
-			if (Settings.VolumeViewMode == ETextureEditorVolumeViewMode::TextureEditorVolumeViewMode_VolumeTrace)
-			{
-				Width  = Height;
-			}
-			else
-			{
-				Width = FMath::CeilToInt((float)Height * (float)PreviewEffectiveTextureWidth / (float)PreviewEffectiveTextureHeight);
-			}
-		}
-
-		// First, scale up based on the size of the viewport
-		if (MaxWidth > MaxHeight)
-		{
-			Height = Height * MaxWidth / Width;
-			Width = MaxWidth;
+			OutWidth = MaxWidth;
+			OutHeight = FMath::DivideAndRoundNearest(OutWidth * PreviewEffectiveTextureHeight, PreviewEffectiveTextureWidth);
 		}
 		else
 		{
-			Width = Width * MaxHeight / Height;
-			Height = MaxHeight;
+			OutHeight = MaxHeight;
+			OutWidth = FMath::DivideAndRoundNearest(OutHeight * PreviewEffectiveTextureWidth, PreviewEffectiveTextureHeight);
 		}
 
-		// then, scale again if our width and height is impacted by the scaling
-		if (Width > MaxWidth)
-		{
-			Height = Height * MaxWidth / Width;
-			Width = MaxWidth;
-		}
-		if (Height > MaxHeight)
-		{
-			Width = Width * MaxHeight / Height;
-			Height = MaxHeight;
-		}
-		
 		// If fit, then we only want to scale down
 		// So if our natural dimensions are smaller than the viewport, we can just use those
-		if (CurrentZoomMode == ETextureEditorZoomMode::Fit)
+		if (CurrentZoomMode == ETextureEditorZoomMode::Fit && (PreviewEffectiveTextureWidth < OutWidth || PreviewEffectiveTextureHeight < OutHeight))
 		{
-			if (PreviewEffectiveTextureWidth < Width && PreviewEffectiveTextureHeight < Height)
-			{
-				Width = PreviewEffectiveTextureWidth;
-				Height = PreviewEffectiveTextureHeight;
-			}
+			OutWidth = PreviewEffectiveTextureWidth;
+			OutHeight = PreviewEffectiveTextureHeight;
 		}
 	}
 	else
 	{
-		Width = PreviewEffectiveTextureWidth * Zoom;
-		Height = PreviewEffectiveTextureHeight * Zoom;
+		OutWidth = PreviewEffectiveTextureWidth * Zoom;
+		OutHeight = PreviewEffectiveTextureHeight * Zoom;
+	}
+
+	if (bInIncludeBorderSize)
+	{
+		OutWidth += 2 * BorderSize;
+		OutHeight += 2 * BorderSize;
 	}
 }
 
@@ -726,33 +682,29 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	const bool bIsArray = IsArrayTexture();
 	const bool bIsCube = IsCubeTexture();
 
-	const uint32 SurfaceWidth = (uint32)Texture->GetSurfaceWidth();
-	const uint32 SurfaceHeight = (uint32)Texture->GetSurfaceHeight();
-	const uint32 SurfaceDepth = (uint32)Texture->GetSurfaceDepth();
-	const uint32 NumSurfaces = (uint32)Texture->GetSurfaceArraySize();
-	const uint32 ArraySize = bIsCube ? (NumSurfaces / 6u) : NumSurfaces;
+	const int32 SurfaceWidth = Texture->GetSurfaceWidth();
+	const int32 SurfaceHeight = Texture->GetSurfaceHeight();
+	const int32 SurfaceDepth = Texture->GetSurfaceDepth();
+	const int32 NumSurfaces = Texture->GetSurfaceArraySize();
+	const int32 ArraySize = bIsArray ? (bIsCube ? NumSurfaces / 6 : NumSurfaces) : 0;
 
-	const uint32 ImportedWidth = FMath::Max<uint32>(SurfaceWidth, Texture->Source.GetSizeX());
-	const uint32 ImportedHeight =  FMath::Max<uint32>(SurfaceHeight, Texture->Source.GetSizeY());
-	const uint32 ImportedDepth = FMath::Max<uint32>(SurfaceDepth, bIsVolume ? Texture->Source.GetNumSlices() : 0);
+	const int32 ImportedWidth = FMath::Max(SurfaceWidth, Texture->Source.GetSizeX());
+	const int32 ImportedHeight =  FMath::Max(SurfaceHeight, Texture->Source.GetSizeY());
+	const int32 ImportedDepth = FMath::Max(SurfaceDepth, bIsVolume ? Texture->Source.GetNumSlices() : 0);
 
 	const FStreamableRenderResourceState SRRState = Texture->GetStreamableResourceState();
 	const int32 ActualMipBias = SRRState.IsValid() ? (SRRState.ResidentFirstLODIdx() + SRRState.AssetLODBias) : Texture->GetCachedLODBias();
-	const uint32 ActualWidth = FMath::Max<uint32>(SurfaceWidth >> ActualMipBias, 1);
-	const uint32 ActualHeight = FMath::Max<uint32>(SurfaceHeight >> ActualMipBias, 1);
-	const uint32 ActualDepth =  FMath::Max<uint32>(SurfaceDepth >> ActualMipBias, 1);
-
 	// Editor dimensions (takes user specified mip setting into account)
-	const int32 MipLevel = FMath::Max(GetMipLevel(), 0);
-	PreviewEffectiveTextureWidth = FMath::Max<uint32>(ActualWidth >> MipLevel, 1);
-	PreviewEffectiveTextureHeight = FMath::Max<uint32>(ActualHeight >> MipLevel, 1);;
-	uint32 PreviewEffectiveTextureDepth = FMath::Max<uint32>(ActualDepth >> MipLevel, 1);
+	const int32 MipLevel = ActualMipBias + FMath::Max(GetMipLevel(), 0);
+	PreviewEffectiveTextureWidth = SurfaceWidth ? FMath::Max(SurfaceWidth >> MipLevel, 1) : 0;
+	PreviewEffectiveTextureHeight = SurfaceHeight ? FMath::Max(SurfaceHeight >> MipLevel, 1) : 0;
+	const int32 PreviewEffectiveTextureDepth = SurfaceDepth ? FMath::Max(SurfaceDepth >> MipLevel, 1) : 0;
 
 	// In game max bias and dimensions
 	const int32 MaxResMipBias = Texture2D ? (Texture2D->GetNumMips() - Texture2D->GetNumMipsAllowed(true)) : Texture->GetCachedLODBias();
-	const uint32 MaxInGameWidth = FMath::Max<uint32>(SurfaceWidth >> MaxResMipBias, 1);
-	const uint32 MaxInGameHeight = FMath::Max<uint32>(SurfaceHeight >> MaxResMipBias, 1);
-	const uint32 MaxInGameDepth = FMath::Max<uint32>(SurfaceDepth >> MaxResMipBias, 1);
+	const int32 MaxInGameWidth = SurfaceWidth ? FMath::Max(SurfaceWidth >> MaxResMipBias, 1) : 0;
+	const int32 MaxInGameHeight = SurfaceHeight ? FMath::Max(SurfaceHeight >> MaxResMipBias, 1) : 0;
+	const int32 MaxInGameDepth = SurfaceDepth ? FMath::Max(SurfaceDepth >> MaxResMipBias, 1) : 0;
 
 	// Texture asset size
 	const int64 ResourceSize = PlatformDataPtr && *PlatformDataPtr ? (*PlatformDataPtr)->GetPayloadSize() : Texture->GetResourceSizeBytes(EResourceSizeMode::Exclusive);
@@ -790,8 +742,8 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 			int32 NumTilesX = 0;
 			int32 NumTilesY = 0;
 			GetBestFitForNumberOfTiles(PreviewEffectiveTextureDepth, NumTilesX, NumTilesY);
-			PreviewEffectiveTextureWidth *= (uint32)NumTilesX;
-			PreviewEffectiveTextureHeight *= (uint32)NumTilesY;
+			PreviewEffectiveTextureWidth *= NumTilesX;
+			PreviewEffectiveTextureHeight *= NumTilesY;
 		}
 	}
 	else if (bIsArray)
@@ -857,8 +809,8 @@ double FTextureEditorToolkit::CalculateDisplayedZoomLevel() const
 		return Zoom;
 	}
 
-	uint32 DisplayWidth, DisplayHeight, DisplayDepth, DisplayArraySize;
-	CalculateTextureDimensions(DisplayWidth, DisplayHeight, DisplayDepth, DisplayArraySize);
+	int32 DisplayWidth, DisplayHeight, DisplayDepth, DisplayArraySize;
+	CalculateTextureDimensions(DisplayWidth, DisplayHeight, DisplayDepth, DisplayArraySize, false);
 	if (PreviewEffectiveTextureHeight != 0)
 	{
 		return (double)DisplayHeight / PreviewEffectiveTextureHeight;

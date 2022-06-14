@@ -26,8 +26,8 @@ public:
 	/** Refreshes the quick info panel */
 	virtual void PopulateQuickInfo() = 0;
 
-	/** Calculates the display size of the texture */
-	virtual void CalculateTextureDimensions(uint32& Width, uint32& Height, uint32& Depth, uint32& ArraySize) const = 0;
+	/** Calculates the display size of the texture, optionally including the size of the displayed texture border */
+	virtual void CalculateTextureDimensions(int32& OutWidth, int32& OutHeight, int32& OutDepth, int32& OutArraySize, bool bInIncludeBorderSize) const = 0;
 
 	/** Accessors */ 
 	virtual int32 GetMipLevel() const = 0;
