@@ -53,6 +53,7 @@ void UMassEntityConfigAsset::ValidateEntityConfig()
 		{
 			FMessageLog EditorInfo("LogMass");
 			EditorInfo.Info(LOCTEXT("MassEntityConfigAssetNoErrorsDetected", "There were no error detected during validation of the EntityConfigAsset"));
+			EditorInfo.Notify(LOCTEXT("MassEntityConfigAssetNoErrorsDetected", "There were no error detected during validation of the EntityConfigAsset"), EMessageSeverity::Info, true /*bForce*/);
 		}
 	}
 }
