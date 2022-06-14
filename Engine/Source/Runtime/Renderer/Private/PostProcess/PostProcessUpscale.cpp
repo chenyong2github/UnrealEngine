@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessUpscale.h"
+
+#include "Engine/Engine.h"
 #include "SceneFilterRendering.h"
 
 namespace

@@ -3,6 +3,7 @@
 #include "EnhancedInputModule.h"
 
 #include "Engine/Canvas.h"
+#include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "EnhancedInputLibrary.h"

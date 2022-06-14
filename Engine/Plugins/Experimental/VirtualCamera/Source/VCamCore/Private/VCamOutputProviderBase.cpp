@@ -2,6 +2,7 @@
 
 #include "VCamOutputProviderBase.h"
 
+#include "Engine/Engine.h"
 #include "VCamModifierInterface.h"
 #include "VCamComponent.h"
 #include "UObject/UObjectBaseUtility.h"

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcessLensFlares.h"
+
+#include "Engine/Engine.h"
 #include "PostProcessDownsample.h"
 #include "PixelShaderUtils.h"
 

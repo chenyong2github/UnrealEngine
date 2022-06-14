@@ -4,6 +4,7 @@
 #include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
 #include "Render/Containers/DisplayClusterRender_MeshComponentProxyData.h"
 
+#include "Engine/StaticMesh.h"
 #include "Misc/DisplayClusterLog.h"
 
 static void ImplUpdateMeshComponentProxyData(FDisplayClusterRender_MeshComponentProxy* MeshComponentProxy, FDisplayClusterRender_MeshComponentProxyData* NewProxyData)
