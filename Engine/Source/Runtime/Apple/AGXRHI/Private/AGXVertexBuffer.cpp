@@ -604,24 +604,11 @@ void FAGXRHIBuffer::Unlock()
 	LastLockFrame = GetAGXDeviceContext().GetFrameNumberRHIThread();
 }
 
-FAGXResourceMultiBuffer::FAGXResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBufferUsage InAgxUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType Type)
+FAGXResourceMultiBuffer::FAGXResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBufferUsage InAgxUsage, uint32 InStride, ERHIResourceType Type)
 	: FRHIBuffer(InSize, InUsage, InStride)
 	, FAGXRHIBuffer(InSize, InUsage, InAgxUsage, Type)
 	, IndexType((InStride == 2) ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32)
 {
-	if (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer))
-	{
-		check((InSize % InStride) == 0);
-
-		if (ResourceArray)
-		{
-			// copy any resources to the CPU address
-			void* LockedMemory = RHILockBuffer(this, 0, InSize, RLM_WriteOnly);
-			FMemory::Memcpy(LockedMemory, ResourceArray->GetResourceData(), InSize);
-			ResourceArray->Discard();
-			RHIUnlockBuffer(this);
-		}
-	}
 }
 
 FAGXResourceMultiBuffer::~FAGXResourceMultiBuffer()
@@ -637,63 +624,22 @@ void FAGXResourceMultiBuffer::Swap(FAGXResourceMultiBuffer& Other)
 	}
 }
 
-FBufferRHIRef FAGXDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FAGXDynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	check(0);
-	@autoreleasepool {
+	@autoreleasepool{
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FAGXResourceMultiBuffer(0, BUF_None, AGXBufferUsage(BUF_None), 0, nullptr, RRT_Buffer);
+		return new FAGXResourceMultiBuffer(0, BUF_None, AGXBufferUsage(BUF_None), 0, RRT_Buffer);
 	}
-	
+
 	// make the RHI object, which will allocate memory
-	FAGXResourceMultiBuffer* Buffer = new FAGXResourceMultiBuffer(Size, Usage, AGXBufferUsage(Usage), 0, nullptr, RRT_Buffer);
-
-	if (CreateInfo.ResourceArray)
-	{
-		check(Size >= CreateInfo.ResourceArray->GetResourceDataSize());
-
-		// make a buffer usable by CPU
-		void* BufferData = ::RHILockBuffer(Buffer, 0, Size, RLM_WriteOnly);
-		
-		// copy the contents of the given data into the buffer
-		FMemory::Memcpy(BufferData, CreateInfo.ResourceArray->GetResourceData(), Size);
-		
-		::RHIUnlockBuffer(Buffer);
-
-		// Discard the resource array's contents.
-		CreateInfo.ResourceArray->Discard();
-	}
-	else if (Buffer->StorageMode == MTLStorageModePrivate)
-	{
-		check (!Buffer->TransferBuffer);
-
-		if (GAGXBufferZeroFill)
-		{
-			for(FAGXRHIBuffer::FAGXBufferAndViews& Backing : Buffer->BufferPool)
-			{
-				FAGXBuffer& TheBuffer = Backing.Buffer;
-				GetAGXDeviceContext().FillBuffer(TheBuffer, ns::Range(0, TheBuffer.GetLength()), 0);
-			}
-		}
-	}
-#if PLATFORM_MAC
-	else if (GAGXBufferZeroFill && Buffer->StorageMode == MTLStorageModeManaged)
-	{
-		for(FAGXRHIBuffer::FAGXBufferAndViews& Backing : Buffer->BufferPool)
-		{
-			FAGXBuffer& TheBuffer = Backing.Buffer;
-			GetAGXDeviceContext().FillBuffer(TheBuffer, ns::Range(0, TheBuffer.GetLength()), 0);
-			MTLPP_VALIDATE(mtlpp::Buffer, TheBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, DidModify(ns::Range(0, TheBuffer)));
-		}
-	}
-#endif
-
-	return Buffer;
+	TRefCountPtr<FAGXResourceMultiBuffer> Buffer = new FAGXResourceMultiBuffer(Size, Usage, AGXBufferUsage(Usage), Stride, RRT_Buffer);
+	Buffer->Init(RHICmdList, Size, Usage, CreateInfo, Buffer);
+	return Buffer.GetReference();
 	}
 }
 
-void* FAGXDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+void* FAGXDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListBase& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	@autoreleasepool {
 	FAGXResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
@@ -703,7 +649,7 @@ void* FAGXDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdLi
 	}
 }
 
-void FAGXDynamicRHI::UnlockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI)
+void FAGXDynamicRHI::UnlockBuffer_BottomOfPipe(FRHICommandListBase& RHICmdList, FRHIBuffer* BufferRHI)
 {
 	@autoreleasepool {
 	FAGXResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
@@ -751,7 +697,7 @@ void FAGXDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer,
 		FAGXResourceMultiBuffer* Dest = ResourceCast(DestBuffer);
 		if (!SrcBuffer)
 		{
-			TRefCountPtr<FAGXResourceMultiBuffer> DeletionProxy = new FAGXResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetAgxUsage(), Dest->GetStride(), nullptr, Dest->Type);
+			TRefCountPtr<FAGXResourceMultiBuffer> DeletionProxy = new FAGXResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetAgxUsage(), Dest->GetStride(), Dest->Type);
 			Dest->Swap(*DeletionProxy);
 		}
 		else
@@ -762,7 +708,7 @@ void FAGXDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer,
 	}
 }
 
-void FAGXRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSize, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
+void FAGXRHIBuffer::Init(FRHICommandListBase& RHICmdList, uint32 InSize, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
 {
 	if (CreateInfo.ResourceArray)
 	{
@@ -788,7 +734,7 @@ void FAGXRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint
 					FMemory::Memcpy(Result, CreateInfo.ResourceArray->GetResourceData(), InSize);
 					
 					RHICmdList.EnqueueLambda(
-						[this, Result, InSize](FRHICommandList& RHICmdList)
+						[this, Result, InSize](FRHICommandListBase& RHICmdList)
 						{
 							void* Backing = this->Lock(true, RLM_WriteOnly, 0, InSize);
 							FMemory::Memcpy(Backing, Result, InSize);
@@ -812,22 +758,5 @@ void FAGXRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint
 		
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();
-	}
-}
-
-FBufferRHIRef FAGXDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
-{
-	@autoreleasepool {
-		if (CreateInfo.bWithoutNativeResource)
-		{
-			return new FAGXResourceMultiBuffer(0, BUF_None, AGXBufferUsage(BUF_None), 0, nullptr, RRT_Buffer);
-		}
-		
-		// make the RHI object, which will allocate memory
-		TRefCountPtr<FAGXResourceMultiBuffer> Buffer = new FAGXResourceMultiBuffer(Size, Usage, AGXBufferUsage(Usage), Stride, nullptr, RRT_Buffer);
-		
-		Buffer->Init_RenderThread(RHICmdList, Size, Usage, CreateInfo, Buffer);
-		
-		return Buffer.GetReference();
 	}
 }

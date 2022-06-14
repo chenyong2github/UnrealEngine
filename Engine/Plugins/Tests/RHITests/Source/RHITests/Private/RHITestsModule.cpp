@@ -25,6 +25,8 @@ static bool RunTests_RenderThread(FRHICommandListImmediate& RHICmdList)
 
 		RUN_TEST(FRHIBufferTests::Test_RHIClearUAVUint_StructuredBuffer(RHICmdList));
 		RUN_TEST(FRHIBufferTests::Test_RHIClearUAVFloat_StructuredBuffer(RHICmdList));
+
+		RUN_TEST(FRHIBufferTests::Test_RHICreateBuffer_Parallel(RHICmdList));
 	}
 
 	// Texture2D/3D

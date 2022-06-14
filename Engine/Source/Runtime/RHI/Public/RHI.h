@@ -462,6 +462,9 @@ extern RHI_API bool GRHISupportsDirectGPUMemoryLock;
 /** true if the multi-threaded shader creation is supported by (or desirable for) the RHI. */
 extern RHI_API bool GRHISupportsMultithreadedShaderCreation;
 
+/** Does the RHI support parallel resource commands (i.e. create / lock / unlock) on non-immediate command list APIs, recorded off the render thread. */
+extern RHI_API bool GRHISupportsMultithreadedResources;
+
 /** The minimum Z value in clip space for the RHI. This is a constant value to always match D3D clip-space. */
 constexpr float GMinClipZ = 0.0f;
 

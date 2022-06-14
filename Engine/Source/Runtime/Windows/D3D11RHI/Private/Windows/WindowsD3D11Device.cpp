@@ -2005,6 +2005,8 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			GRHISupportsAsyncTextureCreation = false;
 		}
 
+		GRHISupportsMultithreadedResources = GRHISupportsAsyncTextureCreation;
+
 #ifdef NVAPI_INTERFACE
 
 		if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)

@@ -345,7 +345,7 @@ public:
 	/**
 	 * Initialize the buffer contents from the render-thread.
 	 */
-	void Init_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource);
+	void Init(class FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource);
 	
 	/**
 	 * Get a linear texture for given format.
@@ -471,7 +471,7 @@ private:
 class FMetalResourceMultiBuffer : public FRHIBuffer, public FMetalRHIBuffer
 {
 public:
-	FMetalResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType ResourceType);
+	FMetalResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, uint32 InStride, ERHIResourceType ResourceType);
 	virtual ~FMetalResourceMultiBuffer();
 
 	void Swap(FMetalResourceMultiBuffer& Other);

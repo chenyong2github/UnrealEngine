@@ -156,7 +156,7 @@ struct FRHICommandGLCommand final : public FRHICommand<FRHICommandGLCommand, FRH
 };
 
 void RunOnGLRenderContextThread(TUniqueFunction<void(void)> GLFunc, bool bWaitForCompletion = false);
-inline bool ShouldRunGLRenderContextOpOnThisThread(FRHICommandListImmediate& RHICmdList)
+inline bool ShouldRunGLRenderContextOpOnThisThread(FRHICommandListBase& RHICmdList)
 {
 	return (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread() || IsInRHIThread());
 }

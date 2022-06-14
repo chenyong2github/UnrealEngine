@@ -814,6 +814,8 @@ static void InitRHICapabilitiesForGL()
 		&& !IsPCPlatform(GMaxRHIShaderPlatform)
 #endif
 		;
+
+	GRHISupportsMultithreadedResources = GRHISupportsRHIThread;
 	
 	// By default use emulated UBs on mobile
 	GUseEmulatedUniformBuffers = IsUsingEmulatedUniformBuffers(GMaxRHIShaderPlatform);

@@ -426,7 +426,7 @@ public:
 		, RealSize(0)
 	{ }
 
-	TOpenGLBuffer(GLenum InType, uint32 InStride, uint32 InSize, EBufferUsageFlags InUsage,
+	TOpenGLBuffer(FRHICommandListBase* RHICmdList, GLenum InType, uint32 InStride, uint32 InSize, EBufferUsageFlags InUsage,
 		const void *InData, bool bStreamedDraw = false, GLuint ResourceToUse = 0, uint32 ResourceSize = 0)
 	: BaseType(InStride,InSize,InUsage)
 	, Resource(0)
@@ -440,12 +440,9 @@ public:
 	, LockBuffer(NULL)
 	, RealSize(InSize)
 	{
-
 		RealSize = ResourceSize ? ResourceSize : InSize;
 
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-		if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
+		if (!RHICmdList || RHICmdList->IsBottomOfPipe())
 		{
 			CreateGLBuffer(InData, ResourceToUse, ResourceSize);
 		}
@@ -454,17 +451,16 @@ public:
 			void* BuffData = nullptr;
 			if (InData)
 			{
-				BuffData = RHICmdList.Alloc(RealSize, 16);
+				BuffData = RHICmdList->Alloc(RealSize, 16);
 				FMemory::Memcpy(BuffData, InData, RealSize);
 			}
 			TransitionFence.Reset();
-			ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() 
+			ALLOC_COMMAND_CL(*RHICmdList, FRHICommandGLCommand)([=]() 
 			{
 				CreateGLBuffer(BuffData, ResourceToUse, ResourceSize); 
 				TransitionFence.WriteAssertFence();
 			});
 			TransitionFence.SetRHIThreadFence();
-
 		}
 	}
 

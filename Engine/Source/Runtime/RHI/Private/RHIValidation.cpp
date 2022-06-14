@@ -390,9 +390,11 @@ namespace RHIValidation
 	}
 }
 
-void FValidationRHI::LockBufferValidate(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, EResourceLockMode LockMode)
+void FValidationRHI::LockBufferValidate(class FRHICommandListBase& RHICmdList, FRHIBuffer* Buffer, EResourceLockMode LockMode)
 {
 	using namespace RHIValidation;
+
+	check(GRHISupportsMultithreadedResources || RHICmdList.IsImmediate());
 
 	if (!EnumHasAnyFlags(Buffer->GetUsage(), BUF_Volatile) && LockMode == RLM_WriteOnly)
 	{
@@ -410,14 +412,14 @@ void FValidationRHI::LockBufferValidate(class FRHICommandListImmediate& RHICmdLi
 	}
 }
 
-void* FValidationRHI::RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+void* FValidationRHI::RHILockBuffer(class FRHICommandListBase& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
 	LockBufferValidate(RHICmdList, Buffer, LockMode);
 
 	return RHI->RHILockBuffer(RHICmdList, Buffer, Offset, SizeRHI, LockMode);
 }
 
-void* FValidationRHI::RHILockBufferMGPU(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 GPUIndex, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+void* FValidationRHI::RHILockBufferMGPU(class FRHICommandListBase& RHICmdList, FRHIBuffer* Buffer, uint32 GPUIndex, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
 	LockBufferValidate(RHICmdList, Buffer, LockMode);
 

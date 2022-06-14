@@ -1449,6 +1449,8 @@ void FD3D12DefaultBufferAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapTy
 		return;
 	}
 
+	FScopeLock Lock(&CS);
+
 	// Patch out deny shader resource because it doesn't add anything for buffers and allows more pool sharing
 	// TODO: check if this is different on Xbox?
 	D3D12_RESOURCE_DESC ResourceDesc = InResourceDesc;
@@ -1478,6 +1480,8 @@ void FD3D12DefaultBufferAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapTy
 
 void FD3D12DefaultBufferAllocator::FreeDefaultBufferPools()
 {
+	FScopeLock Lock(&CS);
+
 	for (FD3D12BufferPool*& DefaultBufferPool : DefaultBufferPools)
 	{
 		if (DefaultBufferPool)
@@ -1495,6 +1499,7 @@ void FD3D12DefaultBufferAllocator::FreeDefaultBufferPools()
 void FD3D12DefaultBufferAllocator::BeginFrame()
 {
 #if USE_BUFFER_POOL_ALLOCATOR
+	FScopeLock Lock(&CS);
 
 	if (GD3D12VRAMBufferPoolDefrag > 0 && GD3D12VRAMBufferPoolDefragMaxCopySizePerFrame > 0)
 	{
@@ -1537,6 +1542,8 @@ void FD3D12DefaultBufferAllocator::BeginFrame()
 
 void FD3D12DefaultBufferAllocator::CleanupFreeBlocks(uint64 InFrameLag)
 {
+	FScopeLock Lock(&CS);
+
 	for (FD3D12BufferPool* DefaultBufferPool : DefaultBufferPools)
 	{
 		if (DefaultBufferPool)
@@ -1548,6 +1555,8 @@ void FD3D12DefaultBufferAllocator::CleanupFreeBlocks(uint64 InFrameLag)
 
 void FD3D12DefaultBufferAllocator::UpdateMemoryStats()
 {
+	FScopeLock Lock(&CS);
+
 	uint32 MemoryAllocated = 0;
 	uint32 MemoryUsed = 0;
 	uint32 FreeMemory = 0;

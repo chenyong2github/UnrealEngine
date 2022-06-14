@@ -32,10 +32,20 @@ FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::IsImmediateAsyncCompute() const
 	return this == &FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
 }
 
+FORCEINLINE_DEBUGGABLE FRHICommandListImmediate& FRHICommandListBase::GetAsImmediate()
+{
+	checkf(IsImmediate(), TEXT("This operation expects the immediate command list."));
+	return static_cast<FRHICommandListImmediate&>(*this);
+}
+
 FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::Bypass() const
 {
 	check(!IsImmediate() || IsInRenderingThread() || IsInRHIThread());
-	return GRHICommandList.Bypass();
+	return GRHICommandList.Bypass()
+#if CAN_DISALLOW_COMMAND_LIST_BYPASS
+		&& bAllowBypass
+#endif
+		;
 }
 
 FORCEINLINE_DEBUGGABLE FScopedRHIThreadStaller::FScopedRHIThreadStaller(class FRHICommandListImmediate& InImmed, bool bDoStall)

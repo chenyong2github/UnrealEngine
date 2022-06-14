@@ -437,6 +437,7 @@ private:
 	FD3D12BufferPool* CreateBufferPool(D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode, uint32 Alignment);
 
 	TArray<FD3D12BufferPool*> DefaultBufferPools;
+	FCriticalSection CS;
 };
 
 //-----------------------------------------------------------------------------

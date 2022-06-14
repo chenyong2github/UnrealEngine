@@ -1461,6 +1461,7 @@ bool GRHIRequiresRenderTargetForPixelShaderUAVs = false;
 bool GRHISupportsUAVFormatAliasing = false;
 bool GRHISupportsDirectGPUMemoryLock = false;
 bool GRHISupportsMultithreadedShaderCreation = true;
+bool GRHISupportsMultithreadedResources = false;
 
 bool GRHISupportsMSAADepthSampleAccess = false;
 

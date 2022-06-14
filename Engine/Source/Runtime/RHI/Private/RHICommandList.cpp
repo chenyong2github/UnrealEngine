@@ -156,7 +156,6 @@ static FGraphEventArray WaitOutstandingTasks;
 static FGraphEventRef RHIThreadTask;
 static FGraphEventRef PrevRHIThreadTask;
 static FGraphEventRef RenderThreadSublistDispatchTask;
-static FGraphEventRef RHIThreadBufferLockFence;
 
 static FGraphEventRef GRHIThreadEndDrawingViewportFences[2];
 static uint32 GRHIThreadEndDrawingViewportFenceIndex = 0;
@@ -169,7 +168,6 @@ void CleanupRHICommandListGraphEvents()
 	RHIThreadTask.SafeRelease();
 	PrevRHIThreadTask.SafeRelease();
 	RenderThreadSublistDispatchTask.SafeRelease();
-	RHIThreadBufferLockFence.SafeRelease();
 
 	for (FGraphEventRef& GraphEvent : GRHIThreadEndDrawingViewportFences)
 	{
@@ -698,6 +696,7 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
                 // is equivalent to a Reset.
 				CmdList.InitialGPUMask = SwapCmdList->GPUMask;
 				CmdList.PSOContext = SwapCmdList->PSOContext;
+				CmdList.RHIThreadBufferLockFence = SwapCmdList->RHIThreadBufferLockFence;
 				CmdList.Data.bInsideRenderPass = SwapCmdList->Data.bInsideRenderPass;
 				CmdList.Data.bInsideComputePass = SwapCmdList->Data.bInsideComputePass;
 			}
@@ -993,11 +992,8 @@ FRHICOMMAND_MACRO(FRHICommandRHIThreadFence)
 	}
 };
 
-
-FGraphEventRef FRHICommandListImmediate::RHIThreadFence(bool bSetLockFence)
+FGraphEventRef FRHICommandListBase::RHIThreadFence(bool bSetLockFence)
 {
-	check(IsInRenderingThread());
-
 	if (IsRunningRHIInSeparateThread())
 	{
 		FRHICommandRHIThreadFence* Cmd = ALLOC_COMMAND(FRHICommandRHIThreadFence)();
@@ -1628,6 +1624,14 @@ void FRHICommandListBase::QueueParallelAsyncCommandListSubmit(FGraphEventRef* An
 void FRHICommandListBase::QueueAsyncCommandListSubmit(FGraphEventRef& AnyThreadCompletionEvent, FRHICommandList* CmdList)
 {
 	check(IsInRenderingThread() && IsImmediate());
+	check(AnyThreadCompletionEvent);
+	check(CmdList);
+
+	if (Bypass())
+	{
+		FRHICommandWaitForAndSubmitSubList(AnyThreadCompletionEvent, CmdList).Execute(*this);
+		return;
+	}
 
 	if (IsRunningRHIInSeparateThread())
 	{
@@ -1644,6 +1648,11 @@ void FRHICommandListBase::QueueAsyncCommandListSubmit(FGraphEventRef& AnyThreadC
 	ALLOC_COMMAND(FRHICommandWaitForAndSubmitSubList)(AnyThreadCompletionEvent, CmdList);
 	if (IsRunningRHIInSeparateThread())
 	{
+		// The async command list is being recorded in parallel, we have to take a conservative RHI thread fence
+		// for all the work in case a lock was used. The RHI thread waits on the work, so the render thread can't
+		// access the pending RHI thread fence.
+		RHIThreadFence(true);
+
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); // we don't want stuff after the async cmd list to be bundled with it
 	}
 }
@@ -1669,8 +1678,21 @@ FRHICOMMAND_MACRO(FRHICommandWaitForAndSubmitRTSubList)
 void FRHICommandListBase::QueueRenderThreadCommandListSubmit(FGraphEventRef& RenderThreadCompletionEvent, FRHICommandList* CmdList)
 {
 	check(IsInRenderingThread() && IsImmediate());
+	check(RenderThreadCompletionEvent);
+	check(CmdList);
+
+	if (Bypass())
+	{
+		FRHICommandWaitForAndSubmitRTSubList(RenderThreadCompletionEvent, CmdList).Execute(*this);
+		return;
+	}
 
 	ALLOC_COMMAND(FRHICommandWaitForAndSubmitRTSubList)(RenderThreadCompletionEvent, CmdList);
+
+	// The async command list is being recorded in parallel, we have to take a conservative RHI thread fence
+	// for all the work in case a lock was used. The RHI thread waits on the work, so the render thread can't
+	// access the pending RHI thread fence.
+	RHIThreadFence(true);
 
 #if WITH_MGPU
 	// This will restore the context GPU masks to whatever they were set to
@@ -1707,7 +1729,20 @@ FRHICOMMAND_MACRO(FRHICommandSubmitSubList)
 
 void FRHICommandListBase::QueueCommandListSubmit(FRHICommandList* CmdList)
 {
+	check(CmdList);
+
+	if (Bypass())
+	{
+		FRHICommandSubmitSubList(CmdList).Execute(*this);
+		return;
+	}
+
 	ALLOC_COMMAND(FRHICommandSubmitSubList)(CmdList);
+
+	if (CmdList->RHIThreadBufferLockFence)
+	{
+		RHIThreadBufferLockFence = CmdList->RHIThreadBufferLockFence;
+	}
 
 #if WITH_MGPU
 	// This will restore the context GPU masks to whatever they were set to
@@ -2246,23 +2281,11 @@ void FRHIComputeCommandList::BuildAccelerationStructures(const TArrayView<const 
 }
 #endif
 
-void* FRHICommandListBase::operator new(size_t Size)
-{
-	check(0); // you shouldn't be creating these
-	return FMemory::Malloc(Size);
-}
-
-void FRHICommandListBase::operator delete(void *RawMemory)
-{
-	FMemory::Free(RawMemory);
-}
-
-
-FBufferRHIRef FDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateBuffer_RenderThread);
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	FBufferRHIRef Buffer = GDynamicRHI->RHICreateBuffer(Size, Usage, Stride, ResourceState, CreateInfo);
+	FScopedRHIThreadStaller StallRHIThread(RHICmdList.GetAsImmediate());
+	FBufferRHIRef Buffer = GDynamicRHI->RHICreateBuffer(RHICmdList, Size, Usage, Stride, ResourceState, CreateInfo);
 	return Buffer;
 }
 
@@ -2289,7 +2312,7 @@ FShaderResourceViewRHIRef FDynamicRHI::CreateShaderResourceView_RenderThread(cla
 
 static FLockTracker GLockTracker;
 
-void* FDynamicRHI::RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+void* FDynamicRHI::RHILockBuffer(class FRHICommandListBase& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockBuffer);
 
@@ -2302,7 +2325,7 @@ void* FDynamicRHI::RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRH
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockBuffer_FlushAndLock);
 			CSV_SCOPED_TIMING_STAT(RHITFlushes, LockBuffer_BottomOfPipe);
 
-			FRHICommandListScopedFlushAndExecute Flush(RHICmdList);
+			FRHICommandListScopedFlushAndExecute Flush(RHICmdList.GetAsImmediate());
 			Result = GDynamicRHI->LockBuffer_BottomOfPipe(RHICmdList, Buffer, Offset, SizeRHI, LockMode);
 		}
 		else
@@ -2324,7 +2347,7 @@ void* FDynamicRHI::RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRH
 	return Result;
 }
 
-void FDynamicRHI::RHIUnlockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer)
+void FDynamicRHI::RHIUnlockBuffer(class FRHICommandListBase& RHICmdList, FRHIBuffer* Buffer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_UnlockBuffer_RenderThread);
 
@@ -2338,13 +2361,13 @@ void FDynamicRHI::RHIUnlockBuffer(class FRHICommandListImmediate& RHICmdList, FR
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockBuffer_FlushAndUnlock);
 			CSV_SCOPED_TIMING_STAT(RHITFlushes, UnlockBuffer_BottomOfPipe);
 
-			FRHICommandListScopedFlushAndExecute Flush(RHICmdList);
+			FRHICommandListScopedFlushAndExecute Flush(RHICmdList.GetAsImmediate());
 			GDynamicRHI->UnlockBuffer_BottomOfPipe(RHICmdList, Buffer);
 			GLockTracker.TotalMemoryOutstanding = 0;
 		}
 		else
 		{
-			RHICmdList.EnqueueLambda([Buffer, Params](FRHICommandListImmediate& InRHICmdList)
+			RHICmdList.EnqueueLambda([Buffer, Params](FRHICommandListBase& InRHICmdList)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBuffer_Execute);
 				void* Data = GDynamicRHI->LockBuffer_BottomOfPipe(InRHICmdList, Buffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
@@ -2360,11 +2383,11 @@ void FDynamicRHI::RHIUnlockBuffer(class FRHICommandListImmediate& RHICmdList, FR
 			RHICmdList.RHIThreadFence(true);
 		}
 
-		if (GLockTracker.TotalMemoryOutstanding > uint32(CVarRHICmdMaxOutstandingMemoryBeforeFlush.GetValueOnRenderThread()) * 1024u)
+		if (RHICmdList.IsImmediate() && GLockTracker.TotalMemoryOutstanding > uint32(CVarRHICmdMaxOutstandingMemoryBeforeFlush.GetValueOnRenderThread()) * 1024u)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockBuffer_FlushForMem);
 			// we could be loading a level or something, lets get this stuff going
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
+			RHICmdList.GetAsImmediate().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
 			GLockTracker.TotalMemoryOutstanding = 0;
 		}
 	}

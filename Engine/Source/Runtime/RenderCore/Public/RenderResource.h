@@ -12,6 +12,7 @@
 #include "RenderCore.h"
 #include "Serialization/MemoryLayout.h"
 #include "Containers/DynamicRHIResourceArray.h"
+#include "RenderingThread.h"
 
 /** Number of frames after which unused global resource allocations will be discarded. */
 extern int32 GGlobalBufferNumFramesUnusedThresold;
@@ -179,7 +180,8 @@ protected:
 			}
 			else
 			{
-				Buffer = RHIAsyncCreateVertexBuffer(SizeInBytes, InBufferUsageFlags, CreateInfo);
+				FRHIAsyncCommandList CommandList;
+				return CommandList->CreateBuffer(SizeInBytes, InBufferUsageFlags | EBufferUsageFlags::VertexBuffer, 0, ERHIAccess::SRVMask, CreateInfo);
 			}
 		}
 

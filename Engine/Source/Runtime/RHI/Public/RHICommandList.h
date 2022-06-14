@@ -188,6 +188,8 @@ struct RHI_API FLockTracker
 		{
 		}
 	};
+
+	FCriticalSection CriticalSection;
 	TArray<FLockParams, TInlineAllocator<16> > OutstandingLocks;
 	uint32 TotalMemoryOutstanding;
 
@@ -198,6 +200,7 @@ struct RHI_API FLockTracker
 
 	FORCEINLINE_DEBUGGABLE void Lock(void* RHIBuffer, void* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
+		FScopeLock Lock(&CriticalSection);
 #if DO_CHECK
 		for (auto& Parms : OutstandingLocks)
 		{
@@ -209,6 +212,7 @@ struct RHI_API FLockTracker
 	}
 	FORCEINLINE_DEBUGGABLE FLockParams Unlock(void* RHIBuffer)
 	{
+		FScopeLock Lock(&CriticalSection);
 		for (int32 Index = 0; Index < OutstandingLocks.Num(); Index++)
 		{
 			if (OutstandingLocks[Index].RHIBuffer == RHIBuffer)
@@ -407,6 +411,33 @@ private:
 	uint32 FenceFrameNumber[MAX_FENCE_INDICES];
 };
 
+// Using variadic macro because some types are fancy template<A,B> stuff, which gets broken off at the comma and interpreted as multiple arguments. 
+#define ALLOC_COMMAND(...) new ( AllocCommand(sizeof(__VA_ARGS__), alignof(__VA_ARGS__)) ) __VA_ARGS__
+#define ALLOC_COMMAND_CL(RHICmdList, ...) new ( (RHICmdList).AllocCommand(sizeof(__VA_ARGS__), alignof(__VA_ARGS__)) ) __VA_ARGS__
+
+// This controls if the cmd list bypass can be toggled at runtime. It is quite expensive to have these branches in there.
+#define CAN_TOGGLE_COMMAND_LIST_BYPASS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+
+// Controls whether a command list can locally disallow bypass mode.
+#define CAN_DISALLOW_COMMAND_LIST_BYPASS CAN_TOGGLE_COMMAND_LIST_BYPASS || PLATFORM_RHITHREAD_DEFAULT_BYPASS != 0
+
+template <typename RHICmdListType, typename LAMBDA>
+struct TRHILambdaCommand final : public FRHICommandBase
+{
+	LAMBDA Lambda;
+
+	TRHILambdaCommand(LAMBDA&& InLambda)
+		: Lambda(Forward<LAMBDA>(InLambda))
+	{}
+
+	void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TRHILambdaCommand, RHICommandsChannel);
+		Lambda(*static_cast<RHICmdListType*>(&CmdList));
+		Lambda.~LAMBDA();
+	}
+};
+
 extern RHI_API FRHICommandListFenceAllocator GRHIFenceAllocator;
 
 class RHI_API FRHICommandListBase : public FNoncopyable
@@ -414,13 +445,10 @@ class RHI_API FRHICommandListBase : public FNoncopyable
 public:
 	~FRHICommandListBase();
 
-	/** Custom new/delete with recycling */
-	void* operator new(size_t Size);
-	void operator delete(void *RawMemory);
-
 	inline void Flush();
 	inline bool IsImmediate() const;
 	inline bool IsImmediateAsyncCompute() const;
+	inline FRHICommandListImmediate& GetAsImmediate();
 
 	const int32 GetUsedMemory() const;
 	void QueueAsyncCommandListSubmit(FGraphEventRef& AnyThreadCompletionEvent, class FRHICommandList* CmdList);
@@ -589,16 +617,59 @@ public:
 	const FRHIBreadcrumbStack& GetBreadcrumbStack() const { return BreadcrumbStack; }
 #endif // RHI_WANT_BREADCRUMB_EVENTS
 
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	{
+		if (IsBottomOfPipe())
+		{
+			Lambda(*this);
+		}
+		else
+		{
+			ALLOC_COMMAND(TRHILambdaCommand<FRHICommandListBase, LAMBDA>)(Forward<LAMBDA>(Lambda));
+		}
+	}
+
+	FGraphEventRef RHIThreadFence(bool bSetLockFence = false);
+
+	FORCEINLINE void* LockBuffer(FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+	{
+		return GDynamicRHI->RHILockBuffer(*this, Buffer, Offset, SizeRHI, LockMode);
+	}
+
+	FORCEINLINE void UnlockBuffer(FRHIBuffer* Buffer)
+	{
+		GDynamicRHI->RHIUnlockBuffer(*this, Buffer);
+	}
+
+	FORCEINLINE FBufferRHIRef CreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
+	{
+		FBufferRHIRef Buffer = GDynamicRHI->RHICreateBuffer(*this, Size, Usage, Stride, ResourceState, CreateInfo);
+		Buffer->SetTrackedAccess_Unsafe(ResourceState);
+		return Buffer;
+	}
+
+	void DisallowBypass()
+	{
+#if CAN_DISALLOW_COMMAND_LIST_BYPASS
+		bAllowBypass = false;
+#endif
+	}
+
 private:
 	FRHICommandBase* Root;
 	FRHICommandBase** CommandLink;
 	bool bExecuting;
+#if CAN_DISALLOW_COMMAND_LIST_BYPASS
+	bool bAllowBypass = true;
+#endif
 	uint32 NumCommands;
 	uint32 UID;
 	IRHICommandContext* Context;
 	IRHIComputeContext* ComputeContext;
 	FMemStackBase MemManager; 
 	FGraphEventArray RTTasks;
+	FGraphEventRef RHIThreadBufferLockFence;
 
 	friend class FRHICommandListExecutor;
 	friend class FRHICommandListIterator;
@@ -777,23 +848,6 @@ struct FRHICommand : public FRHICommandBase
 	}
 
 	virtual void StoreDebugInfo(FRHICommandListDebugContext& Context) {};
-};
-
-template <typename RHICmdListType, typename LAMBDA>
-struct TRHILambdaCommand final : public FRHICommandBase
-{
-	LAMBDA Lambda;
-
-	TRHILambdaCommand(LAMBDA&& InLambda)
-		: Lambda(Forward<LAMBDA>(InLambda))
-	{}
-
-	void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TRHILambdaCommand, RHICommandsChannel);
-		Lambda(*static_cast<RHICmdListType*>(&CmdList));
-		Lambda.~LAMBDA();
-	}
 };
 
 #define FRHICOMMAND_MACRO(CommandName)								\
@@ -2358,10 +2412,6 @@ FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 #endif // RHI_RAYTRACING
-
-// Using variadic macro because some types are fancy template<A,B> stuff, which gets broken off at the comma and interpreted as multiple arguments. 
-#define ALLOC_COMMAND(...) new ( AllocCommand(sizeof(__VA_ARGS__), alignof(__VA_ARGS__)) ) __VA_ARGS__
-#define ALLOC_COMMAND_CL(RHICmdList, ...) new ( (RHICmdList).AllocCommand(sizeof(__VA_ARGS__), alignof(__VA_ARGS__)) ) __VA_ARGS__
 
 template<> RHI_API void FRHICommandSetShaderParameter<FRHIComputeShader>::Execute(FRHICommandListBase& CmdList);
 template<> RHI_API void FRHICommandSetShaderUniformBuffer<FRHIComputeShader>::Execute(FRHICommandListBase& CmdList);
@@ -4066,7 +4116,6 @@ public:
 	static FGraphEventArray& GetRenderThreadTaskArray();
 	static void WaitOnRenderThreadTaskFence(FGraphEventRef& Fence);
 	static bool AnyRenderThreadTasksOutstanding();
-	FGraphEventRef RHIThreadFence(bool bSetLockFence = false);
 
 	//Queue the given async compute commandlists in order with the current immediate commandlist
 	void QueueAsyncCompute(FRHIComputeCommandList& RHIComputeCmdList);
@@ -4187,20 +4236,23 @@ public:
 	{
 		return RHICreateUniformBuffer(Contents, &Layout, Usage);
 	}
-	
+
+	UE_DEPRECATED(5.1, "Use CreateBuffer and LockBuffer separately")
 	FORCEINLINE FBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
-		FBufferRHIRef IndexBuffer = GDynamicRHI->CreateBuffer_RenderThread(*this, Size, InUsage | BUF_IndexBuffer, Stride, InResourceState, CreateInfo);
-		IndexBuffer->SetTrackedAccess_Unsafe(InResourceState);
-		OutDataBuffer = GDynamicRHI->RHILockBuffer(*this, IndexBuffer, 0, Size, RLM_WriteOnly);
+		FBufferRHIRef IndexBuffer = CreateBuffer(Size, InUsage | BUF_IndexBuffer, Stride, InResourceState, CreateInfo);
+		OutDataBuffer = LockBuffer(IndexBuffer, 0, Size, RLM_WriteOnly);
 		return IndexBuffer;
 	}
 
+	UE_DEPRECATED(5.1, "Use CreateBuffer and LockBuffer separately")
 	FORCEINLINE FBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
 		EBufferUsageFlags Usage = InUsage | BUF_IndexBuffer;
 		ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, true);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return CreateAndLockIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo, OutDataBuffer);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 	
 	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use LockBuffer() instead.")
@@ -4224,20 +4276,23 @@ public:
 	{
 		GDynamicRHI->UnlockStagingBuffer_RenderThread(*this, StagingBuffer);
 	}
-	
+
+	UE_DEPRECATED(5.1, "Use CreateBuffer and LockBuffer separately")
 	FORCEINLINE FBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
-		FBufferRHIRef VertexBuffer = GDynamicRHI->CreateBuffer_RenderThread(*this, Size, InUsage | BUF_VertexBuffer, 0, InResourceState, CreateInfo);
-		VertexBuffer->SetTrackedAccess_Unsafe(InResourceState);
-		OutDataBuffer = GDynamicRHI->RHILockBuffer(*this, VertexBuffer, 0, Size, RLM_WriteOnly);
+		FBufferRHIRef VertexBuffer = CreateBuffer(Size, InUsage | BUF_VertexBuffer, 0, InResourceState, CreateInfo);
+		OutDataBuffer = LockBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
 		return VertexBuffer;
 	}
 
+	UE_DEPRECATED(5.1, "Use CreateBuffer and LockBuffer separately")
 	FORCEINLINE FBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
 		EBufferUsageFlags Usage = InUsage | BUF_VertexBuffer;
 		ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, true);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return CreateAndLockVertexBuffer(Size, Usage, ResourceState, CreateInfo, OutDataBuffer);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 
 	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use LockBuffer() instead.")
@@ -4275,16 +4330,6 @@ public:
 	FORCEINLINE void UnlockStructuredBuffer(FRHIBuffer* StructuredBuffer)
 	{
 		GDynamicRHI->RHIUnlockBuffer(*this, StructuredBuffer);
-	}
-
-	FORCEINLINE void* LockBuffer(FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
-	{
-		return GDynamicRHI->RHILockBuffer(*this, Buffer, Offset, SizeRHI, LockMode);
-	}
-	
-	FORCEINLINE void UnlockBuffer(FRHIBuffer* Buffer)
-	{
-		GDynamicRHI->RHIUnlockBuffer(*this, Buffer);
 	}
 
 	// LockBufferMGPU / UnlockBufferMGPU may ONLY be called for buffers with the EBufferUsageFlags::MultiGPUAllocate flag set!
@@ -5057,9 +5102,6 @@ public:
 	}
 };
 
-// This controls if the cmd list bypass can be toggled at runtime. It is quite expensive to have these branches in there.
-#define CAN_TOGGLE_COMMAND_LIST_BYPASS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
-
 class RHI_API FRHICommandListExecutor
 {
 public:
@@ -5211,111 +5253,121 @@ FORCEINLINE FStagingBufferRHIRef RHICreateStagingBuffer()
 UE_DEPRECATED(5.0, "Use RHICreateBuffer() and RHILockBuffer() instead.")
 FORCEINLINE FBufferRHIRef RHICreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 {
+	check(IsInRenderingThread());
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateAndLockIndexBuffer(Stride, Size, InUsage, CreateInfo, OutDataBuffer);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FORCEINLINE FBufferRHIRef RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	FBufferRHIRef Buffer = GDynamicRHI->CreateBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, Usage, Stride, ResourceState, CreateInfo);
-	Buffer->SetTrackedAccess_Unsafe(ResourceState);
-	return Buffer;
+	check(IsInRenderingThread());
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage, Stride, ResourceState, CreateInfo);
 }
 
-FORCEINLINE FBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FORCEINLINE FBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	FBufferRHIRef Buffer = GDynamicRHI->CreateBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, InUsage | BUF_IndexBuffer, Stride, InResourceState, CreateInfo);
-	Buffer->SetTrackedAccess_Unsafe(InResourceState);
-	return Buffer;
+	check(IsInRenderingThread());
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage | EBufferUsageFlags::IndexBuffer, Stride, ResourceState, CreateInfo);
 }
 
-FORCEINLINE FBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+UE_DEPRECATED(5.1, "RHIAsyncCreateIndexBuffer is deprecated. Use FRHICommandList::CreateBuffer instead.")
+FORCEINLINE FBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	FBufferRHIRef Buffer = GDynamicRHI->RHICreateBuffer(Size, InUsage, Stride, InResourceState, CreateInfo);
-	Buffer->SetTrackedAccess_Unsafe(InResourceState);
-	return Buffer;
+	check(IsInRenderingThread());
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage, Stride, ResourceState, CreateInfo);
 }
 
 FORCEINLINE FBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	EBufferUsageFlags Usage = InUsage | BUF_IndexBuffer;
+	EBufferUsageFlags Usage = InUsage | EBufferUsageFlags::IndexBuffer;
 	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
 	return RHICreateIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo);
 }
 
+UE_DEPRECATED(5.1, "RHIAsyncCreateIndexBuffer is deprecated. Use FRHICommandList::CreateBuffer instead.")
 FORCEINLINE FBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	EBufferUsageFlags Usage = InUsage | BUF_IndexBuffer;
+	EBufferUsageFlags Usage = InUsage | EBufferUsageFlags::IndexBuffer;
 	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RHIAsyncCreateIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHILockBuffer() instead.")
 FORCEINLINE void* RHILockIndexBuffer(FRHIBuffer* IndexBuffer, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
+	check(IsInRenderingThread());
 	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(IndexBuffer, Offset, Size, LockMode);
 }
 
 UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHIUnlockBuffer() instead.")
 FORCEINLINE void RHIUnlockIndexBuffer(FRHIBuffer* IndexBuffer)
 {
-	 FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(IndexBuffer);
+	check(IsInRenderingThread());
+	FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(IndexBuffer);
 }
 
 UE_DEPRECATED(5.0, "Use RHICreateBuffer() and RHILockBuffer() instead.")
 FORCEINLINE FBufferRHIRef RHICreateAndLockVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 {
+	check(IsInRenderingThread());
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateAndLockVertexBuffer(Size, InUsage, CreateInfo, OutDataBuffer);
 }
 
-FORCEINLINE FBufferRHIRef RHICreateVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FORCEINLINE FBufferRHIRef RHICreateVertexBuffer(uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	FBufferRHIRef Buffer = GDynamicRHI->CreateBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, InUsage | BUF_VertexBuffer, 0, InResourceState, CreateInfo);
-	Buffer->SetTrackedAccess_Unsafe(InResourceState);
-	return Buffer;
+	check(IsInRenderingThread());
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage | EBufferUsageFlags::VertexBuffer, 0, ResourceState, CreateInfo);
 }
 
-FORCEINLINE FBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+UE_DEPRECATED(5.1, "RHIAsyncCreateVertexBuffer is deprecated. Use FRHICommandList::CreateBuffer instead.")
+FORCEINLINE FBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	FBufferRHIRef Buffer = GDynamicRHI->RHICreateBuffer(Size, InUsage, 0, InResourceState, CreateInfo);
-	Buffer->SetTrackedAccess_Unsafe(InResourceState);
-	return Buffer;
+	check(IsInRenderingThread());
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage, 0, ResourceState, CreateInfo);
 }
 
 FORCEINLINE FBufferRHIRef RHICreateVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	EBufferUsageFlags Usage = InUsage | BUF_VertexBuffer;
+	EBufferUsageFlags Usage = InUsage | EBufferUsageFlags::VertexBuffer;
 	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
 	return RHICreateVertexBuffer(Size, Usage, ResourceState, CreateInfo);
 }
 
+UE_DEPRECATED(5.1, "RHIAsyncCreateVertexBuffer is deprecated. Use FRHICommandList::CreateBuffer instead.")
 FORCEINLINE FBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	bool bHasInitialData = CreateInfo.BulkData != nullptr;
-	EBufferUsageFlags Usage = InUsage | BUF_VertexBuffer;
+	EBufferUsageFlags Usage = InUsage | EBufferUsageFlags::VertexBuffer;
 	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return RHIAsyncCreateVertexBuffer(Size, Usage, ResourceState, CreateInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHILockBuffer() instead.")
 FORCEINLINE void* RHILockVertexBuffer(FRHIBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
+	check(IsInRenderingThread());
 	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(VertexBuffer, Offset, SizeRHI, LockMode);
 }
 
 UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHIUnlockBuffer() instead.")
 FORCEINLINE void RHIUnlockVertexBuffer(FRHIBuffer* VertexBuffer)
 {
-	 FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(VertexBuffer);
+	check(IsInRenderingThread());
+	FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(VertexBuffer);
 }
 
-FORCEINLINE FBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FORCEINLINE FBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	FBufferRHIRef Buffer = GDynamicRHI->CreateBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, InUsage | BUF_StructuredBuffer, Stride, InResourceState, CreateInfo);
-	Buffer->SetTrackedAccess_Unsafe(InResourceState);
-	return Buffer;
+	check(IsInRenderingThread());
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateBuffer(Size, Usage | EBufferUsageFlags::StructuredBuffer, Stride, ResourceState, CreateInfo);
 }
 
 FORCEINLINE FBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo)
@@ -5329,22 +5381,26 @@ FORCEINLINE FBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, 
 UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHILockBuffer() instead.")
 FORCEINLINE void* RHILockStructuredBuffer(FRHIBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
+	check(IsInRenderingThread());
 	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(StructuredBuffer, Offset, SizeRHI, LockMode);
 }
 
 UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHIUnlockBuffer() instead.")
 FORCEINLINE void RHIUnlockStructuredBuffer(FRHIBuffer* StructuredBuffer)
 {
-	 FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(StructuredBuffer);
+	check(IsInRenderingThread());
+	FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(StructuredBuffer);
 }
 
 FORCEINLINE void* RHILockBuffer(FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
+	check(IsInRenderingThread());
 	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(Buffer, Offset, SizeRHI, LockMode);
 }
 
 FORCEINLINE void RHIUnlockBuffer(FRHIBuffer* Buffer)
 {
+	check(IsInRenderingThread());
 	FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(Buffer);
 }
 
@@ -5385,6 +5441,7 @@ FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderR
 
 FORCEINLINE void RHIUpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num, bool bNeedReleaseRefs)
 {
+	check(IsInRenderingThread());
 	return FRHICommandListExecutor::GetImmediateCommandList().UpdateRHIResources(UpdateInfos, Num, bNeedReleaseRefs);
 }
 

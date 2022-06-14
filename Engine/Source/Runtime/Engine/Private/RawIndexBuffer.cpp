@@ -331,7 +331,7 @@ FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 		// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
 		bSRV |= IndexStorage.GetAllowCPUAccess();
 
-		const EBufferUsageFlags BufferFlags = BUF_Static | (bSRV ? BUF_ShaderResource : BUF_None);
+		const EBufferUsageFlags BufferFlags = EBufferUsageFlags::Static | (bSRV ? EBufferUsageFlags::ShaderResource : EBufferUsageFlags::None);
 
 		// Create the index buffer.
 		FRHIResourceCreateInfo CreateInfo(Is32Bit() ? TEXT("FRawStaticIndexBuffer32") : TEXT("FRawStaticIndexBuffer16"), &IndexStorage);
@@ -342,7 +342,8 @@ FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 		}
 		else
 		{
-			return RHIAsyncCreateIndexBuffer(IndexStride, SizeInBytes, BufferFlags, CreateInfo);
+			FRHIAsyncCommandList CommandList;
+			return CommandList->CreateBuffer(SizeInBytes, BufferFlags | EBufferUsageFlags::IndexBuffer, IndexStride, ERHIAccess::SRVMask, CreateInfo);
 		}
 	}
 	return nullptr;

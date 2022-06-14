@@ -13,8 +13,8 @@
 #include "Trace/Trace.h"
 #include "Serialization/MemoryLayout.h"
 #include "Delegates/Delegate.h"
-
-class FRHICommandListImmediate;
+#include "RHI.h"
+#include "RHICommandList.h"
 
 ////////////////////////////////////
 // Render thread API
@@ -325,6 +325,50 @@ extern RENDERCORE_API FPendingCleanupObjects* GetPendingCleanupObjects();
 ////////////////////////////////////
 // RenderThread scoped work
 ////////////////////////////////////
+
+/** A utility to record RHI commands asynchronously and then enqueue the resulting commands to the render thread. */
+class FRHIAsyncCommandList
+{
+public:
+	FRHIAsyncCommandList(FRHIGPUMask InGPUMask = FRHIGPUMask::All())
+		: RHICmdListStack(InGPUMask)
+	{
+		RHICmdListStack.DisallowBypass();
+	}
+
+	FRHICommandList& GetCommandList()
+	{
+		return RHICmdListStack;
+	}
+
+	FRHICommandList& operator*()
+	{
+		return RHICmdListStack;
+	}
+
+	FRHICommandList* operator->()
+	{
+		return &RHICmdListStack;
+	}
+
+	~FRHIAsyncCommandList()
+	{
+		if (RHICmdListStack.HasCommands())
+		{
+			FRHICommandList* RHICmdList = new FRHICommandList(FRHIGPUMask::All());
+			RHICmdList->ExchangeCmdList(RHICmdListStack);
+
+			ENQUEUE_RENDER_COMMAND(AsyncCommandListScope)(
+				[RHICmdList](FRHICommandListImmediate& RHICmdListImmediate)
+			{
+				RHICmdListImmediate.QueueCommandListSubmit(RHICmdList);
+			});
+		}
+	}
+
+private:
+	FRHICommandList RHICmdListStack;
+};
 
 class RENDERCORE_API FRenderThreadScope
 {

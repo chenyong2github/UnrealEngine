@@ -548,12 +548,12 @@ private:
 		{
 			// Create the index buffer.
 			FRHIResourceCreateInfo CreateInfo(sizeof(INDEX_TYPE) == 4 ? TEXT("FRawStaticIndexBuffer32") : TEXT("FRawStaticIndexBuffer16"), &Indices);
-			EBufferUsageFlags Flags = BUF_Static;
+			EBufferUsageFlags Flags = EBufferUsageFlags::Static;
 
 			if (IsSRVNeeded())
 			{
 				// BUF_ShaderResource is needed for SkinCache RecomputeSkinTangents
-				Flags = (EBufferUsageFlags)(Flags | BUF_ShaderResource);
+				Flags |= EBufferUsageFlags::ShaderResource;
 			}
 
 			// Need to cache number of indices from the source array *before* RHICreateIndexBuffer is called
@@ -569,7 +569,8 @@ private:
 			}
 			else
 			{
-				Ret = RHIAsyncCreateIndexBuffer(sizeof(INDEX_TYPE), Size, Flags, CreateInfo);
+				FRHIAsyncCommandList CommandList;
+				return CommandList->CreateBuffer(Size, Flags | EBufferUsageFlags::IndexBuffer, sizeof(INDEX_TYPE), ERHIAccess::SRVMask, CreateInfo);
 			}
 
 			return Ret;

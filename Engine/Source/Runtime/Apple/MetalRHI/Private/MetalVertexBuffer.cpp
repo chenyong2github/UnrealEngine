@@ -712,24 +712,11 @@ void FMetalRHIBuffer::Unlock()
 	LastLockFrame = GetMetalDeviceContext().GetFrameNumberRHIThread();
 }
 
-FMetalResourceMultiBuffer::FMetalResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType Type)
+FMetalResourceMultiBuffer::FMetalResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, uint32 InStride, ERHIResourceType Type)
 	: FRHIBuffer(InSize, InUsage, InStride)
 	, FMetalRHIBuffer(InSize, InUsage, InMetalUsage, Type)
 	, IndexType((InStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32)
 {
-	if (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer))
-	{
-		check((InSize % InStride) == 0);
-
-		if (ResourceArray)
-		{
-			// copy any resources to the CPU address
-			void* LockedMemory = RHILockBuffer(this, 0, InSize, RLM_WriteOnly);
-			FMemory::Memcpy(LockedMemory, ResourceArray->GetResourceData(), InSize);
-			ResourceArray->Discard();
-			RHIUnlockBuffer(this);
-		}
-	}
 }
 
 FMetalResourceMultiBuffer::~FMetalResourceMultiBuffer()
@@ -745,63 +732,21 @@ void FMetalResourceMultiBuffer::Swap(FMetalResourceMultiBuffer& Other)
 	}
 }
 
-FBufferRHIRef FMetalDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FMetalDynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	check(0);
-	@autoreleasepool {
+	@autoreleasepool{
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FMetalResourceMultiBuffer(0, BUF_None, MetalBufferUsage(BUF_None), 0, nullptr, RRT_Buffer);
+		return new FMetalResourceMultiBuffer(0, BUF_None, MetalBufferUsage(BUF_None), 0, RRT_Buffer);
 	}
-	
-	// make the RHI object, which will allocate memory
-	FMetalResourceMultiBuffer* Buffer = new FMetalResourceMultiBuffer(Size, Usage, MetalBufferUsage(Usage), 0, nullptr, RRT_Buffer);
 
-	if (CreateInfo.ResourceArray)
-	{
-		check(Size >= CreateInfo.ResourceArray->GetResourceDataSize());
-
-		// make a buffer usable by CPU
-		void* BufferData = ::RHILockBuffer(Buffer, 0, Size, RLM_WriteOnly);
-		
-		// copy the contents of the given data into the buffer
-		FMemory::Memcpy(BufferData, CreateInfo.ResourceArray->GetResourceData(), Size);
-		
-		::RHIUnlockBuffer(Buffer);
-
-		// Discard the resource array's contents.
-		CreateInfo.ResourceArray->Discard();
-	}
-	else if (Buffer->Mode == mtlpp::StorageMode::Private)
-	{
-		check (!Buffer->TransferBuffer);
-
-		if (GMetalBufferZeroFill && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFences))
-		{
-			for(FMetalRHIBuffer::FMetalBufferAndViews& Backing : Buffer->BufferPool)
-			{
-				FMetalBuffer& TheBuffer = Backing.Buffer;
-				GetMetalDeviceContext().FillBuffer(TheBuffer, ns::Range(0, TheBuffer.GetLength()), 0);
-			}
-		}
-	}
-#if PLATFORM_MAC
-	else if (GMetalBufferZeroFill && Buffer->Mode == mtlpp::StorageMode::Managed)
-	{
-		for(FMetalRHIBuffer::FMetalBufferAndViews& Backing : Buffer->BufferPool)
-		{
-			FMetalBuffer& TheBuffer = Backing.Buffer;
-			GetMetalDeviceContext().FillBuffer(TheBuffer, ns::Range(0, TheBuffer.GetLength()), 0);
-			MTLPP_VALIDATE(mtlpp::Buffer, TheBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, TheBuffer)));
-		}
-	}
-#endif
-
-	return Buffer;
+	TRefCountPtr<FMetalResourceMultiBuffer> Buffer = new FMetalResourceMultiBuffer(Size, Usage, MetalBufferUsage(Usage), Stride, RRT_Buffer);
+	Buffer->Init(RHICmdList, Size, Usage, CreateInfo, Buffer);
+	return Buffer.GetReference();
 	}
 }
 
-void* FMetalDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+void* FMetalDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListBase& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	@autoreleasepool {
 	FMetalResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
@@ -811,7 +756,7 @@ void* FMetalDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmd
 	}
 }
 
-void FMetalDynamicRHI::UnlockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI)
+void FMetalDynamicRHI::UnlockBuffer_BottomOfPipe(FRHICommandListBase& RHICmdList, FRHIBuffer* BufferRHI)
 {
 	@autoreleasepool {
 	FMetalResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
@@ -859,7 +804,7 @@ void FMetalDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffe
 		FMetalResourceMultiBuffer* Dest = ResourceCast(DestBuffer);
 		if (!SrcBuffer)
 		{
-			TRefCountPtr<FMetalResourceMultiBuffer> DeletionProxy = new FMetalResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetMetalUsage(), Dest->GetStride(), nullptr, Dest->Type);
+			TRefCountPtr<FMetalResourceMultiBuffer> DeletionProxy = new FMetalResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetMetalUsage(), Dest->GetStride(), Dest->Type);
 			Dest->Swap(*DeletionProxy);
 		}
 		else
@@ -870,7 +815,7 @@ void FMetalDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffe
 	}
 }
 
-void FMetalRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSize, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
+void FMetalRHIBuffer::Init(FRHICommandListBase& RHICmdList, uint32 InSize, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
 {
 	if (CreateInfo.ResourceArray)
 	{
@@ -896,7 +841,7 @@ void FMetalRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, ui
 					FMemory::Memcpy(Result, CreateInfo.ResourceArray->GetResourceData(), InSize);
 					
 					RHICmdList.EnqueueLambda(
-						[this, Result, InSize](FRHICommandList& RHICmdList)
+						[this, Result, InSize](FRHICommandListBase& RHICmdList)
 						{
 							void* Backing = this->Lock(true, RLM_WriteOnly, 0, InSize);
 							FMemory::Memcpy(Backing, Result, InSize);
@@ -920,22 +865,5 @@ void FMetalRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, ui
 		
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();
-	}
-}
-
-FBufferRHIRef FMetalDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
-{
-	@autoreleasepool {
-		if (CreateInfo.bWithoutNativeResource)
-		{
-			return new FMetalResourceMultiBuffer(0, BUF_None, MetalBufferUsage(BUF_None), 0, nullptr, RRT_Buffer);
-		}
-		
-		// make the RHI object, which will allocate memory
-		TRefCountPtr<FMetalResourceMultiBuffer> Buffer = new FMetalResourceMultiBuffer(Size, Usage, MetalBufferUsage(Usage), Stride, nullptr, RRT_Buffer);
-		
-		Buffer->Init_RenderThread(RHICmdList, Size, Usage, CreateInfo, Buffer);
-		
-		return Buffer.GetReference();
 	}
 }
