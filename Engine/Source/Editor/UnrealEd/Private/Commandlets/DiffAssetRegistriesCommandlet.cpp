@@ -171,8 +171,11 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 		UE_LOG(LogDiffAssets, Error, TEXT("No platform specified on the commandline use \"-platform=<platform>\"."));
 	}
 
+	TArray<FString> LocalSearchPaths = AssetRegistrySearchPath;
+	LocalSearchPaths.AddUnique(TEXT("[buildversion]"));
+
 	auto FindAssetRegistryPath = [&](const FString& PathVal, FString& OutPath) {
-			for (const FString& SearchPath : AssetRegistrySearchPath)
+			for (const FString& SearchPath : LocalSearchPaths)
 			{
 				FString FinalSearchPath = SearchPath;
 				FinalSearchPath.ReplaceInline(TEXT("[buildversion]"), *PathVal);

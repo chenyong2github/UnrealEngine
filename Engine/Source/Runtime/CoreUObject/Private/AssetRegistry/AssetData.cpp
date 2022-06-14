@@ -248,7 +248,9 @@ FTopLevelAssetPath FAssetData::TryConvertShortClassNameToPathName(FName InClassN
 	if (!InClassName.IsNone())
 	{
 		FString ClassNameString(InClassName.ToString());
-		ClassPath = UClass::TryConvertShortTypeNameToPathName<UStruct>(ClassNameString, ELogVerbosity::Warning, TEXT("AssetRegistry trying to convert short name to path name"));
+		ELogVerbosity::Type AmbiguousMessageVerbosity = (FailureMessageVerbosity == ELogVerbosity::NoLogging || FailureMessageVerbosity > ELogVerbosity::Warning) ?
+			FailureMessageVerbosity : ELogVerbosity::Warning;
+		ClassPath = UClass::TryConvertShortTypeNameToPathName<UStruct>(ClassNameString, AmbiguousMessageVerbosity, TEXT("AssetRegistry trying to convert short name to path name"));
 		if (ClassPath.IsNull())
 		{
 			// In some cases the class name stored in asset registry tags have been redirected with ini class redirects
@@ -259,7 +261,7 @@ FTopLevelAssetPath FAssetData::TryConvertShortClassNameToPathName(FName InClassN
 			}
 			else
 			{
-				ClassPath = UClass::TryConvertShortTypeNameToPathName<UStruct>(RedirectedName, ELogVerbosity::Warning, TEXT("AssetRegistry trying to convert redirected short name to path name"));
+				ClassPath = UClass::TryConvertShortTypeNameToPathName<UStruct>(RedirectedName, AmbiguousMessageVerbosity, TEXT("AssetRegistry trying to convert redirected short name to path name"));
 			}
 
 			if (ClassPath.IsNull())
