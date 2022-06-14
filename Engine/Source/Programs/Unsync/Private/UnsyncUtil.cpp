@@ -117,6 +117,14 @@ StringToLower(const std::wstring& Input)
 	return Result;
 }
 
+std::wstring
+StringToUpper(const std::wstring& Input)
+{
+	std::wstring Result = Input;
+	std::transform(Result.begin(), Result.end(), Result.begin(), [](int32 C) { return wchar_t(::toupper(C)); });
+	return Result;
+}
+
 FDfsMirrorInfo
 DfsEnumerate(const FPath& Root)
 {
