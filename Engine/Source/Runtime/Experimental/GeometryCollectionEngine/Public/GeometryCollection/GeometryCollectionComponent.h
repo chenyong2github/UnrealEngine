@@ -52,7 +52,9 @@ namespace GeometryCollection
 		Neighbors,
 		Parent,
 		Children,
-		Level
+		Level,
+		Leaves,
+		Clusters
 	};
 }
 

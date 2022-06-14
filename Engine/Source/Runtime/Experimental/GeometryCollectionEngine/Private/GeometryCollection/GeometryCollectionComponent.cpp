@@ -31,6 +31,8 @@
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "Engine/InstancedStaticMesh.h"
 
+#include "Algo/RemoveIf.h"
+
 #if WITH_EDITOR
 #include "AssetToolsModule.h"
 #include "Editor.h"
@@ -2757,6 +2759,34 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 		}
 		break;
 
+		case GeometryCollection::ESelectionMode::Leaves:
+		{
+			ResetBoneSelection();
+			TArray<int32> BonesToSelect;
+			FGeometryCollectionClusteringUtility::GetBonesToLevel(GeometryCollectionPtr.Get(), GetViewLevel(), BonesToSelect, true, true);
+			const TManagedArray<int32>& SimType = GeometryCollectionPtr->SimulationType;
+			BonesToSelect.SetNum(Algo::RemoveIf(BonesToSelect, [&](int32 BoneIdx)
+				{
+					return SimType[BoneIdx] != FGeometryCollection::ESimulationTypes::FST_Rigid;
+				}));
+			AppendSelectedBones(BonesToSelect);
+		}
+		break;
+
+		case GeometryCollection::ESelectionMode::Clusters:
+		{
+			ResetBoneSelection();
+			TArray<int32> BonesToSelect;
+			FGeometryCollectionClusteringUtility::GetBonesToLevel(GeometryCollectionPtr.Get(), GetViewLevel(), BonesToSelect, true, true);
+			const TManagedArray<int32>& SimType = GeometryCollectionPtr->SimulationType;
+			BonesToSelect.SetNum(Algo::RemoveIf(BonesToSelect, [&](int32 BoneIdx)
+			{
+				return SimType[BoneIdx] != FGeometryCollection::ESimulationTypes::FST_Clustered;
+			}));
+			AppendSelectedBones(BonesToSelect);
+		}
+		break;
+
 		case GeometryCollection::ESelectionMode::InverseGeometry:
 		{
 			TArray<int32> Roots;
@@ -2809,23 +2839,23 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 
 			const TArray<int32> SelectedBones = GetSelectedBones();
 
-			TArray<int32> NewSelection;
+			TSet<int32> NewSelection;
 			for (int32 Bone : SelectedBones)
 			{
-				NewSelection.AddUnique(Bone);
+				NewSelection.Add(Bone);
 				int32 GeometryIdx = TransformToGeometryIndex[Bone];
 				if (GeometryIdx != INDEX_NONE)
 				{
 					const TSet<int32>& Neighbors = Proximity[GeometryIdx];
 					for (int32 NeighborGeometryIndex : Neighbors)
 					{
-						NewSelection.AddUnique(TransformIndex[NeighborGeometryIndex]);
+						NewSelection.Add(TransformIndex[NeighborGeometryIndex]);
 					}
 				}
 			}
 
 			ResetBoneSelection();
-			AppendSelectedBones(NewSelection);
+			AppendSelectedBones(NewSelection.Array());
 		}
 		break;
 
@@ -2835,18 +2865,18 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 			
 			const TArray<int32> SelectedBones = GetSelectedBones();
 
-			TArray<int32> NewSelection;
+			TSet<int32> NewSelection;
 			for (int32 Bone : SelectedBones)
 			{
 				int32 ParentBone = Parents[Bone];
 				if (ParentBone != FGeometryCollection::Invalid)
 				{
-					NewSelection.AddUnique(ParentBone);
+					NewSelection.Add(ParentBone);
 				}
 			}
 
 			ResetBoneSelection();
-			AppendSelectedBones(NewSelection);
+			AppendSelectedBones(NewSelection.Array());
 		}
 		break;
 
@@ -2856,17 +2886,22 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 
 			const TArray<int32> SelectedBones = GetSelectedBones();
 
-			TArray<int32> NewSelection;
+			TSet<int32> NewSelection;
 			for (int32 Bone : SelectedBones)
 			{
+				if (Children[Bone].IsEmpty())
+				{
+					NewSelection.Add(Bone);
+					continue;
+				}
 				for (int32 Child : Children[Bone])
 				{
-					NewSelection.AddUnique(Child);
+					NewSelection.Add(Child);
 				}
 			}
 
 			ResetBoneSelection();
-			AppendSelectedBones(NewSelection);
+			AppendSelectedBones(NewSelection.Array());
 		}
 		break;
 
@@ -2877,7 +2912,7 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 
 			const TArray<int32> SelectedBones = GetSelectedBones();
 
-			TArray<int32> NewSelection;
+			TSet<int32> NewSelection;
 			for (int32 Bone : SelectedBones)
 			{
 				int32 ParentBone = Parents[Bone];
@@ -2885,14 +2920,14 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 				{
 					for (int32 Child : Children[ParentBone])
 					{
-						NewSelection.AddUnique(Child);
+						NewSelection.Add(Child);
 					}
 				}
 
 			}
 
 			ResetBoneSelection();
-			AppendSelectedBones(NewSelection);
+			AppendSelectedBones(NewSelection.Array());
 		}
 		break;
 
@@ -2904,7 +2939,7 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 
 				const TArray<int32> SelectedBones = GetSelectedBones();
 
-				TArray<int32> NewSelection;
+				TSet<int32> NewSelection;
 				for (int32 Bone : SelectedBones)
 				{
 					int32 Level = Levels[Bone];
@@ -2912,13 +2947,13 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 					{
 						if (Levels[TransformIdx] == Level)
 						{
-							NewSelection.AddUnique(TransformIdx);
+							NewSelection.Add(TransformIdx);
 						}
 					}
 				}
 
 				ResetBoneSelection();
-				AppendSelectedBones(NewSelection);
+				AppendSelectedBones(NewSelection.Array());
 			}	
 		}
 		break;

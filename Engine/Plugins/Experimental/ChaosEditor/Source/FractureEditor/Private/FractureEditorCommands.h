@@ -33,6 +33,8 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > SelectSiblings;
 		TSharedPtr< FUICommandInfo > SelectAllInLevel;
 		TSharedPtr< FUICommandInfo > SelectInvert;
+		TSharedPtr< FUICommandInfo > SelectLeaves;
+		TSharedPtr< FUICommandInfo > SelectClusters;
 		TSharedPtr< FUICommandInfo > SelectCustom;
 
 		// View Settings
