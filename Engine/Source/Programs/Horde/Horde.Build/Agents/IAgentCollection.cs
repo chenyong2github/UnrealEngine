@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -58,10 +58,11 @@ namespace Horde.Build.Agents
 		/// <param name="poolId">The pool ID in string form containing the agent</param>
 		/// <param name="modifiedAfter">If set, only returns agents modified after this time</param>
 		/// <param name="status">Status to look for</param>
+		/// <param name="enabled">Enabled/disabled status to look for</param>
 		/// <param name="index">Index of the first result</param>
 		/// <param name="count">Number of results to return</param>
 		/// <returns>List of agents matching the given criteria</returns>
-		Task<List<IAgent>> FindAsync(PoolId? poolId = null, DateTime? modifiedAfter = null, AgentStatus? status = null, int? index = null, int? count = null);
+		Task<List<IAgent>> FindAsync(PoolId? poolId = null, DateTime? modifiedAfter = null, AgentStatus? status = null, bool? enabled = null, int? index = null, int? count = null);
 
 		/// <summary>
 		/// Finds all the expried agents

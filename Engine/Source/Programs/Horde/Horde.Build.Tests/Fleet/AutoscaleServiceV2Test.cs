@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+extern alias HordeAgent;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Agents;
@@ -93,6 +95,21 @@ namespace Horde.Build.Tests.Fleet
 			
 			Assert.AreEqual(1, noOpSpy.CallCount);
 			Assert.IsTrue(noOpSpy.PoolIdsSeen.Contains(pool5.Id));
+		}
+		
+		[TestMethod]
+		public async Task OnlyEnabledAgentsAreAutoScaled()
+		{
+			using AutoscaleServiceV2 service = GetAutoscaleService(_fleetManagerSpy);
+			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.LeaseUtilization);
+			await CreateAgentAsync(pool, true);
+			await CreateAgentAsync(pool, true);
+			await CreateAgentAsync(pool, false);
+			
+			Dictionary<PoolSizeStrategy, List<PoolSizeData>> poolSizeDatas = await service.GetPoolSizeDataByStrategyType();
+			List<IAgent> agents = poolSizeDatas.Values.SelectMany(x => x.SelectMany(y => y.Agents)).ToList();
+
+			Assert.AreEqual(2, agents.Count);
 		}
 
 		[TestMethod]

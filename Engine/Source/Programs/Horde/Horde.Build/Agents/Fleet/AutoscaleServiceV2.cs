@@ -88,7 +88,7 @@ namespace Horde.Build.Agents.Fleet
 
 		internal async Task<Dictionary<PoolSizeStrategy, List<PoolSizeData>>> GetPoolSizeDataByStrategyType()
 		{
-			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok);
+			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok, enabled: true);
 			List<IAgent> GetAgentsInPool(PoolId poolId) => agents.FindAll(a => a.GetPools().Any(p => p == poolId));
 			List<IPool> pools = await _poolCollection.GetAsync();
 

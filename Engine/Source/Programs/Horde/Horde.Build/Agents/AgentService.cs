@@ -209,7 +209,7 @@ namespace Horde.Build.Agents
 		/// <returns>List of agents matching the given criteria</returns>
 		public Task<List<IAgent>> FindAgentsAsync(PoolId? poolId, DateTime? modifiedAfter, int? index, int? count)
 		{
-			return Agents.FindAsync(poolId, modifiedAfter, null, index, count);
+			return Agents.FindAsync(poolId, modifiedAfter, null, null, index, count);
 		}
 
 		/// <summary>

@@ -194,7 +194,7 @@ namespace Horde.Build.Agents
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IAgent>> FindAsync(PoolId? poolId, DateTime? modifiedAfter, AgentStatus? status, int? index, int? count)
+		public async Task<List<IAgent>> FindAsync(PoolId? poolId, DateTime? modifiedAfter, AgentStatus? status, bool? enabled, int? index, int? count)
 		{
 			FilterDefinitionBuilder<AgentDocument> filterBuilder = new FilterDefinitionBuilder<AgentDocument>();
 
@@ -213,6 +213,11 @@ namespace Horde.Build.Agents
 			if (status != null)
 			{
 				filter &= filterBuilder.Eq(x => x.Status, status.Value);
+			}
+			
+			if (enabled != null)
+			{
+				filter &= filterBuilder.Eq(x => x.Enabled, enabled.Value);
 			}
 
 			IFindFluent<AgentDocument, AgentDocument> search = _agents.Find(filter);
