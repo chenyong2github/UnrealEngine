@@ -100,10 +100,6 @@ const GUID CLSID_VideoProcessorMFT = { 0x88753b26, 0x5b24, 0x49bd, { 0xb2, 0xe7,
 //
 //ID3D11Device* GetUE4DxDevice();
 //
-//#elif PLATFORM_XBOXONE
-//
-//ID3D12Device* GetUE4DxDevice();
-//
 //#endif
 
 //// scope-disable particular DX11 Debug Layer errors

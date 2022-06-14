@@ -18,7 +18,7 @@
 #include "Utils.h"
 #include "UtilsRender.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #elif PLATFORM_LINUX
 #include "CudaModule.h"
@@ -361,7 +361,7 @@ namespace UE::PixelStreaming
 	{
 		bool bCompatible = true;
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 		bool bWin8OrHigher = IsWindows8OrGreater();
 		if (!bWin8OrHigher)
 		{

@@ -24,7 +24,7 @@
 //
 // Includes common to Windows and XboxOne
 //
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS
 	#include "Templates/RefCounting.h"
 #endif
 
