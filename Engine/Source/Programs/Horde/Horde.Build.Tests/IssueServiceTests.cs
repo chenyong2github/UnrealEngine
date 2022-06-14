@@ -400,6 +400,35 @@ namespace Horde.Build.Tests
 		}
 
 		[TestMethod]
+		public async Task DefaultIssueTest3()
+		{
+			// #1
+			// Scenario: Warning in first step
+			// Expected: Default issues is created
+			{
+				string[] lines =
+				{
+					@"< enterprise.max.test_maxscript_datasmith_export.from_maxscript_to_unreal[vray_materials.ms] >",
+					@"  [ :ERROR: ] [2022.14.06-12:08:55] [log_parser] keyword found 'logpython: error:'",
+					@"   > [2022.06.14-12.08.44:338][  1]LogPython: Error: One or more instance material is loaded but not expected : ['VRayMtl__2_.VRayMtl__2_', 'VRayMtl__3_.VRayMtl__3_', 'VRayMtl__1_.VRayMtl__1_', 'VRayMtl__4_.VRayMtl__4_']",
+					@"     [2022.06.14-12.08.44:338][  1]LogPython: Error: One or more instance material expected but not loaded: ['VRayMtl_2.VRayMtl_2', 'VRayMtl_3.VRayMtl_3', 'VRayMtl_4.VRayMtl_4', 'VRayMtl_7.VRayMtl_7']",
+					@"   > File ""D:\build\++UE5\Sync\Engine\Saved\pydrover\session[2022.14.06-11.50.11]\from_maxscript_to_unreal_4d5057656576\ue_log[2022.14.06-12.08.31].txt"", line 1085",
+					@"< enterprise.max.test_maxscript_datasmith_export.from_maxscript_to_unreal[vray_materials.ms] >"
+				};
+
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await ParseEventsAsync(job, 0, 0, lines);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(IssueSeverity.Error, issues[0].Severity);
+
+				Assert.AreEqual("Errors in Update Version Files", issues[0].Summary);
+			}
+		}
+
+		[TestMethod]
 		public async Task AutoSdkWarningTest()
 		{
 			// #1

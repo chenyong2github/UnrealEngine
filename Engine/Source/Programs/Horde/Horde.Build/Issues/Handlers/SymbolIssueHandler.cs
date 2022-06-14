@@ -134,9 +134,12 @@ namespace Horde.Build.Issues.Handlers
 							stepEvent.Ignored = true;
 						}
 					}
-					else if(eventId == KnownLogEvents.Generic || eventId == KnownLogEvents.AutomationTool)
+					else if (eventId == KnownLogEvents.Generic || eventId == KnownLogEvents.AutomationTool)
 					{
-						stepEvent.Ignored = true;
+						if (hasMatches)
+						{
+							stepEvent.Ignored = true;
+						}
 					}
 				}
 			}
