@@ -74,8 +74,8 @@ protected:
 	virtual const void* FindEntry(uint64 Hash) const = 0;
 };
 
-IDefinitionProvider* GetDefinitionProvider(IAnalysisSession& Session);
-const IDefinitionProvider* ReadDefinitionProvider(const IAnalysisSession& Session);
+TRACESERVICES_API IDefinitionProvider* GetDefinitionProvider(IAnalysisSession& Session);
+TRACESERVICES_API const IDefinitionProvider* ReadDefinitionProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices
 
