@@ -221,10 +221,12 @@ void* PlatformGetWindow(FPlatformOpenGLContext* Context, void** AddParam)
 
 bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport& Viewport, uint32 BackbufferSizeX, uint32 BackbufferSizeY, bool bPresent,bool bLockToVsync )
 {
+	SCOPED_NAMED_EVENT(STAT_PlatformBlitToViewportTime, FColor::Red)
+	
+	FPlatformOpenGLContext* const Context = Viewport.GetGLContext();
+
 	if (FPlatformMisc::SupportsBackbufferSampling())
 	{
-		FPlatformOpenGLContext* const Context = Viewport.GetGLContext();
-
 		if (Device->TargetDirty)
 		{
 			VERIFY_GL_SCOPE();
@@ -266,7 +268,9 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.UseFrameTimeStampsForPacing"));
 	const bool bForceGPUFence = CVar ? CVar->GetInt() != 0 : false;
 
-
+	// Bind a dummy FBO so driver knows we don't need backbuffer anymore
+	check(Context->DummyFrameBuffer != 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, Context->DummyFrameBuffer);
 
 	return bPresent && ShouldUseGPUFencesToLimitLatency();
 }

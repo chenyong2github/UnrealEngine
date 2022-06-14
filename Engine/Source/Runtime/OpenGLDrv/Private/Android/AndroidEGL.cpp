@@ -87,6 +87,7 @@ struct AndroidESPImpl
 	bool Initalized ;
 	EOpenGLCurrentContext CurrentContextType;
 	GLuint ResolveFrameBuffer;
+	GLuint DummyFrameBuffer;
 	FPlatformRect CachedWindowRect;
 
 	AndroidESPImpl();
@@ -525,6 +526,7 @@ eglDisplay(EGL_NO_DISPLAY)
 	,Window(NULL)
 	,Initalized(false)
 	,ResolveFrameBuffer(0)
+	,DummyFrameBuffer(0)
 	,NativeVisualID(0)
 	,CurrentContextType(CONTEXT_Invalid)
 	,CachedWindowRect(FPlatformRect(0,0,0,0))
@@ -612,6 +614,12 @@ void AndroidEGL::DestroyBackBuffer()
 		glDeleteFramebuffers(1, &PImplData->ResolveFrameBuffer);
 		PImplData->ResolveFrameBuffer = 0 ;
 	}
+
+	if(PImplData->DummyFrameBuffer)
+	{
+		glDeleteFramebuffers(1, &PImplData->DummyFrameBuffer);
+		PImplData->DummyFrameBuffer = 0;
+	}
 }
 
 void AndroidEGL::InitBackBuffer()
@@ -632,6 +640,12 @@ void AndroidEGL::InitBackBuffer()
 	PImplData->RenderingContext.ViewportFramebuffer = GetResolveFrameBuffer();
 	PImplData->SharedContext.ViewportFramebuffer = GetResolveFrameBuffer();
 	PImplData->SingleThreadedContext.ViewportFramebuffer = GetResolveFrameBuffer();
+	
+	// Dummy FBO we bind right after SwapBuffers to tell driver that backbuffer is no longer in use by the App
+	glGenFramebuffers(1, &PImplData->DummyFrameBuffer);
+	PImplData->RenderingContext.DummyFrameBuffer = PImplData->DummyFrameBuffer;
+	PImplData->SharedContext.DummyFrameBuffer = PImplData->DummyFrameBuffer;
+	PImplData->SingleThreadedContext.DummyFrameBuffer = PImplData->DummyFrameBuffer;
 }
 
 extern void AndroidThunkCpp_SetDesiredViewSize(int32 Width, int32 Height);

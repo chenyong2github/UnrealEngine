@@ -36,6 +36,7 @@ struct FPlatformOpenGLContext
 	GLuint		DefaultVertexArrayObject;
 	GLuint		BackBufferResource;
 	GLenum		BackBufferTarget;
+	GLuint		DummyFrameBuffer;
 
 	FPlatformOpenGLContext()
 	{
@@ -50,6 +51,7 @@ struct FPlatformOpenGLContext
 		DefaultVertexArrayObject = 0;
 		BackBufferResource = 0;
 		BackBufferTarget = 0;
+		DummyFrameBuffer = 0;
 	}
 };
 
