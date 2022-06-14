@@ -215,7 +215,7 @@ public:
 		for (int32 Index = ProcessedRegistrations; Index < Num; ++Index)
 		{
 			TType* Object = OuterRegister(Registrations[Index]);
-			InOnRegistration(*Object);
+			InOnRegistration(Registrations[Index].PackageName, *Object);
 		}
 		if (UpdateCounter)
 		{

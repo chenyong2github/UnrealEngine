@@ -27,8 +27,6 @@ extern const FName PrestreamPackageClassNameLoad;
 /** Returns true if we're inside a FGCScopeLock */
 extern bool IsGarbageCollectionLocked();
 
-bool IsFullyLoadedObj(UObject* Obj);
-
 bool IsNativeCodePackage(UPackage* Package);
 
 /** Checks if the object can have PostLoad called on the Async Loading Thread */
@@ -54,17 +52,6 @@ void ClearFlagsAndDissolveClustersFromLoadedObjects(T& LoadedObjects)
 class IAsyncPackageLoader;
 class FPackageIndex;
 class LinkerInstancingContext;
-
-class IEDLBootNotificationManager
-{
-public:
-	virtual ~IEDLBootNotificationManager() = default;
-
-	virtual bool AddWaitingPackage(void* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import, bool bIgnoreMissingPackage) = 0;
-	virtual bool ConstructWaitingBootObjects() = 0;
-	virtual bool FireCompletedCompiledInImports(bool bFinalRun = false) = 0;
-	virtual bool IsWaitingForSomething() = 0;
-};
 
 /** Structure that holds the async loading thread ini settings */
 struct FAsyncLoadingThreadSettings
@@ -221,7 +208,9 @@ public:
 
 	virtual void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects) = 0;
 
-	virtual void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import) = 0;
+	virtual void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject* (*InRegister)(), bool InbDynamic) = 0;
+
+	virtual void NotifyRegistrationComplete() = 0;
 
 protected:
 	static int32 GetNextRequestId();

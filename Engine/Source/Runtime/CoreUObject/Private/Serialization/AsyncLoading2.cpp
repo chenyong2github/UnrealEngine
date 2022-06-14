@@ -63,6 +63,7 @@
 #include "HAL/IPlatformFileOpenLogWrapper.h"
 #include "Modules/ModuleManager.h"
 #include "Containers/SpscQueue.h"
+#include "Misc/PathViews.h"
 
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 PRAGMA_DISABLE_OPTIMIZATION
@@ -383,6 +384,8 @@ struct FAsyncPackageDesc2
 {
 	// A unique request id for each external call to LoadPackage
 	int32 RequestID;
+	// The request id of the referencer propagated down the import chain from the most recent load request
+	int32 ReferencerRequestId;
 	// Package priority
 	int32 Priority;
 	// The package id of the UPackage being loaded
@@ -410,6 +413,7 @@ struct FAsyncPackageDesc2
 		return FAsyncPackageDesc2
 		{
 			RequestID,
+			RequestID,
 			Priority,
 			FPackageId::FromName(UPackageName),
 			PackageIdToLoad,
@@ -420,6 +424,7 @@ struct FAsyncPackageDesc2
 	}
 
 	static FAsyncPackageDesc2 FromPackageImport(
+		int32 ReferencerRequestId,
 		int32 Priority,
 		FPackageId ImportedPackageId,
 		FPackageId PackageIdToLoad,
@@ -428,6 +433,7 @@ struct FAsyncPackageDesc2
 		return FAsyncPackageDesc2
 		{
 			INDEX_NONE,
+			ReferencerRequestId,
 			Priority,
 			ImportedPackageId,
 			PackageIdToLoad,
@@ -449,48 +455,11 @@ struct FGlobalImportStore
 	TMap<FPackageObjectIndex, UObject*> ScriptObjects;
 	TMap<FPublicExportKey, int32> PublicExportToObjectIndex;
 	TMap<int32, FPublicExportKey> ObjectIndexToPublicExport;
-	// Temporary initial load data
-	TArray<FScriptObjectEntry> ScriptObjectEntries;
-	TMap<FPackageObjectIndex, FScriptObjectEntry*> ScriptObjectEntriesMap;
-	bool bHasInitializedScriptObjects = false;
 
 	FGlobalImportStore()
 	{
 		PublicExportToObjectIndex.Reserve(32768);
 		ObjectIndexToPublicExport.Reserve(32768);
-	}
-
-	void Initialize(FIoDispatcher& IoDispatcher)
-	{
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(SetupInitialLoadData);
-
-			FEvent* InitialLoadEvent = FPlatformProcess::GetSynchEventFromPool();
-
-			FIoBatch IoBatch = IoDispatcher.NewBatch();
-			FIoRequest IoRequest = IoBatch.Read(CreateIoChunkId(0, 0, EIoChunkType::ScriptObjects), FIoReadOptions(), IoDispatcherPriority_High);
-			IoBatch.IssueAndTriggerEvent(InitialLoadEvent);
-
-			InitialLoadEvent->Wait();
-			FPlatformProcess::ReturnSynchEventToPool(InitialLoadEvent);
-
-			const FIoBuffer& InitialLoadIoBuffer = IoRequest.GetResultOrDie();
-			FLargeMemoryReader InitialLoadArchive(InitialLoadIoBuffer.Data(), InitialLoadIoBuffer.DataSize());
-			FNameMap NameMap;
-			NameMap.Load(InitialLoadArchive, FMappedName::EType::Global);
-			int32 NumScriptObjects = 0;
-			InitialLoadArchive << NumScriptObjects;
-			ScriptObjectEntries = MakeArrayView(reinterpret_cast<const FScriptObjectEntry*>(InitialLoadIoBuffer.Data() + InitialLoadArchive.Tell()), NumScriptObjects);
-
-			ScriptObjectEntriesMap.Reserve(ScriptObjectEntries.Num());
-			for (FScriptObjectEntry& ScriptObjectEntry : ScriptObjectEntries)
-			{
-				check(ScriptObjectEntry.Mapped.IsGlobal());
-				ScriptObjectEntry.ObjectName = NameMap.GetMinimalName(ScriptObjectEntry.Mapped);
-
-				ScriptObjectEntriesMap.Add(ScriptObjectEntry.GlobalIndex, &ScriptObjectEntry);
-			}
-		}
 	}
 
 	TArray<FPackageId> RemovePublicExports(const FUnreachablePublicExports& PublicExports)
@@ -580,20 +549,11 @@ struct FGlobalImportStore
 		return Object;
 	}
 
-	UObject* FindScriptImportObjectFromIndex(FPackageObjectIndex ScriptImportIndex);
-
 	inline UObject* FindScriptImportObject(FPackageObjectIndex GlobalIndex)
 	{
 		check(GlobalIndex.IsScriptImport());
 		UObject* Object = nullptr;
-		if (!bHasInitializedScriptObjects)
-		{
-			Object = FindScriptImportObjectFromIndex(GlobalIndex);
-		}
-		else
-		{
-			Object = ScriptObjects.FindRef(GlobalIndex);
-		}
+		Object = ScriptObjects.FindRef(GlobalIndex);
 		return Object;
 	}
 
@@ -635,6 +595,48 @@ struct FGlobalImportStore
 	}
 
 	void FindAllScriptObjects();
+
+	void AddScriptObject(FStringView PackageName, FStringView Name)
+	{
+		TStringBuilder<FName::StringBufferSize> FullName;
+		FPathViews::Append(FullName, PackageName);
+		FPathViews::Append(FullName, Name);
+		FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex::FromScriptPath(FullName);
+
+		UObject* Package = StaticFindObjectFastInternal(UPackage::StaticClass(), nullptr, FName(PackageName), true);
+		// check(Package);
+		if (!ensureMsgf(Package, TEXT("Failed to find package when registering script object '%.*s/%.*s'"),
+			PackageName.Len(), PackageName.GetData(), Name.Len(), Name.GetData()))
+		{
+			return;
+		}
+
+		UObject* Object = StaticFindObjectFastInternal(nullptr, Package, FName(Name));
+		// check(Object);
+		if (!ensureMsgf(Object, TEXT("Failed to find object when registering script object '%.*s/%.*s'"),
+			PackageName.Len(), PackageName.GetData(), Name.Len(), Name.GetData()))
+		{
+			return;
+		}
+
+#if WITH_EDITOR
+		FPackageObjectIndex PackageGlobalImportIndex = FPackageObjectIndex::FromScriptPath(PackageName);
+		ScriptObjects.Add(PackageGlobalImportIndex, Package);
+#endif
+		ScriptObjects.Add(GlobalImportIndex, Object);
+
+		TStringBuilder<FName::StringBufferSize> SubObjectName;
+		ForEachObjectWithOuter(Object, [this,&SubObjectName](UObject* SubObject)
+		{
+			if (SubObject->HasAnyFlags(RF_Public))
+			{
+				SubObjectName.Reset();
+				SubObject->GetPathName(nullptr, SubObjectName);
+				FPackageObjectIndex SubObjectGlobalImportIndex = FPackageObjectIndex::FromScriptPath(SubObjectName);
+				ScriptObjects.Add(SubObjectGlobalImportIndex, SubObject);
+			}
+		}, /* bIncludeNestedObjects*/ true);
+	}
 };
 
 class FLoadedPackageRef
@@ -940,23 +942,32 @@ struct FPackageImportStore
 				continue;
 			}
 
-			UObject* Object = GlobalImportStore.FindScriptImportObjectFromIndex(Index);
-			if (Object)
+			UObject* Object = GlobalImportStore.FindScriptImportObject(Index);
+			if (!Object)
 			{
 				continue;
 			}
 
-			const FScriptObjectEntry* Entry = GlobalImportStore.ScriptObjectEntriesMap.FindRef(Index);
-			check(Entry);
-			const FPackageObjectIndex& CDOClassIndex = Entry->CDOClassIndex;
-			if (CDOClassIndex.IsScriptImport())
+			UClass* Class = Cast<UClass>(Object);
+			if (!Class)
 			{
-				UObject* CDOClassObject = GlobalImportStore.FindScriptImportObjectFromIndex(CDOClassIndex);
-				if (CDOClassObject)
-				{
-					UClass* CDOClass = static_cast<UClass*>(CDOClassObject);
-					Classes.AddUnique(CDOClass);
-				}
+				continue;
+			}
+
+			// Filter out CDOs that are themselves classes,
+			// like Default__BlueprintGeneratedClass of type UBlueprintGeneratedClass
+			if (Class->HasAnyFlags(RF_ClassDefaultObject))
+			{
+				continue;
+			}
+
+			// Add dependency on any script CDO that has not been created and initialized yet
+			UObject* CDO = Class->GetDefaultObject(/*bCreateIfNeeded*/ false);
+			if (!CDO || CDO->HasAnyFlags(RF_NeedInitialization))
+			{
+				UE_LOG(LogStreaming, Log, TEXT("Package %s has a dependency on pending script CDO for '%s' (0x%llX)"),
+					*Header.PackageName.ToString(), *Class->GetFullName(), Index.Value());
+					Classes.AddUnique(Class);
 			}
 		}
 	}
@@ -1393,6 +1404,8 @@ public:
 		NodeState.Store(static_cast<uint8>(InNodeState));
 	}
 
+	int32 ReferencerRequestId() const;
+
 private:
 	void ProcessDependencies(FAsyncLoadingThreadState2& ThreadState);
 	void Fire(FAsyncLoadingThreadState2* ThreadState = nullptr);
@@ -1659,6 +1672,11 @@ struct FAsyncPackage2
 
 	/** Adds new request ID to the existing package */
 	void AddRequestID(int32 Id);
+
+	int32 ReferencerRequestId() const
+	{
+		return Desc.ReferencerRequestId;
+	}
 
 	/**
 	* Cancel loading this package.
@@ -2019,11 +2037,9 @@ private:
 	TArray<FAsyncLoadingThreadWorker> Workers;
 	TAtomic<int32> ActiveWorkersCount { 0 };
 	bool bWorkersSuspended = false;
-
+	bool bHasRegisteredAllScriptObjects = false;
 	/** [ASYNC/GAME THREAD] true if the async thread is actually started. We don't start it until after we boot because the boot process on the game thread can create objects that are also being created by the loader */
 	bool bThreadStarted = false;
-
-	mutable bool bLazyInitializedFromLoadPackage = false;
 
 #if ALT2_VERIFY_RECURSIVE_LOADS
 	int32 LoadRecursionLevel = 0;
@@ -2100,6 +2116,7 @@ private:
 
 	/** Initial load pending CDOs */
 	TMap<UClass*, TArray<FEventLoadNode2*>> PendingCDOs;
+	TArray<UClass*> PendingCDOsRecursiveStack;
 
 	uint32 ConditionalBeginPostLoadTick = 0;
 	uint32 ConditionalFinishLoadingTick = 0;
@@ -2196,7 +2213,9 @@ public:
 
 	virtual void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects) override;
 
-	virtual void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import) override {}
+	virtual void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject* (*InRegister)(), bool InbDynamic) override;
+
+	virtual void NotifyRegistrationComplete() override;
 
 	FORCEINLINE FAsyncPackage2* FindAsyncPackage(FPackageId PackageId)
 	{
@@ -2352,35 +2371,81 @@ private:
 	void SuspendWorkers();
 	void ResumeWorkers();
 
-	void LazyInitializeFromLoadPackage();
 	void FinalizeInitialLoad();
 
 	void RemoveUnreachableObjects(const FUnreachablePublicExports& PublicExports, const FUnreachablePackages& Packages);
 
-	bool ProcessPendingCDOs()
+	void ProcessPendingCDOs()
 	{
-		if (PendingCDOs.Num() > 0)
+		TRACE_CPUPROFILER_EVENT_SCOPE(ProcessPendingCDOs);
+
+		UClass* Class = nullptr;
+		int32 MaxRequestId = -1;
+		for (TMap<UClass*, TArray<FEventLoadNode2*>>::TIterator It = PendingCDOs.CreateIterator(); It; ++It)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessPendingCDOs);
+			UClass* CurrentClass = It.Key();
+			if (PendingCDOsRecursiveStack.Num() > 0)
+			{
+				bool bAnyParentOnStack = false;
+				UClass* Super = CurrentClass;
+				while (Super)
+				{
+					if (PendingCDOsRecursiveStack.Contains(Super))
+					{
+						bAnyParentOnStack = true;
+						break;
+					}
+					Super = Super->GetSuperClass();
+				}
+				if (bAnyParentOnStack)
+				{
+					continue;
+				}
+			}
 
-			auto It = PendingCDOs.CreateIterator();
-			UClass* Class = It.Key();
-			TArray<FEventLoadNode2*> Nodes = MoveTemp(It.Value());
-			It.RemoveCurrent();
+			const TArray<FEventLoadNode2*>& Nodes = It.Value();
+			for (const FEventLoadNode2* Node : Nodes)
+			{
+				int32 RequestId = Node->ReferencerRequestId();
+				if (RequestId > MaxRequestId)
+				{
+					MaxRequestId = RequestId;
+					Class = CurrentClass;
+				}
+			}
+		}
 
-			UE_LOG(LogStreaming, Verbose, TEXT("ProcessPendingCDOs: Creating CDO for %s. %d entries remaining."), *Class->GetFullName(), PendingCDOs.Num());
-			UObject* CDO = Class->GetDefaultObject();
+		if (ensure(Class))
+		{
+			TArray<FEventLoadNode2*> Nodes;
+			PendingCDOs.RemoveAndCopyValue(Class, Nodes);
 
-			ensureMsgf(CDO, TEXT("Failed to create CDO for %s"), *Class->GetFullName());
-			UE_LOG(LogStreaming, Verbose, TEXT("ProcessPendingCDOs: Created CDO for %s."), *Class->GetFullName());
+			UE_LOG(LogStreaming, Log,
+				TEXT("ProcessPendingCDOs: Creating CDO for '%s' for request id %d, releasing %d nodes. %d CDOs remaining."),
+				*Class->GetFullName(), MaxRequestId, Nodes.Num(), PendingCDOs.Num());
+			PendingCDOsRecursiveStack.Push(Class);
+			UObject* CDO = Class->GetDefaultObject(/*bCreateIfNeeded*/ true);
+			verify(PendingCDOsRecursiveStack.Pop() == Class);
+
+			ensureAlwaysMsgf(CDO, TEXT("Failed to create CDO for %s"), *Class->GetFullName());
+			UE_LOG(LogStreaming, Verbose, TEXT("ProcessPendingCDOs: Created CDO for '%s'."), *Class->GetFullName());
 
 			for (FEventLoadNode2* Node : Nodes)
 			{
 				Node->ReleaseBarrier();
 			}
-			return true;
 		}
-		return false;
+		else
+		{
+			for (TMap<UClass*, TArray<FEventLoadNode2*>>::TIterator It = PendingCDOs.CreateIterator(); It; ++It)
+			{
+				UClass* CurrentClass = It.Key();
+				const TArray<FEventLoadNode2*>& Nodes = It.Value();
+				UE_LOG(LogStreaming, Warning,
+					TEXT("ProcessPendingCDOs: '%s' with %d nodes could not be processed from this stack."),
+					*Class->GetFullName(), Nodes.Num());
+			}
+		}
 	}
 
 	/**
@@ -2647,6 +2712,7 @@ FAsyncPackage2* FAsyncLoadingThread2::FindOrInsertPackage(FAsyncPackageDesc2& De
 			{
 				UpdatePackagePriority(Package, Desc.Priority);
 			}
+			Package->Desc.ReferencerRequestId = Desc.ReferencerRequestId;
 		}
 		if (PackageLoadedDelegate.IsValid())
 		{
@@ -2990,6 +3056,11 @@ void FEventLoadNode2::ProcessDependencies(FAsyncLoadingThreadState2& ThreadState
 	}
 }
 
+int32 FEventLoadNode2::ReferencerRequestId() const
+{
+	return Package->ReferencerRequestId();
+}
+
 FAsyncLoadEventQueue2::FAsyncLoadEventQueue2()
 {
 }
@@ -3227,37 +3298,6 @@ void FAsyncPackage2::SetupScriptDependencies()
 	}
 }
 
-static UObject* GFindExistingScriptImport(FPackageObjectIndex GlobalImportIndex,
-	TMap<FPackageObjectIndex, UObject*>& ScriptObjects,
-	const TMap<FPackageObjectIndex, FScriptObjectEntry*>& ScriptObjectEntriesMap)
-{
-	UObject** Object = &ScriptObjects.FindOrAdd(GlobalImportIndex);
-	if (!*Object)
-	{
-		const FScriptObjectEntry* Entry = ScriptObjectEntriesMap.FindRef(GlobalImportIndex);
-		check(Entry);
-		if (Entry->OuterIndex.IsNull())
-		{
-			*Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry->ObjectName), true);
-		}
-		else
-		{
-			UObject* Outer = GFindExistingScriptImport(Entry->OuterIndex, ScriptObjects, ScriptObjectEntriesMap);
-			Object = &ScriptObjects.FindChecked(GlobalImportIndex);
-			if (Outer)
-			{
-				*Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false);
-			}
-		}
-	}
-	return *Object;
-}
-
-UObject* FGlobalImportStore::FindScriptImportObjectFromIndex(FPackageObjectIndex GlobalImportIndex)
-{
-	check(ScriptObjectEntries.Num() > 0);
-	return GFindExistingScriptImport(GlobalImportIndex, ScriptObjects, ScriptObjectEntriesMap);
-}
 
 void FGlobalImportStore::FindAllScriptObjects()
 {
@@ -3269,6 +3309,13 @@ void FGlobalImportStore::FindAllScriptObjects()
 
 	for (UPackage* Package : ScriptPackages)
 	{
+#if WITH_EDITOR
+		Name.Reset();
+		Package->GetPathName(nullptr, Name);
+		FPackageObjectIndex PackageGlobalImportIndex = FPackageObjectIndex::FromScriptPath(Name);
+		ScriptObjects.Add(PackageGlobalImportIndex, Package);
+#endif
+
 		Objects.Reset();
 		GetObjectsWithOuter(Package, Objects, /*bIncludeNestedObjects*/true);
 		for (UObject* Object : Objects)
@@ -3278,19 +3325,18 @@ void FGlobalImportStore::FindAllScriptObjects()
 				Name.Reset();
 				Object->GetPathName(nullptr, Name);
 				FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex::FromScriptPath(Name);
-				ScriptObjects.Add(GlobalImportIndex, Object);
+				if (!ScriptObjects.Contains(GlobalImportIndex))
+				{
+					ScriptObjects.Add(GlobalImportIndex, Object);
+#if !WITH_EDITOR
+					UE_LOG(LogStreaming, Warning, TEXT("Found additional public script object 0x%016llX: %s\r\n"),
+						GlobalImportIndex.Value(),
+						*Object->GetFullName());
+#endif
+				}
 			}
 		}
 	}
-
-	ScriptObjectEntriesMap.Empty();
-	ScriptObjectEntries.Empty();
-	ScriptObjects.Shrink();
-
-	bHasInitializedScriptObjects = true;
-
-	UE_LOG(LogStreaming, Display, TEXT("AsyncLoading2 - InitialLoad Finalized: %d script object entries in %.2f KB"),
-		ScriptObjects.Num(), (float)ScriptObjects.GetAllocatedSize() / 1024.f);
 }
 
 void FAsyncPackage2::ImportPackagesRecursiveInner(FIoBatch& IoBatch, FPackageStore& PackageStore, const TArrayView<const FPackageId>& ImportedPackageIds, int32& ImportedPackageIndex)
@@ -3394,7 +3440,7 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FIoBatch& IoBatch, FPackageSto
 
 		FAsyncPackage2* ImportedPackage = nullptr;
 		bool bInserted = false;
-		FAsyncPackageDesc2 PackageDesc = FAsyncPackageDesc2::FromPackageImport(Desc.Priority, ImportedPackageId, ImportedPackageIdToLoad, ImportedPackageUPackageName);
+		FAsyncPackageDesc2 PackageDesc = FAsyncPackageDesc2::FromPackageImport(Desc.ReferencerRequestId, Desc.Priority, ImportedPackageId, ImportedPackageIdToLoad, ImportedPackageUPackageName);
 		if (PackageRef.AreAllPublicExportsLoaded())
 		{
 			ImportedPackage = AsyncLoadingThread.FindAsyncPackage(ImportedPackageId);
@@ -3698,7 +3744,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_SetupDependencies(FAsyncLoadingTh
 	
 	if (!Package->bLoadHasFailed)
 	{
-		if (GIsInitialLoad)
+		if (!Package->AsyncLoadingThread.bHasRegisteredAllScriptObjects)
 		{
 			Package->SetupScriptDependencies();
 		}
@@ -3918,32 +3964,29 @@ UObject* FAsyncPackage2::EventDrivenIndexToObject(const FAsyncPackageHeaderData&
 	if (Index.IsExport())
 	{
 		Result = Exports[Index.ToExport()].Object;
+		UE_CLOG(!Result, LogStreaming, Warning, TEXT("Missing Dependency, missing export 0x%llX in package %s"),
+			Index.Value(),
+			*Desc.PackagePathToLoad.GetPackageFName().ToString());
 	}
 	else if (Index.IsImport())
 	{
 		Result = ImportStore.FindOrGetImportObject(Header, Index);
-		UE_CLOG(!Result, LogStreaming, Warning, TEXT("Missing %s import 0x%llX for package %s"),
+		UE_CLOG(!Result, LogStreaming, Warning, TEXT("Missing Dependency, missing %s import 0x%llX for package %s"),
 			Index.IsScriptImport() ? TEXT("script") : TEXT("package"),
 			Index.Value(),
 			*Desc.PackagePathToLoad.GetPackageFName().ToString());
 	}
 #if DO_CHECK
-	if (bCheckSerialized && !IsFullyLoadedObj(Result))
+	if (Result && bCheckSerialized)
 	{
-		/*FEventLoadNode2* MyDependentNode = GetExportNode(EEventLoadNode2::Export_Serialize, Index.ToExport());
-		if (!Result)
+		bool bIsSerialized = Index.IsScriptImport() || Result->IsA(UPackage::StaticClass()) || Result->HasAllFlags(RF_WasLoaded | RF_LoadCompleted);
+		if (!bIsSerialized)
 		{
-			UE_LOG(LogStreaming, Error, TEXT("Missing Dependency, request for %s but it hasn't been created yet."), *Linker->GetPathName(Index));
+			UE_LOG(LogStreaming, Warning, TEXT("Missing Dependency, '%s' (0x%llX) for package %s has not been serialized yet."),
+				*Result->GetFullName(),
+				Index.Value(),
+				*Desc.PackagePathToLoad.GetPackageFName().ToString());
 		}
-		else if (!MyDependentNode || MyDependentNode->GetBarrierCount() > 0)
-		{
-			UE_LOG(LogStreaming, Fatal, TEXT("Missing Dependency, request for %s but it was still waiting for serialization."), *Linker->GetPathName(Index));
-		}
-		else
-		{
-			UE_LOG(LogStreaming, Fatal, TEXT("Missing Dependency, request for %s but it was still has RF_NeedLoad."), *Linker->GetPathName(Index));
-		}*/
-		UE_LOG(LogStreaming, Warning, TEXT("Missing Dependency"));
 	}
 	if (Result)
 	{
@@ -5155,16 +5198,15 @@ EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(FA
 
 		if (Result != EAsyncPackageState::TimeOut)
 		{
+			if (!bDidSomething && PendingCDOs.Num() > 0)
+			{
+				ProcessPendingCDOs();
+			}
+
 			// Flush deferred messages
 			if (!IsAsyncLoadingPackages())
 			{
-				bDidSomething = true;
 				FDeferredMessageLog::Flush();
-			}
-
-			if (GIsInitialLoad && !bDidSomething)
-			{
-				bDidSomething = ProcessPendingCDOs();
 			}
 		}
 
@@ -5300,27 +5342,21 @@ void FAsyncLoadingThread2::ResumeWorkers()
 	bWorkersSuspended = false;
 }
 
-void FAsyncLoadingThread2::LazyInitializeFromLoadPackage()
-{
-	if (bLazyInitializedFromLoadPackage)
-	{
-		return;	
-	}
-	bLazyInitializedFromLoadPackage = true;
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(LazyInitializeFromLoadPackage);
-	if (GIsInitialLoad)
-	{
-		GlobalImportStore.Initialize(IoDispatcher);
-	}
-}
-
 void FAsyncLoadingThread2::FinalizeInitialLoad()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FinalizeInitialLoad);
-	GlobalImportStore.FindAllScriptObjects();
+	GlobalImportStore.FindAllScriptObjects(); // for verification only
+	GlobalImportStore.ScriptObjects.Shrink();
+	bHasRegisteredAllScriptObjects = true;
+
 	check(PendingCDOs.Num() == 0);
 	PendingCDOs.Empty();
+	check(PendingCDOsRecursiveStack.Num() == 0);
+	PendingCDOsRecursiveStack.Empty();
+
+	UE_LOG(LogStreaming, Display,
+		TEXT("AsyncLoading2 - InitialLoad Finalized: Registered %d public script object entries (%.2f KB)"),
+		GlobalImportStore.ScriptObjects.Num(), (float)GlobalImportStore.ScriptObjects.GetAllocatedSize() / 1024.f);
 }
 
 uint32 FAsyncLoadingThread2::Run()
@@ -5753,6 +5789,25 @@ void FAsyncLoadingThread2::NotifyConstructedDuringAsyncLoading(UObject* Object, 
 	}
 	FAsyncPackage2* AsyncPackage2 = (FAsyncPackage2*)ThreadContext.AsyncPackage;
 	AsyncPackage2->AddConstructedObject(Object, bSubObjectThatAlreadyExists);
+}
+
+void FAsyncLoadingThread2::NotifyRegistrationEvent(
+	const TCHAR* PackageName,
+	const TCHAR* Name,
+	ENotifyRegistrationType NotifyRegistrationType,
+	ENotifyRegistrationPhase NotifyRegistrationPhase,
+	UObject* (*InRegister)(),
+	bool InbDynamic)
+{
+	if (NotifyRegistrationPhase == ENotifyRegistrationPhase::NRP_Finished)
+	{
+		GlobalImportStore.AddScriptObject(PackageName, Name);
+	}
+}
+
+void FAsyncLoadingThread2::NotifyRegistrationComplete()
+{
+
 }
 
 /*-----------------------------------------------------------------------------
@@ -6195,8 +6250,6 @@ int32 FAsyncLoadingThread2::LoadPackage(const FPackagePath& InPackagePath, FName
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackage);
 
-	LazyInitializeFromLoadPackage();
-	
 	const FName PackageNameToLoad = InPackagePath.GetPackageFName();
 	if (InCustomName == PackageNameToLoad)
 	{

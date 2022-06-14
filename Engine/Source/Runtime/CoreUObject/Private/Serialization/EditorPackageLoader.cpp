@@ -16,9 +16,9 @@ class FEditorPackageLoader final
 	: public IAsyncPackageLoader
 {
 public:
-	FEditorPackageLoader(FIoDispatcher& InIoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager)
+	FEditorPackageLoader(FIoDispatcher& InIoDispatcher)
 	{
-		UncookedPackageLoader.Reset(new FAsyncLoadingThread(/** ThreadIndex = */ 0, InEDLBootNotificationManager));
+		UncookedPackageLoader.Reset(new FAsyncLoadingThread(/** ThreadIndex = */ 0));
 		CookedPackageLoader.Reset(MakeAsyncPackageLoader2(InIoDispatcher, UncookedPackageLoader.Get()));
 		UncookedPackageLoader->SetIoStorePackageLoader(CookedPackageLoader.Get());
 	}
@@ -193,9 +193,34 @@ public:
 		CookedPackageLoader->NotifyUnreachableObjects(UnreachableObjects);
 	}
 
-	virtual void FireCompletedCompiledInImport(void* AsyncPackage, FPackageIndex Import) override
+	virtual void NotifyRegistrationEvent(
+		const TCHAR* PackageName,
+		const TCHAR* Name,
+		ENotifyRegistrationType NotifyRegistrationType,
+		ENotifyRegistrationPhase NotifyRegistrationPhase,
+		UObject* (*InRegister)(),
+		bool InbDynamic) override
 	{
-		// Only used in the old EDL loader which is not enabled in editor builds
+		if (UncookedPackageLoader)
+		{
+			UncookedPackageLoader->NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic);
+		}
+		if (CookedPackageLoader)
+		{
+			CookedPackageLoader->NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic);
+		}
+	}
+
+	virtual void NotifyRegistrationComplete() override
+	{
+		if (UncookedPackageLoader)
+		{
+			UncookedPackageLoader->NotifyRegistrationComplete();
+		}
+		if (CookedPackageLoader)
+		{
+			CookedPackageLoader->NotifyRegistrationComplete();
+		}
 	}
 
 private:
@@ -204,9 +229,9 @@ private:
 	bool bHasInitializedCookedPackageLoader = false;
 };
 
-TUniquePtr<IAsyncPackageLoader> MakeEditorPackageLoader(FIoDispatcher& InIoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager)
+TUniquePtr<IAsyncPackageLoader> MakeEditorPackageLoader(FIoDispatcher& InIoDispatcher)
 {
-	return TUniquePtr<IAsyncPackageLoader>(new FEditorPackageLoader(InIoDispatcher, InEDLBootNotificationManager));
+	return TUniquePtr<IAsyncPackageLoader>(new FEditorPackageLoader(InIoDispatcher));
 }
 
 #endif // WITH_IOSTORE_IN_EDITOR

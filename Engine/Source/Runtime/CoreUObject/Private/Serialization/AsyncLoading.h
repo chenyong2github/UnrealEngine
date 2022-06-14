@@ -343,7 +343,7 @@ struct FAsyncPackage : public FGCObject
 	/**
 	 * Constructor
 	 */
-	FAsyncPackage(FAsyncLoadingThread& InThread, const FAsyncPackageDesc& InDesc, IEDLBootNotificationManager& InEDLBootNotificationManager);
+	FAsyncPackage(FAsyncLoadingThread& InThread, const FAsyncPackageDesc& InDesc, struct FEDLBootNotificationManager& InEDLBootNotificationManager);
 	~FAsyncPackage();
 
 	/**
@@ -549,6 +549,8 @@ private:
 	/** Add the list of passed in Requests to the list of requests that are dependent on this package. */
 	void AddDependentRequests(TArrayView<int32 const> Requests);
 
+	bool IsFullyLoadedObj(UObject* Obj);
+
 	/** Basic information associated with this package */
 	FAsyncPackageDesc Desc;
 	/** Linker which is going to have its exports and imports loaded									*/
@@ -643,7 +645,7 @@ private:
 	FCriticalSection ReferencedObjectsCritical;
 	/** Cached async loading thread object this package was created by */
 	FAsyncLoadingThread& AsyncLoadingThread;
-	class IEDLBootNotificationManager& EDLBootNotificationManager;
+	FEDLBootNotificationManager& EDLBootNotificationManager;
 	/** Packages that have been imported by this async package */
 	TSet<UPackage*> ImportedPackages;
 

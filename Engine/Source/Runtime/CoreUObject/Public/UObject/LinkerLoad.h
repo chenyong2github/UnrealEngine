@@ -1366,6 +1366,7 @@ enum class ENotifyRegistrationType
 	NRT_Struct,
 	NRT_Enum,
 	NRT_Package,
+	NRT_NoExportObject,
 };
 
 enum class ENotifyRegistrationPhase

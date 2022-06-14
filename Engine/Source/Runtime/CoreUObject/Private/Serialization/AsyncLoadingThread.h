@@ -177,7 +177,7 @@ class FAsyncLoadingThread final : public FRunnable, public IAsyncPackageLoader
 {
 	friend struct FAsyncPackage;
 
-	IEDLBootNotificationManager& EDLBootNotificationManager;
+	struct FEDLBootNotificationManager& EDLBootNotificationManager;
 
 	/** Thread to run the worker FRunnable on */
 	FRunnableThread* Thread;
@@ -288,7 +288,7 @@ private:
 
 public:
 
-	FAsyncLoadingThread(int32 InThreadIndex, IEDLBootNotificationManager& InEDLBootNotificationManager);
+	FAsyncLoadingThread(int32 InThreadIndex);
 	virtual ~FAsyncLoadingThread();
 
 	IAsyncPackageLoader* GetIoStorePackageLoader() const
@@ -338,7 +338,11 @@ public:
 
 	void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects) override {};
 
-	void FireCompletedCompiledInImport(void* AsyncPacakge, FPackageIndex Import) override;
+	void FireCompletedCompiledInImport(void* AsyncPacakge, FPackageIndex Import);
+
+	void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject* (*InRegister)(), bool InbDynamic) override;
+
+	void NotifyRegistrationComplete() override;
 
 	/** [EDL] Event queue */
 	FAsyncLoadEventQueue EventQueue;

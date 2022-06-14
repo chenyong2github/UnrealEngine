@@ -97,7 +97,6 @@ COREUOBJECT_API void InitializePrivateStaticClass(
 	)
 {
 	TRACE_LOADTIME_CLASS_INFO(TClass_PrivateStaticClass, Name);
-	NotifyRegistrationEvent(PackageName, Name, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Started);
 
 	/* No recursive ::StaticClass calls allowed. Setup extras. */
 	if (TClass_Super_StaticClass != TClass_PrivateStaticClass)
@@ -116,8 +115,6 @@ COREUOBJECT_API void InitializePrivateStaticClass(
 		// Defer
 		TClass_PrivateStaticClass->Register(PackageName, Name);
 	}
-	
-	NotifyRegistrationEvent(PackageName, Name, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Finished);
 }
 
 void FNativeFunctionRegistrar::RegisterFunction(class UClass* Class, const ANSICHAR* InName, FNativeFuncPtr InPointer)
@@ -4119,17 +4116,6 @@ UObject* UClass::CreateDefaultObject()
 			// NULL (so we don't invalidate one that has already been setup)
 			if (ClassDefaultObject == NULL)
 			{
-				FString PackageName;
-				FString CDOName;
-				bool bDoNotify = false;
-				if (GIsInitialLoad && GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn) && !GetOutermost()->HasAnyPackageFlags(PKG_RuntimeGenerated))
-				{
-					PackageName = GetOutermost()->GetFName().ToString();
-					CDOName = GetDefaultObjectName().ToString();
-					NotifyRegistrationEvent(*PackageName, *CDOName, ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Started);
-					bDoNotify = true;
-				}
-
 				// RF_ArchetypeObject flag is often redundant to RF_ClassDefaultObject, but we need to tag
 				// the CDO as RF_ArchetypeObject in order to propagate that flag to any default sub objects.
 				ClassDefaultObject = StaticAllocateObject(this, GetOuter(), NAME_None, EObjectFlags(RF_Public|RF_ClassDefaultObject|RF_ArchetypeObject));
@@ -4148,9 +4134,13 @@ UObject* UClass::CreateDefaultObject()
 					InitOptions |= EObjectInitializerOptions::InitializeProperties;
 				}
 				(*ClassConstructor)(FObjectInitializer(ClassDefaultObject, ParentDefaultObject, InitOptions));
-				if (bDoNotify)
+				if (GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn) && !GetOutermost()->HasAnyPackageFlags(PKG_RuntimeGenerated))
 				{
-					NotifyRegistrationEvent(*PackageName, *CDOName, ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Finished);
+					TCHAR PackageName[FName::StringBufferSize];
+					TCHAR CDOName[FName::StringBufferSize];
+					GetOutermost()->GetFName().ToString(PackageName);
+					GetDefaultObjectName().ToString(CDOName);
+					NotifyRegistrationEvent(PackageName, CDOName, ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Finished);
 				}
 				ClassDefaultObject->PostCDOContruct();
 			}

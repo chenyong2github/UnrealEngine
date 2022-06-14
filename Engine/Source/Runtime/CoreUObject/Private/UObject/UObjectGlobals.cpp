@@ -5436,17 +5436,24 @@ namespace UECodeGen_Private
 		TArray<UFunction*> Delegates;
 		Delegates.Reserve(Params.NumSingletons);
 #endif
+		TCHAR PackageName[FName::StringBufferSize];
+		NewPackage->GetFName().ToString(PackageName);
 		for (UObject* (*const *SingletonFunc)() = Params.SingletonFuncArray, *(*const *SingletonFuncEnd)() = SingletonFunc + Params.NumSingletons; SingletonFunc != SingletonFuncEnd; ++SingletonFunc)
 		{
-#if WITH_RELOAD
 			UObject* Object = (*SingletonFunc)();
+#if WITH_RELOAD
 			if (UFunction* Function = Cast<UFunction>(Object))
 			{
 				Delegates.Add(Function);
 			}
-#else
-			(*SingletonFunc)();
 #endif
+			if (Object->GetOuter() == NewPackage)
+			{
+				// Notify loader of new top level noexport objects like UScriptStruct, UDelegateFunction and USparseDelegateFunction
+				TCHAR ObjectName[FName::StringBufferSize];
+				Object->GetFName().ToString(ObjectName);
+				NotifyRegistrationEvent(PackageName, ObjectName, ENotifyRegistrationType::NRT_NoExportObject, ENotifyRegistrationPhase::NRP_Finished);
+			}
 		}
 #if WITH_RELOAD
 		NewPackage->SetReloadDelegates(MoveTemp(Delegates));

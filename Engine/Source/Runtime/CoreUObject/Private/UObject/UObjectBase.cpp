@@ -570,7 +570,6 @@ void UObjectCompiledInDeferStruct(class UScriptStruct* (*InRegister)(), const TC
 
 class UScriptStruct *GetStaticStruct(class UScriptStruct *(*InRegister)(), UObject* StructOuter, const TCHAR* StructName)
 {
-	NotifyRegistrationEvent(*StructOuter->GetOutermost()->GetName(), StructName, ENotifyRegistrationType::NRT_Struct, ENotifyRegistrationPhase::NRP_Started);
 	UScriptStruct *Result = (*InRegister)();
 	NotifyRegistrationEvent(*StructOuter->GetOutermost()->GetName(), StructName, ENotifyRegistrationType::NRT_Struct, ENotifyRegistrationPhase::NRP_Finished);
 	return Result;
@@ -595,7 +594,6 @@ void UObjectCompiledInDeferEnum(class UEnum* (*InRegister)(), const TCHAR* Packa
 
 class UEnum *GetStaticEnum(class UEnum *(*InRegister)(), UObject* EnumOuter, const TCHAR* EnumName)
 {
-	NotifyRegistrationEvent(*EnumOuter->GetOutermost()->GetName(), EnumName, ENotifyRegistrationType::NRT_Enum, ENotifyRegistrationPhase::NRP_Started);
 	UEnum *Result = (*InRegister)();
 	NotifyRegistrationEvent(*EnumOuter->GetOutermost()->GetName(), EnumName, ENotifyRegistrationType::NRT_Enum, ENotifyRegistrationPhase::NRP_Finished);
 	return Result;
@@ -793,17 +791,22 @@ static void UObjectLoadAllCompiledInDefaultProperties()
 
 	static FName LongEnginePackageName(TEXT("/Script/Engine"));
 
-	FClassDeferredRegistry& Registry = FClassDeferredRegistry::Get();
+	FClassDeferredRegistry& ClassRegistry = FClassDeferredRegistry::Get();
 
-	if (Registry.HasPendingRegistrations())
+	if (ClassRegistry.HasPendingRegistrations())
 	{
 		SCOPED_BOOT_TIMING("UObjectLoadAllCompiledInDefaultProperties");
 		TArray<UClass*> NewClasses;
 		TArray<UClass*> NewClassesInCoreUObject;
 		TArray<UClass*> NewClassesInEngine;
-		Registry.DoPendingOuterRegistrations(true, [&NewClasses, &NewClassesInCoreUObject, &NewClassesInEngine](UClass& Class) -> void
+		ClassRegistry.DoPendingOuterRegistrations(true, [&NewClasses, &NewClassesInCoreUObject, &NewClassesInEngine](const TCHAR* PackageName, UClass& Class) -> void
 			{
-				UE_LOG(LogUObjectBootstrap, Verbose, TEXT("UObjectLoadAllCompiledInDefaultProperties After Registrant %s %s"), *Class.GetOutermost()->GetName(), *Class.GetName());
+				UE_LOG(LogUObjectBootstrap, Verbose, TEXT("UObjectLoadAllCompiledInDefaultProperties After Registrant %s %s"), PackageName, *Class.GetName());
+
+				TCHAR ClassName[FName::StringBufferSize];
+				Class.GetFName().ToString(ClassName);
+				NotifyRegistrationEvent(PackageName, ClassName, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Finished);
+
 				if (Class.GetOutermost()->GetFName() == GLongCoreUObjectPackageName)
 				{
 					NewClassesInCoreUObject.Add(&Class);
