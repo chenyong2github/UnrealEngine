@@ -438,7 +438,7 @@ namespace UnrealBuildTool
 	 * <log text=""/>
 	 * <insert> </insert>
 	 * <insertValue value=""/>
-	 * <replace find="" with""/>
+	 * <replace find="" with=""/>
 	 * <copyFile src="" dst=""/>
 	 * <copyDir src="" dst=""/>
 	 * <loadLibrary name="" failmsg=""/>
