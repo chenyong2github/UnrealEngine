@@ -50,6 +50,14 @@ public:
 	/** Clear any manual adjustments to convex hulls on the selected bones */
 	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Clear Custom Convex"))
 	void ClearCustomConvex();
+
+	/** Save settings as project defaults, to be used for all new geometry collections */
+	UFUNCTION(CallInEditor, Category = Defaults, meta = (DisplayName = "Save As Defaults"))
+	void SaveAsDefaults();
+
+	/** Set settings from current project defaults */
+	UFUNCTION(CallInEditor, Category = Defaults, meta = (DisplayName = "Set From Defaults"))
+	void SetFromDefaults();
 };
 
 
@@ -88,6 +96,8 @@ public:
 	void DeleteConvexFromSelected();
 	void PromoteChildren();
 	void ClearCustomConvex();
+
+	virtual void Setup() override;
 
 
 protected:

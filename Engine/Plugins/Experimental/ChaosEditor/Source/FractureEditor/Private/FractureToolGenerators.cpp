@@ -13,6 +13,8 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 
+#include "FractureModeSettings.h"
+
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollection.h"
@@ -264,6 +266,9 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 	FGeometryCollectionProximityUtility ProximityUtility(FracturedGeometryCollection->GetGeometryCollection().Get());
 	ProximityUtility.UpdateProximity();
 
+	const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
+	ModeSettings->ApplyDefaultConvexSettings(*FracturedGeometryCollection->GetGeometryCollection());
+
 	return NewActor;
 }
 
@@ -447,6 +452,9 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 				// Update proximity graph
 				FGeometryCollectionProximityUtility ProximityUtility(GeometryCollection);
 				ProximityUtility.UpdateProximity();
+
+				const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
+				ModeSettings->ApplyDefaultConvexSettings(*GeometryCollection);
 
 				FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
 				AddSingleRootNodeIfRequired(GeometryCollectionObject);

@@ -3,6 +3,7 @@
 #include "FractureToolConvex.h"
 
 #include "FractureToolContext.h"
+#include "FractureModeSettings.h"
 
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
@@ -32,6 +33,28 @@ void UFractureConvexSettings::ClearCustomConvex()
 {
 	UFractureToolConvex* ConvexTool = Cast<UFractureToolConvex>(OwnerTool.Get());
 	ConvexTool->ClearCustomConvex();
+}
+
+void UFractureConvexSettings::SaveAsDefaults()
+{
+	UFractureModeSettings* ModeSettings = GetMutableDefault<UFractureModeSettings>();
+	ModeSettings->Modify();
+	ModeSettings->ConvexFractionAllowRemove = FractionAllowRemove;
+	ModeSettings->ConvexCanExceedFraction = CanExceedFraction;
+	ModeSettings->ConvexSimplificationDistanceThreshold = SimplificationDistanceThreshold;
+	ModeSettings->bConvexRemoveOverlaps = bRemoveOverlaps;
+}
+
+void UFractureConvexSettings::SetFromDefaults()
+{
+	const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
+	FractionAllowRemove = ModeSettings->ConvexFractionAllowRemove;
+	CanExceedFraction = ModeSettings->ConvexCanExceedFraction;
+	SimplificationDistanceThreshold = ModeSettings->ConvexSimplificationDistanceThreshold;
+	bRemoveOverlaps = ModeSettings->bConvexRemoveOverlaps;
+
+	UFractureToolConvex* ConvexTool = Cast<UFractureToolConvex>(OwnerTool.Get());
+	ConvexTool->NotifyOfPropertyChangeByTool(this);
 }
 
 void UFractureToolConvex::DeleteConvexFromSelected()
@@ -298,6 +321,11 @@ int32 UFractureToolConvex::ExecuteFracture(const FFractureToolContext& FractureC
 	}
 
 	return INDEX_NONE;
+}
+
+void UFractureToolConvex::Setup()
+{
+	Super::Setup();
 }
 
 #undef LOCTEXT_NAMESPACE
