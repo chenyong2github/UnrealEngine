@@ -316,7 +316,8 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 		// if we are automatically generating an optional package output, re-harvest objects with that realm as the default
 		if (SaveContext.IsSaveAutoOptional())
 		{
-			FSaveContext::FSetSaveRealmToSaveScope(SaveContext, ESaveRealm::Optional);
+			//@todo: FH: the top level might have to be altered to use the editor one when auto harvesting optional data
+			FSaveContext::FSetSaveRealmToSaveScope RealmScope(SaveContext, ESaveRealm::Optional);
 			Harvester.TryHarvestExport(InRoot);
 		}
 	};
