@@ -26,8 +26,8 @@ private:
 	FVersionedNiagaraEmitterWeakPtr			OwnerEmitter;
 	FName									StageName;
 #else
-	explicit FNiagaraGpuProfileEvent(const struct FNiagaraGpuDispatchInstance& DispatchInstance) {}
-	explicit FNiagaraGpuProfileEvent(const struct FNiagaraGpuDispatchInstance& DispatchInstance, FName CustomStageName) {}
+	explicit FNiagaraGpuProfileEvent(const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, const bool bFirstInstanceData) {}
+	explicit FNiagaraGpuProfileEvent(const FNiagaraComputeInstanceData& InstanceData, FName CustomStageName) {}
 	explicit FNiagaraGpuProfileEvent(const FNiagaraGpuProfileEvent& Other) = default;
 #endif
 };
