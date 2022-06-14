@@ -43,7 +43,7 @@ namespace UnrealBuildTool.Matchers
 			@"";
 
 		const string ClangSeverity =
-			@"(?<severity>error|warning)";
+			@"(?<severity>error|warning|fatal error)";
 
 		static readonly Regex s_baseFilePattern = new Regex(@"^\s*(?:\[[\d/]+\] Compile |[^/\ :]+\\.cpp\s*(?:\([^\)]*\))?$)");
 		static readonly Regex s_preludePattern = new Regex(@"^\s*(?:In (member )?function|In file included from)");

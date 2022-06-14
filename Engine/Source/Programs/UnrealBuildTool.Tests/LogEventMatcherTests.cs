@@ -380,6 +380,23 @@ namespace UnrealBuildToolTests
 		}
 
 		[TestMethod]
+		public void ClangEventMatcher7()
+		{
+			string[] lines =
+			{
+				@"In file included from ../Plugins/FX/Niagara/Intermediate/Build/Linux/B4D820EA/UnrealEditor/Development/NiagaraEditor/Module.NiagaraEditor.1_of_12.cpp:25:",
+				@"Engine/Plugins/FX/Niagara/Source/NiagaraEditor/Private/Customizations/NiagaraTypeCustomizations.cpp:31:10: fatal error: 'Framework/Multibox/MultiBoxBuilder.h' file not found"
+			};
+
+			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+			CheckEventGroup(logEvents, 0, 2, LogLevel.Error, KnownLogEvents.Compiler);
+
+			LogValue fileProperty = (LogValue)logEvents[1].GetProperty("file");
+			Assert.AreEqual(@"Engine/Plugins/FX/Niagara/Source/NiagaraEditor/Private/Customizations/NiagaraTypeCustomizations.cpp", fileProperty.Text);
+			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
+		}
+
+		[TestMethod]
 		public void IOSCompileErrorMatcher()
 		{
 			string[] lines =
