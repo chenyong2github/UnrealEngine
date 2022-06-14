@@ -203,6 +203,14 @@ void FContextualAnimAssetEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuil
 
 	ToolbarBuilder.AddComboButton(
 		FUIAction(),
+		FOnGetContent::CreateSP(this, &FContextualAnimAssetEditorToolkit::BuildSectionsMenu),
+		LOCTEXT("Sections_Label", "Sections"),
+		FText::GetEmpty(),
+		FSlateIcon()
+	);
+
+	ToolbarBuilder.AddComboButton(
+		FUIAction(),
 		FOnGetContent::CreateSP(this, &FContextualAnimAssetEditorToolkit::BuildNewAnimSetWidget),
 		LOCTEXT("NewSet_Label", "New Set"),
 		FText::GetEmpty(),
@@ -216,6 +224,32 @@ void FContextualAnimAssetEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuil
 		TAttribute<FText>(),
 		FSlateIcon()
 	);
+}
+
+TSharedRef<SWidget> FContextualAnimAssetEditorToolkit::BuildSectionsMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, GetToolkitCommands());
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("Sections_Label", "Sections"));
+	{
+		const UContextualAnimSceneAsset* SceneAsset = GetSceneAsset();
+		
+		TArray<FName> SectionNames = SceneAsset->GetSectionNames();
+		for (int32 Idx = 0; Idx < SectionNames.Num(); Idx++)
+		{
+			MenuBuilder.AddMenuEntry(
+				FText::FromString(SectionNames[Idx].ToString()),
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([this, Idx]() {
+					ViewModel->SetActiveSection(Idx);
+				})));
+		}
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 TSharedRef<SWidget> FContextualAnimAssetEditorToolkit::BuildNewAnimSetWidget()

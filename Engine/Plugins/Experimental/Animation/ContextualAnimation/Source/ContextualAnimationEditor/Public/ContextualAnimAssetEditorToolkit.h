@@ -52,6 +52,7 @@ private:
 	void ExtendToolbar();
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
+	TSharedRef<SWidget> BuildSectionsMenu();
 	TSharedRef<SWidget> BuildNewAnimSetWidget();
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);

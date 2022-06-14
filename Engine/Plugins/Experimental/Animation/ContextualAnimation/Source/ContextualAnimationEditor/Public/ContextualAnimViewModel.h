@@ -58,6 +58,8 @@ public:
 
 	void AnimationModified(UAnimSequenceBase& Animation);
 
+	void SetActiveSection(int32 SectionIdx);
+
 	void SetActiveAnimSetForSection(int32 SectionIdx, int32 AnimSetIdx);
 
 	void OnPreviewActorClassChanged();
@@ -88,6 +90,9 @@ private:
 	TObjectPtr<UContextualAnimManager> ContextualAnimManager;
 
 	TWeakObjectPtr<UContextualAnimSceneInstance> SceneInstance;
+
+	/** Active section idx */
+	int32 ActiveSectionIdx = 0;
 
 	/** Active anim set for each section. Key = SectionIdx, Value = AnimSetIdx  */
 	TMap<int32, int32> ActiveAnimSetMap;
