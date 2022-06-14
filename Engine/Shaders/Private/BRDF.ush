@@ -675,3 +675,40 @@ float Vis_Ashikhmin(float NoV, float NoL)
 	return rcp(4 * (NoL + NoV - NoL * NoV));
 }
 
+// Special medium transmittance evaluation for the clear coat BSDF.
+float3 SimpleClearCoatTransmittance(float NoL, float NoV, float Metallic, float3 BaseColor)
+{
+	float3 Transmittance = 1.0;
+
+	float ClearCoatCoverage = Metallic;
+	if (ClearCoatCoverage > 0.0)
+	{
+		float LayerThickness = 1.0;	// Assume a normalized thickness
+
+		// The path length inside the medium is from light to bottom surface, then back from bottom surface to the viewer.
+		// This assuming an infinite and flat medium slab.
+		float ThinDistance = LayerThickness * (rcp(NoV) + rcp(NoL));
+
+		// BaseColor represents reflected color viewed at 0 incidence angle for the view and light direction... 
+		float3 TransmittanceColor = Diffuse_Lambert(BaseColor);
+		// ... and after being affected by the substrate transmittance when traveling through it, back and forth.
+		// Because of this, extinction is normalized by traveling through layer thickness twice
+		float3 ExtinctionCoefficient = -log(TransmittanceColor) / (2.0 * LayerThickness);
+
+		// Optical depth is evaluated for ThinDistance computed above. But we also subtract 2.0 * LayerThickness
+		// in order to respect the fact that BaseColor represents reflected color viewed at 0 incidence angle. => In this case, OpticalDepth will be 0 and thus Transmittance=1.
+		float3 OpticalDepth = ExtinctionCoefficient * max(ThinDistance - 2.0 * LayerThickness, 0.0);
+
+		// Compute transmittance as a fonction of OpticalDepth
+		Transmittance = exp(-OpticalDepth);
+		// And as a fucntion of the ClearCoatCoverage.
+		Transmittance = lerp(1.0, Transmittance, ClearCoatCoverage);
+	}
+
+	// Note: this is a really special way to handle clear coat transmittance.
+	//  - The basecolor of the bottom layer is used as the transmittance color.
+	//	- So basically, a colored metal as bottom layer will look even more saturated at grazing angle.
+	//	- Transmittance is only computed for metals, for some reason plastic do not receive transmittance.
+
+	return Transmittance;
+}

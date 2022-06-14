@@ -17,27 +17,6 @@
 #include "PathTracingFresnel.ush"
 #include "PathTracingEnergyConservation.ush"
 
-float3 CalcThinTransmission(float NoL, float NoV, FPathTracingPayload Payload)
-{
-	float3 Transmission = 1.0;
-
-	float AbsorptionMix = Payload.Metallic;
-	if (AbsorptionMix > 0.0)
-	{
-		float LayerThickness = 1.0;	// Assume normalized thickness
-		float ThinDistance = LayerThickness * (rcp(NoV) + rcp(NoL));
-
-		// Base color represents reflected color viewed at 0 incidence angle, after being absorbed through the substrate.
-		// Because of this, extinction is normalized by traveling through layer thickness twice
-		float3 TransmissionColor = Diffuse_Lambert(Payload.BaseColor);
-		float3 ExtinctionCoefficient = -log(TransmissionColor) / (2.0 * LayerThickness);
-		float3 OpticalDepth = ExtinctionCoefficient * max(ThinDistance - 2.0 * LayerThickness, 0.0);
-		Transmission = exp(-OpticalDepth);
-		Transmission = lerp(1.0, Transmission, AbsorptionMix);
-	}
-	return Transmission;
-}
-
 float CalcClearCoatSelectionPdf(float CoatEnergy)
 {
 #if EVAL_TOP_LAYER == 0
@@ -112,7 +91,7 @@ FMaterialEval ClearCoat_EvalMaterial(
 	Payload.WorldNormal = N_World;
 
 	// Calculate transmission through substrate
-	float3 Transmission = CalcThinTransmission(NoL, NoV, Payload);
+	float3 Transmission = SimpleClearCoatTransmittance(NoL, NoV, Payload.Metallic, Payload.BaseColor);
 
 	BottomEval.Weight *= lerp(1.0, Transmission, Payload.GetClearCoat());
 	BottomEval.Weight *= 1.0 - Coat.E; // remove energy reflected by clearcoat to maintain energy preservation

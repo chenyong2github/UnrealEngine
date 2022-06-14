@@ -265,28 +265,6 @@ float3 SimpleShading( float3 DiffuseColor, float3 SpecularColor, float Roughness
 		(D * Vis) * F * ComputeEnergyConservation(EnergyTerms);
 }
 
-float3 CalcThinTransmission(float NoL, float NoV, FGBufferData GBuffer)
-{
-	float3 Transmission = 1.0;
-	float AbsorptionMix = GBuffer.Metallic;
-	if (AbsorptionMix > 0.0)
-	{
-		// Normalized layer thickness documented for clarity
-		float NormalizedLayerThickness = 1.0;
-		float ThinDistance = NormalizedLayerThickness * (rcp(NoV) + rcp(NoL));
-
-		// Base color represents reflected color viewed at 0 incidence angle, after being absorbed through the substrate.
-		// Because of this, extinction is normalized by traveling through layer thickness twice
-		float3 TransmissionColor = Diffuse_Lambert(GBuffer.BaseColor);
-		float3 ExtinctionCoefficient = -log(TransmissionColor) / (2.0 * NormalizedLayerThickness);
-		float3 OpticalDepth = ExtinctionCoefficient * max(ThinDistance - 2.0 * NormalizedLayerThickness, 0.0);
-		Transmission = saturate(exp(-OpticalDepth));
-		Transmission = lerp(1.0, Transmission, AbsorptionMix);
-	}
-
-	return Transmission;
-}
-
 float RefractBlend(float VoH, float Eta)
 {
 	// Refraction blend factor for normal component of VoH
@@ -482,7 +460,7 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 	FBxDFEnergyTerms EnergyTermsBottom = ComputeGGXSpecEnergyTerms(GBuffer.Roughness, BottomContext.NoV, GBuffer.SpecularColor);
 
 	// Absorption
-	float3 Transmission = CalcThinTransmission(BottomContext.NoL, BottomContext.NoV, GBuffer);
+	float3 Transmission = SimpleClearCoatTransmittance(BottomContext.NoL, BottomContext.NoV, GBuffer.Metallic, GBuffer.BaseColor);
 
 	// Default Lit
 	float3 DefaultDiffuse = (Falloff * NoL) * AreaLight.FalloffColor * Diffuse_Lambert(GBuffer.DiffuseColor) * ComputeEnergyPreservation(EnergyTermsBottom);
