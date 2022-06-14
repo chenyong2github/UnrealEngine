@@ -156,7 +156,7 @@ FString FHitResult::ToString() const
 		PenetrationDepth,
 		Item,
 		PhysMaterial.IsValid() ? *PhysMaterial->GetName() : TEXT("None"),
-		*FLightWeightInstanceSubsystem::Get().GetName(HitObjectHandle),
+		HitObjectHandle.IsValid() ? *FLightWeightInstanceSubsystem::Get().GetName(HitObjectHandle) : TEXT("None"),
 		Component.IsValid() ? *Component->GetName() : TEXT("None"),
 		BoneName.IsValid() ? *BoneName.ToString() : TEXT("None"),
 		FaceIndex);
