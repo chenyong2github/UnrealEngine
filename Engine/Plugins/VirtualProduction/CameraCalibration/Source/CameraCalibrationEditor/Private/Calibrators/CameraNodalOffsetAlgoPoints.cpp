@@ -1773,6 +1773,9 @@ bool UCameraNodalOffsetAlgoPoints::CalcTrackingOriginPoseForSingleCamPose(
 
 	FTransform DesiredCameraPose;
 
+	// Undistort the 2D points in each calibration row 
+	UndistortCalibrationRowPoints();
+
 	if (!CalculatedOptimalCameraComponentPose(DesiredCameraPose, Rows, OutErrorMessage))
 	{
 		return false;
