@@ -25,6 +25,8 @@
 #endif
 
 #if WITH_EDITOR
+TMap<TSubclassOf<AActor>, FWorldPartitionActorDesc::FActorDescDeprecator> FWorldPartitionActorDesc::Deprecators;
+
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	: bIsUsingDataLayerAsset(false)
 	, SoftRefCount(0)
@@ -147,6 +149,18 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 	// Serialize metadata payload
 	Serialize(MetadataAr);
 
+	// Call registered deprecator
+	TSubclassOf<AActor> DeprecatedClass = ActorNativeClass;
+	while (DeprecatedClass)
+	{
+		if (FActorDescDeprecator* Deprecator = Deprecators.Find(DeprecatedClass))
+		{
+			(*Deprecator)(MetadataAr, this);
+			break;
+		}
+		DeprecatedClass = DeprecatedClass->GetSuperClass();
+	}
+
 	Container = nullptr;
 }
 
@@ -191,6 +205,12 @@ void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 	// Append data
 	OutData = MoveTemp(HeaderData);
 	OutData.Append(PayloadData);
+}
+
+void FWorldPartitionActorDesc::RegisterActorDescDeprecator(TSubclassOf<AActor> ActorClass, const FActorDescDeprecator& Deprecator)
+{
+	check(!Deprecators.Contains(ActorClass));
+	Deprecators.Add(ActorClass, Deprecator);
 }
 
 void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FString& To, const FTransform& InstanceTransform)

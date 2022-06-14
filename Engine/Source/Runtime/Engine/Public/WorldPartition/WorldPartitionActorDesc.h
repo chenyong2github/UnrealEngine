@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/WeakObjectPtr.h"
+#include "Templates/SubclassOf.h"
 #include "Misc/Guid.h"
 
 #if WITH_EDITOR
@@ -101,6 +102,7 @@ public:
 	FBox GetBounds() const;
 	inline const FGuid& GetParentActor() const { return ParentActor; }
 	inline bool IsUsingDataLayerAsset() const { return bIsUsingDataLayerAsset; }
+	inline void AddProperty(FName PropertyName, FName PropertyValue = NAME_None) { Properties.AddProperty(PropertyName, PropertyValue); }
 	inline bool GetProperty(FName PropertyName, FName* PropertyValue) const { return Properties.GetProperty(PropertyName, PropertyValue); }
 	inline bool HasProperty(FName PropertyName) const { return Properties.HasProperty(PropertyName); }
 
@@ -196,6 +198,9 @@ public:
 
 	void TransformInstance(const FString& From, const FString& To, const FTransform& InstanceTransform);
 
+	using FActorDescDeprecator = TFunction<void(FArchive&, FWorldPartitionActorDesc*)>;
+	static void RegisterActorDescDeprecator(TSubclassOf<AActor> ActorClass, const FActorDescDeprecator& Deprecator);
+
 protected:
 	FWorldPartitionActorDesc();
 
@@ -247,5 +252,7 @@ protected:
 	UActorDescContainer*			Container;
 	TArray<FName>					DataLayerInstanceNames;
 	bool							bIsForcedNonSpatiallyLoaded;
+
+	static TMap<TSubclassOf<AActor>, FActorDescDeprecator> Deprecators;
 #endif
 };
