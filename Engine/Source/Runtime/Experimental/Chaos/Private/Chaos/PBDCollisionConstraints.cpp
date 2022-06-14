@@ -405,12 +405,12 @@ namespace Chaos
 		return SolverData.GetConstraintContainer<FPBDCollisionSolverContainer>(ContainerId);
 	}
 
-	void FPBDCollisionConstraints::PreGatherInput(FPBDCollisionConstraint& Constraint, FPBDIslandSolverData& SolverData)
+	void FPBDCollisionConstraints::PreGatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, FPBDIslandSolverData& SolverData)
 	{
 		if (SolverType == EConstraintSolverType::QuasiPbd)
 		{
 			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			SolverContainer.PreAddConstraintSolver(Constraint, SolverData.GetBodyContainer(), SolverData.GetConstraintIndex(ContainerId));
+			SolverContainer.PreAddConstraintSolver(Dt, Constraint, SolverData.GetBodyContainer(), SolverData.GetConstraintIndex(ContainerId));
 		}
 	}
 
@@ -438,7 +438,7 @@ namespace Chaos
 			{
 				if (Constraint->IsEnabled())
 				{
-					PreGatherInput(*Constraint, SolverData);
+					PreGatherInput(Dt, *Constraint, SolverData);
 				}
 			}
 		}
@@ -617,8 +617,8 @@ namespace Chaos
 	{
 		SolverData.GetConstraintHandles(ContainerId).Add(&Constraint);
 
-		FSolverBody* SolverBody0 = SolverData.GetBodyContainer().FindOrAdd(Constraint.Particle[0]);
-		FSolverBody* SolverBody1 = SolverData.GetBodyContainer().FindOrAdd(Constraint.Particle[1]);
+		FSolverBody* SolverBody0 = SolverData.GetBodyContainer().FindOrAdd(Constraint.Particle[0], Dt);
+		FSolverBody* SolverBody1 = SolverData.GetBodyContainer().FindOrAdd(Constraint.Particle[1], Dt);
 
 		SolverBody0->SetLevel(Particle0Level);
 		SolverBody1->SetLevel(Particle1Level);

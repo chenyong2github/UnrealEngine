@@ -167,8 +167,8 @@ namespace Chaos
 	
 		ConstraintSolverBodies[ConstraintIndex] =
 		{
-			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][0]),
-			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][1])
+			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][0], Dt),
+			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][1], Dt)
 		};
 	}
 

@@ -64,7 +64,7 @@ namespace Chaos
 
 	void FPBDCollisionConstraintHandle::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
 	{
-		ConcreteContainer()->PreGatherInput(GetContact(), SolverData);
+		ConcreteContainer()->PreGatherInput(Dt, GetContact(), SolverData);
 	}
 
 	void FPBDCollisionConstraintHandle::GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)

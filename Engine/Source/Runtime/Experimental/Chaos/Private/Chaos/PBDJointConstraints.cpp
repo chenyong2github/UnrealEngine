@@ -886,8 +886,8 @@ namespace Chaos
 
 		// Find the solver bodies for the particles we constrain. This will add them to the container
 		// if they aren't there already, and ensure that they are populated with the latest data.
-		SolverData.GetBodyContainer().FindOrAdd(Particle0);
-		SolverData.GetBodyContainer().FindOrAdd(Particle1);
+		SolverData.GetBodyContainer().FindOrAdd(Particle0, Dt);
+		SolverData.GetBodyContainer().FindOrAdd(Particle1, Dt);
 	}
 
 	void FPBDJointConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
@@ -905,8 +905,8 @@ namespace Chaos
 
 		// Find the solver bodies for the particles we constrain. This will add them to the container
 		// if they aren't there already, and ensure that they are populated with the latest data.
-		FSolverBody* Body0 = SolverData.GetBodyContainer().FindOrAdd(Particle0);
-		FSolverBody* Body1 = SolverData.GetBodyContainer().FindOrAdd(Particle1);
+		FSolverBody* Body0 = SolverData.GetBodyContainer().FindOrAdd(Particle0, Dt);
+		FSolverBody* Body1 = SolverData.GetBodyContainer().FindOrAdd(Particle1, Dt);
 
 		if (Settings.bUseLinearSolver)
 		{

@@ -76,12 +76,13 @@ namespace Chaos
 		bool IsIncrementalManifold() const { return bIsIncremental; }
 
 		void PreGatherInput(
+			const FReal Dt,
 			FPBDCollisionConstraint& InConstraint,
 			FSolverBodyContainer& SolverBodyContainer)
 		{
 			Constraint = &InConstraint;
-			SolverBodyContainer.FindOrAdd(Constraint->GetParticle0());
-			SolverBodyContainer.FindOrAdd(Constraint->GetParticle1());
+			SolverBodyContainer.FindOrAdd(Constraint->GetParticle0(), Dt);
+			SolverBodyContainer.FindOrAdd(Constraint->GetParticle1(), Dt);
 		}
 
 		/**
@@ -152,8 +153,8 @@ namespace Chaos
 
 			// Find the solver bodies for the particles we constrain. This will add them to the container
 			// if they aren't there already, and ensure that they are populated with the latest data.
-			FSolverBody* Body0 = SolverBodyContainer.FindOrAdd(Constraint->GetParticle0());
-			FSolverBody* Body1 = SolverBodyContainer.FindOrAdd(Constraint->GetParticle1());
+			FSolverBody* Body0 = SolverBodyContainer.FindOrAdd(Constraint->GetParticle0(), Dt);
+			FSolverBody* Body1 = SolverBodyContainer.FindOrAdd(Constraint->GetParticle1(), Dt);
 
 			Body0->SetLevel(Particle0Level);
 			Body1->SetLevel(Particle1Level);
@@ -389,7 +390,7 @@ namespace Chaos
 		CollisionSolvers.SetNum(MaxCollisions, false);
 	}
 
-	void FPBDCollisionSolverContainer::PreAddConstraintSolver(FPBDCollisionConstraint& Constraint, FSolverBodyContainer& SolverBodyContainer, int32& SolverIndex)
+	void FPBDCollisionSolverContainer::PreAddConstraintSolver(const FReal Dt, FPBDCollisionConstraint& Constraint, FSolverBodyContainer& SolverBodyContainer, int32& SolverIndex)
 	{
 		// This container is required to allocate pointers that are valid for the whole tick,
 		// so we cannot allow the container to resize during the tick. See Reset()
@@ -399,12 +400,12 @@ namespace Chaos
 		FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
 		CollisionSolver.GetSolver().Reset();
 
-		CollisionSolver.PreGatherInput(Constraint, SolverBodyContainer);
+		CollisionSolver.PreGatherInput(Dt, Constraint, SolverBodyContainer);
 
 		++SolverIndex;
 	}
 
-	void FPBDCollisionSolverContainer::AddConstraintSolver(FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer, const FPBDCollisionSolverSettings& SolverSettings)
+	void FPBDCollisionSolverContainer::AddConstraintSolver(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		// This container is required to allocate pointers that are valid for the whole tick,
 		// so we cannot allow the container to resize during the tick. See Reset()

@@ -705,7 +705,7 @@ void FPBDRigidsEvolutionGBF::GatherSolverInput(FReal Dt, int32 GroupIndex)
 								{
 									// Only the non sleeping dynamic rigid particles involved in any constraints will be added
 									// by default to the solver bodies
-									const int32 BodyIndex = IslandGroup->GetBodyContainer().GetBodies().Emplace(GenericHandle);
+									const int32 BodyIndex = IslandGroup->GetBodyContainer().GetBodies().Emplace(GenericHandle, Dt);
 									GenericHandle->SetSolverBodyIndex(BodyIndex);
 								}
 							}

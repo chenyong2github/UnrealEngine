@@ -24,14 +24,14 @@ namespace Chaos
 		}
 	}
 
-	int32 FSolverBodyContainer::AddParticle(FGenericParticleHandle InParticle)
+	int32 FSolverBodyContainer::AddParticle(FGenericParticleHandle InParticle, const FReal Dt)
 	{
 		// No array resizing allowed (we want fixed pointers)
 		check(NumItems() < MaxItems());
-		return SolverBodies.Emplace(InParticle);
+		return SolverBodies.Emplace(FSolverBodyAdapter(InParticle, Dt));
 	}
 
-	FSolverBody* FSolverBodyContainer::FindOrAdd(FGenericParticleHandle InParticle)
+	FSolverBody* FSolverBodyContainer::FindOrAdd(FGenericParticleHandle InParticle, const FReal Dt)
 	{
 		// For dynamic bodies, we store a cookie on the Particle that holds the solver body index
 		// For kinematics we cannot do this because the kinematic may be in multiple islands and 
@@ -43,7 +43,7 @@ namespace Chaos
 			if (InParticle->IsDynamic())
 			{
 				// First time we have seen this particle, so add it
-				ItemIndex = AddParticle(InParticle);
+				ItemIndex = AddParticle(InParticle, Dt);
 				InParticle->SetSolverBodyIndex(ItemIndex);
 			}
 			else // Not Dynamic
@@ -56,7 +56,7 @@ namespace Chaos
 				else
 				{
 					// First time we have seen this particle, so add it
-					ItemIndex = AddParticle(InParticle);
+					ItemIndex = AddParticle(InParticle, Dt);
 					ParticleToIndexMap.Add(InParticle, ItemIndex);
 				}
 			}			

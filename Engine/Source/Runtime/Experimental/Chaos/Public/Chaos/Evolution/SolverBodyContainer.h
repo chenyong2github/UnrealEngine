@@ -22,16 +22,16 @@ namespace Chaos
 	class FSolverBodyAdapter
 	{
 	public:
-		FSolverBodyAdapter(const FGenericParticleHandle& InParticle)
+		FSolverBodyAdapter(const FGenericParticleHandle& InParticle, const FReal Dt)
 			: Particle(InParticle)
 		{
-			GatherInput();
+			GatherInput(Dt);
 		}
 		
 		FSolverBody& GetSolverBody() { return SolverBody; }
 		const FGenericParticleHandle& GetParticle() const { return Particle; }
 
-		FORCEINLINE void GatherInput()
+		FORCEINLINE void GatherInput(const FReal Dt)
 		{
 			if (Particle.IsValid())
 			{
@@ -54,8 +54,16 @@ namespace Chaos
 				}
 				else
 				{
-					SolverBody.SetX(SolverBody.P());
-					SolverBody.SetR(SolverBody.Q());
+					// @todo(chaos): we really need Kinematics to store their initial positions...this keeps coming up
+					SolverBody.SetX(SolverBody.P() - SolverBody.V() * Dt);
+					if (SolverBody.W().IsNearlyZero())
+					{
+						SolverBody.SetR(SolverBody.Q());
+					}
+					else
+					{
+						SolverBody.SetR(FRotation3::IntegrateRotationWithAngularVelocity(SolverBody.Q(), -SolverBody.W(), Dt));
+					}
 				}
 				// No need to update the UpdateRotationDependentState since this function is only
 				// valid for dynamic particle for which the SetInvILocal is already doing the job
@@ -162,7 +170,7 @@ namespace Chaos
 		// Add a solver body to represent the solver state of the particle
 		// This should ideally be called in the order in which the bodies will be accessed
 		// (or as close as we can get, given most constraints access 2 bodies so there is no perfect order)
-		FSolverBody* FindOrAdd(FGenericParticleHandle InParticle);
+		FSolverBody* FindOrAdd(FGenericParticleHandle InParticle, const FReal Dt);
 
 		// Collect all the data we need from the particles represented by our SolverBodies
 		//void GatherInput();
@@ -180,7 +188,7 @@ namespace Chaos
 		void UpdateRotationDependentState();
 
 	private:
-		int32 AddParticle(FGenericParticleHandle InParticle);
+		int32 AddParticle(FGenericParticleHandle InParticle, const FReal Dt);
 
 		// Solver bodies, usually collected in the order in which they are accessed
 		TArray<FSolverBodyAdapter> SolverBodies;
