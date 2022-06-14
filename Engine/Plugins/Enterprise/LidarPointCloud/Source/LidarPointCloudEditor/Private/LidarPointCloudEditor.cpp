@@ -941,7 +941,7 @@ TArray<FAssetData> FLidarPointCloudEditor::SelectAssets(const FText& Title)
 	OpenAssetDialogConfig.DialogTitleOverride = Title;
 	OpenAssetDialogConfig.DefaultPath = "/Game";
 	OpenAssetDialogConfig.bAllowMultipleSelection = true;
-	OpenAssetDialogConfig.AssetClassNames.Emplace(*ULidarPointCloud::StaticClass()->GetName());
+	OpenAssetDialogConfig.AssetClassNames.Emplace("/Script/LidarPointCloudRuntime.LidarPointCloud");
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	return ContentBrowserModule.Get().CreateModalOpenAssetDialog(OpenAssetDialogConfig);

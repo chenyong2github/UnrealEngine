@@ -26,7 +26,7 @@ namespace
 		FSaveAssetDialogConfig SaveAssetDialogConfig;
 		SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SelectDestination", "Select Destination");
 		SaveAssetDialogConfig.DefaultPath = "/Game";
-		SaveAssetDialogConfig.AssetClassNames.Emplace("/Script/PointCloudRuntime.LidarPointCloud");
+		SaveAssetDialogConfig.AssetClassNames.Emplace("/Script/LidarPointCloudRuntime.LidarPointCloud");
 		SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
