@@ -10,6 +10,13 @@ thread_local FProviderLock* GThreadCurrentCookProviderLock;
 thread_local int32 GThreadCurrentReadCookProviderLockCount;
 thread_local int32 GThreadCurrentWriteCookProviderLockCount;
 
+const TCHAR* GUnknownPackage = TEXT("Unknown Package");
+
+FPackageData::FPackageData(uint64 InId)
+	: Id(InId)
+	, Name(GUnknownPackage)
+{}
+
 void FCookProfilerProvider::BeginEdit() const
 {
 	Lock.BeginWrite(GThreadCurrentCookProviderLock, GThreadCurrentReadCookProviderLockCount, GThreadCurrentWriteCookProviderLockCount);
@@ -46,12 +53,6 @@ FCookProfilerProvider::FCookProfilerProvider(IAnalysisSession& InSession)
 	
 }
 
-void FCookProfilerProvider::AddPackage(uint64 Id, TStringView<TCHAR> Name)
-{
-	PackageIdToIndexMap.Add(Id, Packages.Num());
-	Packages.Emplace(Id, Session.StoreString(Name));
-}
-
 void FCookProfilerProvider::EnumeratePackages(double StartTime, double EndTime, EnumeratePackagesCallback Callback) const
 {
 	for (const FPackageData& Package : Packages)
@@ -70,15 +71,25 @@ uint32 FCookProfilerProvider::GetNumPackages() const
 
 FPackageData* FCookProfilerProvider::EditPackage(uint64 Id)
 {
+	uint32 Index = FindOrAddPackage(Id);
+
+	FPackageData& Package = Packages[Index];
+	return &Package;
+}
+
+uint32 FCookProfilerProvider::FindOrAddPackage(uint64 Id)
+{
 	uint32* Index = PackageIdToIndexMap.Find(Id);
-
-	if (Index && *Index < Packages.Num())
+	if (Index != nullptr)
 	{
-		FPackageData& Package = Packages[*Index];
-		return &Package;
+		return *Index;
 	}
-
-	return nullptr;
+	else
+	{
+		PackageIdToIndexMap.Add(Id, Packages.Num());
+		Packages.Emplace(Id);
+		return Packages.Num() - 1;
+	}
 }
 
 } // namespace TraceServices

@@ -42,7 +42,8 @@ bool FCookAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext&
 		EventData.GetString("Name", Name);
 
 		TraceServices::FProviderEditScopeLock ProviderEditScope(CookProfilerProvider);
-		CookProfilerProvider.AddPackage(Id, Name);
+		FPackageData* Package = CookProfilerProvider.EditPackage(Id);
+		Package->Name = Session.StoreString(Name);
 		break;
 	}
 	case RouteId_PackageStat:
@@ -59,7 +60,8 @@ bool FCookAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext&
 			{
 			case EPackageEventStatType::LoadPackage:
 			{
-				Package->LoadTime = Value;
+				// We measure the Loadtime in multiple scopes so we receive many LoadPackage events.
+				Package->LoadTime += Value;
 				break;
 			}
 			case EPackageEventStatType::SavePackage:

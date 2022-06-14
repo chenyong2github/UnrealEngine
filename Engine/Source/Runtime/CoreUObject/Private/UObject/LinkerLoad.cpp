@@ -25,6 +25,7 @@
 #include "ProfilingDebugging/DebuggingDefines.h"
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "UObject/LinkerPlaceholderBase.h"
 #include "UObject/LinkerPlaceholderClass.h"
 #include "UObject/LinkerPlaceholderExportObject.h"
@@ -3642,6 +3643,7 @@ int32 FLinkerLoad::LoadMetaDataFromExportMap(bool bForcePreload)
 void FLinkerLoad::LoadAllObjects(bool bForcePreload)
 {
 	SCOPED_LOADTIMER(LinkerLoad_LoadAllObjects);
+	UE_SCOPED_COOK_STAT(LinkerRoot->GetFName(), EPackageEventStatType::LoadPackage);
 #if WITH_EDITOR
 	TOptional<FScopedSlowTask> SlowTask;
 	if (ShouldCreateThrottledSlowTask())

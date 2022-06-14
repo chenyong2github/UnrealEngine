@@ -46,6 +46,7 @@
 #include "UObject/LinkerLoad.h"
 #include "Misc/RedirectCollector.h"
 #include "UObject/GCScopeLock.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "UObject/GCObject.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
@@ -1107,7 +1108,9 @@ void UObject::ConditionalPostLoad()
 #if WITH_EDITOR
 				SCOPED_LOADTIMER_TEXT(*WriteToString<128>(GetClassTraceScope(this), TEXTVIEW("_PostLoad")));
 #endif
-				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetOutermost(), ELLMTagSet::Assets);
+				UPackage* Package = GetPackage();
+				UE_SCOPED_COOK_STAT(Package->GetFName(), EPackageEventStatType::LoadPackage);
+				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Package, ELLMTagSet::Assets);
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetClass(), ELLMTagSet::AssetClasses);
 
 				PostLoad();

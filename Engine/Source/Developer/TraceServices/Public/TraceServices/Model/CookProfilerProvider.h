@@ -11,10 +11,7 @@ namespace TraceServices
 
 struct FPackageData
 {
-	FPackageData(uint64 InId, const TCHAR* InName)
-		: Id(InId)
-		, Name(InName)
-	{}
+	FPackageData(uint64 InId);
 	uint64 Id = -1;
 	const TCHAR* Name;
 	double LoadTime = 0;

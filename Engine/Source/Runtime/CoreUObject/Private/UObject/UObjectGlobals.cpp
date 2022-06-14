@@ -1932,6 +1932,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoaded
 			// Sort by Filename and Offset.
 			ObjLoaded.StableSort(FCompareUObjectByLinkerAndOffset());
 
+			UE_MULTI_SCOPED_COOK_STAT_INIT()
 			// Finish loading everything.
 			{
 				SCOPED_LOADTIMER(PreLoadAndSerialize);
@@ -1942,8 +1943,14 @@ void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoaded
 					UObject* Obj = ObjLoaded[i];
 					if (Obj->HasAnyFlags(RF_NeedLoad))
 					{
-						check(Obj->GetLinker());
-						UE_TRACK_REFERENCING_PACKAGE_DELAYED(AccessRefScope, Obj->GetOutermost());
+						FLinkerLoad* Linker = Obj->GetLinker();
+						check(Linker);
+
+						UPackage* Package = Linker->LinkerRoot;
+						check(Package);
+
+						UE_MULTI_SCOPED_COOK_STAT(Package->GetFName(), EPackageEventStatType::LoadPackage);
+						UE_TRACK_REFERENCING_PACKAGE_DELAYED(AccessRefScope, Package);
 #if WITH_EDITOR
 						if (SlowTask)
 						{
@@ -1952,9 +1959,10 @@ void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoaded
 							SlowTask->TickProgress();
 						}
 #endif
-						Obj->GetLinker()->Preload(Obj);
+						Linker->Preload(Obj);
 					}
 				}
+				UE_MULTI_SCOPED_COOK_STAT_RESET();
 			}
 
 			// Start over again as new objects have been loaded that need to have "Preload" called on them before
@@ -2023,10 +2031,12 @@ void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoaded
 				SCOPED_LOADTIMER(PostLoadInstance);
 				for (UObject* Obj : ObjLoaded)
 				{
+					UE_MULTI_SCOPED_COOK_STAT(Obj->GetPackage()->GetFName(), EPackageEventStatType::LoadPackage);
 					UClass* ObjClass = Obj->GetClass();
 					check(ObjClass);
 					ObjClass->PostLoadInstance(Obj);
 				}
+				UE_MULTI_SCOPED_COOK_STAT_RESET();
 			}
 
 			// Create clusters after all objects have been loaded

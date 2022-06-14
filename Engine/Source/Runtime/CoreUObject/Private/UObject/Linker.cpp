@@ -18,6 +18,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "UObject/CoreRedirects.h"
 #include "UObject/LinkerManager.h"
 #include "UObject/UObjectThreadContext.h"
@@ -729,6 +730,7 @@ FLinkerLoad* GetPackageLinker
 		return nullptr;
 	}
 
+	UE_SCOPED_COOK_STAT(PackageFName, EPackageEventStatType::LoadPackage);
 	// Process any package redirects
 	{
 		const FCoreRedirectObjectName NewPackageName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, PackageFName));

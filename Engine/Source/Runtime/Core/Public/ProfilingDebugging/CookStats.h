@@ -459,12 +459,29 @@ private:
 	EPackageEventStatType StatType;
 };
 
-#define UE_SCOPED_COOK_STAT(Id, StatType) \
-	FScopedCookStat  PREPROCESSOR_JOIN(__CookTimerScope, __LINE__)(Id, StatType);
+#define UE_SCOPED_COOK_STAT(Name, StatType) \
+	FScopedCookStat  PREPROCESSOR_JOIN(__CookTimerScope, __LINE__)(Name.ToUnstableInt(), StatType);
 
+#define UE_MULTI_SCOPED_COOK_STAT_INIT() \
+	TOptional<FScopedCookStat> __CookStatScope; \
+	FName __PrevPackageName = NAME_None;
+
+#define UE_MULTI_SCOPED_COOK_STAT(Name, StatType) \
+	if (__PrevPackageName != Name) \
+	{ \
+		__CookStatScope.Emplace(Name.ToUnstableInt(), EPackageEventStatType::LoadPackage); \
+		__PrevPackageName = Name; \
+	}
+
+#define UE_MULTI_SCOPED_COOK_STAT_RESET() \
+	__CookStatScope.Reset(); \
+	__PrevPackageName = NAME_None;
 #else
 #define COOK_STAT(...)
 #define UE_SCOPED_COOK_STAT(...)
+#define UE_MULTI_SCOPED_COOK_STAT_INIT(...)
+#define UE_MULTI_SCOPED_COOK_STAT(...)
+#define UE_MULTI_SCOPED_COOK_STAT_RESET(...)
 
 #define TracePackage(...)
 #define TracePackageStat(...)

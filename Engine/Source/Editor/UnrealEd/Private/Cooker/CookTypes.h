@@ -240,14 +240,14 @@ namespace UE::Cook
 inline void RouteBeginCacheForCookedPlatformData(UObject* Obj, const ITargetPlatform* TargetPlatform)
 {
 	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(GetClassTraceScope(Obj), TEXT("_BeginCacheForCookedPlatformData")));
-	UE_SCOPED_COOK_STAT(Obj->GetPackage()->GetFName().ToUnstableInt(), EPackageEventStatType::BeginCacheForCookedPlatformData);
+	UE_SCOPED_COOK_STAT(Obj->GetPackage()->GetFName(), EPackageEventStatType::BeginCacheForCookedPlatformData);
 	Obj->BeginCacheForCookedPlatformData(TargetPlatform);
 }
 
 inline bool RouteIsCachedCookedPlatformDataLoaded(UObject* Obj, const ITargetPlatform* TargetPlatform)
 {
 	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(GetClassTraceScope(Obj), TEXT("_IsCachedCookedPlatformDataLoaded")));
-	UE_SCOPED_COOK_STAT(Obj->GetPackage()->GetFName().ToUnstableInt(), EPackageEventStatType::IsCachedCookedPlatformDataLoaded);
+	UE_SCOPED_COOK_STAT(Obj->GetPackage()->GetFName(), EPackageEventStatType::IsCachedCookedPlatformDataLoaded);
 	return Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform);
 }
 

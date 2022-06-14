@@ -32,6 +32,7 @@
 #include "Misc/Paths.h"
 #include "Serialization/AsyncLoadingThread.h"
 #include "Misc/ExclusiveLoadPackageTimeTracker.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "HAL/ExceptionHandling.h"
@@ -4719,6 +4720,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 			|| GEventDrivenLoaderEnabled)
 		{
 			SCOPED_LOADTIMER(ProcessLoadedPackagesTime);
+			UE_SCOPED_COOK_STAT(Package->GetPackageName(), EPackageEventStatType::LoadPackage);
 			Result = Package->PostLoadDeferredObjects(TickStartTime, bUseTimeLimit, TimeLimit);
 			// if we didn't complete the post-load, we ran out of time for this slice so break immediately
 			if (Result != EAsyncPackageState::Complete)
@@ -4786,6 +4788,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 	TSet<UPackage*> CompletedUPackages;
 	for (FAsyncPackage* Package : CompletedPackages)
 	{
+		UE_SCOPED_COOK_STAT(Package->GetPackageName(), EPackageEventStatType::LoadPackage);
+
 		// Call external callbacks
 		const bool bInternalCallbacks = false;
 		const EAsyncLoadingResult::Type LoadingResult = Package->HasLoadFailed() ? EAsyncLoadingResult::Failed : EAsyncLoadingResult::Succeeded;
@@ -4829,6 +4833,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 		for (int32 PackageIndex = 0; PackageIndex < PackagesToDelete.Num(); ++PackageIndex)
 		{
 			FAsyncPackage* Package = PackagesToDelete[PackageIndex];
+			UE_SCOPED_COOK_STAT(Package->GetPackageName(), EPackageEventStatType::LoadPackage);
+
 			if (Package->GetDependencyRefCount() == 0 && !Package->IsBeingProcessedRecursively())
 			{
 				bool bSafeToDelete = false;
@@ -5872,6 +5878,7 @@ EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, b
 
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_Tick);
 	SCOPED_LOADTIMER(Package_Tick);
+	UE_SCOPED_COOK_STAT(Desc.Name, EPackageEventStatType::LoadPackage);
 
 	// Whether we should execute the next step.
 	EAsyncPackageState::Type LoadingState = EAsyncPackageState::Complete;
@@ -7351,6 +7358,8 @@ int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName 
 	}
 
 	FName PackageName = InCustomName.IsNone() ? InPackagePath.GetPackageFName() : InCustomName;
+	UE_SCOPED_COOK_STAT(PackageName, EPackageEventStatType::LoadPackage);
+
 	if ( FCoreDelegates::OnAsyncLoadPackage.IsBound() )
 	{
 		FCoreDelegates::OnAsyncLoadPackage.Broadcast(PackageName.ToString());

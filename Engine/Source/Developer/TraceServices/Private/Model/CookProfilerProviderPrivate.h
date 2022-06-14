@@ -23,13 +23,14 @@ public:
 	explicit FCookProfilerProvider(IAnalysisSession& Session);
 	virtual ~FCookProfilerProvider() {}
 
-	// Functions to add or edit data.
-	void AddPackage(uint64 Id, TStringView<TCHAR> Name);
 	FPackageData* EditPackage(uint64 Id);
 
 	// Functions to query the data.
 	virtual void EnumeratePackages(double StartTime, double EndTime, EnumeratePackagesCallback Callback) const override;
 	virtual uint32 GetNumPackages() const;
+
+private:
+	uint32 FindOrAddPackage(uint64 Id);
 
 private:
 	IAnalysisSession& Session;
