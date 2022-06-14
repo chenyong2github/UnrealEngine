@@ -3498,7 +3498,7 @@ void ParseFunctionFlags(uint32 Flags, TArray<const TCHAR*>& Results)
 		TEXT("BlueprintEvent"),			// FUNC_BlueprintEvent
 		TEXT("BlueprintPure"),			// FUNC_BlueprintPure
 		TEXT("0x20000000"),
-		TEXT("Const")					// FUNC_Const
+		TEXT("Const"),					// FUNC_Const
 		TEXT("0x80000000"),
 	};
 

@@ -866,7 +866,7 @@ void FGenericCrashContext::SerializeAsXML( const TCHAR* Filename ) const
 
 void FGenericCrashContext::AddCrashPropertyInternal(FString& Buffer, FStringView PropertyName, FStringView PropertyValue)
 {
-	Buffer.Appendf(TEXT("<%.*s>%s</%.*s>") LINE_TERMINATOR, 
+	Buffer.Appendf(TEXT("<%.*s>%s</%.*s>" LINE_TERMINATOR_ANSI), 
 		PropertyName.Len(), PropertyName.GetData(),
 		*FXmlEscapedString(PropertyValue), 
 		PropertyName.Len(), PropertyName.GetData()
@@ -930,7 +930,7 @@ void FGenericCrashContext::AppendPortableCallstack(FString& OutBuffer, TConstArr
 
 	for (const FCrashStackFrame& Frame : StackFrames)
 	{
-		OutBuffer.Appendf(TEXT("%-*s 0x%016llx + %-16llx") LINE_TERMINATOR, MaxModuleLength + 1, *FXmlEscapedString(Frame.ModuleName), Frame.BaseAddress, Frame.Offset);
+		OutBuffer.Appendf(TEXT("%-*s 0x%016llx + %-16llx" LINE_TERMINATOR_ANSI), MaxModuleLength + 1, *FXmlEscapedString(Frame.ModuleName), Frame.BaseAddress, Frame.Offset);
 	}
 }
 
@@ -951,7 +951,7 @@ void FGenericCrashContext::AddPortableCallStack() const
 
 void FGenericCrashContext::AddHeader(FString& Buffer)
 {
-	Buffer += TEXT("<?xml version=\"1.0\" encoding=\"UTF-8\"?>") LINE_TERMINATOR;
+	Buffer += TEXT("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" LINE_TERMINATOR_ANSI);
 	BeginSection(Buffer, TEXT("FGenericCrashContext") );
 }
 
@@ -962,12 +962,12 @@ void FGenericCrashContext::AddFooter(FString& Buffer)
 
 void FGenericCrashContext::BeginSection(FString& Buffer, const TCHAR* SectionName)
 {
-	Buffer.Appendf(TEXT("<%s>") LINE_TERMINATOR, SectionName);
+	Buffer.Appendf(TEXT("<%s>" LINE_TERMINATOR_ANSI), SectionName);
 }
 
 void FGenericCrashContext::EndSection(FString& Buffer, const TCHAR* SectionName)
 {
-	Buffer.Appendf(TEXT("</%s>") LINE_TERMINATOR, SectionName);
+	Buffer.Appendf(TEXT("</%s>" LINE_TERMINATOR_ANSI), SectionName);
 }
 
 template<typename DEST>

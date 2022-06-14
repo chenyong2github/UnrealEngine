@@ -28,8 +28,8 @@ static int32 GFileCacheBlockSizeKB = 64;
 static FAutoConsoleVariableRef CVarFileCacheBlockSize(
 	TEXT("fc.BlockSize"),
 	GFileCacheBlockSizeKB,
-	TEXT("Size of each block in KB in the global file cache object\n")
-	TEXT("Should match packaging compression block size for optimal reading from packege"),
+	TEXT("Size of each block in KB in the global file cache object\n"
+	     "Should match packaging compression block size for optimal reading from packege"),
 	ECVF_ReadOnly
 );
 

@@ -113,8 +113,8 @@ void FCompositeBuffer::IterateRange(uint64 Offset, uint64 Size, TFunctionRef<voi
 void FCompositeBuffer::IterateRange(uint64 Offset, uint64 Size,
 	TFunctionRef<void (FMemoryView View, const FSharedBuffer& ViewOuter)> Visitor) const
 {
-	checkf(Offset + Size <= GetSize(), TEXT("Failed to access %" UINT64_FMT " bytes at offset %" UINT64_FMT)
-		TEXT(" of a composite buffer containing %" UINT64_FMT " bytes."), Size, Offset, GetSize());
+	checkf(Offset + Size <= GetSize(), TEXT("Failed to access %" UINT64_FMT " bytes at offset %" UINT64_FMT
+		" of a composite buffer containing %" UINT64_FMT " bytes."), Size, Offset, GetSize());
 	for (const FSharedBuffer& Segment : Segments)
 	{
 		if (const uint64 SegmentSize = Segment.GetSize(); Offset <= SegmentSize)

@@ -4703,8 +4703,8 @@ void UClass::ValidateRuntimeReplicationData()
 						if (EnumHasAnyFlags(Struct->StructFlags, STRUCT_NetDeltaSerializeNative))
 						{
 							UE_LOG(LogClass, Warning,
-									TEXT("Property %s::%s (SourceClass: %s) with custom net delta serializer was not registered in ")
-									TEXT("GetLifetimeReplicatedProps. This property will replicate but you should still register it."),
+									TEXT("Property %s::%s (SourceClass: %s) with custom net delta serializer was not registered in "
+									     "GetLifetimeReplicatedProps. This property will replicate but you should still register it."),
 									ToCStr(GetName()), ToCStr(RepProp->GetName()), ToCStr(RepProp->GetOwnerClass()->GetName()));
 
 							continue;
@@ -4712,8 +4712,8 @@ void UClass::ValidateRuntimeReplicationData()
 					}
 
 					UE_LOG(LogClass, Warning,
-							TEXT("Property %s::%s (SourceClass: %s) was not registered in GetLifetimeReplicatedProps. ")
-							TEXT("This property will not be replicated. Use DISABLE_REPLICATED_PROPERTY if not replicating was intentional."),
+							TEXT("Property %s::%s (SourceClass: %s) was not registered in GetLifetimeReplicatedProps. "
+							     "This property will not be replicated. Use DISABLE_REPLICATED_PROPERTY if not replicating was intentional."),
 							ToCStr(GetName()), ToCStr(RepProp->GetName()), ToCStr(RepProp->GetOwnerClass()->GetName()));
 				}
 			}
@@ -6143,7 +6143,7 @@ bool UClass::IsShortTypeName(FStringView InClassPath)
 	{
 		return false;
 	}
-	return UE::String::FindFirstOfAnyChar(InClassPath, TEXT("./\\" SUBOBJECT_DELIMITER)) == INDEX_NONE;
+	return UE::String::FindFirstOfAnyChar(InClassPath, TEXT("./\\" SUBOBJECT_DELIMITER_ANSI)) == INDEX_NONE;
 }
 
 

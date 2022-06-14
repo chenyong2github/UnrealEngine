@@ -88,7 +88,7 @@ uint32 FRunnableThreadWin::GuardedRun()
 				GWarn->Flush();
 
 				// Append the thread name at the end of the error report.
-				FCString::Strncat( GErrorHist, LINE_TERMINATOR TEXT( "Crash in runnable thread " ), UE_ARRAY_COUNT( GErrorHist ) );
+				FCString::Strncat( GErrorHist, TEXT(LINE_TERMINATOR_ANSI "Crash in runnable thread " ), UE_ARRAY_COUNT( GErrorHist ) );
 				FCString::Strncat( GErrorHist, *ThreadName, UE_ARRAY_COUNT( GErrorHist ) );
 
 				// Crashed.

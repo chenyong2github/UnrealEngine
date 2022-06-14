@@ -74,8 +74,8 @@ void FRequestOwnerShared::Begin(IRequest* Request)
 	{
 		FWriteScopeLock WriteLock(Lock);
 		checkf(BarrierCount > 0 || !bBeginExecuted,
-			TEXT("At least one FRequestBarrier must be in scope when beginning a request after the first request. ")
-			TEXT("The overload of End that invokes a callback handles this automatically for most use cases."));
+			TEXT("At least one FRequestBarrier must be in scope when beginning a request after the first request. "
+			     "The overload of End that invokes a callback handles this automatically for most use cases."));
 		check(Request);
 		Requests.Add(Request);
 		bBeginExecuted = true;

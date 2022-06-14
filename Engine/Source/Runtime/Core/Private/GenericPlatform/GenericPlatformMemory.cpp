@@ -56,9 +56,9 @@ namespace GenericPlatformMemory
 	static FAutoConsoleVariableRef CVarMemoryPressureCriticalThresholdMB(
 		TEXT("memory.MemoryPressureCriticalThresholdMB"),
 		GMemoryPressureCriticalThresholdMB,
-		TEXT("When the available physical memory drops below this threshold memory stats will consider this to be at critical pressure.\n")
-		TEXT("Where a platform can specifically state it's memory pressure this test maybe ignored.\n")
-		TEXT("0 (default) critical pressure will not use the threshold."),
+		TEXT("When the available physical memory drops below this threshold memory stats will consider this to be at critical pressure.\n"
+		     "Where a platform can specifically state it's memory pressure this test maybe ignored.\n"
+		     "0 (default) critical pressure will not use the threshold."),
 		ECVF_Default);
 }
 
@@ -216,13 +216,13 @@ void FGenericPlatformMemory::OnOutOfMemory(uint64 Size, uint32 Alignment)
 			MemoryTrace_Free((uint64)BackupOOMMemoryPool, EMemoryTraceRootHeap::SystemMemory);
 		}
 
-		UE_LOG(LogMemory, Warning, TEXT("MemoryStats:")\
-			TEXT("\n\tAvailablePhysical %llu")\
-			TEXT("\n\t AvailableVirtual %llu")\
-			TEXT("\n\t     UsedPhysical %llu")\
-			TEXT("\n\t PeakUsedPhysical %llu")\
-			TEXT("\n\t      UsedVirtual %llu")\
-			TEXT("\n\t  PeakUsedVirtual %llu"),
+		UE_LOG(LogMemory, Warning, TEXT("MemoryStats:"
+			"\n\tAvailablePhysical %llu"
+			"\n\t AvailableVirtual %llu"
+			"\n\t     UsedPhysical %llu"
+			"\n\t PeakUsedPhysical %llu"
+			"\n\t      UsedVirtual %llu"
+			"\n\t  PeakUsedVirtual %llu"),
 			(uint64)PlatformMemoryStats.AvailablePhysical,
 			(uint64)PlatformMemoryStats.AvailableVirtual,
 			(uint64)PlatformMemoryStats.UsedPhysical,

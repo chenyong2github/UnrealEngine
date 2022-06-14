@@ -571,8 +571,8 @@ public:
 
 		if (Hierarchy)
 		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s is disabled because there may be only one hierarchy node. ")
-				TEXT("Confirm there is only one hierarchy in the cache graph and that it is inside of any async node."), NodeName);
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s is disabled because there may be only one hierarchy node. "
+				"Confirm there is only one hierarchy in the cache graph and that it is inside of any async node."), NodeName);
 			return MakeTuple(nullptr, ECacheStoreFlags::None);
 		}
 

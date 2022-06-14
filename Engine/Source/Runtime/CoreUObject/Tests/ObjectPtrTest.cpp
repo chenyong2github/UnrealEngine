@@ -321,7 +321,7 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Long Path", "[Cor
 
 // @TODO: OBJPTR: We should have a test that ensures that lazy loading of an object with an external package is handled correctly.
 //				  This should also include external packages in the outer chain of the target object.
-// IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestExternalPackages, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".ExternalPackages"), ObjectPtrTestFlags)
+// IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestExternalPackages, FObjectPtrTestBase, TEXT(TEST_NAME_ROOT ".ExternalPackages"), ObjectPtrTestFlags)
 // bool FObjectPtrTestExternalPackages::RunTest(const FString& Parameters)
 // {
 // 	const FName TestExternalPackage1Name(TEXT("/Engine/Test/ObjectPtrExternalPackages1/Transient"));
@@ -348,7 +348,7 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Long Path", "[Cor
 // @TODO: OBJPTR: We should have a test that ensures that we can (de)serialize an FObjectPtr to FLinkerSave/FLinkerLoad and that upon load the object
 //			pointer is not resolved if we are in a configuration that supports lazy load.  This is proving difficult due to the restrictions around how
 //			FLinkerSave/FLinkerLoad is used.
-// IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestLinkerSerializeBehavior, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".LinkerSerialize"), ObjectPtrTestFlags)
+// IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestLinkerSerializeBehavior, FObjectPtrTestBase, TEXT(TEST_NAME_ROOT ".LinkerSerialize"), ObjectPtrTestFlags)
 // bool FObjectPtrTestLinkerSerializeBehavior::RunTest(const FString& Parameters)
 // {
 // 	FSnapshotObjectRefMetrics ObjectRefMetrics(*this);

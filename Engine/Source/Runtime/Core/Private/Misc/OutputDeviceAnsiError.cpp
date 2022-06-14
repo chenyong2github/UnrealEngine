@@ -81,7 +81,7 @@ void FOutputDeviceAnsiError::HandleError()
 	if (GLog)
 	{
 		// print to log and flush it
-		UE_LOG( LogHAL, Log, TEXT( "=== Critical error: ===" ) LINE_TERMINATOR LINE_TERMINATOR TEXT( "%s" ) LINE_TERMINATOR, GErrorExceptionDescription );
+		UE_LOG( LogHAL, Log, TEXT( "=== Critical error: ===" LINE_TERMINATOR_ANSI LINE_TERMINATOR_ANSI "%s" LINE_TERMINATOR_ANSI), GErrorExceptionDescription );
 		UE_LOG(LogHAL, Log, TEXT("%s"), GErrorHist);
 
 		GLog->Panic();

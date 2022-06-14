@@ -277,8 +277,8 @@ FCompositeBuffer FBlockEncoder::Compress(const FCompositeBuffer& RawData, const 
 
 	const int64 BlockCount = FMath::DivideAndRoundUp(RawSize, BlockSize);
 	check(BlockCount > 0);
-	checkf(BlockCount <= MAX_int32, TEXT("Raw data of size %" UINT64_FMT " with block size %" UINT64_FMT " requires ")
-		TEXT("%" UINT64_FMT " blocks, but the limit is %d."), RawSize, BlockSize, BlockCount, MAX_int32);
+	checkf(BlockCount <= MAX_int32, TEXT("Raw data of size %" UINT64_FMT " with block size %" UINT64_FMT " requires "
+		"%" UINT64_FMT " blocks, but the limit is %d."), RawSize, BlockSize, BlockCount, MAX_int32);
 
 	FBlake3 RawHash;
 	const uint64 MetaSize = sizeof(uint32) * BlockCount;

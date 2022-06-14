@@ -1414,12 +1414,12 @@ void FConfigFile::WriteToStringInternal(FString& InOutText, bool bIsADefaultIniW
 					// If this is the first property we are writing of this section, then print the section name
 					if( InOutText.Len() == InitialInOutTextSize )
 					{
-						InOutText.Appendf(TEXT("[%s]") LINE_TERMINATOR, *SectionName);
+						InOutText.Appendf(TEXT("[%s]" LINE_TERMINATOR_ANSI), *SectionName);
 
 						// and if the section has any array of struct uniqueness keys, add them here
 						for (auto It = Section.ArrayOfStructKeys.CreateConstIterator(); It; ++It)
 						{
-							InOutText.Appendf(TEXT("@%s=%s") LINE_TERMINATOR, *It.Key().ToString(), *It.Value());
+							InOutText.Appendf(TEXT("@%s=%s" LINE_TERMINATOR_ANSI), *It.Key().ToString(), *It.Value());
 						}
 					}
 
@@ -1474,7 +1474,7 @@ void FConfigFile::WriteToStringInternal(FString& InOutText, bool bIsADefaultIniW
 		SectionNamesLeftToWrite.Add(kvpair.Key);
 	}
 
-	static const FString BlankLine(LINE_TERMINATOR LINE_TERMINATOR);
+	static const FString BlankLine(TEXT(LINE_TERMINATOR_ANSI LINE_TERMINATOR_ANSI));
 	auto AddSectionToText = [&InOutText, &InOutSectionTexts, &SectionNamesLeftToWrite](const FString& SectionName)
 	{
 		FString* SectionText = InOutSectionTexts.Find(SectionName);
@@ -1798,7 +1798,7 @@ void FConfigFile::SaveSourceToBackupFile()
 		const FString& SectionName = SectionIterator.Key();
 		const FConfigSection& Section = SectionIterator.Value();
 
-		Text += FString::Printf( TEXT("[%s]") LINE_TERMINATOR, *SectionName);
+		Text += FString::Printf( TEXT("[%s]" LINE_TERMINATOR_ANSI), *SectionName);
 
 		for( FConfigSection::TConstIterator PropertyIterator(Section); PropertyIterator; ++PropertyIterator )
 		{
@@ -3925,7 +3925,7 @@ public:
 		// Rebuild the file with the updated section.
 
 		FString NewFile = IniFileMakeup.BeforeSection + IniFileMakeup.Section + IniFileMakeup.AfterSection;
-		if (!NewFile.EndsWith(LINE_TERMINATOR LINE_TERMINATOR))
+		if (!NewFile.EndsWith(TEXT(LINE_TERMINATOR_ANSI LINE_TERMINATOR_ANSI)))
 		{
 			NewFile.AppendChars(LINE_TERMINATOR, TCString<TCHAR>::Strlen(LINE_TERMINATOR));
 		}

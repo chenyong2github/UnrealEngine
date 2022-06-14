@@ -83,12 +83,12 @@ THIRD_PARTY_INCLUDES_END
 static TAutoConsoleVariable<int32> CVarDriverDetectionMethod(
 	TEXT("r.DriverDetectionMethod"),
 	4,
-	TEXT("Defines which implementation is used to detect the GPU driver (to check for old drivers, logs and statistics)\n")
-	TEXT("  0: Iterate available drivers in registry and choose the one with the same name, if in question use next method (happens)\n")
-	TEXT("  1: Get the driver of the primary adapter (might not be correct when dealing with multiple adapters)\n")
-	TEXT("  2: Use DirectX LUID (would be the best, not yet implemented)\n")
-	TEXT("  3: Use Windows functions, use the primary device (might be wrong when API is using another adapter)\n")
-	TEXT("  4: Use Windows functions, use names such as DirectX Device (newest, most promising)"),
+	TEXT("Defines which implementation is used to detect the GPU driver (to check for old drivers, logs and statistics)\n"
+	     "  0: Iterate available drivers in registry and choose the one with the same name, if in question use next method (happens)\n"
+	     "  1: Get the driver of the primary adapter (might not be correct when dealing with multiple adapters)\n"
+	     "  2: Use DirectX LUID (would be the best, not yet implemented)\n"
+	     "  3: Use Windows functions, use the primary device (might be wrong when API is using another adapter)\n"
+	     "  4: Use Windows functions, use names such as DirectX Device (newest, most promising)"),
 	ECVF_RenderThreadSafe);
 
 int32 GetOSVersionsHelper( TCHAR* OutOSVersionLabel, int32 OSVersionLabelLength, TCHAR* OutOSSubVersionLabel, int32 OSSubVersionLabelLength )
@@ -2104,13 +2104,13 @@ void FWindowsPlatformMisc::PromptForRemoteDebugging(bool bIsEnsure)
 		FPlatformStackWalk::UploadLocalSymbols();
 
 		FCString::Sprintf(GErrorRemoteDebugPromptMessage, 
-			TEXT("Have a programmer remote debug this crash?\n")
-			TEXT("Hit NO to exit and submit error report as normal.\n")
-			TEXT("Otherwise, contact a programmer for remote debugging,\n")
-			TEXT("giving them the changelist number below.\n")
-			TEXT("Once they have confirmed they are connected to the machine,\n")
-			TEXT("hit YES to allow them to debug the crash.\n")
-			TEXT("[Changelist = %d]"),
+			TEXT("Have a programmer remote debug this crash?\n"
+			     "Hit NO to exit and submit error report as normal.\n"
+			     "Otherwise, contact a programmer for remote debugging,\n"
+			     "giving them the changelist number below.\n"
+			     "Once they have confirmed they are connected to the machine,\n"
+			     "hit YES to allow them to debug the crash.\n"
+			     "[Changelist = %d]"),
 			FEngineVersion::Current().GetChangelist());
 		FSlowHeartBeatScope SuspendHeartBeat;
 		if (MessageBox(0, GErrorRemoteDebugPromptMessage, TEXT("CRASHED"), MB_YESNO|MB_SYSTEMMODAL) == IDYES)

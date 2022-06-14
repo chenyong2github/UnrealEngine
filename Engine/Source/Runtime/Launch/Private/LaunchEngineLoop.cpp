@@ -5616,21 +5616,21 @@ void FEngineLoop::ClearPendingCleanupObjects()
 static TAutoConsoleVariable<int32> CVarLogTimestamp(
 	TEXT("log.Timestamp"),
 	1,
-	TEXT("Defines if time is included in each line in the log file and in what form. Layout: [time][frame mod 1000]\n")
-	TEXT("  0 = Do not display log timestamps\n")
-	TEXT("  1 = Log time stamps in UTC and frame time (default) e.g. [2015.11.25-21.28.50:803][376]\n")
-	TEXT("  2 = Log timestamps in seconds elapsed since GStartTime e.g. [0130.29][420]")
-	TEXT("  3 = Log timestamps in local time and frame time e.g. [2017.08.04-17.59.50:803][420]")
-	TEXT("  4 = Log timestamps with the engine's timecode and frame time e.g. [17:59:50:18][420]"),
+	TEXT("Defines if time is included in each line in the log file and in what form. Layout: [time][frame mod 1000]\n"
+	     "  0 = Do not display log timestamps\n"
+	     "  1 = Log time stamps in UTC and frame time (default) e.g. [2015.11.25-21.28.50:803][376]\n"
+	     "  2 = Log timestamps in seconds elapsed since GStartTime e.g. [0130.29][420]"
+	     "  3 = Log timestamps in local time and frame time e.g. [2017.08.04-17.59.50:803][420]"
+	     "  4 = Log timestamps with the engine's timecode and frame time e.g. [17:59:50:18][420]"),
 	ECVF_Default);
 
 
 static TAutoConsoleVariable<int32> CVarLogCategory(
 	TEXT("log.Category"),
 	1,
-	TEXT("Defines if the categoy is included in each line in the log file and in what form.\n")
-	TEXT("  0 = Do not log category\n")
-	TEXT("  2 = Log the category (default)"),
+	TEXT("Defines if the categoy is included in each line in the log file and in what form.\n"
+	     "  0 = Do not log category\n"
+	     "  2 = Log the category (default)"),
 	ECVF_Default);
 
 
@@ -5793,7 +5793,7 @@ bool FEngineLoop::AppInit( )
 
 
 	// Error history.
-	FCString::Strcpy(GErrorHist, TEXT("Fatal error!" LINE_TERMINATOR LINE_TERMINATOR));
+	FCString::Strcpy(GErrorHist, TEXT("Fatal error!" LINE_TERMINATOR_ANSI LINE_TERMINATOR_ANSI));
 
 	// Platform specific pre-init.
 	{

@@ -257,8 +257,8 @@ protected:
 static FAutoConsoleCommand CPUTimeDumpCommand
 (
 	TEXT("CPUTime.Dump"),
-	TEXT("Usage -Delay=[NumSeconds=30]\n")
-	TEXT("If Delay==0, disables printing the CPU usage to the log\n")
-	TEXT("If Delay>0, starts printing the average CPU usage from the last n frames, clamps between 10 and 300"),
+	TEXT("Usage -Delay=[NumSeconds=30]\n"
+	     "If Delay==0, disables printing the CPU usage to the log\n"
+	     "If Delay>0, starts printing the average CPU usage from the last n frames, clamps between 10 and 300"),
 	FConsoleCommandWithArgsDelegate::CreateRaw( &FCPUTimeDump::Get(), &FCPUTimeDump::ExecuteCommand )
 );

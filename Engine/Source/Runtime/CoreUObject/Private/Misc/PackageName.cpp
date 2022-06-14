@@ -627,8 +627,8 @@ void FPackageName::InternalFilenameToLongPackageName(FStringView InFilename, FSt
 
 	if (bIsValidLongPackageName && Result.Len() != Filename.Len())
 	{
-		UE_LOG(LogPackageName, Warning, TEXT("TryConvertFilenameToLongPackageName was passed an ObjectPath (%.*s) rather than a PackageName or FilePath; it will be converted to the PackageName. ")
-			TEXT("Accepting ObjectPaths is deprecated behavior and will be removed in a future release; TryConvertFilenameToLongPackageName will fail on ObjectPaths."), InFilename.Len(), InFilename.GetData());
+		UE_LOG(LogPackageName, Warning, TEXT("TryConvertFilenameToLongPackageName was passed an ObjectPath (%.*s) rather than a PackageName or FilePath; it will be converted to the PackageName. "
+			"Accepting ObjectPaths is deprecated behavior and will be removed in a future release; TryConvertFilenameToLongPackageName will fail on ObjectPaths."), InFilename.Len(), InFilename.GetData());
 	}
 
 	{
@@ -2488,8 +2488,8 @@ bool FPackageNameTests::RunTest(const FString& Parameters)
 				ActualSubObjectName != ExpectedSubObjectName || ActualExtension != ExpectedExtension ||
 				ActualFlexNameType != ExpectedFlexNameType || ActualFailureReason != ExpectedFailureReason)
 			{
-				AddError(FString::Printf(TEXT("Path '%.*s' failed FPackageName::TryConvertToMountedPath\n")
-					TEXT("got      %s,'%s','%s','%s','%s','%s',%d,%d,\nexpected %s,'%.*s','%.*s','%.*s','%.*s','%.*s',%d,%d."),
+				AddError(FString::Printf(TEXT("Path '%.*s' failed FPackageName::TryConvertToMountedPath\n"
+					"got      %s,'%s','%s','%s','%s','%s',%d,%d,\nexpected %s,'%.*s','%.*s','%.*s','%.*s','%.*s',%d,%d."),
 					InPath.Len(), InPath.GetData(),
 					bActualResult ? TEXT("true") : TEXT("false"),
 					*ActualLocalPath, *ActualPackageName, *ActualObjectName, *ActualSubObjectName, *ActualExtension,

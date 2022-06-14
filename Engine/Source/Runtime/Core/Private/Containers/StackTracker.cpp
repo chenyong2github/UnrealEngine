@@ -219,7 +219,7 @@ void FStackTracker::DumpStackTraces(int32 StackThreshold, FOutputDevice& Ar, flo
 				ANSICHAR AddressInformation[512];
 				AddressInformation[0] = 0;
 				FPlatformStackWalk::ProgramCounterToHumanReadableString( AddressIndex, CallStack.Addresses[AddressIndex], AddressInformation, UE_ARRAY_COUNT(AddressInformation)-1 );
-				CallStackString = CallStackString + LINE_TERMINATOR TEXT(",,,") + FString(AddressInformation);
+				CallStackString = CallStackString + TEXT(LINE_TERMINATOR_ANSI ",,,") + FString(AddressInformation);
 			}
 
 			// Finally log with ',' prefix so "Log:" can easily be discarded as row in Excel.

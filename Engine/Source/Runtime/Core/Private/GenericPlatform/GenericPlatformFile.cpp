@@ -202,9 +202,9 @@ static int32 GCacheHandleForPakFilesOnly = 1;
 static FAutoConsoleVariableRef CVarCacheHandleForPakFilesOnly(
 	TEXT("AsyncReadFile.CacheHandleForPakFilesOnly"),
 	GCacheHandleForPakFilesOnly,
-	TEXT("Control how Async read handle caches the underlying platform handle for files.\n")
-	TEXT("0: Cache the underlying platform handles for all files.\n")
-	TEXT("1: Cache the underlying platform handle for .pak files only (default).\n"),
+	TEXT("Control how Async read handle caches the underlying platform handle for files.\n"
+	     "0: Cache the underlying platform handles for all files.\n"
+	     "1: Cache the underlying platform handle for .pak files only (default).\n"),
 	ECVF_Default
 );
 

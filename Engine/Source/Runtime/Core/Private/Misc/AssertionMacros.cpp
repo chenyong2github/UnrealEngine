@@ -67,7 +67,7 @@ namespace
 	};
 }
 
-#define FILE_LINE_DESC TEXT(" [File:%s] [Line: %i] ")
+#define FILE_LINE_DESC_ANSI " [File:%s] [Line: %i] "
 
 /*
 	Ensure behavior
@@ -146,7 +146,7 @@ static void AssertFailedImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 
 	FCString::Sprintf(ErrorString, TEXT("%s"), ANSI_TO_TCHAR(Expr));
 	if (GError)
 	{
-		GError->Logf(TEXT("Assertion failed: %s") FILE_LINE_DESC TEXT("\n%s\n"), ErrorString, ANSI_TO_TCHAR(File), Line, DescriptionString);
+		GError->Logf(TEXT("Assertion failed: %s" FILE_LINE_DESC_ANSI "\n%s\n"), ErrorString, ANSI_TO_TCHAR(File), Line, DescriptionString);
 	}
 }
 
@@ -177,14 +177,14 @@ FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const ANSICHAR* File, in
 	}
 
 	FScopeLock Lock( &GetFailDebugCriticalSection());
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s") FILE_LINE_DESC TEXT("\n%s\n"), Error, ANSI_TO_TCHAR(File), Line, Description);
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s" FILE_LINE_DESC_ANSI "\n%s\n"), Error, ANSI_TO_TCHAR(File), Line, Description);
 
 	// Copy the detailed error into the error message.
 	TCHAR ErrorMessage[4096];
-	if (FCString::Snprintf( ErrorMessage, UE_ARRAY_COUNT( ErrorMessage ), TEXT( "%s" ) FILE_LINE_DESC TEXT( "\n%s\n" ), Error, ANSI_TO_TCHAR( File ), Line, DescriptionAndTrace) < 0)
+	if (FCString::Snprintf( ErrorMessage, UE_ARRAY_COUNT( ErrorMessage ), TEXT( "%s" FILE_LINE_DESC_ANSI "\n%s\n" ), Error, ANSI_TO_TCHAR( File ), Line, DescriptionAndTrace) < 0)
 	{
 		// Description and callstack was too long to fit in GErrorMessage. Use only description
-		FCString::Snprintf( ErrorMessage, UE_ARRAY_COUNT( ErrorMessage ), TEXT( "%s" ) FILE_LINE_DESC TEXT( "\n%s\n<< callstack too long >>" ), Error, ANSI_TO_TCHAR( File ), Line, Description);
+		FCString::Snprintf( ErrorMessage, UE_ARRAY_COUNT( ErrorMessage ), TEXT( "%s" FILE_LINE_DESC_ANSI "\n%s\n<< callstack too long >>" ), Error, ANSI_TO_TCHAR( File ), Line, Description);
 	}
 
 	// Copy the error message to the error history.
@@ -362,11 +362,11 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 #if !NO_LOGGING
 		if (GEnsuresAreErrors)
 		{
-			UE_LOG(LogOutputDevice, Error, TEXT("%s") FILE_LINE_DESC TEXT("\n%s\n"), ErrorString, ANSI_TO_TCHAR(File), Line, Msg);
+			UE_LOG(LogOutputDevice, Error, TEXT("%s" FILE_LINE_DESC_ANSI "\n%s\n"), ErrorString, ANSI_TO_TCHAR(File), Line, Msg);
 		}
 		else
 		{
-			UE_LOG(LogOutputDevice, Warning, TEXT("%s") FILE_LINE_DESC TEXT("\n%s\n"), ErrorString, ANSI_TO_TCHAR(File), Line, Msg);
+			UE_LOG(LogOutputDevice, Warning, TEXT("%s" FILE_LINE_DESC_ANSI "\n%s\n"), ErrorString, ANSI_TO_TCHAR(File), Line, Msg);
 		}
 #endif
 	}
@@ -377,7 +377,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 
 		// Create a final string that we'll output to the log (and error history buffer)
 		TCHAR ErrorMsg[16384];
-		FCString::Snprintf(ErrorMsg, UE_ARRAY_COUNT(ErrorMsg), TEXT("Ensure condition failed: %s [File:%s] [Line: %i]") LINE_TERMINATOR TEXT("%s") LINE_TERMINATOR TEXT("Stack: ") LINE_TERMINATOR, ANSI_TO_TCHAR(Expr), ANSI_TO_TCHAR(File), Line, Msg);
+		FCString::Snprintf(ErrorMsg, UE_ARRAY_COUNT(ErrorMsg), TEXT("Ensure condition failed: %s [File:%s] [Line: %i]" LINE_TERMINATOR_ANSI "%s" LINE_TERMINATOR_ANSI "Stack: " LINE_TERMINATOR_ANSI), ANSI_TO_TCHAR(Expr), ANSI_TO_TCHAR(File), Line, Msg);
 
 		// No debugger attached, so generate a call stack and submit a crash report
 		// Walk the stack and dump it to the allocated memory.
@@ -607,4 +607,4 @@ FORCENOINLINE void FDebug::DumpStackTraceToLog(const TCHAR* Heading, const ELogV
 #endif
 }
 
-#undef FILE_LINE_DESC
+#undef FILE_LINE_DESC_ANSI

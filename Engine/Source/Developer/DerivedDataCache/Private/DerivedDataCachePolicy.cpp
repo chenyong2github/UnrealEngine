@@ -139,8 +139,8 @@ public:
 		checkf(Value.Id.IsValid(), TEXT("Failed to add value policy because the ID is null."));
 		const int32 Index = Algo::LowerBoundBy(Values, Value.Id, &FCacheValuePolicy::Id);
 		checkf(!(Values.IsValidIndex(Index) && Values[Index].Id == Value.Id),
-			TEXT("Failed to add value policy with ID %s because it has an existing value policy with that ID. ")
-			TEXT("New: %s. Existing: %s."),
+			TEXT("Failed to add value policy with ID %s because it has an existing value policy with that ID. "
+			     "New: %s. Existing: %s."),
 			*WriteToString<32>(Value.Id), *WriteToString<128>(Value.Policy), *WriteToString<128>(Values[Index].Policy));
 		Values.Insert(Value, Index);
 	}

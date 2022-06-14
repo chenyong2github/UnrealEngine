@@ -2848,7 +2848,8 @@ struct FAssetMsg
 	static COREUOBJECT_API FString GetAssetLogString(const UObject* Object, const FString& Message);
 };
 
-#define ASSET_LOG_FORMAT_STRING TEXT("[AssetLog] %s: ")
+#define ASSET_LOG_FORMAT_STRING_ANSI "[AssetLog] %s: "
+#define ASSET_LOG_FORMAT_STRING TEXT(ASSET_LOG_FORMAT_STRING_ANSI)
 
 #if NO_LOGGING
 	#define UE_ASSET_LOG(...)

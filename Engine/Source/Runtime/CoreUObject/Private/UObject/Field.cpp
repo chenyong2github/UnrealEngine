@@ -770,7 +770,7 @@ FText FField::GetToolTipText(bool bShortTooltip) const
 	}
 	else
 	{
-		LocalizedToolTip = FText::Join(FText::FromString(TEXT(":") LINE_TERMINATOR), DisplayName, LocalizedToolTip);
+		LocalizedToolTip = FText::Join(FText::FromString(TEXT(":" LINE_TERMINATOR_ANSI)), DisplayName, LocalizedToolTip);
 	}
 
 	return LocalizedToolTip;

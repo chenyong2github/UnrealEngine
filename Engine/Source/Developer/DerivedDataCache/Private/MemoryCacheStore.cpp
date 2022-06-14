@@ -261,8 +261,8 @@ void FMemoryCacheStore::Put(
 		if (MaxCacheSize > 0 && (CurrentCacheSize + RequiredSize) > MaxCacheSize)
 		{
 			UE_CLOG(!bMaxSizeExceeded, LogDerivedDataCache, Display,
-				TEXT("Failed to cache data. Maximum cache size reached. ")
-				TEXT("CurrentSize %" UINT64_FMT " KiB / MaxSize: %" UINT64_FMT " KiB"),
+				TEXT("Failed to cache data. Maximum cache size reached. "
+				     "CurrentSize %" UINT64_FMT " KiB / MaxSize: %" UINT64_FMT " KiB"),
 				CurrentCacheSize / 1024, MaxCacheSize / 1024);
 			bMaxSizeExceeded = true;
 			Status = EStatus::Ok;
@@ -455,8 +455,8 @@ void FMemoryCacheStore::PutValue(
 		if (MaxCacheSize > 0 && (CurrentCacheSize + RequiredSize) > MaxCacheSize)
 		{
 			UE_CLOG(!bMaxSizeExceeded, LogDerivedDataCache, Display,
-				TEXT("Failed to cache data. Maximum cache size reached. ")
-				TEXT("CurrentSize %" UINT64_FMT " KiB / MaxSize: %" UINT64_FMT " KiB"),
+				TEXT("Failed to cache data. Maximum cache size reached. "
+				     "CurrentSize %" UINT64_FMT " KiB / MaxSize: %" UINT64_FMT " KiB"),
 				CurrentCacheSize / 1024, MaxCacheSize / 1024);
 			bMaxSizeExceeded = true;
 			continue;

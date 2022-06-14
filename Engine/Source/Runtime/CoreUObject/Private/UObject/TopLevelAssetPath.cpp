@@ -127,7 +127,7 @@ bool FTopLevelAssetPath::TrySetPath(FWideStringView Path)
 			return true;
 		}
 
-		FAsciiSet Delim2("." SUBOBJECT_DELIMITER);
+		FAsciiSet Delim2(TEXT("." SUBOBJECT_DELIMITER_ANSI));
 		if (FAsciiSet::HasAny(AssetNameView, Delim2))
 		{
 			// Subobject path or is malformed and contains multiple '.' delimiters.
@@ -140,6 +140,13 @@ bool FTopLevelAssetPath::TrySetPath(FWideStringView Path)
 		return true;
 	}
 	return false;
+}
+
+bool FTopLevelAssetPath::TrySetPath(FUtf8StringView Path)
+{
+	TStringBuilder<FName::StringBufferSize> Wide;
+	Wide << Path;
+	return TrySetPath(Wide);
 }
 
 bool FTopLevelAssetPath::TrySetPath(FAnsiStringView Path)

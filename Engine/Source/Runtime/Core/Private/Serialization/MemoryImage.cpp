@@ -21,7 +21,7 @@ IMPLEMENT_TYPE_LAYOUT(FPlatformTypeLayoutParameters);
 IMPLEMENT_TYPE_LAYOUT(FHashedName);
 
 // Guid for versioning format changes/bug fixes to memory images
-#define MEMORYIMAGE_DERIVEDDATA_VER		TEXT("B6A0A753ED62499D8F30931E61FCAB05")
+#define MEMORYIMAGE_DERIVEDDATA_VER_ANSI		"B6A0A753ED62499D8F30931E61FCAB05"
 
 static const uint32 NumTypeLayoutDescHashBuckets = 4357u;
 static const FTypeLayoutDesc* GTypeLayoutHashBuckets[NumTypeLayoutDescHashBuckets] = { nullptr };
@@ -111,7 +111,7 @@ FArchive& FPlatformTypeLayoutParameters::Serialize(FArchive& Ar)
 
 void FPlatformTypeLayoutParameters::AppendKeyString(FString& KeyString) const
 {
-	KeyString += FString::Printf(TEXT("FL_%08x_MFA_%08x_V_") MEMORYIMAGE_DERIVEDDATA_VER, Flags, MaxFieldAlignment);
+	KeyString += FString::Printf(TEXT("FL_%08x_MFA_%08x_V_" MEMORYIMAGE_DERIVEDDATA_VER_ANSI), Flags, MaxFieldAlignment);
 }
 
 // evaluated during static-initialization, so logging from regular check() macros won't work correctly
@@ -1717,9 +1717,9 @@ FMemoryImageSection* FMemoryImageSection::WritePointer(const FTypeLayoutDesc& St
 
 	checkf(OutOffsetToBase || bStaticTypeMatchesDerived, TEXT("Must consider OffsetToBase if static/derived types are different, %s/%s"), DerivedTypeDesc.Name, StaticTypeDesc.Name);
 	checkf(TypeDependencyIndex != INDEX_NONE || bStaticTypeMatchesDerived,
-		TEXT("Unable to store pointer to derived type %s, different from static type %s\n")
-		TEXT("Ensure UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES is set\n")
-		TEXT("Make sure derived type is not declared using DECLARE_INLINE_TYPE_LAYOUT()"),
+		TEXT("Unable to store pointer to derived type %s, different from static type %s\n"
+		     "Ensure UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES is set\n"
+		     "Make sure derived type is not declared using DECLARE_INLINE_TYPE_LAYOUT()"),
 		DerivedTypeDesc.Name, StaticTypeDesc.Name);
 
 	FFrozenMemoryImagePtr FrozenPtr;

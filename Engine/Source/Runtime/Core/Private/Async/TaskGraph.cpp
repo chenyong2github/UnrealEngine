@@ -422,10 +422,10 @@ static ENamedThreads::Type ThreadPriorityFromChar(TCHAR InChar)
 FString FAutoConsoleTaskPriority::CreateFullHelpText(const TCHAR* Name, const TCHAR* OriginalHelp)
 {
 	return FString::Printf(
-		TEXT("%s\n")
-		TEXT("Arguments are three characters: [ThreadPriority][TaskPriority][TaskPriorityIfForcedToNormalThreadPriority] ")
-		TEXT("where ThreadPriority is 'h' or 'n' or 'b' (high/normal/background) and TaskPriority is 'h' or 'n' (high/normal). ")
-		TEXT("Example: %s bnh")
+		TEXT("%s\n"
+		     "Arguments are three characters: [ThreadPriority][TaskPriority][TaskPriorityIfForcedToNormalThreadPriority] "
+		     "where ThreadPriority is 'h' or 'n' or 'b' (high/normal/background) and TaskPriority is 'h' or 'n' (high/normal). "
+		     "Example: %s bnh")
 		, OriginalHelp, Name);
 }
 

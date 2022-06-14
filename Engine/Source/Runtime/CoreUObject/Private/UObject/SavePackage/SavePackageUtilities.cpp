@@ -1892,8 +1892,8 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 		}
 		if (bBulkItemIsMapped && bRequestSaveByReference)
 		{
-			UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is mapped, but the save method is SAVE_BulkDataByReference.")
-				TEXT("This is not currently supported. Will not be mapped."), Filename);
+			UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is mapped, but the save method is SAVE_BulkDataByReference."
+				"This is not currently supported. Will not be mapped."), Filename);
 			BulkDataFlags &= ~BULKDATA_MemoryMappedPayload;
 			bBulkItemIsMapped = false;
 		}

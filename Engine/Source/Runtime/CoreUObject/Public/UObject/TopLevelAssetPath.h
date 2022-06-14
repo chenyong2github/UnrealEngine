@@ -60,6 +60,7 @@ struct COREUOBJECT_API FTopLevelAssetPath
 	bool TrySetPath(FName InPackageName, FName InAssetName);
 	/** Sets asset path of this reference based on a string path. Resets this object and returns false if the string is empty or does not represent a top level asset path. */
 	bool TrySetPath(FWideStringView Path);
+	bool TrySetPath(FUtf8StringView Path);
 	bool TrySetPath(FAnsiStringView Path);
 	template<typename CharType>
 	bool TrySetPath(const CharType* Path) { return TrySetPath(TStringView<CharType>(Path)); }

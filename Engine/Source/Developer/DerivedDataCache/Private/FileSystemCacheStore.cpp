@@ -941,21 +941,21 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 		}
 
 		UE_LOG(LogDerivedDataCache, Display,
-			TEXT("Performance to %s: Latency=%.02fms. RandomReadSpeed=%.02fMBs, RandomWriteSpeed=%.02fMBs. ")
-			TEXT("Assigned SpeedClass '%s'"),
+			TEXT("Performance to %s: Latency=%.02fms. RandomReadSpeed=%.02fMBs, RandomWriteSpeed=%.02fMBs. "
+			     "Assigned SpeedClass '%s'"),
 			*CachePath, SpeedStats.LatencyMS, SpeedStats.ReadSpeedMBs, SpeedStats.WriteSpeedMBs, LexToString(SpeedClass));
 
 		if (SpeedClass <= EBackendSpeedClass::Slow && !bReadOnly)
 		{
 			if (GIsBuildMachine)
 			{
-				UE_LOG(LogDerivedDataCache, Display, TEXT("Access to %s appears to be slow. ")
-					TEXT("'Touch' will be disabled and queries/writes will be limited."), *CachePath);
+				UE_LOG(LogDerivedDataCache, Display, TEXT("Access to %s appears to be slow. "
+					"'Touch' will be disabled and queries/writes will be limited."), *CachePath);
 			}
 			else
 			{
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("Access to %s appears to be slow. ")
-					TEXT("'Touch' will be disabled and queries/writes will be limited."), *CachePath);
+				UE_LOG(LogDerivedDataCache, Warning, TEXT("Access to %s appears to be slow. "
+					"'Touch' will be disabled and queries/writes will be limited."), *CachePath);
 			}
 			bTouch = false;
 			//bReadOnly = true;
@@ -1144,8 +1144,8 @@ bool FFileSystemCacheStore::RunSpeedTest(
 					TCHAR ErrorBuffer[1024];
 					FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
 					UE_LOG(LogDerivedDataCache, Warning,
-						TEXT("Fail to create %s, derived data cache to this directory will be read only. ")
-						TEXT("WriteError: %u (%s)"), *File, ErrorCode, ErrorBuffer);
+						TEXT("Fail to create %s, derived data cache to this directory will be read only. "
+						     "WriteError: %u (%s)"), *File, ErrorCode, ErrorBuffer);
 					bTestDataExists = false;
 					bWriteTestPassed = false;
 					break;
@@ -1527,8 +1527,8 @@ bool FFileSystemCacheStore::PutCacheRecord(
 					if (!Value.HasData() && !GetCacheContentExists(Key, Value.GetRawHash()))
 					{
 						UE_LOG(LogDerivedDataCache, Log,
-							TEXT("%s: Cache put of non-deterministic record will overwrite existing record due to ")
-							TEXT("missing value %s with hash %s for %s from '%.*s'"),
+							TEXT("%s: Cache put of non-deterministic record will overwrite existing record due to "
+							     "missing value %s with hash %s for %s from '%.*s'"),
 							*CachePath, *WriteToString<16>(Value.GetId()), *WriteToString<48>(Value.GetRawHash()),
 							*WriteToString<96>(Key), Name.Len(), Name.GetData());
 						return false;

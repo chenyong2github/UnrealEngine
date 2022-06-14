@@ -364,8 +364,8 @@ void FPakFileCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const u
 				}
 
 				UE_LOG(LogDerivedDataCache, Warning,
-					TEXT("%s: Repeated put of %s with different sized contents. Multiple contents will be in the file, ")
-					TEXT("but only the last will be in the index. This has wasted %" INT64_FMT " bytes in the file."),
+					TEXT("%s: Repeated put of %s with different sized contents. Multiple contents will be in the file, "
+					     "but only the last will be in the index. This has wasted %" INT64_FMT " bytes in the file."),
 					*CachePath, CacheKey, Item->Size);
 				CacheItems.Remove(Key);
 			}
@@ -595,10 +595,10 @@ bool IPakFileCacheStore::SortAndCopy(const FString &InputFilename, const FString
 
 	// Write out a TOC listing for debugging
 	FStringOutputDevice Output;
-	Output.Logf(TEXT("Asset,Size") LINE_TERMINATOR);
+	Output.Logf(TEXT("Asset,Size" LINE_TERMINATOR_ANSI));
 	for(int KeyIndex = 0; KeyIndex < KeyNames.Num(); KeyIndex++)
 	{
-		Output.Logf(TEXT("%s,%d") LINE_TERMINATOR, *KeyNames[KeyIndex], KeySizes[KeyIndex]);
+		Output.Logf(TEXT("%s,%d" LINE_TERMINATOR_ANSI), *KeyNames[KeyIndex], KeySizes[KeyIndex]);
 	}
 	FFileHelper::SaveStringToFile(Output, *FPaths::Combine(*FPaths::GetPath(OutputFilename), *(FPaths::GetBaseFilename(OutputFilename) + TEXT(".csv"))));
 	return true;

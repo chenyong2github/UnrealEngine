@@ -22,15 +22,15 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogHttpDerivedDataBackendTests, Log, All);
 
-#define TEST_NAME_ROOT TEXT("System.DerivedDataCache.HttpDerivedDataBackend")
+#define TEST_NAME_ROOT "System.DerivedDataCache.HttpDerivedDataBackend"
 
 #define IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST( TClass, PrettyName, TFlags ) \
-	IMPLEMENT_CUSTOM_COMPLEX_AUTOMATION_TEST(TClass, FHttpCacheStoreTestBase, TEST_NAME_ROOT PrettyName, TFlags) \
+	IMPLEMENT_CUSTOM_COMPLEX_AUTOMATION_TEST(TClass, FHttpCacheStoreTestBase, TEXT(TEST_NAME_ROOT PrettyName), TFlags) \
 	void TClass::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const \
 	{ \
 		if (CheckPrequisites()) \
 		{ \
-			OutBeautifiedNames.Add(TEST_NAME_ROOT PrettyName); \
+			OutBeautifiedNames.Add(TEXT(TEST_NAME_ROOT PrettyName)); \
 			OutTestCommands.Add(FString()); \
 		} \
 	}
@@ -598,7 +598,7 @@ TArray<FValue> CreateTestCacheValues(ICacheStore* InTestBackend, uint32 InNumVal
 }
 
 // Tests basic functionality for structured cache operations
-IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FHttpCacheStoreTest, TEXT(".CacheStore"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FHttpCacheStoreTest, ".CacheStore", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FHttpCacheStoreTest::RunTest(const FString& Parameters)
 {
 	using namespace UE::DerivedData;

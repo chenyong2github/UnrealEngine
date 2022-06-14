@@ -3107,15 +3107,15 @@ UObject* StaticAllocateObject
 
 			if (InClass->HasAnyClassFlags(CLASS_PerObjectConfig) && InOuter != nullptr && InOuter->GetOutermost() == GetTransientPackage())
 			{
-				ErrorPrefix = TEXT("PerObjectConfig object using the transient package, has triggered a name conflict and will now crash.\n")
-						TEXT("To avoid this, don't use the transient package for PerObjectConfig objects.\n")
-						TEXT("This has the side effect, of using the full path name for config ini sections. Use 'OverridePerObjectConfigSection' to keep the short name.\n\n");
+				ErrorPrefix = TEXT("PerObjectConfig object using the transient package, has triggered a name conflict and will now crash.\n"
+						"To avoid this, don't use the transient package for PerObjectConfig objects.\n"
+						"This has the side effect, of using the full path name for config ini sections. Use 'OverridePerObjectConfigSection' to keep the short name.\n\n");
 			}
 
 			UE_LOG(LogUObjectGlobals, Fatal,
-				TEXT("%sObjects have the same fully qualified name but different paths.\n")
-				TEXT("\tNew Object: %s %s.%s\n")
-				TEXT("\tExisting Object: %s"),
+				TEXT("%sObjects have the same fully qualified name but different paths.\n"
+				     "\tNew Object: %s %s.%s\n"
+				     "\tExisting Object: %s"),
 				ErrorPrefix, *InClass->GetName(), InOuter ? *InOuter->GetPathName() : TEXT(""), *InName.ToString(),
 				*Obj->GetFullName());
 		}
@@ -4948,7 +4948,7 @@ FString FAssetMsg::FormatPathForAssetLog(const UObject* Object)
 
 FString FAssetMsg::GetAssetLogString(const TCHAR* Path, const FString& Message)
 {
-	return FString::Printf(ASSET_LOG_FORMAT_STRING TEXT("%s"), *FAssetMsg::FormatPathForAssetLog(Path), *Message);
+	return FString::Printf(TEXT(ASSET_LOG_FORMAT_STRING_ANSI "%s"), *FAssetMsg::FormatPathForAssetLog(Path), *Message);
 }
 
 FString FAssetMsg::GetAssetLogString(const UObject* Object, const FString& Message)

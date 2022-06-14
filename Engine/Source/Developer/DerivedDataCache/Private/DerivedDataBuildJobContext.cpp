@@ -163,8 +163,8 @@ void FBuildJobContext::EndAsyncBuild()
 
 void FBuildJobContext::SetCacheBucket(FCacheBucket Bucket)
 {
-	checkf(!Bucket.IsNull(), TEXT("Null cache bucket not allowed for build of '%s' by %s. ")
-		TEXT("The cache can be disabled by calling SetCachePolicyMask(~ECachePolicy::Default)."),
+	checkf(!Bucket.IsNull(), TEXT("Null cache bucket not allowed for build of '%s' by %s. "
+		"The cache can be disabled by calling SetCachePolicyMask(~ECachePolicy::Default)."),
 		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	CacheKey.Bucket = Bucket;
 }
@@ -172,12 +172,12 @@ void FBuildJobContext::SetCacheBucket(FCacheBucket Bucket)
 void FBuildJobContext::SetCachePolicyMask(ECachePolicy Policy)
 {
 	checkf(EnumHasAllFlags(Policy, ECachePolicy::SkipData),
-		TEXT("SkipData flags may not be masked out on the cache policy for build of '%s' by %s. ")
-		TEXT("Flags for skipping data may be set indirectly through FBuildPolicy."),
+		TEXT("SkipData flags may not be masked out on the cache policy for build of '%s' by %s. "
+		     "Flags for skipping data may be set indirectly through FBuildPolicy."),
 		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	checkf(EnumHasAllFlags(Policy, ECachePolicy::KeepAlive),
-		TEXT("KeepAlive flag may not be masked out on the cache policy for build of '%s' by %s. ")
-		TEXT("Flags for cache record lifetime may be set indirectly through FBuildPolicy."),
+		TEXT("KeepAlive flag may not be masked out on the cache policy for build of '%s' by %s. "
+		     "Flags for cache record lifetime may be set indirectly through FBuildPolicy."),
 		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	checkf(EnumHasAllFlags(Policy, ECachePolicy::PartialRecord),
 		TEXT("PartialRecord flag may not be masked out on the cache policy for build of '%s' by %s."),
@@ -188,16 +188,16 @@ void FBuildJobContext::SetCachePolicyMask(ECachePolicy Policy)
 void FBuildJobContext::SetBuildPolicyMask(EBuildPolicy Policy)
 {
 	checkf(EnumHasAllFlags(Policy, EBuildPolicy::Cache),
-		TEXT("Cache flags may not be masked out on the build policy for build of '%s' by %s. ")
-		TEXT("Flags for modifying cache operations may be set through SetCachePolicyMask."),
+		TEXT("Cache flags may not be masked out on the build policy for build of '%s' by %s. "
+		     "Flags for modifying cache operations may be set through SetCachePolicyMask."),
 		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	checkf(EnumHasAllFlags(Policy, EBuildPolicy::CacheKeepAlive),
-		TEXT("CacheKeepAlive flag may not be masked out on the build policy for build of '%s' by %s. ")
-		TEXT("Flags for cache record lifetime may only be set through the build session."),
+		TEXT("CacheKeepAlive flag may not be masked out on the build policy for build of '%s' by %s. "
+		     "Flags for cache record lifetime may only be set through the build session."),
 		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	checkf(EnumHasAllFlags(Policy, EBuildPolicy::SkipData),
-		TEXT("SkipData flag may not be masked out on the build policy for build of '%s' by %s. ")
-		TEXT("Flags for skipping the data may only be set through the build session."),
+		TEXT("SkipData flag may not be masked out on the build policy for build of '%s' by %s. "
+		     "Flags for skipping the data may only be set through the build session."),
 		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	BuildPolicyMask = Policy;
 }
