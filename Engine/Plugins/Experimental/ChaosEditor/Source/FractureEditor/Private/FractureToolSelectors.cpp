@@ -345,7 +345,7 @@ FText UFractureToolSelectCluster::GetDisplayText() const
 
 FText UFractureToolSelectCluster::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolSelectLeafTooltip", "Select cluster bones"));
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectClusterTooltip", "Select cluster bones"));
 }
 
 FSlateIcon UFractureToolSelectCluster::GetToolIcon() const
