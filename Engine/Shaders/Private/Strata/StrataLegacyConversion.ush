@@ -624,16 +624,28 @@ FStrataData StrataConvertLegacyMaterialStatic(
 	}
 	else if (ShadingModel == SHADINGMODELID_HAIR)
 	{
-		Out = GetStrataHairBSDF(
-			BaseColor,	   // BaseColor
-			Metallic,	   // Scatter
-			Specular,	   // Specular
-			Roughness,	   // Roughness
-			ClearCoat,	   // Backlit
-			Emissive,	   // EmissiveColor
-			SharedLocalBasisIndex);
+		FStrataData Top_Hair = PromoteParameterBlendedBSDFToOperator(
+			GetStrataHairBSDF(
+				BaseColor,	   // BaseColor
+				Metallic,	   // Scatter
+				Specular,	   // Specular
+				Roughness,	   // Roughness
+				ClearCoat,	   // Backlit
+				Emissive,	   // EmissiveColor
+				SharedLocalBasisIndex),
+				StrataTree,
+				0		/*OperatorIndex*/,
+				0		/*BSDFIndex*/,
+				0		/*int LayerDepth*/,
+				1		/*int bIsBottom*/);
 
-		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
+		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
+		FStrataData Bot_Slab = CreateLegacySlab(Bot, SharedLocalBasisTypes, StrataTree,	/*OperatorIndex*/1, /*BSDFIndex*/1);
+
+		FStrataData WTop_Slab = StrataWeight(Top_Hair, 1.0, StrataTree,					/*OperatorIndex*/2, /*MaxDistanceFromLeaves*/1);
+		FStrataData WBot_Slab = StrataWeight(Bot_Slab, 0.0, StrataTree,					/*OperatorIndex*/3, /*MaxDistanceFromLeaves*/1);
+		Out = StrataVerticalLayering(WTop_Slab, WBot_Slab, StrataTree,					/*OperatorIndex*/4, /*MaxDistanceFromLeaves*/2);
+		// Out maps to LegacyUpdateBSDFsOperators
 	}
 	else if (ShadingModel == SHADINGMODELID_SINGLELAYERWATER)
 	{
@@ -653,11 +665,11 @@ FStrataData StrataConvertLegacyMaterialStatic(
 				WaterPhaseG, 			// WaterPhaseG
 				ColorScaleBehindWater,	// ColorScaleBehindWater
 				SharedLocalBasisIndex),
-			StrataTree,
-			0		/*OperatorIndex*/,
-			0		/*BSDFIndex*/,
-			0		/*int LayerDepth*/,
-			1		/*int bIsBottom*/);
+				StrataTree,
+				0		/*OperatorIndex*/,
+				0		/*BSDFIndex*/,
+				0		/*int LayerDepth*/,
+				1		/*int bIsBottom*/);
 
 		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
 		FStrataData Bot_Slab = CreateLegacySlab(Bot, SharedLocalBasisTypes, StrataTree,	/*OperatorIndex*/1, /*BSDFIndex*/1);

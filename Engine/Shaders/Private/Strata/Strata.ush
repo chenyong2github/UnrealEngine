@@ -844,16 +844,7 @@ uint StrataSubsurfaceProfileIdTo8bits(float In)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Shading models
-uint StrataShadingModelBit(uint ShadingModel)
-{
-	return 1u << ShadingModel;
-}
-
-bool StrataHasShadingModel(uint ShadingModels, uint ShadingModel)
-{
-	return (ShadingModels & (1u << ShadingModel)) > 0;
-}
+// Misc
 
 // Return true if a BSDF has a custom area light integrator
 bool StrataHasAreaLightIntegrator(in FStrataBSDF BSDF)
@@ -1719,7 +1710,7 @@ bool IsStrataMaterial(const FStrataPixelHeader In)											{ return (In.State 
 bool HasSubsurface(const FStrataPixelHeader In)												{ return (In.State & HEADER_MASK_HASSUBSURFACE) != 0; }
 bool HasDynamicIndirectShadowCasterRepresentation(const FStrataPixelHeader In)				{ return (In.State & HEADER_MASK_HASDYNINDIRECTSHADOWCASTER) != 0; }
 
-bool StrataHasShadingModel(const FStrataPixelHeader In, uint ShadingModel)					{ return StrataHasShadingModel(GetShadingModels(In), ShadingModel); }
+bool StrataHasShadingModel(const FStrataPixelHeader In, uint ShadingModel)					{ return GetShadingModels(In) == ShadingModel; }
 
 void SetHasPrecShadowMask(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_HASPRECSHADOWMASK : 0u); }
 void SetZeroPrecShadowMask(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_ZEROPRECSHADOWMASK : 0u); }
@@ -3063,7 +3054,7 @@ void StrataConvertFromDBuffer(
 	OutHeader.IrradianceAO = InitIrradianceAndOcclusion();
 #endif
 	OutHeader.State = 0;
-	AddShadingModels(OutHeader, StrataShadingModelBit(STRATA_BSDF_TYPE_SLAB));
+	HEADER_SETSHADINGMODELS(OutHeader.State, STRATA_BSDF_TYPE_SLAB);
 
 	// Decal only support a single Slab BSDF with no-anisotropy
 	const FStrataPixelFootprint PixelFootprint = (FStrataPixelFootprint)0;
@@ -3241,7 +3232,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 		{
 			// Clear shading model, and ensurewe have only STRATA_BSDF_TYPE_SLAB
 			Out.State = Out.State & (~HEADER_MASK_SHADINGMODELS);
-			HEADER_SETSHADINGMODELS(Out.State, StrataShadingModelBit(STRATA_BSDF_TYPE_SLAB));
+			HEADER_SETSHADINGMODELS(Out.State, STRATA_BSDF_TYPE_SLAB);
 		}
 		else // if (bIsSingleMaterial)
 		{

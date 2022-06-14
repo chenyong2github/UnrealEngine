@@ -243,7 +243,8 @@ void PackStrataOut(
 					float3 N = TangentBasis[2];
 					TopLayerData.WorldNormal += N * BSDF.TopLayerDataWeight;
 
-					AddShadingModels(StrataPixelHeader, StrataShadingModelBit(BSDF_GETTYPE(BSDF)));
+					// Set shading mode to the last visible BSDF. Normally all BSDF should have the same type
+					HEADER_SETSHADINGMODELS(StrataPixelHeader.State, BSDF_GETTYPE(BSDF));
 
 					OneBSDFMaterial_Index = BSDFIdx;
 
@@ -267,6 +268,10 @@ void PackStrataOut(
 			bIsSimpleMaterial = bIsSimpleMaterial && BSDFVisibleCount == 1;
 			bIsSingleMaterial = bIsSingleMaterial && BSDFVisibleCount == 1;
 			SetMaterialMode(StrataPixelHeader, bIsSimpleMaterial ? HEADER_MATERIALMODE_SIMPLE : bIsSingleMaterial ? HEADER_MATERIALMODE_SINGLE : HEADER_MATERIALMODE_COMPLEX);
+		}		
+		else if (!IsSingleLayerWater(StrataPixelHeader))
+		{
+			SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_COMPLEX);
 		}
 
 		// Now evaluate Specular Occlusion and Indirect Irradiance.
