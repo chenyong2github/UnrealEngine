@@ -301,10 +301,12 @@ namespace Horde.Build.Notifications
 		private async ValueTask TickEveryTwelveHoursAsync(CancellationToken stoppingToken)
 		{
 			List<JobScheduledNotification> jobScheduledNotifications = await GetAllQueuedNotificationsAsync<JobScheduledNotification>();
-
-			foreach (INotificationSink sink in _sinks)
+			if (jobScheduledNotifications.Count > 0)
 			{
-				await sink.NotifyJobScheduledAsync(jobScheduledNotifications);
+				foreach (INotificationSink sink in _sinks)
+				{
+					await sink.NotifyJobScheduledAsync(jobScheduledNotifications);
+				}
 			}
 		}
 		
