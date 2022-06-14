@@ -592,15 +592,15 @@ namespace Chaos
 				continue;
 			}
 
-			const FReal ChildStrain = Child->CollisionImpulses() + Child->GetExternalStrains();
-			if (ChildStrain >= Child->Strain() || bForceRelease)
+			const FReal MaxAppliedStrain = FMath::Max(Child->CollisionImpulses(), Child->GetExternalStrain());
+			if ((MaxAppliedStrain >= Child->Strain()) || bForceRelease)
 			{
 				//UE_LOG(LogTemp, Warning, TEXT("Releasing child %d from parent %p due to strain %.5f Exceeding internal strain %.5f (Source: %s)"), ChildIdx, ClusteredParticle, ChildStrain, Child->Strain(), bForceRelease ? TEXT("Forced by caller") : ExternalStrainMap ? TEXT("External") : TEXT("Collision"));
 
 				// if necessary propagate through the graph
 				if (GraphPropagationBasedCollisionImpulseProcessing && !bForceRelease)
 				{
-					const FReal RemainingStrain = Child->Strain() - ChildStrain;
+					const FReal RemainingStrain = (MaxAppliedStrain - Child->Strain());
 					if (RemainingStrain > 0)
 					{
 						// todo(chaos) : could do better and have something weighted on distance with a falloff maybe ?  
@@ -642,7 +642,7 @@ namespace Chaos
 
 			// no need anymore of the external strain let's clear it
 			// @todo(chaos) impulse collision are right now cleared somewhere else, but we should consolidate that eventually
-			Child->ClearExternalStrains();
+			Child->ClearExternalStrain();
 		}
 
 		if (ActivatedChildren.Num() > 0)
@@ -721,8 +721,7 @@ namespace Chaos
 					{
 						if (ensure(!ClusterHandle || ClusteredChildHandle->ClusterIds().Id == ClusterHandle))
 						{
-							ClusteredChildHandle->ClearExternalStrains();
-							ClusteredChildHandle->AddExternalStrain(TNumericLimits<FReal>::Max());
+							ClusteredChildHandle->SetExternalStrain(TNumericLimits<FReal>::Max());
 							ClusterHandle = ClusteredChildHandle->ClusterIds().Id;
 						}
 						else
@@ -809,7 +808,7 @@ namespace Chaos
 										ClusteredChild->CollisionImpulse() = FLT_MAX;
 										MCollisionImpulseArrayDirty = true;
 									}
-									else if (!bPotentialBreak && ClusteredChild->GetExternalStrains() > 0)
+									else if (!bPotentialBreak && ClusteredChild->GetExternalStrain() > 0)
 									{
 										bPotentialBreak = true;
 									}

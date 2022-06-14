@@ -1208,9 +1208,9 @@ public:
 	T& CollisionImpulses() { return PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx); }
 	void SetCollisionImpulses(const T Value) { PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx) = Value; }
 
-	T GetExternalStrains() const { return PBDRigidClusteredParticles->ExternalStrains(ParticleIdx); }
-	void AddExternalStrain(const T Value) { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) += Value; }
-	void ClearExternalStrains() { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) = static_cast<T>(0); }
+	T GetExternalStrain() const { return PBDRigidClusteredParticles->ExternalStrains(ParticleIdx); }
+	void SetExternalStrain(const T Value) { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) = Value; }
+	void ClearExternalStrain() { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) = static_cast<T>(0); }
 	
 	const T& Strain() const { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
 	T& Strain() { return PBDRigidClusteredParticles->Strains(ParticleIdx); }

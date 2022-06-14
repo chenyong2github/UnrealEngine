@@ -494,7 +494,8 @@ namespace Chaos
 					{
 						if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredParticle = ParticleHandles[Index.Sample]->CastToClustered())
 						{
-							ClusteredParticle->AddExternalStrain(ExternalStrainValue);
+							const FReal CurrentExternalStrains = ClusteredParticle->GetExternalStrain();
+							ClusteredParticle->SetExternalStrain(FMath::Max(CurrentExternalStrains, ExternalStrainValue));
 						}
 					}
 				}
