@@ -132,6 +132,9 @@ public:
 	// [FunctionMetadata] Indicates that a particular function parameter is for internal use only, which means it will be both hidden and not connectible.
 	static const FName MD_InternalUseParam;
 
+	// [FunctionMetadata] Indicates that the function should appear as blueprint function even if it doesn't return a value.
+	static const FName MD_ForceAsFunction;
+
 	// [FunctionMetadata] Indicates that the function should be ignored when considered for blueprint type promotion
 	static const FName MD_IgnoreTypePromotion;
 
