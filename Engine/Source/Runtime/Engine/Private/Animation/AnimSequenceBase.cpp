@@ -1384,7 +1384,7 @@ void UAnimSequenceBase::CreateModel()
 	checkf(TargetClass != nullptr, TEXT("Unable to find valid AnimationDataModel class"));
 
 	checkf(!DataModelInterface || DataModelInterface.GetObject()->GetClass() != TargetClass, TEXT("Invalid attempt to override the existing data model %s"), *GetFullName());
-	UObject* ClassDataModel = NewObject<UObject>(this, TargetClass, TargetClass->GetFName(), RF_Standalone);
+	UObject* ClassDataModel = NewObject<UObject>(this, TargetClass, TargetClass->GetFName());
 	DataModelInterface = ClassDataModel;
 
 	BindToModelModificationEvent();
