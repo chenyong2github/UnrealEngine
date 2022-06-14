@@ -888,6 +888,13 @@ void FD3D12Adapter::InitializeDevices()
 			{
 				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device2 is supported."));
 			}
+
+			if (RootDevice1 == nullptr || RootDevice2 == nullptr)
+			{
+				// Note: we require Windows 1703 in FD3D12DynamicRHIModule::IsSupported()
+				// If we still lack support, the user's drivers could be out of date.
+				UE_LOG(LogD3D12RHI, Fatal, TEXT("Missing full support for Direct3D 12. Please update to the latest drivers."));
+			}
 #endif
 #if D3D12_MAX_DEVICE_INTERFACE >= 3
 			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice3.GetInitReference()))))

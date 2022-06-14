@@ -470,8 +470,11 @@ static bool IsAdapterSupported(FD3D12Adapter* InAdapter, ERHIFeatureLevel::Type 
 bool FD3D12DynamicRHIModule::IsSupported(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
 #if !PLATFORM_HOLOLENS
-	if (!FPlatformMisc::VerifyWindowsVersion(10, 0))
+	// Windows version 15063 is Windows 1703 aka "Windows Creator Update"
+	// This is the first version that supports ID3D12Device2 which is our minimum runtime device version.
+	if (!FPlatformMisc::VerifyWindowsVersion(10, 0, 15063))
 	{
+		UE_LOG(LogD3D12RHI, Warning, TEXT("Missing full support for Direct3D 12. Update to Windows 1703 or newer for D3D12 support."));
 		return false;
 	}
 #endif
