@@ -2887,6 +2887,21 @@ static void ApplyCompositeTexture(FImage& RoughnessSourceMips, const FImage& Nor
 	Image Compression.
 ------------------------------------------------------------------------------*/
 
+void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InMipCount, bool bInImageHasAlphaChannel) const
+{
+	FEncodedTextureDescription& TextureDescription = *OutTextureDescription;
+	TextureDescription = FEncodedTextureDescription();
+	TextureDescription.bCubeMap = bCubemap;
+	TextureDescription.bTextureArray = bTextureArray;
+	TextureDescription.bVolumeTexture = bVolume;
+	TextureDescription.NumMips = InMipCount;
+	TextureDescription.PixelFormat = InTextureFormat->GetEncodedPixelFormat(*this, bInImageHasAlphaChannel);
+	TextureDescription.TopMipSizeX = TopMipSize.X;
+	TextureDescription.TopMipSizeY = TopMipSize.Y;
+	TextureDescription.TopMipVolumeSizeZ = VolumeSizeZ;
+	TextureDescription.ArraySlices = ArraySlices;
+}
+
 // compress mip-maps in InMipChain and add mips to Texture, might alter the source content
 static bool CompressMipChain(
 	const ITextureFormat* TextureFormat,
@@ -2900,13 +2915,20 @@ static bool CompressMipChain(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CompressMipChain)
 
-	// now call the Ex version now that we have the proper MipChain
-	const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilitiesEx(Settings, MipChain.Num(), MipChain[0], bImageHasAlphaChannel);
-	OutNumMipsInTail = CompressorCaps.NumMipsInTail;
-	OutExtData = CompressorCaps.ExtData;
+	// Determine ExtData (platform specific data) and NumMipsInTail.
+	// ExtData gets passed 
+	FEncodedTextureExtendedData ExtendedData;
+	{
+		FEncodedTextureDescription TextureDescription;
+		Settings.GetEncodedTextureDescription(&TextureDescription, TextureFormat, MipChain.Num(), bImageHasAlphaChannel);
+
+		ExtendedData = TextureFormat->GetExtendedDataForTexture(TextureDescription);
+		OutNumMipsInTail = ExtendedData.NumMipsInTail;
+		OutExtData = ExtendedData.ExtData;
+	}
 
 	int32 MipCount = MipChain.Num();
-	check(MipCount >= (int32)CompressorCaps.NumMipsInTail);
+	check(MipCount >= (int32)ExtendedData.NumMipsInTail);
 	// This number was too small (128) for current hardware and caused too many
 	// context switch for work taking < 1ms. Bump the value for 2020 CPUs.
 	const int32 MinAsyncCompressionSize = 512;
@@ -2919,9 +2941,9 @@ static bool CompressMipChain(
 	int32 FirstMipTailIndex = MipCount - 1;
 	int32 MipTailCount = 1;
 
-	if (CompressorCaps.NumMipsInTail > 1)
+	if (ExtendedData.NumMipsInTail > 1)
 	{
-		MipTailCount = CompressorCaps.NumMipsInTail;
+		MipTailCount = ExtendedData.NumMipsInTail;
 		FirstMipTailIndex = MipCount - MipTailCount;
 	}
 
@@ -2936,7 +2958,7 @@ static bool CompressMipChain(
 	OutMips.AddDefaulted(MipCount);
 
 	auto ProcessMips =
-		[&TextureFormat, &MipChain, &OutMips, FirstMipTailIndex, MipTailCount, &CompressorCaps, &Settings, &DebugTexturePathName, bImageHasAlphaChannel](int32 MipBegin, int32 MipEnd)
+		[&TextureFormat, &MipChain, &OutMips, FirstMipTailIndex, MipTailCount, ExtData = ExtendedData.ExtData, &Settings, &DebugTexturePathName, bImageHasAlphaChannel](int32 MipBegin, int32 MipEnd)
 	{
 		bool bSuccess = true;
 
@@ -2944,13 +2966,21 @@ static bool CompressMipChain(
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CompressImage);
 
+			// We always compress 1 mip at a time, unless the platform requests that the mip tail
+			// gets packed in to a single mip level (NumMipsInTail).
+			int32 MipsToCompress = 1;
+			if (MipIndex == FirstMipTailIndex)
+			{
+				MipsToCompress = MipTailCount;
+			}
+
 			bSuccess = bSuccess && TextureFormat->CompressImageEx(
 				&MipChain[MipIndex],
-				MipIndex == FirstMipTailIndex ? MipTailCount : 1, // number of mips pointed to by SrcMip
+				MipsToCompress,
 				Settings,
 				DebugTexturePathName,
 				bImageHasAlphaChannel,
-				CompressorCaps.ExtData,
+				ExtData,
 				OutMips[MipIndex]
 			);
 		}
@@ -3248,13 +3278,11 @@ public:
 
 		TArray<FImage> IntermediateMipChain;
 
-		// we can't use the Ex version here because it needs an FImage, which needs BuildTextureMips to be called
-		const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilities();
 
 		// allow to leave texture in sRGB in case compressor accepts other than non-F32 input source
 		// otherwise linearizing will force format to be RGBA32F
 		const bool bNeedLinearize = !TextureFormat->CanAcceptNonF32Source() || AssociatedNormalSourceMips.Num() != 0;
-		if (!BuildTextureMips(SourceMips, BuildSettings, CompressorCaps, bNeedLinearize, IntermediateMipChain, DebugTexturePathName))
+		if (!BuildTextureMips(SourceMips, BuildSettings, bNeedLinearize, IntermediateMipChain, DebugTexturePathName))
 		{
 			return false;
 		}
@@ -3287,7 +3315,7 @@ public:
 			//  we should instead compute the roughness scalar first on the original normap map
 			//  then filter on the roughness scalar
 
-			if (!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, CompressorCaps, true, IntermediateAssociatedNormalSourceMipChain, DebugTexturePathName))
+			if (!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, true, IntermediateAssociatedNormalSourceMipChain, DebugTexturePathName))
 			{
 				UE_LOG(LogTextureCompressor, Warning, TEXT("Failed to generate texture mips for composite texture"));
 			}
@@ -3352,7 +3380,6 @@ private:
 	bool BuildTextureMips(
 		const TArray<FImage>& InSourceMipChain,
 		const FTextureBuildSettings& BuildSettings,
-		const FTextureFormatCompressorCaps& CompressorCaps,
 		const bool bNeedLinearize,
 		TArray<FImage>& OutMipChain,
 		FStringView DebugTexturePathName)

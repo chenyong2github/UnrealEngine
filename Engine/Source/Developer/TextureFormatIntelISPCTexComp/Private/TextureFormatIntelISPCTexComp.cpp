@@ -705,11 +705,6 @@ public:
 		OutFormats.Append(GSupportedTextureFormatNames, UE_ARRAY_COUNT(GSupportedTextureFormatNames));
 	}
 
-	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
-	{
-		return FTextureFormatCompressorCaps(); // Default capabilities.
-	}
-
 	static void SetupScans(const FImage& InImage, int BlockWidth, int BlockHeight, FCompressedImage2D& OutCompressedImage, FMultithreadSettings &MultithreadSettings)
 	{
 		const int AlignedSizeX = AlignArbitrary(InImage.SizeX, BlockWidth);
@@ -788,9 +783,9 @@ public:
 		InOutImage.SizeY = AlignedSizeY;
 	}
 
-	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+	virtual EPixelFormat GetEncodedPixelFormat(const FTextureBuildSettings& InBuildSettings, bool bInImageHasAlphaChannel) const override
 	{
-		return GetPixelFormatForBuildSettings(BuildSettings);
+		return GetPixelFormatForBuildSettings(InBuildSettings);
 	}
 
 	EPixelFormat GetPixelFormatForBuildSettings(const FTextureBuildSettings& BuildSettings) const
@@ -834,7 +829,7 @@ public:
 		const bool bUseTasks = true;
 		FMultithreadSettings MultithreadSettings;
 
-		EPixelFormat CompressedPixelFormat = GetPixelFormatForImage(BuildSettings, InImage, bImageHasAlphaChannel);
+		EPixelFormat CompressedPixelFormat = GetEncodedPixelFormat(BuildSettings, bImageHasAlphaChannel);
 
 		if ( BuildSettings.TextureFormatName == GTextureFormatNameBC6H )
 		{

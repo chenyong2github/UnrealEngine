@@ -163,10 +163,10 @@ public:
 		return BaseString + ChildString;
 	}
 
-	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& ExampleImage, bool bImageHasAlphaChannel) const override 
+	virtual EPixelFormat GetEncodedPixelFormat(const FTextureBuildSettings& InBuildSettings, bool bImageHasAlphaChannel) const
 	{
-		FTextureBuildSettings Settings = GetBaseTextureBuildSettings(BuildSettings);
-		return GetBaseFormatObject(BuildSettings.TextureFormatName)->GetPixelFormatForImage(Settings, ExampleImage, bImageHasAlphaChannel);
+		FTextureBuildSettings Settings = GetBaseTextureBuildSettings(InBuildSettings);
+		return GetBaseFormatObject(InBuildSettings.TextureFormatName)->GetEncodedPixelFormat(Settings, bImageHasAlphaChannel);
 	}
 
 	bool CompressBaseImage(

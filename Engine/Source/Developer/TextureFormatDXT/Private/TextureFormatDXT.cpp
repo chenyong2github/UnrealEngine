@@ -450,13 +450,8 @@ public:
 			OutFormats.Add(GSupportedTextureFormatNames[i]);
 		}
 	}
-	
-	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
-	{
-		return FTextureFormatCompressorCaps(); // Default capabilities.
-	}
-
-	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+		
+	virtual EPixelFormat GetEncodedPixelFormat(const FTextureBuildSettings& BuildSettings, bool bImageHasAlphaChannel) const override
 	{
 		if (BuildSettings.TextureFormatName == GTextureFormatNameDXT1)
 		{
@@ -487,7 +482,7 @@ public:
 			return PF_BC4;
 		}
 
-		UE_LOG(LogTextureFormatDXT, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatDXT::GetPixelFormatForImage()"), *BuildSettings.TextureFormatName.ToString());
+		UE_LOG(LogTextureFormatDXT, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatDXT::GetEncodedPixelFormat()"), *BuildSettings.TextureFormatName.ToString());
 		return PF_Unknown;
 	}
 
@@ -507,7 +502,7 @@ public:
 		FImage Image;
 		InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
-		EPixelFormat CompressedPixelFormat = GetPixelFormatForImage(BuildSettings, InImage, bImageHasAlphaChannel);
+		EPixelFormat CompressedPixelFormat = GetEncodedPixelFormat(BuildSettings, bImageHasAlphaChannel);
 		bool bIsNormalMap = BuildSettings.TextureFormatName == GTextureFormatNameDXT5n || BuildSettings.TextureFormatName == GTextureFormatNameBC5;
 
 		bool bCompressionSucceeded = true;

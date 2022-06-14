@@ -10,21 +10,66 @@ struct FTextureBuildSettings;
 
 /**
  * Structure for texture format compressor capabilities.
+ * This struct is deprecated - FEncodedTextureExtendedData is used instead.
  */
 struct FTextureFormatCompressorCaps
 {
 	FTextureFormatCompressorCaps()
 		: MaxTextureDimension_DEPRECATED(TNumericLimits<uint32>::Max())
-		, NumMipsInTail(0)
-		, ExtData(0)
+		, NumMipsInTail_DEPRECATED(0)
+		, ExtData_DEPRECATED(0)
 	{ }
 
 	// MaxTextureDimension is never set, remove it
 	uint32 MaxTextureDimension_DEPRECATED;
-	uint32 NumMipsInTail;
-	uint32 ExtData;
+	uint32 NumMipsInTail_DEPRECATED;
+	uint32 ExtData_DEPRECATED;
 };
 
+// Extra data for an encoded texture. For "normal" textures (i.e. linear, without a packed mip tail), this must be
+// all zeroes.
+struct FEncodedTextureExtendedData
+{
+	uint32 NumMipsInTail = 0;
+	uint32 ExtData = 0;
+};
+
+// Everything necessary to know the memory layout for an encoded untiled unpacked texture (i.e. enough information
+// to describe the texture entirely to a PC hardware API).
+// Once a texture gets tiled or gets a packed mip tail, FEncodedTextureEncodedData is additionally
+// required to know the memory layout.
+// This doesn't hold UE specific texture layout information such as NumStreamingMips.
+struct FEncodedTextureDescription
+{	
+	int32 TopMipSizeX;
+	int32 TopMipSizeY;
+	int32 TopMipVolumeSizeZ; // This is 1 if bVolumeTexture == false
+	int32 ArraySlices; // This is 1 if bTextureArray == false (including cubemaps)
+	EPixelFormat PixelFormat;
+	uint8 NumMips;
+	bool bCubeMap;
+	bool bTextureArray;
+	bool bVolumeTexture;
+
+	// Convert to the typical "slices" count for the texture.
+	// InMipIndex only matters for volume textures.
+	int32 GetNumSlices(int32 InMipIndex) const
+	{
+		if (bVolumeTexture)
+		{
+			check(InMipIndex < NumMips);
+			return FMath::Max(TopMipVolumeSizeZ >> InMipIndex, 1);
+		}
+
+		check ((bTextureArray && ArraySlices > 1) || (!bTextureArray && ArraySlices == 1));
+		int32 Slices = ArraySlices;
+		if (bCubeMap)
+		{
+			Slices *= 6;
+		}
+		return Slices;
+	}
+};
 
 /**
  * Interface for texture compression modules.
@@ -102,22 +147,49 @@ public:
 	*
 	* @param OutCaps Filled with capability properties of texture format compressor.
 	*/
-	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const = 0;
+	UE_DEPRECATED(5.1, "Hasn't been used in a while.")
+	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const { return FTextureFormatCompressorCaps(); }
 
 	/**
 	* Gets the capabilities of the texture compressor.
 	*
 	* @param OutCaps Filled with capability properties of texture format compressor.
 	*/
+	UE_DEPRECATED(5.1, "Use GetExtendedDataForTexture instead to get the same information without the actual image bits.")
 	virtual FTextureFormatCompressorCaps GetFormatCapabilitiesEx(const FTextureBuildSettings& BuildSettings, uint32 NumMips, const struct FImage& ExampleImage, bool bImageHasAlphaChannel) const
 	{
-		return GetFormatCapabilities();
+		return FTextureFormatCompressorCaps();
 	}
 
 	/**
 	 * Calculate the final/runtime pixel format for this image on this platform
 	 */
-	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const = 0;
+	UE_DEPRECATED(5.1, "Use GetEncodedPixelFormat(BuildSettings, bImageHasAlphaChannel) instead")
+	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const
+	{
+		return GetEncodedPixelFormat(BuildSettings, bImageHasAlphaChannel);
+	}
+	
+
+	/**
+	* Returns what the compressed pixel format will be for a given format and the given settings.
+	* 
+	* bInImageHasAlphaChannel is whether or not to treat the source image format as having an alpha channel,
+	* independent of whether or not it actually has one.
+	*/
+	virtual EPixelFormat GetEncodedPixelFormat(const FTextureBuildSettings& InBuildSettings, bool bInImageHasAlphaChannel) const
+	{
+		return PF_Unknown;
+	}
+
+	/**
+	* Generate and return any out-of-band data that needs to be saved for a given encoded texture description. This is
+	* for textures that have been transformed in some way for a platform.
+	*/
+	virtual FEncodedTextureExtendedData GetExtendedDataForTexture(const FEncodedTextureDescription& InTextureDescription) const
+	{
+		return FEncodedTextureExtendedData();
+	}
 
 	/**
 	 * Compresses a single image.
@@ -141,7 +213,7 @@ public:
 	 * Compress an image (or images for a miptail) into a single mip blob.
 	 *
 	 * @param Images The input image(s)
-	 * @param NumImages The number of images (for a miptail, this number should match what was returned in GetFormatCapabilities, mostly used for verification)
+	 * @param NumImages The number of images (for a miptail, this number should match what was returned in GetExtendedDataForTexture, mostly used for verification)
 	 * @param BuildSettings Build settings.
 	 * @param DebugTexturePathName The path name of the texture we are building, for debug logging/filtering/dumping.
 	 * @param bImageHasAlphaChannel true if the image has a non-white alpha channel.

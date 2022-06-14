@@ -525,19 +525,14 @@ public:
  		return FString::Printf(TEXT("ASTC_%d_%d"), (int)PixelFormat,Speed);
 	}
 
-	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
-	{
-		return FTextureFormatCompressorCaps(); // Default capabilities.
-	}
-
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
 	{
 		OutFormats.Append(GSupportedTextureFormatNames, sizeof(GSupportedTextureFormatNames)/sizeof(GSupportedTextureFormatNames[0]) ); 
 	}
 
-	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+	virtual EPixelFormat GetEncodedPixelFormat(const FTextureBuildSettings& InBuildSettings, bool bInImageHasAlphaChannel) const override
 	{
-		return GetQualityFormat(BuildSettings);
+		return GetQualityFormat(InBuildSettings);
 	}
 
 	virtual bool CompressImage(
@@ -576,7 +571,7 @@ public:
 		//	  maybe also set A to 1.f to match BC6 ?
 
 		// Determine the compressed pixel format and compression parameters
-		EPixelFormat CompressedPixelFormat = GetPixelFormatForImage(BuildSettings, Image, bImageHasAlphaChannel);
+		EPixelFormat CompressedPixelFormat = GetEncodedPixelFormat(BuildSettings, bImageHasAlphaChannel);
 
 		FString CompressionParameters = TEXT("");
 

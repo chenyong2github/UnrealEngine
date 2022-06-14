@@ -924,12 +924,7 @@ public:
 		OutFormats.Append(GSupportedTextureFormatNames, sizeof(GSupportedTextureFormatNames)/sizeof(GSupportedTextureFormatNames[0]) ); 
 	}
 
-	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
-	{
-		return FTextureFormatCompressorCaps(); // Default capabilities.
-	}
-	
-	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& InBuildSettings, const struct FImage& Image, bool bHasAlpha) const override
+	virtual EPixelFormat GetEncodedPixelFormat(const FTextureBuildSettings& InBuildSettings, bool bImageHasAlphaChannel) const
 	{
 		int RDOLambda;
 		OodleTex_EncodeEffortLevel EffortLevel;
@@ -937,7 +932,7 @@ public:
 		EPixelFormat CompressedPixelFormat;
 		bool bDebugColor;
 
-		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel,&bDebugColor,&RDOUniversalTiling,InBuildSettings,bHasAlpha);
+		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat, &RDOLambda, &EffortLevel, &bDebugColor, &RDOUniversalTiling, InBuildSettings, bImageHasAlphaChannel);
 		return CompressedPixelFormat;
 	}
 

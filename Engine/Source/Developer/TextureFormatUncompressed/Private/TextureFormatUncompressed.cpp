@@ -121,12 +121,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		}
 	}
 	
-	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
-	{
-		return FTextureFormatCompressorCaps(); // Default capabilities.
-	}
-
-	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+	virtual EPixelFormat GetEncodedPixelFormat(const FTextureBuildSettings& BuildSettings, bool bImageHasAlphaChannel) const override
 	{
 		if (BuildSettings.TextureFormatName == GTextureFormatNameG8)
 		{
@@ -174,7 +169,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			return PF_B5G5R5A1_UNORM;
 		}
 
-		UE_LOG(LogTextureFormatUncompressed, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatUncompressed::GetPixelFormatForImage()"), *BuildSettings.TextureFormatName.ToString());
+		UE_LOG(LogTextureFormatUncompressed, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatUncompressed::GetEncodedPixelFormat()"), *BuildSettings.TextureFormatName.ToString());
 		return PF_Unknown;
 	}
 
@@ -186,7 +181,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		FCompressedImage2D& OutCompressedImage
 		) const override
 	{
-		OutCompressedImage.PixelFormat = GetPixelFormatForImage(BuildSettings, InImage, bImageHasAlphaChannel);
+		OutCompressedImage.PixelFormat = GetEncodedPixelFormat(BuildSettings, bImageHasAlphaChannel);
 
 		// @todo Oodle : fix me : lots of pointless code dupe here
 		//	most of these should just map the Name to an ERawImageFormat and do CopyImage

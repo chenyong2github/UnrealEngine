@@ -8,6 +8,9 @@
 
 #define TEXTURE_COMPRESSOR_MODULENAME "TextureCompressor"
 
+struct FEncodedTextureDescription;
+class ITextureFormat;
+
 /**
  * Compressed image data.
  */
@@ -300,6 +303,14 @@ struct FTextureBuildSettings
 	{
 		return GetDestGammaSpace();
 	}
+
+	/*
+	* Convert the build settings to an actual texture description containing enough information to describe the texture
+	* to hardware APIs.
+	* 
+	* At the moment, this only generates valid results _after_ some setup code in FTextureCompressorModule::BuildTexture()
+	*/
+	void GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InMipCount, bool bInImageHasAlphaChannel) const;
 };
 
 /**
