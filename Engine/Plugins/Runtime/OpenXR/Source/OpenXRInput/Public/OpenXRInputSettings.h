@@ -20,6 +20,6 @@ public:
 	bool bUseEnhancedInput = false;
 
 	/** A the mappable input config used to generate action sets for OpenXR. */
-	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input", meta = (DisplayName = "Mappable Input Config for XR", AllowedClasses = "PlayerMappableInputConfig"))
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input", meta = (DisplayName = "Mappable Input Config for XR", AllowedClasses = "/Script/EnhancedInput.PlayerMappableInputConfig"))
 	FSoftObjectPath MappableInputConfig = nullptr;
 };

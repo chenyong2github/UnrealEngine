@@ -262,7 +262,7 @@ struct FContextualAnimSetPivot
 // FContextualAnimSceneBindingContext
 ///////////////////////////////////////////////////////////////////////
 
-USTRUCT(BlueprintType, meta = (HasNativeMake = "ContextualAnimUtilities.BP_SceneBindingContext_MakeFromActor"))
+USTRUCT(BlueprintType, meta = (HasNativeMake = "/Script/ContextualAnimation.ContextualAnimUtilities:BP_SceneBindingContext_MakeFromActor"))
 struct CONTEXTUALANIMATION_API FContextualAnimSceneBindingContext
 {
 	GENERATED_BODY()
