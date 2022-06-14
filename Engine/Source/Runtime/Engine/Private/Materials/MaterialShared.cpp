@@ -166,6 +166,45 @@ FName GetMaterialQualityLevelFName(EMaterialQualityLevel::Type InQualityLevel)
 	return MaterialQualityLevelNames[(int32)InQualityLevel];
 }
 
+#if WITH_EDITOR
+
+/**
+* What shader format should we explicitly cook for?
+* @returns shader format name or NAME_None if the switch was not specified.
+*
+* @note: -CacheShaderFormat=
+*/
+FName GetCmdLineShaderFormatToCache()
+{
+	FString ShaderFormat;
+	FParse::Value(FCommandLine::Get(), TEXT("-CacheShaderFormat="), ShaderFormat);
+	return ShaderFormat.Len() ? FName(ShaderFormat) : NAME_None;
+}
+
+void GetCmdLineFilterShaderFormats(TArray<FName>& InOutShderFormats)
+{
+	// if we specified -CacheShaderFormat= on the cmd line we should only cook that format.
+	static const FName CommandLineShaderFormat = GetCmdLineShaderFormatToCache();
+	if (CommandLineShaderFormat != NAME_None)
+	{
+		// the format is only valid if it is a desired format for this platform.
+		if (InOutShderFormats.Contains(CommandLineShaderFormat))
+		{
+			// only cache the format specified on the command line.
+			InOutShderFormats.Reset(1);
+			InOutShderFormats.Add(CommandLineShaderFormat);
+		}
+	}
+}
+
+int32 GetCmdLineMaterialQualityToCache()
+{
+	int32 MaterialQuality = INDEX_NONE;
+	FParse::Value(FCommandLine::Get(), TEXT("-CacheMaterialQuality="), MaterialQuality);
+	return MaterialQuality;
+}
+#endif
+
 #if STORE_ONLY_ACTIVE_SHADERMAPS
 const FMaterialResourceLocOnDisk* FindMaterialResourceLocOnDisk(
 	const TArray<FMaterialResourceLocOnDisk>& DiskLocations,

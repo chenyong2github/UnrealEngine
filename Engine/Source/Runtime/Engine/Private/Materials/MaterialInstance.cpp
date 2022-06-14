@@ -2407,6 +2407,8 @@ void UMaterialInstance::BeginCacheForCookedPlatformData( const ITargetPlatform *
 		TArray<FName> DesiredShaderFormats;
 		TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
 
+		GetCmdLineFilterShaderFormats(DesiredShaderFormats);
+
 		// Cache shaders for each shader format, storing the results in CachedMaterialResourcesForCooking so they will be available during saving
 		for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
 		{

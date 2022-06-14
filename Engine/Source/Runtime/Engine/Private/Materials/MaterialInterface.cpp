@@ -272,6 +272,21 @@ void UMaterialInterface::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMat
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	// if we specified -CacheMaterialQuality= on the cmd line we should only cook that quality.
+	static const int32 MaterialQualityLevel = GetCmdLineMaterialQualityToCache();
+	if (MaterialQualityLevel != INDEX_NONE)
+	{
+		// the format is only valid if it is a desired format for this platform.
+		if (OutQualityLevelsUsed.IsValidIndex(MaterialQualityLevel))
+		{
+			// only cache the format specified on the command line.
+			OutQualityLevelsUsed.SetNumZeroed(OutQualityLevelsUsed.Num());
+			OutQualityLevelsUsed[MaterialQualityLevel] = true;
+		}
+	}
+#endif
 }
 
 TArrayView<const TObjectPtr<UObject>> UMaterialInterface::GetReferencedTextures() const

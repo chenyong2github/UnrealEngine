@@ -129,6 +129,20 @@ inline uint32 GetUseSubsurfaceProfileShadingModelMask()
 /** Whether to allow dithered LOD transitions for a specific feature level. */
 ENGINE_API bool AllowDitheredLODTransition(ERHIFeatureLevel::Type FeatureLevel);
 
+#if WITH_EDITOR
+
+void GetCmdLineFilterShaderFormats(TArray<FName>& InOutShderFormats);
+
+/** 
+* What material quality level should we explicitly cook for? 
+* @returns Quality level or INDEX_NONE if the switch was not specified.
+* 
+* @note: -CacheMaterialQuality=
+*/
+int32 GetCmdLineMaterialQualityToCache();
+
+#endif
+
 /**
  * The types which can be used by materials.
  */
