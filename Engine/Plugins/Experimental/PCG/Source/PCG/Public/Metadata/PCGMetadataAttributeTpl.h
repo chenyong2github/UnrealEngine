@@ -205,7 +205,6 @@ public:
 		}
 	}
 
-protected:
 	/** Code related to finding values / compressing data */
 	template<typename IT = T, typename TEnableIf<PCG::Private::MetadataTraits<IT>::CompressData>::Type* = nullptr>
 	PCGMetadataValueKey FindValue(const T& InValue) const
@@ -238,6 +237,7 @@ protected:
 		return PCGDefaultValueKey;
 	}
 
+protected:
 	/** Code related to computing compared values (min, max, sub, add) */
 	template<typename IT = T, typename TEnableIf<PCG::Private::MetadataTraits<IT>::CanMinMax>::Type* = nullptr>
 	bool SetMin(PCGMetadataEntryKey ItemKey, const FPCGMetadataAttributeBase* InAttributeA, PCGMetadataEntryKey InEntryKeyA, const FPCGMetadataAttributeBase* InAttributeB, PCGMetadataEntryKey InEntryKeyB)
