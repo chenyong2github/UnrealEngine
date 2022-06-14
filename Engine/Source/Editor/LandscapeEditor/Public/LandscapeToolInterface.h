@@ -204,7 +204,7 @@ public:
 	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) { return false; }
 	virtual bool GetCursor(EMouseCursor::Type& OutCursor) const { return false;  }
 
-	FLandscapeTool() : PreviousBrushIndex(-1) {}
+	FLandscapeTool() {}
 	virtual ~FLandscapeTool() {}
 	virtual const TCHAR* GetToolName() = 0;
 	virtual FText GetDisplayName() = 0;
@@ -218,6 +218,7 @@ public:
 	virtual bool IsSelectionAllowed(AActor* InActor, bool bInSelection) const { return false; }
 	virtual bool UsesTransformWidget() const { return false; }
 	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const { return EAxisList::All; }
+	virtual bool AffectsEditLayers() const { return true; };
 
 	virtual bool OverrideWidgetLocation() const { return true; }
 	virtual bool OverrideWidgetRotation() const { return true; }
@@ -264,8 +265,8 @@ public:
 	}
 
 public:
-	int32					PreviousBrushIndex;
-	TArray<FName>			ValidBrushes;
+	int32 PreviousBrushIndex = INDEX_NONE;
+	TArray<FName> ValidBrushes;
 };
 
 namespace LandscapeTool

@@ -179,14 +179,14 @@ FEdModeLandscape::~FEdModeLandscape()
 
 	// Clean up Debug Materials
 	FlushRenderingCommands();
-	GLayerDebugColorMaterial = NULL;
-	GSelectionColorMaterial = NULL;
-	GSelectionRegionMaterial = NULL;
-	GMaskRegionMaterial = NULL;
-	GColorMaskRegionMaterial = NULL;
-	GLandscapeBlackTexture = NULL;
-	GLandscapeLayerUsageMaterial = NULL;
-	GLandscapeDirtyMaterial = NULL;
+	GLayerDebugColorMaterial = nullptr;
+	GSelectionColorMaterial = nullptr;
+	GSelectionRegionMaterial = nullptr;
+	GMaskRegionMaterial = nullptr;
+	GColorMaskRegionMaterial = nullptr;
+	GLandscapeBlackTexture = nullptr;
+	GLandscapeLayerUsageMaterial = nullptr;
+	GLandscapeDirtyMaterial = nullptr;
 
 	InteractorPainting = nullptr;
 }
@@ -389,6 +389,11 @@ bool FEdModeLandscape::IsLandscapeResolutionCompliant() const
 	}
 
 	return true;
+}
+
+bool FEdModeLandscape::DoesCurrentToolAffectEditLayers() const
+{
+	return (CurrentTool != nullptr) ? CurrentTool->AffectsEditLayers() : false;
 }
 
 FText FEdModeLandscape::GetLandscapeResolutionErrorText() const
@@ -686,7 +691,7 @@ void FEdModeLandscape::Exit()
 		CurrentTool->PreviousBrushIndex = CurrentBrushSetIndex;
 		CurrentTool->ExitTool();
 	}
-	CurrentTool = NULL;
+	CurrentTool = nullptr;
 	// Leave CurrentToolIndex set so we can restore the active tool on re-opening the landscape editor
 
 	LandscapeList.Empty();
@@ -699,7 +704,7 @@ void FEdModeLandscape::Exit()
 	GLandscapeEditRenderMode = ELandscapeEditRenderMode::None;
 	GLandscapeEditModeActive = false;
 
-	CurrentGizmoActor = NULL;
+	CurrentGizmoActor = nullptr;
 
 	GEditor->SelectNone(false, true);
 
@@ -795,7 +800,7 @@ void FEdModeLandscape::Tick(FEditorViewportClient* ViewportClient, float DeltaTi
 		{
 			ALandscapeProxy* LandscapeProxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
 			
-			if (LandscapeProxy == NULL ||
+			if (LandscapeProxy == nullptr ||
 				LandscapeProxy->GetLandscapeMaterial() != CachedLandscapeMaterial)
 			{
 				UpdateTargetList();
@@ -1172,7 +1177,7 @@ EEditAction::Type FEdModeLandscape::GetActionEditDuplicate()
 
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->GetActionEditDuplicate();
 		}
@@ -1187,7 +1192,7 @@ EEditAction::Type FEdModeLandscape::GetActionEditDelete()
 
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->GetActionEditDelete();
 		}
@@ -1222,7 +1227,7 @@ EEditAction::Type FEdModeLandscape::GetActionEditCut()
 
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->GetActionEditCut();
 		}
@@ -1244,7 +1249,7 @@ EEditAction::Type FEdModeLandscape::GetActionEditCopy()
 
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->GetActionEditCopy();
 		}
@@ -1270,7 +1275,7 @@ EEditAction::Type FEdModeLandscape::GetActionEditPaste()
 
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->GetActionEditPaste();
 		}
@@ -1301,7 +1306,7 @@ bool FEdModeLandscape::ProcessEditDuplicate()
 
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->ProcessEditDuplicate();
 		}
@@ -1321,7 +1326,7 @@ bool FEdModeLandscape::ProcessEditDelete()
 
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->ProcessEditDelete();
 		}
@@ -1341,7 +1346,7 @@ bool FEdModeLandscape::ProcessEditCut()
 
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->ProcessEditCut();
 		}
@@ -1361,7 +1366,7 @@ bool FEdModeLandscape::ProcessEditCopy()
 
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->ProcessEditCopy();
 		}
@@ -1430,7 +1435,7 @@ bool FEdModeLandscape::ProcessEditPaste()
 	
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
-		if (CurrentTool != NULL)
+		if (CurrentTool != nullptr)
 		{
 			Result = CurrentTool->ProcessEditPaste();
 		}
@@ -1718,7 +1723,7 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 					FVector HitLocation;
 					if (LandscapeMouseTrace(ViewportClient, HitLocation))
 					{
-						if (!CanEditLayer(&ErrorReasonOnMouseUp))
+						if (CurrentTool->AffectsEditLayers() && !CanEditLayer(&ErrorReasonOnMouseUp))
 						{
 							return true;
 						}
@@ -1816,7 +1821,7 @@ bool FEdModeLandscape::InputDelta(FEditorViewportClient* InViewportClient, FView
 
 void FEdModeLandscape::SetCurrentToolMode(FName ToolModeName, bool bRestoreCurrentTool /*= true*/)
 {
-	if (CurrentToolMode == NULL || ToolModeName != CurrentToolMode->ToolModeName)
+	if (CurrentToolMode == nullptr || ToolModeName != CurrentToolMode->ToolModeName)
 	{
 		for (int32 i = 0; i < LandscapeToolModes.Num(); ++i)
 		{
@@ -2077,7 +2082,7 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 
 	if (!CurrentGizmoActor.IsValid())
 	{
-		ALandscapeGizmoActiveActor* GizmoActor = NULL;
+		ALandscapeGizmoActiveActor* GizmoActor = nullptr;
 		for (TActorIterator<ALandscapeGizmoActiveActor> It(GetWorld()); It; ++It)
 		{
 			GizmoActor = *It;
@@ -2295,8 +2300,8 @@ void FEdModeLandscape::UpdateTargetList()
 			}
 
 			// Add layers
-			UTexture2D* ThumbnailWeightmap = NULL;
-			UTexture2D* ThumbnailHeightmap = NULL;
+			UTexture2D* ThumbnailWeightmap = nullptr;
+			UTexture2D* ThumbnailHeightmap = nullptr;
 
 			TargetLayerStartingIndex = LandscapeTargetList.Num();
 
@@ -2321,15 +2326,15 @@ void FEdModeLandscape::UpdateTargetList()
 				}
 
 				// Ensure thumbnails are up valid
-				if (LayerSettings.ThumbnailMIC == NULL)
+				if (LayerSettings.ThumbnailMIC == nullptr)
 				{
-					if (ThumbnailWeightmap == NULL)
+					if (ThumbnailWeightmap == nullptr)
 					{
-						ThumbnailWeightmap = LoadObject<UTexture2D>(NULL, TEXT("/Engine/EditorLandscapeResources/LandscapeThumbnailWeightmap.LandscapeThumbnailWeightmap"), NULL, LOAD_None, NULL);
+						ThumbnailWeightmap = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeThumbnailWeightmap.LandscapeThumbnailWeightmap"), nullptr, LOAD_None, nullptr);
 					}
-					if (ThumbnailHeightmap == NULL)
+					if (ThumbnailHeightmap == nullptr)
 					{
-						ThumbnailHeightmap = LoadObject<UTexture2D>(NULL, TEXT("/Engine/EditorLandscapeResources/LandscapeThumbnailHeightmap.LandscapeThumbnailHeightmap"), NULL, LOAD_None, NULL);
+						ThumbnailHeightmap = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeThumbnailHeightmap.LandscapeThumbnailHeightmap"), nullptr, LOAD_None, nullptr);
 					}
 
 					// Construct Thumbnail MIC
@@ -2683,8 +2688,8 @@ void FEdModeLandscape::HandleLevelsChanged(bool ShouldExitMode)
 void FEdModeLandscape::OnMaterialCompilationFinished(UMaterialInterface* MaterialInterface)
 {
 	if (CurrentToolTarget.LandscapeInfo.IsValid() &&
-		CurrentToolTarget.LandscapeInfo->GetLandscapeProxy() != NULL &&
-		CurrentToolTarget.LandscapeInfo->GetLandscapeProxy()->GetLandscapeMaterial() != NULL &&
+		CurrentToolTarget.LandscapeInfo->GetLandscapeProxy() != nullptr &&
+		CurrentToolTarget.LandscapeInfo->GetLandscapeProxy()->GetLandscapeMaterial() != nullptr &&
 		CurrentToolTarget.LandscapeInfo->GetLandscapeProxy()->GetLandscapeMaterial()->IsDependent(MaterialInterface))
 	{
 		CurrentToolTarget.LandscapeInfo->UpdateLayerInfoMap();
@@ -3306,10 +3311,10 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 
 	const int32 NewComponentSizeQuads = NumSubsections * SubsectionSizeQuads;
 
-	ALandscape* NewLandscape = NULL;
+	ALandscape* NewLandscape = nullptr;
 
 	ULandscapeInfo* LandscapeInfo = CurrentToolTarget.LandscapeInfo.Get();
-	if (ensure(LandscapeInfo != NULL))
+	if (ensure(LandscapeInfo != nullptr))
 	{
 		int32 OldMinX, OldMinY, OldMaxX, OldMaxY;
 		if (LandscapeInfo->GetLandscapeExtent(OldMinX, OldMinY, OldMaxX, OldMaxY))
@@ -3373,7 +3378,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 						TArray<uint8> ResampledWeightData;
 						for (const FLandscapeInfoLayerSettings& LayerSettings : LandscapeInfo->Layers)
 						{
-							if (LayerSettings.LayerInfoObj != NULL)
+							if (LayerSettings.LayerInfoObj != nullptr)
 							{
 								auto ImportLayerInfo = new(OutImportMaterialLayerInfos) FLandscapeImportLayerInfo(LayerSettings);
 								ImportLayerInfo->LayerData.AddZeroed(OldVertsX * OldVertsY);
@@ -3411,7 +3416,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 						TArray<uint8> ExpandedWeightData;
 						for (const FLandscapeInfoLayerSettings& LayerSettings : LandscapeInfo->Layers)
 						{
-							if (LayerSettings.LayerInfoObj != NULL)
+							if (LayerSettings.LayerInfoObj != nullptr)
 							{
 								auto ImportLayerInfo = new(OutImportMaterialLayerInfos) FLandscapeImportLayerInfo(LayerSettings);
 								ImportLayerInfo->LayerData.AddZeroed(NewVertsX * NewVertsY * sizeof(uint8));
@@ -3682,7 +3687,7 @@ ELandscapeEditingState FEdModeLandscape::GetEditingState() const
 	{
 		return ELandscapeEditingState::SIEWorld;
 	}
-	else if (GEditor->PlayWorld != NULL)
+	else if (GEditor->PlayWorld != nullptr)
 	{
 		return ELandscapeEditingState::PIEWorld;
 	}
@@ -4036,7 +4041,7 @@ bool FEdModeLandscape::CanEditLayer(FText* Reason /*=nullptr*/, FLandscapeLayer*
 		}
 	}
 
-	if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL && CurrentTool->GetToolName() != FName("BlueprintBrush"))
+	if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == nullptr && CurrentTool->GetToolName() != FName("BlueprintBrush"))
 	{
 		if (Reason)
 		{

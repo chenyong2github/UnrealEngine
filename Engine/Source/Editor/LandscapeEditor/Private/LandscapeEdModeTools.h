@@ -1381,9 +1381,9 @@ public:
 	}
 
 protected:
-	FEdModeLandscape* EdMode;
+	FEdModeLandscape* EdMode = nullptr;
 	const FLandscapeToolTarget& Target;
-	ULandscapeInfo* LandscapeInfo;
+	ULandscapeInfo* LandscapeInfo = nullptr;
 };
 
 
@@ -1405,7 +1405,10 @@ public:
 	{
 	}
 
-	virtual bool ShouldUpdateEditingLayer() const { return EdMode->CanHaveLandscapeLayersContent(); }
+	virtual bool ShouldUpdateEditingLayer() const 
+	{ 
+		return AffectsEditLayers() && EdMode->CanHaveLandscapeLayersContent();
+	}
 
 	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const
 	{

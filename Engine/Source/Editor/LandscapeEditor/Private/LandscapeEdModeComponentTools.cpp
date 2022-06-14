@@ -131,6 +131,8 @@ public:
 	{
 	}
 
+	virtual bool AffectsEditLayers() const { return false; }
+
 	virtual ELandscapeLayerUpdateMode GetBeginToolContentUpdateFlag() const override
 	{
 		return ELandscapeLayerUpdateMode::Update_None;
@@ -248,6 +250,8 @@ public:
 		: FLandscapeToolBase<FLandscapeToolStrokeMask>(InEdMode)
 	{
 	}
+
+	virtual bool AffectsEditLayers() const { return false; }
 
 	virtual const TCHAR* GetToolName() override { return TEXT("Mask"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Mask", "Region Selection"); };
@@ -495,7 +499,7 @@ public:
 		: FLandscapeToolBase<FLandscapeToolStrokeMoveToLevel>(InEdMode)
 	{
 	}
-	virtual bool ShouldUpdateEditingLayer() const override { return false; }
+	virtual bool AffectsEditLayers() const override { return false; }
 
 	virtual const TCHAR* GetToolName() override { return TEXT("MoveToLevel"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_MoveToLevel", "Move to Streaming Level"); };
@@ -786,7 +790,7 @@ public:
 		, bIsToolActionResolutionCompliant(true)
 	{
 	}
-	virtual bool ShouldUpdateEditingLayer() const override { return false; }
+	virtual bool AffectsEditLayers() const override { return false; }
 
 	virtual const TCHAR* GetToolName() override { return TEXT("AddComponent"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_AddComponent", "Add New Landscape Component"); };
@@ -993,7 +997,7 @@ public:
 	{
 	}
 
-	virtual bool ShouldUpdateEditingLayer() const override { return false; }
+	virtual bool AffectsEditLayers() const override { return false; }
 
 	virtual const TCHAR* GetToolName() override { return TEXT("DeleteComponent"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_DeleteComponent", "Delete Landscape Components"); };
@@ -1858,7 +1862,7 @@ public:
 		, DraggingEdge_Remainder(0.0f)
 	{
 	}
-
+	virtual bool AffectsEditLayers() const { return false; }
 	virtual const TCHAR* GetToolName() override { return TEXT("NewLandscape"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_NewLandscape", "New Landscape"); };
 	virtual FText GetDisplayMessage() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_NewLandscape_Message", "Create or import a new heightmap.  Assign a material and configure the components.  When you are ready to create your new Landscape, press the Create button in the lower-right corner of this panel. "); };
@@ -2316,6 +2320,7 @@ public:
 	{
 	}
 
+	virtual bool AffectsEditLayers() const { return false; }
 	virtual const TCHAR* GetToolName() override { return TEXT("ResizeLandscape"); }
 	virtual FText GetDisplayName() override { return LOCTEXT("LandscapeMode_ResizeLandscape", "Change Landscape Component Size"); };
 	virtual FText GetDisplayMessage() override { return LOCTEXT("LandscapeMode_ResizeLandscape_Message", "Change Landscape Component Size"); };

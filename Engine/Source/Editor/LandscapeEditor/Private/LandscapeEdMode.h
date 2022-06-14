@@ -93,10 +93,10 @@ struct FLandscapeTargetListInfo
 		: TargetName(InTargetName)
 		, TargetType(InTargetType)
 		, LandscapeInfo(InLandscapeInfo)
-		, LayerInfoObj(NULL)
+		, LayerInfoObj(nullptr)
 		, LayerName(NAME_None)
-		, Owner(NULL)
-		, ThumbnailMIC(NULL)
+		, Owner(nullptr)
+		, ThumbnailMIC(nullptr)
 		, bValid(true)
 		, LayerIndex(InLayerIndex)
 	{
@@ -130,7 +130,7 @@ struct FLandscapeTargetListInfo
 			return &LandscapeInfo->Layers[Index];
 		}
 
-		return NULL;
+		return nullptr;
 	}
 
 	FLandscapeEditorLayerSettings* GetEditorLayerSettings() const
@@ -150,7 +150,7 @@ struct FLandscapeTargetListInfo
 				return &Proxy->EditorLayerSettings[Index];
 			}
 		}
-		return NULL;
+		return nullptr;
 	}
 
 	FName GetLayerName() const;
@@ -618,6 +618,9 @@ public:
 
 	/** Returns true if landscape resolution combined to the current tool action is still compliant to the currently applied limitations. */
 	bool IsLandscapeResolutionCompliant() const;
+
+	/** Returns true if the current landscape tool handles edit layers. */
+	bool DoesCurrentToolAffectEditLayers() const;
 
 	/** Returns the default Error Text when modifying or creating landscape would break the resolution limit. */
 	FText GetLandscapeResolutionErrorText() const;

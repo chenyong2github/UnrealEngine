@@ -85,7 +85,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 bool FLandscapeEditorDetailCustomization_Layers::ShoudShowLayersErrorMessageTip()
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode)
+	if (LandscapeEdMode && LandscapeEdMode->DoesCurrentToolAffectEditLayers())
 	{
 		return !LandscapeEdMode->CanEditLayer();
 	}
@@ -424,11 +424,11 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
-	if (LandscapeEdMode && Landscape)
+	if (Landscape && LandscapeEdMode && LandscapeEdMode->DoesCurrentToolAffectEditLayers())
 	{
 		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(InLayerIndex);
 		TSharedRef<FLandscapeEditorCustomNodeBuilder_Layers> SharedThis = AsShared();
-		FMenuBuilder MenuBuilder(true, NULL);
+		FMenuBuilder MenuBuilder(true, nullptr);
 		MenuBuilder.BeginSection("LandscapeEditorLayerActions", LOCTEXT("LandscapeEditorLayerActions.Heading", "Edit Layers"));
 		{
 			// Create Layer
@@ -852,7 +852,7 @@ bool FLandscapeEditorCustomNodeBuilder_Layers::IsLayerEditionEnabled(int32 InLay
 	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
 	const FLandscapeLayer* Layer = LandscapeEdMode ? LandscapeEdMode->GetLayer(InLayerIndex) : nullptr;
 	const FLandscapeLayer* LayerReservedForSplines = Landscape ? Landscape->GetLandscapeSplinesReservedLayer() : nullptr;
-	return Layer && !Layer->bLocked && (Layer != LayerReservedForSplines);
+	return Layer && !Layer->bLocked && (Layer != LayerReservedForSplines) && LandscapeEdMode->DoesCurrentToolAffectEditLayers();
 }
 
 const FSlateBrush* FLandscapeEditorCustomNodeBuilder_Layers::GetLockBrushForLayer(int32 InLayerIndex) const
@@ -878,7 +878,7 @@ int32 FLandscapeEditorCustomNodeBuilder_Layers::SlotIndexToLayerIndex(int32 Slot
 FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode)
+	if (LandscapeEdMode && LandscapeEdMode->DoesCurrentToolAffectEditLayers())
 	{
 		int32 LayerIndex = SlotIndexToLayerIndex(SlotIndex);
 		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(LayerIndex);
