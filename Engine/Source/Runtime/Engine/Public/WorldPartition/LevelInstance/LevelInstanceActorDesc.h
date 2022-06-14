@@ -2,6 +2,7 @@
 
 #pragma once
 
+#if WITH_EDITOR
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/GCObject.h"
@@ -18,8 +19,6 @@ enum class ELevelInstanceRuntimeBehavior : uint8;
  */
 class ENGINE_API FLevelInstanceActorDesc : public FWorldPartitionActorDesc
 {
-#if WITH_EDITOR
-
 public:
 	FLevelInstanceActorDesc();
 	virtual ~FLevelInstanceActorDesc() override;
@@ -48,5 +47,5 @@ private:
 	void UnregisterContainerInstance();
 	void OnLevelInstanceChanged(FName PackageName);
 	void UpdateBounds();
-#endif
 };
+#endif

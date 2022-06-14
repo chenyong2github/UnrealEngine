@@ -2,6 +2,7 @@
 
 #pragma once
 
+#if WITH_EDITOR
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Containers/Map.h"
@@ -17,7 +18,6 @@ class UHLODLayer;
  */
 class ENGINE_API FHLODActorDesc : public FWorldPartitionActorDesc
 {
-#if WITH_EDITOR
 	friend class FHLODActorDescFactory;
 
 public:
@@ -36,5 +36,5 @@ protected:
 	TArray<FHLODSubActorDesc> HLODSubActors;
 
 	uint64 CellHash = 0;
-#endif
 };
+#endif

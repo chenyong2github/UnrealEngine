@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#if WITH_EDITOR
 #include "CoreMinimal.h"
 #include "PropertyPairsMap.h"
 #include "UObject/NameTypes.h"
@@ -10,7 +11,6 @@
 #include "Templates/SubclassOf.h"
 #include "Misc/Guid.h"
 
-#if WITH_EDITOR
 // Struct used to create actor descriptor
 struct FWorldPartitionActorDescInitData
 {
@@ -54,14 +54,12 @@ inline bool CompareUnsortedArrays(const TArray<FName>& Array1, const TArray<FNam
 {
 	return CompareUnsortedArrays(Array1, Array2, [](const FName& A, const FName& B) { return A.LexicalLess(B); });
 }
-#endif
 
 /**
  * Represents a potentially unloaded actor (editor-only)
  */
 class ENGINE_API FWorldPartitionActorDesc
 {
-#if WITH_EDITOR
 	friend class AActor;
 	friend class UActorDescContainer;
 	friend class UWorldPartition;
@@ -254,5 +252,5 @@ protected:
 	bool							bIsForcedNonSpatiallyLoaded;
 
 	static TMap<TSubclassOf<AActor>, FActorDescDeprecator> Deprecators;
-#endif
 };
+#endif

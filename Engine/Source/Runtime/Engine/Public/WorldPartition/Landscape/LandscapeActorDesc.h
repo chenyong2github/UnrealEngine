@@ -2,6 +2,7 @@
 
 #pragma once
 
+#if WITH_EDITOR
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
@@ -11,7 +12,6 @@
  */
 class ENGINE_API FLandscapeActorDesc : public FPartitionActorDesc
 {
-#if WITH_EDITOR
 public:
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
@@ -23,5 +23,5 @@ protected:
 
 private:
 	FGuid LandscapeActorGuid;
-#endif
 };
+#endif

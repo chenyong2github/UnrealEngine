@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WorldPartition/WorldPartitionActorDesc.h"
-
 #if WITH_EDITOR
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionActorDescArchive.h"
+
 #include "Misc/HashBuilder.h"
 #include "UObject/LinkerInstancingContext.h"
 #include "UObject/UObjectHash.h"
@@ -22,9 +23,7 @@
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "Engine/Public/ActorReferencesUtils.h"
-#endif
 
-#if WITH_EDITOR
 TMap<TSubclassOf<AActor>, FWorldPartitionActorDesc::FActorDescDeprecator> FWorldPartitionActorDesc::Deprecators;
 
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
@@ -147,7 +146,8 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 	MetadataAr.SetCustomVersions(CustomVersions);
 	
 	// Serialize metadata payload
-	Serialize(MetadataAr);
+	FActorDescArchive ActorDescAr(MetadataAr);
+	Serialize(ActorDescAr);
 
 	// Call registered deprecator
 	TSubclassOf<AActor> DeprecatedClass = ActorNativeClass;
@@ -194,12 +194,15 @@ void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 	// Serialize to archive and gather custom versions
 	TArray<uint8> PayloadData;
 	FMemoryWriter PayloadAr(PayloadData, true);
-	Serialize(PayloadAr);
+	FActorDescArchive ActorDescAr(PayloadAr);
+
+	// Serialize actor descriptor
+	Serialize(ActorDescAr);
 
 	// Serialize custom versions
 	TArray<uint8> HeaderData;
 	FMemoryWriter HeaderAr(HeaderData);
-	FCustomVersionContainer CustomVersions = PayloadAr.GetCustomVersions();
+	FCustomVersionContainer CustomVersions = ActorDescAr.GetCustomVersions();
 	CustomVersions.Serialize(HeaderAr);
 
 	// Append data

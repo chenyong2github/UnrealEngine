@@ -2,10 +2,10 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/DataLayer/DataLayerType.h"
-
-#if WITH_EDITOR
 
 class ENGINE_API FDataLayerInstanceDesc
 {
@@ -45,14 +45,11 @@ private:
 	//~ End UDeprecatedDataLayerInstance
 };
 
-#endif
-
 /**
  * ActorDesc for AWorldDataLayers actors.
  */
 class ENGINE_API FWorldDataLayersActorDesc : public FWorldPartitionActorDesc
 {
-#if WITH_EDITOR
 public:
 	FWorldDataLayersActorDesc();
 	bool IsValid() const { return bIsValid; }
@@ -70,5 +67,5 @@ protected:
 private:
 	TArray<FDataLayerInstanceDesc> DataLayerInstances;
 	bool bIsValid;
-#endif
 };
+#endif
