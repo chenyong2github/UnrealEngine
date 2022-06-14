@@ -19,7 +19,7 @@ namespace
 		for (int i = 0; i < 35; i++)
 		{
 			TSharedPtr<HordeBuildRowInfo> Row = MakeShared<HordeBuildRowInfo>();
-			Row->bBuildStatus = i % 2;
+			Row->bBuildStatus = !!(i % 2);
 			Row->Changelist   = FText::FromString("12345678");
 			Row->Time         = FText::FromString("11:48 AM");
 			Row->Author       = FText::FromString("Robert Seiver");
