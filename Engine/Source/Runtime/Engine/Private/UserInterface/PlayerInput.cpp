@@ -292,13 +292,16 @@ bool UPlayerInput::InputKey(const FInputKeyParams& Params)
 	#if !UE_BUILD_SHIPPING
 		CurrentEvent		= IE_Axis;
 
-		const FString Command = GetBind(Params.Key);
-		if(Command.Len())
+		if(Params.Event == IE_Pressed)
 		{
-			UWorld* World = GetWorld();
-			check(World);
-			ExecInputCommands( World, *Command,*GLog);
-			return true;
+			const FString Command = GetBind(Params.Key);
+			if(Command.Len())
+			{
+				UWorld* World = GetWorld();
+				check(World);
+				ExecInputCommands( World, *Command,*GLog);
+				return true;
+			}
 		}
 	#endif
 
