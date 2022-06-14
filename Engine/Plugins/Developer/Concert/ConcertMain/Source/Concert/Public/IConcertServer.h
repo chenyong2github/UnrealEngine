@@ -38,6 +38,9 @@ public:
 	 */
 	virtual const FConcertServerInfo& GetServerInfo() const = 0;
 
+	/** Gets the address of a remote admin endpoint, i.e. a client that is sending FConcertEndpointDiscoveryEvents. */
+	virtual FMessageAddress GetRemoteAddress(const FGuid& AdminEndpointId) const = 0;
+
 	/**
 	 *	Returns if the server has already been started up.
 	 */

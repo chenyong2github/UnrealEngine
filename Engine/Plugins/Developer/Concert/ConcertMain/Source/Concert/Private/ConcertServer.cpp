@@ -150,6 +150,15 @@ const FConcertServerInfo& FConcertServer::GetServerInfo() const
 	return ServerInfo;
 }
 
+FMessageAddress FConcertServer::GetRemoteAddress(const FGuid& AdminEndpointId) const
+{
+	if (IsStarted())
+	{
+		return ServerAdminEndpoint->GetRemoteAddress(AdminEndpointId);
+	}
+	return {};
+}
+
 bool FConcertServer::IsStarted() const
 {
 	return ServerAdminEndpoint.IsValid();

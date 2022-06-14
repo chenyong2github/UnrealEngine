@@ -25,6 +25,7 @@ public:
 	virtual bool IsConfigured() const override;
 	virtual const UConcertServerConfig* GetConfiguration() const override;
 	virtual const FConcertServerInfo& GetServerInfo() const override;
+	virtual FMessageAddress GetRemoteAddress(const FGuid& AdminEndpointId) const override;
 
 	virtual bool IsStarted() const override;
 	virtual void Startup() override;
