@@ -9,6 +9,7 @@
 #include "LowLevelMemTrackerPrivate.h"
 #include "MemPro/MemProProfiler.h"
 #include "Misc/CString.h"
+#include "Misc/OutputDeviceRedirector.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
@@ -78,8 +79,6 @@ FAutoConsoleCommand DumpLLM(
 	TEXT("Logs out the current and peak sizes of all tracked LLM tags"),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* InWorld, FOutputDevice& Ar)
 	{
-		const float InvToMb = 1.0 / (1024 * 1024);
-
 		bool bCSV = false;
 		for (const FString& Arg : Args)
 		{
@@ -88,47 +87,77 @@ FAutoConsoleCommand DumpLLM(
 				bCSV = true;
 			}
 		}
+		FLowLevelMemTracker::Get().DumpToLog(bCSV ? FLowLevelMemTracker::EDumpFormat::CSV : FLowLevelMemTracker::EDumpFormat::PlainText, &Ar);
+	}));
 
-		if (FLowLevelMemTracker::Get().IsEnabled())
+void FLowLevelMemTracker::DumpToLog(EDumpFormat DumpFormat, FOutputDevice* OutputDevice)
+{
+	if (!IsEnabled())
+	{
+		return;
+	}
+	const float InvToMb = 1.0 / (1024 * 1024);
+	FOutputDevice& Ar = *(OutputDevice ? OutputDevice : GLog);
+	if (DumpFormat == EDumpFormat::CSV)
+	{
+		Ar.Logf(TEXT(",TagName,SizeMB,PeakMB,Tracker,PathName"));
+	}
+	else
+	{
+		Ar.Logf(TEXT("%40s %12s %12s  Tracker PathName"), TEXT("TagName"), TEXT("SizeMB"), TEXT("PeakMB"));
+	}
+
+	for (ELLMTracker TrackerType : {ELLMTracker::Default, ELLMTracker::Platform})
+	{
+		const TCHAR* TrackerName = TrackerType == ELLMTracker::Default ? TEXT("Default") : TEXT("Platform");
+
+		struct FTagLine
 		{
-			if (bCSV)
+			FString TagName;
+			FString Line;
+			int64 Size;
+		};
+		TArray<FTagLine> TagLines;
+		for (const UE::LLMPrivate::FTagData* TagData : GetTrackedTags(TrackerType))
+		{
+			int64 CurrentAmount = GetTagAmountForTracker(TrackerType, TagData, false /* bPeakAmount */);
+			int64 PeakAmount = GetTagAmountForTracker(TrackerType, TagData, true /* bPeakAmount */);
+			FString TagName = GetTagUniqueName(TagData).ToString();
+			FString TagLine;
+			if (DumpFormat == EDumpFormat::CSV)
 			{
-				Ar.Logf(TEXT(",TagName,SizeMB,PeakMB,Tracker,PathName"));
+				TagLine = FString::Printf(TEXT(",%s,%.3f,%.3f,%s,%s"),
+					*TagName,
+					static_cast<float>(CurrentAmount) * InvToMb,
+					static_cast<float>(PeakAmount) * InvToMb,
+					TrackerName,
+					*GetTagDisplayPathName(TagData));
 			}
 			else
 			{
-				Ar.Logf(TEXT("%40s %12s %12s  Tracker PathName"), TEXT("TagName"), TEXT("SizeMB"), TEXT("PeakMB"));
+				TagLine = FString::Printf(TEXT("%40s %12.3f %12.3f %8s %s"),
+					*TagName,
+					static_cast<float>(CurrentAmount) * InvToMb,
+					static_cast<float>(PeakAmount) * InvToMb,
+					TrackerName,
+					*GetTagDisplayPathName(TagData));
 			}
-
-			for (ELLMTracker TrackerType : {ELLMTracker::Default, ELLMTracker::Platform})
-			{
-				const TCHAR* TrackerName = TrackerType == ELLMTracker::Default ? TEXT("Default") : TEXT("Platform");
-
-				for (const UE::LLMPrivate::FTagData* TagData : FLowLevelMemTracker::Get().GetTrackedTags(TrackerType))
-				{
-					if (bCSV)
-					{
-						Ar.Logf(TEXT(",%s,%.3f,%.3f,%s,%s"),
-							*FLowLevelMemTracker::Get().GetTagUniqueName(TagData).ToString(),
-							static_cast<float>(FLowLevelMemTracker::Get().GetTagAmountForTracker(TrackerType, TagData, false)) * InvToMb,
-							static_cast<float>(FLowLevelMemTracker::Get().GetTagAmountForTracker(TrackerType, TagData, true)) * InvToMb,
-							TrackerName,
-							*FLowLevelMemTracker::Get().GetTagDisplayPathName(TagData));
-					}
-					else
-					{
-						Ar.Logf(TEXT("%40s %12.3f %12.3f %8s %s"),
-							*FLowLevelMemTracker::Get().GetTagUniqueName(TagData).ToString(),
-							static_cast<float>(FLowLevelMemTracker::Get().GetTagAmountForTracker(TrackerType, TagData, false)) * InvToMb,
-							static_cast<float>(FLowLevelMemTracker::Get().GetTagAmountForTracker(TrackerType, TagData, true)) * InvToMb,
-							TrackerName,
-							*FLowLevelMemTracker::Get().GetTagDisplayPathName(TagData));
-					}
-				}
-			}
+			TagLines.Add(FTagLine{ MoveTemp(TagName), MoveTemp(TagLine), CurrentAmount });
 		}
-	})
-);
+		TagLines.Sort([](const FTagLine& A, const FTagLine& B)
+			{
+				if (A.Size != B.Size)
+				{
+					return A.Size > B.Size;
+				}
+				return A.TagName < B.TagName;
+			});
+		for (FTagLine& TagLine : TagLines)
+		{
+			Ar.Logf(TEXT("%s"), *TagLine.Line);
+		}
+	}
+}
 
 DECLARE_LLM_MEMORY_STAT(TEXT("LLM Overhead"), STAT_LLMOverheadTotal, STATGROUP_LLMOverhead);
 

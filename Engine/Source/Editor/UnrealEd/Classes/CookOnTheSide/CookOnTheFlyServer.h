@@ -36,6 +36,7 @@ class ITargetPlatform;
 enum class ODSCRecompileCommand;
 struct FBeginCookContext;
 struct FPropertyChangedEvent;
+struct FResourceSizeEx;
 
 namespace UE::LinkerLoad { enum class EImportBehavior : uint8; }
 
@@ -148,6 +149,23 @@ namespace UE::Cook::Private
 	class FRegisteredCookPackageSplitter;
 }
 
+namespace UE::Cook
+{
+
+struct FStatHistoryInt
+{
+public:
+	void Initialize(int64 InitialValue);
+	void AddInstance(int64 CurrentValue);
+	int64 GetMinimum() const { return Minimum; }
+	int64 GetMaximum() const { return Maximum; }
+
+private:
+	int64 Minimum = 0;
+	int64 Maximum = 0;
+};
+
+}
 UCLASS()
 class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorObject, public FExec, public UE::Cook::ICookInfo
 {
@@ -255,6 +273,7 @@ private:
 	uint64 MemoryMaxUsedPhysical;
 	uint64 MemoryMinFreeVirtual;
 	uint64 MemoryMinFreePhysical;
+	float MemoryExpectedFreedToSpreadRatio;
 	/** Max number of packages to save before we partial gc */
 	int32 MaxNumPackagesBeforePartialGC;
 	/** Max number of concurrent shader jobs reducing this too low will increase cook time */
@@ -444,7 +463,7 @@ private:
 	void PollFlushRenderingCommands();
 	TRefCountPtr<FPollable> CreatePollableLLM();
 	TRefCountPtr<FPollable> CreatePollableTriggerGC();
-	void PollTimeForGC(UE::Cook::FTickStackData& StackData);
+	void PollGarbageCollection(UE::Cook::FTickStackData& StackData);
 	void PollQueuedCancel(UE::Cook::FTickStackData& StackData);
 	void WaitForAsync(UE::Cook::FTickStackData& StackData);
 	void TickRecompileShaderRequestsPrivate();
@@ -721,6 +740,7 @@ public:
 	}
 
 	bool HasExceededMaxMemory() const;
+	void EvaluateGarbageCollectionResults(int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC);
 
 	/**
 	* RequestPackage to be cooked
@@ -785,6 +805,12 @@ private:
 	/** Update accumulators of editor data and consume editor changes since the last cook when starting cooks in the editor. */
 	void BeginCookEditorSystems();
 	void BeginCookPackageWriters(FBeginCookContext& BeginContext);
+	void InitializeSession();
+	void PreGarbageCollectImpl(TArray<UPackage*>& GCKeepPackages, TArray<UE::Cook::FPackageData*>& GCKeepPackageDatas,
+		TArray<UObject*>& LocalGCKeepObjects);
+	void PostGarbageCollectImpl(TArray<UObject*>& LocalGCKeepObjects);
+	void GetDirectAndTransitiveResourceSize(FResourceSizeEx& OutDirectSize, FResourceSizeEx& OutTransitiveSize,
+		int64& OutNumDirectPackages, int64& OutNumTransitivePackages, TSet<UPackage*>&& DirectPackages);
 
 	//////////////////////////////////////////////////////////////////////////
 	// cook by the book specific functions
@@ -1206,6 +1232,8 @@ private:
 	static UCookOnTheFlyServer* ActiveCOTFS;
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;
+	UE::Cook::FStatHistoryInt NumObjectsHistory;
+	UE::Cook::FStatHistoryInt VirtualMemoryHistory;
 
 	/** This is set to true when the decision about which packages we need to cook changes because e.g. a platform was added to the sessionplatforms. */
 	bool bPackageFilterDirty = false;

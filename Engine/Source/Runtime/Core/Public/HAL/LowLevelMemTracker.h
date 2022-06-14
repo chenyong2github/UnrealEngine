@@ -590,6 +590,13 @@ public:
 	// Publishes the active LLM stats in the active frame, useful for single targeted LLM snapshots
 	void PublishDataSingleFrame();
 
+	enum class EDumpFormat
+	{
+		PlainText,
+		CSV,
+	};
+	void DumpToLog(EDumpFormat DumpFormat = EDumpFormat::PlainText, FOutputDevice* OutputDevice = nullptr);
+
 	void OnPreFork();
 
 private:
