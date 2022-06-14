@@ -119,12 +119,6 @@ public:
 	// ULandscapeTexturePatchBase
 	virtual bool SetTextureResolution(FVector2D ResolutionIn) override;
 	virtual bool SetSourceMode(ELandscapeTexturePatchSourceMode NewMode, bool bDeleteUnusedInternalTextures = true) override;
-	
-	/**
-	 * Just like SetSourceMode, but resets encoding mode and settings to mode-specific defaults
-	 */
-	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
-	bool ResetSourceMode(ELandscapeTexturePatchSourceMode NewMode);
 
 	// UActorComponent
 	virtual void OnComponentCreated() override;
@@ -136,6 +130,13 @@ public:
 	virtual void ExportCustomProperties(FOutputDevice& Out, uint32 Indent) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostInitProperties() override;
+#endif
+
+	/**
+	 * Just like SetSourceMode, but resets encoding mode and settings to mode-specific defaults
+	 */
+	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
+	bool ResetSourceMode(ELandscapeTexturePatchSourceMode NewMode);
 
 	/**
 	 * Deletes the internal render target and internal texture.
@@ -196,11 +197,10 @@ public:
 		Modify();
 		EncodingSettings = Settings;
 	}
-#endif
 
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	void SetFalloff(float FalloffIn) 
-	{ 
+	{
 		Modify();
 		Falloff = FalloffIn; 
 	}
@@ -333,6 +333,10 @@ private:
 	UPROPERTY()
 	float SavedConversionHeightScale;
 
+	// Many of the functions above are actually also editor-only in that their contents are inside
+	// WITH_EDITOR blocks. However we don't put the actual signatures into WITH_EDITOR because that
+	// would prevent them from being called from non-editor-only blueprints, even if the call happens
+	// in a place that happens to be editor-only.
 #if WITH_EDITOR
 	// These are used to convert render targets whose formats are not the usual two-channel 16bit values that
 	// we store in an internal texture. We convert these render targets to the native landscape height representation

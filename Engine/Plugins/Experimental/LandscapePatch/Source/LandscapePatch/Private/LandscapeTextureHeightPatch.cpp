@@ -60,10 +60,11 @@ void ULandscapeTextureHeightPatch::ConvertInternalRenderTargetBackFromNativeText
 	{
 		InternalRenderTarget->Modify();
 	}
-	ResizeRenderTargetIfNeeded(InternalTexture->GetResource()->GetSizeX(), 
-		InternalTexture->GetResource()->GetSizeY());
 
 	FTextureCompilingManager::Get().FinishCompilation({ InternalTexture });
+
+	ResizeRenderTargetIfNeeded(InternalTexture->GetResource()->GetSizeX(), 
+		InternalTexture->GetResource()->GetSizeY());
 
 	FTextureResource* Source = InternalTexture->GetResource();
 	FTextureResource* Destination = InternalRenderTarget->GetResource();
@@ -303,6 +304,7 @@ void ULandscapeTextureHeightPatch::OnComponentCreated()
 
 	PreviousSourceMode = SourceMode;
 }
+#endif // WITH_EDITOR
 
 void ULandscapeTextureHeightPatch::ResetSourceEncodingMode(ELandscapeTextureHeightPatchEncoding EncodingMode)
 {
@@ -322,14 +324,17 @@ void ULandscapeTextureHeightPatch::ResetSourceEncodingMode(ELandscapeTextureHeig
 
 void ULandscapeTextureHeightPatch::SetInternalRenderTargetFormat(ETextureRenderTargetFormat Format)
 {
+#if WITH_EDITOR
 	Modify();
 	InternalRenderTargetFormat = Format;
 	if (InternalRenderTarget)
 	{
 		ResizeRenderTargetIfNeeded(InternalRenderTarget->SizeX, InternalRenderTarget->SizeY);
 	}
+#endif
 }
 
+#if WITH_EDITOR
 void ULandscapeTextureHeightPatch::UpdateShaderParams(
 	UE::Landscape::FApplyLandscapeTextureHeightPatchPS::FParameters& Params, 
 	const FIntPoint& DestinationResolution, FIntRect& DestinationBoundsOut) const
@@ -526,6 +531,7 @@ UTextureRenderTarget2D* ULandscapeTextureHeightPatch::Render_Native(bool bIsHeig
 
 	return InCombinedResult;
 }
+#endif // WITH_EDITOR
 
 void ULandscapeTextureHeightPatch::DeleteInternalTextures()
 {
@@ -545,6 +551,7 @@ void ULandscapeTextureHeightPatch::DeleteInternalTextures()
 
 void ULandscapeTextureHeightPatch::Reinitialize()
 {
+#if WITH_EDITOR
 	using namespace UE::Landscape;
 	using namespace LandscapeTextureHeightPatchLocals;
 
@@ -721,8 +728,10 @@ void ULandscapeTextureHeightPatch::Reinitialize()
 	{
 		PatchManager->RequestLandscapeUpdate();
 	}
+#endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
 bool ULandscapeTextureHeightPatch::ResizeRenderTargetIfNeeded(int32 SizeX, int32 SizeY)
 {
 	using namespace LandscapeTextureHeightPatchLocals;
@@ -855,6 +864,7 @@ bool ULandscapeTextureHeightPatch::SetSourceMode(ELandscapeTexturePatchSourceMod
 
 	return true;
 }
+#endif // WITH_EDITOR
 
 bool ULandscapeTextureHeightPatch::ResetSourceMode(ELandscapeTexturePatchSourceMode NewMode)
 {
@@ -971,6 +981,7 @@ void ULandscapeTextureHeightPatch::SnapToLandscape()
 	SetWorldLocation(LandscapeTransform.TransformPosition(NewCenterInLandscape));
 }
 
+#if WITH_EDITOR
 bool ULandscapeTextureHeightPatch::SetTextureResolution(FVector2D ResolutionIn)
 {
 	if (SourceMode == ELandscapeTexturePatchSourceMode::TextureAsset)
@@ -996,6 +1007,5 @@ bool ULandscapeTextureHeightPatch::SetTextureResolution(FVector2D ResolutionIn)
 	return false;
 }
 #endif // WITH_EDITOR
-
 
 #undef LOCTEXT_NAMESPACE

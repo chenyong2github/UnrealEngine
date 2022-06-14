@@ -90,6 +90,8 @@ void FLandscapeTexturePatchCustomization::CustomizeDetails(IDetailLayoutBuilder&
 
 					if (SavedObjects.Num() > 0)
 					{
+						PatchObject->Modify();
+
 						UTexture* NewTexture = Cast<UTexture>(SavedObjects[0]);
 						if (ensure(NewTexture))
 						{
