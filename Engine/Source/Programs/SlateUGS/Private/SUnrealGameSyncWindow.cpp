@@ -107,6 +107,7 @@ TSharedRef<ITableRow> SUnrealGameSyncWindow::GenerateHordeBuildTableRow(TSharedP
 
 void SUnrealGameSyncWindow::Construct(const FArguments& InArgs)
 {
+	// Todo: Get horde builds from querying Perforce
 	SHordeBuilds = InArgs._HordeBuilds;
 
 	this->ChildSlot
@@ -228,7 +229,7 @@ void SUnrealGameSyncWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("StreamLogoText", "Fortnite Stream Logo")) // Todo: replace with logo image
-					.Font(FAppStyle::Get().GetFontStyle("Text.Large")) // Todo: this isn't working, figure out how to get fonts to work
+					.TextStyle(FAppStyle::Get(), TEXT("Menu.Heading"))
 				]
 				// Stream, Changelist, uproject path
 				+SHorizontalBox::Slot()

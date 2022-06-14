@@ -5,6 +5,10 @@
 #include "Framework/Application/SlateApplication.h"
 
 #include "SUnrealGameSyncWindow.h"
+
+#include "Widgets/SWorkspaceWindow.h"
+#include "Widgets/SEmptyTab.h"
+
 #include "Widgets/Docking/SDockTab.h"
 
 IMPLEMENT_APPLICATION(SlateUGS, "SlateUGS");
@@ -13,8 +17,16 @@ IMPLEMENT_APPLICATION(SlateUGS, "SlateUGS");
 
 namespace
 {
-	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Arguments)
+	TSharedRef<SDockTab> SpawnEmptyTab(const FSpawnTabArgs& Arguments)
 	{
+		return SNew(SDockTab).TabRole(ETabRole::MajorTab)
+			[
+				SNew(SEmptyTab)
+			];
+	}
+	TSharedRef<SDockTab> SpawnActiveTab(const FSpawnTabArgs& Arguments)
+	{
+		// Todo: replace with real Horde build data (or gather this in the SUnrealGameSyncWindow construct)
 		TArray<TSharedPtr<HordeBuildRowInfo>> HordeBuilds;
 		for (int i = 0; i < 35; i++)
 		{
@@ -29,8 +41,7 @@ namespace
 			HordeBuilds.Add(Row);
 		}
 
-		return SNew(SDockTab)
-			.TabRole(ETabRole::NomadTab)
+		return SNew(SDockTab).TabRole(ETabRole::MajorTab)
 			[
 				SNew(SUnrealGameSyncWindow)
 					.HordeBuilds(HordeBuilds)
@@ -39,20 +50,20 @@ namespace
 	
 	void BuildWindow()
 	{
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner("SlateUGS", FOnSpawnTab::CreateStatic(SpawnTab));
-		
-		TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("StarshipSuite_Layout")
+		FGlobalTabmanager::Get()->RegisterTabSpawner("EmptyTab", FOnSpawnTab::CreateStatic(SpawnEmptyTab));
+		FGlobalTabmanager::Get()->RegisterTabSpawner("ActiveTab", FOnSpawnTab::CreateStatic(SpawnActiveTab));
+		TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("UGS_Layout")
 		->AddArea
 		(
 			FTabManager::NewArea(1230, 900)
 			->Split
 			(
 				FTabManager::NewStack()
-				->AddTab("SlateUGS", ETabState::OpenedTab)
-				->SetForegroundTab(FName("SlateUGS"))
+				->AddTab("EmptyTab", ETabState::OpenedTab)
+				->AddTab("ActiveTab", ETabState::ClosedTab) // Todo: seems to be only one tab per ID, need several tabs all with UGSActiveTab contents
+				->SetForegroundTab(FName("EmptyTab"))
 			)
 		);
-
 		FGlobalTabmanager::Get()->RestoreFrom(Layout, TSharedPtr<SWindow>());
 	}
 }
@@ -76,10 +87,12 @@ int RunSlateUGS(const TCHAR* CommandLine)
 	FSlateApplication::InitHighDPI(true);
 
 	// set the application name
-	FGlobalTabmanager::Get()->SetApplicationTitle(LOCTEXT("AppTitle", "Slate UGS"));
+	FGlobalTabmanager::Get()->SetApplicationTitle(LOCTEXT("AppTitle", "Unreal Game Sync"));
 
 	FAppStyle::SetAppStyleSetName(FAppStyle::GetAppStyleSetName());
-	BuildWindow();	
+
+	// Build the slate UI for the program window
+	BuildWindow();
 
 	// loop while the server does the rest
 	while (!IsEngineExitRequested())
