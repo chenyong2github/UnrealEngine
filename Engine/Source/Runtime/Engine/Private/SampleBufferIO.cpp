@@ -447,7 +447,8 @@ namespace Audio
 
 	void FSoundWavePCMWriter::ApplyBufferToSoundWave()
 	{
-		CurrentSoundWave->InvalidateCompressedData();
+		// Since we just want to replace the PCM data to save it to disk. We don't need to compute anything platformdata related.
+		CurrentSoundWave->InvalidateCompressedData(false /* bFreeResources */, false /* bRebuildStreamingChunk */);
 
 		CurrentSoundWave->SetSampleRate(CurrentBuffer.GetSampleRate());
 		CurrentSoundWave->NumChannels = CurrentBuffer.GetNumChannels();
