@@ -190,7 +190,7 @@ void FInsightsStyle::FStyle::Initialize()
 	Set("Icons.PluginTracksMenu.ToolBar", new IMAGE_BRUSH_SVG("PluginTracks_20", Icon20x20));
 	Set("Icons.ViewModeMenu.ToolBar", new IMAGE_BRUSH_SVG("ViewMode_20", Icon20x20));
 
-	Set("Icons.HighlightEvents.ToolBar", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/Visualizer", Icon20x20));
+	Set("Icons.HighlightEvents.ToolBar", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Visualizer", Icon20x20));
 	Set("Icons.ResetHighlight.ToolBar", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Reject", Icon20x20));
 
 	//////////////////////////////////////////////////
