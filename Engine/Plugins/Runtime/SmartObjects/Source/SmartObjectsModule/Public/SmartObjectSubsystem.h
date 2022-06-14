@@ -590,6 +590,9 @@ public:
 
 	/** Debugging helper to emulate the start of the simulation to create all runtime data */
 	void DebugInitializeRuntime();
+	
+	/** Debugging helper to force rebuild collection for tests scenarios when collection is built on demand */
+	void DebugRebuildCollection();
 
 	/** Debugging helper to emulate the stop of the simulation to destroy all runtime data */
 	void DebugCleanupRuntime();

@@ -110,6 +110,9 @@ struct FSmartObjectTestBase : FAITestBase
 		}
 
 #if WITH_SMARTOBJECT_DEBUG
+		// SmartObject collection might be setup to be rebuilt on demand so make sure to build it so our test SO are registered
+		Subsystem->DebugRebuildCollection();
+
 		// Force runtime initialization
 		Subsystem->DebugInitializeRuntime();
 #endif

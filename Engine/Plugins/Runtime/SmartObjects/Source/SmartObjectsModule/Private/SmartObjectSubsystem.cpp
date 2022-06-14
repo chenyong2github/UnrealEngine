@@ -1323,6 +1323,16 @@ void USmartObjectSubsystem::DebugInitializeRuntime()
 	InitializeRuntime();
 }
 
+#if WITH_EDITOR
+void USmartObjectSubsystem::DebugRebuildCollection()
+{
+	if (MainCollection != nullptr)
+	{
+		RebuildCollection(*MainCollection);
+	}
+}
+#endif // WITH_EDITOR
+
 void USmartObjectSubsystem::DebugCleanupRuntime()
 {
 	// do not cleanup more than once or on a GameWorld
