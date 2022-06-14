@@ -49,7 +49,11 @@ bool FInterchangeWorkerImpl::Run(const FString& WorkerVersionError)
 	if (bVersionError)
 	{
 		FErrorCommand ErrorCmd;
-		ErrorCmd.ErrorMessage = WorkerVersionError;
+		
+		UInterchangeResultError_Generic* Message = FbxParser.AddMessage<UInterchangeResultError_Generic>();
+		Message->Text = FText::FromString(WorkerVersionError);
+
+		ErrorCmd.ErrorMessage = Message->ToJson();
 		CommandIO.SendCommand(ErrorCmd, Config::SendCommandTimeout_s);
 		//We want to time out after maximum of 5 seconds
 		double TimeOut = 5.0;

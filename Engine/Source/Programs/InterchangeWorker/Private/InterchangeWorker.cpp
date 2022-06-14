@@ -61,20 +61,22 @@ int32 Main(int32 Argc, TCHAR * Argv[])
 	if (!UE::Interchange::DispatcherCommandVersion::FromString(InterchangeDispatcherVersion, Major, Minor, Patch, bLWCDisabled))
 	{
 		WorkerVersionError = TEXT("Incompatible interchange dispatcher version string command argument.");
-		WorkerVersionError += TEXT(" Editor Version: ");
+		WorkerVersionError += TEXT(" Editor Version: [");
 		WorkerVersionError += InterchangeDispatcherVersion;
-		WorkerVersionError += TEXT(" Worker Version: ");
+		WorkerVersionError += TEXT("] Worker Version: [");
 		WorkerVersionError += UE::Interchange::DispatcherCommandVersion::ToString();
+		WorkerVersionError += TEXT("]");
 		UE_LOG(LogInterchangeWorker, Error, TEXT("%s"), *WorkerVersionError);
 	}
 
  	if (!UE::Interchange::DispatcherCommandVersion::IsAPICompatible(Major, Minor, Patch, bLWCDisabled))
  	{
 		WorkerVersionError = TEXT("Incompatible interchange dispatcher API version. Please recompile InterchangeWorker target.");
-		WorkerVersionError += TEXT("\n\tEditor Version: ");
+		WorkerVersionError += TEXT(" Editor Version: [");
 		WorkerVersionError += InterchangeDispatcherVersion;
-		WorkerVersionError += TEXT("\n\tWorker Version: ");
+		WorkerVersionError += TEXT("] Worker Version: [");
 		WorkerVersionError += UE::Interchange::DispatcherCommandVersion::ToString();
+		WorkerVersionError += TEXT("]");
  		UE_LOG(LogInterchangeWorker, Error, TEXT("%s"), *WorkerVersionError);
  	}
 
