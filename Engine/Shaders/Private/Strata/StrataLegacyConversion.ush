@@ -124,6 +124,9 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	float3 TransmittanceColor,
 	float3 WaterScatteringCoefficients, float3 WaterAbsorptionCoefficients, float WaterPhaseG, float3 ColorScaleBehindWater,
 	uint ShadingModel,
+	float3 RawNormal,
+	float3 RawTangent,
+	float3 RawClearCoatNormal,
 	uint SharedLocalBasisIndex,
 	uint ClearCoatBottomNormal_SharedLocalBasisIndex,
 	inout uint SharedLocalBasisTypes,
@@ -180,7 +183,25 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
 	}
 	#endif
+	#if MATERIAL_SHADINGMODEL_EYE
+	if (ShadingModel == SHADINGMODELID_EYE)
+	{
+		const float IrisMask = ClearCoat;
+		const float IrisDistance = ClearCoatRoughness;
+		const float3 IrisNormal = RawClearCoatNormal;
 
+		return GetStrataEyeBSDF(
+			BaseColor,	        // DiffuseAlbedo
+			Roughness,	        // Roughness
+			ClearCoat,	        // IrisMask
+			ClearCoatRoughness, // IrisDistance
+			IrisNormal,         // IrisNormal TODO
+			Emissive,	        // EmissiveColor
+			SharedLocalBasisIndex);
+
+		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
+	}
+	#endif
 	// Top/Bottom
 	FStrataLegacyParameters Top = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
 	FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
@@ -401,48 +422,6 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		FinalWeight = Opacity;
 #endif
 	}
-	else if (ShadingModel == SHADINGMODELID_EYE)
-	{
-		const float IrisMask = ClearCoat;
-		const float IrisDistance = ClearCoatRoughness;
-
-		// Lerp transmittance rather MFP, as transmittance is perceptually linear unlike MFP
-		const float Thickness = DefaultThickness;
-		const float3 MFP = TransmittanceToMeanFreePath(IrisMask.xxx, Thickness * CENTIMETER_TO_METER) * METER_TO_CENTIMETER;
-
-		// Cornea/Sclera
-		Top.BaseColor = BaseColor;
-		Top.Specular = Specular;
-		Top.Metallic = 0.f;
-		Top.Roughness = Roughness;
-		Top.Anisotropy = 0.f;
-		Top.SSSProfileID = SubSurfaceProfileId;
-		Top.SSSMFP = MFP;
-		Top.SSSMFPScale = Opacity;
-		Top.Emissive = Emissive;
-		Top.SharedLocalBasisIndex = SharedLocalBasisIndex;
-		Top.LayerDepth = 0;
-		Top.bIsBottom = 0;
-		Top.Weight = 1.f;
-
-		// Iris
-		Bot.BaseColor = BaseColor;
-		Bot.Specular = Specular;
-		Bot.Metallic = .0f;
-		Bot.Roughness = Roughness;
-		Bot.Anisotropy = 0.f;
-		Bot.SSSProfileID = SubSurfaceProfileId;
-		Bot.SSSMFP = Zeros;
-		Bot.SSSMFPScale = Opacity;
-		Bot.Emissive = Emissive;
-		Bot.SharedLocalBasisIndex = ClearCoatBottomNormal_SharedLocalBasisIndex;
-		Bot.LayerDepth = 1;
-		Bot.bIsBottom = 1;
-		Bot.Weight = 1.f;
-
-		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
-		FinalWeight = 1.0f;
-	}
 	else if (ShadingModel == SHADINGMODELID_THIN_TRANSLUCENT)	
 	{
 		const float Thickness = DefaultThickness;
@@ -580,6 +559,9 @@ FStrataData StrataConvertLegacyMaterialStatic(
 	float3 TransmittanceColor,
 	float3 WaterScatteringCoefficients, float3 WaterAbsorptionCoefficients, float WaterPhaseG, float3 ColorScaleBehindWater,
 	uint ShadingModel,
+	float3 RawNormal,
+	float3 RawTangent,
+	float3 RawClearCoatNormal,
 	uint SharedLocalBasisIndex,
 	uint ClearCoatBottomNormal_SharedLocalBasisIndex,
 	inout uint SharedLocalBasisTypes,
@@ -633,16 +615,45 @@ FStrataData StrataConvertLegacyMaterialStatic(
 				ClearCoat,	   // Backlit
 				Emissive,	   // EmissiveColor
 				SharedLocalBasisIndex),
-				StrataTree,
-				0		/*OperatorIndex*/,
-				0		/*BSDFIndex*/,
-				0		/*int LayerDepth*/,
-				1		/*int bIsBottom*/);
+			StrataTree,
+			0		/*OperatorIndex*/,
+			0		/*BSDFIndex*/,
+			0		/*int LayerDepth*/,
+			1		/*int bIsBottom*/);
 
 		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
 		FStrataData Bot_Slab = CreateLegacySlab(Bot, SharedLocalBasisTypes, StrataTree,	/*OperatorIndex*/1, /*BSDFIndex*/1);
 
 		FStrataData WTop_Slab = StrataWeight(Top_Hair, 1.0, StrataTree,					/*OperatorIndex*/2, /*MaxDistanceFromLeaves*/1);
+		FStrataData WBot_Slab = StrataWeight(Bot_Slab, 0.0, StrataTree,					/*OperatorIndex*/3, /*MaxDistanceFromLeaves*/1);
+		Out = StrataVerticalLayering(WTop_Slab, WBot_Slab, StrataTree,					/*OperatorIndex*/4, /*MaxDistanceFromLeaves*/2);
+		// Out maps to LegacyUpdateBSDFsOperators
+	}
+	else if (ShadingModel == SHADINGMODELID_EYE)
+	{
+		const float IrisMask = ClearCoat;
+		const float IrisDistance = ClearCoatRoughness;
+		const float3 IrisNormal = RawClearCoatNormal;
+
+		FStrataData Top_Eye = PromoteParameterBlendedBSDFToOperator(
+			GetStrataEyeBSDF(
+				BaseColor,	   // DiffuseAlbedo
+				Roughness,	   // Roughness
+				IrisMask,	   // IrisMask
+				IrisDistance,  // IrisDistance
+				IrisNormal,	   // IrisNormal
+				Emissive,	   // EmissiveColor
+				SharedLocalBasisIndex),
+			StrataTree,
+			0		/*OperatorIndex*/,
+			0		/*BSDFIndex*/,
+			0		/*int LayerDepth*/,
+			1		/*int bIsBottom*/);
+
+		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
+		FStrataData Bot_Slab = CreateLegacySlab(Bot, SharedLocalBasisTypes, StrataTree,	/*OperatorIndex*/1, /*BSDFIndex*/1);
+
+		FStrataData WTop_Slab = StrataWeight(Top_Eye, 1.0, StrataTree,					/*OperatorIndex*/2, /*MaxDistanceFromLeaves*/1);
 		FStrataData WBot_Slab = StrataWeight(Bot_Slab, 0.0, StrataTree,					/*OperatorIndex*/3, /*MaxDistanceFromLeaves*/1);
 		Out = StrataVerticalLayering(WTop_Slab, WBot_Slab, StrataTree,					/*OperatorIndex*/4, /*MaxDistanceFromLeaves*/2);
 		// Out maps to LegacyUpdateBSDFsOperators
@@ -665,11 +676,11 @@ FStrataData StrataConvertLegacyMaterialStatic(
 				WaterPhaseG, 			// WaterPhaseG
 				ColorScaleBehindWater,	// ColorScaleBehindWater
 				SharedLocalBasisIndex),
-				StrataTree,
-				0		/*OperatorIndex*/,
-				0		/*BSDFIndex*/,
-				0		/*int LayerDepth*/,
-				1		/*int bIsBottom*/);
+			StrataTree,
+			0		/*OperatorIndex*/,
+			0		/*BSDFIndex*/,
+			0		/*int LayerDepth*/,
+			1		/*int bIsBottom*/);
 
 		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
 		FStrataData Bot_Slab = CreateLegacySlab(Bot, SharedLocalBasisTypes, StrataTree,	/*OperatorIndex*/1, /*BSDFIndex*/1);
@@ -692,6 +703,9 @@ FStrataData StrataConvertLegacyMaterialStatic(
 			TransmittanceColor,
 			WaterScatteringCoefficients, WaterAbsorptionCoefficients, WaterPhaseG, ColorScaleBehindWater,
 			ShadingModel,
+			RawNormal,
+			RawTangent,
+			RawClearCoatNormal,
 			SharedLocalBasisIndex,
 			ClearCoatBottomNormal_SharedLocalBasisIndex,
 			SharedLocalBasisTypes,

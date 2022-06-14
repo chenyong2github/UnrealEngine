@@ -224,6 +224,19 @@ void PackStrataOut(
 						break;
 					}
 
+					case STRATA_BSDF_TYPE_EYE:
+					{
+						bIsOnlySlab = false;
+						bIsSimpleMaterial = false;
+						bIsSingleMaterial = false;
+
+						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
+						TopLayerData.Roughness += BSDF.TopLayerDataWeight * FullyRough;
+
+						SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_EYE);
+						break;
+					}
+
 					case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 					{
 						bIsOnlySlab = false;
@@ -518,6 +531,14 @@ void PackStrataOut(
 						{
 							STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(HAIR_BASECOLOR(BSDF), HAIR_ROUGHNESS(BSDF))));
 							STRATA_STORE_UINT1(PackRGBA8(float4(HAIR_SCATTER(BSDF), HAIR_SPECULAR(BSDF), HAIR_BACKLIT(BSDF), HAIR_COMPLEXTRANSMITTANCE(BSDF))));
+							// 8 bytes
+						}
+						break;
+						case STRATA_BSDF_TYPE_EYE:
+						{
+							const float2 EncodedIrisNormal = UnitVectorToOctahedron(EYE_IRISNORMAL(BSDF));
+							STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(EYE_DIFFUSEALBEDO(BSDF), EYE_ROUGHNESS(BSDF))));
+							STRATA_STORE_UINT1(PackRGBA8(float4(EYE_IRISMASK(BSDF), EYE_IRISDISTANCE(BSDF), EncodedIrisNormal * 0.5f + 0.5f)));
 							// 8 bytes
 						}
 						break;

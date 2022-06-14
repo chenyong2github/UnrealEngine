@@ -26,7 +26,8 @@
 #define STRATA_BSDF_TYPE_UNLIT				2
 #define STRATA_BSDF_TYPE_HAIR				3
 #define STRATA_BSDF_TYPE_SINGLELAYERWATER	4
-// When more than 5 BSDF must exists, please update STATE_BIT_COUNT_BSDF and FStrataClassification.ShadingModels packing in Strata.ush
+#define STRATA_BSDF_TYPE_EYE				5
+// When more than 7 BSDF must exists, please update STATE_BIT_COUNT_BSDF and FStrataClassification.ShadingModels packing in Strata.ush
 
 // The size of strata material classification tiles on screen
 #define STRATA_TILE_SIZE					8

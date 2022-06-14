@@ -9736,6 +9736,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 		bool bHasUnlit = false;
 		bool bHasVFogCloud = false;
 		bool bHasHair = false;
+		bool bHasEye = false;
 		bool bHasSLW = false;
 		bool bHasSlab = false;
 
@@ -9787,6 +9788,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 				bHasUnlit |= CurrentOperator.BSDFType == STRATA_BSDF_TYPE_UNLIT;
 				bHasVFogCloud |= CurrentOperator.BSDFType == STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD;
 				bHasHair |= CurrentOperator.BSDFType == STRATA_BSDF_TYPE_HAIR;
+				bHasEye |= CurrentOperator.BSDFType == STRATA_BSDF_TYPE_EYE;
 				bHasSLW |= CurrentOperator.BSDFType == STRATA_BSDF_TYPE_SINGLELAYERWATER;
 				bHasSlab |= CurrentOperator.BSDFType == STRATA_BSDF_TYPE_SLAB;
 				break;
@@ -9813,13 +9815,13 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 		bStrataOutputsOpaqueRoughRefractions = bStrataUsesVerticalLayering && bIsOpaqueOrMasked;
 		bStrataMaterialIsUnlitNode = bHasUnlit;
 
-		if ((bHasUnlit || bHasVFogCloud || bHasHair || bHasSLW) && StrataMaterialBSDFCount > 1)
+		if ((bHasUnlit || bHasVFogCloud || bHasHair || bHasEye || bHasSLW) && StrataMaterialBSDFCount > 1)
 		{
 			Errorf(TEXT("Unlit, Fog/Cloud, Hair or SingleLayerWater must be used in isolation. See %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 			// Even though we could support Unlit with slab.
 		}
 
-		if ((bHasUnlit || bHasVFogCloud || bHasHair || bHasSLW) && bOperatorEncountered)
+		if ((bHasUnlit || bHasVFogCloud || bHasHair || bHasEye || bHasSLW) && bOperatorEncountered)
 		{
 			Errorf(TEXT("Unlit, Fog/Cloud, Hair or SingleLayerWater cannot be used with operators. See %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 			// This is because it will results in simpler lighting loops focusin on slab.
@@ -10024,6 +10026,12 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 					bStrataMaterialIsSingle = false;
 					break;
 				}
+				case STRATA_BSDF_TYPE_EYE:
+				{
+					bStrataMaterialIsSimple = false;
+					bStrataMaterialIsSingle = false;
+					break;
+				}
 				case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 				{
 					bStrataMaterialIsSimple = false;
@@ -10123,6 +10131,12 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 					break;
 				}
 				case STRATA_BSDF_TYPE_HAIR:
+				{
+					StrataMaterialRequestedSizeByte += UintByteSize;
+					StrataMaterialRequestedSizeByte += UintByteSize;
+					break;
+				}
+				case STRATA_BSDF_TYPE_EYE:
 				{
 					StrataMaterialRequestedSizeByte += UintByteSize;
 					StrataMaterialRequestedSizeByte += UintByteSize;
@@ -10382,12 +10396,13 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 {
 	const FString NormalCode = GetParameterCode(Normal);
 	const FString TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(Tangent) : TEXT("NONE");
+	const int32 RawTangent = Tangent != INDEX_NONE ? Tangent : Normal;
 
 	const FString ClearCoat_NormalCode = GetParameterCode(ClearCoat_Normal);
 	const FString ClearCoat_TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(ClearCoat_Tangent) : TEXT("NONE");
 
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types, Parameters.StrataTree) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */"),
+		MCT_Strata, TEXT("StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types, Parameters.StrataTree) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */"),
 		bHasDynamicShadingModels ? TEXT("Dynamic") : TEXT("Static"),
 		*StrataGetCastParameterCode(BaseColor,						MCT_Float3),
 		*StrataGetCastParameterCode(Specular,						MCT_Float),
@@ -10406,6 +10421,10 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 		*StrataGetCastParameterCode(WaterPhaseG,					MCT_Float),
 		*StrataGetCastParameterCode(ColorScaleBehindWater,			MCT_Float3),
 		*GetParameterCode(ShadingModel),
+		// Raw access to Normal/Tanget/ClearCoatNormal for conversion purpose
+		*StrataGetCastParameterCode(Normal,							MCT_Float3),
+		*StrataGetCastParameterCode(RawTangent,						MCT_Float3),
+		*StrataGetCastParameterCode(ClearCoat_Normal,				MCT_Float3),
 		*SharedLocalBasisIndexMacro,
 		*ClearCoat_SharedLocalBasisIndexMacro,
 		// Regular normal basis
@@ -10449,6 +10468,22 @@ int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, in
 		*StrataGetCastParameterCode(EmissiveColor,		MCT_Float3),
 		*SharedLocalBasisIndexMacro,
 		*GetParameterCode(Tangent)
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataEyeBSDF(int32 DiffuseAlbedo, int32 Roughness, int32 IrisMask, int32 IrisDistance, int32 EmissiveColor, int32 CorneaNormal, int32 IrisNormal, const FString& SharedLocalBasisIndexMacro)
+{
+	return AddCodeChunk(
+		MCT_Strata, TEXT("GetStrataEyeBSDF(%s, %s, %s, %s, %s, %s, %s) /* Cornea:%s Iris:%s */"),
+		*StrataGetCastParameterCode(DiffuseAlbedo, MCT_Float3),
+		*StrataGetCastParameterCode(Roughness, MCT_Float),
+		*StrataGetCastParameterCode(IrisMask, MCT_Float),
+		*StrataGetCastParameterCode(IrisDistance, MCT_Float),
+		*StrataGetCastParameterCode(IrisNormal, MCT_Float),
+		*StrataGetCastParameterCode(EmissiveColor, MCT_Float3),
+		*SharedLocalBasisIndexMacro,
+		*GetParameterCode(CorneaNormal),
+		*GetParameterCode(IrisNormal)
 	);
 }
 

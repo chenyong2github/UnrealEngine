@@ -225,6 +225,18 @@ void ApplyDBufferData(in FStrataDBuffer StrataDBufferData, inout FStrataPixelHea
 				break;
 			}
 
+			case STRATA_BSDF_TYPE_EYE:
+			{
+			#if STRATA_DBUFFER_RESPONSE_BASECOLOR
+				EYE_DIFFUSEALBEDO(BSDF) = EYE_DIFFUSEALBEDO(BSDF) * StrataDBufferData.OneMinusCoverage_BaseColor + StrataDBufferData.BaseColor;
+			#endif
+
+			#if STRATA_DBUFFER_RESPONSE_ROUGHNESS
+				EYE_ROUGHNESS(BSDF) = EYE_ROUGHNESS(BSDF) * StrataDBufferData.OneMinusCoverage_Roughness + StrataDBufferData.Roughness;
+			#endif
+				break;
+			}
+
 			case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 			{
 			#if STRATA_DBUFFER_RESPONSE_BASECOLOR

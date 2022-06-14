@@ -113,6 +113,8 @@ void PrintPixelType(inout FShaderPrintContext Ctx, in FStrataPixelHeader Header,
 	else if (IsSingleMaterial(Header))		Print(Ctx, TEXT("Single  "), InColor);
 	else if (IsComplexMaterial(Header))		Print(Ctx, TEXT("Complex "), InColor);
 	else if (IsSingleLayerWater(Header))	Print(Ctx, TEXT("SLWater "), InColor);
+	else if (IsHair(Header))				Print(Ctx, TEXT("Hair    "), InColor);
+	else if (IsEye(Header))					Print(Ctx, TEXT("Eye     "), InColor);
 	else									Print(Ctx, TEXT("Error - Unkown pixel type"), FontRed);
 }
 
@@ -318,6 +320,35 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			Print(Context, TEXT(" Scatter           "), FontBSDFPropName);	Print(Context, HAIR_SCATTER(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
 			Print(Context, TEXT(" Backlit           "), FontBSDFPropName);	Print(Context, HAIR_BACKLIT(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
 			Print(Context, TEXT(" Has Transmittance "), FontBSDFPropName);	Print(Context, HAIR_COMPLEXTRANSMITTANCE(BSDF), FontBSDFPropValu);	Newline(Context, RectMax);
+		}
+		break;
+
+		case STRATA_BSDF_TYPE_EYE:
+		{
+			Print(Context, TEXT("Eye"), FontBSDFType);
+			Newline(Context, RectMax);
+			Print(Context, TEXT(" NormalID IsTopLayer LuminanceWeight"), FontBSDF);
+			Newline(Context, RectMax);
+
+			Print(Context, BSDF_GETSHAREDLOCALBASISID(BSDF), FontBSDF);
+			PrintBool(Context, BSDF_GETISTOPLAYER(BSDF), FontBSDF);
+			if (BSDF_GETHASGREYWEIGHT_V(BSDF))
+			{
+				Print(Context, BSDF.LuminanceWeightV.x, FontSilver);
+			}
+			else
+			{
+				Print(Context, BSDF.LuminanceWeightV.r, FontLightRed);
+				Print(Context, BSDF.LuminanceWeightV.g, FontLightGreen);
+				Print(Context, BSDF.LuminanceWeightV.b, FontLightBlue);
+			}
+			Newline(Context, RectMax);
+
+			Print(Context, TEXT(" Diffuse Albedo    "), FontBSDFPropName);	Print(Context, EYE_DIFFUSEALBEDO(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
+			Print(Context, TEXT(" F0                "), FontBSDFPropName);	Print(Context, EYE_F0(BSDF), FontBSDFPropValu);						Newline(Context, RectMax);
+			Print(Context, TEXT(" Roughness         "), FontBSDFPropName);	Print(Context, EYE_ROUGHNESS(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
+			Print(Context, TEXT(" Iris Mask         "), FontBSDFPropName);	Print(Context, EYE_IRISDISTANCE(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
+			Print(Context, TEXT(" Iris Distance     "), FontBSDFPropName);	Print(Context, EYE_IRISMASK(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
 		}
 		break;
 

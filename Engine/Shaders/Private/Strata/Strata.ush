@@ -145,7 +145,7 @@ struct FStrataBSDF
 // * Simple : store a single Slab BSDF (with no extra feature)
 // 
 // Header State (8bits):
-// * MATERIALMODE
+// * MATERIALMODE (None/SlabSimple/SlabSingle/SlabComplex/SLW/Hair/Eye)
 // * HASPRECSHADOWMASK			
 // * ZEROPRECSHADOWMASK			
 // * CASTCONTACTSHADOW			
@@ -259,7 +259,8 @@ struct FStrataBSDF
 #define HEADER_MATERIALMODE_SLAB_COMPLEX		3
 #define HEADER_MATERIALMODE_SLWATER				4
 #define HEADER_MATERIALMODE_HAIR				5
-// Up to 8 material modes: 2 remains.
+#define HEADER_MATERIALMODE_EYE					6
+// Up to 8 material modes: 1 remains.
 
 ///////////////////////////////////////////////////////////////////////////////
 // BSDF State
@@ -436,6 +437,15 @@ struct FStrataBSDF
 #define HAIR_SPECULAR(X)				X.VGPRs[1].y
 #define HAIR_BACKLIT(X)					X.VGPRs[1].z
 #define HAIR_COMPLEXTRANSMITTANCE(X)	X.VGPRs[1].w
+
+///////////////////////////////////////////////////////////////////////////////
+// Eye BSDF members
+#define EYE_DIFFUSEALBEDO(X)			X.VGPRs[0].xyz
+#define EYE_F0(X)						0.04f
+#define EYE_ROUGHNESS(X)				X.VGPRs[0].w
+#define EYE_IRISDISTANCE(X)				X.VGPRs[1].x
+#define EYE_IRISMASK(X)					X.VGPRs[1].y
+#define EYE_IRISNORMAL(X)				X.VGPRs[2].xyz
 
 ///////////////////////////////////////////////////////////////////////////////
 // Single Layer Water BSDF members
@@ -1418,6 +1428,25 @@ FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, f
 	return StrataData;
 }
 
+FStrataData GetStrataEyeBSDF(float3 DiffuseAlbedo, float Roughness, float IrisMask, float IrisDistance, float3 IrisNormal, float3 Emissive, uint SharedLocalBasisIndex)
+{
+	FStrataData StrataData = GetInitialisedStrataData();
+	BSDF_SETTYPE					(StrataData.InlinedBSDF, STRATA_BSDF_TYPE_EYE);
+	BSDF_SETSHAREDLOCALBASISID		(StrataData.InlinedBSDF, SharedLocalBasisIndex);
+	BSDF_SETEMISSIVE				(StrataData.InlinedBSDF, Emissive);
+	EYE_DIFFUSEALBEDO				(StrataData.InlinedBSDF) = DiffuseAlbedo;
+	EYE_ROUGHNESS					(StrataData.InlinedBSDF) = Roughness;
+	EYE_IRISDISTANCE				(StrataData.InlinedBSDF) = IrisDistance;
+	EYE_IRISMASK					(StrataData.InlinedBSDF) = IrisMask;
+	EYE_IRISNORMAL					(StrataData.InlinedBSDF) = IrisNormal;
+
+#if STRATA_INLINE_SHADING
+	StrataData.InlinedBSDF.Coverage = 1.0f;
+#endif
+
+	return StrataData;
+}
+
 FStrataData GetStrataSingleLayerWaterBSDF(
 	float3 BaseColor, float Metallic, float Specular, float Roughness, float3 Emissive, float TopMaterialOpacity,
 	float3 WaterAlbedo, float3 WaterExtinction, float WaterPhaseG, float3 ColorScaleBehindWater, uint SharedLocalBasisIndex)
@@ -1697,6 +1726,7 @@ bool IsSingleMaterial(const FStrataPixelHeader In)											{ return (In.State 
 bool IsComplexMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SLAB_COMPLEX && !STRATA_FASTPATH && !STRATA_SINGLEPATH; }
 bool IsSingleLayerWater(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_SLWATER; }
 bool IsHair(const FStrataPixelHeader In)													{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_HAIR; }
+bool IsEye(const FStrataPixelHeader In)														{ return (In.State & HEADER_MASK_MATERIALMODE) == HEADER_MATERIALMODE_EYE; }
 uint StrataGetBSDFType(const FStrataPixelHeader In)												
 { 
 	switch (GetMaterialMode(In))
@@ -1706,6 +1736,7 @@ uint StrataGetBSDFType(const FStrataPixelHeader In)
 	case HEADER_MATERIALMODE_SLAB_COMPLEX:	return STRATA_BSDF_TYPE_SLAB;
 	case HEADER_MATERIALMODE_SLWATER:		return STRATA_BSDF_TYPE_SINGLELAYERWATER;
 	case HEADER_MATERIALMODE_HAIR:			return STRATA_BSDF_TYPE_HAIR;
+	case HEADER_MATERIALMODE_EYE:			return STRATA_BSDF_TYPE_EYE;
 	default:								return STRATA_BSDF_TYPE_SLAB;
 	}
 }
@@ -2348,6 +2379,16 @@ void SanitizeStrataHair(inout FStrataBSDF BSDF)
 	HAIR_BACKLIT(BSDF) = saturate(HAIR_BACKLIT(BSDF));
 }
 
+void SanitizeStrataEye(inout FStrataBSDF BSDF)
+{
+	BSDF_SETEMISSIVE(BSDF, clamp(BSDF_GETEMISSIVE(BSDF), 0.0, Max10BitsFloat));
+	EYE_DIFFUSEALBEDO(BSDF) = saturate(EYE_DIFFUSEALBEDO(BSDF));
+	EYE_ROUGHNESS(BSDF) = SanitizeRoughness(EYE_ROUGHNESS(BSDF));
+	EYE_IRISDISTANCE(BSDF) = saturate(EYE_IRISDISTANCE(BSDF));
+	EYE_IRISMASK(BSDF) = saturate(EYE_IRISMASK(BSDF));
+	EYE_IRISNORMAL(BSDF) = normalize(EYE_IRISNORMAL(BSDF));
+}
+
 void SanitizeStrataSingleLayerWater(inout FStrataBSDF BSDF)
 {
 	BSDF_SETEMISSIVE(BSDF, clamp(BSDF_GETEMISSIVE(BSDF), 0.0, Max10BitsFloat));
@@ -2376,6 +2417,11 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 		case STRATA_BSDF_TYPE_HAIR:
 		{
 			SanitizeStrataHair(BSDF);
+			break;
+		}
+		case STRATA_BSDF_TYPE_EYE:
+		{
+			SanitizeStrataEye(BSDF);
 			break;
 		}
 		case STRATA_BSDF_TYPE_SINGLELAYERWATER:
@@ -2492,6 +2538,7 @@ float3 StrataGetBSDFBaseColor(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return lerp(SLAB_DIFFUSEALBEDO(BSDF), SLAB_F0(BSDF), F0RGBToMetallic(SLAB_F0(BSDF)));  // This BaseColor recovery based on Metallic recovers is not accurate, and only used for legacy conversion purpose (e.g., PostProcessMaterial texture access)
 	case STRATA_BSDF_TYPE_HAIR: 			return HAIR_BASECOLOR(BSDF);
+	case STRATA_BSDF_TYPE_EYE: 				return EYE_DIFFUSEALBEDO(BSDF);
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return SLW_BASECOLOR(BSDF);
 	}
 	return 0.f;
@@ -2503,6 +2550,7 @@ float3 StrataGetBSDFDiffuseColor(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_DIFFUSEALBEDO(BSDF);
 	case STRATA_BSDF_TYPE_HAIR: 			return HAIR_BASECOLOR(BSDF);
+	case STRATA_BSDF_TYPE_EYE: 				return EYE_DIFFUSEALBEDO(BSDF);
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return SLW_BASECOLOR(BSDF);
 	}
 	return 0.f;
@@ -2514,6 +2562,7 @@ float3 StrataGetBSDFSpecularF0(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_F0(BSDF);
 	case STRATA_BSDF_TYPE_HAIR: 			return DielectricSpecularToF0(HAIR_SPECULAR(BSDF));
+	case STRATA_BSDF_TYPE_EYE: 				return EYE_F0(BSDF);
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return DielectricSpecularToF0(SLW_SPECULAR(BSDF));
 	}
 	return 0.f;
@@ -2526,6 +2575,7 @@ float3 StrataGetBSDFSpecularF90(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_F90(BSDF);
 	case STRATA_BSDF_TYPE_HAIR: 			return 1.0f;
+	case STRATA_BSDF_TYPE_EYE: 				return 1.0f;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 1.0f;
 	}
 	return 0.f;
@@ -2535,8 +2585,9 @@ void StrataSetBSDFSpecularF0(in FStrataBSDF BSDF, float3 F0)
 {
 	switch (BSDF_GETTYPE(BSDF))
 	{
-	case STRATA_BSDF_TYPE_SLAB: 			SLAB_F0(BSDF) = F0;
+	case STRATA_BSDF_TYPE_SLAB: 			SLAB_F0(BSDF) = F0; break;
 	case STRATA_BSDF_TYPE_HAIR: 			HAIR_SPECULAR(BSDF) = F0ToDielectricSpecular(max3(F0.x, F0.y, F0.z)); break;
+	case STRATA_BSDF_TYPE_EYE: 				/* EYE_F0 us hardcoded */ break;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: SLW_SPECULAR(BSDF) = F0ToDielectricSpecular(max3(F0.x, F0.y, F0.z)); break;
 	}
 }
@@ -2545,8 +2596,9 @@ void StrataSetBSDFSpecularF90(in FStrataBSDF BSDF, float3 F90)
 {
 	switch (BSDF_GETTYPE(BSDF))
 	{
-	case STRATA_BSDF_TYPE_SLAB: 			SLAB_F90(BSDF) = F90;
+	case STRATA_BSDF_TYPE_SLAB: 			SLAB_F90(BSDF) = F90; break;
 	case STRATA_BSDF_TYPE_HAIR: 			break;
+	case STRATA_BSDF_TYPE_EYE: 				break;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: break;
 	}
 }
@@ -2557,6 +2609,7 @@ float3 StrataGetBSDFSubSurfaceColor(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID ? SLAB_DIFFUSEALBEDO(BSDF) : 0; // A more accurate version would be IsotropicMediumSlabPunctualDirectionalAlbedo(StrataSlabCreateParticipatingMedia(SLAB_DIFFUSEALBEDO(BSDF), SLAB_SSSMFP(BSDFContext.BSDF)));
 	case STRATA_BSDF_TYPE_HAIR: 			return 0;
+	case STRATA_BSDF_TYPE_EYE: 				return EYE_DIFFUSEALBEDO(BSDF);
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 0;
 	}
 	return 0.f;
@@ -2568,6 +2621,7 @@ float StrataGetBSDFSpecular(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return F0ToDielectricSpecular(SLAB_F0(BSDF).x);
 	case STRATA_BSDF_TYPE_HAIR: 			return HAIR_SPECULAR(BSDF);
+	case STRATA_BSDF_TYPE_EYE: 				return F0ToDielectricSpecular(EYE_F0(BSDF));
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return SLW_SPECULAR(BSDF);
 	}
 	return 0.f;
@@ -2579,6 +2633,7 @@ float StrataGetBSDFMetallic(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return F0RGBToMetallic(SLAB_F0(BSDF)); // Metallic recovers is not accurate, and only used for legacy conversion purpose (e.g., PostProcessMaterial texture access)
 	case STRATA_BSDF_TYPE_HAIR: 			return 0;
+	case STRATA_BSDF_TYPE_EYE: 				return 0;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 0;
 	}
 	return 0.f;
@@ -2590,6 +2645,7 @@ float StrataGetBSDFRoughness(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_ROUGHNESS(BSDF);
 	case STRATA_BSDF_TYPE_HAIR: 			return HAIR_ROUGHNESS(BSDF);
+	case STRATA_BSDF_TYPE_EYE: 				return EYE_ROUGHNESS(BSDF);
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return SLW_ROUGHNESS(BSDF);
 	}
 	return 0.f;
@@ -2601,6 +2657,7 @@ void StrataSetBSDFRoughness(inout FStrataBSDF BSDF, in float Roughness)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			SLAB_ROUGHNESS(BSDF) = Roughness; break;
 	case STRATA_BSDF_TYPE_HAIR: 			HAIR_ROUGHNESS(BSDF) = Roughness; break;
+	case STRATA_BSDF_TYPE_EYE: 				EYE_ROUGHNESS(BSDF)  = Roughness; break;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: SLW_ROUGHNESS(BSDF)  = Roughness; break;
 	}
 }
@@ -2611,6 +2668,7 @@ float StrataGetBSDFAnisotropy(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_ANISOTROPY(BSDF);
 	case STRATA_BSDF_TYPE_HAIR: 			return 0;
+	case STRATA_BSDF_TYPE_EYE: 				return 0;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 0;
 	}
 	return 0.f;
@@ -2655,6 +2713,7 @@ float StrataGetLegacyShadingModels(in FStrataBSDF BSDF)
 		else													{ return SHADINGMODELID_DEFAULT_LIT; }
 	}
 	case STRATA_BSDF_TYPE_HAIR: 								{ return SHADINGMODELID_HAIR; }
+	case STRATA_BSDF_TYPE_EYE: 									{ return SHADINGMODELID_EYE; }
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER:						{ return SHADINGMODELID_SINGLELAYERWATER; }
 	}
 	return 0.f;
@@ -3456,6 +3515,17 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		HAIR_SPECULAR(OutBSDF) = Data.y;
 		HAIR_BACKLIT(OutBSDF) = Data.z;
 		HAIR_COMPLEXTRANSMITTANCE(OutBSDF) = Data.w;
+		// 8 bytes
+	}
+	break;
+	case STRATA_BSDF_TYPE_EYE:
+	{
+		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, EYE_DIFFUSEALBEDO(OutBSDF), EYE_ROUGHNESS(OutBSDF));		
+		float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
+		EYE_IRISMASK(OutBSDF) = Data.x;
+		EYE_IRISDISTANCE(OutBSDF) = Data.y;
+		EYE_IRISNORMAL(OutBSDF) = OctahedronToUnitVector(Data.zw * 2.0f - 1.f);
+		// STRATA_TODO - Add SSS profile support
 		// 8 bytes
 	}
 	break;

@@ -21729,6 +21729,10 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 		{
 			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 		}
+		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Eye))
+		{
+			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
+		}
 		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SingleLayerWater))
 		{
 			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
@@ -21869,6 +21873,7 @@ void UMaterialExpressionStrataLegacyConversion::GatherStrataMaterialInfo(FStrata
 	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SubsurfaceLit))			{ StrataMaterialInfo.AddShadingModel(SSM_SubsurfaceLit); }
 	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_VolumetricFogCloud))	{ StrataMaterialInfo.AddShadingModel(SSM_VolumetricFogCloud); }
 	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Hair))					{ StrataMaterialInfo.AddShadingModel(SSM_Hair); }
+	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Eye))					{ StrataMaterialInfo.AddShadingModel(SSM_Eye); }
 	if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SingleLayerWater))		{ StrataMaterialInfo.AddShadingModel(SSM_SingleLayerWater); }
 	if (SubsurfaceProfile)														{ StrataMaterialInfo.AddSubsurfaceProfile(SubsurfaceProfile); }
 	if (ConvertedStrataMaterialInfo.HasShadingModelFromExpression())			{ StrataMaterialInfo.SetShadingModelFromExpression(true); }
@@ -21929,6 +21934,12 @@ FStrataOperator* UMaterialExpressionStrataLegacyConversion::StrataGenerateMateri
 		{
 			FStrataOperator& Operator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, this, Parent);
 			Operator.BSDFType = STRATA_BSDF_TYPE_HAIR;
+			return &Operator;
+		}
+		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Eye))
+		{
+			FStrataOperator& Operator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, this, Parent);
+			Operator.BSDFType = STRATA_BSDF_TYPE_EYE;
 			return &Operator;
 		}
 		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SingleLayerWater))
@@ -23041,6 +23052,92 @@ FStrataOperator* UMaterialExpressionStrataHairBSDF::StrataGenerateMaterialTopolo
 }
 #endif // WITH_EDITOR
 
+UMaterialExpressionStrataEyeBSDF::UMaterialExpressionStrataEyeBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataEyeBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 CorneaNormalCodeChunk = CompileWithDefaultTangentWS(Compiler, CorneaNormal);
+	const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, CorneaNormalCodeChunk);
+
+	int32 OutputCodeChunk = Compiler->StrataEyeBSDF(
+		CompileWithDefaultFloat3(Compiler, DiffuseColor, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, Roughness,	 0.5f),
+		CompileWithDefaultFloat1(Compiler, IrisMask,	 0.0f),
+		CompileWithDefaultFloat1(Compiler, IrisDistance, 0.0f),
+		CompileWithDefaultFloat3(Compiler, IrisNormal,   0.0f, 0.0f, 1.0f),
+		CompileWithDefaultFloat3(Compiler, EmissiveColor,0.0f, 0.0f, 0.0f),
+		CorneaNormalCodeChunk,
+		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis));
+
+	return OutputCodeChunk;
+}
+
+void UMaterialExpressionStrataEyeBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Eye BSDF"));
+}
+
+uint32 UMaterialExpressionStrataEyeBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataEyeBSDF::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0: return MCT_Float3; // DiffuseColor
+	case 1: return MCT_Float1; // Roughness
+	case 2: return MCT_Float3; // Cornea normal
+	case 3: return MCT_Float3; // IrisNormal
+	case 4: return MCT_Float1; // IrisMask
+	case 5: return MCT_Float1; // IrisDistance
+	case 6: return MCT_Float3; // EmissiveColor
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+bool UMaterialExpressionStrataEyeBSDF::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return true;
+}
+
+void UMaterialExpressionStrataEyeBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// Track connected inputs
+	if (DiffuseColor.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_BaseColor); }
+	if (Roughness.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_Roughness); }
+	if (CorneaNormal.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_Normal); }
+	if (IrisNormal.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_Tangent); }
+	if (IrisMask.IsConnected())			{ StrataMaterialInfo.AddPropertyConnected(MP_CustomData0); }
+	if (IrisDistance.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_CustomData1); }
+	if (EmissiveColor.IsConnected())	{ StrataMaterialInfo.AddPropertyConnected(MP_EmissiveColor); }
+
+	StrataMaterialInfo.AddShadingModel(SSM_Eye);
+}
+
+FStrataOperator* UMaterialExpressionStrataEyeBSDF::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	StrataOperator.BSDFType = STRATA_BSDF_TYPE_EYE;
+	return &StrataOperator;
+}
+#endif // WITH_EDITOR
 
 
 UMaterialExpressionStrataSingleLayerWaterBSDF::UMaterialExpressionStrataSingleLayerWaterBSDF(const FObjectInitializer& ObjectInitializer)

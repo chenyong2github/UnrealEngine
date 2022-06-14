@@ -21,6 +21,9 @@ FString GetStrataBSDFName(uint8 BSDFType)
 	case STRATA_BSDF_TYPE_HAIR:
 		return TEXT("HAIR");
 		break;
+	case STRATA_BSDF_TYPE_EYE:
+		return TEXT("EYE");
+		break;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 		return TEXT("SINGLELAYERWATER");
 		break;
