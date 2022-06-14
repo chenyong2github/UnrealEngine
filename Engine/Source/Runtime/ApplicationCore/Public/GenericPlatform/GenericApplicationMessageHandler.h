@@ -527,7 +527,7 @@ public:
 	{
 		if (ShouldUsePlatformUserId())
 		{
-			return OnControllerButtonPressed(KeyName, FPlatformUserId(ControllerId), IsRepeat);
+			return OnControllerButtonPressed(KeyName, FPlatformUserId(ControllerId), INPUTDEVICEID_NONE, IsRepeat);
 		}
 		return false;
 	}
@@ -536,7 +536,7 @@ public:
 	{
 		if (ShouldUsePlatformUserId())
 		{
-			return OnControllerButtonReleased(KeyName, FPlatformUserId(ControllerId), IsRepeat);
+			return OnControllerButtonReleased(KeyName, FPlatformUserId(ControllerId), INPUTDEVICEID_NONE, IsRepeat);
 		}
 		return false;
 	}
