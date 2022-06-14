@@ -137,7 +137,7 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 	const UClass* Class = SceneAsset.GetSceneInstanceClass();
 	UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 	NewInstance->SceneAsset = &SceneAsset;
-	NewInstance->Bindings = MoveTemp(Bindings);
+	
 	if (Params.Pivots.IsEmpty())
 	{
 		Bindings.CalculateAnimSetPivots(NewInstance->GetMutablePivots());
@@ -146,6 +146,8 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 	{
 		NewInstance->SetPivots(Params.Pivots);
 	}
+
+	NewInstance->Bindings = MoveTemp(Bindings);
 	NewInstance->Start();
 	NewInstance->OnSceneEnded.AddDynamic(this, &UContextualAnimManager::OnSceneInstanceEnded);
 
@@ -193,7 +195,7 @@ UContextualAnimSceneInstance* UContextualAnimManager::TryStartScene(const UConte
 		const UClass* Class = SceneAsset.GetSceneInstanceClass();
 		UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 		NewInstance->SceneAsset = &SceneAsset;
-		NewInstance->Bindings = MoveTemp(Bindings);
+		
 		if (Params.Pivots.IsEmpty())
 		{
 			Bindings.CalculateAnimSetPivots(NewInstance->GetMutablePivots());
@@ -202,6 +204,8 @@ UContextualAnimSceneInstance* UContextualAnimManager::TryStartScene(const UConte
 		{
 			NewInstance->SetPivots(Params.Pivots);
 		}
+
+		NewInstance->Bindings = MoveTemp(Bindings);
 		NewInstance->Start();
 		NewInstance->OnSceneEnded.AddDynamic(this, &UContextualAnimManager::OnSceneInstanceEnded);
 
