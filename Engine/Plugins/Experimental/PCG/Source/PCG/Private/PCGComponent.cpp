@@ -300,6 +300,18 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated)
 	}
 }
 
+void UPCGComponent::OnProcessGraphAborted()
+{
+	UE_LOG(LogPCG, Warning, TEXT("Process Graph was called but aborted, check for errors in log if you expected a result."));
+
+	bGenerated = false;
+
+#if WITH_EDITOR
+	bDirtyGenerated = false;
+	bIsGenerating = false;
+#endif
+}
+
 void UPCGComponent::Cleanup()
 {
 	if (!bGenerated || !GetSubsystem())
@@ -535,10 +547,19 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			{
 				bool bIsNowPartitioned = bIsPartitioned;
 				bIsPartitioned = !bIsPartitioned;
+
 				// First, we'll cleanup
 				bActivated = false;
 				Refresh();
-				// Then do a normal refresh
+
+				// Invalidate the previous bounds to force actor creation (as if we moved the volume)
+				// if we are now partitioned
+				if (bIsNowPartitioned)
+				{
+					LastGeneratedBounds = FBox(EForceInit::ForceInit);
+				}
+
+				// And do a normal refresh
 				bActivated = true;
 				bIsPartitioned = bIsNowPartitioned;
 				DirtyGenerated();

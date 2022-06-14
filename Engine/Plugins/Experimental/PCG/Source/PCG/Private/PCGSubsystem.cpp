@@ -113,6 +113,8 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, const T
 	}
 	else
 	{
+		UE_LOG(LogPCG, Error, TEXT("[ScheduleComponent] Didn't schedule any task."));
+		PCGComponent->OnProcessGraphAborted();
 		return InvalidTaskId;
 	}
 }
@@ -152,6 +154,7 @@ namespace PCGSubsystem
 	{
 		if (!GraphExecutor || !World)
 		{
+			UE_LOG(LogPCG, Error, TEXT("[ForEachIntersectingCell] GraphExecutor or World is null"));
 			return InvalidTaskId;
 		}
 
@@ -318,6 +321,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 
 			if (!LocalComponent)
 			{
+				UE_LOG(LogPCG, Error, TEXT("[ProcessGraph] PCG Component on PCG Actor is null"));
 				return InvalidTaskId;
 			}
 
@@ -385,6 +389,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 	}
 	else
 	{
+		Component->OnProcessGraphAborted();
 		return InvalidTaskId;
 	}
 }
