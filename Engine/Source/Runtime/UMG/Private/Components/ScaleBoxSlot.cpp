@@ -11,10 +11,10 @@
 UScaleBoxSlot::UScaleBoxSlot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Padding = FMargin(0, 0);
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	HorizontalAlignment = HAlign_Center;
 	VerticalAlignment = VAlign_Center;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 }
 
 void UScaleBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
@@ -28,20 +28,21 @@ void UScaleBoxSlot::BuildSlot(TSharedRef<SScaleBox> InScaleBox)
 {
 	ScaleBox = InScaleBox;
 
-	//ScaleBox->SetPadding(Padding);
-	ScaleBox.Pin()->SetHAlign(HorizontalAlignment);
-	ScaleBox.Pin()->SetVAlign(VerticalAlignment);
-
-	ScaleBox.Pin()->SetContent(Content ? Content->TakeWidget() : SNullWidget::NullWidget);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	InScaleBox->SetHAlign(HorizontalAlignment);
+	InScaleBox->SetVAlign(VerticalAlignment);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	InScaleBox->SetContent(Content ? Content->TakeWidget() : SNullWidget::NullWidget);
 }
 
 void UScaleBoxSlot::SetPadding(FMargin InPadding)
 {
-	Padding = InPadding;
-	if ( ScaleBox.IsValid() )
-	{
-		//ScaleBox.Pin()->SetPadding(InPadding);
-	}
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+EHorizontalAlignment UScaleBoxSlot::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
 }
 
 void UScaleBoxSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
@@ -53,6 +54,11 @@ void UScaleBoxSlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlig
 	}
 }
 
+EVerticalAlignment UScaleBoxSlot::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
+}
+
 void UScaleBoxSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 {
 	VerticalAlignment = InVerticalAlignment;
@@ -61,10 +67,12 @@ void UScaleBoxSlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 		ScaleBox.Pin()->SetVAlign(InVerticalAlignment);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UScaleBoxSlot::SynchronizeProperties()
 {
-	SetPadding(Padding);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
