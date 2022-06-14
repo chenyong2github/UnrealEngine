@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChunkDownloaderPCH.h"
 #include "Download.h"
+#include "ChunkDownloaderLog.h"
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
 

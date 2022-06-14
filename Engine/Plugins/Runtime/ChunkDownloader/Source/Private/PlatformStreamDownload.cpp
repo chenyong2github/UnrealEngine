@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChunkDownloaderPCH.h"
 #include "PlatformStreamDownload.h"
+#include "ChunkDownloaderLog.h"
 
 //////////////////////////////////////////////////////////////////////////////////
 #if 0 && PLATFORM_ANDROID
