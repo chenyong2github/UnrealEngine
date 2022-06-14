@@ -12,8 +12,9 @@
 
 UGameplayInteractionStateTreeSchema::UGameplayInteractionStateTreeSchema()
 	: NamedExternalDataDescs({
-		{UE::GameplayInteraction::Names::InteractableActor,			AActor::StaticClass(),				FGuid(TEXT("870E433F-9931-4B95-982B-78B01B63BBD1"))},
-		{UE::GameplayInteraction::Names::SmartObjectClaimedHandle,	FSmartObjectClaimHandle::StaticStruct(),	FGuid(TEXT("13BAB427-26DB-4A4A-BD5F-937EDB39F841"))}
+		{UE::GameplayInteraction::Names::InteractableActor,			AActor::StaticClass(),								FGuid(TEXT("870E433F-9931-4B95-982B-78B01B63BBD1"))},
+		{UE::GameplayInteraction::Names::SmartObjectClaimedHandle,	FSmartObjectClaimHandle::StaticStruct(),			FGuid(TEXT("13BAB427-26DB-4A4A-BD5F-937EDB39F841"))},
+		{UE::GameplayInteraction::Names::AbortContext,				FGameplayInteractionAbortContext::StaticStruct(),	FGuid(TEXT("EED35411-85E8-44A0-95BE-6DB5B63F51BC"))}
 	})
 {
 }

@@ -22,6 +22,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI|Tasks", meta = (DefaultToSelf = "Controller" , BlueprintInternalUseOnly = "true"))
 	static UAITask_UseGameplayInteraction* UseClaimedGameplayInteractionSmartObject(AAIController* Controller, FSmartObjectClaimHandle ClaimHandle, bool bLockAILogic = true);
 
+	UFUNCTION(BlueprintCallable, Category = "AI|Tasks")
+	void RequestAbort();
+	
 	void SetClaimHandle(const FSmartObjectClaimHandle& Handle) { ClaimedHandle = Handle; }
 
 protected:
@@ -39,4 +42,7 @@ protected:
 	
 	UPROPERTY()
 	FSmartObjectClaimHandle ClaimedHandle;
+
+	UPROPERTY()
+	FGameplayInteractionAbortContext AbortContext;
 };

@@ -89,6 +89,10 @@ bool FGameplayInteractionContext::SetContextRequirements()
         {
             StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(FSmartObjectClaimHandle::StaticStruct(), (uint8*)&ClaimedHandle));
         }
+		else if (ItemDesc.Name == UE::GameplayInteraction::Names::AbortContext)
+		{
+			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(FGameplayInteractionAbortContext::StaticStruct(), (uint8*)&AbortContext));
+		}
 	}
 
 	checkf(InteractorActor != nullptr, TEXT("Should never reach this point with an invalid InteractorActor since it is required to get a valid StateTreeContext."));

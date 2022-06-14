@@ -107,6 +107,7 @@ void UAITask_UseGameplayInteraction::Activate()
 
 void UAITask_UseGameplayInteraction::OnDestroy(const bool bInOwnerFinished)
 {
+	GameplayInteractionContext.SetAbortContext(AbortContext);
 	GameplayInteractionContext.Deactivate();
 
 	if (ClaimedHandle.IsValid())
@@ -122,7 +123,14 @@ void UAITask_UseGameplayInteraction::OnDestroy(const bool bInOwnerFinished)
 	Super::OnDestroy(bInOwnerFinished);
 }
 
+void UAITask_UseGameplayInteraction::RequestAbort()
+{
+	AbortContext.Reason = EGameplayInteractionAbortReason::ExternalAbort;
+	EndTask();
+}
+
 void UAITask_UseGameplayInteraction::OnSlotInvalidated(const FSmartObjectClaimHandle& ClaimHandle, ESmartObjectSlotState State)
 {
+	AbortContext.Reason = EGameplayInteractionAbortReason::InternalAbort;
 	EndTask();
 }

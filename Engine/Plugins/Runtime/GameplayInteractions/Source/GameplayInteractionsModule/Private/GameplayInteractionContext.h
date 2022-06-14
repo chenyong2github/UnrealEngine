@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GameplayInteractionsTypes.h"
 #include "SmartObjectRuntime.h"
 #include "StateTreeExecutionContext.h"
 #include "GameplayInteractionContext.generated.h"
@@ -21,7 +22,8 @@ public:
 	void SetClaimedHandle(const FSmartObjectClaimHandle& InClaimedHandle) { ClaimedHandle = InClaimedHandle; }
 	void SetInteractorActor(AActor* InInteractorActor) { InteractorActor = InInteractorActor; }
 	void SetInteractableActor(AActor* InInteractableActor) { InteractableActor = InInteractableActor; }
-	
+	void SetAbortContext(const FGameplayInteractionAbortContext& InAbortContext) { AbortContext = InAbortContext; }
+
 	bool IsValid() const { return ClaimedHandle.IsValid() && InteractorActor != nullptr && InteractableActor != nullptr; }
 
 	/**
@@ -53,6 +55,9 @@ protected:
     
     UPROPERTY()
     FSmartObjectClaimHandle ClaimedHandle;
+
+	UPROPERTY()
+	FGameplayInteractionAbortContext AbortContext;
 
 	UPROPERTY()
     TObjectPtr<AActor> InteractorActor = nullptr;
