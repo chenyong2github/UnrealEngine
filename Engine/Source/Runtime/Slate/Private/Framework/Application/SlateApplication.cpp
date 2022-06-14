@@ -2408,7 +2408,17 @@ int32 FSlateApplication::GetUserIndexForKeyboard() const
 {
 	return InputManager->GetUserIndexForKeyboard();
 }
- 
+
+int32 FSlateApplication::GetInputDeviceIdForMouse() const
+{
+	return InputManager->GetInputDeviceIdForMouse();
+}
+
+int32 FSlateApplication::GetInputDeviceIdForKeyboard() const
+{
+	return InputManager->GetInputDeviceIdForKeyboard();
+}
+
 TOptional<int32> FSlateApplication::GetUserIndexForController(int32 ControllerId, FKey InKey) const
 {
 	return InputManager->GetUserIndexForController(ControllerId, InKey);
@@ -2417,6 +2427,16 @@ TOptional<int32> FSlateApplication::GetUserIndexForController(int32 ControllerId
 int32 FSlateApplication::GetUserIndexForController(int32 ControllerId) const
 {
 	return InputManager->GetUserIndexForController(ControllerId);
+}
+
+int32 FSlateApplication::GetUserIndexForInputDevice(FInputDeviceId InputDeviceId) const
+{
+	return InputManager->GetUserIndexForInputDevice(InputDeviceId);
+}
+
+int32 FSlateApplication::GetUserIndexForPlatformUser(FPlatformUserId PlatformUser) const
+{
+	return InputManager->GetUserIndexForPlatformUser(PlatformUser);
 }
 
 void FSlateApplication::SetInputManager(TSharedRef<ISlateInputManager> InInputManager)
@@ -3992,8 +4012,24 @@ TSharedRef<FSlateUser> FSlateApplication::GetOrCreateUser(int32 UserIndex)
 	return RegisterNewUser(UserIndex);
 }
 
+TSharedRef<FSlateUser> FSlateApplication::GetOrCreateUser(FPlatformUserId PlatformUserId)
+{
+	if (TSharedPtr<FSlateUser> FoundUser = GetUser(PlatformUserId))
+	{
+		return FoundUser.ToSharedRef();
+	}
+	return RegisterNewUser(PlatformUserId);
+}
+
 TSharedRef<FSlateUser> FSlateApplication::RegisterNewUser(int32 UserIndex, bool bIsVirtual)
 {
+	return RegisterNewUser(FGenericPlatformMisc::GetPlatformUserForUserIndex(UserIndex), bIsVirtual);
+}
+
+TSharedRef<FSlateUser> FSlateApplication::RegisterNewUser(FPlatformUserId PlatformUserId, bool bIsVirtual)
+{
+	int32 UserIndex = PlatformUserId.GetInternalId();
+	
 	// We tolerate no shenanigans with inappropriate arguments here
 	// New users must be registered at a valid non-negative index that is not already occupied by another user
 	check(UserIndex >= 0);
@@ -5912,41 +5948,73 @@ bool FSlateApplication::ExecuteNavigation(const FWidgetPath& NavigationSource, T
 	return bHandled;
 }
 
-bool FSlateApplication::OnControllerAnalog( FGamepadKeyNames::Type KeyName, int32 ControllerId, float AnalogValue )
+bool FSlateApplication::OnControllerAnalog(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, float AnalogValue)
 {
 	FKey Key(KeyName);
-	TOptional<int32> UserIndex = GetUserIndexForController(ControllerId, Key);
-	if(UserIndex.IsSet() && ensureMsgf(Key.IsValid(), TEXT("OnControllerAnalog(KeyName=%s,ControllerId=%d,AnalogValue=%f) key is invalid"), *KeyName.ToString(), ControllerId, AnalogValue))
+	TOptional<int32> UserIndex = GetUserIndexForInputDevice(InputDeviceId);
+	if (UserIndex.IsSet() && ensureMsgf(Key.IsValid(), TEXT("OnControllerAnalog(KeyName=%s,InputDeviceId=%d,AnalogValue=%f) key is invalid"), *KeyName.ToString(), InputDeviceId.GetId(), AnalogValue))
 	{
-		FAnalogInputEvent AnalogInputEvent(Key, PlatformApplication->GetModifierKeys(), UserIndex.GetValue(), false, 0, 0, AnalogValue);
+		FAnalogInputEvent AnalogInputEvent(Key, PlatformApplication->GetModifierKeys(), InputDeviceId, false, 0, 0, AnalogValue);
 		return ProcessAnalogInputEvent(AnalogInputEvent);
 	}
 	return false;
 }
 
-bool FSlateApplication::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
+bool FSlateApplication::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
 {
 	FKey Key(KeyName);
-	TOptional<int32> UserIndex = GetUserIndexForController(ControllerId, Key);
-	if(UserIndex.IsSet() && ensureMsgf(Key.IsValid(), TEXT("OnControllerButtonPressed(KeyName=%s,ControllerId=%d,IsRepeat=%b) key is invalid"), *KeyName.ToString(), ControllerId, IsRepeat))
+	TOptional<int32> UserIndex = GetUserIndexForInputDevice(InputDeviceId);
+	if (UserIndex.IsSet() && ensureMsgf(Key.IsValid(), TEXT("OnControllerButtonPressed(KeyName=%s,InputDeviceId=%d,IsRepeat=%b) key is invalid"), *KeyName.ToString(), InputDeviceId.GetId(), IsRepeat))
 	{
-		FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), UserIndex.GetValue(), IsRepeat, 0, 0);
+		FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), InputDeviceId, IsRepeat, 0, 0);
 		return ProcessKeyDownEvent(KeyEvent);
 	}
 	return false;
 }
 
-bool FSlateApplication::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
+bool FSlateApplication::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
 {
 	FKey Key(KeyName);
-	TOptional<int32> UserIndex = GetUserIndexForController(ControllerId, Key);
-	if(UserIndex.IsSet() && ensureMsgf(Key.IsValid(), TEXT("OnControllerButtonReleased(KeyName=%s,ControllerId=%d,IsRepeat=%b) key is invalid"), *KeyName.ToString(), ControllerId, IsRepeat))
+	TOptional<int32> UserIndex = GetUserIndexForInputDevice(InputDeviceId);
+	if (UserIndex.IsSet() && ensureMsgf(Key.IsValid(), TEXT("OnControllerButtonReleased(KeyName=%s,InputDeviceId=%d,IsRepeat=%b) key is invalid"), *KeyName.ToString(), InputDeviceId.GetId(), IsRepeat))
 	{
-		FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), UserIndex.GetValue(), IsRepeat, 0, 0);
+		FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), InputDeviceId, IsRepeat, 0, 0);
 		return ProcessKeyUpEvent(KeyEvent);
 	}
 	return false;
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+bool FSlateApplication::OnControllerAnalog( FGamepadKeyNames::Type KeyName, int32 ControllerId, float AnalogValue )
+{
+	// Remap the old int32 ControlerId to the new Platform user for backwards compat
+	FPlatformUserId UserId = PLATFORMUSERID_NONE;
+	FInputDeviceId DeviceId = INPUTDEVICEID_NONE;
+	IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, DeviceId);
+
+	return OnControllerAnalog(KeyName, UserId, DeviceId, AnalogValue);
+}
+
+bool FSlateApplication::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
+{
+	// Remap the old int32 ControlerId to the new Platform user for backwards compat
+	FPlatformUserId UserId = PLATFORMUSERID_NONE;
+	FInputDeviceId DeviceId = INPUTDEVICEID_NONE;
+	IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, DeviceId);
+
+	return OnControllerButtonPressed(KeyName, UserId, DeviceId, IsRepeat);
+}
+
+bool FSlateApplication::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
+{
+	// Remap the old int32 ControlerId to the new Platform user for backwards compat
+	FPlatformUserId UserId = PLATFORMUSERID_NONE;
+	FInputDeviceId DeviceId = INPUTDEVICEID_NONE;
+	
+	IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, DeviceId);
+	return OnControllerButtonReleased(KeyName, UserId, DeviceId, IsRepeat);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool FSlateApplication::OnTouchGesture( EGestureEvent GestureType, const FVector2D &Delta, const float MouseWheelDelta, bool bIsDirectionInvertedFromDevice )
 {
