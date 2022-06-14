@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SUnrealGameSyncWindow.h"
+#include "SGameSyncTab.h"
 
 #include "Framework/Application/SlateApplication.h"
 
@@ -15,7 +15,7 @@
 
 #define LOCTEXT_NAMESPACE "UGSWindow"
 
-TSharedRef<ITableRow> SUnrealGameSyncWindow::GenerateHordeBuildTableRow(TSharedPtr<HordeBuildRowInfo> InItem, const TSharedRef<STableViewBase>& InOwnerTable)
+TSharedRef<ITableRow> SGameSyncTab::GenerateHordeBuildTableRow(TSharedPtr<HordeBuildRowInfo> InItem, const TSharedRef<STableViewBase>& InOwnerTable)
 {
 	return SNew(STableRow<TSharedPtr<HordeBuildRowInfo>>, InOwnerTable)
 	[
@@ -105,7 +105,7 @@ TSharedRef<ITableRow> SUnrealGameSyncWindow::GenerateHordeBuildTableRow(TSharedP
 	];
 }
 
-void SUnrealGameSyncWindow::Construct(const FArguments& InArgs)
+void SGameSyncTab::Construct(const FArguments& InArgs)
 {
 	// Todo: Get horde builds from querying Perforce
 	SHordeBuilds = InArgs._HordeBuilds;
@@ -406,7 +406,7 @@ void SUnrealGameSyncWindow::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(SHordeBuildsView, SListView<TSharedPtr<HordeBuildRowInfo>>)
 			.ListItemsSource(&SHordeBuilds)
-			.OnGenerateRow(this, &SUnrealGameSyncWindow::GenerateHordeBuildTableRow)
+			.OnGenerateRow(this, &SGameSyncTab::GenerateHordeBuildTableRow)
 		]
 		// Console window
 		+SVerticalBox::Slot()

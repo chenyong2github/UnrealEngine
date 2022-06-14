@@ -4,12 +4,12 @@
 #include "RequiredProgramMainCPPInclude.h"
 #include "Framework/Application/SlateApplication.h"
 
-#include "SUnrealGameSyncWindow.h"
+#include "Widgets/Docking/SDockTab.h"
 
+#include "Widgets/SGameSyncTab.h"
 #include "Widgets/SWorkspaceWindow.h"
 #include "Widgets/SEmptyTab.h"
 
-#include "Widgets/Docking/SDockTab.h"
 
 IMPLEMENT_APPLICATION(SlateUGS, "SlateUGS");
 
@@ -26,7 +26,7 @@ namespace
 	}
 	TSharedRef<SDockTab> SpawnActiveTab(const FSpawnTabArgs& Arguments)
 	{
-		// Todo: replace with real Horde build data (or gather this in the SUnrealGameSyncWindow construct)
+		// Todo: replace with real Horde build data (or gather this in the SGameSyncTab construct)
 		TArray<TSharedPtr<HordeBuildRowInfo>> HordeBuilds;
 		for (int i = 0; i < 35; i++)
 		{
@@ -43,7 +43,7 @@ namespace
 
 		return SNew(SDockTab).TabRole(ETabRole::MajorTab)
 			[
-				SNew(SUnrealGameSyncWindow)
+				SNew(SGameSyncTab)
 					.HordeBuilds(HordeBuilds)
 			];
 	}

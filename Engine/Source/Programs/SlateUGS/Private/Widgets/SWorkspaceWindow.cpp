@@ -7,7 +7,7 @@
 #include "DesktopPlatformModule.h"
 
 #include "../HordeBuildRowInfo.h"
-#include "../SUnrealGameSyncWindow.h"
+#include "SGameSyncTab.h"
 
 #define LOCTEXT_NAMESPACE "UGSWorkspaceWindow"
 
