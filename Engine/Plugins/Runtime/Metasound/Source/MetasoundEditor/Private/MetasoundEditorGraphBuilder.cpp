@@ -2463,6 +2463,12 @@ namespace Metasound
 				if (UMetasoundEditorGraphOutput* Output = Graph->FindOutput(NodeHandle->GetID()))
 				{
 					SynchronizeMemberDataType(*Output);
+
+					// Fix up corrupted assets with no literal set 
+					if (!Output->GetLiteral())
+					{
+						Output->InitializeLiteral();
+					}
 				}
 			}, EMetasoundFrontendClassType::Output);
 

@@ -89,7 +89,7 @@ const UMetasoundEditorGraph* UMetasoundEditorGraphMember::GetOwningGraph() const
 	return Cast<const UMetasoundEditorGraph>(GetOuter());
 }
 
-void UMetasoundEditorGraphMember::ConformLiteralDataType()
+void UMetasoundEditorGraphMember::InitializeLiteral()
 {
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
@@ -155,7 +155,7 @@ void UMetasoundEditorGraphVertex::InitMember(FName InDataType, const FMetasoundF
 	NodeID = InNodeID;
 	ClassName = MoveTemp(InClassName);
 
-	ConformLiteralDataType();
+	InitializeLiteral();
 
 	if (ensure(Literal))
 	{
@@ -347,7 +347,7 @@ void UMetasoundEditorGraphVertex::SetDataType(FName InNewType, bool bPostTransac
 	NodeID = NewNodeHandle->GetID();
 
 	TypeName = InNewType;
-	ConformLiteralDataType();
+	InitializeLiteral();
 
 	// 6. Create new node references in the same locations as the old locations
 	for (FVector2D Location : NodeLocations)
@@ -757,7 +757,7 @@ void UMetasoundEditorGraphVariable::InitMember(FName InDataType, const FMetasoun
 	TypeName = InDataType;
 	VariableID = InVariableID;
 
-	ConformLiteralDataType();
+	InitializeLiteral();
 
 	if (ensure(Literal))
 	{
@@ -1002,7 +1002,7 @@ void UMetasoundEditorGraphVariable::SetDataType(FName InNewType, bool bPostTrans
 		SetDescription(CachedData.Description, bPostSubTransaction);
 
 		TypeName = InNewType;
-		ConformLiteralDataType();
+		InitializeLiteral();
 
 		// Add the nodes with the same identifier data but new datatype.
 		UObject& Metasound = Graph->GetMetasoundChecked();

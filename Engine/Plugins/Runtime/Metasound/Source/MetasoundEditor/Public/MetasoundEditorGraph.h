@@ -169,13 +169,14 @@ public:
 
 	/** Returns literal associated with the given member */
 	UMetasoundEditorGraphMemberDefaultLiteral* GetLiteral() const { return Literal; }
+
+	/** Creates new literal if there is none and/or conforms literal object type to member's DataType */
+	void InitializeLiteral();
+
 protected:
 	/** Default literal value of member */
 	UPROPERTY()
 	TObjectPtr<UMetasoundEditorGraphMemberDefaultLiteral> Literal;
-
-	/** Conforms literal object type to member's DataType */
-	void ConformLiteralDataType();
 
 	/** Metasound Data Type. */
 	UPROPERTY()
