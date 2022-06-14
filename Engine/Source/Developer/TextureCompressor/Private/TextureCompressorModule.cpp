@@ -1773,9 +1773,9 @@ static FVector ComputeWSCubeDirectionAtTexelCenter(uint32 CubemapFace, uint32 x,
 	return DirectionWS;
 }
 
-static uint32 ComputeLongLatCubemapExtents(const FImage& SrcImage, const uint32 MaxCubemapTextureResolution)
+static uint32 ComputeLongLatCubemapExtents(int32 SrcImageSizeX, const uint32 MaxCubemapTextureResolution)
 {
-	return FMath::Clamp(1U << FMath::FloorLog2(SrcImage.SizeX / 2), 32U, MaxCubemapTextureResolution);
+	return FMath::Clamp(1U << FMath::FloorLog2(SrcImageSizeX / 2), 32U, MaxCubemapTextureResolution);
 }
 
 void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const uint32 MaxCubemapTextureResolution, uint8 SourceEncodingOverride)
@@ -1786,7 +1786,7 @@ void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage
 	SrcImage.Linearize(SourceEncodingOverride, LongLatImage);
 
 	// TODO_TEXTURE: Expose target size to user.
-	uint32 Extent = ComputeLongLatCubemapExtents(LongLatImage, MaxCubemapTextureResolution);
+	uint32 Extent = ComputeLongLatCubemapExtents(LongLatImage.SizeX, MaxCubemapTextureResolution);
 	float InvExtent = 1.0f / Extent;
 	OutMip->Init(Extent, Extent, SrcImage.NumSlices * 6, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 
@@ -3026,6 +3026,79 @@ static void NormalizeMip(FImage& InOutMip)
 	}
 }
 
+
+// Special case for TMGS_LeaveExistingMips
+static int32 GetMipCountForLeaveExistingMips(int32 InMip0SizeX, int32 InMip0SizeY, int32 InExistingMipCount, uint32 InMaxTexture2DResolution)
+{
+	int32 i = 0;
+	for (; i < InExistingMipCount; i++)
+	{
+		uint32 MipSizeX = FMath::Max<uint32>(1, InMip0SizeX >> i);
+		uint32 MipSizeY = FMath::Max<uint32>(1, InMip0SizeY >> i);
+
+		if (MipSizeX <= InMaxTexture2DResolution &&
+			MipSizeY <= InMaxTexture2DResolution)
+		{
+			return InExistingMipCount - i;
+		}
+	}
+
+	// Couldn't find a fit, texture build will fail.
+	check(0);
+	return 0;
+}
+
+
+// Returns true if the target texture size is different and padding/stretching is required.
+static bool GetPowerOfTwoTargetTextureSize(int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices, bool bInIsVolume, ETexturePowerOfTwoSetting::Type InPow2Setting, int32& OutTargetSizeX, int32& OutTargetSizeY, int32& OutTargetSizeZ)
+{
+	check(InPow2Setting != ETexturePowerOfTwoSetting::None);
+
+	int32 TargetTextureSizeX = InMip0SizeX;
+	int32 TargetTextureSizeY = InMip0SizeY;
+	int32 TargetTextureSizeZ = bInIsVolume ? InMip0NumSlices : 1; // Only used for volume texture.
+
+	const int32 PowerOfTwoTextureSizeX = FMath::RoundUpToPowerOfTwo(TargetTextureSizeX);
+	const int32 PowerOfTwoTextureSizeY = FMath::RoundUpToPowerOfTwo(TargetTextureSizeY);
+	const int32 PowerOfTwoTextureSizeZ = FMath::RoundUpToPowerOfTwo(TargetTextureSizeZ);
+
+	switch (InPow2Setting)
+	{
+	// None should not get here
+
+	case ETexturePowerOfTwoSetting::PadToPowerOfTwo:
+		TargetTextureSizeX = PowerOfTwoTextureSizeX;
+		TargetTextureSizeY = PowerOfTwoTextureSizeY;
+		TargetTextureSizeZ = PowerOfTwoTextureSizeZ;
+		break;
+
+	case ETexturePowerOfTwoSetting::PadToSquarePowerOfTwo:
+		TargetTextureSizeX = TargetTextureSizeY = TargetTextureSizeZ =
+			FMath::Max3<int32>(PowerOfTwoTextureSizeX, PowerOfTwoTextureSizeY, PowerOfTwoTextureSizeZ);
+		break;
+
+	default:
+		checkf(false, TEXT("Unknown entry in ETexturePowerOfTwoSetting::Type"));
+		break;
+	}
+
+	// Z only matters as a sampling dimension if we are a volume texture.
+	if (bInIsVolume == false)
+	{
+		TargetTextureSizeZ = InMip0NumSlices;
+	}
+
+	OutTargetSizeX = TargetTextureSizeX;
+	OutTargetSizeY = TargetTextureSizeY;
+	OutTargetSizeZ = TargetTextureSizeZ;
+
+	return (TargetTextureSizeX != InMip0SizeX) ||
+		(TargetTextureSizeY != InMip0SizeY) ||
+		(bInIsVolume && TargetTextureSizeZ != InMip0NumSlices);
+}
+
+
+
 /**
  * Texture compression module
  */
@@ -3034,6 +3107,85 @@ class FTextureCompressorModule : public ITextureCompressorModule
 public:
 	FTextureCompressorModule()
 	{
+	}
+
+	virtual int32 GetMipCountForBuildSettings(int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices, int32 InExistingMipCount, const FTextureBuildSettings& BuildSettings) const override
+	{
+		if (BuildSettings.MipGenSettings == TMGS_LeaveExistingMips)
+		{
+			// Since we can't generate, we only have to limit to MaxTextureSize
+			return GetMipCountForLeaveExistingMips(InMip0SizeX, InMip0SizeY, InExistingMipCount, BuildSettings.MaxTextureResolution);
+		}
+		else if (BuildSettings.MipGenSettings == TMGS_NoMipmaps)
+		{
+			return 1;
+		}
+
+		// AFAICT LatLongCubeMaps don't do any of this - pow2 is broken with them but it runs, and max texture stuff
+		// is handled internally in the extents function.
+
+		int32 BaseSizeX = InMip0SizeX;
+		int32 BaseSizeY = InMip0SizeY;
+		int32 BaseSizeZ = BuildSettings.bVolume ? InMip0NumSlices : 1; // Volume textures are the only type that mip their Z, arrays and cubes are fixed.
+
+		ETexturePowerOfTwoSetting::Type PowerOfTwoMode = (ETexturePowerOfTwoSetting::Type)BuildSettings.PowerOfTwoMode;
+		if (PowerOfTwoMode != ETexturePowerOfTwoSetting::None)
+		{
+			int32 TargetSizeX, TargetSizeY, TargetSizeZ;
+			bool NeedsAdjustment = GetPowerOfTwoTargetTextureSize(BaseSizeX, BaseSizeY, BaseSizeY, BuildSettings.bVolume, PowerOfTwoMode, TargetSizeX, TargetSizeY, TargetSizeZ);
+			if (NeedsAdjustment)
+			{
+				// In this case we are regenerating the entire mip chain.
+				InExistingMipCount = 1;
+				BaseSizeX = TargetSizeX;
+				BaseSizeY = TargetSizeY;
+				BaseSizeZ = TargetSizeZ; // volume textures already accounted for
+			}
+			// Otherwise we have valid pow2 so we can reuse any existing mips and regenerate
+			// any missing tail mips.
+		}
+
+		// LatLong sources are clamped in ComputeLongLatCubemapExtents
+		if (BuildSettings.bLongLatSource == false)
+		{
+			// Max texture resolution strips off mips that are above the limit.
+			int64 MaxTextureResolution = BuildSettings.MaxTextureResolution;
+
+			uint32 GeneratedMaxMipDimension = FMath::Max3(BaseSizeX, BaseSizeY, BaseSizeZ);
+			int32 GeneratedMipCount = 1 + FMath::FloorLog2(GeneratedMaxMipDimension);
+			int32 i = 0;
+			for (; i < GeneratedMipCount; i++)
+			{
+				// The code in BuildTextureMips doesn't worry about fitting Z in volume textures...
+				// \todo volume texture MaxTextureSize. The old code ignored size Z, so we do to. I'm not sure
+				// there's ever a case where volume textures have a Z that's bigger than X/Y.
+				int32 MipSizeX = FMath::Max<uint32>(1, BaseSizeX >> i);
+				int32 MipSizeY = FMath::Max<uint32>(1, BaseSizeY >> i);
+				int32 MipSizeZ = BuildSettings.bVolume ? FMath::Max<uint32>(1, BaseSizeZ >> i) : BaseSizeZ;
+
+				if (MipSizeX <= MaxTextureResolution &&
+					MipSizeY <= MaxTextureResolution)
+				{
+					BaseSizeX = MipSizeX;
+					BaseSizeY = MipSizeY;
+					BaseSizeZ = MipSizeZ;
+					break;
+				}
+			}
+		}
+
+		// At this point we have a base mip size that is valid.
+
+		// Relevant BuildSettings.MipGenSettings have been handled at top of function.
+
+		// NumOutputMips is the number of mips that would be made if you made a full mip chain
+		//  eg. 256 makes 9 mips , 300 also makes 9 mips
+		uint32 MaxMipDimension = FMath::Max3(BaseSizeX, BaseSizeY, BaseSizeZ);
+		if (BuildSettings.bLongLatSource)
+		{
+			MaxMipDimension = ComputeLongLatCubemapExtents(BaseSizeX, BuildSettings.MaxTextureResolution);
+		}
+		return 1 + FMath::FloorLog2(MaxMipDimension);
 	}
 
 	virtual bool BuildTexture(
@@ -3102,7 +3254,7 @@ public:
 		// allow to leave texture in sRGB in case compressor accepts other than non-F32 input source
 		// otherwise linearizing will force format to be RGBA32F
 		const bool bNeedLinearize = !TextureFormat->CanAcceptNonF32Source() || AssociatedNormalSourceMips.Num() != 0;
-		if (!BuildTextureMips(SourceMips, BuildSettings, CompressorCaps, bNeedLinearize, IntermediateMipChain))
+		if (!BuildTextureMips(SourceMips, BuildSettings, CompressorCaps, bNeedLinearize, IntermediateMipChain, DebugTexturePathName))
 		{
 			return false;
 		}
@@ -3135,7 +3287,7 @@ public:
 			//  we should instead compute the roughness scalar first on the original normap map
 			//  then filter on the roughness scalar
 
-			if (!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, CompressorCaps, true, IntermediateAssociatedNormalSourceMipChain))
+			if (!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, CompressorCaps, true, IntermediateAssociatedNormalSourceMipChain, DebugTexturePathName))
 			{
 				UE_LOG(LogTextureCompressor, Warning, TEXT("Failed to generate texture mips for composite texture"));
 			}
@@ -3196,12 +3348,14 @@ public:
 
 private:
 
+
 	bool BuildTextureMips(
 		const TArray<FImage>& InSourceMipChain,
 		const FTextureBuildSettings& BuildSettings,
 		const FTextureFormatCompressorCaps& CompressorCaps,
 		const bool bNeedLinearize,
-		TArray<FImage>& OutMipChain)
+		TArray<FImage>& OutMipChain,
+		FStringView DebugTexturePathName)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.BuildTextureMips);
 		
@@ -3242,38 +3396,13 @@ private:
 		{
 			const FImage& FirstSourceMipImage = (*pSourceMips)[0];
 
-			int32 TargetTextureSizeX = FirstSourceMipImage.SizeX;
-			int32 TargetTextureSizeY = FirstSourceMipImage.SizeY;
-			int32 TargetTextureSizeZ = BuildSettings.bVolume ? FirstSourceMipImage.NumSlices : 1; // Only used for volume texture.
-
-			const int32 PowerOfTwoTextureSizeX = FMath::RoundUpToPowerOfTwo(TargetTextureSizeX);
-			const int32 PowerOfTwoTextureSizeY = FMath::RoundUpToPowerOfTwo(TargetTextureSizeY);
-			const int32 PowerOfTwoTextureSizeZ = FMath::RoundUpToPowerOfTwo(TargetTextureSizeZ);
-
-			switch (PowerOfTwoMode)
-			{
-			// None should not get here
-
-			case ETexturePowerOfTwoSetting::PadToPowerOfTwo:
-				TargetTextureSizeX = PowerOfTwoTextureSizeX;
-				TargetTextureSizeY = PowerOfTwoTextureSizeY;
-				TargetTextureSizeZ = PowerOfTwoTextureSizeZ;
-				break;
-
-			case ETexturePowerOfTwoSetting::PadToSquarePowerOfTwo:
-				TargetTextureSizeX = TargetTextureSizeY = TargetTextureSizeZ =
-					FMath::Max3<int32>(PowerOfTwoTextureSizeX, PowerOfTwoTextureSizeY, PowerOfTwoTextureSizeZ);
-				break;
-
-			default:
-				checkf(false, TEXT("Unknown entry in ETexturePowerOfTwoSetting::Type"));
-				break;
-			}
-			
-			bool bPadOrStretchTexture = 
-				(TargetTextureSizeX != FirstSourceMipImage.SizeX) ||
-				(TargetTextureSizeY != FirstSourceMipImage.SizeY) ||
-				( BuildSettings.bVolume && TargetTextureSizeZ != FirstSourceMipImage.NumSlices );
+			int32 TargetTextureSizeX = 0;
+			int32 TargetTextureSizeY = 0;
+			int32 TargetTextureSizeZ = 0;			
+			bool bPadOrStretchTexture = GetPowerOfTwoTargetTextureSize(
+				FirstSourceMipImage.SizeX, FirstSourceMipImage.SizeY, FirstSourceMipImage.NumSlices,
+				BuildSettings.bVolume, PowerOfTwoMode,
+				TargetTextureSizeX, TargetTextureSizeY, TargetTextureSizeZ);
 
 			if (bPadOrStretchTexture)
 			{
@@ -3466,7 +3595,7 @@ private:
 			//  eg. 256 makes 9 mips , 300 also makes 9 mips
 			NumOutputMips = 1 + FMath::FloorLog2(
 				bLongLatCubemap ?
-				ComputeLongLatCubemapExtents(TopMip, BuildSettings.MaxTextureResolution) :
+				ComputeLongLatCubemapExtents(TopMip.SizeX, BuildSettings.MaxTextureResolution) :
 				FMath::Max3(TopMip.SizeX, TopMip.SizeY, TopMipSizeZ) );
 				
 			// unless LeaveExistingMips, we only copy 1 
@@ -3606,6 +3735,12 @@ private:
 			}
 		}
 		check(OutMipChain.Num() == NumOutputMips);
+
+		int32 CalculatedMipCount = GetMipCountForBuildSettings(InSourceMipChain[0].SizeX, InSourceMipChain[0].SizeY, InSourceMipChain[0].NumSlices, InSourceMipChain.Num(), BuildSettings);
+		if (CalculatedMipCount != NumOutputMips)
+		{
+			UE_LOG(LogTextureCompressor, Error, TEXT("Texture %.*s generated %d mips when GetMipCountForBuildSettings expected %d!"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), NumOutputMips, CalculatedMipCount);
+		}
 
 		// Apply post-mip generation adjustments.
 		if (BuildSettings.bReplicateRed)

@@ -367,4 +367,9 @@ public:
 	 * @param DiffuseConvolveMipLevel - The mip level that contains the diffuse convolution.
 	 */
 	TEXTURECOMPRESSOR_API static void GenerateAngularFilteredMips(TArray<FImage>& InOutMipChain, int32 NumMips, uint32 DiffuseConvolveMipLevel);
+
+	/**
+	* Returns the number of mips that the given texture will generate with the given build settings.
+	*/
+	virtual int32 GetMipCountForBuildSettings(int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices, int32 InExistingMipCount, const FTextureBuildSettings& InBuildSettings) const =0;
 };

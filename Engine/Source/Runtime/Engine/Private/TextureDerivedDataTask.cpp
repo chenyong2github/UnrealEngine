@@ -51,10 +51,12 @@
 #include "Misc/ScopeExit.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/BulkDataRegistry.h"
+#include "TextureCompressorModule.h"
 #include "TextureDerivedDataBuildUtils.h"
+#include "TextureEncodingSettings.h"
 #include "VT/VirtualTextureChunkDDCCache.h"
 #include "VT/VirtualTextureDataBuilder.h"
-#include "TextureEncodingSettings.h"
+
 
 static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnLoad(
 	TEXT("r.VT.ValidateCompressionOnLoad"),
@@ -429,6 +431,13 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 		DerivedData->PixelFormat = DerivedData->VTData->LayerTypes[0];
 		DerivedData->SetNumSlices(1);
 
+		{
+			// Verify our predicted count matches.
+			FVirtualTextureBuilderDerivedInfo Info;
+			Info.InitializeFromBuildSettings(TextureData, InBuildSettingsPerLayer.GetData());
+			check(Info.NumMips == DerivedData->VTData->GetNumMips());
+		}
+
 		bool bCompressionValid = true;
 		if (CVarVTValidateCompressionOnSave.GetValueOnAnyThread())
 		{
@@ -561,7 +570,15 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 			}
 
 			DerivedData->SetOptData(OptData);
-				
+
+			{
+				// Verify our predicted count matches.
+				const TArray<FImage>& SourceMips = TextureData.Blocks[0].MipsPerLayer[0];
+				int32 NumMips = Compressor->GetMipCountForBuildSettings(SourceMips[0].SizeX, SourceMips[0].SizeY, SourceMips[0].NumSlices, SourceMips.Num(), InBuildSettingsPerLayer[0]);
+				check (NumMips == CompressedMips.Num());
+			}
+
+
 			// Store it in the cache.
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!
 			// Should ideally avoid this redundant work, but it only happens when we actually have 

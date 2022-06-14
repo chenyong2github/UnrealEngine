@@ -222,13 +222,6 @@ struct FPixelDataRectangle
 
 FVirtualTextureDataBuilder::FVirtualTextureDataBuilder(FVirtualTextureBuiltData &SetOutData, const FString& InDebugTexturePathName, ITextureCompressorModule *InCompressor, IImageWrapperModule* InImageWrapper)
 	: OutData(SetOutData)
-	, SizeInBlocksX(0)
-	, SizeInBlocksY(0)
-	, BlockSizeX(0)
-	, BlockSizeY(0)
-	, BlockSizeScale(1)
-	, SizeX(0)
-	, SizeY(0)
 	, DebugTexturePathName(InDebugTexturePathName)
 {
 	Compressor = InCompressor ? InCompressor : &FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME);
@@ -240,22 +233,20 @@ FVirtualTextureDataBuilder::~FVirtualTextureDataBuilder()
 	FreeSourcePixels();
 }
 
-void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, const FTextureSourceData& InCompositeSourceData, const FTextureBuildSettings* InSettingsPerLayer, bool bAllowAsync)
+bool FVirtualTextureBuilderDerivedInfo::InitializeFromBuildSettings(const FTextureSourceData& InSourceData, const FTextureBuildSettings* InSettingsPerLayer)
 {
 	const int32 NumLayers = InSourceData.Layers.Num();
 	checkf(NumLayers <= (int32)VIRTUALTEXTURE_DATA_MAXLAYERS, TEXT("The maximum amount of layers is exceeded."));
 	checkf(NumLayers > 0, TEXT("No layers to build."));
 
-	SettingsPerLayer.AddUninitialized(NumLayers);
-	FMemory::Memcpy(&SettingsPerLayer[0], InSettingsPerLayer, sizeof(FTextureBuildSettings) * NumLayers);
-	const FTextureBuildSettings& BuildSettingsLayer0 = SettingsPerLayer[0];
+	const FTextureBuildSettings& BuildSettingsLayer0 = InSettingsPerLayer[0];
 	const int32 TileSize = BuildSettingsLayer0.VirtualTextureTileSize;
 
 	BlockSizeX = InSourceData.BlockSizeX;
 	BlockSizeY = InSourceData.BlockSizeY;
 
 	// BlockSize is potentially adjusted by rounding to power of 2
-	switch (SettingsPerLayer[0].PowerOfTwoMode)
+	switch (BuildSettingsLayer0.PowerOfTwoMode)
 	{
 	case ETexturePowerOfTwoSetting::None:
 		break;
@@ -274,10 +265,10 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 		break;
 	}
 
-	check(SettingsPerLayer[0].MaxTextureResolution >= (uint32)TileSize);
-	
+	check(InSettingsPerLayer[0].MaxTextureResolution >= (uint32)TileSize);
+
 	// Clamp BlockSizeX and BlockSizeY to MaxTextureResolution, but don't change aspect ratio
-	const uint32 ClampBlockSize = SettingsPerLayer[0].MaxTextureResolution;
+	const uint32 ClampBlockSize = InSettingsPerLayer[0].MaxTextureResolution;
 	if (FMath::Max<uint32>(BlockSizeX, BlockSizeY) > ClampBlockSize)
 	{
 		const int32 ClampedBlockSizeX = BlockSizeX >= BlockSizeY ? ClampBlockSize : FMath::Max(ClampBlockSize * BlockSizeX / BlockSizeY, 1u);
@@ -304,14 +295,39 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 	SizeX = BlockSizeX * SizeInBlocksX;
 	SizeY = BlockSizeY * SizeInBlocksY;
 
+	const uint32 Size = FMath::Max(SizeX, SizeY);
+
+	// Mip down to 1x1 pixels, but don't create more mips than can fit in max page table texture
+
+	// This is incorrect - should be floor not ceil. Testing _so far_ has found there to be no difference noted
+	// in projects, however saving this work to a separate CL since this is old and presumably stable code, due to
+	// the fact that the Min(x, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE) is load bearing. In order to get an incorrect
+	// mip count, you need Size to be non pow2 and the result to be larger than VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE.
+	NumMips = FMath::Min<uint32>(FMath::CeilLogTwo(Size) + 1, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE);
+	return true;
+}
+
+void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, const FTextureSourceData& InCompositeSourceData, const FTextureBuildSettings* InSettingsPerLayer, bool bAllowAsync)
+{
+	const int32 NumLayers = InSourceData.Layers.Num();
+	checkf(NumLayers <= (int32)VIRTUALTEXTURE_DATA_MAXLAYERS, TEXT("The maximum amount of layers is exceeded."));
+	checkf(NumLayers > 0, TEXT("No layers to build."));
+
+	SettingsPerLayer.AddUninitialized(NumLayers);
+	FMemory::Memcpy(&SettingsPerLayer[0], InSettingsPerLayer, sizeof(FTextureBuildSettings) * NumLayers);
+	const FTextureBuildSettings& BuildSettingsLayer0 = SettingsPerLayer[0];
+	const int32 TileSize = BuildSettingsLayer0.VirtualTextureTileSize;
+
+	DerivedInfo.InitializeFromBuildSettings(InSourceData, InSettingsPerLayer);
+
 	//NOTE: OutData may point to a previously build data so it is important to
 	//properly initialize all fields and not assume this is a freshly constructed object
 
 	OutData.TileBorderSize = BuildSettingsLayer0.VirtualTextureBorderSize;
 	OutData.TileSize = TileSize;
 	OutData.NumLayers = NumLayers;
-	OutData.Width = SizeX;
-	OutData.Height = SizeY;
+	OutData.Width = DerivedInfo.SizeX;
+	OutData.Height = DerivedInfo.SizeY;
 	OutData.WidthInBlocks = InSourceData.SizeInBlocksX;
 	OutData.HeightInBlocks = InSourceData.SizeInBlocksY;
 
@@ -325,14 +341,7 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 	OutData.TileOffsetInChunk.Empty();
 
 	OutData.Chunks.Empty();
-
-	const uint32 Size = FMath::Max(SizeX, SizeY);
-	const uint32 SizeInTiles = FMath::DivideAndRoundUp<uint32>(Size, TileSize);
-	const uint32 BlockSize = FMath::Max(BlockSizeX, BlockSizeY);
-	const uint32 BlockSizeInTiles = FMath::DivideAndRoundUp<uint32>(BlockSize, TileSize);
-
-	// Mip down to 1x1 pixels, but don't create more mips than can fit in max page table texture
-	OutData.NumMips = FMath::Min<uint32>(FMath::CeilLogTwo(Size) + 1, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE);
+	OutData.NumMips = DerivedInfo.NumMips;
 
 	BuildSourcePixels(InSourceData, InCompositeSourceData);
 
@@ -388,11 +397,11 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 	const int32 TileSize = SettingsPerLayer[0].VirtualTextureTileSize;
 	const uint32 MinSizePerChunkInTiles = FMath::DivideAndRoundUp<uint32>(MinSizePerChunk, TileSize);
 	const uint32 MinTilesPerChunk = MinSizePerChunkInTiles * MinSizePerChunkInTiles;
-	const int32 BlockSizeInTilesX = FMath::DivideAndRoundUp(BlockSizeX, TileSize);
-	const int32 BlockSizeInTilesY = FMath::DivideAndRoundUp(BlockSizeY, TileSize);
+	const int32 BlockSizeInTilesX = FMath::DivideAndRoundUp(DerivedInfo.BlockSizeX, TileSize);
+	const int32 BlockSizeInTilesY = FMath::DivideAndRoundUp(DerivedInfo.BlockSizeY, TileSize);
 
-	uint32 MipWidthInTiles = FMath::DivideAndRoundUp(SizeX, TileSize);
-	uint32 MipHeightInTiles = FMath::DivideAndRoundUp(SizeY, TileSize);
+	uint32 MipWidthInTiles = FMath::DivideAndRoundUp(DerivedInfo.SizeX, TileSize);
+	uint32 MipHeightInTiles = FMath::DivideAndRoundUp(DerivedInfo.SizeY, TileSize);
 	uint32 NumTiles = 0u;
 
 	for (uint32 Mip = 0; Mip < OutData.NumMips; ++Mip)
@@ -423,8 +432,8 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 
 		OutData.TileIndexPerChunk.Add(TileIndex);
 
-		MipWidthInTiles = FMath::DivideAndRoundUp(SizeX, TileSize);
-		MipHeightInTiles = FMath::DivideAndRoundUp(SizeY, TileSize);
+		MipWidthInTiles = FMath::DivideAndRoundUp(DerivedInfo.SizeX, TileSize);
+		MipHeightInTiles = FMath::DivideAndRoundUp(DerivedInfo.SizeY, TileSize);
 		for (uint32 Mip = 0; Mip < OutData.NumMips; ++Mip)
 		{
 			FVirtualTextureTileOffsetData& OffsetData = OutData.TileOffsetData.AddDefaulted_GetRef();
@@ -886,7 +895,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		BlockData.BlockX = SourceBlockData.BlockX;
 		// UE applies a (1-y) transform to imported UVs, so apply a similar transform to UDIM block locations here
 		// This ensures that UDIM tiles will appear in the correct location when sampled with transformed UVs
-		BlockData.BlockY = (SizeInBlocksY - SourceBlockData.BlockY) % SizeInBlocksY;
+		BlockData.BlockY = (DerivedInfo.SizeInBlocksY - SourceBlockData.BlockY) % DerivedInfo.SizeInBlocksY;
 		BlockData.NumMips = SourceBlockData.NumMips;
 		BlockData.NumSlices = SourceBlockData.NumSlices;
 		BlockData.MipBias = SourceBlockData.MipBias;
@@ -945,7 +954,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 
 			// For multi-block images, we may have scaled the max block size to be tile-sized, but individual blocks may still be smaller than 1 tile
 			// These need to be scaled up as well (scaling up individual blocks has the effect of reducing the block's mip-bias)
-			int32 LocalBlockSizeScale = BlockSizeScale;
+			int32 LocalBlockSizeScale = DerivedInfo.BlockSizeScale;
 			while (SourceMips[0].SizeX * LocalBlockSizeScale < TileSize || SourceMips[0].SizeY * LocalBlockSizeScale < TileSize)
 			{
 				check(BlockData.MipBias > 0u);
@@ -997,14 +1006,14 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 				BlockData.SizeY = CompressedMips[0].SizeY;
 
 				// re-compute mip bias to account for any resizing of this block (typically due to clamped max size)
-				const int32 MipBiasX = FMath::CeilLogTwo(BlockSizeX / BlockData.SizeX);
-				const int32 MipBiasY = FMath::CeilLogTwo(BlockSizeY / BlockData.SizeY);
-				checkf(MipBiasX == MipBiasY, TEXT("Mismatched aspect ratio (%d x %d), (%d x %d)"), BlockSizeX, BlockSizeY, BlockData.SizeX, BlockData.SizeY);
+				const int32 MipBiasX = FMath::CeilLogTwo(DerivedInfo.BlockSizeX / BlockData.SizeX);
+				const int32 MipBiasY = FMath::CeilLogTwo(DerivedInfo.BlockSizeY / BlockData.SizeY);
+				checkf(MipBiasX == MipBiasY, TEXT("Mismatched aspect ratio (%d x %d), (%d x %d)"), DerivedInfo.BlockSizeX, DerivedInfo.BlockSizeY, BlockData.SizeX, BlockData.SizeY);
 				BlockData.MipBias = MipBiasX;
 			}
 
-			check(BlockData.SizeX << BlockData.MipBias == BlockSizeX);
-			check(BlockData.SizeY << BlockData.MipBias == BlockSizeY);
+			check(BlockData.SizeX << BlockData.MipBias == DerivedInfo.BlockSizeX);
+			check(BlockData.SizeY << BlockData.MipBias == DerivedInfo.BlockSizeY);
 
 			const uint32 BlockSize = FMath::Max(BlockData.SizeX, BlockData.SizeY);
 			if (NumBlocks == 1u)
@@ -1045,21 +1054,21 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 	// If we have more than 1 block, need to create miptail that contains mips made from multiple blocks
 	if (NumBlocks > 1)
 	{
-		const uint32 BlockSize = FMath::Max(BlockSizeX, BlockSizeY);
+		const uint32 BlockSize = FMath::Max(DerivedInfo.BlockSizeX, DerivedInfo.BlockSizeY);
 		const uint32 BlockSizeInTiles = FMath::DivideAndRoundUp<uint32>(BlockSize, TileSize);
 		const uint32 MaxMipInBlock = FMath::CeilLogTwo(BlockSizeInTiles);
-		const uint32 MipWidthInBlock = FMath::Max<uint32>(BlockSizeX >> MaxMipInBlock, 1);
-		const uint32 MipHeightInBlock = FMath::Max<uint32>(BlockSizeY >> MaxMipInBlock, 1);
-		const uint32 MipInputSizeX = FMath::RoundUpToPowerOfTwo(SizeInBlocksX * MipWidthInBlock);
-		const uint32 MipInputSizeY = FMath::RoundUpToPowerOfTwo(SizeInBlocksY * MipHeightInBlock);
+		const uint32 MipWidthInBlock = FMath::Max<uint32>(DerivedInfo.BlockSizeX >> MaxMipInBlock, 1);
+		const uint32 MipHeightInBlock = FMath::Max<uint32>(DerivedInfo.BlockSizeY >> MaxMipInBlock, 1);
+		const uint32 MipInputSizeX = FMath::RoundUpToPowerOfTwo(DerivedInfo.SizeInBlocksX * MipWidthInBlock);
+		const uint32 MipInputSizeY = FMath::RoundUpToPowerOfTwo(DerivedInfo.SizeInBlocksY * MipHeightInBlock);
 		const uint32 MipInputSize = FMath::Max(MipInputSizeX, MipInputSizeY);
 		//const uint32 MipInputSizeInTiles = FMath::DivideAndRoundUp<uint32>(MipInputSize, TileSize);
 
 		FTextureSourceBlockData& SourceMiptailBlock = SourceBlocks.AddDefaulted_GetRef();
 		SourceMiptailBlock.BlockX = 0;
 		SourceMiptailBlock.BlockY = 0;
-		SourceMiptailBlock.SizeInBlocksX = SizeInBlocksX; // miptail block covers the entire logical source texture
-		SourceMiptailBlock.SizeInBlocksY = SizeInBlocksY;
+		SourceMiptailBlock.SizeInBlocksX = DerivedInfo.SizeInBlocksX; // miptail block covers the entire logical source texture
+		SourceMiptailBlock.SizeInBlocksY = DerivedInfo.SizeInBlocksY;
 		SourceMiptailBlock.SizeX = FMath::Max(MipInputSizeX >> 1, 1u);
 		SourceMiptailBlock.SizeY = FMath::Max(MipInputSizeY >> 1, 1u);
 		SourceMiptailBlock.NumMips = OutData.NumMips - MaxMipInBlock - 1;//   FMath::CeilLogTwo(MipInputSize); // Don't add 1, since 'MipInputSize' is one mip larger

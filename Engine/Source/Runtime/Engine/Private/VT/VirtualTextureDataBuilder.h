@@ -42,6 +42,21 @@ struct FVirtualTextureSourceLayerData
 	bool bHasAlpha;
 };
 
+// Holds a bunch of stuff we derive from the input data that we use during the build.
+struct FVirtualTextureBuilderDerivedInfo
+{
+	int32 SizeInBlocksX = 0;
+	int32 SizeInBlocksY = 0;
+	int32 BlockSizeX = 0;
+	int32 BlockSizeY = 0;
+	int32 BlockSizeScale = 1;
+	int32 SizeX = 0;
+	int32 SizeY = 0;
+	int32 NumMips = 0;
+
+	bool InitializeFromBuildSettings(const FTextureSourceData& InSourceData, const FTextureBuildSettings* InSettingsPerLayer);
+};
+
 /**
  * Helper class for building virtual texture data. This works on a set of FTextureSource objects. The idea is that if needed we can create
  * FTextureSource without creating actual UTextures. This is why the builder should stay independent of UTexture. Things it does:
@@ -86,13 +101,7 @@ private:
 	FVirtualTextureBuiltData &OutData;
 
 	// Some convenience variables (mostly derived from the passed in build settings)
-	int32 SizeInBlocksX;
-	int32 SizeInBlocksY;
-	int32 BlockSizeX;
-	int32 BlockSizeY;
-	int32 BlockSizeScale;
-	int32 SizeX;
-	int32 SizeY;
+	FVirtualTextureBuilderDerivedInfo DerivedInfo;
 
 	TArray<FVirtualTextureSourceLayerData> SourceLayers;
 	TArray<FTextureSourceBlockData> SourceBlocks;
