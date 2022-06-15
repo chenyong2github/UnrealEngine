@@ -43,8 +43,9 @@ UENUM()
 enum class EGizmoElementViewAlignType
 {
 	None,
-	PointEye, // Align object forward axis to view direction, align object up axis to view up
 	PointOnly, // Align object forward axis to view direction only, useful for symmetrical objects such as a circle
+	PointEye, // Align object forward axis to -camera view direction (camera pos - object center), align object up axis to scene view up
+	PointScreen, // Align object forward axis to scene view forward direction (view up ^ view right), align object up axis to scene view up
 	Axial // Rotate object around up axis, minimizing angle between forward axis and view direction
 };
 
@@ -107,13 +108,6 @@ public:
 
 	// Calcute box sphere bounds for use when hit testing.
 	virtual FBoxSphereBounds CalcBounds(const FTransform & LocalToWorld) const PURE_VIRTUAL(UGizmoElementBase::CalcBounds, return FBoxSphereBounds(););
-
-	// Returns whether object is visible based on view-dependent visibility settings. 
-	virtual bool GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
-
-	// Returns true when view alignment is enabled. OutAlignRot is the rotation in local space which will align the object to the view base
-	// on view-dependent alignment settings. So it should be prepended to the local-to-world transform.
-	virtual bool GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
 
 	// Returns the current material for given object state. The materials in the render state will override those in the element.
 	virtual const UMaterialInterface* GetCurrentMaterial(const FRenderTraversalState& RenderState) const;
@@ -330,6 +324,17 @@ protected:
 	bool bHasCachedBoxSphereBounds;
 
 protected:
+
+	// Returns whether object is visible based on view-dependent visibility settings. 
+	virtual bool GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+
+	// Returns true when view alignment is enabled. OutAlignRot is the rotation in local space which will align the object to the view base
+	// on view-dependent alignment settings. So it should be prepended to the local-to-world transform.
+	virtual bool GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
+
+	// Helper method to calculate rotation between coord spaces.
+	FQuat GetAlignRotBetweenCoordSpaces(FVector SourceForward, FVector SourceSide, FVector SourceUp, FVector TargetForward, FVector TargetSide, FVector TargetUp) const;
+
 	// Cache render state during render traversal, to be used subsequently when line tracing.
 	virtual void CacheRenderState(const FTransform& InLocalToWorldState, double InPixelToWorldScale, bool InVisibleViewDependent = true);
 

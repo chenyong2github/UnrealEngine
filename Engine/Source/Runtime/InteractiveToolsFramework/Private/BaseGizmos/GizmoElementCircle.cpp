@@ -23,31 +23,22 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 
 	if (bVisibleViewDependent)
 	{
-		FVector Axis0, Axis1;
-
-		if (bScreenSpace)
+		FVector AdjustedNormal;
+		FQuat AlignRot;
+		if (GetViewAlignRot(View, LocalToWorldTransform, Center, AlignRot))
 		{
-			Axis0 = View->GetViewUp();
-			Axis1 = View->GetViewRight();
+			AdjustedNormal = AlignRot.RotateVector(Normal);
 		}
 		else
 		{
-			FVector AdjustedNormal;
-			FQuat AlignRot;
-			if (GetViewAlignRot(View, LocalToWorldTransform, Center, AlignRot))
-			{
-				AdjustedNormal = AlignRot.RotateVector(Normal);
-			}
-			else
-			{
-				AdjustedNormal = Normal;
-			}
-
-			const FVector WorldNormal = LocalToWorldTransform.TransformVectorNoScale(AdjustedNormal);
-			GizmoMath::MakeNormalPlaneBasis(WorldNormal, Axis0, Axis1);
-			Axis0.Normalize();
-			Axis1.Normalize();
+			AdjustedNormal = Normal;
 		}
+
+		FVector Axis0, Axis1;
+		const FVector WorldNormal = LocalToWorldTransform.TransformVectorNoScale(AdjustedNormal);
+		GizmoMath::MakeNormalPlaneBasis(WorldNormal, Axis0, Axis1);
+		Axis0.Normalize();
+		Axis1.Normalize();
 
 		const float WorldRadius = Radius * LocalToWorldTransform.GetScale3D().X;
 		const FVector WorldCenter = LocalToWorldTransform.TransformPosition(Center);
@@ -200,12 +191,3 @@ bool UGizmoElementCircle::GetHitLine() const
 	return bHitLine;
 }
 
-void UGizmoElementCircle::SetScreenSpace(bool InScreenSpace)
-{
-	bScreenSpace = InScreenSpace;
-}
-
-bool UGizmoElementCircle::GetScreenSpace()
-{
-	return bScreenSpace;
-}

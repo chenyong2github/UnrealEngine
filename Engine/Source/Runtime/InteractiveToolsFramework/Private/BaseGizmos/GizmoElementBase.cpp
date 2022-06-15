@@ -68,7 +68,7 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 
 	FTransform WorldToLocalTransform = InLocalToWorldTransform.Inverse();
 
-	if (View->IsPerspectiveProjection())
+	if (View->IsPerspectiveProjection() && ViewAlignType != EGizmoElementViewAlignType::PointScreen)
 	{
 		FVector LocalViewLocation = WorldToLocalTransform.TransformPosition(View->ViewLocation);
 		LocalViewDir = InLocalCenter - LocalViewLocation;
@@ -85,17 +85,11 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 	{
 		OutAlignRot = FQuat::FindBetweenNormals(ViewAlignNormal, -LocalViewDir);
 	}
-	else if (ViewAlignType == EGizmoElementViewAlignType::PointEye)
+	else if (ViewAlignType == EGizmoElementViewAlignType::PointEye || ViewAlignType == EGizmoElementViewAlignType::PointScreen)
 	{
 		FVector Right = ViewAlignAxis ^ ViewAlignNormal;
 		Right.Normalize();
 		FVector Up = ViewAlignNormal ^ Right;
-
-		FMatrix LocalToCanonicalBasis(
-			FPlane(ViewAlignNormal.X, Right.X, Up.X, 0.0),
-			FPlane(ViewAlignNormal.Y, Right.Y, Up.Y, 0.0),
-			FPlane(ViewAlignNormal.Z, Right.Z, Up.Z, 0.0),
-			FPlane::ZeroVector);
 
 		FVector LocalViewUp = WorldToLocalTransform.TransformVector(View->GetViewUp());
 		FVector TargetFwd = -LocalViewDir;
@@ -103,15 +97,7 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 		TargetRight.Normalize();
 		FVector TargetUp = TargetFwd ^ TargetRight;
 
-		FMatrix CanonicalToAlignRotBasis(
-			FPlane(TargetFwd.X, TargetFwd.Y, TargetFwd.Z, 0.0),
-			FPlane(TargetRight.X, TargetRight.Y, TargetRight.Z, 0.0),
-			FPlane(TargetUp.X, TargetUp.Y, TargetUp.Z, 0.0),
-			FPlane::ZeroVector);
-
-		FMatrix LocalToAligned = LocalToCanonicalBasis * CanonicalToAlignRotBasis;
-		OutAlignRot = LocalToAligned.ToQuat();
-		OutAlignRot.Normalize();
+		OutAlignRot = GetAlignRotBetweenCoordSpaces(ViewAlignNormal, Right, Up, TargetFwd, TargetRight, TargetUp);
 	}
 	else if (ViewAlignType == EGizmoElementViewAlignType::Axial)
 	{
@@ -129,6 +115,26 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 	}
 
 	return true;
+}
+
+FQuat UGizmoElementBase::GetAlignRotBetweenCoordSpaces(FVector SourceForward, FVector SourceRight, FVector SourceUp, FVector TargetForward, FVector TargetRight, FVector TargetUp) const
+{
+	FMatrix SourceToCanonical(
+		FPlane(SourceForward.X, SourceRight.X, SourceUp.X, 0.0),
+		FPlane(SourceForward.Y, SourceRight.Y, SourceUp.Y, 0.0),
+		FPlane(SourceForward.Z, SourceRight.Z, SourceUp.Z, 0.0),
+		FPlane::ZeroVector);
+
+	FMatrix CanonicalToTarget(
+		FPlane(TargetForward.X, TargetForward.Y, TargetForward.Z, 0.0),
+		FPlane(TargetRight.X, TargetRight.Y, TargetRight.Z, 0.0),
+		FPlane(TargetUp.X, TargetUp.Y, TargetUp.Z, 0.0),
+		FPlane::ZeroVector);
+
+	FMatrix SourceToTarget = SourceToCanonical * CanonicalToTarget;
+	FQuat Result = SourceToTarget.ToQuat();
+	Result.Normalize();
+	return Result;
 }
 
 const UMaterialInterface* UGizmoElementBase::GetCurrentMaterial(const FRenderTraversalState& RenderState) const

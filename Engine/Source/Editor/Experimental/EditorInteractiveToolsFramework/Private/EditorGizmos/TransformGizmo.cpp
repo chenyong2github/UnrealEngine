@@ -889,7 +889,9 @@ UGizmoElementRectangle* UTransformGizmo::MakeTranslateScreenSpaceHandle()
 	RectangleElement->SetCenter(FVector::ZeroVector);
 	RectangleElement->SetHeight(TranslateScreenSpaceHandleSize);
 	RectangleElement->SetWidth(TranslateScreenSpaceHandleSize);
-	RectangleElement->SetScreenSpace(true);
+	RectangleElement->SetViewAlignType(EGizmoElementViewAlignType::PointScreen);
+	RectangleElement->SetViewAlignAxis(FVector::UpVector);
+	RectangleElement->SetViewAlignNormal(-FVector::ForwardVector);
 	RectangleElement->SetMaterial(TransparentVertexColorMaterial);
 	RectangleElement->SetLineColor(ScreenSpaceColor);
 	RectangleElement->SetHitMesh(true);

@@ -26,28 +26,20 @@ void UGizmoElementRectangle::Render(IToolsContextRenderAPI* RenderAPI, const FRe
 	if (bVisibleViewDependent)
 	{
 		FVector Axis0, Axis1;
-		if (bScreenSpace)
+		FQuat AlignRot;
+		if (GetViewAlignRot(View, LocalToWorldTransform, Center, AlignRot))
 		{
-			Axis0 = View->GetViewUp();
-			Axis1 = View->GetViewRight();
+			Axis0 = AlignRot.RotateVector(UpDirection);
+			Axis1 = AlignRot.RotateVector(SideDirection);
 		}
 		else
 		{
-			FQuat AlignRot;
-			if (GetViewAlignRot(View, LocalToWorldTransform, Center, AlignRot))
-			{
-				Axis0 = AlignRot.RotateVector(UpDirection);
-				Axis1 = AlignRot.RotateVector(SideDirection);
-			}
-			else
-			{
-				Axis0 = UpDirection;
-				Axis1 = SideDirection;
-			}
-
-			Axis0 = LocalToWorldTransform.TransformVectorNoScale(Axis0);
-			Axis1 = LocalToWorldTransform.TransformVectorNoScale(Axis1);
+			Axis0 = UpDirection;
+			Axis1 = SideDirection;
 		}
+
+		Axis0 = LocalToWorldTransform.TransformVectorNoScale(Axis0);
+		Axis1 = LocalToWorldTransform.TransformVectorNoScale(Axis1);
 
 		FVector WorldCenter = LocalToWorldTransform.TransformPosition(Center);
 		float WorldWidth = Width * LocalToWorldTransform.GetScale3D().X;
@@ -176,16 +168,6 @@ void UGizmoElementRectangle::SetSideDirection(const FVector& InSideDirection)
 FVector UGizmoElementRectangle::GetSideDirection() const
 {
 	return SideDirection;
-}
-
-void UGizmoElementRectangle::SetScreenSpace(bool InScreenSpace)
-{
-	bScreenSpace = InScreenSpace;
-}
-
-bool UGizmoElementRectangle::GetScreenSpace() const
-{
-	return bScreenSpace;
 }
 
 void UGizmoElementRectangle::SetLineColor(const FColor& InLineColor)

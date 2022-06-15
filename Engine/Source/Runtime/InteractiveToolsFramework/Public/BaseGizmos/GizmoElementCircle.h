@@ -60,10 +60,6 @@ public:
 	virtual void SetHitLine(bool InHitLine);
 	virtual bool GetHitLine() const;
 
-	// Screen space, when true orients the circle to the screen up and side vectors
-	virtual void SetScreenSpace(bool InScreenSpace);
-	virtual bool GetScreenSpace();
-
 protected:
 
 	// Circle center.
@@ -101,8 +97,4 @@ protected:
 	// Whether to perform hit test on line.
 	UPROPERTY()
 	bool bHitLine = false;
-
-	// Screen space flag
-	UPROPERTY()
-	bool bScreenSpace = false;
 };

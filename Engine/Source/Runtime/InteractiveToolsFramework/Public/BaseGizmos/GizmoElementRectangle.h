@@ -48,10 +48,6 @@ public:
 	virtual void SetSideDirection(const FVector& InSideDirection);
 	virtual FVector GetSideDirection() const;
 
-	// Screen space, when true orients the rectangle to the screen up and side vectors
-	virtual void SetScreenSpace(bool InScreenSpace);
-	virtual bool GetScreenSpace() const;
-
 	// Line color
 	virtual void SetLineColor(const FColor& InLineColor);
 	virtual FColor GetLineColor() const;
@@ -93,10 +89,6 @@ protected:
 	// Side direction
 	UPROPERTY()
 	FVector SideDirection = FVector(0.0f, 1.0f, 0.0f);
-
-	// Screen space flag
-	UPROPERTY()
-	bool bScreenSpace = false;
 
 	// Line color when bShowOutline is false.
 	UPROPERTY()
