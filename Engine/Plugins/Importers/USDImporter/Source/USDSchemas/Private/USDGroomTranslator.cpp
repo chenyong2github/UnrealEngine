@@ -12,8 +12,9 @@
 #include "Misc/ArchiveMD5.h"
 
 #include "USDAssetImportData.h"
-#include "USDTypesConversion.h"
 #include "USDGroomConversion.h"
+#include "USDIntegrationUtils.h"
+#include "USDTypesConversion.h"
 
 #include "USDIncludesStart.h"
 #include "pxr/base/tf/type.h"
@@ -162,12 +163,7 @@ protected:
 
 bool FUsdGroomTranslator::IsGroomPrim() const
 {
-	FScopedUsdAllocs UsdAllocs;
-
-	// #ueent_todo: Better validation pf prim being a groom like using custom groom schema
-	TArray<TUsdStore<pxr::UsdPrim>> ChildCurvesPrims = UsdUtils::GetAllPrimsOfType(GetPrim(), pxr::TfType::Find<pxr::UsdGeomCurves>());
-
-	return ChildCurvesPrims.Num() > 0;
+	return UsdUtils::PrimHasGroomSchema(GetPrim());
 }
 
 void FUsdGroomTranslator::CreateAssets()

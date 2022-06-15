@@ -58,6 +58,8 @@ private:
 	void OnRemoveLiveLink();
 	void OnSetUpControlRig();
 	void OnRemoveControlRig();
+	void OnApplyGroomSchema();
+	void OnRemoveGroomSchema();
 
 	bool CanAddPrim() const;
 	bool CanExecutePrimAction() const;
@@ -65,6 +67,8 @@ private:
 	bool CanRemoveLiveLink() const;
 	bool CanSetUpControlRig() const;
 	bool CanRemoveControlRig() const;
+	bool CanApplyGroomSchema() const;
+	bool CanRemoveGroomSchema() const;
 
 	/** Uses TreeItemExpansionStates to travel the tree and call SetItemExpansion */
 	void RestoreExpansionStates();

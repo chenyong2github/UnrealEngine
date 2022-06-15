@@ -60,6 +60,12 @@ public:
 	void RemoveControlRig();
 	bool CanRemoveControlRig() const;
 
+	void ApplyGroomSchema();
+	bool CanApplyGroomSchema() const;
+
+	void RemoveGroomSchema();
+	bool CanRemoveGroomSchema() const;
+
 	void DefinePrim( const TCHAR* PrimName );
 
 	/** Delegate for hooking up an inline editable text block to be notified that a rename is requested. */

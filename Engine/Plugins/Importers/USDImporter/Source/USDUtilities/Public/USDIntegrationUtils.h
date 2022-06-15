@@ -28,6 +28,9 @@ namespace UsdUtils
 	// Returns true in case Prim has our custom "ControlRigAPI" schema
 	USDUTILITIES_API bool PrimHasControlRigSchema( const pxr::UsdPrim& Prim );
 
+	// Returns true if Prim has the custom "GroomAPI" schema
+	USDUTILITIES_API bool PrimHasGroomSchema( const pxr::UsdPrim& Prim );
+
 	// Apply the control rig schema to the prim, creates all the required attributes and sets default values
 	// if they're otherwise not authored
 	USDUTILITIES_API bool ApplyControlRigSchema( const pxr::UsdPrim& Prim );
@@ -35,6 +38,9 @@ namespace UsdUtils
 	// Apply the live link schema to the prim, creates all the required attributes and sets default values
 	// if they're otherwise not authored
 	USDUTILITIES_API bool ApplyLiveLinkSchema( const pxr::UsdPrim& Prim );
+
+	// Apply the groom schema to the prim
+	USDUTILITIES_API bool ApplyGroomSchema( const pxr::UsdPrim& Prim );
 
 #endif // USE_USD_SDK
 }

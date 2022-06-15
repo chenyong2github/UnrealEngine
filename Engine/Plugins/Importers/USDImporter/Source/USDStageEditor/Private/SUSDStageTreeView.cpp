@@ -714,6 +714,35 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
+
+		PrimOptions.AddMenuEntry(
+			LOCTEXT( "ApplyGroomSchema", "Apply Groom schema" ),
+			LOCTEXT( "ApplyGroomSchema_ToolTip", "Applies the Groom schema to interpret the prim and its children as a groom" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnApplyGroomSchema ),
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanApplyGroomSchema ),
+				FIsActionChecked(),
+				FIsActionButtonVisible::CreateSP( this, &SUsdStageTreeView::CanApplyGroomSchema )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		PrimOptions.AddMenuEntry(
+			LOCTEXT( "RemoveGroomSchema", "Remove Groom schema" ),
+			LOCTEXT( "RemoveGroomSchema_ToolTip", "Removes the Groom schema from the prim to stop interpreting it as a groom" ),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRemoveGroomSchema ),
+				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanRemoveGroomSchema ),
+				FIsActionChecked(),
+				FIsActionButtonVisible::CreateSP( this, &SUsdStageTreeView::CanRemoveGroomSchema )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
 	}
 	PrimOptions.EndSection();
 
@@ -917,6 +946,44 @@ void SUsdStageTreeView::OnRemoveControlRig()
 	}
 }
 
+void SUsdStageTreeView::OnApplyGroomSchema()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "ApplyGroomSchemaTransaction", "Apply Groom schema to selected prims" ) );
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	UE::FSdfChangeBlock Block;
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		SelectedItem->ApplyGroomSchema();
+	}
+}
+
+void SUsdStageTreeView::OnRemoveGroomSchema()
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( LOCTEXT( "RemoveGroomSchemaTransaction", "Remove Groom schema from selected prims" ) );
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	UE::FSdfChangeBlock Block;
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		SelectedItem->RemoveGroomSchema();
+	}
+}
+
 bool SUsdStageTreeView::CanAddPrim() const
 {
 	if ( !UsdStageActor.IsValid() )
@@ -1059,6 +1126,58 @@ bool SUsdStageTreeView::CanRemoveControlRig() const
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
 		if ( SelectedItem->CanRemoveControlRig() )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SUsdStageTreeView::CanApplyGroomSchema() const
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return false;
+	}
+
+	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
+	{
+		return false;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->CanApplyGroomSchema() )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SUsdStageTreeView::CanRemoveGroomSchema() const
+{
+	if ( !UsdStageActor.IsValid() )
+	{
+		return false;
+	}
+
+	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
+	{
+		return false;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->CanRemoveGroomSchema() )
 		{
 			return true;
 		}

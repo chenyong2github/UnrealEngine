@@ -400,6 +400,44 @@ bool FUsdPrimViewModel::CanRemoveControlRig() const
 #endif // #if USE_USD_SDK
 }
 
+void FUsdPrimViewModel::ApplyGroomSchema()
+{
+#if USE_USD_SDK
+	UsdUtils::ApplyGroomSchema( UsdPrim );
+#endif // #if USE_USD_SDK
+}
+
+bool FUsdPrimViewModel::CanApplyGroomSchema() const
+{
+#if USE_USD_SDK
+	const bool bAddSchema = true;
+	return UsdPrim
+		&& !UsdPrim.IsPseudoRoot()
+		&& UE::USDPrimViewModel::Private::CanAddOrRemoveCustomSchema( UsdPrim, UnrealIdentifiers::GroomAPI, bAddSchema );
+#else
+	return false;
+#endif // #if USE_USD_SDK
+}
+
+void FUsdPrimViewModel::RemoveGroomSchema()
+{
+#if USE_USD_SDK
+	UE::USDPrimViewModel::Private::RemoveCustomSchema( UsdPrim, UnrealIdentifiers::GroomAPI );
+#endif // #if USE_USD_SDK
+}
+
+bool FUsdPrimViewModel::CanRemoveGroomSchema() const
+{
+#if USE_USD_SDK
+	const bool bAddSchema = false;
+	return UsdPrim
+		&& !UsdPrim.IsPseudoRoot()
+		&& UE::USDPrimViewModel::Private::CanAddOrRemoveCustomSchema( UsdPrim, UnrealIdentifiers::GroomAPI, bAddSchema );
+#else
+	return false;
+#endif // #if USE_USD_SDK
+}
+
 void FUsdPrimViewModel::DefinePrim( const TCHAR* PrimName )
 {
 #if USE_USD_SDK

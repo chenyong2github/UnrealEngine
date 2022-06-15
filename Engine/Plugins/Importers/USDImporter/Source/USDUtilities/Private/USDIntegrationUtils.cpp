@@ -44,6 +44,19 @@ bool UsdUtils::PrimHasControlRigSchema( const pxr::UsdPrim& Prim )
 	return Prim.HasAPI( Schema );
 }
 
+bool UsdUtils::PrimHasGroomSchema( const pxr::UsdPrim& Prim )
+{
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::GroomAPI );
+	return Prim.HasAPI( Schema );
+}
+
 bool UsdUtils::ApplyControlRigSchema( const pxr::UsdPrim& Prim )
 {
 	if ( !Prim )
@@ -71,6 +84,22 @@ bool UsdUtils::ApplyLiveLinkSchema( const pxr::UsdPrim& Prim )
 
 	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::LiveLinkAPI );
 	ensure( static_cast< bool >( Schema ) );
+
+	ensure( Prim.ApplyAPI( Schema ) );
+	return true;
+}
+
+bool UsdUtils::ApplyGroomSchema( const pxr::UsdPrim& Prim )
+{
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::TfType Schema = pxr::UsdSchemaRegistry::GetTypeFromSchemaTypeName( UnrealIdentifiers::GroomAPI );
+	ensure( static_cast<bool>( Schema ) );
 
 	ensure( Prim.ApplyAPI( Schema ) );
 	return true;

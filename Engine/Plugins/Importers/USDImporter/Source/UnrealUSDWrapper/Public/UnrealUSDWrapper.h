@@ -388,6 +388,8 @@ namespace UnrealIdentifiers
 
 	// Token used to indicate that a material parsed from a material prim should use world space normals
 	extern UNREALUSDWRAPPER_API const pxr::TfToken WorldSpaceNormals;
+
+	extern UNREALUSDWRAPPER_API const pxr::TfToken GroomAPI;
 #endif // #if USE_USD_SDK
 
 	extern UNREALUSDWRAPPER_API const TCHAR* Invisible;

@@ -143,6 +143,8 @@ namespace UnrealIdentifiers
 	const TfToken UsdUVTexture = TfToken( "UsdUVTexture" );
 
 	const TfToken WorldSpaceNormals = TfToken( "worldSpaceNormals" );
+
+	const TfToken GroomAPI = TfToken( "GroomAPI" );
 }
 
 std::string FUsdAttribute::GetUnrealPropertyPath( const pxr::UsdAttribute& Attribute )
