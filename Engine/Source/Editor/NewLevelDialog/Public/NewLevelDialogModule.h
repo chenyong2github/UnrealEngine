@@ -7,6 +7,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Editor/UnrealEdEngine.h"
 
+struct FTemplateMapInfo;
+
 /**
  * New Level Dialog module
  */
@@ -30,9 +32,10 @@ public:
 	 * @param	OutTemplateName	- (out) The package name of the template map selected by the user. Empty if blank map selected.
 	 * @param	bShowPartitionedTemplates - If true, we allow partitioned world templates to be shown in the dialog.
 	 * @param	bOutPartitionedWorld - (out) If true and OutTemplateName is empty, the empty map should be partitioned.
+	 * @param	OutTemplateMapInfo - (out) If not null, will be set to the template map selected by the user.
 	 * @return	true if the user selected a valid item, false if the user canceled
 	 */
-	virtual bool CreateAndShowNewLevelDialog( const TSharedPtr<const SWidget> ParentWidget, FString& OutTemplateMapPackageName, bool bShowPartitionedTemplates, bool& bOutPartitionedWorld );
+	virtual bool CreateAndShowNewLevelDialog( const TSharedPtr<const SWidget> ParentWidget, FString& OutTemplateMapPackageName, bool bShowPartitionedTemplates, bool& bOutPartitionedWorld, FTemplateMapInfo* OutTemplateMapInfo = nullptr);
 
 	/**
 	 * Creates and show a window with an SNewLevelDialog
@@ -43,9 +46,10 @@ public:
 	 * @param	OutTemplateName	- (out) The package name of the template map selected by the user. Empty if blank map selected.
 	 * @param	bShowPartitionedTemplates - If true, we allow partitioned world templates to be shown in the dialog.
 	 * @param	bOutPartitionedWorld - (out) If true and OutTemplateName is empty, the empty map should be partitioned.
+	 * @param	OutTemplateMapInfo - (out) If not null, will be set to the template map selected by the user.
 	 * @return	true if the user selected a valid item, false if the user canceled
 	 */
-	virtual bool CreateAndShowTemplateDialog(const TSharedPtr<const SWidget> ParentWidget, const FText& Title, const TArray<FTemplateMapInfo>& Templates, FString& OutTemplateMapPackageName, bool bShowPartitionedTemplates, bool& bOutPartitionedWorld);
+	virtual bool CreateAndShowTemplateDialog(const TSharedPtr<const SWidget> ParentWidget, const FText& Title, const TArray<FTemplateMapInfo>& Templates, FString& OutTemplateMapPackageName, bool bShowPartitionedTemplates, bool& bOutPartitionedWorld, FTemplateMapInfo* OutTemplateMapInfo = nullptr);
 
 	/** New Level Dialog app identifier string */
 	static const FName NewLevelDialogAppIdentifier;
