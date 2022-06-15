@@ -150,6 +150,14 @@ private:
     unsigned int mNumThreads;
     bool mThreadProcessEdges;
 
+	// This algorithm was ignoring all edge results due to a bug w/out anyone noticing
+	// for a very long time, so you can optionally save a lot of time by skipping that step
+	// The ProcessEdges step only finds boxes corresponding to groups of convex hull
+	// edges that happen to all be exactly mutually orthogonal, and so skipping it
+	// seems equivalent to considering a slightly jittered version of the input
+	// where the hull edges were not exactly orthogonal
+	bool mProcessEdges = false;
+
     // The input points to be bound.
     int mNumPoints;
     Vector3<InputType> const* mPoints;
@@ -329,7 +337,7 @@ OrientedBox3<InputType> MinimumVolumeBox3<InputType, ComputeType>::operator()(
     minBox.volume = mNegOne;
     minBoxEdges.volume = mNegOne;
 
-    if (mThreadProcessEdges)
+    if (mProcessEdges && mThreadProcessEdges)
     {
         std::thread doEdges([this, &mesh, &minBoxEdges]()
         {
@@ -340,7 +348,10 @@ OrientedBox3<InputType> MinimumVolumeBox3<InputType, ComputeType>::operator()(
     }
     else
     {
-        ProcessEdges(mesh, minBoxEdges);
+		if (mProcessEdges)
+		{
+			ProcessEdges(mesh, minBoxEdges);
+		}
         ProcessFaces(mesh, minBox);
     }
 
@@ -408,7 +419,7 @@ OrientedBox3<InputType> MinimumVolumeBox3<InputType, ComputeType>::operator()(
     minBox.volume = mNegOne;
     minBoxEdges.volume = mNegOne;
 
-    if (mThreadProcessEdges)
+    if (mProcessEdges && mThreadProcessEdges)
     {
         std::thread doEdges([this, &mesh, &minBoxEdges]()
         {
@@ -419,7 +430,10 @@ OrientedBox3<InputType> MinimumVolumeBox3<InputType, ComputeType>::operator()(
     }
     else
     {
-        ProcessEdges(mesh, minBoxEdges);
+		if (mProcessEdges)
+		{
+			ProcessEdges(mesh, minBoxEdges);
+		}
         ProcessFaces(mesh, minBox, Progress);
 
 		if (Progress && Progress->Cancelled())
@@ -631,12 +645,14 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessEdges(ETManifoldMesh cons
                     }
                 }
 
+				// note: sqrLenU[2] == sqrLenU[0]*sqrLenU[1] by construction, so the below divides
+				// are equivalent to dividing by lenU[0]*lenU[1]*lenU[2]
                 ComputeType volume = (umax[0] - umin[0]) / sqrLenU[0];
                 volume *= (umax[1] - umin[1]) / sqrLenU[1];
                 volume *= (umax[2] - umin[2]);
 
                 // Update current minimum-volume box (if necessary).
-                if (minBox.volume == mOne || volume < minBox.volume)
+                if (minBox.volume == mNegOne || volume < minBox.volume)
                 {
                     // The edge keys have unordered vertices, so it is
                     // possible that {U[0],U[1],U[2]} is a left-handed set.
@@ -680,6 +696,7 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessFace(std::shared_ptr<Tria
     // comments).
     std::vector<int> polyline(mNumPoints);
     int polylineStart = -1;
+	int expectLength = 0;
     for (auto const& edgeElement : emap)
     {
         auto const& edge = *edgeElement.second;
@@ -723,6 +740,7 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessFace(std::shared_ptr<Tria
                         polyline[edge.V[0]] = edge.V[1];
                     }
                     polylineStart = edge.V[0];
+					expectLength++;
                     break;
                 }
             }
@@ -750,6 +768,14 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessFace(std::shared_ptr<Tria
             break;
         }
     }
+	if (numClosedPolyline == closedPolyline.size()) // algorithm got stuck in a sub-loop and failed to find a boundary
+	{
+		return;
+	}
+	if (expectLength > numClosedPolyline) // algorithm found a loop that missed part of the boundary
+	{
+		return;
+	}
     closedPolyline.resize(numClosedPolyline);
 
     // This avoids redundant face testing in the O(n^2) or O(n) algorithms
@@ -867,6 +893,10 @@ void MinimumVolumeBox3<InputType, ComputeType>::ComputeBoxForFaceOrderNSqr(
         // scaled-area rectangle is computed and returned, the box.volume is
         // updated to be the actual squared volume of the box.
         ComputeType sqrLenU1 = Dot(U1, U1);
+		if (sqrLenU1 == mZero)
+		{
+			continue;
+		}
         ComputeType volume = (max0 - min0) * max1 / sqrLenU1;
         if (box.volume == mNegOne || volume < box.volume)
         {
