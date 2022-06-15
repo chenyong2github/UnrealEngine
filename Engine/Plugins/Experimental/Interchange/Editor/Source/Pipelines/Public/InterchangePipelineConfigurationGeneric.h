@@ -9,6 +9,8 @@
 
 #include "InterchangePipelineConfigurationGeneric.generated.h"
 
+class UInterchangeSourceData;
+
 UCLASS(BlueprintType, Blueprintable)
 class INTERCHANGEEDITORPIPELINES_API UInterchangePipelineConfigurationGeneric : public UInterchangePipelineConfigurationBase
 {
@@ -18,6 +20,6 @@ public:
 
 protected:
 
-	virtual EInterchangePipelineConfigurationDialogResult ShowPipelineConfigurationDialog() override;
-	virtual EInterchangePipelineConfigurationDialogResult ShowReimportPipelineConfigurationDialog(TArray<UInterchangePipelineBase*>& PipelineStack) override;
+	virtual EInterchangePipelineConfigurationDialogResult ShowPipelineConfigurationDialog(TWeakObjectPtr<UInterchangeSourceData> SourceData) override;
+	virtual EInterchangePipelineConfigurationDialogResult ShowReimportPipelineConfigurationDialog(TArray<UInterchangePipelineBase*>& PipelineStack, TWeakObjectPtr<UInterchangeSourceData> SourceData) override;
 };

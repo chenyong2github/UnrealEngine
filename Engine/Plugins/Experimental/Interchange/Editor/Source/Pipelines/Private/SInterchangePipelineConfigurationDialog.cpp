@@ -8,6 +8,7 @@
 #include "IDocumentation.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangeProjectSettings.h"
+#include "InterchangeSourceData.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
@@ -406,6 +407,7 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 	//Make sure there is a valid default value
 
 	OwnerWindow = InArgs._OwnerWindow;
+	SourceData = InArgs._SourceData;
 	bReimport = InArgs._bReimport;
 	PipelineStack = InArgs._PipelineStack;
 
@@ -418,6 +420,14 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 		.BorderImage(FAppStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 		[
 			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Left)
+			.Padding(2)
+			[
+				SNew(STextBlock)
+				.Text(this, &SInterchangePipelineConfigurationDialog::GetSourceDescription)
+			]
 			+ SVerticalBox::Slot()
 			.FillHeight(1.0f)
 			.Padding(2)
@@ -468,6 +478,24 @@ void SInterchangePipelineConfigurationDialog::OnSelectionChanged(TSharedPtr<FInt
 	UInterchangePipelineBase* Pipeline = Item ? Item->Pipeline : nullptr;
 	//Change the object point by the InspectorBox
 	PipelineConfigurationDetailsView->SetObject(Pipeline);
+}
+
+FText SInterchangePipelineConfigurationDialog::GetSourceDescription() const
+{
+	FText ActionDescription;
+	if (bReimport)
+	{
+		ActionDescription = LOCTEXT("GetSourceDescription_Reimport", "Reimport");
+	}
+	else
+	{
+		ActionDescription = LOCTEXT("GetSourceDescription_Import", "Import");
+	}
+	if (SourceData.IsValid())
+	{
+		ActionDescription = FText::Format(LOCTEXT("GetSourceDescription", "{0} source {1}"), ActionDescription, FText::FromString(SourceData->GetFilename()));
+	}
+	return ActionDescription;
 }
 
 bool SInterchangePipelineConfigurationDialog::RecursiveValidatePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode) const

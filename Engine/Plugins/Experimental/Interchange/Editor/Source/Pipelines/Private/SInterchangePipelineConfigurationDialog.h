@@ -6,6 +6,7 @@
 #include "InputCoreTypes.h"
 #include "Input/Reply.h"
 #include "InterchangePipelineBase.h"
+#include "InterchangeSourceData.h"
 #include "Styling/SlateColor.h"
 #include "UObject/GCObject.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -95,6 +96,7 @@ public:
 	{}
 
 		SLATE_ARGUMENT(TWeakPtr<SWindow>, OwnerWindow)
+		SLATE_ARGUMENT(TWeakObjectPtr<UInterchangeSourceData>, SourceData)
 		SLATE_ARGUMENT(bool, bReimport)
 		SLATE_ARGUMENT(TArray<UInterchangePipelineBase*>, PipelineStack)
 	SLATE_END_ARGS()
@@ -121,11 +123,14 @@ public:
 	bool IsImportAll() { return bImportAll; }
 private:
 	TWeakPtr< SWindow > OwnerWindow;
+	TWeakObjectPtr<UInterchangeSourceData> SourceData;
 	bool bReimport = false;
 	TArray<UInterchangePipelineBase*> PipelineStack;
 
 	TSharedRef<SBox> SpawnPipelineConfiguration();
 	void OnSelectionChanged(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, ESelectInfo::Type SelectionType);
+
+	FText GetSourceDescription() const;
 
 	bool RecursiveValidatePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode) const;
 	bool IsImportButtonEnabled() const;

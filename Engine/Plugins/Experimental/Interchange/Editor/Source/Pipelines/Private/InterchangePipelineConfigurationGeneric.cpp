@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Application/SlateApplication.h"
+#include "InterchangeSourceData.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Misc/Paths.h"
 #include "SInterchangePipelineConfigurationDialog.h"
@@ -10,7 +11,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Widgets/SWindow.h"
 
-EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationGeneric::ShowPipelineConfigurationDialog()
+EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationGeneric::ShowPipelineConfigurationDialog(TWeakObjectPtr<UInterchangeSourceData> SourceData)
 {
 	//Create and show the graph inspector UI dialog
 	TSharedPtr<SWindow> ParentWindow;
@@ -27,6 +28,7 @@ EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationG
 	(
 		SAssignNew(InterchangePipelineConfigurationDialog, SInterchangePipelineConfigurationDialog)
 		.OwnerWindow(Window)
+		.SourceData(SourceData)
 		.bReimport(false)
 	);
 
@@ -45,7 +47,7 @@ EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationG
 	return EInterchangePipelineConfigurationDialogResult::Import;
 }
 
-EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationGeneric::ShowReimportPipelineConfigurationDialog(TArray<UInterchangePipelineBase*>& PipelineStack)
+EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationGeneric::ShowReimportPipelineConfigurationDialog(TArray<UInterchangePipelineBase*>& PipelineStack, TWeakObjectPtr<UInterchangeSourceData> SourceData)
 {
 	//Create and show the graph inspector UI dialog
 	TSharedPtr<SWindow> ParentWindow;
@@ -62,6 +64,7 @@ EInterchangePipelineConfigurationDialogResult UInterchangePipelineConfigurationG
 	(
 		SAssignNew(InterchangePipelineConfigurationDialog, SInterchangePipelineConfigurationDialog)
 		.OwnerWindow(Window)
+		.SourceData(SourceData)
 		.bReimport(true)
 		.PipelineStack(PipelineStack)
 	);
