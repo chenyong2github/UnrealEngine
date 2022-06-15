@@ -213,6 +213,7 @@ void SImgMediaProcessImages::ProcessAllImages()
 	
 	TArray<FString> FoundFiles;
 	IFileManager::Get().FindFiles(FoundFiles, *SequencePath, TEXT("*"));
+	FoundFiles.RemoveAll([](const FString& FileName) { return FileName.StartsWith(TEXT(".")); });
 	FoundFiles.Sort();
 	UE_LOG(LogImgMediaEditor, Warning, TEXT("Found %i image files in %s to import."), FoundFiles.Num(), *SequencePath);
 	if (FoundFiles.Num() == 0)
