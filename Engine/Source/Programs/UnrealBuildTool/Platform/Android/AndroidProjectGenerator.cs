@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -745,6 +746,22 @@ namespace UnrealBuildTool
 		{
 			// do not need to check InPlatform since it will always be UnrealTargetPlatform.Android
 			return (AGDEInstalled ? " -Architectures=arm64 -ForceAPKGeneration" : "") + base.GetExtraBuildArguments(InPlatform, InConfiguration);
+		}
+
+		public override string GetVisualStudioUserFileStrings(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration,
+			string InConditionString, TargetRules InTargetRules, FileReference TargetRulesPath, FileReference ProjectFilePath)
+		{
+			if (AGDEInstalled 
+				&& (InPlatform == UnrealTargetPlatform.Android)
+				&& ((InTargetRules.Type == TargetRules.TargetType.Client) || (InTargetRules.Type == TargetRules.TargetType.Game)))
+			{
+				string UserFileEntry = "<PropertyGroup " + InConditionString + ">\n";
+				UserFileEntry		+= "	<AndroidLldbStartupCommands>command script import \"" + Path.Combine(Unreal.EngineDirectory.FullName, "Extras", "LLDBDataFormatters", "UEDataFormatters_2ByteChars.py") + "\"</AndroidLldbStartupCommands>\n";
+				UserFileEntry		+= "</PropertyGroup>\n";
+				return UserFileEntry;
+			}
+
+			return base.GetVisualStudioUserFileStrings(InPlatform, InConfiguration, InConditionString, InTargetRules, TargetRulesPath, ProjectFilePath);
 		}
 	}
 
