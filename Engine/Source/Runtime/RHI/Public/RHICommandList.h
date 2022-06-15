@@ -2425,10 +2425,6 @@ class RHI_API FRHIComputeCommandList : public FRHICommandListBase
 public:
 	FRHIComputeCommandList(FRHIGPUMask GPUMask) : FRHICommandListBase(GPUMask) {}
 
-	/** Custom new/delete with recycling */
-	void* operator new(size_t Size);
-	void operator delete(void *RawMemory);
-
 	template <typename LAMBDA>
 	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
 	{
@@ -3144,10 +3140,6 @@ class RHI_API FRHICommandList : public FRHIComputeCommandList
 public:
 	FRHICommandList(FRHIGPUMask GPUMask) : FRHIComputeCommandList(GPUMask) {}
 
-	/** Custom new/delete with recycling */
-	void* operator new(size_t Size);
-	void operator delete(void *RawMemory);
-	
 	inline FRHIVertexShader* GetBoundVertexShader() const { return BoundShaderInput.VertexShaderRHI; }
 	inline FRHIMeshShader* GetBoundMeshShader() const { return BoundShaderInput.GetMeshShader(); }
 	inline FRHIAmplificationShader* GetBoundAmplificationShader() const { return BoundShaderInput.GetAmplificationShader(); }

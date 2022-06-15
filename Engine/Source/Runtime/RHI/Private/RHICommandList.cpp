@@ -2190,26 +2190,6 @@ void FRHICommandListBase::HandleRTThreadTaskCompletion(const FGraphEventRef& MyC
 	RTTasks.Empty();
 }
 
-void* FRHICommandList::operator new(size_t Size)
-{
-	return FMemory::Malloc(Size);
-}
-
-void FRHICommandList::operator delete(void *RawMemory)
-{
-	FMemory::Free(RawMemory);
-}
-
-void* FRHIComputeCommandList::operator new(size_t Size)
-{
-	return FMemory::Malloc(Size);
-}
-
-void FRHIComputeCommandList::operator delete(void *RawMemory)
-{
-	FMemory::Free(RawMemory);
-}
-
 void FRHIComputeCommandList::Transition(TArrayView<const FRHITransitionInfo> Infos)
 {
 	const ERHIPipeline Pipeline = GetPipeline();
