@@ -30,8 +30,8 @@ void UContextualAnimSceneInstance::Tick(const float DeltaTime)
 	RemainingDuration -= DeltaTime;
 	if (RemainingDuration <= 0.f)
 	{
-		OnSectionEndTimeReached.Broadcast(this);
 		RemainingDuration = MAX_flt;
+		OnSectionEndTimeReached.Broadcast(this);
 	}
 }
 
@@ -110,14 +110,24 @@ float UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 		}
 	}
 
-	if (UMotionWarpingComponent* MotionWarpComp = Actor->FindComponentByClass<UMotionWarpingComponent>())
+	UMotionWarpingComponent* MotionWarpComp = Actor->FindComponentByClass<UMotionWarpingComponent>();
+	for (int32 PivotIndex = 0; PivotIndex < AlignmentSectionToScenePivotList.Num(); PivotIndex++)
 	{
-		for (const FContextualAnimSetPivot& Pivot : AlignmentSectionToScenePivotList)
+		const FContextualAnimSetPivot& Pivot = AlignmentSectionToScenePivotList[PivotIndex];
+		const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(Pivot.Name);
+
+		if (MotionWarpComp)
 		{
-			const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(Pivot.Name);
 			const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(Pivot.Name, Time);
 			const FTransform WarpTarget = TransformRelativeToScenePivot * Pivot.Transform;
 			MotionWarpComp->AddOrUpdateWarpTargetFromTransform(Pivot.Name, WarpTarget);
+		}
+		else if (PivotIndex == 0)
+		{
+			// In case motion warping is not available, we use the first alignment section at time T=0 to teleport the actor
+			const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(Pivot.Name, 0.f);
+			const FTransform ActorTransform = TransformRelativeToScenePivot * Pivot.Transform;
+			Actor->TeleportTo(ActorTransform.GetLocation(), ActorTransform.GetRotation().Rotator(), /*bIsATest*/false, /*bNoCheck*/true);
 		}
 	}
 
@@ -149,27 +159,42 @@ void UContextualAnimSceneInstance::Leave(FContextualAnimSceneBinding& Binding)
 	}
 }
 
-bool UContextualAnimSceneInstance::TransitionTo(FContextualAnimSceneBinding& Binding, const FContextualAnimTrack& AnimTrack)
+float UContextualAnimSceneInstance::TransitionTo(FContextualAnimSceneBinding& Binding, const FContextualAnimTrack& AnimTrack)
 {
+	float Duration = MIN_flt;
 	check(AnimTrack.Animation != Binding.GetAnimTrack().Animation);
 	check(AnimTrack.Role == Binding.GetRoleDef().Name);
 
 	UAnimInstance* AnimInstance = Binding.GetAnimInstance();
 	if (AnimInstance == nullptr)
 	{		
-		return false;
+		return Duration;
 	}
 
 	// Unbind blend out delegate for a moment so we don't get it during the transition
 	// @TODO: Replace this with the TGuardValue 'pattern', similar to what we do in the editor for OnAnimNotifyChanged
 	AnimInstance->OnMontageBlendingOut.RemoveDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 
-	PlayAnimation(*AnimInstance, *AnimTrack.Animation);
+	const UAnimMontage* Montage = PlayAnimation(*AnimInstance, *AnimTrack.Animation);
 	Binding.AnimTrackPtr = &AnimTrack;
 
 	AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 
-	return true;
+	if (Montage != nullptr)
+	{
+		const float AdjustedPlayRate = AnimInstance->Montage_GetPlayRate(Montage) * Montage->RateScale;				
+		if (AdjustedPlayRate > 0.f)
+		{
+			Duration = (Montage->GetPlayLength() / AdjustedPlayRate);	
+		}
+		else
+		{
+			UE_LOG(LogContextualAnim, Warning, TEXT("Undesired playrate %.3f, using montage play length instead."), AdjustedPlayRate);
+			Duration = Montage->GetPlayLength();
+		}
+	}
+
+	return Duration;
 }
 
 void UContextualAnimSceneInstance::Start()
@@ -189,6 +214,64 @@ void UContextualAnimSceneInstance::Stop()
 	{
 		Leave(Binding);
 	}
+}
+
+bool UContextualAnimSceneInstance::IsDonePlaying() const
+{
+	return RemainingDuration == MAX_flt;
+}
+
+bool UContextualAnimSceneInstance::ForceTransitionToSection(const int32 SectionIdx, const int32 AnimSetIdx, const TArray<FContextualAnimSetPivot>& Pivots)
+{
+	if (!IsValid(SceneAsset))
+	{
+		UE_LOG(LogContextualAnim, Error, TEXT("Failed transition to section '%d': invalid scene asset"), SectionIdx);
+		return false;
+	}
+
+	const int32 NumSections = SceneAsset->GetNumSections();
+	if (NumSections == 0)
+	{
+		UE_LOG(LogContextualAnim, Error, TEXT("Failed transition to section '%d': no sections defined in asset %s"), SectionIdx, *SceneAsset->GetName());
+		return false;
+	}
+
+	if (SectionIdx < 0 || SectionIdx >= NumSections)
+	{
+		UE_LOG(LogContextualAnim, Error, TEXT("Failed transition to section '%d': index not in valid range [0, %d] for asset %s"), SectionIdx, NumSections, *SceneAsset->GetName());
+		return false;
+	}
+
+	if (SectionIdx == Bindings.GetSectionIdx())
+	{
+		UE_LOG(LogContextualAnim, Error, TEXT("Failed transition to section '%d': section is already playing"), SectionIdx);
+		return false;
+	}
+
+	const FName PrimaryRole = SceneAsset->GetPrimaryRole();
+	const FContextualAnimSceneBinding* PrimaryRoleBinding = Bindings.FindBindingByRole(PrimaryRole);
+	if (PrimaryRoleBinding == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Error, TEXT("Failed transition to section '%d': unable to find scene binding for primary role: %s"), SectionIdx, *PrimaryRole.ToString());
+		return false;
+	}
+
+	SetPivots(Pivots);
+	
+	RemainingDuration = 0.f;
+	for (FContextualAnimSceneBinding& Binding : Bindings)
+	{
+		const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SectionIdx, AnimSetIdx, Binding.GetRoleDef().Name);
+		if (AnimTrack == nullptr)
+		{
+			return false;
+		}
+
+		const float TrackDuration = TransitionTo(Binding, *AnimTrack);
+		RemainingDuration = FMath::Max(RemainingDuration, TrackDuration);
+	}
+
+	return true;
 }
 
 void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted)
@@ -269,7 +352,13 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 	if (bShouldEnd)
 	{
 		OnSceneEnded.Broadcast(this);
-		OnSectionDonePlaying.Broadcast(this);
+
+		// Won't be ticked anymore so make sure to notify OnSectionEndTimeReached if necessary
+		if (RemainingDuration != MAX_flt)
+		{
+			RemainingDuration = MAX_flt;
+			OnSectionEndTimeReached.Broadcast(this);
+		}
 	}
 }
 

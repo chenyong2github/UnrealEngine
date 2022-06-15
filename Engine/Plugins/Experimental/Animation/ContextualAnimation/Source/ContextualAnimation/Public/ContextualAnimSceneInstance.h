@@ -42,21 +42,17 @@ public:
 	friend class UContextualAnimManager;
 	friend class FContextualAnimViewModel;
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FGenericSceneMulticastDelegate, UContextualAnimSceneInstance*);
-
-	/**
-	 * Delegate to notify after all montages played by the scene section blended out.
-	 * Will not be broadcasted if one or more montages have 'bEnableAutoBlendOut' set to 'false'.
-	 */
-	FGenericSceneMulticastDelegate OnSectionDonePlaying;
-
 	/**
 	 * Delegate to notify once the scene play time reaches the duration defined by the longest played montage of the selected section.
 	 * This delegate should be used if one or more montages have 'bEnableAutoBlendOut' set to 'false'.
 	 */
-	FGenericSceneMulticastDelegate OnSectionEndTimeReached;
+	UPROPERTY(BlueprintAssignable)
+	FOnContextualAnimSceneEnded OnSectionEndTimeReached;
 
-	/** Delegate to notify external objects when this is scene is completed */
+	/**
+	 * Delegate to notify external objects when this is scene is completed after all montages played by the scene section blended out.
+	 * Will not be broadcasted if one or more montages have 'bEnableAutoBlendOut' set to 'false'.
+	 */
 	UPROPERTY(BlueprintAssignable)
 	FOnContextualAnimSceneEnded OnSceneEnded;
 
@@ -85,8 +81,17 @@ public:
 	/** Resolve initial alignment and start playing animation for all actors */
 	void Start();
 
+	/**
+	 * Tells current scene instance to transition to a different section.
+	 * @note The method assumes that selection criteria were applied through bindings creation before calling.
+	 * @return True if scene was able to transition all bindings to the new section, false otherwise.
+	 */
+	bool ForceTransitionToSection(const int32 SectionIdx, const int32 AnimSetIdx, const TArray<FContextualAnimSetPivot>& Pivots);
+		
 	/** Force all the actors to leave the scene */
 	void Stop();
+
+	bool IsDonePlaying() const;
 
 	/** Whether the supplied actor is part of this scene */
 	bool IsActorInThisScene(const AActor* Actor) const;
@@ -111,7 +116,7 @@ protected:
 	/** Tells the scene actor to leave the scene (stop animation) */
 	void Leave(FContextualAnimSceneBinding& Binding);
 
-	bool TransitionTo(FContextualAnimSceneBinding& Binding, const FContextualAnimTrack& AnimTrack);
+	float TransitionTo(FContextualAnimSceneBinding& Binding, const FContextualAnimTrack& AnimTrack);
 
 	TArray<FContextualAnimSetPivot>& GetMutablePivots() { return AlignmentSectionToScenePivotList; }
 	void SetPivots(const TArray<FContextualAnimSetPivot>& Pivots) { AlignmentSectionToScenePivotList = Pivots; }
