@@ -6,7 +6,9 @@
 #include "LidarPointCloudShared.h"
 
 class ALidarPointCloudActor;
+class FEditorViewportClient;
 class ULidarPointCloud;
+struct FConvexVolume;
 
 enum class ELidarPointCloudSelectionMode : uint8
 {
