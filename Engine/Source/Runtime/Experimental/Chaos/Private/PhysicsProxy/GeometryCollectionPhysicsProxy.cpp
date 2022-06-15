@@ -2191,6 +2191,8 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 	TManagedArray<FVector3f>* AngularVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
 	TManagedArray<uint8>* InternalClusterParentTypeArray = GameThreadCollection.FindAttributeTyped<uint8>("InternalClusterParentTypeArray", FTransformCollection::TransformGroup);
 
+	bool bIsCollectionDirty = false;
+	
 	// We should never be changing the number of entries, this would break other 
 	// attributes in the transform group.
 	const int32 NumTransforms = GameThreadCollection.Transform.Num();
@@ -2199,21 +2201,47 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		// first : copy the non interpolate-able values
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 		{
-			if (!TargetResults.States[TransformGroupIndex].DisabledState)
+			const bool bIsActive = !TargetResults.States[TransformGroupIndex].DisabledState;
+			if (GameThreadCollection.Active[TransformGroupIndex] != bIsActive)
 			{
-				GameThreadCollection.Parent[TransformGroupIndex] = TargetResults.Parent[TransformGroupIndex];
+				GameThreadCollection.Active[TransformGroupIndex] = bIsActive;
+				bIsCollectionDirty = true;
 			}
-			GameThreadCollection.DynamicState[TransformGroupIndex] = TargetResults.States[TransformGroupIndex].DynamicState;
-			GameThreadCollection.Active[TransformGroupIndex] = !TargetResults.States[TransformGroupIndex].DisabledState;
+			
+			const int32 NewState = TargetResults.States[TransformGroupIndex].DynamicState;
+			if (GameThreadCollection.DynamicState[TransformGroupIndex] != NewState)
+			{
+				GameThreadCollection.DynamicState[TransformGroupIndex] = NewState;
+				bIsCollectionDirty = true;
+			}
+
+			if (bIsActive)
+			{
+				const int32 NewParent = TargetResults.Parent[TransformGroupIndex];
+				if (GameThreadCollection.Parent[TransformGroupIndex] != NewParent)
+				{
+					GameThreadCollection.Parent[TransformGroupIndex] = NewParent;
+					bIsCollectionDirty = true;
+				}
+				// if (NewState != (int32)EObjectStateTypeEnum::Chaos_Object_Static && NewState != (int32)EObjectStateTypeEnum::Chaos_Object_Sleeping)
+				// {
+				// 	bIsCollectionDirty = true;
+				// }
+			}
 
 			if (InternalClusterParentTypeArray)
 			{
-				Chaos::EInternalClusterType Parenttype = Chaos::EInternalClusterType::None;
+				Chaos::EInternalClusterType ParentType = Chaos::EInternalClusterType::None;
 				if (TargetResults.States[TransformGroupIndex].HasInternalClusterParent != 0)
 				{
-					Parenttype = (TargetResults.States[TransformGroupIndex].DynamicInternalClusterParent != 0)? Chaos::EInternalClusterType::Dynamic: Chaos::EInternalClusterType::KinematicOrStatic; 
+					ParentType = (TargetResults.States[TransformGroupIndex].DynamicInternalClusterParent != 0)? Chaos::EInternalClusterType::Dynamic: Chaos::EInternalClusterType::KinematicOrStatic; 
 				}
-				(*InternalClusterParentTypeArray)[TransformGroupIndex] =static_cast<uint8>(Parenttype);
+				const uint8 ParentTypeUInt8 = static_cast<uint8>(ParentType);
+				if ((*InternalClusterParentTypeArray)[TransformGroupIndex] != ParentTypeUInt8)
+				{
+					(*InternalClusterParentTypeArray)[TransformGroupIndex] = ParentTypeUInt8;
+					bIsCollectionDirty = true;
+				}
 			}
 		}
 
@@ -2239,9 +2267,28 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 				if (!TargetResults.States[TransformGroupIndex].DisabledState)
 				{
 					Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
-					GTParticle.SetX(FMath::Lerp(Prev.ParticleXs[TransformGroupIndex], Next.ParticleXs[TransformGroupIndex], *Alpha), false);
-					GTParticle.SetR(FMath::Lerp(Prev.ParticleRs[TransformGroupIndex], Next.ParticleRs[TransformGroupIndex], *Alpha), false);
-					GTParticle.UpdateShapeBounds();
+
+					const Chaos::FVec3 OldX = GTParticle.X();
+					const Chaos::FVec3 NewX = FMath::Lerp(Prev.ParticleXs[TransformGroupIndex], Next.ParticleXs[TransformGroupIndex], *Alpha);
+					const bool bNeedUpdateX = (NewX != OldX);
+					if (bNeedUpdateX)
+					{
+						GTParticle.SetX(NewX, false);
+					}
+					
+					const Chaos::FRotation3 OldR = GTParticle.R();
+					const Chaos::FRotation3 NewR = FMath::Lerp(Prev.ParticleRs[TransformGroupIndex], Next.ParticleRs[TransformGroupIndex], *Alpha);
+					const bool bNeedUpdateR = (NewR != OldR); 
+					if (bNeedUpdateR)
+					{
+						GTParticle.SetR(NewR, false);
+					}
+
+					if (bNeedUpdateX || bNeedUpdateR)
+					{
+						GTParticle.UpdateShapeBounds();
+						bIsCollectionDirty = true;
+					}
 
 					GameThreadCollection.Transform[TransformGroupIndex].Blend(Prev.Transforms[TransformGroupIndex], Next.Transforms[TransformGroupIndex], *Alpha);
 
@@ -2261,9 +2308,28 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 				if (!TargetResults.States[TransformGroupIndex].DisabledState)
 				{
 					Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
-					GTParticle.SetX(TargetResults.ParticleXs[TransformGroupIndex], false);
-					GTParticle.SetR(TargetResults.ParticleRs[TransformGroupIndex], false);
-					GTParticle.UpdateShapeBounds();
+
+					const Chaos::FVec3 OldX = GTParticle.X();
+					const Chaos::FVec3& NewX = TargetResults.ParticleXs[TransformGroupIndex];
+					const bool bNeedUpdateX = (NewX != OldX);
+					if (bNeedUpdateX)
+					{
+						GTParticle.SetX(NewX, false);
+					}
+					
+					const Chaos::FRotation3 OldR = GTParticle.R();
+					const Chaos::FRotation3& NewR = TargetResults.ParticleRs[TransformGroupIndex];
+					const bool bNeedUpdateR = (NewR != OldR);
+					if (bNeedUpdateR)
+					{
+						GTParticle.SetR(NewR, false);
+					}
+
+					if (bNeedUpdateX || bNeedUpdateR)
+					{
+						GTParticle.UpdateShapeBounds();
+						bIsCollectionDirty = true;
+					}
 
 					GameThreadCollection.Transform[TransformGroupIndex] = TargetResults.Transforms[TransformGroupIndex];
 
@@ -2278,7 +2344,10 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		}
 
 		//question: why do we need this? Sleeping objects will always have to update GPU
-		GameThreadCollection.MakeDirty();
+		if (bIsCollectionDirty)
+		{
+			GameThreadCollection.MakeDirty();
+		}
 	}
 
 	return true;

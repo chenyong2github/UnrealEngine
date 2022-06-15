@@ -828,6 +828,7 @@ protected:
 
 	void CalculateLocalBounds();
 	void CalculateGlobalMatrices();
+	FBox ComputeBounds(const FMatrix& LocalToWorldWithScale) const;
 
 	void RegisterForEvents();
 	void UpdateRBCollisionEventRegistration();
@@ -886,7 +887,8 @@ private:
 
 	TArray<FMatrix> GlobalMatrices;
 	FBox LocalBounds;
-	
+
+	mutable FBoxSphereBounds ComponentSpaceBounds;
 	FBoxSphereBounds WorldBounds;
 
 	float CurrentCacheTime;

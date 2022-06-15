@@ -79,6 +79,9 @@ static bool bChaos_BoxCalcBounds_ISPC_Enabled = CHAOS_BOX_CALC_BOUNDS_ISPC_ENABL
 static FAutoConsoleVariableRef CVarChaosBoxCalcBoundsISPCEnabled(TEXT("p.Chaos.BoxCalcBounds.ISPC"), bChaos_BoxCalcBounds_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in calculating box bounds in geometry collections"));
 #endif
 
+bool bChaos_GC_CacheComponentSpaceBounds = true;
+FAutoConsoleVariableRef CVarChaosGCCacheComponentSpaceBounds(TEXT("p.Chaos.GC.CacheComponentSpaceBounds"), bChaos_GC_CacheComponentSpaceBounds, TEXT("Cache component space bounds for performance"));
+
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 extern FGeometryCollectionDynamicDataPool GDynamicDataPool;
@@ -393,27 +396,11 @@ void UGeometryCollectionComponent::GetLifetimeReplicatedProps(TArray<FLifetimePr
 	DOREPLIFETIME(UGeometryCollectionComponent, RepData);
 }
 
-FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& LocalToWorldIn) const
-{	
-	SCOPE_CYCLE_COUNTER(STAT_GCCUpdateBounds);
-
-	// #todo(dmp): hack to make bounds calculation work when we don't have valid physics proxy data.  This will
-	// force bounds calculation.
-
-	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
-
-	const int32 NumTransforms = Results ? Results->GlobalTransforms.Num() : 0;
-
-	if (!CachePlayback && WorldBounds.GetSphere().W > 1e-5 && NumTransforms > 0)
+FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWithScale) const
+{
+	FBox BoundingBox(ForceInit);
+	if (RestCollection)
 	{
-		return WorldBounds;
-	} 
-	else if (RestCollection)
-	{			
-		const FMatrix LocalToWorldWithScale = LocalToWorldIn.ToMatrixWithScale();
-
-		FBox BoundingBox(ForceInit);
-
 		//Hold on to reference so it doesn't get GC'ed
 		auto HackGeometryCollectionPtr = RestCollection->GetGeometryCollection();
 
@@ -450,17 +437,20 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
 			if (TmpGlobalMatrices.Num() == 0)
 			{
-				return FBoxSphereBounds(ForceInitToZero);
+				BoundingBox = FBox(ForceInitToZero);
 			}
-
-			for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
+			else
 			{
-				const int32 TransformIndex = TransformIndices[BoxIdx];
-
-				if(RestCollection->GetGeometryCollection()->IsGeometry(TransformIndex))
+				for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
 				{
-					BoundingBox += BoundingBoxes[BoxIdx].TransformBy(TmpGlobalMatrices[TransformIndex] * LocalToWorldWithScale);
+					const int32 TransformIndex = TransformIndices[BoxIdx];
+
+					if(RestCollection->GetGeometryCollection()->IsGeometry(TransformIndex))
+					{
+						BoundingBox += BoundingBoxes[BoxIdx].TransformBy(TmpGlobalMatrices[TransformIndex] * LocalToWorldWithScale);
+					}
 				}
+
 			}
 		}
 		else if (bGeometryCollectionSingleThreadedBoundsCalculation)
@@ -504,10 +494,48 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 				}
 			}
 		}
-
-		return FBoxSphereBounds(BoundingBox);
 	}
-	return FBoxSphereBounds(ForceInitToZero);
+	return BoundingBox;
+}
+
+FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& LocalToWorldIn) const
+{	
+	SCOPE_CYCLE_COUNTER(STAT_GCCUpdateBounds);
+
+	// #todo(dmp): hack to make bounds calculation work when we don't have valid physics proxy data.  This will
+	// force bounds calculation.
+
+	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
+	const int32 NumTransforms = Results ? Results->GlobalTransforms.Num() : 0;
+
+	if (bChaos_GC_CacheComponentSpaceBounds)
+	{
+		bool NeedBoundsUpdate = false;
+		NeedBoundsUpdate |= (ComponentSpaceBounds.GetSphere().W < 1e-5);
+		NeedBoundsUpdate |= CachePlayback;
+		NeedBoundsUpdate |= (NumTransforms > 0);
+		NeedBoundsUpdate |= (DynamicCollection && DynamicCollection->IsDirty());
+		
+		if (NeedBoundsUpdate)
+		{
+			ComponentSpaceBounds = ComputeBounds(FMatrix::Identity);
+		}
+		else
+		{
+			NeedBoundsUpdate = false;
+		}
+
+		return ComponentSpaceBounds.TransformBy(LocalToWorldIn);
+	}
+
+	// non cached bounds path 
+	if (!CachePlayback && WorldBounds.GetSphere().W > 1e-5 && NumTransforms > 0)
+	{
+		return WorldBounds;
+	} 
+
+	const FMatrix LocalToWorldWithScale = LocalToWorldIn.ToMatrixWithScale();
+	return FBoxSphereBounds(ComputeBounds(LocalToWorldWithScale));
 }
 
 void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
@@ -3556,19 +3584,19 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 			const bool IsRemovalActive = (MaxSleepTime[TransformIdx] >= 0) && bIsDynamicOrSleeping && bNoParent && !bHasKinematicOrStaticInternalClusterParent;
 			if (IsRemovalActive)
 			{
-				bool bIsSlowMoving = false;
+				bool bIsNotMoving = false;
 				if (RestCollection->bSlowMovingAsSleeping)
 				{
 					const FVector CurrentPosition = DynamicCollection->Transform[TransformIdx].GetTranslation();
 					LastPosition[TransformIdx] = CurrentPosition;
 					
 					const FVector::FReal InstantVelocity = (CurrentPosition-LastPosition[TransformIdx]).Size() / (FVector::FReal)DeltaTime; 
-					bIsSlowMoving = (InstantVelocity < RestCollection->SlowMovingVelocityThreshold);
+					bIsNotMoving = (InstantVelocity < RestCollection->SlowMovingVelocityThreshold);
 				}
 				
 				const bool IsSleeping = (DynamicCollection->DynamicState[TransformIdx] == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping);
 				const bool HasStartedDecaying = (Decay[TransformIdx] > 0); 
-				if (IsSleeping || bIsSlowMoving || HasStartedDecaying)
+				if (IsSleeping || bIsNotMoving || HasStartedDecaying)
 				{
 					SleepTimer[TransformIdx] += DeltaTime;
 				}
