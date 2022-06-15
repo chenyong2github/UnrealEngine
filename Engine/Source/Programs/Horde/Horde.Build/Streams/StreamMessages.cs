@@ -918,7 +918,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// List of templates to show on the page
 		/// </summary>
-		public List<string>? Templates { get; set; }
+		public List<TemplateRefId>? Templates { get; set; }
 
 		/// <summary>
 		/// Names of jobs to include on this page. If there is only one name specified, the name column does not need to be displayed.
@@ -938,7 +938,7 @@ namespace Horde.Build.Streams
 		/// <param name="templates">Templates to include on this page</param>
 		/// <param name="jobNames">List of job names to include on this page</param>
 		/// <param name="columns">List of columns to display</param>
-		public GetJobsTabResponse(string title, bool bShowNames, List<string>? templates, List<string>? jobNames, List<GetJobsTabColumnResponse>? columns)
+		public GetJobsTabResponse(string title, bool bShowNames, List<TemplateRefId>? templates, List<string>? jobNames, List<GetJobsTabColumnResponse>? columns)
 			: base(title)
 		{
 			ShowNames = bShowNames;

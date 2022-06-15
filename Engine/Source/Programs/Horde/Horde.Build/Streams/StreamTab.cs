@@ -252,7 +252,7 @@ namespace Horde.Build.Streams
 			: base(request)
 		{
 			ShowNames = request.ShowNames;
-			Templates = request.Templates?.ConvertAll(x => new TemplateRefId(x));
+			Templates = request.Templates;
 			JobNames = request.JobNames;
 			Columns = request.Columns?.ConvertAll(x => x.ToModel());
 		}
@@ -260,7 +260,7 @@ namespace Horde.Build.Streams
 		/// <inheritdoc/>
 		public override GetStreamTabResponse ToResponse()
 		{
-			return new GetJobsTabResponse(Title, ShowNames, Templates?.ConvertAll(x => x.ToString()), JobNames, Columns?.ConvertAll(x => x.ToResponse()));
+			return new GetJobsTabResponse(Title, ShowNames, Templates, JobNames, Columns?.ConvertAll(x => x.ToResponse()));
 		}
 	}
 }
