@@ -530,8 +530,8 @@ void FOpenGLBase::ProcessExtensions( const FString& ExtensionsString )
 		if (IsMobilePlatform(GMaxRHIShaderPlatform))
 		{
 			MaxTextureImageUnits = MaxTextureImageUnits > 16 ? 16 : MaxTextureImageUnits;
-			MaxVertexTextureImageUnits = MaxVertexTextureImageUnits > 8 ? 8 : MaxVertexTextureImageUnits;
-			MaxGeometryTextureImageUnits = MaxGeometryTextureImageUnits > 8 ? 8 : MaxGeometryTextureImageUnits;
+			MaxVertexTextureImageUnits = MaxVertexTextureImageUnits > 16 ? 16 : MaxVertexTextureImageUnits;
+			MaxGeometryTextureImageUnits = MaxGeometryTextureImageUnits > 16 ? 16 : MaxGeometryTextureImageUnits;
 			MaxCombinedTextureImageUnits = MaxCombinedTextureImageUnits > 48 ? 48 : MaxCombinedTextureImageUnits;
 		}
 	}
