@@ -306,6 +306,7 @@ void MainPS(
 			/*float3 Emissive						*/0.0f,
 			/*float SecondRoughness					*/0.0f,
 			/*float SecondRoughnessWeight			*/0.0f,
+			/*flaot SecondRoughnessAsSimpleClearCoat*/0.0f,
 			/*float FuzzAmount						*/0.0f,
 			/*float3 FuzzColor						*/0.0f,
 			/*float Thickness						*/0.0f,

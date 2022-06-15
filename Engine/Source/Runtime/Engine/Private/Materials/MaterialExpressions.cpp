@@ -22058,6 +22058,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, SecondRoughness, 0.0f),
 		CompileWithDefaultFloat1(Compiler, SecondRoughnessWeight, 0.0f),
+		Compiler->Constant(0.0f),										// SecondRoughnessAsSimpleClearCoat
 		CompileWithDefaultFloat1(Compiler, FuzzAmount, 0.0f),
 		CompileWithDefaultFloat3(Compiler, FuzzColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Thickness, STRATA_LAYER_DEFAULT_THICKNESS_CM),
@@ -22501,7 +22502,7 @@ FStrataOperator* UMaterialExpressionStrataSlabBSDF::StrataGenerateMaterialTopolo
 	StrataOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
 	StrataOperator.bBSDFHasEdgeColor = HasEdgeColor();
 	StrataOperator.bBSDFHasFuzz = HasFuzz();
-	StrataOperator.bBSDFHasSecondRoughness = HasSecondRoughness();
+	StrataOperator.bBSDFHasSecondRoughnessOrSimpleClearCoat = HasSecondRoughness();
 	StrataOperator.bBSDFHasSSS = HasSSS();
 	StrataOperator.bBSDFHasMFPPluggedIn = HasMFPPluggedIn();
 	StrataOperator.bBSDFHasAnisotropy = HasAnisotropy();
@@ -22541,6 +22542,248 @@ bool UMaterialExpressionStrataSlabBSDF::HasSecondRoughness() const
 bool UMaterialExpressionStrataSlabBSDF::HasAnisotropy() const
 {
 	return Anisotropy.IsConnected();
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataSimpleClearCoatBSDF::UMaterialExpressionStrataSimpleClearCoatBSDF(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	const bool  bUseMetalness = true;
+	const float DefaultSpecular = 0.5f;
+	const float DefaultF0 = DielectricSpecularToF0(DefaultSpecular);
+
+	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
+	const int32 NullTangentCodeChunk = INDEX_NONE;
+	const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, NormalCodeChunk, NullTangentCodeChunk);
+
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
+	StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
+
+	int32 OutputCodeChunk = Compiler->StrataSlabBSDF(
+		bUseMetalness ? Compiler->Constant(1.0f) : Compiler->Constant(0.0f),
+
+		// Metalness workflow
+		CompileWithDefaultFloat3(Compiler, BaseColor, 0.18f, 0.18f, 0.18f),
+		Compiler->Constant3(1.0f, 1.0f, 1.0f),					// EdgeColor
+		CompileWithDefaultFloat1(Compiler, Specular, DefaultSpecular),
+		CompileWithDefaultFloat1(Compiler, Metallic, 0.0f),
+
+		// !Metalness workflow unused for this node
+		Compiler->Constant3(0.18f, 0.18f, 0.18f),				// DiffuseAlbedo
+		Compiler->Constant3(DefaultF0, DefaultF0, DefaultF0),	// F0
+		Compiler->Constant3(1.0f, 1.0f, 1.0f),					// F90
+		
+		CompileWithDefaultFloat1(Compiler, Roughness, 0.5f),
+		Compiler->Constant(0.0f),								// Anisotropy
+		Compiler->Constant(0.0f),								// SSSProfile
+		Compiler->Constant3(0.0f, 0.0f, 0.0f),					// SSSMFP
+		Compiler->Constant(0.0f),								// SSSMFPScale
+		Compiler->Constant(0.0f),								// SSSPhaseAnisotropy
+		Compiler->Constant(0.0f),								// bUseSSSDiffusion
+		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, ClearCoatRoughness, 0.1f),
+		CompileWithDefaultFloat1(Compiler, ClearCoatCoverage, 1.0f),
+		Compiler->Constant(1.0f),								// SecondRoughnessAsSimpleClearCoat == true for UMaterialExpressionStrataSimpleClearCoatBSDF
+		Compiler->Constant(0.0f),								// FuzzAmount
+		Compiler->Constant3(0.0f, 0.0f, 0.0f),					// FuzzColor
+		Compiler->Constant(STRATA_LAYER_DEFAULT_THICKNESS_CM),	// Thickness
+		NormalCodeChunk,
+		NullTangentCodeChunk,
+		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
+		!StrataOperator.bUseParameterBlending || (StrataOperator.bUseParameterBlending && StrataOperator.bRootOfParameterBlendingSubTree) ? &StrataOperator : nullptr);
+
+	return OutputCodeChunk;
+}
+
+
+const TArray<FExpressionInput*> UMaterialExpressionStrataSimpleClearCoatBSDF::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&BaseColor);
+	Result.Add(&Metallic);
+	Result.Add(&Specular);
+	Result.Add(&Roughness);
+	Result.Add(&ClearCoatRoughness);
+	Result.Add(&ClearCoatCoverage);
+	Result.Add(&Normal);
+	Result.Add(&EmissiveColor);
+	return Result;
+}
+
+void UMaterialExpressionStrataSimpleClearCoatBSDF::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Simple Clear Coat"));
+}
+
+uint32 UMaterialExpressionStrataSimpleClearCoatBSDF::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataSimpleClearCoatBSDF::GetInputType(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return MCT_Float3; // BaseColor
+	}
+	else if (InputIndex == 1)
+	{
+		return MCT_Float1; // Metallic
+	}
+	else if (InputIndex == 2)
+	{
+		return MCT_Float1; // Specular
+	}
+	else if (InputIndex == 3)
+	{
+		return MCT_Float1; // Roughness
+	}
+	else if (InputIndex == 4)
+	{
+		return MCT_Float1; // ClearCoatRoughness
+	}
+	else if (InputIndex == 5)
+	{
+		return MCT_Float1; // ClearCoatCoverage
+	}
+	else if (InputIndex == 6)
+	{
+		return MCT_Float3; // Normal
+	}
+	else if (InputIndex == 7)
+	{
+		return MCT_Float3; // Emissive Color
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+FName UMaterialExpressionStrataSimpleClearCoatBSDF::GetInputName(int32 InputIndex) const
+{
+	if (InputIndex == 0)
+	{
+		return TEXT("BaseColor");
+	}
+	else if (InputIndex == 1)
+	{
+		return TEXT("Metallic");
+	}
+	else if (InputIndex == 2)
+	{
+		return TEXT("Specular");
+	}
+	else if (InputIndex == 3)
+	{
+		return TEXT("Roughness");
+	}
+	else if (InputIndex == 4)
+	{
+		return TEXT("Clear Coat Roughness");
+	}
+	else if (InputIndex == 5)
+	{
+		return TEXT("Clear Coat Coverage");
+	}
+	else if (InputIndex == 6)
+	{
+		return TEXT("Normal");
+	}
+	else if (InputIndex == 7)
+	{
+		return TEXT("Emissive Color");
+	}
+
+	return TEXT("Unknown");
+}
+
+void UMaterialExpressionStrataSimpleClearCoatBSDF::GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip)
+{
+	if (OutputIndex == 0)
+	{
+		OutToolTip.Add(TEXT("TT Ouput"));
+		return;
+	}
+
+	if (InputIndex == 0)
+	{
+		Super::GetConnectorToolTip(0, INDEX_NONE, OutToolTip);
+	}
+	else if (InputIndex == 1)
+	{
+		Super::GetConnectorToolTip(1, INDEX_NONE, OutToolTip);
+	}
+	else if (InputIndex == 2)
+	{
+		Super::GetConnectorToolTip(2, INDEX_NONE, OutToolTip);
+	}
+	else if (InputIndex == 3)
+	{
+		Super::GetConnectorToolTip(3, INDEX_NONE, OutToolTip);
+	}
+	else if (InputIndex == 4)
+	{
+		Super::GetConnectorToolTip(4, INDEX_NONE, OutToolTip);
+	}
+	else if (InputIndex == 5)
+	{
+		Super::GetConnectorToolTip(5, INDEX_NONE, OutToolTip);
+	}
+	else if (InputIndex == 6)
+	{
+		Super::GetConnectorToolTip(6, INDEX_NONE, OutToolTip);
+	}
+	else if (InputIndex == 7)
+	{
+		Super::GetConnectorToolTip(7, INDEX_NONE, OutToolTip);
+	}
+}
+
+bool UMaterialExpressionStrataSimpleClearCoatBSDF::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return true;
+}
+
+void UMaterialExpressionStrataSimpleClearCoatBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	// Track connected inputs
+	if (BaseColor.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_BaseColor); }
+	if (Metallic.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_Metallic); }
+	if (Specular.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_Specular); }
+	if (Roughness.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_Roughness); }
+	if (Normal.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_Normal); }
+	if (EmissiveColor.IsConnected()) { StrataMaterialInfo.AddPropertyConnected(MP_EmissiveColor); }
+
+	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
+}
+
+FStrataOperator* UMaterialExpressionStrataSimpleClearCoatBSDF::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+	StrataOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
+	StrataOperator.bBSDFHasEdgeColor = false;
+	StrataOperator.bBSDFHasFuzz = false;
+	StrataOperator.bBSDFHasSecondRoughnessOrSimpleClearCoat = true;	// This node explicitely requires simple clear coat
+	StrataOperator.bBSDFHasSSS = false;
+	StrataOperator.bBSDFHasMFPPluggedIn = false;
+	StrataOperator.bBSDFHasAnisotropy = false;
+	return &StrataOperator;
 }
 #endif // WITH_EDITOR
 

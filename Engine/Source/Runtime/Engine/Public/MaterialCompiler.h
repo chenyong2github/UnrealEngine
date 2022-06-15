@@ -111,7 +111,7 @@ struct FStrataOperator
 	bool  bBSDFHasMFPPluggedIn;
 	bool  bBSDFHasEdgeColor;
 	bool  bBSDFHasFuzz;
-	bool  bBSDFHasSecondRoughness;
+	bool  bBSDFHasSecondRoughnessOrSimpleClearCoat;
 	bool  bBSDFHasAnisotropy;
 
 	// Data derived after the tree has been built.
@@ -137,7 +137,7 @@ struct FStrataOperator
 		bBSDFHasMFPPluggedIn = false;
 		bBSDFHasEdgeColor = false;
 		bBSDFHasFuzz = false;
-		bBSDFHasSecondRoughness = false;
+		bBSDFHasSecondRoughnessOrSimpleClearCoat = false;
 		bBSDFHasAnisotropy = false;
 
 		MaxDistanceFromLeaves = 0;
@@ -154,7 +154,7 @@ struct FStrataOperator
 		bBSDFHasMFPPluggedIn = A.bBSDFHasMFPPluggedIn || B.bBSDFHasMFPPluggedIn;
 		bBSDFHasEdgeColor = A.bBSDFHasEdgeColor || B.bBSDFHasEdgeColor;
 		bBSDFHasFuzz = A.bBSDFHasFuzz || B.bBSDFHasFuzz;
-		bBSDFHasSecondRoughness = A.bBSDFHasSecondRoughness || B.bBSDFHasSecondRoughness;
+		bBSDFHasSecondRoughnessOrSimpleClearCoat = A.bBSDFHasSecondRoughnessOrSimpleClearCoat || B.bBSDFHasSecondRoughnessOrSimpleClearCoat;
 		bBSDFHasAnisotropy = A.bBSDFHasAnisotropy || B.bBSDFHasAnisotropy;
 	}
 
@@ -164,7 +164,7 @@ struct FStrataOperator
 		bBSDFHasMFPPluggedIn = A.bBSDFHasMFPPluggedIn;
 		bBSDFHasEdgeColor = A.bBSDFHasEdgeColor;
 		bBSDFHasFuzz = A.bBSDFHasFuzz;
-		bBSDFHasSecondRoughness = A.bBSDFHasSecondRoughness;
+		bBSDFHasSecondRoughnessOrSimpleClearCoat = A.bBSDFHasSecondRoughnessOrSimpleClearCoat;
 		bBSDFHasAnisotropy = A.bBSDFHasAnisotropy;
 	}
 
@@ -568,7 +568,7 @@ public:
 		int32 Roughness, int32 Anisotropy,
 		int32 SSSProfileId, int32 SSSMFP, int32 SSSMFPScale, int32 SSSPhaseAniso, int32 UseSSSDiffusion,
 		int32 EmissiveColor, 
-		int32 SecondRoughness, int32 SecondRoughnessWeight,
+		int32 SecondRoughness, int32 SecondRoughnessWeight, int32 SecondRoughnessAsSimpleClearCoat,
 		int32 FuzzAmount, int32 FuzzColor,
 		int32 Thickness,
 		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
@@ -1118,7 +1118,7 @@ public:
 		int32 Roughness, int32 Anisotropy,
 		int32 SSSProfileId, int32 SSSMFP, int32 SSSMFPScale, int32 SSSPhaseAniso, int32 UseSSSDiffusion,
 		int32 EmissiveColor, 
-		int32 SecondRoughness, int32 SecondRoughnessWeight,
+		int32 SecondRoughness, int32 SecondRoughnessWeight, int32 SecondRoughnessAsSimpleClearCoat,
 		int32 FuzzAmount, int32 FuzzColor,
 		int32 Thickness,
 		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
@@ -1131,7 +1131,7 @@ public:
 			Roughness, Anisotropy,
 			SSSProfileId, SSSMFP, SSSMFPScale, SSSPhaseAniso, UseSSSDiffusion,
 			EmissiveColor, 
-			SecondRoughness, SecondRoughnessWeight,
+			SecondRoughness, SecondRoughnessWeight, SecondRoughnessAsSimpleClearCoat,
 			FuzzAmount, FuzzColor,
 			Thickness,
 			Normal, Tangent, SharedLocalBasisIndexMacro,

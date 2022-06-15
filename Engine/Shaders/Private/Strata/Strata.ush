@@ -141,7 +141,7 @@ struct FStrataBSDF
 // ---------------
 // 3 types of storages layout:
 // * Complex: store many (mixed) BSDFs
-// * Single : store a single BSDF (with all feature apart from anisotropy)
+// * Single : store a single BSDF (with all feature apart from anisotropy, because we sample from the toplayer data texture which stores normal but not the tangent)
 // * Simple : store a single Slab BSDF (with no extra feature)
 // 
 // Header State (8bits):
@@ -490,11 +490,11 @@ bool   IsStrataSlabFastPathCompatible(in FStrataBSDF BSDF);
 ///////////////////////////////////////////////////////////////////////////////
 // Haziness
 
-// bFastClearCoat==false means that Weight is the blend in amount of the secondary specular lob over the first specular lob.
-// bFastClearCoat==true  means fast clear coat is used, Weight is coverage of a top layer specular. 
+// bSimpleClearCoat==false means that Weight is the blend in amount of the secondary specular lob over the first specular lob.
+// bSimpleClearCoat==true  means fast clear coat is used, Weight is coverage of a top layer specular. 
 struct FHaziness
 {
-	bool  bFastClearCoat;
+	bool  bSimpleClearCoat;
 	float Roughness;
 	float Weight;
 };
@@ -508,7 +508,7 @@ FHaziness InitialiseHaziness()
 // returns 16 bits: 1 bit bFastClearCoat, 7 bits Weight, 8 bits roughness
 float PackHaziness(FHaziness Haziness)
 {
-	uint High8Bits = (Haziness.bFastClearCoat ? 0x80 : 0x00) | uint(saturate(Haziness.Weight) * 127);
+	uint High8Bits = (Haziness.bSimpleClearCoat ? 0x80 : 0x00) | uint(saturate(Haziness.Weight) * 127);
 	uint Data = (High8Bits << 8) | uint(saturate(Haziness.Roughness) * 255);
 	return asfloat(Data);
 }
@@ -518,9 +518,9 @@ FHaziness UnpackHaziness(float FloatData)
 	uint Data = asuint(FloatData);
 
 	FHaziness Haziness;
-	Haziness.bFastClearCoat = Data & 0x8000;
-	Haziness.Weight = float(uint((Data>>8) & 0x7F)) * (1.0f / 127.0f);
-	Haziness.Roughness = float(uint(Data & 0xFF)) * (1.0f / 255.0f);
+	Haziness.bSimpleClearCoat	= Data & 0x8000;
+	Haziness.Weight				= float(uint((Data>>8) & 0x7F)) * (1.0f / 127.0f);
+	Haziness.Roughness			= float(uint(Data & 0xFF)) * (1.0f / 255.0f);
 	return Haziness;
 }
 
@@ -532,7 +532,7 @@ float LerpHazinessParameterBlending(FStrataBSDF A, FStrataBSDF B, float MixValue
 	FHaziness OutputHaziness;
 	OutputHaziness.Weight			= lerp(HazinessA.Weight,	HazinessB.Weight,		MixValue);
 	OutputHaziness.Roughness		= lerp(HazinessA.Roughness, HazinessB.Roughness,	MixValue);
-	OutputHaziness.bFastClearCoat	= HazinessA.bFastClearCoat || HazinessB.bFastClearCoat;		// Maintain the fast legacy path first
+	OutputHaziness.bSimpleClearCoat = HazinessA.bSimpleClearCoat || HazinessB.bSimpleClearCoat;		// Maintain the fast legacy path first
 
 	return PackHaziness(OutputHaziness);
 }
@@ -1235,7 +1235,7 @@ FStrataData GetStrataSlabBSDF(
 	float Roughness, float Anisotropy,
 	float SSSProfileID, float3 SSSMFP, float SSSMFPScale, float SSSPhaseAnisotropy, float UseSSSDiffusion,
 	float3 Emissive, 
-	float SecondRoughness, float SecondRoughnessWeight,
+	float SecondRoughness, float SecondRoughnessWeight, float SecondRoughnessAsSimpleClearCoat,
 	float FuzzAmount, float3 FuzzColor,
 	float Thickness,
 	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
@@ -1267,7 +1267,7 @@ FStrataData GetStrataSlabBSDF(
 	{
 		Haziness.Roughness = SecondRoughness;
 		Haziness.Weight = SecondRoughnessWeight;
-		Haziness.bFastClearCoat = false;
+		Haziness.bSimpleClearCoat = SecondRoughnessAsSimpleClearCoat > 0.0f;
 	}
 
 	// If MFP is smaller than the pixel's footprint, remove SSS attributes
@@ -1289,7 +1289,7 @@ FStrataData GetStrataSlabBSDF(
 		Thickness = STRATA_SIMPLEVOLUME_THICKNESS_CM;
 	}
 
-	const uint bHasHaziness = ((Haziness.Roughness != Roughness  && Haziness.Weight > 0.0f) || Haziness.bFastClearCoat) ? 1 : 0;
+	const uint bHasHaziness = ((Haziness.Roughness != Roughness  && Haziness.Weight > 0.0f) || Haziness.bSimpleClearCoat) ? 1 : 0;
 	const uint bHasAnisotropy = Anisotropy != 0 ? 1 : 0;
 	const uint bHasFuzz = FuzzAmount > 0.0f ? 1 : 0;
 	if (bHasAnisotropy)
@@ -3142,6 +3142,7 @@ void StrataConvertFromDBuffer(
 		0.f,				// Emissive
 		0.f,				// SecondRoughness
 		0.f,				// SecondRoughnessWeight
+		0.f,				// SecondRoughnessAsSimpleClearCoat
 		0.f,				// FuzzAmount
 		0.f,				// FuzzColor
 		DefaultThickness,

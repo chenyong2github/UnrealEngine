@@ -256,10 +256,10 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			{
 				FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
 
-				Print(Context, TEXT(" Haziness    "),		FontBSDFPropName);																		Newline(Context, RectMax);
-				Print(Context, TEXT("     Roughness    "),	FontBSDFPropName);	Print(Context, Haziness.Roughness,				FontBSDFPropValu);	Newline(Context, RectMax);
-				Print(Context, TEXT("     Weight       "),	FontBSDFPropName);	Print(Context, Haziness.Weight,					FontBSDFPropValu);	Newline(Context, RectMax);
-				Print(Context, TEXT("     FastClearCoat"),	FontBSDFPropName);	Print(Context, Haziness.bFastClearCoat ?1u:0u,	FontBSDFPropValu);	Newline(Context, RectMax);
+				Print(Context, TEXT(" Haziness    "),			FontBSDFPropName);																		Newline(Context, RectMax);
+				Print(Context, TEXT("     Roughness    "),		FontBSDFPropName);	Print(Context, Haziness.Roughness,				FontBSDFPropValu);	Newline(Context, RectMax);
+				Print(Context, TEXT("     Weight       "),		FontBSDFPropName);	Print(Context, Haziness.Weight,					FontBSDFPropValu);	Newline(Context, RectMax);
+				Print(Context, TEXT("     SimpleClearCoat"),	FontBSDFPropName);	Print(Context, Haziness.bSimpleClearCoat?1u:0u,	FontBSDFPropValu);	Newline(Context, RectMax);
 			}
 
 			if (BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID || BSDF_GETISSIMPLEVOLUME(BSDF) || BSDF_GETISTHIN(BSDF))

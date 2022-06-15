@@ -100,7 +100,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 		if (bIsTopLayer)
 		{
 			// The specular path weight applied on SSR. It must account for throughput even for top surface because it also contains coverage.
-			TopLayerEnvBRDF += BSDFThroughput * StrataEnvLight.SpecularWeight;
+			TopLayerEnvBRDF += BSDFThroughput * StrataEnvLight.SSRSpecularWeight;
 		}
 
 		// STRATA_TODO ReflectionEnvironment(...) for static reflection volumes.

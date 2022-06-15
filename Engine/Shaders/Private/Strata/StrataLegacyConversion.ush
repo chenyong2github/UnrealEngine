@@ -97,6 +97,7 @@ FStrataData CreateLegacySlab(
 			In.Emissive,		// Emissive
 			0.f,				// SecondRoughness
 			0.f,				// SecondRoughnessWeight
+			0.f,				// SecondRoughnessAsSimpleClearCoat
 			In.FuzzAmount,		// FuzzAmount
 			In.FuzzColor,		// FuzzColor
 			In.Thickness,
