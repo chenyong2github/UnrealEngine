@@ -97,6 +97,6 @@ namespace ChaosTest
 
 		SolverBodyContainer.Reset(1);
 
-		SolverBodyContainer.FindOrAdd(Particles[0]);
+		SolverBodyContainer.FindOrAdd(Particles[0], 1./60.);
 	}
 }
