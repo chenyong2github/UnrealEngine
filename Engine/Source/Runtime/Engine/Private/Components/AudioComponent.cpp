@@ -41,15 +41,15 @@ FAutoConsoleVariableRef CVarTimeToTakeUpVoiceSlot(
 	TEXT("Value: The EQuartzCommandQuantization index of the desired duration"),
 	ECVF_Default);
 
-
 //CVar to disable the gamethread-side caching of play requests to minimize time spent rendering a silent voice before the Quartz Deadline
 static int32 bAlwaysTakeVoiceSlotCVar = 1;
 FAutoConsoleVariableRef bCVarAlwaysTakeVoiceSlot(
 	TEXT("au.Quartz.bAlwaysTakeVoiceSlot"),
 	bAlwaysTakeVoiceSlotCVar,
 	TEXT("Always take voice slot immediately without trying to cache the request on the component\n")
-	TEXT("default = 0: cache play requests on the component until closer to the deadline. - 1: always forward the request to the audio engine immediately."),
+	TEXT("default = 1: always forward the request to the audio engine immediately. - 0: attempt to cache play requests on the component until closer to the deadline."),
 	ECVF_Default);
+
 
 static int32 WorldlessGetAudioTimeBehaviorCVar = 0;
 FAutoConsoleVariableRef CVarWorldlessGetAudioTimeBehavior(
