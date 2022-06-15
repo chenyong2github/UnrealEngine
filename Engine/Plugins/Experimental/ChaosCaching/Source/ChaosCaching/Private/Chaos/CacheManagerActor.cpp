@@ -567,9 +567,12 @@ void AChaosCacheManager::OnStartFrameChanged(Chaos::FReal InTime)
 			}
 
 			FCacheUserToken Token = Observed.Cache->BeginPlayback();
-			if (Token.IsOpen() && Observed.BestFitAdapter->ValidForPlayback(Comp, Observed.Cache))
+			if (Token.IsOpen())
 			{
-				Observed.BestFitAdapter->SetRestState(Comp, Observed.Cache, GetTransform(), InTime);
+				if (Observed.BestFitAdapter->ValidForPlayback(Comp, Observed.Cache))
+				{
+					Observed.BestFitAdapter->SetRestState(Comp, Observed.Cache, GetTransform(), InTime);
+				}
 				Observed.Cache->EndPlayback(Token);
 			}
 		}
