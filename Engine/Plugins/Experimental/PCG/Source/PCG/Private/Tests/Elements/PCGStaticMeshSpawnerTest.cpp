@@ -278,6 +278,7 @@ void TestMeshSelectorWeightedByCategory(
 		if (!Entry)
 		{
 			Test->TestTrue("Validate instanced mesh exists in entries", false);
+			continue;
 		}
 
 		const float ErrorBound = FMath::Max(Entry->ExpectedCount * 0.1f, 10); // 10% error boundary 
