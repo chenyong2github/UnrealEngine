@@ -7,6 +7,23 @@
 
 #include "Landscape.h"
 
+constexpr uint32 InvalidPCGGridSizeValue = 0u;
+
+APCGPartitionActor::APCGPartitionActor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	PCGGridSize = InvalidPCGGridSizeValue;
+}
+
+void APCGPartitionActor::PostLoad()
+{
+	// If the grid size is not set, set it to the default value.
+	if (PCGGridSize == InvalidPCGGridSizeValue)
+	{
+		PCGGridSize = APCGWorldActor::DefaultPartitionGridSize;
+	}
+}
+
 void APCGPartitionActor::BeginPlay()
 {
 	Super::BeginPlay();
@@ -26,16 +43,20 @@ void APCGPartitionActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 #if WITH_EDITOR
 uint32 APCGPartitionActor::GetDefaultGridSize(UWorld* InWorld) const
 {
-	// TODO: promote to world settings
-	return 25600;
+	if (APCGWorldActor* PCGActor = PCGHelpers::GetPCGWorldActor(InWorld))
+	{
+		return PCGActor->PartitionGridSize;
+	}
+
+	UE_LOG(LogPCG, Error, TEXT("[APCGPartitionActor::InternalGetDefaultGridSize] PCG World Actor was null. Returning default value"));
+	return APCGWorldActor::DefaultPartitionGridSize;
 }
 #endif
 
 FBox APCGPartitionActor::GetFixedBounds() const
 {
 	const FVector Center = GetActorLocation();
-	// TODO: keep this in the actor instead of hardcoding.
-	const uint32 HalfGridSize = 25600 / 2;
+	const FVector::FReal HalfGridSize = PCGGridSize / 2.0;
 	return FBox(Center - HalfGridSize, Center + HalfGridSize);
 }
 
@@ -169,4 +190,40 @@ bool APCGPartitionActor::CleanupDeadGraphInstances()
 
 	return OriginalToLocalMap.IsEmpty();
 }
+
+void APCGPartitionActor::PostCreation()
+{
+	PCGGridSize = GridSize;
+}
+
+bool APCGPartitionActor::IsSafeForDeletion() const
+{
+	ensure(IsInGameThread());
+	for (TObjectPtr<UPCGComponent> PCGComponent : GetAllOriginalPCGComponents())
+	{
+		if (PCGComponent->IsGenerating())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+TSet<TObjectPtr<UPCGComponent>> APCGPartitionActor::GetAllLocalPCGComponents() const
+{
+	TSet<TObjectPtr<UPCGComponent>> ResultComponents;
+	LocalToOriginalMap.GetKeys(ResultComponents);
+
+	return ResultComponents;
+}
+
+TSet<TObjectPtr<UPCGComponent>> APCGPartitionActor::GetAllOriginalPCGComponents() const
+{
+	TSet<TObjectPtr<UPCGComponent>> ResultComponents;
+	OriginalToLocalMap.GetKeys(ResultComponents);
+
+	return ResultComponents;
+}
+
 #endif // WITH_EDITOR

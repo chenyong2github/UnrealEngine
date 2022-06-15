@@ -8,6 +8,8 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/CollisionProfile.h"
 
+#include <type_traits>
+
 #include "PCGActorHelpers.generated.h"
 
 class AActor;
@@ -16,6 +18,7 @@ class UStaticMesh;
 class UPCGComponent;
 class UMaterialInterface;
 class UActorComponent;
+class ULevel;
 
 struct FPCGISMCBuilderParameters
 {
@@ -41,4 +44,12 @@ public:
 	* @param InComponentClass if supplied will be used to filter the results
 	*/
 	static void GetActorClassDefaultComponents(const TSubclassOf<AActor>& ActorClass, TArray<UActorComponent*>& OutComponents, const TSubclassOf<UActorComponent>& InComponentClass = TSubclassOf<UActorComponent>());
+
+	template <typename T, typename = typename std::enable_if_t<std::is_base_of_v<AActor, T>>>
+	static void ForEachActorInLevel(TObjectPtr<ULevel> Level, TFunctionRef<void(AActor*)> Callback)
+	{
+		return ForEachActorInLevel(Level, T::StaticClass(), Callback);
+	}
+
+	static void ForEachActorInLevel(TObjectPtr<ULevel> Level, TSubclassOf<AActor> ActorClass, TFunctionRef<void(AActor*)> Callback);
 };

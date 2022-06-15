@@ -602,7 +602,7 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 	TObjectPtr<UPCGEditorGraphNodeBase> SubgraphEditorNode;
 	TObjectPtr<UPCGNode> SubgraphNode;
 	{
-		const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorCollapseInSubgraphMessage", "PCG Editor: Collapse in Subgraph"), nullptr);
+		const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorCollapseInSubgraphMessage", "PCG Editor: Collapse into Subgraph"), nullptr);
 
 		DeleteSelectedNodes();
 

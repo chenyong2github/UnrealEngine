@@ -5,6 +5,7 @@
 #include "PCGWorldActor.h"
 #include "Graph/PCGGraphExecutor.h"
 #include "Grid/PCGPartitionActor.h"
+#include "Helpers/PCGActorHelpers.h"
 
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -168,7 +169,14 @@ namespace PCGSubsystem
 			if (IntersectedBounds.IsValid)
 			{
 				TSharedPtr<TSet<FWorldPartitionReference>> ActorReferences = MakeShared<TSet<FWorldPartitionReference>>();
-				APCGPartitionActor* PCGActor = Cast<APCGPartitionActor>(PartitionSubsystem->GetActor(APCGPartitionActor::StaticClass(), CellCoord, bCreateActor));
+
+				auto PostCreation = [](APartitionActor* Actor) { CastChecked<APCGPartitionActor>(Actor)->PostCreation(); };
+
+				const bool bInBoundsSearch = true;
+				const FGuid DefaultGridGuid;
+				const uint32 DefaultGridSize = 0;
+
+				APCGPartitionActor* PCGActor = Cast<APCGPartitionActor>(PartitionSubsystem->GetActor(APCGPartitionActor::StaticClass(), CellCoord, bCreateActor, DefaultGridGuid, DefaultGridSize, bInBoundsSearch, PostCreation));
 
 				// At this point, if bCreateActor was true, then it exists, but it is not currently loaded; make sure it is loaded
 				// Otherwise, we still need to load it if it exists
@@ -461,6 +469,14 @@ void UPCGSubsystem::CleanupPartitionActors(const FBox& InBounds)
 
 void UPCGSubsystem::DeletePartitionActors()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DeletePartitionActors);
+
+	// TODO: This should be handled differently when we are able to stop a generation
+	// For now, we need to be careful and not delete partition actors that are linked to components that are currently
+	// generating stuff.
+	// Also, we keep a set on all those actors, in case the partition actor status changes during the loop.
+	TSet<TObjectPtr<APCGPartitionActor>> ActorsNotSafeToBeDeleted;
+
 	TSet<UPackage*> PackagesToCleanup;
 	TSet<FString> PackagesToDeleteFromSCC;
 	UWorld* World = GetWorld();
@@ -470,11 +486,35 @@ void UPCGSubsystem::DeletePartitionActors()
 		return;
 	}
 
-	auto GatherAndDestroyActors = [&PackagesToCleanup, &PackagesToDeleteFromSCC, World](const FWorldPartitionActorDesc* ActorDesc) {
+	auto GatherAndDestroyLoadedActors = [&PackagesToCleanup, &PackagesToDeleteFromSCC, World, &ActorsNotSafeToBeDeleted](AActor* Actor)
+	{
+		// Make sure that this actor was not flagged to not be deleted, or not safe for deletion
+		TObjectPtr<APCGPartitionActor> PartitionActor = CastChecked<APCGPartitionActor>(Actor);
+		if (!PartitionActor->IsSafeForDeletion())
+		{
+			ActorsNotSafeToBeDeleted.Add(PartitionActor);
+		}
+		else if (!ActorsNotSafeToBeDeleted.Contains(PartitionActor))
+		{
+			// Also reset the last generated bounds to indicate to the component to re-create its PartitionActors when it generates.
+			for (TObjectPtr<UPCGComponent> PCGComponent : PartitionActor->GetAllOriginalPCGComponents())
+			{
+				PCGComponent->ResetLastGeneratedBounds();
+			}
+
+			if (UPackage* ExternalPackage = PartitionActor->GetExternalPackage())
+			{
+				PackagesToCleanup.Add(ExternalPackage);
+			}
+
+			World->DestroyActor(PartitionActor);
+		}
+	};
+
+	auto GatherAndDestroyActors = [&PackagesToCleanup, &PackagesToDeleteFromSCC, World, &ActorsNotSafeToBeDeleted, &GatherAndDestroyLoadedActors](const FWorldPartitionActorDesc* ActorDesc) {
 		if (ActorDesc->GetActor())
 		{
-			PackagesToCleanup.Add(ActorDesc->GetActor()->GetExternalPackage());
-			World->DestroyActor(ActorDesc->GetActor());
+			GatherAndDestroyLoadedActors(ActorDesc->GetActor());
 		}
 		else
 		{
@@ -492,6 +532,19 @@ void UPCGSubsystem::DeletePartitionActors()
 	}
 
 	FWorldPartitionHelpers::ForEachActorDesc<APCGPartitionActor>(World->GetWorldPartition(), GatherAndDestroyActors);
+
+	// Also cleanup the remaining actors that don't have descriptors, if we have a loaded level
+	if (ULevel* Level = World->GetCurrentLevel())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DeletePartitionActors::ForEachActorInLevel);
+		UPCGActorHelpers::ForEachActorInLevel<APCGPartitionActor>(Level, GatherAndDestroyLoadedActors);
+	}
+
+	if (!ActorsNotSafeToBeDeleted.IsEmpty())
+	{
+		// FIXME: see at the top for this function.
+		UE_LOG(LogPCG, Error, TEXT("Tried to delete PCGPartitionActors while their PCGComponent were refreshing. All PCGPartitionActors that are linked to those PCGComponents won't be deleted. You should retry deleting them when the refresh is done."));
+	}
 
 	if (PackagesToCleanup.Num() > 0)
 	{

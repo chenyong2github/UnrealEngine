@@ -27,7 +27,23 @@ public:
 	static APCGWorldActor* CreatePCGWorldActor(UWorld* InWorld);
 #endif
 
+	static inline constexpr uint32 DefaultPartitionGridSize = 25600; // 256m
+
+	//~ Begin UObject Interface.
+#if WITH_EDITOR	
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	//~ End UObject Interface.
+
+	/** Size of the grid for PCG partition actors */
+	UPROPERTY(config, EditAnywhere, Category = WorldPartition)
+	uint32 PartitionGridSize;
+
 private:
 	void RegisterToSubsystem();
 	void UnregisterFromSubsystem();
+
+#if WITH_EDITOR	
+	void OnPartitionGridSizeChanged();
+#endif
 };

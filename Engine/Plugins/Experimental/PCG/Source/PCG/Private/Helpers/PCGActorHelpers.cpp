@@ -9,6 +9,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/InheritableComponentHandler.h"
+#include "Engine/Level.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/StaticMesh.h"
@@ -285,4 +286,20 @@ void UPCGActorHelpers::GetActorClassDefaultComponents(const TSubclassOf<AActor>&
 	}
 
 	OutComponents = MoveTemp(ResultComponents);
+}
+
+void UPCGActorHelpers::ForEachActorInLevel(TObjectPtr<ULevel> Level, TSubclassOf<AActor> ActorClass, TFunctionRef<void(AActor*)> Callback)
+{
+	if (!Level)
+	{
+		return;
+	}
+
+	for (AActor* Actor : Level->Actors)
+	{
+		if (Actor && Actor->IsA(ActorClass))
+		{
+			Callback(Actor);
+		}
+	}
 }

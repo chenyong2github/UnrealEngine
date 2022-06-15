@@ -19,6 +19,12 @@ class APCGPartitionActor : public APartitionActor
 	GENERATED_BODY()
 
 public:
+	APCGPartitionActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	//~Begin UObject Interface
+	virtual void PostLoad() override;
+	//~End UObject Interface
+
 	//~Begin AActor Interface
 	virtual void BeginPlay();
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -41,6 +47,18 @@ public:
 	void AddGraphInstance(UPCGComponent* OriginalComponent);
 	bool RemoveGraphInstance(UPCGComponent* OriginalComponent);
 	bool CleanupDeadGraphInstances();
+
+	/** To be called after the creation of a new actor to copy the GridSize property (Editor only) into the PCGGridSize property */
+	void PostCreation();
+
+	/** [Game thread only] Return if the actor is safe for deletion, meaning no generation is currently running on all original components. */
+	bool IsSafeForDeletion() const;
+
+	/** Return an array of all the PCGComponents on this actor */
+	TSet<TObjectPtr<UPCGComponent>> GetAllLocalPCGComponents() const;
+
+	/** Return a set of all the PCGComponents linked to this actor */
+	TSet<TObjectPtr<UPCGComponent>> GetAllOriginalPCGComponents() const;
 #endif
 
 	// TODO: Make this in-editor only; during runtime, we should keep a map of component to bounds/volume only
@@ -61,4 +79,7 @@ private:
 
 	UPROPERTY()
 	TMap<TObjectPtr<UPCGComponent>, TObjectPtr<UPCGComponent>> LocalToOriginalMap;
+
+	UPROPERTY(VisibleAnywhere, Category = WorldPartition)
+	uint32 PCGGridSize;
 };

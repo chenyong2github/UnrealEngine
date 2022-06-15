@@ -116,6 +116,12 @@ public:
 #if WITH_EDITOR
 	void Refresh();
 	void DirtyGenerated(bool bInDirtyCachedInput = false);
+
+	/** Reset last generated bounds to force PCGPartitionActor creation on next refresh */
+	void ResetLastGeneratedBounds();
+
+	/** Return if we are currently generating the graph for this component */
+	bool IsGenerating() const { return bIsGenerating; }
 #endif
 
 	bool IsPartitioned() const;

@@ -552,16 +552,11 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 				bActivated = false;
 				Refresh();
 
-				// Invalidate the previous bounds to force actor creation (as if we moved the volume)
-				// if we are now partitioned
-				if (bIsNowPartitioned)
-				{
-					LastGeneratedBounds = FBox(EForceInit::ForceInit);
-				}
-
-				// And do a normal refresh
+				// Then invalidate the previous bounds to force actor creation (as if we moved the volume)
+				// and do a normal refresh
 				bActivated = true;
 				bIsPartitioned = bIsNowPartitioned;
+				ResetLastGeneratedBounds();
 				DirtyGenerated();
 				Refresh();
 			}
@@ -1017,6 +1012,11 @@ void UPCGComponent::DirtyGenerated(bool bInDirtyCachedInput)
 			GetSubsystem()->DirtyGraph(this, LastGeneratedBounds, bInDirtyCachedInput);
 		}
 	}
+}
+
+void UPCGComponent::ResetLastGeneratedBounds()
+{
+	LastGeneratedBounds = FBox(EForceInit::ForceInit);
 }
 
 void UPCGComponent::Refresh()
