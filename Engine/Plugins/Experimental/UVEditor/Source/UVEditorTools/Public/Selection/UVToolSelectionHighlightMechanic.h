@@ -75,6 +75,14 @@ public:
 	void RebuildAppliedHighlightFromUnwrapSelection(const TArray<FUVToolSelection>& UnwrapSelections, bool bUsePreviews = false);
 
 	/**
+	 * Adds additional highlighting elements based on selection information. This is used to extend selection
+	 * line sets for the unset selections if they are needed. 
+	 *
+	 * @param bUsePreviews If true, the previews are used rather than the canonicals for finding the highlight positions.
+	 */
+	void AppendAppliedHighlight(const TArray<FUVToolSelection>& AppliedSelections, bool bUsePreviews = false);
+
+	/**
 	 * When true, edge selections also highlight the edge pairings (i.e. edges that could weld with the
 	 * selected edges). Note that the call itself controls visibility and the next rebuild call, but 
 	 * won't cause an immediate rebuild on its own.

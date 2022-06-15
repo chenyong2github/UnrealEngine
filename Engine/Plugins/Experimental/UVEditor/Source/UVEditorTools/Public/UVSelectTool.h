@@ -68,7 +68,7 @@ public:
 	virtual bool HasAccept() const override { return false; }
 
 protected:
-	virtual void OnSelectionChanged(bool bEmitChangeAllowed);
+	virtual void OnSelectionChanged(bool bEmitChangeAllowed, uint32 SelectionChangeType);
 
 	// Callbacks we'll receive from the gizmo proxy
 	virtual void GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform);

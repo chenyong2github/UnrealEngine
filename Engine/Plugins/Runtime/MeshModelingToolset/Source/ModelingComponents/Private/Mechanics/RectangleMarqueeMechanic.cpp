@@ -224,7 +224,14 @@ TPair<FInputCapturePriority, FInputCapturePriority> URectangleMarqueeMechanic::G
 void URectangleMarqueeMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	// Cache the camera state
-	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraRectangle.CameraState);
+	if (bUseExternalUpdateCameraState && ensureMsgf(UpdateCameraStateFunc, TEXT("bUseExternalUpdateCameraState is requested, but no update function has been provided.")))
+	{
+		CameraRectangle.CameraState = UpdateCameraStateFunc();
+	}
+	else
+	{
+		GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraRectangle.CameraState);
+	}
 }
 
 FInputRayHit URectangleMarqueeMechanic::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)

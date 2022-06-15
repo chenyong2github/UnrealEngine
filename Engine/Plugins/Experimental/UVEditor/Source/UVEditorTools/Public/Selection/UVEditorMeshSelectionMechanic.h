@@ -23,16 +23,15 @@ class UMaterialInstanceDynamic;
 class UPointSetComponent;
 class UTriangleSetComponent;
 class UUVToolViewportButtonsAPI;
-
+class ULocalSingleClickInputBehavior;
+class ULocalMouseHoverBehavior;
 
 /**
  * Mechanic for selecting elements of a dynamic mesh in the UV editor. Interacts
  * heavily with UUVToolSelectionAPI, which actually stores selections.
  */
 UCLASS()
-class UVEDITORTOOLS_API UUVEditorMeshSelectionMechanic : public UInteractionMechanic, 
-	public IClickBehaviorTarget,
-	public IHoverBehaviorTarget
+class UVEDITORTOOLS_API UUVEditorMeshSelectionMechanic : public UInteractionMechanic
 {
 	GENERATED_BODY()
 
@@ -49,7 +48,7 @@ public:
 	// The selection API is provided as a parameter rather than being grabbed out of the context
 	// store mainly because UVToolSelectionAPI itself sets up a selection mechanic, and is not 
 	// yet in the context store when it does this. 
-	void Initialize(UWorld* World, UUVToolSelectionAPI* SelectionAPI);
+	void Initialize(UWorld* World, UWorld* LivePreviewWorld, UUVToolSelectionAPI* SelectionAPI);
 	void SetTargets(const TArray<TObjectPtr<UUVEditorToolMeshInput>>& TargetsIn);
 
 	void SetIsEnabled(bool bIsEnabled);
@@ -64,22 +63,23 @@ public:
 	 */
 	void SetSelectionMode(ESelectionMode TargetMode,
 		const FModeChangeOptions& Options = FModeChangeOptions());
-
+	
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
-
+	virtual void LivePreviewRender(IToolsContextRenderAPI* RenderAPI);
+	virtual void LivePreviewDrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
 	// IClickBehaviorTarget implementation
-	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
-	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
+	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos, bool bSourceIsLivePreview);
+	virtual void OnClicked(const FInputDeviceRay& ClickPos, bool bSourceIsLivePreview);
 
 	// IModifierToggleBehaviorTarget implementation
-	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn);
 
 	// IHoverBehaviorTarget implementation
-	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
-	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override;
-	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
-	virtual void OnEndHover() override;
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos, bool bSourceIsLivePreview);
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos);
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos, bool bSourceIsLivePreview);
+	virtual void OnEndHover();
 
 	/**
 	 * Broadcasted whenever the marquee mechanic rectangle is changed, since these changes
@@ -99,7 +99,25 @@ protected:
 	TObjectPtr<UUVToolEmitChangeAPI> EmitChangeAPI = nullptr;
 
 	UPROPERTY()
+	TObjectPtr<UUVToolLivePreviewAPI> LivePreviewAPI = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<ULocalSingleClickInputBehavior> UnwrapClickTargetRouter = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<ULocalSingleClickInputBehavior> LivePreviewClickTargetRouter = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<ULocalMouseHoverBehavior> UnwrapHoverBehaviorTargetRouter = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<ULocalMouseHoverBehavior> LivePreviewHoverBehaviorTargetRouter = nullptr;
+
+	UPROPERTY()
 	TObjectPtr<URectangleMarqueeMechanic> MarqueeMechanic = nullptr;
+	
+	UPROPERTY()
+	TObjectPtr<URectangleMarqueeMechanic> LivePreviewMarqueeMechanic = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> HoverTriangleSetMaterial = nullptr;
@@ -111,16 +129,33 @@ protected:
 	TWeakObjectPtr<ULineSetComponent> HoverLineSet = nullptr;
 	TWeakObjectPtr<UPointSetComponent> HoverPointSet = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UInputBehaviorSet> LivePreviewBehaviorSet = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<ULocalInputBehaviorSource> LivePreviewBehaviorSource = nullptr;
+
+	TWeakObjectPtr<UInputRouter> LivePreviewInputRouter = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<APreviewGeometryActor> LivePreviewHoverGeometryActor = nullptr;
+	// Weak pointers so that they go away when geometry actor is destroyed
+	TWeakObjectPtr<UTriangleSetComponent> LivePreviewHoverTriangleSet = nullptr;
+	TWeakObjectPtr<ULineSetComponent> LivePreviewHoverLineSet = nullptr;
+	TWeakObjectPtr<UPointSetComponent> LivePreviewHoverPointSet = nullptr;
+
 	// Should be the same as the mode-level targets array, indexed by AssetID
+	TSharedPtr<FDynamicMeshAABBTree3> GetMeshSpatial(int32 TargetId, bool bUseUnwrap);
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
-	TArray<TSharedPtr<FDynamicMeshAABBTree3>> MeshSpatials; // 1:1 with Targets
+	TArray<TSharedPtr<FDynamicMeshAABBTree3>> UnwrapMeshSpatials; // 1:1 with Targets
+	TArray<TSharedPtr<FDynamicMeshAABBTree3>> AppliedMeshSpatials; // 1:1 with Targets
 
 	ESelectionMode SelectionMode;
 	bool bIsEnabled = false;
 	bool bShowHoveredElements = true;
 
 	bool GetHitTid(const FInputDeviceRay& ClickPos, int32& TidOut,
-		int32& AssetIDOut, int32* ExistingSelectionObjectIndexOut = nullptr);
+		int32& AssetIDOut, bool bUseUnwrap, int32* ExistingSelectionObjectIndexOut = nullptr);
 	void ModifyExistingSelection(TSet<int32>& SelectionSetToModify, const TArray<int32>& SelectedIDs);
 
 	FViewCameraState CameraState;
@@ -138,11 +173,14 @@ protected:
 
 	// For marquee mechanic
 	void OnDragRectangleStarted();
-	void OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle);
-	void OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled);
+	void OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle, bool bSourceIsLivePreview);
+	void OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled, bool bSourceIsLivePreview);
+
 	TArray<FUVToolSelection> PreDragSelections;
+	TArray<FUVToolSelection> PreDragUnsetSelections;
 	// Maps asset id to a pre drag selection so that it is easy to tell which assets
 	// started with a selection. 1:1 with Targets.
 	TArray<const FUVToolSelection*> AssetIDToPreDragSelection;
+	TArray<const FUVToolSelection*> AssetIDToPreDragUnsetSelection;
 };
 

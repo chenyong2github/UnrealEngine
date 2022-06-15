@@ -56,7 +56,8 @@ void UUVToolSelectionAPI::Initialize(
 
 	SelectionMechanic = NewObject<UUVEditorMeshSelectionMechanic>();
 	SelectionMechanic->Setup(MechanicAdapter);
-	SelectionMechanic->Initialize(UnwrapWorld, this);
+	SelectionMechanic->Initialize(UnwrapWorld, LivePreviewAPI->GetLivePreviewWorld(), this);
+
 	UnwrapInputRouter->RegisterSource(MechanicAdapter);
 }
 
@@ -140,7 +141,23 @@ void UUVToolSelectionAPI::SetSelections(const TArray<FUVToolSelection>& Selectio
 {
 	using namespace UVToolSelectionAPILocals;
 
+	bool bUsingExistingTransaction = bEmitChange;
+	if (bEmitChange && ensureMsgf(!PendingSelectionChange && !PendingUnsetSelectionChange,
+		TEXT("SetSelections called with bEmitChange while an existing SelectionAPI change transaction is already open. This should be safe but bEmitChange does not need to be explicitly set.")))
+	{
+		BeginChange();
+		bUsingExistingTransaction = false;
+	}
+	bool bWillCallEndChange = bEmitChange && !bUsingExistingTransaction;
+
+
 	bCachedUnwrapSelectionCentroidValid = false;
+
+	// If we don't match with the current unset selection type, just clear them to keep everything consistent
+	if (CurrentUnsetSelections.Num() > 0 && SelectionsIn.Num() > 0 && SelectionsIn[0].Type != CurrentUnsetSelections[0].Type)
+	{
+		CurrentUnsetSelections.Empty();
+	}
 
 	TArray<FUVToolSelection> NewSelections;
 	for (const FUVToolSelection& NewSelection : SelectionsIn)
@@ -171,59 +188,35 @@ void UUVToolSelectionAPI::SetSelections(const TArray<FUVToolSelection>& Selectio
 		}
 	}
 
-	if (!DoSelectionSetsDiffer(CurrentSelections, NewSelections))
+	bool bSelectionsDiffer = false;
+	if (!bWillCallEndChange)
 	{
-		return;
-	}
-
-	if (bEmitChange)
-	{
-		EmitChangeAPI->BeginUndoTransaction(SelectionChangeTransactionName);
-	}
-
-	if (bBroadcast)
-	{
-		OnPreSelectionChange.Broadcast(bEmitChange);
-	}
-
-	TUniquePtr<FSelectionChange> SelectionChange;
-	if (bEmitChange)
-	{
-		SelectionChange = MakeUnique<FSelectionChange>();
-		SelectionChange->SetBefore(MoveTemp(CurrentSelections));
+		bSelectionsDiffer = DoSelectionSetsDiffer(CurrentSelections, NewSelections);
 	}
 
 	CurrentSelections = MoveTemp(NewSelections);
 
-	if (bEmitChange)
+	if (bWillCallEndChange)
 	{
-		SelectionChange->SetAfter(CurrentSelections);
-		EmitChangeAPI->EmitToolIndependentChange(this, MoveTemp(SelectionChange),
-			SelectionChangeTransactionName);
+		bSelectionsDiffer = EndChangeAndEmitIfModified(bBroadcast);
 	}
 
-	if (HighlightOptions.bAutoUpdateUnwrap)
+	if (bSelectionsDiffer)
 	{
-		FTransform Transform = FTransform::Identity;
-		if (HighlightOptions.bUseCentroidForUnwrapAutoUpdate)
+
+		if (HighlightOptions.bAutoUpdateUnwrap)
 		{
-			Transform = FTransform(GetUnwrapSelectionCentroid());
+			FTransform Transform = FTransform::Identity;
+			if (HighlightOptions.bUseCentroidForUnwrapAutoUpdate)
+			{
+				Transform = FTransform(GetUnwrapSelectionCentroid());
+			}
+			RebuildUnwrapHighlight(Transform);
 		}
-		RebuildUnwrapHighlight(Transform);
-	}
-	if (HighlightOptions.bAutoUpdateApplied)
-	{
-		RebuildAppliedPreviewHighlight();
-	}
-
-	if (bBroadcast)
-	{
-		OnSelectionChanged.Broadcast(bEmitChange);
-	}
-
-	if (bEmitChange)
-	{
-		EmitChangeAPI->EndUndoTransaction();
+		if (HighlightOptions.bAutoUpdateApplied)
+		{
+			RebuildAppliedPreviewHighlight();
+		}
 	}
 }
 
@@ -295,6 +288,81 @@ FVector3d UUVToolSelectionAPI::GetUnwrapSelectionCentroid(bool bForceRecalculate
 	return Centroid;
 }
 
+
+bool UUVToolSelectionAPI::HaveUnsetElementAppliedMeshSelections() const
+{
+	return CurrentUnsetSelections.Num() > 0;
+}
+
+void UUVToolSelectionAPI::SetUnsetElementAppliedMeshSelections(const TArray<FUVToolSelection>& UnsetSelectionsIn, bool bBroadcast, bool bEmitChange)
+{
+	using namespace UVToolSelectionAPILocals;
+
+	bool bUsingExistingTransaction = bEmitChange;
+	if (bEmitChange && ensureMsgf(!PendingSelectionChange && !PendingUnsetSelectionChange,
+		TEXT("SetUnsetSelections called with bEmitChange while an existing SelectionAPI change transaction is already open. This should be safe but bEmitChange does not need to be explicitly set.")))
+	{
+		BeginChange();
+		bUsingExistingTransaction = false;
+	}
+	bool bWillCallEndChange = bEmitChange && !bUsingExistingTransaction;
+
+	// If we don't match with the current unset selection type, just clear them to keep everything consistent
+	if (CurrentSelections.Num() > 0 && UnsetSelectionsIn.Num() > 0 && UnsetSelectionsIn[0].Type != CurrentSelections[0].Type)
+	{
+		CurrentSelections.Empty();
+	}
+
+	TArray<FUVToolSelection> NewUnsetSelections;
+	for (const FUVToolSelection& NewUnsetSelection : UnsetSelectionsIn)
+	{
+		if (ensure(NewUnsetSelection.Target.IsValid() && NewUnsetSelection.Target->IsValid())
+			// All of the unset selections should match type
+			&& ensure(NewUnsetSelections.Num() == 0 || NewUnsetSelection.Type == NewUnsetSelections[0].Type)
+			// Unset selection must not be empty
+			&& ensure(!NewUnsetSelection.IsEmpty())
+				// Shouldn't have unset selection objects pointing to same target
+			&& ensure(!NewUnsetSelections.FindByPredicate(
+				[&NewUnsetSelection](const FUVToolSelection& ExistingSelectionElement) {
+					return NewUnsetSelection.Target == ExistingSelectionElement.Target;
+				})))
+		{
+			NewUnsetSelections.Add(NewUnsetSelection);
+
+			if (NewUnsetSelection.Target.IsValid() && ensure(NewUnsetSelection.Target->UnwrapCanonical))
+			{
+				// These are unset, so they better not be in the Unwrap mesh
+				checkSlow(!NewUnsetSelection.AreElementsPresentInMesh(*NewUnsetSelection.Target->UnwrapCanonical));
+			}
+		}
+	}
+
+	bool bSelectionsDiffer = false;
+	if (!bWillCallEndChange)
+	{
+		bSelectionsDiffer = DoSelectionSetsDiffer(CurrentUnsetSelections, NewUnsetSelections);
+	}
+
+	CurrentUnsetSelections = MoveTemp(NewUnsetSelections);
+
+	if (bWillCallEndChange)
+	{
+		bSelectionsDiffer = EndChangeAndEmitIfModified(bBroadcast);
+	}
+
+	if (bSelectionsDiffer)
+	{
+		if (HighlightOptions.bAutoUpdateApplied)
+		{
+			RebuildAppliedPreviewHighlight();
+		}
+	}
+}
+
+void UUVToolSelectionAPI::ClearUnsetElementAppliedMeshSelections(bool bBroadcast, bool bEmitChange)
+{
+	SetUnsetElementAppliedMeshSelections(TArray<FUVToolSelection>(), bBroadcast, bEmitChange);
+}
 
 void UUVToolSelectionAPI::SetHighlightVisible(bool bUnwrapHighlightVisible, bool bAppliedHighlightVisible, bool bRebuild)
 {
@@ -394,6 +462,8 @@ void UUVToolSelectionAPI::RebuildAppliedPreviewHighlight()
 		HighlightMechanic->RebuildAppliedHighlightFromUnwrapSelection(CurrentSelections,
 			HighlightOptions.bBaseHighlightOnPreviews);
 	}
+	HighlightMechanic->AppendAppliedHighlight(CurrentUnsetSelections,
+		HighlightOptions.bBaseHighlightOnPreviews);
 }
 
 void UUVToolSelectionAPI::Render(IToolsContextRenderAPI* RenderAPI)
@@ -412,51 +482,85 @@ void UUVToolSelectionAPI::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* Rende
 }
 void UUVToolSelectionAPI::LivePreviewRender(IToolsContextRenderAPI* RenderAPI)
 {
-	//TODO: here we'd route the render call to whatever mechanic is dealing with selection in live preview
+	if (SelectionMechanic)
+	{
+		SelectionMechanic->LivePreviewRender(RenderAPI);
+	}
 }
 void UUVToolSelectionAPI::LivePreviewDrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
-	//TODO: here we'd route the DrawHUD call to whatever mechanic is dealing with selection in live preview
+	if (SelectionMechanic)
+	{
+		SelectionMechanic->LivePreviewDrawHUD(Canvas, RenderAPI);
+	}
 }
 
 void UUVToolSelectionAPI::BeginChange()
 {
 	PendingSelectionChange = MakeUnique<FSelectionChange>();
+	PendingUnsetSelectionChange = MakeUnique<FUnsetSelectionChange>();
 	FSelectionChange* CastSelectionChange = static_cast<FSelectionChange*>(PendingSelectionChange.Get());
 	CastSelectionChange->SetBefore(GetSelections());
+	FUnsetSelectionChange* CastUnsetSelectionChange = static_cast<FUnsetSelectionChange*>(PendingUnsetSelectionChange.Get());
+	CastUnsetSelectionChange->SetBefore(GetUnsetElementAppliedMeshSelections());
+
 }
 
 bool UUVToolSelectionAPI::EndChangeAndEmitIfModified(bool bBroadcast)
 {
 	using namespace UVToolSelectionAPILocals;
 
-	if (!PendingSelectionChange)
+	if (!PendingSelectionChange && !PendingUnsetSelectionChange)
 	{
 		return false;
 	}
 
 	FSelectionChange* CastSelectionChange = static_cast<FSelectionChange*>(PendingSelectionChange.Get());
-	
+	FUnsetSelectionChange* CastUnsetSelectionChange = static_cast<FUnsetSelectionChange*>(PendingUnsetSelectionChange.Get());
+
+	bool bSelectionDiffer = true;
+	bool bUnsetSelectionDiffer = true;
 	// See if the selection has changed
 	if (!DoSelectionSetsDiffer(CastSelectionChange->GetBefore(), GetSelections()))
 	{
-		PendingSelectionChange.Reset();
+		PendingSelectionChange.Reset();		
+		bSelectionDiffer = false;
+	}
+	if (!DoSelectionSetsDiffer(CastUnsetSelectionChange->GetBefore(), GetUnsetElementAppliedMeshSelections()))
+	{
+		PendingUnsetSelectionChange.Reset();
+		bUnsetSelectionDiffer = false;
+	}
+	if (!bSelectionDiffer && !bUnsetSelectionDiffer)
+	{
 		return false;
 	}
 
 	EmitChangeAPI->BeginUndoTransaction(SelectionChangeTransactionName);
-	if (bBroadcast)
+	if (bBroadcast && (bSelectionDiffer || bUnsetSelectionDiffer))
 	{
-		OnPreSelectionChange.Broadcast(true);
+		OnPreSelectionChange.Broadcast(true, (uint32)((bSelectionDiffer ? ESelectionChangeTypeFlag::SelectionChanged : ESelectionChangeTypeFlag::None) |
+			                                          (bUnsetSelectionDiffer ? ESelectionChangeTypeFlag::UnsetSelectionChanged : ESelectionChangeTypeFlag::None)));
 	}
-	CastSelectionChange->SetAfter(GetSelections());
-	EmitChangeAPI->EmitToolIndependentChange(this, MoveTemp(PendingSelectionChange),
-		SelectionChangeTransactionName);
-	PendingSelectionChange.Reset();
-
-	if (bBroadcast)
+	if (bSelectionDiffer)
 	{
-		OnSelectionChanged.Broadcast(true);
+		CastSelectionChange->SetAfter(GetSelections());
+		EmitChangeAPI->EmitToolIndependentChange(this, MoveTemp(PendingSelectionChange),
+			SelectionChangeTransactionName);
+		PendingSelectionChange.Reset();
+	}
+	if (bUnsetSelectionDiffer)
+	{
+		CastUnsetSelectionChange->SetAfter(GetUnsetElementAppliedMeshSelections());
+		EmitChangeAPI->EmitToolIndependentChange(this, MoveTemp(PendingUnsetSelectionChange),
+			SelectionChangeTransactionName);
+		PendingUnsetSelectionChange.Reset();
+	}
+
+	if (bBroadcast && (bSelectionDiffer || bUnsetSelectionDiffer))
+	{
+		OnSelectionChanged.Broadcast(true, (uint32)((bSelectionDiffer ? ESelectionChangeTypeFlag::SelectionChanged : ESelectionChangeTypeFlag::None) |
+													(bUnsetSelectionDiffer ? ESelectionChangeTypeFlag::UnsetSelectionChanged : ESelectionChangeTypeFlag::None)));
 	}
 	EmitChangeAPI->EndUndoTransaction();
 
@@ -538,7 +642,6 @@ void UUVToolSelectionAPI::FSelectionChange::Apply(UObject* Object)
 				}
 			}
 		}
-
 		SelectionAPI->SetSelections(After, true, false);
 	}
 }
@@ -560,7 +663,6 @@ void UUVToolSelectionAPI::FSelectionChange::Revert(UObject* Object)
 				}
 			}
 		}
-
 		SelectionAPI->SetSelections(Before, true, false);
 	}
 }
@@ -570,5 +672,42 @@ FString UUVToolSelectionAPI::FSelectionChange::ToString() const
 	return TEXT("UUVToolSelectionAPI::FSelectionChange");
 }
 
+void UUVToolSelectionAPI::FUnsetSelectionChange::SetBefore(TArray<FUVToolSelection> SelectionsIn)
+{
+	Before = MoveTemp(SelectionsIn);
+}
+
+void UUVToolSelectionAPI::FUnsetSelectionChange::SetAfter(TArray<FUVToolSelection> SelectionsIn)
+{
+	After = MoveTemp(SelectionsIn);
+}
+
+const TArray<FUVToolSelection>& UUVToolSelectionAPI::FUnsetSelectionChange::GetBefore() const
+{
+	return Before;
+}
+
+void UUVToolSelectionAPI::FUnsetSelectionChange::Apply(UObject* Object)
+{
+	UUVToolSelectionAPI* SelectionAPI = Cast<UUVToolSelectionAPI>(Object);
+	if (SelectionAPI)
+	{
+		SelectionAPI->SetUnsetElementAppliedMeshSelections(After, true, false);
+	}
+}
+
+void UUVToolSelectionAPI::FUnsetSelectionChange::Revert(UObject* Object)
+{
+	UUVToolSelectionAPI* SelectionAPI = Cast<UUVToolSelectionAPI>(Object);
+	if (SelectionAPI)
+	{
+		SelectionAPI->SetUnsetElementAppliedMeshSelections(Before, true, false);
+	}
+}
+
+FString UUVToolSelectionAPI::FUnsetSelectionChange::ToString() const
+{
+	return TEXT("UUVToolSelectionAPI::FUnsetSelectionChange");
+}
 
 #undef LOCTEXT_NAMESPACE

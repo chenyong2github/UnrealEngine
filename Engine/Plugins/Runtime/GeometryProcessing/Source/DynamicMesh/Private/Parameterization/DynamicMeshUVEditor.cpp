@@ -551,6 +551,10 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromConformal(const TArray<int32>& Tria
 
 	for (int32 tid : Triangles)
 	{
+		if (bUseExistingUVTopology && !UVOverlay->IsSetTriangle(tid))
+		{
+			continue;
+		}
 		FIndex3i Triangle = (bUseExistingUVTopology) ? UVOverlay->GetTriangle(tid) : Mesh->GetTriangle(tid);
 		FIndex3i NewTriangle;
 		for (int32 j = 0; j < 3; ++j)

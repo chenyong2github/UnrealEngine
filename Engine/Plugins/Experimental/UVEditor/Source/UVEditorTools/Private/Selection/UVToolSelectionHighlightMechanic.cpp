@@ -33,12 +33,12 @@ void UUVToolSelectionHighlightMechanic::Initialize(UWorld* UnwrapWorld, UWorld* 
 	{
 		LivePreviewGeometryActor->Destroy();
 	}
-	
+
 	// Owns most of the unwrap geometry except for the unselected paired edges, since we don't
 	// want those to move if we change the actor transform via SetUnwrapHighlightTransform
 	UnwrapGeometryActor = UnwrapWorld->SpawnActor<APreviewGeometryActor>(
 		FVector::ZeroVector, FRotator(0, 0, 0), FActorSpawnParameters());
-	
+
 	UnwrapTriangleSet = NewObject<UTriangleSetComponent>(UnwrapGeometryActor);
 	// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
 	// where multiple translucent layers are drawn on top of each other but still need depth sorting.
@@ -85,14 +85,14 @@ void UUVToolSelectionHighlightMechanic::Initialize(UWorld* UnwrapWorld, UWorld* 
 	// Owns the highlights in the live preview.
 	LivePreviewGeometryActor = LivePreviewWorld->SpawnActor<APreviewGeometryActor>(
 		FVector::ZeroVector, FRotator(0, 0, 0), FActorSpawnParameters());
-	
+
 	LivePreviewLineSet = NewObject<ULineSetComponent>(LivePreviewGeometryActor);
 	LivePreviewLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
 		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
 	LivePreviewGeometryActor->SetRootComponent(LivePreviewLineSet.Get());
 	LivePreviewLineSet->RegisterComponent();
-	
-	LivePreviewPointSet = NewObject<UPointSetComponent>(LivePreviewGeometryActor);	
+
+	LivePreviewPointSet = NewObject<UPointSetComponent>(LivePreviewGeometryActor);
 	LivePreviewPointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial(
 		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
 	LivePreviewPointSet->AttachToComponent(LivePreviewLineSet.Get(), FAttachmentTransformRules::KeepWorldTransform);
@@ -439,6 +439,99 @@ void UUVToolSelectionHighlightMechanic::RebuildAppliedHighlightFromUnwrapSelecti
 		}
 	}//end for selection
 }
+
+void UUVToolSelectionHighlightMechanic::AppendAppliedHighlight(const TArray<FUVToolSelection>& AppliedSelections, bool bUsePreviews)
+{
+	if (!ensure(LivePreviewGeometryActor))
+	{
+		return;
+	}
+
+	for (const FUVToolSelection& Selection : AppliedSelections)
+	{
+		if (!ensure(Selection.Target.IsValid() && Selection.Target->IsValid()))
+		{
+			return;
+		}
+
+		UUVEditorToolMeshInput* Target = Selection.Target.Get();
+
+		const FDynamicMesh3& AppliedMesh = bUsePreviews ? *Target->AppliedPreview->PreviewMesh->GetMesh()
+			: *Target->AppliedCanonical;
+
+		FTransform MeshTransform = Target->AppliedPreview->PreviewMesh->GetTransform();
+
+		auto AppendEdgeLine = [this, &AppliedMesh, &MeshTransform](int32 AppliedEid)
+		{
+			FVector3d Vert1, Vert2;
+			AppliedMesh.GetEdgeV(AppliedEid, Vert1, Vert2);
+
+			LivePreviewLineSet->AddLine(
+				MeshTransform.TransformPosition(Vert1),
+				MeshTransform.TransformPosition(Vert2),
+				FUVEditorUXSettings::SelectionTriangleWireframeColor,
+				FUVEditorUXSettings::LivePreviewHighlightThickness,
+				FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
+		};
+
+		if (Selection.Type == FUVToolSelection::EType::Triangle)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Triangle);
+
+			for (int32 Tid : Selection.SelectedIDs)
+			{
+				if (!ensure(AppliedMesh.IsTriangle(Tid)))
+				{
+					continue;
+				}
+
+				// Gather the boundary edges for the live preview
+				FIndex3i TriEids = AppliedMesh.GetTriEdges(Tid);
+				for (int i = 0; i < 3; ++i)
+				{
+					FIndex2i EdgeTids = AppliedMesh.GetEdgeT(TriEids[i]);
+					for (int j = 0; j < 2; ++j)
+					{
+						if (EdgeTids[j] != Tid && !Selection.SelectedIDs.Contains(EdgeTids[j]))
+						{
+							AppendEdgeLine(TriEids[i]);
+							break;
+						}
+					}
+				}//end for tri edges
+			}//end for selection tids
+		}
+		else if (Selection.Type == FUVToolSelection::EType::Edge)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Edge);
+
+			for (int32 Eid : Selection.SelectedIDs)
+			{
+				if (!ensure(AppliedMesh.IsEdge(Eid)))
+				{
+					continue;
+				}
+
+				AppendEdgeLine(Eid);
+			}
+		}
+		else if (Selection.Type == FUVToolSelection::EType::Vertex)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Vertex);
+
+			for (int32 Vid : Selection.SelectedIDs)
+			{
+				FVector3d Position = AppliedMesh.GetVertex(Vid);
+
+				LivePreviewPointSet->AddPoint(Position,
+					FUVEditorUXSettings::SelectionTriangleWireframeColor,
+					FUVEditorUXSettings::LivePreviewHighlightPointSize,
+					FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
+			}
+		}
+	}//end for selection
+}
+
 
 void UUVToolSelectionHighlightMechanic::SetEnablePairedEdgeHighlights(bool bEnable)
 {

@@ -500,10 +500,25 @@ void UUVEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractive
 	
 		// If a tool doesn't support selection, we can't be certain that it won't put the meshes
 		// in a state where the selection refers to invalid elements.
-		if (!Cast<IUVToolSupportsSelection>(Tool))
+		IUVToolSupportsSelection* SelectionTool = Cast<IUVToolSupportsSelection>(Tool);
+		if (!SelectionTool)
 		{
-			SelectionAPI->ClearSelections(true, true); // broadcast, emit
+			SelectionAPI->BeginChange();
+			SelectionAPI->ClearSelections(false, false); 
+			SelectionAPI->ClearUnsetElementAppliedMeshSelections(false, false);
+			SelectionAPI->EndChangeAndEmitIfModified(true); // broadcast, emit
 			SelectionAPI->ClearHighlight();
+		}
+		else
+		{
+			if (!SelectionTool->SupportsUnsetElementAppliedMeshSelections())
+			{
+				SelectionAPI->BeginChange();				
+				SelectionAPI->ClearUnsetElementAppliedMeshSelections(false, false);
+				SelectionAPI->EndChangeAndEmitIfModified(true); // broadcast, emit
+				SelectionAPI->ClearHighlight(false, true); // Clear and rebuild applied highlight to account for clearing unset selections
+				SelectionAPI->RebuildAppliedPreviewHighlight();
+			}
 		}
 	
 		GetInteractiveToolsContext()->GetTransactionAPI()->AppendChange(

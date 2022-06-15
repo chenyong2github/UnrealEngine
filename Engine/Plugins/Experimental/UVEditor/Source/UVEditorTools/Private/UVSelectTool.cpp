@@ -203,7 +203,7 @@ void UUVSelectTool::Setup()
 
 	SelectionAPI->OnSelectionChanged.AddUObject(this, &UUVSelectTool::OnSelectionChanged);
 	SelectionAPI->OnPreSelectionChange.AddWeakLambda(this, 
-		[this](bool bEmitChange) {
+		[this](bool bEmitChange, uint32 SelectionChangeType) {
 			if (bEmitChange)
 			{
 				EmitChangeAPI->EmitToolIndependentChange(GetToolManager(),
@@ -271,7 +271,7 @@ void UUVSelectTool::Setup()
 	if (SelectionAPI->HaveSelections())
 	{
 		// This will also update the gizmo
-		OnSelectionChanged(false);
+		OnSelectionChanged(false, (uint32)ESelectionChangeTypeFlag::SelectionChanged);
 		SelectionAPI->RebuildUnwrapHighlight(TransformGizmo->GetGizmoTransform());
 		SelectionAPI->RebuildAppliedPreviewHighlight();
 	}
@@ -348,11 +348,16 @@ void UUVSelectTool::UpdateGizmo()
 		&& SelectionAPI->HaveSelections());
 }
 
-void UUVSelectTool::OnSelectionChanged(bool)
+void UUVSelectTool::OnSelectionChanged(bool, uint32 SelectionChangeType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVSelectTool_OnSelectionChanged);
 	
 	using namespace UVSelectToolLocals;
+
+	if (!(SelectionChangeType & (uint32)ESelectionChangeTypeFlag::SelectionChanged))
+	{
+		return;
+	}
 
 	MovingVidsPerSelection.Reset();
 	MovingVertOriginalPositionsPerSelection.Reset();

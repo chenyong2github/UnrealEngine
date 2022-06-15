@@ -13,6 +13,18 @@ class UUVEditorMechanicAdapterTool;
 class UUVEditorMeshSelectionMechanic;
 class UUVToolSelectionHighlightMechanic;
 
+/*
+ *  Enum to describe the nature of the selection change during either a OnPreSelectionChange callback or
+ *  OnSelectionChange callback.
+ */
+enum class ESelectionChangeTypeFlag : uint8
+{
+	None = 0,
+	SelectionChanged = 1 << 0, // Set for normal selection change events
+	UnsetSelectionChanged = 1 << 1 // Set for unset selection change events
+};
+ENUM_CLASS_FLAGS(ESelectionChangeTypeFlag);
+
 /**
  * API for dealing with mode-level selection in the UV editor.
  * 
@@ -51,7 +63,17 @@ public:
 	 */
 	FUVToolSelection::EType GetSelectionsType()
 	{
-		return CurrentSelections.Num() > 0 ? CurrentSelections[0].Type : FUVToolSelection::EType::Triangle;
+		if (CurrentSelections.Num() > 0)
+		{
+			return CurrentSelections[0].Type;
+		}
+		else if (CurrentUnsetSelections.Num() > 0)
+		{
+			return CurrentUnsetSelections[0].Type;
+		}
+		else {
+			return FUVToolSelection::EType::Triangle;
+		}		
 	}
 
 	/**
@@ -61,6 +83,8 @@ public:
 	 * 
 	 * @param bBroadcast If true, broadcast OnPreSelectionChange and OnSelectionChanged
 	 * @param bEmitChange If true, emit an undo/redo transaction.
+	 * @param bAllowInconsistentSelectionTypes If true, allow setting selections with different selection types than any currently set UnsetElement selections.
+	          Primarily useful during undo/redo
 	 */
 	void SetSelections(const TArray<FUVToolSelection>& SelectionsIn, bool bBroadcast, bool bEmitChange);
 
@@ -76,17 +100,16 @@ public:
 	 */
 	FVector3d GetUnwrapSelectionCentroid(bool bForceRecalculate = false);
 
-	// TODO: When we have support for selection in 3d live preview viewport, we may need these.
-	// These are function that would be used if a selection made in the applied mesh cannot be
+	// These are functions that are used if a selection made in the applied mesh cannot be
 	// converted to an unwrap mesh selection due to unset UV elements (meaning that the selected
-	// portion does not exist in the unwrap mesh). Such selections would be stored separately 
+	// portion does not exist in the unwrap mesh). Such selections are stored separately 
 	// from all those that are able to be converted (which get stored with the usual unwrap selections).
-	// These "unset element" selections would be ignored by many tools/actions but operated on 
+	// These "unset element" selections are ignored by many tools/actions but operated on 
 	// by some others.
-	//bool HaveUnsetElementAppliedMeshSelections() const;
-	//const TArray<FUVToolSelection>& GetUnsetElementAppliedMeshSelections();
-	//void SetUnsetElementAppliedMeshSelections(const TArray<FUVToolSelection>& SelectionsIn, bool bBroadcast, bool bEmitChange);
-	//void ClearUnsetElementAppliedMeshSelections(bool bBroadcast, bool bEmitChange);
+	bool HaveUnsetElementAppliedMeshSelections() const;
+	const TArray<FUVToolSelection>& GetUnsetElementAppliedMeshSelections() { return CurrentUnsetSelections; }
+	void SetUnsetElementAppliedMeshSelections(const TArray<FUVToolSelection>& SelectionsIn, bool bBroadcast, bool bEmitChange);
+	void ClearUnsetElementAppliedMeshSelections(bool bBroadcast, bool bEmitChange);
 
 	/**
 	 * Mode of operation for the selection mechanic.
@@ -199,8 +222,10 @@ public:
 	 * 
 	 * @param bEmitChangeAllowed If false, the callback must not emit any undo/redo transactions,
 	 *  likely because this is being called from an apply/revert of an existing transaction.
+	 * @param SelectionChangeType Set as some combination of ESelectionChangeCondition to describe
+	 *  the nature of the selection change.
 	 */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreSelectionChange, bool bEmitChangeAllowed);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPreSelectionChange, bool bEmitChangeAllowed, uint32 SelectionChangeType );
 	FOnPreSelectionChange OnPreSelectionChange;
 
 	/**
@@ -209,8 +234,10 @@ public:
 	 * 
 	 * @param bEmitChangeAllowed If false, the callback must not emit any undo/redo transactions,
 	 *  likely because this is being called from an apply/revert of an existing transaction.
+	 * @param SelectionChangeType Set as some combination of ESelectionChangeCondition to describe
+	 *  the nature of the selection change.
 	 */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChanged, bool bEmitChangeAllowed);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSelectionChanged, bool bEmitChangeAllowed, uint32 SelectionChangeType);
 	FOnSelectionChanged OnSelectionChanged;
 
 	/**
@@ -223,7 +250,7 @@ public:
 	// Undo/redo support:
 
 	/**
-	 * An object that can be as an undo/redo item, usually emitted by the selection API
+	 * An object representing a selection that can be as an undo/redo item, usually emitted by the selection API
 	 * itself. Expects UUVToolSelectionAPI to be the associated UObject.
 	 */
 	class FSelectionChange : public FToolCommandChange
@@ -243,6 +270,27 @@ public:
 		// Useful for storing a pending change and figuring out whether it needs to be
 		// emitted. Respects bUseStableUnwrapCanonicalIDsForEdges.
 		virtual TArray<FUVToolSelection> GetBefore() const;
+
+		virtual void Apply(UObject* Object) override;
+		virtual void Revert(UObject* Object) override;
+		virtual FString ToString() const override;
+
+	protected:
+		TArray<FUVToolSelection> Before;
+		TArray<FUVToolSelection> After;
+	};
+
+	/**
+	 * An object representing an unset UV selection that can be as an undo/redo item, usually emitted by the selection API
+	 * itself. Expects UUVToolSelectionAPI to be the associated UObject.
+	 */
+	class FUnsetSelectionChange : public FToolCommandChange
+	{
+	public:
+		virtual void SetBefore(TArray<FUVToolSelection> Selections);
+		virtual void SetAfter(TArray<FUVToolSelection> Selections);
+
+		virtual const TArray<FUVToolSelection>& GetBefore() const;
 
 		virtual void Apply(UObject* Object) override;
 		virtual void Revert(UObject* Object) override;
@@ -284,6 +332,7 @@ public:
 	virtual void OnToolEnded(UInteractiveTool* DeadTool) override;
 protected:
 	TArray<FUVToolSelection> CurrentSelections;
+	TArray<FUVToolSelection> CurrentUnsetSelections;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
@@ -303,6 +352,8 @@ protected:
 	TObjectPtr<UUVToolEmitChangeAPI> EmitChangeAPI = nullptr;
 
 	TUniquePtr<FSelectionChange> PendingSelectionChange = nullptr;
+	TUniquePtr<FUnsetSelectionChange> PendingUnsetSelectionChange = nullptr;
+
 
 	FHighlightOptions HighlightOptions;
 
@@ -324,10 +375,21 @@ class UUVToolSupportsSelection : public UInterface
  * after tool completion.
  * If a tool does inherit from IUVToolSupportsSelection, then the UV editor will
  * not clear the selection before invocation, allowing the tool to use it. However,
- * the tool it is expected to properly deal with selection itself and avoid an
+ * the tool is expected to properly deal with selection itself and avoid an
  * invalid state (including avoiding incorrect undo/redo selection event ordering.
  */
 class IUVToolSupportsSelection
 {
 	GENERATED_BODY()
+
+public:
+
+	/*
+	 * A tool that returns false here will have the unset element selections 
+	 * (ie selections of triangles that don't have associated UV's) cleared before
+	 * its invocation. Returning true will keep these unset element selections, but
+	 * the tool will be responsible for dealing with them and avoiding any invalid states.
+	 */
+	virtual bool SupportsUnsetElementAppliedMeshSelections() const { return false; }
+
 };

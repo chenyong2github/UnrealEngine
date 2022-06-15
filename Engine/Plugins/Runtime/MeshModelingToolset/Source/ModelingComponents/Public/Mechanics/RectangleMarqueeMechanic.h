@@ -135,6 +135,16 @@ public:
 	bool bUseExternalClickDragBehavior = false;
 
 	/**
+	 * If true, then the URectangleMarqueeMechanic will not query the tool manager for the current camera view state,
+	 but instead call the custom provided function, UpdateCameraStateFunc, to recieve the correct camera state for the 
+	 CameraRectangle.
+	 */
+	UPROPERTY()
+	bool bUseExternalUpdateCameraState = false;
+
+	TUniqueFunction< FViewCameraState() > UpdateCameraStateFunc;
+
+	/**
 	 * If the computation time for a single call to OnDragRectangleChanged ever exceeds this threshold then future calls
 	 * to this function (in the current drag sequence) will be deferred until the mouse button is released. This will
 	 * improve the responsiveness of the UI. The default value is set so this optimization is never triggered, if you

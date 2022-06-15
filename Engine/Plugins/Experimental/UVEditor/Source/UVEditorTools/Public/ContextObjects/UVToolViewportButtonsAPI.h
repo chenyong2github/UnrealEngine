@@ -30,7 +30,7 @@ public:
 		bGizmoButtonsEnabled = bOn;
 	}
 
-	bool AreGizmoButtonsEnabled()
+	bool AreGizmoButtonsEnabled() const
 	{
 		return bGizmoButtonsEnabled;
 	}
@@ -44,7 +44,7 @@ public:
 		}
 	}
 
-	EGizmoMode GetGizmoMode()
+	EGizmoMode GetGizmoMode() const
 	{
 		return GizmoMode;
 	}
@@ -55,7 +55,7 @@ public:
 		bSelectionButtonsEnabled = bOn;
 	}
 
-	bool AreSelectionButtonsEnabled()
+	bool AreSelectionButtonsEnabled() const
 	{
 		return bSelectionButtonsEnabled;
 	}
@@ -69,7 +69,7 @@ public:
 		}
 	}
 
-	ESelectionMode GetSelectionMode()
+	ESelectionMode GetSelectionMode() const
 	{
 		return SelectionMode;
 	}

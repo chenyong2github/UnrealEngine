@@ -96,6 +96,9 @@ public:
 	/** lambda implementation of OnClicked */
 	TUniqueFunction<void(const FInputDeviceRay&)> OnClickedFunc = [](const FInputDeviceRay& ClickPos) {};
 
+	/** lambda implementation of OnUpdateModifierState */
+	TUniqueFunction< void(int, bool) > OnUpdateModifierStateFunc = [](int ModifierID, bool bIsOn) {};
+
 public:
 	// IClickBehaviorTarget implementation
 
@@ -107,5 +110,11 @@ public:
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override
 	{
 		return OnClickedFunc(ClickPos);
+	}
+
+	// IModifierToggleBehaviorTarget implementation
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn)
+	{
+		return OnUpdateModifierStateFunc(ModifierID,bIsOn);
 	}
 };
