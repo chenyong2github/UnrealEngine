@@ -3,6 +3,7 @@ import { DEFAULT_BOT_SETTINGS, EdgeProperties, FunctionalTest, getRootDataClient
 				P4Util, RobomergeBranchSpec, ROBOMERGE_DOMAIN, retryWithBackoff } from './framework'
 import * as bent from 'bent'
 import { Perforce } from './test-perforce'
+import { GenericTargetTest } from './GenericTargetTest'
 import { BlockAssets } from './tests/block-assets'
 import { BlockIgnore } from './tests/block-ignore'
 import { ConfirmBinaryStomp } from './tests/confirm-binary-stomp'
@@ -42,6 +43,7 @@ import { TestGate } from './tests/test-gate'
 import { TestReconsider } from './tests/test-reconsider'
 import { TestEdgeReconsider } from './tests/test-edge-reconsider'
 import { TestTerminal } from './tests/test-terminal'
+import { UnreachableSkip } from './tests/unreachable-skip'
 
 import { CrossBotTest, CrossBotTest2, ComplexCrossBot, ComplexCrossBot2, ComplexCrossBot3 } from './tests/cross-bot'
 
@@ -64,7 +66,7 @@ function addTest(settings: BranchMapSettings, test: FunctionalTest) {
 	settings.macros = {...settings.macros, ...test.getMacros()}
 }
 
-async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
+async function 	addToRoboMerge(p4: Perforce, tests: FunctionalTest[], targetTests: FunctionalTest[]) {
 	const rootClient = await getRootDataClient(p4, 'RoboMergeData_BranchMaps')
 
 	const botNames = ['ft1', 'ft2', 'ft3', 'ft4']
@@ -85,6 +87,17 @@ async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 		groupIndex = (groupIndex + 1) % botNames.length
 	}
 
+	const TARGET_TEST_BOT_NAME = 'targets'
+
+	const targetTestsBranchMapSettings = {branches: [], edges: [], macros: {}}
+	settings.push([TARGET_TEST_BOT_NAME, targetTestsBranchMapSettings])
+
+	for (const test of targetTests) {
+		test.botName = TARGET_TEST_BOT_NAME
+		addTest(targetTestsBranchMapSettings, test)
+		test.storeNodesAndEdges()
+	}
+
 	await Promise.all(settings.map(([botName, s]) => 
 		P4Util.addFile(rootClient, botName + '.branchmap.json', JSON.stringify({...DEFAULT_BOT_SETTINGS, ...s, slackChannel: botName,
 			aliases: [botName + '-alias', botName + '-alias2']}))
@@ -97,7 +110,7 @@ async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 
 	await retryWithBackoff('Waiting for all branchmaps to load', async () => {
 
-		for (const test of tests) {
+		for (const test of [...tests, ...targetTests]) {
 			for (const node of test.nodes) {
 				try {
 					await FunctionalTest.getBranchState(test.botName, node)
@@ -198,8 +211,50 @@ async function go() {
 		new StompWithAdd(p4),
 		new Ignore(p4),
 		new StompForwardingCommands(p4),
-		new MultipleRoutesToSkip(p4)
+		new MultipleRoutesToSkip(p4),
+		new UnreachableSkip(p4), // 45
 	]
+
+	const TARGET_TEST_DEFS: [string[], string | null][] = [
+		[[':c', 'a',		'b', 'c', ''],										''],
+		[['c:b', 'a', 		'b', 'c', ''],										null],
+		[['c:b', 'a', 		'B', 'c', ''],										null],
+		[[':c', 'a', 		'b', 'c', ''],										''],
+
+		[['c', 'a',			'bDE', 'Ac', 'B', 'a', 'a'],						'bcde'],
+		[[':c', 'a',		'bDE', 'Ac', 'B', 'a', 'a'],						'de'], // 5
+
+		[['c:d', 'a', 		'bd', 'c', '', 'c'],								'bc'],
+		[['c:b', 'a', 		'bD', 'c', '', 'c'],								'dc'],
+		[[':c', 'a',		'Bd', 'C', '', ''],									'b'],
+		[[':c:b', 'a',		'B', 'C', ''],										'B'], 
+		[['b', 'a', 		'b', 'C', ''],										'bc'], // 10
+
+// usual dev/release set-up (d-g are releases going back in time)
+		[['f', 'b',			'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'],			'adef'], 
+		[['b', 'f',			'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'],			'edab'],
+		[['a', 'g',			'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'],			'feda'],
+		[[':a', 'g',		'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'],			'def'],
+
+		[['de', 'a',		'b', 'c', 'de', '', ''],							'bced'], // 15
+		[['de', 'h',		'hc', 'hd', 'deFg', 'hbc', 'c', 'c', 'c', 'abd'],	'dcef'],
+		[['de', 'h',		'bd', 'hc', 'hd', 'eFg', 'hbc', 'c', 'c', 'c'],		'cdef'],
+		[['db', 'h',		'abd', 'hc', 'hd', 'deFg', 'hbc', 'c', 'c', 'c'],	'cdebf'],
+		[['cg', 'a',		'be', 'acd', 'b', 'b', 'aFg', 'e', 'e'],			'bcegf'],
+		[['cf', 'a', 		'bE', 'acd', 'b', 'b', 'aFg', 'e', 'e'],			'bcef'], // 20
+		[['c:e', 'a', 		'bE', 'acd', 'b', 'b', 'aFg', 'e', 'e'],			'bc'],
+		[['cf:b', 'a', 		'bE', 'acd', 'b', 'b', 'aFg', 'e', 'e'],			null], 
+		[['fg', 'h',		'abd', 'hC', 'hd', 'defg', 'hbc', 'c', 'c', 'c'],	'cdgf'],
+		[['dge', 'h',		'abd', 'hC', 'hd', 'defg', 'hbc', 'c', 'c', 'c'],	'cdge'],
+		[['e', 'i',			'abcd', 'Ie', 'if', 'iG', 'ih', 'a', 'b', 'c', 'D'],'dgbe']
+	]
+
+	let targetTestIndex = 0
+	const availableTargetTests = []
+	for (const [strs, expected] of TARGET_TEST_DEFS) {
+		availableTargetTests.push(new GenericTargetTest(p4, targetTestIndex++, strs, expected))
+	}
+
 
 	// const testToDebug = availableTests[30]
 	// testToDebug.botName = 'FT1'
@@ -224,7 +279,9 @@ async function go() {
 	///////////////////////
 	// TESTS TO RUN 
 
-	const tests = /*/[availableTests[30]]/*/availableTests  /* .slice(34, 39)/**/
+	const specificTests = /*/[availableTests[17]]/*/availableTests  /*/ .slice(0, 0)/**/
+	const targetTests = /*/[availableTargetTests[7]] /*/ availableTargetTests /*/ .slice(8, 10) /**/
+	const tests = [...specificTests, ...targetTests]
 
 	//
 	///////////////////////
@@ -235,7 +292,7 @@ async function go() {
 	await Promise.all(tests.map(test => test.setup()))
 
 	console.log('Updating RoboMerge branchmaps')
-	await addToRoboMerge(p4, tests)
+	await addToRoboMerge(p4, specificTests, targetTests)
 
 	console.log('Running tests')
 	await Promise.all(tests.map(test => test.run()))

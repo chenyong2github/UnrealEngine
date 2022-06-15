@@ -395,7 +395,7 @@ export type MergeMode = 'safe' | 'normal' | 'null' | 'clobber' | 'skip'
 
 class Test {
 	graph = new Graph
-	targets = new Map<Node, MergeMode>()
+	targets = new Map<Node, MergeMode>();
 
 	static readonly BOT_NAME = 'TEST' as BotName
 
@@ -538,7 +538,7 @@ Test format:
 graph definition e.g.: ['b', 'c', ''] means a->b, b->c and d also exists
 expected: ;-separated <direct>:<indirect>
 
-1: A -> B -> C		c:b expected to produce null (c unreachable)
+1: A -> B -> C		:c expected to produce '' (c unreachable, could alternatively be syntax error)
 2: A => B -> C		c:b expected to produce null (c unreachable)
 3: A -> B -> C	_:c should produce '' (skip shouldn't affect route)
 
@@ -551,37 +551,42 @@ expected: ;-separated <direct>:<indirect>
 7: A -> B -> c		c:b expected to produce D:C (A->D->C)
 	 => D -> c
 
-8: A => B => C		_:c expected to produce B:-C
+8: A => B => C		_:c expected to produce ''
 	 -> D
 
-9: A => B => C		_:c:b expected to produce !B:-C
+9: A => B => C		_:c:b expected to produce !B
 
 
+Note first level is treated specially: for the purposes of these tests, force flow from the start node is effectively ignored
 */
 
+
+// want to find a way of testing commented out ones - the relevant skip handling is done in targets.ts
 
 
 	const unitTestLogger = parentLogger.createChild('Graph')
 	const tests: [string[], string | null][] = [
 
-		[[':c', 'a', 'b', 'c'], ''],
+		[[':c', 'a',		'b', 'c', ''],										''],
 		[['c:b', 'a', 		'b', 'c', ''],										null],
 		[['c:b', 'a', 		'B', 'c', ''],										null],
-		[['b:c', 'a', 		'b', 'c', ''],										''],
+		[[':c', 'a', 		'b', 'c', ''],										''],
 
-		// usual dev/release set-up (b is most recent release)
 		[['c', 'a',			'bDE', 'Ac', 'B', 'a', 'a'],						'B:C'],
-		[[':c', 'a',		'bDE', 'Ac', 'B', 'a', 'a'],						''], // 5
+		[[':c', 'a',		'bDE', 'Ac', 'B', 'a', 'a'],						''], //DE'], // 5
 
 		[['c:d', 'a', 		'bd', 'c', '', 'c'],								'B:C'],
 		[['c:b', 'a', 		'bD', 'c', '', 'c'],								'D:C'],
-		// [[':c', 'a',		'Bd', 'C', '', ''],									'B:-C'],
-		// [[':c:b', 'a',		'B', 'C', ''],										'!B:-C'],
+		[[':c', 'a',		'Bd', 'C', '', ''],									''],
+		[[':c:b', 'a',		'B', 'C', ''],										'!B:'], // !B:-C'], skip is checked by functional test
 		[['b', 'a', 		'b', 'C', ''],										'B:'], // 10
+
+// usual dev/release set-up (d-g are releases going back in time)
 		[['f', 'b',			'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'],			'A:DEF'],
 		[['b', 'f',			'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'],			'E:DAB'],
 		[['a', 'g',			'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'],			'F:EDA'],
-		// [[':a', 'g',		'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'],			'F:ED-A'],
+		[[':a', 'g',		'bcd', 'a', 'a', 'Ae', 'Df', 'Eg', 'F'],			''], // taking a look at this one
+
 		[['de', 'a',		'b', 'c', 'de', '', ''],							'B:CED'],
 		[['de', 'h',		'hc', 'hd', 'deFg', 'hbc', 'c', 'c', 'c', 'abd'],	'D:CE'],
 		[['de', 'h',		'bd', 'hc', 'hd', 'eFg', 'hbc', 'c', 'c', 'c'],		'C:DE'],
@@ -596,35 +601,36 @@ expected: ;-separated <direct>:<indirect>
 	]
 
 	let success = 0, fail = 0, ran = 0
-	for (const [testStr, expected] of tests /*/ .slice(6, 7) /**/) {
+	for (const [testStr, expected] of tests /*/ .slice(5, 6) /**/) {
 		const test = new Test(testStr.slice(2))
 		const result = test.computeTargets(testStr[1], testStr[0])
 
-		let expectedOnFail
+		let expectedOnFail: string | null = null
 
 		const succeeded = result.status === 'succeeded'
 
 		const formattedResult = succeeded ? test.formatTestComputeTargetsResult(result.integrations!) : 'failed'
 		if (expected !== null) {
+			// not expecting an error
 			if (!succeeded) {
+				// store string we were expecting
 				expectedOnFail = expected
 			}
-			else {
-				if (formattedResult.toUpperCase().replace(/\s|,/g, '') !== expected) {
-					expectedOnFail = expected
-				}
+			else if (formattedResult.toUpperCase().replace(/\s|,/g, '') !== expected) {
+				expectedOnFail = expected
 			}
 		}
 		else if (succeeded) {
 			expectedOnFail = 'fail'
 		}
-		else { console.log(ran, result.unreachable && result.unreachable.map(n => n.debugName)) }
 
 		++ran
-		if (expectedOnFail) {
+		if (expectedOnFail === undefined) throw new Error('wut')
+		if (expectedOnFail !== null) {
 			++fail
+			const EMPTY = '<empty>'
 			unitTestLogger.warn(`Test ${colors.warn(ran.toString().padStart(2))} failed:   ` +
-				`${colors.warn(formattedResult.padStart(10))} vs ${colors.warn(expectedOnFail)}`)
+				`${colors.warn((formattedResult || EMPTY).padStart(10))} vs ${colors.warn(expectedOnFail || EMPTY)}`)
 		}
 		else {
 			++success
