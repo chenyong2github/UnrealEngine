@@ -48,21 +48,18 @@ bool FStringsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventConte
 				return true;
 			}
 
+			IDefinitionProvider::FEditScopeLock Lock(*DefinitionProvider);
 			FStringDefinition* Instance = DefinitionProvider->Create<FStringDefinition>();
 			Instance->Display = Display;
 
 			if (RouteId == RouteId_FName)
 			{
 				auto Id = EventData.GetDefinitionId<uint32>();
-				// Overwrite type id of Strings.FNameNoSync to Strings.FNames type id.
-				//Id.RefTypeId = ???;
 				DefinitionProvider->Register<FStringDefinition>(Instance, Id);
 			}
 			else
 			{
 				auto Id = EventData.GetDefinitionId<uint64>();
-				// Overwrite type id of Strings.StaticStringNoSync to Strings.StaticString type id.
-				//Id.RefTypeId = ???;
 				DefinitionProvider->Register<FStringDefinition>(Instance, Id);
 			}
 		}

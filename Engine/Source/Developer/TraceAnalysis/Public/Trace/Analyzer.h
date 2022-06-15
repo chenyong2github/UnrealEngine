@@ -176,6 +176,9 @@ public:
 		template<typename DefinitionType>
 		TEventRef<DefinitionType> GetReferenceValue(const ANSICHAR* FieldName) const;
 
+		template<typename DefinitionType>
+		TEventRef<DefinitionType> GetReferenceValue(uint32 FieldIndex) const;
+		
 		/** If this is a spec event, gets the unique Id for this spec.
 		 * @return A valid spec id if the event is valid, otherwise an empty id.
 		 */
@@ -205,7 +208,9 @@ public:
 
 	private:
 		bool IsDefinitionImpl(uint32& OutTypeId) const;
+		uint32 GetReferenceTypeIdImpl(FEventFieldHandle Handle) const;
 		const void* GetReferenceValueImpl(const char* FieldName, uint16& OutSizeType, uint32& OutTypeUid) const;
+		const void* GetReferenceValueImpl(uint32 FieldIndex, uint32& OutTypeUid) const;
 		const void* GetValueImpl(const ANSICHAR* FieldName, int8& SizeAndType) const;
 		const FArrayReader* GetArrayImpl(const ANSICHAR* FieldName) const;
 	};
@@ -437,5 +442,14 @@ TEventRef<DefinitionType> IAnalyzer::FEventData::GetReferenceValue(const ANSICHA
 	return MakeEventRef<DefinitionType>(0,0);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+template <typename DefinitionType>
+TEventRef<DefinitionType> IAnalyzer::FEventData::GetReferenceValue(uint32 FieldIndex) const
+{
+	uint32 RefTypeUid;
+	DefinitionType* Id = (DefinitionType*) GetReferenceValueImpl(FieldIndex, RefTypeUid);
+	return MakeEventRef<DefinitionType>(*Id, RefTypeUid);
+}
+	
 } // namespace Trace
 } // namespace UE

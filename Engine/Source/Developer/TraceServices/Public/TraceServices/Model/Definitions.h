@@ -30,6 +30,38 @@ namespace TraceServices
 class IDefinitionProvider : public IProvider
 {
 public:
+	
+	struct TRACESERVICES_API FEditScopeLock
+	{
+		FEditScopeLock(const IDefinitionProvider& InMetadataProvider)
+			: MetadataProvider(InMetadataProvider)
+		{
+			MetadataProvider.BeginEdit();
+		}
+
+		~FEditScopeLock()
+		{
+			MetadataProvider.EndEdit();
+		}
+
+		const IDefinitionProvider& MetadataProvider;
+	};
+
+	struct TRACESERVICES_API FReadScopeLock
+	{
+		FReadScopeLock(const IDefinitionProvider& InMetadataProvider)
+			: MetadataProvider(InMetadataProvider)
+		{
+			MetadataProvider.BeginRead();
+		}
+
+		~FReadScopeLock()
+		{
+			MetadataProvider.EndRead();
+		}
+
+		const IDefinitionProvider& MetadataProvider;
+	};
 
 	/**
 	 * Allocates memory for the definition. The memory is guaranteed to be valid during the lifetime of the
@@ -51,8 +83,9 @@ public:
 	 * @param Id Id that should be used to reference the definition.
 	 */
 	template<typename T, typename DefinitionType>
-	void Register(T* Instance, UE::Trace::TEventRef<DefinitionType> Id)
+	void Register(const T* Instance, const UE::Trace::TEventRef<DefinitionType>& Id)
 	{
+		Stringifiers.FindOrAdd(Id.RefTypeId, &T::ToString);
 		AddEntry(Id.GetHash(), Instance);
 	}
 
@@ -62,16 +95,36 @@ public:
 	 * @return Pointer to the definition or null if the id was not found.
 	 */
 	template<typename T, typename DefinitionType>
-	const T* Get(UE::Trace::TEventRef<DefinitionType> Reference) const
+	const T* Get(const UE::Trace::TEventRef<DefinitionType>& Reference) const
 	{
 		const void* Value = FindEntry(Reference.GetHash());
 		return (T*) Value;
 	}
 
+	/**
+	 * Gets the definition as a owned string.
+	 * @param Reference Id used to uniqely identify the definition.
+	 * @return A string describing the referenced value
+	 */
+	template<typename DefinitionType>
+	FString GetAsString(const UE::Trace::TEventRef<DefinitionType>& Reference) const
+	{
+		const void* Entry = FindEntry(Reference.GetHash());
+		auto Stringifier = Stringifiers.Find(Reference.RefTypeId);
+		if (Entry && Stringifier)
+		{
+			return (*Stringifier)(Entry);
+		}
+		return FString();
+	}
+
 protected:
 	virtual void* Allocate(uint32 Size, uint32 Alignment) = 0;
-	virtual void AddEntry(uint64 Hash, void* Ptr) = 0;
+	virtual void AddEntry(uint64 Hash, const void* Ptr) = 0;
 	virtual const void* FindEntry(uint64 Hash) const = 0;
+
+	using StringifierFn = TFunction<FString (const void*)>;
+	TMap<uint32, StringifierFn> Stringifiers;
 };
 
 TRACESERVICES_API IDefinitionProvider* GetDefinitionProvider(IAnalysisSession& Session);

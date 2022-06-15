@@ -13,16 +13,14 @@ FDefinitionProvider::FDefinitionProvider(IAnalysisSession* InSession)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-void FDefinitionProvider::AddEntry(uint64 Hash, void* Ptr)
+void FDefinitionProvider::AddEntry(uint64 Hash, const void* Ptr)
 {
-	FWriteScopeLock _(DefinitionsLock);
 	Definitions.Add(Hash, Ptr);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 const void* FDefinitionProvider::FindEntry(uint64 Hash) const
 {
-	FReadScopeLock _(DefinitionsLock);
 	return Definitions.FindRef(Hash);
 }
 
