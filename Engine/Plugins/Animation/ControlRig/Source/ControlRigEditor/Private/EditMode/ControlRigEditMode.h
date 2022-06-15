@@ -277,6 +277,9 @@ protected:
 	/** Cached transform of pivot point for selected objects for each Control Rig */
 	TMap<UControlRig*,FTransform> PivotTransforms;
 
+	/** Previous cached transforms, need this to check on tick if any transform changed, gizmo may have changed*/
+	TMap<UControlRig*, FTransform> LastPivotTransforms;
+
 	/** Command bindings for keyboard shortcuts */
 	TSharedPtr<FUICommandList> CommandBindings;
 
@@ -351,7 +354,8 @@ public:
 	/** Suspend Rig Hierarchy Notifies*/
 	void SuspendHierarchyNotifs(bool bVal) { bSuspendHierarchyNotifs = bVal; }
 private:
-
+	/** Whether or not Pivot Transforms have changed, in which case we need to redraw viewport*/
+	bool HasPivotTransformsChanged() const;
 	/** Set a RigElement's selection state */
 	void SetRigElementSelectionInternal(UControlRig* ControlRig, ERigElementType Type, const FName& InRigElementName, bool bSelected);
 	

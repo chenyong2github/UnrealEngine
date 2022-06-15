@@ -2152,6 +2152,56 @@ void FControlRigEditMode::RecalcPivotTransform()
 			}
 		}
 	}
+
+
+	//If in level editor and the transforms changed we need to force hit proxy invalidate so widget hit testing 
+	//doesn't work off of it's last transform.  Similar to what sequencer does on re-evaluation but do to how edit modes and widget ticks happen
+	//it doesn't work for control rig gizmo's
+	if (IsInLevelEditor())
+	{
+		if (HasPivotTransformsChanged())
+		{
+			for (FEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+			{
+				if (LevelVC)
+				{
+					if (!LevelVC->IsRealtime())
+					{
+						LevelVC->RequestRealTimeFrames(1);
+					}
+
+					if (LevelVC->Viewport)
+					{
+						LevelVC->Viewport->InvalidateHitProxy();
+					}
+				}
+			}
+		}
+		LastPivotTransforms = PivotTransforms;
+	}
+}
+
+bool FControlRigEditMode::HasPivotTransformsChanged() const
+{
+	if (PivotTransforms.Num() != LastPivotTransforms.Num())
+	{
+		return true;
+	}
+	for (const TPair<UControlRig*, FTransform>& Transform : PivotTransforms)
+	{
+		if (const FTransform* LastTransform = LastPivotTransforms.Find(Transform.Key))
+		{
+			if (Transform.Value.Equals(*LastTransform, 1e-4f) == false)
+			{
+				return true;
+			}
+		}
+		else
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void FControlRigEditMode::HandleSelectionChanged()
