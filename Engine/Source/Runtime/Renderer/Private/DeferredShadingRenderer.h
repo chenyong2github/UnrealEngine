@@ -214,6 +214,8 @@ public:
 #if RHI_RAYTRACING
 	bool bAnyRayTracingPassEnabled;
 	bool bShouldUpdateRayTracingScene;
+
+	void InitializeRayTracingFlags_RenderThread();
 #endif
 
 	FDeferredShadingSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);

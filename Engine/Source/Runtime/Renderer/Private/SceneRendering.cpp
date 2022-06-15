@@ -3814,13 +3814,6 @@ void FSceneRenderer::CreateSceneRenderers(TArrayView<const FSceneViewFamily*> In
 
 	EShadingPath ShadingPath = Scene->GetShadingPath();
 
-#if RHI_RAYTRACING
-	// For multi-view-family scene rendering, we need to determine which scene renderer will update the ray tracing scene.
-	// This will be the first view family that uses ray tracing, and subsequent families that use ray tracing can skip
-	// that step.
-	bool bShouldUpdateRayTracingScene = true;
-#endif
-
 	for (int32 FamilyIndex = 0; FamilyIndex < InViewFamilies.Num(); FamilyIndex++)
 	{
 		const FSceneViewFamily* InViewFamily = InViewFamilies[FamilyIndex];
@@ -3831,14 +3824,6 @@ void FSceneRenderer::CreateSceneRenderers(TArrayView<const FSceneViewFamily*> In
 		if (ShadingPath == EShadingPath::Deferred)
 		{
 			FDeferredShadingSceneRenderer* SceneRenderer = new FDeferredShadingSceneRenderer(InViewFamily, HitProxyConsumer);
-#if RHI_RAYTRACING
-			if (SceneRenderer->bAnyRayTracingPassEnabled)
-			{
-				SceneRenderer->bShouldUpdateRayTracingScene = bShouldUpdateRayTracingScene;
-				bShouldUpdateRayTracingScene = false;
-			}
-#endif
-
 			OutSceneRenderers.Add(SceneRenderer);
 		}
 		else
@@ -3850,6 +3835,35 @@ void FSceneRenderer::CreateSceneRenderers(TArrayView<const FSceneViewFamily*> In
 		OutSceneRenderers.Last()->bIsFirstSceneRenderer = (FamilyIndex == 0);
 		OutSceneRenderers.Last()->bIsLastSceneRenderer = (FamilyIndex == InViewFamilies.Num() - 1);
 	}
+
+#if RHI_RAYTRACING
+	// Update ray tracing flags.  We need to do this on the render thread, since "AnyRayTracingPassEnabled" accesses CVars which
+	// are only visible on the render thread.
+	if (ShadingPath == EShadingPath::Deferred)
+	{
+		ENQUEUE_RENDER_COMMAND(InitializeMultiRendererRayTracingFlags)(
+			[SceneRenderers = CopyTemp(OutSceneRenderers)](FRHICommandList& RHICmdList)
+		{
+			// For multi-view-family scene rendering, we need to determine which scene renderer will update the ray tracing
+			// scene.  This will be the first view family that uses ray tracing, and subsequent families that use ray
+			// tracing can skip that step.  
+			bool bShouldUpdateRayTracingScene = true;
+
+			for (int32 RendererIndex = 0; RendererIndex < SceneRenderers.Num(); RendererIndex++)
+			{
+				FDeferredShadingSceneRenderer* SceneRenderer = (FDeferredShadingSceneRenderer*)SceneRenderers[RendererIndex];
+
+				SceneRenderer->InitializeRayTracingFlags_RenderThread();
+
+				if (SceneRenderer->bAnyRayTracingPassEnabled)
+				{
+					SceneRenderer->bShouldUpdateRayTracingScene = bShouldUpdateRayTracingScene;
+					bShouldUpdateRayTracingScene = false;
+				}
+			}
+		});
+	}
+#endif  // RHI_RAYTRACING
 }
 
 FSceneRenderer* FSceneRenderer::CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer)

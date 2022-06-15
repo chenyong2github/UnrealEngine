@@ -380,17 +380,10 @@ FDeferredShadingSceneRenderer::FDeferredShadingSceneRenderer(const FSceneViewFam
 	ViewPipelineStates.SetNum(Views.Num());
 
 #if RHI_RAYTRACING
+	// Flags initialized later in render thread
 	bAnyRayTracingPassEnabled = false;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		bool bHasRayTracing = AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
-
-		Views[ViewIndex].bHasAnyRayTracingPass = bHasRayTracing;
-
-		bAnyRayTracingPassEnabled |= bHasRayTracing;
-	}
-	bShouldUpdateRayTracingScene = bAnyRayTracingPassEnabled;
-#endif  // RHI_RAYTRACING
+	bShouldUpdateRayTracingScene = false;
+#endif
 }
 
 /** 
@@ -1967,6 +1960,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
 #if RHI_RAYTRACING
+	// Initialize ray tracing flags, in case they weren't initialized in the CreateSceneRenderers code path
+	InitializeRayTracingFlags_RenderThread();
+
 	// Now that we have updated all the PrimitiveSceneInfos, update the RayTracing mesh commands cache if needed
 	{
 		ERayTracingMeshCommandsMode CurrentMode = ViewFamily.EngineShowFlags.PathTracing ? ERayTracingMeshCommandsMode::PATH_TRACING : ERayTracingMeshCommandsMode::RAY_TRACING;
@@ -3462,11 +3458,11 @@ bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompat
 	}
 
 	const bool bAllowPipeline = GRHISupportsRayTracingShaders && 
-								CVarRayTracingAllowPipeline.GetValueOnAnyThread() &&
+								CVarRayTracingAllowPipeline.GetValueOnRenderThread() &&
 								EnumHasAnyFlags(CompatibilityFlags, ERayTracingPipelineCompatibilityFlags::FullPipeline);
 
 	const bool bAllowInline = GRHISupportsInlineRayTracing && 
-							  CVarRayTracingAllowInline.GetValueOnAnyThread() &&
+							  CVarRayTracingAllowInline.GetValueOnRenderThread() &&
 							  EnumHasAnyFlags(CompatibilityFlags, ERayTracingPipelineCompatibilityFlags::Inline);
 
 	// Disable the effect if current machine does not support the full ray tracing pipeline and the effect can't fall back to inline mode or vice versa.
@@ -3475,7 +3471,7 @@ bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompat
 		return false;
 	}
 
-	const int32 OverrideMode = CVarForceAllRayTracingEffects.GetValueOnAnyThread();
+	const int32 OverrideMode = CVarForceAllRayTracingEffects.GetValueOnRenderThread();
 
 	if (OverrideMode >= 0)
 	{
@@ -3494,5 +3490,25 @@ bool HasRayTracedOverlay(const FSceneViewFamily& ViewFamily)
 	return
 		ViewFamily.EngineShowFlags.PathTracing ||
 		ViewFamily.EngineShowFlags.RayTracingDebug;
+}
+
+void FDeferredShadingSceneRenderer::InitializeRayTracingFlags_RenderThread()
+{
+	// This function may be called twice -- once in CreateSceneRenderers and again in Render.  We deliberately skip the logic
+	// if the flag is already set, because CreateSceneRenderers fills in the correct value for "bShouldUpdateRayTracingScene"
+	// in that case, and we don't want to overwrite it.
+	if (!bAnyRayTracingPassEnabled)
+	{
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			bool bHasRayTracing = AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
+
+			Views[ViewIndex].bHasAnyRayTracingPass = bHasRayTracing;
+
+			bAnyRayTracingPassEnabled |= bHasRayTracing;
+		}
+
+		bShouldUpdateRayTracingScene = bAnyRayTracingPassEnabled;
+	}
 }
 #endif // RHI_RAYTRACING
