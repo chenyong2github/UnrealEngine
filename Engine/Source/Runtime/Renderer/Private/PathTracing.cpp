@@ -4,8 +4,6 @@
 #include "RHI.h"
 #include "PathTracingDenoiser.h"
 
-PathTracingDenoiserFunction* GPathTracingDenoiserFunc = nullptr;
-
 TAutoConsoleVariable<int32> CVarPathTracing(
 	TEXT("r.PathTracing"),
 	1,
@@ -28,6 +26,7 @@ TAutoConsoleVariable<int32> CVarPathTracing(
 #include "HairStrands/HairStrandsData.h"
 #include "Modules/ModuleManager.h"
 #include <limits>
+#include "PathTracingSpatialTemporalDenoising.h"
 
 TAutoConsoleVariable<int32> CVarPathTracingCompaction(
 	TEXT("r.PathTracing.Compaction"),
@@ -270,15 +269,6 @@ TAutoConsoleVariable<int32> CVarPathTracingDecalGridVisualize(
 	ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<int32> CVarPathTracingDenoiser(
-	TEXT("r.PathTracing.Denoiser"),
-	-1,
-	TEXT("Enable denoising of the path traced output (if a denoiser plugin is active) (default = -1 (driven by postprocesing volume))\n")
-	TEXT("-1: inherit from PostProcessVolume\n")
-	TEXT("0: disable denoiser\n")
-	TEXT("1: enable denoiser (if a denoiser plugin is active)\n"),
-	ECVF_RenderThreadSafe
-);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(float, BlendFactor)
@@ -408,7 +398,14 @@ struct FPathTracingState {
 	TRefCountPtr<IPooledRenderTarget> RadianceRT;
 	TRefCountPtr<IPooledRenderTarget> AlbedoRT;
 	TRefCountPtr<IPooledRenderTarget> NormalRT;
-	TRefCountPtr<IPooledRenderTarget> RadianceDenoisedRT;
+	TRefCountPtr<FRDGPooledBuffer> VarianceBuffer;
+
+	// Cache to improve the stability when frame denoising (SPP=r.pathtracing.SamplesPerPixel) is used in animation rendering
+	TRefCountPtr<IPooledRenderTarget> LastDenoisedRadianceRT;
+	TRefCountPtr<IPooledRenderTarget> LastRadianceRT;
+	TRefCountPtr<IPooledRenderTarget> LastNormalRT;
+	TRefCountPtr<IPooledRenderTarget> LastAlbedoRT;
+	TRefCountPtr<FRDGPooledBuffer> LastVarianceBuffer;
 
 	// Texture holding onto the precomputed atmosphere data
 	TRefCountPtr<IPooledRenderTarget> AtmosphereOpticalDepthLUT;
@@ -1641,15 +1638,25 @@ void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& V
 	}
 }
 
-void FSceneViewState::PathTracingInvalidate()
+void FSceneViewState::PathTracingInvalidate(bool InvalidateAnimationStates)
 {
 	FPathTracingState* State = PathTracingState.Get();
 	if (State)
 	{
+		
+		if(InvalidateAnimationStates)
+		{
+			State->LastDenoisedRadianceRT.SafeRelease();
+			State->LastRadianceRT.SafeRelease();
+			State->LastNormalRT.SafeRelease();
+			State->LastAlbedoRT.SafeRelease();
+			State->LastVarianceBuffer.SafeRelease();
+		}
+
 		State->RadianceRT.SafeRelease();
 		State->AlbedoRT.SafeRelease();
 		State->NormalRT.SafeRelease();
-		State->RadianceDenoisedRT.SafeRelease();
+		State->VarianceBuffer.SafeRelease();
 		State->SampleIndex = 0;
 	}
 }
@@ -1679,13 +1686,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMGPUTransferParameters, )
 	RDG_TEXTURE_ACCESS(InputNormal, ERHIAccess::CopySrc)
 END_SHADER_PARAMETER_STRUCT()
 #endif
-
-BEGIN_SHADER_PARAMETER_STRUCT(FDenoiseTextureParameters, )
-	RDG_TEXTURE_ACCESS(InputTexture, ERHIAccess::CopySrc)
-	RDG_TEXTURE_ACCESS(InputAlbedo, ERHIAccess::CopySrc)
-	RDG_TEXTURE_ACCESS(InputNormal, ERHIAccess::CopySrc)
-	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
-END_SHADER_PARAMETER_STRUCT()
 
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracing, TEXT("Path Tracing"));
 void FDeferredShadingSceneRenderer::RenderPathTracing(
@@ -2144,12 +2144,9 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 	// Figure out if the denoiser is enabled and needs to run
 	FRDGTexture* DenoisedRadianceTexture = nullptr;
-	int DenoiserMode = CVarPathTracingDenoiser.GetValueOnRenderThread();
-	if (DenoiserMode < 0)
-	{
-		DenoiserMode = View.FinalPostProcessSettings.PathTracingEnableDenoiser;
-	}
-	const bool IsDenoiserEnabled = DenoiserMode != 0 && GPathTracingDenoiserFunc != nullptr;
+	bool IsDenoiserEnabled = IsPathTracingDenoiserEnabled(View);
+	int DenoiserMode = GetPathTracingDenoiserMode(View);
+
 	// Request denoise if this is the last sample OR allow turning on the denoiser after the image has stopped accumulating samples
 	const bool NeedsDenoise = IsDenoiserEnabled &&
 		(((Config.PathTracingData.Iteration + 1) == MaxSPP) ||
@@ -2198,47 +2195,75 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	}
 #endif
 
-	if (IsDenoiserEnabled)
-	{
-		if (PathTracingState->RadianceDenoisedRT)
-		{
-			// we already have a texture for this
-			DenoisedRadianceTexture = GraphBuilder.RegisterExternalTexture(PathTracingState->RadianceDenoisedRT, TEXT("PathTracer.DenoisedRadiance"));
-		}
+	FPathTracingSpatialTemporalDenoisingContext DenoisingContext;
+	const bool EnablePathTracingDenoiserRealtimeDebug = ShouldEnablePathTracingDenoiserRealtimeDebug();
 
-		if (NeedsDenoise)
+	if (IsDenoiserEnabled)
+	{		
+		// 1. Prepass to estimate pixel variance
+		FRDGBuffer* CurrentVarianceBufer = nullptr;
 		{
-			if (DenoisedRadianceTexture == nullptr)
+			DenoisingContext.RadianceTexture = RadianceTexture;
+			if (PathTracingState->VarianceBuffer)
 			{
-				// First time through, need to make a new texture
-				FRDGTextureDesc RadianceTextureDesc = FRDGTextureDesc::Create2D(
-					View.ViewRect.Size(),
-					PF_A32B32G32R32F,
-					FClearValueBinding::None,
-					TexCreate_ShaderResource | TexCreate_UAV);
-				DenoisedRadianceTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracer.DenoisedRadiance"), ERDGTextureFlags::MultiFrame);
+				DenoisingContext.VarianceBuffer = GraphBuilder.RegisterExternalBuffer(PathTracingState->VarianceBuffer, TEXT("PathTracing.VarianceBuffer"));
 			}
 
-			FDenoiseTextureParameters* DenoiseParameters = GraphBuilder.AllocParameters<FDenoiseTextureParameters>();
-			DenoiseParameters->InputTexture = RadianceTexture;
-			DenoiseParameters->InputAlbedo = AlbedoTexture;
-			DenoiseParameters->InputNormal = NormalTexture;
-			DenoiseParameters->OutputTexture = DenoisedRadianceTexture;
-			// Need to read GPU mask outside Pass function, as the value is not refreshed inside the pass
-			GraphBuilder.AddPass(RDG_EVENT_NAME("Path Tracer Denoiser Plugin"), DenoiseParameters, ERDGPassFlags::Readback, 
-				[DenoiseParameters, DenoiserMode, GPUMask = View.GPUMask](FRHICommandListImmediate& RHICmdList)
-				{
-					GPathTracingDenoiserFunc(RHICmdList,
-						DenoiseParameters->InputTexture->GetRHI()->GetTexture2D(),
-						DenoiseParameters->InputAlbedo->GetRHI()->GetTexture2D(),
-						DenoiseParameters->InputNormal->GetRHI()->GetTexture2D(),
-						DenoiseParameters->OutputTexture->GetRHI()->GetTexture2D(),
-						GPUMask);
-				}
-			);
+			PathTracingSpatialTemporalDenoisingPrePass(GraphBuilder, View, Config.PathTracingData.Iteration, DenoisingContext);
 
-			GraphBuilder.QueueTextureExtraction(DenoisedRadianceTexture, &PathTracingState->RadianceDenoisedRT);
+			CurrentVarianceBufer = DenoisingContext.VarianceBuffer;
 		}
+
+		// 2. Denoising pass
+		if (NeedsDenoise || EnablePathTracingDenoiserRealtimeDebug)
+		{
+			DenoisingContext.AlbedoTexture = AlbedoTexture;
+			DenoisingContext.NormalTexture = NormalTexture;
+			DenoisingContext.RadianceTexture = RadianceTexture;
+			DenoisingContext.FrameIndex = PathTracingState->FrameIndex;
+			DenoisingContext.VarianceBuffer = CurrentVarianceBufer;
+
+			if (PathTracingState->LastDenoisedRadianceRT)
+			{
+				DenoisingContext.LastDenoisedRadianceTexture =
+					GraphBuilder.RegisterExternalTexture(PathTracingState->LastDenoisedRadianceRT, TEXT("PathTracing.LastPreDenoisedRadiance"));
+				DenoisingContext.LastRadianceTexture =
+					GraphBuilder.RegisterExternalTexture(PathTracingState->LastRadianceRT, TEXT("PathTracing.LastRadianceTexture"));
+				DenoisingContext.LastNormalTexture =
+					GraphBuilder.RegisterExternalTexture(PathTracingState->LastNormalRT, TEXT("PathTracing.LastNormalTexture"));
+				DenoisingContext.LastAlbedoTexture =
+					GraphBuilder.RegisterExternalTexture(PathTracingState->LastAlbedoRT, TEXT("PathTracing.LastAlbedoTexture"));
+
+				DenoisingContext.LastVarianceBuffer = PathTracingState->LastVarianceBuffer?
+					GraphBuilder.RegisterExternalBuffer(PathTracingState->LastVarianceBuffer, TEXT("PathTracing.LastVarianceBuffer")) : nullptr;
+			}
+
+			PathTracingSpatialTemporalDenoising(GraphBuilder,
+				View,
+				DenoiserMode,
+				DenoisedRadianceTexture,
+				DenoisingContext);
+
+			GraphBuilder.QueueTextureExtraction(DenoisedRadianceTexture, &PathTracingState->LastDenoisedRadianceRT);
+			GraphBuilder.QueueTextureExtraction(NormalTexture, &PathTracingState->LastNormalRT);
+			GraphBuilder.QueueTextureExtraction(AlbedoTexture, &PathTracingState->LastAlbedoRT);
+			GraphBuilder.QueueTextureExtraction(RadianceTexture, &PathTracingState->LastRadianceRT);
+		}
+
+		// 3. Update pixel variance
+		if (CurrentVarianceBufer)
+		{
+			GraphBuilder.QueueBufferExtraction(CurrentVarianceBufer, 
+				(NeedsDenoise || EnablePathTracingDenoiserRealtimeDebug) ?
+				&PathTracingState->LastVarianceBuffer:
+				&PathTracingState->VarianceBuffer);
+
+			if (NeedsDenoise || EnablePathTracingDenoiserRealtimeDebug)
+			{
+				PathTracingState->VarianceBuffer = nullptr;
+			}
+		}
+		
 	}
 	PathTracingState->LastConfig.DenoiserMode = DenoiserMode;
 
@@ -2254,12 +2279,21 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 	FScreenPassTextureViewport Viewport(SceneColorOutputTexture, View.ViewRect);
 
+	const bool IsCursorInsideView = View.CursorPos.X != -1 || View.CursorPos.Y != -1;
 	// wiper mode - reveals the render below the path tracing display
 	// NOTE: we still path trace the full resolution even while wiping the cursor so that rendering does not get out of sync
 	if (CVarPathTracingWiperMode.GetValueOnRenderThread() != 0)
 	{
 		float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(View.CursorPos.X, View.CursorPos.Y);
-		Viewport.Rect.Min.X = View.CursorPos.X / DPIScale;
+		
+		if (IsCursorInsideView)
+		{
+			Viewport.Rect.Min.X = View.CursorPos.X / DPIScale;
+		}
+		else
+		{
+			Viewport.Rect.Min.X = 0.5 * View.ViewRect.Min.X + 0.5 * View.ViewRect.Max.X;
+		}
 	}
 
 	TShaderMapRef<FPathTracingCompositorPS> PixelShader(View.ShaderMap);
@@ -2272,6 +2306,35 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		PixelShader,
 		DisplayParameters
 	);
+
+	// Add a visualization path for denoising
+	if (NeedsDenoise || EnablePathTracingDenoiserRealtimeDebug)
+	{
+		FVisualizePathTracingDenoisingInputs Inputs;
+		Inputs.SceneColor =SceneColorOutputTexture;
+
+		FScreenPassTextureViewport MotionVectorViewport(SceneColorOutputTexture, View.ViewRect);
+		if (CVarPathTracingWiperMode.GetValueOnRenderThread() != 0)
+		{
+			float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(View.CursorPos.X, View.CursorPos.Y);
+			if (IsCursorInsideView)
+			{
+				MotionVectorViewport.Rect.Max.X = View.CursorPos.X / DPIScale;
+			}
+			else
+			{
+				MotionVectorViewport.Rect.Max.X = 0.5 * View.ViewRect.Min.X + 0.5 * View.ViewRect.Max.X;
+			}
+		}
+
+		Inputs.Viewport = MotionVectorViewport;
+
+		Inputs.DenoisingContext = DenoisingContext;
+		Inputs.SceneTexturesUniformBuffer = SceneTexturesUniformBuffer;
+		Inputs.DenoisedTexture = DenoisedRadianceTexture;
+
+		AddVisualizePathTracingDenoisingPass(GraphBuilder, View, Inputs);
+	}
 }
 
 #endif

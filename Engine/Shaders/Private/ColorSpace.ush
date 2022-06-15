@@ -245,3 +245,23 @@ float3 LinearRGB_2_HSV(in float3 RGB)
 	float s = HCV.y / (HCV.z + 1e-10f);
 	return float3(HCV.x, s, HCV.z);
 }
+
+//------------------------------------------------------------------
+// LCH
+//------------------------------------------------------------------
+
+float3 LAB_2_LCH(float3 LAB)
+{
+	float3 LCH;
+	LCH.x = LAB.x;
+	LCH.y = length(LAB.yz);
+	float HInDegree0To360 = 0.0f;
+
+	if (LAB.z != 0 || LAB.y != 0)
+	{
+		HInDegree0To360 = atan2(LAB.z, LAB.y) * 180 / 3.1415926535897932f;
+		HInDegree0To360 += lerp(0, 360.0f, HInDegree0To360 < 0);
+	}
+	LCH.z = HInDegree0To360;
+	return LCH;
+}

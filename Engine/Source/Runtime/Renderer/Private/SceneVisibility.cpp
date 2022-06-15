@@ -3881,6 +3881,9 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 				0.18f /*degree*/, 0.1f /*cm*/);
 			const bool bIsProjMatrixDifferent = View.ViewMatrices.GetProjectionNoAAMatrix() != View.ViewState->PrevFrameViewInfo.ViewMatrices.GetProjectionNoAAMatrix();
 			
+			static const auto CVarTemporalDenoiser = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PathTracing.TemporalDenoiser.mode"));
+			const int TemporalDenoiserMode = CVarTemporalDenoiser ? CVarTemporalDenoiser->GetValueOnAnyThread() : 0;
+
 			if (View.bIsOfflineRender)
 			{
 				// In the offline context, we want precise control over when to restart the path tracer's accumulation to allow for motion blur
@@ -3888,7 +3891,8 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 				// interactions with the motion blur post process effect in tiled rendering (see comment below).
 				if (View.bCameraCut || View.bForcePathTracerReset)
 				{
-					ViewState->PathTracingInvalidate();
+					const bool bClearTemporalDenoisingHistory = (TemporalDenoiserMode == 1) ? View.bCameraCut : true;
+					ViewState->PathTracingInvalidate(bClearTemporalDenoisingHistory);
 				}
 			}
 			else
@@ -3904,7 +3908,8 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 					bIsCameraMove ||
 					View.bForcePathTracerReset)
 				{
-					ViewState->PathTracingInvalidate();
+					const bool bClearTemporalDenoisingHistory = (TemporalDenoiserMode == 2) ? (View.bCameraCut || bResetCamera) : true;
+					ViewState->PathTracingInvalidate(bClearTemporalDenoisingHistory);
 				}
 			}
 
