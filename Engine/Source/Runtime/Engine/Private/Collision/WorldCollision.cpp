@@ -387,10 +387,6 @@ bool UWorld::ComponentSweepMulti(TArray<struct FHitResult>& OutHits, class UPrim
 		FInlineShapeArray PShapes;
 		const int32 NumShapes = FillInlineShapeArray_AssumesLocked(PShapes, Actor);
 
-		// calculate the test global pose of the actor
-		const FTransform GlobalStartTransform(Quat, Start);
-		const FTransform GlobalEndTransform(Quat, End);
-
 		for(FPhysicsShapeHandle& Shape : PShapes)
 		{
 			check(Shape.IsValid());
@@ -402,17 +398,9 @@ bool UWorld::ComponentSweepMulti(TArray<struct FHitResult>& OutHits, class UPrim
 				continue;
 			}
 
-			// Calc shape global pose
-			const FTransform ShapeLocalTransform = FPhysicsInterface::GetLocalTransform(Shape);
-			const FTransform GlobalStartTransform_Shape = ShapeLocalTransform * GlobalStartTransform;
-			FTransform GlobalEndTransform_Shape = ShapeLocalTransform * GlobalEndTransform;
-
-			// consider localshape rotation for shape rotation
-			const FQuat ShapeQuat = Quat * ShapeLocalTransform.GetRotation();
-
 			FPhysicsGeometryCollection GeomCollection = FPhysicsInterface::GetGeometryCollection(Shape);
 			TArray<FHitResult> TmpHits;
-			if(FPhysicsInterface::GeomSweepMulti(this, GeomCollection, ShapeQuat, TmpHits, GlobalStartTransform_Shape.GetTranslation(), GlobalEndTransform_Shape.GetTranslation(), TraceChannel, Params, FCollisionResponseParams(PrimComp->GetCollisionResponseToChannels())))
+			if(FPhysicsInterface::GeomSweepMulti(this, GeomCollection, Quat, TmpHits, Start, End, TraceChannel, Params, FCollisionResponseParams(PrimComp->GetCollisionResponseToChannels())))
 			{
 				bHaveBlockingHit = true;
 			}

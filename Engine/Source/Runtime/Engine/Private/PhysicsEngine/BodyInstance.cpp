@@ -3570,11 +3570,9 @@ bool FBodyInstance::OverlapTestForBodiesImpl(const FVector& Pos, const FQuat& Ro
 				continue;	//we skip complex shapes - should this respect ComplexAsSimple?
 			}
 
-			// Calc shape global pose
-			FTransform PShapeGlobalPose = FPhysicsInterface::GetLocalTransform(Shape) * PTestGlobalPose;
 			for (const FBodyInstance* BodyInstance : Bodies)
 			{
-				bHaveOverlap = FPhysicsInterface::Overlap_Geom(BodyInstance, FPhysicsInterface::GetGeometryCollection(Shape), PShapeGlobalPose);
+				bHaveOverlap = FPhysicsInterface::Overlap_Geom(BodyInstance, FPhysicsInterface::GetGeometryCollection(Shape), PTestGlobalPose);
 
 				if (bHaveOverlap)
 				{
@@ -3710,12 +3708,8 @@ bool FBodyInstance::OverlapMulti(TArray<struct FOverlapResult>& InOutOverlaps, c
 					continue;	//we skip complex shapes - should this respect ComplexAsSimple?
 				}
 
-				// Calc shape global pose
-				const FTransform LocalTransform = FPhysicsInterface::GetLocalTransform(ShapeRef);
-				const FTransform GlobalTransform = LocalTransform * BodyInstanceSpaceToTestSpace;
-			
 				TempOverlaps.Reset();
-				if(FPhysicsInterface::GeomOverlapMulti(World, GeomCollection, GlobalTransform.GetTranslation(), GlobalTransform.GetRotation(), TempOverlaps, TestChannel, Params, ResponseParams, ObjectQueryParams))
+				if(FPhysicsInterface::GeomOverlapMulti(World, GeomCollection, BodyInstanceSpaceToTestSpace.GetTranslation(), BodyInstanceSpaceToTestSpace.GetRotation(), TempOverlaps, TestChannel, Params, ResponseParams, ObjectQueryParams))
 				{
 					bHaveBlockingHit = true;
 				}
