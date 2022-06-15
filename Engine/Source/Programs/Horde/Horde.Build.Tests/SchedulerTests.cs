@@ -62,7 +62,7 @@ namespace Horde.Build.Tests
 
 			StreamConfig config = new StreamConfig();
 			config.Name = "//UE5/Main";
-			config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId.ToString() } });
+			config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<TemplateRefId> { TemplateRefId } });
 			config.Templates.Add(new TemplateRefConfig { Id = TemplateRefId, Name = "Test", Schedule = schedule });
 
 			return (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!; 
@@ -427,7 +427,7 @@ namespace Horde.Build.Tests
 
 			StreamConfig config = new StreamConfig();
 			config.Name = "//UE5/Main";
-			config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { newTemplateRefId1.ToString(), newTemplateRefId2.ToString() } });
+			config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<TemplateRefId> { newTemplateRefId1, newTemplateRefId2 } });
 
 			stream = (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!;
 
@@ -507,7 +507,7 @@ namespace Horde.Build.Tests
 
 			StreamConfig config = new StreamConfig();
 			config.Name = "//UE5/Main";
-			config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { newTemplateRefId1.ToString(), newTemplateRefId2.ToString() } });
+			config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<TemplateRefId> { newTemplateRefId1, newTemplateRefId2 } });
 			config.Templates.Add(newTemplate1);
 			config.Templates.Add(newTemplate2);
 

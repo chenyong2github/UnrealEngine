@@ -122,7 +122,7 @@ namespace Horde.Build.Tests
 			string revision = $"config:{streamId}";
 
 			StreamConfig streamConfig = new StreamConfig { Name = streamName };
-			streamConfig.Tabs.Add(new CreateJobsTabRequest { Title = "General", Templates = new List<string> { "test-template" } });
+			streamConfig.Tabs.Add(new CreateJobsTabRequest { Title = "General", Templates = new List<TemplateRefId> { new TemplateRefId("test-template") } });
 			streamConfig.Templates.Add(new TemplateRefConfig { Id = new TemplateRefId("test-template") });
 			await ConfigCollection.AddConfigAsync(revision, streamConfig);
 
