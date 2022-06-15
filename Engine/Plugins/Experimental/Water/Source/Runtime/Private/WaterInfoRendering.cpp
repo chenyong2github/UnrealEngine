@@ -449,8 +449,8 @@ static void UpdateWaterInfoRendering_RenderThread(
 		}
 		else
 		{
-			FResolveParams ResolveParams;
-			AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, DepthTexture, ResolveParams);
+			FRHICopyTextureInfo CopyInfo;
+			AddCopyTexturePass(GraphBuilder, TargetTexture, DepthTexture, CopyInfo);
 		}
 		
 		// We currently can't have multiple scene renderers run within the same RDGBuilder. Therefore, we must
@@ -566,8 +566,8 @@ static void UpdateWaterInfoRendering_RenderThread(
 		}
 		else
 		{
-			FResolveParams ResolveParams;
-			AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, DilationTexture, ResolveParams);
+			FRHICopyTextureInfo CopyInfo;
+			AddCopyTexturePass(GraphBuilder, TargetTexture, DilationTexture, CopyInfo);
 		}
 
 		FRDGTextureRef MergeTargetTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("WaterInfoMerged"));
