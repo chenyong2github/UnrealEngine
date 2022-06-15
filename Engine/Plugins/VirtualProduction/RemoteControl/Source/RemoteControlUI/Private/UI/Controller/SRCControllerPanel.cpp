@@ -45,5 +45,16 @@ bool SRCControllerPanel::IsListFocused() const
 
 void SRCControllerPanel::DeleteSelectedPanelItem()
 {
-	ControllerPanelList->DeleteSelectedPanelItem();
+	if (ControllerPanelList)
+	{
+		ControllerPanelList->DeleteSelectedPanelItem();
+	}
+}
+
+void SRCControllerPanel::EnterRenameMode()
+{
+	if (ControllerPanelList)
+	{
+		ControllerPanelList->EnterRenameMode();
+	}
 }

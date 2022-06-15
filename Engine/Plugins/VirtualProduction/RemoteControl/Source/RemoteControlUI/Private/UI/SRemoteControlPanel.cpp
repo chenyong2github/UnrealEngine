@@ -1966,6 +1966,12 @@ bool SRemoteControlPanel::CanDeleteEntity() const
 
 void SRemoteControlPanel::RenameEntity_Execute() const
 {
+	if (ControllerPanel->IsListFocused())
+	{
+		ControllerPanel->EnterRenameMode();
+		return;
+	}
+
 	if (SelectedEntity->GetRCType() == SRCPanelTreeNode::FieldChild) // Field Child does not contain entity ID, that is why it should not be processed
 	{
 		return;
@@ -1976,6 +1982,11 @@ void SRemoteControlPanel::RenameEntity_Execute() const
 
 bool SRemoteControlPanel::CanRenameEntity() const
 {
+	if (ControllerPanel->IsListFocused())
+	{
+		return true;
+	}
+
 	if (SelectedEntity.IsValid() && Preset.IsValid() && bIsInEditMode)
 	{
 		// Do not allow default group to be renamed.

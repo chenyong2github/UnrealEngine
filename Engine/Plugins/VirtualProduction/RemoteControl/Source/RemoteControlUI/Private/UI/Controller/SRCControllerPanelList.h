@@ -83,5 +83,10 @@ public:
 
 	/** Deletes currently selected items from the list view*/
 	void DeleteSelectedPanelItem();
+
+	void EnterRenameMode();
+
+private:
+	
 };
 

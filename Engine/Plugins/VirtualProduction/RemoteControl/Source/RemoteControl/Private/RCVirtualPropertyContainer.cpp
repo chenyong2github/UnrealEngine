@@ -139,7 +139,7 @@ void URCVirtualPropertyContainerBase::Reset()
 	Bag.Reset();
 }
 
-URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualProperty(const FName& InPropertyName) const
+URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualProperty(const FName InPropertyName) const
 {
 	for (URCVirtualPropertyBase* VirtualProperty : VirtualProperties)
 	{
@@ -149,6 +149,19 @@ URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualProperty(cons
 		}
 	}
 	
+	return nullptr;
+}
+
+URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualPropertyByDisplayName(const FName InDisplayName) const
+{
+	for (URCVirtualPropertyBase* VirtualProperty : VirtualProperties)
+	{
+		if (VirtualProperty->DisplayName == InDisplayName)
+		{
+			return VirtualProperty;
+		}
+	}
+
 	return nullptr;
 }
 

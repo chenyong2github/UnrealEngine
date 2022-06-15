@@ -73,7 +73,12 @@ public:
 	/**
 	 * Returns virtual property by specified name.
 	 */ 
-	virtual URCVirtualPropertyBase* GetVirtualProperty(const FName& InPropertyName) const;
+	virtual URCVirtualPropertyBase* GetVirtualProperty(const FName InPropertyName) const;
+
+	/**
+	 * Returns virtual property by user-friendly display name (Controller Name)
+	 */
+	virtual URCVirtualPropertyBase* GetVirtualPropertyByDisplayName(const FName InDisplayName) const;
 
 	/**
 	 * Returns number of virtual properties.

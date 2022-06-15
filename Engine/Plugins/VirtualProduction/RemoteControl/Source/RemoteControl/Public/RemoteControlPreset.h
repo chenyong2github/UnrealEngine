@@ -608,8 +608,11 @@ public:
 	* The goal is to hide the Controller Container and provide a simple interface for Controller access to UI and Web.
 	*/
 
+	/** Fetches a virtual property by internal property name. */
+	URCVirtualPropertyBase* GetVirtualProperty(const FName InPropertyName) const;
+
 	/** Fetches a virtual property by specified name. */
-	URCVirtualPropertyBase* GetVirtualProperty(const FName& InPropertyName) const;
+	URCVirtualPropertyBase* GetVirtualPropertyByDisplayName(const FName InDisplayName) const;
 
 	/** Adds a Virtual Property (Controller) to the Remote Control Preset */
 	URCVirtualPropertyInContainer* AddVirtualProperty(TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr, const FName InPropertyName = NAME_None);

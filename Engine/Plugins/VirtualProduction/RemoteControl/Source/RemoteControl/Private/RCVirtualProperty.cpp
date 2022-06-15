@@ -494,12 +494,7 @@ bool URCVirtualPropertyBase::SetValueColor(const FColor& InColor)
 
 FName URCVirtualPropertyBase::GetPropertyName() const
 {
-	if (const FProperty* Property = GetProperty())
-	{
-		return Property->GetClass()->GetFName();
-	}
-	
-	return NAME_None;
+	return PropertyName;
 }
 
 const FInstancedPropertyBag* URCVirtualPropertyInContainer::GetPropertyBagInstance() const

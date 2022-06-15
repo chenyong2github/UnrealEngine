@@ -2030,7 +2030,7 @@ bool FWebRemoteControlModule::HandlePresetSetControllerRoute(const FHttpServerRe
 	}
 
 	// 6. Acquire Controller
-	URCVirtualPropertyBase* Controller = Preset->GetVirtualProperty(*Args.ControllerName);
+	URCVirtualPropertyBase* Controller = Preset->GetVirtualPropertyByDisplayName(*Args.ControllerName);
 	if (!Controller)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
@@ -2043,8 +2043,9 @@ bool FWebRemoteControlModule::HandlePresetSetControllerRoute(const FHttpServerRe
 	// 7. Reformat Payload to represent our internal structure
 	TArray<uint8> NewPayload;
 	const FName PropertyValueKey = WebRemoteControlStructUtils::Prop_PropertyValue;
+	const FName PropertyNameInternal = Controller->GetPropertyName();
 
-	RemotePayloadSerializer::ReplaceFirstOccurence(SetControllerRequest.TCHARBody, PropertyValueKey.ToString(), Args.ControllerName, NewPayload);
+	RemotePayloadSerializer::ReplaceFirstOccurence(SetControllerRequest.TCHARBody, PropertyValueKey.ToString(), PropertyNameInternal.ToString(), NewPayload);
 	FMemoryReader Reader(NewPayload);
 	FJsonStructDeserializerBackend Backend(Reader);
 
@@ -2089,7 +2090,7 @@ bool FWebRemoteControlModule::HandlePresetGetControllerRoute(const FHttpServerRe
 	}
 
 	// 4. Acquire Controller
-	URCVirtualPropertyBase* Controller = Preset->GetVirtualProperty(*Args.ControllerName);
+	URCVirtualPropertyBase* Controller = Preset->GetVirtualPropertyByDisplayName(*Args.ControllerName);
 	if (!Controller)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;

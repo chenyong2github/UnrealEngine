@@ -6,12 +6,24 @@
 #include "RemoteControlPreset.h"
 #include "RCVirtualProperty.h"
 #include "UI/SRemoteControlPanel.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
-FRCControllerModel::FRCControllerModel(const FName& InPropertyName, const TSharedRef<IDetailTreeNode>& InTreeNode, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel)
+#define LOCTEXT_NAMESPACE "FRCControllerModel"
+
+FRCControllerModel::FRCControllerModel(URCVirtualPropertyBase* InVirtualProperty, const TSharedRef<IDetailTreeNode>& InTreeNode, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel)
 	: FRCLogicModeBase(InRemoteControlPanel)
-	, DetailTreeNodeWeakPtr(InTreeNode)
-	, PropertyName(InPropertyName)
+	, VirtualPropertyWeakPtr(InVirtualProperty)
+	, DetailTreeNodeWeakPtr(InTreeNode)	
 {
+	if(ensure(InVirtualProperty))
+	{
+		if(InVirtualProperty->DisplayName.IsNone())
+			InVirtualProperty->DisplayName = InVirtualProperty->PropertyName;
+
+		SAssignNew(ControllerNameTextBox, SInlineEditableTextBlock)
+			.Text(FText::FromName(InVirtualProperty->DisplayName))
+			.OnTextCommitted_Raw(this, &FRCControllerModel::OnControllerNameCommitted);
+	}
 }
 
 TSharedRef<SWidget> FRCControllerModel::GetWidget() const
@@ -39,39 +51,28 @@ TSharedRef<SWidget> FRCControllerModel::GetWidget() const
 				NodeWidgets.WholeRowWidget.ToSharedRef()
 			];
 	}
-	
-	return 	SNew(SHorizontalBox)
-		.Clipping(EWidgetClipping::OnDemand)
-		// Field name
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()		
-		[
-			NodeWidgets.NameWidget.ToSharedRef()
-		]
-		// Value Widget
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(FMargin(3.f))
-		[
-			FieldWidget
-		];
+
+	return FieldWidget;
+}
+
+TSharedRef<SWidget> FRCControllerModel::GetNameWidget() const
+{
+	return ControllerNameTextBox.ToSharedRef();
 }
 
 URCVirtualPropertyBase* FRCControllerModel::GetVirtualProperty() const
 {
-	if (const URemoteControlPreset* Preset = GetPreset())
-	{
-		return Preset->GetVirtualProperty(PropertyName);
-	}
-
-	return nullptr;
+	return VirtualPropertyWeakPtr.Get();
 }
 
-const FName& FRCControllerModel::GetPropertyName() const
+const FName FRCControllerModel::GetPropertyName() const
 {
-	return PropertyName;
+	if (const URCVirtualPropertyBase* VirtualProperty = GetVirtualProperty())
+	{
+		return VirtualProperty->PropertyName;
+	}
+
+	return NAME_None;
 }
 
 TSharedPtr<FRCBehaviourModel> FRCControllerModel::GetSelectedBehaviourModel() const
@@ -83,3 +84,32 @@ void FRCControllerModel::UpdateSelectedBehaviourModel(TSharedPtr<FRCBehaviourMod
 {
 	SelectedBehaviourModelWeakPtr = InModel;
 }
+
+void FRCControllerModel::OnControllerNameCommitted(const FText& InNewControllerName, ETextCommit::Type InCommitInfo)
+{
+	if (URemoteControlPreset* Preset = GetPreset())
+	{
+		if(URCVirtualPropertyBase* Controller = GetVirtualProperty())
+		{
+			Controller->DisplayName = *InNewControllerName.ToString();
+			ControllerNameTextBox->SetText(InNewControllerName);
+		}
+	}
+}
+
+void FRCControllerModel::EnterRenameMode()
+{
+	ControllerNameTextBox->EnterEditingMode();
+}
+
+FName FRCControllerModel::GetControllerDisplayName()
+{
+	if (URCVirtualPropertyBase* Controller = GetVirtualProperty())
+	{
+		return Controller->DisplayName;
+	}
+
+	return NAME_None;
+}
+
+#undef LOCTEXT_NAMESPACE

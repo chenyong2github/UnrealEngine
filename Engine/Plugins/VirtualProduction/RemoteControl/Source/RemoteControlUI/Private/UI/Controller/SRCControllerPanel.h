@@ -32,4 +32,6 @@ public:
 
 	/** Delete Item UI command implementation for this panel */
 	virtual void DeleteSelectedPanelItem() override;
+
+	void EnterRenameMode();
 };

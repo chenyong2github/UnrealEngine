@@ -13,6 +13,44 @@
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
 #include "UI/SRemoteControlPanel.h"
 
+#define LOCTEXT_NAMESPACE "SRCControllerPanelList"
+
+namespace UE::RCControllerPanelList
+{
+	static const FName ControllerNameColumn(TEXT("Controller Name"));
+	static const FName ControllerValueColumn(TEXT("Controller Value"));
+
+	class SControllerItemListRow : public SMultiColumnTableRow<TSharedRef<FRCControllerModel>>
+	{
+	private:
+		TSharedPtr<FRCControllerModel> ControllerItem;
+
+	public:
+		void Construct(const FTableRowArgs& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, TSharedRef<FRCControllerModel> InControllerItem)
+		{
+			ControllerItem = InControllerItem;
+			FSuperRowType::Construct(InArgs, OwnerTableView);
+		}
+
+		TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+		{
+			if (!ensure(ControllerItem.IsValid()))
+				return SNullWidget::NullWidget;
+
+			if (ColumnName == UE::RCControllerPanelList::ControllerNameColumn)
+			{
+				return ControllerItem->GetNameWidget();
+			}
+			else if (ColumnName == UE::RCControllerPanelList::ControllerValueColumn)
+			{
+				return ControllerItem->GetWidget();
+			}
+
+			return SNullWidget::NullWidget;
+		}
+	};
+}
+
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRef<SRCControllerPanel> InControllerPanel)
@@ -22,10 +60,23 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 	ControllerPanelWeakPtr = InControllerPanel;
 	
 	ListView = SNew(SListView<TSharedPtr<FRCControllerModel>>)
-		.ListItemsSource( &ControllerItems )
+		.ListItemsSource(&ControllerItems)
 		.OnSelectionChanged(this, &SRCControllerPanelList::OnTreeSelectionChanged)
-		.OnGenerateRow(this, &SRCControllerPanelList::OnGenerateWidgetForList );
-	
+		.OnGenerateRow(this, &SRCControllerPanelList::OnGenerateWidgetForList)
+		.SelectionMode(ESelectionMode::Single) // Current setup supports only single selection (and related display) of a Controller in the list
+		.HeaderRow
+		(
+			SNew(SHeaderRow)
+
+			+ SHeaderRow::Column(UE::RCControllerPanelList::ControllerNameColumn)
+			.DefaultLabel(LOCTEXT("Controller Name Column Name", "Name"))
+			.FillWidth(0.25f)
+
+			+ SHeaderRow::Column(UE::RCControllerPanelList::ControllerValueColumn)
+			.DefaultLabel(LOCTEXT("Controller Value Column Name", "Input"))
+			.FillWidth(0.75f)
+		);
+
 	ChildSlot
 	[
 		ListView.ToSharedRef()
@@ -74,7 +125,11 @@ void SRCControllerPanelList::Reset()
 		{
 			FProperty* Property = Child->CreatePropertyHandle()->GetProperty();
 			check(Property);
-			ControllerItems.Add(MakeShared<FRCControllerModel>(Property->GetFName(), Child, RemoteControlPanel));
+
+			if (URCVirtualPropertyBase* Controller = Preset->GetVirtualProperty(Property->GetFName()))
+			{
+				ControllerItems.Add(MakeShared<FRCControllerModel>(Controller, Child, RemoteControlPanel));
+			}
 		}
 	}
 
@@ -83,10 +138,13 @@ void SRCControllerPanelList::Reset()
 
 TSharedRef<ITableRow> SRCControllerPanelList::OnGenerateWidgetForList(TSharedPtr<FRCControllerModel> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-	[
-		InItem->GetWidget()
-	];
+	typedef UE::RCControllerPanelList::SControllerItemListRow ControllerRowType;
+
+	const TSharedRef<ControllerRowType> NewRow =
+		SNew(ControllerRowType, OwnerTable, InItem.ToSharedRef())
+		.Padding(FMargin(3.f));
+
+	return NewRow;
 }
 
 void SRCControllerPanelList::OnTreeSelectionChanged(TSharedPtr<FRCControllerModel> InItem, ESelectInfo::Type)
@@ -188,3 +246,13 @@ void SRCControllerPanelList::DeleteSelectedPanelItem()
 {
 	DeleteItemFromLogicPanel<FRCControllerModel>(ControllerItems, ListView->GetSelectedItems());
 }
+
+void SRCControllerPanelList::EnterRenameMode()
+{
+	if (TSharedPtr<FRCControllerModel> SelectedItem = SelectedControllerItemWeakPtr.Pin())
+	{
+		SelectedItem->EnterRenameMode();
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

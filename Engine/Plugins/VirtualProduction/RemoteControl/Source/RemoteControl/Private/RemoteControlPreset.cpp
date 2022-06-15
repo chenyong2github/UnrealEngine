@@ -499,7 +499,7 @@ FName URemoteControlPreset::GenerateUniqueLabel(const FName InDesiredName) const
 	return Registry->GenerateUniqueLabel(InDesiredName);
 }
 
-URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FName& InPropertyName) const
+URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FName InPropertyName) const
 {
 	if (!ensure(ControllerContainer))
 	{
@@ -507,6 +507,16 @@ URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FName& In
 	}
 
 	return ControllerContainer->GetVirtualProperty(InPropertyName);
+}
+
+URCVirtualPropertyBase* URemoteControlPreset::GetVirtualPropertyByDisplayName(const FName InDisplayName) const
+{
+	if (!ensure(ControllerContainer))
+	{
+		return nullptr;
+	}
+
+	return ControllerContainer->GetVirtualPropertyByDisplayName(InDisplayName);
 }
 
 URCVirtualPropertyInContainer* URemoteControlPreset::AddVirtualProperty(TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject /*= nullptr*/, const FName InPropertyName /*= NAME_None*/)

@@ -243,6 +243,10 @@ public:
 	/** Pointer to Remote Control Preset */
 	UPROPERTY()
 	TWeakObjectPtr<URemoteControlPreset> PresetWeakPtr;
+
+	/** User friendly name of the Controller*/
+	UPROPERTY()
+	FName DisplayName;
 };
 
 /**
