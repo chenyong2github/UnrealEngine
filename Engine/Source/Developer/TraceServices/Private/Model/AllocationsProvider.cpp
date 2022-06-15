@@ -2,12 +2,15 @@
 
 #include "AllocationsProvider.h"
 
-#include "AllocationsQuery.h"
-#include "Common/Utils.h"
 #include "Containers/ArrayView.h"
 #include "Misc/PathViews.h"
-#include "Model/MetadataProvider.h"
 #include "ProfilingDebugging/MemoryTrace.h"
+
+// TraceServices
+#include "AllocationsQuery.h"
+#include "Common/ProviderLock.h"
+#include "Common/Utils.h"
+#include "Model/MetadataProvider.h"
 #include "SbTree.h"
 #include "TraceServices/Containers/Allocators.h"
 #include "TraceServices/Model/Callstack.h"
@@ -1286,7 +1289,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 
 		uint32 MetadataId = MetadataProvider.InvalidMetadataId;
 		{
-			FMetadataProvider::FEditScopeLock _(MetadataProvider);
+			FProviderEditScopeLock _(MetadataProvider);
 			MetadataId = MetadataProvider.PinAndGetId(CurrentSystemThreadId);
 #if INSIGHTS_DEBUG_METADATA
 			if (MetadataId != FMetadataProvider::InvalidMetadataId &&

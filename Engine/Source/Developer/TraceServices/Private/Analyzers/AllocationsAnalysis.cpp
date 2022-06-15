@@ -3,9 +3,12 @@
 #include "AllocationsAnalysis.h"
 
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/MemoryTrace.h"
+
+// TraceServices
+#include "Common/ProviderLock.h"
 #include "Model/AllocationsProvider.h"
 #include "Model/MetadataProvider.h"
-#include "ProfilingDebugging/MemoryTrace.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Callstack.h"
 
@@ -78,7 +81,7 @@ void FAllocationsAnalyzer::OnAnalysisEnd()
 	}
 	const double Time = FMath::Max(SessionTime, LastMarkerSeconds);
 
-	FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+	FProviderEditScopeLock _(AllocationsProvider);
 	AllocationsProvider.EditOnAnalysisCompleted(Time);
 }
 
@@ -115,7 +118,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			const uint8 MinAlignment = EventData.GetValue<uint8>("MinAlignment");
 			SizeShift = EventData.GetValue<uint8>("SizeShift");
 
-			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			FProviderEditScopeLock _(AllocationsProvider);
 			AllocationsProvider.EditInit(Time, MinAlignment);
 			break;
 		}
@@ -128,7 +131,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			FStringView Name;
 			EventData.GetString("Name", Name);
 
-			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			FProviderEditScopeLock _(AllocationsProvider);
 			AllocationsProvider.EditHeapSpec(Id, ParentId, Name, Flags);
 			break;
 		}
@@ -194,7 +197,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			const uint32 TraceThreadId = Context.ThreadInfo.GetId();
 			const uint32 SystemThreadId = Context.ThreadInfo.GetSystemId();
 
-			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			FProviderEditScopeLock _(AllocationsProvider);
 			AllocationsProvider.SetCurrentThreadId(TraceThreadId, SystemThreadId);
 			AllocationsProvider.EditAlloc(Time, CallstackId, Address, Size, Alignment, RootHeap);
 			if (RouteId == RouteId_ReallocAlloc || RouteId == RouteId_ReallocAllocSystem)
@@ -238,7 +241,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			const uint32 TraceThreadId = Context.ThreadInfo.GetId();
 			const uint32 SystemThreadId = Context.ThreadInfo.GetSystemId();
 
-			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			FProviderEditScopeLock _(AllocationsProvider);
 			AllocationsProvider.SetCurrentThreadId(TraceThreadId, SystemThreadId);
 			if (RouteId == RouteId_ReallocFree || RouteId == RouteId_ReallocFreeSystem)
 			{
@@ -259,7 +262,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			const uint32 TraceThreadId = Context.ThreadInfo.GetId();
 			const uint32 SystemThreadId = Context.ThreadInfo.GetSystemId();
 
-			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			FProviderEditScopeLock _(AllocationsProvider);
 			AllocationsProvider.SetCurrentThreadId(TraceThreadId, SystemThreadId);
 			AllocationsProvider.EditMarkAllocationAsHeap(Time, Address, Heap, Flags);
 			break;
@@ -274,7 +277,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			const uint32 TraceThreadId = Context.ThreadInfo.GetId();
 			const uint32 SystemThreadId = Context.ThreadInfo.GetSystemId();
 
-			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			FProviderEditScopeLock _(AllocationsProvider);
 			AllocationsProvider.SetCurrentThreadId(TraceThreadId, SystemThreadId);
 			AllocationsProvider.EditUnmarkAllocationAsHeap(Time, Address, Heap);
 			break;
@@ -315,7 +318,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			Context.EventData.GetString("Display", Display);
 			const TCHAR* DisplayString = Session.StoreString(*Display);
 
-			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			FProviderEditScopeLock _(AllocationsProvider);
 			AllocationsProvider.EditAddTagSpec(Tag, Parent, DisplayString);
 			break;
 		}
@@ -331,7 +334,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 				{
 					const TagIdType Tag = Context.EventData.GetValue<TagIdType>("Tag");
 					{
-						FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+						FProviderEditScopeLock _(AllocationsProvider);
 						AllocationsProvider.EditPushTag(ThreadId, Tracker, Tag);
 					}
 #if INSIGHTS_MEM_TRACE_METADATA_TEST
@@ -345,7 +348,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 				{
 					const uint64 Ptr = Context.EventData.GetValue<uint64>("Ptr");
 					{
-						FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+						FProviderEditScopeLock _(AllocationsProvider);
 						AllocationsProvider.EditPushTagFromPtr(ThreadId, Tracker, Ptr);
 					}
 #if INSIGHTS_MEM_TRACE_METADATA_TEST
@@ -360,7 +363,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			else // EStyle::LeaveScope
 			{
 				{
-					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+					FProviderEditScopeLock _(AllocationsProvider);
 					if (AllocationsProvider.HasTagFromPtrScope(ThreadId, Tracker)) // Is TagFromPtr scope active?
 					{
 						AllocationsProvider.EditPopTagFromPtr(ThreadId, Tracker);

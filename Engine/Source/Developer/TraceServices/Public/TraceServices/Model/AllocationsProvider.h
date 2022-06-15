@@ -22,38 +22,6 @@ typedef uint32 TagIdType;
 class IAllocationsProvider : public IProvider
 {
 public:
-	struct TRACESERVICES_API FEditScopeLock
-	{
-		FEditScopeLock(const IAllocationsProvider& InAllocationsProvider)
-			: AllocationsProvider(InAllocationsProvider)
-		{
-			AllocationsProvider.BeginEdit();
-		}
-
-		~FEditScopeLock()
-		{
-			AllocationsProvider.EndEdit();
-		}
-
-		const IAllocationsProvider& AllocationsProvider;
-	};
-
-	struct TRACESERVICES_API FReadScopeLock
-	{
-		FReadScopeLock(const IAllocationsProvider& InAllocationsProvider)
-			: AllocationsProvider(InAllocationsProvider)
-		{
-			AllocationsProvider.BeginRead();
-		}
-
-		~FReadScopeLock()
-		{
-			AllocationsProvider.EndRead();
-		}
-
-		const IAllocationsProvider& AllocationsProvider;
-	};
-
 	// Allocation query rules.
 	// The enum uses the following naming convention:
 	//     A, B, C, D = time markers

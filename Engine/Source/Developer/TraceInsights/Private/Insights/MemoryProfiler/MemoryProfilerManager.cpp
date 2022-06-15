@@ -4,11 +4,14 @@
 
 #include "MessageLog/Public/MessageLogModule.h"
 #include "Modules/ModuleManager.h"
-#include "TraceServices/Model/AllocationsProvider.h"
-#include "TraceServices/Model/Memory.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+
+// TraceServices
+#include "Common/ProviderLock.h"
+#include "TraceServices/Model/AllocationsProvider.h"
+#include "TraceServices/Model/Memory.h"
 
 // Insights
 #include "Insights/Common/InsightsMenuBuilder.h"
@@ -273,7 +276,7 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 			const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 			if (AllocationsProvider)
 			{
-				TraceServices::IAllocationsProvider::FReadScopeLock _(*AllocationsProvider);
+				TraceServices::FProviderReadScopeLock _(*AllocationsProvider);
 				if (AllocationsProvider->IsInitialized())
 				{
 					bShouldBeAvailable = true;

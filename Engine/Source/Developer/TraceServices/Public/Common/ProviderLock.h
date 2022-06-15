@@ -44,14 +44,14 @@ struct TRACESERVICES_API FProviderReadScopeLock
 class FProviderLock
 {
 public:
-	void ReadAccessCheck(const FProviderLock* CurrentProviderLock, const int32& CurrentReadProviderLockCount, const int32& CurrentWriteAllocationsProviderLockCount) const;
+	void ReadAccessCheck(const FProviderLock* CurrentProviderLock, const int32& CurrentReadProviderLockCount, const int32& CurrentWriteProviderLockCount) const;
 	void WriteAccessCheck(const int32& CurrentWriteProviderLockCount) const;
 
-	void BeginRead(FProviderLock*& CurrentProviderLock, int32& CurrentReadProviderLockCount, const int32& WriteAllocationsProviderLockCount);
+	void BeginRead(FProviderLock*& CurrentProviderLock, int32& CurrentReadProviderLockCount, const int32& WriteProviderLockCount);
 	void EndRead(FProviderLock*& CurrentProviderLock, int32& CurrentReadProviderLockCount);
 
-	void BeginWrite(FProviderLock*& CurrentProviderLock, const int32& CurrentReadProviderLockCount, int32& WriteAllocationsProviderLockCount);
-	void EndWrite(FProviderLock*& CurrentProviderLock, int32& WriteAllocationsProviderLockCount);
+	void BeginWrite(FProviderLock*& CurrentProviderLock, const int32& CurrentReadProviderLockCount, int32& WriteProviderLockCount);
+	void EndWrite(FProviderLock*& CurrentProviderLock, int32& WriteProviderLockCount);
 
 private:
 	FRWLock RWLock;

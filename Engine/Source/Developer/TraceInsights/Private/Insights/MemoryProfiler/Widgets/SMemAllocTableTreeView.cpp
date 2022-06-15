@@ -9,15 +9,18 @@
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SToolTip.h"
+
+// TraceServices
+#include "Common/ProviderLock.h"
 #include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/Callstack.h"
 #include "TraceServices/Model/Definitions.h"
 #include "TraceServices/Model/MetadataProvider.h"
 #include "TraceServices/Model/Modules.h"
 #include "TraceServices/Model/Strings.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/SToolTip.h"
 
 // Insights
 #include "Insights/InsightsStyle.h"
@@ -260,7 +263,7 @@ void SMemAllocTableTreeView::StartQuery()
 
 	{
 		const TraceServices::IAllocationsProvider& Provider = *AllocationsProvider;
-		TraceServices::IAllocationsProvider::FReadScopeLock _(Provider);
+		TraceServices::FProviderReadScopeLock _(Provider);
 		TraceServices::IAllocationsProvider::FQueryParams Params = { Rule->GetValue(), TimeMarkers[0], TimeMarkers[1], TimeMarkers[2], TimeMarkers[3] };
 		Query = Provider.StartQuery(Params);
 	}
@@ -309,7 +312,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 	uint16 AssetMetadataType = 0;
 	if (MetadataProvider)
 	{
-		TraceServices::IMetadataProvider::FReadScopeLock MetadataProviderReadLock(*MetadataProvider);
+		TraceServices::FProviderReadScopeLock MetadataProviderReadLock(*MetadataProvider);
 		AssetMetadataType = MetadataProvider->GetRegisteredMetadataType(TEXT("Asset"));
 		if (MetadataProvider->GetRegisteredMetadataName(AssetMetadataType) == nullptr)
 		{
@@ -347,7 +350,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 		TSharedPtr<Insights::FMemAllocTable> MemAllocTable = GetMemAllocTable();
 		if (MemAllocTable)
 		{
-			TraceServices::IAllocationsProvider::FReadScopeLock _(Provider);
+			TraceServices::FProviderReadScopeLock _(Provider);
 
 			TArray<FMemoryAlloc>& Allocs = MemAllocTable->GetAllocs();
 
@@ -393,7 +396,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Asset = nullptr;
 					if (MetadataProvider && DefinitionProvider)
 					{
-						TraceServices::IMetadataProvider::FReadScopeLock MetadataProviderReadLock(*MetadataProvider);
+						TraceServices::FProviderReadScopeLock MetadataProviderReadLock(*MetadataProvider);
 						MetadataProvider->EnumerateMetadata(Allocation->GetThreadId(), Allocation->GetMetadataId(),
 							[AssetMetadataType, &Alloc, DefinitionProvider](uint32 StackDepth, uint16 Type, const void* Data, uint32 Size) -> bool
 							{
@@ -1305,7 +1308,7 @@ void SMemAllocTableTreeView::PopulateLLMTagSuggestionList(const FString& Text, T
 		return;
 	}
 
-	TraceServices::IAllocationsProvider::FReadScopeLock _(*AllocationsProvider);
+	TraceServices::FProviderReadScopeLock _(*AllocationsProvider);
 
 	AllocationsProvider->EnumerateTags([&OutSuggestions, &Text](const TCHAR* Display, const TCHAR* FullPath, TraceServices::TagIdType CurrentTag, TraceServices::TagIdType ParentTag)
 	{

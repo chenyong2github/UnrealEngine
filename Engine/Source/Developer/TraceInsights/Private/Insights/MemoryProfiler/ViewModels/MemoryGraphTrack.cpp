@@ -5,6 +5,9 @@
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Styling/SlateBrush.h"
+
+// TraceServices
+#include "Common/ProviderLock.h"
 #include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/TimingProfiler.h"
 #include "TraceServices/Model/Counters.h"
@@ -478,7 +481,7 @@ void FMemoryGraphTrack::PreUpdateAllocationsTimelineSeries(FMemoryGraphSeries& S
 		const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 		if (AllocationsProvider)
 		{
-			TraceServices::IAllocationsProvider::FReadScopeLock ProviderReadScope(*AllocationsProvider);
+			TraceServices::FProviderReadScopeLock ProviderReadScope(*AllocationsProvider);
 
 			int32 StartIndex = -1;
 			int32 EndIndex = -1;
@@ -582,7 +585,7 @@ void FMemoryGraphTrack::UpdateAllocationsTimelineSeries(FMemoryGraphSeries& Seri
 
 			TArray<FTimelineEvent> TimelineEvents;
 			{
-				TraceServices::IAllocationsProvider::FReadScopeLock ProviderReadScope(*AllocationsProvider);
+				TraceServices::FProviderReadScopeLock ProviderReadScope(*AllocationsProvider);
 				AllocationsProvider->GetTimelineIndexRange(Viewport.GetStartTime(), Viewport.GetEndTime(), StartIndex, EndIndex);
 
 				if (EndIndex >= 0)
