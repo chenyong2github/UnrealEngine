@@ -35,6 +35,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Activation)
 	bool bIsEnabledInAutomationTests = true;
 
+	/** Why is the test plan disabled. */
+	UPROPERTY(EditAnywhere, Category = Activation, Meta = (EditCondition = "!bIsEnabledInAutomationTests"))
+	FString DisabledTestReason;
+
 	/** Click here to immediately run this single test through the automation framework */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = Run, Meta = (DisplayPriority = 1))
 	void RunThisTest();

@@ -108,7 +108,18 @@ bool FInterchangeImportTest::RunTest(const FString& Path)
 				}
 				else
 				{
-					ExecutionInfo.AddWarning(FString::Printf(TEXT("InterchangeImportTestPlan %s is disabled."), *AssetObject->GetName()));
+					FString InfoMessage;
+					if (!AssetObject->DisabledTestReason.IsEmpty())
+					{
+						InfoMessage = FString::Printf(TEXT("InterchangeImportTestPlan %s is disabled because [%s]."), *AssetObject->GetName(), *AssetObject->DisabledTestReason);
+						
+					}
+					else
+					{
+						InfoMessage = FString::Printf(TEXT("InterchangeImportTestPlan %s is disabled."), *AssetObject->GetName());
+					}
+					//Add the disable test as an informative event
+					ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Info, InfoMessage));
 				}
 
 				return true;
