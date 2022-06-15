@@ -29,6 +29,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
 using Horde.Build.Issues.Handlers;
+using System.Threading;
 
 namespace Horde.Build.Tests
 {
@@ -287,6 +288,37 @@ namespace Horde.Build.Tests
 						parser.WriteLine(lines[idx]);
 					}
 				}
+			}
+		}
+
+		[TestMethod]
+		public async Task DeleteStreamTest()
+		{
+			await IssueService.StartAsync(CancellationToken.None);
+
+			// #1
+			// Scenario: Warning in first step
+			// Expected: Default issues is created
+			{
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning), message = "" }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+
+				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
+			}
+
+			// #2
+			// Scenario: Stream is deleted
+			// Expected: Issue is closed
+			{
+				await StreamCollection.DeleteAsync(_mainStreamId);
+				await Clock.AdvanceAsync(TimeSpan.FromHours(1.0));
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
 			}
 		}
 

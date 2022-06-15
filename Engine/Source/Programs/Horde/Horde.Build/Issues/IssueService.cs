@@ -290,6 +290,26 @@ namespace Horde.Build.Issues
 				{
 					await _issueCollection.TryUpdateIssueAsync(openIssue, newResolvedById: IIssue.ResolvedByTimeoutId);
 					openIssues.RemoveAt(idx--);
+					continue;
+				}
+			}
+
+			// Update any issues that are listed as valid for a stream that no longer exists
+			HashSet<StreamId> validStreamIds = new HashSet<StreamId>(cachedStreams.Select(x => x.Id));
+			for (int idx = 0; idx < openIssues.Count; idx++)
+			{
+				IIssue? openIssue = openIssues[idx];
+				if (openIssue.Streams.Any(x => !validStreamIds.Contains(x.StreamId)))
+				{
+					openIssue = await UpdateIssueDerivedDataAsync(openIssue);
+					if (openIssue != null && openIssue.ResolvedAt == null)
+					{
+						openIssues[idx] = openIssue;
+					}
+					else
+					{
+						openIssues.RemoveAt(idx--);
+					}
 				}
 			}
 
@@ -875,6 +895,16 @@ namespace Horde.Build.Issues
 				// Find all the spans that are attached to the issue
 				List<IIssueSpan> spans = await _issueCollection.FindSpansAsync(issue.Id);
 
+				// Remove any spans for streams that have been deleted
+				for (int idx = spans.Count - 1; idx >= 0; idx--)
+				{
+					IStream? stream = await _streams.GetStreamAsync(spans[idx].StreamId);
+					if (stream == null || stream.Deleted)
+					{
+						spans.RemoveAt(idx);
+					}
+				}
+
 				// Update the suspects for this issue
 				List<NewIssueSuspectData> newSuspects = new List<NewIssueSuspectData>();
 				if (spans.Count > 0)
@@ -944,7 +974,7 @@ namespace Horde.Build.Issues
 				{
 					if (spans.Count == 0)
 					{
-						newVerifiedAt = issue.VerifiedAt ?? DateTime.UtcNow;
+						newVerifiedAt = issue.VerifiedAt ?? _clock.UtcNow;
 					}
 					else
 					{

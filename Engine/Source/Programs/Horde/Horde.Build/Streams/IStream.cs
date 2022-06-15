@@ -589,6 +589,11 @@ namespace Horde.Build.Streams
 		public StreamConfig Config { get; }
 
 		/// <summary>
+		/// Whether this stream has been deleted
+		/// </summary>
+		public bool Deleted { get; }
+
+		/// <summary>
 		/// Order to display on the dashboard's drop-down list
 		/// </summary>
 		public int Order { get; }
