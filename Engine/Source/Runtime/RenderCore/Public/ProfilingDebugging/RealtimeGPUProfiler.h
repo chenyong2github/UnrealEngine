@@ -284,6 +284,7 @@ struct RENDERCORE_API FBreadcrumbEvent
 #endif
  #define GPU_STATS_BEGINFRAME(RHICmdList) FRealtimeGPUProfiler::Get()->BeginFrame(RHICmdList);
  #define GPU_STATS_ENDFRAME(RHICmdList) FRealtimeGPUProfiler::Get()->EndFrame(RHICmdList);
+ #define GPU_STATS_SUSPENDFRAME() FRealtimeGPUProfiler::Get()->SuspendFrame();
 #else
  #define DECLARE_GPU_STAT(StatName)
  #define DECLARE_GPU_DRAWCALL_STAT(StatName)
@@ -296,6 +297,7 @@ struct RENDERCORE_API FBreadcrumbEvent
  #define SCOPED_GPU_STAT(RHICmdList, StatName) 
  #define GPU_STATS_BEGINFRAME(RHICmdList) 
  #define GPU_STATS_ENDFRAME(RHICmdList) 
+ #define GPU_STATS_SUSPENDFRAME()
 #endif
 
 RENDERCORE_API bool AreGPUStatsEnabled();
@@ -378,6 +380,7 @@ public:
 	/** Per-frame update */
 	RENDERCORE_API void BeginFrame(FRHICommandListImmediate& RHICmdList);
 	RENDERCORE_API void EndFrame(FRHICommandListImmediate& RHICmdList);
+	RENDERCORE_API void SuspendFrame();
 
 	/** Final cleanup */
 	UE_DEPRECATED(4.23, "Use FRealtimeGPUProfiler::SafeRelease() instead.")

@@ -1553,6 +1553,9 @@ void FSlateRHIRenderer::BeginFrame() const
 	   [](FRHICommandListImmediate& RHICmdList)
 	   {
 		   RHICmdList.BeginFrame();
+
+		   // Suspend stat gathering when running modal dialog 'fake' frame loops
+		   GPU_STATS_SUSPENDFRAME();
 	   }
 	);
 }

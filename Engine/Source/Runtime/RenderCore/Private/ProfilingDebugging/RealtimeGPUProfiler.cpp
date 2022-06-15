@@ -1081,6 +1081,16 @@ void FRealtimeGPUProfiler::EndFrame(FRHICommandListImmediate& RHICmdList)
 	}
 }
 
+void FRealtimeGPUProfiler::SuspendFrame()
+{
+	if (!AreGPUStatsEnabled())
+	{
+		return;
+	}
+
+	bStatGatheringPaused = true;
+}
+
 FRealtimeGPUProfilerQuery FRealtimeGPUProfiler::PushEvent(FRHIGPUMask GPUMask, const FName& Name, const FName& StatName, const TCHAR* Description)
 {
 	check(IsInParallelRenderingThread());
