@@ -200,23 +200,35 @@ void FMemoryTagList::UpdateInternal()
 		// Update Parent and StatFullName for each tag.
 		for (FMemoryTag* TagPtr : Tags)
 		{
-			FMemoryTag& Tag = *TagPtr;
-			if (Tag.ParentId != FMemoryTag::InvalidTagId && Tag.Parent == nullptr)
-			{
-				for (FMemoryTag* ParentTagPtr : Tags)
-				{
-					FMemoryTag& ParentTag = *ParentTagPtr;
-					if (ParentTag.Id == Tag.ParentId)
-					{
-						ParentTag.Children.Add(TagPtr);
+			UpdateParentAndStatFullName(*TagPtr);
+		}
+	}
+}
 
-						Tag.Parent = ParentTagPtr;
-						Tag.StatFullName = ParentTag.StatName + TEXT("/") + Tag.StatName;
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-						break;
-					}
-				}
-			}
+void FMemoryTagList::UpdateParentAndStatFullName(FMemoryTag& Tag)
+{
+	if (Tag.ParentId == FMemoryTag::InvalidTagId || Tag.Parent != nullptr)
+	{
+		// Tag has no Parent or the Parent and the StatFullName are already set.
+		return;
+	}
+
+	for (FMemoryTag* ParentTagPtr : Tags)
+	{
+		FMemoryTag& ParentTag = *ParentTagPtr;
+		if (ParentTag.Id == Tag.ParentId)
+		{
+			// Ensure StatFullName for parent tag is updated first.
+			UpdateParentAndStatFullName(ParentTag);
+
+			ParentTag.Children.Add(&Tag);
+
+			Tag.Parent = ParentTagPtr;
+			Tag.StatFullName = ParentTag.StatFullName + TEXT("/") + Tag.StatName;
+
+			break;
 		}
 	}
 }

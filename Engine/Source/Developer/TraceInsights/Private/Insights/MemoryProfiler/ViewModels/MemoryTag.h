@@ -89,6 +89,7 @@ public:
 
 private:
 	void UpdateInternal();
+	void UpdateParentAndStatFullName(FMemoryTag& Tag);
 
 private:
 	TArray<FMemoryTag*> Tags; // the list of memory tags; owns the allocated memory
