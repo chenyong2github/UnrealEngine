@@ -208,7 +208,7 @@ export type EdgeProperties = Partial<EdgeOptionFields> & {
 	to: string
 }
 
-const NUM_WAIT_INTERVALS = 25
+const NUM_WAIT_INTERVALS = 30
 export async function retryWithBackoff<T extends {}>(desc: string, f: (last: boolean) => Promise<T | null>): Promise<T> {
 	let sleepTime = .5
 	for (let safety = 0; safety < NUM_WAIT_INTERVALS; ++safety) {
