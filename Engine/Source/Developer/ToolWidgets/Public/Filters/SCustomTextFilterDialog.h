@@ -6,8 +6,32 @@
 #include "Filters/FilterBase.h"
 #include "Core/Public/Misc/TextFilter.h"
 
+#include "SCustomTextFilterDialog.generated.h"
+
 class SColorBlock;
 class SEditableTextBox;
+
+/* Struct containing the data that SCustomTextFilterDialog is currently editing */
+USTRUCT()
+struct FCustomTextFilterData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FText FilterLabel;
+	
+	UPROPERTY()
+	FText FilterString;
+
+	UPROPERTY()
+	FLinearColor FilterColor;
+
+	FCustomTextFilterData()
+		: FilterColor(FLinearColor::White)
+	{
+		
+	}
+};
 
 /* A filter that allows testing items of type FilterType against text expressions */
 template<typename FilterType>
@@ -25,7 +49,7 @@ public:
 	/** Returns the system name for this filter */
 	virtual FString GetName() const override
 	{
-		return FString("FCustomTextFilter");
+		return GetCommonName().ToString();
 	}
 
 	/** Returns the human readable name for this filter */
@@ -76,7 +100,7 @@ public:
 	}
 
 	/** Get the actual text this filter is using to test against */
-	FText GetFilterString()
+	FText GetFilterString() const
 	{
 		return TextFilter->GetRawFilterText();
 	}
@@ -85,6 +109,31 @@ public:
 	void SetFilterString(const FText& InFilterString)
 	{
 		TextFilter->SetRawFilterText(InFilterString);
+	}
+
+	/** All FCustomTextFilters have the same internal name, this is a helper function to get that name to test against */
+	static FName GetCommonName()
+	{
+		return FName("CustomTextFilter");
+	}
+
+	/** Set the internals of this filter from an FCustomTextFilterData */
+	void SetFromCustomTextFilterData(const FCustomTextFilterData& InFilterData)
+	{
+		SetDisplayName(InFilterData.FilterLabel);
+		SetColor(InFilterData.FilterColor);
+		SetFilterString(InFilterData.FilterString);
+	}
+
+	/** Create an FCustomTextFilterData from the internals of this filter */
+	FCustomTextFilterData CreateCustomTextFilterData() const
+	{
+		FCustomTextFilterData CustomTextFilterData;
+		CustomTextFilterData.FilterLabel = GetDisplayName();
+		CustomTextFilterData.FilterColor = GetColor();
+		CustomTextFilterData.FilterString = GetFilterString();
+
+		return CustomTextFilterData;
 	}
 	
 	// Functionality that is not needed by this filter
@@ -126,19 +175,7 @@ protected:
 };
 
 
-/* Struct containing the data that SCustomTextFilterDialog is currently editing */
-struct FCustomTextFilterData
-{
-	FText FilterLabel;
-	FText FilterString;
-	FLinearColor FilterColor;
 
-	FCustomTextFilterData()
-		: FilterColor(FLinearColor::White)
-	{
-		
-	}
-};
 
 class TOOLWIDGETS_API SCustomTextFilterDialog : public SCompoundWidget
 {

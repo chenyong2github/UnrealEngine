@@ -130,7 +130,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			{
 				GraphObj->SetCurrentFilterCollection(FilterWidget->GetAllActiveFilters());
 				GraphObj->RefilterGraph();
-				FilterWidget->SaveSettings(FString(), FString(), FString());
+				FilterWidget->SaveSettings();
 			}
 		})
 	;
@@ -782,8 +782,7 @@ void SReferenceViewer::OnUpdateFilterBar()
 
 		else
 		{
-			FString EmptyString;
-			FilterWidget->LoadSettings(EmptyString, EmptyString, EmptyString);
+			FilterWidget->LoadSettings();
 			GraphObj->SetCurrentFilterCollection(FilterWidget->GetAllActiveFilters());
 		}
 	}

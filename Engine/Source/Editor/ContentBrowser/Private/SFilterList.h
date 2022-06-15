@@ -70,10 +70,10 @@ public:
 	void DisableFiltersThatHideItems(TArrayView<const FContentBrowserItem> ItemList);
 
 	/** Saves any settings to config that should be persistent between editor sessions */
-	void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const override;
+	void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const;
 
 	/** Loads any settings to config that should be persistent between editor sessions */
-	void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) override;
+	void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString);
 
 	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 

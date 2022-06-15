@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-void SReferenceViewerFilterBar::SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const
+void SReferenceViewerFilterBar::SaveSettings()
 {
 	TArray<FilterState> SaveFilters;
 	if (UReferenceViewerSettings* Settings = GetMutableDefault<UReferenceViewerSettings>())
@@ -22,7 +22,7 @@ void SReferenceViewerFilterBar::SaveSettings(const FString& IniFilename, const F
 	}
 }
 
-void SReferenceViewerFilterBar::LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) 
+void SReferenceViewerFilterBar::LoadSettings() 
 {
 	if (UReferenceViewerSettings* Settings = GetMutableDefault<UReferenceViewerSettings>())
 	{

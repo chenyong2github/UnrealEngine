@@ -1103,13 +1103,14 @@ protected:
 		TSharedRef<FCustomTextFilter<FilterType>> NewFilter = MakeShared<FCustomTextFilter<FilterType>>(NewTextFilter);
 
 		// Fill in the data the widget gives us
-		NewFilter->SetDisplayName(InFilterData.FilterLabel);
-		NewFilter->SetColor(InFilterData.FilterColor);
-		NewFilter->SetFilterString(InFilterData.FilterString);
+		NewFilter->SetFromCustomTextFilterData(InFilterData);
 
 		CustomTextFilters.Add(NewFilter);
+		
 		TSharedRef<SFilter> AddedFilter = AddFilterToBar(NewFilter);
+		
 		AddedFilter->SetEnabled(bApplyFilter);
+		SetFrontendFilterActive(NewFilter, bApplyFilter);
 
 		// Close the create custom filter dialog 		
 		OnCancelCustomTextFilterDialog();
@@ -1121,9 +1122,7 @@ protected:
 		// Update the filter with the data the widget has given us
 		if(InFilter)
 		{
-			InFilter->SetDisplayName(InFilterData.FilterLabel);
-			InFilter->SetColor(InFilterData.FilterColor);
-			InFilter->SetFilterString(InFilterData.FilterString);
+			InFilter->SetFromCustomTextFilterData(InFilterData);
 		}
 
 		// If the filter we modified is active in the bar, remove and re-add it to update the data
@@ -1136,7 +1135,9 @@ protected:
 				RemoveFilter(InFilter.ToSharedRef());
 
 				TSharedRef<SFilter> AddedFilter = AddFilterToBar(InFilter.ToSharedRef());
+				
 				AddedFilter->SetEnabled(bWasEnabled);
+				SetFrontendFilterActive(InFilter.ToSharedRef(), bWasEnabled);
 			}
 		}
 
@@ -1150,6 +1151,9 @@ protected:
 		{
 			CustomTextFilters.RemoveSingle(InFilter.ToSharedRef());
 			RemoveFilter(InFilter.ToSharedRef());
+
+			// We fire this delegate here, since a CustomTextFilter was removed from the list 
+			OnFilterChanged.ExecuteIfBound();
 		}
 		
 		OnCancelCustomTextFilterDialog();
@@ -1211,10 +1215,7 @@ protected:
 			return;
 		}
 
-		FCustomTextFilterData CustomTextFilterData;
-		CustomTextFilterData.FilterLabel = InFilter->GetDisplayName();
-		CustomTextFilterData.FilterColor = InFilter->GetColor();
-		CustomTextFilterData.FilterString = InFilter->GetFilterString();
+		FCustomTextFilterData CustomTextFilterData = InFilter->CreateCustomTextFilterData();
 
 		CreateCustomTextFilterWindow(CustomTextFilterData, InFilter);
 	}
@@ -1356,12 +1357,6 @@ protected:
 				);
 		}
 	}
-	
-	/** Virtual Function for subclasses to save their settings */
-	virtual void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const {}
-
-	/** Virtual Function for subclasses to load their settings */
-	virtual void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) {}
 
 private:
 
