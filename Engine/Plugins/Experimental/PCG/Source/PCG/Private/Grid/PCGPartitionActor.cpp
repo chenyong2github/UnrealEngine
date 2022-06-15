@@ -17,6 +17,8 @@ APCGPartitionActor::APCGPartitionActor(const FObjectInitializer& ObjectInitializ
 
 void APCGPartitionActor::PostLoad()
 {
+	Super::PostLoad();
+
 	// If the grid size is not set, set it to the default value.
 	if (PCGGridSize == InvalidPCGGridSizeValue)
 	{
