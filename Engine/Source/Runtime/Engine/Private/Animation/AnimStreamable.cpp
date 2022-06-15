@@ -19,17 +19,14 @@
 #include "Animation/AnimBoneCompressionCodec.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "BonePose.h"
-#include "CommonFrameRates.h"
 #include "ContentStreaming.h"
-#include "ITimeManagementModule.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AttributesRuntime.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+#include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimSequenceHelpers.h"
-#include "Animation/AnimSequence.h"
-#include "Animation/AnimData/IAnimationDataModel.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
@@ -163,6 +160,13 @@ void UAnimStreamable::Serialize(FArchive& Ar)
 	
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
+	if (Ar.IsLoading() && 
+	    Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::AnimationDataModelInterface_BackedOut &&
+		Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::BackoutAnimationDataModelInterface)
+	{
+		UE_LOG(LogAnimation, Fatal, TEXT("This package was saved with a version that had to be backed out and is no longer able to be loaded."));
+	}
+
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
 
@@ -170,41 +174,6 @@ void UAnimStreamable::Serialize(FArchive& Ar)
 	{
 		UE_LOG(LogAnimation, Fatal, TEXT("This platform requires cooked packages, and animation data was not cooked into %s."), *GetFullName());
 	}
-
-#if WITH_EDITORONLY_DATA
-	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimationDataModelInterface)
-	{
-		// Figure out correct SamplingFrameRate value 
-		if(SourceSequence && !SourceSequence->HasAnyFlags(RF_NeedPostLoad))
-		{
-			SamplingFrameRate = SourceSequence->GetSamplingFrameRate();
-		}
-		else
-		{
-			const int32 NumberOfFrames = FMath::Max(NumberOfKeys - 1, 1);
-
-			// Generate the frame-rate according to the number of frames and sequence length
-			const double DecimalFrameRate = (double)NumberOfFrames / ((double)GetPlayLength() > 0.0 ? (double)GetPlayLength() : 1.0);
-
-			// Account for non-whole number frame rates using large denominator
-			const double Denominator = 1000000.0;
-			SamplingFrameRate = FFrameRate(DecimalFrameRate * Denominator, Denominator);	 
-
-			// Try to simplifiy the frame rate, in case it is a multiple of the commonly used frame rates e.g. 10000/300000 -> 1/30
-			TArrayView<const FCommonFrameRateInfo> CommonFrameRates = FModuleManager::LoadModulePtr<ITimeManagementModule>("TimeManagement")->GetAllCommonFrameRates();
-			for (const FCommonFrameRateInfo& Info : CommonFrameRates)
-			{
-				const bool bDoesNotAlreadyMatch = Info.FrameRate.Denominator != SamplingFrameRate.Denominator && Info.FrameRate.Numerator != SamplingFrameRate.Numerator;
-		
-				if (bDoesNotAlreadyMatch && FMath::IsNearlyEqual(SamplingFrameRate.AsInterval(), Info.FrameRate.AsInterval()))
-				{
-					SamplingFrameRate = Info.FrameRate;
-					break;
-				}
-			}
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
 
 	if (bCooked)
 	{
@@ -228,6 +197,19 @@ void UAnimStreamable::Serialize(FArchive& Ar)
 	}
 #endif // WITH_EDITORONLY_DATA
 }
+
+#if WITH_EDITOR
+/*bool UAnimComposite::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive) 
+{
+	return AnimationTrack.GetAllAnimationSequencesReferred(AnimationAssets, bRecursive);
+}
+
+void UAnimComposite::ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap)
+{
+	AnimationTrack.ReplaceReferredAnimations(ReplacementMap);
+}*/
+#endif
+
 
 void UAnimStreamable::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const
 {
@@ -315,8 +297,10 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 		//Need to evaluate raw data
 		ValidateModel();
 
+		UE::Anim::EvaluateFloatCurvesFromModel(DataModel, OutCurve, ExtractionContext.CurrentTime);
+
 		// Warning if we have invalid data
-		for (const FBoneAnimationTrack& AnimationTrack : DataModelInterface->GetBoneAnimationTracks())
+		for (const FBoneAnimationTrack& AnimationTrack : DataModel->GetBoneAnimationTracks())
 		{
 			const FRawAnimSequenceTrack& TrackToExtract = AnimationTrack.InternalTrackData;
 			// Bail out (with rather wacky data) if data is empty for some reason.
@@ -326,8 +310,7 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 			}
 		}
 
-		const UE::Anim::DataModel::FEvaluationContext EvaluationContext(ExtractionContext.CurrentTime, DataModelInterface->GetFrameRate(), RetargetSource, MySkeleton->GetRefLocalPoses(RetargetSource), Interpolation);
-		DataModelInterface->Evaluate(OutAnimationPoseData, EvaluationContext);
+		UE::Anim::BuildPoseFromModel(DataModel, OutPose, ExtractionContext.CurrentTime, Interpolation, RetargetSource, MySkeleton->GetRefLocalPoses(RetargetSource));
 
 		if ((ExtractionContext.bExtractRootMotion && RootMotionReset.bEnableRootMotion) || RootMotionReset.bForceRootLock)
 		{
@@ -337,22 +320,19 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 	}
 #endif
 
-	const FStreamableAnimPlatformData& StreamableAnimData = GetRunningPlatformData();
-
-	const int32 ChunkIndex = GetChunkIndexForTime(StreamableAnimData.Chunks, ExtractionContext.CurrentTime);
+	const int32 ChunkIndex = GetChunkIndexForTime(GetRunningPlatformData().Chunks, ExtractionContext.CurrentTime);
 	if(ensureMsgf(ChunkIndex != INDEX_NONE, TEXT("Could not get valid chunk with Time %.2f for Streaming Anim %s"), ExtractionContext.CurrentTime, *GetFullName()))
 	{
-		const FAnimStreamableChunk& CurrentChunk = StreamableAnimData.Chunks[ChunkIndex];
-		const IAnimationStreamingManager& StreamingManager = IStreamingManager::Get().GetAnimationStreamingManager();
+		IAnimationStreamingManager& StreamingManager = IStreamingManager::Get().GetAnimationStreamingManager();
 
-		const bool bUsingFirstChunk = (ChunkIndex == 0);
+		bool bUsingFirstChunk = (ChunkIndex == 0);
 
 		const FCompressedAnimSequence* CurveCompressedDataChunk = StreamingManager.GetLoadedChunk(this, 0, bUsingFirstChunk); //Curve Data stored in chunk 0 till it is properly cropped
 
 		if (!CurveCompressedDataChunk)
 		{
 #if WITH_EDITOR
-			CurveCompressedDataChunk = StreamableAnimData.Chunks[0].CompressedAnimSequence;
+			CurveCompressedDataChunk = GetRunningPlatformData().Chunks[0].CompressedAnimSequence;
 #else
 			UE_LOG(LogAnimation, Warning, TEXT("Failed to get streamed compressed data Time: %.2f, ChunkIndex:%i, Anim: %s"), ExtractionContext.CurrentTime, 0, *GetFullName());
 			return;
@@ -363,13 +343,14 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 
 		const FCompressedAnimSequence* CompressedData = bUsingFirstChunk ? CurveCompressedDataChunk : StreamingManager.GetLoadedChunk(this, ChunkIndex, true);
 
-		double ChunkCurrentTime = ExtractionContext.CurrentTime - CurrentChunk.StartTime;
+		float ChunkCurrentTime = ExtractionContext.CurrentTime - GetRunningPlatformData().Chunks[ChunkIndex].StartTime;
+
 		if (!CompressedData)
 		{
 #if WITH_EDITOR
-			CompressedData = CurrentChunk.CompressedAnimSequence;
+			CompressedData = GetRunningPlatformData().Chunks[ChunkIndex].CompressedAnimSequence;
 #else
-			const int32 NumChunks = StreamableAnimData.Chunks.Num();
+			const int32 NumChunks = GetRunningPlatformData().Chunks.Num();
 
 			int32 FallbackChunkIndex = ChunkIndex;
 			while (!CompressedData)
@@ -382,7 +363,7 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 					return;
 				}
 				CompressedData = StreamingManager.GetLoadedChunk(this, FallbackChunkIndex, false);
-				ChunkCurrentTime = StreamableAnimData.Chunks[FallbackChunkIndex].SequenceLength;
+				ChunkCurrentTime = GetRunningPlatformData().Chunks[FallbackChunkIndex].SequenceLength;
 			}
 
 			UE_LOG(LogAnimation, Warning, TEXT("Failed to get streamed compressed data Time: %.2f, ChunkIndex:%i - Using Chunk %i Anim: %s"), ExtractionContext.CurrentTime, ChunkIndex, FallbackChunkIndex, *GetFullName());
@@ -400,8 +381,7 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 		ChunkExtractionContext.PoseCurves = ExtractionContext.PoseCurves;
 
 		//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Playing Streaming Anim %s Time: %.2f Chunk:%i\n"), *GetName(), ExtractionContext.CurrentTime, ChunkIndex);
-		FAnimSequenceDecompressionContext Context(SamplingFrameRate, CurrentChunk.NumFrames, Interpolation, GetFName(), *CompressedData->CompressedDataStructure.Get(), GetSkeleton(), bIsBakedAdditive);
-		UE::Anim::Decompression::DecompressPose(OutPose, *CompressedData, ChunkExtractionContext, Context, RetargetSource, RootMotionReset);
+		DecompressPose(OutPose, *CompressedData, ChunkExtractionContext, GetSkeleton(), GetRunningPlatformData().Chunks[ChunkIndex].SequenceLength, Interpolation, bIsBakedAdditive, RetargetSource, GetFName(), RootMotionReset);
 	}
 }
 
@@ -489,22 +469,16 @@ void UAnimStreamable::InitFrom(const UAnimSequence* InSourceSequence)
 
 	BoneCompressionSettings = InSourceSequence->BoneCompressionSettings;
 	CurveCompressionSettings = InSourceSequence->CurveCompressionSettings;
-	
-	DataModelInterface = StaticDuplicateObject(InSourceSequence->GetDataModelInterface().GetObject(), this);
 
-	// Far from ideal (retrieving controller to ensure it matches the DataModelInterface type)
-	Controller = DataModelInterface->GetController();
-	Controller->SetModel(DataModelInterface);
+	DataModel = DuplicateObject(InSourceSequence->GetDataModel(), this);
+	Controller->SetModel(DataModel);
 
 	Notifies = InSourceSequence->Notifies;
-	Controller->SetNumberOfFrames(InSourceSequence->GetDataModel()->GetNumberOfFrames());
+	Controller->SetPlayLength(InSourceSequence->GetDataModel()->GetPlayLength());
 	RateScale = InSourceSequence->RateScale;
 	Interpolation = InSourceSequence->Interpolation;
 	RetargetSource = InSourceSequence->RetargetSource;
-	NumberOfKeys = DataModelInterface->GetNumberOfKeys();
-	SamplingFrameRate = SourceSequence->GetDataModel()->GetFrameRate();
-
-	Controller->NotifyPopulated();
+	NumberOfKeys = DataModel->GetNumberOfKeys();
 
 	bEnableRootMotion = InSourceSequence->bEnableRootMotion;
 	RootMotionRootLock = InSourceSequence->RootMotionRootLock;
@@ -594,8 +568,8 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 		NumChunks = FMath::Max(InitialNumChunks, 1);
 	}
 
-	const int32 NumFramesToChunk = NumberOfKeys - 1;
-	const int32 FramesPerChunk = NumFramesToChunk / NumChunks;
+	int32 NumFramesToChunk = NumberOfKeys - 1;
+	int32 FramesPerChunk = NumberOfKeys / NumChunks;
 
 	PlatformData.Chunks.AddDefaulted(NumChunks);
 
@@ -641,7 +615,7 @@ float UAnimStreamable::GetChunkSizeSeconds(const ITargetPlatform* Platform) cons
 }
 
 template<typename KeyType>
-void MakeKeyChunk(const TArray<KeyType>& SrcKeys, TArray<KeyType>& DestKeys, int32 NumberOfKeys, const uint32 FrameStart, const uint32 FrameEnd)
+void MakeKeyChunk(const TArray<KeyType>& SrcKeys, TArray<KeyType>& DestKeys, int32 NumFrames, const uint32 FrameStart, const uint32 FrameEnd)
 {
 	if (SrcKeys.Num() == 1)
 	{
@@ -649,7 +623,7 @@ void MakeKeyChunk(const TArray<KeyType>& SrcKeys, TArray<KeyType>& DestKeys, int
 	}
 	else
 	{
-		check(SrcKeys.Num() == NumberOfKeys); // Invalid data otherwise
+		check(SrcKeys.Num() == NumFrames); // Invalid data otherwise
 
 		DestKeys.Reset((FrameEnd - FrameStart) + 1);
 		for (uint32 FrameIndex = FrameStart; FrameIndex <= FrameEnd; ++FrameIndex)
@@ -676,9 +650,10 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 		const bool bSkipDDC = false;
 
 		const int32 ChunkNumFrames = FrameEnd - FrameStart;
-		Chunk.StartTime = SamplingFrameRate.AsSeconds(static_cast<int32>(FrameStart));
-		Chunk.SequenceLength = SamplingFrameRate.AsSeconds(ChunkNumFrames);
-		Chunk.NumFrames = ChunkNumFrames;
+		const int32 NumberOfFrames = NumberOfKeys - 1;
+		const float FrameLength = GetPlayLength() / (float)NumberOfFrames;
+		Chunk.StartTime = FrameStart * FrameLength;
+		Chunk.SequenceLength = ChunkNumFrames * FrameLength;
 
 		if (!bSkipDDC && GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData, GetPathName()))
 		{
@@ -688,7 +663,7 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 		{
 			FCompressibleAnimRef CompressibleData = MakeShared<FCompressibleAnimData, ESPMode::ThreadSafe>(BoneCompressionSettings, CurveCompressionSettings, GetSkeleton(), Interpolation, Chunk.SequenceLength, ChunkNumFrames+1);
 
-			const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModelInterface->GetBoneAnimationTracks();
+			const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
 			CompressibleData->TrackToSkeletonMapTable.Empty();
 
 			for (const FBoneAnimationTrack& AnimTrack : BoneAnimationTracks)
@@ -709,8 +684,21 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 			if (FrameStart == 0)
 			{
 				//Crop curve logic broken, for the moment store curve data in always loaded chunk 0
-				CompressibleData->RawFloatCurves = DataModelInterface->GetFloatCurves();
+				CompressibleData->RawFloatCurves = DataModel->GetFloatCurves();
 			}
+
+			/*if (SourceSequence && ChunkIndex == 7)
+			{
+				UAnimSequence* Seq = const_cast<UAnimSequence*>(SourceSequence); //Stop update loop
+				SourceSequence = nullptr;
+				Seq->RawAnimationData = CompressibleData->RawAnimationData;
+				Seq->SequenceLength = CompressibleData->SequenceLength;
+				Seq->NumFrames = CompressibleData->NumFrames;
+				Seq->MarkRawDataAsModified(false);
+				Seq->OnRawDataChanged();
+
+				SourceSequence = Seq;
+			}*/
 
 			AnimCompressor->SetCompressibleData(CompressibleData);
 
@@ -755,7 +743,7 @@ void UAnimStreamable::UpdateRawData()
 {
 	if (IsDataModelValid())
 	{
-		RawDataGuid = DataModelInterface->GenerateGuid();
+		RawDataGuid = DataModel->GenerateGuid();
 		RequestCompressedData();
 	}
 }
@@ -803,3 +791,28 @@ FStreamableAnimPlatformData& UAnimStreamable::GetStreamingAnimPlatformData(const
 	return RunningAnimPlatformData;
 #endif
 }
+
+/*EAdditiveAnimationType UAnimComposite::GetAdditiveAnimType() const
+{
+	int32 AdditiveType = AnimationTrack.GetTrackAdditiveType();
+
+	if (AdditiveType != -1)
+	{
+		return (EAdditiveAnimationType)AdditiveType;
+	}
+
+	return AAT_None;
+}
+
+bool UAnimComposite::HasRootMotion() const
+{
+	return AnimationTrack.HasRootMotion();
+}*/
+
+#if WITH_EDITOR
+/*class UAnimSequence* UAnimComposite::GetAdditiveBasePose() const
+{
+	// @todo : for now it just picks up the first sequence
+	return AnimationTrack.GetAdditiveBasePose();
+}*/
+#endif 

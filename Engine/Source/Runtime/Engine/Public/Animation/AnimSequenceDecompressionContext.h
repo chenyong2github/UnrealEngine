@@ -4,44 +4,23 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimTypes.h"
-#include "Misc/FrameRate.h"
 
 struct ICompressedAnimData;
-class USkeleton;
 
 /* Encapsulates decompression related data used by bone compression codecs. */
 struct FAnimSequenceDecompressionContext
 {
-	UE_DEPRECATED(5.1, "FAnimSequenceDecompressionContext signature has been deprecated, use different one")
-	FAnimSequenceDecompressionContext(float SequenceLength_, EAnimInterpolationType Interpolation_, const FName& AnimName_, const ICompressedAnimData& CompressedAnimData_,  const USkeleton* InSourceSkeleton, bool bIsBakedAdditive)
-		:
+	FAnimSequenceDecompressionContext(float SequenceLength_, EAnimInterpolationType Interpolation_, const FName& AnimName_, const ICompressedAnimData& CompressedAnimData_)
+			:
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SequenceLength(SequenceLength_),
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Interpolation(Interpolation_), AnimName(AnimName_), CompressedAnimData(CompressedAnimData_),
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Time(0.f), RelativePos(0.f),
+		Time(0.f), RelativePos(0.f)
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		SourceSkeleton(InSourceSkeleton),
-		bAdditiveAnimation(bIsBakedAdditive)
 	{
 	}
-
-	FAnimSequenceDecompressionContext(const FFrameRate& InSamplingRate, const int32 InNumberOfFrames, EAnimInterpolationType Interpolation_, const FName& AnimName_, const ICompressedAnimData& CompressedAnimData_, const USkeleton* InSourceSkeleton, bool bIsBakedAdditive)
-		:
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		SequenceLength(InSamplingRate.AsSeconds(InNumberOfFrames)),
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		Interpolation(Interpolation_), AnimName(AnimName_), CompressedAnimData(CompressedAnimData_),
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Time(0.f), RelativePos(0.f),
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		SamplingRate(InSamplingRate),
-		SamplingTime(0),
-		NumberOfFrames(InNumberOfFrames),
-		SourceSkeleton(InSourceSkeleton),
-		bAdditiveAnimation(bIsBakedAdditive)
-	{}
 
 	// Anim info
 	UE_DEPRECATED(5.1, "Direct access to SequenceLength has been deprecated use GetPlayableLength instead")
@@ -57,49 +36,33 @@ struct FAnimSequenceDecompressionContext
 	UE_DEPRECATED(5.1, "Direct access to RelativePos has been deprecated use GetRelativePosition instead")
 	float RelativePos;
 
-	double GetPlayableLength() const
+	float GetPlayableLength() const
 	{
-		return SamplingRate.AsSeconds(NumberOfFrames);
-	}
-	double GetEvaluationTime() const
-	{
-		return SamplingRate.AsSeconds(SamplingTime);
-	}
-	double GetRelativePosition() const
-	{
-		return FMath::Min(SamplingTime.AsDecimal() / static_cast<double>(NumberOfFrames), 1.0);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return SequenceLength;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	double GetInterpolatedEvaluationTime() const
+	float GetEvaluationTime() const
 	{
-		const FFrameTime InterpolationTime = Interpolation == EAnimInterpolationType::Step ? SamplingTime.FloorToFrame() : SamplingTime;
-		return SamplingRate.AsSeconds(InterpolationTime);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Time;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	UE_DEPRECATED(5.1, "Seek with float precision sampling time has been deprecated use double signature instead")
+	float GetRelativePosition() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return RelativePos;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	void Seek(float SampleAtTime)
-	{
-		Seek(static_cast<double>(SampleAtTime));
-	}
-
-	void Seek(double SampleAtTime)
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Time = SampleAtTime;
 		RelativePos = SequenceLength != 0.f ? SampleAtTime / SequenceLength : 0.f;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		
-		SamplingTime = SamplingRate.AsFrameTime(SampleAtTime);
 	}
-
-	const USkeleton* GetSourceSkeleton() const { return SourceSkeleton; }
-	bool IsAdditiveAnimation() const { return bAdditiveAnimation; }	
-
-protected:
-	FFrameRate SamplingRate;
-	FFrameTime SamplingTime;
-	int32 NumberOfFrames;
-	const USkeleton* SourceSkeleton;
-	bool bAdditiveAnimation;
 };
 

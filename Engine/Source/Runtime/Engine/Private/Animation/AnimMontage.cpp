@@ -92,7 +92,7 @@ const FAnimTrack* UAnimMontage::GetAnimationData(FName InSlotName) const
 		}
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 bool UAnimMontage::IsWithinPos(int32 FirstIndex, int32 SecondIndex, float CurrentTime) const
@@ -369,7 +369,7 @@ void UAnimMontage::PostLoad()
 		Track.ValidateSegmentTimes();
 
 		const float CurrentCalculatedLength = CalculateSequenceLength();
-		if(!FMath::IsNearlyEqual(CurrentCalculatedLength, GetPlayLength(), UE_KINDA_SMALL_NUMBER))		
+		if(CurrentCalculatedLength != GetPlayLength())		
 		{
 			UE_LOG(LogAnimMontage, Display, TEXT("UAnimMontage::PostLoad: The actual sequence length for %s does not match the length stored in the asset, please resave the asset."), *GetFullName());
 			SetCompositeLength(CurrentCalculatedLength);
@@ -418,7 +418,7 @@ void UAnimMontage::PostLoad()
 	}
 	// find preview base pose if it can
 #if WITH_EDITORONLY_DATA
-	if ( IsValidAdditive() && PreviewBasePose == nullptr )
+	if ( IsValidAdditive() && PreviewBasePose == NULL )
 	{
 		for (int32 I=0; I<SlotAnimTracks.Num(); ++I)
 		{
@@ -555,8 +555,8 @@ void UAnimMontage::ConvertBranchingPointsToAnimNotifies()
 #if WITH_EDITORONLY_DATA
 			NewEvent.TrackIndex = TrackIndex;
 #endif
-			NewEvent.Notify = nullptr;
-			NewEvent.NotifyStateClass = nullptr;
+			NewEvent.Notify = NULL;
+			NewEvent.NotifyStateClass = NULL;
 			NewEvent.bConvertedFromBranchingPoint = true;
 			NewEvent.MontageTickType = EMontageNotifyTickType::BranchingPoint;
 
@@ -1310,14 +1310,11 @@ bool UAnimMontage::ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumula
 
 void UAnimMontage::SetCompositeLength(float InLength)
 {
-#if WITH_EDITOR
-	const FFrameTime LengthInFrameTime = DataModelInterface->GetFrameRate().AsFrameTime(InLength);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Controller->SetNumberOfFrames(LengthInFrameTime.RoundToFrame());
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#if WITH_EDITOR	
+	Controller->SetPlayLength(InLength);
 #else
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	SequenceLength = InLength;
+	SetSequenceLength(InLength);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif	
 }
@@ -1327,11 +1324,11 @@ void UAnimMontage::SetCompositeLength(float InLength)
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 FAnimMontageInstance::FAnimMontageInstance()
-	: Montage(nullptr)
+	: Montage(NULL)
 	, bPlaying(false)
 	, DefaultBlendTimeMultiplier(1.0f)
 	, bDidUseMarkerSyncThisTick(false)
-	, AnimInstance(nullptr)
+	, AnimInstance(NULL)
 	, InstanceID(INDEX_NONE)
 	, Position(0.f)
 	, PlayRate(1.f)
@@ -1343,13 +1340,13 @@ FAnimMontageInstance::FAnimMontageInstance()
 	, ActiveBlendProfile(nullptr)
 	, ActiveBlendProfileMode(EBlendProfileMode::TimeFactor)
 	, DisableRootMotionCount(0)
-	, MontageSyncLeader(nullptr)
+	, MontageSyncLeader(NULL)
 	, MontageSyncUpdateFrameCounter(INDEX_NONE)
 {
 }
 
 FAnimMontageInstance::FAnimMontageInstance(UAnimInstance * InAnimInstance)
-	: Montage(nullptr)
+	: Montage(NULL)
 	, bPlaying(false)
 	, DefaultBlendTimeMultiplier(1.0f)
 	, bDidUseMarkerSyncThisTick(false)
@@ -1366,7 +1363,7 @@ FAnimMontageInstance::FAnimMontageInstance(UAnimInstance * InAnimInstance)
 	, ActiveBlendProfile(nullptr)
 	, ActiveBlendProfileMode(EBlendProfileMode::TimeFactor)
 	, DisableRootMotionCount(0)
-	, MontageSyncLeader(nullptr)
+	, MontageSyncLeader(NULL)
 	, MontageSyncUpdateFrameCounter(INDEX_NONE)
 {
 }
@@ -1592,7 +1589,7 @@ void FAnimMontageInstance::Terminate()
 {
 	SCOPE_CYCLE_COUNTER(STAT_AnimMontageInstance_Terminate);
 
-	if (Montage == nullptr)
+	if (Montage == NULL)
 	{
 		return;
 	}
@@ -1631,7 +1628,7 @@ void FAnimMontageInstance::Terminate()
 	}
 
 	// clear Blend curve
-	Blend.SetCustomCurve(nullptr);
+	Blend.SetCustomCurve(NULL);
 	Blend.SetBlendOption(EAlphaBlendOption::Linear);
 
 	ActiveBlendProfile = nullptr;
@@ -1777,7 +1774,7 @@ void FAnimMontageInstance::MontageSync_StopLeading()
 		if (MontageSyncFollower)
 		{
 			ensure(MontageSyncFollower->MontageSyncLeader == this);
-			MontageSyncFollower->MontageSyncLeader = nullptr;
+			MontageSyncFollower->MontageSyncLeader = NULL;
 		}
 	}
 	MontageSyncFollowers.Empty();
@@ -1788,7 +1785,7 @@ void FAnimMontageInstance::MontageSync_StopFollowing()
 	if (MontageSyncLeader)
 	{
 		MontageSyncLeader->MontageSyncFollowers.RemoveSingleSwap(this);
-		MontageSyncLeader = nullptr;
+		MontageSyncLeader = NULL;
 	}
 }
 
@@ -2661,7 +2658,7 @@ void FAnimMontageInstance::BranchingPointEventHandler(const FBranchingPointMarke
 		// Must grab a reference on the stack in case "this" is deleted during iteration
 		TWeakObjectPtr<UAnimInstance> AnimInstanceLocal = AnimInstance;
 
-		FAnimNotifyEvent* NotifyEvent = (BranchingPointMarker->NotifyIndex < Montage->Notifies.Num()) ? &Montage->Notifies[BranchingPointMarker->NotifyIndex] : nullptr;
+		FAnimNotifyEvent* NotifyEvent = (BranchingPointMarker->NotifyIndex < Montage->Notifies.Num()) ? &Montage->Notifies[BranchingPointMarker->NotifyIndex] : NULL;
 		if (NotifyEvent)
 		{
 			// Handle backwards compatibility with older BranchingPoints.
@@ -2673,7 +2670,7 @@ void FAnimMontageInstance::BranchingPointEventHandler(const FBranchingPointMarke
 				UFunction* Function = AnimInstance.Get()->FindFunction(FuncFName);
 				if (Function)
 				{
-					AnimInstance.Get()->ProcessEvent(Function, nullptr);
+					AnimInstance.Get()->ProcessEvent(Function, NULL);
 				}
 				// In case older BranchingPoint has been re-implemented as a new Custom Notify, this is if BranchingPoint function hasn't been found.
 				else
@@ -2681,7 +2678,7 @@ void FAnimMontageInstance::BranchingPointEventHandler(const FBranchingPointMarke
 					AnimInstance.Get()->TriggerSingleAnimNotify(NotifyEvent);
 				}
 			}
-			else if (NotifyEvent->NotifyStateClass != nullptr)
+			else if (NotifyEvent->NotifyStateClass != NULL)
 			{
 				if (BranchingPointMarker->NotifyEventType == EAnimNotifyEventType::Begin)
 				{
@@ -2810,7 +2807,7 @@ UAnimMontage* FAnimMontageInstance::PreviewSequencerMontagePosition(FName SlotNa
 			// we have to get it again in case if this is new
 			MontageInstanceToUpdate = AnimInst->GetMontageInstanceForID(InOutInstanceId);
 			// since we don't advance montage in the tick, we manually have to handle notifies
-			MontageInstanceToUpdate->HandleEvents(InFromPosition, InToPosition, nullptr);
+			MontageInstanceToUpdate->HandleEvents(InFromPosition, InToPosition, NULL);
 			if (!bFireNotifies)
 			{
 				AnimInst->NotifyQueue.Reset(SkeletalMeshComponent);
@@ -2928,15 +2925,6 @@ void UAnimMontage::BakeTimeStretchCurve()
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TimeStretchCurve.BakeFromFloatCurve(*TimeStretchFloatCurve, SequenceLength);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-void UAnimMontage::PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> ExistingDataModel)
-{
-	Super::PopulateWithExistingModel(ExistingDataModel);
-	
-	// Set composite length while model is being populated
-	const float CurrentCalculatedLength = CalculateSequenceLength();
-	SetCompositeLength(CurrentCalculatedLength);
 }
 #endif // WITH_EDITOR
 

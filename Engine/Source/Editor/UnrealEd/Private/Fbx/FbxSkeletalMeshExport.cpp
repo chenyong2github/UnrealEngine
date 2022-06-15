@@ -29,7 +29,7 @@ FbxNode* FFbxExporter::CreateSkeleton(const USkeletalMesh* SkelMesh, TArray<FbxN
 
 	if(RefSkeleton.GetRawBoneNum() == 0)
 	{
-		return nullptr;
+		return NULL;
 	}
 
 	// Create a list of the nodes we create for each bone, so that children can 
@@ -116,13 +116,13 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 	const int32 VertexCount = SourceModel.GetNumNonClothingVertices();
 
 	// Verify the integrity of the mesh.
-	if (VertexCount == 0) return nullptr;
+	if (VertexCount == 0) return NULL;
 
 	// Copy all the vertex data from the various chunks to a single buffer.
 	// Makes the rest of the code in this function cleaner and easier to maintain.  
 	TArray<FSoftSkinVertex> Vertices;
 	SourceModel.GetNonClothVertices(Vertices);
-	if (Vertices.Num() != VertexCount) return nullptr;
+	if (Vertices.Num() != VertexCount) return NULL;
 
 	FbxMesh* Mesh = FbxMesh::Create(Scene, TCHAR_TO_UTF8(MeshName));
 
@@ -137,7 +137,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 
 	// Create Layer 0 to hold the normals
 	FbxLayer* LayerZero = Mesh->GetLayer(0);
-	if (LayerZero == nullptr)
+	if (LayerZero == NULL)
 	{
 		Mesh->CreateLayer();
 		LayerZero = Mesh->GetLayer(0);
@@ -169,7 +169,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 	for (int32 TexCoordSourceIndex = 0; TexCoordSourceIndex < TexCoordSourceCount; ++TexCoordSourceIndex)
 	{
 		FbxLayer* Layer = Mesh->GetLayer(TexCoordSourceIndex);
-		if (Layer == nullptr)
+		if (Layer == NULL)
 		{
 			Mesh->CreateLayer();
 			Layer = Mesh->GetLayer(TexCoordSourceIndex);
@@ -328,16 +328,18 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 		if(AnimSeq && BlendShapeCurvesMap.Num() > 0)
 		{
 			ExportCustomAnimCurvesToFbx(BlendShapeCurvesMap, AnimSeq,
-				FFrameTime(0),													// Start frame to export
-				FFrameTime(AnimSeq->GetDataModel()->GetNumberOfFrames()),		// Final frame to export
-				1.f,												// Frame rate scale
-				0.f,												// FBX StartTime
+				0.f,		// AnimStartOffset
+				0.f,		// AnimEndOffset
+				1.f,		// AnimPlayRate
+				0.f,		// StartTime
 				100.f);		// ValueScale, for some reason we need to scale BlendShape curves by a factor of 100.
 		}
 	}
 
 	FbxNode* MeshNode = FbxNode::Create(Scene, TCHAR_TO_UTF8(MeshName));
 	MeshNode->SetNodeAttribute(Mesh);
+
+
 
 	// Add the materials for the mesh
 	const TArray<FSkeletalMaterial>& SkelMeshMaterials = SkelMesh->GetMaterials();
@@ -356,7 +358,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 			MatInterface = SkelMeshMaterials[MaterialIndex].MaterialInterface;
 		}
 
-		FbxSurfaceMaterial* FbxMaterial = nullptr;
+		FbxSurfaceMaterial* FbxMaterial = NULL;
 		if (LODIndex == 0)
 		{
 			if (MatInterface && !FbxMaterials.Find(MatInterface))
@@ -588,7 +590,7 @@ void FFbxExporter::ExportSkeletalMeshComponent(USkeletalMeshComponent* SkelMeshC
 	if (SkelMeshComp && SkelMeshComp->SkeletalMesh)
 	{
 		UAnimSequence* AnimSeq = (bSaveAnimSeq && SkelMeshComp->GetAnimationMode() == EAnimationMode::AnimationSingleNode) ? 
-			Cast<UAnimSequence>(SkelMeshComp->AnimationData.AnimToPlay) : nullptr;
+			Cast<UAnimSequence>(SkelMeshComp->AnimationData.AnimToPlay) : NULL;
 		FbxNode* SkeletonRootNode = ExportSkeletalMeshToFbx(SkelMeshComp->SkeletalMesh, AnimSeq, MeshName, ActorRootNode, &ToRawPtrTArrayUnsafe(SkelMeshComp->OverrideMaterials));
 		if(SkeletonRootNode)
 		{
@@ -764,7 +766,7 @@ FbxNode* FFbxExporter::ExportSkeletalMeshToFbx(const USkeletalMesh* SkeletalMesh
 		return SkeletonRootNode;
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 } // namespace UnFbx

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimSequenceHelpers.h"
-#include "Animation/AnimData/IAnimationDataModel.h"
+#include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimData/IAnimationDataController.h"
 
 #include "UObject/NameTypes.h"
@@ -13,11 +13,11 @@
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
 #include "AnimationUtils.h"
-#include "Animation/AnimationPoseData.h"
+#include "Animation/AnimTypes.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Misc/MessageDialog.h"
-#include "Animation/AttributesRuntime.h"
+#include "Animation/AnimSequenceHelpers.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequenceHelpers"
 
@@ -27,32 +27,222 @@ namespace UE
 namespace Anim
 {
 
+struct FRetargetTracking
+{
+	const FCompactPoseBoneIndex PoseBoneIndex;
+	const int32 SkeletonBoneIndex;
+
+	FRetargetTracking(const FCompactPoseBoneIndex InPoseBoneIndex, const int32 InSkeletonBoneIndex)
+		: PoseBoneIndex(InPoseBoneIndex), SkeletonBoneIndex(InSkeletonBoneIndex)
+	{
+	}
+};
+
+struct FBuildRawPoseScratchArea : public TThreadSingleton<FBuildRawPoseScratchArea>
+{
+	TArray<FRetargetTracking> RetargetTracking;
+	TArray<FVirtualBoneCompactPoseData> VirtualBoneCompactPoseData;
+};
+
+
 #if WITH_EDITOR
-void BuildPoseFromModel(const IAnimationDataModel* Model, FCompactPose& OutPose, const double Time, const EAnimInterpolationType& InterpolationType, const FName& RetargetSource, const TArray<FTransform>& RetargetTransforms)
+FTransform ExtractTransformForKey(int32 Key, const FRawAnimSequenceTrack& TrackToExtract)
 {
-	FBlendedCurve TempCurve;
-	UE::Anim::FStackAttributeContainer TempAttributes;
-	TempCurve.InitFrom(OutPose.GetBoneContainer());
+	static const FVector DefaultScale3D = FVector(1.f);
+	const bool bHasScaleKey = TrackToExtract.ScaleKeys.Num() > 0;
 
-	FAnimationPoseData PoseData(OutPose, TempCurve, TempAttributes);
-	BuildPoseFromModel(Model, PoseData, Time, InterpolationType, RetargetSource, RetargetTransforms);
+	const int32 PosKeyIndex = FMath::Min(Key, TrackToExtract.PosKeys.Num() - 1);
+	const int32 RotKeyIndex = FMath::Min(Key, TrackToExtract.RotKeys.Num() - 1);
+	if (bHasScaleKey)
+	{
+		const int32 ScaleKeyIndex = FMath::Min(Key, TrackToExtract.ScaleKeys.Num() - 1);
+		return FTransform(FQuat(TrackToExtract.RotKeys[RotKeyIndex]), FVector(TrackToExtract.PosKeys[PosKeyIndex]), FVector(TrackToExtract.ScaleKeys[ScaleKeyIndex]));
+	}
+	else
+	{
+		return FTransform(FQuat(TrackToExtract.RotKeys[RotKeyIndex]), FVector(TrackToExtract.PosKeys[PosKeyIndex]), FVector(DefaultScale3D));
+	}
 }
+
+template<bool bInterpolateT>
+void ExtractPoseFromModel(const TArray<FBoneAnimationTrack>& BoneAnimationTracks, const TMap<FName, FTransform>& OverrideBoneTransforms, FCompactPose& InOutPose, const int32 KeyIndex1, const int32 KeyIndex2, float Alpha, const USkeleton* SourceSkeleton)
+{
+	const int32 NumAnimationTracks = BoneAnimationTracks.Num();
+	const FBoneContainer& RequiredBones = InOutPose.GetBoneContainer();
+
+	TArray<UE::Anim::FRetargetTracking>& RetargetTracking = UE::Anim::FBuildRawPoseScratchArea::Get().RetargetTracking;
+	RetargetTracking.Reset(NumAnimationTracks);
+
+	TArray<FVirtualBoneCompactPoseData>& VBCompactPoseData = UE::Anim::FBuildRawPoseScratchArea::Get().VirtualBoneCompactPoseData;
+	VBCompactPoseData = RequiredBones.GetVirtualBoneCompactPoseData();
+
+	FCompactPose Key2Pose;
+	if (bInterpolateT)
+	{
+		Key2Pose.CopyBonesFrom(InOutPose);
+	}
+
+	const USkeleton* TargetSkeleton = RequiredBones.GetSkeletonAsset();
+	const FSkeletonRemapping* SkeletonRemapping = TargetSkeleton->GetSkeletonRemapping(SourceSkeleton);
+
+	for (const FBoneAnimationTrack& AnimationTrack : BoneAnimationTracks)
+	{
+		const int32 SourceSkeletonBoneIndex = AnimationTrack.BoneTreeIndex;
+		const int32 SkeletonBoneIndex = SkeletonRemapping ? SkeletonRemapping->GetTargetSkeletonBoneIndex(SourceSkeletonBoneIndex) : SourceSkeletonBoneIndex;
+
+		// not sure it's safe to assume that SkeletonBoneIndex can never be INDEX_NONE
+		if ((SkeletonBoneIndex != INDEX_NONE) && (SkeletonBoneIndex < MAX_BONES))
+		{
+			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
+			if (PoseBoneIndex != INDEX_NONE)
+			{
+				for (int32 Idx = 0; Idx < VBCompactPoseData.Num(); ++Idx)
+				{
+					FVirtualBoneCompactPoseData& VB = VBCompactPoseData[Idx];
+					if (PoseBoneIndex == VB.VBIndex)
+					{
+						// Remove this bone as we have written data for it (false so we dont resize allocation)
+						VBCompactPoseData.RemoveAtSwap(Idx, 1, false);
+						break; //Modified TArray so must break here
+					}
+				}
 				
-void BuildPoseFromModel(const IAnimationDataModel* Model, FAnimationPoseData& OutPoseData, const double Time, const EAnimInterpolationType& InterpolationType, const FName& RetargetSource, const TArray<FTransform>& RetargetTransforms)
-{
-	FCompactPose& OutPose = OutPoseData.GetPose();
-	check(Model);
+				// extract animation
+				const FRawAnimSequenceTrack& TrackToExtract = AnimationTrack.InternalTrackData;
+				const FTransform* OverrideTransform = OverrideBoneTransforms.Find(AnimationTrack.Name);
+				{
+					// Bail out (with rather wacky data) if data is empty for some reason.
+					if (TrackToExtract.PosKeys.Num() == 0 || TrackToExtract.RotKeys.Num() == 0)
+					{
+						InOutPose[PoseBoneIndex].SetIdentity();
 
-	OutPose.ResetToRefPose();
+						if (bInterpolateT)
+						{
+							Key2Pose[PoseBoneIndex].SetIdentity();
+						}
+					}
+					else
+					{
+						InOutPose[PoseBoneIndex] = UE::Anim::ExtractTransformForKey(KeyIndex1, TrackToExtract);
 
-	const UE::Anim::DataModel::FEvaluationContext EvaluationContext(Time, Model->GetFrameRate(), RetargetSource, RetargetTransforms, InterpolationType);
-	Model->Evaluate(OutPoseData, EvaluationContext);
+						if (bInterpolateT)
+						{
+							Key2Pose[PoseBoneIndex] = UE::Anim::ExtractTransformForKey(KeyIndex2, TrackToExtract);
+						}
+					}
+				}
+
+				if (OverrideTransform)
+				{
+					InOutPose[PoseBoneIndex].SetRotation(InOutPose[PoseBoneIndex].GetRotation() * OverrideTransform->GetRotation());
+					InOutPose[PoseBoneIndex].TransformPosition(OverrideTransform->GetTranslation());
+					InOutPose[PoseBoneIndex].SetScale3D(InOutPose[PoseBoneIndex].GetScale3D() * OverrideTransform->GetScale3D());
+
+					if (bInterpolateT)
+					{
+						Key2Pose[PoseBoneIndex].SetRotation(Key2Pose[PoseBoneIndex].GetRotation() * OverrideTransform->GetRotation());
+						Key2Pose[PoseBoneIndex].TransformPosition(OverrideTransform->GetTranslation());
+						Key2Pose[PoseBoneIndex].SetScale3D(Key2Pose[PoseBoneIndex].GetScale3D() * OverrideTransform->GetScale3D());
+					}
+				}
+
+				RetargetTracking.Add(UE::Anim::FRetargetTracking(PoseBoneIndex, SkeletonBoneIndex));
+			}
+		}
+	}
+
+	//Build Virtual Bones
+	if (VBCompactPoseData.Num() > 0)
+	{
+		FCSPose<FCompactPose> CSPose1;
+		CSPose1.InitPose(InOutPose);
+
+		FCSPose<FCompactPose> CSPose2;
+		if (bInterpolateT)
+		{
+			CSPose2.InitPose(Key2Pose);
+		}
+
+		for (FVirtualBoneCompactPoseData& VB : VBCompactPoseData)
+		{
+			FTransform Source = CSPose1.GetComponentSpaceTransform(VB.SourceIndex);
+			FTransform Target = CSPose1.GetComponentSpaceTransform(VB.TargetIndex);
+			InOutPose[VB.VBIndex] = Target.GetRelativeTransform(Source);
+
+			if (bInterpolateT)
+			{
+				FTransform Source2 = CSPose2.GetComponentSpaceTransform(VB.SourceIndex);
+				FTransform Target2 = CSPose2.GetComponentSpaceTransform(VB.TargetIndex);
+				Key2Pose[VB.VBIndex] = Target2.GetRelativeTransform(Source2);
+			}
+		}
+	}
+
+	if (bInterpolateT)
+	{
+		for (FCompactPoseBoneIndex BoneIndex : InOutPose.ForEachBoneIndex())
+		{
+			InOutPose[BoneIndex].Blend(InOutPose[BoneIndex], Key2Pose[BoneIndex], Alpha);
+		}
+	}
 }
 
-void EvaluateFloatCurvesFromModel(const IAnimationDataModel* Model, FBlendedCurve& OutCurves, double Time)
+void BuildPoseFromModel(const UAnimDataModel* Model, FCompactPose& OutPose, const float Time, const EAnimInterpolationType& InterpolationType, const FName& RetargetSource, const TArray<FTransform>& RetargetTransforms)
 {
 	check(Model);
 
+	const int32 NumberOfKeys = Model->GetNumberOfKeys();
+	const float SequenceLength = Model->GetPlayLength();
+	const double FramesPerSecond = Model->GetFrameRate().AsDecimal();
+
+	// Generate keys to interpolate between
+	int32 KeyIndex1, KeyIndex2;
+	float Alpha;
+	FAnimationRuntime::GetKeyIndicesFromTime(KeyIndex1, KeyIndex2, Alpha, Time, NumberOfKeys, SequenceLength, FramesPerSecond);
+
+	if (InterpolationType == EAnimInterpolationType::Step)
+	{
+		// Force stepping between keys
+		Alpha = 0.f;
+	}
+
+	bool bShouldInterpolate = true;
+
+	if (Alpha < UE_KINDA_SMALL_NUMBER)
+	{
+		Alpha = 0.f;
+		bShouldInterpolate = false;
+	}
+	else if (Alpha > 1.f - UE_KINDA_SMALL_NUMBER)
+	{
+		bShouldInterpolate = false;
+		KeyIndex1 = KeyIndex2;
+	}
+
+	TMap<FName, FTransform> ActiveCurves;
+	if (!OutPose.GetBoneContainer().ShouldUseSourceData())
+	{
+		EvaluateTransformCurvesFromModel(Model, ActiveCurves, Time, 1.f);
+	}
+
+	const USkeleton* SourceSkeleton = Model->GetAnimationSequence()->GetSkeleton();
+	if (bShouldInterpolate)
+	{
+		ExtractPoseFromModel<true>(Model->GetBoneAnimationTracks(), ActiveCurves, OutPose, KeyIndex1, KeyIndex2, Alpha, SourceSkeleton);
+	}
+	else
+	{
+		ExtractPoseFromModel<false>(Model->GetBoneAnimationTracks(), ActiveCurves, OutPose, KeyIndex1, KeyIndex2, Alpha, SourceSkeleton);
+	}
+
+	Retargeting::RetargetPose(OutPose, RetargetSource, RetargetTransforms);
+}
+
+void EvaluateFloatCurvesFromModel(const UAnimDataModel* Model, FBlendedCurve& OutCurves, float Time)
+{
+	check(Model);
+
+	//SCOPE_CYCLE_COUNTER(STAT_EvalRawCurveData);
 	if (OutCurves.NumValidCurveCount > 0)
 	{
 		// evaluate the curve data at the Time and add to Instance
@@ -67,7 +257,7 @@ void EvaluateFloatCurvesFromModel(const IAnimationDataModel* Model, FBlendedCurv
 	}
 }
 
-void EvaluateTransformCurvesFromModel(const IAnimationDataModel* Model, TMap<FName, FTransform>& OutCurves, double Time, float BlendWeight)
+void EvaluateTransformCurvesFromModel(const UAnimDataModel* Model, TMap<FName, FTransform>& OutCurves, float Time, float BlendWeight)
 {
 	if (Model)
 	{
@@ -89,15 +279,15 @@ void EvaluateTransformCurvesFromModel(const IAnimationDataModel* Model, TMap<FNa
 	}
 }
 
-void GetBoneTransformFromModel(const IAnimationDataModel* Model, FTransform& OutTransform, int32 TrackIndex, double Time, const EAnimInterpolationType& Interpolation)
+void GetBoneTransformFromModel(const UAnimDataModel* Model, FTransform& OutTransform, int32 TrackIndex, float Time, const EAnimInterpolationType& Interpolation)
 {
 	const FBoneAnimationTrack& TrackData = Model->GetBoneTrackByIndex(TrackIndex);
 	const FRawAnimSequenceTrack& RawTrack = TrackData.InternalTrackData;
 	
-	FAnimationUtils::ExtractTransformFromTrack(RawTrack, Time, Model->GetNumberOfKeys(), Model->GetPlayLength(), Interpolation, OutTransform);
+	FAnimationUtils::ExtractTransformFromTrack(Time, Model->GetNumberOfKeys(), Model->GetPlayLength(), RawTrack, Interpolation, OutTransform);
 }
 
-void GetBoneTransformFromModel(const IAnimationDataModel* Model, FTransform& OutTransform, int32 TrackIndex, int32 KeyIndex)
+void GetBoneTransformFromModel(const UAnimDataModel* Model, FTransform& OutTransform, int32 TrackIndex, int32 KeyIndex)
 {
 	const FBoneAnimationTrack& TrackData = Model->GetBoneTrackByIndex(TrackIndex);
 	const FRawAnimSequenceTrack& RawTrack = TrackData.InternalTrackData;
@@ -205,36 +395,6 @@ void CopyCurveDataToModel(const FRawCurveTracks& CurveData, const USkeleton* Ske
 	else
 	{
 		OutTransform.SetScale3D(DefaultScale3D);
-	}	
-}
-	
-Retargeting::FRetargetingScope::FRetargetingScope(FCompactPose& ToRetargetPose, const DataModel::FEvaluationContext& InEvaluationContext)
-	: RetargetPose(ToRetargetPose),
-	EvaluationContext(InEvaluationContext),
-	RetargetTracking(FBuildRawPoseScratchArea::Get().RetargetTracking),
-	bShouldRetarget(!ToRetargetPose.GetBoneContainer().GetDisableRetargeting() && EvaluationContext.RetargetTransforms.Num())
-{
-	RetargetTracking.Reset();
-}
-
-void Retargeting::FRetargetingScope::AddTrackedBone(FCompactPoseBoneIndex CompactBoneIndex, int32 SkeletonBoneIndex) const
-{
-	if (bShouldRetarget)
-	{
-		RetargetTracking.Add({CompactBoneIndex, SkeletonBoneIndex});
-	}
-}
-
-Retargeting::FRetargetingScope::~FRetargetingScope()
-{
-	if (bShouldRetarget)
-	{
-		const FBoneContainer& RequiredBones = RetargetPose.GetBoneContainer();
-		const USkeleton* Skeleton = RequiredBones.GetSkeletonAsset();
-		for (const FRetargetTracking& RT : RetargetTracking)
-		{
-			FAnimationRuntime::RetargetBoneTransform(Skeleton, EvaluationContext.RetargetSource, EvaluationContext.RetargetTransforms, RetargetPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
-		}
 	}
 }
 
@@ -245,11 +405,11 @@ void Retargeting::RetargetPose(FCompactPose& InOutPose, const FName& RetargetSou
 
 	if (!bDisableRetargeting && RetargetTransforms.Num())
 	{
-		const TArray<UE::Anim::Retargeting::FRetargetTracking>& RetargetTracking = UE::Anim::FBuildRawPoseScratchArea::Get().RetargetTracking;
+		const TArray<UE::Anim::FRetargetTracking>& RetargetTracking = UE::Anim::FBuildRawPoseScratchArea::Get().RetargetTracking;
 
 		USkeleton* Skeleton = RequiredBones.GetSkeletonAsset();
 
-		for (const UE::Anim::Retargeting::FRetargetTracking& RT : RetargetTracking)
+		for (const UE::Anim::FRetargetTracking& RT : RetargetTracking)
 		{
 			FAnimationRuntime::RetargetBoneTransform(Skeleton, RetargetSource, RetargetTransforms, InOutPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
 		}
@@ -542,8 +702,9 @@ void Compression::SanitizeRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack)
 	// if scale is too small, zero it out. Cause it hard to retarget when compress
 	// inverse scale is applied to translation, and causing translation to be huge to retarget, but
 	// compression can't handle that much precision. 
-	for (auto& Scale3D : RawTrack.ScaleKeys)
+	for (auto ScaleIter = RawTrack.ScaleKeys.CreateIterator(); ScaleIter; ++ScaleIter)
 	{
+		FVector3f& Scale3D = *ScaleIter;
 		if (FMath::IsNearlyZero(Scale3D.X))
 		{
 			Scale3D.X = 0.f;
@@ -557,42 +718,14 @@ void Compression::SanitizeRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack)
 			Scale3D.Z = 0.f;
 		}
 	}
-	
-	for (auto& Position : RawTrack.PosKeys)
-	{		
-		if (FMath::IsNearlyZero(Position.X))
-		{
-			Position.X = 0.f;
-		}
-		if (FMath::IsNearlyZero(Position.Y))
-		{
-			Position.Y = 0.f;
-		}
-		if (FMath::IsNearlyZero(Position.Z))
-		{
-			Position.Z = 0.f;
-		}
-	}
 
 	// make sure Rotation part is normalized before compress
-	for (auto& Rotation : RawTrack.RotKeys)
+	for (auto RotIter = RawTrack.RotKeys.CreateIterator(); RotIter; ++RotIter)
 	{
+		FQuat4f& Rotation = *RotIter;
 		if (!Rotation.IsNormalized())
 		{
 			Rotation.Normalize();
-		}
-
-		if (FMath::IsNearlyZero(Rotation.X))
-		{
-			Rotation.X = 0.f;
-		}
-		if (FMath::IsNearlyZero(Rotation.Y))
-		{
-			Rotation.Y = 0.f;
-		}
-		if (FMath::IsNearlyZero(Rotation.Z))
-		{
-			Rotation.Z = 0.f;
 		}
 	}
 }
@@ -616,7 +749,7 @@ Compression::FScopedCompressionGuard::~FScopedCompressionGuard()
 
 bool AnimationData::AddLoopingInterpolation(UAnimSequence* InSequence)
 {
-	const IAnimationDataModel* DataModel = InSequence->GetDataModel();
+	const UAnimDataModel* DataModel = InSequence->GetDataModel();
 	IAnimationDataController& Controller = InSequence->GetController();
 
 	const int32 NumTracks = DataModel->GetNumBoneTracks();
@@ -652,8 +785,8 @@ bool AnimationData::AddLoopingInterpolation(UAnimSequence* InSequence)
 			Controller.SetBoneTrackKeys(AnimationTrack.Name, PositionalKeys, RotationalKeys, ScaleKeys);
 		}
 
-		// New number of frames is equal to current number of keys, as we'll be adding one frame (Number of Frames + 1 == Number of Keys)
-		Controller.SetNumberOfFrames(NumKeys);
+		const float Interval = DataModel->GetFrameRate().AsInterval();
+		Controller.SetPlayLength(Interval + DataModel->GetPlayLength());
 
 		return true;
 	}
@@ -663,7 +796,7 @@ bool AnimationData::AddLoopingInterpolation(UAnimSequence* InSequence)
 
 bool AnimationData::Trim(UAnimSequence* InSequence, float TrimStart, float TrimEnd)
 {
-	const IAnimationDataModel* DataModel = InSequence->GetDataModel();
+	const UAnimDataModel* DataModel = InSequence->GetDataModel();
 	IAnimationDataController& Controller = InSequence->GetController();
 
 	const int32 NumTracks = DataModel->GetNumBoneTracks();
@@ -709,7 +842,7 @@ bool AnimationData::Trim(UAnimSequence* InSequence, float TrimStart, float TrimE
 
 void AnimationData::DuplicateKeys(UAnimSequence* InSequence, int32 StartKeyIndex, int32 NumDuplicates, int32 SourceKeyIndex /*= INDEX_NONE */)
 {
-	const IAnimationDataModel* Model = InSequence->GetDataModel();
+	const UAnimDataModel* Model = InSequence->GetDataModel();
 	IAnimationDataController& Controller = InSequence->GetController();
 
 	const int32 NumberOfKeys = Model->GetNumberOfKeys();
@@ -761,14 +894,14 @@ void AnimationData::DuplicateKeys(UAnimSequence* InSequence, int32 StartKeyIndex
 			const float InsertedTime = FrameRate.AsInterval() * NumDuplicates;
 
 			// Notify will happen with time slice that was inserted
-			Controller.ResizeInFrames(NewNumFrames, StartKeyIndex, StartKeyIndex + NumDuplicates);
+			Controller.Resize(NewSequenceLength, StartTime, StartTime + InsertedTime);
 		}
 	}
 }
 
 void AnimationData::RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, int32 NumKeysToRemove)
 {
-	const IAnimationDataModel* Model = InSequence->GetDataModel();
+	const UAnimDataModel* Model = InSequence->GetDataModel();
 	IAnimationDataController& Controller = InSequence->GetController();
 
 	const int32 NumberOfKeys = Model->GetNumberOfKeys();
@@ -804,17 +937,20 @@ void AnimationData::RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, i
 		}
 
 		const int32 NewNumberOfFrames = FMath::Max(NewNumberOfKeys - 1, 0);
+		const float NewSequenceLength = FrameRate.AsSeconds(NewNumberOfFrames);
 
-		const int32 StartKey = FMath::Max(StartKeyIndex, 0);
+		const float StartFrameTime = FrameRate.AsSeconds(FMath::Max(StartKeyIndex, 0));
+		const float RemovedTime = NumKeysToRemove * FrameRate.AsInterval();
+		const float EndTime = StartFrameTime + RemovedTime;
 
 		// Notify will happen with time slice that was removed
-		Controller.ResizeInFrames(NewNumberOfFrames, StartKey, StartKey + NumberOfKeys);
+		Controller.Resize(NewSequenceLength, StartFrameTime, EndTime);
 	}
 }
 
 int32 AnimationData::FindFirstChildTrackIndex(const UAnimSequence* InSequence, const USkeleton* Skeleton, const FName& BoneName)
 {
-	const IAnimationDataModel* DataModel = InSequence->GetDataModel();
+	const UAnimDataModel* DataModel = InSequence->GetDataModel();
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 
 	const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);

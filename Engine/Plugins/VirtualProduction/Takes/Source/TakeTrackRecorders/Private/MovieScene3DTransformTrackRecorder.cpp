@@ -12,7 +12,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "SequenceRecorderUtils.h"
-#include "Animation/AnimData/IAnimationDataModel.h"
+#include "Animation/AnimData/AnimDataModel.h"
 
 
 DEFINE_LOG_CATEGORY(TransformSerialization);

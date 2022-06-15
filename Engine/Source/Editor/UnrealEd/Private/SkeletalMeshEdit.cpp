@@ -49,7 +49,7 @@ UAnimSequence * UEditorEngine::ImportFbxAnimation( USkeleton* Skeleton, UObject*
 {
 	check(Skeleton);
 
-	UAnimSequence * NewAnimation=nullptr;
+	UAnimSequence * NewAnimation=NULL;
 
 	UnFbx::FFbxImporter* FFbxImporter = UnFbx::FFbxImporter::GetInstance();
 
@@ -76,7 +76,7 @@ UAnimSequence * UEditorEngine::ImportFbxAnimation( USkeleton* Skeleton, UObject*
 			FFbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CouldNotFindFbxTrack", "Mesh contains {0} bone as root but animation doesn't contain the root track.\nImport failed."), FText::FromName(Skeleton->GetReferenceSkeleton().GetBoneName(0)))), FFbxErrors::Animation_CouldNotFindRootTrack);
 
 			FFbxImporter->ReleaseScene();
-			return nullptr;
+			return NULL;
 		}
 
 		// Check for blend shape curves that are not skinned.  Unskinned geometry can still contain morph curves
@@ -568,19 +568,19 @@ void UnFbx::FFbxImporter::GetAnimationIntervalMultiLayer(FbxNode* RootNode, FbxA
 UAnimSequence * UnFbx::FFbxImporter::ImportAnimations(USkeleton* Skeleton, UObject* Outer, TArray<FbxNode*>& SortedLinks, const FString& Name, UFbxAnimSequenceImportData* TemplateImportData, TArray<FbxNode*>& NodeArray)
 {
 	// we need skeleton to create animsequence
-	if (Skeleton == nullptr)
+	if (Skeleton == NULL)
 	{
-		return nullptr;
+		return NULL;
 	}
 
 	int32 ValidTakeCount = 0;
 	if (IsValidAnimationData(SortedLinks, NodeArray, ValidTakeCount) == false)
 	{
 		AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("FBXImport_InvalidAnimationData", "This does not contain any valid animation takes.")), FFbxErrors::Animation_InvalidData);
-		return nullptr;
+		return NULL;
 	}
 
-	UAnimSequence* LastCreatedAnim = nullptr;
+	UAnimSequence* LastCreatedAnim = NULL;
 
 	int32 ResampleRate = DEFAULT_SAMPLERATE;
 	if ( ImportOptions->bResample )
@@ -635,7 +635,7 @@ UAnimSequence * UnFbx::FFbxImporter::ImportAnimations(USkeleton* Skeleton, UObje
 
 		FString 	ParentPath = FString::Printf(TEXT("%s/%s"), *FPackageName::GetLongPackagePath(*Outer->GetName()), *SequenceName);
 		UObject* 	ParentPackage = CreatePackage( *ParentPath);
-		UObject* Object = LoadObject<UObject>(ParentPackage, *SequenceName, nullptr, (LOAD_Quiet | LOAD_NoWarn), nullptr);
+		UObject* Object = LoadObject<UObject>(ParentPackage, *SequenceName, NULL, (LOAD_Quiet | LOAD_NoWarn), NULL);
 		UAnimSequence * DestSeq = Cast<UAnimSequence>(Object);
 		// if object with same name exists, warn user
 		if (Object && !DestSeq)
@@ -645,12 +645,12 @@ UAnimSequence * UnFbx::FFbxImporter::ImportAnimations(USkeleton* Skeleton, UObje
 		}
 
 		// If not, create new one now.
-
-		const bool bCreateAsset = !DestSeq;
-		if(bCreateAsset)
+		if(!DestSeq)
 		{
 			DestSeq = NewObject<UAnimSequence>(ParentPackage, *SequenceName, RF_Public | RF_Standalone);
 			CreatedObjects.Add(DestSeq);
+			// Notify the asset registry
+			FAssetRegistryModule::AssetCreated(DestSeq);
 		}
 
 		DestSeq->SetSkeleton(Skeleton);
@@ -662,15 +662,7 @@ UAnimSequence * UnFbx::FFbxImporter::ImportAnimations(USkeleton* Skeleton, UObje
 		DestSeq->ImportFileFramerate = GetOriginalFbxFramerate();
 		DestSeq->ImportResampleFramerate = ResampleRate;
 
-		DestSeq->GetController().InitializeModel();
-
 		ImportAnimation(Skeleton, DestSeq, Name, SortedLinks, NodeArray, CurAnimStack, ResampleRate, AnimTimeSpan);
-
-		if (bCreateAsset)
-		{			
-			// Notify the asset registry
-			FAssetRegistryModule::AssetCreated(DestSeq);
-		}
 
 		LastCreatedAnim = DestSeq;
 	}
@@ -1345,7 +1337,7 @@ bool UnFbx::FFbxImporter::ImportCurveToAnimSequence(class UAnimSequence * Target
 		FAnimationCurveIdentifier FloatCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
 
 
-		IAnimationDataModel* DataModel = TargetSequence->GetDataModel();
+		UAnimDataModel* DataModel = TargetSequence->GetDataModel();
 		IAnimationDataController& Controller = TargetSequence->GetController();
 
 		const FFloatCurve* TargetCurve = DataModel->FindFloatCurve(FloatCurveId);
@@ -1565,14 +1557,8 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 	//This destroy all previously imported animation raw data
 	Controller.RemoveAllBoneTracks();
 
-	// First set frame rate
-	const FFrameRate ResampleFrameRate(ResampleRate, 1);
-	Controller.SetFrameRate(ResampleFrameRate);
-
 	// if you have one pose(thus 0.f duration), it still contains animation, so we'll need to consider that as MINIMUM_ANIMATION_LENGTH time length
-	const FFrameNumber NumberOfFrames = ResampleFrameRate.AsFrameNumber(SequenceLength.GetSecondDouble());
-	Controller.SetNumberOfFrames(FGenericPlatformMath::Max<int32>(NumberOfFrames.Value, 1));
-
+	Controller.SetPlayLength(FGenericPlatformMath::Max<float>(SequenceLength.GetSecondDouble(), MINIMUM_ANIMATION_LENGTH));
 	if(PreviousSequenceLength > MINIMUM_ANIMATION_LENGTH && DestSeq->GetDataModel()->GetNumberOfFloatCurves() > 0)
 	{
 		// The sequence already existed when we began the import. We need to scale the key times for all curves to match the new 
@@ -1802,7 +1788,7 @@ void UnFbx::FFbxImporter::ImportAnimationCustomAttribute(FAnimCurveImportSetting
 	UAnimSequence* DestSeq = AnimImportSettings.DestSeq;
 	USkeleton* MySkeleton = DestSeq->GetSkeleton();
 
-	const IAnimationDataModel* DataModel = DestSeq->GetDataModel();
+	const UAnimDataModel* DataModel = DestSeq->GetDataModel();
 	const int32 NumFloatCurves = DataModel->GetNumberOfFloatCurves();
 	const FAnimationCurveData& CurveData = DataModel->GetCurveData();
 
@@ -1918,7 +1904,7 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 	const FbxTime TimeComparisonThreshold = (KINDA_SMALL_NUMBER * static_cast<float>(FBXSDK_TC_SECOND));
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 
-	IAnimationDataModel* DataModel = DestSeq->GetDataModel();
+	UAnimDataModel* DataModel = DestSeq->GetDataModel();
 	IAnimationDataController& Controller = DestSeq->GetController();	
 	Controller.SetFrameRate(FFrameRate(ResampleRate, 1));
 
@@ -2079,7 +2065,7 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 								if (AttributeIdentifier.IsValid())
 								{
 									// remove any existing attribute with the same identifier
-									if (const IAnimationDataModel* Model = Controller.GetModel())
+									if (const UAnimDataModel* Model = Controller.GetModel())
 									{
 										if (Model->FindAttribute(AttributeIdentifier))
 										{

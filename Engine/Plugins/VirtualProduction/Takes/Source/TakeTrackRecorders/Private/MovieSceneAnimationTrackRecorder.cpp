@@ -390,13 +390,12 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 								IAnimationDataController& Controller = AnimSequence->GetController();
 								{
 									IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("LoadRecordedFile_Bracket", "Loading recorded animation file"));
-									Controller.InitializeModel();
+
 									Controller.ResetModel();
 
 									const float FloatDenominator = 1000.0f;
 									const float Numerator = FloatDenominator / Header.IntervalTime;
-									const FFrameRate FrameRate(Numerator, FloatDenominator);
-									Controller.SetFrameRate(FrameRate);
+									Controller.SetFrameRate(FFrameRate(Numerator, FloatDenominator));
 
 									int32 MaxNumberOfKeys = 0;
 									for (int32 TrackIndex = 0; TrackIndex < Header.AnimationTrackNames.Num(); ++TrackIndex)
@@ -423,9 +422,7 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 										Controller.SetBoneTrackKeys(Header.AnimationTrackNames[TrackIndex], PosKeys, RotKeys, ScaleKeys);
 									}
 
-									const FFrameNumber FrameNumber = FrameRate.AsFrameNumber((MaxNumberOfKeys > 1) ? (MaxNumberOfKeys - 1) * Header.IntervalTime : FrameRate.AsInterval());
-									Controller.SetNumberOfFrames(FrameNumber);
-
+									Controller.SetPlayLength((MaxNumberOfKeys > 1) ? (MaxNumberOfKeys - 1) * Header.IntervalTime : MINIMUM_ANIMATION_LENGTH);
 									Controller.NotifyPopulated();
 								}
 
@@ -439,7 +436,7 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 								FSavePackageArgs SaveArgs;
 								SaveArgs.TopLevelFlags = RF_Standalone;
 								SaveArgs.SaveFlags = SAVE_NoError;
-								UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs);
+								UPackage::SavePackage(Package, NULL, *PackageFileName, SaveArgs);
 
 
 								FFrameNumber SequenceLength = (AnimSequence->GetPlayLength() * TickResolution).FloorToFrame();

@@ -38,7 +38,7 @@ FTransform FContextualAnimAlignmentTrackContainer::ExtractTransformAtTime(int32 
 		const FRawAnimSequenceTrack& Track = Tracks.AnimationTracks[TrackIndex];
 		const int32 TotalFrames = Track.PosKeys.Num();
 		const float TrackLength = (TotalFrames - 1) * SampleInterval;
-		FAnimationUtils::ExtractTransformFromTrack(Track, Time, TotalFrames, TrackLength, EAnimInterpolationType::Linear, AlignmentTransform);
+		FAnimationUtils::ExtractTransformFromTrack(Time, TotalFrames, TrackLength, Track, EAnimInterpolationType::Linear, AlignmentTransform);
 	}
 
 	return AlignmentTransform;

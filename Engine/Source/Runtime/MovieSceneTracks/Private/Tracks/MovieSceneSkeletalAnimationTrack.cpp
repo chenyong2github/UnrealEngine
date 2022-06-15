@@ -383,7 +383,7 @@ static void CalculateDistanceMap(USkeletalMeshComponent* SkelMeshComp, UAnimSequ
 		FloatArray.SetNum(SecondAnimNumFrames);
 		float FirstAnimTime = FirstAnimIndex * FrameRateDiff + StartFirstAnimTime;
 		FirstAnimIndex += 1.0f;
-		FAnimExtractContext FirstExtractionContext(static_cast<double>(FirstAnimTime), false);
+		FAnimExtractContext FirstExtractionContext(FirstAnimTime, false);
 		FirstAnimSeq->GetAnimationPose(FirstAnimPoseData, FirstExtractionContext);
 		FirstMeshPoses.InitPose(FirstAnimPoseData.GetPose());
 		float SecondAnimIndex = 0.0f;
@@ -392,7 +392,7 @@ static void CalculateDistanceMap(USkeletalMeshComponent* SkelMeshComp, UAnimSequ
 			DistVal = 0.0f;
 			float SecondAnimTime = SecondAnimIndex * FrameRateDiff;
 			SecondAnimIndex += 1.0f;
-			FAnimExtractContext SecondExtractionContext(static_cast<double>(SecondAnimTime), false);
+			FAnimExtractContext SecondExtractionContext(SecondAnimTime, false);
 			SecondAnimSeq->GetAnimationPose(SecondAnimPoseData, SecondExtractionContext);
 			SecondMeshPoses.InitPose(SecondAnimPoseData.GetPose());
 
@@ -641,7 +641,7 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 
 	}
 }
-static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeletalMeshComponent* MeshComponent,const FName& InBoneName, double Seconds)
+static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeletalMeshComponent* MeshComponent,const FName& InBoneName, float Seconds)
 {
 	FName BoneName = InBoneName;
 	FTransform  WorldTransform = FTransform::Identity;
@@ -653,7 +653,7 @@ static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeleta
 		int32 TrackIndex = INDEX_NONE;
 
 #if WITH_EDITOR
-		const IAnimationDataModel* Model = AnimSequence->GetDataModel();
+		const UAnimDataModel* Model = AnimSequence->GetDataModel();
 		if (const FBoneAnimationTrack* TrackData = Model->FindBoneTrackByName(BoneName))
 		{
 			TrackIndex = TrackData->BoneTreeIndex;
@@ -936,9 +936,9 @@ void UMovieSceneSkeletalAnimationTrack::MatchSectionByBoneTransform(bool bMatchW
 
 		if (FirstAnimSequence && SecondAnimSequence)
 		{
-			double FirstSectionTime = FirstSection->MapTimeToAnimation(CurrentFrame, FrameRate);
+			float FirstSectionTime = static_cast<float>(FirstSection->MapTimeToAnimation(CurrentFrame, FrameRate));
 			FTransform  FirstTransform = GetWorldTransformForBone(FirstAnimSequence, SkelMeshComp, BoneName, FirstSectionTime);
-			double SecondSectionTime = CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate);
+			float SecondSectionTime = static_cast<float>(CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate));
 			FTransform  SecondTransform = GetWorldTransformForBone(SecondAnimSequence, SkelMeshComp, BoneName, SecondSectionTime);
 
 			//Need to match the translations and rotations here 

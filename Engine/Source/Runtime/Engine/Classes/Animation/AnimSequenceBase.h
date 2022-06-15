@@ -29,7 +29,6 @@ enum ETypeAdvanceAnim
 struct FAnimationPoseData;
 struct FAnimDataModelNotifPayload;
 class UAnimDataModel;
-class IAnimationDataModel;
 enum class EAnimDataModelNotifyType : uint8;
 
 UCLASS(abstract, BlueprintType)
@@ -42,20 +41,14 @@ public:
 	UPROPERTY()
 	TArray<struct FAnimNotifyEvent> Notifies;
 
-protected:
 	/** Length (in seconds) of this AnimSequence if played back with a speed of 1.0. */
 	UE_DEPRECATED(5.0, "Public access to SequenceLength is deprecated, use GetPlayLength or UAnimDataController::SetPlayLength instead")
 	UPROPERTY(Category=Length, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
 	float SequenceLength;
 
-	/**
-	 * Raw uncompressed float curve data
-	 */
-	UE_DEPRECATED(5.0, "Public access to RawCurveData is deprecated, see UAnimDataModel for source data or use GetCurveData for runtime instead")
-	UPROPERTY()
-	struct FRawCurveTracks RawCurveData;
-	
-public:
+	UE_DEPRECATED(5.0, "SetSequenceLength is deprecated use UAnimDataController::SetPlayLength instead")
+	virtual void SetSequenceLength(float NewLength);
+
 	/** Number for tweaking playback rate of this animation globally. */
 	UPROPERTY(EditAnywhere, Category=Animation)
 	float RateScale;
@@ -66,6 +59,14 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category=Animation)
 	bool bLoop;
+
+	/**
+	 * Raw uncompressed float curve data 
+	 */
+	UE_DEPRECATED(5.0, "Public access to RawCurveData is deprecated, see UAnimDataModel for source data or use GetCurveData for runtime instead")
+	UPROPERTY()
+	struct FRawCurveTracks RawCurveData;
+
 #if WITH_EDITORONLY_DATA
 	// if you change Notifies array, this will need to be rebuilt
 	UPROPERTY()
@@ -144,7 +145,7 @@ public:
 	virtual int32 GetNumberOfSampledKeys() const;
 
 	/** Return rate at which the animation is sampled **/
-	virtual FFrameRate GetSamplingFrameRate() const;
+	virtual const FFrameRate& GetSamplingFrameRate() const;
 
 #if WITH_EDITOR
 	/** Get the frame number for the provided time */
@@ -237,6 +238,10 @@ public:
 	virtual void EnableRootMotionSettingFromMontage(bool bInEnableRootMotion, const ERootMotionRootLock::Type InRootMotionRootLock) {};
 
 #if WITH_EDITOR
+	// Store that our raw data has changed so that we can get correct compressed data later on
+	UE_DEPRECATED(5.0, "MarkRawDataAsModified has been deprecated, any (Raw Data) modification should be applied using the UAnimDataController API instead. This will handle updating the GUID instead.")
+	virtual void MarkRawDataAsModified(bool bForceNewRawDatGuid = true) {}
+
 private:
 	DECLARE_MULTICAST_DELEGATE( FOnNotifyChangedMulticaster );
 	FOnNotifyChangedMulticaster OnNotifyChanged;
@@ -264,24 +269,18 @@ protected:
 		}
 	}
 #if WITH_EDITOR
-	void OnEndLoadPackage(const FEndLoadPackageContext& Context);
-	virtual void OnAnimModelLoaded();
 public:
-	/** Returns the IAnimationDataModel object embedded in this UAnimSequenceBase */
-	IAnimationDataModel* GetDataModel() const;
-
-	/** Returns the IAnimationDataModel as a script-interface, provides access to UObject and Interface */
-	TScriptInterface<IAnimationDataModel> GetDataModelInterface() const;
+	/** Returns the UAnimDataModel object embedded in this UAnimSequenceBase */
+	UAnimDataModel* GetDataModel() const;
 
 	/** Returns the transient UAnimDataController set to operate on DataModel */
 	IAnimationDataController& GetController();
 protected:
 	/** Populates the UAnimDataModel object according to any pre-existing data. (overrides expect to populate the model according to their data) */
 	virtual void PopulateModel();
-	virtual void PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> ExistingDataModel);
 
 	/** Callback registered to UAnimDatModel::GetModifiedEvent for the embedded object */
-	virtual void OnModelModified(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload);
+	virtual void OnModelModified(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload);
 
 	/** Validates that DataModel contains a valid UAnimDataModel object */
 	void ValidateModel() const;
@@ -290,7 +289,7 @@ protected:
 	void BindToModelModificationEvent();
 
 	/** Replaces the current DataModel, if any, with the provided one */
-	void CopyDataModel(const TScriptInterface<IAnimationDataModel>& ModelToDuplicate);
+	void CopyDataModel(const UAnimDataModel* ModelToDuplicate);
 private:
 	/** Creates a new UAnimDataModel instance and sets DataModel accordingly */
 	void CreateModel();
@@ -302,7 +301,7 @@ public:
 		if(ShouldDataModelBeValid())
 		{
 			ValidateModel();
-			return DataModelInterface != nullptr;
+			return DataModel != nullptr;
 		}
 
 		return false;
@@ -311,13 +310,9 @@ public:
 
 #if WITH_EDITORONLY_DATA
 protected:
-	UE_DEPRECATED(5.1, "DataModel has been converted to DataModelInterface")
+	/** UAnimDataModel instance containing source animation data */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Model")
 	TObjectPtr<UAnimDataModel> DataModel;
-
-	/** IAnimationDataModel instance containing (source) animation data */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Model")
-	TScriptInterface<IAnimationDataModel> DataModelInterface;
 
 	/** Flag set whenever the data-model is initially populated (during upgrade path) */
 	bool bPopulatingDataModel;

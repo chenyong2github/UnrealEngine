@@ -16,7 +16,7 @@
 // FAnimSegment
 ///////////////////////////////////////////////////////
 
-UAnimSequenceBase* FAnimSegment::GetAnimationData(float PositionInTrack, float& PositionInAnim) const
+UAnimSequenceBase * FAnimSegment::GetAnimationData(float PositionInTrack, float& PositionInAnim) const
 {
 	if( bValid && IsInRange(PositionInTrack) )
 	{
@@ -569,11 +569,9 @@ void FAnimTrack::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, cons
 		if (AnimSegment->bValid)
 		{
 			// Copy passed in Extraction Context, but override position and root motion parameters.
-			float PositionInAnim = 0.f;
-			if (const UAnimSequenceBase* const AnimRef = AnimSegment->GetAnimationData(ClampedTime, PositionInAnim))
+			FAnimExtractContext SequenceExtractionContext(ExtractionContext);
+			if (const UAnimSequenceBase* const AnimRef = AnimSegment->GetAnimationData(ClampedTime, SequenceExtractionContext.CurrentTime))
 			{
-				FAnimExtractContext SequenceExtractionContext(ExtractionContext);
-				SequenceExtractionContext.CurrentTime = static_cast<double>(PositionInAnim);
 				SequenceExtractionContext.DeltaTimeRecord.SetPrevious(
 					SequenceExtractionContext.CurrentTime - SequenceExtractionContext.DeltaTimeRecord.Delta);
 				SequenceExtractionContext.bExtractRootMotion &= AnimRef->HasRootMotion();
@@ -768,13 +766,6 @@ void UAnimCompositeBase::ExtractRootMotionFromTrack(const FAnimTrack &SlotAnimTr
 	}
 }
 
-FFrameRate UAnimCompositeBase::GetSamplingFrameRate() const
-{
-	// Allowing for 0.00001s precision in composite/montage length
-	static const FFrameRate CompositeFrameRate(100000, 1);
-	return CompositeFrameRate;
-}
-
 void UAnimCompositeBase::PostLoad()
 {
 	Super::PostLoad();
@@ -826,17 +817,11 @@ void FAnimSegment::UpdateCachedPlayLength()
 {
 	CachedPlayLength = 0.f;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	const IAnimationDataModel* DataModel = AnimReference ? AnimReference->GetDataModel() : nullptr;	
+	const UAnimDataModel* DataModel = AnimReference ? AnimReference->GetDataModel() : nullptr;	
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if(DataModel)
 	{
 		CachedPlayLength = DataModel->GetPlayLength();
 	}
-}
-
-void UAnimCompositeBase::PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> ExistingDataModel)
-{
-	Super::PopulateWithExistingModel(ExistingDataModel);
-	Controller->SetFrameRate(GetSamplingFrameRate());
 }
 #endif // WITH_EDITOR

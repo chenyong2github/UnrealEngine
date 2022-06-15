@@ -38,7 +38,6 @@ public:
 	float StartTime;
 
 	float SequenceLength;
-	int32 NumFrames;
 
 	// Compressed Data for this chunk (if nullptr then data needs to be loaded via BulkData)
 	FCompressedAnimSequence* CompressedAnimSequence;
@@ -103,9 +102,6 @@ public:
 	/** Base pose to use when retargeting */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = Animation)
 	FName RetargetSource;
-
-	UPROPERTY()
-	FFrameRate SamplingFrameRate;
 
 #if WITH_EDITORONLY_DATA
 

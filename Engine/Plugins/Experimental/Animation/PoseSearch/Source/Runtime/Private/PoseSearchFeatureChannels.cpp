@@ -523,7 +523,7 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(const  UE::PoseSearch::IAss
 
 			FDeltaTimeRecord DeltaTimeRecord;
 			DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
-			FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), true, DeltaTimeRecord, Samples[Term].Clip->IsLoopable());
+			FAnimExtractContext ExtractionCtx(CurrentTime, true, DeltaTimeRecord, Samples[Term].Clip->IsLoopable());
 
 			Samples[Term].Clip->ExtractPose(ExtractionCtx, AnimPoseData[Term]);
 

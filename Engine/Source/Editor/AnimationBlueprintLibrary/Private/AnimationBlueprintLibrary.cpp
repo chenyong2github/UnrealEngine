@@ -24,7 +24,7 @@
 #include "Modules/ModuleInterface.h"
 
 #include "AnimationRuntime.h"
-#include "Animation/AnimData/IAnimationDataModel.h"
+#include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "AnimGraphNode_AssetPlayerBase.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -2197,7 +2197,7 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 		return false;
 	}
 
-	const IAnimationDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
+	const UAnimDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
 	if (!AnimDataModel)
 	{
 		return false;
@@ -2386,7 +2386,7 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeSubframeAttributeAtTime
 		return false;
 	}
 
-	const IAnimationDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
+	const UAnimDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
 	if (!AnimDataModel)
 	{
 		return false;

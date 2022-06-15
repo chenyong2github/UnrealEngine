@@ -225,14 +225,14 @@ void FAnimModel_AnimMontage::RecalculateSequenceLength()
 	{
 		AnimMontage->InvalidateRecursiveAsset();
 
-		const float CurrentCalculatedLength = CalculateSequenceLengthOfEditorObject();
-		if(!FMath::IsNearlyEqual(CurrentCalculatedLength, AnimMontage->GetPlayLength(), UE_KINDA_SMALL_NUMBER))
+		float NewSequenceLength = CalculateSequenceLengthOfEditorObject();
+		if (NewSequenceLength != AnimMontage->GetPlayLength())
 		{
-			ClampToEndTime(CurrentCalculatedLength);
+			ClampToEndTime(NewSequenceLength);
 
 			RefreshSectionTimes();
 
-			AnimMontage->SetCompositeLength(CurrentCalculatedLength);
+			AnimMontage->SetCompositeLength(NewSequenceLength);
 
 			// Reset view if we changed length (note: has to be done after ->SetCompositeLength)!
 			UpdateRange();
@@ -312,7 +312,7 @@ void FAnimModel_AnimMontage::ToggleSectionTimingDisplay()
 	bSectionTimingEnabled = !bSectionTimingEnabled;
 }
 
-void FAnimModel_AnimMontage::OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& PayLoad)
+void FAnimModel_AnimMontage::OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad)
 {
 	NotifyCollector.Handle(NotifyType);
 

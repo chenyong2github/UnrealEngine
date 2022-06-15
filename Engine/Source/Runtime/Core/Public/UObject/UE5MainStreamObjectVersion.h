@@ -239,11 +239,16 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Remove serialization of bounds relevant from  WorldPartitionActorDesc
 		WorldPartitionActorDescRemoveBoundsRelevantSerialization,
 
-		// Add IAnimationDataModel interface and replace UObject based representation for Animation Assets
-		AnimationDataModelInterface,
+		// Added IAnimationDataModel interface and replace UObject based representation for Animation Assets
+		// This version had to be undone. Animation assets saved between this and the subsequent backout version
+		// will be unable to be loaded
+		AnimationDataModelInterface_BackedOut,
 
 		// Deprecate LandscapeSplineActorDesc
 		LandscapeSplineActorDescDeprecation,
+
+		// Revert the IAnimationDataModel changes. Animation assets 
+		BackoutAnimationDataModelInterface,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

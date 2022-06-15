@@ -496,7 +496,7 @@ public:
 	bool SetNextSectionName(FName const & SectionName, FName const & NewNextSectionName);
 	bool SetNextSectionID(int32 const & SectionID, int32 const & NewNextSectionID);
 
-	bool IsValid() const { return (Montage!=nullptr); }
+	bool IsValid() const { return (Montage!=NULL); }
 	bool IsPlaying() const { return IsValid() && bPlaying; }
 	void SetPlaying(bool bInPlaying) { bPlaying = bInPlaying; }
 	bool IsStopped() const { return Blend.GetDesiredValue() == 0.f; }
@@ -924,9 +924,6 @@ public:
 	virtual void InvalidateRecursiveAsset() override;
 	virtual bool ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumulatedList) override;
 	virtual void SetCompositeLength(float InLength) override;
-#if WITH_EDITOR
-	virtual void PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> ExistingDataModel) override;
-#endif // WITH_EDITOR
 	//~End UAnimCompositeBase Interface
 
 	/** Utility function to create dynamic montage from AnimSequence */

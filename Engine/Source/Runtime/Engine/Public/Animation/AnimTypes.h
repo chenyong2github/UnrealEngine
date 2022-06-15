@@ -374,8 +374,8 @@ public:
 		, TriggerTimeOffset(0)
 		, EndTriggerTimeOffset(0)
 		, TriggerWeightThreshold(ZERO_ANIMWEIGHT_THRESH)
-		, Notify(nullptr)
-		, NotifyStateClass(nullptr)
+		, Notify(NULL)
+		, NotifyStateClass(NULL)
 		, Duration(0)
 		, bConvertedFromBranchingPoint(false)
 		, MontageTickType(EMontageNotifyTickType::Queued)
@@ -424,7 +424,7 @@ public:
 	/** Returns true if this is blueprint derived notifies **/
 	bool IsBlueprintNotify() const
 	{
-		return Notify != nullptr || NotifyStateClass != nullptr;
+		return Notify != NULL || NotifyStateClass != NULL;
 	}
 
 	bool operator ==(const FAnimNotifyEvent& Other) const
@@ -879,33 +879,6 @@ struct ENGINE_API FRawAnimSequenceTrack
 
 		return Ar;
 	}
-
-	bool ContainsNaN() const
-	{
-		bool bContainsNaN = false;
-
-		auto CheckForNan = [&bContainsNaN](const auto& Keys) -> bool
-		{
-			if (!bContainsNaN)
-			{
-				for (const auto& Key : Keys)
-				{
-					if (Key.ContainsNaN())
-						return true;
-				}
-
-				return false;
-			}
-		
-			return true;
-		};
-
-		bContainsNaN = CheckForNan(PosKeys);
-		bContainsNaN = CheckForNan(RotKeys);
-		bContainsNaN = CheckForNan(ScaleKeys);
-
-		return bContainsNaN;
-	}	
 
 	static const uint32 SingleKeySize = sizeof(FVector3f) + sizeof(FQuat4f) + sizeof(FVector3f);
 };

@@ -245,7 +245,7 @@ struct FPoseCurve
 struct FAnimExtractContext
 {
 	/** Position in animation to extract pose from */
-	double CurrentTime;
+	float CurrentTime;
 
 	/** Is root motion being extracted? */
 	bool bExtractRootMotion;
@@ -268,19 +268,8 @@ struct FAnimExtractContext
 	 * by several animation nodes to optimize evaluation time.
 	 */
 	TArray<bool> BonesRequired;
-	
-	UE_DEPRECATED(5.1, "FAnimExtractContext construct with float-based time value is deprecated, use other signature")
-	FAnimExtractContext(float InCurrentTime, bool InbExtractRootMotion = false, FDeltaTimeRecord InDeltaTimeRecord = {}, bool InbLooping = false)
-		: CurrentTime((double)InCurrentTime)
-		, bExtractRootMotion(InbExtractRootMotion)
-		, DeltaTimeRecord(InDeltaTimeRecord)
-		, bLooping(InbLooping)
-		, PoseCurves()
-		, BonesRequired()
-	{
-	}
 
-	FAnimExtractContext(double InCurrentTime = 0.0, bool InbExtractRootMotion = false, FDeltaTimeRecord InDeltaTimeRecord = {}, bool InbLooping = false)
+	FAnimExtractContext(float InCurrentTime = 0.f, bool InbExtractRootMotion = false, FDeltaTimeRecord InDeltaTimeRecord = {}, bool InbLooping = false)
 		: CurrentTime(InCurrentTime)
 		, bExtractRootMotion(InbExtractRootMotion)
 		, DeltaTimeRecord(InDeltaTimeRecord)
@@ -1102,7 +1091,7 @@ protected:
 
 public:
 	/** Return a list of unique marker names for blending compatibility */
-	virtual TArray<FName>* GetUniqueMarkerNames() { return nullptr; }
+	virtual TArray<FName>* GetUniqueMarkerNames() { return NULL; }
 
 	//~ Begin IInterface_AssetUserData Interface
 	virtual void AddAssetUserData(UAssetUserData* InUserData) override;

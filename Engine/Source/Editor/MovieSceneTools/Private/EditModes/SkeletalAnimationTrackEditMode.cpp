@@ -364,7 +364,7 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 											UE::Anim::FStackAttributeContainer TempAttributes;
 											FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
 
-											const double Seconds = AnimSection->MapTimeToAnimation(CurrentTime.Time, CurrentTime.Rate);
+											const float Seconds = static_cast<float>(AnimSection->MapTimeToAnimation(CurrentTime.Time, CurrentTime.Rate));
 											FAnimExtractContext ExtractionContext(Seconds, false);
 
 											AnimSequence->GetAnimationPose(OutAnimationPoseData, ExtractionContext);

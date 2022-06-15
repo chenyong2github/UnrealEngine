@@ -279,7 +279,7 @@ namespace UE::PoseSearch
 		if (Sequence)
 		{
 			InOutWriter.Update(MakeMemoryView(Sequence->GetName()));
-			InOutWriter.Update(MakeMemoryView(Sequence->GetDataModel()->GenerateGuid().ToString()));
+			InOutWriter.Update(MakeMemoryView(Sequence->GetRawDataGuid().ToString()));
 		}
 	}
 

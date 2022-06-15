@@ -869,7 +869,7 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		const IAnimationDataModel* DataModel = Model->AnimSequence->GetDataModel();
+		const UAnimDataModel* DataModel = Model->AnimSequence->GetDataModel();
 		if (!DataModel)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));
@@ -957,7 +957,7 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		const IAnimationDataModel* DataModel = Model->AnimSequence->GetDataModel();
+		const UAnimDataModel* DataModel = Model->AnimSequence->GetDataModel();
 		if (!DataModel)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));

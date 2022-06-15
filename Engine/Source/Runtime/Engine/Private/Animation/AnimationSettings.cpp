@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimationSettings.h"
+#include "Animation/AnimCompress_BitwiseCompressOnly.h"
 
 UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -31,8 +32,6 @@ UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializ
 		FMirrorFindReplaceExpression("Right", "Left", EMirrorFindReplaceMethod::Prefix), FMirrorFindReplaceExpression("Left", "Right",  EMirrorFindReplaceMethod::Prefix),
 		FMirrorFindReplaceExpression("((?:^[sS]pine|^[rR]oot|^[pP]elvis|^[nN]eck|^[hH]ead|^ik_hand_gun).*)", "$1", EMirrorFindReplaceMethod::RegularExpression)
 	};
-	
-	DefaultFrameRate = FFrameRate(30,1);
 }
 
 TArray<FString> UAnimationSettings::GetBoneCustomAttributeNamesToImport() const
@@ -55,11 +54,6 @@ TArray<FString> UAnimationSettings::GetBoneCustomAttributeNamesToImport() const
 	return AttributeNames;
 }
 
-const FFrameRate& UAnimationSettings::GetDefaultFrameRate() const
-{
-	checkf(DefaultFrameRate.IsValid(), TEXT("Invalid default frame-rate set in Project Settings"));
-	return DefaultFrameRate;
-}
 
 #if WITH_EDITOR
 void UAnimationSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

@@ -503,12 +503,6 @@ namespace AnimationEditorUtils
 				if(NewAsset)
 				{
 					NewAsset->SetSkeleton(Skeleton);
-
-					if (UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(NewAsset))
-					{
-						SequenceBase->GetController().InitializeModel();
-					}
-					
 					if (SkeletalMesh)
 					{
 						NewAsset->SetPreviewMesh(SkeletalMesh);

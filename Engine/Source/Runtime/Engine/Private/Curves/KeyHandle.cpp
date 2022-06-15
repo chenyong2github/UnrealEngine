@@ -8,18 +8,7 @@ FKeyHandle::FKeyHandle()
 	static uint32 LastKeyHandleIndex = 1;
 	Index = ++LastKeyHandleIndex;
 
-	if (LastKeyHandleIndex == 0)
-	{
-		// If we are cooking, allow wrap-around
-		if (IsRunningCookCommandlet())
-		{
-			Index = LastKeyHandleIndex = 1;
-		}
-		else
-		{
-			check(LastKeyHandleIndex != 0); // check in the unlikely event that this overflows
-		}
-	}
+	check(LastKeyHandleIndex != 0); // check in the unlikely event that this overflows
 }
 
 FKeyHandle::FKeyHandle(uint32 SpecificIndex)

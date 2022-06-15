@@ -197,7 +197,7 @@ namespace UE::Interchange::Private
 		FAnimationCurveIdentifier FloatCurveId(NewName, ERawCurveTrackTypes::RCT_Float);
 
 
-		IAnimationDataModel* DataModel = TargetSequence->GetDataModel();
+		UAnimDataModel* DataModel = TargetSequence->GetDataModel();
 		IAnimationDataController& Controller = TargetSequence->GetController();
 
 		const FFloatCurve* TargetCurve = DataModel->FindFloatCurve(FloatCurveId);
@@ -312,11 +312,7 @@ namespace UE::Interchange::Private
 
 			//This destroy all previously imported animation raw data
 			Controller.RemoveAllBoneTracks();
-
-			const FFrameRate ResampleFrameRate(SampleRate, 1);
-			const FFrameNumber NumberOfFrames = ResampleFrameRate.AsFrameNumber(SequenceLength);
-			Controller.SetFrameRate(ResampleFrameRate);
-			Controller.SetNumberOfFrames(FGenericPlatformMath::Max<int32>(NumberOfFrames.Value, 1));
+			Controller.SetPlayLength(FGenericPlatformMath::Max<float>(SequenceLength, MINIMUM_ANIMATION_LENGTH));
 
 			FTransform3f GlobalOffsetTransform;
 			{
@@ -448,7 +444,7 @@ namespace UE::Interchange::Private
 		AnimSequenceFactoryNode->GetCustomImportAttributeCurves(bImportAttributeCurves);
 		if (bImportAttributeCurves)
 		{
-			const IAnimationDataModel* DataModel = AnimSequence->GetDataModel();
+			const UAnimDataModel* DataModel = AnimSequence->GetDataModel();
 			const int32 NumFloatCurves = DataModel->GetNumberOfFloatCurves();
 			const FAnimationCurveData& CurveData = DataModel->GetCurveData();
 
@@ -897,7 +893,6 @@ UObject* UInterchangeAnimSequenceFactory::CreateAsset(const FCreateAssetParams& 
 		IAnimationDataController& Controller = AnimSequence->GetController();
 		Controller.OpenBracket(NSLOCTEXT("InterchangeAnimSequenceFactory", "ImportAnimationInterchange_Bracket", "Importing Animation (Interchange)"));
 		AnimSequence->SetSkeleton(Skeleton);
-		Controller.InitializeModel();
 		AnimSequence->ImportFileFramerate = SampleRate;
 		AnimSequence->ImportResampleFramerate = SampleRate;
 		Controller.SetFrameRate(FrameRate);
