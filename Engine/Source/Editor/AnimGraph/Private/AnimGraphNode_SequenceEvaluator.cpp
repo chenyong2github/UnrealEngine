@@ -55,7 +55,7 @@ void UAnimGraphNode_SequenceEvaluator::ReplaceReferredAnimations(const TMap<UAni
 
 FText UAnimGraphNode_SequenceEvaluator::GetMenuCategory() const
 {
-	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Animation);
+	return LOCTEXT("MenuCategory", "Animation|Sequences");
 }
 
 FText UAnimGraphNode_SequenceEvaluator::GetNodeTitle(ENodeTitleType::Type TitleType) const

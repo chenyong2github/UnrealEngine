@@ -20,5 +20,6 @@ class UAnimGraphNode_PoseSnapshot : public UAnimGraphNode_Base
 	// UEdGraphNode interface
 	virtual FText GetTooltipText() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual FText GetMenuCategory() const override;
 	// End of UEdGraphNode interface
 };

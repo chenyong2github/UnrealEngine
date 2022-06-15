@@ -142,7 +142,7 @@ FText UAnimGraphNode_PoseBlendNode::GetTitleGivenAssetInfo(const FText& AssetNam
 
 FText UAnimGraphNode_PoseBlendNode::GetMenuCategory() const
 {
-	return LOCTEXT("PoseAssetCategory_Label", "Poses");
+	return LOCTEXT("PoseAssetCategory_Label", "Animation|Poses");
 }
 
 bool UAnimGraphNode_PoseBlendNode::DoesSupportTimeForTransitionGetter() const

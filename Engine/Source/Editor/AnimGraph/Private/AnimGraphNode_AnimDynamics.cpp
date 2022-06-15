@@ -30,6 +30,12 @@ FText UAnimGraphNode_AnimDynamics::GetTooltipText() const
 	return LOCTEXT("NodeTooltip", "Anim Dynamics");
 }
 
+
+FString UAnimGraphNode_AnimDynamics::GetNodeCategory() const
+{
+	return TEXT("Animation|Dynamics");
+}
+
 void UAnimGraphNode_AnimDynamics::GetOnScreenDebugInfo(TArray<FText>& DebugInfo, FAnimNode_Base* RuntimeAnimNode, USkeletalMeshComponent* PreviewSkelMeshComp) const
 {
 	if(RuntimeAnimNode)

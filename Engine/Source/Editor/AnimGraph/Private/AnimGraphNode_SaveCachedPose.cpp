@@ -63,7 +63,7 @@ FText UAnimGraphNode_SaveCachedPose::GetNodeTitle(ENodeTitleType::Type TitleType
 
 FString UAnimGraphNode_SaveCachedPose::GetNodeCategory() const
 {
-	return TEXT("Cached Poses");
+	return TEXT("Animation|Cached Poses");
 }
 
 void UAnimGraphNode_SaveCachedPose::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const

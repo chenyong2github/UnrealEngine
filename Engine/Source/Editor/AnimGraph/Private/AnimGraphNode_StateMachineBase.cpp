@@ -126,9 +126,9 @@ FText UAnimGraphNode_StateMachineBase::GetNodeTitle(ENodeTitleType::Type TitleTy
 	return FText::FromName(EditorStateMachineGraph->GetFName());
 }
 
-FString UAnimGraphNode_StateMachineBase::GetNodeCategory() const
+FText UAnimGraphNode_StateMachineBase::GetMenuCategory() const
 {
-	return TEXT("State Machines");
+	return LOCTEXT("StateMachineCategory", "Animation|State Machines");
 }
 
 void UAnimGraphNode_StateMachineBase::PostPlacedNewNode()

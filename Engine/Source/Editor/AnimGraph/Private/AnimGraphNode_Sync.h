@@ -21,6 +21,7 @@ class UAnimGraphNode_Sync : public UAnimGraphNode_Base
 	// UAnimGraphNode_Base interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
+	virtual FText GetMenuCategory() const override;
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
 	virtual void BakeDataDuringCompilation(class FCompilerResultsLog& MessageLog) override;
 	virtual void GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;

@@ -95,7 +95,7 @@ FText UAnimGraphNode_PoseDriver::GetNodeTitle(ENodeTitleType::Type TitleType) co
 
 FText UAnimGraphNode_PoseDriver::GetMenuCategory() const
 {
-	return LOCTEXT("PoseAssetCategory_Label", "Poses");
+	return LOCTEXT("PoseAssetCategory_Label", "Animation|Poses");
 }
 
 

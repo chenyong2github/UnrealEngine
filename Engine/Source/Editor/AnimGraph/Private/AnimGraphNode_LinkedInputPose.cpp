@@ -159,6 +159,11 @@ FText UAnimGraphNode_LinkedInputPose::GetNodeTitle(ENodeTitleType::Type TitleTyp
 	}
 }
 
+FText UAnimGraphNode_LinkedInputPose::GetMenuCategory() const
+{
+	return LOCTEXT("LinkedAnimGraphCategory", "Animation|Linked Anim Graphs");
+}
+
 bool UAnimGraphNode_LinkedInputPose::CanUserDeleteNode() const
 {
 	// Only allow linked input poses to be deleted if their parent graph is mutable

@@ -7,7 +7,7 @@
 
 FString UAnimGraphNode_CurveSource::GetNodeCategory() const
 {
-	return TEXT("Curves");
+	return TEXT("Animation|Curves");
 }
 
 FText UAnimGraphNode_CurveSource::GetTooltipText() const

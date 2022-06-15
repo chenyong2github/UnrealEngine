@@ -32,7 +32,7 @@ void UAnimGraphNode_BlendListBase::PostEditChangeProperty(struct FPropertyChange
 
 FString UAnimGraphNode_BlendListBase::GetNodeCategory() const
 {
-	return TEXT("Blends");
+	return TEXT("Animation|Blends");
 }
 
 void UAnimGraphNode_BlendListBase::RemovePinsFromOldPins(TArray<UEdGraphPin*>& OldPins, int32 RemovedArrayIndex)

@@ -50,9 +50,9 @@ void UAnimGraphNode_TransitionPoseEvaluator::ValidateAnimNodeDuringCompilation(c
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 }
 
-FString UAnimGraphNode_TransitionPoseEvaluator::GetNodeCategory() const 
+FText UAnimGraphNode_TransitionPoseEvaluator::GetMenuCategory() const
 {
-	return TEXT("Transition");
+	return LOCTEXT("InputPoseEvaluatorCategory", "Animation|State Machines");
 }
 
 bool UAnimGraphNode_TransitionPoseEvaluator::CanUserDeleteNode() const

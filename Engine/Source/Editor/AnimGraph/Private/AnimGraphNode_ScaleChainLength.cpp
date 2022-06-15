@@ -30,7 +30,7 @@ FText UAnimGraphNode_ScaleChainLength::GetNodeTitle(ENodeTitleType::Type TitleTy
 
 FString UAnimGraphNode_ScaleChainLength::GetNodeCategory() const
 {
-	return TEXT("AnimNode");
+	return TEXT("Animation|Misc.");
 }
 
 #undef LOCTEXT_NAMESPACE

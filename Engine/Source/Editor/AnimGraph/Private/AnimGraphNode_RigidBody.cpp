@@ -38,6 +38,11 @@ FText UAnimGraphNode_RigidBody::GetNodeTitle(ENodeTitleType::Type TitleType) con
 	return FText(LOCTEXT("AnimGraphNode_RigidBody_NodeTitle", "RigidBody"));
 }
 
+FString UAnimGraphNode_RigidBody::GetNodeCategory() const
+{
+	return TEXT("Animation|Dynamics");
+}
+
 void UAnimGraphNode_RigidBody::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);

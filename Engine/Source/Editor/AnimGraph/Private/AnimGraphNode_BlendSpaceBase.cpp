@@ -119,7 +119,7 @@ void UAnimGraphNode_BlendSpaceBase::CustomizeDetails(IDetailLayoutBuilder& InDet
 
 FText UAnimGraphNode_BlendSpaceBase::GetMenuCategory() const
 {
-	return LOCTEXT("BlendSpaceCategory_Label", "BlendSpaces");
+	return LOCTEXT("BlendSpaceCategory_Label", "Animation|Blend Spaces");
 }
 
 bool UAnimGraphNode_BlendSpaceBase::IsAimOffsetBlendSpace(const UClass* BlendSpaceClass)

@@ -28,11 +28,11 @@ class ANIMGRAPHRUNTIME_API USequencePlayerLibrary : public UBlueprintFunctionLib
 
 public:
 	/** Get a sequence player context from an anim node context */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Player", meta = (BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta = (BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
 	static FSequencePlayerReference ConvertToSequencePlayer(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
 
 	/** Get a sequence player context from an anim node context (pure) */
-	UFUNCTION(BlueprintPure, Category = "Sequence Player", meta = (BlueprintThreadSafe, DisplayName = "Convert to Sequence Player"))
+	UFUNCTION(BlueprintPure, Category = "Animation|Sequences", meta = (BlueprintThreadSafe, DisplayName = "Convert to Sequence Player"))
 	static void ConvertToSequencePlayerPure(const FAnimNodeReference& Node, FSequencePlayerReference& SequencePlayer, bool& Result)
 	{
 		EAnimNodeReferenceConversionResult ConversionResult;
@@ -41,7 +41,7 @@ public:
 	}
 
 	/** Set the current accumulated time of the sequence player */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Player", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static FSequencePlayerReference SetAccumulatedTime(const FSequencePlayerReference& SequencePlayer, float Time);
 
 	/** 
@@ -49,42 +49,42 @@ public:
 	 * If this is called from On Become Relevant or On Initial Update then it should be accompanied by a call to
 	 * SetAccumulatedTime to achieve the desired effect of resetting the play time of a sequence player.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Player", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static FSequencePlayerReference SetStartPosition(const FSequencePlayerReference& SequencePlayer, float StartPosition);
 
 	/** Set the play rate of the sequence player */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Player", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static FSequencePlayerReference SetPlayRate(const FSequencePlayerReference& SequencePlayer, float PlayRate);
 
 	/** Set the current sequence of the sequence player */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Player", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static FSequencePlayerReference SetSequence(const FSequencePlayerReference& SequencePlayer, UAnimSequenceBase* Sequence);
 
 	/** Set the current sequence of the sequence player with an inertial blend time */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Player", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static FSequencePlayerReference SetSequenceWithInertialBlending(const FAnimUpdateContext& UpdateContext, const FSequencePlayerReference& SequencePlayer, UAnimSequenceBase* Sequence, float BlendTime = 0.2f);
 
 	/** Get the current sequence of the sequence player - DEPRECATED, please use pure version */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Player", meta = (BlueprintThreadSafe, DeprecatedFunction))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta = (BlueprintThreadSafe, DeprecatedFunction))
 	static FSequencePlayerReference GetSequence(const FSequencePlayerReference& SequencePlayer, UPARAM(Ref) UAnimSequenceBase*& SequenceBase);
 	
 	/** Get the current sequence of the sequence player */
-	UFUNCTION(BlueprintPure, Category = "Sequence Player", meta = (BlueprintThreadSafe, DisplayName = "Get Sequence"))
+	UFUNCTION(BlueprintPure, Category = "Animation|Sequences", meta = (BlueprintThreadSafe, DisplayName = "Get Sequence"))
 	static UAnimSequenceBase* GetSequencePure(const FSequencePlayerReference& SequencePlayer);
 
 	/** Gets the current accumulated time of the sequence player */
-	UFUNCTION(BlueprintPure, Category = "Sequence Player", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintPure, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static float GetAccumulatedTime(const FSequencePlayerReference& SequencePlayer);
 
 	/** Get the start position of the sequence player */
-	UFUNCTION(BlueprintPure, Category = "Sequence Player", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintPure, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static float GetStartPosition(const FSequencePlayerReference& SequencePlayer);
 
 	/** Get the play rate of the sequence player */
-	UFUNCTION(BlueprintPure, Category = "Sequence Player", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintPure, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static float GetPlayRate(const FSequencePlayerReference& SequencePlayer);
 
 	/** Get the looping state of the sequence player */
-	UFUNCTION(BlueprintPure, Category = "Sequence Player", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintPure, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static bool GetLoopAnimation(const FSequencePlayerReference& SequencePlayer);
 };

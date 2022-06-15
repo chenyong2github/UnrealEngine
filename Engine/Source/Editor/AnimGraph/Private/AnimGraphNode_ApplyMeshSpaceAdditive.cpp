@@ -159,7 +159,7 @@ void UAnimGraphNode_ApplyMeshSpaceAdditive::PostEditChangeProperty(struct FPrope
 
 FString UAnimGraphNode_ApplyMeshSpaceAdditive::GetNodeCategory() const
 {
-	return TEXT("Blends");
+	return TEXT("Animation|Blends");
 }
 
 void UAnimGraphNode_ApplyMeshSpaceAdditive::ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog)

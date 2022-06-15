@@ -22,4 +22,9 @@ FText UAnimGraphNode_PoseSnapshot::GetNodeTitle(ENodeTitleType::Type TitleType) 
 	return LOCTEXT("UAnimGraphNode_PoseSnapshot_Title", "Pose Snapshot");
 }
 
+FText UAnimGraphNode_PoseSnapshot::GetMenuCategory() const
+{
+	return LOCTEXT("UAnimGraphNode_PoseSnapshot_Category", "Animation|Poses");
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -27,11 +27,11 @@ class ANIMGRAPHRUNTIME_API USkeletalControlLibrary : public UBlueprintFunctionLi
 
 public:
 	/** Get a skeletal control from an anim node */
-	UFUNCTION(BlueprintCallable, Category = "Skeletal Control", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Skeletal Controls", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
 	static FSkeletalControlReference ConvertToSkeletalControl(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
 
 	/** Get a skeletal control from an anim node (pure) */
-	UFUNCTION(BlueprintPure, Category = "Skeletal Control", meta=(BlueprintThreadSafe, DisplayName = "Convert to Skeletal Control"))
+	UFUNCTION(BlueprintPure, Category = "Animation|Skeletal Controls", meta=(BlueprintThreadSafe, DisplayName = "Convert to Skeletal Control"))
 	static void ConvertToSkeletalControlPure(const FAnimNodeReference& Node, FSkeletalControlReference& SkeletalControl, bool& Result)
 	{
 		EAnimNodeReferenceConversionResult ConversionResult;
@@ -40,10 +40,10 @@ public:
 	}
 	
 	/** Set the alpha value of this skeletal control */
-	UFUNCTION(BlueprintCallable, Category = "Skeletal Control", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Skeletal Controls", meta=(BlueprintThreadSafe))
 	static FSkeletalControlReference SetAlpha(const FSkeletalControlReference& SkeletalControl, float Alpha);
 
 	/** Get the alpha value of this skeletal control */
-	UFUNCTION(BlueprintPure, Category = "Skeletal Control", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintPure, Category = "Animation|Skeletal Controls", meta=(BlueprintThreadSafe))
 	static float GetAlpha(const FSkeletalControlReference& SkeletalControl);
 };

@@ -32,7 +32,7 @@ FText UAnimGraphNode_MakeDynamicAdditive::GetNodeTitle(ENodeTitleType::Type Titl
 
 FString UAnimGraphNode_MakeDynamicAdditive::GetNodeCategory() const
 {
-	return TEXT("Blends");
+	return TEXT("Animation|Blends");
 }
 
 void UAnimGraphNode_MakeDynamicAdditive::ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog)

@@ -19,7 +19,7 @@ UAnimGraphNode_MultiWayBlend::UAnimGraphNode_MultiWayBlend(const FObjectInitiali
 
 FString UAnimGraphNode_MultiWayBlend::GetNodeCategory() const
 {
-	return TEXT("Blends");
+	return TEXT("Animation|Blends");
 }
 
 FLinearColor UAnimGraphNode_MultiWayBlend::GetNodeTitleColor() const

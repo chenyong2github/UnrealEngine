@@ -82,7 +82,7 @@ FText UAnimGraphNode_SequencePlayer::GetNodeTitle(ENodeTitleType::Type TitleType
 
 FText UAnimGraphNode_SequencePlayer::GetMenuCategory() const
 {
-	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Animation);
+	return LOCTEXT("MenuCategory", "Animation|Sequences");
 }
 
 void UAnimGraphNode_SequencePlayer::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const

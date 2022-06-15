@@ -23,6 +23,11 @@ FText UAnimGraphNode_CopyPoseFromMesh::GetNodeTitle(ENodeTitleType::Type TitleTy
 	return LOCTEXT("CopyPoseFromMesh", "Copy Pose From Mesh");
 }
 
+FText UAnimGraphNode_CopyPoseFromMesh::GetMenuCategory() const
+{
+	return LOCTEXT("AnimGraphNode_CopyPoseFromMesh_Category", "Animation|Misc.");
+}
+
 void UAnimGraphNode_CopyPoseFromMesh::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
 {
 	OutAttributes.Add(UE::Anim::FAttributes::Curves);

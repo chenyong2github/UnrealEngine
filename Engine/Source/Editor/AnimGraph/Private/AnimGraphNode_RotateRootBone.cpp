@@ -28,9 +28,9 @@ FText UAnimGraphNode_RotateRootBone::GetNodeTitle(ENodeTitleType::Type TitleType
 	return LOCTEXT("RotateRootBone", "Rotate Root Bone");
 }
 
-FString UAnimGraphNode_RotateRootBone::GetNodeCategory() const
+FText UAnimGraphNode_RotateRootBone::GetMenuCategory() const
 {
-	return TEXT("Tools");
+	return LOCTEXT("RotateRootBoneCateogory", "Animation|Misc.");
 }
 
 void UAnimGraphNode_RotateRootBone::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const

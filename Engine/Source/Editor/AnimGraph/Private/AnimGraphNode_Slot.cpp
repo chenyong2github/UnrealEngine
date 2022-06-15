@@ -62,7 +62,7 @@ FText UAnimGraphNode_Slot::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 FString UAnimGraphNode_Slot::GetNodeCategory() const
 {
-	return TEXT("Montage");
+	return TEXT("Animation|Montage");
 }
 
 void UAnimGraphNode_Slot::BakeDataDuringCompilation(class FCompilerResultsLog& MessageLog)

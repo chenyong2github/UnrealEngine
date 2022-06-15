@@ -159,7 +159,7 @@ void UAnimGraphNode_ApplyAdditive::CustomizeDetails(IDetailLayoutBuilder& Detail
 
 FString UAnimGraphNode_ApplyAdditive::GetNodeCategory() const
 {
-	return TEXT("Blends");
+	return TEXT("Animation|Blends");
 	//@TODO: TEXT("Apply additive to normal pose"), TEXT("Apply additive pose"));
 }
 

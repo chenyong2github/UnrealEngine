@@ -74,6 +74,7 @@ public:
 	// UEdGraphNode_Base
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
+	virtual FString GetNodeCategory() const override;
 
 	// UAnimGraphNode_Base
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;

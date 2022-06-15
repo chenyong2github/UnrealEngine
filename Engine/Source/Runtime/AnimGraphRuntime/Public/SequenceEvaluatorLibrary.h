@@ -28,11 +28,11 @@ class ANIMGRAPHRUNTIME_API USequenceEvaluatorLibrary : public UBlueprintFunction
 
 public:
 	/** Get a sequence evaluator context from an anim node context */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
 	static FSequenceEvaluatorReference ConvertToSequenceEvaluator(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
 
 	/** Get a sequence evaluator context from an anim node context (pure) */
-	UFUNCTION(BlueprintPure, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe, DisplayName = "Convert to Sequence Evaluator"))
+	UFUNCTION(BlueprintPure, Category = "Animation|Sequences", meta=(BlueprintThreadSafe, DisplayName = "Convert to Sequence Evaluator"))
 	static void ConvertToSequenceEvaluatorPure(const FAnimNodeReference& Node, FSequenceEvaluatorReference& SequenceEvaluator, bool& Result)
 	{
 		EAnimNodeReferenceConversionResult ConversionResult;
@@ -41,19 +41,19 @@ public:
 	}
 	
 	/** Set the current accumulated time of the sequence evaluator */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta=(BlueprintThreadSafe))
 	static FSequenceEvaluatorReference SetExplicitTime(const FSequenceEvaluatorReference& SequenceEvaluator, float Time);
 
 	/** Advance the current accumulated time of the sequence evaluator */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta = (BlueprintThreadSafe))
 	static FSequenceEvaluatorReference AdvanceTime(const FAnimUpdateContext& UpdateContext, const FSequenceEvaluatorReference& SequenceEvaluator, float PlayRate = 1.0f);
 
 	/** Set the current sequence of the sequence evaluator */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta=(BlueprintThreadSafe))
 	static FSequenceEvaluatorReference SetSequence(const FSequenceEvaluatorReference& SequenceEvaluator, UAnimSequenceBase* Sequence);
 
 	/** Set the current sequence of the sequence evaluator with an inertial blend time */
-	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category = "Animation|Sequences", meta=(BlueprintThreadSafe))
 	static FSequenceEvaluatorReference SetSequenceWithInertialBlending(const FAnimUpdateContext& UpdateContext, const FSequenceEvaluatorReference& SequenceEvaluator, UAnimSequenceBase* Sequence, float BlendTime = 0.2f);
 	
 	/** Gets the current accumulated time of the sequence evaluator */

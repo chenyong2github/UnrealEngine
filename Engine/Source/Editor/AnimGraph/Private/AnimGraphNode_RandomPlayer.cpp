@@ -25,7 +25,7 @@ FText UAnimGraphNode_RandomPlayer::GetNodeTitle(ENodeTitleType::Type TitleType) 
 
 FText UAnimGraphNode_RandomPlayer::GetMenuCategory() const
 {
-	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Animation);
+	return LOCTEXT("NodeCategory", "Animation|Sequences");
 }
 
 void UAnimGraphNode_RandomPlayer::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const

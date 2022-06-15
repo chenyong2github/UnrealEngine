@@ -18,9 +18,9 @@ UAnimGraphNode_ModifyCurve::UAnimGraphNode_ModifyCurve()
 {
 }
 
-FString UAnimGraphNode_ModifyCurve::GetNodeCategory() const
+FText UAnimGraphNode_ModifyCurve::GetMenuCategory() const
 {
-	return TEXT("Skeletal Control Nodes");
+	return LOCTEXT("AnimGraphNode_ModifyCurve_Category", "Animation|Curves");
 }
 
 FText UAnimGraphNode_ModifyCurve::GetTooltipText() const

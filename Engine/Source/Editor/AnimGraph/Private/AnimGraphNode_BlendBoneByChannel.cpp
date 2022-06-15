@@ -14,7 +14,7 @@ UAnimGraphNode_BlendBoneByChannel::UAnimGraphNode_BlendBoneByChannel(const FObje
 
 FString UAnimGraphNode_BlendBoneByChannel::GetNodeCategory() const
 {
-	return TEXT("Blends");
+	return TEXT("Animation|Blends");
 }
 
 FLinearColor UAnimGraphNode_BlendBoneByChannel::GetNodeTitleColor() const

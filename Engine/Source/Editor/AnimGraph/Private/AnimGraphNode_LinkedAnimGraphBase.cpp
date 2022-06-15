@@ -114,7 +114,7 @@ FText UAnimGraphNode_LinkedAnimGraphBase::GetMenuCategory() const
 
 	if(!Category.IsSet() || Category.GetValue().IsEmpty())
 	{
-		return LOCTEXT("LinkedAnimGraphCategory", "Linked Anim Blueprints");
+		return LOCTEXT("LinkedAnimGraphCategory", "Animation|Linked Anim Graphs");
 	}
 
 	return Category.GetValue();

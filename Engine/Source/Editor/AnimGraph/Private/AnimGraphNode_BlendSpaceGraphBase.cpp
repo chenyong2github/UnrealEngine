@@ -39,7 +39,7 @@ UAnimGraphNode_BlendSpaceGraphBase::UAnimGraphNode_BlendSpaceGraphBase()
 
 FText UAnimGraphNode_BlendSpaceGraphBase::GetMenuCategory() const
 {
-	return LOCTEXT("BlendSpaceCategory_Label", "BlendSpaces");
+	return LOCTEXT("BlendSpaceCategory_Label", "Animation|Blend Spaces");
 }
 
 FLinearColor UAnimGraphNode_BlendSpaceGraphBase::GetNodeTitleColor() const

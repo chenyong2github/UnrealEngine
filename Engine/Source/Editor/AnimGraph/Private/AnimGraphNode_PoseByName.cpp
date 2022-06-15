@@ -45,7 +45,7 @@ FText UAnimGraphNode_PoseByName::GetTooltipText() const
 
 FText UAnimGraphNode_PoseByName::GetMenuCategory() const
 {
-	return LOCTEXT("PoseAssetCategory_Label", "Poses");
+	return LOCTEXT("PoseAssetCategory_Label", "Animation|Poses");
 }
 
 FText UAnimGraphNode_PoseByName::GetNodeTitleForPoseAsset(ENodeTitleType::Type TitleType, UPoseAsset* InPoseAsset) const

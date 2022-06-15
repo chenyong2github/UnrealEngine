@@ -28,9 +28,9 @@ FText UAnimGraphNode_LocalToComponentSpace::GetNodeTitle(ENodeTitleType::Type Ti
 	return LOCTEXT("AnimGraphNode_LocalToComponentSpace_Title", "Local To Component");
 }
 
-FString UAnimGraphNode_LocalToComponentSpace::GetNodeCategory() const
+FText UAnimGraphNode_LocalToComponentSpace::GetMenuCategory() const
 {
-	return TEXT("Convert Spaces");
+	return LOCTEXT("AnimGraphNode_LocalToComponentSpace_Category", "Animation|Convert Spaces");
 }
 
 void UAnimGraphNode_LocalToComponentSpace::CreateOutputPins()

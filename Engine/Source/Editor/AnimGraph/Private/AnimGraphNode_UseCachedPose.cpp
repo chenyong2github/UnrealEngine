@@ -109,7 +109,7 @@ UObject* UAnimGraphNode_UseCachedPose::GetJumpTargetForDoubleClick() const
 
 FString UAnimGraphNode_UseCachedPose::GetNodeCategory() const
 {
-	return TEXT("Cached Poses");
+	return TEXT("Animation|Cached Poses");
 }
 
 void UAnimGraphNode_UseCachedPose::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const

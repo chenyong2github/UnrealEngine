@@ -22,7 +22,7 @@ FText UAnimGraphNode_Inertialization::GetNodeTitle(ENodeTitleType::Type TitleTyp
 
 FText UAnimGraphNode_Inertialization::GetMenuCategory() const
 {
-	return LOCTEXT("NodeCategory", "Inertialization");
+	return LOCTEXT("NodeCategory", "Animation|Misc.");
 }
 
 void UAnimGraphNode_Inertialization::GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const

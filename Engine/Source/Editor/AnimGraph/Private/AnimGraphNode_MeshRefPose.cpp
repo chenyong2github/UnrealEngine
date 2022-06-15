@@ -15,7 +15,7 @@ UAnimGraphNode_MeshRefPose::UAnimGraphNode_MeshRefPose(const FObjectInitializer&
 
 FString UAnimGraphNode_MeshRefPose::GetNodeCategory() const
 {
-	return TEXT("Identity");
+	return TEXT("Animation|Poses");
 }
 
 FLinearColor UAnimGraphNode_MeshRefPose::GetNodeTitleColor() const

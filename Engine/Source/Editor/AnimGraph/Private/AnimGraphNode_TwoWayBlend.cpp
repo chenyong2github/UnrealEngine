@@ -15,9 +15,9 @@ UAnimGraphNode_TwoWayBlend::UAnimGraphNode_TwoWayBlend(const FObjectInitializer&
 {
 }
 
-FString UAnimGraphNode_TwoWayBlend::GetNodeCategory() const
+FText UAnimGraphNode_TwoWayBlend::GetMenuCategory() const
 {
-	return TEXT("Blends");
+	return LOCTEXT("TwoWayBlendCategory", "Animation|Blends");
 }
 
 FLinearColor UAnimGraphNode_TwoWayBlend::GetNodeTitleColor() const

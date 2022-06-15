@@ -40,7 +40,7 @@ FText UAnimGraphNode_Mirror::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 FText UAnimGraphNode_Mirror::GetMenuCategory() const
 {
-	return LOCTEXT("NodeCategory", "Mirroring");
+	return LOCTEXT("NodeCategory", "Animation|Misc.");
 }
 
 void UAnimGraphNode_Mirror::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const

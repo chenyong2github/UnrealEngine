@@ -23,9 +23,9 @@ UAnimGraphNode_BlendListByEnum::UAnimGraphNode_BlendListByEnum(const FObjectInit
 	Node.AddPose();
 }
 
-FString UAnimGraphNode_BlendListByEnum::GetNodeCategory() const
+FText UAnimGraphNode_BlendListByEnum::GetMenuCategory() const
 {
-	return FString::Printf(TEXT("%s, Blend List by enum"), *Super::GetNodeCategory() );
+	return LOCTEXT("AnimGraphNode_BlendListByEnum_GetMenuCategory", "Animation|Blends|Blend by Enum");
 }
 
 FText UAnimGraphNode_BlendListByEnum::GetTooltipText() const

@@ -32,6 +32,11 @@ FText UAnimGraphNode_Sync::GetTooltipText() const
 	return LOCTEXT("NodeTooltip", "Synchronizes asset players and blendspaces that are children of this node.");
 }
 
+FText UAnimGraphNode_Sync::GetMenuCategory() const
+{
+	return LOCTEXT("Category", "Animation|Synchronization");
+}
+
 void UAnimGraphNode_Sync::GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const
 {
 	if(Node.GetGroupName() != NAME_None)

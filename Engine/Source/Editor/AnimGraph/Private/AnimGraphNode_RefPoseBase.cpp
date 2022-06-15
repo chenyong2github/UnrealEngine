@@ -12,7 +12,7 @@ UAnimGraphNode_RefPoseBase::UAnimGraphNode_RefPoseBase(const FObjectInitializer&
 
 FString UAnimGraphNode_RefPoseBase::GetNodeCategory() const
 {
-	return TEXT("Identity");
+	return TEXT("Animation|Poses");
 }
 
 FLinearColor UAnimGraphNode_RefPoseBase::GetNodeTitleColor() const
