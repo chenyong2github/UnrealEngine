@@ -10,8 +10,6 @@ namespace AutomationUtils.Matchers
 {
 	class SystemicEventMatcher : ILogEventMatcher
 	{
-		static readonly Regex s_automationTool = new Regex(@"^\s*(?:BUILD FAILED|AutomationTool exiting with ExitCode=[1-9])");
-
 		static readonly Regex s_ddc = new Regex(@"LogDerivedDataCache: .*queries/writes will be limited");
 
 		static readonly Regex s_pdbUtil = new Regex(@"^\s*ERROR: Error: EC_OK");
@@ -21,10 +19,6 @@ namespace AutomationUtils.Matchers
 
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			if (cursor.IsMatch(s_automationTool))
-			{
-				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Systemic_AutomationTool);
-			}
 			if (cursor.IsMatch(s_ddc))
 			{
 				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_SlowDDC);

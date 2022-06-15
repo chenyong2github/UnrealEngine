@@ -211,11 +211,6 @@ namespace EpicGames.Core
 		public static EventId Systemic_LogEventMatcher { get; } = new EventId(763);
 
 		/// <summary>
-		/// Generic "Build failed" messages from UAT
-		/// </summary>
-		public static EventId Systemic_AutomationTool = new EventId(770);
-
-		/// <summary>
 		/// Maximum code for systemic events. Add new events in the 700-799 range.
 		/// </summary>
 		public static EventId Systemic_Max { get; } = new EventId(799);
