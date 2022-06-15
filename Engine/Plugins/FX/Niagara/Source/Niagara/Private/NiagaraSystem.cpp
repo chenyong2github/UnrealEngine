@@ -309,7 +309,6 @@ bool UNiagaraSystem::ChangeEmitterVersion(const FVersionedNiagaraEmitter& Versio
 			KillAllActiveCompilations();
 			Modify();
 			EmitterHandles[i].GetInstance().Version = NewVersion;
-			RequestCompile(false);
 			return true;
 		}
 	}

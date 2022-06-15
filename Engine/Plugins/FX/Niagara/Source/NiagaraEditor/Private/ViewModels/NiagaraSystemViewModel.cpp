@@ -2331,6 +2331,7 @@ bool FNiagaraSystemViewModel::ChangeEmitterVersion(const FVersionedNiagaraEmitte
 	if (System->ChangeEmitterVersion(Emitter, NewVersion))
 	{
 		ResetStack();
+		System->RequestCompile(false);
 		return true;
 	}
 	return false;
