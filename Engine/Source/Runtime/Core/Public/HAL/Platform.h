@@ -10,9 +10,6 @@
 #if !defined(PLATFORM_WINDOWS)
 	#define PLATFORM_WINDOWS 0
 #endif
-#if !defined(PLATFORM_XBOXONE)
-	#define PLATFORM_XBOXONE 0
-#endif
 #if !defined(PLATFORM_MAC)
 	#define PLATFORM_MAC 0
 	// If PLATFORM_MAC is defined these will be set appropriately in
