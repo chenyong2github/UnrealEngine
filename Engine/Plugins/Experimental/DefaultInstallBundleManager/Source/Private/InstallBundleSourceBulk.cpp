@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstallBundleSourceBulk.h"
-#include "DefaultInstallBundleManagerPrivatePCH.h"
 
+#include "DefaultInstallBundleManagerPrivate.h"
 #include "IPlatformFilePak.h"
 #include "Containers/Ticker.h"
 #include "Misc/CommandLine.h"

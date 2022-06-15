@@ -8,9 +8,6 @@ public class DefaultInstallBundleManager : ModuleRules
 {
 	public DefaultInstallBundleManager(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = PCHUsageMode.UseSharedPCHs;
-		PrivatePCHHeaderFile = "Private/DefaultInstallBundleManagerPrivatePCH.h";
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"InstallBundleManager",

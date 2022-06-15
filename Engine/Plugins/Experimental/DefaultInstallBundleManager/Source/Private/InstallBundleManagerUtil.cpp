@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DefaultInstallBundleManagerPrivatePCH.h"
-
 #include "InstallBundleManagerUtil.h"
 
+#include "DefaultInstallBundleManagerPrivate.h"
 #include "Misc/App.h"
 
 #include "JsonObjectConverter.h"

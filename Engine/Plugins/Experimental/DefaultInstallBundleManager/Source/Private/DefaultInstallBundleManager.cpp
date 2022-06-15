@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DefaultInstallBundleManagerPrivatePCH.h"
-
 #include "DefaultInstallBundleManager.h"
+
+#include "DefaultInstallBundleManagerPrivate.h"
 #include "InstallBundleManagerUtil.h"
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleSourceInterface.h"
