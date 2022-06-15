@@ -190,6 +190,9 @@ public:
 
 		// Reflection will be removed later, otherwise the disassembly won't contain variables
 		//ExtraArguments.Add(TEXT("/Qstrip_reflect"));
+
+		// disable undesired warnings
+		ExtraArguments.Add(TEXT("-Wno-parentheses-equality"));
 	}
 
 	inline FString GetDumpDebugInfoPath() const
