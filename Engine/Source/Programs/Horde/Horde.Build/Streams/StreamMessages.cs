@@ -799,7 +799,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// List of job template names to show on this page.
 		/// </summary>
-		public List<string>? Templates { get; set; }
+		public List<TemplateRefId>? Templates { get; set; }
 
 		/// <summary>
 		/// Columns to display for different types of aggregates
