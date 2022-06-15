@@ -944,7 +944,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	AvailableViewPresets.Add(MakeShared<FCallstackViewPreset>(true));
 
 	//////////////////////////////////////////////////
-	// Memory Page Breakdown View
+	// Address (4K Page) Breakdown View
 
 	class FPageViewPreset : public IViewPreset
 	{
@@ -989,6 +989,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,  true, 120.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,     true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,      true, 120.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId, true, 400.0f });
 		}
 	};
@@ -1177,36 +1178,48 @@ void SMemAllocTableTreeView::InternalCreateGroupings()
 {
 	Insights::STableTreeView::InternalCreateGroupings();
 
+	AvailableGroupings.RemoveAll(
+		[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+		{
+			if (Grouping->Is<FTreeNodeGroupingByUniqueValue>())
+			{
+				const FName ColumnId = Grouping->As<FTreeNodeGroupingByUniqueValue>().GetColumnId();
+				if (ColumnId == FMemAllocTableColumns::StartEventIndexColumnId ||
+					ColumnId == FMemAllocTableColumns::EndEventIndexColumnId ||
+					ColumnId == FMemAllocTableColumns::CountColumnId)
+				{
+					return true;
+				}
+			}
+			else if (Grouping->Is<FTreeNodeGroupingByPathBreakdown>())
+			{
+				const FName ColumnId = Grouping->As<FTreeNodeGroupingByPathBreakdown>().GetColumnId();
+				if (ColumnId == FMemAllocTableColumns::FunctionColumnId)
+				{
+					return true;
+				}
+
+			}
+			return false;
+		});
+
 	int32 Index = 1; // after the Flat ("All") grouping
 
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingBySize>(), Index++);
 
-	TSharedPtr<FTreeNodeGrouping>* TagGroupingPtr = AvailableGroupings.FindByPredicate(
-		[](TSharedPtr<FTreeNodeGrouping>& Grouping)
-		{
-			return Grouping->Is<FTreeNodeGroupingByUniqueValue>() &&
-				   Grouping->As<FTreeNodeGroupingByUniqueValue>().GetColumnId() == FMemAllocTableColumns::TagColumnId;
-		});
-	if (TagGroupingPtr)
+	const TraceServices::IAllocationsProvider* AllocationsProvider = Session.IsValid() ? TraceServices::ReadAllocationsProvider(*Session.Get()) : nullptr;
+
+	if (AllocationsProvider)
 	{
-		TSharedPtr<FTreeNodeGroupingByUniqueValue> TagGrouping = StaticCastSharedPtr<FTreeNodeGroupingByUniqueValue>(*TagGroupingPtr);
-		AvailableGroupings.Remove(TagGrouping);
-		//TODO: TagGrouping->SetShortName(LOCTEXT("Grouping_ByTag_ShortName", "LLM Tag"));
-		//TODO: TagGrouping->SetTitleName(LOCTEXT("Grouping_ByTag_TitleName", "By LLM Tag"));
-		AvailableGroupings.Insert(TagGrouping, Index++);
+		AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByTag>(*AllocationsProvider), Index++);
 	}
 
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(false, bIsCallstackGroupingByFunction), Index++);
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(true, bIsCallstackGroupingByFunction), Index++);
 
-	if (Session.IsValid())
+	if (AllocationsProvider)
 	{
-		const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
-		if (AllocationsProvider)
-		{
-			AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByHeap>(*AllocationsProvider), Index++);
-			AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByTag>(*AllocationsProvider), Index++);
-		}
+		AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByHeap>(*AllocationsProvider), Index++);
 	}
 }
 

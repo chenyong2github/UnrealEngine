@@ -24,7 +24,7 @@ class SMemAllocTableTreeView : public STableTreeView
 private:
 	struct FColumnConfig
 	{
-		const FName& ColumnId;
+		FName ColumnId;
 		bool bIsVisible;
 		float Width;
 	};

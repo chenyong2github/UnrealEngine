@@ -124,11 +124,27 @@ public:
 
 private:
 	static Type GetValue(const FTableCellValue& CellValue);
-	static FText GetValueAsText(const FTableColumn& Column, const FTableTreeNode& Node)
-	{
-		return Column.GetValueAsGroupingText(Node);
-	}
+	static FName GetGroupName(const FTableColumn& Column, const FTableTreeNode& Node);
 };
+
+template<typename Type>
+FName TTreeNodeGroupingByUniqueValue<Type>::GetGroupName(const FTableColumn& Column, const FTableTreeNode& Node)
+{
+	FText ValueAsText = Column.GetValueAsGroupingText(Node);
+
+	if (ValueAsText.IsEmpty())
+	{
+		static FName EmptyGroupName(TEXT("N/A"));
+		return EmptyGroupName;
+	}
+
+	FStringView StringView(ValueAsText.ToString());
+	if (StringView.Len() >= NAME_SIZE)
+	{
+		StringView = FStringView(StringView.GetData(), NAME_SIZE - 1);
+	}
+	return FName(StringView, 0);
+}
 
 template<typename Type>
 void TTreeNodeGroupingByUniqueValue<Type>::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, IAsyncOperationProgress& InAsyncOperationProgress) const
@@ -162,13 +178,8 @@ void TTreeNodeGroupingByUniqueValue<Type>::GroupNodes(const TArray<FTableTreeNod
 			FTableTreeNodePtr* GroupPtrPtr = GroupMap.Find(Value);
 			if (!GroupPtrPtr)
 			{
-				FText ValueAsText = GetValueAsText(Column, *NodePtr);
-				FStringView GroupName(ValueAsText.ToString());
-				if (GroupName.Len() >= NAME_SIZE)
-				{
-					GroupName = FStringView(GroupName.GetData(), NAME_SIZE - 1);
-				}
-				GroupPtr = MakeShared<FTableTreeNode>(FName(GroupName, 0), InParentTable);
+				const FName GroupName = GetGroupName(Column, *NodePtr);
+				GroupPtr = MakeShared<FTableTreeNode>(GroupName, InParentTable);
 				GroupPtr->SetExpansion(false);
 				ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
 				GroupMap.Add(Value, GroupPtr);
@@ -197,7 +208,21 @@ typedef TTreeNodeGroupingByUniqueValue<bool> FTreeNodeGroupingByUniqueValueBool;
 typedef TTreeNodeGroupingByUniqueValue<int64> FTreeNodeGroupingByUniqueValueInt64;
 typedef TTreeNodeGroupingByUniqueValue<float> FTreeNodeGroupingByUniqueValueFloat;
 typedef TTreeNodeGroupingByUniqueValue<double> FTreeNodeGroupingByUniqueValueDouble;
-typedef TTreeNodeGroupingByUniqueValue<const TCHAR*> FTreeNodeGroupingByUniqueValueCString;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Creates a group for each unique value (assumes data type of cell values is const TCHAR*). */
+class FTreeNodeGroupingByUniqueValueCString : public FTreeNodeGroupingByUniqueValue
+{
+public:
+	FTreeNodeGroupingByUniqueValueCString(TSharedRef<FTableColumn> InColumnRef) : FTreeNodeGroupingByUniqueValue(InColumnRef) {}
+	virtual ~FTreeNodeGroupingByUniqueValueCString() {}
+
+	virtual void GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, IAsyncOperationProgress& InAsyncOperationProgress) const override;
+
+private:
+	static FName GetGroupName(const TCHAR* Value);
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

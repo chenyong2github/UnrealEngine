@@ -145,12 +145,84 @@ template<> bool TTreeNodeGroupingByUniqueValue<bool>::GetValue(const FTableCellV
 template<> int64 TTreeNodeGroupingByUniqueValue<int64>::GetValue(const FTableCellValue& CellValue) { return CellValue.Int64; }
 template<> float TTreeNodeGroupingByUniqueValue<float>::GetValue(const FTableCellValue& CellValue) { return CellValue.Float; }
 template<> double TTreeNodeGroupingByUniqueValue<double>::GetValue(const FTableCellValue& CellValue) { return CellValue.Double; }
-template<> const TCHAR* TTreeNodeGroupingByUniqueValue<const TCHAR*>::GetValue(const FTableCellValue& CellValue) { return CellValue.CString; }
 
-template<>
-FText TTreeNodeGroupingByUniqueValue<const TCHAR*>::GetValueAsText(const FTableColumn& Column, const FTableTreeNode& Node)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTreeNodeGroupingByUniqueValueCString
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FTreeNodeGroupingByUniqueValueCString::GetGroupName(const TCHAR* Value)
 {
-	return Column.GetValueAsText(Node);
+	if (Value == nullptr || *Value == TEXT('\0'))
+	{
+		static FName EmptyGroupName(TEXT("N/A"));
+		return EmptyGroupName;
+	}
+
+	FStringView StringView(Value);
+	if (StringView.Len() >= NAME_SIZE)
+	{
+		StringView = FStringView(StringView.GetData(), NAME_SIZE - 1);
+	}
+	return FName(StringView, 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTreeNodeGroupingByUniqueValueCString::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, TWeakPtr<FTable> InParentTable, IAsyncOperationProgress& InAsyncOperationProgress) const
+{
+	TMap<const void*, FTableTreeNodePtr> GroupMap; // using void* as TMap<const TCHAR*, T> doesn't allow nullptr to be added
+	FTableTreeNodePtr UnsetGroupPtr = nullptr;
+
+	ParentGroup.ClearChildren();
+
+	for (FTableTreeNodePtr NodePtr : Nodes)
+	{
+		if (InAsyncOperationProgress.ShouldCancelAsyncOp())
+		{
+			return;
+		}
+
+		if (NodePtr->IsGroup())
+		{
+			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			continue;
+		}
+
+		FTableTreeNodePtr GroupPtr = nullptr;
+
+		const FTableColumn& Column = *GetColumn();
+		const TOptional<FTableCellValue> CellValue = Column.GetValue(*NodePtr);
+		if (CellValue.IsSet())
+		{
+			const TCHAR* Value = CellValue.GetValue().CString;
+
+			FTableTreeNodePtr* GroupPtrPtr = GroupMap.Find(Value);
+			if (!GroupPtrPtr)
+			{
+				const FName GroupName = GetGroupName(Value);
+				GroupPtr = MakeShared<FTableTreeNode>(GroupName, InParentTable);
+				GroupPtr->SetExpansion(false);
+				ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
+				GroupMap.Add(Value, GroupPtr);
+			}
+			else
+			{
+				GroupPtr = *GroupPtrPtr;
+			}
+		}
+		else
+		{
+			if (!UnsetGroupPtr)
+			{
+				UnsetGroupPtr = MakeShared<FTableTreeNode>(FName(TEXT("<unset>")), InParentTable);
+				UnsetGroupPtr->SetExpansion(false);
+				ParentGroup.AddChildAndSetGroupPtr(UnsetGroupPtr);
+			}
+			GroupPtr = UnsetGroupPtr;
+		}
+
+		GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -289,14 +361,13 @@ void FTreeNodeGroupingByPathBreakdown::GroupNodes(
 						{
 							Directory = *FoundDir;
 						}
-						else
+						else if (!DirName.IsNone())
 						{
-							FName GroupName = DirName.IsNone() ? FName(TEXT("/")) : DirName;
-							FTableTreeNodePtr GroupPtr = MakeShared<FTableTreeNode>(GroupName, InParentTable);
+							FTableTreeNodePtr GroupPtr = MakeShared<FTableTreeNode>(DirName, InParentTable);
 							GroupPtr->SetExpansion(false);
 							Directory->Node->AddChildAndSetGroupPtr(GroupPtr);
 							Directory = new FDirectory(DirName, Directory, GroupPtr.Get());
-							Directory->Parent->ChildrenMap.Add(GroupName, Directory);
+							Directory->Parent->ChildrenMap.Add(DirName, Directory);
 							Directories.Add(Directory);
 						}
 
