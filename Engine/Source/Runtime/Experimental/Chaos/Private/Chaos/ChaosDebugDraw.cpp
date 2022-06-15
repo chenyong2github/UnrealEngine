@@ -834,13 +834,21 @@ namespace Chaos
 						// Show the raw inertia in black
 						if (!FVec3::IsNearlyEqual(Rigid->InvIConditioning(), TVec3<FRealSingle>(1), UE_SMALL_NUMBER))
 						{
-							const FVec3 EquivalentBoxSize = Utilities::BoxSizeFromInertia(Rigid->I(), Rigid->M());
-							FDebugDrawQueue::GetInstance().DrawDebugBox(PCOM, 0.5f * Settings.InertiaScale * EquivalentBoxSize, QCOM, FColor::Black, false, 0.0f, 0, Settings.LineThickness);
+							FVec3 EquivalentBoxSize, EquivalentBoxCenter;
+							if (Utilities::BoxFromInertia(Rigid->I(), Rigid->M(), EquivalentBoxCenter, EquivalentBoxSize))
+							{
+								const FVec3 BoxCoM = SpaceTransform.TransformPositionNoScale(PCOM + QCOM * EquivalentBoxCenter);
+								FDebugDrawQueue::GetInstance().DrawDebugBox(BoxCoM, 0.5f * Settings.InertiaScale * EquivalentBoxSize, QCOM, FColor::Black, false, 0.0f, 0, Settings.LineThickness);
+							}
 						}
 
 						// Show the inertia used by the solver in magenta
-						const FVec3 EquivalentConditionedBoxSize = Utilities::BoxSizeFromInertia(Rigid->ConditionedI(), Rigid->M());
-						FDebugDrawQueue::GetInstance().DrawDebugBox(PCOM, 0.5f * Settings.InertiaScale * EquivalentConditionedBoxSize, QCOM, FColor::Magenta, false, 0.0f, 0, Settings.LineThickness);
+						FVec3 EquivalentBoxConditionedSize, EquivalentBoxConditionedCenter;
+						if (Utilities::BoxFromInertia(Rigid->ConditionedI(), Rigid->M(), EquivalentBoxConditionedCenter, EquivalentBoxConditionedSize))
+						{
+							const FVec3 BoxConditionedCoM = SpaceTransform.TransformPositionNoScale(PCOM + QCOM * EquivalentBoxConditionedCenter);
+							FDebugDrawQueue::GetInstance().DrawDebugBox(BoxConditionedCoM, 0.5f * Settings.InertiaScale * EquivalentBoxConditionedSize, QCOM, FColor::Magenta, false, 0.0f, 0, Settings.LineThickness);
+						}
 					}
 				}
 			}

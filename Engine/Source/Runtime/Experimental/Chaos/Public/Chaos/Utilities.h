@@ -485,20 +485,74 @@ namespace Chaos
 		}
 
 		// Compute the box size that would generate the given (diagonal) inertia
-		inline FVec3 BoxSizeFromInertia(const FVec3& Inertia, const FReal Mass)
+		inline bool BoxFromInertia(const FVec3& InInertia, const FReal Mass, FVec3& OutCenter, FVec3& OutSize)
 		{
+			OutSize = FVec3(0);
+			OutCenter = FVec3(0);
+
 			// System of 3 equations in X^2, Y^2, Z^2
-			// Inertia.X = 1/12 M (Size.Y^2 + Size.Z^2)
-			// Inertia.Y = 1/12 M (Size.Z^2 + Size.X^2)
-			// Inertia.Z = 1/12 M (Size.X^2 + Size.Y^2)
+			//		Inertia.X = 1/12 M (Size.Y^2 + Size.Z^2)
+			//		Inertia.Y = 1/12 M (Size.Z^2 + Size.X^2)
+			//		Inertia.Z = 1/12 M (Size.X^2 + Size.Y^2)
+			// Unless the center of mass has been modified, in which case we have
+			//		Inertia.X = 1/12 M (Size.Y^2 + Size.Z^2) + M D.X^2
+			//		Inertia.Y = 1/12 M (Size.Z^2 + Size.X^2) + M D.Y^2
+			//		Inertia.Z = 1/12 M (Size.X^2 + Size.Y^2) + M D.Z^2
+			// Which will not have a unique solution (3 equations in 6 unknowns).
+			// There's no way to know here that the center of mass was modified so we assume it wasn't unless we cannot
+			// solve the equations and then we must make some guesses to recover an equivalent box.
 			if (Mass > 0)
 			{
-				const FVec3 S = Inertia * 12.0f / Mass;
-				const FMatrix33 R = FMatrix33(-0.5f, 0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, 0.5f, -0.5f);
-				const FVec3 XYZSq = R * S;
-				return FVec3(FMath::Sqrt(XYZSq.X), FMath::Sqrt(XYZSq.Y), FMath::Sqrt(XYZSq.Z));
+				// RInv is the inverse of the coefficient matrix (0,1,1)(1,0,1)(0,1,1)
+				const FMatrix33 RInv = FMatrix33(-0.5f, 0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, 0.5f, -0.5f);
+				FVec3 Inertia = InInertia / Mass;
+				FVec3 XYZSq = RInv * (Inertia * 12.0f);
+
+				// If we have a shape with a modified center of mass that is outside the equivalent box, we will end up with negative
+				// coefficients here and cannot calculate a box equivalent. To do this properly we need to know what center of mass offset was applied.
+				// But lets try to do something anyway so that debug draw shows something...we'll pretend that the shifted inertia component would be equal to the
+				// smallest component in the absense of the shift. This works "correctly" for a uniform shape (e.g., a box), but will be wrong for everything else!
+				// Also, there's a sign problem since shifting the center of mass in the opposite direction would have altered the inertia the same way.
+				// Net result: I'm not sure how useful this is - see if we can do something better one day (maybe store the ComNudge)
+				if (XYZSq.X < 0)
+				{
+					FReal DXSq = (Inertia.X - FMath::Min(Inertia.Y, Inertia.Z));
+					if (DXSq > 0)
+					{
+						OutCenter.X = FMath::Sqrt(DXSq);
+						Inertia.X -= DXSq;
+						XYZSq = RInv * (Inertia * 12.0f);
+					}
+				}
+				if (XYZSq.Y < 0)
+				{
+					FReal DYSq = (Inertia.Y - FMath::Min(Inertia.X, Inertia.Z));
+					if (DYSq > 0)
+					{
+						OutCenter.Y = FMath::Sqrt(DYSq);
+						Inertia.Y -= DYSq;
+						XYZSq = RInv * (Inertia * 12.0f);
+					}
+				}
+				if (XYZSq.Z < 0)
+				{
+					FReal DZSq = (Inertia.Z - FMath::Min(Inertia.X, Inertia.Y));
+					if (DZSq > 0)
+					{
+						OutCenter.Z = FMath::Sqrt(DZSq);
+						Inertia.Z -= DZSq;
+						XYZSq = RInv * (Inertia * 12.0f);
+					}
+				}
+
+				OutSize = FVec3(
+					FMath::Sqrt(FMath::Max(XYZSq.X, FReal(0))),
+					FMath::Sqrt(FMath::Max(XYZSq.Y, FReal(0))),
+					FMath::Sqrt(FMath::Max(XYZSq.Z, FReal(0))));
+
+				return true;
 			}
-			return FVec3(0);
+			return false;
 		}
 
 		// Replacement for FMath::Wrap that works for integers and returns a value in [Begin, End).

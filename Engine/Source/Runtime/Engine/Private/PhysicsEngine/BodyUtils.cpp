@@ -11,6 +11,13 @@
 
 namespace BodyUtils
 {
+	namespace CVars
+	{
+		bool bPhysicsComNudgeAdjustInertia = true;
+		FAutoConsoleVariableRef CVarPhysicsComNudgeAffectsInertia(TEXT("p.ComNudgeAffectsInertia"), bPhysicsComNudgeAdjustInertia, TEXT(""));
+	}
+
+
 	inline float KgPerM3ToKgPerCm3(float KgPerM3)
 	{
 		//1m = 100cm => 1m^3 = (100cm)^3 = 1000000cm^3
@@ -68,6 +75,15 @@ namespace BodyUtils
 		MassProps.Mass *= MassRatio;
 		MassProps.InertiaTensor *= MassRatio;
 		MassProps.CenterOfMass += MassModifierTransform.TransformVector(OwningBodyInstance->COMNudge);
+
+		// If we move the center of mass, we need to update the inertia using parallel-axis theorem. If we don't do this
+		// and the center of mass is moved significantly it can cause jitter (inertia too small for the contact positions)
+		if (CVars::bPhysicsComNudgeAdjustInertia)
+		{
+			MassProps.InertiaTensor.M[0][0] += MassProps.Mass * OwningBodyInstance->COMNudge.X * OwningBodyInstance->COMNudge.X;
+			MassProps.InertiaTensor.M[1][1] += MassProps.Mass * OwningBodyInstance->COMNudge.Y * OwningBodyInstance->COMNudge.Y;
+			MassProps.InertiaTensor.M[2][2] += MassProps.Mass * OwningBodyInstance->COMNudge.Z * OwningBodyInstance->COMNudge.Z;
+		}
 
 		// Scale the inertia tensor by the owning body instance's InertiaTensorScale
 		// NOTE: PhysX scales the inertia by the mass increase we would get from the scale change, even though we 
