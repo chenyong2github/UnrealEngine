@@ -29,6 +29,10 @@
 		{
 			"Name": "MassEntityEditor",
 			"Type": "Editor"
+		},
+		{
+			"Name": "MassEntityDebugger",
+			"Type": "DeveloperTool"
 		}
 	],
 	"Plugins": [
