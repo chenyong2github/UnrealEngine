@@ -707,7 +707,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	const int32 MaxInGameDepth = SurfaceDepth ? FMath::Max(SurfaceDepth >> MaxResMipBias, 1) : 0;
 
 	// Texture asset size
-	const int64 ResourceSize = PlatformDataPtr && *PlatformDataPtr ? (*PlatformDataPtr)->GetPayloadSize() : Texture->GetResourceSizeBytes(EResourceSizeMode::Exclusive);
+	const int64 ResourceSize = PlatformDataPtr && *PlatformDataPtr ? (*PlatformDataPtr)->GetPayloadSize(ActualMipBias) : Texture->GetResourceSizeBytes(EResourceSizeMode::Exclusive);
 
 	FNumberFormattingOptions SizeOptions;
 	SizeOptions.UseGrouping = false;

@@ -999,7 +999,7 @@ public:
 	ENGINE_API EPixelFormat GetLayerPixelFormat(uint32 LayerIndex) const;
 
 	/** Return the size of the texture pixel data in bytes, not including headers or alignment. */
-	ENGINE_API int64 GetPayloadSize() const;
+	ENGINE_API int64 GetPayloadSize(int32 MipBias) const;
 
 private:
 
