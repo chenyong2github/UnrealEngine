@@ -4098,7 +4098,7 @@ void UControlRigBlueprint::PatchPropagateToChildren()
 		if (const URigVMPin* TypePin = InPin->FindSubPin(TEXT("Type")))
 		{
 			const FString& TypeValue = TypePin->GetDefaultValue();
-			return TypeValue == TEXT("Null") || TypeValue == TEXT("Control");
+			return TypeValue == TEXT("Null") || TypeValue == TEXT("Space") || TypeValue == TEXT("Control");
 		}
 		
 		return false;
