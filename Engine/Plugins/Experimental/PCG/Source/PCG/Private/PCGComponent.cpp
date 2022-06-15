@@ -1021,6 +1021,14 @@ void UPCGComponent::ResetLastGeneratedBounds()
 
 void UPCGComponent::Refresh()
 {
+#if WITH_EDITOR
+	// Disable auto-refreshing on preview actors until we have something more robust on the execution side.
+	if (GetOwner() && GetOwner()->bIsEditorPreviewActor)
+	{
+		return;
+	}
+#endif
+
 	// Following a change in some properties or in some spatial information related to this component,
 	// We need to regenerate the graph, depending of the state in the editor.
 	// In the case of a non-partitioned graph, we need to generate the graph only if it was previously generated & tagged for regeneration
@@ -1432,7 +1440,10 @@ FBox UPCGComponent::GetGridBounds(AActor* Actor) const
 		// Then intersect with the original component's bounds.
 		if (const UPCGComponent* OriginalComponent = PartitionActor->GetOriginalComponent(this))
 		{
-			Bounds = Bounds.Overlap(OriginalComponent->GetGridBounds());
+			if (OriginalComponent->GetOwner() != PartitionActor)
+			{
+				Bounds = Bounds.Overlap(OriginalComponent->GetGridBounds());
+			}
 		}
 	}
 	// TODO: this might not work in non-editor builds

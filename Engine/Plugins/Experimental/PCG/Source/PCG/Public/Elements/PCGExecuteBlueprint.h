@@ -155,7 +155,7 @@ public:
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("BlueprintNode")); }
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual EPCGSettingsType GetType() const override;
-	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const override;
+	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const override;
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
 #endif
 

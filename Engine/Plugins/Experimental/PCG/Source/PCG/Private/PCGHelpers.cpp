@@ -136,11 +136,24 @@ namespace PCGHelpers
 		return (InWorld && InWorld->GetSubsystem<UPCGSubsystem>()) ? InWorld->GetSubsystem<UPCGSubsystem>()->GetPCGWorldActor() : nullptr;
 	}
 
+	bool CanBeExpanded(UClass* ObjectClass)
+	{
+		// There shouldn't be any need to dig through Niagara assets + there are some issues (most likely related to loading) with parsing all their dependencies
+		if (!ObjectClass ||
+			ObjectClass->GetFName() == TEXT("NiagaraSystem") ||
+			ObjectClass->GetFName() == TEXT("NiagaraComponent"))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
 	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies)
 	{
 		UClass* ObjectClass = Object ? Object->GetClass() : nullptr;
 
-		if (!ObjectClass)
+		if(!CanBeExpanded(ObjectClass))
 		{
 			return;
 		}
@@ -161,6 +174,11 @@ namespace PCGHelpers
 				GatherDependencies(Object, OutDependencies);
 			}
 		};
+
+		if (!InContainer || !Property)
+		{
+			return;
+		}
 
 		if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
 		{

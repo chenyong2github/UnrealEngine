@@ -88,6 +88,7 @@ public:
 
 #if WITH_EDITOR
 	FPCGTagToSettingsMap GetTrackedTagsToSettings() const;
+	void GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const;
 #endif
 
 #if WITH_EDITOR
@@ -122,5 +123,6 @@ private:
 	int32 GraphChangeNotificationsDisableCounter = 0;
 	bool bDelayedChangeNotification = false;
 	bool bDelayedChangeNotificationStructural = false;
+	bool bIsNotifying = false;
 #endif // WITH_EDITOR
 };

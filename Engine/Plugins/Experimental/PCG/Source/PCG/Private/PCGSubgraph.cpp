@@ -55,16 +55,11 @@ void UPCGBaseSubgraphSettings::PostEditChangeProperty(struct FPropertyChangedEve
 	}
 }
 
-void UPCGBaseSubgraphSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const
+void UPCGBaseSubgraphSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& VisitedGraphs) const
 {
 	if (UPCGGraph* Subgraph = GetSubgraph())
 	{
-		FPCGTagToSettingsMap SubgraphMap = Subgraph->GetTrackedTagsToSettings();
-
-		for (const auto& TagToSettings : SubgraphMap)
-		{
-			OutTagToSettings.FindOrAdd(TagToSettings.Key).Append(TagToSettings.Value);
-		}
+		Subgraph->GetTrackedTagsToSettings(OutTagToSettings, VisitedGraphs);
 	}
 }
 

@@ -26,7 +26,7 @@ protected:
 	//~End UObject interface implementation
 
 	//~Begin UPCGSettings interface
-	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const override;
+	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const override;
 #endif
 
 	TArray<FPCGPinProperties> InputPinProperties() const override;

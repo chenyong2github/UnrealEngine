@@ -495,15 +495,28 @@ void UPCGGraph::SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InN
 FPCGTagToSettingsMap UPCGGraph::GetTrackedTagsToSettings() const
 {
 	FPCGTagToSettingsMap TagsToSettings;
+	TArray<TObjectPtr<const UPCGGraph>> VisitedGraphs;
+
+	GetTrackedTagsToSettings(TagsToSettings, VisitedGraphs);
+	return TagsToSettings;
+}
+
+void UPCGGraph::GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
+{
+	if (OutVisitedGraphs.Contains(this))
+	{
+		return;
+	}
+
+	OutVisitedGraphs.Emplace(this);
+
 	for (UPCGNode* Node : Nodes)
 	{
 		if (Node && Node->DefaultSettings)
 		{
-			Node->DefaultSettings->GetTrackedActorTags(TagsToSettings);
+			Node->DefaultSettings->GetTrackedActorTags(OutTagsToSettings, OutVisitedGraphs);
 		}
 	}
-
-	return TagsToSettings;
 }
 
 void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
@@ -514,6 +527,14 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 		bDelayedChangeNotificationStructural |= bIsStructural;
 		return;
 	}
+
+	// Skip recursive cases which can happen either through direct recursivity (A -> A) or indirectly (A -> B -> A)
+	if (bIsNotifying)
+	{
+		return;
+	}
+
+	bIsNotifying = true;
 
 	// Notify the subsystem/compiler cache before so it gets recompiled properly
 	if (bIsStructural && GEditor)
@@ -527,6 +548,8 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 	}
 
 	OnGraphChangedDelegate.Broadcast(this, /*bIsStructural=*/bIsStructural);
+
+	bIsNotifying = false;
 }
 
 void UPCGGraph::OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType)

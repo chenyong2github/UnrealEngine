@@ -11,6 +11,7 @@
 
 class UPCGNode;
 class UPCGSettings;
+class UPCGGraph;
 
 typedef TMap<FName, TSet<TWeakObjectPtr<const UPCGSettings>>> FPCGTagToSettingsMap;
 
@@ -71,7 +72,7 @@ public:
 	virtual FLinearColor GetNodeTitleColor() const { return FLinearColor::White; }
 	virtual EPCGSettingsType GetType() const { return EPCGSettingsType::Generic; }
 	/** Derived classes must implement this to communicate dependencies on external actors */
-	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const {}
+	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const {}
 	/** Override this class to provide an UObject to jump to in case of double click on node
 	 *  ie. returning a blueprint instance will open the given blueprint in its editor.
 	 *  By default, it will return the underlying class, to try to jump to its header in code
