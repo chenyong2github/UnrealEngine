@@ -662,6 +662,11 @@ public:
 			return Task;
 		}
 
+		FConstructor(const FGraphEventArray* InPrerequisites)
+			: Prerequisites(InPrerequisites)
+		{
+		}
+
 	private:
 		template<typename...T>
 		FORCEINLINE_DEBUGGABLE TGraphTask* ConstructAndHoldImpl(T&&... Args)
@@ -676,11 +681,6 @@ public:
 			Task->Init(Pri, ExtPri);
 
 			return Task;
-		}
-
-		FConstructor(const FGraphEventArray* InPrerequisites)
-			: Prerequisites(InPrerequisites)
-		{
 		}
 
 	private:
