@@ -1502,6 +1502,8 @@ public:
 
 	TRDGUniformBufferRef<FRaytracingLightDataPacked>	RayTracingLightDataUniformBuffer;
 	TRDGUniformBufferRef<FRayTracingDecals>				RayTracingDecalUniformBuffer;
+
+	bool bHasAnyRayTracingPass = false;
 #endif // RHI_RAYTRACING
 
 	/**
@@ -1981,6 +1983,9 @@ public:
 	/** Creates a scene renderer based on the current feature level. */
 	RENDERER_API static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
 
+	/** Creates multiple scene renderers based on the current feature level.  All view families must point to the same Scene. */
+	RENDERER_API static void CreateSceneRenderers(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer, TArray<FSceneRenderer*>& OutSceneRenderers);
+
 	/** Setups FViewInfo::ViewRect according to ViewFamilly's ScreenPercentageInterface. */
 	void PrepareViewRectsForRendering(FRHICommandListImmediate& RHICmdList);
 
@@ -1994,7 +1999,7 @@ public:
 #endif
 
 	/** Logic to update render targets across all GPUs */
-	static void PreallocateCrossGPUFences(TArray<FSceneRenderer*> SceneRenderers);
+	static void PreallocateCrossGPUFences(const TArray<FSceneRenderer*>& SceneRenderers);
 	void DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRDGTextureRef ViewFamilyTexture);
 	void FlushCrossGPUFences(FRDGBuilder& GraphBuilder);
 

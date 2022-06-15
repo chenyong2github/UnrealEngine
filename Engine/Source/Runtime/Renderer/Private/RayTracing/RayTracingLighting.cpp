@@ -63,7 +63,6 @@ DECLARE_GPU_STAT_NAMED(LightCullingVolumeCompute, TEXT("RT Light Culling Volume 
 
 static void SelectRaytracingLights(
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
-	const FViewInfo& View,
 	TArray<int32>& OutSelectedLights,
 	uint32& NumOfSkippedRayTracingLights
 )
@@ -97,7 +96,8 @@ static int32 GetCellsPerDim()
 static void CreateRaytracingLightCullingStructure(
 	FRDGBuilder& GraphBuilder,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
-	const FViewInfo& View,
+	const FSceneView& View,
+	FGlobalShaderMap* ShaderMap,
 	const TArray<int32>& LightIndices,
 	FRDGBufferRef& LightCullVolume,
 	FRDGBufferRef& LightIndicesBuffer)
@@ -155,7 +155,7 @@ static void CreateRaytracingLightCullingStructure(
 		Parameters->CellCount = CellsPerDim;
 		Parameters->CellScale = CVarRayTracingLightingCellSize.GetValueOnRenderThread() / 2.0f; // cells are based on pow2, and initial cell is 2^1, so scale is half min cell size
 
-		auto Shader = View.ShaderMap->GetShader<FSetupRayTracingLightCullData>();
+		auto Shader = ShaderMap->GetShader<FSetupRayTracingLightCullData>();
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("LightCullingVolumeCompute"), Shader, Parameters, FIntVector(CellsPerDim, CellsPerDim, CellsPerDim));
 	}
 }
@@ -165,7 +165,7 @@ static void SetupRaytracingLightDataPacked(
 	FRDGBuilder& GraphBuilder,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const TArray<int32>& LightIndices,
-	const FViewInfo& View,
+	const FSceneView& View,
 	FRaytracingLightDataPacked& OutLightData,
 	TArrayView<FRTLightingData>& OutLightDataArray)
 {
@@ -293,7 +293,8 @@ static void SetupRaytracingLightDataPacked(
 TRDGUniformBufferRef<FRaytracingLightDataPacked> CreateRayTracingLightData(
 	FRDGBuilder& GraphBuilder,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
-	const FViewInfo& View,
+	const FSceneView& View,
+	FGlobalShaderMap* ShaderMap,
 	uint32& NumOfSkippedRayTracingLights)
 {
 	auto* LightData = GraphBuilder.AllocParameters<FRaytracingLightDataPacked>();
@@ -301,12 +302,12 @@ TRDGUniformBufferRef<FRaytracingLightDataPacked> CreateRayTracingLightData(
 	LightData->CellScale = CVarRayTracingLightingCellSize.GetValueOnRenderThread() / 2.0f;
 
 	TArray<int32> LightIndices;
-	SelectRaytracingLights(Lights, View, LightIndices, NumOfSkippedRayTracingLights);
+	SelectRaytracingLights(Lights, LightIndices, NumOfSkippedRayTracingLights);
 
 	// Create light culling volume
 	FRDGBufferRef LightCullVolume;
 	FRDGBufferRef LightIndicesBuffer;
-	CreateRaytracingLightCullingStructure(GraphBuilder, Lights, View, LightIndices, LightCullVolume, LightIndicesBuffer);
+	CreateRaytracingLightCullingStructure(GraphBuilder, Lights, View, ShaderMap, LightIndices, LightCullVolume, LightIndicesBuffer);
 
 	FRDGUploadData<FRTLightingData> LightDataArray(GraphBuilder, FMath::Max(LightIndices.Num(), 1));
 	SetupRaytracingLightDataPacked(GraphBuilder, Lights, LightIndices, View, *LightData, LightDataArray);

@@ -211,6 +211,11 @@ public:
 
 	FLumenCardRenderer LumenCardRenderer;
 
+#if RHI_RAYTRACING
+	bool bAnyRayTracingPassEnabled;
+	bool bShouldUpdateRayTracingScene;
+#endif
+
 	FDeferredShadingSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
 
 	/** Determine and commit the final state of the pipeline for the view family and views. */
@@ -1007,6 +1012,7 @@ private:
 	bool GatherRayTracingWorldInstancesForView(FRDGBuilder& GraphBuilder, FViewInfo& View, FRayTracingScene& RayTracingScene);
 
 	bool SetupRayTracingPipelineStates(FRDGBuilder& GraphBuilder);
+	void SetupRayTracingLightDataForViews(FRDGBuilder& GraphBuilder);
 	bool DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder, FRDGBufferRef& OutDynamicGeometryScratchBuffer);
 
 	/** Functions to create ray tracing pipeline state objects for various effects */
@@ -1061,7 +1067,6 @@ private:
 	static FRHIRayTracingShader* GetRayTracingLightingMissShader(FViewInfo& View);
 
 	const FRHITransition* RayTracingDynamicGeometryUpdateEndTransition = nullptr; // Signaled when all AS for this frame are built
-
 #endif // RHI_RAYTRACING
 
 	/** Set to true if lights were injected into the light grid (this controlled by somewhat complex logic, this flag is used to cross-check). */

@@ -378,6 +378,19 @@ FDeferredShadingSceneRenderer::FDeferredShadingSceneRenderer(const FSceneViewFam
 	, bAreLightsInLightGrid(false)
 {
 	ViewPipelineStates.SetNum(Views.Num());
+
+#if RHI_RAYTRACING
+	bAnyRayTracingPassEnabled = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		bool bHasRayTracing = AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
+
+		Views[ViewIndex].bHasAnyRayTracingPass = bHasRayTracing;
+
+		bAnyRayTracingPassEnabled |= bHasRayTracing;
+	}
+	bShouldUpdateRayTracingScene = bAnyRayTracingPassEnabled;
+#endif  // RHI_RAYTRACING
 }
 
 /** 
@@ -549,12 +562,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	if (!IsRayTracingEnabled())
 	{
 		return false;
-	}
-
-	bool bAnyRayTracingPassEnabled = false;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
 	}
 
 	if (!bAnyRayTracingPassEnabled)
@@ -1423,12 +1430,6 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 		return false;
 	}
 
-	bool bAnyRayTracingPassEnabled = false;
-	for (const FViewInfo& View : Views)
-	{
-		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, View);
-	}
-
 	if (!bAnyRayTracingPassEnabled)
 	{
 		return false;
@@ -1570,19 +1571,39 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 
 	ReferenceView.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSubSurfaceProfileTexture, 0);
 
-	uint32 NumOfSkippedRayTracingLights = 0;
-
 	for (int32 ViewIndex = 0; ViewIndex < AllFamilyViews.Num(); ++ViewIndex)
 	{
-		FViewInfo* View = (FViewInfo*)AllFamilyViews[ViewIndex];
+		// TODO:  It would make more sense for common ray tracing resources to be in a shared structure, rather than copied into each FViewInfo.
+		//        A goal is to have the FViewInfo structure only be visible to the scene renderer that owns it, to avoid dependencies being created
+		//        that could lead to maintenance issues or interfere with paralellism goals.  For now, this works though...
+		FViewInfo* View = const_cast<FViewInfo*>(static_cast<const FViewInfo*>(AllFamilyViews[ViewIndex]));
 
 		// Send common ray tracing resources from reference view to all others.
-		if (View != &ReferenceView)
+		if (View->bHasAnyRayTracingPass && View != &ReferenceView)
 		{
 			View->RayTracingSubSurfaceProfileTexture = ReferenceView.RayTracingSubSurfaceProfileTexture;
 			View->RayTracingSubSurfaceProfileSRV = ReferenceView.RayTracingSubSurfaceProfileSRV;
 			View->RayTracingMaterialPipeline = ReferenceView.RayTracingMaterialPipeline;
 		}
+	}
+
+	return true;
+}
+
+void FDeferredShadingSceneRenderer::SetupRayTracingLightDataForViews(FRDGBuilder& GraphBuilder)
+{
+	if (!bAnyRayTracingPassEnabled)
+	{
+		return;
+	}
+
+	const bool bIsPathTracing = ViewFamily.EngineShowFlags.PathTracing;
+
+	uint32 NumOfSkippedRayTracingLights = 0;
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
 
 		if (bIsPathTracing)
 		{
@@ -1592,7 +1613,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 		else
 		{
 			// This light data is a function of the camera position, so must be computed per view.
-			View->RayTracingLightDataUniformBuffer = CreateRayTracingLightData(GraphBuilder, Scene->Lights, *View, NumOfSkippedRayTracingLights);
+			View.RayTracingLightDataUniformBuffer = CreateRayTracingLightData(GraphBuilder, Scene->Lights, View, View.ShaderMap, NumOfSkippedRayTracingLights);
 		}
 	}
 
@@ -1609,19 +1630,11 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 			});
 	}
 #endif
-
-	return true;
 }
 
 bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder, FRDGBufferRef& OutDynamicGeometryScratchBuffer)
 {
 	OutDynamicGeometryScratchBuffer = nullptr;
-
-	bool bAnyRayTracingPassEnabled = false;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
-	}
 
 	if (!IsRayTracingEnabled() || !bAnyRayTracingPassEnabled || Views.Num() == 0)
 	{
@@ -1757,12 +1770,6 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 
 void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBuilder, FRDGBufferRef DynamicGeometryScratchBuffer)
 {
-	bool bAnyRayTracingPassEnabled = false;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
-	}
-
 	if (!bAnyRayTracingPassEnabled)
 	{
 		return;
@@ -1840,8 +1847,9 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 		// Send ray tracing resources from reference view to all others.
 		for (int32 ViewIndex = 0; ViewIndex < AllFamilyViews.Num(); ++ViewIndex)
 		{
-			FViewInfo* View = (FViewInfo*)AllFamilyViews[ViewIndex];
-			if (View != &ReferenceView)
+			// See comment above where we copy "RayTracingSubSurfaceProfileTexture" to each view...
+			FViewInfo* View = const_cast<FViewInfo*>(static_cast<const FViewInfo*>(AllFamilyViews[ViewIndex]));
+			if (View->bHasAnyRayTracingPass && View != &ReferenceView)
 			{
 				View->RayTracingMaterialGatherPipeline = ReferenceView.RayTracingMaterialGatherPipeline;
 				View->LumenHardwareRayTracingMaterialPipeline = ReferenceView.LumenHardwareRayTracingMaterialPipeline;
@@ -2674,7 +2682,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Async AS builds can potentially overlap with BasePass.  We only need to update ray tracing scene for the first view family,
 	// if multiple are rendered in a single scene render call.
 	FRDGBufferRef DynamicGeometryScratchBuffer = nullptr;
-	if (bIsFirstSceneRenderer)
+	if (bShouldUpdateRayTracingScene)
 	{
 		DispatchRayTracingWorldUpdates(GraphBuilder, DynamicGeometryScratchBuffer);
 	}
@@ -2808,6 +2816,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, Views);
 	}
+
+#if RHI_RAYTRACING
+	/** Should be called somewhere before "WaitForRayTracingScene" */
+	SetupRayTracingLightDataForViews(GraphBuilder);
+#endif // RHI_RAYTRACING
 
 	// Shadows, lumen and fog after base pass
 	if (!bHasRayTracedOverlay)

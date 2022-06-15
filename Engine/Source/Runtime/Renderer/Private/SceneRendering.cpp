@@ -3065,7 +3065,7 @@ static void GetCrossGPUTransfers(FSceneRenderer* SceneRenderer, TArray<FCrossGPU
 }
 #endif // WITH_MGPU
 
-void FSceneRenderer::PreallocateCrossGPUFences(TArray<FSceneRenderer*> SceneRenderers)
+void FSceneRenderer::PreallocateCrossGPUFences(const TArray<FSceneRenderer*>& SceneRenderers)
 {
 #if WITH_MGPU
 	// We can only apply cross GPU fence wait transfer optimizations if AFR isn't enabled.  This is because we can't determine
@@ -3800,24 +3800,70 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 	}
 }
 
+void FSceneRenderer::CreateSceneRenderers(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer, TArray<FSceneRenderer*>& OutSceneRenderers)
+{
+	OutSceneRenderers.Empty(InViewFamilies.Num());
+
+	if (!InViewFamilies.Num())
+	{
+		return;
+	}
+
+	const FSceneInterface* Scene = InViewFamilies[0]->Scene;
+	check(Scene);
+
+	EShadingPath ShadingPath = Scene->GetShadingPath();
+
+#if RHI_RAYTRACING
+	// For multi-view-family scene rendering, we need to determine which scene renderer will update the ray tracing scene.
+	// This will be the first view family that uses ray tracing, and subsequent families that use ray tracing can skip
+	// that step.
+	bool bShouldUpdateRayTracingScene = true;
+#endif
+
+	for (int32 FamilyIndex = 0; FamilyIndex < InViewFamilies.Num(); FamilyIndex++)
+	{
+		const FSceneViewFamily* InViewFamily = InViewFamilies[FamilyIndex];
+
+		check(InViewFamily);
+		check(InViewFamily->Scene == Scene);
+
+		if (ShadingPath == EShadingPath::Deferred)
+		{
+			FDeferredShadingSceneRenderer* SceneRenderer = new FDeferredShadingSceneRenderer(InViewFamily, HitProxyConsumer);
+#if RHI_RAYTRACING
+			if (SceneRenderer->bAnyRayTracingPassEnabled)
+			{
+				SceneRenderer->bShouldUpdateRayTracingScene = bShouldUpdateRayTracingScene;
+				bShouldUpdateRayTracingScene = false;
+			}
+#endif
+
+			OutSceneRenderers.Add(SceneRenderer);
+		}
+		else
+		{
+			check(ShadingPath == EShadingPath::Mobile);
+			OutSceneRenderers.Add(new FMobileSceneRenderer(InViewFamily, HitProxyConsumer));
+		}
+
+		OutSceneRenderers.Last()->bIsFirstSceneRenderer = (FamilyIndex == 0);
+		OutSceneRenderers.Last()->bIsLastSceneRenderer = (FamilyIndex == InViewFamilies.Num() - 1);
+	}
+}
+
 FSceneRenderer* FSceneRenderer::CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer)
 {
 	check(InViewFamily);
 
-	EShadingPath ShadingPath = InViewFamily->Scene->GetShadingPath();
-	FSceneRenderer* SceneRenderer = nullptr;
+	TArray<FSceneRenderer*> SceneRenderers;
 
-	if (ShadingPath == EShadingPath::Deferred)
-	{
-		SceneRenderer = new FDeferredShadingSceneRenderer(InViewFamily, HitProxyConsumer);
-	}
-	else 
-	{
-		check(ShadingPath == EShadingPath::Mobile);
-		SceneRenderer = new FMobileSceneRenderer(InViewFamily, HitProxyConsumer);
-	}
+	TArray<const FSceneViewFamily*> InViewFamilies;
+	InViewFamilies.Add(InViewFamily);
 
-	return SceneRenderer;
+	CreateSceneRenderers(InViewFamilies, HitProxyConsumer, SceneRenderers);
+
+	return SceneRenderers[0];
 }
 
 void FSceneRenderer::OnStartRender(FRHICommandListImmediate& RHICmdList)
@@ -4560,15 +4606,14 @@ void FRendererModule::BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSc
 
 		// Construct the scene renderers.  This copies the view family attributes into its own structures.
 		TArray<FSceneRenderer*> SceneRenderers;
-		SceneRenderers.SetNumUninitialized(ViewFamilies.Num());
 
-		for (int32 FamilyIndex = 0; FamilyIndex < ViewFamilies.Num(); FamilyIndex++)
+		TArray<const FSceneViewFamily*> ViewFamiliesConst;
+		for (FSceneViewFamily* ViewFamily : ViewFamilies)
 		{
-			SceneRenderers[FamilyIndex] = FSceneRenderer::CreateSceneRenderer(ViewFamilies[FamilyIndex], Canvas->GetHitProxyConsumer());
-
-			SceneRenderers[FamilyIndex]->bIsFirstSceneRenderer = (FamilyIndex == 0);
-			SceneRenderers[FamilyIndex]->bIsLastSceneRenderer = (FamilyIndex == ViewFamilies.Num() - 1);
+			ViewFamiliesConst.Add(ViewFamily);
 		}
+
+		FSceneRenderer::CreateSceneRenderers(ViewFamiliesConst, Canvas->GetHitProxyConsumer(), SceneRenderers);
 
 		bool bShowHitProxies = false;
 		for (FSceneRenderer* SceneRenderer : SceneRenderers)
