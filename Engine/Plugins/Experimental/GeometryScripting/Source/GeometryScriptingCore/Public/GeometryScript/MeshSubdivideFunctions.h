@@ -17,7 +17,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPNTessellateOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bRecomputeNormals = true;
 };
 

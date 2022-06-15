@@ -14,10 +14,10 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptCalculateNormalsOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bAngleWeighted = true;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bAreaWeighted = true;
 };
 
@@ -28,16 +28,16 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptSplitNormalsOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bSplitByOpeningAngle = true;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float OpeningAngleDeg = 15.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bSplitByFaceGroup = false;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	FGeometryScriptGroupLayer GroupLayer;
 };
 
@@ -55,10 +55,10 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptTangentsOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	EGeometryScriptTangentTypes Type = EGeometryScriptTangentTypes::FastMikkT;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	int UVLayer = 0;
 };
 

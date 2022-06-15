@@ -16,7 +16,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBendWarpOptions
 	GENERATED_BODY()
 public:
 	/** Symmetric extents are [-BendExtent,BendExtent], if disabled, then [-LowerExtent,BendExtent] is used  */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bSymmetricExtents = true;
 
 	/** Lower extent used when bSymmetricExtents = false */
@@ -24,7 +24,7 @@ public:
 	float LowerExtent = 10;
 
 	/** If true, the Bend is "centered" at the Origin, ie the regions on either side of the extents are rigidly transformed. If false, the Bend begins at the start of the Lower Extents, and the "lower" region is not affected. */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bBidirectional = true;
 };
 
@@ -36,7 +36,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptTwistWarpOptions
 	GENERATED_BODY()
 public:
 	/** Symmetric extents are [-BendExtent,BendExtent], if disabled, then [-LowerExtent,BendExtent] is used  */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bSymmetricExtents = true;
 
 	/** Lower extent used when bSymmetricExtents = false */
@@ -44,7 +44,7 @@ public:
 	float LowerExtent = 10;
 
 	/** If true, the Twist is "centered" at the Origin, ie the regions on either side of the extents are rigidly transformed. If false, the Twist begins at the start of the Lower Extents, and the "lower" region is not affected. */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bBidirectional = true;
 };
 
@@ -67,7 +67,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptFlareWarpOptions
 	GENERATED_BODY()
 public:
 	/** Symmetric extents are [-BendExtent,BendExtent], if disabled, then [-LowerExtent,BendExtent] is used  */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bSymmetricExtents = true;
 
 	/** Lower extent used when bSymmetricExtents = false */
@@ -75,7 +75,7 @@ public:
 	float LowerExtent = 10;
 
 	/** Determines the profile used as a displacement */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	EGeometryScriptFlareType FlareType = EGeometryScriptFlareType::SinMode;
 };
 
@@ -86,16 +86,16 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPerlinNoiseLayerOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float Magnitude = 5.0;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float Frequency = 0.25;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	FVector FrequencyShift = FVector::Zero();
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	int RandomSeed = 0;
 };
 
@@ -115,13 +115,13 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMathWarpOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float Magnitude = 5.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float Frequency = 0.25f;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float FrequencyShift = 0.0;
 };
 
@@ -133,10 +133,10 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPerlinNoiseOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	FGeometryScriptPerlinNoiseLayerOptions BaseLayer;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bApplyAlongNormal = true;
 };
 
@@ -146,10 +146,10 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptIterativeMeshSmoothingOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	int NumIterations = 10;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float Alpha = 0.2;
 };
 
@@ -161,19 +161,19 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptDisplaceFromTextureOptions
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float Magnitude = 1.0f;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	FVector2D UVScale = FVector2D(1,1);
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	FVector2D UVOffset = FVector2D(0,0);
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float Center = 0.5;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	int ImageChannel = 0;
 };
 

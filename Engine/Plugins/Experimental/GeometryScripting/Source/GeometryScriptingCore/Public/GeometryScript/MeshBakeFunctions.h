@@ -199,29 +199,29 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeTextureOptions
 	GENERATED_BODY()
 
 	/** The pixel resolution of the generated textures */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	EGeometryScriptBakeResolution Resolution = EGeometryScriptBakeResolution::Resolution256;
 
 	/** The bit depth for each channel of the generated textures */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	EGeometryScriptBakeBitDepth BitDepth = EGeometryScriptBakeBitDepth::ChannelBits8;
 
 	/** Number of samples per pixel */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	EGeometryScriptBakeSamplesPerPixel SamplesPerPixel = EGeometryScriptBakeSamplesPerPixel::Sample1;
 
 	/** Mask texture for filtering out samples/pixels from the output texture */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	TObjectPtr<UTexture2D> SampleFilterMask = nullptr;
 
 	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
 	 * This is only relevant if a separate source mesh is provided. */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float ProjectionDistance = 3.0f;
 
 	/** If true, uses the world space positions for the projection from target mesh to source mesh, otherwise it uses their object space positions.
 	 * This is only relevant if a separate source mesh is provided. */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bProjectionInWorldSpace = false;
 };
 
@@ -231,7 +231,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeVertexOptions
 	GENERATED_BODY()
 
 	/** If true, compute a separate vertex color for each unique normal on a vertex */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bSplitAtNormalSeams = false;
 
 	/** If true, compute a separate vertex color for each unique UV on a vertex. */
@@ -240,12 +240,12 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeVertexOptions
 
 	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
 	 * This is only relevant if a separate source mesh is provided. */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float ProjectionDistance = 3.0f;
 
 	/** If true, uses the world space positions for the projection from target mesh to source mesh, otherwise it uses their object space positions.
 	 * This is only relevant if a separate source mesh is provided. */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bProjectionInWorldSpace = false;
 };
 
@@ -255,7 +255,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeOutputType
 	GENERATED_BODY()
 	
 	/** The bake output mode */
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	EGeometryScriptBakeOutputMode OutputMode = EGeometryScriptBakeOutputMode::RGBA;
 
 	UPROPERTY(BlueprintReadWrite, Category = Output)
@@ -288,13 +288,13 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeSourceMeshOptions
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	TObjectPtr<UTexture2D> SourceNormalMap = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options, meta = (DisplayName="Source Normal UV Channel"))
 	int SourceNormalUVLayer = 0;
 
-	UPROPERTY(BlueprintReadWrite, Category = Options)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	EGeometryScriptBakeNormalSpace SourceNormalSpace = EGeometryScriptBakeNormalSpace::Tangent;
 };
 
