@@ -113,6 +113,9 @@ namespace TakesUtils
 		FString AssetPath = BaseAssetPath;
 		FString AssetName = BaseAssetName;
 		AssetName = AssetName.Replace(TEXT("."), TEXT("_"));
+		AssetName = AssetName.Replace(TEXT(" "), TEXT("_"));
+
+		AssetName = FPaths::MakeValidFileName(AssetName);
 
 		AssetPath /= AssetName;
 		AssetPath += Dot + AssetName;
