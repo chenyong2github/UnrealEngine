@@ -282,6 +282,14 @@ void UE::RenderPages::Private::SRenderPagesPageList::Refresh()
 		if (RenderPageListWidget.IsValid())
 		{
 			RenderPageListWidget->RebuildList(); // rebuild is needed (instead of using RequestListRefresh()), because otherwise it won't show the changes made to the URenderPage variables
+
+			TArray<URenderPage*> SelectedItems = BlueprintEditor->GetSelectedRenderPages().FilterByPredicate([this](URenderPage* Item)
+			{
+				return IsValid(Item) && RenderPages.Contains(Item);
+			});
+			RenderPageListWidget->ClearSelection();
+			RenderPageListWidget->SetItemSelection(SelectedItems, true);
+			BlueprintEditor->SetSelectedRenderPages(SelectedItems);
 		}
 	}
 }
@@ -305,6 +313,10 @@ TSharedRef<ITableRow> UE::RenderPages::Private::SRenderPagesPageList::HandlePage
 
 void UE::RenderPages::Private::SRenderPagesPageList::HandlePagesCollectionSelectionChanged(URenderPage* Item, ESelectInfo::Type SelectInfo)
 {
+	if (SelectInfo == ESelectInfo::Type::Direct)
+	{
+		return;
+	}
 	if (const TSharedPtr<IRenderPageCollectionEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
 		BlueprintEditor->SetSelectedRenderPages(RenderPageListWidget->GetSelectedItems());

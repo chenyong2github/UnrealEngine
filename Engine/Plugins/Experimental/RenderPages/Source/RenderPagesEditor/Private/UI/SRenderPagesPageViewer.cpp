@@ -6,8 +6,7 @@
 #include "UI/SRenderPagesPageViewerRendered.h"
 #include "IRenderPageCollectionEditor.h"
 #include "SlateOptMacros.h"
-#include "Styles/RenderPagesEditorStyle.h"
-#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "SRenderPagesPageViewer"
 
@@ -66,21 +65,30 @@ void UE::RenderPages::Private::SRenderPagesPageViewer::Construct(const FArgument
 
 TSharedRef<SWidget> UE::RenderPages::Private::SRenderPagesPageViewer::CreateViewerModeButton(const FText& ButtonText, const ERenderPagesPageViewerMode ButtonViewerMode)
 {
-	return SNew(SButton)
-		.ButtonStyle(FRenderPagesEditorStyle::Get(), "TabButton")
-		.Text(ButtonText)
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		.OnClicked_Lambda([this, ButtonViewerMode]() -> FReply
+	return SNew(SCheckBox)
+		.Style(FAppStyle::Get(), "PlacementBrowser.Tab")
+		.IsChecked_Lambda([this, ButtonViewerMode]() -> ECheckBoxState
 		{
+			return (ViewerMode == ButtonViewerMode) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		})
+		.OnCheckStateChanged_Lambda([this, ButtonViewerMode](ECheckBoxState State)
+		{
+			if (State != ECheckBoxState::Checked)
+			{
+				return;
+			}
 			ViewerMode = ButtonViewerMode;
 			Refresh();
-			return FReply::Handled();
 		})
-		.IsEnabled_Lambda([this, ButtonViewerMode]() -> bool
-		{
-			return (ViewerMode != ButtonViewerMode);
-		});
+		[
+			SNew(SBox)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(ButtonText)
+			]
+		];
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

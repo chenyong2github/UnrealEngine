@@ -269,14 +269,6 @@ bool UE::RenderPages::Private::FRenderPageCollectionEditor::IsCompilingEnabled()
 	return true;
 }
 
-void UE::RenderPages::Private::FRenderPageCollectionEditor::NewDocument_OnClicked(ECreatedDocumentType GraphType)
-{
-	if (GraphType != CGT_NewFunctionGraph)
-	{
-		return;
-	}
-}
-
 bool UE::RenderPages::Private::FRenderPageCollectionEditor::IsSectionVisible(NodeSectionID::Type InSectionID) const
 {
 	switch (InSectionID)
@@ -358,22 +350,6 @@ bool UE::RenderPages::Private::FRenderPageCollectionEditor::CanAddNewLocalVariab
 	return (Cast<URenderPagesGraph>(GetFocusedGraph()) != nullptr);
 }
 
-void UE::RenderPages::Private::FRenderPageCollectionEditor::OnAddNewLocalVariable()
-{
-	if (!CanAddNewLocalVariable())
-	{
-		return;
-	}
-}
-
-void UE::RenderPages::Private::FRenderPageCollectionEditor::OnPasteNewLocalVariable(const FBPVariableDescription& VariableDescription)
-{
-	if (!CanAddNewLocalVariable())
-	{
-		return;
-	}
-}
-
 void UE::RenderPages::Private::FRenderPageCollectionEditor::Compile()
 {
 	DestroyInstance();
@@ -431,6 +407,9 @@ TArray<URenderPage*> UE::RenderPages::Private::FRenderPageCollectionEditor::GetS
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::SetSelectedRenderPages(const TArray<URenderPage*>& RenderPages)
 {
+	TSet<FGuid> PreviouslySelectedRenderPagesIds;
+	PreviouslySelectedRenderPagesIds.Append(SelectedRenderPagesIds);
+
 	SelectedRenderPagesIds.Empty();
 	for (URenderPage* Page : RenderPages)
 	{
@@ -441,7 +420,19 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::SetSelectedRenderPag
 		SelectedRenderPagesIds.Add(Page->GetId());
 	}
 
-	OnRenderPagesSelectionChanged().Broadcast();
+	if (SelectedRenderPagesIds.Num() != PreviouslySelectedRenderPagesIds.Num())
+	{
+		OnRenderPagesSelectionChanged().Broadcast();
+		return;
+	}
+	for (const FGuid& PageId : SelectedRenderPagesIds)
+	{
+		if (!PreviouslySelectedRenderPagesIds.Contains(PageId))
+		{
+			OnRenderPagesSelectionChanged().Broadcast();
+			return;
+		}
+	}
 }
 
 FName UE::RenderPages::Private::FRenderPageCollectionEditor::GetToolkitFName() const
@@ -478,10 +469,6 @@ void UE::RenderPages::Private::FRenderPageCollectionEditor::InitToolMenuContext(
 {
 	FBlueprintEditor::InitToolMenuContext(MenuContext);
 }
-
-void UE::RenderPages::Private::FRenderPageCollectionEditor::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) {}
-
-void UE::RenderPages::Private::FRenderPageCollectionEditor::OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) {}
 
 void UE::RenderPages::Private::FRenderPageCollectionEditor::Tick(float DeltaTime)
 {

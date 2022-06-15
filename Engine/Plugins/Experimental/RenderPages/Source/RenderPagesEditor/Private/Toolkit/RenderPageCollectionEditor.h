@@ -46,7 +46,6 @@ namespace UE::RenderPages::Private
 		virtual bool IsEditable(UEdGraph* InGraph) const override;
 		virtual bool IsCompilingEnabled() const override;
 		virtual bool IsInAScriptingMode() const override { return true; }
-		virtual void NewDocument_OnClicked(ECreatedDocumentType GraphType) override;
 		virtual bool IsSectionVisible(NodeSectionID::Type InSectionID) const override;
 		virtual FText GetGraphDecorationString(UEdGraph* InGraph) const override;
 		virtual void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated) override;
@@ -57,8 +56,6 @@ namespace UE::RenderPages::Private
 		virtual bool ShouldLoadBPLibrariesFromAssetRegistry() override { return false; }// Render Pages BP does not use regular BP function libraries, no need to load them.
 
 		virtual bool CanAddNewLocalVariable() const override;
-		virtual void OnAddNewLocalVariable() override;
-		virtual void OnPasteNewLocalVariable(const FBPVariableDescription& VariableDescription) override;
 
 		virtual void Compile() override;
 		//~ End FBlueprintEditor Interface
@@ -85,11 +82,6 @@ namespace UE::RenderPages::Private
 		virtual FString GetWorldCentricTabPrefix() const override;
 		virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 		//~ End IToolkit Interface
-
-		//~ Begin IToolkitHost Interface
-		virtual void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) override;
-		virtual void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override;
-		//~ End IToolkitHost Interface
 
 		//~ Begin FTickableEditorObject Interface
 		virtual void Tick(float DeltaTime) override;

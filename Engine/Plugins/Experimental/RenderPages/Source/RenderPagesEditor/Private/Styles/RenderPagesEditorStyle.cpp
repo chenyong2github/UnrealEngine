@@ -8,7 +8,6 @@
 #include "Interfaces/IPluginManager.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/StyleColors.h"
 
 
 TSharedPtr<FSlateStyleSet> UE::RenderPages::Private::FRenderPagesEditorStyle::StyleInstance = nullptr;
@@ -95,13 +94,6 @@ TSharedRef<FSlateStyleSet> UE::RenderPages::Private::FRenderPagesEditorStyle::Cr
 		.SetNormalPadding(FMargin())
 		.SetPressedPadding(FMargin())
 	);
-
-	Style->Set("TabButton",
-		FButtonStyle(FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
-		.SetDisabled(BOX_BRUSH("Common/FlatButton", 2.0f / 8.0f, FAppStyle::GetSlateColor("SelectionColor")))
-		.SetDisabledForeground(FStyleColors::White)
-	);
-
 
 	return Style;
 }
