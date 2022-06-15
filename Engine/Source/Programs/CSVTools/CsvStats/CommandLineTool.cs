@@ -154,6 +154,15 @@ namespace CSVStats
 			return CommandLineArgs.ContainsKey(key.ToLower());
 		}
 
+		public bool? GetOptionalBoolArg(string key)
+		{
+			if ( CommandLineArgs.ContainsKey(key.ToLower()) )
+			{
+				return CommandLineArgs[key.ToLower()] == "1";
+			}
+			return null;
+		}
+
 		public string GetArg(string key, string defaultValue)
 		{
 			string lowerKey = key.ToLower();
@@ -240,6 +249,12 @@ namespace CSVStats
         {
 			return commandLine.GetBoolArg(key);
         }
+
+		protected bool? GetOptionalBoolArg(string key)
+		{
+			return commandLine.GetOptionalBoolArg(key);
+		}
+
 
 		protected string GetArg(string key, string defaultValue)
 		{

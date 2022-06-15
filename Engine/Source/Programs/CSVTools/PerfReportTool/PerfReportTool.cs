@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.77";
+        private static string VersionString = "4.78";
 
         public static string Get() { return VersionString; }
     };
@@ -141,8 +141,9 @@ namespace PerfReportTool
 			"       -externalGraphs : enables external graphs (off by default)\n" +
 			"       -spreadsheetfriendly: outputs a single quote before non-numeric entries in summary tables\n" +
 			"       -noSummaryMinMax: don't make min/max columns for each stat in a condensed summary\n" +
-			"       -reverseTable: Reverses the order of summary tables\n"+
-			"       -scrollableTable: makes the summary table scrollable, with frozen first rows and columns\n" +
+			"       -reverseTable [0|1]: Reverses the order of summary tables (set 0 to force off)\n"+
+			"       -scrollableTable [0|1]: makes the summary table scrollable, with frozen first rows and columns (set 0 to force off)\n" +
+			"       -autoColorizeTable [0|1]: enables summary table autocolorization. (set 0 to force off) \n" +
 			"       -maxSummaryTableStringLength <n>: strings longer than this will get truncated\n" +
 			"       -allowDuplicateCSVs : doesn't remove duplicate CSVs (Note: can cause summary table cache file locking issues)\n"+
 			"       -requireMetadata : ignores CSVs without metadata\n" +
@@ -650,14 +651,36 @@ namespace PerfReportTool
 			{
 				weightByColumnName = null;
 			}
-			bool reverseSort = tableInfo.bReverseSortRows || GetBoolArg("reverseTable");
-			bool bScrollableTable = tableInfo.bScrollableFormatting || GetBoolArg("scrollableTable");
+
+			// Check params and any commandline overrides
+			bool bReverseTable = tableInfo.bReverseSortRows;
+			bool? bReverseTableOption = GetOptionalBoolArg("reverseTable");
+			if (bReverseTableOption != null)
+			{
+				bReverseTable = (bool)bReverseTableOption;
+			}
+
+			bool bScrollableTable = tableInfo.bScrollableFormatting;
+			bool? bScrollableTableOption = GetOptionalBoolArg("scrollableTable");
+			if (bScrollableTableOption != null)
+			{
+				bScrollableTable = (bool)bScrollableTableOption;
+			}
+
+			bool bAutoColorizeTable = tableInfo.bAutoColorize;
+			bool? bAutoColorizeTableOption = GetOptionalBoolArg("autoColorizeTable");
+			if (bAutoColorizeTableOption != null)
+			{
+				bAutoColorizeTable = (bool)bAutoColorizeTableOption;
+			}
+
 			bool addMinMaxColumns = !GetBoolArg("noSummaryMinMax");
+
 			if (!string.IsNullOrEmpty(outputDir))
             {
                 filenameWithoutExtension = Path.Combine(outputDir, filenameWithoutExtension);
             }
-            SummaryTable filteredTable = table.SortAndFilter(tableInfo.columnFilterList, tableInfo.rowSortList, reverseSort, weightByColumnName);
+            SummaryTable filteredTable = table.SortAndFilter(tableInfo.columnFilterList, tableInfo.rowSortList, bReverseTable, weightByColumnName);
 			if (bCollated)
 			{
 				filteredTable = filteredTable.CollateSortedTable(tableInfo.rowSortList, addMinMaxColumns);
@@ -671,7 +694,7 @@ namespace PerfReportTool
 				filteredTable.ApplyDisplayNameMapping(statDisplaynameMapping);
 				string VersionString = GetBoolArg("noWatermarks") ? "" : Version.Get();
 				string summaryTitle = GetArg("summaryTitle", null);
-				filteredTable.WriteToHTML(filenameWithoutExtension+".html", VersionString, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundaries, bScrollableTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.columnFormatInfoList, weightByColumnName, summaryTitle);
+				filteredTable.WriteToHTML(filenameWithoutExtension+".html", VersionString, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundaries, bScrollableTable, bAutoColorizeTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.columnFormatInfoList, weightByColumnName, summaryTitle);
 			}
 		}
 

@@ -85,6 +85,7 @@ namespace PerfSummaries
 
 			bReverseSortRows = tableElement.GetSafeAttibute<bool>("reverseSortRows", false);
 			bScrollableFormatting = tableElement.GetSafeAttibute<bool>("scrollableFormatting", false);
+			bAutoColorize = tableElement.GetSafeAttibute<bool>("autoColorize", false);
 
 			foreach (XElement sectionBoundaryEl in tableElement.Elements("sectionBoundary"))
 			{
@@ -118,6 +119,7 @@ namespace PerfSummaries
 		public List<SummarySectionBoundaryInfo> sectionBoundaries = new List<SummarySectionBoundaryInfo>();
 		public bool bReverseSortRows;
 		public bool bScrollableFormatting;
+		public bool bAutoColorize;
 		public string weightByColumn = null;
 	}
 
@@ -826,7 +828,18 @@ namespace PerfSummaries
 		}
 
 
-		public void WriteToHTML(string htmlFilename, string VersionString, bool bSpreadsheetFriendlyStrings, List<SummarySectionBoundaryInfo> sectionBoundaries, bool bScrollableTable, bool bAddMinMaxColumns, int maxColumnStringLength, SummaryTableColumnFormatInfoCollection columnFormatInfoList, string weightByColumnName, string title)
+		public void WriteToHTML(
+			string htmlFilename, 
+			string VersionString, 
+			bool bSpreadsheetFriendlyStrings, 
+			List<SummarySectionBoundaryInfo> sectionBoundaries, 
+			bool bScrollableTable, 
+			bool bAutoColorizeTable,
+			bool bAddMinMaxColumns, 
+			int maxColumnStringLength, 
+			SummaryTableColumnFormatInfoCollection columnFormatInfoList, 
+			string weightByColumnName, 
+			string title)
 		{
 			System.IO.StreamWriter htmlFile = new System.IO.StreamWriter(htmlFilename, false);
 			int statColSpan = hasMinMaxColumns ? 3 : 1;
@@ -860,6 +873,25 @@ namespace PerfSummaries
 							stickyColumnCount = i + 1;
 							break;
 						}
+					}
+				}
+			}
+
+			// Get format info for the columns
+			Dictionary<SummaryTableColumn, SummaryTableColumnFormatInfo> columnFormatInfoLookup = new Dictionary<SummaryTableColumn, SummaryTableColumnFormatInfo>();
+			foreach (SummaryTableColumn column in columns)
+			{
+				columnFormatInfoLookup[column] = (columnFormatInfoList != null) ? columnFormatInfoList.GetFormatInfo(column.name) : SummaryTableColumnFormatInfoCollection.DefaultColumnInfo;
+			}
+
+			// Automatically colourize the table if requested
+			if (bAutoColorizeTable)
+			{
+				foreach (SummaryTableColumn column in columns)
+				{
+					if (column.isNumeric)
+					{
+						column.ComputeAutomaticColourThresholds(columnFormatInfoLookup[column].autoColorizeMode);
 					}
 				}
 			}
@@ -992,25 +1024,6 @@ namespace PerfSummaries
 			htmlFile.WriteLine("</style>");
 			htmlFile.WriteLine("</head><body>");
 			htmlFile.WriteLine("<table id='mainTable'>");
-
-			// Get format info for the columns
-			Dictionary<SummaryTableColumn, SummaryTableColumnFormatInfo> columnFormatInfoLookup = new Dictionary<SummaryTableColumn, SummaryTableColumnFormatInfo>();
-			foreach (SummaryTableColumn column in columns)
-			{
-				columnFormatInfoLookup[column] = (columnFormatInfoList != null) ? columnFormatInfoList.GetFormatInfo(column.name) : SummaryTableColumnFormatInfoCollection.DefaultColumnInfo;
-			}
-
-			// Automatically colourize the table
-			if (bScrollableTable)
-			{
-				foreach (SummaryTableColumn column in columns)
-				{
-					if (column.isNumeric)
-					{
-						column.ComputeAutomaticColourThresholds(columnFormatInfoLookup[column].autoColorizeMode);
-					}
-				}
-			}
 
 			string HeaderRow = "";
 			if (isCollated)
