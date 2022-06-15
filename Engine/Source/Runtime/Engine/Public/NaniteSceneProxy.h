@@ -205,7 +205,7 @@ protected:
 	uint8 bHasProgrammableRaster : 1;
 };
 
-class FSceneProxy : public FSceneProxyBase
+class ENGINE_API FSceneProxy : public FSceneProxyBase
 {
 public:
 	using Super = FSceneProxyBase;

@@ -88,6 +88,13 @@ static FAutoConsoleVariableRef CVarAllowLandscapeShadows(
 	TEXT("Allow Landscape Shadows")
 );
 
+int32 GDisableLandscapeNaniteGI = 1;
+static FAutoConsoleVariableRef CVarDisableLandscapeNaniteGI(
+	TEXT("r.DisableLandscapeNaniteGI"),
+	GDisableLandscapeNaniteGI,
+	TEXT("Disable Landscape Nanite GI")
+);
+
 #if WITH_EDITOR
 extern TAutoConsoleVariable<int32> CVarLandscapeShowDirty;
 #endif
@@ -4267,12 +4274,31 @@ FPrimitiveSceneProxy* ULandscapeMeshProxyComponent::CreateSceneProxy()
 	return new FLandscapeMeshProxySceneProxy(this, LandscapeGuid, ProxyComponentBases, ProxyLOD);
 }
 
+class FLandscapeNaniteSceneProxy : public Nanite::FSceneProxy
+{
+public:
+	using Super = Nanite::FSceneProxy;
+
+	FLandscapeNaniteSceneProxy(ULandscapeNaniteComponent* Component) : Super(Component)
+	{
+		// Disable Nanite landscape representation for Lumen, distance fields, and ray tracing
+		if (GDisableLandscapeNaniteGI != 0)
+		{
+			bSupportsMeshCardRepresentation = false;
+			bSupportsDistanceFieldRepresentation = false;
+			bVisibleInRayTracing = false;
+			bAffectDynamicIndirectLighting = false;
+			bAffectDistanceFieldLighting = false;
+		}
+	}
+};
+
 FPrimitiveSceneProxy* ULandscapeNaniteComponent::CreateSceneProxy()
 {
 	// Is Nanite supported, and is there built Nanite data for this static mesh?
 	if (IsEnabled() && ShouldCreateNaniteProxy())
 	{
-		return Super::CreateSceneProxy();
+		return ::new FLandscapeNaniteSceneProxy(this);
 	}
 
 	// We *only* want a Nanite proxy for this component, otherwise return null to prevent fallback rendering.
