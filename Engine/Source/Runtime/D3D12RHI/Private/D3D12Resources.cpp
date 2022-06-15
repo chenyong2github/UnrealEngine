@@ -750,27 +750,79 @@ void FD3D12ResourceLocation::SetResource(FD3D12Resource* Value)
 //	FD3D12 Resource Barrier Batcher
 /////////////////////////////////////////////////////////////////////
 
+// Workaround for FORT-357614. Flickering can be seen unless RTV-to-SRV barriers are separated
+static int32 GD3D12SeparateRTV2SRVTransitions = 0;
+static FAutoConsoleVariableRef CVarD3D12SeparateRTV2SRVTransitions(
+	TEXT("d3d12.SeparateRTV2SRVTranstions"),
+	GD3D12SeparateRTV2SRVTransitions,
+	TEXT("Whether to submit RTV-to-SRV transition barriers through a separate API call"));
+
+static void RecordResourceBarriersToCommandList(
+	ID3D12GraphicsCommandList* pCommandList,
+	const D3D12_RESOURCE_BARRIER* Barriers,
+	int32 NumBarriers,
+	int32 BarrierBatchMax)
+{
+	if (NumBarriers > BarrierBatchMax)
+	{
+		while (NumBarriers > 0)
+		{
+			int32 DispatchNum = FMath::Min(NumBarriers, BarrierBatchMax);
+			pCommandList->ResourceBarrier(DispatchNum, Barriers);
+			Barriers += BarrierBatchMax;
+			NumBarriers -= BarrierBatchMax;
+		}
+	}
+	else
+	{
+		pCommandList->ResourceBarrier(NumBarriers, Barriers);
+	}
+}
+
+#if (PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING == 0) && (PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION == 1)
+#define LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION 1
+#else
+#define LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION 0
+#endif
+
+
 void FD3D12ResourceBarrierBatcher::Flush(FD3D12Device* Device, ID3D12GraphicsCommandList* pCommandList, int32 BarrierBatchMax)
 {
 	if (Barriers.Num())
 	{
 		check(pCommandList);
-		if (Barriers.Num() > BarrierBatchMax)
+
+#if LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
+		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<4>> BackBufferBarriers;
+		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<8>> OtherBarriers;
+
+		for (int32 Index = 0; Index < Barriers.Num(); ++Index)
 		{
-			int Num = Barriers.Num();
-			D3D12_RESOURCE_BARRIER* Ptr = Barriers.GetData();
-			while (Num > 0)
+			const D3D12_RESOURCE_BARRIER& Barrier = Barriers[Index];
+			if (Barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION
+				&& Barrier.Transition.StateBefore == D3D12_RESOURCE_STATE_PRESENT // can also be displayed as D3D12_RESOURCE_STATE_COMMON in pix
+				&& Barrier.Transition.StateAfter == D3D12_RESOURCE_STATE_RENDER_TARGET)
 			{
-				int DispatchNum = FMath::Min(Num, BarrierBatchMax);
-				pCommandList->ResourceBarrier(DispatchNum, Ptr);
-				Ptr += BarrierBatchMax;
-				Num -= BarrierBatchMax;
+				BackBufferBarriers.Add(Barrier);
+			}
+			else
+			{
+				OtherBarriers.Add(Barrier);
 			}
 		}
-		else
+
+		if (BackBufferBarriers.Num() > 0)
 		{
-			pCommandList->ResourceBarrier(Barriers.Num(), Barriers.GetData());
+			RecordResourceBarriersToCommandList(pCommandList, BackBufferBarriers.GetData(), BackBufferBarriers.Num(), BarrierBatchMax);
 		}
+
+		if (OtherBarriers.Num() > 0)
+		{
+			RecordResourceBarriersToCommandList(pCommandList, OtherBarriers.GetData(), OtherBarriers.Num(), BarrierBatchMax);
+		}
+#else
+		RecordResourceBarriersToCommandList(pCommandList, Barriers.GetData(), Barriers.Num(), BarrierBatchMax);
+#endif
 	}
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
@@ -799,3 +851,4 @@ void FD3D12ResourceBarrierBatcher::Flush(FD3D12Device* Device, ID3D12GraphicsCom
 
 	Reset();
 }
+#undef LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
