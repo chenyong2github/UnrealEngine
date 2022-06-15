@@ -29,18 +29,32 @@ EBlackboardNotificationResult UBTDecorator_ConditionalLoop::OnBlackboardKeyValue
 
 void UBTDecorator_ConditionalLoop::OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult)
 {
-	if (NodeResult != EBTNodeResult::Aborted)
-	{
-		const UBlackboardComponent* BlackboardComp = SearchData.OwnerComp.GetBlackboardComponent();
-		const bool bEvalResult = BlackboardComp && EvaluateOnBlackboard(*BlackboardComp);
-		UE_VLOG(SearchData.OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Loop condition: %s -> %s"),
-			bEvalResult ? TEXT("true") : TEXT("false"), (bEvalResult != IsInversed()) ? TEXT("run again!") : TEXT("break"));
+	FBTConditionalLoopDecoratorMemory* DecoratorMemory = GetNodeMemory<FBTConditionalLoopDecoratorMemory>(SearchData);
+	checkf(DecoratorMemory, TEXT("Expecting to always have decorator memory available"));
 
-		if (bEvalResult != IsInversed())
+	// protect from infinite loop within single search
+	if (DecoratorMemory->SearchId != SearchData.SearchId)
+	{
+		DecoratorMemory->SearchId = SearchData.SearchId;
+
+		if (NodeResult != EBTNodeResult::Aborted)
 		{
-			GetParentNode()->SetChildOverride(SearchData, GetChildIndex());
+			const UBlackboardComponent* BlackboardComp = SearchData.OwnerComp.GetBlackboardComponent();
+			const bool bEvalResult = BlackboardComp && EvaluateOnBlackboard(*BlackboardComp);
+			UE_VLOG(SearchData.OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Loop condition: %s -> %s"),
+				bEvalResult ? TEXT("true") : TEXT("false"), (bEvalResult != IsInversed()) ? TEXT("run again!") : TEXT("break"));
+
+			if (bEvalResult != IsInversed())
+			{
+				GetParentNode()->SetChildOverride(SearchData, GetChildIndex());
+			}
 		}
 	}
+}
+
+uint16 UBTDecorator_ConditionalLoop::GetInstanceMemorySize() const
+{
+	return sizeof(FBTConditionalLoopDecoratorMemory);
 }
 
 #if WITH_EDITOR

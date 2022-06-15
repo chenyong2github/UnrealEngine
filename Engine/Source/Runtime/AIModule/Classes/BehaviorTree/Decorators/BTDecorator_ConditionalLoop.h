@@ -10,6 +10,11 @@
 
 class UBlackboardComponent;
 
+struct FBTConditionalLoopDecoratorMemory
+{
+	int32 SearchId;
+};
+
 /**
  * Conditional loop decorator node.
  * A decorator node that loops execution as long as condition is satisfied.
@@ -22,6 +27,8 @@ class AIMODULE_API UBTDecorator_ConditionalLoop : public UBTDecorator_Blackboard
 	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
 	virtual EBlackboardNotificationResult OnBlackboardKeyValueChange(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID) override;
 	virtual void OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult) override;
+
+	virtual uint16 GetInstanceMemorySize() const override;
 
 #if WITH_EDITOR
 	virtual FName GetNodeIconName() const override;
