@@ -2362,7 +2362,8 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 				}
 				else if (PropertyDef->GetPropertyBase().ContainsEditorOnlyProperties())
 				{
-					PropertyDef->LogError(TEXT("Do not specify struct property containing editor only properties inside an optional class."));
+					// TODO: this should technically be an error, but some code already relies on this at this time and should hence 
+					PropertyDef->LogInfo(TEXT("Do not specify struct property containing editor only properties inside an optional class."));
 				}
 			}
 		}
