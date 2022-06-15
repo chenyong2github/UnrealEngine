@@ -545,15 +545,17 @@ void UNaniteDisplacedMesh::PreEditChange(FProperty* PropertyAboutToChange)
 
 void UNaniteDisplacedMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	// Make sure we finish the previous build before starting another one
+	TryCancelAsyncTasks();
+	FinishAsyncTasks();
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	// TODO: Add delegates for begin and end build events to safely reload scene proxies, etc.
 
 	// Synchronously build the new data. This calls InitResources.
 	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-	CacheDerivedData(RunningPlatform);
-
-	NotifyOnRebuild();
+	BeginCacheDerivedData(RunningPlatform);
 }
 
 void UNaniteDisplacedMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
@@ -583,14 +585,19 @@ void UNaniteDisplacedMesh::ClearAllCachedCookedPlatformData()
 	Super::ClearAllCachedCookedPlatformData();
 }
 
-void UNaniteDisplacedMesh::RegisterOnRebuild(const FOnRebuild& Delegate)
+FDelegateHandle UNaniteDisplacedMesh::RegisterOnRebuild(const FOnRebuild& Delegate)
 {
-	OnRebuild.Add(Delegate);
+	return OnRebuild.Add(Delegate);
 }
 
 void UNaniteDisplacedMesh::UnregisterOnRebuild(void* Unregister)
 {
 	OnRebuild.RemoveAll(Unregister);
+}
+
+void UNaniteDisplacedMesh::UnregisterOnRebuild(FDelegateHandle Handle)
+{
+	OnRebuild.Remove(Handle);
 }
 
 void UNaniteDisplacedMesh::NotifyOnRebuild()

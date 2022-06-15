@@ -181,25 +181,16 @@ void FNaniteDisplacedMeshCompilingManager::PostCompilation(TArrayView<UNaniteDis
 		TArray<FAssetCompileData> AssetsData;
 		AssetsData.Reserve(InNaniteDisplacedMeshes.Num());
 
-		TSet<UNaniteDisplacedMesh*> NaniteDisplacedMeshes;
 		for (UNaniteDisplacedMesh* NaniteDisplacedMesh : InNaniteDisplacedMeshes)
 		{
 			// Do not broadcast an event for unreachable objects
 			if (!NaniteDisplacedMesh->IsUnreachable())
 			{
-				NaniteDisplacedMeshes.Emplace(NaniteDisplacedMesh);
 				AssetsData.Emplace(NaniteDisplacedMesh);
-			}
-		}
 
-		if (FApp::CanEverRender())
-		{
-			// TODO DC Optimize this using reverse lookup but ok for now
-			for (TObjectIterator<UNaniteDisplacedMeshComponent> It; It; ++It)
-			{
-				if (NaniteDisplacedMeshes.Contains(It->DisplacedMesh))
+				if (FApp::CanEverRender())
 				{
-					It->MarkRenderStateDirty();
+					NaniteDisplacedMesh->NotifyOnRebuild();
 				}
 			}
 		}
@@ -230,7 +221,6 @@ void FNaniteDisplacedMeshCompilingManager::PostCompilation(UNaniteDisplacedMesh*
 		}
 
 		NaniteDisplacedMesh->InitResources();
-
 
 		// Calling this delegate during app exit might be quite dangerous and lead to crash
 		// if the content browser wants to refresh a thumbnail it might try to load a package

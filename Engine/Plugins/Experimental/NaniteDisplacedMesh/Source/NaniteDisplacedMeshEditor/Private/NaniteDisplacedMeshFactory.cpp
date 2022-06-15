@@ -138,6 +138,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		TempNaniteDisplacedMesh->ClearFlags(RF_Standalone);
 		TempNaniteDisplacedMesh->bIsEditable = false;
 		TempNaniteDisplacedMesh->Parameters = InParameters;
+		TempNaniteDisplacedMesh->PostEditChange();
 		return TempNaniteDisplacedMesh;
 	}
 	else
@@ -154,6 +155,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 
 			if (UEditorLoadingAndSavingUtils::SavePackages({ NewDisplacedMesh->GetPackage() }, /*bOnlyDirty=*/ false))
 			{
+				NewDisplacedMesh->PostEditChange();
 				return NewDisplacedMesh;
 			}
 		}

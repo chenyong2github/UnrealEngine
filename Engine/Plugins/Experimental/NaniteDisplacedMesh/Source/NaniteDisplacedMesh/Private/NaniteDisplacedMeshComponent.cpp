@@ -3,9 +3,10 @@
 #include "NaniteDisplacedMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
-UNaniteDisplacedMeshComponent::UNaniteDisplacedMeshComponent(const FObjectInitializer& Init)
-: Super(Init)
+void UNaniteDisplacedMeshComponent::PostLoad()
 {
+	Super::PostLoad();
+
 #if WITH_EDITOR
 	if (GIsEditor)
 	{

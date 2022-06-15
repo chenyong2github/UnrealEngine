@@ -19,7 +19,8 @@ class NANITEDISPLACEDMESH_API UNaniteDisplacedMeshComponent : public UStaticMesh
 	GENERATED_BODY()
 
 public:
-	UNaniteDisplacedMeshComponent(const FObjectInitializer& Init);
+	virtual void PostLoad() override;
+
 	virtual void BeginDestroy() override;
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;

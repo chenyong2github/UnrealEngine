@@ -219,8 +219,10 @@ private:
 public:
 #if WITH_EDITOR
 	typedef FOnNaniteDisplacedMeshRebuild::FDelegate FOnRebuild;
-	void RegisterOnRebuild(const FOnRebuild& Delegate);
+	FDelegateHandle RegisterOnRebuild(const FOnRebuild& Delegate);
 	void UnregisterOnRebuild(void* Unregister);
+	void UnregisterOnRebuild(FDelegateHandle Handle);
+
 	void NotifyOnRebuild();
 #endif
 };
