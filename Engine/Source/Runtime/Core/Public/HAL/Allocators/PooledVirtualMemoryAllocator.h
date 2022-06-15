@@ -78,6 +78,9 @@ struct FPooledVirtualMemoryAllocator
 	/** Returns free memory in the pools */
 	uint64 GetCachedFreeTotal();
 
+	/** Update memory stats (does nothing in that implementation) */
+	void UpdateStats() {}
+
 private:
 
 	enum Limits

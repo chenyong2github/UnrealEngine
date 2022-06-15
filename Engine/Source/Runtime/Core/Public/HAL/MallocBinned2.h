@@ -264,7 +264,7 @@ class CORE_API FMallocBinned2 : public FMalloc
 	FORCEINLINE bool IsOSAllocation(const void* Ptr)
 	{
 #if UE_USE_VERYLARGEPAGEALLOCATOR && !PLATFORM_UNIX
-		return !CachedOSPageAllocator.IsPartOf(Ptr);
+		return !CachedOSPageAllocator.IsPartOf(Ptr) && IsAligned(Ptr, BINNED2_LARGE_ALLOC);
 #else
 		return IsAligned(Ptr, BINNED2_LARGE_ALLOC);
 #endif

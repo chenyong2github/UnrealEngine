@@ -66,6 +66,8 @@ public:
 
 	void FreeAll(FCriticalSection* Mutex = nullptr);
 
+	void UpdateStats();
+
 	uint64 GetCachedFreeTotal()
 	{
 		return CachedFree + CachedOSPageAllocator.GetCachedFreeTotal();
@@ -89,6 +91,7 @@ private:
 	uintptr_t	AddressSpaceReservedEndSmallPool;
 	uintptr_t	AddressSpaceReservedEnd;
 	uint64		CachedFree;
+	int32		EmptyBackStoreCount[FMemory::AllocationHints::Max];
 
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block;
 
@@ -133,6 +136,8 @@ private:
 	FLargePage*	UsedLargePagesHead[FMemory::AllocationHints::Max];				// has backing store and is full
 
 	FLargePage*	UsedLargePagesWithSpaceHead[FMemory::AllocationHints::Max];	// has backing store and still has room
+
+	FLargePage*	EmptyButAvailableLargePagesHead[FMemory::AllocationHints::Max];	// has backing store and is empty
 
 	FLargePage	LargePagesArray[NumberOfLargePages];
 
