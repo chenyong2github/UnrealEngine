@@ -19,7 +19,7 @@ namespace UE::DataInterfaceGraphEditor
 	class FGraphEditor;
 }
 
-UCLASS(Optional, MinimalAPI)
+UCLASS(MinimalAPI)
 class UDataInterfaceGraph_EditorData : public UObject, public IRigVMClientHost
 {
 	GENERATED_BODY()
