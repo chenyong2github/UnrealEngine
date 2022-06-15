@@ -4,12 +4,14 @@
 
 #include "DatasmithAnimationElements.h"
 #include "DatasmithDefinitions.h"
+#include "DatasmithLocaleScope.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithUtils.h"
 #include "DatasmithVariantElements.h"
 #include "IDatasmithSceneElements.h"
 
 #include "Math/Quat.h"
+
 
 class FDatasmithSceneXmlWriterImpl
 {
@@ -1871,6 +1873,9 @@ FString FDatasmithSceneXmlWriterImpl::CompModeToText(EDatasmithCompMode Mode)
 
 void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > DatasmithScene, FArchive& Archive )
 {
+	// explicitly set the locale to have consistent exports
+	FDatasmithLocaleScope CLocaleScope;
+
 	FString XmlString = FString( TEXT("<DatasmithUnrealScene>") ) + LINE_TERMINATOR;
 	FDatasmithSceneXmlWriterImpl::SerializeToArchive( Archive, XmlString );
 

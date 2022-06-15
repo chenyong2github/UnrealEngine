@@ -4,6 +4,7 @@
 
 #include "DatasmithCore.h"
 #include "DatasmithDefinitions.h"
+#include "DatasmithLocaleScope.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
 
@@ -15,15 +16,6 @@
 #include "Templates/SharedPointer.h"
 #include "XmlParser.h"
 
-// Set proper locale on Mac and Linux since locale "C" and not "en_US.UTF-8" is the default on those platforms
-#if PLATFORM_MAC | PLATFORM_LINUX
-#define USE_LOCALE
-#if PLATFORM_MAC
-#include <xlocale.h>
-#else
-#include <locale.h>
-#endif
-#endif
 
 FDatasmithSceneXmlReader::FDatasmithSceneXmlReader() = default;
 FDatasmithSceneXmlReader::~FDatasmithSceneXmlReader() = default;
@@ -1132,24 +1124,12 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithSceneXmlReader::ParseXmlFile);
 
+	FDatasmithLocaleScope CLocaleScope;
+
 	if (bInAppend == false)
 	{
 		OutScene->Reset();
 	}
-
-	// Set locale to support UTF-8 character set only on current thread
-#ifdef USE_LOCALE
-	locale_t Locale = ::newlocale(LC_ALL_MASK, "en_US.UTF-8", nullptr);
-	locale_t PreviousLocale = nullptr;
-	if (!Locale)
-	{
-		UE_LOG(LogDatasmith, Warning, TEXT("locale en_US.UTF-8 is not supported by this platform. The parsing of the udatasmith file may fail."));
-	}
-	else
-	{
-		PreviousLocale = ::uselocale(Locale);
-	}
-#endif
 
 	OutScene->SetExporterSDKVersion( TEXT("N/A") ); // We're expecting to read the SDK Version from the XML file. If it's not available, put "N/A"
 
@@ -1383,15 +1363,6 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 	PatchUpVersion(OutScene);
 
 	FDatasmithSceneUtils::CleanUpScene(OutScene);
-
-	// Restore locale only on current thread
-#ifdef USE_LOCALE
-	if (Locale)
-	{
-		::uselocale(PreviousLocale);
-		::freelocale(Locale);
-	}
-#endif
 
 	return true;
 }
