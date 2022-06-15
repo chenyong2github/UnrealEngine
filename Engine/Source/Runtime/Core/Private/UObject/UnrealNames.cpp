@@ -1918,19 +1918,19 @@ void FNamePool::RetraceAll() const
 				
 			if (DisplayEntry.IsWide())
 			{
-				 TCHAR Chars[NAME_SIZE];
-				 DisplayEntry.GetUnterminatedName(Chars, NAME_SIZE);
-				 const uint32 Size = DisplayEntry.GetNameLength();
-				 const auto Ref = UE_TRACE_LOG_DEFINITION(Strings, FNameNoSync, DefinitionId, true)
-					  << FNameNoSync.DisplayWide(Chars, Size);
+				TCHAR Chars[NAME_SIZE];
+				DisplayEntry.GetUnterminatedName(Chars, NAME_SIZE);
+				const uint32 Size = DisplayEntry.GetNameLength();
+				UE_TRACE_LOG_DEFINITION(Strings, FName, DefinitionId, true)
+					<< FName.DisplayWide(Chars, Size);
 			}
 			else
 			{
-				 ANSICHAR Chars[NAME_SIZE];
-				 DisplayEntry.GetAnsiName(Chars);
-				 const uint32 Size = DisplayEntry.GetNameLength();
-				 const auto Ref = UE_TRACE_LOG_DEFINITION(Strings, FNameNoSync, DefinitionId, true)
-					  << FNameNoSync.DisplayAnsi(Chars, Size);
+				ANSICHAR Chars[NAME_SIZE];
+				DisplayEntry.GetAnsiName(Chars);
+				const uint32 Size = DisplayEntry.GetNameLength();
+				UE_TRACE_LOG_DEFINITION(Strings, FName, DefinitionId, true)
+					<< FName.DisplayAnsi(Chars, Size);
 			}
 		});
 

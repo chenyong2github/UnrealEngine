@@ -45,17 +45,19 @@ static struct FStaticStringTracer
 	void TraceStringsOnConnection()
 	{
 		FScopeLock _(&LookupLock);
+		// Retrace all strings that has been referenced previously. Note that we create the reference id
+		// manually so that we get the correct type id for sync version.
 		for(const uint64 Ptr : TracedWideStrings)
 		{
 			const TCHAR* String = (const TCHAR*) Ptr;
-			UE_TRACE_LOG_DEFINITION(Strings, StaticStringNoSync, Ptr, true)
-				<< StaticStringNoSync.DisplayWide(String, FCString::Strlen(String));
+			UE_TRACE_LOG_DEFINITION(Strings, StaticString, Ptr, true)
+				<< StaticString.DisplayWide(String, FCString::Strlen(String));
 		}
 		for(const uint64 Ptr : TracedAnsiStrings)
 		{
 			const ANSICHAR* String = (const ANSICHAR*) Ptr;
-			UE_TRACE_LOG_DEFINITION(Strings, StaticStringNoSync, Ptr, true)
-				<< StaticStringNoSync.DisplayAnsi(String, FCStringAnsi::Strlen(String));
+			UE_TRACE_LOG_DEFINITION(Strings, StaticString, Ptr, true)
+				<< StaticString.DisplayAnsi(String, FCStringAnsi::Strlen(String));
 		}
 	}
 

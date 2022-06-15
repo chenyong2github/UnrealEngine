@@ -6,24 +6,12 @@
 #include "Trace/Trace.h"
 #include "Trace/Trace.inl"
 
-CORE_API UE_TRACE_EVENT_BEGIN_EXTERN(Strings, StaticString, Definition64bit)
+CORE_API UE_TRACE_EVENT_BEGIN_EXTERN(Strings, StaticString, NoSync|Definition64bit)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DisplayWide)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, DisplayAnsi)
 UE_TRACE_EVENT_END()
 
-CORE_API UE_TRACE_EVENT_BEGIN_EXTERN(Strings, FName, Definition32bit)
-	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DisplayWide)
-	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, DisplayAnsi)
-UE_TRACE_EVENT_END()
-
-// The following events are used when on connection callback is triggered. Do not use or reference
-
-UE_TRACE_EVENT_BEGIN_EXTERN(Strings, StaticStringNoSync, Definition64bit | NoSync)
-	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DisplayWide)
-	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, DisplayAnsi)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN_EXTERN(Strings, FNameNoSync, Definition32bit | NoSync)
+CORE_API UE_TRACE_EVENT_BEGIN_EXTERN(Strings, FName, NoSync|Definition32bit)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DisplayWide)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, DisplayAnsi)
 UE_TRACE_EVENT_END()
