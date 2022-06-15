@@ -255,9 +255,11 @@ export class Graph {
 		const targetsToFind = new Set<Node>()
 		const skipNodes = new Set<Node>()
 		for (const [target, mergeMode] of requestedTargets.entries()) {
-			targetsToFind.add(target)
 			if (mergeMode === 'skip') {
 				skipNodes.add(target)
+			}
+			else {
+				targetsToFind.add(target)
 			}
 		}
 
