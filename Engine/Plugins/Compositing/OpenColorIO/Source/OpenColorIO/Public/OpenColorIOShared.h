@@ -24,7 +24,6 @@
 class FOpenColorIOTransformResource;
 class FOpenColorIOShaderMap;
 class FOpenColorIOPixelShader;
-class FOpenColorIOPixelShader_RDG;
 class FOpenColorIOShaderMapId;
 
 /** Stores outputs from the color transform compile that need to be saved. */

@@ -479,7 +479,6 @@ FShader* FOpenColorIOShaderMap::ProcessCompilationResultsForSingleJob(const TRef
 	Shader = OpenColorIOShaderType->FinishCompileShader(InShaderMapHash, *CurrentJob, GetContent()->FriendlyName);
 	bCompiledSuccessfully = CurrentJob->bSucceeded;
 
-	FOpenColorIOPixelShader* OpenColorIOShader = static_cast<FOpenColorIOPixelShader*>(Shader);
 	check(Shader && Shader->GetCodeSize() > 0);
 	check(!GetContent()->HasShader(OpenColorIOShaderType, /* PermutationId = */ 0));
 	return GetMutableContent()->FindOrAddShader(OpenColorIOShaderType->GetHashedName(), CurrentJob->Key.PermutationId, Shader);

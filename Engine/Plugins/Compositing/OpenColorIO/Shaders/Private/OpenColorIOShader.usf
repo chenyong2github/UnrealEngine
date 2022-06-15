@@ -32,11 +32,10 @@ float Gamma;
 /* Pixel shader
 =============================================================================*/
 
-void MainPS(float4 InPosition : SV_POSITION,
-	float2 InUV : TEXCOORD0,
+void MainPS(in noperspective float4 InUVAndScreenPos : TEXCOORD0,
 	out float4 OutColor : SV_Target0)
 {
-	float4 InputColor = InputTexture.Sample(InputTextureSampler, InUV.xy);
+	float4 InputColor = InputTexture.Sample(InputTextureSampler, InUVAndScreenPos.xy);
 	InputColor = max(0.0, InputColor);
 	InputColor = pow(InputColor, Gamma);
 	OutColor = float4(OCIOConvert(InputColor).xyz, InputColor.w);
