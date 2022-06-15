@@ -17,6 +17,7 @@
 #include "UObject/PackageTrailer.h"
 #include "UObject/UObjectGlobals.h"
 #include "Virtualization/VirtualizationSystem.h"
+#include "VirtualizationManager.h"
 
 #define LOCTEXT_NAMESPACE "Virtualization"
 
@@ -69,7 +70,7 @@ private:
 		const FPayloadData* Data = PayloadLookupTable.Find(Identifier);
 		if (Data == nullptr)
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider was unable to find a payload with the identifier '%s'"), 
+			UE_LOG(LogVirtualization, Error, TEXT("FWorkspaceDomainPayloadProvider was unable to find a payload with the identifier '%s'"), 
 				*LexToString(Identifier));
 
 			return FCompressedBuffer();
@@ -79,7 +80,7 @@ private:
 
 		if (!PackageAr.IsValid())
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider was unable to open the package '%s' for reading"), 
+			UE_LOG(LogVirtualization, Error, TEXT("FWorkspaceDomainPayloadProvider was unable to open the package '%s' for reading"), 
 				*Data->PackageName);
 
 			return FCompressedBuffer();
@@ -90,7 +91,7 @@ private:
 		FPackageTrailer Trailer;
 		if (!Trailer.TryLoadBackwards(*PackageAr))
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider failed to load the package trailer from the package '%s'"), 
+			UE_LOG(LogVirtualization, Error, TEXT("FWorkspaceDomainPayloadProvider failed to load the package trailer from the package '%s'"), 
 				*Data->PackageName);
 
 			return FCompressedBuffer();
@@ -100,7 +101,7 @@ private:
 		
 		if (!Payload)
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider was uanble to load the payload '%s' from the package '%s'"),
+			UE_LOG(LogVirtualization, Error, TEXT("FWorkspaceDomainPayloadProvider was uanble to load the payload '%s' from the package '%s'"),
 				*LexToString(Identifier),
 				*Data->PackageName);
 
@@ -109,7 +110,7 @@ private:
 
 		if (Identifier != FIoHash(Payload.GetRawHash()))
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider loaded an incorrect payload from the package '%s'. Expected '%s' Loaded  '%s'"), 
+			UE_LOG(LogVirtualization, Error, TEXT("FWorkspaceDomainPayloadProvider loaded an incorrect payload from the package '%s'. Expected '%s' Loaded  '%s'"), 
 				*Data->PackageName,
 				*LexToString(Identifier),
 				*LexToString(Payload.GetRawHash()));
@@ -134,7 +135,7 @@ private:
 		}
 		else
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("FPayloadProvider was unable to find a payload with the identifier '%s'"),
+			UE_LOG(LogVirtualization, Error, TEXT("FWorkspaceDomainPayloadProvider was unable to find a payload with the identifier '%s'"),
 				*LexToString(Identifier));
 
 			return 0;
@@ -157,6 +158,47 @@ private:
 
 	TMap<FIoHash, FPayloadData> PayloadLookupTable;
 };
+
+#if ENABLE_FILTERING_HACK
+// This filtering provider should only ever be used with FVirtualizationManager::FilterRequests
+// and so does not need to be able to provide the payload, just the payload size.
+class FFilterProvider final : public IPayloadProvider
+{
+public:
+	void RegisterPayload(const FIoHash& PayloadId, uint64 SizeOnDisk)
+	{
+		if (!PayloadId.IsZero())
+		{
+			PayloadLookupTable.Emplace(PayloadId, SizeOnDisk);
+		}
+	}
+
+private:
+	virtual FCompressedBuffer RequestPayload(const FIoHash& Identifier)
+	{
+		checkNoEntry();
+
+		return FCompressedBuffer();
+	}
+
+	virtual uint64 GetPayloadSize(const FIoHash& Identifier)
+	{
+		if (uint64* SizeOnDisk = PayloadLookupTable.Find(Identifier))
+		{
+			return *SizeOnDisk;
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("FFilterProvider was unable to find a payload with the identifier '%s'"),
+				*LexToString(Identifier));
+
+			return 0;
+		}
+	}
+
+	TMap<FIoHash, uint64> PayloadLookupTable;
+};
+#endif //ENABLE_FILTERING_HACK
 
 /**
  * Check that the given package ends with PACKAGE_FILE_TAG. Intended to be used to make sure that
@@ -306,6 +348,12 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 
 	Progress.EnterProgressFrame(1.0f);
 
+#if ENABLE_FILTERING_HACK
+	FFilterProvider FilterProvider;
+	TArray<Virtualization::FPushRequest> PayloadsToFilter;
+	PayloadsToFilter.Reserve(PayloadsToFilter.Num());
+#endif //ENABLE_FILTERING_HACK
+
 	// From the list of files to submit we need to find all of the valid packages that contain
 	// local payloads that need to be virtualized.
 	int64 TotalPayloadsToCheck = 0;
@@ -337,12 +385,23 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 
 				if (!PkgInfo.LocalPayloads.IsEmpty())
 				{	
+#if ENABLE_FILTERING_HACK
+					// Build up an array of push requests that match the order of AllLocalPayloads/PayloadStatuses
+					for (const FIoHash& PayloadId : PkgInfo.LocalPayloads)
+					{
+						const uint64 SizeOnDisk = PkgInfo.Trailer.FindPayloadSizeOnDisk(PayloadId);
+
+						FilterProvider.RegisterPayload(PayloadId, SizeOnDisk);
+						PayloadsToFilter.Emplace(PayloadId, FilterProvider, PkgInfo.Path.GetPackageName());
+					}
+#endif //ENABLE_FILTERING_HACK
+
 					TotalPayloadsToCheck += PkgInfo.LocalPayloads.Num();
 
 					PkgInfo.PayloadIndex = AllLocalPayloads.Num();
 					AllLocalPayloads.Append(PkgInfo.LocalPayloads);
 
-					Packages.Emplace(MoveTemp(PkgInfo));
+					Packages.Emplace(MoveTemp(PkgInfo));		
 				}
 			}
 		}
@@ -360,6 +419,29 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 
 		return;
 	}
+
+#if ENABLE_FILTERING_HACK
+	{
+		check(PayloadStatuses.Num() == PayloadsToFilter.Num());
+		// If VirtualizePackages is running then we know that System is a FVirtualizationManager so we can just cast.
+		// This lets us avoid adding ::FilterRequests to IVirtualizationSystem and keeps the hack contained to this
+		// module.
+		const FVirtualizationManager* Manager = (FVirtualizationManager*)&System;
+		Manager->FilterRequests(PayloadsToFilter);
+
+		// There are many ways we could stop payloads that should be filtered from being auto virtualized if they 
+		// are present in the persistent backend, but the easiest way without changing the existing code paths is
+		// to set the status to NotFound if we know it should be filtered, to make sure that the payload is sent
+		// to the push request where it will be properly rejected by filtering.
+		for (int32 Index = 0; Index < PayloadStatuses.Num(); ++Index)
+		{
+			if (PayloadsToFilter[Index].GetStatus() != FPushRequest::EStatus::Success)
+			{
+				PayloadStatuses[Index] = FPayloadStatus::NotFound;
+			}
+		}
+	}
+#endif
 
 	// Update payloads that are already in persistent storage and don't need to be pushed
 	int64 TotalPayloadsToVirtualize = 0;
