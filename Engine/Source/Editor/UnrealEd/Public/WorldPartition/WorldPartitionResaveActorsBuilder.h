@@ -5,7 +5,7 @@
 #include "WorldPartition/WorldPartitionBuilder.h"
 #include "WorldPartitionResaveActorsBuilder.generated.h"
 
-// Example Command Line: ProjectName MapName -run=WorldPartitionBuilderCommandlet -SCCProvider=Perforce -Builder=WorldPartitionResaveActorsBuilder [-ActorClassName=StaticMeshActor] [-SwitchActorPackagingSchemeToReduced] [-ActorTags=(Tag1,Tag2,...)]
+// Example Command Line: ProjectName MapName -run=WorldPartitionBuilderCommandlet -SCCProvider=Perforce -Builder=WorldPartitionResaveActorsBuilder [-ActorClassName=StaticMeshActor] [-SwitchActorPackagingSchemeToReduced] [-ActorTags=(Tag1,Tag2,...)] [-ActorProperties=((Property1,Value1),(Property2,Value2),...)]
 
 UCLASS()
 class UWorldPartitionResaveActorsBuilder : public UWorldPartitionBuilder
@@ -37,5 +37,8 @@ private:
 	bool bEnableActorFolders;
 
 	UPROPERTY()
-	TArray<FName> ActorTags;
+	TSet<FName> ActorTags;
+
+	UPROPERTY()
+	TMap<FName, FName> ActorProperties;
 };

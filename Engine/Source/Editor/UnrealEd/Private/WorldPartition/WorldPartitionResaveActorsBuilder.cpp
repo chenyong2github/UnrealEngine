@@ -74,6 +74,11 @@ bool UWorldPartitionResaveActorsBuilder::PreRun(UWorld* World, FPackageSourceCon
 			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("SwitchActorPackagingSchemeToReduced is not compatible with ActorTags"));
 			return false;
 		}
+		else if (!ActorProperties.IsEmpty())
+		{
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("SwitchActorPackagingSchemeToReduced is not compatible with ActorProperties"));
+			return false;
+		}
 		else if (bResaveDirtyActorDescsOnly)
 		{
 			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("SwitchActorPackagingSchemeToReduced is not compatible with ResaveDirtyActorDescsOnly"));
@@ -272,26 +277,35 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 	else
 	{
 		TArray<UPackage*> PackagesToSave;
-		TSet<FName> ActorTagsSet(ActorTags);
 
 		FWorldPartitionHelpers::FForEachActorWithLoadingParams ForEachActorWithLoadingParams;
 
 		ForEachActorWithLoadingParams.ActorClass = ActorClass;
 
-		if (ActorTags.Num())
-		{			
-			ForEachActorWithLoadingParams.FilterActorDesc = [this, &ActorTagsSet](const FWorldPartitionActorDesc* ActorDesc) -> bool
+		ForEachActorWithLoadingParams.FilterActorDesc = [this](const FWorldPartitionActorDesc* ActorDesc) -> bool
+		{
+			for (const FName& ActorTag : ActorDesc->GetTags())
 			{
-				for (const FName& ActorTag : ActorDesc->GetTags())
+				if (ActorTags.Contains(ActorTag))
 				{
-					if (ActorTagsSet.Contains(ActorTag))
+					return true;
+				}
+			}
+			
+			for (auto [PropertyName, PropertyValue] : ActorProperties)
+			{
+				FName Value;
+				if (ActorDesc->GetProperty(PropertyName, &Value))
+				{
+					if (Value == PropertyValue)
 					{
 						return true;
 					}
 				}
-				return false;
-			};
-		}
+			}
+
+			return false;
+		};
 
 		ForEachActorWithLoadingParams.OnPreGarbageCollect = [&PackagesToSave, &PackageHelper]()
 		{
