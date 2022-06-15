@@ -713,9 +713,12 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	SizeOptions.UseGrouping = false;
 	SizeOptions.MaximumFractionalDigits = 0;
 
-	// Cubes are previewed as unwrapped 2D textures.
+	// Cubes are previewed as unwrapped 2D textures in case when slice index is not selected.
 	// These have 2x the width of a cube face.
-	PreviewEffectiveTextureWidth *= IsCubeTexture() ? 2 : 1;
+	if (IsCubeTexture() && GetSlice() < 0)
+	{
+		PreviewEffectiveTextureWidth *= 2;
+	}
 
 	FNumberFormattingOptions Options;
 	Options.UseGrouping = false;
@@ -2140,9 +2143,9 @@ bool FTextureEditorToolkit::HasLayers() const
 
 bool FTextureEditorToolkit::HasSlices() const
 {
-	// currently only supports Texture2DArray, but can be extended for other texture types which are using multiple slices
+	// currently supports Texture2D arrays, cubemaps and cubemap arrays
 	// slice selection should be supported even for a texture array with less than two elements, because array elements can be added dynamically
-	return Texture->IsA(UTexture2DArray::StaticClass());
+	return Is2DArrayTexture() || IsCubeTexture();
 }
 
 int32 FTextureEditorToolkit::GetNumSlices() const
@@ -2150,6 +2153,14 @@ int32 FTextureEditorToolkit::GetNumSlices() const
 	if (Texture->IsA(UTexture2DArray::StaticClass()))
 	{
 		return Cast<UTexture2DArray>(Texture)->GetArraySize();
+	}
+	else if (Texture->IsA(UTextureRenderTarget2DArray::StaticClass()))
+	{
+		return Cast<UTextureRenderTarget2DArray>(Texture)->GetSurfaceArraySize();
+	}
+	else if (IsCubeTexture())
+	{
+		return 6;
 	}
 	return 1;
 }
