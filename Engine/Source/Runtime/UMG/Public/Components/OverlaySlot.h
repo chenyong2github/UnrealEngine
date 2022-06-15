@@ -27,27 +27,42 @@ protected:
 public:
 	
 	/** The padding area between the slot and the content it contains. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Overlay Slot")
+	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = SetPadding, Category="Layout|Overlay Slot")
 	FMargin Padding;
 
 	/** The alignment of the object horizontally. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Overlay Slot")
+	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = SetHorizontalAlignment, Category="Layout|Overlay Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
 	/** The alignment of the object vertically. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Layout|Overlay Slot")
+	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = SetVerticalAlignment, Category="Layout|Overlay Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 
 public:
 
+	/** Set padding area between the slot and the content it contains. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Overlay Slot")
 	void SetPadding(FMargin InPadding);
 
+	/** Get padding area between the slot and the content it contains. */
+	FMargin GetPadding() const;
+
+	/** Set the alignment of the object horizontally. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Overlay Slot")
 	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+	
+	/** Get the alignment of the object horizontally. */
+	EHorizontalAlignment GetHorizontalAlignment() const;
 
+	/** Set the alignment of the object vertically. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Overlay Slot")
 	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+
+	/** Get the alignment of the object vertically. */
+	EVerticalAlignment GetVerticalAlignment() const;
 
 public:
 

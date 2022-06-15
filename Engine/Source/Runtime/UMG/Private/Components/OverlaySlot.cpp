@@ -6,6 +6,7 @@
 /////////////////////////////////////////////////////
 // UOverlaySlot
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UOverlaySlot::UOverlaySlot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -42,6 +43,11 @@ void UOverlaySlot::SetPadding(FMargin InPadding)
 	}
 }
 
+FMargin UOverlaySlot::GetPadding() const
+{
+	return Padding;
+}
+
 void UOverlaySlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
 {
 	HorizontalAlignment = InHorizontalAlignment;
@@ -49,6 +55,11 @@ void UOverlaySlot::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlign
 	{
 		Slot->SetHorizontalAlignment(InHorizontalAlignment);
 	}
+}
+
+EHorizontalAlignment UOverlaySlot::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
 }
 
 void UOverlaySlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
@@ -60,9 +71,16 @@ void UOverlaySlot::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
 	}
 }
 
+EVerticalAlignment UOverlaySlot::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
+}
+
 void UOverlaySlot::SynchronizeProperties()
 {
 	SetPadding(Padding);
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

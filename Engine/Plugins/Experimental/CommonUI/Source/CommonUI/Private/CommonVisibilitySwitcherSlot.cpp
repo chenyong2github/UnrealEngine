@@ -8,17 +8,17 @@
 UCommonVisibilitySwitcherSlot::UCommonVisibilitySwitcherSlot(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 {
-	HorizontalAlignment = EHorizontalAlignment::HAlign_Fill;
-	VerticalAlignment = EVerticalAlignment::VAlign_Fill;
+	SetHorizontalAlignment(EHorizontalAlignment::HAlign_Fill);
+	SetVerticalAlignment(EVerticalAlignment::VAlign_Fill);
 }
 
 void UCommonVisibilitySwitcherSlot::BuildSlot(TSharedRef<SOverlay> Overlay)
 {
 	Overlay->AddSlot()
 		.Expose(Slot)
-		.Padding(Padding)
-		.HAlign(HorizontalAlignment)
-		.VAlign(VerticalAlignment)
+		.Padding(GetPadding())
+		.HAlign(GetHorizontalAlignment())
+		.VAlign(GetVerticalAlignment())
 		[
 			SAssignNew(VisibilityBox, SBox)
 			[
