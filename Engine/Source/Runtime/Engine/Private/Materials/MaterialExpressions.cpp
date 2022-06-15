@@ -21881,28 +21881,20 @@ void UMaterialExpressionStrataLegacyConversion::GatherStrataMaterialInfo(FStrata
 
 FStrataOperator* UMaterialExpressionStrataLegacyConversion::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	// The legacy node can only be added once and we know the worst shape it can take so we hard code it here, 
-	// with fake addresses for BSDF defined in shader code.
-	UMaterialExpression* ChildTopExpression = reinterpret_cast<UMaterialExpression*>(1);
-	UMaterialExpression* ChildBottomExpression = reinterpret_cast<UMaterialExpression*>(2);
+	// Legacy conversion now requires a single slab
+	UMaterialExpression* ChildSlabExpression = reinterpret_cast<UMaterialExpression*>(1);
 
 	auto AddDefaultWorstCase = [&](bool bSSS)
 	{
-		FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_VERTICAL, this, Parent);
+		FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_WEIGHT, this, Parent);
 
-		FStrataOperator& TopOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildTopExpression, this);
-		TopOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
-		TopOperator.bBSDFHasSSS = false;
-		TopOperator.bBSDFHasMFPPluggedIn = true;
-		TopOperator.bBSDFHasFuzz = true;
-		FStrataOperator& BottomOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildBottomExpression, this);
-		BottomOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
-		BottomOperator.bBSDFHasSSS = true;
-		BottomOperator.bBSDFHasMFPPluggedIn = true;
-		TopOperator.bBSDFHasFuzz = false;
+		FStrataOperator& SlabOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildSlabExpression, this);
+		SlabOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
+		SlabOperator.bBSDFHasSSS = true;
+		SlabOperator.bBSDFHasMFPPluggedIn = true;
+		SlabOperator.bBSDFHasFuzz = true;
 
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, &TopOperator);
-		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, &BottomOperator);
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, &SlabOperator);
 
 		return &StrataOperator;
 	};

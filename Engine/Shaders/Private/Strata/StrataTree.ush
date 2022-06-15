@@ -459,27 +459,17 @@ void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inou
 {
 	// This must match what is done in StrataConvertLegacyMaterialDynamic
 	UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[0], Settings, NullStrataAddressing, V);
-	UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[1], Settings, NullStrataAddressing, V);
 
 	// MaxDistanceFromLeaves = 1 
-	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/2);
-	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/3);
-	// MaxDistanceFromLeaves = 2 
-	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/4);
+	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/1);
 #if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
-	// MaxDistanceFromLeaves = 3 
-	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/5);
+	// MaxDistanceFromLeaves = 2 
+	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/2);
 #endif
 
+	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/1, /*PreviousIsInputA*/1);
+#if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
 	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/2, /*PreviousIsInputA*/1);
-	UpdateAllBSDFWithBottomUpOperatorVisit_Vertical	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/4, /*PreviousIsInputA*/1);
-#if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
-	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/5, /*PreviousIsInputA*/1);
-#endif
-	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/3, /*PreviousIsInputA*/1);
-	UpdateAllBSDFWithBottomUpOperatorVisit_Vertical	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/4, /*PreviousIsInputA*/0);
-#if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
-	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/5, /*PreviousIsInputA*/1);
 #endif
 }
 
