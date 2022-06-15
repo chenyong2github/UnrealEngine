@@ -563,7 +563,7 @@ FCompressedBuffer FVirtualizationManager::PullData(const FIoHash& Id)
 	}
 }
 
-EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses)
+EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<EPayloadStatus>& OutStatuses)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::DoPayloadsExist);
 
@@ -576,7 +576,7 @@ EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHa
 
 	for (int32 Index = 0; Index < Ids.Num(); ++Index)
 	{
-		OutStatuses[Index] = Ids[Index].IsZero() ? FPayloadStatus::Invalid : FPayloadStatus::NotFound;
+		OutStatuses[Index] = Ids[Index].IsZero() ? EPayloadStatus::Invalid : EPayloadStatus::NotFound;
 	}
 
 	FBackendArray& Backends = StorageType == EStorageType::Local ? LocalCachableBackends : PersistentStorageBackends;
@@ -616,15 +616,15 @@ EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHa
 		{
 			if (HitCount[Index] == 0)
 			{
-				OutStatuses[Index] = FPayloadStatus::NotFound;
+				OutStatuses[Index] = EPayloadStatus::NotFound;
 			}
 			else if (HitCount[Index] == Backends.Num())
 			{
-				OutStatuses[Index] = FPayloadStatus::FoundAll;
+				OutStatuses[Index] = EPayloadStatus::FoundAll;
 			}
 			else
 			{
-				OutStatuses[Index] = FPayloadStatus::FoundPartial;
+				OutStatuses[Index] = EPayloadStatus::FoundPartial;
 			}
 		}
 	}

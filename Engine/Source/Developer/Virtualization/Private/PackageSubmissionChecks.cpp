@@ -411,7 +411,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 
 	Progress.EnterProgressFrame(1.0f);
 
-	TArray<FPayloadStatus> PayloadStatuses;
+	TArray<EPayloadStatus> PayloadStatuses;
 	if (System.QueryPayloadStatuses(AllLocalPayloads, EStorageType::Persistent, PayloadStatuses) != EQueryResult::Success)
 	{
 		FText Message = LOCTEXT("Virtualization_DoesExistFail", "Failed to find the status of the payloads in the packages being submitted");
@@ -437,7 +437,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 		{
 			if (PayloadsToFilter[Index].GetStatus() != FPushRequest::EStatus::Success)
 			{
-				PayloadStatuses[Index] = FPayloadStatus::NotFound;
+				PayloadStatuses[Index] = EPayloadStatus::NotFound;
 			}
 		}
 	}
@@ -452,7 +452,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 #if UE_PRECHECK_PAYLOAD_STATUS
 		for (int32 Index = 0; Index < PackageInfo.LocalPayloads.Num(); ++Index)
 		{
-			if (PayloadStatuses[PackageInfo.PayloadIndex + Index] == FPayloadStatus::FoundAll)
+			if (PayloadStatuses[PackageInfo.PayloadIndex + Index] == EPayloadStatus::FoundAll)
 			{
 				if (PackageInfo.Trailer.UpdatePayloadAsVirtualized(PackageInfo.LocalPayloads[Index]))
 				{

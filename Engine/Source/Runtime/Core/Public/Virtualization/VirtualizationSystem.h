@@ -56,7 +56,7 @@ enum class EQueryResult : int8
 };
 
 /** Describes the status of a payload in regards to a backend storage system */
-enum class FPayloadStatus : int8
+enum class EPayloadStatus : int8
 {
 	/** The payload id was not value */
 	Invalid = -1,
@@ -379,10 +379,10 @@ public:
 	 * @return	True if the operation succeeded and the contents of OutStatuses is valid. False if errors were 
 	 * 			encountered in which case the contents of OutStatuses should be ignored.
 	 */
-	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) = 0;
+	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<EPayloadStatus>& OutStatuses) = 0;
 
 	UE_DEPRECATED(5.1, "Call ::QueryPayloadStatuses instead")
-	bool DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses)
+	bool DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<EPayloadStatus>& OutStatuses)
 	{
 		return QueryPayloadStatuses(Ids, StorageType, OutStatuses) != EQueryResult::Success;
 	}
