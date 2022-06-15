@@ -1524,7 +1524,7 @@ void FRDGBuilder::Execute()
 	const FRDGPassHandle ProloguePassHandle = GetProloguePassHandle();
 	const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
 
-	FGraphEventArray AsyncCompileEvents = ParallelSetupEvents;
+	FGraphEventArray AsyncCompileEvents;
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExecuteBegin());
 	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = true);
@@ -1673,6 +1673,11 @@ void FRDGBuilder::Execute()
 	}
 
 	CreatePassBarriers(bParallelExecuteEnabled ? &AsyncCompileEvents : nullptr);
+
+	if (!ParallelSetupEvents.IsEmpty())
+	{
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(ParallelSetupEvents);
+	}
 
 	EndFlushResourcesRHI();
 
