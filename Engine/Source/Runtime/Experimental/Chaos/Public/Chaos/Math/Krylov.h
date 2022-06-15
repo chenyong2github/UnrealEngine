@@ -208,10 +208,10 @@ void LanczosCG(
 	// (*((TV*)&b))[i]
 	// ((Vector*)&b)->operator[](i)
 
-	TArray<T> v; v.SetNum(x.Num());
-	TArray<T> q; q.SetNum(x.Num());
-	TArray<T> q_old; q_old.SetNum(x.Num());
-	TArray<T> c; c.SetNum(x.Num());
+	TArray<TV> v; v.SetNum(x.Num());
+	TArray<TV> q; q.SetNum(x.Num());
+	TArray<TV> q_old; q_old.SetNum(x.Num());
+	TArray<TV> c; c.SetNum(x.Num());
 
 	T beta = FGenericPlatformMath::Sqrt(T(dotProduct(b, b)));
 	if (beta < res) 
@@ -231,7 +231,7 @@ void LanczosCG(
 	scale(x, p);
 	AXPY(v, -alpha, q);
 	T residual;
-	TArray<T> y; y.SetNum(x.Num());
+	TArray<TV> y; y.SetNum(x.Num());
 	for (int it = 1; it < max_it; it++) 
 	{
 		beta = FGenericPlatformMath::Sqrt(T(dotProduct(v, v)));
