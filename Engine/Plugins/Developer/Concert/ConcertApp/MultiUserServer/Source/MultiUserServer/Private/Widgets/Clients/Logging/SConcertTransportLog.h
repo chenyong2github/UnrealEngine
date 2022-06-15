@@ -4,19 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "Filter/FilteredConcertLogList.h"
-#include "TransportLogDelegates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SOverlay;
-class SPromptConcertLoggingEnabled;
 class FConcertLogTokenizer;
 class FConcertLogFilter_FrontendRoot;
+class FEndpointToUserNameCache;
 class FMenuBuilder;
 class FPagedFilteredConcertLogList;
 class IConcertLogSource;
 class ITableRow;
 class SHeaderRow;
+class SOverlay;
+class SPromptConcertLoggingEnabled;
 class STableViewBase;
 template <typename ItemType> class SListView;
 
@@ -36,12 +36,10 @@ public:
 	{}
 		/** Optional filters to display in UI */
 		SLATE_ARGUMENT(TSharedPtr<FConcertLogFilter_FrontendRoot>, Filter)
-		/** Used to better display client info, e.g. client name and colour */
-		SLATE_EVENT(FGetClientInfo, GetClientInfo)
 	SLATE_END_ARGS()
 	virtual ~SConcertTransportLog() override;
 
-	void Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource);
+	void Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource, TSharedRef<FEndpointToUserNameCache> InEndpointCache, TSharedRef<FConcertLogTokenizer> InLogTokenizer);
 
 private:
 	
@@ -49,6 +47,8 @@ private:
 	TSharedPtr<SOverlay> EnableLoggingPromptOverlay;
 	/** Reminds the user to enable logging */
 	TSharedPtr<SPromptConcertLoggingEnabled> EnableLoggingPrompt;
+
+	TSharedPtr<FEndpointToUserNameCache> EndpointCache;
 	
 	/** Sorts the log into pages whilst applying filters */
 	TSharedPtr<FPagedFilteredConcertLogList> PagedLogList;
@@ -62,8 +62,6 @@ private:
 	TSharedPtr<SListView<TSharedPtr<FConcertLogEntry>>> LogView;
 	/** Header row of LogView */
 	TSharedPtr<SHeaderRow> HeaderRow;
-
-	FGetClientInfo GetClientInfoFunc;
 
 	/** Whether to automatically scroll to new logs as they come in */
 	bool bAutoScroll = true;

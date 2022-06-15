@@ -16,8 +16,9 @@ namespace UE
 
 class FConcertClientsTabController;
 class FConcertLogTokenizer;
-class FTabManager;
+class FEndpointToUserNameCache;
 class FGlobalLogSource;
+class FTabManager;
 class IConcertSyncServer;
 class SDockTab;
 class SPromptConcertLoggingEnabled;
@@ -55,6 +56,9 @@ private:
 	TSharedPtr<IConcertSyncServer> Server;
 	/** Buffers all logs globally */
 	TSharedPtr<FGlobalLogSource> LogBuffer;
+
+	/** Caches client info so it remains available even after a client disconnects */
+	TSharedPtr<FEndpointToUserNameCache> ClientInfoCache;
 	/** Used by various systems to convert logs to text */
 	TSharedPtr<FConcertLogTokenizer> LogTokenizer;
 
@@ -70,4 +74,5 @@ private:
 	TSharedRef<SDockTab> SpawnGlobalLogTab(const FSpawnTabArgs& InTabArgs);
 
 	TSharedRef<SWidget> CreateOpenGlobalLogButton() const;
+	TOptional<FConcertClientInfo> GetClientInfo(const FGuid& EndpointId) const;
 };

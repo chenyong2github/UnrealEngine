@@ -4,17 +4,21 @@
 
 #include "ConcertFrontendUtils.h"
 #include "ConcertTransportEvents.h"
+#include "EndpointToUserNameCache.h"
 #include "MessageTypeUtils.h"
 #include "Math/UnitConversion.h"
 #include "Settings/ConcertTransportLogSettings.h"
 
-FConcertLogTokenizer::FConcertLogTokenizer()
+FConcertLogTokenizer::FConcertLogTokenizer(TSharedRef<FEndpointToUserNameCache> EndpointInfoGetter)
+	: EndpointInfoGetter(EndpointInfoGetter)
 {
 	TokenizerFunctions = {
 			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, Timestamp)), [this](const FConcertLog& Log) { return TokenizeTimestamp(Log); } },
 			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, MessageTypeName)), [this](const FConcertLog& Log) { return TokenizeMessageTypeName(Log); } },
-			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize)), [this](const FConcertLog& Log) { return TokenizeCustomPayloadUncompressedByteSize(Log); } }
-		};
+			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize)), [this](const FConcertLog& Log) { return TokenizeCustomPayloadUncompressedByteSize(Log); } },
+			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, OriginEndpointId)), [this](const FConcertLog& Log) { return TokenizeOriginEndpointId(Log); } },
+			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, DestinationEndpointId)), [this](const FConcertLog& Log) { return TokenizeDestinationEndpointId(Log); } }
+	};
 }
 
 FString FConcertLogTokenizer::Tokenize(const FConcertLog& Data, const FProperty& ConcertLogProperty) const
@@ -43,6 +47,16 @@ FString FConcertLogTokenizer::TokenizeCustomPayloadUncompressedByteSize(const FC
 	return FString::Printf(TEXT("%d %s"), DisplayUnit.Value, FUnitConversion::GetUnitDisplayString(DisplayUnit.Units));
 }
 
+FString FConcertLogTokenizer::TokenizeOriginEndpointId(const FConcertLog& Data) const
+{
+	return GetEndpointDisplayString(Data.OriginEndpointId);
+}
+
+FString FConcertLogTokenizer::TokenizeDestinationEndpointId(const FConcertLog& Data) const
+{
+	return GetEndpointDisplayString(Data.DestinationEndpointId);
+}
+
 FString FConcertLogTokenizer::TokenizeUsingPropertyExport(const FConcertLog& Data, const FProperty& ConcertLogProperty) const
 {
 	FString Exported;
@@ -52,4 +66,19 @@ FString FConcertLogTokenizer::TokenizeUsingPropertyExport(const FConcertLog& Dat
 	check(bSuccess);
 
 	return Exported;
+}
+
+FString FConcertLogTokenizer::GetEndpointDisplayString(const FGuid& EndpointId) const
+{
+	if (EndpointInfoGetter->IsServerEndpoint(EndpointId))
+	{
+		return FString("Server");		
+	}
+
+	if (const TOptional<FConcertClientInfo> ClientInfo = EndpointInfoGetter->GetClientInfo(EndpointId))
+	{
+		return ClientInfo->DisplayName;
+	}
+	
+	return EndpointId.ToString(EGuidFormats::DigitsWithHyphens);
 }

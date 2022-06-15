@@ -14,6 +14,7 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
+#include "Util/EndpointToUserNameCache.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
@@ -29,13 +30,12 @@ SConcertTransportLog::~SConcertTransportLog()
 	ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().RemoveAll(this);
 }
 
-void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource)
+void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource, TSharedRef<FEndpointToUserNameCache> InEndpointCache, TSharedRef<FConcertLogTokenizer> InLogTokenizer)
 {
 	PagedLogList = MakeShared<FPagedFilteredConcertLogList>(MoveTemp(LogSource), InArgs._Filter);
-	LogTokenizer = MakeShared<FConcertLogTokenizer>();
+	EndpointCache = MoveTemp(InEndpointCache);
+	LogTokenizer = MoveTemp(InLogTokenizer);
 	HighlightText = MakeShared<FText>();
-
-	GetClientInfoFunc = InArgs._GetClientInfo;
 	
 	ChildSlot
 	[
@@ -119,7 +119,9 @@ TSharedRef<SHeaderRow> SConcertTransportLog::CreateHeaderRow()
 		;
 
 	const TMap<FName, FString> ColumnNameOverrides = {
-		{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize), TEXT("Size") }
+		{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize), TEXT("Size") },
+		{ GET_MEMBER_NAME_CHECKED(FConcertLog, OriginEndpointId), TEXT("Origin") },
+		{ GET_MEMBER_NAME_CHECKED(FConcertLog, DestinationEndpointId), TEXT("Destination") }
 	};
 	for (TFieldIterator<const FProperty> PropertyIt(FConcertLog::StaticStruct()); PropertyIt; ++PropertyIt)
 	{
@@ -148,8 +150,14 @@ TSharedRef<SHeaderRow> SConcertTransportLog::CreateHeaderRow()
 
 TSharedRef<ITableRow> SConcertTransportLog::OnGenerateActivityRowWidget(TSharedPtr<FConcertLogEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const
 {
+	const TOptional<FConcertClientInfo> OriginInfo = EndpointCache->GetClientInfo(Item->Log.OriginEndpointId);
+	const TOptional<FConcertClientInfo> DestinationInfo = EndpointCache->GetClientInfo(Item->Log.DestinationEndpointId);
+	const FLinearColor AvatarColor = OriginInfo.IsSet()
+		? OriginInfo->AvatarColor
+		: DestinationInfo.IsSet() ? DestinationInfo->AvatarColor : FLinearColor::Black;
+	
 	return SNew(SConcertTransportLogRow, Item, OwnerTable, LogTokenizer.ToSharedRef(), HighlightText.ToSharedRef())
-		.GetClientInfo(GetClientInfoFunc);
+		.AvatarColor(AvatarColor);
 }
 
 void SConcertTransportLog::RestoreDefaultColumnVisiblities()
@@ -237,7 +245,7 @@ void SConcertTransportLog::OnPageViewChanged(const TArray<TSharedPtr<FConcertLog
 {
 	LogView->RequestListRefresh();
 
-	if (bAutoScroll)
+	if (bAutoScroll && PagedLogList->GetCurrentPage() == PagedLogList->GetNumPages() - 1)
 	{
 		LogView->ScrollToBottom();
 	}

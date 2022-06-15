@@ -14,8 +14,8 @@ void SConcertTransportLogRow::Construct(const FArguments& InArgs, TSharedPtr<FCo
 	LogEntry = MoveTemp(InLogEntry);
 	Tokenizer = MoveTemp(InTokenizer);
 	HighlightText = MoveTemp(InHighlightText);
-
-	GetClientInfoFunc = InArgs._GetClientInfo;
+	
+	AvatarColor = InArgs._AvatarColor;
 	
 	SMultiColumnTableRow<TSharedPtr<FConcertLogEntry>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
 }
@@ -29,22 +29,13 @@ TSharedRef<SWidget> SConcertTransportLogRow::GenerateWidgetForColumn(const FName
 			.Padding(2, 1)
 			[
 				SNew(SColorBlock)
-				.Color_Lambda([this]()
-				{
-					const TOptional<FConcertClientInfo> ClientInfo = GetClientInfoFromLog();
-					return ClientInfo.IsSet()
-						? ClientInfo->AvatarColor
-						: FLinearColor::Black;
-				})
+				.Color(AvatarColor)
 				.Size(FVector2D(4.f, 16.f))
 			];
 	}
 	
 	using FColumnWidgetFactoryFunc = TSharedRef<SWidget>(SConcertTransportLogRow::*)(const FName& InColumnName);
-	const TMap<FName, FColumnWidgetFactoryFunc> OverrideFactories = {
-		{ GET_MEMBER_NAME_CHECKED(FConcertLog, OriginEndpointId), &SConcertTransportLogRow::CreateClientNameColumn },
-		{ GET_MEMBER_NAME_CHECKED(FConcertLog, DestinationEndpointId), &SConcertTransportLogRow::CreateClientNameColumn }
-	};
+	const TMap<FName, FColumnWidgetFactoryFunc> OverrideFactories = {};
 	const FColumnWidgetFactoryFunc FallbackFactoryFunc = &SConcertTransportLogRow::CreateDefaultColumn;
 
 	const FColumnWidgetFactoryFunc* FactoryFunc = OverrideFactories.Find(ColumnName);
@@ -69,38 +60,4 @@ TSharedRef<SWidget> SConcertTransportLogRow::CreateDefaultColumn(const FName& Pr
 			return FText::GetEmpty();
 		})
 		.HighlightText_Lambda([this](){ return *HighlightText.Get(); });
-}
-
-TSharedRef<SWidget> SConcertTransportLogRow::CreateClientNameColumn(const FName& PropertyName)
-{
-	const bool bUseOrigin = GET_MEMBER_NAME_CHECKED(FConcertLog, OriginEndpointId) == PropertyName;
-	const bool bUseDestination = GET_MEMBER_NAME_CHECKED(FConcertLog, DestinationEndpointId) == PropertyName;
-	check(bUseOrigin || bUseDestination);
-
-	const FGuid& EndpointId = bUseOrigin
-		? LogEntry->Log.OriginEndpointId
-		: LogEntry->Log.DestinationEndpointId;
-	const TOptional<FConcertClientInfo> ClientInfo = GetClientInfoFunc.IsBound()
-		? GetClientInfoFunc.Execute(EndpointId)
-		: TOptional<FConcertClientInfo>();
-	return SNew(STextBlock)
-		// If there is no client info available when the log is
-		.Text(FText::FromString(ClientInfo.IsSet() ? ClientInfo->DisplayName : EndpointId.ToString()))
-		.HighlightText_Lambda([this](){ return *HighlightText.Get(); });
-}
-
-TOptional<FConcertClientInfo> SConcertTransportLogRow::GetClientInfoFromLog() const
-{
-	if (!GetClientInfoFunc.IsBound())
-	{
-		return {};
-	}
-		
-	const TOptional<FConcertClientInfo> OriginClientInfo = GetClientInfoFunc.IsBound() ? GetClientInfoFunc.Execute(LogEntry->Log.OriginEndpointId) : TOptional<FConcertClientInfo>();
-	const TOptional<FConcertClientInfo> DestinationClientInfo = GetClientInfoFunc.IsBound() ? GetClientInfoFunc.Execute(LogEntry->Log.DestinationEndpointId) : TOptional<FConcertClientInfo>();
-
-	// One of the two is definitely the server. If one of them is a client whose info could be found, this will return it.
-	return OriginClientInfo.IsSet()
-		? OriginClientInfo
-		: DestinationClientInfo;
 }

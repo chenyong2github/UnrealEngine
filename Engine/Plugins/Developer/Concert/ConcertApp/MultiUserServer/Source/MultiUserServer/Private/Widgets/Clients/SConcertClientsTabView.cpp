@@ -15,12 +15,13 @@
 #include "Widgets/Clients/Logging/SConcertTransportLog.h"
 
 #include "Framework/Docking/TabManager.h"
+#include "Logging/Util/EndpointToUserNameCache.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 
-#define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
+#define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertClientsTabView"
 
 const FName SConcertClientsTabView::ClientBrowserTabId("ClientBrowserTabId");
 const FName SConcertClientsTabView::GlobalLogTabId("GlobalLogTabId");
@@ -29,7 +30,8 @@ void SConcertClientsTabView::Construct(const FArguments& InArgs, FName InStatusB
 {
 	Server = MoveTemp(InServer);
 	LogBuffer = MoveTemp(InLogBuffer);
-	LogTokenizer = MakeShared<FConcertLogTokenizer>();
+	ClientInfoCache = MakeShared<FEndpointToUserNameCache>(Server->GetConcertServer());
+	LogTokenizer = MakeShared<FConcertLogTokenizer>(ClientInfoCache.ToSharedRef());
 	
 	SConcertTabViewWithManagerBase::Construct(
 		SConcertTabViewWithManagerBase::FArguments()
@@ -51,6 +53,7 @@ void SConcertClientsTabView::ShowConnectedClients(const FGuid& SessionId) const
 
 void SConcertClientsTabView::OpenClientLogTab(const FGuid& ClientEndpointId) const
 {
+
 	const FName TabId = *ClientEndpointId.ToString();
 	if (const TSharedPtr<SDockTab> ExistingTab = GetTabManager()->FindExistingLiveTab(FTabId(TabId)))
 	{
@@ -64,7 +67,7 @@ void SConcertClientsTabView::OpenClientLogTab(const FGuid& ClientEndpointId) con
 			.ToolTipText(FText::Format(LOCTEXT("ClientTabTooltipFmt", "Logs all networked requests originating or going to  client {0} (EndpointId = {1})"), FText::FromString(ClientInfo->ClientInfo.DisplayName), FText::FromString(ClientEndpointId.ToString())))
 			.TabRole(PanelTab)
 			[
-				SNew(SConcertTransportLog, LogBuffer.ToSharedRef())
+				SNew(SConcertTransportLog, LogBuffer.ToSharedRef(), ClientInfoCache.ToSharedRef(), LogTokenizer.ToSharedRef())
 				.Filter(UE::MultiUserServer::MakeClientLogFilter(LogTokenizer.ToSharedRef(), ClientEndpointId))
 			]; 
 
@@ -157,7 +160,7 @@ TSharedRef<SDockTab> SConcertClientsTabView::SpawnGlobalLogTab(const FSpawnTabAr
 		.Label(LOCTEXT("GlobalLogTabLabel", "Global Log"))
 		.TabRole(PanelTab)
 		[
-			SNew(SConcertTransportLog, LogBuffer.ToSharedRef())
+			SNew(SConcertTransportLog, LogBuffer.ToSharedRef(), ClientInfoCache.ToSharedRef(), LogTokenizer.ToSharedRef())
 			.Filter(UE::MultiUserServer::MakeGlobalLogFilter(LogTokenizer.ToSharedRef()))
 		]; 
 }
@@ -199,6 +202,20 @@ TSharedRef<SWidget> SConcertClientsTabView::CreateOpenGlobalLogButton() const
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 		];
+}
+
+TOptional<FConcertClientInfo> SConcertClientsTabView::GetClientInfo(const FGuid& EndpointId) const
+{
+	if (EndpointId == Server->GetConcertServer()->GetServerInfo().AdminEndpointId)
+	{
+		return {};
+	}
+
+	if (const TOptional<FConcertSessionClientInfo> ClientInfo = ConcertUtil::GetConnectedClientInfo(Server->GetConcertServer().Get(), EndpointId))
+	{
+		return ClientInfo->ClientInfo;
+	}
+	return {};
 }
 
 #undef LOCTEXT_NAMESPACE

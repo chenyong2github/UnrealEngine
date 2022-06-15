@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "ConcertLogEntry.h"
-#include "TransportLogDelegates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableRow.h"
 
@@ -16,8 +15,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SConcertTransportLogRow)
 	{}
-		/** Used to get the avatar's colour */
-		SLATE_EVENT(FGetClientInfo, GetClientInfo)
+		SLATE_ARGUMENT(FLinearColor, AvatarColor)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FConcertLogEntry> InLogEntry, const TSharedRef<STableViewBase>& InOwnerTableView, TSharedRef<FConcertLogTokenizer> InTokenizer, TSharedRef<FText> InHighlightText);
@@ -34,11 +32,8 @@ private:
 
 	/** Owned by SConcertTransportLog. Updated with the search text. */
 	TSharedPtr<FText> HighlightText;
-	
-	FGetClientInfo GetClientInfoFunc;
+
+	FLinearColor AvatarColor;
 
 	TSharedRef<SWidget> CreateDefaultColumn(const FName& PropertyName);
-	TSharedRef<SWidget> CreateClientNameColumn(const FName& PropertyName);
-	
-	TOptional<FConcertClientInfo> GetClientInfoFromLog() const;
 };
