@@ -36,6 +36,16 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <summary>
+		/// Determines if an event should be masked by this 
+		/// </summary>
+		/// <param name="eventId"></param>
+		/// <returns></returns>
+		static bool IsMaskedEventId(EventId eventId)
+		{
+			return eventId == KnownLogEvents.ExitCode;
+		}
+
+		/// <summary>
 		/// Adds all the assets from the given log event
 		/// </summary>
 		/// <param name="eventData">The log event to parse</param>
@@ -57,14 +67,23 @@ namespace Horde.Build.Issues.Handlers
 		/// <inheritdoc/>
 		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
+			bool hasMatches = false;
 			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				if (stepEvent.EventId != null && IsMatchingEventId(stepEvent.EventId.Value))
+				if (stepEvent.EventId != null)
 				{
-					HashSet<string> newAssetNames = new HashSet<string>();
-					GetAssetNames(stepEvent.EventData, newAssetNames);
+					if (IsMatchingEventId(stepEvent.EventId.Value))
+					{
+						HashSet<string> newAssetNames = new HashSet<string>();
+						GetAssetNames(stepEvent.EventData, newAssetNames);
 
-					stepEvent.Fingerprint = new NewIssueFingerprint(Type, newAssetNames, null, null);
+						stepEvent.Fingerprint = new NewIssueFingerprint(Type, newAssetNames, null, null);
+						hasMatches = true;
+					}
+					else if (hasMatches && IsMaskedEventId(stepEvent.EventId.Value))
+					{
+						stepEvent.Ignored = true;
+					}
 				}
 			}
 		}

@@ -610,20 +610,6 @@ namespace Horde.Build.Issues
 			foreach (IssueHandler handler in _handlers)
 			{
 				handler.TagEvents(job, node, annotations, remainingEvents);
-
-				bool ignoreSystemicEvents = false;
-				foreach (IssueEvent remainingEvent in remainingEvents)
-				{
-					if (remainingEvent.Fingerprint != null && remainingEvent.Severity == EventSeverity.Error)
-					{
-						ignoreSystemicEvents = true;
-					}
-					else if (ignoreSystemicEvents && remainingEvent.IsSystemic())
-					{
-						remainingEvent.Ignored = true;
-					}
-				}
-
 				remainingEvents.RemoveAll(x => x.Ignored || x.Fingerprint != null);
 			}
 

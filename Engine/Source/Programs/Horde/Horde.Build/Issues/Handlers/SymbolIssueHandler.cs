@@ -41,6 +41,16 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <summary>
+		/// Determines if an event should be masked by this 
+		/// </summary>
+		/// <param name="eventId"></param>
+		/// <returns></returns>
+		static bool IsMaskedEventId(EventId eventId)
+		{
+			return eventId == KnownLogEvents.ExitCode;
+		}
+
+		/// <summary>
 		/// Parses symbol names from a log event
 		/// </summary>
 		/// <param name="eventData">The log event data</param>
@@ -134,12 +144,9 @@ namespace Horde.Build.Issues.Handlers
 							stepEvent.Ignored = true;
 						}
 					}
-					else if (eventId == KnownLogEvents.Generic || eventId == KnownLogEvents.AutomationTool)
+					else if (hasMatches && IsMaskedEventId(eventId))
 					{
-						if (hasMatches)
-						{
-							stepEvent.Ignored = true;
-						}
+						stepEvent.Ignored = true;
 					}
 				}
 			}

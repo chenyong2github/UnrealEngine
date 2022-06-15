@@ -36,6 +36,16 @@ namespace Horde.Build.Issues.Handlers
 		}
 
 		/// <summary>
+		/// Determines if an event should be masked by this 
+		/// </summary>
+		/// <param name="eventId"></param>
+		/// <returns></returns>
+		static bool IsMaskedEventId(EventId eventId)
+		{
+			return eventId == KnownLogEvents.ExitCode;
+		}
+
+		/// <summary>
 		/// Extracts a list of source files from an event
 		/// </summary>
 		/// <param name="logEventData">The event data</param>
@@ -60,20 +70,30 @@ namespace Horde.Build.Issues.Handlers
 		/// <inheritdoc/>
 		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
+			bool hasMatches = false;
 			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				if (stepEvent.EventId != null && IsMatchingEventId(stepEvent.EventId.Value))
+				if (stepEvent.EventId != null)
 				{
-					HashSet<string> newFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-					GetSourceFiles(stepEvent.EventData, newFileNames);
+					if (IsMatchingEventId(stepEvent.EventId.Value))
+					{
+						HashSet<string> newFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+						GetSourceFiles(stepEvent.EventData, newFileNames);
 
-					if (newFileNames.Count == 0)
+						if (newFileNames.Count == 0)
+						{
+							stepEvent.Ignored = true;
+						}
+						else
+						{
+							stepEvent.Fingerprint = new NewIssueFingerprint(Type, newFileNames, null, null);
+						}
+
+						hasMatches = true;
+					}
+					else if (hasMatches && IsMaskedEventId(stepEvent.EventId.Value))
 					{
 						stepEvent.Ignored = true;
-					}
-					else
-					{
-						stepEvent.Fingerprint = new NewIssueFingerprint(Type, newFileNames, null, null);
 					}
 				}
 			}
