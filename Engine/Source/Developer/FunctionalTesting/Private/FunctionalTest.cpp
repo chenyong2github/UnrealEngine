@@ -826,7 +826,7 @@ bool AFunctionalTest::AssertNotEqual_Transform(const FTransform& Actual, const F
 	}
 }
 
-bool AFunctionalTest::AssertEqual_Rotator(const FRotator& Actual, const FRotator& Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
+bool AFunctionalTest::AssertEqual_Rotator(const FRotator Actual, const FRotator Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
 {
 	if ( !Expected.Equals(Actual, Tolerance) )
 	{
@@ -840,7 +840,7 @@ bool AFunctionalTest::AssertEqual_Rotator(const FRotator& Actual, const FRotator
 	}
 }
 
-bool AFunctionalTest::AssertNotEqual_Rotator(const FRotator& Actual, const FRotator& NotExpected, const FString& What, const UObject* ContextObject)
+bool AFunctionalTest::AssertNotEqual_Rotator(const FRotator Actual, const FRotator NotExpected, const FString& What, const UObject* ContextObject)
 {
 	if ( NotExpected.Equals(Actual) )
 	{
@@ -854,7 +854,7 @@ bool AFunctionalTest::AssertNotEqual_Rotator(const FRotator& Actual, const FRota
 	}
 }
 
-bool AFunctionalTest::AssertEqual_Vector(const FVector& Actual, const FVector& Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
+bool AFunctionalTest::AssertEqual_Vector(const FVector Actual, const FVector Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
 {
 	if ( !Expected.Equals(Actual, Tolerance) )
 	{
@@ -868,7 +868,7 @@ bool AFunctionalTest::AssertEqual_Vector(const FVector& Actual, const FVector& E
 	}
 }
 
-bool AFunctionalTest::AssertNotEqual_Vector(const FVector& Actual, const FVector& NotExpected, const FString& What, const UObject* ContextObject)
+bool AFunctionalTest::AssertNotEqual_Vector(const FVector Actual, const FVector NotExpected, const FString& What, const UObject* ContextObject)
 {
 	if ( NotExpected.Equals(Actual) )
 	{
@@ -882,148 +882,7 @@ bool AFunctionalTest::AssertNotEqual_Vector(const FVector& Actual, const FVector
 	}
 }
 
-bool AFunctionalTest::AssertEqual_Vector2D(const FVector2D& Actual, const FVector2D& Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
-{
-	if (!Expected.Equals(Actual, Tolerance))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' to be {%s} but it was {%s} within tolerance {%f} for context '%s'"), *What, *Expected.ToString(), *Actual.ToString(), Tolerance, ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Vector2D assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-bool AFunctionalTest::AssertNotEqual_Vector2D(const FVector2D& Actual, const FVector2D& NotExpected, const FString& What, const UObject* ContextObject)
-{
-	if (NotExpected.Equals(Actual))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' not to be {%s} for context '%s'"), *What, *NotExpected.ToString(), ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Vector2D assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-bool AFunctionalTest::AssertEqual_Vector4(const FVector4& Actual, const FVector4& Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
-{
-	if (!Expected.Equals(Actual, Tolerance))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' to be {%s} but it was {%s} within tolerance {%f} for context '%s'"), *What, *Expected.ToString(), *Actual.ToString(), Tolerance, ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Vector4 assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-bool AFunctionalTest::AssertNotEqual_Vector4(const FVector4& Actual, const FVector4& NotExpected, const FString& What, const UObject* ContextObject)
-{
-	if (NotExpected.Equals(Actual))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' not to be {%s} for context '%s'"), *What, *NotExpected.ToString(), ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Vector4 assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-
-bool AFunctionalTest::AssertEqual_Plane(const FPlane& Actual, const FPlane& Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
-{
-	if (!Expected.Equals(Actual, Tolerance))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' to be {%s} but it was {%s} within tolerance {%f} for context '%s'"), *What, *Expected.ToString(), *Actual.ToString(), Tolerance, ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Plane assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-bool AFunctionalTest::AssertNotEqual_Plane(const FPlane& Actual, const FPlane& NotExpected, const FString& What, const UObject* ContextObject)
-{
-	if (NotExpected.Equals(Actual))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' not to be {%s} for context '%s'"), *What, *NotExpected.ToString(), ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Plane assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-bool AFunctionalTest::AssertEqual_Quat(const FQuat& Actual, const FQuat& Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
-{
-	if (!Expected.Equals(Actual, Tolerance))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' to be {%s} but it was {%s} within tolerance {%f} for context '%s'"), *What, *Expected.ToString(), *Actual.ToString(), Tolerance, ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Quat assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-bool AFunctionalTest::AssertNotEqual_Quat(const FQuat& Actual, const FQuat& NotExpected, const FString& What, const UObject* ContextObject)
-{
-	if (NotExpected.Equals(Actual))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' not to be {%s} for context '%s'"), *What, *NotExpected.ToString(), ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Quat assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-bool AFunctionalTest::AssertEqual_Matrix(const FMatrix& Actual, const FMatrix& Expected, const FString& What, const float Tolerance, const UObject* ContextObject)
-{
-	if (!Expected.Equals(Actual, Tolerance))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' to be {%s} but it was {%s} within tolerance {%f} for context '%s'"), *What, *Expected.ToString(), *Actual.ToString(), Tolerance, ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Matrix assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-bool AFunctionalTest::AssertNotEqual_Matrix(const FMatrix& Actual, const FMatrix& NotExpected, const FString& What, const UObject* ContextObject)
-{
-	if (NotExpected.Equals(Actual))
-	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Expected '%s' not to be {%s} for context '%s'"), *What, *NotExpected.ToString(), ContextObject ? *ContextObject->GetName() : TEXT("")));
-		return false;
-	}
-	else
-	{
-		LogStep(ELogVerbosity::Log, FString::Printf(TEXT("Matrix assertion passed (%s)"), *What));
-		return true;
-	}
-}
-
-bool AFunctionalTest::AssertEqual_String(const FString& Actual, const FString& Expected, const FString& What, const UObject* ContextObject)
+bool AFunctionalTest::AssertEqual_String(const FString Actual, const FString Expected, const FString& What, const UObject* ContextObject)
 {
 	if ( !Expected.Equals(Actual) )
 	{
@@ -1037,7 +896,7 @@ bool AFunctionalTest::AssertEqual_String(const FString& Actual, const FString& E
 	}
 }
 
-bool AFunctionalTest::AssertNotEqual_String(const FString& Actual, const FString& NotExpected, const FString& What, const UObject* ContextObject)
+bool AFunctionalTest::AssertNotEqual_String(const FString Actual, const FString NotExpected, const FString& What, const UObject* ContextObject)
 {
 	if ( NotExpected.Equals(Actual) )
 	{
