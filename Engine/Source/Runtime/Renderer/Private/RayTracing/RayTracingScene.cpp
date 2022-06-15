@@ -21,10 +21,33 @@ FRayTracingScene::FRayTracingScene()
 
 FRayTracingScene::~FRayTracingScene()
 {
+	// Make sure that all async tasks complete before we tear down any memory they might reference.
 	WaitForTasks();
 }
 
+FRayTracingSceneWithGeometryInstances FRayTracingScene::BuildInitializationData() const
+{
+	return CreateRayTracingSceneWithGeometryInstances(
+		Instances,
+		uint8(ERayTracingSceneLayer::NUM),
+		RAY_TRACING_NUM_SHADER_SLOTS,
+		RAY_TRACING_NUM_MISS_SHADER_SLOTS,
+		NumCallableShaderSlots);
+}
+
 void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices)
+{
+	FRayTracingSceneWithGeometryInstances InitializationData = CreateRayTracingSceneWithGeometryInstances(
+		Instances,
+		uint8(ERayTracingSceneLayer::NUM),
+		RAY_TRACING_NUM_SHADER_SLOTS,
+		RAY_TRACING_NUM_MISS_SHADER_SLOTS,
+		NumCallableShaderSlots);
+
+	CreateWithInitializationData(GraphBuilder, GPUScene, ViewMatrices, MoveTemp(InitializationData));
+}
+
+void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices, FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FRayTracingScene_BeginCreate);
 
@@ -32,16 +55,13 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 	static constexpr uint32 AllocationGranularity = 8 * 1024;
 	static constexpr uint64 BufferAllocationGranularity = 16 * 1024 * 1024;
 
+	// Make sure that all async tasks complete before we run initialization code again and create new tasks.
 	WaitForTasks();
 
-	static const uint8 NumLayers = uint32(ERayTracingSceneLayer::NUM);
+	static const uint8 NumLayers = uint8(ERayTracingSceneLayer::NUM);
 
-	FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances = CreateRayTracingSceneWithGeometryInstances(
-		Instances,
-		NumLayers,
-		RAY_TRACING_NUM_SHADER_SLOTS,
-		RAY_TRACING_NUM_MISS_SHADER_SLOTS,
-		NumCallableShaderSlots);
+	checkf(SceneWithGeometryInstances.Scene.IsValid(), 
+		TEXT("Ray tracing scene RHI object is expected to have been created by BuildInitializationData() or CreateRayTracingSceneWithGeometryInstances()"));
 
 	RayTracingSceneRHI = SceneWithGeometryInstances.Scene;
 

@@ -41,6 +41,10 @@
 #include "CanvasTypes.h"
 #include "SceneTextures.h"
 
+#if RHI_RAYTRACING
+#include "RayTracingInstanceBufferUtil.h"
+#endif // RHI_RAYTRACING
+
 // Forward declarations.
 class FScene;
 class FSceneViewState;
@@ -1281,6 +1285,10 @@ public:
 
 	FRayTracingCullingParameters RayTracingCullingParameters;
 	FGraphEventArray RayTracingPerInstanceCullingTaskList;
+
+	// Data required for FRayTracingScene, depends on RT instance culling tasks
+	FRayTracingSceneWithGeometryInstances RayTracingSceneInitData;
+	FGraphEventRef RayTracingSceneInitTask; // Task to asynchronously create RayTracingSceneInitData
 
 	FGraphEventArray AddRayTracingMeshBatchTaskList;
 	TArray<FRayTracingMeshCommandOneFrameArray*, SceneRenderingAllocator> VisibleRayTracingMeshCommandsPerTask;

@@ -20,7 +20,7 @@
 #if RHI_RAYTRACING
 
 FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances(
-	TArrayView<FRayTracingGeometryInstance> Instances,
+	TConstArrayView<FRayTracingGeometryInstance> Instances,
 	uint8 NumLayers,
 	uint32 NumShaderSlotsPerGeometrySegment,
 	uint32 NumMissShaderSlots,

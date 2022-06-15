@@ -14,6 +14,7 @@
 #include "Containers/ArrayView.h"
 #include "PrimitiveSceneProxy.h"
 #include "MeshPassProcessor.h"
+#include "RayTracingInstanceBufferUtil.h"
 
 class FGPUScene;
 class FRHIRayTracingScene;
@@ -39,9 +40,15 @@ public:
 	FRayTracingScene();
 	~FRayTracingScene();
 
-	// Creates RayTracingSceneRHI.
+	// Allocates RayTracingSceneRHI and builds various metadata required to create the final scene.
+	FRayTracingSceneWithGeometryInstances BuildInitializationData() const;
+
 	// Allocates GPU memory to fit at least the current number of instances.
-	// Kicks off instance buffer build to parallel thread along with RDG pass
+	// Kicks off instance buffer build to parallel thread along with RDG pass.
+	// NOTE: SceneWithGeometryInstances is passed in by value because ownership of the internal data is taken over. Use MoveTemp at call site, if possible.
+	void CreateWithInitializationData(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices, FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances);
+
+	// Backwards-compatible version of Create() which internally calls CreateRayTracingSceneWithGeometryInstances().
 	void Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices);
 
 	// Resets the instance list and reserves memory for this frame.
@@ -80,7 +87,7 @@ public:
 
 	// Persistent storage for ray tracing instance descriptors.
 	// Cleared every frame without releasing memory to avoid large heap allocations.
-	// This must be filled before calling Create().
+	// This must be filled before calling CreateRayTracingSceneWithGeometryInstances() and Create().
 	TArray<FRayTracingGeometryInstance> Instances;
 
 	uint32 NumCallableShaderSlots = 0;

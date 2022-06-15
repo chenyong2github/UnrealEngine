@@ -1387,6 +1387,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 		CoarseMeshSM->AddUsedStreamingHandles(RayTracingScene.UsedCoarseMeshStreamingHandles);
 	}
 
+	View.RayTracingSceneInitTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
+		[&View, &RayTracingScene]()
+		{
+			View.RayTracingSceneInitData = RayTracingScene.BuildInitializationData();
+		},
+		TStatId(), &View.RayTracingPerInstanceCullingTaskList, ENamedThreads::AnyThread);
+
 	return true;
 }
 
@@ -1647,12 +1654,14 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		GRayTracingGeometryManager.ForceBuildIfPending(GraphBuilder.RHICmdList, RayTracingScene.GeometriesToBuild);
 	}
 
-	FTaskGraphInterface::Get().WaitUntilTasksComplete(ReferenceView.RayTracingPerInstanceCullingTaskList, ENamedThreads::GetRenderThread_Local());
+	FTaskGraphInterface::Get().WaitUntilTaskCompletes(ReferenceView.RayTracingSceneInitTask, ENamedThreads::GetRenderThread_Local());
+
+	ReferenceView.RayTracingSceneInitTask = {};
 	ReferenceView.RayTracingPerInstanceCullingTaskList.Empty();
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	RayTracingScene.Create(GraphBuilder, Scene->GPUScene, ReferenceView.ViewMatrices);
+	RayTracingScene.CreateWithInitializationData(GraphBuilder, Scene->GPUScene, ReferenceView.ViewMatrices, MoveTemp(ReferenceView.RayTracingSceneInitData));
 
 	const uint32 BLASScratchSize = Scene->GetRayTracingDynamicGeometryCollection()->ComputeScratchBufferSize();
 	if (BLASScratchSize > 0)
