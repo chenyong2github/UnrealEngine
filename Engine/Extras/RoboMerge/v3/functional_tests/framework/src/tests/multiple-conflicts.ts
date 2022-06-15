@@ -36,10 +36,14 @@ export class MultipleConflicts extends MultipleDevAndReleaseTestBase {
 			this.verifyAndPerformStomp('Main', 'Dev-Pootle', 'Pootle'),
 			async () => {
 				const edgeState: EdgeState = await this.getEdgeState('Main', 'Dev-Perkin')
+				const conflictCl = edgeState.conflict && edgeState.conflict.change
+				if (!conflictCl) {
+					throw new Error('no conflict cl in edge state')
+				}
 
 				const results = await Promise.all([
-					this.wasMessagePostedToSlack(this.botName.toLowerCase(), edgeState.conflictCl),
-					this.wasMessagePostedToSlack('Pootle', edgeState.conflictCl)
+					this.wasMessagePostedToSlack(this.botName.toLowerCase(), conflictCl),
+					this.wasMessagePostedToSlack('Pootle', conflictCl)
 				])
 				if (!results[0]) {
 					throw new Error('Expected message!') // todo: details

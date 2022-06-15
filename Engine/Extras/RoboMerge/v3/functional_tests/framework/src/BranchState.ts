@@ -1,5 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+export type Blockage = {
+	owner: string
+	change?: number
+}
 
 export class EdgeState {
 	constructor(private rawEdgeData: any) {
@@ -14,8 +18,11 @@ export class EdgeState {
 		return !!this.rawEdgeData.blockage
 	}
 
-	get conflictCl() {
-		return this.rawEdgeData.blockage ? this.rawEdgeData.blockage.change : -1
+	get conflict() {
+		return this.rawEdgeData.blockage ? {
+			owner: this.rawEdgeData.blockage.owner || '<no owner>',
+			change: this.rawEdgeData.blockage.change
+		} : null
 	}
 
 	getLastCL() {
