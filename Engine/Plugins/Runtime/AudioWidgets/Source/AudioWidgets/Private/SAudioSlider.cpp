@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAudioSlider.h"
+#include "AudioDefines.h"
 #include "Brushes/SlateImageBrush.h"
 #include "DSP/Dsp.h"
 #include "Fonts/FontMeasure.h"

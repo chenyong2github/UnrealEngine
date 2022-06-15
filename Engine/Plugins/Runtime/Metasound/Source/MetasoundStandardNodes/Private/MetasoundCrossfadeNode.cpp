@@ -4,6 +4,7 @@
 #include "MetasoundAudioBuffer.h"
 #include "CoreMinimal.h"
 #include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 #include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"

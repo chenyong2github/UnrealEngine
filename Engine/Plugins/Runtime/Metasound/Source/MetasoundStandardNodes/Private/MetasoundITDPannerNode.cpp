@@ -13,6 +13,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/Delay.h"
 #include "DSP/Dsp.h"
+#include "DSP/FloatArrayMath.h"
 #include "MetasoundFacade.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundVertex.h"

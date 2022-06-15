@@ -2,6 +2,7 @@
 
 #include "DSP/Dsp.h"
 #include "DSP/DynamicsProcessor.h"
+#include "DSP/FloatArrayMath.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundEnumRegistrationMacro.h"

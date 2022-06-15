@@ -6,6 +6,7 @@
 #include "Containers/ArrayView.h"
 #include "DSP/ChannelMap.h"
 #include "DSP/MultichannelBuffer.h"
+#include "DSP/FloatArrayMath.h"
 
 namespace Audio
 {

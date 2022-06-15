@@ -6,6 +6,7 @@
 #include "Audio.h"
 #include "AudioMixer.h"
 #include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 #include "DSP/ReverbFast.h"
 #include "DSP/Amp.h"
 #include "ProfilingDebugging/CsvProfiler.h"

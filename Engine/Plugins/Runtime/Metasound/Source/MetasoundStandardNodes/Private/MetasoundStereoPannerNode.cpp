@@ -12,6 +12,7 @@
 #include "MetasoundTime.h"
 #include "MetasoundAudioBuffer.h"
 #include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundFacade.h"
 #include "MetasoundVertex.h"

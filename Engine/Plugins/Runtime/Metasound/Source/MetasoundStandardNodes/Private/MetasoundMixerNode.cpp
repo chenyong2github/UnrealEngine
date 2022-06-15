@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "DSP/Dsp.h"
 #include "DSP/BufferVectorOperations.h"
+#include "DSP/FloatArrayMath.h"
 
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundExecutableOperator.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/Flanger.h"
+#include "DSP/FloatArrayMath.h"
 
 namespace Audio
 {
