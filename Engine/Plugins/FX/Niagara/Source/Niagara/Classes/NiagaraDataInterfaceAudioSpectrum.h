@@ -129,10 +129,14 @@ UCLASS(EditInlineNew, Category = "Audio", meta = (DisplayName = "Audio Spectrum"
 class NIAGARA_API UNiagaraDataInterfaceAudioSpectrum : public UNiagaraDataInterfaceAudioSubmix
 {
 	GENERATED_UCLASS_BODY()
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(int,				NumChannels)
+		SHADER_PARAMETER(int,				Resolution)
+		SHADER_PARAMETER_SRV(Buffer<float>, SpectrumBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	// VM function names
 	static const FName GetSpectrumFunctionName;
 	static const FName GetNumChannelsFunctionName;
@@ -171,10 +175,13 @@ public:
 	}
 
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 

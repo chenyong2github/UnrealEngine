@@ -91,10 +91,13 @@ UCLASS(EditInlineNew, Category = "Audio", meta = (DisplayName = "Audio Oscillosc
 class NIAGARA_API UNiagaraDataInterfaceAudioOscilloscope : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
-public:
 
-	DECLARE_NIAGARA_DI_PARAMETER();
-	
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(int,				NumChannels)
+		SHADER_PARAMETER_SRV(Buffer<float>,	AudioBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
 	UPROPERTY(EditAnywhere, Category = "Oscilloscope")
 	TObjectPtr<USoundSubmix> Submix;
 
@@ -125,9 +128,13 @@ public:
 	virtual bool RequiresDistanceFieldData() const override { return false; }
 
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 

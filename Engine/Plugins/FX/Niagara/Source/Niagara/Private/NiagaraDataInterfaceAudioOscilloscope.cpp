@@ -9,6 +9,7 @@
 #include "ClearQuad.h"
 #include "TextureResource.h"
 #include "Engine/Texture2D.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Engine.h"
@@ -22,8 +23,8 @@ static const FName SampleAudioBufferFunctionName("SampleAudioBuffer");
 static const FName GetAudioBufferNumChannelsFunctionName("GetAudioBufferNumChannels");
 
 // Global variable prefixes, used in HLSL parameter declarations.
-static const FString AudioBufferName(TEXT("AudioBuffer_"));
-static const FString NumChannelsName(TEXT("NumChannels_"));
+static const FString AudioBufferName(TEXT("_AudioBuffer"));
+static const FString NumChannelsName(TEXT("_NumChannels"));
 
 FNiagaraDataInterfaceProxyOscilloscope::FNiagaraDataInterfaceProxyOscilloscope(int32 InResolution, float InScopeInMillseconds)
 	: PatchMixer()
@@ -239,6 +240,13 @@ void UNiagaraDataInterfaceAudioOscilloscope::GetVMExternalFunction(const FVMExte
 }
 
 #if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceAudioOscilloscope::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	bSuccess &= InVisitor->UpdateShaderParameters<FShaderParameters>();
+	return bSuccess;
+}
+
 bool UNiagaraDataInterfaceAudioOscilloscope::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
 	bool ParentRet = Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL);
@@ -272,9 +280,9 @@ bool UNiagaraDataInterfaceAudioOscilloscope::GetFunctionHLSL(const FNiagaraDataI
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FStringFormatArg(FunctionInfo.InstanceName)},
-			{TEXT("ChannelCount"), FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol)},
+			{TEXT("ChannelCount"), FStringFormatArg(ParamInfo.DataInterfaceHLSLSymbol + NumChannelsName)},
 			{TEXT("AudioBufferNumSamples"), FStringFormatArg(Resolution)},
-			{TEXT("AudioBuffer"), FStringFormatArg(AudioBufferName + ParamInfo.DataInterfaceHLSLSymbol)},
+			{TEXT("AudioBuffer"), FStringFormatArg(ParamInfo.DataInterfaceHLSLSymbol + AudioBufferName)},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
@@ -290,7 +298,7 @@ bool UNiagaraDataInterfaceAudioOscilloscope::GetFunctionHLSL(const FNiagaraDataI
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
 			{TEXT("FunctionName"), FStringFormatArg(FunctionInfo.InstanceName)},
-			{TEXT("ChannelCount"), FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol)},
+			{TEXT("ChannelCount"), FStringFormatArg(ParamInfo.DataInterfaceHLSLSymbol + NumChannelsName)},
 		};
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
@@ -305,49 +313,26 @@ void UNiagaraDataInterfaceAudioOscilloscope::GetParameterDefinitionHLSL(const FN
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
-	static const TCHAR *FormatDeclarations = TEXT(R"(				
-		Buffer<float> {AudioBufferName};
-		int {NumChannelsName};
+	OutHLSL.Appendf(TEXT("int %s%s;\n"), *ParamInfo.DataInterfaceHLSLSymbol, *NumChannelsName);
+	OutHLSL.Appendf(TEXT("Buffer<float> %s%s;\n"), *ParamInfo.DataInterfaceHLSLSymbol, *AudioBufferName);
 
-	)");
-	TMap<FString, FStringFormatArg> ArgsDeclarations = {
-		{ TEXT("AudioBufferName"),    FStringFormatArg(AudioBufferName + ParamInfo.DataInterfaceHLSLSymbol) },
-		{ TEXT("NumChannelsName"),    FStringFormatArg(NumChannelsName + ParamInfo.DataInterfaceHLSLSymbol) },
-	};
-	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 #endif
 
-struct FNiagaraDataInterfaceParametersCS_AudioOscilloscope : public FNiagaraDataInterfaceParametersCS
+void UNiagaraDataInterfaceAudioOscilloscope::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_AudioOscilloscope, NonVirtual);
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
+}
 
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		NumChannels.Bind(ParameterMap, *(NumChannelsName + ParameterInfo.DataInterfaceHLSLSymbol));
-		AudioBuffer.Bind(ParameterMap, *(AudioBufferName + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
+void UNiagaraDataInterfaceAudioOscilloscope::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNiagaraDataInterfaceProxyOscilloscope& DIProxy = Context.GetProxy<FNiagaraDataInterfaceProxyOscilloscope>();
+	FReadBuffer& AudioBufferSRV = DIProxy.ComputeAndPostSRV();
 
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-
-		FNiagaraDataInterfaceProxyOscilloscope* NDI = (FNiagaraDataInterfaceProxyOscilloscope*)Context.DataInterface;
-		FReadBuffer& AudioBufferSRV = NDI->ComputeAndPostSRV();
-
-		SetShaderValue(RHICmdList, ComputeShaderRHI, NumChannels, NDI->GetNumChannels());
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, AudioBuffer.GetBaseIndex(), AudioBufferSRV.SRV);
-	}
-
-	LAYOUT_FIELD(FShaderParameter, NumChannels);
-	LAYOUT_FIELD(FShaderResourceParameter, AudioBuffer);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_AudioOscilloscope);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceAudioOscilloscope, FNiagaraDataInterfaceParametersCS_AudioOscilloscope);
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	ShaderParameters->NumChannels = DIProxy.GetNumChannels();
+	ShaderParameters->AudioBuffer = FNiagaraRenderer::GetSrvOrDefaultFloat(AudioBufferSRV.SRV);
+}
 
 void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateResampling(int32 InResolution, float InScopeInMilliseconds)
 {
