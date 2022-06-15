@@ -25,6 +25,11 @@ struct FStructuredBufferPoolItem
 	void* MappedBuffer;
 
 	/** 
+	* Resource View used by swizzling shader.
+	*/
+	FShaderResourceViewRHIRef ShaderResrouceView;
+
+	/** 
 	* A Gpu fence that identifies if this pool item is available for use again.
 	*/
 	FGPUFenceRHIRef Fence;
