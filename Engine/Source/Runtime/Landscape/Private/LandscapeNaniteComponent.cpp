@@ -70,6 +70,9 @@ void ULandscapeNaniteComponent::UpdatedSharedPropertiesFromActor()
 	CustomDepthStencilValue = LandscapeProxy->CustomDepthStencilValue;
 	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
 	LightingChannels = LandscapeProxy->LightingChannels;
+
+	// We don't want Nanite representation in ray tracing
+	bVisibleInRayTracing = false;
 }
 
 void ULandscapeNaniteComponent::SetEnabled(bool bValue)

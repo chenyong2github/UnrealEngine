@@ -4286,7 +4286,6 @@ public:
 		{
 			bSupportsMeshCardRepresentation = false;
 			bSupportsDistanceFieldRepresentation = false;
-			bVisibleInRayTracing = false;
 			bAffectDynamicIndirectLighting = false;
 			bAffectDistanceFieldLighting = false;
 		}
