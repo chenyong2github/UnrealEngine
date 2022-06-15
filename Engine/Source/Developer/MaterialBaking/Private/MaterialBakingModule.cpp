@@ -380,8 +380,6 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 		}
 	}
 
-	RenderCaptureInterface::FScopedCapture RenderCapture(CVarMaterialBakingRDOCCapture.GetValueOnAnyThread() == 1, TEXT("MaterialBaking"));
-
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::BakeMaterials)
 
 	checkf(MaterialSettings.Num() == MeshSettings.Num(), TEXT("Number of material settings does not match that of MeshSettings"));
@@ -621,13 +619,19 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
  							}
 
 							// Do rendering
-							for (int WarmupIndex = 0; WarmupIndex < WarmupIterationCount; ++WarmupIndex)
 							{
-								Canvas.Clear(RenderTarget->ClearColor);
-								FCanvas::FCanvasSortElement& SortElement = Canvas.GetSortElement(Canvas.TopDepthSortKey());
-								SortElement.RenderBatchArray.Add(&RenderItem);
-								Canvas.Flush_RenderThread(RHICmdList);
-								SortElement.RenderBatchArray.Empty();
+								RenderCaptureInterface::FScopedCapture RenderCapture(CVarMaterialBakingRDOCCapture.GetValueOnAnyThread() == 1, &RHICmdList, TEXT("MaterialBaking"));
+
+								for (int WarmupIndex = 0; WarmupIndex < WarmupIterationCount; ++WarmupIndex)
+								{
+									Canvas.Clear(RenderTarget->ClearColor);
+									FCanvas::FCanvasSortElement& SortElement = Canvas.GetSortElement(Canvas.TopDepthSortKey());
+									SortElement.RenderBatchArray.Add(&RenderItem);
+									Canvas.Flush_RenderThread(RHICmdList);
+									SortElement.RenderBatchArray.Empty();
+
+									RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+								}
 							}
 
 							FTexture2DRHIRef StagingBufferRef = StagingBufferPool.CreateStagingBuffer_RenderThread(RHICmdList, RenderTargetResource->GetSizeX(), RenderTargetResource->GetSizeY(), RenderTarget->GetFormat(), RenderTarget->IsSRGB());

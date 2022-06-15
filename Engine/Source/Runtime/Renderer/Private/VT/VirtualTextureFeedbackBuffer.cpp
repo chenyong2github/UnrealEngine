@@ -93,14 +93,14 @@ void FVirtualTextureFeedbackBuffer::Begin(FRDGBuilder& GraphBuilder, const FVirt
 		UAV = PooledBuffer->GetOrCreateUAV(UAVDesc);
 	}
 
-	// We can go ahead and just clear this now. No need to wait on the RDG timeline.
-	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
-
-	// Clear virtual texture feedback to default value
-	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-	RHICmdList.ClearUAVUint(UAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
-	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVGraphics));
-	RHICmdList.BeginUAVOverlap(UAV);
+	AddPass(GraphBuilder, RDG_EVENT_NAME("VirtualTextureClear"), [this](FRHICommandListImmediate& RHICmdList)
+	{
+		// Clear virtual texture feedback to default value
+		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		RHICmdList.ClearUAVUint(UAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
+		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVGraphics));
+		RHICmdList.BeginUAVOverlap(UAV);
+	});
 }
 
 void FVirtualTextureFeedbackBuffer::End(FRDGBuilder& GraphBuilder)
