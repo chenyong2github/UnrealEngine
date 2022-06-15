@@ -618,3 +618,9 @@
 #include "EditorViewportClient.h"
 #include "Factories/Factory.h"
 #include "Settings/EditorLoadingSavingSettings.h"
+
+// From ToolMenus
+#include "ToolMenus.h"
+
+// From Movie
+#include "IMovieScenePlayer.h"
