@@ -172,8 +172,9 @@ public:
 	 */
 	UClass* GetSupportedOwnerClass() const;
 
-	/** Get the current world. */
-	static UWorld* GetCurrentWorld();
+	/** Get the current world associated with the preset or the editor world as a fallback. */
+	UWorld* GetCurrentWorld() const;
+
 private:
 	TSoftObjectPtr<UObject> ResolveForCurrentWorld() const;
 

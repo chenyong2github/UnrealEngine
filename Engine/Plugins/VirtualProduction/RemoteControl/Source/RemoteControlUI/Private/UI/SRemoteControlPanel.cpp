@@ -39,6 +39,8 @@
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlSettings.h"
+#include "SceneOutlinerModule.h"
+#include "SceneOutlinerPublicTypes.h"
 #include "ScopedTransaction.h"
 #include "SClassViewer.h"
 #include "SRCLogger.h"
@@ -89,11 +91,6 @@ namespace RemoteControlPanelUtils
             && !FActorEditorUtils::IsABuilderBrush(Actor)			// Don't add the builder brush
             && !Actor->IsA(AWorldSettings::StaticClass());	// Don't add the WorldSettings actor, even though it is technically editable
 	};
-
-	UWorld* GetEditorWorld()
-	{
-		return GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
-	}
 
 	TSharedPtr<FStructOnScope> GetEntityOnScope(const TSharedPtr<FRemoteControlEntity>& Entity, const UScriptStruct* EntityType)
 	{
@@ -438,7 +435,9 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.Visibility_Lambda([this]() { return bIsInEditMode ? EVisibility::Visible : EVisibility::Collapsed; })
+				.Visibility_Lambda([this]() { 
+					return (bIsInEditMode && Preset.IsValid() && !Preset->IsEmbeddedPreset()) ? EVisibility::Visible : EVisibility::Collapsed; 
+				})
 				.ButtonStyle(FAppStyle::Get(), "FlatButton")
 				.OnClicked(this, &SRemoteControlPanel::OnSavePreset)
 				[
@@ -567,7 +566,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				[
 					SAssignNew(PresetNameTextBlock, STextBlock)
 					.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
-					.Text(FText::FromName(Preset->GetFName()))
+					.Text(FText::FromName(Preset->GetPresetName()))
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -970,17 +969,20 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 	FMenuBuilder MenuBuilder(true, nullptr);
 	
 	SAssignNew(BlueprintPicker, SRCPanelFunctionPicker)
+		.RemoteControlPanel(SharedThis(this))
 		.AllowDefaultObjects(true)
 		.Label(LOCTEXT("FunctionLibrariesLabel", "Function Libraries"))
 		.ObjectClass(UBlueprintFunctionLibrary::StaticClass())
 		.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction);
 
 	SAssignNew(SubsystemFunctionPicker, SRCPanelFunctionPicker)
+		.RemoteControlPanel(SharedThis(this))
 		.Label(LOCTEXT("SubsystemFunctionLabel", "Subsystem Functions"))
 		.ObjectClass(USubsystem::StaticClass())
 		.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction);
 
 	SAssignNew(ActorFunctionPicker, SRCPanelFunctionPicker)
+		.RemoteControlPanel(SharedThis(this))
 		.Label(LOCTEXT("ActorFunctionsLabel", "Actor Functions"))
 		.ObjectClass(AActor::StaticClass())
 		.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction);
@@ -1022,16 +1024,44 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 			LOCTEXT("ActorFunctionSubMenuToolTip", "Expose an actor's function."),
 			ActorFunctionPicker.ToSharedRef()
 		);
-		
-		MenuBuilder.AddWidget(
-			SNew(SObjectPropertyEntryBox)
+
+		// SObjectPropertyEntryBox does not support non-level editor worlds.
+		if (!Preset.IsValid() || !Preset->IsEmbeddedPreset())
+		{
+			MenuBuilder.AddWidget(
+				SNew(SObjectPropertyEntryBox)
 				.AllowedClass(AActor::StaticClass())
 				.OnObjectChanged(this, &SRemoteControlPanel::OnExposeActor)
 				.AllowClear(false)
 				.DisplayUseSelected(true)
 				.DisplayBrowse(true)
 				.NewAssetFactories(TArray<UFactory*>()),
-			LOCTEXT("ActorEntry", "Actor"));
+				LOCTEXT("ActorEntry", "Actor"));
+		}
+		else
+		{
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("SelectActor", "Select Actor"),
+				LOCTEXT("SelectActorTooltip", "Select an actor to Remote Control."),
+				FNewMenuDelegate::CreateLambda(
+					[this](FMenuBuilder& SubMenuBuilder)
+					{
+						FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+						FSceneOutlinerInitializationOptions InitOptions;
+						UWorld* PresetWorld = URemoteControlPreset::GetPresetWorld(Preset.Get());
+
+						SubMenuBuilder.AddWidget(
+							SceneOutlinerModule.CreateActorPicker(
+								InitOptions,
+								FOnActorPicked::CreateSP(this, &SRemoteControlPanel::ExposeActor),
+								PresetWorld
+							),
+							FText::GetEmpty(), true, false
+						);
+					}
+				)
+			);
+		}
 
 		CreatePickerSubMenu(
 			LOCTEXT("ClassPickerEntry", "Actors By Class"),
@@ -1099,7 +1129,7 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeByClassWidget()
 	TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, FOnClassPicked::CreateLambda(
 		[this](UClass* ChosenClass)
 		{
-			if (UWorld* World = RemoteControlPanelUtils::GetEditorWorld())
+			if (UWorld* World = URemoteControlPreset::GetPresetWorld(Preset.Get()))
 			{
 				for (TActorIterator<AActor> It(World, ChosenClass, EActorIteratorFlags::SkipPendingKill); It; ++It)
 				{
@@ -1127,8 +1157,9 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeByClassWidget()
 
 void SRemoteControlPanel::CacheLevelClasses()
 {
-	CachedClassesInLevel.Empty();	
-	if (UWorld* World = RemoteControlPanelUtils::GetEditorWorld())
+	CachedClassesInLevel.Empty();
+
+	if (UWorld* World = URemoteControlPreset::GetPresetWorld(Preset.Get()))
 	{
 		for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 		{
@@ -1599,12 +1630,9 @@ void SRemoteControlPanel::UpdateActorFunctionPicker()
 
 void SRemoteControlPanel::OnAssetRenamed(const FAssetData& Asset, const FString&)
 {
-	if (Asset.GetAsset() == Preset.Get())
+	if (Preset.IsValid() && PresetNameTextBlock)
 	{
-		if (PresetNameTextBlock)
-		{
-			PresetNameTextBlock->SetText(FText::FromName(Asset.AssetName));	
-		}
+		PresetNameTextBlock->SetText(FText::FromName(Preset->GetPresetName()));
 	}
 }
 

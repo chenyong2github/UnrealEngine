@@ -476,6 +476,16 @@ void URemoteControlPreset::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+FName URemoteControlPreset::GetPresetName() const
+{
+	if (!IsEmbeddedPreset())
+	{
+		return GetFName();
+	}
+
+	return GetPackage()->GetFName();
+}
+
 TWeakPtr<FRemoteControlActor> URemoteControlPreset::ExposeActor(AActor* Actor, FRemoteControlPresetExposeArgs Args)
 {
 	check(Actor);
@@ -971,6 +981,75 @@ void URemoteControlPreset::PostLoadProperties()
 	{
 		ExposedProperty->PostLoad();
 	}
+}
+
+UWorld* URemoteControlPreset::GetPresetWorld(const URemoteControlPreset* Preset, bool bAllowPIE /*= false*/)
+{
+	if (Preset)
+	{
+		if (UObject* Outer = Preset->GetOuter())
+		{
+			if (UWorld* OuterWorld = Outer->GetWorld())
+			{
+				return OuterWorld;
+			}
+		}
+	}
+
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		if (bAllowPIE)
+		{
+			FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext();
+
+			if (PIEWorldContext)
+			{
+				return PIEWorldContext->World();
+			}
+		}
+
+		return GEditor->GetEditorWorldContext(false).World();
+	}
+
+	if (GWorld)
+	{
+		return GWorld;
+	}
+#endif
+
+	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+	{
+		if (WorldContext.WorldType == EWorldType::Game)
+		{
+			return WorldContext.World();
+		}
+	}
+
+	return nullptr;
+}
+
+UWorld* URemoteControlPreset::GetPresetWorld(bool bAllowPIE /*= false*/) const
+{
+	return URemoteControlPreset::GetPresetWorld(this, bAllowPIE);
+}
+
+bool URemoteControlPreset::IsEmbeddedPreset() const
+{
+	UObject* Outer = GetOuter();
+
+	if (!Outer)
+	{
+		return false;
+	}
+
+	// An asset
+	if (Outer->IsA<UPackage>())
+	{
+		return false;
+	}
+
+	return true;
 }
 
 FName URemoteControlPreset::GetEntityName(const FName InDesiredName, UObject* InObject, const FRCFieldPathInfo& InFieldPath) const

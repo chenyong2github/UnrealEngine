@@ -8,9 +8,12 @@
 #include "Engine/World.h"
 #include "Engine/GameEngine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Toolkits/IToolkitHost.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Actor.h"
 #include "Styling/SlateColor.h"
+#include "RemoteControlPreset.h"
+#include "SRemoteControlPanel.h"
 #include "Subsystems/Subsystem.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectIterator.h"
@@ -169,32 +172,13 @@ namespace FunctionPickerUtils
 		/** This object's name. */
 		FString Name;
 	};
-
-	UWorld* GetWorld(bool bIgnorePIE = false)
-	{
-		// Get the current world.
-		if (GIsEditor)
-		{
-			FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext();
-			if (!bIgnorePIE && PIEWorldContext)
-			{
-				return PIEWorldContext->World();
-			}
-			return GEditor->GetEditorWorldContext().World();
-		}
-		else if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
-		{
-			return GameEngine->GetGameWorld();
-		}
-		return nullptr;
-	}
-
 }
 
 void SRCPanelFunctionPicker::Construct(const FArguments& InArgs)
 {
 	using namespace FunctionPickerUtils;
 
+	RemoteControlPanel = InArgs._RemoteControlPanel;
 	ObjectClass = InArgs._ObjectClass;
 	Label = InArgs._Label;
 	bAllowDefaultObjects = InArgs._AllowDefaultObjects;
@@ -299,7 +283,7 @@ void SRCPanelFunctionPicker::Refresh()
 	if (Class->IsChildOf(AActor::StaticClass()) && GEditor)
 	{
 		TArray<AActor*> ActorList;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), Class, ActorList);
+		UGameplayStatics::GetAllActorsOfClass(GetPresetWorld(), Class, ActorList);
 
 		for (AActor* Actor : ActorList)
 		{
@@ -318,6 +302,18 @@ void SRCPanelFunctionPicker::Refresh()
 	{
 		ObjectsTreeView->Refresh();
 	}
+}
+
+UWorld* SRCPanelFunctionPicker::GetPresetWorld(bool bIgnorePIE) const
+{
+	TSharedPtr<SRemoteControlPanel> RCP = RemoteControlPanel.Pin();
+
+	if (RCP.IsValid())
+	{
+		return URemoteControlPreset::GetPresetWorld(RCP->GetPreset(), !bIgnorePIE);
+	}
+
+	return URemoteControlPreset::GetPresetWorld(nullptr, !bIgnorePIE);
 }
 
 #undef LOCTEXT_NAMESPACE /* RemoteControlPanel */

@@ -24,44 +24,17 @@ static TAutoConsoleVariable<int32> CVarRemoteControlRebindingUseLegacyAlgo(TEXT(
 
 namespace RCPresetRebindingManager
 {
-	UWorld* GetCurrentWorld()
-	{
-		// Never use PIE world when searching for a new binding.
-		UWorld* World = nullptr;
 
-#if WITH_EDITOR
-		if (GEditor)
-		{
-			World = GEditor->GetEditorWorldContext(false).World();
-		}
-#endif
-
-		if (World)
-		{
-			return World;
-		}
-
-		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-		{
-			if (WorldContext.WorldType == EWorldType::Game)
-			{
-				return World;
-			}
-		}
-		
-		return nullptr;
-	}
-
-	bool IsValidObjectForRebinding(UObject* InObject)
+	bool IsValidObjectForRebinding(UObject* InObject, UWorld* PresetWorld)
 	{
 		return InObject
 			&& InObject->GetTypedOuter<UPackage>() != GetTransientPackage()
-			&& InObject->GetWorld() == GetCurrentWorld();
+			&& InObject->GetWorld() == PresetWorld;
 	}
 
-	bool IsValidActorForRebinding(AActor* InActor)
+	bool IsValidActorForRebinding(AActor* InActor, UWorld* PresetWorld)
 	{
-		return IsValidObjectForRebinding(InActor) &&
+		return IsValidObjectForRebinding(InActor, PresetWorld) &&
 #if WITH_EDITOR
             InActor->IsEditable() &&
             InActor->IsListedInSceneOutliner() &&
@@ -71,16 +44,16 @@ namespace RCPresetRebindingManager
             !InActor->HasAnyFlags(RF_Transient);
 	}
 
-	bool IsValidComponentForRebinding(UActorComponent* InComponent)
+	bool IsValidComponentForRebinding(UActorComponent* InComponent, UWorld* PresetWorld)
 	{
-		if (!IsValidObjectForRebinding(InComponent))
+		if (!IsValidObjectForRebinding(InComponent, PresetWorld))
 		{
 			return false;
 		}
 		
 		if (AActor* OuterActor = InComponent->GetOwner())
 		{
-			if (!IsValidActorForRebinding(OuterActor))
+			if (!IsValidActorForRebinding(OuterActor, PresetWorld))
 			{
 				return false;
 			}
@@ -98,15 +71,15 @@ namespace RCPresetRebindingManager
 	 * Returns a map of actors grouped by their relevant class.
 	 * (Relevant class being the base class that supports a given entity)
 	 */
-	TMap<UClass*, TArray<UObject*>> GetLevelObjectsGroupedByClass(const TArray<UClass*>& RelevantClasses)
+	TMap<UClass*, TArray<UObject*>> GetLevelObjectsGroupedByClass(const TArray<UClass*>& RelevantClasses, UWorld* PresetWorld)
 	{
 		TMap<UClass*, TArray<UObject*>> ObjectMap;
 
-		auto AddRelevantClassesForObject = [&ObjectMap, &RelevantClasses] (UObject* Object)
+		auto AddRelevantClassesForObject = [&ObjectMap, &RelevantClasses, PresetWorld] (UObject* Object)
 		{
 			if (!Object
-				|| (Object->IsA<AActor>() && !IsValidActorForRebinding(CastChecked<AActor>(Object)))
-				|| (Object->IsA<UActorComponent>() && !IsValidComponentForRebinding(CastChecked<UActorComponent>(Object))))
+				|| (Object->IsA<AActor>() && !IsValidActorForRebinding(CastChecked<AActor>(Object), PresetWorld))
+				|| (Object->IsA<UActorComponent>() && !IsValidComponentForRebinding(CastChecked<UActorComponent>(Object), PresetWorld)))
 			{
 				return;
 			}
@@ -117,9 +90,9 @@ namespace RCPresetRebindingManager
 			}
 		};
 
-		if (UWorld* World = GetCurrentWorld())
+		if (PresetWorld)
 		{
-			for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
+			for (TActorIterator<AActor> It(PresetWorld, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 			{
         		AddRelevantClassesForObject(*It);
 			}
@@ -134,18 +107,18 @@ namespace RCPresetRebindingManager
 		return ObjectMap;
 	}
 
-	bool GetActorsOfClass(UClass* InTargetClass, TArray<AActor*>& OutActors)
+	bool GetActorsOfClass(UWorld* PresetWorld, UClass* InTargetClass, TArray<AActor*>& OutActors)
 	{
-		auto IsObjectOfClass = [InTargetClass](UObject* Object)
+		auto IsObjectOfClass = [InTargetClass, PresetWorld](UObject* Object)
 		{
 			return Object
-				&& IsValidActorForRebinding(CastChecked<AActor>(Object))
+				&& IsValidActorForRebinding(CastChecked<AActor>(Object), PresetWorld)
 				&& Object->IsA(InTargetClass);
 		};
 
-		if (UWorld* World = GetCurrentWorld())
+		if (PresetWorld)
 		{
-			for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
+			for (TActorIterator<AActor> It(PresetWorld, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 			{
 				if (IsObjectOfClass(*It))
 				{
@@ -262,7 +235,7 @@ void FRemoteControlPresetRebindingManager::Rebind_Legacy(URemoteControlPreset* P
 	// Fetch any relevant object from the level based on if their class is relevant for the set of entities we have to rebind.
 	TArray<UClass*> EntitiesOwnerClasses;
 	EntitiesGroupedBySupportedOwnerClass.GenerateKeyArray(EntitiesOwnerClasses);
-	Context.ObjectsGroupedByRelevantClass = RCPresetRebindingManager::GetLevelObjectsGroupedByClass(EntitiesOwnerClasses);
+	Context.ObjectsGroupedByRelevantClass = RCPresetRebindingManager::GetLevelObjectsGroupedByClass(EntitiesOwnerClasses, Preset->GetPresetWorld(false));
 
 	for (TPair<UClass*, TArray<TSharedPtr<FRemoteControlEntity>>>& Entry : EntitiesGroupedBySupportedOwnerClass)
 	{
@@ -318,7 +291,7 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 	}
 
 	// First, try to 'rebind for all properties' bindings that are already bound.
-	// to make sure that we don't accidently rebind a property to a different actor
+	// to make sure that we don't accidentally rebind a property to a different actor
 	for (URemoteControlLevelDependantBinding* ValidBinding : ValidBindings)
 	{
 		UObject* ResolvedObject = ValidBinding->Resolve();
@@ -459,7 +432,7 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 		{
 			const bool bRebindingComponent = !InvalidBinding->BindingContext.ComponentName.IsNone();
 			TArray<AActor*> ObjectsWithSupportedClass;
-			if (!RCPresetRebindingManager::GetActorsOfClass(OwnerClass, ObjectsWithSupportedClass))
+			if (!RCPresetRebindingManager::GetActorsOfClass(Preset->GetPresetWorld(false), OwnerClass, ObjectsWithSupportedClass))
 			{
 				continue;
 			}

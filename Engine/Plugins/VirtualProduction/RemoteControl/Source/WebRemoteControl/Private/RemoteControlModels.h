@@ -497,7 +497,7 @@ struct FRCPresetDescription
 	{
 		checkSlow(Preset)
 
-		Name = Preset->GetName();
+		Name = Preset->GetPresetName().ToString();
 		Path = Preset->GetPathName();
 		ID = Preset->GetPresetId().ToString();
 
@@ -558,7 +558,17 @@ struct FRCShortPresetDescription
 	{
 		if (InPreset)
 		{
-			Name = InPreset->GetFName();
+			Name = InPreset->GetPresetName();
+			ID = InPreset->GetPresetId().ToString();
+			Path = *InPreset->GetPathName();
+		}
+	}
+
+	FRCShortPresetDescription(const TWeakObjectPtr<URemoteControlPreset> InPreset)
+	{
+		if (InPreset.IsValid())
+		{
+			Name = InPreset->GetPresetName();
 			ID = InPreset->GetPresetId().ToString();
 			Path = *InPreset->GetPathName();
 		}

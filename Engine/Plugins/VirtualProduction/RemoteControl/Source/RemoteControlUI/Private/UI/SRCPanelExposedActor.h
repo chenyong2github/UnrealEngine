@@ -41,6 +41,10 @@ private:
 	TSharedRef<SWidget> RecreateWidget(const FString& Path);
 	/** Handle the user selecting a different actor to expose. */
 	void OnChangeActor(const FAssetData& AssetData);
+	/** Handle direct actor value event instead of by asset. */
+	void OnChangeActor(AActor* Actor);
+	/** Creates an actor picker for hosted presets because the engine default one cannot use custom worlds. */
+	TSharedRef<SWidget> CreateEmbeddedPresetActorPicker();
 private:
 	/** Weak reference to the preset that exposes the actor. */
 	TWeakObjectPtr<URemoteControlPreset> WeakPreset;

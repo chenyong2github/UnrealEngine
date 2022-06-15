@@ -332,6 +332,11 @@ public:
 	const FGuid& GetPresetId() const { return PresetId; }
 
 	/**
+	 * Returns the FName that represents this asset or hosted preset.
+	 */
+	FName GetPresetName() const;
+
+	/**
 	 * Expose an actor on this preset.
 	 * @param Actor the actor to expose.
 	 * @param Args The arguments used to expose the actor.
@@ -832,6 +837,26 @@ private:
 
 	/** Frame counter for delaying property change checks. */
 	int32 PropertyChangeWatchFrameCounter = 0;
+
+public:
+
+	static UWorld* GetPresetWorld(const URemoteControlPreset* Preset = nullptr, bool bAllowPIE = false);
+	UWorld* GetPresetWorld(bool bAllowPIE = false) const;
+	
+	/** Returns true if the preset is hosted within another asset. */
+	bool IsEmbeddedPreset() const;
+
+#if WITH_EDITOR
+	const TArray<FName>& GetDetailsTabIdentifierOverrides() const { return DetailsTabIdentifierOverrides; }
+	void SetDetailsTabIdentifierOverrides(const TArray<FName>& NewOverrides) { DetailsTabIdentifierOverrides = NewOverrides; }
+#endif
+
+private:
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<FName> DetailsTabIdentifierOverrides;
+#endif
 
 #if WITH_EDITOR
 	/** List of blueprints for which we have registered events. */

@@ -7,6 +7,7 @@
 DECLARE_DELEGATE_TwoParams(FOnSelectFunction, UObject*, UFunction*);
 
 struct FRCFunctionPickerTreeNode;
+class SRemoteControlPanel;
 
 /**
  * Widget that displays a picker for blueprint functions.
@@ -18,6 +19,7 @@ public:
 		: _AllowDefaultObjects(false)
 	{}
 		SLATE_EVENT(FOnSelectFunction, OnSelectFunction)
+		SLATE_ARGUMENT(TSharedPtr<SRemoteControlPanel>, RemoteControlPanel)
 		SLATE_ARGUMENT(UClass*, ObjectClass)
 		SLATE_ARGUMENT(FText, Label)
 		SLATE_ARGUMENT(bool, AllowDefaultObjects)
@@ -53,4 +55,8 @@ private:
 	bool bAllowDefaultObjects = false;
 	/** Keep track of the last time this widget tick in order to focus it if it's been more than a frame. */
 	double LastTimeSinceTick = 0.0;
+	/** Keep a weak reference to the RCPanel for access to toolkit host. */
+	TWeakPtr<SRemoteControlPanel> RemoteControlPanel;
+	/** Checks the remote control panel to get a reference to the preset world. */
+	UWorld* GetPresetWorld(bool bIgnorePIE = false) const;
 };

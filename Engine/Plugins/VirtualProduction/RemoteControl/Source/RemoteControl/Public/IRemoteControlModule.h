@@ -252,6 +252,19 @@ public:
 	virtual void UnregisterPreset(FName Name) = 0;
 
 	/**
+	 * Registers a hosted (non-asset based) preset with an attached name.
+	 * Embedded presets should only be registered while they are active.
+	 * @return whether registration was successful.
+	 */
+	virtual bool RegisterEmbeddedPreset(URemoteControlPreset* Preset, bool bReplaceExisting = false) = 0;
+
+	/**
+	 * Unregisters a hosted (non-asset based) preset with the given name.
+	 */
+	virtual void UnregisterEmbeddedPreset(FName Name) = 0;
+	virtual void UnregisterEmbeddedPreset(URemoteControlPreset* Preset) = 0;
+
+	/**
 	 * Resolve a RemoteCall Object and Function.
 	 * This will look for object and function to resolve. 
 	 * It will only successfully resolve function that are blueprint callable. 
@@ -423,7 +436,12 @@ public:
 	 * @arg bIncludeTransient Whether to include transient presets.
 	 */
 	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets, bool bIncludeTransient = true) const = 0;
-	
+
+	/**
+	 * Gets all hosted presets currently registered with the module.
+	 */
+	virtual void GetEmbeddedPresets(TArray<TWeakObjectPtr<URemoteControlPreset>>& OutEmbeddedPresets) const = 0;
+
 	/**
 	 * Get the map of registered default entity metadata initializers. 
 	 */

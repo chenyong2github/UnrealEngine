@@ -26,6 +26,9 @@ public:
 	virtual FOnPresetUnregistered& OnPresetUnregistered() override;
 	virtual bool RegisterPreset(FName Name, URemoteControlPreset* Preset) override;
 	virtual void UnregisterPreset(FName Name) override;
+	virtual bool RegisterEmbeddedPreset(URemoteControlPreset* Preset, bool bReplaceExisting) override;
+	virtual void UnregisterEmbeddedPreset(FName Name) override;
+	virtual void UnregisterEmbeddedPreset(URemoteControlPreset* Preset) override;
 	virtual bool ResolveCall(const FString& ObjectPath, const FString& FunctionName, FRCCallReference& OutCallRef, FString* OutErrorText) override;
 	virtual bool InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) override;
 	virtual bool ResolveObject(ERCAccess AccessType, const FString& ObjectPath, const FString& PropertyName, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) override;
@@ -46,6 +49,7 @@ public:
 	virtual bool IsPresetTransient(const FGuid& PresetId) const override;
 	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) const override;
 	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets, bool bIncludeTransient = true) const override;
+	virtual void GetEmbeddedPresets(TArray<TWeakObjectPtr<URemoteControlPreset>>& OutEmbeddedPresets) const override;
 	virtual const TMap<FName, FEntityMetadataInitializer>& GetDefaultMetadataInitializers() const override;
 	virtual bool RegisterDefaultEntityMetadata(FName MetadataKey, FEntityMetadataInitializer MetadataInitializer) override;
 	virtual void UnregisterDefaultEntityMetadata(FName MetadataKey) override;
@@ -65,6 +69,7 @@ private:
 	void OnAssetAdded(const FAssetData& AssetData);
 	void OnAssetRemoved(const FAssetData& AssetData);
 	void OnAssetRenamed(const FAssetData& AssetData, const FString&);
+	void OnEmbeddedPresetRenamed(URemoteControlPreset* Preset);
 
 	/** Destroy a transient preset using an object reference. */
 	bool DestroyTransientPreset(URemoteControlPreset* Preset);
@@ -111,6 +116,12 @@ private:
 
 	/** Cache of ids to preset names. */
 	mutable TMap<FGuid, FName> CachedPresetNamesById;
+
+	/**
+	 * Listed of hosted (non-asset based) presets. 
+	 * We can assume that all hosted presets are "active," so the list should be relatively short.
+	 **/
+	TMap<FName, TWeakObjectPtr<URemoteControlPreset>> EmbeddedPresets;
 
 	/** Temporary presets that aren't saved as assets or directly visible to the editor's user. */
 	TSet<FAssetData> TransientPresets;

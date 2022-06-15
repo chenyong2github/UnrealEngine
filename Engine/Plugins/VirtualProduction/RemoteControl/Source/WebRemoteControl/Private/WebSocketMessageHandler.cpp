@@ -176,7 +176,7 @@ namespace WebSocketMessageHandlerStructUtils
 
 		FStructOnScope FieldsChangedOnScope{ TopLevelStruct };
 		SetStringPropertyValue(Prop_Type, FieldsChangedOnScope, TEXT("PresetFieldsChanged"));
-		SetStringPropertyValue(Prop_PresetName, FieldsChangedOnScope, *Preset->GetFName().ToString());
+		SetStringPropertyValue(Prop_PresetName, FieldsChangedOnScope, *Preset->GetPresetName().ToString());
 		SetStringPropertyValue(Prop_PresetId, FieldsChangedOnScope, *Preset->GetPresetId().ToString());
 		SetStringPropertyValue(Prop_SequenceNumber, FieldsChangedOnScope, FString::Printf(TEXT("%lld"), SequenceNumber));
 		SetStructArrayPropertyValue(Prop_ChangedFields, FieldsChangedOnScope, PropertyValuesOnScope);
@@ -222,7 +222,7 @@ namespace WebSocketMessageHandlerStructUtils
 		FStructOnScope FieldsChangedOnScope{ TopLevelStruct };
 
 		SetStringPropertyValue(Prop_Type, FieldsChangedOnScope, TEXT("PresetActorModified"));
-		SetStringPropertyValue(Prop_PresetName, FieldsChangedOnScope, *Preset->GetFName().ToString());
+		SetStringPropertyValue(Prop_PresetName, FieldsChangedOnScope, *Preset->GetPresetName().ToString());
 		SetStringPropertyValue(Prop_PresetId, FieldsChangedOnScope, *Preset->GetPresetId().ToString());
 		SetStructArrayPropertyValue(Prop_ModifiedActors, FieldsChangedOnScope, ModifiedActorsOnScope);
 
@@ -232,15 +232,6 @@ namespace WebSocketMessageHandlerStructUtils
 
 namespace WebSocketMessageHandlerMiscUtils
 {
-	UWorld* GetEditorWorld()
-	{
-#if WITH_EDITOR
-		return GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
-#else
-		return nullptr;
-#endif
-	}
-
 	void* GetPresetPropertyClassPointer(URemoteControlPreset* Preset, const FGuid& PropertyId)
 	{
 		FRCObjectReference ObjectRef;
@@ -570,12 +561,6 @@ void FWebSocketMessageHandler::HandleWebSocketActorRegister(const FRemoteControl
 		return;
 	}
 
-	const UWorld* World = WebSocketMessageHandlerMiscUtils::GetEditorWorld();
-	if (!World)
-	{
-		return;
-	}
-
 	FWatchedClassData* WatchedClassData = ActorNotificationMap.Find(ActorClass);
 	FString ClassPath = ActorClass->GetPathName();
 
@@ -592,10 +577,23 @@ void FWebSocketMessageHandler::HandleWebSocketActorRegister(const FRemoteControl
 	// Register events for each actor and send the existing list of actors as "added" so the client is caught up
 	FRCActorsChangedEvent Event;
 	FRCActorsChangedData& ChangeData = Event.Changes.Add(ClassPath);
-	for (AActor* Actor : TActorRange<AActor>(World, ActorClass))
+
+	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
 	{
-		ChangeData.AddedActors.Add(FRCActorDescription(Actor));
-		StartWatchingActor(Actor, ActorClass);
+		UWorld* World = WorldContext.World();
+		
+		// To support non-level editor worlds, instead of just checking the level editor's world,
+		// now every Editor-type world is checked.
+		if (!World || WorldContext.WorldType != EWorldType::Editor)
+		{
+			continue;
+		}
+
+		for (AActor* Actor : TActorRange<AActor>(World, ActorClass))
+		{
+			ChangeData.AddedActors.Add(FRCActorDescription(Actor));
+			StartWatchingActor(Actor, ActorClass);
+		}
 	}
 
 	TArray<uint8> Payload;
@@ -1191,7 +1189,7 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 		}
 
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeMessage(FRCPresetFieldsAddedEvent{ Preset->GetFName(), Preset->GetPresetId(), AddedPropertiesDescription }, Payload);
+		WebRemoteControlUtils::SerializeMessage(FRCPresetFieldsAddedEvent{ Preset->GetPresetName(), Preset->GetPresetId(), AddedPropertiesDescription }, Payload);
 		BroadcastToPresetListeners(Entry.Key, Payload);
 	}
 
@@ -1216,7 +1214,7 @@ void FWebSocketMessageHandler::ProcessRemovedProperties()
 		ensure(Entry.Value.Key.Num() == Entry.Value.Value.Num());
 		
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeMessage(FRCPresetFieldsRemovedEvent{ Preset->GetFName(), Preset->GetPresetId(), Entry.Value.Value, Entry.Value.Key }, Payload);
+		WebRemoteControlUtils::SerializeMessage(FRCPresetFieldsRemovedEvent{ Preset->GetPresetName(), Preset->GetPresetId(), Entry.Value.Value, Entry.Value.Key }, Payload);
 		BroadcastToPresetListeners(Entry.Key, Payload);
 	}
 	
@@ -1239,7 +1237,7 @@ void FWebSocketMessageHandler::ProcessRenamedFields()
 		}
 
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeMessage(FRCPresetFieldsRenamedEvent{Preset->GetFName(), Preset->GetPresetId(), Entry.Value}, Payload);
+		WebRemoteControlUtils::SerializeMessage(FRCPresetFieldsRenamedEvent{Preset->GetPresetName(), Preset->GetPresetId(), Entry.Value}, Payload);
 		BroadcastToPresetListeners(Entry.Key, Payload);
 	}
 
@@ -1535,10 +1533,36 @@ bool FWebSocketMessageHandler::WriteActorPropertyChangePayload(URemoteControlPre
 void FWebSocketMessageHandler::OnActorAdded(AActor* Actor)
 {
 #if WITH_EDITOR
-	const UWorld* World = WebSocketMessageHandlerMiscUtils::GetEditorWorld();
-	if (Actor->GetWorld() != World)
+	// To support non-level editor worlds, we now check world type instead of specifically checking for the level editor.
+	if (Actor)
 	{
-		return;
+		bool bFoundWorld = false;
+
+		if (UWorld* ActorWorld = Actor->GetWorld())
+		{
+			for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+			{
+				UWorld* ContextWorld = WorldContext.World();
+
+				if (ContextWorld != ActorWorld)
+				{
+					continue;
+				}
+
+				if (WorldContext.WorldType != EWorldType::Editor)
+				{
+					return;
+				}
+
+				bFoundWorld = true;
+				break;
+			}
+		}
+
+		if (!bFoundWorld)
+		{
+			return;
+		}
 	}
 #endif
 
@@ -1635,11 +1659,6 @@ void FWebSocketMessageHandler::OnActorListChanged()
 {
 	// We don't know exactly what changed, so manually check all the actors we know about
 
-	const UWorld* World = WebSocketMessageHandlerMiscUtils::GetEditorWorld();
-	if (!World)
-	{
-		return;
-	}
 
 	TSet<AActor*> RemainingActors;
 	WatchedActors.GetKeys(RemainingActors);
@@ -1647,13 +1666,26 @@ void FWebSocketMessageHandler::OnActorListChanged()
 	TArray<AActor*> NewActors;
 
 	// Find any new actors
-	for (AActor* Actor : TActorRange<AActor>(World))
+	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
 	{
-		if (!WatchedActors.Contains(Actor))
+		UWorld* World = WorldContext.World();
+
+		// To support non-level editor worlds, instead of just checking the level editor's world,
+		// now every Editor-type world is checked.
+		if (!World || WorldContext.WorldType != EWorldType::Editor)
 		{
-			NewActors.Add(Actor);
+			continue;
 		}
-		RemainingActors.Remove(Actor);
+		
+		for (AActor* Actor : TActorRange<AActor>(World))
+		{
+			if (!WatchedActors.Contains(Actor))
+			{
+				NewActors.Add(Actor);
+			}
+
+			RemainingActors.Remove(Actor);
+		}
 	}
 
 	// Fire events for any actors that are now missing, which have presumably been deleted

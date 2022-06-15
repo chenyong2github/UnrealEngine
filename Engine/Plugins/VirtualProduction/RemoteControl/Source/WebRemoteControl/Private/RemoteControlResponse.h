@@ -48,9 +48,10 @@ struct FListPresetsResponse
 	
 	FListPresetsResponse() = default;
 
-	FListPresetsResponse(const TArray<FAssetData>& InPresets)
+	FListPresetsResponse(const TArray<FAssetData>& InPresets, const TArray<TWeakObjectPtr<URemoteControlPreset>> InEmbeddedPresets)
 	{
 		Presets.Append(InPresets);
+		Presets.Append(InEmbeddedPresets);
 	}
 
 	/**
@@ -254,7 +255,7 @@ struct FRCPresetMetadataModified
 	{
 		if (InPreset)
 		{
-			PresetName = InPreset->GetFName();
+			PresetName = InPreset->GetPresetName();
 			PresetId = InPreset->GetPresetId().ToString();
 			Metadata = InPreset->Metadata;
 		}
@@ -368,7 +369,7 @@ struct FRCPresetEntitiesModifiedEvent
 		: Type(TEXT("PresetEntitiesModified"))
 	{
 		checkSlow(InPreset);
-		PresetName = InPreset->GetFName();
+		PresetName = InPreset->GetPresetName();
 		PresetId = InPreset->GetPresetId().ToString();
 		ModifiedEntities = FRCPresetModifiedEntitiesDescription{InPreset, InModifiedEntities};
 	}

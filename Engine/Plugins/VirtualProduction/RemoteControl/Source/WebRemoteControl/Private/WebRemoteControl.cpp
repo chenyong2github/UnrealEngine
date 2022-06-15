@@ -1593,7 +1593,10 @@ bool FWebRemoteControlModule::HandleGetPresetsRoute(const FHttpServerRequest& Re
 	TArray<FAssetData> PresetAssets;
 	IRemoteControlModule::Get().GetPresetAssets(PresetAssets, false);
 
-	WebRemoteControlUtils::SerializeMessage(FListPresetsResponse{ PresetAssets }, Response->Body);
+	TArray<TWeakObjectPtr<URemoteControlPreset>> EmbeddedPresets;
+	IRemoteControlModule::Get().GetEmbeddedPresets(EmbeddedPresets);
+
+	WebRemoteControlUtils::SerializeMessage(FListPresetsResponse{ PresetAssets, EmbeddedPresets }, Response->Body);
 
 	OnComplete(MoveTemp(Response));
 	return true;

@@ -639,6 +639,85 @@ void FRemoteControlModule::UnregisterPreset(FName Name)
 {
 }
 
+bool FRemoteControlModule::RegisterEmbeddedPreset(URemoteControlPreset* Preset, bool bReplaceExisting)
+{
+	if (!Preset)
+	{
+		return false;
+	}
+
+	FName PresetName = Preset->GetPresetName();
+
+	if (PresetName == NAME_None)
+	{
+		return false;
+	}
+
+	if (const TWeakObjectPtr<URemoteControlPreset>* FoundPreset = EmbeddedPresets.Find(PresetName))
+	{
+		if (FoundPreset->IsValid() && !bReplaceExisting)
+		{
+			return false;
+		}
+	}
+
+	EmbeddedPresets.Emplace(PresetName, TWeakObjectPtr<URemoteControlPreset>(Preset));
+
+	FGuid PresetId = Preset->GetPresetId();
+
+	if (PresetId.IsValid())
+	{
+		CachedPresetNamesById.Emplace(PresetId, PresetName);
+	}
+
+	return true;
+}
+
+void FRemoteControlModule::UnregisterEmbeddedPreset(FName Name)
+{
+	if (Name == NAME_None)
+	{
+		return;
+	}
+
+	// Check the cached preset ids and remove it if our name matches the stored id
+	TWeakObjectPtr<URemoteControlPreset>* FoundPreset = EmbeddedPresets.Find(Name);
+
+	if (FoundPreset && FoundPreset->IsValid())
+	{
+		UnregisterEmbeddedPreset(FoundPreset->Get());
+	}
+}
+
+void FRemoteControlModule::UnregisterEmbeddedPreset(URemoteControlPreset* Preset)
+{
+	if (!Preset)
+	{
+		return;
+	}
+
+	FName PresetName = Preset->GetPresetName();
+
+	if (PresetName == NAME_None)
+	{
+		return;
+	}
+
+	FGuid PresetId = Preset->GetPresetId();
+
+	if (PresetId.IsValid())
+	{
+		FName* FoundPresetName = CachedPresetNamesById.Find(PresetId);
+
+		if (FoundPresetName && *FoundPresetName == PresetName)
+		{
+			CachedPresetNamesById.Remove(PresetId);
+		}
+	}
+
+	EmbeddedPresets.Remove(PresetName);
+}
+
 bool FRemoteControlModule::ResolveCall(const FString& ObjectPath, const FString& FunctionName, FRCCallReference& OutCallRef, FString* OutErrorText)
 {
 	bool bSuccess = true;
@@ -1381,6 +1460,14 @@ TOptional<FExposedProperty> FRemoteControlModule::ResolvePresetProperty(const FR
 
 URemoteControlPreset* FRemoteControlModule::ResolvePreset(FName PresetName) const
 {
+	if (const TWeakObjectPtr<URemoteControlPreset>* EmbeddedPreset = EmbeddedPresets.Find(PresetName))
+	{
+		if (EmbeddedPreset->IsValid())
+		{
+			return EmbeddedPreset->Get();
+		}
+	}
+
 	if (const TArray<FAssetData>* Assets = CachedPresetsByName.Find(PresetName))
 	{
 		for (const FAssetData& Asset : *Assets)
@@ -1392,6 +1479,10 @@ URemoteControlPreset* FRemoteControlModule::ResolvePreset(FName PresetName) cons
 		}
 	}
 
+	/**
+	 * No need to cache hosted preset names - they should already be in a short enough list
+	 * mapped to their name.
+	 */
 	if (URemoteControlPreset* FoundPreset = RemoteControlUtil::GetPresetByName(PresetName))
 	{
 		CachedPresetsByName.FindOrAdd(PresetName).AddUnique(FoundPreset);
@@ -1407,6 +1498,14 @@ URemoteControlPreset* FRemoteControlModule::ResolvePreset(const FGuid& PresetId)
 
 	if (const FName* AssetName = CachedPresetNamesById.Find(PresetId))
 	{
+		if (const TWeakObjectPtr<URemoteControlPreset>* EmbeddedPreset = EmbeddedPresets.Find(*AssetName))
+		{
+			if (EmbeddedPreset->IsValid())
+			{
+				return EmbeddedPreset->Get();
+			}
+		}
+
 		if (const TArray<FAssetData>* Assets = CachedPresetsByName.Find(*AssetName))
 		{
 			for (const FAssetData& Asset : *Assets)
@@ -1420,6 +1519,21 @@ URemoteControlPreset* FRemoteControlModule::ResolvePreset(const FGuid& PresetId)
 		else
 		{
 			ensureMsgf(false, TEXT("Preset id should be cached if the asset name already is."));
+		}
+	}
+
+	for (const auto& Pair : EmbeddedPresets)
+	{
+		if (Pair.Value.IsValid())
+		{
+			URemoteControlPreset* EmbeddedPreset = Pair.Value.Get();
+			FGuid EmbeddedPresetId = Pair.Value->GetPresetId();
+
+			if (EmbeddedPresetId.IsValid() && EmbeddedPresetId == PresetId)
+			{
+				CachedPresetNamesById.Emplace(PresetId, Pair.Key);
+				return EmbeddedPreset;
+			}
 		}
 	}
 
@@ -1544,6 +1658,17 @@ void FRemoteControlModule::GetPresetAssets(TArray<FAssetData>& OutPresetAssets, 
 					OutPresetAssets.Add(AssetData);
 				}
 			}
+		}
+	}
+}
+
+void FRemoteControlModule::GetEmbeddedPresets(TArray<TWeakObjectPtr<URemoteControlPreset>>& OutEmbeddedPresets) const
+{
+	for (const auto& Pair : EmbeddedPresets)
+	{
+		if (Pair.Value.IsValid())
+		{
+			OutEmbeddedPresets.Add(Pair.Value);
 		}
 	}
 }
@@ -1709,13 +1834,73 @@ void FRemoteControlModule::OnAssetRemoved(const FAssetData& AssetData)
 	}
 }
 
-void FRemoteControlModule::OnAssetRenamed(const FAssetData& AssetData, const FString&)
+void FRemoteControlModule::OnAssetRenamed(const FAssetData& AssetData, const FString& OldName)
 {
 	if (AssetData.AssetClassPath != URemoteControlPreset::StaticClass()->GetClassPathName())
 	{
+		// OldName comes in full path format /path/package.object
+		// Assets are registered in package format /path/package
+		FString PackageName = OldName;
+		int32 DotIdx = INDEX_NONE;
+		
+		if (PackageName.FindChar('.', DotIdx))
+		{
+			PackageName = PackageName.Left(DotIdx);
+		}
+
+		FName PackageFName = FName(PackageName);
+		
+		// Find already registered preset with old package name
+		TWeakObjectPtr<URemoteControlPreset> EmbeddedPreset;
+
+		for (const auto& Pair : EmbeddedPresets)
+		{
+			if (Pair.Key == PackageFName)
+			{
+				EmbeddedPreset = Pair.Value;
+
+				// Remove found asset
+				EmbeddedPresets.Remove(Pair.Key);
+				bool bRemovedId = false;
+				
+				// If preset is still valid and it has a valid id, just remove it.
+				if (EmbeddedPreset.IsValid())
+				{
+					FGuid EmbeddedPresetId = EmbeddedPreset->GetPresetId();
+
+					if (EmbeddedPresetId.IsValid())
+					{
+						CachedPresetNamesById.Remove(EmbeddedPresetId);
+						bRemovedId = true;
+					}
+				}
+
+				// If it's not valid or doesn't have a valid id, search for it and remove it.
+				if (!bRemovedId)
+				{
+					for (const auto& PairInner : CachedPresetNamesById)
+					{
+						if (PairInner.Value == Pair.Key)
+						{
+							CachedPresetNamesById.Remove(PairInner.Key);
+						}
+					}
+				}
+
+				break;
+			}
+		}
+
+		// Reregister embedded asset if it's still valid.
+		if (EmbeddedPreset.IsValid())
+		{
+			RegisterEmbeddedPreset(EmbeddedPreset.Get(), true);
+		}
+
 		return;
 	}
 
+	// Update regular asset-based preset
 	const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
 	if (FName* OldPresetName = CachedPresetNamesById.Find(PresetId))
 	{

@@ -39,12 +39,14 @@
 const FName FRemoteControlUIModule::EntityDetailsTabName = "RemoteControl_EntityDetails";
 const FName FRemoteControlUIModule::RemoteControlPanelTabName = "RemoteControl_RemoteControlPanel";
 
-static const FName DetailsTabIdentifiers[] = {
+static const FName DetailsTabIdentifiers_LevelEditor[] = {
 	"LevelEditorSelectionDetails",
 	"LevelEditorSelectionDetails2",
 	"LevelEditorSelectionDetails3",
 	"LevelEditorSelectionDetails4"
 };
+
+static const int32 DetailsTabIdentifiers_LevelEditor_Count = 4;
 
 FRCExposesPropertyArgs::FRCExposesPropertyArgs()
 	: PropertyHandle(nullptr)
@@ -212,7 +214,32 @@ namespace RemoteControlUIModule
 
 	bool IsTransientObjectAllowListed(UObject* Object)
 	{
-		return Object && Object->IsA<UDEditorParameterValue>();
+		if (!Object)
+		{
+			return false;
+		}
+
+		if (Object->IsA<UDEditorParameterValue>())
+		{
+			return true;
+		}
+
+		/*
+		 * Embedded presets may be part of a transient package.
+		 * If the object's world's outer is transient, it's probably hosted. Allow it.
+		 */
+		if (UWorld* ObjectWorld = Object->GetWorld())
+		{
+			if (UObject* ObjectWorldOuter = ObjectWorld->GetOuter())
+			{
+				if (ObjectWorldOuter->HasAnyFlags(RF_Transient))
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 }
 
@@ -293,6 +320,12 @@ TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel
 	if (!SharedDetailsPanel.IsValid())
 	{
 		FPropertyEditorModule& PropertyEditor = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		TArray<FName> DetailsTabIdentifiers = Preset->GetDetailsTabIdentifierOverrides();
+
+		if (DetailsTabIdentifiers.Num() == 0)
+		{
+			DetailsTabIdentifiers.Append(DetailsTabIdentifiers_LevelEditor, DetailsTabIdentifiers_LevelEditor_Count);
+		}
 
 		for (const FName& DetailsTabIdentifier : DetailsTabIdentifiers)
 		{

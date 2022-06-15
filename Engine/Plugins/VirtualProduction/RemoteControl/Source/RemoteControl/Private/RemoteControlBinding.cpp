@@ -34,6 +34,8 @@ namespace
 
 	/**
 	 * Find the counterpart actor/component in PIE/Editor
+	 * 
+	 * @TODO Does this need to be updated to possibly include a non-editor related preset?
 	 */
 	UObject* FindObjectInCounterpartWorld(UObject* Object, ECounterpartWorldTarget WorldTarget)
 	{
@@ -368,36 +370,12 @@ UClass* URemoteControlLevelDependantBinding::GetSupportedOwnerClass() const
 	return BindingContext.OwnerActorClass.LoadSynchronous();
 }
 
-UWorld* URemoteControlLevelDependantBinding::GetCurrentWorld()
+UWorld* URemoteControlLevelDependantBinding::GetCurrentWorld() const
 {
+	URemoteControlPreset* Preset = Cast<URemoteControlPreset>(GetOuter());
+
 	// Since this is used to retrieve the binding in the map, we never use the PIE world in editor.
-	UWorld* World = nullptr;
-
-#if WITH_EDITOR
-	if (GEditor && FApp::CanEverRender())
-	{
-		World = GEditor->GetEditorWorldContext(false).World();
-	}
-#endif
-
-	if (World)
-	{
-		return World;
-	}
-
-	if (GEngine)
-	{
-		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-		{
-			if (WorldContext.WorldType == EWorldType::Game)
-			{
-				World = WorldContext.World();
-				break;
-			}
-		}
-	}
-		
-	return World;
+	return URemoteControlPreset::GetPresetWorld(Preset, false);
 }
 
 void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<ULevel>& Level, const TSoftObjectPtr<UObject>& BoundObject)
