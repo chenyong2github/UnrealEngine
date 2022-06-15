@@ -15,10 +15,18 @@ class UWaterBodyRiverComponent;
 class FWaterBodyMeshSection;
 class FMaterialRenderProxy;
 
+enum class EWaterInfoPass
+{
+	None,
+	Depth,
+	Color,
+	Dilation,
+};
+
 class FWaterBodySceneProxy final : public FPrimitiveSceneProxy
 {
 public:
-	FWaterBodySceneProxy(UWaterBodyComponent* Component, const TArray<FDynamicMeshVertex>& Vertices, TArray<uint32>& Indices);
+	FWaterBodySceneProxy(UWaterBodyComponent* Component);
 	virtual ~FWaterBodySceneProxy();
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
@@ -28,15 +36,16 @@ public:
 
 	bool IsShown(const FSceneView* View) const;
 
-	bool IsWithinWaterInfoPass() const { return bWithinWaterInfoPass; }
-	void SetWithinWaterInfoPass(bool bInWithinWaterInfoPass);
+	bool IsWithinWaterInfoPass(EWaterInfoPass InPass) const { return CurrentWaterInfoPass == InPass; }
+	void SetWithinWaterInfoPass(EWaterInfoPass InPass) { CurrentWaterInfoPass = InPass; }
 
 private:
-	void InitResources(FWaterBodyMeshSection* Section);
+	void InitResources(FWaterBodyMeshSection& Section);
 
-	TArray<FWaterBodyMeshSection*> Sections;
-	FMaterialRenderProxy* Material;
+	TArray<FWaterBodyMeshSection> Sections;
+	TArray<FWaterBodyMeshSection> DilatedSections;
+	FMaterialRenderProxy* Material = nullptr;
 
-	bool bWithinWaterInfoPass = false;
+	EWaterInfoPass CurrentWaterInfoPass = EWaterInfoPass::None;
 };
 

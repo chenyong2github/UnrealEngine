@@ -119,20 +119,17 @@ void UWaterBodyLakeComponent::GenerateWaterBodyMesh()
 		
 		if (Inset.Apply())
 		{
-			const uint32 IndexOffset = WaterBodyMeshVertices.Num();
 			for (const FVector3d& Vertex : LakeMesh.GetVerticesBuffer())
 			{
 				// push the set of dilated vertices to the persistent mesh
 				FDynamicMeshVertex MeshVertex(FVector3f(Vertex.X, Vertex.Y, 0.f));
-				MeshVertex.Position.Z = ShapeDilationZOffset;
 				MeshVertex.Color = FColor::Black;
-				MeshVertex.TextureCoordinate[0].X = -1;
-				WaterBodyMeshVertices.Add(MeshVertex);
+				DilatedWaterBodyMeshVertices.Add(MeshVertex);
 			}
 
 			for (const FIndex3i& Triangle : LakeMesh.GetTrianglesBuffer())
 			{
-				WaterBodyMeshIndices.Append({ IndexOffset + Triangle.A, IndexOffset + Triangle.B, IndexOffset + Triangle.C });
+				DilatedWaterBodyMeshIndices.Append({ (uint32)Triangle.A, (uint32)Triangle.B, (uint32)Triangle.C });
 			}
 		}
 		else

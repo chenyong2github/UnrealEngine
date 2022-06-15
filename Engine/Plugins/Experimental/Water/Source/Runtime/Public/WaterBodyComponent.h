@@ -83,6 +83,7 @@ class WATER_API UWaterBodyComponent : public UPrimitiveComponent
 	GENERATED_UCLASS_BODY()
 
 	friend class AWaterBody;
+	friend class FWaterBodySceneProxy;
 public:
 	virtual bool AffectsLandscape() const;
 	virtual bool AffectsWaterMesh() const;
@@ -298,8 +299,6 @@ public:
 
 	/** Returns the minimum and maximum Z of the water surface, including waves */
 	virtual void GetSurfaceMinMaxZ(float& OutMinZ, float& OutMaxZ) const;
-
-	float GetShapeDilationZOffset() const { return ShapeDilationZOffset; }
 
 	virtual ALandscapeProxy* FindLandscape() const;
 
@@ -535,12 +534,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (EditCondition = "bCanAffectNavigation && bGenerateCollisions"))
 	TSubclassOf<UNavAreaBase> WaterNavAreaClass;
 
-	/** Push down the dilated region to prevent overwriting adjacent water body data */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Rendering)
-	float ShapeDilationZOffset = -64.f;
-
+	// #todo_water [roey]: these need to be refactored into individual section structs and serialized
 	TArray<FDynamicMeshVertex> WaterBodyMeshVertices;
 	TArray<uint32> WaterBodyMeshIndices;
+
+	TArray<FDynamicMeshVertex> DilatedWaterBodyMeshVertices;
+	TArray<uint32> DilatedWaterBodyMeshIndices;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

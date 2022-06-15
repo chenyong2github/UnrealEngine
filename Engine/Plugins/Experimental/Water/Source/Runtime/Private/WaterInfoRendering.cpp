@@ -31,10 +31,11 @@ namespace UE::WaterInfo
 
 struct FUpdateWaterInfoParams
 {
-	FSceneRenderer* DepthRenderer;
-	FSceneRenderer* ColorRenderer;
-	FRenderTarget* RenderTarget;
-	FTexture* OutputTexture;
+	FSceneRenderer* DepthRenderer = nullptr;
+	FSceneRenderer* ColorRenderer = nullptr;
+	FSceneRenderer* DilationRenderer = nullptr;
+	FRenderTarget* RenderTarget = nullptr;
+	FTexture* OutputTexture = nullptr;
 
 	FVector2D WaterZoneExtents;
 	FVector2f WaterHeightExtents;
@@ -58,6 +59,7 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, ColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilationTexture)
 		SHADER_PARAMETER(FVector2f, WaterHeightExtents)
 		SHADER_PARAMETER(float, GroundZMin)
 		SHADER_PARAMETER(float, CaptureZ)
@@ -85,7 +87,8 @@ static void MergeWaterInfoAndDepth(
 	FRDGTextureRef OutputTexture,
 	FRDGTextureRef DepthTexture,
 	FRDGTextureRef ColorTexture,
-	FUpdateWaterInfoParams Params)
+	FRDGTextureRef DilationTexture,
+	const FUpdateWaterInfoParams& Params)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "WaterInfoDepthMerge");
 
@@ -101,6 +104,7 @@ static void MergeWaterInfoAndDepth(
 		PassParameters->SceneTextures = SceneTextures.GetSceneTextureShaderParameters(ViewFamily.GetFeatureLevel());
 		PassParameters->DepthTexture = DepthTexture;
 		PassParameters->ColorTexture = ColorTexture;
+		PassParameters->DilationTexture = DilationTexture;
 		PassParameters->CaptureZ = Params.CaptureZ;
 		PassParameters->WaterHeightExtents = Params.WaterHeightExtents;
 		PassParameters->GroundZMin = Params.GroundZMin;
@@ -196,7 +200,7 @@ static void FinalizeWaterInfo(
 	FViewInfo& View,
 	FRDGTextureRef WaterInfoTexture,
 	FRDGTextureRef OutputTexture,
-	FUpdateWaterInfoParams Params)
+	const FUpdateWaterInfoParams& Params)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "WaterInfoFinalize");
 
@@ -276,19 +280,17 @@ static FMatrix BuildOrthoMatrix(float InOrthoWidth, float InOrthoHeight)
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-static void SetWaterBodiesWithinWaterInfoPass(FSceneRenderer* SceneRenderer, bool bWithinWaterInfoPass)
+static void SetWaterBodiesWithinWaterInfoPass(FSceneRenderer* SceneRenderer, EWaterInfoPass InPass)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WaterInfo::SetWaterBodiesWithinWaterInfoPass);
 	if (SceneRenderer->Views[0].ShowOnlyPrimitives.IsSet())
 	{
-		for (FPrimitiveComponentId PrimId : SceneRenderer->Views[0].ShowOnlyPrimitives.GetValue())
+		for (FPrimitiveSceneProxy* PrimProxy : SceneRenderer->Scene->PrimitiveSceneProxies)
 		{
-			for (FPrimitiveSceneProxy* PrimProxy : SceneRenderer->Scene->PrimitiveSceneProxies)
+			if (PrimProxy && SceneRenderer->Views[0].ShowOnlyPrimitives->Contains(PrimProxy->GetPrimitiveComponentId()))
 			{
-				if (PrimProxy && PrimProxy->GetPrimitiveComponentId() == PrimId)
-				{
-					FWaterBodySceneProxy* WaterProxy = (FWaterBodySceneProxy*)PrimProxy;
-					WaterProxy->SetWithinWaterInfoPass(bWithinWaterInfoPass);
-				}
+				FWaterBodySceneProxy* WaterProxy = (FWaterBodySceneProxy*)PrimProxy;
+				WaterProxy->SetWithinWaterInfoPass(InPass);
 			}
 		}
 	}
@@ -397,6 +399,9 @@ static void UpdateWaterInfoRendering_RenderThread(
 	FRenderTarget* RenderTarget = Params.RenderTarget;
 	FTexture* OutputTexture = Params.OutputTexture;
 
+	TRefCountPtr<IPooledRenderTarget> ExtractedDepthTexture;
+	TRefCountPtr<IPooledRenderTarget> ExtractedColorTexture;
+
 	// Depth-only pass for actors which are considered the ground for water rendering
 	{
 		FSceneRenderer* DepthRenderer = Params.DepthRenderer;
@@ -413,7 +418,9 @@ static void UpdateWaterInfoRendering_RenderThread(
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoColorRendering"), ERDGBuilderFlags::AllowParallelExecute);
 		
 		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("WaterDepthTarget"));
-		
+
+		FRDGTextureDesc DepthTextureDesc(TargetTexture->Desc);
+		FRDGTextureRef DepthTexture = GraphBuilder.CreateTexture(DepthTextureDesc, TEXT("WaterDepthTexture"));
 
 		FViewInfo& View = DepthRenderer->Views[0];
 
@@ -426,10 +433,7 @@ static void UpdateWaterInfoRendering_RenderThread(
 			RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderWaterInfoDepth);
 			DepthRenderer->Render(GraphBuilder);
 		}
-
-		FRDGTextureRef ShaderResourceTexture = RegisterExternalTexture(GraphBuilder, OutputTexture->TextureRHI, TEXT("WaterDepthTexture"));
-		AddCopyTexturePass(GraphBuilder, TargetTexture, ShaderResourceTexture);
-
+		
 		if (DepthRenderer->Scene->GetShadingPath() == EShadingPath::Mobile)
 		{
 			const FMinimalSceneTextures& SceneTextures = View.GetSceneTextures();
@@ -438,12 +442,21 @@ static void UpdateWaterInfoRendering_RenderThread(
 			CopySceneCaptureComponentToTarget(
 				GraphBuilder,
 				SceneTextures,
-				ShaderResourceTexture,
+				DepthTexture,
 				DepthRenderer->ViewFamily,
 				DepthRenderer->Views,
 				bNeedsFlippedRenderTarget);
 		}
+		else
+		{
+			FResolveParams ResolveParams;
+			AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, DepthTexture, ResolveParams);
+		}
 		
+		// We currently can't have multiple scene renderers run within the same RDGBuilder. Therefore, we must
+		// extract the texture to allow it to survive until the water info pass which runs in a later RDG graph (however, still within the same frame).
+		GraphBuilder.QueueTextureExtraction(DepthTexture, &ExtractedDepthTexture);
+
 		GraphBuilder.Execute();
 
 		DepthRenderer->RenderThreadEnd(RHICmdList);
@@ -457,16 +470,17 @@ static void UpdateWaterInfoRendering_RenderThread(
 		FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, ColorRenderer);
 
 		ColorRenderer->RenderThreadBegin(RHICmdList);
-
-		SetWaterBodiesWithinWaterInfoPass(ColorRenderer, true);
+		SetWaterBodiesWithinWaterInfoPass(ColorRenderer, EWaterInfoPass::Color);
 		
 		SCOPED_DRAW_EVENT(RHICmdList, ColorRendering_RT);
 		
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoColorRendering"), ERDGBuilderFlags::AllowParallelExecute);
-		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("WaterInfoTarget"));
 
-		FRDGTextureRef DepthTexture = GraphBuilder.CreateTexture(TargetTexture->Desc, TEXT("WaterInfoDepth"));
-		AddCopyTexturePass(GraphBuilder, TargetTexture, DepthTexture);
+		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("WaterColorTarget"));
+
+		FRDGTextureDesc ColorTextureDesc(TargetTexture->Desc);
+		ColorTextureDesc.Format = PF_A32B32G32R32F;
+		FRDGTextureRef ColorTexture = GraphBuilder.CreateTexture(ColorTextureDesc, TEXT("WaterColorTexture"));
 		
 		FViewInfo& View = ColorRenderer->Views[0];
 
@@ -481,9 +495,8 @@ static void UpdateWaterInfoRendering_RenderThread(
 		}
 
 		const FMinimalSceneTextures& SceneTextures = View.GetSceneTextures();
-		FRDGTextureDesc ColorTextureDesc(TargetTexture->Desc);
-		ColorTextureDesc.Format = PF_A32B32G32R32F;
-		FRDGTextureRef ColorTexture = GraphBuilder.CreateTexture(ColorTextureDesc, TEXT("WaterInfoColor"));
+
+		// This CopySceneCaptureComponentToTarget is required on all platforms as it extracts a higher pixel depth texture than the scene render target so we can't just copy out of it
 		{
 			const bool bNeedsFlippedRenderTarget = false;
 			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
@@ -496,26 +509,110 @@ static void UpdateWaterInfoRendering_RenderThread(
 				bNeedsFlippedRenderTarget);
 		}
 
-		FRDGTextureRef MergeTargetTexture = GraphBuilder.CreateTexture(ColorTextureDesc, TEXT("WaterInfoMerged"));
-		MergeWaterInfoAndDepth(GraphBuilder, SceneTextures, ColorRenderer->ViewFamily, ColorRenderer->Views[0], MergeTargetTexture, DepthTexture, ColorTexture, Params);
+		// We currently can't have multiple scene renderers run within the same RDGBuilder. Therefore, we must
+		// extract the texture to allow it to survive until the water info pass which runs in a later RDG graph (however, still within the same frame).
+		GraphBuilder.QueueTextureExtraction(ColorTexture, &ExtractedColorTexture);
+
+		GraphBuilder.Execute();
+		
+		ColorRenderer->RenderThreadEnd(RHICmdList);
+	}
+
+	// Depth-only pass for water body dilated sections which get composited back into the water info texture at a lower priority than regular water body data
+	{
+		FSceneRenderer* DilationRenderer = Params.DilationRenderer;
+
+		// We need to execute the pre-render view extensions before we do any view dependent work.
+		FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, DilationRenderer);
+
+		DilationRenderer->RenderThreadBegin(RHICmdList);
+		SetWaterBodiesWithinWaterInfoPass(DilationRenderer, EWaterInfoPass::Dilation);
+
+		SCOPED_DRAW_EVENT(RHICmdList, DilationRendering_RT);
+		
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoColorRendering"), ERDGBuilderFlags::AllowParallelExecute);
+		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("WaterDilationTarget"));
+
+		FRDGTextureRef DepthTexture = GraphBuilder.RegisterExternalTexture(ExtractedDepthTexture);
+		FRDGTextureRef ColorTexture = GraphBuilder.RegisterExternalTexture(ExtractedColorTexture);
+
+		FViewInfo& View = DilationRenderer->Views[0];
+
+		AddClearRenderTargetPass(GraphBuilder, TargetTexture, FLinearColor::Black, View.UnscaledViewRect);
+
+		View.bDisableQuerySubmissions = true;
+		View.bIgnoreExistingQueries = true;
+
+		{
+			RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderWaterInfoDilation);
+			DilationRenderer->Render(GraphBuilder);
+		}
+
+		const FMinimalSceneTextures& SceneTextures = View.GetSceneTextures();
+		FRDGTextureDesc TextureDesc(TargetTexture->Desc);
+		FRDGTextureRef DilationTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("WaterDilationTexture"));
+
+		if (DilationRenderer->Scene->GetShadingPath() == EShadingPath::Mobile)
+		{
+			const bool bNeedsFlippedRenderTarget = false;
+			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
+			CopySceneCaptureComponentToTarget(
+				GraphBuilder,
+				SceneTextures,
+				DilationTexture,
+				DilationRenderer->ViewFamily,
+				DilationRenderer->Views,
+				bNeedsFlippedRenderTarget);
+		}
+		else
+		{
+			FResolveParams ResolveParams;
+			AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, DilationTexture, ResolveParams);
+		}
+
+		FRDGTextureRef MergeTargetTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("WaterInfoMerged"));
+		MergeWaterInfoAndDepth(GraphBuilder, SceneTextures, DilationRenderer->ViewFamily, DilationRenderer->Views[0], MergeTargetTexture, DepthTexture, ColorTexture, DilationTexture, Params);
 
 		FRDGTextureRef FinalizedTexture = GraphBuilder.CreateTexture(TargetTexture->Desc, TEXT("WaterInfoFinalized"));
-		FinalizeWaterInfo(GraphBuilder, SceneTextures, ColorRenderer->ViewFamily, ColorRenderer->Views[0], MergeTargetTexture, FinalizedTexture, Params);
+		FinalizeWaterInfo(GraphBuilder, SceneTextures, DilationRenderer->ViewFamily, DilationRenderer->Views[0], MergeTargetTexture, FinalizedTexture, Params);
 		
 		FRDGTextureRef ShaderResourceTexture = RegisterExternalTexture(GraphBuilder, OutputTexture->TextureRHI, TEXT("WaterInfoResolve"));
 		AddCopyTexturePass(GraphBuilder, FinalizedTexture, ShaderResourceTexture);
 		GraphBuilder.Execute();
-		
-		SetWaterBodiesWithinWaterInfoPass(ColorRenderer, false);
 
-		ColorRenderer->RenderThreadEnd(RHICmdList);
+		SetWaterBodiesWithinWaterInfoPass(DilationRenderer, EWaterInfoPass::None);
+		DilationRenderer->RenderThreadEnd(RHICmdList);
 	}
 
 	RHICmdList.Transition(FRHITransitionInfo(Params.OutputTexture->TextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
 }
 
-static FEngineShowFlags GetWaterInfoBaseShowFlags()
+struct FCreateWaterInfoSceneRendererParams
 {
+public:
+	FCreateWaterInfoSceneRendererParams(const WaterInfo::FRenderingContext& InContext) : Context(InContext) {}
+
+	const WaterInfo::FRenderingContext& Context;
+
+	FSceneInterface* Scene = nullptr;
+	FRenderTarget* RenderTarget = nullptr;
+
+	FIntPoint RenderTargetSize = FIntPoint(EForceInit::ForceInit);
+	FMatrix ViewRotationMatrix = FMatrix(EForceInit::ForceInit);
+	FVector ViewLocation = FVector::Zero();
+	FMatrix ProjectionMatrix = FMatrix(EForceInit::ForceInit);
+	ESceneCaptureSource CaptureSource = ESceneCaptureSource::SCS_MAX;
+	TSet<FPrimitiveComponentId> ShowOnlyPrimitives;
+};
+
+static FSceneRenderer* CreateWaterInfoSceneRenderer(const FCreateWaterInfoSceneRendererParams& Params)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(WaterInfo::CreateWaterInfoRenderer);
+
+	check(Params.Scene != nullptr)
+	check(Params.RenderTarget != nullptr)
+	check(Params.CaptureSource != ESceneCaptureSource::SCS_MAX)
+
 	FEngineShowFlags ShowFlags(ESFIM_Game);
 	ShowFlags.NaniteMeshes = 0;
 	ShowFlags.Atmosphere = 0;
@@ -528,161 +625,63 @@ static FEngineShowFlags GetWaterInfoBaseShowFlags()
 	ShowFlags.Fog = 0;
 	ShowFlags.VolumetricFog = 0;
 	ShowFlags.DynamicShadows = 0;
-	return ShowFlags;
-}
-
-static FSceneRenderer* CreateWaterInfoDepthRenderer(
-	FSceneInterface* Scene,
-	FRenderTarget* RenderTarget,
-	const WaterInfo::FRenderingContext& Context,
-	FIntPoint RenderTargetSize,
-	const FMatrix& ViewRotationMatrix,
-	const FVector& ViewLocation,
-	const FMatrix& ProjectionMatrix)
-{
-	FEngineShowFlags ShowFlags = GetWaterInfoBaseShowFlags();
-
-	FSceneViewFamilyContext DepthViewFamily(FSceneViewFamily::ConstructionValues(
-		RenderTarget,
-		Scene,
+	
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		Params.RenderTarget,
+		Params.Scene,
 		ShowFlags)
 		.SetRealtimeUpdate(false)
 		.SetResolveScene(false));
-	DepthViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_DeviceDepth;
+	ViewFamily.SceneCaptureSource = Params.CaptureSource;
 
-	// Setup the view family
-	FSceneViewInitOptions DepthViewInitOptions;
-	DepthViewInitOptions.SetViewRectangle(FIntRect(0, 0, RenderTargetSize.X, RenderTargetSize.Y));
-	DepthViewInitOptions.ViewFamily = &DepthViewFamily;
-	DepthViewInitOptions.ViewActor = Context.ZoneToRender;
-	DepthViewInitOptions.ViewRotationMatrix = ViewRotationMatrix;
-	DepthViewInitOptions.ViewOrigin = ViewLocation;
-	DepthViewInitOptions.BackgroundColor = FLinearColor::Black;
-	DepthViewInitOptions.OverrideFarClippingPlaneDistance = -1.f;
-	DepthViewInitOptions.SceneViewStateInterface = nullptr;
-	DepthViewInitOptions.ProjectionMatrix = ProjectionMatrix;
-	DepthViewInitOptions.LODDistanceFactor = 0.001f;
-	DepthViewInitOptions.OverlayColor = FLinearColor::Black;
+	FSceneViewInitOptions ViewInitOptions;
+	ViewInitOptions.SetViewRectangle(FIntRect(0, 0, Params.RenderTargetSize.X, Params.RenderTargetSize.Y));
+	ViewInitOptions.ViewFamily = &ViewFamily;
+	ViewInitOptions.ViewActor = Params.Context.ZoneToRender;
+	ViewInitOptions.ViewRotationMatrix = Params.ViewRotationMatrix;
+	ViewInitOptions.ViewOrigin = Params.ViewLocation;
+	ViewInitOptions.BackgroundColor = FLinearColor::Black;
+	ViewInitOptions.OverrideFarClippingPlaneDistance = -1.f;
+	ViewInitOptions.SceneViewStateInterface = nullptr;
+	ViewInitOptions.ProjectionMatrix = Params.ProjectionMatrix;
+	ViewInitOptions.LODDistanceFactor = 0.001f;
+	ViewInitOptions.OverlayColor = FLinearColor::Black;
 
-	if (DepthViewFamily.Scene->GetWorld() != nullptr && DepthViewFamily.Scene->GetWorld()->GetWorldSettings() != nullptr)
+	if (ViewFamily.Scene->GetWorld() != nullptr && ViewFamily.Scene->GetWorld()->GetWorldSettings() != nullptr)
 	{
-		DepthViewInitOptions.WorldToMetersScale = DepthViewFamily.Scene->GetWorld()->GetWorldSettings()->WorldToMeters;
+		ViewInitOptions.WorldToMetersScale = ViewFamily.Scene->GetWorld()->GetWorldSettings()->WorldToMeters;
 	}
 
-	FSceneView* DepthView = new FSceneView(DepthViewInitOptions);
-	DepthView->AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
-	DepthView->SetupAntiAliasingMethod();
+	FSceneView* View = new FSceneView(ViewInitOptions);
+	View->bIsSceneCapture = true;
+	View->AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
+	View->SetupAntiAliasingMethod();
 
-	if (Context.GroundActors.Num() > 0)
+	View->ShowOnlyPrimitives = Params.ShowOnlyPrimitives;
+
+	ViewFamily.Views.Add(View);
+
+	View->StartFinalPostprocessSettings(Params.ViewLocation);
+	View->EndFinalPostprocessSettings(ViewInitOptions);
+
+	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.f));
+
+	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Params.Scene));
+	for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
 	{
-		DepthView->ShowOnlyPrimitives.Emplace();
-		DepthView->ShowOnlyPrimitives->Reserve(Context.GroundActors.Num());
-		for (TWeakObjectPtr<AActor> GroundActor : Context.GroundActors)
-		{
-			if (GroundActor.IsValid())
-			{
-				TInlineComponentArray<UPrimitiveComponent*> PrimComps(GroundActor.Get());
-				for (UPrimitiveComponent* PrimComp : PrimComps)
-				{
-					if (PrimComp)
-					{
-						DepthView->ShowOnlyPrimitives->Add(PrimComp->ComponentId);
-					}
-				}
-			}
-		}
+		Extension->SetupViewFamily(ViewFamily);
+		Extension->SetupView(ViewFamily, *View);
 	}
 
-	DepthViewFamily.Views.Add(DepthView);
-	
-	DepthView->StartFinalPostprocessSettings(ViewLocation);
-	DepthView->EndFinalPostprocessSettings(DepthViewInitOptions);
-
-	DepthViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(DepthViewFamily, 1.f));
-
-	DepthViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Scene));
-	for (const FSceneViewExtensionRef& Extension : DepthViewFamily.ViewExtensions)
-	{
-		Extension->SetupViewFamily(DepthViewFamily);
-		Extension->SetupView(DepthViewFamily, *DepthView);
-	}
-
-	return FSceneRenderer::CreateSceneRenderer(&DepthViewFamily, nullptr);
-}
-
-static FSceneRenderer* CreateWaterInfoColorRenderer(
-	FSceneInterface* Scene,
-	FRenderTarget* RenderTarget,
-	const WaterInfo::FRenderingContext& Context,
-	FIntPoint RenderTargetSize,
-	const FMatrix& ViewRotationMatrix,
-	const FVector& ViewLocation,
-	const FMatrix& ProjectionMatrix)
-{
-	FEngineShowFlags ShowFlags = GetWaterInfoBaseShowFlags();
-	
-	FSceneViewFamilyContext ColorViewFamily(FSceneViewFamily::ConstructionValues(
-		RenderTarget,
-		Scene,
-		ShowFlags)
-		.SetRealtimeUpdate(false)
-		.SetResolveScene(false));
-	ColorViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorSceneDepth;
-
-	FSceneViewInitOptions ColorViewInitOptions;
-	ColorViewInitOptions.SetViewRectangle(FIntRect(0, 0, RenderTargetSize.X, RenderTargetSize.Y));
-	ColorViewInitOptions.ViewFamily = &ColorViewFamily;
-	ColorViewInitOptions.ViewActor = Context.ZoneToRender;
-	ColorViewInitOptions.ViewRotationMatrix = ViewRotationMatrix;
-	ColorViewInitOptions.ViewOrigin = ViewLocation;
-	ColorViewInitOptions.BackgroundColor = FLinearColor::Black;
-	ColorViewInitOptions.OverrideFarClippingPlaneDistance = -1.f;
-	ColorViewInitOptions.SceneViewStateInterface = nullptr;
-	ColorViewInitOptions.ProjectionMatrix = ProjectionMatrix;
-	ColorViewInitOptions.LODDistanceFactor = 0.001f;
-	ColorViewInitOptions.OverlayColor = FLinearColor::Black;
-
-	if (ColorViewFamily.Scene->GetWorld() != nullptr && ColorViewFamily.Scene->GetWorld()->GetWorldSettings() != nullptr)
-	{
-		ColorViewInitOptions.WorldToMetersScale = ColorViewFamily.Scene->GetWorld()->GetWorldSettings()->WorldToMeters;
-	}
-
-	FSceneView* ColorView = new FSceneView(ColorViewInitOptions);
-	ColorView->bIsSceneCapture = true;
-	ColorView->AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
-	ColorView->SetupAntiAliasingMethod();
-
-	if (Context.WaterBodies.Num() > 0)
-	{
-		ColorView->ShowOnlyPrimitives.Emplace();
-		ColorView->ShowOnlyPrimitives->Reserve(Context.WaterBodies.Num());
-		for (const UWaterBodyComponent* WaterBodyToRender : Context.WaterBodies)
-		{
-			ColorView->ShowOnlyPrimitives->Add(WaterBodyToRender->ComponentId);
-		}
-	}
-
-	ColorViewFamily.Views.Add(ColorView);
-
-	ColorView->StartFinalPostprocessSettings(ViewLocation);
-	ColorView->EndFinalPostprocessSettings(ColorViewInitOptions);
-
-	ColorViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ColorViewFamily, 1.f));
-
-	ColorViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Scene));
-	for (const FSceneViewExtensionRef& Extension : ColorViewFamily.ViewExtensions)
-	{
-		Extension->SetupViewFamily(ColorViewFamily);
-		Extension->SetupView(ColorViewFamily, *ColorView);
-	}
-
-	return FSceneRenderer::CreateSceneRenderer(&ColorViewFamily, nullptr);
+	return FSceneRenderer::CreateSceneRenderer(&ViewFamily, nullptr);
 }
 
 void UpdateWaterInfoRendering(
 	FSceneInterface* Scene,
 	const WaterInfo::FRenderingContext& Context)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WaterInfo::UpdateWaterInfoRendering);
+	
 	RenderCaptureInterface::FScopedCapture RenderCapture((RenderCaptureNextWaterInfoDraws != 0), TEXT("RenderWaterInfo"));
 	RenderCaptureNextWaterInfoDraws = FMath::Max(0, RenderCaptureNextWaterInfoDraws - 1);
 
@@ -697,38 +696,65 @@ void UpdateWaterInfoRendering(
 
 	// Zone rendering always happens facing towards negative z.
 	const FVector LookAt = ViewLocation - FVector(0.f, 0.f, 1.f);
-
-	FMatrix ViewRotationMat = FLookAtMatrix(ViewLocation, LookAt, FVector(0.f, -1.f, 0.f));
-	ViewRotationMat = ViewRotationMat.RemoveTranslation();
-	ViewRotationMat.RemoveScaling();
 	
 	const FIntPoint CaptureExtent(Context.TextureRenderTarget->GetSurfaceWidth(), Context.TextureRenderTarget->GetSurfaceHeight());
 
-	const FMatrix OrthoProj = BuildOrthoMatrix(ZoneExtent.X, ZoneExtent.Y);
+	// Initialize the generic parameters which are passed to each of the scene renderers
+	FCreateWaterInfoSceneRendererParams CreateSceneRendererParams(Context);
+	CreateSceneRendererParams.Scene = Scene;
+	CreateSceneRendererParams.RenderTarget = Context.TextureRenderTarget->GameThread_GetRenderTargetResource();
+	CreateSceneRendererParams.RenderTargetSize = CaptureExtent;
+	CreateSceneRendererParams.ViewLocation = ViewLocation;
+	CreateSceneRendererParams.ProjectionMatrix = BuildOrthoMatrix(ZoneExtent.X, ZoneExtent.Y);
+	CreateSceneRendererParams.ViewRotationMatrix = FLookAtMatrix(ViewLocation, LookAt, FVector(0.f, -1.f, 0.f));
+	CreateSceneRendererParams.ViewRotationMatrix = CreateSceneRendererParams.ViewRotationMatrix.RemoveTranslation();
+	CreateSceneRendererParams.ViewRotationMatrix.RemoveScaling();
 
-	FSceneRenderer* DepthRenderer = CreateWaterInfoDepthRenderer(
-		Scene,
-		Context.TextureRenderTarget->GameThread_GetRenderTargetResource(),
-		Context,
-		CaptureExtent,
-		ViewRotationMat,
-		ViewLocation,
-		OrthoProj);
+	TSet<FPrimitiveComponentId> ComponentsToRenderInDepthPass;
+	if (Context.GroundActors.Num() > 0)
+	{
+		ComponentsToRenderInDepthPass.Reserve(Context.GroundActors.Num());
+		for (TWeakObjectPtr<AActor> GroundActor : Context.GroundActors)
+		{
+			if (GroundActor.IsValid())
+			{
+				TInlineComponentArray<UPrimitiveComponent*> PrimComps(GroundActor.Get());
+				for (UPrimitiveComponent* PrimComp : PrimComps)
+				{
+					if (PrimComp)
+					{
+						ComponentsToRenderInDepthPass.Add(PrimComp->ComponentId);
+					}
+				}
+			}
+		}
+	}
+	CreateSceneRendererParams.CaptureSource = SCS_DeviceDepth;
+	CreateSceneRendererParams.ShowOnlyPrimitives = MoveTemp(ComponentsToRenderInDepthPass);
+	FSceneRenderer* DepthRenderer = CreateWaterInfoSceneRenderer(CreateSceneRendererParams);
 	
-	FSceneRenderer* ColorRenderer = CreateWaterInfoColorRenderer(
-		Scene,
-		Context.TextureRenderTarget->GameThread_GetRenderTargetResource(),
-		Context,
-		CaptureExtent,
-		ViewRotationMat,
-		ViewLocation,
-		OrthoProj);
+	TSet<FPrimitiveComponentId> ComponentsToRenderInColorAndDilationPass;
+	if (Context.WaterBodies.Num() > 0)
+	{
+		ComponentsToRenderInColorAndDilationPass.Reserve(Context.WaterBodies.Num());
+		for (const UWaterBodyComponent* WaterBodyToRender : Context.WaterBodies)
+		{
+			ComponentsToRenderInColorAndDilationPass.Add(WaterBodyToRender->ComponentId);
+		}
+	}
+	CreateSceneRendererParams.CaptureSource = SCS_SceneColorSceneDepth;
+	CreateSceneRendererParams.ShowOnlyPrimitives = MoveTemp(ComponentsToRenderInColorAndDilationPass);
+	FSceneRenderer* ColorRenderer = CreateWaterInfoSceneRenderer(CreateSceneRendererParams);
+
+	CreateSceneRendererParams.CaptureSource = SCS_DeviceDepth;
+	FSceneRenderer* DilationRenderer = CreateWaterInfoSceneRenderer(CreateSceneRendererParams);
 
 	FTextureRenderTargetResource* TextureRenderTargetResource = Context.TextureRenderTarget->GameThread_GetRenderTargetResource();
 
 	FUpdateWaterInfoParams Params;
 	Params.DepthRenderer = DepthRenderer;
 	Params.ColorRenderer = ColorRenderer;
+	Params.DilationRenderer = DilationRenderer;
 	Params.RenderTarget = TextureRenderTargetResource;
 	Params.OutputTexture = TextureRenderTargetResource;
 	Params.CaptureZ = ViewLocation.Z;

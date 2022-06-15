@@ -116,7 +116,7 @@ void UWaterBodyComponent::OnHiddenInGameChanged()
 
 FPrimitiveSceneProxy* UWaterBodyComponent::CreateSceneProxy()
 {
-	return new FWaterBodySceneProxy(this, WaterBodyMeshVertices, WaterBodyMeshIndices);
+	return new FWaterBodySceneProxy(this);
 }
 
 void UWaterBodyComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterialInterfaces, bool bGetDebugMaterials) const
