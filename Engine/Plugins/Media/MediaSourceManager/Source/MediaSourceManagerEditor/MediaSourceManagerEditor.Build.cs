@@ -13,6 +13,7 @@ public class MediaSourceManagerEditor : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"MediaAssets",
 				"MediaSourceManager",
 				"Slate",
 				"SlateCore",

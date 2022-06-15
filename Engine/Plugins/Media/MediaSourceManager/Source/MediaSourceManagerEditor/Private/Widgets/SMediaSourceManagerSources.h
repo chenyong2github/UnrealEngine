@@ -5,6 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SVerticalBox;
 class UMediaSourceManager;
 
 /**
@@ -18,8 +19,6 @@ public:
 	SLATE_BEGIN_ARGS(SMediaSourceManagerSources) { }
 	SLATE_END_ARGS()
 
-public:
-
 	/**
 	 * Construct this widget.
 	 *
@@ -31,5 +30,16 @@ public:
 private:
 
 	/** Pointer to the object that is being viewed. */
-	TWeakObjectPtr<UMediaSourceManager> MediaSourceManager;
+	TWeakObjectPtr<UMediaSourceManager> MediaSourceManagerPtr;
+
+	/** Pointer to the container for the media sources. */
+	TSharedPtr<SVerticalBox> ChannelsContainer;
+
+	struct FChannelWidgets
+	{
+		TSharedPtr<STextBlock> InputName;
+	};
+	TArray<FChannelWidgets> ChannelWidgets;
+
+	void RefreshChannels();
 };

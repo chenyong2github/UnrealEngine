@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "MediaSourceManagerChannel.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -11,11 +12,19 @@
 /**
 * Manager to handle media sources and their connections.
 */
-UCLASS()
+UCLASS(BlueprintType)
 class MEDIASOURCEMANAGER_API UMediaSourceManager : public UObject
 {
 	GENERATED_BODY()
 
 public:
+	/** Our channels. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Channels")
+	TArray<UMediaSourceManagerChannel*> Channels;
+
+	/**
+	 * Call this to make sure everything is set up.
+	 */
+	void Validate();
 
 };

@@ -21,7 +21,9 @@ UMediaSourceManagerFactory::UMediaSourceManagerFactory(const FObjectInitializer&
 
 UObject* UMediaSourceManagerFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	return NewObject<UMediaSourceManager>(InParent, InClass, InName, Flags);
+	UMediaSourceManager* Manager = NewObject<UMediaSourceManager>(InParent, InClass, InName, Flags);
+	Manager->Validate();
+	return Manager;
 }
 
 uint32 UMediaSourceManagerFactory::GetMenuCategories() const
