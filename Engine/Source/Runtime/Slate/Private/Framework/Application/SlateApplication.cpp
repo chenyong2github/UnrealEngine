@@ -3973,6 +3973,40 @@ bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const 
 	return (OutSize.X != 0 && OutSize.Y != 0 && OutColorData.Num() >= OutSize.X * OutSize.Y);
 }
 
+TSharedPtr<FSlateUser> FSlateApplication::GetUser(FPlatformUserId PlatformUser)
+{
+	int32 InternalId = 0;
+	if (PlatformUser.IsValid())
+	{
+		InternalId = PlatformUser.GetInternalId();
+	}
+	else
+	{
+		UE_LOG(LogSlate, Warning, TEXT("SlateApplication::GetUser called with an invalid platform user! Defaulting to 0"));
+	}
+	return Users.IsValidIndex(InternalId) ? Users[InternalId] : nullptr;
+}
+
+TSharedPtr<FSlateUser> FSlateApplication::GetUserFromPlatformUser(FPlatformUserId PlatformUser)
+{
+	TOptional<int32> UserIndex = GetUserIndexForPlatformUser(PlatformUser);
+	if (UserIndex.IsSet())
+	{
+		return GetUser(UserIndex.GetValue());
+	}
+	return nullptr;
+}
+
+TSharedPtr<const FSlateUser> FSlateApplication::GetUserFromPlatformUser(FPlatformUserId PlatformUser) const
+{
+	TOptional<int32> UserIndex = GetUserIndexForPlatformUser(PlatformUser);
+	if (UserIndex.IsSet())
+	{
+		return GetUser(UserIndex.GetValue());
+	}
+	return nullptr;
+}
+
 TSharedRef<FSlateVirtualUserHandle> FSlateApplication::FindOrCreateVirtualUser(int32 VirtualUserIndex)
 {
 	// Ensure we have a large enough array to add the new virtual user
