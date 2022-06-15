@@ -91,11 +91,6 @@ public:
 	UPROPERTY(EditAnywhere, config, BlueprintReadWrite, Category = "Groom")
 	TArray<FHairGroupsInterpolation> GroomInterpolationSettings;
 
-	/**
-	 * If enabled, whenever two different prims import into identical assets, only one of those assets will be kept and reused.
-	 */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "Collision", meta=(EditCondition=bImportGeometry))
-	bool bReuseIdenticalAssets;
 
 	/** What should happen when imported actors and components try to overwrite existing actors and components */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "Collision", meta=(EditCondition=bImportActors))

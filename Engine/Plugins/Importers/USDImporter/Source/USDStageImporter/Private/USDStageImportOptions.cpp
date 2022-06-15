@@ -25,7 +25,6 @@ UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectI
 	StageOptions.MetersPerUnit = 0.01f;
 	StageOptions.UpAxis = EUsdUpAxis::ZAxis;
 
-	bReuseIdenticalAssets = true;
 	ExistingActorPolicy = EReplaceActorPolicy::Replace;
 	ExistingAssetPolicy = EReplaceAssetPolicy::Replace;
 

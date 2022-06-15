@@ -1270,7 +1270,6 @@ namespace UsdStageImporterImpl
 					EventAttributes.Emplace( TEXT( "MetersPerUnit" ), ImportContext.ImportOptions->StageOptions.MetersPerUnit );
 					EventAttributes.Emplace( TEXT( "UpAxis" ), ImportContext.ImportOptions->StageOptions.UpAxis == EUsdUpAxis::YAxis ? TEXT( "Y" ) : TEXT( "Z" ) );
 				}
-				EventAttributes.Emplace( TEXT( "ReuseIdenticalAssets" ), ImportContext.ImportOptions->bReuseIdenticalAssets );
 				EventAttributes.Emplace( TEXT( "ReplaceActorPolicy" ), LexToString( (uint8)ImportContext.ImportOptions->ExistingActorPolicy ) );
 				EventAttributes.Emplace( TEXT( "ReplaceAssetPolicy" ), LexToString( (uint8)ImportContext.ImportOptions->ExistingAssetPolicy ) );
 				EventAttributes.Emplace( TEXT( "PrimPathFolderStructure" ), LexToString( ImportContext.ImportOptions->bPrimPathFolderStructure ) );
