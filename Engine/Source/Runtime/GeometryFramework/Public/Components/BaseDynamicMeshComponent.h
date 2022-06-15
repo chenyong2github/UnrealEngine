@@ -56,6 +56,24 @@ enum class EDynamicMeshComponentTangentsMode : uint8
 
 
 /**
+ * Color Override Modes
+ */
+UENUM()
+enum class EDynamicMeshComponentColorOverrideMode : uint8
+{
+	/** No Color Override enabled */
+	None,
+	/** Vertex Colors are displayed */
+	VertexColors,
+	/** Polygroup Colors are displayed */
+	Polygroups,
+	/** Constant Color is displayed */
+	Constant
+};
+
+
+
+/**
  * UBaseDynamicMeshComponent is a base interface for a UMeshComponent based on a UDynamicMesh.
  */
 UCLASS(Abstract, hidecategories = (LOD), ClassGroup = Rendering)
@@ -203,6 +221,76 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual bool GetEnableWireframeRenderPass() const { return bExplicitShowWireframe; }
+
+	/**
+	 * Constant Color used when Override Color Mode is set to Constant
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering", meta = (DisplayName = "Wireframe Color"))
+	FLinearColor WireframeColor = FLinearColor(0, 0.5f, 1.f);
+
+
+	//===============================================================================================================
+	// Built-in Color Rendering Support. When enabled, Color mode will override any assigned Materials.
+	// VertexColor mode displays vertex colors, Polygroup mode displays mesh polygroups via vertex colors,
+	// and Constant mode uses ConstantColor as the vertex color. The class-wide DefaultVertexColorMaterial
+	// is used as the material that displays the vertex colors, and cannot be overridden per-instance
+	// (the OverrideRenderMaterial can be used to do that)
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering", meta = (DisplayName = "Color Override") )
+	EDynamicMeshComponentColorOverrideMode ColorMode = EDynamicMeshComponentColorOverrideMode::None;
+
+	/**
+	 * Configure the active Color Override
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
+	virtual void SetColorOverrideMode(EDynamicMeshComponentColorOverrideMode NewMode);
+
+	/**
+	 * @return active Color Override mode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
+	virtual EDynamicMeshComponentColorOverrideMode GetColorOverrideMode() const { return ColorMode; }
+
+	/**
+	 * Constant Color used when Override Color Mode is set to Constant
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering", meta = (DisplayName = "Constant Color", EditCondition = "ColorMode==EDynamicMeshComponentColorOverrideMode::Constant"))
+	FColor ConstantColor = FColor::White;
+
+	/**
+	 * Configure the Color used with Constant Color Override Mode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
+	virtual void SetConstantOverrideColor(FColor NewColor);
+
+	/**
+	 * @return active Color used for Constant Color Override Mode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
+	virtual FColor GetConstantOverrideColor() const { return ConstantColor; }
+
+
+	//===============================================================================================================
+	// Flat shading support. When enabled, per-triangle normals are computed automatically and used in place
+	// of the mesh normals. Mesh tangents are not affected.
+public:
+	/**
+	 * Enable use of per-triangle facet normals in place of mesh normals
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering", meta = (DisplayName = "Flat Shading") )
+	bool bEnableFlatShading = false;
+
+	/**
+	 * Configure the Color used with Constant Color Override Mode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
+	virtual void SetEnableFlatShading(bool bEnable);
+
+	/**
+	 * @return active Color used for Constant Color Override Mode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
+	virtual bool GetFlatShadingEnabled() const { return bEnableFlatShading; }
 
 
 
@@ -387,4 +475,40 @@ public:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UMaterialInterface>> BaseMaterials;
+
+
+
+
+
+	//===============================================================================================================
+	// Class-wide Default Materials used for Wireframe and VertexColor display mode.
+	// These are configured for the Editor when the module loads, defaulting to built-in Engine wireframe and
+	// vertex color materials. 
+	// Note that the ModelingComponents module in the MeshModelingToolset plugin (usually enabled in the UE Editor) 
+	// will set a new VertexColor material from that plugins Content. 
+	// Client code can further configure these materials as necessary using the static functions below.
+public:
+	/**
+	 * Set the wireframe material used for all BaseDynamicMeshComponent-derived Components
+	 */
+	static void SetDefaultWireframeMaterial(UMaterialInterface* Material);
+
+	/**
+	 * Set the vertex color material used for all BaseDynamicMeshComponent-derived Components
+	 */
+	static void SetDefaultVertexColorMaterial(UMaterialInterface* Material);
+
+protected:
+	static void InitializeDefaultMaterials();
+	friend class FGeometryFrameworkModule;			// FGeometryFrameworkModule needs to call the above function
+
+	static UMaterialInterface* GetDefaultWireframeMaterial_RenderThread();
+	static UMaterialInterface* GetDefaultVertexColorMaterial_RenderThread();
+	friend class FBaseDynamicMeshSceneProxy;		// FBaseDynamicMeshSceneProxy needs to call these functions...
+
+private:
+	// these Materials are used by the render thread. Once the engine is running they should not be modified without 
+	// using SetDefaultWireframeMaterial/SetDefaultVertexColorMaterial
+	static UMaterialInterface* DefaultWireframeMaterial;
+	static UMaterialInterface* DefaultVertexColorMaterial;
 };

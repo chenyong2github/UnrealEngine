@@ -1,18 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryFrameworkModule.h"
+#include "Components/BaseDynamicMeshComponent.h"
 
 #define LOCTEXT_NAMESPACE "FGeometryFrameworkModule"
 
 void FGeometryFrameworkModule::StartupModule()
 {
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FGeometryFrameworkModule::OnPostEngineInit);
+}
+
+void FGeometryFrameworkModule::OnPostEngineInit()
+{
+	// UBaseDynamicMeshComponent provides some global materials to all instances, rather than
+	// directly accessing (eg) GEngine pointers. Initialize those here. 
+	UBaseDynamicMeshComponent::InitializeDefaultMaterials();
 }
 
 void FGeometryFrameworkModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 }
 
 #undef LOCTEXT_NAMESPACE

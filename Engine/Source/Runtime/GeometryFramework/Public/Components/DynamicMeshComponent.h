@@ -295,6 +295,8 @@ protected:
 	/** This function is passed via lambda to the RenderProxy to be able to access TriangleColorFunc */
 	FColor GetTriangleColor(const FDynamicMesh3* Mesh, int TriangleID);
 
+	/** This function is passed via lambda to the RenderProxy when BaseDynamicMeshComponent::ColorMode == Polygroups */
+	FColor GetGroupColor(const FDynamicMesh3* Mesh, int TriangleID) const;
 
 
 

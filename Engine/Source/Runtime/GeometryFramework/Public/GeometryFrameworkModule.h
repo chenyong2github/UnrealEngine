@@ -12,4 +12,8 @@ public:
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+
+
+	// registered in StartupModule() with FCoreDelegates::OnPostEngineInit and called once
+	void OnPostEngineInit();
 };

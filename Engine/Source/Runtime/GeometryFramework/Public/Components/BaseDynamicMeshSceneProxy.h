@@ -433,6 +433,10 @@ public:
 	 */
 	TFunction<FColor(const FDynamicMesh3*, int)> PerTriangleColorFunc = nullptr;
 
+	/**
+	* If true, a facet normals are used instead of mesh normals
+	*/
+	bool bUsePerTriangleNormals = false;
 
 	/**
 	 * If true, populate secondary buffers using SecondaryTriFilterFunc
@@ -583,8 +587,16 @@ public:
 			{
 				RenderBuffers->PositionVertexBuffer.VertexPosition(VertIdx) = (FVector3f)Mesh->GetVertex(Tri[j]);
 
-				FVector3f Normal = (NormalOverlay != nullptr && TriNormal[j] != FDynamicMesh3::InvalidID) ?
-					NormalOverlay->GetElement(TriNormal[j]) : Mesh->GetVertexNormal(Tri[j]);
+				FVector3f Normal;
+				if (bUsePerTriangleNormals)
+				{
+					Normal = (FVector3f)Mesh->GetTriNormal(TriangleID);
+				}
+				else
+				{
+					Normal = (NormalOverlay != nullptr && TriNormal[j] != FDynamicMesh3::InvalidID) ?
+						NormalOverlay->GetElement(TriNormal[j]) : Mesh->GetVertexNormal(Tri[j]);
+				}
 
 				// get tangents
 				TangentsFunc(Tri[j], TriangleID, j, Normal, TangentX, TangentY);
@@ -774,8 +786,17 @@ public:
 				if (bUpdateNormals)
 				{
 					// get normal and tangent
-					FVector3f Normal = (NormalOverlay != nullptr && TriNormal[j] != FDynamicMesh3::InvalidID) ?
-						NormalOverlay->GetElement(TriNormal[j]) : Mesh->GetVertexNormal(Tri[j]);
+					FVector3f Normal;
+					if (bUsePerTriangleNormals)
+					{
+						Normal = (FVector3f)Mesh->GetTriNormal(TriangleID);
+					}
+					else
+					{
+						Normal = (NormalOverlay != nullptr && TriNormal[j] != FDynamicMesh3::InvalidID) ?
+							NormalOverlay->GetElement(TriNormal[j]) : Mesh->GetVertexNormal(Tri[j]);
+					}
+
 					TangentsFunc(Tri[j], TriangleID, j, Normal, TangentX, TangentY);
 
 					RenderBuffers->StaticMeshVertexBuffer.SetVertexTangents(VertIdx, (FVector3f)TangentX, (FVector3f)TangentY, (FVector3f)Normal);

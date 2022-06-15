@@ -2,6 +2,7 @@
 
 #include "Components/BaseDynamicMeshComponent.h"
 #include "Components/BaseDynamicMeshSceneProxy.h"
+#include "Materials/Material.h"
 
 using namespace UE::Geometry;
 
@@ -115,6 +116,38 @@ bool UBaseDynamicMeshComponent::GetEnableRaytracing() const
 	return bEnableRaytracing;
 }
 
+
+
+void UBaseDynamicMeshComponent::SetColorOverrideMode(EDynamicMeshComponentColorOverrideMode NewMode)
+{
+	if (ColorMode != NewMode)
+	{
+		ColorMode = NewMode;
+		OnRenderingStateChanged(false);
+	}
+}
+
+
+void UBaseDynamicMeshComponent::SetConstantOverrideColor(FColor NewColor) 
+{ 
+	if (ConstantColor != NewColor)
+	{
+		ConstantColor = NewColor; 
+		OnRenderingStateChanged(false);
+	}
+}
+
+
+void UBaseDynamicMeshComponent::SetEnableFlatShading(bool bEnable)
+{
+	if (bEnableFlatShading != bEnable)
+	{
+		bEnableFlatShading = bEnable; 
+		OnRenderingStateChanged(false);
+	}
+}
+
+
 void UBaseDynamicMeshComponent::OnRenderingStateChanged(bool bForceImmedateRebuild)
 {
 	if (bForceImmedateRebuild)
@@ -198,5 +231,52 @@ void UBaseDynamicMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& Ou
 	{
 		OutMaterials.Add(SecondaryRenderMaterial);
 	}
+	if (ColorMode != EDynamicMeshComponentColorOverrideMode::None && UBaseDynamicMeshComponent::DefaultVertexColorMaterial != nullptr)
+	{
+		OutMaterials.Add(UBaseDynamicMeshComponent::DefaultVertexColorMaterial);
+	}
 }
 
+
+UMaterialInterface* UBaseDynamicMeshComponent::DefaultWireframeMaterial = nullptr;
+UMaterialInterface* UBaseDynamicMeshComponent::DefaultVertexColorMaterial = nullptr;
+
+void UBaseDynamicMeshComponent::InitializeDefaultMaterials()
+{
+	if (GEngine->WireframeMaterial != nullptr)
+	{
+		DefaultWireframeMaterial = GEngine->WireframeMaterial;
+	}
+	if (GEngine->VertexColorViewModeMaterial_ColorOnly != nullptr)
+	{
+		DefaultVertexColorMaterial = GEngine->VertexColorViewModeMaterial_ColorOnly;
+	}
+}
+
+UMaterialInterface* UBaseDynamicMeshComponent::GetDefaultWireframeMaterial_RenderThread()
+{
+	return DefaultWireframeMaterial;
+}
+
+void UBaseDynamicMeshComponent::SetDefaultWireframeMaterial(UMaterialInterface* Material)
+{
+	ENQUEUE_RENDER_COMMAND(BaseDynamicMeshComponent_SetWireframeMaterial)(
+		[Material](FRHICommandListImmediate& RHICmdList)
+	{
+		UBaseDynamicMeshComponent::DefaultWireframeMaterial = Material;
+	});
+}
+
+UMaterialInterface* UBaseDynamicMeshComponent::GetDefaultVertexColorMaterial_RenderThread()
+{
+	return DefaultVertexColorMaterial;
+}
+
+void UBaseDynamicMeshComponent::SetDefaultVertexColorMaterial(UMaterialInterface* Material)
+{
+	ENQUEUE_RENDER_COMMAND(BaseDynamicMeshComponent_SetVertexColorMaterial)(
+		[Material](FRHICommandListImmediate& RHICmdList)
+	{
+		UBaseDynamicMeshComponent::DefaultVertexColorMaterial = Material;
+	});
+}

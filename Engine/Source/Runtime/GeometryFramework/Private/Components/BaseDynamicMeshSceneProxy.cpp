@@ -11,6 +11,12 @@ FBaseDynamicMeshSceneProxy::FBaseDynamicMeshSceneProxy(UBaseDynamicMeshComponent
 	bEnableRaytracing(Component->GetEnableRaytracing()),
 	bEnableViewModeOverrides(Component->GetViewModeOverridesEnabled())
 {
+	if (Component->GetColorOverrideMode() == EDynamicMeshComponentColorOverrideMode::Constant)
+	{
+		ConstantVertexColor = Component->GetConstantOverrideColor();
+	}
+
+	bUsePerTriangleNormals = Component->GetFlatShadingEnabled();
 }
 
 FBaseDynamicMeshSceneProxy::~FBaseDynamicMeshSceneProxy()
@@ -78,10 +84,10 @@ void FBaseDynamicMeshSceneProxy::UpdatedReferencedMaterials()
 
 	ENQUEUE_RENDER_COMMAND(FMeshRenderBufferSetDestroy)(
 		[this, Materials, bRestoreVerifyUsedMaterials](FRHICommandListImmediate& RHICmdList)
-		{
-			this->SetUsedMaterialForVerification(Materials);
-			this->bVerifyUsedMaterials = bRestoreVerifyUsedMaterials;
-		});
+	{
+		this->SetUsedMaterialForVerification(Materials);
+		this->bVerifyUsedMaterials = bRestoreVerifyUsedMaterials;
+	});
 #endif
 }
 
@@ -89,19 +95,39 @@ void FBaseDynamicMeshSceneProxy::GetDynamicMeshElements(const TArray<const FScen
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BaseDynamicMeshSceneProxy_GetDynamicMeshElements);
 
-	const bool bWireframe = (AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe)
+	bool bWireframe = (AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe)
 		|| ParentBaseComponent->GetEnableWireframeRenderPass();
 
-	// set up wireframe material. Probably bad to reference GEngine here...also this material is very bad?
+	// Get wireframe material proxy if requested and available, otherwise disable wireframe
 	FMaterialRenderProxy* WireframeMaterialProxy = nullptr;
 	if (bWireframe)
 	{
-		FColoredMaterialRenderProxy* WireframeMaterialInstance = new FColoredMaterialRenderProxy(
-			GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : nullptr,
-			FLinearColor(0, 0.5f, 1.f)
-		);
-		Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
-		WireframeMaterialProxy = WireframeMaterialInstance;
+		UMaterialInterface* WireframeMaterial = UBaseDynamicMeshComponent::GetDefaultWireframeMaterial_RenderThread();
+		if (WireframeMaterial != nullptr)
+		{
+			FColoredMaterialRenderProxy* WireframeMaterialInstance = new FColoredMaterialRenderProxy(
+				WireframeMaterial->GetRenderProxy(), ParentBaseComponent->WireframeColor);
+			Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
+			WireframeMaterialProxy = WireframeMaterialInstance;
+		}
+		else
+		{
+			bWireframe = false;
+		}
+	}
+
+	// will use this material instead of any others below, if it becomes non-null
+	UMaterialInterface* ForceOverrideMaterial = nullptr;
+
+	// Note: there is an engine show flags for vertex colors. However if we enable that, then
+	// we will fail the used-materials checks in the Editor, because UBaseDynamicMeshComponent::GetUsedMaterials()
+	// cannot check the active show flags. One option would be to always add the vertex color material there...
+	const bool bVertexColor = ParentBaseComponent->ColorMode == EDynamicMeshComponentColorOverrideMode::VertexColors ||
+								ParentBaseComponent->ColorMode == EDynamicMeshComponentColorOverrideMode::Polygroups ||
+								ParentBaseComponent->ColorMode == EDynamicMeshComponentColorOverrideMode::Constant;
+	if (bVertexColor)
+	{
+		ForceOverrideMaterial = UBaseDynamicMeshComponent::GetDefaultVertexColorMaterial_RenderThread();
 	}
 
 	ESceneDepthPriorityGroup DepthPriority = SDPG_World;
@@ -109,8 +135,11 @@ void FBaseDynamicMeshSceneProxy::GetDynamicMeshElements(const TArray<const FScen
 	TArray<FMeshRenderBufferSet*> Buffers;
 	GetActiveRenderBufferSets(Buffers);
 
-	FMaterialRenderProxy* SecondaryMaterialProxy =
-		ParentBaseComponent->HasSecondaryRenderMaterial() ? ParentBaseComponent->GetSecondaryRenderMaterial()->GetRenderProxy() : nullptr;
+	UMaterialInterface* UseSecondaryMaterial = ForceOverrideMaterial;
+	if (ParentBaseComponent->HasSecondaryRenderMaterial() && ForceOverrideMaterial == nullptr)
+	{
+		UseSecondaryMaterial = ParentBaseComponent->GetSecondaryRenderMaterial();
+	}
 	bool bDrawSecondaryBuffers = ParentBaseComponent->GetSecondaryBuffersVisibility();
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -133,6 +162,10 @@ void FBaseDynamicMeshSceneProxy::GetDynamicMeshElements(const TArray<const FScen
 				if (ParentBaseComponent->HasOverrideRenderMaterial(0))
 				{
 					UseMaterial = ParentBaseComponent->GetOverrideRenderMaterial(0);
+				}
+				if (ForceOverrideMaterial)
+				{
+					UseMaterial = ForceOverrideMaterial;
 				}
 				FMaterialRenderProxy* MaterialProxy = UseMaterial->GetRenderProxy();
 
@@ -164,7 +197,7 @@ void FBaseDynamicMeshSceneProxy::GetDynamicMeshElements(const TArray<const FScen
 				}
 
 				// draw secondary buffer if we have it, falling back to base material if we don't have the Secondary material
-				FMaterialRenderProxy* UseSecondaryMaterialProxy = (SecondaryMaterialProxy != nullptr) ? SecondaryMaterialProxy : MaterialProxy;
+				FMaterialRenderProxy* UseSecondaryMaterialProxy = (UseSecondaryMaterial != nullptr) ? UseSecondaryMaterial->GetRenderProxy() : MaterialProxy;
 				if (bDrawSecondaryBuffers && BufferSet->SecondaryIndexBuffer.Indices.Num() > 0 && UseSecondaryMaterialProxy != nullptr)
 				{
 					DrawBatch(Collector, *BufferSet, BufferSet->SecondaryIndexBuffer, UseSecondaryMaterialProxy, false, DepthPriority, ViewIndex, DynamicPrimitiveUniformBuffer);
@@ -216,8 +249,21 @@ void FBaseDynamicMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMateri
 	TArray<FMeshRenderBufferSet*> Buffers;
 	GetActiveRenderBufferSets(Buffers);
 
-	FMaterialRenderProxy* SecondaryMaterialProxy =
-		ParentBaseComponent->HasSecondaryRenderMaterial() ? ParentBaseComponent->GetSecondaryRenderMaterial()->GetRenderProxy() : nullptr;
+	// will use this material instead of any others below, if it becomes non-null
+	UMaterialInterface* ForceOverrideMaterial = nullptr;
+	const bool bVertexColor = ParentBaseComponent->ColorMode == EDynamicMeshComponentColorOverrideMode::VertexColors ||
+		ParentBaseComponent->ColorMode == EDynamicMeshComponentColorOverrideMode::Polygroups ||
+		ParentBaseComponent->ColorMode == EDynamicMeshComponentColorOverrideMode::Constant;
+	if (bVertexColor)
+	{
+		ForceOverrideMaterial = UBaseDynamicMeshComponent::GetDefaultVertexColorMaterial_RenderThread();
+	}
+
+	UMaterialInterface* UseSecondaryMaterial = ForceOverrideMaterial;
+	if (ParentBaseComponent->HasSecondaryRenderMaterial() && ForceOverrideMaterial == nullptr)
+	{
+		UseSecondaryMaterial = ParentBaseComponent->GetSecondaryRenderMaterial();
+	}
 	bool bDrawSecondaryBuffers = ParentBaseComponent->GetSecondaryBuffersVisibility();
 
 	bool bHasPrecomputedVolumetricLightmap;
@@ -238,6 +284,10 @@ void FBaseDynamicMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMateri
 		if (ParentBaseComponent->HasOverrideRenderMaterial(0))
 		{
 			UseMaterial = ParentBaseComponent->GetOverrideRenderMaterial(0);
+		}
+		if (ForceOverrideMaterial)
+		{
+			UseMaterial = ForceOverrideMaterial;
 		}
 		FMaterialRenderProxy* MaterialProxy = UseMaterial->GetRenderProxy();
 
@@ -262,7 +312,7 @@ void FBaseDynamicMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMateri
 		}
 
 		// draw secondary index buffer if we have it, falling back to base material if we don't have the Secondary material
-		FMaterialRenderProxy* UseSecondaryMaterialProxy = (SecondaryMaterialProxy != nullptr) ? SecondaryMaterialProxy : MaterialProxy;
+		FMaterialRenderProxy* UseSecondaryMaterialProxy = (UseSecondaryMaterial != nullptr) ? UseSecondaryMaterial->GetRenderProxy() : MaterialProxy;
 		if (bDrawSecondaryBuffers
 			&& BufferSet->SecondaryIndexBuffer.Indices.Num() > 0
 			&& UseSecondaryMaterialProxy != nullptr

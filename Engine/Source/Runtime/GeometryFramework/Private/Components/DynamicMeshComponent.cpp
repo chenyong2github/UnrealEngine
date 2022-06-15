@@ -11,6 +11,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "Util/ColorConstants.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
@@ -821,6 +822,11 @@ FPrimitiveSceneProxy* UDynamicMeshComponent::CreateSceneProxy()
 			NewProxy->bUsePerTriangleColor = true;
 			NewProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* MeshIn, int TriangleID) { return GetTriangleColor(MeshIn, TriangleID); };
 		}
+		else if ( GetColorOverrideMode() == EDynamicMeshComponentColorOverrideMode::Polygroups )
+		{
+			NewProxy->bUsePerTriangleColor = true;
+			NewProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* MeshIn, int TriangleID) { return GetGroupColor(MeshIn, TriangleID); };
+		}
 
 		if (SecondaryTriFilterFunc)
 		{
@@ -933,6 +939,12 @@ FColor UDynamicMeshComponent::GetTriangleColor(const FDynamicMesh3* MeshIn, int 
 	}
 }
 
+
+FColor UDynamicMeshComponent::GetGroupColor(const FDynamicMesh3* Mesh, int TriangleID) const
+{
+	int32 GroupID = Mesh->HasTriangleGroups() ? Mesh->GetTriangleGroup(TriangleID) : 0;
+	return UE::Geometry::LinearColors::SelectFColor(GroupID);
+}
 
 
 FBoxSphereBounds UDynamicMeshComponent::CalcBounds(const FTransform& LocalToWorld) const

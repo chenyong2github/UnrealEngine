@@ -1,18 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingComponentsModule.h"
+#include "Components/BaseDynamicMeshComponent.h"
+
 
 #define LOCTEXT_NAMESPACE "FModelingComponentsModule"
 
 void FModelingComponentsModule::StartupModule()
 {
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FModelingComponentsModule::OnPostEngineInit);
+
+	// Ensure that the GeometryFramework module is loaded so that UBaseDynamicMeshComponent materials are configured
+	FModuleManager::Get().LoadModule(TEXT("GeometryFramework"));
+}
+
+void FModelingComponentsModule::OnPostEngineInit()
+{
+	// Replace the standard UBaseDynamicMeshComponent vertex color material with something higher quality.
+	// This is done in ModelingComponents module (ie part of MeshModelingToolset plugin) to avoid having to
+	// make this Material a special "engine material", which has various undesirable implication
+	UMaterial* VertexColorMaterial = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/M_DynamicMeshComponentVtxColor"));
+	if (ensure(VertexColorMaterial))
+	{
+		UBaseDynamicMeshComponent::SetDefaultVertexColorMaterial(VertexColorMaterial);
+	}
 }
 
 void FModelingComponentsModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 }
 
 #undef LOCTEXT_NAMESPACE
