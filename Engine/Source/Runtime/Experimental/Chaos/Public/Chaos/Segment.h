@@ -66,6 +66,11 @@ namespace Chaos
 			MLength = (T)LengthFloat;
 		}
 
+		FString ToString() const
+		{
+			return FString::Printf(TEXT("Segment: Point: [%f, %f, %f], Axis: [%f, %f, %f], Length: %f"), MPoint.X, MPoint.Y, MPoint.Z, MAxis.X, MAxis.Y, MAxis.Z, MLength);
+		}
+
 		FORCEINLINE TAABB<T, 3> BoundingBox() const
 		{
 			TAABB<T,3> Box(MPoint,MPoint);

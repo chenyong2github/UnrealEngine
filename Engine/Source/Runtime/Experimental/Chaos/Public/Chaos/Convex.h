@@ -720,9 +720,9 @@ namespace Chaos
 			return SupportPoint;
 		}
 
-		virtual FString ToString() const
+		virtual FString ToString() const override
 		{
-			return FString::Printf(TEXT("Convex"));
+			return FString::Printf(TEXT("Convex: Verts: %d, Planes: %d, Margin %f"), NumVertices(), NumPlanes(), GetMargin());
 		}
 
 		const TArray<FVec3Type>& GetVertices() const

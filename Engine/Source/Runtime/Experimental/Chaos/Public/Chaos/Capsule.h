@@ -418,6 +418,11 @@ namespace Chaos
 			}
 		}
 
+		virtual FString ToString() const override
+		{
+			return FString::Printf(TEXT("Capsule: Height: %f Radius: %f"), GetHeight(), GetRadius());
+		}
+
 		virtual TUniquePtr<FImplicitObject> Copy() const override
 		{
 			return TUniquePtr<FImplicitObject>(new FCapsule(*this));

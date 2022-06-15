@@ -327,6 +327,10 @@ namespace Chaos
 			return true;
 		}
 
+		FString ToString() const
+		{
+			return FString::Printf(TEXT("Triangle: A: [%f, %f, %f], B: [%f, %f, %f], C: [%f, %f, %f]"), GetVertex(0).X, GetVertex(0).Y, GetVertex(0).Z, GetVertex(1).X, GetVertex(1).Y, GetVertex(1).Z, GetVertex(2).X, GetVertex(2).Y, GetVertex(2).Z);
+		}
 
 		struct FLineIntersectionToleranceProvider
 		{

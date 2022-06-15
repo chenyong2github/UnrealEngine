@@ -20,6 +20,30 @@
 
 namespace Chaos
 {
+	// Check the GJK iteration count against a limit to prevent infinite loops. We should never really hit the limit but 
+	// we are seeing it happen in some cases and more often on some platforms than others so for now we have a warning when it hits.
+	// @todo(chaos): track this issue down (see UE-156361)
+	template<typename ConvexTypeA, typename ConvexTypeB>
+	inline bool CheckGJKIterationLimit(const int32 NumIterations, const ConvexTypeA& A, const ConvexTypeB& B)
+	{
+		const int32 MaxIterations = 32;
+		const bool bLimitExceeded = (NumIterations >= MaxIterations);
+
+#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
+		if (bLimitExceeded)
+		{
+			static bool bLogged = false;
+			if (!bLogged)
+			{
+				UE_LOG(LogChaos, Warning, TEXT("GJK hit iteration limit with shapes:\n    A: %s\n    B: %s"), *A.ToString(), *B.ToString());
+				bLogged = true;
+			}
+		}
+#endif
+
+		return bLimitExceeded;
+	}
+
 
 	// Calculate the margins used for queries based on shape radius, shape margins and shape types
 	template <typename TGeometryA, typename TGeometryB, typename T>
@@ -416,9 +440,11 @@ namespace Chaos
 		const T SeparatedDistance = ThicknessA + ThicknessB + Epsilon;
 		while (!bIsContact && !bIsDegenerate)
 		{
-			if (!ensure(NumIterations++ < 32))	//todo: take this out
+			// If taking too long just stop
+			++NumIterations;
+			if (CheckGJKIterationLimit(NumIterations, A, B))
 			{
-				break;	//if taking too long just stop. This should never happen
+				break;	
 			}
 
 			const TVec3<T> NegV = -V;
@@ -584,9 +610,11 @@ namespace Chaos
 		const T ThicknessB = B.GetMargin();
 		while (!bIsContact && !bIsResult)
 		{
-			if (!ensure(NumIterations++ < 32))	//todo: take this out
+			// If taking too long just stop
+			++NumIterations;
+			if (CheckGJKIterationLimit(NumIterations, A, B))
 			{
-				break;	//if taking too long just stop. This should never happen
+				break;
 			}
 
 			const TVec3<T> NegV = -V;
@@ -767,9 +795,11 @@ namespace Chaos
 		const T SeparatedDistance = ThicknessA + ThicknessB + Epsilon;
 		while (!bIsContact && !bIsDegenerate)
 		{
-			if (!ensure(NumIterations++ < 32))	//todo: take this out
+			// If taking too long just stop
+			++NumIterations;
+			if (CheckGJKIterationLimit(NumIterations, A, B))
 			{
-				break;	//if taking too long just stop. This should never happen
+				break;
 			}
 
 			const TVec3<T> NegV = -V;
@@ -919,9 +949,11 @@ namespace Chaos
 		const T SeparatedDistance = ThicknessA + ThicknessB + Epsilon;
 		while (!bIsContact && !bIsResult)
 		{
-			if (!ensure(NumIterations++ < 32))	//todo: take this out
+			// If taking too long just stop
+			++NumIterations;
+			if (CheckGJKIterationLimit(NumIterations, A, B))
 			{
-				break;	//if taking too long just stop. This should never happen
+				break;
 			}
 
 			const TVec3<T> NegV = -V;

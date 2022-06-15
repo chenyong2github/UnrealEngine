@@ -268,9 +268,9 @@ namespace Chaos
 			return Center; 
 		}
 
-		virtual FString ToString() const
+		virtual FString ToString() const override
 		{
-			return FString::Printf(TEXT("TSphere Center:%s, Radius:%f"), *Center.ToString(), GetRadius());
+			return FString::Printf(TEXT("Sphere: Center:%s, Radius:%f"), *Center.ToString(), GetRadius());
 		}
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)

@@ -447,7 +447,10 @@ namespace Chaos
 			return TAABB<T, d>::GetRotationOfMass();
 		}
 
-		virtual FString ToString() const { return FString::Printf(TEXT("TAABB Min:%s, Max:%s, Margin:%f"), *Min().ToString(), *Max().ToString(), GetMargin()); }
+		virtual FString ToString() const override
+		{ 
+			return FString::Printf(TEXT("Box: Min: [%s], Max: [%s], Margin: %f"), *Min().ToString(), *Max().ToString(), GetMargin());
+		}
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{

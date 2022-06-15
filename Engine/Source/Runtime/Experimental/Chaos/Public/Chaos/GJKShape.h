@@ -40,6 +40,11 @@ namespace Chaos
 			return Shape.IsConvex();
 		}
 
+		FString ToString() const
+		{
+			return FString::Printf(TEXT("TGJKShape: %s"), *Shape.ToString());
+		}
+
 		const FImplicitObjectType& Shape;
 	};
 
@@ -84,6 +89,11 @@ namespace Chaos
 			return Shape.IsConvex();
 		}
 
+		FString ToString() const
+		{
+			return FString::Printf(TEXT("TGJKCoreShape: %s, Margin: %f"), *Shape.ToString(), GetMargin());
+		}
+
 		const FImplicitObjectType& Shape;
 		const FReal Margin;
 	};
@@ -109,6 +119,11 @@ namespace Chaos
 		inline FReal GetMargin() const
 		{
 			return Radius;
+		}
+
+		FString ToString() const
+		{
+			return FString::Printf(TEXT("FGJKSphereShape: Pos: [%f, %f, %f], Radius: %f"), Pos.X, Pos.Y, Pos.Z, Radius);
 		}
 
 	private:
