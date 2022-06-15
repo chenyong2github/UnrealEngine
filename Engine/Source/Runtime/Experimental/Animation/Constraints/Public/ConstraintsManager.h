@@ -81,12 +81,17 @@ public:
 	UPROPERTY()
 	FConstraintTickFunction ConstraintTick;
 
+	/** Sets the Active value and enable/disable the tick function. */
+	void SetActive(const bool bIsActive);
+	
 	/** Evaluates the constraint in a context where it's mot done thru the ConstraintTick's tick function. */
 	void Evaluate() const;
 	
 	/** @todo document */
 	virtual uint32 GetTargetHash() const PURE_VIRTUAL(GetTargetHash, return 0;);
-	
+	/** @todo document */
+	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const PURE_VIRTUAL(ReferencesObject, return false;);
+
 #if WITH_EDITOR
 	/** @todo document */
 	virtual FName GetLabel() const;
@@ -94,7 +99,7 @@ public:
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
-	#endif
+#endif
 
 	/** @todo documentation. */
 	UPROPERTY(EditAnywhere, DisplayName="Active State", Category="Constraint")
@@ -124,7 +129,7 @@ public:
 	static UConstraintsManager* Find(const UWorld* InWorld);
 
 	/** @todo document */
-	void Init(ULevel* InLevel);
+	void Init(UWorld* InWorld);
 	
 	/* Set tick dependencies between two constraints. */
 	void SetConstraintDependencies(
@@ -137,11 +142,19 @@ public:
 private:
 
 	/** @todo document */
+	FDelegateHandle OnActorDestroyedHandle;
+	
+	void OnActorDestroyed(AActor* InActor);
+
+	void RegisterDelegates();
+	void UnregisterDelegates();
+	
+	/** @todo document */
 	void Dump() const;
 
 	/** @todo document */
 	UPROPERTY()
-	TObjectPtr<ULevel> Level = nullptr;
+	TObjectPtr<UWorld> World = nullptr;
 
 	/** @todo document */
 	UPROPERTY()
@@ -213,6 +226,10 @@ public:
 		const FName& InNameToTickAfter) const;
 	
 private:
+
+	/** @todo document */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnConstraintRemoved, FName /*InConstraintName*/);
+	FOnConstraintRemoved ConstraintRemoved;
 	
 	/** Find the existing Constraints Manager in World or create a new one. */
 	UConstraintsManager* GetManager() const;
@@ -225,4 +242,9 @@ private:
 
 	/** The World that holds the ConstraintsManagerActor. */
 	UWorld* World = nullptr;
+
+public:
+
+	/** @todo document */
+	FOnConstraintRemoved& OnConstraintRemoved(){ return ConstraintRemoved; };
 };

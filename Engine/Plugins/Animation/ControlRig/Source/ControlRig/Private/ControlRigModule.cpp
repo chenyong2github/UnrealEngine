@@ -46,6 +46,7 @@ void FControlRigModule::RegisterTransformableCustomization() const
 			UTransformableControlHandle* CtrlHandle = NewObject<UTransformableControlHandle>(Outer);
 			CtrlHandle->ControlRig = ControlActor->ControlRig;
 			CtrlHandle->ControlName = ControlActor->ControlName;
+			CtrlHandle->RegisterDelegates();
 			return CtrlHandle;
 		}
 		return nullptr;

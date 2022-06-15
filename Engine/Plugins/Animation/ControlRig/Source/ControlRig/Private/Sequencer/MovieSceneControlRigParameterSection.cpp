@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
+
+#include "ConstraintsManager.h"
 #include "Animation/AnimSequence.h"
 #include "Logging/MessageLog.h"
 #include "Compilation/MovieSceneTemplateInterrogation.h"
@@ -1274,6 +1276,66 @@ void UMovieSceneControlRigParameterSection::AddSpaceChannel(FName InControlName,
 	}
 }
 
+bool UMovieSceneControlRigParameterSection::HasConstraintChannel(const FName& InConstraintName) const
+{
+	return ConstraintsChannels.ContainsByPredicate( [InConstraintName](const FConstraintAndActiveChannel& InChannel)
+	{
+		return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+	});
+}
+
+FConstraintAndActiveChannel* UMovieSceneControlRigParameterSection::GetConstraintChannel(const FName& InConstraintName)
+{
+	const int32 Index = ConstraintsChannels.IndexOfByPredicate([InConstraintName](const FConstraintAndActiveChannel& InChannel)
+	{
+		return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+	});
+	return (Index != INDEX_NONE) ? &ConstraintsChannels[Index] : nullptr;	
+}
+
+void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstraint* InConstraint, bool bReconstructChannel)
+{
+	if (!HasConstraintChannel(InConstraint->GetFName()))
+	{
+		Modify();
+		
+		const int32 NewIndex = ConstraintsChannels.Add(FConstraintAndActiveChannel(InConstraint));
+
+		FMovieSceneConstraintChannel* ExistingChannel = &ConstraintsChannels[NewIndex].ActiveChannel;
+		ExistingChannel->SetDefault(false);
+		
+		if (bReconstructChannel)
+		{
+			ReconstructChannelProxy();
+		}
+
+		if (!OnConstraintRemovedHandle.IsValid())
+		{
+			if (ControlRig)
+			{
+				FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
+				OnConstraintRemovedHandle = Controller.OnConstraintRemoved().AddLambda([this](FName InConstraintName)
+				{
+					Modify();
+					const int32 NumRemoved = ConstraintsChannels.RemoveAll( [InConstraintName](const FConstraintAndActiveChannel& InChannel)
+					{
+						return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+					});
+					if (NumRemoved)
+					{
+						ReconstructChannelProxy();
+					}
+				});
+			}
+		}
+	}
+}
+
+const TArray<FConstraintAndActiveChannel>& UMovieSceneControlRigParameterSection::GetConstraintsChannels() const
+{
+	return ConstraintsChannels;
+}
+
 TArray<FSpaceControlNameAndChannel>& UMovieSceneControlRigParameterSection::GetSpaceChannels()
 {
 	return SpaceChannels;
@@ -1312,7 +1374,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 			OnArray.Init(true, ControlRig->AvailableControls().Num());
 			SetControlsMask(OnArray);
 		}
-			
+
 		int32 ControlIndex = 0; 
 		int32 MaskIndex = 0;
 		int32 TotalIndex = 0; 
@@ -1322,11 +1384,52 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 		int32 IntegerChannelIndex = 0;
 		int32 SpaceChannelIndex = 0;
 		int32 CategoryIndex = 0;
+		int32 ConstraintsChannelIndex = 0;
+		
 		const FName BoolChannelTypeName = FMovieSceneBoolChannel::StaticStruct()->GetFName();
 		const FName EnumChannelTypeName = FMovieSceneByteChannel::StaticStruct()->GetFName();
 		const FName IntegerChannelTypeName = FMovieSceneIntegerChannel::StaticStruct()->GetFName();
 		const FName SpaceName = FName(TEXT("Space"));
 
+		// begin constraints
+		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
+		auto GetConstraints = [&Controller, this](const FName& InControlName)
+		{
+			static constexpr bool bSorted = true;
+			const uint32 ControlHash = HashCombine(GetTypeHash(ControlRig.Get()), GetTypeHash(InControlName));
+			return Controller.GetParentConstraints(ControlHash, bSorted);
+		};
+
+
+		auto AddConstrainChannels = [this, GetConstraints, &ConstraintsChannelIndex, &TotalIndex, &Channels](const FName& InControlName, const FText& InGroup, const bool bEnabled)
+		{
+			TArray<TObjectPtr<UTickableConstraint>> Constraints = GetConstraints(InControlName);
+			for (const TObjectPtr<UTickableConstraint>& Constraint: Constraints)
+			{
+				const FName& ConstraintName = Constraint->GetFName();
+				if(FConstraintAndActiveChannel* ConstraintChannel = GetConstraintChannel(ConstraintName))
+				{
+					if (FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InControlName))
+					{
+						ChannelInfo->ConstraintsIndex.Add(ConstraintsChannelIndex);
+					}
+
+#if WITH_EDITOR
+					FMovieSceneChannelMetaData MetaData(ConstraintName,  FText::FromName(ConstraintName), InGroup, bEnabled);
+					ConstraintsChannelIndex += 1;
+					MetaData.SortOrder = TotalIndex++;
+					MetaData.bCanCollapseToTrack = false;
+
+					// Channels.Add(ConstraintChannel->ActiveCurve.ParameterCurve, MetaData, TMovieSceneExternalValue<bool>());
+					Channels.Add(ConstraintChannel->ActiveChannel, MetaData, TMovieSceneExternalValue<bool>());
+#else
+					Channels.Add(ConstraintChannel->ActiveChannel);
+#endif
+				}
+			}
+		};
+		// end constraints
+		
 		for (FRigControlElement* ControlElement : SortedControls)
 		{
 			if (!ControlRig->GetHierarchy()->IsAnimatable(ControlElement))
@@ -1591,6 +1694,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 					{
 						if (ControlElement->GetName() == Transform.ParameterName)
 						{
+							const FName ControlName = ControlElement->GetName();
 							if(Group.IsEmpty())
 							{
 								ControlChannelMap.Add(Transform.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex, INDEX_NONE, NAME_None, MaskIndex, CategoryIndex));
@@ -1607,9 +1711,12 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 								ControlChannelMap.Add(Transform.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex, ParentControlIndex, NAME_None, MaskIndex, CategoryIndex));
 							}
 
+							// constraints
+							AddConstrainChannels(ControlName, Group, bEnabled);
+
+							// spaces
 							if (FSpaceControlNameAndChannel* SpaceChannel = GetSpaceChannel(Transform.ParameterName))
 							{
-
 								FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(Transform.ParameterName);
 								if (pChannelIndex)
 								{
@@ -2759,6 +2866,7 @@ void UMovieSceneControlRigParameterSection::ClearAllParameters()
 	EnumParameterNamesAndCurves.SetNum(0);
 	IntegerParameterNamesAndCurves.SetNum(0);
 	SpaceChannels.SetNum(0);
+	ConstraintsChannels.SetNum(0);
 }
 void UMovieSceneControlRigParameterSection::RemoveAllKeys(bool bIncludeSpaceKeys)
 {

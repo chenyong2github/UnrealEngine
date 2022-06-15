@@ -170,6 +170,15 @@ struct FEulerTransformParameterStringAndValue
 	}
 };
 
+struct FConstraintAndActiveValue
+{
+	FConstraintAndActiveValue(TWeakObjectPtr<UTickableConstraint> InConstraint, bool InValue)
+		: Constraint(InConstraint)
+		, Value(InValue)
+	{}
+	TWeakObjectPtr<UTickableConstraint> Constraint;
+	bool Value;
+};
 
 struct FControlRigAnimTypeIDs;
 
@@ -373,6 +382,8 @@ struct FEvaluatedControlRigParameterSectionValues
 	TArray<FColorParameterStringAndValue, TInlineAllocator<2>> ColorValues;
 	/** Array of evaluated transform values */
 	TArray<FEulerTransformParameterStringAndValue, TInlineAllocator<2>> TransformValues;
+	/** Array of evaluated constraint values */
+	TArray<FConstraintAndActiveValue, TInlineAllocator<2>> ConstraintsValues;
 };
 
 /** Token for control rig control parameters */
@@ -1082,6 +1093,7 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 		BoolValues = Values.BoolValues;
 		IntegerValues = Values.IntegerValues;
 		SpaceValues = Values.SpaceValues;
+		ConstraintsValues = Values.ConstraintsValues;
 	}
 	FControlRigParameterExecutionToken(FControlRigParameterExecutionToken&&) = default;
 	FControlRigParameterExecutionToken& operator=(FControlRigParameterExecutionToken&&) = default;
@@ -1237,6 +1249,14 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 						}
 					}
 				}
+
+				for (const FConstraintAndActiveValue& ConstraintValue : ConstraintsValues)
+				{
+					if (ConstraintValue.Constraint.IsValid())
+					{
+						ConstraintValue.Constraint->SetActive(ConstraintValue.Value);
+					}
+				}
 			}
 			Section->SetDoNotKey(bWasDoNotKey);
 		}
@@ -1250,16 +1270,20 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 	TArray<FIntegerParameterStringAndValue, TInlineAllocator<2>> IntegerValues;
 	/** Array of Space Values*/
 	TArray<FControlSpaceAndValue, TInlineAllocator<2>> SpaceValues;
-
+	/** Array of evaluated bool values */
+	TArray<FConstraintAndActiveValue, TInlineAllocator<2>> ConstraintsValues;
 };
 
 
-FMovieSceneControlRigParameterTemplate::FMovieSceneControlRigParameterTemplate(const UMovieSceneControlRigParameterSection& Section, const UMovieSceneControlRigParameterTrack& Track)
-	: FMovieSceneParameterSectionTemplate(Section) , Enums(Section.GetEnumParameterNamesAndCurves()), Integers(Section.GetIntegerParameterNamesAndCurves()), Spaces(Section.GetSpaceChannels())
-
-{
-
-}
+FMovieSceneControlRigParameterTemplate::FMovieSceneControlRigParameterTemplate(
+	const UMovieSceneControlRigParameterSection& Section,
+	const UMovieSceneControlRigParameterTrack& Track)
+	: FMovieSceneParameterSectionTemplate(Section)
+	, Enums(Section.GetEnumParameterNamesAndCurves())
+	, Integers(Section.GetIntegerParameterNamesAndCurves())
+	, Spaces(Section.GetSpaceChannels())
+	, Constraints(Section.GetConstraintsChannels())
+{}
 
 
 
@@ -1725,6 +1749,7 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 		Values.VectorValues.Reserve(Vectors.Num());
 		Values.ColorValues.Reserve(Colors.Num());
 		Values.TransformValues.Reserve(Transforms.Num());
+		Values.ConstraintsValues.Reserve(Constraints.Num());
 
 		// Populate each of the output arrays in turn
 		for (int32 Index = 0; Index < Scalars.Num(); ++Index)
@@ -1755,6 +1780,15 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 			Values.SpaceValues.Emplace(Space.ControlName, Value);
 		}
 
+		for (int32 Index = 0; Index < Constraints.Num(); ++Index)
+		{
+			bool Value = false;
+			const FConstraintAndActiveChannel& ConstraintAndActiveChannel = Constraints[Index];
+			ConstraintAndActiveChannel.ActiveChannel.Evaluate(Time, Value);
+			
+			Values.ConstraintsValues.Emplace(ConstraintAndActiveChannel.Constraint, Value);
+		}
+		
 		for (int32 Index = 0; Index < Bools.Num(); ++Index)
 		{
 			bool Value = false;

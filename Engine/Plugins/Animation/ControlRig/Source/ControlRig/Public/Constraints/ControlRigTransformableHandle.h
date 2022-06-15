@@ -3,12 +3,16 @@
 #pragma once
 
 #include "TransformableHandle.h"
+#include "Rigs/RigHierarchyDefines.h"
 
 #include "ControlRigTransformableHandle.generated.h"
 
 class UControlRig;
 class USkeletalMeshComponent;
+struct FRigBaseElement;
+class URigHierarchy;
 struct FRigControlElement;
+
 
 /**
  * UTransformableControlHandle
@@ -20,9 +24,8 @@ class CONTROLRIG_API UTransformableControlHandle : public UTransformableHandle
 	GENERATED_BODY()
 	
 public:
-	
 	virtual ~UTransformableControlHandle();
-
+	
 	/** @todo document */
 	virtual bool IsValid() const override;
 
@@ -42,6 +45,14 @@ public:
 
 	/** @todo document */
 	virtual uint32 GetHash() const override;
+	/** @todo document */
+	virtual TWeakObjectPtr<UObject> GetTarget() const override;
+	/** @todo document */
+	USkeletalMeshComponent* GetSkeletalMesh() const;
+
+	/** @todo document */
+	void UnregisterDelegates() const;
+	void RegisterDelegates();
 
 #if WITH_EDITOR
 	/** @todo document */
@@ -51,7 +62,7 @@ public:
 	/** @todo document */
 	UPROPERTY()
 	TWeakObjectPtr<UControlRig> ControlRig;
-	
+
 	/** @todo document */
 	UPROPERTY()
 	FName ControlName;
@@ -59,7 +70,15 @@ public:
 private:
 
 	/** @todo document */
-	USkeletalMeshComponent* GetSkeletalMesh() const;
+	void OnHierarchyModified(
+		ERigHierarchyNotification InNotif,
+		URigHierarchy* InHierarchy,
+		const FRigBaseElement* InElement);
+
+#if WITH_EDITOR
+	/** @todo document */
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& InOldToNewInstances);
+#endif
 
 	/** @todo document */
 	FRigControlElement* GetControlElement() const;

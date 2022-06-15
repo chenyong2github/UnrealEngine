@@ -50,7 +50,10 @@ public:
 	 * Generates a hash value of the underlying transformable object.
 	**/
 	virtual uint32 GetHash() const PURE_VIRTUAL(GetHash, return 0;);
-	
+
+	/** @todo document */
+	virtual TWeakObjectPtr<UObject> GetTarget() const PURE_VIRTUAL(GetTarget, return nullptr;);
+
 #if WITH_EDITOR
 	virtual FName GetName() const PURE_VIRTUAL(GetName, return NAME_None;);
 #endif
@@ -88,6 +91,9 @@ public:
 
 	/** @todo document */
 	virtual uint32 GetHash() const override;
+
+	/** @todo document */
+	virtual TWeakObjectPtr<UObject> GetTarget() const override;
 
 #if WITH_EDITOR
 	/** @todo document */

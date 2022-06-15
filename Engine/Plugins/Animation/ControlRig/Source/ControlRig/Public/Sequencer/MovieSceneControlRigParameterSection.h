@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConstraintsManager.h"
 #include "Sections/MovieSceneParameterSection.h"
 #include "UObject/ObjectMacros.h"
 #include "Channels/MovieSceneFloatChannel.h"
@@ -14,6 +15,8 @@
 #include "Compilation/MovieSceneTemplateInterrogation.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneByteChannel.h"
+#include "Channels/MovieSceneBoolChannel.h"
+#include "Channels/MovieSceneConstraintChannel.h"
 #include "Sequencer/MovieSceneControlRigSpaceChannel.h"
 
 
@@ -103,8 +106,25 @@ struct CONTROLRIG_API FSpaceControlNameAndChannel
 	FMovieSceneControlRigSpaceChannel SpaceCurve;
 };
 
+USTRUCT()
+struct CONTROLRIG_API FConstraintAndActiveChannel
+{
+	GENERATED_USTRUCT_BODY()
+
+	FConstraintAndActiveChannel(){}
+	FConstraintAndActiveChannel(const TObjectPtr<UTickableConstraint>& InConstraint)
+		: Constraint(InConstraint)
+	{};
+
+	UPROPERTY()
+	TWeakObjectPtr<UTickableConstraint> Constraint;
+
+	UPROPERTY()
+	FMovieSceneConstraintChannel ActiveChannel;
+};
+
 /**
-*  Data that's queried during an interrogtion
+*  Data that's queried during an interrogation
 */
 struct FFloatInterrogationData
 {
@@ -161,7 +181,8 @@ struct CONTROLRIG_API FChannelMapInfo
 
 	int32 GeneratedKeyIndex = -1; //temp index set by the ControlRigParameterTrack, not saved
 
-
+	UPROPERTY()
+	TArray<uint32> ConstraintsIndex; //constraints data
 };
 
 
@@ -200,6 +221,8 @@ public:
 	
 	FSpaceChannelAddedEvent& SpaceChannelAdded() { return OnSpaceChannelAdded; }
 
+	const TArray<FConstraintAndActiveChannel>& GetConstraintsChannels() const;
+	
 	bool RenameParameterName(const FName& OldParameterName, const FName& NewParameterName);
 private:
 
@@ -243,6 +266,10 @@ protected:
 	/** Space Channels*/
 	UPROPERTY()
 	TArray<FSpaceControlNameAndChannel>  SpaceChannels;
+
+	/** Space Channels*/
+	UPROPERTY()
+	TArray<FConstraintAndActiveChannel> ConstraintsChannels;
 
 public:
 
@@ -387,6 +414,12 @@ public:
 
 	/** Add Space Parameter for a specified Control, no Default since that is Parent space*/
 	void AddSpaceChannel(FName InControlName, bool bReconstructChannel);
+
+	/** todo */
+	FDelegateHandle OnConstraintRemovedHandle;
+	bool HasConstraintChannel(const FName& InConstraintName) const;
+	FConstraintAndActiveChannel* GetConstraintChannel(const FName& InConstraintName);
+	void AddConstraintChannel(UTickableConstraint* InConstraint, bool bReconstructChannel);
 
 	/** Clear Everything Out*/
 	void ClearAllParameters();

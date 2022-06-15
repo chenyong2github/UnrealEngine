@@ -38,5 +38,8 @@ protected:
 	/** Controls and their space keys*/
 	UPROPERTY()
 	TArray<FSpaceControlNameAndChannel> Spaces;
+	
+	UPROPERTY()
+	TArray<FConstraintAndActiveChannel> Constraints;
 };
 

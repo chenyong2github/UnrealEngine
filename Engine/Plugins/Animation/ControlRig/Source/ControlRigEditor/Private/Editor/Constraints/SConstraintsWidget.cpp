@@ -3,6 +3,7 @@
 #include "SConstraintsWidget.h"
 
 #include "ActorPickerMode.h"
+#include "ConstraintChannelHelper.h"
 #include "ConstraintsActor.h"
 #include "ControlRigEditorStyle.h"
 #include "DetailLayoutBuilder.h"
@@ -202,7 +203,8 @@ FReply SDroppableConstraintItem::OnMouseButtonDown(const FGeometry& MyGeometry, 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		bIsPressed = true;
-		return FReply::Handled().DetectDrag( SharedThis( this ), MouseEvent.GetEffectingButton() );
+		// return FReply::Handled().DetectDrag( SharedThis( this ), MouseEvent.GetEffectingButton() );
+		return CreateSelectionPicker();
 	}
 
 	return FReply::Unhandled();
@@ -221,30 +223,31 @@ FReply SDroppableConstraintItem::OnMouseButtonUp(const FGeometry& MyGeometry, co
 FReply SDroppableConstraintItem::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	bIsPressed = false;
-
-	// FIXME temp approach for selecting the parent
-	auto OnConstraintDragged = [this]()
-	{
-		static const FActorPickerModeModule& ActorPickerMode = FModuleManager::Get().GetModuleChecked<FActorPickerModeModule>("ActorPickerMode");
-
-		TSharedPtr<SConstraintsCreationWidget> ConstraintsCreationWidget = this->ConstraintsWidget.Pin();
-		ETransformConstraintType ConstraintTypeCopy = this->ConstraintType;
-		ActorPickerMode.BeginActorPickingMode(
-			FOnGetAllowedClasses(), 
-			FOnShouldFilterActor(), 
-			FOnActorSelected::CreateLambda([ConstraintsCreationWidget, ConstraintTypeCopy](AActor* InActor)
-			{
-				SDroppableConstraintItem::CreateConstraint(InActor, ConstraintsCreationWidget, ConstraintTypeCopy);
-			}) );
-
-		
-		return FReply::Handled();
-	};
 	
-	if (MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton ))
-	{
-		return OnConstraintDragged();
-	}
+	// if (MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton ))
+	// {
+	// 	return CreateSelectionPicker();
+	// }
+	
+	return FReply::Handled();
+}
+
+FReply SDroppableConstraintItem::CreateSelectionPicker() const
+{
+	// FIXME temp approach for selecting the parent
+	
+	static const FActorPickerModeModule& ActorPickerMode = FModuleManager::Get().GetModuleChecked<FActorPickerModeModule>("ActorPickerMode");
+
+	TSharedPtr<SConstraintsCreationWidget> ConstraintsCreationWidget = this->ConstraintsWidget.Pin();
+	ETransformConstraintType ConstraintTypeCopy = this->ConstraintType;
+	ActorPickerMode.BeginActorPickingMode(
+		FOnGetAllowedClasses(), 
+		FOnShouldFilterActor(), 
+		FOnActorSelected::CreateLambda([ConstraintsCreationWidget, ConstraintTypeCopy](AActor* InActor)
+		{
+			SDroppableConstraintItem::CreateConstraint(InActor, ConstraintsCreationWidget, ConstraintTypeCopy);
+		}) );
+
 	
 	return FReply::Handled();
 }
@@ -355,17 +358,11 @@ void SEditableConstraintItem::Construct(
 		}
 	});
 
-	auto GetFont = [this]()
+	auto GetConstraint = [this]()
 	{
 		UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-		UTickableConstraint* Constraint = Controller.GetConstraint(ConstraintItem->Name);
-		if (!Constraint)
-		{
-			return IDetailLayoutBuilder::GetDetailFont();
-		}
-
-		return Constraint->Active ? IDetailLayoutBuilder::GetDetailFont() : IDetailLayoutBuilder::GetDetailFontItalic();
+		return Controller.GetConstraint(ConstraintItem->Name);
 	};
 	
 	ChildSlot
@@ -382,7 +379,14 @@ void SEditableConstraintItem::Construct(
 			SNew(SBorder)
 			.Padding(FMargin(5.0, 2.0, 5.0, 2.0))
 			.BorderImage(RoundedBoxBrush)
-			.BorderBackgroundColor(FStyleColors::Transparent)
+			.BorderBackgroundColor_Lambda([GetConstraint]()
+			{
+				if (const UTickableConstraint* Constraint = GetConstraint())
+				{
+					return Constraint->Active ? FStyleColors::Select : FStyleColors::Transparent;
+				}
+				return FStyleColors::Transparent;
+			})
 			.Content()
 			[
 				SNew(SHorizontalBox)
@@ -417,7 +421,16 @@ void SEditableConstraintItem::Construct(
 						const FString TextStr = FString::Printf(TEXT("%s (%s)"), *InItem->Name.ToString(), *InItem->ParentName.ToString());
 						return FText::FromString(TextStr);
 					})
-					.Font_Lambda(GetFont)
+					.Font_Lambda([GetConstraint]()
+					{
+						const UTickableConstraint* Constraint = GetConstraint();
+						if (!Constraint)
+						{
+							return IDetailLayoutBuilder::GetDetailFont();
+						}
+
+						return Constraint->Active ? IDetailLayoutBuilder::GetDetailFont() : IDetailLayoutBuilder::GetDetailFontItalic();
+					})
 				]
 			]
 		]
@@ -428,6 +441,39 @@ void SEditableConstraintItem::Construct(
 			SNew(SSpacer)
 		]
 
+		// add key
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(0)
+		[
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
+			.ContentPadding(0)
+			.OnClicked_Lambda(	[GetConstraint]()
+			{
+				UTickableConstraint* Constraint = GetConstraint();
+				if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
+				{
+					// FConstraintChannelHelper::AddConstraintKey(TransformConstraint);
+					FConstraintChannelHelper::SmartConstraintKey(TransformConstraint);
+				}
+				return FReply::Handled();
+			})
+			.IsEnabled_Lambda([this]()
+			{
+				// TODO check if we have a focussed sequencer
+				return true;
+			})
+			.ToolTipText(LOCTEXT("KeyConstraintToolTip", "Add an active keyframe for that constraint."))
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Sequencer.AddKey.Details"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+		]
+		
 		// move up
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -769,7 +815,7 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 	MenuBuilder.BeginSection("BakeConstraint", LOCTEXT("BakeConstraintHeader", "Bake Constraint"));
 	{
 		MenuBuilder.AddMenuEntry(
-		LOCTEXT("BakeConstraintDoIt", "Do It"),
+		LOCTEXT("BakeConstraintDoIt", "Bake"),
 		FText::Format(LOCTEXT("BakeConstraintDoItTooltip", "Bake {0} transforms."), FText::FromName(ListItems[Index]->Name)),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateLambda([Constraint]()
@@ -777,6 +823,25 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 			if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
 			{
 				FConstraintBaker::DoIt(TransformConstraint);
+			}
+		})),
+		NAME_None,
+		EUserInterfaceActionType::Button);
+	}
+	MenuBuilder.EndSection();
+
+	// test section
+	MenuBuilder.BeginSection("TestConstraint", LOCTEXT("TestConstraintHeader", "Test"));
+	{
+		MenuBuilder.AddMenuEntry(
+		LOCTEXT("AddConstraintKey", "Add Key"),
+		FText::Format(LOCTEXT("AddKeyTooltip", "Add active key for {0}."), FText::FromName(ListItems[Index]->Name)),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([Constraint]()
+		{
+			if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
+			{
+				FConstraintChannelHelper::AddConstraintKey(TransformConstraint);
 			}
 		})),
 		NAME_None,

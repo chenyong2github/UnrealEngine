@@ -32,6 +32,8 @@ public:
 
 	/** @todo document */
 	virtual uint32 GetTargetHash() const override;
+	/** @todo document */
+	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const override;
 	
 	/** @todo document */
 	UPROPERTY()
@@ -48,7 +50,10 @@ public:
 	// UPROPERTY(EditAnywhere, Category="Weight", meta = (Input, ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	UPROPERTY(meta = (Input, ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float Weight = 1.f;
-	
+
+	UPROPERTY(EditAnywhere, Category="Offset")
+	bool bDynamicOffset = false;
+
 	/** @todo document. */
 	int64 GetType() const;
 
@@ -183,6 +188,18 @@ protected:
 	/** @todo document */
 	UPROPERTY(EditAnywhere, Category="Offset")
 	FTransform OffsetTransform = FTransform::Identity;
+
+	/** @todo document */
+	struct FDynamicCache
+	{
+		FTransform LastGlobalSet = FTransform::Identity;
+		FTransform LastLocalSet = FTransform::Identity;
+		uint32 CachedInputHash = 0;
+	};
+	mutable FDynamicCache Cache;
+
+	/** @todo document */
+	uint32 CalculateDependenciesHash() const;
 };
 
 /** 

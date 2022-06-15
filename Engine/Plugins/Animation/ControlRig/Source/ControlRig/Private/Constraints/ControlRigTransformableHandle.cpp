@@ -12,7 +12,9 @@
  */
 
 UTransformableControlHandle::~UTransformableControlHandle()
-{}
+{
+	UnregisterDelegates();
+}
 
 bool UTransformableControlHandle::IsValid() const
 {
@@ -134,6 +136,11 @@ uint32 UTransformableControlHandle::GetHash() const
 	return 0;
 }
 
+TWeakObjectPtr<UObject> UTransformableControlHandle::GetTarget() const
+{
+	return GetSkeletalMesh();
+}
+
 USkeletalMeshComponent* UTransformableControlHandle::GetSkeletalMesh() const
 {
 	const TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig.IsValid() ? ControlRig->GetObjectBinding() : nullptr;
@@ -150,7 +157,78 @@ FRigControlElement* UTransformableControlHandle::GetControlElement() const
 	return ControlRig->FindControl(ControlName);
 }
 
+void UTransformableControlHandle::UnregisterDelegates() const
+{
 #if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+#endif
+	
+	if (ControlRig.IsValid())
+	{
+		if (URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+		{
+			Hierarchy->OnModified().RemoveAll(this);
+		}
+	}
+}
+
+void UTransformableControlHandle::RegisterDelegates()
+{
+	UnregisterDelegates();
+
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UTransformableControlHandle::OnObjectsReplaced);
+#endif
+
+	if (ControlRig.IsValid())
+	{
+		if (URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+		{
+			Hierarchy->OnModified().AddUObject(this, &UTransformableControlHandle::OnHierarchyModified);
+		}
+	}
+}
+
+void UTransformableControlHandle::OnHierarchyModified(
+	ERigHierarchyNotification InNotif,
+	URigHierarchy* InHierarchy,
+	const FRigBaseElement* InElement)
+{
+	if (!ControlRig.IsValid())
+	{
+	 	return;
+	}
+
+	const URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+	if (!Hierarchy || InHierarchy != Hierarchy)
+	{
+		return;
+	}
+
+	switch (InNotif)
+	{
+		case ERigHierarchyNotification::ElementRemoved:
+		{
+			// FIXME this leaves the constraint invalid as the element won't exist anymore
+			// find a way to remove this from the constraints list 
+			break;
+		}
+		case ERigHierarchyNotification::ElementRenamed:
+		{
+			const FName OldName = Hierarchy->GetPreviousName(InElement->GetKey());
+			if (OldName == ControlName)
+			{
+				ControlName = InElement->GetName();
+			}
+			break;
+		}
+		default:
+			break;
+	}
+}
+
+#if WITH_EDITOR
+
 FName UTransformableControlHandle::GetName() const
 {
 	const USkeletalMeshComponent* SkeletalMesh = GetSkeletalMesh();
@@ -162,4 +240,26 @@ FName UTransformableControlHandle::GetName() const
 
 	return FName(*FullName);
 }
+
+void UTransformableControlHandle::OnObjectsReplaced(const TMap<UObject*, UObject*>& InOldToNewInstances)
+{
+	if (UObject* NewObject = InOldToNewInstances.FindRef(ControlRig.Get()))
+	{
+		if (UControlRig* NewControlRig = Cast<UControlRig>(NewObject))
+		{
+			if (URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+			{
+				Hierarchy->OnModified().RemoveAll(this);
+			}
+			
+			ControlRig = NewControlRig;
+			
+			if (URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+			{
+				Hierarchy->OnModified().AddUObject(this, &UTransformableControlHandle::OnHierarchyModified);
+			}
+		}
+	}
+}
+
 #endif

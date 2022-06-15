@@ -756,9 +756,14 @@ void FControlRigSpaceChannelHelpers::DeleteTransformKeysAtThisTime(UControlRig* 
 	}
 }
 
-void FControlRigSpaceChannelHelpers::GetFramesInThisSpaceAfterThisTime(UControlRig* ControlRig, FName ControlName, FMovieSceneControlRigSpaceBaseKey CurrentValue,
-	FMovieSceneControlRigSpaceChannel* Channel, UMovieSceneSection* SectionToKey,
-	FFrameNumber Time, TSortedMap<FFrameNumber,FFrameNumber>& OutMoreFrames)
+void FControlRigSpaceChannelHelpers::GetFramesInThisSpaceAfterThisTime(
+	UControlRig* ControlRig,
+	FName ControlName,
+	FMovieSceneControlRigSpaceBaseKey CurrentValue,
+	FMovieSceneControlRigSpaceChannel* Channel,
+	UMovieSceneSection* SectionToKey,
+	FFrameNumber Time,
+	TSortedMap<FFrameNumber,FFrameNumber>& OutMoreFrames)
 {
 	OutMoreFrames.Reset();
 	if (ControlRig && Channel && SectionToKey)
@@ -1124,80 +1129,93 @@ void FControlRigSpaceChannelHelpers::HandleSpaceKeyTimeChanged(UControlRig* Cont
 }
 
 
-void FControlRigSpaceChannelHelpers::CompensateIfNeeded(UControlRig* ControlRig, ISequencer* Sequencer, UMovieSceneControlRigParameterSection* Section, FName ControlName, TOptional<FFrameNumber>& OptionalTime)
+void FControlRigSpaceChannelHelpers::CompensateIfNeeded(
+	UControlRig* ControlRig,
+	ISequencer* Sequencer,
+	UMovieSceneControlRigParameterSection* Section,
+	FName ControlName,
+	TOptional<FFrameNumber>& OptionalTime)
 {
 	if (bDoNotCompensate == true)
 	{
 		return;
 	}
+
+	// Frames to compensate
+	TArray<FFrameNumber> OptionalTimeArray;
+	if(OptionalTime.IsSet())
+	{
+		OptionalTimeArray.Add(OptionalTime.GetValue());
+	}
+	
+	auto GetSpaceTimesToCompensate = [&OptionalTimeArray](const FSpaceControlNameAndChannel* Channel)->TArrayView<const FFrameNumber>
+	{
+		if (OptionalTimeArray.IsEmpty())
+		{
+			return Channel->SpaceCurve.GetData().GetTimes();
+		}
+		return OptionalTimeArray;
+	};
+
+	// keyframe context
+	FRigControlModifiedContext KeyframeContext;
+	KeyframeContext.SetKey = EControlRigSetKey::Always;
+	const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
 	
 	//we need to check all controls for 1) space and 2) previous frame and if so we automatically compensate.
-	TArray<FRigControlElement*> Controls = ControlRig->GetHierarchy()->GetControls();
 	bool bDidIt = false;
-	for(FRigControlElement* Control: Controls)
+
+	// compensate spaces
+	URigHierarchy* RigHierarchy = ControlRig->GetHierarchy();
+	const TArray<FRigControlElement*> Controls = RigHierarchy->GetControls();
+	for (const FRigControlElement* Control: Controls)
 	{ 
 		if(Control)// ac && Control->GetName() != ControlName)
 		{ 
 			//only if we have a channel
 			if (FSpaceControlNameAndChannel* Channel = Section->GetSpaceChannel(Control->GetName()))
 			{
-				TArray<FFrameNumber> AllFrames; 
-				if (OptionalTime.IsSet())
+				const TArrayView<const FFrameNumber> FramesToCompensate = GetSpaceTimesToCompensate(Channel);
+				if (FramesToCompensate.Num() > 0)
 				{
-					FFrameNumber Time = OptionalTime.GetValue();
-					AllFrames.Add(Time);
-				}
-				else
-				{
-					AllFrames = Channel->SpaceCurve.GetData().GetTimes();
-				}
-				if (AllFrames.Num() > 0)
-				{
-					for (FFrameNumber& Time : AllFrames)
+					for (const FFrameNumber& Time : FramesToCompensate)
 					{
 						FMovieSceneControlRigSpaceBaseKey ExistingValue, PreviousValue;
 						using namespace UE::MovieScene;
 						EvaluateChannel(&(Channel->SpaceCurve), Time - 1, PreviousValue);
 						EvaluateChannel(&(Channel->SpaceCurve), Time, ExistingValue);
+
 						if (ExistingValue != PreviousValue) //if they are the same no need to do anything
 						{
-							//find global value at curren time
-							TArray<FFrameNumber> Frames;
-							Frames.Add(Time);
-							TArray<FTransform> ControlRigParentWorldTransforms;
-							ControlRigParentWorldTransforms.SetNum(Frames.Num());
-							for (FTransform& WorldTransform : ControlRigParentWorldTransforms)
-							{
-								WorldTransform = FTransform::Identity;
-							}
+							//find global value at current time
+							TArray<FTransform> ControlRigParentWorldTransforms({FTransform::Identity});
 							TArray<FTransform> ControlWorldTransforms;
 							FControlRigSnapper Snapper;
-							Snapper.GetControlRigControlTransforms(Sequencer, ControlRig, Control->GetName(), Frames, ControlRigParentWorldTransforms, ControlWorldTransforms);
-							FRigElementKey ControlKey;
-							ControlKey.Name = Control->GetName();
-							ControlKey.Type = ERigElementType::Control;
+							Snapper.GetControlRigControlTransforms(
+								Sequencer, ControlRig, Control->GetName(),
+								{Time},
+								ControlRigParentWorldTransforms, ControlWorldTransforms);
+
 							//set space to previous space value that's different.
-							URigHierarchy* RigHierarchy = ControlRig->GetHierarchy();
 							switch (PreviousValue.SpaceType)
 							{
-							case EMovieSceneControlRigSpaceType::Parent:
-								RigHierarchy->SwitchToDefaultParent(ControlKey);
-								break;
-							case EMovieSceneControlRigSpaceType::World:
-								RigHierarchy->SwitchToWorldSpace(ControlKey);
-								break;
-							case EMovieSceneControlRigSpaceType::ControlRig:
-								URigHierarchy::TElementDependencyMap Dependencies = RigHierarchy->GetDependenciesForVM(ControlRig->GetVM());
-								RigHierarchy->SwitchToParent(ControlKey, PreviousValue.ControlRigElement, false, true, Dependencies, nullptr);
-								break;
+								case EMovieSceneControlRigSpaceType::Parent:
+									RigHierarchy->SwitchToDefaultParent(Control->GetKey());
+									break;
+								case EMovieSceneControlRigSpaceType::World:
+									RigHierarchy->SwitchToWorldSpace(Control->GetKey());
+									break;
+								case EMovieSceneControlRigSpaceType::ControlRig:
+									URigHierarchy::TElementDependencyMap Dependencies = RigHierarchy->GetDependenciesForVM(ControlRig->GetVM());
+									RigHierarchy->SwitchToParent(Control->GetKey(), PreviousValue.ControlRigElement, false, true, Dependencies, nullptr);
+									break;
 							}
+							
 							//now set time -1 frame value
-							FRigControlModifiedContext Context;
-							Context.SetKey = EControlRigSetKey::Always;
-							FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
 							ControlRig->Evaluate_AnyThread();
-							Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Time - 1));
-							ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[0], true, Context);
+							KeyframeContext.LocalTime = TickResolution.AsSeconds(FFrameTime(Time - 1));
+							ControlRig->SetControlGlobalTransform(Control->GetName(), ControlWorldTransforms[0], true, KeyframeContext);
+							
 							bDidIt = true;
 						}
 					}
@@ -1205,7 +1223,8 @@ void FControlRigSpaceChannelHelpers::CompensateIfNeeded(UControlRig* ControlRig,
 			}
 		}
 	}
-	if (bDidIt == true)
+	
+	if (bDidIt)
 	{
 		Sequencer->ForceEvaluate();
 	}

@@ -71,6 +71,11 @@ uint32 UTransformableComponentHandle::GetHash() const
 	return Component.IsValid() ? GetTypeHash(Component.Get()) : 0;
 }
 
+TWeakObjectPtr<UObject> UTransformableComponentHandle::GetTarget() const
+{
+	return Component;
+}
+
 #if WITH_EDITOR
 FName UTransformableComponentHandle::GetName() const
 {

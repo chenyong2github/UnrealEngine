@@ -90,25 +90,6 @@ void BakeControl(
 		MovieScene->GetTickResolution());
 }
 
-EMovieSceneTransformChannel GetChannelsToKey(const UTickableTransformConstraint* InConstraint)
-{
-	static const TMap< ETransformConstraintType, EMovieSceneTransformChannel > ConstraintToChannels({
-	{ETransformConstraintType::Translation, EMovieSceneTransformChannel::Translation},
-	{ETransformConstraintType::Rotation, EMovieSceneTransformChannel::Rotation},
-	{ETransformConstraintType::Scale, EMovieSceneTransformChannel::Scale},
-	{ETransformConstraintType::Parent, EMovieSceneTransformChannel::AllTransform},
-	{ETransformConstraintType::LookAt, EMovieSceneTransformChannel::Rotation}
-	});
-
-	const ETransformConstraintType ConstType = static_cast<ETransformConstraintType>(InConstraint->GetType());
-	if (const EMovieSceneTransformChannel* Channel = ConstraintToChannels.Find(ConstType))
-	{
-		return *Channel;; 
-	}
-	
-	return EMovieSceneTransformChannel::AllTransform;
-}
-	
 }
 
 void FConstraintBaker::DoIt(UTickableTransformConstraint* InConstraint)
@@ -138,7 +119,7 @@ void FConstraintBaker::DoIt(UTickableTransformConstraint* InConstraint)
 
 	// compute transforms
 	TArray<FTransform> Transforms;
-	GetChildTransforms(Sequencer, *InConstraint, Frames, true, Transforms);
+	GetHandleTransforms(Sequencer, InConstraint->ChildTRSHandle, {InConstraint}, Frames, true, Transforms);
 	
 	if (Frames.Num() != Transforms.Num())
 	{
@@ -150,20 +131,49 @@ void FConstraintBaker::DoIt(UTickableTransformConstraint* InConstraint)
 	BakeChild(Sequencer, InConstraint->ChildTRSHandle, Frames, Transforms, Channels);
 
 	// disable constraint
-	InConstraint->Active = false;
-	InConstraint->ConstraintTick.SetTickFunctionEnable(false);
+	InConstraint->SetActive(false);
 	
 	// notify
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 }
 
-void FConstraintBaker::GetChildTransforms(
+void FConstraintBaker::GetHandleTransforms(
+	UWorld* InWorld,
 	const TSharedPtr<ISequencer>& InSequencer,
-	const UTickableTransformConstraint& InConstraint,
+	const UTransformableHandle* InHandle,
 	const TArray<FFrameNumber>& InFrames,
 	const bool bLocal,
 	TArray<FTransform>& OutTransforms)
 {
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+	static constexpr bool bSorted = true;
+	TArray<TObjectPtr<UTickableConstraint>> Constraints = Controller.GetParentConstraints(InHandle->GetHash(), bSorted);
+
+	TArray<UTickableTransformConstraint*> TransformConstraints;
+	for (const TObjectPtr<UTickableConstraint>& Constraint: Constraints)
+	{
+		if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint.Get()))
+		{
+			TransformConstraints.Add(TransformConstraint);
+		}
+	}
+	
+	return GetHandleTransforms(InSequencer, InHandle, TransformConstraints, InFrames, bLocal, OutTransforms);
+}
+
+void FConstraintBaker::GetHandleTransforms(
+	const TSharedPtr<ISequencer>& InSequencer,
+	const UTransformableHandle* InHandle,
+	const TArray<UTickableTransformConstraint*>& InConstraintsToEvaluate,
+	const TArray<FFrameNumber>& InFrames,
+	const bool bLocal,
+	TArray<FTransform>& OutTransforms)
+{
+	// if (InConstraintsToEvaluate.IsEmpty())
+	// {
+	// 	return;
+	// }
+	
 	const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 	
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
@@ -181,12 +191,15 @@ void FConstraintBaker::GetChildTransforms(
 		InSequencer->GetEvaluationTemplate().Evaluate(Context, *InSequencer);
 	
 		// evaluate constraints
-		InConstraint.Evaluate();
+		for (const UTickableTransformConstraint* Constraint: InConstraintsToEvaluate)
+		{
+			Constraint->Evaluate();
+		}
 	
 		// evaluate ControlRig?
 		// ControlRig->Evaluate_AnyThread();
 		
-		OutTransforms[Index] = bLocal ? InConstraint.GetChildLocalTransform() : InConstraint.GetChildGlobalTransform();
+		OutTransforms[Index] = bLocal ? InHandle->GetLocalTransform() : InHandle->GetGlobalTransform();
 	}
 }
 
@@ -206,6 +219,25 @@ void FConstraintBaker::BakeChild(
 	{
 		return BakeControl(InSequencer, ControlHandle, InFrames, InTransforms, InChannels); 
 	}
+}
+
+EMovieSceneTransformChannel FConstraintBaker::GetChannelsToKey(const UTickableTransformConstraint* InConstraint)
+{
+	static const TMap< ETransformConstraintType, EMovieSceneTransformChannel > ConstraintToChannels({
+	{ETransformConstraintType::Translation, EMovieSceneTransformChannel::Translation},
+	{ETransformConstraintType::Rotation, EMovieSceneTransformChannel::Rotation},
+	{ETransformConstraintType::Scale, EMovieSceneTransformChannel::Scale},
+	{ETransformConstraintType::Parent, EMovieSceneTransformChannel::AllTransform},
+	{ETransformConstraintType::LookAt, EMovieSceneTransformChannel::Rotation}
+	});
+
+	const ETransformConstraintType ConstType = static_cast<ETransformConstraintType>(InConstraint->GetType());
+	if (const EMovieSceneTransformChannel* Channel = ConstraintToChannels.Find(ConstType))
+	{
+		return *Channel;; 
+	}
+	
+	return EMovieSceneTransformChannel::AllTransform;
 }
 
 #undef LOCTEXT_NAMESPACE

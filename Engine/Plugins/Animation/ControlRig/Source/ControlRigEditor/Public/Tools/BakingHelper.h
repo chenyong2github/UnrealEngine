@@ -49,7 +49,8 @@ struct FBakingHelper
 		UControlRig* InControlRig,
 		const FName& InControlName,
 		const TArray<FFrameNumber>& InFrames,
-		const TArray<FTransform>& InLocalTransforms,
+		const TArray<FTransform>& InTransforms,
 		const EMovieSceneTransformChannel& InChannels,
-		const FFrameRate& InTickResolution);
+		const FFrameRate& InTickResolution,
+		const bool bLocal = true);
 };

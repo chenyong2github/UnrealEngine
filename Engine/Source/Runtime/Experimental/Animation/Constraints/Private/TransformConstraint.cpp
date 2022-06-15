@@ -96,6 +96,23 @@ uint32 UTickableTransformConstraint::GetTargetHash() const
 	return ChildTRSHandle->IsValid() ? ChildTRSHandle->GetHash() : 0;
 }
 
+bool UTickableTransformConstraint::ReferencesObject(TWeakObjectPtr<UObject> InObject) const
+{
+	const TWeakObjectPtr<UObject> ChildTarget = ChildTRSHandle->IsValid() ? ChildTRSHandle->GetTarget() : nullptr;
+	if (ChildTarget == InObject)
+	{
+		return true;	
+	}
+
+	const TWeakObjectPtr<UObject> ParentTarget = ParentTRSHandle->IsValid() ? ParentTRSHandle->GetTarget() : nullptr;
+	if (ParentTarget == InObject)
+	{
+		return true;	
+	}
+	
+	return false;
+}
+
 void UTickableTransformConstraint::SetChildGlobalTransform(const FTransform& InGlobal) const
 {
 	if(ChildTRSHandle->IsValid())
@@ -308,6 +325,21 @@ void UTickableParentConstraint::ComputeOffset()
 	}
 }
 
+uint32 UTickableParentConstraint::CalculateDependenciesHash() const
+{
+	uint32 Hash = 0;
+	
+	Hash = HashCombine(Hash, GetTypeHash(Active));
+	Hash = HashCombine(Hash, GetTypeHash(Weight));
+
+	const FTransform ParentGlobal = GetParentGlobalTransform();
+	Hash = HashCombine(Hash, GetTypeHash(ParentGlobal.GetTranslation()));
+	Hash = HashCombine(Hash, GetTypeHash(ParentGlobal.GetRotation().Euler() ));
+	Hash = HashCombine(Hash, GetTypeHash(ParentGlobal.GetScale3D()));
+	
+	return Hash;
+}
+
 FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFunction() const
 {
 	return [this]()
@@ -322,21 +354,62 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 		{
 			return;
 		}
-		
-		const FTransform ParentTransform = ParentTRSHandle->GetGlobalTransform();
 
-		FTransform TargetTransform = bMaintainOffset ? OffsetTransform * ParentTransform : ParentTransform;
-		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
+		auto LerpTransform = [ClampedWeight](const FTransform& InTransform, FTransform& InTransformToBeSet)
 		{
-			const  FTransform Transform = GetChildGlobalTransform();
-			TargetTransform.SetLocation(
-				FMath::Lerp<FVector>(Transform.GetLocation(), TargetTransform.GetLocation(), ClampedWeight));
-			TargetTransform.SetRotation(
-				FQuat::Slerp(Transform.GetRotation(), TargetTransform.GetRotation(), ClampedWeight));
-			TargetTransform.SetScale3D(
-				FMath::Lerp<FVector>(Transform.GetScale3D(), TargetTransform.GetScale3D(), ClampedWeight));
-		}
+			if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
+			{
+				InTransformToBeSet.SetLocation(
+					FMath::Lerp<FVector>(InTransform.GetLocation(), InTransformToBeSet.GetLocation(), ClampedWeight));
+				InTransformToBeSet.SetRotation(
+					FQuat::Slerp(InTransform.GetRotation(), InTransformToBeSet.GetRotation(), ClampedWeight));
+				InTransformToBeSet.SetScale3D(
+					FMath::Lerp<FVector>(InTransform.GetScale3D(), InTransformToBeSet.GetScale3D(), ClampedWeight));
+			}
+		};
+
+		const FTransform ParentTransform = GetParentGlobalTransform();
 		
+		// if bDynamicOffset is on, means we assume that the incoming local child transform is coming from the child
+		// TRS animation (for instance) which is local to the constraint's parent
+		if (bDynamicOffset)
+		{
+			const uint32 DependenciesHash = CalculateDependenciesHash();
+
+			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+			const bool bIsGlobalDirty = !ChildGlobalTransform.Equals(Cache.LastGlobalSet);
+			const bool bIsInputHashDirty = DependenciesHash != Cache.CachedInputHash;
+
+			// we avoid computation if nothing has changed
+			if (!bIsGlobalDirty && !bIsInputHashDirty)
+			{
+				return;
+			}
+
+			FTransform LocalTransform = Cache.LastLocalSet;
+			if (bIsGlobalDirty)
+			{
+				LocalTransform = GetChildLocalTransform();
+			}
+			
+			FTransform TargetTransform = LocalTransform * ParentTransform;
+			//apply weight if needed
+			LerpTransform(ChildGlobalTransform, TargetTransform);
+			
+			SetChildGlobalTransform(TargetTransform);
+
+			// update cache
+			Cache.CachedInputHash = DependenciesHash;
+			Cache.LastGlobalSet = TargetTransform;
+			Cache.LastLocalSet = LocalTransform;
+			
+			return;
+		}
+
+		// static behavior
+		FTransform TargetTransform = bMaintainOffset ? OffsetTransform * ParentTransform : ParentTransform;
+		//apply weight if needed
+		LerpTransform(GetChildGlobalTransform(), TargetTransform);
 		SetChildGlobalTransform(TargetTransform);
 	};
 }

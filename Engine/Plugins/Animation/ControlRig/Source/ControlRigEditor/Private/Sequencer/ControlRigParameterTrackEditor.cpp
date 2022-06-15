@@ -419,7 +419,7 @@ void FControlRigParameterTrackEditor::BindControlRig(UControlRig* ControlRig)
 					}
 				}
 			}
-			Track->SpaceChannelAdded().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnSpaceAdded);
+			// Track->SpaceChannelAdded().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnSpaceAdded);
 		}
 	}
 }
@@ -2492,7 +2492,13 @@ void FControlRigParameterTrackEditor::HandleControlUndoBracket(UControlRig* Subj
 	}
 }
 
-void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRig, FName ParameterName, EControlRigContextChannelToKey ChannelsToKey, ESequencerKeyMode KeyMode, UMovieSceneControlRigParameterSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys)
+void FControlRigParameterTrackEditor::GetControlRigKeys(
+	UControlRig* InControlRig,
+	FName ParameterName,
+	EControlRigContextChannelToKey ChannelsToKey,
+	ESequencerKeyMode KeyMode,
+	UMovieSceneControlRigParameterSection* SectionToKey,
+	FGeneratedTrackKeys& OutGeneratedKeys)
 {
 	const TArray<bool>& ControlsMask = SectionToKey->GetControlsMask();
 	EMovieSceneTransformChannel TransformMask = SectionToKey->GetTransformMask().GetChannels();
@@ -2628,6 +2634,10 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 					Translation = Val.GetTranslation();
 					Scale = Val.GetScale3D();
 				}
+
+				// transform these values in the constraint space if needed
+				// NOTE TRS are local to their space 
+					
 				FVector3f CurrentVector = (FVector3f)Translation;
 				bool bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationX);
 				bool bKeyY = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationY);

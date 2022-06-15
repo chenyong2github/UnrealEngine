@@ -65,6 +65,12 @@ FString FConstraintTickFunction::DiagnosticMessage()
  * UTickableConstraint
  **/
 
+void UTickableConstraint::SetActive(const bool bIsActive)
+{
+	Active = bIsActive;
+	ConstraintTick.SetTickFunctionEnable(bIsActive);
+}
+
 void UTickableConstraint::Evaluate() const
 {
 	ConstraintTick.EvaluateFunctions();
@@ -100,15 +106,53 @@ void UTickableConstraint::PostEditChangeProperty(FPropertyChangedEvent& Property
  **/
 
 UConstraintsManager::UConstraintsManager()
-	: Level(nullptr)
 {}
 
 UConstraintsManager::~UConstraintsManager()
-{}
-
-void UConstraintsManager::Init(ULevel* InLevel)
 {
-	Level = InLevel;
+	UnregisterDelegates();
+}
+
+void UConstraintsManager::OnActorDestroyed(AActor* InActor)
+{
+	if (USceneComponent* SceneComponent = InActor->GetRootComponent())
+	{
+		Constraints.RemoveAll([SceneComponent](const TObjectPtr<UTickableConstraint>& Constraint)
+		{
+			return IsValid(Constraint) ? Constraint->ReferencesObject(SceneComponent) : false;
+		} );
+	}
+}
+
+void UConstraintsManager::RegisterDelegates()
+{
+	if (!OnActorDestroyedHandle.IsValid())
+	{
+		FOnActorDestroyed::FDelegate ActorDestroyedDelegate =
+				FOnActorDestroyed::FDelegate::CreateUObject(this, &UConstraintsManager::OnActorDestroyed);
+		OnActorDestroyedHandle = World->AddOnActorDestroyedHandler(ActorDestroyedDelegate);
+	}
+}
+
+void UConstraintsManager::UnregisterDelegates()
+{
+	if (World)
+	{
+		World->RemoveOnActorSpawnedHandler(OnActorDestroyedHandle);
+	}
+	OnActorDestroyedHandle.Reset();
+}
+
+void UConstraintsManager::Init(UWorld* InWorld)
+{
+	if (InWorld)
+	{
+		UnregisterDelegates();
+
+		World = InWorld;
+
+		RegisterDelegates();
+	}
 }
 
 UConstraintsManager* UConstraintsManager::Get(UWorld* InWorld)
@@ -126,9 +170,9 @@ UConstraintsManager* UConstraintsManager::Get(UWorld* InWorld)
 #endif // WITH_EDITOR
 	ConstraintsActor->ConstraintsManager = NewObject<UConstraintsManager>(ConstraintsActor);
 	
-	ULevel* Level = InWorld->GetCurrentLevel();
-	ConstraintsActor->ConstraintsManager->Init(Level);
-	ConstraintsActor->ConstraintsManager->Level = Level;
+	// ULevel* Level = InWorld->GetCurrentLevel();
+	ConstraintsActor->ConstraintsManager->Init(InWorld);
+	// ConstraintsActor->ConstraintsManager->Level = Level;
 
 	return ConstraintsActor->ConstraintsManager;
 }
@@ -233,9 +277,9 @@ UConstraintsManager* FConstraintsManagerController::GetManager() const
 	ConstraintsActor->SetActorLabel(TEXT("Constraints Manager"));
 #endif // WITH_EDITOR
 	ConstraintsActor->ConstraintsManager = NewObject<UConstraintsManager>(ConstraintsActor);
-	
-	ULevel* Level = World->GetCurrentLevel();
-	ConstraintsActor->ConstraintsManager->Level = Level;
+	ConstraintsActor->ConstraintsManager->Init(World);
+	// ULevel* Level = World->GetCurrentLevel();
+	// ConstraintsActor->ConstraintsManager->Level = Level;
 
 	return ConstraintsActor->ConstraintsManager;
 }
@@ -348,10 +392,14 @@ void FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 	}
 
 	// TODO handle transaction
+	const FName ConstraintName = Manager->Constraints[InConstraintIndex]->GetFName(); 
 	
 	Manager->Constraints[InConstraintIndex]->ConstraintTick.UnRegisterTickFunction();
 	Manager->Constraints.RemoveAt(InConstraintIndex);
 
+	// notify deletion
+	ConstraintRemoved.Broadcast(ConstraintName);
+	
 	// destroy constraints actor if no constraints left
 	if (Manager->Constraints.IsEmpty())
 	{

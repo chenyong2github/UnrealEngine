@@ -15,13 +15,25 @@ struct FConstraintBaker
 public:
 	/** @todo documentation. (subject to changes to handle start / stop as parameters) */
 	static void DoIt(UTickableTransformConstraint* InConstraint);
+
+	/** @todo documentation. */
+	static void GetHandleTransforms(
+		UWorld* InWorld,
+		const TSharedPtr<ISequencer>& InSequencer,
+		const UTransformableHandle* InHandle,
+		const TArray<FFrameNumber>& InFrames,
+		const bool bLocal,
+		TArray<FTransform>& OutTransforms); 
+
+	static EMovieSceneTransformChannel GetChannelsToKey(const UTickableTransformConstraint* InConstraint);
 	
 private:
 
 	/** Evaluates the constraint at each frames and stores the resulting child transforms. */
-	static void GetChildTransforms(
+	static void GetHandleTransforms(
 		const TSharedPtr<ISequencer>& InSequencer,
-		const UTickableTransformConstraint& InConstraint,
+		const UTransformableHandle* InHandle,
+		const TArray<UTickableTransformConstraint*>& InConstraintsToEvaluate,
 		const TArray<FFrameNumber>& InFrames,
 		const bool bLocal,
 		TArray<FTransform>& OutTransforms);

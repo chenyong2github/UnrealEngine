@@ -225,31 +225,39 @@ bool FBakingHelper::AddTransformKeys(
 bool FBakingHelper::AddTransformKeys(
 	UControlRig* InControlRig, const FName& InControlName,
 	const TArray<FFrameNumber>& InFrames,
-	const TArray<FTransform>& InLocalTransforms,
+	const TArray<FTransform>& InTransforms,
 	const EMovieSceneTransformChannel& InChannels,
-	const FFrameRate& InTickResolution)
+	const FFrameRate& InTickResolution,
+	const bool bLocal)
 {
-	if (InFrames.IsEmpty() || InFrames.Num() != InLocalTransforms.Num())
+	if (InFrames.IsEmpty() || InFrames.Num() != InTransforms.Num())
 	{
 		return false;
 	}
 
-	static constexpr bool bNotify = true;
-	static constexpr bool bUndo = false;
-	static constexpr bool bFixEuler = true;
-	
+	auto KeyframeFunc = [InControlRig, InControlName, bLocal](const FTransform& InTransform, const FRigControlModifiedContext& InKeyframeContext)
+	{
+		static constexpr bool bNotify = true;
+		static constexpr bool bUndo = false;
+		static constexpr bool bFixEuler = true;
+
+		if (bLocal)
+		{
+			return InControlRig->SetControlLocalTransform(InControlName, InTransform, bNotify, InKeyframeContext, bUndo, bFixEuler);
+		}
+		InControlRig->SetControlGlobalTransform(InControlName, InTransform, bNotify, InKeyframeContext, bUndo, bFixEuler);
+	};
+
 	FRigControlModifiedContext KeyframeContext;
 	KeyframeContext.SetKey = EControlRigSetKey::Always;
 	KeyframeContext.KeyMask = static_cast<uint32>(InChannels);
 	
 	for (int32 Index = 0; Index < InFrames.Num(); ++Index)
 	{
-		const FTransform& LocalTransform = InLocalTransforms[Index];
-
 		const FFrameNumber& Frame = InFrames[Index];
 		KeyframeContext.LocalTime = InTickResolution.AsSeconds(FFrameTime(Frame));
 		
-		InControlRig->SetControlLocalTransform(InControlName, LocalTransform, bNotify, KeyframeContext, bUndo, bFixEuler);
+		KeyframeFunc(InTransforms[Index], KeyframeContext);
 	}
 
 	return true;

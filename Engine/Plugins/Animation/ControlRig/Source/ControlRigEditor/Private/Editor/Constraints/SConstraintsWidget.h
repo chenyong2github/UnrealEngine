@@ -77,6 +77,10 @@ public:
 	// End of SWidget interface
 	
 private:
+
+	/** todo documentation */
+	FReply CreateSelectionPicker() const;
+	
 	/** Creates the constraint between the current selection and the picked actor. */
 	static void CreateConstraint(
 		AActor* InParent,
