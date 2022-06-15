@@ -14,7 +14,7 @@ UScaleBoxSlot::UScaleBoxSlot(const FObjectInitializer& ObjectInitializer)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	HorizontalAlignment = HAlign_Center;
 	VerticalAlignment = VAlign_Center;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UScaleBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
