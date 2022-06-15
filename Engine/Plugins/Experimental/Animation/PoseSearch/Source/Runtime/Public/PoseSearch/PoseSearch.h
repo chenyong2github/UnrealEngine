@@ -1128,6 +1128,11 @@ struct POSESEARCH_API FDebugDrawParams
 	// Optional prefix for sample labels
 	FStringView LabelPrefix;
 
+#if WITH_EDITORONLY_DATA
+	FDebugFloatHistory* SearchCostHistoryBruteForce = nullptr;
+	FDebugFloatHistory* SearchCostHistoryKDTree = nullptr;
+#endif
+
 	// Optional Mesh for gathering SocketTransform(s)
 	TWeakObjectPtr<const USkinnedMeshComponent> Mesh = nullptr;
 

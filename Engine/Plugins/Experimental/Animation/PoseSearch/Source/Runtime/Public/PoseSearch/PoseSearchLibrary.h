@@ -91,6 +91,11 @@ struct POSESEARCH_API FMotionMatchingState
 	// when UE_POSE_SEARCH_TRACE_ENABLED is active
 	UPROPERTY(Transient)
 	FTransform RootMotionTransformDelta = FTransform::Identity;
+
+#if WITH_EDITORONLY_DATA
+	FDebugFloatHistory SearchCostHistoryBruteForce;
+	FDebugFloatHistory SearchCostHistoryKDTree;
+#endif
 };
 
 /**

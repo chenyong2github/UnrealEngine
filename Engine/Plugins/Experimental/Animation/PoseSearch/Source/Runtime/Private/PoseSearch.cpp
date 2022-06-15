@@ -561,6 +561,8 @@ bool UPoseSearchSchema::BuildQuery(
 	FPoseSearchContext& SearchContext,
 	FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_BuildQuery);
+
 	InOutQuery.Init(this);
 
 	// Copy search query directly from the database if we have an active pose
@@ -2139,11 +2141,35 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(FPoseSearchContext& Se
 	if (PoseSearchMode != EPoseSearchMode::BruteForce)
 	{
 		Result = SearchPCAKDTree(SearchContext);
+
+#if WITH_EDITORONLY_DATA
+		if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare && SearchContext.DebugDrawParams.SearchCostHistoryKDTree && Result.IsValid())
+		{
+			SearchContext.DebugDrawParams.SearchCostHistoryKDTree->AddSample(Result.PoseCost.GetTotalCost());
+		}
+#endif
 	}
 
 	if (PoseSearchMode == EPoseSearchMode::BruteForce || PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
 	{
 		Result = SearchBruteForce(SearchContext);
+
+#if WITH_EDITORONLY_DATA
+		if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare && SearchContext.DebugDrawParams.SearchCostHistoryBruteForce && Result.IsValid())
+		{
+			SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->AddSample(Result.PoseCost.GetTotalCost());
+
+			// making SearchCostHistoryKDTree and SearchCostHistoryBruteForce min max consistent
+			if (SearchContext.DebugDrawParams.SearchCostHistoryKDTree)
+			{
+				SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MinValue = FMath::Min(SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MinValue, SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->MinValue);
+				SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MaxValue = FMath::Max(SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MaxValue, SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->MaxValue);
+
+				SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->MinValue = SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MinValue;
+				SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->MaxValue = SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MaxValue;
+			}
+		}
+#endif
 	}
 
 	SearchContext.DebugDrawParams.PoseVector = Result.ComposedQuery.GetNormalizedValues();
@@ -4556,6 +4582,19 @@ void Draw(const FDebugDrawParams& DebugDrawParams)
 		{
 			DrawSearchIndex(DebugDrawParams);
 		}
+
+#if WITH_EDITORONLY_DATA
+		if (DebugDrawParams.Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
+		{
+			if (DebugDrawParams.SearchCostHistoryKDTree && DebugDrawParams.SearchCostHistoryBruteForce)
+			{
+				const FTransform OffsetTransform(FRotator(0.f, 90.f, 0.f), FVector(-50.f, 0.f, 100.f));
+				FVector2D DrawSize(150.f, 50.f);
+				DrawDebugFloatHistory(*DebugDrawParams.World, *DebugDrawParams.SearchCostHistoryKDTree, OffsetTransform * DebugDrawParams.RootTransform, DrawSize, FColor::Red);
+				DrawDebugFloatHistory(*DebugDrawParams.World, *DebugDrawParams.SearchCostHistoryBruteForce, OffsetTransform * DebugDrawParams.RootTransform, DrawSize, FColor::Blue);
+			}
+		}
+#endif
 	}
 }
 

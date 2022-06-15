@@ -191,6 +191,9 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 			DrawParams.PoseVector = MotionMatchingState.CurrentSearchResult.ComposedQuery.GetValues();
 		}
 
+		DrawParams.SearchCostHistoryKDTree = &MotionMatchingState.SearchCostHistoryKDTree;
+		DrawParams.SearchCostHistoryBruteForce = &MotionMatchingState.SearchCostHistoryBruteForce;
+
 		UE::PoseSearch::Draw(DrawParams);
 	}
 
