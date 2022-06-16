@@ -334,6 +334,12 @@ void SampleLumenCard(
 									RandomColor.x = (CardSample.CardIndex % 4) / 3.0f;
 									RandomColor.y = ((CardSample.CardIndex / 4) % 4) / 3.0f;
 									RandomColor.z = saturate(1.0f - RandomColor.x - RandomColor.y);
+
+									// UV Grid overlay
+									float2 UVGrid = frac(CardSample.PhysicalAtlasUV * LumenCardScene.PhysicalAtlasSize / 8.0f);
+									UVGrid = smoothstep(abs(UVGrid - 0.5f), 0.0f, 0.01f);
+									RandomColor *= lerp(0.25f, 1.0f, saturate(UVGrid.x * UVGrid.y));
+
 									Lighting = RandomColor * View.OneOverPreExposure;
 								}
 								else if (VisualizeMode == VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES || VisualizeMode == VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES || VisualizeMode == VISUALIZE_MODE_LAST_USED_PAGE || VisualizeMode == VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES)

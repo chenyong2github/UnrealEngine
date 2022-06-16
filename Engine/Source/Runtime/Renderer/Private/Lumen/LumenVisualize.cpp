@@ -180,6 +180,14 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneCardGenerationSurfelScale(
 	ECVF_RenderThreadSafe
 );
 
+float GVisualizeLumenCardGenerationClusterScale = 1.0f;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneCardGenerationClusterScale(
+	TEXT("r.Lumen.Visualize.CardGenerationClusterScale"),
+	GVisualizeLumenCardGenerationClusterScale,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
 int32 GVisualizeLumenCardGenerationCluster = 0;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneCardGenerationCluster(
 	TEXT("r.Lumen.Visualize.CardGenerationCluster"),
@@ -247,6 +255,14 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementIndex(
 	TEXT("r.Lumen.Visualize.CardPlacementIndex"),
 	GVisualizeLumenCardPlacementIndex,
 	TEXT("Visualize only a single card per mesh."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GVisualizeLumenCardPlacementOrientation = -1;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementOrientation(
+	TEXT("r.Lumen.Visualize.CardPlacementOrientation"),
+	GVisualizeLumenCardPlacementOrientation,
+	TEXT("Visualize only a single orientation per mesh."),
 	ECVF_RenderThreadSafe
 );
 
@@ -998,10 +1014,10 @@ void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const
 	{
 		LocalBounds = LocalBounds.ExpandBy(1.0f);
 
-		DrawWireBox(&ViewPDI, PrimitiveToWorld, LocalBounds, FLinearColor::Yellow, DepthPriority);
+		DrawWireBox(&ViewPDI, PrimitiveToWorld, LocalBounds, SurfelColor, DepthPriority, GVisualizeLumenCardGenerationClusterScale);
 
 		const FVector Start = PrimitiveToWorld.TransformPosition(LocalBounds.GetCenter());
-		const FVector End = PrimitiveToWorld.TransformPosition(LocalBounds.GetCenter() + (FVector)NormalSum.GetSafeNormal() * 1000.0f);
+		const FVector End = PrimitiveToWorld.TransformPosition(LocalBounds.GetCenter() + (FVector)NormalSum.GetSafeNormal() * 100.0f);
 		ViewPDI.DrawLine(Start, End, FLinearColor::Red, 0, 0.2f, 0.0f, false);
 	}
 }
@@ -1039,7 +1055,7 @@ void VisualizeRayTracingGroups(const FViewInfo& View, const FLumenSceneData& Lum
 
 void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenSceneData, FViewElementPDI& ViewPDI)
 {
-	if (GVisualizeLumenCardPlacement == 0 && GVisualizeLumenCardGenerationCluster == 0)
+	if (GVisualizeLumenCardPlacement == 0)
 	{
 		return;
 	}
@@ -1185,18 +1201,33 @@ void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& Lumen
 							}
 						}
 
-						if (GVisualizeLumenCardGenerationSurfels == 0 && GVisualizeLumenCardGenerationCluster != 0 && GVisualizeLumenCardPlacementIndex >= 0 && PrimitiveGroup.MeshCardsIndex >= 0)
+						if (GVisualizeLumenCardGenerationSurfels == 0
+							&& GVisualizeLumenCardGenerationCluster != 0
+							&& PrimitiveGroup.MeshCardsIndex >= 0)
 						{
 							const FLumenMeshCards& MeshCardsEntry = LumenSceneData.MeshCards[PrimitiveGroup.MeshCardsIndex];
 							for (uint32 CardIndex = MeshCardsEntry.FirstCardIndex; CardIndex < MeshCardsEntry.FirstCardIndex + MeshCardsEntry.NumCards; ++CardIndex)
 							{
 								const FLumenCard& Card = LumenSceneData.Cards[CardIndex];
 
-								if (Card.IndexInMeshCards == GVisualizeLumenCardPlacementIndex && Card.IndexInBuildData < DebugData.Clusters.Num())
+								if (Card.bVisible
+									&& (Card.IndexInMeshCards == GVisualizeLumenCardPlacementIndex || GVisualizeLumenCardPlacementIndex < 0)
+									&& (Card.AxisAlignedDirectionIndex == GVisualizeLumenCardPlacementOrientation || GVisualizeLumenCardPlacementOrientation < 0)
+									&& Card.IndexInBuildData < DebugData.Clusters.Num())
 								{
 									const FLumenCardBuildDebugData::FSurfelCluster& Cluster = DebugData.Clusters[Card.IndexInBuildData];
 
-									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Cluster, FLinearColor::Green, ViewPDI);
+									uint32 CardHash = HashCombine(GetTypeHash(Card.LocalOBB.Origin), GetTypeHash(Card.LocalOBB.Extent));
+									CardHash = HashCombine(CardHash, GetTypeHash(Card.IndexInBuildData));
+
+									const uint8 CardHue = CardHash & 0xFF;
+									const uint8 CardSaturation = 0xFF;
+									const uint8 CardValue = 0xFF;
+
+									FLinearColor CardColor = FLinearColor::MakeFromHSV8(CardHue, CardSaturation, CardValue);
+									CardColor.A = 1.0f;
+
+									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Cluster, CardColor, ViewPDI);
 									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Used, FLinearColor::Gray, ViewPDI);
 									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Idle, FLinearColor::Blue, ViewPDI);
 									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Seed, FLinearColor::Yellow, ViewPDI, 10.0f);
