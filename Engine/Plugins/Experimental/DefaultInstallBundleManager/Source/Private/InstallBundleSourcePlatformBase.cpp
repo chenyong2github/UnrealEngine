@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstallBundleSourcePlatformBase.h"
-#include "DefaultInstallBundleManagerPrivatePCH.h"
 
+#include "DefaultInstallBundleManagerPrivate.h"
 #include "InstallBundleManagerUtil.h"
 
 #include "Misc/ConfigCacheIni.h"
