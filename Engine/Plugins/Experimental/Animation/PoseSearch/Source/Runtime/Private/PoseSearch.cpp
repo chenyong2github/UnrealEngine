@@ -222,6 +222,73 @@ static void CalcChannelCosts(const UPoseSearchSchema* Schema, TArrayView<const f
 		}
 	}
 }
+
+static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelectableIdxSize, const FPoseSearchContext& SearchContext, int32 IdxOffset = 0)
+{
+	check(SearchContext.CurrentResult.IsValid());
+
+	int32 NonSelectableIdxUsedSize = 0;
+	if (SearchContext.PoseJumpThresholdTime > 0.f)
+	{
+		const UPoseSearchDatabase* Database = SearchContext.CurrentResult.Database.Get();
+		const FPoseSearchIndexAsset* CurrentIndexAsset = SearchContext.CurrentResult.SearchIndexAsset;
+		const int32 PoseJumpIndexThreshold = FMath::FloorToInt(SearchContext.PoseJumpThresholdTime / Database->Schema->SamplingInterval);
+		const bool IsLooping = Database->IsSourceAssetLooping(CurrentIndexAsset);
+
+		for (int32 i = -PoseJumpIndexThreshold; i <= -1; ++i)
+		{
+			const int32 PoseIdx = SearchContext.CurrentResult.PoseIdx + i;
+			const float DeltaTime = i * Database->Schema->SamplingInterval;
+
+			// @todo: should we use the quantized time associated to InOutMotionMatchingState.DbPoseIdx instead of InOutMotionMatchingState.AssetPlayerTime?
+			float PoseAssetPlayerTime = SearchContext.CurrentResult.AssetTime + DeltaTime;
+			if (IsLooping)
+			{
+				while (PoseAssetPlayerTime < CurrentIndexAsset->SamplingInterval.Min)
+				{
+					PoseAssetPlayerTime += CurrentIndexAsset->SamplingInterval.Size();
+				}
+			}
+
+			if (CurrentIndexAsset->SamplingInterval.Contains(PoseAssetPlayerTime) && NonSelectableIdxUsedSize < NonSelectableIdxSize)
+			{
+				NonSelectableIdx[NonSelectableIdxUsedSize++] = PoseIdx + IdxOffset;
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		for (int32 i = 1; i <= PoseJumpIndexThreshold; ++i)
+		{
+			const int32 PoseIdx = SearchContext.CurrentResult.PoseIdx + i;
+			const float DeltaTime = i * Database->Schema->SamplingInterval;
+
+			// @todo: should we use the quantized time associated to InOutMotionMatchingState.DbPoseIdx instead of InOutMotionMatchingState.AssetPlayerTime?
+			float PoseAssetPlayerTime = SearchContext.CurrentResult.AssetTime + DeltaTime;
+			if (IsLooping)
+			{
+				while (PoseAssetPlayerTime > CurrentIndexAsset->SamplingInterval.Max)
+				{
+					PoseAssetPlayerTime -= CurrentIndexAsset->SamplingInterval.Size();
+				}
+			}
+
+			if (CurrentIndexAsset->SamplingInterval.Contains(PoseAssetPlayerTime) && NonSelectableIdxUsedSize < NonSelectableIdxSize)
+			{
+				NonSelectableIdx[NonSelectableIdxUsedSize++] = PoseIdx + IdxOffset;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+
+	return NonSelectableIdxUsedSize;
+}
+
 }} // namespace UE::PoseSearch
 
 
@@ -2138,6 +2205,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(FPoseSearchContext& Se
 		return Result;
 	}
 
+
 	if (PoseSearchMode != EPoseSearchMode::BruteForce)
 	{
 		Result = SearchPCAKDTree(SearchContext);
@@ -2195,13 +2263,17 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(FPoseSearchCo
 	const uint32 ClampedNumberOfPrincipalComponents = GetNumberOfPrincipalComponents();
 	const uint32 ClampedKDTreeQueryNumNeighbors = FMath::Clamp<uint32>(KDTreeQueryNumNeighbors, 1, SearchIndex->NumPoses);
 
+
 	//stack allocated temporaries
 	TArrayView<size_t> ResultIndexes((size_t*)FMemory_Alloca((ClampedKDTreeQueryNumNeighbors + 1) * sizeof(size_t)), ClampedKDTreeQueryNumNeighbors + 1);
 	TArrayView<float> ResultDistanceSqr((float*)FMemory_Alloca((ClampedKDTreeQueryNumNeighbors + 1) * sizeof(float)), ClampedKDTreeQueryNumNeighbors + 1);
 	RowMajorVectorMap WeightedQueryValues((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
 	RowMajorVectorMap CenteredQueryValues((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
 	RowMajorVectorMap ProjectedQueryValues((float*)FMemory_Alloca(ClampedNumberOfPrincipalComponents * sizeof(float)), 1, ClampedNumberOfPrincipalComponents);
-
+	
+	constexpr int NonSelectableIdxDataSize = 128;
+	size_t* NonSelectableIdxData((size_t*)FMemory_Alloca(NonSelectableIdxDataSize * sizeof(size_t)));
+	
 	// KDTree in PCA space search
 	if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
 	{
@@ -2250,7 +2322,8 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(FPoseSearchCo
 
 	TArrayView<const float> NormalizedQueryValues = Result.ComposedQuery.GetNormalizedValues();
 
-	if (SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this)
+	const bool IsCurrentResultFromThisDatabase = SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
+	if (IsCurrentResultFromThisDatabase)
 	{
 		Result.ContinuityPoseCost = ComparePoses(
 			SearchContext,
@@ -2262,8 +2335,11 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(FPoseSearchCo
 
 	for (const FGroupSearchIndex& GroupSearchIndex : SearchIndex->Groups)
 	{
+		// we're offsetting the NonSelectableIdx by "-GroupSearchIndex.StartPoseIndex" to have the indexes in kdtree space rather than in PoseIdx database space (kdtree index 0 is PoseIdx of GroupSearchIndex.StartPoseIndex)
+		const int NonSelectableIdxUsedSize = IsCurrentResultFromThisDatabase ? PopulateNonSelectableIdx(NonSelectableIdxData, NonSelectableIdxDataSize, SearchContext, -GroupSearchIndex.StartPoseIndex) : 0;
+		TArrayView<size_t> NonSelectableIdx(NonSelectableIdxData, NonSelectableIdxUsedSize);
 		const RowMajorVectorMapConst MapWeights(GroupSearchIndex.Weights.GetData(), 1, NumDimensions);
-		FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
+		FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr, NonSelectableIdx);
 
 		check(NormalizedQueryValues.Num() == NumDimensions);
 
@@ -2335,7 +2411,11 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(FPoseSearchC
 	FPoseSearchWeightsContext WeightsContext;
 	WeightsContext.Update(this);
 	
-	if (SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this)
+	constexpr int NonSelectableIdxDataSize = 128;
+	size_t* NonSelectableIdxData((size_t*)FMemory_Alloca(NonSelectableIdxDataSize * sizeof(size_t)));
+	int NonSelectableIdxUsedSize = 0;
+	const bool IsCurrentResultFromThisDatabase = SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database == this;
+	if (IsCurrentResultFromThisDatabase)
 	{
 		Result.ContinuityPoseCost = ComparePoses(
 			SearchContext,
@@ -2343,7 +2423,11 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(FPoseSearchC
 			SearchContext.CurrentResult.PoseIdx,
 			SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
 			NormalizedQueryValues);
+
+		NonSelectableIdxUsedSize = PopulateNonSelectableIdx(NonSelectableIdxData, NonSelectableIdxDataSize, SearchContext);
 	}
+
+	TArrayView<size_t> NonSelectableIdx(NonSelectableIdxData, NonSelectableIdxUsedSize);
 
 	FPoseSearchCost BestPoseCost;
 	int32 BestPoseIdx = INDEX_NONE;
@@ -2357,12 +2441,18 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(FPoseSearchC
 			}
 		}
 
+		const bool CheckForNonSelectableIdx = IsCurrentResultFromThisDatabase && (&Asset == SearchContext.CurrentResult.SearchIndexAsset);
 		const int32 EndIndex = Asset.FirstPoseIdx + Asset.NumPoses;
 		for (int32 PoseIdx = Asset.FirstPoseIdx; PoseIdx < EndIndex; ++PoseIdx)
 		{
 			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
 
 			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
+			{
+				continue;
+			}
+
+			if (CheckForNonSelectableIdx && NonSelectableIdx.Contains(PoseIdx))
 			{
 				continue;
 			}

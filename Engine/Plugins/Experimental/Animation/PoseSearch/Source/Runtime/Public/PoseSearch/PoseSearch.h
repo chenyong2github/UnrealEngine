@@ -1517,6 +1517,7 @@ public:
 	UE::PoseSearch::FSearchResult CurrentResult;
 	const FBoneContainer* BoneContainer = nullptr;
 	const FGameplayTagContainer* ActiveTagsContainer = nullptr;
+	float PoseJumpThresholdTime = 0.f;
 };
 
 

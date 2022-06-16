@@ -222,6 +222,8 @@ void UpdateMotionMatchingState(
 	FMotionMatchingState& InOutMotionMatchingState
 )
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_Update);
+
 	using namespace UE::PoseSearch;
 
 	if (!Searchable)
@@ -262,6 +264,7 @@ void UpdateMotionMatchingState(
 #endif
 
 		SearchContext.CurrentResult = InOutMotionMatchingState.CurrentSearchResult;
+		SearchContext.PoseJumpThresholdTime = Settings.PoseJumpThresholdTime;
 
 		IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<IPoseHistoryProvider>();
 		if (PoseHistoryProvider)
@@ -312,33 +315,8 @@ void UpdateMotionMatchingState(
 					}
 				}
 
-				// Ignore the candidate poses from the same anim when they are too near to the current pose
-				bool bNearbyPose = false;
-				const FPoseSearchIndexAsset* StateSearchIndexAsset = InOutMotionMatchingState.GetCurrentSearchIndexAsset();
-				if (StateSearchIndexAsset == SearchResult.SearchIndexAsset)
-				{
-					// We need to check in terms of PoseIdx rather than AssetTime because
-					// for blendspaces, AssetTime is not in seconds, but in the normalized range 
-					// [0, 1] so comparing to `PoseJumpThresholdTime` will not make sense		
-					bNearbyPose = 
-						FMath::Abs(InOutMotionMatchingState.CurrentSearchResult.PoseIdx - SearchResult.PoseIdx) *
-						SearchResult.Database->Schema->SamplingInterval < Settings.PoseJumpThresholdTime;
-
-					// Handle looping anims when checking for the pose being too close
-					if (!bNearbyPose && SearchResult.Database->IsSourceAssetLooping(StateSearchIndexAsset))
-					{
-						const float Time =
-							FMath::Abs(
-								StateSearchIndexAsset->NumPoses -
-								InOutMotionMatchingState.CurrentSearchResult.PoseIdx -
-								SearchResult.PoseIdx) *
-							SearchResult.Database->Schema->SamplingInterval;
-						bNearbyPose = Time < Settings.PoseJumpThresholdTime;
-					}
-				}
-
 				// Jump to candidate pose if there was a better option
-				if (bBetterPose && !bNearbyPose)
+				if (bBetterPose)
 				{
 					InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
 				}

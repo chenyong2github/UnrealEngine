@@ -42,16 +42,17 @@ struct POSESEARCH_API FKDTree
 
 	struct KNNResultSet
 	{
-		inline KNNResultSet(size_t InNumNeighbors, TArrayView<size_t> IndexesView, TArrayView<float> DistancesView)
-		: Indexes(IndexesView.GetData())
-		, Distances(DistancesView.GetData())
+		inline KNNResultSet(size_t InNumNeighbors, TArrayView<size_t> InIndexes, TArrayView<float> InDistances, TArrayView<size_t> InExcludeFromSearchIndexes = TArrayView<size_t>())
+		: Indexes(InIndexes)
+		, Distances(InDistances)
 		, NumNeighbors(InNumNeighbors)
 		, Count(0)
+		, ExcludeFromSearchIndexes(InExcludeFromSearchIndexes)
 		{
 			// by having IndexesView and DistancesView cardinality bigger than NumNeighbors, we can skip some if statements in the addPoint method
 			check(NumNeighbors > 0);
-			check(IndexesView.Num() > NumNeighbors);
-			check(DistancesView.Num() > NumNeighbors);
+			check(InIndexes.Num() > NumNeighbors);
+			check(InDistances.Num() > NumNeighbors);
 
 			Distances[NumNeighbors - 1] = UE_BIG_NUMBER;
 		}
@@ -68,6 +69,9 @@ struct POSESEARCH_API FKDTree
 
 		inline bool addPoint(size_t dist, size_t index)
 		{
+			if (ExcludeFromSearchIndexes.Contains(index))
+				return true;
+
 			// shifting Distances[i] and Indexes[i] to make space for "dist" and "index" at the right "i"th slot
 			size_t i;
 			for (i = Count; (i > 0) && (Distances[i - 1] > dist); --i)
@@ -94,12 +98,14 @@ struct POSESEARCH_API FKDTree
 		inline float worstDist() const { return Distances[NumNeighbors - 1]; }
 
 	private:
-		size_t* Indexes;
-		float* Distances;
+		TArrayView<size_t> Indexes;
+		TArrayView<float> Distances;
 		size_t NumNeighbors;
 		size_t Count;
+		const TArrayView<size_t> ExcludeFromSearchIndexes; // @todo: perhaps make it an hash if it gets too big
 	};
 	
+
 	FKDTree(int32 Count, int32 Dim, const float* Data, int32 MaxLeafSize);
 	FKDTree();
 	FKDTree(const FKDTree& r);
