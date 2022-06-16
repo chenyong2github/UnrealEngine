@@ -15,20 +15,21 @@ public class ConsoleVariablesEditor : ModuleRules
 				"Core",
 				"OutputLog"
 			}
-			);
+		);
 			
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AssetRegistry",
+				"AssetTools",
+				"CoreUObject",
 				"Concert",
 				"ConcertSharedSlate",
 				"ConcertSyncClient",
 				"ConcertSyncCore",
 				"ConcertTransport",
-				"AssetRegistry",
-				"AssetTools",
-				"CoreUObject",
+				"ConsoleVariablesEditorRuntime",
 				"ContentBrowser",
 				"Engine",
 				"EditorStyle",
@@ -44,6 +45,6 @@ public class ConsoleVariablesEditor : ModuleRules
 				"UnrealEd",
 				"WorkspaceMenuStructure"
 			}
-			);
+		);
 	}
 }

@@ -13,7 +13,8 @@ public class DisplayClusterLaunchEditor : ModuleRules
 			new string[]
 			{
 				"Core",
-				"OutputLog"
+				"OutputLog", 
+				"PlacementMode"
 			}
 			);
 			
@@ -27,6 +28,7 @@ public class DisplayClusterLaunchEditor : ModuleRules
 				"CoreUObject",
 				"ConcertSyncClient",
 				"ConsoleVariablesEditor",
+				"ConsoleVariablesEditorRuntime",
 				"ContentBrowser",
 				"DisplayCluster",
 				"DisplayClusterConfiguration",
