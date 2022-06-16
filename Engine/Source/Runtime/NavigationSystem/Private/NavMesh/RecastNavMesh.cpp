@@ -2196,9 +2196,9 @@ void ARecastNavMesh::InvalidateAffectedPaths(const TArray<FNavTileRef>& ChangedT
 	{
 		FScopeLock PathLock(&ActivePathsLock);
 
-		FNavPathWeakPtr* WeakPathPtr = (ActivePaths.GetData() + PathsCount - 1);
-		for (int32 PathIndex = PathsCount - 1; PathIndex >= 0; --PathIndex, --WeakPathPtr)
+		for (int32 PathIndex = PathsCount - 1; PathIndex >= 0; --PathIndex)
 		{
+			FNavPathWeakPtr* WeakPathPtr = &ActivePaths[PathIndex];
 			FNavPathSharedPtr SharedPath = WeakPathPtr->Pin();
 			if (WeakPathPtr->IsValid() == false)
 			{

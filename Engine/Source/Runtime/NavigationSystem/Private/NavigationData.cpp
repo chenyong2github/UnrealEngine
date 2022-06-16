@@ -425,12 +425,12 @@ void ANavigationData::PurgeUnusedPaths()
 	FScopeLock PathLock(&ActivePathsLock);
 
 	const int32 Count = ActivePaths.Num();
-	FNavPathWeakPtr* WeakPathPtr = (ActivePaths.GetData() + Count - 1);
-	for (int32 i = Count - 1; i >= 0; --i, --WeakPathPtr)
+	for (int32 PathIndex = Count - 1; PathIndex >= 0; --PathIndex)
 	{
+		FNavPathWeakPtr* WeakPathPtr = &ActivePaths[PathIndex];
 		if (WeakPathPtr->IsValid() == false)
 		{
-			ActivePaths.RemoveAtSwap(i, 1, /*bAllowShrinking=*/false);
+			ActivePaths.RemoveAtSwap(PathIndex, 1, /*bAllowShrinking=*/false);
 		}
 	}
 }
