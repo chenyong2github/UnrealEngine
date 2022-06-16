@@ -1174,7 +1174,7 @@ namespace EpicGames.Core
 						foreach (string line in lines)
 						{
 							string lineWithTime = timePrefixActual + line;
-							listener.WriteLine(line);
+							listener.WriteLine(lineWithTime);
 							listener.Flush();
 						}
 					}
