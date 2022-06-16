@@ -28,11 +28,14 @@ public:
 	void SetShowingOnlyActorWithValidComponents(bool bInShowingOnlyActorWithValidComponents) { bShowingOnlyActorWithValidComponents = bInShowingOnlyActorWithValidComponents; }
 	void SetShowingLevelInstances(bool bInShowingLevelInstances) { bShowingLevelInstances = bInShowingLevelInstances; }
 	void SetShowingUnloadedActors(bool bInShowingUnloadedActors) { bShowingUnloadedActors = bInShowingUnloadedActors; }
+	void SetShowingEmptyFolders(bool bInShowingEmptyFolders) { bShowingEmptyFolders = bInShowingEmptyFolders; }
+
 private:
 	/** Adds all the direct and indirect children of a world to OutItems */
 	void CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
 	/** Create all component items for an actor if we are showing components and place them in OutItems */
 	void CreateComponentItems(const AActor* Actor, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
+
 private:
 	// Update the hierarchy when actor or world changing events occur
 	void OnWorldPartitionCreated(UWorld* InWorld);
@@ -83,6 +86,8 @@ private:
 	bool bShowingOnlyActorWithValidComponents = false;
 	bool bShowingLevelInstances = false;
 	bool bShowingUnloadedActors = false;
+	bool bShowingEmptyFolders = false;
+
 private:
 	FActorHierarchy(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& Worlds);
 

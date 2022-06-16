@@ -23,12 +23,13 @@ struct SCENEOUTLINER_API FActorModeParams
 {
 	FActorModeParams() {}
 
-	FActorModeParams(SSceneOutliner* InSceneOutliner, const TWeakObjectPtr<UWorld>& InSpecifiedWorldToDisplay = nullptr, bool bInHideComponents = true, bool bInHideLevelInstanceHierarchy = true, bool bInHideUnloadedActors = true)
+	FActorModeParams(SSceneOutliner* InSceneOutliner, const TWeakObjectPtr<UWorld>& InSpecifiedWorldToDisplay = nullptr, bool bInHideComponents = true, bool bInHideLevelInstanceHierarchy = true, bool bInHideUnloadedActors = true, bool bInHideEmptyFolders = true)
 		: SpecifiedWorldToDisplay(InSpecifiedWorldToDisplay)
 		, SceneOutliner(InSceneOutliner)
 		, bHideComponents(bInHideComponents)
 		, bHideLevelInstanceHierarchy(bInHideLevelInstanceHierarchy)
 		, bHideUnloadedActors(bInHideUnloadedActors)
+		, bHideEmptyFolders(bInHideEmptyFolders)
 	{}
 
 	TWeakObjectPtr<UWorld> SpecifiedWorldToDisplay = nullptr;
@@ -37,6 +38,7 @@ struct SCENEOUTLINER_API FActorModeParams
 	bool bHideActorWithNoComponent = false;
 	bool bHideLevelInstanceHierarchy = true;
 	bool bHideUnloadedActors = true;
+	bool bHideEmptyFolders = true;
 };
 
 class SCENEOUTLINER_API FActorMode : public ISceneOutlinerMode
@@ -99,6 +101,8 @@ protected:
 	bool bHideLevelInstanceHierarchy;
 	/** Should unloaded actors be hidden */
 	bool bHideUnloadedActors;
+	/** Should empty folders be hidden */
+	bool bHideEmptyFolders;
 	/** Should the outliner scroll to the item on selection */
 	bool bAlwaysFrameSelection;
 };

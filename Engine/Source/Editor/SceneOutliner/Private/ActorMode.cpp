@@ -87,6 +87,7 @@ FActorMode::FActorMode(const FActorModeParams& Params)
 	, bHideActorWithNoComponent(Params.bHideActorWithNoComponent)
 	, bHideLevelInstanceHierarchy(Params.bHideLevelInstanceHierarchy)
 	, bHideUnloadedActors(Params.bHideUnloadedActors)
+	, bHideEmptyFolders(Params.bHideEmptyFolders)
 {
 	SceneOutliner->AddFilter(MakeShared<FActorFilter>(FActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor)
 	{
@@ -135,6 +136,7 @@ TUniquePtr<ISceneOutlinerHierarchy> FActorMode::CreateHierarchy()
 	ActorHierarchy->SetShowingOnlyActorWithValidComponents(!bHideComponents && bHideActorWithNoComponent);
 	ActorHierarchy->SetShowingLevelInstances(!bHideLevelInstanceHierarchy);
 	ActorHierarchy->SetShowingUnloadedActors(!bHideUnloadedActors);
+	ActorHierarchy->SetShowingEmptyFolders(!bHideEmptyFolders);
 
 	return ActorHierarchy;
 }

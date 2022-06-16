@@ -115,6 +115,7 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateHideComponentsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideLevelInstancesFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideUnloadedActorsFilter();
+	static TSharedRef<FSceneOutlinerFilter> CreateHideEmptyFoldersFilter();
 
 	/** Functions to expose selection framing to the UI */
 	void OnToggleAlwaysFrameSelection();

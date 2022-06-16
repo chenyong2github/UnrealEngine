@@ -40,6 +40,10 @@ public:
 	UPROPERTY()
 	bool bHideUnloadedActors = false;
 
+	/** True when the Scene Outliner is not displaying empty folders */
+	UPROPERTY()
+	bool bHideEmptyFolders = false;
+
 	/** True when the Scene Outliner updates when an actor is selected in the viewport */
 	UPROPERTY()
 	bool bAlwaysFrameSelection = true;

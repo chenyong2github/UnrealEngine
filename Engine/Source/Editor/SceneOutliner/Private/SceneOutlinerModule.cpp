@@ -88,10 +88,9 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateActorPicker(const FSceneO
 			Params.bHideComponents = true;
 			Params.bHideLevelInstanceHierarchy = true;
 			Params.bHideUnloadedActors = true;
+			Params.bHideEmptyFolders = true;
 			return new FActorPickingMode(Params, OnItemPicked);
 		});
-
-	
 
 	FSceneOutlinerInitializationOptions InitOptions(InInitOptions);
 	InitOptions.ModeFactory = ModeFactory;
@@ -127,6 +126,7 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateComponentPicker(const FSc
 			Params.bHideActorWithNoComponent = true;
 			Params.bHideLevelInstanceHierarchy = true;
 			Params.bHideUnloadedActors = true;
+			Params.bHideEmptyFolders = true;
 			return new FActorPickingMode(Params, OnItemPicked);
 		});
 
