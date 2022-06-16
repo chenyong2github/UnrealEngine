@@ -206,7 +206,9 @@ namespace UE::ConcertSyncCore
 			DiscoverDeletedPackageDependencies(NodeID, Activity, EventData);
 			break;
 			
-		case EConcertPackageUpdateType::Dummy: 
+		case EConcertPackageUpdateType::Dummy:
+			// No idea what dependencies this has ... let's assume none and hopefully not regret it later
+			break;
 		default:
 			checkNoEntry();
 		}
