@@ -12,7 +12,7 @@
 #include "Chaos/BVHParticles.h"
 #include "Math/Vector.h"
 
-class FManagedArrayCollection;
+struct FManagedArrayCollection;
 DEFINE_LOG_CATEGORY_STATIC(UManagedArrayLogging, NoLogging, All);
 
 template <typename T>
@@ -150,13 +150,6 @@ public:
 	virtual void RemoveElements(const TArray<int32>& SortedDeletionList)
 	{
 		check(false);
-	}
-
-	/** Return unmanaged copy of array with input indices. */
-	virtual FManagedArrayBase * NewCopy(const TArray<int32> & DeletionList)
-	{
-		check(false);
-		return nullptr;
 	}
 
 	/** The length of the array.*/

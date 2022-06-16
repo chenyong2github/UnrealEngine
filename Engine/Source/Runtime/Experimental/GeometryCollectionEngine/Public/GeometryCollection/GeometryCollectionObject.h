@@ -15,7 +15,7 @@
 class UMaterialInterface;
 class UGeometryCollectionCache;
 class FGeometryCollection;
-class FManagedArrayCollection;
+struct FManagedArrayCollection;
 struct FGeometryCollectionSection;
 struct FSharedSimulationParameters;
 class UDataflow;
