@@ -12,6 +12,8 @@
 #include "LineTypes.h"
 #include "MathUtil.h"
 #include "Intersection/IntrSegment2Segment2.h"
+#include "Curve/CurveUtil.h"
+#include "Algo/Reverse.h"
 
 namespace UE
 {
@@ -183,11 +185,7 @@ public:
 	 */
 	void Reverse()
 	{
-		int32 j = Vertices.Num()-1;
-		for (int32 VertexIndex = 0; VertexIndex < j; VertexIndex++, j--)
-		{
-			Swap(Vertices[VertexIndex], Vertices[j]);
-		}
+		Algo::Reverse(Vertices);
 		IncrementDeprecatedTimestamp();
 	}
 
@@ -198,9 +196,7 @@ public:
 	 */
 	TVector2<T> GetTangent(int VertexIndex) const
 	{
-		TVector2<T> next = Vertices[(VertexIndex + 1) % Vertices.Num()];
-		TVector2<T> prev = Vertices[VertexIndex == 0 ? Vertices.Num() - 1 : VertexIndex - 1];
-		return Normalized(next - prev);
+		return CurveUtil::Tangent<T, TVector2<T>, true>(Vertices, VertexIndex);
 	}
 
 
@@ -221,21 +217,7 @@ public:
 	 */
 	TVector2<T> GetNormal_FaceAvg(int VertexIndex) const
 	{
-		TVector2<T> next = Vertices[(VertexIndex + 1) % Vertices.Num()];
-		TVector2<T> prev = Vertices[VertexIndex == 0 ? Vertices.Num() - 1 : VertexIndex - 1];
-		next -= Vertices[VertexIndex]; Normalize(next);
-		prev -= Vertices[VertexIndex]; Normalize(prev);
-
-		TVector2<T> n = (PerpCW(next) - PerpCW(prev));
-		T len = Normalize(n);
-		if (len == 0) 
-		{
-			return Normalized(next + prev);   // this gives right direction for degenerate angle
-		}
-		else 
-		{
-			return n;
-		}
+		return CurveUtil::GetNormal_FaceAvg2<T, TVector2<T>, true>(Vertices, VertexIndex);
 	}
 
 
@@ -244,9 +226,7 @@ public:
 	 */
 	TAxisAlignedBox2<T> Bounds() const
 	{
-		TAxisAlignedBox2<T> box = TAxisAlignedBox2<T>::Empty();
-		box.Contain(Vertices);
-		return box;
+		return TAxisAlignedBox2<T>(Vertices);
 	}
 
 	
@@ -327,19 +307,7 @@ public:
 	 */
 	T SignedArea() const
 	{
-		T fArea = 0;
-		int N = Vertices.Num();
-		if (N == 0)
-		{
-			return 0;
-		}
-		for (int i = 0; i < N; ++i) 
-		{
-			const TVector2<T>& v1 = Vertices[i];
-			const TVector2<T>& v2 = Vertices[(i + 1) % N];
-			fArea += v1.X * v2.Y - v1.Y * v2.X;
-		}
-		return fArea * 0.5;
+		return CurveUtil::SignedArea2<T, TVector2<T>>(Vertices);
 	}
 
 	/**
@@ -355,40 +323,25 @@ public:
 	 */
 	T Perimeter() const
 	{
-		T fPerim = 0;
-		int N = Vertices.Num();
-		for (int i = 0; i < N; ++i)
-		{
-			fPerim += Distance(Vertices[i], Vertices[(i + 1) % N]);
-		}
-		return fPerim;
+		return CurveUtil::ArcLength<T, TVector2<T>>(Vertices, true);
 	}
 
 
 	/**
 	 * Get the previous and next vertex positions for a given vertex of the Polygon
 	 */
-	void NeighbourPoints(int iVertex, TVector2<T> &PrevNbrOut, TVector2<T> &NextNbrOut) const
+	void NeighbourPoints(int VertexIdx, TVector2<T>& OutPrevNbr, TVector2<T>& OutNextNbr) const
 	{
-		int N = Vertices.Num();
-		PrevNbrOut = Vertices[(iVertex == 0) ? N - 1 : iVertex - 1];
-		NextNbrOut = Vertices[(iVertex + 1) % N];
+		CurveUtil::GetPrevNext<T, TVector2<T>, true>(Vertices, VertexIdx, OutPrevNbr, OutNextNbr);
 	}
 
 
 	/**
 	 * Get the vectors from a given vertex to the previous and next Vertices, optionally normalized
 	 */
-	void NeighbourVectors(int iVertex, TVector2<T> &ToPrevOut, TVector2<T> &ToNextOut, bool bNormalize = false) const
+	void NeighbourVectors(int VertexIdx, TVector2<T>& OutToPrev, TVector2<T>& OutToNext, bool bNormalize = false) const
 	{
-		int N = Vertices.Num();
-		ToPrevOut = Vertices[(iVertex == 0) ? N - 1 : iVertex - 1] - Vertices[iVertex];
-		ToNextOut = Vertices[(iVertex + 1) % N] - Vertices[iVertex];
-		if (bNormalize) 
-		{
-			Normalize(ToPrevOut);
-			Normalize(ToNextOut);
-		}
+		CurveUtil::GetVectorsToPrevNext<T, TVector2<T>, true>(Vertices, VertexIdx, OutToPrev, OutToNext, bNormalize);
 	}
 
 
@@ -408,16 +361,7 @@ public:
 	 */
 	T WindingIntegral(const TVector2<T>& QueryPoint) const
 	{
-		T sum = 0;
-		int N = Vertices.Num();
-		TVector2<T> a = Vertices[0] - QueryPoint, b = TVector2<T>::Zero();
-		for (int i = 0; i < N; ++i) 
-		{
-			b = Vertices[(i + 1) % N] - QueryPoint;
-			sum += TMathUtil<T>::Atan2(a.X * b.Y - a.Y * b.X, a.X * b.X + a.Y * b.Y);
-			a = b;
-		}
-		return sum / FMathd::TwoPi;
+		return CurveUtil::WindingIntegral2<T, TVector2<T>>(Vertices, QueryPoint);
 	}
 
 
@@ -426,39 +370,7 @@ public:
 	 */
 	bool Contains(const TVector2<T>& QueryPoint) const
 	{
-		int nWindingNumber = 0;
-
-		int N = Vertices.Num();
-		if (N == 0)
-		{
-			return false;
-		}
-		TVector2<T> a = Vertices[0], b = TVector2<T>::Zero();
-		for (int i = 0; i < N; ++i) 
-		{
-			b = Vertices[(i + 1) % N];
-
-			if (a.Y <= QueryPoint.Y)     // y <= P.Y (below)
-			{
-				if (b.Y > QueryPoint.Y)									// an upward crossing
-				{
-					if (Orient(a, b, QueryPoint) > 0)  // P left of edge
-						++nWindingNumber;                       // have a valid up intersect
-				}
-			}
-			else     // y > P.Y  (above)
-			{
-				if (b.Y <= QueryPoint.Y)									// a downward crossing
-				{
-					if (Orient(a, b, QueryPoint) < 0)  // P right of edge
-					{
-						--nWindingNumber;						// have a valid down intersect
-					}
-				}
-			}
-			a = b;
-		}
-		return nWindingNumber != 0;
+		return CurveUtil::Contains2<T, TVector2<T>>(Vertices, QueryPoint);
 	}
 
 	/**

@@ -20,25 +20,177 @@ using namespace UE::Math;
 /**
  * Curve utility functions
  */
-	template<typename RealType, typename VectorType>
-	TVector<RealType> Tangent(const TArrayView<const VectorType>& Vertices, int32 Idx, bool bLoop = false)
+
+	/**
+	 * Get (by reference) the vertices surrounding the given vertex index
+	 * If bLoop is false and the Prev or Next vertex would be out of bounds, the vertex at Idx is used instead.
+	 */
+	template<typename RealType, typename VectorType, bool bLoop>
+	inline void GetPrevNext(const TArrayView<const VectorType>& Vertices, int32 Idx, VectorType& OutPrev, VectorType& OutNext)
 	{
-		int32 EndIdx = Idx + 1;
-		int32 StartIdx = Idx - 1;
+		int32 NextIdx = Idx + 1;
+		int32 PrevIdx = Idx - 1;
 		int32 NV = Vertices.Num();
-		if (bLoop)
+		if constexpr (bLoop)
 		{
-			EndIdx = EndIdx % NV;
-			StartIdx = (StartIdx + NV) % NV;
+			NextIdx = NextIdx % NV;
+			PrevIdx = (PrevIdx + NV) % NV;
 		}
 		else
 		{
-			EndIdx = FMath::Min(NV - 1, EndIdx);
-			StartIdx = FMath::Max(0, StartIdx);
+			NextIdx = FMath::Min(NV - 1, NextIdx);
+			PrevIdx = FMath::Max(0, PrevIdx);
 		}
-		return Normalized(Vertices[EndIdx] - Vertices[StartIdx]);
+		OutNext = Vertices[NextIdx];
+		OutPrev = Vertices[PrevIdx];
 	}
 
+	/**
+	 * Get (by reference) vectors pointing toward the given vertex index, from its surrounding vertices
+	 * If bLoop is false and the Prev or Next vertex would be out of bounds, a zero vector is used instead
+	 */
+	template<typename RealType, typename VectorType, bool bLoop>
+	inline void GetVectorsToPrevNext(const TArrayView<const VectorType>& Vertices, int32 VertexIndex, VectorType& OutToPrev, VectorType& OutToNext, bool bNormalize)
+	{
+		GetPrevNext<RealType, VectorType, bLoop>(Vertices, VertexIndex, OutToPrev, OutToNext);
+		OutToNext -= Vertices[VertexIndex];
+		OutToPrev -= Vertices[VertexIndex];
+		if (bNormalize)
+		{
+			Normalize(OutToNext);
+			Normalize(OutToPrev);
+		}
+	}
+	
+	/**
+	 * @return the tangent direction (normalized) of the path at Idx, using the surrounding vertices (as found by GetPrevNext())
+	 */
+	template<typename RealType, typename VectorType, bool bLoop>
+	inline VectorType Tangent(const TArrayView<const VectorType>& Vertices, int32 Idx)
+	{
+		VectorType Prev, Next;
+		GetPrevNext<RealType, VectorType, bLoop>(Vertices, Idx, Prev, Next);
+		return Normalized(Next - Prev);
+	}
+
+	/**
+	 * @return the tangent direction (normalized) of the path at Idx, using the surrounding vertices (as found by GetPrevNext())
+	 */
+	template<typename RealType, typename VectorType>
+	inline VectorType Tangent(const TArrayView<const VectorType>& Vertices, int32 Idx, bool bLoop = false)
+	{
+		return bLoop ?
+			Tangent<RealType, VectorType, true>(Vertices, Idx) :
+			Tangent<RealType, VectorType, false>(Vertices, Idx);
+	}
+
+	/**
+	 * Construct a normal at a vertex of the Polygon by averaging the adjacent face normals. 
+	 * This vector is independent of the lengths of the adjacent segments.
+	 * Points "inward" for a Clockwise Polygon, and outward for CounterClockwise
+	 * Note: Specific to 2D curves; normals computed by rotating tangents in the XY plane
+	 */
+	template<typename RealType, typename VectorType, bool bLoop>
+	VectorType GetNormal_FaceAvg2(const TArrayView<const VectorType>& Vertices, int VertexIndex)
+	{
+		TVector2<RealType> ToPrev, ToNext;
+		GetVectorsToPrevNext<RealType, VectorType, bLoop>(Vertices, VertexIndex, ToPrev, ToNext, true);
+
+		TVector2<RealType> N = (PerpCW(ToNext) - PerpCW(ToPrev));
+		RealType Len = Normalize(N);
+		if (Len == 0)
+		{
+			return Normalized(ToNext + ToPrev);   // this gives right direction for degenerate angle
+		}
+		else
+		{
+			return N;
+		}
+	}
+
+	/** 
+	 * Compute the signed area of a closed curve, assuming vertices in the XY plane
+	 */
+	template<typename RealType, typename VectorType>
+	RealType SignedArea2(const TArrayView<const VectorType>& Vertices)
+	{
+		RealType Area = 0;
+		int N = Vertices.Num();
+		if (N == 0)
+		{
+			return 0;
+		}
+		for (int Idx = 0, PrevIdx = N-1; Idx < N; PrevIdx=Idx++)
+		{
+			const TVector2<RealType>& V1 = Vertices[PrevIdx];
+			const TVector2<RealType>& V2 = Vertices[Idx];
+			Area += V1.X * V2.Y - V1.Y * V2.X;
+		}
+		return Area * 0.5;
+	}
+
+	/**
+	 * Compute the winding of a point relative to a closed curve, assuming vertices in the XY plane
+	 */
+	template<typename RealType, typename VectorType>
+	RealType WindingIntegral2(const TArrayView<const VectorType>& Vertices, const VectorType& QueryPoint)
+	{
+		RealType Sum = 0;
+		int N = Vertices.Num();
+		VectorType A = Vertices[N-1] - QueryPoint, B = VectorType::Zero();
+		for (int Idx = 0; Idx < N; ++Idx)
+		{
+			B = Vertices[Idx] - QueryPoint;
+			// TODO: Consider computing closed curve winding w/out trig functions, i.e. see Contains2 below
+			Sum += TMathUtil<RealType>::Atan2(A.X * B.Y - A.Y * B.X, A.X * B.X + A.Y * B.Y);
+			A = B;
+		}
+		return Sum / FMathd::TwoPi;
+	}
+
+	/**
+	 * @return true if the given query point is inside the closed curve (in the XY plane), based on the winding integral
+	 * Note: Negative and positive windings are both considered 'inside'
+	 */
+	template<typename RealType, typename VectorType>
+	bool Contains2(const TArrayView<const VectorType>& Vertices, const VectorType& QueryPoint)
+	{
+		int WindingNumber = 0;
+
+		int N = Vertices.Num();
+		if (N == 0)
+		{
+			return false;
+		}
+		VectorType A = Vertices[N - 1], B = VectorType::Zero();
+		for (int Idx = 0; Idx < N; ++Idx)
+		{
+			B = Vertices[Idx];
+
+			if (A.Y <= QueryPoint.Y)     // y <= P.Y (below)
+			{
+				if (B.Y > QueryPoint.Y)									// an upward crossing
+				{
+					if (Orient(A, B, QueryPoint) > 0)  // P left of edge
+					{
+						++WindingNumber;                       // have a valid up intersect
+					}
+				}
+			}
+			else     // y > P.Y  (above)
+			{
+				if (B.Y <= QueryPoint.Y)									// a downward crossing
+				{
+					if (Orient(A, B, QueryPoint) < 0)  // P right of edge
+					{
+						--WindingNumber;						// have a valid down intersect
+					}
+				}
+			}
+			A = B;
+		}
+		return WindingNumber != 0;
+	}
 
 	template<typename RealType, typename VectorType>
 	static RealType ArcLength(const TArrayView<const VectorType>& Vertices, bool bLoop = false) {
@@ -59,11 +211,11 @@ using namespace UE::Math;
 	int FindNearestIndex(const TArrayView<const VectorType>& Vertices, const VectorType& V)
 	{
 		int iNearest = -1;
-		double dNear = TMathUtil<double>::MaxReal;
+		RealType dNear = TMathUtil<RealType>::MaxReal;
 		int N = Vertices.Num();
 		for ( int i = 0; i < N; ++i )
 		{
-			double dSqr = DistanceSquared(Vertices[i], V);
+			RealType dSqr = DistanceSquared(Vertices[i], V);
 			if (dSqr < dNear)
 			{
 				dNear = dSqr;
