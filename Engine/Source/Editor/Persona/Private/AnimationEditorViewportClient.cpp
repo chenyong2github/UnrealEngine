@@ -648,61 +648,62 @@ void FAnimationViewportClient::HandlePreviewScenePreTick()
 
 void FAnimationViewportClient::HandlePreviewScenePostTick()
 {
-	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
-
-	const bool bInBoneOrbitMode = CameraFollowMode != EAnimationViewportCameraFollowMode::None;
-	if (IsTracking())
+	if (UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent())
 	{
-		if (PreviewMeshComponent->IsPlaying() && GetDefault<UPersonaOptions>()->bPauseAnimationOnCameraMove)
+		const bool bInBoneOrbitMode = CameraFollowMode != EAnimationViewportCameraFollowMode::None;
+		if (IsTracking())
 		{
-			PreviewMeshComponent->Stop();
-			bResumeAfterTracking = true;
-			return;
+			if (PreviewMeshComponent->IsPlaying() && GetDefault<UPersonaOptions>()->bPauseAnimationOnCameraMove)
+			{
+				PreviewMeshComponent->Stop();
+				bResumeAfterTracking = true;
+				return;
+			}
 		}
-	}
-	else if (bResumeAfterTracking)
-	{
-		PreviewMeshComponent->Play(true);
-		bResumeAfterTracking = false;
-	}
-
-	if (CameraFollowMode != EAnimationViewportCameraFollowMode::None && PreviewMeshComponent != nullptr)
-	{
-		FVector LookAtLocation = LastLookAtLocation;
-
-		switch(CameraFollowMode)
+		else if (bResumeAfterTracking)
 		{
-		case EAnimationViewportCameraFollowMode::Bounds:
-			{
-				const FBoxSphereBounds Bounds = PreviewMeshComponent->CalcGameBounds(PreviewMeshComponent->GetComponentTransform());
-				LookAtLocation = Bounds.Origin;
-			}
-			break;
-		case EAnimationViewportCameraFollowMode::Root:
-			{
-				LookAtLocation = PreviewMeshComponent->GetBoneTransform(0).GetLocation();
-				LookAtLocation.Z = PreviewMeshComponent->CalcGameBounds(PreviewMeshComponent->GetComponentTransform()).Origin.Z;
-			}
-			break;
-		case EAnimationViewportCameraFollowMode::Bone:
-			{
-				const int32 BoneIndex = PreviewMeshComponent->GetBoneIndex(CameraFollowBoneName);
-				check(BoneIndex != INDEX_NONE);
-				LookAtLocation = PreviewMeshComponent->GetBoneTransform(BoneIndex).GetLocation();
+			PreviewMeshComponent->Play(true);
+			bResumeAfterTracking = false;
+		}
 
-				if (GetShouldRotateCameraToFollowBone())
+		if (CameraFollowMode != EAnimationViewportCameraFollowMode::None)
+		{
+			FVector LookAtLocation = LastLookAtLocation;
+
+			switch(CameraFollowMode)
+			{
+			case EAnimationViewportCameraFollowMode::Bounds:
 				{
-					const FName BoneName = PreviewMeshComponent->GetBoneName(BoneIndex);
-					check(BoneName != NAME_None);
-					OrbitRotation = PreviewMeshComponent->GetBoneQuaternion(BoneName) * FQuat(FVector(0.0f, 1.0f, 0.0f), PI * 0.5f);
+					const FBoxSphereBounds Bounds = PreviewMeshComponent->CalcGameBounds(PreviewMeshComponent->GetComponentTransform());
+					LookAtLocation = Bounds.Origin;
 				}
-			}
-			break;
-		}
+				break;
+			case EAnimationViewportCameraFollowMode::Root:
+				{
+					LookAtLocation = PreviewMeshComponent->GetBoneTransform(0).GetLocation();
+					LookAtLocation.Z = PreviewMeshComponent->CalcGameBounds(PreviewMeshComponent->GetComponentTransform()).Origin.Z;
+				}
+				break;
+			case EAnimationViewportCameraFollowMode::Bone:
+				{
+					const int32 BoneIndex = PreviewMeshComponent->GetBoneIndex(CameraFollowBoneName);
+					check(BoneIndex != INDEX_NONE);
+					LookAtLocation = PreviewMeshComponent->GetBoneTransform(BoneIndex).GetLocation();
 
-		const FVector Offset = LookAtLocation - LastLookAtLocation;
-		SetLookAtLocation(GetLookAtLocation() + Offset);
-		LastLookAtLocation = LookAtLocation;
+					if (GetShouldRotateCameraToFollowBone())
+					{
+						const FName BoneName = PreviewMeshComponent->GetBoneName(BoneIndex);
+						check(BoneName != NAME_None);
+						OrbitRotation = PreviewMeshComponent->GetBoneQuaternion(BoneName) * FQuat(FVector(0.0f, 1.0f, 0.0f), PI * 0.5f);
+					}
+				}
+				break;
+			}
+
+			const FVector Offset = LookAtLocation - LastLookAtLocation;
+			SetLookAtLocation(GetLookAtLocation() + Offset);
+			LastLookAtLocation = LookAtLocation;
+		}
 	}
 }
 

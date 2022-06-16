@@ -5,6 +5,7 @@
 #if WITH_MASSENTITY_DEBUG
 
 #include "IMassDebuggerModule.h"
+#include "Features/IModularFeatures.h"
 
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"

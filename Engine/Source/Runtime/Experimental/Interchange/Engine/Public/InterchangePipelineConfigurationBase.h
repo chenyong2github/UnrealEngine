@@ -5,10 +5,9 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "InterchangeSourceData.h"
 
 #include "InterchangePipelineConfigurationBase.generated.h"
-
-class UInterchangeSourceData;
 
 UENUM(BlueprintType, Experimental)
 enum class EInterchangePipelineConfigurationDialogResult : uint8

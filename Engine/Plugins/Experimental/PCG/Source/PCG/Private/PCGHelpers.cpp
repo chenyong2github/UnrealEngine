@@ -157,6 +157,7 @@ namespace PCGHelpers
 		{
 			return;
 		}
+		checkSlow(ObjectClass); // CanBeExpanded checks this but static analyzer doesn't note that
 
 		for (FProperty* Property = ObjectClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext)
 		{
