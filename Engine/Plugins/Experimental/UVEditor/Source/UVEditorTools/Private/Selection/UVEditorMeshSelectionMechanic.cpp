@@ -15,6 +15,7 @@
 #include "Drawing/PreviewGeometryActor.h"
 #include "Intersection/IntrTriangle2AxisAlignedBox2.h"
 #include "Intersection/IntersectionQueries2.h"
+#include "ConvexVolume.h"
 #include "InteractiveToolManager.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
 #include "Polyline3.h"
