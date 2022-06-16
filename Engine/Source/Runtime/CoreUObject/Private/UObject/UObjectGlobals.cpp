@@ -4948,6 +4948,11 @@ FString FAssetMsg::FormatPathForAssetLog(const TCHAR* InPath)
 	return FilePath;
 }
 
+FString FAssetMsg::FormatPathForAssetLog(const FPackagePath& InPath)
+{
+	return FormatPathForAssetLog(*InPath.GetDebugName());
+}
+
 /**
  * Format the path of the passed in object
  */
@@ -4959,6 +4964,11 @@ FString FAssetMsg::FormatPathForAssetLog(const UObject* Object)
 FString FAssetMsg::GetAssetLogString(const TCHAR* Path, const FString& Message)
 {
 	return FString::Printf(TEXT(ASSET_LOG_FORMAT_STRING_ANSI "%s"), *FAssetMsg::FormatPathForAssetLog(Path), *Message);
+}
+
+FString FAssetMsg::GetAssetLogString(const FPackagePath& Path, const FString& Message)
+{
+	return FString::Printf(ASSET_LOG_FORMAT_STRING TEXT("%s"), *FAssetMsg::FormatPathForAssetLog(Path), *Message);
 }
 
 FString FAssetMsg::GetAssetLogString(const UObject* Object, const FString& Message)

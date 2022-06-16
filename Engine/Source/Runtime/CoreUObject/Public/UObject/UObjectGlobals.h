@@ -2841,10 +2841,14 @@ struct FAssetMsg
 	/** Formats a path for the UE_ASSET_LOG macro */
 	static COREUOBJECT_API FString FormatPathForAssetLog(const TCHAR* Path);
 
+	/** Formats a path for the UE_ASSET_LOG macro */
+	static COREUOBJECT_API FString FormatPathForAssetLog(const FPackagePath& Path);
+
 	/** If possible, finds a path to the underlying asset for the provided object and formats it for the UE_ASSET_LOG macro */
 	static COREUOBJECT_API FString FormatPathForAssetLog(const UObject* Object);
 
 	static COREUOBJECT_API FString GetAssetLogString(const TCHAR* Path, const FString& Message);
+	static COREUOBJECT_API FString GetAssetLogString(const FPackagePath& Path, const FString& Message);
 	static COREUOBJECT_API FString GetAssetLogString(const UObject* Object, const FString& Message);
 };
 
