@@ -310,6 +310,8 @@ FRayTracingLocalShaderBindings* FMeshDrawShaderBindings::SetRayTracingShaderBind
 
 	const uint32 NumUniformBuffersToSet = MaxUniformBufferUsed + 1;
 
+	check(NumUniformBuffersToSet == NumUniformBufferParameters);
+
 	const TMemoryImageArray<FShaderLooseParameterBufferInfo>& LooseParameterBuffers = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers;
 	uint32 LooseParameterDataSize = 0;
 

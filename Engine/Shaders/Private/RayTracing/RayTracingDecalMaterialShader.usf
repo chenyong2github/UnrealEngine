@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #define PATH_TRACING 1
+#define SCENE_TEXTURES_DISABLED 1 // Ray tracing shaders cannot access scene textures
 
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"

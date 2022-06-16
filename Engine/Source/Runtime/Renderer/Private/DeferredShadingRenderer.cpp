@@ -2161,14 +2161,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const int32 ReferenceViewIndex = 0;
 	FViewInfo& ReferenceView = Views[ReferenceViewIndex];
 
-	// Prepare the scene for rendering this frame.
-	GatherRayTracingWorldInstancesForView(GraphBuilder, ReferenceView, RayTracingScene);
-
 	if (ViewFamily.EngineShowFlags.PathTracing)
 	{
 		ReferenceView.RayTracingDecalUniformBuffer = CreateRayTracingDecalData(GraphBuilder, *Scene, ReferenceView, RayTracingScene.NumCallableShaderSlots);
 		RayTracingScene.NumCallableShaderSlots += Scene->Decals.Num();
 	}
+
+	// Prepare the scene for rendering this frame.
+	GatherRayTracingWorldInstancesForView(GraphBuilder, ReferenceView, RayTracingScene);
 
 #endif // RHI_RAYTRACING
 
