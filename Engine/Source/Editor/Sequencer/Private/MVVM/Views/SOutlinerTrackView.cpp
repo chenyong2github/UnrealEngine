@@ -113,7 +113,7 @@ void SOutlinerTrackView::Construct(
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
-			SNew(SSequencerKeyNavigationButtons, TopLevelChannel, EditorViewModel->GetSequencer())
+			SNew(SSequencerKeyNavigationButtons, DataModel, EditorViewModel->GetSequencer())
 		];
 	}
 	else
