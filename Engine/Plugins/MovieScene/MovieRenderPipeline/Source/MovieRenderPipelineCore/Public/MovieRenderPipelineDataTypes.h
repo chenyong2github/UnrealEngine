@@ -996,6 +996,14 @@ namespace MoviePipeline
 		ERHIFeatureLevel::Type FeatureLevel;
 	};
 
+	struct FCompositePassInfo
+	{
+		FCompositePassInfo() {}
+
+		FMoviePipelinePassIdentifier PassIdentifier;
+		TUniquePtr<FImagePixelData> PixelData;
+	};
+
 }
 
 struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<FImagePixelDataPayload, ESPMode::ThreadSafe>
@@ -1117,6 +1125,23 @@ public:
 		return CameraNameUseCounts.Num() > 1;
 	}
 
+	bool HasDataFromMultipleRenderPasses(const TArray<MoviePipeline::FCompositePassInfo>& InCompositedPasses) const
+	{
+		TMap<FString, int32> RenderPassUseCounts;
+		for (const FMoviePipelinePassIdentifier& PassIdentifier : ExpectedRenderPasses)
+		{
+			RenderPassUseCounts.FindOrAdd(PassIdentifier.Name) += 1;
+		}
+
+		// Remove any render passes that will be composited on later
+		for (const MoviePipeline::FCompositePassInfo& CompositePass : InCompositedPasses)
+		{
+			RenderPassUseCounts.Remove(CompositePass.PassIdentifier.Name);
+		}
+
+		return RenderPassUseCounts.Num() > 1;
+	}
+
 private:
 	// Explicitly delete copy operators since we own unique data.
 	// void operator=(const FMoviePipelineMergerOutputFrame&);
@@ -1184,14 +1209,6 @@ namespace MoviePipeline
 
 		/** An array of active submixes we are recording for this shot. Gets cleared when recording stops on a shot. */
 		TArray<TWeakPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>> ActiveSubmixes;
-	};
-
-	struct FCompositePassInfo
-	{
-		FCompositePassInfo() {}
-
-		FMoviePipelinePassIdentifier PassIdentifier;
-		TUniquePtr<FImagePixelData> PixelData;
 	};
 }
 

@@ -805,7 +805,7 @@ void UMoviePipelineDeferredPassBase::BlendPostProcessSettings(FSceneView* InView
 	if (NumCameras == 1)
 	{
 		// If there's only one camera being used we can use the parent class which assumes the camera comes from the PlayerCameraManager
-		Super::GetCameraInfo(InOutSampleState, OptPayload);
+		Super::BlendPostProcessSettings(InView, InOutSampleState, OptPayload);
 	}
 	else
 	{
@@ -842,7 +842,7 @@ void UMoviePipelineDeferredPassBase::BlendPostProcessSettings(FSceneView* InView
 		}
 
 		// After blending all post processing volumes, blend the camera's post process settings too
-		InView->OverridePostProcessSettings(OutCamera->PostProcessSettings, OutCamera->PostProcessBlendWeight);
+		InView->OverridePostProcessSettings(OutViewInfo.PostProcessSettings, OutViewInfo.PostProcessBlendWeight);
 	}
 }
 
