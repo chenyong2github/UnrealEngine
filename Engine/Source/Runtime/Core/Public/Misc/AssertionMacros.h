@@ -335,7 +335,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 #if DO_ENSURE && !USING_CODE_ANALYSIS // The Visual Studio 2013 analyzer doesn't understand these complex conditionals
 
 	#define UE_ENSURE_IMPL(Always, InExpression, ...) \
-		(LIKELY(!!(InExpression)) || (DispatchCheckVerify<bool>([] (const auto&... UE_LOG_Args) FORCENOINLINE UE_DEBUG_SECTION \
+		(LIKELY(!!(InExpression)) || (DispatchCheckVerify<bool>([] (const auto&... UE_LOG_Args) UE_DEBUG_SECTION \
 		{ \
 			static bool bExecuted = false; \
 			if ((!bExecuted || Always) && FPlatformMisc::IsEnsureAllowed()) \
@@ -431,7 +431,7 @@ CORE_API void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line
 #define LowLevelFatalError(Format, ...) \
 	{ \
 		static_assert(TIsArrayOrRefOfType<decltype(Format), TCHAR>::Value, "Formatting string must be a TCHAR array."); \
-		DispatchCheckVerify([] (const auto& LFormat, const auto&... UE_LOG_Args) FORCENOINLINE UE_DEBUG_SECTION \
+		DispatchCheckVerify([] (const auto& LFormat, const auto&... UE_LOG_Args) UE_DEBUG_SECTION \
 		{ \
 			void* ProgramCounter = PLATFORM_RETURN_ADDRESS(); \
 			LowLevelFatalErrorHandler(__FILE__, __LINE__, ProgramCounter, LFormat, UE_LOG_Args...); \

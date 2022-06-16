@@ -193,7 +193,7 @@ private:
 		UE_LOG_EXPAND_IS_FATAL(Verbosity, PREPROCESSOR_NOTHING, if (!CategoryName.IsSuppressed(ELogVerbosity::Verbosity))) \
 			{ \
 				UE_VALIDATE_FORMAT_STRING(Format, ##__VA_ARGS__); \
-				DispatchCheckVerify([] (const auto& LCategoryName, const auto& LFormat, const auto&... UE_LOG_Args) FORCENOINLINE \
+				DispatchCheckVerify([] (const auto& LCategoryName, const auto& LFormat, const auto&... UE_LOG_Args) UE_DEBUG_SECTION \
 				{ \
 					TRACE_LOG_MESSAGE(LCategoryName, Verbosity, LFormat, UE_LOG_Args...) \
 					UE_LOG_EXPAND_IS_FATAL(Verbosity, \
@@ -297,7 +297,7 @@ private:
 			{ \
 				if (Condition) \
 				{ \
-					DispatchCheckVerify([] (const auto& LCategoryName, const auto& LFormat, const auto&... UE_LOG_Args) FORCENOINLINE \
+					DispatchCheckVerify([] (const auto& LCategoryName, const auto& LFormat, const auto&... UE_LOG_Args) UE_DEBUG_SECTION \
 					{ \
 						TRACE_LOG_MESSAGE(LCategoryName, Verbosity, LFormat, UE_LOG_Args...) \
 						UE_LOG_EXPAND_IS_FATAL(Verbosity, \
