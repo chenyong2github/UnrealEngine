@@ -687,14 +687,19 @@ void FAnimationViewportClient::HandlePreviewScenePostTick()
 			case EAnimationViewportCameraFollowMode::Bone:
 				{
 					const int32 BoneIndex = PreviewMeshComponent->GetBoneIndex(CameraFollowBoneName);
-					check(BoneIndex != INDEX_NONE);
-					LookAtLocation = PreviewMeshComponent->GetBoneTransform(BoneIndex).GetLocation();
-
-					if (GetShouldRotateCameraToFollowBone())
+					if (BoneIndex != INDEX_NONE)
 					{
-						const FName BoneName = PreviewMeshComponent->GetBoneName(BoneIndex);
-						check(BoneName != NAME_None);
-						OrbitRotation = PreviewMeshComponent->GetBoneQuaternion(BoneName) * FQuat(FVector(0.0f, 1.0f, 0.0f), PI * 0.5f);
+						LookAtLocation = PreviewMeshComponent->GetBoneTransform(BoneIndex).GetLocation();
+
+						if (GetShouldRotateCameraToFollowBone())
+						{
+							OrbitRotation = PreviewMeshComponent->GetBoneQuaternion(CameraFollowBoneName) * FQuat(FVector(0.0f, 1.0f, 0.0f), PI * 0.5f);
+						}
+					}
+					else
+					{
+						SetCameraFollowMode(EAnimationViewportCameraFollowMode::None);
+						return;
 					}
 				}
 				break;
