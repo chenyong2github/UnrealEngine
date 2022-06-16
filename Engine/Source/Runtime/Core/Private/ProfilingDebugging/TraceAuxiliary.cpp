@@ -849,6 +849,12 @@ static void TraceAuxiliarySnapshotFile(const TArray<FString>& Args)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static void TraceBookmark(const TArray<FString>& Args)
+{
+	TRACE_BOOKMARK(TEXT("%s"), Args.Num() ? *Args[0] : TEXT(""));
+}
+
+////////////////////////////////////////////////////////////////////////////////
 static FAutoConsoleCommand TraceAuxiliarySendCmd(
 	TEXT("Trace.Send"),
 	TEXT("<Host> [ChannelSet] - Starts tracing to a trace store."
@@ -930,6 +936,14 @@ static FAutoConsoleCommand TraceAuxiliarySnapshotFileCmd(
 	TEXT("[Path] - Writes a snapshot of the current in-memory trace buffer to a file."
 	),
 	FConsoleCommandWithArgsDelegate::CreateStatic(TraceAuxiliarySnapshotFile)
+);
+
+////////////////////////////////////////////////////////////////////////////////
+static FAutoConsoleCommand TraceBookmarkCmd(
+	TEXT("Trace.Bookmark"),
+	TEXT("[Name] - Emits a TRACE_BOOKMARK() event with the given string name."
+	),
+	FConsoleCommandWithArgsDelegate::CreateStatic(TraceBookmark)
 );
 
 #endif // UE_TRACE_ENABLED
