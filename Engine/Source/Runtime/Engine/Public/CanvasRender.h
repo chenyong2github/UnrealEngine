@@ -8,8 +8,7 @@
 class FCanvasRenderContext
 {
 public:
-	ENGINE_API FCanvasRenderContext(FRDGBuilder& GraphBuilder, const FCanvas& Canvas);
-	ENGINE_API FCanvasRenderContext(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FIntRect ViewportRect, FIntRect ScissorRect);
+	ENGINE_API FCanvasRenderContext(FRDGBuilder& InGraphBuilder, const FRenderTarget* RenderTarget, FIntRect InViewportRect, FIntRect InScissorRect, bool bScaledToRenderTarget);
 
 	template <typename ExecuteLambdaType, typename ParameterStructType>
 	void AddPass(FRDGEventName&& PassName, const ParameterStructType* PassParameters, ExecuteLambdaType&& ExecuteLambda)

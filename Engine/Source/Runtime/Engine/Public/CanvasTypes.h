@@ -792,6 +792,7 @@ public:
 	ENGINE_API FCanvasSortElement& GetSortElement(int32 DepthSortKey);
 
 	friend class FCanvasRenderContext;
+	friend class FCanvasRenderThreadScope;
 };
 
 /**

@@ -545,24 +545,17 @@ bool FCanvasBatchedElementRenderItem::Render_GameThread(const FCanvas* Canvas, F
 	return bDirty;
 }
 
-FCanvasRenderContext::FCanvasRenderContext(FRDGBuilder& InGraphBuilder, const FCanvas& Canvas)
+FCanvasRenderContext::FCanvasRenderContext(FRDGBuilder& InGraphBuilder, const FRenderTarget* InRenderTarget, FIntRect InViewportRect, FIntRect InScissorRect, bool bScaledToRenderTarget)
 	: GraphBuilder(InGraphBuilder)
-	, RenderTarget(Canvas.RenderTarget->GetRenderTargetTexture(InGraphBuilder))
-	, ViewportRect(Canvas.ViewRect)
-	, ScissorRect(Canvas.ScissorRect)
+	, RenderTarget(InRenderTarget->GetRenderTargetTexture(InGraphBuilder))
+	, ViewportRect(InViewportRect)
+	, ScissorRect(InScissorRect)
 {
-	if (ViewportRect.Area() <= 0 || Canvas.bScaledToRenderTarget)
+	if (ViewportRect.Area() <= 0 || bScaledToRenderTarget)
 	{
 		ViewportRect = FIntRect(FIntPoint::ZeroValue, RenderTarget->Desc.Extent);
 	}
 }
-
-FCanvasRenderContext::FCanvasRenderContext(FRDGBuilder& InGraphBuilder, FRDGTextureRef InRenderTarget, FIntRect InViewportRect, FIntRect InScissorRect)
-	: GraphBuilder(InGraphBuilder)
-	, RenderTarget(InRenderTarget)
-	, ViewportRect(InViewportRect)
-	, ScissorRect(InScissorRect)
-{}
 
 FCanvasRenderThreadScope::FCanvasRenderThreadScope(const FCanvas& InCanvas)
 	: Canvas(InCanvas)
@@ -575,12 +568,12 @@ FCanvasRenderThreadScope::~FCanvasRenderThreadScope()
 	RenderCommandFunctionArray* RenderCommandArray = RenderCommands;
 
 	ENQUEUE_RENDER_COMMAND(DispatchCanvasRenderCommands)(
-		[RenderCommandArray, LocalCanvas = Canvas](FRHICommandListImmediate& RHICmdList)
+		[RenderCommandArray, RenderTarget = Canvas.RenderTarget, ViewRect = Canvas.ViewRect, ScissorRect = Canvas.ScissorRect, bScaledToRenderTarget = Canvas.bScaledToRenderTarget](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		GetRendererModule().InitializeSystemTextures(RHICmdList);
 		FMemMark MemMark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("CanvasRenderThreadScope"));
-		FCanvasRenderContext RenderContext(GraphBuilder, LocalCanvas);
+		FCanvasRenderContext RenderContext(GraphBuilder, RenderTarget, ViewRect, ScissorRect, bScaledToRenderTarget);
 
 		for (uint32 Index = 0, Count = RenderCommandArray->Num(); Index < Count; ++Index)
 		{
@@ -783,7 +776,7 @@ void FCanvas::Flush_RenderThread(FRDGBuilder& GraphBuilder, bool bForce)
 
 	GetRendererModule().InitializeSystemTextures(GraphBuilder.RHICmdList);
 
-	FCanvasRenderContext RenderContext(GraphBuilder, *this);
+	FCanvasRenderContext RenderContext(GraphBuilder, RenderTarget, ViewRect, ScissorRect, bScaledToRenderTarget);
 
 	// Set the RHI render target.
 	if (IsUsingInternalTexture())
