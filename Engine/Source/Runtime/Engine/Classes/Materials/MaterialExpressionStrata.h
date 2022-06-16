@@ -99,13 +99,13 @@ class UMaterialExpressionStrataLegacyConversion : public UMaterialExpressionStra
 	FExpressionInput SubSurfaceColor;
 
 	/**
-	 * Emissive color on top of the surface (type = float3, unit = luminance, default = 0)
+	 * Coverage of the clear coat layer. (type = float, unit = unitless, defaults to 0.0)
 	 */
 	UPROPERTY()
 	FExpressionInput ClearCoat;
 
 	/**
-	 * The amount of fuzz on top of the surface used to simulate cloth-like appearance.
+	 * Roughness of the top clear coat layer. (type = float, unit = unitless, defaults to 0.0)
 	 */
 	UPROPERTY()
 	FExpressionInput ClearCoatRoughness;

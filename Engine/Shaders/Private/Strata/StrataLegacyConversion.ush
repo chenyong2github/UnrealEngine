@@ -163,9 +163,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 
 		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
 
-		FStrataData WTop_Slab = StrataWeight(Top_SLW , 1.0, StrataTree,					/*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
+		return StrataWeight(Top_SLW , 1.0, StrataTree,					/*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
 		// Out maps to LegacyUpdateBSDFsOperators
-		return Out;
 	}
 	#endif
 	#if MATERIAL_SHADINGMODEL_HAIR
@@ -183,26 +182,6 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
 	}
 	#endif
-	#if MATERIAL_SHADINGMODEL_EYE
-	if (ShadingModel == SHADINGMODELID_EYE)
-	{
-		const float IrisMask = ClearCoat;
-		const float IrisDistance = ClearCoatRoughness;
-		const float3 IrisNormal = RawClearCoatNormal;
-
-		return GetStrataEyeBSDF(
-			BaseColor,	        // DiffuseAlbedo
-			Roughness,	        // Roughness
-			ClearCoat,	        // IrisMask
-			ClearCoatRoughness, // IrisDistance
-			IrisNormal,         // IrisNormal TODO
-			Emissive,	        // EmissiveColor
-			SharedLocalBasisIndex);
-
-		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
-	}
-	#endif
-
 
 	FStrataLegacyParameters LegacySlab = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
 
@@ -324,7 +303,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		LegacySlab.SSSMFPScale = 0.f;
 		LegacySlab.SecondRoughnessWeight = ClearCoat;
 		LegacySlab.SecondRoughness = ClearCoatRoughness;
-		LegacySlab.SecondRoughnessAsSimpleClearCoat = true; // Haziness as simple clear coat layer.
+		LegacySlab.SecondRoughnessAsSimpleClearCoat = ClearCoat > 0.0f; // Haziness as simple clear coat layer.
 		LegacySlab.Emissive = Zeros;
 		LegacySlab.SharedLocalBasisIndex = ClearCoatBottomNormal_SharedLocalBasisIndex;
 		LegacySlab.Weight = 1.f;
@@ -420,6 +399,21 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 
 		// Thin translucency model always have a coverage of 1. It also canont be used in a multiple shading model context.
 		FinalWeight = 1.0f;
+	}
+	else if (ShadingModel == SHADINGMODELID_EYE) 
+	{
+		// Fallback to bright purple in case eye shading is selected when using the material attribute workflow.
+		LegacySlab.BaseColor = float3(0, 1, 1);
+		LegacySlab.Specular = 0;
+		LegacySlab.Metallic = 0;
+		LegacySlab.Roughness = 0;
+		LegacySlab.Anisotropy = 0;
+		LegacySlab.Emissive = 0;
+
+		FinalWeight = 1.0f;
+#if STRATA_TRANSLUCENT_MATERIAL
+		FinalWeight = 1.0f;
+#endif
 	}
 
 	// Fixed layer structure for helping compiler to unroll and optimize shader
