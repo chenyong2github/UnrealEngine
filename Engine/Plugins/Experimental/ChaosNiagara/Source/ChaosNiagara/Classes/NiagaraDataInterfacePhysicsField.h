@@ -14,6 +14,9 @@ struct FNDIFieldRenderData
 {
 	/** Field render resource for gpu */
 	class FPhysicsFieldResource* FieldResource;
+	
+	/** Time in seconds*/
+	float TimeSeconds = 0.0;
 };
 
 /** Data stored per physics asset instance on the game thread */

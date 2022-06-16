@@ -296,4 +296,36 @@ public:
 	FPhysicsFieldResource* DebugResource = nullptr;
 };
 
+/** Static function with world field evaluation */
+UCLASS()
+class ENGINE_API UPhysicsFieldStatics : public UBlueprintFunctionLibrary
+{
+	GENERATED_UCLASS_BODY()
+	
+public:
+	
+	/** Evaluate the world physics vector field from BP */
+	UFUNCTION(BlueprintCallable, Category="Field", meta=(WorldContext="WorldContextObject"))
+	static FVector EvalPhysicsVectorField(const UObject* WorldContextObject, const FVector& WorldPosition, const EFieldVectorType VectorType);
+
+	/** Evaluate the world physics scalar field from BP */
+	UFUNCTION(BlueprintCallable, Category="Field", meta=(WorldContext="WorldContextObject"))
+	static float EvalPhysicsScalarField(const UObject* WorldContextObject, const FVector& WorldPosition, const EFieldScalarType ScalarType);
+
+	/** Evaluate the world physics integer field from BP */
+	UFUNCTION(BlueprintCallable, Category="Field", meta=(WorldContext="WorldContextObject"))
+	static int32 EvalPhysicsIntegerField(const UObject* WorldContextObject, const FVector& WorldPosition, const EFieldIntegerType IntegerType);
+};
+
+void ENGINE_API EvaluateFieldVectorNodes(TArray<FFieldSystemCommand>& FieldCommands, const EFieldPhysicsType FieldType, FFieldContext& FieldContext, 
+	TArray<FVector>& ResultsArray, TArray<FVector>& MaxArray);
+
+void ENGINE_API EvaluateFieldScalarNodes(TArray<FFieldSystemCommand>& FieldCommands, const EFieldPhysicsType FieldType, FFieldContext& FieldContext, 
+	TArray<float>& ResultsArray, TArray<float>& MaxArray);
+
+void ENGINE_API EvaluateFieldIntegerNodes(TArray<FFieldSystemCommand>& FieldCommands, const EFieldPhysicsType FieldType, FFieldContext& FieldContext, 
+	TArray<int32>& ResultsArray, TArray<int32>& MaxArray);
+
+
+
 

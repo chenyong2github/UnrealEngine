@@ -77,7 +77,7 @@ void BuildPhysicsFieldClipmapCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
     uint3 GroupThreadId : SV_GroupThreadID)
 {
-	GGroupThreadId = GroupThreadId.x;
+	GFieldGroupThreadId = GroupThreadId.x;
 	if ((DispatchThreadId.x < NumCells))
 	{
 		int CellIndex = 0;
@@ -121,13 +121,13 @@ void BuildPhysicsFieldClipmapCS(
 					const int AttributeOffset = ClipmapResolution * ClipmapResolution * ClipmapResolution * ClipmapCount;
 					if (LocalIndex == 3)
 					{
-						FieldClipmap[BufferOffset] = SharedDatas[GGroupThreadId][0] * ClipmapFade;
-						FieldClipmap[BufferOffset + 1 * AttributeOffset] = SharedDatas[GGroupThreadId][1] * ClipmapFade;
-						FieldClipmap[BufferOffset + 2 * AttributeOffset] = SharedDatas[GGroupThreadId][2] * ClipmapFade;
+						FieldClipmap[BufferOffset] = SharedDatas[GFieldGroupThreadId][0] * ClipmapFade;
+						FieldClipmap[BufferOffset + 1 * AttributeOffset] = SharedDatas[GFieldGroupThreadId][1] * ClipmapFade;
+						FieldClipmap[BufferOffset + 2 * AttributeOffset] = SharedDatas[GFieldGroupThreadId][2] * ClipmapFade;
 					}
 					else if (LocalIndex == 1)
 					{
-						FieldClipmap[BufferOffset] = SharedDatas[GGroupThreadId][0] * ClipmapFade;
+						FieldClipmap[BufferOffset] = SharedDatas[GFieldGroupThreadId][0] * ClipmapFade;
 					}
 				}
 			}

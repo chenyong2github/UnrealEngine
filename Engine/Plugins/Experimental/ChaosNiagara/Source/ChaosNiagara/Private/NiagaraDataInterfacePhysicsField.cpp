@@ -31,6 +31,10 @@ static const FName SamplePhysicsVectorFieldName(TEXT("SamplePhysicsVectorField")
 static const FName SamplePhysicsScalarFieldName(TEXT("SamplePhysicsScalarField"));
 static const FName SamplePhysicsIntegerFieldName(TEXT("SamplePhysicsIntegerField"));
 
+static const FName EvalPhysicsVectorFieldName(TEXT("EvalPhysicsVectorField"));
+static const FName EvalPhysicsScalarFieldName(TEXT("EvalPhysicsScalarField"));
+static const FName EvalPhysicsIntegerFieldName(TEXT("EvalPhysicsIntegerField"));
+
 static const FName GetPhysicsFieldResolutionName(TEXT("GetPhysicsFieldResolution"));
 static const FName GetPhysicsFieldBoundsName(TEXT("GetPhysicsFieldBounds"));
 
@@ -139,6 +143,13 @@ public:
 		TargetCount.Bind(ParameterMap, *ParamNames.TargetCountName);
 		FieldTargets.Bind(ParameterMap, *ParamNames.FieldTargetsName);
 		SystemLWCTile.Bind(ParameterMap, *ParamNames.SystemLWCTileName);
+
+		// Global physics field params
+		NodesParams.Bind(ParameterMap, TEXT("NodesParams"));
+		NodesOffsets.Bind(ParameterMap, TEXT("NodesOffsets"));
+		TargetsOffsets.Bind(ParameterMap, TEXT("TargetsOffsets"));
+		TargetsMapping.Bind(ParameterMap, TEXT("TargetsMapping"));
+		bClipmapAvailable.Bind(ParameterMap, TEXT("bClipmapAvailable"));
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -153,9 +164,30 @@ public:
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 		TStaticArray<FIntVector4, MAX_PHYSICS_FIELD_TARGETS,16> LocalTargets;
+		TStaticArray<FIntVector4, MAX_PHYSICS_FIELD_TARGETS,16> GlobalTargets;
 		if (ProxyData != nullptr && ProxyData->FieldResource)
 		{
 			FPhysicsFieldResource* FieldResource = ProxyData->FieldResource;
+
+			const TArray<EFieldPhysicsType> VectorTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Vector);
+			const TArray<EFieldPhysicsType> ScalarTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Scalar);
+			const TArray<EFieldPhysicsType> IntegerTypes = GetFieldTargetTypes(EFieldOutputType::Field_Output_Integer);
+
+			int32 TypeIndex = 0;
+			for(const EFieldPhysicsType& PhysicsType : VectorTypes)
+			{
+				GlobalTargets[TypeIndex++].X = PhysicsType;
+			}
+			TypeIndex = 0;
+			for(const EFieldPhysicsType& PhysicsType : ScalarTypes)
+			{
+				GlobalTargets[TypeIndex++].Y = PhysicsType;
+			}
+			TypeIndex = 0;
+			for(const EFieldPhysicsType& PhysicsType : IntegerTypes)
+			{
+				GlobalTargets[TypeIndex++].Z = PhysicsType;
+			}
 
 			for (int32 Index = 0; Index < MAX_PHYSICS_FIELD_TARGETS; ++Index)
 			{
@@ -178,9 +210,15 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapResolution, FieldResource->FieldInfos.ClipmapResolution);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapExponent, FieldResource->FieldInfos.ClipmapExponent);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCount, FieldResource->FieldInfos.ClipmapCount);
-
 			SetShaderValue(RHICmdList, ComputeShaderRHI, TargetCount, FieldResource->FieldInfos.TargetCount);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, FieldTargets, LocalTargets);
+
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, NodesParams, FieldResource->NodesParams.SRV);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, NodesOffsets, FieldResource->NodesOffsets.SRV);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, TargetsOffsets, FieldResource->TargetsOffsets.SRV);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, TargetsMapping, GlobalTargets);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, TimeSeconds, ProxyData->TimeSeconds);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, bClipmapAvailable, static_cast<int32>(FieldResource->FieldInfos.bBuildClipmap));
 		}
 		else
 		{
@@ -192,6 +230,13 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCount, 1);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, TargetCount, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, FieldTargets, LocalTargets);
+			
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, NodesParams, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, NodesOffsets,FNiagaraRenderer::GetDummyIntBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, TargetsOffsets, FNiagaraRenderer::GetDummyIntBuffer());
+			SetShaderValue(RHICmdList, ComputeShaderRHI, TargetsMapping, GlobalTargets);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, TimeSeconds, 0.0f);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, bClipmapAvailable, 0);
 		}
 		SetShaderValue(RHICmdList, ComputeShaderRHI, SystemLWCTile, Context.SystemLWCTile);
 	}
@@ -202,6 +247,7 @@ public:
 
 private:
 
+	
 	LAYOUT_FIELD(FShaderResourceParameter, ClipmapBuffer);
 	LAYOUT_FIELD(FShaderParameter, ClipmapCenter);
 	LAYOUT_FIELD(FShaderParameter, ClipmapDistance);
@@ -211,6 +257,13 @@ private:
 	LAYOUT_FIELD(FShaderParameter, TargetCount);
 	LAYOUT_FIELD(FShaderParameter, FieldTargets);
 	LAYOUT_FIELD(FShaderParameter, SystemLWCTile);
+
+	LAYOUT_FIELD(FShaderResourceParameter, NodesParams);
+	LAYOUT_FIELD(FShaderResourceParameter, NodesOffsets);
+	LAYOUT_FIELD(FShaderResourceParameter, TargetsOffsets);
+	LAYOUT_FIELD(FShaderParameter, TargetsMapping);
+	LAYOUT_FIELD(FShaderParameter, TimeSeconds);
+	LAYOUT_FIELD(FShaderParameter, bClipmapAvailable);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNDIPhysicsFieldParametersCS);
@@ -229,6 +282,7 @@ void FNDIPhysicsFieldProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 	if (TargetData && SourceData && SourceData->FieldResource)
 	{
 		TargetData->FieldResource = SourceData->FieldResource;
+		TargetData->TimeSeconds = SourceData->TimeSeconds;
 	}
 	SourceData->~FNDIFieldRenderData();
 }
@@ -371,6 +425,42 @@ void UNiagaraDataInterfacePhysicsField::GetFunctions(TArray<FNiagaraFunctionSign
 	}
 	{
 		FNiagaraFunctionSignature Sig;
+		Sig.Name = EvalPhysicsVectorFieldName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Field")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("World Position")));
+		Sig.Inputs.Add(FNiagaraVariable(StaticEnum<EFieldVectorType>(), TEXT("Target Type")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Vector Value")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = EvalPhysicsScalarFieldName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Field")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("World Position")));
+		Sig.Inputs.Add(FNiagaraVariable(StaticEnum<EFieldScalarType>(), TEXT("Target Type")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Scalar Value")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = EvalPhysicsIntegerFieldName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Physics Field")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("World Position")));
+		Sig.Inputs.Add(FNiagaraVariable(StaticEnum<EFieldIntegerType>(), TEXT("Target Type")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Integer Value")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetPhysicsFieldResolutionName;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -411,6 +501,21 @@ void UNiagaraDataInterfacePhysicsField::GetVMExternalFunction(const FVMExternalF
 		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsField, SamplePhysicsScalarField)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == SamplePhysicsIntegerFieldName)
+	{
+		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsField, SamplePhysicsIntegerField)::Bind(this, OutFunc);
+	}
+	if (BindingInfo.Name == EvalPhysicsVectorFieldName)
+	{
+		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 3);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsField, SamplePhysicsVectorField)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == EvalPhysicsScalarFieldName)
+	{
+		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsField, SamplePhysicsScalarField)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == EvalPhysicsIntegerFieldName)
 	{
 		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfacePhysicsField, SamplePhysicsIntegerField)::Bind(this, OutFunc);
@@ -484,69 +589,6 @@ void UNiagaraDataInterfacePhysicsField::GetPhysicsFieldBounds(FVectorVMExternalF
 	}
 }
 
-struct FVectorFieldOperator
-{
-	static void BlendValues(const FVector& VectorValueA, const FVector& VectorValueB, FVector& VectorValueC)
-	{
-		VectorValueC = VectorValueA + VectorValueB;
-	}
-};
-
-struct FScalarFieldOperator
-{
-	static void BlendValues(const float& VectorValueA, const float& VectorValueB, float& VectorValueC)
-	{
-		VectorValueC = VectorValueA + VectorValueB;
-	}
-};
-
-struct FIntegerFieldOperator
-{
-	static void BlendValues(const int32& VectorValueA, const int32& VectorValueB, int32& VectorValueC)
-	{
-		VectorValueC = VectorValueA + VectorValueB;
-	}
-};
-
-template<typename DataType, typename BlendOperator>
-void EvaluateFieldNodes(TArray<FFieldSystemCommand>& FieldCommands, const EFieldPhysicsType FieldType, FFieldContext& FieldContext, 
-	TArray<DataType>& ResultsArray, TArray<DataType>& MaxArray)
-{
-	bool HasMatchingCommand = false;
-	if (FieldCommands.Num() > 0 && ResultsArray.Num() == MaxArray.Num())
-	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraUpdateField_Object);
-		TFieldArrayView<DataType> ResultsView(ResultsArray, 0, ResultsArray.Num());
-
-		const float TimeSeconds = FieldContext.TimeSeconds;
-		for (int32 CommandIndex = 0; CommandIndex < FieldCommands.Num(); ++CommandIndex)
-		{
-			const FName AttributeName = FieldCommands[CommandIndex].TargetAttribute;
-			FieldContext.TimeSeconds = TimeSeconds - FieldCommands[CommandIndex].TimeCreation;
-
-			const EFieldPhysicsType CommandType = GetFieldPhysicsType(AttributeName);
-			if (CommandType == FieldType && FieldCommands[CommandIndex].RootNode.Get())
-			{
-				FFieldNode<DataType>* RootNode = static_cast<FFieldNode<DataType>*>(
-					FieldCommands[CommandIndex].RootNode.Get());
-
-				RootNode->Evaluate(FieldContext, ResultsView);
-				HasMatchingCommand = true;
-
-				for (int32 InstanceIdx = 0; InstanceIdx < MaxArray.Num(); ++InstanceIdx)
-				{
-					// TODO : First version with the add. will probably have to include an operator as a template argument 
-					BlendOperator::BlendValues(MaxArray[InstanceIdx], ResultsArray[InstanceIdx], MaxArray[InstanceIdx]);
-				} 
-			}
-		}
-	}
-	if (!HasMatchingCommand)
-	{
-		MaxArray.Init(DataType(0), ResultsArray.Num());
-	}
-}
-
 void UNiagaraDataInterfacePhysicsField::SamplePhysicsVectorField(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIPhysicsFieldData> InstData(Context);
@@ -585,7 +627,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsVectorField(FVectorVMExtern
 		};
 
 		const EFieldPhysicsType PhysicsType = GetFieldTargetTypes(Field_Output_Vector)[VectorTarget];
-		EvaluateFieldNodes<FVector, FVectorFieldOperator>(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
+		EvaluateFieldVectorNodes(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
 
 		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
@@ -639,7 +681,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsIntegerField(FVectorVMExter
 		};
 
 		const EFieldPhysicsType PhysicsType = GetFieldTargetTypes(Field_Output_Integer)[IntegerTarget];
-		EvaluateFieldNodes<int32, FIntegerFieldOperator>(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
+		EvaluateFieldIntegerNodes(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
 
 		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
@@ -654,7 +696,6 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsIntegerField(FVectorVMExter
 		}
 	}
 }
-
 
 void UNiagaraDataInterfacePhysicsField::SamplePhysicsScalarField(FVectorVMExternalFunctionContext& Context)
 {
@@ -694,7 +735,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsScalarField(FVectorVMExtern
 		};
 
 		const EFieldPhysicsType PhysicsType = GetFieldTargetTypes(Field_Output_Scalar)[ScalarTarget];
-		EvaluateFieldNodes<float, FScalarFieldOperator>(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
+		EvaluateFieldScalarNodes(InstData->FieldCommands, PhysicsType, FieldContext, SampleResults, SampleMax);
 
 		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
@@ -726,7 +767,7 @@ bool UNiagaraDataInterfacePhysicsField::GetFunctionHLSL(const FNiagaraDataInterf
 		void {InstanceFunctionName}(in float3 WorldPosition, in int TargetIndex, out float3 OutFieldVector)
 		{
 			{PhysicsFieldContextName}
-			OutFieldVector = DIPhysicsField_SamplePhysicsVectorField(DIContext,WorldPosition,TargetIndex);
+			OutFieldVector = DIPhysicsField_SamplePhysicsVectorField(DIContext,WorldPosition,TargetIndex,true);
 		}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -738,7 +779,7 @@ bool UNiagaraDataInterfacePhysicsField::GetFunctionHLSL(const FNiagaraDataInterf
 		void {InstanceFunctionName}(in float3 WorldPosition, in int TargetIndex, out float OutFieldScalar)
 		{
 			{PhysicsFieldContextName}
-			OutFieldScalar = DIPhysicsField_SamplePhysicsScalarField(DIContext,WorldPosition,TargetIndex);
+			OutFieldScalar = DIPhysicsField_SamplePhysicsScalarField(DIContext,WorldPosition,TargetIndex,true);
 		}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -750,7 +791,43 @@ bool UNiagaraDataInterfacePhysicsField::GetFunctionHLSL(const FNiagaraDataInterf
 		void {InstanceFunctionName}(in float3 WorldPosition, in int TargetIndex, out int OutFieldInteger)
 		{
 			{PhysicsFieldContextName}
-			OutFieldInteger = DIPhysicsField_SamplePhysicsIntegerField(DIContext,WorldPosition,TargetIndex);
+			OutFieldInteger = DIPhysicsField_SamplePhysicsIntegerField(DIContext,WorldPosition,TargetIndex,true);
+		}
+		)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	if (FunctionInfo.DefinitionName == EvalPhysicsVectorFieldName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+		void {InstanceFunctionName}(in float3 WorldPosition, in int TargetIndex, out float3 OutFieldVector)
+		{
+			{PhysicsFieldContextName}
+			OutFieldVector = DIPhysicsField_SamplePhysicsVectorField(DIContext,WorldPosition,TargetIndex,false);
+		}
+		)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == EvalPhysicsScalarFieldName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+		void {InstanceFunctionName}(in float3 WorldPosition, in int TargetIndex, out float OutFieldScalar)
+		{
+			{PhysicsFieldContextName}
+			OutFieldScalar = DIPhysicsField_SamplePhysicsScalarField(DIContext,WorldPosition,TargetIndex,false);
+		}
+		)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == EvalPhysicsIntegerFieldName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+		void {InstanceFunctionName}(in float3 WorldPosition, in int TargetIndex, out int OutFieldInteger)
+		{
+			{PhysicsFieldContextName}
+			OutFieldInteger = DIPhysicsField_SamplePhysicsIntegerField(DIContext,WorldPosition,TargetIndex,false);
 		}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -833,6 +910,7 @@ void UNiagaraDataInterfacePhysicsField::ProvidePerInstanceDataForRenderThread(vo
 	if (GameThreadData != nullptr && RenderThreadData != nullptr)
 	{
 		RenderThreadData->FieldResource = GameThreadData->FieldResource;
+		RenderThreadData->TimeSeconds = GameThreadData->TimeSeconds;
 	}
 	check(Proxy);
 }
