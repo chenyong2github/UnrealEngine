@@ -75,6 +75,11 @@ ISessionsPtr FOnlineServicesCommon::GetSessionsInterface()
 	return ISessionsPtr(AsShared(), Get<ISessions>());
 }
 
+IStatsPtr FOnlineServicesCommon::GetStatsInterface()
+{
+	return IStatsPtr(AsShared(), Get<IStats>());
+}
+
 IConnectivityPtr FOnlineServicesCommon::GetConnectivityInterface()
 {
 	return IConnectivityPtr(AsShared(), Get<IConnectivity>());

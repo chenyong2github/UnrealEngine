@@ -20,6 +20,7 @@ using IPresencePtr = TSharedPtr<class IPresence>;
 using IExternalUIPtr = TSharedPtr<class IExternalUI>;
 using ILobbiesPtr = TSharedPtr<class ILobbies>;
 using ISessionsPtr = TSharedPtr<class ISessions>;
+using IStatsPtr = TSharedPtr<class IStats>;
 using IConnectivityPtr = TSharedPtr<class IConnectivity>;
 using IPrivilegesPtr = TSharedPtr<class IPrivileges>;
 using ITitleFilePtr = TSharedPtr<class ITitleFile>;
@@ -91,6 +92,12 @@ public:
 	 * @return sessions implementation, may be null if not implemented for this service
 	 */
 	virtual ISessionsPtr GetSessionsInterface() = 0;
+
+	/**
+	 * Get the stats implementation
+	 * @return stats implementation, may be null if not implemented for this service
+	 */
+	virtual IStatsPtr GetStatsInterface() = 0;
 
 	/**
 	 * 

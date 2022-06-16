@@ -42,6 +42,7 @@ public:
 	virtual IExternalUIPtr GetExternalUIInterface() override;
 	virtual ILobbiesPtr GetLobbiesInterface() override;
 	virtual ISessionsPtr GetSessionsInterface() override;
+	virtual IStatsPtr GetStatsInterface() override;
 	virtual IConnectivityPtr GetConnectivityInterface() override;
 	virtual IPrivilegesPtr GetPrivilegesInterface() override;
 	virtual ITitleFilePtr GetTitleFileInterface() override;
