@@ -121,7 +121,7 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 
 		//GetDefault<UEdGraphSchema_Niagara>()->PinToNiagaraVariable()
 		NewPin->PinName = NewUniqueName;
-		NewPin->PinFriendlyName = FText::FromName(NewPin->PinName);
+		NewPin->PinFriendlyName = FText::AsCultureInvariant(NewPin->PinName.ToString());
 		NewPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
 		
 		// If dragging from a function or other non-namespaced parent node, we should 

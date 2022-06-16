@@ -34,7 +34,7 @@ void UNiagaraNodeReadDataSet::AllocateDefaultPins()
 		UEdGraphPin* NewPin = CreatePin(EGPD_Output, Schema->TypeDefinitionToPinType(Var.GetType()), Var.GetName());
 		if (useFriendlyNames && VariableFriendlyNames[i].IsEmpty() == false)
 		{
-			NewPin->PinFriendlyName = FText::FromString(VariableFriendlyNames[i]);
+			NewPin->PinFriendlyName = FText::AsCultureInvariant(VariableFriendlyNames[i]);
 		}
 	}
 }

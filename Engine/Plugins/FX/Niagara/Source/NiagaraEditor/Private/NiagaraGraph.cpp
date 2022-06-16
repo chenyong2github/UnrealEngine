@@ -1066,7 +1066,7 @@ void UNiagaraGraph::StandardizeParameterNames()
 						bAnyNamesModified = true;
 					}
 					Pin->PinName = NewName;
-					Pin->PinFriendlyName = FText::FromName(NewName);
+					Pin->PinFriendlyName = FText::AsCultureInvariant(NewName.ToString());
 				}
 			}
 		}

@@ -245,7 +245,7 @@ bool UNiagaraNodeParameterMapBase::HandleDropOperation(TSharedPtr<FDragDropOpera
 
 void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName)
 {
-	RenamedPin->PinFriendlyName = FText::FromName(RenamedPin->PinName);
+	RenamedPin->PinFriendlyName = FText::AsCultureInvariant(RenamedPin->PinName.ToString());
 
 	FPinCollectorArray InOrOutPins;
 	if (RenamedPin->Direction == EEdGraphPinDirection::EGPD_Input)

@@ -801,13 +801,13 @@ FText UEdGraphPin::GetDisplayName() const
 	}
 	else
 	{
-		DisplayName = (!PinFriendlyName.IsEmpty()) ? PinFriendlyName : FText::FromName(PinName);
+		DisplayName = (!PinFriendlyName.IsEmpty()) ? PinFriendlyName : FText::AsCultureInvariant(PinName.ToString());
 
 		bool bShouldUseLocalizedNodeAndPinNames = false;
 		GConfig->GetBool( TEXT("Internationalization"), TEXT("ShouldUseLocalizedNodeAndPinNames"), bShouldUseLocalizedNodeAndPinNames, GEditorSettingsIni );
 		if (!bShouldUseLocalizedNodeAndPinNames)
 		{
-			return FText::FromString(DisplayName.BuildSourceString());
+			return FText::AsCultureInvariant(DisplayName.BuildSourceString());
 		}
 	}
 	return DisplayName;

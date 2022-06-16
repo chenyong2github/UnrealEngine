@@ -225,7 +225,7 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewPinName, Names);
 
 		NewPin->PinName = NewUniqueName;
-		NewPin->PinFriendlyName = FText::FromName(NewPin->PinName);
+		NewPin->PinFriendlyName = FText::AsCultureInvariant(NewPin->PinName.ToString());
 		NewPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
 
 		UEdGraphPin* MatchingDefault = GetDefaultPin(NewPin);
