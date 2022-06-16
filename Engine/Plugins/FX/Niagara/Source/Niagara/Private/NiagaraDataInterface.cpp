@@ -291,6 +291,41 @@ bool FNiagaraDataInterfaceSetShaderParametersContext::IsParameterBound(const voi
 	return false;
 }
 
+bool FNiagaraDataInterfaceSetShaderParametersContext::IsStructBoundInternal(const void* StructAddress, uint32 StructSize) const
+{
+	const uint16 ByteStart = uint16(uintptr_t(StructAddress) - uintptr_t(BaseParameters));
+	const uint16 ByteEnd = ByteStart + uint16(StructSize);
+
+	// Loop over resources
+	for (const FShaderParameterBindings::FResourceParameter& ResourceParameter : ShaderRef->Bindings.ResourceParameters)
+	{
+		if (ResourceParameter.ByteOffset >= ByteEnd)
+		{
+			break;
+		}
+		if (ResourceParameter.ByteOffset >= ByteStart)
+		{
+			return true;
+		}
+	}
+
+	// Loop over parameters
+	for (const FShaderParameterBindings::FParameter& Parameter : ShaderRef->Bindings.Parameters)
+	{
+		if (Parameter.ByteOffset >= ByteEnd)
+		{
+			break;
+		}
+
+		if (Parameter.ByteOffset >= ByteStart)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool FNiagaraDataInterfaceSetShaderParametersContext::IsOutputStage() const
 {
 	return ComputeInstanceData.IsOutputStage(DataInterfaceProxy, SimStageData.StageIndex);

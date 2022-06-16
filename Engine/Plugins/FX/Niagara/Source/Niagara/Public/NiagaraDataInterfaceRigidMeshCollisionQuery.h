@@ -76,19 +76,19 @@ struct FNDIRigidMeshCollisionBuffer : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIRigidMeshCollisionBuffer"); }
 
 	/** World transform buffer */
-	FRWBuffer WorldTransformBuffer;
+	FReadBuffer WorldTransformBuffer;
 
 	/** Inverse transform buffer*/
-	FRWBuffer InverseTransformBuffer;
+	FReadBuffer InverseTransformBuffer;
 
 	/** Element extent buffer */
-	FRWBuffer ElementExtentBuffer;
+	FReadBuffer ElementExtentBuffer;
 
 	/** Physics type buffer */
-	FRWBuffer PhysicsTypeBuffer;
+	FReadBuffer PhysicsTypeBuffer;
 
 	/** Distance field index buffer */
-	FRWBuffer DFIndexBuffer;
+	FReadBuffer DFIndexBuffer;
 
 	/** Max number of primitives */
 	uint32 MaxNumPrimitives;
@@ -162,9 +162,6 @@ class UNiagaraDataInterfaceRigidMeshCollisionQuery : public UNiagaraDataInterfac
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FString Tag_DEPRECATED = TEXT("");
@@ -230,11 +227,17 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	bool UpdateSourceActors(FNiagaraSystemInstance* SystemInstance, FNDIRigidMeshCollisionData& InstanceData) const;
@@ -244,33 +247,6 @@ public:
 	bool GlobalFindActors(UWorld* World, FNDIRigidMeshCollisionData& InstanceData) const;
 
 	void FindActorsCPU(FVectorVMExternalFunctionContext& Context);
-
-	/** Name of element offsets */
-	static const FString MaxTransformsName;
-
-	/** Name of element offsets */
-	static const FString CurrentOffsetName;
-
-	/** Name of element offsets */
-	static const FString PreviousOffsetName;
-
-	/** Name of element offsets */
-	static const FString ElementOffsetsName;
-
-	/** Name of the world transform buffer */
-	static const FString WorldTransformBufferName;
-
-	/** Name of the inverse transform buffer */
-	static const FString InverseTransformBufferName;
-
-	/** Name of the element extent buffer */
-	static const FString ElementExtentBufferName;
-
-	/** Name of the physics type buffer */
-	static const FString PhysicsTypeBufferName;
-
-	/** Name of the DF Index type buffer */
-	static const FString DFIndexBufferName;
 
 protected:
 	/** Copy one niagara DI to this */

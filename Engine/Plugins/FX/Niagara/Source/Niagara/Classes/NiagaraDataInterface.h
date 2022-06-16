@@ -389,10 +389,18 @@ struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 	FNiagaraSystemInstanceID GetSystemInstanceID() const;
 	bool IsResourceBound(const void* ResourceAddress) const;
 	bool IsParameterBound(const void* ParameterAddress) const;
+	template<typename T> bool IsStructBound(const T* StructAddress) const { return IsStructBoundInternal(StructAddress, sizeof(T)); }
 	bool IsOutputStage() const;
 	bool IsIterationStage() const;
 
 	template<typename T> T* GetParameterNestedStruct() const
+	{
+		const uint32 StructOffset = Align(ParametersOffset, TShaderParameterStructTypeInfo<T>::Alignment);
+		ParametersOffset = StructOffset + TShaderParameterStructTypeInfo<T>::GetStructMetadata()->GetSize();
+
+		return reinterpret_cast<T*>(BaseParameters + StructOffset);
+	}
+	template<typename T> T* GetParameterIncludedStruct() const
 	{
 		const uint32 StructOffset = Align(ParametersOffset, TShaderParameterStructTypeInfo<T>::Alignment);
 		ParametersOffset = StructOffset + TShaderParameterStructTypeInfo<T>::GetStructMetadata()->GetSize();
@@ -418,6 +426,9 @@ struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 		ParametersOffset = InParametersOffset;
 		ShaderStorage = InShaderStorage;
 	}
+
+private:
+	bool IsStructBoundInternal(const void* StructAddress, uint32 StructSize) const;
 
 private:
 	FRDGBuilder& GraphBuilder;

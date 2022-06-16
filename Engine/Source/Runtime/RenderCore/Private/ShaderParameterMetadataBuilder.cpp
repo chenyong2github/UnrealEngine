@@ -26,6 +26,29 @@ void FShaderParametersMetadataBuilder::AddReferencedStruct(
 	NextMemberOffset += Align(StructMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
 }
 
+void FShaderParametersMetadataBuilder::AddIncludedStruct(
+	const FShaderParametersMetadata* StructMetadata,
+	EShaderPrecisionModifier::Type Precision
+)
+{
+	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
+	new(Members) FShaderParametersMetadata::FMember(
+		TEXT(""),
+		StructMetadata->GetStructTypeName(),
+		__LINE__,
+		NextMemberOffset,
+		UBMT_INCLUDED_STRUCT,
+		Precision,
+		1,
+		1,
+		0,
+		StructMetadata
+	);
+
+	NextMemberOffset += Align(StructMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
+}
+
 uint32 FShaderParametersMetadataBuilder::AddNestedStruct(
 	const TCHAR* Name,
 	const FShaderParametersMetadata* StructMetadata,

@@ -89,6 +89,19 @@ public:
 		);
 
 	template<typename T>
+	void AddIncludedStruct(
+		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
+	)
+	{
+		AddIncludedStruct(TShaderParameterStructTypeInfo<T>::GetStructMetadata(), Precision);
+	}
+
+	void AddIncludedStruct(
+		const FShaderParametersMetadata* StructMetadata,
+		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
+	);
+
+	template<typename T>
 	uint32 AddNestedStruct(
 		const TCHAR* Name,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
