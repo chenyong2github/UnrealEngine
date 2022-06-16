@@ -161,6 +161,11 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 						{
 							TSharedPtr< FUICommandInfo > OpenRecentFile = FLevelEditorCommands::Get().OpenRecentFileCommands[ CurRecentIndex ];
 
+							if (!MRUFavorites.MRUItemPassesCurrentFilter(CurRecentIndex))
+							{
+								continue;
+							}
+
 							const FString CurRecent = MRUFavorites.GetMRUItem( CurRecentIndex );
 
 							const FText ToolTip = FText::Format( LOCTEXT( "RecentLevelToolTip", "Opens recent level: {0}" ), FText::FromString( CurRecent ) );

@@ -153,3 +153,58 @@ bool FMainMRUFavoritesList::VerifyFavoritesFile( int32 ItemIndex )
 
 	return true;
 }
+
+/**
+* Supplies an optional delegate that can be used to filter a given MRUFavorites item
+* Useful for dynamically verifying which items should be utilized at a given time
+*
+* @param DoesMRUFavoritesItemPassFilterDelegate The delegate to use
+*/
+void FMainMRUFavoritesList::RegisterDoesMRUFavoritesItemPassFilterDelegate(FDoesMRUFavoritesItemPassFilter DoesMRUFavoritesItemPassFilterDelegate)
+{
+	DoesMRUFavoritesItemPassFilter = DoesMRUFavoritesItemPassFilterDelegate;
+}
+
+/**
+* Unregisters the optional filter delegate
+*/
+void FMainMRUFavoritesList::UnregisterDoesMRUFavoritesItemPassFilterDelegate()
+{
+	DoesMRUFavoritesItemPassFilter = FDoesMRUFavoritesItemPassFilter();
+}
+
+/**
+* Checks the favorites item specified by the provided index against the optional 'DoesMRUFavoritesItemPassFilterDelegate'.
+*
+* @param ItemIndex Index of the favorites item to check
+*
+* @return true if the item specified by the index passes the filter or if no filter has been provided; false if it does not pass the filter
+*/
+bool FMainMRUFavoritesList::FavoritesItemPassesCurrentFilter(int32 ItemIndex) const
+{
+	check(FavoriteItems.IsValidIndex(ItemIndex));
+	if (DoesMRUFavoritesItemPassFilter.IsBound())
+	{
+		const FString& FavoriteItem = FavoriteItems[ItemIndex];
+		return DoesMRUFavoritesItemPassFilter.Execute(FavoriteItem);
+	}
+	return true;
+}
+
+/**
+* Checks the MRU item specified by the provided index against the optional 'DoesMRUFavoritesItemPassFilterDelegate'.
+*
+* @param ItemIndex Index of the MRU item to check
+*
+* @return true if the item specified by the index passes the filter or if no filter has been provided; false if it does not pass the filter
+*/
+bool FMainMRUFavoritesList::MRUItemPassesCurrentFilter(int32 ItemIndex) const
+{
+	check(Items.IsValidIndex(ItemIndex));
+	if (DoesMRUFavoritesItemPassFilter.IsBound())
+	{
+		const FString& MRUItem = Items[ItemIndex];
+		return DoesMRUFavoritesItemPassFilter.Execute(MRUItem);
+	}
+	return true;
+}

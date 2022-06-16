@@ -87,7 +87,42 @@ public:
 	 */
 	void MoveFavoritesItemToHead( const FString& Item );
 
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FDoesMRUFavoritesItemPassFilter, const FString& MRUFavoritesItem);
+	/**
+	* Supplies an optional delegate that can be used to filter a given MRUFavorites item
+	* Useful for dynamically verifying which items should be utilized at a given time
+	*
+	* @param DoesMRUFavoritesItemPassFilterDelegate The delegate to use
+	*/
+	void RegisterDoesMRUFavoritesItemPassFilterDelegate(FDoesMRUFavoritesItemPassFilter DoesMRUFavoritesItemPassFilterDelegate);
+
+	/**
+	* Unregisters the optional filter delegate
+	*/
+	void UnregisterDoesMRUFavoritesItemPassFilterDelegate();
+
+	/**
+	* Checks the favorites item specified by the provided index against the optional 'DoesMRUFavoritesItemPassFilterDelegate'.
+	*
+	* @param ItemIndex Index of the favorites item to check
+	*
+	* @return true if the item specified by the index passes the filter or if no filter has been provided; false if it does not pass the filter
+	*/
+	bool FavoritesItemPassesCurrentFilter(int32 ItemIndex) const;
+
+	/**
+	* Checks the MRU item specified by the provided index against the optional 'DoesMRUFavoritesItemPassFilterDelegate'.
+	*
+	* @param ItemIndex Index of the MRU item to check
+	*
+	* @return true if the item specified by the index passes the filter or if no filter has been provided; false if it does not pass the filter
+	*/
+	bool MRUItemPassesCurrentFilter(int32 ItemIndex) const;
+
 private:
+
+	/** Filter delegate */
+	FDoesMRUFavoritesItemPassFilter DoesMRUFavoritesItemPassFilter;
 
 	/** Favorited items */
 	TArray<FString> FavoriteItems;
