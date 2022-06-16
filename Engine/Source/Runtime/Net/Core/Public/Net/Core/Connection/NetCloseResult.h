@@ -260,6 +260,9 @@ enum class ENetCloseResult : uint32
 	/** Client tried to set bHasMustBeMappedGUIDs */
 	ClientHasMustBeMappedGUIDs,
 
+	/** Client tried to send a destruction info */
+	ClientSentDestructionInfo,
+
 	/** Received MustBeMappedGUID that isn't registered */
 	UnregisteredMustBeMappedGUID,
 
