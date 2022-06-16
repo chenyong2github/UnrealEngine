@@ -1400,7 +1400,7 @@ void UGeometryCollectionComponent::UpdateRepData()
 					const int32 TransformGroupIdx = PhysicsProxy->GetTransformGroupIndexFromHandle(Root);
 					ensureMsgf(TransformGroupIdx >= 0, TEXT("Non-internal cluster should always have a group index"));
 					ensureMsgf(TransformGroupIdx < TNumericLimits<uint16>::Max(), TEXT("Trying to replicate GC with more than 65k pieces. We assumed uint16 would suffice"));
-					RepData.OneOffActivated.Add(TransformGroupIdx);
+					RepData.OneOffActivated.Add(FGeometryCollectionActivatedCluster(TransformGroupIdx, Root->V(), Root->W()));
 					bClustersChanged = true;
 				}
 			}
@@ -1470,7 +1470,7 @@ void UGeometryCollectionComponent::UpdateRepData()
 			MARK_PROPERTY_DIRTY_FROM_NAME(UGeometryCollectionComponent, RepData, this);
 			++RepData.Version;
 
-			if(Owner->NetDormancy == DORM_Initial)
+			if(Owner->NetDormancy != DORM_Awake)
 			{
 				//If net dormancy is Initial it must be for perf reasons, but since a cluster changed we need to replicate down
 				//TODO: set back to dormant when sim goes to sleep
@@ -1511,7 +1511,17 @@ void UGeometryCollectionComponent::ProcessRepData()
 	//First make sure all one off activations have been applied. This ensures our connectivity graph is the same and we have the same clusters as the server
 	for (; OneOffActivatedProcessed < RepData.OneOffActivated.Num(); ++OneOffActivatedProcessed)
 	{
-		FPBDRigidParticleHandle* OneOff = PhysicsProxy->GetParticles()[RepData.OneOffActivated[OneOffActivatedProcessed]];
+		const FGeometryCollectionActivatedCluster& ActivatedCluster = RepData.OneOffActivated[OneOffActivatedProcessed];
+		FPBDRigidParticleHandle* OneOff = PhysicsProxy->GetParticles()[ActivatedCluster.ActivatedIndex];
+
+		// Set initial velocities if not hard snapping
+		if(!bHardSnap)
+		{
+			// TODO: should we invalidate?
+			OneOff->SetV(ActivatedCluster.InitialLinearVelocity);
+			OneOff->SetW(ActivatedCluster.InitialAngularVelocity);
+		}
+
 		RigidClustering.ReleaseClusterParticles(TArray<FPBDRigidParticleHandle*>{ OneOff });
 	}
 

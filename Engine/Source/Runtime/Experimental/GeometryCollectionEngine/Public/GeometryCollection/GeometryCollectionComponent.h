@@ -345,6 +345,29 @@ struct FGeometryCollectionClusterRep
 	}
 };
 
+struct FGeometryCollectionActivatedCluster
+{
+	FGeometryCollectionActivatedCluster() = default;
+	FGeometryCollectionActivatedCluster(uint16 Index, const FVector& InitialLinearVel, const FVector& InitialAngularVel )
+		: ActivatedIndex(Index)
+		, InitialLinearVelocity(InitialLinearVel)
+		, InitialAngularVelocity(InitialAngularVel)
+	{}
+
+	uint16 ActivatedIndex;
+	FVector_NetQuantize100 InitialLinearVelocity;
+	FVector_NetQuantize100 InitialAngularVelocity;
+};
+
+FORCEINLINE FArchive& operator<<(FArchive& Ar, FGeometryCollectionActivatedCluster& ActivatedCluster)
+{
+	Ar << ActivatedCluster.ActivatedIndex;
+	Ar << ActivatedCluster.InitialLinearVelocity;
+	Ar << ActivatedCluster.InitialAngularVelocity;
+
+	return Ar;
+}
+
 /**
  * Replicated data for a geometry collection when bEnableReplication is true for
  * that component. See UGeomtryCollectionComponent::UpdateRepData
@@ -361,7 +384,7 @@ struct FGeometryCollectionRepData
 	}
 
 	//Array of one off pieces that became activated
-	TArray<uint16> OneOffActivated;
+	TArray<FGeometryCollectionActivatedCluster> OneOffActivated;
 
 	// Array of cluster data requires to synchronize clients
 	TArray<FGeometryCollectionClusterRep> Clusters;
