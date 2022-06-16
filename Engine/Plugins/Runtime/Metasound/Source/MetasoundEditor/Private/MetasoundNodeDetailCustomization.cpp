@@ -172,17 +172,18 @@ namespace Metasound
 				}
 			}
 
-			bool bIsGraphEditable = false;
-			if (const UMetasoundEditorGraphMember* ParentMember = InLiteral.GetParentMember())
+			// Enable widget options for editable inputs only 
+			bool bShowWidgetOptions = false;
+			if (const UMetasoundEditorGraphInput* ParentMember = Cast <UMetasoundEditorGraphInput>(InLiteral.GetParentMember()))
 			{
 				if (const UMetasoundEditorGraph* OwningGraph = ParentMember->GetOwningGraph())
 				{
-					bIsGraphEditable = OwningGraph->IsEditable();
+					bShowWidgetOptions = OwningGraph->IsEditable();
 				}
 			}
 
 			// add input widget properties
-			if (bIsGraphEditable)
+			if (bShowWidgetOptions)
 			{
 				IDetailCategoryBuilder& WidgetCategoryBuilder = InDetailLayout.EditCategory("EditorOptions");
 				DefaultRows.Add(WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType)));

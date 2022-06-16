@@ -193,6 +193,11 @@ namespace Metasound
 					{
 						NewGraphNode->Modify();
 						FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
+						TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*MetasoundGraph);
+						if (MetasoundEditor.IsValid())
+						{
+							MetasoundEditor->ClearSelectionAndSelectNode(NewGraphNode);
+						}
 						return FReply::Handled();
 					}
 				}
@@ -212,6 +217,11 @@ namespace Metasound
 						{
 							NewGraphNode->Modify();
 							FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
+							TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*MetasoundGraph);
+							if (MetasoundEditor.IsValid())
+							{
+								MetasoundEditor->ClearSelectionAndSelectNode(NewGraphNode);
+							}
 							return FReply::Handled();
 						}
 					}
@@ -301,6 +311,11 @@ namespace Metasound
 					{
 						NewGraphNode->Modify();
 						FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
+						TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*MetasoundGraph);
+						if (MetasoundEditor.IsValid())
+						{
+							MetasoundEditor->ClearSelectionAndSelectNode(NewGraphNode);
+						}
 						return FReply::Handled();
 					}
 				}
@@ -898,6 +913,19 @@ namespace Metasound
 
 		void FEditor::SetSelection(const TArray<UObject*>& SelectedObjects)
 		{
+			if (GraphMembersMenu.IsValid())
+			{
+				// Only support menu selection of a single object until multiselect functionality is added 
+				if (SelectedObjects.Num() == 1)
+				{
+					if (UMetasoundEditorGraphMember* Member = Cast<UMetasoundEditorGraphMember>(SelectedObjects[0]))
+					{
+						const FName ActionName = Member->GetMemberName();
+						GraphMembersMenu->SelectItemByName(ActionName, ESelectInfo::Direct, static_cast<int32>(Member->GetSectionID()));
+					}
+				}
+			}
+
 			if (MetasoundDetails.IsValid())
 			{
 				MetasoundDetails->SetObjects(SelectedObjects);
@@ -2624,7 +2652,7 @@ namespace Metasound
 		{
 			if (GraphMembersMenu.IsValid())
 			{
-				GraphMembersMenu->RefreshAllActions(true /* bPreserveExpansion */);
+				GraphMembersMenu->RefreshAllActions(true /* bPreserveExpansion */, false /*bHandleOnSelectionEvent*/);
 			}
 		}
 
@@ -3216,6 +3244,15 @@ namespace Metasound
 			return MetasoundAsset->GetRootGraphHandle()->GetGraphStyle().bIsGraphEditable;
 		}
 
+		void FEditor::ClearSelectionAndSelectNode(UEdGraphNode* Node)
+		{
+			if (MetasoundGraphEditor.IsValid())
+			{
+				MetasoundGraphEditor->ClearSelectionSet();
+				MetasoundGraphEditor->SetNodeSelection(Node, /*bSelect=*/true);
+			}
+		}
+
 		TSharedRef<SWidget> FEditor::OnGetMenuSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID)
 		{
 			TWeakPtr<SWidget> WeakRowWidget = RowWidget;
@@ -3283,7 +3320,7 @@ namespace Metasound
 					const FScopedTransaction Transaction(LOCTEXT("AddInputNode", "Add MetaSound Input"));
 					Metasound->Modify();
 
-					const FName DataTypeName = GetMetasoundDataTypeName<bool>();
+					const FName DataTypeName = GetMetasoundDataTypeName<float>();
 					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(*Metasound, DataTypeName);
 					if (ensure(NodeHandle->IsValid()))
 					{
@@ -3309,7 +3346,7 @@ namespace Metasound
 					const FScopedTransaction Transaction(TEXT(""), LOCTEXT("AddOutputNode", "Add MetaSound Output"), Metasound);
 					Metasound->Modify();
 
-					const FName DataTypeName = GetMetasoundDataTypeName<bool>();
+					const FName DataTypeName = GetMetasoundDataTypeName<float>();
 					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(*Metasound, DataTypeName);
 					if (ensure(NodeHandle->IsValid()))
 					{
@@ -3335,7 +3372,7 @@ namespace Metasound
 					const FScopedTransaction Transaction(TEXT(""), LOCTEXT("AddVariableNode", "Add MetaSound Variable"), Metasound);
 					Metasound->Modify();
 
-					const FName DataTypeName = GetMetasoundDataTypeName<bool>();
+					const FName DataTypeName = GetMetasoundDataTypeName<float>();
 					
 					Frontend::FVariableHandle FrontendVariable = FGraphBuilder::AddVariableHandle(*Metasound, DataTypeName);
 					if (ensure(FrontendVariable->IsValid()))

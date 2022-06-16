@@ -632,7 +632,7 @@ namespace Metasound
 
 			// If float input node, check if custom widget required
 			bool IsFloatMemberNode = false;
-			if (UMetasoundEditorGraphMember* GraphMember = GetMetaSoundMember())
+			if (UMetasoundEditorGraphInput* GraphMember = Cast<UMetasoundEditorGraphInput>(GetMetaSoundMember()))
 			{
 				if (UMetasoundEditorGraphMemberDefaultFloat* DefaultFloat = Cast<UMetasoundEditorGraphMemberDefaultFloat>(GraphMember->GetLiteral()))
 				{

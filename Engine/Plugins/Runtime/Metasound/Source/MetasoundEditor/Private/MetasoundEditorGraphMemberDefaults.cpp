@@ -10,7 +10,6 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
-#include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
@@ -143,6 +142,14 @@ void UMetasoundEditorGraphMemberDefaultIntArray::UpdatePreviewInstance(const Met
 	TArray<int32> IntArray;
 	Algo::Transform(Default, IntArray, [](const FMetasoundEditorGraphMemberDefaultIntRef& InValue) { return InValue.Value; });
 	InParameterInterface->SetIntArrayParameter(InParameterName, IntArray);
+}
+
+UMetasoundEditorGraphMemberDefaultFloat::UMetasoundEditorGraphMemberDefaultFloat()
+{
+	if (const UMetasoundEditorSettings* EditorSettings = ::GetDefault<UMetasoundEditorSettings>())
+	{
+		WidgetType = EditorSettings->DefaultInputWidgetType;
+	}
 }
 
 FMetasoundFrontendLiteral UMetasoundEditorGraphMemberDefaultFloat::GetDefault() const

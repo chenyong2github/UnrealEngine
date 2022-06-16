@@ -8,6 +8,13 @@
 
 #include "MetasoundEditorSettings.generated.h"
 
+UENUM()
+enum class EMetasoundMemberDefaultWidget : uint8
+{
+	None,
+	Slider,
+	RadialSlider UMETA(DisplayName = "Knob"),
+};
 
 UENUM()
 enum class EMetasoundActiveDetailView : uint8
@@ -119,6 +126,10 @@ public:
 	/** Maximum height scalar of wire signal analyzers (ex. audio, triggers). */
 	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 5, ClampMin = 1))
 	float ActiveAnalyzerWireScalarMax;
+
+	/** Widget type to show on input nodes by default */
+	UPROPERTY(EditAnywhere, config, Category = General)
+	EMetasoundMemberDefaultWidget DefaultInputWidgetType = EMetasoundMemberDefaultWidget::None;
 
 	/** Determines which details view to show in Metasounds Editor */
 	UPROPERTY(Transient)

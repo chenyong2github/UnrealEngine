@@ -11,6 +11,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
+#include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
@@ -119,13 +120,6 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetasoundInputValueChangedEvent, float);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetasoundRangeChangedEvent, FVector2D);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetasoundInputClampDefaultChangedEvent, bool);
 
-UENUM()
-enum class EMetasoundMemberDefaultWidget : uint8
-{
-	None,
-	Slider,
-	RadialSlider UMETA(DisplayName = "Knob"),
-};
 
 UENUM()
 enum class EMetasoundMemberDefaultWidgetValueType : uint8
@@ -145,6 +139,7 @@ private:
 	float Default = 0.f;
 
 public:
+	UMetasoundEditorGraphMemberDefaultFloat();
 	virtual ~UMetasoundEditorGraphMemberDefaultFloat() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue, meta=(EditCondition = "WidgetType == EMetasoundMemberDefaultWidget::None", EditConditionHides))

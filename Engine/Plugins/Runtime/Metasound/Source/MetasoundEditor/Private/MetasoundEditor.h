@@ -175,6 +175,8 @@ namespace Metasound
 			/* Whether the displayed graph is marked as editable */
 			bool IsGraphEditable() const;
 
+			void ClearSelectionAndSelectNode(UEdGraphNode* Node);
+
 			int32 GetNumNodesSelected() const
 			{
 				return MetasoundGraphEditor->GetSelectedNodes().Num();
