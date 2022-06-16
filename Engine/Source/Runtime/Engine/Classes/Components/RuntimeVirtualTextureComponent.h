@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SceneComponent.h"
 #include "Engine/TextureDefines.h"
+#include "SceneComponent.h"
 #include "RuntimeVirtualTextureComponent.generated.h"
 
 class URuntimeVirtualTexture;
@@ -57,6 +57,14 @@ protected:
 	/** Placeholder for details customization button. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = VirtualTextureBuild)
 	bool bBuildStreamingMipsButton;
+
+	/** 
+	 * How aggressively should any relevant lossy compression be applied. 
+	 * For compressors that support EncodeSpeed (i.e. Oodle), this is only applied if enabled (see Project Settings -> Texture Encoding). 
+	 * Note that this is in addition to any unavoidable loss due to the target format. Selecting "No Lossy Compression" will not result in zero distortion for BCn formats.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = VirtualTextureBuild)
+	TEnumAsByte<ETextureLossyCompressionAmount> LossyCompressionAmount = TLCA_Default;
 
 	/** Use streaming low mips when rendering in editor. Set true to view and debug the baked streaming low mips. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "View in Editor"))
@@ -112,6 +120,9 @@ public:
 
 	/** Public getter for debug streaming mips flag. */
 	bool IsBuildDebugStreamingMips() { return bBuildDebugStreamingMips; }
+
+	/** Public getter for lossy compression setting. */
+	TEnumAsByte<ETextureLossyCompressionAmount> GetLossyCompressionAmount() const { return LossyCompressionAmount; }
 
 	/** Returns true if there are StreamingTexure contents but they are not valid for use. */
 	bool IsStreamingTextureInvalid() const;

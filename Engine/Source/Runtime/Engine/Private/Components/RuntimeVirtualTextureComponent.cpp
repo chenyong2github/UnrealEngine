@@ -166,7 +166,7 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	Settings.ContinuousUpdate = (uint32)VirtualTexture->GetContinuousUpdate();
 	Settings.SinglePhysicalSpace = (uint32)VirtualTexture->GetSinglePhysicalSpace();
 	Settings.bUseLowQualityCompression = (uint32)VirtualTexture->GetLQCompression();
-	Settings.LossyCompressionAmount = (uint32) VirtualTexture->GetLossyCompressionAmount();
+	Settings.LossyCompressionAmount = (uint32)GetLossyCompressionAmount();
 
 	return Settings.PackedValue;
 }
@@ -246,7 +246,7 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 		BuildDesc.TileSize = VirtualTexture->GetTileSize();
 		BuildDesc.TileBorderSize = VirtualTexture->GetTileBorderSize();
 		BuildDesc.LODGroup = VirtualTexture->GetLODGroup();
-		BuildDesc.LossyCompressionAmount = VirtualTexture->GetLossyCompressionAmount();
+		BuildDesc.LossyCompressionAmount = GetLossyCompressionAmount();
 
 		BuildDesc.LayerCount = VirtualTexture->GetLayerCount();
 		check(BuildDesc.LayerCount <= RuntimeVirtualTexture::MaxTextureLayers);
