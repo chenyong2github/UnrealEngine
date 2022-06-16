@@ -41,5 +41,7 @@ public:
 	TSharedPtr<FUICommandInfo> RemoveLightCard;
 	TSharedPtr<FUICommandInfo> PasteHere;
 
+	TSharedPtr<FUICommandInfo> SaveLightCardTemplate;
+	
 	TSharedPtr<FUICommandInfo> DrawLightCard;
 };

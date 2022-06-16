@@ -6,6 +6,8 @@
 #include "DisplayClusterLightCardEditorViewportClient.h"
 #include "DisplayClusterLightCardEditorCommands.h"
 #include "SDisplayClusterLightCardEditor.h"
+#include "LightCardTemplates/DisplayClusterLightCardTemplateDragDropOp.h"
+#include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 
 #include "EditorViewportCommands.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -13,7 +15,7 @@
 #include "SEditorViewportToolBarMenu.h"
 #include "STransformViewportToolbar.h"
 #include "Slate/SceneViewport.h"
-
+#include "ScopedTransaction.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "Styling/AppStyle.h"
 
@@ -445,13 +447,111 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 	}
 }
 
+FReply SDisplayClusterLightCardEditorViewport::OnDragOver(const FGeometry& MyGeometry,
+	const FDragDropEvent& DragDropEvent)
+{
+	const TSharedPtr<FDisplayClusterLightCardTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FDisplayClusterLightCardTemplateDragDropOp>();
+	if (TemplateDragDropOp.IsValid() && LightCardEditorPtr.IsValid() &&
+		LightCardEditorPtr.Pin()->GetActiveRootActor().IsValid() && TemplateDragDropOp->GetTemplate().IsValid())
+	{
+		TemplateDragDropOp->SetDropAsValid(FText::Format(LOCTEXT("TemplateDragDropOp_LightCardTemplate", "Spawn light card from template {0}"),
+			FText::FromString(TemplateDragDropOp->GetTemplate()->GetName())));
+
+		FIntPoint ViewportOrigin, ViewportSize;
+		ViewportClient->GetViewportDimensions(ViewportOrigin, ViewportSize);
+		const FVector2D MousePos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition()) * MyGeometry.Scale - ViewportOrigin;
+
+		const TArray<UObject*> DroppedObjects;
+		bool bDroppedObjectsVisible = true; 
+		ViewportClient->UpdateDropPreviewActors(MousePos.X, MousePos.Y, DroppedObjects, bDroppedObjectsVisible, nullptr);
+			
+		return FReply::Handled();
+	}
+
+	return SEditorViewport::OnDragOver(MyGeometry, DragDropEvent);
+}
+
+void SDisplayClusterLightCardEditorViewport::OnDragEnter(const FGeometry& MyGeometry,
+	const FDragDropEvent& DragDropEvent)
+{
+	const TSharedPtr<FDisplayClusterLightCardTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FDisplayClusterLightCardTemplateDragDropOp>();
+	if (TemplateDragDropOp.IsValid() && LightCardEditorPtr.IsValid())
+	{
+		FIntPoint ViewportOrigin, ViewportSize;
+		ViewportClient->GetViewportDimensions(ViewportOrigin, ViewportSize);
+
+		const FVector2D MousePos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition()) * MyGeometry.Scale - ViewportOrigin;
+
+		const TWeakObjectPtr<UDisplayClusterLightCardTemplate> LightCardTemplate = TemplateDragDropOp->GetTemplate();
+
+		if (LightCardTemplate.IsValid())
+		{
+			const TArray<UObject*> DroppedObjects{ LightCardTemplate.Get() };
+			
+			TArray<AActor*> TemporaryActors;
+			
+			const bool bIsPreview = true;
+			ViewportClient->DropObjectsAtCoordinates(MousePos.X, MousePos.Y, DroppedObjects, TemporaryActors, false, bIsPreview, false, nullptr);
+
+			return;
+		}
+	}
+	
+	SEditorViewport::OnDragEnter(MyGeometry, DragDropEvent);
+}
+
+void SDisplayClusterLightCardEditorViewport::OnDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	ViewportClient->DestroyDropPreviewActors();
+	
+	const TSharedPtr<FDisplayClusterLightCardTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FDisplayClusterLightCardTemplateDragDropOp>();
+	if (TemplateDragDropOp.IsValid())
+	{
+		TemplateDragDropOp->SetDropAsInvalid();
+		return;
+	}
+	
+	SEditorViewport::OnDragLeave(DragDropEvent);
+}
+
+FReply SDisplayClusterLightCardEditorViewport::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	const TSharedPtr<FDisplayClusterLightCardTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FDisplayClusterLightCardTemplateDragDropOp>();
+	if (TemplateDragDropOp.IsValid() && TemplateDragDropOp->CanBeDropped() && LightCardEditorPtr.IsValid())
+	{
+		FIntPoint ViewportOrigin, ViewportSize;
+		ViewportClient->GetViewportDimensions(ViewportOrigin, ViewportSize);
+
+		const FVector2D MousePos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition()) * MyGeometry.Scale - ViewportOrigin;
+
+		const TWeakObjectPtr<UDisplayClusterLightCardTemplate> LightCardTemplate = TemplateDragDropOp->GetTemplate();
+
+		if (LightCardTemplate.IsValid())
+		{
+			const TArray<UObject*> DroppedObjects{ LightCardTemplate.Get() };
+			
+			TArray<AActor*> TemporaryActors;
+			// Only select actor on drop
+			const bool bSelectActor = true;
+
+			const FScopedTransaction Transaction(LOCTEXT("CreateLightCardFromTemplate", "Create Light Card from Template"));
+			ViewportClient->DropObjectsAtCoordinates(MousePos.X, MousePos.Y, DroppedObjects, TemporaryActors, false, false, bSelectActor, nullptr);
+
+			return FReply::Handled();
+		}
+	}
+	
+	return SEditorViewport::OnDrop(MyGeometry, DragDropEvent);
+}
+
 TSharedRef<SWidget> SDisplayClusterLightCardEditorViewport::MakeContextMenu()
 {
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
 
 	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().RemoveLightCard);
-
+	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().SaveLightCardTemplate);
+	
 	MenuBuilder.BeginSection("Edit", LOCTEXT("EditSection", "Edit"));
 	{
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);

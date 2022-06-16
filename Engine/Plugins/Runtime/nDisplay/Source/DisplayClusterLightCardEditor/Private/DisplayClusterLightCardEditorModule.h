@@ -19,4 +19,7 @@ public:
 private:
 	void RegisterTabSpawners();
 	void UnregisterTabSpawners();
+
+	void RegisterSettings();
+	void UnregisterSettings();
 };

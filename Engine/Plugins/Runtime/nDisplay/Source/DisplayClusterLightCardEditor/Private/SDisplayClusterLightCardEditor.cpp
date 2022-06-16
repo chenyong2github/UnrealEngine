@@ -4,26 +4,34 @@
 
 #include "DisplayClusterLightCardEditorCommands.h"
 #include "SDisplayClusterLightCardList.h"
+#include "LightCardTemplates/SDisplayClusterLightCardTemplateList.h"
+#include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
+#include "Settings/DisplayClusterLightCardEditorSettings.h"
 
-#include "IDisplayClusterOperator.h"
 #include "Viewport/DisplayClusterLightcardEditorViewport.h"
 #include "Viewport/DisplayClusterLightCardEditorViewportClient.h"
+
+#include "IDisplayClusterOperator.h"
 
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "Components/DisplayClusterCameraComponent.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "ContentBrowserModule.h"
+#include "FileHelpers.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "IContentBrowserSingleton.h"
+#include "Misc/FileHelper.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "Selection.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Workflow/SWizard.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterLightCardEditor"
@@ -101,32 +109,87 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 	OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP(this, &SDisplayClusterLightCardEditor::OnObjectTransacted);
 
 	BindCommands();
+	
+	TabManager = FGlobalTabmanager::Get()->NewTabManager(MajorTabOwner);
 
+	const FName LightCardTab = TEXT("LightCards");
+	const FName LightCardTemplateTab = TEXT("LightCardTemplates");
+	const FName ViewportTab = TEXT("Viewport"); 
+	
+	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("LightCardEditor")
+	->AddArea
+	(
+		FTabManager::NewPrimaryArea()
+		
+		->Split
+		(
+			FTabManager::NewSplitter()
+			->SetSizeCoefficient(0.25f)
+			->SetOrientation(Orient_Vertical)
+			->Split
+			(
+			FTabManager::NewStack()
+				->AddTab(LightCardTab, ETabState::OpenedTab)
+				->SetHideTabWell(true)
+				->SetForegroundTab(LightCardTab)
+			)
+			->Split
+			(
+			FTabManager::NewStack()
+				->AddTab(LightCardTemplateTab, ETabState::OpenedTab)
+				->SetHideTabWell(true)
+				->SetForegroundTab(LightCardTab)
+			)
+		)
+		->Split
+		(
+			FTabManager::NewStack()
+			->AddTab(ViewportTab, ETabState::OpenedTab)
+			->SetSizeCoefficient(0.75f)
+			->SetHideTabWell(true)
+			->SetForegroundTab(ViewportTab)
+		)
+	);
+
+	TabManager->RegisterTabSpawner(LightCardTab, FOnSpawnTab::CreateLambda([this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
+	{
+		return SNew(SDockTab)
+		.TabRole(ETabRole::PanelTab)
+		.CanEverClose(false)
+		.OnCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([](){ return false; }))
+		.ContentPadding(0)
+		[
+			CreateLightCardListWidget()
+		];
+	}));
+
+	TabManager->RegisterTabSpawner(LightCardTemplateTab, FOnSpawnTab::CreateLambda([this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
+	{
+		return SNew(SDockTab)
+		.TabRole(ETabRole::PanelTab)
+		.CanEverClose(false)
+		.OnCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([](){ return false; }))
+		.ContentPadding(0)
+		[
+			CreateLightCardTemplateWidget()
+		];
+	}));
+	
+	TabManager->RegisterTabSpawner(ViewportTab, FOnSpawnTab::CreateLambda([this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
+	{
+		return SNew(SDockTab)
+		.TabRole(ETabRole::PanelTab)
+		.CanEverClose(false)
+		.OnCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([](){ return false; }))
+		.ContentPadding(0)
+		[
+			CreateViewportWidget()
+		];
+	}));
+	
 	ChildSlot                     
 	[
-		SNew(SSplitter)
-		.Orientation(Orient_Horizontal)
-		
-		+SSplitter::Slot()
-		.Value(0.25f)
-		[
-			// Vertical box for the left hand panel of the editor. Add new slots here as needed for any editor UI controls
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			[
-				CreateLightCardListWidget()
-			]
-		]
-		+SSplitter::Slot()
-		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.FillHeight(0.75f)
-			[
-				CreateViewportWidget()
-			]
-		]
+		TabManager->RestoreFrom(Layout, WindowOwner).ToSharedRef()
 	];
 
 	BindCompileDelegates();
@@ -183,6 +246,41 @@ ADisplayClusterLightCardActor* SDisplayClusterLightCardEditor::SpawnLightCard()
 	TArray<ADisplayClusterLightCardActor*> LightCards { NewLightCard } ;
 	AddLightCardsToActor(LightCards);
 
+	return NewLightCard;
+}
+
+ADisplayClusterLightCardActor* SDisplayClusterLightCardEditor::SpawnLightCardFromTemplate(
+	const UDisplayClusterLightCardTemplate* InTemplate, ULevel* InLevel, bool bIsPreview)
+{
+	if (!ActiveRootActor.IsValid())
+	{
+		return nullptr;
+	}
+
+	check(InTemplate);
+
+	ULevel* Level = InLevel ? InLevel : ActiveRootActor->GetWorld()->GetCurrentLevel();
+	
+	FName UniqueName = *InTemplate->GetName().Replace(TEXT("Template"), TEXT(""));
+	if (StaticFindObjectFast(InTemplate->LightCardActor->GetClass(), Level, UniqueName))
+	{
+		UniqueName = MakeUniqueObjectName(Level, InTemplate->LightCardActor->GetClass(), UniqueName);
+	}
+	
+	// Duplicate, don't copy properties or spawn from a template. Doing so will copy component data incorrectly,
+	// specifically the static mesh override textures. They will be parented to the template, not the level instance
+	// and prevent the map from saving.
+	ADisplayClusterLightCardActor* NewLightCard = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObject(InTemplate->LightCardActor.Get(), Level, UniqueName));
+	Level->AddLoadedActor(NewLightCard);
+	
+	if (!bIsPreview)
+	{
+		NewLightCard->SetActorLabel(NewLightCard->GetName());
+	
+		const TArray<ADisplayClusterLightCardActor*> LightCards { NewLightCard } ;
+		AddLightCardsToActor(LightCards);
+	}
+	
 	return NewLightCard;
 }
 
@@ -504,6 +602,77 @@ bool SDisplayClusterLightCardEditor::CanRemoveLightCards() const
 	return SelectedLightCards.Num() > 0;
 }
 
+void SDisplayClusterLightCardEditor::CreateLightCardTemplate()
+{
+	TArray<ADisplayClusterLightCardActor*> SelectedLightCards;
+	LightCardList->GetSelectedLightCards(SelectedLightCards);
+
+	check(SelectedLightCards.Num() == 1);
+	const ADisplayClusterLightCardActor* LightCardActor = SelectedLightCards[0];
+
+	const UDisplayClusterLightCardEditorProjectSettings* Settings = GetDefault<UDisplayClusterLightCardEditorProjectSettings>();
+	FString DefaultPath = Settings->LightCardTemplateDefaultPath.Path;
+	if (DefaultPath.IsEmpty())
+	{
+		DefaultPath = TEXT("/Game");
+	}
+	
+	FString DefaultAssetName = LightCardActor->GetActorLabel();
+	if (!DefaultAssetName.EndsWith(TEXT("Template")))
+	{
+		DefaultAssetName += TEXT("Template");
+	}
+
+	FString PackageName;
+	bool FilenameValid = false;
+	while (!FilenameValid)
+	{
+		FSaveAssetDialogConfig SaveAssetDialogConfig;
+		{
+			SaveAssetDialogConfig.DefaultPath = MoveTemp(DefaultPath);
+			SaveAssetDialogConfig.DefaultAssetName = MoveTemp(DefaultAssetName);
+			SaveAssetDialogConfig.AssetClassNames.Add(UDisplayClusterLightCardTemplate::StaticClass()->GetClassPathName());
+			SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
+			SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SaveAssetDialogTitle", "Save Asset As");
+		}
+
+		const FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		const FString SaveObjectPath = ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);
+
+		if (SaveObjectPath.IsEmpty())
+		{
+			return;
+		}
+
+		PackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
+		
+		FText OutError;
+		FilenameValid = FFileHelper::IsFilenameValidForSaving(PackageName, OutError);
+	}
+
+	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
+	UPackage* AssetPackage = CreatePackage(*PackageName);
+	check(AssetPackage);
+
+	const EObjectFlags Flags = RF_Public | RF_Standalone;
+	UDisplayClusterLightCardTemplate* Template = NewObject<UDisplayClusterLightCardTemplate>(AssetPackage, FName(*NewAssetName), Flags);
+	Template->LightCardActor = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObject(LightCardActor, Template));
+
+	FAssetRegistryModule::AssetCreated(Template);
+
+	AssetPackage->MarkPackageDirty();
+
+	FEditorFileUtils::PromptForCheckoutAndSave({AssetPackage}, true, false);
+}
+
+bool SDisplayClusterLightCardEditor::CanCreateLightCardTemplate() const
+{
+	TArray<ADisplayClusterLightCardActor*> SelectedLightCards;
+	LightCardList->GetSelectedLightCards(SelectedLightCards);
+
+	return SelectedLightCards.Num() == 1;
+}
+
 void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
 	RemoveCompileDelegates();
@@ -527,6 +696,11 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardListWidget()
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateViewportWidget()
 {
 	return SAssignNew(ViewportView, SDisplayClusterLightCardEditorViewport, SharedThis(this), CommandList);
+}
+
+TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardTemplateWidget()
+{
+	return SAssignNew(LightCardTemplateList, SDisplayClusterLightCardTemplateList, SharedThis(this));
 }
 
 void SDisplayClusterLightCardEditor::BindCommands()
@@ -572,6 +746,11 @@ void SDisplayClusterLightCardEditor::BindCommands()
 		FGenericCommands::Get().Delete,
 		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditor::RemoveLightCards, true),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditor::CanRemoveLightCards));
+
+	CommandList->MapAction(
+		FDisplayClusterLightCardEditorCommands::Get().SaveLightCardTemplate,
+		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditor::CreateLightCardTemplate),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditor::CanCreateLightCardTemplate));
 }
 
 void SDisplayClusterLightCardEditor::RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType)

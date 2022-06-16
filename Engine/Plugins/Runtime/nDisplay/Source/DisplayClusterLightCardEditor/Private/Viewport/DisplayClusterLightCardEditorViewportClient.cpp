@@ -4,6 +4,7 @@
 
 #include "DisplayClusterLightcardEditorViewport.h"
 #include "DisplayClusterLightCardEditorWidget.h"
+#include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 
 #include "Blueprints/DisplayClusterBlueprintLib.h"
 #include "Components/DisplayClusterPreviewComponent.h"
@@ -1324,6 +1325,119 @@ EMouseCursor::Type FDisplayClusterLightCardEditorViewportClient::GetCursor(FView
 	return MouseCursor;
 }
 
+void FDisplayClusterLightCardEditorViewportClient::DestroyDropPreviewActors()
+{
+	if (HasDropPreviewActors())
+	{
+		for (auto ActorIt = DropPreviewLightCards.CreateConstIterator(); ActorIt; ++ActorIt)
+		{
+			ADisplayClusterLightCardActor* PreviewActor = (*ActorIt).Get();
+			if (PreviewActor)
+			{
+				IDisplayClusterScenePreview::Get().RemoveActorFromRenderer(PreviewRendererId, PreviewActor);
+				GetWorld()->DestroyActor(PreviewActor);
+			}
+		}
+		DropPreviewLightCards.Empty();
+	}
+}
+
+bool FDisplayClusterLightCardEditorViewportClient::UpdateDropPreviewActors(int32 MouseX, int32 MouseY,
+                                                                           const TArray<UObject*>& DroppedObjects, bool& bOutDroppedObjectsVisible, UActorFactory* FactoryToUse)
+{
+	bOutDroppedObjectsVisible = false;
+	if(!HasDropPreviewActors())
+	{
+		return false;
+	}
+
+	bNeedsRedraw = true;
+
+	const FIntPoint NewMousePos { MouseX, MouseY };
+
+	for (TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : DropPreviewLightCards)
+	{
+		VerifyAndFixLightCardOrigin(LightCard.Get());
+	}
+	
+	MoveLightCardsToPixel(NewMousePos, DropPreviewLightCards);
+	
+	return true;
+}
+
+bool FDisplayClusterLightCardEditorViewportClient::DropObjectsAtCoordinates(int32 MouseX, int32 MouseY,
+                                                                            const TArray<UObject*>& DroppedObjects, TArray<AActor*>& OutNewActors, bool bOnlyDropOnTarget,
+                                                                            bool bCreateDropPreview, bool bSelectActors, UActorFactory* FactoryToUse)
+{
+	if (!LightCardEditorPtr.IsValid() || LightCardEditorPtr.Pin()->GetActiveRootActor() == nullptr)
+	{
+		return false;
+	}
+	
+	UWorld* PreviewWorld = PreviewScene->GetWorld();
+	check(PreviewWorld);
+	
+	DestroyDropPreviewActors();
+	
+	Viewport->InvalidateHitProxy();
+
+	bool bSuccess = false;
+
+	if (bSelectActors)
+	{
+		SelectedLightCards.Empty();
+	}
+	
+	TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> CreatedLightCards;
+	CreatedLightCards.Reserve(DroppedObjects.Num());
+
+	SelectLightCard(nullptr);
+	PropagateLightCardSelection();
+	
+	for (UObject* DroppedObject : DroppedObjects)
+	{
+		if (UDisplayClusterLightCardTemplate* Template = Cast<UDisplayClusterLightCardTemplate>(DroppedObject))
+		{
+			ADisplayClusterLightCardActor* LightCardActor = LightCardEditorPtr.Pin()->SpawnLightCardFromTemplate(Template,
+				bCreateDropPreview ? PreviewWorld->GetCurrentLevel() : nullptr, bCreateDropPreview);
+			check(LightCardActor);
+
+			VerifyAndFixLightCardOrigin(LightCardActor);
+			
+			CreatedLightCards.Add(LightCardActor);
+			
+			if (bCreateDropPreview)
+			{
+				DropPreviewLightCards.Add(LightCardActor);
+				
+				LightCardActor->bIsProxy = true;
+				IDisplayClusterScenePreview::Get().AddActorToRenderer(PreviewRendererId, LightCardActor);
+			}
+			else
+			{
+				LightCardActor->UpdatePolygonTexture();
+				LightCardActor->UpdateLightCardMaterialInstance();
+				if (bSelectActors)
+				{
+					GetOnNextSceneRefresh().AddLambda([this, LightCardActor]()
+					{
+						// Select on next refresh so the persistent level and corresponding proxy has spawned.
+						SelectLightCard(LightCardActor, true);
+						PropagateLightCardSelection();
+					});
+				}
+			}
+			
+			bSuccess = true;
+		}
+	}
+
+	const FIntPoint NewMousePos { MouseX, MouseY };
+	MoveLightCardsToPixel(NewMousePos, CreatedLightCards);
+
+	return bSuccess;
+}
+
 void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce,
                                                                       EDisplayClusterLightCardEditorProxyType ProxyType)
 {
@@ -1434,7 +1548,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 			{
 				TSet<ADisplayClusterLightCardActor*> LightCards;
 				UDisplayClusterBlueprintLib::FindLightCardsForRootActor(RootActor, LightCards);
-
+				
 				SelectLightCard(nullptr);
 				
 				for (ADisplayClusterLightCardActor* LightCard : LightCards)
@@ -1715,67 +1829,7 @@ void FDisplayClusterLightCardEditorViewportClient::CenterLightCardInView(ADispla
 
 void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCardsToPixel(const FIntPoint& PixelPos)
 {
-	// First, find the average position of all selected light cards
-	FSphericalCoordinates AverageCoords = FSphericalCoordinates();
-	int32 NumLightCards = 0;
-
-	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
-	{
-		if (LightCard.IsValid())
-		{
-			const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
-
-			AverageCoords = AverageCoords + LightCardCoords;
-			++NumLightCards;
-		}
-	}
-
-	AverageCoords.Radius /= NumLightCards;
-	AverageCoords.Azimuth /= NumLightCards;
-	AverageCoords.Inclination /= NumLightCards;
-	AverageCoords.Conform();
-
-	// Now, find the desired coordinates based on the mouse position
-	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
-		Viewport,
-		GetScene(),
-		EngineShowFlags)
-		.SetRealtimeUpdate(IsRealtime())
-	);
-
-	FSceneView* View = CalcSceneView(&ViewFamily);
-
-	FVector Origin;
-	FVector Direction;
-	PixelToWorld(*View, PixelPos, Origin, Direction);
-
-	if (RenderViewportType != LVT_Perspective)
-	{
-		// For orthogonal projections, PixelToWorld does not return the view origin or a direction from the view origin. Use TraceScreenRay
-		// to find a useful direction away from the view origin to use
-
-		const FVector ViewOrigin = View->ViewLocation;
-
-		Direction = TraceScreenRay(Origin, Direction, ViewOrigin);
-		Origin = ViewOrigin;
-	}
-
-	// Compute desired coordinates (radius doesn't matter here since we will use the flush constraint on the light cards after moving them)
-	const FSphericalCoordinates DesiredCoords(Direction * 100.0f);
-	const FSphericalCoordinates DeltaCoords = DesiredCoords - AverageCoords;
-
-	// Update each light card with the delta coordinates; the flush constraint is applied by MoveLightCardTo, ensuring the light card is always flush to screens
-	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
-	{
-		if (LightCard.IsValid())
-		{
-			const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
-			const FSphericalCoordinates NewCoords = LightCardCoords + DeltaCoords;
-
-			MoveLightCardTo(*LightCard.Get(), NewCoords);
-			PropagateLightCardTransform(LightCard.Get());
-		}
-	}
+	MoveLightCardsToPixel(PixelPos, SelectedLightCards);
 }
 
 void FDisplayClusterLightCardEditorViewportClient::BeginTransaction(const FText& Description)
@@ -2324,6 +2378,71 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 		else
 		{
 			DesiredLookAtLocation.Reset();
+		}
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::MoveLightCardsToPixel(const FIntPoint& PixelPos, const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& InLightCards)
+{
+	// First, find the average position of all selected light cards
+	FSphericalCoordinates AverageCoords = FSphericalCoordinates();
+	int32 NumLightCards = 0;
+
+	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : InLightCards)
+	{
+		if (LightCard.IsValid())
+		{
+			const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
+
+			AverageCoords = AverageCoords + LightCardCoords;
+			++NumLightCards;
+		}
+	}
+
+	AverageCoords.Radius /= NumLightCards;
+	AverageCoords.Azimuth /= NumLightCards;
+	AverageCoords.Inclination /= NumLightCards;
+	AverageCoords.Conform();
+
+	// Now, find the desired coordinates based on the mouse position
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		Viewport,
+		GetScene(),
+		EngineShowFlags)
+		.SetRealtimeUpdate(IsRealtime())
+	);
+
+	FSceneView* View = CalcSceneView(&ViewFamily);
+
+	FVector Origin;
+	FVector Direction;
+	PixelToWorld(*View, PixelPos, Origin, Direction);
+
+	if (RenderViewportType != LVT_Perspective)
+	{
+		// For orthogonal projections, PixelToWorld does not return the view origin or a direction from the view origin. Use TraceScreenRay
+		// to find a useful direction away from the view origin to use
+
+		const FVector ViewOrigin = View->ViewLocation;
+
+		Direction = TraceScreenRay(Origin, Direction, ViewOrigin);
+		Origin = ViewOrigin;
+	}
+
+	// Compute desired coordinates (radius doesn't matter here since we will use the flush constraint on the light cards after moving them)
+	const FSphericalCoordinates DesiredCoords(Direction * 100.0f);
+	const FSphericalCoordinates DeltaCoords = DesiredCoords - AverageCoords;
+
+	// Update each light card with the delta coordinates; the flush constraint is applied by MoveLightCardTo, ensuring the light card is always flush to screens
+	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : InLightCards)
+	{
+		if (LightCard.IsValid())
+		{
+			const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
+			const FSphericalCoordinates NewCoords = LightCardCoords + DeltaCoords;
+
+			MoveLightCardTo(*LightCard.Get(), NewCoords);
+			PropagateLightCardTransform(LightCard.Get());
 		}
 	}
 }

@@ -20,6 +20,7 @@ public class DisplayClusterOperator : ModuleRules
 				"UnrealEd",
 				"EditorStyle",
 				"WorkspaceMenuStructure",
+				"Kismet"
 			});
 	}
 }

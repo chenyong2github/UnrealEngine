@@ -146,6 +146,10 @@ public:
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
 	virtual EMouseCursor::Type GetCursor(FViewport* Viewport,int32 X,int32 Y) override;
 	virtual ELevelViewportType GetViewportType() const override { return LVT_Perspective; }
+	virtual bool HasDropPreviewActors() const override { return DropPreviewLightCards.Num() > 0; }
+	virtual void DestroyDropPreviewActors() override;
+	virtual bool UpdateDropPreviewActors(int32 MouseX, int32 MouseY, const TArray<UObject*>& DroppedObjects, bool& bOutDroppedObjectsVisible, UActorFactory* FactoryToUse) override;
+	virtual bool DropObjectsAtCoordinates(int32 MouseX, int32 MouseY, const TArray<UObject*>& DroppedObjects, TArray<AActor*>& OutNewActors, bool bOnlyDropOnTarget, bool bCreateDropPreview, bool bSelectActors, UActorFactory* FactoryToUse) override;
 	// ~FEditorViewportClient
 
 	/** Returns a delegate that is invoked on the next scene refresh. The delegate is cleared afterwards */
@@ -251,6 +255,9 @@ private:
 	/** Moves the currently selected light cards */
 	void MoveSelectedLightCards(FViewport* InViewport, EAxisList::Type CurrentAxis);
 
+	/** Moves all given light cards to the specified pixel position */
+	void MoveLightCardsToPixel(const FIntPoint& PixelPos, const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& InLightCards);
+	
 	/** Ensures that the light card root component is at the same location as the projection/view origin */
 	void VerifyAndFixLightCardOrigin(ADisplayClusterLightCardActor* LightCard) const;
 
@@ -348,6 +355,9 @@ private:
 
 	TArray<FLightCardProxy> LightCardProxies;
 	TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> SelectedLightCards;
+
+	/** Light card preview actors being dropped on the scene */
+	TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>> DropPreviewLightCards;
 	
 	/** The index of the scene preview renderer returned from IDisplayClusterScenePreview */
 	int32 PreviewRendererId = -1;

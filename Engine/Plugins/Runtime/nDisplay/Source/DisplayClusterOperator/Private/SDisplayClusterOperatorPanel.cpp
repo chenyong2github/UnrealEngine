@@ -9,10 +9,12 @@
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "PropertyEditorModule.h"
+#include "SKismetInspector.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+
+#include "Components/ActorComponent.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterOperatorPanel"
 
@@ -131,14 +133,8 @@ TSharedRef<SDockTab> SDisplayClusterOperatorPanel::SpawnToolbarTab(const FSpawnT
 
 TSharedRef<SDockTab> SDisplayClusterOperatorPanel::SpawnDetailsTab(const FSpawnTabArgs& Args)
 {
-	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.bAllowSearch = false;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.bHideSelectionTip = true;
-
-	DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
+	SAssignNew(DetailsView, SKismetInspector)
+	.HideNameArea(true);
 
 	return SNew(SDockTab)
 		.TabRole(ETabRole::PanelTab)
@@ -151,7 +147,9 @@ void SDisplayClusterOperatorPanel::DisplayObjectsInDetailsPanel(const TArray<UOb
 {
 	if (DetailsView.IsValid())
 	{
-		DetailsView->SetObjects(Objects);
+		SKismetInspector::FShowDetailsOptions Options;
+		Options.bShowComponents = false;
+		DetailsView->ShowDetailsForObjects(Objects, MoveTemp(Options));
 	}
 }
 

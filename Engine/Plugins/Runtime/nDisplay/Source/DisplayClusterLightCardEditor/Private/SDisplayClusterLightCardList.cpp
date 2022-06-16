@@ -146,6 +146,7 @@ void SDisplayClusterLightCardList::Construct(const FArguments& InArgs, TSharedPt
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(0.f, 5.f, 0.f, 0.f)
 		[
 			SNew(SBorder)
 			.Padding(0)
@@ -409,6 +410,7 @@ TSharedPtr<SWidget> SDisplayClusterLightCardList::CreateContextMenu()
 	const bool bCloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(bCloseAfterSelection, CommandList, Extenders);
 	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().RemoveLightCard);
+	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().SaveLightCardTemplate);
 
 	MenuBuilder.BeginSection("Edit", LOCTEXT("EditSection", "Edit"));
 	{

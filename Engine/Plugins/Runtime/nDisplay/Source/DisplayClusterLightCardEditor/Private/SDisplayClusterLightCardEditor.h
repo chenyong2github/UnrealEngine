@@ -15,9 +15,11 @@ class FToolBarBuilder;
 class FUICommandList;
 class SDockTab;
 class SDisplayClusterLightCardList;
+class SDisplayClusterLightCardTemplateList;
 class SDisplayClusterLightCardEditorViewport;
 class ADisplayClusterRootActor;
 class ADisplayClusterLightCardActor;
+class UDisplayClusterLightCardTemplate;
 
 /** A panel that can be spawned in a tab that contains all the UI elements that make up the 2D light cards editor */
 class SDisplayClusterLightCardEditor : public SCompoundWidget
@@ -67,6 +69,9 @@ public:
 	/** Spawns a new light card and adds it to the root actor */
 	ADisplayClusterLightCardActor* SpawnLightCard();
 
+	/** Spawns a new light card from a light card template */
+	ADisplayClusterLightCardActor* SpawnLightCardFromTemplate(const UDisplayClusterLightCardTemplate* InTemplate, ULevel* InLevel, bool bIsPreview);
+
 	/** Adds a new light card to the root actor and centers it in the viewport */
 	void AddNewLightCard();
 
@@ -112,6 +117,12 @@ public:
 	/** If the selected Light Card can be removed */
 	bool CanRemoveLightCards() const;
 
+	/** Creates a template of the selected light card */
+	void CreateLightCardTemplate();
+
+	/** Determines if there are selected light cards that can have templates created */
+	bool CanCreateLightCardTemplate() const;
+
 private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
@@ -119,6 +130,9 @@ private:
 	/** Creates the widget used to show the list of light cards associated with the active root actor */
 	TSharedRef<SWidget> CreateLightCardListWidget();
 
+	/** Create the widget for selecting light card templates */
+	TSharedRef<SWidget> CreateLightCardTemplateWidget();
+	
 	/** Create the 3d viewport widget */
 	TSharedRef<SWidget> CreateViewportWidget();
 
@@ -158,9 +172,14 @@ private:
 	void OnLightCardListChanged();
 	
 private:
+	TSharedPtr<FTabManager> TabManager;
+	
 	/** The light card list widget */
 	TSharedPtr<SDisplayClusterLightCardList> LightCardList;
 
+	/** The light card template list */
+	TSharedPtr<SDisplayClusterLightCardTemplateList> LightCardTemplateList;
+	
 	/** The 3d viewport */
 	TSharedPtr<SDisplayClusterLightCardEditorViewport> ViewportView;
 

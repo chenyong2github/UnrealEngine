@@ -56,18 +56,12 @@ public:
 	/** Refreshes the list */
 	void Refresh();
 
-	/** Spawn and add a new Light Card */
-	ADisplayClusterLightCardActor* AddNewLightCard();
-
 private:
 	/**
 	 * Fill the LightCard list with available LightCards
 	 * @return True if the list has been modified
 	 */
 	bool FillLightCardList();
-	
-	/** Handles the Add Light Card button. Spawn a new Light Card placed in the middle of the viewport. */
-	void AddNewLightCardHandler();
 
 	TSharedRef<ITableRow> GenerateTreeItemRow(TSharedPtr<FLightCardTreeItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void GetChildrenForTreeItem(TSharedPtr<FLightCardTreeItem> InItem, TArray<TSharedPtr<FLightCardTreeItem>>& OutChildren);

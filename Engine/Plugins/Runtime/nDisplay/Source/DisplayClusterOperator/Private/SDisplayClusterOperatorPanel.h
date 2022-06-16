@@ -68,7 +68,7 @@ private:
 	TSharedPtr<SDisplayClusterOperatorToolbar> Toolbar;
 
 	/** A reference to the operator panel's details view */
-	TSharedPtr<class IDetailsView> DetailsView;
+	TSharedPtr<class SKismetInspector> DetailsView;
 
 	/** The delegate handle for the operator module's OnDetailObjectsChanged event */
 	FDelegateHandle DetailObjectsChangedHandle;
