@@ -7,8 +7,9 @@
 #include "Voronoi/Voronoi.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "MeshDescription.h"
-#include "Util/ProgressCancel.h"
 #include "DynamicMesh/DynamicMesh3.h"
+
+class FProgressCancel;
 
 struct PLANARCUT_API FNoiseSettings
 {

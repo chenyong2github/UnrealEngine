@@ -16,6 +16,8 @@ struct FPlanarCells;
 struct FInternalSurfaceMaterials;
 struct FNoiseSettings;
 
+class FProgressCancel;
+
 namespace UE
 {
 namespace PlanarCut
@@ -223,7 +225,8 @@ struct PLANARCUT_API FDynamicMeshCollection
 		int32 RandomSeed,
 		FGeometryCollection* Collection,
 		FInternalSurfaceMaterials& InternalSurfaceMaterials,
-		bool bSetDefaultInternalMaterialsFromCollection
+		bool bSetDefaultInternalMaterialsFromCollection,
+		FProgressCancel* Progress = nullptr
 	);
 
 	/**

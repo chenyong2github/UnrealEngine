@@ -36,17 +36,13 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshTangents.h"
 #include "ConstrainedDelaunay2.h"
-
+#include "Util/ProgressCancel.h"
 
 #include "StaticMeshOperations.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
 #include "Algo/Rotate.h"
-
-#if WITH_EDITOR
-#include "Misc/ScopedSlowTask.h"
-#endif
 
 using namespace UE::Geometry;
 
@@ -2245,30 +2241,17 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 	int32 RandomSeed,
 	FGeometryCollection* Collection,
 	FInternalSurfaceMaterials& InternalSurfaceMaterials,
-	bool bSetDefaultInternalMaterialsFromCollection
+	bool bSetDefaultInternalMaterialsFromCollection,
+	FProgressCancel* Progress
 )
 {
-#if WITH_EDITOR
-	// Create progress indicator dialog
-	static const FText SlowTaskText = NSLOCTEXT("CutMultipleWithMultiplePlanes", "CutMultipleWithMultiplePlanesText", "Cutting geometry collection with plane(s)...");
-
-	FScopedSlowTask SlowTask(Planes.Num(), SlowTaskText);
-	SlowTask.MakeDialog();
-
-	// Declare progress shortcut lambdas
-	auto EnterProgressFrame = [&SlowTask](float Progress)
-	{
-		SlowTask.EnterProgressFrame(Progress);
-	};
-#else
-	auto EnterProgressFrame = [](float Progress) {};
-#endif
-
 	bool bHasGrout = Grout > 0;
 
 	int32 NumUVLayers = Collection->NumUVLayers();
 
 	FRandomStream RandomStream(RandomSeed);
+
+	const float PerPlaneWorkFrac = 1.0f / Planes.Num();
 
 	if (bHasGrout)
 	{
@@ -2285,26 +2268,34 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 		FMeshIndexMappings IndexMaps;
 		for (int32 PlaneIdx = 0; PlaneIdx < Planes.Num(); PlaneIdx++)
 		{
-			EnterProgressFrame(.5);
+			FProgressCancel::FProgressScope MakeMeshScope(Progress, .1 * PerPlaneWorkFrac);
 			FPlanarCells PlaneCells(Planes[PlaneIdx]);
 			PlaneCells.InternalSurfaceMaterials = InternalSurfaceMaterials;
 			FCellMeshes PlaneGroutMesh(NumUVLayers, RandomStream);
 			PlaneGroutMesh.MakeOnlyPlanarGroutCell(PlaneCells, Bounds, Grout);
 			GroutAppender.AppendMesh(&PlaneGroutMesh.CellMeshes[0].AugMesh, IndexMaps);
+			if (Progress && Progress->Cancelled())
+			{
+				return INDEX_NONE;
+			}
 		}
 
-		EnterProgressFrame(Planes.Num() * .2);
+		FProgressCancel::FProgressScope GroutUnionScope(Progress, .3);
 		FMeshSelfUnion GroutUnion(&GroutMesh);
 		GroutUnion.bSimplifyAlongNewEdges = true;
 		GroutUnion.bWeldSharedEdges = false;
 		GroutUnion.Compute();
-
-		EnterProgressFrame(Planes.Num() * .1);
+		GroutUnionScope.Done();
+		if (Progress && Progress->Cancelled())
+		{
+			return INDEX_NONE;
+		}
+		
+		FProgressCancel::FProgressScope GroutCutScope = FProgressCancel::CreateScopeTo(Progress, 1);
 		// first mesh is the same as the second mesh, but will be subtracted b/c it's the "outside cell"
 		GroutCells.CellMeshes[1].AugMesh = GroutMesh;
 		GroutCells.OutsideCellIndex = 1;
 
-		EnterProgressFrame(Planes.Num() * .2);
 		TArray<TPair<int32, int32>> CellConnectivity;
 		CellConnectivity.Add(TPair<int32, int32>(0, -1));
 
@@ -2319,7 +2310,11 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 	}
 	for (int32 PlaneIdx = 0; PlaneIdx < Planes.Num(); PlaneIdx++)
 	{
-		EnterProgressFrame(1);
+		if (Progress && Progress->Cancelled())
+		{
+			return INDEX_NONE;
+		}
+		FProgressCancel::FProgressScope OnePlaneScope(Progress, PerPlaneWorkFrac);
 		FPlanarCells PlaneCells(Planes[PlaneIdx]);
 		PlaneCells.InternalSurfaceMaterials = InternalSurfaceMaterials;
 		double OnePercentExtend = Bounds.MaxDim() * .01;
@@ -2450,6 +2445,11 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 				FirstCreatedIndex = CreatedGeometryIdx;
 			}
 		}
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return INDEX_NONE;
 	}
 
 	int32 NewFirstIndex = FirstCreatedIndex;

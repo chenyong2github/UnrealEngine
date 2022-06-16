@@ -33,7 +33,7 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshTangents.h"
 #include "ConstrainedDelaunay2.h"
-
+#include "Util/ProgressCancel.h"
 
 #include "StaticMeshOperations.h"
 #include "MeshDescriptionToDynamicMesh.h"
@@ -42,10 +42,6 @@
 #include "Algo/Rotate.h"
 
 #include "GeometryMeshConversion.h"
-
-#if WITH_EDITOR
-#include "Misc/ScopedSlowTask.h"
-#endif
 
 using namespace UE::Geometry;
 
@@ -587,10 +583,10 @@ int32 CutMultipleWithMultiplePlanes(
 	{
 		return -1;
 	}
-	FProgressCancel::FProgressScope CutScope = FProgressCancel::CreateScopeTo(Progress, .99);
+	FProgressCancel::FProgressScope CutScope = FProgressCancel::CreateScopeTo(Progress, .99, LOCTEXT("CutWithMultiplePlanesBody", "Cutting with planes"));
 
 	int32 NewGeomStartIdx = -1;
-	NewGeomStartIdx = MeshCollection.CutWithMultiplePlanes(Planes, Grout, CollisionSampleSpacing, RandomSeed, &Collection, InternalSurfaceMaterials, bSetDefaultInternalMaterialsFromCollection);
+	NewGeomStartIdx = MeshCollection.CutWithMultiplePlanes(Planes, Grout, CollisionSampleSpacing, RandomSeed, &Collection, InternalSurfaceMaterials, bSetDefaultInternalMaterialsFromCollection, Progress);
 
 	CutScope.Done();
 	if (Progress && Progress->Cancelled())

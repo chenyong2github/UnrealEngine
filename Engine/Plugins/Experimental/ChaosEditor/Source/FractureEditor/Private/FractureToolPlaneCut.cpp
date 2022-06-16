@@ -9,6 +9,9 @@
 #include "FractureToolContext.h"
 #include "Drawing/MeshDebugDrawing.h"
 #include "FrameTypes.h"
+#include "FractureToolBackgroundTask.h"
+
+using namespace UE::Fracture;
 
 #define LOCTEXT_NAMESPACE "FracturePlanar"
 
@@ -164,17 +167,53 @@ void UFractureToolPlaneCut::FractureContextChanged()
 	}
 }
 
+
+class FPlaneFractureOp : public FGeometryCollectionFractureOperator
+{
+public:
+	FPlaneFractureOp(const FGeometryCollection& SourceCollection) : FGeometryCollectionFractureOperator(SourceCollection)
+	{}
+
+	virtual ~FPlaneFractureOp() = default;
+
+	TArray<int> Selection;
+	TArray<FPlane> CuttingPlanes;
+	FInternalSurfaceMaterials InternalSurfaceMaterials;
+	float PointSpacing;
+	float Grout;
+	int Seed;
+	FTransform Transform;
+	UE::Geometry::FDynamicMesh3 CuttingMesh;
+
+	// TGenericDataOperator interface:
+	virtual void CalculateResult(FProgressCancel* Progress) override
+	{
+		ResultGeometryIndex = CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *CollectionCopy, Selection, Grout, PointSpacing, Seed, Transform, true, Progress);
+
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+		SetResult(MoveTemp(CollectionCopy));
+	}
+};
+
+
 int32 UFractureToolPlaneCut::ExecuteFracture(const FFractureToolContext& FractureContext)
 {
 	if (FractureContext.IsValid())
 	{
-		const UFracturePlaneCutSettings* LocalCutSettings = PlaneCutSettings;
+		TUniquePtr<FPlaneFractureOp> PlaneCutOp = MakeUnique<FPlaneFractureOp>(*(FractureContext.GetGeometryCollection()));
+		PlaneCutOp->Selection = FractureContext.GetSelection();
+		PlaneCutOp->Grout = CutterSettings->Grout;
+		PlaneCutOp->PointSpacing = CollisionSettings->GetPointSpacing();
+		PlaneCutOp->Seed = FractureContext.GetSeed();
+		PlaneCutOp->Transform = FractureContext.GetTransform();
 
-		TArray<FPlane> CuttingPlanes;
 		if (GizmoSettings->IsGizmoEnabled())
 		{
 			FTransform Transform = GizmoSettings->GetTransform();
-			CuttingPlanes.Add(FPlane(Transform.GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
+			PlaneCutOp->CuttingPlanes.Add(FPlane(Transform.GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
 		}
 		else
 		{
@@ -182,22 +221,20 @@ int32 UFractureToolPlaneCut::ExecuteFracture(const FFractureToolContext& Fractur
 			GenerateSliceTransforms(FractureContext, CuttingPlaneTransforms);
 			for (const FTransform& Transform : CuttingPlaneTransforms)
 			{
-				CuttingPlanes.Add(FPlane(Transform.GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
+				PlaneCutOp->CuttingPlanes.Add(FPlane(Transform.GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
 			}
 		}
-
-		FInternalSurfaceMaterials InternalSurfaceMaterials;
+		
 		FNoiseSettings NoiseSettings;
 		if (CutterSettings->Amplitude > 0.0f)
 		{
 			CutterSettings->TransferNoiseSettings(NoiseSettings);
-			InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
+			PlaneCutOp->InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 
-		// Proximity is invalidated.
-		ClearProximity(FractureContext.GetGeometryCollection().Get());
-
-		return CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CutterSettings->Grout, CollisionSettings->GetPointSpacing(), FractureContext.GetSeed(), FractureContext.GetTransform());
+		int Result = RunCancellableGeometryCollectionOp<FPlaneFractureOp>(*(FractureContext.GetGeometryCollection()),
+			MoveTemp(PlaneCutOp), LOCTEXT("ComputingPlaneFractureMessage", "Computing Plane Fracture"));
+		return Result;
 	}
 
 	return INDEX_NONE;
