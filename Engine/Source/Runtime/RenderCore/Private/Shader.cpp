@@ -1349,6 +1349,37 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 {
 	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(Platform);
 
+	for (const FAutoConsoleObject* ConsoleObject : FAutoConsoleObject::GeneralShaderChangeCvars)
+	{
+		FString ConsoleObjectName = IConsoleManager::Get().FindConsoleObjectName(ConsoleObject->AsVariable());
+		KeyString += TEXT("_");
+		KeyString += ConsoleObjectName;
+		KeyString += TEXT("_");
+		KeyString += ConsoleObject->AsVariable()->GetString();
+	}
+	if (IsMobilePlatform(Platform))
+	{
+		for (const FAutoConsoleObject* ConsoleObject : FAutoConsoleObject::MobileShaderChangeCvars)
+		{
+			FString ConsoleObjectName = IConsoleManager::Get().FindConsoleObjectName(ConsoleObject->AsVariable());
+			KeyString += TEXT("_");
+			KeyString += ConsoleObjectName;
+			KeyString += TEXT("_");
+			KeyString += ConsoleObject->AsVariable()->GetString();
+		}
+	}
+	else if (IsConsolePlatform(Platform))
+	{
+		for (const FAutoConsoleObject* ConsoleObject : FAutoConsoleObject::DesktopShaderChangeCvars)
+		{
+			FString ConsoleObjectName = IConsoleManager::Get().FindConsoleObjectName(ConsoleObject->AsVariable());
+			KeyString += TEXT("_");
+			KeyString += ConsoleObjectName;
+			KeyString += TEXT("_");
+			KeyString += ConsoleObject->AsVariable()->GetString();
+		}
+	}
+
 	// Globals that should cause all shaders to recompile when changed must be appended to the key here
 	// Key should be kept as short as possible while being somewhat human readable for debugging
 
@@ -1543,11 +1574,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.SupportGPUScene"));
 			bool bMobileGpuScene = (CVar && CVar->GetInt() != 0);
 			KeyString += bMobileGpuScene ? TEXT("_MobGPUSc") : TEXT("");
-		}
-
-		{
-			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileHDR"));
-			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobileHDR") : TEXT("");
 		}
 
 		{

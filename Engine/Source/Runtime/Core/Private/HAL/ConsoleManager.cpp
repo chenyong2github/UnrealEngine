@@ -2555,7 +2555,7 @@ static TAutoConsoleVariable<int32> CVarMobileHDR(
 	1,
 	TEXT("0: Mobile renders in LDR gamma space. (suggested for unlit games targeting low-end phones)\n"
 		 "1: Mobile renders in HDR linear space. (default)"),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+	ECVF_RenderThreadSafe | ECVF_ReadOnly | ECVF_MobileShaderChange);
 
 static TAutoConsoleVariable<int32> CVarMobileShadingPath(
 	TEXT("r.Mobile.ShadingPath"),

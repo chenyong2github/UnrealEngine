@@ -93,6 +93,15 @@ enum EConsoleVariableFlags
 	/* CVars with this flag will be included in the device profile previews. */
 	ECVF_Preview = 0x100,
 
+	/* Cvars with this flag will modify the Shader Keystring for All Platforms*/
+	ECVF_GeneralShaderChange = 0x200,
+
+	/* Cvars with this flag will modify the Shader Keystring for Mobile Platforms*/
+	ECVF_MobileShaderChange = 0x400,
+
+	/* Cvars with this flag will modify the Shader Keystring for Desktop Platforms*/
+	ECVF_DesktopShaderChange = 0x800,
+
 	// ------------------------------------------------
 
 	/* Set flags */
@@ -1046,6 +1055,18 @@ protected:
 		: Target(InTarget)
 	{
 		check(Target);
+		if (Target->TestFlags(ECVF_GeneralShaderChange))
+		{
+			GeneralShaderChangeCvars.Add(this);
+		}
+		else if (Target->TestFlags(ECVF_MobileShaderChange))
+		{
+			MobileShaderChangeCvars.Add(this);
+		}
+		else if (Target->TestFlags(ECVF_DesktopShaderChange))
+		{
+			DesktopShaderChangeCvars.Add(this);
+		}
 	}
 	/** Destructor, removes the console object **/
 	virtual ~FAutoConsoleObject()
@@ -1054,6 +1075,10 @@ protected:
 	}
 
 public:
+	static TArray<const FAutoConsoleObject*> GeneralShaderChangeCvars;
+	static TArray<const FAutoConsoleObject*> MobileShaderChangeCvars;
+	static TArray<const FAutoConsoleObject*> DesktopShaderChangeCvars;
+
 	/** returns the contained console object as an IConsoleVariable **/
 	FORCEINLINE IConsoleVariable* AsVariable()
 	{

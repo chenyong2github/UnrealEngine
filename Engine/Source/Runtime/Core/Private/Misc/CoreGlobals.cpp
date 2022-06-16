@@ -37,7 +37,9 @@ IMPLEMENT_MODULE( FCoreModule, Core );
 /*-----------------------------------------------------------------------------
 	Global variables.
 -----------------------------------------------------------------------------*/
-
+TArray<const FAutoConsoleObject*> FAutoConsoleObject::GeneralShaderChangeCvars;
+TArray<const FAutoConsoleObject*> FAutoConsoleObject::MobileShaderChangeCvars;
+TArray<const FAutoConsoleObject*> FAutoConsoleObject::DesktopShaderChangeCvars;
 CORE_API FFeedbackContext*	GWarn						= nullptr;		/* User interaction and non critical warnings */
 FConfigCacheIni*			GConfig						= nullptr;		/* Configuration database cache */
 ITransaction*				GUndo						= nullptr;		/* Transaction tracker, non-NULL when a transaction is in progress */
