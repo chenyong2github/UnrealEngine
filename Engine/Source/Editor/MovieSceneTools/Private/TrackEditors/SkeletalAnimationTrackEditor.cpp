@@ -315,7 +315,7 @@ USkeletalMeshComponent* AcquireSkeletalMeshFromObjectGuid(const FGuid& Guid, TSh
 	}
 	else if(USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(BoundObject))
 	{
-		if (SkeletalMeshComponent->SkeletalMesh)
+		if (SkeletalMeshComponent->GetSkeletalMesh())
 		{
 			return SkeletalMeshComponent;
 		}
@@ -327,10 +327,10 @@ USkeletalMeshComponent* AcquireSkeletalMeshFromObjectGuid(const FGuid& Guid, TSh
 USkeleton* GetSkeletonFromComponent(UActorComponent* InComponent)
 {
 	USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(InComponent);
-	if (SkeletalMeshComp && SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->GetSkeleton())
+	if (SkeletalMeshComp && SkeletalMeshComp->GetSkeletalMesh() && SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton())
 	{
 		// @todo Multiple actors, multiple components
-		return SkeletalMeshComp->SkeletalMesh->GetSkeleton();
+		return SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton();
 	}
 
 	return nullptr;
@@ -1548,9 +1548,9 @@ void FSkeletalAnimationTrackEditor::HandleCreateAnimationSequence(USkeletalMeshC
 	if (SkelMeshComp)
 	{
 		TArray<TWeakObjectPtr<UObject>> Skels;
-		if (SkelMeshComp->SkeletalMesh)
+		if (SkelMeshComp->GetSkeletalMesh())
 		{
-			Skels.Add(SkelMeshComp->SkeletalMesh);
+			Skels.Add(SkelMeshComp->GetSkeletalMesh());
 		}
 		else
 		{

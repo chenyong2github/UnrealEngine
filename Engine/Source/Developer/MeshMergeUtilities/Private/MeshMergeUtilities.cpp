@@ -441,7 +441,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(USkeletalMeshComponent* Skel
 	UMaterialMergeOptions* MergeOptions = GetMutableDefault<UMaterialMergeOptions>();
 	TArray<TWeakObjectPtr<UObject>> Objects{ MergeOptions, AssetOptions, MaterialOptions };
 
-	const int32 NumLODs = SkeletalMeshComponent->SkeletalMesh->GetLODNum();
+	const int32 NumLODs = SkeletalMeshComponent->GetSkeletalMesh()->GetLODNum();
 	IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("MaterialBaking");
 	if (!Module.SetupMaterialBakeSettings(Objects, NumLODs))
 	{
@@ -449,7 +449,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(USkeletalMeshComponent* Skel
 	}
 
 	// Bake out materials for skeletal mesh
-	SkeletalMeshComponent->SkeletalMesh->Modify();
+	SkeletalMeshComponent->GetSkeletalMesh()->Modify();
 	FSkeletalMeshComponentAdapter Adapter(SkeletalMeshComponent);
 	BakeMaterialsForComponent(Objects, &Adapter);
 	SkeletalMeshComponent->MarkRenderStateDirty();

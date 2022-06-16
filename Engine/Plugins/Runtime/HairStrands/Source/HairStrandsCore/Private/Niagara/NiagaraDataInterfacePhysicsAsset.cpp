@@ -124,7 +124,7 @@ void GetNumPrimitives(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets
 		TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
 		if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 		{
-			USkeletalMesh* SkelMesh = (SkeletalMeshs[ComponentIndex].Get() && SkeletalMeshs[ComponentIndex]->SkeletalMesh) ? ToRawPtr(SkeletalMeshs[ComponentIndex]->SkeletalMesh) : PhysicsAsset->GetPreviewMesh();
+			USkeletalMesh* SkelMesh = (SkeletalMeshs[ComponentIndex].Get() && SkeletalMeshs[ComponentIndex]->GetSkeletalMesh()) ? ToRawPtr(SkeletalMeshs[ComponentIndex]->GetSkeletalMesh()) : PhysicsAsset->GetPreviewMesh();
 			if (!SkelMesh)
 			{
 				continue;
@@ -234,7 +234,7 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 				TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
 				if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 				{
-					USkeletalMesh* SkelMesh = (SkeletalMeshs[ComponentIndex].Get() && SkeletalMeshs[ComponentIndex]->SkeletalMesh) ? ToRawPtr(SkeletalMeshs[ComponentIndex]->SkeletalMesh) : PhysicsAsset->GetPreviewMesh();
+					USkeletalMesh* SkelMesh = (SkeletalMeshs[ComponentIndex].Get() && SkeletalMeshs[ComponentIndex]->GetSkeletalMesh()) ? ToRawPtr(SkeletalMeshs[ComponentIndex]->GetSkeletalMesh()) : PhysicsAsset->GetPreviewMesh();
 					if (!SkelMesh)
 					{
 						continue;
@@ -355,7 +355,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 				TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = PhysicsAssets[ComponentIndex];
 				if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 				{
-					USkeletalMesh* SkelMesh = (SkeletalMeshs[ComponentIndex].Get() && SkeletalMeshs[ComponentIndex]->SkeletalMesh) ? ToRawPtr(SkeletalMeshs[ComponentIndex]->SkeletalMesh) : PhysicsAsset->GetPreviewMesh();
+					USkeletalMesh* SkelMesh = (SkeletalMeshs[ComponentIndex].Get() && SkeletalMeshs[ComponentIndex]->GetSkeletalMesh()) ? ToRawPtr(SkeletalMeshs[ComponentIndex]->GetSkeletalMesh()) : PhysicsAsset->GetPreviewMesh();
 					if (!SkelMesh)
 					{
 						continue;
@@ -493,8 +493,8 @@ void FNDIPhysicsAssetData::Init(UNiagaraDataInterfacePhysicsAsset* Interface, FN
 			TWeakObjectPtr<UPhysicsAsset> PhysicsAsset = Interface->PhysicsAssets[ComponentIndex];
 			if (PhysicsAsset.IsValid() && PhysicsAsset.Get() != nullptr)
 			{
-				USkeletalMesh* SkelMesh = (Interface->SourceComponents[ComponentIndex].IsValid() && Interface->SourceComponents[ComponentIndex].Get() && Interface->SourceComponents[ComponentIndex]->SkeletalMesh) ?
-					ToRawPtr(Interface->SourceComponents[ComponentIndex]->SkeletalMesh) : PhysicsAsset->GetPreviewMesh();
+				USkeletalMesh* SkelMesh = (Interface->SourceComponents[ComponentIndex].IsValid() && Interface->SourceComponents[ComponentIndex].Get() && Interface->SourceComponents[ComponentIndex]->GetSkeletalMesh()) ?
+					ToRawPtr(Interface->SourceComponents[ComponentIndex]->GetSkeletalMesh()) : PhysicsAsset->GetPreviewMesh();
 				if (SkelMesh)
 				{
 					BoundingBox += SkelMesh->GetImportedBounds().GetBox();
@@ -710,7 +710,7 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 			for (UActorComponent* ActorComp : Actor->GetComponents())
 			{
 				USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(ActorComp);
-				if (IsValid(Comp) && Comp->SkeletalMesh != nullptr)
+				if (IsValid(Comp) && Comp->GetSkeletalMesh() != nullptr)
 				{
 					return Comp;
 				}
@@ -786,7 +786,7 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 		for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 		{
 			USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(Curr);
-			if (SkelMeshComp && SkelMeshComp->SkeletalMesh)
+			if (SkelMeshComp && SkelMeshComp->GetSkeletalMesh())
 			{
 				SourceComponent = SkelMeshComp;
 				break;

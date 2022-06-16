@@ -649,9 +649,9 @@ void FAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 		MainMontageEvaluationData = InAnimInstance->IsUsingMainInstanceMontageEvaluationData() ? &MainInstanceProxy->MontageEvaluationData : &MontageEvaluationData;
 	}
 
-	if (SkeletalMeshComponent->SkeletalMesh != nullptr)
+	if (SkeletalMeshComponent->GetSkeletalMesh() != nullptr)
 	{
-		Skeleton = SkeletalMeshComponent->SkeletalMesh->GetSkeleton();
+		Skeleton = SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton();
 	}
 	else
 	{

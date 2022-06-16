@@ -662,19 +662,19 @@ void WeldBodies(UPhysicsAsset* PhysAsset, int32 BaseBodyIndex, int32 AddBodyInde
 	if(BaseBodyIndex == INDEX_NONE || AddBodyIndex == INDEX_NONE)
 		return;
 
-	if (SkelComp == NULL || SkelComp->SkeletalMesh == NULL)
+	if (SkelComp == NULL || SkelComp->GetSkeletalMesh() == NULL)
 	{
 		return;
 	}
 
 	UBodySetup* Body1 = PhysAsset->SkeletalBodySetups[BaseBodyIndex];
-	int32 Bone1Index = SkelComp->SkeletalMesh->GetRefSkeleton().FindBoneIndex(Body1->BoneName);
+	int32 Bone1Index = SkelComp->GetSkeletalMesh()->GetRefSkeleton().FindBoneIndex(Body1->BoneName);
 	check(Bone1Index != INDEX_NONE);
 	FTransform Bone1TM = SkelComp->GetBoneTransform(Bone1Index);
 	Bone1TM.RemoveScaling();
 
 	UBodySetup* Body2 = PhysAsset->SkeletalBodySetups[AddBodyIndex];
-	int32 Bone2Index = SkelComp->SkeletalMesh->GetRefSkeleton().FindBoneIndex(Body2->BoneName);
+	int32 Bone2Index = SkelComp->GetSkeletalMesh()->GetRefSkeleton().FindBoneIndex(Body2->BoneName);
 	check(Bone2Index != INDEX_NONE);
 	FTransform Bone2TM = SkelComp->GetBoneTransform(Bone2Index);
 	Bone2TM.RemoveScaling();

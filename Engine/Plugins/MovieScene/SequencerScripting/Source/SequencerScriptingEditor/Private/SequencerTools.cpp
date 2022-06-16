@@ -279,7 +279,7 @@ static USkeletalMeshComponent* GetSkelMeshComponent(IMovieScenePlayer* Player, c
 		}
 		else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(RuntimeObject.Get()))
 		{
-			if (SkeletalMeshComponent->SkeletalMesh)
+			if (SkeletalMeshComponent->GetSkeletalMesh())
 			{
 				return SkeletalMeshComponent;
 			}
@@ -317,9 +317,9 @@ bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSeq
 		}
  
 		USkeletalMeshComponent* SkeletalMeshComp =  GetSkelMeshComponent(Player, Binding);
-		if (SkeletalMeshComp && SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->GetSkeleton())
+		if (SkeletalMeshComp && SkeletalMeshComp->GetSkeletalMesh() && SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton())
 		{
-			AnimSequence->SetSkeleton(SkeletalMeshComp->SkeletalMesh->GetSkeleton());
+			AnimSequence->SetSkeleton(SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton());
 			bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence,ExportOptions, MovieScene, Player, SkeletalMeshComp, Template, RootToLocalTransform);
 		}
 	}

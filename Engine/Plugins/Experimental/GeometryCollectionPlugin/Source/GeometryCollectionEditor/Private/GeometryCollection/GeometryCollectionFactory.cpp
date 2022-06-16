@@ -66,10 +66,10 @@ void AppendActorComponentsRecursive(
 	{
 		for (int Index = 0; Index < SkeletalMeshComponents.Num(); Index++)
 		{
-			if (SkeletalMeshComponents[Index]->SkeletalMesh)
+			if (SkeletalMeshComponents[Index]->GetSkeletalMesh())
 			{
 				SkeletalMeshList.Add(GeometryCollectionSkeletalMeshConversionTuple(
-					SkeletalMeshComponents[Index]->SkeletalMesh,
+					SkeletalMeshComponents[Index]->GetSkeletalMesh(),
 					SkeletalMeshComponents[Index],
 					SkeletalMeshComponents[Index]->GetComponentTransform()));
 			}

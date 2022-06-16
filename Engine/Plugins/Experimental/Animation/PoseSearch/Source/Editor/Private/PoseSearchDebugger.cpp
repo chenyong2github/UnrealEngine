@@ -128,7 +128,7 @@ void FPoseSearchDebuggerPoseVector::ExtractFeatures(const UE::PoseSearch::FFeatu
 void UPoseSearchMeshComponent::Initialize(const FTransform& InComponentToWorld)
 {
 	SetComponentToWorld(InComponentToWorld);
-	const FReferenceSkeleton& SkeletalMeshRefSkeleton = SkeletalMesh->GetRefSkeleton();
+	const FReferenceSkeleton& SkeletalMeshRefSkeleton = GetSkeletalMesh()->GetRefSkeleton();
 
 	// set up bone visibility states as this gets skipped since we allocate the component array before registration
 	for (int32 BaseIndex = 0; BaseIndex < 2; ++BaseIndex)

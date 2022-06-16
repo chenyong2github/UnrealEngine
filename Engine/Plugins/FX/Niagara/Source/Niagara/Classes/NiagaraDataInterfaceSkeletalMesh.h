@@ -694,7 +694,7 @@ struct FNDISkeletalMesh_InstanceData
 	FORCEINLINE_DEBUGGABLE const FSkinWeightVertexBuffer* GetSkinWeights()
 	{
 		USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(SceneComponent.Get());
-		if (SkelComp != nullptr && SkelComp->SkeletalMesh != nullptr)
+		if (SkelComp != nullptr && SkelComp->GetSkeletalMesh() != nullptr)
 		{
 			return SkelComp->GetSkinWeightBuffer(CachedLODIdx);
 		}

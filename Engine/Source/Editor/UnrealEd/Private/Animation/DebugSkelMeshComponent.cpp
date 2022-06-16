@@ -97,9 +97,9 @@ FBoxSphereBounds UDebugSkelMeshComponent::CalcBounds(const FTransform& LocalToWo
 			}			
 		}
 
-		if ( SkeletalMesh )
+		if (GetSkeletalMesh())
 		{
-			Result = Result + SkeletalMesh->GetBounds();
+			Result = Result + GetSkeletalMesh()->GetBounds();
 		}
 	}
 
@@ -424,7 +424,7 @@ FPrimitiveSceneProxy* UDebugSkelMeshComponent::CreateSceneProxy()
 {
 	FDebugSkelMeshSceneProxy* Result = NULL;
 	ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->FeatureLevel;
-	FSkeletalMeshRenderData* SkelMeshRenderData = SkeletalMesh ? SkeletalMesh->GetResourceForRendering() : NULL;
+	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMesh() ? GetSkeletalMesh()->GetResourceForRendering() : NULL;
 
 	// only create a scene proxy for rendering if
 	// properly initialized
@@ -488,9 +488,9 @@ void UDebugSkelMeshComponent::InitAnim(bool bForceReinit)
 {
 	// If we already have PreviewInstance and its asset's Skeleton isn't compatible with the mesh's Skeleton
 	// then we need to clear it up to avoid an issue
-	if ( PreviewInstance && PreviewInstance->GetCurrentAsset() && SkeletalMesh )
+	if ( PreviewInstance && PreviewInstance->GetCurrentAsset() && GetSkeletalMesh())
 	{
-		if (!SkeletalMesh->GetSkeleton()->IsCompatible(PreviewInstance->GetCurrentAsset()->GetSkeleton()))
+		if (!GetSkeletalMesh()->GetSkeleton()->IsCompatible(PreviewInstance->GetCurrentAsset()->GetSkeleton()))
 		{
 			// if it doesn't match, just clear it
 			PreviewInstance->SetAnimationAsset(NULL);
@@ -717,7 +717,7 @@ void UDebugSkelMeshComponent::GenSpaceBases(TArray<FTransform>& OutSpaceBases)
 	FBlendedHeapCurve TempCurve;
 	UE::Anim::FMeshAttributeContainer TempAtttributes;
 	DoInstancePreEvaluation();
-	PerformAnimationEvaluation(SkeletalMesh, AnimScriptInstance, OutSpaceBases, TempBoneSpaceTransforms, TempRootBoneTranslation, TempCurve, TempAtttributes);
+	PerformAnimationEvaluation(GetSkeletalMesh(), AnimScriptInstance, OutSpaceBases, TempBoneSpaceTransforms, TempRootBoneTranslation, TempCurve, TempAtttributes);
 	DoInstancePostEvaluation();
 }
 
@@ -923,7 +923,7 @@ void UDebugSkelMeshComponent::ToggleClothSectionsVisibility(bool bShowOnlyClothS
 
 void UDebugSkelMeshComponent::RestoreClothSectionsVisibility()
 {
-	if (!SkeletalMesh)
+	if (!GetSkeletalMesh())
 	{
 		return;
 	}
@@ -976,11 +976,11 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts(bool bInvalidate
 	// TODO: There is no need to rebuild all section/LODs at once.
 	//       It should only do the section associated to the current cloth asset being
 	//        painted instead, and only when the MaxDistance mask changes.
-	FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(SkeletalMesh);
+	FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(GetSkeletalMesh());
 
-	SkeletalMesh->PreEditChange(nullptr);
+	GetSkeletalMesh()->PreEditChange(nullptr);
 
-	TIndirectArray<FSkeletalMeshLODModel>& LODModels = SkeletalMesh->GetImportedModel()->LODModels;
+	TIndirectArray<FSkeletalMeshLODModel>& LODModels = GetSkeletalMesh()->GetImportedModel()->LODModels;
 
 	for (int32 LODIndex = 0; LODIndex < LODModels.Num(); ++LODIndex)
 	{
@@ -994,7 +994,7 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts(bool bInvalidate
 
 	if (bInvalidateDerivedDataCache)
 	{
-		SkeletalMesh->InvalidateDeriveDataCacheGUID();  // Dirty the DDC key unless previewing
+		GetSkeletalMesh()->InvalidateDeriveDataCacheGUID();  // Dirty the DDC key unless previewing
 	}
 
 	ReregisterComponent();
@@ -1002,7 +1002,7 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts(bool bInvalidate
 
 void UDebugSkelMeshComponent::RebuildClothingSectionFixedVerts(int32 LODIndex, int32 SectionIndex)
 {
-	FSkeletalMeshModel* const SkeletalMeshModel = SkeletalMesh->GetImportedModel();
+	FSkeletalMeshModel* const SkeletalMeshModel = GetSkeletalMesh()->GetImportedModel();
 	if (!ensure(SkeletalMeshModel && LODIndex < SkeletalMeshModel->LODModels.Num()))
 	{
 		return;
@@ -1020,7 +1020,7 @@ void UDebugSkelMeshComponent::RebuildClothingSectionFixedVerts(int32 LODIndex, i
 		return;
 	}
 
-	const UClothingAssetCommon* const ClothingAsset = Cast<UClothingAssetCommon>(SkeletalMesh->GetClothingAsset(UpdatedSection.ClothingData.AssetGuid));
+	const UClothingAssetCommon* const ClothingAsset = Cast<UClothingAssetCommon>(GetSkeletalMesh()->GetClothingAsset(UpdatedSection.ClothingData.AssetGuid));
 	check(ClothingAsset);  // Must have a valid clothing asset at this point, or something has gone terribly wrong
 
 	const FClothLODDataCommon& ClothLODData = ClothingAsset->LodData[UpdatedSection.ClothingData.AssetLodIndex];
@@ -1094,9 +1094,9 @@ void UDebugSkelMeshComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 
 void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 {
-	if(SkeletalMesh && SelectedClothingGuidForPainting.IsValid())
+	if(GetSkeletalMesh() && SelectedClothingGuidForPainting.IsValid())
 	{
-		UClothingAssetBase** Asset = SkeletalMesh->GetMeshClothingAssets().FindByPredicate([&](UClothingAssetBase* Item)
+		UClothingAssetBase** Asset = GetSkeletalMesh()->GetMeshClothingAssets().FindByPredicate([&](UClothingAssetBase* Item)
 		{
 			return Item && SelectedClothingGuidForPainting == Item->GetAssetGuid();
 		});
@@ -1305,7 +1305,7 @@ FDebugSkelMeshDynamicData::FDebugSkelMeshDynamicData(UDebugSkelMeshComponent* In
 		SkinnedPositions = InComponent->SkinnedSelectedClothingPositions;
 		SkinnedNormals = InComponent->SkinnedSelectedClothingNormals;
 
-		if(USkeletalMesh* Mesh = InComponent->SkeletalMesh)
+		if(USkeletalMesh* Mesh = InComponent->GetSkeletalMesh())
 		{
 			const int32 NumClothingAssets = Mesh->GetMeshClothingAssets().Num();
 			for(int32 ClothingAssetIndex = 0; ClothingAssetIndex < NumClothingAssets; ++ClothingAssetIndex)
@@ -1361,7 +1361,7 @@ FScopedSuspendAlternateSkinWeightPreview::FScopedSuspendAlternateSkinWeightPrevi
 		for (TObjectIterator<UDebugSkelMeshComponent> It; It; ++It)
 		{
 			UDebugSkelMeshComponent* DebugSKComp = *It;
-			if (DebugSKComp->SkeletalMesh == SkeletalMesh)
+			if (DebugSKComp->GetSkeletalMesh() == SkeletalMesh)
 			{
 				const FName ProfileName = DebugSKComp->GetCurrentSkinWeightProfileName();
 				if (ProfileName != NAME_None)

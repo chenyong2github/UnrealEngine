@@ -1467,7 +1467,7 @@ void UParticleModuleLocationBoneSocket::RegeneratePreSelectedIndices(FModuleLoca
 {
 	if (SourceIndexMode == EBoneSocketSourceIndexMode::PreSelectedIndices)
 	{
-		int32 MaxIndex = SourceType == BONESOCKETSOURCE_Sockets ? SourceComponent->SkeletalMesh->NumSockets() : SourceComponent->GetNumBones();
+		int32 MaxIndex = SourceType == BONESOCKETSOURCE_Sockets ? SourceComponent->GetSkeletalMesh()->NumSockets() : SourceComponent->GetNumBones();
 		for (int32 i = 0; i < NumPreSelectedIndices; ++i)
 		{
 			//Should we provide sequential selection here? Does that make sense for the pre selected list?
@@ -1708,7 +1708,7 @@ void UParticleModuleLocationBoneSocket::FinalUpdate(FParticleEmitterInstance* Ow
 			BEGIN_UPDATE_LOOP;
 			{
 				FModuleLocationBoneSocketParticlePayload* ParticlePayload = (FModuleLocationBoneSocketParticlePayload*)((uint8*)&Particle + Offset);
-				if (SourceComponent && SourceComponent->SkeletalMesh)
+				if (SourceComponent && SourceComponent->GetSkeletalMesh())
 				{
 					USkeletalMeshSocket* Socket;
 					FVector SocketOffset;
@@ -1916,9 +1916,9 @@ int32 UParticleModuleLocationBoneSocket::GetMaxSourceIndex(FModuleLocationBoneSo
 		{
 			if (SourceType == BONESOCKETSOURCE_Sockets)
 			{
-				if (ensure(SourceComponent->SkeletalMesh))
+				if (ensure(SourceComponent->GetSkeletalMesh()))
 				{
-					return SourceComponent->SkeletalMesh->NumSockets();
+					return SourceComponent->GetSkeletalMesh()->NumSockets();
 				}
 				return 0;
 			}
@@ -1997,7 +1997,7 @@ bool UParticleModuleLocationBoneSocket::GetSocketInfoForSourceIndex(FModuleLocat
 {
 	if (!ensureMsgf(SourceType == BONESOCKETSOURCE_Sockets, TEXT("Invalid source type %d for %s"), SourceType, *GetPathName()) ||
 		!ensureMsgf(SourceComponent, TEXT("Null SkeletalMeshComponent for %s"), *GetPathName()) ||
-		!ensureMsgf(SourceComponent->SkeletalMesh, TEXT("Null SkeletalMesh on Component %s for %s"), *SourceComponent->GetPathName(), *GetPathName()))
+		!ensureMsgf(SourceComponent->GetSkeletalMesh(), TEXT("Null SkeletalMesh on Component %s for %s"), *SourceComponent->GetPathName(), *GetPathName()))
 	{
 		return false;
 	}
@@ -2008,7 +2008,7 @@ bool UParticleModuleLocationBoneSocket::GetSocketInfoForSourceIndex(FModuleLocat
 		{
 			if (ensureMsgf(SourceLocations.IsValidIndex(SourceIndex), TEXT("Invalid index of %d for %s"), SourceIndex, *GetPathName()))
 			{
-				OutSocket = SourceComponent->SkeletalMesh->FindSocket(SourceLocations[SourceIndex].BoneSocketName);
+				OutSocket = SourceComponent->GetSkeletalMesh()->FindSocket(SourceLocations[SourceIndex].BoneSocketName);
 				OutOffset = SourceLocations[SourceIndex].Offset + UniversalOffset;
 			}
 			else
@@ -2022,7 +2022,7 @@ bool UParticleModuleLocationBoneSocket::GetSocketInfoForSourceIndex(FModuleLocat
 			if (ensureMsgf(InstancePayload, TEXT("Invalid instance payload parameter on GetSocketInfoForSourceIndex %d for %s"), SourceIndex, *GetPathName()) &&
 				ensureMsgf(SourceIndex >= 0 && SourceIndex < InstancePayload->PreSelectedBoneSocketIndices.Num(), TEXT("Invalid index of %d for %s"), SourceIndex, *GetPathName()))
 			{
-				OutSocket = SourceComponent->SkeletalMesh->GetSocketByIndex(InstancePayload->PreSelectedBoneSocketIndices[SourceIndex]);
+				OutSocket = SourceComponent->GetSkeletalMesh()->GetSocketByIndex(InstancePayload->PreSelectedBoneSocketIndices[SourceIndex]);
 				OutOffset = UniversalOffset;
 			} 
 			else
@@ -2034,7 +2034,7 @@ bool UParticleModuleLocationBoneSocket::GetSocketInfoForSourceIndex(FModuleLocat
 		break;
 		case EBoneSocketSourceIndexMode::Direct:
 		{
-			OutSocket = SourceComponent->SkeletalMesh->GetSocketByIndex(SourceIndex);
+			OutSocket = SourceComponent->GetSkeletalMesh()->GetSocketByIndex(SourceIndex);
 			OutOffset = UniversalOffset;
 		}
 		break;
@@ -2098,7 +2098,7 @@ bool UParticleModuleLocationBoneSocket::GetParticleLocation(FModuleLocationBoneS
 
 	if (SourceType == BONESOCKETSOURCE_Sockets)
 	{
-		if (InSkelMeshComponent->SkeletalMesh)
+		if (InSkelMeshComponent->GetSkeletalMesh())
 		{
 			USkeletalMeshSocket* Socket;
 			FVector SocketOffset;
@@ -2583,7 +2583,7 @@ void UParticleModuleLocationSkelVertSurface::UpdateBoneIndicesList(FParticleEmit
 		int32 InsertionIndex = 0;
 		for (int32 FindBoneIdx = 0; FindBoneIdx < ValidAssociatedBones.Num(); FindBoneIdx++)
 		{
-			const int32 BoneIdx = SkelMeshComp->SkeletalMesh->GetRefSkeleton().FindBoneIndex(ValidAssociatedBones[FindBoneIdx]);
+			const int32 BoneIdx = SkelMeshComp->GetSkeletalMesh()->GetRefSkeleton().FindBoneIndex(ValidAssociatedBones[FindBoneIdx]);
 			if (BoneIdx != INDEX_NONE && ValidAssociatedBones.Num() > InsertionIndex)
 			{
 				InstancePayload->ValidAssociatedBoneIndices[InsertionIndex++] = BoneIdx;
@@ -2747,10 +2747,10 @@ void UParticleModuleLocationSkelVertSurface::GetSkeletalMeshComponentSource(FPar
 
 		bool bMeshIsValid = false;
 		int32 MinLOD = INDEX_NONE;
-		if (NewSkelMeshComp && NewSkelMeshComp->GetScene() && NewSkelMeshComp->SkeletalMesh)
+		if (NewSkelMeshComp && NewSkelMeshComp->GetScene() && NewSkelMeshComp->GetSkeletalMesh())
 		{
 			FSkeletalMeshRenderData* SkelMeshResource = NewSkelMeshComp->GetSkeletalMeshRenderData();
-			MinLOD = SkelMeshResource->GetFirstValidLODIdx(NewSkelMeshComp->SkeletalMesh->GetMinLodIdx());
+			MinLOD = SkelMeshResource->GetFirstValidLODIdx(NewSkelMeshComp->GetSkeletalMesh()->GetMinLodIdx());
 
 			if (MinLOD != INDEX_NONE)
 			{
@@ -2786,7 +2786,7 @@ void UParticleModuleLocationSkelVertSurface::GetSkeletalMeshComponentSource(FPar
 			UE_LOG(LogParticles, Warning, TEXT("Attempting to use Cascade SkelVertSurface module on mesh without valid data."));
 			UE_LOG(LogParticles, Warning, TEXT("Likely due to CPU side buffers being stripped with r.FreeSkeletalMeshBuffers=1."));
 			UE_LOG(LogParticles, Warning, TEXT("This emitter should probably be culled for this platform using detail mode."));
-			UE_LOG(LogParticles, Warning, TEXT("Mesh: %s"), NewSkelMeshComp ? *NewSkelMeshComp->SkeletalMesh->GetFullName() : TEXT("NULL"));
+			UE_LOG(LogParticles, Warning, TEXT("Mesh: %s"), NewSkelMeshComp ? *NewSkelMeshComp->GetSkeletalMesh()->GetFullName() : TEXT("NULL"));
 			UE_LOG(LogParticles, Warning, TEXT("Comp: %s"), *Owner->Component->GetFullName());
 			UE_LOG(LogParticles, Warning, TEXT("System: %s"), *Owner->Component->Template->GetFullName());
 			UE_LOG(LogParticles, Warning, TEXT("----------------------------------------------------------------------"));
@@ -2964,7 +2964,7 @@ bool UParticleModuleLocationSkelVertSurface::VertInfluencedByActiveBoneTyped(
 			int32 BoneIndex = Section.BoneMap[WeightBuffer->GetBoneIndex(Section.GetVertexBufferIndex() + VertIndex, InfluenceIndex)];
 			if (InSkelMeshComponent->MasterPoseComponent.IsValid())
 			{
-				check(MasterBoneMap.Num() == InSkelMeshComponent->SkeletalMesh->GetRefSkeleton().GetNum());
+				check(MasterBoneMap.Num() == InSkelMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetNum());
 				BoneIndex = MasterBoneMap[BoneIndex];
 			}
 

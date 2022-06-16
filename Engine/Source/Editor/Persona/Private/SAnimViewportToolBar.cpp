@@ -870,7 +870,7 @@ void SAnimViewportToolBar::FillCharacterMirrorMenu(FMenuBuilder& MenuBuilder) co
 {
 	FAssetPickerConfig AssetPickerConfig;
 	UDebugSkelMeshComponent* PreviewComp = Viewport.Pin()->GetPreviewScene()->GetPreviewMeshComponent();
-	USkeletalMesh* Mesh = PreviewComp->SkeletalMesh;
+	USkeletalMesh* Mesh = PreviewComp->GetSkeletalMesh();
 	UAnimPreviewInstance* PreviewInstance = PreviewComp->PreviewInstance; 
 	if (Mesh && PreviewInstance)
 	{
@@ -901,7 +901,7 @@ void SAnimViewportToolBar::OnMirrorDataTableSelected(const FAssetData& SelectedM
 	if (Viewport.Pin().IsValid())
 	{
 		UDebugSkelMeshComponent* PreviewComp = Viewport.Pin()->GetPreviewScene()->GetPreviewMeshComponent();
-		USkeletalMesh* Mesh = PreviewComp->SkeletalMesh;
+		USkeletalMesh* Mesh = PreviewComp->GetSkeletalMesh();
 		UAnimPreviewInstance* PreviewInstance = PreviewComp->PreviewInstance; 
 		if (Mesh && PreviewInstance)
 		{

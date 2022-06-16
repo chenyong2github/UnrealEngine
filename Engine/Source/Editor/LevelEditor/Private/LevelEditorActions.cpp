@@ -2048,7 +2048,7 @@ bool FLevelEditorActionCallbacks::SaveAnimationFromSkeletalMeshComponent(AActor 
 		bool bSimulating = false;
 		for (auto & Comp : SimSkelComponents)
 		{
-			bSimulating |= (Comp->SkeletalMesh && Comp->SkeletalMesh->GetSkeleton() && Comp->IsSimulatingPhysics());
+			bSimulating |= (Comp->GetSkeletalMesh() && Comp->GetSkeletalMesh()->GetSkeleton() && Comp->IsSimulatingPhysics());
 		}
 
 		// if any of them are legitimately simulating
@@ -2062,7 +2062,7 @@ bool FLevelEditorActionCallbacks::SaveAnimationFromSkeletalMeshComponent(AActor 
 			{
 				for (auto & Comp : SimSkelComponents)
 				{
-					if (Comp->SkeletalMesh && Comp->SkeletalMesh->GetSkeleton() && Comp->IsSimulatingPhysics())
+					if (Comp->GetSkeletalMesh() && Comp->GetSkeletalMesh()->GetSkeleton() && Comp->IsSimulatingPhysics())
 					{
 						// now record to animation
 						class UAnimSequence* Sequence = LevelEditorModule.OnCaptureSingleFrameAnimSequence().IsBound() ? LevelEditorModule.OnCaptureSingleFrameAnimSequence().Execute(Comp) : nullptr;
@@ -2151,7 +2151,7 @@ void FLevelEditorActionCallbacks::OnKeepSimulationChanges()
 				// need to reinitialize animation
 				for (auto MeshComp : ComponentsToReinitialize)
 				{
-					if(MeshComp->SkeletalMesh)
+					if(MeshComp->GetSkeletalMesh())
 					{
 						MeshComp->InitAnim(true);
 					}

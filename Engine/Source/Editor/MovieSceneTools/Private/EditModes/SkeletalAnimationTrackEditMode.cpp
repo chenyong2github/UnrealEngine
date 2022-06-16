@@ -179,11 +179,11 @@ static void DrawBonesFromCompactPose(const FCompactPose& Pose, USkeletalMeshComp
 	{
 
 		FSkeletalMeshLODRenderData* LODData = nullptr;
-		if (MeshComponent->SkeletalMesh && MeshComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData.Num())
+		if (MeshComponent->GetSkeletalMesh() && MeshComponent->GetSkeletalMesh()->GetResourceForRendering()->LODRenderData.Num())
 		{
 			//Get current LOD
-			const int32 LODIndex = FMath::Clamp(MeshComponent->GetPredictedLODLevel(), 0, MeshComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() - 1);
-			LODData = &(MeshComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex]);
+			const int32 LODIndex = FMath::Clamp(MeshComponent->GetPredictedLODLevel(), 0, MeshComponent->GetSkeletalMesh()->GetResourceForRendering()->LODRenderData.Num() - 1);
+			LODData = &(MeshComponent->GetSkeletalMesh()->GetResourceForRendering()->LODRenderData[LODIndex]);
 		}
 
 		TArray<FTransform> WorldTransforms;
@@ -219,9 +219,9 @@ static void DrawBonesFromCompactPose(const FCompactPose& Pose, USkeletalMeshComp
 			BoneColours[MeshBoneIndex.GetInt()] = DrawColour;
 		}
 
-		if (MeshComponent && MeshComponent->SkeletalMesh)
+		if (MeshComponent && MeshComponent->GetSkeletalMesh())
 		{
-			DrawBones(Pose.GetBoneContainer().GetBoneIndicesArray(), MeshComponent->SkeletalMesh->GetRefSkeleton(), WorldTransforms,
+			DrawBones(Pose.GetBoneContainer().GetBoneIndicesArray(), MeshComponent->GetSkeletalMesh()->GetRefSkeleton(), WorldTransforms,
 				LODData, PDI, BoneColours, MeshComponent->Bounds.SphereRadius, 1.0f);
 		}
 

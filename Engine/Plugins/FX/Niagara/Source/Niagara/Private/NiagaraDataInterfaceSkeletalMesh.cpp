@@ -240,7 +240,7 @@ void FSkeletalMeshSkinningData::RegisterUser(FSkeletalMeshSkinningDataUsage Usag
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
 	check(SkelComp);
 
-	USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
+	USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
 	int32 LODIndex = 0;
 	int32 NumLODInfo = 1;
 
@@ -317,7 +317,7 @@ void FSkeletalMeshSkinningData::UnregisterUser(FSkeletalMeshSkinningDataUsage Us
 	int32 LODIndex = 0;
 
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
-	if (SkelComp && SkelComp->SkeletalMesh)
+	if (SkelComp && SkelComp->GetSkeletalMesh())
 	{
 		LODIndex = Usage.GetLODIndex();
 	}
@@ -359,7 +359,7 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 	USkeletalMeshComponent* SkelComp = MeshComp.Get();
 	check(SkelComp);
 
-	const USkeletalMesh* SkelMesh = SkelComp->SkeletalMesh;
+	const USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
 	if (SkelMesh == nullptr)
 	{
 		return;
@@ -454,9 +454,9 @@ bool FSkeletalMeshSkinningData::Tick(float InDeltaSeconds, bool bRequirePreskin)
 		PrevComponentTransforms() = CurrComponentTransforms();
 	}
 
-	if (bRequirePreskin && SkelComp->SkeletalMesh != nullptr)
+	if (bRequirePreskin && SkelComp->GetSkeletalMesh() != nullptr)
 	{
-		const USkeletalMesh* SkeletalMesh = SkelComp->SkeletalMesh;
+		const USkeletalMesh* SkeletalMesh = SkelComp->GetSkeletalMesh();
 		const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
 		check(RenderData);
 
@@ -1099,7 +1099,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 		SkelComp = Cast<USkeletalMeshComponent>(InstanceData->SceneComponent.Get());
 		if ( SkelComp != nullptr )
 		{
-			SkelMesh = SkelComp->SkeletalMesh;
+			SkelMesh = SkelComp->GetSkeletalMesh();
 		}
 		if (SkelMesh == nullptr)
 		{
@@ -1741,7 +1741,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 			for (UActorComponent* ActorComp : Actor->GetComponents())
 			{
 				USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(ActorComp);
-				if (IsValid(Comp) && Comp->SkeletalMesh != nullptr)
+				if (IsValid(Comp) && Comp->GetSkeletalMesh() != nullptr)
 				{
 					return Comp;
 				}
@@ -1837,7 +1837,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 	SceneComponent = nullptr;
 	if (FoundSkelComp)
 	{
-		Mesh = FoundSkelComp->SkeletalMesh;
+		Mesh = FoundSkelComp->GetSkeletalMesh();
 		SceneComponent = FoundSkelComp;
 	}
 #if WITH_EDITORONLY_DATA
@@ -2365,7 +2365,7 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 	// Reset if the skeletal mesh on the cached skeletal mesh component changed.
 	if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Comp))
 	{
-		if (SkelComp->SkeletalMesh != SkelMesh)
+		if (SkelComp->GetSkeletalMesh() != SkelMesh)
 		{
 			if (SkinningData.SkinningData.IsValid())
 			{

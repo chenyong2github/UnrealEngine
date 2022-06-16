@@ -574,7 +574,7 @@ TObjectCacheIterator<USkinnedMeshComponent> FObjectCacheContext::GetSkinnedMeshC
 		TempMap.Reserve(8192);
 		for (USkinnedMeshComponent* Component : GetSkinnedMeshComponents())
 		{
-			TempMap.FindOrAdd(ToRawPtr(Component->SkeletalMesh)).Add(Component);
+			TempMap.FindOrAdd(ToRawPtr(Component->GetSkeletalMesh())).Add(Component);
 		}
 		SkeletalMeshToComponents = MoveTemp(TempMap);
 	}

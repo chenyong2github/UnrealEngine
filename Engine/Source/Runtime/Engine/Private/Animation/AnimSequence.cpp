@@ -3866,9 +3866,9 @@ bool UAnimSequence::CreateAnimation(USkeletalMesh* Mesh)
 
 bool UAnimSequence::CreateAnimation(USkeletalMeshComponent* MeshComponent)
 {
-	if(MeshComponent && MeshComponent->SkeletalMesh)
+	if(MeshComponent && MeshComponent->GetSkeletalMesh())
 	{
-		USkeletalMesh * Mesh = MeshComponent->SkeletalMesh;
+		USkeletalMesh * Mesh = MeshComponent->GetSkeletalMesh();
 
 		ValidateModel();
 		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();

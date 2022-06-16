@@ -2227,7 +2227,7 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 			return false;
 		}
 
-		if ( const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh )
+		if ( const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->GetSkeletalMesh())
 		{
 			FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
 			if ( !RenderData )
@@ -2856,7 +2856,7 @@ bool UnrealToUsd::CreateComponentPropertyBaker( UE::FUsdPrim& Prim, const UScene
 bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsdPrim& SkelAnimation, USkeletalMeshComponent& Component, FComponentBaker& OutBaker )
 {
 #if WITH_EDITOR
-	USkeletalMesh* SkeletalMesh = Component.SkeletalMesh;
+	USkeletalMesh* SkeletalMesh = Component.GetSkeletalMesh();
 	if ( !SkeletalMesh )
 	{
 		return false;

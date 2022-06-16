@@ -15,7 +15,7 @@ TSharedPtr<IMeshPaintGeometryAdapter> FClothMeshPaintAdapterFactory::Construct(U
 {
 	if (USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InComponent))
 	{
-		if (Component->SkeletalMesh != nullptr)
+		if (Component->GetSkeletalMesh() != nullptr)
 		{
 			TSharedRef<FClothMeshPaintAdapter> Result = MakeShareable(new FClothMeshPaintAdapter());
 			if (Result->Construct(InComponent, InPaintingMeshLODIndex))
@@ -33,9 +33,9 @@ bool FClothMeshPaintAdapter::Construct(UMeshComponent* InComponent, int32 InPain
 	SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InComponent);
 	if (SkeletalMeshComponent != nullptr)
 	{
-		if (SkeletalMeshComponent->SkeletalMesh != nullptr)
+		if (SkeletalMeshComponent->GetSkeletalMesh() != nullptr)
 		{
-			ReferencedSkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+			ReferencedSkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
 			PaintingClothLODIndex = InPaintingClothLODIndex;
 			PaintingClothMaskIndex = INDEX_NONE;
 
@@ -49,7 +49,7 @@ bool FClothMeshPaintAdapter::Construct(UMeshComponent* InComponent, int32 InPain
 
 bool FClothMeshPaintAdapter::Initialize()
 {
-	check(ReferencedSkeletalMesh == SkeletalMeshComponent->SkeletalMesh);
+	check(ReferencedSkeletalMesh == SkeletalMeshComponent->GetSkeletalMesh());
 
 	bool bHaveAsset = false;
 	bool bBaseInit = false;

@@ -1224,7 +1224,7 @@ void FFbxExporter::ExportSkeletalMesh( AActor* Actor, USkeletalMeshComponent* Sk
 	if (Scene == NULL || Actor == NULL || SkeletalMeshComponent == NULL) return;
 
 	// Retrieve the skeletal mesh rendering information.
-	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
 
 	FString FbxNodeName = NodeNameAdapter.GetActorNodeName(Actor);
 
@@ -2217,7 +2217,7 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 				{
 					ComponentsToExport.Add( StaticMeshComp );
 				}
-				else if( SkelMeshComp && SkelMeshComp->SkeletalMesh )
+				else if( SkelMeshComp && SkelMeshComp->GetSkeletalMesh())
 				{
 					ComponentsToExport.Add( SkelMeshComp );
 				}
@@ -2312,7 +2312,7 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 						ExportStaticMeshToFbx(StaticMeshComp->GetStaticMesh(), LODIndex, *StaticMeshComp->GetName(), ExportNode, LightmapUVChannel, ColorBuffer, MaterialOrderOverride, &ToRawPtrTArrayUnsafe(StaticMeshComp->OverrideMaterials));
 					}
 				}
-				else if (SkelMeshComp && SkelMeshComp->SkeletalMesh)
+				else if (SkelMeshComp && SkelMeshComp->GetSkeletalMesh())
 				{
 					ExportSkeletalMeshComponent(SkelMeshComp, *SkelMeshComp->GetName(), ExportNode, NodeNameAdapter, bSaveAnimSeq);
 				}

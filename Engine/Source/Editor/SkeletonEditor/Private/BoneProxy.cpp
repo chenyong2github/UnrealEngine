@@ -62,7 +62,7 @@ void UBoneProxy::Tick(float DeltaTime)
 					Scale = BoneTransform.GetScale3D();
 				}
 
-				FTransform ReferenceTransform = Component->SkeletalMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
+				FTransform ReferenceTransform = Component->GetSkeletalMesh()->GetRefSkeleton().GetRefBonePose()[BoneIndex];
 				ReferenceLocation = ReferenceTransform.GetLocation();
 				ReferenceRotation = ReferenceTransform.GetRotation().Rotator();
 				ReferenceScale = ReferenceTransform.GetScale3D();

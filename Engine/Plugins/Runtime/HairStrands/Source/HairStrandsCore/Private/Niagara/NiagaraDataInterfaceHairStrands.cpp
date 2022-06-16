@@ -1029,9 +1029,9 @@ FORCEINLINE bool RequiresSimulationReset(FNiagaraSystemInstance* SystemInstance,
 			for (UActorComponent* ActorComp : RootActor->GetComponents())
 			{
 				USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(ActorComp);
-				if (SkelMeshComp && SkelMeshComp->SkeletalMesh)
+				if (SkelMeshComp && SkelMeshComp->GetSkeletalMesh())
 				{
-					NewSkeletalMeshes += GetTypeHash(SkelMeshComp->SkeletalMesh->GetName());
+					NewSkeletalMeshes += GetTypeHash(SkelMeshComp->GetSkeletalMesh()->GetName());
 				}
 			}
 		}

@@ -31,8 +31,8 @@ bool ShouldUsePreviewPlayback(IMovieScenePlayer& Player, UObject& RuntimeObject)
 
 bool CanPlayAnimation(USkeletalMeshComponent* SkeletalMeshComponent, UAnimSequenceBase* AnimAssetBase)
 {
-	return (SkeletalMeshComponent->SkeletalMesh && SkeletalMeshComponent->SkeletalMesh->GetSkeleton() && 
-		(!AnimAssetBase || SkeletalMeshComponent->SkeletalMesh->GetSkeleton()->IsCompatible(AnimAssetBase->GetSkeleton())));
+	return (SkeletalMeshComponent->GetSkeletalMesh() && SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton() &&
+		(!AnimAssetBase || SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton()->IsCompatible(AnimAssetBase->GetSkeleton())));
 }
 
 void ResetAnimSequencerInstance(UObject& InObject, const UE::MovieScene::FRestoreStateParams& Params)
@@ -142,10 +142,10 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				{
 					Component->AnimScriptInstance = CachedAnimInstance.Get();
 					CachedAnimInstance.Reset();
-					if (Component->AnimScriptInstance && Component->SkeletalMesh && Component->AnimScriptInstance->CurrentSkeleton != Component->SkeletalMesh->GetSkeleton())
+					if (Component->AnimScriptInstance && Component->GetSkeletalMesh() && Component->AnimScriptInstance->CurrentSkeleton != Component->GetSkeletalMesh()->GetSkeleton())
 					{
 						//the skeleton may have changed so need to recalc required bones as needed.
-						Component->AnimScriptInstance->CurrentSkeleton = Component->SkeletalMesh->GetSkeleton();
+						Component->AnimScriptInstance->CurrentSkeleton = Component->GetSkeletalMesh()->GetSkeleton();
 						//Need at least RecalcRequiredbones and UpdateMorphTargetrs
 						Component->InitializeAnimScriptInstance(true);
 					}
@@ -281,7 +281,7 @@ namespace MovieScene
 			ensureMsgf(InObject, TEXT("Attempting to evaluate an Animation track with a null object."));
 
 			USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshComponentFromObject(InObject);
-			if (!SkeletalMeshComponent || !SkeletalMeshComponent->SkeletalMesh)
+			if (!SkeletalMeshComponent || !SkeletalMeshComponent->GetSkeletalMesh())
 			{
 				return;
 			}

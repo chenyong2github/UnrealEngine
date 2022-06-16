@@ -304,7 +304,7 @@ void FSkeletonTreeBuilder::AddSockets(FSkeletonTreeBuilderOutput& Output)
 	if (PreviewScenePtr.IsValid())
 	{
 		UDebugSkelMeshComponent* PreviewMeshComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
-		if (USkeletalMesh* const SkeletalMesh = PreviewMeshComponent->SkeletalMesh)
+		if (USkeletalMesh* const SkeletalMesh = PreviewMeshComponent->GetSkeletalMesh())
 		{
 			AddSocketsFromData(SkeletalMesh->GetMeshOnlySocketList(), ESocketParentType::Mesh, Output);
 		}
@@ -319,7 +319,7 @@ void FSkeletonTreeBuilder::AddAttachedAssets(FSkeletonTreeBuilderOutput& Output)
 	if (PreviewScenePtr.IsValid())
 	{
 		UDebugSkelMeshComponent* PreviewMeshComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
-		if (USkeletalMesh* const SkeletalMesh = PreviewMeshComponent->SkeletalMesh)
+		if (USkeletalMesh* const SkeletalMesh = PreviewMeshComponent->GetSkeletalMesh())
 		{
 			AddAttachedAssetContainer(SkeletalMesh->GetPreviewAttachedAssetContainer(), Output);
 		}
@@ -348,7 +348,7 @@ void FSkeletonTreeBuilder::AddSocketsFromData(const TArray< USkeletalMeshSocket*
 			if (PreviewScenePtr.IsValid())
 			{
 				UDebugSkelMeshComponent* PreviewMeshComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
-				if (USkeletalMesh* const SkeletalMesh = PreviewMeshComponent->SkeletalMesh)
+				if (USkeletalMesh* const SkeletalMesh = PreviewMeshComponent->GetSkeletalMesh())
 				{
 					bIsCustomized = EditableSkeletonPtr.Pin()->DoesSocketAlreadyExist(nullptr, FText::FromName(Socket->SocketName), ESocketParentType::Mesh, SkeletalMesh);
 				}

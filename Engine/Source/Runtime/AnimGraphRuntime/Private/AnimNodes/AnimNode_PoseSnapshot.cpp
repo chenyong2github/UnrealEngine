@@ -22,7 +22,7 @@ void FAnimNode_PoseSnapshot::PreUpdate(const UAnimInstance* InAnimInstance)
 	USkeletalMesh* CurrentSkeletalMesh = nullptr;
 	if (InAnimInstance->GetSkelMeshComponent() && InAnimInstance->GetSkelMeshComponent()->IsRegistered())
 	{
-		CurrentSkeletalMesh = InAnimInstance->GetSkelMeshComponent()->SkeletalMesh;
+		CurrentSkeletalMesh = InAnimInstance->GetSkelMeshComponent()->GetSkeletalMesh();
 	}
 
 	if (CurrentSkeletalMesh)

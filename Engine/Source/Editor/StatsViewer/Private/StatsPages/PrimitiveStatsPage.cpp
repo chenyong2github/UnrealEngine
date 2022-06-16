@@ -156,7 +156,7 @@ struct PrimitiveStatsGenerator
 		// The skeletal mesh of a skeletal mesh component is its resource.
 		else if( SkeletalMeshComponent )
 		{
-			USkeletalMesh* Mesh = SkeletalMeshComponent->SkeletalMesh;
+			USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMesh();
 			Resource = Mesh;
 			// Calculate vertex color usage for skeletal meshes
 			if( Mesh )
@@ -324,7 +324,7 @@ struct PrimitiveStatsGenerator
 				// ... in the case of skeletal mesh component.
 				else if( SkeletalMeshComponent )
 				{
-					USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+					USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
 					if( SkeletalMesh )
 					{
 						FSkeletalMeshRenderData* SkelMeshRenderData = SkeletalMesh->GetResourceForRendering();

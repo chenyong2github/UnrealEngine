@@ -2356,8 +2356,8 @@ void USkeleton::HandleVirtualBoneChanges()
 	{
 		USkinnedMeshComponent* MeshComponent = *It;
 		if (MeshComponent &&
-			MeshComponent->SkeletalMesh &&
-			MeshComponent->SkeletalMesh->GetSkeleton() == this &&
+			MeshComponent->GetSkeletalMesh() &&
+			MeshComponent->GetSkeletalMesh()->GetSkeleton() == this &&
 			!MeshComponent->IsTemplate())
 		{
 			FComponentReregisterContext Context(MeshComponent);

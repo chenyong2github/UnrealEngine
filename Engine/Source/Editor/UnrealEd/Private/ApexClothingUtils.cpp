@@ -33,7 +33,7 @@ void ReregisterSkelMeshComponents(USkeletalMesh* SkelMesh)
 		USkeletalMeshComponent* MeshComponent = *It;
 		if( MeshComponent && 
 			!MeshComponent->IsTemplate() &&
-			MeshComponent->SkeletalMesh == SkelMesh )
+			MeshComponent->GetSkeletalMesh() == SkelMesh )
 		{
 			MeshComponent->ReregisterComponent();
 		}
@@ -47,7 +47,7 @@ void RefreshSkelMeshComponents(USkeletalMesh* SkelMesh)
 		USkeletalMeshComponent* MeshComponent = *It;
 		if( MeshComponent && 
 			!MeshComponent->IsTemplate() &&
-			MeshComponent->SkeletalMesh == SkelMesh )
+			MeshComponent->GetSkeletalMesh() == SkelMesh )
 		{
 			MeshComponent->RecreateRenderState_Concurrent();
 		}

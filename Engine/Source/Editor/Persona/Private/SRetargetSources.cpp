@@ -284,9 +284,9 @@ bool SRetargetSources::ShouldFilterAsset(const FAssetData& InAssetData)
 void SRetargetSources::ResetRetargetBasePose()
 {
 	UDebugSkelMeshComponent * PreviewMeshComp = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
-	if(PreviewMeshComp && PreviewMeshComp->SkeletalMesh)
+	if(PreviewMeshComp && PreviewMeshComp->GetSkeletalMesh())
 	{
-		USkeletalMesh * PreviewMesh = PreviewMeshComp->SkeletalMesh;
+		USkeletalMesh * PreviewMesh = PreviewMeshComp->GetSkeletalMesh();
 
 		check(PreviewMesh && &EditableSkeletonPtr.Pin()->GetSkeleton() == PreviewMesh->GetSkeleton());
 
@@ -306,9 +306,9 @@ void SRetargetSources::ResetRetargetBasePose()
 void SRetargetSources::UseCurrentPose()
 {
 	UDebugSkelMeshComponent * PreviewMeshComp = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
-	if (PreviewMeshComp && PreviewMeshComp->SkeletalMesh)
+	if (PreviewMeshComp && PreviewMeshComp->GetSkeletalMesh())
 	{
-		USkeletalMesh * PreviewMesh = PreviewMeshComp->SkeletalMesh;
+		USkeletalMesh * PreviewMesh = PreviewMeshComp->GetSkeletalMesh();
 
 		check(PreviewMesh && &EditableSkeletonPtr.Pin()->GetSkeleton() == PreviewMesh->GetSkeleton());
 
@@ -386,9 +386,9 @@ void SRetargetSources::ImportPose(const UPoseAsset* PoseAsset, const FName& Pose
 
 			// now I have pose, I have to copy to the retarget base pose
 			UDebugSkelMeshComponent * PreviewMeshComp = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
-			if (PreviewMeshComp && PreviewMeshComp->SkeletalMesh)
+			if (PreviewMeshComp && PreviewMeshComp->GetSkeletalMesh())
 			{
-				USkeletalMesh * PreviewMesh = PreviewMeshComp->SkeletalMesh;
+				USkeletalMesh * PreviewMesh = PreviewMeshComp->GetSkeletalMesh();
 
 				check(PreviewMesh && &EditableSkeletonPtr.Pin()->GetSkeleton() == PreviewMesh->GetSkeleton());
 

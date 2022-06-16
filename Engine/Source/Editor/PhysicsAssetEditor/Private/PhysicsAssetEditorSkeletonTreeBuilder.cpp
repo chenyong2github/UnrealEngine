@@ -116,9 +116,9 @@ void FPhysicsAssetEditorSkeletonTreeBuilder::AddBodies(FSkeletonTreeBuilderOutpu
 	if (PreviewScenePtr.IsValid())
 	{
 		UDebugSkelMeshComponent* PreviewMeshComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
-		if (PreviewMeshComponent->SkeletalMesh)
+		if (PreviewMeshComponent->GetSkeletalMesh())
 		{
-			FReferenceSkeleton& RefSkeleton = PreviewMeshComponent->SkeletalMesh->GetRefSkeleton();
+			FReferenceSkeleton& RefSkeleton = PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton();
 
 			for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetRawBoneNum(); ++BoneIndex)
 			{

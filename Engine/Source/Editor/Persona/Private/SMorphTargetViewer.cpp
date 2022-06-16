@@ -328,7 +328,7 @@ void SMorphTargetViewer::Construct(const FArguments& InArgs, const TSharedRef<IP
 {
 	PreviewScenePtr = InPreviewScene;
 
-	SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->SkeletalMesh;
+	SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMesh();
 	InPreviewScene->RegisterOnPreviewMeshChanged( FOnPreviewMeshChanged::CreateSP( this, &SMorphTargetViewer::OnPreviewMeshChanged ) );
 	InPreviewScene->RegisterOnMorphTargetsChanged(FSimpleDelegate::CreateSP(this, &SMorphTargetViewer::OnMorphTargetsChanged));
 	OnPostUndo.Add(FSimpleDelegate::CreateSP(this, &SMorphTargetViewer::OnPostUndo));

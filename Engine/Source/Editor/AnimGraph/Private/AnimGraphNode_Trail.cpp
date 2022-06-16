@@ -129,7 +129,7 @@ void UAnimGraphNode_Trail::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshCompo
 {
 	// initialize bone list
 	// draw bone Angular limit
-	if (Node.bLimitRotation && Node.ChainLength > 1 && PreviewSkelMeshComp->SkeletalMesh)
+	if (Node.bLimitRotation && Node.ChainLength > 1 && PreviewSkelMeshComp->GetSkeletalMesh())
 	{
 		TArray<FName> TrailBoneList;
 		TrailBoneList.Reset(Node.ChainLength);
@@ -137,7 +137,7 @@ void UAnimGraphNode_Trail::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshCompo
 		int32 CurrentIndex = Node.ChainLength - 1;
 		TrailBoneList[CurrentIndex] = Node.TrailBone.BoneName;
 		FName CurrentName = Node.TrailBone.BoneName;
-		const FReferenceSkeleton& RefSkeleton = PreviewSkelMeshComp->SkeletalMesh->GetRefSkeleton();
+		const FReferenceSkeleton& RefSkeleton = PreviewSkelMeshComp->GetSkeletalMesh()->GetRefSkeleton();
 		while (--CurrentIndex >= 0 && CurrentName != NAME_None)
 		{
 			const int32 ParentIndex = RefSkeleton.GetParentIndex(RefSkeleton.FindBoneIndex(CurrentName));

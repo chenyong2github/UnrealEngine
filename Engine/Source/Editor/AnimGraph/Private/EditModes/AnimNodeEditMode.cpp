@@ -423,7 +423,8 @@ FAnimNode_Base* FAnimNodeEditMode::GetActiveWidgetRuntimeAnimNode() const
 
 void FAnimNodeEditMode::ConvertToComponentSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InTransform, FTransform & OutCSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeleton* Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
+	USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
+	USkeleton* Skeleton = SkelMesh->GetSkeleton();
 
 	switch (Space)
 	{
@@ -447,7 +448,7 @@ void FAnimNodeEditMode::ConvertToComponentSpaceTransform(const USkeletalMeshComp
 			const int32 ParentIndex = Skeleton->GetReferenceSkeleton().GetParentIndex(BoneIndex);
 			if (ParentIndex != INDEX_NONE)
 			{
-				const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, ParentIndex);
+				const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelMesh, ParentIndex);
 				if (MeshParentIndex != INDEX_NONE)
 				{
 					const FTransform ParentTM = SkelComp->GetBoneTransform(MeshParentIndex);
@@ -464,7 +465,7 @@ void FAnimNodeEditMode::ConvertToComponentSpaceTransform(const USkeletalMeshComp
 	case BCS_BoneSpace:
 		if (BoneIndex != INDEX_NONE)
 		{
-			const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, BoneIndex);
+			const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelMesh, BoneIndex);
 			if (MeshBoneIndex != INDEX_NONE)
 			{
 				const FTransform BoneTM = SkelComp->GetBoneTransform(MeshBoneIndex);
@@ -478,9 +479,9 @@ void FAnimNodeEditMode::ConvertToComponentSpaceTransform(const USkeletalMeshComp
 		break;
 
 	default:
-		if (SkelComp->SkeletalMesh)
+		if (SkelMesh)
 		{
-			UE_LOG(LogAnimation, Warning, TEXT("ConvertToComponentSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (uint8)Space, *SkelComp->SkeletalMesh->GetFName().ToString());
+			UE_LOG(LogAnimation, Warning, TEXT("ConvertToComponentSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (uint8)Space, *SkelMesh->GetFName().ToString());
 		}
 		else
 		{
@@ -493,7 +494,8 @@ void FAnimNodeEditMode::ConvertToComponentSpaceTransform(const USkeletalMeshComp
 
 void FAnimNodeEditMode::ConvertToBoneSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InCSTransform, FTransform & OutBSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeleton* Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
+	USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
+	USkeleton* Skeleton = SkelMesh->GetSkeleton();
 
 	switch(Space)
 	{
@@ -517,7 +519,7 @@ void FAnimNodeEditMode::ConvertToBoneSpaceTransform(const USkeletalMeshComponent
 				const int32 ParentIndex = Skeleton->GetReferenceSkeleton().GetParentIndex(BoneIndex);
 				if(ParentIndex != INDEX_NONE)
 				{
-					const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, ParentIndex);
+					const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelMesh, ParentIndex);
 					if(MeshParentIndex != INDEX_NONE)
 					{
 						const FTransform ParentTM = SkelComp->GetBoneTransform(MeshParentIndex);
@@ -536,7 +538,7 @@ void FAnimNodeEditMode::ConvertToBoneSpaceTransform(const USkeletalMeshComponent
 		{
 			if(BoneIndex != INDEX_NONE)
 			{
-				const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, BoneIndex);
+				const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelMesh, BoneIndex);
 				if(MeshBoneIndex != INDEX_NONE)
 				{
 					FTransform BoneCSTransform = SkelComp->GetBoneTransform(MeshBoneIndex);
@@ -552,7 +554,7 @@ void FAnimNodeEditMode::ConvertToBoneSpaceTransform(const USkeletalMeshComponent
 
 		default:
 		{
-			UE_LOG(LogAnimation, Warning, TEXT("ConvertToBoneSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (int32)Space, *GetNameSafe(SkelComp->SkeletalMesh));
+			UE_LOG(LogAnimation, Warning, TEXT("ConvertToBoneSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (int32)Space, *GetNameSafe(SkelMesh));
 			break;
 		}
 	}
@@ -757,7 +759,7 @@ FVector FAnimNodeEditMode::ConvertWidgetLocation(const USkeletalMeshComponent* S
 	{
 		if (InMeshBases.GetPose().IsValid())
 		{
-			USkeleton* Skeleton = InSkelComp->SkeletalMesh->GetSkeleton();
+			USkeleton* Skeleton = InSkelComp->GetSkeletalMesh()->GetSkeleton();
 			const int32 MeshBoneIndex = InSkelComp->GetBoneIndex(InBoneName);
 			if (MeshBoneIndex != INDEX_NONE)
 			{

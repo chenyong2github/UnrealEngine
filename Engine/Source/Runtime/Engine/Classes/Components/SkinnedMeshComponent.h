@@ -360,6 +360,15 @@ protected:
 	TSharedPtr<FSkelMeshRefPoseOverride> RefPoseOverride;
 
 public:
+	TObjectPtr<class USkeletalMesh>& GetSkeletalMesh()
+	{
+		return SkeletalMesh;
+	}
+	const TObjectPtr<class USkeletalMesh>& GetSkeletalMesh() const
+	{
+		return SkeletalMesh;
+	}
+
 	USkinnedAsset* GetSkinnedAsset() const;
 
 	const TArray<int32>& GetMasterBoneMap() const { return MasterBoneMap; }

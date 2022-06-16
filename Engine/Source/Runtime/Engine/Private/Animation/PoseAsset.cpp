@@ -1191,12 +1191,12 @@ bool UPoseAsset::AddOrUpdatePoseWithUniqueName(USkeletalMeshComponent* MeshCompo
 void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshComponent* MeshComponent, bool bUpdateCurves)
 {
 	USkeleton* MySkeleton = GetSkeleton();
-	if (MySkeleton && MeshComponent && MeshComponent->SkeletalMesh)
+	if (MySkeleton && MeshComponent && MeshComponent->GetSkeletalMesh())
 	{
 		TArray<FName> TrackNames;
 		// note this ignores root motion
 		TArray<FTransform> BoneTransform = MeshComponent->GetComponentSpaceTransforms();
-		const FReferenceSkeleton& RefSkeleton = MeshComponent->SkeletalMesh->GetRefSkeleton();
+		const FReferenceSkeleton& RefSkeleton = MeshComponent->GetSkeletalMesh()->GetRefSkeleton();
 		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
 		{
 			TrackNames.Add(RefSkeleton.GetBoneName(BoneIndex));
@@ -1212,7 +1212,7 @@ void UPoseAsset::AddOrUpdatePose(const FSmartName& PoseName, USkeletalMeshCompon
 			}
 		}
 
-		const USkeleton* MeshSkeleton = MeshComponent->SkeletalMesh->GetSkeleton();
+		const USkeleton* MeshSkeleton = MeshComponent->GetSkeletalMesh()->GetSkeleton();
 		const FSmartNameMapping* Mapping = MeshSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 		
 		TArray<float> NewCurveValues;

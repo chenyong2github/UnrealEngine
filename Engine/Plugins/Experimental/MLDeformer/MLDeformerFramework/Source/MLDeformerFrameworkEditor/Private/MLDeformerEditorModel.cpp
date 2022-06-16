@@ -1215,7 +1215,7 @@ namespace UE::MLDeformer
 			const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
 			if (ModelInstance &&
 				ModelInstance->GetSkeletalMeshComponent() && 
-				ModelInstance->GetSkeletalMeshComponent()->SkeletalMesh &&
+				ModelInstance->GetSkeletalMeshComponent()->GetSkeletalMesh() &&
 				!ModelInstance->IsCompatible() )
 			{
 				return FText::FromString( ModelInstance->GetCompatibilityErrorText() );

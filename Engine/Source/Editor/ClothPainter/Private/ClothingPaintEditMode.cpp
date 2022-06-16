@@ -88,7 +88,7 @@ void FClothingPaintEditMode::Exit()
 		{
 			MeshComponent->bDisableClothSimulation = false;
 
-			if(USkeletalMesh* SkelMesh = MeshComponent->SkeletalMesh)
+			if(USkeletalMesh* SkelMesh = MeshComponent->GetSkeletalMesh())
 			{
 				for(UClothingAssetBase* AssetBase : SkelMesh->GetMeshClothingAssets())
 				{
@@ -113,7 +113,7 @@ void FClothingPaintEditMode::Exit()
 			for(TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 			{
 				USkeletalMeshComponent* Component = *It;
-				if(Component && !Component->IsTemplate() && Component->SkeletalMesh == SkelMesh)
+				if(Component && !Component->IsTemplate() && Component->GetSkeletalMesh() == SkelMesh)
 				{
 					Component->ReregisterComponent();
 				}

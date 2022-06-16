@@ -35,7 +35,7 @@ void UMLDeformerModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 		return;
 	}
 
-	USkeletalMesh* SkelMesh = SkelMeshComponent->SkeletalMesh;
+	USkeletalMesh* SkelMesh = SkelMeshComponent->GetSkeletalMesh();
 	if (SkelMesh)
 	{
 		// Init the bone mapping table.
@@ -60,7 +60,7 @@ void UMLDeformerModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 
 void UMLDeformerModelInstance::UpdateCompatibilityStatus()
 {
-	bIsCompatible = SkeletalMeshComponent->SkeletalMesh && CheckCompatibility(SkeletalMeshComponent, true).IsEmpty();
+	bIsCompatible = SkeletalMeshComponent->GetSkeletalMesh() && CheckCompatibility(SkeletalMeshComponent, true).IsEmpty();
 }
 
 FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues)
@@ -68,7 +68,7 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 	ErrorText = FString();
 
 	// If we're not compatible, generate a compatibility string.
-	USkeletalMesh* SkelMesh = InSkelMeshComponent ? InSkelMeshComponent->SkeletalMesh.Get() : nullptr;
+	USkeletalMesh* SkelMesh = InSkelMeshComponent ? InSkelMeshComponent->GetSkeletalMesh() : nullptr;
 	UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
 	if (SkelMesh && !InputInfo->IsCompatible(SkelMesh) && Model->GetDeformerAsset())
 	{
@@ -109,7 +109,7 @@ void UMLDeformerModelInstance::UpdateBoneTransforms()
 	if (MasterPoseComponent)
 	{
 		const TArray<FTransform>& MasterTransforms = MasterPoseComponent->GetComponentSpaceTransforms();
-		USkeletalMesh* Mesh = MasterPoseComponent->SkeletalMesh;
+		USkeletalMesh* Mesh = MasterPoseComponent->GetSkeletalMesh();
 		const int32 NumTrainingBones = AssetBonesToSkelMeshMappings.Num();
 		for (int32 Index = 0; Index < NumTrainingBones; ++Index)
 		{

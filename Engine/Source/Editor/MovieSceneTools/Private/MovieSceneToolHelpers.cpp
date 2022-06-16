@@ -4208,7 +4208,7 @@ USkeletalMeshComponent* MovieSceneToolHelpers::AcquireSkeletalMeshFromObject(UOb
 	}
 	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(BoundObject))
 	{
-		if (SkeletalMeshComponent->SkeletalMesh)
+		if (SkeletalMeshComponent->GetSkeletalMesh())
 		{
 			return SkeletalMeshComponent;
 		}

@@ -76,7 +76,7 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 	// create hierarchy from the incoming skeleton
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(GetObjectBinding()->GetBoundObject()))
 	{
-		CreateRigElements(SkeletalMeshComponent->SkeletalMesh);
+		CreateRigElements(SkeletalMeshComponent->GetSkeletalMesh());
 	}
 
 	// add units and initialize

@@ -2615,7 +2615,7 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 			EditorSkelComp->SetAllBodiesSimulatePhysics(false);
 
 			// make sure we enable the preview animation is any compatible with the skeleton
-			if (PreviewAnimationAsset && EditorSkelComp->SkeletalMesh && PreviewAnimationAsset->GetSkeleton() == EditorSkelComp->SkeletalMesh->GetSkeleton())
+			if (PreviewAnimationAsset && EditorSkelComp->GetSkeletalMesh() && PreviewAnimationAsset->GetSkeleton() == EditorSkelComp->GetSkeletalMesh()->GetSkeleton())
 			{
 				EditorSkelComp->EnablePreview(true, PreviewAnimationAsset);
 				EditorSkelComp->Play(true);

@@ -36,7 +36,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 	Chaos::FVec3 ActorOrigin(ActorOriginVec);
 	Chaos::FVec3 ActorBoxExtent(ActorBoxExtentVec);
 
-	const USkeletalMesh* SkeletalMesh = SkelMeshComponent->SkeletalMesh;
+	const USkeletalMesh* SkeletalMesh = SkelMeshComponent->GetSkeletalMesh();
 	if (!SkeletalMesh)
 	{
 		return;
@@ -345,7 +345,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 		int32 TmpBoneIndex = BoneIndex;
 		int32 SocketIndex = INDEX_NONE;
 		if (USkeletalMeshSocket const* Socket =
-			SkelMeshComponent->SkeletalMesh->FindSocketInfo(
+			SkelMeshComponent->GetSkeletalMesh()->FindSocketInfo(
 				Params.BoneHierarchy.GetAnalyticShapeGroup(BoneIndex)->GetBoneName(),
 				BoneXf,
 				TmpBoneIndex,
@@ -375,7 +375,7 @@ bool FPhysicsAssetSimulationUtil::UpdateAnimState(const UObject* Caller, const A
 {
 	int32 UpdatedBones = 0;
 
-	const USkeletalMesh* SkeletalMesh = SkelMeshComponent->SkeletalMesh;
+	const USkeletalMesh* SkeletalMesh = SkelMeshComponent->GetSkeletalMesh();
 	
 	if (!SkeletalMesh)
 	{
@@ -413,7 +413,7 @@ bool FPhysicsAssetSimulationUtil::UpdateAnimState(const UObject* Caller, const A
 			const int32 SocketIndex = Params.BoneHierarchy.GetSocketIndexForBone(BoneIndex);
 			if (SocketIndex != INDEX_NONE)
 			{
-				USkeletalMeshSocket *Socket = SkelMeshComponent->SkeletalMesh->GetSocketByIndex(SocketIndex);
+				USkeletalMeshSocket *Socket = SkelMeshComponent->GetSkeletalMesh()->GetSocketByIndex(SocketIndex);
 				Params.BoneHierarchy.SetAnimLocalSpaceTransform(
 					BoneIndex,
 					Socket->GetSocketLocalTransform());

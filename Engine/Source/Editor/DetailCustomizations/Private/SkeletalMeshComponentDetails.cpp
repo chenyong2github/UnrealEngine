@@ -397,7 +397,7 @@ USkeleton* FSkeletalMeshComponentDetails::GetValidSkeletonFromRegisteredMeshes()
 	for (auto ObjectIter = SelectedObjects.CreateConstIterator(); ObjectIter; ++ObjectIter)
 	{
 		USkeletalMeshComponent* const Mesh = Cast<USkeletalMeshComponent>(ObjectIter->Get());
-		if ( !Mesh || !Mesh->SkeletalMesh )
+		if ( !Mesh || !Mesh->GetSkeletalMesh())
 		{
 			continue;
 		}
@@ -405,14 +405,14 @@ USkeleton* FSkeletalMeshComponentDetails::GetValidSkeletonFromRegisteredMeshes()
 		// If we've not come across a valid skeleton yet, store this one.
 		if (!ResultSkeleton)
 		{
-			ResultSkeleton = Mesh->SkeletalMesh->GetSkeleton();
+			ResultSkeleton = Mesh->GetSkeletalMesh()->GetSkeleton();
 			continue;
 		}
 
 		// We've encountered a valid skeleton before.
 		// If this skeleton is not the same one, that means there are multiple
 		// skeletons selected, so we don't want to take any action.
-		if (Mesh->SkeletalMesh->GetSkeleton() != ResultSkeleton)
+		if (Mesh->GetSkeletalMesh()->GetSkeleton() != ResultSkeleton)
 		{
 			return NULL;
 		}

@@ -770,9 +770,9 @@ void USkinWeightsBindingTool::Setup()
 	
 	const USkeletalMeshComponent* SkelMeshComponent = Cast<USkeletalMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[0]));
 	
-	if (SkelMeshComponent && SkelMeshComponent->SkeletalMesh)
+	if (SkelMeshComponent && SkelMeshComponent->GetSkeletalMesh())
 	{
-		USkeletalMesh* SkeletalMesh = SkelMeshComponent->SkeletalMesh;
+		USkeletalMesh* SkeletalMesh = SkelMeshComponent->GetSkeletalMesh();
 
 		// Initialize the bone browser
 		FCurveEvaluationOption CurveEvalOption(

@@ -381,7 +381,7 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 
 			if (!ControlRig || ControlRig->GetClass() != ControlRigClass)
 			{		
-				USkeletalMesh* SkeletalMesh = MeshActor->GetSkeletalMeshComponent()->SkeletalMesh;
+				USkeletalMesh* SkeletalMesh = MeshActor->GetSkeletalMeshComponent()->GetSkeletalMesh();
 				USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
 				
 				ObjectName.RemoveFromEnd(TEXT("_C"));

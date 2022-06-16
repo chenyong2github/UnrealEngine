@@ -210,9 +210,9 @@ void UAnimInstance::InitializeAnimation(bool bInDeferRootNodeInitialization)
 	// make sure your skeleton is initialized
 	// you can overwrite different skeleton
 	USkeletalMeshComponent* OwnerComponent = GetSkelMeshComponent();
-	if (OwnerComponent->SkeletalMesh != NULL)
+	if (OwnerComponent->GetSkeletalMesh() != NULL)
 	{
-		CurrentSkeleton = OwnerComponent->SkeletalMesh->GetSkeleton();
+		CurrentSkeleton = OwnerComponent->GetSkeletalMesh()->GetSkeleton();
 	}
 	else
 	{
@@ -1228,9 +1228,9 @@ void UAnimInstance::RecalcRequiredBones()
 	USkeletalMeshComponent* SkelMeshComp = GetSkelMeshComponent();
 	check( SkelMeshComp )
 
-	if( SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton() )
+	if( SkelMeshComp->GetSkeletalMesh() && SkelMeshComp->GetSkeletalMesh()->GetSkeleton() )
 	{
-		GetProxyOnGameThread<FAnimInstanceProxy>().RecalcRequiredBones(SkelMeshComp, SkelMeshComp->SkeletalMesh);
+		GetProxyOnGameThread<FAnimInstanceProxy>().RecalcRequiredBones(SkelMeshComp, SkelMeshComp->GetSkeletalMesh());
 	}
 	else if( CurrentSkeleton != NULL )
 	{
@@ -1669,9 +1669,9 @@ void UAnimInstance::GetActiveCurveNames(EAnimCurveType CurveType, TArray<FName>&
 void UAnimInstance::GetAllCurveNames(TArray<FName>& OutNames) const
 {
 	USkeletalMeshComponent* SkelMeshComp = GetOwningComponent();
-	if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton())
+	if (SkelMeshComp && SkelMeshComp->GetSkeletalMesh() && SkelMeshComp->GetSkeletalMesh()->GetSkeleton())
 	{
-		const USkeleton* CurSkeleton = SkelMeshComp->SkeletalMesh->GetSkeleton();
+		const USkeleton* CurSkeleton = SkelMeshComp->GetSkeletalMesh()->GetSkeleton();
 
 		const FSmartNameMapping* Mapping = CurSkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 		if (Mapping)

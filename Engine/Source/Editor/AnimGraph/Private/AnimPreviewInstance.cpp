@@ -175,9 +175,9 @@ bool FAnimPreviewInstanceProxy::Evaluate(FPoseContext& Output)
 		if(bForceRetargetBasePose)
 		{
 			USkeletalMeshComponent* MeshComponent = Output.AnimInstanceProxy->GetSkelMeshComponent();
-			if(MeshComponent && MeshComponent->SkeletalMesh)
+			if(MeshComponent && MeshComponent->GetSkeletalMesh())
 			{
-				FAnimationRuntime::FillWithRetargetBaseRefPose(Output.Pose, GetSkelMeshComponent()->SkeletalMesh);
+				FAnimationRuntime::FillWithRetargetBaseRefPose(Output.Pose, GetSkelMeshComponent()->GetSkeletalMesh());
 			}
 			else
 			{
@@ -369,7 +369,7 @@ void FAnimPreviewInstanceProxy::SetKeyImplementation(const FCompactPose& PreCont
 	UDebugSkelMeshComponent* Component = Cast<UDebugSkelMeshComponent> (GetSkelMeshComponent());
 
 	USkeleton* PreviewSkeleton = (CurrentSequence) ? CurrentSequence->GetSkeleton() : nullptr;
-	if(CurrentSequence && PreviewSkeleton && Component && Component->SkeletalMesh)
+	if(CurrentSequence && PreviewSkeleton && Component && Component->GetSkeletalMesh())
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("SetKey", "Set Key"));
 		CurrentSequence->Modify(true);

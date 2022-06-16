@@ -662,7 +662,7 @@ bool FAnimationEditor::ExportToFBX(const TArray<UObject*> AssetsToExport, bool b
 		FPersonaModule& PersonaModule = FModuleManager::GetModuleChecked<FPersonaModule>("Persona");
 		
 		
-		AnimSequenceExportResult = PersonaModule.ExportToFBX(AnimSequences, GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent()->SkeletalMesh);
+		AnimSequenceExportResult = PersonaModule.ExportToFBX(AnimSequences, GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh());
 	}
 	return AnimSequenceExportResult;
 }

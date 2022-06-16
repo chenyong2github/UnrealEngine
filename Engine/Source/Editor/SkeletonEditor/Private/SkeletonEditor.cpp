@@ -348,7 +348,7 @@ TStatId FSkeletonEditor::GetStatId() const
 bool FSkeletonEditor::CanRemoveBones() const
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = PersonaToolkit->GetPreviewMeshComponent();
-	return PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh;
+	return PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMesh();
 }
 
 void FSkeletonEditor::RemoveUnusedBones()
@@ -364,9 +364,9 @@ void FSkeletonEditor::TestSkeletonCurveNamesForUse() const
 
 void FSkeletonEditor::UpdateSkeletonRefPose()
 {
-	if (PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh)
+	if (PersonaToolkit->GetPreviewMeshComponent()->GetSkeletalMesh())
 	{
-		GetSkeletonTree()->GetEditableSkeleton()->UpdateSkeletonReferencePose(PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh);
+		GetSkeletonTree()->GetEditableSkeleton()->UpdateSkeletonReferencePose(PersonaToolkit->GetPreviewMeshComponent()->GetSkeletalMesh());
 	}
 }
 

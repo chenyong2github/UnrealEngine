@@ -280,7 +280,7 @@ void FSkinWeightProfileHelpers::ClearSkinWeightProfileInstanceOverrides(USkeleta
 	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(InSkeletalMesh, false, true);
 	for (TObjectIterator<USkinnedMeshComponent> It; It; ++It)
 	{
-		if (It->SkeletalMesh == InSkeletalMesh)
+		if (It->GetSkeletalMesh() == InSkeletalMesh)
 		{
 			checkf(!It->IsUnreachable(), TEXT("%s"), *It->GetFullName());
 

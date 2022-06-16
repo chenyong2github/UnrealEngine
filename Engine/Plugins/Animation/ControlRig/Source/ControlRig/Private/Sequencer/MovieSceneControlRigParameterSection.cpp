@@ -2586,12 +2586,12 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 {
 	USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(BoundObject);
 	
-	if (SkelMeshComp != nullptr && (SkelMeshComp->SkeletalMesh == nullptr || SkelMeshComp->SkeletalMesh->GetSkeleton() == nullptr))
+	if (SkelMeshComp != nullptr && (SkelMeshComp->GetSkeletalMesh() == nullptr || SkelMeshComp->GetSkeletalMesh()->GetSkeleton() == nullptr))
 	{
 		return false;
 	}
 	
-	USkeleton* Skeleton = SkelMeshComp ? SkelMeshComp->SkeletalMesh->GetSkeleton() : Cast<USkeleton>(BoundObject);	
+	USkeleton* Skeleton = SkelMeshComp ? SkelMeshComp->GetSkeletalMesh()->GetSkeleton() : Cast<USkeleton>(BoundObject);
 	if (Skeleton == nullptr)
 	{
 		return false;
@@ -2695,7 +2695,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 		// retrieve the pose using the services that persona and sequencer rely on
 		// rather than accessing the low level raw tracks.
 		FAnimPoseEvaluationOptions EvaluationOptions;
-		EvaluationOptions.OptionalSkeletalMesh = SkelMeshComp ? SkelMeshComp->SkeletalMesh : nullptr;
+		EvaluationOptions.OptionalSkeletalMesh = SkelMeshComp ? SkelMeshComp->GetSkeletalMesh() : nullptr;
 		EvaluationOptions.bShouldRetarget = false;
 		EvaluationOptions.EvaluationType = EAnimDataEvalType::Raw;
 

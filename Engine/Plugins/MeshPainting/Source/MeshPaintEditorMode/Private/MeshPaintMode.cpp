@@ -581,9 +581,9 @@ void UMeshPaintMode::SavePaintedAssets()
 
 	for (USkeletalMeshComponent* SkeletalMeshComponent : SkeletalMeshComponents)
 	{
-		if (SkeletalMeshComponent && SkeletalMeshComponent->SkeletalMesh)
+		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMesh())
 		{
-			ObjectsToSave.Add(SkeletalMeshComponent->SkeletalMesh);
+			ObjectsToSave.Add(SkeletalMeshComponent->GetSkeletalMesh());
 		}
 	}
 
@@ -609,7 +609,7 @@ bool UMeshPaintMode::CanSaveMeshPackages() const
 		}
 		else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Component))
 		{
-			Object = SkeletalMeshComponent->SkeletalMesh;
+			Object = SkeletalMeshComponent->GetSkeletalMesh();
 		}
 
 		if (Object != nullptr && Object->GetOutermost()->IsDirty())

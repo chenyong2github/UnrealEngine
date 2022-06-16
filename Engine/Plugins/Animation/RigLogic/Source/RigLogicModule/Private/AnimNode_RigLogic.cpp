@@ -39,7 +39,7 @@ void FAnimNode_RigLogic::Initialize_AnyThread(const FAnimationInitializeContext&
 	FAnimNode_Base::Initialize_AnyThread(Context);
 	AnimSequence.Initialize(Context);
 	USkeletalMeshComponent* SkeletalMeshComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
-	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
 
 	static FRWLock GlobalCreationLock;
 	FRWScopeLock ScopeLock(GlobalCreationLock, SLT_ReadOnly);
@@ -66,7 +66,7 @@ void FAnimNode_RigLogic::CacheBones_AnyThread(const FAnimationCacheBonesContext&
 
 	// Initialize things that depend on the skeleton of Anim BP
 	USkeletalMeshComponent* SkeletalMeshComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
-	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
 	USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
 	UDNAAsset* DNAAsset = Cast<UDNAAsset>(SkeletalMesh->GetAssetUserDataOfClass(UDNAAsset::StaticClass()));
 	UDNAIndexMapping* DNAIndexMappingContainer = Cast<UDNAIndexMapping>(SkeletalMesh->GetAssetUserDataOfClass(UDNAIndexMapping::StaticClass()));

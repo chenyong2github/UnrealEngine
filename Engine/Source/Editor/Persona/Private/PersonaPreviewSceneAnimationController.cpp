@@ -23,7 +23,7 @@ IDetailPropertyRow* UPersonaPreviewSceneAnimationController::AddPreviewControlle
 {
 	TArray<UObject*> ListOfPreviewController{ this };
 
-	const USkeleton* Skeleton = PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh ? PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh->GetSkeleton() : nullptr;
+	const USkeleton* Skeleton = PersonaToolkit->GetPreviewMeshComponent()->GetSkeletalMesh() ? PersonaToolkit->GetPreviewMeshComponent()->GetSkeletalMesh()->GetSkeleton() : nullptr;
 	if (Skeleton)
 	{
 		IDetailPropertyRow* NewRow = Category.AddExternalObjectProperty(ListOfPreviewController, Property->GetFName(), PropertyLocation);

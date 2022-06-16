@@ -22,9 +22,9 @@ bool ADestructibleActor::GetReferencedContentObjects( TArray<UObject*>& Objects 
 {
 	Super::GetReferencedContentObjects(Objects);
 
-	if (DestructibleComponent && DestructibleComponent->SkeletalMesh)
+	if (DestructibleComponent && DestructibleComponent->GetSkeletalMesh())
 	{
-		Objects.Add(DestructibleComponent->SkeletalMesh);
+		Objects.Add(DestructibleComponent->GetSkeletalMesh());
 	}
 	return true;
 }

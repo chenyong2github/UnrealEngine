@@ -73,7 +73,7 @@ bool FClothPainter::PaintInternal(const FVector& InCameraOrigin, const TArrayVie
 
 	if(SkeletalMeshComponent->SelectedClothingGuidForPainting.IsValid() && !bShouldSimulate)
 	{
-		USkeletalMesh* SkelMesh = SkeletalMeshComponent->SkeletalMesh;
+		USkeletalMesh* SkelMesh = SkeletalMeshComponent->GetSkeletalMesh();
 
 		for (const TPair<FVector, FVector>& Ray : Rays)
 		{
@@ -160,7 +160,7 @@ USkeletalMesh* FClothPainter::GetSkeletalMesh() const
 {
 	if(SkeletalMeshComponent)
 	{
-		return SkeletalMeshComponent->SkeletalMesh;
+		return SkeletalMeshComponent->GetSkeletalMesh();
 	}
 
 	return nullptr;
@@ -175,7 +175,7 @@ void FClothPainter::RefreshClothingAssets()
 
 	PaintSettings->ClothingAssets.Reset();
 
-	if(USkeletalMesh* Mesh = SkeletalMeshComponent->SkeletalMesh)
+	if(USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMesh())
 	{
 		for(UClothingAssetBase* BaseClothingAsset : Mesh->GetMeshClothingAssets())
 		{

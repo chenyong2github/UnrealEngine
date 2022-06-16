@@ -59,7 +59,7 @@ public:
 			USkeletalMesh* SkelMesh = nullptr;
 			if (USkeletalMeshComponent* RigMeshComp = Cast<USkeletalMeshComponent>(InControlRig->GetObjectBinding()->GetBoundObject()))
 			{
-				SkelMesh = RigMeshComp->SkeletalMesh;
+				SkelMesh = RigMeshComp->GetSkeletalMesh();
 			}
 
 			Asset->SavePose(InControlRig, bUseAllControls);

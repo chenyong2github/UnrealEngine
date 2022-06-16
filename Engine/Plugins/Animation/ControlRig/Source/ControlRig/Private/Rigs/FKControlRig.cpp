@@ -264,7 +264,7 @@ void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 	// create hierarchy from the incoming skeleton
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(GetObjectBinding()->GetBoundObject()))
 	{
-		CreateRigElements(SkeletalMeshComponent->SkeletalMesh);
+		CreateRigElements(SkeletalMeshComponent->GetSkeletalMesh());
 	}
 	else if (USkeleton* Skeleton = Cast<USkeleton>(GetObjectBinding()->GetBoundObject()))
 	{

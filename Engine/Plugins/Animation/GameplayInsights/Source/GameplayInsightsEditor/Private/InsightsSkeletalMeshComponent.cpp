@@ -29,9 +29,9 @@ void UInsightsSkeletalMeshComponent::SetPoseFromProvider(const IAnimationProvide
 
 void UInsightsSkeletalMeshComponent::InitAnim(bool bForceReInit)
 {
-	if(SkeletalMesh)
+	if(GetSkeletalMesh())
 	{
-		const FReferenceSkeleton& SkeletalMeshRefSkeleton = SkeletalMesh->GetRefSkeleton();
+		const FReferenceSkeleton& SkeletalMeshRefSkeleton = GetSkeletalMesh()->GetRefSkeleton();
 		// set up bone visibility states as this gets skipped since we allocate the component array before registration
 		for (int32 BaseIndex = 0; BaseIndex < 2; ++BaseIndex)
 		{
@@ -43,6 +43,6 @@ void UInsightsSkeletalMeshComponent::InitAnim(bool bForceReInit)
 			}
 		}
 
-		MorphTargetWeights.SetNumZeroed(SkeletalMesh->GetMorphTargets().Num());
+		MorphTargetWeights.SetNumZeroed(GetSkeletalMesh()->GetMorphTargets().Num());
 	}
 }

@@ -81,7 +81,7 @@ void UAnimGraphNode_SkeletalControlBase::CreateOutputPins()
 
 void UAnimGraphNode_SkeletalControlBase::ConvertToComponentSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InTransform, FTransform & OutCSTransform, int32 BoneIndex, EBoneControlSpace Space) const
 {
-	USkeleton * Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
+	USkeleton * Skeleton = SkelComp->GetSkeletalMesh()->GetSkeleton();
 
 	switch (Space)
 	{
@@ -105,7 +105,7 @@ void UAnimGraphNode_SkeletalControlBase::ConvertToComponentSpaceTransform(const 
 			const int32 ParentIndex = Skeleton->GetReferenceSkeleton().GetParentIndex(BoneIndex);
 			if (ParentIndex != INDEX_NONE)																																																																																																																															
 			{
-				const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, ParentIndex);
+				const int32 MeshParentIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->GetSkeletalMesh(), ParentIndex);
 				if (MeshParentIndex != INDEX_NONE)
 				{
 					const FTransform ParentTM = SkelComp->GetBoneTransform(MeshParentIndex);
@@ -122,7 +122,7 @@ void UAnimGraphNode_SkeletalControlBase::ConvertToComponentSpaceTransform(const 
 	case BCS_BoneSpace:
 		if (BoneIndex != INDEX_NONE)
 		{
-			const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->SkeletalMesh, BoneIndex);
+			const int32 MeshBoneIndex = Skeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkelComp->GetSkeletalMesh(), BoneIndex);
 			if (MeshBoneIndex != INDEX_NONE)
 			{
 				const FTransform BoneTM = SkelComp->GetBoneTransform(MeshBoneIndex);
@@ -136,9 +136,9 @@ void UAnimGraphNode_SkeletalControlBase::ConvertToComponentSpaceTransform(const 
 		break;
 
 	default:
-		if (SkelComp->SkeletalMesh)
+		if (SkelComp->GetSkeletalMesh())
 		{
-			UE_LOG(LogAnimation, Warning, TEXT("ConvertToComponentSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (uint8)Space, *SkelComp->SkeletalMesh->GetFName().ToString());
+			UE_LOG(LogAnimation, Warning, TEXT("ConvertToComponentSpaceTransform: Unknown BoneSpace %d  for Mesh: %s"), (uint8)Space, *SkelComp->GetSkeletalMesh()->GetFName().ToString());
 		}
 		else
 		{
@@ -250,7 +250,7 @@ FVector UAnimGraphNode_SkeletalControlBase::ConvertWidgetLocation(const USkeleta
 
 	if (MeshBases.GetPose().IsValid())
 	{
-		USkeleton * Skeleton = SkelComp->SkeletalMesh->GetSkeleton();
+		USkeleton * Skeleton = SkelComp->GetSkeletalMesh()->GetSkeleton();
 		const FMeshPoseBoneIndex MeshBoneIndex(SkelComp->GetBoneIndex(BoneName));
 		const FCompactPoseBoneIndex CompactBoneIndex = MeshBases.GetPose().GetBoneContainer().MakeCompactPoseIndex(MeshBoneIndex);
 

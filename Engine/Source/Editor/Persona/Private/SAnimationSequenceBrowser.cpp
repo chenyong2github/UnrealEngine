@@ -760,7 +760,7 @@ void SAnimationSequenceBrowser::OnExportToFBX(TArray<FAssetData> SelectedAssets)
 		}
 
 		FPersonaModule& PersonaModule = FModuleManager::GetModuleChecked<FPersonaModule>("Persona");
-		PersonaModule.ExportToFBX(AnimSequences, PersonaToolkitPtr.Pin()->GetPreviewScene()->GetPreviewMeshComponent()->SkeletalMesh);
+		PersonaModule.ExportToFBX(AnimSequences, PersonaToolkitPtr.Pin()->GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh());
 	}
 }
 
@@ -768,7 +768,7 @@ void SAnimationSequenceBrowser::OnSetCurrentPreviewMesh(TArray<FAssetData> Selec
 {
 	if(SelectedAssets.Num() > 0)
 	{
-		USkeletalMesh* PreviewMesh = PersonaToolkitPtr.Pin()->GetPreviewScene()->GetPreviewMeshComponent()->SkeletalMesh;
+		USkeletalMesh* PreviewMesh = PersonaToolkitPtr.Pin()->GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh();
 		if (PreviewMesh)
 		{
 			TArray<TWeakObjectPtr<UAnimSequence>> AnimSequences;
@@ -1452,7 +1452,7 @@ bool SAnimationSequenceBrowser::OnVisualizeAssetToolTip(const TSharedPtr<SWidget
 		
 		if(MeshToUse)
 		{
-			if(PreviewComponent->SkeletalMesh != MeshToUse)
+			if(PreviewComponent->GetSkeletalMesh() != MeshToUse)
 			{
 				PreviewComponent->SetSkeletalMesh(MeshToUse);
 			}

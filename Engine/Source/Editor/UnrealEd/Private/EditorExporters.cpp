@@ -1570,7 +1570,7 @@ bool IsSomethingToExport(AActor* Actor)
 		UChildActorComponent* ChildActorComp = Cast<UChildActorComponent>(Component);
 
 		if ((StaticMeshComp && StaticMeshComp->GetStaticMesh()) ||
-			(SkelMeshComp && SkelMeshComp->SkeletalMesh) ||
+			(SkelMeshComp && SkelMeshComp->GetSkeletalMesh()) ||
 			Component->IsA(UCameraComponent::StaticClass()) ||
 			Component->IsA(ULightComponent::StaticClass()) ||
 			(ChildActorComp && ChildActorComp->GetChildActor() && IsSomethingToExport(ChildActorComp->GetChildActor()))

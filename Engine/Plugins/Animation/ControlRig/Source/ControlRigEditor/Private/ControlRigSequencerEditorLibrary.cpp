@@ -116,9 +116,9 @@ static void AcquireSkeletonAndSkelMeshCompFromObject(UObject* BoundObject, USkel
 			if (SkeletalMeshComp)
 			{
 				*OutSkeletalMeshComponent = SkeletalMeshComp;
-				if (SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->GetSkeleton())
+				if (SkeletalMeshComp->GetSkeletalMesh() && SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton())
 				{
-					*OutSkeleton = SkeletalMeshComp->SkeletalMesh->GetSkeleton();
+					*OutSkeleton = SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton();
 				}
 				return;
 			}
@@ -133,9 +133,9 @@ static void AcquireSkeletonAndSkelMeshCompFromObject(UObject* BoundObject, USkel
 				if (SkeletalMeshComp)
 				{
 					*OutSkeletalMeshComponent = SkeletalMeshComp;
-					if (SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->GetSkeleton())
+					if (SkeletalMeshComp->GetSkeletalMesh() && SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton())
 					{
-						*OutSkeleton = SkeletalMeshComp->SkeletalMesh->GetSkeleton();
+						*OutSkeleton = SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton();
 					}
 					return;
 				}
@@ -155,9 +155,9 @@ static void AcquireSkeletonAndSkelMeshCompFromObject(UObject* BoundObject, USkel
 					if (SkeletalMeshComp)
 					{
 						*OutSkeletalMeshComponent = SkeletalMeshComp;
-						if (SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->GetSkeleton())
+						if (SkeletalMeshComp->GetSkeletalMesh() && SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton())
 						{
-							*OutSkeleton = SkeletalMeshComp->SkeletalMesh->GetSkeleton();
+							*OutSkeleton = SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton();
 						}
 					}
 				}
@@ -167,9 +167,9 @@ static void AcquireSkeletonAndSkelMeshCompFromObject(UObject* BoundObject, USkel
 	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(BoundObject))
 	{
 		*OutSkeletalMeshComponent = SkeletalMeshComponent;
-		if (SkeletalMeshComponent->SkeletalMesh && SkeletalMeshComponent->SkeletalMesh->GetSkeleton())
+		if (SkeletalMeshComponent->GetSkeletalMesh() && SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton())
 		{
-			*OutSkeleton = SkeletalMeshComponent->SkeletalMesh->GetSkeleton();
+			*OutSkeleton = SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton();
 		}
 	}
 }
@@ -669,7 +669,7 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 			USkeleton* Skeleton = nullptr;
 			USkeletalMeshComponent* SkeletalMeshComp = nullptr;
 			AcquireSkeletonAndSkelMeshCompFromObject(BoundObject, &Skeleton, &SkeletalMeshComp);
-			if (SkeletalMeshComp && SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->GetSkeleton())
+			if (SkeletalMeshComp && SkeletalMeshComp->GetSkeletalMesh() && SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton())
 			{
 				UAnimSequence* TempAnimSequence = NewObject<UAnimSequence>(GetTransientPackage(), NAME_None);
 				TempAnimSequence->SetSkeleton(Skeleton);

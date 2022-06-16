@@ -31,7 +31,7 @@ void FAnimNode_AimOffsetLookAt::OnInitializeAnimInstance(const FAnimInstanceProx
 	SocketBoneReference.BoneName = NAME_None;
 	if (USkeletalMeshComponent* SkelMeshComp = InAnimInstance->GetSkelMeshComponent())
 	{
-		if (USkeletalMesh* SkelMesh = SkelMeshComp->SkeletalMesh)
+		if (USkeletalMesh* SkelMesh = SkelMeshComp->GetSkeletalMesh())
 		{
 			if (const USkeletalMeshSocket* Socket = SkelMesh->FindSocket(SourceSocketName))
 			{

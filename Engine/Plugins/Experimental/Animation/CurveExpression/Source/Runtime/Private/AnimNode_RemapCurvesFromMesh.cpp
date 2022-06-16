@@ -136,7 +136,7 @@ void FAnimNode_RemapCurvesFromMesh::GatherDebugData(
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
-	DebugLine += FString::Printf(TEXT("('%s')"), *GetNameSafe(CurrentlyUsedSourceMeshComponent.IsValid() ? CurrentlyUsedSourceMeshComponent.Get()->SkeletalMesh : nullptr));
+	DebugLine += FString::Printf(TEXT("('%s')"), *GetNameSafe(CurrentlyUsedSourceMeshComponent.IsValid() ? CurrentlyUsedSourceMeshComponent.Get()->GetSkeletalMesh() : nullptr));
 	DebugData.AddDebugItem(DebugLine, true);
 }
 
@@ -153,7 +153,7 @@ void FAnimNode_RemapCurvesFromMesh::PreUpdate(
 
 	const USkeletalMeshComponent* CurrentMeshComponent = CurrentlyUsedSourceMeshComponent.IsValid() ? CurrentlyUsedSourceMeshComponent.Get() : nullptr;
 
-	if (CurrentMeshComponent && CurrentMeshComponent->SkeletalMesh && CurrentMeshComponent->IsRegistered())
+	if (CurrentMeshComponent && CurrentMeshComponent->GetSkeletalMesh() && CurrentMeshComponent->IsRegistered())
 	{
 		// If our source is running under master-pose, then get bone data from there
 		if(USkeletalMeshComponent* MasterPoseComponent = Cast<USkeletalMeshComponent>(CurrentMeshComponent->MasterPoseComponent.Get()))
@@ -162,7 +162,7 @@ void FAnimNode_RemapCurvesFromMesh::PreUpdate(
 		}
 
 		// re-check mesh component validity as it may have changed to master
-		if(CurrentMeshComponent->SkeletalMesh && CurrentMeshComponent->IsRegistered())
+		if(CurrentMeshComponent->GetSkeletalMesh() && CurrentMeshComponent->IsRegistered())
 		{
 			if (ExpressionEngine.IsSet())
 			{
@@ -197,10 +197,10 @@ void FAnimNode_RemapCurvesFromMesh::ReinitializeMeshComponent(
 	CurveNameToUIDMap.Reset();
 	CachedExpressions.Reset();
 
-	if (InTargetMeshComponent && IsValid(InNewSkeletalMeshComponent) && InNewSkeletalMeshComponent->SkeletalMesh)
+	if (InTargetMeshComponent && IsValid(InNewSkeletalMeshComponent) && InNewSkeletalMeshComponent->GetSkeletalMesh())
 	{
-		USkeletalMesh* SourceSkelMesh = InNewSkeletalMeshComponent->SkeletalMesh;
-		USkeletalMesh* TargetSkelMesh = InTargetMeshComponent->SkeletalMesh;
+		USkeletalMesh* SourceSkelMesh = InNewSkeletalMeshComponent->GetSkeletalMesh();
+		USkeletalMesh* TargetSkelMesh = InTargetMeshComponent->GetSkeletalMesh();
 		
 		if (IsValid(SourceSkelMesh) && !SourceSkelMesh->HasAnyFlags(RF_NeedPostLoad) &&
 			IsValid(TargetSkelMesh) && !TargetSkelMesh->HasAnyFlags(RF_NeedPostLoad))
@@ -265,14 +265,14 @@ void FAnimNode_RemapCurvesFromMesh::RefreshMeshComponent(
 				ReinitializeMeshComponent(InMeshComponent, InTargetMeshComponent);
 			}
 			// if component is still same but mesh has been changed, we have to reinitialize
-			else if (CurrentMeshComponent->SkeletalMesh != CurrentlyUsedSourceMesh.Get())
+			else if (CurrentMeshComponent->GetSkeletalMesh() != CurrentlyUsedSourceMesh.Get())
 			{
 				ReinitializeMeshComponent(InMeshComponent, InTargetMeshComponent);
 			}
 			else if (InTargetMeshComponent)
 			{
 				// see if target mesh has changed
-				if (InTargetMeshComponent->SkeletalMesh != CurrentlyUsedTargetMesh.Get())
+				if (InTargetMeshComponent->GetSkeletalMesh() != CurrentlyUsedTargetMesh.Get())
 				{
 					ReinitializeMeshComponent(InMeshComponent, InTargetMeshComponent);
 				}
