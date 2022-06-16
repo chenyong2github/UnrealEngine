@@ -969,8 +969,8 @@ void GetLightmapClusterResourceParameters(
 	Parameters.VTSkyOcclusionTexture = GWhiteTextureWithSRV->ShaderResourceViewRHI;
 	Parameters.VTAOMaterialMaskTexture = GBlackTextureWithSRV->ShaderResourceViewRHI;
 	Parameters.VTStaticShadowTexture = GWhiteTextureWithSRV->ShaderResourceViewRHI;
-	Parameters.LightmapVirtualTexturePageTable0 = GBlackTexture->TextureRHI;
-	Parameters.LightmapVirtualTexturePageTable1 = GBlackTexture->TextureRHI;
+	Parameters.LightmapVirtualTexturePageTable0 = GBlackUintTexture->TextureRHI;
+	Parameters.LightmapVirtualTexturePageTable1 = GBlackUintTexture->TextureRHI;
 	Parameters.LightMapSampler = GBlackTexture->SamplerStateRHI;
 	Parameters.LightMapSampler_1 = GBlackTexture->SamplerStateRHI;
 	Parameters.SkyOcclusionSampler = GWhiteTexture->SamplerStateRHI;
@@ -1050,8 +1050,8 @@ void GetLightmapClusterResourceParameters(
 		Parameters.StaticShadowTexture = Input.ShadowMapTexture ? Input.ShadowMapTexture->TextureReference.TextureReferenceRHI.GetReference() : GWhiteTexture->TextureRHI;
 		Parameters.StaticShadowTextureSampler = GetTextureSamplerState(Input.ShadowMapTexture, GWhiteTexture->SamplerStateRHI);
 
-		Parameters.LightmapVirtualTexturePageTable0 = GBlackTexture->TextureRHI;
-		Parameters.LightmapVirtualTexturePageTable1 = GBlackTexture->TextureRHI;
+		Parameters.LightmapVirtualTexturePageTable0 = GBlackUintTexture->TextureRHI;
+		Parameters.LightmapVirtualTexturePageTable1 = GBlackUintTexture->TextureRHI;
 	}
 }
 

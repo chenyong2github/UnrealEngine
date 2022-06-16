@@ -389,6 +389,9 @@ public class Engine : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
+			// Allow VirtualTextureUploadCache to use the UpdateTexture path.
+			PublicDefinitions.Add("ALLOW_UPDATE_TEXTURE=1");
+
 			PublicFrameworks.AddRange(new string[] { "AVFoundation", "CoreVideo", "CoreMedia" });
 		}
 
