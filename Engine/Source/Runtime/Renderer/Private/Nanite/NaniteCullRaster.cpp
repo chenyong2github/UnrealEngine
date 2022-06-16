@@ -343,7 +343,6 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER( uint32, NumInstances )
 		SHADER_PARAMETER( uint32, MaxNodes )
 		SHADER_PARAMETER( int32,  ImposterMaxPixels )
-		SHADER_PARAMETER( int32,  OnlyCastShadowsPrimitives )
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
@@ -392,6 +391,7 @@ class FCompactViewsVSM_CS : public FNaniteGlobalShader
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
 		OutEnvironment.SetDefine(TEXT("CULLING_PASS"), CULLING_PASS_NO_OCCLUSION);
+		OutEnvironment.SetDefine(TEXT("DEPTH_ONLY"), 1);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -434,6 +434,7 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine( TEXT( "USE_GLOBAL_GPU_SCENE_DATA" ), 1 );
 		OutEnvironment.SetDefine( TEXT( "NANITE_MULTI_VIEW" ), 1 );
+		OutEnvironment.SetDefine( TEXT("DEPTH_ONLY" ), 1 );
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
@@ -1819,11 +1820,9 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->RasterParameters = RasterContext.Parameters;
 		PassParameters->CullingParameters = CullingParameters;
 
-		PassParameters->OnlyCastShadowsPrimitives = RasterContext.RasterMode == EOutputBufferMode::DepthOnly ? 1 : 0;
-
 		PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetImposterDataSRV(GraphBuilder);
 
-		PassParameters->OutQueueState						= GraphBuilder.CreateUAV( CullingContext.QueueState );
+		PassParameters->OutQueueState = GraphBuilder.CreateUAV( CullingContext.QueueState );
 		
 		if (VirtualShadowMapArray)
 		{

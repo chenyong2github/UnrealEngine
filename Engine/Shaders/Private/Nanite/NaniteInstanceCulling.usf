@@ -85,7 +85,7 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 }
 
 // Partially implements FPrimitiveSceneProxy::IsShown() - missing view filter lists and some misc. tests
-bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
+bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags, bool bIsShadowPass)
 {
 	const bool bForceHidden						= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN) != 0u;
 	const bool bVisibleInGame					= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_GAME) != 0u;
@@ -96,6 +96,8 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 	const bool bVisibleInSceneCaptureOnly		= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY) != 0u;
 	const bool bHiddenInSceneCapture			= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_HIDDEN_IN_SCENE_CAPTURE) != 0u;
 	const bool bVisibleInRayTracing				= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING) != 0u;
+	const bool bCastShadow						= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
+	const bool bCastHiddenShadow				= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW) != 0u;
 
 	const bool bIsSceneCapture					= (RenderFlags & NANITE_RENDER_FLAG_IS_SCENE_CAPTURE) != 0u;
 	const bool bIsReflectionCapture				= (RenderFlags & NANITE_RENDER_FLAG_IS_REFLECTION_CAPTURE) != 0u;
@@ -107,6 +109,12 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 	if (bForceHidden)
 	{
 		// Primitive is forcibly hidden
+		return false;
+	}
+
+	if (bIsShadowPass && !bCastShadow)
+	{
+		// Only shadow casting primitives are visible in a shadow pass
 		return false;
 	}
 
@@ -126,6 +134,11 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 	else if (bVisibleInSceneCaptureOnly)
 	{
 		return false;
+	}
+
+	if (bIsShadowPass && bCastHiddenShadow)
+	{
+		return true;
 	}
 
 	if (bEditorShowFlag)
@@ -162,7 +175,6 @@ uint NumInstances;
 uint NumViews;
 uint NumPrimaryViews;
 int ImposterMaxPixels;
-int OnlyCastShadowsPrimitives;
 
 StructuredBuffer<FInstanceDraw>			InInstanceDraws;
 Buffer<uint>							InOccludedInstancesArgs;
@@ -247,19 +259,11 @@ void InstanceCull(
 	#endif
 
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-		const bool bCastShadows = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
 
-		// TODO: Implement bCastHiddenShadow
-		//const bool bCastHiddenShadow = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW) == 0u;
-
+		const bool bIsShadowPass = (DEPTH_ONLY != 0);
+		
 		BRANCH
-		if (OnlyCastShadowsPrimitives && !bCastShadows) 
-		{
-			return;
-		}
-
-		BRANCH
-		if (!IsPrimitiveShown(PrimitiveData.Flags, RenderFlags))
+		if (!IsPrimitiveShown(PrimitiveData.Flags, RenderFlags, bIsShadowPass))
 		{
 			// Primitive is not visible - cull it
 			return;
@@ -298,7 +302,7 @@ void InstanceCull(
 			const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
 
 			// HACK: Don't distance cull shadows for now because we don't have the main view's camera location to do it properly
-			const bool bDisableDistanceCull = bSkipCamDistanceCull || OnlyCastShadowsPrimitives;
+			const bool bDisableDistanceCull = bSkipCamDistanceCull || bIsShadowPass;
 			CameraDistanceCull(PrimitiveData, InstanceData, DynamicData, bDisableDistanceCull, bIsVisible);
 
 			FFrustumCullData Cull;
@@ -503,14 +507,11 @@ void InstanceCullVSM(
 	const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
 
 	BRANCH
-	if (!InstanceData.ValidInstance || RuntimeResourceID == 0xFFFFFFFFu)  //if(!InstanceData.CastShadows) 
+	if (!InstanceData.ValidInstance || RuntimeResourceID == 0xFFFFFFFFu)
 	{
 		// Only process valid Nanite instances
 		return;
 	}
-
-	// TODO: Implement bCastHiddenShadow
-	//const bool bCastHiddenShadow = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW) == 0u;
 
 #if PRIMITIVE_FILTER
 	BRANCH
@@ -522,16 +523,9 @@ void InstanceCullVSM(
 #endif
 
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-	bool bCastShadow = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
-	
-	BRANCH
-	if (!bCastShadow) 
-	{
-		return;
-	}
 
 	BRANCH
-	if (!IsPrimitiveShown(PrimitiveData.Flags, RenderFlags))
+	if (!IsPrimitiveShown(PrimitiveData.Flags, RenderFlags, /* bIsShadowPass = */ true))
 	{
 		// Primitive is not visible - cull it
 		return;
