@@ -18,6 +18,7 @@
 #include "SketchUpAPI/model/layer.h"
 #include "SketchUpAPI/model/model.h"
 #include "SketchUpAPI/model/component_instance.h"
+#include "SketchUpAPI/geometry/transformation.h"
 
 #if !defined(SKP_SDK_2019) && !defined(SKP_SDK_2020)
 #include "SketchUpAPI/model/layer_folder.h"
@@ -393,6 +394,13 @@ FString FModelDefinition::GetSketchupSourceName()
 	return SketchupSourceName;
 }
 
+SUTransformation FModelDefinition::GetMeshBakedTransform()
+{
+	SUTransformation Transform;
+	SUTransformationScale(&Transform, 1.0);
+	return Transform;
+}
+
 FString FModelDefinition::GetSketchupSourceGUID()
 {
 	return TEXT("MODEL");
@@ -470,6 +478,7 @@ void FComponentDefinition::CreateActor(FExportContext& Context, FNodeOccurence& 
 void FComponentDefinition::UpdateGeometry(FExportContext& Context)
 {
 	Entities->UpdateGeometry(Context);
+	bBakeTransformIntoMesh  = ShouldBakeTransformIntoMesh();
 }
 
 void FComponentDefinition::UpdateMetadata(FExportContext& Context)
@@ -534,6 +543,118 @@ FString FComponentDefinition::GetSketchupSourceName()
 	// Retrieve the SketchUp component definition name.
 	return SuGetString(SUComponentDefinitionGetName, ComponentDefinitionRef);
 }
+
+// Bake transform into the mesh only when
+// - component has no child components, 
+// - only SINGLE instance
+// - local transform has non-trivial rotation component
+// Baking transform into mesh might be useful to convert transformation which is not representable in Unreal
+// for example rotated geometry with scaled parent. In Unreal scaling would only be applied in local static mesh space
+// So that scaled(on parent node) rotated cube that should be a rhombus in SU in unreal would become just a box because scaling would apply along local axes(i.e. before rotation)
+// But baking rotation into mesh itself makes scaling apply properly
+bool FComponentDefinition::ShouldBakeTransformIntoMesh()
+{
+	size_t ComponentInstanceCount = 0;
+	SUEntitiesGetNumInstances(GetEntities().EntitiesRef, &ComponentInstanceCount);
+
+	size_t GroupCount = 0;
+	SUEntitiesGetNumGroups(GetEntities().EntitiesRef, &GroupCount);
+
+	if ((Instances.Num() != 1) || ((ComponentInstanceCount + GroupCount) != 0))
+	{
+		return false;
+	}
+
+	// Check the (only) instance's transform
+	FComponentInstance* ComponentInstance = Instances.Array()[0];
+
+	SUTransformation Transform;
+	SUComponentInstanceGetTransform(ComponentInstance->GetComponentInstanceRef(), &Transform);
+
+	// Grab 3x3 rotation submatrix and check if it is not an identity transform
+	const double R[] = {
+		Transform.values[0], Transform.values[1], Transform.values[2],
+		Transform.values[4], Transform.values[5], Transform.values[6],
+		Transform.values[8], Transform.values[9], Transform.values[10]
+	};
+
+	static const double Identity[] = {
+		1, 0, 0,
+		0, 1, 0,
+		0, 0, 1,
+	};
+
+	static_assert(sizeof(Identity)/sizeof(Identity[0]) == sizeof(R)/sizeof(R[0]));
+
+	for (int32 I = 0; I < sizeof(Identity)/sizeof(Identity[0]); ++I)
+	{
+		if (!FMath::IsNearlyEqual(Identity[I], R[I]))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+SUTransformation FComponentDefinition::GetMeshBakedTransform()
+{
+	if (!ShouldBakeTransformIntoMesh())
+	{
+		SUTransformation Transform;
+		SUTransformationScale(&Transform, 1.0);
+		return Transform;
+	}
+
+	FComponentInstance* ComponentInstance = Instances.Array()[0];
+	SUTransformation Transform;
+	SUComponentInstanceGetTransform(ComponentInstance->GetComponentInstanceRef(), &Transform);
+
+	// Don't bake translation 
+	Transform.values[12] = 0;
+	Transform.values[13] = 0;
+	Transform.values[14] = 0;
+	// and uniform scale
+	Transform.values[15] = 1;
+	// There's no need to bake translation and uniform scale into mesh and keeping those (at least translation) at actor transform is more convenient
+
+	return Transform;
+}
+
+void FComponentDefinition::GetLocalTransform(FComponentInstance& ComponentInstance, SUTransformation& SComponentInstanceLocalTransform)
+{
+	if (ShouldBakeTransformIntoMesh())
+	{
+		SUTransformation SComponentInstanceTransform;
+		SUComponentInstanceGetTransform(ComponentInstance.GetComponentInstanceRef(), &SComponentInstanceTransform);
+
+		// Local instance transform rotation part is baked into mesh, scale and translation aren't
+		double UniformScale = SComponentInstanceTransform.values[15];
+		const SUVector3D Translation{SComponentInstanceTransform.values[12], SComponentInstanceTransform.values[13], SComponentInstanceTransform.values[14]};
+
+		SUTransformation Transform;
+		SUTransformationTranslation(&Transform, &Translation);
+		Transform.values[15] = UniformScale;
+
+		SComponentInstanceLocalTransform = Transform;
+	}
+	else
+	{
+		SUComponentInstanceGetTransform(ComponentInstance.GetComponentInstanceRef(), &SComponentInstanceLocalTransform);
+	}
+}
+
+void FComponentDefinition::ComponentInstancePropertiesInvalidated()
+{
+	// If mesh transform baking is affecting geometry then invalidate geometry
+	// i.e. if transform should be baked or need to bake it has changed
+	bool bShouldBakeTransformIntoMesh = ShouldBakeTransformIntoMesh();
+	if (bShouldBakeTransformIntoMesh || (bShouldBakeTransformIntoMesh != bBakeTransformIntoMesh))
+	{
+		InvalidateDefinitionGeometry();
+	}
+}
+
 
 FString FComponentDefinition::GetSketchupSourceGUID()
 {
@@ -696,8 +817,6 @@ void FComponentInstance::UpdateOccurrence(FExportContext& Context, FNodeOccurenc
 		return;
 	}
 
-	SUComponentInstanceRef InSComponentInstanceRef = GetComponentInstanceRef();
-
 	if (FDefinition* EntityDefinition = GetDefinition())
 	{
 		EntityDefinition->BuildNodeNames(Node);
@@ -713,11 +832,15 @@ void FComponentInstance::UpdateOccurrence(FExportContext& Context, FNodeOccurenc
 	// Set the Datasmith actor layer name.
 	Node.DatasmithActorElement->SetLayer(*FDatasmithUtils::SanitizeObjectName(SEffectiveLayerName));
 
-	SUTransformation SComponentInstanceWorldTransform = DatasmithSketchUpUtils::GetComponentInstanceTransform(InSComponentInstanceRef, Node.ParentNode->WorldTransform);
-	Node.WorldTransform = SComponentInstanceWorldTransform;
+	// Compute the world transform of the SketchUp component instance.
+	SUTransformation LocalTransform;
+	Definition.GetLocalTransform(*this, LocalTransform);
+	SUTransformation WorldTransform;
+	SUTransformationMultiply(&Node.ParentNode->WorldTransform, &LocalTransform, &WorldTransform);
+	Node.WorldTransform = WorldTransform; // Store world transform to be used by children to compute its
 
 	// Set the Datasmith actor world transform.
-	DatasmithSketchUpUtils::SetActorTransform(Node.DatasmithActorElement, SComponentInstanceWorldTransform);
+	DatasmithSketchUpUtils::SetActorTransform(Node.DatasmithActorElement, Node.WorldTransform);
 
 	Node.ResetMetadataElement(Context);// todo: can enable/disable metadata export by toggling this code
 	FillOccurrenceActorMetadata(Node);
@@ -766,6 +889,16 @@ void FComponentInstance::DeleteOccurrence(FExportContext& Context, FNodeOccurenc
 void FComponentInstance::UpdateMetadata(FExportContext& Context)
 {
 	ParsedMetadata = MakeUnique<FMetadata>(SUComponentInstanceToEntity(GetComponentInstanceRef()));
+}
+
+void FComponentInstance::UpdateEntityProperties(FExportContext& Context)
+{
+	if (bPropertiesInvalidated)
+	{
+		Definition.ComponentInstancePropertiesInvalidated();
+	}
+	
+	FEntity::UpdateEntityProperties(Context);
 }
 
 void FComponentInstance::InvalidateOccurrencesGeometry(FExportContext& Context)

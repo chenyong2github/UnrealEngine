@@ -130,7 +130,7 @@ namespace DatasmithSketchUp
 
 		void EntityVisible(FEntity* Entity, bool bVisible);
 
-		// Modfication methods
+		// Modification methods
 		virtual void AddInstance(FExportContext& Context, TSharedPtr<FComponentInstance> Instance) = 0; // Register child CompoenntInstance Entity of Definition's Entities
 		virtual void InvalidateInstancesGeometry(FExportContext& Context) = 0; // Mark that all instances(and their occurrences) needed to be updated
 		virtual void InvalidateInstancesMetadata(FExportContext& Context) = 0; // Mark that all instances(and their occurrences) needed to be updated
@@ -139,7 +139,8 @@ namespace DatasmithSketchUp
 		virtual FString GetSketchupSourceGUID() = 0;
 		virtual FString GetSketchupSourceName() = 0;
 
-		
+		virtual SUTransformation GetMeshBakedTransform() = 0; // Transform that may be used to bake geometry
+
 		FEntities& GetEntities()
 		{
 			return *Entities;
@@ -184,14 +185,21 @@ namespace DatasmithSketchUp
 		virtual void FillOccurrenceActorMetadata(FNodeOccurence& Node) override;
 
 		virtual FString GetSketchupSourceGUID() override;
-		virtual FString GetSketchupSourceName()  override;
+		virtual FString GetSketchupSourceName() override;
+
+		virtual SUTransformation GetMeshBakedTransform() override;
 		// End FDefinition
+
 
 
 		// Register/unregister instanced of this definition
 		void LinkComponentInstance(FComponentInstance* ComponentInstance);
 		void UnlinkComponentInstance(FComponentInstance* ComponentInstance);
 		void RemoveComponentDefinition(FExportContext& Context);
+
+		bool ShouldBakeTransformIntoMesh();
+		void GetLocalTransform(FComponentInstance& ComponentInstance, SUTransformation& SComponentInstanceLocalTransform);
+		void ComponentInstancePropertiesInvalidated();
 
 		// Source SketchUp component ID.
 		FComponentDefinitionIDType SketchupSourceID;
@@ -204,6 +212,8 @@ namespace DatasmithSketchUp
 
 		// Whether or not the source SketchUp component behaves like a billboard, always presenting a 2D surface perpendicular to the direction of camera.
 		bool bSketchupSourceFaceCamera = false;
+
+		bool bBakeTransformIntoMesh = false;
 	};
 
 
@@ -226,6 +236,8 @@ namespace DatasmithSketchUp
 
 		virtual FString GetSketchupSourceGUID() override;
 		virtual FString GetSketchupSourceName()  override;
+
+		virtual SUTransformation GetMeshBakedTransform() override;
 		// End FDefinition
 
 	private:
@@ -323,7 +335,7 @@ namespace DatasmithSketchUp
 			bGeometryInvalidated = true;
 		}
 
-		void UpdateEntityProperties(FExportContext& Context);
+		virtual void UpdateEntityProperties(FExportContext& Context);
 		void UpdateEntityGeometry(FExportContext& Context);
 
 		TSet<FNodeOccurence*> VisibleNodes;
@@ -345,17 +357,20 @@ namespace DatasmithSketchUp
 		{}
 
 		// >>> FEntity
-		FDefinition* GetDefinition() override;
-		bool GetAssignedMaterial(FMaterialIDType& MaterialId) override;
-		void InvalidateOccurrencesGeometry(FExportContext& Context) override;
-		void UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node) override;
-		void InvalidateOccurrencesProperties(FExportContext& Context) override;
-		int64 GetPersistentId() override;
-		FString GetName() override;
-		void UpdateOccurrenceVisibility(FExportContext& Context, FNodeOccurence&) override;
-		void DeleteOccurrence(FExportContext& Context, FNodeOccurence* Node) override;
-		void UpdateMetadata(FExportContext& Context) override;
+		virtual FDefinition* GetDefinition() override;
+		virtual bool GetAssignedMaterial(FMaterialIDType& MaterialId) override;
+		virtual void InvalidateOccurrencesGeometry(FExportContext& Context) override;
+		virtual void UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node) override;
+		virtual void InvalidateOccurrencesProperties(FExportContext& Context) override;
+		virtual int64 GetPersistentId() override;
+		virtual FString GetName() override;
+		virtual void UpdateOccurrenceVisibility(FExportContext& Context, FNodeOccurence&) override;
+		virtual void DeleteOccurrence(FExportContext& Context, FNodeOccurence* Node) override;
+		virtual void UpdateMetadata(FExportContext& Context) override;
+		virtual void UpdateEntityProperties(FExportContext& Context) override;
 		// <<< FEntity
+
+
 
 		// Set Definition which Entities contains this entity
 		void SetParentDefinition(FExportContext& Context, FDefinition* InParent);

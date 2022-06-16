@@ -22,6 +22,7 @@
 #include "SketchUpAPI/model/layer.h"
 #include "SketchUpAPI/model/mesh_helper.h"
 #include "SketchUpAPI/model/uv_helper.h"
+#include "SketchUpAPI/geometry/point3d.h"
 #include "DatasmithSketchUpSDKCeases.h"
 
 // Datasmith SDK.
@@ -64,7 +65,7 @@ namespace DatasmithSketchUp
 	public:
 
 		// Convert the combined mesh into a Datasmith mesh.
-		void ConvertMeshToDatasmith(FDatasmithMesh& OutDMesh) const;
+		void ConvertMeshToDatasmith(SUTransformation Transform, FDatasmithMesh& OutDMesh) const;
 
 		// Tessellate a SketchUp face into a triangle mesh merged into the combined mesh.
 		void AddFace(
@@ -295,7 +296,7 @@ namespace DatasmithSketchUp
 		}
 	}
 
-	void FDatasmithSketchUpMesh::ConvertMeshToDatasmith(FDatasmithMesh& OutDMesh) const
+	void FDatasmithSketchUpMesh::ConvertMeshToDatasmith(SUTransformation Transform, FDatasmithMesh& OutDMesh) const
 	{
 		// Get the number of mesh vertices (must be > 0).
 		int32 VertexCount = MeshVertexPoints.Num();
@@ -305,7 +306,9 @@ namespace DatasmithSketchUp
 
 		for (int32 VertexNo = 0; VertexNo < VertexCount; VertexNo++)
 		{
-			SUPoint3D const& VertexPoint = MeshVertexPoints[VertexNo];
+			SUPoint3D VertexPoint = MeshVertexPoints[VertexNo];
+			SUPoint3DTransform(&Transform, &VertexPoint);
+			
 			FVector P = FVector(DatasmithSketchUpUtils::FromSketchUp::ConvertPosition(VertexPoint));
 			OutDMesh.SetVertex(VertexNo, P.X, P.Y, P.Z);
 		}
@@ -437,14 +440,16 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 					Mesh->DatasmithMesh->SetMaterial(Material->GetName(), SlotId);
 				}
 			}
+			
+			SUTransformation Transform = Definition.GetMeshBakedTransform();
 
 			Context.MeshExportTasks.Emplace(Async(
 				EAsyncExecution::ThreadPool,
-				[Mesh, ExtractedMeshPtr, &Context]()
+				[&Context, Mesh, ExtractedMeshPtr, Transform]()
 				{
 					FDatasmithMeshExporter DatasmithMeshExporter;
 					FDatasmithMesh DatasmithMesh;
-					ExtractedMeshPtr->ConvertMeshToDatasmith(DatasmithMesh);
+					ExtractedMeshPtr->ConvertMeshToDatasmith(Transform, DatasmithMesh);
 
 					FGCScopeGuard GCGuard; // Prevent GC from running while UDatasmithMesh is created in ExportToUObject. 
 					return DatasmithMeshExporter.ExportToUObject(Mesh->DatasmithMesh, Context.GetAssetsOutputPath(), DatasmithMesh, nullptr, FDatasmithExportOptions::LightmapUV);
