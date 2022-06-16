@@ -196,7 +196,7 @@ class FScopedRuntimeVirtualTextureRecreate
 public:
 	FScopedRuntimeVirtualTextureRecreate(UVirtualTextureBuilder* VirtualTextureBuilder)
 	{
-		for (TObjectIterator<URuntimeVirtualTextureComponent> It; It; ++It)
+		for (TObjectIterator<URuntimeVirtualTextureComponent> It(RF_ClassDefaultObject, false, EInternalObjectFlags::Garbage); It; ++It)
 		{
 			if (It->GetStreamingTexture() == VirtualTextureBuilder)
 			{
