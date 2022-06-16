@@ -700,12 +700,12 @@ protected:
 
 public:
 	/** Serialized link ID, used to build the non-serialized pointer map. */
-	UPROPERTY()
+	UPROPERTY(meta=(BlueprintCompilerGeneratedDefaults))
 	int32 LinkID;
 
 #if WITH_EDITORONLY_DATA
 	/** The source link ID, used for debug visualization. */
-	UPROPERTY()
+	UPROPERTY(meta=(BlueprintCompilerGeneratedDefaults))
 	int32 SourceLinkID;
 #endif
 

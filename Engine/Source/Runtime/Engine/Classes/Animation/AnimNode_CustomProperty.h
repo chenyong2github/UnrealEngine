@@ -48,11 +48,11 @@ public:
 
 protected:
 	/** List of source properties to use, 1-1 with Dest names below, built by the compiler */
-	UPROPERTY()
+	UPROPERTY(meta=(BlueprintCompilerGeneratedDefaults))
 	TArray<FName> SourcePropertyNames;
 
 	/** List of destination properties to use, 1-1 with Source names above, built by the compiler */
-	UPROPERTY()
+	UPROPERTY(meta=(BlueprintCompilerGeneratedDefaults))
 	TArray<FName> DestPropertyNames;
 
 	/** This is the actual instance allocated at runtime that will run. Set by child class. */

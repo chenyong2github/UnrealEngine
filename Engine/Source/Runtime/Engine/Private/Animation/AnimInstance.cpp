@@ -3800,8 +3800,31 @@ void UAnimInstance::QueueRootMotionBlend(const FTransform& RootTransform, const 
 }
 
 #if WITH_EDITOR
-void UAnimInstance::HandleAnimInstanceReplaced()
+void UAnimInstance::HandleAnimInstanceReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		TArray<UObject*> Values;
+		OldToNewInstanceMap.GenerateValueArray(Values);
+		if(Values.Contains(this))
+		{
+			// Re-link graphs & layers if they are targets of a re-instance.
+			// As this gets called post-CPFUO and references are already replaced we need to only do this for 'new'
+			// instances that have just been replaced
+			for(const FStructProperty* LinkedGraphProperty : AnimBlueprintClass->GetLinkedAnimGraphNodeProperties())
+			{
+				FAnimNode_LinkedAnimGraph* LinkedAnimGraph = LinkedGraphProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(this);
+				LinkedAnimGraph->HandleAnimInstanceReplaced(this, OldToNewInstanceMap);
+			}
+
+			for(const FStructProperty* LinkedLayerProperty : AnimBlueprintClass->GetLinkedAnimLayerNodeProperties())
+			{
+				FAnimNode_LinkedAnimLayer* LinkedAnimLayer = LinkedLayerProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(this);
+				LinkedAnimLayer->HandleAnimInstanceReplaced(this, OldToNewInstanceMap);
+			}
+		}
+	}
+	
 	RecalcRequiredBones();
 	
 	// Reinit proxy

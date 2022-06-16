@@ -4621,7 +4621,7 @@ void USkeletalMeshComponent::HandleObjectsReplaced(const TMap<UObject*, UObject*
 			{
 				if (UAnimInstance* ReinstancedTargetInstance = Cast<UAnimInstance>(*ReinstancedTarget))
 				{
-					ReinstancedTargetInstance->HandleAnimInstanceReplaced();
+					ReinstancedTargetInstance->HandleAnimInstanceReplaced(OldToNewInstanceMap);
 					bReinstancedAnimInstance = true;
 				}
 			}

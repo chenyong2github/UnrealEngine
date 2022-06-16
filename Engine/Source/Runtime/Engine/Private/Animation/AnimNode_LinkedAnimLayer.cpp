@@ -139,3 +139,19 @@ void FAnimNode_LinkedAnimLayer::InitializeProperties(const UObject* InSourceInst
 		}
 	}
 }
+
+#if WITH_EDITOR
+void FAnimNode_LinkedAnimLayer::HandleAnimInstanceReplaced(UAnimInstance* InNewInstance, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+{
+	UAnimInstance* CurrentTargetInstance = GetTargetInstance<UAnimInstance>();
+	if(CurrentTargetInstance && (Interface.Get() == nullptr || InstanceClass.Get() == nullptr))
+	{
+		InitializeSelfLayer(CurrentTargetInstance);
+	}
+	else
+	{
+		Super::HandleAnimInstanceReplaced(InNewInstance, OldToNewInstanceMap);
+	}
+}
+
+#endif

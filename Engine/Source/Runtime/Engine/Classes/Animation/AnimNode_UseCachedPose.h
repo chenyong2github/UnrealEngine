@@ -17,7 +17,7 @@ struct ENGINE_API FAnimNode_UseCachedPose : public FAnimNode_Base
 	FPoseLink LinkToCachingNode;
 
 	/** Intentionally not exposed, set by AnimBlueprintCompiler */
-	UPROPERTY()
+	UPROPERTY(meta=(BlueprintCompilerGeneratedDefaults))
 	FName CachePoseName;
 
 public:	

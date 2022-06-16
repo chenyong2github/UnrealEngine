@@ -1641,6 +1641,6 @@ public:
 
 #if WITH_EDITOR
 	// Helper function to handle reinstancing in editor
-	virtual void HandleAnimInstanceReplaced();
+	virtual void HandleAnimInstanceReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 #endif
 };

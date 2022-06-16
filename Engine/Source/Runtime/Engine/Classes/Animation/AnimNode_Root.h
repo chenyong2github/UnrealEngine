@@ -19,7 +19,7 @@ struct ENGINE_API FAnimNode_Root : public FAnimNode_Base
 #if WITH_EDITORONLY_DATA
 protected:
 	/** The name of this root node, used to identify the output of this graph. Filled in by the compiler, propagated from the parent graph. */
-	UPROPERTY(meta=(FoldProperty))
+	UPROPERTY(meta=(FoldProperty, BlueprintCompilerGeneratedDefaults))
 	FName Name;
 
 	/** The group of this root node, used to group this output with others when used in a layer. */

@@ -472,22 +472,13 @@ void FAnimNode_LinkedAnimGraph::RequestBlend(const IAnimClassInterface* PriorAni
 }
 
 #if WITH_EDITOR
-void FAnimNode_LinkedAnimGraph::HandleObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+void FAnimNode_LinkedAnimGraph::HandleAnimInstanceReplaced(UAnimInstance* InNewInstance, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
-	FAnimNode_CustomProperty::HandleObjectsReplaced(OldToNewInstanceMap);
-	
 	if (UAnimInstance* ThisTargetInstance = GetTargetInstance<UAnimInstance>())
 	{
-		UObject* const* ReinstancedTarget = OldToNewInstanceMap.Find(ThisTargetInstance);
-		if (ReinstancedTarget)
-		{
-			if(UAnimInstance* ReinstancedTargetInstance = Cast<UAnimInstance>(*ReinstancedTarget))
-			{
-				DynamicUnlink(ThisTargetInstance);
-				SetTargetInstance(ReinstancedTargetInstance);
-				DynamicLink(ReinstancedTargetInstance);
-			}
-		}
+		// If we have a target, unlink & re-link
+		DynamicUnlink(InNewInstance);
+		DynamicLink(InNewInstance);
 	}
 }
 #endif
