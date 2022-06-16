@@ -43,6 +43,7 @@ namespace Audio
 
 		int32 GetNumChannels() const;
 		int32 GetKeyNumChannels() const;
+		float GetMaxLookaheadMsec() const;
 
 		void SetLookaheadMsec(const float InLookAheadMsec);
 		void SetAttackTime(const float InAttackTimeMsec);
@@ -155,5 +156,7 @@ namespace Audio
 		bool bKeyLowshelfEnabled;
 
 		static constexpr float UpwardsCompressionMaxGain = 36.0f;
+
+		static constexpr float MaxLookaheadMsec = 100.0f;
 	};
 }

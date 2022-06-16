@@ -43,7 +43,7 @@ namespace Audio
 
 		for (int32 Channel = 0; Channel < InNumChannels; ++Channel)
 		{
-			LookaheadDelay[Channel].Init(SampleRate, 0.1f);
+			LookaheadDelay[Channel].Init(SampleRate, MaxLookaheadMsec / 1000.0f);
 			LookaheadDelay[Channel].SetDelayMsec(LookaheedDelayMsec);
 
 			EnvFollower[Channel].Init(FInlineEnvelopeFollowerInitParams{SampleRate, AttackTimeMsec, ReleaseTimeMsec, EnvelopeFollowerPeakMode, bIsAnalogMode});
@@ -67,6 +67,11 @@ namespace Audio
 	int32 FDynamicsProcessor::GetKeyNumChannels() const
 	{
 		return EnvFollower.Num();
+	}
+
+	float Audio::FDynamicsProcessor::GetMaxLookaheadMsec() const
+	{
+		return MaxLookaheadMsec;
 	}
 	
 	void FDynamicsProcessor::SetLookaheadMsec(const float InLookAheadMsec)
