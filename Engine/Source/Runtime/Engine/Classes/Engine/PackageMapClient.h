@@ -54,47 +54,7 @@ public:
 	{
 	}
 
-	friend FArchive& operator<<( FArchive& Ar, FNetFieldExport& C )
-	{
-		uint8 Flags = C.bExported ? 1 : 0;
-
-		Ar << Flags;
-
-		if ( Ar.IsLoading() )
-		{
-			C.bExported = (Flags == 1);
-		}
-
-		if ( C.bExported )
-		{
-			Ar.SerializeIntPacked( C.Handle );
-			Ar << C.CompatibleChecksum;
-
-			if (Ar.IsLoading() && Ar.EngineNetVer() < HISTORY_NETEXPORT_SERIALIZATION)
-			{
-				FName TempName;
-				FString TempType;
-
-				Ar << TempName;
-				Ar << TempType;
-
-				C.ExportName = TempName;
-			}
-			else
-			{
-				if (Ar.IsLoading() && Ar.EngineNetVer() < HISTORY_NETEXPORT_SERIALIZE_FIX)
-				{
-					Ar << C.ExportName;
-				}
-				else
-				{
-					UPackageMap::StaticSerializeName(Ar, C.ExportName);
-				}
-			}
-		}
-
-		return Ar;
-	}
+	friend FArchive& operator<<(FArchive& Ar, FNetFieldExport& C);
 
 	void CountBytes(FArchive& Ar) const;
 
@@ -118,39 +78,19 @@ public:
 	TArray< FNetFieldExport >	NetFieldExports;
 	bool						bDirtyForReplay;
 
-	friend FArchive& operator<<( FArchive& Ar, FNetFieldExportGroup& C )
+	friend FArchive& operator<<(FArchive& Ar, FNetFieldExportGroup& C);
+
+	int32 FindNetFieldExportHandleByChecksum(const uint32 Checksum) const
 	{
-		Ar << C.PathName;
-
-		Ar.SerializeIntPacked( C.PathNameIndex );
-
-		uint32 NumNetFieldExports = C.NetFieldExports.Num();
-		Ar.SerializeIntPacked( NumNetFieldExports );
-
-		if ( Ar.IsLoading() )
+		for (int32 i = 0; i < NetFieldExports.Num(); i++)
 		{
-			C.NetFieldExports.AddDefaulted( ( int32 )NumNetFieldExports );
-		}
-
-		for ( int32 i = 0; i < C.NetFieldExports.Num(); i++ )
-		{
-			Ar << C.NetFieldExports[i];
-		}
-
-		return Ar;
-	}
-
-	int32 FindNetFieldExportHandleByChecksum( const uint32 Checksum )
-	{
-		for ( int32 i = 0; i < NetFieldExports.Num(); i++ )
-		{
-			if ( NetFieldExports[i].CompatibleChecksum == Checksum )
+			if (NetFieldExports[i].CompatibleChecksum == Checksum)
 			{
 				return i;
 			}
 		}
 
-		return -1;
+		return INDEX_NONE;
 	}
 
 	void CountBytes(FArchive& Ar) const;

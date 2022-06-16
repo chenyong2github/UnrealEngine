@@ -3845,6 +3845,48 @@ void FNetFieldExport::CountBytes(FArchive& Ar) const
 
 }
 
+FArchive& operator<<(FArchive& Ar, FNetFieldExport& C)
+{
+	uint8 Flags = C.bExported ? 1 : 0;
+
+	Ar << Flags;
+
+	if (Ar.IsLoading())
+	{
+		C.bExported = (Flags == 1);
+	}
+
+	if (C.bExported)
+	{
+		Ar.SerializeIntPacked(C.Handle);
+		Ar << C.CompatibleChecksum;
+
+		if (Ar.IsLoading() && Ar.EngineNetVer() < HISTORY_NETEXPORT_SERIALIZATION)
+		{
+			FName TempName;
+			FString TempType;
+
+			Ar << TempName;
+			Ar << TempType;
+
+			C.ExportName = TempName;
+		}
+		else
+		{
+			if (Ar.IsLoading() && Ar.EngineNetVer() < HISTORY_NETEXPORT_SERIALIZE_FIX)
+			{
+				Ar << C.ExportName;
+			}
+			else
+			{
+				UPackageMap::StaticSerializeName(Ar, C.ExportName);
+			}
+		}
+	}
+
+	return Ar;
+}
+
 void FNetFieldExportGroup::CountBytes(FArchive& Ar) const
 {
 	PathName.CountBytes(Ar);
@@ -3853,6 +3895,35 @@ void FNetFieldExportGroup::CountBytes(FArchive& Ar) const
 	{
 		NetFieldExport.CountBytes(Ar);
 	}
+}
+
+FArchive& operator<<(FArchive& Ar, FNetFieldExportGroup& C)
+{
+	Ar << C.PathName;
+
+	Ar.SerializeIntPacked(C.PathNameIndex);
+
+	uint32 NumNetFieldExports = C.NetFieldExports.Num();
+	Ar.SerializeIntPacked(NumNetFieldExports);
+
+	if (Ar.IsLoading())
+	{
+		if (NumNetFieldExports > (uint32)UE::Net::MaxSerializedNetExportsPerGroup)
+		{
+			UE_LOG(LogNetPackageMap, Error, TEXT("FNetFieldExportGroup - NumNetFieldExports exceeds MaxSerializedNetExportsPerGroup (%d / %d)"), NumNetFieldExports, UE::Net::MaxSerializedNetExportsPerGroup);
+			Ar.SetError();
+			return Ar;
+		}
+
+		C.NetFieldExports.AddDefaulted((int32)NumNetFieldExports);
+	}
+
+	for (int32 i = 0; i < C.NetFieldExports.Num(); i++)
+	{
+		Ar << C.NetFieldExports[i];
+	}
+
+	return Ar;
 }
 
 void FPackageMapAckState::CountBytes(FArchive& Ar) const
