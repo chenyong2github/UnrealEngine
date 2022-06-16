@@ -6,6 +6,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeLock.h"
 #include "Http.h"
+#include "Misc/App.h"
 #include "Misc/Guid.h"
 #include "Misc/Fork.h"
 
@@ -220,7 +221,7 @@ namespace
 {
 	bool ShouldOutputHttpWarnings()
 	{
-		return !IsRunningCommandlet() && !GIsAutomationTesting;
+		return !IsRunningCommandlet() && !FApp::IsUnattended();
 	}
 }
 
