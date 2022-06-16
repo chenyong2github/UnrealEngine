@@ -78,7 +78,7 @@ public:
 
 	virtual void PreDialogCleanup(const FName PipelineStackName) override;
 
-	virtual bool IsSettingsAreValid() const override;
+	virtual bool IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const override;
 
 
 	virtual void AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset) override;

@@ -457,6 +457,7 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 					SNew(SButton)
 					.HAlign(HAlign_Center)
 					.Text(LOCTEXT("InspectorGraphWindow_ImportAll", "Import All"))
+					.ToolTipText(this, &SInterchangePipelineConfigurationDialog::GetImportButtonTooltip)
 					.IsEnabled(this, &SInterchangePipelineConfigurationDialog::IsImportButtonEnabled)
 					.OnClicked(this, &SInterchangePipelineConfigurationDialog::OnCloseDialog, ECloseEventType::ImportAll)
 				]
@@ -465,6 +466,7 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 					SNew(SButton)
 					.HAlign(HAlign_Center)
 					.Text(LOCTEXT("InspectorGraphWindow_Import", "Import"))
+					.ToolTipText(this, &SInterchangePipelineConfigurationDialog::GetImportButtonTooltip)
 					.IsEnabled(this, &SInterchangePipelineConfigurationDialog::IsImportButtonEnabled)
 					.OnClicked(this, &SInterchangePipelineConfigurationDialog::OnCloseDialog, ECloseEventType::Import)
 				]
@@ -498,18 +500,18 @@ FText SInterchangePipelineConfigurationDialog::GetSourceDescription() const
 	return ActionDescription;
 }
 
-bool SInterchangePipelineConfigurationDialog::RecursiveValidatePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode) const
+bool SInterchangePipelineConfigurationDialog::RecursiveValidatePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, TOptional<FText>& OutInvalidReason) const
 {
 	if (ParentNode->Pipeline)
 	{
-		if (!ParentNode->Pipeline->IsSettingsAreValid())
+		if (!ParentNode->Pipeline->IsSettingsAreValid(OutInvalidReason))
 		{
 			return false;
 		}
 	}
 	for (int32 ChildIndex = 0; ChildIndex < ParentNode->Childrens.Num(); ++ChildIndex)
 	{
-		if (!RecursiveValidatePipelineSettings(ParentNode->Childrens[ChildIndex]))
+		if (!RecursiveValidatePipelineSettings(ParentNode->Childrens[ChildIndex], OutInvalidReason))
 		{
 			return false;
 		}
@@ -526,11 +528,30 @@ bool SInterchangePipelineConfigurationDialog::IsImportButtonEnabled() const
 		//Reimport have only one stack and the name wont match DefaultPipelineStackName
 		if (bReimport || RootNode->StackName == DefaultPipelineStackName)
 		{
-			return RecursiveValidatePipelineSettings(RootNode);
+			TOptional<FText> InvalidReason;
+			return RecursiveValidatePipelineSettings(RootNode, InvalidReason);
 		}
 	}
-
 	return true;
+}
+
+FText SInterchangePipelineConfigurationDialog::GetImportButtonTooltip() const
+{
+	const FName DefaultPipelineStackName = GetDefault<UInterchangeProjectSettings>()->DefaultPipelineStack;
+	const TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>>& RootNodeArray = PipelineConfigurationTreeView->GetRootNodeArray();
+	for (const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& RootNode : RootNodeArray)
+	{
+		//Reimport have only one stack and the name wont match DefaultPipelineStackName
+		if (bReimport || RootNode->StackName == DefaultPipelineStackName)
+		{
+			TOptional<FText> InvalidReason;
+			if (!RecursiveValidatePipelineSettings(RootNode, InvalidReason) && InvalidReason.IsSet())
+			{
+				return InvalidReason.GetValue();
+			}
+		}
+	}
+	return FText();
 }
 
 void SInterchangePipelineConfigurationDialog::RecursiveSavePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, const int32 PipelineIndex) const

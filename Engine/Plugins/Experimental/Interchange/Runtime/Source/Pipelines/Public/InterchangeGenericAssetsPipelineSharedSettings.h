@@ -93,12 +93,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Skeletal Meshes and Animations")
 	bool bUseT0AsRefPose = false;
 
-	virtual bool IsSettingsAreValid() const override
+	virtual bool IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const override
 	{
 		if (bImportOnlyAnimations && Skeleton.IsNull())
 		{
+			OutInvalidReason = NSLOCTEXT("UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties", "SkeletonMustBeSpecified", "When importing only animations, a valid skeleton must be set.");
 			return false;
 		}
-		return Super::IsSettingsAreValid();
+		return Super::IsSettingsAreValid(OutInvalidReason);
 	}
 };

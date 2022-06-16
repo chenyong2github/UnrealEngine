@@ -133,7 +133,7 @@ public:
 	 * This function should return true if all the pipeline settings are in a valid state to start the import.
 	 * The Interchange Pipeline Configuration Dialog will call this to know if the Import button can be enable.
 	 */
-	virtual bool IsSettingsAreValid() const
+	virtual bool IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const
 	{
 		return true;
 	}

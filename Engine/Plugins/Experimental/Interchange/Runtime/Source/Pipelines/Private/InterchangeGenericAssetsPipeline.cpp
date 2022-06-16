@@ -72,39 +72,39 @@ void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineSta
 	SaveSettings(PipelineStackName);
 }
 
-bool UInterchangeGenericAssetsPipeline::IsSettingsAreValid() const
+bool UInterchangeGenericAssetsPipeline::IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const
 {
-	if (TexturePipeline && !TexturePipeline->IsSettingsAreValid())
+	if (TexturePipeline && !TexturePipeline->IsSettingsAreValid(OutInvalidReason))
 	{
 		return false;
 	}
 
-	if (MaterialPipeline && !MaterialPipeline->IsSettingsAreValid())
+	if (MaterialPipeline && !MaterialPipeline->IsSettingsAreValid(OutInvalidReason))
 	{
 		return false;
 	}
 
-	if (CommonMeshesProperties && !CommonMeshesProperties->IsSettingsAreValid())
+	if (CommonMeshesProperties && !CommonMeshesProperties->IsSettingsAreValid(OutInvalidReason))
 	{
 		return false;
 	}
 
-	if (CommonSkeletalMeshesAndAnimationsProperties && !CommonSkeletalMeshesAndAnimationsProperties->IsSettingsAreValid())
+	if (CommonSkeletalMeshesAndAnimationsProperties && !CommonSkeletalMeshesAndAnimationsProperties->IsSettingsAreValid(OutInvalidReason))
 	{
 		return false;
 	}
 
-	if (MeshPipeline && !MeshPipeline->IsSettingsAreValid())
+	if (MeshPipeline && !MeshPipeline->IsSettingsAreValid(OutInvalidReason))
 	{
 		return false;
 	}
 
-	if (AnimationPipeline && !AnimationPipeline->IsSettingsAreValid())
+	if (AnimationPipeline && !AnimationPipeline->IsSettingsAreValid(OutInvalidReason))
 	{
 		return false;
 	}
 
-	return Super::IsSettingsAreValid();
+	return Super::IsSettingsAreValid(OutInvalidReason);
 }
 
 void UInterchangeGenericAssetsPipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
