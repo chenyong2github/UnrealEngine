@@ -443,17 +443,15 @@ void SPackagesDialog::RefreshButtons()
 		FPackageButton& Button = *Buttons[ButtonIndex];
 		if(Button.GetType() == DRT_MakeWritable)
 		{
-			if(UndeterminedItems > 0 || CheckedItems > 0)
-				Button.SetDisabled(false);
-			else
-				Button.SetDisabled(true);
+			Button.SetDisabled(UndeterminedItems == 0 && CheckedItems == 0);
 		}
 		else if(Button.GetType() == DRT_CheckOut)
 		{
-			if(CheckedItems > 0)
-				Button.SetDisabled(false);
-			else
-				Button.SetDisabled(true);
+			Button.SetDisabled(CheckedItems == 0);
+		}
+		else if (Button.GetType() == DRT_Skip)
+		{
+			Button.SetDisabled(CheckedItems > 0);
 		}
 	}
 }

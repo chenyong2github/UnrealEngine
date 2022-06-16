@@ -88,6 +88,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
 //definition of flag used to do special work when we're attempting to load the "startup map"
 bool FEditorFileUtils::bIsLoadingDefaultStartupMap = false;
 bool FEditorFileUtils::bIsPromptingForCheckoutAndSave = false;
+bool FEditorFileUtils::bSkipExternalObjectSave = false;
 TSet<FString> FEditorFileUtils::PackagesNotSavedDuringSaveAll;
 TSet<FString> FEditorFileUtils::PackagesNotToPromptAnyMore;
 
@@ -845,7 +846,7 @@ static bool SaveWorld(UWorld* World,
 		// This makes UEditorEngine::Save's own call to InitializePhysicsSceneForSaveIfNecessary redundant but wasn't removed to avoid breaking other code paths
 		const bool bInitializedPhysicsSceneForSave = GEditor->InitializePhysicsSceneForSaveIfNecessary(SaveWorld, bForceInitializedWorld);
 				
-		if(!bAutosaving)
+		if(!bAutosaving && !FEditorFileUtils::ShouldSkipExternalObjectSave())
 		{
 			if (bSuccess)
 			{
@@ -1733,7 +1734,20 @@ void FEditorFileUtils::UpdateCheckoutPackageItems(bool bCheckDirty, TArray<UPack
 	AddCheckoutPackageItems(bCheckDirty, PackagesToCheckOut, OutPackagesNotNeedingCheckout, nullptr);
 }
 
-bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<UPackage*>& PackagesToCheckOut, TArray<UPackage*>* OutPackagesCheckedOutOrMadeWritable, TArray<UPackage*>* OutPackagesNotNeedingCheckout, const bool bPromptingAfterModify )
+bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<UPackage*>& PackagesToCheckOut, TArray<UPackage*>* OutPackagesCheckedOutOrMadeWritable, TArray<UPackage*>* OutPackagesNotNeedingCheckout, const bool bPromptingAfterModify, const bool bAllowSkip)
+{
+	if (bIsPromptingForCheckoutAndSave)
+	{
+		return false;
+	}
+
+	// Prevent re-entrance into this function by setting up a guard value (also used by FEditorFileUtils::PromptForCheckoutAndSave)
+	TGuardValue<bool> PromptForCheckoutAndSaveGuard(bIsPromptingForCheckoutAndSave, true);
+
+	return PromptToCheckoutPackagesInternal(bCheckDirty, PackagesToCheckOut, OutPackagesCheckedOutOrMadeWritable, OutPackagesNotNeedingCheckout, bPromptingAfterModify, bAllowSkip);
+}
+
+bool FEditorFileUtils::PromptToCheckoutPackagesInternal(bool bCheckDirty, const TArray<UPackage*>& PackagesToCheckOut, TArray<UPackage*>* OutPackagesCheckedOutOrMadeWritable, TArray<UPackage*>* OutPackagesNotNeedingCheckout, const bool bPromptingAfterModify, const bool bAllowSkip )
 {
 	bool bResult = true;
 
@@ -1794,6 +1808,12 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 		
 		// Make writable button to make checked files writable
 		CheckoutPackagesDialogModule.AddButton(DRT_MakeWritable, NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableButton", "Make Writable"), NSLOCTEXT("PackagesDialogModule", "Dlg_MakeWritableTooltip", "Makes selected files writable on disk"));
+
+		if (bAllowSkip)
+		{
+			// Skip button to skip checkout step
+			CheckoutPackagesDialogModule.AddButton(DRT_Skip, NSLOCTEXT("PackagesDialogModule", "Dlg_SkipButton", "Skip"), NSLOCTEXT("PackagesDialogModule", "Dlg_SkipTooltip", "Save all files that are writable, but don't check any files out from source control or make them writable."));
+		}
 
 		// The cancel button should be different if we are prompting during a modify.
 		const FText CancelButtonText  = bPromptingAfterModify ? NSLOCTEXT("PackagesDialogModule", "Dlg_AskMeLater", "Ask Me Later") : NSLOCTEXT("PackagesDialogModule", "Dlg_Cancel", "Cancel");
@@ -1889,7 +1909,7 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 
 				bPerformedOperation = true;
 			}
-			else if (UserResponse == DRT_Save)
+			else if (UserResponse == DRT_Save || UserResponse == DRT_Skip)
 			{
 				bResult = true;
 				bPerformedOperation = true;
@@ -3855,31 +3875,35 @@ bool FEditorFileUtils::SaveCurrentLevel()
 	ULevel* Level = GWorld->GetCurrentLevel();
 	if (Level)
 	{
-		// Check dirtiness if the level is using external actors, no need to save it needlessly
-		bool bCheckDirty = Level->IsUsingExternalActors();
-		if (FEditorFileUtils::PromptToCheckoutLevels(bCheckDirty, Level))
-		{
-			UPackage* LevelPackage = Level->GetPackage();
-			// Save the level
-			if (!bCheckDirty || LevelPackage->IsDirty() || LevelPackage->HasAnyPackageFlags(PKG_NewlyCreated))
-			{
-				bReturnCode &= FEditorFileUtils::SaveLevel(Level);
-			}
+		// Check dirtiness if the level is using external objects, no need to save it needlessly
+		const bool bCheckDirty = Level->IsUsingExternalObjects();
 
-			// Gather the level owned packages (i.e external actors and save them)
-			TArray<UPackage*> PackagesToSave = Level->GetLoadedExternalObjectPackages();
-			for (auto It = PackagesToSave.CreateIterator(); It; ++It)
+		TArray<UPackage*> PackagesToSave;
+		
+		UPackage* LevelPackage = Level->GetPackage();
+		// Get Packages to save
+		if (!bCheckDirty || LevelPackage->IsDirty() || LevelPackage->HasAnyPackageFlags(PKG_NewlyCreated))
+		{
+			PackagesToSave.Add(LevelPackage);
+		}
+
+		// Get External Packages to save
+		const TArray<UPackage*> ExternalPackages = Level->GetLoadedExternalObjectPackages();
+		for (UPackage* ExternalPackage : ExternalPackages)
+		{
+			if (FPackageName::IsValidLongPackageName(ExternalPackage->GetName()))
 			{
-				UPackage* Package = *It;
-				if (bCheckDirty && !Package->IsDirty() && !UPackage::IsEmptyPackage(Package))
+				if (!bCheckDirty || ExternalPackage->IsDirty() || UPackage::IsEmptyPackage(ExternalPackage))
 				{
-					It.RemoveCurrent();
-				} // Remove package unsaved packages located in /Temp (they should be saved with the level's first save)
-				else if (!FPackageName::IsValidLongPackageName(Package->GetName()))
-				{
-					It.RemoveCurrent(); 
+					PackagesToSave.Add(ExternalPackage);
 				}
 			}
+		}
+
+		if (PackagesToSave.Num())
+		{
+			// If Level gets saved we don't want it to save its external packages because we've already filtered out the ones that need saving and they are part of the PackagesToSave array
+			TGuardValue<bool> GuardValue(bSkipExternalObjectSave, true);
 			bReturnCode &= InternalSavePackages(PackagesToSave, false, false, false);
 		}
 	}
@@ -4093,7 +4117,7 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 		return PR_Cancelled;
 	}
 
-	// Prevent re-entrance into this function by setting up a guard value
+	// Prevent re-entrance into this function by setting up a guard value (also used by FEditorFileUtils::PromptToCheckoutPackages)
 	TGuardValue<bool> PromptForCheckoutAndSaveGuard(bIsPromptingForCheckoutAndSave, true);
 
 	// Initialize the value we will return to indicate success
@@ -4275,7 +4299,9 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 
 		if (!bAlreadyCheckedOut)
 		{
-			bUserResponse = FEditorFileUtils::PromptToCheckoutPackages(false, PackagesToSave, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout);
+			const bool bPromptingAfterModify = false;
+			const bool bAllowSkip = true;
+			bUserResponse = FEditorFileUtils::PromptToCheckoutPackagesInternal(false, PackagesToSave, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout, bPromptingAfterModify, bAllowSkip);
 		}
 
 		if( bAlreadyCheckedOut || (bUserResponse && (PackagesCheckedOutOrMadeWritable.Num() > 0 || PackagesNotNeedingCheckout.Num() > 0)) )

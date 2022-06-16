@@ -17,6 +17,7 @@ enum EDialogReturnType
 	DRT_CheckOut,
 	DRT_MakeWritable,
 	DRT_Cancel,
+	DRT_Skip,
 	DRT_None
 };
 

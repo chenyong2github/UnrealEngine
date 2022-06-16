@@ -467,11 +467,12 @@ public:
 	 * @param	OutPackagesCheckedOutOrMadeWritable		If not NULL, this array will be populated with packages that the user selected to check out or make writable.
 	 * @param	OutPackagesNotNeedingCheckout			If not NULL, this array will be populated with packages that the user was not prompted about and do not need to be checked out to save.  Useful for saving packages even if the user canceled the checkout dialog.
 	 * @param	bPromptingAfterModify					If true, we are prompting the user after an object has been modified, which changes the cancel button to "Ask me later".
+	 * @param	bAllowSkip								If true, user can skip the checkout / make writable.
 	 *
 	 * @return	true if the user did not cancel out of the dialog and has potentially checked out some files
 	 *			(or if there is no source control integration); false if the user cancelled the dialog
 	 */
-	UNREALED_API static bool PromptToCheckoutPackages(bool bCheckDirty, const TArray<UPackage*>& PackagesToCheckOut, TArray< UPackage* >* OutPackagesCheckedOutOrMadeWritable = NULL, TArray< UPackage* >* OutPackagesNotNeedingCheckout = NULL, const bool bPromptingAfterModify = false );
+	UNREALED_API static bool PromptToCheckoutPackages(bool bCheckDirty, const TArray<UPackage*>& PackagesToCheckOut, TArray< UPackage* >* OutPackagesCheckedOutOrMadeWritable = NULL, TArray< UPackage* >* OutPackagesNotNeedingCheckout = NULL, const bool bPromptingAfterModify = false, const bool bAllowSkip = false );
 	
 	/**
 	 * Check out the specified packages from source control and report any errors while checking out
@@ -541,7 +542,10 @@ public:
 	static bool SaveWorlds(UWorld* InWorld, const FString& RootPath, const TCHAR* Prefix, TArray<FString>& OutFilenames);
 
 	/** Whether or not we're in the middle of loading the simple startup map */
-	static bool IsLoadingStartupMap() {return bIsLoadingDefaultStartupMap;}
+	static bool IsLoadingStartupMap() { return bIsLoadingDefaultStartupMap; }
+
+	/** Whether or not saving the map package should save the external objects packages */
+	static bool ShouldSkipExternalObjectSave() { return bSkipExternalObjectSave; }
 
 	/**
 	 * Returns a file filter string appropriate for a specific file interaction.
@@ -619,12 +623,18 @@ private:
 
 	/** Callback from PackagesDialog used to update the list of items when the source control state changes */
 	static void UpdateCheckoutPackageItems(bool bCheckDirty, TArray<UPackage*> PackagesToCheckOut, TArray<UPackage*>* OutPackagesNotNeedingCheckout);
+	
+	/** Prompts for package checkout without reentrance check */
+	static bool PromptToCheckoutPackagesInternal(bool bCheckDirty, const TArray<UPackage*>& PackagesToCheckOut, TArray<UPackage*>* OutPackagesCheckedOutOrMadeWritable, TArray<UPackage*>* OutPackagesNotNeedingCheckout, const bool bPromptingAfterModify, const bool bAllowSkip);
 
 	static bool bIsLoadingDefaultStartupMap;
 
 	/** Flag used to determine if the checkout and save prompt is already open to prevent re-entrance */
 	static bool bIsPromptingForCheckoutAndSave;
 	
+	/** Flag used in SaveMap to skip saving external objects and only save the map */
+	static bool bSkipExternalObjectSave;
+
 	// Set of packages to ignore for save/checkout when using SaveAll.
 	static TSet<FString> PackagesNotSavedDuringSaveAll;
 
