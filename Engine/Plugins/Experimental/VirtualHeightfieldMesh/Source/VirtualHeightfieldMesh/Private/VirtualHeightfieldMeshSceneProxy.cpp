@@ -397,7 +397,8 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 	WorldToUV = UVToWorld.Inverse();
 	WorldToUVTransposeAdjoint = WorldToUV.TransposeAdjoint();
 
-	UVToLocal = UVToWorld * GetLocalToWorld().Inverse();
+	// UVToLocal will be initialized in OnTransformChanged() called immediately after construction.
+	UVToLocal = FMatrix::Identity;
 
 	UHeightfieldMinMaxTexture* HeightfieldMinMaxTexture = InComponent->GetMinMaxTexture();
 	if (HeightfieldMinMaxTexture != nullptr)
