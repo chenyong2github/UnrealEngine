@@ -1951,29 +1951,20 @@ void FOpenGLDynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI, uint32 Mip
 void FOpenGLDynamicRHI::InvalidateTextureResourceInCache(GLuint Resource)
 {
 	VERIFY_GL_SCOPE();
-	if (SharedContextState.Textures || RenderingContextState.Textures || PendingState.Textures)
+	auto InvalidateContextTextureResources = [&Resource](TArray<FTextureStage>& Textures)
 	{
-		for (int32 SamplerIndex = 0; SamplerIndex < FOpenGL::GetMaxCombinedTextureImageUnits(); ++SamplerIndex)
+		for (FTextureStage& TextureStage : Textures)
 		{
-			if (SharedContextState.Textures && SharedContextState.Textures[SamplerIndex].Resource == Resource)
+			if (TextureStage.Resource == Resource)
 			{
-				SharedContextState.Textures[SamplerIndex].Target = GL_NONE;
-				SharedContextState.Textures[SamplerIndex].Resource = 0;
-			}
-
-			if (RenderingContextState.Textures && RenderingContextState.Textures[SamplerIndex].Resource == Resource)
-			{
-				RenderingContextState.Textures[SamplerIndex].Target = GL_NONE;
-				RenderingContextState.Textures[SamplerIndex].Resource = 0;
-			}
-
-			if (PendingState.Textures && PendingState.Textures[SamplerIndex].Resource == Resource)
-			{
-				PendingState.Textures[SamplerIndex].Target = GL_NONE;
-				PendingState.Textures[SamplerIndex].Resource = 0;
+				TextureStage.Target = GL_NONE;
+				TextureStage.Resource = 0;
 			}
 		}
-	}
+	};
+	InvalidateContextTextureResources(SharedContextState.Textures);
+	InvalidateContextTextureResources(RenderingContextState.Textures);
+	InvalidateContextTextureResources(PendingState.Textures);
 	
 	TextureMipLimits.Remove(Resource);
 	

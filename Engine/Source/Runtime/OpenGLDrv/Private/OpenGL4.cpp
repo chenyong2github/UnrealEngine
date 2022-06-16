@@ -10,7 +10,6 @@
 
 #if OPENGL_GL4
 
-GLint FOpenGL4::MaxComputeTextureImageUnits = -1;
 GLint FOpenGL4::MaxComputeUniformComponents = -1;
 GLint FOpenGL4::MaxCombinedUAVUnits = 0;
 GLint FOpenGL4::MaxComputeUAVUnits = -1;
@@ -24,7 +23,6 @@ void FOpenGL4::ProcessQueryGLInt()
 	GET_GL_INT(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, 0, MaxPixelUAVUnits);
 	GET_GL_INT(GL_TEXTURE_BUFFER_OFFSET_ALIGNMENT, 0, TextureBufferAlignment);
 
-	GET_GL_INT(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, 0, MaxComputeTextureImageUnits);
 	GET_GL_INT(GL_MAX_COMPUTE_UNIFORM_COMPONENTS, 0, MaxComputeUniformComponents);
 	GET_GL_INT(GL_MAX_COMPUTE_IMAGE_UNIFORMS, 0, MaxComputeUAVUnits);
 	

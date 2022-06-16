@@ -1545,11 +1545,11 @@ class FGLProgramCacheLRU
 	class FEvictedGLProgram
 	{
 		FOpenGLLinkedProgram* LinkedProgram;
-
+ 
 		FORCEINLINE_DEBUGGABLE TArray<uint8>& GetProgramBinary()
-		{
+ 		{
 			return LinkedProgram->LRUInfo.CachedProgramBinary;
-		}
+ 		}
 
 	public:
 
@@ -2089,6 +2089,17 @@ void FOpenGLLinkedProgram::ConfigureShaderStage( int Stage, uint32 FirstUniformB
 		0,
 		FOpenGL::GetFirstComputeTextureUnit()
 	};
+
+	static const GLint MaxTextureUnit[CrossCompiler::NUM_SHADER_STAGES] =
+	{
+		FOpenGL::GetMaxVertexTextureImageUnits(),
+		FOpenGL::GetMaxTextureImageUnits(),
+		FOpenGL::GetMaxGeometryTextureImageUnits(),
+		0,
+		0,
+		FOpenGL::GetMaxComputeTextureImageUnits()
+	};
+
 	static const GLint FirstUAVUnit[CrossCompiler::NUM_SHADER_STAGES] =
 	{
 		FOpenGL::GetFirstVertexUAVUnit(),
@@ -2208,6 +2219,11 @@ void FOpenGLLinkedProgram::ConfigureShaderStage( int Stage, uint32 FirstUniformB
 				FOpenGL::ProgramUniform1i(StageProgram, Location, FirstTextureUnit[Stage] + SamplerIndex);
 				TextureStageNeeds[ FirstTextureUnit[Stage] + SamplerIndex ] = true;
 				MaxTextureStage = FMath::Max( MaxTextureStage, FirstTextureUnit[Stage] + SamplerIndex);
+				if (SamplerIndex >= MaxTextureUnit[Stage])
+				{
+					UE_LOG(LogShaders, Error, TEXT("%s has a shader using too many textures (idx %d, max allowed %d) at stage %d"), *Config.ProgramKey.ToString(), SamplerIndex, MaxTextureUnit[Stage]-1, Stage);
+					checkNoEntry();
+				}
 			}
 			else
 			{

@@ -871,9 +871,6 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 
 	FOpenGLES::ProcessExtensions(ExtensionsString);
 
-	// clamp the number of texture units so we stay within the limits of our ContextState.Textures array.
-	MaxComputeTextureImageUnits = FMath::Min(MaxComputeTextureImageUnits, GetMaxCombinedTextureImageUnits());
-
 	FString RendererString = FString(ANSI_TO_TCHAR((const ANSICHAR*)glGetString(GL_RENDERER)));
 
 	// Common GPU types

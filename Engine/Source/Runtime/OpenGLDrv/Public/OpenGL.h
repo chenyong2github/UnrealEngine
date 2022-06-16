@@ -143,7 +143,7 @@ public:
 	static FORCEINLINE GLint GetMaxTextureImageUnits()			{ check(MaxTextureImageUnits != -1); return MaxTextureImageUnits; }
 	static FORCEINLINE GLint GetMaxVertexTextureImageUnits()	{ check(MaxVertexTextureImageUnits != -1); return MaxVertexTextureImageUnits; }
 	static FORCEINLINE GLint GetMaxGeometryTextureImageUnits()	{ check(MaxGeometryTextureImageUnits != -1); return MaxGeometryTextureImageUnits; }
-	static FORCEINLINE GLint GetMaxComputeTextureImageUnits()	{ return 0; }
+	static FORCEINLINE GLint GetMaxComputeTextureImageUnits()	{ check(MaxComputeTextureImageUnits != -1); return MaxComputeTextureImageUnits; }
 	static FORCEINLINE GLint GetMaxCombinedTextureImageUnits()	{ check(MaxCombinedTextureImageUnits != -1); return MaxCombinedTextureImageUnits; }
 	static FORCEINLINE GLint GetTextureBufferAlignment()		{ return TextureBufferAlignment; }
 
@@ -370,6 +370,7 @@ public:
 protected:
 	static GLint MaxTextureImageUnits;
 	static GLint MaxCombinedTextureImageUnits;
+	static GLint MaxComputeTextureImageUnits;
 	static GLint MaxVertexTextureImageUnits;
 	static GLint MaxGeometryTextureImageUnits;
 	static GLint MaxVertexUniformComponents;

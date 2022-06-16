@@ -859,7 +859,6 @@ public:
 	/** Whether device supports mobile multi-view */
 	static bool bSupportsMobileMultiView;
 
-	static GLint MaxComputeTextureImageUnits;
 	static GLint MaxComputeUniformComponents;
 
 	static GLint MaxCombinedUAVUnits;

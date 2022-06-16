@@ -485,6 +485,7 @@ void FOpenGLDynamicRHI::InitializeStateResources()
 
 GLint FOpenGLBase::MaxTextureImageUnits = -1;
 GLint FOpenGLBase::MaxCombinedTextureImageUnits = -1;
+GLint FOpenGLBase::MaxComputeTextureImageUnits = -1;
 GLint FOpenGLBase::MaxVertexTextureImageUnits = -1;
 GLint FOpenGLBase::MaxGeometryTextureImageUnits = -1;
 GLint FOpenGLBase::MaxVaryingVectors = -1;
@@ -504,8 +505,9 @@ bool  FOpenGLBase::bAmdWorkaround = false;
 
 void FOpenGLBase::ProcessQueryGLInt()
 {
-	GET_GL_INT(GL_MAX_TEXTURE_IMAGE_UNITS, 0, MaxTextureImageUnits);
-	GET_GL_INT(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, 0, MaxVertexTextureImageUnits);
+	LOG_AND_GET_GL_INT(GL_MAX_TEXTURE_IMAGE_UNITS, 0, MaxTextureImageUnits);
+	LOG_AND_GET_GL_INT(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, 0, MaxVertexTextureImageUnits);
+	LOG_AND_GET_GL_INT(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, 0, MaxComputeTextureImageUnits);
 	GET_GL_INT(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, 0, MaxCombinedTextureImageUnits);
 }
 
@@ -513,27 +515,29 @@ void FOpenGLBase::ProcessExtensions( const FString& ExtensionsString )
 {
 	ProcessQueryGLInt();
 
-	// For now, just allocate additional units if available and advertise no tessellation units for HW that can't handle more
-	if ( MaxCombinedTextureImageUnits < 48 )
+	auto CheckAndSetImageUnits = [](GLint& StageImageUnitsINOUT, GLint Limit, const TCHAR* Msg) 
 	{
-		// To work around AMD driver limitation of 32 GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
-		// Going to hard code this for now (16 units in PS, 8 units in VS, 8 units in GS).
-		// This is going to be a problem for tessellation.
-		MaxTextureImageUnits = MaxTextureImageUnits > 16 ? 16 : MaxTextureImageUnits;
-		MaxVertexTextureImageUnits = MaxVertexTextureImageUnits > 8 ? 8 : MaxVertexTextureImageUnits;
-		MaxGeometryTextureImageUnits = MaxGeometryTextureImageUnits > 8 ? 8 : MaxGeometryTextureImageUnits;
-		MaxCombinedTextureImageUnits = MaxCombinedTextureImageUnits > 32 ? 32 : MaxCombinedTextureImageUnits;
+		const bool bUnsupported = StageImageUnitsINOUT < Limit;
+		UE_CLOG(bUnsupported, LogRHI, Error, TEXT("GL RHI requires a minimum %s texture unit count of %d, this device reports %d."), Msg, Limit, StageImageUnitsINOUT);
+		check(!bUnsupported);
+		StageImageUnitsINOUT = Limit;
+	};
+
+	static const GLint GLESMaxImageUnitsPerStage = 16; // gles 3 spec is a minimum of 16 per stage. 
+	static const GLint MaxCombinedImageUnits = 48;
+
+	if (IsMobilePlatform(GMaxRHIShaderPlatform))
+	{
+		// clamp things to the levels that the spec is expecting, check the minimum is supported.
+		CheckAndSetImageUnits(MaxTextureImageUnits, GLESMaxImageUnitsPerStage, TEXT("pixel stage"));
+		CheckAndSetImageUnits(MaxVertexTextureImageUnits, GLESMaxImageUnitsPerStage, TEXT("vertex stage"));
+		CheckAndSetImageUnits(MaxGeometryTextureImageUnits, 0, TEXT("geometry stage")); // gles is not expecting this.
+		CheckAndSetImageUnits(MaxComputeTextureImageUnits, GLESMaxImageUnitsPerStage, TEXT("compute stage"));
+		CheckAndSetImageUnits(MaxCombinedTextureImageUnits, MaxCombinedImageUnits, TEXT("combined"));
 	}
 	else
 	{
-		// clamp things to the levels that the other path is going, but allow additional units for tessellation
-		if (IsMobilePlatform(GMaxRHIShaderPlatform))
-		{
-			MaxTextureImageUnits = MaxTextureImageUnits > 16 ? 16 : MaxTextureImageUnits;
-			MaxVertexTextureImageUnits = MaxVertexTextureImageUnits > 16 ? 16 : MaxVertexTextureImageUnits;
-			MaxGeometryTextureImageUnits = MaxGeometryTextureImageUnits > 16 ? 16 : MaxGeometryTextureImageUnits;
-			MaxCombinedTextureImageUnits = MaxCombinedTextureImageUnits > 48 ? 48 : MaxCombinedTextureImageUnits;
-		}
+		UE_CLOG(MaxCombinedTextureImageUnits<MaxCombinedImageUnits, LogRHI, Fatal, TEXT("GL RHI requires a minimum combined texture unit count of %d, this device reports %d."), MaxCombinedImageUnits, MaxCombinedTextureImageUnits);
 	}
 
 	// Check for support for advanced texture compression (desktop and mobile)

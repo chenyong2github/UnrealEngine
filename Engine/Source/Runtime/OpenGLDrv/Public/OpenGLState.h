@@ -271,13 +271,11 @@ struct FOpenGLStream
 
 struct FOpenGLCommonState
 {
-	FTextureStage*			Textures;
-	FOpenGLSamplerState**	SamplerStates;
+	TArray<FTextureStage>	Textures;
+	TArray<FOpenGLSamplerState*>	SamplerStates;
 	TArray<FUAVStage>		UAVs;
 
 	FOpenGLCommonState()
-	: Textures(NULL)
-	, SamplerStates(NULL)
 	{}
 
 	virtual ~FOpenGLCommonState()
@@ -291,10 +289,9 @@ struct FOpenGLCommonState
 	{
 		check(NumCombinedTextures >= FOpenGL::GetMaxCombinedTextureImageUnits());
 		check(NumCombinedUAVUnits >= FOpenGL::GetMaxCombinedUAVUnits());
-		check(!Textures && !SamplerStates && UAVs.Num() == 0);
-		Textures = new FTextureStage[NumCombinedTextures];
-		SamplerStates = new FOpenGLSamplerState*[NumCombinedTextures];
-		FMemory::Memset( SamplerStates, 0, NumCombinedTextures * sizeof(*SamplerStates) );
+		check(Textures.IsEmpty() && SamplerStates.IsEmpty() && UAVs.Num() == 0);
+		Textures.SetNum(NumCombinedTextures);
+		SamplerStates.SetNumZeroed(NumCombinedTextures);
 		
 		UAVs.Reserve(NumCombinedUAVUnits);
 		UAVs.AddDefaulted(NumCombinedUAVUnits);
@@ -302,12 +299,9 @@ struct FOpenGLCommonState
 
 	virtual void CleanupResources()
 	{
-		delete [] SamplerStates;
-		delete [] Textures;
-
+		SamplerStates.Empty();
+		Textures.Empty();
 		UAVs.Empty();
-		SamplerStates = NULL;
-		Textures = NULL;
 	}
 };
 
