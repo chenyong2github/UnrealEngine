@@ -790,13 +790,9 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_AfterInitViews));
 
-	if (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass())
+	if (!ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMobileSceneRenderer_PostInitViewsFlushDel);
-		// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
-		// Also when doing RHI thread this is the only spot that will process pending deletes
-		FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
-		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+		GraphBuilder.SetFlushResourcesRHI();
 	}
 
 	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
@@ -1136,6 +1132,7 @@ void FMobileSceneRenderer::RenderForwardSinglePass(FRDGBuilder& GraphBuilder, FM
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Opaque));
 		RenderMobileBasePass(RHICmdList, View);
 		RenderMobileDebugView(RHICmdList, View);
+		RHICmdList.PollOcclusionQueries();
 		const bool bAdrenoOcclusionMode = (CVarMobileAdrenoOcclusionMode.GetValueOnRenderThread() != 0 && IsOpenGLPlatform(ShaderPlatform));
 		if (!bAdrenoOcclusionMode)
 		{
@@ -1187,6 +1184,7 @@ void FMobileSceneRenderer::RenderForwardMultiPass(FRDGBuilder& GraphBuilder, FMo
 		RenderMobileDebugView(RHICmdList, View);
 		// Issue occlusion queries
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
+		RHICmdList.PollOcclusionQueries();
 		RenderOcclusion(RHICmdList, View);
 		PostRenderBasePass(RHICmdList, View);
 	});
@@ -1428,6 +1426,7 @@ void FMobileSceneRenderer::RenderDeferredSinglePass(FRDGBuilder& GraphBuilder, c
 			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
 			RenderOcclusion(RHICmdList, View);
 		}
+		RHICmdList.PollOcclusionQueries();
 
 		PostRenderBasePass(RHICmdList, View);
 		// SceneColor + GBuffer write, SceneDepth is read only
@@ -1468,6 +1467,7 @@ void FMobileSceneRenderer::RenderDeferredMultiPass(FRDGBuilder& GraphBuilder, cl
 		RenderMobileBasePass(RHICmdList, View);
 		// Issue occlusion queries
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
+		RHICmdList.PollOcclusionQueries();
 		RenderOcclusion(RHICmdList, View);
 		PostRenderBasePass(RHICmdList, View);
 	});

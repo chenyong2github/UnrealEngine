@@ -210,6 +210,8 @@ bool FAndroidOpenGLFramePacer::SupportsFramePace(int32 QueryFramePace)
 
 bool FAndroidOpenGLFramePacer::SwapBuffers(bool bLockToVsync)
 {
+	SCOPED_NAMED_EVENT(STAT_OpenGLSwapBuffersTime, FColor::Red)
+
 #if !UE_BUILD_SHIPPING
 	if (FAndroidPlatformRHIFramePacer::CVarStallSwap.GetValueOnAnyThread() > 0.0f)
 	{
