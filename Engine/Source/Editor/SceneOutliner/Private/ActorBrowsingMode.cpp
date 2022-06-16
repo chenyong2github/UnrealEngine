@@ -592,7 +592,9 @@ void FActorBrowsingMode::RegisterContextMenu()
 										FSceneOutlinerTreeItemPtr Item = Selection.SelectedItems[0].Pin();
 										if (FActorFolderTreeItem* FolderItem = Item->CastTo<FActorFolderTreeItem>())
 										{
-											return FolderItem->World.IsValid() && (FolderItem->World->GetCurrentLevel() == FolderItem->GetFolder().GetRootObjectAssociatedLevel());
+											return FolderItem->World.IsValid() && 
+												  (FolderItem->World->GetCurrentLevel() == FolderItem->GetFolder().GetRootObjectAssociatedLevel()) &&
+												  (FActorFolders::Get().GetActorEditorContextFolder(*FolderItem->World) != FolderItem->GetFolder());
 										}
 									}
 									return false;
