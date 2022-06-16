@@ -196,12 +196,12 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::ConstructNodes(const TArray<FA
 		TMap<FAssetIdentifier, FReferenceNodeInfo> NewReferenceNodeInfos;
 		FReferenceNodeInfo& RootNodeInfo = NewReferenceNodeInfos.FindOrAdd( GraphRootIdentifiers[0], FReferenceNodeInfo(GraphRootIdentifiers[0], true));
 		RootNodeInfo.Parents.Emplace(FAssetIdentifier(NAME_None));
-		RecursivelyPopulateNodeInfos(true, GraphRootIdentifiers[0], NewReferenceNodeInfos, 0, Settings->GetSearchReferencerDepthLimit());
+		RecursivelyPopulateNodeInfos(true, GraphRootIdentifiers, NewReferenceNodeInfos, 0, Settings->GetSearchReferencerDepthLimit());
 
 		TMap<FAssetIdentifier, FReferenceNodeInfo> NewDependencyNodeInfos;
 		FReferenceNodeInfo& DRootNodeInfo = NewDependencyNodeInfos.FindOrAdd( GraphRootIdentifiers[0], FReferenceNodeInfo(GraphRootIdentifiers[0], false));
 		DRootNodeInfo.Parents.Emplace(FAssetIdentifier(NAME_None));
-		RecursivelyPopulateNodeInfos(false, GraphRootIdentifiers[0], NewDependencyNodeInfos, 0, Settings->GetSearchDependencyDepthLimit());
+		RecursivelyPopulateNodeInfos(false, GraphRootIdentifiers, NewDependencyNodeInfos, 0, Settings->GetSearchDependencyDepthLimit());
 
 		TSet<FName> AllPackageNames;
 		auto AddPackage = [](const FAssetIdentifier& AssetId, TSet<FName>& PackageNames)
@@ -476,17 +476,15 @@ bool UEdGraph_ReferenceViewer::IsAssetPassingSearchTextFilter(const FAssetIdenti
 }
 
 void
-UEdGraph_ReferenceViewer::RecursivelyPopulateNodeInfos(bool bInReferencers, const FAssetIdentifier& InAssetId, TMap<FAssetIdentifier, FReferenceNodeInfo>& InNodeInfos, int32 InCurrentDepth, int32 InMaxDepth)
+UEdGraph_ReferenceViewer::RecursivelyPopulateNodeInfos(bool bInReferencers, const TArray<FAssetIdentifier>& Identifiers, TMap<FAssetIdentifier, FReferenceNodeInfo>& InNodeInfos, int32 InCurrentDepth, int32 InMaxDepth)
 {
+	check(Identifiers.Num() > 0);
 	int32 ProvisionSize = 0;
-
+	const FAssetIdentifier& InAssetId = Identifiers[0];
 	if (InMaxDepth > 0 && InCurrentDepth < InMaxDepth)
 	{
-		TArray<FAssetIdentifier> AssetIds;
-		AssetIds.Add(InAssetId);
-
 		TMap<FAssetIdentifier, EDependencyPinCategory> ReferenceLinks;
-		GetSortedLinks(AssetIds, bInReferencers, GetReferenceSearchFlags(false), ReferenceLinks);
+		GetSortedLinks(Identifiers, bInReferencers, GetReferenceSearchFlags(false), ReferenceLinks);
 
 		InNodeInfos[InAssetId].Children.Reserve(ReferenceLinks.Num());
 		for (const TPair<FAssetIdentifier, EDependencyPinCategory>& Pair : ReferenceLinks)
@@ -498,7 +496,7 @@ UEdGraph_ReferenceViewer::RecursivelyPopulateNodeInfos(bool bInReferencers, cons
 				InNodeInfos[ChildId].Parents.Emplace(InAssetId);
 				InNodeInfos[InAssetId].Children.Emplace(Pair);
 
-				RecursivelyPopulateNodeInfos(bInReferencers, ChildId, InNodeInfos, InCurrentDepth + 1, InMaxDepth);
+				RecursivelyPopulateNodeInfos(bInReferencers, { ChildId }, InNodeInfos, InCurrentDepth + 1, InMaxDepth);
 				ProvisionSize += InNodeInfos[ChildId].ProvisionSize(InAssetId);
 			}
 
