@@ -38,10 +38,8 @@ UCLASS(EditInlineNew, Category = "Landscape", meta = (DisplayName = "Landscape S
 class NIAGARA_API UNiagaraDataInterfaceLandscape : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
+
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	UPROPERTY(EditAnywhere, Category = "Landscape")
 	TObjectPtr<AActor> SourceLandscape;
 
@@ -69,9 +67,11 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
