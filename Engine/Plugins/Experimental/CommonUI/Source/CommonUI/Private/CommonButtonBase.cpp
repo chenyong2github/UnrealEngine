@@ -312,6 +312,7 @@ UCommonButtonBase::UCommonButtonBase(const FObjectInitializer& ObjectInitializer
 	, bSelectable(false)
 	, bShouldSelectUponReceivingFocus(false)
 	, bToggleable(false)
+	, bTriggerClickedAfterSelection(false)
 	, bDisplayInputActionWhenNotInteractable(true)
 	, bShouldUseFallbackDefaultInputAction(true)
 	, bSelected(false)
@@ -1012,9 +1013,16 @@ void UCommonButtonBase::HandleButtonClicked()
 	// Guard against this case.
 	if (IsInteractionEnabled())
 	{
-		SetIsSelected(!bSelected, false);
-
-		NativeOnClicked();
+		if (bTriggerClickedAfterSelection)
+		{
+			SetIsSelected(!bSelected, false);
+			NativeOnClicked();
+		}
+		else
+		{
+			NativeOnClicked();
+			SetIsSelected(!bSelected, false);
+		}
 
 		ExecuteTriggeredInput();
 	}

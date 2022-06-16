@@ -606,6 +606,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Selection, meta = (ExposeOnSpawn = true, EditCondition = "bSelectable"))
 	uint8 bToggleable:1;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Selection, meta = (ExposeOnSpawn = true, EditCondition = "bSelectable"))
+	uint8 bTriggerClickedAfterSelection:1;
+
 	/** True if the input action should be displayed when the button is not interactable */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (ExposeOnSpawn = true))
 	uint8 bDisplayInputActionWhenNotInteractable:1;
