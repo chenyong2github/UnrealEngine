@@ -2725,6 +2725,14 @@ inline bool IsTranslucentBlendMode(enum EBlendMode BlendMode)
 }
 
 /**
+ * @return True if StrataBlendMode is translucent (should be part of the translucent rendering).
+ */
+inline bool IsTranslucentBlendMode(enum EStrataBlendMode StrataBlendMode)
+{
+	return StrataBlendMode != SBM_Opaque && StrataBlendMode != SBM_Masked;
+}
+
+/**
  * Implementation of the FMaterial interface for a UMaterial or UMaterialInstance.
  */
 class FMaterialResource : public FMaterial
