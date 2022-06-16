@@ -16,6 +16,7 @@
 #include "LandscapeEditorObject.h"
 #include "IDetailsView.h"
 #include "PropertyEditorModule.h"
+#include "LandscapeSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor"
 
@@ -183,6 +184,8 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 {
 	auto Commands = FLandscapeEditorCommands::Get();
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
+
 	if (PaletteName == LandscapeEditorNames::Manage)
 	{
 		ToolBarBuilder.BeginSection("Manage");
@@ -215,7 +218,12 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		ToolBarBuilder.AddToolBarButton(Commands.NoiseTool);
 		ToolBarBuilder.AddToolBarButton(Commands.RetopologizeTool);
 		ToolBarBuilder.AddToolBarButton(Commands.VisibilityTool);
-		ToolBarBuilder.AddToolBarButton(Commands.BlueprintBrushTool);
+
+		if (Settings->AreBlueprintToolsAllowed())
+		{
+			ToolBarBuilder.AddToolBarButton(Commands.BlueprintBrushTool);
+		}
+
 		ToolBarBuilder.AddToolBarButton(Commands.MirrorTool);
 
 		ToolBarBuilder.AddToolBarButton(Commands.RegionSelectTool);
@@ -229,7 +237,8 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		ToolBarBuilder.AddToolBarButton(Commands.SmoothTool);
 		ToolBarBuilder.AddToolBarButton(Commands.FlattenTool);
 		ToolBarBuilder.AddToolBarButton(Commands.NoiseTool);
-		if (LandscapeEdMode->CanHaveLandscapeLayersContent())
+		
+		if (LandscapeEdMode->CanHaveLandscapeLayersContent() && Settings->AreBlueprintToolsAllowed())
 		{
 			ToolBarBuilder.AddToolBarButton(Commands.BlueprintBrushTool);
 		}

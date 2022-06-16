@@ -17,6 +17,9 @@ class LANDSCAPE_API ULandscapeSettings : public UDeveloperSettings
 public:
 	/** Returns true if landscape resolution should be constrained. */
 	bool IsLandscapeResolutionRestricted() const { return InRestrictiveMode(); }
+
+	/** Returns true if blueprint landscape tools usage is allowed */
+	bool AreBlueprintToolsAllowed() const { return !InRestrictiveMode(); }
 	
 	/** Returns the current landscape resolution limit. */
 	int32 GetTotalResolutionLimit() const { return SideResolutionLimit * SideResolutionLimit; }
