@@ -400,7 +400,7 @@ namespace Chaos
 					}
 
 					FParticlePairMidPhase* MidPhasePair = MidPhasePairs[Index];
-					NarrowPhase.GenerateCollisions(Dt, MidPhasePair, false);
+					NarrowPhase.GenerateCollisions(Dt, MidPhasePair);
 				}
 
 				PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumFromBroadphase, NumPotentials, ECsvCustomStatOp::Accumulate);

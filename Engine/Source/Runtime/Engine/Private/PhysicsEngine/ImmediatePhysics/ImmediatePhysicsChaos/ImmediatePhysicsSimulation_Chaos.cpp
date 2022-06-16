@@ -381,10 +381,13 @@ namespace ImmediatePhysics_Chaos
 		Implementation->Collisions.DisableHandles();
 		Implementation->Collisions.SetSolverType(EConstraintSolverType::StandardPbd);
 		Implementation->Joints.SetSolverType(EConstraintSolverType::StandardPbd);
-		Implementation->NarrowPhase.GetContext().bFilteringEnabled = false;
-		Implementation->NarrowPhase.GetContext().bDeferUpdate = true;
-		Implementation->NarrowPhase.GetContext().bAllowManifolds = false;
-		Implementation->NarrowPhase.GetContext().bAllowManifoldReuse = false;
+
+		Implementation->NarrowPhase.GetContext().GetSettings().bFilteringEnabled = false;
+		Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifoldReuse = false;
+		Implementation->NarrowPhase.GetContext().GetSettings().bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);
+		Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);
+		Implementation->NarrowPhase.GetContext().GetSettings().bAllowCCD = false;
+		Implementation->Collisions.SetDetectorSettings(Implementation->NarrowPhase.GetContext().GetSettings());
 	}
 
 	FSimulation::~FSimulation()
@@ -910,21 +913,16 @@ namespace ImmediatePhysics_Chaos
 			Implementation->Collisions.SetRestitutionEnabled(ChaosImmediate_Collision_RestitutionEnabled != 0);
 			Implementation->Collisions.SetRestitutionThreshold(ChaosImmediate_Collision_RestitutionThresholdMultiplier * InGravity.Size());
 			Implementation->Collisions.SetCollisionsEnabled(ChaosImmediate_Collision_Enabled != 0);
+
 			Implementation->CollisionsRule.SetPriority(ChaosImmediate_Collision_Priority);
+
+			Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifoldReuse = false;
+			Implementation->NarrowPhase.GetContext().GetSettings().bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);
+			Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);
+			Implementation->Collisions.SetDetectorSettings(Implementation->NarrowPhase.GetContext().GetSettings());
 
 			Implementation->Evolution.SetBoundsExtension(ChaosImmediate_Evolution_BoundsExtension);
 
-			Implementation->NarrowPhase.GetContext().bAllowManifoldReuse = false;
-			if (SolverType == EConstraintSolverType::QuasiPbd)
-			{
-				Implementation->NarrowPhase.GetContext().bDeferUpdate = false;
-				Implementation->NarrowPhase.GetContext().bAllowManifolds = true;
-			}
-			else
-			{
-				Implementation->NarrowPhase.GetContext().bDeferUpdate = (ChaosImmediate_Collision_DeferNarrowPhase != 0);
-				Implementation->NarrowPhase.GetContext().bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);
-			}
 
 			if (ChaosImmediate_Evolution_StepTime > 0)
 			{

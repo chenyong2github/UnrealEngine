@@ -4,6 +4,7 @@
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
+#include "Chaos/Collision/CollisionContext.h"
 #include "Chaos/Collision/PBDCollisionConstraintHandle.h"
 #include "Chaos/Collision/SolverCollisionContainer.h"
 #include "Chaos/PBDConstraintContainer.h"
@@ -315,6 +316,10 @@ public:
 
 	void UpdateConstraintMaterialProperties(FPBDCollisionConstraint& Contact);
 
+	// @todo(chaos): these settings are duplicated from the NarrowPhase context - fix this
+	const FCollisionDetectorSettings& GetDetectorSettings() const { return DetectorSettings; }
+	void SetDetectorSettings(const FCollisionDetectorSettings& InSettings) { DetectorSettings = InSettings; }
+
 protected:
 	FPBDCollisionConstraint& GetConstraint(int32 Index);
 	FPBDCollisionSolverContainer& GetConstraintSolverContainer(FPBDIslandSolverData& SolverData);
@@ -363,6 +368,9 @@ private:
 	// Used to determine constraint directions
 	FVec3 GravityDirection;
 	FReal GravitySize;
+
+	// Settings for the collision detector
+	FCollisionDetectorSettings DetectorSettings;
 
 	// Settings for the low-level collision solvers
 	FPBDCollisionSolverSettings SolverSettings;

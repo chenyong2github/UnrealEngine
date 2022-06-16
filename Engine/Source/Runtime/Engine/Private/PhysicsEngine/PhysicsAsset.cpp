@@ -218,6 +218,16 @@ void UPhysicsAsset::Serialize(FArchive& Ar)
 	}
 #endif
 
+	// If the legacy iteration defaults were changed, but the new settings were not, pass the legacy changes on to the new
+	if ((SolverSettings.PositionIterations == 6) && ((SolverIterations.SolverIterations != 3) || (SolverIterations.JointIterations != 2)))
+	{
+		SolverSettings.PositionIterations = SolverIterations.SolverIterations * SolverIterations.JointIterations;
+	}
+	if ((SolverSettings.VelocityIterations == 1) && ((SolverIterations.SolverPushOutIterations != 1) || (SolverIterations.JointIterations != 1)))
+	{
+		SolverSettings.VelocityIterations = SolverIterations.SolverPushOutIterations * SolverIterations.JointIterations;
+	}
+
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 }

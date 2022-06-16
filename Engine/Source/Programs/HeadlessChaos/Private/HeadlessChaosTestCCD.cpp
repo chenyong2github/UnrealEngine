@@ -86,7 +86,7 @@ namespace ChaosTest
 		const FReal Dt = 1 / 30.0f;
 		const FReal Fps = 1 / Dt;
 		const FReal BoxHalfSize = 50; // cm
-		const FReal InitialSpeed = BoxHalfSize * 5 * Fps; // More than enough to tunnel
+		const FReal InitialSpeed = (30.0f + BoxHalfSize * 5) * Fps; // More than enough to tunnel
 		using TEvolution = FPBDRigidsEvolutionGBF;
 		FParticleUniqueIndicesMultithreaded UniqueIndices;
 		FPBDRigidsSOAs Particles(UniqueIndices);

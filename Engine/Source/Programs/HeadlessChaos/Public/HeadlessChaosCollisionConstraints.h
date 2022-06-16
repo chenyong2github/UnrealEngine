@@ -67,10 +67,13 @@ public:
 	void ComputeConstraints(FReal Dt)
 	{
 		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(&SpatialAcceleration);
-		CollisionDetector.GetNarrowPhase().GetContext().bFilteringEnabled = true;
-		CollisionDetector.GetNarrowPhase().GetContext().bDeferUpdate = false;
-		CollisionDetector.GetNarrowPhase().GetContext().bAllowManifolds = true;
+		CollisionDetector.GetNarrowPhase().GetContext().GetSettings().bFilteringEnabled = true;
+		CollisionDetector.GetNarrowPhase().GetContext().GetSettings().bDeferNarrowPhase = false;
+		CollisionDetector.GetNarrowPhase().GetContext().GetSettings().bAllowManifolds = true;
+		CollisionDetector.GetCollisionContainer().SetDetectorSettings(CollisionDetector.GetNarrowPhase().GetContext().GetSettings());
+		
 		CollisionDetector.DetectCollisions(Dt, nullptr);
+		
 		CollisionDetector.GetCollisionContainer().GetConstraintAllocator().SortConstraintsHandles();
 	}
 

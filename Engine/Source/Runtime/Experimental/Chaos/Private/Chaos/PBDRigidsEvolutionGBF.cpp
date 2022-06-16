@@ -58,9 +58,6 @@ namespace Chaos
 		int DisableParticleUpdateVelocityParallelFor = 0;
 		FAutoConsoleVariableRef CVarDisableParticleUpdateVelocityParallelFor(TEXT("p.DisableParticleUpdateVelocityParallelFor"), DisableParticleUpdateVelocityParallelFor, TEXT("Disable Particle Update Velocity ParallelFor and run the update on a single thread"));
 
-		bool bChaosUseCCD = true;
-		FAutoConsoleVariableRef  CVarChaosUseCCD(TEXT("p.Chaos.CCD.UseCCD"), bChaosUseCCD , TEXT("Global flag to turn CCD on or off. Default is true"));
-
 		// NOTE: If we have mrope than 1 CCD iteration (ChaosCollisionCCDConstraintMaxProcessCount), the tight bounding box will cause us to miss secondary CCD collisions if the first one(s) result in a change in direction
 		bool bChaosCollisionCCDUseTightBoundingBox = true;
 		FAutoConsoleVariableRef  CVarChaosCollisionCCDUseTightBoundingBox(TEXT("p.Chaos.Collision.CCD.UseTightBoundingBox"), bChaosCollisionCCDUseTightBoundingBox , TEXT(""));
@@ -435,7 +432,6 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		UpdateInertiaConditioning();
 	}
 
-	if (bChaosUseCCD)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CCD);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, CCD);
@@ -901,10 +897,6 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 	AddConstraintRule(&JointConstraintRule);
 
 	SetInternalParticleInitilizationFunction([](const FGeometryParticleHandle*, const FGeometryParticleHandle*) {});
-
-	NarrowPhase.GetContext().bFilteringEnabled = true;
-	NarrowPhase.GetContext().bDeferUpdate = false;
-	NarrowPhase.GetContext().bAllowManifolds = false;
 }
 
 FPBDRigidsEvolutionGBF::~FPBDRigidsEvolutionGBF()

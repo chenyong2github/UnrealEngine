@@ -242,7 +242,7 @@ namespace Chaos
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_CreateConstraint);
 		check(Constraint == nullptr);
 
-		Constraint = CreateShapePairConstraint(Particle0, Shape0, Particle1, Shape1, CullDistance, ShapePairType, Context.bAllowManifolds);
+		Constraint = CreateShapePairConstraint(Particle0, Shape0, Particle1, Shape1, CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds);
 
 		Constraint->GetContainerCookie().MidPhase = &MidPhase;
 		Constraint->GetContainerCookie().bIsMultiShapePair = false;
@@ -293,7 +293,7 @@ namespace Chaos
 			}
 
 			bool bWasManifoldRestored = false;
-			if (Context.bAllowManifoldReuse && Flags.bEnableManifoldUpdate && bWasUpdatedLastTick)
+			if (Context.GetSettings().bAllowManifoldReuse && Flags.bEnableManifoldUpdate && bWasUpdatedLastTick)
 			{
 				// Update the existing manifold. We can re-use as-is if none of the points have moved much and the bodies have not moved much
 				// NOTE: this can succeed in "restoring" even if we have no manifold points
@@ -311,7 +311,7 @@ namespace Chaos
 				// We will be updating the manifold, if only partially, so update the restore comparison transforms
 				Constraint->SetLastShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
-				if (!Context.bDeferUpdate)
+				if (!Context.GetSettings().bDeferNarrowPhase)
 				{
 					// Run the narrow phase
 					Collisions::UpdateConstraint(*Constraint.Get(), ShapeWorldTransform0, ShapeWorldTransform1, Dt);
@@ -320,7 +320,7 @@ namespace Chaos
 
 			// If we have a valid contact, add it to the active list
 			// We also add it to the active list if collision detection is deferred (which is if per-iteration collision detection is enabled like with RBAN)
-			if ((Constraint->GetPhi() <= CullDistance) || Context.bDeferUpdate)
+			if ((Constraint->GetPhi() <= CullDistance) || Context.GetSettings().bDeferNarrowPhase)
 			{
 				if (MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint.Get()))
 				{
@@ -481,7 +481,7 @@ namespace Chaos
 		const FRigidTransform3 ParticleWorldTransform1 = FParticleUtilities::GetActorWorldTransform(P1);
 
 		FCollisionContext LocalContext = Context;
-		LocalContext.CollisionAllocator = this;
+		LocalContext.MultiShapeCollisionDetector = this;
 
 		Collisions::ConstructConstraints(
 			Particle0,
@@ -829,7 +829,7 @@ namespace Chaos
 			FVec3 DirCCD = FVec3(0);
 			const FVec3 DeltaX0 = (ConstParticle0->ObjectState() == EObjectStateType::Kinematic) ? (ConstParticle0->V() * Dt) : (ConstParticle0->P() - ConstParticle0->X());
 			const FVec3 DeltaX1 = (ConstParticle1->ObjectState() == EObjectStateType::Kinematic) ? (ConstParticle1->V() * Dt) : (ConstParticle1->P() - ConstParticle1->X());
-			const bool bUseCCD = Collisions::ShouldUseCCD(Particle0, DeltaX0, Particle1, DeltaX1, DirCCD, LengthCCD, false);
+			const bool bUseCCD = Collisions::ShouldUseCCD(Particle0, DeltaX0, Particle1, DeltaX1, DirCCD, LengthCCD);
 
 			return bUseCCD;
 		}
@@ -873,7 +873,7 @@ namespace Chaos
 		FReal CullDistance = InCullDistance * CullDistanceScale;
 
 		// Enable CCD?
-		const bool bUseCCD = Flags.bIsCCD && ShouldEnableCCD(Dt);
+		const bool bUseCCD = Context.GetSettings().bAllowCCD && Flags.bIsCCD && ShouldEnableCCD(Dt);
 		if (bUseCCD)
 		{
 			const FReal VMax = (FConstGenericParticleHandle(GetParticle0())->V() - FConstGenericParticleHandle(GetParticle1())->V()).GetAbsMax();
@@ -882,7 +882,7 @@ namespace Chaos
 		
 		// Run collision detection on all potentially colliding shape pairs
 		NumActiveConstraints = 0;
-		if (bUseCCD) // Generate CCD constraints as long as AABBs overlap
+		if (bUseCCD)
 		{
 			for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
 			{

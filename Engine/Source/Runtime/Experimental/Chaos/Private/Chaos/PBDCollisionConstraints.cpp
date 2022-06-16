@@ -392,6 +392,7 @@ namespace Chaos
 		{
 			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
 			SolverContainer.SetNum(NumIslandConstraints);
+			SolverContainer.SetIsDeferredCollisionDetection(DetectorSettings.bDeferNarrowPhase);
 		}
 		else
 		{

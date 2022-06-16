@@ -34,12 +34,11 @@ namespace Chaos
 		FReal GetBoundsVelocityInflation() const { return BoundsVelocityInflation; }
 		void SetBoundsVelocityInflation(const FReal InBoundsVelocityInflation) { BoundsVelocityInflation = InBoundsVelocityInflation; }
 
-		void GenerateCollisions(FReal Dt, TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, TGeometryParticleHandle<FReal, 3>* SearchParticlePerfHint, const bool bForceDisableCCD)
+		void GenerateCollisions(FReal Dt, TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, TGeometryParticleHandle<FReal, 3>* SearchParticlePerfHint)
 		{
 			FParticlePairMidPhase* MidPhase = CollisionAllocator->GetParticlePairMidPhase(Particle0, Particle1, SearchParticlePerfHint);
 			if (MidPhase != nullptr)
 			{
-				Context.bForceDisableCCD = bForceDisableCCD;
 				MidPhase->GenerateCollisions(GetBoundsExpansion(), Dt, GetContext());
 			}
 		}
@@ -50,9 +49,8 @@ namespace Chaos
 		}
 
 		// Use this function if a Mid phase pair is already allocated
-		void GenerateCollisions(FReal Dt, FParticlePairMidPhase* MidPhase, const bool bForceDisableCCD)
+		void GenerateCollisions(FReal Dt, FParticlePairMidPhase* MidPhase)
 		{
-			Context.bForceDisableCCD = bForceDisableCCD;
 			MidPhase->GenerateCollisions(GetBoundsExpansion(), Dt, GetContext());
 		}
 	private:
