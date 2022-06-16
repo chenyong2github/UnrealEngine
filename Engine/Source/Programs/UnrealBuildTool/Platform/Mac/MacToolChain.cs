@@ -223,7 +223,13 @@ namespace UnrealBuildTool
 			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
 			Result += " -mmacosx-version-min=" + Settings.MacOSVersion;
 			Result += " -dead_strip";
-			Result += " -Wl,-fatal_warnings";
+
+			// Temporary workaround for linker warning with Xcode 14:
+			//		'ld: warning: could not create compact unwind for _inflate_fast: registers 27 not saved contiguously in frame'
+			if (GetClangVersion().Major < 14)
+			{
+				Result += " -Wl,-fatal_warnings";
+			}
 
 			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{

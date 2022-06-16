@@ -765,7 +765,7 @@ void FAGXProfiler::SaveTrace()
 		}
 		
 		static const uint32 BufferSize = 128;
-		char Buffer[BufferSize];
+		ANSICHAR Buffer[BufferSize];
 		for (uint32 CPUIndex : ThreadIDs)
 		{
 			bool bThreadName = false;
@@ -779,11 +779,11 @@ void FAGXProfiler::SaveTrace()
 			}
 			if (!bThreadName)
 			{
-				sprintf(Buffer, "Thread %d", CPUIndex);
+				snprintf(Buffer, BufferSize, "Thread %d", CPUIndex);
 			}
 			
 			FString Output = FString::Printf(TEXT("{\"pid\":%d, \"tid\":%d, \"ph\": \"M\", \"name\": \"thread_name\", \"args\":{\"name\":\"%s\"}},{\"pid\":%d, \"tid\":%d, \"ph\": \"M\", \"name\": \"thread_sort_index\", \"args\":{\"sort_index\": %d}},\n"),
-											 Pid, CPUIndex, UTF8_TO_TCHAR(Buffer), Pid, CPUIndex, SortIndex
+											 Pid, CPUIndex, ANSI_TO_TCHAR(Buffer), Pid, CPUIndex, SortIndex
 											 );
 			
 			

@@ -23,6 +23,14 @@
 #pragma warning(disable:5045)
 #endif
 
+/* Unreal Engine changes: disable deprecation declarations with newer Apple toolchains */
+#if defined(__APPLE__)
+#if __apple_build_version__ >= 14000017
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#endif
+
 #ifdef SWIG
 #define std_real_vector_init new std::vector<tinyspline::real>
 #define std_real_vector_read(var) var->
@@ -608,6 +616,13 @@ bool tinyspline::Utils::knotsEqual(tinyspline::real x, tinyspline::real y)
 {
 	return ts_knots_equal(x, y) == 1;
 }
+
+/* Unreal Engine changes: enable deprecation declarations with newer Apple toolchains */
+#if defined(__APPLE__)
+#if __apple_build_version__ >= 14000017
+#pragma clang diagnostic pop
+#endif
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(pop)

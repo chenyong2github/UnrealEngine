@@ -52,6 +52,14 @@
 #pragma warning(disable:5045)
 #endif
 
+/* Unreal Engine changes: disable deprecation declarations with newer Apple toolchains */
+#if defined(__APPLE__)
+#if __apple_build_version__ >= 14000017
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#endif
+
 /* Apparently sscanf is not implemented in some "standard" libraries, so don't use it, if you
  * don't have to. */
 #define sscanf THINK_TWICE_ABOUT_USING_SSCANF
@@ -2079,6 +2087,13 @@ void json_set_allocation_functions(JSON_Malloc_Function malloc_fun, JSON_Free_Fu
     parson_malloc = malloc_fun;
     parson_free = free_fun;
 }
+
+/* Unreal Engine changes: enable deprecation declarations with newer Apple toolchains */
+#if defined(__APPLE__)
+#if __apple_build_version__ >= 14000017
+#pragma clang diagnostic pop
+#endif
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(pop)

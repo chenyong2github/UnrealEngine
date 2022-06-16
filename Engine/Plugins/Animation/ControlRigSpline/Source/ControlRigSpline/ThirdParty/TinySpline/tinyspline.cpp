@@ -27,6 +27,14 @@
 #pragma warning(disable:6386)
 #endif
 
+/* Unreal Engine changes: disable deprecation declarations with newer Apple toolchains */
+#if defined(__APPLE__)
+#if __apple_build_version__ >= 14000017
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#endif
+
 #define INIT_OUT_BSPLINE(in, out)              \
 	if ((in) != (out))                     \
 		ts_int_bspline_init(out);
@@ -2100,6 +2108,13 @@ tsReal ts_distance(const tsReal *x, const tsReal *y, size_t dimension)
 		sum += (x[i] - y[i]) * (x[i] - y[i]);
 	return (tsReal) sqrt(sum);
 }
+
+/* Unreal Engine changes: enable deprecation declarations with newer Apple toolchains */
+#if defined(__APPLE__)
+#if __apple_build_version__ >= 14000017
+#pragma clang diagnostic pop
+#endif
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(pop)
