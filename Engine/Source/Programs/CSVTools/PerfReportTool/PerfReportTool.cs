@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.78";
+        private static string VersionString = "4.79";
 
         public static string Get() { return VersionString; }
     };
@@ -155,6 +155,11 @@ namespace PerfReportTool
 			"       -noWeightedAvg : Don't use weighted averages for the collated table\n" +
 			"       -minFrameCount <n> : ignore CSVs without at least this number of valid frames\n" +
 			"       -maxFileAgeDays <n> : max file age in days. CSV or PRC files older than this will be ignored\n" +
+			"\n" +
+			"Json serialization:\n" +
+			"       -summaryTableToJson <filename> : json filename to write summary table row data to\n" +
+			"       -summaryTableToJsonFastMode : exit after serializing json data (skips making summary tables)\n" +
+			"       -summaryTableToJsonMetadataOnly : only write CsvMetadata elements to json\n" +
 			"\n" +
 			"Performance args for bulk mode:\n" +
 			"       -precacheCount <n> : number of CSV files to precache in the lookahead cache (0 for no precache)\n" +
@@ -321,6 +326,15 @@ namespace PerfReportTool
 				return;
 			}
 			statDisplaynameMapping = reportXML.GetDisplayNameMapping();
+
+			// If we're outputting row data to json, create the dict
+			SummaryTableDataJsonHelper summaryTableJsonHelper = null;
+			string summaryJsonOutFilename = GetArg("summaryTableToJson", null);
+			if (summaryJsonOutFilename != null)
+			{
+				summaryTableJsonHelper = new SummaryTableDataJsonHelper(summaryJsonOutFilename, GetBoolArg("summaryTableToJsonMetadataOnly"));
+			}
+
 
 			SummaryTableCacheStats summaryTableCacheStats = new SummaryTableCacheStats();
 
@@ -552,6 +566,10 @@ namespace PerfReportTool
 							if (bIncludeRowData)
 							{
 								summaryTable.AddRowData(rowData, bReadAllStats, bShowHiddenStats);
+								if (summaryTableJsonHelper != null)
+								{
+									summaryTableJsonHelper.AddRowData(rowData);
+								}
 							}
 							perfLog.LogTiming("  AddRowData");
 						}
@@ -568,6 +586,18 @@ namespace PerfReportTool
 						// If we're not in bulk mode, exceptions are fatal
 						throw e;
 					}
+				}
+			}
+
+
+			if (summaryTableJsonHelper != null)
+			{
+				summaryTableJsonHelper.WriteJsonFile();
+				perfLog.LogTiming("WriteSummaryDataJson");
+				if (GetBoolArg("summaryTableToJsonFastMode"))
+				{
+					perfLog.LogTotalTiming();
+					return;
 				}
 			}
 

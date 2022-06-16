@@ -188,6 +188,36 @@ namespace PerfSummaries
 			Add(new ThresholdInfo(orangeValue, null));
 			Add(new ThresholdInfo(redValue, null));
 		}
+
+		public Dictionary<string, dynamic> ToJsonDict()
+		{
+			Dictionary<string, dynamic> Dict = new Dictionary<string, dynamic>();
+			if (Thresholds.Count > 0)
+			{
+				List<double> ThresholdValues = new List<double>();
+				List<string> ThresholdColors = new List<string>();
+
+				bool bHasValidColors = false;
+				foreach (ThresholdInfo thresholdInfo in Thresholds)
+				{
+					ThresholdValues.Add(thresholdInfo.value);
+					ThresholdColors.Add(thresholdInfo.colour == null ? "null" : thresholdInfo.colour.ToString());
+
+					if (thresholdInfo.colour != null)
+					{
+						bHasValidColors = true;
+					}
+				}
+
+				Dict["thresholds"] = ThresholdValues;
+				if (bHasValidColors)
+				{
+					Dict["colors"] = ThresholdColors;
+				}
+			}
+			return Dict;
+		}
+
 		public static string GetThresholdColour(double value, double redValue, double orangeValue, double yellowValue, double greenValue,
 			Colour redOverride = null, Colour orangeOverride = null, Colour yellowOverride = null, Colour greenOverride = null)
 		{
