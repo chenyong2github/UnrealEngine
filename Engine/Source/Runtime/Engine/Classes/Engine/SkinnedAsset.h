@@ -161,9 +161,6 @@ public:
 
 	virtual void SetSkinWeightProfilesData(int32 LODIndex, struct FSkinWeightProfilesData& SkinWeightProfilesData) {}
 
-	virtual int32 GetMaxNumOptionalLODs(const ITargetPlatform* TargetPlatform) const
-	PURE_VIRTUAL(USkinnedAsset::GetMaxNumOptionalLODs, return 0;);
-
 	/**
 	* UObject Interface
 	* This will return detail info about this specific object. (e.g. AudioComponent will return the name of the cue,
@@ -182,6 +179,9 @@ public:
 	/** Get the maximum number of LODs that can be streamed. */
 	virtual int32 GetMaxNumStreamedLODs(const ITargetPlatform* TargetPlatform) const
 	PURE_VIRTUAL(USkinnedAsset::GetMaxNumStreamedLODs, return 0;);
+
+	virtual int32 GetMaxNumOptionalLODs(const ITargetPlatform* TargetPlatform) const
+	PURE_VIRTUAL(USkinnedAsset::GetMaxNumOptionalLODs, return 0;);
 #endif
 };
 
