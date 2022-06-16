@@ -145,6 +145,7 @@ private:
 	bool bRecording;
 
 	float PlaybackRate;
+	double PreviousTraceTime;
 	double CurrentScrubTime;
 	TRange<double> CurrentViewRange;
 	TRange<double> CurrentTraceRange;

@@ -148,10 +148,7 @@ void FAnimationProvider::EnumerateAnimGraphTimelines(TFunctionRef<void(uint64 Ob
 	
 	for(auto& IndexMapping : ObjectIdToAnimGraphTimelines)
 	{
-		for (const TSharedRef<TraceServices::TIntervalTimeline<FAnimGraphMessage>>& Timeline : AnimGraphTimelines)
-		{
-			Callback(IndexMapping.Key, AnimGraphTimelines[IndexMapping.Value].Get());
-		}
+		Callback(IndexMapping.Key, AnimGraphTimelines[IndexMapping.Value].Get());
 	}
 }
 
