@@ -16,6 +16,7 @@
 #include "Editor.h"
 #include "LandscapeInfo.h"
 #include "LandscapeStreamingProxy.h"
+#include "LandscapeSettings.h"
 
 #define LOCTEXT_NAMESPACE "FLandscapeUIDetails"
 
@@ -61,6 +62,11 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 		[
 			CanHaveLayersPropertyHandle->CreatePropertyNameWidget(DisplayAndFilterText, ToolTipText)
 		]
+		.Visibility(MakeAttributeLambda([]()
+		{
+			const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
+			return Settings->InRestrictiveMode() ? EVisibility::Hidden : EVisibility::Visible;
+		}))
 		.ValueContent()
 		[
 			SNew(SCheckBox)
