@@ -790,7 +790,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_AfterInitViews));
 
-	if (!ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily)
+	if (bIsFirstSceneRenderer)
 	{
 		GraphBuilder.SetFlushResourcesRHI();
 	}
