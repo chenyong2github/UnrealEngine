@@ -881,6 +881,8 @@ uint DeduplicateVertIndices(FInstanceSceneData InstanceData, FCluster Cluster, u
 }
 #endif
 
+#if COMPUTESHADER
+
 [numthreads(SWRASTER_NUM_THREADS, 1, 1)]
 void MicropolyRasterize(
 	uint	VisibleIndex		: SV_GroupID,
@@ -1135,6 +1137,8 @@ void MicropolyRasterize(
 	}
 #endif // NANITE_VERT_REUSE_BATCH
 }
+
+#endif // COMPUTESHADER
 
 #define VERTEX_TO_TRIANGLE_MASKS			(NANITE_PRIM_SHADER && (!DEPTH_ONLY || NANITE_PIXEL_PROGRAMMABLE))
 
