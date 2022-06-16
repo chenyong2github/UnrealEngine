@@ -52,6 +52,8 @@ TSharedRef<SWidget> UBackgroundBlur::RebuildWidget()
 	return MyBackgroundBlur.ToSharedRef();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void UBackgroundBlur::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
@@ -103,6 +105,11 @@ void UBackgroundBlur::SetPadding(FMargin InPadding)
 	}
 }
 
+FMargin UBackgroundBlur::GetPadding() const
+{
+	return Padding;
+}
+
 void UBackgroundBlur::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment)
 {
 	HorizontalAlignment = InHorizontalAlignment;
@@ -110,6 +117,11 @@ void UBackgroundBlur::SetHorizontalAlignment(EHorizontalAlignment InHorizontalAl
 	{
 		MyBackgroundBlur->SetHAlign(InHorizontalAlignment);
 	}
+}
+
+EHorizontalAlignment UBackgroundBlur::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
 }
 
 void UBackgroundBlur::SetVerticalAlignment(EVerticalAlignment InVerticalAlignment)
@@ -121,6 +133,11 @@ void UBackgroundBlur::SetVerticalAlignment(EVerticalAlignment InVerticalAlignmen
 	}
 }
 
+EVerticalAlignment UBackgroundBlur::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
+}
+
 void UBackgroundBlur::SetApplyAlphaToBlur(bool bInApplyAlphaToBlur)
 {
 	bApplyAlphaToBlur = bInApplyAlphaToBlur;
@@ -130,13 +147,39 @@ void UBackgroundBlur::SetApplyAlphaToBlur(bool bInApplyAlphaToBlur)
 	}
 }
 
+bool UBackgroundBlur::GetApplyAlphaToBlur() const
+{
+	return bApplyAlphaToBlur;
+}
+
+void UBackgroundBlur::SetOverrideAutoRadiusCalculation(bool InOverrideAutoRadiusCalculation)
+{
+	bOverrideAutoRadiusCalculation = InOverrideAutoRadiusCalculation;
+	if (MyBackgroundBlur.IsValid())
+	{
+		// When set to false, it needs to reset the optional value and it will use the Blur strength to calculate the blur radius
+		MyBackgroundBlur->SetBlurRadius(bOverrideAutoRadiusCalculation ? BlurRadius : TOptional<int32>());
+	}	
+}
+
+bool UBackgroundBlur::GetOverrideAutoRadiusCalculation() const
+{
+	return bOverrideAutoRadiusCalculation;
+}
+
 void UBackgroundBlur::SetBlurRadius(int32 InBlurRadius)
 {
 	BlurRadius = InBlurRadius;
 	if (MyBackgroundBlur.IsValid())
 	{
 		MyBackgroundBlur->SetBlurRadius(InBlurRadius);
+		bOverrideAutoRadiusCalculation = true;
 	}
+}
+
+int32 UBackgroundBlur::GetBlurRadius() const
+{
+	return BlurRadius;
 }
 
 void UBackgroundBlur::SetBlurStrength(float InStrength)
@@ -148,6 +191,11 @@ void UBackgroundBlur::SetBlurStrength(float InStrength)
 	}
 }
 
+float UBackgroundBlur::GetBlurStrength() const
+{
+	return BlurStrength;
+}
+
 void UBackgroundBlur::SetCornerRadius(FVector4 InCornerRadius)
 {
 	CornerRadius = InCornerRadius;
@@ -155,6 +203,11 @@ void UBackgroundBlur::SetCornerRadius(FVector4 InCornerRadius)
 	{
 		MyBackgroundBlur->SetCornerRadius(InCornerRadius);
 	}
+}
+
+FVector4 UBackgroundBlur::GetCornerRadius() const
+{
+	return CornerRadius;
 }
 
 void UBackgroundBlur::SetLowQualityFallbackBrush(const FSlateBrush& InBrush)
@@ -165,6 +218,13 @@ void UBackgroundBlur::SetLowQualityFallbackBrush(const FSlateBrush& InBrush)
 		MyBackgroundBlur->SetLowQualityBackgroundBrush(&LowQualityFallbackBrush);
 	}
 }
+
+FSlateBrush UBackgroundBlur::GetLowQualityFallbackBrush() const
+{
+	return LowQualityFallbackBrush;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UBackgroundBlur::Serialize(FArchive& Ar)
 {
