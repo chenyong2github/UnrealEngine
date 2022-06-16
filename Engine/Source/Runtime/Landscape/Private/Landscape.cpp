@@ -5136,6 +5136,7 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeCo
 void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
 	InvalidateGeneratedComponentData(Components.Array(), bInvalidateLightingCache);
+}
 
 void ALandscapeProxy::UpdateRenderingMethod(bool bDisableNanite)
 {
