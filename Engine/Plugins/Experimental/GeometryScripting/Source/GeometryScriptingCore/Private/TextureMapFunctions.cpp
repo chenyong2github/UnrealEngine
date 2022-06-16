@@ -41,20 +41,22 @@ void UGeometryScriptLibrary_TextureMapFunctions::SampleTexture2DAtUVPositions(
 	{
 		FVector2d UV = UVs[k];
 
-		// Adjust UV value and tile it. 
+		// Adjust UV value. 
 		UV = UV * SampleOptions.UVScale + SampleOptions.UVOffset;
+
+		FVector4f InterpValue;
 		if (SampleOptions.bWrap)
 		{
-			UV = UV - FVector2d(FMathd::Floor(UV.X), FMathd::Floor(UV.Y));
+			constexpr EImageTilingMethod TilingMethod = EImageTilingMethod::Wrap;
+			InterpValue = (SampleOptions.SamplingMethod == EGeometryScriptPixelSamplingMethod::Bilinear) ?
+				ImageData.BilinearSampleUV<double, TilingMethod>(UV, FVector4f::Zero()) : ImageData.NearestSampleUV<TilingMethod>(UV);
 		}
 		else
 		{
-			UV.X = FMathd::Clamp(UV.X, 0.0, 1.0);
-			UV.Y = FMathd::Clamp(UV.Y, 0.0, 1.0);
+			constexpr EImageTilingMethod TilingMethod = EImageTilingMethod::Clamp;
+			InterpValue = (SampleOptions.SamplingMethod == EGeometryScriptPixelSamplingMethod::Bilinear) ?
+				ImageData.BilinearSampleUV<double, TilingMethod>(UV, FVector4f::Zero()) : ImageData.NearestSampleUV<TilingMethod>(UV);
 		}
-
-		FVector4f InterpValue = (SampleOptions.SamplingMethod == EGeometryScriptPixelSamplingMethod::Bilinear) ?
-			ImageData.BilinearSampleUV<double>(UV, FVector4f::Zero()) : ImageData.NearestSampleUV(UV, FVector4f::Zero());
 
 		Colors[k] = (FLinearColor)InterpValue;
 	}
