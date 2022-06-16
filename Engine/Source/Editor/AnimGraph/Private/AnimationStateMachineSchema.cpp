@@ -359,7 +359,7 @@ void UAnimationStateMachineSchema::GetContextMenuActions(UToolMenu* Menu, UGraph
 
 FLinearColor UAnimationStateMachineSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
-	return FLinearColor::White;
+	return UEdGraphSchema::GetPinTypeColor(PinType);
 }
 
 void UAnimationStateMachineSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const
