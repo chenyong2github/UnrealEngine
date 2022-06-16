@@ -338,6 +338,8 @@ namespace Chaos
 
 			if ((InPlaneVertices.Num() > MaxIndex) || (HalfEdgeCount > MaxIndex) || (InNumVertices > MaxIndex))
 			{
+				// We should never get here. See GetRequiredIndexType::GetRequiredIndexType which calls CanMake() on eachn index type until it fits
+				UE_LOG(LogChaos, Error, TEXT("Unable to create structure data for convex. MaxIndex too small (%d bytes) for Planes: %d HalfEdges: %d Verts: %d"), sizeof(FIndex), InPlaneVertices.Num(), HalfEdgeCount, InNumVertices);
 				return false;
 			}
 
@@ -434,6 +436,8 @@ namespace Chaos
 
 			BuildVertexPlanes();
 
+			BuildUniqueEdgeList();
+
 			return true;
 		}
 
@@ -446,13 +450,17 @@ namespace Chaos
 			Ar << Vertices;
 
 			const bool bHasUniqueEdgeList = Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::ChaosConvexHasUniqueEdgeSet;
-			if (Ar.IsLoading() && !bHasUniqueEdgeList)
-			{
-				BuildUniqueEdgeList();
-			}
-			else
+			if (bHasUniqueEdgeList)
 			{
 				Ar << Edges;
+			}
+
+			// Handle older data without the edge list and also an issue where some assets were saved without having their EdgeList generated (now fixed)
+			// Avoid adding a new custom version for that fix because we want to integrate this into other streams
+			if (Ar.IsLoading() && (Edges.Num() == 0) && (HalfEdges.Num() > 0))
+			{
+				BuildUniqueEdgeList();
+				ensureMsgf(Edges.Num() > 0, TEXT("Invalid edge data on convex in Load"));
 			}
 
 			if (Ar.IsLoading())

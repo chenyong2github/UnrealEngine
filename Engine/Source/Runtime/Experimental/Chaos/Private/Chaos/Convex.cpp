@@ -350,7 +350,11 @@ namespace Chaos
 	// Store the structure data with the convex. This is used by manifold generation, for example
 	void FConvex::CreateStructureData(TArray<TArray<int32>>&& PlaneVertexIndices)
 	{
-		StructureData.SetPlaneVertices(MoveTemp(PlaneVertexIndices), Vertices.Num());
+		const bool bSuccess = StructureData.SetPlaneVertices(MoveTemp(PlaneVertexIndices), Vertices.Num());
+		if (!bSuccess || !StructureData.IsValid())
+		{
+			UE_LOG(LogChaos, Error, TEXT("Unable to create structure data for %s"), *ToStringFull());
+		}
 	}
 
 	void FConvex::MovePlanesAndRebuild(const FRealType InDelta)

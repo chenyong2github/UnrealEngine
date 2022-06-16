@@ -202,6 +202,14 @@ namespace Chaos
 				[]() { return (int32)INDEX_NONE; });
 		}
 
+
+		inline int32 NumHalfEdges() const
+		{
+			return ConstDataOp(
+				[](const auto& ConcreteData) { return ConcreteData.NumHalfEdges(); },
+				[]() { return 0; });
+		}
+
 		inline int32 NumEdges() const
 		{
 			return ConstDataOp(
@@ -230,14 +238,14 @@ namespace Chaos
 		}
 
 		// Initialize the structure data from the set of vertices for each face of the convex
-		void SetPlaneVertices(const TArray<TArray<int32>>& InPlaneVertices, int32 NumVerts)
+		bool SetPlaneVertices(const TArray<TArray<int32>>& InPlaneVertices, int32 NumVerts)
 		{
 			const EIndexType NewIndexType = GetRequiredIndexType(InPlaneVertices, NumVerts);
 			CreateDataContainer(NewIndexType);
 
-			NonConstDataOp(
-				[InPlaneVertices, NumVerts](auto& ConcreteData) { ConcreteData.SetPlaneVertices(InPlaneVertices, NumVerts); },
-				[]() {});
+			return NonConstDataOp(
+				[InPlaneVertices, NumVerts](auto& ConcreteData) { return ConcreteData.SetPlaneVertices(InPlaneVertices, NumVerts); },
+				[]() { return true; });
 		}
 
 		void Serialize(FArchive& Ar)

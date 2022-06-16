@@ -722,7 +722,51 @@ namespace Chaos
 
 		virtual FString ToString() const override
 		{
-			return FString::Printf(TEXT("Convex: Verts: %d, Planes: %d, Margin %f"), NumVertices(), NumPlanes(), GetMargin());
+			return ToStringSummary();
+		}
+
+		// A one-line summary of the convex
+		FString ToStringSummary() const
+		{
+			return FString::Printf(TEXT("Convex: Verts: %d, Edges %d, Planes: %d, Margin %f"), NumVertices(), NumEdges(), NumPlanes(), GetMargin());
+		}
+
+		// Print all the datas
+		FString ToStringFull() const
+		{
+			FString S = ToStringSummary();
+			S.Append(TEXT("\n"));
+			for (int32 VertexIndex = 0; VertexIndex < NumVertices(); ++VertexIndex)
+			{
+				const FVec3 Vert = GetVertex(VertexIndex);
+				S.Append(FString::Printf(TEXT("  Vertex %d: [%f, %f, %f]\n"), VertexIndex, Vert.X, Vert.Y, Vert.Z));
+			}
+			for (int32 PlaneIndex = 0; PlaneIndex < NumPlanes(); ++PlaneIndex)
+			{
+				const TPlaneConcrete<FReal, 3> Plane = GetPlane(PlaneIndex);
+				S.Append(FString::Printf(TEXT("  Plane %d: Normal: [%f, %f, %f], Distance: %f, Verts: ["), PlaneIndex, Plane.Normal().X, Plane.Normal().Y, Plane.Normal().Z, FVec3::DotProduct(Plane.X(), Plane.Normal())));
+				const int32 PlaneVertexCount = NumPlaneVertices(PlaneIndex);
+				for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVertexCount; ++PlaneVertexIndex)
+				{
+					S.Append(FString::Printf(TEXT("%d"), GetPlaneVertex(PlaneIndex, PlaneVertexIndex)));
+					if (PlaneVertexIndex < PlaneVertexCount - 1)
+					{
+						S.Append(FString::Printf(TEXT(", ")));
+					}
+				}
+				S.Append(FString::Printf(TEXT("]\n")));
+			}
+			S.Append(FString::Printf(TEXT("  Edges: ")));
+			for (int32 EdgeIndex = 0; EdgeIndex < NumEdges(); ++EdgeIndex)
+			{
+				S.Append(FString::Printf(TEXT("[%d, %d]"), GetEdgeVertex(EdgeIndex, 0), GetEdgeVertex(EdgeIndex, 1)));
+				if (EdgeIndex < NumEdges() - 1)
+				{
+					S.Append(FString::Printf(TEXT(", ")));
+				}
+			}
+			S.Append(FString::Printf(TEXT("\n")));
+			return S;
 		}
 
 		const TArray<FVec3Type>& GetVertices() const
