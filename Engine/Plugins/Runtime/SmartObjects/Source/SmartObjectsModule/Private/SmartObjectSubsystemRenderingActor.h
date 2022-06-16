@@ -38,6 +38,11 @@ class SMARTOBJECTSMODULE_API ASmartObjectSubsystemRenderingActor : public AActor
 public:
 	ASmartObjectSubsystemRenderingActor();
 
+#if WITH_EDITOR
+	virtual bool ShouldExport() override { return false; }
+	virtual bool CanDeleteSelectedActor(FText& OutReason) const override { return false; }
+#endif
+
 private:
 	UPROPERTY()
 	USmartObjectSubsystemRenderingComponent* RenderingComponent;

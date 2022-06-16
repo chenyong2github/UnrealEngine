@@ -90,6 +90,8 @@ protected:
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool SupportsExternalPackaging() const override { return false; }
+	virtual bool ShouldExport() override { return false; }
+	virtual bool CanDeleteSelectedActor(FText& OutReason) const override { return false; }
 	bool IsBuildOnDemand() const { return bBuildOnDemand; }
 
 	UFUNCTION(CallInEditor, Category = SmartObject)
