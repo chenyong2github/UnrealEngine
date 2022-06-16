@@ -138,6 +138,7 @@ namespace Chaos
 		}
 
 		void BindBodies(
+			const FReal Dt,
 			const int32 Particle0Level,
 			const int32 Particle1Level,
 			FSolverBodyContainer& SolverBodyContainer,
@@ -407,7 +408,7 @@ namespace Chaos
 		FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
 		check(CollisionSolver.GetConstraint() == &Constraint);
 
-		CollisionSolver.BindBodies(Particle0Level, Particle1Level, SolverBodyContainer, SolverSettings);
+		CollisionSolver.BindBodies(Dt, Particle0Level, Particle1Level, SolverBodyContainer, SolverSettings);
 
 		if (!bDeferredCollisionDetection)
 		{
