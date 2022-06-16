@@ -2,6 +2,7 @@
 
 #include "InstallBundleSourcePlatformBase.h"
 
+#if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 #include "DefaultInstallBundleManagerPrivate.h"
 #include "InstallBundleManagerUtil.h"
 
@@ -142,3 +143,4 @@ TSet<FName> FInstallBundleSourcePlatformBase::GetBundleDependencies(FName InBund
 	return InstallBundleManagerUtil::GetBundleDependenciesFromConfig(InBundleName, SkippedUnknownBundles);
 }
 
+#endif //WITH_PLATFORM_INSTALL_BUNDLE_SOURCE

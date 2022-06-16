@@ -3,7 +3,7 @@
 #pragma once
 
 #include "InstallBundleSourceInterface.h"
-
+#if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 #include "Internationalization/Regex.h"
 
 
@@ -62,3 +62,4 @@ protected:
 
 	TArray<TPair<FString, TArray<FRegexPattern>>> BundleRegexList; // BundleName -> FileRegex
 };
+#endif //WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
