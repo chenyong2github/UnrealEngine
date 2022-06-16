@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "MoviePipelineVideoOutputBase.h"
 #include "AvidDNxEncoder/AvidDNxEncoder.h"
 #include "MoviePipelineAvidDNxOutput.generated.h"
