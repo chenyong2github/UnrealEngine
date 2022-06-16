@@ -17,19 +17,36 @@ RWTexture2D<UlongType>	OutDbgBuffer64;
 RWTexture2D<uint>		OutDbgBuffer32;
 #endif
 
+bool ShouldWritePixel(
+	RWTexture2D<UlongType> OutBuffer,
+	uint2 PixelPos,
+	float DeviceZ
+)
+{
+	// When near clipping is disabled we need to move the geometry
+	DeviceZ = saturate(DeviceZ);
+
+	const uint DepthInt = asuint(DeviceZ);
+
+#if DEPTH_ONLY
+	return OutDepthBuffer[PixelPos] < DepthInt;
+#elif COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS
+	return UnpackUlongType(OutBuffer[PixelPos]).y < DepthInt;
+#else
+	#error UNKNOWN_ATOMIC_PLATFORM
+	return false;
+#endif
+}
+
 void WritePixel(
 	RWTexture2D<UlongType> OutBuffer,
 	uint PixelValue,
 	uint2 PixelPos,
-	float DeviceZ,
-	bool bDepthClamp
+	float DeviceZ
 )
 {
-	if (bDepthClamp)
-	{
-		// When near clipping is disabled we need to move the geometry 
-		DeviceZ = max(0.0f, DeviceZ);
-	}
+	// When near clipping is disabled we need to move the geometry 
+	DeviceZ = saturate(DeviceZ);
 
 	const uint DepthInt = asuint(DeviceZ);
 
@@ -70,35 +87,73 @@ WritePixelPageTranslation InitializeWritePixelPageTranslation( FNaniteView Nanit
 	return Result;
 }
 
-// Write depth pixel with optional per-pixel page translation
-// Supports array texture targets (third coordinate of PixelPos)
 #if DEPTH_ONLY
-void WriteDepthTextureArray(
-	uint PixelValue,
-	uint3 PixelPos,
-	float DeviceZ,
-	bool bDepthClamp,
-	WritePixelPageTranslation PageTranslation
-)
+
+// Determines final write position with an optional per-pixel page translation
+bool VirtualToPhysicalTexel(uint2 VirtualPixelPos, WritePixelPageTranslation PageTranslation, out uint3 PhysicalPixelPos)
 {
+	PhysicalPixelPos = uint3(VirtualPixelPos, PageTranslation.ArrayIndex);
+
 #if VIRTUAL_TEXTURE_TARGET
 	if( PageTranslation.TargetLayerIndex != INDEX_NONE )
 	{
-		if( !VirtualToPhysicalTexel(PageTranslation.TargetLayerIndex, PageTranslation.TargetMipLevel, PixelPos.xy, PixelPos.xy) )
+		if( !VirtualToPhysicalTexel(PageTranslation.TargetLayerIndex, PageTranslation.TargetMipLevel, VirtualPixelPos, PhysicalPixelPos.xy) )
 		{
 			// mapped to non-commited space.
-			return;
+			return false;
 		}
 	}
 #endif
 
-	if (bDepthClamp)
+	return true;
+}
+
+// Allows you to pre-translate the virtual pixel position to physical and perform an early depth test before calling WriteDepthTextureArray
+bool ShouldWriteDepthTextureArray(
+	uint2 VirtualPixelPos,
+	WritePixelPageTranslation PageTranslation,
+	float DeviceZ,
+	out uint3 PhysicalPixelPos
+)
+{
+	if (!VirtualToPhysicalTexel(VirtualPixelPos, PageTranslation, PhysicalPixelPos))
 	{
-		// When near clipping is disabled we need to move the geometry 
-		DeviceZ = max(0.0f, DeviceZ);
+		// mapped to non-commited space.
+		return false;
 	}
 
+	// When near clipping is disabled we need to move the geometry 
+	DeviceZ = saturate(DeviceZ);
+
 	const uint DepthInt = asuint(DeviceZ);
-	InterlockedMax( OutDepthBufferArray[ PixelPos ], DepthInt );
+	return OutDepthBufferArray[PhysicalPixelPos] < DepthInt;
 }
+
+// Write depth pixel. Supports array texture targets (third coordinate of PhysicalPixelPos)
+void WriteDepthTextureArray(uint3 PhysicalPixelPos, float DeviceZ)
+{
+	// When near clipping is disabled we need to move the geometry 
+	DeviceZ = saturate(DeviceZ);
+
+	const uint DepthInt = asuint(DeviceZ);
+	InterlockedMax( OutDepthBufferArray[ PhysicalPixelPos ], DepthInt );
+}
+
+// Write depth pixel with optional per-pixel page translation
+void WriteDepthTextureArray(
+	uint2 VirtualPixelPos,
+	WritePixelPageTranslation PageTranslation,
+	float DeviceZ
+)
+{
+	uint3 PhysicalPixelPos;
+	if (!VirtualToPhysicalTexel(VirtualPixelPos, PageTranslation, PhysicalPixelPos))
+	{
+		// mapped to non-commited space.
+		return;
+	}
+
+	WriteDepthTextureArray(PhysicalPixelPos, DeviceZ);
+}
+
 #endif

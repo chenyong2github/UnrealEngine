@@ -24,8 +24,6 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 
 	bool bOrtho = NaniteView.ViewToClip[3][3] >= 1;
 
-	const bool bDepthClamp = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
-
 	for( int y = Rect.Pixels.y; y <= Rect.Pixels.w; y++ )
 	{
 		for( int x = Rect.Pixels.x; x <= Rect.Pixels.z; x++ )
@@ -73,10 +71,10 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 
 				uint TriIndex = ImposterPixel.x;
 				uint PixelValue = ImposterPixelCode + TriIndex;
-				WritePixel( OutVisBuffer64, PixelValue, NaniteView.ViewRect.xy + PixelPos, DeviceZ, bDepthClamp );
+				WritePixel( OutVisBuffer64, PixelValue, NaniteView.ViewRect.xy + PixelPos, DeviceZ );
 
 				#if 0//VISUALIZE
-					WritePixel( OutDbgBuffer64, 0, PixelPos, DeviceZ, bDepthClamp );
+					WritePixel( OutDbgBuffer64, 0, PixelPos, DeviceZ );
 					InterlockedAdd(OutDbgBuffer32[ PixelPos ], 1);
 				#endif
 			}

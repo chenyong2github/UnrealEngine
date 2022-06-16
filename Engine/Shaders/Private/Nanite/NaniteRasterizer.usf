@@ -35,6 +35,8 @@
 	#define SWRASTER_NUM_THREADS 64
 #endif
 
+#define ENABLE_EARLY_Z_TEST (NANITE_PIXEL_PROGRAMMABLE)
+
 uint ActiveRasterizerBin;
 
 // .x = count of SW clusters in bin
@@ -215,10 +217,87 @@ float3 CalculateSubpixelCoordinates(FRaster Raster, float4 PointSubpixelClip)
 	return Subpixel;
 }
 
-void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, bool bDepthClamp, FRaster Raster, FRasterTri Tri )
+struct SVisBufferWriteParameters
+{
+	uint2 PixelPos;
+	uint PixelValue;
+	float DeviceZ;
+
+#if VIRTUAL_TEXTURE_TARGET
+	WritePixelPageTranslation PageTranslation;
+
+	#if ENABLE_EARLY_Z_TEST
+	uint3 PhysicalPixelPos;
+	#endif
+#endif
+};
+
+SVisBufferWriteParameters InitializeVisBufferWriteParameters(
+	uint2 PixelPos,
+	WritePixelPageTranslation PageTranslation,
+	uint PixelValue,
+	float DeviceZ
+)
+{
+	SVisBufferWriteParameters Out = (SVisBufferWriteParameters)0;
+	Out.PixelPos = PixelPos;
+	Out.PixelValue = PixelValue;
+	Out.DeviceZ = DeviceZ;
+
+#if VIRTUAL_TEXTURE_TARGET
+	Out.PageTranslation = PageTranslation;
+#endif
+
+	return Out;
+}
+
+#if ENABLE_EARLY_Z_TEST
+bool EarlyTestVisBuffer(inout SVisBufferWriteParameters Params)
+{
+#if VIRTUAL_TEXTURE_TARGET
+	// NOTE: This also pre-calculates the physical pixel position
+	return ShouldWriteDepthTextureArray(Params.PixelPos, Params.PageTranslation, Params.DeviceZ, Params.PhysicalPixelPos);
+#else
+	return ShouldWritePixel(OutVisBuffer64, Params.PixelPos, Params.DeviceZ);
+#endif
+}
+#endif
+
+void WriteToVisBuffer(SVisBufferWriteParameters Params)
+{
+#if VIRTUAL_TEXTURE_TARGET
+	// TODO: Support Nanite visualization in this path
+	
+	#if ENABLE_EARLY_Z_TEST
+	// We should have already pre-calculated the physical pixel position
+	WriteDepthTextureArray(Params.PhysicalPixelPos, Params.DeviceZ);
+	#else
+	WriteDepthTextureArray(Params.PixelPos, Params.PageTranslation, Params.DeviceZ);
+	#endif
+#else
+	WritePixel(OutVisBuffer64, Params.PixelValue, Params.PixelPos, Params.DeviceZ);
+
+	#if VISUALIZE
+	const uint2 VisualizeValues = GetVisualizeValues();
+	WritePixel(OutDbgBuffer64, VisualizeValues.x, Params.PixelPos, Params.DeviceZ);
+	InterlockedAdd(OutDbgBuffer32[Params.PixelPos], VisualizeValues.y);
+	#endif
+#endif	// VIRTUAL_TEXTURE_TARGET
+}
+
+void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, FRaster Raster, FRasterTri Tri )
 {
 	float MaterialMask = 1.0f;
 	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
+
+	SVisBufferWriteParameters WriteParams = InitializeVisBufferWriteParameters(PixelPos, Raster.PageTranslation, PixelValue, DeviceZ);
+#if ENABLE_EARLY_Z_TEST
+	BRANCH
+	if (!EarlyTestVisBuffer(WriteParams))
+	{
+		return;
+	}
+#endif
 
 #if NANITE_PIXEL_PROGRAMMABLE
 	// Material parameter inputs
@@ -244,20 +323,12 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, boo
 	#endif
 #endif
 
-	DeviceZ += MaterialDepthOffset;
+	WriteParams.DeviceZ += MaterialDepthOffset;
 
+	BRANCH
 	if (MaterialMask >= 0)
 	{
-	#if VIRTUAL_TEXTURE_TARGET
-		WriteDepthTextureArray( PixelValue, uint3( PixelPos, Raster.PageTranslation.ArrayIndex ), DeviceZ, bDepthClamp, Raster.PageTranslation );
-		// TODO: Support Nanite visualization in this path
-	#else
-		WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp );
-	#if VISUALIZE
-		WritePixel( OutDbgBuffer64, Raster.VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp );
-		InterlockedAdd( OutDbgBuffer32[ PixelPos ], Raster.VisualizeValues.y );
-	#endif
-	#endif	// VIRTUAL_TEXTURE_TARGET
+		WriteToVisBuffer(WriteParams);
 	}
 }
 
@@ -384,15 +455,13 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	float CY2 = Tri.C2;
 	float ZY  = Tri.DepthPlane.z;
 
-	const bool bDepthClamp = (Raster.NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
-
 	int y = Tri.MinPixel.y;
 	while (true)
 	{
 		int x = Tri.MinPixel.x;
 		if (min3(CY0, CY1, CY2) >= 0)
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZY, float3(CY0, CY1, CY2), bDepthClamp, Raster, Tri );
+			WritePixelSW( PixelValue, uint2(x,y), ZY, float3(CY0, CY1, CY2), Raster, Tri );
 		}
 
 		if (x < Tri.MaxPixel.x)
@@ -408,7 +477,7 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 			{
 				if (min3(CX0, CX1, CX2) >= 0)
 				{
-					WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), bDepthClamp, Raster, Tri );
+					WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), Raster, Tri );
 				}
 
 				if (x >= Tri.MaxPixel.x)
@@ -448,14 +517,12 @@ void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	int x = Tri.MinPixel.x;
 	int y = Tri.MinPixel.y;
 
-	const bool bDepthClamp = (Raster.NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
-
 	HOIST_DESCRIPTORS
 	while( true )
 	{
 		if( min3( CX0, CX1, CX2 ) >= 0 )
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), bDepthClamp, Raster, Tri );
+			WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), Raster, Tri );
 		}
 
 		if( x < Tri.MaxPixel.x )
@@ -498,8 +565,6 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	bool3 bOpenEdge = Edge012 < 0;
 	float3 InvEdge012 = Edge012 == 0 ? 1e8 : rcp( Edge012 );
 
-	const bool bDepthClamp = (Raster.NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
-
 	int y = Tri.MinPixel.y;
 	while( true )
 	{
@@ -530,7 +595,7 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		x1 += Tri.MinPixel.x;
 		for( float x = x0; x <= x1; x++ )
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), bDepthClamp, Raster, Tri );
+			WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), Raster, Tri );
 
 			CX0 -= Tri.Edge12.y;
 			CX1 -= Tri.Edge20.y;
@@ -709,13 +774,11 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 		
 		uint PixelValue = Context.PixelValue | TriIndex;
 
-		const bool bDepthClamp = (Context.Raster.NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) == 0u;
-
 		const float CX0 = Context.Tri.C0 - TilePos.x * Context.Tri.Edge12.y + TilePos.y * Context.Tri.Edge12.x;
 		const float CX1 = Context.Tri.C1 - TilePos.x * Context.Tri.Edge20.y + TilePos.y * Context.Tri.Edge20.x;
 		const float CX2 = Context.Tri.C2 - TilePos.x * Context.Tri.Edge01.y + TilePos.y * Context.Tri.Edge01.x;
 
-		WritePixelSW( PixelValue, PixelPos, ZX, float3(CX0, CX1, CX2), bDepthClamp, Context.Raster, Context.Tri );
+		WritePixelSW( PixelValue, PixelPos, ZX, float3(CX0, CX1, CX2), Context.Raster, Context.Tri );
 	}
 }
 
@@ -1806,6 +1869,7 @@ void HWRasterizePS(VSOut In
 		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation(NaniteView, PageInfo.bStaticPage);
 	#else
 		const FNaniteView NaniteView = GetNaniteView(0);
+		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
 	#endif
 
 		const bool bNearClip = ((NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u);
@@ -1813,6 +1877,15 @@ void HWRasterizePS(VSOut In
 
 		float MaterialMask = 1.0f; // TODO: PROG_RASTER
 		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
+
+		SVisBufferWriteParameters WriteParams = InitializeVisBufferWriteParameters(PixelPos, PageTranslation, PixelValue, DeviceZ);
+	#if ENABLE_EARLY_Z_TEST
+		BRANCH
+		if (!EarlyTestVisBuffer(WriteParams))
+		{
+			return;
+		}
+	#endif
 
 	#if NANITE_PIXEL_PROGRAMMABLE
 		ResolvedView = ResolveView(NaniteView);
@@ -1871,30 +1944,19 @@ void HWRasterizePS(VSOut In
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.Position /*SvPosition*/, true /*bIsFrontFace*/);
 
-		// TODO: PROG_RASTER
+		// TODO: PROG_RASTER - MaterialDepthOffset
 
 		#if MATERIALBLENDING_MASKED
 		MaterialMask = GetMaterialMask(PixelMaterialInputs);
 		#endif
 	#endif
 
-		DeviceZ += MaterialDepthOffset;
+		WriteParams.DeviceZ += MaterialDepthOffset;
 
+		BRANCH
 		if (MaterialMask >= 0)
 		{
-			const bool bDepthClamp = !bNearClip;
-
-		#if VIRTUAL_TEXTURE_TARGET
-			WriteDepthTextureArray( PixelValue, uint3( PixelPos, PageTranslation.ArrayIndex ), DeviceZ, bDepthClamp, PageTranslation );
-			// TODO: Support Nanite visualization in this path
-		#else
-			WritePixel( OutVisBuffer64, PixelValue, PixelPos, DeviceZ, bDepthClamp );
-		#if VISUALIZE
-			const uint2 VisualizeValues = GetVisualizeValues();
-			WritePixel( OutDbgBuffer64, VisualizeValues.x, PixelPos, DeviceZ, bDepthClamp );
-			InterlockedAdd( OutDbgBuffer32[PixelPos], VisualizeValues.y );
-		#endif
-		#endif	// VIRTUAL_TEXTURE_TARGET
+			WriteToVisBuffer(WriteParams);
 		}
 	}
 }
