@@ -2892,6 +2892,17 @@ static void LoadCustomTimeStep(UEngine* Engine)
 	}
 }
 
+static void ResetCustomTimeStep()
+{
+	LoadCustomTimeStep(GEngine);
+}
+
+static FAutoConsoleCommand GResetCustomTimeStep(
+	TEXT("CustomTimeStep.reset"),
+	TEXT("Resets the current custom step."),
+	FConsoleCommandDelegate::CreateStatic(&ResetCustomTimeStep));
+
+
 static void LoadTimecodeProvider(UEngine* Engine)
 {
 	if (Engine->TimecodeProviderClassName.IsValid())
@@ -2930,6 +2941,16 @@ static void LoadTimecodeProvider(UEngine* Engine)
 		Engine->SetTimecodeProvider(nullptr);
 	}
 }
+
+static void ResetTimecode()
+{
+	LoadTimecodeProvider(GEngine);
+}
+
+static FAutoConsoleCommand GResetTimecode(
+	TEXT("TimecodeProvider.reset"),
+	TEXT("Resets the current timecode provider."),
+	FConsoleCommandDelegate::CreateStatic(&ResetTimecode));
 
 /**
 * Loads all Engine object references from their corresponding config entries.
