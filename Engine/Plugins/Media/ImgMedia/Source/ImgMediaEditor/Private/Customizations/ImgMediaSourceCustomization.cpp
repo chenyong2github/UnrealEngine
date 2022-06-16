@@ -76,7 +76,7 @@ void FImgMediaSourceCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> I
 					.BrowseDirectory_Lambda([this]() -> FString
 					{
 						const FString SequencePath = GetSequencePath();
-						return !SequencePath.IsEmpty() ? SequencePath : (FPaths::ProjectContentDir() / TEXT("Movies"));
+						return SequencePath.IsEmpty() ? (FPaths::ProjectContentDir() / TEXT("Movies")) : SequencePath;
 					})
 					.FilePath_Lambda([this]() -> FString
 					{
@@ -115,27 +115,8 @@ FString FImgMediaSourceCustomization::GetSequencePathFromChildProperty(const TSh
 
 FString FImgMediaSourceCustomization::GetSequencePath() const
 {
-	FString FilePath = GetSequencePathFromChildProperty(PropertyHandle);
-
-	return FilePath;
+	return GetSequencePathFromChildProperty(PropertyHandle);
 }
-
-FString FImgMediaSourceCustomization::GetRelativePathRoot() const
-{
-	FString RelativeDir;
-	bool bIsPathRelativeToRoot = IsPathRelativeToRoot();
-
-	if (bIsPathRelativeToRoot)
-	{
-		RelativeDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-	}
-	else
-	{
-		RelativeDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir());
-	}
-	return RelativeDir;
-}
-
 
 TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetSequencePathProperty(const TSharedPtr<IPropertyHandle>& InPropertyHandle)
 {
@@ -166,84 +147,73 @@ TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetSequencePathPathPro
 	return SequencePathPathProperty;
 }
 
-
-TSharedPtr<IPropertyHandle> FImgMediaSourceCustomization::GetPathRelativeToRootProperty() const
-{
-	TSharedPtr<IPropertyHandle> PathRelativeToRootProperty;
-
-	if ((PropertyHandle.IsValid()) && (PropertyHandle->IsValidHandle()))
-	{
-		TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
-		if (ParentHandle.IsValid())
-		{
-			PathRelativeToRootProperty = ParentHandle->GetChildHandle("IsPathRelativeToProjectRoot");
-		}
-	}
-
-	return PathRelativeToRootProperty;
-}
-
-
-bool FImgMediaSourceCustomization::IsPathRelativeToRoot() const
-{
-	TSharedPtr<IPropertyHandle> PathRelativeToRootProperty = GetPathRelativeToRootProperty();
-
-	bool bIsPathRelativeToRoot = false;
-	if (PathRelativeToRootProperty.IsValid())
-	{
-		if (PathRelativeToRootProperty->GetValue(bIsPathRelativeToRoot) != FPropertyAccess::Success)
-		{
-			UE_LOG(LogImgMediaEditor, Error, TEXT("FImgMediaSourceCustomization could not get IsPathRelativeToProjectRoot."));
-		}
-	}
-
-	return bIsPathRelativeToRoot;
-}
-
-void FImgMediaSourceCustomization::SetPathRelativeToRoot(bool bIsPathRelativeToRoot)
-{
-	TSharedPtr<IPropertyHandle> PathRelativeToRootProperty = GetPathRelativeToRootProperty();
-
-	if (PathRelativeToRootProperty.IsValid())
-	{
-		if (PathRelativeToRootProperty->SetValue(bIsPathRelativeToRoot) != FPropertyAccess::Success)
-		{
-			UE_LOG(LogImgMediaEditor, Error, TEXT("FImgMediaSourceCustomization could not set IsPathRelativeToProjectRoot."));
-		}
-	}
-}
-
 /* FImgMediaSourceCustomization callbacks
  *****************************************************************************/
 
 void FImgMediaSourceCustomization::HandleSequencePathPickerPathPicked(const FString& PickedPath)
 {
-	// fully expand path & strip optional file name
-	const FString OldRelativeDir = GetRelativePathRoot();
-	const FString FullPath = PickedPath.StartsWith(TEXT("./"))
-		? FPaths::ConvertRelativePathToFull(OldRelativeDir, PickedPath.RightChop(2))
-		: PickedPath;
+	FString SanitizedPickedPath = PickedPath.TrimStartAndEnd().Replace(TEXT("\""), TEXT(""));
 
-	const FString FullDir = FPaths::ConvertRelativePathToFull(FPaths::FileExists(FullPath) ? FPaths::GetPath(FullPath) : FullPath);
-	
-
-	FString PickedDir = FullDir;
-	const FString RelativeDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-	bool bIsRelativePath = PickedDir.StartsWith(RelativeDir);
-	if (bIsRelativePath)
+	// The user may have put a path that is relative to the project, or to the content, or to the running process.
 	{
-		FPaths::MakePathRelativeTo(PickedDir, *RelativeDir);
-		PickedDir = FString(TEXT("./")) + PickedDir;
+		const FString ExpandedPath = UImgMediaSource::ExpandSequencePathTokens(SanitizedPickedPath);
+
+		// We only need to interpret relative path (not absolute paths).
+		if (FPaths::IsRelative(ExpandedPath))
+		{
+			// See if the path is relative to project root or content.
+			// Pick the one that exists (if any)
+
+			FString SanitizedPickedPathReplacement = SanitizedPickedPath;
+
+			const TArray<TPair<FString, FString>> PossibleBasePaths
+			{
+				TPair<FString,FString>(FPaths::ProjectDir(), TEXT("")),
+				TPair<FString,FString>(FPaths::ProjectContentDir(), TEXT("Content")),
+			};
+
+			int32 ExistedCnt = 0;
+
+			for (const auto& Pair : PossibleBasePaths)
+			{
+				const FString CandidatePath = FPaths::Combine(Pair.Key, ExpandedPath);
+
+				if (FPaths::FileExists(CandidatePath) || FPaths::DirectoryExists(CandidatePath))
+				{
+					SanitizedPickedPathReplacement = FPaths::Combine(Pair.Value, SanitizedPickedPath);
+					ExistedCnt++;
+				}
+			}
+
+			if (ExistedCnt == 0)
+			{
+				// If the path didn't exist relative to project or content, see if it is relative to the current process,
+				// which is the kind of path returned by the file picker.
+				// In that case, change to full path.
+
+				const FString CandidatePathRelativeToEngine = FPaths::Combine(FPlatformProcess::BaseDir(), ExpandedPath);
+
+				if (FPaths::FileExists(CandidatePathRelativeToEngine) || FPaths::DirectoryExists(CandidatePathRelativeToEngine))
+				{
+					SanitizedPickedPath = FPaths::ConvertRelativePathToFull(CandidatePathRelativeToEngine);
+				}
+			}
+			else if (ExistedCnt == 1)
+			{
+				// Re-interpret the base relative if the path was relative to either project or content (leave unaltered when both exist)
+				SanitizedPickedPath = SanitizedPickedPathReplacement;
+			}
+		}
 	}
-	
-	// Update relative to root property.
-	SetPathRelativeToRoot(bIsRelativePath);
+
+	// Sanitize the path
+	SanitizedPickedPath = UImgMediaSource::SanitizeTokenizedSequencePath(SanitizedPickedPath);
 
 	// update property
 	TSharedPtr<IPropertyHandle> SequencePathPathProperty = GetSequencePathPathProperty(PropertyHandle);
 	if (SequencePathPathProperty.IsValid())
 	{
-		if (SequencePathPathProperty->SetValue(PickedDir) != FPropertyAccess::Success)
+		if (SequencePathPathProperty->SetValue(SanitizedPickedPath) != FPropertyAccess::Success)
 		{
 			UE_LOG(LogImgMediaEditor, Error, TEXT("FImgMediaSourceCustomization could not set SequencePath."));
 		}
@@ -253,18 +223,18 @@ void FImgMediaSourceCustomization::HandleSequencePathPickerPathPicked(const FStr
 
 EVisibility FImgMediaSourceCustomization::HandleSequencePathWarningIconVisibility() const
 {
-	FString FilePath = GetSequencePath();
+	const FString FilePath = UImgMediaSource::ExpandSequencePathTokens(GetSequencePath());
 
 	if (FilePath.IsEmpty() || FilePath.Contains(TEXT("://")))
 	{
 		return EVisibility::Hidden;
 	}
 
-	const FString RelativeDir = GetRelativePathRoot();
 	const FString FullMoviesPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("Movies"));
-	const FString FullPath = FPaths::ConvertRelativePathToFull(FPaths::IsRelative(FilePath) ? RelativeDir / FilePath : FilePath);
+	const FString FullPath = FPaths::ConvertRelativePathToFull(FPaths::IsRelative(FilePath) ? FPaths::ProjectDir() / FilePath : FilePath);
+	FString RelativePath;
 
-	if (FullPath.StartsWith(FullMoviesPath))
+	if (UImgMediaSource::IsPathUnderBasePath(FullPath, FullMoviesPath, RelativePath))
 	{
 		if (FPaths::DirectoryExists(FullPath))
 		{

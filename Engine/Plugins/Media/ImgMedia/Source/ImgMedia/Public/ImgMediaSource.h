@@ -51,8 +51,8 @@ public:
 public:
 
 	/** If true, then relative Sequence Paths are relative to the project root directory. If false, then relative to the Content directory. */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category=Sequence)
-	bool IsPathRelativeToProjectRoot;
+	UPROPERTY()
+	bool IsPathRelativeToProjectRoot_DEPRECATED;
 
 	/** Overrides the default frame rate stored in the image files (0/0 = do not override). */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Sequence, AdvancedDisplay)
@@ -86,16 +86,13 @@ public:
 	void GetProxies(TArray<FString>& OutProxies) const;
 
 	/**
-	 * Get the path to the image sequence directory to be played.
+	 * Get the path to the image sequence directory to be played. Supported tokens will be expanded.
 	 *
 	 * @return The file path.
 	 * @see SetSequencePath
 	 */
-	UFUNCTION(BlueprintCallable, Category="ImgMedia|ImgMediaSource")
-	const FString GetSequencePath() const
-	{
-		return SequencePath.Path;
-	}
+	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
+	const FString GetSequencePath() const;
 
 	/**
 	 * Set the path to the image sequence directory this source represents.
@@ -105,6 +102,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="ImgMedia|ImgMediaSource")
 	void SetSequencePath(const FString& Path);
+
+	/**
+	 * Set the path to the image sequence directory this source represents.
+	 *
+	 * @param Path The path to the desired image sequence directory. May contain supported tokens.
+	 * @see GetSequencePath
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
+	void SetTokenizedSequencePath(const FString& Path);
 
 	/**
 	 * This object is using our img sequence.
@@ -150,14 +156,35 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
-protected:
+public:
+
+	//~ UObject interface
+
+	virtual void Serialize(FArchive& Ar) override;
+
+public:
+
+	/* Returns the path after replacing the supported tokens */
+	static FString ExpandSequencePathTokens(const FString& InPath);
+
+	/* Returns a sanitized sequence path, but without expanding the tokens tokens */
+	static FString SanitizeTokenizedSequencePath(const FString& InPath);
+
+	/* Returns true if InPath is under InBasePath. If so, fills out OutRelativePath with the relative path between them */
+	static bool IsPathUnderBasePath(const FString& InPath, const FString& InBasePath, FString& OutRelativePath);
+
+public:
 
 	/** Get the full path to the image sequence. */
 	FString GetFullPath() const;
 
 protected:
 
-	/** The directory that contains the image sequence files. */
+	/** The directory that contains the image sequence files.
+	 *  
+	 * - Relative paths will be with respect to the current Project directory. 
+	 * - You may use {engine_dir} or {project_dir} tokens.
+	 */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category=Sequence, meta = (EditCondition = "false", EditConditionHides))
 	FDirectoryPath SequencePath;
 

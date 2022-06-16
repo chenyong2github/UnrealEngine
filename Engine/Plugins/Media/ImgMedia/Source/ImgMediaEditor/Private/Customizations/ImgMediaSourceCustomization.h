@@ -56,13 +56,6 @@ protected:
 	 */
 	FString GetSequencePath() const;
 
-	/**
-	 * Get the root path we are using for a relative Sequence Path.
-	 *
-	 * @return Root path.
-	 */
-	FString GetRelativePathRoot() const;
-
 private:
 
 	/** Callback for picking a path in the source directory picker. */
@@ -73,15 +66,10 @@ private:
 
 	/** Returns the property for SequencePath. */
 	static TSharedPtr<IPropertyHandle> GetSequencePathProperty(const TSharedPtr<IPropertyHandle>& InPropertyHandle);
+	
 	/** Returns the property for SequencePath->Path. */
 	static TSharedPtr<IPropertyHandle> GetSequencePathPathProperty(const TSharedPtr<IPropertyHandle>& InPropertyHandle);
-	/** Returns the property for IsPathRelativeToProjectRoot. */
-	TSharedPtr<IPropertyHandle> GetPathRelativeToRootProperty() const;
-	/** Returns the value of IsPathRelativeToProjectRoot. */
-	bool IsPathRelativeToRoot() const;
-	/** Sets the value of IsPathRelativeToProjectRoot. */
-	void SetPathRelativeToRoot(bool bIsPathRelativeToRoot);
-
+	
 private:
 
 	/** Text block widget showing the found proxy directories. */
