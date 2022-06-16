@@ -20,12 +20,14 @@ private:
 
 	ECheckBoxState GetEnforceCheckboxState() const;
 	void SetEnforceCheckboxState(ECheckBoxState CheckboxState);
-	bool ShowAdvancedColumns(FName ColumnName, const TArray<FMediaIOConfiguration>& UniquePermutationsForThisColumn) const;
-
 	void OnSelectionChanged(FMediaIOConfiguration SelectedItem);
-	FReply OnButtonClicked() const;
+	FReply OnButtonClicked();
+	bool ShowAdvancedColumns(FName ColumnName, const TArray<FMediaIOConfiguration>& UniquePermutationsForThisColumn) const;
+	bool IsAutoDetected() const;
+	void SetIsAutoDetected(bool Value);
 
+private:
 	TWeakPtr<SWidget> PermutationSelector;
 	FMediaIOConfiguration SelectedConfiguration;
-	TArray<TWeakObjectPtr<class UTimeSynchronizableMediaSource>> CustomizedSources;
+	bool bEnforceFormat = true;
 };

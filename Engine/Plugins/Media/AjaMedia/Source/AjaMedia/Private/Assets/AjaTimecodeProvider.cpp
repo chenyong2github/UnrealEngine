@@ -3,7 +3,6 @@
 #include "AjaTimecodeProvider.h"
 
 #include "AJA.h"
-#include "AjaDeviceProvider.h"
 #include "AjaMediaPrivate.h"
 #include "Misc/App.h"
 #include "UObject/VirtualProductionObjectVersion.h"
@@ -43,7 +42,7 @@ UAjaTimecodeProvider::UAjaTimecodeProvider()
 #endif
 	, State(ETimecodeProviderSynchronizationState::Closed)
 {
-	DeviceProvider = MakePimpl<FAjaDeviceProvider>();
+	DeviceProvider = MakeUnique<FAjaDeviceProvider>();
 }
 
 bool UAjaTimecodeProvider::FetchTimecode(FQualifiedFrameTime& OutFrameTime)
@@ -220,15 +219,21 @@ void UAjaTimecodeProvider::Tick(float DeltaTime)
 void UAjaTimecodeProvider::OnConfigurationAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> InConfigurations, class UEngine* InEngine)
 {
 	AJA::AJATimecodeChannelOptions Options(*GetName());
-
-	if (InConfigurations.Num())
+	
+	bool bConfigurationFound = false;
+	for (const FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat& Configuration : InConfigurations)
 	{
-		FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat Format = InConfigurations[0];
-
-		TimecodeConfiguration.MediaConfiguration = Format.Configuration;
-		TimecodeConfiguration.TimecodeFormat = UE::MediaIO::ToAutoDetectableTimecodeFormat(Format.TimecodeFormat);
+		if (Configuration.Configuration.MediaConnection.Device.DeviceIdentifier == TimecodeConfiguration.MediaConfiguration.MediaConnection.Device.DeviceIdentifier
+			&& Configuration.Configuration.MediaConnection.PortIdentifier == TimecodeConfiguration.MediaConfiguration.MediaConnection.PortIdentifier)
+		{
+            TimecodeConfiguration.MediaConfiguration = Configuration.Configuration;
+            TimecodeConfiguration.TimecodeFormat = UE::MediaIO::ToAutoDetectableTimecodeFormat(Configuration.TimecodeFormat);
+			bConfigurationFound = true;
+			break;
+		}
 	}
-	else
+	
+	if (!bConfigurationFound)
 	{
 		UE_LOG(LogAjaMedia, Warning, TEXT("No configuration was detected for TimecodeProvider '%s'"), *GetName());
 		ReleaseResources();

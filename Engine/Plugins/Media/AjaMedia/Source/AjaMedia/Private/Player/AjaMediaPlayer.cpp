@@ -343,9 +343,15 @@ void FAjaMediaPlayer::OnInitializationCompleted(bool bSucceed)
 
 void FAjaMediaPlayer::OnCompletion(bool bSucceed)
 {
-	AjaThreadNewState = bSucceed ? EMediaState::Closed : EMediaState::Error;
+	if (bAutoDetect)
+	{
+		AjaThreadNewState = EMediaState::Paused; 
+	}
+	else
+	{
+		AjaThreadNewState = bSucceed ? EMediaState::Closed : EMediaState::Error;
+	}
 }
-
 
 bool FAjaMediaPlayer::OnRequestInputBuffer(const AJA::AJARequestInputBufferData& InRequestBuffer, AJA::AJARequestedInputBufferData& OutRequestedBuffer)
 {
@@ -746,6 +752,7 @@ bool FAjaMediaPlayer::Open_Internal(const FString& Url, const IMediaOptions* Opt
 		AjaOptions.bUseKey = false;
 		AjaOptions.bBurnTimecode = false;
 		AjaOptions.BurnTimecodePercentY = 80;
+		AjaOptions.bAutoDetectFormat = bAutoDetect;
 
 		//Adjust supported sample types based on what's being captured
 		SupportedSampleTypes = AjaOptions.bUseVideo ? EMediaIOSampleType::Video : EMediaIOSampleType::None;
@@ -802,36 +809,45 @@ bool FAjaMediaPlayer::Open_Internal(const FString& Url, const IMediaOptions* Opt
 
 void FAjaMediaPlayer::OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> Configurations, FString Url, const IMediaOptions* Options, bool bAutoDetectVideoFormat, bool bAutoDetectTimecodeFormat)
 {
-	AJA::AJAInputOutputChannelOptions AjaOptions(TEXT("MediaPlayer"), Options->GetMediaOption(AjaMediaOption::PortIndex, (int64)0));
-	
-	if (Configurations.Num())
+	bool bConfigurationFound = false;
+
+	const int64 PortIndex = Options->GetMediaOption(AjaMediaOption::PortIndex, (int64)0);
+	const int64 DeviceIndex = Options->GetMediaOption(AjaMediaOption::DeviceIndex, (int64)0);
+	AJA::AJAInputOutputChannelOptions AjaOptions(TEXT("MediaPlayer"), PortIndex);
+
+	for (const FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat& Configuration : Configurations)
 	{
-		FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat Format = Configurations[0];
-			
-		if (bAutoDetectVideoFormat)
+		if (Configuration.Configuration.MediaConnection.Device.DeviceIdentifier == DeviceIndex
+			&& Configuration.Configuration.MediaConnection.PortIdentifier == PortIndex)
 		{
-			VideoFrameRate = Format.Configuration.MediaMode.FrameRate;
-			FIntPoint Resolution = Format.Configuration.MediaMode.Resolution;
+			bConfigurationFound = true;
+			if (bAutoDetectVideoFormat)
+			{
+				VideoFrameRate = Configuration.Configuration.MediaMode.FrameRate;
+				FIntPoint Resolution = Configuration.Configuration.MediaMode.Resolution;
 
-			VideoTrackFormat.Dim = Resolution;
-			VideoTrackFormat.FrameRates = TRange<float>(VideoFrameRate.AsDecimal());
-			VideoTrackFormat.FrameRate = VideoFrameRate.AsDecimal();
-			VideoTrackFormat.TypeName = Format.Configuration.MediaMode.GetModeName().ToString();
+				VideoTrackFormat.Dim = Resolution;
+				VideoTrackFormat.FrameRates = TRange<float>(VideoFrameRate.AsDecimal());
+				VideoTrackFormat.FrameRate = VideoFrameRate.AsDecimal();
+				VideoTrackFormat.TypeName = Configuration.Configuration.MediaMode.GetModeName().ToString();
 			
-			AjaOptions.VideoFormatIndex = Format.Configuration.MediaMode.DeviceModeIdentifier;
+				AjaOptions.VideoFormatIndex = Configuration.Configuration.MediaMode.DeviceModeIdentifier;
+			}
+
+			if (bAutoDetectTimecodeFormat)
+			{
+				TimecodeFormat = Configuration.TimecodeFormat;
+			}
 			
+			//Setup base sampling settings
+			BaseSettings.FrameRate = VideoFrameRate;
+			break;
 		}
-
-		if (bAutoDetectTimecodeFormat)
-		{
-			TimecodeFormat = Format.TimecodeFormat;
-		}
-
-		//Setup base sampling settings
-		BaseSettings.FrameRate = VideoFrameRate;
 	}
-	else
+			
+	if (!bConfigurationFound)
 	{
+		UE_LOG(LogAjaMedia, Warning, TEXT("No configuration was detected for MediaPlayer."));
 		Close();
 		return;
 	}

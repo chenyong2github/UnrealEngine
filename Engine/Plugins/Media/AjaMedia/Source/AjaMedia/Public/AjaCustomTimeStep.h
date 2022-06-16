@@ -5,6 +5,7 @@
 #include "GenlockedCustomTimeStep.h"
 
 #include "AJALib.h"
+#include "AjaDeviceProvider.h"
 #include "MediaIOCoreDefinitions.h"
 #include "AjaMediaSource.h"
 
@@ -36,6 +37,7 @@ public:
 	virtual bool IsLastSyncDataValid() const override;
 	virtual FFrameRate GetSyncRate() const override;
 	virtual bool WaitForSync() override;
+	virtual bool SupportsFormatAutoDetection() const { return true; };
 
 	//~ UObject interface
 	virtual void BeginDestroy() override;
@@ -49,6 +51,9 @@ private:
 
 	void ReleaseResources();
 	bool VerifyGenlockSignal();
+	bool Initialize_Internal(class UEngine* InEngine);
+	void OnConfigurationAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> InConfigurations, class UEngine* InEngine, bool bReinitialize);
+	void DetectConfiguration(class UEngine* InEngine, bool bReinitialize);
 
 public:
 	/**
@@ -92,6 +97,8 @@ private:
 
 	/** When Auto synchronize is enabled, the time the last attempt was triggered. */
 	double LastAutoSynchronizeInEditorAppTime;
+
+	double LastAutoDetectInEditorAppTime;
 #endif
 
 	/** The current SynchronizationState of the CustomTimeStep */
@@ -108,4 +115,8 @@ private:
 	/** Remember last detected video format */
 	AJA::FAJAVideoFormat LastDetectedVideoFormat;
 	bool bLastDetectedVideoFormatInitialized;
+
+	TUniquePtr<class FAjaDeviceProvider> DeviceProvider;
+	bool bEncounteredInvalidAutoDetectFrame = false;
+	bool bIgnoreWarningForOneFrame = true;
 };

@@ -125,5 +125,5 @@ private:
 	/** The current SynchronizationState of the TimecodeProvider*/
 	ETimecodeProviderSynchronizationState State;
 
-	TPimplPtr<class FAjaDeviceProvider> DeviceProvider;
+	TUniquePtr<FAjaDeviceProvider> DeviceProvider;
 };

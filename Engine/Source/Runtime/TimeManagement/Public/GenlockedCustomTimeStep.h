@@ -36,4 +36,11 @@ public:
 
 	/** Returns how many sync counts are expected between ticks*/
 	virtual uint32 GetExpectedSyncCountDelta() const;
+
+	/** Whether automatic format detection is supported. */ 
+	virtual bool SupportsFormatAutoDetection() const { return false; };
+
+	/** Whether this custom time step should autodetect the video format if supported. */
+	UPROPERTY()
+	bool bAutoDetectFormat = false;
 };

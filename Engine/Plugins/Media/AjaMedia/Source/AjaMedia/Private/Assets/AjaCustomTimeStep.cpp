@@ -3,14 +3,9 @@
 #include "AjaCustomTimeStep.h"
 #include "AjaMediaPrivate.h"
 #include "AJA.h"
-
-#include "HAL/CriticalSection.h"
-#include "HAL/Event.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
-
 #include "Misc/App.h"
-#include "Misc/ScopeLock.h"
 
 
 //~ IAJASyncChannelCallbackInterface implementation
@@ -47,6 +42,7 @@ UAjaCustomTimeStep::UAjaCustomTimeStep(const FObjectInitializer& ObjectInitializ
 #if WITH_EDITORONLY_DATA
 	, InitializedEngine(nullptr)
 	, LastAutoSynchronizeInEditorAppTime(0.0)
+	, LastAutoDetectInEditorAppTime(0.0)
 #endif
 	, State(ECustomTimeStepSynchronizationState::Closed)
 	, bWarnedAboutVSync(false)
@@ -57,6 +53,7 @@ UAjaCustomTimeStep::UAjaCustomTimeStep(const FObjectInitializer& ObjectInitializ
 	, bLastDetectedVideoFormatInitialized(false)
 {
 	MediaConfiguration.bIsInput = !bUseReferenceIn;
+	DeviceProvider = MakeUnique<FAjaDeviceProvider>();
 }
 
 bool UAjaCustomTimeStep::Initialize(UEngine* InEngine)
@@ -83,14 +80,6 @@ bool UAjaCustomTimeStep::Initialize(UEngine* InEngine)
 		return false;
 	}
 
-	FString FailureReason;
-	if (!MediaConfiguration.IsValid())
-	{
-		State = ECustomTimeStepSynchronizationState::Error;
-		UE_LOG(LogAjaMedia, Error, TEXT("The CustomTimeStep '%s' configuration is invalid."), *GetName());
-		return false;
-	}
-
 	if (bUseReferenceIn && bWaitForFrameToBeReady)
 	{
 		UE_LOG(LogAjaMedia, Warning, TEXT("The CustomTimeStep '%s' use both the reference and wait for the frame to be ready. These options are not compatible."), *GetName());
@@ -101,6 +90,99 @@ bool UAjaCustomTimeStep::Initialize(UEngine* InEngine)
 		UE_LOG(LogAjaMedia, Warning, TEXT("The CustomTimeStep '%s' is waiting for the frame to be ready and interlaced picture is not supported."), *GetName());
 	}
 
+	if (bAutoDetectFormat && !bUseReferenceIn)
+	{
+		constexpr bool bReinitialize = true;
+		DetectConfiguration(InEngine, bReinitialize);
+		return true;
+	}
+	else
+	{
+		FString FailureReason;
+        if (!MediaConfiguration.IsValid())
+        {
+        	State = ECustomTimeStepSynchronizationState::Error;
+        	UE_LOG(LogAjaMedia, Error, TEXT("The CustomTimeStep '%s' configuration is invalid."), *GetName());
+        	return false;
+        }
+	}
+
+	return Initialize_Internal(InEngine);
+}
+
+void UAjaCustomTimeStep::Shutdown(UEngine* InEngine)
+{
+#if WITH_EDITORONLY_DATA
+	InitializedEngine = nullptr;
+#endif
+
+	State = ECustomTimeStepSynchronizationState::Closed;
+	ReleaseResources();
+}
+
+bool UAjaCustomTimeStep::VerifyGenlockSignal()
+{
+	bool bGenlockSignalValid = true;
+
+	AJA::FAJAVideoFormat VideoFormat;
+	const bool bHasGenlockSignal = SyncChannel->GetVideoFormat(VideoFormat);
+
+	// Log error only once per signal change
+	const bool bShouldLogError = !bAutoDetectFormat && (!bLastDetectedVideoFormatInitialized || (LastDetectedVideoFormat != VideoFormat));
+
+	if (bHasGenlockSignal)
+	{
+		if (VideoFormat != MediaConfiguration.MediaMode.DeviceModeIdentifier)
+		{
+			bGenlockSignalValid = false;
+
+			if (bShouldLogError)
+			{
+				constexpr uint32 MaxStringLen = 128;
+				char VideoFormatStdString[MaxStringLen];
+				char ExpectedVideoFormatStdString[MaxStringLen];
+
+				const bool bVideoFormatStringOk = AJA::AJAVideoFormats::VideoFormatToString(
+					VideoFormat, VideoFormatStdString, sizeof(VideoFormatStdString)
+				);
+
+				const bool bExpectedVideoFormatStringOk = AJA::AJAVideoFormats::VideoFormatToString(
+					MediaConfiguration.MediaMode.DeviceModeIdentifier, ExpectedVideoFormatStdString, sizeof(ExpectedVideoFormatStdString)
+				);
+
+				if (bVideoFormatStringOk && bExpectedVideoFormatStringOk)
+				{
+					FString VideoFormatString(UTF8_TO_TCHAR(VideoFormatStdString));
+					FString ExpectedVideoFormatString(UTF8_TO_TCHAR(ExpectedVideoFormatStdString));
+
+					UE_LOG(LogAjaMedia, Warning, TEXT("Detected Genlock signal '%s' differs from expected '%s'"), *VideoFormatString, *ExpectedVideoFormatString);
+				}
+				else
+				{
+					UE_LOG(LogAjaMedia, Warning, TEXT("Detected Genlock signal '%d' differs from expected '%d'"), 
+						VideoFormat, MediaConfiguration.MediaMode.DeviceModeIdentifier
+					);
+				}
+			}
+		}
+	}
+	else
+	{
+		bGenlockSignalValid = false;
+
+		if (bShouldLogError)
+		{
+			UE_LOG(LogAjaMedia, Warning, TEXT("Genlock signal not detected"));
+		}
+	}
+
+	LastDetectedVideoFormat = VideoFormat;
+	bLastDetectedVideoFormatInitialized = true;
+	return bGenlockSignalValid;
+}
+
+bool UAjaCustomTimeStep::Initialize_Internal(UEngine* InEngine)
+{
 	check(SyncCallback == nullptr);
 	SyncCallback = new FAJACallback(this);
 
@@ -114,6 +196,8 @@ bool UAjaCustomTimeStep::Initialize(UEngine* InEngine)
 	Options.bOutput = bUseReferenceIn;
 	Options.bWaitForFrameToBeReady = bWaitForFrameToBeReady && !bUseReferenceIn;
 	Options.TransportType = AJA::ETransportType::TT_SdiSingle;
+	Options.bAutoDetectFormat = bAutoDetectFormat;
+
 	{
 		const EMediaIOTransportType TransportType = MediaConfiguration.MediaConnection.TransportType;
 		const EMediaIOQuadLinkTransportType QuadTransportType = MediaConfiguration.MediaConnection.QuadTransportType;
@@ -172,75 +256,30 @@ bool UAjaCustomTimeStep::Initialize(UEngine* InEngine)
 	return true;
 }
 
-void UAjaCustomTimeStep::Shutdown(UEngine* InEngine)
+void UAjaCustomTimeStep::OnConfigurationAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> InConfigurations, UEngine* InEngine, bool bReinitialize)
 {
-#if WITH_EDITORONLY_DATA
-	InitializedEngine = nullptr;
-#endif
-
-	State = ECustomTimeStepSynchronizationState::Closed;
-	ReleaseResources();
-}
-
-bool UAjaCustomTimeStep::VerifyGenlockSignal()
-{
-	bool bGenlockSignalValid = true;
-
-	AJA::FAJAVideoFormat VideoFormat;
-	const bool bHasGenlockSignal = SyncChannel->GetVideoFormat(VideoFormat);
-
-	// Log error only once per signal change
-	const bool bShouldLogError = !bLastDetectedVideoFormatInitialized || (LastDetectedVideoFormat != VideoFormat);
-
-	if (bHasGenlockSignal)
+	bool bConfigurationFound = false;
+	for (const FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat& Configuration : InConfigurations)
 	{
-		if (VideoFormat != MediaConfiguration.MediaMode.DeviceModeIdentifier)
+		if (Configuration.Configuration.MediaConnection.Device.DeviceIdentifier == MediaConfiguration.MediaConnection.Device.DeviceIdentifier
+			&& Configuration.Configuration.MediaConnection.PortIdentifier == MediaConfiguration.MediaConnection.PortIdentifier)
 		{
-			bGenlockSignalValid = false;
-
-			if (bShouldLogError)
-			{
-				constexpr uint32 MaxStringLen = 128;
-				char VideoFormatStdString[MaxStringLen];
-				char ExpectedVideoFormatStdString[MaxStringLen];
-
-				const bool bVideoFormatStringOk = AJA::AJAVideoFormats::VideoFormatToString(
-					VideoFormat, VideoFormatStdString, sizeof(VideoFormatStdString)
-				);
-
-				const bool bExpectedVideoFormatStringOk = AJA::AJAVideoFormats::VideoFormatToString(
-					MediaConfiguration.MediaMode.DeviceModeIdentifier, ExpectedVideoFormatStdString, sizeof(ExpectedVideoFormatStdString)
-				);
-
-				if (bVideoFormatStringOk && bExpectedVideoFormatStringOk)
-				{
-					FString VideoFormatString(UTF8_TO_TCHAR(VideoFormatStdString));
-					FString ExpectedVideoFormatString(UTF8_TO_TCHAR(ExpectedVideoFormatStdString));
-
-					UE_LOG(LogAjaMedia, Warning, TEXT("Detected Genlock signal '%s' differs from expected '%s'"), *VideoFormatString, *ExpectedVideoFormatString);
-				}
-				else
-				{
-					UE_LOG(LogAjaMedia, Warning, TEXT("Detected Genlock signal '%d' differs from expected '%d'"), 
-						VideoFormat, MediaConfiguration.MediaMode.DeviceModeIdentifier
-					);
-				}
-			}
+			MediaConfiguration = Configuration.Configuration;
+			bConfigurationFound = true;
+			break;
 		}
 	}
-	else
+	if (!bConfigurationFound)
 	{
-		bGenlockSignalValid = false;
-
-		if (bShouldLogError)
-		{
-			UE_LOG(LogAjaMedia, Warning, TEXT("Genlock signal not detected"));
-		}
+		UE_LOG(LogAjaMedia, Warning, TEXT("No configuration was detected for Custom Time Step '%s'"), *GetName());
+		ReleaseResources();
+		return;
 	}
-
-	LastDetectedVideoFormat = VideoFormat;
-	bLastDetectedVideoFormatInitialized = true;
-	return bGenlockSignalValid;
+	
+	if (bReinitialize)
+	{
+		Initialize_Internal(InEngine);
+	}
 }
 
 bool UAjaCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
@@ -255,7 +294,7 @@ bool UAjaCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 		ReleaseResources();
 		bLastDetectedVideoFormatInitialized = false;
 		bIsPreviousSyncCountValid = false;
-
+ 
 		// In Editor only, when not in pie, reinitialized the device
 #if WITH_EDITORONLY_DATA && WITH_EDITOR
 		if (InitializedEngine && !GIsPlayInEditorWorld && GIsEditor)
@@ -297,10 +336,34 @@ bool UAjaCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 
 	const double TimeAfterSync = FPlatformTime::Seconds();
 
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+	if (!bValidGenlockSignal && bAutoDetectFormat)
+	{
+		if (InitializedEngine && !GIsPlayInEditorWorld && GIsEditor)
+		{
+			constexpr double TimeBetweenAttempt = 3.0;
+			if (FApp::GetCurrentTime() - LastAutoDetectInEditorAppTime > TimeBetweenAttempt)
+			{
+				constexpr bool bReinitialize = false;
+				DetectConfiguration(InEngine, bReinitialize);
+				LastAutoDetectInEditorAppTime = FApp::GetCurrentTime();
+			}
+		}
+	}
+#endif
+
 	if (!bWaitedForSync)
 	{
-		State = ECustomTimeStepSynchronizationState::Error;
-		return true;
+		if (bAutoDetectFormat)
+		{
+			State = ECustomTimeStepSynchronizationState::Closed;
+			return true;
+		}
+		else
+		{
+			State = ECustomTimeStepSynchronizationState::Error;
+			return true;
+		}
 	}
 
 	if (bValidGenlockSignal)
@@ -383,9 +446,25 @@ bool UAjaCustomTimeStep::WaitForSync()
 
 	if (!bWaitIsValid)
 	{
+#if WITH_EDITORONLY_DATA
+		if (bAutoDetectFormat && InitializedEngine)
+		{
+			UE_LOG(LogAjaMedia, Display, TEXT("Custom time step sync format changed, restarting time step..."));
+			bIgnoreWarningForOneFrame = true;
+			UEngine* Engine = InitializedEngine;
+			Shutdown(Engine);
+			Initialize(Engine);
+			return false;
+		}
+#endif
+
 		State = ECustomTimeStepSynchronizationState::Error;
 		bIsPreviousSyncCountValid = false;
-		UE_LOG(LogAjaMedia, Error, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. The wait timed out."));
+		if (!bIgnoreWarningForOneFrame)
+		{
+			UE_LOG(LogAjaMedia, Error, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. The wait timed out."));
+		}
+
 		return false;
 	}
 
@@ -415,6 +494,10 @@ bool UAjaCustomTimeStep::WaitForSync()
 	}
 
 	bIsPreviousSyncCountValid = bIsNewSyncCountValid;
+	if (bIsPreviousSyncCountValid)
+	{
+		bEncounteredInvalidAutoDetectFrame = false;
+	}
 
 	return true;
 }
@@ -432,5 +515,19 @@ void UAjaCustomTimeStep::ReleaseResources()
 
 	bWarnedAboutVSync = false;
 	bIsPreviousSyncCountValid = false;
+	
+	if (DeviceProvider)
+	{
+		DeviceProvider->EndAutoDetectConfiguration();
+	}
 }
+
+void UAjaCustomTimeStep::DetectConfiguration(class UEngine* InEngine, bool bReinitialize)
+{
+	if (DeviceProvider)
+	{
+		DeviceProvider->AutoDetectConfiguration(FAjaDeviceProvider::FOnConfigurationAutoDetected::CreateUObject(this, &UAjaCustomTimeStep::OnConfigurationAutoDetected, InEngine, bReinitialize));
+	}
+}
+
 

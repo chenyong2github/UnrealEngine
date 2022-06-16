@@ -6,6 +6,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "Framework/Application/SlateApplication.h"
+#include "GenlockedCustomTimeStep.h"
 #include "IDetailChildrenBuilder.h"
 #include "IMediaIOCoreDeviceProvider.h"
 #include "IMediaIOCoreModule.h"
@@ -57,6 +58,7 @@ TSharedRef<SWidget> FMediaIOConfigurationCustomization::HandleSourceComboButtonM
 		SelectedConfiguration.bIsInput = bIsInput;
 	}
 
+	bEnforceFormat = !IsAutoDetected();
 
 	TArray<FMediaIOConfiguration> MediaConfigurations = bIsInput ? DeviceProviderPtr->GetConfigurations(true, false) : DeviceProviderPtr->GetConfigurations(false, true);
 	if (MediaConfigurations.Num() == 0)
@@ -81,11 +83,19 @@ TSharedRef<SWidget> FMediaIOConfigurationCustomization::HandleSourceComboButtonM
 		bool bSupportsAutoDetect = true;
 		for (UObject* Object : GetCustomizedObjects())
 		{
-			if (Object && Object->IsA<UTimeSynchronizableMediaSource>())
+			if (!Object)
 			{
-				const UTimeSynchronizableMediaSource* MediaSource = CastChecked<UTimeSynchronizableMediaSource>(Object);
+				bSupportsAutoDetect = false;
+				break;
+			}
+			
+			if (UTimeSynchronizableMediaSource* MediaSource = Cast<UTimeSynchronizableMediaSource>(Object))
+			{
 				bSupportsAutoDetect &= MediaSource->SupportsFormatAutoDetection();
-				CustomizedSources.Add(CastChecked<UTimeSynchronizableMediaSource>(Object));
+			}
+			else if (UGenlockedCustomTimeStep* CustomTimeStep = Cast<UGenlockedCustomTimeStep>(Object))
+			{
+				bSupportsAutoDetect &= CustomTimeStep->SupportsFormatAutoDetection();
 			}
 			else
 			{
@@ -170,9 +180,11 @@ void FMediaIOConfigurationCustomization::OnSelectionChanged(FMediaIOConfiguratio
 	SelectedConfiguration = SelectedItem;
 }
 
-FReply FMediaIOConfigurationCustomization::OnButtonClicked() const
+FReply FMediaIOConfigurationCustomization::OnButtonClicked()
 {
 	AssignValue(SelectedConfiguration);
+	// Make sure to overwrite what was in the config since the auto value is determined by the timecode provider and not the generated configs.
+	SetIsAutoDetected(!bEnforceFormat);
 
 	TSharedPtr<SWidget> SharedPermutationSelector = PermutationSelector.Pin();
 	if (SharedPermutationSelector.IsValid())
@@ -184,61 +196,68 @@ FReply FMediaIOConfigurationCustomization::OnButtonClicked() const
 	return FReply::Handled();
 }
 
+ECheckBoxState FMediaIOConfigurationCustomization::GetEnforceCheckboxState() const
+{
+	return bEnforceFormat ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FMediaIOConfigurationCustomization::SetEnforceCheckboxState(ECheckBoxState CheckboxState)
+{
+	bEnforceFormat = CheckboxState == ECheckBoxState::Checked;
+}
+
 bool FMediaIOConfigurationCustomization::ShowAdvancedColumns(FName ColumnName, const TArray<FMediaIOConfiguration>& UniquePermutationsForThisColumn) const
 {
-	if (!CustomizedSources.Num())
-	{
-		return true;
-	}
+	return bEnforceFormat;
+}
 
-	bool bAutoDetectInput = true;
+bool FMediaIOConfigurationCustomization::IsAutoDetected() const
+{
+	bool bAutoDetectTimecode = true;
 
-	for (const TWeakObjectPtr<UTimeSynchronizableMediaSource>& WeakMediaSource : CustomizedSources)
+	for (UObject* CustomizedObject : GetCustomizedObjects())
 	{
-		if (UTimeSynchronizableMediaSource* MediaSource = WeakMediaSource.Get())
+		if (const UTimeSynchronizableMediaSource* Source = Cast<UTimeSynchronizableMediaSource>(CustomizedObject))
 		{
-			if (!MediaSource->SupportsFormatAutoDetection())
+			if (!Source->bAutoDetectInput)
 			{
-				return true;
+				bAutoDetectTimecode = false;
+				break;
 			}
-			if (!MediaSource->bAutoDetectInput)
+		}
+
+		if (const UGenlockedCustomTimeStep* CustomTimeStep = Cast<UGenlockedCustomTimeStep>(CustomizedObject))
+		{
+			if (!CustomTimeStep->bAutoDetectFormat)
 			{
-				bAutoDetectInput = false;
+				bAutoDetectTimecode = false;
 				break;
 			}
 		}
 	}
 
-	return !bAutoDetectInput;
+	return bAutoDetectTimecode;
 }
 
-ECheckBoxState FMediaIOConfigurationCustomization::GetEnforceCheckboxState() const
+void FMediaIOConfigurationCustomization::SetIsAutoDetected(bool Value)
 {
-	bool bAllAutoDetect = true;
+	FScopedTransaction Transaction{ LOCTEXT("MediaIOAutoDetectTimecode", "Auto Detect Timecode") };
 
-	for (const TWeakObjectPtr<UTimeSynchronizableMediaSource>& WeakMediaSource : CustomizedSources)
+	for (UObject* CustomizedObject : GetCustomizedObjects())
 	{
-		if(UTimeSynchronizableMediaSource * MediaSource = WeakMediaSource.Get(); !MediaSource->bAutoDetectInput)
+		if (UTimeSynchronizableMediaSource* Source = Cast<UTimeSynchronizableMediaSource>(CustomizedObject))
 		{
-			bAllAutoDetect = false;
-			break;
+			Source->Modify();
+			Source->bAutoDetectInput = Value;
 		}
-	}
 
-	return bAllAutoDetect ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
-}
-
-void FMediaIOConfigurationCustomization::SetEnforceCheckboxState(ECheckBoxState CheckboxState)
-{
-	bool bEnforceFormat = CheckboxState == ECheckBoxState::Checked;
-
-	for (const TWeakObjectPtr<UTimeSynchronizableMediaSource>& WeakMediaSource : CustomizedSources)
-	{
-		if (UTimeSynchronizableMediaSource* MediaSource = WeakMediaSource.Get())
+		if (UGenlockedCustomTimeStep* CustomTimeStep = Cast<UGenlockedCustomTimeStep>(CustomizedObject))
 		{
-			MediaSource->bAutoDetectInput = !bEnforceFormat;
+			CustomTimeStep->Modify();
+			CustomTimeStep->bAutoDetectFormat = Value;
 		}
 	}
 }
+
 
 #undef LOCTEXT_NAMESPACE
