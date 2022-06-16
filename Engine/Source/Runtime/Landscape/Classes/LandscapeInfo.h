@@ -140,7 +140,7 @@ public:
 	/** Lookup map used by the "add component" tool. Only available near valid LandscapeComponents.
 	    only for use by the "add component" tool. Todo - move into the tool? */
 	TMap<FIntPoint, FLandscapeAddCollision> XYtoAddCollisionMap;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY()
 	TArray<TObjectPtr<ALandscapeStreamingProxy>> Proxies;
@@ -149,7 +149,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<TScriptInterface<ILandscapeSplineInterface>> SplineActors;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	TSet<ULandscapeComponent*> SelectedComponents;
 
@@ -225,6 +225,8 @@ public:
 	 */
 	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxyForLevel(ULevel* Level) const;
 
+#endif //WITH_EDITOR
+
 	/**
 	 *  Returns landscape which is spawned in the current level that was previously added to this landscape info object
 	 *  @param	bRegistered		Whether to consider only registered(visible) landscapes
@@ -237,6 +239,8 @@ public:
 	 *	@todo: should be removed
 	 */
 	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxy() const;
+
+#if WITH_EDITOR
 
 	/** Resets all actors, proxies, components registrations */
 	LANDSCAPE_API void Reset();

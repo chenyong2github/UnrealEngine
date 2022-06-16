@@ -89,9 +89,9 @@ DEFINE_LOG_CATEGORY(LogLandscapeBP);
 #define LOCTEXT_NAMESPACE "Landscape"
 
 static TAutoConsoleVariable<int32> CVarMobileCompressLanscapeWeightMaps(
-	TEXT("r.Mobile.CompressLandscapeWeightMaps"),
+    TEXT("r.Mobile.CompressLandscapeWeightMaps"),
 	0,
-	TEXT("Whether to compress the terrain weight maps for mobile."),
+    TEXT("Whether to compress the terrain weight maps for mobile."),
 	ECVF_ReadOnly);
 
 #if WITH_EDITOR
@@ -4072,7 +4072,7 @@ void ALandscapeProxy::PostEditMove(bool bFinished)
 	// This point is only reached when Copy and Pasted
 	Super::PostEditMove(bFinished);
 
-	if (bFinished && !GetWorld()->IsGameWorld())
+	if (bFinished)
 	{
 		ULandscapeInfo::RecreateLandscapeInfo(GetWorld(), true);
 		RecreateComponentsState();
@@ -4099,7 +4099,7 @@ void ALandscapeProxy::PostEditImport()
 
 void ALandscape::PostEditMove(bool bFinished)
 {
-	if (bFinished && !GetWorld()->IsGameWorld())
+	if (bFinished)
 	{
 		// align all proxies to landscape actor
 		auto* LandscapeInfo = GetLandscapeInfo();
@@ -4231,9 +4231,9 @@ ULandscapeLayerInfoObject::ULandscapeLayerInfoObject(const FObjectInitializer& O
 
 FLinearColor ULandscapeLayerInfoObject::GenerateLayerUsageDebugColor() const
 {
-	uint8 Hash[20];
-	FString PathNameString = GetPathName();
-	FSHA1::HashBuffer(*PathNameString, PathNameString.Len() * sizeof(PathNameString[0]), Hash);
+		uint8 Hash[20];
+		FString PathNameString = GetPathName();
+		FSHA1::HashBuffer(*PathNameString, PathNameString.Len() * sizeof(PathNameString[0]), Hash);
 
 	return FLinearColor(float(Hash[0]) / 255.f, float(Hash[1]) / 255.f, float(Hash[2]) / 255.f, 1.f);
 }
@@ -5214,11 +5214,11 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			if (World != nullptr)
 			{
 				if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+			{
+				for (ULandscapeComponent * Component : LandscapeComponents)
 				{
-					for (ULandscapeComponent* Component : LandscapeComponents)
+					if (Component != nullptr)
 					{
-						if (Component != nullptr)
-						{
 							Component->CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 						}
 					}
@@ -5227,7 +5227,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 				if (LiveRebuildNaniteOnModification != 0)
 				{
 					UpdateNaniteRepresentation();
-				}
+					}
 				else
 				{
 					InvalidateNaniteRepresentation();
@@ -5250,7 +5250,7 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 	{
 		ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
 		check(LandscapeInfo);
-		if (GEditor && !GetWorld()->IsGameWorld() && !IsRunningCommandlet())
+		if (GEditor && !IsRunningCommandlet())
 		{
 			if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition(); WorldPartition && WorldPartition->IsInitialized())
 			{
@@ -5417,20 +5417,20 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 				{
 					FGuid ParsedLandscapeGuid;
 					if (FGuid::Parse(AffectsLandscapeProperty.ToString(), ParsedLandscapeGuid) && ParsedLandscapeGuid == LandscapeGuid)
-					{
+				{
 						ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(ActorDesc->GetActor());
-
-						// If SplineActor is null then it is not loaded/deleted. If it's loaded then it needs to be pending kill.
-						if (!SplineActor)
-						{
-							++UndeletedSplineCount;
-						}
-						else
-						{
-							// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
-							check(SplineActors.Contains(SplineActor) == IsValidChecked(SplineActor));
-						}
+		
+					// If SplineActor is null then it is not loaded/deleted. If it's loaded then it needs to be pending kill.
+					if (!SplineActor)
+					{
+						++UndeletedSplineCount;
 					}
+					else
+					{
+						// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
+						check(SplineActors.Contains(SplineActor) == IsValidChecked(SplineActor));
+					}
+				}
 				}
 
 				return true;
@@ -5679,15 +5679,15 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 				if (World != nullptr)
 				{
 					if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
+				{
+					for (ULandscapeComponent * Component : LandscapeComponents)
 					{
-						for (ULandscapeComponent* Component : LandscapeComponents)
+						if (Component != nullptr)
 						{
-							if (Component != nullptr)
-							{
 								Component->CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
-							}
 						}
 					}
+				}
 
 					if (LiveRebuildNaniteOnModification != 0)
 					{
