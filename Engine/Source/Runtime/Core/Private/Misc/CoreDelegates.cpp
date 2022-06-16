@@ -235,7 +235,7 @@ FCoreDelegates::FGetOnScreenMessagesDelegate FCoreDelegates::OnGetOnScreenMessag
 typedef void(*TSigningKeyFunc)(TArray<uint8>&, TArray<uint8>&);
 typedef void(*TEncryptionKeyFunc)(unsigned char[32]);
 
-void RegisterSigningKeyCallback(TSigningKeyFunc InCallback)
+CORE_API void RegisterSigningKeyCallback(TSigningKeyFunc InCallback)
 {
 	FCoreDelegates::GetPakSigningKeysDelegate().BindLambda([InCallback](TArray<uint8>& OutExponent, TArray<uint8>& OutModulus)
 	{
@@ -243,7 +243,7 @@ void RegisterSigningKeyCallback(TSigningKeyFunc InCallback)
 	});
 }
 
-void RegisterEncryptionKeyCallback(TEncryptionKeyFunc InCallback)
+CORE_API void RegisterEncryptionKeyCallback(TEncryptionKeyFunc InCallback)
 {
 	FCoreDelegates::GetPakEncryptionKeyDelegate().BindLambda([InCallback](uint8 OutKey[32])
 	{

@@ -828,7 +828,7 @@ class FDefaultGameModuleImpl
 	{ \
 		FSigningKeyRegistration() \
 		{ \
-			extern void RegisterSigningKeyCallback(void (*)(TArray<uint8>&, TArray<uint8>&)); \
+			extern CORE_API void RegisterSigningKeyCallback(void (*)(TArray<uint8>&, TArray<uint8>&)); \
 			RegisterSigningKeyCallback(&Callback); \
 		} \
 		static void Callback(TArray<uint8>& OutExponent, TArray<uint8>& OutModulus) \
@@ -856,7 +856,7 @@ class FDefaultGameModuleImpl
 	{ \
 		FEncryptionKeyRegistration() \
 		{ \
-			extern void RegisterEncryptionKeyCallback(void (*)(unsigned char OutKey[32])); \
+			extern CORE_API void RegisterEncryptionKeyCallback(void (*)(unsigned char OutKey[32])); \
 			RegisterEncryptionKeyCallback(&Callback); \
 		} \
 		static void Callback(unsigned char OutKey[32]) \
@@ -955,6 +955,8 @@ class FDefaultGameModuleImpl
 
 	#define IMPLEMENT_PRIMARY_GAME_MODULE( ModuleImplClass, ModuleName, GameName ) \
 		/* Nothing special to do for modular builds.  The game name will be set via the command-line */ \
+		IMPLEMENT_SIGNING_KEY_REGISTRATION() \
+		IMPLEMENT_ENCRYPTION_KEY_REGISTRATION() \
 		IMPLEMENT_TARGET_NAME_REGISTRATION() \
 		IMPLEMENT_GAME_MODULE( ModuleImplClass, ModuleName )
 #endif	//IS_MONOLITHIC
