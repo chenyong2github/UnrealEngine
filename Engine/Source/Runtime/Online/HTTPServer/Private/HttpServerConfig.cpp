@@ -18,6 +18,7 @@ const FHttpServerListenerConfig FHttpServerConfig::GetListenerConfig(uint32 Port
 	GConfig->GetInt(*IniSectionName, TEXT("DefaultBufferSize"), Config.BufferSize, GEngineIni);
 	GConfig->GetInt(*IniSectionName, TEXT("DefaultConnectionsBacklogSize"), Config.ConnectionsBacklogSize, GEngineIni);
 	GConfig->GetInt(*IniSectionName, TEXT("DefaultMaxConnectionsAcceptPerFrame"), Config.MaxConnectionsAcceptPerFrame, GEngineIni);
+	GConfig->GetBool(*IniSectionName, TEXT("DefaultReuseAddressAndPort"), Config.bReuseAddressAndPort, GEngineIni);
 
 	// Apply per-port ini overrides
 	TArray<FString> ListenerConfigs;
@@ -46,6 +47,7 @@ const FHttpServerListenerConfig FHttpServerConfig::GetListenerConfig(uint32 Port
 				FParse::Value(*ListenerConfigStr, TEXT("BufferSize="), Config.BufferSize);
 				FParse::Value(*ListenerConfigStr, TEXT("ConnectionsBacklogSize="), Config.ConnectionsBacklogSize);
 				FParse::Value(*ListenerConfigStr, TEXT("MaxConnectionsAcceptPerFrame="), Config.MaxConnectionsAcceptPerFrame);
+				FParse::Bool(*ListenerConfigStr, TEXT("ReuseAddressAndPort="), Config.bReuseAddressAndPort);
 				break;
 			}
 		}

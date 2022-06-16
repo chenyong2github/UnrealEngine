@@ -416,7 +416,7 @@ void FWebRemoteControlModule::StartHttpServer()
 {
 	if (!HttpRouter)
 	{
-		HttpRouter = FHttpServerModule::Get().GetHttpRouter(HttpServerPort);
+		HttpRouter = FHttpServerModule::Get().GetHttpRouter(HttpServerPort, /* bFailOnBindFailure = */ true);
 		if (!HttpRouter)
 		{
 			UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Call server couldn't be started on port %d"), HttpServerPort);

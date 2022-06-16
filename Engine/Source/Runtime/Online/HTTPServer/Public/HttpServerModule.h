@@ -40,10 +40,11 @@ public:
 	/**
 	 * Per-port-binding access to an http router
 	 *
-	 * @param  Port The listener's bound port 
+	 * @param  Port The listener's bound port
+	 * @param  bFailOnBindFailure if true, return nullptr if we fail to bind/listen on the given port
 	 * @return An IHttpRouter instance that can be leveraged to respond to HTTP requests
 	 */
-	HTTPSERVER_API TSharedPtr<IHttpRouter> GetHttpRouter(uint32 Port);
+	HTTPSERVER_API TSharedPtr<IHttpRouter> GetHttpRouter(uint32 Port, bool bFailOnBindFailure = false);
 
 	/**
 	 * FTSTicker callback

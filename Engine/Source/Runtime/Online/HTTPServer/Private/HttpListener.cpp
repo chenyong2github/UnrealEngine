@@ -78,6 +78,12 @@ bool FHttpListener::StartListening()
 	}
 
 	BindAddress->SetPort(ListenPort);
+
+	if (Config.bReuseAddressAndPort)
+	{
+		NewSocket->SetReuseAddr(true);
+	}
+
 	if (!NewSocket->Bind(*BindAddress))
 	{
 		UE_LOG(LogHttpListener, Error, 

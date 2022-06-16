@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "Math/NumericLimits.h"
 #include "HttpServerModule.h"
 #include "IHttpRouter.h"
 #include "HttpRouteHandle.h"
@@ -17,6 +18,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHttpServerIntegrationTest, "System.Online.Http
 bool FHttpServerIntegrationTest::RunTest(const FString& Parameters)
 {
 	const uint32 HttpRouterPort = 8888;
+	const uint32 InvalidHttpRouterPort = TNumericLimits<uint16>::Max() + 1; // 65536
 	const FHttpPath HttpPath(TEXT("/TestHttpServer"));
 
 	// Ensure router creation
@@ -26,6 +28,14 @@ bool FHttpServerIntegrationTest::RunTest(const FString& Parameters)
 	// Ensure unique routers per-port
 	TSharedPtr<IHttpRouter> DuplicateHttpRouter = FHttpServerModule::Get().GetHttpRouter(HttpRouterPort);
 	TestEqual(TEXT("HttpRouter Duplicates"), HttpRouter, DuplicateHttpRouter);
+
+	// Ensure failed port binds result in a null router instance if requested
+	TSharedPtr<IHttpRouter> InvalidHttpRouterOnFail = FHttpServerModule::Get().GetHttpRouter(InvalidHttpRouterPort, /* bFailOnBindFailure = */ true);
+	TestFalse(TEXT("HttpRouter is null on bind failure if requested"), InvalidHttpRouterOnFail.IsValid());
+
+	// Ensure failed port binds still return a valid router if not explicitly requested to fail (and by default)
+	TSharedPtr<IHttpRouter> ValidHttpRouterOnFail = FHttpServerModule::Get().GetHttpRouter(InvalidHttpRouterPort /*, bFailOnBindFailure = false */);
+	TestTrue(TEXT("HttpRouter is NOT null on bind failure by default"), ValidHttpRouterOnFail.IsValid());
 
 	// Ensure we can create route bindings
 	const FHttpRequestHandler RequestHandler = [this]

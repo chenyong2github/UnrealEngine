@@ -62,7 +62,7 @@ bool FPerfCounters::Initialize()
 	}
 
 	// Get an IHttpRouter on the command-line designated port
-	HttpRouter = FHttpServerModule::Get().GetHttpRouter(StatsPort);
+	HttpRouter = FHttpServerModule::Get().GetHttpRouter(StatsPort, /* bFailOnBindFailure = */ true);
 	if (!HttpRouter)
 	{
 		UE_LOG(LogPerfCounters, Error, 

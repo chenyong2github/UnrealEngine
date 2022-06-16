@@ -96,27 +96,66 @@ FHttpServerModule& FHttpServerModule::Get()
 	return *Singleton;
 }
 
-TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port)
+TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port, bool bFailOnBindFailure /* = false */)
 {
 	check(Singleton == this);
 
-	// We may already be listening on this port
+	bool bFailedToListen = false;
+
+	// We may already have a listener for this port
 	TUniquePtr<FHttpListener>* ExistingListener = Listeners.Find(Port);
 	if (ExistingListener)
 	{
-		return ExistingListener->Get()->GetRouter();
+		if (bHttpListenersEnabled)
+		{
+			// if listeners are enabled, the existing listener for this port
+			// should always be listening (IsListening() will only be true
+			// if it fully initialized/successfully bound and actually started listening)
+			if (ensureMsgf(ExistingListener->Get()->IsListening(), TEXT("[%s] the existing listener for port %d is not listening/bound and listeners are still enabled"), ANSI_TO_TCHAR(__FUNCTION__), Port))
+			{
+				UE_LOG(LogHttpServerModule, Verbose, TEXT("[%s] found an existing, active listener for port %d"), ANSI_TO_TCHAR(__FUNCTION__), Port);
+				return ExistingListener->Get()->GetRouter();
+			}
+			else
+			{
+				// get rid of it and create a new one for now
+				Listeners.Remove(Port);
+			}
+		}
+		else
+		{
+			UE_LOG(LogHttpServerModule, Verbose, TEXT("[%s] found an existing listener for port %d but listeners are currently disabled"), ANSI_TO_TCHAR(__FUNCTION__), Port);
+			return ExistingListener->Get()->GetRouter();
+		}
 	}
 
 	// Otherwise create a new one
+	UE_LOG(LogHttpServerModule, VeryVerbose, TEXT("[%s] creating a new listener for port %d"), ANSI_TO_TCHAR(__FUNCTION__), Port);
 	TUniquePtr<FHttpListener> NewListener = MakeUnique<FHttpListener>(Port);
 
 	// Try to start this listener now
 	if (bHttpListenersEnabled)
 	{
-		NewListener->StartListening();
+		if (!NewListener->StartListening())
+		{
+			UE_LOG(LogHttpServerModule, Warning, TEXT("[%s] failed to start listening on port %d! (bFailOnBindFailure? %s)"), ANSI_TO_TCHAR(__FUNCTION__), Port, *LexToString(bFailOnBindFailure));
+			bFailedToListen = true;
+		}
 	}
-	const auto& NewListenerRef = Listeners.Add(Port, MoveTemp(NewListener));
-	return NewListenerRef->GetRouter();
+
+	if (bFailedToListen && bFailOnBindFailure)
+	{
+		// if we actually failed to listen on a port for whatever reason
+		// (i.e. listeners are enabled and we attempted to do so) then
+		// let the one we created fall out of scope and try again next time
+		return nullptr;
+	}
+	else
+	{
+		// the legacy behavior returns the router regardless of listener success
+		const auto& NewListenerRef = Listeners.Add(Port, MoveTemp(NewListener));
+		return NewListenerRef->GetRouter();
+	}
 }
 
 bool FHttpServerModule::Tick(float DeltaTime)

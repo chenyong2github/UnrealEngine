@@ -17,6 +17,8 @@ struct FHttpServerListenerConfig
 	int32 ConnectionsBacklogSize = 16;
 	/** Max Number of connections to accept per frame */
 	int32 MaxConnectionsAcceptPerFrame = 1;
+	/** If true, call FSocket::SetReuseAddr when binding to allow the use of an already bound address/port */
+	bool bReuseAddressAndPort = false;
 };
 
 struct FHttpServerConfig
