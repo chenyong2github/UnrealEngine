@@ -159,7 +159,7 @@ void FConcertTakeRecorderManager::Register(TSharedRef<IConcertClientSession> InS
 		// on session start.
 		//
 		ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
-		Preset = TStrongObjectPtr<UTakePreset>(UTakePreset::AllocateTransientPreset(nullptr));
+		Preset = UTakePreset::AllocateTransientPreset(nullptr);
 		check(Preset);
 		Preset->CreateLevelSequence();
 		ULevelSequence *LevelSequence = Preset->GetLevelSequence();
@@ -178,7 +178,7 @@ void FConcertTakeRecorderManager::Register(TSharedRef<IConcertClientSession> InS
 
 	InSession->RegisterCustomEventHandler<FConcertRecordSettingsChangeEvent>(this, &FConcertTakeRecorderManager::OnRecordSettingsChangeEvent);
 	InSession->RegisterCustomEventHandler<FConcertMultiUserSyncChangeEvent>(this, &FConcertTakeRecorderManager::OnMultiUserSyncChangeEvent);
-
+	InSession->RegisterCustomEventHandler<FConcertRecordingNamedLevelSequenceEvent>(this, &FConcertTakeRecorderManager::OnNamedLevelSequenceEvent);
 	if (InSession->GetConnectionStatus() == EConcertConnectionStatus::Connected)
 	{
 		OnSessionConnectionChanged(*InSession, EConcertConnectionStatus::Connected);
@@ -205,8 +205,10 @@ void FConcertTakeRecorderManager::Unregister(TSharedRef<IConcertClientSession> I
 
 		Session->UnregisterCustomEventHandler<FConcertMultiUserSyncChangeEvent>(this);
 		Session->UnregisterCustomEventHandler<FConcertRecordSettingsChangeEvent>(this);
+
+		Session->UnregisterCustomEventHandler<FConcertRecordingNamedLevelSequenceEvent>(this);
 	}
-	Preset.Reset();
+	Preset = nullptr;
 	WeakSession.Reset();
 }
 
@@ -217,6 +219,7 @@ void FConcertTakeRecorderManager::RegisterExtensions()
 	Module.GetToolbarExtensionGenerators().AddRaw(this, &FConcertTakeRecorderManager::CreateExtensionWidget);
 	Module.GetRecordButtonExtensionGenerators().AddRaw(this, &FConcertTakeRecorderManager::CreateRecordButtonOverlay);
 	Module.GetRecordErrorCheckGenerator().AddRaw(this, &FConcertTakeRecorderManager::ReportRecordingError);
+	Module.GetCanReviewLastRecordedLevelSequenceDelegate().BindRaw(this, &FConcertTakeRecorderManager::CanReviewLastRecordedSequence);
 
 	if (GIsEditor)
 	{
@@ -253,6 +256,7 @@ void FConcertTakeRecorderManager::UnregisterExtensions()
 	ITakeRecorderModule* TakeRecorder = FModuleManager::Get().GetModulePtr<ITakeRecorderModule>("TakeRecorder");
 	if (TakeRecorder)
 	{
+		TakeRecorder->GetCanReviewLastRecordedLevelSequenceDelegate().Unbind();
 		TakeRecorder->GetToolbarExtensionGenerators().RemoveAll(this);
 		TakeRecorder->GetRecordButtonExtensionGenerators().RemoveAll(this);
 		TakeRecorder->GetRecordErrorCheckGenerator().RemoveAll(this);
@@ -367,6 +371,7 @@ void FConcertTakeRecorderManager::OnTakeRecorderInitialized(UTakeRecorder* TakeR
 	{
 		if (TSharedPtr<IConcertClientSession> Session = WeakSession.Pin())
 		{
+			LastLevelSequence = nullptr;
 			UTakeRecorderPanel* Panel = UTakeRecorderBlueprintLibrary::GetTakeRecorderPanel();
 			check(Panel);
 
@@ -418,6 +423,14 @@ void FConcertTakeRecorderManager::OnRecordingFinished(UTakeRecorder* TakeRecorde
 			FConcertRecordingFinishedEvent RecordingFinishedEvent;
 			RecordingFinishedEvent.TakeName = TakeRecorder->GetName();
 			Session->SendCustomEvent(RecordingFinishedEvent, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
+
+			if (CanRecord())
+			{
+				LastLevelSequence = TakeRecorder->GetSequence();
+				check(LastLevelSequence);
+				FConcertRecordingNamedLevelSequenceEvent NamedSequence{LastLevelSequence->GetPathName()};
+				Session->SendCustomEvent(NamedSequence, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+			}
 		}
 	}
 
@@ -465,7 +478,7 @@ void FConcertTakeRecorderManager::OnTakeInitializedEvent(const FConcertSessionCo
 		TakeRecorderState.LastStartedTake = InEvent.TakeName;
 
 		ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
-		UTakePreset* TakePreset = Preset.Get();
+		UTakePreset* TakePreset = Preset;
 		if (bConcertUseTakePresetPathForRecord > 0)
 		{
 			TakePreset = Cast<UTakePreset>(StaticLoadObject(UObject::StaticClass(), nullptr, *InEvent.TakePresetPath));
@@ -494,6 +507,9 @@ void FConcertTakeRecorderManager::OnTakeInitializedEvent(const FConcertSessionCo
 			DefaultParams.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
 
 			UTakeRecorder* NewRecorder = NewObject<UTakeRecorder>(GetTransientPackage(), NAME_None, RF_Transient);
+
+			LastLevelSequence = nullptr;
+
 			UE_LOG(LogConcertTakeRecorder, Display, TEXT("Take initialized for recording by multi-user event."));
 			bIsRecording = true;
 			NewRecorder->Initialize(
@@ -511,8 +527,17 @@ void FConcertTakeRecorderManager::OnRecordingFinishedEvent(const FConcertSession
 	if (IsTakeSyncEnabled())
 	{
 		TakeRecorderState.LastStoppedTake = InEvent.TakeName;
+
 		if (UTakeRecorder* ActiveTakeRecorder = UTakeRecorder::GetActiveRecorder())
 		{
+			if (bIsRecording)
+			{
+				LastLevelSequence = ActiveTakeRecorder->GetSequence();
+				check(LastLevelSequence);
+				FConcertRecordingNamedLevelSequenceEvent NamedSequence{LastLevelSequence->GetPathName()};
+				TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+				Session->SendCustomEvent(NamedSequence, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+			}
 			ActiveTakeRecorder->Stop();
 			bIsRecording = false;
 		}
@@ -847,7 +872,7 @@ ETransactionFilterResult FConcertTakeRecorderManager::ShouldObjectBeTransacted(U
 	UConcertSessionRecordSettings const* RecordSettings = GetDefault<UConcertSessionRecordSettings>();
 
 	ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
-	UTakePreset* TakePreset = Preset.Get();
+	UTakePreset* TakePreset = Preset;
 	if (WeakSession.IsValid()
 		&& InPackage
 		&& TakePreset
@@ -902,6 +927,29 @@ FTakeRecorderParameters FConcertTakeRecorderManager::SetupTakeParametersForMulti
 	}
 
 	return Input;
+}
+
+void FConcertTakeRecorderManager::OnNamedLevelSequenceEvent(const FConcertSessionContext&, const FConcertRecordingNamedLevelSequenceEvent& InEvent)
+{
+	SetLastLevelSequence(LoadObject<ULevelSequence>(nullptr, *InEvent.LevelSequencePath));
+}
+
+bool FConcertTakeRecorderManager::CanReviewLastRecordedSequence() const
+{
+	if (WeakSession.IsValid())
+	{
+		return LastLevelSequence != nullptr;
+	}
+	return true;
+}
+
+
+void FConcertTakeRecorderManager::SetLastLevelSequence(ULevelSequence* InLastSequence)
+{
+	ITakeRecorderModule& Module = FTakeRecorderRecorderManagerGetModule();
+
+	LastLevelSequence = InLastSequence;
+	Module.GetLastLevelSequenceProvider().ExecuteIfBound(LastLevelSequence);
 }
 
 #undef LOCTEXT_NAMESPACE /*ConcertTakeRecorder*/

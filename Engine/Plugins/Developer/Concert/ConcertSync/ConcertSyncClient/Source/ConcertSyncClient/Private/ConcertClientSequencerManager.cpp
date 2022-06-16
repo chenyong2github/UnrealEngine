@@ -117,9 +117,10 @@ void FConcertClientSequencerManager::OnSequencerCreated(TSharedRef<ISequencer> I
 	OpenSequencer.OnCloseEventHandle = InSequencer->OnCloseEvent().AddRaw(this, &FConcertClientSequencerManager::OnSequencerClosed);
 	int32 OpenIndex = OpenSequencers.Add(OpenSequencer);
 
-	// Setup stored state
-	InSequencer->SetPlaybackStatus((EMovieScenePlayerStatus::Type)SequencerState.PlayerStatus);
-	InSequencer->SetPlaybackSpeed(SequencerState.PlaybackSpeed);
+	// Setup stored state.  Since this is an open event by the sequencer we might be the controller and should not set player
+	// state from previous stored state.  Hence playback mode is set to undefined.  We should wait for a global time event from
+	// other clients before we set our playback state.
+	//
 	// Setting the global time will notify the server of this newly opened state.
 	InSequencer->SetGlobalTime(SequencerState.Time.ConvertTo(InSequencer->GetRootTickResolution()));
 	// Since setting the global time will potentially have set our playback mode put us back to undefined

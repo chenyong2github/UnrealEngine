@@ -35,6 +35,17 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnRecordErrorCheck, FText &);
  */
 DECLARE_DELEGATE(FOnForceSaveAsPreset);
 
+class ULevelSequence;
+/**
+ * Delegate to provide last recorded level sequence.
+ */
+DECLARE_DELEGATE_OneParam(FLastRecordedLevelSequenceProvider, ULevelSequence*);
+
+/**
+ * Delegate to indicate if it is safe to review the last recorded level sequence.
+ */
+DECLARE_DELEGATE_RetVal(bool, FCanReviewLastRecordedLevelSequence);
+
 /**
  * Public module interface for the Take Recorder module
  */
@@ -74,6 +85,16 @@ public:
 	 * Get the delegate for handling saving of preset data.
 	 */
 	virtual FOnForceSaveAsPreset& OnForceSaveAsPreset() = 0;
+
+	/**
+	 * Get the delegate for providing the current level sequence to the take recorder panel.
+	 */
+	virtual FLastRecordedLevelSequenceProvider& GetLastLevelSequenceProvider() = 0;
+
+	/**
+	 * Provides the take recorder panel state of review last recording.
+	 */
+	virtual FCanReviewLastRecordedLevelSequence& GetCanReviewLastRecordedLevelSequenceDelegate() = 0;
 
 	/**
 	 * Unregister a previously registered extension callback for the 'Add Source' menu

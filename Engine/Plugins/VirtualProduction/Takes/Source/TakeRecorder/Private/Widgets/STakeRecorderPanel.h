@@ -143,6 +143,9 @@ private:
 	void SetRecordIntoLevelSequence(ULevelSequence* LevelSequence);
 
 private:
+	bool CanReviewLastLevelSequence() const;
+
+	void SetLastLevelSequence(ULevelSequence* InLastLevelSequence);
 
 	/** The transient preset that we use to - kept alive by AddReferencedObjects */
 	UTakePreset* TransientPreset;

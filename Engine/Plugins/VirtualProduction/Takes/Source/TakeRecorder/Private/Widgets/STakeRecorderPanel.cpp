@@ -73,6 +73,7 @@ STakeRecorderPanel::~STakeRecorderPanel()
 	UTakeRecorder::OnRecordingInitialized().Remove(OnRecordingInitializedHandle);
 	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
 	TakeRecorderModule.OnForceSaveAsPreset().Unbind();
+	TakeRecorderModule.GetLastLevelSequenceProvider().Unbind();
 	TakeRecorderModule.GetExternalObjectAddRemoveEventDelegate().Remove(OnWidgetExternalObjectChangedHandle);
 }
 
@@ -157,6 +158,7 @@ void STakeRecorderPanel::Construct(const FArguments& InArgs)
 		TakeRecorderModule.GetExternalObjectAddRemoveEventDelegate().AddSP(this, &STakeRecorderPanel::ReconfigureExternalSettings);
 
 	TakeRecorderModule.OnForceSaveAsPreset().BindRaw(this, &STakeRecorderPanel::OnSaveAsPreset);
+	TakeRecorderModule.GetLastLevelSequenceProvider().BindRaw(this, &STakeRecorderPanel::SetLastLevelSequence);
 
 	for(TWeakObjectPtr<> Object : TakeRecorderModule.GetExternalObjects())
 	{
@@ -338,7 +340,7 @@ TSharedRef<SWidget> STakeRecorderPanel::MakeToolBar()
 				.ToolTipText(LOCTEXT("ReviewLastRecording", "Review the last recording"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-				.IsEnabled_Lambda([this]() { return (LastRecordedLevelSequence != nullptr && GetTakeRecorderMode() == ETakeRecorderMode::RecordNewSequence); })
+				.IsEnabled_Lambda([this]() { return (CanReviewLastLevelSequence() && GetTakeRecorderMode() == ETakeRecorderMode::RecordNewSequence); })
 				.OnClicked(this, &STakeRecorderPanel::OnReviewLastRecording)
 				[
 					SNew(SImage)
@@ -555,6 +557,22 @@ ULevelSequence* STakeRecorderPanel::GetLastRecordedLevelSequence() const
 	return LastRecordedLevelSequence;
 }
 
+void STakeRecorderPanel::SetLastLevelSequence(ULevelSequence *InSequence)
+{
+	LastRecordedLevelSequence = InSequence;
+}
+
+bool STakeRecorderPanel::CanReviewLastLevelSequence() const
+{
+	if (LastRecordedLevelSequence == nullptr)
+	{
+		return false;
+	}
+	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+	FCanReviewLastRecordedLevelSequence& CanReview = TakeRecorderModule.GetCanReviewLastRecordedLevelSequenceDelegate();
+	return CanReview.IsBound() && CanReview.Execute();
+}
+
 ETakeRecorderMode STakeRecorderPanel::GetTakeRecorderMode() const
 {
 	if (RecordIntoLevelSequence != nullptr)
@@ -629,6 +647,7 @@ void STakeRecorderPanel::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(RecordIntoLevelSequence);
 	Collector.AddReferencedObject(SuppliedLevelSequence);
 	Collector.AddReferencedObject(RecordingLevelSequence);
+	Collector.AddReferencedObject(LastRecordedLevelSequence);
 }
 
 

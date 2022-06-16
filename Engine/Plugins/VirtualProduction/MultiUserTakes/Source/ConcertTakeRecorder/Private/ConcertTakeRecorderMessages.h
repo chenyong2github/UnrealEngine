@@ -119,6 +119,15 @@ struct FConcertRecordingFinishedEvent
 };
 
 USTRUCT()
+struct FConcertRecordingNamedLevelSequenceEvent
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString LevelSequencePath;
+};
+
+USTRUCT()
 struct FConcertRecordingCancelledEvent
 {
 	GENERATED_BODY()

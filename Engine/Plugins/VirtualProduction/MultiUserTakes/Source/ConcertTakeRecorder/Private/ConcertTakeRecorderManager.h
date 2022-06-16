@@ -26,7 +26,7 @@ struct EVisibility;
  * Take Recorder manager that is held by the client sync module that keeps track of when a take is started, stopped or cancelled.
  * Events are registered to client sessions that will then operate on the Take Recorder UIs
  */
-class FConcertTakeRecorderManager
+class FConcertTakeRecorderManager : public FGCObject
 {
 public:
 	/**
@@ -68,6 +68,8 @@ private:
 	void OnRecordSettingsChangeEvent(const FConcertSessionContext&, const FConcertRecordSettingsChangeEvent&);
 	void OnMultiUserSyncChangeEvent(const FConcertSessionContext&, const FConcertMultiUserSyncChangeEvent&);
 
+	void OnNamedLevelSequenceEvent(const FConcertSessionContext&, const FConcertRecordingNamedLevelSequenceEvent&);
+
 	void OnSessionClientChanged(IConcertClientSession&, EConcertClientStatus ClientStatus, const FConcertSessionClientInfo& InClientInfo);
 	void OnSessionConnectionChanged(IConcertClientSession&, EConcertConnectionStatus ConnectionStatus);
 
@@ -95,6 +97,17 @@ private:
 private:
 	FTakeRecorderParameters SetupTakeParametersForMultiuser(const FTakeRecorderParameters& Input);
 
+	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override
+	{
+		Collector.AddReferencedObject(Preset);
+		Collector.AddReferencedObject(LastLevelSequence);
+	}
+
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FConcertTakeRecorderManager");
+	}
+
 	void ReportRecordingError(FText &);
 	bool CanRecord() const;
 	bool CanAnyRecord() const;
@@ -104,6 +117,9 @@ private:
 
 	void RecordSettingChange(const FConcertClientRecordSetting& RecordSetting);
 	void AddRemoteClient(const FConcertSessionClientInfo& ClientInfo);
+
+	void SetLastLevelSequence(ULevelSequence* InLastSequence);
+	bool CanReviewLastRecordedSequence() const;
 
 	/** Weak pointer to the client session with which to send events. May be null or stale. */
 	TWeakPtr<IConcertClientSession> WeakSession;
@@ -117,7 +133,9 @@ private:
 		FString LastStoppedTake;
 	} TakeRecorderState;
 
-	TStrongObjectPtr<UTakePreset> Preset;
+	UTakePreset* Preset = nullptr;
+	ULevelSequence* LastLevelSequence = nullptr;
+
 	TSharedPtr<FConcertTakeRecorderClientSessionCustomization> Customization;
 
 	/** Delegate for any changes in client state. */
