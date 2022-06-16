@@ -170,7 +170,7 @@ void SActorEditorContext::Rebuild()
 							.Content()
 							[
 								SNew(SImage)
-								.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+								.Image(FAppStyle::GetBrush("ExpandableButton.CloseButton"))
 								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 						]
