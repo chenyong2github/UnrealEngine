@@ -175,7 +175,14 @@ public:
 		Container = InContainer;
 	}
 
-	FString ToString() const;
+	enum class EToStringMode : uint8
+	{
+		Guid,
+		Compact,
+		Full
+	};
+
+	FString ToString(EToStringMode Mode = EToStringMode::Compact) const;
 
 	bool IsLoaded(bool bEvenIfPendingKill=false) const;
 	AActor* GetActor(bool bEvenIfPendingKill=true, bool bEvenIfUnreachable=false) const;

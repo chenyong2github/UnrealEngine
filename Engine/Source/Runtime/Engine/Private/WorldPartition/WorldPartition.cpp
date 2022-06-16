@@ -72,7 +72,7 @@ TMap<FName, FString> GetDataLayersDumpString(const UWorldPartition* WorldPartiti
 	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(WorldPartition->GetWorld());
 	DataLayerSubsystem->ForEachDataLayer([&DataLayersDumpString](const UDataLayerInstance* DataLayer)
 	{
-		DataLayersDumpString.FindOrAdd(DataLayer->GetDataLayerFName()) = FString::Format(TEXT("{0}({1})"), { DataLayer->GetDataLayerShortName(), DataLayer->GetDataLayerFName().ToString() });
+		DataLayersDumpString.FindOrAdd(DataLayer->GetDataLayerFName()) = FString::Format(TEXT("{0}{1})"), { DataLayer->GetDataLayerShortName(), DataLayer->GetDataLayerFName().ToString() });
 		return true;
 	});
 	
@@ -88,31 +88,20 @@ FString GetActorDescDumpString(const FWorldPartitionActorDesc* ActorDesc, const 
 			return FString("None");
 		}
 
-		return FString::JoinBy(DataLayerNames, TEXT(", "), 
-			[&DataLayersDumpString](const FName& DataLayerName) 
-			{ 
-				if (const FString* DumpString = DataLayersDumpString.Find(DataLayerName))
-				{
-					return *DumpString;
-				}
-				return DataLayerName.ToString(); 
-			});
+		return FString::JoinBy(DataLayerNames, TEXT(", "), [&DataLayersDumpString](const FName& DataLayerName) 
+		{ 
+			if (const FString* DumpString = DataLayersDumpString.Find(DataLayerName))
+			{
+				return *DumpString;
+			}
+			return DataLayerName.ToString(); 
+		});
 	};
 
 	check(ActorDesc);
 	return FString::Printf(
-		TEXT("%s, %s, %s, %s, %s, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %s") LINE_TERMINATOR,
-		*ActorDesc->GetGuid().ToString(),
-		*ActorDesc->GetNativeClass().ToString(),
-		*ActorDesc->GetActorName().ToString(),
-		*ActorDesc->GetActorPackage().ToString(),
-		*ActorDesc->GetActorLabel().ToString(),
-		ActorDesc->GetBounds().GetCenter().X,
-		ActorDesc->GetBounds().GetCenter().Y,
-		ActorDesc->GetBounds().GetCenter().Z,
-		ActorDesc->GetBounds().GetExtent().X,
-		ActorDesc->GetBounds().GetExtent().Y,
-		ActorDesc->GetBounds().GetExtent().Z,
+		TEXT("%s DataLayerNames:%s") LINE_TERMINATOR, 
+		*ActorDesc->ToString(FWorldPartitionActorDesc::EToStringMode::Full), 
 		*GetDataLayerString(ActorDesc->GetDataLayerInstanceNames())
 	);
 }
@@ -147,7 +136,6 @@ static FAutoConsoleCommand DumpActorDesc(
 					if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 					{
 						TMap<FName, FString> DataLayersDumpString = GetDataLayersDumpString(WorldPartition);
-						UE_LOG(LogWorldPartition, Log, TEXT("Guid, Class, Name, Package, BVCenterX, BVCenterY, BVCenterZ, BVExtentX, BVExtentY, BVExtentZ, DataLayers"));
 						for (const FString& ActorPath : ActorPaths)
 						{
 							if (const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorPath))
@@ -1345,9 +1333,6 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 {
 	if (FArchive* LogFile = IFileManager::Get().CreateFileWriter(*Path))
 	{
-		FString LineEntry = TEXT("Guid, Class, Name, Package, BVCenterX, BVCenterY, BVCenterZ, BVExtentX, BVExtentY, BVExtentZ, DataLayers") LINE_TERMINATOR;
-		LogFile->Serialize(TCHAR_TO_ANSI(*LineEntry), LineEntry.Len());
-
 		TArray<const FWorldPartitionActorDesc*> ActorDescs;
 		TMap<FName, FString> DataLayersDumpString = GetDataLayersDumpString(this);
 		for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
@@ -1360,7 +1345,7 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 		});
 		for (const FWorldPartitionActorDesc* ActorDescIterator : ActorDescs)
 		{
-			LineEntry = GetActorDescDumpString(ActorDescIterator, DataLayersDumpString);
+			FString LineEntry = GetActorDescDumpString(ActorDescIterator, DataLayersDumpString);
 			LogFile->Serialize(TCHAR_TO_ANSI(*LineEntry), LineEntry.Len());
 		}
 

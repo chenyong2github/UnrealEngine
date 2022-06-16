@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/StringBuilder.h"
+#include "OverrideVoidReturnInvoker.h"
 
 /** A simple name/value pairs map */
 class FPropertyPairsMap
@@ -90,6 +92,25 @@ public:
 		return InAr << InPropertyPairsMap.Properties;
 	}
 
+	/**
+	 * Iterate through the property map and invoke a functor that can optionally break iteration by returning false.
+	 *
+	 * @param InFunc Function to invoke on the properties of the map.
+	 */
+	template <class Func>
+	FORCEINLINE void ForEachProperty(Func InFunc)
+	{
+		TOverrideVoidReturnInvoker Invoker(true, InFunc);
+
+		for (auto [Name, Value] : Properties)
+		{
+			if (!Invoker(Name, Value))
+			{
+				return;
+			}
+		}
+	}
+
 	/** @returns True if the property map is empty. */
 	FORCEINLINE bool IsEmpty() const
 	{
@@ -100,6 +121,41 @@ public:
 	FORCEINLINE int32 Num() const
 	{
 		return Properties.Num();
+	}
+
+	/**
+	 * Converts this property map to a string representation.
+	 *
+	 * @return The string representation.
+	 */
+	FORCEINLINE FString ToString() const
+	{
+		TStringBuilder<1024> StringBuilder;
+		
+		StringBuilder.AppendChar(TEXT('('));
+
+		if (Properties.Num())
+		{
+			for (auto [Name, Value] : Properties)
+			{
+				StringBuilder.AppendChar(TEXT('('));
+				StringBuilder.Append(Name.ToString());
+
+				if (!Value.IsNone())
+				{
+					StringBuilder.AppendChar(TEXT(','));
+					StringBuilder.Append(Value.ToString());
+				}
+
+				StringBuilder.AppendChar(TEXT(')'));
+				StringBuilder.AppendChar(TEXT(','));
+			}
+			StringBuilder.RemoveSuffix(1);
+		}
+
+		StringBuilder.AppendChar(TEXT(')'));
+
+		return StringBuilder.ToString();
 	}
 
 protected:

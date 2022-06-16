@@ -233,29 +233,76 @@ void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FStr
 	}
 }
 
-FString FWorldPartitionActorDesc::ToString() const
+FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 {
 	auto GetBoolStr = [](bool bValue) -> const TCHAR*
 	{
-		return bValue ? TEXT("true") : TEXT("false");
+		return bValue ? TEXT("1") : TEXT("0");
 	};
 
-	return FString::Printf(
-		TEXT("Guid:%s BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s HLODRelevant:%s FolderPath:%s FolderGuid:%s Parent:%s"), 
-		*Guid.ToString(), 
-		*BaseClass.ToString(), 
-		*NativeClass.ToString(), 
-		*GetActorName().ToString(),
-		*GetActorLabel().ToString(),
-		GetBoolStr(bIsSpatiallyLoaded),
-		*GetBounds().ToString(),
-		*RuntimeGrid.ToString(),
-		GetBoolStr(bActorIsEditorOnly),
-		GetBoolStr(bActorIsHLODRelevant),
-		*FolderPath.ToString(),
-		*FolderGuid.ToString(),
-		*ParentActor.ToString()
-	);
+	TStringBuilder<1024> Result;
+	Result.Appendf(TEXT("Guid:%s"), *Guid.ToString());
+
+	if (Mode >= EToStringMode::Compact)
+	{
+		Result.Appendf(
+			TEXT(" BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s HLODRelevant:%s"),
+			*BaseClass.ToString(), 
+			*NativeClass.ToString(), 
+			*GetActorName().ToString(),
+			*GetActorLabel().ToString(),
+			GetBoolStr(bIsSpatiallyLoaded),
+			*GetBounds().ToString(),
+			*RuntimeGrid.ToString(),
+			GetBoolStr(bActorIsEditorOnly),
+			GetBoolStr(bActorIsHLODRelevant)
+		);
+
+		if (ParentActor.IsValid())
+		{
+			Result.Appendf(TEXT(" Parent:%s"), *ParentActor.ToString());
+		}
+
+		if (!HLODLayer.IsNone())
+		{
+			Result.Appendf(TEXT(" HLODLayer:%s"), *HLODLayer.ToString());
+		}
+
+		if (!FolderPath.IsNone())
+		{
+			Result.Appendf(TEXT(" FolderPath:%s"), *FolderPath.ToString());
+		}
+
+		if (FolderGuid.IsValid())
+		{
+			Result.Appendf(TEXT(" FolderGuid:%s"), *FolderGuid.ToString());
+		}
+
+		if (Mode >= EToStringMode::Full)
+		{
+			if (References.Num())
+			{
+				Result.Appendf(TEXT(" References:%s"), *FString::JoinBy(References, TEXT(","), [&](const FGuid& ReferenceGuid) { return ReferenceGuid.ToString(); }));
+			}
+
+			if (Tags.Num())
+			{
+				Result.Appendf(TEXT(" Tags:%s"), *FString::JoinBy(Tags, TEXT(","), [&](const FName& TagName) { return TagName.ToString(); }));
+			}
+
+			if (Properties.Num())
+			{
+				Result.Appendf(TEXT(" Properties:%s"), *Properties.ToString());
+			}
+
+			if (DataLayers.Num())
+			{
+				Result.Appendf(TEXT(" DataLayers:%s"), *FString::JoinBy(DataLayers, TEXT(","), [&](const FName& DataLayerName) { return DataLayerName.ToString(); }));
+			}
+		}
+	}
+
+	return Result.ToString();
 }
 
 void FWorldPartitionActorDesc::Serialize(FArchive& Ar)

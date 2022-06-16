@@ -40,6 +40,19 @@ namespace PropertyPairsMapTests
 		TestTrue(TEXT("PropertyPairsMap.GetProperty(WithValue)"), PropertyPairsMap.GetProperty(TEXT("WithValue"), &WithValueValue));
 		TestTrue(TEXT("WithValueValue is Value2"), WithValueValue.ToString() == TEXT("Value2"));
 
+		PropertyPairsMap.ForEachProperty([this](FName Name, FName Value)
+		{
+			TestTrue(TEXT("Unbreakable iterator"), (Name == TEXT("WithoutValue")) || (Name == TEXT("WithValue")));
+			TestTrue(TEXT("Unbreakable iterator"), Value.IsNone() || (Value == TEXT("Value2")));
+		});
+
+		PropertyPairsMap.ForEachProperty([this](FName Name, FName Value)
+		{
+			TestTrue(TEXT("Breakable iterator"), (Name == TEXT("WithoutValue")) || (Name == TEXT("WithValue")));
+			TestTrue(TEXT("Breakable iterator"), Value.IsNone() || (Value == TEXT("Value2")));
+			return true;
+		});
+
 		return true;
 	}
 }

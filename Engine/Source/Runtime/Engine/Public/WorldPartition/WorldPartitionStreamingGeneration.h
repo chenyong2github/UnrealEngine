@@ -3,8 +3,7 @@
 
 #if WITH_EDITOR
 #include "CoreMinimal.h"
-#include "Templates/IntegralConstant.h"
-#include "Templates/UnrealTypeTraits.h"
+#include "OverrideVoidReturnInvoker.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 
 class ENGINE_API FActorDescViewMap
@@ -12,15 +11,14 @@ class ENGINE_API FActorDescViewMap
 	friend class FWorldPartitionStreamingGenerator;
 
 private:
-    template<typename F, typename V>bool DoCall(F Func, V Val, std::true_type) { return Func(*Val); }
-	template<typename F, typename V> bool DoCall(F Func, V Val, std::false_type) { Func(*Val); return true; }
-
-	template <class T>
-	void ForEachActorDescView(T Func)
+	template <class Func>
+	void ForEachActorDescView(Func InFunc)
 	{
+		TOverrideVoidReturnInvoker Invoker(true, InFunc);
+
 		for (TUniquePtr<FWorldPartitionActorDescView>& ActorDescView : ActorDescViewList)
 		{
-			if (!DoCall(Func, ActorDescView.Get(), std::is_same<bool, decltype(Func(*ActorDescView))>()))
+			if (!Invoker(*ActorDescView))
 			{
 				return;
 			}
@@ -36,6 +34,11 @@ private:
 		return nullptr;
 	}
 
+	FWorldPartitionActorDescView& FindByGuidChecked(const FGuid& InGuid)
+	{
+		return *ActorDescViewsByGuid.FindChecked(InGuid);
+	}
+
 public:
 	FActorDescViewMap();
 
@@ -47,12 +50,19 @@ public:
 
 	FWorldPartitionActorDescView* Emplace(const FGuid& InActorGuid, const FWorldPartitionActorDescView& InActorDescView);
 
-	template <class T>
-	void ForEachActorDescView(T Func) const
+	FORCEINLINE int32 Num() const
 	{
+		return ActorDescViewList.Num();
+	}
+
+	template <class Func>
+	void ForEachActorDescView(Func InFunc) const
+	{
+		TOverrideVoidReturnInvoker Invoker(true, InFunc);
+
 		for (const TUniquePtr<FWorldPartitionActorDescView>& ActorDescView : ActorDescViewList)
 		{
-			if (!DoCall(Func, ActorDescView.Get(), std::is_same<bool, decltype(Func(*ActorDescView))>()))
+			if (!Invoker(*ActorDescView))
 			{
 				return;
 			}
@@ -68,10 +78,10 @@ public:
 		return nullptr;
 	}
 
-	template <class T>
+	template <class ClassType>
 	TArray<const FWorldPartitionActorDescView*> FindByExactNativeClass() const
 	{
-		return FindByExactNativeClass(T::StaticClass());
+		return FindByExactNativeClass(ClassType::StaticClass());
 	}
 
 	TArray<const FWorldPartitionActorDescView*> FindByExactNativeClass(UClass* InExactNativeClass) const;
