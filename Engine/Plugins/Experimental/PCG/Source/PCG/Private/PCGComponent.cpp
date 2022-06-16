@@ -1040,7 +1040,10 @@ void UPCGComponent::Refresh()
 	{
 		if (IsPartitioned() && GetSubsystem())
 		{
-			GetSubsystem()->DelayUnpartitionGraph(this);
+			if (LastGeneratedBounds.IsValid)
+			{
+				GetSubsystem()->DelayUnpartitionGraph(this);
+			}
 		}
 		else
 		{
@@ -1178,7 +1181,13 @@ UPCGData* UPCGComponent::CreateActorPCGData()
 
 UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreateActorPCGData)
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreateActorPCGData);
+
+	if (!Actor)
+	{
+		return nullptr;
+	}
+
 	// In this case, we'll build the data type that's closest to known actor types
 	// TODO: add factory for extensibility
 	if (APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(Actor))
