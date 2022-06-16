@@ -157,23 +157,23 @@ bool FRemoteSessionModule::HandleSettingsSaved()
 	TArray<FRemoteSessionChannelInfo> KnownChannels = FRemoteSessionChannelRegistry::Get().GetRegisteredFactories();
 
 	// check channels
-	for (const auto& Channel : Settings->WhitelistedChannels)
+	for (const auto& Channel : Settings->AllowedChannels)
 	{
 		if (KnownChannels.ContainsByPredicate([Channel](const FRemoteSessionChannelInfo& Info) {
 			return Info.Type == Channel;
 			}))
 		{
-			UE_LOG(LogRemoteSession, Error, TEXT("Channel %s in the ini file whitelist is not a recognized channel."), *Channel);
+			UE_LOG(LogRemoteSession, Error, TEXT("Channel %s in the ini file allow list is not a recognized channel."), *Channel);
 		}
 	}
 
-	for (const auto& Channel : Settings->BlacklistedChannels)
+	for (const auto& Channel : Settings->DeniedChannels)
 	{
 		if (KnownChannels.ContainsByPredicate([Channel](const FRemoteSessionChannelInfo& Info) {
 			return Info.Type == Channel;
 			}))
 		{
-			UE_LOG(LogRemoteSession, Error, TEXT("Channel %s in the ini file blacklist is not a recognized channel."), *Channel);
+			UE_LOG(LogRemoteSession, Error, TEXT("Channel %s in the ini file deny list is not a recognized channel."), *Channel);
 		}
 	}
 
@@ -244,20 +244,20 @@ void FRemoteSessionModule::InitHost(const int16 Port /*= 0*/)
 
 	SupportedChannels = FRemoteSessionChannelRegistry::Get().GetRegisteredFactories();
 
-	if (Settings->WhitelistedChannels.Num())
+	if (Settings->AllowedChannels.Num())
 	{
-		// Remove anything not in the whitelist
+		// Remove anything not in the allow list
 		SupportedChannels = SupportedChannels.FilterByPredicate([Settings](const FRemoteSessionChannelInfo& Info) {
-			return Settings->WhitelistedChannels.Contains(Info.Type);
+			return Settings->AllowedChannels.Contains(Info.Type);
 		});
 	}
 
 
-	if (Settings->BlacklistedChannels.Num())
+	if (Settings->DeniedChannels.Num())
 	{
-		// Remove anything in the blacklist
+		// Remove anything in the denied list
 		SupportedChannels = SupportedChannels.FilterByPredicate([Settings](const FRemoteSessionChannelInfo& Info) {
-			return Settings->BlacklistedChannels.Contains(Info.Type) == false;
+			return Settings->DeniedChannels.Contains(Info.Type) == false;
 		});
 	}
 

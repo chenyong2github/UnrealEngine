@@ -28,9 +28,9 @@ The values shown below are the current defaults. If you do not want to change fr
 	; Framerate of from the host (will be min of this and the actual game)
 	FrameRate = 60
 	; Restrict to these channels. If empty all registered channels are available
-	+WhitelistedChannels="ChannelName"
+	+AllowedChannels="ChannelName"
 	; Don't allow these channels to be used
-	+BlacklistedChannels="ChannelName"
+	+DeniedChannels="ChannelName"
 
 
 Framerate and Quality can be adjusted at runtime via the remote.framerate and remote.quality cvars.

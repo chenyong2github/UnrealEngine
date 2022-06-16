@@ -105,9 +105,9 @@ public:
 
 	/* Restrict remote session to these channels. If empty all registered channels are available */
 	UPROPERTY(config)
-	TArray<FString> WhitelistedChannels;
+	TArray<FString> AllowedChannels;
 
 	/* Don't allow these channels to be used */
 	UPROPERTY(config)
-	TArray<FString> BlacklistedChannels;
+	TArray<FString> DeniedChannels;
 };
