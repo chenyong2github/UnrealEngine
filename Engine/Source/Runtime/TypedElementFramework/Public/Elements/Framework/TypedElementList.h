@@ -44,7 +44,7 @@ FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const UTypedElementRegis
  * Provides high-level access to groups of elements, including accessing elements that implement specific interfaces.
  */
 template<class HandleType>
-class TTypedElementList final : public TSharedFromThis<TTypedElementList<HandleType>>
+class TYPEDELEMENTFRAMEWORK_API TTypedElementList final : public TSharedFromThis<TTypedElementList<HandleType>>
 {
 public:
 
