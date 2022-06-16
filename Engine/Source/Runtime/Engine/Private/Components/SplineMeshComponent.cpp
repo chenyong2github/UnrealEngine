@@ -777,7 +777,10 @@ FTransform USplineMeshComponent::CalcSliceTransform(const float DistanceAlong) c
 		const FBoxSphereBounds StaticMeshBounds = GetStaticMesh()->GetBounds();
 		const float MeshMinZ = GetAxisValue(StaticMeshBounds.Origin, ForwardAxis) - GetAxisValue(StaticMeshBounds.BoxExtent, ForwardAxis);
 		const float MeshRangeZ = 2.0f * GetAxisValue(StaticMeshBounds.BoxExtent, ForwardAxis);
-		Alpha = (DistanceAlong - MeshMinZ) / MeshRangeZ;
+		if (MeshRangeZ > UE_SMALL_NUMBER)
+		{
+			Alpha = (DistanceAlong - MeshMinZ) / MeshRangeZ;
+		}
 	}
 
 	return CalcSliceTransformAtSplineOffset(Alpha);
