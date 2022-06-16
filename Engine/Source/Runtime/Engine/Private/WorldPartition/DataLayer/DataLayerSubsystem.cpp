@@ -642,8 +642,6 @@ void UDataLayerSubsystem::OnActorDescContainerInitialized(UActorDescContainer* I
 {
 	check(InActorDescContainer);
 
-	UE_SCOPED_TIMER(*FString::Printf(TEXT("Resolving Data Layer Instance Names for %s"), *InActorDescContainer->GetContainerPackage().ToString()), LogWorldPartition, Display);
-
 	auto GetWorldDataLayersActorDesc = [](const UActorDescContainer* InContainer) -> FWorldDataLayersActorDesc*
 	{
 		if (InContainer)
