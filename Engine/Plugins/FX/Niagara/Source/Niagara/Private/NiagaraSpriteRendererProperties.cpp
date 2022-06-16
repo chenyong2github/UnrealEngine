@@ -189,7 +189,7 @@ void UNiagaraSpriteRendererProperties::Serialize(FStructuredArchive::FRecord Rec
 
 	bool bIsCookedForEditor = false;
 #if WITH_EDITORONLY_DATA
-	bIsCookedForEditor = GetOutermost()->bIsCookedForEditor;
+	bIsCookedForEditor = ((Ar.GetPortFlags() & PPF_Duplicate) == 0) && GetPackage()->HasAnyPackageFlags(PKG_Cooked);
 #endif // WITH_EDITORONLY_DATA
 
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
