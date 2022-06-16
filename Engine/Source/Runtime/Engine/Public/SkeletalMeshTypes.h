@@ -240,7 +240,7 @@ protected:
 	FSkeletalMeshRenderData* SkeletalMeshRenderData;
 
 	/** The points to the skeletal mesh and physics assets are purely for debug purposes. Access is NOT thread safe! */
-	const USkeletalMesh* SkeletalMeshForDebug;
+	const class USkinnedAsset* SkeletalMeshForDebug;
 	class UPhysicsAsset* PhysicsAssetForDebug;
 	
 	UMaterialInterface* OverlayMaterial;

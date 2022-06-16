@@ -32,7 +32,7 @@
 #include "Animation/MorphTarget.h"
 #include "Engine/StreamableRenderAsset.h"
 #include "PerQualityLevelProperties.h"
-
+#include "SkinnedAsset.h"
 #include "SkeletalMesh.generated.h"
 
 class UAnimInstance;
@@ -763,7 +763,7 @@ namespace NSSkeletalMeshSourceFileLabels
  * @see https://docs.unrealengine.com/latest/INT/Engine/Content/Types/SkeletalMeshes/
  */
 UCLASS(hidecategories=Object, BlueprintType)
-class ENGINE_API USkeletalMesh : public UStreamableRenderAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface, public IInterface_AsyncCompilation
+class ENGINE_API USkeletalMesh : public USkinnedAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface, public IInterface_AsyncCompilation
 {
 	GENERATED_UCLASS_BODY()
 
@@ -928,8 +928,8 @@ public:
 	virtual void ClearAllCachedCookedPlatformData() override;
 #endif
 
-	/** Get the data to use for rendering. */
-	FORCEINLINE FSkeletalMeshRenderData* GetResourceForRendering() const 
+	/** Get the data to use for rendering. USkinnedAsset interface. */
+	virtual FSkeletalMeshRenderData* GetResourceForRendering() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkeletalMeshRenderData);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -949,7 +949,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	USkeleton* GetSkeleton()
+	/** USkinnedAsset interface. */
+	virtual USkeleton* GetSkeleton() override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Skeleton);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -957,8 +958,9 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	/** USkinnedAsset interface. */
 	UFUNCTION(BlueprintGetter)
-	const USkeleton* GetSkeleton() const
+	virtual const USkeleton* GetSkeleton() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Skeleton, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1036,9 +1038,9 @@ protected:
 	}
 
 public:
-	/** Get the extended bounds of this mesh (imported bounds plus bounds extension) */
+	/** Get the extended bounds of this mesh (imported bounds plus bounds extension). USkinnedAsset interface. */
 	UFUNCTION(BlueprintCallable, Category = Mesh)
-	FBoxSphereBounds GetBounds() const;
+	virtual FBoxSphereBounds GetBounds() const override;
 
 	/** Get the original imported bounds of the skel mesh */
 	UFUNCTION(BlueprintCallable, Category = Mesh)
@@ -1113,7 +1115,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	TArray<FSkeletalMaterial>& GetMaterials()
+	/** USkinnedAsset interface. */
+	virtual TArray<FSkeletalMaterial>& GetMaterials() override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Materials);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1121,8 +1124,9 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	/** USkinnedAsset interface. */
 	UFUNCTION(BlueprintGetter)
-	const TArray<FSkeletalMaterial>& GetMaterials() const
+	virtual const TArray<FSkeletalMaterial>& GetMaterials() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Materials, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1229,11 +1233,15 @@ public:
 	/** Check the QualitLevel property is enabled for MinLod. */
 	bool IsMinLodQualityLevelEnable() const;
 
+	/** USkinnedAsset interface */
+	virtual int32 GetPlatformMinLODIdx(const ITargetPlatform* TargetPlatform) const override;
+	virtual void SetSkinWeightProfilesData(int32 LODIndex, FSkinWeightProfilesData& SkinWeightProfilesData) override;
+
 	static void OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable);
 
 	/*Choose either PerPlatform or PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UseSkeletalMeshMinLODPerQualityLevels*/
-	int32 GetMinLodIdx(bool bForceLowestLODIdx = false) const;
-	int32 GetDefaultMinLod() const;
+	virtual int32 GetMinLodIdx(bool bForceLowestLODIdx = false) const override;
+	virtual int32 GetDefaultMinLod() const override;
 	void SetMinLodIdx(int32 InMinLOD);
 
 	/** Minimum LOD to render. Can be overridden per component as well as set here for all mesh instances here */
@@ -1276,7 +1284,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	const FPerPlatformBool& GetDisableBelowMinLodStripping() const
+	/** USkinnedAsset interface. */
+	virtual const FPerPlatformBool& GetDisableBelowMinLodStripping() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DisableBelowMinLodStripping, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1458,14 +1467,14 @@ public:
 	void SetLODSettings(USkeletalMeshLODSettings* InLODSettings);
 
 #if WITH_EDITOR
-	/** Get whether this mesh should use LOD streaming for the given platform. Do not use bSupportLODStreaming directly. Call this method instead. */
-	bool GetEnableLODStreaming(const class ITargetPlatform* TargetPlatform) const;
+	/** Get whether this mesh should use LOD streaming for the given platform. Do not use bSupportLODStreaming directly. Call this method instead. USkinnedAsset Interface. */
+	virtual bool GetEnableLODStreaming(const class ITargetPlatform* TargetPlatform) const override;
 
-	/** Get the maximum number of LODs that can be streamed. Do not use MaxNumStreamedLODs directly. Call this method instead. */
-	int32 GetMaxNumStreamedLODs(const class ITargetPlatform* TargetPlatform) const;
+	/** Get the maximum number of LODs that can be streamed. Do not use MaxNumStreamedLODs directly. Call this method instead. USkinnedAsset Interface. */
+	virtual int32 GetMaxNumStreamedLODs(const class ITargetPlatform* TargetPlatform) const override;
 
-	/** Get the maximum number of optional LODs. Do not use MaxNumOptionalLODs directly. Call this method instead. */
-	int32 GetMaxNumOptionalLODs(const class ITargetPlatform* TargetPlatform) const;
+	/** Get the maximum number of optional LODs. Do not use MaxNumOptionalLODs directly. Call this method instead. USkinnedAsset Interface. */
+	virtual int32 GetMaxNumOptionalLODs(const class ITargetPlatform* TargetPlatform) const override;
 #endif
 
 	UFUNCTION(BlueprintSetter)
@@ -1577,7 +1586,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	bool GetHasVertexColors() const
+	/** Return whether or not the mesh has vertex colors. USkinnedAsset interface. */
+	virtual bool GetHasVertexColors() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::HasVertexColors, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1723,8 +1733,9 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	/** USkinnedAsset interface. */
 	UFUNCTION(BlueprintGetter)
-	class UPhysicsAsset* GetPhysicsAsset() const
+	virtual class UPhysicsAsset* GetPhysicsAsset() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::PhysicsAsset);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1755,8 +1766,9 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	/** USkinnedAsset interface. */
 	UFUNCTION(BlueprintGetter)
-	class UPhysicsAsset* GetShadowPhysicsAsset() const
+	virtual class UPhysicsAsset* GetShadowPhysicsAsset() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ShadowPhysicsAsset);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2104,7 +2116,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = RayTracing)
 	uint8 bSupportRayTracing : 1;
 
-	bool GetSupportRayTracing() const
+	/** USkinnedAsset interface. */
+	virtual bool GetSupportRayTracing() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::bSupportRayTracing, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2127,7 +2140,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = RayTracing)
 	int32 RayTracingMinLOD;
 
-	int32 GetRayTracingMinLOD() const
+	/** USkinnedAsset interface. */
+	virtual int32 GetRayTracingMinLOD() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RayTracingMinLOD, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2178,7 +2192,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	TArray<TObjectPtr<UMorphTarget>>& GetMorphTargets()
+	/** USkinnedAsset interface. */
+	virtual TArray<TObjectPtr<UMorphTarget>>& GetMorphTargets() override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MorphTargets);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2186,8 +2201,9 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	/** USkinnedAsset interface. */
 	UFUNCTION(BlueprintGetter)
-	const TArray<UMorphTarget*>& GetMorphTargets() const
+	virtual const TArray<UMorphTarget*>& GetMorphTargets() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MorphTargets, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2225,7 +2241,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	FReferenceSkeleton& GetRefSkeleton()
+	/** USkinnedAsset interface. */
+	virtual FReferenceSkeleton& GetRefSkeleton() override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RefSkeleton);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2233,7 +2250,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	const FReferenceSkeleton& GetRefSkeleton() const
+	/** USkinnedAsset interface. */
+	virtual const FReferenceSkeleton& GetRefSkeleton() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RefSkeleton, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2295,7 +2313,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	TArray<FMatrix44f>& GetRefBasesInvMatrix()
+	/** USkinnedAsset interface. */
+	virtual TArray<FMatrix44f>& GetRefBasesInvMatrix() override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RefBasesInvMatrix);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2303,7 +2322,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	const TArray<FMatrix44f>& GetRefBasesInvMatrix() const
+	/** USkinnedAsset interface. */
+	virtual const TArray<FMatrix44f>& GetRefBasesInvMatrix() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RefBasesInvMatrix, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2564,9 +2584,9 @@ public:
 #endif
 
 	/** 
-	True if this mesh LOD needs to keep it's data on CPU. 
+	True if this mesh LOD needs to keep it's data on CPU. USkinnedAsset interface.
 	*/
-	bool NeedCPUData(int32 LODIndex)const;
+	virtual bool NeedCPUData(int32 LODIndex)const override;
 
 protected:
 
@@ -2645,12 +2665,12 @@ public:
 
 	/**
 	 * Returns the UV channel data for a given material index. Used by the texture streamer.
-	 * This data applies to all lod-section using the same material.
+	 * This data applies to all lod-section using the same material. USkinnedAsset interface.
 	 *
 	 * @param MaterialIndex		the material index for which to get the data for.
 	 * @return the data, or null if none exists.
 	 */
-	const FMeshUVChannelInfo* GetUVChannelData(int32 MaterialIndex) const;
+	virtual const FMeshUVChannelInfo* GetUVChannelData(int32 MaterialIndex) const override;
 
 	/**
 	 * Computes flags for building vertex buffers.
@@ -2740,7 +2760,6 @@ public:
 	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual FString GetDesc() override;
-	virtual FString GetDetailedInfoInternal() const override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	//~ End UObject Interface.
@@ -2825,7 +2844,9 @@ public:
 	 *	Get the component orientation of a bone or socket. Transforms by parent bones.
 	 */
 	FMatrix GetComposedRefPoseMatrix( FName InBoneName ) const;
-	FMatrix GetComposedRefPoseMatrix( int32 InBoneIndex ) const;
+	/** USkinnedAsset interface. */
+	virtual FMatrix GetComposedRefPoseMatrix( int32 InBoneIndex ) const override;
+
 	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support.")
 	void InitBoneMirrorInfo();
 
@@ -2860,9 +2881,9 @@ public:
 
 	/**
 	* Returns the "active" socket list - all sockets from this mesh plus all non-duplicates from the skeleton
-	* Const ref return value as this cannot be modified externally
+	* Const ref return value as this cannot be modified externally. USkinnedAsset interface.
 	*/
-	TArray<USkeletalMeshSocket*> GetActiveSocketList() const;
+	virtual TArray<USkeletalMeshSocket*> GetActiveSocketList() const override;
 
 #if WITH_EDITOR
 	/**
@@ -2889,13 +2910,13 @@ public:
 
 	/**
 	 * Find a named MorphTarget from the MorphSets array in the SkinnedMeshComponent.
-	 * This searches the array in the same way as FindAnimSequence
+	 * This searches the array in the same way as FindAnimSequence. USkinnedAsset interface.
 	 *
 	 * @param MorphTargetName Name of MorphTarget to look for.
 	 *
 	 * @return Pointer to found MorphTarget. Returns NULL if could not find target with that name.
 	 */
-	UMorphTarget* FindMorphTarget(FName MorphTargetName) const;
+	virtual UMorphTarget* FindMorphTarget(FName MorphTargetName) const override;
 	UMorphTarget* FindMorphTargetAndIndex(FName MorphTargetName, int32& OutIndex) const;
 
 	/* Initialize morph targets and rebuild the render data */
@@ -3126,9 +3147,9 @@ public:
 	}
 
 	/*
-	 * Returns whole array of LODInfo non-const
+	 * Returns whole array of LODInfo non-const. USkinnedAsset interface.
 	 */
-	TArray<FSkeletalMeshLODInfo>& GetLODInfoArray()
+	virtual TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() override
 	{ 
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3137,9 +3158,9 @@ public:
 	}
 
 	/*
-	 * Returns whole array of LODInfo const
+	 * Returns whole array of LODInfo const. USkinnedAsset interface.
 	 */
-	const TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() const 
+	virtual const TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3148,9 +3169,9 @@ public:
 	}
 	
 	/* 
-	 * Get LODInfo of the given index non-const
+	 * Get LODInfo of the given index non-const. USkinnedAsset interface.
 	 */
-	FSkeletalMeshLODInfo* GetLODInfo(int32 Index) 
+	virtual FSkeletalMeshLODInfo* GetLODInfo(int32 Index) override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3159,9 +3180,9 @@ public:
 	}
 	
 	/* 
-	 * Get LODInfo of the given index const
+	 * Get LODInfo of the given index const. USkinnedAsset interface.
 	 */	
-	const FSkeletalMeshLODInfo* GetLODInfo(int32 Index) const 
+	virtual const FSkeletalMeshLODInfo* GetLODInfo(int32 Index) const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3180,9 +3201,9 @@ public:
 	const USkeletalMeshLODSettings* GetDefaultLODSetting() const; 
 
 	/* 
-	 * Return true if given index's LOD is valid
+	 * Return true if given index's LOD is valid. USkinnedAsset interface.
 	 */
-	bool IsValidLODIndex(int32 Index) const 
+	virtual bool IsValidLODIndex(int32 Index) const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3190,9 +3211,9 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	/* 
-	 * Returns total number of LOD
+	 * Returns total number of LOD. USkinnedAsset interface.
 	 */
-	int32 GetLODNum() const 
+	virtual int32 GetLODNum() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3200,7 +3221,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	bool IsMaterialUsed(int32 MaterialIndex) const;
+	/** USkinnedAsset interface. */
+	virtual bool IsMaterialUsed(int32 MaterialIndex) const override;
 
 public:
 	const TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() const 

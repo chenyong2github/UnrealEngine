@@ -16,6 +16,7 @@
 #include "GPUSkinVertexFactory.h"
 #include "Animation/SkinWeightProfile.h"
 
+class USkinnedAsset;
 #if WITH_EDITOR
 class FSkeletalMeshLODModel;
 #endif // WITH_EDITOR
@@ -174,7 +175,7 @@ public:
 	*
 	* @param Parent Parent mesh
 	*/
-	void InitResources(bool bNeedsVertexColors, int32 LODIndex, TArray<class UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner);
+	void InitResources(bool bNeedsVertexColors, int32 LODIndex, TArray<class UMorphTarget*>& InMorphTargets, USkinnedAsset* Owner);
 
 	/**
 	* Releases the LOD's render resources.
@@ -219,9 +220,9 @@ public:
 	* @param bForceKeepCPUResources - Whether we want to force keeping CPU resources
 	* @return Size of streamed LOD data in bytes
 	*/
-	void SerializeStreamedData(FArchive& Ar, USkeletalMesh* Owner, int32 LODIdx, uint8 ClassStripFlags, bool bNeedsCPUAccess, bool bForceKeepCPUResources);
+	void SerializeStreamedData(FArchive& Ar, USkinnedAsset* Owner, int32 LODIdx, uint8 ClassStripFlags, bool bNeedsCPUAccess, bool bForceKeepCPUResources);
 
-	void SerializeAvailabilityInfo(FArchive& Ar, USkeletalMesh* Owner, int32 LODIdx, bool bHasAdjacencyData, bool bNeedsCPUAccess);
+	void SerializeAvailabilityInfo(FArchive& Ar, int32 LODIdx, bool bHasAdjacencyData, bool bNeedsCPUAccess);
 
 #if WITH_EDITOR
 	/**
@@ -294,7 +295,7 @@ public:
 	void DecrementMemoryStats();
 
 	static bool ShouldForceKeepCPUResources();
-	static bool ShouldKeepCPUResources(const USkeletalMesh* SkeletalMesh, int32 LODIdx, bool bForceKeep);
+	static bool ShouldKeepCPUResources(const USkinnedAsset* SkinnedAsset, int32 LODIdx, bool bForceKeep);
 
 private:
 	enum EClassDataStripFlag : uint8
@@ -303,15 +304,13 @@ private:
 		CDSF_MinLodData = 2
 	};
 
-	static int32 GetPlatformMinLODIdx(const ITargetPlatform* TargetPlatform, const USkeletalMesh* SkeletalMesh);
+	static uint8 GenerateClassStripFlags(FArchive& Ar, const USkinnedAsset* OwnerMesh, int32 LODIdx);
 
-	static uint8 GenerateClassStripFlags(FArchive& Ar, const USkeletalMesh* OwnerMesh, int32 LODIdx);
+	static bool IsLODCookedOut(const ITargetPlatform* TargetPlatform, const USkinnedAsset* SkinnedAsset, bool bIsBelowMinLOD);
 
-	static bool IsLODCookedOut(const ITargetPlatform* TargetPlatform, const USkeletalMesh* SkeletalMesh, bool bIsBelowMinLOD);
+	static bool IsLODInlined(const ITargetPlatform* TargetPlatform, const USkinnedAsset* SkinnedAsset, int32 LODIdx, bool bIsBelowMinLOD);
 
-	static bool IsLODInlined(const ITargetPlatform* TargetPlatform, const USkeletalMesh* SkeletalMesh, int32 LODIdx, bool bIsBelowMinLOD);
-
-	static int32 GetNumOptionalLODsAllowed(const ITargetPlatform* TargetPlatform, const USkeletalMesh* SkeletalMesh);
+	static int32 GetNumOptionalLODsAllowed(const ITargetPlatform* TargetPlatform, const USkinnedAsset* SkinnedAsset);
 
 	friend class FSkeletalMeshRenderData;
 };

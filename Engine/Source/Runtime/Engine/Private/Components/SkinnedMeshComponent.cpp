@@ -4056,6 +4056,11 @@ void USkinnedMeshComponent::SetRenderStatic(bool bNewValue)
 	}
 }
 
+USkinnedAsset* USkinnedMeshComponent::GetSkinnedAsset() const
+{
+	return SkeletalMesh;
+}
+
 #if WITH_EDITOR
 
 bool USkinnedMeshComponent::IsCompiling() const

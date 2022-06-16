@@ -64,7 +64,7 @@ public:
 	void Serialize(FArchive& Ar, USkeletalMesh* Owner);
 
 	/** Initializes rendering resources. */
-	ENGINE_API void InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner);
+	ENGINE_API void InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets, USkinnedAsset* Owner);
 
 	/** Releases rendering resources. */
 	ENGINE_API void ReleaseResources();

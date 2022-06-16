@@ -3988,19 +3988,6 @@ void USkeletalMesh::RebuildSocketMap()
 #endif // !WITH_EDITOR
 }
 
-
-/**
- * This will return detail info about this specific object. (e.g. AudioComponent will return the name of the cue,
- * ParticleSystemComponent will return the name of the ParticleSystem)  The idea here is that in many places
- * you have a component of interest but what you really want is some characteristic that you can use to track
- * down where it came from.  
- */
-FString USkeletalMesh::GetDetailedInfoInternal() const
-{
-	return GetPathName(nullptr);
-}
-
-
 FMatrix USkeletalMesh::GetRefPoseMatrix( int32 BoneIndex ) const
 {
  	check( BoneIndex >= 0 && BoneIndex < GetRefSkeleton().GetRawBoneNum() );
@@ -5568,6 +5555,41 @@ bool USkeletalMesh::IsMinLodQualityLevelEnable() const
 	return (GEngine && GEngine->UseSkeletalMeshMinLODPerQualityLevels);
 }
 
+int32 USkeletalMesh::GetPlatformMinLODIdx(const ITargetPlatform* TargetPlatform) const
+{
+#if WITH_EDITOR
+	check(TargetPlatform);
+
+	if (IsMinLodQualityLevelEnable())
+	{
+		// get all supported quality level from scalability + engine ini files
+		return GetQualityLevelMinLod().GetValueForPlatform(TargetPlatform);
+	}
+	else
+	{
+		return GetMinLod().GetValueForPlatform(*TargetPlatform->IniPlatformName());
+	}
+#else
+	return 0;
+#endif
+}
+
+void USkeletalMesh::SetSkinWeightProfilesData(int32 LODIndex, FSkinWeightProfilesData& SkinWeightProfilesData)
+{
+#if !WITH_EDITOR
+	if (GSkinWeightProfilesLoadByDefaultMode == 1)
+	{
+		// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
+		SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(this, LODIndex);
+	}
+	else
+#endif
+	if (GSkinWeightProfilesLoadByDefaultMode == 3)
+	{
+		SkinWeightProfilesData.SetDynamicDefaultSkinWeightProfile(this, LODIndex, true);
+	}
+}
+
 void USkeletalMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable) {
 #if WITH_EDITOR || PLATFORM_DESKTOP
 	if (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels)
@@ -5782,11 +5804,11 @@ const FQuat SphylBasis(FVector(1.0f / FMath::Sqrt(2.0f), 0.0f, 1.0f / FMath::Sqr
  * @param	Component - skeletal mesh primitive being added
  */
 FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Component, FSkeletalMeshRenderData* InSkelMeshRenderData)
-		:	FPrimitiveSceneProxy(Component, Component->SkeletalMesh->GetFName())
+		:	FPrimitiveSceneProxy(Component, Component->GetSkinnedAsset()->GetFName())
 		,	Owner(Component->GetOwner())
 		,	MeshObject(Component->MeshObject)
 		,	SkeletalMeshRenderData(InSkelMeshRenderData)
-		,	SkeletalMeshForDebug(Component->SkeletalMesh)
+		,	SkeletalMeshForDebug(Component->GetSkinnedAsset())
 		,	PhysicsAssetForDebug(Component->GetPhysicsAsset())
 		,	OverlayMaterial(Component->OverlayMaterial)
 		,	OverlayMaterialMaxDrawDistance(Component->OverlayMaterialMaxDrawDistance)
@@ -5844,7 +5866,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 	for(int32 LODIdx=0; LODIdx < SkeletalMeshRenderData->LODRenderData.Num(); LODIdx++)
 	{
 		const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIdx];
-		const FSkeletalMeshLODInfo& Info = *(Component->SkeletalMesh->GetLODInfo(LODIdx));
+		const FSkeletalMeshLODInfo& Info = *(Component->GetSkinnedAsset()->GetLODInfo(LODIdx));
 
 		FLODSectionElements& LODSection = LODSections[LODIdx];
 
@@ -5857,10 +5879,10 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 			// If we are at a dropped LOD, route material index through the LODMaterialMap in the LODInfo struct.
 			int32 UseMaterialIndex = Section.MaterialIndex;			
 			{
-				if(SectionIndex < Info.LODMaterialMap.Num() && Component->SkeletalMesh->GetMaterials().IsValidIndex(Info.LODMaterialMap[SectionIndex]))
+				if(SectionIndex < Info.LODMaterialMap.Num() && Component->GetSkinnedAsset()->IsValidMaterialIndex(Info.LODMaterialMap[SectionIndex]))
 				{
 					UseMaterialIndex = Info.LODMaterialMap[SectionIndex];
-					UseMaterialIndex = FMath::Clamp( UseMaterialIndex, 0, Component->SkeletalMesh->GetMaterials().Num() );
+					UseMaterialIndex = FMath::Clamp( UseMaterialIndex, 0, Component->GetSkinnedAsset()->GetNumMaterials());
 				}
 			}
 
@@ -5888,14 +5910,14 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 			{
 				UE_CLOG(Material && !bValidUsage, LogSkeletalMesh, Error,
 					TEXT("Material with missing usage flag was applied to skeletal mesh %s"),
-					*Component->SkeletalMesh->GetPathName());
+					*Component->GetSkinnedAsset()->GetPathName());
 
 				Material = UMaterial::GetDefaultMaterial(MD_Surface);
 				MaterialRelevance |= Material->GetRelevance(FeatureLevel);
 			}
 
 			bool bSectionCastsShadow = !bSectionHidden && bCastShadow &&
-				(Component->SkeletalMesh->GetMaterials().IsValidIndex(UseMaterialIndex) == false || Section.bCastShadow);
+				(Component->GetSkinnedAsset()->IsValidMaterialIndex(UseMaterialIndex) == false || Section.bCastShadow);
 
 			bAnySectionCastsShadow |= bSectionCastsShadow;
 
@@ -5918,7 +5940,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		if (!OverlayMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_SkeletalMesh))
 		{
 			OverlayMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-			UE_LOG(LogSkeletalMesh, Error, TEXT("Overlay material with missing usage flag was applied to skeletal mesh %s"),	*Component->SkeletalMesh->GetPathName());
+			UE_LOG(LogSkeletalMesh, Error, TEXT("Overlay material with missing usage flag was applied to skeletal mesh %s"),	*Component->GetSkinnedAsset()->GetPathName());
 		}
 	}
 
@@ -5945,7 +5967,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 	// Copy out shadow physics asset data
 	if(SkinnedMeshComponent)
 	{
-		UPhysicsAsset* ShadowPhysicsAsset = SkinnedMeshComponent->SkeletalMesh->GetShadowPhysicsAsset();
+		UPhysicsAsset* ShadowPhysicsAsset = SkinnedMeshComponent->GetSkinnedAsset()->GetShadowPhysicsAsset();
 
 		if (ShadowPhysicsAsset
 			&& SkinnedMeshComponent->CastShadow
@@ -5958,7 +5980,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 				if (BoneIndex != INDEX_NONE)
 				{
-					const FMatrix& RefBoneMatrix = SkinnedMeshComponent->SkeletalMesh->GetComposedRefPoseMatrix(BoneIndex);
+					const FMatrix& RefBoneMatrix = SkinnedMeshComponent->GetSkinnedAsset()->GetComposedRefPoseMatrix(BoneIndex);
 
 					const int32 NumSpheres = BodySetup->AggGeom.SphereElems.Num();
 					for (int32 SphereIndex = 0; SphereIndex < NumSpheres; SphereIndex++)
@@ -6826,11 +6848,11 @@ void FSkeletalMeshSceneProxy::DebugDrawPhysicsAsset(int32 ViewIndex, FMeshElemen
 			check(PhysicsAssetForDebug);
 			if (EngineShowFlags.Collision && IsCollisionEnabled())
 			{
-				PhysicsAssetForDebug->GetCollisionMesh(ViewIndex, Collector, SkeletalMeshForDebug, *BoneSpaceBases, LocalToWorldTransform, TotalScale);
+				PhysicsAssetForDebug->GetCollisionMesh(ViewIndex, Collector, SkeletalMeshForDebug->GetRefSkeleton(), *BoneSpaceBases, LocalToWorldTransform, TotalScale);
 			}
 			if (EngineShowFlags.Constraints)
 			{
-				PhysicsAssetForDebug->DrawConstraints(ViewIndex, Collector, SkeletalMeshForDebug, *BoneSpaceBases, LocalToWorldTransform, TotalScale.X);
+				PhysicsAssetForDebug->DrawConstraints(ViewIndex, Collector, SkeletalMeshForDebug->GetRefSkeleton(), *BoneSpaceBases, LocalToWorldTransform, TotalScale.X);
 			}
 		}
 	}

@@ -1071,11 +1071,11 @@ FTransform GetSkelBoneTransform(int32 BoneIndex, const TArray<FTransform>& Space
 	}
 }
 
-void UPhysicsAsset::GetCollisionMesh(int32 ViewIndex, FMeshElementCollector& Collector, const USkeletalMesh* SkelMesh, const TArray<FTransform>& SpaceBases, const FTransform& LocalToWorld, const FVector& Scale3D)
+void UPhysicsAsset::GetCollisionMesh(int32 ViewIndex, FMeshElementCollector& Collector, const FReferenceSkeleton& RefSkeleton, const TArray<FTransform>& SpaceBases, const FTransform& LocalToWorld, const FVector& Scale3D)
 {
 	for( int32 i=0; i<SkeletalBodySetups.Num(); i++)
 	{
-		int32 BoneIndex = SkelMesh->GetRefSkeleton().FindBoneIndex( SkeletalBodySetups[i]->BoneName );
+		int32 BoneIndex = RefSkeleton.FindBoneIndex( SkeletalBodySetups[i]->BoneName );
 		
 		FColor* BoneColor = (FColor*)( &SkeletalBodySetups[i] );
 
@@ -1098,7 +1098,7 @@ void UPhysicsAsset::GetUsedMaterials(TArray<UMaterialInterface*>& Materials)
 	}
 }
 
-void UPhysicsAsset::DrawConstraints(int32 ViewIndex, FMeshElementCollector& Collector, const USkeletalMesh* SkelMesh, const TArray<FTransform>& SpaceBases, const FTransform& LocalToWorld, float Scale)
+void UPhysicsAsset::DrawConstraints(int32 ViewIndex, FMeshElementCollector& Collector, const FReferenceSkeleton& RefSkeleton, const TArray<FTransform>& SpaceBases, const FTransform& LocalToWorld, float Scale)
 {
 	for (int32 i = 0; i < ConstraintSetup.Num(); i++)
 	{
@@ -1106,7 +1106,7 @@ void UPhysicsAsset::DrawConstraints(int32 ViewIndex, FMeshElementCollector& Coll
 
 		// Get each constraint frame in world space.
 		FTransform Con1Frame = FTransform::Identity;
-		int32 Bone1Index = SkelMesh->GetRefSkeleton().FindBoneIndex(Instance.ConstraintBone1);
+		int32 Bone1Index = RefSkeleton.FindBoneIndex(Instance.ConstraintBone1);
 		if (Bone1Index != INDEX_NONE)
 		{
 			FTransform Body1TM = GetSkelBoneTransform(Bone1Index, SpaceBases, LocalToWorld);
@@ -1115,7 +1115,7 @@ void UPhysicsAsset::DrawConstraints(int32 ViewIndex, FMeshElementCollector& Coll
 		}
 
 		FTransform Con2Frame = FTransform::Identity;
-		int32 Bone2Index = SkelMesh->GetRefSkeleton().FindBoneIndex(Instance.ConstraintBone2);
+		int32 Bone2Index = RefSkeleton.FindBoneIndex(Instance.ConstraintBone2);
 		if (Bone2Index != INDEX_NONE)
 		{
 			FTransform Body2TM = GetSkelBoneTransform(Bone2Index, SpaceBases, LocalToWorld);

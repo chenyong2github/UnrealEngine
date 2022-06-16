@@ -28,6 +28,7 @@ struct FSkelMeshRenderSection;
 class FPositionVertexBuffer;
 class UMeshDeformer;
 class UMeshDeformerInstance;
+class USkinnedAsset;
 
 DECLARE_DELEGATE_OneParam(FOnAnimUpdateRateParamsCreated, FAnimUpdateRateParameters*)
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnTickPose, USkinnedMeshComponent* /*SkinnedMeshComponent*/, float /*DeltaTime*/, bool /*bNeedsValidRootMotion*/)
@@ -359,6 +360,7 @@ protected:
 	TSharedPtr<FSkelMeshRefPoseOverride> RefPoseOverride;
 
 public:
+	USkinnedAsset* GetSkinnedAsset() const;
 
 	const TArray<int32>& GetMasterBoneMap() const { return MasterBoneMap; }
 
