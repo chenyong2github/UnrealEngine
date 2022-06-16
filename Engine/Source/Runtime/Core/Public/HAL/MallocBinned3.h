@@ -27,6 +27,12 @@
 #define BINNED3_BASE_PAGE_SIZE				4096			// Minimum "page size" for binned3
 #define BINNED3_MINIMUM_ALIGNMENT_SHIFT		4				// Alignment of blocks, expressed as a shift
 #define BINNED3_MINIMUM_ALIGNMENT			16				// Alignment of blocks
+
+#ifndef BINNED3_MAX_SMALL_POOL_ALIGNMENT
+#define BINNED3_MAX_SMALL_POOL_ALIGNMENT	128
+#endif
+
+
 #ifndef BINNED3_MAX_SMALL_POOL_SIZE
 #if USE_CACHED_PAGE_ALLOCATOR_FOR_LARGE_ALLOCS
 #define BINNED3_MAX_SMALL_POOL_SIZE			(BINNEDCOMMON_MAX_LISTED_SMALL_POOL_SIZE)	// Maximum medium block size
