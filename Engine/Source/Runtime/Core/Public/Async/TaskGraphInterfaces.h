@@ -734,7 +734,7 @@ private:
 };
 
 // an adaptation of FBaseGraphTask to be used as a standalone FGraphEvent
-class FGraphEventImpl : public TConcurrentLinearObject<FGraphEventImpl, FTaskGraphBlockAllocationTag>, public FBaseGraphTask
+class FGraphEventImpl : public FBaseGraphTask
 {
 public:
 	FGraphEventImpl()
@@ -743,6 +743,9 @@ public:
 		Init(TEXT("GraphEvent"), UE::Tasks::ETaskPriority::Normal, UE::Tasks::EExtendedTaskPriority::TaskEvent);
 	}
 
+	static void* operator new(size_t Size);
+	static void operator delete(void* Ptr);
+
 private:
 	virtual bool TryExecuteTask() override
 	{
@@ -750,6 +753,19 @@ private:
 		return true;
 	}
 };
+
+using FGraphEventImplAllocator = TLockFreeFixedSizeAllocator_TLSCache<sizeof(FGraphEventImpl), PLATFORM_CACHE_LINE_SIZE>;
+CORE_API extern FGraphEventImplAllocator GraphEventImplAllocator;
+
+inline void* FGraphEventImpl::operator new(size_t Size)
+{
+	return GraphEventImplAllocator.Allocate();
+}
+
+inline void FGraphEventImpl::operator delete(void* Ptr)
+{
+	GraphEventImplAllocator.Free(Ptr);
+}
 
 inline FGraphEventRef FBaseGraphTask::CreateGraphEvent()
 {

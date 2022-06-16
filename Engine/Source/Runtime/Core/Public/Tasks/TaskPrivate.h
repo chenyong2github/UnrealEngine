@@ -847,13 +847,16 @@ namespace UE::Tasks
 
 		// a special kind of task that is used for signalling or dependency management. It can have prerequisites or be used as a prerequisite for other tasks. 
 		// It's optimized for the fact that it doesn't have a task body and so doesn't need to be scheduled and executed
-		class FTaskEventBase : public TConcurrentLinearObject<FTaskEventBase, FTaskBlockAllocationTag>, public FTaskBase
+		class FTaskEventBase : public FTaskBase
 		{
 		public:
 			static FTaskEventBase* Create(const TCHAR* DebugName)
 			{
 				return new FTaskEventBase(DebugName);
 			}
+
+			static void* operator new(size_t Size);
+			static void operator delete(void* Ptr);
 
 		private:
 			FTaskEventBase(const TCHAR* InDebugName)
@@ -919,6 +922,20 @@ namespace UE::Tasks
 				FPlatformProcess::Yield();
 			}
 		}
+
+		using FTaskEventBaseAllocator = TLockFreeFixedSizeAllocator_TLSCache<sizeof(FTaskEventBase), PLATFORM_CACHE_LINE_SIZE>;
+		CORE_API extern FTaskEventBaseAllocator TaskEventBaseAllocator;
+
+		inline void* FTaskEventBase::operator new(size_t Size)
+		{
+			return TaskEventBaseAllocator.Allocate();
+		}
+
+		inline void FTaskEventBase::operator delete(void* Ptr)
+		{
+			TaskEventBaseAllocator.Free(Ptr);
+		}
+
 
 		inline bool FTaskBase::Wait(FTimespan InTimeout)
 		{

@@ -24,7 +24,6 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
 #include "Misc/Fork.h"
-#include "Containers/LockFreeFixedSizeAllocator.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/ThreadHeartBeat.h"
@@ -2456,10 +2455,13 @@ bool FTaskGraphInterface::IsMultithread()
 	return FPlatformProcess::SupportsMultithreading() || (FForkProcessHelper::IsForkedMultithreadInstance() && GAllowTaskGraphForkMultithreading);
 }
 
+#if TASKGRAPH_NEW_FRONTEND
+
+FGraphEventImplAllocator GraphEventImplAllocator;
+
+#else
 
 // Statics and some implementations from FBaseGraphTask and FGraphEvent
-
-#if !TASKGRAPH_NEW_FRONTEND
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 void FBaseGraphTask::LogPossiblyInvalidSubsequentsTask(const TCHAR* TaskName)

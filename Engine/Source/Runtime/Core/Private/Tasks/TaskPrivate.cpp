@@ -11,6 +11,8 @@ namespace UE::Tasks
 {
 	namespace Private
 	{
+		FTaskEventBaseAllocator TaskEventBaseAllocator;
+
 		void FTaskBase::Schedule()
 		{
 			TaskTrace::Scheduled(GetTraceId());
