@@ -367,6 +367,7 @@ namespace Chaos
 		void Activate()
 		{
 			AccumulatedImpulse = FVec3(0);
+			SetDisabled(false);
 		}
 
 		// @todo(chaos): half of this API is wrong for the new multi-point manifold constraints. Remove it

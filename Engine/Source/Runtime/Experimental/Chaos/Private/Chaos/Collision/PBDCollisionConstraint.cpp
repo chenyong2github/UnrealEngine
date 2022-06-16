@@ -533,7 +533,6 @@ namespace Chaos
 			ShapeWorldTransform1 = ShapeCoMRelativeTransform1 * ParticleCoMTransform1;
 		}
 
-		Flags.bDisabled = false;
 		ClosestManifoldPointIndex = INDEX_NONE;
 		Material.Reset();
 
@@ -605,7 +604,6 @@ namespace Chaos
 		Material.Reset();
 		ManifoldPoints.Reset();
 		ExpectedNumManifoldPoints = 0;
-		Flags.bDisabled = false;
 		Flags.bWasManifoldRestored = false;
 	}
 
@@ -619,7 +617,6 @@ namespace Chaos
 
 		// Reset current closest point
 		ClosestManifoldPointIndex = INDEX_NONE;
-		Flags.bDisabled = false;
 		Material.Reset();
 
 		// How many manifold points we expect. E.g., for Box-box this will be 4 or 1 depending on whether
