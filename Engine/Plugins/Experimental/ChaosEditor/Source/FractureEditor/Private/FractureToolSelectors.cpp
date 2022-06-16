@@ -313,7 +313,7 @@ FText UFractureToolSelectLeaf::GetDisplayText() const
 
 FText UFractureToolSelectLeaf::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolSelectLeafTooltip", "Select leaf bones that represent rigid bodies"));
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectLeafTooltip", "Select leaf bones that represent rigid bodies at current level"));
 }
 
 FSlateIcon UFractureToolSelectLeaf::GetToolIcon() const
@@ -323,7 +323,7 @@ FSlateIcon UFractureToolSelectLeaf::GetToolIcon() const
 
 void UFractureToolSelectLeaf::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectLeaf", "Leaf", "Select (rigid) leaf bones.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectLeaf", "Leaf", "Select (rigid) leaf bones at current level.", EUserInterfaceActionType::Button, FInputChord());
 	BindingContext->SelectLeaves = UICommandInfo;
 }
 
@@ -345,7 +345,7 @@ FText UFractureToolSelectCluster::GetDisplayText() const
 
 FText UFractureToolSelectCluster::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolSelectClusterTooltip", "Select cluster bones"));
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectClusterTooltip", "Select cluster bones at current level"));
 }
 
 FSlateIcon UFractureToolSelectCluster::GetToolIcon() const
@@ -355,7 +355,7 @@ FSlateIcon UFractureToolSelectCluster::GetToolIcon() const
 
 void UFractureToolSelectCluster::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectCluster", "Cluster", "Select cluster bones.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectCluster", "Cluster", "Select cluster bones at current level.", EUserInterfaceActionType::Button, FInputChord());
 	BindingContext->SelectClusters = UICommandInfo;
 }
 

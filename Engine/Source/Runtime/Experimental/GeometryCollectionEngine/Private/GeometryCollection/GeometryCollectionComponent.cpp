@@ -2800,12 +2800,15 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 		case GeometryCollection::ESelectionMode::Leaves:
 		{
 			ResetBoneSelection();
+			int32 ViewLevel = GetViewLevel();
 			TArray<int32> BonesToSelect;
 			FGeometryCollectionClusteringUtility::GetBonesToLevel(GeometryCollectionPtr.Get(), GetViewLevel(), BonesToSelect, true, true);
 			const TManagedArray<int32>& SimType = GeometryCollectionPtr->SimulationType;
+			const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 			BonesToSelect.SetNum(Algo::RemoveIf(BonesToSelect, [&](int32 BoneIdx)
 				{
-					return SimType[BoneIdx] != FGeometryCollection::ESimulationTypes::FST_Rigid;
+					return SimType[BoneIdx] != FGeometryCollection::ESimulationTypes::FST_Rigid
+						|| (ViewLevel != -1 && Levels[BoneIdx] != ViewLevel);
 				}));
 			AppendSelectedBones(BonesToSelect);
 		}
@@ -2814,12 +2817,15 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 		case GeometryCollection::ESelectionMode::Clusters:
 		{
 			ResetBoneSelection();
+			int32 ViewLevel = GetViewLevel();
 			TArray<int32> BonesToSelect;
-			FGeometryCollectionClusteringUtility::GetBonesToLevel(GeometryCollectionPtr.Get(), GetViewLevel(), BonesToSelect, true, true);
+			FGeometryCollectionClusteringUtility::GetBonesToLevel(GeometryCollectionPtr.Get(), ViewLevel, BonesToSelect, true, true);
 			const TManagedArray<int32>& SimType = GeometryCollectionPtr->SimulationType;
+			const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 			BonesToSelect.SetNum(Algo::RemoveIf(BonesToSelect, [&](int32 BoneIdx)
 			{
-				return SimType[BoneIdx] != FGeometryCollection::ESimulationTypes::FST_Clustered;
+				return SimType[BoneIdx] != FGeometryCollection::ESimulationTypes::FST_Clustered
+					|| (ViewLevel != -1 && Levels[BoneIdx] != ViewLevel);
 			}));
 			AppendSelectedBones(BonesToSelect);
 		}
