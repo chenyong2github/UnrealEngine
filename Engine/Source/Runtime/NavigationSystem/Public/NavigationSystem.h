@@ -122,6 +122,7 @@ public:
 
 	//* Returns the cached result of calling TestTimeSliceFinished, false by default */
 	bool IsTimeSliceFinishedCached() const { return bTimeSliceFinishedCached; }
+	double GetRemainingDuration() const { return RemainingDuration; }
 	double GetRemainingDurationFraction() const { return OriginalDuration > 0. ? RemainingDuration / OriginalDuration : 0.; }
 
 protected:
