@@ -33,6 +33,11 @@ const FConcertEndpointContext& FConcertRemoteEndpoint::GetEndpointContext() cons
 	return EndpointContext;
 }
 
+FOnConcertMessageAcknowledgementReceived& FConcertRemoteEndpoint::OnConcertMessageAcknowledgementReceived()
+{
+	return OnConcertMessageAcknowledgementReceivedDelegate;
+}
+
 bool FConcertRemoteEndpoint::HasReliableChannel() const
 {
 	return ReliableChannelIdToReceive != FConcertMessageData::UnreliableChannelId;
@@ -197,6 +202,7 @@ void FConcertRemoteEndpoint::HandleAcknowledgement(const FConcertMessageContext&
 		if (PendingMessage->GetState() == EConcertMessageState::Pending)
 		{
 			PendingMessage->Acknowledge(Context);
+			OnConcertMessageAcknowledgementReceivedDelegate.Broadcast(GetEndpointContext(), PendingMessage, Context);
 		}
 		if (PendingMessage->GetState() == EConcertMessageState::Completed)
 		{

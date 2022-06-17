@@ -34,6 +34,7 @@ public:
 	virtual FMessageAddress GetRemoteAddress(const FGuid& ConcertEndpointId) const override;
 
 	virtual FOnConcertRemoteEndpointConnectionChanged& OnRemoteEndpointConnectionChanged() override;
+	virtual FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& OnConcertMessageAcknowledgementReceived() override;
 
 protected:
 	virtual void InternalAddRequestHandler(const FTopLevelAssetPath& RequestMessageType, const TSharedRef<IConcertRequestHandler>& Handler) override;
@@ -157,6 +158,9 @@ private:
 	/** Callback when a remote endpoint connection status changes. */
 	TArray<TTuple<FConcertEndpointContext, EConcertRemoteEndpointConnection>> PendingRemoteEndpointConnectionChangedEvents;
 	FOnConcertRemoteEndpointConnectionChanged OnRemoteEndpointConnectionChangedDelegate;
+
+	/** Callback when a message has been acknowledged by a remote endpoint */
+	FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint OnConcertMessageAcknowledgementReceivedDelegate; 
 
 	/** Registered message handlers that do not generate a response */
 	TMap<FTopLevelAssetPath, TSharedPtr<IConcertEventHandler>> EventHandlers;

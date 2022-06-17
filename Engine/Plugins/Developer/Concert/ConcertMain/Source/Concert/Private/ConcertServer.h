@@ -26,6 +26,7 @@ public:
 	virtual const UConcertServerConfig* GetConfiguration() const override;
 	virtual const FConcertServerInfo& GetServerInfo() const override;
 	virtual FMessageAddress GetRemoteAddress(const FGuid& AdminEndpointId) const override;
+	virtual FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& OnConcertMessageAcknowledgementReceived() override;
 
 	virtual bool IsStarted() const override;
 	virtual void Startup() override;
@@ -193,4 +194,6 @@ private:
 
 	/** The root directory containing the session repositories. */
 	FString SessionRepositoryRootDir;
+
+	FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint OnConcertMessageAcknowledgementReceivedFromLocalEndpoint; 
 };

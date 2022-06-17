@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Async/Future.h"
+#include "ConcertTransportMessages.h"
 #include "IConcertMessageHandler.h"
 #include "IConcertMessages.h"
-#include "ConcertTransportMessages.h"
+
+struct FConcertMessageContext;
 
 /**
  * Context information for a Concert endpoint
@@ -39,6 +41,12 @@ enum class EConcertRemoteEndpointConnection : uint8
 	ClosedRemotely,
 };
 
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnConcertMessageAcknowledgementReceived,
+	const FConcertEndpointContext& /*RemoteEndpoint*/,
+	const TSharedRef<IConcertMessage>& /*AckedMessage*/,
+	const FConcertMessageContext& /*AckMessageContext*/
+	);
+
 /** 
  * Interface representing a remote endpoint
  * that you can send to reliably or not from a local Concert endpoint
@@ -51,6 +59,9 @@ public:
 	
 	/** Get the context for this remote endpoint */
 	virtual const FConcertEndpointContext& GetEndpointContext() const = 0;
+	
+	/** Callback when a message has been acknowledged by this remote endpoint */
+	virtual FOnConcertMessageAcknowledgementReceived& OnConcertMessageAcknowledgementReceived() = 0;
 
 protected:
 	/** 
@@ -72,6 +83,12 @@ protected:
 
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertRemoteEndpointConnectionChanged, const FConcertEndpointContext&, EConcertRemoteEndpointConnection);
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint,
+	const FConcertEndpointContext& /*LocalEndpoint*/,
+	const FConcertEndpointContext& /*RemoteEndpoint*/,
+	const TSharedRef<IConcertMessage>& /*AckedMessage*/,
+	const FConcertMessageContext& /*MessageContext*/
+);
 
 /**
  * Interface representing a local endpoint you can 
@@ -91,6 +108,9 @@ public:
 
 	/** Callback when a remote endpoint connection changes. */
 	virtual FOnConcertRemoteEndpointConnectionChanged& OnRemoteEndpointConnectionChanged() = 0;
+
+	/** Callback when a message has been acknowledged by a remote endpoint */
+	virtual FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& OnConcertMessageAcknowledgementReceived() = 0;
 
 	/**
 	 * Send a request to a remote endpoint

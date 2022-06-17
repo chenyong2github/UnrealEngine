@@ -150,6 +150,11 @@ FOnConcertRemoteEndpointConnectionChanged& FConcertLocalEndpoint::OnRemoteEndpoi
 	return OnRemoteEndpointConnectionChangedDelegate;
 }
 
+FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& FConcertLocalEndpoint::OnConcertMessageAcknowledgementReceived()
+{
+	return OnConcertMessageAcknowledgementReceivedDelegate;
+}
+
 void FConcertLocalEndpoint::InternalAddRequestHandler(const FTopLevelAssetPath& RequestMessageType, const TSharedRef<IConcertRequestHandler>& Handler)
 {
 	RequestHandlers.Add(RequestMessageType, Handler);
@@ -279,6 +284,12 @@ FConcertRemoteEndpointRef FConcertLocalEndpoint::CreateRemoteEndpoint(const FCon
 		FScopeLock RemoteEndpointsLock(&RemoteEndpointsCS);
 		RemoteEndpoints.Add(InEndpointContext.EndpointId, NewRemoteEndpoint);
 	}
+	
+	NewRemoteEndpoint->OnConcertMessageAcknowledgementReceived().AddLambda(
+		[this](const FConcertEndpointContext& Context, const TSharedRef<IConcertMessage>& AckedMessage, const FConcertMessageContext& AckMessageContext)
+		{
+			OnConcertMessageAcknowledgementReceivedDelegate.Broadcast(GetEndpointContext(), Context, AckedMessage, AckMessageContext);
+		});
 	return NewRemoteEndpoint;
 }
 

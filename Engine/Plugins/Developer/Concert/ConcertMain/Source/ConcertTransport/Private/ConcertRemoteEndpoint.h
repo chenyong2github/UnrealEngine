@@ -21,6 +21,8 @@ public:
 
 	virtual const FConcertEndpointContext& GetEndpointContext() const override;
 
+	virtual FOnConcertMessageAcknowledgementReceived& OnConcertMessageAcknowledgementReceived() override;
+
 	/** Does this remote endpoint have a reliable channel? */
 	bool HasReliableChannel() const;
 
@@ -142,6 +144,9 @@ private:
 
 	/** This context of this endpoint */
 	FConcertEndpointContext EndpointContext;
+
+	/** Callback when a message has been acknowledged by this remote endpoint */
+	FOnConcertMessageAcknowledgementReceived OnConcertMessageAcknowledgementReceivedDelegate;
 
 	/** The reliable channel ID to send with reliable messages */
 	uint16 ReliableChannelIdToSend;

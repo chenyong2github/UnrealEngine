@@ -159,6 +159,11 @@ FMessageAddress FConcertServer::GetRemoteAddress(const FGuid& AdminEndpointId) c
 	return {};
 }
 
+FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& FConcertServer::OnConcertMessageAcknowledgementReceived()
+{
+	return OnConcertMessageAcknowledgementReceivedFromLocalEndpoint;
+}
+
 bool FConcertServer::IsStarted() const
 {
 	return ServerAdminEndpoint.IsValid();
@@ -178,6 +183,11 @@ void FConcertServer::Startup()
 			});
 		});
 		ServerInfo.AdminEndpointId = ServerAdminEndpoint->GetEndpointContext().EndpointId;
+		ServerAdminEndpoint->OnConcertMessageAcknowledgementReceived().AddLambda(
+		[this](const FConcertEndpointContext& LocalEndpoint, const FConcertEndpointContext& RemoteEndpoint, const TSharedRef<IConcertMessage>& AckedMessage, const FConcertMessageContext& MessageContext)
+			{
+				OnConcertMessageAcknowledgementReceivedFromLocalEndpoint.Broadcast(LocalEndpoint, RemoteEndpoint, AckedMessage, MessageContext);
+			});
 
 		// Make it discoverable
 		ServerAdminEndpoint->SubscribeEventHandler<FConcertAdmin_DiscoverServersEvent>(this, &FConcertServer::HandleDiscoverServersEvent);
@@ -1513,17 +1523,24 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConce
 		UE_CLOG(LiveSessionInfo.VersionInfos.Num() > 0, LogConcert, Warning, TEXT("Clearing version information when creating session '%s' due to -CONCERTIGNORE. This session will be unversioned!"), *LiveSessionInfo.SessionName);
 		LiveSessionInfo.VersionInfos.Reset();
 	}
-
-	TSharedPtr<FConcertServerSession> LiveSession = MakeShared<FConcertServerSession>(
-		LiveSessionInfo,
-		Settings->ServerSettings,
-		EndpointProvider->CreateLocalEndpoint(LiveSessionInfo.SessionName, Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
+	
+	TSharedPtr<IConcertLocalEndpoint> SessionEndpoint = EndpointProvider->CreateLocalEndpoint(LiveSessionInfo.SessionName, Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
 		{
 			return FConcertLogger::CreateLogger(Context, [this](const FConcertLog& Log)
 			{
 				ConcertTransportEvents::OnConcertServerLogEvent().Broadcast(*this, Log);
 			});
-		}),
+		});
+	SessionEndpoint->OnConcertMessageAcknowledgementReceived().AddLambda(
+		[this](const FConcertEndpointContext& LocalEndpoint, const FConcertEndpointContext& RemoteEndpoint, const TSharedRef<IConcertMessage>& AckedMessage, const FConcertMessageContext& MessageContext)
+		{
+			OnConcertMessageAcknowledgementReceivedFromLocalEndpoint.Broadcast(LocalEndpoint, RemoteEndpoint, AckedMessage, MessageContext);
+		});
+
+	TSharedPtr<FConcertServerSession> LiveSession = MakeShared<FConcertServerSession>(
+		LiveSessionInfo,
+		Settings->ServerSettings,
+		SessionEndpoint,
 		InRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId)
 		);
 
