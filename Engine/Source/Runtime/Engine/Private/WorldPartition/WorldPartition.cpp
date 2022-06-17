@@ -1256,22 +1256,22 @@ void UWorldPartition::DrawRuntimeHashPreview()
 	RuntimeHash->DrawPreview();
 }
 
-bool UWorldPartition::LoadGeneratorPackageObjectsForCook(TArray<UObject*>& OutLoadedObjects)
+bool UWorldPartition::PopulateGeneratorPackageForCook(TArray<UObject*>& OutLoadedObjects)
 {
 	check(RuntimeHash);
-	return RuntimeHash->LoadGeneratorPackageObjectsForCook(OutLoadedObjects);
+	return RuntimeHash->PopulateGeneratorPackageForCook(OutLoadedObjects);
 }
 
-bool UWorldPartition::LoadGeneratedPackageObjectsForCook(const FString& InPackageRelativePath, TArray<UObject*>& OutLoadedObjects)
+bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, TArray<UObject*>& OutLoadedObjects)
 {
 	check(RuntimeHash);
-	return RuntimeHash->LoadGeneratedPackageObjectsForCook(InPackageRelativePath, OutLoadedObjects);
+	return RuntimeHash->PopulateGeneratedPackageForCook(InPackage, InPackageRelativePath, OutLoadedObjects);
 }
 
-bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath)
+bool UWorldPartition::FinalizeGeneratedPackageForCook(const FString& InPackageRelativePath)
 {
 	check(RuntimeHash);
-	return RuntimeHash->PopulateGeneratedPackageForCook(InPackage, InPackageRelativePath);
+	return RuntimeHash->FinalizeGeneratedPackageForCook(InPackageRelativePath);
 }
 
 bool UWorldPartition::FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages)

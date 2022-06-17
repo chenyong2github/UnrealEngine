@@ -1507,7 +1507,7 @@ void FGeneratorPackage::UpdateSaveAfterGarbageCollect(const FPackageData& Packag
 				// Log a cook error but remove the invalidated object.
 				UE_LOG(LogCook, Error, TEXT("PackageSplitter found an object returned from %s that was removed from memory during garbage collection. This will cause errors during save of the package.")
 					TEXT("\n\tSplitter=%s%s."),
-					Info->IsGenerator() ? TEXT("GetObjectsToMoveIntoGeneratorPackage") : TEXT("GetObjectsToMoveIntoGeneratedPackage"),
+					Info->IsGenerator() ? TEXT("PopulateGeneratorPackage") : TEXT("PopulateGeneratedPackage"),
 					*GetSplitDataObjectName().ToString(),
 					Info->IsGenerator() ? TEXT("") : *FString::Printf(TEXT(", Generated=%s."), *Info->PackageData->GetPackageName().ToString()));
 				Iter.RemoveCurrent();

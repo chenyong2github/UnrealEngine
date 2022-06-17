@@ -1161,7 +1161,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 	return true;
 }
 
-bool UWorldPartitionRuntimeSpatialHash::LoadGeneratedPackageObjectsForCook(const FString& InPackageRelativePath, TArray<UObject*>& OutLoadedObjects)
+bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, TArray<UObject*>& OutLoadedObjects)
 {
 	OutLoadedObjects.Reset();
 	if (UWorldPartitionRuntimeCell** MatchingCell = PackagesToGenerateForCook.Find(InPackageRelativePath))
@@ -1169,20 +1169,20 @@ bool UWorldPartitionRuntimeSpatialHash::LoadGeneratedPackageObjectsForCook(const
 		UWorldPartitionRuntimeCell* Cell = *MatchingCell;
 		if (ensure(Cell))
 		{
-			return Cell->LoadCellObjectsForCook(OutLoadedObjects);
+			return Cell->PopulateGeneratedPackageForCook(InPackage, OutLoadedObjects);
 		}
 	}
 	return false;
 }
 
-bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath)
+bool UWorldPartitionRuntimeSpatialHash::FinalizeGeneratedPackageForCook(const FString& InPackageRelativePath)
 {
 	if (UWorldPartitionRuntimeCell** MatchingCell = PackagesToGenerateForCook.Find(InPackageRelativePath))
 	{
 		UWorldPartitionRuntimeCell* Cell = *MatchingCell;
 		if (ensure(Cell))
 		{
-			return Cell->PopulateGeneratedPackageForCook(InPackage);
+			return Cell->FinalizePackageForCook();
 		}
 	}
 	return false;
@@ -1203,13 +1203,13 @@ TArray<UWorldPartitionRuntimeCell*> UWorldPartitionRuntimeSpatialHash::GetAlways
 	return Result;
 }
 
-bool UWorldPartitionRuntimeSpatialHash::LoadGeneratorPackageObjectsForCook(TArray<UObject*>& OutLoadedObjects)
+bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratorPackageForCook(TArray<UObject*>& OutLoadedObjects)
 {
 	OutLoadedObjects.Reset();
 	for (UWorldPartitionRuntimeCell* Cell : GetAlwaysLoadedCells())
 	{
 		check(Cell->IsAlwaysLoaded());
-		if (!Cell->LoadCellObjectsForCook(OutLoadedObjects))
+		if (!Cell->PopulateGeneratorPackageForCook(OutLoadedObjects))
 		{
 			return false;
 		}
@@ -1220,12 +1220,11 @@ bool UWorldPartitionRuntimeSpatialHash::LoadGeneratorPackageObjectsForCook(TArra
 bool UWorldPartitionRuntimeSpatialHash::FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages)
 {
 	check(IsRunningCookCommandlet());
-	
-	// Move always loaded content in Persistent Level
+
 	for (UWorldPartitionRuntimeCell* Cell : GetAlwaysLoadedCells())
 	{
 		check(Cell->IsAlwaysLoaded());
-		if (!Cell->MoveAlwaysLoadedContentToPersistentLevel())
+		if (!Cell->FinalizePackageForCook())
 		{
 			return false;
 		}
