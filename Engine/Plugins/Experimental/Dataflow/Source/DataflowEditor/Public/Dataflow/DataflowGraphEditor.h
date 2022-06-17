@@ -21,9 +21,9 @@
 class FDataflowEditorToolkit;
 class FDataflowSNodeFactory;
 class UDataflow;
+struct FDataflowConnection;
 namespace Dataflow {
 	class FContext;
-	class FConnection;
 }
 /**
  * The SDataflowGraphEditpr class is a specialization of SGraphEditor

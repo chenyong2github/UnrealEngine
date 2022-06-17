@@ -56,31 +56,11 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 	{
 		if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
 		{
-			if (Dataflow::FConnection* ConnectionInput = DataflowNode->FindInput(FName(Pin->GetName())) )
+			if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
 			{
-				DataflowGraph->ClearConnections(ConnectionInput);
-				for (UEdGraphPin* LinkedCon : Pin->LinkedTo)
+				if (FDataflowConnection* ConnectionInput = DataflowNode->FindInput(FName(Pin->GetName())))
 				{
-					if (UDataflowEdNode* LinkedNode = Cast<UDataflowEdNode>(LinkedCon->GetOwningNode()))
-					{
-						if (ensure(LinkedNode->IsBound()))
-						{
-							if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
-							{
-								if (Dataflow::FConnection* LinkedConBase = LinkedDataflowNode->FindOutput(FName(LinkedCon->GetName())))
-								{
-									DataflowGraph->Connect(ConnectionInput, LinkedConBase);
-								}
-							}
-						}
-					}
-				}
-			}
-			else if (Dataflow::FConnection* Con = DataflowNode->FindOutput(FName(Pin->GetName())))
-			{
-				if (Dataflow::FConnection* ConnectionOutput = DataflowNode->FindOutput(FName(Pin->GetName())))
-				{
-					DataflowGraph->ClearConnections(ConnectionOutput);
+					DataflowGraph->ClearConnections(ConnectionInput);
 					for (UEdGraphPin* LinkedCon : Pin->LinkedTo)
 					{
 						if (UDataflowEdNode* LinkedNode = Cast<UDataflowEdNode>(LinkedCon->GetOwningNode()))
@@ -89,9 +69,35 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 							{
 								if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
 								{
-									if (Dataflow::FConnection* LinkedConBase = LinkedDataflowNode->FindInput(FName(LinkedCon->GetName())))
+									if (FDataflowConnection* LinkedConBase = LinkedDataflowNode->FindOutput(FName(LinkedCon->GetName())))
 									{
-										DataflowGraph->Connect(LinkedConBase, ConnectionOutput);
+										DataflowGraph->Connect(ConnectionInput, LinkedConBase);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			else if (Pin->Direction == EEdGraphPinDirection::EGPD_Output)
+			{
+				if (FDataflowConnection* Con = DataflowNode->FindOutput(FName(Pin->GetName())))
+				{
+					if (FDataflowConnection* ConnectionOutput = DataflowNode->FindOutput(FName(Pin->GetName())))
+					{
+						DataflowGraph->ClearConnections(ConnectionOutput);
+						for (UEdGraphPin* LinkedCon : Pin->LinkedTo)
+						{
+							if (UDataflowEdNode* LinkedNode = Cast<UDataflowEdNode>(LinkedCon->GetOwningNode()))
+							{
+								if (ensure(LinkedNode->IsBound()))
+								{
+									if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
+									{
+										if (FDataflowConnection* LinkedConBase = LinkedDataflowNode->FindInput(FName(LinkedCon->GetName())))
+										{
+											DataflowGraph->Connect(LinkedConBase, ConnectionOutput);
+										}
 									}
 								}
 							}

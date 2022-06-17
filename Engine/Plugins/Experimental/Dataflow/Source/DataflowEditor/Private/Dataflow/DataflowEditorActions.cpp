@@ -65,9 +65,9 @@ void FDataflowEditorCommands::EvaluateNodes(const FGraphPanelSelectionSet& Selec
 					{
 						if (DataflowNode->GetOutputs().Num())
 						{
-							for (Dataflow::FConnection* NodeOutput : DataflowNode->GetOutputs())
+							for (FDataflowConnection* NodeOutput : DataflowNode->GetOutputs())
 							{
-								Evaluate(DataflowNode.Get(), NodeOutput);
+								Evaluate(DataflowNode.Get(), (FDataflowOutput*)NodeOutput);
 							}
 						}
 						else

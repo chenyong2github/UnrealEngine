@@ -64,10 +64,10 @@ void SDataflowGraphEditor::EvaluateNode()
 	}
 	else
 	{
-		FDataflowEditorCommands::FGraphEvaluationCallback LocalEvaluateCallback = [](FDataflowNode* Node, Dataflow::FConnection* Out)
+		FDataflowEditorCommands::FGraphEvaluationCallback LocalEvaluateCallback = [](FDataflowNode* Node, FDataflowOutput* Out)
 		{
-			float EvalTime = FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds();
-			return Node->Evaluate(Dataflow::FContext(EvalTime), Out);
+			Dataflow::FContext Context(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
+			Node->Evaluate(Context, Out);
 		};
 
 		FDataflowEditorCommands::EvaluateNodes(GetSelectedNodes(), LocalEvaluateCallback);

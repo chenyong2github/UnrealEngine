@@ -17,31 +17,42 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSkeletalMeshBoneDataflowNode);
 	}
 }
-void FGetSkeletalMeshDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
+
+void FGetSkeletalMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	SkeletalMeshOut.SetValue(nullptr, Context);
-	if (SkeletalMesh)
+	typedef TObjectPtr<const USkeletalMesh> DataType;
+	if (Out->IsA<DataType>(&SkeletalMesh))
 	{
-		SkeletalMeshOut.SetValue(SkeletalMesh, Context);
-	}
-	else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
-	{
-		if (const USkeletalMesh* SkeletalMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<USkeletalMesh>(
-			EngineContext->Owner, PropertyName))
+		GetOutput(&SkeletalMesh)->SetValue<DataType>(SkeletalMesh, Context); // prime to avoid ensure
+
+		if (SkeletalMesh)
 		{
-			SkeletalMeshOut.SetValue(SkeletalMeshFromOwner, Context);
+			GetOutput(&SkeletalMesh)->SetValue<DataType>(SkeletalMesh, Context);
+		}
+		else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
+		{
+			if (const USkeletalMesh* SkeletalMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<USkeletalMesh>(
+				EngineContext->Owner, PropertyName))
+			{
+				GetOutput(&SkeletalMesh)->SetValue<DataType>(DataType(SkeletalMeshFromOwner), Context);
+			}
 		}
 	}
 }
 
-void FSkeletalMeshBoneDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
+void FSkeletalMeshBoneDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	BoneIndexOut.SetValue(INDEX_NONE, Context);
-
-	if (const USkeletalMesh* SkeletalMesh = SkeletalMeshIn.GetValue(Context))
+	typedef TObjectPtr<const USkeletalMesh> InDataType;
+	if (Out->IsA<int>(&BoneIndexOut))
 	{
-		int32 Index = SkeletalMesh->GetRefSkeleton().FindBoneIndex(BoneName);
-		BoneIndexOut.SetValue(Index, Context);
+		GetOutput(&BoneIndexOut)->SetValue<int>(INDEX_NONE, Context); // prime to avoid ensure
+
+		if( InDataType InSkeletalMesh = GetInput(&SkeletalMesh)->GetValue<InDataType>(Context, SkeletalMesh) )
+		{
+			int32 Index = InSkeletalMesh->GetRefSkeleton().FindBoneIndex(BoneName);
+			Out->SetValue<int>(Index, Context);
+		}
+
 	}
 }
 

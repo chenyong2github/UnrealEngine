@@ -23,9 +23,9 @@ namespace Dataflow
 	}
 }
 
-void FGetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
+void FGetCollectionAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (&Output == Out)
+	if (Out->IsA<DataType>(&Output))
 	{
 		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
@@ -33,111 +33,112 @@ void FGetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context
 			{
 				if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = CollectionAsset->GetGeometryCollection())
 				{
-					FManagedArrayCollection* NewCollection = AssetCollection->NewCopy<FManagedArrayCollection>();
-					Output.SetValue(DataType(NewCollection), Context);
+					GetOutput(&Output)->SetValue<DataType>(DataType(*AssetCollection), Context);
 				}
 			}
 		}
 	}
 }
 
-void FExampleCollectionEditDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
+void FExampleCollectionEditDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (&Output == Out)
+	if (Out->IsA<DataType>(&Collection))
 	{
-		DataType Collection = Input.GetValue(Context);
+		DataType InCollection = GetInput(&Collection)->GetValue<DataType>(Context, Collection);
+
 		if (Active)
 		{
-			TManagedArray<FVector3f>* Vertex = Collection->FindAttribute<FVector3f>("Vertex", "Vertices");
+			TManagedArray<FVector3f>* Vertex = InCollection.FindAttribute<FVector3f>("Vertex", "Vertices");
 			for (int i = 0; i < Vertex->Num(); i++)
 			{
 				(*Vertex)[i][1] *= Scale;
 			}
 		}
-		Output.SetValue(Collection, Context);
+		Out->SetValue<DataType>(InCollection, Context);
 	}
 }
 
-void FSetCollectionAssetDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
+void FSetCollectionAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out == nullptr)
+	DataType InCollection = GetInput(&Collection)->GetValue<DataType>(Context, Collection);
+
+	if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 	{
-		DataType Collection = Input.GetValue(Context);
-		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
+		if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
 		{
-			if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
-			{
-				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> NewCollection(Collection->NewCopy<FGeometryCollection>());
-				CollectionAsset->SetGeometryCollection(NewCollection);
-				CollectionAsset->InvalidateCollection();
-			}
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> NewCollection(InCollection.NewCopy<FGeometryCollection>());
+			CollectionAsset->SetGeometryCollection(NewCollection);
+			CollectionAsset->InvalidateCollection();
 		}
 	}
 }
 
-void FResetGeometryCollectionDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
+void FResetGeometryCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	ManagedArrayOut.SetValue(TSharedPtr<FManagedArrayCollection>(nullptr), Context);
-
-	if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
+	if (Out->IsA<DataType>(&Collection))
 	{
-		if (UGeometryCollection* GeometryCollectionObject = Cast<UGeometryCollection>(EngineContext->Owner))
+		Out->SetValue<DataType>(Collection, Context); // prime to avoid ensure
+
+		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
-			GeometryCollectionObject->Reset();
-
-			const UObject* Owner = EngineContext->Owner;
-			FName AName("GeometrySource");
-			if (Owner && Owner->GetClass())
+			if (UGeometryCollection* GeometryCollectionObject = Cast<UGeometryCollection>(EngineContext->Owner))
 			{
-				if (const ::FProperty* UEProperty = Owner->GetClass()->FindPropertyByName(AName))
+				GeometryCollectionObject->Reset();
+
+				const UObject* Owner = EngineContext->Owner;
+				FName AName("GeometrySource");
+				if (Owner && Owner->GetClass())
 				{
-					if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(UEProperty))
+					if (const ::FProperty* UEProperty = Owner->GetClass()->FindPropertyByName(AName))
 					{
-						FScriptArrayHelper_InContainer ArrayHelper(ArrayProperty, Owner);
-						const int32 ArraySize = ArrayHelper.Num();
-						for (int32 Index = 0; Index < ArraySize; ++Index)
+						if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(UEProperty))
 						{
-							if (FGeometryCollectionSource* SourceObject = (FGeometryCollectionSource*)(ArrayHelper.GetRawPtr(Index)))
+							FScriptArrayHelper_InContainer ArrayHelper(ArrayProperty, Owner);
+							const int32 ArraySize = ArrayHelper.Num();
+							for (int32 Index = 0; Index < ArraySize; ++Index)
 							{
-								if (UObject* ResolvedObject = SourceObject->SourceGeometryObject.ResolveObject())
+								if (FGeometryCollectionSource* SourceObject = (FGeometryCollectionSource*)(ArrayHelper.GetRawPtr(Index)))
 								{
-									if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ResolvedObject))
+									if (UObject* ResolvedObject = SourceObject->SourceGeometryObject.ResolveObject())
 									{
-										TArray<UMaterialInterface*> Materials;
-										Materials.Reserve(StaticMesh->GetStaticMaterials().Num());
-
-										for (int32 Index2 = 0; Index2 < StaticMesh->GetStaticMaterials().Num(); ++Index2)
+										if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ResolvedObject))
 										{
-											UMaterialInterface* CurrMaterial = StaticMesh->GetMaterial(Index2);
-											Materials.Add(CurrMaterial);
+											TArray<UMaterialInterface*> Materials;
+											Materials.Reserve(StaticMesh->GetStaticMaterials().Num());
+
+											for (int32 Index2 = 0; Index2 < StaticMesh->GetStaticMaterials().Num(); ++Index2)
+											{
+												UMaterialInterface* CurrMaterial = StaticMesh->GetMaterial(Index2);
+												Materials.Add(CurrMaterial);
+											}
+
+											// Geometry collections usually carry the selection material, which we'll delete before appending
+											UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, UGeometryCollection::GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
+											GeometryCollectionObject->Materials.Remove(BoneSelectedMaterial);
+											Materials.Remove(BoneSelectedMaterial);
+
+											FGeometryCollectionEngineConversion::AppendStaticMesh(StaticMesh, Materials, FTransform(), GeometryCollectionObject);
+
 										}
-
-										// Geometry collections usually carry the selection material, which we'll delete before appending
-										UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, UGeometryCollection::GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
-										GeometryCollectionObject->Materials.Remove(BoneSelectedMaterial);
-										Materials.Remove(BoneSelectedMaterial);
-
-										FGeometryCollectionEngineConversion::AppendStaticMesh(StaticMesh, Materials, FTransform(), GeometryCollectionObject);
-
 									}
 								}
 							}
 						}
 					}
 				}
-			}
-			GeometryCollectionObject->UpdateConvexGeometry();
-			GeometryCollectionObject->InitializeMaterials();
-			GeometryCollectionObject->InvalidateCollection();
+				GeometryCollectionObject->UpdateConvexGeometry();
+				GeometryCollectionObject->InitializeMaterials();
+				GeometryCollectionObject->InvalidateCollection();
 
-			if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = GeometryCollectionObject->GetGeometryCollection())
-			{
-				FManagedArrayCollection* NewCollection = AssetCollection->NewCopy<FManagedArrayCollection>();
-				ManagedArrayOut.SetValue(DataType(NewCollection), Context);
+				if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = GeometryCollectionObject->GetGeometryCollection())
+				{
+					Out->SetValue<DataType>(*AssetCollection, Context);
+				}
 			}
 		}
 	}
 }
+
 
 
 

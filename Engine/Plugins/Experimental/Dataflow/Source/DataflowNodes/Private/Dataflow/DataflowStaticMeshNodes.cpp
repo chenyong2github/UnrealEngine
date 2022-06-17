@@ -11,20 +11,26 @@ namespace Dataflow
 	}
 }
 
-void FGetStaticMeshDataflowNode::Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const
+void FGetStaticMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	StaticMeshOut.SetValue(nullptr, Context);
-	if (StaticMesh)
+	typedef TObjectPtr<const UStaticMesh> DataType;
+	if (Out->IsA<DataType>(&StaticMesh))
 	{
-		StaticMeshOut.SetValue(StaticMesh, Context);
-	}
-	else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
-	{
-		if (const UStaticMesh* StaticMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<UStaticMesh>(
-			EngineContext->Owner, PropertyName))
+		GetOutput(&StaticMesh)->SetValue<DataType>(StaticMesh, Context); // prime to avoid ensure
+
+		if (StaticMesh)
 		{
-			StaticMeshOut.SetValue(StaticMeshFromOwner, Context);
+			GetOutput(&StaticMesh)->SetValue<DataType>(StaticMesh, Context);
+		}
+		else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
+		{
+			if (const UStaticMesh* StaticMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<UStaticMesh>(
+				EngineContext->Owner, PropertyName))
+			{
+				GetOutput(&StaticMesh)->SetValue<DataType>(DataType(StaticMeshFromOwner), Context);
+			}
 		}
 	}
 }
+
 

@@ -12,7 +12,6 @@
 
 #include "DataflowStaticMeshNodes.generated.h"
 
-
 DEFINE_LOG_CATEGORY_STATIC(LogDataflowStaticMeshNodes, Log, All);
 
 class UStaticMesh;
@@ -21,26 +20,24 @@ USTRUCT()
 struct DATAFLOWNODES_API FGetStaticMeshDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FGetStaticMeshDataflowNode, "StaticMesh", "Dataflow", "Static Mesh")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetStaticMeshDataflowNode, "StaticMesh", "Dataflow", "Static Mesh")
 
 public:
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DataflowOutput, DisplayName = "StaticMesh"))
+	TObjectPtr<const UStaticMesh> StaticMesh = nullptr;
+
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
-		TObjectPtr<UStaticMesh> StaticMesh = nullptr;
-
-
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
-		FName PropertyName = "StaticMesh";
-
-	Dataflow::TOutput<Dataflow::UStaticMeshPtr> StaticMeshOut;
+	FName PropertyName = "StaticMesh";
 
 	FGetStaticMeshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, StaticMeshOut({ FName("StaticMeshOut"), this })
-	{}
+	{
+		RegisterOutputConnection(&StaticMesh);
+	}
 
 
-	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
 

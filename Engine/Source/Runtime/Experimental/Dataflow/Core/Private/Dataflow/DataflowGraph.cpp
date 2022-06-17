@@ -21,11 +21,11 @@ namespace Dataflow
 
 	void FGraph::RemoveNode(TSharedPtr<FDataflowNode> Node)
 	{
-		for (FConnection* Output : Node->GetOutputs())
+		for (FDataflowConnection* Output : Node->GetOutputs())
 		{
 			if (Output)
 			{
-				for (FConnection* Input : Output->GetConnectedInputs())
+				for (FDataflowConnection* Input : Output->GetConnectedInputs())
 				{
 					if (Input)
 					{
@@ -34,12 +34,12 @@ namespace Dataflow
 				}
 			}
 		}
-		for (FConnection* Input : Node->GetInputs())
+		for (FDataflowConnection* Input : Node->GetInputs())
 		{
 			if (Input)
 			{
-				TArray<FConnection*> Outputs = Input->GetConnectedOutputs();
-				for (FConnection* Out : Outputs)
+				TArray<FDataflowConnection*> Outputs = Input->GetConnectedOutputs();
+				for (FDataflowConnection* Out : Outputs)
 				{
 					if (Out)
 					{
@@ -51,22 +51,22 @@ namespace Dataflow
 		Nodes.Remove(Node);
 	}
 
-	void FGraph::ClearConnections(FConnection* Connection)
+	void FGraph::ClearConnections(FDataflowConnection* Connection)
 	{
 		// Todo(dataflow) : do this without triggering a invalidation. 
 		//            or implement a better sync for the EdGraph and DataflowGraph
 		if (Connection->GetDirection() == FPin::EDirection::INPUT)
 		{
-			TArray<FConnection*> BaseOutputs = Connection->GetConnectedOutputs();
-			for (FConnection* Output : BaseOutputs)
+			TArray<FDataflowConnection*> BaseOutputs = Connection->GetConnectedOutputs();
+			for (FDataflowConnection* Output : BaseOutputs)
 			{
 				Disconnect(Connection, Output);
 			}
 		}
 		else if (Connection->GetDirection() == FPin::EDirection::OUTPUT)
 		{
-			TArray<FConnection*> BaseInputs = Connection->GetConnectedInputs();
-			for (FConnection* Input : BaseInputs)
+			TArray<FDataflowConnection*> BaseInputs = Connection->GetConnectedInputs();
+			for (FDataflowConnection* Input : BaseInputs)
 			{
 				Disconnect(Input, Connection);
 			}
@@ -74,7 +74,7 @@ namespace Dataflow
 	}
 
 
-	void FGraph::Connect(FConnection* Input, FConnection* Output)
+	void FGraph::Connect(FDataflowConnection* Input, FDataflowConnection* Output)
 	{
 		if (ensure(Input && Output))
 		{
@@ -86,7 +86,7 @@ namespace Dataflow
 		}
 	}
 
-	void FGraph::Disconnect(FConnection* Input, FConnection* Output)
+	void FGraph::Disconnect(FDataflowConnection* Input, FDataflowConnection* Output)
 	{
 		Input->RemoveConnection(Output);
 		Output->RemoveConnection(Input);
@@ -115,11 +115,11 @@ namespace Dataflow
 
 				DATAFLOW_OPTIONAL_BLOCK_WRITE_BEGIN()
 				{
-					TArray< FConnection* > IO = Node->GetOutputs();
+					TArray< FDataflowConnection* > IO = Node->GetOutputs();
 					IO.Append(Node->GetInputs());
 					ArNum = IO.Num();
 					Ar << ArNum;
-					for (FConnection* Conn : IO)
+					for (FDataflowConnection* Conn : IO)
 					{
 						ArGuid = Conn->GetGuid();
 						ArType = Conn->GetType();
@@ -142,7 +142,7 @@ namespace Dataflow
 			int32 ArNum = 0;
 
 			TMap<FGuid, TSharedPtr<FDataflowNode> > NodeGuidMap;
-			TMap<FGuid, FConnection* > ConnectionGuidMap;
+			TMap<FGuid, FDataflowConnection* > ConnectionGuidMap;
 
 			Ar << ArNum;
 			for (int32 Ndx = ArNum; Ndx > 0; Ndx--)
@@ -157,7 +157,7 @@ namespace Dataflow
 
 					int ArNumInner;
 					Ar << ArNumInner;
-					TArray< FConnection* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
+					TArray< FDataflowConnection* > IO = Node->GetOutputs();  IO.Append(Node->GetInputs());
 					for (int Cdx = 0; Cdx < ArNumInner; Cdx++)
 					{
 						Ar << ArGuid << ArType << ArName;

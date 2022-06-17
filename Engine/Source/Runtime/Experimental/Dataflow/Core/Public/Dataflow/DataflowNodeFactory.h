@@ -7,10 +7,11 @@
 #include "ChaosLog.h"
 
 struct FDataflowNode;
+struct FDataflowConnection;
+
 
 namespace Dataflow
 {
-	class FConnection;
 
 	struct DATAFLOWCORE_API FNewNodeParameters {
 		FGuid Guid;

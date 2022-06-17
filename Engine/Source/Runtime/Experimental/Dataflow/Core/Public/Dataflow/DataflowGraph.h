@@ -7,9 +7,10 @@
 #include "Dataflow/DataflowNode.h"
 #include "Serialization/Archive.h"
 
+struct FDataflowConnection;
+
 namespace Dataflow
 {
-	class FConnection;
 
 	struct FLink {
 		FGuid InputNode;
@@ -80,9 +81,9 @@ namespace Dataflow
 
 		void RemoveNode(TSharedPtr<FDataflowNode> Node);
 
-		void ClearConnections(FConnection*);
-		void Connect(FConnection* Input, FConnection* Output);
-		void Disconnect(FConnection* Input, FConnection* Output);
+		void ClearConnections(FDataflowConnection*);
+		void Connect(FDataflowConnection* Input, FDataflowConnection* Output);
+		void Disconnect(FDataflowConnection* Input, FDataflowConnection* Output);
 
 		virtual void Serialize(FArchive& Ar);
 		const TSet<FName>& GetDisabledNodes() const { return DisabledNodes; }

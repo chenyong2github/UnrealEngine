@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowNodeParameters.h"
 
+#include "DataflowConnection.generated.h"
 
 struct FDataflowNode;
 
@@ -26,50 +27,62 @@ namespace Dataflow
 		FName Type;
 		FName Name;
 	};
-
-	//
-	// Input Output Base
-	//
-
-	class DATAFLOWCORE_API FConnection
-	{
-
-	protected:
-		FPin::EDirection Direction;
-		FName Type;
-		FName Name;
-		FGuid  Guid;
-		FDataflowNode* OwningNode = nullptr;
-
-		friend struct FDataflowNode;
-		static void BindInput(FDataflowNode* InNode, FConnection*);
-		static void BindOutput(FDataflowNode* InNode, FConnection*);
-
-
-	public:
-		FConnection(FPin::EDirection Direction, FName InType, FName InName, FDataflowNode* OwningNode = nullptr, FGuid InGuid = FGuid::NewGuid());
-		virtual ~FConnection() {};
-
-		FDataflowNode* GetOwningNode() { return OwningNode; }
-		const FDataflowNode* GetOwningNode() const { return OwningNode; }
-
-		FPin::EDirection GetDirection() const { return Direction; }
-
-		FName GetType() const { return Type; }
-
-		FGuid GetGuid() const { return Guid; }
-		void SetGuid(FGuid InGuid) { Guid = InGuid; }
-
-		FName GetName() const { return Name; }
-		void SetName(FName InName) { Name = InName; }
-
-
-		virtual bool AddConnection(FConnection* In) { return false; };
-		virtual bool RemoveConnection(FConnection* In) { return false; }
-
-		virtual TArray< FConnection* > GetConnectedInputs() { return TArray<FConnection* >(); }
-		virtual TArray< FConnection* > GetConnectedOutputs() { return TArray<FConnection* >(); }
-		virtual void Invalidate() {};
-
-	};
 }
+
+//
+// Input Output Base
+//
+USTRUCT()
+struct DATAFLOWCORE_API FDataflowConnection
+{
+	GENERATED_USTRUCT_BODY()
+
+protected:
+	Dataflow::FPin::EDirection Direction;
+	FName Type;
+	FName Name;
+	FDataflowNode* OwningNode = nullptr;
+	FProperty* Property = nullptr;
+	FGuid  Guid;
+
+	friend struct FDataflowNode;
+
+public:
+	FDataflowConnection() {};
+	FDataflowConnection(Dataflow::FPin::EDirection Direction, FName InType, FName InName, FDataflowNode* OwningNode = nullptr, FProperty* InProperty = nullptr, FGuid InGuid = FGuid::NewGuid());
+	virtual ~FDataflowConnection() {};
+
+	FDataflowNode* GetOwningNode() { return OwningNode; }
+	const FDataflowNode* GetOwningNode() const { return OwningNode; }
+
+	Dataflow::FPin::EDirection GetDirection() const { return Direction; }
+	uint32 GetOffset( ) const;
+
+	FName GetType() const { return Type; }
+
+	FGuid GetGuid() const { return Guid; }
+	void SetGuid(FGuid InGuid) { Guid = InGuid; }
+
+	FName GetName() const { return Name; }
+	void SetName(FName InName) { Name = InName; }
+
+	size_t RealAddress() const { ensure(OwningNode);  return (size_t)OwningNode + (size_t)GetOffset(); };
+	size_t CacheKey() const { return RealAddress(); };
+
+	virtual bool AddConnection(FDataflowConnection* In) { return false; };
+	virtual bool RemoveConnection(FDataflowConnection* In) { return false; }
+
+	virtual TArray< FDataflowConnection* > GetConnectedInputs() { return TArray<FDataflowConnection* >(); }
+	virtual TArray< FDataflowConnection* > GetConnectedOutputs() { return TArray<FDataflowConnection* >(); }
+
+	template<class T>
+	bool IsA(const T* InVar) const
+	{
+		return (size_t)OwningNode + (size_t)GetOffset() == (size_t)InVar;
+
+	}
+
+	virtual void Invalidate() {};
+	virtual bool Evaluate(Dataflow::FContext& Context) const { return false; };
+
+};

@@ -94,10 +94,11 @@ TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidg
 	using namespace Dataflow;
 	IDataflowEditorPlugin& DataflowEditorModule = FModuleManager::LoadModuleChecked<IDataflowEditorPlugin>(TEXT("DataflowEditor"));
 
-	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [&](FDataflowNode* Node, Dataflow::FConnection* Out)
+	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [&](FDataflowNode* Node, FDataflowOutput* Out)
 	{
 		float EvalTime = FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds();
-		return Node->Evaluate(FEngineContext(GeometryCollection, Dataflow, EvalTime, FString("UGeometryCollection")), Out);
+		FEngineContext Context(GeometryCollection, Dataflow, EvalTime, FString("UGeometryCollection"));
+		Node->Evaluate(Context, Out);
 	};
 
 	return SNew(SDataflowGraphEditor, GeometryCollection)

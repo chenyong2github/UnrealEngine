@@ -10,8 +10,8 @@
 
 namespace Dataflow
 {
-	typedef TSharedPtr<FManagedArrayCollection> FManagedArrayCollectionSharedPtr;
+	//typedef TSharedPtr<FManagedArrayCollection> FManagedArrayCollectionSharedPtr;
 	 
-	DATAFLOW_CONNECTION_TYPE_SHARED_POINTER(GEOMETRYCOLLECTIONNODES_API, FManagedArrayCollectionSharedPtr, ManagedArrayCollectionSharedPtr)
+	//DATAFLOW_CONNECTION_TYPE_SHARED_POINTER(GEOMETRYCOLLECTIONNODES_API, FManagedArrayCollectionSharedPtr, ManagedArrayCollectionSharedPtr)
 	
 }

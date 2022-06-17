@@ -5,24 +5,23 @@
 #include "Dataflow/DataflowNodeParameters.h"
 #include "Dataflow/DataflowNode.h"
 
-namespace Dataflow
+FDataflowConnection::FDataflowConnection(Dataflow::FPin::EDirection InDirection, FName InType, FName InName, FDataflowNode* InOwningNode, FProperty* InProperty, FGuid InGuid)
+	: Direction(InDirection)
+	, Type(InType)
+	, Name(InName)
+	, OwningNode(InOwningNode)
+	, Property(InProperty)
+	, Guid(InGuid)
+{}
+
+
+uint32 FDataflowConnection::GetOffset() const
 {
-	FConnection::FConnection(FPin::EDirection InDirection, FName InType, FName InName, FDataflowNode* InOwningNode, FGuid InGuid)
-		: Direction(InDirection)
-		, Type(InType)
-		, Name(InName)
-		, Guid(InGuid)
-		, OwningNode(InOwningNode)
-	{}
-
-	void FConnection::BindInput(FDataflowNode* InNode, FConnection* That) 
+	if (ensure(Property != nullptr))
 	{
-		if (InNode && That) { InNode->AddInput(That); }
+		return Property->GetOffset_ForInternal();
 	}
-	void FConnection::BindOutput(FDataflowNode* InNode, FConnection* That)
-	{
-		if (InNode && That) { InNode->AddOutput(That); }
-	}
-
+	return (uint32)INDEX_NONE;
 }
+
 

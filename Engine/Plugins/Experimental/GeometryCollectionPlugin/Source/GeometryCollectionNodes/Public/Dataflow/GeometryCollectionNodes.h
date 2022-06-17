@@ -6,8 +6,11 @@
 
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowEngine.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
+
 
 #include "GeometryCollectionNodes.generated.h"
+
 
 USTRUCT()
 struct FGetCollectionAssetDataflowNode : public FDataflowNode
@@ -16,16 +19,18 @@ struct FGetCollectionAssetDataflowNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FGetCollectionAssetDataflowNode, "GetCollectionAsset", "GeometryCollection", "")
 
 public:
-	typedef Dataflow::FManagedArrayCollectionSharedPtr DataType;
+	typedef FManagedArrayCollection DataType;
 
-	Dataflow::TOutput<DataType> Output;
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
+	mutable FManagedArrayCollection Output;
 
 	FGetCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, Output({ FName("CollectionOut"), this })
-	{}
+	{
+		RegisterOutputConnection(&Output);
+	}
 
-	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
 USTRUCT()
@@ -35,23 +40,25 @@ struct FExampleCollectionEditDataflowNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FExampleCollectionEditDataflowNode, "ExampleCollectionEdit", "GeometryCollection", "")
 
 public:
+	typedef FManagedArrayCollection DataType;
+
 	UPROPERTY(EditAnywhere, Category = "Dataflow");
 	bool Active = true;
 
 	UPROPERTY(EditAnywhere, Category = "Dataflow");
 	float Scale = 1.0;
 
-	typedef Dataflow::FManagedArrayCollectionSharedPtr DataType;
-	Dataflow::TInput<DataType> Input;
-	Dataflow::TOutput<DataType> Output;
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection"))
+	FManagedArrayCollection Collection;
 
 	FExampleCollectionEditDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, Input({ FName("CollectionIn"), this })
-		, Output({ FName("CollectionOut"), this })
-	{}
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection);
+	}
 
-	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 };
 
@@ -62,15 +69,18 @@ struct FSetCollectionAssetDataflowNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FSetCollectionAssetDataflowNode, "SetCollectionAsset", "GeometryCollection", "")
 
 public:
-	typedef Dataflow::FManagedArrayCollectionSharedPtr DataType;
-	Dataflow::TInput<DataType> Input;
+	typedef FManagedArrayCollection DataType;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))
+	FManagedArrayCollection Collection;
 
 	FSetCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, Input({ FName("CollectionIn"), this })
-	{}
+	{
+		RegisterInputConnection(&Collection);
+	}
 
-	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 };
 
@@ -81,17 +91,19 @@ struct FResetGeometryCollectionDataflowNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FResetGeometryCollectionDataflowNode, "ResetGeometryCollection", "GeometryCollection", "")
 
 public:
-	typedef Dataflow::FManagedArrayCollectionSharedPtr DataType;
+	typedef FManagedArrayCollection DataType;
 
-	Dataflow::TOutput<DataType> ManagedArrayOut;
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
+	FManagedArrayCollection Collection;
 
 	FResetGeometryCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, ManagedArrayOut({ FName("ManagedArrayOut"), this })
-	{}
+	{
+		RegisterOutputConnection(&Collection);
+	}
 
 
-	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 };
 

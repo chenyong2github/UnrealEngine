@@ -9,8 +9,8 @@
 #include "Dataflow/DataflowEngine.h"
 
 
-#include "DataflowSkeletalMeshNodes.generated.h"
 
+#include "DataflowSkeletalMeshNodes.generated.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDataflowSkeletalMeshNodes, Log, All);
 
@@ -24,23 +24,22 @@ struct DATAFLOWNODES_API FGetSkeletalMeshDataflowNode: public FDataflowNode
 
 public:
 	
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
-	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
-
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DataflowOutput, DisplayName = "SkeletalMesh"))
+	TObjectPtr<const USkeletalMesh> SkeletalMesh = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "Dataflow" )
 	FName PropertyName = "SkeletalMesh";
 
-	Dataflow::TOutput<Dataflow::USkeletalMeshPtr> SkeletalMeshOut;
-
 	FGetSkeletalMeshDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, SkeletalMeshOut({ FName("SkeletalMeshOut"), this })
-	{}
+	{
+		RegisterOutputConnection(&SkeletalMesh);
+	}
 
 
-	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
+
 
 USTRUCT()
 struct DATAFLOWNODES_API FSkeletalMeshBoneDataflowNode : public FDataflowNode
@@ -52,17 +51,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	FName BoneName;
 
-	Dataflow::TInput<Dataflow::USkeletalMeshPtr> SkeletalMeshIn;
-	Dataflow::TOutput<int> BoneIndexOut;
+	UPROPERTY(meta = (DataflowInput, DisplayName = "SkeletalMesh"))
+	TObjectPtr<const USkeletalMesh> SkeletalMesh = nullptr;
+
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "Index"))
+	int BoneIndexOut = INDEX_NONE;
 
 	FSkeletalMeshBoneDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
-		, SkeletalMeshIn({ FName("SkeletalMeshIn"), this })
-		, BoneIndexOut({ FName("BoneIndexOut"), this, INDEX_NONE })
-	{}
+	{
+		RegisterInputConnection(&SkeletalMesh);
+		RegisterOutputConnection(&BoneIndexOut);
+	}
 
 
-	virtual void Evaluate(const Dataflow::FContext& Context, Dataflow::FConnection* Out) const override;
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
 namespace Dataflow

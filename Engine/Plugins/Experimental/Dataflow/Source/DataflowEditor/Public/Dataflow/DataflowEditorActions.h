@@ -6,11 +6,7 @@
 #include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
 
-namespace Dataflow 
-{
-	class FConnection;
-}
-
+struct FDataflowOutput;
 class IStructureDetailsView;
 class UDataflow;
 class UDataflowEdNode;
@@ -44,7 +40,7 @@ public:
 class DATAFLOWEDITOR_API FDataflowEditorCommands
 {
 public:
-	typedef TFunction<void(FDataflowNode*, Dataflow::FConnection*)> FGraphEvaluationCallback;
+	typedef TFunction<void(FDataflowNode*, FDataflowOutput*)> FGraphEvaluationCallback;
 	typedef TFunction<void(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)> FOnDragDropEventCallback;
 
 	static void Register();
