@@ -1575,6 +1575,13 @@ TSharedRef<FMaterialShaderMap::FAsyncLoadContext> FMaterialShaderMap::BeginLoadF
 				DumpShaderDDCKeyToFile(InPlatform, ShaderMapId.LayoutParams.WithEditorOnly(), FileName, Result->DataKey);
 			}
 
+			if (Material->IsDefaultMaterial() && Material->GetMaterialDomain() == EMaterialDomain::MD_Surface)
+			{
+				FString SpecialEngineDDCKey = Result->DataKey;
+				SpecialEngineDDCKey.RemoveFromEnd(TEXT("\n"));
+				UE_LOG(LogMaterial, Display, TEXT("%s-%s-%s: %s"), *Material->GetAssetName(), *LexToString(ShaderMapId.FeatureLevel), *LexToString(ShaderMapId.QualityLevel), *SpecialEngineDDCKey);
+			}
+
 			bool CheckCache = true;
 
 			// If NoShaderDDC then don't check for a material the first time we encounter it to simulate
