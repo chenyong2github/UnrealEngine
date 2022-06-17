@@ -2,18 +2,18 @@
 
 #include "VirtualizationManager.h"
 
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
 #include "IVirtualizationBackend.h"
 #include "Logging/MessageLog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/CoreDelegates.h"
 #include "Misc/PackageName.h"
 #include "Misc/PackagePath.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
-#include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ScopedSlowTask.h"
 #include "PackageSubmissionChecks.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "VirtualizationFilterSettings.h"
@@ -188,14 +188,14 @@ namespace Profiling
 			return; // Early out if we have no data
 		}
 
-		UE_LOG(LogVirtualization, Log, TEXT(""));
-		UE_LOG(LogVirtualization, Log, TEXT("Virtualization ProfileData"));
-		UE_LOG(LogVirtualization, Log, TEXT("======================================================================================="));
+		UE_LOG(LogVirtualization, Display, TEXT(""));
+		UE_LOG(LogVirtualization, Display, TEXT("Virtualization ProfileData"));
+		UE_LOG(LogVirtualization, Display, TEXT("======================================================================================="));
 
 		if (CacheStats.Num() > 0)
 		{
-			UE_LOG(LogVirtualization, Log, TEXT("%-40s|%17s|%12s|%14s|"), TEXT("Caching Data"), TEXT("TotalSize (MB)"), TEXT("TotalTime(s)"), TEXT("DataRate(MB/S)"));
-			UE_LOG(LogVirtualization, Log, TEXT("----------------------------------------|-----------------|------------|--------------|"));
+			UE_LOG(LogVirtualization, Display, TEXT("%-40s|%17s|%12s|%14s|"), TEXT("Caching Data"), TEXT("TotalSize (MB)"), TEXT("TotalTime(s)"), TEXT("DataRate(MB/S)"));
+			UE_LOG(LogVirtualization, Display, TEXT("----------------------------------------|-----------------|------------|--------------|"));
 
 			for (const auto& Iterator : CacheStats)
 			{
@@ -203,20 +203,20 @@ namespace Profiling
 				const int64 DataSizeMB = Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes) / (1024 * 1024);
 				const double MBps = Time != 0.0 ? (DataSizeMB / Time) : 0.0;
 
-				UE_LOG(LogVirtualization, Log, TEXT("%-40.40s|%17" UINT64_FMT "|%12.3f|%14.3f|"),
+				UE_LOG(LogVirtualization, Display, TEXT("%-40.40s|%17" UINT64_FMT "|%12.3f|%14.3f|"),
 					*Iterator.Key,
 					DataSizeMB,
 					Time,
 					MBps);
 			}
 
-			UE_LOG(LogVirtualization, Log, TEXT("======================================================================================="));
+			UE_LOG(LogVirtualization, Display, TEXT("======================================================================================="));
 		}
 
 		if (PushStats.Num() > 0)
 		{
-			UE_LOG(LogVirtualization, Log, TEXT("%-40s|%17s|%12s|%14s|"), TEXT("Pushing Data"), TEXT("TotalSize (MB)"), TEXT("TotalTime(s)"), TEXT("DataRate(MB/S)"));
-			UE_LOG(LogVirtualization, Log, TEXT("----------------------------------------|-----------------|------------|--------------|"));
+			UE_LOG(LogVirtualization, Display, TEXT("%-40s|%17s|%12s|%14s|"), TEXT("Pushing Data"), TEXT("TotalSize (MB)"), TEXT("TotalTime(s)"), TEXT("DataRate(MB/S)"));
+			UE_LOG(LogVirtualization, Display, TEXT("----------------------------------------|-----------------|------------|--------------|"));
 
 			for (const auto& Iterator : PushStats)
 			{
@@ -224,20 +224,20 @@ namespace Profiling
 				const int64 DataSizeMB = Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes) / (1024 * 1024);
 				const double MBps = Time != 0.0 ? (DataSizeMB / Time) : 0.0;
 
-				UE_LOG(LogVirtualization, Log, TEXT("%-40.40s|%17" UINT64_FMT "|%12.3f|%14.3f|"),
+				UE_LOG(LogVirtualization, Display, TEXT("%-40.40s|%17" UINT64_FMT "|%12.3f|%14.3f|"),
 					*Iterator.Key,
 					DataSizeMB,
 					Time,
 					MBps);
 			}
 
-			UE_LOG(LogVirtualization, Log, TEXT("======================================================================================="));
+			UE_LOG(LogVirtualization, Display, TEXT("======================================================================================="));
 		}
 
 		if (PullStats.Num() > 0)
 		{
-			UE_LOG(LogVirtualization, Log, TEXT("%-40s|%17s|%12s|%14s|"), TEXT("Pulling Data"), TEXT("TotalSize (MB)"), TEXT("TotalTime(s)"), TEXT("DataRate(MB/S)"));
-			UE_LOG(LogVirtualization, Log, TEXT("----------------------------------------|-----------------|------------|--------------|"));
+			UE_LOG(LogVirtualization, Display, TEXT("%-40s|%17s|%12s|%14s|"), TEXT("Pulling Data"), TEXT("TotalSize (MB)"), TEXT("TotalTime(s)"), TEXT("DataRate(MB/S)"));
+			UE_LOG(LogVirtualization, Display, TEXT("----------------------------------------|-----------------|------------|--------------|"));
 
 			for (const auto& Iterator : PullStats)
 			{
@@ -245,14 +245,14 @@ namespace Profiling
 				const int64 DataSizeMB = Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes) / (1024 * 1024);
 				const double MBps = Time != 0.0 ? (DataSizeMB / Time) : 0.0;
 
-				UE_LOG(LogVirtualization, Log, TEXT("%-40.40s|%17" UINT64_FMT "|%12.3f|%14.3f|"),
+				UE_LOG(LogVirtualization, Display, TEXT("%-40.40s|%17" UINT64_FMT "|%12.3f|%14.3f|"),
 					*Iterator.Key,
 					DataSizeMB,
 					Time,
 					MBps);
 			}
 
-			UE_LOG(LogVirtualization, Log, TEXT("======================================================================================="));
+			UE_LOG(LogVirtualization, Display, TEXT("======================================================================================="));
 		}
 	}
 #endif // ENABLE_COOK_STATS
@@ -264,12 +264,6 @@ FVirtualizationManager::FVirtualizationManager()
 	, MinPayloadLength(0)
 	, BackendGraphName(TEXT("ContentVirtualizationBackendGraph_None"))
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::FVirtualizationManager);
-
-	// Allows us to log the profiling data on process exit. 
-	// TODO: We should just be able to call the logging in the destructor, but 
-	// we need to fix the startup/shutdown ordering of Mirage first.
-	COOK_STAT(FCoreDelegates::OnExit.AddStatic(Profiling::LogStats));
 }
 
 FVirtualizationManager::~FVirtualizationManager()
@@ -640,6 +634,13 @@ bool FVirtualizationManager::TryVirtualizePackages(const TArray<FString>& FilesT
 	UE::Virtualization::VirtualizePackages(FilesToVirtualize, OutDescriptionTags, OutErrors);
 
 	return OutErrors.IsEmpty();
+}
+
+void FVirtualizationManager::DumpStats() const
+{
+#if ENABLE_COOK_STATS
+	Profiling::LogStats();
+#endif // ENABLE_COOK_STATS
 }
 
 FPayloadActivityInfo FVirtualizationManager::GetAccumualtedPayloadActivityInfo() const

@@ -140,6 +140,8 @@ private:
 
 	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) override;
 
+	virtual void DumpStats() const override;
+
 	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const override;
 
 	virtual void GetPayloadActivityInfo( GetPayloadActivityInfoFuncRef ) const override;

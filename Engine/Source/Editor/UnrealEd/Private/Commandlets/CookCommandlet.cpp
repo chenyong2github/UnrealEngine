@@ -55,6 +55,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogCookCommandlet, Log, All);
 #include "AnalyticsEventAttribute.h"
 #include "IAnalyticsProviderET.h"
 #include "AnalyticsET.h"
+#include "Virtualization/VirtualizationSystem.h"
 
 namespace DetailedCookStats
 {
@@ -394,6 +395,8 @@ namespace DetailedCookStats
 		}
 
 		DumpBuildDependencyTrackerStats();
+
+		UE::Virtualization::IVirtualizationSystem::Get().DumpStats();
 	}
 }
 #endif

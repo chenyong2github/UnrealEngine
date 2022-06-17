@@ -69,10 +69,6 @@ public:
 		return EQueryResult::Failure_NotImplemented;
 	}
 
-	virtual void GetPayloadActivityInfo(GetPayloadActivityInfoFuncRef) const override
-	{
-	}
-
 	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) override
 	{
 		OutDescriptionTags.Reset();
@@ -81,6 +77,16 @@ public:
 		OutErrors.Add(FText::FromString(TEXT("Calling ::TryVirtualizePackages on FNullVirtualizationSystem")));
 
 		return false;
+	}
+
+	virtual void DumpStats() const override
+	{
+		// The null implementation will have no stats and nothing to log
+	}
+
+	virtual void GetPayloadActivityInfo(GetPayloadActivityInfoFuncRef) const override
+	{
+		// The null implementation has no stats and nothing to invoke
 	}
 
 	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const override
