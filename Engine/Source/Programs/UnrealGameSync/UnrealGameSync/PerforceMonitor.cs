@@ -234,19 +234,11 @@ namespace UnrealGameSync
 
 		async Task PollForUpdates(CancellationToken CancellationToken)
 		{
-			bool bCoolDown = false;
 			while (!CancellationToken.IsCancellationRequested)
 			{
 				try
 				{
-					if (bCoolDown)
-					{
-						await Task.Delay(TimeSpan.FromSeconds(20.0), CancellationToken);
-					}
-					else
-					{
-						await PollForUpdatesInner(CancellationToken);
-					}
+					await PollForUpdatesInner(CancellationToken);
 				}
 				catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested)
 				{
@@ -259,7 +251,7 @@ namespace UnrealGameSync
 					{
 						Program.CaptureException(Ex);
 					}
-					bCoolDown = true;
+					await Task.Delay(TimeSpan.FromSeconds(20.0), CancellationToken).ContinueWith(x => { });
 				}
 			}
 		}
