@@ -119,6 +119,8 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
 		/// <param name="sizeStrategy">New pool sizing strategy for the pool</param>
+		/// <param name="leaseUtilizationSettings">Settings for lease utilization-based strategy</param>
+		/// <param name="jobQueueSettings">Settings for job queue-based strategy</param>
 		/// <param name="useDefaultStrategy">Whether to use the default strategy</param>
 		/// <returns>Async task object</returns>
 		public async Task<IPool?> UpdatePoolAsync(
@@ -132,6 +134,8 @@ namespace Horde.Build.Agents.Pools
 			TimeSpan? scaleOutCooldown = null,
 			TimeSpan? scaleInCooldown = null,
 			PoolSizeStrategy? sizeStrategy = null,
+			LeaseUtilizationSettings? leaseUtilizationSettings = null,
+			JobQueueSettings? jobQueueSettings = null,
 			bool? useDefaultStrategy = null)
 		{
 			for (; pool != null; pool = await _pools.GetAsync(pool.Id))
@@ -147,6 +151,8 @@ namespace Horde.Build.Agents.Pools
 					scaleOutCooldown: scaleOutCooldown,
 					scaleInCooldown: scaleInCooldown,
 					sizeStrategy: sizeStrategy,
+					leaseUtilizationSettings: leaseUtilizationSettings,
+					jobQueueSettings: jobQueueSettings,
 					useDefaultStrategy: useDefaultStrategy);
 				
 				if (newPool != null)

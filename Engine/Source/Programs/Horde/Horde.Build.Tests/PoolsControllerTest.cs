@@ -57,13 +57,16 @@ namespace Horde.Build.Tests
 	        await PoolsController.UpdatePoolAsync(pool1.Id.ToString(), new UpdatePoolRequest
 	        {
 		        Name = "Pool1Modified",
-		        SizeStrategy = PoolSizeStrategy.JobQueue
+		        SizeStrategy = PoolSizeStrategy.JobQueue,
+		        JobQueueSettings = new JobQueueSettingsMessage { ScaleOutFactor = 25.0, ScaleInFactor = 0.3 }
 	        });
-
+	        
 	        ActionResult<object> getResult = await PoolsController.GetPoolAsync(pool1.Id.ToString());
 	        GetPoolResponse response = (getResult.Value! as GetPoolResponse)!;
 	        Assert.AreEqual("Pool1Modified", response.Name);
 	        Assert.AreEqual(PoolSizeStrategy.JobQueue, response.SizeStrategy);
+	        Assert.AreEqual(25.0, response.JobQueueSettings!.ScaleOutFactor);
+	        Assert.AreEqual(0.3, response.JobQueueSettings!.ScaleInFactor);
         }
     }
 }

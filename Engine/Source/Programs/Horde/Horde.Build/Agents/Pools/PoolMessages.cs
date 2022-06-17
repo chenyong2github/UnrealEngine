@@ -25,9 +25,9 @@ namespace Horde.Build.Agents.Pools
 		/// Convert this public REST API object to an internal representation
 		/// </summary>
 		/// <returns></returns>
-		public Horde.Build.Agents.Fleet.LeaseUtilizationSettings Convert()
+		public LeaseUtilizationSettings Convert()
 		{
-			return new Horde.Build.Agents.Fleet.LeaseUtilizationSettings();
+			return new LeaseUtilizationSettings();
 		}
 	}
 	
@@ -47,6 +47,13 @@ namespace Horde.Build.Agents.Pools
 		/// Example: when the queue size is zero, a default value of 0.9 will shrink the pool by 10% (current agent count * 0.9)
 		/// </summary>
 		public double ScaleInFactor { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public JobQueueSettingsMessage()
+		{
+		}
 
 		/// <summary>
 		/// Construct a public REST API representation from the internal one
@@ -193,12 +200,12 @@ namespace Horde.Build.Agents.Pools
 		/// <summary>
 		/// Settings for lease utilization pool sizing strategy (if used)
 		/// </summary>
-		public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
+		public LeaseUtilizationSettingsMessage? LeaseUtilizationSettings { get; set; }
 		
 		/// <summary>
 		/// Settings for job queue pool sizing strategy (if used) 
 		/// </summary>
-		public JobQueueSettings? JobQueueSettings { get; set; }
+		public JobQueueSettingsMessage? JobQueueSettings { get; set; }
 
 		/// <summary>
 		/// The minimum nunmber of agents to retain in this pool

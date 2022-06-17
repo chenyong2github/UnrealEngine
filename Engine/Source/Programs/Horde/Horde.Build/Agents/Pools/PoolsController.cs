@@ -147,7 +147,8 @@ namespace Horde.Build.Agents.Pools
 			TimeSpan? scaleInCooldown = update.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(update.ScaleInCooldown.Value);
 
 			await _poolService.UpdatePoolAsync(pool, update.Name, update.Condition, update.EnableAutoscaling,
-				update.MinAgents, update.NumReserveAgents, update.Properties, scaleOutCooldown, scaleInCooldown, update.SizeStrategy, update.UseDefaultStrategy);
+				update.MinAgents, update.NumReserveAgents, update.Properties, scaleOutCooldown, scaleInCooldown, update.SizeStrategy,
+				update.LeaseUtilizationSettings?.Convert(), update.JobQueueSettings?.Convert(), update.UseDefaultStrategy);
 			return new OkResult();
 		}
 
