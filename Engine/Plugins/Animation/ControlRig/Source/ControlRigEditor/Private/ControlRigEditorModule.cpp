@@ -477,12 +477,13 @@ TSharedRef< SWidget > FControlRigEditorModule::GenerateAnimationMenu(TWeakPtr<IA
 											if (Tag.IsSet())
 											{
 												FString EventString = FRigUnit_InverseExecution::EventName.ToString();
+												FString OldEventString = FString(TEXT("Inverse"));
 												TArray<FString> SupportedEventNames;
 												Tag.GetValue().ParseIntoArray(SupportedEventNames, TEXT(","), true);
 
 												for (const FString& Name : SupportedEventNames)
 												{
-													if (Name.Contains(EventString))
+													if (Name.Contains(EventString) || Name.Contains(OldEventString))
 													{
 														bHasInversion = true;
 														break;
