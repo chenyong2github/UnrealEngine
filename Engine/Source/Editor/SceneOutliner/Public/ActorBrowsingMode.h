@@ -102,7 +102,7 @@ private:
 	/** Build and up the context menu */
 	TSharedPtr<SWidget> BuildContextMenu();
 	/** Register the context menu with the engine */
-	void RegisterContextMenu();
+	static void RegisterContextMenu();
 	bool CanPasteFoldersOnlyFromClipboard() const;
 
 	bool GetFolderNamesFromPayload(const FSceneOutlinerDragDropPayload& InPayload, TArray<FName>& OutFolders, FFolder::FRootObject& OutCommonRootObject) const;
