@@ -265,14 +265,18 @@ namespace UnrealGameSync
 			}
 
 			// Get the application path
-			string? OriginalExe = UpdateSpawn;
-			if (OriginalExe == null)
+			string OriginalExe = Assembly.GetExecutingAssembly().Location;
+			if (Path.GetExtension(OriginalExe).Equals(".dll", StringComparison.OrdinalIgnoreCase))
 			{
-				OriginalExe = Path.ChangeExtension(Assembly.GetExecutingAssembly().Location, ".exe");
+				string NewExecutable = Path.ChangeExtension(OriginalExe, ".exe");
+				if (File.Exists(NewExecutable))
+				{
+					OriginalExe = NewExecutable;
+				}
 			}
 
-			// Create the main window
-			MainWindowInstance = new MainWindow(UpdateMonitor, ApiUrl, DataFolder, CacheFolder, bRestoreState, OriginalExe, bUnstable, StartupTasks, DefaultPerforceSettings, ServiceProvider, Settings, Uri, OIDCTokenManager);
+			// Create the main window 
+			MainWindowInstance = new MainWindow(UpdateMonitor, ApiUrl, DataFolder, CacheFolder, bRestoreState, UpdateSpawn ?? OriginalExe, bUnstable, StartupTasks, DefaultPerforceSettings, ServiceProvider, Settings, Uri, OIDCTokenManager);
 			if(bVisible)
 			{
 				MainWindowInstance.Show();

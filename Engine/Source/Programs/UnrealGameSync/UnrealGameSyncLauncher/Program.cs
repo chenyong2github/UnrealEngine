@@ -170,7 +170,17 @@ namespace UnrealGameSyncLauncher
 				Logger.LogInformation("");
 
 				// Build the command line for the synced application, including the sync path to monitor for updates
-				StringBuilder NewCommandLine = new StringBuilder(String.Format("-updatepath=\"{0}@>{1}\" -updatespawn=\"{2}\"{3}", SyncPath, RequiredChangeNumber, Assembly.GetEntryAssembly()!.Location, bUnstable ? " -unstable" : ""));
+				string OriginalExecutable = Assembly.GetEntryAssembly()!.Location;
+                if (Path.GetExtension(OriginalExecutable).Equals(".dll", StringComparison.OrdinalIgnoreCase))
+                {
+                    string NewExecutable = Path.ChangeExtension(OriginalExecutable, ".exe");
+                    if (File.Exists(NewExecutable))
+                    {
+                        OriginalExecutable = NewExecutable;
+                    }
+                }
+
+				StringBuilder NewCommandLine = new StringBuilder(String.Format("-updatepath=\"{0}@>{1}\" -updatespawn=\"{2}\"{3}", SyncPath, RequiredChangeNumber, OriginalExecutable, bUnstable ? " -unstable" : ""));
 				foreach (string Arg in Args)
 				{
 					NewCommandLine.AppendFormat(" {0}", QuoteArgument(Arg));
