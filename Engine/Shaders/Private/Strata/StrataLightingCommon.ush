@@ -237,7 +237,7 @@ void StrataEnvLightingCommon(
 				CompositeReflectionCapturesAndSkylightTWS(
 					(bIsTopLayer ? TopLayerSpecularContributionFactor : 1.0f) * SpecularOcclusion,
 					TranslatedWorldPosition,
-					StrataEnvLight.SpecularDirection,
+					StrataEnvLight.SpecularHazeDirection,
 					StrataEnvLight.SpecularHazeSafeRoughness,
 					IndirectIrradiance,
 					IndirectSpecularOcclusion,

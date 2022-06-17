@@ -236,7 +236,7 @@ float3 StrataForwardLighting(
 					if (any(StrataEnvLight.SpecularHazeWeight > 0.0f))
 					{
 						int SingleCaptureIndex = GetPrimitiveData(MaterialParameters).SingleCaptureIndex;
-						Color += GetImageBasedReflectionSpecular(MaterialParameters, StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularHazeSafeRoughness, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex) *
+						Color += GetImageBasedReflectionSpecular(MaterialParameters, StrataEnvLight.SpecularHazeDirection, StrataEnvLight.SpecularHazeSafeRoughness, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex) *
 							StrataEnvLight.SpecularHazeWeight * IndirectOcclusion * LuminanceWeight(StrataBSDFContext, CurrentBSDF) * AOMultiBounce(StrataEnvLight.SpecularColor, ShadingOcclusion.SpecOcclusion);
 					}
 				}

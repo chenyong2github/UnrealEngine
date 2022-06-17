@@ -1188,7 +1188,7 @@ struct FStrataEnvLightResult
 	float3 SpecularWeight;
 	float  SpecularSafeRoughness;
 
-	// Specular haze maintains the same off peak specular direction as the non hazy specular lobe
+	float3 SpecularHazeDirection;	// We must use a different direction to not have a rough specular affect a sharp specular due to StrataGetOffSpecularPeakReflectionDir.
 	float3 SpecularHazeWeight;
 	float  SpecularHazeSafeRoughness;
 	float  SSRReduction;
@@ -1308,7 +1308,9 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					const float HazeWeight = Haziness.Weight;
 					const float HazeSafeRoughness = MakeRoughnessSafe(Haziness.Roughness);
 					const bool  bHazeAsSimpleClearCoat = Haziness.bSimpleClearCoat;
-					
+
+					StrataEnvLightResult.SpecularHazeDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, HazeSafeRoughness);
+
 					BRANCH
 					if (bHazeAsSimpleClearCoat)
 					{
