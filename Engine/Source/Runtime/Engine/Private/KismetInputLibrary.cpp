@@ -146,9 +146,9 @@ EUINavigation UKismetInputLibrary::Key_GetNavigationDirectionFromAnalog(const FA
 }
 
 
-FText UKismetInputLibrary::Key_GetDisplayName(const FKey& Key)
+FText UKismetInputLibrary::Key_GetDisplayName(const FKey& Key, const bool bLongDisplayName)
 {
-	return Key.GetDisplayName();
+	return Key.GetDisplayName(bLongDisplayName);
 }
 
 bool UKismetInputLibrary::InputEvent_IsRepeat(const FInputEvent& Input)

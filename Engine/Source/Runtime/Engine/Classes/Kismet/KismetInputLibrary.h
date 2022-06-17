@@ -155,7 +155,7 @@ class ENGINE_API UKismetInputLibrary : public UBlueprintFunctionLibrary
 	 * Returns the display name of the key.
 	 */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Key Display Name"), Category="Input|Key")
-	static FText Key_GetDisplayName(const FKey& Key);
+	static FText Key_GetDisplayName(const FKey& Key, bool bLongDisplayName = true);
 
 	/**
 	 * Returns whether or not this character is an auto-repeated keystroke
