@@ -137,45 +137,6 @@ FQuat UGizmoElementBase::GetAlignRotBetweenCoordSpaces(FVector SourceForward, FV
 	return Result;
 }
 
-const UMaterialInterface* UGizmoElementBase::GetCurrentMaterial(const FRenderTraversalState& RenderState) const
-{
-	EGizmoElementInteractionState CurrentState;
-
-	if (RenderState.InteractionState == EGizmoElementInteractionState::None)
-	{
-		CurrentState = ElementInteractionState;
-	}
-	else
-	{
-		CurrentState = RenderState.InteractionState;
-	}
-
-	if (CurrentState == EGizmoElementInteractionState::Hovering)
-	{
-		if (RenderState.HoverMaterial.IsValid())
-		{
-			return RenderState.HoverMaterial.Get();
-		}
-		return HoverMaterial;
-	}
-
-	if (CurrentState == EGizmoElementInteractionState::Interacting)
-	{
-		if (RenderState.InteractMaterial.IsValid())
-		{
-			return RenderState.InteractMaterial.Get();
-		}
-		return InteractMaterial;
-	}
-
-	// CurrentState is None, so just return the regular material
-	if (RenderState.Material.IsValid())
-	{
-		return RenderState.Material.Get();
-	}
-	return Material;
-}
-
 void UGizmoElementBase::CacheRenderState(const FTransform& InLocalToWorldState, double InPixelToWorldScale, bool InVisibleViewDependent)
 {
 	CachedLocalToWorldTransform = InLocalToWorldState;
@@ -192,24 +153,37 @@ void UGizmoElementBase::ResetCachedRenderState()
 	bCachedVisibleViewDependent = true;
 }
 
-void UGizmoElementBase::UpdateRenderTraversalState(FRenderTraversalState& InRenderTraversalState)
+bool UGizmoElementBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalOrigin, FRenderTraversalState& InOutRenderState)
 {
-	if (InRenderTraversalState.InteractionState == EGizmoElementInteractionState::None)
+	check(RenderAPI);
+	const FSceneView* View = RenderAPI->GetSceneView();
+	check(View);
+
+	if (InOutRenderState.InteractionState == EGizmoElementInteractionState::None)
 	{
-		InRenderTraversalState.InteractionState = ElementInteractionState;
+		InOutRenderState.InteractionState = ElementInteractionState;
 	}
-	if (!InRenderTraversalState.HoverMaterial.IsValid())
+
+	InOutRenderState.MeshRenderState.Update(MeshRenderAttributes);
+
+	bool bVisibleViewDependent = GetViewDependentVisibility(View, InOutRenderState.LocalToWorldTransform, InLocalOrigin);
+
+	if (bVisibleViewDependent)
 	{
-		InRenderTraversalState.HoverMaterial = HoverMaterial;
+		FQuat AlignRot;
+		if (GetViewAlignRot(View, InOutRenderState.LocalToWorldTransform, InLocalOrigin, AlignRot))
+		{
+			InOutRenderState.LocalToWorldTransform = FTransform(AlignRot, InLocalOrigin) * InOutRenderState.LocalToWorldTransform;
+		}
+		else
+		{
+			InOutRenderState.LocalToWorldTransform = FTransform(InLocalOrigin) * InOutRenderState.LocalToWorldTransform;
+		}
 	}
-	if (!InRenderTraversalState.InteractMaterial.IsValid())
-	{
-		InRenderTraversalState.InteractMaterial = InteractMaterial;
-	}
-	if (!InRenderTraversalState.Material.IsValid())
-	{
-		InRenderTraversalState.Material = Material;
-	}
+
+	CacheRenderState(InOutRenderState.LocalToWorldTransform, InOutRenderState.PixelToWorldScale, bVisibleViewDependent);
+
+	return bVisibleViewDependent;
 }
 
 bool UGizmoElementBase::IsVisible() const
@@ -374,46 +348,6 @@ float UGizmoElementBase::GetViewAlignAxialAngleTol() const
 	return ViewAlignAxialAngleTol;
 }
 
-void UGizmoElementBase::SetMaterial(UMaterialInterface* InMaterial)
-{
-	Material = InMaterial;
-}
-
-UMaterialInterface* UGizmoElementBase::GetMaterial() const
-{
-	return Material;
-}
-
-void UGizmoElementBase::SetHoverMaterial(UMaterialInterface* InHoverMaterial)
-{
-	HoverMaterial = InHoverMaterial;
-}
-
-UMaterialInterface* UGizmoElementBase::GetHoverMaterial() const
-{
-	return HoverMaterial;
-}
-
-void UGizmoElementBase::SetInteractMaterial(UMaterialInterface* InInteractMaterial)
-{
-	InteractMaterial = InInteractMaterial;
-}
-
-UMaterialInterface* UGizmoElementBase::GetInteractMaterial() const
-{
-	return InteractMaterial;
-}
-
-void UGizmoElementBase::SetVertexColor(const FColor& InVertexColor)
-{
-	VertexColor = InVertexColor;
-}
-
-FColor UGizmoElementBase::GetVertexColor() const
-{
-	return VertexColor;
-}
-
 void UGizmoElementBase::SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold)
 {
 	PixelHitDistanceThreshold = InPixelHitDistanceThreshold;
@@ -422,5 +356,89 @@ void UGizmoElementBase::SetPixelHitDistanceThreshold(float InPixelHitDistanceThr
 float UGizmoElementBase::GetPixelHitDistanceThreshold() const
 {
 	return PixelHitDistanceThreshold;
+}
+
+void UGizmoElementBase::SetMaterial(TWeakObjectPtr<UMaterialInterface> InMaterial, bool InOverridesChildState)
+{
+	MeshRenderAttributes.Material.SetMaterial(InMaterial, InOverridesChildState);
+}
+
+const UMaterialInterface* UGizmoElementBase::GetMaterial() const
+{
+	return MeshRenderAttributes.Material.GetMaterial();
+}
+
+bool UGizmoElementBase::GetMaterialOverridesChildState() const
+{
+	return MeshRenderAttributes.Material.bOverridesChildState;
+}
+
+void UGizmoElementBase::ClearMaterial()
+{
+	MeshRenderAttributes.Material.Reset();
+}
+
+void UGizmoElementBase::SetHoverMaterial(TWeakObjectPtr<UMaterialInterface> InMaterial, bool InOverridesChildState)
+{
+	MeshRenderAttributes.HoverMaterial.SetMaterial(InMaterial, InOverridesChildState);
+}
+
+const UMaterialInterface* UGizmoElementBase::GetHoverMaterial() const
+{
+	return MeshRenderAttributes.HoverMaterial.GetMaterial();
+}
+
+bool UGizmoElementBase::GetHoverMaterialOverridesChildState() const
+{
+	return MeshRenderAttributes.HoverMaterial.bOverridesChildState;
+}
+
+void UGizmoElementBase::ClearHoverMaterial()
+{
+	MeshRenderAttributes.HoverMaterial.Reset();
+}
+
+void UGizmoElementBase::SetInteractMaterial(TWeakObjectPtr<UMaterialInterface> InMaterial, bool InOverridesChildState)
+{
+	MeshRenderAttributes.InteractMaterial.SetMaterial(InMaterial, InOverridesChildState);
+}
+
+const UMaterialInterface* UGizmoElementBase::GetInteractMaterial() const
+{
+	return MeshRenderAttributes.InteractMaterial.GetMaterial();
+}
+
+bool UGizmoElementBase::GetInteractMaterialOverridesChildState() const
+{
+	return MeshRenderAttributes.InteractMaterial.bOverridesChildState;
+}
+
+void UGizmoElementBase::ClearInteractMaterial()
+{
+	MeshRenderAttributes.InteractMaterial.Reset();
+}
+
+void UGizmoElementBase::SetVertexColor(FLinearColor InVertexColor, bool InOverridesChildState)
+{
+	MeshRenderAttributes.VertexColor.SetColor(InVertexColor, InOverridesChildState);
+}
+
+FLinearColor UGizmoElementBase::GetVertexColor() const
+{
+	return MeshRenderAttributes.VertexColor.GetColor();
+}
+bool UGizmoElementBase::HasVertexColor() const
+{
+	return MeshRenderAttributes.VertexColor.bHasValue;
+}
+
+bool UGizmoElementBase::GetVertexColorOverridesChildState() const
+{
+	return MeshRenderAttributes.VertexColor.bOverridesChildState;
+}
+
+void UGizmoElementBase::ClearVertexColor()
+{
+	MeshRenderAttributes.VertexColor.Reset();
 }
 

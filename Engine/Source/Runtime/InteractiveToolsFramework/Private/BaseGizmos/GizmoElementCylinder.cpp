@@ -15,33 +15,23 @@ void UGizmoElementCylinder::Render(IToolsContextRenderAPI* RenderAPI, const FRen
 	}
 
 	check(RenderAPI);
-	const FSceneView* View = RenderAPI->GetSceneView();
 
-	FTransform LocalToWorldTransform = RenderState.LocalToWorldTransform;
-
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, LocalToWorldTransform, Base);
+	FRenderTraversalState CurrentRenderState(RenderState);
+	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, Base, CurrentRenderState);
 
 	if (bVisibleViewDependent)
 	{
-		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState);
-
-		if (UseMaterial)
+		if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 		{
-			FQuat AlignRot;
-			const bool bHasAlignRot = GetViewAlignRot(View, LocalToWorldTransform, Base, AlignRot);
-			const FVector AdjustedDir = bHasAlignRot ? AlignRot.RotateVector(Direction) : Direction;
-
-			const FQuat Rotation = FRotationMatrix::MakeFromZ(AdjustedDir).ToQuat();
+			const FQuat Rotation = FRotationMatrix::MakeFromZ(Direction).ToQuat();
 			const double HalfHeight = Height * 0.5;
-			const FVector Origin = Base + AdjustedDir * HalfHeight;
+			const FVector OriginOffset = Direction * HalfHeight;
 
-			FTransform RenderLocalToWorldTransform = FTransform(Rotation, Origin) * LocalToWorldTransform;
+			FTransform RenderLocalToWorldTransform = FTransform(Rotation, OriginOffset) * CurrentRenderState.LocalToWorldTransform;
 			FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 			DrawCylinder(PDI, RenderLocalToWorldTransform.ToMatrixWithScale(), FVector::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), Radius, HalfHeight, NumSides, UseMaterial->GetRenderProxy(), SDPG_Foreground);
-
 		}
 	}
-	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
 
 
@@ -54,17 +44,17 @@ FInputRayHit UGizmoElementCylinder::LineTrace(const FVector RayOrigin, const FVe
 		double RayParam = 0.0;
 		
 		const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
-		const double CylinderHeight = Height * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust * 2.0;
-		const double CylinderRadius = Radius * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust;
-		const FVector CylinderDirection = CachedLocalToWorldTransform.TransformVectorNoScale(Direction);
-		const FVector CylinderLocalCenter = Base + Direction * Height * 0.5;
-		const FVector CylinderCenter = CachedLocalToWorldTransform.TransformPosition(CylinderLocalCenter);
+		const double WorldHeight = Height * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust * 2.0;
+		const double WorldRadius = Radius * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust;
+		const FVector WorldDirection = CachedLocalToWorldTransform.TransformVectorNoScale(Direction);
+		const FVector LocalCenter = Direction * Height * 0.5;
+		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(LocalCenter);
 
 		GizmoMath::RayCylinderIntersection(
-			CylinderCenter,
-			CylinderDirection,
-			CylinderRadius,
-			CylinderHeight,
+			WorldCenter,
+			WorldDirection,
+			WorldRadius,
+			WorldHeight,
 			RayOrigin, RayDirection,
 			bIntersects, RayParam);
 

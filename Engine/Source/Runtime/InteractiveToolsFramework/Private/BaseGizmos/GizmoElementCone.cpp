@@ -14,38 +14,24 @@ void UGizmoElementCone::Render(IToolsContextRenderAPI* RenderAPI, const FRenderT
 		return;
 	}
 
-	check(RenderAPI);
-	const FSceneView* View = RenderAPI->GetSceneView();
-
-	FTransform LocalToWorldTransform = RenderState.LocalToWorldTransform;
-
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, LocalToWorldTransform, Origin);
+	FRenderTraversalState CurrentRenderState(RenderState);
+	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, Origin, CurrentRenderState);
 
 	if (bVisibleViewDependent)
 	{
-		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState);
-
-		if (UseMaterial)
+		if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 		{
-			FQuat AlignRot;
-			const bool bHasAlignRot = GetViewAlignRot(View, LocalToWorldTransform, Origin, AlignRot);
-			const FVector AdjustedDir = bHasAlignRot ? AlignRot.RotateVector(Direction) : Direction;
-
-			FQuat Rotation = FRotationMatrix::MakeFromX(AdjustedDir).ToQuat();
-
+			FQuat Rotation = FRotationMatrix::MakeFromX(Direction).ToQuat();
 			const FVector Scale(Height);
 
-			FTransform RenderLocalToWorldTransform = FTransform(Rotation, Origin, Scale) * LocalToWorldTransform;
+			FTransform RenderLocalToWorldTransform = FTransform(Rotation, FVector::ZeroVector, Scale) * CurrentRenderState.LocalToWorldTransform;
 			const float ConeSide = FMath::Sqrt(Height * Height + Radius * Radius);
 			const float Angle = FMath::Acos(Height / ConeSide);
 			FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 			DrawCone(PDI, RenderLocalToWorldTransform.ToMatrixWithScale(), Angle, Angle, NumSides, false, FColor::White, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 		}
 	}
-	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
-
-
 
 FInputRayHit UGizmoElementCone::LineTrace(const FVector RayOrigin, const FVector RayDirection)
 {
@@ -57,15 +43,15 @@ FInputRayHit UGizmoElementCone::LineTrace(const FVector RayOrigin, const FVector
 		const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
 		const double ConeSide = FMath::Sqrt(Height * Height + Radius * Radius);
 		const double CosAngle = Height / ConeSide;
-		const double ConeHeight = Height * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust * 2.0;
-		const FVector ConeDirection = CachedLocalToWorldTransform.TransformVectorNoScale(Direction);
-		const FVector ConeOrigin = CachedLocalToWorldTransform.TransformPosition(Origin) - ConeDirection * PixelHitThresholdAdjust;
+		const double WorldHeight = Height * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust * 2.0;
+		const FVector WorldDirection = CachedLocalToWorldTransform.TransformVectorNoScale(Direction);
+		const FVector WorldOrigin = CachedLocalToWorldTransform.TransformPosition(FVector::ZeroVector) - WorldDirection * PixelHitThresholdAdjust;
 
 		GizmoMath::RayConeIntersection(
-			ConeOrigin,
-			ConeDirection,
+			WorldOrigin,
+			WorldDirection,
 			CosAngle,
-			ConeHeight,
+			WorldHeight,
 			RayOrigin, RayDirection,
 			bIntersects, RayParam);
 

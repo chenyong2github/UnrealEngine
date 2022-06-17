@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "BaseGizmos/GizmoElementBase.h"
+#include "BaseGizmos/GizmoElementLineBase.h"
 #include "InputState.h"
 #include "GizmoElementGroup.generated.h"
 
@@ -13,7 +13,7 @@
  * Contains multiple gizmo objects.
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementGroup : public UGizmoElementBase
+class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementGroup : public UGizmoElementLineBase
 {
 	GENERATED_BODY()
 

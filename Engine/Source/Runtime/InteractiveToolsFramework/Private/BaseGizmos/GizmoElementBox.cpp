@@ -15,40 +15,21 @@ void UGizmoElementBox::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTr
 	}
 
 	check(RenderAPI);
-	const FSceneView* View = RenderAPI->GetSceneView();
 
-	FTransform LocalToWorldTransform = RenderState.LocalToWorldTransform;
-
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, LocalToWorldTransform, Center);
+	FRenderTraversalState CurrentRenderState(RenderState);
+	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, Center, CurrentRenderState);
 
 	if (bVisibleViewDependent)
 	{
-		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState);
-
-		if (UseMaterial)
+		if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 		{
-			FQuat AlignRot;
-			FVector AdjustedSideDir, AdjustedUpDir;
-			if (GetViewAlignRot(View, LocalToWorldTransform, Center, AlignRot))
-			{
-				AdjustedSideDir = AlignRot.RotateVector(SideDirection);
-				AdjustedUpDir = AlignRot.RotateVector(UpDirection);
-			}
-			else
-			{
-				AdjustedSideDir = SideDirection;
-				AdjustedUpDir = UpDirection;
-			}
-
-			FQuat Rotation = FRotationMatrix::MakeFromYZ(AdjustedSideDir, AdjustedUpDir).ToQuat();
-			FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-			FTransform DrawTransform = FTransform(Rotation, Center) * LocalToWorldTransform;
+			FQuat LocalRotation = FRotationMatrix::MakeFromYZ(SideDirection, UpDirection).ToQuat();
+			FTransform RenderLocalToWorldTransform = FTransform(LocalRotation) * CurrentRenderState.LocalToWorldTransform;
 			const FVector HalfDimensions = Dimensions * 0.5;
-			DrawBox(PDI, DrawTransform.ToMatrixWithScale(), HalfDimensions, UseMaterial->GetRenderProxy(), SDPG_Foreground);
+			FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
+			DrawBox(PDI, RenderLocalToWorldTransform.ToMatrixWithScale(), HalfDimensions, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 		}
 	}
-
-	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementBox::LineTrace(const FVector RayOrigin, const FVector RayDirection)
@@ -58,7 +39,7 @@ FInputRayHit UGizmoElementBox::LineTrace(const FVector RayOrigin, const FVector 
 		const FVector YAxis = CachedLocalToWorldTransform.TransformVectorNoScale(SideDirection);
 		const FVector ZAxis = CachedLocalToWorldTransform.TransformVectorNoScale(UpDirection);
 		const FVector XAxis = FVector::CrossProduct(YAxis, ZAxis);
-		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(Center);
+		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(FVector::ZeroVector);
 		const double Scale = CachedLocalToWorldTransform.GetScale3D().X;
 		const FVector WorldExtent = Dimensions * Scale * 0.5;
 

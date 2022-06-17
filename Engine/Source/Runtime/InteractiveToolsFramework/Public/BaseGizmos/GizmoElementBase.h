@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BaseGizmos/GizmoElementRenderState.h"
+#include "BaseGizmos/GizmoElementShared.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "InputState.h"
@@ -12,42 +14,6 @@
 #include "GizmoElementBase.generated.h"
 
 class UMaterialInterface;
-
-// bitmask indicating whether object is visible, hittable or both
-UENUM()
-enum class EGizmoElementState : uint8
-{
-	None		= 0x00,
-	Visible		= 1<<1,
-	Hittable	= 1<<2,
-	VisibleAndHittable = Visible | Hittable
-};
-
-UENUM()
-enum class EGizmoElementInteractionState
-{
-	None,
-	Hovering,
-	Interacting
-};
-
-UENUM()
-enum class EGizmoElementViewDependentType
-{
-	None,
-	Axis, // Cull object when angle between axis and view direction is within a given tolerance
-	Plane // Cull object when angle between plane normal and view direction is perpendicular within a given tolerance
-};
-
-UENUM()
-enum class EGizmoElementViewAlignType
-{
-	None,
-	PointOnly, // Align object forward axis to view direction only, useful for symmetrical objects such as a circle
-	PointEye, // Align object forward axis to -camera view direction (camera pos - object center), align object up axis to scene view up
-	PointScreen, // Align object forward axis to scene view forward direction (view up ^ view right), align object up axis to scene view up
-	Axial // Rotate object around up axis, minimizing angle between forward axis and view direction
-};
 
 /**
  * Base class for 2d and 3d primitive objects intended to be used as part of 3D Gizmos.
@@ -69,7 +35,15 @@ public:
 
 	static constexpr uint32 DefaultPartIdentifier = 0;						// Default part ID, used for elements that are not associated with any gizmo part
 
-	// Helper struct used to store traversal state during render
+	// 
+	// Render traversal state structure used to maintain the current render state while rendering.
+	// As the gizmo element hierarchy is traversed, current state is maintained and updated. 
+	// Element state attribute inheritance works as follows:
+	//
+	// - Child element state that is not set inherits from parent state.
+	// - Child element state that is set replaces the parent state, except in the case of overrides.
+	// - Overrides: parent element state with override set to true replaces all child state regardless of whether the child state has been set.
+	//
 	struct FRenderTraversalState
 	{
 		// LocalToWorld transform 
@@ -79,22 +53,38 @@ public:
 		// Pixel to world scale
 		double PixelToWorldScale = 1.0;
 
-		// Material, if set, overrides the element's material
-		TWeakObjectPtr<UMaterialInterface> Material = nullptr;
-
-		// Hover material, if set, overrides the element's hover material
-		TWeakObjectPtr<UMaterialInterface> HoverMaterial = nullptr;
-
-		// Interact material, if set, overrides the element's interact material
-		TWeakObjectPtr<UMaterialInterface> InteractMaterial = nullptr;
-
-		// Interact state, if not equal to none, overrides the element's interact state
+		// Interact state, if not equal to none, overrides the element's interact state 
 		EGizmoElementInteractionState InteractionState = EGizmoElementInteractionState::None;
 
+		// Current state used for rendering meshes
+		FGizmoElementMeshRenderStateAttributes MeshRenderState;
+
+		// Current state used for rendering lines
+		FGizmoElementLineRenderStateAttributes LineRenderState;
+
+		// Initialize state 
 		void Initialize(const FSceneView* InSceneView, FTransform InTransform)
 		{
 			LocalToWorldTransform = InTransform;
 			PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(InSceneView, InTransform.GetLocation());
+		}
+
+		// Returns the mesh material based on the current interaction state.
+		const UMaterialInterface* GetCurrentMaterial()
+		{
+			return MeshRenderState.GetMaterial(InteractionState);
+		}
+
+		// Returns the mesh vertex color.
+		FLinearColor GetVertexColor()
+		{
+			return MeshRenderState.GetVertexColor();
+		}
+
+		// Returns the line color based on the current interaction state.
+		FLinearColor GetCurrentLineColor()
+		{
+			return LineRenderState.GetLineColor(InteractionState);
 		}
 	};
 
@@ -107,10 +97,7 @@ public:
 	virtual FInputRayHit LineTrace(const FVector Start, const FVector Direction) PURE_VIRTUAL(UGizmoElementBase::LineTrace, return FInputRayHit(););
 
 	// Calcute box sphere bounds for use when hit testing.
-	virtual FBoxSphereBounds CalcBounds(const FTransform & LocalToWorld) const PURE_VIRTUAL(UGizmoElementBase::CalcBounds, return FBoxSphereBounds(););
-
-	// Returns the current material for given object state. The materials in the render state will override those in the element.
-	virtual const UMaterialInterface* GetCurrentMaterial(const FRenderTraversalState& RenderState) const;
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const PURE_VIRTUAL(UGizmoElementBase::CalcBounds, return FBoxSphereBounds(););
 
 	// Reset the cached render state.
 	virtual void ResetCachedRenderState();
@@ -173,13 +160,14 @@ public:
 	virtual EGizmoElementViewAlignType GetViewAlignType() const;
 
 	// View align axis. 
-	// PointEye and PointOnly rotate this axis to align with view up.
+	// PointEye, PointScreen and PointOnly rotate this axis to align with view up.
 	// Axial rotates about this axis.
 	virtual void SetViewAlignAxis(FVector InAxis);
 	virtual FVector GetViewAlignAxis() const;
 
 	// View align normal.
-	// PointEye rotates the normal to align with view direction.
+	// PointEye rotates the normal to align with camera view direction.
+	// PointScreen rotates the normal to align with screen forward direction.
 	// Axial rotates the normal around the axis to align as closely as possible with the view direction.
 	virtual void SetViewAlignNormal(FVector InAxis);
 	virtual FVector GetViewAlignNormal() const;
@@ -189,25 +177,77 @@ public:
 	virtual void SetViewAlignAxialAngleTol(float InMaxAngleTol);
 	virtual float GetViewAlignAxialAngleTol() const;
 
-	// Default material.
-	virtual void SetMaterial(UMaterialInterface* Material);
-	UMaterialInterface* GetMaterial() const;
-
-	// Hover material used when object state is hovering.
-	virtual void SetHoverMaterial(UMaterialInterface* Material);
-	UMaterialInterface* GetHoverMaterial() const;
-
-	// Interact material used when object state is interacting.
-	virtual void SetInteractMaterial(UMaterialInterface* Material);
-	UMaterialInterface* GetInteractMaterial() const;
-
-	// Vertex color where applicable.
-	virtual void SetVertexColor(const FColor& InVertexColor);
-	FColor GetVertexColor() const;
-
-	// Pixel hit distance threshold, element will be scaled enough to add this threshold when line-tracing.
+	// Pixel hit distance threshold, element will be scaled enough to add this threshold when line-tracing. */
 	virtual void SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold);
 	virtual float GetPixelHitDistanceThreshold() const;
+
+	//
+	// Methods for managing render state attributes: Material, HoverMaterial, InteractMaterial, VertexColor 
+	// 
+	// State inheritance works as follows: 
+	// - Gizmo element state that is not set inherits from the corresponding state in the current render traversal.
+	// - Gizmo element state that is set replaces the corresponding state in the current render traversal, except in the case of overrides.
+	// - Gizmo element state that is set to override, will override any corresponding state in children.
+	//
+
+	// Set mesh render state material attribute. 
+	//  @param InMaterial - material to be set
+	//  @param InOverridesChildState - when true, this material will override the material of all child elements.
+	virtual void SetMaterial(TWeakObjectPtr<UMaterialInterface> InMaterial, bool InOverridesChildState = false);
+
+	// Get mesh render state material attribute's value. 
+	virtual const UMaterialInterface* GetMaterial() const;
+
+	// Get mesh render state material attribute's override setting. 
+	virtual bool GetMaterialOverridesChildState() const;
+
+	// Clear mesh render state material attribute. 
+	virtual void ClearMaterial();
+
+	// Set mesh render state hover material attribute. 
+	//  @param InHoverMaterial - hover material to be set
+	//  @param InOverridesChildState - when true, this hover material will override the material of all child elements.
+	virtual void SetHoverMaterial(TWeakObjectPtr<UMaterialInterface> InHoverMaterial, bool InOverridesChildState = false);
+
+	// Get mesh render state hover material attribute's value.
+	virtual const UMaterialInterface* GetHoverMaterial() const;
+
+	// Get mesh render state hover material attribute's override setting.
+	virtual bool GetHoverMaterialOverridesChildState() const;
+
+	// Clear mesh render state hover material attribute. 
+	virtual void ClearHoverMaterial();
+
+	// Set mesh render state interact material attribute. 
+	//  @param InHoverMaterial - interact material to be set
+	//  @param InOverridesChildState - when true, this interact material will override the material of all child elements.
+	virtual void SetInteractMaterial(TWeakObjectPtr<UMaterialInterface> InInteractMaterial, bool InOverridesChildState = false);
+
+	// Get mesh render state interact material attribute's value. 
+	virtual const UMaterialInterface* GetInteractMaterial() const;
+
+	// Get mesh render state interact material attribute's override setting. 
+	virtual bool GetInteractMaterialOverridesChildState() const;
+
+	// Clear mesh render interact state material attribute. 
+	virtual void ClearInteractMaterial();
+
+	// Set mesh render state vertex color attribute. 
+	//  @param InVertexColor - vertex color to be set
+	//  @param InOverridesChildState - when true, this vertex color will override the material of all child elements.
+	virtual void SetVertexColor(FLinearColor InVertexColor, bool InOverridesChildState = false);
+
+	// Get mesh render state vertex color attribute's value. 
+	virtual FLinearColor GetVertexColor() const;
+
+	// Returns true, if mesh render state vertex color attribute has been set. 
+	virtual bool HasVertexColor() const;
+
+	// Get mesh render state vertex color attribute's override setting. 
+	virtual bool GetVertexColorOverridesChildState() const;
+
+	// Clear mesh render state vertex color attribute.
+	virtual void ClearVertexColor();
 
 protected:
 
@@ -218,6 +258,10 @@ protected:
 	// Part identifier
 	UPROPERTY()
 	uint32 PartIdentifier = DefaultPartIdentifier;
+
+	// Mesh render state attributes for this element
+	UPROPERTY()
+	FGizmoElementMeshRenderStateAttributes MeshRenderAttributes;
 
 	// Element state - indicates whether object is visible or hittable
 	UPROPERTY()
@@ -279,22 +323,6 @@ protected:
 	UPROPERTY()
 	float ViewAlignAxialMaxCosAngleTol = DefaultViewAlignMaxCosAngleTol;
 
-	// Default material.
-	UPROPERTY()
-	TObjectPtr<UMaterialInterface> Material;
-
-	// Hovering material.
-	UPROPERTY()
-	TObjectPtr<UMaterialInterface> HoverMaterial;
-
-	// Interacting material.
-	UPROPERTY()
-	TObjectPtr<UMaterialInterface> InteractMaterial;
-
-	// Vertex color where applicable.
-	UPROPERTY()
-	FColor VertexColor = FColor::White;
-
 	// Pixel hit distance threshold, element will be scaled enough to add this threshold when line-tracing.
 	UPROPERTY()
 	float PixelHitDistanceThreshold = 7.0;
@@ -335,11 +363,12 @@ protected:
 	// Helper method to calculate rotation between coord spaces.
 	FQuat GetAlignRotBetweenCoordSpaces(FVector SourceForward, FVector SourceSide, FVector SourceUp, FVector TargetForward, FVector TargetSide, FVector TargetUp) const;
 
-	// Cache render state during render traversal, to be used subsequently when line tracing.
-	virtual void CacheRenderState(const FTransform& InLocalToWorldState, double InPixelToWorldScale, bool InVisibleViewDependent = true);
+	// Update render state during render traversal, determines the current render state for this element 
+	// @return view dependent visibility, true if this element is visible in the current view. 
+	virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalOrigin, FRenderTraversalState& InOutRenderState);
 
-	// Update render traversal state based on properties in the current object, should always be called at the beginning of Render()
-	virtual void UpdateRenderTraversalState(FRenderTraversalState& InRenderTraversalState);
+	// Cache render state during render traversal to be used subsequently when line tracing.
+	virtual void CacheRenderState(const FTransform& InLocalToWorldState, double InPixelToWorldScale, bool InVisibleViewDependent = true);
 
 };
 

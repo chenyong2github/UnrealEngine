@@ -15,41 +15,23 @@ void UGizmoElementTorus::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 	}
 
 	check(RenderAPI);
-	const FSceneView* View = RenderAPI->GetSceneView();
 
-	FTransform LocalToWorldTransform = RenderState.LocalToWorldTransform;
 
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, LocalToWorldTransform, Center);
+	FRenderTraversalState CurrentRenderState(RenderState);
+	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, Center, CurrentRenderState);
 
 	if (bVisibleViewDependent)
 	{
-		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState);
-			
-		if (UseMaterial)
+		if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 		{
 			FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 
 			FVector TorusSideAxis = Normal ^ BeginAxis;
 			TorusSideAxis.Normalize();
 
-			FTransform TorusToLocal = FTransform::Identity;
-			TorusToLocal.SetTranslation(Center);
-
-			FQuat AlignRot;
-			if (GetViewAlignRot(View, LocalToWorldTransform, Center, AlignRot))
-			{
-				TorusToLocal.SetRotation(AlignRot);
-			}
-
-			FVector WorldAlignAxis = LocalToWorldTransform.TransformVector(ViewAlignAxis);
-
-			LocalToWorldTransform = TorusToLocal * LocalToWorldTransform;
-
-			DrawTorus(PDI, LocalToWorldTransform.ToMatrixWithScale(), BeginAxis, TorusSideAxis, OuterRadius, InnerRadius, OuterSegments, InnerSlices,  UseMaterial->GetRenderProxy(), SDPG_Foreground, bPartial, Angle, bEndCaps);
+			DrawTorus(PDI, CurrentRenderState.LocalToWorldTransform.ToMatrixWithScale(), BeginAxis, TorusSideAxis, OuterRadius, InnerRadius, OuterSegments, InnerSlices,  UseMaterial->GetRenderProxy(), SDPG_Foreground, bPartial, Angle, bEndCaps);
 		}
 	}
-
-	CacheRenderState(LocalToWorldTransform, bVisibleViewDependent);
 }
 
 

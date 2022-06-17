@@ -41,6 +41,8 @@ void UTransformGizmo::Setup()
 	GizmoElementRoot->SetConstantScale(true);
 	GizmoElementRoot->SetHoverMaterial(CurrentAxisMaterial);
 	GizmoElementRoot->SetInteractMaterial(CurrentAxisMaterial);
+	GizmoElementRoot->SetHoverLineColor(CurrentColor);
+	GizmoElementRoot->SetInteractLineColor(CurrentColor);
 
 	bInInteraction = false;
 }
@@ -858,8 +860,8 @@ UGizmoElementRectangle* UTransformGizmo::MakePlanarHandle(ETransformGizmoPartIde
 {
 	FVector PlanarHandleCenter = (InUpDirection + InSideDirection) * PlanarHandleOffset;
 
-	FColor LineColor = InVertexColor.ToFColor(false);
-	FColor VertexColor = LineColor;
+	FLinearColor LineColor = InVertexColor;
+	FLinearColor VertexColor = LineColor;
 	VertexColor.A = LargeOuterAlpha;
 
 	UGizmoElementRectangle* RectangleElement = NewObject<UGizmoElementRectangle>();
@@ -897,7 +899,8 @@ UGizmoElementRectangle* UTransformGizmo::MakeTranslateScreenSpaceHandle()
 	RectangleElement->SetHitMesh(true);
 	RectangleElement->SetDrawMesh(false);
 	RectangleElement->SetDrawLine(true);
-	RectangleElement->SetHoverLineThicknessMultiplier(3.0);
+	RectangleElement->SetHoverLineThicknessMultiplier(3.0f);
+	RectangleElement->SetInteractLineThicknessMultiplier(3.0f);
 	return RectangleElement;
 }
 
@@ -937,7 +940,7 @@ UGizmoElementCircle* UTransformGizmo::MakeRotateCircleHandle(ETransformGizmoPart
 
 	if (bFill)
 	{
-		CircleElement->SetVertexColor(InColor.ToFColor(true));
+		CircleElement->SetVertexColor(InColor);
 		CircleElement->SetMaterial(WhiteMaterial);
 	}
 	else

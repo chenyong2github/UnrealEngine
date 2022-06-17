@@ -16,68 +16,60 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 	}
 
 	check(RenderAPI);
-	const FSceneView* View = RenderAPI->GetSceneView();
 
-	FTransform LocalToWorldTransform = RenderState.LocalToWorldTransform;
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, LocalToWorldTransform, Center);
+	FRenderTraversalState CurrentRenderState(RenderState);
+	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, Center, CurrentRenderState);
 
 	if (bVisibleViewDependent)
 	{
-		FVector AdjustedNormal;
-		FQuat AlignRot;
-		if (GetViewAlignRot(View, LocalToWorldTransform, Center, AlignRot))
-		{
-			AdjustedNormal = AlignRot.RotateVector(Normal);
-		}
-		else
-		{
-			AdjustedNormal = Normal;
-		}
-
-		FVector Axis0, Axis1;
-		const FVector WorldNormal = LocalToWorldTransform.TransformVectorNoScale(AdjustedNormal);
-		GizmoMath::MakeNormalPlaneBasis(WorldNormal, Axis0, Axis1);
-		Axis0.Normalize();
-		Axis1.Normalize();
-
-		const float WorldRadius = Radius * LocalToWorldTransform.GetScale3D().X;
-		const FVector WorldCenter = LocalToWorldTransform.TransformPosition(Center);
+		const float WorldRadius = Radius * CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
+		const FVector WorldCenter = CurrentRenderState.LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
+		FVector WorldUpAxis, WorldSideAxis;
+		const FVector WorldNormal = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(Normal);
+		GizmoMath::MakeNormalPlaneBasis(WorldNormal, WorldUpAxis, WorldSideAxis);
+		WorldUpAxis.Normalize();
+		WorldSideAxis.Normalize();
 
 		FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 
 		if (bDrawMesh)
 		{
-			if (const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState))
+			if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 			{
-				DrawDisc(PDI, WorldCenter, Axis0, Axis1, VertexColor, WorldRadius, NumSides, UseMaterial->GetRenderProxy(), SDPG_Foreground);
+				FColor VertexColor = CurrentRenderState.GetVertexColor().ToFColor(false);
+				DrawDisc(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, VertexColor, WorldRadius, NumSides, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 			}
 		}
 
 		if (bDrawLine)
 		{
-			DrawCircle(PDI, WorldCenter, Axis0, Axis1, LineColor, WorldRadius, NumSides, SDPG_Foreground, GetCurrentLineThickness());
+			DrawCircle(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, CurrentRenderState.GetCurrentLineColor(), WorldRadius, NumSides, SDPG_Foreground, GetCurrentLineThickness());
 		}
 	}
-	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementCircle::LineTrace(const FVector RayOrigin, const FVector RayDirection)
 {
 	if (IsHittableInView())
 	{
+		const FVector WorldNormal = CachedLocalToWorldTransform.TransformVectorNoScale(Normal);
+		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(FVector::ZeroVector);
+		const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
+		double WorldRadius = CachedLocalToWorldTransform.GetScale3D().X * Radius;
+
+		// if ray is parallel to circle, no hit
+		if (FMath::IsNearlyZero(FVector::DotProduct(WorldNormal, RayDirection)))
+		{
+			return FInputRayHit();
+		}
+
 		if (bHitMesh)
 		{
-			bool bIntersects = false;
-			double Param = 0.0;
-
-			const FVector WorldNormal = CachedLocalToWorldTransform.TransformVectorNoScale(Normal);
-			const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(Center);
-			const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
-			const double WorldRadius = CachedLocalToWorldTransform.GetScale3D().X * Radius + PixelHitThresholdAdjust;
+			WorldRadius += PixelHitThresholdAdjust;
 
 			UE::Geometry::FLinearIntersection Result;
 			IntersectionUtil::RayCircleIntersection(RayOrigin, RayDirection, WorldCenter, WorldRadius, WorldNormal, Result);
-			
+
 			if (Result.intersects)
 			{
 				FInputRayHit RayHit(Result.parameter.Min);
@@ -139,16 +131,6 @@ void UGizmoElementCircle::SetNumSides(int InNumSides)
 int UGizmoElementCircle::GetNumSides() const
 {
 	return NumSides;
-}
-
-void UGizmoElementCircle::SetLineColor(const FLinearColor& InColor)
-{
-	LineColor = InColor;
-}
-
-FLinearColor UGizmoElementCircle::GetLineColor() const
-{
-	return LineColor;
 }
 
 void UGizmoElementCircle::SetDrawMesh(bool InDrawMesh)

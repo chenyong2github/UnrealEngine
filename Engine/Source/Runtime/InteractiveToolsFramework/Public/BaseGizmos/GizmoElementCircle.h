@@ -40,10 +40,6 @@ public:
 	virtual void SetNumSides(int InNumSides);
 	virtual int GetNumSides() const;
 
-	// Line color when bDrawLine is true.
-	virtual void SetLineColor(const FLinearColor& InColor);
-	virtual FLinearColor GetLineColor() const;
-
 	// Draw mesh
 	virtual void SetDrawMesh(bool InDrawMesh);
 	virtual bool GetDrawMesh() const;
@@ -77,10 +73,6 @@ protected:
 	// Number of sides for rendering circle.
 	UPROPERTY()
 	int NumSides = 64;
-
-	// Line color when bFill is false.
-	UPROPERTY()
-	FLinearColor LineColor = FLinearColor::White;
 
 	// Whether to render solid circle.
 	UPROPERTY()

@@ -9,30 +9,20 @@ void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 		return;
 	}
 
-	const FSceneView* View = RenderAPI->GetSceneView();
+	check(RenderAPI);
 
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, RenderState.LocalToWorldTransform, FVector::ZeroVector);
-
-	FRenderTraversalState RenderStateCopy = RenderState;
+	FRenderTraversalState CurrentRenderState(RenderState);
+	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, FVector::ZeroVector, CurrentRenderState);
 
 	if (bVisibleViewDependent)
 	{
 		// Compute constant scale, if applicable
-		float Scale = RenderStateCopy.LocalToWorldTransform.GetScale3D().X;
+		float Scale = CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
 		if (bConstantScale)
 		{
-			Scale *= RenderStateCopy.PixelToWorldScale;
+			Scale *= CurrentRenderState.PixelToWorldScale;
 		}
-		RenderStateCopy.LocalToWorldTransform.SetScale3D(FVector(Scale, Scale, Scale));
-
-		// Compute view alignment, if applicable
-		FQuat AlignRot;
-		if (GetViewAlignRot(View, RenderStateCopy.LocalToWorldTransform, FVector::ZeroVector, AlignRot))
-		{
-			RenderStateCopy.LocalToWorldTransform = FTransform(AlignRot) * RenderState.LocalToWorldTransform;
-		}
-
-		UpdateRenderTraversalState(RenderStateCopy);
+		CurrentRenderState.LocalToWorldTransform.SetScale3D(FVector(Scale, Scale, Scale));
 
 		// Continue render even if not visible so all transforms will be cached 
 		// for subsequent line tracing.
@@ -40,12 +30,10 @@ void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 		{
 			if (Element)
 			{
-				Element->Render(RenderAPI, RenderStateCopy);
+				Element->Render(RenderAPI, CurrentRenderState);
 			}
 		}
 	}
-
-	CacheRenderState(RenderStateCopy.LocalToWorldTransform, RenderStateCopy.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementGroup::LineTrace(const FVector Start, const FVector Direction)

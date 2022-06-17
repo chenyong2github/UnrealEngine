@@ -115,12 +115,11 @@ public:
 	static constexpr FLinearColor AxisColorX = FLinearColor(0.594f, 0.0197f, 0.0f);
 	static constexpr FLinearColor AxisColorY = FLinearColor(0.1349f, 0.3959f, 0.0f);
 	static constexpr FLinearColor AxisColorZ = FLinearColor(0.0251f, 0.207f, 0.85f);
-	static constexpr FLinearColor ScreenAxisColor = FLinearColor(0.76, 0.72, 0.14f);
-	static constexpr FColor PlaneColorXY = FColor(255, 255, 0); // FColor::Yellow
-	static constexpr FColor ArcBallColor = FColor(128, 128, 128, 6);
-	static constexpr FColor ScreenSpaceColor = FColor(196, 196, 196);
-	static constexpr FColor CurrentColor = FColor(255, 255, 0); // FColor::Yellow
-
+	static constexpr FLinearColor ScreenAxisColor = FLinearColor(0.76f, 0.72f, 0.14f);
+	static constexpr FLinearColor PlaneColorXY = FLinearColor(1.0f, 1.0f, 0.0f);
+	static constexpr FLinearColor ArcBallColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.03f);
+	static constexpr FLinearColor ScreenSpaceColor = FLinearColor(0.765f, 0.765f, 0.765f);
+	static constexpr FLinearColor CurrentColor = FLinearColor(1.0f, 1.0f, 0.0f);
 	static constexpr FLinearColor GreyColor = FLinearColor(0.50f, 0.50f, 0.50f);
 	static constexpr FLinearColor WhiteColor = FLinearColor(1.0f, 1.0f, 1.0f);
 
@@ -128,10 +127,7 @@ public:
 	static constexpr FLinearColor RotateOuterCircleColor = GreyColor;
 	static constexpr FLinearColor RotateArcballCircleColor = WhiteColor;
 
-	static constexpr uint8 LargeInnerAlpha = 0x3f;
-	static constexpr uint8 SmallInnerAlpha = 0x0f;
-	static constexpr uint8 LargeOuterAlpha = 0x7f;
-	static constexpr uint8 SmallOuterAlpha = 0x0f;
+	static constexpr float LargeOuterAlpha = 0.5f;
 
 
 public:

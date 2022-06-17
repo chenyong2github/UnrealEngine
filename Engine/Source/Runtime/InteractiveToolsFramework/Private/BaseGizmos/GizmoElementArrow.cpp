@@ -24,6 +24,8 @@ void UGizmoElementArrow::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 		return;
 	}
 
+	check(RenderAPI);
+
 	if (bUpdateArrowBody)
 	{
 		UpdateArrowBody();
@@ -34,42 +36,26 @@ void UGizmoElementArrow::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 		UpdateArrowHead();
 	}
 
-	const FSceneView* View = RenderAPI->GetSceneView();
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, RenderState.LocalToWorldTransform, Base);
-
-	FRenderTraversalState RenderStateCopy = RenderState;
+	FRenderTraversalState CurrentRenderState(RenderState);
+	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, Base, CurrentRenderState);
 
 	if (bVisibleViewDependent)
 	{
-		FQuat AlignRot;
-		if (GetViewAlignRot(View, RenderState.LocalToWorldTransform, Base, AlignRot))
-		{
-			RenderStateCopy.LocalToWorldTransform = FTransform(AlignRot, Base) * RenderState.LocalToWorldTransform;
-		}
-		else
-		{
-			RenderStateCopy.LocalToWorldTransform = FTransform(Base) * RenderState.LocalToWorldTransform;
-		}
-
-		UpdateRenderTraversalState(RenderStateCopy);
-
 		check(CylinderElement);
 		UGizmoElementBase* Element = Cast<UGizmoElementBase>(CylinderElement);
-		Element->Render(RenderAPI, RenderStateCopy);
+		Element->Render(RenderAPI, CurrentRenderState);
 
 		if (HeadType == EGizmoElementArrowHeadType::Cone)
 		{
 			check(ConeElement);
-			ConeElement->Render(RenderAPI, RenderStateCopy);
+			ConeElement->Render(RenderAPI, CurrentRenderState);
 		}
 		else // (HeadType == EGizmoElementArrowHeadType::Cube)
 		{
 			check(BoxElement);
-			BoxElement->Render(RenderAPI, RenderStateCopy);
+			BoxElement->Render(RenderAPI, CurrentRenderState);
 		}
 	}
-
-	CacheRenderState(RenderStateCopy.LocalToWorldTransform, RenderStateCopy.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementArrow::LineTrace(const FVector RayOrigin, const FVector RayDirection)

@@ -48,10 +48,6 @@ public:
 	virtual void SetSideDirection(const FVector& InSideDirection);
 	virtual FVector GetSideDirection() const;
 
-	// Line color
-	virtual void SetLineColor(const FColor& InLineColor);
-	virtual FColor GetLineColor() const;
-
 	// Draw mesh
 	virtual void SetDrawMesh(bool InDrawMesh);
 	virtual bool GetDrawMesh() const;
@@ -89,10 +85,6 @@ protected:
 	// Side direction
 	UPROPERTY()
 	FVector SideDirection = FVector(0.0f, 1.0f, 0.0f);
-
-	// Line color when bShowOutline is false.
-	UPROPERTY()
-	FColor LineColor = FColor::White;
 
 	UPROPERTY()
 	bool bDrawMesh = true;

@@ -17,75 +17,58 @@ void UGizmoElementRectangle::Render(IToolsContextRenderAPI* RenderAPI, const FRe
 
 	check(RenderAPI);
 
-	const FSceneView* View = RenderAPI->GetSceneView();
-
-	FTransform LocalToWorldTransform = RenderState.LocalToWorldTransform;
-
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, LocalToWorldTransform, Center);
+	FRenderTraversalState CurrentRenderState(RenderState);
+	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, Center, CurrentRenderState);
 
 	if (bVisibleViewDependent)
 	{
-		FVector Axis0, Axis1;
-		FQuat AlignRot;
-		if (GetViewAlignRot(View, LocalToWorldTransform, Center, AlignRot))
-		{
-			Axis0 = AlignRot.RotateVector(UpDirection);
-			Axis1 = AlignRot.RotateVector(SideDirection);
-		}
-		else
-		{
-			Axis0 = UpDirection;
-			Axis1 = SideDirection;
-		}
-
-		Axis0 = LocalToWorldTransform.TransformVectorNoScale(Axis0);
-		Axis1 = LocalToWorldTransform.TransformVectorNoScale(Axis1);
-
-		FVector WorldCenter = LocalToWorldTransform.TransformPosition(Center);
-		float WorldWidth = Width * LocalToWorldTransform.GetScale3D().X;
-		float WorldHeight = Height * LocalToWorldTransform.GetScale3D().X;
+		const FVector WorldUpAxis = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(UpDirection);
+		const FVector WorldSideAxis = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(SideDirection);
+		const FVector WorldCenter = CurrentRenderState.LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
+		const float WorldWidth = Width * CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
+		const float WorldHeight = Height * CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
 
 		FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 
 		if (bDrawMesh)
 		{
-			if (const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState))
+			if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 			{
-
-				DrawRectangleMesh(PDI, WorldCenter, Axis0, Axis1, VertexColor, WorldWidth, WorldHeight, UseMaterial->GetRenderProxy(), SDPG_Foreground);
+				FColor VertexColor = CurrentRenderState.GetVertexColor().ToFColor(false);
+				DrawRectangleMesh(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, VertexColor, WorldWidth, WorldHeight, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 			}
 		}
 		if (bDrawLine)
 		{
-			DrawRectangle(PDI, WorldCenter, Axis0, Axis1, LineColor, WorldWidth, WorldHeight, SDPG_Foreground, GetCurrentLineThickness());
+			FColor LineColor = CurrentRenderState.GetCurrentLineColor().ToFColor(false);
+			DrawRectangle(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, LineColor, WorldWidth, WorldHeight, SDPG_Foreground, GetCurrentLineThickness());
 		}
 	}
-	CacheRenderState(LocalToWorldTransform, RenderState.PixelToWorldScale, bVisibleViewDependent);
 }
 
 FInputRayHit UGizmoElementRectangle::LineTrace(const FVector RayOrigin, const FVector RayDirection)
 {
 	if (IsHittableInView())
 	{
+		const FVector WorldUpAxis = CachedLocalToWorldTransform.TransformVectorNoScale(UpDirection);
+		const FVector WorldSideAxis = CachedLocalToWorldTransform.TransformVectorNoScale(SideDirection);
+		const FVector WorldNormal = FVector::CrossProduct(WorldUpAxis, WorldSideAxis);
+		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(FVector::ZeroVector);
+		const double Scale = CachedLocalToWorldTransform.GetScale3D().X;
+		const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
+		const double WorldHeight = Scale * Height + PixelHitThresholdAdjust * 2.0;
+		const double WorldWidth = Scale * Width + PixelHitThresholdAdjust * 2.0;
+		const FVector Base = WorldCenter - WorldUpAxis * WorldHeight * 0.5 - WorldSideAxis * WorldWidth * 0.5;
+
+		// if ray is parallel to rectangle, no hit
+		if (FMath::IsNearlyZero(FVector::DotProduct(WorldNormal, RayDirection)))
+		{
+			return FInputRayHit();
+		}
+
 		if (bHitMesh)
 		{
-			const FVector UpAxis = CachedLocalToWorldTransform.TransformVectorNoScale(UpDirection);
-			const FVector SideAxis = CachedLocalToWorldTransform.TransformVectorNoScale(SideDirection);
-			const FVector Normal = FVector::CrossProduct(UpAxis, SideAxis);
-			const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(Center);
-			const double Scale = CachedLocalToWorldTransform.GetScale3D().X;
-			const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
-			const double WorldHeight = Scale * Height + 2.0 * PixelHitThresholdAdjust;
-			const double WorldWidth = Scale * Width + 2.0 * PixelHitThresholdAdjust;
-			const FVector Base = WorldCenter - UpAxis * WorldHeight * 0.5 - SideAxis * WorldWidth * 0.5;
-
-			// if ray is parallel to rectangle, no hit
-			if (FMath::IsNearlyZero(FVector::DotProduct(Normal, RayDirection)))
-			{
-				return FInputRayHit();
-			}
-
-			FPlane Plane(Base, Normal);
+			FPlane Plane(Base, WorldNormal);
 			double HitDepth = FMath::RayPlaneIntersectionParam(RayOrigin, RayDirection, Plane);
 			if (HitDepth < 0)
 			{
@@ -94,8 +77,8 @@ FInputRayHit UGizmoElementRectangle::LineTrace(const FVector RayOrigin, const FV
 
 			FVector HitPoint = RayOrigin + RayDirection * HitDepth;
 			FVector HitOffset = HitPoint - Base;
-			double HdU = FVector::DotProduct(HitOffset, UpAxis);
-			double HdS = FVector::DotProduct(HitOffset, SideAxis);
+			double HdU = FVector::DotProduct(HitOffset, WorldUpAxis);
+			double HdS = FVector::DotProduct(HitOffset, WorldSideAxis);
 
 			// clip to rectangle dimensions
 			if (HdU >= 0.0 && HdU <= WorldHeight && HdS >= 0.0 && HdS <= WorldWidth)
@@ -108,7 +91,30 @@ FInputRayHit UGizmoElementRectangle::LineTrace(const FVector RayOrigin, const FV
 		}
 		else if (bHitLine)
 		{
-			// @todo - add hit testing for line-drawn rectangle, requires storing PixelToWorld scale factor
+			FPlane Plane(Base, WorldNormal);
+			double HitDepth = FMath::RayPlaneIntersectionParam(RayOrigin, RayDirection, Plane);
+			if (HitDepth < 0)
+			{
+				return FInputRayHit();
+			}
+
+			FVector HitPoint = RayOrigin + RayDirection * HitDepth;
+			FVector HitOffset = HitPoint - Base;
+			double HdU = FVector::DotProduct(HitOffset, WorldUpAxis);
+			double HdS = FVector::DotProduct(HitOffset, WorldSideAxis);
+
+			const double HitBuffer = PixelHitThresholdAdjust + LineThickness;
+
+			// determine if the hit is within pixel tolerance of the edges of rectangle
+			if (HdU >= 0.0 && HdU <= WorldHeight && HdS >= 0.0 && HdS <= WorldWidth &&
+				(HdS <= HitBuffer || HdS >= WorldWidth - HitBuffer ||
+				 HdU <= HitBuffer || HdU >= WorldHeight - HitBuffer))
+			{
+				FInputRayHit RayHit(HitDepth);
+				RayHit.SetHitObject(this);
+				RayHit.HitIdentifier = PartIdentifier;
+				return RayHit;
+			}
 		}
 	}
 	return FInputRayHit();
@@ -168,16 +174,6 @@ void UGizmoElementRectangle::SetSideDirection(const FVector& InSideDirection)
 FVector UGizmoElementRectangle::GetSideDirection() const
 {
 	return SideDirection;
-}
-
-void UGizmoElementRectangle::SetLineColor(const FColor& InLineColor)
-{
-	LineColor = InLineColor;
-}
-
-FColor UGizmoElementRectangle::GetLineColor() const
-{
-	return LineColor;
 }
 
 void UGizmoElementRectangle::SetDrawMesh(bool InDrawMesh)
