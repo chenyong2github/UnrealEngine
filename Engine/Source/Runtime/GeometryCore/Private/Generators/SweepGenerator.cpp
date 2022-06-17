@@ -543,12 +543,12 @@ void FProfileSweepGenerator::InitializeUvBuffer(const TArray<int32>& VertPositio
 			if (WeldedVertices.Contains(ProfileIndex))
 			{
 				int32 VertIndex = GetVertIndex(true, SweepIndex, ProfileIndex, NumWelded, NumNonWelded, VertPositionOffsets);
-				SetUV(i * NumUvColumnsOut + j, FVector2f(WeldedUs[i], Vs[j]), VertIndex);
+				SetUV(i * NumUvColumnsOut + j, FVector2f((float)WeldedUs[i], (float)Vs[j]), VertIndex);
 			}
 			else
 			{
 				int32 VertIndex = GetVertIndex(false, SweepIndex, ProfileIndex, NumWelded, NumNonWelded, VertPositionOffsets);
-				SetUV(i * NumUvColumnsOut + j, FVector2f(RegularUs[i], Vs[j]), VertIndex);
+				SetUV(i * NumUvColumnsOut + j, FVector2f((float)RegularUs[i], (float)Vs[j]), VertIndex);
 			}
 		}
 	});

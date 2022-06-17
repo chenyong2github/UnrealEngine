@@ -911,12 +911,12 @@ namespace DelaunayInternal
 			{
 				return false;
 			}
-			int32 SignA = FMath::Sign(OrientA);
+			int32 SignA = (int32)FMath::Sign(OrientA);
 			if (SignA >= 0)
 			{
 				return false;
 			}
-			int32 SignB = FMath::Sign(OrientBOut);
+			int32 SignB = (int32)FMath::Sign(OrientBOut);
 			// A properly oriented edge crossing the AB segment, on a tri that includes A, must go from the negative side to the positive side of AB
 			// (positive to negative would be behind the AB edge, and a zero would either be behind or would prevent the edge from being inserted)
 			return SignB == 1;

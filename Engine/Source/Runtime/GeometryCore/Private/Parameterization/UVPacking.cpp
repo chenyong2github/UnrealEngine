@@ -526,8 +526,8 @@ bool FStandardChartPacker::PackCharts(TArray<FUVIsland>& Charts, double UVScale,
 
 						if (StartPos)
 						{
-							RasterRect.X = StartPos->X;
-							RasterRect.Y = StartPos->Y;
+							RasterRect.X = FMath::FloorToInt32(StartPos->X);
+							RasterRect.Y = FMath::FloorToInt32(StartPos->Y);
 						}
 
 						bFound = LayoutRaster.FindWithSegments(RasterRect, ChartRaster, IsBestRect);

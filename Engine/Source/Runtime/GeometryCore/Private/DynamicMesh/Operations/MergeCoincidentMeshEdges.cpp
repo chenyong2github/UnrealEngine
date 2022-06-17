@@ -122,8 +122,8 @@ bool FMergeCoincidentMeshEdges::Apply()
 				continue;
 			}
 		}
-
-		DuplicatesQueue.Insert(eid, EquivalenceSets[eid]->Num());
+		const float Priority = (float)EquivalenceSets[eid]->Num();
+		DuplicatesQueue.Insert(eid, Priority);
 	}
 
 	//

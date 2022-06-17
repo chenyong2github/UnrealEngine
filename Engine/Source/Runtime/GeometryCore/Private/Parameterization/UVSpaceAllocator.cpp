@@ -553,7 +553,7 @@ void FUVSpaceAllocator::CreateUsedSegments()
 	// Create segments along the X axis for each rows
 	for ( uint32 y = 0; y < RasterHeight; ++y )
 	{
-		SortedRowsIndex[y] = y;
+		SortedRowsIndex[y] = (uint16)y;
 
 		FRun& CurrentRow = Rows[y];
 		CurrentRow.LongestSegment = 0;
@@ -622,10 +622,10 @@ void FUVSpaceAllocator::CreateUsedSegments()
 
 	// Create segments along the Y axis for each columns
 	SortedColumnsIndex.SetNum(RasterWidth, false);
-
+	
 	for ( uint32 x = 0; x < RasterWidth; ++x )
 	{
-		SortedColumnsIndex[x] = x;
+		SortedColumnsIndex[x] = (uint16)x;
 
 		FRun& CurrentColumn = Columns[x];
 		CurrentColumn.LongestSegment = 0;
@@ -745,7 +745,7 @@ void FUVSpaceAllocator::MergeRun(FRun& ThisRun, const FRun& OtherRun, uint32 Rec
 		uint32 StopIndex  = Segment.StartPos + Segment.Length;
 		for (uint32 LookupIndex = LastIndex; LookupIndex < StopIndex; ++LookupIndex)
 		{
-			FreeSegmentsLookupPtr[LookupIndex] = SegmentIndex;
+			FreeSegmentsLookupPtr[LookupIndex] = uint16(SegmentIndex);
 		}
 
 		LastIndex = StopIndex;
@@ -753,7 +753,7 @@ void FUVSpaceAllocator::MergeRun(FRun& ThisRun, const FRun& OtherRun, uint32 Rec
 
 	for (uint32 Index = LastIndex; Index < PerpendicularResolution; ++Index)
 	{
-		FreeSegmentsLookupPtr[Index] = SegmentIndex;
+		FreeSegmentsLookupPtr[Index] = uint16(SegmentIndex);
 	}
 }
 

@@ -305,7 +305,7 @@ protected:
 	// Hash table for edge vertices
 	//
 
-	int64 NumEdgeVertexSections = 64;
+	const int64 NumEdgeVertexSections = 64;
 	TArray<TMap<int64, int>> EdgeVertexSections;
 	TArray<FCriticalSection> EdgeVertexSectionLocks;
 	
@@ -518,9 +518,9 @@ protected:
 	void InitHashTables()
 	{
 		EdgeVertexSections.Reset();
-		EdgeVertexSections.SetNum(NumEdgeVertexSections);
+		EdgeVertexSections.SetNum((int32)NumEdgeVertexSections);
 		EdgeVertexSectionLocks.Reset();
-		EdgeVertexSectionLocks.SetNum(NumEdgeVertexSections);
+		EdgeVertexSectionLocks.SetNum((int32)NumEdgeVertexSections);
 	}
 
 
@@ -911,14 +911,14 @@ protected:
 	 */
 	void ResetMesh()
 	{
-		VertexSectionLocks.SetNum(NumVertexSections);
+		VertexSectionLocks.SetNum((int32)NumVertexSections);
 		VertexSectionLists.Reset();
-		VertexSectionLists.SetNum(NumVertexSections);
+		VertexSectionLists.SetNum((int32)NumVertexSections);
 		VertexCounter = 0;
 
-		TriangleSectionLocks.SetNum(NumTriangleSections);
+		TriangleSectionLocks.SetNum((int32)NumTriangleSections);
 		TriangleSectionLists.Reset();
-		TriangleSectionLists.SetNum(NumTriangleSections);
+		TriangleSectionLists.SetNum((int32)NumTriangleSections);
 	}
 
 	/**

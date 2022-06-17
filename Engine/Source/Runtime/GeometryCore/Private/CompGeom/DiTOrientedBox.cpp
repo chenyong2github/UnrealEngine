@@ -17,51 +17,51 @@ namespace
 	TArray<UE::Math::TVector<RealType>>  DiTODirections(const UE::Geometry::EDiTO DiTO)
 	{
 		typedef UE::Math::TVector<RealType>   VectorType;
-		
+		typedef RealType    T;
 
-		const RealType a = 0.5 * (FMath::Sqrt(5.) - 1);
+		const double a =  0.5 * (FMath::Sqrt(5.) - 1.);
 		switch (DiTO)
 		{
 			case UE::Geometry::EDiTO::DiTO_12:
 			{
 				// length Sqrt(5) * a  vectors
-				return TArray<VectorType>({ VectorType(0.,  1.,  a),
-										    VectorType(0.,  1., -a),
-											VectorType(1.,  a,   0.),
-											VectorType(1., -a,   0.),
-											VectorType(a,   0.,  1.),
-											VectorType(a,   0., -1.) });
+				return TArray<VectorType>({ VectorType(T(0),  T(1),  T(a)),
+										    VectorType(T(0),  T(1), -T(a)),
+											VectorType(T(1),  T(a),  T(0)),
+											VectorType(T(1), -T(a),  T(0)),
+											VectorType(T(a),  T(0),  T(1)),
+											VectorType(T(a),  T(0), -T(1)) });
 			}
 			break;
 
 			case  UE::Geometry::EDiTO::DiTO_14:
 			{
-				const RealType b = FMath::Sqrt(3.);
+				const double b = FMath::Sqrt(3.);
 				// length Sqrt(3) vectors
 				// note: in game engine gems vol 2.  b =  1. 
-				return TArray<VectorType>({ VectorType(b, 0., 0.),
-											VectorType(0., b, 0.),
-											VectorType(0., 0., b),
-											VectorType(1., 1., 1.),
-											VectorType(1., 1., -1.),
-											VectorType(1., -1., 1.),
-											VectorType(1., -1., -1.) });
+				return TArray<VectorType>({ VectorType(T(b), T(0), T(0)),
+											VectorType(T(0), T(b), T(0)),
+											VectorType(T(0), T(0), T(b)),
+											VectorType(T(1), T(1), T(1)),
+											VectorType(T(1), T(1),-T(1)),
+											VectorType(T(1),-T(1), T(1)),
+											VectorType(T(1),-T(1),-T(1)) });
 			}
 			break;
 
 			case UE::Geometry::EDiTO::DiTO_20:
 			{
 				// length Sqrt(3) vectors
-				return TArray<VectorType>({ VectorType(0.,         a,  1. + a),
-											VectorType(0.,         a,  -1.- a),
-											VectorType(a,     1. + a,      0.),
-											VectorType(a,    -1. - a,      0.),
-											VectorType(1. + a,     0.,      a),
-											VectorType(1. + a,     0.,     -a),
-											VectorType(1.,         1.,      1.),
-											VectorType(1.,         1.,     -1.),
-											VectorType(1.,        -1.,      1.),
-											VectorType(1.,        -1.,     -1.) });
+				return TArray<VectorType>({ VectorType(T(0),          T(a),  T(1. + a)),
+											VectorType(T(0),          T(a), -T(1. + a)),
+											VectorType(T(a),     T(1. + a),       T(0)),
+											VectorType(T(a),    -T(1. + a),       T(0)),
+											VectorType(T(1. + a),     T(0),       T(a)),
+											VectorType(T(1. + a),     T(0),      -T(a)),
+											VectorType(T(1),          T(1),       T(1)),
+											VectorType(T(1),          T(1),      -T(1)),
+											VectorType(T(1),         -T(1),       T(1)),
+											VectorType(T(1),         -T(1),      -T(1)) });
 			}
 			break;
 
@@ -69,21 +69,21 @@ namespace
 			{
 				// length Sqrt(3) vectors.
 				// note: in game engine gems vol 2.  b = c = 1. 
-				const RealType b = FMath::Sqrt(3.);
-				const RealType c = FMath::Sqrt(1.5);
-				return TArray<VectorType>({ VectorType(b,  0.,  0.),
-											VectorType(0.,  b,  0.),
-											VectorType(0.,  0., b),
-											VectorType(1.,  1.,  1.),
-											VectorType(1.,  1., -1.),
-											VectorType(1., -1.,  1.),
-											VectorType(1., -1., -1.),
-											VectorType(c,   c,  0.),
-											VectorType(c,  -c,  0.),
-											VectorType(c,   0.,  c),
-											VectorType(c,   0., -c),
-											VectorType(0.,   c,  c),
-											VectorType(0.,   c, -c) });
+				const double b = FMath::Sqrt(3.);
+				const double c = FMath::Sqrt(1.5);
+				return TArray<VectorType>({ VectorType(T(b),  T(0),  T(0)),
+											VectorType(T(0),  T(b),  T(0)),
+											VectorType(T(0),  T(0),  T(b)),
+											VectorType(T(1),  T(1),  T(1)),
+											VectorType(T(1),  T(1), -T(1)),
+											VectorType(T(1), -T(1),  T(1)),
+											VectorType(T(1), -T(1), -T(1)),
+											VectorType(T(c),  T(c),  T(0)),
+											VectorType(T(c), -T(c),  T(0)),
+											VectorType(T(c),  T(0),  T(c)),
+											VectorType(T(c),  T(0), -T(c)),
+											VectorType(T(0),  T(c),  T(c)),
+											VectorType(T(0),  T(c), -T(c)) });
 			}
 			break;
 

@@ -52,7 +52,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& V
 	}
 
 	bool bIsClockwise = PolySignedArea2 < 0;
-	double OrientationSign = (bIsClockwise) ? -1.0 : 1.0;
+	T OrientationSign = (bIsClockwise) ? -T(1) : T(1);
 
 
 	OutTriangles.Reset();
@@ -200,8 +200,8 @@ static bool VectorsOnSameSide(const FVector& Vec, const FVector& A, const FVecto
 {
 	const FVector CrossA = FVector::CrossProduct(Vec, A);
 	const FVector CrossB = FVector::CrossProduct(Vec, B);
-	float DotWithEpsilon = SameSideDotProductEpsilon + FVector::DotProduct(CrossA, CrossB);
-	return !(DotWithEpsilon < 0.0f);
+	double DotWithEpsilon = (double)SameSideDotProductEpsilon + FVector::DotProduct(CrossA, CrossB);
+	return !(DotWithEpsilon < 0.0);
 }
 
 

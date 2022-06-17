@@ -42,11 +42,11 @@ FMeshShapeGenerator& FRectangleMeshGenerator::Generate()
 	{
 		if (Width > Height)
 		{
-			uvtop = Height / Width;
+			uvtop = float( Height / Width );
 		}
 		else
 		{
-			uvright = Width / Height;
+			uvright = float( Width / Height );
 		}
 	}
 
@@ -144,8 +144,8 @@ FMeshShapeGenerator& FRoundedRectangleMeshGenerator::Generate()
 		Normals[VertIdx] = Normal;
 	}
 
-	float TotWidth = FMathf::Max(FMathf::ZeroTolerance, Radius * 2 + Width);
-	float TotHeight = FMathf::Max(FMathf::ZeroTolerance, Radius * 2 + Height);
+	float TotWidth = FMathf::Max(FMathf::ZeroTolerance, float(Radius * 2 + Width));
+	float TotHeight = FMathf::Max(FMathf::ZeroTolerance, float(Radius * 2 + Height));
 	
 
 	// corner vertices

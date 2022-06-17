@@ -449,11 +449,11 @@ FMeshShapeGenerator& FPolygonEdgeMeshGenerator::Generate()
 	{
 		if (UVWidth > UVHeight)
 		{
-			UVTop = UVHeight / UVWidth;
+			UVTop = float( UVHeight / UVWidth );
 		}
 		else
 		{
-			UVRight = UVWidth / UVHeight;
+			UVRight = float( UVWidth / UVHeight );
 		}
 	}
 	FVector2f UV00 = FVector2f(UVLeft, UVBottom);
@@ -472,10 +472,10 @@ FMeshShapeGenerator& FPolygonEdgeMeshGenerator::Generate()
 		const int32 NewVertexAIndex = 2 * NewVertexIndex;
 		const int32 NewVertexBIndex = NewVertexAIndex + 1;
 
-		float UParam = PartialArcLength(NewLeftSidePath, NewVertexIndex, MinSegmentArcLength) / TotalArcLength;
+		double UParam = PartialArcLength(NewLeftSidePath, NewVertexIndex, MinSegmentArcLength) / TotalArcLength;
 
-		UVs[NewVertexAIndex] = BilinearInterp(UV00, UV01, UV11, UV10, UParam, 0.0f);
-		UVs[NewVertexBIndex] = BilinearInterp(UV00, UV01, UV11, UV10, UParam, 1.0f);
+		UVs[NewVertexAIndex] = BilinearInterp(UV00, UV01, UV11, UV10, float(UParam), 0.0f);
+		UVs[NewVertexBIndex] = BilinearInterp(UV00, UV01, UV11, UV10, float(UParam), 1.0f);
 		UVParentVertex[NewVertexAIndex] = NewVertexAIndex;
 		UVParentVertex[NewVertexBIndex] = NewVertexBIndex;
 	}

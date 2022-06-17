@@ -53,7 +53,9 @@ FMeshShapeGenerator& FDiscMeshGenerator::Generate()
 			int VertIdx = AngleIdx + 1 + (RadIdx-1) * AngleNV;
 			double R = RadIdx * IdxToRadiusScale;
 			Vertices[VertIdx] = MakeVertex(R*CosA, R*SinA);
-			UVs[VertIdx] = FVector2f(.5f + CosA * RadIdx * IdxToUVRadiusScale, .5f + SinA * RadIdx * IdxToUVRadiusScale);
+			double Uvalue = 0.5 + CosA * RadIdx * IdxToUVRadiusScale;
+			double Vvalue = 0.5 + SinA * RadIdx * IdxToUVRadiusScale;
+			UVs[VertIdx] = FVector2f(float(Uvalue), float(Vvalue));
 		}
 	}
 
@@ -153,7 +155,9 @@ FMeshShapeGenerator& FPuncturedDiscMeshGenerator::Generate()
 			int VertIdx = AngleIdx + RadIdx * AngleNV;
 			double R = RadIdx * IdxToRadiusScale + IdxToRadiusOffset;
 			Vertices[VertIdx] = MakeVertex(R*CosA, R*SinA);
-			UVs[VertIdx] = FVector2f(.5f + CosA * R * RadiusToUVScale, .5f + SinA * R * RadiusToUVScale);
+			double Uvalue = 0.5 + CosA * R * RadiusToUVScale;
+			double Vvalue = 0.5 + SinA * R * RadiusToUVScale;
+			UVs[VertIdx] = FVector2f(float(Uvalue), float(Vvalue));
 		}
 	}
 

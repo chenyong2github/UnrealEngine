@@ -867,7 +867,7 @@ FVector3d FLinearStairGenerator::GenerateVertex(ESide Side, int VertexColumn, in
 		check(false);
 	}
 	float X = VertexColumn * StepDepth;
-	float Y = (Side == ESide::Right ? 0.5 * StepWidth : -0.5 * StepWidth);
+	float Y = (Side == ESide::Right ? float(0.5 * StepWidth) : -float(0.5 * StepWidth));
 	float Z = VertexRow * StepHeight;
 	return FVector3d(X, Y, Z);
 }
@@ -980,7 +980,7 @@ FVector3d FFloatingStairGenerator::GenerateVertex(ESide Side, int VertexColumn, 
 		check(false);
 	}
 	float X = VertexColumn * StepDepth;
-	float Y = (Side == ESide::Right ? 0.5 * StepWidth : -0.5 * StepWidth);
+	float Y = (Side == ESide::Right ? float(0.5 * StepWidth) : -float(0.5 * StepWidth));
 	float Z = VertexColumn > 1 ? ((VertexColumn - 2) + VertexRow) * StepHeight : VertexRow * StepHeight;
 	return FVector3d(X, Y, Z);
 }

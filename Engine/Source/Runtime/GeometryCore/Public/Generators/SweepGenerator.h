@@ -179,7 +179,7 @@ protected:
 						SetTrianglePolygon(TriIdx, PolyIdx);
 						TriIdx++;
 					}
-					float SideScale = 2 * CapIdx - 1;
+					float SideScale = float(2 * CapIdx - 1);
 					for (int32 Idx = 0; Idx < XVerts; Idx++)
 					{
 						FVector2f CenteredVert = (FVector2f)CrossSection.GetVertices()[Idx] * CapUVScale + CapUVOffset;
@@ -251,10 +251,10 @@ protected:
 			int32 NextDupVertIdx = UVSection < NumSections ? UVSections[UVSection] : -1;
 			for (int32 VertSubIdx = 0; VertSubIdx < XVerts; UVSubIdx++)
 			{
-				float UVX = bEvenlySpaceUVs ? CrossSectionPercentages[VertSubIdx] : VertSubIdx / float(XVerts);
+				float UVX = bEvenlySpaceUVs ? float(CrossSectionPercentages[VertSubIdx]) : VertSubIdx / float(XVerts);
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
-					float UVY = bEvenlySpaceUVs ? PathPercentages[XIdx] : XIdx / float(NumCrossSections - 1);
+					float UVY = bEvenlySpaceUVs ? float(PathPercentages[XIdx]) : XIdx / float(NumCrossSections - 1);
 					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY) * SectionsUVScale, (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 				}
 
@@ -286,7 +286,7 @@ protected:
 				int32 VertSubIdx = 0;
 				for (int32 XIdx = 0; XIdx < NumCrossSections; XIdx++)
 				{
-					float UVY = bEvenlySpaceUVs ? PathPercentages[XIdx] : XIdx / float(NumCrossSections - 1);
+					float UVY = bEvenlySpaceUVs ? float(PathPercentages[XIdx]) : XIdx / float(NumCrossSections - 1);
 					SetUV(XIdx * XUVs + UVSubIdx, FVector2f(1-UVX, 1-UVY) * SectionsUVScale, (XIdx % CrossSectionsMod) * XVerts + VertSubIdx);
 				}
 			}
@@ -379,8 +379,8 @@ public:
 		AlongPercents[0] = 0;
 		for (int XIdx = 0; XIdx+1 < NumX; XIdx++)
 		{
-			float Dist = Distance( FVector2d(Radii[XIdx], Heights[XIdx]), FVector2d(Radii[XIdx + 1], Heights[XIdx + 1]) );
-			LenAlong += Dist;
+			double Dist = Distance( FVector2d(Radii[XIdx], Heights[XIdx]), FVector2d(Radii[XIdx + 1], Heights[XIdx + 1]) );
+			LenAlong += float(Dist);
 			AlongPercents[XIdx + 1] = LenAlong;
 		}
 		for (int XIdx = 0; XIdx+1 < NumX; XIdx++)
@@ -448,19 +448,19 @@ public:
 					// write sharp normals
 					if (ensure(XIdx > 0)) // very first index cannot be sharp
 					{
-						Normals[SubIdx + NormalXIdx * AngleSamples] = FVector3f(XVerts[SubIdx].X*NormalSides[XIdx-1].X, XVerts[SubIdx].Y*NormalSides[XIdx-1].X, NormalSides[XIdx-1].Y);
+						Normals[SubIdx + NormalXIdx * AngleSamples] = FVector3f(float(XVerts[SubIdx].X*NormalSides[XIdx-1].X), float(XVerts[SubIdx].Y*NormalSides[XIdx-1].X), float(NormalSides[XIdx-1].Y));
 					}
 					NormalXIdx++;
 					if (ensure(XIdx + 1 < NumX)) // very last index cannot be sharp
 					{
-						Normals[SubIdx + NormalXIdx * AngleSamples] = FVector3f(XVerts[SubIdx].X*NormalSides[XIdx].X, XVerts[SubIdx].Y*NormalSides[XIdx].X, NormalSides[XIdx].Y);
+						Normals[SubIdx + NormalXIdx * AngleSamples] = FVector3f(float(XVerts[SubIdx].X*NormalSides[XIdx].X), float(XVerts[SubIdx].Y*NormalSides[XIdx].X), float(NormalSides[XIdx].Y));
 					}
 					SharpNormalIdx++;
 				}
 				else
 				{
 					// write smoothed normal
-					Normals[SubIdx + NormalXIdx * AngleSamples] = FVector3f(XVerts[SubIdx].X*SmoothedNormalSides[XIdx].X, XVerts[SubIdx].Y*SmoothedNormalSides[XIdx].X, SmoothedNormalSides[XIdx].Y);
+					Normals[SubIdx + NormalXIdx * AngleSamples] = FVector3f(float(XVerts[SubIdx].X*SmoothedNormalSides[XIdx].X), float(XVerts[SubIdx].Y*SmoothedNormalSides[XIdx].X), float(SmoothedNormalSides[XIdx].Y));
 				}
 			}
 		}
@@ -481,14 +481,14 @@ public:
 			{
 				for (int XBotTop = 0; XBotTop < 2; ++XBotTop)
 				{
-					Normals[CapNormalStart[XBotTop] + SubIdx] = FVector3f(0, 0, 2 * XBotTop - 1);
+					Normals[CapNormalStart[XBotTop] + SubIdx] = FVector3f(0.f, 0.f, float(2 * XBotTop - 1));
 				}
 			}
 			for (int CapIdx = 0; CapIdx < 2; CapIdx++)
 			{
 				if (Caps[CapIdx] == ECapType::FlatMidpointFan)
 				{
-					Normals[CapNormalStart[CapIdx] + X.VertexCount()] = FVector3f(0, 0, 2 * CapIdx - 1);
+					Normals[CapNormalStart[CapIdx] + X.VertexCount()] = FVector3f(0.f, 0.f, float(2 * CapIdx - 1));
 				}
 			}
 		}
@@ -620,9 +620,9 @@ public:
 				break;
 			}
 
-			for (float ExtraSeg = 1, NumExtraSegs = AdditionalLengthSamples[SegIdx] + 1; ExtraSeg < NumExtraSegs; ++ExtraSeg)
+			for (int ExtraSeg = 1, NumExtraSegs = AdditionalLengthSamples[SegIdx] + 1; ExtraSeg < NumExtraSegs; ++ExtraSeg)
 			{
-				const float Along = ExtraSeg / NumExtraSegs;
+				const float Along = ExtraSeg / float(NumExtraSegs);
 				SetVert(FMath::Lerp(SrcRadii[SegIdx], SrcRadii[SegIdx + 1], Along),
 						FMath::Lerp(SrcHeights[SegIdx], SrcHeights[SegIdx + 1], Along));
 			}
@@ -689,12 +689,12 @@ public:
 
 		FAxisAlignedBox2f Bounds = (FAxisAlignedBox2f)CrossSection.Bounds();
 		double BoundsMaxDimInv = 1.0 / FMathd::Max(Bounds.MaxDim(), .001);
-		FVector2f SectionScale(1, 1), CapScale(BoundsMaxDimInv, BoundsMaxDimInv);
+		FVector2f SectionScale(1.f, 1.f), CapScale((float)BoundsMaxDimInv, (float)BoundsMaxDimInv);
 		if (bUVScaleRelativeWorld)
 		{
 			double Perimeter = CrossSection.Perimeter();
-			SectionScale.X = Perimeter / UnitUVInWorldCoordinates;
-			SectionScale.Y = TotalPathArcLength / UnitUVInWorldCoordinates;
+			SectionScale.X = float( Perimeter / UnitUVInWorldCoordinates );
+			SectionScale.Y = float( TotalPathArcLength / UnitUVInWorldCoordinates);
 			CapScale.X = CapScale.Y = 1.0f / UnitUVInWorldCoordinates;
 		}
 		ConstructMeshTopology(CrossSection, {}, {}, {}, true, Path, PathNum + (bLoop ? 1 : 0), bLoop, Caps, SectionScale, CapScale, Bounds.Center());
