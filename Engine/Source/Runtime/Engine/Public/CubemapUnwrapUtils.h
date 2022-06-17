@@ -70,6 +70,10 @@ template<bool bHDROutput>
 class FCubemapTexturePropertiesPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FCubemapTexturePropertiesPS,Global);
+
+	class FCubemapArrayTexturePropertiesPS : SHADER_PERMUTATION_BOOL("TEXTURECUBE_ARRAY");
+	using FPermutationDomain = TShaderPermutationDomain<FCubemapArrayTexturePropertiesPS>;
+
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsPCPlatform(Parameters.Platform);}
@@ -82,10 +86,11 @@ public:
 		ColorWeights.Bind(Initializer.ParameterMap,TEXT("ColorWeights"));
 		PackedProperties0.Bind(Initializer.ParameterMap,TEXT("PackedProperties0"));
 		Gamma.Bind(Initializer.ParameterMap,TEXT("Gamma"));
+		NumSlices.Bind(Initializer.ParameterMap, TEXT("NumSlices"));
 	}
 	FCubemapTexturePropertiesPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float GammaValue);
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float GammaValue, bool bIsTextureCubeArray);
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -98,16 +103,18 @@ private:
 	LAYOUT_FIELD(FShaderParameter, PackedProperties0);
 	LAYOUT_FIELD(FShaderParameter, ColorWeights);
 	LAYOUT_FIELD(FShaderParameter, Gamma);
+	LAYOUT_FIELD(FShaderParameter, NumSlices);
 };
 
 
 class ENGINE_API FMipLevelBatchedElementParameters : public FBatchedElementParameters
 {
 public:
-	FMipLevelBatchedElementParameters(float InMipLevel, float InSliceIndex, bool bInHDROutput = false)
+	FMipLevelBatchedElementParameters(float InMipLevel, float InSliceIndex, bool bInIsTextureCubeArray, bool bInHDROutput = false)
 		: bHDROutput(bInHDROutput)
 		, MipLevel(InMipLevel)
 		, SliceIndex(InSliceIndex)
+		, bIsTextureCubeArray(bInIsTextureCubeArray)
 	{
 	}
 
@@ -118,9 +125,13 @@ private:
 	template<typename TPixelShader> void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture);
 
 	bool bHDROutput;
+
 	/** Parameters that need to be passed to the shader */
 	float MipLevel;
 	float SliceIndex;
+
+	/** Parameters that are used to select a shader permutation */
+	bool bIsTextureCubeArray;
 };
 
 

@@ -37,7 +37,7 @@ namespace CubemapHelpers
 	bool GenerateLongLatUnwrap(const FTextureResource* TextureResource, const uint32 AxisDimenion, const EPixelFormat SourcePixelFormat, TArray64<uint8>& BitsOUT, FIntPoint& SizeOUT, EPixelFormat& FormatOUT)
 	{
 		TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
-		BatchedElementParameters = new FMipLevelBatchedElementParameters((float)0, (float)-1, true);
+		BatchedElementParameters = new FMipLevelBatchedElementParameters((float)0, (float)-1, false, true);
 		const FIntPoint LongLatDimensions(AxisDimenion * 2, AxisDimenion);
 
 		// If the source format is 8 bit per channel or less then select a LDR target format.
@@ -121,14 +121,25 @@ void FCubemapTexturePropertiesVS::SetParameters( FRHICommandList& RHICmdList, co
 }
 
 template<bool bHDROutput>
-void FCubemapTexturePropertiesPS<bHDROutput>::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float GammaValue)
+void FCubemapTexturePropertiesPS<bHDROutput>::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float GammaValue, bool bIsTextureCubeArray)
 {
-	SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(),CubeTexture,CubeTextureSampler,Texture);
+	FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
+
+	SetTextureParameter(RHICmdList, ShaderRHI, CubeTexture, CubeTextureSampler, Texture);
 
 	FVector4f PackedProperties0Value(MipLevel, SliceIndex, 0, 0);
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), PackedProperties0, PackedProperties0Value);
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ColorWeights, (FMatrix44f)ColorWeightsValue);
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), Gamma, GammaValue);
+	SetShaderValue(RHICmdList, ShaderRHI, PackedProperties0, PackedProperties0Value);
+	SetShaderValue(RHICmdList, ShaderRHI, ColorWeights, (FMatrix44f)ColorWeightsValue);
+	SetShaderValue(RHICmdList, ShaderRHI, Gamma, GammaValue);
+
+	// store slice count for the texture cube array
+	if (bIsTextureCubeArray)
+	{
+		// GetSizeZ() returns the total number of slices stored in the platform data
+		// for a TextureCube array this value is equal to the size of the array multiplied by 6
+		const float NumSlicesData = (float)(Texture ? FMath::Max((int32)Texture->GetSizeZ() / 6, 1) : 1);
+		SetShaderValue(RHICmdList, ShaderRHI, NumSlices, NumSlicesData);
+	}
 }
 
 void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture)
@@ -149,7 +160,10 @@ void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList,
 	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 
 	TShaderMapRef<FCubemapTexturePropertiesVS> VertexShader(GetGlobalShaderMap(InFeatureLevel));
-	TShaderMapRef<TPixelShader> PixelShader(GetGlobalShaderMap(InFeatureLevel));
+
+	typename TPixelShader::FPermutationDomain PermutationVector;
+	PermutationVector.Set<typename TPixelShader::FCubemapArrayTexturePropertiesPS>(bIsTextureCubeArray);
+	TShaderMapRef<TPixelShader> PixelShader(GetGlobalShaderMap(InFeatureLevel), PermutationVector);
 	
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GSimpleElementVertexDeclaration.VertexDeclarationRHI;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
@@ -160,7 +174,7 @@ void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList,
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, MipLevel, SliceIndex, InGamma);
+	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, MipLevel, SliceIndex, InGamma, bIsTextureCubeArray);
 }
 
 void FIESLightProfilePS::SetParameters( FRHICommandList& RHICmdList, const FTexture* Texture, float InBrightnessInLumens )

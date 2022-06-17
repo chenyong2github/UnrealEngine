@@ -14,6 +14,10 @@
 #define ENABLE_EDITOR_COMPOSITING (FEATURE_LEVEL >= FEATURE_LEVEL_SM4 || MOBILE_EMULATION)
 #define WRITE_TO_SHADING_MODEL (FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && !FORWARD_SHADING)
 
+#ifndef TEXTURECUBE_ARRAY
+#define TEXTURECUBE_ARRAY 0
+#endif
+
 Texture2D InTexture;
 SamplerState InTextureSampler;
 
@@ -305,7 +309,12 @@ void GammaDistanceFieldMain(
 	OutColor = SimpleElementEncodeFor32BPPHDR(OutColor);
 }
 
+#if TEXTURECUBE_ARRAY
+TextureCubeArray CubeTexture;
+#else
 TextureCube CubeTexture;
+#endif
+
 SamplerState CubeTextureSampler;
 
 float3 GetCubemapVector(float2 ScaledUVs, uint CubeFace)
@@ -345,6 +354,10 @@ float3 GetCubemapVector(float2 ScaledUVs, uint CubeFace)
 float4 PackedProperties0;
 float4x4 ColorWeights;
 
+#if TEXTURECUBE_ARRAY
+float NumSlices;
+#endif
+
 // used in the Texture info dialog when looking at a cubemap texture
 void CubemapTextureProperties(
 	in float2 TextureCoordinate : TEXCOORD0,
@@ -359,17 +372,42 @@ void CubemapTextureProperties(
 	float SliceIndex = PackedProperties0.y;
 	float4 BaseColor;
 
+#if TEXTURECUBE_ARRAY
+
+	// for a TextureCube array SliceIndex represents an index of a cubemap in the array
+	// each slice of a TextureCube array is displayed as a longlat unwrap
+
+	float2 Angles = float2(2 * PI * (TextureCoordinate.x + 0.5f), PI * TextureCoordinate.y);
+	float s = sin(Angles.y);
+	float3 Direction = float3(s * sin(Angles.x), cos(Angles.y), -s * cos(Angles.x));
+
+	float CurrentSliceIndex = SliceIndex;
+	if (CurrentSliceIndex < 0.0)
+	{
+		// if the slice index is not specified, display a portion of each cubemap from the TextureCube array
+		CurrentSliceIndex = floor(TextureCoordinate.y * NumSlices);
+	}
+
+	BaseColor = TextureCubeArraySampleLevel(CubeTexture, CubeTextureSampler, Direction.xzy, CurrentSliceIndex, MipLevel);
+
+#else //TEXTURECUBE_ARRAY
+
+	// for a TextureCube SliceIndex represents an index of a cubemap face
+
 	if (SliceIndex >= 0.0)
 	{
 		BaseColor = TextureCubeSampleLevel(CubeTexture, CubeTextureSampler, GetCubemapVector(TextureCoordinate * 2 - 1, SliceIndex), MipLevel);
 	}
 	else
 	{
+		// if the slice index is not specified, display the cubemap as a longlat unwrap
 		float2 Angles = float2(2 * PI * (TextureCoordinate.x + 0.5f), PI * TextureCoordinate.y);
 		float s = sin(Angles.y);
 		float3 Direction = float3(s * sin(Angles.x), cos(Angles.y), -s * cos(Angles.x));
 		BaseColor = TextureCubeSampleLevel(CubeTexture, CubeTextureSampler, Direction.xzy, MipLevel);
 	}
+
+#endif //TEXTURECUBE_ARRAY
 
 	float4 FinalColor;
 

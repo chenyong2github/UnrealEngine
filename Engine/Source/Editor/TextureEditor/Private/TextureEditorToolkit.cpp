@@ -715,7 +715,8 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 
 	// Cubes are previewed as unwrapped 2D textures in case when slice index is not selected.
 	// These have 2x the width of a cube face.
-	if (IsCubeTexture() && GetSlice() < 0)
+	// Cube arrays are always displayed as longlat unwraps.
+	if (IsCubeTexture() && (IsArrayTexture() || GetSlice() < 0))
 	{
 		PreviewEffectiveTextureWidth *= 2;
 	}
@@ -2151,7 +2152,12 @@ int32 FTextureEditorToolkit::GetNumSlices() const
 	{
 		return Cast<UTextureRenderTarget2DArray>(Texture)->GetSurfaceArraySize();
 	}
-	else if (IsCubeTexture())
+	else if (Texture->IsA(UTextureCubeArray::StaticClass()))
+	{
+		// for a TextureCube array SliceIndex represents an index of a cubemap in the array
+		return Cast<UTextureCubeArray>(Texture)->GetSurfaceArraySize() / 6;
+	}
+	else if (IsCubeTexture() && !IsArrayTexture())
 	{
 		return 6;
 	}
