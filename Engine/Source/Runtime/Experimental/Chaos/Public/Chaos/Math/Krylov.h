@@ -22,11 +22,12 @@ void LanczosCG(
 	{
 		T result = T(0);
 		checkfSlow(x.Num() == y.Num(), TEXT("LanczosCG: trying to take the dot product with vectors of different size."));
-		PhysicsParallelFor(x.Num(), [&](const int32 i)
+		//PhysicsParallelFor(x.Num(), [&](const int32 i)
+		for (int32 i = 0; i < x.Num(); i++)
 		{
 			result += x[i] * y[i];
-		},
-		x.Num() < 1000);
+		}/*,
+		x.Num() < 1000);*/
 		return result;
 	};
 
@@ -77,8 +78,8 @@ void LanczosCG(
 		T result = T(0);
 		if (use_list != nullptr) 
 		{
-			PhysicsParallelFor(use_list->Num(), [&](const int32 i)
-			{
+			//PhysicsParallelFor(use_list->Num(), [&](const int32 i)
+			//{
 				for (int32 i = 0; i < use_list->Num(); ++i) 
 				{
 					T dot = T(0);
@@ -89,12 +90,14 @@ void LanczosCG(
 					}
 					result += dot;
 				}
-			},
-			use_list->Num() < 1000);
+			//},
+			//use_list->Num() < 1000);
 		}
 		else 
 		{
-			PhysicsParallelFor(x.Num(), [&](const int32 i)
+			//PhysicsParallelFor(x.Num(), [&](const int32 i)
+			//{
+			for (int32 i = 0; i < x.Num(); i++)
 			{
 				T dot = T(0);
 				for (size_t alpha = 0; alpha < d; alpha++) 
@@ -102,8 +105,8 @@ void LanczosCG(
 					dot += x[i][alpha] * y[i][alpha];
 				}
 				result += dot;
-			},
-			x.Num() < 1000);
+			}/*,
+			x.Num() < 1000);*/
 		}
 		return result;
 	};
