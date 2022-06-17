@@ -57,11 +57,12 @@ public:
 
 	FPageCount GetNumPages() const { const FPageCount PageCount = GetFilteredLogs().Num() / LogsPerPage; return GetFilteredLogs().Num() % LogsPerPage == 0 ? PageCount : PageCount + 1;}
 	FPageCount GetCurrentPage() const { return CurrentPageIndex; }
-	uint16 GetLogsPerPage() const { return LogsPerPage; }
+	TOptional<FPageCount> GetPageOf(const size_t ItemIndex) const;
+	FLogsPerPageCount GetLogsPerPage() const { return LogsPerPage; }
 	const TArray<TSharedPtr<FConcertLogEntry>>& GetPageView() const { return PageView; }
 	
 	void SetLogsPerPage(FLogsPerPageCount NewLogsPerPage);
-	void SetPage(const uint32 PageIndex);
+	void SetPage(const FPageCount PageIndex);
 
 	FOnLogListChanged& OnPageViewChanged() { return OnPageViewChangedEvent; }
 	

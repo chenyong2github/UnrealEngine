@@ -13,6 +13,7 @@ FConcertLogTokenizer::FConcertLogTokenizer(TSharedRef<FEndpointToUserNameCache> 
 	: EndpointInfoGetter(EndpointInfoGetter)
 {
 	TokenizerFunctions = {
+			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, MessageId)), [this](const FConcertLog& Log) { return TokenizeMessageId(Log); } },
 			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, Timestamp)), [this](const FConcertLog& Log) { return TokenizeTimestamp(Log); } },
 			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, MessageTypeName)), [this](const FConcertLog& Log) { return TokenizeMessageTypeName(Log); } },
 			{ FConcertLog::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize)), [this](const FConcertLog& Log) { return TokenizeCustomPayloadUncompressedByteSize(Log); } },
@@ -27,7 +28,17 @@ FString FConcertLogTokenizer::Tokenize(const FConcertLog& Data, const FProperty&
 	{
 		return (*CustomTokenizer)(Data);
 	}
-	return TokenizeUsingPropertyExport(Data, ConcertLogProperty);
+	return TokenizeUsingPropertyExport(&Data, ConcertLogProperty);
+}
+
+FString FConcertLogTokenizer::Tokenize(const FConcertLogMetadata& Data, const FProperty& ConcertLogMetadataProperty) const
+{
+	return TokenizeUsingPropertyExport(&Data, ConcertLogMetadataProperty);
+}
+
+FString FConcertLogTokenizer::TokenizeMessageId(const FConcertLog& Data) const
+{
+	return Data.MessageId.ToString(EGuidFormats::DigitsWithHyphens);
 }
 
 FString FConcertLogTokenizer::TokenizeTimestamp(const FConcertLog& Data) const
@@ -57,14 +68,13 @@ FString FConcertLogTokenizer::TokenizeDestinationEndpointId(const FConcertLog& D
 	return GetEndpointDisplayString(Data.DestinationEndpointId);
 }
 
-FString FConcertLogTokenizer::TokenizeUsingPropertyExport(const FConcertLog& Data, const FProperty& ConcertLogProperty) const
+FString FConcertLogTokenizer::TokenizeUsingPropertyExport(const void* ContainerPtr, const FProperty& ConcertLogProperty) const
 {
 	FString Exported;
-	const void* ValuePtr = ConcertLogProperty.ContainerPtrToValuePtr<void>(&Data);
+	const void* ValuePtr = ConcertLogProperty.ContainerPtrToValuePtr<void>(ContainerPtr);
 	const void* DeltaPtr = ValuePtr; // We have no real delta - in this case the API expects the same ptr
 	const bool bSuccess = ConcertLogProperty.ExportText_Direct(Exported, ValuePtr, DeltaPtr, nullptr, PPF_ExternalEditor);
 	check(bSuccess);
-
 	return Exported;
 }
 

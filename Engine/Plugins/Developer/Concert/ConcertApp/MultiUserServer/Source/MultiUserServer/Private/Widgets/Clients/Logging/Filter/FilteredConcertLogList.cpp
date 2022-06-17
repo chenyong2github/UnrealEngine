@@ -46,7 +46,7 @@ void FFilteredConcertLogList::OnLowestLogEntryChanged(FConcertLogID NewLowestVal
 
 void FFilteredConcertLogList::OnNewLogEntryAdded(const TSharedRef<FConcertLogEntry>& NewLogEntry)
 {
-	if (!Filter || Filter->PassesFilter(NewLogEntry->Log))
+	if (!Filter || Filter->PassesFilter(*NewLogEntry))
 	{
 		FilteredLogs.Emplace(NewLogEntry);
 		OnLogListChanged().Broadcast(GetFilteredLogs());
@@ -58,7 +58,7 @@ void FFilteredConcertLogList::RebuildFilteredResult()
 	FilteredLogs.Reset();
 	LogSource->ForEachLog([this](const TSharedPtr<FConcertLogEntry>& LogEntry)
 	{
-		if (!Filter || Filter->PassesFilter(LogEntry->Log))
+		if (!Filter || Filter->PassesFilter(*LogEntry))
 		{
 			FilteredLogs.Emplace(LogEntry);
 		}
@@ -75,6 +75,16 @@ FPagedFilteredConcertLogList::FPagedFilteredConcertLogList(TSharedRef<IConcertLo
 
 	OnLogListChanged().AddRaw(this, &FPagedFilteredConcertLogList::HandeOnLogListChanged);
 	CheckAndConditionallyPopulatePage();
+}
+
+TOptional<FPagedFilteredConcertLogList::FPageCount> FPagedFilteredConcertLogList::GetPageOf(const size_t ItemIndex) const
+{
+	const FPageCount Page = ItemIndex / GetLogsPerPage();
+	if (Page < GetNumPages())
+	{
+		return Page;
+	}
+	return {};
 }
 
 void FPagedFilteredConcertLogList::SetLogsPerPage(uint16 NewLogsPerPage)
@@ -141,19 +151,18 @@ void FPagedFilteredConcertLogList::CheckAndConditionallyPopulatePage()
 		++PageViewIndex;
 	}, FMath::Min(PageView.Num(), GetFilteredLogs().Num()));
 
-	size_t StartIndex, LastIndex;
-	Tie(StartIndex, LastIndex) = GetLogIndicesForPage();
+	size_t StartIndex, ItemsOnPage;
+	Tie(StartIndex, ItemsOnPage) = GetLogIndicesForPage();
 
 	// Add items that are new in GetFilteredLogs()
-	bChanged |= PageView.Num() <= LastIndex; 
-	for (size_t i = PageView.Num(); i <= LastIndex && GetFilteredLogs().IsValidIndex(i); ++i)
+	bChanged |= PageView.Num() < ItemsOnPage; 
+	for (size_t i = PageView.Num(); i < ItemsOnPage && GetFilteredLogs().IsValidIndex(i); ++i)
 	{
 		PageView.Emplace(GetFilteredLogs()[i]);
 	}
 
 	// Remove (possibly duplicate) items that exceed the expected page length 
-	const FLogsPerPageCount LogsOnPage = FMath::Min(LastIndex, LastIndex - StartIndex + 1);
-	const size_t NumToRemove = PageView.Num() - LogsOnPage;
+	const size_t NumToRemove = PageView.Num() - ItemsOnPage;
 	bChanged |= NumToRemove > 0;
 	for (size_t i = 0; i < NumToRemove; ++i)
 	{
@@ -168,9 +177,8 @@ void FPagedFilteredConcertLogList::CheckAndConditionallyPopulatePage()
 
 void FPagedFilteredConcertLogList::ForEachLogIndexOnPage(TFunctionRef<void(size_t Index)> Callback, FLogsPerPageCount MaxItems)
 {
-	size_t StartIndex, LastIndex;
-	Tie(StartIndex, LastIndex) = GetLogIndicesForPage();
-	const FLogsPerPageCount NumItems = FMath::Min(LastIndex, LastIndex - StartIndex + 1);
+	size_t StartIndex, NumItems;
+	Tie(StartIndex, NumItems) = GetLogIndicesForPage();
 	for (size_t i = 0; i < NumItems && i < MaxItems; ++i)
 	{
 		Callback(StartIndex + i);
@@ -180,12 +188,12 @@ void FPagedFilteredConcertLogList::ForEachLogIndexOnPage(TFunctionRef<void(size_
 TTuple<size_t, size_t> FPagedFilteredConcertLogList::GetLogIndicesForPage() const
 {
 	const size_t StartIndex = CurrentPageIndex * LogsPerPage;
-	const size_t LastIndex = FMath::Min<size_t>(
+	const size_t NumberItems = FMath::Min<size_t>(
 		// Used when page is full
-		StartIndex + LogsPerPage - 1,
+		LogsPerPage,
 		// Used when last page is not full
-		GetFilteredLogs().Num() == 0 ? 0 : GetFilteredLogs().Num() - 1
+		GetFilteredLogs().Num() - StartIndex
 		);
 	check(GetFilteredLogs().Num() == 0 || GetFilteredLogs().IsValidIndex(StartIndex));
-	return { StartIndex, LastIndex };
+	return { StartIndex, NumberItems };
 }

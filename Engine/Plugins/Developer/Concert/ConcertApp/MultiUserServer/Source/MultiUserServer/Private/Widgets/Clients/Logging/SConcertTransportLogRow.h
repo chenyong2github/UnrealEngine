@@ -13,9 +13,13 @@ class SConcertTransportLogRow : public SMultiColumnTableRow<TSharedPtr<FConcertL
 {
 public:
 
+	DECLARE_DELEGATE_OneParam(FScrollToLog, const FGuid& /*MessageId*/);
+
 	SLATE_BEGIN_ARGS(SConcertTransportLogRow)
 	{}
 		SLATE_ARGUMENT(FLinearColor, AvatarColor)
+		SLATE_EVENT(FScrollToLog, ScrollToAckLog)
+		SLATE_EVENT(FScrollToLog, ScrollToAckedLog)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FConcertLogEntry> InLogEntry, const TSharedRef<STableViewBase>& InOwnerTableView, TSharedRef<FConcertLogTokenizer> InTokenizer, TSharedRef<FText> InHighlightText);
@@ -34,6 +38,16 @@ private:
 	TSharedPtr<FText> HighlightText;
 
 	FLinearColor AvatarColor;
+	FScrollToLog ScrollToAckLogFunc;
+	FScrollToLog ScrollToAckedLogFunc;
 
 	TSharedRef<SWidget> CreateDefaultColumn(const FName& PropertyName);
+	
+	TSharedRef<SWidget> CreateAckColumn(const FName& PropertyName);
+	TSharedRef<SWidget> CreateAckInProgressWidget() const;
+	TSharedRef<SWidget> CreateAckSuccessWidget() const;
+	TSharedRef<SWidget> CreateAckFailureWidget() const;
+	TSharedRef<SWidget> CreateAckNotNeededWidget() const;
+	TSharedRef<SWidget> CreateAckWidget() const;
+	
 };

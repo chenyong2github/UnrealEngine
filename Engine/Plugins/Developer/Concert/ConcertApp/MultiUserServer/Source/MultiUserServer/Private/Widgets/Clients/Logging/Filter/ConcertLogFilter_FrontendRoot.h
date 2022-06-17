@@ -23,7 +23,7 @@ public:
 	TSharedRef<SWidget> BuildFilterWidgets() const;
 	
 	//~ Begin IFilter Interface
-	virtual bool PassesFilter(const FConcertLog& InItem) const override;
+	virtual bool PassesFilter(const FConcertLogEntry& InItem) const override;
 	//~ End IFilter Interface
 
 	FORCEINLINE const TSharedRef<FConcertFrontendLogFilter_TextSearch>& GetTextSearchFilter() const { return TextSearchFilter; }

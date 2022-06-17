@@ -73,6 +73,8 @@ private:
 	TSharedRef<SHeaderRow> CreateHeaderRow();
 	TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FConcertLogEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 
+	static void ForEachPropertyColumn(TFunctionRef<void(const FProperty& ColumnPropertyId, FName ColumnId)> Callback);
+
 	void RestoreDefaultColumnVisiblities();
 	void ExtendViewOptions(FMenuBuilder& MenuBuilder);
 	void OnFilterMenuChecked();
@@ -81,5 +83,8 @@ private:
 	void OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot);
 	
 	void OnConcertLoggingEnabledChanged(bool bNewEnabled);
-};
 
+	void ScrollToAckLog(const FGuid& MessageId) const;
+	void ScrollToAckedLog(const FGuid& MessageId) const;
+	void ScrollToLog(const int32 LogIndex) const;
+};

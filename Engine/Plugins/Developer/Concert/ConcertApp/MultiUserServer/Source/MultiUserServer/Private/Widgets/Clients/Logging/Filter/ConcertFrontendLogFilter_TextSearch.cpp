@@ -3,10 +3,11 @@
 #include "ConcertFrontendLogFilter_TextSearch.h"
 
 #include "ConcertTransportEvents.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Clients/Logging/Util/ConcertLogTokenizer.h"
 
 FConcertLogFilter_TextSearch::FConcertLogFilter_TextSearch(TSharedRef<FConcertLogTokenizer> Tokenizer)
-	: TextFilter(TTextFilter<const FConcertLog&>::FItemToStringArray::CreateRaw(this, &FConcertLogFilter_TextSearch::GenerateSearchTerms))
+	: TextFilter(TTextFilter<const FConcertLogEntry&>::FItemToStringArray::CreateRaw(this, &FConcertLogFilter_TextSearch::GenerateSearchTerms))
 	, Tokenizer(MoveTemp(Tokenizer))
 {
 	TextFilter.OnChanged().AddLambda([this]
@@ -15,11 +16,11 @@ FConcertLogFilter_TextSearch::FConcertLogFilter_TextSearch(TSharedRef<FConcertLo
 	});
 }
 
-void FConcertLogFilter_TextSearch::GenerateSearchTerms(const FConcertLog& InItem, TArray<FString>& OutTerms) const
+void FConcertLogFilter_TextSearch::GenerateSearchTerms(const FConcertLogEntry& InItem, TArray<FString>& OutTerms) const
 {
 	for (TFieldIterator<const FProperty> PropertyIt(FConcertLog::StaticStruct()); PropertyIt; ++PropertyIt)
 	{
-		OutTerms.Add(Tokenizer->Tokenize(InItem, **PropertyIt));
+		OutTerms.Add(Tokenizer->Tokenize(InItem.Log, **PropertyIt));
 	}
 }
 

@@ -24,7 +24,7 @@ class TConcertFrontendLogFilterAggregate : public FConcertFrontendLogFilter
 public:
 
 	//~ Begin FConcertLogFilter Interface
-	virtual bool PassesFilter(const FConcertLog& InItem) const final override { return Implementation.PassesFilter(InItem); }
+	virtual bool PassesFilter(const FConcertLogEntry& InItem) const final override { return Implementation.PassesFilter(InItem); }
 	//~ End FConcertLogFilter Interface
 	
 	//~ Begin FConcertFrontendLogFilter Interface

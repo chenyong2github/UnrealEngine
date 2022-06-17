@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Window/IConcertComponent.h"
 
+class FLogAckTracker;
 class FGlobalLogSource;
 class SConcertClientsTabView;
 class SWindow;
@@ -12,8 +13,6 @@ class SWindow;
 class FConcertClientsTabController : public IConcertComponent, public TSharedFromThis<FConcertClientsTabController>
 {
 public:
-	
-	FConcertClientsTabController();
 
 	//~ Begin IConcertComponent Interface
 	virtual void Init(const FConcertComponentInitParams& Params) override;
@@ -25,7 +24,9 @@ public:
 private:
 
 	/** Buffers generated logs up to a limit (and overrides oldest logs when buffer is full) */
-	TSharedRef<FGlobalLogSource> LogBuffer;
+	TSharedPtr<FGlobalLogSource> LogBuffer;
+	/** Marks logs as acked as the ACKs come in. */
+	TSharedPtr<FLogAckTracker> AckTracker;
 	
 	/** Manages the sub-tabs */
 	TSharedPtr<SConcertClientsTabView> ClientsView;

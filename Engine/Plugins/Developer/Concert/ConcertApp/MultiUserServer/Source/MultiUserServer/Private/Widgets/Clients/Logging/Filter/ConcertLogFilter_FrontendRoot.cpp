@@ -3,6 +3,7 @@
 #include "ConcertLogFilter_FrontendRoot.h"
 
 #include "ConcertFrontendLogFilter.h"
+#include "ConcertFrontendLogFilter_Ack.h"
 #include "ConcertFrontendLogFilter_Client.h"
 #include "ConcertFrontendLogFilter_MessageAction.h"
 #include "ConcertFrontendLogFilter_MessageType.h"
@@ -55,7 +56,7 @@ TSharedRef<SWidget> FConcertLogFilter_FrontendRoot::BuildFilterWidgets() const
 		];
 }
 
-bool FConcertLogFilter_FrontendRoot::PassesFilter(const FConcertLog& InItem) const
+bool FConcertLogFilter_FrontendRoot::PassesFilter(const FConcertLogEntry& InItem) const
 {
 	return Algo::AllOf(
 		AllFrontendFilters,
@@ -91,11 +92,12 @@ namespace UE::MultiUserServer
 		static TArray<TSharedRef<FConcertFrontendLogFilter>> CreateCommonFilters()
 		{
 			return {
-				MakeShared<FConcertFrontendLogFilter_MessageAction>(),
-				MakeShared<FConcertFrontendLogFilter_MessageType>(),
+				MakeShared<Filters::FConcertFrontendLogFilter_MessageAction>(),
+				MakeShared<Filters::FConcertFrontendLogFilter_MessageType>(),
 				MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowAfter),
 				MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowBefore),
-				MakeShared<FConcertFrontendLogFilter_Size>()
+				MakeShared<FConcertFrontendLogFilter_Size>(),
+				MakeShared<Filters::FConcertFrontendLogFilter_Ack>()
 			};
 		}
 	}

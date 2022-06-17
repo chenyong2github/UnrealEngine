@@ -6,8 +6,9 @@
 
 class FEndpointToUserNameCache;
 struct FConcertLog;
+struct FConcertLogMetadata;
 
-/** Converts members of FConcertLog into a string. Used e.g. to make search respect the display settings. */
+/** Converts members of FConcertLog and FConcertLogMetadata into a string. Used e.g. to make search respect the display settings. */
 class FConcertLogTokenizer
 {
 public:
@@ -16,13 +17,16 @@ public:
 
 	/** Tokenizes a property of FConcertLog into a string */
 	FString Tokenize(const FConcertLog& Data, const FProperty& ConcertLogProperty) const;
+	/** Tokenizes a property of FConcertLogMetadata into a string */
+	FString Tokenize(const FConcertLogMetadata& Data, const FProperty& ConcertLogMetadataProperty) const;
 
+	// ContainerPtr Tokenizers
+	FString TokenizeMessageId(const FConcertLog& Data) const;
 	FString TokenizeTimestamp(const FConcertLog& Data) const;
 	FString TokenizeMessageTypeName(const FConcertLog& Data) const;
 	FString TokenizeCustomPayloadUncompressedByteSize(const FConcertLog& Data) const;
 	FString TokenizeOriginEndpointId(const FConcertLog& Data) const;
 	FString TokenizeDestinationEndpointId(const FConcertLog& Data) const;
-	FString TokenizeUsingPropertyExport(const FConcertLog& Data, const FProperty& ConcertLogProperty) const;
 
 private:
 
@@ -35,4 +39,6 @@ private:
 	TSharedRef<FEndpointToUserNameCache> EndpointInfoGetter;
 
 	FString GetEndpointDisplayString(const FGuid& EndpointId) const;
+	
+	FString TokenizeUsingPropertyExport(const void* ContainerPtr, const FProperty& ConcertLogProperty) const;
 };

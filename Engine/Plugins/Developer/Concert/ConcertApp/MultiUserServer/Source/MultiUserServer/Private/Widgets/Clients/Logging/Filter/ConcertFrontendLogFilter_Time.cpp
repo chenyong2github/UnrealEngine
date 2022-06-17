@@ -4,6 +4,7 @@
 
 #include "ConcertFrontendUtils.h"
 #include "ConcertTransportEvents.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
@@ -29,12 +30,12 @@ FDateTime FConcertLogFilter_Time::MakeResetTime() const
 	return FilterMode == ETimeFilter::AllowAfter ? FDateTime() : FDateTime::MaxValue();
 }
 
-bool FConcertLogFilter_Time::PassesFilter(const FConcertLog& InItem) const
+bool FConcertLogFilter_Time::PassesFilter(const FConcertLogEntry& InItem) const
 {
 	switch (FilterMode)
 	{
-	case ETimeFilter::AllowAfter: return InItem.Timestamp >= Time;
-	case ETimeFilter::AllowBefore: return InItem.Timestamp <= Time;
+	case ETimeFilter::AllowAfter: return InItem.Log.Timestamp >= Time;
+	case ETimeFilter::AllowBefore: return InItem.Log.Timestamp <= Time;
 	default:
 		checkNoEntry();
 		return true;

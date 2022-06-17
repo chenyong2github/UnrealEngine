@@ -23,7 +23,7 @@ public:
 	void ResetToInfiniteTime();
 
 	//~ Begin FConcertLogFilter Interface
-	virtual bool PassesFilter(const FConcertLog& InItem) const override;
+	virtual bool PassesFilter(const FConcertLogEntry& InItem) const override;
 	//~ End FConcertLogFilter Interfac
 
 	ETimeFilter GetFilterMode() const { return FilterMode; }

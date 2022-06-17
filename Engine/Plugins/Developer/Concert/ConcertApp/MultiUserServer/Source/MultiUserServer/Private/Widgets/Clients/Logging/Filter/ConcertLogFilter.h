@@ -5,11 +5,11 @@
 #include "CoreMinimal.h"
 #include "Misc/IFilter.h"
 
-struct FConcertLog;
+struct FConcertLogEntry;
 
 /** Base filter */
 class FConcertLogFilter :
-	public IFilter<const FConcertLog&>,
+	public IFilter<const FConcertLogEntry&>,
 	public TSharedFromThis<FConcertLogFilter>,
 	// We do not need to copy filters so let's avoid it by accident; some constructors pass this pointer to callbacks which become stale upon copying
 	public FNoncopyable
@@ -17,7 +17,7 @@ class FConcertLogFilter :
 public:
 
 	//~ Begin IFilter Interface
-	DECLARE_DERIVED_EVENT( FFrontendFilter, IFilter<const FConcertLog&>::FChangedEvent, FChangedEvent );
+	DECLARE_DERIVED_EVENT( FFrontendFilter, IFilter<const FConcertLogEntry&>::FChangedEvent, FChangedEvent );
 	virtual FChangedEvent& OnChanged() override { return ChangedEvent; }
 	//~ End IFilter Interface
 

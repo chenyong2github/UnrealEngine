@@ -20,7 +20,7 @@ class FConcertLogFilter_Size : public FConcertLogFilter
 public:
 	
 	//~ Begin FConcertLogFilter Interface
-	virtual bool PassesFilter(const FConcertLog& InItem) const override;
+	virtual bool PassesFilter(const FConcertLogEntry& InItem) const override;
 	//~ End FConcertLogFilter Interface
 
 	void AdvanceFilterMode();

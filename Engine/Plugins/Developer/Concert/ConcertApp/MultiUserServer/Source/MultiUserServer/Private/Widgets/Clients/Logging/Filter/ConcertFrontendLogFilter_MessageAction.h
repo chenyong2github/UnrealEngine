@@ -3,42 +3,43 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConcertFrontendLogFilter_BaseSetSelection.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Clients/Logging/Filter/ConcertFrontendLogFilter.h"
+#include "Widgets/Clients/Logging/Util/MessageActionUtils.h"
 
-/** Allows only the selected messages types */
-class FConcertLogFilter_MessageAction : public FConcertLogFilter
+namespace UE::MultiUserServer::Filters
 {
-public:
+	/** Allows only the selected messages types */
+	class FConcertLogFilter_MessageAction : public TConcertLogFilter_BaseSetSelection<FConcertLogFilter_MessageAction, FName>
+	{
+	public:
 
-	FConcertLogFilter_MessageAction();
+		static TSet<FName> GetAllOptions()
+		{
+			return MessageActionUtils::GetAllMessageActionNames();
+		}
+		
+		static FString GetOptionDisplayString(const FName& Item)
+		{
+			return MessageActionUtils::GetActionDisplayString(Item);
+		}
 
-	//~ Begin FConcertLogFilter Interface
-	virtual bool PassesFilter(const FConcertLog& InItem) const override;
-	//~ End FConcertLogFilter Interface
+		//~ Begin FConcertLogFilter Interface
+		virtual bool PassesFilter(const FConcertLogEntry& InItem) const override
+		{
+			return IsItemAllowed(MessageActionUtils::ConvertActionToName(InItem.Log.MessageAction));
+		}
+		//~ End FConcertLogFilter Interface
+	};
 
-	void AllowAll();
-	void DisallowAll();
-	void ToggleAll(const TSet<FName>& ToToggle);
-	
-	void AllowMessageAction(FName MessageTypeName);
-	void DisallowMessageAction(FName MessageTypeName);
-	
-	bool IsMessageActionAllowed(FName MessageTypeName) const;
-	bool AreAllAllowed() const;
-	uint8 GetNumSelected() const;
-	
-private:
-	
-	TSet<FName> AllowedMessageActionNames;
-};
+	class FConcertFrontendLogFilter_MessageAction : public TConcertFrontendLogFilter_BaseSetSelection<FConcertLogFilter_MessageAction>
+	{
+	public:
 
-class FConcertFrontendLogFilter_MessageAction : public TConcertFrontendLogFilterAggregate<FConcertLogFilter_MessageAction>
-{
-public:
+		FConcertFrontendLogFilter_MessageAction()
+			: TConcertFrontendLogFilter_BaseSetSelection<FConcertLogFilter_MessageAction>(NSLOCTEXT("UnrealMultiUserUI.Filter.MessageAction", "Name", "Actions"))
+		{}
+	};
+}
 
-	FConcertFrontendLogFilter_MessageAction();
-
-private:
-
-	TSharedRef<SWidget> MakeSelectionMenu();
-};

@@ -2,8 +2,10 @@
 
 #include "ConcertClientsTabController.h"
 
+#include "IConcertSyncServer.h"
 #include "SConcertClientsTabView.h"
 #include "Logging/Source/GlobalLogSource.h"
+#include "Logging/Util/LogAckTracker.h"
 #include "Window/ConcertServerTabs.h"
 #include "Window/ConcertServerWindowController.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -12,15 +14,14 @@
 
 namespace UE::MultiUserServer
 {
-	static constexpr uint64 GlobalLogCapacity = 500000;
+	static constexpr uint64 GlobalLogCapacity = 5000000;
 }
-
-FConcertClientsTabController::FConcertClientsTabController()
-	: LogBuffer(MakeShared<FGlobalLogSource>(UE::MultiUserServer::GlobalLogCapacity))
-{}
 
 void FConcertClientsTabController::Init(const FConcertComponentInitParams& Params)
 {
+	LogBuffer = MakeShared<FGlobalLogSource>(UE::MultiUserServer::GlobalLogCapacity);
+	AckTracker = MakeShared<FLogAckTracker>(LogBuffer.ToSharedRef(), Params.Server->GetConcertServer());
+	
 	FGlobalTabmanager::Get()->RegisterTabSpawner(
 				ConcertServerTabs::GetClientsTabID(),
 				FOnSpawnTab::CreateRaw(this, &FConcertClientsTabController::SpawnClientsTab, Params.WindowController->GetRootWindow(), Params.Server)
@@ -44,7 +45,7 @@ TSharedRef<SDockTab> FConcertClientsTabController::SpawnClientsTab(const FSpawnT
 		.TabRole(MajorTab)
 		.CanEverClose(false);
 	DockTab->SetContent(
-		SAssignNew(ClientsView, SConcertClientsTabView, ConcertServerTabs::GetClientsTabID(), Server, LogBuffer)
+		SAssignNew(ClientsView, SConcertClientsTabView, ConcertServerTabs::GetClientsTabID(), Server, LogBuffer.ToSharedRef())
 			.ConstructUnderMajorTab(DockTab)
 			.ConstructUnderWindow(RootWindow)
 		);

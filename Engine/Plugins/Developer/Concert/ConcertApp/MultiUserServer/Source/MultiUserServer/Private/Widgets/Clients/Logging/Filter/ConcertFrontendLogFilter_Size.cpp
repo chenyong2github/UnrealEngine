@@ -8,24 +8,25 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FConcertLogFilter_Size"
 
-bool FConcertLogFilter_Size::PassesFilter(const FConcertLog& InItem) const
+bool FConcertLogFilter_Size::PassesFilter(const FConcertLogEntry& InItem) const
 {
-	check(InItem.CustomPayloadUncompressedByteSize >= 0);
+	check(InItem.Log.CustomPayloadUncompressedByteSize >= 0);
 	// Note: This only filters activities events - they all use custom events.
 	// The filter's default value is to show everything 0 <= x so it will show sync events as well.
 	const uint32 ComparisionSizeInBytes = FUnitConversion::Convert(SizeInBytes, DataUnit, EUnit::Bytes);
 	switch (FilterMode)
 	{
 	case ESizeFilterMode::LessThanOrEqual:
-		return ComparisionSizeInBytes >= static_cast<uint32>(InItem.CustomPayloadUncompressedByteSize);
+		return ComparisionSizeInBytes >= static_cast<uint32>(InItem.Log.CustomPayloadUncompressedByteSize);
 	case ESizeFilterMode::BiggerThanOrEqual:
-		return ComparisionSizeInBytes <= static_cast<uint32>(InItem.CustomPayloadUncompressedByteSize);
+		return ComparisionSizeInBytes <= static_cast<uint32>(InItem.Log.CustomPayloadUncompressedByteSize);
 	default:
 		checkNoEntry();
 		return false;

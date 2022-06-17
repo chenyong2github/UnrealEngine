@@ -17,7 +17,7 @@ public:
 	FConcertLogFilter_TextSearch(TSharedRef<FConcertLogTokenizer> Tokenizer);
 	
 	//~ Begin FConcertLogFilter Interface
-	virtual bool PassesFilter(const FConcertLog& InItem) const override { return TextFilter.PassesFilter(InItem); }
+	virtual bool PassesFilter(const FConcertLogEntry& InItem) const override { return TextFilter.PassesFilter(InItem); }
 	//~ End FConcertLogFilter Interface
 	
 	void SetRawFilterText(const FText& InFilterText) { TextFilter.SetRawFilterText(InFilterText); }
@@ -25,12 +25,12 @@ public:
 private:
 
 	/** Does the actual string search */
-	TTextFilter<const FConcertLog&> TextFilter;
+	TTextFilter<const FConcertLogEntry&> TextFilter;
 	/** Helps in converting FConcertLog members into search terms */
 	TSharedRef<FConcertLogTokenizer> Tokenizer;
 
 	/** Parses InItem into a bunch of strings that can be searched */
-	void GenerateSearchTerms(const FConcertLog& InItem, TArray<FString>& OutTerms) const;
+	void GenerateSearchTerms(const FConcertLogEntry& InItem, TArray<FString>& OutTerms) const;
 };
 
 /** Creates a search bar */

@@ -3,42 +3,46 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/Clients/Logging/Filter/ConcertFrontendLogFilter.h"
+#include "ConcertFrontendLogFilter_BaseSetSelection.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
+#include "Widgets/Clients/Logging/Util/MessageTypeUtils.h"
 
-/** Allows only the selected messages types */
-class FConcertLogFilter_MessageType : public FConcertLogFilter
+namespace UE::MultiUserServer::Filters
 {
-public:
+	/** Allows only the selected messages types */
+	class FConcertLogFilter_MessageType : public TConcertLogFilter_BaseSetSelection<FConcertLogFilter_MessageType, FName>
+	{
+	public:
 
-	FConcertLogFilter_MessageType();
-
-	//~ Begin FConcertLogFilter Interface
-	virtual bool PassesFilter(const FConcertLog& InItem) const override;
-	//~ End FConcertLogFilter Interface
-
-	void AllowAll();
-	void DisallowAll();
-	void ToggleAll(const TSet<FName>& ToToggle);
+		static TSet<FName> GetAllOptions()
+		{
+			return MessageTypeUtils::GetAllMessageTypeNames();
+		}
+		
+		static FString GetOptionDisplayString(const FName& Item)
+		{
+			return MessageTypeUtils::SanitizeMessageTypeName(Item);
+		}
+		
+		//~ Begin FConcertLogFilter Interface
+		virtual bool PassesFilter(const FConcertLogEntry& InItem) const override
+		{
+			return IsItemAllowed(InItem.Log.MessageTypeName);
+		}
+		//~ End FConcertLogFilter Interface
 	
-	void AllowMessageType(FName MessageTypeName);
-	void DisallowMessageType(FName MessageTypeName);
+	private:
 	
-	bool IsMessageTypeAllowed(FName MessageTypeName) const;
-	bool AreAllAllowed() const;
-	uint8 GetNumSelected() const;
-	
-private:
-	
-	TSet<FName> AllowedMessageTypeNames;
-};
+		TSet<FName> AllowedMessageTypeNames;
+	};
 
-class FConcertFrontendLogFilter_MessageType : public TConcertFrontendLogFilterAggregate<FConcertLogFilter_MessageType>
-{
-public:
+	class FConcertFrontendLogFilter_MessageType : public TConcertFrontendLogFilter_BaseSetSelection<FConcertLogFilter_MessageType>
+	{
+	public:
 
-	FConcertFrontendLogFilter_MessageType();
+		FConcertFrontendLogFilter_MessageType()
+			: TConcertFrontendLogFilter_BaseSetSelection<FConcertLogFilter_MessageType>(NSLOCTEXT("UnrealMultiUserUI.Filter.MessageType", "Name", "Message Type"))
+		{}
+	};
+}
 
-private:
-
-	TSharedRef<SWidget> MakeSelectionMenu();
-};
