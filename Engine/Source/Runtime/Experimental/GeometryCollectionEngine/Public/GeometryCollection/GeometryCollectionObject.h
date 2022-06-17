@@ -566,12 +566,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Removal Duration", EditCondition="bRemoveOnMaxSleep"))
 	FVector2D RemovalDuration;
 
-	/** when on non-sleeping, slow moving pieces will be considered as sleeping, this help removal of jittery but not really moving objects. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Slow*-Moving as sleeping", EditCondition="bRemoveOnMaxSleep"))
+	/** when on non-sleeping, slow moving pieces will be considered as sleeping, this helps removal of jittery but not really moving objects. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Slow-Moving as sleeping", EditCondition="bRemoveOnMaxSleep"))
 	bool bSlowMovingAsSleeping;
 
 	/** When slow moving detection is on, this defines the linear velocity thresholds in cm/s to consider the object as sleeping . */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Slow*-Moving Velocity Threshold", EditCondition="bRemoveOnMaxSleep && bSlowMovingAsSleeping"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Slow-Moving Velocity Threshold", EditCondition="bRemoveOnMaxSleep && bSlowMovingAsSleeping"))
 	float SlowMovingVelocityThreshold;
 	
 	/*

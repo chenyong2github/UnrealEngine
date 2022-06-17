@@ -2299,6 +2299,9 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
 		SimulationParameters.EnableGravity = BodyInstance.bEnableGravity;
 		SimulationParameters.UseInertiaConditioning = BodyInstance.IsInertiaConditioningEnabled();
+		SimulationParameters.UseCCD = BodyInstance.bUseCCD;
+		SimulationParameters.LinearDamping = BodyInstance.LinearDamping;
+		SimulationParameters.AngularDamping = BodyInstance.AngularDamping;
 		SimulationParameters.WorldTransform = GetComponentToWorld();
 		SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
 

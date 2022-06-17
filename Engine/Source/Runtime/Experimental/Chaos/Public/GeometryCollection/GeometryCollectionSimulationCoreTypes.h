@@ -201,6 +201,9 @@ struct FSimulationParameters
 		, RemoveOnFractureEnabled(false)
 		, EnableGravity(true)
 		, UseInertiaConditioning(true)
+		, UseCCD(false)
+		, LinearDamping(0.01f)
+		, AngularDamping(0)
 		, SimulationFilterData()
 		, QueryFilterData()
 		, UserData(nullptr)
@@ -242,6 +245,9 @@ struct FSimulationParameters
 		, RemoveOnFractureEnabled(Other.RemoveOnFractureEnabled)
 		, EnableGravity(Other.EnableGravity)
 		, UseInertiaConditioning(Other.UseInertiaConditioning)
+		, UseCCD(Other.UseCCD)
+		, LinearDamping(Other.LinearDamping)
+		, AngularDamping(Other.AngularDamping)
 		, SimulationFilterData(Other.SimulationFilterData)
 		, QueryFilterData(Other.QueryFilterData)
 		, UserData(Other.UserData)
@@ -306,6 +312,9 @@ struct FSimulationParameters
 	
 	bool EnableGravity;
 	bool UseInertiaConditioning;
+	bool UseCCD;
+	float LinearDamping;
+	float AngularDamping;
 
 	FCollisionFilterData SimulationFilterData;
 	FCollisionFilterData QueryFilterData;

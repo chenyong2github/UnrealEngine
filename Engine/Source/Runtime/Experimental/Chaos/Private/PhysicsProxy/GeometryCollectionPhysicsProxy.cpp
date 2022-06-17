@@ -752,30 +752,6 @@ void FGeometryCollectionPhysicsProxy::CreateNonClusteredParticles(Chaos::FPBDRig
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::SetGravityEnabled(const Chaos::FPBDRigidsSolver& RigidsSolver, bool bEnabled)
-{
-	Chaos::FPerParticleGravity& GravityForces = RigidsSolver.GetEvolution()->GetGravityForces();
-	for (int32 HandleIdx = 0; HandleIdx < SolverParticleHandles.Num(); ++HandleIdx)
-	{
-		if (Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>* Handle = SolverParticleHandles[HandleIdx])
-		{
-			Handle->SetGravityEnabled(bEnabled);
-		}
-	}
-}
-
-void FGeometryCollectionPhysicsProxy::EnableInertiaConditioning(const Chaos::FPBDRigidsSolver& RigidsSolver, bool bEnabled)
-{
-	Chaos::FPerParticleGravity& GravityForces = RigidsSolver.GetEvolution()->GetGravityForces();
-	for (int32 HandleIdx = 0; HandleIdx < SolverParticleHandles.Num(); ++HandleIdx)
-	{
-		if (Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>* Handle = SolverParticleHandles[HandleIdx])
-		{
-			Handle->SetInertiaConditioningEnabled(bEnabled);
-		}
-	}
-}
-
 void FGeometryCollectionPhysicsProxy::SetSleepingState(const Chaos::FPBDRigidsSolver& RigidsSolver)
 {
 	for (FClusterHandle* Handle: SolverParticleHandles)
@@ -1121,9 +1097,6 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 		}
 #endif // TODO_REIMPLEMENT_RIGID_CACHING
 
-		const bool bEnableGravity = Parameters.EnableGravity && !DisableGeometryCollectionGravity;
-		SetGravityEnabled(*RigidsSolver, bEnableGravity);
-
 		const bool bStartSleeping =
 				(Parameters.ObjectType == EObjectStateTypeEnum::Chaos_Object_Sleeping
 			 || (Parameters.ObjectType == EObjectStateTypeEnum::Chaos_Object_Dynamic && !Parameters.StartAwake));
@@ -1132,8 +1105,20 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			SetSleepingState(*RigidsSolver);
 		}
 
-		EnableInertiaConditioning(*RigidsSolver, Parameters.UseInertiaConditioning);
-
+		// apply various features on the handles 
+		const bool bEnableGravity = Parameters.EnableGravity && !DisableGeometryCollectionGravity;
+		for (Chaos::FPBDRigidParticleHandle* Handle: SolverParticleHandles)
+		{
+			if (Handle)
+			{
+				Handle->SetGravityEnabled(bEnableGravity);
+				Handle->SetCCDEnabled(Parameters.UseCCD);
+				Handle->SetInertiaConditioningEnabled(Parameters.UseInertiaConditioning);
+				Handle->SetLinearEtherDrag(Parameters.LinearDamping);
+				Handle->SetAngularEtherDrag(Parameters.AngularDamping);
+			}
+		}
+		
 		// call DirtyParticle to make sure the acceleration structure is up to date with all the changes happening here
 		DirtyAllParticles(*RigidsSolver);
 
