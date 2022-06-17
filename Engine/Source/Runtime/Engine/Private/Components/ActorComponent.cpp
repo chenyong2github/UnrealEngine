@@ -380,14 +380,6 @@ void UActorComponent::PostInitProperties()
 			OwnerPrivate->AddOwnedComponent(this);
 		}
 	}
-
-	for (UAssetUserData* Datum : AssetUserData)
-	{
-		if (Datum != nullptr)
-		{
-			Datum->PostEditChangeOwner();
-		}
-	}
 }
 
 void UActorComponent::PostLoad()
@@ -984,6 +976,14 @@ void UActorComponent::ConsolidatedPostEditChange(const FPropertyChangedEvent& Pr
 		// @todo james should this call UnregisterComponent instead to remove itself from the RegisteredComponents array on the owner?
 		ExecuteUnregisterEvents();
 		WorldPrivate = nullptr;
+	}
+
+	for (UAssetUserData* Datum : AssetUserData)
+	{
+		if (Datum != nullptr)
+		{
+			Datum->PostEditChangeOwner();
+		}
 	}
 }
 
