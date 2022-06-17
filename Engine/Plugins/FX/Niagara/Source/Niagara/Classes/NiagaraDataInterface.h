@@ -291,6 +291,7 @@ struct NIAGARA_API FNDIGpuComputePrePostStageContext : public FNDIGpuComputeCont
 	FNiagaraSystemInstanceID GetSystemInstanceID() const;
 	FVector3f GetSystemLWCTile() const;
 	bool IsOutputStage() const;
+	bool IsInputStage() const;
 	bool IsIterationStage() const;
 
 	void SetDataInterfaceProxy(FNiagaraDataInterfaceProxy* InDataInterfaceProxy) { DataInterfaceProxy = InDataInterfaceProxy; }

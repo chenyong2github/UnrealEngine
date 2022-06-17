@@ -3303,6 +3303,15 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 				OutputDestination = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
 			}
 		}
+
+		for (FName& InputDI : SimStageMetaData.InputDataInterfaces)
+		{
+			if (!InputDI.IsNone())
+			{
+				FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), InputDI);
+				InputDI = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
+			}
+		}
 	}
 
 	// Also handle any data set mappings...

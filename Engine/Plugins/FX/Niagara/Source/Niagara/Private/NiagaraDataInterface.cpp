@@ -243,6 +243,12 @@ bool FNDIGpuComputePrePostStageContext::IsOutputStage() const
 	return ComputeInstanceData.IsOutputStage(DataInterfaceProxy, SimStageData.StageIndex);
 }
 
+bool FNDIGpuComputePrePostStageContext::IsInputStage() const
+{
+	check(DataInterfaceProxy);
+	return ComputeInstanceData.IsInputStage(DataInterfaceProxy, SimStageData.StageIndex);
+}
+
 bool FNDIGpuComputePrePostStageContext::IsIterationStage() const
 {
 	check(DataInterfaceProxy);

@@ -2019,6 +2019,11 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			{
 				Preamble.Appendf(TEXT("//\tOutputs to: \"%s\"\n"), *Dest.ToString());
 			}
+
+			for (const FName& Dest : SimStageMetaData.InputDataInterfaces)
+			{
+				Preamble.Appendf(TEXT("//\tReads from: \"%s\"\n"), *Dest.ToString());
+			}
 		}
 
 		// Display the computed compile tags in the source hlsl to make checking easier.
@@ -4058,6 +4063,7 @@ void FHlslNiagaraTranslator::EnterFunction(const FString& Name, FNiagaraFunction
 	FunctionContextStack.Emplace(Name, Signature, Inputs, InGuid);
 	TArray<FName> Entries;
 	ActiveStageWriteTargets.Push(Entries);
+	ActiveStageReadTargets.Push(Entries);
 	//May need some more heavy and scoped symbol tracking?
 
 	//Add new scope for pin reuse.
@@ -4079,6 +4085,16 @@ void FHlslNiagaraTranslator::ExitFunction()
 		for (const FName& Entry : Entries)
 		{
 			ActiveStageWriteTargets.Top().AddUnique(Entry);
+		}
+	}
+
+	// Accumulate the read targets.
+	Entries = ActiveStageReadTargets.Pop();
+	if (ActiveStageReadTargets.Num())
+	{
+		for (const FName& Entry : Entries)
+		{
+			ActiveStageReadTargets.Top().AddUnique(Entry);
 		}
 	}
 }
@@ -7721,6 +7737,15 @@ void FHlslNiagaraTranslator::HandleDataInterfaceCall(FNiagaraScriptDataInterface
 			ActiveStageWriteTargets.Top().AddUnique(Info.Name);
 		}
 	}
+	if (InMatchingSignature.bReadFunction && CompilationOutput.ScriptData.SimulationStageMetaData.Num() > 1 && TranslationStages[ActiveStageIdx].SimulationStageIndex != -1)
+	{
+		const int32 SourceSimStage = TranslationStages[ActiveStageIdx].SimulationStageIndex;
+		CompilationOutput.ScriptData.SimulationStageMetaData[SourceSimStage].InputDataInterfaces.AddUnique(Info.Name);
+		if (ActiveStageReadTargets.Num() > 0)
+		{
+			ActiveStageReadTargets.Top().AddUnique(Info.Name);
+		}
+	}
 }
 
 bool IsVariableWriteBeforeRead(const TArray<FNiagaraParameterMapHistory::FReadHistory>& ReadHistory)
@@ -7976,6 +8001,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 				}
 
 				FunctionStageWriteTargets.Add(OutSignature, ActiveStageWriteTargets.Top());
+				FunctionStageReadTargets.Add(OutSignature, ActiveStageReadTargets.Top());
 			}
 
 			ExitFunction();
@@ -7984,7 +8010,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 		{
 			FuncBody->StageIndices.AddUnique(ActiveStageIdx);
 
-			// Just because we had a cached call, doesn't mean that we should ignore adding an writetargets
+			// Just because we had a cached call, doesn't mean that we should ignore adding read or writetargets
 			TArray<FName>* Entries = FunctionStageWriteTargets.Find(OutSignature);
 			if (Entries)
 			{
@@ -7993,6 +8019,17 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 					const int32 SourceSimStage = TranslationStages[ActiveStageIdx].SimulationStageIndex;
 					CompilationOutput.ScriptData.SimulationStageMetaData[SourceSimStage].OutputDestinations.AddUnique(Entry);
 					ActiveStageWriteTargets.Top().AddUnique(Entry);
+				}
+			}
+
+			Entries = FunctionStageReadTargets.Find(OutSignature);
+			if (Entries)
+			{
+				for (const FName& Entry : *Entries)
+				{
+					const int32 SourceSimStage = TranslationStages[ActiveStageIdx].SimulationStageIndex;
+					CompilationOutput.ScriptData.SimulationStageMetaData[SourceSimStage].InputDataInterfaces.AddUnique(Entry);
+					ActiveStageReadTargets.Top().AddUnique(Entry);
 				}
 			}
 		}
@@ -8026,6 +8063,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 				}
 
 				FunctionStageWriteTargets.Add(OutSignature, ActiveStageWriteTargets.Top());
+				FunctionStageReadTargets.Add(OutSignature, ActiveStageReadTargets.Top());
 
 				for (const FNiagaraCustomHlslInclude& FileInclude : InCustomHlslIncludeFilePaths)
 				{

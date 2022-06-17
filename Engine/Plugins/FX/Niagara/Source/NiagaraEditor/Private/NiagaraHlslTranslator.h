@@ -491,6 +491,9 @@ protected:
 	TMap<FNiagaraFunctionSignature, TArray<FName>> FunctionStageWriteTargets;
 	TArray<TArray<FName>> ActiveStageWriteTargets;
 
+	TMap<FNiagaraFunctionSignature, TArray<FName>> FunctionStageReadTargets;
+	TArray<TArray<FName>> ActiveStageReadTargets;
+
 	void RegisterFunctionCall(ENiagaraScriptUsage ScriptUsage, const FString& InName, const FString& InFullName, const FGuid& CallNodeId, const FString& InFunctionNameSuffix, UNiagaraScriptSource* Source, FNiagaraFunctionSignature& InSignature, bool bIsCustomHlsl, const FString& InCustomHlsl, const TArray<FNiagaraCustomHlslInclude>& InCustomHlslIncludeFilePaths, TArray<int32>& Inputs, TArrayView<UEdGraphPin* const> CallInputs, TArrayView<UEdGraphPin* const> CallOutputs,
 		FNiagaraFunctionSignature& OutSignature);
 	void GenerateFunctionCall(ENiagaraScriptUsage ScriptUsage, FNiagaraFunctionSignature& FunctionSignature, TArrayView<const int32> Inputs, TArray<int32>& Outputs);

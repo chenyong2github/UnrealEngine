@@ -90,6 +90,15 @@ bool FNiagaraComputeExecutionContext::IsOutputStage(FNiagaraDataInterfaceProxy* 
 	return false;
 }
 
+bool FNiagaraComputeExecutionContext::IsInputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const
+{
+	if (DIProxy && !DIProxy->SourceDIName.IsNone())
+	{
+		return SimStageInfo[SimulationStageIndex].InputDataInterfaces.Contains(DIProxy->SourceDIName);
+	}
+	return false;
+}
+
 bool FNiagaraComputeExecutionContext::IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const
 {
 	if (DIProxy && !DIProxy->SourceDIName.IsNone())
@@ -252,6 +261,11 @@ void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuf
 bool FNiagaraComputeInstanceData::IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const
 {
 	return Context->IsOutputStage(DIProxy, SimulationStageIndex);
+}
+
+bool FNiagaraComputeInstanceData::IsInputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const
+{
+	return Context->IsInputStage(DIProxy, SimulationStageIndex);
 }
 
 bool FNiagaraComputeInstanceData::IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const

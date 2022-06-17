@@ -83,6 +83,11 @@ public:
 	UPROPERTY()
 	TArray<FName> OutputDestinations;
 
+	/** DataInterfaces that we read from in this stage.*/
+	UPROPERTY()
+	TArray<FName> InputDataInterfaces;
+
+
 	/** The number of iterations for the stage. */
 	UPROPERTY()
 	int32 NumIterations = 1;

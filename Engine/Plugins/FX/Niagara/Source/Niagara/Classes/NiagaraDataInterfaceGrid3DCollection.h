@@ -51,6 +51,8 @@ struct FGrid3DCollectionRWInstanceData_GameThread
 
 struct FGrid3DCollectionRWInstanceData_RenderThread
 {
+	FName SourceDIName;
+
 	FIntVector NumCells = FIntVector::ZeroValue;
 	FIntVector NumTiles = FIntVector::ZeroValue;
 	int32 TotalNumAttributes = 0;
@@ -83,7 +85,7 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	// overrides the render thread data, which in this case is for a grid reader
 	FNiagaraDataInterfaceProxy* OtherProxy = nullptr;
 
-	void BeginSimulate(FRDGBuilder& GraphBuilder);
+	void BeginSimulate(FRDGBuilder& GraphBuilder, bool RequiresBuffering);
 	void EndSimulate();
 };
 

@@ -387,9 +387,13 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	uint32 bSupportsGPU : 1;
 
-	/** Writes to the variable this is bound to */
+	/** Writes data owned by the data interface.  Any stage using it will be marked as an Output stage. */
 	UPROPERTY()
 	uint32 bWriteFunction : 1;
+
+	/** Reads data owned by the data interface.  Any stage using it will be marked as an Input stage. */
+	UPROPERTY()
+	uint32 bReadFunction : 1;
 
 	/** Whether or not this function should show up in normal usage. */
 	UPROPERTY()
@@ -435,6 +439,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, bReadFunction(false)
 		, bSoftDeprecatedFunction(false)
 		, bIsCompileTagGenerator(false)
 		, bHidden(false)
@@ -452,6 +457,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, bReadFunction(false)
 		, bSoftDeprecatedFunction(false)
 		, bIsCompileTagGenerator(false)
 		, bHidden(false)
