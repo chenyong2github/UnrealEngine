@@ -519,6 +519,10 @@ namespace UnrealBuildTool
 
 			// Configure the precompiled headers for this module
 			CompileEnvironment = SetupPrecompiledHeaders(Target, ToolChain, CompileEnvironment, LinkInputFiles, Graph);
+			if (CompileEnvironment.PrecompiledHeaderFile != null)
+			{
+				Logger.LogDebug("Module '{ModuleName}' uses PCH '{PCHIncludeFilename}'", this.Name, CompileEnvironment.PrecompiledHeaderFile);
+			}
 
 			// Write all the definitions to a separate file
 			CreateHeaderForDefinitions(CompileEnvironment, IntermediateDirectory, null, Graph);
