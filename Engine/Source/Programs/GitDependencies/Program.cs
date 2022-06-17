@@ -14,6 +14,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Xml;
 using System.Xml.Serialization;
 
 namespace GitDependencies
@@ -1453,7 +1454,11 @@ namespace GitDependencies
 				XmlSerializer Serializer = new XmlSerializer(typeof(T));
 				using(StreamWriter Writer = new StreamWriter(FileName))
 				{
-					Serializer.Serialize(Writer, XmlObject);
+					XmlWriterSettings WriterSettings = new() { Indent = true };
+					using(XmlWriter XMLWriter = XmlWriter.Create(Writer, WriterSettings))
+					{
+						Serializer.Serialize(XMLWriter, XmlObject);
+					}
 				}
 				return true;
 			}
