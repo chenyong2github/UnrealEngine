@@ -53,15 +53,13 @@ struct COREUOBJECT_API FSoftObjectPath
 	FSoftObjectPath(const UObject* InObject);
 
 	FSoftObjectPath(FObjectPtr InObject)
-	{
-		SetPath(InObject.GetPath());
-	}
+		: FSoftObjectPath(InObject.Get())
+	{}
 
 	template <typename T>
 	FSoftObjectPath(const TObjectPtr<T>& InObject)
-	{
-		SetPath(InObject.GetPath());
-	}
+		: FSoftObjectPath(InObject.Get())
+	{}
 
 	~FSoftObjectPath() {}
 	

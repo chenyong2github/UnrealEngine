@@ -134,7 +134,7 @@ public:
 
 	FORCEINLINE bool IsResolved() const { return IsObjectHandleResolved(Handle); }
 
-	COREUOBJECT_API FString GetPath() const;
+	FORCEINLINE FString GetPath() const { return Get()->GetPathName(); }
 
 	FORCEINLINE FObjectHandle GetHandle() const { return Handle; }
 	FORCEINLINE FObjectHandle& GetHandleRef() const { return Handle; }
