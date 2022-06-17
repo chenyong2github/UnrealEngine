@@ -5,33 +5,28 @@
 #include "PackageSourceControlHelper.h"
 #include "WorldPartitionBuilder.generated.h"
 
+typedef UE::Math::TIntVector3<int64> FWorldBuilderCellCoord;
+
 /**
  * Structure containing information about a World Partition Builder cell
  */
-USTRUCT()
 struct FCellInfo
 {
-	GENERATED_BODY()
-
 	FCellInfo();
 
 	/**
 	 * Location of the cell, expressed inside World Partition Builder space
 	 * (floor(Coordinate) / IterativeCellSize)
 	 */
-	UPROPERTY(VisibleAnywhere, Category = WorldPartitionBuilder)
-	FIntVector Location;
+	FWorldBuilderCellCoord Location;
 
 	/** Bounds of the cell */
-	UPROPERTY(VisibleAnywhere, Category = WorldPartitionBuilder)
 	FBox Bounds;
 
 	/** Whole space */
-	UPROPERTY(VisibleAnywhere, Category = WorldPartitionBuilder)
 	FBox EditorBounds;
 
 	/** The size of a cell used by the World Partition Builder */
-	UPROPERTY(VisibleAnywhere, Category = WorldPartitionBuilder)
 	int32 IterativeCellSize;
 };
 
