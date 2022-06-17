@@ -1596,22 +1596,6 @@ uint32 GetTileCacheSizeHelper(TArray<FNavMeshTileData>& CompressedTiles)
 	return TotalMemory;
 }
 
-static FBox CalculateTileBounds(int32 X, int32 Y, const FVector& RcNavMeshOrigin, const FBox& TotalNavBounds, FVector::FReal TileSizeInWorldUnits)
-{
-	FBox TileBox(
-		RcNavMeshOrigin + (FVector(X + 0, 0, Y + 0) * TileSizeInWorldUnits),
-		RcNavMeshOrigin + (FVector(X + 1, 0, Y + 1) * TileSizeInWorldUnits)
-		);
-
-	TileBox = Recast2UnrealBox(TileBox);
-	TileBox.Min.Z = TotalNavBounds.Min.Z;
-	TileBox.Max.Z = TotalNavBounds.Max.Z;
-
-	// unreal coord space
-	return TileBox;
-}
-
-
 //----------------------------------------------------------------------//
 // FRecastTileGenerator
 //----------------------------------------------------------------------//
@@ -1747,6 +1731,21 @@ bool FRecastTileGenerator::HasDataToBuild() const
 		|| OffmeshLinks.Num()
 		|| RawGeometry.Num()
 		|| (InclusionBounds.Num() && NavigationRelevantData.Num() > 0);
+}
+
+FBox FRecastTileGenerator::CalculateTileBounds(int32 X, int32 Y, const FVector& RcNavMeshOrigin, const FBox& TotalNavBounds, FVector::FReal TileSizeInWorldUnits)
+{
+	FBox TileBox(
+		RcNavMeshOrigin + (FVector(X + 0, 0, Y + 0) * TileSizeInWorldUnits),
+		RcNavMeshOrigin + (FVector(X + 1, 0, Y + 1) * TileSizeInWorldUnits)
+		);
+
+	TileBox = Recast2UnrealBox(TileBox);
+	TileBox.Min.Z = TotalNavBounds.Min.Z;
+	TileBox.Max.Z = TotalNavBounds.Max.Z;
+
+	// unreal coord space
+	return TileBox;
 }
 
 ETimeSliceWorkResult FRecastTileGenerator::DoWorkTimeSliced()
@@ -5515,7 +5514,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 				{
 					UE_SUPPRESS(LogNavigation, VeryVerbose,
 					{
-						const FBox TileBounds = CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, TotalNavBounds, TileSizeInWorldUnits);
+						const FBox TileBounds = FRecastTileGenerator::CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, TotalNavBounds, TileSizeInWorldUnits);
 						UE_VLOG_BOX(OwnerNav, LogNavigation, VeryVerbose, TileBounds, FColor::Red, TEXT("Not in active set"));
 					});
 					continue;
@@ -5523,7 +5522,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 
 				if (bDoTileInclusionTest == true && DirtyArea.HasFlag(ENavigationDirtyFlag::NavigationBounds) == false)
 				{
-					const FBox TileBounds = CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, TotalNavBounds, TileSizeInWorldUnits);
+					const FBox TileBounds = FRecastTileGenerator::CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, TotalNavBounds, TileSizeInWorldUnits);
 
 					// do per tile check since we can have lots of tiles inbetween navigable bounds volumes
 					if (IntersectBounds(TileBounds, InclusionBounds) == false)
@@ -5664,7 +5663,7 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 		// Calculate shortest distances between tiles and players
 		for (FPendingTileElement& Element : PendingDirtyTiles)
 		{
-			const FBox TileBox = CalculateTileBounds(Element.Coord.X, Element.Coord.Y, FVector::ZeroVector, TotalNavBounds, TileSizeInWorldUnits);
+			const FBox TileBox = FRecastTileGenerator::CalculateTileBounds(Element.Coord.X, Element.Coord.Y, FVector::ZeroVector, TotalNavBounds, TileSizeInWorldUnits);
 			FVector2D TileCenter2D = FVector2D(TileBox.GetCenter());
 			for (FVector2D SeedLocation : SeedLocations)
 			{
@@ -5849,11 +5848,12 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksAsyncAndGetUpdatedT
 #endif
 
 #if !RECAST_ASYNC_REBUILDING
-TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGeneratorFromPendingElement(FIntPoint& OutTileLocation)
+TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGeneratorFromPendingElement(FIntPoint& OutTileLocation, const int32 ForcedPendingTileIdx)
 {
 	ensureMsgf(PendingDirtyTiles.Num() > 0, TEXT("Its an assumption of this function that PendingDirtyTiles.Num() > 0"));
+	ensureMsgf(ForcedPendingTileIdx == INDEX_NONE || PendingDirtyTiles.IsValidIndex(ForcedPendingTileIdx), TEXT("The pending tile index provided (%d) is invalid. There are %d pending dirty tiles"), ForcedPendingTileIdx, PendingDirtyTiles.Num());
 
-	const int32 PendingItemIdx = PendingDirtyTiles.Num() - 1;
+	const int32 PendingItemIdx = ForcedPendingTileIdx == INDEX_NONE ? PendingDirtyTiles.Num() - 1 : ForcedPendingTileIdx; 
 	FPendingTileElement& PendingElement = PendingDirtyTiles[PendingItemIdx];
 
 	OutTileLocation.X = PendingElement.Coord.X;
@@ -5884,9 +5884,16 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 	TArray<FNavTileRef> UpdatedTiles;
 	double TimeStartProcessingTileThisFrame = 0.;
 
-	auto HasWorkToDo = [this]()
+	auto HasWorkToDo = [this](int32& OutNextPendingDirtyTileIndex)
 	{
-		return (PendingDirtyTiles.Num() > 0) || SyncTimeSlicedData.TileGeneratorSync.IsValid();
+		OutNextPendingDirtyTileIndex = INDEX_NONE;
+		if (SyncTimeSlicedData.TileGeneratorSync.IsValid())
+		{
+			return true;
+		}
+
+		OutNextPendingDirtyTileIndex = GetNextPendingDirtyTileToBuild();
+		return OutNextPendingDirtyTileIndex != INDEX_NONE;
 	};
 
 	auto EndFunction = [&, this](bool bCalcTileRegenDuration, bool bStartedTimeSlice)
@@ -5913,10 +5920,11 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 		return UpdatedTiles;
 	};
 
-	const bool bHadWorktoDo = HasWorkToDo();
+	int32 NextPendingDirtyTileIndex = INDEX_NONE;
+	const bool bHadWorkToDo = HasWorkToDo(NextPendingDirtyTileIndex);
 
 	//only calculate the time slice and process tiles if we have work to do
-	if (bHadWorktoDo)
+	if (bHadWorkToDo)
 	{
 		SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().StartTimeSlice();
 
@@ -5936,10 +5944,10 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 				//next frame (as we've finished time slice processing the last tile)
 				if (!SyncTimeSlicedData.bNextTimeSliceRegenActive)
 				{
-					return EndFunction(false /* bCalcTileRegenDuration */, bHadWorktoDo);
+					return EndFunction(false /* bCalcTileRegenDuration */, bHadWorkToDo);
 				}
 
-				SyncTimeSlicedData.TileGeneratorSync = CreateTileGeneratorFromPendingElement(TileLocation);
+				SyncTimeSlicedData.TileGeneratorSync = CreateTileGeneratorFromPendingElement(TileLocation, NextPendingDirtyTileIndex);
 
 				SyncTimeSlicedData.CurrentTileRegenDuration = 0.;
 
@@ -5959,7 +5967,7 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 
 				if (SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 				{
-					return EndFunction(true /* bCalcTileRegenDuration */, bHadWorktoDo);
+					return EndFunction(true /* bCalcTileRegenDuration */, bHadWorkToDo);
 				}
 			}
 			else
@@ -5990,7 +5998,7 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 
 				if (SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().IsTimeSliceFinishedCached())
 				{
-					return EndFunction(true /* bCalcTileRegenDuration */, bHadWorktoDo);
+					return EndFunction(true /* bCalcTileRegenDuration */, bHadWorkToDo);
 				}
 			}//fall through to next state
 			case EProcessTileTasksSyncTimeSlicedState::AddGeneratedTiles:
@@ -6004,7 +6012,7 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 				 
 				if (SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().IsTimeSliceFinishedCached())
 				{
-					return EndFunction(true /* bCalcTileRegenDuration */, bHadWorktoDo);
+					return EndFunction(true /* bCalcTileRegenDuration */, bHadWorkToDo);
 				}
 			}//fall through to next state
 			case EProcessTileTasksSyncTimeSlicedState::StoreCompessedTileCacheLayers:
@@ -6038,7 +6046,7 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 				if (SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 				{
 					//we just calculated and set TileRegenDuration so no need to calculate it again
-					return EndFunction(false /* bCalcTileRegenDuration */, bHadWorktoDo);
+					return EndFunction(false /* bCalcTileRegenDuration */, bHadWorkToDo);
 				}
 			}
 			break;
@@ -6048,13 +6056,18 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 			}
 			}
 		}
-		while (HasWorkToDo());
+		while (HasWorkToDo(NextPendingDirtyTileIndex));
 	}
 
 	// we only hit this if we have processed too many tiles in a frame and we will already
 	// have calculated the tile regen duration, or if we have processed no tiles and we also
 	// don't want to calculate the tile regen duration
-	return EndFunction(false /* bCalcTileRegenDuration */, bHadWorktoDo);
+	return EndFunction(false /* bCalcTileRegenDuration */, bHadWorkToDo);
+}
+
+int32 FRecastNavMeshGenerator::GetNextPendingDirtyTileToBuild() const
+{
+	return PendingDirtyTiles.IsEmpty() ? INDEX_NONE : PendingDirtyTiles.Num() - 1;
 }
 
 // Deprecated

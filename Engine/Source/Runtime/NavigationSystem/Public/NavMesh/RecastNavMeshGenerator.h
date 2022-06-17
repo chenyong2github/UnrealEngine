@@ -292,6 +292,8 @@ public:
 
 	const TArray<FNavMeshTileData>& GetCompressedLayers() const { return CompressedLayers; }
 
+	static FBox CalculateTileBounds(int32 X, int32 Y, const FVector& RcNavMeshOrigin, const FBox& TotalNavBounds, FVector::FReal TileSizeInWorldUnits);
+
 protected:
 	// to be used solely by FRecastNavMeshGenerator
 	TArray<FNavMeshTileData>& GetNavigationData() { return NavigationData; }
@@ -763,17 +765,19 @@ protected:
 	/** Processes pending tile generation tasks Async*/
 	TArray<FNavTileRef> ProcessTileTasksAsyncAndGetUpdatedTiles(const int32 NumTasksToProcess);
 #else
-	TSharedRef<FRecastTileGenerator> CreateTileGeneratorFromPendingElement(FIntPoint &OutTileLocation);
+	TSharedRef<FRecastTileGenerator> CreateTileGeneratorFromPendingElement(FIntPoint &OutTileLocation, const int32 ForcedPendingTileIdx = INDEX_NONE);
 
 	/** Processes pending tile generation tasks Sync with option for time slicing currently an experimental feature. */
 	UE_DEPRECATED(5.1, "Use ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles instead")
-	TArray<uint32> ProcessTileTasksSyncTimeSliced();
+	virtual TArray<uint32> ProcessTileTasksSyncTimeSliced();
 	UE_DEPRECATED(5.1, "Use ProcessTileTasksSyncAndGetUpdatedTiles instead")
 	TArray<uint32> ProcessTileTasksSync(const int32 NumTasksToProcess);
 
 	/** Processes pending tile generation tasks Sync with option for time slicing currently an experimental feature. */
-	TArray<FNavTileRef> ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles();
+	virtual TArray<FNavTileRef> ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles();
 	TArray<FNavTileRef> ProcessTileTasksSyncAndGetUpdatedTiles(const int32 NumTasksToProcess);
+
+	virtual int32 GetNextPendingDirtyTileToBuild() const;
 #endif
 	/** Processes pending tile generation tasks */
 	UE_DEPRECATED(5.1, "Use ProcessTileTasksAndGetUpdatedTiles instead")
@@ -924,7 +928,7 @@ protected:
 
 		double CurrentTileRegenDuration;
 		/** if we are currently using time sliced regen or not - currently an experimental feature.
-		 *  do not manipulate this value directly instead call SetNextTimeSliceRegenState()
+		 *  do not manipulate this value directly instead call SetNextTimeSliceRegenActive()
 		 */
 		bool bTimeSliceRegenActive;
 		bool bNextTimeSliceRegenActive;
