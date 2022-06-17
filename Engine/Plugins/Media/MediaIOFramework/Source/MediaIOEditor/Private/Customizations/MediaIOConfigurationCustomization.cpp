@@ -12,6 +12,7 @@
 #include "IMediaIOCoreModule.h"
 #include "MediaIOPermutationsSelectorBuilder.h"
 #include "ObjectEditorUtils.h"
+#include "ScopedTransaction.h"
 #include "TimeSynchronizableMediaSource.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
