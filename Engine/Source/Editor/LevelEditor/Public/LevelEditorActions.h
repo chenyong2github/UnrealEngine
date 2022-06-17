@@ -645,7 +645,9 @@ public:
 
 	/** Creates a new level */
 	static void NewLevel();
-	static FSimpleDelegate NewLevelOverride;
+	static void NewLevel(bool& bOutLevelCreated);
+	DECLARE_DELEGATE_OneParam(FNewLevelOverride, bool& /*bOutLevelCreated*/);
+	static FNewLevelOverride NewLevelOverride;
 	static bool NewLevel_CanExecute();
 
 	/** Opens an existing level */
