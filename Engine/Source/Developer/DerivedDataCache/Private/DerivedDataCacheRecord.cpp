@@ -207,21 +207,10 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 	}
 
 	FCacheKey Key;
-	FCbObjectView KeyObject = ObjectView[ANSITEXTVIEW("Key")].AsObjectView();
-	auto TrySetBucketName = [](FUtf8StringView Name, FCacheKey& Key)
-	{
-		if (FCacheBucket::IsValidName(Name))
-		{
-			Key.Bucket = FCacheBucket(Name);
-			return true;
-		}
-		return false;
-	};
-	if (!TrySetBucketName(KeyObject[ANSITEXTVIEW("Bucket")].AsString(), Key))
+	if (!TryLoadFromCompactBinary(ObjectView[ANSITEXTVIEW("Key")].AsObjectView(), Key))
 	{
 		return FOptionalCacheRecord();
 	}
-	Key.Hash = KeyObject[ANSITEXTVIEW("Hash")].AsHash();
 
 	FCacheRecordBuilder Builder(Key);
 

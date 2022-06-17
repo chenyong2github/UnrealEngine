@@ -9,6 +9,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
+#include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "String/Find.h"
 
@@ -122,6 +123,18 @@ FCacheBucket::FCacheBucket(FUtf8StringView InName)
 FCacheBucket::FCacheBucket(FWideStringView InName)
 	: FCacheBucket(Private::GetCacheBuckets().FindOrAdd(InName))
 {
+}
+
+bool TryLoadFromCompactBinary(const FCbObjectView Object, FCacheKey& OutKey)
+{
+	const FUtf8StringView Bucket = Object[ANSITEXTVIEW("Bucket")].AsString();
+	if (!FCacheBucket::IsValidName(Bucket))
+	{
+		return false;
+	}
+	OutKey.Bucket = FCacheBucket(Bucket);
+	OutKey.Hash = Object[ANSITEXTVIEW("Hash")].AsHash();
+	return true;
 }
 
 FCbWriter& operator<<(FCbWriter& Writer, const FCacheKey& Key)
