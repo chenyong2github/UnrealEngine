@@ -70,11 +70,11 @@ class ENGINE_API ILevelInstanceInterface
 
 	virtual void UpdateLevelInstanceFromWorldAsset();
 
-	virtual void OnEdit() {}
+	virtual void OnEdit();
 
 	virtual void OnEditChild() {}
 
-	virtual void OnCommit(bool bChanged) {}
+	virtual void OnCommit(bool bChanged);
 
 	virtual void OnCommitChild(bool bChanged) {}
 	

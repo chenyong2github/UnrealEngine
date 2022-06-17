@@ -711,6 +711,11 @@ void USceneComponent::OnRegister()
 #if WITH_EDITORONLY_DATA
 void USceneComponent::CreateSpriteComponent(UTexture2D* SpriteTexture)
 {
+	CreateSpriteComponent(SpriteTexture, true);
+}
+
+void USceneComponent::CreateSpriteComponent(class UTexture2D* SpriteTexture, bool bRegister)
+{
 	if (bVisualizeComponent && SpriteComponent == nullptr && GetOwner() && !GetWorld()->IsGameWorld())
 	{
 		// Create a new billboard component to serve as a visualization of the actor until there is another primitive component
@@ -729,7 +734,11 @@ void USceneComponent::CreateSpriteComponent(UTexture2D* SpriteTexture)
 		SpriteComponent->OpacityMaskRefVal = .3f;
 
 		SpriteComponent->SetupAttachment(this);
-		SpriteComponent->RegisterComponent();
+
+		if (bRegister)
+		{
+			SpriteComponent->RegisterComponent();
+		}
 	}
 }
 #endif

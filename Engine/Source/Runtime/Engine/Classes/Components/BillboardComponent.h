@@ -57,6 +57,9 @@ class ENGINE_API UBillboardComponent : public UPrimitiveComponent
 	/** Whether to use in-editor arrow scaling (i.e. to be affected by the global arrow scale) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sprite)
 	bool bUseInEditorScaling;
+
+	UPROPERTY()
+	bool bShowLockedLocation;
 #endif // WITH_EDITORONLY_DATA
 	/** Change the sprite texture used by this component */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Sprite")

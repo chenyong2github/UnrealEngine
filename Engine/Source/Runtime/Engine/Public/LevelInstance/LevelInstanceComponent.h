@@ -31,7 +31,11 @@ public:
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 
 	void UpdateEditorInstanceActor();
+	void OnEdit();
+	void OnCommit();
 private:
+	bool ShouldShowSpriteComponent() const;
+
 	TWeakObjectPtr<AActor> CachedEditorInstanceActorPtr;
 #endif
 };

@@ -3,6 +3,7 @@
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
+#include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 
@@ -27,13 +28,24 @@ void ULevelInstanceComponent::OnRegister()
 #if WITH_EDITORONLY_DATA
 	AActor* Owner = GetOwner();
 	// Only show Sprite for non-instanced LevelInstances
-	if (Owner && Owner->GetLevel() && !GetOwner()->GetLevel()->IsInstancedLevel() && !GetWorld()->IsGameWorld())
+	if (GetWorld() && !GetWorld()->IsGameWorld())
 	{
 		// Re-enable before calling CreateSpriteComponent
 		bVisualizeComponent = true;
-		CreateSpriteComponent(LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/LevelInstance")));
+		CreateSpriteComponent(LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/LevelInstance")), false);
+		if (SpriteComponent)
+		{
+			SpriteComponent->bShowLockedLocation = false;
+			SpriteComponent->SetVisibility(ShouldShowSpriteComponent());
+			SpriteComponent->RegisterComponent();
+		}
 	}
 #endif //WITH_EDITORONLY_DATA
+}
+
+bool ULevelInstanceComponent::ShouldShowSpriteComponent() const
+{
+	return GetOwner() && GetOwner()->GetLevel() && (GetOwner()->GetLevel()->IsPersistentLevel() || !GetOwner()->GetLevel()->IsInstancedLevel());
 }
 
 void ULevelInstanceComponent::PostEditUndo()
@@ -86,6 +98,22 @@ void ULevelInstanceComponent::UpdateEditorInstanceActor()
 	if (AActor* EditorInstanceActor = CachedEditorInstanceActorPtr.Get())
 	{
 		EditorInstanceActor->GetRootComponent()->SetWorldTransform(GetComponentTransform());
+	}
+}
+
+void ULevelInstanceComponent::OnEdit()
+{
+	if (SpriteComponent)
+	{
+		SpriteComponent->SetVisibility(false);
+	}
+}
+
+void ULevelInstanceComponent::OnCommit()
+{
+	if (SpriteComponent)
+	{
+		SpriteComponent->SetVisibility(ShouldShowSpriteComponent());
 	}
 }
 

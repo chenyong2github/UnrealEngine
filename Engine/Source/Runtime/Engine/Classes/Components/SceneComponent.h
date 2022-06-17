@@ -297,6 +297,7 @@ protected:
 	class UBillboardComponent* SpriteComponent;
 	/** Creates the editor only component used to display the sprite */
 	void CreateSpriteComponent(class UTexture2D* SpriteTexture = nullptr);
+	void CreateSpriteComponent(class UTexture2D* SpriteTexture, bool bRegister);
 #endif
 
 public:

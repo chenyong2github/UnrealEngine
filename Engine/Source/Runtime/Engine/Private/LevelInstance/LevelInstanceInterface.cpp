@@ -7,6 +7,7 @@
 
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
+#include "LevelInstance/LevelInstanceComponent.h"
 #endif
 
 ULevelInstanceInterface::ULevelInstanceInterface(const FObjectInitializer& ObjectInitializer)
@@ -162,6 +163,14 @@ bool ILevelInstanceInterface::EnterEdit(AActor* ContextActor)
 	return true;
 }
 
+void ILevelInstanceInterface::OnEdit()
+{
+	if (ULevelInstanceComponent* LevelInstanceComponent = GetLevelInstanceComponent())
+	{
+		LevelInstanceComponent->OnEdit();
+	}
+}
+
 bool ILevelInstanceInterface::CanExitEdit(bool bDiscardEdits, FText* OutReason) const
 {
 	if (HasValidLevelInstanceID())
@@ -180,6 +189,14 @@ bool ILevelInstanceInterface::ExitEdit(bool bDiscardEdits)
 	ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem();
 	check(LevelInstanceSubsystem);
 	return LevelInstanceSubsystem->CommitLevelInstance(this, bDiscardEdits);
+}
+
+void ILevelInstanceInterface::OnCommit(bool bChanged)
+{
+	if (ULevelInstanceComponent* LevelInstanceComponent = GetLevelInstanceComponent())
+	{
+		LevelInstanceComponent->OnCommit();
+	}
 }
 
 bool ILevelInstanceInterface::SetCurrent()
