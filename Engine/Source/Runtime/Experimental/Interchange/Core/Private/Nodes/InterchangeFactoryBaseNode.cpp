@@ -112,3 +112,7 @@ bool UInterchangeFactoryBaseNode::RemoveFactoryDependencyUid(const FString& Depe
 	return FactoryDependencies.RemoveItem(DependencyUid);
 }
 
+FString UInterchangeFactoryBaseNode::BuildFactoryNodeUid(const FString& TranslatedNodeUid)
+{
+	return TEXT("Factory_") + TranslatedNodeUid;
+}

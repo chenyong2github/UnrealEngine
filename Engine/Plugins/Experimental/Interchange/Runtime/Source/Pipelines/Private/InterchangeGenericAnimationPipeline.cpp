@@ -3,6 +3,8 @@
 
 #include "Animation/AnimationSettings.h"
 #include "CoreMinimal.h"
+#include "InterchangeAnimationTrackSetFactoryNode.h"
+#include "InterchangeAnimationTrackSetNode.h"
 #include "InterchangeAnimSequenceFactoryNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
@@ -17,7 +19,6 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Nodes/InterchangeSourceNode.h"
 #include "Nodes/InterchangeUserDefinedAttribute.h"
-
 
 namespace UE::Interchange::Private
 {
@@ -84,7 +85,24 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 		return;
 	}
 
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	TArray<UInterchangeAnimationTrackSetNode*> TrackSetNodes;
+	BaseNodeContainer->IterateNodesOfType<UInterchangeAnimationTrackSetNode>([&](const FString& NodeUid, UInterchangeAnimationTrackSetNode* Node)
+		{
+			TrackSetNodes.Add(Node);
+		});
+
+	for (UInterchangeAnimationTrackSetNode* TrackSetNode : TrackSetNodes)
+	{
+		if (TrackSetNode)
+		{
+			CreateAnimationTrackSetFactoryNode(*TrackSetNode);
+		}
+	}
+
+	if (CommonSkeletalMeshesAndAnimationsProperties.IsNull())
+	{
+		return;
+	}
 
 	if (CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations && CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull())
 	{
@@ -474,21 +492,58 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 	}
 }
 
-void UInterchangeGenericAnimationPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
+void UInterchangeGenericAnimationPipeline::CreateAnimationTrackSetFactoryNode(UInterchangeAnimationTrackSetNode& TranslatedNode)
 {
-	//We do not use the provided base container since ExecutePreImportPipeline cache it
-	//We just make sure the same one is pass in parameter
-	if (!InBaseNodeContainer || !ensure(BaseNodeContainer == InBaseNodeContainer) || !CreatedAsset)
+	const FString FactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(TranslatedNode.GetUniqueID());
+
+	UInterchangeAnimationTrackSetFactoryNode* FactoryNode = NewObject<UInterchangeAnimationTrackSetFactoryNode>(BaseNodeContainer, NAME_None);
+
+	FactoryNode->InitializeNode(FactoryNodeUid, TranslatedNode.GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
+	FactoryNode->SetEnabled(true);
+
+	TArray<FString> AnimationTrackUids;
+	TranslatedNode.GetCustomAnimationTrackUids(AnimationTrackUids);
+
+	for (const FString& AnimationTrackUid : AnimationTrackUids)
 	{
-		return;
+		FactoryNode->AddCustomAnimationTrackUid(AnimationTrackUid);
+
+		// Update factory's dependencies
+		if (const UInterchangeAnimationTrackBaseNode* TrackNode = Cast<UInterchangeAnimationTrackBaseNode>(BaseNodeContainer->GetNode(AnimationTrackUid)))
+		{
+			if (const UInterchangeTransformAnimationTrackNode* TransformTrackNode = Cast<UInterchangeTransformAnimationTrackNode>(TrackNode))
+			{
+				FString ActorNodeUid;
+				if (TransformTrackNode->GetCustomActorDependencyUid(ActorNodeUid))
+				{
+					const FString ActorFactoryNodeUid = TEXT("Factory_") + ActorNodeUid;
+					FactoryNode->AddFactoryDependencyUid(ActorFactoryNodeUid);
+				}
+			}
+			else if (const UInterchangeAnimationTrackSetInstanceNode* InstanceTrackNode = Cast<UInterchangeAnimationTrackSetInstanceNode>(TrackNode))
+			{
+				FString TrackSetNodeUid;
+				if (InstanceTrackNode->GetCustomTrackSetDependencyUid(TrackSetNodeUid))
+				{
+					const FString TrackSetFactoryNodeUid = TEXT("Factory_") + TrackSetNodeUid;
+					FactoryNode->AddFactoryDependencyUid(TrackSetFactoryNodeUid);
+				}
+
+			}
+		}
 	}
 
-	const UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(NodeKey);
-	if (!Node)
+	float FrameRate;
+	if (TranslatedNode.GetCustomFrameRate(FrameRate))
 	{
-		return;
+		FactoryNode->SetCustomFrameRate(FrameRate);
 	}
+
+	UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(&TranslatedNode, FactoryNode, false);
+
+	FactoryNode->AddTargetNodeUid(TranslatedNode.GetUniqueID());
+	TranslatedNode.AddTargetNodeUid(FactoryNode->GetUniqueID());
+
+	BaseNodeContainer->AddNode(FactoryNode);
 }
-
-
 

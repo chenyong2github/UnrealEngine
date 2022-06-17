@@ -257,7 +257,7 @@ UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeleton
 	}
 
 	FString DisplayLabel = RootJointNode->GetDisplayLabel() + TEXT("_Skeleton");
-	FString SkeletonUid = TEXT("\\Skeleton\\") + RootJointNode->GetUniqueID();
+	FString SkeletonUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(RootJointNode->GetUniqueID());
 
 	UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = nullptr;
 	if (BaseNodeContainer->IsNodeUidValid(SkeletonUid))
@@ -314,7 +314,7 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 	{
 		return nullptr;
 	}
-	const FString SkeletonUid = TEXT("\\Skeleton\\") + RootJointNode->GetUniqueID();
+	const FString SkeletonUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(RootJointNode->GetUniqueID());
 	UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = Cast<UInterchangeSkeletonFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletonUid));
 	if (!ensure(SkeletonFactoryNode))
 	{
@@ -393,7 +393,7 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 		//Use the first scene node uid this skeletalmesh reference, add backslash since this uid is not asset typed (\\Mesh\\) like FirstMeshNodeUid
 		SkeletalMeshUid_MeshNamePart = TEXT("\\") + FirstSceneNode->GetUniqueID();
 	}
-	const FString SkeletalMeshUid = TEXT("\\SkeletalMesh") + SkeletalMeshUid_MeshNamePart + SkeletonUid;
+	const FString SkeletalMeshUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SkeletalMeshUid_MeshNamePart + SkeletonUid);
 	UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = NewObject<UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer, NAME_None);
 	if (!ensure(SkeletalMeshFactoryNode))
 	{
@@ -438,7 +438,7 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 		UInterchangePhysicsAssetFactoryNode* PhysicsAssetFactoryNode = NewObject<UInterchangePhysicsAssetFactoryNode>(BaseNodeContainer, NAME_None);
 		if (ensure(SkeletalMeshFactoryNode))
 		{
-			const FString PhysicsAssetUid = TEXT("\\PhysicsAsset") + SkeletalMeshUid_MeshNamePart + SkeletonUid;
+			const FString PhysicsAssetUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SkeletalMeshUid_MeshNamePart + SkeletonUid);
 			const FString PhysicsAssetDisplayLabel = DisplayLabel + TEXT("_PhysicsAsset");
 			PhysicsAssetFactoryNode->InitializePhysicsAssetNode(PhysicsAssetUid, PhysicsAssetDisplayLabel, UPhysicsAsset::StaticClass()->GetName());
 			PhysicsAssetFactoryNode->SetCustomSkeletalMeshUid(SkeletalMeshUid);

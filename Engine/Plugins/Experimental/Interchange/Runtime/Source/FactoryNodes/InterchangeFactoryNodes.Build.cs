@@ -18,6 +18,13 @@ namespace UnrealBuildTool.Rules
 					"TextureUtilitiesCommon",
 				}
 			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"LevelSequence",
+				}
+			);
 		}
 	}
 }

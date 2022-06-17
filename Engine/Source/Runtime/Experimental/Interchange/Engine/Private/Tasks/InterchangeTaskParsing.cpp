@@ -101,6 +101,7 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 	{
 		FString UniqueID;
 		int32 SourceIndex = INDEX_NONE;
+		bool bIsSceneNode = false;
 		TArray<FString> Dependencies;
 		FGraphEventRef GraphEventRef;
 		FGraphEventArray Prerequisites;
@@ -109,26 +110,26 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 		TArray<UInterchangeFactoryBaseNode*, TInlineAllocator<1>> Nodes; // For scenes, we can group multiple nodes into a single task as they are usually very light
 	};
 
-	TArray<FTaskData> AssetTaskDatas;
-	TArray<FTaskData> SceneTaskDatas;
+	TArray<FTaskData> TaskDatas;
 
 	//Avoid creating asset if the asynchronous import is canceled, just create the completion task
 	if (!AsyncHelper->bCancel)
 	{
 		for (int32 SourceIndex = 0; SourceIndex < AsyncHelper->SourceDatas.Num(); ++SourceIndex)
 		{
-			TArray<FTaskData> SourceAssetTaskDatas;
-			TArray<FTaskData> SourceSceneTaskDatas;
+			TArray<FTaskData> SourceTaskDatas;
 
 			if (!AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
 			{
 				continue;
 			}
+
 			UInterchangeBaseNodeContainer* BaseNodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 			if (!BaseNodeContainer)
 			{
 				continue;
 			}
+
 			//Translation and pipelines are not executed, compute the children cache for translated and factory nodes
 			BaseNodeContainer->ComputeChildrenCache();
 
@@ -146,17 +147,18 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 				{
 					const UClass* RegisteredFactoryClass = InterchangeManager->GetRegisteredFactoryClass(ObjectClass);
 
-					const bool bIsAsset = !(FactoryNode->GetObjectClass()->IsChildOf<AActor>() || FactoryNode->GetObjectClass()->IsChildOf<UActorComponent>());
+					const bool bIsSceneNode = FactoryNode->GetObjectClass()->IsChildOf<AActor>() || FactoryNode->GetObjectClass()->IsChildOf<UActorComponent>();
 
-					if (!RegisteredFactoryClass || (!bIsAsset && !bCanImportSceneNode))
+					if (!RegisteredFactoryClass || (bIsSceneNode && !bCanImportSceneNode))
 					{
 						//nothing we can import from this element
 						return;
 					}
 
-					FTaskData& NodeTaskData = bIsAsset ? SourceAssetTaskDatas.AddDefaulted_GetRef() : SourceSceneTaskDatas.AddDefaulted_GetRef();
+					FTaskData& NodeTaskData = SourceTaskDatas.AddDefaulted_GetRef();
 					NodeTaskData.UniqueID = FactoryNode->GetUniqueID();
 					NodeTaskData.SourceIndex = SourceIndex;
+					NodeTaskData.bIsSceneNode = bIsSceneNode;
 					NodeTaskData.Nodes.Add(FactoryNode);
 					FactoryNode->GetFactoryDependencies(NodeTaskData.Dependencies);
 					NodeTaskData.FactoryClass = RegisteredFactoryClass;
@@ -189,12 +191,10 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 				};
 
 				// Nodes cannot depend on a node from another source, so it's faster to sort the dependencies per-source and then append those to the TaskData arrays.
-				SourceAssetTaskDatas.Sort(SortByDependencies);
-				SourceSceneTaskDatas.Sort(SortByDependencies);
+				SourceTaskDatas.Sort(SortByDependencies);
 			}
 
-			AssetTaskDatas.Append(MoveTemp(SourceAssetTaskDatas));
-			SceneTaskDatas.Append(MoveTemp(SourceSceneTaskDatas));
+			TaskDatas.Append(MoveTemp(SourceTaskDatas));
 		}
 	}
 
@@ -226,26 +226,31 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 		return GraphEvents;
 	};
 
-	//Assets
-	FGraphEventArray AssetsCompletionPrerequistes;
+	TSet<FString> CreatedTasksAssetNames; // Tracks for which asset name we have created a task so that we don't have 2 tasks for the same asset name
+	TFunction<FGraphEventRef(FTaskData&)> CreateTasksFromData = [this, &AsyncHelper, &CreatedTasksAssetNames](FTaskData& TaskData)
 	{
-		TSet<FString> CreatedTasksAssetNames; // Tracks for which asset name we have created a task so that we don't have 2 tasks for the same asset name
-		TFunction<FGraphEventRef(FTaskData&)> CreateTasksForAsset = [this, &AsyncHelper, &CreatedTasksAssetNames](FTaskData& TaskData)
+		check(TaskData.Nodes.Num() == 1); //We expect 1 node per asset task
+
+		const int32 SourceIndex = TaskData.SourceIndex;
+		const UClass* const FactoryClass = TaskData.FactoryClass;
+		UInterchangeFactoryBaseNode* const FactoryNode = TaskData.Nodes[0];
+		const bool bFactoryCanRunOnAnyThread = FactoryClass->GetDefaultObject<UInterchangeFactoryBase>()->CanExecuteOnAnyThread();
+
+		if (TaskData.bIsSceneNode)
 		{
-			check(TaskData.Nodes.Num() == 1); //We expect 1 node per asset task
-
-			const int32 SourceIndex = TaskData.SourceIndex;
-			const UClass* const FactoryClass = TaskData.FactoryClass;
-			UInterchangeFactoryBaseNode* const FactoryNode = TaskData.Nodes[0];
-			const bool bFactoryCanRunOnAnyThread = FactoryClass->GetDefaultObject<UInterchangeFactoryBase>()->CanExecuteOnAnyThread();
-
+			return AsyncHelper->SceneTasks.Add_GetRef(
+				TGraphTask<FTaskCreateSceneObjects>::CreateTask(&(TaskData.Prerequisites))
+				.ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, TaskData.Nodes, FactoryClass));
+		}
+		else
+		{
 			FString PackageSubPath;
 			FactoryNode->GetCustomSubPath(PackageSubPath);
 
 			const FString AssetFullPath = FPaths::Combine(PackageBasePath, PackageSubPath, FactoryNode->GetAssetName());
 
-			if ( ensureMsgf(!CreatedTasksAssetNames.Contains(AssetFullPath),
-				TEXT("Found multiple task data with the same asset name (%s). Only one will be executed."), *AssetFullPath) )
+			if (ensureMsgf(!CreatedTasksAssetNames.Contains(AssetFullPath),
+				TEXT("Found multiple task data with the same asset name (%s). Only one will be executed."), *AssetFullPath))
 			{
 				//Add create package task has a prerequisite of FTaskCreateAsset. Create package task is a game thread task
 				FGraphEventArray CreatePackagePrerequistes;
@@ -254,13 +259,12 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 				);
 				CreatePackagePrerequistes.Add(AsyncHelper->CreatePackageTasks[CreatePackageTaskIndex]);
 
-				FGraphEventArray CreateAssetPrerequistes;
 				int32 CreateTaskIndex = AsyncHelper->CreateAssetTasks.Add(
 					TGraphTask<FTaskCreateAsset>::CreateTask(&(CreatePackagePrerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode, bFactoryCanRunOnAnyThread)
 				);
-				CreateAssetPrerequistes.Add(AsyncHelper->CreateAssetTasks[CreateTaskIndex]);
 
-					CreatedTasksAssetNames.Add(AssetFullPath);
+				CreatedTasksAssetNames.Add(AssetFullPath);
+
 				return AsyncHelper->CreateAssetTasks[CreateTaskIndex];
 			}
 			else
@@ -269,31 +273,30 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 				EmptyGraphEvent->DispatchSubsequents();
 				return EmptyGraphEvent;
 			}
-		};
-
-		AssetsCompletionPrerequistes = CreateTasksForEachTaskData(AssetTaskDatas, CreateTasksForAsset);
-	}
-
-	//Scenes
-	//Note: Scene tasks are delayed until all asset tasks are completed
-	FGraphEventArray ScenesCompletionPrerequistes;
-	{
-		TFunction<FGraphEventRef(FTaskData&)> CreateTasksForSceneObject = [this, &AsyncHelper, &AssetsCompletionPrerequistes](FTaskData& TaskData)
-		{
-			const int32 SourceIndex = TaskData.SourceIndex;
-			const UClass* const FactoryClass = TaskData.FactoryClass;
-
-			return AsyncHelper->SceneTasks.Add_GetRef(
-				TGraphTask<FTaskCreateSceneObjects>::CreateTask(&AssetsCompletionPrerequistes)
-				.ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, TaskData.Nodes, FactoryClass));
-		};
-
-		ScenesCompletionPrerequistes = CreateTasksForEachTaskData(SceneTaskDatas, CreateTasksForSceneObject);
-	}
+		}
+	};
 
 	FGraphEventArray CompletionPrerequistes;
-	CompletionPrerequistes.Append(AssetsCompletionPrerequistes);
-	CompletionPrerequistes.Append(ScenesCompletionPrerequistes);
+	for (int32 TaskIndex = 0; TaskIndex < TaskDatas.Num(); ++TaskIndex)
+	{
+		FTaskData& TaskData = TaskDatas[TaskIndex];
+
+		if (TaskData.Dependencies.Num() > 0)
+		{
+			//Search the previous node to find the dependence
+			for (int32 DepTaskIndex = 0; DepTaskIndex < TaskIndex; ++DepTaskIndex)
+			{
+				if (TaskData.Dependencies.Contains(TaskDatas[DepTaskIndex].UniqueID))
+				{
+					//Add has prerequisite
+					TaskData.Prerequisites.Add(TaskDatas[DepTaskIndex].GraphEventRef);
+				}
+			}
+		}
+
+		TaskData.GraphEventRef = CreateTasksFromData(TaskData);
+		CompletionPrerequistes.Add(TaskData.GraphEventRef);
+	}
 
 	//Add an async task for pre completion
 	

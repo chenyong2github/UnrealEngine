@@ -17,7 +17,10 @@ namespace UnrealBuildTool.Rules
 					"InterchangeEngine",
 					"InterchangeFactoryNodes",
 					"InterchangeNodes",
+					"LevelSequence",
 					"MeshDescription",
+					"MovieScene",
+					"MovieSceneTracks",
 					"StaticMeshDescription",
 					"SkeletalMeshDescription",
 				}

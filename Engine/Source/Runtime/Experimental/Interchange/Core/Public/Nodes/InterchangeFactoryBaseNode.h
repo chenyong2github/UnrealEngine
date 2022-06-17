@@ -93,6 +93,8 @@ public:
 	UPROPERTY()
 	mutable FSoftObjectPath ReferenceObject;
 
+	static FString BuildFactoryNodeUid(const FString& TranslatedNodeUid);
+
 protected:
 	/**
 	 * Those dependencies are use by the interchange parsing task to make sure the asset are created in the correct order.

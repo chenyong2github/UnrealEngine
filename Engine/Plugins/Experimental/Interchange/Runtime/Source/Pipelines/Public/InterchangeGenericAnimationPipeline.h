@@ -12,6 +12,7 @@
 
 #include "InterchangeGenericAnimationPipeline.generated.h"
 
+class UInterchangeAnimationTrackSetNode;
 class UInterchangeMeshNode;
 
 /** Animation length type when importing */
@@ -106,14 +107,14 @@ protected:
 
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
 
-	virtual void ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport) override;
-
 	virtual bool CanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask) override
 	{
 		return true;
 	}
 
 private:
+
+	void CreateAnimationTrackSetFactoryNode(UInterchangeAnimationTrackSetNode& Node);
 
 	UInterchangeBaseNodeContainer* BaseNodeContainer = nullptr;
 	TArray<const UInterchangeSourceData*> SourceDatas;
