@@ -77,6 +77,7 @@ void FMetadataProviderLock::EndWrite()
 
 FMetadataProvider::FMetadataProvider(IAnalysisSession& InSession)
 	: Session(InSession)
+	, RegisteredTypes(Session.GetLinearAllocator(), 16)
 	, MetadataStore(Session.GetLinearAllocator(), 1024)
 {
 }
@@ -123,14 +124,13 @@ FMetadataProvider::~FMetadataProvider()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint16 FMetadataProvider::RegisterMetadataType(const TCHAR* Name, uint32 Size)
+uint16 FMetadataProvider::RegisterMetadataType(const TCHAR* Name, const FMetadataSchema& Schema)
 {
 	Lock.WriteAccessCheck();
 
 	check(RegisteredTypes.Num() <= MaxMetadataTypeId);
 	const uint16 Type = RegisteredTypes.Num();
-
-	RegisteredTypes.Add({ Name, Size });
+	RegisteredTypes.EmplaceBack(Schema);
 	RegisteredTypesMap.Add(Name, Type);
 
 	return Type;
@@ -138,7 +138,7 @@ uint16 FMetadataProvider::RegisterMetadataType(const TCHAR* Name, uint32 Size)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint16 FMetadataProvider::GetRegisteredMetadataType(const TCHAR* Name) const
+uint16 FMetadataProvider::GetRegisteredMetadataType(FName Name) const
 {
 	Lock.ReadAccessCheck();
 
@@ -148,12 +148,22 @@ uint16 FMetadataProvider::GetRegisteredMetadataType(const TCHAR* Name) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TCHAR* FMetadataProvider::GetRegisteredMetadataName(uint16 Type) const
+FName FMetadataProvider::GetRegisteredMetadataName(uint16 Type) const
 {
 	Lock.ReadAccessCheck();
 
 	const int32 Index = (int32)Type;
-	return Index < RegisteredTypes.Num() ? RegisteredTypes[Index].Name : nullptr;
+	const FName* Name = RegisteredTypesMap.FindKey(Index);
+	return Name ? *Name : FName();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+const FMetadataSchema* FMetadataProvider::GetRegisteredMetadataSchema(uint16 Type) const
+{
+	Lock.ReadAccessCheck();
+	
+	const int32 Index = (int32)Type;
+	return Index < RegisteredTypes.Num() ? &RegisteredTypes[Index] : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -337,7 +347,6 @@ uint32 FMetadataProvider::PinAndGetId(uint32 ThreadId)
 				Entry.StoreIndex = StackEntry.StoreIndex;
 				Entry.Type = StackEntry.StoreEntry.Type;
 				Entry.StackSize = StackIndex + 1;
-				Entry.Unused = 0;
 			}
 
 			return CurrentStack.Top().PinnedId;
@@ -353,7 +362,6 @@ uint32 FMetadataProvider::PinAndGetId(uint32 ThreadId)
 		Entry.StoreIndex = StackEntry.StoreIndex;
 		Entry.Type = StackEntry.StoreEntry.Type;
 		Entry.StackSize = StackIndex + 1;
-		Entry.Unused = 0;
 	}
 
 	return CurrentStack.Top().PinnedId;

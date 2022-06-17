@@ -3,8 +3,6 @@
 #pragma once
 
 #include "Common/PagedArray.h"
-#include "Containers/Map.h"
-#include "HAL/CriticalSection.h"
 #include "TraceServices/Model/MetadataProvider.h"
 
 namespace TraceServices
@@ -30,27 +28,19 @@ public:
 private:
 	FRWLock RWLock;
 };
-
+	
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMetadataProvider : public IMetadataProvider
 {
 public:
 	static constexpr uint32 MaxMetadataSize = 0xFFFF;
-	static constexpr uint32 InvalidMetadataId = 0xFFFFFFFF;
-	static constexpr uint16 InvalidMetadataType = 0xFFFF;
 
 private:
 	static constexpr uint32 MaxInlinedMetadataSize = 12;
 	static constexpr uint32 MaxMetadataTypeId = 0xFFFF;
-	static constexpr int32 MaxMetadataStackSize = 0xFF;
+	static constexpr int32 MaxMetadataStackSize = 0xFFFF;
 	static constexpr uint32 InvalidMetadataStoreIndex = 0xFFFFFFFF;
-
-	struct FMetadataType
-	{
-		const TCHAR* Name;
-		uint32 Size; // 0 for variable size data
-	};
 
 	struct FMetadataStoreEntry
 	{
@@ -77,8 +67,7 @@ private:
 	{
 		uint32 StoreIndex;
 		uint16 Type;
-		uint8 StackSize;
-		uint8 Unused;
+		uint16 StackSize;
 	};
 	static_assert(sizeof(FMetadataEntry) == 8, "sizeof(FMetadataEntry)");
 
@@ -106,7 +95,7 @@ public:
 	//////////////////////////////////////////////////
 	// Edit operations
 
-	uint16 RegisterMetadataType(const TCHAR* Name, uint32 FixedSize = 0);
+	uint16 RegisterMetadataType(const TCHAR* Name, const FMetadataSchema& Schema);
 
 	void PushScopedMetadata(uint32 ThreadId, uint16 Type, void* Data, uint32 Size);
 	void PopScopedMetadata(uint32 ThreadId, uint16 Type);
@@ -117,8 +106,9 @@ public:
 	//////////////////////////////////////////////////
 	// Read operations
 
-	virtual uint16 GetRegisteredMetadataType(const TCHAR* Name) const override;
-	virtual const TCHAR* GetRegisteredMetadataName(uint16 Type) const override;
+	virtual uint16 GetRegisteredMetadataType(FName Name) const override;
+	virtual FName GetRegisteredMetadataName(uint16 Type) const override;
+	virtual const FMetadataSchema* GetRegisteredMetadataSchema(uint16) const override;
 
 	virtual uint32 GetMetadataStackSize(uint32 InThreadId, uint32 InMetadataId) const override;
 	virtual bool GetMetadata(uint32 InThreadId, uint32 InMetadataId, uint32 InStackDepth, uint16& OutType, const void*& OutData, uint32& OutSize) const override;
@@ -133,9 +123,8 @@ private:
 	IAnalysisSession& Session;
 
 	mutable FMetadataProviderLock Lock;
-
-	TArray<FMetadataType> RegisteredTypes;
-	TMap<const TCHAR*, uint16> RegisteredTypesMap;
+	TPagedArray<FMetadataSchema> RegisteredTypes;
+	TMap<FName, uint16> RegisteredTypesMap;
 
 	TPagedArray<FMetadataStoreEntry> MetadataStore; // stores individual metadata values
 

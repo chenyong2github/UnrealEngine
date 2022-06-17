@@ -310,14 +310,19 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 	const TraceServices::IMetadataProvider* MetadataProvider = TraceServices::ReadMetadataProvider(*Session.Get());
 
 	uint16 AssetMetadataType = 0;
+	const TraceServices::FMetadataSchema* Schema = nullptr;
 	if (MetadataProvider)
 	{
 		TraceServices::FProviderReadScopeLock MetadataProviderReadLock(*MetadataProvider);
 		AssetMetadataType = MetadataProvider->GetRegisteredMetadataType(TEXT("Asset"));
-		if (MetadataProvider->GetRegisteredMetadataName(AssetMetadataType) == nullptr)
+		if (AssetMetadataType == TraceServices::IMetadataProvider::InvalidMetadataId)
 		{
-			// If AssetMetadataType is not valid then we do not need to furhter check the Asset metadata for each allocation.
+			// If AssetMetadataType is not valid then we do not need to further check the Asset metadata for each allocation.
 			MetadataProvider = nullptr;
+		}
+		else
+		{
+			Schema = MetadataProvider->GetRegisteredMetadataSchema(AssetMetadataType);
 		}
 	}
 
@@ -394,24 +399,23 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
 
 					Alloc.Asset = nullptr;
-					if (MetadataProvider && DefinitionProvider)
+					const uint32 MetadataId = Allocation->GetMetadataId();
+					if (MetadataId != TraceServices::IMetadataProvider::InvalidMetadataId && MetadataProvider && DefinitionProvider)
 					{
 						TraceServices::FProviderReadScopeLock MetadataProviderReadLock(*MetadataProvider);
-						MetadataProvider->EnumerateMetadata(Allocation->GetThreadId(), Allocation->GetMetadataId(),
-							[AssetMetadataType, &Alloc, DefinitionProvider](uint32 StackDepth, uint16 Type, const void* Data, uint32 Size) -> bool
+						MetadataProvider->EnumerateMetadata(Allocation->GetThreadId(), MetadataId,
+							[AssetMetadataType, Schema, &Alloc, DefinitionProvider](uint32 StackDepth, uint16 Type, const void* Data, uint32 Size) -> bool
 							{
 								if (Type == AssetMetadataType)
 								{
-									////TODO: TraceServices::IDefinitionProvider::FReadScopeLock DefinitionProviderReadLock(*DefinitionProvider);
-									//DefinitionProvider->BeginRead();
-									//const UE::Trace::TEventRef<UE::Trace::FEventRef32>& AssetNameReference = ((const UE::Trace::TEventRef<UE::Trace::FEventRef32>*)Data)[0];
-									////const UE::Trace::TEventRef<UE::Trace::FEventRef32>& ClassNameReference = ((const UE::Trace::TEventRef<UE::Trace::FEventRef32>*)Data)[1];
-									//const TraceServices::FStringDefinition* AssetNameDef = DefinitionProvider->Get<TraceServices::FStringDefinition>(AssetNameReference);
-									//if (AssetNameDef)
-									//{
-									//	Alloc.Asset = AssetNameDef->Display;
-									//}
-									//DefinitionProvider->EndRead();
+									TraceServices::IDefinitionProvider::FReadScopeLock DefinitionProviderReadLock(*DefinitionProvider);
+									const auto Reader = Schema->Reader();
+									const auto AssetNameRef = Reader.GetValueAs<UE::Trace::FEventRef32>((uint8*)Data, 0);
+									const auto AssetName = DefinitionProvider->Get<TraceServices::FStringDefinition>(*AssetNameRef);
+									if (AssetName)
+									{
+										Alloc.Asset = AssetName->Display;
+									}
 									return false;
 								}
 								return true;
