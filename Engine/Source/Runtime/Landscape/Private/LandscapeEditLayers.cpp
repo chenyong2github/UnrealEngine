@@ -8121,13 +8121,13 @@ bool ALandscapeProxy::HasLayersContent() const
 void ALandscapeProxy::UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity)
 {
 	// In the case of InCheckComponentDataIntegrity we will loop through all components to make sure they all have the same state and in the other case we will assume that the 1st component represent the state of all the others.
-	bHasLayersContent = LandscapeComponents.Num() > 0 ? LandscapeComponents[0]->HasLayersData() : false;
+	bHasLayersContent = (!LandscapeComponents.IsEmpty() && (LandscapeComponents[0] != nullptr)) ? LandscapeComponents[0]->HasLayersData() : false;
 
 	if (InCheckComponentDataIntegrity)
 	{
 		for (const ULandscapeComponent* Component : LandscapeComponents)
 		{
-			check(bHasLayersContent == Component->HasLayersData());
+			check((Component == nullptr) || (bHasLayersContent == Component->HasLayersData()));
 		}
 	}
 }
@@ -8137,7 +8137,10 @@ bool ALandscapeProxy::RemoveObsoleteLayers(const TSet<FGuid>& InExistingLayers)
 	TSet<TPair<FGuid, FName>> ComponentLayers;
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		Component->ForEachLayer([&](const FGuid& Guid, FLandscapeLayerComponentData& ComponentData) { ComponentLayers.Add(TPair<FGuid, FName>(Guid, ComponentData.DebugName)); });
+		if (Component != nullptr)
+		{
+			Component->ForEachLayer([&](const FGuid& Guid, FLandscapeLayerComponentData& ComponentData) { ComponentLayers.Add(TPair<FGuid, FName>(Guid, ComponentData.DebugName)); });
+		}
 	}
 
 	bool bModified = false;
@@ -8177,7 +8180,7 @@ bool ALandscapeProxy::AddLayer(const FGuid& InLayerGuid)
 	bool bModified = false;
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		if (!Component->GetLayerData(InLayerGuid))
+		if ((Component != nullptr) && !Component->GetLayerData(InLayerGuid))
 		{
 			const FLandscapeLayer* EditLayer = GetLandscapeActor() ? GetLandscapeActor()->GetLayer(InLayerGuid) : nullptr;
 			Component->AddLayerData(InLayerGuid, FLandscapeLayerComponentData(EditLayer ? EditLayer->Name : FName()));
@@ -8199,26 +8202,29 @@ void ALandscapeProxy::DeleteLayer(const FGuid& InLayerGuid)
 {
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		const FLandscapeLayerComponentData* LayerComponentData = Component->GetLayerData(InLayerGuid);
-
-		if (LayerComponentData != nullptr)
+		if (Component != nullptr)
 		{
-			for (const FWeightmapLayerAllocationInfo& Allocation : LayerComponentData->WeightmapData.LayerAllocations)
+			const FLandscapeLayerComponentData* LayerComponentData = Component->GetLayerData(InLayerGuid);
+
+			if (LayerComponentData != nullptr)
 			{
-				UTexture2D* WeightmapTexture = LayerComponentData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
-				TObjectPtr<ULandscapeWeightmapUsage>* Usage = WeightmapUsageMap.Find(WeightmapTexture);
-
-				if (Usage != nullptr && (*Usage) != nullptr)
+				for (const FWeightmapLayerAllocationInfo& Allocation : LayerComponentData->WeightmapData.LayerAllocations)
 				{
-					(*Usage)->ChannelUsage[Allocation.WeightmapTextureChannel] = nullptr;
+					UTexture2D* WeightmapTexture = LayerComponentData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
+					TObjectPtr<ULandscapeWeightmapUsage>* Usage = WeightmapUsageMap.Find(WeightmapTexture);
 
-					if ((*Usage)->IsEmpty())
+					if (Usage != nullptr && (*Usage) != nullptr)
 					{
-						WeightmapUsageMap.Remove(WeightmapTexture);
+						(*Usage)->ChannelUsage[Allocation.WeightmapTextureChannel] = nullptr;
+
+						if ((*Usage)->IsEmpty())
+						{
+							WeightmapUsageMap.Remove(WeightmapTexture);
+						}
 					}
 				}
+				Component->RemoveLayerData(InLayerGuid);
 			}
-			Component->RemoveLayerData(InLayerGuid);
 		}
 	}
 
@@ -8239,9 +8245,12 @@ void ALandscapeProxy::InitializeLayerWithEmptyContent(const FGuid& InLayerGuid)
 
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		UTexture2D* ComponentHeightmapTexture = Component->GetHeightmap();
-		TArray<ULandscapeComponent*>& ComponentList = ComponentsPerHeightmaps.FindOrAdd(ComponentHeightmapTexture);
-		ComponentList.Add(Component);
+		if (Component != nullptr)
+		{
+			UTexture2D* ComponentHeightmapTexture = Component->GetHeightmap();
+			TArray<ULandscapeComponent*>& ComponentList = ComponentsPerHeightmaps.FindOrAdd(ComponentHeightmapTexture);
+			ComponentList.Add(Component);
+		}
 	}
 
 	// Init layers with valid "empty" data
@@ -8249,11 +8258,14 @@ void ALandscapeProxy::InitializeLayerWithEmptyContent(const FGuid& InLayerGuid)
 
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		UTexture2D* ComponentHeightmap = Component->GetHeightmap();
-		const TArray<ULandscapeComponent*>* ComponentsUsingHeightmap = ComponentsPerHeightmaps.Find(ComponentHeightmap);
-		check(ComponentsUsingHeightmap != nullptr);
+		if (Component != nullptr)
+		{
+			UTexture2D* ComponentHeightmap = Component->GetHeightmap();
+			const TArray<ULandscapeComponent*>* ComponentsUsingHeightmap = ComponentsPerHeightmaps.Find(ComponentHeightmap);
+			check(ComponentsUsingHeightmap != nullptr);
 
-		Component->AddDefaultLayerData(InLayerGuid, *ComponentsUsingHeightmap, CreatedHeightmapTextures);
+			Component->AddDefaultLayerData(InLayerGuid, *ComponentsUsingHeightmap, CreatedHeightmapTextures);
+		}
 	}
 }
 #endif

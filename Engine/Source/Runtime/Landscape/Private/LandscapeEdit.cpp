@@ -3624,9 +3624,12 @@ FIntRect ALandscapeProxy::GetBoundingRect() const
 	if (LandscapeComponents.Num() > 0)
 	{
 		FIntRect Rect(MAX_int32, MAX_int32, MIN_int32, MIN_int32);
-		for (int32 CompIdx = 0; CompIdx < LandscapeComponents.Num(); CompIdx++)
+		for (ULandscapeComponent* Component : LandscapeComponents)
 		{
-			Rect.Include(LandscapeComponents[CompIdx]->GetSectionBase());
+			if (Component != nullptr)
+			{
+				Rect.Include(Component->GetSectionBase());
+			}
 		}
 		Rect.Max += FIntPoint(ComponentSizeQuads, ComponentSizeQuads);
 		Rect -= LandscapeSectionOffset;
@@ -3656,7 +3659,10 @@ bool ULandscapeInfo::GetLandscapeExtent(ALandscapeProxy* LandscapeProxy, FIntRec
 
 	for (ULandscapeComponent* LandscapeComponent : LandscapeProxy->LandscapeComponents)
 	{
-		LandscapeComponent->GetComponentExtent(ProxyExtent.Min.X, ProxyExtent.Min.Y, ProxyExtent.Max.X, ProxyExtent.Max.Y);
+		if (LandscapeComponent != nullptr)
+		{
+			LandscapeComponent->GetComponentExtent(ProxyExtent.Min.X, ProxyExtent.Min.Y, ProxyExtent.Max.X, ProxyExtent.Max.Y);
+		}
 	}
 	
 	return ProxyExtent.Min.X != INT32_MAX;
@@ -3697,7 +3703,10 @@ LANDSCAPE_API void ULandscapeInfo::ForAllLandscapeComponents(TFunctionRef<void(U
 	{
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
-			Fn(Component);
+			if (Component != nullptr)
+			{
+				Fn(Component);
+			}
 		}
 	});
 }
@@ -3976,7 +3985,10 @@ void ULandscapeInfo::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandsc
 	{
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
-			Component->GetUsedPaintLayers(InLayerGuid, OutUsedLayerInfos);
+			if (Component != nullptr)
+			{
+				Component->GetUsedPaintLayers(InLayerGuid, OutUsedLayerInfos);
+			}
 		}
 	});
 }
@@ -5214,11 +5226,11 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			if (World != nullptr)
 			{
 				if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
-			{
-				for (ULandscapeComponent * Component : LandscapeComponents)
 				{
-					if (Component != nullptr)
+					for (ULandscapeComponent* Component : LandscapeComponents)
 					{
+						if (Component != nullptr)
+						{
 							Component->CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
 						}
 					}
@@ -5250,7 +5262,7 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 	{
 		ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
 		check(LandscapeInfo);
-		if (GEditor && !IsRunningCommandlet())
+		if (GEditor && !GetWorld()->IsGameWorld() && !IsRunningCommandlet())
 		{
 			if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition(); WorldPartition && WorldPartition->IsInitialized())
 			{
@@ -5679,15 +5691,15 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 				if (World != nullptr)
 				{
 					if (UseMobileLandscapeMesh(GShaderPlatformForFeatureLevel[World->FeatureLevel]))
-				{
-					for (ULandscapeComponent * Component : LandscapeComponents)
 					{
-						if (Component != nullptr)
+						for (ULandscapeComponent* Component : LandscapeComponents)
 						{
+							if (Component != nullptr)
+							{
 								Component->CheckGenerateMobilePlatformData(/*bIsCooking = */ false, /*TargetPlatform = */ nullptr);
+							}
 						}
 					}
-				}
 
 					if (LiveRebuildNaniteOnModification != 0)
 					{
@@ -6209,10 +6221,12 @@ void ALandscapeProxy::RemoveInvalidWeightmaps()
 		}
 
 		// Remove Unused Weightmaps...
-		for (int32 Idx = 0; Idx < LandscapeComponents.Num(); ++Idx)
+		for (ULandscapeComponent* Component : LandscapeComponents)
 		{
-			ULandscapeComponent* Component = LandscapeComponents[Idx];
-			Component->RemoveInvalidWeightmaps();
+			if (Component != nullptr)
+			{
+				Component->RemoveInvalidWeightmaps();
+			}
 		}
 	}
 }

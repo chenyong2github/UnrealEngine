@@ -3056,7 +3056,7 @@ bool ULandscapeInfo::UpdateLayerInfoMapInternal(ALandscapeProxy* Proxy, bool bIn
 					ULandscapeComponent* Component = Proxy->LandscapeComponents[ComponentIndex];
 
 					// Add layers from per-component override materials
-					if (Component->OverrideMaterial != nullptr)
+					if ((Component != nullptr) && (Component->OverrideMaterial != nullptr))
 					{
 						TArray<FName> ComponentLayerNames = Proxy->GetLayersFromMaterial(Component->OverrideMaterial);
 						for (int32 i = 0; i < ComponentLayerNames.Num(); i++)
@@ -4787,35 +4787,35 @@ void ALandscapeProxy::UpdateGIBakedTextureStatus(bool* bOutGenerateLandscapeGIDa
 	}
 	else
 	{
-	// Stores the components and their state hash data for a single atlas
+		// Stores the components and their state hash data for a single atlas
 		struct FGIBakeTextureStateBuilder
-	{
-		// pointer as FMemoryWriter caches the address of the FBufferArchive, and this struct could be relocated on a realloc.
-		TUniquePtr<FBufferArchive> ComponentStateAr;
-		TArray<ULandscapeComponent*> Components;
+		{
+			// pointer as FMemoryWriter caches the address of the FBufferArchive, and this struct could be relocated on a realloc.
+			TUniquePtr<FBufferArchive> ComponentStateAr;
+			TArray<ULandscapeComponent*> Components;
 
 			FGIBakeTextureStateBuilder()
-		{
-			ComponentStateAr = MakeUnique<FBufferArchive>();
-		}
-	};
+			{
+				ComponentStateAr = MakeUnique<FBufferArchive>();
+			}
+		};
 
 		TMap<UTexture2D*, FGIBakeTextureStateBuilder> ComponentsByHeightmap;
-	for (ULandscapeComponent* Component : LandscapeComponents)
-	{
-		if (Component == nullptr)
+		for (ULandscapeComponent* Component : LandscapeComponents)
 		{
-			continue;
-		}
+			if (Component == nullptr)
+			{
+				continue;
+			}
 
 			FGIBakeTextureStateBuilder& Info = ComponentsByHeightmap.FindOrAdd(Component->GetHeightmap());
-		Info.Components.Add(Component);
-		Component->SerializeStateHashes(*Info.ComponentStateAr);
-	}
+			Info.Components.Add(Component);
+			Component->SerializeStateHashes(*Info.ComponentStateAr);
+		}
 
 		for (auto It = ComponentsByHeightmap.CreateIterator(); It; ++It)
 		{
-			FGIBakeTextureStateBuilder& Info =It.Value();
+			FGIBakeTextureStateBuilder& Info = It.Value();
 
 			// Calculate a combined Guid-like ID we can use for this component
 			uint32 Hash[5];
