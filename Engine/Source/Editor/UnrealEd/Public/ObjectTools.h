@@ -535,14 +535,7 @@ namespace ObjectTools
 	 */
 	UNREALED_API void RemoveDeletedObjectsFromPropertyWindows( TArray<UObject*>& DeletedObjects );
 
-	/**
-	 * Determines if the asset is placeable in a world.
-	 *
-	 * @param InWorld	The world.
-	 * @param ObjectPath	Object path.
-	 *
-	 * @return true if the asset can be placed in the world.
-	 */
+	UE_DEPRECATED(5.1, "No longer used.")
 	UNREALED_API bool IsAssetValidForPlacing(UWorld* InWorld, const FString& ObjectPath);
 
 	/**

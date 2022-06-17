@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelInstanceEditorSettings.h"
+#include "LevelInstance/LevelInstanceActor.h"
 
 ULevelInstanceEditorSettings::ULevelInstanceEditorSettings()
 {
+	LevelInstanceClassName = ALevelInstance::StaticClass()->GetPathName();
 }
 
 ULevelInstanceEditorPerProjectUserSettings::ULevelInstanceEditorPerProjectUserSettings()
