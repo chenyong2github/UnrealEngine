@@ -9,6 +9,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/UObjectGlobals.h"
 #include "TakesCoreLog.h"
+#include "Misc/Paths.h"
 
 class UWorld;
 class ULevelSequence;
