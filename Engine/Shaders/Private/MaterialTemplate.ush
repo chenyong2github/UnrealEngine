@@ -160,6 +160,11 @@
 #define STRATA_INLINE_SHADING 1
 #endif
 
+#if STRATA_TRANSLUCENT_FORWARD && !STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT && !defined(STRATA_DEFERRED_SHADING)
+// This is for translucent surface to be able to fetch opaque material data such as normal, albedo and more from SceneTextures (See SceneTextureLookup).
+#define STRATA_DEFERRED_SHADING 1
+#endif
+
 #if STRATA_ENABLED
 #include "/Engine/Private/Strata/Strata.ush"
 #else
@@ -2299,12 +2304,21 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 
 	// 2. Post-process inputs which are dependent on material data
 	//    Note: For PostProcess material we always return the first layer dataCalcSceneCustomStencil
-	FStrataAddressing StrataAddressing   = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+#ifdef StrataStruct
+	FStrataAddressing StrataAddressing   = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), StrataStruct.MaxBytesPerPixel);
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataStruct.MaterialTextureArray, StrataAddressing, StrataStruct.TopLayerTexture);
+	BRANCH
+	if (StrataPixelHeader.BSDFCount > 0)
+	{
+		const FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataStruct.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
+#else
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 	BRANCH
 	if (StrataPixelHeader.BSDFCount > 0)
 	{
 		const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
+#endif
 		switch (SceneTextureIndex)
 		{
 			// order needs to match to ESceneTextureId

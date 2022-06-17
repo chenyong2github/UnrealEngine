@@ -474,13 +474,21 @@ void BindStrataForwardPasslUniformParameters(FRDGBuilder& GraphBuilder, const FV
 	FStrataSceneData* StrataSceneData = View.StrataViewData.SceneData;
 	if (IsStrataEnabled() && StrataSceneData)
 	{
+		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
 		OutStrataUniformParameters.bRoughDiffuse = StrataSceneData->bRoughDiffuse ? 1u : 0u;
 		OutStrataUniformParameters.PeelLayersAboveDepth = StrataSceneData->PeelLayersAboveDepth;
+		OutStrataUniformParameters.MaterialTextureArray = StrataSceneData->MaterialTextureArray;
+		OutStrataUniformParameters.TopLayerTexture = StrataSceneData->TopLayerTexture;
 	}
 	else
 	{
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+		FRDGTextureRef DefaultTextureArray = GSystemTextures.GetDefaultTexture(GraphBuilder, ETextureDimension::Texture2DArray, EPixelFormat::PF_R32_UINT, FClearValueBinding::Transparent);
+		OutStrataUniformParameters.MaxBytesPerPixel = 0;
 		OutStrataUniformParameters.bRoughDiffuse = 0;
 		OutStrataUniformParameters.PeelLayersAboveDepth = 0;
+		OutStrataUniformParameters.MaterialTextureArray = DefaultTextureArray;
+		OutStrataUniformParameters.TopLayerTexture = SystemTextures.DefaultNormal8Bit;
 	}
 }
 

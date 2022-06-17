@@ -1754,6 +1754,11 @@ void SetCastContactShadow (inout FStrataPixelHeader Out, bool bIn)							{ Out.S
 void SetDynamicIndirectShadowCasterRepresentation(inout FStrataPixelHeader Out, bool bIn)	{ Out.State |= (bIn ? HEADER_MASK_HASDYNINDIRECTSHADOWCASTER : 0u); }
 void SetHasSubsurface(inout FStrataPixelHeader Out, bool bIn)								{ Out.State |= (bIn ? HEADER_MASK_HASSUBSURFACE : 0u); }
 
+#if STRATA_DEFERRED_SHADING
+// Some compiler complains that FStrataPixelHeader is not completely initialised, Initialise with dummy resource seems to work when unused in code.
+FStrataMaterialContainer DummyStrataBuffer;
+#endif
+
 FStrataPixelHeader InitialiseStrataPixelHeader()
 {
 	FStrataPixelHeader Out;
@@ -1764,6 +1769,7 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	Out.IrradianceAO = InitIrradianceAndOcclusion();
 #endif
 #if STRATA_DEFERRED_SHADING
+	Out.StrataBuffer = DummyStrataBuffer;
 	Out.SharedLocalBasesIndexOffset = 0;
 	Out.SharedLocalBasesTypes_PackedHeader = 0;
 	Out.PackedTopLayerData = 0;
