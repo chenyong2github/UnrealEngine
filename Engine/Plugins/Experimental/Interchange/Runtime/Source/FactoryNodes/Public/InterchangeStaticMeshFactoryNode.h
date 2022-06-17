@@ -52,6 +52,14 @@ public:
 	virtual class UClass* GetObjectClass() const override;
 
 public:
+	/** Get weather the static mesh factory should set the nanite build settings. Return false if the attribute was not set.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool GetCustomBuildNanite(bool& AttributeValue) const;
+
+	/** Set weather the static mesh factory should set the nanite build settings. Return false if the attribute was not set.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool SetCustomBuildNanite(const bool& AttributeValue, bool bAddApplyDelegate = true);
+
 	/** Return The number of socket UIDs this static mesh has.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
 	int32 GetSocketUidCount() const;
@@ -73,9 +81,14 @@ private:
 	virtual void FillAssetClassFromAttribute() override;
 	virtual bool SetNodeClassFromClassAttribute() override;
 
+	const UE::Interchange::FAttributeKey Macro_CustomBuildNaniteKey = UE::Interchange::FAttributeKey(TEXT("BuildNanite"));
+
 	UE::Interchange::TArrayAttributeHelper<FString> SocketUids;
 
 protected:
+	
+	IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(BuildNanite, bool, UStaticMesh, TEXT("NaniteSettings.bEnabled"));
+
 #if WITH_ENGINE
 	TSubclassOf<UStaticMesh> AssetClass = nullptr;
 #endif

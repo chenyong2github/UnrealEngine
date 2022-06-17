@@ -66,6 +66,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
 	bool bOneConvexHullPerUCX = true;
 
+	//////	Static Meshes Build settings Properties //////
+
+	/** If enabled this option will allow you to use Nanite rendering at runtime. Can only be used with simple opaque materials. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes|Build Settings")
+	bool bBuildNanite = false;
 	
 	//////	SKELETAL_MESHES_CATEGORY Properties //////
 

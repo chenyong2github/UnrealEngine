@@ -399,22 +399,28 @@ UInterchangeStaticMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateStatic
 
 	switch (CommonMeshesProperties->VertexColorImportOption)
 	{
-	case EInterchangeVertexColorImportOption::IVCIO_Replace:
+		case EInterchangeVertexColorImportOption::IVCIO_Replace:
+		{
+			StaticMeshFactoryNode->SetCustomVertexColorReplace(true);
+		}
+		break;
+		case EInterchangeVertexColorImportOption::IVCIO_Ignore:
+		{
+			StaticMeshFactoryNode->SetCustomVertexColorIgnore(true);
+		}
+		break;
+		case EInterchangeVertexColorImportOption::IVCIO_Override:
+		{
+			StaticMeshFactoryNode->SetCustomVertexColorOverride(CommonMeshesProperties->VertexOverrideColor);
+		}
+		break;
+	}
+
+	if (bBuildNanite)
 	{
-		StaticMeshFactoryNode->SetCustomVertexColorReplace(true);
+		StaticMeshFactoryNode->SetCustomBuildNanite(bBuildNanite);
 	}
-	break;
-	case EInterchangeVertexColorImportOption::IVCIO_Ignore:
-	{
-		StaticMeshFactoryNode->SetCustomVertexColorIgnore(true);
-	}
-	break;
-	case EInterchangeVertexColorImportOption::IVCIO_Override:
-	{
-		StaticMeshFactoryNode->SetCustomVertexColorOverride(CommonMeshesProperties->VertexOverrideColor);
-	}
-	break;
-	}
+
 	return StaticMeshFactoryNode;
 }
 
