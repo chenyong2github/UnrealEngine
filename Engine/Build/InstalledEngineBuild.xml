@@ -745,6 +745,10 @@
 
 			<Command Name="BuildDerivedDataCache" Arguments="-TempDir=&quot;$(DDCDir)&quot; -FeaturePacks=&quot;$(ProjectsToBuildDDCWin64)&quot; -TargetPlatforms=$(DDCPlatformsWin64) -HostPlatform=Win64 -SavedDir=&quot;$(SavedDir)&quot;"/>
 
+			<!-- Store off the generated pack csv file for later debugging -->
+			<!-- D:\build\++UE5\Sync\LocalBuilds\InstalledDDC\Engine\DerivedDataCache\ -->
+			<Copy From="$(DDCDir)/Engine/DerivedDataCache" To="$(RootDir)/Engine/Programs/AutomationTool/Saved/Logs/DerivedDataCache" Files="Compressed-*.csv" />
+
 			<Tag Files="$(SavedDir)/Engine/DerivedDataCache/Compressed.ddp" With="#CompressedDDCWin64"/>
 		</Node>
 	</Agent>
