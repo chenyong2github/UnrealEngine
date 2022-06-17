@@ -40,7 +40,7 @@ struct FPCGGraphTask
 	const UPCGNode* Node = nullptr;
 	UPCGComponent* SourceComponent = nullptr;
 	FPCGElementPtr Element; // Added to have tasks that aren't node-bound
-	FPCGTaskId NodeId = InvalidTaskId;
+	FPCGTaskId NodeId = InvalidPCGTaskId;
 };
 
 struct FPCGGraphScheduleTask
@@ -52,7 +52,7 @@ struct FPCGGraphActiveTask
 {
 	FPCGElementPtr Element;
 	TUniquePtr<FPCGContext> Context;
-	FPCGTaskId NodeId = InvalidTaskId;
+	FPCGTaskId NodeId = InvalidPCGTaskId;
 #if WITH_EDITOR
 	bool bIsBypassed = false;
 #endif
@@ -92,7 +92,7 @@ public:
 	FPCGGraphCache& GetCache() { return GraphCache; }
 
 private:
-	void QueueReadyTasks(FPCGTaskId FinishedTaskHint = InvalidTaskId);
+	void QueueReadyTasks(FPCGTaskId FinishedTaskHint = InvalidPCGTaskId);
 	void BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollection& TaskInput);
 	void StoreResults(FPCGTaskId InTaskId, const FPCGDataCollection& InTaskOutput);
 	void ClearResults();

@@ -59,7 +59,7 @@ bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& I
 	}
 }
 
-const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context) const
+const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, const FBox& InBounds) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGLandscapeData::CreatePointData);
 
@@ -67,9 +67,15 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context) co
 	Data->InitializeFromData(this);
 	TArray<FPCGPoint>& Points = Data->GetMutablePoints();
 
+	FBox EffectiveBounds = Bounds;
+	if (InBounds.IsValid)
+	{
+		EffectiveBounds = Bounds.Overlap(InBounds);
+	}
+
 	// TODO: add offset to nearest edge, will have an impact if the grid size doesn't match the landscape size
-	const FVector MinPt = Transform.InverseTransformPosition(Bounds.Min);
-	const FVector MaxPt = Transform.InverseTransformPosition(Bounds.Max);
+	const FVector MinPt = Transform.InverseTransformPosition(EffectiveBounds.Min);
+	const FVector MaxPt = Transform.InverseTransformPosition(EffectiveBounds.Max);
 
 	const int32 MinX = FMath::FloorToInt(MinPt.X);
 	const int32 MaxX = FMath::FloorToInt(MaxPt.X);
@@ -78,17 +84,17 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context) co
 
 	int32 NumIterations = (MaxX - MinX) * (MaxY - MinY);
 
-	FPCGAsync::AsyncPointProcessing(Context, NumIterations, Points, [this, MinX, MaxX, MinY](int32 Index, FPCGPoint& OutPoint)
+	FPCGAsync::AsyncPointProcessing(Context, NumIterations, Points, [this, &EffectiveBounds, MinX, MaxX, MinY](int32 Index, FPCGPoint& OutPoint)
 	{
 		const int X = MinX + (Index % (MaxX - MinX));
 		const int Y = MinY + (Index / (MaxX - MinX));
-		const bool bPlaneCase = Bounds.Min.Z == Bounds.Max.Z;
+		const bool bPlaneCase = EffectiveBounds.Min.Z == EffectiveBounds.Max.Z;
 
 		FVector VertexLocation = Transform.TransformPosition(FVector(X, Y, 0));
 		TOptional<float> HeightAtVertex = Landscape->GetHeightAtLocation(VertexLocation);
 		if (HeightAtVertex.IsSet() &&
-			HeightAtVertex.GetValue() >= Bounds.Min.Z &&
-			(bPlaneCase ? HeightAtVertex.GetValue() <= Bounds.Max.Z : HeightAtVertex.GetValue() < Bounds.Max.Z))
+			HeightAtVertex.GetValue() >= EffectiveBounds.Min.Z &&
+			(bPlaneCase ? HeightAtVertex.GetValue() <= EffectiveBounds.Max.Z : HeightAtVertex.GetValue() < EffectiveBounds.Max.Z))
 		{
 			VertexLocation.Z = HeightAtVertex.GetValue();
 

@@ -66,7 +66,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	const UPCGPointData* ToPointDataWithContext(UPARAM(ref) FPCGContext& Context) const { return ToPointData(&Context); }
 
-	virtual const UPCGPointData* ToPointData(FPCGContext* Context) const PURE_VIRTUAL(UPCGSpatialData::ToPointData, return nullptr;);
+	virtual const UPCGPointData* ToPointData(FPCGContext* Context, const FBox& InBounds = FBox(EForceInit::ForceInit)) const PURE_VIRTUAL(UPCGSpatialData::ToPointData, return nullptr;);
 
 	/** Transform a world-space position to a world-space position in relation to the current data. (ex: projection on surface) */
 	FVector TransformPosition(const FVector& InPosition) const;
@@ -125,15 +125,23 @@ class PCG_API UPCGSpatialDataWithPointCache : public UPCGSpatialData
 
 public:
 	// ~UPCGSpatialData implementation
-	virtual const UPCGPointData* ToPointData(FPCGContext* Context) const override;
+	virtual const UPCGPointData* ToPointData(FPCGContext* Context, const FBox& InBounds = FBox(EForceInit::ForceInit)) const override;
 	// ~End UPCGSpatialData implementation
 
 protected:
+	virtual bool SupportsBoundedPointData() const { return false; }
 	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const PURE_VIRTUAL(UPCGSpatialData::CreatePointData, return nullptr;);
+	virtual const UPCGPointData* CreatePointData(FPCGContext* Context, const FBox& InBounds) const { return CreatePointData(Context); }
 
 private:
 	UPROPERTY(Transient)
 	mutable TObjectPtr<const UPCGPointData> CachedPointData;
+
+	UPROPERTY(Transient)
+	mutable TArray<FBox> CachedBoundedPointDataBoxes;
+
+	UPROPERTY(Transient)
+	mutable TArray<TObjectPtr<const UPCGPointData>> CachedBoundedPointData;
 
 	mutable FCriticalSection CacheLock;
 };

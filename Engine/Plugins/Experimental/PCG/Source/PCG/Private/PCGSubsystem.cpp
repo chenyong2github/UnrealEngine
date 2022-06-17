@@ -99,9 +99,9 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, const T
 {
 	check(GraphExecutor);
 
-	FPCGTaskId ProcessTaskId = PCGComponent ? GraphExecutor->Schedule(PCGComponent, Dependencies) : InvalidTaskId;
+	FPCGTaskId ProcessTaskId = PCGComponent ? GraphExecutor->Schedule(PCGComponent, Dependencies) : InvalidPCGTaskId;
 
-	if (ProcessTaskId != InvalidTaskId)
+	if (ProcessTaskId != InvalidPCGTaskId)
 	{
 #if WITH_EDITOR
 		TWeakObjectPtr<UPCGComponent> ComponentPtr(PCGComponent);
@@ -126,7 +126,7 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, const T
 		{
 			PCGComponent->OnProcessGraphAborted();
 		}
-		return InvalidTaskId;
+		return InvalidPCGTaskId;
 	}
 }
 
@@ -138,7 +138,7 @@ FPCGTaskId UPCGSubsystem::ScheduleGraph(UPCGGraph* Graph, UPCGComponent* SourceC
 	}
 	else
 	{
-		return InvalidTaskId;
+		return InvalidPCGTaskId;
 	}
 }
 
@@ -173,7 +173,7 @@ namespace PCGSubsystem
 		if (!GraphExecutor || !World)
 		{
 			UE_LOG(LogPCG, Error, TEXT("[ForEachIntersectingCell] GraphExecutor or World is null"));
-			return InvalidTaskId;
+			return InvalidPCGTaskId;
 		}
 
 		TArray<FPCGTaskId> CellTasks;
@@ -241,7 +241,7 @@ namespace PCGSubsystem
 				TArray<FPCGTaskId> PreviousTasks;
 
 				auto SetPreviousTaskIfValid = [&PreviousTasks](FPCGTaskId TaskId){
-					if (TaskId != InvalidTaskId)
+					if (TaskId != InvalidPCGTaskId)
 					{
 						PreviousTasks.Reset();
 						PreviousTasks.Add(TaskId);
@@ -273,7 +273,7 @@ namespace PCGSubsystem
 				SetPreviousTaskIfValid(ExecuteTaskId);
 
 				// Save changes; note that there's no need to save if the operation was cancelled
-				if (bSaveActors && ExecuteTaskId != InvalidTaskId)
+				if (bSaveActors && ExecuteTaskId != InvalidPCGTaskId)
 				{
 					auto SaveActorTask = [PCGActor, GraphExecutor]() {
 						GraphExecutor->AddToDirtyActors(PCGActor);
@@ -312,7 +312,7 @@ namespace PCGSubsystem
 		}
 		else
 		{
-			return InvalidTaskId;
+			return InvalidPCGTaskId;
 		}
 	}
 
@@ -361,7 +361,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 
 				if (!LocalComponent)
 				{
-					return InvalidTaskId;
+					return InvalidPCGTaskId;
 				}
 
 				return LocalComponent->GenerateInternal(/*bForce=*/false, TaskDependencies);
@@ -369,7 +369,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 			else
 			{
 				UE_LOG(LogPCG, Error, TEXT("[ProcessGraph] PCG Component on PCG Actor is null"));
-				return InvalidTaskId;
+				return InvalidPCGTaskId;
 			}
 		};
 
@@ -406,7 +406,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 		}
 		else
 		{
-			return InvalidTaskId;
+			return InvalidPCGTaskId;
 		}
 	};
 
@@ -415,7 +415,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 	const bool bLoadCell = (bGenerate && bSave); // TODO: review this
 	const bool bSaveActors = (bSave);
 
-	FPCGTaskId ProcessAllCellsTaskId = InvalidTaskId;
+	FPCGTaskId ProcessAllCellsTaskId = InvalidPCGTaskId;
 
 	if (UnionBounds.IsValid)
 	{
@@ -423,7 +423,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 	}
 
 	// Finally, call PostProcessGraph if something happened
-	if (ProcessAllCellsTaskId != InvalidTaskId)
+	if (ProcessAllCellsTaskId != InvalidPCGTaskId)
 	{
 		auto PostProcessGraph = [ComponentPtr, InNewBounds, bGenerate]() {
 			if (UPCGComponent* Component = ComponentPtr.Get())
@@ -442,7 +442,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 			Component->OnProcessGraphAborted();
 		}
 
-		return InvalidTaskId;
+		return InvalidPCGTaskId;
 	}
 }
 
@@ -474,11 +474,11 @@ void UPCGSubsystem::CleanupGraph(UPCGComponent* Component, const FBox& InBounds,
 	PCGSubsystem::ForEachIntersectingCell(GraphExecutor, Component->GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, bSave, ScheduleTask);
 }
 
-void UPCGSubsystem::DirtyGraph(UPCGComponent* Component, const FBox& InBounds, bool bDirtyInputs)
+void UPCGSubsystem::DirtyGraph(UPCGComponent* Component, const FBox& InBounds, EPCGComponentDirtyFlag DirtyFlag)
 {
 	TWeakObjectPtr<UPCGComponent> ComponentPtr(Component);
 
-	auto ScheduleTask = [this, ComponentPtr, bDirtyInputs](APCGPartitionActor* PCGActor, const FBox& InIntersectedBounds, const TArray<FPCGTaskId>& TaskDependencies) {
+	auto ScheduleTask = [this, ComponentPtr, DirtyFlag](APCGPartitionActor* PCGActor, const FBox& InIntersectedBounds, const TArray<FPCGTaskId>& TaskDependencies) {
 		// In the specific case of the dirty, we want to bypass the execution queue, esp. since there's nothing happening here
 		// so we will run the command now, and not delay it.
 		check(ComponentPtr.Get() != nullptr && PCGActor != nullptr);
@@ -486,15 +486,15 @@ void UPCGSubsystem::DirtyGraph(UPCGComponent* Component, const FBox& InBounds, b
 
 		if (!PCGActor || !Component)
 		{
-			return InvalidTaskId;
+			return InvalidPCGTaskId;
 		}
 
 		if (UPCGComponent* LocalComponent = PCGActor->GetLocalComponent(Component))
 		{
-			LocalComponent->DirtyGenerated(bDirtyInputs);
+			LocalComponent->DirtyGenerated(DirtyFlag);
 		}
 
-		return InvalidTaskId;
+		return InvalidPCGTaskId;
 	};
 
 	// TODO: Could implement a "ForEachLoadedIntersectingCellImmediate" method to clarify this use case

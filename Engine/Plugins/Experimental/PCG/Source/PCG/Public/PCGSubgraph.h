@@ -100,7 +100,7 @@ public:
 
 struct PCG_API FPCGSubgraphContext : public FPCGContext
 {
-	FPCGTaskId SubgraphTaskId = InvalidTaskId;
+	FPCGTaskId SubgraphTaskId = InvalidPCGTaskId;
 	bool bScheduledSubgraph = false;
 };
 

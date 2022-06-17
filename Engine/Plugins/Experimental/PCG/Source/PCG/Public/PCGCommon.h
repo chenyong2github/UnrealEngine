@@ -4,6 +4,9 @@
 
 #include "PCGCommon.generated.h"
 
+using FPCGTaskId = uint64;
+static const FPCGTaskId InvalidPCGTaskId = (uint64)-1;
+
 UENUM(meta = (Bitflags))
 enum class EPCGChangeType : uint8
 {

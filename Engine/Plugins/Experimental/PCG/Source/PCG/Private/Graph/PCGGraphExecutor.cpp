@@ -54,7 +54,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGComponent* Component, const TArray<FP
 
 FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& ExternalDependencies)
 {
-	FPCGTaskId ScheduledId = InvalidTaskId;
+	FPCGTaskId ScheduledId = InvalidPCGTaskId;
 
 	// Get compiled tasks from compiler
 	TArray<FPCGGraphTask> CompiledTasks = GraphCompiler->GetCompiledTasks(Graph);
@@ -573,40 +573,68 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 	// Second: fetch the inputs provided by the component
 	UPCGComponent* Component = Context->SourceComponent;
 	check(Component);
-	if(UPCGData* PCGData = Component->GetPCGData())
+
+	check(Context->Node);
+
+	if (Context->Node->IsOutputPinConnected(PCGPinConstants::DefaultInputLabel))
 	{
-		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
-		TaggedData.Data = PCGData;
-		TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
+		if (UPCGData* PCGData = Component->GetPCGData())
+		{
+			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+			TaggedData.Data = PCGData;
+			TaggedData.Pin = PCGPinConstants::DefaultInputLabel;
+		}
 	}
 
-	if (UPCGData* InputPCGData = Component->GetInputPCGData())
+	if (Context->Node->IsOutputPinConnected(PCGInputOutputConstants::DefaultInputLabel))
 	{
-		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
-		TaggedData.Data = InputPCGData;
-		TaggedData.Pin = PCGInputOutputConstants::DefaultInputLabel;
+		if (UPCGData* InputPCGData = Component->GetInputPCGData())
+		{
+			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+			TaggedData.Data = InputPCGData;
+			TaggedData.Pin = PCGInputOutputConstants::DefaultInputLabel;
+		}
 	}
 
-	if (UPCGData* ActorPCGData = Component->GetActorPCGData())
+	if (Context->Node->IsOutputPinConnected(PCGInputOutputConstants::DefaultActorLabel))
 	{
-		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
-		TaggedData.Data = ActorPCGData;
-		TaggedData.Pin = PCGInputOutputConstants::DefaultActorLabel;
+		if (UPCGData* ActorPCGData = Component->GetActorPCGData())
+		{
+			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+			TaggedData.Data = ActorPCGData;
+			TaggedData.Pin = PCGInputOutputConstants::DefaultActorLabel;
+		}
 	}
 
-	if (UPCGData* OriginalActorPCGData = Component->GetOriginalActorPCGData())
+	if (Context->Node->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeLabel))
 	{
-		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
-		TaggedData.Data = OriginalActorPCGData;
-		TaggedData.Pin = PCGInputOutputConstants::DefaultOriginalActorLabel;
+		if (UPCGData* LandscapePCGData = Component->GetLandscapePCGData())
+		{
+			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+			TaggedData.Data = LandscapePCGData;
+			TaggedData.Pin = PCGInputOutputConstants::DefaultLandscapeLabel;
+		}
 	}
 
-	TArray<UPCGData*> ExclusionsPCGData = Component->GetPCGExclusionData();
-	for (UPCGData* ExclusionPCGData : ExclusionsPCGData)
+	if (Context->Node->IsOutputPinConnected(PCGInputOutputConstants::DefaultOriginalActorLabel))
 	{
-		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
-		TaggedData.Data = ExclusionPCGData;
-		TaggedData.Pin = PCGInputOutputConstants::DefaultExcludedActorsLabel;
+		if (UPCGData* OriginalActorPCGData = Component->GetOriginalActorPCGData())
+		{
+			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+			TaggedData.Data = OriginalActorPCGData;
+			TaggedData.Pin = PCGInputOutputConstants::DefaultOriginalActorLabel;
+		}
+	}
+
+	if (Context->Node->IsOutputPinConnected(PCGInputOutputConstants::DefaultExcludedActorsLabel))
+	{
+		TArray<UPCGData*> ExclusionsPCGData = Component->GetPCGExclusionData();
+		for (UPCGData* ExclusionPCGData : ExclusionsPCGData)
+		{
+			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+			TaggedData.Data = ExclusionPCGData;
+			TaggedData.Pin = PCGInputOutputConstants::DefaultExcludedActorsLabel;
+		}
 	}
 
 	return true;

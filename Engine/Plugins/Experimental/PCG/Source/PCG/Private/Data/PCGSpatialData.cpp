@@ -12,21 +12,48 @@ UPCGSpatialData::UPCGSpatialData(const FObjectInitializer& ObjectInitializer)
 	Metadata = ObjectInitializer.CreateDefaultSubobject<UPCGMetadata>(this, TEXT("Metadata"));
 }
 
-const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData(FPCGContext* Context) const
+const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData(FPCGContext* Context, const FBox& InBounds) const
 {
-	if (!CachedPointData)
+	if (InBounds.IsValid && SupportsBoundedPointData())
 	{
+		const UPCGPointData* BoundedPointData = nullptr;
 		CacheLock.Lock();
-
-		if (!CachedPointData)
+		check(CachedBoundedPointDataBoxes.Num() == CachedBoundedPointData.Num());
+		for (int CachedDataIndex = 0; CachedDataIndex < CachedBoundedPointDataBoxes.Num(); ++CachedDataIndex)
 		{
-			CachedPointData = CreatePointData(Context);
+			if (InBounds.Equals(CachedBoundedPointDataBoxes[CachedDataIndex]))
+			{
+				BoundedPointData = CachedBoundedPointData[CachedDataIndex];
+				break;
+			}
 		}
 
+		if (!BoundedPointData)
+		{
+			BoundedPointData = CreatePointData(Context, InBounds);
+			CachedBoundedPointDataBoxes.Add(InBounds);
+			CachedBoundedPointData.Add(BoundedPointData);
+		}
 		CacheLock.Unlock();
-	}
 
-	return CachedPointData;
+		return BoundedPointData;
+	}
+	else
+	{
+		if (!CachedPointData)
+		{
+			CacheLock.Lock();
+
+			if (!CachedPointData)
+			{
+				CachedPointData = CreatePointData(Context, InBounds);
+			}
+
+			CacheLock.Unlock();
+		}
+
+		return CachedPointData;
+	}
 }
 
 float UPCGSpatialData::GetDensityAtPosition(const FVector& InPosition) const

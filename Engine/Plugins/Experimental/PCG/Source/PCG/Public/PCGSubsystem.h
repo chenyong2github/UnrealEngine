@@ -4,17 +4,16 @@
 
 #include "Subsystems/WorldSubsystem.h"
 
+#include "PCGCommon.h"
+#include "PCGComponent.h"
+
 #include "PCGSubsystem.generated.h"
 
-class UPCGComponent;
 class FPCGGraphExecutor;
 class APCGPartitionActor;
 class APCGWorldActor;
 class UPCGGraph;
 struct FPCGDataCollection;
-
-using FPCGTaskId = uint64;
-static const FPCGTaskId InvalidTaskId = (uint64)-1;
 
 class IPCGElement;
 typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
@@ -71,7 +70,7 @@ public:
 	void CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave);
 
 	/** Immediately dirties the partition actors in the given bounds */
-	void DirtyGraph(UPCGComponent* Component, const FBox& InBounds, bool bDirtyInputs);
+	void DirtyGraph(UPCGComponent* Component, const FBox& InBounds, EPCGComponentDirtyFlag DirtyFlag);
 
 	/** Partition actors methods */
 	void CleanupPartitionActors(const FBox& InBounds);

@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "PCGSettings.h"
-#include "PCGSubsystem.h"
 
 #include "PCGComponent.generated.h"
 
@@ -13,6 +12,7 @@ class UPCGComponent;
 class UPCGGraph;
 class UPCGManagedResource;
 class UPCGData;
+class UPCGSubsystem;
 class ALandscapeProxy;
 class FLandscapeProxyComponentDataChangedParams;
 
@@ -30,6 +30,19 @@ enum class EPCGComponentInput : uint8
 	// More?
 	EPCGComponentInput_MAX
 };
+
+UENUM(meta = (Bitflags))
+enum class EPCGComponentDirtyFlag : uint8
+{
+	None = 0,
+	Actor = 1 << 0,
+	Landscape = 1 << 1,
+	Input = 1 << 2,
+	Exclusions = 1 << 3,
+	Data = 1 << 4,
+	All = Actor | Landscape | Input | Exclusions | Data
+};
+ENUM_CLASS_FLAGS(EPCGComponentDirtyFlag);
 
 UCLASS(BlueprintType, ClassGroup = (Procedural), meta = (BlueprintSpawnableComponent))
 class PCG_API UPCGComponent : public UActorComponent
@@ -54,6 +67,7 @@ public:
 	UPCGData* GetPCGData();
 	UPCGData* GetInputPCGData();
 	UPCGData* GetActorPCGData();
+	UPCGData* GetLandscapePCGData();
 	UPCGData* GetOriginalActorPCGData();
 	TArray<UPCGData*> GetPCGExclusionData();
 
@@ -115,7 +129,7 @@ public:
 
 #if WITH_EDITOR
 	void Refresh();
-	void DirtyGenerated(bool bInDirtyCachedInput = false);
+	void DirtyGenerated(EPCGComponentDirtyFlag DataToDirtyFlag = EPCGComponentDirtyFlag::None);
 
 	/** Reset last generated bounds to force PCGPartitionActor creation on next refresh */
 	void ResetLastGeneratedBounds();
@@ -140,6 +154,7 @@ private:
 	UPCGData* CreateInputPCGData();
 	UPCGData* CreateActorPCGData();
 	UPCGData* CreateActorPCGData(AActor* Actor);
+	UPCGData* CreateLandscapePCGData();
 	void UpdatePCGExclusionData();
 
 	bool ShouldGenerate(bool bForce = false) const;
@@ -185,6 +200,8 @@ private:
 	bool DirtyTrackedActor(AActor* InActor);
 	void DirtyCacheFromTag(const FName& InTag);
 	void DirtyCacheForAllTrackedTags();
+
+	bool GraphUsesLandscapePin() const;
 #endif
 
 	FBox GetGridBounds() const;
@@ -198,6 +215,9 @@ private:
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
 	UPCGData* CachedActorData = nullptr;
+
+	UPROPERTY(Transient, NonPIEDuplicateTransient)
+	UPCGData* CachedLandscapeData = nullptr;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
 	TMap<AActor*, UPCGData*> CachedExclusionData;

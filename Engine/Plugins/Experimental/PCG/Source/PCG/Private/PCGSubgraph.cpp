@@ -3,6 +3,7 @@
 #include "PCGSubgraph.h"
 #include "PCGGraph.h"
 #include "PCGComponent.h"
+#include "PCGSubsystem.h"
 
 void UPCGBaseSubgraphSettings::PostLoad()
 {

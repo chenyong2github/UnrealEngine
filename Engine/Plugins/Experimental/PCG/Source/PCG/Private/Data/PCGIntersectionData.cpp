@@ -109,7 +109,7 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Conte
 	check(X && Y);
 	check(X->GetDimension() <= Y->GetDimension());
 
-	const UPCGPointData* SourcePointData = X->ToPointData(Context);
+	const UPCGPointData* SourcePointData = X->ToPointData(Context, CachedBounds);
 
 	if (!SourcePointData)
 	{

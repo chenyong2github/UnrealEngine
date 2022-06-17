@@ -5,7 +5,6 @@
 #include "Templates/SharedPointer.h"
 #include "PCGData.h"
 #include "PCGNode.h"
-#include "PCGSubsystem.h"
 
 #include "PCGContext.generated.h"
 
@@ -44,7 +43,7 @@ struct PCG_API FPCGContext
 	// TODO: add RNG source
 	// TODO: replace this by a better identification mechanism
 	const UPCGNode* Node = nullptr;
-	FPCGTaskId TaskId = InvalidTaskId;
+	FPCGTaskId TaskId = InvalidPCGTaskId;
 	bool bIsPaused = false;
 
 #if WITH_EDITOR

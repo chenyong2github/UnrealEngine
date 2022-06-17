@@ -19,6 +19,7 @@ UPCGGraphInputOutputSettings::UPCGGraphInputOutputSettings(const FObjectInitiali
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultInputLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultActorLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultOriginalActorLabel);
+	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultLandscapeLabel);
 	StaticAdvancedInLabels.Add(PCGInputOutputConstants::DefaultExcludedActorsLabel);
 	
 	StaticOutLabels.Add(PCGPinConstants::DefaultOutputLabel);
@@ -47,7 +48,10 @@ TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::GetPinProperties() const
 	
 	if (bShowAdvancedPins)
 	{
-		Algo::Transform(StaticAdvancedLabels(), PinProperties, [DefaultPinDataType](const FName& InLabel) { return FPCGPinProperties(InLabel, DefaultPinDataType); });
+		Algo::Transform(StaticAdvancedLabels(), PinProperties, [DefaultPinDataType](const FName& InLabel)
+		{
+			return FPCGPinProperties(InLabel, (InLabel == PCGInputOutputConstants::DefaultLandscapeLabel) ? EPCGDataType::Surface: DefaultPinDataType); 
+		});
 	}
 
 	PinProperties.Append(CustomPins);
