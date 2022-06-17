@@ -755,6 +755,6 @@ void ScreenProbeSetupVisualizeTraces(
 		uint TraceIndex = TraceTexelCoord.y * ScreenProbeTracingOctahedronResolution + TraceTexelCoord.x;
 
 		bool bVisualizeRefinementRays = false;
-		WriteTraceForVisualization(TraceIndex, WorldPosition, WorldConeDirection, TraceHitDistance, select(bVisualizeRefinementRays, RefinementRay, TraceRadiance[TraceCoord]));
+		WriteTraceForVisualization(TraceIndex, WorldPosition, WorldConeDirection, TraceHitDistance, select(bVisualizeRefinementRays, RefinementRay.xxx, TraceRadiance[TraceCoord].xyz));
 	}
 }
