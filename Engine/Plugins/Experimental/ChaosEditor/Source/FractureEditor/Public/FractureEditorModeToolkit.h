@@ -121,7 +121,7 @@ public:
 	void Shutdown();
 
 	void SetOutlinerComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents);
-	void SetBoneSelection(UGeometryCollectionComponent* InRootComponent, const TArray<int32>& InSelectedBones, bool bClearCurrentSelection);
+	void SetBoneSelection(UGeometryCollectionComponent* InRootComponent, const TArray<int32>& InSelectedBones, bool bClearCurrentSelection, int32 FocusBoneIdx = -1);
 
 	// View Settings
 	float GetExplodedViewValue() const;

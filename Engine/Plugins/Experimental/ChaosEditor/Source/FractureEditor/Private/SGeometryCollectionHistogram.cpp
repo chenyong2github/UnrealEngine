@@ -361,7 +361,7 @@ void SGeometryCollectionHistogram::SetListIndices()
 }
 
 
-void SGeometryCollectionHistogram::SetBoneSelection(UGeometryCollectionComponent* RootComponent, const TArray<int32>& InSelection, bool bClearCurrentSelection)
+void SGeometryCollectionHistogram::SetBoneSelection(UGeometryCollectionComponent* RootComponent, const TArray<int32>& InSelection, bool bClearCurrentSelection, int32 FocusBoneIdx)
 {
 	TGuardValue<bool> ExternalSelectionGuard(bPerformingSelection, true);
 
@@ -381,7 +381,7 @@ void SGeometryCollectionHistogram::SetBoneSelection(UGeometryCollectionComponent
 				FGeometryCollectionHistogramItemPtr Item = RootNode->GetItemFromBoneIndex(BoneIndex);
 				if (Item.IsValid())
 				{
-					if (bFirstSelection)
+					if (bFirstSelection && BoneIndex == FocusBoneIdx)
 					{
 						ListView->RequestScrollIntoView(Item);
 						bFirstSelection = false;

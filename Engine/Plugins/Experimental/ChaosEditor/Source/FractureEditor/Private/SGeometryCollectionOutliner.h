@@ -268,7 +268,7 @@ public:
 
 	void UpdateGeometryCollection();
 	void SetComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents);
-	void SetBoneSelection(UGeometryCollectionComponent* RootComponent, const TArray<int32>& InSelection, bool bClearCurrentSelection);
+	void SetBoneSelection(UGeometryCollectionComponent* RootComponent, const TArray<int32>& InSelection, bool bClearCurrentSelection, int32 FocusBoneIdx = -1);
 	int32 GetBoneSelectionCount() const;
 
 	void SetInitialDynamicState(int32 InDynamicState);

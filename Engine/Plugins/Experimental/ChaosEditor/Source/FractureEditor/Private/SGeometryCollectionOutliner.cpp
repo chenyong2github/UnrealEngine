@@ -431,7 +431,7 @@ int32 SGeometryCollectionOutliner::GetBoneSelectionCount() const
 	return TreeView->GetSelectedItems().Num();
 }
 
-void SGeometryCollectionOutliner::SetBoneSelection(UGeometryCollectionComponent* RootComponent, const TArray<int32>& InSelection, bool bClearCurrentSelection)
+void SGeometryCollectionOutliner::SetBoneSelection(UGeometryCollectionComponent* RootComponent, const TArray<int32>& InSelection, bool bClearCurrentSelection, int32 FocusBoneIdx)
 {
 	TGuardValue<bool> ExternalSelectionGuard(bPerformingSelection, true);
 
@@ -452,7 +452,7 @@ void SGeometryCollectionOutliner::SetBoneSelection(UGeometryCollectionComponent*
 				FGeometryCollectionTreeItemPtr Item = RootNode->GetItemFromBoneIndex(BoneIndex);
 				if (ensure(Item.IsValid()))
 				{
-					if (bFirstSelection)
+					if (bFirstSelection && FocusBoneIdx == BoneIndex)
 					{
 						TreeView->RequestScrollIntoView(Item);
 						bFirstSelection = false;

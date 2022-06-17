@@ -209,7 +209,7 @@ bool UFractureEditorMode::SelectFromClick(HHitProxy* HitProxy, bool bCtrlDown, b
 			if (Toolkit.IsValid())
 			{
 				FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
-				FractureToolkit->SetBoneSelection(GeometryCollectionProxy->Component, GeometryCollectionProxy->Component->GetSelectedBones(), true);
+				FractureToolkit->SetBoneSelection(GeometryCollectionProxy->Component, GeometryCollectionProxy->Component->GetSelectedBones(), true, GeometryCollectionProxy->BoneIndex);
 			}
 
 			return true;
