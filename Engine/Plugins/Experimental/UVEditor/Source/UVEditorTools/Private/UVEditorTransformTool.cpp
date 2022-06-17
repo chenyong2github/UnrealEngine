@@ -77,6 +77,14 @@ void UUVEditorTransformTool::Setup()
 	//Settings->bUDIMCVAREnabled = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
 	AddToolPropertySource(Settings);
 
+	if (ToolMode.Get(EUVEditorUVTransformType::Transform) == EUVEditorUVTransformType::Transform)
+	{
+		QuickTransformSettings = NewObject<UUVEditorUVQuickTransformProperties>(this);
+		QuickTransformSettings->RestoreProperties(this);
+		QuickTransformSettings->Tool = this;
+		AddToolPropertySource(QuickTransformSettings);
+	}
+
 	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
 	UVToolSelectionAPI = ContextStore->FindContext<UUVToolSelectionAPI>();
 
@@ -192,9 +200,9 @@ void UUVEditorTransformTool::Shutdown(EToolShutdownType ShutdownType)
 		Target->AppliedPreview->ClearOpFactory();
 	}
 
-	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
+	for (int32 FactoryIndex = 0; FactoryIndex < Factories.Num(); ++FactoryIndex)
 	{
-		Factories[TargetIndex] = nullptr;
+		Factories[FactoryIndex] = nullptr;
 	}
 
 	Settings = nullptr;
@@ -206,6 +214,25 @@ void UUVEditorTransformTool::OnTick(float DeltaTime)
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
 		Target->AppliedPreview->Tick(DeltaTime);
+	}
+}
+
+void UUVEditorTransformTool::InitiateQuickTranslate(float Offset, const FVector2D& Direction)
+{
+	Settings->QuickTranslation += Direction * Offset;
+	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+	{
+		Target->AppliedPreview->InvalidateResult();
+	}
+}
+
+
+void UUVEditorTransformTool::InitiateQuickRotation(float Rotation)
+{
+	Settings->QuickRotation += Rotation;
+	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+	{
+		Target->AppliedPreview->InvalidateResult();
 	}
 }
 

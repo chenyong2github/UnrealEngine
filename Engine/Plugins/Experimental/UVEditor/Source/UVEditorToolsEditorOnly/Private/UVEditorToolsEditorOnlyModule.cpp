@@ -6,8 +6,10 @@
 #include "PropertyEditorModule.h"
 
 #include "DetailsCustomizations/UVUnwrapToolCustomizations.h"
+#include "DetailsCustomizations/UVTransformToolCustomizations.h"
 
 #include "Operators/UVEditorRecomputeUVsOp.h"
+#include "UVEditorTransformTool.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorToolsEditorOnlyModule"
 
@@ -51,6 +53,11 @@ void FUVEditorToolsEditorOnlyModule::OnPostEngineInit()
 	/// Unwrap
 	PropertyModule.RegisterCustomClassLayout("UVEditorRecomputeUVsToolProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FUVEditorRecomputeUVsToolDetails::MakeInstance));
 	ClassesToUnregisterOnShutdown.Add(UUVEditorRecomputeUVsToolProperties::StaticClass()->GetFName());
+
+	// Transform
+	PropertyModule.RegisterCustomClassLayout("UVEditorUVQuickTransformProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FUVEditorUVTransformToolDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UUVEditorUVQuickTransformProperties::StaticClass()->GetFName());
+
 }
 
 #undef LOCTEXT_NAMESPACE

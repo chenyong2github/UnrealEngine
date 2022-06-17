@@ -11,6 +11,7 @@
 #include "UVEditorUVTransformOp.generated.h"
 
 class UUVTransformProperties;
+class UUVEditorTransformTool;
 
 /**
  * UV Transform Strategies for the UV Transform Tool
@@ -106,34 +107,41 @@ public:
 	EUVEditorUVTransformType TransformType = EUVEditorUVTransformType::Transform;
 
 	/** Scale applied to UVs, potentially non-uniform */
-	UPROPERTY(EditAnywhere, Category = "Scaling", Transient, meta = (DisplayName = "Scale",
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Scaling", DuplicateTransient, meta = (TransientToolProperty, DisplayName = "Scale",
 		      EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
 	FVector2D Scale = FVector2D(1.0, 1.0); 
 
 	/** Rotation applied to UVs after scaling, specified in degrees */
-	UPROPERTY(EditAnywhere, Category = "Rotation", Transient, meta = (DisplayName = "Rotation",
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Rotation", meta = (TransientToolProperty, DisplayName = "Rotation",
 		      EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
 	float Rotation = 0.0;
 
 	/** Translation applied to UVs, and after scaling and rotation */
-	UPROPERTY(EditAnywhere, Category = "Translation", Transient, meta = (DisplayName = "Transform",
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Translation", meta = (TransientToolProperty, DisplayName = "Translation",
 		      EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
 	FVector2D Translation = FVector2D(0, 0);
 
 	/** Translation applied to UVs, and after scaling and rotation */
-	UPROPERTY(EditAnywhere, Category = "Translation", Transient, meta = (DisplayName = "Transform Mode",
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Translation", meta = (TransientToolProperty, DisplayName = "Translation Mode",
 		EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
 	EUVEditorTranslationMode TranslationMode = EUVEditorTranslationMode::Relative;
 
 	/** Transformation origin mode used for scaling and rotation */
-	UPROPERTY(EditAnywhere, Category = "Transform Origin", Transient, meta = (DisplayName = "Mode",
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Transform Origin", meta = (TransientToolProperty, DisplayName = "Mode",
 		EditCondition = "TransformType == EUVEditorUVTransformType::Transform", EditConditionHides, HideEditConditionToggle = true))
 	EUVEditorPivotType PivotMode = EUVEditorPivotType::BoundingBoxCenter;
 
 	/** Manual Transformation origin point */
-	UPROPERTY(EditAnywhere, Category = "Transform Origin", Transient, meta = (DisplayName = "Coords",
+	UPROPERTY(EditAnywhere, Category = "Advanced Transform | Transform Origin", meta = (TransientToolProperty, DisplayName = "Coords",
 		EditCondition = "TransformType == EUVEditorUVTransformType::Transform && PivotMode == EUVEditorPivotType::Manual", EditConditionHides, HideEditConditionToggle = true))
 	FVector2D ManualPivot = FVector2D(0, 0);
+
+	UPROPERTY(meta = (TransientToolProperty))
+	FVector2D QuickTranslation;
+
+	UPROPERTY(meta = (TransientToolProperty))
+	float QuickRotation;
+
 
 	/** Controls what geometry the alignment is to be relative to when performed. */
 	UPROPERTY(EditAnywhere, Category = "Align", meta = (DisplayName = "Alignment Anchor",
@@ -154,7 +162,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Distribute", meta = (DisplayName = "Distribution Mode",
 		EditCondition = "TransformType == EUVEditorUVTransformType::Distribute", EditConditionHides, HideEditConditionToggle = true))
 	EUVEditorDistributeMode DistributeMode = EUVEditorDistributeMode::TopEdges;
-
 };
 
 
@@ -257,6 +264,9 @@ public:
 	virtual ~FUVEditorUVTransformOp() {}
 
 	// inputs
+	FVector2D QuickTranslation = FVector2D(0.0, 0.0);
+	float QuickRotation = 0.0;
+
 	FVector2D Scale = FVector2D(1.0, 1.0);
 	float Rotation = 0.0;
 	FVector2D Translation = FVector2D(0, 0);
@@ -267,7 +277,7 @@ public:
 
 protected:
 	virtual void HandleTransformationOp(FProgressCancel* Progress) override;
-	FVector2f GetPivotFromMode(int32 ElementID);
+	FVector2f GetPivotFromMode(int32 ElementID, EUVEditorPivotTypeBackend Mode);
 };
 
 class UVEDITORTOOLS_API FUVEditorUVAlignOp : public FUVEditorUVTransformBaseOp

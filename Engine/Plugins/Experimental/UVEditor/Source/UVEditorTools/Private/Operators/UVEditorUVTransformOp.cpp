@@ -189,12 +189,12 @@ void FUVEditorUVTransformBaseOp::CalculateResult(FProgressCancel* Progress)
 	HandleTransformationOp(Progress);
 }
 
-FVector2f FUVEditorUVTransformOp::GetPivotFromMode(int32 ElementID)
+FVector2f FUVEditorUVTransformOp::GetPivotFromMode(int32 ElementID, EUVEditorPivotTypeBackend Mode)
 {
 	FVector2f Pivot;
 	const int32* Component;
 
-	switch (PivotMode)
+	switch (Mode)
 	{
 	case EUVEditorPivotTypeBackend::Origin:
 		Pivot = FVector2f(0, 0);
@@ -218,9 +218,9 @@ FVector2f FUVEditorUVTransformOp::GetPivotFromMode(int32 ElementID)
 
 void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 {
-	auto ScaleFunc = [&](int32 Vid)
+	auto ScaleFunc = [this](int32 Vid)
 	{
-		FVector2f ScalePivot = GetPivotFromMode(Vid);
+		FVector2f ScalePivot = GetPivotFromMode(Vid, PivotMode);
 		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
 		UV = (UV - ScalePivot);
 		UV[0] *= Scale[0];
@@ -229,32 +229,50 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
 	};
 
-	auto RotFunc = [&](int32 Vid)
+	auto BaseRotFunc = [this](int32 Vid, float RotationIn, const FVector2f& Pivot)
 	{
-		FVector2f RotationPivot = GetPivotFromMode(Vid);
 		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
 		FVector2f UV_Rotated;
-		double RotationInRadians = Rotation / 180.0 * UE_PI;
-		UV = (UV - RotationPivot);
+		double RotationInRadians = RotationIn / 180.0 * UE_PI;
+		UV = (UV - Pivot);
 		UV_Rotated[0] = UV[0] * FMath::Cos(RotationInRadians) - UV[1] * FMath::Sin(RotationInRadians);
 		UV_Rotated[1] = UV[0] * FMath::Sin(RotationInRadians) + UV[1] * FMath::Cos(RotationInRadians);
-		UV = (UV_Rotated + RotationPivot);
+		UV = (UV_Rotated + Pivot);
 		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
 	};
 
-	auto TranslateFunc = [&](int32 Vid)
+	auto QuickRotFunc = [this, &BaseRotFunc](int32 Vid)
+	{
+		FVector2f RotationPivot = GetPivotFromMode(Vid, EUVEditorPivotTypeBackend::BoundingBoxCenter);
+		BaseRotFunc(Vid, QuickRotation, RotationPivot);
+	};
+
+	auto RotFunc = [this, &BaseRotFunc](int32 Vid)
+	{
+		FVector2f RotationPivot = GetPivotFromMode(Vid, PivotMode);
+		BaseRotFunc(Vid, Rotation, RotationPivot);
+	};
+
+	auto QuickTranslateFunc = [this](int32 Vid)
+	{
+		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
+		UV = (UV + FVector2f(QuickTranslation));
+		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
+	};
+
+	auto TranslateFunc = [this](int32 Vid)
 	{	
 		FVector2f RotationPivot = FVector2f(0,0);
 		if (TranslationMode == EUVEditorTranslationModeBackend::Absolute)
 		{
-			RotationPivot = GetPivotFromMode(Vid);
+			RotationPivot = GetPivotFromMode(Vid, PivotMode);
 		}				
 		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
 		UV = (UV + FVector2f(Translation) - RotationPivot);
 		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
 	};
 
-	auto ApplyTransformFunc = [&](TFunction<void(int32 Vid)> TransformFunc)
+	auto ApplyTransformFunc = [this](TFunction<void(int32 Vid)> TransformFunc)
 	{
 		RebuildBoundingBoxes();
 
@@ -284,6 +302,15 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		}
 	};
 
+	if (!FMath::IsNearlyZero(QuickRotation))
+	{
+		ApplyTransformFunc(QuickRotFunc);
+	}
+	if (!FMath::IsNearlyZero(QuickTranslation.X) || !FMath::IsNearlyZero(QuickTranslation.Y) )
+	{
+		ApplyTransformFunc(QuickTranslateFunc);
+	}
+
 	if (!FMath::IsNearlyEqual(Scale.X, 1.0f) || !FMath::IsNearlyEqual(Scale.Y, 1.0f))
 	{
 		ApplyTransformFunc(ScaleFunc);
@@ -306,7 +333,7 @@ void FUVEditorUVAlignOp::HandleTransformationOp(FProgressCancel* Progress)
 	int32 NumComponents = UVComponents->Num();
 	RebuildBoundingBoxes();
 
-	auto TranslateFunc = [&](const FVector2f& Translation, int32 Vid)
+	auto TranslateFunc = [this](const FVector2f& Translation, int32 Vid)
 	{
 		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
 		UV = (UV + Translation);
@@ -470,7 +497,7 @@ void FUVEditorUVDistributeOp::HandleTransformationOp(FProgressCancel* Progress)
 		ensure(false);
 	}
 
-	auto TranslateFunc = [&](const FVector2f& Translation, int32 Vid)
+	auto TranslateFunc = [this](const FVector2f& Translation, int32 Vid)
 	{
 		FVector2f UV = FUVEditorUXSettings::InternalUVToExternalUV(ActiveUVLayer->GetElement(Vid));
 		UV = (UV + Translation);
@@ -518,6 +545,9 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		Op->Scale = Settings->Scale;
 		Op->Rotation = Settings->Rotation;
 		Op->Translation = Settings->Translation;
+
+		Op->QuickTranslation = Settings->QuickTranslation;
+		Op->QuickRotation = Settings->QuickRotation;
 
 		switch (Settings->TranslationMode)
 		{
