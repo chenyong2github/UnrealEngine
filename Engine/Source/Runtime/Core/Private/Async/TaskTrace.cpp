@@ -46,12 +46,6 @@ namespace TaskTrace
 		UE_TRACE_EVENT_FIELD(uint64, TaskId)
 	UE_TRACE_EVENT_END()
 
-	UE_TRACE_EVENT_BEGIN(TaskTrace, NestedAdded)
-		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint64, TaskId)
-		UE_TRACE_EVENT_FIELD(uint64, NestedId)
-	UE_TRACE_EVENT_END()
-
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Finished)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
 		UE_TRACE_EVENT_FIELD(uint64, TaskId)
@@ -156,18 +150,6 @@ namespace TaskTrace
 		UE_TRACE_LOG(TaskTrace, Started, TaskChannel)
 			<< Started.Timestamp(FPlatformTime::Cycles64())
 			<< Started.TaskId(TaskId);
-	}
-
-	void NestedAdded(FId TaskId, FId NestedId)
-	{
-		check(bGTaskTraceInitialized);
-		check(TaskId != InvalidId);
-		check(NestedId != InvalidId);
-
-		UE_TRACE_LOG(TaskTrace, NestedAdded, TaskChannel)
-			<< NestedAdded.Timestamp(FPlatformTime::Cycles64())
-			<< NestedAdded.TaskId(TaskId)
-			<< NestedAdded.NestedId(NestedId);
 	}
 
 	void Finished(FId TaskId)

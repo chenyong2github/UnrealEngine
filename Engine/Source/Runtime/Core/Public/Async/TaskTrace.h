@@ -37,7 +37,6 @@ namespace TaskTrace
 	void CORE_API Scheduled(FId TaskId);
 	void CORE_API SubsequentAdded(FId TaskId, FId SubsequentId);
 	void CORE_API Started(FId TaskId);
-	void CORE_API NestedAdded(FId TaskId, FId NestedId);
 	void CORE_API Finished(FId TaskId);
 	void CORE_API Completed(FId TaskId);
 	void CORE_API Destroyed(FId TaskId);
@@ -68,7 +67,6 @@ namespace TaskTrace
 	inline void Scheduled(FId TaskId) {}
 	inline void SubsequentAdded(FId TaskId, FId SubsequentId) {}
 	inline void Started(FId TaskId) {}
-	inline void NestedAdded(FId TaskId, FId NestedId) {}
 	inline void Finished(FId TaskId) {}
 	inline void Completed(FId TaskId) {}
 	inline void Destroyed(FId TaskId) {}

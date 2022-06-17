@@ -1003,7 +1003,7 @@ public:
 	{
 		checkThreadGraph(!IsComplete()); // it is not legal to add a DontCompleteUntil after the event has been completed. Basically, this is only legal within a task function.
 		new (EventsToWaitFor) FGraphEventRef(EventToWaitFor);
-		TaskTrace::NestedAdded(GetTraceId(), EventToWaitFor->GetTraceId());
+		TaskTrace::SubsequentAdded(EventToWaitFor->GetTraceId(), GetTraceId());
 	}
 
 	/**

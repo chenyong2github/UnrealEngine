@@ -65,10 +65,10 @@ namespace TraceServices
 		TArray<FRelationInfo> Prerequisites;
 		// other tasks that wait for this task completion before they'll start execution
 		TArray<FRelationInfo> Subsequents;
+		// other tasks that have this task as a nested
+		TArray<FRelationInfo> ParentTasks;
 		// the task is completed only after all nested tasks are completed
 		TArray<FRelationInfo> NestedTasks;
-		// The parent task. Is valid only for nested tasks
-		TUniquePtr<FRelationInfo> ParentOfNestedTask;
 	};
 
 	struct FWaitingForTasks

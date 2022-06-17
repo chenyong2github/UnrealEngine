@@ -117,7 +117,6 @@ namespace TraceServices
 			return;
 		}
 
-		Task->Id = TaskId;
 		Task->CreatedTimestamp = Timestamp;
 		Task->CreatedThreadId = ThreadId;
 	}
@@ -137,9 +136,8 @@ namespace TraceServices
 
 		checkf(Task->LaunchedTimestamp == FTaskInfo::InvalidTimestamp, TEXT("%d"), TaskId);
 			
-		if (Task->Id == TaskTrace::InvalidId) // created and launched in one go
+		if (Task->CreatedTimestamp == FTaskInfo::InvalidTimestamp) // created and launched in one go
 		{
-			Task->Id = TaskId;
 			Task->CreatedTimestamp = Timestamp;
 			Task->CreatedThreadId = ThreadId;
 		}
@@ -192,16 +190,31 @@ namespace TraceServices
 		FTaskInfo* Task = TryGetOrCreateTask(TaskId);
 		if (Task == nullptr)
 		{
-			UE_LOG(LogTraceServices, Log, TEXT("SubsequentAdded(TaskId %d, SubsequentId %d, Timestamp %.6f) skipped"), TaskId, SubsequentId, Timestamp);
+			UE_LOG(LogTraceServices, Log, TEXT("SubsequentAdded(TaskId %d, SubsequentId %d, Timestamp %.6f) skipped, task %d doesn't exists"), TaskId, SubsequentId, Timestamp, TaskId);
 			return;
 		}
 
-		Task->Id = TaskId;
+		FTaskInfo* SubsequentTask = TryGetOrCreateTask(SubsequentId);
+		if (SubsequentTask == nullptr)
+		{
+			UE_LOG(LogTraceServices, Log, TEXT("SubsequentAdded(TaskId %d, SubsequentId %d, Timestamp %.6f) skipped, subsequent task %d doesn't exists"), TaskId, SubsequentId, Timestamp, SubsequentId);
+			return;
+		}
 
-		AddRelative(TEXT("Subsequent"), TaskId, &FTaskInfo::Subsequents, SubsequentId, Timestamp, ThreadId);
-
-		// make a backward link from the subsequent task to this task (prerequisite)
-		AddRelative(TEXT("Prerequisite"), SubsequentId, &FTaskInfo::Prerequisites, TaskId, Timestamp, ThreadId);
+		// if a subsequent is added before this task execution started, it's a subsequent that have this task as a (execution) prerequisite.
+		// otherwise, it's a subsequent that have this task as a nested task (a completion prerequisite)
+		if (SubsequentTask->StartedTimestamp == FTaskInfo::InvalidTimestamp || SubsequentTask->StartedTimestamp >= Timestamp)
+		{
+			AddRelative(TEXT("Subsequent"), TaskId, &FTaskInfo::Subsequents, SubsequentId, Timestamp, ThreadId);
+			// make a backward link from the subsequent task to this task (prerequisite)
+			AddRelative(TEXT("Prerequisite"), SubsequentId, &FTaskInfo::Prerequisites, TaskId, Timestamp, ThreadId);
+		}
+		else
+		{
+			AddRelative(TEXT("Parent"), TaskId, &FTaskInfo::ParentTasks, SubsequentId, Timestamp, ThreadId);
+			// make a backward link from the parent task to this nested task
+			AddRelative(TEXT("Nested"), SubsequentId, &FTaskInfo::NestedTasks, TaskId, Timestamp, ThreadId);
+		}
 	}
 
 	void FTasksProvider::TaskStarted(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId)
@@ -240,19 +253,6 @@ namespace TraceServices
 		RunningTasksCounter->SetValue(Timestamp, ++RunningTasksNum);
 
 		TaskLatencyCounter->SetValue(Timestamp, Task->StartedTimestamp - Task->ScheduledTimestamp);
-	}
-
-	void FTasksProvider::NestedAdded(TaskTrace::FId TaskId, TaskTrace::FId NestedId, double Timestamp, uint32 ThreadId)
-	{
-		InitTaskIdToIndexConversion(TaskId);
-
-		AddRelative(TEXT("Nested"), TaskId, &FTaskInfo::NestedTasks, NestedId, Timestamp, ThreadId);
-
-		FTaskInfo* Task = TryGetTask(NestedId);
-		if (Task != nullptr)
-		{
-			Task->ParentOfNestedTask = MakeUnique<FTaskInfo::FRelationInfo>(TaskId, Timestamp, ThreadId);
-		}
 	}
 
 	void FTasksProvider::TaskFinished(TaskTrace::FId TaskId, double Timestamp)
@@ -371,6 +371,7 @@ namespace TraceServices
 		if (TaskIndex >= Tasks.Num())
 		{
 			Tasks.AddDefaulted(TaskIndex - Tasks.Num() + 1);
+			Tasks[TaskIndex].Id = TaskId;
 		}
 
 		return &Tasks[TaskIndex];

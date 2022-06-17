@@ -256,12 +256,8 @@ namespace UE::Tasks
 			// returns false if the task is already completed and the subsequent wasn't added
 			bool AddSubsequent(FTaskBase& Subsequent)
 			{
-				bool bSucceeded = Subsequents.PushIfNotClosed(&Subsequent);
-				if (bSucceeded)
-				{
-					TaskTrace::SubsequentAdded(GetTraceId(), Subsequent.GetTraceId());
-				}
-				return bSucceeded;
+				TaskTrace::SubsequentAdded(GetTraceId(), Subsequent.GetTraceId()); // doesn't matter if we suceeded below, we need to record task dependency
+				return Subsequents.PushIfNotClosed(&Subsequent);
 			}
 
 			// A piped task is executed after the previous task from this pipe is completed. Tasks from the same pipe are not executed
@@ -420,7 +416,6 @@ namespace UE::Tasks
 
 				if (Nested.AddSubsequent(*this)) // "release" memory order
 				{
-					TaskTrace::NestedAdded(GetTraceId(), Nested.GetTraceId());
 					Nested.AddRef(); // keep it alive as we store it in `Prerequisites` and we can need it to try to retract it. it's released on closing the task
 					Prerequisites.Push(&Nested);
 				}

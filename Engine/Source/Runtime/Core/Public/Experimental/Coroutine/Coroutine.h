@@ -288,7 +288,7 @@ namespace CoroTask_Detail
 			{
 				TraceId = TaskTrace::GenerateTaskId();
 				TaskTrace::Launched(TraceId, GetDebugName(), true, ENamedThreads::Type::AnyThread);
-				TaskTrace::NestedAdded(OldTraceId, TraceId);
+				TaskTrace::SubsequentAdded(TraceId, OldTraceId);
 				if(Prerequisite != nullptr)
 				{
 					TaskTrace::SubsequentAdded(Prerequisite->TraceId, TraceId);

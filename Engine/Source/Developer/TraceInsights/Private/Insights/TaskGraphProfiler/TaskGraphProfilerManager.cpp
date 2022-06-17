@@ -721,31 +721,6 @@ double FTaskGraphProfilerManager::GetRelationsOnCriticalPathAscendingRec(const T
 		}
 	}
 
-	if (Task->ParentOfNestedTask.IsValid())
-	{
-		const TraceServices::FTaskInfo* ParentTaskInfo = TasksProvider->TryGetTask(Task->ParentOfNestedTask->RelativeId);
-
-		if (ParentTaskInfo != nullptr)
-		{
-			TArray<FTaskGraphRelation> AscendingRelations;
-
-			double ChainDuration = GetRelationsOnCriticalPathAscendingRec(ParentTaskInfo, TasksProvider, AscendingRelations);
-			if (ChainDuration > MaxChainDuration)
-			{
-				MaxChainDuration = ChainDuration;
-				NextTaskInChain = ParentTaskInfo;
-				// Remove the relations from the shorter branch.
-				if (Relations.Num() > InitialRelationNum)
-				{
-					Relations.RemoveAt(InitialRelationNum, Relations.Num() - InitialRelationNum, false);
-				}
-
-				Relations.Append(AscendingRelations);
-			}
-			AscendingRelations.Empty(AscendingRelations.Max());
-		}
-	}
-
 	if (NextTaskInChain)
 	{
 		int32 SourceDepth = GetDepthOfTaskExecution(NextTaskInChain->StartedTimestamp, NextTaskInChain->FinishedTimestamp, NextTaskInChain->StartedThreadId);

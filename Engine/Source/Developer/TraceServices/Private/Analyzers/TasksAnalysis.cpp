@@ -6,6 +6,7 @@
 #include "Containers/UnrealString.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Model/TasksProfilerPrivate.h"
+#include "Common/Utils.h"
 
 namespace TraceServices
 {
@@ -103,10 +104,12 @@ bool FTasksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 		}
 		case RouteId_NestedAdded:
 		{
-			double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Timestamp"));
-			TaskTrace::FId TaskId = EventData.GetValue<TaskTrace::FId>("TaskId");
-			TaskTrace::FId NestedId = EventData.GetValue<TaskTrace::FId>("NestedId");
-			TasksProvider.NestedAdded(TaskId, NestedId, Timestamp, ThreadId);
+			static bool bLogged = false;
+			if (!bLogged)
+			{
+				UE_LOG(LogTraceServices, Log, TEXT("An old TaskTrace format detected. Nested tasks will be ignored"));
+				bLogged = true;
+			}
 			break;
 		}
 		case RouteId_Finished:
