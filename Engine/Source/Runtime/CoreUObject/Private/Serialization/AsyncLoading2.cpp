@@ -4016,7 +4016,9 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncLoading
 
 	auto FilterExport = [](const EExportFilterFlags FilterFlags) -> bool
 	{
-#if UE_SERVER
+#if WITH_EDITOR
+		return false;
+#elif UE_SERVER
 		return !!(static_cast<uint32>(FilterFlags) & static_cast<uint32>(EExportFilterFlags::NotForServer));
 #elif !WITH_SERVER_CODE
 		return !!(static_cast<uint32>(FilterFlags) & static_cast<uint32>(EExportFilterFlags::NotForClient));

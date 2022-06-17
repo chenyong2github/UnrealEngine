@@ -60,6 +60,7 @@ enum class EPackageStoreEntryFlags : uint32
 {
 	None		= 0,
 	Redirected	= 0x01,
+	AutoOptional= 0x02,
 };
 ENUM_CLASS_FLAGS(EPackageStoreEntryFlags);
 
@@ -112,6 +113,12 @@ struct FPackageStoreEntryResource
 	bool IsRedirected() const
 	{
 		return EnumHasAnyFlags(Flags, EPackageStoreEntryFlags::Redirected); 
+	}
+
+	/** Returns whether this package was saved as auto optional */
+	bool IsAutoOptional() const
+	{
+		return EnumHasAnyFlags(Flags, EPackageStoreEntryFlags::AutoOptional);
 	}
 
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreEntryResource& PackageStoreEntry);

@@ -3407,7 +3407,13 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					WriteOptions.FileName = TargetFile.DestinationPath;
 					if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentBulkData)
 					{
-						ContainerTarget->OptionalSegmentIoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+						FIoChunkId ChunkId = TargetFile.ChunkId;
+						if (TargetFile.Package->OptimizedOptionalSegmentPackage && TargetFile.Package->OptimizedOptionalSegmentPackage->HasEditorData())
+						{
+							// Auto optional packages replace the non-optional part when the container is mounted
+							ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::BulkData);
+						}
+						ContainerTarget->OptionalSegmentIoStoreWriter->Append(ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
 					}
 					else
 					{
@@ -3468,7 +3474,13 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					{
 						check(ContainerTarget->OptionalSegmentIoStoreWriter);
 						check(TargetFile.Package->OptimizedOptionalSegmentPackage);
-						ContainerTarget->OptionalSegmentIoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+						FIoChunkId ChunkId = TargetFile.ChunkId;
+						if (TargetFile.Package->OptimizedOptionalSegmentPackage->HasEditorData())
+						{
+							// Auto optional packages replace the non-optional part when the container is mounted
+							ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::ExportBundleData);
+						}
+						ContainerTarget->OptionalSegmentIoStoreWriter->Append(ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
 					}
 					else
 					{
@@ -3494,12 +3506,12 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					WriteOptions);
 			};
 
-			ContainerTarget->Header = PackageStoreOptimizer.CreateContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries, FPackageStoreOptimizer::IncludeNonOptionalSegments);
+			ContainerTarget->Header = PackageStoreOptimizer.CreateContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries);
 			WriteContainerHeaderChunk(ContainerTarget->Header, ContainerTarget->IoStoreWriter.Get());
 
 			if (ContainerTarget->OptionalSegmentIoStoreWriter)
 			{
-				ContainerTarget->OptionalSegmentHeader = PackageStoreOptimizer.CreateContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries, FPackageStoreOptimizer::IncludeOptionalSegments);
+				ContainerTarget->OptionalSegmentHeader = PackageStoreOptimizer.CreateOptionalContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries);
 				WriteContainerHeaderChunk(ContainerTarget->OptionalSegmentHeader, ContainerTarget->OptionalSegmentIoStoreWriter.Get());
 			}
 		}

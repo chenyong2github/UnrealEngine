@@ -1809,6 +1809,13 @@ FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const
 {
 	FPackageStoreEntryResource Result;
 	Result.Flags = Package->bIsRedirected ? EPackageStoreEntryFlags::Redirected : EPackageStoreEntryFlags::None;
+
+	if (OptionalSegmentPackage && OptionalSegmentPackage->HasEditorData())
+	{
+		// AutoOptional packages are saved with editor data included
+		Result.Flags |= EPackageStoreEntryFlags::AutoOptional;
+	}
+	
 	Result.PackageName = Package->Name;
 	Result.SourcePackageName = Package->SourceName;
 	Result.Region = FName(*Package->Region);
@@ -1828,26 +1835,34 @@ FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const
 	return Result;
 }
 
-FIoContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries, EContainerHeaderInclusionFilter InclusionFilter) const
+FIoContainerHeader FPackageStoreOptimizer::CreateContainerHeaderInternal(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries, bool bIsOptional) const
 {
-	const bool bIncludeNonOptionalSegments = (InclusionFilter & IncludeNonOptionalSegments) > 0;
-	const bool bIncludeOptionalSegments = (InclusionFilter & IncludeOptionalSegments) > 0;
-
 	FIoContainerHeader Header;
 	Header.ContainerId = ContainerId;
 	
-	const int32 NonOptionalSegmentStoreEntriesCount = bIncludeNonOptionalSegments ? PackageStoreEntries.Num() : 0;
-
+	int32 NonOptionalSegmentStoreEntriesCount = 0;
 	int32 OptionalSegmentStoreEntriesCount = 0;
-	if (bIncludeOptionalSegments)
+	if (bIsOptional)
 	{
 		for (const FPackageStoreEntryResource& Entry : PackageStoreEntries)
 		{
 			if (Entry.OptionalSegmentExportInfo.ExportCount)
 			{
-				++OptionalSegmentStoreEntriesCount;
+				if (Entry.IsAutoOptional())
+				{
+					// Auto optional packages fully replace the non-optional segment
+					++NonOptionalSegmentStoreEntriesCount;
+				}
+				else
+				{
+					++OptionalSegmentStoreEntriesCount;
+				}
 			}
 		}
+	}
+	else
+	{
+		NonOptionalSegmentStoreEntriesCount = PackageStoreEntries.Num();
 	}
 
 	struct FStoreEntriesWriter
@@ -1907,70 +1922,85 @@ FIoContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContai
 	FPackageStoreNameMapBuilder RedirectsNameMapBuilder;
 	RedirectsNameMapBuilder.SetNameMapType(FMappedName::EType::Container);
 	TSet<FPackageId> AllLocalizedPackages;
-	for (const FPackageStoreEntryResource* Entry : SortedPackageStoreEntries)
+	if (bIsOptional)
 	{
-		if (bIncludeOptionalSegments && Entry->OptionalSegmentExportInfo.ExportCount)
+		for (const FPackageStoreEntryResource* Entry : SortedPackageStoreEntries)
 		{
-			Header.OptionalSegmentPackageIds.Add(Entry->GetPackageId());
-
-			FPackageStoreExportInfo OptionalSegmentExportInfo = Entry->OptionalSegmentExportInfo;
-			OptionalSegmentStoreEntriesWriter.StoreTocArchive << OptionalSegmentExportInfo;
-
-			const TArray<FPackageId>& OptionalSegmentImportedPackageIds = Entry->OptionalSegmentImportedPackageIds;
-			SerializePackageEntryCArrayHeader(OptionalSegmentStoreEntriesWriter, OptionalSegmentImportedPackageIds.Num());
-			for (FPackageId OptionalSegmentImportedPackageId : OptionalSegmentImportedPackageIds)
+			if (Entry->OptionalSegmentExportInfo.ExportCount)
 			{
-				check(OptionalSegmentImportedPackageId.IsValid());
-				OptionalSegmentStoreEntriesWriter.StoreDataArchive << OptionalSegmentImportedPackageId;
-			}
-
-			// ShaderMapHashes is N/A for optional segments
-			SerializePackageEntryCArrayHeader(OptionalSegmentStoreEntriesWriter, 0);
-		}
-
-		if (!bIncludeNonOptionalSegments)
-		{
-			continue;
-		}
-
-		Header.PackageIds.Add(Entry->GetPackageId());
-		if (Entry->IsRedirected())
-		{
-			RedirectsNameMapBuilder.MarkNameAsReferenced(Entry->GetSourcePackageName());
-			FMappedName MappedSourcePackageName = RedirectsNameMapBuilder.MapName(Entry->GetSourcePackageName());
-			if (!Entry->Region.IsNone())
-			{
-				if (!AllLocalizedPackages.Contains(Entry->GetSourcePackageId()))
+				FStoreEntriesWriter* TargetEntriesWriter;
+				if (Entry->IsAutoOptional())
 				{
-					Header.LocalizedPackages.Add({ Entry->GetSourcePackageId(), MappedSourcePackageName });
-					AllLocalizedPackages.Add(Entry->GetSourcePackageId());
+					Header.PackageIds.Add(Entry->GetPackageId());
+					TargetEntriesWriter = &StoreEntriesWriter;
+				}
+				else
+				{
+					Header.OptionalSegmentPackageIds.Add(Entry->GetPackageId());
+					TargetEntriesWriter = &OptionalSegmentStoreEntriesWriter;
+				}
+
+				// OptionalStoreEntry
+				FPackageStoreExportInfo OptionalSegmentExportInfo = Entry->OptionalSegmentExportInfo;
+				TargetEntriesWriter->StoreTocArchive << OptionalSegmentExportInfo;
+
+				// OptionalImportedPackages
+				const TArray<FPackageId>& OptionalSegmentImportedPackageIds = Entry->OptionalSegmentImportedPackageIds;
+				SerializePackageEntryCArrayHeader(*TargetEntriesWriter, OptionalSegmentImportedPackageIds.Num());
+				for (FPackageId OptionalSegmentImportedPackageId : OptionalSegmentImportedPackageIds)
+				{
+					check(OptionalSegmentImportedPackageId.IsValid());
+					TargetEntriesWriter->StoreDataArchive << OptionalSegmentImportedPackageId;
+				}
+
+				// ShaderMapHashes is N/A for optional segments
+				SerializePackageEntryCArrayHeader(*TargetEntriesWriter, 0);
+			}
+		}
+	}
+	else
+	{
+		for (const FPackageStoreEntryResource* Entry : SortedPackageStoreEntries)
+		{
+			Header.PackageIds.Add(Entry->GetPackageId());
+			if (Entry->IsRedirected())
+			{
+				RedirectsNameMapBuilder.MarkNameAsReferenced(Entry->GetSourcePackageName());
+				FMappedName MappedSourcePackageName = RedirectsNameMapBuilder.MapName(Entry->GetSourcePackageName());
+				if (!Entry->Region.IsNone())
+				{
+					if (!AllLocalizedPackages.Contains(Entry->GetSourcePackageId()))
+					{
+						Header.LocalizedPackages.Add({ Entry->GetSourcePackageId(), MappedSourcePackageName });
+						AllLocalizedPackages.Add(Entry->GetSourcePackageId());
+					}
+				}
+				else
+				{
+					Header.PackageRedirects.Add({ Entry->GetSourcePackageId(), Entry->GetPackageId(), MappedSourcePackageName });
 				}
 			}
-			else
+
+			// StoreEntries
+			FPackageStoreExportInfo ExportInfo = Entry->ExportInfo;
+			StoreEntriesWriter.StoreTocArchive << ExportInfo;
+
+			// ImportedPackages
+			const TArray<FPackageId>& ImportedPackageIds = Entry->ImportedPackageIds;
+			SerializePackageEntryCArrayHeader(StoreEntriesWriter, ImportedPackageIds.Num());
+			for (FPackageId ImportedPackageId : ImportedPackageIds)
 			{
-				Header.PackageRedirects.Add({ Entry->GetSourcePackageId(), Entry->GetPackageId(), MappedSourcePackageName });
+				check(ImportedPackageId.IsValid());
+				StoreEntriesWriter.StoreDataArchive << ImportedPackageId;
 			}
-		}
-		
-		// StoreEntries
-		FPackageStoreExportInfo ExportInfo = Entry->ExportInfo;
-		StoreEntriesWriter.StoreTocArchive << ExportInfo;
-		
-		// ImportedPackages
-		const TArray<FPackageId>& ImportedPackageIds = Entry->ImportedPackageIds;
-		SerializePackageEntryCArrayHeader(StoreEntriesWriter, ImportedPackageIds.Num());
-		for (FPackageId ImportedPackageId : ImportedPackageIds)
-		{
-			check(ImportedPackageId.IsValid());
-			StoreEntriesWriter.StoreDataArchive << ImportedPackageId;
-		}
-		
-		// ShaderMapHashes
-		const TArray<FSHAHash>& ShaderMapHashes = Entry->ShaderMapHashes;
-		SerializePackageEntryCArrayHeader(StoreEntriesWriter, ShaderMapHashes.Num());
-		for (const FSHAHash& ShaderMapHash : ShaderMapHashes)
-		{
-			StoreEntriesWriter.StoreDataArchive << const_cast<FSHAHash&>(ShaderMapHash);
+
+			// ShaderMapHashes
+			const TArray<FSHAHash>& ShaderMapHashes = Entry->ShaderMapHashes;
+			SerializePackageEntryCArrayHeader(StoreEntriesWriter, ShaderMapHashes.Num());
+			for (const FSHAHash& ShaderMapHash : ShaderMapHashes)
+			{
+				StoreEntriesWriter.StoreDataArchive << const_cast<FSHAHash&>(ShaderMapHash);
+			}
 		}
 	}
 	Header.RedirectsNameMap = RedirectsNameMapBuilder.GetNameMap();
@@ -1979,4 +2009,14 @@ FIoContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContai
 	OptionalSegmentStoreEntriesWriter.Flush(Header.OptionalSegmentStoreEntries);
 
 	return Header;
+}
+
+FIoContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries) const
+{
+	return CreateContainerHeaderInternal(ContainerId, PackageStoreEntries, false);
+}
+
+FIoContainerHeader FPackageStoreOptimizer::CreateOptionalContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries) const
+{
+	return CreateContainerHeaderInternal(ContainerId, PackageStoreEntries, true);
 }
