@@ -15,6 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectBaseUtility.h"
+#include "UObject/UObjectStats.h"
 #include "UObject/GarbageCollection.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
@@ -78,6 +79,9 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 CSV_DEFINE_CATEGORY_MODULE(ENGINE_API, Ticks, true);
 CSV_DEFINE_CATEGORY_MODULE(ENGINE_API, ActorCount, true);
 
+#if CSV_PROFILER && CSV_TRACK_UOBJECT_COUNT
+CSV_DEFINE_CATEGORY_MODULE(ENGINE_API, ObjectCount, true);
+#endif
 
 // this will log out all of the objects that were ticked in the FDetailedTickStats struct so you can isolate what is expensive
 #define LOG_DETAILED_DUMPSTATS 0
@@ -1284,6 +1288,11 @@ static void RecordWorldCountsToCSV(UWorld* World, bool bDoingActorTicks)
 			static FName TotalActorCountStatName(TEXT("TotalActorCount"));
 			FCsvProfiler::Get()->RecordCustomStat(TotalActorCountStatName, CSV_CATEGORY_INDEX(ActorCount), CSVActorTotalCount, ECsvCustomStatOp::Set);
 		}
+
+#if CSV_TRACK_UOBJECT_COUNT
+		static const FName TotalObjectCountStatName(TEXT("Total"));
+		FCsvProfiler::Get()->RecordCustomStat(TotalObjectCountStatName, CSV_CATEGORY_INDEX(ObjectCount), UObjectStats::GetUObjectCount(), ECsvCustomStatOp::Set);
+#endif
 	}
 }
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)

@@ -16,6 +16,7 @@
 #include "UObject/Class.h"
 #include "UObject/DeferredRegistry.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/UObjectStats.h"
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 #include "UObject/GCObject.h"
@@ -32,6 +33,12 @@ DECLARE_CYCLE_STAT(TEXT("CreateStatID"), STAT_CreateStatID, STATGROUP_StatSystem
 
 DEFINE_LOG_CATEGORY_STATIC(LogUObjectBootstrap, Display, Display);
 
+#if CSV_PROFILER && CSV_TRACK_UOBJECT_COUNT
+namespace UObjectStats
+{
+	COREUOBJECT_API std::atomic<int32> GUObjectCount;
+}
+#endif
 
 /** Whether uobject system is initialized.												*/
 namespace Internal
@@ -97,7 +104,11 @@ UObjectBase::UObjectBase( EObjectFlags InFlags )
 ,	InternalIndex		(INDEX_NONE)
 ,	ClassPrivate		(nullptr)
 ,	OuterPrivate		(nullptr)
-{}
+{
+#if CSV_PROFILER && CSV_TRACK_UOBJECT_COUNT
+	UObjectStats::IncrementUObjectCount();
+#endif
+}
 
 /**
  * Constructor used by StaticAllocateObject
@@ -116,6 +127,10 @@ UObjectBase::UObjectBase(UClass* InClass, EObjectFlags InFlags, EInternalObjectF
 	check(ClassPrivate);
 	// Add to global table.
 	AddObject(InName, InInternalFlags);
+	
+#if CSV_PROFILER && CSV_TRACK_UOBJECT_COUNT
+	UObjectStats::IncrementUObjectCount();
+#endif
 }
 
 
@@ -132,6 +147,10 @@ UObjectBase::~UObjectBase()
 		check(GetFName() == NAME_None);
 		GUObjectArray.FreeUObjectIndex(this);
 	}
+
+#if CSV_PROFILER && CSV_TRACK_UOBJECT_COUNT
+	UObjectStats::DecrementUObjectCount();
+#endif
 }
 
 
