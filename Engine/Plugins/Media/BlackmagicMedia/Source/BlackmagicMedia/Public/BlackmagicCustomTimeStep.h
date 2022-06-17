@@ -3,7 +3,6 @@
 #pragma once
 
 #include "GenlockedCustomTimeStep.h"
-
 #include "MediaIOCoreDefinitions.h"
 
 #include "BlackmagicCustomTimeStep.generated.h"
@@ -35,6 +34,7 @@ public:
 	virtual bool IsLastSyncDataValid() const override;
 	virtual FFrameRate GetSyncRate() const override;
 	virtual bool WaitForSync() override;
+	virtual bool SupportsFormatAutoDetection() const { return true; };
 
 	//~ UObject interface
 	virtual void BeginDestroy() override;
