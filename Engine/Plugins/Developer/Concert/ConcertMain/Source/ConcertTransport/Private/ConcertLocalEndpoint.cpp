@@ -6,6 +6,7 @@
 
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
+#include "Algo/Transform.h"
 
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
@@ -135,6 +136,17 @@ FConcertLocalEndpoint::~FConcertLocalEndpoint()
 const FConcertEndpointContext& FConcertLocalEndpoint::GetEndpointContext() const
 {
 	return EndpointContext;
+}
+
+TArray<FConcertEndpointContext> FConcertLocalEndpoint::GetRemoteEndpoints() const
+{
+	FScopeLock RemoteEndpointsLock(&RemoteEndpointsCS);
+	TArray<FConcertEndpointContext> Result;
+	Algo::Transform(RemoteEndpoints, Result, [](const TPair<FGuid, FConcertRemoteEndpointPtr>& RemoteEndpoint)
+	{
+		return RemoteEndpoint.Value->GetEndpointContext();
+	});
+	return Result;
 }
 
 FMessageAddress FConcertLocalEndpoint::GetRemoteAddress(const FGuid& ConcertEndpointId) const

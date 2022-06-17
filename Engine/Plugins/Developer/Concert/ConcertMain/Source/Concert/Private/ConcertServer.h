@@ -25,6 +25,9 @@ public:
 	virtual bool IsConfigured() const override;
 	virtual const UConcertServerConfig* GetConfiguration() const override;
 	virtual const FConcertServerInfo& GetServerInfo() const override;
+
+	virtual TArray<FConcertEndpointContext> GetRemoteAdminEndpoints() const override;
+	virtual FOnConcertRemoteEndpointConnectionChanged& OnRemoteEndpointConnectionChanged() override;
 	virtual FMessageAddress GetRemoteAddress(const FGuid& AdminEndpointId) const override;
 	virtual FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& OnConcertMessageAcknowledgementReceived() override;
 
@@ -179,6 +182,9 @@ private:
 	
 	/** Administration endpoint for the server (i.e. creating, joining sessions) */
 	TSharedPtr<IConcertLocalEndpoint> ServerAdminEndpoint;
+
+	/** Called when ServerAdminEndpoint emits IConcertLocalEndpoint::OnConcertRemoteEndpointConnectionChanged */
+	FOnConcertRemoteEndpointConnectionChanged OnConcertRemoteEndpointConnectionChangedDelegate; 
 	
 	/** Server and Instance Info */
 	FConcertServerInfo ServerInfo;

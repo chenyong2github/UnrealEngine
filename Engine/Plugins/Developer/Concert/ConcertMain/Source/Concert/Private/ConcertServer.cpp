@@ -150,6 +150,20 @@ const FConcertServerInfo& FConcertServer::GetServerInfo() const
 	return ServerInfo;
 }
 
+TArray<FConcertEndpointContext> FConcertServer::GetRemoteAdminEndpoints() const
+{
+	if (IsStarted())
+	{
+		return ServerAdminEndpoint->GetRemoteEndpoints();
+	}
+	return {};
+}
+
+FOnConcertRemoteEndpointConnectionChanged& FConcertServer::OnRemoteEndpointConnectionChanged()
+{
+	return OnConcertRemoteEndpointConnectionChangedDelegate;
+}
+
 FMessageAddress FConcertServer::GetRemoteAddress(const FGuid& AdminEndpointId) const
 {
 	if (IsStarted())
@@ -188,6 +202,10 @@ void FConcertServer::Startup()
 			{
 				OnConcertMessageAcknowledgementReceivedFromLocalEndpoint.Broadcast(LocalEndpoint, RemoteEndpoint, AckedMessage, MessageContext);
 			});
+		ServerAdminEndpoint->OnRemoteEndpointConnectionChanged().AddLambda([this](const FConcertEndpointContext& Context, EConcertRemoteEndpointConnection Connection)
+		{
+			OnConcertRemoteEndpointConnectionChangedDelegate.Broadcast(Context, Connection);
+		});
 
 		// Make it discoverable
 		ServerAdminEndpoint->SubscribeEventHandler<FConcertAdmin_DiscoverServersEvent>(this, &FConcertServer::HandleDiscoverServersEvent);

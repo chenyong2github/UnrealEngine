@@ -39,7 +39,19 @@ public:
 	 */
 	virtual const FConcertServerInfo& GetServerInfo() const = 0;
 
-	/** Gets the address of a remote admin endpoint, i.e. a client that is sending FConcertEndpointDiscoveryEvents. */
+	
+	/**
+	 * Gets all remote admin endpoint IDs.
+	 * A remote admin endpoint is not connected to any session and communicating with the server otherwise, e.g. discovering sessions.
+	 */
+	virtual TArray<FConcertEndpointContext> GetRemoteAdminEndpoints() const = 0;
+	
+	/** Callback when a remote admin endpoint connection changes. */
+	virtual FOnConcertRemoteEndpointConnectionChanged& OnRemoteEndpointConnectionChanged() = 0;
+	
+	/**
+	 * Gets the address of a remote admin endpoint, i.e. a client that is sending FConcertEndpointDiscoveryEvents. 
+	 */
 	virtual FMessageAddress GetRemoteAddress(const FGuid& AdminEndpointId) const = 0;
 
 	/** Callback when a message has been acknowledged by a remote endpoint */
