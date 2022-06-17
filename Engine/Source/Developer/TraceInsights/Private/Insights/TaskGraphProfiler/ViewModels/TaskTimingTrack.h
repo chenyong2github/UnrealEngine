@@ -74,6 +74,10 @@ private:
 	bool ContextMenu_ShowTaskSubsequents_CanExecute();
 	bool ContextMenu_ShowTaskSubsequents_IsChecked();
 
+	void ContextMenu_ShowParentTasks_Execute();
+	bool ContextMenu_ShowParentTasks_CanExecute();
+	bool ContextMenu_ShowParentTasks_IsChecked();
+
 	void ContextMenu_ShowNestedTasks_Execute();
 	bool ContextMenu_ShowNestedTasks_CanExecute();
 	bool ContextMenu_ShowNestedTasks_IsChecked();

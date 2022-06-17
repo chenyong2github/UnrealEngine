@@ -32,6 +32,7 @@ const FName FTaskTableColumns::CompletedTimestampColumnId(TEXT("CompletedTimesta
 const FName FTaskTableColumns::CompletedThreadIdColumnId(TEXT("CompletedThreadId"));
 const FName FTaskTableColumns::DestroyedTimestampColumnId(TEXT("DestroyedTimestamp"));
 const FName FTaskTableColumns::DestroyedThreadIdColumnId(TEXT("DestroyedThreadId"));
+const FName FTaskTableColumns::NumParentColumnId(TEXT("NumParents"));
 const FName FTaskTableColumns::NumNestedColumnId(TEXT("NumNested"));
 const FName FTaskTableColumns::NumSubsequentsColumnId(TEXT("NumSubsequents"));
 const FName FTaskTableColumns::NumPrerequisitesColumnId(TEXT("NumPrerequisites"));
@@ -93,6 +94,7 @@ struct DefaultTaskFieldGetterFuncts
 	static FTableCellValue GetDestroyedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetDestroyedTimestamp()); }
 	static FTableCellValue GetDestroyedThreadId(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetDestroyedThreadId()); }
 
+	static FTableCellValue GetNumParents(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetNumParents()); }
 	static FTableCellValue GetNumNested(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetNumNested());	}
 	static FTableCellValue GetNumSubsequents(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetNumSubsequents()); }
 	static FTableCellValue GetNumPrerequisites(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue((int64)Task.GetNumPrerequisites());	}
@@ -201,7 +203,7 @@ void FTaskTable::AddDefaultColumns()
 		Column.SetTitleName(LOCTEXT("DebugNameColumnTitle", "DebugName"));
 		Column.SetDescription(LOCTEXT("DebugNameColumnDesc", "DebugName"));
 
-		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(200.0f);
@@ -618,6 +620,36 @@ void FTaskTable::AddDefaultColumns()
 		Column.SetDataType(ETableCellDataType::Int64);
 
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetDestroyedThreadId>>();
+		Column.SetValueGetter(Getter);
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		AddColumn(ColumnRef);
+	}
+	//////////////////////////////////////////////////
+	// Num Parent Tasks Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FTaskTableColumns::NumParentColumnId);
+		FTableColumn& Column = *ColumnRef;
+
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("ParentTasksColumnName", "Parent Tasks"));
+		Column.SetTitleName(LOCTEXT("ParentTasksColumnTitle", "Parent Tasks"));
+		Column.SetDescription(LOCTEXT("ParentTasksColumnDesc", "The number of parent tasks."));
+
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetInitialWidth(100.0f);
+
+		Column.SetDataType(ETableCellDataType::Int64);
+
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetNumParents>>();
 		Column.SetValueGetter(Getter);
 
 		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();

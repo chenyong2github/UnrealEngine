@@ -280,9 +280,9 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo
 		}
 	};
 
-	if (bShowPrerequisites)
+	if (bShowCriticalPath)
 	{
-		GetSingleTaskRelationsForAll(Task->Prerequisites);
+		GetRelationsOnCriticalPath(Task);
 	}
 	if (bShowTransitions)
 	{
@@ -292,17 +292,21 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const TraceServices::FTaskInfo
 	{
 		GetSingleTaskConnections(Task, TasksProvider, InSelectedEvent);
 	}
-	if (bShowNestedTasks)
+	if (bShowPrerequisites)
 	{
-		GetSingleTaskRelationsForAll(Task->NestedTasks);
+		GetSingleTaskRelationsForAll(Task->Prerequisites);
 	}
 	if (bShowSubsequents)
 	{
 		GetSingleTaskRelationsForAll(Task->Subsequents);
 	}
-	if (bShowCriticalPath)
+	if (bShowParentTasks)
 	{
-		GetRelationsOnCriticalPath(Task);
+		GetSingleTaskRelationsForAll(Task->ParentTasks);
+	}
+	if (bShowNestedTasks)
+	{
+		GetSingleTaskRelationsForAll(Task->NestedTasks);
 	}
 }
 
@@ -347,6 +351,24 @@ void FTaskGraphProfilerManager::GetSingleTaskConnections(const TraceServices::FT
 		AddRelation(InSelectedEvent, Prerequisite->FinishedTimestamp, Prerequisite->StartedThreadId, Task->StartedTimestamp, Task->StartedThreadId, ETaskEventType::PrerequisiteStarted);
 	}
 
+	int32 NumSubsequentsToShow = FMath::Min(Task->Subsequents.Num(), MaxTasksToShow);
+	for (int32 i = 0; i != NumSubsequentsToShow; ++i)
+	{
+		const TraceServices::FTaskInfo* Subsequent = TasksProvider->TryGetTask(Task->Subsequents[i].RelativeId);
+		check(Subsequent != nullptr);
+
+		AddRelation(InSelectedEvent, Task->CompletedTimestamp, Task->CompletedThreadId, Subsequent->StartedTimestamp, Subsequent->StartedThreadId, ETaskEventType::SubsequentStarted);
+	}
+
+	int32 NumParentsToShow = FMath::Min(Task->ParentTasks.Num(), MaxTasksToShow);
+	for (int32 i = 0; i != NumParentsToShow; ++i)
+	{
+		const TraceServices::FTaskInfo* ParentTask = TasksProvider->TryGetTask(Task->ParentTasks[i].RelativeId);
+		check(ParentTask != nullptr);
+
+		AddRelation(InSelectedEvent, Task->CompletedTimestamp, Task->CompletedThreadId, ParentTask->CompletedTimestamp, ParentTask->CompletedThreadId, ETaskEventType::ParentStarted);
+	}
+
 	int32 NumNestedToShow = FMath::Min(Task->NestedTasks.Num(), MaxTasksToShow);
 	for (int32 i = 0; i != NumNestedToShow; ++i)
 	{
@@ -354,18 +376,10 @@ void FTaskGraphProfilerManager::GetSingleTaskConnections(const TraceServices::FT
 		const TraceServices::FTaskInfo* NestedTask = TasksProvider->TryGetTask(RelationInfo.RelativeId);
 		check(NestedTask != nullptr);
 
-		int32 NestedExecutionStartedDepth = GetDepthOfTaskExecution(Task->StartedTimestamp, Task->FinishedTimestamp, Task->StartedThreadId);
+		int32 NestedExecutionStartedDepth = GetDepthOfTaskExecution(NestedTask->StartedTimestamp, NestedTask->FinishedTimestamp, NestedTask->StartedThreadId);
 
 		AddRelation(InSelectedEvent, RelationInfo.Timestamp, Task->StartedThreadId, -1, NestedTask->StartedTimestamp, NestedTask->StartedThreadId, NestedExecutionStartedDepth, ETaskEventType::NestedStarted);
-	}
-
-	int32 NumSubsequentsToShow = FMath::Min(Task->Subsequents.Num(), MaxTasksToShow);
-	for (int32 i = 0; i != NumSubsequentsToShow; ++i)
-	{
-		const TraceServices::FTaskInfo* Subsequent = TasksProvider->TryGetTask(Task->Subsequents[i].RelativeId);
-		check(Subsequent != nullptr);
-
-		AddRelation(InSelectedEvent, Task->FinishedTimestamp, Task->StartedThreadId, Subsequent->StartedTimestamp, Subsequent->StartedThreadId, ETaskEventType::SubsequentStarted);
+		AddRelation(InSelectedEvent, NestedTask->FinishedTimestamp, NestedTask->StartedThreadId, NestedExecutionStartedDepth, Task->CompletedTimestamp, Task->CompletedThreadId, -1, ETaskEventType::NestedCompleted);
 	}
 }
 
@@ -509,6 +523,7 @@ void FTaskGraphProfilerManager::InitializeColorCode()
 	ColorCode[static_cast<uint32>(ETaskEventType::Finished)] = ToLiniarColorNoAlpha(0xFFDC1AFF); // Yellow
 	ColorCode[static_cast<uint32>(ETaskEventType::Completed)] = ToLiniarColorNoAlpha(0xFE9B07FF); // Orange
 	ColorCode[static_cast<uint32>(ETaskEventType::PrerequisiteStarted)] = ToLiniarColorNoAlpha(0xFF729CFF); // Pink
+	ColorCode[static_cast<uint32>(ETaskEventType::ParentStarted)] = ToLiniarColorNoAlpha(0xB68F55FF); // Folder
 	ColorCode[static_cast<uint32>(ETaskEventType::NestedStarted)] = ToLiniarColorNoAlpha(0xB68F55FF); // Folder
 	ColorCode[static_cast<uint32>(ETaskEventType::SubsequentStarted)] = ToLiniarColorNoAlpha(0xFE9B07FF); // Orange
 	ColorCode[static_cast<uint32>(ETaskEventType::NestedCompleted)] = ToLiniarColorNoAlpha(0x804D39FF); // Brown
@@ -762,33 +777,6 @@ double FTaskGraphProfilerManager::GetRelationsOnCriticalPathDescendingRec(const 
 				{
 					MaxChainDuration = ChainDuration;
 					NextTaskInChain = SubsequentTaskInfo;
-					// Remove the relations from the shorter branch.
-					if (Relations.Num() > InitialRelationNum)
-					{
-						Relations.RemoveAt(InitialRelationNum, Relations.Num() - InitialRelationNum, false);
-					}
-
-					Relations.Append(DescendingRelations);
-				}
-				DescendingRelations.Empty(DescendingRelations.Max());
-			}
-		}
-	}
-
-	if (Task->NestedTasks.Num() > 0)
-	{
-		TArray<FTaskGraphRelation> DescendingRelations;
-
-		for (const TraceServices::FTaskInfo::FRelationInfo& NestedTaskRelation : Task->NestedTasks)
-		{
-			const TraceServices::FTaskInfo* NestedTaskInfo = TasksProvider->TryGetTask(NestedTaskRelation.RelativeId);
-			if (NestedTaskInfo != nullptr)
-			{
-				double ChainDuration = GetRelationsOnCriticalPathDescendingRec(NestedTaskInfo, TasksProvider, DescendingRelations);
-				if (ChainDuration > MaxChainDuration)
-				{
-					MaxChainDuration = ChainDuration;
-					NextTaskInChain = NestedTaskInfo;
 					// Remove the relations from the shorter branch.
 					if (Relations.Num() > InitialRelationNum)
 					{
