@@ -101,8 +101,7 @@ protected:
 
 private:
 	/* Private Helpers */
-	void RegisterContextMenu();
-	void UnregisterContextMenu();
+	static void RegisterContextMenu();
 	void ChooseRepresentingWorld();
 	void OnSelectWorld(TWeakObjectPtr<UWorld> World);
 	bool IsWorldChecked(TWeakObjectPtr<UWorld> World) const;
@@ -120,7 +119,7 @@ private:
 	AWorldDataLayers* GetOwningWorldAWorldDataLayers() const;
 	FSceneOutlinerDragValidationInfo ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, bool bMoveOperation = false) const;
 
-	UDataLayerAsset* PromptDataLayerAssetSelection();
+	UDataLayerAsset* PromptDataLayerAssetSelection() const;
 
 	/** Filter factories */
 	static TSharedRef<FSceneOutlinerFilter> CreateShowOnlySelectedActorsFilter();
