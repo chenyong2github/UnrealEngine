@@ -50,6 +50,23 @@ public:
 	}
 
 
+	TSparseGrid3(const TSparseGrid3& Other) = delete;
+	TSparseGrid3& operator=(const TSparseGrid3& Other) = delete;
+	TSparseGrid3(TSparseGrid3&& Other) noexcept : Elements(MoveTemp(Other.Elements)), Bounds(MoveTemp(Other.Bounds))
+	{
+		Other.Elements.Reset();
+	}
+	TSparseGrid3& operator=(TSparseGrid3&& Other) noexcept
+	{
+		if (this != &Other)
+		{
+			Elements = MoveTemp(Other.Elements);
+			Bounds = MoveTemp(Other.Bounds);
+			Other.Elements.Reset();
+		}
+		return *this;
+	}
+
 	/**
 	 * @param Index an integer grid index
 	 * @return true if there is an allocated element at this index

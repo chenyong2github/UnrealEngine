@@ -271,6 +271,26 @@ public:
 		FProgressScope() : ProgressCancel(nullptr)
 		{}
 
+		FProgressScope(const FProgressScope& Other) = delete;
+		FProgressScope& operator=(const FProgressScope& Other) = delete;
+		FProgressScope(FProgressScope&& Other) noexcept : ProgressCancel(Other.ProgressCancel), SavedProgressData(MoveTemp(Other.SavedProgressData)), bEnded(Other.bEnded)
+		{
+			Other.ProgressCancel = nullptr;
+			Other.bEnded = true;
+		}
+		FProgressScope& operator=(FProgressScope&& Other) noexcept
+		{
+			if (this != &Other)
+			{
+				ProgressCancel = Other.ProgressCancel;
+				SavedProgressData = MoveTemp(Other.SavedProgressData);
+				bEnded = Other.bEnded;
+				Other.ProgressCancel = nullptr;
+				Other.bEnded = true;
+			}
+			return *this;
+		}
+
 		~FProgressScope()
 		{
 			if (!bEnded)

@@ -43,13 +43,6 @@ public:
 	}
 
 	/**
-	* Construct a copy of another general polygon
-	*/
-	TGeneralPolygon2(const TGeneralPolygon2& Copy) : Outer(Copy.Outer), bOuterIsCW(Copy.bOuterIsCW), Holes(Copy.Holes)
-	{
-	}
-
-	/**
 	* Construct a general polygon with the given polygon as boundary
 	*/
 	TGeneralPolygon2(const TPolygon2<T>& ToSetOuter) : Outer(ToSetOuter)

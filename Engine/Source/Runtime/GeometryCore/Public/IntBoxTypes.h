@@ -86,8 +86,6 @@ struct FAxisAlignedBox2i
 	{
 	}
 
-	FAxisAlignedBox2i(const FAxisAlignedBox2i& OtherBox) = default;
-
 	FAxisAlignedBox2i(int32 SquareSize)
 		: Min((int32)0, (int32)0), Max(SquareSize, SquareSize)
 	{
@@ -151,8 +149,6 @@ struct FAxisAlignedBox3i
 		this->Min = Min;
 		this->Max = Max;
 	}
-
-	FAxisAlignedBox3i(const FAxisAlignedBox3i& OtherBox) = default;
 
 	bool operator==(const FAxisAlignedBox3i& Other) const
 	{
