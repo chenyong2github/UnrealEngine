@@ -1999,6 +1999,7 @@ FD3D11Texture::FD3D11Texture(
 	, RenderTargetViews   (InRenderTargetViews)
 	, RTVArraySize        (InRTVArraySize)
 	, bCreatedRTVsPerSlice(bInCreatedRTVsPerSlice)
+	, bAlias              (false)
 {
 	// Set the DSVs for all the access type combinations
 	if (InDepthStencilViews.Num())
