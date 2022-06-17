@@ -2,8 +2,6 @@
 
 #pragma once 
 
-#include "GeometryCollectionNodeConnectionTypes.h"
-
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowEngine.h"
 #include "GeometryCollection/ManagedArrayCollection.h"

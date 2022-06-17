@@ -2,7 +2,6 @@
 
 #include "Dataflow/DataflowEditorActions.h"
 #include "Dataflow/DataflowEdNode.h"
-#include "Dataflow/DataflowEPropertyCustomizations.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
 #include "IStructureDetailsView.h"

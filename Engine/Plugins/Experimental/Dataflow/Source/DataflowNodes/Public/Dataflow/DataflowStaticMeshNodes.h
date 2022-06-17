@@ -3,12 +3,8 @@
 #pragma once 
 
 #include "CoreMinimal.h"
-
-
-#include "Dataflow/DataflowNodesConnectionTypes.h"
 #include "Dataflow/DataflowCore.h"
 #include "Dataflow/DataflowEngine.h"
-
 
 #include "DataflowStaticMeshNodes.generated.h"
 
