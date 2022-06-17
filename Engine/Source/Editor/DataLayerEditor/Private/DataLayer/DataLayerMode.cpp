@@ -1008,34 +1008,47 @@ void FDataLayerMode::RegisterContextMenu()
 			{
 				FToolMenuSection& Section = InMenu->AddSection("DataLayers", LOCTEXT("DataLayers", "Data Layers"));
 				
-				auto CreateNewDataLayer = [SceneOutliner, Mode](UDataLayerInstance* InParentDataLayer = nullptr, const TSet<const UDataLayerAsset*>& InDataLayerAssets = {})
+				auto CreateNewDataLayerInternal = [SceneOutliner, Mode](UDataLayerInstance* InParentDataLayer, const UDataLayerAsset* InDataLayerAsset = nullptr)
 				{
-					TSet<const UDataLayerAsset*> DataLayerAssets = InDataLayerAssets;
-					DataLayerAssets.Remove(nullptr);
+					check(InDataLayerAsset || UDataLayerEditorSubsystem::Get()->HasDeprecatedDataLayers());
 
-					if (DataLayerAssets.IsEmpty())
+					const FScopedTransaction Transaction(LOCTEXT("CreateNewDataLayer", "Create New Data Layer"));
+					Mode->SelectedDataLayersSet.Empty();
+					Mode->SelectedDataLayerActors.Empty();
+
+					FDataLayerCreationParameters CreationParams;
+					CreationParams.DataLayerAsset = const_cast<UDataLayerAsset*>(InDataLayerAsset);
+					CreationParams.ParentDataLayer = InParentDataLayer;
+					CreationParams.WorlDataLayers = InParentDataLayer ? InParentDataLayer->GetOuterAWorldDataLayers() : Mode->GetOwningWorldAWorldDataLayers();
+					if (UDataLayerInstance* NewDataLayerInstance = UDataLayerEditorSubsystem::Get()->CreateDataLayerInstance(CreationParams))
 					{
-						if (UDataLayerAsset* DataLayerAsset = Mode->PromptDataLayerAssetSelection())
-						{
-							DataLayerAssets.Add(DataLayerAsset);
-						}
+						Mode->SelectedDataLayersSet.Add(NewDataLayerInstance);
+						// Select it and open a rename when it gets refreshed
+						SceneOutliner->OnItemAdded(NewDataLayerInstance, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
 					}
+				};
 
-					for (const UDataLayerAsset* DataLayerAsset : DataLayerAssets)
+				auto CreateNewDataLayer = [SceneOutliner, Mode, CreateNewDataLayerInternal](UDataLayerInstance* InParentDataLayer = nullptr, const TSet<const UDataLayerAsset*>& InDataLayerAssets = {})
+				{
+					if (UDataLayerEditorSubsystem::Get()->HasDeprecatedDataLayers())
 					{
-						const FScopedTransaction Transaction(LOCTEXT("CreateNewDataLayer", "Create New Data Layer"));
-						Mode->SelectedDataLayersSet.Empty();
-						Mode->SelectedDataLayerActors.Empty();
-
-						FDataLayerCreationParameters CreationParams;
-						CreationParams.DataLayerAsset = const_cast<UDataLayerAsset*>(DataLayerAsset);
-						CreationParams.ParentDataLayer = InParentDataLayer;
-						CreationParams.WorlDataLayers = InParentDataLayer ? InParentDataLayer->GetOuterAWorldDataLayers() : Mode->GetOwningWorldAWorldDataLayers();
-						if (UDataLayerInstance* NewDataLayerInstance = UDataLayerEditorSubsystem::Get()->CreateDataLayerInstance(CreationParams))
+						check(InDataLayerAssets.IsEmpty());
+						CreateNewDataLayerInternal(InParentDataLayer);
+					}
+					else
+					{
+						TSet<const UDataLayerAsset*> DataLayerAssets = InDataLayerAssets;
+						DataLayerAssets.Remove(nullptr);
+						if (DataLayerAssets.IsEmpty())
 						{
-							Mode->SelectedDataLayersSet.Add(NewDataLayerInstance);
-							// Select it and open a rename when it gets refreshed
-							SceneOutliner->OnItemAdded(NewDataLayerInstance, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
+							if (UDataLayerAsset* DataLayerAsset = Mode->PromptDataLayerAssetSelection())
+							{
+								DataLayerAssets.Add(DataLayerAsset);
+							}
+						}
+						for (const UDataLayerAsset* DataLayerAsset : DataLayerAssets)
+						{
+							CreateNewDataLayerInternal(InParentDataLayer, DataLayerAsset);
 						}
 					}
 				};
@@ -1072,7 +1085,7 @@ void FDataLayerMode::RegisterContextMenu()
 						}
 					}
 
-					if (!DataLayerAssetsToImport.IsEmpty())
+					if (!DataLayerAssetsToImport.IsEmpty() && !UDataLayerEditorSubsystem::Get()->HasDeprecatedDataLayers())
 					{
 						Section.AddMenuEntry("ImportDataLayers", LOCTEXT("ImportDataLayers", "Import Data Layer(s)"), FText(), FSlateIcon(),
 							FUIAction(FExecuteAction::CreateLambda([DataLayerAssetsToImport, CreateNewDataLayer]()
