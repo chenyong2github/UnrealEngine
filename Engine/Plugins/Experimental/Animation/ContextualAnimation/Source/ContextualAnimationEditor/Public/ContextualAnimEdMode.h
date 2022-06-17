@@ -8,53 +8,22 @@
 class AActor;
 class FContextualAnimViewModel;
 
-struct FSelectionCriterionHitProxyData
-{
-	int32 SectionIdx = INDEX_NONE;
-	int32 AnimSetIdx = INDEX_NONE;
-	FName RoleName = NAME_None;
-	int32 CriterionIdx = INDEX_NONE;
-	int32 DataIdx = INDEX_NONE;
-
-	FSelectionCriterionHitProxyData(){}
-	FSelectionCriterionHitProxyData(int32 InSectionIdx, int32 InAnimSetIdx, const FName& InRoleName, int32 InCriterionIdx, int32 InDataIdx)
-		: SectionIdx(InSectionIdx)
-		, AnimSetIdx(InAnimSetIdx)
-		, RoleName(InRoleName)
-		, CriterionIdx(InCriterionIdx)
-		, DataIdx(InDataIdx)
-	{}
-
-	void Reset()
-	{
-		RoleName = NAME_None;
-		SectionIdx = INDEX_NONE;
-		AnimSetIdx = INDEX_NONE;
-		CriterionIdx = INDEX_NONE;
-		DataIdx = INDEX_NONE;
-	}
-
-	bool IsValid() const 
-	{ 
-		return	RoleName != NAME_None && 
-				SectionIdx != INDEX_NONE &&
-				AnimSetIdx != INDEX_NONE && 
-				CriterionIdx != INDEX_NONE; 
-	}
-};
-
 struct HSelectionCriterionHitProxy : public HHitProxy
 {
 	DECLARE_HIT_PROXY();
 
-	HSelectionCriterionHitProxy(const FSelectionCriterionHitProxyData& InData, EHitProxyPriority InPriority = HPP_Wireframe)
+	HSelectionCriterionHitProxy(FName InRole, int32 InCriterionIdx, int32 InDataIdx, EHitProxyPriority InPriority = HPP_Wireframe)
 		: HHitProxy(InPriority)
-		, Data(InData)
-	{}
+	{
+		Role = InRole;
+		IndexPair.Key = InCriterionIdx;
+		IndexPair.Value = InDataIdx;
+	}
 
 	virtual EMouseCursor::Type GetMouseCursor() override { return EMouseCursor::Crosshairs; }
 
-	FSelectionCriterionHitProxyData Data;
+	FName Role = NAME_None;
+	TPair<int32, int32> IndexPair;
 };
 
 class FContextualAnimEdMode : public FEdMode
@@ -68,6 +37,7 @@ public:
 
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
+	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
 	virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
 	virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
@@ -86,8 +56,4 @@ public:
 private:
 
 	FContextualAnimViewModel* ViewModel = nullptr;
-
-	TWeakObjectPtr<AActor> SelectedActor;
-
-	FSelectionCriterionHitProxyData SelectedSelectionCriterionData;
 };

@@ -12,9 +12,8 @@
 #include "Animation/AnimMontage.h"
 #include "AnimNotifyState_IKWindow.h"
 #include "SkeletalDebugRendering.h"
-
-#include "GameFramework/Character.h"
-#include "Components/CapsuleComponent.h"
+#include "CanvasTypes.h"
+#include "CanvasItem.h"
 #include "Components/SkeletalMeshComponent.h"
 
 const FEditorModeID FContextualAnimEdMode::EdModeId = TEXT("ContextualAnimEdMode");
@@ -32,32 +31,6 @@ FContextualAnimEdMode::~FContextualAnimEdMode()
 void FContextualAnimEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	FEdMode::Tick(ViewportClient, DeltaTime);
-
-	if (ViewModel && ViewModel->IsSimulateModeActive())
-	{
-		// @TODO: Two things here are temporal. First, we have to click on the actor that we want to control, and second, we can only control characters. 
-		// We need to find a better work flow for this, but its good enough for now as a prototype
-		if (!ViewportClient->Viewport->KeyState(EKeys::RightMouseButton))
-		{
-			if (ViewportClient->Viewport->KeyState(EKeys::W) || ViewportClient->Viewport->KeyState(EKeys::S))
-			{
-				if (ACharacter* Character = Cast<ACharacter>(SelectedActor.Get()))
-				{
-					const FVector WorldDirection = FRotationMatrix(Character->GetActorRotation()).GetScaledAxis(EAxis::X);
-					Character->AddMovementInput(WorldDirection, ViewportClient->Viewport->KeyState(EKeys::W) ? 1.f : -1.f);
-				}
-			}
-
-			if (ViewportClient->Viewport->KeyState(EKeys::A) || ViewportClient->Viewport->KeyState(EKeys::D))
-			{
-				if (ACharacter* Character = Cast<ACharacter>(SelectedActor.Get()))
-				{
-					const FVector WorldDirection = FRotationMatrix(Character->GetActorRotation()).GetScaledAxis(EAxis::Y);
-					Character->AddMovementInput(WorldDirection, ViewportClient->Viewport->KeyState(EKeys::D) ? 1.f : -1.f);
-				}
-			}
-		}
-	}
 }
 
 void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
@@ -73,17 +46,6 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 
 	if (ViewModel)
 	{
-		// Draw a circle below the selected actor if it is a character to let the user know that it is a controllable actor during simulate mode
-		if(ViewModel->IsSimulateModeActive() && SelectedActor.IsValid())
-		{
-			if (const ACharacter* Character = Cast<ACharacter>(SelectedActor.Get()))
-			{
-				const float CapsuleHalfHeight = Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-				const FVector Location = Character->GetActorLocation() - Character->GetActorQuat().GetUpVector() * CapsuleHalfHeight;
-				DrawCircle(PDI, Location, FVector(1, 0, 0), FVector(0, 1, 0), FColor::Red, Character->GetCapsuleComponent()->GetScaledCapsuleRadius(), 12, SDPG_World, 1.f);
-			}
-		}
-
 		if (const UContextualAnimSceneInstance* SceneInstance = ViewModel->GetSceneInstance())
 		{
 			const UContextualAnimSceneAsset& SceneAsset = SceneInstance->GetSceneAsset();
@@ -106,7 +68,7 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 			for (const FContextualAnimSceneBinding& Binding : Bindings)
 			{
 				// Draw IK Targets
-				if (IKTargetsDrawMode == EShowIKTargetsDrawMode::All || (IKTargetsDrawMode == EShowIKTargetsDrawMode::Selected && Binding.GetActor() == SelectedActor.Get()))
+				if (IKTargetsDrawMode == EShowIKTargetsDrawMode::All || (IKTargetsDrawMode == EShowIKTargetsDrawMode::Selected && Binding.GetActor() == ViewModel->GetSelectedActor()))
 				{
 					DrawIKTargetsForBinding(*PDI, Binding);
 				}
@@ -143,11 +105,11 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 
 									PDI->DrawLine(P0, P0 + FVector::UpVector * Spatial->Height, DrawColor, SDPG_Foreground, 2.f);
 
-									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.Role, CriterionIdx, Idx)));
+									PDI->SetHitProxy(new HSelectionCriterionHitProxy(Binding.GetRoleDef().Name, CriterionIdx, Idx));
 									PDI->DrawPoint(P0, FLinearColor::Black, 15.f, SDPG_Foreground);
 									PDI->SetHitProxy(nullptr);
 
-									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.Role, CriterionIdx, Idx + 4)));
+									PDI->SetHitProxy(new HSelectionCriterionHitProxy(Binding.GetRoleDef().Name, CriterionIdx, Idx + 4));
 									PDI->DrawPoint(P0 + FVector::UpVector * Spatial->Height, FLinearColor::Black, 15.f, SDPG_Foreground);
 									PDI->SetHitProxy(nullptr);
 								}
@@ -162,6 +124,17 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 				}
 			}
 		}
+	}
+}
+
+void FContextualAnimEdMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
+{
+	FEdMode::DrawHUD(ViewportClient, Viewport, View, Canvas);
+
+	if (ViewModel)
+	{
+		FCanvasTextItem TextItem(FVector2D(10.f, 40.f), ViewModel->GetSelectionDebugText(), GEngine->GetSmallFont(), FLinearColor::White);
+		Canvas->DrawItem(TextItem);
 	}
 }
 
@@ -201,24 +174,23 @@ void FContextualAnimEdMode::DrawIKTargetsForBinding(FPrimitiveDrawInterface& PDI
 
 bool FContextualAnimEdMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {
-	SelectedActor.Reset();
-	SelectedSelectionCriterionData.Reset();
-
 	if (HitProxy != nullptr)
 	{
 		if (HitProxy->IsA(HActor::StaticGetType()))
 		{
 			HActor* ActorHitProxy = static_cast<HActor*>(HitProxy);
-			SelectedActor = ActorHitProxy->Actor;
+			ViewModel->UpdateSelection(ActorHitProxy->Actor);
 			return true;
 		}
 		else if (HitProxy->IsA(HSelectionCriterionHitProxy::StaticGetType()))
 		{
-			SelectedSelectionCriterionData = static_cast<HSelectionCriterionHitProxy*>(HitProxy)->Data;
+			HSelectionCriterionHitProxy* CriterionHitProxy = static_cast<HSelectionCriterionHitProxy*>(HitProxy);
+			ViewModel->UpdateSelection(CriterionHitProxy->Role, CriterionHitProxy->IndexPair.Key, CriterionHitProxy->IndexPair.Value);
 			return true;
 		}
 	}
 
+	ViewModel->ClearSelection();
 	return false; // unhandled
 }
 
@@ -253,46 +225,7 @@ bool FContextualAnimEdMode::InputDelta(FEditorViewportClient* InViewportClient, 
 	{
 		if (ViewModel)
 		{
-			if (SelectedSelectionCriterionData.IsValid())
-			{
-				const UContextualAnimSceneAsset* SceneAsset = ViewModel->GetSceneAsset();
-				if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectedSelectionCriterionData.SectionIdx, SelectedSelectionCriterionData.AnimSetIdx, SelectedSelectionCriterionData.RoleName))
-				{
-					if(AnimTrack->SelectionCriteria.IsValidIndex(SelectedSelectionCriterionData.CriterionIdx))
-					{
-						if (UContextualAnimSelectionCriterion_TriggerArea* Spatial = Cast<UContextualAnimSelectionCriterion_TriggerArea>(AnimTrack->SelectionCriteria[SelectedSelectionCriterionData.CriterionIdx]))
-						{
-							FMatrix WidgetCoordSystem = FMatrix::Identity;
-							GetCustomDrawingCoordinateSystem(WidgetCoordSystem, nullptr);
-
-							InDrag = WidgetCoordSystem.InverseTransformVector(InDrag);
-
-							FVector& Point = Spatial->PolygonPoints[SelectedSelectionCriterionData.DataIdx >= 4 ? SelectedSelectionCriterionData.DataIdx - 4 : SelectedSelectionCriterionData.DataIdx];
-							Point.X += InDrag.X;
-							Point.Y += InDrag.Y;
-
-							if (InDrag.Z != 0.f)
-							{
-								if (SelectedSelectionCriterionData.DataIdx < 4)
-								{
-									for (int32 Idx = 0; Idx < Spatial->PolygonPoints.Num(); Idx++)
-									{
-										Spatial->PolygonPoints[Idx].Z += InDrag.Z;
-									}
-
-									Spatial->Height = FMath::Max(Spatial->Height - InDrag.Z, 0.f);
-								}
-								else
-								{
-									Spatial->Height = FMath::Max(Spatial->Height + InDrag.Z, 0.f);
-								}
-							}
-
-							return true;
-						}
-					}
-				}
-			}
+			return ViewModel->ProcessInputDelta(InDrag, InRot, InScale);
 		}
 	}
 
@@ -320,17 +253,9 @@ bool FContextualAnimEdMode::AllowWidgetMove()
 
 bool FContextualAnimEdMode::ShouldDrawWidget() const
 {
-	if (ViewModel && SelectedSelectionCriterionData.IsValid())
+	if (ViewModel)
 	{
-		const UContextualAnimSceneAsset* SceneAsset = ViewModel->GetSceneAsset();
-		if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectedSelectionCriterionData.SectionIdx, SelectedSelectionCriterionData.AnimSetIdx, SelectedSelectionCriterionData.RoleName))
-		{
-			const int32 Idx = SelectedSelectionCriterionData.CriterionIdx;
-			if (AnimTrack->SelectionCriteria.IsValidIndex(Idx) && AnimTrack->SelectionCriteria[Idx]->GetClass()->IsChildOf<UContextualAnimSelectionCriterion_TriggerArea>())
-			{
-				return true;
-			}
-		}
+		return ViewModel->ShouldPreviewSceneDrawWidget();
 	}
 
 	return false;
@@ -340,19 +265,7 @@ bool FContextualAnimEdMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, 
 {
 	if (ViewModel)
 	{
-		if (SelectedSelectionCriterionData.IsValid())
-		{
-			if (const UContextualAnimSceneInstance* SceneInstance = ViewModel->GetSceneInstance())
-			{
-				FTransform PrimaryActorTransform = FTransform::Identity;
-				if (const FContextualAnimSceneBinding* Binding = SceneInstance->FindBindingByRole(ViewModel->GetSceneAsset()->GetPrimaryRole()))
-				{
-					PrimaryActorTransform = Binding->GetTransform();
-					InMatrix = PrimaryActorTransform.ToMatrixNoScale().RemoveTranslation();
-					return true;
-				}
-			}
-		}
+		return ViewModel->GetCustomDrawingCoordinateSystem(InMatrix, InData);
 	}
 
 	return false;
@@ -367,39 +280,7 @@ FVector FContextualAnimEdMode::GetWidgetLocation() const
 {
 	if (ViewModel)
 	{
-		if (SelectedSelectionCriterionData.IsValid())
-		{
-			if (const UContextualAnimSceneInstance* SceneInstance = ViewModel->GetSceneInstance())
-			{
-				const UContextualAnimSceneAsset* SceneAsset = ViewModel->GetSceneAsset();
-				if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectedSelectionCriterionData.SectionIdx, SelectedSelectionCriterionData.AnimSetIdx, SelectedSelectionCriterionData.RoleName))
-				{
-					if (AnimTrack->SelectionCriteria.IsValidIndex(SelectedSelectionCriterionData.CriterionIdx))
-					{
-						if (const UContextualAnimSelectionCriterion_TriggerArea* Spatial = Cast<UContextualAnimSelectionCriterion_TriggerArea>(AnimTrack->SelectionCriteria[SelectedSelectionCriterionData.CriterionIdx]))
-						{
-							FVector Location = FVector::ZeroVector;
-							if (SelectedSelectionCriterionData.DataIdx < 4)
-							{
-								Location = Spatial->PolygonPoints[SelectedSelectionCriterionData.DataIdx];
-							}
-							else
-							{
-								Location = Spatial->PolygonPoints[SelectedSelectionCriterionData.DataIdx - 4] + FVector::UpVector * Spatial->Height;
-							}
-
-							FTransform PrimaryActorTransform = FTransform::Identity;
-							if (const FContextualAnimSceneBinding* Binding = SceneInstance->FindBindingByRole(SceneAsset->GetPrimaryRole()))
-							{
-								PrimaryActorTransform = Binding->GetTransform();
-							}
-
-							return PrimaryActorTransform.TransformPositionNoScale(Location);
-						}
-					}
-				}
-			}
-		}
+		return ViewModel->GetWidgetLocationFromSelection();
 	}
 
 	return FVector::ZeroVector;

@@ -30,6 +30,9 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "MotionWarpingComponent.h"
+#include "Animation/DebugSkelMeshComponent.h"
+#include "AnimPreviewInstance.h"
+#include "ContextualAnimSelectionCriterion.h"
 
 FContextualAnimViewModel::FContextualAnimViewModel()
 	: SceneAsset(nullptr)
@@ -127,17 +130,43 @@ void FContextualAnimViewModel::SetActiveAnimSetForSection(int32 SectionIdx, int3
 
 AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& AnimTrack)
 {
+	if (AnimTrack.Animation == nullptr)
+	{
+		return nullptr;
+	}
+
+	USkeleton* Skeleton = AnimTrack.Animation->GetSkeleton();
+
+	if (Skeleton == nullptr)
+	{
+		return nullptr;
+	}
+
 	const FContextualAnimRoleDefinition* RoleDef = GetSceneAsset()->RolesAsset ? GetSceneAsset()->RolesAsset->FindRoleDefinitionByName(AnimTrack.Role) : nullptr;
-	UClass* PreviewClass = RoleDef ? RoleDef->PreviewActorClass : nullptr;
+	const bool bIsCharacter = (RoleDef && RoleDef->bIsCharacter);
+
 	const FTransform SpawnTransform = AnimTrack.GetRootTransformAtTime(0.f);
 
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	AActor* PreviewActor = GetWorld()->SpawnActor<AActor>(PreviewClass, SpawnTransform, Params);
 
-	if (ACharacter* PreviewCharacter = Cast<ACharacter>(PreviewActor))
+	if (bIsCharacter)
 	{
-		PreviewCharacter->bUseControllerRotationYaw = false;
+		ACharacter* PreviewCharacter = GetWorld()->SpawnActor<ACharacter>(ACharacter::StaticClass(), SpawnTransform, Params);
+		PreviewCharacter->SetFlags(RF_Transient);
+
+		USkeletalMeshComponent* SkelMeshComp = PreviewCharacter->GetMesh();
+		SkelMeshComp->SetRelativeLocation(FVector(0.f, 0.f, -PreviewCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
+		SkelMeshComp->SetRelativeRotation(RoleDef->MeshToComponent.GetRotation());
+		SkelMeshComp->SetSkeletalMesh(Skeleton->GetPreviewMesh(true));
+		SkelMeshComp->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		SkelMeshComp->SetAnimInstanceClass(UAnimPreviewInstance::StaticClass());
+
+		UAnimPreviewInstance* AnimInstance = Cast<UAnimPreviewInstance>(SkelMeshComp->GetAnimInstance());
+		AnimInstance->SetAnimationAsset(AnimTrack.Animation, false, 0.f);
+		AnimInstance->PlayAnim(false, 0.f);
+
+		PreviewCharacter->CacheInitialMeshOffset(SkelMeshComp->GetRelativeLocation(), SkelMeshComp->GetRelativeRotation());
 
 		if (UCharacterMovementComponent* CharacterMovementComp = PreviewCharacter->GetCharacterMovement())
 		{
@@ -149,16 +178,38 @@ AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& 
 			CharacterMovementComp->SetMovementMode(AnimTrack.bRequireFlyingMode ? EMovementMode::MOVE_Flying : EMovementMode::MOVE_Walking);
 		}
 
-		if (UCameraComponent* CameraComp = PreviewCharacter->FindComponentByClass<UCameraComponent>())
-		{
-			CameraComp->DestroyComponent();
-		}
+		UMotionWarpingComponent* MotionWarpingComp = NewObject<UMotionWarpingComponent>(PreviewCharacter);
+		MotionWarpingComp->RegisterComponentWithWorld(GetWorld());
+		MotionWarpingComp->InitializeComponent();
+
+		return PreviewCharacter;
 	}
+	else
+	{
+		AActor* PreviewActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), SpawnTransform, Params);
+		PreviewActor->SetFlags(RF_Transient);
 
-	UE_LOG(LogContextualAnim, Log, TEXT("Spawned preview Actor: %s at Loc: %s Rot: %s Role: %s"),
-		*GetNameSafe(PreviewActor), *SpawnTransform.GetLocation().ToString(), *SpawnTransform.Rotator().ToString(), *AnimTrack.Role.ToString());
+		UDebugSkelMeshComponent* SkelMeshComp = NewObject<UDebugSkelMeshComponent>(PreviewActor);
+		SkelMeshComp->RegisterComponentWithWorld(GetWorld());
 
-	return PreviewActor;
+		UAnimPreviewInstance* AnimInstance = NewObject<UAnimPreviewInstance>(SkelMeshComp);
+		SkelMeshComp->PreviewInstance = AnimInstance;
+		AnimInstance->InitializeAnimation();
+
+		SkelMeshComp->SetSkeletalMesh(Skeleton->GetPreviewMesh(true));
+		SkelMeshComp->EnablePreview(true, AnimTrack.Animation);
+
+		AnimInstance->SetAnimationAsset(AnimTrack.Animation, false, 0.0f);
+
+		AnimInstance->PlayAnim(false, 0.0f);
+
+		if (!PreviewActor->GetRootComponent())
+		{
+			PreviewActor->SetRootComponent(SkelMeshComp);
+		}
+
+		return PreviewActor;
+	}
 }
 
 void FContextualAnimViewModel::RefreshSequencerTracks()
@@ -181,7 +232,7 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 
 		MovieScene->RemoveMasterTrack(MasterTrack);
 	}
-			
+
 	if (SceneInstance.IsValid())
 	{
 		SceneInstance->Stop();
@@ -566,25 +617,196 @@ void FContextualAnimViewModel::AnimationModified(UAnimSequenceBase& Animation)
 	Animation.MarkPackageDirty();
 }
 
-void FContextualAnimViewModel::OnPreviewActorClassChanged()
+void FContextualAnimViewModel::UpdateSelection(const AActor* SelectedActor)
 {
-	const UContextualAnimRolesAsset* RolesAsset = GetSceneAsset()->RolesAsset;
-
-	if(RolesAsset && SceneInstance.IsValid())
+	const FContextualAnimSceneBinding* Binding = SceneInstance.IsValid() ? SceneInstance->FindBindingByActor(SelectedActor) : nullptr;
+	if (Binding)
 	{
-		for (const auto& Binding : SceneInstance->GetBindings())
-		{
-			if (const FContextualAnimRoleDefinition* RoleDef = RolesAsset->FindRoleDefinitionByName(Binding.GetRoleDef().Name))
-			{
-				const UClass* DesiredPreviewClass = RoleDef->PreviewActorClass;
-				const UClass* CurrentPreviewClass = Binding.GetActor()->GetClass();
+		UpdateSelection(Binding->GetRoleDef().Name);
+	}
+	else
+	{
+		ClearSelection();
+	}
+}
 
-				if (DesiredPreviewClass && DesiredPreviewClass != CurrentPreviewClass)
+void FContextualAnimViewModel::UpdateSelection(FName Role, int32 CriterionIdx, int32 CriterionDataIdx)
+{
+	Sequencer->EmptySelection();
+
+	SelectionInfo.Role = Role;
+	SelectionInfo.Criterion.Key = CriterionIdx;
+	SelectionInfo.Criterion.Value = CriterionDataIdx;
+}
+
+void FContextualAnimViewModel::ClearSelection()
+{
+	SelectionInfo.Reset();
+}
+
+FContextualAnimSceneBinding* FContextualAnimViewModel::GetSelectedBinding() const
+{
+	return SceneInstance.IsValid() ? const_cast<FContextualAnimSceneBinding*>(SceneInstance->FindBindingByRole(SelectionInfo.Role)) : nullptr;
+}
+
+AActor* FContextualAnimViewModel::GetSelectedActor() const
+{
+	const FContextualAnimSceneBinding* Binding = GetSelectedBinding();
+	return Binding ? Binding->GetActor() : nullptr;
+}
+
+FContextualAnimTrack* FContextualAnimViewModel::GetSelectedAnimTrack() const
+{
+	FContextualAnimSceneBinding* Binding = GetSelectedBinding();
+	return Binding ? const_cast<FContextualAnimTrack*>(&Binding->GetAnimTrack()) : nullptr;
+}
+
+UContextualAnimSelectionCriterion* FContextualAnimViewModel::GetSelectedSelectionCriterion() const
+{
+	if (SelectionInfo.Criterion.Key != INDEX_NONE && SelectionInfo.Criterion.Value != INDEX_NONE)
+	{
+		FContextualAnimTrack* AnimTrack = GetSelectedAnimTrack();
+		if (AnimTrack && AnimTrack->SelectionCriteria.IsValidIndex(SelectionInfo.Criterion.Key))
+		{
+			return AnimTrack->SelectionCriteria[SelectionInfo.Criterion.Key];
+		}
+	}
+
+	return nullptr;
+}
+
+FText FContextualAnimViewModel::GetSelectionDebugText() const
+{
+	AActor* SelectedActor = GetSelectedActor();
+	return FText::FromString(FString::Printf(TEXT("Selection Info:\n Role: %s \n Actor: %s \n Criterion: %d (%d)"),
+		*SelectionInfo.Role.ToString(), *GetNameSafe(SelectedActor), SelectionInfo.Criterion.Key, SelectionInfo.Criterion.Value));
+}
+
+bool FContextualAnimViewModel::ProcessInputDelta(FVector& InDrag, FRotator& InRot, FVector& InScale)
+{
+	if(IsSimulateModeActive())
+	{
+		if (AActor* SelectedActor = GetSelectedActor())
+		{
+			SelectedActor->SetActorLocationAndRotation(SelectedActor->GetActorLocation() + InDrag, SelectedActor->GetActorRotation() + InRot);
+			return true;
+		}
+	}
+	else
+	{
+		if (UContextualAnimSelectionCriterion_TriggerArea* Spatial = Cast<UContextualAnimSelectionCriterion_TriggerArea>(GetSelectedSelectionCriterion()))
+		{
+			FMatrix WidgetCoordSystem = FMatrix::Identity;
+			GetCustomDrawingCoordinateSystem(WidgetCoordSystem, nullptr);
+
+			InDrag = WidgetCoordSystem.InverseTransformVector(InDrag);
+
+			FVector& Point = Spatial->PolygonPoints[SelectionInfo.Criterion.Value >= 4 ? SelectionInfo.Criterion.Value - 4 : SelectionInfo.Criterion.Value];
+			Point.X += InDrag.X;
+			Point.Y += InDrag.Y;
+
+			if (InDrag.Z != 0.f)
+			{
+				if (SelectionInfo.Criterion.Value < 4)
 				{
-					RefreshSequencerTracks();
-					break;
+					for (int32 Idx = 0; Idx < Spatial->PolygonPoints.Num(); Idx++)
+					{
+						Spatial->PolygonPoints[Idx].Z += InDrag.Z;
+					}
+
+					Spatial->Height = FMath::Max(Spatial->Height - InDrag.Z, 0.f);
 				}
+				else
+				{
+					Spatial->Height = FMath::Max(Spatial->Height + InDrag.Z, 0.f);
+				}
+			}
+
+			return true;
+		}
+		else if (FContextualAnimSceneBinding* Binding = GetSelectedBinding())
+		{
+			FTransform& MeshToSpaceTransform = (const_cast<FContextualAnimTrack*>(&Binding->GetAnimTrack()))->MeshToScene;
+			MeshToSpaceTransform.SetLocation(MeshToSpaceTransform.GetLocation() + InDrag);
+			MeshToSpaceTransform.SetRotation(FQuat(InRot) * MeshToSpaceTransform.GetRotation());
+
+			UpdatePreviewActorTransform(*Binding, Sequencer->GetGlobalTime().AsSeconds());
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FContextualAnimViewModel::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
+{
+	if (SelectionInfo.Criterion.Value != INDEX_NONE)
+	{
+		if (SceneInstance.IsValid())
+		{
+			FTransform PrimaryActorTransform = FTransform::Identity;
+			if (const FContextualAnimSceneBinding* Binding = SceneInstance->FindBindingByRole(GetSceneAsset()->GetPrimaryRole()))
+			{
+				PrimaryActorTransform = Binding->GetTransform();
+				InMatrix = PrimaryActorTransform.ToMatrixNoScale().RemoveTranslation();
+				return true;
 			}
 		}
 	}
+	else if (AActor* SelectedActor = GetSelectedActor())
+	{
+		InMatrix = SelectedActor->GetActorTransform().ToMatrixNoScale().RemoveTranslation();
+		return true;
+	}
+
+	return false;
+}
+
+bool FContextualAnimViewModel::ShouldPreviewSceneDrawWidget() const
+{
+	const UContextualAnimSelectionCriterion* SelectionCriterion = GetSelectedSelectionCriterion();
+	if (SelectionCriterion && SelectionCriterion->GetClass()->IsChildOf<UContextualAnimSelectionCriterion_TriggerArea>())
+	{
+		return true;
+	}
+	else if (GetSelectedActor())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+FVector FContextualAnimViewModel::GetWidgetLocationFromSelection() const
+{
+	if (SelectionInfo.Criterion.Value != INDEX_NONE)
+	{
+		if (const UContextualAnimSelectionCriterion_TriggerArea* Spatial = Cast<UContextualAnimSelectionCriterion_TriggerArea>(GetSelectedSelectionCriterion()))
+		{
+			FVector Location = FVector::ZeroVector;
+			if (SelectionInfo.Criterion.Value < 4)
+			{
+				Location = Spatial->PolygonPoints[SelectionInfo.Criterion.Value];
+			}
+			else
+			{
+				Location = Spatial->PolygonPoints[SelectionInfo.Criterion.Value - 4] + FVector::UpVector * Spatial->Height;
+			}
+
+			FTransform PrimaryActorTransform = FTransform::Identity;
+			if (const FContextualAnimSceneBinding* Binding = SceneInstance->FindBindingByRole(SceneAsset->GetPrimaryRole()))
+			{
+				PrimaryActorTransform = Binding->GetTransform();
+			}
+
+			return PrimaryActorTransform.TransformPositionNoScale(Location);
+		}
+	}
+	else if (AActor* SelectedActor = GetSelectedActor())
+	{
+		return SelectedActor->GetActorLocation();
+	}
+
+	return FVector::ZeroVector;
 }

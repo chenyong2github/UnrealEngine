@@ -96,6 +96,9 @@ struct CONTEXTUALANIMATION_API FContextualAnimTrack
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
 	int32 AnimSetIdx = INDEX_NONE;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
+	int32 AnimTrackIdx = INDEX_NONE;
+
 	float GetSyncTimeForWarpSection(int32 WarpSectionIndex) const;
 	float GetSyncTimeForWarpSection(const FName& WarpSectionName) const;
 
@@ -209,7 +212,7 @@ struct FContextualAnimRoleDefinition
 	FName Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TSubclassOf<AActor> PreviewActorClass;
+	bool bIsCharacter = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	FTransform MeshToComponent = FTransform(FRotator(0.f, -90.f, 0.f));

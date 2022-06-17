@@ -61,7 +61,8 @@ public class ContextualAnimationEditor : ModuleRules
 				"ClassViewer",
 				"Persona",
 				"RenderCore",
-				"BlueprintGraph"
+				"BlueprintGraph",
+				"AnimGraph"
 			}
 			);
 		

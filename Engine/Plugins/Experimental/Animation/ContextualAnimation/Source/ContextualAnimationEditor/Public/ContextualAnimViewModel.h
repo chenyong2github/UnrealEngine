@@ -62,15 +62,53 @@ public:
 
 	void SetActiveAnimSetForSection(int32 SectionIdx, int32 AnimSetIdx);
 
-	void OnPreviewActorClassChanged();
-
 	void ToggleSimulateMode();
 	bool IsSimulateModeActive() { return bIsSimulateModeActive; }
 	void StartSimulation();
 
 	void UpdatePreviewActorTransform(const FContextualAnimSceneBinding& Binding, float Time);
 
+	void UpdateSelection(const AActor* SelectedActor);
+	void UpdateSelection(FName Role, int32 CriterionIdx = INDEX_NONE, int32 CriterionDataIdx = INDEX_NONE);
+	void ClearSelection();
+	FContextualAnimSceneBinding* GetSelectedBinding() const;
+	FContextualAnimTrack* GetSelectedAnimTrack() const;
+	AActor* GetSelectedActor() const;
+	class UContextualAnimSelectionCriterion* GetSelectedSelectionCriterion() const;
+	FText GetSelectionDebugText() const;
+
+	bool ProcessInputDelta(FVector& InDrag, FRotator& InRot, FVector& InScale);
+	bool ShouldPreviewSceneDrawWidget() const;
+	bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
+	FVector GetWidgetLocationFromSelection() const;
+
 private:
+
+	struct FContextualAnimEdSelectionInfo
+	{
+		/** Selected Role */
+		FName Role = NAME_None;
+
+		/** Key = Criterion Idx in the AnimTrack, Value = Data idx (e.g vertex idx) */
+		TPair<int32, int32> Criterion;
+
+		/** FGuid of the selected AnimNotify */
+		FGuid NotifyGuid;
+
+		FContextualAnimEdSelectionInfo()
+		{
+			Reset();
+		}
+
+		void Reset()
+		{
+			Role = NAME_None;
+			Criterion.Key = INDEX_NONE;
+			Criterion.Value = INDEX_NONE;
+			NotifyGuid = FGuid();
+		}
+	};
+	FContextualAnimEdSelectionInfo SelectionInfo;
 
 	/** Scene asset being viewed and edited by this view model. */
 	TObjectPtr<UContextualAnimSceneAsset> SceneAsset;
