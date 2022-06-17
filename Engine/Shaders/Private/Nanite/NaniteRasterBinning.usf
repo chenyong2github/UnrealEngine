@@ -2,6 +2,8 @@
 
 #include "../Common.ush"
 #include "../SceneData.ush"
+#include "../WaveOpUtil.ush"
+
 #include "NaniteAttributeDecode.ush"
 
 #if (RASTER_BIN_PASS == NANITE_RASTER_BIN_CLASSIFY)
@@ -19,6 +21,8 @@
 #endif
 
 #define NANITE_VERT_REUSE_BATCH COMPILER_SUPPORTS_WAVE_PERMUTE
+
+#define SCALARIZE_ATOMICS 1
 
 // .x = count of SW clusters in bin
 // .y = count of HW clusters in bin
@@ -127,6 +131,36 @@ uint DecodeVertReuseBatchInfo(FCluster Cluster, uint BatchInfoOffset, uint Batch
 #if RASTER_BIN_CLASSIFY
 void IncrementRasterizerBinCount(uint BinIndex, bool bSoftware, uint BatchCount)
 {
+#if SCALARIZE_ATOMICS
+	// One atomic per lane causes severe contention that ends up dominating execution time.
+
+	// This path uses wave ops to reduce it to one atomic per unique bin in the wave.
+	// As clusters are allocated in ranges at group granularity (currently ~32 clusters),
+	// the expectation is that most waves will only have one or at most a few unique bins.
+	
+	bool bDone = false;
+	while (WaveActiveAnyTrue(!bDone))
+	{
+		if (!bDone)
+		{
+			const uint UniformBinIndex = WaveReadLaneFirst(BinIndex);
+			const bool bUniformSoftware = (bool)WaveReadLaneFirst((uint)bSoftware);
+			if (BinIndex == UniformBinIndex && bSoftware == bUniformSoftware)
+			{
+				if (bUniformSoftware)
+				{
+					WaveInterlockedAdd(OutRasterizerBinHeaders[UniformBinIndex].x, BatchCount);
+				}
+				else
+				{
+					WaveInterlockedAdd(OutRasterizerBinHeaders[UniformBinIndex].y, BatchCount);
+				}
+				
+				bDone = true;
+			}
+		}
+	}
+#else
 	if (bSoftware)
 	{
 		InterlockedAdd(OutRasterizerBinHeaders[BinIndex].x, BatchCount);
@@ -135,24 +169,43 @@ void IncrementRasterizerBinCount(uint BinIndex, bool bSoftware, uint BatchCount)
 	{
 		InterlockedAdd(OutRasterizerBinHeaders[BinIndex].y, BatchCount);
 	}
+#endif
 }
 #elif RASTER_BIN_SCATTER
 uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount)
 {
 	uint ClusterOffset;
-	const uint ArgsOffset = (BinIndex * NANITE_RASTERIZER_ARG_COUNT);
-	if (bSoftware)
+	uint Offset = (BinIndex * NANITE_RASTERIZER_ARG_COUNT);
+
+	if (!bSoftware)
 	{
-		const uint Offset = 0;
-		InterlockedAdd(OutRasterizerBinArgsSWHW[ArgsOffset + Offset], BatchCount, ClusterOffset);
+		Offset += CondMask((RenderFlags & NANITE_RENDER_FLAG_MESH_SHADER) || (RenderFlags & NANITE_RENDER_FLAG_PRIMITIVE_SHADER), 4u, 5u);
 	}
-	else
+
+#if SCALARIZE_ATOMICS
+	bool bDone = false;
+	while(WaveActiveAnyTrue(!bDone))
+	{
+		if(!bDone)
+		{
+			const uint UniformOffset = WaveReadLaneFirst(Offset);
+			if (Offset == UniformOffset)
+			{
+				WaveInterlockedAdd_(OutRasterizerBinArgsSWHW[UniformOffset], BatchCount, ClusterOffset);
+				bDone = true;
+			}
+		}
+	}
+#else
+	InterlockedAdd(OutRasterizerBinArgsSWHW[UniformOffset], BatchCount, ClusterOffset);
+#endif
+
+	if (!bSoftware)
 	{
 		const uint Capacity = GetRasterizerBinCapacity(BinIndex);
-		const uint Offset = CondMask((RenderFlags & NANITE_RENDER_FLAG_MESH_SHADER) || (RenderFlags & NANITE_RENDER_FLAG_PRIMITIVE_SHADER), 4u, 5u);
-		InterlockedAdd(OutRasterizerBinArgsSWHW[ArgsOffset + Offset], BatchCount, ClusterOffset);
 		ClusterOffset = (Capacity - ClusterOffset - BatchCount); // HW writes from the top, SW writes from the bottom
 	}
+
 	return GetRasterizerBinOffset(BinIndex) + ClusterOffset;
 }
 #endif
@@ -214,7 +267,6 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 		FInstanceSceneData InstanceData		= GetInstanceSceneData(VisibleCluster, false);
 		FCluster Cluster					= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-		// TODO: Scalarize and reduce global atomics
 		// TODO: Embed fast path material uint in FVisibleCluster
 		// TODO: Upload uniform with default material bin index, directly allocate/store indirections into 0th range
 		// TODO: Optimize and/or separate out slow path into another dispatch? (possibly with groupshared bin tracking to avoid searching)
