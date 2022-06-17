@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Map.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Trace/Analyzer.h"
 
