@@ -41,6 +41,8 @@ ANetworkPredictionExtrasFlyingPawn::ANetworkPredictionExtrasFlyingPawn(const FOb
 {
 	FlyingMovementComponent = CreateDefaultSubobject<UFlyingMovementComponent>(Name_FlyingMovementComponent);
 	ensure(FlyingMovementComponent);
+
+	SetReplicateMovement(false);
 }
 
 void ANetworkPredictionExtrasFlyingPawn::BeginPlay()

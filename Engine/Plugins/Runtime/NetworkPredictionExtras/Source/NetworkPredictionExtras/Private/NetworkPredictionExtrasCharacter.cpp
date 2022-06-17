@@ -41,6 +41,8 @@ ANetworkPredictionExtrasCharacter::ANetworkPredictionExtrasCharacter(const FObje
 {
 	CharacterMotionComponent = CreateDefaultSubobject<UCharacterMotionComponent>(Name_CharacterMotionComponent);
 	ensure(CharacterMotionComponent);
+
+	SetReplicateMovement(false);
 }
 
 void ANetworkPredictionExtrasCharacter::BeginPlay()
