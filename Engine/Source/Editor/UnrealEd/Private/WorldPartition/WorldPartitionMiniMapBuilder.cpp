@@ -55,52 +55,25 @@ bool UWorldPartitionMiniMapBuilder::PreRun(UWorld* World, FPackageSourceControlH
 	}
 
 	// World bounds to process
-	FBox WorldBounds(ForceInit);
-	{
-		// Override the minimap bounds it a world partiion minimap volume exists
-		for (TActorIterator<AWorldPartitionMiniMapVolume> It(World); It; ++It)
-		{
-			if (AWorldPartitionMiniMapVolume* WorldPartitionMiniMapVolume = *It)
-			{
-				WorldBounds += WorldPartitionMiniMapVolume->GetBounds().GetBox();
-			}
-		}
+	IterativeWorldBounds = WorldMiniMap->GetMiniMapWorldBounds();
 
-		if (!WorldBounds.IsValid)
-		{
-			WorldBounds = World->GetWorldPartition()->GetRuntimeWorldBounds();
-		}
-
-		IterativeWorldBounds = WorldBounds;
-	}
-	
-	// Compute minimap image size
-	{
-		MinimapImageSizeX = WorldBounds.GetSize().X / WorldMiniMap->WorldUnitsPerPixel;
-		MinimapImageSizeY = WorldBounds.GetSize().Y / WorldMiniMap->WorldUnitsPerPixel;
-
-		// For now, let's clamp to the maximum supported texture size
-		MinimapImageSizeX = FMath::Min(MinimapImageSizeX, UTexture::GetMaximumDimensionOfNonVT());
-		MinimapImageSizeY = FMath::Min(MinimapImageSizeY, UTexture::GetMaximumDimensionOfNonVT());
-		WorldUnitsPerPixel = FMath::CeilToInt(FMath::Max(WorldBounds.GetSize().X / MinimapImageSizeX, WorldBounds.GetSize().Y / MinimapImageSizeY));
-		MinimapImageSizeX = WorldBounds.GetSize().X / WorldUnitsPerPixel;
-		MinimapImageSizeY = WorldBounds.GetSize().Y / WorldUnitsPerPixel;
-	}
+	// Compute minimap resolution
+	WorldMiniMap->GetMiniMapResolution(MinimapImageSizeX, MinimapImageSizeY, WorldUnitsPerPixel);
 
 	// Create minimap texture
 	{
 		TStrongObjectPtr<UTextureFactory> Factory(NewObject<UTextureFactory>());
 		WorldMiniMap->MiniMapTexture = Factory->CreateTexture2D(WorldMiniMap, TEXT("MinimapTexture"), RF_NoFlags);
 		WorldMiniMap->MiniMapTexture->Source.Init(MinimapImageSizeX, MinimapImageSizeY, 1, 1, TSF_BGRA8);
-		WorldMiniMap->MiniMapWorldBounds = WorldBounds;
+		WorldMiniMap->MiniMapWorldBounds = IterativeWorldBounds;
 		MiniMapSourcePtr = WorldMiniMap->MiniMapTexture->Source.LockMip(0);
 	}
 
 	// Compute world to minimap transform
 	{
-		WorldToMinimap = FReversedZOrthoMatrix(WorldBounds.Min.X, WorldBounds.Max.X, WorldBounds.Min.Y, WorldBounds.Max.Y, 1.0f, 0.0f);
+		WorldToMinimap = FReversedZOrthoMatrix(IterativeWorldBounds.Min.X, IterativeWorldBounds.Max.X, IterativeWorldBounds.Min.Y, IterativeWorldBounds.Max.Y, 1.0f, 0.0f);
 
-		FVector3d Translation(WorldBounds.Max.X / WorldBounds.GetSize().X, WorldBounds.Max.Y / WorldBounds.GetSize().Y, 0);
+		FVector3d Translation(IterativeWorldBounds.Max.X / IterativeWorldBounds.GetSize().X, IterativeWorldBounds.Max.Y / IterativeWorldBounds.GetSize().Y, 0);
 		FVector3d Scaling(MinimapImageSizeX, MinimapImageSizeY, 1);
 
 		WorldToMinimap *= FTranslationMatrix(Translation);
@@ -134,8 +107,9 @@ bool UWorldPartitionMiniMapBuilder::RunInternal(UWorld* World, const FCellInfo& 
 	// World X,Y to minimap X,Y
 	const FVector3d MinimapMin = WorldToMinimap.TransformPosition(ClampedBounds.Min);
 	const FVector3d MinimapMax = WorldToMinimap.TransformPosition(ClampedBounds.Max);
-	const FIntVector2 DstMin(FMath::Floor(MinimapMin.X), FMath::Floor(MinimapMin.Y));
-	const FIntVector2 DstMax(FMath::Floor(MinimapMax.X), FMath::Floor(MinimapMax.Y));
+	const FIntVector2 DstMin(FMath::Max(FMath::Floor(MinimapMin.X), 0), FMath::Max(FMath::Floor(MinimapMin.Y), 0));
+	const FIntVector2 DstMax(FMath::Max(FMath::Floor(MinimapMax.X), 0), FMath::Max(FMath::Floor(MinimapMax.Y), 0));
+
 	const uint32 CaptureWidthPixels = DstMax.X - DstMin.X;
 	const uint32 CaptureHeightPixels = DstMax.Y - DstMin.Y;
 

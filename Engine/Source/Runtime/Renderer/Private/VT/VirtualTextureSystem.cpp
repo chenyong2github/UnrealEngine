@@ -1252,8 +1252,8 @@ void FVirtualTextureSystem::RequestTilesForRegionInternal(const IAllocatedVirtua
 	// Determine the screen-space coordinates of the texture we're trying to display
 	const float SrcPositionX0 = FMath::Max(InViewportPosition.X, 0.0f);
 	const float SrcPositionY0 = FMath::Max(InViewportPosition.Y, 0.0f);
-	const float SrcPositionX1 = FMath::Min(InViewportPosition.X + InViewportSize.X, ScreenSpaceSizeX);
-	const float SrcPositionY1 = FMath::Min(InViewportPosition.Y + InViewportSize.Y, ScreenSpaceSizeY);
+	const float SrcPositionX1 = FMath::Max(FMath::Min(InViewportPosition.X + InViewportSize.X, ScreenSpaceSizeX), 0.0f);
+	const float SrcPositionY1 = FMath::Max(FMath::Min(InViewportPosition.Y + InViewportSize.Y, ScreenSpaceSizeY), 0.0f);
 
 	const int32 WidthInBlocks = AllocatedVT->GetWidthInBlocks();
 	const int32 HeightInBlocks = AllocatedVT->GetHeightInBlocks();

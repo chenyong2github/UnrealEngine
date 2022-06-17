@@ -29,6 +29,8 @@ public:
 	virtual bool IsLockLocation() const { return true; }
 	virtual bool IsUserManaged() const final { return false; }
 	virtual void CheckForErrors() override;
+	FBox GetMiniMapWorldBounds() const;
+	void GetMiniMapResolution(int32& OutMinimapImageSizeX, int32& OutMinimapImageSizeY, int32& OutWorldUnitsPerPixel) const;
 #endif
 
 	/* WorldBounds for MinMapTexture */

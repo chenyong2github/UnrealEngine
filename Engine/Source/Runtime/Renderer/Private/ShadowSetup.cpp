@@ -989,7 +989,7 @@ void FProjectedShadowInfo::SetupWholeSceneProjection(
 	GetViewFrustumBounds(CasterOuterFrustum, FMatrix(TranslatedWorldToClipOuterMatrix), true);
 	GetViewFrustumBounds(ReceiverInnerFrustum, ReceiverInnerMatrix, true);
 	
-	InvReceiverInnerMatrix = FMatrix44f(ReceiverInnerMatrix.InverseFast());
+	InvReceiverInnerMatrix = FMatrix44f(ReceiverInnerMatrix.Inverse());
 
 	UpdateShaderDepthBias();
 

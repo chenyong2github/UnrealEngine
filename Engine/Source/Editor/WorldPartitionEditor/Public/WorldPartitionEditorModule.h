@@ -34,12 +34,17 @@ public:
 	/**
 	 * Returns placement grid size setting that should be assigned to new AWorldSettings actors.
 	 */
-	virtual int32 GetPlacementGridSize() const;
+	virtual int32 GetPlacementGridSize() const override;
 
 	/**
 	 * Returns foliage grid size setting that should be assigned to new AWorldSettings actors.
 	 */
-	virtual int32 GetInstancedFoliageGridSize() const;
+	virtual int32 GetInstancedFoliageGridSize() const override;
+
+	/**
+	 * Returns the threshold from which minimap generates a warning if its WorldUnitsPerPixel is above this value.
+	 */
+	virtual int32 GetMinimapLowQualityWorldUnitsPerPixelThreshold() const override;
 
 	/**
 	 * Convert the specified map to a world partition map.

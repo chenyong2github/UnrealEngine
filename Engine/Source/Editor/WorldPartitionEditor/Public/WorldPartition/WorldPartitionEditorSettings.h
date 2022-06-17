@@ -20,4 +20,7 @@ public:
 
 	UPROPERTY(config, EditAnywhere, Category = Foliage, meta = (ClampMin=3200, ToolTip= "Editor grid size used for instance foliage actors in World Partition worlds"))
 	int32 InstancedFoliageGridSize;
+
+	UPROPERTY(config, EditAnywhere, Category = MiniMap, meta = (ClampMin = 100, ToolTip = "Threshold from which minimap generates a warning if its WorldUnitsPerPixel is above this value"))
+	int32 MinimapLowQualityWorldUnitsPerPixelThreshold;
 };

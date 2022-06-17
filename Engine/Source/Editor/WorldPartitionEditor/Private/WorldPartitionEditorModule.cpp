@@ -220,6 +220,11 @@ int32 FWorldPartitionEditorModule::GetInstancedFoliageGridSize() const
 	return GetDefault<UWorldPartitionEditorSettings>()->InstancedFoliageGridSize;
 }
 
+int32 FWorldPartitionEditorModule::GetMinimapLowQualityWorldUnitsPerPixelThreshold() const
+{
+	return GetDefault<UWorldPartitionEditorSettings>()->MinimapLowQualityWorldUnitsPerPixelThreshold;
+}
+
 void FWorldPartitionEditorModule::OnConvertMap()
 {
 	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
@@ -614,6 +619,7 @@ UWorldPartitionEditorSettings::UWorldPartitionEditorSettings()
 {
 	CommandletClass = UWorldPartitionConvertCommandlet::StaticClass();
 	InstancedFoliageGridSize = 25600;
+	MinimapLowQualityWorldUnitsPerPixelThreshold = 12800;
 }
 
 FString UWorldPartitionConvertOptions::ToCommandletArgs() const
