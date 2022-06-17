@@ -360,9 +360,15 @@ void STrackLane::PositionParentTrackLanes(TViewModelPtr<IOutlinerExtension> InIt
 
 			if (IOutlinerExtension* OutlinerExtension = It->CastThis<IOutlinerExtension>())
 			{
-				AccumulatedItemTop -= OutlinerExtension->GetOutlinerSizing().GetTotalHeight();
+				const bool bIsExpanded = OutlinerExtension->IsExpanded();
+				const bool bIsFilteredOut = OutlinerExtension->IsFilteredOut();
 
-				if (!OutlinerExtension->IsExpanded())
+				if (!bIsFilteredOut)
+				{
+					AccumulatedItemTop -= OutlinerExtension->GetOutlinerSizing().GetTotalHeight();
+				}
+
+				if (bIsFilteredOut || !bIsExpanded)
 				{
 					It.IgnoreCurrentChildren();
 				}
