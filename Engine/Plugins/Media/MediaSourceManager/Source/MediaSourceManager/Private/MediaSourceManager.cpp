@@ -15,6 +15,15 @@ void UMediaSourceManager::Validate()
 		Channel->Name = FString::FromInt(Channels.Num());
 		Channels.Add(Channel);
 	}
+
+	// Validate each channel.
+	for (UMediaSourceManagerChannel* Channel : Channels)
+	{
+		if (Channel != nullptr)
+		{
+			Channel->Validate();
+		}
+	}
 }
 
 

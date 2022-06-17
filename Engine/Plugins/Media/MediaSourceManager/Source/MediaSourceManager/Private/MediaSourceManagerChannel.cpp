@@ -3,8 +3,20 @@
 #include "MediaSourceManagerChannel.h"
 
 #include "MediaAssets/ProxyMediaSource.h"
+#include "MediaTexture.h"
 
 #define LOCTEXT_NAMESPACE "MediaSourceManagerChannel"
+
+void UMediaSourceManagerChannel::Validate()
+{
+	// Make sure we have an out texture.
+	if (OutTexture == nullptr)
+	{
+		Modify();
+		OutTexture = NewObject<UMediaTexture>(this);
+		OutTexture->UpdateResource();
+	}
+}
 
 #if WITH_EDITOR
 

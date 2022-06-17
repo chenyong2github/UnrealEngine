@@ -5,7 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SVerticalBox;
+class STextBlock;
 class UMediaSourceManagerChannel;
 
 /**

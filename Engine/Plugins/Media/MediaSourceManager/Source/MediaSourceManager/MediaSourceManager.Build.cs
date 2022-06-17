@@ -13,6 +13,7 @@ public class MediaSourceManager : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"Engine",
 				"MediaAssets",
 				"MediaFrameworkUtilities",
 			}

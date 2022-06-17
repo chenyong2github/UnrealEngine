@@ -7,6 +7,7 @@
 #include "MediaSource.h"
 #include "MediaSourceManagerChannel.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/SMediaSourceManagerTexture.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SMediaSourceManagerChannel"
@@ -37,6 +38,15 @@ void SMediaSourceManagerChannel::Construct(const FArguments& InArgs,
 				.HAlign(HAlign_Left)
 				[
 					SAssignNew(InputNameTextBlock, STextBlock)
+				]
+
+			// Out texture
+			+ SHorizontalBox::Slot()
+				.FillWidth(0.11f)
+				.Padding(2)
+				.HAlign(HAlign_Left)
+				[
+					SNew(SMediaSourceManagerTexture, ChannelPtr.Get())
 				]
 		];
 

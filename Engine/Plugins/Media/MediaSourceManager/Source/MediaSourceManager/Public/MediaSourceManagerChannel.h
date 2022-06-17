@@ -11,6 +11,7 @@
 class UMediaSource;
 class UMediaSourceManagerInput;
 class UProxyMediaSource;
+class UTexture;
 
 /**
 * Handles a single channel for the MediaSourceManager.
@@ -35,6 +36,15 @@ public:
 	/** Our persistent media source. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Channel")
 	TObjectPtr<UProxyMediaSource> OutMediaSource = nullptr;
+
+	/** The channel will output the media here. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Channel")
+	TObjectPtr<UTexture> OutTexture;
+
+	/**
+	 * Call this to make sure everything is set up.
+	 */
+	void Validate();
 
 	//~ Begin UObject interface
 #if WITH_EDITOR
