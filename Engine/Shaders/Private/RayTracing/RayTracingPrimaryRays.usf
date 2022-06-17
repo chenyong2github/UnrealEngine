@@ -31,8 +31,8 @@
 
 #define	ERayTracingPrimaryRaysFlag_None                               0
 #define	ERayTracingPrimaryRaysFlag_UseGBufferForMaxDistance    (1u << 0)
-#define	ERayTracingPrimaryRaysFlag_ConsiderSurfaceScatter	   (1u << 1)
-#define	ERayTracingPrimaryRaysFlag_AllowSkipSkySample		   (1u << 2)
+#define	ERayTracingPrimaryRaysFlag_PrimaryView                 (1u << 1)
+#define	ERayTracingPrimaryRaysFlag_AllowSkipSkySample          (1u << 2)
 
 
 int SamplesPerPixel;
@@ -128,7 +128,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 	// Check if the Sky Light should affect reflection rays within translucency.
 	const bool bSkyLightAffectReflection = ShouldSkyLightAffectReflection();
 	
-	bool bHasScattered = (ERayTracingPrimaryRaysFlag_ConsiderSurfaceScatter & PrimaryRayFlags) != 0;
+	const bool bPrimaryView = (ERayTracingPrimaryRaysFlag_PrimaryView & PrimaryRayFlags) != 0;
+	bool bHasScattered = bPrimaryView;
 	float AccumulatedOpacity = 0.0;
 
 	// Integrated data by path tracing
@@ -140,7 +141,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 	for (uint RefractionRayIndex = 0; RefractionRayIndex < MaxRefractionRays; ++RefractionRayIndex)
 	{
 		const uint RefractionRayFlags = RefractionRayIndex == 0? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
-		const uint RefractionInstanceInclusionMask = RefractionRayIndex == 0 || !TranslucencyRefraction ? RAY_TRACING_MASK_TRANSLUCENT : RAY_TRACING_MASK_ALL;
+		const uint RefractionInstanceInclusionMask = (!bPrimaryView && RefractionRayIndex == 0) || !TranslucencyRefraction ? RAY_TRACING_MASK_TRANSLUCENT : RAY_TRACING_MASK_ALL;
 		const bool bRefractionRayTraceSkyLightContribution = false;
 		const bool bRefractionDecoupleSampleGeneration = true;
 		const bool bRefractionEnableSkyLightContribution = true;

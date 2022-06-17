@@ -359,7 +359,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 
 		RenderRayTracingPrimaryRaysView(
 				GraphBuilder, View, &OutputColor, &HitDistanceTexture, 1, 1, 1,
-			ERayTracingPrimaryRaysFlag::ConsiderSurfaceScatter);
+			ERayTracingPrimaryRaysFlag::PrimaryView);
 
 		AddDrawTexturePass(GraphBuilder, View, OutputColor, SceneColorTexture, View.ViewRect.Min, View.ViewRect.Min, View.ViewRect.Size());
 		return;

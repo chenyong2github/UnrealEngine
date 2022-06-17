@@ -18,8 +18,8 @@ enum class ERayTracingPrimaryRaysFlag: uint32
 {
 	None                      =      0,
 	UseGBufferForMaxDistance  = 1 << 0,
-	ConsiderSurfaceScatter	  = 1 << 1,
-	AllowSkipSkySample		  = 1 << 2,
+	PrimaryView	              = 1 << 1,
+	AllowSkipSkySample        = 1 << 2,
 };
 
 ENUM_CLASS_FLAGS(ERayTracingPrimaryRaysFlag);
