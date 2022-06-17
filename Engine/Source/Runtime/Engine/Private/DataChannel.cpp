@@ -4905,7 +4905,12 @@ bool UActorChannel::WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, FRepli
 	
 	FReplicationFlags ObjRepFlags = RepFlags;
 	TSharedRef<FObjectReplicator>& ObjectReplicator = !bFoundReplicator ? CreateReplicator(Obj, !bFoundInvalidReplicator) : *FoundReplicator;
-	if (!bFoundReplicator)
+
+	// Special case for replay checkpoints where the replicator could already exist but we still need to consider this a new object even if it has an empty layout
+	const bool bNewToReplay = (Connection->ResendAllDataState == EResendAllDataState::SinceOpen)
+		|| ((Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint) && ObjectReplicator->IsDirtyForReplay());
+
+	if (!bFoundReplicator || bNewToReplay)
 	{
 		// This is the first time replicating this subobject
 		// This bunch should be reliable and we should always return true

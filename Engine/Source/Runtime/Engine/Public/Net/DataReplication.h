@@ -257,6 +257,8 @@ public:
 	 */
 	bool CanSkipUpdate(FReplicationFlags Flags);
 
+	bool IsDirtyForReplay() const { return bDirtyForReplay; }
+
 public:
 
 	/** Net GUID for the object we're replicating. */
@@ -287,6 +289,9 @@ private:
 	 * simple flag checks.
 	 */
 	uint32 bCanUseNonDirtyOptimization : 1;
+
+	/** Used to track if we've replicated this object into a checkpoint */
+	uint32 bDirtyForReplay : 1;
 
 public:
 	

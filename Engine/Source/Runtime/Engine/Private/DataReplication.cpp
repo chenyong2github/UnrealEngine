@@ -317,6 +317,8 @@ FObjectReplicator::FObjectReplicator()
 	, bForceUpdateUnmapped(false)
 	, bHasReplicatedProperties(false)
 	, bSupportsFastArrayDelta(false)
+	, bCanUseNonDirtyOptimization(false)
+	, bDirtyForReplay(true)
 	, ObjectClass(nullptr)
 	, ObjectPtr(nullptr)
 	, Connection(nullptr)
@@ -1807,6 +1809,8 @@ bool FObjectReplicator::ReplicateProperties_r( FOutBunch & Bunch, FReplicationFl
 
 	if ( Connection->ResendAllDataState != EResendAllDataState::None )
 	{
+		bDirtyForReplay = false;
+
 		// If we are resending data since open, we don't want to affect the current state of channel/replication, so just send the data, and return
 		const bool bWroteImportantData = Writer.GetNumBits() != 0;
 
