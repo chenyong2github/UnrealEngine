@@ -114,13 +114,13 @@ void FLookupTableEntry::Serialize(FArchive& Ar, EPackageTrailerVersion PackageTr
 
 } // namespace Private
 
-FPackageTrailerBuilder FPackageTrailerBuilder::CreateFromTrailer(const FPackageTrailer& Trailer, FArchive& Ar, const FName& PackageName)
+FPackageTrailerBuilder FPackageTrailerBuilder::CreateFromTrailer(const FPackageTrailer& Trailer, FArchive& Ar, FString DebugContext)
 {
-	FPackageTrailerBuilder Builder(PackageName);
+	FPackageTrailerBuilder Builder(MoveTemp(DebugContext));
 
 	for (const Private::FLookupTableEntry& Entry : Trailer.Header.PayloadLookupTable)
 	{
-		checkf(!Entry.Identifier.IsZero(), TEXT("PackageTrailer for package should not contain invalid FIoHash entry. Package '%s'"), *PackageName.ToString());
+		checkf(!Entry.Identifier.IsZero(), TEXT("PackageTrailer for package should not contain invalid FIoHash entry. Package '%s'"), *Builder.GetDebugContext());
 
 		switch (Entry.AccessMode)
 		{
@@ -153,20 +153,20 @@ FPackageTrailerBuilder FPackageTrailerBuilder::CreateFromTrailer(const FPackageT
 	return Builder;
 }
 
-TUniquePtr<UE::FPackageTrailerBuilder> FPackageTrailerBuilder::CreateReferenceToTrailer(const class FPackageTrailer& Trailer, const FName& PackageName)
+TUniquePtr<UE::FPackageTrailerBuilder> FPackageTrailerBuilder::CreateReferenceToTrailer(const class FPackageTrailer& Trailer, FString DebugContext)
 {
-	TUniquePtr<UE::FPackageTrailerBuilder> Builder = MakeUnique<UE::FPackageTrailerBuilder>(PackageName);
+	TUniquePtr<UE::FPackageTrailerBuilder> Builder = MakeUnique<UE::FPackageTrailerBuilder>(MoveTemp(DebugContext));
 
 	for (const Private::FLookupTableEntry& Entry : Trailer.Header.PayloadLookupTable)
 	{
-		checkf(!Entry.Identifier.IsZero(), TEXT("PackageTrailer for package should not contain invalid FIoHash entry. Package '%s'"), *PackageName.ToString());
+		checkf(!Entry.Identifier.IsZero(), TEXT("PackageTrailer for package should not contain invalid FIoHash entry. Package '%s'"), *Builder->GetDebugContext());
 
 		switch (Entry.AccessMode)
 		{
 			case EPayloadAccessMode::Local:
 			{
 				const int64 AbsoluteOffset = Trailer.FindPayloadOffsetInFile(Entry.Identifier);
-				checkf(AbsoluteOffset != INDEX_NONE, TEXT("PackageTrailer for package should not contain invalid payload offsets. Package '%s'"), *PackageName.ToString());
+				checkf(AbsoluteOffset != INDEX_NONE, TEXT("PackageTrailer for package should not contain invalid payload offsets. Package '%s'"), *Builder->GetDebugContext());
 
 				Builder->ReferencedEntries.Add(Entry.Identifier, ReferencedEntry(AbsoluteOffset, Entry.CompressedSize, Entry.RawSize));
 			}
@@ -174,7 +174,7 @@ TUniquePtr<UE::FPackageTrailerBuilder> FPackageTrailerBuilder::CreateReferenceTo
 			
 			case EPayloadAccessMode::Referenced:
 			{
-				checkf(false, TEXT("Attempting to create a reference to a trailer that already contains reference payload entries. Package '%s'"), *PackageName.ToString());
+				checkf(false, TEXT("Attempting to create a reference to a trailer that already contains reference payload entries. Package '%s'"), *Builder->GetDebugContext());
 			}
 			break;
 			
@@ -195,8 +195,13 @@ TUniquePtr<UE::FPackageTrailerBuilder> FPackageTrailerBuilder::CreateReferenceTo
 	return Builder;
 }
 
-FPackageTrailerBuilder::FPackageTrailerBuilder(const FName& InPackageName)
-	: PackageName(InPackageName)
+FPackageTrailerBuilder::FPackageTrailerBuilder(const FName& PackageName)
+	: DebugContext(PackageName.ToString())
+{
+}
+
+FPackageTrailerBuilder::FPackageTrailerBuilder(FString&& InDebugContext)
+	: DebugContext(InDebugContext)
 {
 }
 
@@ -253,7 +258,7 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	for (const TPair<FIoHash, LocalEntry>& It : LocalEntries)
 	{
-		checkf(!It.Key.IsZero(), TEXT("PackageTrailer should not contain invalid FIoHash values. Package '%s'"), *PackageName.ToString());
+		checkf(!It.Key.IsZero(), TEXT("PackageTrailer should not contain invalid FIoHash values. Package '%s'"), *DebugContext);
 
 		Private::FLookupTableEntry& Entry = Trailer.Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
@@ -269,7 +274,7 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	for (const TPair<FIoHash, ReferencedEntry>& It : ReferencedEntries)
 	{
-		checkf(!It.Key.IsZero(), TEXT("PackageTrailer should not contain invalid FIoHash values. Package '%s'"), *PackageName.ToString());
+		checkf(!It.Key.IsZero(), TEXT("PackageTrailer should not contain invalid FIoHash values. Package '%s'"), *DebugContext);
 
 		Private::FLookupTableEntry& Entry = Trailer.Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
@@ -281,7 +286,7 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	for (const TPair<FIoHash, VirtualizedEntry>& It : VirtualizedEntries)
 	{
-		checkf(!It.Key.IsZero(), TEXT("PackageTrailer should not contain invalid FIoHash values. Package '%s'"), *PackageName.ToString());
+		checkf(!It.Key.IsZero(), TEXT("PackageTrailer should not contain invalid FIoHash values. Package '%s'"), *DebugContext);
 
 		Private::FLookupTableEntry& Entry = Trailer.Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
@@ -297,7 +302,10 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	DataArchive << Trailer.Header;
 
-	checkf((Trailer.TrailerPositionInFile + Trailer.Header.HeaderLength) == DataArchive.Tell(), TEXT("Header length was calculated as %d bytes but we wrote %" INT64_FMT " bytes!"), Trailer.Header.HeaderLength, DataArchive.Tell() - Trailer.TrailerPositionInFile);
+	checkf((Trailer.TrailerPositionInFile + Trailer.Header.HeaderLength) == DataArchive.Tell(), 
+		TEXT("Header length was calculated as %d bytes but we wrote %" INT64_FMT " bytes!"), 
+		Trailer.Header.HeaderLength, 
+		DataArchive.Tell() - Trailer.TrailerPositionInFile);
 
 	const int64 PayloadPosInFile = DataArchive.Tell();
 
@@ -306,12 +314,18 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 		DataArchive << It.Value.Payload;
 	}
 
-	checkf((PayloadPosInFile + Trailer.Header.PayloadsDataLength) == DataArchive.Tell(), TEXT("Total payload length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), Trailer.Header.PayloadsDataLength, DataArchive.Tell() - PayloadPosInFile);
+	checkf((PayloadPosInFile + Trailer.Header.PayloadsDataLength) == DataArchive.Tell(), 
+		TEXT("Total payload length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), 
+		Trailer.Header.PayloadsDataLength, 
+		DataArchive.Tell() - PayloadPosInFile);
 
 	FPackageTrailer::FFooter Footer = Trailer.CreateFooter();
 	DataArchive << Footer;
 
-	checkf((Trailer.TrailerPositionInFile + Footer.TrailerLength) == DataArchive.Tell(), TEXT("Trailer length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), Footer.TrailerLength, DataArchive.Tell() - Trailer.TrailerPositionInFile);
+	checkf((Trailer.TrailerPositionInFile + Footer.TrailerLength) == DataArchive.Tell(), 
+		TEXT("Trailer length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), 
+		Footer.TrailerLength, 
+		DataArchive.Tell() - Trailer.TrailerPositionInFile);
 
 	// Invoke any registered callbacks and pass in the trailer, this allows the callbacks to poll where 
 	// in the output archive the payload has been stored.
@@ -369,7 +383,11 @@ void FPackageTrailerBuilder::RemoveDuplicateEntries()
 	{
 		if (VirtualizedEntries.Contains(Iter.Key()))
 		{	
-			UE_LOG(LogSerialization, Verbose, TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"), *LexToString(Iter.Key()) , *PackageName.ToString());
+			UE_LOG(LogSerialization, Verbose, 
+				TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"), 
+				*LexToString(Iter.Key()) , 
+				*DebugContext);
+
 			Iter.RemoveCurrent();
 		}
 	}
@@ -378,7 +396,11 @@ void FPackageTrailerBuilder::RemoveDuplicateEntries()
 	{
 		if (VirtualizedEntries.Contains(Iter.Key()))
 		{
-			UE_LOG(LogSerialization, Verbose, TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"), *LexToString(Iter.Key()), *PackageName.ToString());
+			UE_LOG(LogSerialization, Verbose, 
+				TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"), 
+				*LexToString(Iter.Key()), 
+				*DebugContext);
+
 			Iter.RemoveCurrent();
 		}
 	}

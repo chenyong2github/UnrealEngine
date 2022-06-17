@@ -217,9 +217,15 @@ public:
 	 * 
 	 * @param Trailer		The trailer to create the builder from
 	 * @param Ar			An archive that the trailer can use to load payloads from 
-	 * @param PackageName	The name of the package that owns the trailer. Used for error messages.
+	 * @param DebugContext	The name or path of the of the file that owns the trailer. Used for error messages.
 	 */
-	[[nodiscard]] static FPackageTrailerBuilder CreateFromTrailer(const class FPackageTrailer& Trailer, FArchive& Ar, const FName& PackageName);
+	[[nodiscard]] static FPackageTrailerBuilder CreateFromTrailer(const class FPackageTrailer& Trailer, FArchive& Ar, FString DebugContext);
+
+	UE_DEPRECATED(5.1, "Use the overload that takes a FString instead of an FName for the last parameter")
+	static FPackageTrailerBuilder CreateFromTrailer(const class FPackageTrailer& Trailer, FArchive& Ar, const FName& PackageName)
+	{
+		return FPackageTrailerBuilder::CreateFromTrailer(Trailer, Ar, PackageName.ToString());
+	}
 
 	/**
 	 * Creates a builder from a pre-existing FPackageTrailer that will will reference the local payloads of the
@@ -227,12 +233,20 @@ public:
 	 * This means that there is no need to load the payloads.
 	 *
 	 * @param Trailer		The trailer to create the reference from.
-	 * @param PackageName	The name of the package that owns the trailer. Used for error messages.
+	 * @param DebugContext	The name or path of the of the file that owns the trailer. Used for error messages.
 	 */
-	[[nodiscard]] static TUniquePtr<UE::FPackageTrailerBuilder> CreateReferenceToTrailer(const class FPackageTrailer& Trailer, const FName& PackageName);
+	[[nodiscard]] static TUniquePtr<UE::FPackageTrailerBuilder> CreateReferenceToTrailer(const class FPackageTrailer& Trailer, FString DebugContext);
+	
+	UE_DEPRECATED(5.1, "Use the overload that takes a FString instead of an FName for the last parameter")
+	static TUniquePtr<UE::FPackageTrailerBuilder> CreateReferenceToTrailer(const class FPackageTrailer& Trailer, const FName& PackageName)
+	{
+		return FPackageTrailerBuilder::CreateReferenceToTrailer(Trailer, PackageName.ToString());
+	}
 
 	FPackageTrailerBuilder() = delete;
+	UE_DEPRECATED(5.1, "Use the overload that takes a FString instead of an FName")
 	FPackageTrailerBuilder(const FName& InPackageName);
+	FPackageTrailerBuilder(FString&& DebugContext);
 	~FPackageTrailerBuilder() = default;
 
 	// Methods that can be called while building the trailer
@@ -282,6 +296,12 @@ public:
 	[[nodiscard]] int32 GetNumReferencedPayloads() const;
 	/** Returns the number of payload entries in the builder with the access mode EPayloadAccessMode::Virtualized */
 	[[nodiscard]] int32 GetNumVirtualizedPayloads() const;
+
+	/** Returns the debug context associated with the builder, used for adding further description to error messages */
+	[[nodiscard]] const FString& GetDebugContext() const
+	{
+		return DebugContext;
+	}
 
 private:
 	
@@ -338,8 +358,8 @@ private:
 
 	// Members used when building the trailer
 
-	/** Name of the package the trailer is being built for, used to give meaningful error messages */
-	FName PackageName;
+	/** Context used when giving error messages so that the user can identify the cause of problems */
+	FString DebugContext;
 
 	/** Payloads that will be stored locally when the trailer is written to disk */
 	TMap<FIoHash, LocalEntry> LocalEntries;
