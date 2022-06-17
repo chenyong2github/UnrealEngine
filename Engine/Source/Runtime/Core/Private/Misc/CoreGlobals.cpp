@@ -387,11 +387,11 @@ bool					GShouldSuspendRenderingThread	= false;
 /** Determines what kind of trace should occur, NAME_None for none.											*/
 FLazyName				GCurrentTraceName;
 /** How to print the time in log output																		*/
-ELogTimes::Type			GPrintLogTimes					= ELogTimes::None;
-/** How to print the category in log output. */
-bool					GPrintLogCategory = true;
-/** How to print the verbosity in log output. */
-bool					GPrintLogVerbosity = true;
+TSAN_ATOMIC(ELogTimes::Type)	GPrintLogTimes			= ELogTimes::None;
+/** How to print the category in log output.																*/
+TSAN_ATOMIC(bool)		GPrintLogCategory				= true;
+/** How to print the verbosity in log output.																*/
+TSAN_ATOMIC(bool)		GPrintLogVerbosity				= true;
 
 #if USE_HITCH_DETECTION
 TSAN_ATOMIC(bool)				GHitchDetected(false);

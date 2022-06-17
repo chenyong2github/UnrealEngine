@@ -496,13 +496,13 @@ extern CORE_API bool GShouldSuspendRenderingThread;
 extern CORE_API FLazyName GCurrentTraceName;
 
 /** How to print the time in log output. */
-extern CORE_API ELogTimes::Type GPrintLogTimes;
+extern CORE_API TSAN_ATOMIC(ELogTimes::Type) GPrintLogTimes;
 
 /** How to print the category in log output. */
-extern CORE_API bool GPrintLogCategory;
+extern CORE_API TSAN_ATOMIC(bool) GPrintLogCategory;
 
 /** How to print the verbosity in log output. */
-extern CORE_API bool GPrintLogVerbosity;
+extern CORE_API TSAN_ATOMIC(bool) GPrintLogVerbosity;
 
 #if USE_HITCH_DETECTION
 /** Used by the lightweight stats and FGameThreadHitchHeartBeat to print a stat stack for hitches in shipping builds. */
