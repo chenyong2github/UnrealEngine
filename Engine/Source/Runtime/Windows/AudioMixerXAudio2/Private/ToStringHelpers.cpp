@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "ToStringHelpers.h"
 
 #if PLATFORM_WINDOWS
