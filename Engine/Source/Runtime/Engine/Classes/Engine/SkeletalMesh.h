@@ -778,12 +778,12 @@ class ENGINE_API USkeletalMesh : public USkinnedAsset, public IInterface_Collisi
 private:
 #if WITH_EDITORONLY_DATA
 	/** Imported skeletal mesh geometry information (not used at runtime). */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	TSharedPtr<FSkeletalMeshModel> ImportedModel;
 #endif
 
 	/** Rendering resources used at runtime */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	TUniquePtr<FSkeletalMeshRenderData> SkeletalMeshRenderData;
 
 	FSkeletalMeshRenderData* GetSkeletalMeshRenderData() const
@@ -979,12 +979,12 @@ public:
 
 private:
 	/** Original imported mesh bounds */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(transient, duplicatetransient)
 	FBoxSphereBounds ImportedBounds;
 
 	/** Bounds extended by user values below */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(transient, duplicatetransient)
 	FBoxSphereBounds ExtendedBounds;
 
@@ -1012,7 +1012,7 @@ protected:
 	/** Bound extension values in addition to imported bound in the positive direction of XYZ, 
 	 *	positive value increases bound size and negative value decreases bound size. 
 	 *	The final bound would be from [Imported Bound - Negative Bound] to [Imported Bound + Positive Bound]. */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Mesh)
 	FVector PositiveBoundsExtension;
 
@@ -1026,7 +1026,7 @@ protected:
 	/** Bound extension values in addition to imported bound in the negative direction of XYZ, 
 	 *	positive value increases bound size and negative value decreases bound size. 
 	 *	The final bound would be from [Imported Bound - Negative Bound] to [Imported Bound + Positive Bound]. */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Mesh)
 	FVector NegativeBoundsExtension;
 
@@ -1185,7 +1185,7 @@ public:
 
 private:
 	/** Struct containing information for each LOD level, such as materials to use, and when use the LOD. */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, EditFixedSize, Category=LevelOfDetail)
 	TArray<struct FSkeletalMeshLODInfo> LODInfo;
 
@@ -2112,7 +2112,7 @@ public:
 	/**
 	 * If true, a ray tracing acceleration structure will be built for this mesh and it may be used in ray tracing effects
 	 */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, Category = RayTracing)
 	uint8 bSupportRayTracing : 1;
 
@@ -2136,7 +2136,7 @@ public:
 	/**
 	 * LOD bias for ray tracing. When non-zero, a different LOD level other than the predicted LOD level will be used for ray tracing. Advanced features like morph targets and cloth simulation may not work properly.
 	 */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, Category = RayTracing)
 	int32 RayTracingMinLOD;
 
@@ -2161,7 +2161,7 @@ public:
 	 * Set the strategy used for storing the additional cloth deformer mappings depending on the desired use of Raytracing LOD bias.
 	 * This parameter is only used in relation to raytracing of the cloth sections.
 	 */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, Category = RayTracing)
 	EClothLODBiasMode ClothLODBiasMode;
 
@@ -2591,7 +2591,7 @@ public:
 protected:
 
 	/** Defines if and how to generate a set of precomputed data allowing targeted and fast sampling of this mesh on the CPU. */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, Category = "Sampling", meta=(ShowOnlyInnerProperties))
 	FSkeletalMeshSamplingInfo SamplingInfo;
 
@@ -2615,7 +2615,7 @@ private:
 	TArray<TObjectPtr<class USkeletalMeshSocket>> Sockets;
 
 	/** Cached matrices from GetComposedRefPoseMatrix */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	TArray<FMatrix> CachedComposedRefPoseMatrices;
 
 	TArray<FMatrix>& GetCachedComposedRefPoseMatrices() 
@@ -3292,7 +3292,7 @@ public:
 
 protected:
 	/** Set of skin weight profiles associated with this mesh */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, Category = SkinWeights, EditFixedSize, Meta=(NoResetToDefault))
 	TArray<FSkinWeightProfileInfo> SkinWeightProfiles;
 

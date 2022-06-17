@@ -609,7 +609,7 @@ private:
 #endif
 
 	/** Pointer to the data used to render this static mesh. */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	TUniquePtr<class FStaticMeshRenderData> RenderData;
 
 public:
@@ -630,12 +630,12 @@ public:
 
 private:
 	/** Imported raw mesh bulk data. */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(Setter = None, Getter = None)
 	TArray<FStaticMeshSourceModel> SourceModels;
 
 	/** Optional hi-res source data */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(Setter = None, Getter = None)
 	FStaticMeshSourceModel HiResSourceModel;
 
@@ -648,7 +648,7 @@ private:
 	}
 
 	/** Map of LOD+Section index to per-section info. */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY()
 	FMeshSectionInfoMap SectionInfoMap;
 
@@ -660,7 +660,7 @@ private:
 	 *
 	 * We do not update it when the user shuffle section in the staticmesh editor because the OriginalSectionInfoMap must always be in sync with the saved rawMesh bulk data.
 	 */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY()
 	FMeshSectionInfoMap OriginalSectionInfoMap;
 
@@ -692,7 +692,7 @@ public:
 
 private:
 	/* The lightmap UV generation version used during the last derived data build */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY()
 	int32 LightmapUVVersion;
 public:
@@ -851,7 +851,7 @@ public:
 	}
 
 private:
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(BlueprintGetter = GetStaticMaterials, BlueprintSetter = SetStaticMaterials, Category = StaticMesh)
 	TArray<FStaticMaterial> StaticMaterials;
 
@@ -890,7 +890,7 @@ public:
 	}
 
 private:
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY()
 	float LightmapUVDensity;
 public:
@@ -971,7 +971,7 @@ public:
 
 private:
 	// Physics data.
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, transient, duplicatetransient, Instanced, Category = StaticMesh)
 	TObjectPtr<class UBodySetup> BodySetup;
 public:
@@ -1055,13 +1055,13 @@ private:
 
 public:
 
-	UE_DEPRECATED(5.00, "IsBuiltAtRuntime() is no longer used.")
+	UE_DEPRECATED(5.0, "IsBuiltAtRuntime() is no longer used.")
 	bool IsBuiltAtRuntime() const
 	{
 		return false;
 	}
 
-	UE_DEPRECATED(5.00, "SetIsBuiltAtRuntime() is no longer used.")
+	UE_DEPRECATED(5.0, "SetIsBuiltAtRuntime() is no longer used.")
 	void SetIsBuiltAtRuntime(bool InIsBuiltAtRuntime)
 	{
 	}
@@ -1115,7 +1115,7 @@ public:
 
 private:
 	/** Unique ID for tracking/caching this mesh during distributed lighting */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	FGuid LightingGuid;
 public:
 
@@ -1209,7 +1209,7 @@ public:
 	}
 
 	/** Original mesh bounds extended with Positive/NegativeBoundsExtension */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY()
 	FBoxSphereBounds ExtendedBounds;
 public:
@@ -1499,7 +1499,7 @@ public:
 
 	/** Pre-build navigation collision */
 private:
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
+	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(VisibleAnywhere, transient, duplicatetransient, Instanced, Category = Navigation, meta = (EditCondition = "bHasNavigationData"))
 	TObjectPtr<UNavCollisionBase> NavCollision;
 

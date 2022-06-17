@@ -154,7 +154,7 @@ struct ENGINE_API FStreamedAudioPlatformData
 	bool IsCompiling() const;
 	bool TryInlineChunkData();
 
-	UE_DEPRECATED(5.00, "Use AreDerivedChunksAvailable with the context instead.")
+	UE_DEPRECATED(5.0, "Use AreDerivedChunksAvailable with the context instead.")
 	bool AreDerivedChunksAvailable() const;
 	
 	bool AreDerivedChunksAvailable(FStringView Context) const;

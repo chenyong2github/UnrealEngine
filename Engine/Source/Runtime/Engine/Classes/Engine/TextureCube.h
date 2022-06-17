@@ -21,7 +21,7 @@ class UTextureCube : public UTexture
 
 public:
 #if WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS
-	UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead.")
+	UE_DEPRECATED(5.0, "Use GetPlatformData() / SetPlatformData() accessors instead.")
 	TFieldPtrAccessor<FTexturePlatformData> PlatformData;
 #endif
 

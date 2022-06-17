@@ -402,7 +402,7 @@ struct FTextureSource
 	// Apply a visitor to the bulkdata :
 	ENGINE_API void OperateOnLoadedBulkData(TFunctionRef<void (const FSharedBuffer& BulkDataBuffer)> Operation);
 
-	UE_DEPRECATED(5.00, "There is no longer a need to call LoadBulkDataWithFileReader, FTextureSource::BulkData can now load the data on demand without it.")
+	UE_DEPRECATED(5.0, "There is no longer a need to call LoadBulkDataWithFileReader, FTextureSource::BulkData can now load the data on demand without it.")
 	FORCEINLINE bool LoadBulkDataWithFileReader() { return true; }
 
 	FORCEINLINE void RemoveBulkData() { BulkData.UnloadData(); }
@@ -981,9 +981,9 @@ public:
 		FStringView InDebugContext);
 	bool AreDerivedMipsAvailable(FStringView Context) const;
 	bool AreDerivedVTChunksAvailable(FStringView Context) const;
-	UE_DEPRECATED(5.00, "Use AreDerivedMipsAvailable with the context instead.")
+	UE_DEPRECATED(5.0, "Use AreDerivedMipsAvailable with the context instead.")
 	bool AreDerivedMipsAvailable() const;
-	UE_DEPRECATED(5.00, "Use AreDerivedVTChunksAvailable with the context instead.")
+	UE_DEPRECATED(5.0, "Use AreDerivedVTChunksAvailable with the context instead.")
 	bool AreDerivedVTChunksAvailable() const;
 #endif
 
@@ -1393,7 +1393,7 @@ private:
 
 public:
 #if WITH_TEXTURE_RESOURCE_DEPRECATIONS
-	UE_DEPRECATED(5.00, "Use GetResource() / SetResource() accessors instead.")
+	UE_DEPRECATED(5.0, "Use GetResource() / SetResource() accessors instead.")
 	TFieldPtrAccessor<FTextureResource> Resource;
 #endif
 
