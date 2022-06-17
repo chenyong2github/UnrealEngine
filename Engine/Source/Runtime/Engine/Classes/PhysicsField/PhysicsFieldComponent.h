@@ -8,6 +8,7 @@
 #include "RHI.h"
 #include "RenderResource.h"
 #include "PrimitiveSceneProxy.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "PhysicsFieldComponent.generated.h"
 
