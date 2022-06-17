@@ -34,7 +34,7 @@ namespace UnrealBuildTool.Matchers
 			@"\)";
 
 		const string VisualCppSeverity =
-			@"(?<severity>fatal error|error|warning)(?: (?<code>[A-Z]+[0-9]+))?";
+			@"(?<severity>fatal error|[Ee]rror|[Ww]arning)(?: (?<code>[A-Z]+[0-9]+))?"; // "E"rror/"W"arning are from UHT
 
 		const string ClangLocationPattern =
 			@":" +
@@ -49,7 +49,7 @@ namespace UnrealBuildTool.Matchers
 		static readonly Regex s_preludePattern = new Regex(@"^\s*(?:In (member )?function|In file included from)");
 		static readonly Regex s_preludeFilePattern = new Regex($"^\\s*In file included from {FilePattern}:");
 		static readonly Regex s_blankLinePattern = new Regex(@"^\s*$");
-		static readonly Regex s_errorWarningPattern = new Regex("error|warning");
+		static readonly Regex s_errorWarningPattern = new Regex("[Ee]rror|[Ww]arning");
 		static readonly Regex s_clangDiagnosticPattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:");
 		static readonly Regex s_clangNotePattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*note:");
 		static readonly Regex s_clangMarkerPattern = new Regex(@"^(\s*)\^\s*~*$");

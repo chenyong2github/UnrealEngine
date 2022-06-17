@@ -723,6 +723,26 @@ namespace UnrealBuildToolTests
 			CheckEventGroup(logEvents.Slice(7, 1), 8, 1, LogLevel.Error, KnownLogEvents.Systemic_Xge_BuildFailed);
 		}
 
+		[TestMethod]
+		public void UhtErrorMatcher()
+		{
+			string[] lines =
+			{
+				@"Parsing headers for UnrealEditor",
+				@"  Running UnrealHeaderTool UnrealEditor ""/mnt/horde/FN+NC+PF/Sync/Engine/Intermediate/Build/Linux/B4D820EA/UnrealEditor/Development/UnrealEditor.uhtmanifest"" -LogCmds=""loginit warning, logexit warning, logdatabase error"" -Unattended -WarningsAsErrors -abslog=""/mnt/horde/FN+NC+PF/Sync/Engine/Programs/AutomationTool/Saved/Logs/UHT-UnrealEditor-Linux-Development.txt""",
+				@"LogStreaming: Display: NotifyRegistrationEvent: Replay 112 entries",
+				@"/mnt/horde/FN+NC+PF/Sync/Engine/Plugins/Experimental/DataInterfaceGraph/Source/DataInterfaceGraphUncookedOnly/Internal/DataInterfaceGraph_EditorData.h(91): Error: Do not specify struct property containing editor only properties inside an optional class.",
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			Assert.AreEqual(1, logEvents.Count);
+			CheckEventGroup(logEvents, 3, 1, LogLevel.Error, KnownLogEvents.Compiler);
+
+			LogValue fileProperty = (LogValue)logEvents[0].GetProperty("file");
+			Assert.AreEqual(@"/mnt/horde/FN+NC+PF/Sync/Engine/Plugins/Experimental/DataInterfaceGraph/Source/DataInterfaceGraphUncookedOnly/Internal/DataInterfaceGraph_EditorData.h", fileProperty.Text);
+			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
+		}
+
 		static List<LogEvent> Parse(IEnumerable<string> lines)
 		{
 			return Parse(String.Join("\n", lines));
