@@ -441,7 +441,7 @@ TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateHideUnloadedActorsFil
 TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateHideEmptyFoldersFilter()
 {
 	return MakeShareable(new FFolderFilter(FFolderTreeItem::FFilterPredicate::CreateStatic(
-		[](const FFolder& Folder) { return false; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
+		[](const FFolder& Folder) { return true; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
 static const FName DefaultContextBaseMenuName("SceneOutliner.DefaultContextMenuBase");
