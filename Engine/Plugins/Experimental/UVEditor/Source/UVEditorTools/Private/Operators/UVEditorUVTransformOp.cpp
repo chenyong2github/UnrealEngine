@@ -272,7 +272,7 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 		ActiveUVLayer->SetElement(Vid, FUVEditorUXSettings::ExternalUVToInternalUV(UV));
 	};
 
-	auto ApplyTransformFunc = [this](TFunction<void(int32 Vid)> TransformFunc)
+	auto ApplyTransformFunc = [this, &Progress](TFunction<void(int32 Vid)> TransformFunc)
 	{
 		RebuildBoundingBoxes();
 
