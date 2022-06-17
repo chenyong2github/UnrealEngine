@@ -53,6 +53,9 @@ class TThreadSingleton : public FTlsAutoCleanup
 	/**
 	 * @return TLS slot that holds a TThreadSingleton.
 	 */
+#if PLATFORM_CONSOLE_DYNAMIC_LINK
+	FORCENOINLINE
+#endif
 	static uint32& GetTlsSlot()
 	{
 		static uint32 TlsSlot = 0xFFFFFFFF;
