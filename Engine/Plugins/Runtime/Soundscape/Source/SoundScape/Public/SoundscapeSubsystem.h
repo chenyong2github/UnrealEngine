@@ -21,7 +21,7 @@ struct SOUNDSCAPE_API FSoundscapePaletteCollection
 	GENERATED_BODY()
 
 		// Soundscape Palette Collection
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soundscape|Palette", meta = (AllowedClasses = "SoundscapePalette"))
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soundscape|Palette", meta = (AllowedClasses = "/Script/Soundscape.SoundscapePalette"))
 		TSet<FSoftObjectPath> SoundscapePaletteCollection;
 };
 

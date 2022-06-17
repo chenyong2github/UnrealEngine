@@ -18,7 +18,7 @@ class SOUNDSCAPE_API USoundscapeSettings : public UDeveloperSettings
 public:
 
 	// Soundscape Palette Collection
-	UPROPERTY(config, EditAnywhere, Category = "Soundscape", meta = (AllowedClasses = "SoundscapePalette"))
+	UPROPERTY(config, EditAnywhere, Category = "Soundscape", meta = (AllowedClasses = "/Script/Soundscape.SoundscapePalette"))
 	TSet<FSoftObjectPath> SoundscapePaletteCollection;
 
 	UPROPERTY(config, EditAnywhere, Category = "Soundscape")
