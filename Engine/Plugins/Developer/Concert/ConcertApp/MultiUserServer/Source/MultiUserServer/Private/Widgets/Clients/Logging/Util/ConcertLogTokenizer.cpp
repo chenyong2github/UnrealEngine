@@ -4,10 +4,10 @@
 
 #include "ConcertFrontendUtils.h"
 #include "ConcertTransportEvents.h"
-#include "EndpointToUserNameCache.h"
 #include "MessageTypeUtils.h"
 #include "Math/UnitConversion.h"
 #include "Settings/ConcertTransportLogSettings.h"
+#include "Widgets/Clients/Util/EndpointToUserNameCache.h"
 
 FConcertLogTokenizer::FConcertLogTokenizer(TSharedRef<FEndpointToUserNameCache> EndpointInfoGetter)
 	: EndpointInfoGetter(EndpointInfoGetter)

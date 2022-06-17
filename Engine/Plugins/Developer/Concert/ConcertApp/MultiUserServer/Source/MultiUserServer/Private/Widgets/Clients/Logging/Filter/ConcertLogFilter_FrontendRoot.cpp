@@ -110,11 +110,11 @@ namespace UE::MultiUserServer
 			);
 	}
 
-	TSharedRef<FConcertLogFilter_FrontendRoot> MakeClientLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer, const FGuid& ClientEndpointId)
+	TSharedRef<FConcertLogFilter_FrontendRoot> MakeClientLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer, const FGuid& ClientMessageNodeId, const TSharedRef<FEndpointToUserNameCache>& EndpointCache)
 	{
 		const TArray<TSharedRef<FConcertFrontendLogFilter>> CommonFilters = Private::CreateCommonFilters();
 		const TArray<TSharedRef<FConcertLogFilter>> NonVisuals = {
-			MakeShared<FConcertLogFilter_Client>(ClientEndpointId)
+			MakeShared<Filters::FConcertLogFilter_Client>(ClientMessageNodeId, EndpointCache)
 		};
 		return MakeShared<FConcertLogFilter_FrontendRoot>(
 			MoveTemp(Tokenizer),

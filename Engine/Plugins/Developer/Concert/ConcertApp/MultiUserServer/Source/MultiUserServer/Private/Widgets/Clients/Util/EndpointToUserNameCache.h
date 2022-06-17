@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ConcertMessageData.h"
+#include "IConcertEndpoint.h"
 #include "IMessageContext.h"
 
 class IConcertServerSession;
@@ -20,12 +21,21 @@ struct FConcertSessionClientInfo;
 class FEndpointToUserNameCache
 {
 public:
+	
+	/** ID used by the messaging system - corresponds to an IP address. */
+	using FNodeEndpointId = FGuid;
 
 	FEndpointToUserNameCache(TSharedRef<IConcertServer> Server);
 	~FEndpointToUserNameCache();
 
 	bool IsServerEndpoint(const FGuid& EndpointId) const;
+	/** Gets the client info given from any endpoint ID (any ID of a FConcertRemoteEndpoint) */
 	TOptional<FConcertClientInfo> GetClientInfo(const FGuid& EndpointId) const;
+	/** Gets the client info given from any endpoint node ID (the ID from the messaging system node - corresponds to IP address). */
+	TOptional<FConcertClientInfo> GetClientInfoFromNodeId(const FNodeEndpointId& EndpointId) const;
+
+	/** Translates a Concert endpoint Id to the corresponding messaging node Id */
+	TOptional<FNodeEndpointId> TranslateEndpointIdToNodeId(const FGuid& EndpointId) const;
 
 private:
 
@@ -34,8 +44,6 @@ private:
 	/** Used to unsubscribe when we're destroyed */
 	TSet<TWeakPtr<IConcertServerSession>> SubscribedToSessions;
 
-	/** ID used by the messaging system - corresponds to an IP address. */
-	using FNodeEndpointId = FGuid;
 	/**
 	 * The client info we're caching.
 	 * 
@@ -53,6 +61,8 @@ private:
 	void OnLiveSessionCreated(bool bSuccess, const IConcertServer& InServer, TSharedRef<IConcertServerSession> InLiveSession);
 	void OnLiveSessionDestroyed(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InLiveSession);
 	void OnClientInfoChanged(IConcertServerSession& Session, EConcertClientStatus ConnectionStatus, const FConcertSessionClientInfo& ClientInfo);
+	
+	void OnAdminEndpointConnectionChanged(const FConcertEndpointContext& ConcertEndpointContext, EConcertRemoteEndpointConnection ConcertRemoteEndpointConnection);
 
 	void RegisterLiveSession(const TSharedRef<IConcertServerSession>& InLiveSession);
 	void CacheClientInfo(const IConcertServerSession& Session, const FConcertSessionClientInfo& ClientInfo);

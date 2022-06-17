@@ -45,7 +45,7 @@ public:
 	void ShowConnectedClients(const FGuid& SessionId) const;
 	void OpenGlobalLogTab() const;
 	void CloseGlobalLogTab() const;
-	void OpenClientLogTab(const FGuid& ClientEndpointId) const;
+	void OpenClientLogTab(const FGuid& ClientMessageNodeId) const;
 	
 	bool IsGlobalLogOpen() const;
 	TSharedPtr<SDockTab> GetGlobalLogTab() const;
@@ -74,5 +74,4 @@ private:
 	TSharedRef<SDockTab> SpawnGlobalLogTab(const FSpawnTabArgs& InTabArgs);
 
 	TSharedRef<SWidget> CreateOpenGlobalLogButton() const;
-	TOptional<FConcertClientInfo> GetClientInfo(const FGuid& EndpointId) const;
 };

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "SConcertClientBrowserItem.h"
 #include "Misc/TextFilter.h"
+#include "Models/IClientBrowserModel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -46,8 +47,8 @@ namespace UE::MultiUserServer
 	private:
 
 		using FSessionId = FGuid;
-		using FClientEndpointId = FGuid;
-		using FClientTextFilter = TTextFilter<const FConcertSessionClientInfo&>;
+		using FMessagingNodeId = FGuid;
+		using FClientTextFilter = TTextFilter<const TSharedPtr<FClientBrowserItem>&>;
 
 		/** Retrieves clients and live sessions */
 		TSharedPtr<IClientBrowserModel> BrowserModel;
@@ -58,10 +59,12 @@ namespace UE::MultiUserServer
 		TSet<FSessionId> AllowedSessions;
 		/** Should all sessions be shown? */
 		bool bShowAllSessions = true;
+		/** Should admin endpoints be shown? */
+		bool bShowSessionlessClients = true;
 		/** Keeps widgets alive even when not displayed in the view - otherwise the graph will lose the historic data. */
-		TMap<FClientEndpointId, TSharedPtr<SConcertClientBrowserItem>> ClientWidgets;
+		TMap<FMessagingNodeId, TSharedPtr<SConcertClientBrowserItem>> ClientWidgets;
 
-		/** Source array for TileView */
+		/** Source array for TileView - fitlered version of IClientBrowserModel::GetItems */
 		TArray<TSharedPtr<FClientBrowserItem>> DisplayedClients;
 		/** Visualizes all the items */
 		TSharedPtr<STileView<TSharedPtr<FClientBrowserItem>>> TileView;
@@ -73,15 +76,13 @@ namespace UE::MultiUserServer
 		FOnClientDoubleClicked OnClientDoubleClicked;
 
 		TSharedRef<SWidget> CreateSearchArea(const FArguments& InArgs);
+		TSharedRef<SWidget> CreateKeepDisconnectedClients();
 		TSharedRef<SWidget> CreateTileView();
 
 		// Model events
 		void OnSessionCreated(const FGuid& SessionId);
 		void OnSessionDestroyed(const FGuid& SessionId);
-		void OnClientListChanged(const FGuid& SessionId, EConcertClientStatus UpdateType, const FConcertSessionClientInfo& ClientInfo);
-		
-		void RemoveClient(const FConcertSessionClientInfo& ClientInfo);
-		void UpdateClientInfo(const FConcertSessionClientInfo& ClientInfo);
+		void OnClientListChanged(TSharedPtr<FClientBrowserItem> Item, IClientBrowserModel::EClientUpdateType UpdateType);
 
 		// Combo button
 		TSharedRef<SWidget> MakeSessionOption();
@@ -97,7 +98,8 @@ namespace UE::MultiUserServer
 		void AllowAllSessions();
 		void DisallowAllSessions();
 		void UpdateTileViewFromAllowedSessions();
-		void GenerateSearchTerms(const FConcertSessionClientInfo& ClientInfo, TArray<FString>& SearchTerms) const;
+		bool PassesFilter(const TSharedPtr<FClientBrowserItem>& Client) const;
+		void GenerateSearchTerms(const TSharedPtr<FClientBrowserItem>& Client, TArray<FString>& SearchTerms) const;
 	};
 }
 

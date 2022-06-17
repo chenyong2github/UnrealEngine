@@ -4,18 +4,14 @@
 
 #include "ConcertTransportEvents.h"
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
+#include "Widgets/Clients/Util/EndpointToUserNameCache.h"
 
-bool FConcertLogFilter_Client::PassesFilter(const FConcertLogEntry& InItem) const
+namespace UE::MultiUserServer::Filters
 {
-	return AllowedClientEndpointIds.Contains(InItem.Log.OriginEndpointId)
-		|| AllowedClientEndpointIds.Contains(InItem.Log.DestinationEndpointId);
-}
-
-void FConcertLogFilter_Client::AllowOnly(const FGuid& ClientEndpointId)
-{
-	if (AllowedClientEndpointIds.Num() > 1 || !AllowedClientEndpointIds.Contains(ClientEndpointId))
+	bool FConcertLogFilter_Client::PassesFilter(const FConcertLogEntry& InItem) const
 	{
-		AllowedClientEndpointIds = { ClientEndpointId };
-		OnChanged().Broadcast();
+		return AllowedClientMessagingNodeId == EndpointCache->TranslateEndpointIdToNodeId(InItem.Log.OriginEndpointId)
+			|| AllowedClientMessagingNodeId == EndpointCache->TranslateEndpointIdToNodeId(InItem.Log.DestinationEndpointId);
 	}
 }
+

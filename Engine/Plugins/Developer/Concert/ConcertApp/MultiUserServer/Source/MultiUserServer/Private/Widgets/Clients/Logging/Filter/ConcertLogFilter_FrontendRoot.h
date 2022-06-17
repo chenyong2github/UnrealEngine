@@ -8,6 +8,7 @@
 class FConcertLogTokenizer;
 class FConcertFrontendLogFilter;
 class FConcertFrontendLogFilter_TextSearch;
+class FEndpointToUserNameCache;
 class SWidget;
 
 /** A filter that contains multiple UI filters */
@@ -48,6 +49,11 @@ namespace UE::MultiUserServer
 	/** Creates a filter for the global filter log window */
 	TSharedRef<FConcertLogFilter_FrontendRoot> MakeGlobalLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer);
 
-	/** Creates a filter for a filter log window intended for a client */
-	TSharedRef<FConcertLogFilter_FrontendRoot> MakeClientLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer, const FGuid& ClientEndpointId);
+	/**
+	 * Creates a filter for a filter log window intended for a client
+	 * @param Tokenizer Used for text search
+	 * @param ClientMessageNodeId The Id of this client's messaging node - this is used to filter messages involving this client
+	 * @param EndpointCache Needed to filter messages involving this client - converts Concert endpoint Ids to the message node Id
+	 */
+	TSharedRef<FConcertLogFilter_FrontendRoot> MakeClientLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer, const FGuid& ClientMessageNodeId, const TSharedRef<FEndpointToUserNameCache>& EndpointCache);
 }

@@ -24,6 +24,8 @@ FEndpointToUserNameCache::FEndpointToUserNameCache(TSharedRef<IConcertServer> Se
 			CacheClientInfo(*LiveSession, ClientInfo);
 		}
 	}
+
+	Server->OnRemoteEndpointConnectionChanged().AddRaw(this, &FEndpointToUserNameCache::OnAdminEndpointConnectionChanged);
 }
 
 FEndpointToUserNameCache::~FEndpointToUserNameCache()
@@ -62,7 +64,7 @@ TOptional<FConcertClientInfo> FEndpointToUserNameCache::GetClientInfo(const FGui
 	
 	auto LookUpAddress = [this](const FMessageAddress& MessageAddress) -> TOptional<FConcertClientInfo>
 	{
-		const FNodeEndpointId NodeEndpointId = GetNodeIdFromMessagingBackend(MessageAddress); NodeEndpointId.IsValid();
+		const FNodeEndpointId NodeEndpointId = GetNodeIdFromMessagingBackend(MessageAddress);
 		if (const FConcertClientInfo* Data = CachedClientData.Find(NodeEndpointId)) 
 		{
 			return *Data;
@@ -81,6 +83,25 @@ TOptional<FConcertClientInfo> FEndpointToUserNameCache::GetClientInfo(const FGui
 	if (const FMessageAddress RemoteAdminAddress = Server->GetRemoteAddress(EndpointId); RemoteAdminAddress.IsValid())
 	{
 		return LookUpAddress(RemoteAdminAddress);
+	}
+	return {};
+}
+
+TOptional<FConcertClientInfo> FEndpointToUserNameCache::GetClientInfoFromNodeId(const FNodeEndpointId& EndpointId) const
+{
+	if (const FConcertClientInfo* ClientData = CachedClientData.Find(EndpointId))
+	{
+		return *ClientData;
+	}
+	return {};
+}
+
+TOptional<FEndpointToUserNameCache::FNodeEndpointId> FEndpointToUserNameCache::TranslateEndpointIdToNodeId(const FGuid& EndpointId) const
+{
+	const FNodeEndpointId* CachedNodeId = CachedConcertEndpointToNodeEndpoints.Find(EndpointId);
+	if (CachedNodeId)
+	{
+		return *CachedNodeId;
 	}
 	return {};
 }
@@ -109,6 +130,15 @@ void FEndpointToUserNameCache::OnClientInfoChanged(IConcertServerSession& Sessio
 		break;
 	default:
 		checkNoEntry();
+	}
+}
+
+void FEndpointToUserNameCache::OnAdminEndpointConnectionChanged(const FConcertEndpointContext& ConcertEndpointContext, EConcertRemoteEndpointConnection ConcertRemoteEndpointConnection)
+{
+	const FMessageAddress Address = Server->GetRemoteAddress(ConcertEndpointContext.EndpointId);
+	if (const FNodeEndpointId NodeEndpointId = GetNodeIdFromMessagingBackend(Address); ConcertRemoteEndpointConnection == EConcertRemoteEndpointConnection::Discovered && NodeEndpointId.IsValid())
+	{
+		CachedConcertEndpointToNodeEndpoints.Add(ConcertEndpointContext.EndpointId, NodeEndpointId);
 	}
 }
 

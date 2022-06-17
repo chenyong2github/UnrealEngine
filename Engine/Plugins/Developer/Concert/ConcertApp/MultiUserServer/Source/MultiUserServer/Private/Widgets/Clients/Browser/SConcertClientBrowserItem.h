@@ -25,9 +25,8 @@ namespace UE::MultiUserServer
 
 		void Construct(const FArguments& InArgs, TSharedRef<FClientBrowserItem> InClientItem, TSharedRef<IClientNetworkStatisticsModel> InStatModel);
 
-		/** Called when the underlying client data was changed */
-		void OnClientInfoChanged();
-
+		FString GetClientDisplayName() const;
+		
 		/** Appends the statistics to the search terms */
 		void AppendSearchTerms(TArray<FString>& SearchTerms) const;
 

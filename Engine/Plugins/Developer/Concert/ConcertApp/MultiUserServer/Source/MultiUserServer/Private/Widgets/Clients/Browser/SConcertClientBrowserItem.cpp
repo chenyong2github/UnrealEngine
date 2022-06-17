@@ -12,6 +12,8 @@
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"
 
+#define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertClientBrowserItem"
+
 void UE::MultiUserServer::SConcertClientBrowserItem::Construct(const FArguments& InArgs, TSharedRef<FClientBrowserItem> InClientItem, TSharedRef<IClientNetworkStatisticsModel> InStatModel)
 {
 	Item = MoveTemp(InClientItem);
@@ -65,13 +67,21 @@ void UE::MultiUserServer::SConcertClientBrowserItem::Construct(const FArguments&
 			]
 		]
 	];
-
-	OnClientInfoChanged();
 }
 
-void UE::MultiUserServer::SConcertClientBrowserItem::OnClientInfoChanged()
+FString UE::MultiUserServer::SConcertClientBrowserItem::GetClientDisplayName() const
 {
-	ClientName->SetText(FText::FromString(Item->ClientInfo.ClientInfo.DisplayName));
+	const TOptional<FConcertClientInfo> ClientInfo = Item->GetClientInfo.Execute();
+	if (ClientInfo)
+	{
+		return ClientInfo->DisplayName;
+	}
+	
+	const FString NodeIdAsString = Item->MessageNodeId.ToString(EGuidFormats::DigitsWithHyphens);
+	int32 Index = INDEX_NONE;
+	const bool bFound = NodeIdAsString.FindChar('-', Index);
+	// Avoid making the name too long by only showing the first few digits of the node ID
+	return FString::Printf(TEXT("Admin (%s)"), bFound ? *NodeIdAsString.Left(Index) : *NodeIdAsString);
 }
 
 void UE::MultiUserServer::SConcertClientBrowserItem::AppendSearchTerms(TArray<FString>& SearchTerms) const
@@ -85,7 +95,24 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowserItem::CreateHeader
 {
 	return SAssignNew(ClientName, STextBlock)
 		.Font(FConcertServerStyle::Get().GetFontStyle("Concert.Clients.ClientNameTileFont"))
-		.Text_Lambda([this](){ return FText::FromString(Item->ClientInfo.ClientInfo.DisplayName);} )
+		.Text_Lambda([this](){ return FText::FromString(GetClientDisplayName()); })
+		.ToolTipText_Lambda([this]()
+		{
+			const TOptional<FConcertClientInfo> ClientInfo = Item->GetClientInfo.Execute();
+			if (!ClientInfo)
+			{
+				return FText::Format(
+					LOCTEXT("Name.NotAvailable.TooltipFmt", "This client's display information becomes available after joining a session.\nNodeID: {0}\nAddress ID: {1}"),
+					FText::FromString(Item->MessageNodeId.ToString(EGuidFormats::DigitsWithHyphens)),
+					FText::FromString(Item->ClientAddress.ToString())
+					);
+			}
+			return FText::Format(
+					LOCTEXT("Name.Available.TooltipFmt", "NodeID: {0}\nAddress ID: {1}"),
+					FText::FromString(Item->MessageNodeId.ToString(EGuidFormats::DigitsWithHyphens)),
+					FText::FromString(Item->ClientAddress.ToString())
+					);
+		})
 		.HighlightText_Lambda([this](){ return *HighlightText; })
 		.ColorAndOpacity(FColor::White);
 }
@@ -139,3 +166,5 @@ const FSlateBrush* UE::MultiUserServer::SConcertClientBrowserItem::GetBackground
 	}
 	return FConcertServerStyle::Get().GetBrush("Concert.Clients.ThumbnailAreaBackground");
 }
+
+#undef LOCTEXT_NAMESPACE

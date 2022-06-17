@@ -14,14 +14,14 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
-#include "Util/EndpointToUserNameCache.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
+#include "Widgets/Clients/Util/EndpointToUserNameCache.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
 
-#define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
+#define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertTransportLog"
 
 const FName SConcertTransportLog::FirstColumnId("AvatarColourColumnId");
 
@@ -264,7 +264,7 @@ void SConcertTransportLog::ExtendViewOptions(FMenuBuilder& MenuBuilder)
 			EUserInterfaceActionType::Button
 		);
 	MenuBuilder.AddMenuEntry(
-			LOCTEXT("SelectAll", "Hide all"),
+			LOCTEXT("HideAll", "Hide all"),
 			FText::GetEmpty(),
 			FSlateIcon(),
 			FUIAction(

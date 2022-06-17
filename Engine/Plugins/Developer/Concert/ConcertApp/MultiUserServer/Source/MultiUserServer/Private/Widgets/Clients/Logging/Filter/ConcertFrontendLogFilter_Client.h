@@ -5,24 +5,30 @@
 #include "CoreMinimal.h"
 #include "Widgets/Clients/Logging/Filter/ConcertFrontendLogFilter.h"
 
-/** Only allows messages from the given clients */
-class FConcertLogFilter_Client : public FConcertLogFilter
+class FEndpointToUserNameCache;
+
+namespace UE::MultiUserServer::Filters
 {
-public:
+	/** Only allows messages from the given clients */
+	class FConcertLogFilter_Client : public FConcertLogFilter
+	{
+	public:
 
-	FConcertLogFilter_Client() = default;
-	explicit FConcertLogFilter_Client(const FGuid& SingleAllowedId)
-		: AllowedClientEndpointIds({ SingleAllowedId })
-	{}
+		explicit FConcertLogFilter_Client(const FGuid& SingleAllowedId, TSharedRef<FEndpointToUserNameCache> EndpointCache)
+			: AllowedClientMessagingNodeId(SingleAllowedId)
+			, EndpointCache(MoveTemp(EndpointCache))
+		{}
 
-	//~ Begin FConcertLogFilter Interface
-	virtual bool PassesFilter(const FConcertLogEntry& InItem) const override;
-	//~ End FConcertLogFilter Interface
+		//~ Begin FConcertLogFilter Interface
+		virtual bool PassesFilter(const FConcertLogEntry& InItem) const override;
+		//~ End FConcertLogFilter Interface
 
-	void AllowOnly(const FGuid& ClientEndpointId);
+	private:
 
-private:
+		/** Messages to and from the following client endpoint ID are allowed */
+		FGuid AllowedClientMessagingNodeId;
 
-	/** Messages to and from the following client endpoint IDs are allowed */
-	TSet<FGuid> AllowedClientEndpointIds;
-};
+		/** Translates Concert endpoint Ids to messaging node Ids */
+		TSharedRef<FEndpointToUserNameCache> EndpointCache;
+	};
+}

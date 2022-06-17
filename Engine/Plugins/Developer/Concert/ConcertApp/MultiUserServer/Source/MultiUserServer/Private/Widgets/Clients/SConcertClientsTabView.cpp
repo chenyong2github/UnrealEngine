@@ -2,20 +2,19 @@
 
 #include "SConcertClientsTabView.h"
 
-#include "ConcertClientsTabController.h"
 #include "ConcertUtil.h"
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
 #include "Logging/Filter/ConcertLogFilter_FrontendRoot.h"
 #include "Logging/Source/GlobalLogSource.h"
 #include "Logging/Util/ConcertLogTokenizer.h"
+#include "Util/EndpointToUserNameCache.h"
 #include "Widgets/Clients/Browser/SConcertClientBrowser.h"
 #include "Widgets/Clients/Browser/Models/ClientBrowserModel.h"
 #include "Widgets/Clients/Browser/Models/ClientNetworkStatisticsModel.h"
 #include "Widgets/Clients/Logging/SConcertTransportLog.h"
 
 #include "Framework/Docking/TabManager.h"
-#include "Logging/Util/EndpointToUserNameCache.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -51,24 +50,29 @@ void SConcertClientsTabView::ShowConnectedClients(const FGuid& SessionId) const
 	ClientBrowser->ShowOnlyClientsFromSession(SessionId);
 }
 
-void SConcertClientsTabView::OpenClientLogTab(const FGuid& ClientEndpointId) const
+void SConcertClientsTabView::OpenClientLogTab(const FGuid& ClientMessageNodeId) const
 {
-
-	const FName TabId = *ClientEndpointId.ToString();
+	const FName TabId = *ClientMessageNodeId.ToString();
 	if (const TSharedPtr<SDockTab> ExistingTab = GetTabManager()->FindExistingLiveTab(FTabId(TabId)))
 	{
 		GetTabManager()->DrawAttention(ExistingTab.ToSharedRef());
 	}
-	else if (const TOptional<FConcertSessionClientInfo> ClientInfo = ConcertUtil::GetConnectedClientInfo(*Server->GetConcertServer(), ClientEndpointId)
-		; ensure(ClientInfo))
+	else
 	{
+		const TOptional<FConcertClientInfo> ClientInfo = ClientInfoCache->GetClientInfoFromNodeId(ClientMessageNodeId);
 		const TSharedRef<SDockTab> NewTab = SNew(SDockTab)
-			.Label(FText::Format(LOCTEXT("ClientTabFmt", "{0} Log"), FText::FromString(ClientInfo->ClientInfo.DisplayName)))
-			.ToolTipText(FText::Format(LOCTEXT("ClientTabTooltipFmt", "Logs all networked requests originating or going to  client {0} (EndpointId = {1})"), FText::FromString(ClientInfo->ClientInfo.DisplayName), FText::FromString(ClientEndpointId.ToString())))
+			.Label_Lambda([this, ClientMessageNodeId]()
+			{
+				const TOptional<FConcertClientInfo> ClientInfo = ClientInfoCache->GetClientInfoFromNodeId(ClientMessageNodeId);
+				return ClientInfo
+					? FText::Format(LOCTEXT("ClientTabFmt", "{0} Log"), FText::FromString(ClientInfo->DisplayName))
+					: FText::FromString(ClientMessageNodeId.ToString(EGuidFormats::DigitsWithHyphens));
+			})
+			.ToolTipText(FText::Format(LOCTEXT("ClientTabTooltipFmt", "Logs all networked requests originating or going to client {0} (NodeId = {1})"), ClientInfo ? FText::FromString(ClientInfo->DisplayName) : FText::GetEmpty(), FText::FromString(ClientMessageNodeId.ToString())))
 			.TabRole(PanelTab)
 			[
 				SNew(SConcertTransportLog, LogBuffer.ToSharedRef(), ClientInfoCache.ToSharedRef(), LogTokenizer.ToSharedRef())
-				.Filter(UE::MultiUserServer::MakeClientLogFilter(LogTokenizer.ToSharedRef(), ClientEndpointId))
+				.Filter(UE::MultiUserServer::MakeClientLogFilter(LogTokenizer.ToSharedRef(), ClientMessageNodeId, ClientInfoCache.ToSharedRef()))
 			]; 
 
 		// We need a tab to place the client tab next to
@@ -144,7 +148,7 @@ TSharedRef<SDockTab> SConcertClientsTabView::SpawnClientBrowserTab(const FSpawnT
 		.TabRole(PanelTab)
 		[
 			SAssignNew(ClientBrowser, UE::MultiUserServer::SConcertClientBrowser,
-				MakeShared<UE::MultiUserServer::FClientBrowserModel>(Server->GetConcertServer()),
+				MakeShared<UE::MultiUserServer::FClientBrowserModel>(Server->GetConcertServer(), ClientInfoCache.ToSharedRef()),
 				MakeShared<UE::MultiUserServer::FClientNetworkStatisticsModel>())
 			.RightOfSearch()
 			[
@@ -202,20 +206,6 @@ TSharedRef<SWidget> SConcertClientsTabView::CreateOpenGlobalLogButton() const
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 		];
-}
-
-TOptional<FConcertClientInfo> SConcertClientsTabView::GetClientInfo(const FGuid& EndpointId) const
-{
-	if (EndpointId == Server->GetConcertServer()->GetServerInfo().AdminEndpointId)
-	{
-		return {};
-	}
-
-	if (const TOptional<FConcertSessionClientInfo> ClientInfo = ConcertUtil::GetConnectedClientInfo(Server->GetConcertServer().Get(), EndpointId))
-	{
-		return ClientInfo->ClientInfo;
-	}
-	return {};
 }
 
 #undef LOCTEXT_NAMESPACE
