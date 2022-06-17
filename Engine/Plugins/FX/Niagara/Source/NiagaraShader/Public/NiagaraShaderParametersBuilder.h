@@ -8,8 +8,9 @@
 class NIAGARASHADER_API FNiagaraShaderParametersBuilder
 {
 public:
-	explicit FNiagaraShaderParametersBuilder(const FNiagaraDataInterfaceGPUParamInfo& InGPUParamInfo, TArray<FString>& InLooseNames, FShaderParametersMetadataBuilder& InMetadataBuilder)
+	explicit FNiagaraShaderParametersBuilder(const FNiagaraDataInterfaceGPUParamInfo& InGPUParamInfo, TArray<FString>& InLooseNames, TArray<FNiagaraDataInterfaceStructIncludeInfo>& InStructIncludeInfos, FShaderParametersMetadataBuilder& InMetadataBuilder)
 		: GPUParamInfo(InGPUParamInfo)
+		, StructIncludeInfos(InStructIncludeInfos)
 		, LooseNames(InLooseNames)
 		, MetadataBuilder(InMetadataBuilder)
 	{
@@ -38,10 +39,23 @@ public:
 		MetadataBuilder.AddNestedStruct<T>(*GPUParamInfo.DataInterfaceHLSLSymbol);
 	}
 
-	// Adds a shadera parameters structure that is global in scope
+	// Adds a shader parameters structure that is global in scope
 	// i.e. if the structure contained "MyFloat" the shader variable would be named "MyFloat"
 	template<typename T> void AddIncludedStruct()
 	{
+		const FShaderParametersMetadata* StructMetadata = TShaderParameterStructTypeInfo<T>::GetStructMetadata();
+		for (const FNiagaraDataInterfaceStructIncludeInfo& Existing : StructIncludeInfos)
+		{
+			if (Existing.StructMetadata == StructMetadata)
+			{
+				return;
+			}
+		}
+
+		FNiagaraDataInterfaceStructIncludeInfo& NewInfo = StructIncludeInfos.AddDefaulted_GetRef();
+		NewInfo.StructMetadata = StructMetadata;
+		NewInfo.ParamterOffset = Align(MetadataBuilder.GetNextMemberOffset(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
 		MetadataBuilder.AddIncludedStruct<T>();
 	}
 
@@ -49,6 +63,7 @@ public:
 
 private:
 	const FNiagaraDataInterfaceGPUParamInfo& GPUParamInfo;
+	TArray<FNiagaraDataInterfaceStructIncludeInfo>& StructIncludeInfos;
 	TArray<FString>& LooseNames;
 	FShaderParametersMetadataBuilder& MetadataBuilder;
 };

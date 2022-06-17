@@ -1409,7 +1409,8 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 
 	checkf(DispatchNumThreads.X * DispatchNumThreads.Y * DispatchNumThreads.Z > 0, TEXT("DispatchNumThreads(%d, %d, %d) is invalid"), DispatchNumThreads.X, DispatchNumThreads.Y, DispatchNumThreads.Z);
 
-	const FShaderParametersMetadata* ShaderParametersMetadata = InstanceData.Context->GPUScript_RT->GetScriptParametersMetadata()->ShaderParametersMetadata.Get();
+	const FNiagaraShaderScriptParametersMetadata& NiagaraShaderParametersMetadata = InstanceData.Context->GPUScript_RT->GetScriptParametersMetadata().Get();
+	const FShaderParametersMetadata* ShaderParametersMetadata = NiagaraShaderParametersMetadata.ShaderParametersMetadata.Get();
 	FNiagaraShader::FParameters* DispatchParameters = reinterpret_cast<FNiagaraShader::FParameters*>(GraphBuilder.Alloc(ShaderParametersMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT));
 	FMemory::Memset(DispatchParameters, 0, ShaderParametersMetadata->GetSize());
 
@@ -1505,7 +1506,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 	const TShaderRef<FNiagaraShader> ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(SimStageData.StageIndex);
 
 	// Set data interface parameters
-	SetDataInterfaceParameters(GraphBuilder, Tick, InstanceData, ComputeShader, SimStageData, reinterpret_cast<uint8*>(DispatchParameters));
+	SetDataInterfaceParameters(GraphBuilder, Tick, InstanceData, ComputeShader, SimStageData, NiagaraShaderParametersMetadata, reinterpret_cast<uint8*>(DispatchParameters));
 
 	// Set tick parameters
 	Tick.GetGlobalParameters(InstanceData, &DispatchParameters->GlobalParameters);
@@ -1995,7 +1996,7 @@ void FNiagaraGpuComputeDispatch::LegacySetDataInterfaceParameters(FRHICommandLis
 	}
 
 	const FNiagaraShaderMapPointerTable& PointerTable = ComputeShader.GetPointerTable();
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
 	for (int32 iDataInterface=0; iDataInterface < NumDataInterfaces; ++iDataInterface)
 	{
@@ -2018,7 +2019,7 @@ void FNiagaraGpuComputeDispatch::LegacyUnsetDataInterfaceParameters(FRHICommandL
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : InstanceData.DataInterfaceProxies)
 	{
-		const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+		TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 		const FNiagaraDataInterfaceParamRef& DIParam = DIParameters[InterfaceIndex];
 		if (DIParam.Parameters.IsValid() && (DIParam.ShaderParametersOffset == INDEX_NONE))
 		{
@@ -2034,7 +2035,7 @@ void FNiagaraGpuComputeDispatch::LegacyResetDataInterfaces(FRHICommandList& RHIC
 {
 	// Note: All stages will contain the same bindings so if they are valid for one they are valid for all, this could change in the future
 	const FNiagaraShaderRef& ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(0);
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : InstanceData.DataInterfaceProxies)
@@ -2053,7 +2054,7 @@ void FNiagaraGpuComputeDispatch::LegacyPreStageInterface(FRHICommandList& RHICmd
 {
 	// Note: All stages will contain the same bindings so if they are valid for one they are valid for all, this could change in the future
 	const FNiagaraShaderRef& ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(0);
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : InstanceData.DataInterfaceProxies)
@@ -2077,7 +2078,7 @@ void FNiagaraGpuComputeDispatch::LegacyPostStageInterface(FRHICommandList& RHICm
 {
 	// Note: All stages will contain the same bindings so if they are valid for one they are valid for all, this could change in the future
 	const FNiagaraShaderRef& ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(0);
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : InstanceData.DataInterfaceProxies)
@@ -2101,7 +2102,7 @@ void FNiagaraGpuComputeDispatch::LegacyPostSimulateInterface(FRHICommandList& RH
 {
 	// Note: All stages will contain the same bindings so if they are valid for one they are valid for all, this could change in the future
 	const FNiagaraShaderRef& ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(0);
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : InstanceData.DataInterfaceProxies)
@@ -2130,7 +2131,7 @@ void FNiagaraGpuComputeDispatch::ResetDataInterfaces(FRDGBuilder& GraphBuilder, 
 	}
 
 	const FNiagaraShaderRef& ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(0);
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
 	FNDIGpuComputeResetContext Context(GraphBuilder, *this, Tick.SystemInstanceID);
 	for (int32 iDataInterface=0; iDataInterface < NumDataInterfaces; ++iDataInterface)
@@ -2144,7 +2145,7 @@ void FNiagaraGpuComputeDispatch::ResetDataInterfaces(FRDGBuilder& GraphBuilder, 
 	}
 }
 
-void FNiagaraGpuComputeDispatch::SetDataInterfaceParameters(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData, uint8* ParametersStructure) const
+void FNiagaraGpuComputeDispatch::SetDataInterfaceParameters(FRDGBuilder& GraphBuilder, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData, const FNiagaraShaderScriptParametersMetadata& NiagaraShaderParametersMetadata, uint8* ParametersStructure) const
 {
 	const int32 NumDataInterfaces = InstanceData.DataInterfaceProxies.Num();
 	if (NumDataInterfaces == 0)
@@ -2153,9 +2154,9 @@ void FNiagaraGpuComputeDispatch::SetDataInterfaceParameters(FRDGBuilder& GraphBu
 	}
 
 	const FNiagaraShaderMapPointerTable& PointerTable = ComputeShader.GetPointerTable();
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
-	FNiagaraDataInterfaceSetShaderParametersContext Context(GraphBuilder, *this, Tick, InstanceData, SimStageData, ComputeShader, ParametersStructure);
+	FNiagaraDataInterfaceSetShaderParametersContext Context(GraphBuilder, *this, Tick, InstanceData, SimStageData, ComputeShader, NiagaraShaderParametersMetadata, ParametersStructure);
 	for ( int32 iDataInterface=0; iDataInterface < NumDataInterfaces; ++iDataInterface )
 	{
 		FNiagaraDataInterfaceProxy* DataInterfaceProxy = InstanceData.DataInterfaceProxies[iDataInterface];
@@ -2178,7 +2179,7 @@ void FNiagaraGpuComputeDispatch::PreStageInterface(FRDGBuilder& GraphBuilder, co
 	}
 
 	const FNiagaraShaderRef& ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(0);
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
 	FNDIGpuComputePreStageContext Context(GraphBuilder, *this, Tick, InstanceData, SimStageData);
 	for (int32 iDataInterface = 0; iDataInterface < NumDataInterfaces; ++iDataInterface)
@@ -2202,7 +2203,7 @@ void FNiagaraGpuComputeDispatch::PostStageInterface(FRDGBuilder& GraphBuilder, c
 	}
 
 	const FNiagaraShaderRef& ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(0);
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
 	FNDIGpuComputePostStageContext Context(GraphBuilder, *this, Tick, InstanceData, SimStageData);
 	for (int32 iDataInterface = 0; iDataInterface < NumDataInterfaces; ++iDataInterface)
@@ -2226,7 +2227,7 @@ void FNiagaraGpuComputeDispatch::PostSimulateInterface(FRDGBuilder& GraphBuilder
 	}
 
 	const FNiagaraShaderRef& ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(0);
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& DIParameters = ComputeShader->GetDIParameters();
+	TConstArrayView<FNiagaraDataInterfaceParamRef> DIParameters = ComputeShader->GetDIParameters();
 
 	FNDIGpuComputePostSimulateContext Context(GraphBuilder, *this, Tick.SystemInstanceID, SimStageData.bSetDataToRender);
 	for (int32 iDataInterface = 0; iDataInterface < NumDataInterfaces; ++iDataInterface)

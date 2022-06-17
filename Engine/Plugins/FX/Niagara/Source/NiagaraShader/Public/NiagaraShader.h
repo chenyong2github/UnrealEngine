@@ -220,9 +220,9 @@ public:
 	FNiagaraShader() {}
 	FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer);
 
-	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& GetDIParameters()
+	TConstArrayView<FNiagaraDataInterfaceParamRef> GetDIParameters()
 	{
-		return DataInterfaceParameters;
+		return MakeArrayView(DataInterfaceParameters);
 	}
 
 	LAYOUT_FIELD(bool, bNeedsViewUniformBuffer);
@@ -232,10 +232,6 @@ private:
 	// Data about parameters used for each Data Interface.
 	LAYOUT_FIELD(TMemoryImageArray<FNiagaraDataInterfaceParamRef>, DataInterfaceParameters);
 
-	/*
-	FDebugUniformExpressionSet	DebugUniformExpressionSet;
-	FRHIUniformBufferLayout		DebugUniformExpressionUBLayout;
-	*/
 	LAYOUT_FIELD(FMemoryImageString, DebugDescription);
 };
 

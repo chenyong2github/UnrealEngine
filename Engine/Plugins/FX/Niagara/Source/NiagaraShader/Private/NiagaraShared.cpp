@@ -692,7 +692,7 @@ void FNiagaraShaderScript::BuildScriptParametersMetadata(const FNiagaraShaderScr
 		if (CDODataInterface->UseLegacyShaderBindings() == false)
 		{
 			const uint32 NextMemberOffset = ShaderMetadataBuilder.GetNextMemberOffset();
-			FNiagaraShaderParametersBuilder ShaderParametersBuilder(DataInterfaceParamInfo, ScriptParametersMetadata->LooseMetadataNames, ShaderMetadataBuilder);
+			FNiagaraShaderParametersBuilder ShaderParametersBuilder(DataInterfaceParamInfo, ScriptParametersMetadata->LooseMetadataNames, ScriptParametersMetadata->StructIncludeInfos, ShaderMetadataBuilder);
 			CDODataInterface->BuildShaderParameters(ShaderParametersBuilder);
 			DataInterfaceParamInfo.ShaderParametersOffset = NextMemberOffset;
 		}

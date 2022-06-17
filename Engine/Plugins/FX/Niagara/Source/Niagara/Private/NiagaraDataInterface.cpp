@@ -326,6 +326,20 @@ bool FNiagaraDataInterfaceSetShaderParametersContext::IsStructBoundInternal(cons
 	return false;
 }
 
+uint16 FNiagaraDataInterfaceSetShaderParametersContext::GetParameterIncludedStructInternal(const FShaderParametersMetadata* StructMetadata) const
+{
+	for (const FNiagaraDataInterfaceStructIncludeInfo& StructIncludeInfo : ShaderParametersMetadata.StructIncludeInfos)
+	{
+		if (StructIncludeInfo.StructMetadata == StructMetadata)
+		{
+			return StructIncludeInfo.ParamterOffset;
+		}
+	}
+
+	UE_LOG(LogNiagara, Fatal, TEXT("Failed to find Included Parameter Struct '%s' in parameters"), StructMetadata->GetStructTypeName());
+	return 0;
+}
+
 bool FNiagaraDataInterfaceSetShaderParametersContext::IsOutputStage() const
 {
 	return ComputeInstanceData.IsOutputStage(DataInterfaceProxy, SimStageData.StageIndex);

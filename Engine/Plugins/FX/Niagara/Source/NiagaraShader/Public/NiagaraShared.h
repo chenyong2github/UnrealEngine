@@ -243,6 +243,14 @@ struct FNiagaraShaderScriptExternalConstant
 	FString	Name;
 };
 
+/** Shader side information about global structures includes. */
+struct FNiagaraDataInterfaceStructIncludeInfo
+{
+	const FShaderParametersMetadata* StructMetadata = nullptr;
+	int32 ParamterOffset = 0;
+};
+
+
 /* Data provided from the translator to track information requires to bind data interface or parameters at runtime. */
 USTRUCT()
 struct NIAGARASHADER_API FNiagaraShaderScriptParametersMetadata
@@ -262,6 +270,7 @@ struct NIAGARASHADER_API FNiagaraShaderScriptParametersMetadata
 	TArray<FNiagaraShaderScriptExternalConstant> ExternalConstants;
 
 	// Runtime generated bindings, not serialized
+	TArray<FNiagaraDataInterfaceStructIncludeInfo> StructIncludeInfos;
 	TSharedPtr<FShaderParametersMetadata> ShaderParametersMetadata;
 };
 
@@ -285,7 +294,6 @@ public:
 	void WriteFrozenParameters(FMemoryImageWriter& Writer, const TMemoryImagePtr<FNiagaraDataInterfaceParametersCS>& InParameters) const;
 	LAYOUT_FIELD_WITH_WRITER(TMemoryImagePtr<FNiagaraDataInterfaceParametersCS>, Parameters, WriteFrozenParameters);
 };
-
 
 /** Stores outputs from the script compile that need to be saved. */
 class FNiagaraComputeShaderCompilationOutput

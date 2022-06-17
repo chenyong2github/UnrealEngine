@@ -366,13 +366,14 @@ struct FNiagaraDataInterfaceProxy
 
 struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 {
-	FNiagaraDataInterfaceSetShaderParametersContext(FRDGBuilder& InGraphBuilder, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface, const FNiagaraGPUSystemTick& InSystemTick, const FNiagaraComputeInstanceData& InComputeInstanceData, const FNiagaraSimStageData& InSimStageData, const FNiagaraShaderRef& InShaderRef, uint8* InBaseParameters)
+	FNiagaraDataInterfaceSetShaderParametersContext(FRDGBuilder& InGraphBuilder, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface, const FNiagaraGPUSystemTick& InSystemTick, const FNiagaraComputeInstanceData& InComputeInstanceData, const FNiagaraSimStageData& InSimStageData, const FNiagaraShaderRef& InShaderRef, const FNiagaraShaderScriptParametersMetadata& InShaderParametersMetadata, uint8* InBaseParameters)
 		: GraphBuilder(InGraphBuilder)
 		, ComputeDispatchInterface(InComputeDispatchInterface)
 		, SystemTick(InSystemTick)
 		, ComputeInstanceData(InComputeInstanceData)
 		, SimStageData(InSimStageData)
 		, ShaderRef(InShaderRef)
+		, ShaderParametersMetadata(InShaderParametersMetadata)
 		, BaseParameters(InBaseParameters)
 	{
 	}
@@ -402,9 +403,7 @@ struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 	}
 	template<typename T> T* GetParameterIncludedStruct() const
 	{
-		const uint32 StructOffset = Align(ParametersOffset, TShaderParameterStructTypeInfo<T>::Alignment);
-		ParametersOffset = StructOffset + TShaderParameterStructTypeInfo<T>::GetStructMetadata()->GetSize();
-
+		const uint16 StructOffset = GetParameterIncludedStructInternal(TShaderParameterStructTypeInfo<T>::GetStructMetadata());
 		return reinterpret_cast<T*>(BaseParameters + StructOffset);
 	}
 	template<typename T> TArrayView<T> GetParameterLooseArray(int32 NumElements) const
@@ -429,6 +428,7 @@ struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 
 private:
 	bool IsStructBoundInternal(const void* StructAddress, uint32 StructSize) const;
+	uint16 GetParameterIncludedStructInternal(const FShaderParametersMetadata* StructMetadata) const;
 
 private:
 	FRDGBuilder& GraphBuilder;
@@ -437,6 +437,7 @@ private:
 	const FNiagaraComputeInstanceData& ComputeInstanceData;
 	const FNiagaraSimStageData& SimStageData;
 	const FNiagaraShaderRef& ShaderRef;
+	const FNiagaraShaderScriptParametersMetadata& ShaderParametersMetadata;
 	uint8* BaseParameters = nullptr;
 	const FNiagaraDataInterfaceParametersCS* ShaderStorage = nullptr;
 
