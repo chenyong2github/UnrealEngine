@@ -5,6 +5,7 @@
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
 
 class IPropertyRowGenerator;
+class STextBlock;
 class SWidget;
 class URCBehaviour;
 
@@ -31,9 +32,18 @@ public:
 	URCBehaviour* GetBehaviour() const;
 
 	/** Handling for user action to override this behaviour via new Blueprint class */
-	void OnOverrideBlueprint() const;	
+	void OnOverrideBlueprint() const;
+
+	/** Whether the underlying Behaviour is currently enabled */
+	bool IsBehaviourEnabled() const;
+
+	/** Set the Enabled state of our underlying Behaviour */
+	void SetIsBehaviourEnabled(const bool bIsEnabled);
 
 private:
 	/** The Behaviour (Data model) associated with us*/
 	TWeakObjectPtr<URCBehaviour> BehaviourWeakPtr;
+
+	/** Text block widget for representing the Behaviour's title */
+	TSharedPtr<STextBlock> BehaviourTitleText;
 };

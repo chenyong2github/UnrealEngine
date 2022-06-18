@@ -71,6 +71,9 @@ void URCController::ExecuteBehaviours()
 {
 	for (URCBehaviour* Behaviour : Behaviours)
 	{
-		Behaviour->Execute();
+		if (Behaviour->bIsEnabled)
+		{
+			Behaviour->Execute();
+		}
 	}
 }

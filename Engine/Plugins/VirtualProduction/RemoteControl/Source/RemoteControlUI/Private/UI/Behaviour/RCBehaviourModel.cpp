@@ -8,12 +8,18 @@
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FRCBehaviourModel"
 
 FRCBehaviourModel::FRCBehaviourModel(URCBehaviour* InBehaviour)
 	: BehaviourWeakPtr(InBehaviour)
 {
+	const FText BehaviorDisplayName = BehaviourWeakPtr->GetDisplayName().ToUpper();
+
+	SAssignNew(BehaviourTitleText, STextBlock)
+		.Text(BehaviorDisplayName)
+		.Font(FRemoteControlPanelStyle::Get()->GetFontStyle("RemoteControlPanel.Behaviours.Title"));
 }
 
 TSharedRef<SWidget> FRCBehaviourModel::GetWidget() const
@@ -23,8 +29,6 @@ TSharedRef<SWidget> FRCBehaviourModel::GetWidget() const
 		return SNullWidget::NullWidget;
 	}
 
-	const FText BehaviorDisplayName = BehaviourWeakPtr->GetDisplayName().ToUpper();
-
 	return SNew(SHorizontalBox)
 		.Clipping(EWidgetClipping::OnDemand)
 		// Behaviour name
@@ -33,8 +37,7 @@ TSharedRef<SWidget> FRCBehaviourModel::GetWidget() const
 		.AutoWidth()
 		.Padding(FMargin(8.f))
 		[
-			SNew(STextBlock).Text(BehaviorDisplayName)
-			.Font(FRemoteControlPanelStyle::Get()->GetFontStyle("RemoteControlPanel.Behaviours.Title"))
+			BehaviourTitleText.ToSharedRef()
 		];
 }
 
@@ -55,6 +58,26 @@ void FRCBehaviourModel::OnOverrideBlueprint() const
 		}
 
 		UE::RCLogicHelpers::OpenBlueprintEditor(Blueprint);
+	}
+}
+
+bool FRCBehaviourModel::IsBehaviourEnabled() const
+{
+	if (URCBehaviour* Behaviour = BehaviourWeakPtr.Get())
+	{
+		return Behaviour->bIsEnabled;
+	}
+
+	return false;
+}
+
+void FRCBehaviourModel::SetIsBehaviourEnabled(const bool bIsEnabled)
+{
+	if (URCBehaviour* Behaviour = BehaviourWeakPtr.Get())
+	{
+		Behaviour->bIsEnabled = bIsEnabled;
+
+		BehaviourTitleText->SetEnabled(bIsEnabled);
 	}
 }
 

@@ -100,4 +100,10 @@ private:
 	/** Cached behaviour node */
 	UPROPERTY(Instanced)
 	TObjectPtr<URCBehaviourNode> CachedBehaviourNode;
+
+public:
+	/** Whether this Behaviour is currently enabled. 
+	* If disabled, it will be not evaluated when the associated Controller changes */
+	UPROPERTY()
+	bool bIsEnabled = true;
 };
