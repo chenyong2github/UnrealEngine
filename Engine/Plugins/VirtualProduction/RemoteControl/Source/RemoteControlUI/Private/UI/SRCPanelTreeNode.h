@@ -43,6 +43,8 @@ struct SRCPanelTreeNode : public SCompoundWidget
 	virtual void SetIsHovered(bool bIsBeingHovered) {}
 	/** Make the node name's text box editable. */
 	virtual void EnterRenameMode() {};
+	/** Updates the highlight text to active search term. */
+	virtual void SetHighlightText(const FText& InHightlightText = FText::GetEmpty()) {};
 
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override { if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton) { EnterRenameMode(); } return SCompoundWidget::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent); };
 

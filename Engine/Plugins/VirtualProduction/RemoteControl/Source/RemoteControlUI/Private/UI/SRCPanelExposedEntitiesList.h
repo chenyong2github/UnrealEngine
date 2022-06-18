@@ -8,6 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
+#include "UI/Filters/RCFilter.h"
 #include "UObject/StrongObjectPtr.h"
 
 struct FRCPanelGroup;
@@ -59,6 +60,10 @@ public:
 
 	~SRCPanelExposedEntitiesList();
 
+	//~ Begin SWidget Interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	//~ End SWidget Interface
+
 	/** Get the currently selected group. */
 	TSharedPtr<SRCPanelTreeNode> GetSelectedGroup() const;
 	
@@ -68,9 +73,18 @@ public:
 	/** Set the currently selected group or exposed entity. */
 	void SetSelection(const TSharedPtr<SRCPanelTreeNode>& Node, const bool bForceMouseClick = false);
 
+	/** Notifies the entities list view that the filter-list filter has changed */
+	void SetBackendFilter(const FRCFilter& InBackendFilter);
+
 	/** Recreate everything in the panel. */
 	void Refresh();
 	
+	/** Tries to refresh the list according to the provided search text. */
+	void TryRefreshingSearch(const FText& InSearchText, bool bApplyFilter = true);
+
+	/** Notifies us that the search has ended. */
+	void ResetSearch() { *SearchedText = FText::GetEmpty(); RequestSearchOrFilter(); };
+
 	/** Returns delegate called on selection change. */
 	FOnSelectionChange& OnSelectionChange() { return OnSelectionChangeDelegate; }
 
@@ -131,6 +145,12 @@ private:
 	void OnFieldOrderChanged(const FGuid& GroupId, const TArray<FGuid>& Fields);
 	void OnEntitiesUpdated(URemoteControlPreset*, const TSet<FGuid>& UpdatedEntities);
 
+	/** Requests that the entities view refreshes all it's items. */
+	void ApplyFilters();
+
+	/** Notifies us that we need to do a search or filter in the next tick. */
+	void RequestSearchOrFilter();
+
 private:
 	/** Holds the Groups list view. */
 	TSharedPtr<SListView<TSharedPtr<SRCPanelTreeNode>>> GroupsListView;
@@ -158,4 +178,14 @@ private:
 	FSimpleDelegate OnEntityListUpdatedDelegate;
 	/** Holds the cache of widgets to be used by this list's entities. */
 	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
+	/** Holds the cache of filters to be used by this list's entities. */
+	FRCFilter BackendFilter;
+	/** If true, the entity items will be refreshed next frame. */
+	bool bFilterApplicationRequested;
+	/** If true, the entity items will be refreshed next frame. */
+	bool bSearchRequested;
+	/** Holds the text that is being searched actively. */
+	TSharedPtr<FText> SearchedText;
+	int32 SearchCount;
+	int32 FilterCount;
 };

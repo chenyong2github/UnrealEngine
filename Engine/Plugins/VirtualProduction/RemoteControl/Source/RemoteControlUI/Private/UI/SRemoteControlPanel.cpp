@@ -59,6 +59,7 @@
 #include "ToolMenus.h"
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
 #include "UI/BaseLogicUI/SRCLogicPanelListBase.h"
+#include "UI/Filters/SRCPanelFilter.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SLayeredImage.h"
@@ -298,6 +299,21 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 
 	UpdateRebindButtonVisibility();
 
+	// Setup search filter.
+	SearchTextFilter = MakeShared<TTextFilter<const SRCPanelTreeNode&>>(TTextFilter<const SRCPanelTreeNode&>::FItemToStringArray::CreateSP(this, &SRemoteControlPanel::PopulateSearchStrings));
+	SearchedText = MakeShared<FText>(FText::GetEmpty());
+
+	// Create the Filter Widget
+	FilterPtr = SNew(SRCPanelFilter)
+		.OnFilterChanged(this, &SRemoteControlPanel::OnFilterChanged)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("RemoteControlFilters")));
+
+	// Create the Filter Combo Button
+	TSharedPtr<SWidget> FilterComboButton = SRCPanelFilter::MakeAddFilterButton(FilterPtr.ToSharedRef());
+
+	TSharedPtr<ISlateMetaData> FilterComboButtonMetaData = MakeShared<FTagMetaData>(TEXT("ContentBrowserFiltersCombo"));
+	FilterComboButton->AddMetadata(FilterComboButtonMetaData.ToSharedRef());
+
 	TSharedPtr<SHorizontalBox> TopExtensions;
 
 	EntityProtocolDetails = SNew(SBox);
@@ -359,6 +375,10 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			.FillWidth(1.f)
 			[
 				SAssignNew(SearchBoxPtr, SSearchBox)
+				.HintText(LOCTEXT("SearchHint", "Search"))
+				.OnTextChanged(this, &SRemoteControlPanel::OnSearchTextChanged)
+				.OnTextCommitted(this, &SRemoteControlPanel::OnSearchTextCommitted)
+				.DelayChangeNotificationsWhileTyping(true)
 			]
 
 			// Filters
@@ -367,21 +387,9 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			.AutoWidth()
 			.Padding(5.f, 3.f, 3.f, 3.f)
 			[
-				SNew(SComboButton)
-				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButtonWithIcon"))
-				.ForegroundColor(FSlateColor::UseStyle())
-				.ToolTipText(LOCTEXT("Filters_Tooltip", "Filter options for the RC Preset."))
-				.HasDownArrow(true)
-				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("RemoteControlFiltersCombo")))
-				.ContentPadding(FMargin(1.f, 0.f))
-				.ButtonContent()
-				[
-					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
+				FilterComboButton.ToSharedRef()
 			]
-			
+
 			// Settings
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -750,10 +758,13 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	RegisterEvents();
 	CacheLevelClasses();
 	Refresh();
+	LoadSettings(InPreset->GetPresetId());
 }
 
 SRemoteControlPanel::~SRemoteControlPanel()
 {
+	SaveSettings();
+
 	UnbindRemoteControlCommands();
 	UnregisterEvents();
 
@@ -1580,6 +1591,12 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 			}
 		}
 	}
+
+	// Trigger search to list the search results specific to selected group.
+	if (SearchedText.IsValid() && !SearchedText->IsEmptyOrWhitespace() && SearchedText->ToString().Len() > 3)
+	{
+		OnSearchTextChanged(*SearchedText);
+	}
 }
 
 void SRemoteControlPanel::UpdateRebindButtonVisibility()
@@ -2022,6 +2039,81 @@ bool SRemoteControlPanel::CanRenameEntity() const
 	}
 
 	return false;
+}
+
+void SRemoteControlPanel::OnSearchTextChanged(const FText& InFilterText)
+{
+	SearchTextFilter->SetRawFilterText(InFilterText);
+	SearchBoxPtr->SetError(SearchTextFilter->GetFilterErrorText());
+	*SearchedText = InFilterText;
+
+	const int32 Length = InFilterText.ToString().Len();
+
+	check(EntityList.IsValid());
+
+	if (Length > 3)
+	{
+		EntityList->TryRefreshingSearch(InFilterText);
+	}
+	else if (Length == 3 || Length == 0) // Avoid unnecessary refresh if search text is below the threshold.
+	{
+		EntityList->ResetSearch();
+
+		EntityList->Refresh();
+	}
+}
+
+void SRemoteControlPanel::OnSearchTextCommitted(const FText& InFilterText, ETextCommit::Type InCommitType)
+{
+	if (InCommitType == ETextCommit::OnCleared || InFilterText.IsEmpty())
+	{
+		EntityList->ResetSearch();
+
+		EntityList->Refresh();
+
+		return;
+	}
+
+	OnSearchTextChanged(InFilterText);
+}
+
+void SRemoteControlPanel::PopulateSearchStrings(const SRCPanelTreeNode& Item, TArray<FString>& OutSearchStrings) const
+{
+	if (Preset.IsValid())
+	{
+		if (TSharedPtr<FRemoteControlEntity> Entity = Preset->GetExposedEntity<FRemoteControlEntity>(Item.GetRCId()).Pin())
+		{
+			OutSearchStrings.Add(Entity->GetLabel().ToString());
+		}
+	}
+}
+
+void SRemoteControlPanel::OnFilterChanged()
+{
+	check(FilterPtr.IsValid());
+
+	FRCFilter Filter = FilterPtr->GetCombinedBackendFilter();
+
+	EntityList->SetBackendFilter(Filter);
+}
+
+void SRemoteControlPanel::LoadSettings(const FGuid& InInstanceId)
+{
+	const FString SettingsString = InInstanceId.ToString();
+
+	// Load all our data using the settings string as a key in the user settings ini.
+	FilterPtr->LoadSettings(GEditorPerProjectIni, IRemoteControlUIModule::SettingsIniSection, SettingsString);
+}
+
+void SRemoteControlPanel::SaveSettings()
+{
+	if (Preset.IsValid() && FilterPtr.IsValid())
+	{
+		const FString SettingsString = Preset->GetPresetId().ToString();
+
+		// Save all our data using the settings string as a key in the user settings ini.
+		FilterPtr->SaveSettings(GEditorPerProjectIni, IRemoteControlUIModule::SettingsIniSection, SettingsString);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE /*RemoteControlPanel*/

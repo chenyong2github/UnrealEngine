@@ -59,7 +59,7 @@ namespace ExposedFieldUtils
 
 TSharedPtr<SRCPanelTreeNode> SRCPanelExposedField::MakeInstance(const FGenerateWidgetArgs& Args)
 {
-	return SNew(SRCPanelExposedField, StaticCastSharedPtr<FRemoteControlField>(Args.Entity), Args.ColumnSizeData, Args.WidgetRegistry).Preset(Args.Preset).EditMode(Args.bIsInEditMode);
+	return SNew(SRCPanelExposedField, StaticCastSharedPtr<FRemoteControlField>(Args.Entity), Args.ColumnSizeData, Args.WidgetRegistry).Preset(Args.Preset).EditMode(Args.bIsInEditMode).HighlightText(Args.HighlightText);
 }
 
 void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField, FRCColumnSizeData InColumnSizeData, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry)
@@ -69,6 +69,8 @@ void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteC
 	ColumnSizeData = MoveTemp(InColumnSizeData);
 	WidgetRegistry = MoveTemp(InWidgetRegistry);
 	
+	HighlightText = InArgs._HighlightText;
+
 	if (TSharedPtr<FRemoteControlField> FieldPtr = WeakField.Pin())
 	{
 		Initialize(FieldPtr->GetId(), InArgs._Preset.Get(), InArgs._EditMode);

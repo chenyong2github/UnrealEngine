@@ -34,6 +34,7 @@ struct FGenerateWidgetArgs
 	TSharedPtr<FRemoteControlEntity> Entity;
 	TAttribute<bool> bIsInEditMode;
 	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
+	FText HighlightText;
 };
 
 /**
@@ -184,4 +185,7 @@ public:
 	 * Unregister a previously registered widget factory.
 	 */
 	virtual void UnregisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType) = 0;
+
+	/** The section of EditorPerProjectUserSettings in which to save filter settings */
+	static const FString SettingsIniSection;
 };

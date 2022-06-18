@@ -4,7 +4,9 @@
 #include "Engine/EngineTypes.h"
 #include "EditorUndoClient.h"
 #include "Engine/EngineTypes.h"
+#include "Filters/SFilterBar.h"
 #include "IDetailTreeNode.h"
+#include "Misc/TextFilter.h"
 #include "RemoteControlUIModule.h"
 #include "Styling/SlateTypes.h"
 #include "RemoteControlFieldPath.h"
@@ -30,6 +32,7 @@ struct SRCPanelTreeNode;
 class SRCPanelFunctionPicker;
 class SRemoteControlPanel;
 class SRCPanelExposedEntitiesList;
+class SRCPanelFilter;
 class SSearchBox;
 class STextBlock;
 class URemoteControlPreset;
@@ -39,7 +42,6 @@ class URCBehaviour;
 class URCAction;
 class FRCControllerModel;
 class FRCBehaviourModel;
-
 
 DECLARE_DELEGATE_TwoParams(FOnEditModeChange, TSharedPtr<SRemoteControlPanel> /* Panel */, bool /* bEditModeChange */);
 
@@ -277,6 +279,20 @@ private:
 
 	/** Called to test if user is able to rename a group/exposed entity. */
 	bool CanRenameEntity() const;
+	
+	// Exposed Entities filtering. (Filters the Exposed Entities view)
+	void OnSearchTextChanged(const FText& InFilterText);
+	void OnSearchTextCommitted(const FText& InFilterText, ETextCommit::Type InCommitType);
+	void PopulateSearchStrings(const SRCPanelTreeNode& Item, TArray<FString>& OutSearchStrings) const;
+
+	/** Handler for when a filter in the filter list has changed */
+	void OnFilterChanged();
+
+	/** Loads settings from config based on the preset identifier. */
+	void LoadSettings(const FGuid& InInstanceId);
+	
+	/** Saves settings from config based on the preset identifier. */
+	void SaveSettings();
 
 private:
 	static const FName DefaultRemoteControlPanelToolBarName;
@@ -333,6 +349,12 @@ private:
 	TSharedPtr<SSearchBox> SearchBoxPtr;
 	/** Holds a shared pointer reference to the active entity that is selected. */
 	TSharedPtr<SRCPanelTreeNode> SelectedEntity;
+	/** Text filter for the search text. */
+	TSharedPtr<TTextFilter<const SRCPanelTreeNode&>> SearchTextFilter;
+	/** The filter list */
+	TSharedPtr<SRCPanelFilter> FilterPtr;
+	/** Actively serached term. */
+	TSharedPtr<FText> SearchedText;
 
 	// ~ Remote Control Logic Panels ~
 

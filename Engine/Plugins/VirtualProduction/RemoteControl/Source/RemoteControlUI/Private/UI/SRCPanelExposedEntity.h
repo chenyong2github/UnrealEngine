@@ -28,6 +28,8 @@ struct SRCPanelExposedEntity : public SRCPanelTreeNode
 	virtual FGuid GetRCId() const override final { return EntityId; }
 	/** Make the group name's text box editable. */
 	virtual void EnterRenameMode() override;
+	/** Updates the highlight text to active search term. */
+	virtual void SetHighlightText(const FText& InHightlightText = FText::GetEmpty()) override { HighlightText = InHightlightText; }
 
 protected:
 	void Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbEditMode);
@@ -50,6 +52,8 @@ protected:
 	TAttribute<bool> bEditMode;
 	/** Display name of the entity. */
 	FName CachedLabel;
+	/** Text to be highlighted while searching. */
+	TAttribute<FText> HighlightText;
 
 private:
 	/** Handles changing the object this entity is bound to upon selecting an actor in the rebinding dropdown. */

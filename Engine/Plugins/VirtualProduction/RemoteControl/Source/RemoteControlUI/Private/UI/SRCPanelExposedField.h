@@ -28,9 +28,11 @@ struct SRCPanelExposedField : public SRCPanelExposedEntity
 {
 	SLATE_BEGIN_ARGS(SRCPanelExposedField)
 		: _EditMode(true)
+		, _HighlightText()
 		, _Preset(nullptr)
 	{}
 		SLATE_ATTRIBUTE(bool, EditMode)
+		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_ATTRIBUTE(URemoteControlPreset*, Preset)
 	SLATE_END_ARGS()
 

@@ -38,6 +38,7 @@
 
 const FName FRemoteControlUIModule::EntityDetailsTabName = "RemoteControl_EntityDetails";
 const FName FRemoteControlUIModule::RemoteControlPanelTabName = "RemoteControl_RemoteControlPanel";
+const FString IRemoteControlUIModule::SettingsIniSection = TEXT("RemoteControl");
 
 static const FName DetailsTabIdentifiers_LevelEditor[] = {
 	"LevelEditorSelectionDetails",
@@ -234,7 +235,8 @@ namespace RemoteControlUIModule
 			{
 				if (ObjectWorldOuter->HasAnyFlags(RF_Transient))
 				{
-					return true;
+					// Check if it's also a remote control preset so that we don't accidentally include some other objects.
+					return  Object->IsA<URemoteControlPreset>();
 				}
 			}
 		}

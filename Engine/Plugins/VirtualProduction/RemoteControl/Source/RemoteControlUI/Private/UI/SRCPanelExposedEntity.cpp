@@ -335,6 +335,7 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget
 			.OnTextCommitted_Raw(this, &SRCPanelExposedEntity::OnLabelCommitted)
 			.OnVerifyTextChanged_Raw(this, &SRCPanelExposedEntity::OnVerifyItemLabelChanged)
 			.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); })
+			.HighlightText_Lambda([this]() { return HighlightText.Get().ToString().Len() > 3 ? HighlightText.Get() : FText::GetEmpty(); })
 		];
 
 	Args.RenameButton = SNullWidget::NullWidget;

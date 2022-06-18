@@ -47,6 +47,12 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 	ColumnSizeData.RightColumnWidth = TAttribute<float>(this, &SRCPanelExposedEntitiesList::OnGetRightColumnWidth);
 	ColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SRCPanelExposedEntitiesList::OnSetColumnWidth);
 
+	bFilterApplicationRequested = false;
+	bSearchRequested = false;
+	SearchedText = MakeShared<FText>();
+	FilterCount = 0;
+	SearchCount = 0;
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -187,6 +193,27 @@ SRCPanelExposedEntitiesList::~SRCPanelExposedEntitiesList()
 	UnregisterEvents();
 }
 
+void SRCPanelExposedEntitiesList::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if (bSearchRequested)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SRCPanelExposedEntitiesList::Tick -> Search Requested (Total Requests : %d)."), ++SearchCount);
+
+		TryRefreshingSearch(*SearchedText);
+
+		bSearchRequested = false;
+	}
+	
+	if (bFilterApplicationRequested)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SRCPanelExposedEntitiesList::Tick -> Filter Requested (Total Requests : %d)."), ++FilterCount);
+
+		ApplyFilters();
+
+		bFilterApplicationRequested = false;
+	}
+}
+
 TSharedPtr<SRCPanelTreeNode> SRCPanelExposedEntitiesList::GetSelectedGroup() const
 {
 	TArray<TSharedPtr<SRCPanelTreeNode>> SelectedNodes;
@@ -232,6 +259,13 @@ void SRCPanelExposedEntitiesList::SetSelection(const TSharedPtr<SRCPanelTreeNode
 			GroupsListView->SetSelection(SRCGroup, SelectInfo);
 		}	
 	}
+}
+
+void SRCPanelExposedEntitiesList::SetBackendFilter(const FRCFilter& InBackendFilter)
+{
+	BackendFilter = InBackendFilter;
+
+	bFilterApplicationRequested = true;
 }
 
 void SRCPanelExposedEntitiesList::OnObjectPropertyChange(UObject* InObject, FPropertyChangedEvent& InChangeEvent)
@@ -299,6 +333,56 @@ void SRCPanelExposedEntitiesList::Refresh()
 		GenerateListWidgets(DefaultGroup);
 		SetSelection(FindGroupById(DefaultGroup.Id), bForceMouseClick);
 	}
+}
+
+void SRCPanelExposedEntitiesList::TryRefreshingSearch(const FText& InSearchText, bool bApplyFilter)
+{
+	FieldEntities.Reset();
+
+	if (FieldWidgetMap.IsEmpty() || !Preset.IsValid())
+	{
+		FieldsListView->RequestListRefresh();
+
+		*SearchedText = FText::GetEmpty();
+
+		return;
+	}
+
+	*SearchedText = InSearchText;
+
+	for (TWeakPtr<FRemoteControlEntity> WeakEntity : Preset->GetExposedEntities())
+	{
+		if (const TSharedPtr<FRemoteControlEntity> Entity = WeakEntity.Pin())
+		{
+			if (TSharedPtr<SRCPanelTreeNode> SelectedGroup = GetSelectedGroup())
+			{
+				if (FRemoteControlPresetGroup* EntityGroup = Preset->Layout.FindGroupFromField(Entity->GetId()))
+				{
+					const FString& EntityLabel = Entity->GetLabel().ToString();
+
+					if (EntityLabel.Contains(*InSearchText.ToString()) &&
+						(SelectedGroup->GetRCId() == EntityGroup->Id ||
+							Preset->Layout.IsDefaultGroup(SelectedGroup->GetRCId())))
+					{
+						if (TSharedPtr<SRCPanelTreeNode>* FoundNode = FieldWidgetMap.Find(Entity->GetId()))
+						{
+							(*FoundNode)->SetHighlightText(InSearchText);
+
+							FieldEntities.Add(*FoundNode);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Only apply filter if it is requested otherwise skip this.
+	if (BackendFilter.HasAnyActiveFilters() && bApplyFilter)
+	{
+		bFilterApplicationRequested = true;
+	}
+
+	FieldsListView->RequestListRefresh();
 }
 
 void SRCPanelExposedEntitiesList::GenerateListWidgets()
@@ -442,6 +526,11 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 		if (FRemoteControlPresetGroup* RCGroup = Preset->Layout.GetGroup(Node->GetRCId()))
 		{
 			GenerateListWidgets(*RCGroup);
+			
+			if (BackendFilter.HasAnyActiveFilters())
+			{
+				bFilterApplicationRequested = true;
+			}
 		}
 	}
 	else
@@ -729,6 +818,8 @@ void SRCPanelExposedEntitiesList::OnGroupAdded(const FRemoteControlPresetGroup& 
 	GroupsListView->SetSelection(FieldGroup, ESelectInfo::OnMouseClick);
 	GroupsListView->ScrollToBottom();
 	GroupsListView->RequestListRefresh();
+
+	RequestSearchOrFilter();
 }
 
 void SRCPanelExposedEntitiesList::OnGroupDeleted(FRemoteControlPresetGroup DeletedGroup)
@@ -748,6 +839,8 @@ void SRCPanelExposedEntitiesList::OnGroupDeleted(FRemoteControlPresetGroup Delet
 		FieldGroups.RemoveAt(Index);
 		GroupsListView->RequestListRefresh();
 	}
+
+	RequestSearchOrFilter();
 }
 
 void SRCPanelExposedEntitiesList::OnGroupOrderChanged(const TArray<FGuid>& GroupIds)
@@ -780,11 +873,15 @@ void SRCPanelExposedEntitiesList::OnGroupRenamed(const FGuid& GroupId, FName New
 void SRCPanelExposedEntitiesList::OnFieldAdded(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition)
 {
 	OnEntityAdded(FieldId);
+
+	RequestSearchOrFilter();
 }
 
 void SRCPanelExposedEntitiesList::OnFieldDeleted(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition)
 {
 	OnEntityRemoved(GroupId, FieldId);
+
+	RequestSearchOrFilter();
 }
 
 void SRCPanelExposedEntitiesList::OnFieldOrderChanged(const FGuid& GroupId, const TArray<FGuid>& Fields)
@@ -825,7 +922,6 @@ void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const
 		}
 	}
 	
-
 	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakListPtr = TWeakPtr<SRCPanelExposedEntitiesList>(StaticCastSharedRef<SRCPanelExposedEntitiesList>(AsShared()))]()
 	{
 		if (TSharedPtr<SRCPanelExposedEntitiesList> ListPtr = WeakListPtr.Pin())
@@ -836,6 +932,65 @@ void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const
 	}));
 
 	OnEntityListUpdatedDelegate.ExecuteIfBound();
+
+	RequestSearchOrFilter();
+}
+
+void SRCPanelExposedEntitiesList::ApplyFilters()
+{
+	if (BackendFilter.HasAnyActiveFilters())
+	{
+		// If we are not actively searching anything then include all the entities.
+		if (SearchedText.IsValid() && SearchedText->IsEmpty())
+		{
+			for (TWeakPtr<FRemoteControlEntity> WeakEntity : Preset->GetExposedEntities())
+			{
+				if (const TSharedPtr<FRemoteControlEntity> Entity = WeakEntity.Pin())
+				{
+					if (TSharedPtr<SRCPanelTreeNode> SelectedGroup = GetSelectedGroup())
+					{
+						if (FRemoteControlPresetGroup* EntityGroup = Preset->Layout.FindGroupFromField(Entity->GetId()))
+						{
+							if (SelectedGroup->GetRCId() == EntityGroup->Id ||
+								Preset->Layout.IsDefaultGroup(SelectedGroup->GetRCId()))
+							{
+								if (TSharedPtr<SRCPanelTreeNode>* FoundNode = FieldWidgetMap.Find(Entity->GetId()))
+								{
+									if (BackendFilter.DoesPassFilters(FoundNode->ToSharedRef()))
+									{
+										FieldEntities.AddUnique(*FoundNode);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			// Caution : Avoid filter during this phase of search as it would cause an endless loop between search and filters.
+			constexpr bool bApplyFilter = false;
+
+			TryRefreshingSearch(*SearchedText, bApplyFilter);
+		}
+	
+		// Apply the filter (always operate on the active list of entities).
+		FieldEntities.RemoveAll([&](TSharedPtr<const SRCPanelTreeNode> InEntity) { return !BackendFilter.DoesPassFilters(InEntity.ToSharedRef()); });
+
+		FieldsListView->RequestListRefresh();
+	}
+	else // Do a one time refresh in case all filters are cleared.
+	{
+		Refresh();
+	}
+}
+
+void SRCPanelExposedEntitiesList::RequestSearchOrFilter()
+{
+	bSearchRequested = SearchedText.IsValid() && !SearchedText->IsEmpty();
+
+	bFilterApplicationRequested = BackendFilter.HasAnyActiveFilters();
 }
 
 bool FGroupDragEvent::IsDraggedFromSameGroup() const
