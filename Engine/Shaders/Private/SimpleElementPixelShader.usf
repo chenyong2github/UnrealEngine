@@ -390,6 +390,8 @@ void CubemapTextureProperties(
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	BaseColor = TextureCubeArraySampleLevel(CubeTexture, CubeTextureSampler, Direction.xzy, CurrentSliceIndex, MipLevel);
+#else
+	BaseColor = 0;
 #endif
 
 #else //TEXTURECUBE_ARRAY
