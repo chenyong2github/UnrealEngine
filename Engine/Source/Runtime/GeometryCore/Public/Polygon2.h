@@ -459,6 +459,14 @@ public:
 		}
 		return true;
 	}
+	
+	/**
+	 * Clip polygon to the given bounds. Note that if the polygon is not convex, it may have overlapping edges at the bounds.
+	 */
+	void ClipConvex(const TAxisAlignedBox2<T>& Bounds)
+	{
+		CurveUtil::ClipConvexToBounds<T, TVector2<T>, true, 2>(Vertices, Bounds.Min, Bounds.Max);
+	}
 
 
 	/**
