@@ -388,10 +388,11 @@ FAGXTextureDesc::FAGXTextureDesc(const FRHITextureDesc& InDesc)
 
 	if (InDesc.IsTextureCube())
 	{
-		Desc = MakeUnique<ReferencedTextureDescriptorType>(
+		Desc = new FMTLTextureDescriptor(
 				[MTLTextureDescriptor textureCubeDescriptorWithPixelFormat:PixelFormat
 																	  size:InDesc.Extent.X
-																 mipmapped:(InDesc.NumMips > 1)]);
+																 mipmapped:(InDesc.NumMips > 1)],
+				/* bRetain = */ true);
 	}
 	else if (InDesc.IsTexture3D())
 	{
@@ -405,22 +406,21 @@ FAGXTextureDesc::FAGXTextureDesc(const FRHITextureDesc& InDesc)
 		TextureDescriptor.mipmapLevelCount = 1;
 		TextureDescriptor.sampleCount      = 1;
 
-		Desc = MakeUnique<ReferencedTextureDescriptorType>(TextureDescriptor);
-
-		[TextureDescriptor release];
+		Desc = new FMTLTextureDescriptor(TextureDescriptor, /* bRetain = */ false);
 	}
 	else
 	{
-		Desc = MakeUnique<ReferencedTextureDescriptorType>(
+		Desc = new FMTLTextureDescriptor(
 				[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:PixelFormat
 																   width:InDesc.Extent.X
 																  height:InDesc.Extent.Y
-															   mipmapped:(InDesc.NumMips > 1)]);
-		[Desc.Get()->Object setArrayLength:InDesc.ArraySize];
+															   mipmapped:(InDesc.NumMips > 1)],
+				/* bRetain = */ true);
+		[Desc->Get() setArrayLength:InDesc.ArraySize];
 	}
 	check(Desc.IsValid());
 
-	MTLTextureDescriptor* TextureDescriptor = Desc.Get()->Object;
+	MTLTextureDescriptor* TextureDescriptor = Desc->Get();
 
 	// flesh out the descriptor
 	if (InDesc.IsTextureArray())
@@ -570,7 +570,7 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 		return;
 	}
 
-	MTLTextureDescriptor* TextureDescriptor = CreateDesc.Desc.Get()->Object;
+	MTLTextureDescriptor* TextureDescriptor = CreateDesc.Desc->Get();
 
 	FResourceBulkDataInterface* BulkData = CreateDesc.BulkData;
 
@@ -587,7 +587,7 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 				CFRetain(ImageSurfaceRef);
 				
 #if !COREVIDEO_SUPPORTS_METAL
-				Texture = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTexture(CreateDesc.Desc, CVPixelBufferGetIOSurface((CVPixelBufferRef)ImageSurfaceRef), 0));
+				Texture = FAGXTexture([GMtlDevice newTextureWithDescriptor:CreateDesc.Desc->Get() iosurface:CVPixelBufferGetIOSurface((CVPixelBufferRef)ImageSurfaceRef) plane:0], ns::Ownership::Assign);
 #else
 				Texture = CVMetalTextureGetTexture((CVMetalTextureRef)ImageSurfaceRef);
 #endif
@@ -607,9 +607,9 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 				MTLTextureDescriptor* DescCopy = [TextureDescriptor copy];
 				DescCopy.resourceOptions = ((DescCopy.resourceOptions & ~MTLResourceStorageModeMask) | MTLResourceStorageModeManaged);
 
-				Texture = mtlpp::Texture([GMtlDevice newTextureWithDescriptor:DescCopy
-																   iosurface:(IOSurfaceRef)ImageSurfaceRef
-																	   plane:0], nullptr, ns::Ownership::Assign);
+				Texture = FAGXTexture([GMtlDevice newTextureWithDescriptor:DescCopy
+																 iosurface:(IOSurfaceRef)ImageSurfaceRef
+																	 plane:0], ns::Ownership::Assign);
 				
 				METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([DescCopy description]));
 

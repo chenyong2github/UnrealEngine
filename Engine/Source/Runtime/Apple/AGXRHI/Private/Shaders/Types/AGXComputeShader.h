@@ -15,11 +15,11 @@
 class FAGXComputeShader : public TAGXBaseShader<FRHIComputeShader, SF_Compute>
 {
 public:
-	FAGXComputeShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary = nil);
+	FAGXComputeShader(TArrayView<const uint8> InCode, const TRefCountPtr<FMTLLibrary>& InLibrary);
 	virtual ~FAGXComputeShader();
 
 	FAGXShaderPipeline* GetPipeline();
-	mtlpp::Function GetFunction();
+	id<MTLFunction> GetFunction();
 
 	// thread group counts
 	int32 NumThreadsX;

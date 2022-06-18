@@ -16,7 +16,7 @@ class FAGXPixelShader : public TAGXBaseShader<FRHIPixelShader, SF_Pixel>
 {
 public:
 	FAGXPixelShader(TArrayView<const uint8> InCode);
-	FAGXPixelShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary);
+	FAGXPixelShader(TArrayView<const uint8> InCode, const TRefCountPtr<FMTLLibrary>& InLibrary);
 
-	mtlpp::Function GetFunction();
+	id<MTLFunction> GetFunction();
 };

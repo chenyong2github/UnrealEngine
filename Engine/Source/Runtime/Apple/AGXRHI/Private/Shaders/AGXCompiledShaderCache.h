@@ -10,7 +10,6 @@
 
 struct FAGXCompiledShaderCache
 {
-public:
 	FAGXCompiledShaderCache()
 	{
 		// VOID
@@ -18,37 +17,38 @@ public:
 
 	~FAGXCompiledShaderCache()
 	{
-		// VOID
+		for (auto& Entry : Cache)
+		{
+			[Entry.Value release];
+		}
 	}
 
-	mtlpp::Function FindRef(FAGXCompiledShaderKey const& Key)
+	id<MTLFunction> FindRef(const FAGXCompiledShaderKey& Key)
 	{
 		FRWScopeLock ScopedLock(Lock, SLT_ReadOnly);
-		mtlpp::Function Func = Cache.FindRef(Key);
-		return Func;
+		return Cache.FindRef(Key);
 	}
 
-	mtlpp::Library FindLibrary(mtlpp::Function const& Function)
+	TRefCountPtr<FMTLLibrary> FindLibrary(id<MTLFunction> Function)
 	{
 		FRWScopeLock ScopedLock(Lock, SLT_ReadOnly);
-		mtlpp::Library Lib = LibCache.FindRef(Function.GetPtr());
-		return Lib;
+		return LibCache.FindRef(Function);
 	}
 
-	void Add(FAGXCompiledShaderKey Key, mtlpp::Library const& Lib, mtlpp::Function const& Function)
+	void Add(FAGXCompiledShaderKey Key, const TRefCountPtr<FMTLLibrary>& Library, id<MTLFunction> Function)
 	{
 		FRWScopeLock ScopedLock(Lock, SLT_Write);
 		if (Cache.FindRef(Key) == nil)
 		{
 			Cache.Add(Key, Function);
-			LibCache.Add(Function.GetPtr(), Lib);
+			LibCache.Add(Function, Library);
 		}
 	}
 
 private:
 	FRWLock Lock;
-	TMap<FAGXCompiledShaderKey, mtlpp::Function> Cache;
-	TMap<id<MTLFunction>, mtlpp::Library> LibCache;
+	TMap<FAGXCompiledShaderKey, id<MTLFunction>> Cache;
+	TMap<id<MTLFunction>, TRefCountPtr<FMTLLibrary>> LibCache;
 };
 
 extern FAGXCompiledShaderCache& GetAGXCompiledShaderCache();

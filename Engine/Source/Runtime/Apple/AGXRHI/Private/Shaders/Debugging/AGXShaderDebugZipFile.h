@@ -33,7 +33,7 @@ public:
 	FAGXShaderDebugZipFile(FString LibPath);
 	~FAGXShaderDebugZipFile();
 
-	ns::String GetShaderCode(uint32 ShaderSrcLen, uint32 ShaderSrcCRC);
+	NSString* GetShaderCode(uint32 ShaderSrcLen, uint32 ShaderSrcCRC);
 
 private:
 	FCriticalSection Mutex;

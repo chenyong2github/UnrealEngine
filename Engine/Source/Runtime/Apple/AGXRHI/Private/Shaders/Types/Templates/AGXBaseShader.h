@@ -55,7 +55,7 @@ public:
 		this->Destroy();
 	}
 
-	void Init(TArrayView<const uint8> InCode, FMetalCodeHeader& Header, mtlpp::Library InLibrary = nil);
+	void Init(TArrayView<const uint8> InCode, FMetalCodeHeader& Header, const TRefCountPtr<FMTLLibrary>& InLibrary);
 	void Destroy();
 
 	/**
@@ -90,14 +90,14 @@ public:
 	uint32 ConstantValueHash = 0;
 
 protected:
-	mtlpp::Function GetCompiledFunction(bool const bAsync = false);
+	id<MTLFunction> GetCompiledFunction(bool bAsync = false);
 
 	// this is the compiler shader
-	mtlpp::Function Function = nil;
+	id<MTLFunction> Function = nil;
 
 private:
 	// This is the MTLLibrary for the shader so we can dynamically refine the MTLFunction
-	mtlpp::Library Library = nil;
+	TRefCountPtr<FMTLLibrary> Library;
 
 	/** The debuggable text source */
 	NSString* GlslCodeNSString = nil;
@@ -120,7 +120,7 @@ private:
 
 
 template<typename BaseResourceType, int32 ShaderType>
-void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> InShaderCode, FMetalCodeHeader& Header, mtlpp::Library InLibrary)
+void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> InShaderCode, FMetalCodeHeader& Header, const TRefCountPtr<FMTLLibrary>& InLibrary)
 {
 	FShaderCodeReader ShaderCode(InShaderCode);
 
@@ -152,7 +152,7 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 	const ANSICHAR* SourceCode = (ANSICHAR*)InShaderCode.GetData() + CodeOffset;
 
 	// Only archived shaders should be in here.
-	UE_CLOG(InLibrary && !(Header.CompileFlags & (1 << CFLAG_Archive)), LogAGX, Warning, TEXT("Shader being loaded wasn't marked for archiving but a MTLLibrary was provided - this is unsupported."));
+	UE_CLOG(InLibrary.IsValid() && InLibrary->Get() != nil && !(Header.CompileFlags & (1 << CFLAG_Archive)), LogAGX, Warning, TEXT("Shader being loaded wasn't marked for archiving but a MTLLibrary was provided - this is unsupported."));
 
 	if (!OfflineCompiledFlag)
 	{
@@ -180,7 +180,7 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 #if !UE_BUILD_SHIPPING
 		else if(bForceTextShaders)
 		{
-			GlslCodeNSString = [FAGXShaderDebugCache::Get().GetShaderCode(SourceLen, SourceCRC).GetPtr() retain];
+			GlslCodeNSString = [FAGXShaderDebugCache::Get().GetShaderCode(SourceLen, SourceCRC) retain];
 		}
 #endif
 		if (bForceTextShaders && CodeSize && CompressedSource.Num())
@@ -208,7 +208,7 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 	FAGXCompiledShaderKey Key(Header.SourceLen, Header.SourceCRC, FunctionConstantHash);
 
 	Function = GetAGXCompiledShaderCache().FindRef(Key);
-	if (!Library && Function)
+	if (!Library.IsValid() && Function)
 	{
 		Library = GetAGXCompiledShaderCache().FindLibrary(Function);
 	}
@@ -218,11 +218,11 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 	}
 
 	Bindings = Header.Bindings;
-	if (bNeedsCompiling || !Library)
+	if (bNeedsCompiling || !Library.IsValid())
 	{
 		if (bOfflineCompile METAL_DEBUG_OPTION(&& !(bHasShaderSource && bForceTextShaders)))
 		{
-			if (InLibrary)
+			if (InLibrary.IsValid())
 			{
 				Library = InLibrary;
 			}
@@ -235,18 +235,21 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 
 				// allow GCD to copy the data into its own buffer
 				//		dispatch_data_t GCDBuffer = dispatch_data_create(InShaderCode.GetTypedData() + CodeOffset, ShaderCode.GetActualShaderCodeSize() - CodeOffset, nil, DISPATCH_DATA_DESTRUCTOR_DEFAULT);
-				ns::AutoReleasedError AError;
+				NSError* Error = nil;
 				void* Buffer = FMemory::Malloc( BufferSize );
 				FMemory::Memcpy( Buffer, InShaderCode.GetData() + CodeOffset, BufferSize );
 				dispatch_data_t GCDBuffer = dispatch_data_create(Buffer, BufferSize, dispatch_get_main_queue(), ^(void) { FMemory::Free(Buffer); } );
 
 				// load up the already compiled shader
-				Library = GMtlppDevice.NewLibrary(GCDBuffer, &AError);
+				id<MTLLibrary> NewLibrary = [GMtlDevice newLibraryWithData:GCDBuffer error:&Error];
 				dispatch_release(GCDBuffer);
-
-				if (Library == nil)
+				if (NewLibrary == nil)
 				{
-					NSLog(@"Failed to create library: %@", ns::Error(AError).GetPtr());
+					UE_LOG(LogAGX, Error, TEXT("Failed to create library: %s"), *FString(Error.description));
+				}
+				else
+				{
+					Library = new FMTLLibrary(NewLibrary, /* bRetain = */ false);
 				}
 			}
 		}
@@ -309,7 +312,7 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 					break;
 
 				default:
-					UE_LOG(LogRHI, Fatal, TEXT("Failed to create shader with unknown version %d: %s"), Header.Version, *FString(NewShaderString));
+					UE_LOG(LogAGX, Fatal, TEXT("Failed to create shader with unknown version %d: %s"), Header.Version, *FString(NewShaderString));
 					MetalVersion = MTLLanguageVersion2_2;
 					break;
 			}
@@ -320,17 +323,17 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 			id<MTLLibrary> NewLibrary = [GMtlDevice newLibraryWithSource:NewShaderString options:CompileOptions error:&Error];
 			if (NewLibrary == nil)
 			{
-				UE_LOG(LogRHI, Error, TEXT("*********** Error\n%s"), *FString(NewShaderString));
-				UE_LOG(LogRHI, Fatal, TEXT("Failed to create shader: %s"), *FString([Error description]));
+				UE_LOG(LogAGX, Error, TEXT("*********** Error\n%s"), *FString(NewShaderString));
+				UE_LOG(LogAGX, Fatal, TEXT("Failed to create shader: %s"), *FString(Error.description));
 			}
 			else if (Error != nil)
 			{
 				// Warning...
-				UE_LOG(LogRHI, Warning, TEXT("*********** Warning\n%s"), *FString(NewShaderString));
-				UE_LOG(LogRHI, Warning, TEXT("Created shader with warnings: %s"), *FString([Error description]));
+				UE_LOG(LogAGX, Warning, TEXT("*********** Warning\n%s"), *FString(NewShaderString));
+				UE_LOG(LogAGX, Warning, TEXT("Created shader with warnings: %s"), *FString(Error.description));
 			}
 
-			Library = mtlpp::Library(NewLibrary, nullptr, ns::Ownership::Assign);
+			Library = new FMTLLibrary(NewLibrary, /* bRetain = */ false);
 
 			[CompileOptions release];
 
@@ -385,67 +388,63 @@ uint32 TAGXBaseShader<BaseResourceType, ShaderType>::GetRefCount() const
 }
 
 template<typename BaseResourceType, int32 ShaderType>
-mtlpp::Function TAGXBaseShader<BaseResourceType, ShaderType>::GetCompiledFunction(bool const bAsync)
+id<MTLFunction> TAGXBaseShader<BaseResourceType, ShaderType>::GetCompiledFunction(bool bAsync)
 {
-	mtlpp::Function Func = Function;
-
-	if (!Func)
+	if (Function == nil)
 	{
 		// Find the existing compiled shader in the cache.
-		uint32 FunctionConstantHash = ConstantValueHash;
-		FAGXCompiledShaderKey Key(SourceLen, SourceCRC, FunctionConstantHash);
-		Func = Function = GetAGXCompiledShaderCache().FindRef(Key);
+		FAGXCompiledShaderKey Key(SourceLen, SourceCRC, ConstantValueHash);
+		Function = GetAGXCompiledShaderCache().FindRef(Key);
 
-		if (!Func)
+		if (Function == nil)
 		{
 			// Get the function from the library - the function name is "Main" followed by the CRC32 of the source MTLSL as 0-padded hex.
 			// This ensures that even if we move to a unified library that the function names will be unique - duplicates will only have one entry in the library.
 			NSString* Name = [NSString stringWithFormat:@"Main_%0.8x_%0.8x", SourceLen, SourceCRC];
-			mtlpp::FunctionConstantValues ConstantValues(nil);
+			METAL_GPUPROFILE(FString NameString(Name));
+
+			MTLFunctionConstantValues* ConstantValues = nil;
 			if (bHasFunctionConstants)
 			{
-				ConstantValues = mtlpp::FunctionConstantValues();
+				ConstantValues = [[MTLFunctionConstantValues alloc] init];
 
 				if (bDeviceFunctionConstants)
 				{
 					// Index 33 is the device vendor id constant
-					ConstantValues.SetConstantValue(&GRHIVendorId, mtlpp::DataType::UInt, @"GAGXDeviceManufacturer");
+					[ConstantValues setConstantValue:&GRHIVendorId type:MTLDataTypeUInt withName:@"GAGXDeviceManufacturer"];
 				}
 			}
 
 			if (!bHasFunctionConstants || !bAsync)
 			{
-				METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewFunction: %s"), *FString(Name))));
+				METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewFunction: %s"), *NameString)));
 				if (!bHasFunctionConstants)
 				{
-					Function = Library.NewFunction(Name);
+					Function = [Library->Get() newFunctionWithName:Name];
 				}
 				else
 				{
-					ns::AutoReleasedError AError;
-					Function = Library.NewFunction(Name, ConstantValues, &AError);
-					ns::Error Error = AError;
-					UE_CLOG(Function == nil, LogAGX, Error, TEXT("Failed to create function: %s"), *FString(Error.GetPtr().description));
+					NSError* Error = nil;
+					Function = [Library->Get() newFunctionWithName:Name constantValues:ConstantValues error:&Error];
+					UE_CLOG(Function == nil, LogAGX, Error, TEXT("Failed to create function: %s"), *FString(Error.description));
 					UE_CLOG(Function == nil, LogAGX, Fatal, TEXT("*********** Error\n%s"), *FString(GetSourceCode()));
 				}
 
 				check(Function);
 				GetAGXCompiledShaderCache().Add(Key, Library, Function);
-
-				Func = Function;
 			}
 			else
 			{
-				METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewFunctionAsync: %s"), *FString(Name))));
+				METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewFunctionAsync: %s"), *NameString)));
 				METAL_GPUPROFILE(uint64 CPUStart = CPUStat.Stats ? CPUStat.Stats->CPUStartTime : 0);
 #if ENABLE_METAL_GPUPROFILE
-				ns::String nsName(Name);
-				Library.NewFunction(Name, ConstantValues, [Key, this, CPUStart, nsName](mtlpp::Function const& NewFunction, ns::Error const& Error){
+				TFunction<void (id<MTLFunction>, NSError*)> FunctionCompletionHandler = [Key, this, CPUStart, NameString](id<MTLFunction> NewFunction, NSError* OptionalError)
 #else
-				Library.NewFunction(Name, ConstantValues, [Key, this](mtlpp::Function const& NewFunction, ns::Error const& Error){
+				TFunction<void (id<MTLFunction>, NSError*)> FunctionCompletionHandler = [Key, this](id<MTLFunction> NewFunction, NSError* OptionalError)
 #endif
-					METAL_GPUPROFILE(FAGXScopedCPUStats CompletionStat(FString::Printf(TEXT("NewFunctionCompletion: %s"), *FString(nsName.GetPtr()))));
-					UE_CLOG(NewFunction == nil, LogAGX, Error, TEXT("Failed to create function: %s"), *FString(Error.GetPtr().description));
+				{
+					METAL_GPUPROFILE(FAGXScopedCPUStats CompletionStat(FString::Printf(TEXT("NewFunctionCompletion: %s"), *NameString)));
+					UE_CLOG(NewFunction == nil, LogAGX, Error, TEXT("Failed to create function: %s"), *FString(OptionalError.description));
 					UE_CLOG(NewFunction == nil, LogAGX, Fatal, TEXT("*********** Error\n%s"), *FString(GetSourceCode()));
 
 					GetAGXCompiledShaderCache().Add(Key, Library, NewFunction);
@@ -455,13 +454,18 @@ mtlpp::Function TAGXBaseShader<BaseResourceType, ShaderType>::GetCompiledFunctio
 						CompletionStat.Stats->CPUStartTime = CPUStart;
 					}
 #endif
-				});
+				};
+
+				[Library->Get() newFunctionWithName:Name constantValues:ConstantValues completionHandler:^(id<MTLFunction> NewFunction, NSError* OptionalError)
+				{
+					FunctionCompletionHandler(NewFunction, OptionalError);
+				}];
 
 				return nil;
 			}
 		}
 	}
 
-	check(Func);
-	return Func;
+	check(Function);
+	return Function;
 }

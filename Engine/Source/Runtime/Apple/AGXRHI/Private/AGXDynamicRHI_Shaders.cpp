@@ -36,7 +36,8 @@ FGeometryShaderRHIRef FAGXDynamicRHI::RHICreateGeometryShader(TArrayView<const u
 	@autoreleasepool {
 		FAGXGeometryShader* Shader = new FAGXGeometryShader;
 		FMetalCodeHeader Header;
-		Shader->Init(Code, Header);
+		TRefCountPtr<FMTLLibrary> Library;
+		Shader->Init(Code, Header, Library);
 		return Shader;
 	}
 }
@@ -44,7 +45,8 @@ FGeometryShaderRHIRef FAGXDynamicRHI::RHICreateGeometryShader(TArrayView<const u
 FComputeShaderRHIRef FAGXDynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	@autoreleasepool {
-		return new FAGXComputeShader(Code);
+		TRefCountPtr<FMTLLibrary> Library;
+		return new FAGXComputeShader(Code, Library);
 	}
 }
 
@@ -97,7 +99,7 @@ FRHIShaderLibraryRef FAGXDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Plat
 			{
 				check(((SerializedShaders.GetNumShaders() + Header.NumShadersPerLibrary - 1) / Header.NumShadersPerLibrary) == Header.NumLibraries);
 
-				TArray<mtlpp::Library> Libraries;
+				TArray<TRefCountPtr<FMTLLibrary>> Libraries;
 				Libraries.Empty(Header.NumLibraries);
 
 				for (uint32 i = 0; i < Header.NumLibraries; i++)
@@ -107,10 +109,10 @@ FRHIShaderLibraryRef FAGXDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Plat
 
 					METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewLibraryFile: %s"), *MetalLibraryFilePath)));
 					NSError* Error;
-					mtlpp::Library Library([GMtlDevice newLibraryWithFile:MetalLibraryFilePath.GetNSString() error:&Error], nullptr, ns::Ownership::Assign);
+					id<MTLLibrary> Library = [GMtlDevice newLibraryWithFile:MetalLibraryFilePath.GetNSString() error:&Error];
 					if (Library != nil)
 					{
-						Libraries.Add(Library);
+						Libraries.Add(new FMTLLibrary(Library, /* bRetain = */ false));
 					}
 					else
 					{

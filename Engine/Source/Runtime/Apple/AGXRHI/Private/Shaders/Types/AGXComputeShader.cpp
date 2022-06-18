@@ -15,7 +15,7 @@
 #pragma mark - AGX RHI Compute Shader Class
 
 
-FAGXComputeShader::FAGXComputeShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary)
+FAGXComputeShader::FAGXComputeShader(TArrayView<const uint8> InCode, const TRefCountPtr<FMTLLibrary>& InLibrary)
 	: NumThreadsX(0)
 	, NumThreadsY(0)
 	, NumThreadsZ(0)
@@ -39,7 +39,7 @@ FAGXShaderPipeline* FAGXComputeShader::GetPipeline()
 {
 	if (!Pipeline)
 	{
-		id<MTLFunction> Func = GetCompiledFunction().GetPtr();
+		id<MTLFunction> Func = GetCompiledFunction();
 		check(Func != nil);
 
 		NSError* Error = nil;
@@ -113,7 +113,7 @@ FAGXShaderPipeline* FAGXComputeShader::GetPipeline()
 	return Pipeline;
 }
 
-mtlpp::Function FAGXComputeShader::GetFunction()
+id<MTLFunction> FAGXComputeShader::GetFunction()
 {
 	return GetCompiledFunction();
 }

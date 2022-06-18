@@ -5,11 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
-
-THIRD_PARTY_INCLUDES_START
-#include "mtlpp.hpp"
-THIRD_PARTY_INCLUDES_END
-
+#include "AGXRHIPrivate.h"
 #include "AGXCompiledShaderKey.h"
 #include "AGXCompiledShaderCache.h"
 

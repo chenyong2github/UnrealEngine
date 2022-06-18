@@ -17,7 +17,7 @@ struct FAGXShaderDebugCache
 	}
 	
 	class FAGXShaderDebugZipFile* GetDebugFile(FString Path);
-	ns::String GetShaderCode(uint32 ShaderSrcLen, uint32 ShaderSrcCRC);
+	NSString* GetShaderCode(uint32 ShaderSrcLen, uint32 ShaderSrcCRC);
 	
 	FCriticalSection Mutex;
 	TMap<FString, class FAGXShaderDebugZipFile*> DebugFiles;

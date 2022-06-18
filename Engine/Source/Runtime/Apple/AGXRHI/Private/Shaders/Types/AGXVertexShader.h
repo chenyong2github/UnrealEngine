@@ -16,7 +16,7 @@ class FAGXVertexShader : public TAGXBaseShader<FRHIVertexShader, SF_Vertex>
 {
 public:
 	FAGXVertexShader(TArrayView<const uint8> InCode);
-	FAGXVertexShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary);
+	FAGXVertexShader(TArrayView<const uint8> InCode, const TRefCountPtr<FMTLLibrary>& InLibrary);
 
-	mtlpp::Function GetFunction();
+	id<MTLFunction> GetFunction();
 };

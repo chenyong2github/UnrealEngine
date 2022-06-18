@@ -169,8 +169,6 @@ static EColorWriteMask TranslateWriteMask(MTLColorWriteMask WriteMask)
 template <typename InitializerType>
 class FAGXStateObjectCache
 {
-	using RetainedObjectType = FObjCWrapperRetained< id >;
-
 public:
 	FAGXStateObjectCache()
 	{
@@ -187,14 +185,14 @@ public:
 			Mutex.ReadLock();
 		}
 		
-		TUniquePtr<RetainedObjectType>* State = Cache.Find(Init);
+		const TRefCountPtr<FNSObject>* State = Cache.Find(Init);
 
 		if (IsRunningRHIInSeparateThread())
 		{
 			Mutex.ReadUnlock();
 		}
 		
-		return State ? State->Get()->Object : nil;
+		return State ? State->GetReference()->Get() : nil;
 	}
 	
 	void Add(InitializerType Init, id State)
@@ -204,7 +202,7 @@ public:
 			Mutex.WriteLock();
 		}
 		
-		Cache.Add(Init, MakeUnique<RetainedObjectType>(State));
+		Cache.Add(Init, new FNSObject(State, /* bRetain = */ true));
 		
 		if (IsRunningRHIInSeparateThread())
 		{
@@ -213,7 +211,7 @@ public:
 	}
 	
 private:
-	TMap<InitializerType, TUniquePtr<RetainedObjectType>> Cache;
+	TMap<InitializerType, TRefCountPtr<FNSObject>> Cache;
 	FRWLock Mutex;
 };
 

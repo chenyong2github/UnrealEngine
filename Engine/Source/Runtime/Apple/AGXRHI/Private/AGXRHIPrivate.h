@@ -129,34 +129,43 @@ enum EMTLTextureType
 #define METAL_SUPPORTS_TILE_SHADERS 1
 
 template<typename ReferenceType>
-struct FObjCWrapperRetained
+class FObjCWrapper : public FThreadSafeRefCountedObject
 {
-	using Type = ReferenceType;
+public:
+	FObjCWrapper() = delete;
+	FObjCWrapper(const FObjCWrapper&) = delete;
+	FObjCWrapper(FObjCWrapper&&) = delete;
 
-	FObjCWrapperRetained() = delete;
-	FObjCWrapperRetained(const FObjCWrapperRetained&) = delete;
-	FObjCWrapperRetained(FObjCWrapperRetained&&) = delete;
-
-	explicit FObjCWrapperRetained(Type InObject = nil)
-		: Object([InObject retain])
+	explicit FObjCWrapper(ReferenceType InObject = nil, bool bRetain = true)
+		: FThreadSafeRefCountedObject()
+		, Object(bRetain ? [InObject retain] : InObject)
 	{
 	}
 
-	~FObjCWrapperRetained()
+	~FObjCWrapper()
 	{
 		[Object release];
 	}
 
-	Type Object;
+	ReferenceType Get() const
+	{
+		return Object;
+	}
+
+private:
+	ReferenceType Object;
 };
+
+typedef FObjCWrapper<id>                    FNSObject;
+typedef FObjCWrapper<id<MTLCaptureScope>>   FMTLCaptureScope;
+typedef FObjCWrapper<id<MTLLibrary>>        FMTLLibrary;
+typedef FObjCWrapper<MTLTextureDescriptor*> FMTLTextureDescriptor;
 
 struct FAGXTextureDesc
 {
-	using ReferencedTextureDescriptorType = FObjCWrapperRetained<MTLTextureDescriptor*>;
-
 	FAGXTextureDesc(const FRHITextureDesc& InDesc);
 	
-	TUniquePtr<ReferencedTextureDescriptorType> Desc;
+	TRefCountPtr<FMTLTextureDescriptor> Desc;
 	MTLPixelFormat PixelFormat = MTLPixelFormatInvalid;
 	bool bMemoryless = false;
 	bool bIsRenderTarget = false;
@@ -171,7 +180,7 @@ struct FAGXTextureCreateDesc : public FRHITextureCreateDesc, public FAGXTextureD
 	{
 		// @todo: texture type unification - Metal can override NumSamples based on command line options.
 		// We should instead require the renderer to do this.
-		NumSamples = [Desc.Get()->Object sampleCount];
+		NumSamples = [Desc->Get() sampleCount];
 	}
 };
 

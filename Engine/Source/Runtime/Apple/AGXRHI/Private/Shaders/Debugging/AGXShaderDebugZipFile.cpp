@@ -6,11 +6,6 @@
 
 #include "CoreMinimal.h"
 
-THIRD_PARTY_INCLUDES_START
-#include "mtlpp.hpp"
-THIRD_PARTY_INCLUDES_END
-
-
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
@@ -222,9 +217,9 @@ FAGXShaderDebugZipFile::~FAGXShaderDebugZipFile()
 	}
 }
 
-ns::String FAGXShaderDebugZipFile::GetShaderCode(uint32 ShaderSrcLen, uint32 ShaderSrcCRC)
+NSString* FAGXShaderDebugZipFile::GetShaderCode(uint32 ShaderSrcLen, uint32 ShaderSrcCRC)
 {
-	ns::String Source;
+	NSString* Source = nil;
 	FScopeLock Lock(&Mutex);
 	FString Name = FString::Printf(TEXT("%u_%u.metal"), ShaderSrcLen, ShaderSrcCRC);
 	for (auto const& Entry : Files)

@@ -869,8 +869,8 @@ static FAGXShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FAGXGraphic
     FAGXVertexShader* VertexShader = (FAGXVertexShader*)Init.BoundShaderState.VertexShaderRHI;
     FAGXPixelShader* PixelShader = (FAGXPixelShader*)Init.BoundShaderState.PixelShaderRHI;
     
- 	id<MTLFunction> vertexFunction = VertexShader->GetFunction().GetPtr();
-    id<MTLFunction> fragmentFunction = PixelShader ? PixelShader->GetFunction().GetPtr() : nil;
+ 	id<MTLFunction> vertexFunction = VertexShader->GetFunction();
+    id<MTLFunction> fragmentFunction = PixelShader ? PixelShader->GetFunction() : nil;
 
     FAGXShaderPipeline* Pipeline = nil;
     if (vertexFunction && ((PixelShader != nullptr) == (fragmentFunction != nil)))

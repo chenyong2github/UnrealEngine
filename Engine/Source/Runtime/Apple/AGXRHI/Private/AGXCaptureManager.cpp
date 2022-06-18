@@ -15,16 +15,13 @@ FAGXCaptureManager::FAGXCaptureManager(FAGXCommandQueue& InQueue)
 	CaptureManager.defaultCaptureScope = DefaultCaptureScope;
 	
 	FAGXCaptureScope DefaultScope;
-	DefaultScope.CaptureScope = MakeUnique<RetainedCaptureScopeType>(DefaultCaptureScope);
+	DefaultScope.CaptureScope = new FMTLCaptureScope(DefaultCaptureScope, /* bRetain = */ false);
 	DefaultScope.Type = EAGXCaptureTypePresent;
 	DefaultScope.StepCount = 1;
 	DefaultScope.LastTrigger = 0;
 	ActiveScopes.Add(DefaultScope);
 	
 	[DefaultCaptureScope beginScope];
-	
-	// The local reference is no longer required (object lifetime is managed by DefaultScope).
-	[DefaultCaptureScope release];
 	
 	uint32 PresentStepCounts[] = {2, 5, 10, 15, 30, 60, 90, 120};
 	for (uint32 i = 0; i < (sizeof(PresentStepCounts) / sizeof(uint32)); i++)
@@ -33,16 +30,13 @@ FAGXCaptureManager::FAGXCaptureManager(FAGXCommandQueue& InQueue)
 		CaptureScope.label = [NSString stringWithFormat:@"%u Frames", PresentStepCounts[i]];
 	
 		FAGXCaptureScope Scope;
-		Scope.CaptureScope = MakeUnique<RetainedCaptureScopeType>(CaptureScope);
+		Scope.CaptureScope = new FMTLCaptureScope(CaptureScope, /* bRetain = */ false);
 		Scope.Type = EAGXCaptureTypePresent;
 		Scope.StepCount = PresentStepCounts[i];
 		Scope.LastTrigger = 0;
 		ActiveScopes.Add(Scope);
 	
 		[CaptureScope beginScope];
-	
-		// The local reference is no longer required (object lifetime is managed by Scope).
-		[CaptureScope release];
 	}
 }
 
@@ -66,8 +60,8 @@ void FAGXCaptureManager::PresentFrame(uint32 FrameNumber)
 		
 		if (Diff >= Scope.StepCount)
 		{
-			[Scope.CaptureScope.Get()->Object endScope];
-			[Scope.CaptureScope.Get()->Object beginScope];
+			[Scope.CaptureScope->Get() endScope];
+			[Scope.CaptureScope->Get() beginScope];
 			Scope.LastTrigger = FrameNumber;
 		}
 	}

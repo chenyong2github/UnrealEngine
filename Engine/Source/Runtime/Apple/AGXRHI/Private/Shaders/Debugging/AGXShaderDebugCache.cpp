@@ -6,10 +6,6 @@
 
 #include "CoreMinimal.h"
 
-THIRD_PARTY_INCLUDES_START
-#include "mtlpp.hpp"
-THIRD_PARTY_INCLUDES_END
-
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
@@ -32,19 +28,18 @@ FAGXShaderDebugZipFile* FAGXShaderDebugCache::GetDebugFile(FString Path)
 	return Ref;
 }
 
-ns::String FAGXShaderDebugCache::GetShaderCode(uint32 ShaderSrcLen, uint32 ShaderSrcCRC)
+NSString* FAGXShaderDebugCache::GetShaderCode(uint32 ShaderSrcLen, uint32 ShaderSrcCRC)
 {
-	ns::String Code;
 	FScopeLock Lock(&Mutex);
 	for (auto const& Ref : DebugFiles)
 	{
-		Code = Ref.Value->GetShaderCode(ShaderSrcLen, ShaderSrcCRC);
-		if (Code)
+		NSString* Code = Ref.Value->GetShaderCode(ShaderSrcLen, ShaderSrcCRC);
+		if (Code != nil)
 		{
-			break;
+			return Code;
 		}
 	}
-	return Code;
+	return nil;
 }
 
 #endif // !UE_BUILD_SHIPPING

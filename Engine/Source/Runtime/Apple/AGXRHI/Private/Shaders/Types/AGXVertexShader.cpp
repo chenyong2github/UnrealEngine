@@ -18,16 +18,17 @@
 FAGXVertexShader::FAGXVertexShader(TArrayView<const uint8> InCode)
 {
 	FMetalCodeHeader Header;
-	Init(InCode, Header);
+	TRefCountPtr<FMTLLibrary> Library;
+	Init(InCode, Header, Library);
 }
 
-FAGXVertexShader::FAGXVertexShader(TArrayView<const uint8> InCode, mtlpp::Library InLibrary)
+FAGXVertexShader::FAGXVertexShader(TArrayView<const uint8> InCode, const TRefCountPtr<FMTLLibrary>& InLibrary)
 {
 	FMetalCodeHeader Header;
 	Init(InCode, Header, InLibrary);
 }
 
-mtlpp::Function FAGXVertexShader::GetFunction()
+id<MTLFunction> FAGXVertexShader::GetFunction()
 {
 	return GetCompiledFunction();
 }

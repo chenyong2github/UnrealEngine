@@ -20,8 +20,6 @@ private:
 	FAGXCommandQueue& Queue;
 	
 private:
-	using RetainedCaptureScopeType = FObjCWrapperRetained< id<MTLCaptureScope> >;
-
 	enum EAGXCaptureType
 	{
 		EAGXCaptureTypeUnknown,
@@ -35,7 +33,7 @@ private:
 		EAGXCaptureType Type;
 		uint32 StepCount;
 		uint32 LastTrigger;
-		TUniquePtr<RetainedCaptureScopeType> CaptureScope;
+		TRefCountPtr<FMTLCaptureScope> CaptureScope;
 
 		FAGXCaptureScope()
 		: Type(EAGXCaptureTypeUnknown)
@@ -49,7 +47,7 @@ private:
 		: Type(Other.Type)
 		, StepCount(Other.StepCount)
 		, LastTrigger(Other.LastTrigger)
-		, CaptureScope(MakeUnique<RetainedCaptureScopeType>(Other.CaptureScope.Get()->Object))
+		, CaptureScope(Other.CaptureScope)
 		{
 		}
 
