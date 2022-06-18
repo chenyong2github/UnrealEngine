@@ -264,9 +264,9 @@ private:
 
 
 }  // End namespace Chaos::Softs
-
-#if !defined(CHAOS_POST_ITERATION_UPDATES_ISPC_ENABLED)
-#define CHAOS_POST_ITERATION_UPDATES_ISPC_ENABLED 1
-#endif
+//
+//#if !defined(CHAOS_POST_ITERATION_UPDATES_ISPC_ENABLED)
+//#define CHAOS_POST_ITERATION_UPDATES_ISPC_ENABLED 1
+//#endif
 
 
