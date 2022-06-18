@@ -6,6 +6,7 @@
 #include "RemoteControlField.h"
 #include "SRCPanelExposedEntity.h"
 #include "SlateFwd.h"
+#include "SResetToDefaultPropertyEditor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -89,6 +90,8 @@ private:
 	TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildWidgets;
 	/** Holds the panel's cached widgets. */
 	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
+	/** Holds the zeroed Default Value of the ExposedField */
+	TSharedPtr<uint8> DefaultValue;
 };
 
 
