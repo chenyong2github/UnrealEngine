@@ -3,7 +3,9 @@
 #pragma once
 
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
 
 class IPropertyHandle;
 class FPropertyRestriction;

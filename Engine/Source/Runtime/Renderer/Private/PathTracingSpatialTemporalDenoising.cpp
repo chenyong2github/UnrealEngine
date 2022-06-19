@@ -4,6 +4,7 @@
 #include "PathTracing.h"
 #include "RHI.h"
 #include "PathTracingDenoiser.h"
+#include "RHIDefinitions.h"
 
 PathTracingDenoiserFunction* GPathTracingDenoiserFunc = nullptr;
 
