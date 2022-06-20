@@ -242,11 +242,18 @@ void FWindowsPlatformStackWalk::StackWalkAndDump( ANSICHAR* HumanReadableString,
 	InitStackWalking();
 
 	// If the callstack is for the executing thread, ignore this function
-	if(Context == nullptr)
+	if (Context == nullptr)
 	{
 		IgnoreCount++;
 	}
 	FGenericPlatformStackWalk::StackWalkAndDump(HumanReadableString, HumanReadableStringSize, IgnoreCount, Context);
+	// If we incremented IgnoreCount, make sure we have instructions after StackWalkAndDump so the compiler
+	// can not remove this function from the callstack using Tail Call Elimination
+	if (Context == nullptr)
+	{
+		static volatile int32 ForceCompilerToReturnHere = 0;
+		ForceCompilerToReturnHere += static_cast<int32>(HumanReadableStringSize);
+	}
 }
 
 void FWindowsPlatformStackWalk::StackWalkAndDump( ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, void* ProgramCounter, void* Context )

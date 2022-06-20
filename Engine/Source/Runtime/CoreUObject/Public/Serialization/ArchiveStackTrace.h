@@ -229,7 +229,7 @@ public:
 	virtual ~FArchiveStackTrace();
 
 	//~ Begin FArchive Interface
-	virtual void Serialize(void* Data, int64 Num) override;
+	FORCENOINLINE virtual void Serialize(void* Data, int64 Num) override; // FORCENOINLINE so it can be counted during StackTrace
 	virtual void SetSerializeContext(FUObjectSerializeContext* InLoadContext) override;
 	virtual FUObjectSerializeContext* GetSerializeContext() override;
 #if WITH_EDITOR

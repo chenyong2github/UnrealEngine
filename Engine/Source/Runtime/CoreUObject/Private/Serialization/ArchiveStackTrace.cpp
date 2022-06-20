@@ -229,11 +229,10 @@ void FArchiveStackTrace::Serialize(void* InData, int64 Num)
 {
 	if (Num)
 	{
-#if UE_BUILD_DEBUG
-		const int32 StackIgnoreCount = 5;
-#else
-		const int32 StackIgnoreCount = 4;
-#endif
+		// Remove this function from the reported stack. Note that all functions that we want to
+		// remove from the stack using this method have to be marked with FORCENOINLINE so they're
+		// there for us to remove and we don't remove meaningful functions above them instead.
+		const int32 StackIgnoreCount = 1;
 
 		static struct FBreakAtOffsetSettings
 		{
