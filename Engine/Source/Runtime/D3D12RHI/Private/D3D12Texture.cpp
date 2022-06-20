@@ -1653,7 +1653,7 @@ void FD3D12Texture::CreateViews()
 			}
 		}
 
-		SetShaderResourceView(new FD3D12ShaderResourceView(this, SRVDesc));
+		SetShaderResourceView(new FD3D12ShaderResourceView(this, SRVDesc, Desc.Flags));
 	}
 }
 
