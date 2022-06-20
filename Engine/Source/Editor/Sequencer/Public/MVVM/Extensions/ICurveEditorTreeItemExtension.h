@@ -15,19 +15,6 @@ namespace Sequencer
 {
 
 /**
- * Extension interface for getting access to the curve editor.
- */
-class SEQUENCER_API ICurveEditorExtension
-{
-public:
-
-	UE_SEQUENCER_DECLARE_VIEW_MODEL_TYPE_ID(ICurveEditorExtension)
-
-	/** Gets the curve editor */
-	virtual TSharedPtr<FCurveEditor> GetCurveEditor() const = 0;
-};
-
-/**
  * Extension interface for view-models that want to show up in the curve editor.
  */
 class SEQUENCER_API ICurveEditorTreeItemExtension

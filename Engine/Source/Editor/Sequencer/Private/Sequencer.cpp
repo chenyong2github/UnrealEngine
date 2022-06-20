@@ -21,6 +21,7 @@
 #include "MVVM/Views/SOutlinerView.h"
 #include "MVVM/Views/IOutlinerSelectionHandler.h"
 #include "MVVM/Extensions/IDeletableExtension.h"
+#include "MVVM/CurveEditorExtension.h"
 #include "MVVM/CurveEditorIntegrationExtension.h"
 #include "MVVM/ObjectBindingModelStorageExtension.h"
 #include "MVVM/SectionModelStorageExtension.h"
@@ -184,66 +185,6 @@ static TAutoConsoleVariable<float> CVarAutoScrubCurveExponent(
 	2.0f,
 	TEXT("How much to ramp in and out the scrub speed when auto-scrubbing"));
 
-
-struct FSequencerCurveEditorBounds : ICurveEditorBounds
-{
-	FSequencerCurveEditorBounds(TSharedRef<FSequencer> InSequencer)
-		: WeakSequencer(InSequencer)
-	{
-		TRange<double> Bounds = InSequencer->GetViewRange();
-		InputMin = Bounds.GetLowerBoundValue();
-		InputMax = Bounds.GetUpperBoundValue();
-	}
-
-	virtual void GetInputBounds(double& OutMin, double& OutMax) const override
-	{
-		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
-		if (Sequencer.IsValid())
-		{
-			const bool bLinkTimeRange = Sequencer->GetSequencerSettings()->GetLinkCurveEditorTimeRange();
-			if (bLinkTimeRange)
-			{
-				TRange<double> Bounds = Sequencer->GetViewRange();
-				OutMin = Bounds.GetLowerBoundValue();
-				OutMax = Bounds.GetUpperBoundValue();
-			}
-			else
-			{
-				// If they don't want to link the time range with Sequencer we return the cached value.
-				OutMin = InputMin;
-				OutMax = InputMax;
-			}
-		}
-	}
-
-	virtual void SetInputBounds(double InMin, double InMax) override
-	{
-		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
-		if (Sequencer.IsValid())
-		{
-			const bool bLinkTimeRange = Sequencer->GetSequencerSettings()->GetLinkCurveEditorTimeRange();
-			if (bLinkTimeRange)
-			{
-				FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
-
-				if (InMin * TickResolution > TNumericLimits<int32>::Lowest() && InMax * TickResolution < TNumericLimits<int32>::Max())
-				{
-					Sequencer->SetViewRange(TRange<double>(InMin, InMax), EViewRangeInterpolation::Immediate);
-				}
-			}
-			
-			// We update these even if you are linked to the Sequencer Timeline so that when you turn off the link setting
-			// you don't pop to your last values, instead your view stays as is and just stops moving when Sequencer moves.
-			InputMin = InMin;
-			InputMax = InMax;
-		}
-	}
-
-	/** The min/max values for the viewing range. Only used if Curve Editor/Sequencer aren't linked ranges. */
-	double InputMin, InputMax;
-	TWeakPtr<FSequencer> WeakSequencer;
-};
-
 class FSequencerOutlinerSelectionHandler : 
 	public UE::Sequencer::IOutlinerSelectionHandler
 {
@@ -325,41 +266,6 @@ private:
 	TWeakPtr<UE::Sequencer::SOutlinerView> WeakPinnedTreeView;
 };
 
-class FSequencerCurveEditor : public FCurveEditor
-{
-public:
-	TWeakPtr<FSequencer> WeakSequencer;
-
-	FSequencerCurveEditor(TWeakPtr<FSequencer> InSequencer)
-		: WeakSequencer(InSequencer)
-	{}
-
-	virtual void GetGridLinesX(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const override
-	{
-		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
-		FCurveEditorScreenSpaceH PanelInputSpace = GetPanelInputSpace();
-
-		double MajorGridStep  = 0.0;
-		int32  MinorDivisions = 0;
-
-		if (Sequencer.IsValid() && Sequencer->GetGridMetrics(PanelInputSpace.GetPhysicalWidth(), PanelInputSpace.GetInputMin(), PanelInputSpace.GetInputMax(), MajorGridStep, MinorDivisions))
-		{
-			const double FirstMajorLine = FMath::FloorToDouble(PanelInputSpace.GetInputMin() / MajorGridStep) * MajorGridStep;
-			const double LastMajorLine  = FMath::CeilToDouble(PanelInputSpace.GetInputMax() / MajorGridStep) * MajorGridStep;
-
-			for (double CurrentMajorLine = FirstMajorLine; CurrentMajorLine < LastMajorLine; CurrentMajorLine += MajorGridStep)
-			{
-				MajorGridLines.Add( PanelInputSpace.SecondsToScreen(CurrentMajorLine) );
- 
-				for (int32 Step = 1; Step < MinorDivisions; ++Step)
-				{
-					MinorGridLines.Add( PanelInputSpace.SecondsToScreen(CurrentMajorLine + Step*MajorGridStep/MinorDivisions) );
-				}
-			}
-		}
-	}
-};
-
 void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegates)
 {
 	using namespace UE::Sequencer;
@@ -409,30 +315,6 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	Settings->GetOnShowSelectedNodesOnlyChanged().AddSP(this, &FSequencer::OnSelectedNodesOnlyChanged);
 
 	ObjectBindingTagCache = MakeUnique<FObjectBindingTagCache>();
-
-	FCurveEditorInitParams CurveEditorInitParams;
-	{
-	}
-	
-	{
-		CurveEditorModel = MakeShared<FSequencerCurveEditor>(SharedThis(this));
-		CurveEditorModel->SetBounds(MakeUnique<FSequencerCurveEditorBounds>(SharedThis(this)));
-		CurveEditorModel->InitCurveEditor(CurveEditorInitParams);
-
-		CurveEditorModel->InputSnapEnabledAttribute   = MakeAttributeLambda([this]{ return Settings->GetIsSnapEnabled(); });
-		CurveEditorModel->OnInputSnapEnabledChanged   = FOnSetBoolean::CreateLambda([this](bool NewValue){ Settings->SetIsSnapEnabled(NewValue); });
-
-		CurveEditorModel->OutputSnapEnabledAttribute  = MakeAttributeLambda([this]{ return Settings->GetSnapCurveValueToInterval(); });
-		CurveEditorModel->OnOutputSnapEnabledChanged  = FOnSetBoolean::CreateLambda([this](bool NewValue){ Settings->SetSnapCurveValueToInterval(NewValue); });
-
-		CurveEditorModel->FixedGridSpacingAttribute   = MakeAttributeLambda([this]() -> TOptional<float> { return Settings->GetGridSpacing(); });
-		CurveEditorModel->InputSnapRateAttribute      = MakeAttributeSP(this, &FSequencer::GetFocusedDisplayRate);
-
-		CurveEditorModel->DefaultKeyAttributes        = MakeAttributeSP(this, &FSequencer::GetDefaultKeyAttributes);
-		
-		CurveEditorModel->OnCurveArrayChanged.AddRaw(this, &FSequencer::OnCurveModelDisplayChanged);
-
-	}
 
 	{
 		FDelegateHandle OnBlueprintPreCompileHandle = GEditor->OnBlueprintPreCompile().AddLambda([&](UBlueprint* InBlueprint)
@@ -608,6 +490,14 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		.SelectionHandler(SelectionHandler);
 
 	SelectionHandler->SetTreeViews(SequencerWidget->GetTreeView(), SequencerWidget->GetPinnedTreeView());
+
+	if (GetHostCapabilities().bSupportsCurveEditor)
+	{
+		FCurveEditorExtension* CurveEditorExtension = ViewModel->CastDynamicChecked<FCurveEditorExtension>();
+		TSharedPtr<FCurveEditor> CurveEditor = CurveEditorExtension->GetCurveEditor();
+
+		CurveEditor->OnCurveArrayChanged.AddRaw(this, &FSequencer::OnCurveModelDisplayChanged);
+	}
 
 	// When undo occurs, get a notification so we can make sure our view is up to date
 	GEditor->RegisterForUndo(this);
@@ -2512,10 +2402,10 @@ void FSequencer::RecreateCurveEditor()
 {
 	using namespace UE::Sequencer;
 
-	FCurveEditorIntegrationExtension* CurveEditorIntegration = ViewModel->GetRootModel()->CastDynamic<FCurveEditorIntegrationExtension>();
+	FCurveEditorIntegrationExtension* CurveEditorIntegration= ViewModel->GetRootModel()->CastDynamic<FCurveEditorIntegrationExtension>();
 	if (ensure(CurveEditorIntegration))
 	{
-		CurveEditorIntegration->RecreateCurveEditor();
+		CurveEditorIntegration->ResetCurveEditor();
 	}
 }
 
@@ -6054,6 +5944,8 @@ void FSequencer::SetShowCurveEditor(bool bInShowCurveEditor)
 
 bool FSequencer::GetCurveEditorIsVisible() const
 {
+	using namespace UE::Sequencer;
+
 	// Some Sequencer usages don't support the Curve Editor
 	if (!GetHostCapabilities().bSupportsCurveEditor)
 	{
@@ -6062,7 +5954,13 @@ bool FSequencer::GetCurveEditorIsVisible() const
 
 	// We always want to retrieve this directly from the UI instead of mirroring it to a local bool as there are
 	// a lot of ways the UI could get out of sync with a local bool (such as previously restored tab layouts)
-	return GetToolkitHost()->GetTabManager()->FindExistingLiveTab(FTabId(SSequencer::CurveEditorTabName)).IsValid();
+	FCurveEditorExtension* CurveEditorExtension = ViewModel->CastDynamic<FCurveEditorExtension>();
+	if (ensure(CurveEditorExtension))
+	{
+		return CurveEditorExtension->IsCurveEditorOpen();
+	}
+
+	return false;
 }
 
 void FSequencer::SaveCurrentMovieScene()
@@ -13354,37 +13252,43 @@ void FSequencer::BindCommands()
 		Commands.RefreshUI,
 		FExecuteAction::CreateSP( this, &FSequencer::RefreshUI));
 
-	// We want a subset of the commands to work in the Curve Editor too, but bound to our functions. This minimizes code duplication
-	// while also freeing us up from issues that result from Sequencer already using two lists (for which our commands might be spread
-	// across both lists which makes a direct copy like it already uses difficult).
-	CurveEditorSharedBindings->MapAction(Commands.TogglePlay,			*SequencerCommandBindings->GetActionForCommand(Commands.TogglePlay));
-	CurveEditorSharedBindings->MapAction(Commands.TogglePlayViewport,	*SequencerCommandBindings->GetActionForCommand(Commands.TogglePlayViewport));
-	CurveEditorSharedBindings->MapAction(Commands.PlayForward,			*SequencerCommandBindings->GetActionForCommand(Commands.PlayForward));
-	CurveEditorSharedBindings->MapAction(Commands.JumpToStart,			*SequencerCommandBindings->GetActionForCommand(Commands.JumpToStart));
-	CurveEditorSharedBindings->MapAction(Commands.JumpToEnd,			*SequencerCommandBindings->GetActionForCommand(Commands.JumpToEnd));
-	CurveEditorSharedBindings->MapAction(Commands.ShuttleBackward,		*SequencerCommandBindings->GetActionForCommand(Commands.ShuttleBackward));
-	CurveEditorSharedBindings->MapAction(Commands.ShuttleForward,		*SequencerCommandBindings->GetActionForCommand(Commands.ShuttleForward));
-	CurveEditorSharedBindings->MapAction(Commands.Pause,				*SequencerCommandBindings->GetActionForCommand(Commands.Pause));
-	CurveEditorSharedBindings->MapAction(Commands.StepForward,			*SequencerCommandBindings->GetActionForCommand(Commands.StepForward));
-	CurveEditorSharedBindings->MapAction(Commands.StepBackward,			*SequencerCommandBindings->GetActionForCommand(Commands.StepBackward));
-	CurveEditorSharedBindings->MapAction(Commands.StepForwardViewport,  *SequencerCommandBindings->GetActionForCommand(Commands.StepForwardViewport));
-	CurveEditorSharedBindings->MapAction(Commands.StepBackwardViewport, *SequencerCommandBindings->GetActionForCommand(Commands.StepBackwardViewport));
-	CurveEditorSharedBindings->MapAction(Commands.JumpForward,          *SequencerCommandBindings->GetActionForCommand(Commands.JumpForward));
-	CurveEditorSharedBindings->MapAction(Commands.JumpBackward,         *SequencerCommandBindings->GetActionForCommand(Commands.JumpBackward));
-	CurveEditorSharedBindings->MapAction(Commands.StepToNextKey,		*SequencerCommandBindings->GetActionForCommand(Commands.StepToNextKey));
-	CurveEditorSharedBindings->MapAction(Commands.StepToPreviousKey, 	*SequencerCommandBindings->GetActionForCommand(Commands.StepToPreviousKey));
-	CurveEditorSharedBindings->MapAction(Commands.StepToNextMark,       *SequencerCommandBindings->GetActionForCommand(Commands.StepToNextMark));
-	CurveEditorSharedBindings->MapAction(Commands.StepToPreviousMark,   *SequencerCommandBindings->GetActionForCommand(Commands.StepToPreviousMark));
-	CurveEditorSharedBindings->MapAction(Commands.ToggleMarkAtPlayPosition, *SequencerCommandBindings->GetActionForCommand(Commands.ToggleMarkAtPlayPosition));
+	FCurveEditorExtension* CurveEditorExtension = ViewModel->CastDynamicChecked<FCurveEditorExtension>();
+	if (ensure(CurveEditorExtension))
+	{
+		// We want a subset of the commands to work in the Curve Editor too, but bound to our functions. This minimizes code duplication
+		// while also freeing us up from issues that result from Sequencer already using two lists (for which our commands might be spread
+		// across both lists which makes a direct copy like it already uses difficult).
+		CurveEditorSharedBindings->MapAction(Commands.TogglePlay, *SequencerCommandBindings->GetActionForCommand(Commands.TogglePlay));
+		CurveEditorSharedBindings->MapAction(Commands.TogglePlayViewport, *SequencerCommandBindings->GetActionForCommand(Commands.TogglePlayViewport));
+		CurveEditorSharedBindings->MapAction(Commands.PlayForward, *SequencerCommandBindings->GetActionForCommand(Commands.PlayForward));
+		CurveEditorSharedBindings->MapAction(Commands.JumpToStart, *SequencerCommandBindings->GetActionForCommand(Commands.JumpToStart));
+		CurveEditorSharedBindings->MapAction(Commands.JumpToEnd, *SequencerCommandBindings->GetActionForCommand(Commands.JumpToEnd));
+		CurveEditorSharedBindings->MapAction(Commands.ShuttleBackward, *SequencerCommandBindings->GetActionForCommand(Commands.ShuttleBackward));
+		CurveEditorSharedBindings->MapAction(Commands.ShuttleForward, *SequencerCommandBindings->GetActionForCommand(Commands.ShuttleForward));
+		CurveEditorSharedBindings->MapAction(Commands.Pause, *SequencerCommandBindings->GetActionForCommand(Commands.Pause));
+		CurveEditorSharedBindings->MapAction(Commands.StepForward, *SequencerCommandBindings->GetActionForCommand(Commands.StepForward));
+		CurveEditorSharedBindings->MapAction(Commands.StepBackward, *SequencerCommandBindings->GetActionForCommand(Commands.StepBackward));
+		CurveEditorSharedBindings->MapAction(Commands.StepForwardViewport, *SequencerCommandBindings->GetActionForCommand(Commands.StepForwardViewport));
+		CurveEditorSharedBindings->MapAction(Commands.StepBackwardViewport, *SequencerCommandBindings->GetActionForCommand(Commands.StepBackwardViewport));
+		CurveEditorSharedBindings->MapAction(Commands.JumpForward, *SequencerCommandBindings->GetActionForCommand(Commands.JumpForward));
+		CurveEditorSharedBindings->MapAction(Commands.JumpBackward, *SequencerCommandBindings->GetActionForCommand(Commands.JumpBackward));
+		CurveEditorSharedBindings->MapAction(Commands.StepToNextKey, *SequencerCommandBindings->GetActionForCommand(Commands.StepToNextKey));
+		CurveEditorSharedBindings->MapAction(Commands.StepToPreviousKey, *SequencerCommandBindings->GetActionForCommand(Commands.StepToPreviousKey));
+		CurveEditorSharedBindings->MapAction(Commands.StepToNextMark, *SequencerCommandBindings->GetActionForCommand(Commands.StepToNextMark));
+		CurveEditorSharedBindings->MapAction(Commands.StepToPreviousMark, *SequencerCommandBindings->GetActionForCommand(Commands.StepToPreviousMark));
+		CurveEditorSharedBindings->MapAction(Commands.ToggleMarkAtPlayPosition, *SequencerCommandBindings->GetActionForCommand(Commands.ToggleMarkAtPlayPosition));
 
-	CurveEditorSharedBindings->MapAction(Commands.AddTransformKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddTransformKey));
-	CurveEditorSharedBindings->MapAction(Commands.AddTranslationKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddTranslationKey));
-	CurveEditorSharedBindings->MapAction(Commands.AddRotationKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddRotationKey));
-	CurveEditorSharedBindings->MapAction(Commands.AddScaleKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddScaleKey));
+		CurveEditorSharedBindings->MapAction(Commands.AddTransformKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddTransformKey));
+		CurveEditorSharedBindings->MapAction(Commands.AddTranslationKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddTranslationKey));
+		CurveEditorSharedBindings->MapAction(Commands.AddRotationKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddRotationKey));
+		CurveEditorSharedBindings->MapAction(Commands.AddScaleKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddScaleKey));
 
-	CurveEditorSharedBindings->MapAction(Commands.ResetFilters, *SequencerCommandBindings->GetActionForCommand(Commands.ResetFilters));
+		CurveEditorSharedBindings->MapAction(Commands.ResetFilters, *SequencerCommandBindings->GetActionForCommand(Commands.ResetFilters));
 
-	GetCurveEditor()->GetCommands()->Append(CurveEditorSharedBindings);
+		TSharedPtr<FCurveEditor> CurveEditor = CurveEditorExtension->GetCurveEditor();
+		check(CurveEditor);
+		CurveEditor->GetCommands()->Append(CurveEditorSharedBindings);
+	}
 
 	// bind widget specific commands
 	SequencerWidget->BindCommands(SequencerCommandBindings, CurveEditorSharedBindings);
@@ -13623,18 +13527,6 @@ void FSequencer::BuildCustomContextMenuForGuid(FMenuBuilder& MenuBuilder, FGuid 
 
 	FSequencerOutlinerViewModel* OutlinerViewModel = ViewModel->GetOutliner()->CastThisChecked<FSequencerOutlinerViewModel>();
 	OutlinerViewModel->BuildCustomContextMenuForGuid(MenuBuilder, ObjectBinding);
-}
-
-FKeyAttributes FSequencer::GetDefaultKeyAttributes() const
-{
-	switch (Settings->GetKeyInterpolation())
-	{
-	case EMovieSceneKeyInterpolation::User:     return FKeyAttributes().SetInterpMode(RCIM_Cubic).SetTangentMode(RCTM_User);
-	case EMovieSceneKeyInterpolation::Break:    return FKeyAttributes().SetInterpMode(RCIM_Cubic).SetTangentMode(RCTM_Break);
-	case EMovieSceneKeyInterpolation::Linear:   return FKeyAttributes().SetInterpMode(RCIM_Linear).SetTangentMode(RCTM_Auto);
-	case EMovieSceneKeyInterpolation::Constant: return FKeyAttributes().SetInterpMode(RCIM_Constant).SetTangentMode(RCTM_Auto);
-	default:                                    return FKeyAttributes().SetInterpMode(RCIM_Cubic).SetTangentMode(RCTM_Auto);
-	}
 }
 
 bool FSequencer::GetGridMetrics(const float PhysicalWidth, const double InViewStart, const double InViewEnd, double& OutMajorInterval, int32& OutMinorDivisions) const

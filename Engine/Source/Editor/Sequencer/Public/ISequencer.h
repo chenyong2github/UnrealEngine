@@ -210,9 +210,6 @@ public:
 	/** @return a multicast delegate which is executed when sequencer closes. */
 	virtual FOnCloseEvent& OnCloseEvent() = 0;
 
-	/** @return associated curve editor*/
-	virtual TSharedPtr<FCurveEditor> GetCurveEditor() const = 0;
-
 	/** @return Widget used to display the sequencer */
 	virtual TSharedRef<SWidget> GetSequencerWidget() const = 0;
 

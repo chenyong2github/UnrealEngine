@@ -3,6 +3,7 @@
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/SequencerOutlinerViewModel.h"
 #include "MVVM/ViewModels/SequencerTrackAreaViewModel.h"
+#include "MVVM/CurveEditorExtension.h"
 #include "Sequencer.h"
 #include "MovieSceneSequenceID.h"
 
@@ -33,6 +34,11 @@ TSharedPtr<FTrackAreaViewModel> FSequencerEditorViewModel::CreateTrackAreaImpl()
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	check(Sequencer.IsValid());
 	return MakeShared<FSequencerTrackAreaViewModel>(Sequencer.ToSharedRef());
+}
+
+void FSequencerEditorViewModel::InitializeEditorImpl()
+{
+	AddDynamicExtension(FCurveEditorExtension::ID);
 }
 
 TSharedPtr<ISequencer> FSequencerEditorViewModel::GetSequencer() const

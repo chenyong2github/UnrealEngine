@@ -3,6 +3,7 @@
 #include "SSequencer.h"
 #include "Engine/Blueprint.h"
 #include "MovieSceneSequence.h"
+#include "MVVM/CurveEditorExtension.h"
 #include "MVVM/ViewModels/CategoryModel.h"
 #include "MVVM/ViewModels/ChannelModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
@@ -114,216 +115,6 @@
 #include "MovieSceneToolHelpers.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
-
-const FName SSequencer::CurveEditorTabName = FName(TEXT("SequencerGraphEditor"));
-
-TSharedRef<IPropertyTypeCustomization> CreateFrameNumberCustomization(TWeakPtr<FSequencer> WeakSequencer)
-{
-	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
-	return MakeShared<FFrameNumberDetailsCustomization>(SequencerPtr->GetNumericTypeInterface());
-}
-
-class SSequencerCurveEditor : public SCompoundWidget
-{
-	SLATE_BEGIN_ARGS(SSequencerCurveEditor)
-	{}
-	SLATE_END_ARGS()
-public:
-	void Construct(const FArguments& InArgs, TSharedRef<SCurveEditorPanel> InEditorPanel, TSharedPtr<FSequencer> InSequencer)
-	{
-		WeakSequencer = InSequencer;
-
-		ChildSlot
-		[
-			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				MakeToolbar(InEditorPanel)
-			]
-			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			[
-				InEditorPanel
-			]
-		];
-	}
-
-	TSharedRef<SWidget> MakeToolbar(TSharedRef<SCurveEditorPanel> InEditorPanel)
-	{
-		FSlimHorizontalToolBarBuilder ToolBarBuilder(InEditorPanel->GetCommands(), FMultiBoxCustomization::None, InEditorPanel->GetToolbarExtender(), true);
-		ToolBarBuilder.BeginSection("Asset");
-
-		{
-			TAttribute<FSlateIcon> SaveIcon;
-			SaveIcon.Bind(TAttribute<FSlateIcon>::FGetter::CreateLambda([&] {
-
-				TArray<UMovieScene*> MovieScenesToSave;
-				MovieSceneHelpers::GetDescendantMovieScenes(WeakSequencer.Pin()->GetRootMovieSceneSequence(), MovieScenesToSave);
-				for (UMovieScene* MovieSceneToSave : MovieScenesToSave)
-				{
-					UPackage* MovieScenePackageToSave = MovieSceneToSave->GetOuter()->GetOutermost();
-					if (MovieScenePackageToSave->IsDirty())
-					{
-						return FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SaveChanged");
-					}
-				}
-
-				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save");
-				}));
-
-			if (WeakSequencer.Pin()->GetHostCapabilities().bSupportsSaveMovieSceneAsset)
-			{
-				ToolBarBuilder.AddToolBarButton(
-					FUIAction(FExecuteAction::CreateLambda([&] { WeakSequencer.Pin()->SaveCurrentMovieScene(); })),
-					NAME_None,
-					LOCTEXT("SaveDirtyPackages", "Save"),
-					LOCTEXT("SaveDirtyPackagesTooltip", "Saves the current sequence and any subsequences"),
-					SaveIcon
-				);
-			}		
-		}
-		
-		ToolBarBuilder.EndSection();
-		// We just use all of the extenders as our toolbar, we don't have a need to create a separate toolbar.
-		return ToolBarBuilder.MakeWidget();
-	}
-
-private:
-	TWeakPtr<FSequencer> WeakSequencer;
-};
-
-class FSequencerCurveEditorTimeSliderController : public FSequencerTimeSliderController
-{
-public:
-
-	FSequencerCurveEditorTimeSliderController(const FTimeSliderArgs& InArgs, TWeakPtr<FSequencer> InWeakSequencer, TSharedRef<FCurveEditor> InCurveEditor)
-		: FSequencerTimeSliderController(InArgs, InWeakSequencer)
-	{
-		WeakSequencer = InWeakSequencer;
-		WeakCurveEditor = InCurveEditor;
-	}
-
-	virtual void ClampViewRange(double& NewRangeMin, double& NewRangeMax) override
-	{
-		// Since the CurveEditor uses a different view range (potentially) we have to be careful about which one we clamp.
-		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-		if (!Sequencer.IsValid())
-		{
-			return;
-		}
-
-		const bool bLinkedTimeRange = Sequencer->GetSequencerSettings()->GetLinkCurveEditorTimeRange();
-		if (bLinkedTimeRange)
-		{
-			return FSequencerTimeSliderController::ClampViewRange(NewRangeMin, NewRangeMax);
-		}
-		else
-		{
-			TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
-			if (CurveEditor.IsValid())
-			{
-				double InputMin, InputMax;
-				CurveEditor->GetBounds().GetInputBounds(InputMin, InputMax);
-
-				bool bNeedsClampSet = false;
-				double NewClampRangeMin = InputMin;
-				if (NewRangeMin < InputMin)
-				{
-					NewClampRangeMin = NewRangeMin;
-					bNeedsClampSet = true;
-				}
-
-				double NewClampRangeMax = InputMax;
-				if (NewRangeMax > InputMax)
-				{
-					NewClampRangeMax = NewRangeMax;
-					bNeedsClampSet = true;
-				}
-
-				if (bNeedsClampSet)
-				{
-					CurveEditor->GetBounds().SetInputBounds(NewClampRangeMin, NewClampRangeMax);
-				}
-
-			}
-		}
-	}
-
-	virtual void SetViewRange(double NewRangeMin, double NewRangeMax, EViewRangeInterpolation Interpolation) override
-	{
-		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-		if (!Sequencer.IsValid())
-		{
-			return;
-		}
-
-		const bool bLinkedTimeRange = Sequencer->GetSequencerSettings()->GetLinkCurveEditorTimeRange();
-		if (bLinkedTimeRange)
-		{
-			return FSequencerTimeSliderController::SetViewRange(NewRangeMin, NewRangeMax, Interpolation);
-		}
-		else
-		{
-			// Clamp to a minimum size to avoid zero-sized or negative visible ranges
-			double MinVisibleTimeRange = FFrameNumber(1) / GetTickResolution();
-			TRange<double> ExistingViewRange = GetViewRange();
-
-			if (NewRangeMax == ExistingViewRange.GetUpperBoundValue())
-			{
-				if (NewRangeMin > NewRangeMax - MinVisibleTimeRange)
-				{
-					NewRangeMin = NewRangeMax - MinVisibleTimeRange;
-				}
-			}
-			else if (NewRangeMax < NewRangeMin + MinVisibleTimeRange)
-			{
-				NewRangeMax = NewRangeMin + MinVisibleTimeRange;
-			}
-
-			TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
-			if (CurveEditor.IsValid())
-			{
-				CurveEditor->GetBounds().SetInputBounds(NewRangeMin, NewRangeMax);
-			}
-		}
-	}
-
-
-
-	virtual FAnimatedRange GetViewRange() const override
-	{ 
-		// If they've linked the Sequencer timerange we can return the internal controller's view range, otherwise we return the bounds (which internally does the same check)
-		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-		if (!Sequencer.IsValid())
-		{
-			return FAnimatedRange();
-		}
-		const bool bLinkedTimeRange = Sequencer->GetSequencerSettings()->GetLinkCurveEditorTimeRange();
-		if (bLinkedTimeRange)
-		{
-			return FSequencerTimeSliderController::GetViewRange();
-		}
-		else
-		{
-			TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
-			if (CurveEditor.IsValid())
-			{
-				double InputMin, InputMax;
-				CurveEditor->GetBounds().GetInputBounds(InputMin, InputMax);
-
-				return FAnimatedRange(InputMin, InputMax);
-			}
-		}
-
-		return FAnimatedRange();
-	}
-
-private:
-	TWeakPtr<ISequencer> WeakSequencer;
-	TWeakPtr<FCurveEditor> WeakCurveEditor;
-};
 
 /* SSequencer interface
  *****************************************************************************/
@@ -498,66 +289,9 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	if (InSequencer->GetHostCapabilities().bSupportsCurveEditor)
 	{
-		// If they've said they want to support the curve editor then they need to provide a toolkit host
-		// so that we know where to spawn our tab into.
-		check(InSequencer->GetToolkitHost().IsValid());
-
-		// We create a custom Time Slider Controller which is just a wrapper around the actual one, but is aware of our custom bounds logic. Currently the range the
-		// bar displays is tied to Sequencer timeline and not the Bounds, so we need a way of changing it to look at the Bounds but only for the Curve Editor time
-		// slider controller. We want everything else to just pass through though.
-		TSharedRef<ITimeSliderController> CurveEditorTimeSliderController = MakeShared<FSequencerCurveEditorTimeSliderController>(TimeSliderArgs, SequencerPtr, InSequencer->GetCurveEditor().ToSharedRef());
-
-		CurveEditorTree = SNew(SCurveEditorTree, InSequencer->GetCurveEditor());
-		TSharedRef<SCurveEditorPanel> CurveEditorWidget = SNew(SCurveEditorPanel, InSequencer->GetCurveEditor().ToSharedRef())
-			// Grid lines match the color specified in FSequencerTimeSliderController::OnPaintViewArea
-			.GridLineTint(FLinearColor(0.f, 0.f, 0.f, 0.3f))
-			.ExternalTimeSliderController(CurveEditorTimeSliderController)
-			.MinimumViewPanelHeight(0.f)
-			.TabManager(InSequencer->GetToolkitHost()->GetTabManager())
-			.DisabledTimeSnapTooltip(LOCTEXT("CurveEditorTimeSnapDisabledTooltip", "Time Snapping is currently driven by Sequencer."))
-			.TreeContent()
-			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SAssignNew(CurveEditorSearchBox, SCurveEditorTreeTextFilter, InSequencer->GetCurveEditor())
-				]
-
-				+ SVerticalBox::Slot()
-				[
-					SNew(SScrollBorder, CurveEditorTree.ToSharedRef())
-					[
-						CurveEditorTree.ToSharedRef()
-					]
-				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SCurveEditorTreeFilterStatusBar, InSequencer->GetCurveEditor())
-				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Center)
-				[
-					InSequencer->MakeTransportControls(true)
-				]
-			];
-
-		// Register an instanced custom property type layout to handle converting FFrameNumber from Tick Resolution to Display Rate.
-		CurveEditorWidget->GetKeyDetailsView()->GetPropertyRowGenerator()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateStatic(CreateFrameNumberCustomization, SequencerPtr));
-	
-		CurveEditorPanel = SNew(SSequencerCurveEditor, CurveEditorWidget, InSequencer);
-
-		// Check to see if the tab is already opened due to the saved window layout.
-		TSharedPtr<SDockTab> ExistingCurveEditorTab = InSequencer->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(FTabId(SSequencer::CurveEditorTabName));
-		if (ExistingCurveEditorTab)
-		{
-			ExistingCurveEditorTab->SetContent(CurveEditorPanel.ToSharedRef());
-		}
+		TSharedPtr<FEditorViewModel> RootModel = InSequencer->GetViewModel();
+		FCurveEditorExtension* CurveEditorExtension = RootModel->CastDynamicChecked<FCurveEditorExtension>();
+		CurveEditorExtension->CreateCurveEditor(TimeSliderArgs);
 	}
 
 
@@ -1153,12 +887,6 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 		FSequencerCommands::Get().QuickTreeSearch,
 		FExecuteAction::CreateLambda([this] { FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::SetDirectly); })
 	);
-
-	// And jump to the Curve Editor tree search if you have the Curve Editor focused
-	SequencerPtr.Pin()->GetCurveEditor()->GetCommands()->MapAction(
-		FSequencerCommands::Get().QuickTreeSearch,
-		FExecuteAction::CreateLambda([this] { FSlateApplication::Get().SetKeyboardFocus(CurveEditorSearchBox, EFocusCause::SetDirectly); })
-	);
 	
 	SequencerCommandBindings->MapAction(
 		FSequencerCommands::Get().ToggleShowStretchBox,
@@ -1301,10 +1029,17 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 		return;
 	}
 
+	FViewModelPtr RootModel = Sequencer->GetViewModel();
+	FCurveEditorExtension* CurveEditorExtension = RootModel->CastDynamic<FCurveEditorExtension>();
+	if (!CurveEditorExtension)
+	{
+		return;
+	}
+
 	const TSet<TWeakPtr<FViewModel>>& SelectedDisplayNodes = Sequencer->GetSelection().GetSelectedOutlinerItems();
 
-	TSharedPtr<FCurveEditor> CurveEditor = Sequencer->GetCurveEditor();
-	if (CurveEditor && CurveEditorTree)
+	TSharedPtr<FCurveEditor> CurveEditor = CurveEditorExtension->GetCurveEditor();
+	if (CurveEditor)
 	{
 		const USequencerSettings* SequencerSettings = GetSequencerSettings();
 		// If we're isolating to the selection and there is one, add the filter
@@ -1328,41 +1063,11 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 
 		if (GetSequencerSettings()->ShouldSyncCurveEditorSelection())
 		{
-			//since Selection ticks before any filter is applied and the curve editor tree is udpated in FSequencer::Tick we need to sync 
-			//the curve editor on the next tick so the filter is applied first, otherwise the curve tree hierarchy won't be up to date
-			//and the curve may not be found.
-			TWeakPtr<FSequencer> WeakSequencer = SequencerPtr;
-			GEditor->GetTimerManager()->SetTimerForNextTick([WeakSequencer, this]()
-			{
-				TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
-				if (!Sequencer.IsValid())
-				{
-					return;
-				}
-
-				const TSet<TWeakPtr<FViewModel>>& SelectedDisplayNodes = Sequencer->GetSelection().GetSelectedOutlinerItems();
-				TSharedPtr<FCurveEditor> CurveEditor = Sequencer->GetCurveEditor();
-				TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
-				CurveEditor->SuspendBroadcast();
-				// Clear the tree selection
-				CurveEditorTree->ClearSelection();
-				for (TWeakPtr<FViewModel> Node : SelectedDisplayNodes)
-				{
-					if (ICurveEditorTreeItemExtension* CurveEditorItem = ICastable::CastWeakPtr<ICurveEditorTreeItemExtension>(Node))
-					{
-						FCurveEditorTreeItemID CurveEditorTreeItem = CurveEditorItem->GetCurveEditorItemID();
-						if (CurveEditorTreeItem != FCurveEditorTreeItemID::Invalid())
-						{
-							if (!CurveEditorTree->IsItemSelected(CurveEditorTreeItem))
-							{
-								CurveEditorTree->SetItemSelection(CurveEditorTreeItem, true);
-								CurveEditorTree->RequestScrollIntoView(CurveEditorTreeItem);
-							}
-						}
-					}
-				}
-				CurveEditor->ResumeBroadcast();
-			});
+			// We schedule a selection synchronization for the next update. This synchronization must happen
+			// after all filters have been applied, because the items we want to select in the curve editor
+			// might be currently filtered out, but will be visible when filters are re-evaluated. This is
+			// why curve editor integration runs in FSequencerNodeTree after filtering.
+			CurveEditorExtension->RequestSyncSelection();
 		}
 	}
 
@@ -2988,20 +2693,18 @@ TSharedPtr<ITimeSlider> SSequencer::GetTopTimeSliderWidget() const
 
 SSequencer::~SSequencer()
 {
-	USelection::SelectionChangedEvent.RemoveAll(this);
+	using namespace UE::Sequencer;
 
+	USelection::SelectionChangedEvent.RemoveAll(this);
 
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	if(Sequencer && Sequencer->GetToolkitHost() && Sequencer->GetToolkitHost()->GetTabManager())
 	{
 		if (Sequencer->GetHostCapabilities().bSupportsCurveEditor)
 		{
-			FTabId TabId = FTabId(SSequencer::CurveEditorTabName);
-			TSharedPtr<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(TabId);
-			if (CurveEditorTab)
-			{
-				CurveEditorTab->RequestCloseTab();
-			}
+			TSharedPtr<FEditorViewModel> RootModel = Sequencer->GetViewModel();
+			FCurveEditorExtension* CurveEditorExtension = RootModel->CastDynamicChecked<FCurveEditorExtension>();
+			CurveEditorExtension->CloseCurveEditor();
 		}
 	}
 
@@ -3902,8 +3605,9 @@ void SSequencer::OnColumnFillCoefficientChanged(float FillCoefficient, int32 Col
 
 void SSequencer::OnCurveEditorVisibilityChanged(bool bShouldBeVisible)
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
-	FTabId TabId = FTabId(SSequencer::CurveEditorTabName);
 
 	// Curve Editor may not be supported
 	if (!Sequencer->GetHostCapabilities().bSupportsCurveEditor)
@@ -3911,30 +3615,16 @@ void SSequencer::OnCurveEditorVisibilityChanged(bool bShouldBeVisible)
 		return;
 	}
 
+	TSharedPtr<FEditorViewModel> RootModel = Sequencer->GetViewModel();
+	FCurveEditorExtension* CurveEditorExtension = RootModel->CastDynamicChecked<FCurveEditorExtension>();
+
 	if (bShouldBeVisible)
 	{
-		// Request the Tab Manager invoke the tab. This will spawn the tab if needed, otherwise pull it to focus. This assumes
-		// that the Toolkit Host's Tab Manager has already registered a tab with a NullWidget for content.
-		TSharedPtr<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->TryInvokeTab(TabId);
-		if (CurveEditorTab.IsValid())
-		{
-			CurveEditorTab->SetContent(CurveEditorPanel.ToSharedRef());
-
-			const FSlateIcon SequencerGraphIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.TabIcon");
-			CurveEditorTab->SetTabIcon(SequencerGraphIcon.GetIcon());
-
-			CurveEditorTab->SetLabel(LOCTEXT("SequencerMainGraphEditorTitle", "Sequencer Curves"));
-
-			SequencerPtr.Pin()->GetCurveEditor()->ZoomToFit();
-		}
+		CurveEditorExtension->OpenCurveEditor();
 	}
 	else
 	{
-		TSharedPtr<SDockTab> ExistingTab = Sequencer->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(TabId);
-		if (ExistingTab)
-		{
-			ExistingTab->RequestCloseTab();
-		}
+		CurveEditorExtension->CloseCurveEditor();
 	}
 
 	TreeView->UpdateTrackArea();

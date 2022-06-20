@@ -38,13 +38,12 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnInitializeSequenceModel, FSequenceModel*)
 class SEQUENCER_API FSequenceModel
 	: public FViewModel
 	, public ISortableExtension
-	, public ICurveEditorExtension
 	, public IOutlinerDropTargetOutlinerExtension
 	, public UE::MovieScene::ISignedObjectEventHandler
 {
 public:
 
-	UE_SEQUENCER_DECLARE_CASTABLE(FSequenceModel, FViewModel, ISortableExtension, ICurveEditorExtension, IOutlinerDropTargetOutlinerExtension);
+	UE_SEQUENCER_DECLARE_CASTABLE(FSequenceModel, FViewModel, ISortableExtension, IOutlinerDropTargetOutlinerExtension);
 
 	static FOnInitializeSequenceModel CreateExtensionsEvent;
 
@@ -70,9 +69,6 @@ public:
 	void SortChildren() override;
 	FSortingKey GetSortingKey() const override;
 	void SetCustomOrder(int32 InCustomOrder) override;
-
-	/*~ ICurveEditorExtension */
-	TSharedPtr<FCurveEditor> GetCurveEditor() const override;
 
 	/*~ IOutlinerDropTargetOutlinerExtension */
 	TOptional<EItemDropZone> CanAcceptDrop(const FViewModelPtr& TargetModel, const FDragDropEvent& DragDropEvent, EItemDropZone InItemDropZone) override;

@@ -139,11 +139,6 @@ void FSequenceModel::SetCustomOrder(int32 InCustomOrder)
 {
 }
 
-TSharedPtr<FCurveEditor> FSequenceModel::GetCurveEditor() const
-{
-	return GetSequencerImpl()->GetCurveEditor();
-}
-
 TOptional<EItemDropZone> FSequenceModel::CanAcceptDrop(const FViewModelPtr& TargetModel, const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone)
 {
 	TSharedPtr<FSequencerOutlinerDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FSequencerOutlinerDragDropOp>();

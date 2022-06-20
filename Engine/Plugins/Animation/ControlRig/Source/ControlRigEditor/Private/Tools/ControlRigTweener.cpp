@@ -7,6 +7,8 @@
 #include "ISequencer.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
+#include "MVVM/CurveEditorExtension.h"
+#include "MVVM/ViewModels/EditorViewModel.h"
 #include "Rigs/RigControlHierarchy.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
@@ -88,10 +90,15 @@ static int32 GetIndex(const TArray<FKeyPosition>& Keys, double Time)
 
 bool FAnimSliderKeySelection::Setup(TWeakPtr<ISequencer>& InSequencer)
 {
+	using namespace UE::Sequencer;
+
 	KeyMap.Reset();
 	if (InSequencer.IsValid())
 	{
-		CurveEditor = InSequencer.Pin()->GetCurveEditor();
+		TSharedPtr<FEditorViewModel> SequencerViewModel = InSequencer.Pin()->GetViewModel();
+		FCurveEditorExtension* CurveEditorExtension = SequencerViewModel->CastDynamic<FCurveEditorExtension>();
+		check(CurveEditorExtension);
+		CurveEditor = CurveEditorExtension->GetCurveEditor();
 		GetMapOfContiguousKeys();
 	}
 	return (KeyMap.Num() > 0);

@@ -401,9 +401,6 @@ private:
 	/** Handles changes to the selected outliner nodes. */
 	void HandleOutlinerNodeSelectionChanged();
 
-	/** Syncs the current node selection to the curve editor. */
-	void SyncCurveEditorToSelection();
-
 	/** Empty active timer to ensure Slate ticks during Sequencer playback */
 	EActiveTimerReturnType EnsureSlateTickDuringPlayback(double InCurrentTime, float InDeltaTime);	
 
@@ -663,9 +660,6 @@ private:
 	/** Section area widget for pinned tracks*/
 	TSharedPtr<UE::Sequencer::STrackAreaView> PinnedTrackArea;
 
-	/** Curve editor tree widget */
-	TSharedPtr<SCurveEditorTree> CurveEditorTree;
-
 	/** Curve editor filter that shows only the selected nodes */
 	TSharedPtr<FSequencerSelectionCurveFilter> SequencerSelectionCurveEditorFilter;
 
@@ -674,9 +668,6 @@ private:
 
 	/** The search box for filtering tracks. */
 	TSharedPtr<SSearchBox> SearchBox;
-
-	/** The search widget for filtering curves in the Curve Editor tree. */
-	TSharedPtr<SWidget> CurveEditorSearchBox;
 
 	/** The current playback time display. */
 	TSharedPtr<STemporarilyFocusedSpinBox<double>> PlayTimeDisplay;
@@ -698,9 +689,6 @@ private:
 
 	/** The top time slider widget */
 	TSharedPtr<ITimeSlider> TopTimeSlider;
-
-	/** The curve editor panel. This is created and updated even if it is not currently visible. */
-	TSharedPtr<SWidget> CurveEditorPanel;
 
 	/** Container for the toolbar, so that we can re-create it as needed. */
 	TSharedPtr<SBox> ToolbarContainer;
@@ -797,8 +785,4 @@ private:
 	TWeakPtr<SWindow> WeakNodeGroupWindow;
 
 	TSharedPtr<SSequencerGroupManager> NodeGroupManager;
-
-public:
-	static const FName CurveEditorTabName;
-
 };

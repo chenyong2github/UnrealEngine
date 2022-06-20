@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/CurveEditorIntegrationExtension.h"
+#include "MVVM/CurveEditorExtension.h"
 #include "MVVM/TrackModelStorageExtension.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/SharedViewModelData.h"
 #include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModels/SequenceModel.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
 #include "MVVM/Extensions/ICurveEditorTreeItemExtension.h"
 #include "CurveEditor.h"
@@ -33,6 +35,18 @@ void FCurveEditorIntegrationExtension::OnHierarchyChanged()
 	UpdateCurveEditor();
 }
 
+FCurveEditorExtension* FCurveEditorIntegrationExtension::GetCurveEditorExtension()
+{
+	if (TSharedPtr<FSequenceModel> OwnerModel = WeakOwnerModel.Pin())
+	{
+		if (TSharedPtr<FSequencerEditorViewModel> EditorViewModel = OwnerModel->GetEditor())
+		{
+			return EditorViewModel->CastDynamic<FCurveEditorExtension>();
+		}
+	}
+	return nullptr;
+}
+
 void FCurveEditorIntegrationExtension::UpdateCurveEditor()
 {
 	TSharedPtr<FSequenceModel> OwnerModel = WeakOwnerModel.Pin();
@@ -40,15 +54,15 @@ void FCurveEditorIntegrationExtension::UpdateCurveEditor()
 	{
 		return;
 	}
-
-	ICurveEditorExtension* CurveEditorExtension = OwnerModel->CastThis<ICurveEditorExtension>();
-	if (!CurveEditorExtension)
+	
+	FCurveEditorExtension* CurveEditorExtension = GetCurveEditorExtension();
+	if (!ensure(CurveEditorExtension))
 	{
 		return;
 	}
 
 	TSharedPtr<FCurveEditor> CurveEditor = CurveEditorExtension->GetCurveEditor();
-	if (!CurveEditor)
+	if (!ensure(CurveEditor))
 	{
 		return;
 	}
@@ -121,7 +135,7 @@ void FCurveEditorIntegrationExtension::UpdateCurveEditor()
 	}
 }
 
-FCurveEditorTreeItemID FCurveEditorIntegrationExtension::AddToCurveEditor(TViewModelPtr<ICurveEditorTreeItemExtension> InViewModel, TSharedPtr<FCurveEditor> CurveEditor)
+FCurveEditorTreeItemID FCurveEditorIntegrationExtension::AddToCurveEditor(TViewModelPtr<ICurveEditorTreeItemExtension> InViewModel, TSharedPtr<FCurveEditor> InCurveEditor)
 {
 	// If the view model doesn't want to be in the curve editor, bail out
 	// Note that this means we will create curve editor items for each parent in the hierarchy up
@@ -135,7 +149,7 @@ FCurveEditorTreeItemID FCurveEditorIntegrationExtension::AddToCurveEditor(TViewM
 	// Check if we already have a valid curve editor ID
 	if (FCurveEditorTreeItemID* Existing = ViewModelToTreeItemIDMap.Find(InViewModel.AsModel()))
 	{
-		if (CurveEditor->GetTree()->FindItem(*Existing) != nullptr)
+		if (InCurveEditor->GetTree()->FindItem(*Existing) != nullptr)
 		{
 			return *Existing;
 		}
@@ -144,38 +158,32 @@ FCurveEditorTreeItemID FCurveEditorIntegrationExtension::AddToCurveEditor(TViewM
 	// Recursively create any needed parent curve editor items
 	TSharedPtr<FViewModel> Parent = InViewModel.AsModel()->GetParent();
 
-	FCurveEditorTreeItemID ParentID = Parent.IsValid() ? 
-		AddToCurveEditor(Parent, CurveEditor) : 
+	FCurveEditorTreeItemID ParentID = Parent.IsValid() ?
+		AddToCurveEditor(Parent, InCurveEditor) :
 		FCurveEditorTreeItemID::Invalid();
 
 	// Create the new curve editor item
-	FCurveEditorTreeItem* NewItem = CurveEditor->AddTreeItem(ParentID);
+	FCurveEditorTreeItem* NewItem = InCurveEditor->AddTreeItem(ParentID);
 	TSharedPtr<ICurveEditorTreeItem> CurveEditorTreeItem = InViewModel->GetCurveEditorTreeItem();
 	NewItem->SetWeakItem(CurveEditorTreeItem);
 
 	// Register the new ID in our map and notify the view model
 	ViewModelToTreeItemIDMap.Add(InViewModel.AsModel(), NewItem->GetID());
-	InViewModel->OnAddedToCurveEditor(NewItem->GetID(), CurveEditor);
+	InViewModel->OnAddedToCurveEditor(NewItem->GetID(), InCurveEditor);
 
 	return NewItem->GetID();
 }
 
-void FCurveEditorIntegrationExtension::RecreateCurveEditor()
+void FCurveEditorIntegrationExtension::ResetCurveEditor()
 {
-	TSharedPtr<FSequenceModel> OwnerModel = WeakOwnerModel.Pin();
-	if (!OwnerModel)
-	{
-		return;
-	}
-
-	ICurveEditorExtension* CurveEditorExtension = OwnerModel->CastThis<ICurveEditorExtension>();
-	if (!CurveEditorExtension)
+	FCurveEditorExtension* CurveEditorExtension = GetCurveEditorExtension();
+	if (!ensure(CurveEditorExtension))
 	{
 		return;
 	}
 
 	TSharedPtr<FCurveEditor> CurveEditor = CurveEditorExtension->GetCurveEditor();
-	if (!CurveEditor)
+	if (!ensure(CurveEditor))
 	{
 		return;
 	}

@@ -41,6 +41,7 @@ protected:
 	virtual TSharedPtr<FViewModel> CreateRootModelImpl() override;
 	virtual TSharedPtr<FOutlinerViewModel> CreateOutlinerImpl() override;
 	virtual TSharedPtr<FTrackAreaViewModel> CreateTrackAreaImpl() override;
+	virtual void InitializeEditorImpl() override;
 
 protected:
 

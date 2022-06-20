@@ -617,11 +617,6 @@ public:
 
 	void OnSelectedNodesOnlyChanged();
 
-	virtual TSharedPtr<FCurveEditor> GetCurveEditor() const override
-	{
-		return CurveEditorModel;
-	}
-
 	/** Will create a custom menu if FSequencerViewParams::OnBuildCustomContextMenuForGuid is specified. */
 	void BuildCustomContextMenuForGuid(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
 
@@ -1141,9 +1136,6 @@ private:
 	/** Check whether we're viewing the master sequence or not */
 	bool IsViewingMasterSequence() const { return ActiveTemplateIDs.Num() == 1; }
 
-	/** Get the default key attributes to apply to newly created keys on the curve editor */
-	FKeyAttributes GetDefaultKeyAttributes() const;
-
 	/** Recompile any dirty director blueprints in the sequence hierarchy */
 	void RecompileDirtyDirectors();
 
@@ -1449,8 +1441,6 @@ private:
 
 	/** Transient collection of keys that is used for jumping between keys contained within the current selection */
 	TUniquePtr<FSequencerKeyCollection> SelectedKeyCollection;
-
-	TSharedPtr<FCurveEditor> CurveEditorModel;
 
 	TSharedPtr<UE::MovieScene::FInitialValueCache> InitialValueCache;
 

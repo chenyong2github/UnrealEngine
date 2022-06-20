@@ -15,6 +15,7 @@ namespace Sequencer
 {
 
 class FSequenceModel;
+class FCurveEditorExtension;
 
 /**
  * Extension for managing integration between outliner items and the curve editor.
@@ -27,7 +28,7 @@ class FSequenceModel;
  * - Outliner items implementing ICurveEditorTreeItemExtension (or its default shim) if they 
  *   want to show up in the curve editor.
  */
-class FCurveEditorIntegrationExtension : public IDynamicExtension
+class SEQUENCER_API FCurveEditorIntegrationExtension : public IDynamicExtension
 {
 public:
 
@@ -37,14 +38,27 @@ public:
 
 	virtual void OnCreated(TSharedRef<FViewModel> InWeakOwner) override;
 
+	/** 
+	 * Keeps the curve editor items up-to-date with the sequencer outliner by adding/removing 
+	 * entries as needed.
+	 */
 	void UpdateCurveEditor();
-	void RecreateCurveEditor();
+
+	/**
+	 * Clears the curve editor of all contents.
+	 */
+	void ResetCurveEditor();
 
 private:
 
+	/** Update curve editor items when sequencer outliner items change */
 	void OnHierarchyChanged();
 
-	FCurveEditorTreeItemID AddToCurveEditor(TViewModelPtr<ICurveEditorTreeItemExtension> InViewModel, TSharedPtr<FCurveEditor> CurveEditor);
+	/** Adds the given view-model to the curve editor */
+	FCurveEditorTreeItemID AddToCurveEditor(TViewModelPtr<ICurveEditorTreeItemExtension> InViewModel, TSharedPtr<FCurveEditor> InCurveEditor);
+
+	/** Finds the curve editor extension on the top-level sequencer editor view-model */
+	FCurveEditorExtension* GetCurveEditorExtension();
 
 private:
 
