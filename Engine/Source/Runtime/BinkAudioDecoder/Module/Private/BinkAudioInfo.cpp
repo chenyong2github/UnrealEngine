@@ -123,6 +123,7 @@ void FBinkAudioInfo::SeekToTime(const float SeekTimeSeconds)
 	{
 		SeekTimeSamples = this->TrueSampleCount - 1;
 	}
+	this->CurrentSampleCount = SeekTimeSamples;
 
 	uint32 SamplesPerBlock = SamplesInFrame * Decoder->FramesPerSeekTableEntry;
 	uint32 SeekTableIndex = SeekTimeSamples / SamplesPerBlock;
