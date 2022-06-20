@@ -369,10 +369,9 @@ public:
 		return UniformBuffer;
 	}
 
-	virtual void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents) override final
+	virtual void RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, FRHIUniformBuffer* UniformBufferRHI, const void* Contents) override final
 	{
-		check(IsInRenderingThread());
-		RHI->RHIUpdateUniformBuffer(UniformBufferRHI, Contents);
+		RHI->RHIUpdateUniformBuffer(RHICmdList, UniformBufferRHI, Contents);
 		UniformBufferRHI->UpdateAllocation(RenderThreadFrameID);
 	}
 

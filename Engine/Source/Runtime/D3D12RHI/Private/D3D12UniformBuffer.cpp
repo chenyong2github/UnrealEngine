@@ -238,15 +238,13 @@ FRHICOMMAND_MACRO(FRHICommandD3D12UpdateUniformBuffer)
 	}
 };
 
-void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
+void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
 {
-	check(IsInRenderingThread());
 	check(UniformBufferRHI);
 
 	const FRHIUniformBufferLayout& Layout = UniformBufferRHI->GetLayout();
 	ValidateShaderParameterResourcesRHI(Contents, Layout);
 
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	const bool bBypass = RHICmdList.Bypass();
 
 	FD3D12UniformBuffer* FirstUniformBuffer = ResourceCast(UniformBufferRHI);

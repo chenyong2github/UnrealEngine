@@ -4,44 +4,32 @@
 #include "MetalShaderTypes.h"
 #include "MetalFrameAllocator.h"
 
-static void DoUpdateUniformBuffer(FMetalUniformBuffer* UB, const void* Contents)
-{
-    check(IsInRenderingThread() || IsInRHIThread());
-
-    FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-    // The only way we can be on the RHI thread here is if we're in the process of creating a FLocalUniformBuffer.
-    bool bUpdateImmediately = RHICmdList.Bypass() || IsInRHIThread();
-
-    if(bUpdateImmediately)
-    {
-        UB->Update(Contents);
-    }
-    else
-    {
-        const uint32 NumBytes = UB->GetLayout().ConstantBufferSize;
-        void* Data = RHICmdList.Alloc(NumBytes, 16);
-        FMemory::Memcpy(Data, Contents, NumBytes);
-
-        RHICmdList.EnqueueLambda([Data, UB](FRHICommandListImmediate& RHICmdList)
-        {
-            UB->Update(Data);
-        });
-
-        RHICmdList.RHIThreadFence(true);
-    }
-}
-
 FUniformBufferRHIRef FMetalDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
 	return new FMetalUniformBuffer(Contents, Layout, Usage, Validation);
 }
 
-void FMetalDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
+void FMetalDynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
 {
-    check(IsInRenderingThread());
-    
-    FMetalUniformBuffer* UB = ResourceCast(UniformBufferRHI);
-    DoUpdateUniformBuffer(UB, Contents);
+	FMetalUniformBuffer* UniformBuffer = ResourceCast(UniformBufferRHI);
+
+	const void* SrcContents = Contents;
+
+	if (RHICmdList.IsTopOfPipe())
+	{
+		const FRHIUniformBufferLayout& Layout = UniformBuffer->GetLayout();
+
+		// Copy the contents memory region into the RHICmdList to allow deferred execution on the RHI thread.
+		void* DstContents = RHICmdList.Alloc(Layout.ConstantBufferSize, alignof(FRHIResource*));
+		FMemory::ParallelMemcpy(DstContents, Contents, Layout.ConstantBufferSize, EMemcpyCachePolicy::StoreUncached);
+
+		SrcContents = DstContents;
+	}
+
+	RHICmdList.EnqueueLambda([UniformBuffer, SrcContents](FRHICommandListBase& RHICmdList)
+	{
+		UniformBuffer->Update(SrcContents);
+	});
 }
 
 template<EMetalShaderStages Stage, typename RHIShaderType>

@@ -649,6 +649,11 @@ public:
 		return Buffer;
 	}
 
+	FORCEINLINE void UpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
+	{
+		GDynamicRHI->RHIUpdateUniformBuffer(*this, UniformBufferRHI, Contents);
+	}
+
 	void DisallowBypass()
 	{
 #if CAN_DISALLOW_COMMAND_LIST_BYPASS
@@ -5301,6 +5306,11 @@ FORCEINLINE void RHIUnlockIndexBuffer(FRHIBuffer* IndexBuffer)
 {
 	check(IsInRenderingThread());
 	FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(IndexBuffer);
+}
+
+FORCEINLINE void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().UpdateUniformBuffer(UniformBufferRHI, Contents);
 }
 
 UE_DEPRECATED(5.0, "Use RHICreateBuffer() and RHILockBuffer() instead.")

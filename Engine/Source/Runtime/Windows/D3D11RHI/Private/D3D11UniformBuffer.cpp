@@ -281,7 +281,7 @@ void UpdateUniformBufferContents(FD3D11Device* Direct3DDevice, FD3D11DeviceConte
 	}
 }
 
-void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
+void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
 {
 	check(IsInRenderingThread());
 	check(UniformBufferRHI);
@@ -294,8 +294,6 @@ void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 	const int32 NumResources = Layout.Resources.Num();
 
 	check(UniformBuffer->ResourceTable.Num() == NumResources);
-
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	if (RHICmdList.Bypass())
 	{
@@ -335,7 +333,7 @@ void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 			CmdListResources,
 			NumResources,
 			CmdListConstantBufferData,
-			ConstantBufferSize](FRHICommandList&)
+			ConstantBufferSize](FRHICommandListBase&)
 		{
 			UpdateUniformBufferContents(Direct3DDevice, Direct3DDeviceIMContext, UniformBuffer, CmdListConstantBufferData, ConstantBufferSize);
 

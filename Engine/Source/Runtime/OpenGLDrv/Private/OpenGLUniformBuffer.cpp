@@ -774,11 +774,10 @@ void UpdateUniformBufferContents(FOpenGLUniformBuffer* UniformBuffer, const void
 	}
 }
 
-void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
+void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
 {
 	FOpenGLUniformBuffer* UniformBuffer = ResourceCast(UniformBufferRHI);
 
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	const FRHIUniformBufferLayout& Layout = UniformBufferRHI->GetLayout();
 	ValidateShaderParameterResourcesRHI(Contents, Layout);
 
@@ -822,7 +821,7 @@ void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferR
 			FMemory::Memcpy(CmdListConstantBufferData, Contents, ConstantBufferSize);
 		}
 
-		RHICmdList.EnqueueLambda([UniformBuffer, CmdListResources, NumResources, CmdListConstantBufferData, ConstantBufferSize, NextUniqueID](FRHICommandList&)
+		RHICmdList.EnqueueLambda([UniformBuffer, CmdListResources, NumResources, CmdListConstantBufferData, ConstantBufferSize, NextUniqueID](FRHICommandListBase&)
 		{
 			UpdateUniformBufferContents(UniformBuffer, CmdListConstantBufferData, ConstantBufferSize);
 

@@ -407,7 +407,7 @@ public:
 		return RHICreateUniformBuffer(Contents, &Layout, Usage, Validation);
 	}
 
-	virtual void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents) = 0;
+	virtual void RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, FRHIUniformBuffer* UniformBufferRHI, const void* Contents) = 0;
 
 	/** Copies the contents of one buffer to another buffer. They must have identical sizes. */
 	// FlushType: Flush Immediate (seems dangerous)
@@ -1316,11 +1316,6 @@ UE_DEPRECATED(5.0, "Use Layout pointers instead")
 FORCEINLINE FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation = EUniformBufferValidation::ValidateResources)
 {
 	return GDynamicRHI->RHICreateUniformBuffer(Contents, &Layout, Usage, Validation);
-}
-
-FORCEINLINE void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
-{
-	return GDynamicRHI->RHIUpdateUniformBuffer(UniformBufferRHI, Contents);
 }
 
 FORCEINLINE FDynamicRHI::FRHICalcTextureSizeResult RHICalcTexturePlatformSize(FRHITextureDesc const& Desc, uint32 FirstMipIndex = 0)
