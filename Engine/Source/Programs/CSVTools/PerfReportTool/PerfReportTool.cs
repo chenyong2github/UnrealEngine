@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.79";
+        private static string VersionString = "4.80";
 
         public static string Get() { return VersionString; }
     };
@@ -159,6 +159,7 @@ namespace PerfReportTool
 			"Json serialization:\n" +
 			"       -summaryTableToJson <filename> : json filename to write summary table row data to\n" +
 			"       -summaryTableToJsonFastMode : exit after serializing json data (skips making summary tables)\n" +
+			"       -summaryTableToJsonWriteAllElementData : write all element data, including tooltips, flags\n" +
 			"       -summaryTableToJsonMetadataOnly : only write CsvMetadata elements to json\n" +
 			"\n" +
 			"Performance args for bulk mode:\n" +
@@ -332,7 +333,7 @@ namespace PerfReportTool
 			string summaryJsonOutFilename = GetArg("summaryTableToJson", null);
 			if (summaryJsonOutFilename != null)
 			{
-				summaryTableJsonHelper = new SummaryTableDataJsonHelper(summaryJsonOutFilename, GetBoolArg("summaryTableToJsonMetadataOnly"));
+				summaryTableJsonHelper = new SummaryTableDataJsonHelper(summaryJsonOutFilename, GetBoolArg("summaryTableToJsonMetadataOnly"), GetBoolArg("summaryTableToJsonWriteAllElementData"));
 			}
 
 
