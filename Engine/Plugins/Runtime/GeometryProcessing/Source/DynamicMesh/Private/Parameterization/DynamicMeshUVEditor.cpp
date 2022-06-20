@@ -350,7 +350,8 @@ bool FDynamicMeshUVEditor::EstimateGeodesicCenterFrameVertex(const FDynamicMesh3
 	{
 		return false;
 	}
-	FrameVertexID = SubmeshCalc.MapVertexToBaseMesh(FrameVertexID);
+	VertexIDOut = SubmeshCalc.MapVertexToBaseMesh(FrameVertexID);
+	FrameOut = SeedFrame;
 	return true;
 }
 
