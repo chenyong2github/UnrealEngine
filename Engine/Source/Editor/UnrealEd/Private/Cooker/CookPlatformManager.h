@@ -74,6 +74,7 @@ namespace Cook
 
 		/** Returns the set of TargetPlatforms that is active for the CurrentCookByTheBook session or CookOnTheFly request. */
 		const TArray<const ITargetPlatform*>& GetSessionPlatforms() const;
+		int32 GetNumSessionPlatforms() const;
 
 		/** Return whether the given platform is already in the list of platforms for the current session. */
 		bool HasSessionPlatform(FPlatformId TargetPlatform) const;

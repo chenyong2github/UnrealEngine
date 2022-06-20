@@ -720,7 +720,7 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 
 void UCookOnTheFlyServer::StartCookOnTheFlySessionFromGameThread(ITargetPlatform* TargetPlatform)
 {
-	if (PlatformManager->GetSessionPlatforms().Num() == 0)
+	if (PlatformManager->GetNumSessionPlatforms() == 0)
 	{
 		InitializeSession();
 	}

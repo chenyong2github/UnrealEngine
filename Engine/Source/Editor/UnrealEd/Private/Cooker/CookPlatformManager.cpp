@@ -101,6 +101,12 @@ namespace Cook
 		return SessionPlatforms;
 	}
 
+	int32 FPlatformManager::GetNumSessionPlatforms() const
+	{
+		checkf(IsSchedulerThread() || IsInPlatformsLock(), TEXT("Access to SessionPlatforms is only legal on non-scheduler threads when inside a ReadLockPlatforms scope."));
+		return SessionPlatforms.Num();
+	}
+
 	bool FPlatformManager::HasSessionPlatform(FPlatformId TargetPlatform) const
 	{
 		const bool bIsSchedulerThread = IsSchedulerThread();
