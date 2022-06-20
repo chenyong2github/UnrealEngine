@@ -28,6 +28,7 @@ namespace UnrealGameSync
 			if(BackgroundThread == null)
 			{
 				BackgroundThread = new Thread(x => ThreadProc());
+				BackgroundThread.IsBackground = true;
 				BackgroundThread.Start();
 			}
 		}

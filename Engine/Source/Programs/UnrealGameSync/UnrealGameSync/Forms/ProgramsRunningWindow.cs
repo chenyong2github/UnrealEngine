@@ -36,6 +36,7 @@ namespace UnrealGameSync
 			TerminateEvent = new ManualResetEvent(false);
 
 			BackgroundThread = new Thread(() => ExecuteBackgroundWork());
+			BackgroundThread.IsBackground = true;
 			BackgroundThread.Start();
 		}
 

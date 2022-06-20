@@ -167,6 +167,7 @@ namespace UnrealGameSync
 						Listener = new TcpListener(IPAddress.Loopback, PortNumber);
 						Listener.Start();
 						TcpThread = new Thread(() => RunTcp());
+						TcpThread.IsBackground = true;
 						TcpThread.Start();
 
 					}
@@ -178,6 +179,7 @@ namespace UnrealGameSync
 				}
 
 				UriThread = new Thread(() => RunUri());
+				UriThread.IsBackground = true;
 				UriThread.Start();
 			}
 			catch (Exception Ex)
