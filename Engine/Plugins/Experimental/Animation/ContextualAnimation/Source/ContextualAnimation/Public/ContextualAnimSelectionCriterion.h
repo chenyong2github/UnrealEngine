@@ -7,6 +7,13 @@
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimSelectionCriterion.generated.h"
 
+UENUM(BlueprintType)
+enum class EContextualAnimCriterionType : uint8
+{
+	Spatial,
+	Other
+};
+
 // UContextualAnimSelectionCriterion
 //===========================================================================
 
@@ -16,6 +23,9 @@ class CONTEXTUALANIMATION_API UContextualAnimSelectionCriterion : public UObject
 	GENERATED_BODY()
 
 public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defaults")
+	EContextualAnimCriterionType Type = EContextualAnimCriterionType::Spatial;
 
 	UContextualAnimSelectionCriterion(const FObjectInitializer& ObjectInitializer);
 

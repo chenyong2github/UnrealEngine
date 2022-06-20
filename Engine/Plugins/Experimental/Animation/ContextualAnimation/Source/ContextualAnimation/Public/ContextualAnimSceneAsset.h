@@ -42,9 +42,6 @@ struct CONTEXTUALANIMATION_API FContextualAnimSet
 
 	UPROPERTY(EditAnywhere, Category = "Defaults")
 	TArray<FTransform> ScenePivots;
-
-	UPROPERTY(VisibleAnywhere, Category = "Settings")
-	float Radius = 0.f;
 };
 
 /** Named container with one or more ContextualAnimSet */
@@ -97,6 +94,48 @@ protected:
  	friend class FContextualAnimViewModel;
 };
 
+USTRUCT(BlueprintType)
+struct FContextualAnimPoint
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FTransform Transform;
+
+	UPROPERTY()
+	float Speed = 0.f;
+
+	UPROPERTY()
+	int32 SectionIdx = INDEX_NONE;
+
+	UPROPERTY()
+	int32 AnimSetIdx = INDEX_NONE;
+
+	UPROPERTY()
+	int32 AnimTrackIdx = INDEX_NONE;
+
+	FContextualAnimPoint(){}
+	FContextualAnimPoint(const FTransform& InTransform, float InSpeed, int32 InSectionIdx, int32 InAnimSetIdx, int32 InAnimTrackIdx)
+		: Transform(InTransform), Speed(InSpeed), SectionIdx(InSectionIdx), AnimSetIdx(InAnimSetIdx), AnimTrackIdx(InAnimTrackIdx)
+	{}
+};
+
+UENUM(BlueprintType)
+enum class EContextualAnimPointType : uint8
+{
+	FirstFrame,
+	SyncFrame,
+	LastFrame
+};
+
+UENUM(BlueprintType)
+enum class EContextualAnimCriterionToConsider : uint8
+{
+	All,
+	Spatial,
+	Other
+};
+
 UCLASS(Blueprintable)
 class CONTEXTUALANIMATION_API UContextualAnimSceneAsset : public UDataAsset
 {
@@ -119,7 +158,8 @@ public:
 	FORCEINLINE bool GetDisableCollisionBetweenActors() const { return bDisableCollisionBetweenActors; }
 	FORCEINLINE const TSubclassOf<UContextualAnimSceneInstance>& GetSceneInstanceClass() const { return SceneInstanceClass; }
 	FORCEINLINE int32 GetSampleRate() const { return SampleRate; }
-	
+	FORCEINLINE float GetRadius() const { return Radius; }
+
 	bool HasValidData() const { return RolesAsset != nullptr && Sections.Num() > 0 && Sections[0].AnimSets.Num() > 0; }
 
 	const UContextualAnimRolesAsset* GetRolesAsset() const { return RolesAsset; }
@@ -155,6 +195,12 @@ public:
 
 	const FContextualAnimIKTargetDefContainer& GetIKTargetDefsForRoleInSection(int32 SectionIdx, const FName& Role) const;
 
+	void GetAlignmentPointsForRoleInSection(EContextualAnimPointType Type, int32 SectionIdx, const FName& Role, const FContextualAnimSceneBindingContext& Primary, TArray<FContextualAnimPoint>& OutResult) const;
+
+	void GetAlignmentPointsForRoleInSectionConsideringSelectionCriteria(EContextualAnimPointType Type, int32 SectionIdx, const FName& Role, const FContextualAnimSceneBindingContext& Querier, const FContextualAnimSceneBindingContext& Primary, EContextualAnimCriterionToConsider CriterionToConsider, TArray<FContextualAnimPoint>& OutResult) const;
+
+public:
+
 	// Blueprint Interface
 	//------------------------------------------------------------------------------------------
 
@@ -184,6 +230,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Defaults")
 	TArray<FContextualAnimSceneSection> Sections;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	float Radius = 0.f;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TSubclassOf<UContextualAnimSceneInstance> SceneInstanceClass;

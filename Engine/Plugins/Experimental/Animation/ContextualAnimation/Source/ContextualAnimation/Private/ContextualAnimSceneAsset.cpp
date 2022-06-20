@@ -455,24 +455,25 @@ void UContextualAnimSceneAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 void UContextualAnimSceneAsset::PrecomputeData()
 {
-	// Set SetIdx and SectionIdx on each AnimTrack and update the Radius for each set
+	if(!HasValidData())
+	{
+		return;
+	}
+
+	// Set indices on each AnimTrack
 	for (int32 SectionIdx = 0; SectionIdx < Sections.Num(); SectionIdx++)
 	{
 		FContextualAnimSceneSection& Section = Sections[SectionIdx];
 		for (int32 SetIdx = 0; SetIdx < Section.AnimSets.Num(); SetIdx++)
 		{
 			FContextualAnimSet& AnimSet = Section.AnimSets[SetIdx];
-
-			FBox Box(ForceInitToZero);
-			for (FContextualAnimTrack& AnimTrack : AnimSet.Tracks)
+			for (int32 TrackIdx = 0; TrackIdx < AnimSet.Tracks.Num(); TrackIdx++)
 			{
+				FContextualAnimTrack& AnimTrack = AnimSet.Tracks[TrackIdx];
 				AnimTrack.SectionIdx = SectionIdx;
 				AnimTrack.AnimSetIdx = SetIdx;
-
-				Box += AnimTrack.GetRootTransformAtTime(0.f).GetLocation();
+				AnimTrack.AnimTrackIdx = TrackIdx;
 			}
-
-			AnimSet.Radius = Box.GetExtent().Size();
 		}
 
 		// Generate alignment tracks
@@ -634,6 +635,99 @@ const TArray<FContextualAnimSetPivotDefinition>& UContextualAnimSceneAsset::GetA
 {
 	static TArray<FContextualAnimSetPivotDefinition> EmptyDefs;
 	return Sections.IsValidIndex(SectionIdx) ? Sections[SectionIdx].GetAnimSetPivotDefinitions() : EmptyDefs;
+}
+
+static FContextualAnimPoint GetContextualAnimPoint(const FContextualAnimTrack& AnimTrack, const FTransform& ToWorldTransform, int32 SampleRate, EContextualAnimPointType Type)
+{
+	check(SampleRate > 0);
+
+	if (AnimTrack.Animation)
+	{
+		const float Interval = 1.f / SampleRate;
+
+		float T1 = 0.f;
+		if(Type == EContextualAnimPointType::SyncFrame)
+		{
+			T1 = AnimTrack.GetSyncTimeForWarpSection(0);
+		}
+		else if(Type == EContextualAnimPointType::LastFrame)
+		{
+			T1 = FMath::Max(AnimTrack.Animation->GetPlayLength() - Interval, 0.f);
+		}
+
+		float T2 = T1 + Interval;
+
+		const FTransform RootTransform1 = AnimTrack.GetAlignmentTransformAtTime(T1);
+		const FTransform RootTransform2 = AnimTrack.GetAlignmentTransformAtTime(T2);
+		const float Delta = (RootTransform2.GetTranslation() - RootTransform1.GetTranslation()).Size();
+		const float Speed = Delta / Interval;
+
+		return FContextualAnimPoint(RootTransform1 * ToWorldTransform, Speed, AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.AnimTrackIdx);
+	}
+	else
+	{
+		return FContextualAnimPoint(ToWorldTransform, 0.f, AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.AnimTrackIdx);
+	}
+}
+
+void UContextualAnimSceneAsset::GetAlignmentPointsForRoleInSection(EContextualAnimPointType Type, int32 SectionIdx, const FName& Role, const FContextualAnimSceneBindingContext& Primary, TArray<FContextualAnimPoint>& OutResult) const
+{
+	if (Sections.IsValidIndex(SectionIdx))
+	{
+		OutResult.Reset(Sections[SectionIdx].AnimSets.Num());
+		for (const FContextualAnimSet& Set : Sections[SectionIdx].AnimSets)
+		{
+			for (const FContextualAnimTrack& AnimTrack : Set.Tracks)
+			{
+				if (AnimTrack.Role == Role)
+				{
+					OutResult.Add(GetContextualAnimPoint(AnimTrack, Primary.GetTransform(), GetSampleRate(), Type));
+					break;
+				}
+			}
+		}
+	}
+}
+
+void UContextualAnimSceneAsset::GetAlignmentPointsForRoleInSectionConsideringSelectionCriteria(EContextualAnimPointType Type, int32 SectionIdx, const FName& Role, const FContextualAnimSceneBindingContext& Querier, const FContextualAnimSceneBindingContext& Primary, EContextualAnimCriterionToConsider CriterionToConsider, TArray<FContextualAnimPoint>& OutResult) const
+{
+	if (Sections.IsValidIndex(SectionIdx))
+	{
+		OutResult.Reset(Sections[SectionIdx].AnimSets.Num());
+		for (const FContextualAnimSet& Set : Sections[SectionIdx].AnimSets)
+		{
+			for (const FContextualAnimTrack& AnimTrack : Set.Tracks)
+			{
+				if (AnimTrack.Role == Role)
+				{
+					bool bSuccess = true;
+					for (const UContextualAnimSelectionCriterion* Criterion : AnimTrack.SelectionCriteria)
+					{
+						if (Criterion)
+						{
+							if ((CriterionToConsider == EContextualAnimCriterionToConsider::All) ||
+								(CriterionToConsider == EContextualAnimCriterionToConsider::Spatial && Criterion->Type == EContextualAnimCriterionType::Spatial) ||
+								(CriterionToConsider == EContextualAnimCriterionToConsider::Other && Criterion->Type == EContextualAnimCriterionType::Other))
+							{
+								if (!Criterion->DoesQuerierPassCondition(Primary, Querier))
+								{
+									bSuccess = false;
+									break;
+								}
+							}
+						}
+					}
+
+					if (bSuccess)
+					{
+						OutResult.Add(GetContextualAnimPoint(AnimTrack, Primary.GetTransform(), GetSampleRate(), Type));
+					}
+
+					break;
+				}
+			}
+		}
+	}
 }
 
 // Blueprint Interface

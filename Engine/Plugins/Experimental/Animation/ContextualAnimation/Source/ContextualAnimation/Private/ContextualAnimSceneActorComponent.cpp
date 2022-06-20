@@ -28,9 +28,8 @@ UContextualAnimSceneActorComponent::UContextualAnimSceneActorComponent(const FOb
 
 FBoxSphereBounds UContextualAnimSceneActorComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	// Use radius of the first set in the first section for now. 
 	// The option of having an SceneAsset and draw options on this component may go away in the future anyway, replaced by smart objects.
-	const float Radius = SceneAsset && SceneAsset->HasValidData() ? SceneAsset->GetSection(0)->GetAnimSet(0)->Radius : 0.f;
+	const float Radius = SceneAsset && SceneAsset->HasValidData() ? SceneAsset->GetRadius() : 0.f;
 	return FBoxSphereBounds(FSphere(GetComponentTransform().GetLocation(), Radius));
 }
 
