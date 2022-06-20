@@ -364,6 +364,16 @@ public:
 		return CurveUtil::WindingIntegral2<T, TVector2<T>>(Vertices, QueryPoint);
 	}
 
+	/**
+	 * @param RadiansTolerance		Maximum turn in the 'wrong' direction that will still be considered convex (in radians)
+	 * @param bDegenerateIsConvex	What to return for degenerate input (less than 3 points or equivalent due to repeated points)
+	 * @return						true if polygon is convex
+	 */
+	bool IsConvex(T RadiansTolerance = TMathUtil<T>::ZeroTolerance, bool bDegenerateIsConvex = true)
+	{
+		return CurveUtil::IsConvex2<T, TVector2<T>>(Vertices, RadiansTolerance, bDegenerateIsConvex);
+	}
+
 
 	/**
 	 * @return true if the given query point is inside the Polygon, based on the winding integral
