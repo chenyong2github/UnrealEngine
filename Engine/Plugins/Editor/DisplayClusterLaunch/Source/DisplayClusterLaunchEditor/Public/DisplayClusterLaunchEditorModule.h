@@ -11,6 +11,8 @@
 #include "UObject/SoftObjectPath.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+struct FPlacementCategoryInfo;
+class UDisplayClusterLaunchEditorProjectSettings;
 class ADisplayClusterRootActor;
 class FMenuBuilder;
 class FName;
@@ -83,8 +85,16 @@ private:
 	
 	void RegisterProjectSettings() const;
 
+	static void RegisterPlacementModeItemsIfTheyExist();
+	static const FPlacementCategoryInfo* GetDisplayClusterPlacementCategoryInfo();
+
 	/** Returns a list of selected nodes as FText separated by new lines with the Primary Node marked. */
 	FText GetSelectedNodesListText() const;
+
+	void GetProjectSettingsArguments(
+		const UDisplayClusterLaunchEditorProjectSettings* ProjectSettings, FString& ConcatenatedCommandLineArguments, 
+		FString& ConcatenatedConsoleCommands, FString& ConcatenatedDPCvars, FString& ConcatenatedLogCommands);
+
 
 	TArray<TWeakObjectPtr<ADisplayClusterRootActor>> GetAllDisplayClusterConfigsInWorld();
 	bool DoesCurrentWorldHaveDisplayClusterConfig();
@@ -116,7 +126,7 @@ private:
 	TArray<FString> SelectedDisplayClusterConfigActorNodes;
 	FString SelectedDisplayClusterConfigActorPrimaryNode;
 	
-	FName SelectedConsoleVariablesAssetName = NAME_None;
+	FSoftObjectPath SelectedAdditionalConsoleVariablesAsset;
 
 	FDisplayClusterLaunchMultiUserServerTrackingData ServerTrackingData;
 	FString CachedConcertSessionName;

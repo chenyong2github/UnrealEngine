@@ -121,20 +121,25 @@ public:
 	FDirectoryPath ExplicitTraceFileSaveDirectory;
 
 	/**
-	 * A Console Variables Asset to always apply to your launches 
+	 * A Console Variables Asset to always apply to your launches.
+	 * All saved commands and variables will be executed before "Additional" ones specified below.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Console", meta = (AllowedClasses="ConsoleVariablesAsset"))
 	FSoftObjectPath ConsoleVariablesPreset;
 
 	/**
 	 * DPCvars
-	 * You can specify additional console variables here to be executed before those of the Console Variable Preset are executed
+	 * You can specify additional console variables here to be executed after those of the Console Variable Preset are executed.
+	 * This is useful for overriding variables in your defined Console Variables Asset.
+	 * Console Variables generally have a name and a value, like "r.ScreenPercentage 50"
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Console", meta = (Keywords = "DPCvars"))
 	TSet<FString> AdditionalConsoleVariables;
 
 	/**
-	 * You can specify additional console commands here to be executed before those of the Console Variable Preset are executed
+	 * You can specify additional console commands here to be executed after those of the Console Variable Preset are executed.
+	 * This is useful for overriding commands in your defined Console Variables Asset.
+	 * Console Commands generally have a name and no value (i.e. 'stat unit') though some have a value too (i.e. "r.SetNearClipPlane 500")
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Console")
 	TSet<FString> AdditionalConsoleCommands;
