@@ -3,7 +3,7 @@
 #include "NiagaraValidationRule.h"
 
 #if WITH_EDITOR
-void UNiagaraValidationRule::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& Results) const
+void UNiagaraValidationRule::CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& Results) const
 {
 }
 #endif

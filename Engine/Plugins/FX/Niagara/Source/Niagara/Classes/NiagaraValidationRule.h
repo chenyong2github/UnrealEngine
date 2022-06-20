@@ -7,6 +7,7 @@
 #include "NiagaraValidationRule.generated.h"
 
 class FNiagaraSystemViewModel;
+class UNiagaraStackEntry;
 
 UENUM()
 enum class ENiagaraValidationSeverity
@@ -50,6 +51,15 @@ struct FNiagaraValidationResult
 	TArray<FNiagaraValidationFix> Links;
 };
 
+struct FNiagaraValidationContext
+{
+	// the view model for the whole Niagara system
+	TSharedPtr<FNiagaraSystemViewModel> ViewModel;
+
+	// if set then this stack entry requested the validation
+	UNiagaraStackEntry* Source = nullptr;
+};
+
 /**
 Base class for system validation logic. 
 These allow Niagara systems to be inspected for content validation either at save time or from a commandlet.
@@ -61,7 +71,7 @@ class NIAGARA_API UNiagaraValidationRule : public UObject
 public:
 
 #if WITH_EDITOR
-	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const;
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const;
 #endif
 };
 

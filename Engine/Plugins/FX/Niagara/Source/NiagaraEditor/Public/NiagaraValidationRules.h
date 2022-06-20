@@ -10,13 +10,18 @@
 
 class UNiagaraScript;
 
+namespace NiagaraValidation
+{
+	NIAGARAEDITOR_API void ValidateAllRulesInSystem(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TFunction<void(const FNiagaraValidationResult& Result)> ResultCallback);
+}
+
 /** This validation rule ensures that no Systems have a warm up time set. */
 UCLASS(Category = "Validation", DisplayName = "No Warmup Time")
 class UNiagaraValidationRule_NoWarmupTime : public UNiagaraValidationRule
 {
 	GENERATED_BODY()
 public:
-	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
 /** This validation rule ensures that GPU emitters have fixed bounds set. */
@@ -25,7 +30,7 @@ class UNiagaraValidationRule_FixedGPUBoundsSet : public UNiagaraValidationRule
 {
 	GENERATED_BODY()
 public:
-	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
 /** This validation rule can ban the use of certain renderers on all or a subset of platforms. */
@@ -43,7 +48,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Validation)
 	TArray<TSubclassOf<UNiagaraRendererProperties>> BannedRenderers;
 
-	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
 /** This validation rule can ban the use of certain modules on all or a subset of platforms. */
@@ -61,7 +66,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Validation)
 	TArray<TObjectPtr<UNiagaraScript>> BannedModules;
 
-	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
 /** This validation rule can marks this effect type as invalid and so must be changed. Forces a choice of correct Effect Type for an System rather than. Leaving as the default. */
@@ -70,7 +75,7 @@ class UNiagaraValidationRule_InvalidEffectType : public UNiagaraValidationRule
 {
 	GENERATED_BODY()
 public:
-	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
 /** This validation rule checks for various issue with Large World Coordinates. */
@@ -79,7 +84,16 @@ class UNiagaraValidationRule_LWC : public UNiagaraValidationRule
 {
 	GENERATED_BODY()
 public:
-	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
+};
+
+/** This validation rule is used by the collision module to check that renderers don't use any opaque or masked materials when depth buffer collisions are used. */
+UCLASS(Category = "Validation", DisplayName = "Validate GPU Depth Collision Module")
+class UNiagaraValidationRule_NoOpaqueRenderMaterial : public UNiagaraValidationRule
+{
+	GENERATED_BODY()
+public:
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
 /** This validation rule can be used to enforce a budget on the number of simulation stages and the iterations that may execute. */
@@ -89,7 +103,7 @@ class UNiagaraValidationRule_SimulationStageBudget : public UNiagaraValidationRu
 	GENERATED_BODY()
 
 public:
-	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
 
 	UPROPERTY(EditAnywhere, Category = Validation)
 	bool bMaxSimulationStagesEnabled = false;

@@ -7,6 +7,7 @@
 #include "NiagaraStackEditorData.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
+#include "NiagaraValidationRules.h"
 #include "ScopedTransaction.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
@@ -89,32 +90,14 @@ void UNiagaraStackViewModel::UpdateStackWithValidationResults()
 	}
 	
 	TSharedPtr<FNiagaraSystemViewModel> SysViewModel = SystemViewModel.Pin();
-	if (SysViewModel == nullptr)
+	NiagaraValidation::ValidateAllRulesInSystem(SysViewModel, [](const FNiagaraValidationResult& Result)
 	{
-		return;
-	}
-
-	UNiagaraSystem& NiagaraSystem = SysViewModel->GetSystem();
-	if (NiagaraSystem.GetEffectType())
-	{
-		// go over the validation rules
-		for (UNiagaraValidationRule* ValidationRule : NiagaraSystem.GetEffectType()->ValidationRules)
+		EStackIssueSeverity Severity = (Result.Severity == ENiagaraValidationSeverity::Error) ? EStackIssueSeverity::Error : (Result.Severity == ENiagaraValidationSeverity::Warning ? EStackIssueSeverity::Warning : EStackIssueSeverity::Info);
+		if (UNiagaraStackEntry* SourceEntry = Cast<UNiagaraStackEntry>(Result.SourceObject.Get()))
 		{
-			if (ValidationRule)
-			{
-				TArray<FNiagaraValidationResult> NiagaraValidationResults;
-				ValidationRule->CheckValidity(SystemViewModel.Pin(), NiagaraValidationResults);
-				for (const FNiagaraValidationResult& Result : NiagaraValidationResults)
-				{
-					EStackIssueSeverity Severity = (Result.Severity == ENiagaraValidationSeverity::Error) ? EStackIssueSeverity::Error : (Result.Severity == ENiagaraValidationSeverity::Warning ? EStackIssueSeverity::Warning : EStackIssueSeverity::Info);
-					if (UNiagaraStackEntry* SourceEntry = Cast<UNiagaraStackEntry>(Result.SourceObject.Get()))
-					{
-						SourceEntry->AddValidationIssue(Severity, Result.SummaryText, Result.Description, Result.Severity == ENiagaraValidationSeverity::Info, Result.Fixes, Result.Links);
-					}
-				}
-			}
+			SourceEntry->AddValidationIssue(Severity, Result.SummaryText, Result.Description, Result.Severity == ENiagaraValidationSeverity::Info, Result.Fixes, Result.Links);
 		}
-	}
+	});
 }
 
 void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, FNiagaraStackViewModelOptions InOptions)

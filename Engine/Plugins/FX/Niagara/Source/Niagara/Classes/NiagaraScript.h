@@ -15,6 +15,7 @@
 #include "NiagaraScriptExecutionParameterStore.h"
 #include "NiagaraStackSection.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
+#include "NiagaraValidationRule.h"
 #include "NiagaraVersionedObject.h"
 #include "HAL/CriticalSection.h"
 #include "VectorVM.h"
@@ -669,7 +670,7 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = Script)
 	TArray<FNiagaraStackSection> InputSections;
-	
+
 	/** Adjusted every time ComputeVMCompilationId is called.*/
 	UPROPERTY()
 	mutable FNiagaraVMExecutableDataId LastGeneratedVMId;
@@ -751,6 +752,10 @@ public:
 
 	/** Creates a shallow transient copy of this script for compilation purposes. */
 	NIAGARA_API UNiagaraScript* CreateCompilationCopy();
+
+	/** A set of rules to apply when this script is used in the stack. To create your own rules, write a custom class that extends UNiagaraValidationRule. */
+	UPROPERTY(EditAnywhere, Category = "Validation", Instanced)
+	TArray<TObjectPtr<UNiagaraValidationRule>> ValidationRules;
 #endif
 
 	/** Workaround for emitter versioning because we used a lot of Script->GetOuter() previously. */
