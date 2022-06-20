@@ -27,7 +27,7 @@ public:
 
 	/** Texture to use in place of the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAllowReplace"))
-	UTexture2D* SourceTexture = nullptr;
+	UTexture* SourceTexture = nullptr;
 
 	/** Set to True to crop the texture for the inner frustum as specified below. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Use Texture Crop", EditCondition = "bAllowReplace"))

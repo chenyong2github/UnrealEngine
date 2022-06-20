@@ -160,7 +160,7 @@ public:
 
 	/** Texture to use as the chromakey marker tile. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
-	UTexture2D* MarkerTileRGBA = nullptr;
+	UTexture* MarkerTileRGBA = nullptr;
 
 	/** Scale value for the size of each chromakey marker tile. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", ClampMin = "0", UIMin = "0", DisplayName = "Marker Scale"))
