@@ -259,6 +259,19 @@ void UWaterBodyComponent::SetUnderwaterPostProcessMaterial(UMaterialInterface* I
 	UpdateMaterialInstances();
 }
 
+void UWaterBodyComponent::SetWaterAndUnderWaterPostProcessMaterial(UMaterialInterface* InWaterMaterial, UMaterialInterface* InUnderWaterPostProcessMaterial)
+{
+	bool bUpdateInstances = WaterMaterial != InWaterMaterial || UnderwaterPostProcessMaterial != InUnderWaterPostProcessMaterial;
+
+	WaterMaterial = InWaterMaterial;
+	UnderwaterPostProcessMaterial = InUnderWaterPostProcessMaterial;
+
+	if (bUpdateInstances)
+	{
+		UpdateMaterialInstances();
+	}
+}
+
 bool UWaterBodyComponent::ShouldGenerateWaterMeshTile() const
 {
 	return ((GetWaterBodyType() != EWaterBodyType::Transition)

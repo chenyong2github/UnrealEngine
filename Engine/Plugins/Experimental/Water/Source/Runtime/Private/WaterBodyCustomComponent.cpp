@@ -86,11 +86,19 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 
 	CreateOrUpdateWaterMID();
 	MeshComp->SetStaticMesh(GetWaterMeshOverride());
-	MeshComp->SetMaterial(0, WaterMID);
 	MeshComp->SetCastShadow(false);
 	CopySharedCollisionSettingsToComponent(MeshComp);
 	CopySharedNavigationSettingsToComponent(MeshComp);
 	MeshComp->MarkRenderStateDirty();
+}
+
+void UWaterBodyCustomComponent::CreateOrUpdateWaterMID()
+{
+	Super::CreateOrUpdateWaterMID();
+	if (MeshComp != nullptr)
+	{
+		MeshComp->SetMaterial(0, WaterMID);
+	}
 }
 
 FPrimitiveSceneProxy* UWaterBodyCustomComponent::CreateSceneProxy()

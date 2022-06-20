@@ -26,7 +26,8 @@ protected:
 	virtual void Reset() override;
 	virtual void BeginUpdateWaterBody() override;
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) override;
-
+	virtual void CreateOrUpdateWaterMID() override;
+	
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 #if WITH_EDITOR
 	virtual TArray<TSharedRef<FTokenizedMessage>> CheckWaterBodyStatus() const override;

@@ -187,6 +187,9 @@ public:
 	/** Sets under water post process material */
 	void SetUnderwaterPostProcessMaterial(UMaterialInterface* InMaterial);
 
+	UFUNCTION(BlueprintCallable, Category = Rendering)
+	void SetWaterAndUnderWaterPostProcessMaterial(UMaterialInterface* InWaterMaterial, UMaterialInterface* InUnderWaterPostProcessMaterial);
+
 	/** Returns water spline metadata */
 	UWaterSplineMetadata* GetWaterSplineMetadata() { return WaterSplineMetadata; }
 
@@ -391,7 +394,7 @@ protected:
 	void UpdateSplineComponent();
 	void UpdateExclusionVolumes();
 	bool UpdateWaterHeight();
-	void CreateOrUpdateWaterMID();
+	virtual void CreateOrUpdateWaterMID();
 	void CreateOrUpdateUnderwaterPostProcessMID();
 	void CreateOrUpdateWaterInfoMID();
 	void PrepareCurrentPostProcessSettings();
