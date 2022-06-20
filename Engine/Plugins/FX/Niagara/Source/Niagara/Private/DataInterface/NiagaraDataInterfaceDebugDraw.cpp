@@ -5,6 +5,7 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDebug.h"
 #include "NiagaraWorldManager.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Async/Async.h"
@@ -13,7 +14,6 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-FName UNiagaraDataInterfaceDebugDraw::CompileTagKey = TEXT("CompilerTagKey");
 struct FNiagaraDebugDrawDIFunctionVersion
 {
 	enum Type
@@ -30,6 +30,12 @@ struct FNiagaraDebugDrawDIFunctionVersion
 		LatestVersion = VersionPlusOne - 1
 	};
 };
+
+BEGIN_SHADER_PARAMETER_STRUCT(FNDIDebugDrawShaderParameters,)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>,	RWNDIDebugDrawArgs)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>,	RWNDIDebugDrawLineVertex)
+	SHADER_PARAMETER(uint32,						NDIDebugDrawLineMaxInstances)
+END_SHADER_PARAMETER_STRUCT()
 
 struct FNDIDebugDrawInstanceData_GameThread
 {
@@ -1430,6 +1436,10 @@ struct FNDIDebugDrawProxy : public FNiagaraDataInterfaceProxy
 
 namespace NDIDebugDrawLocal
 {
+	static const FName CompileTagKey = TEXT("CompilerTagKey");
+	static const TCHAR* CommonShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceDebugDraw.ush");
+	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceDebugDrawTemplate.ush");
+
 	static const FName DrawLineName(TEXT("DrawLine"));
 	static const FName DrawRectangleName(TEXT("DrawRectangle"));
 	static const FName DrawCircleName(TEXT("DrawCircle"));
@@ -2272,103 +2282,6 @@ namespace NDIDebugDrawLocal
 
 //////////////////////////////////////////////////////////////////////////
 
-struct FNiagaraDataInterfaceParametersCS_DebugDraw : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_DebugDraw, NonVirtual);
-
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		DrawArgsParams.Bind(ParameterMap, TEXT("NDIDebugDrawArgs"));
-		DrawLineVertexParam.Bind(ParameterMap, TEXT("NDIDebugDrawLineVertex"));
-		DrawLineMaxInstancesParam.Bind(ParameterMap, TEXT("NDIDebugDrawLineMaxInstances"));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-#if NIAGARA_COMPUTEDEBUG_ENABLED
-		auto* DIProxy = static_cast<FNDIDebugDrawProxy*>(Context.DataInterface);
-		auto* InstanceData = &DIProxy->SystemInstancesToProxyData_RT.FindChecked(Context.SystemInstanceID);
-
-		FNiagaraSimulationDebugDrawData* DebugDraw = nullptr;
-		if ( InstanceData->GpuComputeDebug )
-		{
-			DebugDraw = InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(Context.SystemInstanceID, true, InstanceData->OverrideMaxLineInstances);
-		}
-
-		const bool bIsValid =
-			NDIDebugDrawLocal::GNiagaraDebugDrawEnabled &&
-			(DebugDraw != nullptr) &&
-			DrawArgsParams.IsUAVBound() &&
-			DrawLineVertexParam.IsUAVBound();
-
-		if ( bIsValid )
-		{
-			FRHITransitionInfo Transitions[] =
-			{
-				FRHITransitionInfo(DebugDraw->GpuLineBufferArgs.UAV, ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(DebugDraw->GpuLineVertexBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute),
-			};
-			RHICmdList.Transition(Transitions);
-
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, DrawArgsParams.GetUAVIndex(), DebugDraw->GpuLineBufferArgs.UAV);
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, DrawLineVertexParam.GetUAVIndex(), DebugDraw->GpuLineVertexBuffer.UAV);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, DrawLineMaxInstancesParam, DebugDraw->GpuLineMaxInstances);
-		}
-		else
-#endif //NIAGARA_COMPUTEDEBUG_ENABLED
-		{
-			SetShaderValue(RHICmdList, ComputeShaderRHI, DrawLineMaxInstancesParam, 0);
-		}
-	}
-
-	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		DrawArgsParams.UnsetUAV(RHICmdList, ComputeShaderRHI);
-		DrawLineVertexParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
-
-#if NIAGARA_COMPUTEDEBUG_ENABLED
-		auto* DIProxy = static_cast<FNDIDebugDrawProxy*>(Context.DataInterface);
-		auto* InstanceData = &DIProxy->SystemInstancesToProxyData_RT.FindChecked(Context.SystemInstanceID);
-
-		FNiagaraSimulationDebugDrawData* DebugDraw = nullptr;
-		if (InstanceData->GpuComputeDebug)
-		{
-			DebugDraw = InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(Context.SystemInstanceID, true, InstanceData->OverrideMaxLineInstances);
-		}
-
-		const bool bIsValid =
-			NDIDebugDrawLocal::GNiagaraDebugDrawEnabled &&
-			(DebugDraw != nullptr) &&
-			DrawArgsParams.IsUAVBound() &&
-			DrawLineVertexParam.IsUAVBound();
-
-		if (bIsValid)
-		{
-			FRHITransitionInfo Transitions[] =
-			{
-				FRHITransitionInfo(DebugDraw->GpuLineBufferArgs.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs),
-				FRHITransitionInfo(DebugDraw->GpuLineVertexBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-			};
-			RHICmdList.Transition(Transitions);
-		}
-#endif //NIAGARA_COMPUTEDEBUG_ENABLED
-	}
-
-private:
-	LAYOUT_FIELD(FRWShaderParameter,	DrawArgsParams);
-	LAYOUT_FIELD(FRWShaderParameter,	DrawLineVertexParam);
-	LAYOUT_FIELD(FShaderParameter,		DrawLineMaxInstancesParam);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_DebugDraw);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceDebugDraw, FNiagaraDataInterfaceParametersCS_DebugDraw);
-
-//////////////////////////////////////////////////////////////////////////
-
 UNiagaraDataInterfaceDebugDraw::UNiagaraDataInterfaceDebugDraw(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -2818,6 +2731,48 @@ bool UNiagaraDataInterfaceDebugDraw::UpgradeFunctionCall(FNiagaraFunctionSignatu
 }
 #endif
 
+void UNiagaraDataInterfaceDebugDraw::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddIncludedStruct<FNDIDebugDrawShaderParameters>();
+}
+
+void UNiagaraDataInterfaceDebugDraw::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+	FNDIDebugDrawShaderParameters* ShaderParameters = Context.GetParameterIncludedStruct<FNDIDebugDrawShaderParameters>();
+
+#if NIAGARA_COMPUTEDEBUG_ENABLED
+	FNDIDebugDrawProxy& DIProxy = Context.GetProxy<FNDIDebugDrawProxy>();
+	FNDIDebugDrawInstanceData_RenderThread& InstanceData = DIProxy.SystemInstancesToProxyData_RT.FindChecked(Context.GetSystemInstanceID());
+
+	FNiagaraSimulationDebugDrawData* DebugDraw = nullptr;
+	if (InstanceData.GpuComputeDebug)
+	{
+		DebugDraw = InstanceData.GpuComputeDebug->GetSimulationDebugDrawData(GraphBuilder, Context.GetSystemInstanceID(), InstanceData.OverrideMaxLineInstances);
+	}
+
+	const bool bIsValid =
+		NDIDebugDrawLocal::GNiagaraDebugDrawEnabled &&
+		(DebugDraw != nullptr) &&
+		(DebugDraw->GpuLineMaxInstances > 0) &&
+		Context.IsResourceBound(&ShaderParameters->RWNDIDebugDrawArgs) &&
+		Context.IsResourceBound(&ShaderParameters->RWNDIDebugDrawLineVertex);
+
+	if ( bIsValid )
+	{
+		ShaderParameters->RWNDIDebugDrawArgs			= DebugDraw->GpuLineBufferArgs.GetOrCreateUAV(GraphBuilder);
+		ShaderParameters->RWNDIDebugDrawLineVertex		= DebugDraw->GpuLineVertexBuffer.GetOrCreateUAV(GraphBuilder);
+		ShaderParameters->NDIDebugDrawLineMaxInstances	= DebugDraw->GpuLineMaxInstances;
+	}
+	else
+#endif
+	{
+		ShaderParameters->RWNDIDebugDrawArgs			= Context.GetComputeDispatchInterface().GetEmptyBufferUAV(GraphBuilder, PF_R32_UINT);
+		ShaderParameters->RWNDIDebugDrawLineVertex		= Context.GetComputeDispatchInterface().GetEmptyBufferUAV(GraphBuilder, PF_R32_UINT);
+		ShaderParameters->NDIDebugDrawLineMaxInstances	= 0;
+	}
+}
+
 void UNiagaraDataInterfaceDebugDraw::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
 {
 	if (BindingInfo.Name == NDIDebugDrawLocal::DrawBoxName)
@@ -2867,7 +2822,7 @@ void UNiagaraDataInterfaceDebugDraw::GetVMExternalFunction(const FVMExternalFunc
 	else if (BindingInfo.FunctionSpecifiers.Num() != 0)
 	{
 		// The HLSL translator adds this function specifier in so that we have a unqiue key during compilation.
-		const FVMFunctionSpecifier* Specifier = BindingInfo.FunctionSpecifiers.FindByPredicate([&](const FVMFunctionSpecifier& Info) { return Info.Key == UNiagaraDataInterfaceDebugDraw::CompileTagKey; });
+		const FVMFunctionSpecifier* Specifier = BindingInfo.FunctionSpecifiers.FindByPredicate([&](const FVMFunctionSpecifier& Info) { return Info.Key == NDIDebugDrawLocal::CompileTagKey; });
 
 		if (Specifier && !Specifier->Value.IsNone())
 		{
@@ -2961,161 +2916,62 @@ bool UNiagaraDataInterfaceDebugDraw::AppendCompileHash(FNiagaraCompileHashVisito
 	if (!Super::AppendCompileHash(InVisitor))
 		return false;
 
-	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceDebugDraw.ush")), EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceDebugDrawHLSLSource"), Hash.ToString());
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceDebugDrawHLSLSource"), GetShaderFileHash(NDIDebugDrawLocal::CommonShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceDebugDrawTemplateHLSLSource"), GetShaderFileHash(NDIDebugDrawLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
 
 	InVisitor->UpdatePOD<int32>(TEXT("NiagaraDataInterfaceDebugDrawVersion"), FNiagaraDebugDrawDIFunctionVersion::LatestVersion);	
+	InVisitor->UpdateShaderParameters<FNDIDebugDrawShaderParameters>();
 
 	return true;
 }
 
 void UNiagaraDataInterfaceDebugDraw::GetCommonHLSL(FString& OutHLSL)
 {
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceDebugDraw.ush\"\n");
+	OutHLSL.Appendf(TEXT("#include \"%s\"\n"), NDIDebugDrawLocal::CommonShaderFile);
 }
 
 
-bool UNiagaraDataInterfaceDebugDraw::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
+void UNiagaraDataInterfaceDebugDraw::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	TMap<FString, FStringFormatArg> ArgsSample =
+	TMap<FString, FStringFormatArg> TemplateArgs =
 	{
-		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
+		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
 	};
 
-	if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawLineName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 LineStart, float3 LineEnd, float4 Color) { NDIDebugDraw_Line(bExecute, LineStart, LineEnd, Color); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawRectangleName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 Location, float3 XAxis, float3 YAxis, float2 Extents, int NumXSegments, int NumYSegments, float4 Color, bool bUnbounded) { NDIDebugDraw_DrawRectangle(bExecute, Location, XAxis, YAxis, Extents, NumXSegments, NumYSegments, Color, bUnbounded); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawCircleName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 Location, float3 XAxis, float3 YAxis, float Scale, int Segments, float4 Color) { NDIDebugDraw_Circle(bExecute, Location, XAxis, YAxis, Scale, Segments, Color); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawBoxName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 Location, float4 Rotation, float3 Extents, float4 Color) { NDIDebugDraw_DrawBox(bExecute, Location, Rotation, Extents, Color); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawSphereName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 LineStart, float Radius, int Segments, float4 Color) { NDIDebugDraw_Sphere(bExecute, LineStart, Radius, Segments, Color); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawCylinderName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 Location, float3 Axis, float Height, float Radius, int NumHeightSegments, int NumRadiusSegments, float4 Color) { NDIDebugDraw_Cylinder(bExecute, Location, Axis, Height, Radius, NumHeightSegments, NumRadiusSegments, Color); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawConeName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 Location, float3 Axis, float Height, float RadiusTop, float RadiusBottom, int NumHeightSegments, int NumRadiusSegments, float4 Color) {  }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawTorusName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 Location, float3 Axis, float MajorRadius, float MinorRadius, float MajorRadiusSegments, float MinorRadiusSegments, float4 Color) {  }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawCoordinateSystemName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 Location, float4 Rotation, float Scale) { NDIDebugDraw_CoordinateSystem(bExecute, Location, Rotation, Scale); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawGrid2DName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 Center, float4 Rotation, float2 Extents, int NumCellsX, int NumCellsY, float4 Color) { NDIDebugDraw_Grid2D(bExecute, Center, Rotation, Extents, int2(NumCellsX, NumCellsY), Color); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawGrid3DName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(bool bExecute, float3 Center, float4 Rotation, float3 Extents, int NumCellsX, int NumCellsY, int NumCellsZ, float4 Color) { NDIDebugDraw_Grid3D(bExecute, Center, Rotation, Extents, int3(NumCellsX, NumCellsY, NumCellsZ), Color); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawLinePersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 StartLocation, int StartLocationCoordinateSpace, float3 EndLocation, int EndLocationCoordinateSpace, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawRectanglePersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 Offset, int OffsetCoordinateSpace, float3 Extents, bool HalfExtents, float3 XAxis, float3 YAxis, int AxisCoordinateSpace, int NumXSegments, int NumYSegments, bool bUnboundedPlane, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawCirclePersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 Offset, int OffsetCoordinateSpace, float Radius, float3 XAxis, float3 YAxis, int AxisCoordinateSpace, int NumSegments, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawBoxPersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 Offset, int OffsetCoordinateSpace, float3 Extents, bool HalfExtents, float3 RotationAxis, float RotationAngle, int RotationCoordinateSpace, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawSpherePersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 OffsetFromCenter, int OffsetCoordinateSpace, float Radius,  int RadiusCoordinateSpace, bool HemisphereX, bool HemisphereY, bool HemisphereZ, float3 OrientationAxis, int RotationCoordinateSpace, float4 AdditionalRotation, float3 NonUniformScale, int NumSegments, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawCylinderPersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 OffsetFromCenter, int OffsetCoordinateSpace, float Radius, float Height, bool IsHalfHeight, bool HemisphereX, bool HemisphereY, float3 OrientationAxis, int OrientationAxisCoordinateSpace, float3 NonUniformScale, int NumRadiusSegments, int NumHeightSegments, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawConePersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 OffsetFromCenter, int OffsetCoordinateSpace, float Angle, float Length, int OrientationAxis, int OrientationAxisCoordinateSpace, float3 NonUniformScale, int NumRadiusSegments, int NumHeightSegments, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawTorusPersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 OffsetFromCenter, int OffsetCoordinateSpace, float MajorRadius, float MinorRadius, float3 OrientationAxis, int OrientationAxisCoordinateSpace, float3 NonUniformScale, int MajorRadiusSegments, int MinorRadiusSegments, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawCoordinateSystemPersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 OffsetFromCenter, int OffsetCoordinateSpace, float4 Rotation, int RotationCoordinateSpace, float Scale) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawGrid2DPersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 OffsetFromCenter, int OffsetCoordinateSpace, float4 Rotation, int RotationCoordinateSpace, float2 Extents, int NumCellsX, int NumCellsY, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == NDIDebugDrawLocal::DrawGrid3DPersistentName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float3 Center, int CenterCoordinateSpace, float3 OffsetFromCenter, int OffsetCoordinateSpace, float4 Rotation, int RotationCoordinateSpace, float3 Extents, int NumCellsX, int NumCellsY, int NumCellsZ, float4 Color) { }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
+	FString TemplateFile;
+	LoadShaderSourceFile(NDIDebugDrawLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+}
 
-	return false;
+bool UNiagaraDataInterfaceDebugDraw::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
+{
+	static const TSet<FName> ValidGpuFunctions =
+	{
+		NDIDebugDrawLocal::DrawLineName,
+		NDIDebugDrawLocal::DrawRectangleName,
+		NDIDebugDrawLocal::DrawCircleName,
+		NDIDebugDrawLocal::DrawBoxName,
+		NDIDebugDrawLocal::DrawSphereName,
+		NDIDebugDrawLocal::DrawCylinderName,
+		NDIDebugDrawLocal::DrawConeName,
+		NDIDebugDrawLocal::DrawTorusName,
+		NDIDebugDrawLocal::DrawCoordinateSystemName,
+		NDIDebugDrawLocal::DrawGrid2DName,
+		NDIDebugDrawLocal::DrawGrid3DName,
+		NDIDebugDrawLocal::DrawLinePersistentName,
+		NDIDebugDrawLocal::DrawRectanglePersistentName,
+		NDIDebugDrawLocal::DrawCirclePersistentName,
+		NDIDebugDrawLocal::DrawBoxPersistentName,
+		NDIDebugDrawLocal::DrawSpherePersistentName,
+		NDIDebugDrawLocal::DrawCylinderPersistentName,
+		NDIDebugDrawLocal::DrawConePersistentName,
+		NDIDebugDrawLocal::DrawTorusPersistentName,
+		NDIDebugDrawLocal::DrawCoordinateSystemPersistentName,
+		NDIDebugDrawLocal::DrawGrid2DPersistentName,
+		NDIDebugDrawLocal::DrawGrid3DPersistentName,
+	};
+
+	return ValidGpuFunctions.Contains(FunctionInfo.DefinitionName);
 }
 
 bool UNiagaraDataInterfaceDebugDraw::GenerateCompilerTagPrefix(const FNiagaraFunctionSignature& InSignature, FString& OutPrefix) const 
@@ -3145,7 +3001,7 @@ bool UNiagaraDataInterfaceDebugDraw::GPUContextInit(const FNiagaraScriptDataInte
 		if (PerInstanceData && Sig.FunctionSpecifiers.Num() > 0)
 		{
 			// The HLSL translator adds this function specifier in so that we have a unqiue key during compilation.
-			const FName* Specifier = Sig.FunctionSpecifiers.Find(UNiagaraDataInterfaceDebugDraw::CompileTagKey);
+			const FName* Specifier = Sig.FunctionSpecifiers.Find(NDIDebugDrawLocal::CompileTagKey);
 
 			if (Specifier && !Specifier->IsNone())
 			{
@@ -3204,7 +3060,6 @@ bool UNiagaraDataInterfaceDebugDraw::PerInstanceTickPostSimulate(void* PerInstan
 			InstanceData->HandlePersistentShapes(SystemInstance, DeltaSeconds);
 		}
 
-
 		// Dispatch information to the RT proxy
 		ENQUEUE_RENDER_COMMAND(NDIDebugDrawUpdate)(
 			[RT_Proxy=GetProxyAs<FNDIDebugDrawProxy>(), RT_InstanceID=SystemInstance->GetId(), RT_TickCount=SystemInstance->GetTickCount(), RT_LineBuffer=MoveTemp(InstanceData->LineBuffer)](FRHICommandListImmediate& RHICmdList) mutable
@@ -3215,7 +3070,7 @@ bool UNiagaraDataInterfaceDebugDraw::PerInstanceTickPostSimulate(void* PerInstan
 
 					if (RT_InstanceData && RT_InstanceData->GpuComputeDebug)
 					{
-						if (FNiagaraSimulationDebugDrawData* DebugDraw = RT_InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(RT_InstanceID, false, RT_InstanceData->OverrideMaxLineInstances))
+						if (FNiagaraSimulationDebugDrawData* DebugDraw = RT_InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(RT_InstanceID))
 						{
 							if (DebugDraw->LastUpdateTickCount != RT_TickCount)
 							{

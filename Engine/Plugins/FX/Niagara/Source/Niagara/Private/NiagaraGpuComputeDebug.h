@@ -7,6 +7,7 @@ Class used help realtime debug Gpu Compute simulations
 
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
+#include "NiagaraRenderGraphUtils.h"
 #include "RenderGraphDefinitions.h"
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
@@ -23,13 +24,14 @@ struct FNiagaraSimulationDebugDrawData
 	bool				bRequiresUpdate = true;
 	int32				LastUpdateTickCount = INDEX_NONE;
 
-	TArray<FGpuLine>	StaticLines;
-	uint32				StaticLineCount = 0;
-	FReadBuffer			StaticLineBuffer;
+	TArray<FGpuLine>				StaticLines;
+	uint32							StaticLineCount = 0;
+	TRefCountPtr<FRDGPooledBuffer>	StaticLineBuffer;
+	FRDGBufferRef					RDGStaticLineBuffer = nullptr;
 
-	FRWBuffer			GpuLineBufferArgs;
-	FRWBuffer			GpuLineVertexBuffer;
-	uint32				GpuLineMaxInstances = 0;
+	uint32							GpuLineMaxInstances = 0;
+	FNiagaraPooledRWBuffer			GpuLineBufferArgs;
+	FNiagaraPooledRWBuffer			GpuLineVertexBuffer;
 };
 
 class FNiagaraGpuComputeDebug
@@ -48,7 +50,7 @@ public:
 	FNiagaraGpuComputeDebug(ERHIFeatureLevel::Type InFeatureLevel);
 
 	// Called at the start of the frame
-	void Tick(FRHICommandListImmediate& RHICmdList);
+	void Tick(FRDGBuilder& GraphBuilder);
 
 	// Enables providing debug information for the system instance
 	void AddSystemInstance(FNiagaraSystemInstanceID SystemInstanceID, FString SystemName);
@@ -72,7 +74,8 @@ public:
 	void AddAttributeTexture(FRDGBuilder& GraphBuilder, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRDGTextureRef Texture, FIntVector4 NumTextureAttributes, FIntVector4 AttributeIndices, FVector2D PreviewDisplayRange = FVector2D::ZeroVector);
 
 	// Get Debug draw buffers for a system instance
-	FNiagaraSimulationDebugDrawData* GetSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID, bool bRequiresGpuBuffers, uint32 OverrideMaxDebugLines = 0);
+	FNiagaraSimulationDebugDrawData* GetSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID);
+	FNiagaraSimulationDebugDrawData* GetSimulationDebugDrawData(FRDGBuilder& GraphBuilder, FNiagaraSystemInstanceID SystemInstanceID, uint32 OverrideMaxDebugLines);
 
 	// Force remove debug draw data
 	void RemoveSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID);

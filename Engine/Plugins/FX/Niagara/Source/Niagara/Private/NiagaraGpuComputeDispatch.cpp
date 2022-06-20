@@ -1629,7 +1629,7 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	if ( FNiagaraGpuComputeDebug* GpuComputeDebug = GetGpuComputeDebug() )
 	{
-		GpuComputeDebug->Tick(GraphBuilder.RHICmdList);
+		GpuComputeDebug->Tick(GraphBuilder);
 	}
 #endif
 

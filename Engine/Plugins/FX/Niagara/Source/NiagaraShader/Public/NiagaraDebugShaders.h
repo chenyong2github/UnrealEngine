@@ -9,16 +9,16 @@
 struct FScreenPassRenderTarget;
 namespace NiagaraDebugShaders
 {
-	NIAGARASHADER_API void ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, FUintVector4 ClearValues, uint32 UIntsToSet);
+	NIAGARASHADER_API void ClearUAV(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef UAV, FUintVector4 ClearValues, uint32 UIntsToSet);
 
 	NIAGARASHADER_API void DrawDebugLines(
 		class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth,
-		const uint32 LineInstanceCount, const FShaderResourceViewRHIRef& LineBuffer
+		const uint32 LineInstanceCount, FRDGBufferRef LineBuffer
 	);
 
 	NIAGARASHADER_API void DrawDebugLines(
 		class FRDGBuilder& GraphBuilder, const class FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SceneDepth,
-		const FBufferRHIRef& ArgsBuffer, const FShaderResourceViewRHIRef& LineBuffer
+		FRDGBufferRef ArgsBuffer, FRDGBufferRef LineBuffer
 	);
 
 	NIAGARASHADER_API void VisualizeTexture(
