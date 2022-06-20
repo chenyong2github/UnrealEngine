@@ -2528,6 +2528,11 @@ FBinningData AddPass_Rasterize(
 
 		for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 		{
+#if WANTS_DRAW_MESH_EVENTS
+			const FMaterialRenderProxy* RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial;
+			SCOPED_DRAW_EVENTF(RHICmdList, HWRaster, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
+#endif
+
 			PatchRasterizePassParameters(Parameters, RasterizerPass, CullMode);
 
 			// NOTE: We do *not* use RasterState.CullMode here because HWRasterize[VS/MS] already
@@ -2597,6 +2602,11 @@ FBinningData AddPass_Rasterize(
 
 			for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 			{
+#if WANTS_DRAW_MESH_EVENTS
+				const FMaterialRenderProxy* RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial;
+				SCOPED_DRAW_EVENTF(RHICmdList, SWRaster, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
+#endif
+
 				PatchRasterizePassParameters(Parameters, RasterizerPass, CullMode);
 
 				FRHIBuffer* IndirectArgsBuffer = Parameters.IndirectArgs->GetIndirectRHICallBuffer();
