@@ -98,6 +98,8 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 	virtual void Destroyed() override;
+	virtual bool IsListedInSceneOutliner() const override;
+	
 	FOLIAGE_API void CleanupDeletedFoliageType();
 	FOLIAGE_API void DetectFoliageTypeChangeAndUpdate();
 

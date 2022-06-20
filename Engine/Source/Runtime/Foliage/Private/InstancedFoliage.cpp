@@ -4303,6 +4303,13 @@ void AInstancedFoliageActor::BeginDestroy()
 		FoliageInfos.Empty();
 	}
 }
+
+bool AInstancedFoliageActor::IsListedInSceneOutliner() const
+{
+	// In World Partition the AInstancedFoliageActor::GetDefault creates a transient foliage actor to store unpainted foliage types.
+	return !HasAnyFlags(RF_Transient);
+}
+
 #endif
 
 void AInstancedFoliageActor::PostLoad()
