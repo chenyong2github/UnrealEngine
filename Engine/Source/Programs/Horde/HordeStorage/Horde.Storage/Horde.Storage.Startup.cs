@@ -22,7 +22,6 @@ using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -103,7 +102,6 @@ namespace Horde.Storage
             services.AddHostedService<BlobCleanupService>(p => p.GetService<BlobCleanupService>()!);
 
             services.AddSingleton(serviceType: typeof(IDDCRefService), typeof(DDCRefService));
-            services.AddSingleton(serviceType: typeof(DDCEndpoints));
 
             services.AddSingleton(serviceType: typeof(IObjectService), typeof(ObjectService));
             services.AddSingleton(serviceType: typeof(IReferencesStore), ObjectStoreFactory);
