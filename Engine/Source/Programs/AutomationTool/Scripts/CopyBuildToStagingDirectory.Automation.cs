@@ -183,19 +183,9 @@ namespace AutomationScripts
 			return Result;
 		}
 
-		static public string GetUnrealPakArguments(FileReference ProjectPath, Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, List<OrderFile> PakOrderFileLocations, string PlatformOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, List<OrderFile> SecondaryPakOrderFileLocations, bool bUnattended)
+		private static string GetCommonUnrealPakArguments(List<OrderFile> PakOrderFileLocations, string AdditionalOptions, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, List<OrderFile> SecondaryPakOrderFileLocations, bool bUnattended)
 		{
-			StringBuilder CmdLine = new StringBuilder(MakePathSafeToUseWithCommandLine(ProjectPath.FullName));
-			CmdLine.AppendFormat(" {0}", MakePathSafeToUseWithCommandLine(OutputLocation.FullName));
-
-			// Force encryption of ALL files if we're using specific encryption key. This should be made an option per encryption key in the settings, but for our initial
-			// implementation we will just assume that we require maximum security for this data.
-			bool bForceEncryption = !string.IsNullOrEmpty(EncryptionKeyGuid);
-			string PakName = Path.GetFileNameWithoutExtension(OutputLocation.FullName);
-			string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakList_" + PakName + ".txt");
-			WritePakResponseFile(UnrealPakResponseFileName, UnrealPakResponseFile, Compressed, CryptoSettings, bForceEncryption);
-			CmdLine.AppendFormat(" -create={0}", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakResponseFileName));
-
+			StringBuilder CmdLine = new StringBuilder();
 			if (CryptoKeysCacheFilename != null)
 			{
 				CmdLine.AppendFormat(" -cryptokeys={0}", CommandUtils.MakePathSafeToUseWithCommandLine(CryptoKeysCacheFilename.FullName));
@@ -208,19 +198,12 @@ namespace AutomationScripts
 			{
 				CmdLine.AppendFormat(" -secondaryOrder={0}", CommandUtils.MakePathSafeToUseWithCommandLine(string.Join(",", SecondaryPakOrderFileLocations.Select(u => u.File.FullName).ToArray())));
 			}
-			if (!String.IsNullOrEmpty(PatchSourceContentPath))
-			{
-				CmdLine.AppendFormat(" -generatepatch={0} -tempfiles={1}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath), CommandUtils.MakePathSafeToUseWithCommandLine(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "TempFiles" + Path.GetFileNameWithoutExtension(OutputLocation.FullName))));
-			}
+
 			if (CryptoSettings != null && CryptoSettings.bDataCryptoRequired)
 			{
 				if (CryptoSettings.bEnablePakIndexEncryption)
 				{
 					CmdLine.AppendFormat(" -encryptindex");
-				}
-				if (!string.IsNullOrEmpty(EncryptionKeyGuid))
-				{
-					CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
 				}
 				if (CryptoSettings.bDataCryptoRequired && CryptoSettings.bEnablePakSigning && CryptoSettings.SigningKey.IsValid())
 				{
@@ -234,8 +217,45 @@ namespace AutomationScripts
 				CmdLine.AppendFormat(" -unattended");
 			}
 
-			CmdLine.Append(PlatformOptions);
+			CmdLine.Append(AdditionalOptions);
 
+			return CmdLine.ToString();
+		}
+
+		static private string GetPakFileSpecificUnrealPakArguments(Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, string AdditionalOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, String PatchSourceContentPath, string EncryptionKeyGuid)
+		{
+			StringBuilder CmdLine = new StringBuilder(MakePathSafeToUseWithCommandLine(OutputLocation.FullName));
+
+			// Force encryption of ALL files if we're using specific encryption key. This should be made an option per encryption key in the settings, but for our initial
+			// implementation we will just assume that we require maximum security for this data.
+			bool bForceEncryption = !string.IsNullOrEmpty(EncryptionKeyGuid);
+			string PakName = Path.GetFileNameWithoutExtension(OutputLocation.FullName);
+			string UnrealPakResponseFileName = CombinePaths(CmdEnv.LogFolder, "PakList_" + PakName + ".txt");
+			WritePakResponseFile(UnrealPakResponseFileName, UnrealPakResponseFile, Compressed, CryptoSettings, bForceEncryption);
+			CmdLine.AppendFormat(" -create={0}", CommandUtils.MakePathSafeToUseWithCommandLine(UnrealPakResponseFileName));
+
+			if (!String.IsNullOrEmpty(PatchSourceContentPath))
+			{
+				CmdLine.AppendFormat(" -generatepatch={0} -tempfiles={1}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath), CommandUtils.MakePathSafeToUseWithCommandLine(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "TempFiles" + Path.GetFileNameWithoutExtension(OutputLocation.FullName))));
+			}
+			if (CryptoSettings != null && CryptoSettings.bDataCryptoRequired)
+			{
+				if (!string.IsNullOrEmpty(EncryptionKeyGuid))
+				{
+					CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
+				}
+			}
+
+			return CmdLine.ToString();
+		}
+
+		static public string GetUnrealPakArguments(FileReference ProjectPath, Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, List<OrderFile> PakOrderFileLocations, string AdditionalOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, List<OrderFile> SecondaryPakOrderFileLocations, bool bUnattended)
+		{
+			StringBuilder CmdLine = new StringBuilder(MakePathSafeToUseWithCommandLine(ProjectPath.FullName));
+			CmdLine.Append(" ");
+			CmdLine.Append(GetPakFileSpecificUnrealPakArguments(UnrealPakResponseFile, OutputLocation, "", Compressed, CryptoSettings, PatchSourceContentPath, EncryptionKeyGuid));
+			CmdLine.Append(" ");
+			CmdLine.Append(GetCommonUnrealPakArguments(PakOrderFileLocations, AdditionalOptions, CryptoSettings, CryptoKeysCacheFilename, SecondaryPakOrderFileLocations, bUnattended));
 			return CmdLine.ToString();
 		}
 
@@ -2555,7 +2575,7 @@ namespace AutomationScripts
 
 			Func<string, string> GetPostFix = PakFilename => GetPakFilePostFix(bShouldGeneratePatch, Params.HasIterateSharedCookedBuild, PlatformGameConfig, PakFilename);
 
-			List<string> Commands = new List<string>();
+			List<string> PakCommands = new List<string>();
 			List<string> LogNames = new List<string>();
 			List<string> IoStoreCommands = new List<string>();
 
@@ -2606,21 +2626,21 @@ namespace AutomationScripts
 				}
 			}
 
+			ConfigHierarchy PlatformEngineConfig;
+			bool bHasPlatformEngineConfig = false;
+			bHasPlatformEngineConfig = Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig);
 			string BulkOption = "";
+			if (bHasPlatformEngineConfig)
 			{
-				ConfigHierarchy PlatformEngineConfig;
-				if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
+				bool bMasterEnable = false;
+				PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
+				if (bMasterEnable)
 				{
-					bool bMasterEnable = false;
-					PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
-					if (bMasterEnable)
+					int Value = 0;
+					PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
+					if (Value > 0)
 					{
-						int Value = 0;
-						PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
-						if (Value > 0)
-						{
-							BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
-						}
+						BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
 					}
 				}
 			}
@@ -2773,6 +2793,42 @@ namespace AutomationScripts
 				LogInformation("    {0} Priority {1}", File.File.ToString(), File.Priority);
 			}
 
+			List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType != OrderFile.OrderFileType.Cooker));
+			List<OrderFile> SecondaryOrderFiles = null;
+
+			// Add a secondary order if there is one specified
+			if (bUseSecondaryOrder && OrderFiles.Count >= 1)
+			{
+				SecondaryOrderFiles = OrderFiles.FindAll(x => x.OrderType == OrderFile.OrderFileType.Cooker);
+			}
+
+			string CommonAdditionalArgs = SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + BulkOption + PatchOptions + CompressionFormats + " " + Params.AdditionalPakOptions;
+
+			bool bPakFallbackOrderForNonUassetFiles = false;
+			PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakFallbackOrderForNonUassetFiles", out bPakFallbackOrderForNonUassetFiles);
+			if (bPakFallbackOrderForNonUassetFiles)
+			{
+				CommonAdditionalArgs += " -fallbackOrderForNonUassetFiles";
+			}
+
+			if (bHasPlatformEngineConfig)
+			{
+				// if the runtime will want to reduce memory usage, we have to disable the pak index freezing
+				bool bUnloadPakEntries = false;
+				bool bShrinkPakEntries = false;
+				PlatformEngineConfig.GetBool("Pak", "UnloadPakEntryFilenamesIfPossible", out bUnloadPakEntries);
+				PlatformEngineConfig.GetBool("Pak", "ShrinkPakEntriesMemoryUsage", out bShrinkPakEntries);
+				if (bUnloadPakEntries || bShrinkPakEntries)
+				{
+					CommonAdditionalArgs += " -allowForIndexUnload";
+				}
+			}
+
+			// pass the targetplatform so the index may be able to be frozen
+			CommonAdditionalArgs += " -platform=" + ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
+
+			CommonAdditionalArgs += " " + AdditionalCompressionOptionsOnCommandLine;
+
 			List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
 			foreach (CreatePakParams PakParams in PakParamsList)
 			{
@@ -2919,45 +2975,6 @@ namespace AutomationScripts
 					}
 					if (!bCopiedExistingPak)
 					{
-						List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType != OrderFile.OrderFileType.Cooker));
-						List<OrderFile> SecondaryOrderFiles = null;
-
-						// Add a secondary order if there is one specified
-						if (bUseSecondaryOrder && OrderFiles.Count >= 1)
-						{
-							SecondaryOrderFiles = OrderFiles.FindAll(x => x.OrderType == OrderFile.OrderFileType.Cooker);
-						}
-
-						string AdditionalArgs = PatchOptions;
-						if (bShouldGeneratePatch && ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
-						{
-							AdditionalArgs = " -SkipPatch";
-						}
-
-						bool bPakFallbackOrderForNonUassetFiles = false;
-						PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakFallbackOrderForNonUassetFiles", out bPakFallbackOrderForNonUassetFiles);
-						if (bPakFallbackOrderForNonUassetFiles)
-						{
-							AdditionalArgs += " -fallbackOrderForNonUassetFiles";
-						}
-
-						ConfigHierarchy PlatformEngineConfig;
-						if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
-						{
-							// if the runtime will want to reduce memory usage, we have to disable the pak index freezing
-							bool bUnloadPakEntries = false;
-							bool bShrinkPakEntries = false;
-							PlatformEngineConfig.GetBool("Pak", "UnloadPakEntryFilenamesIfPossible", out bUnloadPakEntries);
-							PlatformEngineConfig.GetBool("Pak", "ShrinkPakEntriesMemoryUsage", out bShrinkPakEntries);
-							if (bUnloadPakEntries || bShrinkPakEntries)
-							{
-								AdditionalArgs += " -allowForIndexUnload";
-							}
-						}
-
-						// pass the targetplatform so the index may be able to be frozen
-						AdditionalArgs += " -platform=" + ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
-
 						Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
 						if (bShouldCreateIoStoreContainerFiles)
 						{
@@ -3017,20 +3034,20 @@ namespace AutomationScripts
 								Params.HasDLCName));
 						}
 
+						string PakFileSpecificAdditionalArgs = "";
+						if (bShouldGeneratePatch && ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
+						{
+							PakFileSpecificAdditionalArgs = " -SkipPatch";
+						}
 						string PakEncryptionKeyGuid = Params.SkipEncryption ? "" : PakParams.EncryptionKeyGuid;
-						Commands.Add(GetUnrealPakArguments(
-							Params.RawProjectPath,
+						PakCommands.Add(GetPakFileSpecificUnrealPakArguments(
 							UnrealPakResponseFile,
 							OutputLocation,
-							PrimaryOrderFiles,
-							SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions,
+							PakFileSpecificAdditionalArgs,
 							PakParams.bCompressed,
 							Params.SkipEncryption ? null : CryptoSettings,
-							Params.SkipEncryption ? null : CryptoKeysCacheFilename,
 							PatchSourceContentPath,
-							Params.SkipEncryption ? "" : PakParams.EncryptionKeyGuid,
-							SecondaryOrderFiles,
-							Params.Unattended));
+							Params.SkipEncryption ? "" : PakParams.EncryptionKeyGuid));
 
 						LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 					}
@@ -3040,9 +3057,21 @@ namespace AutomationScripts
 			}
 
 			// Actually execute UnrealPak
-			if (Commands.Count > 0)
+			if (PakCommands.Count > 0)
 			{
-				RunUnrealPakInParallel( Commands, LogNames, AdditionalCompressionOptionsOnCommandLine);
+				string PakCommandsFileName = CombinePaths(CmdEnv.LogFolder, "PakCommands.txt");
+				using (var Writer = new StreamWriter(PakCommandsFileName, false, new System.Text.UTF8Encoding(true)))
+				{
+					foreach (string Command in PakCommands)
+					{
+						Writer.WriteLine(Command);
+					}
+				}
+
+				StringBuilder Arguments = new StringBuilder(MakePathSafeToUseWithCommandLine(Params.RawProjectPath.FullName));
+				Arguments.AppendFormat(" {0}", GetCommonUnrealPakArguments(PrimaryOrderFiles, CommonAdditionalArgs, CryptoSettings, CryptoKeysCacheFilename, SecondaryOrderFiles, Params.Unattended));
+				Arguments.AppendFormat(" -CreateMultiple={0}", CommandUtils.MakePathSafeToUseWithCommandLine(PakCommandsFileName));
+				RunAndLog(CmdEnv, GetUnrealPakLocation().FullName, Arguments.ToString(), Options: ERunOptions.Default | ERunOptions.UTF8Output);
 			}
 
 			if (IoStoreCommands.Count > 0)
@@ -3394,49 +3423,6 @@ namespace AutomationScripts
 
 			LogInformation("Running UnrealPak with arguments: {0}", CommandletParams);
 			RunAndLog(CmdEnv, GetUnrealPakLocation().FullName, CommandletParams, Options: ERunOptions.Default | ERunOptions.UTF8Output);
-		}
-
-		private static void RunUnrealPakInParallel(List<string> Commands, List<string> LogNames, string AdditionalCompressionOptionsOnCommandLine)
-		{
-			LogInformation("Executing {0} UnrealPak command{1}...", Commands.Count, (Commands.Count > 1)? "s" : "");
-
-			// Spawn tasks for each command
-			IProcessResult[] Results = new IProcessResult[Commands.Count];
-			string UnrealPakExe = GetUnrealPakLocation().FullName;
-			Parallel.ForEach(Commands, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, (Command, LoopState, Idx) =>
-			{
-				int LocalIdx = (int)Idx;
-				string LogFile = LogUtils.GetUniqueLogName(CombinePaths(CmdEnv.LogFolder, String.Format("UnrealPak-{0}", LogNames[(int)Idx])));
-				string Arguments = Commands[LocalIdx] = String.Format("{0} -multiprocess -abslog={1} {2}", Commands[LocalIdx], MakePathSafeToUseWithCommandLine(LogFile), AdditionalCompressionOptionsOnCommandLine);
-
-				Results[LocalIdx] = Run(UnrealPakExe, Arguments, Options: ERunOptions.AppMustExist | ERunOptions.NoLoggingOfRunCommand);
-			});
-
-			// Output all the results
-			int NumFailed = 0;
-			for(int Idx = 0; Idx < Results.Length; Idx++)
-			{
-				LogInformation("Output from: {0}", Commands[Idx]);
-				using(new LogIndentScope("  "))
-				{
-					foreach(string Line in Results[Idx].Output.TrimEnd().Split('\n'))
-					{
-						LogInformation(Line);
-					}
-				}
-				LogInformation("UnrealPak terminated with exit code {0}", Results[Idx].ExitCode);
-
-				if(Results[Idx].ExitCode > 0)
-				{
-					NumFailed++;
-				}
-			}
-
-			// Abort if any instance failed
-			if(NumFailed > 0)
-			{
-				throw new AutomationException("UnrealPak failed");
-			}
 		}
 
 		/// <summary>
