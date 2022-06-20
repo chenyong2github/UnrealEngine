@@ -15,7 +15,7 @@ namespace Horde.Storage.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("getBytes")]
-        [Authorize("Any")]
+        [Authorize]
         public IActionResult GetBytes([FromQuery] int length = 1)
         {
             return GenerateByteResponse(length);

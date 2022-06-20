@@ -3,7 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.IdentityModel.Tokens.Jwt;
 using System.IO;
+using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
 using System.Text;
@@ -27,6 +29,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -108,14 +111,26 @@ namespace Jupiter
 
             services.AddHttpContextAccessor();
 
+            const string ForwardingScheme = "ForwardingScheme";
             List<string> availableSchemes = new List<string>();
 
             AuthenticationBuilder authenticationBuilder = services.AddAuthentication(options =>
                 {
                     if (Auth.Enabled)
                     {
-                        options.DefaultAuthenticateScheme = Auth.DefaultScheme;
-                        options.DefaultChallengeScheme = Auth.DefaultScheme;
+                        if (Auth.Schemes.Count > 1)
+                        {
+                            // we have multiple schemes, so we set the default to the forwarding scheme which will use the jwtAuthority to pick the correct scheme for the token
+                            options.DefaultAuthenticateScheme = ForwardingScheme;
+                            options.DefaultChallengeScheme = ForwardingScheme;
+                        }
+                        else
+                        {
+                            // if we only have one scheme we set it to default
+                            options.DefaultAuthenticateScheme = Auth.DefaultScheme;
+                            options.DefaultChallengeScheme = Auth.DefaultScheme;
+
+                        }
                     }
                     else
                     {
@@ -155,6 +170,42 @@ namespace Jupiter
                             throw new NotSupportedException($"Unknown implementation type {scheme.Implementation}");
                     }
                 }
+
+                authenticationBuilder.AddPolicyScheme(ForwardingScheme, ForwardingScheme, options =>
+                {
+                    options.ForwardDefaultSelector = context =>
+                    {
+                        string authorization = context.Request.Headers[HeaderNames.Authorization];
+                        string name = "Bearer";
+                        string tokenName = $"{name} ";
+                        if (string.IsNullOrEmpty(authorization) ||
+                            !authorization.StartsWith(tokenName, StringComparison.InvariantCulture))
+                        {
+                            return Auth.DefaultScheme;
+                        }
+
+                        string token = authorization.Substring(tokenName.Length).Trim();
+                        JwtSecurityTokenHandler jwtHandler = new JwtSecurityTokenHandler();
+
+                        if (!jwtHandler.CanReadToken(token))
+                        {
+                            return Auth.DefaultScheme;
+                        }
+
+                        JwtSecurityToken jwtToken = jwtHandler.ReadJwtToken(token);
+
+                        foreach (KeyValuePair<string, AuthSchemeEntry> entry in Auth.Schemes)
+                        {
+                            if (entry.Value.JwtAuthority == jwtToken.Issuer)
+                            {
+                                return entry.Key;
+                            }
+                        }
+
+                        return Auth.DefaultScheme;
+
+                    };
+                });
             }
             else
             {
@@ -172,10 +223,24 @@ namespace Jupiter
                     policy.AuthenticationSchemes = availableSchemes;
                     policy.Requirements.Add(new NamespaceAccessRequirement());
                 });
+                
+                options.AddPolicy(GlobalAccessRequirement.Name, policy =>
+                {
+                    policy.AuthenticationSchemes = availableSchemes;
+                    policy.Requirements.Add(new GlobalAccessRequirement());
+                });
+
+                // A policy that grants any authenticated user access
+                options.AddPolicy("Any", policy =>
+                {
+                    policy.AuthenticationSchemes = availableSchemes;
+                    policy.RequireAuthenticatedUser();
+                });
 
                 OnAddAuthorization(options, availableSchemes);
             });
             services.AddSingleton<IAuthorizationHandler, NamespaceAuthorizationHandler>();
+            services.AddSingleton<IAuthorizationHandler, GlobalAuthorizationHandler>();
 
             services.Configure<ForwardedHeadersOptions>(options =>
             {
@@ -472,6 +537,10 @@ namespace Jupiter
                 {
                     validationResults.Add(new ValidationResult("JWT Audience must be specified when using Okta implementation"));
                 }
+                if (string.IsNullOrEmpty(JwtAuthority))
+                {
+                    validationResults.Add(new ValidationResult("JWT Authority must be specified when using Okta implementation"));
+                }
             }
             else
             {
@@ -496,6 +565,9 @@ namespace Jupiter
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
         public Dictionary<string, AuthSchemeEntry> Schemes { get; set; } = new Dictionary<string, AuthSchemeEntry>();
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
+        public List<AclEntry> Acls { get; set; } = new List<AclEntry>();
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
@@ -527,7 +599,7 @@ namespace Jupiter
         public long MemoryBufferSize { get; set; } = int.MaxValue;
 
         // enable to unhide potentially personal information, see https://aka.ms/IdentityModel/PII
-        public bool ShowPII { get; set; } = false;
+        public bool ShowPII { get; set; } = true;
         public bool DisableHealthChecks { get; set; } = false;
         public bool HostSwaggerDocumentation { get; set; } = true;
 
@@ -572,7 +644,8 @@ namespace Jupiter
 
     public class NamespacePolicy
     {
-        public string[] Claims { get; set; } = Array.Empty<string>();
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by the configuration system")]
+        public List<AclEntry> Acls { get; set; } = new List<AclEntry>();
         public string StoragePool { get; set; } = "";
 
         public bool LastAccessTracking { get; set; } = true;

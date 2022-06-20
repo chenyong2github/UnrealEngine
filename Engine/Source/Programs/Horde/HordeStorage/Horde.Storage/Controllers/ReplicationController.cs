@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
+using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +17,7 @@ namespace Horde.Storage.Controllers
     [ApiController]
     [FormatFilter]
     [Route("api/v1/g")]
-    [Authorize("Admin")]
+    [Authorize]
     [InternalApiFilter]
     public class ReplicationController : ControllerBase
     {
@@ -35,7 +36,7 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns
         )
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadTransactionLog });
             if (result != null)
             {
                 return result;
@@ -78,7 +79,7 @@ namespace Horde.Storage.Controllers
             [Required] long offset
         )
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.WriteTransactionLog });
             if (result != null)
             {
                 return result;
@@ -116,7 +117,7 @@ namespace Horde.Storage.Controllers
             [Required] [FromBody] NewReplicationState replicationState
         )
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.WriteTransactionLog });
             if (result != null)
             {
                 return result;
@@ -159,7 +160,7 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns
         )
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.WriteTransactionLog });
             if (result != null)
             {
                 return result;

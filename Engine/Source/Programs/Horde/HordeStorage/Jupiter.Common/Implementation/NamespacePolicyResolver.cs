@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
@@ -23,16 +24,6 @@ namespace Jupiter.Common
 
         public NamespacePolicy GetPoliciesForNs(NamespaceId ns)
         {
-            if (ns == INamespacePolicyResolver.JupiterInternalNamespace)
-            {
-                return new NamespacePolicy()
-                {
-                    // we expect the full storage access claim access to the internal namespace, this is typically set of admins and service accounts that can access everything
-                    Claims = new string[] {"Storage=full" },
-                    StoragePool = ""
-                };
-            }
-
             if (_namespaceSettings.CurrentValue.Policies.TryGetValue(ns.ToString(),
                     out NamespacePolicy? settings))
             {

@@ -26,10 +26,14 @@ public class RequestHelper
         _settings = settings;
     }
 
-    public async Task<ActionResult?> HasAccessToNamespace(ClaimsPrincipal user, HttpRequest request, NamespaceId ns)
+    public async Task<ActionResult?> HasAccessToNamespace(ClaimsPrincipal user, HttpRequest request, NamespaceId ns, AclAction[] aclActions)
     {
         using IScope _ = Tracer.Instance.StartActive("authorize");
-        AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(user, ns, NamespaceAccessRequirement.Name);
+        AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(user, new NamespaceAccessRequest
+        {
+            Namespace = ns,
+            Actions = aclActions
+        }, NamespaceAccessRequirement.Name);
 
         if (!authorizationResult.Succeeded)
         {
@@ -57,6 +61,22 @@ public class RequestHelper
         }
 
         // restricted namespace in corp or internal port, this is okay
+        return null;
+    }
+
+    public async Task<ActionResult?> HasAccessForGlobalOperations(ClaimsPrincipal user, AclAction[] aclActions)
+    {
+        using IScope _ = Tracer.Instance.StartActive("authorize");
+        AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(user, new GlobalAccessRequest
+        {
+            Actions = aclActions
+        }, GlobalAccessRequirement.Name);
+
+        if (!authorizationResult.Succeeded)
+        {
+            return new ForbidResult();
+        }
+
         return null;
     }
 }

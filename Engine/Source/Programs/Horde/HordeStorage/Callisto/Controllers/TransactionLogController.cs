@@ -48,7 +48,11 @@ namespace Callisto.Controllers
             // filter namespaces down to only the namespaces the user has access to
             namespaces = namespaces.Where(ns =>
             {
-                Task<AuthorizationResult> authorizationResult = _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+                Task<AuthorizationResult> authorizationResult = _authorizationService.AuthorizeAsync(User, new NamespaceAccessRequest()
+                {
+                    Namespace = ns,
+                    Actions = new [] { AclAction.ReadTransactionLog }
+                }, NamespaceAccessRequirement.Name);
                 return authorizationResult.Result.Succeeded;
             }).ToArray();
 
@@ -70,7 +74,11 @@ namespace Callisto.Controllers
             [FromQuery] int maxOffsetsAttempted = 100
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, new NamespaceAccessRequest()
+            {
+                Namespace = ns,
+                Actions = new[] { AclAction.ReadTransactionLog }
+            }, NamespaceAccessRequirement.Name);
 
             if (!authorizationResult.Succeeded)
             {
@@ -129,7 +137,11 @@ namespace Callisto.Controllers
             [Required] NamespaceId ns
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, new NamespaceAccessRequest()
+            {
+                Namespace = ns,
+                Actions = new[] { AclAction.WriteTransactionLog }
+            }, NamespaceAccessRequirement.Name);
 
             if (!authorizationResult.Succeeded)
             {
@@ -154,7 +166,11 @@ namespace Callisto.Controllers
             [Required] [FromBody] TransactionEvent request
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, new NamespaceAccessRequest()
+            {
+                Namespace = ns,
+                Actions = new[] { AclAction.WriteTransactionLog }
+            }, NamespaceAccessRequirement.Name);
 
             if (!authorizationResult.Succeeded)
             {
@@ -198,7 +214,11 @@ namespace Callisto.Controllers
             [Required] NamespaceId ns
         )
         {
-            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+            AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, new NamespaceAccessRequest()
+            {
+                Namespace = ns,
+                Actions = new[] { AclAction.WriteTransactionLog }
+            }, NamespaceAccessRequirement.Name);
 
             if (!authorizationResult.Succeeded)
             {

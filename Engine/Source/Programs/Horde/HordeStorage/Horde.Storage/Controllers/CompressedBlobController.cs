@@ -26,6 +26,7 @@ namespace Horde.Storage.Controllers
     using BlobNotFoundException = Horde.Storage.Implementation.BlobNotFoundException;
 
     [ApiController]
+	[Authorize]
     [Route("api/v1/compressed-blobs")]
     public class CompressedBlobController : ControllerBase
     {
@@ -47,7 +48,6 @@ namespace Horde.Storage.Controllers
         }
 
         [HttpGet("{ns}/{id}")]
-        [Authorize("Storage.read")]
         [ProducesResponseType(type: typeof(byte[]), 200)]
         [ProducesResponseType(type: typeof(ValidationProblemDetails), 400)]
         [Produces(CustomMediaTypeNames.UnrealCompressedBuffer, MediaTypeNames.Application.Octet)]
@@ -56,7 +56,7 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [Required] ContentId id)
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (result != null)
             {
                 return result;
@@ -85,13 +85,12 @@ namespace Horde.Storage.Controllers
         }
         
         [HttpHead("{ns}/{id}")]
-        [Authorize("Storage.read")]
         [ProducesDefaultResponseType]
         public async Task<IActionResult> Head(
             [Required] NamespaceId ns,
             [Required] ContentId id)
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (result != null)
             {
                 return result;
@@ -122,13 +121,12 @@ namespace Horde.Storage.Controllers
         }
 
         [HttpPost("{ns}/exists")]
-        [Authorize("Storage.read")]
         [ProducesDefaultResponseType]
         public async Task<IActionResult> ExistsMultiple(
             [Required] NamespaceId ns,
             [Required] [FromQuery] List<ContentId> id)
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (result != null)
             {
                 return result;
@@ -165,13 +163,12 @@ namespace Horde.Storage.Controllers
         }
 
         [HttpPost("{ns}/exist")]
-        [Authorize("Storage.read")]
         [ProducesDefaultResponseType]
         public async Task<IActionResult> ExistsBody(
             [Required] NamespaceId ns,
             [FromBody] ContentId[] bodyIds)
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (result != null)
             {
                 return result;
@@ -252,14 +249,13 @@ namespace Horde.Storage.Controllers
         }
 
         [HttpPut("{ns}/{id}")]
-        [Authorize("Storage.write")]
         [DisableRequestSizeLimit]
         [RequiredContentType(CustomMediaTypeNames.UnrealCompressedBuffer)]
         public async Task<IActionResult> Put(
             [Required] NamespaceId ns,
             [Required] ContentId id)
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.WriteObject });
             if (result != null)
             {
                 return result;
@@ -288,13 +284,12 @@ namespace Horde.Storage.Controllers
         }
 
         [HttpPost("{ns}")]
-        [Authorize("Storage.write")]
         [DisableRequestSizeLimit]
         [RequiredContentType(CustomMediaTypeNames.UnrealCompressedBuffer)]
         public async Task<IActionResult> Post(
             [Required] NamespaceId ns)
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.WriteObject });
             if (result != null)
             {
                 return result;
@@ -369,7 +364,6 @@ namespace Horde.Storage.Controllers
         }
 
         /*[HttpDelete("{ns}/{id}")]
-        [Authorize("Storage.delete")]
         public async Task<IActionResult> Delete(
             [Required] string ns,
             [Required] BlobIdentifier id)
@@ -387,7 +381,6 @@ namespace Horde.Storage.Controllers
 
         
         [HttpDelete("{ns}")]
-        [Authorize("Admin")]
         public async Task<IActionResult> DeleteNamespace(
             [Required] string ns)
         {

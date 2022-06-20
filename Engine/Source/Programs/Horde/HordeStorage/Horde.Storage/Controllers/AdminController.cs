@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
+using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,17 +21,20 @@ namespace Horde.Storage.Controllers
     [ApiController]
     [Route("api/v1/admin")]
     [InternalApiFilter]
+    [Authorize]
     public class AdminController : Controller
     {
         private readonly LastAccessService _lastAccessService;
         private readonly IRefCleanup _refCleanup;
         private readonly IConfiguration _configuration;
+        private readonly RequestHelper _requestHelper;
 
-        public AdminController(LastAccessService lastAccessService, IRefCleanup refCleanup, IConfiguration configuration)
+        public AdminController(LastAccessService lastAccessService, IRefCleanup refCleanup, IConfiguration configuration, RequestHelper requestHelper)
         {
             _lastAccessService = lastAccessService;
             _refCleanup = refCleanup;
             _configuration = configuration;
+            _requestHelper = requestHelper;
         }
 
         /// <summary>
@@ -41,10 +45,15 @@ namespace Horde.Storage.Controllers
         /// </remarks>
         /// <returns></returns>
         [HttpPost("startLastAccessRollup")]
-        [Authorize("Admin")]
         [ProducesResponseType(type: typeof(UpdatedRecordsResponse), 200)]
         public async Task<IActionResult> StartLastAccessRollup()
         {
+            ActionResult? result = await _requestHelper.HasAccessForGlobalOperations(User, new [] { AclAction.AdminAction });
+            if (result != null)
+            {
+                return result;
+            }
+
             Task<List<(RefRecord, DateTime)>>? updateRecordsTask = _lastAccessService.ProcessLastAccessRecords();
             List<(RefRecord, DateTime)>? updatedRecords = null;
             if (updateRecordsTask != null)
@@ -68,6 +77,12 @@ namespace Horde.Storage.Controllers
         [HttpPost("refCleanup/{ns}")]
         public async Task<IActionResult> RefCleanup([FromRoute] [Required] NamespaceId ns)
         {
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.AdminAction });
+            if (result != null)
+            {
+                return result;
+            }
+
             int countOfDeletedRecords = await _refCleanup.Cleanup(ns, CancellationToken.None);
             return Ok(new RemovedRefRecordsResponse(countOfDeletedRecords));
         }
@@ -77,8 +92,14 @@ namespace Horde.Storage.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("settings")]
-        public IActionResult Settings()
+        public async Task<IActionResult> Settings()
         {
+            ActionResult? result = await _requestHelper.HasAccessForGlobalOperations(User, new [] { AclAction.AdminAction });
+            if (result != null)
+            {
+                return result;
+            }
+
             Dictionary<string, Dictionary<string, object>> settings = new Dictionary<string, Dictionary<string, object>>();
 
             Dictionary<string, object> ResolveSection(IConfigurationSection section)

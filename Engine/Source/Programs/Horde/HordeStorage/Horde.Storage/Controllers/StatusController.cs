@@ -15,6 +15,7 @@ namespace Horde.Storage.Controllers
 {
     [ApiController]
     [Route("api/v1/status")]
+    [Authorize]
     public class StatusController : Controller
     {
         private readonly VersionFile _versionFile;
@@ -38,7 +39,6 @@ namespace Horde.Storage.Controllers
         /// </remarks>
         /// <returns></returns>
         [HttpGet("")]
-        [Authorize("Any")]
         [ProducesResponseType(type: typeof(StatusResponse), 200)]
         public IActionResult Status()
         {
@@ -77,7 +77,6 @@ namespace Horde.Storage.Controllers
         /// </remarks>
         /// <returns></returns>
         [HttpGet("peers")]
-        [Authorize("Any")]
         [ProducesResponseType(type: typeof(PeersResponse), 200)]
         public IActionResult Peers([FromQuery] bool includeInternalEndpoints = false)
         {

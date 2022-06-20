@@ -20,6 +20,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Storage.Implementation;
 using JetBrains.Annotations;
+using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Jupiter.Utils;
@@ -42,6 +43,7 @@ namespace Horde.Storage.Controllers
     [FormatFilter]
     [Produces(MediaTypeNames.Application.Json, MediaTypeNames.Application.Octet, CustomMediaTypeNames.UnrealCompactBinary)]
     [Route("api/v1/refs")]
+    [Authorize]
     public class ReferencesController : ControllerBase
     {
         private readonly IDiagnosticContext _diagnosticContext;
@@ -72,7 +74,6 @@ namespace Horde.Storage.Controllers
         [HttpGet("")]
         [ProducesDefaultResponseType]
         [ProducesResponseType(type: typeof(ProblemDetails), 400)]
-        [Authorize("Cache.read")]
         public async Task<IActionResult> GetNamespaces()
         {
             NamespaceId[] namespaces = await _objectService.GetNamespaces().ToArrayAsync();
@@ -81,7 +82,7 @@ namespace Horde.Storage.Controllers
             List<NamespaceId> namespacesWithAccess = new();
             foreach (NamespaceId ns in namespaces)
             {
-                ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+                ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
                 if (accessResult == null)
                 {
                     namespacesWithAccess.Add(ns);
@@ -100,14 +101,13 @@ namespace Horde.Storage.Controllers
         /// <param name="format">Optional specifier to set which output format is used json/raw/cb</param>
         [HttpGet("{ns}/{bucket}/{key}.{format?}", Order = 500)]
         [Produces(MediaTypeNames.Application.Json, MediaTypeNames.Application.Octet, CustomMediaTypeNames.UnrealCompactBinary, CustomMediaTypeNames.JupiterInlinedPayload)]
-        [Authorize("Object.read")]
         public async Task<IActionResult> Get(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key,
             [FromRoute] string? format = null)
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (accessResult != null)
             {
                 return accessResult;
@@ -338,38 +338,37 @@ namespace Horde.Storage.Controllers
     /// <param name="key">The unique name of this particular key. `iAmAVeryValidKey`</param>
     /// <param name="fields">The fields to include in the response, omit this to include everything.</param>
     [HttpGet("{ns}/{bucket}/{key}/metadata", Order = 500)]
-        [Authorize("Object.read")]
-        public async Task<IActionResult> GetMetadata(
-            [FromRoute] [Required] NamespaceId ns,
-            [FromRoute] [Required] BucketId bucket,
-            [FromRoute] [Required] IoHashKey key,
-            [FromQuery] string[] fields)
+    public async Task<IActionResult> GetMetadata(
+        [FromRoute] [Required] NamespaceId ns,
+        [FromRoute] [Required] BucketId bucket,
+        [FromRoute] [Required] IoHashKey key,
+        [FromQuery] string[] fields)
+    {
+        ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
+        if (accessResult != null)
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
-            if (accessResult != null)
-            {
-                return accessResult;
-            }
-
-            try
-            {
-                (ObjectRecord objectRecord, BlobContents? _) = await _objectService.Get(ns, bucket, key, fields);
-
-                return Ok(new RefMetadataResponse(objectRecord));
-            }
-            catch (NamespaceNotFoundException e)
-            {
-                return NotFound(new ProblemDetails {Title = $"Namespace {e.Namespace} did not exist"});
-            }
-            catch (ObjectNotFoundException e)
-            {
-                return NotFound(new ProblemDetails { Title = $"Object {e.Bucket} {e.Key} did not exist" });
-            }
-            catch (BlobNotFoundException e)
-            {
-                return NotFound(new ProblemDetails { Title = $"Object {e.Blob} in {e.Ns} not found" });
-            }
+            return accessResult;
         }
+
+        try
+        {
+            (ObjectRecord objectRecord, BlobContents? _) = await _objectService.Get(ns, bucket, key, fields);
+
+            return Ok(new RefMetadataResponse(objectRecord));
+        }
+        catch (NamespaceNotFoundException e)
+        {
+            return NotFound(new ProblemDetails {Title = $"Namespace {e.Namespace} did not exist"});
+        }
+        catch (ObjectNotFoundException e)
+        {
+            return NotFound(new ProblemDetails { Title = $"Object {e.Bucket} {e.Key} did not exist" });
+        }
+        catch (BlobNotFoundException e)
+        {
+            return NotFound(new ProblemDetails { Title = $"Object {e.Blob} in {e.Ns} not found" });
+        }
+    }
 
         /// <summary>
         /// Checks if a object exists
@@ -381,13 +380,12 @@ namespace Horde.Storage.Controllers
         [HttpHead("{ns}/{bucket}/{key}", Order = 500)]
         [ProducesResponseType(type: typeof(RefResponse), 200)]
         [ProducesResponseType(type: typeof(ValidationProblemDetails), 400)]
-        [Authorize("Object.read")]
         public async Task<IActionResult> Head(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key)
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (accessResult != null)
             {
                 return accessResult;
@@ -446,13 +444,12 @@ namespace Horde.Storage.Controllers
         }
 
         [HttpGet("{ns}/exists")]
-        [Authorize("Object.read")]
         [ProducesDefaultResponseType]
         public async Task<IActionResult> ExistsMultiple(
             [FromRoute] [Required] NamespaceId ns,
             [FromQuery] [Required] List<string> names)
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadObject });
             if (accessResult != null)
             {
                 return accessResult;
@@ -512,13 +509,12 @@ namespace Horde.Storage.Controllers
 
         [HttpPut("{ns}/{bucket}/{key}.{format?}", Order = 500)]
         [DisableRequestSizeLimit]
-        [Authorize("Object.write")]
         public async Task<IActionResult> PutObject(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key)
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.WriteObject });
             if (accessResult != null)
             {
                 return accessResult;
@@ -607,14 +603,13 @@ namespace Horde.Storage.Controllers
         }
 
         [HttpPost("{ns}/{bucket}/{key}/finalize/{hash}.{format?}")]
-        [Authorize("Object.write")]
         public async Task<IActionResult> FinalizeObject(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key,
             [FromRoute] [Required] BlobIdentifier hash)
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.WriteObject });
             if (accessResult != null)
             {
                 return accessResult;
@@ -634,7 +629,24 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] NamespaceId ns,
             [FromBody] [Required] BatchOps ops)
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            AclAction ActionForOp(BatchOps.BatchOp.Operation op)
+            {
+                switch (op)
+                {
+                    case BatchOps.BatchOp.Operation.GET:
+                        return AclAction.ReadObject;
+                    case BatchOps.BatchOp.Operation.PUT:
+                        return AclAction.WriteObject;
+                    case BatchOps.BatchOp.Operation.HEAD:
+                        return AclAction.ReadObject;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(op), op, null);
+                }
+            }
+
+            AclAction[] requiredActions = ops.Ops.Select(op => ActionForOp(op.Op)).ToArray();
+
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, requiredActions);
             if (accessResult != null)
             {
                 return accessResult;
@@ -801,12 +813,11 @@ namespace Horde.Storage.Controllers
         /// <param name="ns">Namespace. Each namespace is completely separated from each other. Use for different types of data that is never expected to be similar (between two different games for instance)</param>
         [HttpDelete("{ns}", Order = 500)]
         [ProducesResponseType(204)]
-        [Authorize("admin")]
         public async Task<IActionResult> DeleteNamespace(
             [FromRoute] [Required] NamespaceId ns
         )
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.DeleteNamespace });
             if (accessResult != null)
             {
                 return accessResult;
@@ -831,12 +842,11 @@ namespace Horde.Storage.Controllers
         /// <param name="bucket">The category/type of record you are caching. Is a clustered key together with the actual key, but all records in the same bucket can be dropped easily.</param>
         [HttpDelete("{ns}/{bucket}", Order = 500)]
         [ProducesResponseType(200)]
-        [Authorize("Object.delete")]
         public async Task<IActionResult> DeleteBucket(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket)
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.DeleteBucket });
             if (accessResult != null)
             {
                 return accessResult;
@@ -864,13 +874,12 @@ namespace Horde.Storage.Controllers
         [HttpDelete("{ns}/{bucket}/{key}", Order = 500)]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
-        [Authorize("Object.delete")]
         public async Task<IActionResult> Delete(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key)
         {
-            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.DeleteObject });
             if (accessResult != null)
             {
                 return accessResult;

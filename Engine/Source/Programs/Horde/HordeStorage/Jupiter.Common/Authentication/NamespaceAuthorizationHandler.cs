@@ -1,27 +1,39 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 
 namespace Jupiter
 {
+    public class NamespaceAccessRequest
+    {
+        public NamespaceId Namespace { get; init; }
+        public AclAction[] Actions { get; init; } = Array.Empty<AclAction>();
+    }
+
     // verifies that you have access to a namespace by checking if you have a corresponding claim to that namespace
-    public class NamespaceAuthorizationHandler : AuthorizationHandler<NamespaceAccessRequirement, NamespaceId>
+    public class NamespaceAuthorizationHandler : AuthorizationHandler<NamespaceAccessRequirement, NamespaceAccessRequest>
     {
         private readonly INamespacePolicyResolver _namespacePolicyResolver;
+        private readonly IOptionsMonitor<AuthSettings> _authSettings;
 
-        public NamespaceAuthorizationHandler(INamespacePolicyResolver namespacePolicyResolver)
+        public NamespaceAuthorizationHandler(INamespacePolicyResolver namespacePolicyResolver, IOptionsMonitor<AuthSettings> authSettings)
         {
             _namespacePolicyResolver = namespacePolicyResolver;
+            _authSettings = authSettings;
         }
 
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, NamespaceAccessRequirement requirement,
-            NamespaceId namespaceName)
+            NamespaceAccessRequest accessRequest)
         {
+            NamespaceId namespaceName = accessRequest.Namespace;
             if (context.User.HasClaim(claim => claim.Type == "AllNamespaces"))
             {
                 context.Succeed(requirement);
@@ -30,33 +42,36 @@ namespace Jupiter
 
             try
             {
+                if (!accessRequest.Actions.Any())
+                {
+                    throw new Exception("At least 1 AclAction has to be specified for the namespace access request");
+                } 
+                
                 NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(namespaceName);
 
-                // These are ANDed, e.g. all claims needs to be present
-                foreach (string expectedClaim in policy.Claims)
+                List<AclAction> allowedActions = new List<AclAction>();
+                foreach (AclEntry acl in policy.Acls)
                 {
-                    // if expected claim is * then everyone is allowed to use the namespace
-                    if (expectedClaim == "*")
-                    {
-                        context.Succeed(requirement);
-                        continue;
-                    }
+                    allowedActions.AddRange(acl.Resolve(context));
+                }
 
-                    if (expectedClaim.Contains('=', StringComparison.InvariantCultureIgnoreCase))
+                // the root and namespace acls are combined, namespace acls can not override what we define in the root
+                foreach (AclEntry acl in _authSettings.CurrentValue.Acls)
+                {
+                    allowedActions.AddRange(acl.Resolve(context));
+                }
+
+                bool haveAccessToActions = true;
+                foreach (AclAction requiredAction in accessRequest.Actions)
+                {
+                    if (!allowedActions.Contains(requiredAction))
                     {
-                        int separatorIndex = expectedClaim.IndexOf('=', StringComparison.InvariantCultureIgnoreCase);
-                        string claimName = expectedClaim.Substring(0, separatorIndex);
-                        string claimValue = expectedClaim.Substring(separatorIndex + 1);
-                        if (context.User.HasClaim(claim => claim.Type == claimName && claim.Value == claimValue))
-                        {
-                            context.Succeed(requirement);
-                            continue;
-                        }
+                        haveAccessToActions = false;
                     }
-                    if (context.User.HasClaim(claim => claim.Type == expectedClaim))
-                    {
-                        context.Succeed(requirement);
-                    }
+                }
+                if (haveAccessToActions)
+                {
+                    context.Succeed(requirement);
                 }
             }
             catch (UnknownNamespaceException)

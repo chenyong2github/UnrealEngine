@@ -10,6 +10,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Storage.Implementation;
 using Horde.Storage.Implementation.TransactionLog;
+using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +23,7 @@ namespace Horde.Storage.Controllers
     [ApiController]
     [Route("api/v1/replication-log")]
     [InternalApiFilter]
+    [Authorize]
     public class ReplicationLogController : ControllerBase
     {
         private readonly IServiceProvider _provider;
@@ -40,12 +42,11 @@ namespace Horde.Storage.Controllers
         [HttpGet("snapshots/{ns}")]
         [ProducesDefaultResponseType]
         [ProducesResponseType(type: typeof(ProblemDetails), 400)]
-        [Authorize("replication-log.read")]
         public async Task<IActionResult> GetSnapshots(
             [Required] NamespaceId ns
         )
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadTransactionLog });
             if (result != null)
             {
                 return result;
@@ -58,12 +59,11 @@ namespace Horde.Storage.Controllers
         [HttpPost("snapshots/{ns}/create")]
         [ProducesDefaultResponseType]
         [ProducesResponseType(type: typeof(ProblemDetails), 400)]
-        [Authorize("Admin")]
         public async Task<IActionResult> CreateSnapshot(
             [Required] NamespaceId ns
         )
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.WriteTransactionLog });
             if (result != null)
             {
                 return result;
@@ -77,7 +77,6 @@ namespace Horde.Storage.Controllers
         [HttpGet("incremental/{ns}")]
         [ProducesDefaultResponseType]
         [ProducesResponseType(type: typeof(ProblemDetails), 400)]
-        [Authorize("replication-log.read")]
         public async Task<IActionResult> GetIncrementalEvents(
             [Required] NamespaceId ns,
             [FromQuery] string? lastBucket,
@@ -85,7 +84,7 @@ namespace Horde.Storage.Controllers
             [FromQuery] int count = 100
         )
         {
-            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadTransactionLog });
             if (result != null)
             {
                 return result;
