@@ -276,6 +276,7 @@ public:
 	ENGINE_API virtual void ReleaseRHI() override;
 	virtual FString GetFriendlyName() const override { return TEXT("FStaticMeshSectionAreaWeightedTriangleSamplerBuffer"); }
 
+	ENGINE_API const FBufferRHIRef& GetBufferRHI() const { return BufferSectionTriangleRHI; }
 	ENGINE_API const FShaderResourceViewRHIRef& GetBufferSRV() const { return BufferSectionTriangleSRV; }
 
 private:
