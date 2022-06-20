@@ -12,17 +12,17 @@
 
 #include "Math/RandomStream.h"
 
-struct FPCGMeshesAndWeights
+struct FPCGInstancesAndWeights
 {
-	TArray<TSoftObjectPtr<UStaticMesh>> Meshes;
+	TArray<int> InstanceListIndices;
 	TArray<int> CumulativeWeights;
 };
 
 void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
-	FPCGContext& Context, 
-	const UPCGStaticMeshSpawnerSettings* Settings, 
+	FPCGContext& Context,
+	const UPCGStaticMeshSpawnerSettings* Settings,
 	const UPCGSpatialData* InSpatialData,
-	TMap<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList>& OutMeshInstances) const
+	TArray<FPCGMeshInstanceList>& OutMeshInstances) const
 {
 	const UPCGPointData* PointData = InSpatialData->ToPointData(&Context);
 
@@ -57,7 +57,7 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	const FPCGMetadataAttribute<FString>* Attribute = static_cast<const FPCGMetadataAttribute<FString>*>(AttributeBase);
 
 	// maps a CategoryEntry ValueKey to the meshes and precomputed weight data 
-	TMap<PCGMetadataValueKey, FPCGMeshesAndWeights> CategoryEntryToMeshesAndWeights;
+	TMap<PCGMetadataValueKey, FPCGInstancesAndWeights> CategoryEntryToInstancesAndWeights;
 
 	// unmarked points will fallback to the MeshEntries associated with the DefaultValueKey
 	PCGMetadataValueKey DefaultValueKey = PCGDefaultValueKey;
@@ -78,9 +78,9 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 			continue;
 		}
 
-		FPCGMeshesAndWeights* MeshesAndWeights = CategoryEntryToMeshesAndWeights.Find(ValueKey);
+		FPCGInstancesAndWeights* InstancesAndWeights = CategoryEntryToInstancesAndWeights.Find(ValueKey);
 
-		if (MeshesAndWeights)
+		if (InstancesAndWeights)
 		{
 			PCGE_LOG_C(Warning, &Context, "Duplicate entry found in category %s. Subsequent entries are ignored.", *Entry.CategoryEntry);
 			continue;
@@ -98,7 +98,7 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 			}
 		}
 
-		MeshesAndWeights = &CategoryEntryToMeshesAndWeights.Add(ValueKey, FPCGMeshesAndWeights());
+		InstancesAndWeights = &CategoryEntryToInstancesAndWeights.Add(ValueKey, FPCGInstancesAndWeights());
 
 		int TotalWeight = 0;
 		for (const FPCGMeshSelectorWeightedEntry& WeightedEntry : Entry.WeightedMeshEntries)
@@ -108,21 +108,20 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 				PCGE_LOG_C(Verbose, &Context, "Entry found with weight <= 0 in category %s", *Entry.CategoryEntry);
 				continue;
 			}
-
-			// create or overwrite the entry for this mesh
-			FPCGMeshInstanceList& InstanceList = OutMeshInstances.Emplace(WeightedEntry.Mesh);
-			InstanceList.bOverrideCollisionProfile = WeightedEntry.bOverrideCollisionProfile;
-			InstanceList.CollisionProfile = WeightedEntry.CollisionProfile;
+			
+			int32 Index = INDEX_NONE;
+			FindOrAddInstanceList(OutMeshInstances, WeightedEntry.Mesh, WeightedEntry.bOverrideCollisionProfile, WeightedEntry.CollisionProfile, WeightedEntry.bOverrideMaterials, WeightedEntry.MaterialOverrides, Index);
 
 			// precompute the weights
 			TotalWeight += WeightedEntry.Weight;
-			MeshesAndWeights->CumulativeWeights.Add(TotalWeight);
-			MeshesAndWeights->Meshes.Add(WeightedEntry.Mesh);
+			InstancesAndWeights->CumulativeWeights.Add(TotalWeight);
+			InstancesAndWeights->InstanceListIndices.Add(Index);
 		}
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
 
+	// Assign points to entries
 	for (const FPCGPoint& Point : PointData->GetPoints())
 	{
 		if (Point.Density <= 0.0f)
@@ -133,13 +132,13 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 		PCGMetadataValueKey ValueKey = Attribute->GetValueKey(Point.MetadataEntry);
 
 		// if no mesh list was processed for this attribute value, fallback to the default mesh list
-		FPCGMeshesAndWeights* MeshesAndWeights = CategoryEntryToMeshesAndWeights.Find(ValueKey);
-		if (!MeshesAndWeights)
+		FPCGInstancesAndWeights* InstancesAndWeights = CategoryEntryToInstancesAndWeights.Find(ValueKey);
+		if (!InstancesAndWeights)
 		{
 			if (DefaultValueKey != PCGDefaultValueKey)
 			{
-				MeshesAndWeights = CategoryEntryToMeshesAndWeights.Find(DefaultValueKey);
-				check(MeshesAndWeights);
+				InstancesAndWeights = CategoryEntryToInstancesAndWeights.Find(DefaultValueKey);
+				check(InstancesAndWeights);
 			}
 			else
 			{
@@ -147,20 +146,21 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 			}
 		}
 
-		const int TotalWeight = MeshesAndWeights->CumulativeWeights.Last();
+		const int TotalWeight = InstancesAndWeights->CumulativeWeights.Last();
 
 		FRandomStream RandomSource(PCGHelpers::ComputeSeed(Point.Seed, Settings->Seed));
 		int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
 
 		int RandomPick = 0;
-		while (RandomPick < MeshesAndWeights->Meshes.Num() && MeshesAndWeights->CumulativeWeights[RandomPick] <= RandomWeightedPick)
+		while (RandomPick < InstancesAndWeights->InstanceListIndices.Num() && InstancesAndWeights->CumulativeWeights[RandomPick] <= RandomWeightedPick)
 		{
 			++RandomPick;
 		}
 
-		if (RandomPick < MeshesAndWeights->Meshes.Num())
+		if (RandomPick < InstancesAndWeights->InstanceListIndices.Num())
 		{
-			OutMeshInstances[MeshesAndWeights->Meshes[RandomPick]].Instances.Emplace(Point.Transform);
+			const int32 Index = InstancesAndWeights->InstanceListIndices[RandomPick];
+			OutMeshInstances[Index].Instances.Emplace(Point.Transform);
 		}
 	}
 }

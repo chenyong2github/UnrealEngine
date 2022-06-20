@@ -12,20 +12,36 @@
 #include "PCGMeshSelectorBase.generated.h"
 
 class UPCGStaticMeshSpawnerSettings;
+class UMaterialInterface;
 
 USTRUCT(BlueprintType)
 struct FPCGMeshInstanceList
 {
 	GENERATED_BODY()
 
+	FPCGMeshInstanceList() = default;
+	
+	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<UMaterialInterface*>& InMaterialOverrides)
+		: Mesh(InMesh), bOverrideCollisionProfile(bInOverrideCollisionProfile), CollisionProfile(InCollisionProfile), bOverrideMaterials(bInOverrideMaterials), MaterialOverrides(InMaterialOverrides)
+	{}
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-    TArray<FTransform> Instances;
+	TSoftObjectPtr<UStaticMesh> Mesh;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bOverrideCollisionProfile = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FCollisionProfileName CollisionProfile;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bOverrideMaterials = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	TArray<UMaterialInterface*> MaterialOverrides;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+    TArray<FTransform> Instances;
 };
 
 UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (Procedural))
@@ -35,15 +51,26 @@ class PCG_API UPCGMeshSelectorBase : public UObject
 
 public:
 	UFUNCTION(BlueprintNativeEvent, Category = MeshSelection)
-		void SelectInstances(
+	void SelectInstances(
 		FPCGContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		const UPCGSpatialData* InSpatialData,
-		TMap<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList>& OutMeshInstances) const;
+		TArray<FPCGMeshInstanceList>& OutMeshInstances) const;
 
 	virtual void SelectInstances_Implementation(
 		FPCGContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		const UPCGSpatialData* InSpatialData,
-		TMap<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList>& OutMeshInstances) const;
+		TArray<FPCGMeshInstanceList>& OutMeshInstances) const;
+
+	/** Searches OutInstanceLists for an InstanceList matching the given parameters. If nothing is found, creates a new InstanceList and adds to OutInstanceLists. Returns true if added. */
+	UFUNCTION(BlueprintCallable, Category = MeshSelection)
+	bool FindOrAddInstanceList(
+		TArray<FPCGMeshInstanceList>& OutInstanceLists,
+		const TSoftObjectPtr<UStaticMesh>& Mesh,
+		bool bOverrideCollisionProfile,
+		const FCollisionProfileName& CollisionProfile,
+		bool bOverrideMaterials,
+		const TArray<UMaterialInterface*>& MaterialOverrides,
+		int32& OutIndex) const;
 };

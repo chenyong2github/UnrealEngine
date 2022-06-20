@@ -37,7 +37,7 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	// perform mesh selection
-	TMap<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList> MeshInstances;
+	TArray<FPCGMeshInstanceList> MeshInstances;
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 
 	for (const FPCGTaggedData& Input : Inputs)
@@ -69,23 +69,20 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 	return true;
 }
 
-void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context, const TMap<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList>& MeshInstances, AActor* TargetActor) const
+void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context, const TArray<FPCGMeshInstanceList>& MeshInstances, AActor* TargetActor) const
 {
 	// Populate the (H)ISM from the previously prepared entries
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::PopulateISMs);
 
-	for (const TPair<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList>& Elem : MeshInstances)
+	for (const FPCGMeshInstanceList& InstanceList : MeshInstances)
 	{
-		const TSoftObjectPtr<UStaticMesh> Mesh = Elem.Key;
-		const FPCGMeshInstanceList& InstanceList = Elem.Value;
-
 		if (InstanceList.Instances.Num() == 0)
 		{
 			continue;
 		}
 
 		// Todo: we could likely pre-load these meshes asynchronously in the settings
-		UStaticMesh* LoadedMesh = Mesh.LoadSynchronous();
+		UStaticMesh* LoadedMesh = InstanceList.Mesh.LoadSynchronous();
 
 		if (!LoadedMesh)
 		{
@@ -94,9 +91,15 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 
 		FPCGISMCBuilderParameters Params;
 		Params.Mesh = LoadedMesh;
+
 		if (InstanceList.bOverrideCollisionProfile)
 		{
 			Params.CollisionProfile = InstanceList.CollisionProfile.Name;
+		}
+
+		if (InstanceList.bOverrideMaterials)
+		{
+			Params.MaterialOverrides = InstanceList.MaterialOverrides;
 		}
 
 		UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Params);
@@ -107,7 +110,7 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 		ISMC->AddInstances(InstanceList.Instances, false, true);
 		ISMC->UpdateBounds();
 
-		PCGE_LOG(Verbose, "Added %d instances of %s on actor %s", InstanceList.Instances.Num(), *Mesh->GetFName().ToString(), *TargetActor->GetFName().ToString());
+		PCGE_LOG(Verbose, "Added %d instances of %s on actor %s", InstanceList.Instances.Num(), *InstanceList.Mesh->GetFName().ToString(), *TargetActor->GetFName().ToString());
 	}
 }
 

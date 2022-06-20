@@ -5,6 +5,10 @@
 #include "PCGHelpers.h"
 #include "PCGPoint.h"
 #include "Elements/PCGStaticMeshSpawner.h"
+#include "Metadata/PCGMetadata.h"
+#include "Metadata/PCGMetadataAttribute.h"
+#include "Metadata/PCGMetadataAttributeTraits.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include "Math/RandomStream.h"
 
@@ -12,9 +16,8 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
 	const UPCGSpatialData* InSpatialData,
-	TMap<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList>& OutMeshInstances) const
+	TArray<FPCGMeshInstanceList>& OutMeshInstances) const
 {
-	TArray<TSoftObjectPtr<UStaticMesh>> Meshes;
 	TArray<int> CumulativeWeights;
 
 	int TotalWeight = 0;
@@ -26,16 +29,11 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 			PCGE_LOG_C(Verbose, &Context, "Entry found with weight <= 0");
 			continue;
 		}
-	
-		// TODO: handle collisions between different collision profiles
-		FPCGMeshInstanceList InstanceList;
-		InstanceList.bOverrideCollisionProfile = Entry.bOverrideCollisionProfile;
-		InstanceList.CollisionProfile = Entry.CollisionProfile;
-		OutMeshInstances.Emplace(Entry.Mesh, InstanceList);
 
+		int32 Index = INDEX_NONE;
+		FindOrAddInstanceList(OutMeshInstances, Entry.Mesh, Entry.bOverrideCollisionProfile, Entry.CollisionProfile, Entry.bOverrideMaterials, Entry.MaterialOverrides, Index);
 		TotalWeight += Entry.Weight;
 		CumulativeWeights.Add(TotalWeight);
-		Meshes.Add(Entry.Mesh);
 	}
 
 	if (TotalWeight <= 0)
@@ -66,14 +64,14 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 			int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
 
 			int RandomPick = 0;
-			while (RandomPick < Meshes.Num() && CumulativeWeights[RandomPick] <= RandomWeightedPick)
+			while (RandomPick < OutMeshInstances.Num() && CumulativeWeights[RandomPick] <= RandomWeightedPick)
 			{
 				++RandomPick;
 			}
 
-			if (RandomPick < Meshes.Num())
+			if (RandomPick < OutMeshInstances.Num())
 			{
-				OutMeshInstances[Meshes[RandomPick]].Instances.Emplace(Point.Transform);
+				OutMeshInstances[RandomPick].Instances.Emplace(Point.Transform);
 			}
 		}
 	}

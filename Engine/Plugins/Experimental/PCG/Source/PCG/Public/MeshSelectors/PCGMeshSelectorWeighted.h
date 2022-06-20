@@ -21,10 +21,16 @@ struct PCG_API FPCGMeshSelectorWeightedEntry
 	TSoftObjectPtr<UStaticMesh> Mesh;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bOverrideCollisionProfile = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FCollisionProfileName CollisionProfile;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bOverrideCollisionProfile = false;
+	bool bOverrideMaterials = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	TArray<UMaterialInterface*> MaterialOverrides;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ClampMin = "0"))
 	int Weight = 1;
@@ -40,7 +46,7 @@ public:
 		UPARAM(ref) FPCGContext& Context, 
 		const UPCGStaticMeshSpawnerSettings* Settings, 
 		const UPCGSpatialData* InSpatialData,
-		TMap<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList>& OutMeshInstances) const override;
+		TArray<FPCGMeshInstanceList>& OutMeshInstances) const override;
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)

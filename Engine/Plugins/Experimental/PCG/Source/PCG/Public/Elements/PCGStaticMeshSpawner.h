@@ -84,6 +84,6 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;	
-	void SpawnStaticMeshInstances(FPCGContext* Context, const TMap<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList>& MeshInstances, AActor* TargetActor) const;
+	void SpawnStaticMeshInstances(FPCGContext* Context, const TArray<FPCGMeshInstanceList>& MeshInstances, AActor* TargetActor) const;
 };
 

@@ -13,7 +13,7 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
 	const UPCGSpatialData* InSpatialData, 
-	TMap<TSoftObjectPtr<UStaticMesh>, FPCGMeshInstanceList>& OutMeshInstances) const
+	TArray<FPCGMeshInstanceList>& OutMeshInstances) const
 {
 	const UPCGPointData* PointData = InSpatialData->ToPointData(&Context);
 
@@ -50,7 +50,7 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
 
-	// for every point, add an instance of the stored Mesh
+	// Assign points to entries
 	for (const FPCGPoint& Point : PointData->GetPoints()) 
 	{
 		if (Point.Density <= 0.0f)
@@ -81,17 +81,8 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 			continue;
 		}
 
-		// insert the Mesh if it does not exist already
-		FPCGMeshInstanceList* InstanceList = OutMeshInstances.Find(Mesh);
-		if (!InstanceList)
-		{
-			FPCGMeshInstanceList& NewInstanceList = OutMeshInstances.Emplace(Mesh);
-			NewInstanceList.bOverrideCollisionProfile = bOverrideCollisionProfile;
-			NewInstanceList.CollisionProfile = CollisionProfile;
-			
-			InstanceList = &NewInstanceList;
-		}
-
-		InstanceList->Instances.Emplace(Point.Transform);
+		int32 Index = INDEX_NONE;
+		FindOrAddInstanceList(OutMeshInstances, Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, Index);
+		OutMeshInstances[Index].Instances.Emplace(Point.Transform);
 	}
 }
