@@ -95,6 +95,15 @@ namespace
 		TEXT(" 2: Automatic. Non-checkerboard lighting will be applied if we have a suitable rendertarget format\n"),
 		ECVF_RenderThreadSafe);
 
+	TAutoConsoleVariable<int32> CVarSSSCheckerboardNeighborSSSValidation(
+		TEXT("r.SSS.Checkerboard.NeighborSSSValidation"),
+		0,
+		TEXT("Enable or disable checkerboard neighbor subsurface scattering validation.\n")
+		TEXT("This validation can remove border light leakage into subsurface scattering, creating a sharpe border with correct color")
+		TEXT(" 0: Disabled (default)")
+		TEXT(" 1: Enabled. Add 1 subsurface profile id query/pixel (low quality), 4 id query/pixel (high quality) at recombine pass"),
+		ECVF_RenderThreadSafe);
+
 	TAutoConsoleVariable<int32> CVarSSSBurleyQuality(
 		TEXT("r.SSS.Burley.Quality"),
 		1,
@@ -818,6 +827,7 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput1)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler0)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler1)
+		SHADER_PARAMETER(uint32, CheckerboardNeighborSSSValidation)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT();
 
@@ -849,6 +859,12 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FSubsurfaceShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SUBSURFACE_RECOMBINE"), 1);
 	}
 
 	// Returns the Recombine quality level requested by the SSS Quality CVar setting.
@@ -888,6 +904,12 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 		{
 			return EQuality::Low;
 		}
+	}
+
+	static uint32 GetCheckerBoardNeighborSSSValidation(bool bCheckerBoard)
+	{
+		bool bValidation = CVarSSSCheckerboardNeighborSSSValidation.GetValueOnRenderThread() > 0 ? true : false;
+		return (bCheckerBoard && bValidation) ? 1u : 0u;
 	}
 };
 
@@ -1314,6 +1336,9 @@ void AddSubsurfaceViewPass(
 
 			FSubsurfaceRecombinePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceRecombinePS::FParameters>();
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
+			// Add dynamic branch parameters for recombine pass only.
+			PassParameters->CheckerboardNeighborSSSValidation = FSubsurfaceRecombinePS::GetCheckerBoardNeighborSSSValidation(bCheckerboard);
+			
 			if (SubsurfaceMode != ESubsurfaceMode::Bypass)
 			{
 				PassParameters->TileParameters = GetSubsurfaceTileParameters(SubsurfaceViewport, Tiles, TileType);
@@ -1349,10 +1374,11 @@ void AddSubsurfaceViewPass(
 				*/
 			AddSubsurfaceTiledScreenPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("SSS::Recombine(%s %s%s%s%s%s) %dx%d",
+				RDG_EVENT_NAME("SSS::Recombine(%s %s%s%s%s%s%s) %dx%d",
 					GetEventName(PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionMode>()),
 					FSubsurfaceRecombinePS::GetEventName(PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionQuality>()),
 					PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionCheckerboard>() ? TEXT(" Checkerboard") : TEXT(""),
+					FSubsurfaceRecombinePS::GetCheckerBoardNeighborSSSValidation(bCheckerboard) ? TEXT("-Validation") : TEXT(""),
 					PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionHalfRes>() ? TEXT(" HalfRes") : TEXT(""),
 					PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FRunningInSeparable>() ? TEXT(" RunningInSeparable") : TEXT(""),
 					!bShouldFallbackToFullScreenPass ? TEXT(" Tiled") : TEXT(""),

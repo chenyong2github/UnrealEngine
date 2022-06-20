@@ -85,6 +85,18 @@ RWTexture2D<uint> ProfileIdTexture;
 	#define SUBSURFACE_HALFRES 1
 #endif
 
+// Validate if the checkerboard neighbor pixel is subsurface in recombine pass
+#ifndef SUBSURFACE_RECOMBINE
+	#define SUBSURFACE_RECOMBINE 0
+#endif
+
+#ifndef CHECKERBOARD_NEIGHBOR_SSS_VALIDATION
+	#define CHECKERBOARD_NEIGHBOR_SSS_VALIDATION SUBSURFACE_RECOMBINE
+	#if CHECKERBOARD_NEIGHBOR_SSS_VALIDATION
+uint CheckerboardNeighborSSSValidation;
+	#endif
+#endif
+
 //=============================================================================
 // setup for "SeparableSSS.ush"
 //=============================================================================
@@ -439,11 +451,39 @@ struct SDiffuseAndSpecular
 	float3 Specular;
 };
 
+#if CHECKERBOARD_NEIGHBOR_SSS_VALIDATION
+bool IsCheckerBoardNeighborSubsurface(float2 SceneUV, int2 PixelOffset)
+{
+	const float2 UV = SceneUV + PixelOffset * View.BufferSizeAndInvSize.zw;
+
+#if STRATA_ENABLED
+	const FStrataSubsurfaceData SSSData = LoadStataSSSData(UV);
+	const bool bHasSSSProfile = SSSData.bIsValid;
+#else
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
+	const bool bHasSSSProfile = UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID);
+#endif
+
+	return bHasSSSProfile;
+}
+#endif
+
 // can be moved/shared
 half3 LookupSceneColor(float2 SceneUV, int2 PixelOffset)
 {
 	// faster
-	return SubsurfaceInput0_Texture.SampleLevel(SharedSubsurfaceSampler0, SceneUV, 0, PixelOffset).rgb;
+	float3 SceneColor = SubsurfaceInput0_Texture.SampleLevel(SharedSubsurfaceSampler0, SceneUV, 0, PixelOffset).rgb;
+
+#if CHECKERBOARD_NEIGHBOR_SSS_VALIDATION
+	// Fix border background color leaking into subsurface diffuse/specular.
+	BRANCH
+	if (CheckerboardNeighborSSSValidation != 0)
+	{
+		bool bIsSubsurface = IsCheckerBoardNeighborSubsurface(SceneUV, PixelOffset);
+		SceneColor = lerp(0, SceneColor, bIsSubsurface);
+	}
+#endif
+	return SceneColor;
 }
  
 // @param UVSceneColor for the full res rendertarget (BufferSize) e.g. SceneColor or GBuffers
