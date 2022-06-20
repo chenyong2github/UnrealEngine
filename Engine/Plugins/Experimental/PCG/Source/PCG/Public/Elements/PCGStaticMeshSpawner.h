@@ -7,6 +7,7 @@
 #include "MeshSelectors/PCGMeshSelectorBase.h"
 
 #include "Engine/CollisionProfile.h"
+#include "Templates/SubclassOf.h"
 
 #include "PCGStaticMeshSpawner.generated.h"
 

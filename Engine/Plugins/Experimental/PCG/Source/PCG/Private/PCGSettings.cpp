@@ -2,6 +2,7 @@
 
 #include "PCGSettings.h"
 #include "PCGNode.h"
+#include "PCGSubsystem.h"
 #include "Serialization/ArchiveObjectCrc32.h"
 
 #if WITH_EDITOR
