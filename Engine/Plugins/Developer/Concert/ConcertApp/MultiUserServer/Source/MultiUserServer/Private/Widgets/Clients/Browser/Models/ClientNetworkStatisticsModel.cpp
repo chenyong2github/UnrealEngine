@@ -65,6 +65,12 @@ TOptional<FMessageTransportStatistics> UE::MultiUserServer::FClientNetworkStatis
 	return {};
 }
 
+bool UE::MultiUserServer::FClientNetworkStatisticsModel::IsOnline(const FMessageAddress& ClientAddress) const
+{
+	INetworkMessagingExtension* Statistics = Private::GetMessagingStatistics();
+	return Statistics && Statistics->GetNodeIdFromAddress(ClientAddress).IsValid();
+}
+
 void UE::MultiUserServer::FClientNetworkStatisticsModel::RegisterOnTransferUpdatedFromThread(const FMessageAddress& ClientAddress, FOnMessageTransportStatisticsUpdated StatisticUpdateCallback)
 {
 	INetworkMessagingExtension* Statistics = Private::GetMessagingStatistics();

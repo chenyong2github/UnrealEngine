@@ -7,7 +7,9 @@
 #include "INetworkMessagingExtension.h"
 #include "SClientNetworkStats.h"
 #include "Models/IClientNetworkStatisticsModel.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -134,7 +136,29 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowserItem::CreateFooter
 		.BorderImage(FConcertServerStyle::Get().GetBrush("Concert.Clients.ThumbnailFooter"))
 		[
 			SNew(SHorizontalBox)
-					
+
+			// Online / offline indicator
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.Padding(2.f)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Icons.FilledCircle"))
+				.ColorAndOpacity_Lambda([this]()
+				{
+					return StatModel->IsOnline(Item->ClientAddress)
+						? FStyleColors::AccentGreen
+						: FStyleColors::AccentGray;
+				})
+				.ToolTipText_Lambda([this]()
+				{
+					return StatModel->IsOnline(Item->ClientAddress)
+						? LOCTEXT("ConnectionIndicator.Online", "Connected")
+						: LOCTEXT("ConnectionIndicator.Online", "Not reachable");
+				})
+			]
+
+			// IP address
 			+SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
 			.Padding(2.f)

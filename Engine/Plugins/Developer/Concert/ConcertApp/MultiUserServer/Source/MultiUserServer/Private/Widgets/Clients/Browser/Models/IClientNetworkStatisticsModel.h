@@ -20,6 +20,8 @@ namespace UE::MultiUserServer
 	public:
 		
 		virtual TOptional<FMessageTransportStatistics> GetLatestNetworkStatistics(const FMessageAddress& ClientAddress) const = 0;
+		/** Whether this client is currently reachable */
+		virtual bool IsOnline(const FMessageAddress& ClientAddress) const = 0;
 
 		virtual void RegisterOnTransferUpdatedFromThread(const FMessageAddress& ClientAddress, FOnMessageTransportStatisticsUpdated StatisticsUpdatedCallback) = 0;
 		virtual void UnregisterOnTransferUpdatedFromThread(const FMessageAddress& ClientAddress) = 0;

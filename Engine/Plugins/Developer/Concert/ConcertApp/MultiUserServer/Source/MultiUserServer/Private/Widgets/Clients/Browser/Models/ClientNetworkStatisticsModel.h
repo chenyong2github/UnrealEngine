@@ -17,6 +17,7 @@ namespace UE::MultiUserServer
 
 		//~ Begin IClientNetworkStatisticsModel Interface
 		virtual TOptional<FMessageTransportStatistics> GetLatestNetworkStatistics(const FMessageAddress& ClientAddress) const override;
+		virtual bool IsOnline(const FMessageAddress& ClientAddress) const override;
 		virtual void RegisterOnTransferUpdatedFromThread(const FMessageAddress& ClientAddress, FOnMessageTransportStatisticsUpdated StatisticsUpdatedCallback) override;
 		virtual void UnregisterOnTransferUpdatedFromThread(const FMessageAddress& ClientAddress) override;
 		//~ End IClientNetworkStatisticsModel Interface
